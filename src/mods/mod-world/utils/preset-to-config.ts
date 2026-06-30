@@ -1,0 +1,195 @@
+/**
+ * @module preset-to-config.ts
+ * @description 预设/自定义世界 → WorldConfig 映射
+ * @mod mod-world
+ */
+
+import type { DifficultyLevel } from '@/foundation'
+
+import type { PresetWorld, WorldCategory } from '../constants/presets'
+import type { WorldConfig } from '../types'
+import { isWorldInitAIAvailable } from './world-init-fallback'
+
+const CATEGORY_ESSENCE: Record<WorldCategory, string> = {
+  cultivation: 'cultivation',
+  western_fantasy: 'western-fantasy',
+  eastern_fantasy: 'wuxia',
+  scifi: 'scifi',
+  post_apocalyptic: 'post-apocalyptic',
+  modern: 'modern',
+  survival_horror: 'dark-fantasy',
+  mixed: 'modern',
+}
+
+const CATEGORY_POWER: Record<WorldCategory, string> = {
+  cultivation: 'cultivation',
+  western_fantasy: 'magic',
+  eastern_fantasy: 'martial',
+  scifi: 'technology',
+  post_apocalyptic: 'none',
+  modern: 'none',
+  survival_horror: 'magic',
+  mixed: 'none',
+}
+
+const CATEGORY_SPATIAL: Record<WorldCategory, string> = {
+  cultivation: 'plane',
+  western_fantasy: 'plane',
+  eastern_fantasy: 'plane',
+  scifi: 'universe',
+  post_apocalyptic: 'plane',
+  modern: 'plane',
+  survival_horror: 'plane',
+  mixed: 'plane',
+}
+
+const CATEGORY_CIVILIZATION: Record<WorldCategory, string> = {
+  cultivation: 'medieval',
+  western_fantasy: 'medieval',
+  eastern_fantasy: 'medieval',
+  scifi: 'modern',
+  post_apocalyptic: 'industrial',
+  modern: 'modern',
+  survival_horror: 'medieval',
+  mixed: 'modern',
+}
+
+/** 自定义世界输入（与 mod-pages SavedCustomWorld 字段对齐） */
+export interface CustomWorldInput {
+  name: string
+  description: string
+  worldview: string
+}
+
+function inferEssenceFromText(text: string): string {
+  const lower = text.toLowerCase()
+  if (/修仙|仙侠|灵气|宗门|渡劫/.test(text)) return 'cultivation'
+  if (/武侠|江湖|内力|门派/.test(text)) return 'wuxia'
+  if (/科幻|星际|太空|赛博|2077|40k|战锤/.test(text) || lower.includes('scifi')) return 'scifi'
+  if (/末世|废土|丧尸|核战/.test(text)) return 'post-apocalyptic'
+  if (/魔法|巫师|奇幻|龙|精灵/.test(text)) return 'western-fantasy'
+  if (/恐怖|克苏鲁|scp|异常/.test(text)) return 'dark-fantasy'
+  if (/现代|都市|2000|2020|2077/.test(text)) return 'modern'
+  return 'modern'
+}
+
+function inferCivilizationFromPreset(preset: PresetWorld): string {
+  const year = typeof preset.config.eraStartYear === 'number' ? preset.config.eraStartYear : undefined
+  if (preset.category === 'modern') return 'modern'
+  if (preset.category === 'scifi') {
+    if (year && year >= 3000) return 'space'
+    return 'modern'
+  }
+  if (preset.category === 'post_apocalyptic') return 'industrial'
+  if (preset.category === 'cultivation' || preset.category === 'western_fantasy') return 'medieval'
+  return CATEGORY_CIVILIZATION[preset.category] ?? 'medieval'
+}
+
+function inferPowerCeiling(spatialForm: string): number {
+  return spatialForm === 'universe' ? 12 : 8
+}
+
+/** 预设世界 → WorldConfig
+ * @param preset 预设世界对象
+ * @param difficulty 难度等级
+ * @returns WorldConfig
+ */
+export function buildWorldConfigFromPreset(
+  preset: PresetWorld,
+  difficulty: DifficultyLevel,
+): WorldConfig {
+  let essenceTag = CATEGORY_ESSENCE[preset.category] ?? 'modern'
+  let powerSystemTag = CATEGORY_POWER[preset.category] ?? 'none'
+
+  if (preset.worldviewId === 'materialist') {
+    powerSystemTag = 'none'
+  } else if (preset.worldviewId === 'idealist' && preset.category === 'mixed') {
+    if (isWorldInitAIAvailable()) {
+      essenceTag = 'modern'
+      powerSystemTag = 'technology'
+    } else {
+      essenceTag = inferEssenceFromText(preset.description)
+      powerSystemTag = essenceTag === 'modern' || essenceTag === 'scifi' ? 'technology' : 'cultivation'
+    }
+  }
+
+  const spatialForm = CATEGORY_SPATIAL[preset.category] ?? 'plane'
+
+  return {
+    name: preset.name,
+    essenceTag,
+    powerSystemTag,
+    powerCeiling: inferPowerCeiling(spatialForm),
+    spatialForm,
+    civilizationStage: inferCivilizationFromPreset(preset),
+    difficulty,
+    description: preset.description,
+  }
+}
+
+/** 自定义世界 → WorldConfig
+ * @param input 自定义世界输入
+ * @param difficulty 难度等级
+ * @returns WorldConfig
+ */
+export function buildWorldConfigFromCustom(
+  input: CustomWorldInput,
+  difficulty: DifficultyLevel,
+): WorldConfig {
+  const wv = input.worldview
+  let essenceTag = 'modern'
+  let powerSystemTag: string = 'none'
+
+  if (wv === 'idealist' || wv === 'cultivation') {
+    essenceTag = 'cultivation'
+    powerSystemTag = 'cultivation'
+  } else if (wv === 'materialist_cultivation') {
+    essenceTag = 'materialist_cultivation'
+    powerSystemTag = 'cultivation'
+  } else if (wv === 'idealist_cultivation') {
+    essenceTag = 'idealist_cultivation'
+    powerSystemTag = 'cultivation'
+  } else if (wv === 'materialist' || wv === 'modern') {
+    essenceTag = 'modern'
+    powerSystemTag = 'none'
+  } else if (wv === 'survival_horror') {
+    essenceTag = 'dark-fantasy'
+    powerSystemTag = 'magic'
+  } else {
+    if (isWorldInitAIAvailable()) {
+      essenceTag = 'modern'
+      powerSystemTag = 'none'
+    } else {
+      essenceTag = inferEssenceFromText(input.description)
+      if (essenceTag === 'cultivation' || essenceTag === 'wuxia') {
+        powerSystemTag = essenceTag === 'wuxia' ? 'martial' : 'cultivation'
+      } else if (essenceTag === 'scifi') {
+        powerSystemTag = 'technology'
+      } else if (essenceTag === 'western-fantasy' || essenceTag === 'dark-fantasy') {
+        powerSystemTag = 'magic'
+      }
+    }
+  }
+
+  const spatialForm = essenceTag === 'scifi' ? 'universe' : 'plane'
+
+  return {
+    name: input.name,
+    essenceTag,
+    powerSystemTag,
+    powerCeiling: inferPowerCeiling(spatialForm),
+    spatialForm,
+    civilizationStage: essenceTag === 'modern' || essenceTag === 'scifi' ? 'modern' : 'medieval',
+    difficulty,
+    description: input.description,
+  }
+}
+
+/** 分配自定义世界编码（对齐废案 allocateWorldCode）
+ * @returns 生成的世界编码
+ */
+export function allocateWorldCode(): number {
+  const ts = Date.now() % 10_000_000_000
+  const rand = Math.floor(Math.random() * 10_000)
+  return ts * 10_000 + rand
+}

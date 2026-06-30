@@ -1,0 +1,100 @@
+/**
+ * @module auto-generated
+ * @description 自动生成文件，由 scripts/codegen/generate-mod-wiring.mjs 维护 — 请勿手动编辑
+ * @mod codegen
+ * Regenerate: npm run generate:wiring
+ */
+
+/** 全项目事件常量（由 manifest.events 自动生成，勿手动编辑） */
+export const EVENTS = {
+  // mod-base-universe
+  MOD_BASE_UNIVERSE_CELESTIAL_PHASE_CHANGED: 'mod-base-universe:celestial-phase-changed',
+  MOD_BASE_UNIVERSE_ERA_CHANGED: 'mod-base-universe:era-changed',
+  MOD_BASE_UNIVERSE_MAP_UPDATED: 'mod-base-universe:map-updated',
+  MOD_BASE_UNIVERSE_PROPHECY_FULFILLED: 'mod-base-universe:prophecy-fulfilled',
+  MOD_BASE_UNIVERSE_PROPHECY_BROKEN: 'mod-base-universe:prophecy-broken',
+  MOD_BASE_UNIVERSE_DEITY_EMERGED: 'mod-base-universe:deity-emerged',
+  MOD_BASE_UNIVERSE_DEITY_DEPARTED: 'mod-base-universe:deity-departed',
+  MOD_ENGINE_ROUND_COMPLETE: 'mod-engine:round-complete',
+  // mod-character
+  MOD_CHARACTER_CREATED: 'mod-character:created',
+  MOD_CHARACTER_DIED: 'mod-character:died',
+  MOD_CHARACTER_STAGE_CHANGED: 'mod-character:stage-changed',
+  MOD_CHARACTER_BREAKTHROUGH: 'mod-character:breakthrough',
+  // mod-culture
+  MOD_CULTURE_FESTIVAL_TRIGGERED: 'mod-culture:festival-triggered',
+  MOD_CULTURE_MASTERPIECE_CREATED: 'mod-culture:masterpiece-created',
+  MOD_CULTURE_TECH_ADVANCE: 'mod-culture:tech-advance',
+  MOD_CULTURE_REPUTATION_MILESTONE: 'mod-culture:reputation-milestone',
+  MOD_CULTURE_ACHIEVEMENT_UNLOCKED: 'mod-culture:achievement-unlocked',
+  MOD_CULTURE_RELATIONSHIP_CHANGE: 'mod-culture:relationship-change',
+  MOD_CULTURE_FAMILY_BIRTH: 'mod-culture:family-birth',
+  MOD_CULTURE_FAMILY_DEATH: 'mod-culture:family-death',
+  MOD_CULTURE_DISCIPLE_JOINED: 'mod-culture:disciple-joined',
+  MOD_CULTURE_SKILL_MASTERED: 'mod-culture:skill-mastered',
+  // mod-difficulty
+  MOD_DIFFICULTY_CHANGED: 'mod-difficulty:changed',
+  // mod-economy
+  MOD_ECONOMY_MARKET_PHASE_CHANGE: 'mod-economy:market-phase-change',
+  MOD_ECONOMY_SETTLEMENT_UPGRADE: 'mod-economy:settlement-upgrade',
+  MOD_ECONOMY_ITEM_ACQUIRED: 'mod-economy:item-acquired',
+  MOD_ECONOMY_CAREER_PROMOTION: 'mod-economy:career-promotion',
+  MOD_ECONOMY_POPULATION_MILESTONE: 'mod-economy:population-milestone',
+  // mod-engine
+  MOD_ENGINE_ROUND_START: 'mod-engine:round-start',
+  MOD_ENGINE_POST_NARRATIVE_NOTIFICATION: 'mod-engine:post-narrative-notification',
+  MOD_ENGINE_NARRATIVE_STREAM: 'mod-engine:narrative-stream',
+  MOD_ENGINE_NARRATIVE_COMPRESSED: 'mod-engine:narrative-compressed',
+  CORE_ALL_MODS_LOADED: 'core:all-mods-loaded',
+  // mod-environment-ecology
+  MOD_ENVIRONMENT_ECOLOGY_DISASTER_OCCURRED: 'mod-environment-ecology:disaster-occurred',
+  MOD_ENVIRONMENT_ECOLOGY_RESOURCE_DEPLETED: 'mod-environment-ecology:resource-depleted',
+  MOD_ENVIRONMENT_ECOLOGY_SPECIES_EXTINCT: 'mod-environment-ecology:species-extinct',
+  MOD_ENVIRONMENT_ECOLOGY_POLLUTION_CRITICAL: 'mod-environment-ecology:pollution-critical',
+  // mod-golden-finger
+  MOD_GOLDEN_FINGER_ASSIGNED: 'mod-golden-finger:assigned',
+  MOD_GOLDEN_FINGER_LEVELED_UP: 'mod-golden-finger:leveled-up',
+  MOD_GOLDEN_FINGER_FEATURE_UNLOCKED: 'mod-golden-finger:feature-unlocked',
+  MOD_GOLDEN_FINGER_PANEL_ACTION_TRIGGERED: 'mod-golden-finger:panel-action-triggered',
+  // mod-history-dynamics
+  MOD_HISTORY_DYNAMICS_EVENT_TRIGGERED: 'mod-history-dynamics:event-triggered',
+  MOD_HISTORY_DYNAMICS_CAUSAL_CHAIN_RESOLVED: 'mod-history-dynamics:causal-chain-resolved',
+  // mod-npc
+  MOD_NPC_NPC_CREATED: 'mod-npc:npc-created',
+  MOD_NPC_NPC_DIED: 'mod-npc:npc-died',
+  MOD_NPC_BEHAVIOR_TRIGGERED: 'mod-npc:behavior-triggered',
+  MOD_NPC_MEMORY_CREATED: 'mod-npc:memory-created',
+  MOD_NPC_RELATION_CHANGED: 'mod-npc:relation-changed',
+  // mod-politics
+  MOD_POLITICS_STRATUM_CHANGE: 'mod-politics:stratum-change',
+  MOD_POLITICS_FACTION_EMERGED: 'mod-politics:faction-emerged',
+  MOD_POLITICS_WAR_DECLARED: 'mod-politics:war-declared',
+  MOD_POLITICS_LAW_ENACTED: 'mod-politics:law-enacted',
+  MOD_POLITICS_CONFLICT_ESCALATED: 'mod-politics:conflict-escalated',
+  MOD_POLITICS_LANGUAGE_EVOLVED: 'mod-politics:language-evolved',
+  MOD_POLITICS_VALUE_SHIFT: 'mod-politics:value-shift',
+  // mod-power-system
+  MOD_POWER_SYSTEM_STAGE_BREAKTHROUGH: 'mod-power-system:stage-breakthrough',
+  MOD_POWER_SYSTEM_CULTIVATION_BOTTLENECK: 'mod-power-system:cultivation-bottleneck',
+  MOD_POWER_SYSTEM_CULTIVATION_BREAKTHROUGH: 'mod-power-system:cultivation-breakthrough',
+  MOD_POWER_SYSTEM_MONSTER_EVOLUTION: 'mod-power-system:monster-evolution',
+  MOD_POWER_SYSTEM_LUCK_CHANGED: 'mod-power-system:luck-changed',
+  MOD_POWER_SYSTEM_FORTUNE_ENCOUNTER_TRIGGERED: 'mod-power-system:fortune-encounter-triggered',
+  MOD_POWER_SYSTEM_FAITH_CHANGED: 'mod-power-system:faith-changed',
+  MOD_POWER_SYSTEM_SUPREME_ITEM_OBTAINED: 'mod-power-system:supreme-item-obtained',
+  MOD_POWER_SYSTEM_SUPREME_ITEM_AWAKENED: 'mod-power-system:supreme-item-awakened',
+  MOD_POWER_SYSTEM_DIVINE_INTERVENTION_TRIGGERED: 'mod-power-system:divine-intervention-triggered',
+  MOD_POWER_SYSTEM_ANOMALY_ZONE_APPEARED: 'mod-power-system:anomaly-zone-appeared',
+  MOD_POWER_SYSTEM_MATERIAL_DISCOVERED: 'mod-power-system:material-discovered',
+  // mod-tech-level
+  MOD_TECH_LEVEL_INDUSTRY_SHIFT: 'mod-tech-level:industry-shift',
+  MOD_TECH_LEVEL_TECH_BREAKTHROUGH: 'mod-tech-level:tech-breakthrough',
+  MOD_TECH_LEVEL_TREND_EMERGED: 'mod-tech-level:trend-emerged',
+  MOD_TECH_LEVEL_TREND_FADED: 'mod-tech-level:trend-faded',
+  // mod-world
+  MOD_WORLD_INITIALIZED: 'mod-world:initialized',
+  MOD_WORLD_ENTITIES_GENERATED: 'mod-world:entities-generated',
+  // mod-world-map
+  MOD_WORLD_MAP_REGION_SELECTED: 'mod-world-map:region-selected',
+  MOD_WORLD_MAP_VIEW_CHANGED: 'mod-world-map:view-changed',
+} as const

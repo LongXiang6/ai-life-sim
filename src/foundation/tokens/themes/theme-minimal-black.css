@@ -1,0 +1,54 @@
+/**
+ * @file theme-minimal-black.css
+ * @description 极简黑主题 —— Apple HIG 暗色模式，去装饰化，中性灰色系
+ * @mod foundation
+ *
+ * Apple HIG 暗色模式原则：
+ *   - 避免纯黑，使用深灰 #0f0f0f
+ *   - 文字对比度 WCAG AA 4.5:1+
+ *   - 表面用微透明 + 模糊替代纯色块
+ *   - 极简模式下无背景动画/装饰，无蓝色杂色
+ */
+
+[data-theme='minimal-black'] {
+  /* ==================== 主色 ==================== */
+  --color-primary: #d4d4d4;
+  --color-primary-hover: #e5e5e5;
+  --color-primary-light: rgba(212, 212, 212, 0.12);
+  --color-secondary: #9ca3af;
+  --color-text-on-primary: #1a1a1a;
+
+  /* ==================== 状态色 ==================== */
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-error: #f87171;
+  --color-info: #a3a3a3;
+  --color-error-bg: rgba(248, 113, 113, 0.1);
+
+  /* ==================== 背景层次（Apple HIG Depth） ==================== */
+  --color-bg: #0f0f0f;
+  --color-bg-primary: #0f0f0f;
+  --color-bg-secondary: #1a1a1a;
+  --color-bg-tertiary: #252525;
+  --color-bg-card: #1a1a1a;
+  --color-surface: rgba(26, 26, 26, 0.85);
+
+  /* ==================== 文字层次 ==================== */
+  --color-text-primary: #f5f5f5;
+  --color-text-secondary: #a3a3a3;
+  --color-text-tertiary: #737373;
+  --text-on-accent: #1a1a1a;
+
+  /* ==================== 边框 ==================== */
+  --color-border: #2e2e2e;
+  --color-border-focus: #a3a3a3;
+  --color-border-hover: rgba(255, 255, 255, 0.12);
+
+  /* ==================== 阴影 ==================== */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.4);
+
+  /* ==================== 辉光 ==================== */
+  --color-accent-glow: rgba(255, 255, 255, 0.04);
+}

@@ -1,0 +1,698 @@
+/**
+ * @file TalentDraw.module.css
+ * @description 命格抽取页面样式（对齐废弃项目 talent-draw 桌面端 UI）
+ * @mod mod-pages
+ */
+
+/* ================================================================
+   Keyframes
+   ================================================================ */
+
+@keyframes talent-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes talent-loading-spin {
+  100% { transform: rotate(1turn); }
+}
+
+/* ===== 命格稀有度边框发光（对齐废弃项目 base.css） ===== */
+@keyframes glowPulseCommon {
+  0%, 100% { box-shadow: 0 0 4px rgba(148, 163, 184, 0.3), 0 0 8px rgba(148, 163, 184, 0.15), 0 0 16px rgba(148, 163, 184, 0.08); }
+  50% { box-shadow: 0 0 8px rgba(148, 163, 184, 0.5), 0 0 14px rgba(148, 163, 184, 0.25), 0 0 24px rgba(148, 163, 184, 0.12); }
+}
+@keyframes glowPulseFine {
+  0%, 100% { box-shadow: 0 0 6px rgba(34, 197, 94, 0.4), 0 0 12px rgba(34, 197, 94, 0.2), 0 0 24px rgba(34, 197, 94, 0.1); }
+  50% { box-shadow: 0 0 10px rgba(34, 197, 94, 0.6), 0 0 20px rgba(34, 197, 94, 0.35), 0 0 36px rgba(34, 197, 94, 0.2); }
+}
+@keyframes glowPulseRare {
+  0%, 100% { box-shadow: 0 0 10px rgba(59, 130, 246, 0.45), 0 0 20px rgba(59, 130, 246, 0.25), 0 0 36px rgba(59, 130, 246, 0.12); }
+  50% { box-shadow: 0 0 16px rgba(59, 130, 246, 0.7), 0 0 30px rgba(59, 130, 246, 0.4), 0 0 50px rgba(59, 130, 246, 0.25); }
+}
+@keyframes glowPulseEpic {
+  0%, 100% { box-shadow: 0 0 14px rgba(168, 85, 247, 0.5), 0 0 28px rgba(168, 85, 247, 0.3), 0 0 48px rgba(168, 85, 247, 0.15); }
+  50% { box-shadow: 0 0 22px rgba(168, 85, 247, 0.75), 0 0 40px rgba(168, 85, 247, 0.5), 0 0 64px rgba(168, 85, 247, 0.3); }
+}
+@keyframes glowPulseLegendary {
+  0%, 100% { box-shadow: 0 0 18px rgba(245, 158, 11, 0.55), 0 0 36px rgba(245, 158, 11, 0.35), 0 0 60px rgba(245, 158, 11, 0.18); }
+  50% { box-shadow: 0 0 28px rgba(245, 158, 11, 0.8), 0 0 50px rgba(245, 158, 11, 0.55), 0 0 80px rgba(245, 158, 11, 0.35); }
+}
+
+:global(.glow-common) {
+  animation: glowPulseCommon 2.5s ease-in-out infinite;
+  animation-delay: var(--glow-delay, 0s);
+  animation-fill-mode: backwards;
+}
+:global(.glow-fine) {
+  animation: glowPulseFine 2.5s ease-in-out infinite;
+  animation-delay: var(--glow-delay, 0s);
+  animation-fill-mode: backwards;
+}
+:global(.glow-rare) {
+  animation: glowPulseRare 2.5s ease-in-out infinite;
+  animation-delay: var(--glow-delay, 0s);
+  animation-fill-mode: backwards;
+}
+:global(.glow-epic) {
+  animation: glowPulseEpic 3s ease-in-out infinite;
+  animation-delay: var(--glow-delay, 0s);
+  animation-fill-mode: backwards;
+}
+:global(.glow-legendary) {
+  animation: glowPulseLegendary 3.5s ease-in-out infinite;
+  animation-delay: var(--glow-delay, 0s);
+  animation-fill-mode: backwards;
+}
+
+/* ================================================================
+   Init Loading Screen
+   ================================================================ */
+
+.initCenter {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+}
+
+.initHeader {
+  text-align: center;
+  max-width: 360px;
+}
+
+.initIcon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.initTitle {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: 8px;
+  letter-spacing: -0.5px;
+}
+
+.initSubtitle {
+  font-size: 14px;
+  color: var(--color-text-tertiary);
+  margin-bottom: 24px;
+}
+
+/* ================================================================
+   Generating Screen
+   ================================================================ */
+
+.loadingBar {
+  margin-top: 16px;
+  width: 360px;
+}
+
+.loadingMsgRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.loadingMsg {
+  font-size: 13px;
+  color: var(--color-text-tertiary);
+}
+
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.progressTrack {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-bg-tertiary);
+  overflow: hidden;
+  position: relative;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--color-primary);
+  transition: width 0.25s ease;
+}
+
+.progressFillActive {
+  background: linear-gradient(
+    90deg,
+    var(--color-primary) 0%,
+    color-mix(in srgb, var(--color-primary) 70%, white) 45%,
+    var(--color-primary) 90%
+  );
+  background-size: 200% 100%;
+  animation: progressWavePulse 1.6s ease-in-out infinite;
+}
+
+@keyframes progressWavePulse {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.waitingRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 8px;
+  min-height: 24px;
+}
+
+.waitingText {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.progressText {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  min-width: 36px;
+}
+
+.elapsedText {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  min-width: 40px;
+}
+
+.timeoutWarn {
+  font-size: 11px;
+  color: var(--color-warning);
+  text-align: center;
+  margin-top: 6px;
+}
+
+/* ================================================================
+   Buttons (Init / Generating)
+   ================================================================ */
+
+.genBtn {
+  margin-top: 20px;
+  padding: 10px 32px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1.5px solid var(--color-primary);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.genBtn:hover {
+  background: var(--color-accent-glow);
+}
+
+.genBtn:active {
+  transform: scale(0.97);
+}
+
+.backBtnMargin {
+  margin-top: 14px;
+}
+
+.backBtnMarginLoading {
+  margin-top: 14px;
+}
+
+.outlineBtn {
+  padding: 10px 24px;
+  font-size: 13px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-primary);
+  border: 1.5px solid var(--color-primary);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.outlineBtn:hover {
+  background: var(--color-accent-glow);
+}
+
+.outlineBtn:active {
+  transform: scale(0.97);
+}
+
+/* ================================================================
+   Main Container
+   ================================================================ */
+
+.container {
+  max-width: 896px;
+  width: 100%;
+  margin: 0 auto;
+  min-height: 100%;
+  padding: 24px 32px 120px;
+  animation: talent-fade-in 0.5s ease-out;
+}
+
+/* ================================================================
+   Screen Header
+   ================================================================ */
+
+.screenHeader {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.headerIcon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.headerTitle {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--color-text-primary);
+  letter-spacing: -0.5px;
+}
+
+.headerStats {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+}
+
+.headerStatsCount {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+}
+
+.headerStatsCountFull {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.headerStatsPool {
+  color: var(--color-text-tertiary);
+}
+
+/* ================================================================
+   Error Banner
+   ================================================================ */
+
+.errorBanner {
+  margin-bottom: 16px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--color-error-bg);
+  font-size: 13px;
+  color: var(--color-error);
+}
+
+/* ================================================================
+   Selected Section (top cards)
+   ================================================================ */
+
+.selectedSection {
+  margin-bottom: 20px;
+}
+
+.selectedTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: 10px;
+}
+
+.selectedRow {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.emptySlot {
+  min-height: 80px;
+  border-radius: 10px;
+  border: 1px dashed var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: var(--color-text-tertiary);
+}
+
+.slotCard {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  transition: all 0.2s ease;
+  height: 120px;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+}
+
+.slotCard:hover {
+  transform: scale(1.02);
+}
+
+.slotCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.slotCardName {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.slotCardRarity {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.slotCardDesc {
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  line-height: 1.35;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+  flex: 1;
+  min-height: 54px;
+}
+
+.slotCardBody {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  margin-top: 2px;
+}
+
+.slotModifiers {
+  margin-top: auto;
+  padding-top: 4px;
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 6px;
+  flex-shrink: 0;
+}
+
+.slotModifierTag {
+  font-size: 9px;
+  line-height: 1.2;
+  color: var(--color-primary);
+  opacity: 0.9;
+}
+
+.slotAttrBonus {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 6px;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+
+.slotAttrBonusTag {
+  font-size: 9px;
+  line-height: 1.2;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  color: var(--color-success);
+  font-weight: 500;
+}
+
+.slotEffect {
+  font-size: 9px;
+  line-height: 1.3;
+  color: var(--color-primary);
+  opacity: 0.85;
+  margin: 2px 0 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+/* ================================================================
+   Grid Section
+   ================================================================ */
+
+.gridSection {
+  margin-top: 20px;
+}
+
+.gridTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: 10px;
+}
+
+.regeneratingHint {
+  font-size: 11px;
+  color: var(--color-primary);
+  font-weight: 400;
+}
+
+.talentGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  opacity: 1;
+  transition: opacity 0.2s;
+}
+
+.talentGridLoading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* ================================================================
+   Slot (grid cells)
+   ================================================================ */
+
+.slot {
+  padding: 10px;
+  border-radius: 10px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-bg-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  height: 140px;
+  display: flex;
+  flex-direction: column;
+}
+
+.slotEmpty {
+  cursor: default;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.selectedSlotPlaceholder {
+  border-style: dashed;
+  border-color: var(--color-border);
+  cursor: default;
+}
+
+.slotEmptyNum {
+  font-size: 16px;
+  color: var(--color-text-tertiary);
+  font-weight: 300;
+}
+
+.slotSelected {
+  border-color: var(--color-primary);
+  background: var(--color-accent-glow);
+}
+
+.slotFull {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.slotAvailable {
+  opacity: 1;
+}
+
+.slotHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.slotNum {
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.slotNumMuted {
+  opacity: 0.4;
+}
+
+.slotStatus {
+  font-size: 8px;
+  color: var(--color-primary);
+}
+
+.slotRarity {
+  font-size: 8px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.slotDesc {
+  font-size: 10px;
+  color: var(--color-text-secondary);
+  line-height: 1.35;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+  flex: 1;
+  min-height: 54px;
+}
+
+.slotBody {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  margin-top: 4px;
+}
+
+.slotDescMuted {
+  opacity: 0.5;
+}
+
+.slotDescNormal {
+  opacity: 1;
+}
+
+/* ================================================================
+   Validation Message
+   ================================================================ */
+
+.validationMsg {
+  font-size: 11px;
+  color: var(--color-warning);
+  text-align: center;
+  margin-top: 16px;
+}
+
+/* ================================================================
+   Loading Spinners
+   ================================================================ */
+
+.loadingSpinner146 {
+  width: 50px;
+  aspect-ratio: 1;
+  display: grid;
+  border: 4px solid #0000;
+  border-radius: 50%;
+  border-right-color: var(--color-primary);
+  animation: talent-loading-spin 1s infinite linear;
+}
+
+.loadingSpinner146::before,
+.loadingSpinner146::after {
+  content: "";
+  grid-area: 1/1;
+  margin: 2px;
+  border: inherit;
+  border-radius: 50%;
+  animation: talent-loading-spin 2s infinite;
+}
+
+.loadingSpinner146::after {
+  margin: 8px;
+  animation-duration: 3s;
+}
+
+.loadingSpinner30 {
+  width: 50px;
+  aspect-ratio: 1;
+  display: grid;
+}
+
+.loadingSpinner30::before,
+.loadingSpinner30::after {
+  content: "";
+  grid-area: 1/1;
+  border-radius: 50%;
+  background: repeating-radial-gradient(
+    farthest-side,
+    #0000 0%,
+    var(--color-text-primary) 1% 10%,
+    #0000 11% 30%
+  );
+  -webkit-mask: repeating-conic-gradient(
+    var(--color-text-primary) 0 36deg,
+    #0000 0 72deg
+  );
+  animation: talent-loading-spin 4s infinite linear;
+}
+
+.loadingSpinner30::after {
+  -webkit-mask: repeating-conic-gradient(
+    #0000 0 36deg,
+    var(--color-text-primary) 0 72deg
+  );
+  animation-direction: reverse;
+}
+
+/* ================================================================
+   Responsive — Mobile (max-width: 640px)
+   ================================================================ */
+
+@media (max-width: 640px) {
+  .container {
+    padding: 16px 12px;
+  }
+
+  .screenHeader {
+    margin-bottom: 18px;
+  }
+
+  .headerTitle {
+    font-size: 20px;
+    margin-bottom: 4px;
+  }
+
+  .talentGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .slot {
+    padding: 8px;
+    border-radius: 8px;
+  }
+
+  .slotDesc {
+    font-size: 9px;
+  }
+}

@@ -1,0 +1,34 @@
+/* ===== 废弃项目同款：settings-tab-theme.module.css ===== */
+
+/* Layout */
+.section {
+  background: var(--color-surface); border-radius: 12px; overflow: hidden;
+  margin-bottom: 20px; border: 1px solid var(--color-border);
+}
+.sectionHeader {
+  padding: 14px 16px 10px; border-bottom: 1px solid var(--color-border);
+  font-size: 13px; font-weight: 600; color: var(--color-text-secondary); letter-spacing: -0.2px;
+}
+.sectionBody { padding: 12px 16px 16px; }
+.sectionBodyFlex { padding: 12px 16px 16px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Buttons */
+.chipBtn { padding: 6px 14px; font-size: 12px; border-radius: 8px; cursor: pointer; color: var(--color-text-primary); transition: all 0.2s ease; }
+.styleBtn { padding: 8px 16px; font-size: 13px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; }
+.actionBtn { padding: 7px 14px; font-size: 12px; border-radius: 8px; cursor: pointer; border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text-primary); transition: all 0.2s ease; }
+.smallBtn { padding: 4px 10px; font-size: 11px; border-radius: 6px; cursor: pointer; border: 1px solid var(--color-border); background: var(--color-bg); }
+.modeBtn { padding: 3px 10px; font-size: 11px; border-radius: 6px; cursor: pointer; border: 1px solid var(--color-border); color: var(--color-text-primary); }
+
+/* Typography */
+.subLabel { font-size: 11px; font-weight: 400; color: var(--color-text-tertiary); margin-left: 6px; }
+.hint { font-size: 12px; color: var(--color-text-tertiary); line-height: 1.6; }
+.cacheHint { font-size: 11px; color: var(--color-text-tertiary); margin-top: 6px; line-height: 1.5; }
+.cacheInfo { font-size: 13px; color: var(--color-text-primary); }
+.cacheInfoFlex { flex: 1; }
+.modeGroupLabel { font-size: 11px; color: var(--color-text-tertiary); }
+.flexRowSm { display: flex; gap: 6px; flex-wrap: wrap; }
+.statsRow { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.presetRow { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; align-items: center; }
+.modeGroup { display: flex; gap: 4px; align-items: center; margin-left: 4px; }
+.progressBar { height: 6px; border-radius: 3px; background: var(--color-bg); overflow: hidden; }
+.progressFill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }

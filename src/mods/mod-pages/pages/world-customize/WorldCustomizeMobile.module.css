@@ -1,0 +1,162 @@
+/* WorldCustomizeMobile.module.css —— 宏观维度卡片 + 三态模式（移动端） */
+
+.container {
+  padding: 16px 14px 0;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.headerIcon {
+  font-size: 28px;
+  margin-bottom: 6px;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  letter-spacing: -0.5px;
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+/* ===== Dimension List ===== */
+.dimList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 16px;
+}
+
+/* ===== Dimension Card ===== */
+.dimCard {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+}
+
+.dimTop {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.dimIcon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.dimBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.dimLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 2px;
+}
+
+.dimDesc {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+}
+
+/* ===== Mode Selector ===== */
+.modeBar {
+  display: flex;
+  gap: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  margin-bottom: 8px;
+}
+
+.modeBtn {
+  flex: 1;
+  padding: 6px 0;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  background: var(--color-bg-primary);
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-default);
+  border-right: 1px solid var(--color-border);
+  min-height: 44px;
+}
+
+.modeBtn:last-child {
+  border-right: none;
+}
+
+.modeBtnActive {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* ===== Controls ===== */
+.aiHint {
+  display: block;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  font-style: italic;
+  padding: 4px 0;
+}
+
+.dimDropdown {
+  width: 100%;
+}
+
+.customInput {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-family: inherit;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  outline: none;
+  box-sizing: border-box;
+  resize: none;
+  overflow: hidden;
+  min-height: 36px;
+  line-height: 1.5;
+}
+
+.customInput::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.customInput:focus {
+  border-color: var(--color-border-focus);
+}
+
+.descSection { margin-bottom: 16px; }
+.descLabel { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.descInput {
+  width: 100%; min-height: 72px; padding: 8px 10px; font-size: 13px;
+  border: 1px solid var(--color-border); border-radius: 8px;
+  background: var(--color-bg-primary); color: var(--color-text-primary); resize: vertical;
+}
+.descCharCount {
+  margin-top: 4px;
+  font-size: 10px;
+  color: var(--color-text-tertiary);
+  text-align: right;
+}
+.dimLabelRow { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.lockLabel { display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--color-text-tertiary); }

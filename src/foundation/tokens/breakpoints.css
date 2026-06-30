@@ -1,0 +1,17 @@
+/**
+ * @file breakpoints.css
+ * @description Design Token —— 响应式断点变量
+ * @mod foundation
+ *
+ * 规范来源：design-tokens.md §5 响应式断点
+ *
+ * 移动优先：默认样式为移动端，md: 断点及以上为桌面端
+ */
+
+:root {
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+  --breakpoint-2xl: 1536px;
+}

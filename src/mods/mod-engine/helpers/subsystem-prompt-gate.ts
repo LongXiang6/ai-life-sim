@@ -1,0 +1,261 @@
+/**
+ * @module subsystem-prompt-gate.ts
+ * @description 叙事 Prompt 注入门控 —— 空 summary / 噪声过滤 / 分层状态卡 / 去重
+ * @mod mod-engine
+ */
+
+import type { RoundContext, SubSystemState } from '@/foundation'
+
+/** memorySummary【当前状态】三层 */
+export type PromptStateLayer = 'personal' | 'local' | 'world'
+
+const LAYER_HEADERS: Record<PromptStateLayer, string> = {
+  personal: '【主角即时】',
+  local: '【本地环境】',
+  world: '【世界背景】',
+}
+
+/** 主角即时：属性、生存、职业、关系、背包等 */
+const PERSONAL_LAYER_IDS = new Set([
+  'character-base',
+  'health',
+  'lifespan',
+  'morality',
+  'luck',
+  'faith',
+  'family',
+  'education',
+  'work',
+  'relationship',
+  'marriage',
+  'settlement',
+  'item',
+  'skill',
+  'destiny-pattern',
+  'personal-ability',
+  'disciple',
+  'works',
+  'achievement',
+  'golden-finger',
+  'combat-power',
+  'cultivation',
+  'post-death-epilogue',
+  'life-stage',
+  'attribute-decay',
+  'fortune-encounter',
+  'special-material',
+  'supreme-item',
+  'reputation',
+  'culture',
+  'art',
+  'language-naming',
+])
+
+/** 本地环境：所在区域、气候、法律、生态、资源等 */
+const LOCAL_LAYER_IDS = new Set([
+  'world-map',
+  'climate',
+  'pollution',
+  'natural-resource',
+  'ecology',
+  'terrain',
+  'geography',
+  'legal',
+  'social-stratification',
+  'social-values',
+  'monster',
+  'market',
+  'economy',
+  'population',
+  'industry',
+  'agriculture',
+  'fate-prophecy',
+])
+
+/** 其余 isRelevant 且开放的子系统默认归入世界背景 */
+
+/** 不应注入 AI 的 summary 片段（未启用、未初始化等） */
+const PROMPT_NOISE_MARKERS = [
+  '未启用',
+  '此世界无',
+  '未初始化',
+  '尚未初始化',
+  '尚未定位',
+  '等待定居系统绑定',
+  '金手指未启用',
+  '修炼体系未启用',
+  '实体：0 个',
+  '0/0 事件已填充',
+] as const
+
+/** 叙事回合禁止 AI 直接写入 enabled 开关的子系统 */
+const NO_AI_ENABLED_TOGGLE = new Set([
+  'cultivation',
+  'monster',
+  'anomaly-phenomena',
+  'divine-intervention',
+  'divine-creation',
+])
+
+export function resolvePromptStateLayer(subsystemId: string): PromptStateLayer {
+  if (PERSONAL_LAYER_IDS.has(subsystemId)) return 'personal'
+  if (LOCAL_LAYER_IDS.has(subsystemId)) return 'local'
+  return 'world'
+}
+
+export function isPromptNoiseSummary(summary: string | undefined | null): boolean {
+  const text = summary?.trim() ?? ''
+  if (!text) return true
+  return PROMPT_NOISE_MARKERS.some((m) => text.includes(m))
+}
+
+export function isSubsystemDataEnabled(data: unknown): boolean {
+  if (!data || typeof data !== 'object') return true
+  const record = data as Record<string, unknown>
+  if (typeof record.enabled === 'boolean') return record.enabled
+  if (record.mode === 'off') return false
+  return true
+}
+
+/** 子系统是否允许出现在 memorySummary / subsystemFields */
+export function isSubsystemOpenForPrompt(state: SubSystemState | undefined): boolean {
+  if (!state?.summary?.trim()) return false
+  if (isPromptNoiseSummary(state.summary)) return false
+  if (!isSubsystemDataEnabled(state.data)) return false
+  return true
+}
+
+function normalizeSummaryLine(summary: string): string {
+  return summary.trim()
+}
+
+/** 收集已注入 memorySummary 的 summary 文本（供 currentState 去重） */
+export function collectMemoryStateSummaries(
+  allStates: Record<string, SubSystemState>,
+  isRelevant: (id: string, context: RoundContext) => boolean,
+  context: RoundContext,
+): string[] {
+  const lines: string[] = []
+  for (const [id, state] of Object.entries(allStates)) {
+    if (!isRelevant(id, context)) continue
+    if (!isSubsystemOpenForPrompt(state)) continue
+    lines.push(normalizeSummaryLine(state.summary))
+  }
+  return lines
+}
+
+/**
+ * 构建三层【当前状态】文本（P1-5）
+ * 顺序：主角即时 → 本地环境 → 世界背景（空层省略）
+ */
+export function buildLayeredMemoryStateCard(
+  allStates: Record<string, SubSystemState>,
+  isRelevant: (id: string, context: RoundContext) => boolean,
+  context: RoundContext,
+): string {
+  const buckets: Record<PromptStateLayer, string[]> = {
+    personal: [],
+    local: [],
+    world: [],
+  }
+
+  for (const [id, state] of Object.entries(allStates)) {
+    if (!isRelevant(id, context)) continue
+    if (!isSubsystemOpenForPrompt(state)) continue
+    const layer = resolvePromptStateLayer(id)
+    buckets[layer].push(normalizeSummaryLine(state.summary))
+  }
+
+  const parts: string[] = []
+  for (const layer of ['personal', 'local', 'world'] as const) {
+    if (buckets[layer].length === 0) continue
+    parts.push(LAYER_HEADERS[layer])
+    parts.push(buckets[layer].join('\n'))
+  }
+
+  return parts.join('\n')
+}
+
+/** @deprecated 使用 buildLayeredMemoryStateCard */
+export function buildMemoryStateCard(
+  allStates: Record<string, SubSystemState>,
+  isRelevant: (id: string, context: RoundContext) => boolean,
+  context: RoundContext,
+): string {
+  return buildLayeredMemoryStateCard(allStates, isRelevant, context)
+}
+
+/** P2-9：currentState 去掉已在 memorySummary 状态卡中出现过的 summary */
+export function dedupeSummariesAgainstMemory(
+  currentStateSummaries: string[],
+  memorySummaries: string[],
+): string[] {
+  const memorySet = new Set(memorySummaries.map(normalizeSummaryLine))
+  return currentStateSummaries
+    .map(normalizeSummaryLine)
+    .filter((line) => line.length > 0 && !memorySet.has(line))
+}
+
+/** 叙事 changes 提交门控：未启用子系统拒绝写入 */
+export function getNarrativeChangeBlockReason(
+  subsystemId: string,
+  changes: Record<string, unknown>,
+  context: RoundContext,
+): string | null {
+  const state = context.subsystemStates[subsystemId]
+  if (state && !isSubsystemOpenForPrompt(state)) {
+    return `子系统 "${subsystemId}" 在本局未启用或未就绪，拒绝 narrative 变更`
+  }
+
+  if (NO_AI_ENABLED_TOGGLE.has(subsystemId) && typeof changes.enabled !== 'undefined') {
+    return `子系统 "${subsystemId}" 的 enabled 不可由叙事 AI 修改`
+  }
+
+  return null
+}
+
+export function shouldSkipEconomyTierRules(config: Record<string, unknown>): boolean {
+  const powerSystemTag = config.powerSystemTag as string | undefined
+  if (powerSystemTag === 'none') return true
+  const ceiling = config.powerCeiling
+  if (typeof ceiling === 'number' && ceiling <= 1) return true
+  if (typeof ceiling === 'string') {
+    const n = Number(ceiling)
+    if (!Number.isNaN(n) && n <= 1) return true
+  }
+  return false
+}
+
+/** 叙事一致性头（自然语言，非 tag 正则切换） */
+export function buildNarrativeCoherenceHeader(
+  config: Record<string, unknown>,
+  characterAge: number,
+): string | undefined {
+  const parts: string[] = ['【叙事一致性】']
+  parts.push('世界基调以同条 Prompt 中 worldSetting.description 为准，禁止在此重复展开世界观全文。')
+  const powerTag = config.powerSystemTag as string | undefined
+  if (powerTag === 'none') {
+    parts.push('本局无超自然力量体系；不得将未出现在【当前状态】中的超常能力写为已成立事实。')
+  } else if (powerTag) {
+    parts.push(`力量体系标签：${powerTag}；仅使用【当前状态】中已出现的能力与设定。`)
+  }
+  parts.push(`角色当前年龄 ${characterAge} 岁；叙事细节须与此匹配。`)
+  parts.push('changes 仅可提交 availableSubsystemFields 中列出的子系统。')
+  return parts.join('\n')
+}
+
+/** 世界规则：description / 校准优先，tag 规则作兜底 */
+export function buildNarrativeWorldRules(
+  config: Record<string, unknown>,
+  fallbackFromTag: string,
+): string {
+  const parts: string[] = []
+  const cal = config._calibrationSummary
+  if (typeof cal === 'string' && cal.trim()) {
+    parts.push(cal.trim())
+  }
+  if (fallbackFromTag.trim()) {
+    parts.push(fallbackFromTag.trim())
+  }
+  return parts.join('\n')
+}

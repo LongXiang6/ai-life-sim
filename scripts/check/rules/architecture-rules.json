@@ -1,0 +1,45 @@
+{
+  "version": 2,
+  "registryPath": "scripts/check/rules/registry.json",
+  "allowedSecondaryPublicImports": {
+    "mod-character": [
+      "destiny-pattern-access"
+    ],
+    "mod-engine": [
+      "engine-api"
+    ],
+    "mod-world": [
+      "world-init-api"
+    ]
+  },
+  "forbiddenStaticOrchestratorImportMods": [
+    "mod-engine"
+  ],
+  "orchestratorStaticImportAllowMods": [
+    "mod-pages"
+  ],
+  "eagerSingletonPattern": "export\\s+const\\s+\\w+\\s*=\\s*new\\s+\\w+System\\s*\\(\\s*\\)",
+  "constructorStoreAccessPatterns": [
+    "getFormulaModifier\\s*\\(",
+    "getWorldCalibration\\s*\\(",
+    "\\.getState\\s*\\("
+  ],
+  "templateRequiredMarkers": [
+    "module evaluation",
+    "registerAllSubsystems"
+  ],
+  "generatedPublicBoundaryExceptions": [
+    "src/core/mod-loader/",
+    "src/mods/registry.generated.ts",
+    "src/mods/mod-engine/bootstrap/",
+    "src/mods/mod-engine/helpers/adaptation-prompt-registry.generated.ts"
+  ],
+  "allowedCrossModDeepImports": [],
+  "storeRegistryPublicBoundaryExceptions": [
+    {
+      "file": "src/core/global-store/slices/index.ts",
+      "allowedSubpath": "store",
+      "reason": "Core store registry intentionally imports each MOD store.ts without pulling public barrels."
+    }
+  ]
+}

@@ -1,0 +1,106 @@
+/* ===== 设置弹窗容器（参照废弃项目 desktop settings-modal.module.css） ===== */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.30);
+  backdrop-filter: blur(4px);
+}
+
+.modalFrame {
+  position: relative;
+  width: 90%;
+  max-width: 600px;
+  max-height: 70vh;
+  margin: 0 16px;
+  border-radius: 13px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 24px;
+  font-size: 13px;
+  line-height: 1.7;
+  opacity: 0.9;
+}
+
+/* ===== 标题栏 ===== */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.closeBtn {
+  font-size: 13px;
+  padding: 6px 16px;
+  border-radius: 14px;
+  border: 1.5px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.closeBtn:hover {
+  border-color: var(--color-primary);
+}
+
+/* ===== Tab 栏 ===== */
+.tabBar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-text-tertiary);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tab:hover {
+  color: var(--color-text-primary);
+}
+
+.tabActive {
+  color: var(--color-primary);
+  font-weight: 700;
+  border-bottom-color: var(--color-primary);
+}
+
+/* ===== Tab 内容区 ===== */
+.tabContent {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 320px;
+  scrollbar-width: none;
+}
+
+.tabContent::-webkit-scrollbar {
+  display: none;
+}

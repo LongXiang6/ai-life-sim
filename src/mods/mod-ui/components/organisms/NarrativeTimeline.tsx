@@ -1,0 +1,291 @@
+'use client'
+
+/**
+ * @module NarrativeTimeline
+ * @description 叙事时间线 —— 对齐废弃项目：虚拟窗口、分隔线、流式段落、内嵌推进区
+ * @mod mod-ui
+ */
+
+import { useEffect, useMemo, useRef, useState } from 'react'
+
+import styles from './NarrativeTimeline.module.css'
+
+const WINDOW_SIZE = 30
+const LOAD_MORE = 20
+
+export interface NarrativeEntry {
+  text: string
+  timestamp?: number
+  eraLabel?: string
+  ageLabel?: string
+  isDeath?: boolean
+  isLifeEnd?: boolean
+  isBranchPoint?: boolean
+  branchTitle?: string
+  resolvedChoice?: string
+  attrChanges?: Array<{ icon: string; label: string; change: number }>
+}
+
+export interface NarrativeTimelineProps {
+  entries: NarrativeEntry[]
+  streamingText?: string
+  scrollContainerRef?: React.RefObject<HTMLDivElement | null>
+  streamingHeader?: { eraLabel?: string; ageLabel?: string }
+  turnCount?: number
+  advanceText?: string
+  showAdvance?: boolean
+  advanceBlocked?: boolean
+  advanceBlockedText?: string
+  isGenerating?: boolean
+  hasEndingEvent?: boolean
+  onAdvance?: () => void
+  onGoToGameOver?: () => void
+  className?: string
+}
+
+export function NarrativeTimeline({
+  entries,
+  streamingText,
+  scrollContainerRef,
+  streamingHeader,
+  turnCount = 0,
+  advanceText = '轻触，让岁月流转',
+  showAdvance = false,
+  advanceBlocked = false,
+  advanceBlockedText = '✔ 请先选择命运',
+  isGenerating = false,
+  hasEndingEvent = false,
+  onAdvance,
+  onGoToGameOver,
+  className,
+}: NarrativeTimelineProps) {
+  const internalScrollRef = useRef<HTMLDivElement>(null)
+  const scrollRef = scrollContainerRef ?? internalScrollRef
+  const sentinelRef = useRef<HTMLDivElement>(null)
+  const scrollRestoreRef = useRef(0)
+  const prevTotalRef = useRef(entries.length)
+
+  const [renderStart, setRenderStart] = useState(0)
+
+  /* eslint-disable react-hooks/set-state-in-effect -- 事件总数变化时重置渲染窗口起点 */
+  useEffect(() => {
+    const total = entries.length
+    if (total === 0) {
+      setRenderStart(0)
+      return
+    }
+    if (total > prevTotalRef.current) {
+      setRenderStart(Math.max(0, total - WINDOW_SIZE))
+    } else {
+      setRenderStart((prev) => Math.min(prev, Math.max(0, total - WINDOW_SIZE)))
+    }
+    prevTotalRef.current = total
+  }, [entries.length])
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  const loadMore = () => {
+    if (renderStart <= 0) return
+    const container = scrollRef.current
+    if (container) scrollRestoreRef.current = container.scrollHeight
+    setRenderStart((prev) => Math.max(0, prev - LOAD_MORE))
+  }
+  const loadMoreRef = useRef(loadMore)
+
+  useEffect(() => {
+    loadMoreRef.current = loadMore
+  })
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    const container = scrollRef.current
+    if (!sentinel || !container || renderStart <= 0) return
+
+    const observer = new IntersectionObserver(
+      (observed) => {
+        if (observed[0]?.isIntersecting) loadMoreRef.current()
+      },
+      { root: container, rootMargin: '200px 0px 0px 0px', threshold: 0 },
+    )
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [renderStart, scrollRef])
+
+  useEffect(() => {
+    const container = scrollRef.current
+    if (container && scrollRestoreRef.current > 0) {
+      const diff = container.scrollHeight - scrollRestoreRef.current
+      if (diff > 0) container.scrollTop += diff
+      scrollRestoreRef.current = 0
+    }
+  }, [renderStart, scrollRef])
+
+  const eventElements = useMemo(() => {
+    const nodes: React.ReactNode[] = []
+
+    for (let i = renderStart; i < entries.length; i++) {
+      const entry = entries[i]
+      const isLatest = i === entries.length - 1 && !isGenerating
+      const isEnding = entry.isDeath || entry.isLifeEnd
+
+      if (i > renderStart || renderStart > 0) {
+        nodes.push(
+          <div data-separator-for={i} key={`divider-${i}`}>
+            <div className={styles.separator}>
+              <div className={styles.separatorLine} />
+              <span className={styles.separatorMark}>✔</span>
+              <div className={styles.separatorLine} />
+            </div>
+          </div>,
+        )
+      }
+
+      nodes.push(
+        <div
+          key={`entry-${i}`}
+          className={[
+            styles.entry,
+            isLatest ? styles.entryLatest : '',
+            isEnding ? styles.entryEnding : '',
+          ].filter(Boolean).join(' ')}
+        >
+          {(entry.eraLabel || entry.ageLabel) && (
+            <div className={styles.entryMeta}>
+              <span>{entry.eraLabel ?? ''}</span>
+              {entry.ageLabel && <span className={styles.entryAge}>{entry.ageLabel}</span>}
+            </div>
+          )}
+          <div className={styles.entryBody}>
+            {entry.text.split(/\n+/).filter(Boolean).map((paragraph, pIdx) => (
+              <p key={pIdx} className={styles.entryParagraph}>{paragraph.trim()}</p>
+            ))}
+          </div>
+          {entry.isBranchPoint && entry.resolvedChoice && (
+            <div className={styles.branchResolved}>
+              <p className={styles.branchResolvedTitle}>
+                ⚠️ 命运分叉点：{entry.branchTitle ?? '你的抉择'}
+              </p>
+              <p className={styles.branchResolvedChoice}>
+                你的选择：<span>{entry.resolvedChoice}</span>
+              </p>
+            </div>
+          )}
+        </div>,
+      )
+    }
+
+    if (isGenerating) {
+      nodes.push(
+        <div key="stream-divider">
+          <div className={styles.separator}>
+            <div className={styles.separatorLine} />
+            <span className={styles.separatorMark}>✔</span>
+            <div className={styles.separatorLine} />
+          </div>
+        </div>,
+      )
+      nodes.push(
+        <div key="stream-entry" className={styles.streamEntry}>
+          {(streamingHeader?.eraLabel || streamingHeader?.ageLabel) && (
+            <div className={styles.entryMeta}>
+              <span>{streamingHeader?.eraLabel ?? ''}</span>
+              {streamingHeader?.ageLabel && (
+                <span className={styles.entryAge}>{streamingHeader.ageLabel}</span>
+              )}
+            </div>
+          )}
+          <div className={styles.entryBody}>
+            {streamingText ? (
+              streamingText.split(/\n+/).filter(Boolean).map((paragraph, idx, arr) => (
+                <p key={idx} className={styles.entryParagraph}>
+                  {paragraph.trim()}
+                  {idx === arr.length - 1 && <span className={styles.cursor} />}
+                </p>
+              ))
+            ) : (
+              <p className={styles.entryParagraph}>
+                <span className={styles.cursor} />
+              </p>
+            )}
+          </div>
+        </div>,
+      )
+    }
+
+    return nodes
+  }, [renderStart, entries, isGenerating, streamingText, streamingHeader])
+
+  const canTapAdvance = showAdvance && !advanceBlocked && !isGenerating
+
+  return (
+    <div className={[styles.timelineShell, className].filter(Boolean).join(' ')}>
+      <main ref={scrollRef} className={styles.scrollMain}>
+        <div className={styles.timelineInner}>
+          <div data-narrative-header className={styles.timelineHeader}>
+            <span className={styles.timelineHeaderLabel}>故事进程</span>
+            <span className={styles.timelineHeaderRound}>第 {turnCount} 轮</span>
+          </div>
+
+          {entries.length === 0 && !isGenerating && (
+            <div className={styles.emptyState}>
+              <div className={styles.emptyIcon}>📖</div>
+              <p>故事即将开始...</p>
+              <p className={styles.emptyHint}>请点击下方文字开始模拟</p>
+            </div>
+          )}
+
+          {renderStart > 0 && (
+            <div ref={sentinelRef} className={styles.loadMore} onClick={loadMore} role="button" tabIndex={0}>
+              向上滚动加载更早的叙事（已隐藏 {renderStart} 条）
+            </div>
+          )}
+
+          {eventElements}
+
+          {showAdvance && (
+            <div className={styles.advanceArea}>
+              {hasEndingEvent ? (
+                <button type="button" className={styles.settleBtn} onClick={onGoToGameOver}>
+                  🎬 结算
+                </button>
+              ) : (
+                <div
+                  className={styles.advanceTap}
+                  onClick={canTapAdvance ? onAdvance : undefined}
+                  role="button"
+                  tabIndex={canTapAdvance ? 0 : undefined}
+                  style={{ cursor: canTapAdvance ? 'pointer' : 'not-allowed' }}
+                >
+                  <div
+                    className={[
+                      styles.advanceText,
+                      isGenerating
+                        ? styles.advanceGenerating
+                        : advanceBlocked
+                          ? styles.advanceBlocked
+                          : canTapAdvance
+                            ? styles.advanceIdle
+                            : styles.advanceGenerating,
+                    ].join(' ')}
+                  >
+                    {isGenerating ? (
+                      <div className={styles.advanceGeneratingInner}>
+                        <span className={styles.advanceGeneratingRow}>
+                          <span className={styles.advanceSpinner} />
+                          AI 正在书写命运...
+                        </span>
+                      </div>
+                    ) : advanceBlocked ? (
+                      advanceBlockedText
+                    ) : (
+                      advanceText
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  )
+}

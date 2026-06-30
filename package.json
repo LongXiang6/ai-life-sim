@@ -1,0 +1,57 @@
+{
+  "name": "ai-life-sim",
+  "version": "4.0.5",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/codegen/generate-mod-wiring.mjs && next dev --turbopack",
+    "dev:warm": "node scripts/codegen/generate-mod-wiring.mjs && node scripts/dev/dev-with-warmup.mjs",
+    "dev:warmup": "node scripts/dev/warm-dev-server.mjs",
+    "build": "node scripts/codegen/generate-mod-wiring.mjs && next build",
+    "start": "next start",
+    "lint": "eslint",
+    "generate:wiring": "node scripts/codegen/generate-mod-wiring.mjs",
+    "mod:create": "node scripts/codegen/create-mod.mjs",
+    "validate:narrative": "node scripts/check/domains/narrative/validate-narrative-wiring.mjs",
+    "validate:regression": "node scripts/check/domains/narrative/narrative-regression-seed.mjs",
+    "test:loader": "node scripts/check/domains/structural/test-mod-loader.mjs",
+    "test:calibration": "node scripts/check/domains/calibration/world-calibration-acceptance.mjs",
+    "test:prompt-wiring": "node scripts/check/domains/narrative/kv-prompt-audit.mjs && node scripts/check/domains/narrative/time-bridge-smoke.mjs && node scripts/check/domains/narrative/adaptation-calibration-audit.mjs && node scripts/check/domains/narrative/event-type-weights-smoke.mjs",
+    "generate:deps": "node scripts/check/dev/generate-dependency-graph.mjs",
+    "check": "node scripts/check/index.mjs full",
+    "check:quick": "node scripts/check/index.mjs quick",
+    "check:changed": "node scripts/check/index.mjs changed",
+    "check:structural": "node scripts/check/index.mjs structural",
+    "check:refactor": "node scripts/check/index.mjs refactor",
+    "check:wiring": "node scripts/check/index.mjs wiring",
+    "check:mod": "node scripts/check/index.mjs mod",
+    "check:ui": "node scripts/check/index.mjs ui",
+    "check:verbose": "node scripts/check/index.mjs full --verbose",
+    "gate-check": "node scripts/check/gate-check.mjs",
+    "gate-check:quick": "node scripts/check/gate-check.mjs --quick"
+  },
+  "dependencies": {
+    "next": "16.2.6",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "zod": "^4.4.3",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.6",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "ignoreScripts": [
+    "sharp",
+    "unrs-resolver"
+  ],
+  "trustedDependencies": [
+    "sharp",
+    "unrs-resolver"
+  ]
+}

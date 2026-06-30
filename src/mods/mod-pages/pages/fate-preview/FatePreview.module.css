@@ -1,0 +1,318 @@
+/**
+ * @file FatePreview.module.css
+ * @description 命运总览页面样式 —— 对齐废弃项目 fate-preview
+ * @mod mod-pages
+ */
+
+/* ===================================================================
+   Container & Layout
+   =================================================================== */
+.container {
+  min-height: 100%;
+  padding: 36px 24px 120px;
+  animation: talent-fade-in 0.5s ease-out;
+}
+
+@keyframes talent-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.headerTitle {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  text-align: center;
+  margin-bottom: 28px;
+  letter-spacing: -0.5px;
+}
+
+/* ===================================================================
+   Main Card
+   =================================================================== */
+.mainCard {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 28px;
+  border-radius: 18px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-primary);
+}
+
+/* ===================================================================
+   Character Header
+   =================================================================== */
+.charHeader {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.charIcon {
+  font-size: 52px;
+  margin-bottom: 10px;
+}
+
+.charName {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.charMeta {
+  font-size: 14px;
+  color: var(--color-text-tertiary);
+  margin-top: 4px;
+}
+
+/* ===================================================================
+   Section
+   =================================================================== */
+.section {
+  margin-bottom: 22px;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 10px;
+}
+
+/* ===================================================================
+   Info Grid (basic info)
+   =================================================================== */
+.infoGrid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 12px;
+  font-size: 14px;
+  align-items: center;
+}
+
+.infoLabel {
+  color: var(--color-text-tertiary);
+}
+
+.infoValue {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+/* ===================================================================
+   Attr Grid
+   =================================================================== */
+.attrGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.attrItem {
+  text-align: center;
+}
+
+.attrValue {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.attrValuePos {
+  color: var(--color-success);
+}
+
+.attrValueNeg {
+  color: var(--color-error);
+}
+
+.attrValueZero {
+  color: var(--color-text-tertiary);
+}
+
+/* ===================================================================
+   Talent Pills
+   =================================================================== */
+.talentRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.talentPill {
+  font-size: 11px;
+  padding: 4px 12px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+/* ===================================================================
+   Seed Section
+   =================================================================== */
+.seedBox {
+  text-align: center;
+}
+
+.seedRow {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.seedInput {
+  width: 200px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  text-align: center;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  outline: none;
+}
+
+.seedInput:focus {
+  border-color: var(--color-primary);
+}
+
+.seedBtn {
+  padding: 10px 18px;
+  font-size: 14px;
+  border-radius: 10px;
+  background: var(--color-primary);
+  color: var(--color-bg);
+  border: none;
+  cursor: pointer;
+}
+
+.seedHint {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  margin-top: 6px;
+}
+
+/* ===================================================================
+   Background Box
+   =================================================================== */
+.bgBox {
+  padding: 16px;
+  border-radius: 10px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  font-size: 13px;
+  line-height: 1.8;
+  color: var(--color-text-secondary);
+}
+
+/* ===================================================================
+   Lifespan Info
+   =================================================================== */
+.lifespanInfo {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* ===================================================================
+   Responsive — Mobile (max-width: 640px)
+   =================================================================== */
+@media (max-width: 640px) {
+  .container {
+    padding: 20px 12px 100px;
+  }
+
+  .headerTitle {
+    font-size: 22px;
+    margin-bottom: 20px;
+  }
+
+  .mainCard {
+    max-width: 100%;
+    padding: 20px 16px;
+    border-radius: 14px;
+  }
+
+  .charIcon {
+    font-size: 40px;
+  }
+
+  .charName {
+    font-size: 22px;
+  }
+
+  .attrGrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .attrValue {
+    font-size: 16px;
+  }
+
+  .seedInput {
+    width: 160px;
+    font-size: 13px;
+    padding: 8px 12px;
+  }
+
+  .seedBtn {
+    padding: 8px 14px;
+    font-size: 13px;
+  }
+}
+
+/* ===================================================================
+   AI Status Banner (世界初始化状态指示器)
+   =================================================================== */
+.aiStatusBanner {
+  max-width: 600px;
+  margin: 16px auto 0;
+  padding: 14px 20px;
+  border-radius: 12px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.aiStatusRunning {
+  color: var(--color-primary);
+  animation: ai-status-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes ai-status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.aiStatusFailed {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 10%, transparent);
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--color-error) 30%, transparent);
+}
+
+.aiStatusError {
+  font-size: 11px;
+  opacity: 0.8;
+  word-break: break-all;
+}
+
+.aiStatusIdle {
+  color: var(--color-text-tertiary);
+  background: var(--color-bg-secondary);
+  padding: 10px 16px;
+  border-radius: 10px;
+  display: inline-block;
+}
+
+@media (max-width: 640px) {
+  .aiStatusBanner {
+    margin: 12px 12px 0;
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+}

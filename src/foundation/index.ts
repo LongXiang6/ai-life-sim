@@ -1,0 +1,132 @@
+/**
+ * @module index.ts
+ * @description Foundation 层统一导出 —— 类型 + Token + 工具函数
+ * @mod foundation
+ */
+
+export {
+  cn,
+  parseJSON,
+  formatNumber,
+  clamp,
+  ROUND_DECIMALS,
+  round,
+  pickRandom,
+  clampNumber,
+  parseChineseNumber,
+  extractDynamicAttrsFromNarrative,
+  getAttrTier,
+  getAttrSemanticText,
+  getAllAttrSemanticText,
+  useIsMobile,
+  stringifyPrompt,
+  estimateTokenBudget,
+  scaleTokenBudgetByInputLength,
+  estimateTextTokens,
+  bumpTokenBudget,
+  TOKEN_BUDGET_DEFAULT_MIN,
+  TOKEN_BUDGET_HEADROOM,
+} from './utils'
+export type { EstimateTokenBudgetOptions } from './utils'
+export { getRoundSequence, getSimulationTicks, getAgeYearsDelta, getCalendarDaysDelta, shouldAdvanceSubsystem, consumeSimulationYears } from './utils/round-advance'
+export type {
+  AttrTagMap,
+  ExtractedAttrs,
+  AttrKey,
+  AttrTier,
+} from './utils'
+
+// 类型（types/index.ts 内部已使用具名导出，此处透传）
+export type {
+  ModManifest,
+  ModManifestV2,
+  ModCampaignHooks,
+  ModRoute,
+  ModEvents,
+  ModDependency,
+  ModFeatureFlags,
+  ModLifecycle,
+  ModLifecycleV2,
+  ModLifecycleV3,
+  ModSettingDeclaration,
+  ConfigurationChangedData,
+  ModContext,
+  ModScanEntry,
+  StorageNamespace,
+  IEventBus,
+  GlobalStore,
+  IAIService,
+  IStorageService,
+  ISubSystem,
+  ISubSystemV2,
+  ISubSystemV3,
+  ReadonlyRoundContext,
+  WritableRoundContext,
+  SubSystemState,
+  SubSystemChanges,
+  RoundContext,
+  TimeStep,
+  AIModelConfig,
+  NarrativeResponse,
+  ResponseFormat,
+  PromptTemplate,
+  PromptContext,
+  WorldSetting,
+  CharacterState,
+  SummaryLevel,
+  CompressedSummaryItem,
+  CompressedSummaries,
+  LifeStage,
+  DeathCause,
+  WorldDirectionRecord,
+  YearEvent,
+  LongTermMemory,
+  NarrativeDirection,
+  ForbiddenActionPattern,
+  DifficultyLevel,
+  NarrativeStage,
+  NarrativeStageMachine,
+  AttributeId,
+  AttributeTier as AttributeTierType,
+  AttributeData,
+  WorldviewId,
+} from './types'
+export {
+  FORBIDDEN_ACTION_PATTERNS,
+  SAFETY_GUIDE,
+  DIFFICULTY_LABELS,
+  DIFFICULTY_DESCRIPTIONS,
+  DIFFICULTY_MULTIPLIERS_HEALTH,
+  DIFFICULTY_MULTIPLIERS_FORTUNE,
+  ASSIGNABLE_ATTRIBUTE_IDS,
+  HIDDEN_ATTRIBUTE_IDS,
+  ATTRIBUTE_IDS,
+  ATTRIBUTE_NAMES,
+  ATTRIBUTE_DESCRIPTIONS,
+  ATTRIBUTE_TIERS,
+  HIDDEN_FORTUNE_RANGE,
+  WORLDVIEW_IDS,
+  WORLDVIEW_NAMES,
+  WORLDVIEW_DESCRIPTIONS,
+} from './types'
+export { AVAILABLE_TIME_STEPS, PRIMARY_TIME_STEPS, encodeTimeStepKey, decodeTimeStepKey, findTimeStepOption } from './constants/time-steps'
+export type { TimeStepOption } from './constants/time-steps'
+
+// Defines 全局常量
+export {
+  Events,
+  RoundPhase,
+  WorldviewType,
+  DependencyPrefix,
+} from './defines'
+export type {
+  EventName,
+  RoundPhaseType,
+  WorldviewTypeValue,
+} from './defines'
+
+// 弃用兼容层
+export { deprecated, deprecatedProp } from './compat/deprecated'
+
+// 类型注册表
+export { TypeRegistry, tagType } from './persist/type-registry'

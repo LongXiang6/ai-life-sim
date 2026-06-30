@@ -1,0 +1,29 @@
+/**
+ * @file layout.css
+ * @description Design Token —— 布局变量
+ * @mod foundation
+ *
+ * 规范来源：design-tokens.md § 布局系统
+ *
+ * 使用规则：
+ *   - 禁止硬编码布局宽度值
+ *   - 所有内容最大宽度必须使用 var(--content-max-width)
+ *   - 页面水平内边距必须使用 var(--page-padding-x)
+ *   - 卡片间距必须使用 var(--card-gap)
+ */
+
+:root {
+  /* === 布局 === */
+  --content-max-width: 800px;
+  --page-padding-x: 32px;
+  --card-gap: 24px;
+}
+
+/* 移动端布局（design-tokens.md § 布局系统） */
+@media (max-width: 767px) {
+  :root {
+    --content-max-width: 100%;
+    --page-padding-x: 16px;
+    --card-gap: 16px;
+  }
+}

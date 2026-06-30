@@ -1,0 +1,39 @@
+/* ===== 废弃项目同款：settings-tab-model.module.css ===== */
+
+.section { background: var(--color-surface); border-radius: 12px; overflow: hidden; margin-bottom: 20px; border: 1px solid var(--color-border); }
+.sectionHeader { padding: 14px 16px 10px; border-bottom: 1px solid var(--color-border); font-size: 13px; font-weight: 600; color: var(--color-text-secondary); letter-spacing: -0.2px; }
+.sectionHeaderFlex { padding: 14px 16px 10px; border-bottom: 1px solid var(--color-border); font-size: 13px; font-weight: 600; color: var(--color-text-secondary); letter-spacing: -0.2px; display: flex; align-items: center; justify-content: space-between; }
+.sectionBody { padding: 12px 16px 16px; }
+
+/* Toggle */
+.toggleLabel { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.toggleTrack { width: 44px; height: 24px; border-radius: 12px; cursor: pointer; position: relative; transition: all 0.25s ease; }
+.toggleThumb { width: 18px; height: 18px; border-radius: 50%; position: absolute; top: 2px; transition: all 0.25s ease; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+
+/* Text */
+.descText { font-size: 12px; color: var(--color-text-tertiary); margin: 0; line-height: 1.5; }
+.descParagraph { font-size: 12px; color: var(--color-text-tertiary); margin: 0 0 10px; line-height: 1.5; }
+.subLabel { font-size: 12px; font-weight: 400; }
+.toggleStatus { font-size: 12px; font-weight: 400; }
+
+/* Dropdown */
+.dropdownWrapper { display: flex; flex-direction: column; gap: 4px; }
+.dropdownLabel { font-size: 11px; color: var(--color-text-tertiary); }
+.dropdownBtn { padding: 8px 14px; font-size: 13px; border-radius: 8px; cursor: pointer; border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text-primary); display: flex; align-items: center; gap: 8px; transition: all 0.2s ease; }
+.dropdownArrow { font-size: 9px; margin-left: auto; opacity: 0.6; }
+.dropdownPortal { position: fixed; z-index: 1600; }
+.dropdownMenu { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,0.35); overflow-y: auto; max-height: 280px; animation: slideDown 0.15s ease-out; scrollbar-width: none; }
+.dropdownMenu::-webkit-scrollbar { display: none; }
+.dropdownItem { display: block; width: 100%; text-align: left; padding: 9px 12px; font-size: 13px; border: none; border-radius: 0; cursor: pointer; transition: all 0.15s ease; }
+
+/* Layout */
+.flexRow { display: flex; gap: 12px; flex-wrap: wrap; }
+.flexRowAlignStart { display: flex; gap: 12px; align-items: flex-start; }
+.flexRowSm { display: flex; gap: 8px; }
+.actionRow { display: flex; gap: 10px; justify-content: center; margin-top: 4px; margin-bottom: 8px; }
+.optionBtn { padding: 8px 16px; font-size: 13px; border-radius: 8px; cursor: pointer; background: transparent; transition: all 0.2s ease; }
+.wordCountLabel { font-size: 11px; color: var(--color-text-tertiary); margin-bottom: 6px; }
+.saveBtn { padding: 8px 24px; font-size: 13px; border-radius: 8px; cursor: pointer; background: transparent; color: var(--color-primary); border: 1px solid var(--color-primary); font-weight: 600; transition: all 0.2s ease; }
+.resetBtn { padding: 8px 24px; font-size: 13px; border-radius: 8px; cursor: pointer; border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text-primary); transition: all 0.2s ease; }
+
+@keyframes slideDown { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }

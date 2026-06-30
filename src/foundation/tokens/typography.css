@@ -1,0 +1,41 @@
+/**
+ * @file typography.css
+ * @description Design Token —— 字号与字重变量
+ * @mod foundation
+ *
+ * 规范来源：design-tokens.md §4 字体系统
+ *
+ * 使用规则（design-tokens.md §10）：
+ *   - 禁止硬编码字号值
+ *   - 移动端字号通过媒体查询自动缩放
+ */
+
+:root {
+  /* === 字号（桌面默认值）=== */
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+
+  /* === 字重 === */
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+}
+
+/* 移动端字号缩放（design-tokens.md §4） */
+@media (max-width: 767px) {
+  :root {
+    --font-size-xs: 0.6875rem;
+    --font-size-sm: 0.8125rem;
+    --font-size-base: 0.875rem;
+    --font-size-lg: 1rem;
+    --font-size-xl: 1.125rem;
+    --font-size-2xl: 1.25rem;
+    --font-size-3xl: 1.5rem;
+  }
+}

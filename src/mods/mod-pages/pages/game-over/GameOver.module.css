@@ -1,0 +1,110 @@
+/**
+ * @file GameOver.module.css
+ * @description 游戏结束页面样式 —— 基于废弃项目 game-over.module.css 转换
+ * @mod mod-pages
+ *
+ * CSS 变量对照：
+ *   废弃项目 → 当前项目
+ *   --bg-app → --color-bg
+ *   --bg-card / --bg-secondary → --color-bg-secondary
+ *   --text-primary → --color-text-primary
+ *   --text-secondary → --color-text-secondary
+ *   --text-muted → --color-text-tertiary
+ *   --border-color → --color-border
+ *   --accent-primary → --color-primary
+ *   --accent-secondary → --color-secondary
+ */
+
+/* ==================== 容器 & 布局 ==================== */
+.wrapper {
+  max-width: 800px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 16px 0;
+  animation: fadeIn 0.5s ease-out;
+}
+
+.wrapper > * + * {
+  margin-top: 24px;
+}
+
+/* ==================== 头部 ==================== */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.headerTitle {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-text-primary);
+}
+
+/* ==================== 人生总结区域 ==================== */
+.summaryBody {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.summaryText {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  line-height: 1.7;
+}
+
+.summaryMeta {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+/* ==================== 五维雷达图区域 ==================== */
+.radarSection {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+}
+
+/* ==================== 操作按钮区域 ==================== */
+.actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding-top: 16px;
+}
+
+/* ==================== 移动端 ==================== */
+@media (max-width: 768px) {
+  .wrapper {
+    padding: 12px 0;
+  }
+
+  .wrapper > * + * {
+    margin-top: 16px;
+  }
+
+  .headerTitle {
+    font-size: 24px;
+  }
+
+  .summaryText {
+    font-size: 12px;
+  }
+
+  .summaryMeta {
+    font-size: 10px;
+  }
+
+  .radarSection {
+    padding: 12px 0;
+  }
+
+  .actions {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding-top: 12px;
+  }
+}

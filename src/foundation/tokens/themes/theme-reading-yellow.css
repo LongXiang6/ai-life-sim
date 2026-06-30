@@ -1,0 +1,54 @@
+/**
+ * @file theme-reading-yellow.css
+ * @description 阅读黄主题 —— Apple HIG 暖色调，护眼长时阅读
+ * @mod foundation
+ *
+ * Apple HIG 设计原则：
+ *   - Clarity：文字清晰，暖色不干扰可读性
+ *   - Deference：温和背景色不喧宾夺主
+ *   - Depth：可保留适度背景装饰元素
+ *   - 目标：类似纸张阅读体验，降低蓝光刺激
+ */
+
+[data-theme='reading-yellow'] {
+  /* ==================== 主色（暖棕） ==================== */
+  --color-primary: #a16207;
+  --color-primary-hover: #854d0e;
+  --color-primary-light: #fef9c3;
+  --color-secondary: #78716c;
+  --color-text-on-primary: #ffffff;
+
+  /* ==================== 状态色 ==================== */
+  --color-success: #4d7c0f;
+  --color-warning: #b45309;
+  --color-error: #b91c1c;
+  --color-info: #6d28d9;
+  --color-error-bg: #fef2f2;
+
+  /* ==================== 背景层次 ==================== */
+  --color-bg: #fdf6e3;
+  --color-bg-primary: #fdf6e3;
+  --color-bg-secondary: #f5eed5;
+  --color-bg-tertiary: #ede0c8;
+  --color-bg-card: #fffef5;
+  --color-surface: rgba(253, 246, 227, 0.9);
+
+  /* ==================== 文字层次（暖褐色系，护眼） ==================== */
+  --color-text-primary: #3e2723;
+  --color-text-secondary: #6d4c41;
+  --color-text-tertiary: #8d6e63;
+  --text-on-accent: #fdf6e3;
+
+  /* ==================== 边框 ==================== */
+  --color-border: #d4c9a8;
+  --color-border-focus: #a16207;
+  --color-border-hover: rgba(161, 98, 7, 0.15);
+
+  /* ==================== 阴影（柔和暖色） ==================== */
+  --shadow-sm: 0 1px 3px rgba(180, 160, 120, 0.12);
+  --shadow: 0 4px 24px rgba(180, 160, 120, 0.1);
+  --shadow-lg: 0 8px 40px rgba(180, 160, 120, 0.15);
+
+  /* ==================== 辉光 ==================== */
+  --color-accent-glow: rgba(161, 98, 7, 0.06);
+}

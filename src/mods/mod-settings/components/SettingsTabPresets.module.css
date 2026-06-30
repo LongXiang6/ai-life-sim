@@ -1,0 +1,4 @@
+/* ===== 废弃项目同款：settings-tab-presets.module.css ===== */
+.presetInput { background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 8px; color: var(--color-text-primary); width: 100%; outline: none; transition: border-color 0.3s ease; box-sizing: border-box; }
+.presetInput:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-light); }
+.presetInput::placeholder { color: var(--color-text-tertiary); }

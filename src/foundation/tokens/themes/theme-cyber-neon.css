@@ -1,0 +1,41 @@
+/**
+ * @file theme-cyber-neon.css
+ * @description 赛博霓虹主题 —— 深色背景 + 绿色霓虹文字，赛博朋克风格
+ * @mod foundation
+ */
+
+[data-theme='cyber-neon'] {
+  --color-primary: #00ff88;
+  --color-primary-hover: #33ffaa;
+  --color-primary-light: rgba(0, 255, 136, 0.1);
+  --color-secondary: #ff00cc;
+  --color-text-on-primary: #0a0a0a;
+
+  --color-success: #00ff88;
+  --color-warning: #ffaa00;
+  --color-error: #ff3366;
+  --color-info: #00ccff;
+  --color-error-bg: rgba(255, 51, 102, 0.1);
+
+  --color-bg: #0a0a0a;
+  --color-bg-primary: #0a0a0a;
+  --color-bg-secondary: #111111;
+  --color-bg-tertiary: #1a1a1a;
+  --color-bg-card: #111111;
+  --color-surface: rgba(17, 17, 17, 0.9);
+
+  --color-text-primary: #e0e0e0;
+  --color-text-secondary: #00ff88;
+  --color-text-tertiary: #667766;
+  --text-on-accent: #0a0a0a;
+
+  --color-border: #1a3322;
+  --color-border-focus: #00ff88;
+  --color-border-hover: rgba(0, 255, 136, 0.15);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow: 0 4px 24px rgba(0, 255, 136, 0.05);
+  --shadow-lg: 0 8px 40px rgba(0, 255, 136, 0.08);
+
+  --color-accent-glow: rgba(0, 255, 136, 0.08);
+}

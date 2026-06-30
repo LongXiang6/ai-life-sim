@@ -1,0 +1,43 @@
+/* JSON 语法高亮 —— VS Code Dark+ 风格 */
+
+.code {
+  font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+  display: block;
+  color: var(--color-text-primary, #d4d4d4);
+}
+
+.tkKey {
+  color: #9cdcfe; /* VS Code 键名蓝 */
+}
+
+.tkString {
+  color: #ce9178; /* VS Code 字符串橙 */
+}
+
+.tkNumber {
+  color: #b5cea8; /* VS Code 数字绿 */
+}
+
+.tkBool {
+  color: #569cd6; /* VS Code 关键字蓝 */
+}
+
+.tkNull {
+  color: #569cd6;
+}
+
+.tkBracket {
+  color: #ffd700; /* 金色括号 */
+}
+
+.tkColon {
+  color: #d4d4d4; /* 灰色 */
+}
+
+.tkComma {
+  color: #808080; /* 深灰 */
+}

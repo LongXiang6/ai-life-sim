@@ -1,0 +1,25 @@
+/**
+ * @file spacing.css
+ * @description Design Token —— 间距变量
+ * @mod foundation
+ *
+ * 规范来源：design-tokens.md §3 间距系统
+ *
+ * 使用规则（design-tokens.md §10）：
+ *   - 禁止硬编码间距值
+ *   - 所有间距必须使用 var(--spacing-xxx) 或 TailwindCSS 间距类
+ */
+
+:root {
+  --spacing-0: 0;
+  --spacing-0\.5: 0.125rem;
+  --spacing-1: 0.25rem;
+  --spacing-2: 0.5rem;
+  --spacing-3: 0.75rem;
+  --spacing-4: 1rem;
+  --spacing-5: 1.25rem;
+  --spacing-6: 1.5rem;
+  --spacing-8: 2rem;
+  --spacing-10: 2.5rem;
+  --spacing-12: 3rem;
+}

@@ -1,0 +1,133 @@
+/**
+ * @module index.ts
+ * @description mod-power-system 公共 API 导出
+ * @mod mod-power-system
+ */
+
+// === 类型 ===
+export type {
+  SubStageIndex,
+  CombatPowerState,
+  MonsterState,
+  MonsterEncounterResult,
+  PopulationThreatDirection,
+  LuckModifiers,
+  LuckState,
+  CultivationState,
+  PowerCeilingConfig,
+  PowerSystemSummary,
+  EncounterTier,
+  EncounterEvent,
+  FortuneEncounterState,
+  FaithState,
+  SupremeTier,
+  SupremeItem,
+  SupremeItemState,
+  OracleEntry,
+  MiracleEntry,
+  DivineInterventionState,
+  AnomalySeverity,
+  AnomalyZone,
+  MaterialRarity,
+  MaterialCategory,
+  SpecialMaterial,
+  MaterialState,
+  DynamicSkill,
+  SkillEffect,
+  SkillState,
+} from './types'
+
+// === 常量 ===
+export {
+  UNIT_NAMES,
+  SUB_STAGE_LABELS,
+  SUB_STAGE_THRESHOLDS,
+  STAGE_DECAY,
+  BASE_POWER_GAIN,
+  INSIGHT_MULTIPLIER,
+  INSIGHT_DURATION,
+  MAX_POWER_CEILING,
+  MAX_REACHABLE_STAGE,
+  INFINITE_ADJECTIVES,
+  WORLD_CAPACITY_MAP,
+  UNIFIED_RATING_LABELS,
+  RATING_DESCRIPTIONS,
+  TRUE_INFINITE_DESCRIPTION,
+  MONSTER_TYPES_BY_WORLDVIEW,
+  DEFAULT_MONSTER_TYPES,
+  THREAT_ECOLOGY_PENALTY,
+  THREAT_POLLUTION_PENALTY,
+  THREAT_POPULATION_BONUS,
+  POPULATION_THREAT_MAGNITUDE,
+  ECOLOGY_LOW_THRESHOLD,
+  POLLUTION_HIGH_THRESHOLD,
+  POPULATION_HIGH_THRESHOLD,
+  SPAWN_FREQUENCY_BASE,
+  SPAWN_FREQUENCY_MULTIPLIER,
+  NEW_TYPE_THREAT_THRESHOLD,
+  EVOLUTION_CHANCE_BASE,
+  MUTANT_MONSTER_CHANCE,
+  MONSTER_MODIFIER_MIN,
+  MONSTER_MODIFIER_MAX,
+  THREAT_MIN,
+  THREAT_MAX,
+  SPAWN_FREQ_MIN,
+  SPAWN_FREQ_MAX,
+  LUCK_DISEASE_AVOIDANCE_PER_POINT,
+  LUCK_DEATH_AVOID_CHANCE_PER_POINT,
+  LUCK_EVENT_WEIGHT_PER_POINT,
+  LUCK_AGE_DECAY_MODIFIER_PER_POINT,
+  LUCK_MIN,
+  LUCK_MAX,
+  LUCK_MAJOR_CHANGE_THRESHOLD,
+  LUCK_NOTIFICATION_DURATION,
+  RARITY_LABELS,
+  CATEGORY_LABELS,
+  STORAGE_KEYS,
+  STAGE_ECONOMIC_TIER,
+  ECONOMIC_TIER_CONFIG,
+  generateNextStage,
+  getDynamicStageDecay,
+} from './constants'
+export type { DynamicStage, EconomicTierInfo } from './constants'
+
+// === 工具函数 ===
+export {
+  ROUND_DECIMALS,
+  round,
+  clampNumber,
+  pickRandom,
+  computeAverage,
+  getUnitName,
+  getSubStageLabel,
+  getStageDecay,
+  getSubStageThreshold,
+  isUltimateStage,
+  isTrueInfinite,
+  isBeyondReachable,
+  getWorldCapacity,
+  parsePowerCeilingLevel,
+  getRatingLabel,
+  formatCombatPower,
+  calculateEconomicTier,
+  getEconomicTierInfo,
+  getDynamicStage,
+} from './utils'
+
+// === Store ===
+export { usePowerSystemStore } from './store'
+
+// === Hook ===
+export {
+  useCombatPower,
+  useMonsterRegion,
+  useLuck,
+  useCultivation,
+  useFortuneEncounter,
+  useFaith,
+  useSupremeItem,
+  useDivineIntervention,
+  useAnomalyPhenomena,
+  useSpecialMaterial,
+  useSkills,
+} from './hooks'

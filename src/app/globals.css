@@ -1,0 +1,104 @@
+@import 'tailwindcss';
+
+/* ═══════════════════════════════════════════════════════════════════
+ * Foundation Token
+ * ═══════════════════════════════════════════════════════════════════ */
+@import '../foundation/tokens/spacing.css';
+@import '../foundation/tokens/typography.css';
+@import '../foundation/tokens/breakpoints.css';
+@import '../foundation/tokens/layout.css';
+
+/* ═══════════════════════════════════════════════════════════════════
+ * 默认主题 Token（极简白 minimal-white）
+ * Apple HIG：Clarity 清晰 / Deference 退让 / Depth 层次
+ * ═══════════════════════════════════════════════════════════════════ */
+@import '../foundation/tokens/themes/theme-minimal-white.css';
+
+/* ═══════════════════════════════════════════════════════════════════
+ * 主题覆盖
+ * ═══════════════════════════════════════════════════════════════════ */
+@import '../foundation/tokens/themes/theme-minimal-black.css';
+@import '../foundation/tokens/themes/theme-reading-yellow.css';
+@import '../foundation/tokens/themes/theme-dark-cosmos.css';
+@import '../foundation/tokens/themes/theme-light-aurora.css';
+@import '../foundation/tokens/themes/theme-cyber-neon.css';
+
+/* ═══════════════════════════════════════════════════════════════════
+ * 全局重置（Apple HIG Deference）
+ * ═══════════════════════════════════════════════════════════════════ */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #__next {
+  height: 100%;
+  overflow: hidden;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  font-family: var(--font-family-sans, Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-normal);
+  line-height: 1.6;
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+/* ==================== 滚动条（Apple HIG 极简隐藏） ==================== */
+::-webkit-scrollbar { width: 0; height: 0; background: transparent; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: transparent; }
+html { scrollbar-width: none; }
+body { -ms-overflow-style: none; }
+
+/* ==================== 聚焦环（Apple HIG 无障碍） ==================== */
+:focus-visible {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ==================== 选择文本 ==================== */
+::selection {
+  background: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
+/* ==================== 减少动效（Apple HIG 无障碍） ==================== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- 自定义动画 ---- */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+@keyframes advancePulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+
+/* ==================== 移动端覆盖 ==================== */
+@import '../styles/mobile/base.css';
