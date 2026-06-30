@@ -85,3 +85,29 @@ export {
   getInstrumentHooks,
 } from './instrument/instrument-mode'
 export type { InstrumentHooks, PromptAssemblyReport } from './instrument/instrument-mode'
+
+// 跨 MOD 公共函数库
+export {
+  // common-utils
+  safeJsonParse,
+  clamp,
+  randomInt,
+  deepMerge,
+  uniqueId,
+  delay,
+  // character-utils
+  calcAgeDecay,
+  calcAttributeValue,
+  isLifespanExpired,
+  getHealthStatus,
+  // world-utils
+  WORLDVIEW_TYPE_MAP,
+  normalizeWorldviewType,
+  TERRAIN_HABITABILITY,
+  getTerrainHabitability,
+  calcResourceAbundance,
+  // narrative-utils
+  NARRATIVE_PROMPT_KEYS,
+  calcTagMatchScore,
+} from './shared'
+export type { NarrativePromptKey } from './shared'

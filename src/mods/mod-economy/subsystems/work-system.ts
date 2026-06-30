@@ -120,7 +120,7 @@ export class WorkSystem implements ISubSystem {
 
     // 直接设置收入
     if (typeof c.income === 'number') {
-      this.state.income = Math.max(0, c.income)
+      this.state.income = clamp(c.income, 0, Infinity)
     }
   }
 

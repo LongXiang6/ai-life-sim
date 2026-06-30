@@ -28,7 +28,7 @@ import {
   isUltimateStage,
   isBeyondReachable,
   round,
-  clampNumber,
+  clamp,
 } from '../utils'
 
 import { getFormulaModifier } from '@/mods/mod-world'
@@ -142,7 +142,7 @@ export class CombatPowerSystem implements ISubSystem {
 
     // ——— 力量上限设置 ———
     if (typeof c.powerCeiling === 'number') {
-      this.state.powerCeiling = clampNumber(c.powerCeiling, 1, MAX_REACHABLE_STAGE)
+      this.state.powerCeiling = clamp(c.powerCeiling, 1, MAX_REACHABLE_STAGE)
       this.state.powerCeilingLabel = `${this.state.powerCeiling}阶`
     }
 
@@ -157,9 +157,9 @@ export class CombatPowerSystem implements ISubSystem {
     }
 
     // ——— 直接设置状态 ———
-    if (typeof c.mainStage === 'number') this.state.mainStage = clampNumber(c.mainStage, 1, MAX_POWER_CEILING)
-    if (typeof c.subStage === 'number') this.state.subStage = clampNumber(c.subStage, 1, 5) as SubStageIndex
-    if (typeof c.powerValue === 'number') this.state.powerValue = clampNumber(c.powerValue, 1, 9999)
+    if (typeof c.mainStage === 'number') this.state.mainStage = clamp(c.mainStage, 1, MAX_POWER_CEILING)
+    if (typeof c.subStage === 'number') this.state.subStage = clamp(c.subStage, 1, 5) as SubStageIndex
+    if (typeof c.powerValue === 'number') this.state.powerValue = clamp(c.powerValue, 1, 9999)
     if (c.combatSkills && typeof c.combatSkills === 'object') {
       this.state.combatSkills = { ...c.combatSkills } as Record<string, number>
     }
@@ -259,7 +259,7 @@ export class CombatPowerSystem implements ISubSystem {
     const safeThreat = Math.max(monsterThreat, 0.5)
     const effectiveLevel = this.state.mainStage + (this.state.subStage - 1) * 0.25
     const ratio = effectiveLevel / safeThreat
-    return round(clampNumber(ratio, MONSTER_MODIFIER_MIN, MONSTER_MODIFIER_MAX), 2)
+    return round(clamp(ratio, MONSTER_MODIFIER_MIN, MONSTER_MODIFIER_MAX), 2)
   }
 
   /** 格式化战力为 AI prompt 文本 */

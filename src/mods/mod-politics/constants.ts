@@ -9,7 +9,8 @@ import type {
   LawCategory, FactionStatus, FactionRank,
 } from './types'
 
-export { round, clamp, pickRandom, randomInRange, ROUND_DECIMALS } from './utils'
+import { clamp } from './utils'
+export { round, clamp, pickRandom, randomInt, ROUND_DECIMALS } from './utils'
 
 // ============================================================
 // §1 社会分层常量 (S6)
@@ -301,7 +302,8 @@ export function getEnforcementMultiplier(enforcementLevel: number): number {
 export function estimateCrimeRate(corruption: number, enforcementLevel: number): number {
   const base = corruption * 0.6
   const deterrence = enforcementLevel * 0.3
-  return Math.max(0, Math.min(100, Math.round(base - deterrence + 20)))
+  // 防御强度 (0-100): 基础 + 科技抵消 - 威慑力，下限 0 上限 100
+  return clamp(Math.round(base - deterrence + 20), 0, 100)
 }
 
 // ============================================================

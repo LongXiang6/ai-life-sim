@@ -19,17 +19,9 @@ import {
 } from './constants'
 import type { DynamicStage, EconomicTierInfo } from './constants'
 
-export { ROUND_DECIMALS, round, clampNumber, pickRandom } from '@/foundation'
-
-/**
- * 计算数值数组平均值
- * @param values - 数值数组
- * @returns 平均值，空数组返回 0
- */
-export function computeAverage(values: number[]): number {
-  if (values.length === 0) return 0
-  return values.reduce((a, b) => a + b, 0) / values.length
-}
+export { ROUND_DECIMALS, round, clamp, pickRandom } from '@/foundation'
+// computeAverage 已统一到 shared/common-utils.ts
+export { computeAverage } from '@/core/shared'
 
 /**
  * 获取主阶段单位名（23+ 动态阶动态生成名称）

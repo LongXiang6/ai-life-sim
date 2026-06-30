@@ -86,7 +86,7 @@ export {
   round,
   clamp,
   pickRandom,
-  randomInRange,
+  randomInt,
   getPollutionLevel,
 } from './utils'
 

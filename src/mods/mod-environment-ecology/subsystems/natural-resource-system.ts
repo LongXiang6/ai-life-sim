@@ -142,7 +142,7 @@ export class NaturalResourceSystem implements ISubSystem {
       const rates = c.adjustConsumptionRate as Record<string, unknown>
       for (const [type, value] of Object.entries(rates)) {
         if (this.state.resources[type as NaturalResourceType] && typeof value === 'number') {
-          this.state.resources[type as NaturalResourceType].consumptionRate = Math.max(0, value)
+          this.state.resources[type as NaturalResourceType].consumptionRate = clamp(value, 0, Infinity)
         }
       }
     }
@@ -152,7 +152,7 @@ export class NaturalResourceSystem implements ISubSystem {
       const rates = c.adjustRegenerationRate as Record<string, unknown>
       for (const [type, value] of Object.entries(rates)) {
         if (this.state.resources[type as NaturalResourceType] && typeof value === 'number') {
-          this.state.resources[type as NaturalResourceType].regenerationRate = Math.max(0, value)
+          this.state.resources[type as NaturalResourceType].regenerationRate = clamp(value, 0, Infinity)
         }
       }
     }
@@ -171,12 +171,12 @@ export class NaturalResourceSystem implements ISubSystem {
         }
         if (typeof extracted.consumptionRate === 'number') {
           for (const type of Object.keys(this.state.resources) as NaturalResourceType[]) {
-            this.state.resources[type].consumptionRate = Math.max(0, this.state.resources[type].consumptionRate + extracted.consumptionRate)
+            this.state.resources[type].consumptionRate = clamp(this.state.resources[type].consumptionRate + extracted.consumptionRate, 0, Infinity)
           }
         }
         if (typeof extracted.regenerationRate === 'number') {
           for (const type of Object.keys(this.state.resources) as NaturalResourceType[]) {
-            this.state.resources[type].regenerationRate = Math.max(0, this.state.resources[type].regenerationRate + extracted.regenerationRate)
+            this.state.resources[type].regenerationRate = clamp(this.state.resources[type].regenerationRate + extracted.regenerationRate, 0, Infinity)
           }
         }
       }
@@ -211,7 +211,7 @@ export class NaturalResourceSystem implements ISubSystem {
       // 再生速率微小随机波动 ±5%
       const fluctuation = 1 + (Math.random() - 0.5) * 0.1
       res.regenerationRate = round(
-        Math.max(0, BASE_REGENERATION_RATE[type] * fluctuation),
+        clamp(BASE_REGENERATION_RATE[type] * fluctuation, 0, Infinity),
       )
 
       // 低储量时再生速率打 8 折（低品位矿难再生）

@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { clamp } from '@/core/shared'
 
 import styles from './NarrativeTimeline.module.css'
 
@@ -65,7 +66,7 @@ export function NarrativeTimeline({
   const scrollRestoreRef = useRef(0)
   const prevTotalRef = useRef(entries.length)
 
-  const [renderStart, setRenderStart] = useState(() => Math.max(0, entries.length - WINDOW_SIZE))
+  const [renderStart, setRenderStart] = useState(() => clamp(entries.length - WINDOW_SIZE, 0, Infinity))
 
   /* eslint-disable react-hooks/set-state-in-effect -- 事件总数变化时重置渲染窗口起点 */
   useEffect(() => {
@@ -75,9 +76,9 @@ export function NarrativeTimeline({
       return
     }
     if (total > prevTotalRef.current) {
-      setRenderStart(Math.max(0, total - WINDOW_SIZE))
+      setRenderStart(clamp(total - WINDOW_SIZE, 0, Infinity))
     } else {
-      setRenderStart((prev) => Math.min(prev, Math.max(0, total - WINDOW_SIZE)))
+      setRenderStart((prev) => Math.min(prev, clamp(total - WINDOW_SIZE, 0, Infinity)))
     }
     prevTotalRef.current = total
   }, [entries.length])
@@ -87,7 +88,7 @@ export function NarrativeTimeline({
     if (renderStart <= 0) return
     const container = scrollRef.current
     if (container) scrollRestoreRef.current = container.scrollHeight
-    setRenderStart((prev) => Math.max(0, prev - LOAD_MORE))
+    setRenderStart((prev) => clamp(prev - LOAD_MORE, 0, Infinity))
   }
   const loadMoreRef = useRef(loadMore)
 

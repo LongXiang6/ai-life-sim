@@ -5,6 +5,8 @@
  * @mod mod-base-universe
  */
 import { getRoundSequence } from '@/foundation'
+// 统一使用 shared/ 的 clamp 替代内联 Math.max/Math.min
+import { clamp } from '@/core/shared'
 
 import type {
   ISubSystem,
@@ -504,8 +506,8 @@ export class WorldMapSystem implements ISubSystem {
     const r = 30 + Math.random() * 120
     const angle = Math.random() * 2 * Math.PI
     return {
-      x: round(Math.max(0, Math.min(COORD_RANGE, seed.x + Math.cos(angle) * r))),
-      y: round(Math.max(0, Math.min(COORD_RANGE, seed.y + Math.sin(angle) * r))),
+      x: round(clamp(seed.x + Math.cos(angle) * r, 0, COORD_RANGE)),
+      y: round(clamp(seed.y + Math.sin(angle) * r, 0, COORD_RANGE)),
     }
   }
 
@@ -592,18 +594,15 @@ export class WorldMapSystem implements ISubSystem {
   /** planar: 动态层数（2~5 层可选，默认 3 层） */
   private _posPlanar(index: number, total: number): { x: number; y: number } {
     const layers = this._state.templateOptions?.planarLayers ?? PLANAR_LAYER_PARAMS.defaultLayers
-    const clampedLayers = Math.max(
-      PLANAR_LAYER_PARAMS.minLayers,
-      Math.min(PLANAR_LAYER_PARAMS.maxLayers, layers),
-    )
+    const clampedLayers = clamp(layers, PLANAR_LAYER_PARAMS.minLayers, PLANAR_LAYER_PARAMS.maxLayers)
     const perLayer = Math.ceil(total / clampedLayers)
     const layer = Math.floor(index / perLayer)
     const offset = index % perLayer
     const x = 0.15 * COORD_RANGE + offset * (0.8 * COORD_RANGE / perLayer) + (Math.random() - 0.5) * 60
     const y = 100 + layer * (COORD_RANGE * 0.8 / clampedLayers) + Math.sin(index * 1.7) * 80 + (Math.random() - 0.5) * 50
     return {
-      x: round(Math.max(0, Math.min(COORD_RANGE, x))),
-      y: round(Math.max(0, Math.min(COORD_RANGE, y))),
+      x: round(clamp(x, 0, COORD_RANGE)),
+      y: round(clamp(y, 0, COORD_RANGE)),
     }
   }
 
@@ -631,8 +630,8 @@ export class WorldMapSystem implements ISubSystem {
       Math.sin(index * Math.PI * sineFrequency / total) * COORD_RANGE * sineAmplitude +
       (Math.random() - 0.5) * 20
     return {
-      x: round(Math.max(0, Math.min(COORD_RANGE, x))),
-      y: round(Math.max(0, Math.min(COORD_RANGE, y))),
+      x: round(clamp(x, 0, COORD_RANGE)),
+      y: round(clamp(y, 0, COORD_RANGE)),
     }
   }
 
@@ -687,8 +686,8 @@ export class WorldMapSystem implements ISubSystem {
     const jitterX = (Math.random() - 0.5) * 100
     const jitterY = (Math.random() - 0.5) * 100
     return {
-      x: round(Math.max(0, Math.min(COORD_RANGE, Math.cos(angle) * r + COORD_RANGE / 2 + jitterX))),
-      y: round(Math.max(0, Math.min(COORD_RANGE, Math.sin(angle) * r + COORD_RANGE / 2 + jitterY))),
+      x: round(clamp(Math.cos(angle) * r + COORD_RANGE / 2 + jitterX, 0, COORD_RANGE)),
+      y: round(clamp(Math.sin(angle) * r + COORD_RANGE / 2 + jitterY, 0, COORD_RANGE)),
     }
   }
 
@@ -1108,7 +1107,8 @@ export class WorldMapSystem implements ISubSystem {
         ? FACTION_TENSION_CELESTIAL_BONUS
         : 0
       const drift = Math.round((Math.random() - 0.5) * 2 * FACTION_TENSION_DRIFT + celestialBonus)
-      rel.tension = Math.max(0, Math.min(100, rel.tension + drift))
+      // 关系紧张度修正，限制在 [0, 100]
+    rel.tension = clamp(rel.tension + drift, 0, 100)
 
       // 阈值检测 → 关系类型可能切换
       if (rel.tension >= FACTION_TENSION_WAR_THRESHOLD && rel.relation !== 'war') {
@@ -1150,12 +1150,12 @@ export class WorldMapSystem implements ISubSystem {
       if (effect.effectType === 'resource_penalty') {
         for (const region of this._state.regions) {
           for (const resource of region.resources) {
-            resource.abundance = Math.max(0, resource.abundance + effect.value)
+            resource.abundance = clamp(resource.abundance + effect.value, 0, Infinity)
           }
         }
       } else if (effect.effectType === 'stability_penalty') {
         for (const region of this._state.regions) {
-          region.development = Math.max(0, region.development + effect.value)
+          region.development = clamp(region.development + effect.value, 0, Infinity)
         }
       }
     }

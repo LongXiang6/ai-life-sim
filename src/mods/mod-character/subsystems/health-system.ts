@@ -8,6 +8,8 @@ import { getRoundSequence } from '@/foundation'
 import type { ISubSystem, RoundContext, SubSystemState, SubSystemChanges } from '@/foundation'
 
 import { DIFFICULTY_MULTIPLIERS_HEALTH } from '@/foundation'
+// 统一使用 shared/ 的 clamp 替代内联 Math.max/Math.min
+import { clamp } from '@/core/shared'
 
 import { getFormulaModifier } from '@/mods/mod-world'
 
@@ -129,7 +131,7 @@ export class HealthSystem implements ISubSystem {
       const extracted = this.parseHealthFromNarrative(changes.description)
       if (extracted) {
         if (typeof extracted.hpDelta === 'number') {
-          this.state.hp = round(Math.max(0, Math.min(this.state.maxHp, this.state.hp + extracted.hpDelta)))
+          this.state.hp = round(clamp(this.state.hp + extracted.hpDelta, 0, this.state.maxHp))
           this.checkDeath()
         }
       }
@@ -186,12 +188,14 @@ export class HealthSystem implements ISubSystem {
 
     // 体力直接变化
     if (typeof ch.staminaDelta === 'number') {
-      this.state.stamina = round(Math.max(0, Math.min(100, this.state.stamina + (ch.staminaDelta as number))))
+      // 体力变化限制在 [0, 100]
+    this.state.stamina = round(clamp(this.state.stamina + (ch.staminaDelta as number), 0, 100))
     }
 
     // 精神直接变化
     if (typeof ch.spiritDelta === 'number') {
-      this.state.spirit = round(Math.max(0, Math.min(100, this.state.spirit + (ch.spiritDelta as number))))
+      // 精神值变化限制在 [0, 100]
+    this.state.spirit = round(clamp(this.state.spirit + (ch.spiritDelta as number), 0, 100))
     }
 
     // 添加伤病（对齐废弃项目：添加时自动扣血 severity × 1.5）
@@ -200,7 +204,7 @@ export class HealthSystem implements ISubSystem {
       this.state.diseases.push(...diseases)
       const diseaseDmg = diseases.reduce((sum, d) => sum + d.severity * AUTO_INJURY_DAMAGE_MULTIPLIER, 0)
       if (diseaseDmg > 0) {
-        this.state.hp = round(Math.max(0, this.state.hp - diseaseDmg))
+        this.state.hp = round(clamp(this.state.hp - diseaseDmg, 0, Infinity))
         this.checkDeath()
       }
     }
@@ -209,7 +213,7 @@ export class HealthSystem implements ISubSystem {
       this.state.injuries.push(...injuries)
       const injuryDmg = injuries.reduce((sum, i) => sum + i.severity * AUTO_INJURY_DAMAGE_MULTIPLIER, 0)
       if (injuryDmg > 0) {
-        this.state.hp = round(Math.max(0, this.state.hp - injuryDmg))
+        this.state.hp = round(clamp(this.state.hp - injuryDmg, 0, Infinity))
         this.checkDeath()
       }
     }
@@ -250,7 +254,7 @@ export class HealthSystem implements ISubSystem {
 
     // 体力恢复 = max(1, round(体魄 * 2 * diffMult)) × 低HP惩罚
     const staminaRecovery = round(Math.max(1, physique * STAMINA_PHYSIQUE_MULTIPLIER * diffMult * staminaMod) * healthPenaltyMultiplier)
-    s.stamina = round(Math.min(100, s.stamina + staminaRecovery))
+    s.stamina = round(clamp(s.stamina + staminaRecovery, -Infinity, 100))
 
     // HP 恢复 = max(physique*0.3, physique*0.8*diffMod)，无低HP惩罚（对齐废弃项目）
     const hpRecovery = round(Math.max(
@@ -339,7 +343,7 @@ export class HealthSystem implements ISubSystem {
 
     for (const effect of crossEffects) {
       if (effect.targetSystem === 'health' && effect.effectType === 'health_damage') {
-        this.state.hp = round(Math.max(0, this.state.hp + effect.value))
+        this.state.hp = round(clamp(this.state.hp + effect.value, 0, Infinity))
       }
     }
   }

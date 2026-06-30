@@ -4,6 +4,8 @@
  * @mod mod-character
  */
 
+import { clamp } from '@/core/shared'
+
 type AttrKey = 'physique' | 'mind' | 'talentAptitude' | 'charisma' | 'resources' | 'luck' | 'morality' | 'health'
 
 /** 隐藏属性列表（传给 AI 但不展示给用户） */
@@ -126,7 +128,7 @@ export const ATTR_TIER_DESCRIPTIONS: Record<AttrKey, string[]> = {
  * @returns 0~10 的档位索引
  */
 export function getAttrTierIndex(value: number): number {
-  const clamped = Math.min(10, Math.max(-10, Math.round(value)))
+  const clamped = clamp(Math.round(value), -10, 10)
   if (clamped >= 9) return 10
   if (clamped >= 7) return 9
   if (clamped >= 5) return 8

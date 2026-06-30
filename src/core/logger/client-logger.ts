@@ -22,6 +22,11 @@ interface LogEntry {
   raw?: string
   /** 原始错误对象 */
   error?: string
+  errorName?: string
+  stack?: string
+  eventType?: 'log' | 'exception' | 'user_action'
+  action?: string
+  context?: Record<string, unknown>
 }
 
 /** 日志级别控制 key */
@@ -54,14 +59,23 @@ function shouldLog(level: LogLevel): boolean {
 
 /** 发送日志到服务端 */
 function sendToServer(entry: LogEntry): void {
+  const enriched: LogEntry = {
+    eventType: 'log',
+    ...entry,
+    context: {
+      ...(typeof location !== 'undefined' ? { path: location.pathname, url: location.href } : {}),
+      ...(typeof navigator !== 'undefined' ? { userAgent: navigator.userAgent } : {}),
+      ...entry.context,
+    },
+  }
   if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
-    const blob = new Blob([JSON.stringify(entry)], { type: 'application/json' })
+    const blob = new Blob([JSON.stringify(enriched)], { type: 'application/json' })
     navigator.sendBeacon(LOG_API, blob)
   } else {
     fetch(LOG_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(entry),
+      body: JSON.stringify(enriched),
     }).catch(() => {
       // 上报失败静默丢弃
     })
@@ -105,6 +119,8 @@ export const logger = {
       timestamp: Date.now(),
       args: args.length > 0 ? args : undefined,
       error: errorArg ? errorArg.message : undefined,
+      errorName: errorArg ? errorArg.name : undefined,
+      stack: errorArg ? errorArg.stack : undefined,
     })
   },
 
@@ -139,6 +155,58 @@ export const logger = {
       timestamp: Date.now(),
       raw, // 完整原文，不截断
       error: error instanceof Error ? error.message : undefined,
+      errorName: error instanceof Error ? error.name : undefined,
+      stack: error instanceof Error ? error.stack : undefined,
     })
   },
+
+  action(module: string, action: string, context?: Record<string, unknown>): void {
+    if (!shouldLog('info')) return
+    console.info(`[${module}] action:${action}`, context)
+    sendToServer({
+      level: 'info',
+      module,
+      message: action,
+      timestamp: Date.now(),
+      eventType: 'user_action',
+      action,
+      context,
+    })
+  },
+}
+
+let globalHandlersInstalled = false
+
+export function installGlobalLogHandlers(): void {
+  if (globalHandlersInstalled || typeof window === 'undefined') return
+  globalHandlersInstalled = true
+
+  window.addEventListener('error', (event) => {
+    const err = event.error instanceof Error ? event.error : undefined
+    sendToServer({
+      level: 'error',
+      module: 'global',
+      message: event.message || 'window error',
+      timestamp: Date.now(),
+      eventType: 'exception',
+      error: err?.message ?? event.message,
+      errorName: err?.name,
+      stack: err?.stack,
+      context: { filename: event.filename, lineno: event.lineno, colno: event.colno },
+    })
+  })
+
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason instanceof Error ? event.reason : undefined
+    sendToServer({
+      level: 'error',
+      module: 'global',
+      message: 'unhandledrejection',
+      timestamp: Date.now(),
+      eventType: 'exception',
+      error: reason?.message ?? String(event.reason ?? 'unknown'),
+      errorName: reason?.name,
+      stack: reason?.stack,
+    })
+  })
 }

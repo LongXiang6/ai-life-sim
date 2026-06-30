@@ -98,7 +98,10 @@ export function buildNarrativeTimeContext(
   const birthEraYear = context.birthEraYear ?? readBirthEraYearFromConfig(config)
   const age = resolveCharacterAgeFromContext(context)
   const calendarYear = resolveCalendarEraYear(context.round.year, eraStartYear, birthEraYear)
-  const defaultEraName = eraStartYear !== 0 ? '' : '创世纪元'
+  // 纪元名称：优先来自世界配置 _eraName，缺省时回退引擎默认值
+  const defaultEraName = (typeof config._eraName === 'string' && config._eraName)
+    ? config._eraName
+    : (eraStartYear !== 0 ? '' : '创世纪元')
   const eraLabel = formatEraYear(calendarYear, defaultEraName)
   const seasonName = timeSystem.getSeasonName()
   const timeStep = context.timeStep ?? { unit: 'year', value: 1 }

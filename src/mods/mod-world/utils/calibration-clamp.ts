@@ -4,6 +4,8 @@
  * @mod mod-world
  */
 
+// 统一使用 shared/ 的 clamp 替代内联 Math.max/Math.min
+import { clamp } from '@/core/shared'
 import type {
   WorldConfig,
   WorldCalibration,
@@ -97,7 +99,7 @@ function clampEntityRange(
   defaults: { min: number; max: number },
 ): EntityCountRange | undefined {
   if (!range) return undefined
-  const min = Math.max(0, Math.round(range.min))
+  const min = clamp(Math.round(range.min), 0, Infinity)
   const max = Math.max(min, Math.round(range.max))
   return {
     min: Math.min(min, defaults.max),
@@ -364,8 +366,9 @@ export function clampCalibration(
   if (merged.world?.developmentRange) {
     const { min, max } = merged.world.developmentRange
     merged.world.developmentRange = {
-      min: Math.max(0, Math.min(100, Math.round(min))),
-      max: Math.max(0, Math.min(100, Math.round(max))),
+      // 校准值四舍五入后限制在 [0, 100]
+    min: clamp(Math.round(min), 0, 100),
+    max: clamp(Math.round(max), 0, 100),
     }
     if (merged.world.developmentRange.min > merged.world.developmentRange.max) {
       merged.world.developmentRange.max = merged.world.developmentRange.min

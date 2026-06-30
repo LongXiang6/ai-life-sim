@@ -16,6 +16,7 @@
  */
 
 import type { AIModelConfig } from '@/foundation'
+import type { UnifiedCallOptions } from '@/core'
 
 import { callAIWithPromptTemplate } from '@/core'
 
@@ -101,6 +102,7 @@ export class AdaptationManager {
 
   /** AI 配置（由 orchestrator 每轮注入） */
   private aiConfig: AIModelConfig | null = null
+  private aiRouteOptions: Pick<UnifiedCallOptions, 'providerId' | 'apiKey' | 'customBaseUrl' | 'customModel'> = {}
   private sessionId: string | undefined
 
   /** 世界观适配文本（用于填充 prompt 变量） */
@@ -111,9 +113,14 @@ export class AdaptationManager {
   // -----------------------------------------------------------------------
 
   /** 设置 AI 配置（每轮开始前由 orchestrator 注入） */
-  setAiConfig(config: AIModelConfig, sessionId?: string): void {
+  setAiConfig(
+    config: AIModelConfig,
+    sessionId?: string,
+    routeOptions: Pick<UnifiedCallOptions, 'providerId' | 'apiKey' | 'customBaseUrl' | 'customModel'> = {},
+  ): void {
     this.aiConfig = config
     this.sessionId = sessionId
+    this.aiRouteOptions = routeOptions
   }
 
   /** 设置世界观元信息（用于填充 adaptation prompt 的世界观变量） */
@@ -242,6 +249,7 @@ export class AdaptationManager {
       config: this.aiConfig,
       pool: 'adaptation',
       sessionId: this.sessionId,
+      ...this.aiRouteOptions,
     })
 
     const adapted = extractAdaptedText(rawResult)

@@ -56,10 +56,8 @@ export const IMMORTAL_LIFESPAN_KEYWORDS = [
   '永生', '不死', '不朽', '长生', '系统无限寿命', '寿命无限', '寿命锁定', '寿元无限', '不老不死',
 ] as const
 
-/** 仅允许数字的输入过滤（寿命/年龄） */
-export function filterDigitsOnly(value: string): string {
-  return value.replace(/\D/g, '')
-}
+/** 仅允许数字的输入过滤（寿命/年龄）—— 已统一到 shared/，mod-character 保留 re-export 兼容 */
+export { filterDigitsOnly } from '@/core/shared'
 
 /** 背景或叙事是否暗示永生 */
 export function hasImmortalLifespanHint(...texts: (string | undefined)[]): boolean {

@@ -110,9 +110,8 @@ export class EconomySystem implements ISubSystem {
   }
 
   collectState(context: RoundContext): SubSystemState {
-    // 从 population 子系统获取总人口
-    // 注：economy 在 manifest 中先于 population 收集，context.subsystemStates 携带的是上一轮快照；
-    // 若本轮 population 状态缺失，回退至最近一次已知值，避免人口读数滞后一轮或退化为默认值。
+    // Round 1 中 population 还未收集本轮状态，这里只使用上一轮人口；
+    // Round 2 会用已收集的当前 population 重新生成 summary。
     const populationState = context.subsystemStates?.['population']
     const contextPopulation = (populationState?.data as { totalPopulation?: number } | undefined)?.totalPopulation
     if (contextPopulation !== undefined) {
@@ -142,6 +141,19 @@ export class EconomySystem implements ISubSystem {
     }
   }
 
+  collectStateUpdate(context: RoundContext): SubSystemState | null {
+    const populationState = context.subsystemStates?.['population']
+    const totalPopulation = (populationState?.data as { totalPopulation?: number } | undefined)?.totalPopulation
+    if (totalPopulation === undefined) return null
+
+    this._lastKnownPopulation = totalPopulation
+    return {
+      id: this.id,
+      summary: this.getSummaryText(totalPopulation),
+      data: structuredClone(this.state as unknown as Record<string, unknown>),
+    }
+  }
+
   applyChanges(changes: SubSystemChanges, _context: RoundContext): void {
     if (!changes || typeof changes !== 'object') {
       throw new Error(`[${this.id}] Invalid changes: expected object`)
@@ -163,10 +175,13 @@ export class EconomySystem implements ISubSystem {
     }
 
     if (typeof c.wealthDelta === 'number') {
-      this.state.currency.playerWealth = Math.max(
-        0,
-        this.state.currency.playerWealth + (c.wealthDelta as number),
+      this.state.currency.playerWealth = clamp(
+        this.state.currency.playerWealth + (c.wealthDelta as number), 0, Infinity,
       )
+    }
+
+    if (typeof c.inflationDelta === 'number') {
+      this.state.currency.inflation = clamp(this.state.currency.inflation + c.inflationDelta, -20, 50)
     }
 
     if (typeof c.setTaxRate === 'number') {
@@ -251,7 +266,7 @@ export class EconomySystem implements ISubSystem {
       const extracted = extractDynamicAttrsFromNarrative(changes.description, ECONOMY_TAG_MAP)
       if (extracted) {
         if (typeof extracted.playerWealth === 'number') {
-          this.state.currency.playerWealth = Math.max(0, this.state.currency.playerWealth + extracted.playerWealth)
+          this.state.currency.playerWealth = clamp(this.state.currency.playerWealth + extracted.playerWealth, 0, Infinity)
         }
         if (typeof extracted.totalCirculation === 'number') {
           this.state.currency.totalCirculation = Math.max(100, this.state.currency.totalCirculation + extracted.totalCirculation)
@@ -304,7 +319,7 @@ export class EconomySystem implements ISubSystem {
         phaseElapsed = 0
       }
 
-      marketCycleProgress = Math.min(100, (phaseElapsed / phaseTarget) * 100)
+      marketCycleProgress = clamp((phaseElapsed / phaseTarget) * 100, -Infinity, 100)
 
       // ── 通胀变化 ──
       const inflationDelta =
@@ -359,9 +374,10 @@ export class EconomySystem implements ISubSystem {
       const taxDrain = (taxRate / 100) * 0.5
       const difficultyFactor = this.state.difficultyMultiplier
       // 财富变化 = (基础乘数 - 税率抽水 - 季节修正 - 难度因子) + 资产收入 - 债务利息 + 随机波动
-      const wealthMultiplier = Math.max(0, phaseMultiplier - taxDrain + seasonalEffect - (difficultyFactor - 1) * 0.1)
-      currency.playerWealth = round(Math.max(0,
+      const wealthMultiplier = clamp(phaseMultiplier - taxDrain + seasonalEffect - (difficultyFactor - 1) * 0.1, 0, Infinity)
+      currency.playerWealth = round(clamp(
         currency.playerWealth * wealthMultiplier + assetIncome - debtInterest + (Math.random() - 0.5) * 2,
+        0, Infinity,
       ))
 
       // 商路繁荣度变化 + 状态更新 + 危险等级 + 事件

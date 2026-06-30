@@ -95,7 +95,7 @@ export type { DynamicStage, EconomicTierInfo } from './constants'
 export {
   ROUND_DECIMALS,
   round,
-  clampNumber,
+  clamp,
   pickRandom,
   computeAverage,
   getUnitName,

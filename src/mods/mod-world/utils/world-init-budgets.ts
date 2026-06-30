@@ -11,6 +11,7 @@ import {
   scaleTokenBudgetByInputLength,
   bumpTokenBudget,
 } from '@/foundation'
+import { clamp } from '@/core/shared'
 
 import {
   worldCalibrationPrompt,
@@ -43,7 +44,7 @@ function budgetForStep(
   descriptionLength: number,
   minTokens: number,
 ): number {
-  const inputChars = systemPrompt.length + userTemplate.length + Math.max(0, descriptionLength)
+  const inputChars = systemPrompt.length + userTemplate.length + clamp(descriptionLength, 0, Infinity)
   return scaleTokenBudgetByInputLength(outputEstimate, inputChars, minTokens)
 }
 
@@ -51,7 +52,7 @@ function budgetForStep(
  * 根据 worldDescription 长度构建各步骤 maxTokens 预算（无硬顶）
  */
 export function buildWorldInitPipelineBudgets(descriptionLength: number): WorldInitPipelineBudgets {
-  const len = Math.max(0, descriptionLength)
+  const len = clamp(descriptionLength, 0, Infinity)
 
   const calibration = budgetForStep(
     worldCalibrationPrompt.systemPrompt,

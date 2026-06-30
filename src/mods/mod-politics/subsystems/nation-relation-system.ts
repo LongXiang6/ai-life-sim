@@ -127,7 +127,7 @@ export class NationRelationSystem implements ISubSystem {
     if (typeof c.nationId === 'string' && typeof c.tradeVolume === 'number') {
       const entry = this.state.relations.find((r) => r.nationId === c.nationId)
       if (entry) {
-        entry.tradeVolume = Math.max(0, c.tradeVolume)
+        entry.tradeVolume = clamp(c.tradeVolume, 0, Infinity)
       }
     }
 
@@ -169,7 +169,7 @@ export class NationRelationSystem implements ISubSystem {
 
         // 战争期间 peace 缓慢积累
         rel.peace += NATION_WAR_PEACE_GAIN
-        rel.tension = Math.max(0, rel.tension - 5)
+        rel.tension = clamp(rel.tension - 5, 0, Infinity)
 
         // 战争结束检测：peace 积累足够 or 随机
         if (rel.peace >= NATION_PEACE_ALLY_THRESHOLD || Math.random() < 0.08) {
@@ -182,14 +182,14 @@ export class NationRelationSystem implements ISubSystem {
           } else {
             rel.stance = 'neutral'
           }
-          rel.tension = Math.max(0, rel.tension - 30)
+          rel.tension = clamp(rel.tension - 30, 0, Infinity)
           rel.peace = 0
         }
       } else if (rel.stance === 'hostile') {
         // ── 敌对状态 ──
         // 侵略性驱动紧张度积累
         const tensionGain = (rel.aggressiveness - 20) * 0.1 + (Math.random() - 0.5) * 2
-        rel.tension = Math.max(0, rel.tension + round(tensionGain))
+        rel.tension = clamp(rel.tension + round(tensionGain), 0, Infinity)
         rel.relation = clamp(rel.relation - 1, NATION_RELATION_RANGE.min, NATION_RELATION_RANGE.max)
 
         // 战争检测：紧张度 >= 阈值
@@ -201,8 +201,8 @@ export class NationRelationSystem implements ISubSystem {
       } else if (rel.stance === 'ally') {
         // ── 同盟状态 ──
         rel.peace += (Math.random() - 0.3) * 1.5
-        rel.peace = Math.max(0, rel.peace)
-        rel.tension = Math.max(0, rel.tension - NATION_TENSION_DECAY)
+        rel.peace = clamp(rel.peace, 0, Infinity)
+        rel.tension = clamp(rel.tension - NATION_TENSION_DECAY, 0, Infinity)
         rel.relation = clamp(rel.relation + 1, NATION_RELATION_RANGE.min, NATION_RELATION_RANGE.max)
 
         // 婚姻联盟额外加成
@@ -212,16 +212,16 @@ export class NationRelationSystem implements ISubSystem {
       } else {
         // ── 中立/vassal/overlord ──
         // 紧张度自然衰减
-        rel.tension = Math.max(0, rel.tension - NATION_TENSION_DECAY)
+        rel.tension = clamp(rel.tension - NATION_TENSION_DECAY, 0, Infinity)
 
         // 和平度变化：受侵略性影响
         const peaceGain = (Math.random() - rel.aggressiveness / 200) * 1.5
-        rel.peace = Math.max(0, rel.peace + round(peaceGain))
+        rel.peace = clamp(rel.peace + round(peaceGain), 0, Infinity)
       }
 
       // 贸易量自然波动
       const tradeDrift = (Math.random() - 0.45) * 3
-      rel.tradeVolume = round(Math.max(0, rel.tradeVolume + tradeDrift))
+      rel.tradeVolume = round(clamp(rel.tradeVolume + tradeDrift, 0, Infinity))
 
       // 关系漂移：向立场中性值靠拢
       const stanceTarget = this.getStanceTargetRelation(rel.stance)

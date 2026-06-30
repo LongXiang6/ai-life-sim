@@ -6,6 +6,7 @@
 
 import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
 import { getRoundSequence } from '@/foundation'
+import { clamp } from '@/core/shared'
 import type { DivineInterventionState } from '../types'
 
 const ORACLE_TYPES = [
@@ -68,7 +69,7 @@ export class DivineInterventionSystem implements ISubSystem {
     this._state.activeOracles = this._state.activeOracles.filter(o => { o.turnsRemaining--; return o.turnsRemaining > 0 })
     this._state.activeMiracles = this._state.activeMiracles.filter(m => { m.turnsRemaining--; return m.turnsRemaining > 0 })
     if (this._state.miracleCooldownTurns > 0) this._state.miracleCooldownTurns--
-    if (this._state.severity > 0) this._state.severity = Math.max(0, this._state.severity - 1)
+    if (this._state.severity > 0) this._state.severity = clamp(this._state.severity - 1, 0, Infinity)
 
     const faithLevel = (faithData?.devotionLevel as number) ?? 0
     const divineFavor = (divineData?.divineFavor as Record<string, number>) ?? {}

@@ -55,10 +55,10 @@ export {
 export {
   ROUND_DECIMALS,
   round,
-  clampNumber,
+  clamp,
   pickRandom,
   computeAverage,
-  randomInRange,
+  randomInt,
 } from './utils'
 
 // === 基础地形资源 ===

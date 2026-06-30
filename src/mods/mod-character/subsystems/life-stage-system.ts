@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @module life-stage-system.ts
  * @description 生命阶段子系统
  * @mod mod-character
@@ -6,6 +6,7 @@
 
 import type { ISubSystem, RoundContext, SubSystemState, SubSystemChanges } from '@/foundation'
 import type { LifeStageId, LifeStageConfig, LifeStageState } from '../types'
+import { clamp } from '@/core/shared'
 
 import {
   DEFAULT_LIFE_STAGES,
@@ -183,7 +184,9 @@ export class LifeStageSystem implements ISubSystem {
   }
 
   private getCharacterAge(context: RoundContext): number {
-    return context.round.year
+    const characterBase = context.subsystemStates['character-base']?.data as { startingAge?: number } | undefined
+    const startingAge = typeof characterBase?.startingAge === 'number' ? characterBase.startingAge : 0
+    return startingAge + clamp(context.round.year - 1, 0, Infinity)
   }
 
   private getMaxAge(context: RoundContext): number {

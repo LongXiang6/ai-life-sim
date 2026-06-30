@@ -59,6 +59,10 @@ export interface CustomWorldInput {
   name: string
   description: string
   worldview: string
+  /** 纪元名称（如"公元"、"星际历"）。缺省时由引擎自动判定 */
+  eraName?: string
+  /** 纪元起始年份。0 表示无自定义纪年 */
+  eraStartYear?: number
 }
 
 function inferEssenceFromText(text: string): string {
@@ -182,6 +186,9 @@ export function buildWorldConfigFromCustom(
     civilizationStage: essenceTag === 'modern' || essenceTag === 'scifi' ? 'modern' : 'medieval',
     difficulty,
     description: input.description,
+    // 纪元配置从用户输入传递，缺省时由引擎自动判定
+    ...(input.eraName ? { eraName: input.eraName } : {}),
+    ...(input.eraStartYear != null ? { eraStartYear: input.eraStartYear } : {}),
   }
 }
 

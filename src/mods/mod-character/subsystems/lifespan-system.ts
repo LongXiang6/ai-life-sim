@@ -21,6 +21,7 @@ import {
   LIFESPAN_REDUCTION_KEYWORDS,
 } from '../constants'
 import { round } from '../utils'
+import { clamp } from '@/core/shared'
 
 import { getFormulaModifier } from '@/mods/mod-world'
 import { LIFESPAN_NARRATIVE_REDUCTION_ENABLED } from '@/core/ai-service/prompt-flags'
@@ -299,6 +300,6 @@ export class LifespanSystem implements ISubSystem {
     const startingAge = (baseState && typeof baseState === 'object' && 'startingAge' in baseState)
       ? (baseState as Record<string, unknown>).startingAge as number
       : 0
-    return (startingAge ?? 0) + Math.max(0, context.round.year - 1)
+    return (startingAge ?? 0) + clamp(context.round.year - 1, 0, Infinity)
   }
 }

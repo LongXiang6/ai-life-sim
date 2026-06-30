@@ -17,7 +17,7 @@ import {
   LUCK_MAJOR_CHANGE_THRESHOLD,
   LUCK_NOTIFICATION_DURATION,
   round,
-  clampNumber,
+  clamp,
 } from '../constants'
 
 import { getFormulaModifier } from '@/mods/mod-world'
@@ -47,7 +47,7 @@ export class LuckSystem implements ISubSystem {
   }
 
   private computeModifiers(luck: number): LuckModifiers {
-    const clampedLuck = clampNumber(luck, LUCK_MIN, LUCK_MAX)
+    const clampedLuck = clamp(luck, LUCK_MIN, LUCK_MAX)
     const mod = getFormulaModifier('luckPointModifier')
     return {
       diseaseAvoidance: round(clampedLuck * LUCK_DISEASE_AVOIDANCE_PER_POINT * mod, 4),
@@ -127,7 +127,7 @@ export class LuckSystem implements ISubSystem {
 
   /** 应用运气变更并检测大幅变化 */
   private _applyLuckChange(rawLuck: number): void {
-    const newLuck = clampNumber(rawLuck, LUCK_MIN, LUCK_MAX)
+    const newLuck = clamp(rawLuck, LUCK_MIN, LUCK_MAX)
     const oldLuck = this.state.luck
     this.state.luck = newLuck
     this.state.modifiers = this.computeModifiers(newLuck)
@@ -158,7 +158,7 @@ export class LuckSystem implements ISubSystem {
 
     for (const effect of crossEffects) {
       if (effect.targetSystem === 'luck' && effect.effectType === 'luck_boost') {
-        const newLuck = clampNumber(this.state.luck + effect.value, LUCK_MIN, LUCK_MAX)
+        const newLuck = clamp(this.state.luck + effect.value, LUCK_MIN, LUCK_MAX)
         this.state.luck = newLuck
         this.state.modifiers = this.computeModifiers(newLuck)
       }

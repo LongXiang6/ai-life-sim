@@ -30,8 +30,8 @@ import {
 } from '../constants'
 import {
   round,
-  clampNumber,
-  randomInRange,
+  clamp,
+  randomInt,
 } from '../utils'
 
 import { getFormulaModifier } from '@/mods/mod-world'
@@ -125,8 +125,8 @@ export class IndustrySystem implements ISubSystem {
 
     // ——— 直接设置状态 ———
     if (typeof c.primaryFocus === 'string') this.state.primaryFocus = c.primaryFocus as PrimaryFocus
-    if (typeof c.productivityMultiplier === 'number') this.state.productivityMultiplier = clampNumber(c.productivityMultiplier, PRODUCTIVITY_RANGE.min, PRODUCTIVITY_RANGE.max)
-    if (typeof c.techAdoptionRate === 'number') this.state.techAdoptionRate = clampNumber(c.techAdoptionRate, ADOPTION_RANGE.min, ADOPTION_RANGE.max)
+    if (typeof c.productivityMultiplier === 'number') this.state.productivityMultiplier = clamp(c.productivityMultiplier, PRODUCTIVITY_RANGE.min, PRODUCTIVITY_RANGE.max)
+    if (typeof c.techAdoptionRate === 'number') this.state.techAdoptionRate = clamp(c.techAdoptionRate, ADOPTION_RANGE.min, ADOPTION_RANGE.max)
     if (typeof c.initialized === 'boolean') this.state.initialized = c.initialized
 
     // P2 降级：AI JSON 未显式声明工业变化时，从 description 中补偿提取
@@ -137,13 +137,13 @@ export class IndustrySystem implements ISubSystem {
       const extracted = extractDynamicAttrsFromNarrative(changes.description, INDUSTRY_TAG_MAP)
       if (extracted) {
         if (typeof extracted.productivityMultiplier === 'number') {
-          this.state.productivityMultiplier = clampNumber(
+          this.state.productivityMultiplier = clamp(
             this.state.productivityMultiplier + extracted.productivityMultiplier,
             PRODUCTIVITY_RANGE.min, PRODUCTIVITY_RANGE.max,
           )
         }
         if (typeof extracted.techAdoptionRate === 'number') {
-          this.state.techAdoptionRate = clampNumber(
+          this.state.techAdoptionRate = clamp(
             this.state.techAdoptionRate + extracted.techAdoptionRate,
             ADOPTION_RANGE.min, ADOPTION_RANGE.max,
           )
@@ -154,8 +154,8 @@ export class IndustrySystem implements ISubSystem {
 
   // ─── 产业推进逻辑 ───
   private advanceIndustry(techLevel: number, resources: number, warActive: boolean, supernatural: boolean): void {
-    const safeTech = clampNumber(techLevel, TECH_LEVEL_RANGE.min, TECH_LEVEL_RANGE.max)
-    const safeResources = clampNumber(resources, RESOURCES_RANGE.min, RESOURCES_RANGE.max)
+    const safeTech = clamp(techLevel, TECH_LEVEL_RANGE.min, TECH_LEVEL_RANGE.max)
+    const safeResources = clamp(resources, RESOURCES_RANGE.min, RESOURCES_RANGE.max)
 
     // 目标主导产业判定
     let targetFocus: PrimaryFocus = 'mixed'
@@ -172,13 +172,13 @@ export class IndustrySystem implements ISubSystem {
     this.state.primaryFocus = targetFocus
 
     // 目标生产率：1 + techLevel/100 × 0.5 + resources/100 × 0.3
-    const targetProductivity = clampNumber(
+    const targetProductivity = clamp(
       (1 + (safeTech / 100) * 0.5 + (safeResources / 100) * 0.3) * getFormulaModifier('industryProductivityModifier'),
       PRODUCTIVITY_RANGE.min,
       PRODUCTIVITY_RANGE.max,
     )
     // 目标科技采纳率：0.01 + techLevel/100 × 0.05
-    const targetAdoption = clampNumber(0.01 + (safeTech / 100) * 0.05, ADOPTION_RANGE.min, ADOPTION_RANGE.max)
+    const targetAdoption = clamp(0.01 + (safeTech / 100) * 0.05, ADOPTION_RANGE.min, ADOPTION_RANGE.max)
 
     // 渐变过渡（过渡因子 = 1/10，平滑移动）
     const transitionFactor = 0.1
@@ -213,8 +213,8 @@ export class IndustrySystem implements ISubSystem {
           for (const entry of baseRanges) {
             regionResources.push({
               type: entry.type,
-              abundance: randomInRange(entry.abundance[0], entry.abundance[1]),
-              quality: randomInRange(40, 80),
+              abundance: randomInt(entry.abundance[0], entry.abundance[1]),
+              quality: randomInt(40, 80),
             })
           }
         }
@@ -227,8 +227,8 @@ export class IndustrySystem implements ISubSystem {
             for (const entry of extraRanges) {
               regionResources.push({
                 type: entry.type,
-                abundance: randomInRange(entry.abundance[0], entry.abundance[1]),
-                quality: randomInRange(60, 95),
+                abundance: randomInt(entry.abundance[0], entry.abundance[1]),
+                quality: randomInt(60, 95),
               })
             }
           }
@@ -277,10 +277,10 @@ export class IndustrySystem implements ISubSystem {
         if (isRenewable) {
           // 可再生资源恢复
           const recoveryRate = RECOVERY_RATES[res.type] ?? 3
-          res.abundance = clampNumber(res.abundance + recoveryRate, RESOURCES_RANGE.min, RESOURCES_RANGE.max)
+          res.abundance = clamp(res.abundance + recoveryRate, RESOURCES_RANGE.min, RESOURCES_RANGE.max)
         } else {
           // 不可再生资源自然消耗（每轮 2%）
-          res.abundance = clampNumber(res.abundance - 2, RESOURCES_RANGE.min, RESOURCES_RANGE.max)
+          res.abundance = clamp(res.abundance - 2, RESOURCES_RANGE.min, RESOURCES_RANGE.max)
         }
 
         // 枯竭检测
@@ -290,7 +290,7 @@ export class IndustrySystem implements ISubSystem {
 
         // 品质缓慢下降
         if (res.quality > 0 && Math.random() < 0.01) {
-          res.quality = Math.max(0, res.quality - 1)
+          res.quality = clamp(res.quality - 1, 0, Infinity)
         }
 
         updated.push(res)
@@ -305,8 +305,8 @@ export class IndustrySystem implements ISubSystem {
             const pick = baseRanges[Math.floor(Math.random() * baseRanges.length)]
             updated.push({
               type: pick.type,
-              abundance: randomInRange(pick.abundance[0], pick.abundance[1]),
-              quality: randomInRange(50, 80),
+              abundance: randomInt(pick.abundance[0], pick.abundance[1]),
+              quality: randomInt(50, 80),
             })
             events.push(`${regionId}发现新${RESOURCE_LABELS[pick.type] ?? pick.type}矿脉`)
           }
@@ -331,7 +331,7 @@ export class IndustrySystem implements ISubSystem {
     }
     if (allAbundances.length === 0) return 0
     const avg = allAbundances.reduce((a, b) => a + b, 0) / allAbundances.length
-    return round(Math.max(0, 100 - avg))
+    return round(clamp(100 - avg, 0, Infinity))
   }
 
   private inferTerrainForRegion(regionId: string): TerrainType | null {

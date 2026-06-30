@@ -75,7 +75,8 @@ import {
 } from '../helpers/narrative-calendar'
 import { formatEraYear } from '@/foundation/utils/format-time'
 import { buildTimeScaleNarrativeHint } from '../helpers/time-scale-narrative'
-import { computeNarrativeMaxTokens } from '../constants/narrative-config'
+import { computeNarrativeMaxTokens, DEFAULT_WORD_COUNT_TARGET } from '../constants/narrative-config'
+import { generateArchetypeHint, buildLifespanReminder, countConsecutiveConflictRounds } from '../helpers/life-stage-archetypes'
 import { simulationBridge } from '../simulation/simulation-bridge'
 import {
   TimeSystem,
@@ -194,13 +195,12 @@ function applyWorldDirection(
     return typeof cur === 'number' ? cur : undefined
   }
 
-  // —— market → economy：繁荣/衰退按倍率调整玩家财富（用 economy 认识的 wealthDelta 增量键）——
+  // —— market → economy：繁荣/衰退写入通胀增量，priceIndex 会由 economy 根据 inflation 重新派生 ——
   if (direction.market) {
     const mult = resolveMag(direction.market)
-    const wealth = readNum('economy', 'currency.playerWealth')
-    if (mult !== 1 && wealth !== undefined) {
-      const delta = Math.round(wealth * (mult - 1))
-      if (delta !== 0) commit('economy', direction.market.direction ?? '波动', { wealthDelta: delta })
+    if (mult !== 1) {
+      const inflationDelta = Math.round((mult - 1) * 20 * 10) / 10
+      if (inflationDelta !== 0) commit('economy', direction.market.direction ?? '波动', { inflationDelta })
     }
   }
 
@@ -405,15 +405,14 @@ export class OrchestratorSystem implements ISubSystem {
   }
 
   /**
-   * 叙事用年龄：以 advanceTime 前的 round.year 为准（首回合 advance 后仍描述 0 岁）
+   * 叙事用年龄：与 lifespan 子系统一样使用推进后的 round.year，避免同一 prompt 内年龄不一致。
    */
   private computeNarrativeAge(context: RoundContext): number {
     const baseState = context.subsystemStates?.['character-base']?.data
     const startingAge = (baseState && typeof baseState === 'object' && 'startingAge' in baseState)
       ? (baseState as Record<string, unknown>).startingAge as number
       : 0
-    const yearForAge = this.prevRoundYear ?? context.round.year
-    return (startingAge ?? 0) + Math.max(0, yearForAge - 1)
+    return (startingAge ?? 0) + Math.max(0, context.round.year - 1)
   }
 
   /** 设置时间步进（UI → 引擎 + TimeSystem） */
@@ -532,15 +531,15 @@ export class OrchestratorSystem implements ISubSystem {
 
   restoreSnapshot(snap: OrchestratorSnapshot): void {
     this.state = structuredClone(snap.state)
-    this.lastSubsystemStates = structuredClone(snap.lastSubsystemStates)
-    this.eventLifecycle = structuredClone(snap.eventLifecycle)
-    this.lastNotableEvents = [...snap.lastNotableEvents]
-    this.prevAbbreviationSnapshot = { ...snap.prevAbbreviationSnapshot }
-    this.prevRoundYear = snap.prevRoundYear
-    this.prevBridgeSnapshot = structuredClone(snap.prevBridgeSnapshot)
-    this.lastNarrativeText = snap.lastNarrativeText
-    this.totalBreakthroughs = snap.totalBreakthroughs
-    timeSystem.importRound(snap.timeRound)
+    this.lastSubsystemStates = structuredClone(snap.lastSubsystemStates ?? {})
+    this.eventLifecycle = structuredClone(snap.eventLifecycle ?? {})
+    this.lastNotableEvents = [...(snap.lastNotableEvents ?? [])]
+    this.prevAbbreviationSnapshot = { ...(snap.prevAbbreviationSnapshot ?? {}) }
+    this.prevRoundYear = snap.prevRoundYear ?? this.state.round.year
+    this.prevBridgeSnapshot = structuredClone(snap.prevBridgeSnapshot ?? {})
+    this.lastNarrativeText = snap.lastNarrativeText ?? ''
+    this.totalBreakthroughs = snap.totalBreakthroughs ?? 0
+    if (snap.timeRound) timeSystem.importRound(snap.timeRound)
     useEngineStore.setState((prev) => ({
       ...prev,
       ...this.state,
@@ -1147,11 +1146,21 @@ export class OrchestratorSystem implements ISubSystem {
       startingAge,
       syncedCharacter.age,
     )
+    // 叙事类型引导：按生命阶段限制可选叙事类型（婴儿禁战斗、老年禁探险）
+    const archetypeHint = generateArchetypeHint(
+      resolveLifeStageFromAge(syncedCharacter.age, maxAge, startingAge),
+      'normal',
+      countConsecutiveConflictRounds(this.state.narrativeHistory.slice(-10).map((n) => n.text)),
+    )
+    // 寿命提醒：告知 AI 角色当前寿命阶段约束
+    const lifespanReminder = buildLifespanReminder(maxAge, syncedCharacter.age)
 
     // 合并自定义文本
     const combinedCustomText = [
       coherenceHeader,
       lifeStageHint,
+      archetypeHint,
+      lifespanReminder,
       worldCustomizeText,
       economyScaleText,
       influenceText,
@@ -1204,8 +1213,9 @@ export class OrchestratorSystem implements ISubSystem {
       ),
       coreMemory: coreMemory.buildCoreMemory() || undefined,
       subsystemFields: formatSubsystemFieldsForPrompt(promptOpenIds),
+      // 从单一来源常量取默认字数，避免散落硬编码回退
       wordCountInstruction: [
-        buildWordCountInstruction(useSettingsStore.getState().wordCountTarget ?? 200),
+        buildWordCountInstruction(useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET),
         buildTimeScaleNarrativeHint(this.state.timeStep),
       ].join('\n'),
       calibrationSummary: (this.worldSetting?.config?._calibrationSummary as string) || undefined,
@@ -2284,7 +2294,8 @@ export class OrchestratorSystem implements ISubSystem {
     aiConfig: AIModelConfig,
     sessionId?: string,
   ): Promise<RoundResult> {
-    const wordCountTarget = useSettingsStore.getState().wordCountTarget ?? 200
+    // 从单一来源常量取默认字数，与 Prompt 组装、pre-gen、hooks 共享同一常量
+    const wordCountTarget = useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET
     const effectiveAiConfig: AIModelConfig = {
       ...aiConfig,
       maxTokens: computeNarrativeMaxTokens(wordCountTarget),
@@ -2310,7 +2321,18 @@ export class OrchestratorSystem implements ISubSystem {
     this.lastSessionId = sessionId
 
     // 注入 AI 配置 + 世界观信息到 adaptation 管线
-    adaptationManager.setAiConfig(effectiveAiConfig, sessionId)
+    const { customKey, provider, customUrl, customModel } = useSettingsStore.getState()
+    const adaptationModel = customModel || effectiveAiConfig.model
+    adaptationManager.setAiConfig(
+      { ...effectiveAiConfig, model: adaptationModel },
+      sessionId,
+      {
+        providerId: provider,
+        apiKey: customKey || undefined,
+        customBaseUrl: customUrl || undefined,
+        customModel: adaptationModel,
+      },
+    )
     if (this.worldSetting) {
       const config = this.worldSetting.config
       const essenceTag = typeof config.essenceTag === 'string' ? config.essenceTag : this.worldSetting.description.slice(0, 30)

@@ -11,6 +11,7 @@ import { createPortal } from 'react-dom'
 
 import { useSettingsStore } from '../store'
 import type { ReasoningEffort } from '../store'
+import { DEFAULT_WORD_COUNT_TARGET } from '@/mods/mod-engine/constants/narrative-config'
 import { SettingsParamCard } from './SettingsParamCard'
 import { SettingsHelpTooltip } from './SettingsHelpTooltip'
 
@@ -117,7 +118,7 @@ export function SettingsTabModel() {
     setAiTalentGeneration(false)
     setReasoningEffort('disabled')
     setTalentThinkingIntensity('disabled')
-    setWordCountTarget(200)
+    setWordCountTarget(DEFAULT_WORD_COUNT_TARGET)
     setTemperature(0.8)
     setTopP(0.8)
     setMaxTokens(1024)

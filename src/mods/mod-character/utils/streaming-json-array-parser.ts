@@ -77,7 +77,7 @@ function extractCompleteObjects(buffer: string): unknown[] {
 
 /**
  * 流式 JSON 数组解析器
- * 适用于 AI 输出 `[{...},{...},...]` 紧凑格式
+ * 适用于 AI 输出 `[{...},{...},...]` 或 `{ "patterns": [{...}] }` 格式
  */
 export class StreamingJsonArrayParser<T = unknown> {
   private buffer = ''

@@ -6,6 +6,7 @@
 
 import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
 import { getRoundSequence } from '@/foundation'
+import { clamp } from '@/core/shared'
 import type { AnomalyZone } from '../types'
 
 const ANOMALY_RULES = [
@@ -89,8 +90,8 @@ export class AnomalyPhenomenaSystem implements ISubSystem {
 
     // 全局不稳定度
     this._state.globalInstability = this._state.zones.length > 0
-      ? Math.min(100, this._state.globalInstability + 1)
-      : Math.max(0, this._state.globalInstability - 1)
+      ? clamp(this._state.globalInstability + 1, -Infinity, 100)
+      : clamp(this._state.globalInstability - 1, 0, Infinity)
 
     return this._buildResult()
   }

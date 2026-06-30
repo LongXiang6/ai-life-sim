@@ -22,6 +22,7 @@ import type {
 } from '../types'
 import { ANTAGONIST_TAG_LABELS } from '../types'
 import { useNPCStore } from '../store'
+import { clamp } from '@/core/shared'
 
 /** 行为权重配置 */
 interface BehaviorWeights {
@@ -94,7 +95,7 @@ export class NPCBehaviorSystem implements ISubSystem {
     // 反派修正：反派标签 → 大幅增加战斗概率
     if (npc.antagonist?.isAntagonist) {
       weights.combat += npc.antagonist.threatLevel / 5   // 最高 +20
-      weights.idle = Math.max(0, weights.idle - 10)      // 减少闲置
+      weights.idle = clamp(weights.idle - 10, 0, Infinity)      // 减少闲置
       // 根据冲突阶段调整
       if (npc.antagonist.conflictPhase === '决战中') {
         weights.combat += 20
@@ -106,7 +107,7 @@ export class NPCBehaviorSystem implements ISubSystem {
     const recent = npc.recentBehaviors.slice(0, 3)
     if (recent.length >= 3 && recent.every((b) => b.type === recent[0]!.type)) {
       const repeatType = recent[0]!.type
-      weights[repeatType] = Math.max(0, weights[repeatType] - 20)
+      weights[repeatType] = clamp(weights[repeatType] - 20, 0, Infinity)
     }
 
     // 投掷随机行为
@@ -152,7 +153,7 @@ export class NPCBehaviorSystem implements ISubSystem {
 
     if (existingIdx >= 0) {
       const existing = relations[existingIdx]!
-      const newAffinity = Math.max(-100, Math.min(100, existing.affinity + affinityDelta))
+      const newAffinity = clamp(existing.affinity + affinityDelta, -100, 100)
       const newType = NPCBehaviorSystem._determineRelationType(newAffinity, existing.type)
       relations[existingIdx] = {
         ...existing,
@@ -166,7 +167,7 @@ export class NPCBehaviorSystem implements ISubSystem {
     // 新关系
     const newRelation: NPCRelation = {
       targetId,
-      affinity: Math.max(-100, Math.min(100, affinityDelta)),
+      affinity: clamp(affinityDelta, -100, 100),
       type: NPCBehaviorSystem._determineRelationType(affinityDelta),
       description: '',
       lastInteractionYear: currentYear,
@@ -211,12 +212,12 @@ export class NPCBehaviorSystem implements ISubSystem {
   /** 加权随机选择 */
   private static _weightedRandom(weights: BehaviorWeights): NPCBehaviorType {
     const entries = Object.entries(weights) as [NPCBehaviorType, number][]
-    const total = entries.reduce((sum, [, w]) => sum + Math.max(0, w), 0)
+    const total = entries.reduce((sum, [, w]) => sum + clamp(w, 0, Infinity), 0)
     if (total <= 0) return 'idle'
 
     let rand = Math.random() * total
     for (const [type, weight] of entries) {
-      rand -= Math.max(0, weight)
+      rand -= clamp(weight, 0, Infinity)
       if (rand <= 0) return type
     }
 

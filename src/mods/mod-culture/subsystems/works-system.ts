@@ -136,16 +136,16 @@ export class WorksSystem implements ISubSystem {
       for (const work of this.state.works) {
         if (work.status === 'in_progress') {
           const progressGain = Math.min(40, (WORKS_EFFORT_DEFAULT + Math.floor(work.fame * 0.1)) * scale)
-          work.progress = Math.min(100, work.progress + progressGain)
+          work.progress = clamp(work.progress + progressGain, -Infinity, 100)
 
           // 完成检测
           if (work.progress >= 100) {
             work.status = 'completed'
             work.completedEraYear = this._lastProcessedRound >= 0 ? this._lastProcessedRound : 0
-            work.fame = Math.min(100, work.fame + (10 + Math.floor(Math.random() * 15)) * scale)
+            work.fame = clamp(work.fame + (10 + Math.floor(Math.random() * 15)) * scale, -Infinity, 100)
           }
         } else if (work.status === 'completed') {
-          work.fame = Math.min(100, work.fame + (1 + Math.floor(Math.random() * 3)) * scale)
+          work.fame = clamp(work.fame + (1 + Math.floor(Math.random() * 3)) * scale, -Infinity, 100)
         }
       }
     }

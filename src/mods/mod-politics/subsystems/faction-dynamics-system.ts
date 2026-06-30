@@ -24,7 +24,7 @@ import {
   round,
   clamp,
   pickRandom,
-  randomInRange,
+  randomInt,
 } from '../constants'
 
 import { getFormulaModifier } from '@/mods/mod-world'
@@ -98,15 +98,15 @@ export class FactionDynamicsSystem implements ISubSystem {
   }
 
   private createFactionFromTemplate(name: string, type: string, goal: string): Faction {
-    const influence = randomInRange(10, 60)
+    const influence = randomInt(10, 60)
     return {
       id: `faction-${++_factionIdCounter}`,
       name,
       type: type as Faction['type'],
-      memberCount: randomInRange(100, 5000),
+      memberCount: randomInt(100, 5000),
       influence,
       goal,
-      attitudeToPlayer: randomInRange(-20, 40),
+      attitudeToPlayer: randomInt(-20, 40),
       rivals: [],
       allies: [],
       status: pickRandom(['rising', 'stable', 'declining'] as FactionStatus[]),
@@ -310,15 +310,15 @@ export class FactionDynamicsSystem implements ISubSystem {
       // 新派系涌现
       if (this.state.factions.length < MAX_FACTIONS && Math.random() < 0.03 * getFormulaModifier('factionEmergenceModifier')) {
         const name = pickRandom(FACTION_NAME_PREFIXES) + pickRandom(FACTION_NAME_SUFFIXES)
-        const influence = randomInRange(5, 30)
+        const influence = randomInt(5, 30)
         const newFaction: Faction = {
           id: `faction-${++_factionIdCounter}`,
           name,
           type: pickRandom(FACTION_TYPES),
-          memberCount: randomInRange(50, 2000),
+          memberCount: randomInt(50, 2000),
           influence,
           goal: pickRandom(FACTION_GOALS),
-          attitudeToPlayer: randomInRange(-10, 30),
+          attitudeToPlayer: randomInt(-10, 30),
           rivals: [],
           allies: [],
           status: 'rising',
@@ -363,7 +363,7 @@ export class FactionDynamicsSystem implements ISubSystem {
   /** 增加贡献值（触发自动晋升） */
   addContribution(amount: number): void {
     if (!this.state.playerFactionId) return
-    this.state.playerContribution += Math.max(0, amount)
+    this.state.playerContribution += clamp(amount, 0, Infinity)
 
     // 自动晋升：从高到低匹配
     let newRank = 0

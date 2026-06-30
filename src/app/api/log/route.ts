@@ -23,6 +23,11 @@ const ClientLogSchema = z.object({
   args: z.array(z.unknown()).optional(),
   raw: z.string().optional(),
   error: z.string().optional(),
+  errorName: z.string().optional(),
+  stack: z.string().optional(),
+  eventType: z.enum(['log', 'exception', 'user_action']).optional(),
+  action: z.string().optional(),
+  context: z.record(z.string(), z.unknown()).optional(),
 })
 
 type ClientLogEntry = z.infer<typeof ClientLogSchema>
@@ -60,9 +65,14 @@ async function writeLogAsync(entry: ClientLogEntry): Promise<void> {
   const time = new Date(entry.timestamp).toISOString()
   const argsStr = entry.args ? ` | args: ${JSON.stringify(entry.args).slice(0, 500)}` : ''
   const errorStr = entry.error ? ` | error: ${entry.error}` : ''
-  const line = `[${time}] [${entry.level.toUpperCase()}] [${entry.module}] ${entry.message}${argsStr}${errorStr}\n`
+  const stackStr = entry.stack ? ` | stack: ${entry.stack.slice(0, 1000)}` : ''
+  const actionStr = entry.action ? ` | action: ${entry.action}` : ''
+  const line = `[${time}] [${entry.level.toUpperCase()}] [${entry.module}] ${entry.message}${actionStr}${argsStr}${errorStr}${stackStr}\n`
 
   await fs.appendFile(fullPath, line)
+
+  const jsonlFile = `logs/client-events-${dateStr}.jsonl`
+  await fs.appendFile(path.join(process.cwd(), jsonlFile), JSON.stringify(entry) + '\n')
 
   // 如果有 raw 字段，额外保存完整原文
   if (entry.raw) {

@@ -24,7 +24,7 @@ import {
   CHILD_INDEPENDENT_PROBABILITY,
   round,
   clamp,
-  randomInRange,
+  randomInt,
 } from '../constants'
 
 import { getFormulaModifier } from '@/mods/mod-world'
@@ -118,7 +118,7 @@ export class FamilySystem implements ISubSystem {
     }
 
     if (typeof c.addFamilyWealth === 'number') {
-      this.state.familyWealth = round(Math.max(0, this.state.familyWealth + c.addFamilyWealth))
+      this.state.familyWealth = round(clamp(this.state.familyWealth + c.addFamilyWealth, 0, Infinity))
     }
 
     if (c.addMember === true && c.member && typeof c.member === 'object') {
@@ -313,15 +313,15 @@ export class FamilySystem implements ISubSystem {
       if (spouseAlive && childrenCount < MAX_CHILDREN && Math.random() < this._effectiveBirthProbability()) {
         const isMale = Math.random() > 0.5
         const namePool = isMale ? MALE_NAMES : FEMALE_NAMES
-        const name = namePool[randomInRange(0, namePool.length - 1)]
+        const name = namePool[randomInt(0, namePool.length - 1)]
         const child: FamilyMember = {
           id: `fam-${++_memberIdCounter}`,
           name,
           role: 'child',
           age: 0,
           alive: true,
-          ability: randomInRange(10, 80),
-          affinity: randomInRange(60, 100),
+          ability: randomInt(10, 80),
+          affinity: randomInt(60, 100),
           notes: `${currentYear + y}年出生`,
           independent: false,
           married: false,

@@ -144,6 +144,9 @@ export type {
   CoherenceFieldChange,
 } from './utils/world-coherence-inference'
 
+// 激活 shared/ 的世界观类型规范化 → 标准化用户输入的世界观标签
+export { normalizeWorldviewType, WORLDVIEW_TYPE_MAP } from '@/core/shared'
+
 export {
   mapPowerSystemZhToTag,
   mapWorldviewEssenceZhToTag,

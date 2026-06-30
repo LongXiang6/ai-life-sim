@@ -14,6 +14,7 @@
 
 import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
 import { saveStore } from '@/core'
+import { clamp } from '@/core/shared'
 
 import {
   STAGE_SPAN,
@@ -557,7 +558,7 @@ export class WorldTimelineSystem implements ISubSystem {
 
     for (const evt of events) {
       const segIdx = Math.floor((evt.year - stageStart) / segmentSize)
-      const clampedIdx = Math.max(0, Math.min(SEGMENTS_PER_STAGE - 1, segIdx))
+      const clampedIdx = clamp(segIdx, 0, SEGMENTS_PER_STAGE - 1)
       if (!segMap[clampedIdx]) segMap[clampedIdx] = []
       segMap[clampedIdx].push(evt)
     }
@@ -925,7 +926,7 @@ export class WorldTimelineSystem implements ISubSystem {
       const segIdx = this.segmentIndexes[s]
       if (segIdx) {
         const stageStart = this.anchorYear + s * STAGE_SPAN
-        const firstSeg = Math.max(0, Math.floor((startYear - stageStart) / segmentSize))
+        const firstSeg = clamp(Math.floor((startYear - stageStart) / segmentSize), 0, Infinity)
         const lastSeg = Math.min(SEGMENTS_PER_STAGE - 1, Math.floor((endYear - stageStart) / segmentSize))
 
         for (let seg = firstSeg; seg <= lastSeg; seg++) {

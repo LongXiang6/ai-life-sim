@@ -13,6 +13,8 @@ import { useWorldStore } from '@/mods/mod-world'
 import { useEngineStore } from '@/mods/mod-engine'
 
 import { useGlobalStore } from '@/core'
+// 统一使用 shared/ 的 clamp 替代内联 Math.max/Math.min
+import { clamp } from '@/core/shared'
 
 import { Button, Card, RadarChart, PageScroll } from '@/mods/mod-ui'
 
@@ -196,27 +198,17 @@ export default function GameOverPage() {
   const relCount = countRelationships(allNarratives)
   const charismaBonus = Math.min(relCount * 2, 15)
   const wealthTrend = estimateWealthTrend(allNarratives)
-  const wealthBonus = Math.max(-15, Math.min(15, wealthTrend * 2))
+  const wealthBonus = clamp(wealthTrend * 2, -15, 15)
   const luckBonus = countKeywords(allNarratives, LUCK_ACHIEVEMENTS) * 4
 
-  const physiqueScore = Math.min(100, Math.max(0,
-    Math.round((characterBase.current.physique / 20) * 100) + physBonus
-  ))
-  const mindScore = Math.min(100, Math.max(0,
-    Math.round((characterBase.current.mind / 20) * 100) + mindBonus
-  ))
-  const talentScore = Math.min(100, Math.max(0,
-    Math.round((characterBase.current.talentAptitude / 20) * 100) + talentBonus
-  ))
-  const charismaScore = Math.min(100, Math.max(0,
-    Math.round((characterBase.current.charisma / 20) * 100) + charismaBonus
-  ))
-  const _resourceScore = Math.min(100, Math.max(0,
-    Math.round((characterBase.current.resources / 20) * 100) + wealthBonus
-  ))
-  const luckScore = Math.min(100, Math.max(0,
-    Math.round(((characterBase.current.physique + characterBase.current.mind) / 40) * 100) + luckBonus
-  ))
+  // 五维评分计算：将各属性映射到 [0, 100]
+  const physiqueScore = clamp(Math.round((characterBase.current.physique / 20) * 100) + physBonus, 0, 100)
+  const mindScore = clamp(Math.round((characterBase.current.mind / 20) * 100) + mindBonus, 0, 100)
+  const talentScore = clamp(Math.round((characterBase.current.talentAptitude / 20) * 100) + talentBonus, 0, 100)
+  const charismaScore = clamp(Math.round((characterBase.current.charisma / 20) * 100) + charismaBonus, 0, 100)
+  // resourceScore 暂未接入雷达图五维（仅有 5 维），保留计算以备后续扩展
+  const _resourceScore = clamp(Math.round((characterBase.current.resources / 20) * 100) + wealthBonus, 0, 100)
+  const luckScore = clamp(Math.round(((characterBase.current.physique + characterBase.current.mind) / 40) * 100) + luckBonus, 0, 100)
 
   const dimensions: RadarDimension[] = [
     {

@@ -207,7 +207,7 @@ export class ItemSystem implements ISubSystem {
     const item = this.state.inventory.find((i) => i.id === itemId)
     if (!item) return
 
-    item.quantity = Math.max(0, item.quantity - quantity)
+    item.quantity = clamp(item.quantity - quantity, 0, Infinity)
     if (item.quantity <= 0) {
       this.removeItem(itemId)
     }

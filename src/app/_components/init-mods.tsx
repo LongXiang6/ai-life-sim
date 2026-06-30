@@ -9,6 +9,7 @@
 import { useEffect } from 'react'
 
 import { useGlobalStore } from '@/core/global-store'
+import { installGlobalLogHandlers } from '@/core/logger/client-logger'
 
 /**
  * InitMods —— 挂载后异步加载 init-mods-bootstrap，避免 18 MOD 进入根布局首屏编译图
@@ -18,6 +19,7 @@ export function InitMods({ children }: { children: React.ReactNode }) {
   const setAllModsLoaded = useGlobalStore((s) => s.setAllModsLoaded)
 
   useEffect(() => {
+    installGlobalLogHandlers()
     let cancelled = false
 
     void (async () => {

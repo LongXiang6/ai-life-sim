@@ -30,7 +30,7 @@ import {
 import { getFormulaModifier, resolveStaticPoolWorldviewKey } from '@/mods/mod-world'
 import {
   round,
-  clampNumber,
+  clamp,
   pickRandom,
   computeAverage,
 } from '../utils'
@@ -137,7 +137,7 @@ export class MonsterSystem implements ISubSystem {
       this.state.regionalThreat = { ...c.regionalThreat } as Record<string, number>
     }
     if (typeof c.spawnFrequency === 'number') {
-      this.state.spawnFrequency = clampNumber(c.spawnFrequency, SPAWN_FREQ_MIN, SPAWN_FREQ_MAX)
+      this.state.spawnFrequency = clamp(c.spawnFrequency, SPAWN_FREQ_MIN, SPAWN_FREQ_MAX)
     }
     if (c.populationThreatDirection === 'repel' || c.populationThreatDirection === 'attract') {
       this.state.populationThreatDirection = c.populationThreatDirection as PopulationThreatDirection
@@ -182,7 +182,7 @@ export class MonsterSystem implements ISubSystem {
 
       threat += Math.random() * 6 - 3
 
-      result[regionId] = round(clampNumber(threat * getFormulaModifier('monsterThreatModifier'), THREAT_MIN, THREAT_MAX))
+      result[regionId] = round(clamp(threat * getFormulaModifier('monsterThreatModifier'), THREAT_MIN, THREAT_MAX))
     }
 
     return result
@@ -201,11 +201,11 @@ export class MonsterSystem implements ISubSystem {
       const baseThreat = regionalThreats[regionId] ?? 0
       const existingThreat = this.state.regionalThreat[regionId] ?? baseThreat
       const threat = existingThreat * 0.7 + baseThreat * 0.3
-      newRegionalThreat[regionId] = round(clampNumber(threat, THREAT_MIN, THREAT_MAX))
+      newRegionalThreat[regionId] = round(clamp(threat, THREAT_MIN, THREAT_MAX))
     }
 
     const avgThreat = computeAverage(Object.values(newRegionalThreat))
-    const spawnFrequency = round(clampNumber(
+    const spawnFrequency = round(clamp(
       (SPAWN_FREQUENCY_BASE + avgThreat * SPAWN_FREQUENCY_MULTIPLIER) * getFormulaModifier('monsterSpawnModifier'),
       SPAWN_FREQ_MIN,
       SPAWN_FREQ_MAX,
@@ -240,7 +240,7 @@ export class MonsterSystem implements ISubSystem {
     }
 
     const regionalThreat = this.getRegionalThreat(regionId)
-    const encounterProbability = clampNumber(regionalThreat / 100, 0, 1)
+    const encounterProbability = clamp(regionalThreat / 100, 0, 1)
 
     if (Math.random() >= encounterProbability) {
       return { encounter: false, monsterType: '', threatLevel: 0 }
@@ -250,7 +250,7 @@ export class MonsterSystem implements ISubSystem {
       ? this.state.monsterTypes
       : [...DEFAULT_MONSTER_TYPES]
     const monsterType = pickRandom(types)
-    const threatLevel = round(clampNumber(
+    const threatLevel = round(clamp(
       regionalThreat + Math.random() * 20 - 10,
       THREAT_MIN,
       THREAT_MAX,

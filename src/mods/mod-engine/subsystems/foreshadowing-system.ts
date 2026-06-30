@@ -25,6 +25,7 @@ import { getRoundSequence } from '@/foundation'
 
 import { memoryForgetting } from './memory-forgetting-system'
 import { summaryCompressor } from './summary-compressor-system'
+import { clampNumber } from '../helpers/system-safety'
 
 // ============================================================
 // 类型定义
@@ -614,7 +615,7 @@ export class ForeshadowingSystem implements ISubSystem {
       }
     }
 
-    return Math.max(0, Math.min(10, score))
+    return clampNumber(score, 0, 10)
   }
 
   /** 生成回收提示文本 */

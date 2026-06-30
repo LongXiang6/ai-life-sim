@@ -131,10 +131,10 @@ export class PopulationSystem implements ISubSystem {
     }
 
     if (typeof c.totalPopulation === 'number') {
-      this.state.totalPopulation = Math.max(0, Math.floor(c.totalPopulation as number))
+      this.state.totalPopulation = clamp(Math.floor(c.totalPopulation as number), 0, Infinity)
     }
     if (typeof c.populationDelta === 'number') {
-      this.state.totalPopulation = Math.max(0, Math.floor(this.state.totalPopulation + c.populationDelta))
+      this.state.totalPopulation = clamp(Math.floor(this.state.totalPopulation + c.populationDelta), 0, Infinity)
     }
     if (typeof c.growthRate === 'number') {
       this.state.growthRate = c.growthRate as number
@@ -143,7 +143,7 @@ export class PopulationSystem implements ISubSystem {
       this.state.migrations.unshift({
         from: '跨域联动',
         to: '本地',
-        amount: Math.max(0, Math.floor(c.migrationInflow as number)),
+        amount: clamp(Math.floor(c.migrationInflow as number), 0, Infinity),
         reason: '难民涌入',
       })
       this.state.migrations = this.state.migrations.slice(0, 5)
@@ -180,7 +180,7 @@ export class PopulationSystem implements ISubSystem {
       const extracted = extractDynamicAttrsFromNarrative(changes.description, POPULATION_TAG_MAP)
       if (extracted) {
         if (typeof extracted.totalPopulation === 'number') {
-          this.state.totalPopulation = Math.max(0, Math.floor(this.state.totalPopulation + extracted.totalPopulation))
+          this.state.totalPopulation = clamp(Math.floor(this.state.totalPopulation + extracted.totalPopulation), 0, Infinity)
         }
         if (typeof extracted.birthRate === 'number') {
           this.state.birthRate = clamp(this.state.birthRate + extracted.birthRate, 0, 0.1)
@@ -224,7 +224,7 @@ export class PopulationSystem implements ISubSystem {
     const deaths = totalPopulation * effectiveDeathRate * years
     const naturalGrowth = births - deaths
 
-    this.state.totalPopulation = Math.max(0, Math.floor(totalPopulation + naturalGrowth))
+    this.state.totalPopulation = clamp(Math.floor(totalPopulation + naturalGrowth), 0, Infinity)
     this.state.growthRate = totalPopulation > 0
       ? round(naturalGrowth / totalPopulation, 6)
       : 0
@@ -418,10 +418,10 @@ export class PopulationSystem implements ISubSystem {
 
       if (effect.effectType === 'population_growth') {
         const increase = Math.floor(this.state.totalPopulation * (effect.value / 100))
-        this.state.totalPopulation = Math.max(0, this.state.totalPopulation + increase)
+        this.state.totalPopulation = clamp(this.state.totalPopulation + increase, 0, Infinity)
       } else if (effect.effectType === 'population_decline') {
         const decrease = Math.floor(this.state.totalPopulation * (Math.abs(effect.value) / 100))
-        this.state.totalPopulation = Math.max(0, this.state.totalPopulation - decrease)
+        this.state.totalPopulation = clamp(this.state.totalPopulation - decrease, 0, Infinity)
       }
     }
   }

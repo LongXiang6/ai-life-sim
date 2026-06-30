@@ -24,7 +24,7 @@ import {
   round,
   clamp,
   pickRandom,
-  randomInRange,
+  randomInt,
 } from '../utils'
 
 /** 板块活动可能导致的随机地形变化 */
@@ -173,7 +173,7 @@ export class GeographySystem implements ISubSystem {
     if (regionIds.length === 0) return
 
     const affectedRegion = pickRandom(regionIds)
-    const magnitude = randomInRange(3, 9)
+    const magnitude = randomInt(3, 9)
     const eventTypes: TectonicEvent['type'][] = ['earthquake', 'volcanic_eruption', 'mountain_rise', 'land_subside']
     const eventType = pickRandom(eventTypes)
 

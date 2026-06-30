@@ -6,6 +6,7 @@
 
 import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
 import { getRoundSequence } from '@/foundation'
+import { clamp } from '@/core/shared'
 import type { SpecialMaterial, MaterialState } from '../types'
 
 import { RARITY_LABELS, CATEGORY_LABELS } from '../constants'
@@ -89,7 +90,7 @@ export class SpecialMaterialSystem implements ISubSystem {
     if (typeof c.materialId !== 'undefined' && typeof c.delta === 'number') {
       const m = this._state.materials.find(m => m.id === c.materialId)
       if (m) {
-        m.currentQuantity = Math.max(0, m.currentQuantity + (c.delta as number))
+        m.currentQuantity = clamp(m.currentQuantity + (c.delta as number), 0, Infinity)
         if ((c.delta as number) < 0) m.usesCount++
       }
     }

@@ -6,6 +6,7 @@
 
 import type { ISubSystem, RoundContext, SubSystemState, SubSystemChanges } from '@/foundation'
 import type { DestinyPattern, DestinyPatternInput, DestinyPatternRarity, DestinyPatternPolarity, DestinyPatternState } from '../types'
+import { clamp } from '@/core/shared'
 
 import {
   PRESET_DESTINY_PATTERNS,
@@ -305,22 +306,26 @@ export class DestinyPatternSystem implements ISubSystem {
       const streamParser = useStream ? new StreamingJsonArrayParser<DestinyPatternAIItem>() : null
       const countBefore = allPatterns.length
 
-      const ingestResponse = (response: string): number => {
+      const ingestResponse = (response: string): { parsedCount: number; addedCount: number } => {
         let added = 0
+        let parsedCount = 0
         const parsed = this.parseAIResponse(response)
+        parsedCount += parsed.length
         for (const item of parsed) {
           const before = allPatterns.length
           ingestItem(item)
           if (allPatterns.length > before) added++
         }
         if (useStream && streamParser) {
-          for (const item of streamParser.finalize(response)) {
+          const finalized = streamParser.finalize(response)
+          parsedCount += finalized.length
+          for (const item of finalized) {
             const before = allPatterns.length
             ingestItem(item)
             if (allPatterns.length > before) added++
           }
         }
-        return added
+        return { parsedCount, addedCount: added }
       }
 
       const baseTokenBudget = estimateDestinyPatternTokenBudget(userPrompt.length)
@@ -355,13 +360,10 @@ export class DestinyPatternSystem implements ISubSystem {
       if (!response?.trim()) {
         throw new Error(`批次 ${batch + 1}/${AI_DESTINY_PATTERN_BATCH_COUNT} API 返回空结果`)
       }
-      ingestResponse(response)
+      const firstIngest = ingestResponse(response)
 
-      const addedThisBatch = allPatterns.length - countBefore
-      const looksTruncated = useStream
-        ? addedThisBatch < AI_DESTINY_PATTERN_BATCH_SIZE / 2
-        : !response.trim().endsWith(']')
-          && addedThisBatch < AI_DESTINY_PATTERN_BATCH_SIZE / 2
+      const responseComplete = response.trim().endsWith('}') || response.trim().endsWith(']')
+      const looksTruncated = !responseComplete && firstIngest.parsedCount < AI_DESTINY_PATTERN_BATCH_SIZE / 2
       if (looksTruncated) {
         response = await this.callAI!(
           destinyPatternPrompt.systemPrompt,
@@ -682,7 +684,7 @@ export class DestinyPatternSystem implements ISubSystem {
     for (const key of validKeys) {
       const val = Number(bonus[key])
       if (isNaN(val) || val === 0) continue
-      const clamped = Math.max(-4, Math.min(4, val))
+      const clamped = clamp(val, -4, 4)
       result[key] = clamped
       total += Math.abs(clamped)
     }

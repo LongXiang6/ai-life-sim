@@ -87,6 +87,8 @@ export async function commitWorldInitialization(
 
   const anchorYear = resolvePipelineAnchorYear(resolvedConfig, startingYear)
   store.setEraStartYear(anchorYear)
+  // 纪元名称同步到 world store
+  if (resolvedConfig.eraName) store.setEraName(resolvedConfig.eraName)
 
   const entitySystem = new WorldEntitySystem()
   entitySystem.setRegions(snapshot.regions)

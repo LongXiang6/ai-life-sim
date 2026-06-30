@@ -22,7 +22,7 @@ import { orchestrator } from '../engine-api'
 
 import { useEngineStore } from '../store'
 
-import { computeNarrativeMaxTokens } from '../constants/narrative-config'
+import { computeNarrativeMaxTokens, DEFAULT_WORD_COUNT_TARGET } from '../constants/narrative-config'
 
 
 
@@ -200,7 +200,8 @@ export async function fillPreGenQueue(
 
   const { customModel, temperature } = useSettingsStore.getState()
 
-  const wordCountTarget = useSettingsStore.getState().wordCountTarget ?? 200
+  // 从单一来源常量取默认字数，与 orchestrator、hooks 共享同一常量
+  const wordCountTarget = useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET
 
   const model = customModel || 'deepseek-v4-flash'
 

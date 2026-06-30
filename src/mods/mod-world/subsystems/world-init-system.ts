@@ -14,6 +14,7 @@
 import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
 
 import { eventBus } from '@/core'
+import { clamp } from '@/core/shared'
 
 import {
   type WorldConfig,
@@ -198,8 +199,8 @@ export class WorldInitSystem implements ISubSystem {
       : CIV_DEVELOPMENT_RANGE[config.civilizationStage] ?? [10, 50]
     const mod = clampModifier(calibration?.formulas?.developmentModifier ?? 1.0)
     return [
-      Math.min(100, Math.round(base[0] * mod)),
-      Math.min(100, Math.round(base[1] * mod)),
+      clamp(Math.round(base[0] * mod), -Infinity, 100),
+      clamp(Math.round(base[1] * mod), -Infinity, 100),
     ]
   }
 

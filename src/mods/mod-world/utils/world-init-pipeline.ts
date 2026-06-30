@@ -561,6 +561,8 @@ function finalizeAnchorYearAndTimeline(ctx: WorldInitPipelineContext): void {
     ? eraFromCal
     : resolvePipelineAnchorYear(ctx.config, ctx.startingYear)
   useWorldStore.getState().setEraStartYear(anchorYear)
+  // 纪元名称同步到 world store：优先使用 WorldConfig 预设，缺省时留空由引擎自动判定
+  if (ctx.config.eraName) useWorldStore.getState().setEraName(ctx.config.eraName)
   reinitTimelineSystem(ctx, anchorYear)
 }
 
@@ -838,6 +840,8 @@ export function createWorldInitPipelineContext(
   const initFingerprint = buildWorldInitFingerprint(config, description)
   const anchorYear = resolvePipelineAnchorYear(config, startingYear)
   useWorldStore.getState().setEraStartYear(anchorYear)
+  // 纪元名称同步到 world store
+  if (config.eraName) useWorldStore.getState().setEraName(config.eraName)
   if (isInitFingerprintChanged(worldCode, initFingerprint)) {
     invalidatePastHistoryCache(worldCode)
   }

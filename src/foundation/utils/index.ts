@@ -6,12 +6,11 @@
 
 export { cn } from './cn'
 export { parseJSON } from './parse-json'
-export { formatNumber, clamp } from './format-number'
-export { getRoundSequence, getSimulationTicks, getAgeYearsDelta, getCalendarDaysDelta, shouldAdvanceSubsystem, consumeSimulationYears } from './round-advance'
+export { clamp } from './format-number'
+export { getRoundSequence, getAgeYearsDelta, consumeSimulationYears } from './round-advance'
 export { parseChineseNumber } from './cn-number'
 export { extractDynamicAttrsFromNarrative } from './extract-dynamic-attrs'
 export type { AttrTagMap, ExtractedAttrs } from './extract-dynamic-attrs'
-export { getAttrTier, getAttrSemanticText, getAllAttrSemanticText } from './attr-tiers'
 export type { AttrKey, AttrTier } from './attr-tiers'
 export { useIsMobile } from './use-is-mobile'
 export { stringifyPrompt } from './stringify-prompt'
@@ -26,7 +25,6 @@ export {
 export type { EstimateTokenBudgetOptions } from './estimate-token-budget'
 export { formatEraYear } from './format-time'
 export type { EraEntry } from './format-time'
-import { clamp } from './format-number'
 
 // 通用数值/随机工具（原 utils.ts，统一后归入 barrel）
 export const ROUND_DECIMALS = 4
@@ -41,9 +39,6 @@ export const ROUND_DECIMALS = 4
 export function round(value: number, decimals = ROUND_DECIMALS): number {
   return Number(value.toFixed(decimals))
 }
-
-/** @deprecated 使用 clamp */
-export const clampNumber = clamp
 
 export function pickRandom<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)]

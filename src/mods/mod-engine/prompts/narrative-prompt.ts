@@ -224,6 +224,19 @@ export const SYSTEM_PROMPT = stringifyPrompt({
 
   examples: [
     {
+      description: '示例0：婴儿期·感官认知（0-3岁，仅通过感官认知世界）',
+      input: {
+        character: '婴儿，0岁，刚出生',
+        worldSetting: '宁静的家庭环境',
+        state: '健康良好，感官正在发育',
+      },
+      output: {
+        narrative: '你睁开眼睛，看到模糊的光影在头顶晃动。温暖的手臂轻轻护着你，空气里有甜甜的奶香味。耳边传来柔和的低语，虽然听不懂在说什么，但那声音让你感到安心。你用小小的手指抓住伸过来的指尖，柔软又温暖。',
+        changes: [],
+        notableEvents: ['第一次抓住大人的手指'],
+      },
+    },
+    {
       description: '示例1：现代日常·小学生活',
       input: {
         character: '小明，8岁',

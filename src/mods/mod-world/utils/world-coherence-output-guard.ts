@@ -4,6 +4,8 @@
  * @mod mod-world
  */
 
+import { clamp } from '@/core/shared'
+
 /** 描述表明无外部自然能量（唯心 / 意志体系） */
 const NO_EXTERNAL_ENERGY_RE = /无灵气|无魔力|无.*外部.*自然能量|唯心世界|意志即力量|心相/
 
@@ -172,7 +174,7 @@ export function isLikelyTruncatedJSON(raw: string): boolean {
     if (inString) continue
 
     if (ch === '{' || ch === '[') depth++
-    else if (ch === '}' || ch === ']') depth = Math.max(0, depth - 1)
+    else if (ch === '}' || ch === ']') depth = clamp(depth - 1, 0, Infinity)
   }
 
   if (depth > 0) return true

@@ -124,6 +124,10 @@ export type FormulaModifierKey = Exclude<
 export interface WorldConfig {
   /** 世界名称 */
   name: string
+  /** 纪元名称（如"公元"、"星际历"、"创世纪元"）。缺省时由引擎根据 eraStartYear 自动判定 */
+  eraName?: string
+  /** 纪元起始年份（0 表示无自定义纪年，由引擎自动生成年号） */
+  eraStartYear?: number
   /** 世界观本质标签（如 cultivation/scifi/medieval） */
   essenceTag: string
   /** 力量体系标签（如 cultivation/technology/magic） */

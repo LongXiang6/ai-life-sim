@@ -15,7 +15,8 @@ import {
   getLanguageInitForWorldview,
   generateFactionName,
   pickRandom,
-  randomInRange,
+  randomInt,
+  clamp,
 } from '../constants'
 
 export class LanguageNamingSystem implements ISubSystem {
@@ -138,7 +139,8 @@ export class LanguageNamingSystem implements ISubSystem {
       if (profile.isDead) continue
 
       // 1. 声望漂移 ±3
-      profile.prestige = Math.max(0, Math.min(100, profile.prestige + randomInRange(-3, 3)))
+      // 声望随机波动 ±3，限制在 [0, 100]
+    profile.prestige = clamp(profile.prestige + randomInt(-3, 3), 0, 100)
 
       // 2. 使用人数变动（年均 -2.5%~+7.5%）
       const growthFactor = 1 + (Math.random() * 0.1 - 0.025)

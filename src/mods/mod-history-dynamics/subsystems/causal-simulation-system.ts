@@ -4,6 +4,7 @@
  * @mod mod-history-dynamics
  */
 import { getRoundSequence } from '@/foundation'
+import { clamp } from '@/core/shared'
 
 import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
 import type { CausalSimulationState, CausalEvent } from '../types'
@@ -122,10 +123,10 @@ export class CausalSimulationSystem implements ISubSystem {
     if (this.state.lastProcessYear > 0) {
       const yearsPassed = currentYear - this.state.lastProcessYear
       if (yearsPassed >= 10) {
-        this.state.queue.recentDecadeCount = Math.max(0, this.state.queue.recentDecadeCount - 1)
+        this.state.queue.recentDecadeCount = clamp(this.state.queue.recentDecadeCount - 1, 0, Infinity)
       }
       if (yearsPassed >= 30) {
-        this.state.queue.recent30YearCount = Math.max(0, this.state.queue.recent30YearCount - 1)
+        this.state.queue.recent30YearCount = clamp(this.state.queue.recent30YearCount - 1, 0, Infinity)
       }
     }
 

@@ -22,6 +22,8 @@ import type {
   RoundContext,
 } from '@/foundation'
 import { getRoundSequence } from '@/foundation'
+// mod-engine 使用 system-safety 的 clampNumber（含 safeNumber 保护）
+import { clampNumber } from '../helpers/system-safety'
 
 
 
@@ -362,14 +364,18 @@ export class PlotStructureSystem implements ISubSystem {
     }
 
     // 钳制变化量
-    delta = Math.max(-10, Math.min(15, delta))
+    // 紧张度变化不超过 [-10, 15]，防止单轮跳变过大
+    delta = clampNumber(delta, -10, 15)
 
     // 阶段影响基础衰减
     const phaseDecay = this.getPhaseTensionDecay()
 
-    this.state.tensionLevel = Math.max(0, Math.min(100,
+    // 紧张度限制在 [0, 100]
+    this.state.tensionLevel = clampNumber(
       this.state.tensionLevel + delta + phaseDecay,
-    ))
+      0,
+      100,
+    )
   }
 
   /** 获取阶段的基础张力衰减 */

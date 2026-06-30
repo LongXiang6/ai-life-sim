@@ -29,6 +29,9 @@ import { AI_PROVIDERS } from '@/core/ai-service/provider-config'
 /** 最大请求体大小 512KB */
 const MAX_BODY_SIZE = 512 * 1024
 
+/** 最大重试次数硬上限（同一指纹重试超过此值 → 拒绝请求，避免无效请求风暴） */
+const MAX_RETRY_COUNT = 5
+
 /** 日志文件最大大小 50MB */
 const MAX_LOG_SIZE = 50 * 1024 * 1024
 
@@ -100,15 +103,19 @@ function computeFingerprint(messages: Array<{ role: string; content: string }>):
   return createHash('sha256').update(seed).digest('hex').slice(0, 12)
 }
 
-/** 检查并记录指纹 → 返回是否为重试及重试次数 */
-function trackFingerprint(fp: string): { isRetry: boolean; retryCount: number } {
+/** 检查并记录指纹 → 返回是否为重试及重试次数。超过硬上限时标记 shouldReject */
+function trackFingerprint(fp: string): { isRetry: boolean; retryCount: number; shouldReject: boolean } {
   const existing = recentFingerprints.get(fp)
   if (existing) {
     existing.retryCount++
-    return { isRetry: true, retryCount: existing.retryCount }
+    // 重试次数超过硬上限 → 拒绝请求，避免无效请求风暴
+    if (existing.retryCount > MAX_RETRY_COUNT) {
+      return { isRetry: true, retryCount: existing.retryCount, shouldReject: true }
+    }
+    return { isRetry: true, retryCount: existing.retryCount, shouldReject: false }
   }
   recentFingerprints.set(fp, { firstSeen: Date.now(), retryCount: 0 })
-  return { isRetry: false, retryCount: 0 }
+  return { isRetry: false, retryCount: 0, shouldReject: false }
 }
 
 // ---- 智能访问日志（JSONL 格式，含指纹 + IP + 重试追踪） ----
@@ -247,7 +254,7 @@ export async function POST(request: Request): Promise<Response> {
   let model = ''
   let fingerprint = 'unknown'
   let isStream = false
-  let trackResult = { isRetry: false, retryCount: 0 }
+  let trackResult = { isRetry: false, retryCount: 0, shouldReject: false }
 
   try {
     // 1. 读取请求体
@@ -275,6 +282,13 @@ export async function POST(request: Request): Promise<Response> {
     // 计算请求指纹 + 重试追踪
     fingerprint = computeFingerprint(body.messages)
     trackResult = trackFingerprint(fingerprint)
+
+    // 重试次数超过硬上限 → 直接拒绝，避免无效请求风暴消耗上游配额
+    if (trackResult.shouldReject) {
+      const duration = Date.now() - startTime
+      writeAccessLog(providerId, model, 429, duration, fingerprint, trackResult.isRetry, trackResult.retryCount, isStream, ip, `Retry limit exceeded (max ${MAX_RETRY_COUNT})`)
+      return Response.json({ error: `重试次数超过上限(${MAX_RETRY_COUNT}次)，请稍后再试` }, { status: 429 })
+    }
 
     // 3. 解析目标 Provider 配置
     const providerConfig = AI_PROVIDERS[providerId]
@@ -400,28 +414,48 @@ export async function POST(request: Request): Promise<Response> {
     // 7. 流式透传
     if (isStream && upstreamResp.body) {
       // 首字节已到，连接超时使命完成；但保留 client-abort 接线直到流结束，
-      // 以便流中途客户端断开时仍能取消上游。流结束/被取消时再统一清理。
-      // 成功访问日志延迟到 flush（流真正读完）才写，避免「中途出错却记成 200」。
+      // 以便流中途客户端断开时仍能取消上游。用显式 reader pump 捕获上游读取错误，
+      // 避免中途断流仍只留下成功 200 日志。
       clearTimeout(timeoutId)
-      const passthrough = upstreamResp.body.pipeThrough(
-        new TransformStream({
-          flush: () => {
-            writeAccessLog(providerId, model, 200, Date.now() - startTime, fingerprint, trackResult.isRetry, trackResult.retryCount, isStream, ip)
-            clearUpstreamGuards()
-          },
-          cancel: (reason: unknown) => {
-            // 客户端在流中途断开或上游中途出错：记成非 200，取消上游并释放守卫
+      let logged = false
+      const logStreamEnd = (status: number, error?: string) => {
+        if (logged) return
+        logged = true
+        writeAccessLog(providerId, model, status, Date.now() - startTime, fingerprint, trackResult.isRetry, trackResult.retryCount, isStream, ip, error)
+      }
+
+      const reader = upstreamResp.body.getReader()
+      const passthrough = new ReadableStream<Uint8Array>({
+        async pull(controller) {
+          try {
+            const { done, value } = await reader.read()
+            if (done) {
+              logStreamEnd(200)
+              clearUpstreamGuards()
+              controller.close()
+              return
+            }
+            controller.enqueue(value)
+          } catch (err) {
             const aborted = request.signal.aborted
-            writeAccessLog(
-              providerId, model, aborted ? 499 : 502, Date.now() - startTime,
-              fingerprint, trackResult.isRetry, trackResult.retryCount, isStream, ip,
-              aborted ? 'Client aborted mid-stream' : `Stream error: ${reason instanceof Error ? reason.message : String(reason ?? 'unknown')}`,
-            )
+            const message = err instanceof Error ? err.message : String(err ?? 'unknown')
+            logStreamEnd(aborted ? 499 : 502, aborted ? 'Client aborted mid-stream' : `Stream error: ${message}`)
             upstreamController.abort()
             clearUpstreamGuards()
-          },
-        } as Transformer<Uint8Array, Uint8Array>),
-      )
+            controller.error(err)
+          }
+        },
+        cancel(reason) {
+          const aborted = request.signal.aborted
+          logStreamEnd(
+            aborted ? 499 : 502,
+            aborted ? 'Client aborted mid-stream' : `Stream canceled: ${reason instanceof Error ? reason.message : String(reason ?? 'unknown')}`,
+          )
+          upstreamController.abort()
+          clearUpstreamGuards()
+          void reader.cancel(reason).catch(() => undefined)
+        },
+      })
       return new Response(passthrough, {
         headers: {
           'Content-Type': 'text/event-stream',

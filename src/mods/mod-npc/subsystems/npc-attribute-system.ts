@@ -7,6 +7,7 @@
 import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
 import type { NPCState, NPCAttributes } from '../types'
 import { DEFAULT_NPC_ATTRIBUTES } from '../constants'
+import { clamp } from '@/core/shared'
 
 export { DEFAULT_NPC_ATTRIBUTES }
 
@@ -84,7 +85,7 @@ export class NPCAttributeSystem implements ISubSystem {
     // 钳制所有属性在合理范围
     const keys = Object.keys(attrs) as (keyof NPCAttributes)[]
     for (const key of keys) {
-      attrs[key] = Math.max(-10, Math.min(10, attrs[key]))
+      attrs[key] = clamp(attrs[key], -10, 10)
     }
     return attrs
   }

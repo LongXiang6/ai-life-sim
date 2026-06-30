@@ -53,6 +53,8 @@ interface WorldStore {
   worldTags: string[]
   /** 时间线起始年份（来自世界预设 eraStartYear） */
   eraStartYear: number
+  /** 纪元名称（来自世界预设 eraName，空字符串时由引擎自动生成） */
+  eraName: string
 
   /** AI 世界校准（Step 0） */
   calibration: WorldCalibration | null
@@ -70,6 +72,7 @@ interface WorldStore {
   setCurrentYear: (year: number) => void
   setWorldTags: (tags: string[]) => void
   setEraStartYear: (year: number) => void
+  setEraName: (name: string) => void
   setCalibration: (calibration: WorldCalibration | null) => void
   setDestinyPatternModifiers: (modifiers: Partial<Record<FormulaModifierKey, number>>) => void
   setWorldInitAIStatus: (status: WorldInitAIStatus | null) => void
@@ -88,6 +91,7 @@ const initialState = {
   currentYear: 0,
   worldTags: [] as string[],
   eraStartYear: 0,
+  eraName: '',
   calibration: null as WorldCalibration | null,
   destinyPatternModifiers: {} as Partial<Record<FormulaModifierKey, number>>,
   worldInitAIStatus: null as WorldInitAIStatus | null,
@@ -109,6 +113,7 @@ export const useWorldStore = create<WorldStore>()(
       setCurrentYear: (year,) => set({ currentYear: year, },),
       setWorldTags: (tags,) => set({ worldTags: tags, },),
       setEraStartYear: (year,) => set({ eraStartYear: year, },),
+      setEraName: (eraName,) => set({ eraName, },),
       setCalibration: (calibration,) => set({ calibration, },),
       setDestinyPatternModifiers: (destinyPatternModifiers,) => set({ destinyPatternModifiers, },),
       setWorldInitAIStatus: (status) => set({ worldInitAIStatus: status, },),
@@ -136,7 +141,7 @@ export const useWorldStore = create<WorldStore>()(
       partialize: (state,) => {
         const {
           setWorldConfig: _a, setEntities: _b, setInitialized: _c, setWorldCode: _d,
-          setCurrentYear: _e, setWorldTags: _f, setEraStartYear: _g, setCalibration: _h2,
+          setCurrentYear: _e, setWorldTags: _f, setEraStartYear: _g, setEraName: _g2, setCalibration: _h2,
           setWorldInitAIStatus: _h, generateAndSetWorldCode: _i, recycleWorldCode: _j, reset: _k,
           ...rest
         } = state

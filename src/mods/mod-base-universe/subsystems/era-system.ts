@@ -1,8 +1,10 @@
-﻿/**
+/**
  * @module EraSystem
  * @description 纪元子系统 —— 二分查找定位时代 + 四阶段判定（opening/mid/late/transition）+ AI 术语适配 + 世界观差异化提示文本 + 纪元回望 + 更替事件
  * @mod mod-base-universe
  */
+
+import { clamp } from '@/core/shared'
 
 import type {
   ISubSystem,
@@ -210,7 +212,7 @@ export class EraSystem implements ISubSystem {
         high = mid - 1
       }
     }
-    return Math.max(0, high,)
+    return clamp(high, 0, Infinity)
   }
 
   /** 纯函数：四阶段判定 */
@@ -258,11 +260,11 @@ export class EraSystem implements ISubSystem {
       this._calendarEraMode = calendarMode
       if (calendarMode && (context.eraStartYear ?? 0) !== 0) {
         const calendarYear = (context.birthEraYear ?? context.eraStartYear ?? 0)
-          + Math.max(0, context.round.year - 1)
+          + clamp(context.round.year - 1, 0, Infinity)
         Object.assign(this._state, {
           currentEraName: `${calendarYear}年`,
           currentEraStart: context.eraStartYear ?? 0,
-          yearsIntoEra: Math.max(0, context.round.year - 1),
+          yearsIntoEra: clamp(context.round.year - 1, 0, Infinity),
           nextEraName: null,
           yearsUntilNext: null,
           phase: 'mid' as EraPhase,
@@ -274,7 +276,7 @@ export class EraSystem implements ISubSystem {
 
     this._calendarEraMode = false
     const eraYear = context.eraStartYear && context.eraStartYear !== 0
-      ? (context.birthEraYear ?? context.eraStartYear) + Math.max(0, context.round.year - 1)
+      ? (context.birthEraYear ?? context.eraStartYear) + clamp(context.round.year - 1, 0, Infinity)
       : context.round.year
 
     const worldview = this._getWorldview(context,)

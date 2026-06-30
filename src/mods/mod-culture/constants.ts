@@ -19,7 +19,7 @@ import type {
   DiscipleStatus,
 } from './types'
 
-export { round, clamp, pickRandom, randomInRange, ROUND_DECIMALS } from './utils'
+export { round, clamp, pickRandom, randomInt, ROUND_DECIMALS } from './utils'
 
 // ============================================================
 // §1 声望常量

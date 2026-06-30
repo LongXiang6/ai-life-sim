@@ -102,6 +102,7 @@ export function registerAllRules(): CrossDomainRule[] {
       ]
     },
     priority: 10,
+    cooldownRounds: 1,
   })
 
   // 规则2：战争/冲突 → 冲击派系动态 + 人口流动性
@@ -131,6 +132,7 @@ export function registerAllRules(): CrossDomainRule[] {
       ]
     },
     priority: 10,
+    cooldownRounds: 1,
   })
 
   // 规则3：技术突破 → 推动文化技术进度
@@ -153,6 +155,7 @@ export function registerAllRules(): CrossDomainRule[] {
       ]
     },
     priority: 5,
+    cooldownRounds: 1,
   })
 
   // 规则4：贸易波动 → 影响市场周期
@@ -176,6 +179,7 @@ export function registerAllRules(): CrossDomainRule[] {
       ]
     },
     priority: 5,
+    cooldownRounds: 1,
   })
 
   // 规则5：社会动荡 → 影响法律 + 教育
@@ -205,6 +209,7 @@ export function registerAllRules(): CrossDomainRule[] {
       ]
     },
     priority: 8,
+    cooldownRounds: 1,
   })
 
   // ============================================================

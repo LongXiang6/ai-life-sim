@@ -13,6 +13,7 @@
 import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
 import type { NPCMemory, MemoryImportance, NPCState } from '../types'
 import { MEMORY_RETENTION } from '../types'
+import { clamp } from '@/core/shared'
 
 /** 重要性降级顺序 */
 const IMPORTANCE_DEGRADE: MemoryImportance[] = ['critical', 'major', 'notable', 'minor', 'trivial']
@@ -66,7 +67,7 @@ export class NPCMemorySystem implements ISubSystem {
       importance,
       createdYear: currentYear,
       relatedId,
-      emotionValence: Math.max(-10, Math.min(10, emotionValence)),
+      emotionValence: clamp(emotionValence, -10, 10),
       decayRate: 0.1,
     }
 

@@ -16,7 +16,7 @@ import type {
 } from './types'
 
 // 工具函数 Re-export
-export { round, clamp, pickRandom, randomInRange, calculateItemPrice, calculateItemTier, getItemEconomicTier } from './utils'
+export { round, clamp, pickRandom, calculateItemPrice, calculateItemTier, getItemEconomicTier } from './utils'
 
 // ============================================================
 // §1 经济常量

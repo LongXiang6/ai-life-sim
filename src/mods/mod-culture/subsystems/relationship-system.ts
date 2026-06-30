@@ -155,7 +155,7 @@ export class RelationshipSystem implements ISubSystem {
   private decayRelationships(years: number): void {
     const entries = Object.values(this.state.relationships)
     for (const rel of entries) {
-      const yearsSinceInteraction = Math.max(0, years + rel.lastInteractionYear)
+      const yearsSinceInteraction = clamp(years + rel.lastInteractionYear, 0, Infinity)
       const decayAmount = AFFINITY_DECAY_PER_YEAR * yearsSinceInteraction * 0.5
       rel.affinity = round(clamp(rel.affinity - decayAmount, AFFINITY_RANGE.min, AFFINITY_RANGE.max))
 

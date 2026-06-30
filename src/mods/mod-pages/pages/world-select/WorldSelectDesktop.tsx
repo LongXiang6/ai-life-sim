@@ -117,7 +117,7 @@ export function WorldSelectDesktop() {
   const triggerCustomWorldBackgroundInit = useCallback((cw: SavedCustomWorld) => {
     if (!isApiConfigured()) return
     const config = buildWorldConfigFromCustom(
-      { name: cw.name, description: cw.description, worldview: cw.worldview },
+      { name: cw.name, description: cw.description, worldview: cw.worldview, eraName: cw.eraName, eraStartYear: cw.eraStartYear },
       difficulty,
     )
     startBackgroundWorldInitForCustom(config, cw.worldCode)

@@ -37,7 +37,7 @@ export class SocialValuesSystem implements ISubSystem {
     const configs = getValuesForWorldview(this._worldview, 5)
     const values: SocialValue[] = configs.map((cfg) => ({
       name: cfg.name,
-      importance: Math.max(10, Math.min(100, cfg.defaultPriority + Math.floor(Math.random() * 30) - 15)),
+      importance: clamp(cfg.defaultPriority + Math.floor(Math.random() * 30) - 15, 10, 100),
       adherentRatio: clamp(0.1 + Math.random() * 0.3, 0, 1),
       description: cfg.description,
       weightModifiers: { ...cfg.weightModifiers },
@@ -151,7 +151,7 @@ export class SocialValuesSystem implements ISubSystem {
    * 每季度 importance ±1（匹配废案 ±1/quarter），每年总计 ±4
    */
   private advanceValues(yearsElapsed: number): void {
-    const quarters = Math.max(0, Math.round(yearsElapsed * 4))
+    const quarters = clamp(Math.round(yearsElapsed * 4), 0, Infinity)
     if (quarters <= 0) return
 
     for (let q = 0; q < quarters; q++) {
@@ -203,7 +203,7 @@ export class SocialValuesSystem implements ISubSystem {
       }
     } else {
       // 无挑战者时进度衰减
-      this.state.valueShiftProgress = Math.max(0, this.state.valueShiftProgress - 2)
+      this.state.valueShiftProgress = clamp(this.state.valueShiftProgress - 2, 0, Infinity)
     }
   }
 

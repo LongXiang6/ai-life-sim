@@ -13,6 +13,7 @@
  */
 
 import { parseJSON } from '@/foundation'
+import { clamp } from '@/core/shared'
 
 /**
  * 解析 AI 返回的 JSON 字符串，含多层容错
@@ -150,7 +151,7 @@ function repairTruncatedJSON(raw: string, isArray: boolean): string | null {
     if (inString) continue
 
     if (ch === '{' || ch === '[') depth++
-    else if (ch === '}' || ch === ']') depth = Math.max(0, depth - 1)
+    else if (ch === '}' || ch === ']') depth = clamp(depth - 1, 0, Infinity)
   }
 
   if (depth <= 0) return null

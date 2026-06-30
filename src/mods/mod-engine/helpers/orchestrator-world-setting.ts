@@ -14,14 +14,20 @@ export function buildOrchestratorWorldSetting(
   worldConfig: WorldConfig,
   options?: {
     eraStartYear?: number
+    eraName?: string
     extraConfig?: Record<string, unknown>
   },
 ): WorldSetting {
   const eraStartYear = options?.eraStartYear
+    ?? worldConfig.eraStartYear
     ?? inferAnchorYearFromDescription(worldConfig.description)
     ?? 0
+  // 纪元名称：优先来自 WorldConfig，缺省时由引擎自动判定
+  const eraName = options?.eraName
+    ?? worldConfig.eraName
+    ?? (eraStartYear !== 0 ? '' : '创世纪元')
   const calendarYear = eraStartYear !== 0 ? eraStartYear : 1
-  const eraLabel = formatEraYear(calendarYear, eraStartYear !== 0 ? '' : '创世纪元')
+  const eraLabel = formatEraYear(calendarYear, eraName)
 
   return {
     name: worldConfig.name,
@@ -30,6 +36,7 @@ export function buildOrchestratorWorldSetting(
     config: {
       ...(worldConfig as unknown as Record<string, unknown>),
       _eraStartYear: eraStartYear,
+      _eraName: eraName,
       _birthEraYear: eraStartYear,
       ...options?.extraConfig,
     },

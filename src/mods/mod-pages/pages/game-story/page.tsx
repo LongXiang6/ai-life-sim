@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, useState, useCallback, useLayoutEffect } fr
 import { createPortal } from 'react-dom'
 
 import { useRouter } from 'next/navigation'
+import { clamp } from '@/core/shared'
 
 import { useEngine, useNarrative, useSimulationAdvance, usePreGenQueueStatus } from '@/mods/mod-engine'
 import { collectGameSavePayload, formatNarrativeTimeLabel } from '@/mods/mod-engine/engine-api'
@@ -170,6 +171,7 @@ export default function GamePage() {
   const worldCode = useWorldStore((s) => s.worldCode)
   const worldTags = useWorldStore((s) => s.worldTags)
   const eraStartYear = useWorldStore((s) => s.eraStartYear)
+  const worldEraName = useWorldStore((s) => s.eraName)
   const economy = useEconomyStore((s) => s.economy)
   const settlement = useEconomyStore((s) => s.settlement)
   const work = useEconomyStore((s) => s.work)
@@ -226,7 +228,7 @@ export default function GamePage() {
           + container.scrollTop
           - headerHeight
           - 8
-        container.scrollTo({ top: Math.max(0, targetScroll), behavior: 'smooth' })
+        container.scrollTo({ top: clamp(targetScroll, 0, Infinity), behavior: 'smooth' })
       } else {
         container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
       }
@@ -329,10 +331,15 @@ export default function GamePage() {
     return round.eraYear
   }, [eraStartYear, round.year, round.eraYear])
 
+  /** 纪元显示文本：优先使用世界配置的纪元名，缺省时回退引擎自动生成或纯年份 */
   const eraDisplayText = useMemo(() => {
-    const defaultName = eraStartYear !== 0 ? '' : round.eraName
-    return formatEraYear(headerEraYear, defaultName)
-  }, [headerEraYear, eraStartYear, round.eraName])
+    // 世界配置了自定义纪元名 → 直接使用
+    if (worldEraName) return formatEraYear(headerEraYear, worldEraName)
+    // 世界配置了自定义起始年但无纪元名 → 纯年份显示
+    if (eraStartYear !== 0) return formatEraYear(headerEraYear, '')
+    // 无自定义纪元 → 使用引擎自动生成的年号（如"创世纪元"）
+    return formatEraYear(headerEraYear, round.eraName)
+  }, [headerEraYear, eraStartYear, worldEraName, round.eraName])
 
   const narrativeTimeLabel = useMemo(
     () => formatNarrativeTimeLabel(timeStep, eraDisplayText, round),

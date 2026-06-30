@@ -34,7 +34,7 @@ import {
   round,
   clamp,
   pickRandom,
-  randomInRange,
+  randomInt,
 } from '../utils'
 
 import { getFormulaModifier, resolveStaticPoolWorldviewKey } from '@/mods/mod-world'
@@ -76,7 +76,7 @@ export class EcologySystem implements ISubSystem {
       category: sp.category,
       rarity: sp.rarity,
       region: sp.region,
-      population: randomInRange(50, Math.min(sp.maxPopulation, 200)),
+      population: randomInt(50, Math.min(sp.maxPopulation, 200)),
       maxPopulation: sp.maxPopulation,
       extinctionThreat: 0,
       endangered: false,
@@ -345,9 +345,9 @@ export class EcologySystem implements ISubSystem {
 
       // 灭绝威胁累积：种群过少时威胁上升，种群健康时威胁缓慢衰减
       if (newPop < sp.maxPopulation * 0.1) {
-        threat = Math.min(EXTINCTION_THREAT_MAX, threat + randomInRange(1, 3))
+        threat = Math.min(EXTINCTION_THREAT_MAX, threat + randomInt(1, 3))
       } else if (newPop > sp.maxPopulation * 0.3) {
-        threat = Math.max(0, threat - 1)
+        threat = clamp(threat - 1, 0, Infinity)
       }
 
       newPop = clamp(newPop, 0, sp.maxPopulation)
@@ -411,7 +411,7 @@ export class EcologySystem implements ISubSystem {
       category: invader.category,
       rarity: invader.rarity,
       region: invader.region,
-      population: randomInRange(20, 80),
+      population: randomInt(20, 80),
       maxPopulation: invader.maxPopulation,
       extinctionThreat: 0,
       endangered: false,

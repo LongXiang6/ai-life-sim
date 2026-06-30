@@ -5,6 +5,7 @@
  */
 
 import type { WorldConfig } from '../types'
+import { clamp } from '@/core/shared'
 
 import { useWorldStore } from '../store'
 
@@ -20,7 +21,7 @@ export function inferAnchorYearFromDescription(description: string): number | un
   if (!m) return undefined
   const year = parseInt(m[1], 10)
   if (!Number.isFinite(year)) return undefined
-  if (/公元前/.test(description.slice(Math.max(0, m.index! - 4), m.index! + 2))) {
+  if (/公元前/.test(description.slice(clamp(m.index! - 4, 0, Infinity), m.index! + 2))) {
     return -Math.abs(year)
   }
   return year

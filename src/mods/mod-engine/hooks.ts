@@ -14,7 +14,7 @@ import { useSettingsStore } from '@/mods/mod-settings'
 import { useWorldStore } from '@/mods/mod-world'
 
 import { narrativePrompt } from './prompts/narrative-prompt'
-import { computeNarrativeMaxTokens } from './constants/narrative-config'
+import { computeNarrativeMaxTokens, DEFAULT_WORD_COUNT_TARGET } from './constants/narrative-config'
 import { clearPreGenQueue, fillPreGenQueue, getPreGenQueueStatus, shiftPreGenQueue, subscribePreGenQueue, type PreGenQueueStatus } from './helpers/pre-gen-queue'
 import { syncSubsystemStoresFromStates } from './helpers/subsystem-store-sync'
 import { useEngineStore } from './store'
@@ -111,7 +111,8 @@ export function useSimulationAdvance() {
       customModel,
       temperature,
     } = useSettingsStore.getState()
-    const wordCountTarget = useSettingsStore.getState().wordCountTarget ?? 200
+    // 从单一来源常量取默认字数，与 orchestrator、pre-gen 共享同一常量
+    const wordCountTarget = useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET
 
     const model = customModel || 'deepseek-v4-flash'
     const aiConfig: AIModelConfig = {

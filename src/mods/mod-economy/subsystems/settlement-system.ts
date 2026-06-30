@@ -222,7 +222,7 @@ export class SettlementSystem implements ISubSystem {
         const ps = this.state.playerSettlement
         if (!ps) return
         if (typeof extracted.population === 'number') {
-          ps.population = Math.max(0, ps.population + extracted.population)
+          ps.population = clamp(ps.population + extracted.population, 0, Infinity)
         }
         if (typeof extracted.prosperity === 'number') {
           ps.prosperity = clamp(ps.prosperity + extracted.prosperity, 0, 100)

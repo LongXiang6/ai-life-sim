@@ -7,17 +7,12 @@
 export {
   cn,
   parseJSON,
-  formatNumber,
   clamp,
   ROUND_DECIMALS,
   round,
   pickRandom,
-  clampNumber,
   parseChineseNumber,
   extractDynamicAttrsFromNarrative,
-  getAttrTier,
-  getAttrSemanticText,
-  getAllAttrSemanticText,
   useIsMobile,
   stringifyPrompt,
   estimateTokenBudget,
@@ -28,7 +23,7 @@ export {
   TOKEN_BUDGET_HEADROOM,
 } from './utils'
 export type { EstimateTokenBudgetOptions } from './utils'
-export { getRoundSequence, getSimulationTicks, getAgeYearsDelta, getCalendarDaysDelta, shouldAdvanceSubsystem, consumeSimulationYears } from './utils/round-advance'
+export { getRoundSequence, getAgeYearsDelta, consumeSimulationYears } from './utils/round-advance'
 export type {
   AttrTagMap,
   ExtractedAttrs,

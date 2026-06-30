@@ -7,6 +7,7 @@
  */
 
 import { useState, useMemo, useCallback } from 'react'
+import { clamp } from '@/core/shared'
 import { estimateTokens } from '@/mods/mod-engine'
 import { SYSTEM_PROMPT, narrativePrompt, buildWordCountInstruction, buildStyleInstruction } from '@/mods/mod-engine'
 import { useSettingsStore } from '../store'
@@ -179,7 +180,7 @@ export function SettingsTabPrompt() {
             <div className={styles.progressBar} style={{ marginTop: 8, height: 8 }}>
               <div
                 className={`${styles.progressFill} ${getProgressColor(stats.usagePct)}`}
-                style={{ width: `${Math.min(100, stats.usagePct)}%`, height: 8 }}
+                style={{ width: `${clamp(stats.usagePct, -Infinity, 100)}%`, height: 8 }}
               />
             </div>
           </div>

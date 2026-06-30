@@ -24,7 +24,7 @@ import {
   round,
   clamp,
   pickRandom,
-  randomInRange,
+  randomInt,
 } from '../constants'
 
 import { getFormulaModifier } from '@/mods/mod-world'
@@ -67,7 +67,7 @@ export class SocialStratificationSystem implements ISubSystem {
   }
 
   private generateInitialNobleHouses(): NobleHouse[] {
-    const count = randomInRange(3, 6)
+    const count = randomInt(3, 6)
     const houses: NobleHouse[] = []
     const usedNames = new Set<string>()
 
@@ -82,8 +82,8 @@ export class SocialStratificationSystem implements ISubSystem {
         id: `noble-${i + 1}`,
         name,
         stratum: i === 0 ? 'royalty' : 'nobility',
-        influence: randomInRange(20, 80),
-        wealth: randomInRange(1000, 5000),
+        influence: randomInt(20, 80),
+        wealth: randomInt(1000, 5000),
         territories: [`领地${i + 1}`],
         rivalHouses: [],
         allyHouses: [],
@@ -269,7 +269,7 @@ export class SocialStratificationSystem implements ISubSystem {
           100,
         ))
 
-        house.wealth = Math.max(0, house.wealth + Math.round((Math.random() - 0.45) * house.wealth * 0.05 * scale))
+        house.wealth = clamp(house.wealth + Math.round((Math.random() - 0.45) * house.wealth * 0.05 * scale), 0, Infinity)
 
         if (Math.random() < mobilityRate * 0.02 && house.stratum !== 'royalty') {
           const idx = STURM_ORDER.indexOf(house.stratum)
@@ -290,7 +290,7 @@ export class SocialStratificationSystem implements ISubSystem {
     // 财富暴跌降级
     if (playerWealth <= WEALTH_CRASH_THRESHOLD) {
       const currentIdx = STURM_ORDER.indexOf(cs.currentTier)
-      const targetIdx = Math.max(0, currentIdx - WEALTH_CRASH_DROP_TIERS)
+      const targetIdx = clamp(currentIdx - WEALTH_CRASH_DROP_TIERS, 0, Infinity)
       const newTier = STURM_ORDER[targetIdx]
       if (newTier !== cs.currentTier) {
         cs.currentTier = newTier

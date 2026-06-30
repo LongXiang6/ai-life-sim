@@ -159,7 +159,7 @@ export class EducationSystem implements ISubSystem {
 
     // 增量操作
     if (typeof c.knowledgeDelta === 'number') {
-      this.state.knowledgeTotal = round(Math.max(0, this.state.knowledgeTotal + c.knowledgeDelta))
+      this.state.knowledgeTotal = round(clamp(this.state.knowledgeTotal + c.knowledgeDelta, 0, Infinity))
     }
 
     // 设置分阶层识字率
@@ -198,7 +198,7 @@ export class EducationSystem implements ISubSystem {
       const extracted = extractDynamicAttrsFromNarrative(changes.description, EDUCATION_TAG_MAP)
       if (extracted) {
         if (typeof extracted.knowledgeTotal === 'number') {
-          this.state.knowledgeTotal = Math.max(0, this.state.knowledgeTotal + extracted.knowledgeTotal)
+          this.state.knowledgeTotal = clamp(this.state.knowledgeTotal + extracted.knowledgeTotal, 0, Infinity)
         }
         if (typeof extracted.literacyRate === 'number') {
           this.state.literacyRate = clamp(this.state.literacyRate + extracted.literacyRate, 0, 100)
@@ -207,7 +207,7 @@ export class EducationSystem implements ISubSystem {
           this.state.educationAccess = clamp(this.state.educationAccess + extracted.educationAccess, 0, 100)
         }
         if (typeof extracted.researchOutput === 'number') {
-          this.state.researchOutput = Math.max(0, this.state.researchOutput + extracted.researchOutput)
+          this.state.researchOutput = clamp(this.state.researchOutput + extracted.researchOutput, 0, Infinity)
         }
       }
     }

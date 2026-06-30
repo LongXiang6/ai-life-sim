@@ -32,7 +32,7 @@ import {
 import {
   round,
   pickRandom,
-  clampNumber,
+  clamp,
 } from '../utils'
 
 import { getFormulaModifier } from '@/mods/mod-world'
@@ -137,7 +137,7 @@ export class CultureTechSystem implements ISubSystem {
     }
     if (typeof c.techProgress === 'number') this.state.techProgress = c.techProgress
     if (typeof c.techProgressDelta === 'number') {
-      this.state.techProgress = round(clampNumber(
+      this.state.techProgress = round(clamp(
         this.state.techProgress + (c.techProgressDelta as number),
         0,
         1,
@@ -151,13 +151,13 @@ export class CultureTechSystem implements ISubSystem {
       const extracted = extractDynamicAttrsFromNarrative(changes.description, CULTURE_TECH_TAG_MAP)
       if (extracted) {
         if (typeof extracted.techLevel === 'number') {
-          this.state.techLevel = clampNumber(
+          this.state.techLevel = clamp(
             Math.floor(this.state.techLevel + extracted.techLevel),
             TECH_LEVEL_MIN, TECH_LEVEL_MAX,
           )
         }
         if (typeof extracted.techProgress === 'number') {
-          this.state.techProgress = round(clampNumber(
+          this.state.techProgress = round(clamp(
             this.state.techProgress + extracted.techProgress, 0, 1,
           ))
         }
@@ -189,7 +189,7 @@ export class CultureTechSystem implements ISubSystem {
         * getFormulaModifier('techProgressModifier')
         * innovationMod
         * yearScale
-      techProgress += Math.max(0, baseProgress)
+      techProgress += clamp(baseProgress, 0, Infinity)
 
       if (techProgress >= 1 && techLevel < TECH_LEVEL_MAX) {
         techLevel++

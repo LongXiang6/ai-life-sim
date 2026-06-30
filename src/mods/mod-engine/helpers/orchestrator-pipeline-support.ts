@@ -33,6 +33,9 @@ export {
 } from './cross-domain-rules'
 export { globalDeadLoopDetector, deepSanitize, sanitizeSubSystemState, clampNumber } from './system-safety'
 export { formatSubsystemFieldsForPrompt } from './subsystem-field-registry'
+// 激活 shared/ 的叙事 Prompt Key 常量 → 子系统用标准化 key 注入 Prompt 片段
+export { NARRATIVE_PROMPT_KEYS } from '@/core/shared'
+export type { NarrativePromptKey } from '@/core/shared'
 export {
   buildLayeredMemoryStateCard,
   buildMemoryStateCard,
@@ -52,6 +55,14 @@ export {
   buildLifeStageNarrativeHint,
   resolveLifeStageFromAge,
 } from './life-stage-narrative'
+export {
+  generateArchetypeHint,
+  buildLifespanReminder,
+  countConsecutiveConflictRounds,
+  isLastEventConflict,
+  isPlayerGoalPeaceful,
+  type NarrativeArchetype,
+} from './life-stage-archetypes'
 export { normalizeNarrativeParagraphs } from './normalize-narrative-paragraphs'
 export {
   buildNarrativeHints,

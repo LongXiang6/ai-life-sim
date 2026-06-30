@@ -311,7 +311,7 @@ export const LUCK_NOTIFICATION_DURATION = 5
 // §8 浮点精度 + 通用工具函数（已迁移至 utils.ts，此处重新导出以保持兼容）
 // ============================================================
 
-export { round, clampNumber, pickRandom, computeAverage, ROUND_DECIMALS, } from './utils'
+export { round, clamp, pickRandom, computeAverage, ROUND_DECIMALS, } from './utils'
 
 // ============================================================
 // §9 材料 — 中文标签

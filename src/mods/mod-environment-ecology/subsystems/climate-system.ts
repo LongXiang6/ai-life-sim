@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @module ClimateSystem
  * @description 气候子系统：季节推进 + 气温/湿度波动 + 灾害触发/过期
  * @mod mod-environment-ecology
@@ -25,7 +25,7 @@ import {
   round,
   clamp,
   pickRandom,
-  randomInRange,
+  randomInt,
 } from '../utils'
 
 import { getFormulaModifier, resolveStaticPoolWorldviewKey } from '@/mods/mod-world'
@@ -244,11 +244,11 @@ export class ClimateSystem implements ISubSystem {
     const pool = DISASTER_POOL_BY_WORLDVIEW[poolKey]
       ?? DISASTER_POOL_BY_WORLDVIEW['default']
     const type = pickRandom(pool)
-    const severity = DISASTER_BASE_SEVERITY[type] + randomInRange(-10, 10)
+    const severity = DISASTER_BASE_SEVERITY[type] + randomInt(-10, 10)
 
     // 获取影响区域（从气候带中随机选取）
     const regionIds = Object.keys(this.state.climateZones)
-    const affectedCount = Math.min(randomInRange(1, 3), regionIds.length)
+    const affectedCount = Math.min(randomInt(1, 3), regionIds.length)
     const shuffled = [...regionIds].sort(() => Math.random() - 0.5)
     const affectedRegions = shuffled.slice(0, affectedCount)
 
@@ -257,7 +257,7 @@ export class ClimateSystem implements ISubSystem {
       severity: clamp(severity, 0, 100),
       affectedRegions,
       year: context.round.year,
-      duration: randomInRange(2, 6),
+      duration: randomInt(2, 6),
     }
 
     this.state.activeDisasters = [...this.state.activeDisasters, disaster]

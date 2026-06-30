@@ -129,7 +129,16 @@ export const opfsStorage = {
   async deleteDirectory(dirPath: string): Promise<void> {
     try {
       const root = await getRoot()
-      await root.removeEntry(dirPath, { recursive: true })
+      const parts = dirPath.split('/').filter(Boolean)
+      const dirName = parts.pop()
+      if (!dirName) return
+
+      let currentDir = root
+      for (const part of parts) {
+        currentDir = await currentDir.getDirectoryHandle(part, { create: false })
+      }
+
+      await currentDir.removeEntry(dirName, { recursive: true })
     } catch {
       // 目录不存在时不抛出
     }

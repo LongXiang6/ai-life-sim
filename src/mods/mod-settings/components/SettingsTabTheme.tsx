@@ -7,9 +7,11 @@
  */
 
 import { useState, useCallback, useEffect } from 'react'
+import { clamp } from '@/core/shared'
 
 import { useSettingsStore } from '../store'
 import type { NarrativeStyle } from '../store'
+import { DEFAULT_WORD_COUNT_TARGET } from '@/mods/mod-engine/constants/narrative-config'
 
 import { useThemeStore, type ThemeType } from '@/core/theme/theme-store'
 import { useFontStore } from '@/core/theme/font-store'
@@ -139,7 +141,7 @@ export function SettingsTabTheme() {
             setPreGenerateRounds(0)
             setStorySeed('')
             setNarrativeStyle('default')
-            setWordCountTarget(200)
+            setWordCountTarget(DEFAULT_WORD_COUNT_TARGET)
             setStreamingMode('off')
             setFontFamily('default')
             setTheme('minimal-white')
@@ -149,13 +151,13 @@ export function SettingsTabTheme() {
           if (typeof s.customKey === 'string') setCustomKey(s.customKey)
           if (typeof s.customUrl === 'string') setCustomUrl(s.customUrl)
           if (typeof s.customModel === 'string') setCustomModel(s.customModel)
-          if (typeof s.temperature === 'number') setTemperature(Math.min(2, Math.max(0, s.temperature)))
-          if (typeof s.topP === 'number') setTopP(Math.min(1, Math.max(0, s.topP)))
+          if (typeof s.temperature === 'number') setTemperature(clamp(s.temperature, 0, 2))
+          if (typeof s.topP === 'number') setTopP(clamp(s.topP, 0, 1))
           if (typeof s.maxTokens === 'number') setMaxTokens(Math.max(256, s.maxTokens))
           if (typeof s.reasoningEffort === 'string') setReasoningEffort(s.reasoningEffort)
           if (typeof s.talentThinkingIntensity === 'string') setTalentThinkingIntensity(s.talentThinkingIntensity)
           if (typeof s.aiTalentGeneration === 'boolean') setAiTalentGeneration(s.aiTalentGeneration)
-          if (typeof s.preGenerateRounds === 'number') setPreGenerateRounds(Math.min(3, Math.max(0, s.preGenerateRounds)))
+          if (typeof s.preGenerateRounds === 'number') setPreGenerateRounds(clamp(s.preGenerateRounds, 0, 3))
           if (typeof s.storySeed === 'string') setStorySeed(s.storySeed)
           if (typeof s.narrativeStyle === 'string') setNarrativeStyle(s.narrativeStyle as NarrativeStyle)
           if (typeof s.wordCountTarget === 'number') setWordCountTarget(Math.max(50, s.wordCountTarget))
@@ -300,7 +302,7 @@ export function SettingsTabTheme() {
             <button onClick={handleResetCache} title="清空记录并重新累计" className={styles.smallBtn} style={{ color: 'var(--color-text-tertiary)' }}>重置</button>
           </div>
           <div className={styles.progressBar}>
-            <div className={styles.progressFill} style={{ width: `${Math.min(100, cacheStats.hitRate)}%`, background: 'var(--color-primary)' }} />
+            <div className={styles.progressFill} style={{ width: `${clamp(cacheStats.hitRate, -Infinity, 100)}%`, background: 'var(--color-primary)' }} />
           </div>
           <div className={styles.cacheHint}>缓存命中越高，AI 响应越快、消耗越低。数据从 API 响应中自动采集，不增加额外开销。</div>
           {roundMetrics.length > 0 && (

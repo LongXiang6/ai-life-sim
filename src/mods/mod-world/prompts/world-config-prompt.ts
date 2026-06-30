@@ -23,7 +23,7 @@ export const worldConfigOutputSchema = z.object({
   landmassRatio: z.number(),
   biomeDiversity: z.number(),
   techLevel: z.number(),
-  populationScale: z.string(),
+  populationScale: z.number(), // AI 输出为 number，语义上人口规模应是数值而非字符串
   urbanizationRate: z.number(),
   literacyRate: z.number(),
   lifespan: z.number(),

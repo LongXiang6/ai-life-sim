@@ -4,15 +4,8 @@
  * @mod mod-tech-level
  */
 
-export { ROUND_DECIMALS, round, clampNumber, pickRandom } from '@/foundation'
-
-/** 计算数值数组平均值 */
-export function computeAverage(values: number[]): number {
-  if (values.length === 0) return 0
-  return values.reduce((a, b) => a + b, 0) / values.length
-}
-
-/** 区间随机取整 */
-export function randomInRange(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min
-}
+export { ROUND_DECIMALS, round, clamp, pickRandom } from '@/foundation'
+// randomInt 已统一到 shared/common-utils.ts，避免各 MOD 重复定义（B-45 要求）
+export { randomInt } from '@/core/shared'
+// computeAverage 已统一到 shared/common-utils.ts
+export { computeAverage } from '@/core/shared'

@@ -81,6 +81,13 @@ export const COMPACT_JSON_KEY_MAP: Record<string, string> = {
 // ============================================================
 
 /**
+ * 默认每轮叙事字数目标 —— 单一来源常量
+ * 所有 wordCountTarget 回退值、computeNarrativeMaxTokens 下限、store 初始值均从此派生
+ * 改动此处即可全局生效，无需在多个文件中手动同步
+ */
+export const DEFAULT_WORD_COUNT_TARGET = 500
+
+/**
  * 根据大致字数生成 Prompt 字数约束文本
  */
 export function buildWordCountInstruction(target: number): string {
@@ -90,9 +97,12 @@ export function buildWordCountInstruction(target: number): string {
 /** 废弃项目 NARRATIVE_WORD_COUNT_DEFAULT_MAX */
 export const NARRATIVE_WORD_COUNT_DEFAULT_MAX = 400
 
-/** 叙事 maxTokens —— 对齐废弃项目 life-sim-engine（忽略 settings 固定值） */
+/**
+ * 叙事 maxTokens 计算 —— 综合字数目标 + 固定开销（对齐废弃项目 life-sim-engine）
+ * 使用 DEFAULT_WORD_COUNT_TARGET 作为字数下限，避免传入 0 或极小值时 token 预算过低
+ */
 export function computeNarrativeMaxTokens(wordCountTarget: number): number {
-  const wordCountMax = Math.max(wordCountTarget, 200)
+  const wordCountMax = Math.max(wordCountTarget, DEFAULT_WORD_COUNT_TARGET)
   return Math.ceil(wordCountMax * 5) + 2000
 }
 

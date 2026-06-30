@@ -6,6 +6,7 @@
  * @mod mod-base-universe
  */
 import { getRoundSequence } from '@/foundation'
+import { clamp } from '@/core/shared'
 
 import type {
   ISubSystem,
@@ -243,12 +244,12 @@ export class CelestialSystem implements ISubSystem {
 
     // 冷却中减少冷却年数
     if (cooldownYears > 0) {
-      cooldownYears = Math.max(0, cooldownYears - 1)
+      cooldownYears = clamp(cooldownYears - 1, 0, Infinity)
     }
 
     // 减少阶段剩余年数
     if (phaseDuration > 0) {
-      phaseDuration = Math.max(0, phaseDuration - 1)
+      phaseDuration = clamp(phaseDuration - 1, 0, Infinity)
     }
 
     // 冷却期间不掷骰

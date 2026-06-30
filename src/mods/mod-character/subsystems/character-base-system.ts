@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @module character-base-system.ts
  * @description 角色基础属性子系统
  * @mod mod-character
@@ -16,6 +16,7 @@ import {
   TRANSMIGRATOR_KEYWORDS,
 } from '../constants'
 import { round } from '../utils'
+import { clamp } from '@/core/shared'
 
 export class CharacterBaseSystem implements ISubSystem {
   readonly id = 'character-base' as const
@@ -79,7 +80,7 @@ export class CharacterBaseSystem implements ISubSystem {
 
     // 直接设置起始年龄（手动覆盖，优先级高于自动检测）
     if (typeof ch.startingAge === 'number') {
-      this.state.startingAge = Math.max(0, ch.startingAge)
+      this.state.startingAge = clamp(ch.startingAge, 0, Infinity)
     }
 
     if (ch.base && typeof ch.base === 'object') {
