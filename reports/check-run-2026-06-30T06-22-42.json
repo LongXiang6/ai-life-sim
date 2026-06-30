@@ -1,0 +1,87 @@
+{
+  "timestamp": "2026-06-30T06:22:42.736Z",
+  "profile": "quick",
+  "status": "PASS",
+  "atceRecommendation": "REVIEW",
+  "summary": {
+    "total": 2,
+    "passed": 2,
+    "failed": 0,
+    "refactorSignalCount": 5,
+    "repeatOffenderCount": 0
+  },
+  "refactorSignals": [
+    {
+      "ruleId": "D-07",
+      "file": "mods/mod-character/subsystems/destiny-pattern-system.ts",
+      "module": "global",
+      "tier": "structural",
+      "severity": "hint",
+      "refactorHint": "9 个相对 import，评估 barrel 拆分",
+      "excerpt": "[REFACTOR-HINT] [D-07] mods/mod-character/subsystems/destiny-pattern-system.ts — 9 个相对 import，评估 barrel 拆分"
+    },
+    {
+      "ruleId": "D-07",
+      "file": "mods/mod-engine/subsystems/orchestrator-system.ts",
+      "module": "global",
+      "tier": "structural",
+      "severity": "hint",
+      "refactorHint": "13 个相对 import，评估 barrel 拆分",
+      "excerpt": "[REFACTOR-HINT] [D-07] mods/mod-engine/subsystems/orchestrator-system.ts — 13 个相对 import，评估 barrel 拆分"
+    },
+    {
+      "ruleId": "D-07",
+      "file": "mods/mod-world/subsystems/world-entity-system.ts",
+      "module": "global",
+      "tier": "structural",
+      "severity": "hint",
+      "refactorHint": "6 个相对 import，评估 barrel 拆分",
+      "excerpt": "[REFACTOR-HINT] [D-07] mods/mod-world/subsystems/world-entity-system.ts — 6 个相对 import，评估 barrel 拆分"
+    },
+    {
+      "ruleId": "D-07",
+      "file": "mods/mod-world/world-init-api.ts",
+      "module": "global",
+      "tier": "structural",
+      "severity": "hint",
+      "refactorHint": "8 个相对 import，评估 barrel 拆分",
+      "excerpt": "[REFACTOR-HINT] [D-07] mods/mod-world/world-init-api.ts — 8 个相对 import，评估 barrel 拆分"
+    },
+    {
+      "ruleId": "D-07",
+      "file": "mods/mod-world/world-init-bundle.ts",
+      "module": "global",
+      "tier": "structural",
+      "severity": "hint",
+      "refactorHint": "8 个相对 import，评估 barrel 拆分",
+      "excerpt": "[REFACTOR-HINT] [D-07] mods/mod-world/world-init-bundle.ts — 8 个相对 import，评估 barrel 拆分"
+    }
+  ],
+  "repeatOffenders": [],
+  "domains": [
+    {
+      "domain": "wiring",
+      "label": "接线 / codegen",
+      "status": "PASS",
+      "exitCode": 0,
+      "logFile": "D:\\AI\\ai-life-sim\\reports\\check-log-wiring-2026-06-30T06-22-38.txt",
+      "errorLines": [],
+      "hintLines": [
+        "[REFACTOR-HINT] [D-07] mods/mod-character/subsystems/destiny-pattern-system.ts — 9 个相对 import，评估 barrel 拆分",
+        "[REFACTOR-HINT] [D-07] mods/mod-engine/subsystems/orchestrator-system.ts — 13 个相对 import，评估 barrel 拆分",
+        "[REFACTOR-HINT] [D-07] mods/mod-world/subsystems/world-entity-system.ts — 6 个相对 import，评估 barrel 拆分",
+        "[REFACTOR-HINT] [D-07] mods/mod-world/world-init-api.ts — 8 个相对 import，评估 barrel 拆分",
+        "[REFACTOR-HINT] [D-07] mods/mod-world/world-init-bundle.ts — 8 个相对 import，评估 barrel 拆分"
+      ]
+    },
+    {
+      "domain": "loader",
+      "label": "MOD 加载器",
+      "status": "PASS",
+      "exitCode": 0,
+      "logFile": "D:\\AI\\ai-life-sim\\reports\\check-log-loader-2026-06-30T06-22-38.txt",
+      "errorLines": [],
+      "hintLines": []
+    }
+  ]
+}

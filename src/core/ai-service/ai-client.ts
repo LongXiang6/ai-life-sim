@@ -41,6 +41,25 @@ export function setOnAiError(cb: (msg: string) => void): void {
   onAiError = cb
 }
 
+/** 429 限流错误：携带 provider 返回的 retryAfter（秒）提示 */
+class RateLimitError extends Error {
+  constructor(public readonly retryAfter?: number) {
+    super('__RETRY_429__')
+    this.name = 'RateLimitError'
+  }
+}
+
+/** 从 429 响应中解析 provider 的 retryAfter（秒），失败则返回 undefined */
+async function parseRetryAfter(resp: Response): Promise<number | undefined> {
+  try {
+    const errData = (await resp.clone().json()) as { retryAfter?: number }
+    if (typeof errData.retryAfter === 'number') return errData.retryAfter
+  } catch {
+    // 忽略解析失败，退回固定退避
+  }
+  return undefined
+}
+
 /** 判断是否为可重试的临时错误（429 / AbortError），不触发用户通知 */
 function isRetryError(e: unknown): boolean {
   if (e instanceof Error) {
@@ -146,6 +165,11 @@ export interface AICallOptions {
   sessionId?: string
   /** 流式回调 */
   onChunk?: (text: string) => void
+  /**
+   * 流式缓冲重置回调：在重试或降级前调用，通知消费端丢弃上一次尝试已 append 的部分文本。
+   * 不实现时，重试/降级会把新文本拼接到旧的部分文本之后，导致 UI 出现重复/串字。
+   */
+  onResetStream?: () => void
   /** 信号（用于取消请求） */
   signal?: AbortSignal
   /** 单次调用覆盖 maxTokens（不修改 config） */
@@ -608,6 +632,8 @@ async function executeAiFetchWithRetry(
 
       if (!isValidAiContent(content)) {
         if (attempt < MAX_RETRY - 1) {
+          // 重试前清空消费端已 append 的部分流式文本，避免拼接重复
+          options.onResetStream?.()
           await new Promise((r) => setTimeout(r, getBackoffDelay(attempt)))
           continue
         }
@@ -624,7 +650,15 @@ async function executeAiFetchWithRetry(
         throw err
       }
       if (attempt < MAX_RETRY - 1) {
-        await new Promise((r) => setTimeout(r, getBackoffDelay(attempt)))
+        // 重试前清空消费端已 append 的部分流式文本，避免拼接重复
+        options.onResetStream?.()
+        // 429 限流时取 provider 的 retryAfter 与固定退避中的较大值
+        const retryAfter = err instanceof RateLimitError ? err.retryAfter : undefined
+        const delay = Math.max(
+          getBackoffDelay(attempt),
+          retryAfter ? retryAfter * 1000 : 0,
+        )
+        await new Promise((r) => setTimeout(r, delay))
         continue
       }
       if (onAiError && !isRetryError(err)) {
@@ -669,7 +703,7 @@ async function fetchAIResponse(
   }, TIMEOUT_MS)
 
   if (resp.status === 429) {
-    throw new Error('__RETRY_429__')
+    throw new RateLimitError(await parseRetryAfter(resp))
   }
 
   if (!resp.ok) {
@@ -832,7 +866,7 @@ async function fetchAIStreamResponse(
   }, TIMEOUT_MS)
 
   if (resp.status === 429) {
-    throw new Error('__RETRY_429__')
+    throw new RateLimitError(await parseRetryAfter(resp))
   }
 
   if (!resp.ok) {
@@ -1017,6 +1051,8 @@ export async function callAIStreamDegraded(
     // 流式失败，降级为兜底文本
   }
 
+  // 降级前清空消费端已 append 的部分流式文本，避免兜底文本拼接到残留内容之后
+  options.onResetStream?.()
   if (options.onChunk) {
     options.onChunk(fallbackText)
   }

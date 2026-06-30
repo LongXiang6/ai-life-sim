@@ -50,11 +50,14 @@ export function createStorageNamespace<T extends Record<string, unknown> = Recor
 
     getAll() {
       const result: Record<string, unknown> = {}
-      // 扫描所有以 prefix 开头的键
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i)
+      // 通过注入的 baseStorage 枚举键，保持与 get/set/delete 一致的隔离
+      // baseStorage.keys() 可用时优先使用；否则回退到全局 localStorage 扫描（向后兼容）
+      const allKeys = baseStorage.keys
+        ? baseStorage.keys()
+        : Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i))
+      for (const k of allKeys) {
         if (k?.startsWith(prefix)) {
-          const raw = localStorage.getItem(k)
+          const raw = baseStorage.keys ? baseStorage.getItem(k) : localStorage.getItem(k)
           if (raw !== null) {
             try {
               result[k.slice(prefix.length)] = JSON.parse(raw)

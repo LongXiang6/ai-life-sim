@@ -80,6 +80,8 @@ export class EconomySystem implements ISubSystem {
   private _phaseElapsed = 0
   /** 不足 1 年的模拟量累积 */
   private _simYearAccumulator = 0
+  /** 最近一次已知的总人口（容忍子系统收集顺序：population 在 economy 之后才更新时回退至此值） */
+  private _lastKnownPopulation: number | undefined = undefined
 
   private createInitialState(): EconomyState {
     return {
@@ -109,8 +111,14 @@ export class EconomySystem implements ISubSystem {
 
   collectState(context: RoundContext): SubSystemState {
     // 从 population 子系统获取总人口
+    // 注：economy 在 manifest 中先于 population 收集，context.subsystemStates 携带的是上一轮快照；
+    // 若本轮 population 状态缺失，回退至最近一次已知值，避免人口读数滞后一轮或退化为默认值。
     const populationState = context.subsystemStates?.['population']
-    const totalPopulation = (populationState?.data as { totalPopulation?: number } | undefined)?.totalPopulation
+    const contextPopulation = (populationState?.data as { totalPopulation?: number } | undefined)?.totalPopulation
+    if (contextPopulation !== undefined) {
+      this._lastKnownPopulation = contextPopulation
+    }
+    const totalPopulation = contextPopulation ?? this._lastKnownPopulation
 
     if (getRoundSequence(context) === this._lastProcessedRound) {
       return {
@@ -528,5 +536,6 @@ export class EconomySystem implements ISubSystem {
     this._lastProcessedRound = -1
     this._phaseElapsed = 0
     this._simYearAccumulator = 0
+    this._lastKnownPopulation = undefined
   }
 }

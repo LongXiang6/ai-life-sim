@@ -230,6 +230,8 @@ export interface IStorageService {
   getItem(key: string): string | null,
   setItem(key: string, value: string): void,
   removeItem(key: string): void,
+  /** 可选：枚举所有键（用于命名空间 getAll 隔离扫描） */
+  keys?(): string[],
 }
 
 /** MOD 预扫描信息（Phase 0 构建） */

@@ -357,11 +357,14 @@ export function buildEventInjectionText(
   const activeTypes = new Set(rawEvents.map((e) => e.eventType))
 
   // 1) 当前活跃事件：new / ongoing
+  // 注意：注入文本只取 top-N（保持 prompt 简洁），但生命周期追踪必须覆盖「全部」活跃事件，
+  //       否则排名 #4+ 的长期事件会从追踪器中丢失，连续轮次计数被重置，再次浮现时被误判为新发生。
   rawEvents.sort((a, b) => b.severity - a.severity)
-  const topActive = rawEvents.slice(0, 3)
+  const TOP_INJECT_COUNT = 3
 
-  for (const e of topActive) {
+  rawEvents.forEach((e, index) => {
     const existing = prev[e.eventType]
+    const inject = index < TOP_INJECT_COUNT
     if (existing) {
       // 持续中
       const newRec: EventLifecycleRecord = {
@@ -374,7 +377,7 @@ export function buildEventInjectionText(
         status: 'ongoing',
       }
       newLifecycle[e.eventType] = newRec
-      injectedLines.push(`  ${e.eventType}(持续第${newRec.consecutiveRounds}轮·${e.severity.toFixed(1)}) | ${e.dataChange} | ${e.statusDesc}`)
+      if (inject) injectedLines.push(`  ${e.eventType}(持续第${newRec.consecutiveRounds}轮·${e.severity.toFixed(1)}) | ${e.dataChange} | ${e.statusDesc}`)
     } else {
       // 新发生
       const newRec: EventLifecycleRecord = {
@@ -387,9 +390,9 @@ export function buildEventInjectionText(
         status: 'new',
       }
       newLifecycle[e.eventType] = newRec
-      injectedLines.push(`  ${e.eventType}(新发生·${e.severity.toFixed(1)}) | ${e.dataChange} | ${e.statusDesc}`)
+      if (inject) injectedLines.push(`  ${e.eventType}(新发生·${e.severity.toFixed(1)}) | ${e.dataChange} | ${e.statusDesc}`)
     }
-  }
+  })
 
   // 2) 旧事件不再活跃 → ending
   for (const [eventType, record] of Object.entries(prev)) {

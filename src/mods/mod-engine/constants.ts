@@ -116,6 +116,13 @@ export { AVAILABLE_TIME_STEPS } from '@/foundation/constants/time-steps'
 /** 叙事历史最大保留条数（超出后移除最旧条目，压缩先于删除） */
 export const MAX_NARRATIVE_HISTORY = 200
 
+/**
+ * 角色原创设定（characterCreations）最大保留条数。
+ * 该数组会被完整注入每轮 prompt 的稳定段，必须设上限以防内存膨胀与 prompt 撑爆。
+ * 超出时移除最早确认的条目（保留最近创造的设定）。
+ */
+export const MAX_CHARACTER_CREATIONS = 80
+
 /** 存储键（规范格式：{mod}:{category}:{key}） */
 export const STORAGE_KEYS = {
   ENGINE_CONFIG: 'mod-engine:config:main',

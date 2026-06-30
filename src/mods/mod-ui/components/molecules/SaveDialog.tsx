@@ -6,16 +6,14 @@
  * @mod mod-ui
  */
 
-'use client'
-
-import { useState, useCallback } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 
 import { saveManager } from '@/core/storage/save-manager'
 
 interface SaveDialogProps {
   open: boolean
   onClose: () => void
-  onSave: (slot: number, name: string) => void
+  onSave: (slot: number, name: string) => Promise<void> | void
   defaultWorldName?: string
   defaultCharacterName?: string
 }
@@ -25,21 +23,43 @@ interface SaveDialogProps {
  * @param {SaveDialogProps} props - 组件属性
  */
 export function SaveDialog({ open, onClose, onSave, defaultWorldName, defaultCharacterName }: SaveDialogProps) {
-  const [slot, setSlot] = useState(1)
+  // slot 为 0 表示用户尚未选择槽位（所有槽位都已占用时不预选，避免误覆盖）
+  const [slot, setSlot] = useState(0)
   const [name, setName] = useState('')
   const [saving, setSaving] = useState(false)
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null)
+
+  const nextSlotRaw = saveManager.getNextSlot()
+  // 存在空闲槽位时推荐该槽位；所有槽位都已占用时不做推荐（0 = 无）
+  const nextSlot = nextSlotRaw > 5 ? 0 : nextSlotRaw
+  // 用户未显式选择时（slot 为 0），仅在有空闲槽位时自动选中推荐槽位
+  const activeSlot = slot >= 1 && slot <= 5 ? slot : nextSlot
+  const occupied = activeSlot >= 1 && saveManager.slotExists(activeSlot)
+
+  const suggestedName = useMemo(() => {
+    const parts = [defaultWorldName, defaultCharacterName].filter(Boolean)
+    return parts.length > 0 ? `${parts.join(' · ')} · 存档 ${activeSlot}` : `存档 ${activeSlot}`
+  }, [activeSlot, defaultCharacterName, defaultWorldName])
 
   const handleSave = useCallback(async () => {
     if (saving) return
+    if (activeSlot < 1) {
+      setMessage({ type: 'warning', text: '所有槽位均已占用，请先选择一个要覆盖的槽位' })
+      return
+    }
     setSaving(true)
+    setMessage(null)
     try {
-      const saveName = name.trim() || `存档 ${slot}`
-      onSave(slot, saveName)
-      onClose()
+      const saveName = name.trim() || suggestedName
+      await onSave(activeSlot, saveName)
+      setMessage({ type: 'success', text: `已保存到槽位 ${activeSlot}` })
+      window.setTimeout(onClose, 600)
+    } catch (err) {
+      setMessage({ type: 'error', text: err instanceof Error ? err.message : '保存失败，请稍后重试' })
     } finally {
       setSaving(false)
     }
-  }, [slot, name, saving, onSave, onClose])
+  }, [activeSlot, name, suggestedName, saving, onSave, onClose])
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') onClose()
@@ -47,8 +67,6 @@ export function SaveDialog({ open, onClose, onSave, defaultWorldName, defaultCha
   }, [onClose, handleSave])
 
   if (!open) return null
-
-  const nextSlot = saveManager.getNextSlot()
 
   return (
     <div
@@ -74,9 +92,12 @@ export function SaveDialog({ open, onClose, onSave, defaultWorldName, defaultCha
               return (
                 <button
                   key={s}
-                  onClick={() => setSlot(s)}
+                  onClick={() => {
+                    setSlot(s)
+                    setMessage(saveManager.slotExists(s) ? { type: 'warning', text: `槽位 ${s} 已有存档，保存会覆盖原内容` } : null)
+                  }}
                   className={`flex-1 py-2 rounded-lg border text-sm transition-colors ${
-                    slot === s
+                    activeSlot === s
                       ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
                       : occupied
                         ? 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-tertiary)]'
@@ -90,7 +111,7 @@ export function SaveDialog({ open, onClose, onSave, defaultWorldName, defaultCha
             })}
           </div>
           <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
-            推荐使用槽位 {nextSlot}
+            {nextSlot >= 1 ? `推荐使用槽位 ${nextSlot}` : '所有槽位均已占用，请选择一个要覆盖的槽位'}
           </p>
         </div>
 
@@ -101,13 +122,23 @@ export function SaveDialog({ open, onClose, onSave, defaultWorldName, defaultCha
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder={`存档 ${slot}`}
+            placeholder={suggestedName}
             className="w-full px-3 py-2 text-sm bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)]"
             autoFocus
           />
           {defaultWorldName && defaultCharacterName && (
             <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
               {defaultWorldName} · {defaultCharacterName}
+            </p>
+          )}
+          {occupied && !message && (
+            <p className="text-xs text-[var(--color-warning)] mt-2">
+              槽位 {activeSlot} 已有存档，保存会覆盖原内容。
+            </p>
+          )}
+          {message && (
+            <p className={`text-xs mt-2 ${message.type === 'error' ? 'text-[var(--color-error)]' : message.type === 'success' ? 'text-[var(--color-success)]' : 'text-[var(--color-warning)]'}`}>
+              {message.text}
             </p>
           )}
         </div>
@@ -122,10 +153,10 @@ export function SaveDialog({ open, onClose, onSave, defaultWorldName, defaultCha
           </button>
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || activeSlot < 1}
             className="flex-1 py-2.5 rounded-lg bg-[var(--color-primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
           >
-            {saving ? '保存中...' : '保存'}
+            {saving ? '保存中...' : activeSlot < 1 ? '请选择槽位' : occupied ? `覆盖存档 ${activeSlot}` : '保存'}
           </button>
         </div>
       </div>

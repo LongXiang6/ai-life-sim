@@ -1,0 +1,144 @@
+{
+  "timestamp": "2026-06-30T07:17:35.150Z",
+  "profile": "full",
+  "status": "PASS",
+  "atceRecommendation": "REVIEW",
+  "summary": {
+    "total": 6,
+    "passed": 6,
+    "failed": 0,
+    "refactorSignalCount": 5,
+    "repeatOffenderCount": 0
+  },
+  "refactorSignals": [
+    {
+      "ruleId": "D-07",
+      "file": "mods/mod-character/subsystems/destiny-pattern-system.ts",
+      "module": "global",
+      "tier": "structural",
+      "severity": "hint",
+      "refactorHint": "9 个相对 import，评估 barrel 拆分",
+      "excerpt": "[REFACTOR-HINT] [D-07] mods/mod-character/subsystems/destiny-pattern-system.ts — 9 个相对 import，评估 barrel 拆分"
+    },
+    {
+      "ruleId": "D-07",
+      "file": "mods/mod-engine/subsystems/orchestrator-system.ts",
+      "module": "global",
+      "tier": "structural",
+      "severity": "hint",
+      "refactorHint": "13 个相对 import，评估 barrel 拆分",
+      "excerpt": "[REFACTOR-HINT] [D-07] mods/mod-engine/subsystems/orchestrator-system.ts — 13 个相对 import，评估 barrel 拆分"
+    },
+    {
+      "ruleId": "D-07",
+      "file": "mods/mod-world/subsystems/world-entity-system.ts",
+      "module": "global",
+      "tier": "structural",
+      "severity": "hint",
+      "refactorHint": "6 个相对 import，评估 barrel 拆分",
+      "excerpt": "[REFACTOR-HINT] [D-07] mods/mod-world/subsystems/world-entity-system.ts — 6 个相对 import，评估 barrel 拆分"
+    },
+    {
+      "ruleId": "D-07",
+      "file": "mods/mod-world/world-init-api.ts",
+      "module": "global",
+      "tier": "structural",
+      "severity": "hint",
+      "refactorHint": "8 个相对 import，评估 barrel 拆分",
+      "excerpt": "[REFACTOR-HINT] [D-07] mods/mod-world/world-init-api.ts — 8 个相对 import，评估 barrel 拆分"
+    },
+    {
+      "ruleId": "D-07",
+      "file": "mods/mod-world/world-init-bundle.ts",
+      "module": "global",
+      "tier": "structural",
+      "severity": "hint",
+      "refactorHint": "8 个相对 import，评估 barrel 拆分",
+      "excerpt": "[REFACTOR-HINT] [D-07] mods/mod-world/world-init-bundle.ts — 8 个相对 import，评估 barrel 拆分"
+    }
+  ],
+  "repeatOffenders": [],
+  "domains": [
+    {
+      "domain": "wiring",
+      "label": "接线 / codegen",
+      "status": "PASS",
+      "exitCode": 0,
+      "logFile": "D:\\AI\\ai-life-sim\\reports\\check-log-wiring-2026-06-30T07-16-59.txt",
+      "errorLines": [],
+      "hintLines": [
+        "[REFACTOR-HINT] [D-07] mods/mod-character/subsystems/destiny-pattern-system.ts — 9 个相对 import，评估 barrel 拆分",
+        "[REFACTOR-HINT] [D-07] mods/mod-engine/subsystems/orchestrator-system.ts — 13 个相对 import，评估 barrel 拆分",
+        "[REFACTOR-HINT] [D-07] mods/mod-world/subsystems/world-entity-system.ts — 6 个相对 import，评估 barrel 拆分",
+        "[REFACTOR-HINT] [D-07] mods/mod-world/world-init-api.ts — 8 个相对 import，评估 barrel 拆分",
+        "[REFACTOR-HINT] [D-07] mods/mod-world/world-init-bundle.ts — 8 个相对 import，评估 barrel 拆分"
+      ]
+    },
+    {
+      "domain": "loader",
+      "label": "MOD 加载器",
+      "status": "PASS",
+      "exitCode": 0,
+      "logFile": "D:\\AI\\ai-life-sim\\reports\\check-log-loader-2026-06-30T07-16-59.txt",
+      "errorLines": [],
+      "hintLines": []
+    },
+    {
+      "domain": "calibration",
+      "label": "世界校准",
+      "status": "PASS",
+      "exitCode": 0,
+      "logFile": "D:\\AI\\ai-life-sim\\reports\\check-log-calibration-2026-06-30T07-16-59.txt",
+      "errorLines": [
+        "[calibration-wiring-audit] 跨系统 / Prompt backlog（登记，非失败）:"
+      ],
+      "hintLines": []
+    },
+    {
+      "domain": "narrative",
+      "label": "叙事 / Prompt",
+      "status": "PASS",
+      "exitCode": 0,
+      "logFile": "D:\\AI\\ai-life-sim\\reports\\check-log-narrative-2026-06-30T07-16-59.txt",
+      "errorLines": [],
+      "hintLines": []
+    },
+    {
+      "domain": "mod",
+      "label": "MOD 架构扫描",
+      "status": "PASS",
+      "exitCode": 0,
+      "logFile": "D:\\AI\\ai-life-sim\\reports\\check-log-mod-2026-06-30T07-16-59.txt",
+      "errorLines": [
+        "[FAIL] [D31-UNIMPORTED-MOD] src/app/_components/init-mods.tsx () - MOD 'mod-base-universe' exists in src/mods/ but is not imported in init-mods.tsx ALL_MANIFESTS",
+        "[FAIL] [D31-UNIMPORTED-MOD] src/app/_components/init-mods.tsx () - MOD 'mod-character' exists in src/mods/ but is not imported in init-mods.tsx ALL_MANIFESTS",
+        "[FAIL] [D31-UNIMPORTED-MOD] src/app/_components/init-mods.tsx () - MOD 'mod-culture' exists in src/mods/ but is not imported in init-mods.tsx ALL_MANIFESTS",
+        "[FAIL] [D31-UNIMPORTED-MOD] src/app/_components/init-mods.tsx () - MOD 'mod-difficulty' exists in src/mods/ but is not imported in init-mods.tsx ALL_MANIFESTS",
+        "[FAIL] [D31-UNIMPORTED-MOD] src/app/_components/init-mods.tsx () - MOD 'mod-economy' exists in src/mods/ but is not imported in init-mods.tsx ALL_MANIFESTS",
+        "[FAIL] [D31-UNIMPORTED-MOD] src/app/_components/init-mods.tsx () - MOD 'mod-engine' exists in src/mods/ but is not imported in init-mods.tsx ALL_MANIFESTS",
+        "[FAIL] [D31-UNIMPORTED-MOD] src/app/_components/init-mods.tsx () - MOD 'mod-environment-ecology' exists in src/mods/ but is not imported in init-mods.tsx ALL_MANIFESTS",
+        "[FAIL] [D31-UNIMPORTED-MOD] src/app/_components/init-mods.tsx () - MOD 'mod-golden-finger' exists in src/mods/ but is not imported in init-mods.tsx ALL_MANIFESTS",
+        "[FAIL] [D31-UNIMPORTED-MOD] src/app/_components/init-mods.tsx () - MOD 'mod-history-dynamics' exists in src/mods/ but is not imported in init-mods.tsx ALL_MANIFESTS",
+        "[FAIL] [D31-UNIMPORTED-MOD] src/app/_components/init-mods.tsx () - MOD 'mod-npc' exists in src/mods/ but is not imported in init-mods.tsx ALL_MANIFESTS",
+        "[FAIL] [D31-UNIMPORTED-MOD] src/app/_components/init-mods.tsx () - MOD 'mod-pages' exists in src/mods/ but is not imported in init-mods.tsx ALL_MANIFESTS",
+        "[FAIL] [D31-UNIMPORTED-MOD] src/app/_components/init-mods.tsx () - MOD 'mod-politics' exists in src/mods/ but is not imported in init-mods.tsx ALL_MANIFESTS",
+        "[FAIL] [D31-UNIMPORTED-MOD] src/app/_components/init-mods.tsx () - MOD 'mod-power-system' exists in src/mods/ but is not imported in init-mods.tsx ALL_MANIFESTS",
+        "[FAIL] [D31-UNIMPORTED-MOD] src/app/_components/init-mods.tsx () - MOD 'mod-settings' exists in src/mods/ but is not imported in init-mods.tsx ALL_MANIFESTS",
+        "[FAIL] [D31-UNIMPORTED-MOD] src/app/_components/init-mods.tsx () - MOD 'mod-tech-level' exists in src/mods/ but is not imported in init-mods.tsx ALL_MANIFESTS",
+        "[FAIL] [D31-UNIMPORTED-MOD] src/app/_components/init-mods.tsx () - MOD 'mod-ui' exists in src/mods/ but is not imported in init-mods.tsx ALL_MANIFESTS",
+        "[FAIL] [D31-UNIMPORTED-MOD] src/app/_components/init-mods.tsx () - MOD 'mod-world' exists in src/mods/ but is not imported in init-mods.tsx ALL_MANIFESTS",
+        "[FAIL] [D31-UNIMPORTED-MOD] src/app/_components/init-mods.tsx () - MOD 'mod-world-map' exists in src/mods/ but is not imported in init-mods.tsx ALL_MANIFESTS"
+      ],
+      "hintLines": []
+    },
+    {
+      "domain": "ui",
+      "label": "UI / CSS",
+      "status": "PASS",
+      "exitCode": 0,
+      "logFile": "D:\\AI\\ai-life-sim\\reports\\check-log-ui-2026-06-30T07-16-59.txt",
+      "errorLines": [],
+      "hintLines": []
+    }
+  ]
+}

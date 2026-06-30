@@ -40,6 +40,11 @@
       "file": "src/core/global-store/slices/index.ts",
       "allowedSubpath": "store",
       "reason": "Core store registry intentionally imports each MOD store.ts without pulling public barrels."
+    },
+    {
+      "file": "src/mods/mod-world/utils/world-init-fallback.ts",
+      "allowedSubpath": "store",
+      "reason": "Pure-logic fallback reads useSettingsStore.customKey only; importing the public barrel would drag SettingsModal -> SettingsTabTheme.module.css into logic-only test runners (calibration acceptance)."
     }
   ]
 }

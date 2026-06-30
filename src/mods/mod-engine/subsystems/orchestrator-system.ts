@@ -28,6 +28,7 @@ import {
   getWorldRules,
   DEFAULT_ENGINE_CONFIG,
   MAX_NARRATIVE_HISTORY,
+  MAX_CHARACTER_CREATIONS,
   USE_AI_SUMMARY_COMPRESSION,
   buildWordCountInstruction,
   buildStyleInstruction,
@@ -172,51 +173,76 @@ function applyWorldDirection(
     return Math.min(1.2, Math.max(0.8, mult))
   }
 
-  const applyToSub = (subId: string, keys: string[], mult: number): void => {
-    const sub = subsystems.find((s) => s.id === subId)
-    if (!sub) return
-    const state = subsystemStates[subId]
-    if (!state?.data) return
-    const changes: Record<string, unknown> = {}
-    for (const key of keys) {
-      const val = (state.data as Record<string, unknown>)[key]
-      if (typeof val === 'number') {
-        changes[key] = clampNumber(Math.round(val * mult), 0, 1e9)
-      }
+  /**
+   * 提交一个世界方向修正变更（仅当子系统已注册且 changes 非空时）。
+   * 注意：changes 的键名必须是目标子系统 applyChanges() 真正认识的键，
+   * 否则会被静默忽略（这是历史 bug 的根因）。
+   */
+  const commit = (subId: string, label: string, changes: Record<string, unknown>): void => {
+    if (!subsystems.some((s) => s.id === subId)) return
+    if (Object.keys(changes).length === 0) return
+    commitChange({ id: subId, description: `世界方向修正: ${label}`, changes })
+  }
+
+  /** 读取子系统 data 的数值字段（支持 a.b.c 路径），非数值返回 undefined */
+  const readNum = (subId: string, path: string): number | undefined => {
+    let cur: unknown = subsystemStates[subId]?.data
+    for (const seg of path.split('.')) {
+      if (cur && typeof cur === 'object') cur = (cur as Record<string, unknown>)[seg]
+      else return undefined
     }
-    if (Object.keys(changes).length > 0) {
-      commitChange({
-        id: subId,
-        description: `世界方向修正: ${direction.market?.direction ?? direction.faction?.direction ?? '波动'}`,
-        changes,
-      })
+    return typeof cur === 'number' ? cur : undefined
+  }
+
+  // —— market → economy：繁荣/衰退按倍率调整玩家财富（用 economy 认识的 wealthDelta 增量键）——
+  if (direction.market) {
+    const mult = resolveMag(direction.market)
+    const wealth = readNum('economy', 'currency.playerWealth')
+    if (mult !== 1 && wealth !== undefined) {
+      const delta = Math.round(wealth * (mult - 1))
+      if (delta !== 0) commit('economy', direction.market.direction ?? '波动', { wealthDelta: delta })
     }
   }
 
-  if (direction.market) {
-    const mult = resolveMag(direction.market)
-    if (mult !== 1) applyToSub('economy', ['priceIndex', 'volatility'], mult)
-  }
-  if (direction.faction) {
-    const mult = resolveMag(direction.faction)
-    if (mult !== 1) applyToSub('faction-dynamics', ['power', 'wealth'], mult)
-  }
+  // —— population：调整人口总数与增长率（population 认识 totalPopulation / growthRate）——
   if (direction.population) {
     const mult = resolveMag(direction.population)
-    if (mult !== 1) applyToSub('population', ['total', 'growthRate'], mult)
+    if (mult !== 1) {
+      const changes: Record<string, unknown> = {}
+      const total = readNum('population', 'totalPopulation')
+      const growth = readNum('population', 'growthRate')
+      if (total !== undefined) changes.totalPopulation = clampNumber(Math.round(total * mult), 0, 1e12)
+      if (growth !== undefined) changes.growthRate = growth * mult
+      commit('population', direction.population.direction ?? '波动', changes)
+    }
   }
+
+  // —— ecology：按倍率调整生态指标（ecology 认识 metrics.{biodiversityIndex,resilience}）——
   if (direction.ecology) {
     const mult = resolveMag(direction.ecology)
-    if (mult !== 1) applyToSub('ecology', ['biodiversity', 'resourceIndex'], mult)
+    if (mult !== 1) {
+      const metrics: Record<string, number> = {}
+      const bio = readNum('ecology', 'metrics.biodiversityIndex')
+      const resilience = readNum('ecology', 'metrics.resilience')
+      if (bio !== undefined) metrics.biodiversityIndex = bio * mult
+      if (resilience !== undefined) metrics.resilience = resilience * mult
+      if (Object.keys(metrics).length > 0) commit('ecology', direction.ecology.direction ?? '波动', { metrics })
+    }
   }
-  if (direction.climate) {
-    const mult = resolveMag(direction.climate)
-    if (mult !== 1) applyToSub('climate', ['cooldownYears'], mult)
-  }
+
+  // —— culture → culture-tech：按倍率调整科技进度（techLevel 为离散等级，仅调 techProgress）——
   if (direction.culture) {
     const mult = resolveMag(direction.culture)
-    if (mult !== 1) applyToSub('culture-tech', ['techLevel', 'techProgress'], mult)
+    const progress = readNum('culture-tech', 'techProgress')
+    if (mult !== 1 && progress !== undefined) {
+      commit('culture-tech', direction.culture.direction ?? '波动', { techProgress: progress * mult })
+    }
   }
+
+  // 注：direction.faction（派系）与 direction.climate（气候）暂不接入——
+  // faction-dynamics 无「整体倍率」标量通道（按具体派系操作），
+  // climate 的可写键（temperatureOffset/humidity）与「繁荣/衰退倍率」语义不符。
+  // 历史代码曾用 power/wealth、cooldownYears 等不存在的键，会被 applyChanges 静默忽略，已移除。
 }
 
 /** 预生成/快照：编排器可恢复状态 */
@@ -353,6 +379,10 @@ export class OrchestratorSystem implements ISubSystem {
 
   getState(): EngineState {
     return { ...this.state, compressionStats: { ...this.state.compressionStats } }
+  }
+
+  getSubsystemStateSnapshot(): Record<string, SubSystemState> {
+    return structuredClone(this.lastSubsystemStates)
   }
 
   getRound(): { year: number; season: number; month: number; day: number } {
@@ -511,6 +541,16 @@ export class OrchestratorSystem implements ISubSystem {
     this.lastNarrativeText = snap.lastNarrativeText
     this.totalBreakthroughs = snap.totalBreakthroughs
     timeSystem.importRound(snap.timeRound)
+    useEngineStore.setState((prev) => ({
+      ...prev,
+      ...this.state,
+      streamingNarrative: '',
+      narrativeError: null,
+      pendingChoices: prev.pendingChoices,
+      selectedChoiceId: prev.selectedChoiceId,
+      resolvedBranches: prev.resolvedBranches,
+      forceBranchNext: prev.forceBranchNext,
+    }))
   }
 
   /** 世界方向修正（供 stage 闭包使用） */
@@ -839,6 +879,18 @@ export class OrchestratorSystem implements ISubSystem {
               this.onNarrativeChunk({
                 text: chunk,
                 isComplete: false,
+                timestamp: Date.now(),
+              })
+            }
+          },
+          onResetStream: () => {
+            // AI 重试/降级前：清空本地累积 + 通知 UI 丢弃残留流式文本，避免拼接重复
+            this.state.currentNarrative = ''
+            if (this.onNarrativeChunk) {
+              this.onNarrativeChunk({
+                text: '',
+                isComplete: false,
+                isReset: true,
                 timestamp: Date.now(),
               })
             }
@@ -1605,6 +1657,10 @@ export class OrchestratorSystem implements ISubSystem {
             })
           }
         }
+        // 超出上限时移除最早确认的设定，防止数组无限增长撑爆 prompt 稳定段
+        while (this.state.characterCreations.length > MAX_CHARACTER_CREATIONS) {
+          this.state.characterCreations.shift()
+        }
       }
       // 检查是否回收了已有伏笔
       foreshadowing.checkResolution(narrative, this.state.round.year)
@@ -1688,7 +1744,9 @@ export class OrchestratorSystem implements ISubSystem {
       const faithState = this.lastSubsystemStates?.['faith']
 
       const currentHealth = (healthState?.data as { hp?: number } | undefined)?.hp ?? 50
-      const currentWealth = (economyState?.data as { wealth?: number } | undefined)?.wealth ?? 0
+      const currentWealth =
+        (economyState?.data as { currency?: { playerWealth?: number } } | undefined)?.currency
+          ?.playerWealth ?? 0
       const currentReputation = (reputationState?.data as { fame?: number } | undefined)?.fame ?? 0
       const maxAge = (lifespanState?.data as { maxAge?: number } | undefined)?.maxAge ?? DEFAULT_MAX_AGE_FALLBACK
       const currentAge = (characterBase?.data as { age?: number } | undefined)?.age ?? 1
@@ -1720,7 +1778,7 @@ export class OrchestratorSystem implements ISubSystem {
         this.applyRoundChanges([{
           id: 'economy',
           description: '叙事后处理：连锁反应 — 财富修正',
-          changes: { wealth: currentWealth + postResult.chainResult.wealthChange },
+          changes: { wealthDelta: postResult.chainResult.wealthChange },
         }], 'post-narrative')
       }
       if (postResult.chainResult.reputationChange !== 0) {

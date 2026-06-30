@@ -50,6 +50,7 @@ function buildModContext(result: ReturnType<typeof loadMods>) {
       getItem: (key: string) => configStore.get<string>('app', key),
       setItem: (key: string, value: string) => { configStore.set('app', key, value) },
       removeItem: (key: string) => { configStore.remove('app', key) },
+      keys: () => configStore.keys('app'),
     },
     getMod: <T,>(name: string) => {
       const mod = modRegistry.getMod<T>(name)

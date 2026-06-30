@@ -250,6 +250,34 @@
   50% { opacity: 1; }
 }
 
+
+.attrChanges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.attrChangeChip {
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  border: 1px solid transparent;
+}
+
+.attrChangePositive {
+  color: var(--color-success);
+  background: color-mix(in srgb, var(--color-success) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-success) 30%, transparent);
+}
+
+.attrChangeNegative {
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+  border-color: color-mix(in srgb, var(--color-error) 30%, transparent);
+}
+
 .branchResolved {
   margin-top: 12px;
   padding: 12px;

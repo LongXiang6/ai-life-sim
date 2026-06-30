@@ -16,6 +16,7 @@ import { useWorldStore } from '@/mods/mod-world'
 import { narrativePrompt } from './prompts/narrative-prompt'
 import { computeNarrativeMaxTokens } from './constants/narrative-config'
 import { clearPreGenQueue, fillPreGenQueue, getPreGenQueueStatus, shiftPreGenQueue, subscribePreGenQueue, type PreGenQueueStatus } from './helpers/pre-gen-queue'
+import { syncSubsystemStoresFromStates } from './helpers/subsystem-store-sync'
 import { useEngineStore } from './store'
 import { orchestrator, timeSystem } from './engine-api'
 import { simulationBridge } from './simulation/simulation-bridge'
@@ -24,6 +25,7 @@ import type { SimulationSnapshot } from './simulation/simulation-types'
 /** 将 orchestrator 内部状态同步到 Zustand（UI 读取 store） */
 export function syncOrchestratorToEngineStore(): void {
   const o = orchestrator.getState()
+  syncSubsystemStoresFromStates(orchestrator.getSubsystemStateSnapshot())
   useEngineStore.setState((s) => ({
     ...s,
     round: { ...o.round },
@@ -89,6 +91,11 @@ export function useSimulationAdvance() {
 
   useEffect(() => {
     orchestrator.onStream((chunk) => {
+      if (chunk.isReset) {
+        // AI 重试/降级：丢弃上一次尝试的残留流式文本
+        useEngineStore.setState({ streamingNarrative: '' })
+        return
+      }
       useEngineStore.getState().appendStreamingChunk(chunk.text)
     })
     syncOrchestratorToEngineStore()

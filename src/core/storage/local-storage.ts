@@ -23,6 +23,19 @@ export const configStore = {
   remove(mod: string, key: string): void {
     remove(`${mod}:config:${key}`)
   },
+  /** 枚举指定 mod 的所有配置键（去除 {mod}:config: 前缀，返回逻辑 key） */
+  keys(mod: string): string[] {
+    const logicalPrefix = `${mod}:config:`
+    const physicalPrefix = `${STORAGE_PREFIX}:${logicalPrefix}`
+    const result: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const rawKey = localStorage.key(i)
+      if (rawKey?.startsWith(physicalPrefix)) {
+        result.push(rawKey.slice(physicalPrefix.length))
+      }
+    }
+    return result
+  },
 }
 
 /** 存档存储 */
@@ -141,10 +154,17 @@ function write<T = unknown>(key: string, value: T): void {
         console.warn(`[Storage] 清理了 ${keysToRemove.length} 条缓存/临时数据，重试写入`)
         localStorage.setItem(fullKey(key), JSON.stringify(value))
       } catch (retryErr) {
-        console.error(`[Storage] 清理后仍写入失败: ${key}`, retryErr)
+        // 清理缓存/临时数据仍无法腾出空间（例如存档 save:/配置 config: 本身过大）。
+        // 此时不能静默失败——否则存档写入会无声丢失。明确报错并抛出，让调用方可感知。
+        console.error(
+          `[Storage] 配额不足，清理缓存后仍写入失败，数据未保存: ${key}`,
+          retryErr,
+        )
+        throw new Error(`[Storage] localStorage 配额不足，写入失败: ${key}`)
       }
     } else {
       console.error(`[Storage] 写入失败: ${key}`, e)
+      throw e
     }
   }
 }

@@ -81,11 +81,21 @@ export async function autoMigrate(
   const sorted = [...chain].sort((a, b) => compareVersions(a.fromVersion, b.fromVersion))
 
   let stepsExec = 0
+  // 随迁移推进的运行版本（而非用固定的 currentVersion 过滤，避免版本断层时漏迁移）
+  let runningVersion = currentVersion
 
   for (const step of sorted) {
-    // 跳过不相关的迁移步骤
-    if (compareVersions(step.fromVersion, currentVersion) < 0) continue
+    // 已越过的步骤（toVersion <= 当前进度）跳过
+    if (compareVersions(step.toVersion, runningVersion) <= 0) continue
+    // 不越过目标版本
     if (compareVersions(step.toVersion, targetVersion) > 0) break
+    // 步骤起点必须能从当前进度衔接，否则存在断层，停止链（保留已迁移进度）
+    if (compareVersions(step.fromVersion, runningVersion) > 0) {
+      console.warn(
+        `[Migration] ${modName}: 版本链断层，无法从 ${runningVersion} 衔接到 ${step.fromVersion}，停止`,
+      )
+      break
+    }
 
     try {
       const oldData = localStorage.getItem(modName)
@@ -100,12 +110,13 @@ export async function autoMigrate(
       localStorage.setItem(modName, JSON.stringify(newData))
       localStorage.setItem(key, step.toVersion)
       stepsExec++
+      runningVersion = step.toVersion
 
       console.info(
         `[Migration] ${modName}: ${step.fromVersion} → ${step.toVersion} — ${step.description}`,
       )
 
-      // 迁移成功后清理备份（移到 finally 保证）
+      // 迁移成功后清理备份
       localStorage.removeItem(`${modName}:backup`)
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
@@ -126,33 +137,15 @@ export async function autoMigrate(
 }
 
 /**
- * 计算 semver 的下一个版本号（递增最右侧可递增的段）
+ * 自动执行 MOD 注册的迁移链（来自 MIGRATION_IMPORTERS）。
  *
- * 例：1.0.0 → 1.0.1（patch 递增）
- *     若已追上目标的大版本 → 1.1.0（minor 递增）
- *     若已追上目标的 minor → 2.0.0（major 递增）
- */
-function bumpVersion(
-  current: { major: number; minor: number; patch: number },
-  target: { major: number; minor: number; patch: number },
-): { major: number; minor: number; patch: number } {
-  const { major, minor, patch } = current
-  if (major < target.major) return { major: major + 1, minor: 0, patch: 0 }
-  if (minor < target.minor) return { major, minor: minor + 1, patch: 0 }
-  return { major, minor, patch: patch + 1 }
-}
-
-/**
- * 自动扫描 MOD 的 migrations/ 目录并按约定执行迁移
+ * 吸收 Factorio migrations/ 设计：每个迁移以 `{fromVersion}-{toVersion}` 为键注册，
+ * 导出 { migrate: (old: unknown) => unknown }。
  *
- * 吸收 Factorio migrations/ 按文件名字典序自动执行设计。
- *
- * 约定：
- *   MOD 的 migrations/ 目录下的每个 .ts 文件导出 { migrate: (old: unknown) => unknown }
- *   文件名格式：{fromVersion}-{toVersion}.ts（如 1.0.0-1.1.0.ts）
- *
- * 由于 TypeScript/Vite 不支持运行时目录扫描，采用"约定式尝试"：
- *   从 currentVersion 逐版本尝试 import，文件不存在时静默跳过（无变更迁移）。
+ * 关键：遍历**实际注册**的迁移步骤（而非用 semver 自增去猜测每一步），
+ * 从 currentVersion 起按 fromVersion 顺序逐个应用可衔接的步骤，直到追上 targetVersion。
+ * 这样可正确处理任意步长（patch / minor / major）以及非连续的版本跳跃，
+ * 且不会因「某段无迁移文件」而把版本号永久推过，导致日后补加的迁移被跳过。
  *
  * @param modName - MOD 名称
  * @param targetVersion - 目标版本（MOD manifest.version）
@@ -172,59 +165,76 @@ export async function autoMigrateFromDir(
     return { success: true, stepsExecuted: 0 }
   }
 
-  const parseVer = (v: string) => {
-    const [major, minor, patch] = v.split('.').map(Number)
-    return { major: major || 0, minor: minor || 0, patch: patch || 0 }
+  // 解析该 MOD 注册的全部迁移步骤，按 fromVersion 升序排列
+  const registered = MIGRATION_IMPORTERS[modName] ?? {}
+  const steps = Object.entries(registered)
+    .map(([stepKey, importer]) => {
+      const dash = stepKey.indexOf('-')
+      return {
+        fromVersion: dash >= 0 ? stepKey.slice(0, dash) : stepKey,
+        toVersion: dash >= 0 ? stepKey.slice(dash + 1) : stepKey,
+        importer,
+      }
+    })
+    .sort((a, b) => compareVersions(a.fromVersion, b.fromVersion))
+
+  // 无任何注册迁移：仅当确实有数据需要迁移时直接对齐版本号（无变更迁移）
+  if (steps.length === 0) {
+    localStorage.setItem(key, targetVersion)
+    return { success: true, stepsExecuted: 0 }
   }
 
-  const current = parseVer(currentVersion)
-  const target = parseVer(targetVersion)
-
-  let curr = { ...current }
+  let runningVersion = currentVersion
   let stepsExec = 0
 
-  while (compareVersions(`${curr.major}.${curr.minor}.${curr.patch}`, targetVersion) < 0) {
-    const next = bumpVersion(curr, target)
-    const fromVer = `${curr.major}.${curr.minor}.${curr.patch}`
-    const toVer = `${next.major}.${next.minor}.${next.patch}`
-
-    const stepKey = `${fromVer}-${toVer}`
-    const importer = MIGRATION_IMPORTERS[modName]?.[stepKey]
-
-    if (importer) {
-      try {
-        const migration = await importer()
-
-        if (typeof migration.migrate === 'function') {
-          const oldData = localStorage.getItem(modName)
-          const parsed = oldData ? JSON.parse(oldData) : {}
-          const newData = migration.migrate(parsed)
-
-          // 原子写入
-          const backup = localStorage.getItem(modName)
-          if (backup) localStorage.setItem(`${modName}:backup`, backup)
-          localStorage.setItem(modName, JSON.stringify(newData))
-          localStorage.setItem(key, toVer)
-          stepsExec++
-
-          console.info(`[Migration] ${modName}: ${fromVer} → ${toVer}（自动发现）`)
-
-          localStorage.removeItem(`${modName}:backup`)
-        }
-      } catch {
-        // 迁移文件存在但执行失败 → 保留旧数据，停止链
-        return {
-          success: false,
-          stepsExecuted: stepsExec,
-          error: `迁移 ${fromVer} → ${toVer} 执行失败`,
-        }
-      }
-    } else {
-      // 该版本步没有迁移文件 → 直接跳过（无变更迁移）
-      localStorage.setItem(key, toVer)
+  for (const step of steps) {
+    // 跳过已经越过的步骤（toVersion <= 当前进度）
+    if (compareVersions(step.toVersion, runningVersion) <= 0) continue
+    // 不越过目标版本
+    if (compareVersions(step.toVersion, targetVersion) > 0) break
+    // 步骤起点必须能从当前进度衔接（fromVersion <= 当前进度），否则存在版本断层，停止
+    if (compareVersions(step.fromVersion, runningVersion) > 0) {
+      console.warn(
+        `[Migration] ${modName}: 版本链断层，无法从 ${runningVersion} 衔接到 ${step.fromVersion}，停止`,
+      )
+      break
     }
 
-    curr = next
+    try {
+      const migration = await step.importer()
+      if (typeof migration.migrate === 'function') {
+        const oldData = localStorage.getItem(modName)
+        const parsed = oldData ? JSON.parse(oldData) : {}
+        const newData = migration.migrate(parsed)
+
+        // 原子写入：先备份，写新数据 + 新版本号，成功后清理备份
+        const backup = localStorage.getItem(modName)
+        if (backup) localStorage.setItem(`${modName}:backup`, backup)
+        localStorage.setItem(modName, JSON.stringify(newData))
+        localStorage.setItem(key, step.toVersion)
+        stepsExec++
+        console.info(`[Migration] ${modName}: ${step.fromVersion} → ${step.toVersion}（自动发现）`)
+        localStorage.removeItem(`${modName}:backup`)
+      } else {
+        // 注册了但无 migrate 函数：视为无变更，仅推进版本号
+        localStorage.setItem(key, step.toVersion)
+      }
+      runningVersion = step.toVersion
+    } catch {
+      // 执行失败 → 恢复备份，停止链，保留已迁移进度
+      const backup = localStorage.getItem(`${modName}:backup`)
+      if (backup) localStorage.setItem(modName, backup)
+      return {
+        success: false,
+        stepsExecuted: stepsExec,
+        error: `迁移 ${step.fromVersion} → ${step.toVersion} 执行失败`,
+      }
+    }
+  }
+
+  // 链已应用完但仍未达目标版本（最后一段为无迁移文件的纯版本提升）：对齐版本号
+  if (compareVersions(runningVersion, targetVersion) < 0) {
+    localStorage.setItem(key, targetVersion)
   }
 
   return { success: true, stepsExecuted: stepsExec }

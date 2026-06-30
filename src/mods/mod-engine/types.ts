@@ -56,6 +56,8 @@ export interface NarrativeChunk {
   text: string
   isComplete: boolean
   timestamp: number,
+  /** 重置信号：AI 重试/降级时通知 UI 丢弃上一次尝试已累积的流式文本，避免拼接重复 */
+  isReset?: boolean,
   /** 可选：AI 生成的分支选项（事件卡牌化） */
   choices?: StoryChoice[],
   /** 命运分叉点 */
@@ -68,6 +70,8 @@ export interface NarrativeChunk {
   displayAge?: number,
   /** 该条叙事写入时的纪元/时间标签（快照） */
   displayTimeLabel?: string,
+  /** 该条叙事对应的属性变化（用于 UI 展示） */
+  attrChanges?: Array<{ icon: string; label: string; change: number }>,
 }
 
 /** 压缩统计 */

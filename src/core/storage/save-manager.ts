@@ -71,22 +71,42 @@ export const saveManager = {
   ): Promise<SaveMetadata> {
     const metaList = loadIndex()
     const slot = metaList.length > 0 ? Math.max(...metaList.map((m) => m.slot)) + 1 : 1
+    return this.saveToSlot(slot, name, worldName, characterName, data)
+  },
 
-    const metadata: SaveMetadata = {
+  /**
+   * 保存到指定槽位；若槽位已存在则覆盖。
+   */
+  async saveToSlot(
+    slot: number,
+    name: string,
+    worldName: string,
+    characterName: string,
+    data: Record<string, unknown>,
+  ): Promise<SaveMetadata> {
+    const metaList = loadIndex()
+    const totalRounds = (data.engine as { totalRounds?: number } | undefined)?.totalRounds ?? 0
+    const existing = metaList.find((m) => m.slot === slot)
+    const metadata: SaveMetadata = existing ?? {
       slot,
       name: name || `存档 ${slot}`,
       timestamp: Date.now(),
       version: ENGINE_VERSION,
       worldName: worldName || '',
       characterName: characterName || '',
-      totalRounds: 0,
+      totalRounds,
     }
 
-    // 保存元数据
-    metaList.push(metadata)
-    saveIndex(metaList)
+    metadata.name = name || `存档 ${slot}`
+    metadata.timestamp = Date.now()
+    metadata.version = ENGINE_VERSION
+    metadata.worldName = worldName || ''
+    metadata.characterName = characterName || ''
+    metadata.totalRounds = totalRounds
+    metadata.isAutoSave = false
 
-    // 保存游戏数据到 OPFS
+    // 先写全部数据文件，全部成功后再提交索引：
+    // 否则中途 OPFS 写入失败会留下「索引已登记但磁盘数据残缺」的损坏存档。
     const encoder = new TextEncoder()
     for (const [key, value] of Object.entries(data)) {
       if (value !== undefined) {
@@ -94,6 +114,9 @@ export const saveManager = {
         await opfsStorage.writeFile(`save/${slot}/${key}.json`, encoder.encode(json).buffer)
       }
     }
+
+    if (!existing) metaList.push(metadata)
+    saveIndex(metaList)
 
     return metadata
   },
@@ -135,6 +158,26 @@ export const saveManager = {
           // 跳过无法解析的文件
         }
       }
+    }
+
+    // 版本守卫：比较存档创建时的引擎版本与当前引擎版本（仅比较主版本号 major）。
+    // 若存档由「更新」的引擎写入（前向不兼容），直接加载会导致降级损坏，
+    // 此处标记 data._versionMismatch 并告警，但仍返回数据（不抛出，调用方可能未处理）。
+    // 若存档为「更旧」版本，迁移逻辑在别处处理（save-version.ts），此处仅记录版本差。
+    const majorOf = (v: string): number => parseInt(v.split('.')[0] ?? '', 10) || 0
+    const saveMajor = majorOf(meta.version)
+    const engineMajor = majorOf(ENGINE_VERSION)
+    if (saveMajor > engineMajor) {
+      data._versionMismatch = true
+      console.warn(
+        `[save-manager] 存档版本（${meta.version}）高于当前引擎版本（${ENGINE_VERSION}），` +
+          `可能由更新版本写入，直接加载存在降级损坏风险，已标记 _versionMismatch。`,
+      )
+    } else if (saveMajor < engineMajor) {
+      console.info(
+        `[save-manager] 存档版本（${meta.version}）低于当前引擎版本（${ENGINE_VERSION}），` +
+          `主版本差 ${engineMajor - saveMajor}，将按迁移逻辑处理。`,
+      )
     }
 
     return data

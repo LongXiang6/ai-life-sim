@@ -65,7 +65,7 @@ export function NarrativeTimeline({
   const scrollRestoreRef = useRef(0)
   const prevTotalRef = useRef(entries.length)
 
-  const [renderStart, setRenderStart] = useState(0)
+  const [renderStart, setRenderStart] = useState(() => Math.max(0, entries.length - WINDOW_SIZE))
 
   /* eslint-disable react-hooks/set-state-in-effect -- 事件总数变化时重置渲染窗口起点 */
   useEffect(() => {
@@ -159,6 +159,21 @@ export function NarrativeTimeline({
               <p key={pIdx} className={styles.entryParagraph}>{paragraph.trim()}</p>
             ))}
           </div>
+          {entry.attrChanges && entry.attrChanges.length > 0 && (
+            <div className={styles.attrChanges}>
+              {entry.attrChanges.map((change, changeIdx) => (
+                <span
+                  key={`${change.label}-${changeIdx}`}
+                  className={[
+                    styles.attrChangeChip,
+                    change.change > 0 ? styles.attrChangePositive : styles.attrChangeNegative,
+                  ].join(' ')}
+                >
+                  {change.icon} {change.label} {change.change > 0 ? '+' : ''}{Math.round(change.change * 10) / 10}
+                </span>
+              ))}
+            </div>
+          )}
           {entry.isBranchPoint && entry.resolvedChoice && (
             <div className={styles.branchResolved}>
               <p className={styles.branchResolvedTitle}>

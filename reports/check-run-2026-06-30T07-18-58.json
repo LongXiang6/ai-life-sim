@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-06-30T07:18:58.110Z",
+  "profile": "narrative",
+  "status": "PASS",
+  "atceRecommendation": "PATCH_OK",
+  "summary": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "refactorSignalCount": 0,
+    "repeatOffenderCount": 0
+  },
+  "refactorSignals": [],
+  "repeatOffenders": [],
+  "domains": [
+    {
+      "domain": "narrative",
+      "label": "叙事 / Prompt",
+      "status": "PASS",
+      "exitCode": 0,
+      "logFile": "D:\\AI\\ai-life-sim\\reports\\check-log-narrative-2026-06-30T07-18-57.txt",
+      "errorLines": [],
+      "hintLines": []
+    }
+  ]
+}

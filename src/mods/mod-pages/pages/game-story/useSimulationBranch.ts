@@ -17,7 +17,6 @@ interface UseSimulationBranchDeps {
 
 export function useSimulationBranch({ advanceRound }: UseSimulationBranchDeps) {
   const narrativeHistory = useEngineStore((s) => s.narrativeHistory)
-  const resolvedBranches = useEngineStore((s) => s.resolvedBranches)
   const forceBranchNext = useEngineStore((s) => s.forceBranchNext)
   const setForceBranchNext = useEngineStore((s) => s.setForceBranchNext)
   const resolveBranch = useEngineStore((s) => s.resolveBranch)
@@ -26,12 +25,14 @@ export function useSimulationBranch({ advanceRound }: UseSimulationBranchDeps) {
   const [selectedBranchOptionId, setSelectedBranchOptionId] = useState<string | null>(null)
 
   const unresolvedBranchIndex = useMemo(() => {
+    // 直接读 chunk 自带的 resolvedChoice 判断是否已解决：该字段随条目移动，
+    // narrativeHistory 超长被裁剪后仍正确；而 resolvedBranches[i] 用数组下标，裁剪后会错位。
     for (let i = narrativeHistory.length - 1; i >= 0; i--) {
       const entry = narrativeHistory[i]
-      if (entry.isBranchPoint && resolvedBranches[i] === undefined) return i
+      if (entry.isBranchPoint && entry.resolvedChoice === undefined) return i
     }
     return null
-  }, [narrativeHistory, resolvedBranches])
+  }, [narrativeHistory])
 
   const hasUnresolvedBranch = unresolvedBranchIndex !== null
 

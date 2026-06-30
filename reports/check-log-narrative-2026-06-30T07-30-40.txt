@@ -1,0 +1,15 @@
+# Domain: narrative (叙事 / Prompt)
+
+--- node scripts/check/domains/narrative/validate-narrative-wiring.mjs (exit 0) ---
+[OK] 叙事管线接线验证通过
+
+
+--- node scripts/check/domains/narrative/narrative-regression-seed.mjs (exit 0) ---
+[narrative-regression-seed] seed=20260622 rounds=50
+[OK] 检索回归：50 轮 HIGH 记忆保底通过
+[OK] 遗忘护栏：50 轮 protected NPC 摘要全部保留
+[OK] 伏笔静态接线方法齐全
+[OK] campaign 阶段 manifest ↔ generated 契约一致
+
+[OK] 叙事一致性回归全部通过
+

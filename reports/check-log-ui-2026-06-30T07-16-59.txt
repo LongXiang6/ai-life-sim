@@ -1,0 +1,68 @@
+# Domain: ui (UI / CSS)
+
+--- powershell -File scripts/check/domains/ui/run-ui-scanners.ps1 -ErrorOnly (exit 0) ---
+  Checking PowerShell script encoding...
+    Added BOM: checker-self-test.ps1
+    Added BOM: show-errors.ps1
+    Added BOM: anomaly-scanner.ps1
+    Added BOM: arch-scanner.ps1
+    Added BOM: run-mod-scanners.ps1
+    Added BOM: smart-scanner.ps1
+    Added BOM: css-scanner.ps1
+    Added BOM: run-ui-scanners.ps1
+    Added BOM: ui-scanner.ps1
+    Added BOM: checker-utils.ps1
+    Added BOM: check-format.ps1
+  Encoding: fixed 11 script file(s)
+  Preloading all source files...
+  Preloaded 544 files
+[check:mod] PASS �?0 checks, 0 warn(s) suppressed
+  Markdown report: D:\AI\ai-life-sim\reports\checker-20260630-151735.md
+     report.html
+Join-Path : �Ҳ�������ʵ�ʲ�����mod����λ����ʽ������
+����λ�� D:\AI\ai-life-sim\scripts\check\check-format.ps1:61 �ַ�: 18
++ $modScannerDir = Join-Path $checkDir "domains" "mod"
++                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (:) [Join-Path]��ParameterBindingException
+    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.JoinPathCommand
+ 
+Join-Path : �Ҳ�������ʵ�ʲ�����ui����λ����ʽ������
+����λ�� D:\AI\ai-life-sim\scripts\check\check-format.ps1:62 �ַ�: 17
++ $uiScannerDir = Join-Path $checkDir "domains" "ui"
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidArgument: (:) [Join-Path]��ParameterBindingException
+    + FullyQualifiedErrorId : PositionalParameterNotFound,Microsoft.PowerShell.Commands.JoinPathCommand
+ 
+Join-Path : �޷��������󶨵�������Path������Ϊ�ò����ǿ�ֵ��
+����λ�� D:\AI\ai-life-sim\scripts\check\check-format.ps1:69 �ַ�: 34
++     'ui'      { return Join-Path $uiScannerDir 'ui-scanner.ps1' }
++                                  ~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidData: (:) [Join-Path]��ParameterBindingValidationException
+    + FullyQualifiedErrorId : ParameterArgumentValidationErrorNullNotAllowed,Microsoft.PowerShell.Commands.JoinPathCom 
+   mand
+ 
+Test-Path : �޷��������󶨵�������Path������Ϊ�ò����ǿ�ֵ��
+����λ�� D:\AI\ai-life-sim\scripts\check\check-format.ps1:261 �ַ�: 19
++     if (Test-Path $sp) { . $sp }
++                   ~~~
+    + CategoryInfo          : InvalidData: (:) [Test-Path]��ParameterBindingValidationException
+    + FullyQualifiedErrorId : ParameterArgumentValidationErrorNullNotAllowed,Microsoft.PowerShell.Commands.TestPathCom 
+   mand
+ 
+Join-Path : �޷��������󶨵�������Path������Ϊ�ò����ǿ�ֵ��
+����λ�� D:\AI\ai-life-sim\scripts\check\check-format.ps1:70 �ַ�: 34
++     'css'     { return Join-Path $uiScannerDir 'css-scanner.ps1' }
++                                  ~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidData: (:) [Join-Path]��ParameterBindingValidationException
+    + FullyQualifiedErrorId : ParameterArgumentValidationErrorNullNotAllowed,Microsoft.PowerShell.Commands.JoinPathCom 
+   mand
+ 
+Test-Path : �޷��������󶨵�������Path������Ϊ�ò����ǿ�ֵ��
+����λ�� D:\AI\ai-life-sim\scripts\check\check-format.ps1:261 �ַ�: 19
++     if (Test-Path $sp) { . $sp }
++                   ~~~
+    + CategoryInfo          : InvalidData: (:) [Test-Path]��ParameterBindingValidationException
+    + FullyQualifiedErrorId : ParameterArgumentValidationErrorNullNotAllowed,Microsoft.PowerShell.Commands.TestPathCom 
+   mand
+ 
+

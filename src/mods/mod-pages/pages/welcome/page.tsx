@@ -65,14 +65,19 @@ export default function WelcomePage() {
   }, [router, setGamePhase, addToast])
 
   const handleContinue = useCallback(async () => {
-    if (latestSave) {
+    if (!latestSave) return
+    try {
       const data = await saveManager.loadSave(latestSave.slot)
       if (data) {
         applyGameSave(data)
       }
       router.push('/game-story')
+    } catch (err) {
+      // 核心存档恢复失败：留在欢迎页并提示，避免进入半加载的损坏游戏态
+      console.error('[welcome] 继续游戏加载失败:', err)
+      addToast('error', `存档加载失败：${err instanceof Error ? err.message : '未知错误'}`, 5000)
     }
-  }, [latestSave, router])
+  }, [latestSave, router, addToast])
 
   const handleDisclaimerAccept = useCallback(() => {
     acceptDisclaimer()

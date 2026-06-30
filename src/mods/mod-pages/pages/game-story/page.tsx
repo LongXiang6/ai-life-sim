@@ -137,7 +137,6 @@ export default function GamePage() {
   } = useSimulationBranch({ advanceRound })
 
   const { narrativeHistory } = useNarrative()
-  const resolvedBranches = useEngineStore((s) => s.resolvedBranches)
   const preGenStatus = usePreGenQueueStatus()
   const causalPending = useHistoryDynamicsStore((s) => s.causalSimulation.queue.pending)
   const streamingNarrative = useEngineStore((s) => s.streamingNarrative)
@@ -171,10 +170,29 @@ export default function GamePage() {
   const worldCode = useWorldStore((s) => s.worldCode)
   const worldTags = useWorldStore((s) => s.worldTags)
   const eraStartYear = useWorldStore((s) => s.eraStartYear)
-  const playerWealth = useEconomyStore((s) => s.economy.currency.playerWealth)
-  const playerStratum = usePoliticsStore((s) => s.socialStratification.playerStratum)
-  const stratumLabels = usePoliticsStore((s) => s.socialStratification.stratumLabels)
-  const combatPower = usePowerSystemStore((s) => s.combatPower.powerValue)
+  const economy = useEconomyStore((s) => s.economy)
+  const settlement = useEconomyStore((s) => s.settlement)
+  const work = useEconomyStore((s) => s.work)
+  const item = useEconomyStore((s) => s.item)
+  const population = useEconomyStore((s) => s.population)
+  const playerWealth = economy.currency.playerWealth
+  const socialStratification = usePoliticsStore((s) => s.socialStratification)
+  const faction = usePoliticsStore((s) => s.faction)
+  const nationRelation = usePoliticsStore((s) => s.nationRelation)
+  const legal = usePoliticsStore((s) => s.legal)
+  const conflictCycle = usePoliticsStore((s) => s.conflictCycle)
+  const playerStratum = socialStratification.playerStratum
+  const stratumLabels = socialStratification.stratumLabels
+  const combatPowerState = usePowerSystemStore((s) => s.combatPower)
+  const cultivation = usePowerSystemStore((s) => s.cultivation)
+  const luck = usePowerSystemStore((s) => s.luck)
+  const fortuneEncounter = usePowerSystemStore((s) => s.fortuneEncounter)
+  const faith = usePowerSystemStore((s) => s.faith)
+  const supremeItem = usePowerSystemStore((s) => s.supremeItem)
+  const skills = usePowerSystemStore((s) => s.skills)
+  const materials = usePowerSystemStore((s) => s.materials)
+  const anomalyZones = usePowerSystemStore((s) => s.anomalyZones)
+  const combatPower = combatPowerState.powerValue
 
   const [moreMenuOpen, setMoreMenuOpen] = useState(false)
   const [moreSelected, setMoreSelected] = useState<MoreSelectedKey>(null)
@@ -344,16 +362,19 @@ export default function GamePage() {
   const activeTimeStepLabel = timeStepOptions.find((o) => o.value === activeTimeStepKey)?.label ?? '按年'
 
   const narrativeEntries: NarrativeEntry[] = useMemo(() =>
-    narrativeHistory.map((chunk, index) => ({
+    narrativeHistory.map((chunk) => ({
       text: chunk.text,
       timestamp: chunk.timestamp,
       eraLabel: chunk.displayTimeLabel ?? narrativeTimeLabel,
       ageLabel: chunk.displayAge !== undefined ? `${chunk.displayAge} 岁` : `${characterAge} 岁`,
       isBranchPoint: chunk.isBranchPoint,
       branchTitle: chunk.branchTitle,
-      resolvedChoice: chunk.resolvedChoice ?? resolvedBranches[index],
+      // 直接用 chunk 自带的 resolvedChoice：随条目移动，裁剪后不错位。
+      // （历史 fallback `resolvedBranches[index]` 用数组下标，裁剪后会指向错误的分支选择）
+      resolvedChoice: chunk.resolvedChoice,
+      attrChanges: chunk.attrChanges,
     })),
-    [narrativeHistory, narrativeTimeLabel, characterAge, resolvedBranches],
+    [narrativeHistory, narrativeTimeLabel, characterAge],
   )
 
   const streamingHeader = useMemo(() => ({
@@ -391,9 +412,56 @@ export default function GamePage() {
     return items
   }, [health])
 
+  const worldEconomyStatus = useMemo(() => {
+    const items: Array<{ icon: string; label: string; value: string }> = []
+    items.push({ icon: '💰', label: '财富', value: String(Math.round(economy.currency.playerWealth)) })
+    items.push({ icon: '📈', label: '市场', value: economy.marketPhase })
+    items.push({ icon: '🏷', label: '物价', value: String(Math.round(economy.priceIndex)) })
+    items.push({ icon: '👥', label: '人口', value: String(Math.round(population.totalPopulation)) })
+    if (settlement.playerSettlement) {
+      items.push({ icon: '🏘', label: '定居地', value: settlement.playerSettlement.name })
+    }
+    if (work.profession) {
+      items.push({ icon: '🧰', label: '职业', value: `${work.profession} Lv.${work.professionLevel}` })
+    }
+    return items
+  }, [economy.currency.playerWealth, economy.marketPhase, economy.priceIndex, population.totalPopulation, settlement.playerSettlement, work.profession, work.professionLevel])
+
+  const worldPoliticsStatus = useMemo(() => {
+    const items: Array<{ icon: string; label: string; value: string }> = []
+    if (stratumLabel) items.push({ icon: '🧭', label: '阶层', value: stratumLabel })
+    items.push({ icon: '⚖', label: '流动性', value: String(Math.round(socialStratification.socialMobility)) })
+    if (faction.factions.length > 0) items.push({ icon: '🏳', label: '势力', value: `${faction.factions.length} 个` })
+    if (nationRelation.relations.length > 0) items.push({ icon: '🕊', label: '国家关系', value: `${nationRelation.relations.length} 组` })
+    items.push({ icon: '📜', label: '法律', value: legal.systemType })
+    if (conflictCycle.enabled) items.push({ icon: '🔥', label: '冲突', value: `${conflictCycle.currentPhase} ${Math.round(conflictCycle.phaseProgress)}%` })
+    return items
+  }, [conflictCycle.currentPhase, conflictCycle.enabled, conflictCycle.phaseProgress, faction.factions.length, legal.systemType, nationRelation.relations.length, socialStratification.socialMobility, stratumLabel])
+
+  const worldPowerStatus = useMemo(() => {
+    const items: Array<{ icon: string; label: string; value: string }> = []
+    items.push({ icon: '⚔', label: '战力', value: `${combatPowerState.mainStage}-${combatPowerState.subStage} / ${Math.round(combatPowerState.powerValue)}` })
+    if (cultivation.enabled) items.push({ icon: '🌀', label: '修炼', value: cultivation.realmLabel })
+    items.push({ icon: '🍀', label: '气运', value: String(Math.round(luck.luck)) })
+    if (fortuneEncounter.totalEncounters > 0) items.push({ icon: '✨', label: '机缘', value: `${fortuneEncounter.totalEncounters} 次` })
+    if (faith.faithName) items.push({ icon: '🙏', label: '信仰', value: `${faith.faithName} ${faith.devotionLevel}` })
+    if (supremeItem.items.length > 0) items.push({ icon: '🏺', label: '至尊物品', value: `${supremeItem.items.length} 件` })
+    if (anomalyZones.length > 0) items.push({ icon: '🕳', label: '异常区', value: `${anomalyZones.length} 处` })
+    return items
+  }, [anomalyZones.length, combatPowerState.mainStage, combatPowerState.powerValue, combatPowerState.subStage, cultivation.enabled, cultivation.realmLabel, faith.devotionLevel, faith.faithName, fortuneEncounter.totalEncounters, luck.luck, supremeItem.items.length])
+
+  const worldInventoryStatus = useMemo(() => {
+    const items: Array<{ icon: string; label: string; value: string }> = []
+    items.push({ icon: '🎒', label: '物品', value: `${item.inventory.length}/${item.capacity}` })
+    if (skills.length > 0) items.push({ icon: '📘', label: '技能', value: `${skills.length} 个` })
+    const discoveredMaterials = materials.filter((m) => m.discovered).length
+    if (discoveredMaterials > 0) items.push({ icon: '⛏', label: '材料', value: `${discoveredMaterials} 种` })
+    return items
+  }, [item.capacity, item.inventory.length, materials, skills.length])
+
   // 手动存档处理
-  const handleManualSave = useCallback((_slot: number, name: string) => {
-    void saveManager.createSave(name, worldConfig?.name ?? '', characterName, collectGameSavePayload())
+  const handleManualSave = useCallback(async (slot: number, name: string) => {
+    await saveManager.saveToSlot(slot, name, worldConfig?.name ?? '', characterName, collectGameSavePayload())
     setMoreSelected('save')
   }, [characterName, worldConfig?.name])
 
@@ -418,6 +486,33 @@ export default function GamePage() {
     if (preGenStatus.queueLength > 0) return `缓存 ${preGenStatus.queueLength} 轮`
     return null
   }, [preGenStatus])
+
+  const flowGuard = useMemo(() => {
+    if (!worldConfig || worldCode === 0) {
+      return { title: '世界尚未建立', message: '请先完成世界选择与构建，再进入模拟。', action: '/new-game/world-select' }
+    }
+    if (!characterName.trim()) {
+      return { title: '角色尚未创建', message: '请先完成角色创建、天赋和命运预览，再进入模拟。', action: '/new-game/character-create' }
+    }
+    return null
+  }, [characterName, worldCode, worldConfig])
+
+  if (flowGuard) {
+    return (
+      <div className={styles.root}>
+        <div className={styles.guardShell}>
+          <div className={styles.guardCard}>
+            <div className={styles.guardIcon}>⚠</div>
+            <h1 className={styles.guardTitle}>{flowGuard.title}</h1>
+            <p className={styles.guardMessage}>{flowGuard.message}</p>
+            <button type="button" className={styles.ctrlBtnPrimary} onClick={() => router.replace(flowGuard.action)}>
+              返回创建流程
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className={styles.root}>
@@ -573,7 +668,7 @@ export default function GamePage() {
                 </div>
               </>
             )}
-            {(worldSurrounding.length > 0 || worldBasicStatus.length > 0 || worldCharStatus.length > 0) && (
+            {(worldSurrounding.length > 0 || worldBasicStatus.length > 0 || worldCharStatus.length > 0 || worldEconomyStatus.length > 0 || worldPoliticsStatus.length > 0 || worldPowerStatus.length > 0 || worldInventoryStatus.length > 0) && (
               <>
                 {worldSurrounding.length > 0 && (
                   <div style={{ marginTop: 12 }}>
@@ -611,9 +706,57 @@ export default function GamePage() {
                     </div>
                   </div>
                 )}
+                {worldEconomyStatus.length > 0 && (
+                  <div style={{ marginTop: 10 }}>
+                    <div className={styles.panelSectionTitleSm}>💰 经济与人口</div>
+                    <div className={styles.tagGrid}>
+                      {worldEconomyStatus.map((item) => (
+                        <span key={item.label} className={`${styles.tagChip} ${styles.tagChipEnv}`}>
+                          {item.icon} {item.label}：{item.value}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {worldPoliticsStatus.length > 0 && (
+                  <div style={{ marginTop: 10 }}>
+                    <div className={styles.panelSectionTitleSm}>🏛 社会与势力</div>
+                    <div className={styles.tagGrid}>
+                      {worldPoliticsStatus.map((item) => (
+                        <span key={item.label} className={`${styles.tagChip} ${styles.tagChipEnv}`}>
+                          {item.icon} {item.label}：{item.value}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {worldPowerStatus.length > 0 && (
+                  <div style={{ marginTop: 10 }}>
+                    <div className={styles.panelSectionTitleSm}>⚡ 力量与异常</div>
+                    <div className={styles.tagGrid}>
+                      {worldPowerStatus.map((item) => (
+                        <span key={item.label} className={`${styles.tagChip} ${styles.tagChipChar}`}>
+                          {item.icon} {item.label}：{item.value}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {worldInventoryStatus.length > 0 && (
+                  <div style={{ marginTop: 10 }}>
+                    <div className={styles.panelSectionTitleSm}>🎒 物品与技能</div>
+                    <div className={styles.tagGrid}>
+                      {worldInventoryStatus.map((item) => (
+                        <span key={item.label} className={`${styles.tagChip} ${styles.tagChipChar}`}>
+                          {item.icon} {item.label}：{item.value}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </>
             )}
-            {worldTagSections.length === 0 && worldSurrounding.length === 0 && (
+            {worldTagSections.length === 0 && worldSurrounding.length === 0 && worldEconomyStatus.length === 0 && worldPoliticsStatus.length === 0 && worldPowerStatus.length === 0 && worldInventoryStatus.length === 0 && (
               <div className={styles.panelEmpty}>
                 <div className={styles.panelEmptyIcon}>🔔</div>
                 <p className={styles.panelEmptyText}>正在等待模拟数据，推进第一年后自动加载...</p>

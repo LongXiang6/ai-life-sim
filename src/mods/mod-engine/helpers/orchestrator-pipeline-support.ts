@@ -8,6 +8,7 @@ export { getWorldRules } from '../campaigns/default/prompts/system-prompt'
 export {
   DEFAULT_ENGINE_CONFIG,
   MAX_NARRATIVE_HISTORY,
+  MAX_CHARACTER_CREATIONS,
   USE_AI_SUMMARY_COMPRESSION,
 } from '../constants'
 export {

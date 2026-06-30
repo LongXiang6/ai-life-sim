@@ -32,6 +32,12 @@ const MAX_BODY_SIZE = 512 * 1024
 /** 日志文件最大大小 50MB */
 const MAX_LOG_SIZE = 50 * 1024 * 1024
 
+/**
+ * 上游请求超时（毫秒）。覆盖「建立连接 + 首字节响应」阶段；
+ * 流式响应一旦开始透传即清除该超时，由客户端 signal 控制后续生命周期。
+ */
+const UPSTREAM_TIMEOUT_MS = 5 * 60 * 1000
+
 // ---- 服务端 API Key 映射 ----
 
 const SERVER_API_KEYS: Record<string, string> = {
@@ -235,6 +241,8 @@ async function saveRawResponse(providerId: string, model: string, status: number
 export async function POST(request: Request): Promise<Response> {
   const startTime = Date.now()
   const ip = getClientIP(request)
+  // 上游超时/取消守卫清理函数（try 内接线，catch/各出口调用，避免定时器与监听器泄漏）
+  let clearUpstreamGuards: () => void = () => {}
   let providerId = 'deepseek'
   let model = ''
   let fingerprint = 'unknown'
@@ -311,8 +319,29 @@ export async function POST(request: Request): Promise<Response> {
       forwardBody.thinking = body.thinking
     }
 
-    // 5. 转发请求
+    // 5. 转发请求（带超时 + 客户端取消接线）
     const apiUrl = `${baseUrl}/chat/completions`
+
+    // 若客户端已断开，直接放弃，避免发起注定被丢弃的上游调用
+    if (request.signal.aborted) {
+      writeAccessLog(providerId, model, 499, Date.now() - startTime, fingerprint, trackResult.isRetry, trackResult.retryCount, isStream, ip, 'Client aborted before upstream')
+      return Response.json({ error: '客户端已取消请求' }, { status: 499 })
+    }
+
+    const upstreamController = new AbortController()
+    let upstreamSettled = false
+    // 客户端取消 → 一并取消上游，避免泄漏请求 / 继续消耗 token 配额
+    const onClientAbort = () => upstreamController.abort()
+    request.signal.addEventListener('abort', onClientAbort, { once: true })
+    // 服务端超时上限（连接 + 首字节）
+    const timeoutId = setTimeout(() => upstreamController.abort(), UPSTREAM_TIMEOUT_MS)
+    clearUpstreamGuards = () => {
+      if (upstreamSettled) return
+      upstreamSettled = true
+      clearTimeout(timeoutId)
+      request.signal.removeEventListener('abort', onClientAbort)
+    }
+
     const upstreamResp = await fetch(apiUrl, {
       method: 'POST',
       headers: {
@@ -320,6 +349,7 @@ export async function POST(request: Request): Promise<Response> {
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify(forwardBody),
+      signal: upstreamController.signal,
     }).catch((_err) => {
       // console.error(`[API Proxy] ${providerId} 请求失败:`, _err)
       return null
@@ -328,12 +358,19 @@ export async function POST(request: Request): Promise<Response> {
     const duration = Date.now() - startTime
 
     if (!upstreamResp) {
-      writeAccessLog(providerId, model, 502, duration, fingerprint, trackResult.isRetry, trackResult.retryCount, isStream, ip, 'Connection failed')
-      return Response.json({ error: `${providerId} API 连接失败` }, { status: 502 })
+      clearUpstreamGuards()
+      // 区分「客户端主动取消」与「真正的连接失败」
+      if (request.signal.aborted) {
+        writeAccessLog(providerId, model, 499, duration, fingerprint, trackResult.isRetry, trackResult.retryCount, isStream, ip, 'Client aborted')
+        return Response.json({ error: '客户端已取消请求' }, { status: 499 })
+      }
+      writeAccessLog(providerId, model, 502, duration, fingerprint, trackResult.isRetry, trackResult.retryCount, isStream, ip, 'Connection failed or timeout')
+      return Response.json({ error: `${providerId} API 连接失败或超时` }, { status: 502 })
     }
 
     // 6. 处理错误响应
     if (!upstreamResp.ok) {
+      clearUpstreamGuards()
       const errorText = await upstreamResp.text().catch(() => '未知错误')
       // console.error(`[API Proxy] ${providerId} ${upstreamResp.status}:`, errorText.slice(0, 500))
 
@@ -360,12 +397,32 @@ export async function POST(request: Request): Promise<Response> {
       return Response.json(errorBody, { status: upstreamResp.status })
     }
 
-    // 写入成功访问日志
-    writeAccessLog(providerId, model, 200, duration, fingerprint, trackResult.isRetry, trackResult.retryCount, isStream, ip)
-
     // 7. 流式透传
     if (isStream && upstreamResp.body) {
-      return new Response(upstreamResp.body, {
+      // 首字节已到，连接超时使命完成；但保留 client-abort 接线直到流结束，
+      // 以便流中途客户端断开时仍能取消上游。流结束/被取消时再统一清理。
+      // 成功访问日志延迟到 flush（流真正读完）才写，避免「中途出错却记成 200」。
+      clearTimeout(timeoutId)
+      const passthrough = upstreamResp.body.pipeThrough(
+        new TransformStream({
+          flush: () => {
+            writeAccessLog(providerId, model, 200, Date.now() - startTime, fingerprint, trackResult.isRetry, trackResult.retryCount, isStream, ip)
+            clearUpstreamGuards()
+          },
+          cancel: (reason: unknown) => {
+            // 客户端在流中途断开或上游中途出错：记成非 200，取消上游并释放守卫
+            const aborted = request.signal.aborted
+            writeAccessLog(
+              providerId, model, aborted ? 499 : 502, Date.now() - startTime,
+              fingerprint, trackResult.isRetry, trackResult.retryCount, isStream, ip,
+              aborted ? 'Client aborted mid-stream' : `Stream error: ${reason instanceof Error ? reason.message : String(reason ?? 'unknown')}`,
+            )
+            upstreamController.abort()
+            clearUpstreamGuards()
+          },
+        } as Transformer<Uint8Array, Uint8Array>),
+      )
+      return new Response(passthrough, {
         headers: {
           'Content-Type': 'text/event-stream',
           'Cache-Control': 'no-cache',
@@ -375,12 +432,21 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     // 8. 非流式直接返回
+    clearUpstreamGuards()
+    // 写入成功访问日志（非流式：响应体一次性到位，此处即终态）
+    writeAccessLog(providerId, model, 200, duration, fingerprint, trackResult.isRetry, trackResult.retryCount, isStream, ip)
     const data = await upstreamResp.json()
     return Response.json(data)
   } catch (err) {
+    clearUpstreamGuards()
     const duration = Date.now() - startTime
     const errorMsg = err instanceof Error ? err.message : 'Unknown error'
     // console.error('[API Proxy] 未处理错误:', err)
+    // 客户端主动取消不算服务端错误
+    if (request.signal.aborted || (err instanceof Error && err.name === 'AbortError')) {
+      writeAccessLog(providerId, model, 499, duration, fingerprint, trackResult.isRetry, trackResult.retryCount, isStream, ip, 'Aborted')
+      return Response.json({ error: '请求已取消或超时' }, { status: 499 })
+    }
     writeAccessLog(providerId, model, 500, duration, fingerprint, trackResult.isRetry, trackResult.retryCount, isStream, ip, errorMsg)
     return Response.json({ error: '代理服务器内部错误' }, { status: 500 })
   }

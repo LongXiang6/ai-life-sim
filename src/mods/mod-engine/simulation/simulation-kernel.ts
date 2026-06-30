@@ -53,17 +53,16 @@ export function evaluateCrossDomainDispatch(input: CrossDomainEvalInput): CrossD
       continue
     }
 
-    if (rule.cooldownRounds && rule.cooldownRounds > 0) {
-      const lastTriggered = cooldowns[rule.id] ?? -Infinity
-      if (input.round - lastTriggered < rule.cooldownRounds) continue
-    }
+    // 冷却判定：cooldownRounds>0 走跨轮冷却；无冷却的宏观规则按「每轮最多一次」去重，
+    // 避免同一轮批次内多个共享关键词的事件重复触发同一规则。
+    const effectiveCooldown = rule.cooldownRounds && rule.cooldownRounds > 0 ? rule.cooldownRounds : 1
+    const lastTriggered = cooldowns[rule.id] ?? -Infinity
+    if (input.round - lastTriggered < effectiveCooldown) continue
 
     try {
       const result = rule.handler(input.event, input.subsystemStates)
       instructions.push(...result)
-      if (rule.cooldownRounds && rule.cooldownRounds > 0) {
-        cooldowns[rule.id] = input.round
-      }
+      cooldowns[rule.id] = input.round
     } catch {
       // 单条规则失败不影响其余规则
     }
