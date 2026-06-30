@@ -1,2 +1,101 @@
-# ai-life-sim
-AI人生模拟器
+# AI 人生模拟器
+
+基于 Next.js 与 MOD 化架构的 AI 驱动人生模拟游戏。玩家可创建世界观、抽取命格天赋，在回合制叙事中体验从幼年到终老的一生；系统通过多个子系统（经济、政治、修炼、NPC 等）协同推演世界与角色状态。
+
+## 技术栈
+
+- **框架**：Next.js 16、React 19、TypeScript
+- **状态**：Zustand
+- **校验**：Zod
+- **样式**：Tailwind CSS 4
+
+## 快速开始
+
+### 环境要求
+
+- Node.js 20+
+- npm
+
+### 安装依赖
+
+```bash
+npm install
+```
+
+### 启动开发服务器
+
+**方式一：命令行**
+
+```bash
+npm run dev
+```
+
+带路由预热的开发模式（推荐本地使用）：
+
+```bash
+npm run dev:warm
+```
+
+**方式二：Windows 一键脚本**
+
+双击项目根目录下的 `一键启动开发模式.bat`，会自动执行 `npm run dev:warm`。
+
+启动后访问：<http://localhost:3000>
+
+### 生产构建
+
+```bash
+npm run build
+npm start
+```
+
+## 环境变量（可选）
+
+AI 调用通过服务端代理 `/api/proxy` 转发，可在项目根目录创建 `.env.local` 配置各厂商 API Key（也可在应用设置页填写自定义 Key）：
+
+```env
+# 任选配置，未配置时可在客户端设置中填写
+DEEPSEEK_API_KEY=
+ZHIPU_API_KEY=
+ALIBUN_API_KEY=
+BYTEDANCE_API_KEY=
+TENCENT_API_KEY=
+BAIDU_API_KEY=
+
+# 设为 true 可关闭调试日志
+NEXT_PUBLIC_DISABLE_DEBUG_LOGS=false
+```
+
+> 请勿将 `.env.local` 或真实 API Key 提交到 Git 仓库。
+
+## 常用命令
+
+| 命令 | 说明 |
+|------|------|
+| `npm run dev` | 开发模式 |
+| `npm run dev:warm` | 开发模式 + 路由预热 |
+| `npm run build` | 生产构建 |
+| `npm run lint` | ESLint 检查 |
+| `npm run check:quick` | 快速架构/接线检查 |
+| `npm run gate-check:quick` | 轻量交付门禁 |
+| `npm run generate:wiring` | 重新生成 MOD 接线代码 |
+
+## 项目结构（简要）
+
+```
+ai-life-sim/
+├── src/
+│   ├── app/          # Next.js 页面与 API 路由
+│   ├── core/         # AI 服务、MOD 加载器等核心能力
+│   ├── foundation/   # 公共类型与工具
+│   └── mods/         # 各功能 MOD（引擎、世界、角色、NPC 等）
+├── docs/             # 架构与蓝图文档
+├── scripts/          # 代码生成与质量检查脚本
+└── public/           # 静态资源
+```
+
+架构采用 **MOD 插件化** 设计：各子系统独立注册，由引擎编排叙事回合与世界状态更新。更多设计说明见 `docs/` 目录。
+
+## 许可证
+
+本项目为私有仓库，未经授权请勿分发。
