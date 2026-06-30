@@ -51,22 +51,43 @@ npm start
 
 ## 环境变量（可选）
 
-AI 调用通过服务端代理 `/api/proxy` 转发，可在项目根目录创建 `.env.local` 配置各厂商 API Key（也可在应用设置页填写自定义 Key）：
+AI 调用通过服务端代理 `/api/proxy` 转发。项目根目录提供 `.env.example` 作为模板：
 
-```env
-# 任选配置，未配置时可在客户端设置中填写
-DEEPSEEK_API_KEY=
-ZHIPU_API_KEY=
-ALIBUN_API_KEY=
-BYTEDANCE_API_KEY=
-TENCENT_API_KEY=
-BAIDU_API_KEY=
-
-# 设为 true 可关闭调试日志
-NEXT_PUBLIC_DISABLE_DEBUG_LOGS=false
+```bash
+copy .env.example .env.local
 ```
 
+在 `.env.local` 中填写各厂商 API Key（也可在应用「设置」页填写自定义 Key，不必全部配置）。
+
 > 请勿将 `.env.local` 或真实 API Key 提交到 Git 仓库。
+
+## 换电脑 / 多机协作
+
+代码通过 Git 同步即可，换机后按以下步骤恢复开发环境：
+
+```bash
+git clone https://github.com/LongXiang6/ai-life-sim.git
+cd ai-life-sim
+npm install
+copy .env.example .env.local
+# 编辑 .env.local 填入 API Key
+npm run dev:warm
+```
+
+**需要单独备份、不能靠 Git 同步的内容：**
+
+| 内容 | 说明 |
+|------|------|
+| `.env.local` | API Key 等密钥，已在 `.gitignore` 中排除 |
+| 浏览器本地数据 | 应用设置、存档等存在浏览器 `localStorage`，换浏览器/换电脑不会自动带过去 |
+| Cursor 工作区规则 | 若你在 `d:\AI\AGENTS.md`、`.agents/` 下有 AI 行为约束，它们不在本仓库内，需另行复制或同步 |
+
+**给接手 AI 的最小信息：**
+
+- 仓库地址：`https://github.com/LongXiang6/ai-life-sim.git`（私有，需你的 GitHub 账号授权）
+- 分支：`main`
+- 开发入口：`npm run dev:warm` 或 `一键启动开发模式.bat`
+- 架构文档：`docs/` 目录
 
 ## 常用命令
 
