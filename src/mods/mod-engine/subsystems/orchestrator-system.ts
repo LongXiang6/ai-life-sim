@@ -271,7 +271,7 @@ export class OrchestratorSystem implements ISubSystem {
 
   private state: EngineState = {
     status: 'idle',
-    round: { year: 1, season: 0, month: 0, day: 0, dayOfYear: 1, ...TimeSystem.resolveDisplayEra(1) },
+    round: { year: 0, season: 0, month: 0, day: 0, dayOfYear: 1, ...TimeSystem.resolveDisplayEra(0) },
     timeStep: DEFAULT_ENGINE_CONFIG.timeStep,
     totalRounds: 0,
     narrativeHistory: [],
@@ -1482,7 +1482,7 @@ export class OrchestratorSystem implements ISubSystem {
 
   /** 基于当前状态生成兜底叙事（不依赖 AI） */
   private buildFallbackNarrativeFromState(): string {
-    const age = this.characterState?.age ?? this.state.round.year
+    const age = this.characterState?.age ?? Math.max(0, this.state.round.year - 1)
     const worldName = this.worldSetting?.name ?? '这个世界'
     return `你继续生活在${worldName}中，今年${age}岁。岁月平静地流逝着，没有什么特别的事情发生。生活依旧，你按照自己的方式继续前行。`
   }
@@ -1542,7 +1542,7 @@ export class OrchestratorSystem implements ISubSystem {
     const baseData = this.lastSubsystemStates?.['character-base']?.data as { startingAge?: number } | undefined
     const maxAge = lifespanData?.maxAge ?? 100
     const startingAge = baseData?.startingAge ?? 0
-    const currentAge = this.characterState?.age ?? this.state.round.year
+    const currentAge = this.characterState?.age ?? Math.max(0, this.state.round.year - 1)
 
     return {
       currentAge,
@@ -1923,12 +1923,9 @@ export class OrchestratorSystem implements ISubSystem {
 
   // === 自动保存 ===
 
-  /** 自动保存间隔（每 N 轮触发一次），移动端增至 30 轮降低 I/O 压力 */
+  /** 自动保存：每轮触发，确保"显示到哪就保存到哪" */
   private get autoSaveInterval(): number {
-    if (typeof window !== 'undefined' && (window.innerWidth < 768 || navigator.maxTouchPoints > 0)) {
-      return 30
-    }
-    return 10
+    return 1
   }
 
   /**
@@ -1961,7 +1958,7 @@ export class OrchestratorSystem implements ISubSystem {
 
   private buildYearEvents(): YearEvent[] {
     const r = this.state.round
-    const age = this.characterState?.age ?? r.year
+    const age = this.characterState?.age ?? Math.max(0, r.year - 1)
     return this.state.narrativeHistory.map((n, i) => ({
       id: i + 1,
       age,

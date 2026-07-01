@@ -32,15 +32,15 @@ function resolveDisplayEra(year: number): Pick<RoundInfo, 'eraName' | 'eraYear' 
   return { eraName, eraYear, reignTitle, reignYear }
 }
 
-/** 初始回合 */
+/** 初始回合（year=0 为出生年，首次 advance 后 year=1 对应 0岁） */
 function createInitialRound(): RoundInfo {
   return {
-    year: 1,
+    year: 0,
     season: SEASONS.SPRING,
     month: 0,
     day: 0,
     dayOfYear: 1,
-    ...resolveDisplayEra(1),
+    ...resolveDisplayEra(0),
   }
 }
 

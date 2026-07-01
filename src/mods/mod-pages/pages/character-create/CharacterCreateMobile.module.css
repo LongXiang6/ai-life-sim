@@ -46,14 +46,83 @@
 .attrSlider::-webkit-slider-thumb { appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--color-primary); cursor: pointer; }
 .attrValue { width: 28px; text-align: center; font-size: 13px; font-weight: 600; color: var(--color-text-primary); font-family: monospace; }
 
-.pointsBadge { font-size: 12px; font-weight: 500; color: var(--color-primary); margin-bottom: 16px; }
 .raceInfo { padding: 8px 12px; border-radius: 8px; background: var(--color-bg-tertiary); font-size: 12px; color: var(--color-text-secondary); margin-top: 8px; }
 
-.bottomBar {
-  position: fixed; bottom: 0; left: 0; right: 0;
-  background: var(--color-bg-primary); border-top: 1px solid var(--color-border);
-  padding: 10px 16px; display: flex; gap: 8px; z-index: 50;
+/* ---- 框架：删除按钮，与桌面端一致 ---- */
+.itemDeleteBtn {
+  position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--color-error); color: var(--text-on-accent); font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; border: none; line-height: 1; padding: 0;
 }
-.bottomBtnPrimary { flex: 1; padding: 10px 0; font-size: 14px; font-weight: 600; border: none; border-radius: 10px; background: var(--color-primary); color: var(--color-text-on-primary); cursor: pointer; }
-.bottomBtnPrimary:disabled { opacity: 0.5; cursor: not-allowed; }
-.bottomBtnSecondary { flex: none; padding: 10px 20px; font-size: 14px; font-weight: 500; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-bg-primary); color: var(--color-text-primary); cursor: pointer; }
+
+/* ---- 框架：自定义面板，与桌面端一致 ---- */
+.customPanel { max-height: 260px; overflow-y: auto; margin-top: 8px; padding: 10px; border-radius: 10px; background: var(--color-bg-secondary); border: 1px solid var(--color-border); }
+.customInputRow { display: flex; gap: 6px; margin-bottom: 10px; }
+.customInput { flex: 1; padding: 8px 10px; border-radius: 8px; font-size: 13px; background: var(--color-bg-card); border: 1.5px solid var(--color-border); outline: none; color: var(--color-text-primary); }
+.customInput:focus { border-color: var(--color-primary); }
+.customAddBtn {
+  padding: 8px 14px; font-size: 13px; font-weight: 500; border-radius: 8px;
+  background: var(--color-primary); color: var(--text-on-accent); border: none; cursor: pointer;
+  white-space: nowrap;
+}
+.moreGrid { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ---- 框架：预设保存行，与桌面端一致 ---- */
+.presetSaveRow { display: flex; gap: 6px; margin-top: 10px; align-items: center; }
+.presetNameInput {
+  flex: 1; padding: 8px 10px; border-radius: 8px; font-size: 13px;
+  background: var(--color-bg-card); border: 1.5px solid var(--color-border); outline: none; color: var(--color-text-primary);
+}
+.presetNameInput:focus { border-color: var(--color-primary); }
+.outlineBtn {
+  padding: 8px 14px; font-size: 13px; font-weight: 500; border-radius: 8px;
+  border: 1.5px solid var(--color-primary); background: transparent; color: var(--color-primary); cursor: pointer;
+  transition: all 0.2s ease; white-space: nowrap;
+}
+.outlineBtn:hover { background: var(--color-accent-glow); }
+
+/* ---- 框架：金手指详情面板，与桌面端一致 ---- */
+.gfDetail {
+  margin-top: 10px; padding: 12px; border-radius: 10px;
+  border: 1px solid var(--color-border); background: var(--color-bg-secondary);
+}
+.gfDetailHeader { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.gfDetailName { font-size: 14px; font-weight: 600; color: var(--color-text-primary); }
+.gfDetailTier {
+  font-size: 10px; padding: 2px 6px; border-radius: 6px; font-weight: 500;
+  background: var(--color-accent-glow); color: var(--color-primary);
+}
+.gfDetailDesc { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 10px; line-height: 1.5; }
+.gfDetailSubtitle { font-size: 11px; font-weight: 600; color: var(--color-text-primary); margin-bottom: 3px; }
+.gfDetailList { list-style: none; padding: 0; margin: 0 0 8px 0; }
+.gfDetailList li {
+  font-size: 11px; color: var(--color-text-secondary); padding: 1px 0; padding-left: 14px;
+  position: relative;
+}
+.gfDetailList li::before { content: '•'; position: absolute; left: 3px; color: var(--color-primary); }
+.gfDetailTarget { font-size: 10px; color: var(--color-text-tertiary); }
+
+/* 框架：背景预设卡片，与桌面端一致 */
+.bgPresetCard {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-panel-bg);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+  position: relative;
+  min-width: 0;
+}
+
+.bgPresetCardActive {
+  border-color: var(--color-primary);
+  background: var(--color-primary-light, rgba(100, 150, 255, 0.1));
+}

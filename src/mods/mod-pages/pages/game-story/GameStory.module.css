@@ -15,8 +15,9 @@
   --bg-modal: var(--color-bg-card);
   --shadow-lg: var(--shadow-lg);
 
+  /* 使用 100dvh 确保桌面端+移动端都能正确约束高度，header sticky + mainArea overflow:auto 才能正常工作 */
   background: var(--bg-app);
-  min-height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;

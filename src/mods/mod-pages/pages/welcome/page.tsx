@@ -11,6 +11,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 
+import { useIsMobile } from '@/foundation'
 import { useGlobalStore } from '@/core/global-store'
 import { saveManager } from '@/core/storage/save-manager'
 import { applyGameSave } from '@/mods/mod-engine/engine-api'
@@ -23,6 +24,7 @@ import {
 } from '@/mods/mod-ui'
 
 import WelcomeDesktop from './WelcomeDesktop'
+import WelcomeMobile from './WelcomeMobile'
 
 import type { SaveMetadata } from '@/core/storage/save-manager'
 
@@ -37,6 +39,7 @@ export default function WelcomePage() {
   const [showHelp, setShowHelp] = useState(false)
   const [showDisclaimer, setShowDisclaimer] = useState(false)
   const { toasts, addToast, dismissToast } = useToastStore()
+  const isMobile = useIsMobile()
   const pendingActionRef = useRef<'start-new-game' | null>(null)
 
   useEffect(() => {
@@ -92,13 +95,23 @@ export default function WelcomePage() {
     <>
       <StarfieldBackground count={300} speed={0.5} enableOrbits={false} />
 
-      <WelcomeDesktop
-        onStartNewGame={handleStartNewGame}
-        onContinue={handleContinue}
-        latestSave={latestSave}
-        onOpenSettings={() => { setSettingsTab('appearance'); setShowSettings(true) }}
-        onOpenHelp={() => setShowHelp(true)}
-      />
+      {isMobile ? (
+        <WelcomeMobile
+          onStartNewGame={handleStartNewGame}
+          onContinue={handleContinue}
+          latestSave={latestSave}
+          onOpenSettings={() => { setSettingsTab('appearance'); setShowSettings(true) }}
+          onOpenHelp={() => setShowHelp(true)}
+        />
+      ) : (
+        <WelcomeDesktop
+          onStartNewGame={handleStartNewGame}
+          onContinue={handleContinue}
+          latestSave={latestSave}
+          onOpenSettings={() => { setSettingsTab('appearance'); setShowSettings(true) }}
+          onOpenHelp={() => setShowHelp(true)}
+        />
+      )}
 
       <WelcomeModals
         toasts={toasts}

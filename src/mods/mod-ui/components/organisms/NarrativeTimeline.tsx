@@ -133,7 +133,7 @@ export function NarrativeTimeline({
           <div data-separator-for={i} key={`divider-${i}`}>
             <div className={styles.separator}>
               <div className={styles.separatorLine} />
-              <span className={styles.separatorMark}>✔</span>
+              <span className={styles.separatorMark}>✦</span>
               <div className={styles.separatorLine} />
             </div>
           </div>,
@@ -194,7 +194,7 @@ export function NarrativeTimeline({
         <div key="stream-divider">
           <div className={styles.separator}>
             <div className={styles.separatorLine} />
-            <span className={styles.separatorMark}>✔</span>
+            <span className={styles.separatorMark}>✦</span>
             <div className={styles.separatorLine} />
           </div>
         </div>,

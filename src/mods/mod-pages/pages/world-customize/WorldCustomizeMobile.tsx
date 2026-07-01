@@ -64,10 +64,15 @@ function DimensionCard({
       {field.mode === 'custom' && (
         <textarea
           value={field.customValue || ''}
-          onChange={(e) => onCustomChange(e.target.value.slice(0, WORLD_CUSTOM_TEXT_MAX_LENGTH))}
+          onChange={(e) => {
+            onCustomChange(e.target.value.slice(0, WORLD_CUSTOM_TEXT_MAX_LENGTH))
+            const el = e.target
+            el.style.height = 'auto'
+            el.style.height = el.scrollHeight + 'px'
+          }}
           placeholder="输入自定义内容..."
           className={styles.customInput}
-          rows={2}
+          rows={1}
           maxLength={WORLD_CUSTOM_TEXT_MAX_LENGTH}
         />
       )}
@@ -97,7 +102,7 @@ export function WorldCustomizeMobile() {
         <div className={styles.header}>
           <div className={styles.headerIcon}>🌌</div>
           <h1 className={styles.title}>世界自定义</h1>
-          <p className={styles.hint}>设定宇宙的宏观参数</p>
+          <p className={styles.hint}>设定宇宙的宏观参数，AI 将根据你的选择初始化世界</p>
         </div>
 
         <div className={styles.descSection}>

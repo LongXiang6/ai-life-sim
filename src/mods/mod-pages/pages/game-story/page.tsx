@@ -55,7 +55,7 @@ import { formatEraYear } from '@/foundation/utils/format-time'
 
 import { useSimulationBranch } from './useSimulationBranch'
 
-const AUTO_SAVE_INTERVAL = 10
+const AUTO_SAVE_INTERVAL = 1
 
 type MoreSelectedKey = 'branch' | 'save' | 'settle' | 'main' | 'relation' | null
 
@@ -108,7 +108,7 @@ function AutoSaveIndicator({ totalRounds, lastAutoSaveRound }: { totalRounds: nu
         <span className={isUrgent ? 'text-[var(--color-warning)] font-medium' : ''}>
           {isUrgent
             ? `距下次 ${roundsUntilNextSave} 轮`
-            : `上次: 第 ${lastAutoSaveRound} 轮`}
+            : `已保存至第 ${lastAutoSaveRound} 轮`}
         </span>
       )}
       {!hasAutoSave && (
@@ -325,9 +325,9 @@ export default function GamePage() {
     return labels[playerStratum as keyof typeof labels] ?? playerStratum
   }, [playerStratum, stratumLabels])
 
-  /** 对齐废弃项目：用世界锚定年 + 回合偏移显示纪元，而非引擎内部随机年号池 */
+  /** 对齐废弃项目：用世界锚定年 + 回合偏移显示纪元。Math.max 防 round.year=0 初始态回退到负年 */
   const headerEraYear = useMemo(() => {
-    if (eraStartYear !== 0) return eraStartYear + round.year - 1
+    if (eraStartYear !== 0) return eraStartYear + Math.max(0, round.year - 1)
     return round.eraYear
   }, [eraStartYear, round.year, round.eraYear])
 

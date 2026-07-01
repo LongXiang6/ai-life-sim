@@ -797,7 +797,7 @@ export default function TalentDrawPage() {
           <div className={styles.container}>
             <div className={styles.screenHeader}>
               <div className={styles.headerIcon}>✨</div>
-              <h2 className={styles.headerTitle}>命格抽取</h2>
+              <h2 className={styles.headerTitle}>命格选取</h2>
               <p className={styles.headerStats}>
                 已选择{' '}
                 <span className={isFull ? styles.headerStatsCountFull : styles.headerStatsCount}>
