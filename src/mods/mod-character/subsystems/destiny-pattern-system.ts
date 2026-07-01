@@ -292,7 +292,7 @@ export class DestinyPatternSystem implements ISubSystem {
       }
     }
 
-    const runBatch = async (batch: number): Promise<void> => {
+    const runBatch = async (batch: number, seed?: number, forceStream?: boolean): Promise<void> => {
       onBatchStart?.(batch)
       const kvPrepared = buildDestinyPatternUserPromptKv({
         ...contextInput,
@@ -302,7 +302,7 @@ export class DestinyPatternSystem implements ISubSystem {
       const userPrompt = kvPrepared.userPrompt
       const fateSessionId = buildFateKvSessionId(useWorldStore.getState().worldCode)
 
-      const useStream = useSettingsStore.getState().streamingMode === 'stream'
+      const useStream = forceStream === true || useSettingsStore.getState().streamingMode === 'stream'
       const streamParser = useStream ? new StreamingJsonArrayParser<DestinyPatternAIItem>() : null
       const countBefore = allPatterns.length
 
@@ -344,6 +344,7 @@ export class DestinyPatternSystem implements ISubSystem {
           : undefined,
         maxTokensOverride: useStream ? bumpTokenBudget(baseTokenBudget) : baseTokenBudget,
         stablePrefixChars: kvPrepared.stablePrefixChars,
+        storySeed: seed,
         outputSchema: destinyPatternPrompt.outputSchema,
         logContext: {
           callKind: useStream ? 'talent-generate-stream' : 'talent-generate-batch',
@@ -389,10 +390,10 @@ export class DestinyPatternSystem implements ISubSystem {
       this.poolFillStatus.completedBatches = Math.max(this.poolFillStatus.completedBatches, batch + 1)
     }
 
-    const runBatchWithRetry = async (batch: number): Promise<void> => {
+    const runBatchWithRetry = async (batch: number, seed?: number, forceStream?: boolean): Promise<void> => {
       for (let attempt = 0; attempt < POOL_FILL_BATCH_RETRIES; attempt++) {
         try {
-          await runBatch(batch)
+          await runBatch(batch, seed, forceStream)
           console.info(`[destiny-pattern] 批次 ${batch + 1}/${AI_DESTINY_PATTERN_BATCH_COUNT} 完成，当前池 ${allPatterns.length} 条`)
           return
         } catch (err) {
@@ -433,13 +434,26 @@ export class DestinyPatternSystem implements ISubSystem {
       }
     }
 
-    // 首批完成后即可选取，后续批次在单例上后台填充（不绑页面生命周期）
-    await runBatchWithRetry(0)
+    // ══════════ 3 路并行首批请求（不同 seed 确保差异化，强制流式） ══════════
+    // ingestItem 内部在 allPatterns ≥ 12 时自动触发 onEarlyReady，任意一路先到即切选取界面
+    // 每路有独立的 StreamingJsonArrayParser 实例，互不干扰；JS 单线程保证 push() 原子性
+    // 考虑到每分钟 30 次 API 上限，并发 3 路 × 每路 3 次重试 = 最坏 9 次/轮，安全
+    const PARALLEL_FIRST_COUNT = 3
+    const PARALLEL_SEEDS = [42, 137, 256]
+    const parallelPromises = PARALLEL_SEEDS.map((seed, i) => runBatchWithRetry(i, seed, true))
+
+    // Promise.race：不必等最慢的批次，率先完成的批次若已达 12 条即触发 earlyReady
+    await Promise.race(parallelPromises)
+    // 兜底：如果并行批次质量太差导致 < 12 条，用预设补齐再尝试
     fireEarlyReady()
 
     const fillRemainingBatches = async (): Promise<void> => {
       try {
-        for (let batch = 1; batch < AI_DESTINY_PATTERN_BATCH_COUNT; batch++) {
+        // 等剩余并行批次完成，让它们在后台继续填充命格库
+        await Promise.allSettled(parallelPromises)
+
+        // 再串行填充后续批次（避免瞬间并发过多触发限流）
+        for (let batch = PARALLEL_FIRST_COUNT; batch < AI_DESTINY_PATTERN_BATCH_COUNT; batch++) {
           if (this.poolFillAbortController?.signal.aborted) break
           if (allPatterns.length >= AI_DESTINY_PATTERN_BATCH_SIZE * AI_DESTINY_PATTERN_BATCH_COUNT) break
           await runBatchWithRetry(batch)

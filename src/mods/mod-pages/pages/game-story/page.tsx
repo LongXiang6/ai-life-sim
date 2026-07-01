@@ -264,9 +264,12 @@ export default function GamePage() {
     prevCausalLenRef.current = nowLength
   }, [causalPending])
 
-  // 进入游戏后后台填充相邻时间线阶段
+  // 进入游戏后后台填充相邻时间线阶段（使用 ref 防重复触发）
+  const timelineBgTriggered = useRef(false)
   useEffect(() => {
     if (!worldConfig || worldCode === 0) return
+    if (timelineBgTriggered.current) return
+    timelineBgTriggered.current = true
     startTimelineStageBackground(worldConfig, worldCode, 1)
   }, [worldConfig, worldCode])
 

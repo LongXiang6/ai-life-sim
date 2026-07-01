@@ -170,7 +170,7 @@ export default function FatePreviewPage() {
     <>
       <PageScroll>
       <div className={styles.container}>
-        <h2 className={styles.headerTitle}>🎘 身世总览</h2>
+        <h2 className={styles.headerTitle}>🌅 身世总览</h2>
 
         <div className={styles.mainCard}>
           {/* 角色头部 */}
@@ -283,7 +283,7 @@ export default function FatePreviewPage() {
           {/* 背景信息 */}
           {background && (
             <div className={styles.section}>
-              <h4 className={styles.sectionTitle}>🏁 背景信息</h4>
+              <h4 className={styles.sectionTitle}>🎭 背景信息</h4>
               <div className={styles.bgBox}>{background}</div>
             </div>
           )}

@@ -19,11 +19,11 @@
 }
 
 .headerTitle {
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 32px;
+  font-weight: 600;
   color: var(--color-text-primary);
   text-align: center;
-  margin-bottom: 28px;
+  margin-bottom: 24px;
   letter-spacing: -0.5px;
 }
 
@@ -33,10 +33,11 @@
 .mainCard {
   max-width: 600px;
   margin: 0 auto;
-  padding: 28px;
-  border-radius: 18px;
+  padding: 24px;
+  border-radius: 16px;
   border: 1px solid var(--color-border);
   background: var(--color-bg-primary);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 
 /* ===================================================================
@@ -45,22 +46,25 @@
 .charHeader {
   text-align: center;
   margin-bottom: 24px;
+  padding: 20px 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #8B9DC3 0%, #764ba2 100%);
 }
 
 .charIcon {
-  font-size: 52px;
-  margin-bottom: 10px;
+  font-size: 48px;
+  margin-bottom: 8px;
 }
 
 .charName {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--color-text-primary);
+  font-size: 20px;
+  font-weight: 600;
+  color: #fff;
 }
 
 .charMeta {
-  font-size: 14px;
-  color: var(--color-text-tertiary);
+  font-size: 13px;
+  color: rgba(255,255,255,0.8);
   margin-top: 4px;
 }
 
@@ -72,10 +76,10 @@
 }
 
 .sectionTitle {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-primary);
-  margin-bottom: 10px;
+  color: var(--color-text-secondary);
+  margin-bottom: 12px;
 }
 
 /* ===================================================================
@@ -103,17 +107,24 @@
    =================================================================== */
 .attrGrid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
 }
 
 .attrItem {
-  text-align: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  font-size: 12px;
 }
 
 .attrValue {
-  font-size: 18px;
   font-weight: 700;
+  font-size: 14px;
 }
 
 .attrValuePos {
@@ -158,15 +169,15 @@
 }
 
 .seedInput {
-  width: 200px;
+  flex: 1;
   padding: 10px 14px;
   border-radius: 10px;
   font-size: 14px;
-  text-align: center;
-  background: var(--color-bg-tertiary);
+  background: var(--color-bg-input, var(--color-bg-tertiary));
   border: 1px solid var(--color-border);
   color: var(--color-text-primary);
   outline: none;
+  letter-spacing: 1px;
 }
 
 .seedInput:focus {
@@ -222,13 +233,13 @@
   }
 
   .headerTitle {
-    font-size: 22px;
+    font-size: 24px;
     margin-bottom: 20px;
   }
 
   .mainCard {
     max-width: 100%;
-    padding: 20px 16px;
+    padding: 16px 14px;
     border-radius: 14px;
   }
 
@@ -237,20 +248,19 @@
   }
 
   .charName {
-    font-size: 22px;
+    font-size: 18px;
   }
 
   .attrGrid {
     grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
+    gap: 6px;
   }
 
   .attrValue {
-    font-size: 16px;
+    font-size: 13px;
   }
 
   .seedInput {
-    width: 160px;
     font-size: 13px;
     padding: 8px 12px;
   }

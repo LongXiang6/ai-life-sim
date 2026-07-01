@@ -317,7 +317,6 @@ export default function TalentDrawPage() {
   const [slots, setSlots] = useState<(DestinyPattern | null)[]>(initialDraw.slots)
   const [selectedSlotIndices, setSelectedSlotIndices] = useState<number[]>(initialDraw.selectedSlotIndices)
   const [isRegenerating, setIsRegenerating] = useState(false)
-  const [isTimedOut, setIsTimedOut] = useState(false)
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [streamCount, setStreamCount] = useState(0)
   const [generatingBatch, setGeneratingBatch] = useState(-1)
@@ -393,9 +392,7 @@ export default function TalentDrawPage() {
   }, [phase])
 
   // ══════════ 加载文案动画 + 超时 ══════════
-  // 注：派生显示值——非 generating 阶段自然归零，避免在 effect 中同步 setState
   const displayElapsed = phase === 'generating' ? elapsedSeconds : 0
-  const displayTimedOut = phase === 'generating' ? isTimedOut : false
 
   useEffect(() => {
     if (phase !== 'generating') return // 离开生成阶段时仅清理 timer，不 setState
@@ -414,12 +411,9 @@ export default function TalentDrawPage() {
       })
     }, 2000)
 
-    const timeoutTimer = setTimeout(() => setIsTimedOut(true), 60000)
-
     return () => {
       clearInterval(msgTimerRef.current as ReturnType<typeof setInterval>)
       clearInterval(elapsedTimer)
-      clearTimeout(timeoutTimer)
     }
   }, [phase])
 
@@ -446,7 +440,6 @@ export default function TalentDrawPage() {
     setStreamCount(0)
     setGeneratingBatch(-1)
     setElapsedSeconds(0)
-    setIsTimedOut(false)
     setErrorMsg('')
     setSelectedSlotIndices([])
     abortRef.current = false
@@ -470,6 +463,7 @@ export default function TalentDrawPage() {
         onChunk?: (text: string) => void
         signal?: AbortSignal
         maxTokensOverride?: number
+        storySeed?: number
       }
       const useStream = opts?.stream === true
       const {
@@ -504,6 +498,7 @@ export default function TalentDrawPage() {
         customModel: model,
         reasoningEffort: 'disabled',
         overrideMaxTokens: maxTokens,
+        storySeed: opts?.storySeed != null ? String(opts.storySeed) : undefined,
         logCategory: 'talent-generate' as const,
         logContext: {
           callKind: useStream ? 'talent-generate-stream' : 'talent-generate-batch',
@@ -517,29 +512,23 @@ export default function TalentDrawPage() {
         },
       }
 
-      // 120秒总体超时，超时后中止并降级预设池
-      const timeoutController = new AbortController()
-      const timeoutId = setTimeout(() => timeoutController.abort(), 120_000)
-      const signal = opts?.signal ?? timeoutController.signal
+      // 不设页面级超时——并发多路请求自行竞争，单次调用由 ai-client 的 90s 兜底
+      const signal = opts?.signal
 
-      try {
-        if (useStream) {
-          return await callAIStream(systemPrompt, userPrompt, { ...callOptions, signal })
-        }
-        return await callAI(systemPrompt, userPrompt, { ...callOptions, signal })
-      } finally {
-        clearTimeout(timeoutId)
+      if (useStream) {
+        return await callAIStream(systemPrompt, userPrompt, { ...callOptions, signal })
       }
+      return await callAI(systemPrompt, userPrompt, { ...callOptions, signal })
     })
 
-    // ══════════ 10次重试 + 渐进式延迟 ══════════
-    const MAX_ATTEMPTS = 10
+    // ══════════ 重试逻辑：仅按次数限制，不设时间上限 ══════════
+    // 并发多路请求在 generateWithAI 内部竞争，此处只做整体兜底重试
+    const MAX_ATTEMPTS = 3
     let attemptCount = 0
     let earlyReady = false
 
     const attemptCall = async (): Promise<DestinyPattern[]> => {
       if (abortRef.current) return []
-      const firstFailTime = Date.now()
 
       try {
         const result = await getDestinyPatternSystem().generateWithAI(
@@ -593,13 +582,7 @@ export default function TalentDrawPage() {
         attemptCount++
         if (attemptCount >= MAX_ATTEMPTS) throw new Error('max retries exceeded')
 
-        const elapsed = Date.now() - firstFailTime
-        let delay: number
-        if (elapsed < 1000) delay = 1000
-        else if (elapsed < 10000) delay = 10000
-        else throw new Error('timeout retry exceeded')
-
-        await new Promise((resolve) => setTimeout(resolve, delay))
+        await new Promise((resolve) => setTimeout(resolve, 3000))
         if (!abortRef.current) return attemptCall()
         return []
       }
@@ -782,7 +765,6 @@ export default function TalentDrawPage() {
                 <span className={styles.progressText}>{progressText}</span>
                 <span className={styles.elapsedText}>{formatElapsed(displayElapsed)}</span>
               </div>
-              {displayTimedOut && <div className={styles.timeoutWarn}>网络不佳</div>}
             </div>
             <div className={styles.backBtnMarginLoading}>
               <button onClick={handleBack} className={styles.outlineBtn}>← 返回</button>
