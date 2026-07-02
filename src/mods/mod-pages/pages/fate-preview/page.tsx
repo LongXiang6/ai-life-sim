@@ -6,7 +6,7 @@
 
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useRouter } from 'next/navigation'
 
@@ -15,6 +15,7 @@ import { useGlobalStore, configStore } from '@/core'
 import { buildOrchestratorWorldSetting, orchestrator } from '@/mods/mod-engine/engine-api'
 import { useCharacterStore, randomName } from '@/mods/mod-character'
 import { useWorldStore } from '@/mods/mod-world'
+import type { WorldInitAIStatus } from '@/mods/mod-world'
 import { BottomActionBar, PageScroll } from '@/mods/mod-ui'
 
 import {
@@ -62,6 +63,48 @@ function loadFpState(): SavedFpState | null {
 function persistFpState(state: SavedFpState): void {
   configStore.set('mod-pages', fpStorageKey(), state)
 }
+
+/**
+ * 世界初始化步骤定义
+ * 每个步骤映射到 WorldInitAIStatus 中的一个完成标志位
+ */
+const WORLD_INIT_STEPS = [
+  {
+    id: 'calibration',
+    label: '维度推断与校准',
+    icon: '🧭',
+    description: 'AI 推断世界观维度与规则体系',
+    doneFlag: (s: WorldInitAIStatus) => s.calibrationGenerated,
+  },
+  {
+    id: 'tags',
+    label: '标签生成',
+    icon: '🏷️',
+    description: '生成力量体系/文明阶段等标签',
+    doneFlag: (s: WorldInitAIStatus) => s.tagsGenerated,
+  },
+  {
+    id: 'timeline',
+    label: '时间线生成',
+    icon: '📜',
+    description: '构建世界时间线与阶段骨架',
+    doneFlag: (s: WorldInitAIStatus) => s.timelineGenerated,
+  },
+  {
+    id: 'past-history',
+    label: '过去历史',
+    icon: '📖',
+    description: '生成世界上古历史事件',
+    doneFlag: (s: WorldInitAIStatus) => s.pastHistoryGenerated,
+  },
+  {
+    id: 'entities',
+    label: '实体生成',
+    icon: '🏛️',
+    description: '生成地理/文化/组织实体',
+    doneFlag: (s: WorldInitAIStatus) => s.entitiesGenerated,
+  },
+] as const
 
 export default function FatePreviewPage() {
   const router = useRouter()
@@ -143,6 +186,9 @@ export default function FatePreviewPage() {
       },
     )
 
+    // 显式重置角色 store 的 age，确保 game-story 页面读取到正确的起始年龄
+    useCharacterStore.setState({ age: 0 })
+
     setGamePhase('simulation')
     router.push('/game-story')
   }, [name, gender, characterBase.base, worldConfig, setGamePhase, router, selectedPatterns])
@@ -159,12 +205,29 @@ export default function FatePreviewPage() {
   const aiFailed = worldInitAIStatus?.status === 'failed'
   const aiProgress = worldInitAIStatus
     ? [worldInitAIStatus.calibrationGenerated, worldInitAIStatus.tagsGenerated,
-       worldInitAIStatus.configGenerated, worldInitAIStatus.timelineGenerated,
+       worldInitAIStatus.timelineGenerated, worldInitAIStatus.pastHistoryGenerated,
        worldInitAIStatus.entitiesGenerated]
       .filter(Boolean).length
     : 0
   const aiStepLabel = worldInitAIStatus?.currentStep
-  const showAIStatus = worldInitAIStatus && !aiComplete
+
+  // ── 步骤计时器（时间戳由 Pipeline 直接写入 store，UI 只读 + 每秒刷新展示）──
+  const [now, setNow] = useState(() => Date.now())
+
+  // 每秒 tick 以刷新计时显示
+  useEffect(() => {
+    if (!worldInitAIStatus) return
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [worldInitAIStatus])
+
+  /** 计算单步显示的秒数（实时更新的步骤返回当前耗时；已完成返回结束时耗时；未开始返回 null） */
+  const getStepSeconds = (stepLabel: string): number | null => {
+    const timer = worldInitAIStatus?.stepTimers?.[stepLabel]
+    if (!timer) return null
+    const end = timer.end ?? now
+    return Math.max(0, Math.floor((end - timer.start) / 1000))
+  }
 
   return (
     <>
@@ -298,31 +361,50 @@ export default function FatePreviewPage() {
             </div>
           </div>
         </div>
-      </div>
 
-      {/* AI 世界初始化状态指示器 */}
-      {showAIStatus && (
-        <div className={styles.aiStatusBanner}>
-          {aiIsRunning && (
-            <span className={styles.aiStatusRunning}>
-              ⏳ {aiStepLabel ? `${aiStepLabel}…` : '正在生成世界数据…'}（{aiProgress}/5）
+        {/* AI 世界初始化进度面板 */}
+        <div className={styles.initPanel}>
+          <div className={styles.initPanelHeader}>
+            <span className={styles.initPanelTitle}>
+              {aiComplete ? '✅ 世界数据初始化完成'
+                : aiFailed ? '❌ 世界数据初始化失败'
+                : aiIsRunning ? '🌍 世界数据初始化中…'
+                : '🌍 等待世界数据初始化…'}
             </span>
-          )}
-          {aiFailed && (
-            <div className={styles.aiStatusFailed}>
-              <span>⚠️ 世界生成失败（{aiProgress}/5 成功）</span>
-              {worldInitAIStatus?.errors?.map((e, i) => (
-                <span key={i} className={styles.aiStatusError}>{e}</span>
+            <span className={styles.initPanelCounter}>{aiProgress}/5 步骤完成</span>
+          </div>
+          <div className={styles.initStepList}>
+            {WORLD_INIT_STEPS.map((step) => {
+              const done = worldInitAIStatus ? step.doneFlag(worldInitAIStatus) : false
+              const isCurrent = !done && aiIsRunning && aiStepLabel === step.label
+              const failed = aiFailed && isCurrent
+              const seconds = getStepSeconds(step.label)
+              const statusText = failed ? '调用失败' : done ? '已完成' : isCurrent ? '调用中' : '等待中'
+              const statusClass = failed ? styles.initStepStatusTextFailed : done ? styles.initStepStatusTextDone : isCurrent ? styles.initStepStatusTextActive : styles.initStepStatusTextWaiting
+              return (
+                <div key={step.id} className={`${styles.initStepRow} ${done ? styles.initStepDone : ''} ${isCurrent ? styles.initStepCurrent : ''} ${failed ? styles.initStepFailed : ''}`}>
+                  <span className={styles.initStepIcon}>{step.icon}</span>
+                  <div className={styles.initStepInfo}>
+                    <span className={styles.initStepLabel}>{step.label}</span>
+                    <span className={`${styles.initStepStatusText} ${statusClass}`}>{statusText}</span>
+                  </div>
+                  <span className={styles.initStepTimer}>{seconds !== null ? `${seconds}s` : '—'}</span>
+                  <span className={styles.initStepStatus}>
+                    {failed ? '❌' : done ? '✅' : isCurrent ? <span className={styles.loading149} /> : '○'}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+          {aiFailed && worldInitAIStatus?.errors?.length && (
+            <div className={styles.initPanelErrors}>
+              {worldInitAIStatus.errors.map((e, i) => (
+                <div key={i} className={styles.initPanelErrorItem}>⚠️ {e}</div>
               ))}
             </div>
           )}
-          {!aiIsRunning && !aiFailed && (
-            <span className={styles.aiStatusIdle}>
-              📡 等待世界数据初始化...
-            </span>
-          )}
         </div>
-      )}
+      </div>
 
       </PageScroll>
 
@@ -330,7 +412,7 @@ export default function FatePreviewPage() {
         onBack={() => router.push('/attribute-alloc')}
         backTitle="返回重新分配属性"
         onConfirm={handleStartLife}
-        confirmText={aiComplete ? '开始人生' : (aiIsRunning ? `正在生成世界数据（${aiProgress}/5）` : '等待世界初始化')}
+        confirmText={aiComplete ? '开始人生' : (aiIsRunning ? '请等待…' : '等待世界初始化')}
         confirmDisabled={!aiComplete}
       />
     </>

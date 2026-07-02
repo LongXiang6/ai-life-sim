@@ -196,6 +196,7 @@ function extractRemoteApiExports(indexContent) {
       const raw = part.trim()
       if (!raw) continue
       const name = raw.split(/\s+as\s+/)[0].trim()
+      if (name.startsWith('type ')) continue
       if (isLikelyRemoteFunction(name)) names.add(name)
     }
   }

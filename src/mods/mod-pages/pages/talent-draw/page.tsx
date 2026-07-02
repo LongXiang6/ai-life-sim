@@ -64,14 +64,15 @@ function PatternAttrBonus({ pattern }: { pattern: DestinyPattern }) {
     .map((k) => {
       const v = pattern.attrBonus?.[k as keyof typeof pattern.attrBonus]
       if (typeof v !== 'number' || v === 0) return null
-      return `${ATTRIBUTE_NAMES[k] ?? k} ${v > 0 ? '+' : ''}${v}`
+      const label = `${ATTRIBUTE_NAMES[k] ?? k} ${v > 0 ? '+' : ''}${v}`
+      return { label, neg: v < 0 }
     })
-    .filter((t): t is string => t !== null)
+    .filter((t): t is { label: string; neg: boolean } => t !== null)
   if (tags.length === 0) return null
   return (
     <div className={styles.slotAttrBonus}>
       {tags.map((t) => (
-        <span key={t} className={styles.slotAttrBonusTag}>{t}</span>
+        <span key={t.label} className={cn(styles.slotAttrBonusTag, t.neg && styles.slotAttrBonusTagNeg)}>{t.label}</span>
       ))}
     </div>
   )
@@ -79,12 +80,17 @@ function PatternAttrBonus({ pattern }: { pattern: DestinyPattern }) {
 
 /** 命格卡片底部：模拟系统加成 */
 function PatternSystemModifiers({ pattern }: { pattern: DestinyPattern }) {
-  const lines = formatPatternSystemModifiersForDisplay(pattern.systemModifiers)
-  if (lines.length === 0) return null
+  const items = formatPatternSystemModifiersForDisplay(pattern.systemModifiers)
+  if (items.length === 0) return null
   return (
     <div className={styles.slotModifiers}>
-      {lines.map((line) => (
-        <span key={line} className={styles.slotModifierTag}>{line}</span>
+      {items.map((item) => (
+        <span
+          key={item.label}
+          className={cn(styles.slotModifierTag, !item.isBeneficial && styles.slotModifierTagNeg)}
+        >
+          {item.display}
+        </span>
       ))}
     </div>
   )
@@ -498,7 +504,7 @@ export default function TalentDrawPage() {
         customModel: model,
         reasoningEffort: 'disabled',
         overrideMaxTokens: maxTokens,
-        storySeed: opts?.storySeed != null ? String(opts.storySeed) : undefined,
+        storySeed: opts?.storySeed,
         logCategory: 'talent-generate' as const,
         logContext: {
           callKind: useStream ? 'talent-generate-stream' : 'talent-generate-batch',
@@ -609,17 +615,8 @@ export default function TalentDrawPage() {
         setStreamCount(result.length)
       }
     } catch {
-      // 全部重试失败，降级预设池
-      setErrorMsg('AI 生成失败，已降级使用预设池')
-      const fallback = getDestinyPatternSystem().generateFromPresets(100)
-      fullPoolRef.current = fallback
-      const shuffled = [...fallback].sort(() => Math.random() - 0.5)
-      const drawn = shuffled.slice(0, DEFAULT_DESTINY_PATTERN_COUNT)
-      const newSlots: (DestinyPattern | null)[] = Array(12).fill(null)
-      drawn.forEach((p, i) => { newSlots[i] = p })
-      setSlots(newSlots)
-      setSelectedSlotIndices([])
-      setPhase('selecting')
+      setErrorMsg('AI 命格生成失败，请检查网络后重试')
+      setPhase('idle')
     }
   }, [])
 

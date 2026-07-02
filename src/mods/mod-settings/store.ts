@@ -10,7 +10,7 @@ import { create, } from 'zustand'
 import { devtools, persist, } from 'zustand/middleware'
 
 import type { ThemeType, } from '@/core/theme/theme-store'
-import { DEFAULT_WORD_COUNT_TARGET } from '@/mods/mod-engine/constants/narrative-config'
+import { DEFAULT_WORD_COUNT_TARGET } from '@/mods/mod-engine'
 
 /** 叙事风格 */
 export type NarrativeStyle = 'default' | 'epic' | 'realistic' | 'poetic'

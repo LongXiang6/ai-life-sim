@@ -7,7 +7,7 @@
  * 已走 AI 初始化或有实质世界描述时，运行时子系统用 default 通用池 + calibration modifier。
  */
 
-import { useSettingsStore } from '@/mods/mod-settings/store'
+import { useSettingsStore } from '@/mods/mod-settings'
 
 import { useWorldStore } from '../store'
 

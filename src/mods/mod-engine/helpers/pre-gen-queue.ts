@@ -10,49 +10,32 @@
 
 
 
-import type { AIModelConfig, PromptTemplate } from '@/foundation'
-
-
+import type { AIModelConfig, PromptTemplate, TimeStep } from '@/foundation'
+import { encodeTimeStepKey } from '@/foundation'
 
 import { useSettingsStore } from '@/mods/mod-settings'
 
-
-
 import { orchestrator } from '../engine-api'
-
 import { useEngineStore } from '../store'
-
 import { computeNarrativeMaxTokens, DEFAULT_WORD_COUNT_TARGET } from '../constants/narrative-config'
 
-
-
 export interface PreGenCachedRound {
-
   fullContent: string
-
   isBranchPoint: boolean
-
 }
-
-
 
 export interface PreGenQueueStatus {
-
   isActive: boolean
-
   queueLength: number
-
   maxRounds: number
-
 }
 
-
-
 const preGenQueue: PreGenCachedRound[] = []
-
 let preGenGen = 0
-
 let isPreGenActive = false
+
+/** 上次预生成时的时间步长 key（用于检测粒度切换，自动清空旧队列） */
+let lastPreGenTimeStepKey: string | null = null
 
 
 
@@ -103,27 +86,37 @@ export function getPreGenQueueStatus(): PreGenQueueStatus {
 
 
 export function clearPreGenQueue(): void {
-
   preGenQueue.length = 0
-
   preGenGen += 1
-
   isPreGenActive = false
-
+  // 不重置 lastPreGenTimeStepKey（保留当前 key，防止并发 fillPreGenQueue 绕过 gen 失效机制）
   notifyPreGenListeners()
+}
 
+/** 检测时间步长是否变化，变化则清空旧粒度预生成队列。
+ *  应在消费预生成队列前调用。
+ *  返回 true 表示已清空（队列中的内容粒度不匹配）。 */
+export function checkAndClearPreGenOnTimeStepChange(currentStep: TimeStep): boolean {
+  const currentKey = encodeTimeStepKey(currentStep)
+  if (lastPreGenTimeStepKey !== null && lastPreGenTimeStepKey !== currentKey) {
+    console.log(`[PreGen] 时间步长变化: ${lastPreGenTimeStepKey} → ${currentKey}，已清空旧预生成队列`)
+    clearPreGenQueue()
+  }
+  lastPreGenTimeStepKey = currentKey
+  return preGenQueue.length === 0
 }
 
 
 
 export function shiftPreGenQueue(): PreGenCachedRound | undefined {
-
   const item = preGenQueue.shift()
-
   notifyPreGenListeners()
-
+  // 预生成防御：消费到分支点叙事 → 立即清空剩余预生成队列，避免后续预生成内容携带未解决分支
+  if (item?.isBranchPoint) {
+    console.log('[PreGen] 消费到分支点叙事，已清空预生成队列')
+    clearPreGenQueue()
+  }
   return item
-
 }
 
 
@@ -177,13 +170,8 @@ export async function fillPreGenQueue(
 
 
   const history = useEngineStore.getState().narrativeHistory
-
-  const resolved = useEngineStore.getState().resolvedBranches
-
   const hasUnresolvedBranch = history.some(
-
-    (entry, index) => entry.isBranchPoint && resolved[index] === undefined,
-
+    (entry) => entry.isBranchPoint && entry.resolvedChoice === undefined,
   )
 
   if (hasUnresolvedBranch) return

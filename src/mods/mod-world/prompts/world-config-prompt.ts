@@ -12,51 +12,69 @@ import { z } from 'zod'
 import type { PromptTemplate } from '@/foundation'
 import { stringifyPrompt } from '@/foundation'
 
+/**
+ * NaN 安全的数字强制转换 —— AI 在 JSON 模式下可能输出字符串 "NaN"，
+ * Number("NaN") → NaN，而 Zod 的 z.number() 不接受 NaN。
+ * 这里在 coerce 之前先拦截：非数字字符串和 NaN 统一兜底为 0。
+ */
+const nanSafeNumber = z.preprocess(
+  (v) => {
+    if (v === undefined || v === null) return 0
+    if (typeof v === 'number') return Number.isNaN(v) ? 0 : v
+    if (typeof v === 'string') {
+      const n = Number(v)
+      return Number.isNaN(n) ? 0 : n
+    }
+    return 0
+  },
+  z.number(),
+)
+
 /** 世界配置生成输出 Schema */
 export const worldConfigOutputSchema = z.object({
   climate: z.string(),
-  averageTemperature: z.number(),
-  seaLevel: z.number(),
-  magicDensity: z.number(),
-  naturalDisasterFrequency: z.number(),
-  resourceAbundance: z.number(),
-  landmassRatio: z.number(),
-  biomeDiversity: z.number(),
-  techLevel: z.number(),
-  populationScale: z.number(), // AI 输出为 number，语义上人口规模应是数值而非字符串
-  urbanizationRate: z.number(),
-  literacyRate: z.number(),
-  lifespan: z.number(),
-  socialMobility: z.number(),
-  culturalDiversity: z.number(),
-  religiousInfluence: z.number(),
+  averageTemperature: nanSafeNumber,
+  seaLevel: nanSafeNumber,
+  magicDensity: nanSafeNumber,
+  naturalDisasterFrequency: nanSafeNumber,
+  resourceAbundance: nanSafeNumber,
+  landmassRatio: nanSafeNumber,
+  biomeDiversity: nanSafeNumber,
+  techLevel: nanSafeNumber,
+  populationScale: nanSafeNumber, // AI 输出为 number，语义上人口规模应是数值而非字符串
+  urbanizationRate: nanSafeNumber,
+  literacyRate: nanSafeNumber,
+  lifespan: nanSafeNumber,
+  socialMobility: nanSafeNumber,
+  culturalDiversity: nanSafeNumber,
+  religiousInfluence: nanSafeNumber,
   governmentType: z.string(),
-  centralization: z.number(),
-  lawStrictness: z.number(),
-  corruptionLevel: z.number(),
-  diplomaticRelations: z.number(),
-  warProbability: z.number(),
+  centralization: nanSafeNumber,
+  lawStrictness: nanSafeNumber,
+  corruptionLevel: nanSafeNumber,
+  diplomaticRelations: nanSafeNumber,
+  warProbability: nanSafeNumber,
   economicSystem: z.string(),
-  wealthInequality: z.number(),
-  tradeActivity: z.number(),
+  wealthInequality: nanSafeNumber,
+  tradeActivity: nanSafeNumber,
   currencyType: z.string(),
-  taxRate: z.number(),
-  inflationRate: z.number(),
+  taxRate: nanSafeNumber,
+  inflationRate: nanSafeNumber,
   powerSource: z.string(),
-  powerAccessibility: z.number(),
-  powerCeiling: z.number(),
-  breakthroughDifficulty: z.number(),
-  powerImbalance: z.number(),
-  forbiddenTechniques: z.number(),
-  languageCount: z.number(),
-  artTradition: z.number(),
-  philosophicalSchools: z.number(),
-  superstitionLevel: z.number(),
-  hospitalityCulture: z.number(),
-  honorCulture: z.number(),
+  powerAccessibility: nanSafeNumber,
+  powerCeiling: nanSafeNumber,
+  breakthroughDifficulty: nanSafeNumber,
+  powerImbalance: nanSafeNumber,
+  forbiddenTechniques: nanSafeNumber,
+  languageCount: nanSafeNumber,
+  artTradition: nanSafeNumber,
+  philosophicalSchools: nanSafeNumber,
+  superstitionLevel: nanSafeNumber,
+  hospitalityCulture: nanSafeNumber,
+  honorCulture: nanSafeNumber,
   overallMood: z.string(),
-  adventureAppeal: z.number(),
-  mysteryLevel: z.number(),
+  adventureAppeal: nanSafeNumber,
+  mysteryLevel: nanSafeNumber,
 })
 
 export type WorldAIDetailedParameters = z.infer<typeof worldConfigOutputSchema>
@@ -78,6 +96,7 @@ export const worldConfigPrompt: PromptTemplate = {
     constraints: [
       '严格输出 JSON，不要 markdown 代码块包裹',
       '所有字段必填',
+      '所有数值字段必须输出有效数字，不确定的填 0，严禁输出 NaN 或 "NaN" 字符串',
       '按参数分组顺序返回字段',
     ],
     parameters: {

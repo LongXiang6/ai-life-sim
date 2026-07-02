@@ -134,6 +134,7 @@ export interface WorldInitPipelineResult {
   tagsGenerated: boolean
   configGenerated: boolean
   timelineGenerated: boolean
+  pastHistoryGenerated: boolean
   entitiesGenerated: boolean
   errors: string[]
   rawTags?: string[]
@@ -157,6 +158,7 @@ export interface WorldInitPipelineContext {
   tagsGenerated: boolean
   configGenerated: boolean
   timelineGenerated: boolean
+  pastHistoryGenerated: boolean
   entitiesGenerated: boolean
   rawTags?: string[]
   currentStep: string
@@ -447,13 +449,22 @@ function applyDimensionInferenceToConfig(
     config.powerCeiling = inferred.powerCeiling
   }
 
-  // 魔法等外部能量体系：纠偏 worldType / essenceTag（避免 idealist+modern 触发意志修仙 hint）
+  // 魔法等外部能量体系：仅在 AI 模式下且标签为西式奇幻兼容值时做兜底映射（不覆盖 AI 明确判定）
   if (config.powerSystemTag === 'magic') {
-    if (config.essenceTag === 'modern' || config.essenceTag === 'cultivation') {
-      config.essenceTag = 'western-fantasy'
+    // essenceTag：仅在 AI 模式且当前 essenceTag 为空或不合法时填充
+    if (isDimensionAIMode(modes, 'worldviewEssence')) {
+      if (!config.essenceTag || config.essenceTag === 'modern' || config.essenceTag === 'cultivation') {
+        const mapped = mapWorldviewEssenceZhToTag(inferred.worldviewEssence)
+        if (mapped && mapped !== config.essenceTag) config.essenceTag = mapped
+      }
     }
-    if (inferred.worldType === 'idealist') {
-      config.worldType = 'mixed'
+    // worldType：仅在 AI 模式且为 idealist 时才考虑提示冲突（由 hint 层提示，不强制覆盖）
+    if (isDimensionAIMode(modes, 'worldviewEssence') && inferred.worldType === 'idealist') {
+      // 不强制改写 worldType，由 hint 层 buildWorldviewStyleHint 提示冲突
+      config._aiFlags = {
+        ...config._aiFlags,
+        magicIdealistWorldType: true,
+      }
     }
   }
 }
@@ -774,6 +785,7 @@ function buildPastHistoryStep(): WorldInitStep {
         styleHint,
       )
       await ctx.timelineSystem.generatePastHistory(15)
+      ctx.pastHistoryGenerated = true
     },
   }
 }
@@ -890,6 +902,7 @@ export function createWorldInitPipelineContext(
     tagsGenerated: false,
     configGenerated: false,
     timelineGenerated: false,
+    pastHistoryGenerated: false,
     entitiesGenerated: false,
     currentStep: '准备中',
     entitySystem,
@@ -898,17 +911,23 @@ export function createWorldInitPipelineContext(
   }
 }
 
-function updatePipelineStatus(ctx: WorldInitPipelineContext, baseStatus: WorldInitAIStatus): void {
+function updatePipelineStatus(
+  ctx: WorldInitPipelineContext,
+  baseStatus: WorldInitAIStatus,
+  stepTimers: Record<string, { start: number; end?: number }>,
+): void {
   useWorldStore.getState().setWorldInitAIStatus({
     ...baseStatus,
     currentStep: ctx.currentStep,
+    stepTimers: { ...stepTimers },
     calibrationGenerated: ctx.calibrationGenerated,
     tagsGenerated: ctx.tagsGenerated,
     configGenerated: ctx.configGenerated,
     timelineGenerated: ctx.timelineGenerated,
+    pastHistoryGenerated: ctx.pastHistoryGenerated,
     entitiesGenerated: ctx.entitiesGenerated,
     retryCount: ctx.calibrationGenerated && ctx.tagsGenerated && ctx.configGenerated
-      && ctx.timelineGenerated && ctx.entitiesGenerated ? 0 : 1,
+      && ctx.timelineGenerated && ctx.pastHistoryGenerated && ctx.entitiesGenerated ? 0 : 1,
     errors: ctx.errors,
   })
 }
@@ -918,17 +937,21 @@ export async function runWorldInitPipeline(
   ctx: WorldInitPipelineContext,
   steps: WorldInitStep[] = createDefaultWorldInitSteps(),
 ): Promise<WorldInitPipelineResult> {
+  const allGenFlags = false
   const baseStatus: WorldInitAIStatus = {
     status: 'running',
-    calibrationGenerated: false,
-    tagsGenerated: false,
-    configGenerated: false,
-    timelineGenerated: false,
-    entitiesGenerated: false,
+    calibrationGenerated: allGenFlags,
+    tagsGenerated: allGenFlags,
+    configGenerated: allGenFlags,
+    timelineGenerated: allGenFlags,
+    pastHistoryGenerated: allGenFlags,
+    entitiesGenerated: allGenFlags,
     retryCount: 0,
     maxRetries: MAX_AI_RETRIES,
     errors: [],
+    stepTimers: {},
   }
+  const stepTimers: Record<string, { start: number; end?: number }> = {}
   useWorldStore.getState().setWorldInitAIStatus(baseStatus)
 
   console.info(`[mod-world] Pipeline 开始: 世界 "${ctx.config.name}"（编码 ${ctx.worldCode}，${steps.length} 步）`)
@@ -937,28 +960,35 @@ export async function runWorldInitPipeline(
     if (step.shouldSkip?.(ctx)) continue
 
     ctx.currentStep = step.label
-    updatePipelineStatus(ctx, baseStatus)
+    // 记录步骤开始时间（API 调用真正开始前）
+    stepTimers[step.label] = { start: Date.now() }
+    updatePipelineStatus(ctx, baseStatus, stepTimers)
 
     const ok = await withRetry(step.label, () => step.run(ctx), ctx.errors)
+
+    // 记录步骤结束时间
+    stepTimers[step.label] = { ...stepTimers[step.label], end: Date.now() }
 
     if (!ok && step.critical !== false && step.id === 'dimension-calibration' && !ctx.calibrationGenerated) {
       useWorldStore.getState().setCalibration(buildDefaultCalibration(ctx.config))
       ctx.calibrationGenerated = true
     }
 
-    updatePipelineStatus(ctx, baseStatus)
+    updatePipelineStatus(ctx, baseStatus, stepTimers)
   }
 
   const allOk = ctx.calibrationGenerated && ctx.tagsGenerated && ctx.configGenerated
-    && ctx.timelineGenerated && ctx.entitiesGenerated
+    && ctx.timelineGenerated && ctx.pastHistoryGenerated && ctx.entitiesGenerated
 
   useWorldStore.getState().setWorldInitAIStatus({
     status: allOk ? 'complete' : 'failed',
     currentStep: allOk ? '完成' : ctx.currentStep,
+    stepTimers: { ...stepTimers },
     calibrationGenerated: ctx.calibrationGenerated,
     tagsGenerated: ctx.tagsGenerated,
     configGenerated: ctx.configGenerated,
     timelineGenerated: ctx.timelineGenerated,
+    pastHistoryGenerated: ctx.pastHistoryGenerated,
     entitiesGenerated: ctx.entitiesGenerated,
     retryCount: MAX_AI_RETRIES,
     maxRetries: MAX_AI_RETRIES,
@@ -970,6 +1000,7 @@ export async function runWorldInitPipeline(
     tagsGenerated: ctx.tagsGenerated,
     configGenerated: ctx.configGenerated,
     timelineGenerated: ctx.timelineGenerated,
+    pastHistoryGenerated: ctx.pastHistoryGenerated,
     entitiesGenerated: ctx.entitiesGenerated,
     errors: ctx.errors,
     rawTags: ctx.rawTags,

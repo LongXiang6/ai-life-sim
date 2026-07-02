@@ -12,6 +12,7 @@
  */
 
 import type { LifeStageId } from '@/mods/mod-character'
+import type { TimeStep } from '@/foundation'
 
 // ═══════════════════ 类型定义 ═══════════════════
 
@@ -25,7 +26,8 @@ export interface NarrativeHintInput {
   forceBranch: boolean
   branchJustResolved: boolean
   consecutiveSameGoalRounds: number
-  timeSkipYears?: number
+  /** 当前时间步进（替代旧 timeSkipYears，支持多粒度文本生成） */
+  timeStep: TimeStep
   narrativeStyle?: string
   lifeStage: LifeStageId
 }
@@ -213,7 +215,7 @@ function hintBranchResolved(input: NarrativeHintInput): string[] {
   return hints
 }
 
-// --- 6. 场景跳跃 ---
+// --- 6. 场景跳跃（根据 timeStep.unit 生成粒度匹配的跳转提示） ---
 function hintSceneJump(input: NarrativeHintInput): string[] {
   const hints: string[] = []
   const prevEvent = input.recentEvents[input.recentEvents.length - 1]
@@ -225,11 +227,35 @@ function hintSceneJump(input: NarrativeHintInput): string[] {
       `距上次事件已过${input.currentAge - prevEvent.age}年，描写全新人生阶段和变化，不得延续上次事件的同一场景`,
     )
   }
-  if (input.timeSkipYears && input.timeSkipYears > 0) {
-    hints.push(
-      `时间跳过${input.timeSkipYears}年。描写此期间的进展与变迁——取得哪些阶段性成果，遇到什么新局面，不一笔带过`,
-    )
+
+  const { unit, value } = input.timeStep
+  const amount = value || 1 // 防御 value=0 的异常情况（旧版 timeSkipYears > 0 等价守卫）
+
+  // 根据时间粒度生成不同的跳转提示，防止 AI 输出与粒度不匹配的内容
+  switch (unit) {
+    case 'day':
+      hints.push(
+        `推进${amount}天。描写这天内的具体行动、对话与感官细节，微观视角，一天内完成的事件`,
+      )
+      break
+    case 'month':
+      hints.push(
+        `推进${amount}个月。描写这段时间的日常细节与微小变化，偏生活流视角，避免概括整年`,
+      )
+      break
+    case 'season':
+      hints.push(
+        `推进${amount}个季度。描写这一季${amount > 1 ? '内' : ''}的季节变化与关键事件，中距视角，聚焦当季，禁止跨越到其他季节`,
+      )
+      break
+    case 'year':
+    default:
+      hints.push(
+        `时间跳过${amount}年。描写此期间的进展与变迁——取得哪些阶段性成果，遇到什么新局面，不一笔带过`,
+      )
+      break
   }
+
   return hints
 }
 

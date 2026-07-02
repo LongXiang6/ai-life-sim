@@ -40,8 +40,6 @@ export function applyGameSave(data: Record<string, unknown>): void {
       ...engine,
       streamingNarrative: '',
       narrativeError: null,
-      pendingChoices: engine.pendingChoices ?? [],
-      selectedChoiceId: engine.selectedChoiceId ?? null,
       resolvedBranches: engine.resolvedBranches ?? prev.resolvedBranches ?? {},
       forceBranchNext: engine.forceBranchNext ?? false,
       status: engine.status === 'complete' ? 'complete' : 'idle',
@@ -99,7 +97,9 @@ export function applyGameSave(data: Record<string, unknown>): void {
   useGlobalStore.getState().setGamePhase('simulation')
 }
 
-/** 收集当前可持久化快照（供手动/自动存档） */
+/** 收集当前可持久化快照（供手动/自动存档）。
+ * 自动保存调用点位于 hooks.ts advanceRound 中 executeRoundV2 之后、
+ * fillPreGenQueue 之前，因此快照中不包含未消费的预生成缓存。 */
 export function collectGameSavePayload(): Record<string, unknown> {
   syncSubsystemStoresFromStates(orchestrator.getSubsystemStateSnapshot())
 

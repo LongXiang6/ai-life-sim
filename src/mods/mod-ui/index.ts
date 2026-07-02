@@ -46,9 +46,6 @@ export type { ToggleProps, ToggleOption } from './components/molecules/Toggle'
 export { TimeStepSelector } from './components/molecules/TimeStepSelector'
 export type { TimeStepSelectorProps } from './components/molecules/TimeStepSelector'
 
-export { BranchChoice } from './components/molecules/BranchChoice'
-export type { BranchChoiceProps, BranchOption } from './components/molecules/BranchChoice'
-
 export { RadarChart, DEFAULT_DIMENSIONS } from './components/molecules/RadarChart'
 export type { RadarChartProps, RadarDimension } from './components/molecules/RadarChart'
 
@@ -105,9 +102,6 @@ export type { AttrChangeLabelProps } from './components/molecules/AttrChangeLabe
 
 export { TalentBadge } from './components/molecules/TalentBadge'
 export type { TalentBadgeProps, TalentRarity } from './components/molecules/TalentBadge'
-
-export { EventCard } from './components/organisms/EventCard'
-export type { EventCardProps, EventCardChoice } from './components/organisms/EventCard'
 
 export { PageErrorBoundary } from './components/organisms/PageErrorBoundary'
 export type { PageErrorBoundaryProps } from './components/organisms/PageErrorBoundary'

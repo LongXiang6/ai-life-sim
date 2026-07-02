@@ -19,6 +19,8 @@ export interface RoundInfo {
   month: number
   day: number
   dayOfYear: number
+  /** 从纪元起点（year=0,day=1）累计的绝对天数，单调递增，用于防倒退校验 */
+  totalDays: number
   /** 当前纪元名称（如"神话纪元"） */
   eraName: string,
   /** 当前纪元内的年数（从 1 开始） */
@@ -41,25 +43,15 @@ export interface EngineConfig {
   maxTokens: number,
 }
 
-/** 故事分支选项 */
-export interface StoryChoice {
-  /** 选项 ID（用于工具调用分发） */
-  id: string
-  /** 选项标签（简短，< 30 字） */
-  label: string
-  /** 选项提示（描述选择可能的后果，可选） */
-  hint?: string,
-}
-
 /** 叙事流片段 */
 export interface NarrativeChunk {
+  /** 唯一标识（生成时用 timestamp + 随机数填充，用于 resolveBranch 索引漂移防御） */
+  id?: string,
   text: string
   isComplete: boolean
   timestamp: number,
   /** 重置信号：AI 重试/降级时通知 UI 丢弃上一次尝试已累积的流式文本，避免拼接重复 */
   isReset?: boolean,
-  /** 可选：AI 生成的分支选项（事件卡牌化） */
-  choices?: StoryChoice[],
   /** 命运分叉点 */
   isBranchPoint?: boolean,
   branchTitle?: string,

@@ -58,17 +58,32 @@ export function useSimulationBranch({ advanceRound }: UseSimulationBranchDeps) {
       ? branchOptions[Number(selectedBranchOptionId)]
       : undefined
     const choice = branchCustomText.trim() || selectedLabel?.trim()
-    if (!choice) return
+    if (!choice) {
+      console.warn('[useSimulationBranch] handleBranchConfirm: 未选择任何选项')
+      return
+    }
 
-    resolveBranch(unresolvedBranchIndex, choice)
+    // 使用 chunk id 而非数组下标解决分支（防御 narrativeHistory 裁剪后索引漂移）
+    const branchEntry = narrativeHistory[unresolvedBranchIndex]
+    const branchId = branchEntry?.id
+    if (!branchId) {
+      console.warn('[useSimulationBranch] handleBranchConfirm: branchEntry 缺少 id 字段')
+      return
+    }
+
+    resolveBranch(branchId, choice)
     orchestrator.setLastPlayerChoice(choice)
     clearPreGenQueue()
     setBranchCustomText('')
     setSelectedBranchOptionId(null)
 
+    // 显式重置 forceBranchNext 防止在 resolveBranch→advanceRound 之间被 toggle
+    useEngineStore.getState().setForceBranchNext(false)
+
     await advanceRound()
   }, [
     unresolvedBranchIndex,
+    narrativeHistory,
     branchOptions,
     selectedBranchOptionId,
     branchCustomText,

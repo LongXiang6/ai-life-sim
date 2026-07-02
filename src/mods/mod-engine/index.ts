@@ -11,7 +11,6 @@ export type {
   SimulationStatus,
   EngineConfig,
   NarrativeChunk,
-  StoryChoice,
   EngineState,
   RoundResult,
   CompressionStats,
@@ -44,6 +43,7 @@ export {
 export {
   NARRATIVE_STYLE_PROMPTS,
   WORD_COUNT_RANGES,
+  DEFAULT_WORD_COUNT_TARGET,
   MAX_CONTEXT_EVENTS,
   SLIDING_WINDOW_RECENT_EVENTS_BASE,
   COMPACT_JSON_KEY_MAP,
@@ -62,7 +62,7 @@ export type {
   PreGenStatus,
   PreGenCache,
 } from './constants/pre-gen-config'
-export { clearPreGenQueue, fillPreGenQueue, getPreGenQueueLength, getPreGenQueueStatus, subscribePreGenQueue } from './helpers/pre-gen-queue'
+export { checkAndClearPreGenOnTimeStepChange, clearPreGenQueue, fillPreGenQueue, getPreGenQueueLength, getPreGenQueueStatus, subscribePreGenQueue } from './helpers/pre-gen-queue'
 export type { PreGenCachedRound, PreGenQueueStatus } from './helpers/pre-gen-queue'
 export { applyGameSave, collectGameSavePayload } from './helpers/save-restore'
 

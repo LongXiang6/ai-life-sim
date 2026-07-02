@@ -31,7 +31,9 @@ export const PROMPT_CONTEXT_FIELDS = [
   "causalChainHint",
   "currentTime",
   "talents",
-  "creationProtectionText"
+  "creationProtectionText",
+  "subsystemGuideText",
+  "timeGuideText"
 ] as const
 
 /** narrative-prompt 模板 variables[] */
@@ -57,5 +59,7 @@ export const NARRATIVE_PROMPT_VARIABLES = [
   "systemChangeSummary",
   "eventInjectionText",
   "narrativeHistory",
+  "subsystemGuideText",
+  "timeGuideText",
   "userInstruction"
 ] as const

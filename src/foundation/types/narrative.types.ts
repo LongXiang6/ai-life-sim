@@ -97,6 +97,10 @@ export interface PromptContext {
   talents?: string,
   /** 原创保护文本（角色已创造内容的硬约束，注入 STABLE KV Cache 段） */
   creationProtectionText?: string,
+  /** 子系统变更字段指南（从 System Prompt 移出的 subsystemGuide，动态注入 User Prompt） */
+  subsystemGuideText?: string,
+  /** 时间描写引导（totalRounds > 0 时注入，指导 AI 避免"这一年"开头） */
+  timeGuideText?: string,
 }
 
 /**

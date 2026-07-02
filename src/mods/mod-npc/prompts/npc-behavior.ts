@@ -18,7 +18,7 @@ export const npcBehaviorOutputSchema = z.object({
   narrative: z.string().min(1),
   targetId: z.string().nullable(),
   consequence: z.string(),
-  relationChange: z.number().min(-10).max(10),
+  relationChange: z.coerce.number().min(-10).max(10),
 })
 
 export type NpcBehaviorOutput = z.infer<typeof npcBehaviorOutputSchema>

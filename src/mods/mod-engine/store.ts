@@ -11,7 +11,7 @@ import { persist, } from 'zustand/middleware'
 
 import { DEFAULT_ENGINE_CONFIG, } from './constants'
 
-import type { EngineState, SimulationStatus, NarrativeChunk, CompressionStats, StoryChoice, CharacterCreation, } from './types'
+import type { EngineState, SimulationStatus, NarrativeChunk, CompressionStats, CharacterCreation, } from './types'
 import type { CompressedSummaries, } from '@/foundation'
 import type { NPCInteractionRecord, } from './subsystems/core-memory-system'
 
@@ -20,10 +20,6 @@ interface EngineStore extends EngineState {
   streamingNarrative: string
   /** 流式叙事错误信息 */
   narrativeError: string | null
-  /** 待处理的分支选项（事件卡牌化） */
-  pendingChoices: StoryChoice[]
-  /** 玩家选中的选项 ID（提交给 Orchestrator） */
-  selectedChoiceId: string | null
 
   setStatus: (status: SimulationStatus) => void
   setTimeStep: (step: EngineState['timeStep']) => void
@@ -43,13 +39,6 @@ interface EngineStore extends EngineState {
   /** 设置上次自动保存的回合数 */
   setLastAutoSaveRound: (round: number) => void
 
-  /** 设置待处理分支选项 */
-  setPendingChoices: (choices: StoryChoice[]) => void
-  /** 玩家选择分支选项 */
-  selectChoice: (choiceId: string) => void
-  /** 清除待处理选项 */
-  clearPendingChoices: () => void
-
   /** 核心记忆 NPC 关系网持久化 */
   coreMemoryNpcMap: Record<string, NPCInteractionRecord[]>
   setCoreMemoryNpcMap: (map: Record<string, NPCInteractionRecord[]>) => void
@@ -57,9 +46,9 @@ interface EngineStore extends EngineState {
   /** 下轮强制分叉（更多 → 分支） */
   forceBranchNext: boolean
   setForceBranchNext: (value: boolean) => void
-  /** 已解决的分叉：叙事索引 → 玩家选择文本 */
-  resolvedBranches: Record<number, string>
-  resolveBranch: (index: number, choice: string) => void
+  /** 已解决的分叉：叙事片段 id → 玩家选择文本 */
+  resolvedBranches: Record<string, string>
+  resolveBranch: (id: string, choice: string) => void
 
   reset: () => void,
 }
@@ -70,6 +59,7 @@ const initialRound = {
   month: 0,
   day: 0,
   dayOfYear: 1,
+  totalDays: 365,
   eraName: '创世纪元',
   eraYear: 1,
   reignTitle: '建武',
@@ -88,11 +78,9 @@ const initialState = {
   lastAutoSaveRound: 0,
   streamingNarrative: '',
   narrativeError: null as string | null,
-  pendingChoices: [] as StoryChoice[],
-  selectedChoiceId: null as string | null,
   coreMemoryNpcMap: {} as Record<string, NPCInteractionRecord[]>,
   forceBranchNext: false,
-  resolvedBranches: {} as Record<number, string>,
+  resolvedBranches: {} as Record<string, string>,
   characterCreations: [] as CharacterCreation[],
 }
 
@@ -106,9 +94,12 @@ export const useEngineStore = create<EngineStore>()(
       setTimeStep: (timeStep,) => set({ timeStep, },),
 
       appendNarrative: (chunk,) =>
-        set((state,) => ({
-          narrativeHistory: [...state.narrativeHistory, chunk,],
-        }),),
+        set((state,) => {
+          const enriched = chunk.id
+            ? chunk
+            : { ...chunk, id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8) }
+          return { narrativeHistory: [...state.narrativeHistory, enriched], }
+        }),
 
       setCurrentNarrative: (text,) => set({ currentNarrative: text, },),
 
@@ -136,21 +127,15 @@ export const useEngineStore = create<EngineStore>()(
 
       setLastAutoSaveRound: (round,) => set({ lastAutoSaveRound: round, },),
 
-      setPendingChoices: (choices,) => set({ pendingChoices: choices, },),
-
-      selectChoice: (choiceId,) => set({ selectedChoiceId: choiceId, },),
-
-      clearPendingChoices: () => set({ pendingChoices: [], selectedChoiceId: null, },),
-
       setCoreMemoryNpcMap: (map,) => set({ coreMemoryNpcMap: map, },),
 
       setForceBranchNext: (forceBranchNext,) => set({ forceBranchNext, },),
 
-      resolveBranch: (index, choice,) =>
+      resolveBranch: (id, choice,) =>
         set((state,) => {
-          const resolvedBranches = { ...state.resolvedBranches, [index]: choice }
-          const narrativeHistory = state.narrativeHistory.map((chunk, i) =>
-            i === index ? { ...chunk, resolvedChoice: choice } : chunk,
+          const resolvedBranches = { ...state.resolvedBranches, [id]: choice }
+          const narrativeHistory = state.narrativeHistory.map((chunk) =>
+            chunk.id === id ? { ...chunk, resolvedChoice: choice } : chunk,
           )
           return { resolvedBranches, narrativeHistory, forceBranchNext: false }
         }),
@@ -163,10 +148,21 @@ export const useEngineStore = create<EngineStore>()(
     }),
     {
       name: 'mod-engine:persist:engine-state',
-      version: 1,
-      migrate: (persistedState: unknown, _version: number) => persistedState as EngineStore,
+      version: 2,
+      migrate: (persistedState: unknown, version: number) => {
+        if (version < 2) {
+          const old = persistedState as Record<string, unknown>
+          // 将旧格式的数字键 resolvedBranches 转换为字符串键
+          const oldBranches = old.resolvedBranches as Record<string, string> | undefined
+          if (oldBranches && typeof oldBranches === 'object') {
+            // 旧数据中 numeric key 保持不动也能用，但为了干净迁移，转为空对象（旧 chunk 无 id 无法映射）
+            old.resolvedBranches = {}
+          }
+        }
+        return persistedState as EngineStore
+      },
       partialize: (state,) => {
-        const { setStatus: _a, appendNarrative: _b, setCurrentNarrative: _c, advanceRound: _d, setCompressionStats: _e, setCompressedSummaries: _f, appendStreamingChunk: _g, finalizeNarrative: _h, setNarrativeError: _i, setLastAutoSaveRound: _j, setPendingChoices: _k, selectChoice: _l, clearPendingChoices: _m, setCoreMemoryNpcMap: _n, setForceBranchNext: _fb, resolveBranch: _rb, reset: _o, ...rest } = state
+        const { setStatus: _a, appendNarrative: _b, setCurrentNarrative: _c, advanceRound: _d, setCompressionStats: _e, setCompressedSummaries: _f, appendStreamingChunk: _g, finalizeNarrative: _h, setNarrativeError: _i, setLastAutoSaveRound: _j, setCoreMemoryNpcMap: _n, setForceBranchNext: _fb, resolveBranch: _rb, reset: _o, ...rest } = state
         // 仅持久化最近 50 条叙事历史，防止 localStorage 膨胀
         if (rest.narrativeHistory && rest.narrativeHistory.length > 50) {
           rest.narrativeHistory = rest.narrativeHistory.slice(-50)

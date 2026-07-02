@@ -11,7 +11,7 @@ import type { PromptTemplate } from '@/foundation'
 /** 种族寿命配置适配输出 Schema */
 export const lifespanAdaptationOutputSchema = z.object({
   races: z.record(z.string(), z.object({
-    baseAge: z.number().int().positive(),
+    baseAge: z.coerce.number().int().positive(),
     label: z.string(),
   })).describe('种族ID→{baseAge, label} 映射'),
 })

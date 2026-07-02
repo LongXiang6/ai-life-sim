@@ -11,7 +11,7 @@ import { createPortal } from 'react-dom'
 
 import { useSettingsStore } from '../store'
 import type { ReasoningEffort } from '../store'
-import { DEFAULT_WORD_COUNT_TARGET } from '@/mods/mod-engine/constants/narrative-config'
+import { DEFAULT_WORD_COUNT_TARGET } from '@/mods/mod-engine'
 import { SettingsParamCard } from './SettingsParamCard'
 import { SettingsHelpTooltip } from './SettingsHelpTooltip'
 

@@ -42,6 +42,16 @@ export interface NarrativeTimelineProps {
   onAdvance?: () => void
   onGoToGameOver?: () => void
   className?: string
+  // 分支选择相关
+  unresolvedBranchIndex?: number | null
+  branchTitle?: string
+  branchOptions?: string[]
+  selectedBranchOptionId?: string | null
+  branchCustomText?: string
+  onBranchSelect?: (optionId: string) => void
+  onBranchConfirm?: () => void
+  onBranchCancel?: () => void
+  onCustomInputChange?: (text: string) => void
 }
 
 export function NarrativeTimeline({
@@ -59,6 +69,15 @@ export function NarrativeTimeline({
   onAdvance,
   onGoToGameOver,
   className,
+  unresolvedBranchIndex,
+  branchTitle,
+  branchOptions = [],
+  selectedBranchOptionId,
+  branchCustomText,
+  onBranchSelect,
+  onBranchConfirm,
+  onBranchCancel,
+  onCustomInputChange,
 }: NarrativeTimelineProps) {
   const internalScrollRef = useRef<HTMLDivElement>(null)
   const scrollRef = scrollContainerRef ?? internalScrollRef
@@ -175,6 +194,50 @@ export function NarrativeTimeline({
               ))}
             </div>
           )}
+          {entry.isBranchPoint && !entry.resolvedChoice && i === unresolvedBranchIndex && (
+            <div className={styles.branchPending}>
+              <p className={styles.branchPendingTitle}>⚡ 命运分叉点：{branchTitle}</p>
+              {branchOptions.length > 0 && (
+                <div className={styles.branchOptionsList}>
+                  {branchOptions.map((option, optIdx) => (
+                    <label key={optIdx} className={styles.branchOption}>
+                      <input
+                        type="radio"
+                        name={`branch-${i}`}
+                        className={styles.branchOptionRadio}
+                        checked={selectedBranchOptionId === String(optIdx)}
+                        onChange={() => onBranchSelect?.(String(optIdx))}
+                      />
+                      <span>{option}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              <textarea
+                className={styles.branchCustomInput}
+                placeholder="或手动输入你的选择..."
+                value={branchCustomText ?? ''}
+                onChange={(e) => onCustomInputChange?.(e.target.value)}
+                rows={3}
+              />
+              <div className={styles.branchActions}>
+                <button
+                  type="button"
+                  className={styles.branchConfirmBtn}
+                  onClick={() => onBranchConfirm?.()}
+                >
+                  确认选择
+                </button>
+                <button
+                  type="button"
+                  className={styles.branchCancelBtn}
+                  onClick={() => onBranchCancel?.()}
+                >
+                  取消
+                </button>
+              </div>
+            </div>
+          )}
           {entry.isBranchPoint && entry.resolvedChoice && (
             <div className={styles.branchResolved}>
               <p className={styles.branchResolvedTitle}>
@@ -228,7 +291,7 @@ export function NarrativeTimeline({
     }
 
     return nodes
-  }, [renderStart, entries, isGenerating, streamingText, streamingHeader])
+  }, [renderStart, entries, isGenerating, streamingText, streamingHeader, unresolvedBranchIndex, branchTitle, branchOptions, selectedBranchOptionId, branchCustomText, onBranchSelect, onBranchConfirm, onBranchCancel, onCustomInputChange])
 
   const canTapAdvance = showAdvance && !advanceBlocked && !isGenerating
 

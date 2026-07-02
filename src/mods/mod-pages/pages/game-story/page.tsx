@@ -36,13 +36,11 @@ import { STRATUM_LABELS_DEFAULT } from '@/mods/mod-politics'
 import {
   NarrativeTimeline,
   type NarrativeEntry,
-  EventCard,
   ToastContainer,
   useToastStore,
   SaveDialog,
   MAX_WIDTH,
   NPCRelationshipPanel,
-  BranchChoice,
 } from '@/mods/mod-ui'
 
 import styles from './GameStory.module.css'
@@ -54,8 +52,6 @@ import { cn } from '@/foundation/utils'
 import { formatEraYear } from '@/foundation/utils/format-time'
 
 import { useSimulationBranch } from './useSimulationBranch'
-
-const AUTO_SAVE_INTERVAL = 1
 
 type MoreSelectedKey = 'branch' | 'save' | 'settle' | 'main' | 'relation' | null
 
@@ -92,28 +88,18 @@ function parseWorldTagsToSections(text: string): TagSection[] {
   return sections
 }
 
-function AutoSaveIndicator({ totalRounds, lastAutoSaveRound }: { totalRounds: number; lastAutoSaveRound: number }) {
-  const roundsSinceLastSave = totalRounds - lastAutoSaveRound
-  const roundsUntilNextSave = AUTO_SAVE_INTERVAL - roundsSinceLastSave
-  const isUrgent = roundsUntilNextSave <= 2 && roundsUntilNextSave > 0
+function AutoSaveIndicator({ lastAutoSaveRound }: { lastAutoSaveRound: number }) {
   const hasAutoSave = lastAutoSaveRound > 0
 
   return (
     <div className="flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
       <span className="flex items-center gap-1">
         <span className={`inline-block w-1.5 h-1.5 rounded-full ${hasAutoSave ? 'bg-[var(--color-success)]' : 'bg-[var(--color-text-tertiary)]'}`} />
-        自动保存
+        实时保存
       </span>
-      {hasAutoSave && (
-        <span className={isUrgent ? 'text-[var(--color-warning)] font-medium' : ''}>
-          {isUrgent
-            ? `距下次 ${roundsUntilNextSave} 轮`
-            : `已保存至第 ${lastAutoSaveRound} 轮`}
-        </span>
-      )}
-      {!hasAutoSave && (
-        <span>未保存</span>
-      )}
+      {hasAutoSave
+        ? <span>已保存至第 {lastAutoSaveRound} 轮</span>
+        : <span>未保存</span>}
     </div>
   )
 }
@@ -125,6 +111,7 @@ export default function GamePage() {
 
   const {
     hasUnresolvedBranch,
+    unresolvedBranchIndex,
     branchTitle,
     branchOptions,
     forceBranchNext,
@@ -141,10 +128,6 @@ export default function GamePage() {
   const preGenStatus = usePreGenQueueStatus()
   const causalPending = useHistoryDynamicsStore((s) => s.causalSimulation.queue.pending)
   const streamingNarrative = useEngineStore((s) => s.streamingNarrative)
-  const pendingChoices = useEngineStore((s) => s.pendingChoices)
-  const selectedChoiceId = useEngineStore((s) => s.selectedChoiceId)
-  const selectChoice = useEngineStore((s) => s.selectChoice)
-  const clearPendingChoices = useEngineStore((s) => s.clearPendingChoices)
   const timeStep = useEngineStore((s) => s.timeStep)
   const activeTimeStepKey = encodeTimeStepKey(timeStep)
   const handleTimeStepChange = useCallback((key: string) => {
@@ -365,9 +348,9 @@ export default function GamePage() {
   }, [router, stop])
 
   const handleNarrativeAdvance = useCallback(async () => {
-    if (isDead || isComplete || pendingChoices.length > 0 || isAdvancing || hasUnresolvedBranch) return
+    if (isDead || isComplete || isAdvancing || hasUnresolvedBranch) return
     await advanceRound()
-  }, [isDead, isComplete, pendingChoices.length, isAdvancing, hasUnresolvedBranch, advanceRound])
+  }, [isDead, isComplete, isAdvancing, hasUnresolvedBranch, advanceRound])
 
   const activeTimeStepLabel = timeStepOptions.find((o) => o.value === activeTimeStepKey)?.label ?? '按年'
 
@@ -474,12 +457,6 @@ export default function GamePage() {
     await saveManager.saveToSlot(slot, name, worldConfig?.name ?? '', characterName, collectGameSavePayload())
     setMoreSelected('save')
   }, [characterName, worldConfig?.name])
-
-  // 事件卡牌选择处理
-  const handleChoiceSelect = useCallback((choiceId: string) => {
-    selectChoice(choiceId)
-    clearPendingChoices()
-  }, [selectChoice, clearPendingChoices])
 
   const moreButtonLabel = useMemo(() => {
     if (moreSelected === 'branch') return '⚡ 分支'
@@ -650,7 +627,7 @@ export default function GamePage() {
                 📊 世界{showWorldPanel ? '▴' : '▾'}
               </button>
             </div>
-            <AutoSaveIndicator totalRounds={totalRounds} lastAutoSaveRound={lastAutoSaveRound} />
+            <AutoSaveIndicator lastAutoSaveRound={lastAutoSaveRound} />
           </div>
         </div>
       </header>
@@ -897,56 +874,23 @@ export default function GamePage() {
           streamingHeader={streamingHeader}
           turnCount={totalRounds}
           showAdvance={!isDead && !isComplete}
-          advanceBlocked={pendingChoices.length > 0 || hasUnresolvedBranch}
-          advanceBlockedText={hasUnresolvedBranch ? '✔ 请先选择命运' : '✔ 请先做出选择'}
+          advanceBlocked={hasUnresolvedBranch}
+          advanceBlockedText="✔ 请先选择命运"
           isGenerating={isAdvancing}
           hasEndingEvent={isDead}
           advanceText="轻触，让岁月流转"
           onAdvance={handleNarrativeAdvance}
           onGoToGameOver={handleGoToGameOver}
+          unresolvedBranchIndex={unresolvedBranchIndex}
+          branchTitle={branchTitle}
+          branchOptions={branchOptions}
+          selectedBranchOptionId={selectedBranchOptionId}
+          branchCustomText={branchCustomText}
+          onBranchSelect={setSelectedBranchOptionId}
+          onBranchConfirm={handleBranchConfirm}
+          onBranchCancel={handleBranchCancel}
+          onCustomInputChange={setBranchCustomText}
         />
-
-        {pendingChoices.length > 0 && (
-          <div className={styles.eventCardWrap}>
-            <EventCard
-              narrative={streamingNarrative || narrativeHistory[narrativeHistory.length - 1]?.text || ''}
-              choices={pendingChoices.map((c) => ({ id: c.id, label: c.label, hint: c.hint }))}
-              onSelect={handleChoiceSelect}
-              disabled={!!selectedChoiceId}
-              selectedId={selectedChoiceId}
-            />
-          </div>
-        )}
-
-        {hasUnresolvedBranch && branchOptions.length > 0 && (
-          <div className={styles.eventCardWrap}>
-            <div className={styles.branchCard}>
-              <p className={styles.branchTitle}>⚠️ 命运分叉点：{branchTitle}</p>
-              <BranchChoice
-                title=""
-                options={branchOptions.map((label, i) => ({ id: String(i), label }))}
-                onSelect={(id) => setSelectedBranchOptionId(id)}
-                allowCustom
-                customPlaceholder="或输入你的选择..."
-                onCustomConfirm={(text) => setBranchCustomText(text)}
-                disabled={isAdvancing}
-              />
-              <div className={styles.branchActions}>
-                <button
-                  type="button"
-                  className={styles.branchConfirmBtn}
-                  onClick={() => void handleBranchConfirm()}
-                  disabled={isAdvancing || (!branchCustomText.trim() && selectedBranchOptionId === null)}
-                >
-                  确认选择
-                </button>
-                <button type="button" className={styles.branchCancelBtn} onClick={handleBranchCancel}>
-                  取消
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {isDead && !streamingNarrative && (
           <div className={styles.statusBanner}>

@@ -15,11 +15,11 @@ import { stringifyPrompt } from '@/foundation'
 
 import { worldConfigOutputSchema } from './world-config-prompt'
 
-const modifierSchema = z.number().min(0.01).max(100).optional()
+const modifierSchema = z.coerce.number().min(0.01).max(100).optional()
 
 const rangeSchema = z.object({
-  min: z.number().int().min(0),
-  max: z.number().int().min(0),
+  min: z.coerce.number().int().min(0),
+  max: z.coerce.number().int().min(0),
 }).refine((d) => d.min <= d.max)
 
 const eventDistributionStrategySchema = z.enum([
@@ -42,11 +42,11 @@ export const worldCalibrationOutputSchema = z.object({
   styleGuide: z.object({
     worldviewStyleHint: z.string().max(200).optional(),
     narrativeTone: z.string().max(50).optional(),
-    eventTypeWeights: z.record(z.string(), z.number().min(0)).optional(),
+    eventTypeWeights: z.record(z.string(), z.coerce.number().min(0)).optional(),
   }).optional(),
   timeline: z.object({
-    eraStartYear: z.number().int().optional(),
-    stageSpan: z.number().int().positive().optional(),
+    eraStartYear: z.coerce.number().int().optional(),
+    stageSpan: z.coerce.number().int().positive().optional(),
     impactDistribution: eventDistributionStrategySchema.optional(),
   }).optional(),
   entities: z.object({
@@ -57,10 +57,10 @@ export const worldCalibrationOutputSchema = z.object({
     tradeRouteCount: rangeSchema.optional(),
   }).optional(),
   world: z.object({
-    populationBase: z.number().int().positive().optional(),
-    developmentRange: z.object({ min: z.number(), max: z.number() }).optional(),
+    populationBase: z.coerce.number().int().positive().optional(),
+    developmentRange: z.object({ min: z.coerce.number(), max: z.coerce.number() }).optional(),
     mapTemplate: mapTemplateSchema.optional(),
-    regionCount: z.number().int().min(1).max(30).optional(),
+    regionCount: z.coerce.number().int().min(1).max(30).optional(),
   }).optional(),
   formulas: z.object({
     populationModifier: modifierSchema,
@@ -95,11 +95,11 @@ export const worldCalibrationOutputSchema = z.object({
     industryProductivityModifier: modifierSchema,
     economyModifier: modifierSchema,
     economyTierRatios: z.tuple([
-      z.number().min(0).max(1),
-      z.number().min(0).max(1),
-      z.number().min(0).max(1),
-      z.number().min(0).max(1),
-      z.number().min(0).max(1),
+      z.coerce.number().min(0).max(1),
+      z.coerce.number().min(0).max(1),
+      z.coerce.number().min(0).max(1),
+      z.coerce.number().min(0).max(1),
+      z.coerce.number().min(0).max(1),
     ]).optional(),
     crossDomainEffectModifier: modifierSchema,
     eventDistributionStrategy: eventDistributionStrategySchema.optional(),
@@ -142,6 +142,7 @@ export const worldCalibrationPrompt: PromptTemplate = {
       'formulas modifier 默认值 1.0，仅输出偏离 ±20% 以上的项',
       'warFrequencyModifier 越大 → 战争越频繁（阈值 = 80/modifier）',
       'aiDetailedParameters 含 W02 全部 43 个叙事参数字段（climate/techLevel/inflationRate 等），全部必填',
+      'aiDetailedParameters 所有数值字段必须为有效数字，不确定的填 0，严禁输出 NaN 或 "NaN" 字符串',
       'aiDetailedParameters.powerCeiling 须与最终判定的 powerCeiling 一致（AI决定模式下即为 AI 判定的值）',
       'worldTags 与 worldDescription 共同决定校准方向；tags 不得与描述矛盾',
       'worldDescription 优先于 essenceTag 决定校准方向',

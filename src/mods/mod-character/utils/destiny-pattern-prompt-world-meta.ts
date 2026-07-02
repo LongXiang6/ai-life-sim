@@ -1,79 +1,48 @@
 /**
  * @module destiny-pattern-prompt-world-meta.ts
- * @description 命格 Prompt 用世界元数据校正 —— 避免 store 脏数据污染 AI 上下文
+ * @description 命格 Prompt 用世界元数据 —— 统一字段，不再区分世界观类型
  * @mod mod-character
+ *
+ * 设计原则：
+ *   - 所有世界观使用相同的 modifier 字段集合
+ *   - AI 根据 worldDescription 自主判断输出哪些 modifier
+ *   - 仅保留个人向字段，世界向字段通过个人层面的连锁计算来影响
  */
 
 import type { WorldConfig } from '@/mods/mod-world'
 
 import {
   DESTINY_PATTERN_PERSONAL_MODIFIERS,
-  DESTINY_PATTERN_WORLD_MODIFIERS,
 } from '../constants'
-
-const SUPERNATURAL_MARKERS = /灵气|修炼|魔法|神明|怪物|宗门|功法|灵力|超自然/
-const MODERN_MARKERS = /现代|2000|互联网|千禧|都市|科学|信息时代/
 
 export interface ResolvedDestinyPatternWorldMeta {
   powerSystemTag: string
   civilizationStage: string
   powerCeiling: number
   personalModifierFields: Record<string, string>
-  worldModifierFields: Record<string, string>
 }
 
-function isModernMundaneWorld(config: WorldConfig | null | undefined): boolean {
-  if (!config) return false
-  const desc = config.description?.trim() ?? ''
-  const tag = config.essenceTag?.toLowerCase() ?? ''
-  if (tag === 'modern' || tag === 'scifi' || tag === 'contemporary') return true
-  if (MODERN_MARKERS.test(desc) && !SUPERNATURAL_MARKERS.test(desc)) return true
-  return false
-}
-
-function isCultivationWorld(config: WorldConfig | null | undefined): boolean {
-  if (!config) return false
-  const desc = config.description?.trim() ?? ''
-  const tag = config.powerSystemTag?.toLowerCase() ?? ''
-  const essence = config.essenceTag?.toLowerCase() ?? ''
-  if (tag === 'cultivation' || essence === 'cultivation' || essence === 'xianxia') return true
-  return SUPERNATURAL_MARKERS.test(desc) && !MODERN_MARKERS.test(desc)
-}
-
-/** 校正注入 Prompt 的力量/文明标签，优先 worldDescription */
+/**
+ * 为命格 AI prompt 组装世界元数据
+ *
+ * 统一逻辑：不再判断 cultivation/modern，所有世界观注入相同的个人向字段
+ * AI 根据 worldDescription 自行决定输出哪些 modifier
+ */
 export function resolveDestinyPatternPromptWorldMeta(
   config: WorldConfig | null | undefined,
 ): ResolvedDestinyPatternWorldMeta {
-  const modernMundane = isModernMundaneWorld(config)
-  const cultivation = isCultivationWorld(config)
+  // 优先级：AI/用户设定 > 默认值
+  const powerSystemTag = config?.powerSystemTag ?? 'none'
+  const civilizationStage = config?.civilizationStage ?? 'unknown'
+  const powerCeiling = config?.powerCeiling ?? 5
 
-  let powerSystemTag = config?.powerSystemTag ?? 'none'
-  let civilizationStage = config?.civilizationStage ?? 'unknown'
-  let powerCeiling = config?.powerCeiling ?? 5
-
-  if (modernMundane && !cultivation) {
-    powerSystemTag = 'none'
-    if (civilizationStage === 'medieval' || civilizationStage === 'unknown') {
-      civilizationStage = 'modern'
-    }
-    if (powerCeiling > 3) powerCeiling = 1
-  }
-
-  const personalEntries = Object.entries(DESTINY_PATTERN_PERSONAL_MODIFIERS).filter(([key]) => {
-    if (cultivation) return true
-    return !['cultivationSpeedModifier', 'bottleneckModifier', 'breakthroughChanceModifier'].includes(key)
-  })
-
-  const worldEntries = Object.entries(DESTINY_PATTERN_WORLD_MODIFIERS).filter(([key]) => {
-    if (cultivation) return true
-    return key !== 'monsterThreatModifier'
-  })
+  // 统一注入所有个人向字段，不再做世界观判断
+  const personalModifierFields = { ...DESTINY_PATTERN_PERSONAL_MODIFIERS }
 
   return {
     powerSystemTag,
     civilizationStage,
     powerCeiling,
-    personalModifierFields: Object.fromEntries(personalEntries),
-    worldModifierFields: Object.fromEntries(worldEntries),
+    personalModifierFields,
   }
 }

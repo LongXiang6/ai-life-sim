@@ -11,7 +11,7 @@ import { clamp } from '@/core/shared'
 
 import { useSettingsStore } from '../store'
 import type { NarrativeStyle } from '../store'
-import { DEFAULT_WORD_COUNT_TARGET } from '@/mods/mod-engine/constants/narrative-config'
+import { DEFAULT_WORD_COUNT_TARGET } from '@/mods/mod-engine'
 
 import { useThemeStore, type ThemeType } from '@/core/theme/theme-store'
 import { useFontStore } from '@/core/theme/font-store'

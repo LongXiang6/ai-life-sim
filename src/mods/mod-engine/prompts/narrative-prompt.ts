@@ -41,7 +41,7 @@ const NarrativeResponseSchema = z.object({
   foreshadowing: z.array(z.object({
     type: z.enum(['prophecy', 'mysterious_item', 'secret_identity', 'oath', 'mysterious_person', 'hidden_power', 'ancient_ruin', 'other']),
     description: z.string(),
-    priority: z.number().min(1).max(10),
+    priority: z.coerce.number().min(1).max(10),
   })).optional(),
   importance: z.enum(['HIGH', 'NORMAL', 'LOW']).optional(),
   branch: z.boolean().optional(),
@@ -50,22 +50,106 @@ const NarrativeResponseSchema = z.object({
 })
 
 /**
- * 世界观叙事规则（根据 essenceTag 动态注入）
+ * 世界观叙事参考（根据 essenceTag 动态注入到 prompt 的「世界规则」字段）
+ *
+ * 设计理念：
+ *   这些文本作为"参考性质的世界观要素"注入，不构成对 AI 的硬约束。
+ *   AI 应以 worldDescription / 用户设定的具体描述为核心叙事依据；
+ *   本参考可在风格/术语/要素选择上给予启发，但不应被当作"必须遵守的规则"。
+ *
+ *   语言上统一使用"可考虑"、"参考风格"等建议性措辞，
+ *   避免"应"、"须"、"禁止"等绝对化命令（此类语义留给 system prompt 的 schema）。
  */
 export const WORLD_RULES: Record<string, string> = {
-  cultivation: '【修仙规则】修炼境界分为炼气→筑基→金丹→元婴→化神→渡劫→大乘。突破需要机缘和资源。灵气浓度影响修炼速度。可出现秘境、灵兽、丹药、法器。叙事应有古风韵味，使用"道友""灵根""丹田"等术语。',
-  wuxia: '【武侠规则】武功分为后天→先天→宗师→大宗师→陆地神仙。内力修炼需要时间积累。可出现门派、武林秘籍、江湖恩怨、兵器谱。叙事应有江湖气息，使用"内力""招式""武林"等术语。',
-  scifi: '【科幻规则】科技水平决定文明等级。可出现星际旅行、人工智能、基因改造、纳米技术。能量来源为反物质/聚变/零点能。叙事应有科技感，使用"量子""轨道""协议"等术语。',
-  westernFantasy: '【奇幻规则】魔法分为学徒→法师→大法师→贤者→传奇。魔力来源于元素/信仰/血脉。可出现龙、精灵、矮人、魔法物品。叙事应有史诗感，使用"魔法""预言""诅咒"等术语。',
-  modern: '【现代规则】无超自然力量，遵循物理定律。社会规则与现实一致。可出现政治、经济、科技、文化冲突。叙事应写实，避免奇幻元素。',
-  postApocalyptic: '【末日规则】文明已经崩溃，资源稀缺。生存是第一要务。可出现辐射、变异、废土部落、科技遗迹。叙事应紧张压抑，强调生存和希望。',
-  mythological: '【神话规则】神灵真实存在，可干预凡人事务。信仰产生力量。可出现神谕、神器、神力、神话生物。叙事应有宏大史诗感。',
-  steampunk: '【蒸汽朋克规则】蒸汽动力为主，机械与魔法/科技并存。齿轮、飞艇、差分机。社会等级分明。叙事应有复古未来感。',
-  materialist: '【唯物规则】无超自然力量，一切可解释。科学是唯一真理。叙事应严谨写实。',
-  materialist_cultivation: '【唯物修仙规则】修仙本质上是一种可被科学解析的能量操控体系。灵气是客观存在的能量场，可通过仪器观测和量化。修炼境界对应生命体能量层级的跃迁——筑基是能量场的初步凝聚，金丹是能量核心的质变，元婴是意识能量体的分离。丹药是精确配比的生物化学制剂，法器是能量场的工程应用产物。叙事应保持"解析感"——用客观、可观测的现象描述修炼过程，使用"能量场""生命场""量子态""能级跃迁""生物电场"等术语，减少不可知论和神秘主义表述。体系中不存在不可解析的"玄"，万物皆可被分析和测量。',
-  idealist_cultivation: '【唯心修仙规则】修仙是不可被完全解析的神秘体系，超越科学理解的范畴。灵气是天地意志的具现，修炼本质上是心境的升华——道心越坚，力量越强。意境、因果、轮回、缘法不再是抽象概念，而是真实可感的力量。突破境界需要的不是能量积累，而是顿悟和机缘。丹药蕴含天地精华，法器承载使用者意志与情感。叙事应保持"玄妙感"——用诗意的、意境化的语言描述无法量化的神秘体验，使用"天道""因果""命数""剑意""真意""悟道""意境"等术语。体系的核心力量本质上是不可分析、不可预测、不可复制的。',
-  darkFantasy: '【黑暗奇幻规则】诸神沉默或已陨落，世界被诅咒侵蚀。力量来源于禁忌交易或血脉诅咒。可出现邪神低语、灵魂交易、不死生物、古神遗迹。叙事应冷峻阴暗，带有绝望感和牺牲主题。',
+  cultivation:
+    '【修仙参考】典型修炼阶梯：炼气→筑基→金丹→元婴→化神→渡劫→大乘（可参考此结构，亦可自创体系）；' +
+    '突破依赖机缘与资源；灵气浓度可影响修炼节奏。常见要素：秘境、灵兽、丹药、法器；' +
+    '常见术语参考：道友、灵根、丹田。以上均为可选素材，请以 worldDescription 的具体设定为准。',
+  wuxia:
+    '【武侠参考】典型阶梯：后天→先天→宗师→大宗师→陆地神仙；' +
+    '内力修炼需时间积累。常见要素：门派、武林秘籍、江湖恩怨、兵器谱；' +
+    '常见术语参考：内力、招式、武林。请以 worldDescription 为准，不必照搬此结构。',
+  scifi:
+    '【科幻参考】文明层级可由科技水平驱动。' +
+    '常见要素：星际旅行、人工智能、基因改造、纳米技术；能量形式可为反物质/聚变/零点能；' +
+    '常见术语参考：量子、轨道、协议。请以 worldDescription 的科技设定为准。',
+  westernFantasy:
+    '【奇幻参考】魔法阶梯参考：学徒→法师→大法师→贤者→传奇；' +
+    '魔力来源可为元素/信仰/血脉。常见要素：龙、精灵、矮人、魔法物品；' +
+    '常见术语参考：魔法、预言、诅咒。请以 worldDescription 为准。',
+  modern:
+    '【现代参考】无超自然力量，遵循物理定律；社会规则与现实相近。' +
+    '常见要素参考：政治、经济、科技、文化冲突。叙事风格请贴近 worldDescription 的具体基调。',
+  postApocalyptic:
+    '【末日参考】文明崩溃后资源稀缺，生存优先。' +
+    '常见要素参考：辐射、变异、废土部落、科技遗迹。叙事基调请依据 worldDescription 设定。',
+  mythological:
+    '【神话参考】神灵真实存在并可干预事务；信仰可产生超凡力量。' +
+    '常见要素：神谕、神器、神力、神话生物。请以 worldDescription 的神话体系为准。',
+  steampunk:
+    '【蒸汽朋克参考】以蒸汽动力为主的架空技术体系；齿轮、飞艇、差分机。' +
+    '社会等级可能分明。请以 worldDescription 的具体机械设定为准。',
+  materialist:
+    '【唯物参考】世界严格遵循物理定律；一切现象可被现有或假想的科学解释。' +
+    '叙事请以 worldDescription 的一致性为准，避免引入无法自洽的超自然要素。',
+  materialist_cultivation:
+    '【唯物修仙参考】将修仙体系视作可被科学解析的能量操控系统——' +
+    '灵气是一种客观的能量场（可被仪器观测和量化）；' +
+    '修炼境界对应生命体能量层级的跃迁（筑基=能量场凝聚，金丹=能量核心质变，元婴=意识能量体分离）；' +
+    '丹药是精确配比的生化制剂，法器是能量场的工程应用产物。' +
+    '常见术语参考：能量场、生命场、量子态、能级跃迁、生物电场。' +
+    '以上仅为参考"解析感"的一种路径，请以 worldDescription 的具体设定为准，不必全盘套用。',
+  idealist_cultivation:
+    '【唯心修仙参考】将修仙体系视作超越科学范畴的神秘体系——' +
+    '灵气是天地意志的具象化；修炼本质上是心境的升华（道心越坚，力量越强）；' +
+    '意境、因果、轮回、缘法是真实可感的力量；' +
+    '突破依赖顿悟与机缘而非单纯的资源堆叠。' +
+    '常见术语参考：天道、因果、命数、剑意、真意、悟道、意境。' +
+    '以上仅为参考"玄妙感"的一种路径，请以 worldDescription 的具体设定为准，不必全盘套用。',
+  darkFantasy:
+    '【黑暗奇幻参考】诸神可能沉默或已陨落；世界被诅咒侵蚀。' +
+    '力量来源可为禁忌交易或血脉诅咒。' +
+    '常见要素参考：邪神低语、灵魂交易、不死生物、古神遗迹。' +
+    '叙事基调请以 worldDescription 的具体氛围为准。',
 }
+
+/**
+ * 子系统变更字段指南（从 System Prompt 移出，由 orchestrator 动态注入 User Prompt）
+ * 包含各子系统可变更字段说明与跨系统联动规则
+ */
+export const SUBSYSTEM_GUIDE = `character-base:
+  physique(0~100) mind(0~100) comprehension(0~100) charisma(0~100) background(0~100)
+health:
+  hpDelta(-50~20) staminaDelta(N) spiritDelta(N) addDiseases[](name,severity,rounds) addInjuries[](name,severity,rounds)
+lifespan:
+  age(N) maxAge(N) lifespanDelta(±)
+cultivation:
+  realm(1~9) cultivationProgress(0~100) bottleneck(enum:physique|mind|comprehension|none)
+combat-power:
+  rank(0~100) delta(±)
+work:
+  job(str) income(±) promotion(bool)
+economy:
+  wealth(±) priceIndex(N) activityLevel(0~1) socialClass(enum:noble|commoner|peasant|merchant|cultivator)
+relationship:
+  addRelation[](name,affinity:±N,reason) affinityDelta(±)
+reputation:
+  fame(0~100) addFame(±) setFame(N) addReputation(±) dimension(str)
+foreshadowing:
+  type(8种) description priority(1~10)
+fate-prophecy:
+  prophecy deadline(year) triggerCondition
+---
+⚠️ 跨系统联动：
+  character-base.physique → health.hpMax, cultivation.speed
+  health.hp=0 → lifespan.dead → post-death-epilogue 启动
+  lifespan.age → attribute-decay 自动衰减
+  cultivation.realm ↑ → combat-power.rating 重算
+  cultivation.breakthrough → item.丹药 消耗, money 消耗
+  skill.effects.attr → character-base 永久增减
+  item.武器 → combat-power.rating
+  item.丹药 → cultivation.cultivationProgress / health.hpDelta
+  economy.wealth → item 购买力, work.income 影响财富`
 
 /**
  * 固定 System Prompt —— 纯 JSON 结构化指令（KV Cache 100% 命中）
@@ -74,7 +158,32 @@ export const WORLD_RULES: Record<string, string> = {
  * 不在 schema 中的字段禁止出现在输出中。
  */
 export const SYSTEM_PROMPT = stringifyPrompt({
-  task: '根据用户消息中的世界设定、规则与当前状态，生成叙事 JSON（含 narrative 与 changes）。叙事风格须符合 worldSetting 与 worldRules，不得引入状态中未成立的能力或设定。',
+  rules: {
+    coreRequirements: {
+      L0: [
+          '优先读取用户消息末尾的「指令」字段',
+          '叙事须以「当前状态」「最近变化」为核心依据，与历史叙事自然衔接',
+          '保证narrative在最前，changes紧随其后',
+          '输出合法JSON，禁止markdown代码块包裹',
+          '「原创保护」列出的内容均为角色亲自开创，严禁改写为外部来源',
+        ],
+      L1: [
+        '「世界规则」与「叙事风格」是叙事基调框架',
+        '角色年龄、性格、能力须与「角色」「命格天赋」一致',
+      ],
+      L2: [
+        '「剧情阶段」「事件注入」为可选参考',
+        '即使极端情况也须确保narrative有可用内容，并遵守世界观规则',
+      ],
+    },
+
+    defense: {
+      description: '降级策略',
+      jsonError: 'JSON格式错误时修正为合法JSON，优先保证narrative有内容',
+      noChanges: '无法判断子系统变化时返回空数组[]',
+      totalFailure: '信息不足时输出最简JSON：{"narrative":"可用文本","changes":[]}',
+    },
+  },
 
   output: {
     schema: {
@@ -84,7 +193,7 @@ export const SYSTEM_PROMPT = stringifyPrompt({
       properties: {
         narrative: {
           type: 'string',
-          description: '必填：流畅的中文叙事文本。使用现在时态和第二人称"你"。包含多个自然段落（段落间用换行分隔），段落数量根据情节需要灵活安排。每轮至少包含1个具体细节（物品/地点/人物/感官）。字数遵循叙事偏好设置。应"展示"而非"告诉"——用具体场景和细节推进故事。保持叙事连贯，与前一轮衔接自然。叙事风格符合当前世界观设定，角色年龄与当前回合匹配。',
+          description: '必填：流畅的中文叙事文本。使用现在时态和第二人称"你"。包含多个自然段落（段落间用换行分隔），段落数量根据情节需要灵活安排。每轮至少包含1个具体细节（物品/地点/人物/感官）。字数遵循叙事偏好设置。应"展示"而非"告诉"——用具体场景和细节推进故事。保持叙事连贯，与前一轮衔接自然。叙事风格符合当前世界观设定，角色年龄与当前回合匹配。⚠️ 严禁以"这一年""本年度""这一轮"作为段落或叙事开头。叙事开头应从具体场景切入：季节/天气/具体事件/感官细节/内心感受。',
         },
         changes: {
           type: 'array',
@@ -168,38 +277,8 @@ export const SYSTEM_PROMPT = stringifyPrompt({
     },
   },
 
-  rules: {
-    coreRequirements: {
-      L0: [
-          '优先读取用户消息末尾的「指令」字段，其约束优先级最高',
-          '当前状态」与「最近变化」是生成叙事的核心依据，不可遗漏或错误呈现',
-          '叙事必须与「叙事历史」保持连贯，新旧情节须自然衔接',
-          '必须保证narrative字段在最前，changes紧随其后，最后是其他可选字段',
-          '必须输出合法JSON，禁止使用markdown代码块包裹',
-          '若「原创保护」字段存在，其列出的内容均为角色亲自开创，严禁在叙事中将其来源改写为遗迹/秘境/传承等外部发现',
-        ],
-      L1: [
-        '「世界规则」与「叙事风格」是叙事的基调框架，内容须与之对齐',
-        '角色年龄、性格、能力须与「角色」「命格天赋」一致',
-      ],
-      L2: [
-        '「剧情阶段」「事件注入」为可选参考，不强制体现',
-        '即使遇到极端情况，也要确保narrative字段有可用内容',
-        '严格遵守世界观规则和风格',
-      ],
-    },
-
-    defense: {
-      description: '降级策略',
-      jsonError: 'JSON格式出问题时，必须修正为合法JSON对象，优先保证narrative字段有内容',
-      noChanges: '无法判断子系统变化时返回空数组[]，不要省略changes字段',
-      totalFailure: '即使信息不足，也必须输出最小合法JSON：{\"narrative\":\"可用叙事文本\",\"changes\":[]}',
-    },
-  },
-
   skillOperations: {
-    description: '可动态赋予/剥夺角色技能，技能须与世界观和角色经历自然匹配。在叙事中自然地体现技能变化。',
-    rules: ['技能名简洁（2-6字）', '描述合理，符合世界观'],
+    description: '可动态赋予/剥夺角色技能，技能须与世界观和角色经历自然匹配。',
     grant: {
       id: 'skill',
       description: '赋予技能',
@@ -224,16 +303,11 @@ export const SYSTEM_PROMPT = stringifyPrompt({
 
   examples: [
     {
-      description: '示例0：婴儿期·感官认知（0-3岁，仅通过感官认知世界）',
-      input: {
-        character: '婴儿，0岁，刚出生',
-        worldSetting: '宁静的家庭环境',
-        state: '健康良好，感官正在发育',
-      },
+      description: '示例0：首轮叙事·出生与家庭',
+      input: { character: '新生儿，0岁，刚出生', worldSetting: '古代市井家庭，父亲是武师' },
       output: {
-        narrative: '你睁开眼睛，看到模糊的光影在头顶晃动。温暖的手臂轻轻护着你，空气里有甜甜的奶香味。耳边传来柔和的低语，虽然听不懂在说什么，但那声音让你感到安心。你用小小的手指抓住伸过来的指尖，柔软又温暖。',
+        narrative: '接生的婆子剪断脐带时，你发出一声响亮的啼哭，震得窗纸嗡嗡作响。屋外父亲焦灼的脚步声一顿，随即传来他粗犷的笑声。\n\n茅草屋里弥漫着热水蒸腾的雾气，混着墙角药罐子里飘出的苦涩药味。母亲苍白的脸上挂着汗水，却还是侧过头，用温热的指尖轻轻碰了碰你的脸颊。你攥住她的手指，哭声渐渐平息。\n\n屋檐下挂着几串干辣椒和蒜辫，院子里的泥地上散落着劈好的柴火。街坊邻居的说话声从墙外传来，有人在喊"老张家的生了！"。父亲在院里转了三圈，最后蹲下来，把腰间的玉佩解下，在手里攥了又攥。',
         changes: [],
-        notableEvents: ['第一次抓住大人的手指'],
       },
     },
     {
@@ -301,13 +375,42 @@ export const SYSTEM_PROMPT = stringifyPrompt({
         notableEvents: ['锻造出第一把合格短刀', '获得师父认可'],
       },
     },
+    {
+      description: '示例6：日常修炼·跨系统联动',
+      input: { character: '宗门弟子，19岁，炼气三层', worldSetting: '修仙宗门内门' },
+      output: {
+        narrative: '你坐在蒲团上吐纳了三个时辰，丹田中那缕真气又壮了一分。执事堂的师兄传讯说本月份例已到——三枚聚气草、五粒养气丹。你将丹药收进储物袋，盘算着够支撑半个月的苦修。\n\n夜深时，你忽然想起山下坊市新到了一批妖兽材料，其中或许有辅助冲脉的虎骨散。但一摸口袋，灵石已经见底。',
+        changes: [
+          { id: 'cultivation', description: '夜间修炼略有精进', changes: { cultivationProgress: 12 } },
+          { id: 'economy', description: '本月份例已领，暂无灵石余额', changes: { wealth: 0 } },
+        ],
+        notableEvents: ['领取本月宗门份例'],
+        importance: 'LOW',
+      },
+    },
   ],
+
+  narrativeQuality: {
+    antiRepetition: {
+      description: '叙事质量硬性约束',
+      rules: [
+        '绝对禁止连续两轮以相同句式开头',
+        '禁止使用"这一年"作为任何段落或全文的开头',
+        '禁止使用"本年度""这一年里""这一年间"等同类替代',
+        '近 3 轮叙事的内容/场景/主题不得在本轮重复——必须生成全新事件',
+        '若距上一次叙事已过多年，应描写全新阶段的变化，不得延续上次事件的同一场景',
+      ],
+      openingExamples: '推荐开头方式：以季节切入（"秋雨淅沥的午后..."）/ 以具体事件切入（"父亲的脚步声从院外传来..."）/ 以感官细节切入（"药草的气味在晨雾中弥漫..."）/ 以内心感受切入（"你蹲在门槛上，盯着地上排成一线的蚂蚁..."）',
+    },
+  },
+
+  task: '根据用户消息中的世界设定、规则与当前状态，生成叙事 JSON（含 narrative 与 changes）。叙事风格须符合 worldSetting 与 worldRules，不得引入状态中未成立的能力或设定。',
 })
 
 /**
- * 世界观规则注入函数
+ * 世界观参考注入函数
  * @param essenceTag 世界观本质标签（可选）
- * @returns 匹配的世界观规则文本，无匹配返回空字符串
+ * @returns 匹配的世界观参考文本（标注为"仅供参考"），无匹配返回空字符串
  */
 export function getWorldRules(essenceTag?: string): string {
   if (!essenceTag) return ''
@@ -318,12 +421,14 @@ export function getWorldRules(essenceTag?: string): string {
     const rule = WORLD_RULES[tag]
     if (rule) rules.push(rule)
   }
-  return rules.length > 0 ? `\n${rules.join('\n')}` : ''
+  if (rules.length === 0) return ''
+  // 用参考性质的前缀包裹，明确告知 AI 这些为"参考"而非"必须遵守的规则"
+  return '\n【以上世界观要素仅供参考——AI 请以 worldDescription 与用户设定为最高依据，可自由决定是否采纳】\n' + rules.join('\n')
 }
 
 export const narrativePrompt: PromptTemplate = {
   name: 'narrative',
-  version: '1.7.0',
+  version: '2.0.0',
   mod: 'mod-engine',
   systemPrompt: SYSTEM_PROMPT,
   userPromptTemplate: [
@@ -336,6 +441,7 @@ export const narrativePrompt: PromptTemplate = {
     '"玩家自定义": {{worldCustomizeText}},',
     '"原创保护": {{creationProtectionText}},',
     '"可变更子系统": {{subsystemFields}},',
+    '"子系统变更指南": {{subsystemGuideText}},',
     '"叙事风格": {{narrativeStyle}},',
     '"角色": {{character}},',
     '"命格天赋": {{talents}},',
@@ -349,6 +455,7 @@ export const narrativePrompt: PromptTemplate = {
     '"当前状态": {{subsystemSummaries}},',
     '"最近变化": {{systemChangeSummary}},',
     '"叙事历史": {{narrativeHistory}},',
+    '"时间描写指南": {{timeGuideText}},',
     '"指令": {{userInstruction}}',
     '}',
   ].join('\n'),
@@ -374,6 +481,8 @@ export const narrativePrompt: PromptTemplate = {
     'systemChangeSummary',
     'eventInjectionText',
     'narrativeHistory',
+    'subsystemGuideText',
+    'timeGuideText',
     'userInstruction',
   ],
   outputFormat: 'json',

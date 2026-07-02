@@ -6,7 +6,10 @@
 
 import { clamp } from '@/core/shared'
 
-/** 描述表明无外部自然能量（唯心 / 意志体系） */
+/**
+ * 描述表明无外部自然能量（唯心 / 意志体系）
+ * 注意：仅作"辅助信号"，不单独触发禁词强制；需与 AI worldType='idealist' 组合判定
+ */
 const NO_EXTERNAL_ENERGY_RE = /无灵气|无魔力|无.*外部.*自然能量|唯心世界|意志即力量|心相/
 
 /** 外部能量相关禁词（worldDescription 声明无时） */
@@ -25,9 +28,19 @@ export interface CoherenceGuardContext {
   worldType?: string
 }
 
-/** 是否应对该世界启用外部能量 / 修仙套话禁词检测 */
+/**
+ * 是否应对该世界启用外部能量 / 修仙套话禁词检测
+ *
+ * 必须同时满足：AI 判定 worldType 为 idealist（明确信号），或 worldDescription 中显式表达了：
+ * - "无灵气/无魔力/意志即力量"（AI 一致 + 描述关键词 双信号）
+ * 仅描述关键词匹配但 AI 给了不同 worldType 时，提示用户确认而非自动执行
+ */
 export function shouldEnforceIdealistCoherence(ctx: CoherenceGuardContext): boolean {
-  return ctx.worldType === 'idealist' || NO_EXTERNAL_ENERGY_RE.test(ctx.worldDescription)
+  if (ctx.worldType === 'idealist') return true
+  if (!NO_EXTERNAL_ENERGY_RE.test(ctx.worldDescription)) return false
+  // 描述关键词匹配但 AI 未给 idealist worldType：需要双确认（AI 可能有意制造混合设定）
+  // 此时仅当 AI 同时给了 idealist_cultivation essence 时才自动执行
+  return false
 }
 
 /** 扫描文本中的禁词违规项 */
@@ -109,12 +122,19 @@ export function resolvePastHistoryYearRange(opts: {
   return { minYear: -500, maxYear: -1 }
 }
 
-/** 构建重试修正指令 */
+/**
+ * 构建一致性提示
+ *
+ * 设计理念：AI 通过 worldDescription 已充分理解世界观约束。
+ * 仅在检测到明确不一致时提供"轻提示"（非强制的重写指令），
+ * 让 AI 自行判断如何调整。
+ */
 export function buildCoherenceRetryHint(violations: string[]): string {
+  if (violations.length === 0) return ''
   return [
-    '【修正要求】上次输出含与 worldDescription 冲突的术语，请重写并完全避免：',
+    '【友好提示】本次描述若出现以下术语，可能与 worldDescription 的整体设定不够匹配，可选择性调整：',
     violations.join('、'),
-    '能量与事件须符合 worldDescription（如心相/意志/玄关/登天路），勿套用外部灵气修仙模板。',
+    '请以 worldDescription 为最终依据决定是否采纳以上提示。',
   ].join('\n')
 }
 

@@ -56,14 +56,15 @@ export function formatMessagesForLog(messages: Array<{ role: string; content: st
 }
 
 /**
- * 记录一次 AI 调用（fire-and-forget，一次调用一条服务端日志文件）
+ * 记录一次 AI 调用（异步，等待发送完成）
+ * @returns 发送成功返回 true，失败返回 false
  */
-export function recordAICallLog(params: RecordAICallLogParams): void {
+export async function recordAICallLog(params: RecordAICallLogParams): Promise<boolean> {
   const { category, messages, response, logContext, usage, extraMeta, isFallback } = params
 
   const isFailed = extraMeta?.failed === true
   if (!isFallback && !isFailed && !isValidAiContent(response)) {
-    return
+    return false
   }
 
   const meta: Record<string, unknown> = {
@@ -100,7 +101,7 @@ export function recordAICallLog(params: RecordAICallLogParams): void {
     meta.apiCalled = true
   }
 
-  logAICallFireAndForget({
+  return await logAICallFireAndForget({
     category,
     timestamp: Date.now(),
     round: logContext?.round,

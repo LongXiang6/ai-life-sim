@@ -61,14 +61,15 @@ export async function logAICall(entry: DebugLogEntry): Promise<void> {
 }
 
 /**
- * 发送 AI 调用日志（fire-and-forget，不等待响应）
+ * 发送 AI 调用日志（异步，等待响应）
  * @param entry - 日志条目
+ * @returns 发送成功返回 true，失败返回 false
  */
 /** sendBeacon 有效载荷约 64KB，超大日志改用 fetch keepalive */
 const SEND_BEACON_MAX_BYTES = 48_000
 
-export function logAICallFireAndForget(entry: DebugLogEntry): void {
-  if (isDisabled()) return
+export async function logAICallFireAndForget(entry: DebugLogEntry): Promise<boolean> {
+  if (isDisabled()) return false
 
   const payload = JSON.stringify(entry)
   const useFetch = payload.length > SEND_BEACON_MAX_BYTES
@@ -77,17 +78,20 @@ export function logAICallFireAndForget(entry: DebugLogEntry): void {
 
   if (!useFetch) {
     const blob = new Blob([payload], { type: 'application/json' })
-    if (navigator.sendBeacon(LOG_API, blob)) return
+    if (navigator.sendBeacon(LOG_API, blob)) return true
   }
 
-  fetch(LOG_API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: payload,
-    keepalive: true,
-  }).catch(() => {
-    // 静默忽略
-  })
+  try {
+    const resp = await fetch(LOG_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: payload,
+      keepalive: true,
+    })
+    return resp.ok
+  } catch {
+    return false
+  }
 }
 
 /**

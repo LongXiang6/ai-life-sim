@@ -29,7 +29,7 @@ export const AntagonistAdaptationSchema = z.object({
     powerOrigin: z.string().describe('力量来源描述'),
     behaviorStyle: z.string().describe('行为风格描述，用于 AI 叙事引导'),
   })),
-  recommendedCount: z.number().min(1).max(5).describe('推荐的反派数量'),
+  recommendedCount: z.coerce.number().min(1).max(5).describe('推荐的反派数量'),
 })
 
 export type AntagonistAdaptationOutput = z.infer<typeof AntagonistAdaptationSchema>

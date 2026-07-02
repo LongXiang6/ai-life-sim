@@ -1,4 +1,18 @@
 /**
+ * 根据个人财富值返回档位标签
+ * @param wealth 个人财富值
+ * @returns 财富档位中文标签
+ */
+function getWealthTierLabel(wealth: number): string {
+  if (wealth <= 0) return '赤贫'
+  if (wealth < 100) return '贫穷'
+  if (wealth < 500) return '温饱'
+  if (wealth < 2000) return '殷实'
+  if (wealth < 10000) return '富裕'
+  return '巨富'
+}
+
+/**
  * @module EconomySystem
  * @description 经济子系统：市场周期推进、货币演化、商路更新、税率与通胀计算
  * @mod mod-economy
@@ -528,12 +542,13 @@ export class EconomySystem implements ISubSystem {
   private getSummaryText(totalPopulation?: number): string {
     const marketPhase = MARKET_PHASE_LABELS[this.state.marketPhase]
     const wealth = this.state.currency.playerWealth
+    const wealthLabel = getWealthTierLabel(wealth)
     const routes = this.state.tradeRoutes.length
     const tax = this.state.taxRate
     const assetCount = this.state.assets.length
     const debtCount = this.state.debts.length
 
-    let text = `【${this.label}】市场：${marketPhase} · 财富：${Math.round(wealth)} · 商路：${routes}条 · 税率：${tax}%`
+    let text = `【${this.label}】市场：${marketPhase} · 财富：${Math.round(wealth)}(${wealthLabel}) · 商路：${routes}条 · 税率：${tax}%`
     if (assetCount > 0 || debtCount > 0) {
       text += ` · 资产${assetCount} · 债务${debtCount}`
     }

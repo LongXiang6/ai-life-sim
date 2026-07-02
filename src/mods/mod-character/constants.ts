@@ -134,81 +134,112 @@ export const DESTINY_PATTERN_POLARITY_CONFIG: Record<DestinyPatternPolarity, { l
   mixed: { label: '双刃', color: '#f59e0b', },
 }
 
-/** 命格可影响的个人向模拟系数（优先） */
-export const DESTINY_PATTERN_PERSONAL_MODIFIERS = {
-  luckPointModifier: '气运获取',
-  hpRecoveryModifier: '生命恢复',
-  staminaRecoveryModifier: '体力恢复',
-  breakthroughChanceModifier: '寿命突破',
-  cultivationSpeedModifier: '修炼/战力成长',
-  bottleneckModifier: '修炼瓶颈',
-  incomeModifier: '职业收入',
-  fertilityModifier: '家族生育',
-  devotionGainModifier: '虔诚获取',
-  lifespanModifier: '寿命上限',
-  attributeDecayModifier: '属性衰减',
+/**
+ * 命格模拟系数元数据 —— 含显示名 + 收益方向
+ *
+ * benefitDirection:
+ *   'higher' → 数值越大对玩家/世界越有利（绿色=好，红色=坏）
+ *   'lower'  → 数值越小越有利（红色=好，绿色=坏）—— 如属性衰减、修炼瓶颈、死亡率、灾害频率等
+ */
+
+/** 个人向模拟系数元数据 */
+export const DESTINY_PATTERN_PERSONAL_MODIFIER_META: Record<string, { label: string; benefitDirection: 'higher' | 'lower' }> = {
+  luckPointModifier: { label: '气运获取', benefitDirection: 'higher' },
+  hpRecoveryModifier: { label: '生命恢复', benefitDirection: 'higher' },
+  staminaRecoveryModifier: { label: '体力恢复', benefitDirection: 'higher' },
+  breakthroughChanceModifier: { label: '寿命突破', benefitDirection: 'higher' },
+  cultivationSpeedModifier: { label: '修炼/战力成长', benefitDirection: 'higher' },
+  bottleneckModifier: { label: '修炼瓶颈', benefitDirection: 'lower' },
+  incomeModifier: { label: '职业收入', benefitDirection: 'higher' },
+  fertilityModifier: { label: '家族生育', benefitDirection: 'higher' },
+  devotionGainModifier: { label: '虔诚获取', benefitDirection: 'higher' },
+  lifespanModifier: { label: '寿命上限', benefitDirection: 'higher' },
+  attributeDecayModifier: { label: '属性衰减', benefitDirection: 'lower' },
 } as const
+
+/** 个人向 label 映射（向后兼容） */
+export const DESTINY_PATTERN_PERSONAL_MODIFIERS: Record<string, string> = Object.fromEntries(
+  Object.entries(DESTINY_PATTERN_PERSONAL_MODIFIER_META).map(([k, v]) => [k, v.label]),
+) as Record<string, string>
+
+export type DestinyPatternPersonalModifierKey = keyof typeof DESTINY_PATTERN_PERSONAL_MODIFIER_META
 
 export const DESTINY_PATTERN_PERSONAL_MODIFIER_KEYS = Object.keys(
-  DESTINY_PATTERN_PERSONAL_MODIFIERS,
-) as (keyof typeof DESTINY_PATTERN_PERSONAL_MODIFIERS)[]
+  DESTINY_PATTERN_PERSONAL_MODIFIER_META,
+) as DestinyPatternPersonalModifierKey[]
 
-/** 命格可影响的世界向模拟系数（史诗/传说级） */
-export const DESTINY_PATTERN_WORLD_MODIFIERS = {
-  birthRateModifier: '宏观人口出生',
-  deathRateModifier: '宏观死亡率',
-  warFrequencyModifier: '战争频率',
-  techProgressModifier: '科技进度',
-  disasterFrequencyModifier: '灾害频率',
-  monsterThreatModifier: '怪物威胁',
-  socialMobilityModifier: '阶层流动',
-  migrationRateModifier: '人口迁移',
-  economyModifier: '宏观经济',
-  factionEmergenceModifier: '势力涌现',
+/** 世界向模拟系数元数据 */
+export const DESTINY_PATTERN_WORLD_MODIFIER_META: Record<string, { label: string; benefitDirection: 'higher' | 'lower' }> = {
+  birthRateModifier: { label: '宏观人口出生', benefitDirection: 'higher' },
+  deathRateModifier: { label: '宏观死亡率', benefitDirection: 'lower' },
+  warFrequencyModifier: { label: '战争频率', benefitDirection: 'lower' },
+  techProgressModifier: { label: '科技进度', benefitDirection: 'higher' },
+  disasterFrequencyModifier: { label: '灾害频率', benefitDirection: 'lower' },
+  monsterThreatModifier: { label: '怪物威胁', benefitDirection: 'lower' },
+  socialMobilityModifier: { label: '阶层流动', benefitDirection: 'higher' },
+  migrationRateModifier: { label: '人口迁移', benefitDirection: 'higher' },
+  economyModifier: { label: '宏观经济', benefitDirection: 'higher' },
+  factionEmergenceModifier: { label: '势力涌现', benefitDirection: 'higher' },
 } as const
 
-export const DESTINY_PATTERN_WORLD_MODIFIER_KEYS = Object.keys(
-  DESTINY_PATTERN_WORLD_MODIFIERS,
-) as (keyof typeof DESTINY_PATTERN_WORLD_MODIFIERS)[]
+/** 世界向 label 映射（向后兼容） */
+export const DESTINY_PATTERN_WORLD_MODIFIERS: Record<string, string> = Object.fromEntries(
+  Object.entries(DESTINY_PATTERN_WORLD_MODIFIER_META).map(([k, v]) => [k, v.label]),
+) as Record<string, string>
 
-/** 内置预设命格库（AI 不可用时的降级池，对齐废弃项目 TALENT_PRESETS_SHARED 31 条） */
+export type DestinyPatternWorldModifierKey = keyof typeof DESTINY_PATTERN_WORLD_MODIFIER_META
+
+export const DESTINY_PATTERN_WORLD_MODIFIER_KEYS = Object.keys(
+  DESTINY_PATTERN_WORLD_MODIFIER_META,
+) as DestinyPatternWorldModifierKey[]
+
+/** 合并所有修饰符的收益方向查找表 */
+export const DESTINY_PATTERN_MODIFIER_BENEFIT_DIRECTION: Record<string, 'higher' | 'lower'> = Object.fromEntries(
+  [
+    ...Object.entries(DESTINY_PATTERN_PERSONAL_MODIFIER_META).map(([k, v]) => [k, v.benefitDirection] as const),
+    ...Object.entries(DESTINY_PATTERN_WORLD_MODIFIER_META).map(([k, v]) => [k, v.benefitDirection] as const),
+  ],
+)
+
+/** 内置预设命格库（AI 不可用时的降级池，对齐废弃项目 TALENT_PRESETS_SHARED 31 条）
+ *  所有 description 须在 40–60 汉字之间，对齐 AI 生成质量 */
 export const PRESET_DESTINY_PATTERNS: Omit<DestinyPattern, 'id'>[] = [
   // ===================== 正面命格 =====================
-  { name: '喜欢运动', description: '你平时喜欢运动', rarity: 'common', effect: '基础体质略好', polarity: 'positive', attrBonus: { physique: 1, }, },
-  { name: '讲信用', description: '你言出必行，说到做到', rarity: 'common', effect: '更容易获得他人信任', polarity: 'positive', attrBonus: { charisma: 1, }, },
-  { name: '善于观察', description: '你善于观察周围的人和事', rarity: 'common', effect: '察觉变化的能力略强', polarity: 'positive', attrBonus: { mind: 1, }, },
-  { name: '手脚麻利', description: '你做事干脆利落', rarity: 'common', effect: '任务完成速度略快', polarity: 'positive', attrBonus: { physique: 1, }, },
-  { name: '心态好', description: '你的心态很好，不容易焦虑', rarity: 'common', effect: '情绪波动较少', polarity: 'positive', attrBonus: { mind: 1, }, },
-  { name: '会做饭', description: '你会自己做饭', rarity: 'common', effect: '生活质量略高', polarity: 'positive', attrBonus: { talentAptitude: 1, }, },
-  { name: '懂礼貌', description: '你待人礼貌', rarity: 'common', effect: '初次印象更好', polarity: 'positive', attrBonus: { charisma: 1, }, },
-  { name: '爱干净', description: '你个人卫生习惯良好', rarity: 'common', effect: '生病概率略低', polarity: 'positive', attrBonus: { physique: 1, }, },
-  { name: '有主见', description: '你有自己的想法', rarity: 'common', effect: '不容易被别人影响决定', polarity: 'positive', attrBonus: { charisma: 1, }, },
-  { name: '记性不错', description: '你的记忆力比一般人好一点', rarity: 'common', effect: '记忆类任务略占优势', polarity: 'positive', attrBonus: { mind: 1, }, },
-  { name: '早起习惯', description: '你习惯早起，作息规律', rarity: 'common', effect: '每日精力充沛', polarity: 'positive', attrBonus: { physique: 1, }, },
-  { name: '有耐心', description: '你比一般人更有耐心', rarity: 'common', effect: '需要耐心的任务更容易完成', polarity: 'positive', attrBonus: { mind: 1, }, },
-  { name: '有同情心', description: '你富有同情心', rarity: 'common', effect: '更容易获得他人好感', polarity: 'positive', attrBonus: { charisma: 1, }, },
+  { name: '喜欢运动', description: '球场上总能看到你奔跑的身影，流汗对你来说是种享受；体育课是你最期待的时光，跑跳投掷样样在行，精力仿佛永远用不完。', rarity: 'common', effect: '基础体质略好', polarity: 'positive', attrBonus: { physique: 1, }, },
+  { name: '讲信用', description: '答应别人的事哪怕再麻烦也会做到，不轻易许诺但一旦承诺便全力以赴；周围人都知道找你办事靠得住，这份信任是日积月累攒下来的。', rarity: 'common', effect: '更容易获得他人信任', polarity: 'positive', attrBonus: { charisma: 1, }, },
+  { name: '善于观察', description: '旁人注意不到的细节你总能一眼捕捉——谁今天情绪不对、桌上少了什么东西、路面的细微变化；这些信息在你脑中自动拼合成完整的图景。', rarity: 'common', effect: '察觉变化的能力略强', polarity: 'positive', attrBonus: { mind: 1, }, },
+  { name: '手脚麻利', description: '做事从不拖泥带水，同样的任务你总是最快完成的那一个；动作干净利落，收拾东西、完成工作都比别人快上半拍，效率惊人。', rarity: 'common', effect: '任务完成速度略快', polarity: 'positive', attrBonus: { physique: 1, }, },
+  { name: '心态好', description: '遇到不顺心的事很少钻牛角尖，睡一觉就能翻篇；考试考砸了、被批评了都能坦然面对，这种不内耗的性格让你比同龄人轻松许多。', rarity: 'common', effect: '情绪波动较少', polarity: 'positive', attrBonus: { mind: 1, }, },
+  { name: '会做饭', description: '锅碗瓢盆在你手中如同乐器，简单的食材也能做出让人眼前一亮的味道；调味全凭手感，菜谱看一遍就能还原八九不离十。', rarity: 'common', effect: '生活质量略高', polarity: 'positive', attrBonus: { talentAptitude: 1, }, },
+  { name: '懂礼貌', description: '见到长辈主动问好，接过东西会说谢谢，公共场所懂得排队和低声交谈；这些看似不起眼的习惯让认识你的人都觉得这孩子教养好。', rarity: 'common', effect: '初次印象更好', polarity: 'positive', attrBonus: { charisma: 1, }, },
+  { name: '爱干净', description: '书桌永远整整齐齐，衣服就算旧也洗得干干净净；周围稍微乱一点就浑身不自在，这个习惯让你远离了很多小病小痛。', rarity: 'common', effect: '生病概率略低', polarity: 'positive', attrBonus: { physique: 1, }, },
+  { name: '有主见', description: '面对选择时心里自有一杆秤，不会因为别人说什么就轻易改变想法；买什么东西、走哪条路、信谁的话，你都有自己的判断标准。', rarity: 'common', effect: '不容易被别人影响决定', polarity: 'positive', attrBonus: { charisma: 1, }, },
+  { name: '记性不错', description: '见过一面的人名和脸能对上号，读过的文章过一阵还能复述大意；亲戚的生日、老师交代的事都记得清清楚楚，不需要特意记笔记。', rarity: 'common', effect: '记忆类任务略占优势', polarity: 'positive', attrBonus: { mind: 1, }, },
+  { name: '早起习惯', description: '天刚蒙蒙亮就自然醒来，从不赖床；清晨的时光对你来说是一天中最清醒高效的时段，别人还在睡梦中时你已经做了不少事。', rarity: 'common', effect: '每日精力充沛', polarity: 'positive', attrBonus: { physique: 1, }, },
+  { name: '有耐心', description: '钓鱼能坐一整天，拼图能反复试错直到完成最后一块；别人觉得枯燥的事你觉得很有意思，这份耐性让你在很多事上比别人做得更精细。', rarity: 'common', effect: '需要耐心的任务更容易完成', polarity: 'positive', attrBonus: { mind: 1, }, },
+  { name: '有同情心', description: '看到别人受伤或难过时你心里也会跟着难受，忍不住想上前帮忙；路边的小猫小狗受伤了你也会心疼，这份柔软让你身边聚拢了不少真心朋友。', rarity: 'common', effect: '更容易获得他人好感', polarity: 'positive', attrBonus: { charisma: 1, }, },
 
   // ===================== 中立命格（mixed） =====================
-  { name: '选择困难', description: '你做选择时总犹豫不决', rarity: 'common', effect: '选择时耗时更久，但错误概率略低', polarity: 'mixed', attrBonus: { mind: -1, }, },
-  { name: '怀旧', description: '你喜欢回忆过去', rarity: 'common', effect: '老物件相关事件有加成，但容易沉迷', polarity: 'mixed', attrBonus: { mind: -1, }, },
-  { name: '慢热', description: '你和人熟悉起来比较慢', rarity: 'common', effect: '长期关系更稳定，但初期稍难', polarity: 'mixed', attrBonus: {}, },
-  { name: '完美主义', description: '你追求完美', rarity: 'common', effect: '作品质量高，但耗时更长', polarity: 'mixed', attrBonus: { talentAptitude: 1, mind: -1, }, },
-  { name: '夜猫子', description: '你习惯熬夜', rarity: 'common', effect: '夜晚效率高，但白天精神差', polarity: 'mixed', attrBonus: { mind: 1, physique: -1, }, },
+  { name: '选择困难', description: '面对两个选项时脑子里会有两种声音打架，从午饭吃什么到买哪件衣服都能犹豫半天；虽然耗时，但你很少后悔自己的最终决定。', rarity: 'common', effect: '选择时耗时更久，但错误概率略低', polarity: 'mixed', attrBonus: { mind: -1, }, },
+  { name: '怀旧', description: '旧照片、老玩具、儿时去过的那个小卖部——这些东西总能让你陷入回忆；你喜欢留着手边的东西不舍得扔，每件旧物都连着一段忘不掉的时光。', rarity: 'common', effect: '老物件相关事件有加成，但容易沉迷', polarity: 'mixed', attrBonus: { mind: -1, }, },
+  { name: '慢热', description: '刚到新环境时总是安静地待在角落，不会主动和陌生人攀谈；但一旦相处久了、认定你是朋友了，就会变得格外真诚和热络，那份交情往往很长久。', rarity: 'common', effect: '长期关系更稳定，但初期稍难', polarity: 'mixed', attrBonus: {}, },
+  { name: '完美主义', description: '作业里的一个字写歪了也要擦掉重写，做一件事不做到自己满意绝不罢休；这份追求极致的心让你的作品总是精良，但也常常把自己累得够呛。', rarity: 'common', effect: '作品质量高，但耗时更长', polarity: 'mixed', attrBonus: { talentAptitude: 1, mind: -1, }, },
+  { name: '夜猫子', description: '白天昏昏沉沉提不起劲，但一到深夜就精神抖擞；万籁俱寂时是你最专注的时刻，效率比白天高出几倍，尽管第二天早起总是个挑战。', rarity: 'common', effect: '夜晚效率高，但白天精神差', polarity: 'mixed', attrBonus: { mind: 1, physique: -1, }, },
 
   // ===================== 负面命格 =====================
-  { name: '容易忘事', description: '你记性不太好', rarity: 'common', effect: '经常忘记重要事情', polarity: 'negative', attrBonus: { mind: -1, }, },
-  { name: '路痴', description: '你方向感很差', rarity: 'common', effect: '容易迷路', polarity: 'negative', attrBonus: {}, },
-  { name: '拖延症', description: '你喜欢拖到最后一刻', rarity: 'common', effect: '经常赶工', polarity: 'negative', attrBonus: { mind: -1, }, },
-  { name: '粗心大意', description: '你经常犯小错', rarity: 'common', effect: '容易出错', polarity: 'negative', attrBonus: {}, },
-  { name: '脾气急躁', description: '你容易生气', rarity: 'common', effect: '人际关系容易出问题', polarity: 'negative', attrBonus: { charisma: -1, }, },
-  { name: '运气一般', description: '你运气比一般人差一点', rarity: 'common', effect: '随机事件略差', polarity: 'negative', attrBonus: {}, },
-  { name: '反应慢', description: '你反应比一般人慢半拍', rarity: 'common', effect: '紧急情况容易出错', polarity: 'negative', attrBonus: { mind: -1, }, },
-  { name: '挑食', description: '你吃饭很挑剔', rarity: 'common', effect: '容易吃不好', polarity: 'negative', attrBonus: { physique: -1, }, },
-  { name: '坐不住', description: '你很难静下心来', rarity: 'common', effect: '需要专注的任务困难', polarity: 'negative', attrBonus: { mind: -1, }, },
-  { name: '胆子小', description: '你胆子比较小', rarity: 'common', effect: '容易害怕', polarity: 'negative', attrBonus: { mind: -1, }, },
-  { name: '不爱运动', description: '你不喜欢运动', rarity: 'common', effect: '体质略差', polarity: 'negative', attrBonus: { physique: -1, }, },
-  { name: '脸皮薄', description: '你很容易害羞', rarity: 'common', effect: '社交困难', polarity: 'negative', attrBonus: { charisma: -1, }, },
-  { name: '丢三落四', description: '你经常丢东西', rarity: 'common', effect: '经常找不到东西', polarity: 'negative', attrBonus: {}, },
+  { name: '容易忘事', description: '出门走到半路才想起忘了带钥匙，交代的事情转头就记不清细节；备忘录写了又写还是丢三落四，记性差这件事本身倒是记得很清楚。', rarity: 'common', effect: '经常忘记重要事情', polarity: 'negative', attrBonus: { mind: -1, }, },
+  { name: '路痴', description: '在地图上看懂路线是一回事，走着走着又是另一回事了；明明来过的地方换个方向就不认识了，导航是你出门最离不开的东西。', rarity: 'common', effect: '容易迷路', polarity: 'negative', attrBonus: {}, },
+  { name: '拖延症', description: '作业和任务总是等到截止日期前才开始动手，前期各种磨蹭找理由，后期疯狂赶工；虽然最后总能完成，但过程中的焦虑一点也没少受。', rarity: 'common', effect: '经常赶工', polarity: 'negative', attrBonus: { mind: -1, }, },
+  { name: '粗心大意', description: '做题时思路是对的但计算总出错，写字一不留神就多一笔少一画；出门忘关灯、洗完忘拔插头，这些小失误在你的生活中频繁上演。', rarity: 'common', effect: '容易出错', polarity: 'negative', attrBonus: {}, },
+  { name: '脾气急躁', description: '一遇到不顺心的事火气就往上蹿，说话声音跟着变大，脸也沉了下来；虽然发完火很快就消气了，但那些被你不经意伤到的话却收不回来了。', rarity: 'common', effect: '人际关系容易出问题', polarity: 'negative', attrBonus: { charisma: -1, }, },
+  { name: '运气一般', description: '抽奖永远抽不到大奖，排队总是排到最慢的那一队，赶公交总是差那么几步；不是特别倒霉，但好事也很少自己落到你头上。', rarity: 'common', effect: '随机事件略差', polarity: 'negative', attrBonus: {}, },
+  { name: '反应慢', description: '别人说完笑话大家都笑了你才反应过来，遇到突发情况总会愣一下才行动；运动场上球飞过来时你的身体总比脑子慢半拍，错过了不少好机会。', rarity: 'common', effect: '紧急情况容易出错', polarity: 'negative', attrBonus: { mind: -1, }, },
+  { name: '挑食', description: '盘子里不喜欢的菜会一根根挑出来放边上，味道奇怪的东西尝一口就不肯再碰了；吃饭这件事上你有一套自己的规矩，换个地方吃饭经常吃不惯。', rarity: 'common', effect: '容易吃不好', polarity: 'negative', attrBonus: { physique: -1, }, },
+  { name: '坐不住', description: '在椅子上坐不到二十分钟就想站起来走一走，看书看一会儿就忍不住摸手机；让你长时间安安静静地做同一件事简直是一种折磨，屁股像长了刺。', rarity: 'common', effect: '需要专注的任务困难', polarity: 'negative', attrBonus: { mind: -1, }, },
+  { name: '胆子小', description: '一个人走夜路总觉得身后有脚步声，看恐怖片会好几天不敢关灯睡觉；遇到冲突和争吵时第一反应是想躲开，心跳加速手心冒汗是常态。', rarity: 'common', effect: '容易害怕', polarity: 'negative', attrBonus: { mind: -1, }, },
+  { name: '不爱运动', description: '体育课跑两圈就喘不上气，能坐着绝不站着、能躺着绝不坐着；运动对你来说不是享受而是受罪，宁愿多走几步去近的地方也不愿意跑起来。', rarity: 'common', effect: '体质略差', polarity: 'negative', attrBonus: { physique: -1, }, },
+  { name: '脸皮薄', description: '在众人面前说话脸会红到耳根，被老师点名回答问题声音小得像蚊子叫；向陌生人求助或者跟人讨价还价对你来说尤其艰难，宁可不做也不愿开口。', rarity: 'common', effect: '社交困难', polarity: 'negative', attrBonus: { charisma: -1, }, },
+  { name: '丢三落四', description: '钥匙、钱包、学生证——这三样东西你轮流丢，每学期至少补办一次；明明出门时还记得带上的东西，到地方一摸口袋发现不知什么时候弄丢了。', rarity: 'common', effect: '经常找不到东西', polarity: 'negative', attrBonus: {}, },
 ]
 
 // ============================================================

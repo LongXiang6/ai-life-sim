@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @module adaptation-luck-prompt.ts
  * @description 气运值 AI 适配 Prompt —— 气运初始值 + 运气叙事描述
  * @mod mod-power-system
@@ -10,7 +10,7 @@ import type { PromptTemplate } from '@/foundation'
 
 /** 气运初始值适配输出 Schema */
 export const luckAdaptationOutputSchema = z.object({
-  luck: z.number().int().min(0).max(10).describe('气运值，整数 0-10'),
+  luck: z.coerce.number().int().min(0).max(10).describe('气运值，整数 0-10'),
   narrativeHint: z.string().describe('气运叙事提示，描述角色的运气状态'),
 })
 

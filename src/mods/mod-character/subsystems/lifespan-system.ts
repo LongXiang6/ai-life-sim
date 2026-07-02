@@ -26,6 +26,19 @@ import { clamp } from '@/core/shared'
 import { getFormulaModifier } from '@/mods/mod-world'
 import { LIFESPAN_NARRATIVE_REDUCTION_ENABLED } from '@/core/ai-service/prompt-flags'
 
+/**
+ * 获取年龄对应的生命阶段标签
+ * @param age 当前年龄
+ * @returns 生命阶段中文标签
+ */
+function getLifecycleStageLabel(age: number): string {
+  if (age <= 12) return '少年'
+  if (age <= 30) return '青年'
+  if (age <= 50) return '壮年'
+  if (age <= 70) return '老年'
+  return '暮年'
+}
+
 export class LifespanSystem implements ISubSystem {
   readonly id = 'lifespan' as const
   readonly mod = 'mod-character' as const
@@ -54,10 +67,11 @@ export class LifespanSystem implements ISubSystem {
   collectState(context: RoundContext): SubSystemState {
     const age = this.getCharacterAge(context)
     const s = this.state
+    const stageLabel = getLifecycleStageLabel(age)
 
     return {
       id: this.id,
-      summary: `【${this.label}】${s.race.name} | 当前年龄 ${age} / 最大寿命 ${s.maxAge} | 突破次数：${s.breakthroughs.length} | 突破概率：${Math.round(s.breakthroughChance * 100)}%`,
+      summary: `【${this.label}】${s.race.name} | 当前年龄 ${age} ${stageLabel} / 最大寿命 ${s.maxAge} | 突破次数：${s.breakthroughs.length} | 突破概率：${Math.round(s.breakthroughChance * 100)}%`,
       data: structuredClone({
         maxAge: s.maxAge,
         baseMaxAge: s.baseMaxAge,

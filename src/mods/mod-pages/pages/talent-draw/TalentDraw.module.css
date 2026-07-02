@@ -416,8 +416,12 @@
 .slotModifierTag {
   font-size: 9px;
   line-height: 1.2;
-  color: var(--color-primary);
+  color: var(--color-success);
   opacity: 0.9;
+}
+
+.slotModifierTagNeg {
+  color: var(--color-danger, #ef4444);
 }
 
 .slotAttrBonus {
@@ -436,6 +440,11 @@
   background: color-mix(in srgb, var(--color-success) 12%, transparent);
   color: var(--color-success);
   font-weight: 500;
+}
+
+.slotAttrBonusTagNeg {
+  background: color-mix(in srgb, var(--color-danger, #ef4444) 12%, transparent);
+  color: var(--color-danger, #ef4444);
 }
 
 .slotEffect {

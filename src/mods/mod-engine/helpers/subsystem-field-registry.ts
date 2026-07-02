@@ -166,19 +166,10 @@ export const SUBSYSTEM_FIELD_MAP: Record<string, SubsystemFieldMeta> = {
 
 /**
  * 将注册表格式化为 Prompt 注入文本
+ * @deprecated 已迁移至 System Prompt 的 subsystemGuide 字段，由叙事 prompts 直接定义。本函数保留仅供调试用途，不应再在运行时使用。
  */
-export function formatSubsystemFieldsForPrompt(limitToIds?: string[]): string {
-  const entries: string[] = []
-
-  for (const [id, meta] of Object.entries(SUBSYSTEM_FIELD_MAP)) {
-    if (limitToIds && !limitToIds.includes(id)) continue
-    const fieldLines = Object.entries(meta.fields)
-      .map(([name, desc]) => `    ${name} — ${desc}`)
-      .join('\n')
-    entries.push(`  ${id}（${meta.label}）：\n${fieldLines}`)
-  }
-
-  return entries.length > 0 ? entries.join('\n') : ''
+export function formatSubsystemFieldsForPrompt(_limitToIds?: string[]): string {
+  return '' // 已废弃：不再注入 User Prompt
 }
 
 // ============================================================
@@ -188,14 +179,14 @@ export function formatSubsystemFieldsForPrompt(limitToIds?: string[]): string {
 /** 伤病/疾病条目 */
 const ailmentEntry = z.object({
   name: z.string(),
-  severity: z.number().min(1).max(10),
+  severity: z.coerce.number().min(1).max(10),
 })
 
 /** 关系条目 */
 const relationEntry = z.object({
   name: z.string(),
   type: z.string().optional(),
-  affinity: z.number().optional(),
+  affinity: z.coerce.number().optional(),
 })
 
 /**
@@ -204,100 +195,100 @@ const relationEntry = z.object({
  */
 export const SUBSYSTEM_CHANGE_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> = {
   'character-base': z.object({
-    physique: z.number().min(0).max(100).optional(),
-    mind: z.number().min(0).max(100).optional(),
-    comprehension: z.number().min(0).max(100).optional(),
-    charisma: z.number().min(0).max(100).optional(),
-    background: z.number().min(0).max(100).optional(),
+    physique: z.coerce.number().min(0).max(100).optional(),
+    mind: z.coerce.number().min(0).max(100).optional(),
+    comprehension: z.coerce.number().min(0).max(100).optional(),
+    charisma: z.coerce.number().min(0).max(100).optional(),
+    background: z.coerce.number().min(0).max(100).optional(),
   }).passthrough(),
 
   'health': z.object({
-    hpDelta: z.number().min(-50).max(20).optional(),
-    staminaDelta: z.number().optional(),
-    spiritDelta: z.number().optional(),
+    hpDelta: z.coerce.number().min(-50).max(20).optional(),
+    staminaDelta: z.coerce.number().optional(),
+    spiritDelta: z.coerce.number().optional(),
     addDiseases: z.array(ailmentEntry).optional(),
     addInjuries: z.array(ailmentEntry).optional(),
   }).passthrough(),
 
   'lifespan': z.object({
-    age: z.number().min(0).optional(),
-    lifespanDelta: z.number().optional(),
-    maxAge: z.number().min(0).optional(),
+    age: z.coerce.number().min(0).optional(),
+    lifespanDelta: z.coerce.number().optional(),
+    maxAge: z.coerce.number().min(0).optional(),
   }).passthrough(),
 
   'morality': z.object({
-    value: z.number().min(-100).max(100).optional(),
-    delta: z.number().optional(),
+    value: z.coerce.number().min(-100).max(100).optional(),
+    delta: z.coerce.number().optional(),
   }).passthrough(),
 
   'luck': z.object({
-    bonus: z.number().optional(),
-    delta: z.number().optional(),
+    bonus: z.coerce.number().optional(),
+    delta: z.coerce.number().optional(),
   }).passthrough(),
 
   'faith': z.object({
-    devotionLevel: z.number().min(0).max(100).optional(),
-    delta: z.number().optional(),
+    devotionLevel: z.coerce.number().min(0).max(100).optional(),
+    delta: z.coerce.number().optional(),
   }).passthrough(),
 
   'family': z.object({
     status: z.enum(['stable', 'conflict', 'dispersed', 'reunited']).optional(),
-    members: z.number().optional(),
+    members: z.coerce.number().optional(),
   }).passthrough(),
 
   'education': z.object({
-    level: z.number().min(0).max(10).optional(),
-    progress: z.number().min(0).max(100).optional(),
+    level: z.coerce.number().min(0).max(10).optional(),
+    progress: z.coerce.number().min(0).max(100).optional(),
     graduated: z.boolean().optional(),
   }).passthrough(),
 
   'work': z.object({
     job: z.string().optional(),
-    income: z.number().optional(),
+    income: z.coerce.number().optional(),
     promotion: z.boolean().optional(),
   }).passthrough(),
 
   'economy': z.object({
-    wealth: z.number().optional(),
-    priceIndex: z.number().optional(),
-    activityLevel: z.number().min(0).max(1).optional(),
+    wealth: z.coerce.number().optional(),
+    priceIndex: z.coerce.number().optional(),
+    activityLevel: z.coerce.number().min(0).max(1).optional(),
     socialClass: z.enum(['noble', 'commoner', 'peasant', 'merchant', 'cultivator']).optional(),
   }).passthrough(),
 
   'reputation': z.object({
-    fame: z.number().min(0).max(100).optional(),
-    delta: z.number().optional(),
-    addFame: z.number().optional(),
-    setFame: z.number().optional(),
-    addReputation: z.number().optional(),
+    fame: z.coerce.number().min(0).max(100).optional(),
+    delta: z.coerce.number().optional(),
+    addFame: z.coerce.number().optional(),
+    setFame: z.coerce.number().optional(),
+    addReputation: z.coerce.number().optional(),
     dimension: z.string().optional(),
   }).passthrough(),
 
   'relationship': z.object({
     addRelation: z.array(relationEntry).optional(),
-    affinityDelta: z.number().optional(),
+    affinityDelta: z.coerce.number().optional(),
   }).passthrough(),
 
   'market': z.object({
-    activityLevel: z.number().min(0).max(1).optional(),
+    activityLevel: z.coerce.number().min(0).max(1).optional(),
     trend: z.enum(['bullish', 'bearish', 'stable']).optional(),
   }).passthrough(),
 
   'population': z.object({
-    total: z.number().optional(),
-    growthRate: z.number().optional(),
+    total: z.coerce.number().optional(),
+    growthRate: z.coerce.number().optional(),
     migrationDirection: z.enum(['inward', 'outward', 'none']).optional(),
   }).passthrough(),
 
   'cultivation': z.object({
-    realm: z.number().min(1).max(9).optional(),
-    cultivationProgress: z.number().min(0).max(100).optional(),
+    realm: z.coerce.number().min(1).max(9).optional(),
+    cultivationProgress: z.coerce.number().min(0).max(100).optional(),
     bottleneck: z.enum(['physique', 'mind', 'comprehension', 'none']).optional(),
   }).passthrough(),
 
   'combat-power': z.object({
-    rank: z.number().min(0).max(100).optional(),
-    delta: z.number().optional(),
+    rank: z.coerce.number().min(0).max(100).optional(),
+    delta: z.coerce.number().optional(),
   }).passthrough(),
 }
 

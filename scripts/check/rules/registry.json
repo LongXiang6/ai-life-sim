@@ -82,7 +82,7 @@
       "tier": "process",
       "atceTrigger": true,
       "scanners": [],
-      "skillRef": "testing-skill/resources/anti-patterns.md#P-09",
+      "skillRef": "testing-skill/resources/anti-patterns-extended.md#P-09",
       "refactorHint": "未经 Patch vs 重构对比不得直接 patch（B-29）"
     },
     "B-29": {

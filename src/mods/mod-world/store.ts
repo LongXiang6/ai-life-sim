@@ -21,10 +21,14 @@ export interface WorldInitAIStatus {
   status: 'idle' | 'running' | 'complete' | 'failed'
   /** 当前执行步骤（便于 UI 展示） */
   currentStep?: string
+  /** 各步骤计时器：步骤 label → { start, end }，end 表示已完成；
+   *  UI 直接用真实时间戳，不再依赖组件本地计时器 */
+  stepTimers?: Record<string, { start: number; end?: number }>
   calibrationGenerated: boolean
   tagsGenerated: boolean
   configGenerated: boolean
   timelineGenerated: boolean
+  pastHistoryGenerated: boolean
   entitiesGenerated: boolean
   retryCount: number
   maxRetries: number

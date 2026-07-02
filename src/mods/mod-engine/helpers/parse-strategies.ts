@@ -60,6 +60,12 @@ export class JsonParseStrategy implements ParseStrategy {
   parse(content: string, processor: ChineseTextProcessor): ParsedNarrative | null {
     try {
       const raw: RawAIResponse = JSON.parse(content)
+
+      // 防御处理：JSON.parse 将 \\n 转为字面量 \n（两个字符），需替换为真实换行符
+      if (raw.narrative && typeof raw.narrative === 'string' && raw.narrative.includes('\\n')) {
+        raw.narrative = raw.narrative.replace(/\\n/g, '\n')
+      }
+
       const narrative = processor.segmentParagraphs(raw.narrative ?? '')
 
       // 提取 direction 字段（支持字符串和结构化对象两种格式）

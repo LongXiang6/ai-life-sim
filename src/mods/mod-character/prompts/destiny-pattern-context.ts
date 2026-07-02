@@ -28,8 +28,8 @@ import { resolveDestinyPatternPromptWorldMeta } from '../utils/destiny-pattern-p
 const DESTINY_PATTERN_TOKENS_PER_ITEM = 280
 
 /** description / effect 长度门禁（下限放宽至 20 字以接纳更多合理短描述，上限移除） */
-export const DESTINY_PATTERN_DESC_MIN = 20
-export const DESTINY_PATTERN_EFFECT_MIN = 12
+export const DESTINY_PATTERN_DESC_MIN = 32
+export const DESTINY_PATTERN_EFFECT_MIN = 5
 
 export interface BuildDestinyPatternContextInput {
   worldConfig: WorldConfig | null | undefined
@@ -75,8 +75,10 @@ export function resolveDestinyPatternWorldTags(
     worldType: config.worldType,
   })
 
+  // 优先级：AI 判定的 essenceTag > 描述关键词兜底
   let tagKey = config.essenceTag
-  if (/无灵气|无魔力|唯心|意志即力量|心相/.test(desc)) {
+  const hasKnownKey = !!tagKey && tagKey in WORLDVIEW_TAG_DEFAULTS
+  if (!hasKnownKey && /无灵气|无魔力|唯心|意志即力量|心相/.test(desc)) {
     tagKey = config.worldType === 'idealist' ? 'idealist' : 'idealist_cultivation'
   }
 
@@ -130,19 +132,13 @@ export function buildDestinyPatternUserPrompt(input: BuildDestinyPatternContextI
     spatialForm: cfg?.spatialForm ?? 'unknown',
     powerCeiling: String(worldMeta.powerCeiling),
     personalModifierFields: worldMeta.personalModifierFields,
-    worldModifierFields: worldMeta.worldModifierFields,
     startingAge,
     instruction: '请为以下世界生成 20 条命格或天赋',
     character: charParts.length > 0 ? charParts.join('；') : '（角色尚未设定）',
+    // 精简约束清单：仅保留易被模型忽略的关键护栏，通用规则已在 System Prompt 中
     requirements: [
-      '严格遵守 System Prompt 中 temporalRules.forbidden 全部禁止项（不得描写出生/童年/未来场景、社会身份、家庭背景）',
-      '命格（type=命格）占 20–30%，特征（type=特征）占 70–80%',
-      '每条 description 必须 50–60 汉字（含标点），写满一段有画面感的白话',
-      '每条 effect 必须 15–25 汉字',
-      '稀有度分布：common≈40%、fine≈30%、rare≈15%、epic≈10%、legendary≈5%；每批 legendary≤3、epic≤8；至少 1 条 rare 及以上',
-      '输出紧凑 JSON 对象 { "patterns": [ ... ] }，patterns 为命格或天赋数组，每条含 type 字段',
-      'attrBonus 仅含非零字段；common/fine 禁止 systemModifiers；禁止 null 占位字段',
-      '数值平衡，systemModifiers 影响力宜小',
+      'description 只写先天/已有特质，禁止未来时间节点与人生场景',
+      '紧凑 JSON {"patterns":[...]}，每条含 type 字段，attrBonus 仅含非零字段',
     ],
     existingNames: names.length > 0 ? names.join('、') : '无',
   })

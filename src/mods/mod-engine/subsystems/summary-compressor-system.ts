@@ -33,10 +33,7 @@ import type {
   LifeStage,
   NarrativeDirection,
   AIModelConfig,
-  ForbiddenActionPattern,
 } from '@/foundation'
-
-import { FORBIDDEN_ACTION_PATTERNS } from '@/foundation'
 import { callAI } from '@/core'
 import { useSettingsStore } from '@/mods/mod-settings'
 
@@ -668,7 +665,7 @@ export class SummaryCompressorSystem implements ISubSystem {
     forceBranch: boolean,
     lifeStage: LifeStage,
     lastPlayerChoice?: string,
-    worldview?: string,
+    _worldview?: string,
   ): NarrativeDirection {
     let direction: NarrativeDirection = null
 
@@ -684,19 +681,12 @@ export class SummaryCompressorSystem implements ISubSystem {
       else if (/学习|研究|知识/.test(choice)) direction = '学习/研究'
     }
 
-    // Step 2: worldview 禁用检测 (⭐⭐⭐⭐⭐⭐)
-    if (direction !== null && worldview) {
-      const patterns: Record<string, ForbiddenActionPattern> = FORBIDDEN_ACTION_PATTERNS
-      const forbidden = patterns[worldview]
-      if (forbidden && lastPlayerChoice) {
-        const hasForbidden = forbidden.directionKeywords.some((kw) =>
-          lastPlayerChoice.includes(kw),
-        )
-        if (hasForbidden) {
-          direction = null // 回退
-        }
-      }
-    }
+    // Step 2: worldview-方向兼容性检测
+    // 设计理念：AI 通过 worldDescription/worldRules 已充分了解世界观约束；
+    // 本步骤仅作"提示"（玩家意图与世界观可能不兼容），不硬删除方向。
+    // 删除方向 = 让 AI 完全丧失玩家意图信息，比保留方向更糟。
+    // 玩家意图方向保留后，AI 可基于世界规则自行判断如何叙事。
+    // （例：唯物世界玩家输入"修炼"——AI 可写"主角尝试用科学方式强身健体"，给出自洽解释）
 
     // Step 3: 派系目标检测 (⭐⭐⭐⭐⭐)
     if (direction === null && memory.faction && memory.faction.rank >= 5) {

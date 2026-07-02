@@ -17,6 +17,7 @@ import {
 } from '../constants'
 import { round } from '../utils'
 import { clamp } from '@/core/shared'
+import { getAttrSemantic } from '../utils/attr-tiers'
 
 export class CharacterBaseSystem implements ISubSystem {
   readonly id = 'character-base' as const
@@ -50,12 +51,13 @@ export class CharacterBaseSystem implements ISubSystem {
       const base = s.base[key]
       const mod = s.modifiers[key]
       const modStr = mod !== 0 ? (mod > 0 ? `+${mod}` : `${mod}`) : ''
-      lines.push(`${this.getAttrKeyLabel(key, base)}${modStr ? `(${modStr})` : ''}`)
+      const semanticDesc = getAttrSemantic(key, base)
+      lines.push(`${this.getAttrKeyLabel(key, base)}${modStr ? `(${modStr})` : ''}：${semanticDesc}`)
     }
 
     return {
       id: this.id,
-      summary: `【${this.label}】${lines.join(' / ')} | 起始年龄 ${s.startingAge}`,
+      summary: `【${this.label}】${lines.join(' | ')} | 起始年龄 ${s.startingAge}`,
       data: structuredClone({
         base: s.base,
         current: s.current,

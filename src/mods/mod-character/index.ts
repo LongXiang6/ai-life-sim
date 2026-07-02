@@ -63,7 +63,12 @@ export {
   DESTINY_PATTERN_RARITY_LIMITS,
   DESTINY_PATTERN_RARITY_CONFIG,
   DESTINY_PATTERN_PERSONAL_MODIFIERS,
+  DESTINY_PATTERN_PERSONAL_MODIFIER_META,
+  DESTINY_PATTERN_PERSONAL_MODIFIER_KEYS,
   DESTINY_PATTERN_WORLD_MODIFIERS,
+  DESTINY_PATTERN_WORLD_MODIFIER_META,
+  DESTINY_PATTERN_WORLD_MODIFIER_KEYS,
+  DESTINY_PATTERN_MODIFIER_BENEFIT_DIRECTION,
   DESTINY_PATTERN_RARITY_RANK,
   DESTINY_PATTERN_POLARITY_CONFIG,
   DESTINY_PATTERN_SELECT_COUNT,
@@ -123,7 +128,10 @@ export { DESTINY_PATTERN_PRESETS_IDEALIST } from './destiny-pattern-presets-idea
 export { raceOriginPrompt, RACE_ORIGIN_SYSTEM_PROMPT } from './prompts/race-origin'
 export { destinyPatternPrompt } from './prompts/destiny-pattern-prompt'
 export { aggregatePatternSystemModifiers } from './utils/destiny-pattern-modifiers'
-export { formatPatternSystemModifiersForDisplay } from './utils/destiny-pattern-modifiers'
+export {
+  formatPatternSystemModifiersForDisplay,
+  type PatternModifierDisplayItem,
+} from './utils/destiny-pattern-modifiers'
 export type { PromptTemplate } from '@/foundation'
 
 export { randomName } from './utils/name'

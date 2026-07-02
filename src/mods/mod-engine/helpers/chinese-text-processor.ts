@@ -39,6 +39,10 @@ export class ChineseTextProcessor {
    */
   segmentParagraphs(text: string): string {
     if (!text || text.length === 0) return text
+    // 防御处理：将字面量 \n（两个字符）替换为真实换行符
+    if (text.includes('\\n')) {
+      text = text.replace(/\\n/g, '\n')
+    }
     if (/\n\s*\n/.test(text)) return text
 
     const sentences = text.split(/(?<=[。！？…\.!\?])\s*/).filter((s) => s.trim())

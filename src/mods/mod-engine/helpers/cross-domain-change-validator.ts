@@ -9,44 +9,44 @@ import type { SubSystemChanges } from '@/foundation'
 
 const CROSS_DOMAIN_CHANGE_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> = {
   population: z.object({
-    populationDelta: z.number().optional(),
-    totalPopulation: z.number().optional(),
-    growthRate: z.number().optional(),
-    migrationInflow: z.number().optional(),
+    populationDelta: z.coerce.number().optional(),
+    totalPopulation: z.coerce.number().optional(),
+    growthRate: z.coerce.number().optional(),
+    migrationInflow: z.coerce.number().optional(),
   }).passthrough(),
 
   economy: z.object({
-    wealthDelta: z.number().optional(),
-    playerWealth: z.number().optional(),
+    wealthDelta: z.coerce.number().optional(),
+    playerWealth: z.coerce.number().optional(),
   }).passthrough(),
 
   'faction-dynamics': z.object({
-    addContribution: z.number().optional(),
+    addContribution: z.coerce.number().optional(),
   }).passthrough(),
 
   'culture-tech': z.object({
-    techProgress: z.number().optional(),
-    techProgressDelta: z.number().optional(),
+    techProgress: z.coerce.number().optional(),
+    techProgressDelta: z.coerce.number().optional(),
   }).passthrough(),
 
   legal: z.object({
-    enforcementDelta: z.number().optional(),
-    enforcementLevel: z.number().optional(),
-    corruptionDelta: z.number().optional(),
+    enforcementDelta: z.coerce.number().optional(),
+    enforcementLevel: z.coerce.number().optional(),
+    corruptionDelta: z.coerce.number().optional(),
   }).passthrough(),
 
   education: z.object({
-    literacyRateDelta: z.number().optional(),
-    literacyRate: z.number().optional(),
+    literacyRateDelta: z.coerce.number().optional(),
+    literacyRate: z.coerce.number().optional(),
   }).passthrough(),
 
   reputation: z.object({
-    addFame: z.number().optional(),
-    setFame: z.number().optional(),
+    addFame: z.coerce.number().optional(),
+    setFame: z.coerce.number().optional(),
   }).passthrough(),
 
   'social-values': z.object({
-    valueShiftDelta: z.number().optional(),
+    valueShiftDelta: z.coerce.number().optional(),
   }).passthrough(),
 
   celestial: z.object({
@@ -54,7 +54,7 @@ const CROSS_DOMAIN_CHANGE_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> = 
   }).passthrough(),
 
   'conflict-cycle': z.object({
-    tensionDelta: z.number().optional(),
+    tensionDelta: z.coerce.number().optional(),
   }).passthrough(),
 }
 

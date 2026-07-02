@@ -15,7 +15,7 @@ import { useWorldStore } from '@/mods/mod-world'
 
 import { narrativePrompt } from './prompts/narrative-prompt'
 import { computeNarrativeMaxTokens, DEFAULT_WORD_COUNT_TARGET } from './constants/narrative-config'
-import { clearPreGenQueue, fillPreGenQueue, getPreGenQueueStatus, shiftPreGenQueue, subscribePreGenQueue, type PreGenQueueStatus } from './helpers/pre-gen-queue'
+import { clearPreGenQueue, fillPreGenQueue, getPreGenQueueStatus, shiftPreGenQueue, subscribePreGenQueue, checkAndClearPreGenOnTimeStepChange, type PreGenQueueStatus } from './helpers/pre-gen-queue'
 import { syncSubsystemStoresFromStates } from './helpers/subsystem-store-sync'
 import { useEngineStore } from './store'
 import { orchestrator, timeSystem } from './engine-api'
@@ -26,11 +26,29 @@ import type { SimulationSnapshot } from './simulation/simulation-types'
 export function syncOrchestratorToEngineStore(): void {
   const o = orchestrator.getState()
   syncSubsystemStoresFromStates(orchestrator.getSubsystemStateSnapshot())
+
+  // 合并 resolvedChoice：orchestrator 内部的 narrativeHistory 不携带 resolvedChoice，
+  // 需要从当前 store 的 narrativeHistory 中保留已解析的分支选择，避免 sync 覆盖丢失
+  const prevNarrative = useEngineStore.getState().narrativeHistory
+  const resolvedChoiceMap = new Map<string, string>()
+  for (const entry of prevNarrative) {
+    if (entry.id && entry.resolvedChoice) {
+      resolvedChoiceMap.set(entry.id, entry.resolvedChoice)
+    }
+  }
+
+  const mergedHistory = o.narrativeHistory.map((entry) => {
+    if (entry.id && resolvedChoiceMap.has(entry.id)) {
+      return { ...entry, resolvedChoice: resolvedChoiceMap.get(entry.id) }
+    }
+    return entry
+  })
+
   useEngineStore.setState((s) => ({
     ...s,
     round: { ...o.round },
     totalRounds: o.totalRounds,
-    narrativeHistory: [...o.narrativeHistory],
+    narrativeHistory: mergedHistory,
     currentNarrative: o.currentNarrative,
     compressionStats: { ...o.compressionStats },
     characterCreations: [...(o.characterCreations ?? [])],
@@ -124,6 +142,9 @@ export function useSimulationAdvance() {
 
     orchestrator.setTimeStep(useEngineStore.getState().timeStep)
 
+    // 检测时间步长变化，变化时清空旧粒度的预生成队列
+    checkAndClearPreGenOnTimeStepChange(useEngineStore.getState().timeStep)
+
     // 推进前确保 orchestrator 可执行（避免 pause 后 status=paused 导致空回合）
     orchestrator.start()
 
@@ -140,6 +161,9 @@ export function useSimulationAdvance() {
         aiConfig,
         worldCode ? `sim-${worldCode}` : undefined,
       )
+
+      // 自动保存：叙事完成后立即保存最新状态（废弃项目做法：无条件保存）
+      orchestrator.triggerAutoSave()
     } catch (err) {
       console.error('[useSimulationAdvance] 回合执行失败:', err)
       useEngineStore.getState().setNarrativeError(

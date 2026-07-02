@@ -13,6 +13,19 @@ import { useRouter } from 'next/navigation'
 
 import { useIsMobile } from '@/foundation'
 import { useGlobalStore } from '@/core/global-store'
+import { useCharacterStore } from '@/mods/mod-character'
+import { useWorldStore } from '@/mods/mod-world'
+import { useEngineStore } from '@/mods/mod-engine'
+import { useEconomyStore } from '@/mods/mod-economy'
+import { usePoliticsStore } from '@/mods/mod-politics'
+import { useHistoryDynamicsStore } from '@/mods/mod-history-dynamics'
+import { usePowerSystemStore } from '@/mods/mod-power-system'
+import { useCultureStore } from '@/mods/mod-culture'
+import { useNPCStore } from '@/mods/mod-npc'
+import { useEnvironmentEcologyStore } from '@/mods/mod-environment-ecology'
+import { useBaseUniverseStore } from '@/mods/mod-base-universe'
+import { useTechLevelStore } from '@/mods/mod-tech-level'
+import { useGoldenFingerStore } from '@/mods/mod-golden-finger'
 import { saveManager } from '@/core/storage/save-manager'
 import { applyGameSave } from '@/mods/mod-engine/engine-api'
 import { isApiConfigured } from '@/mods/mod-settings'
@@ -62,6 +75,20 @@ export default function WelcomePage() {
       setShowSettings(true)
       return
     }
+    // 重置所有游戏数据 store，清除上一局游戏的残留数据
+    useCharacterStore.getState().reset()
+    useWorldStore.getState().reset()
+    useEngineStore.getState().reset()
+    useEconomyStore.getState().reset()
+    usePoliticsStore.getState().reset()
+    useHistoryDynamicsStore.getState().reset()
+    usePowerSystemStore.getState().reset()
+    useCultureStore.getState().reset()
+    useNPCStore.getState().reset()
+    useEnvironmentEcologyStore.getState().reset()
+    useBaseUniverseStore.getState().reset()
+    useTechLevelStore.getState().reset()
+    useGoldenFingerStore.getState().reset()
     pendingActionRef.current = null
     setGamePhase('world_build')
     router.push('/new-game')

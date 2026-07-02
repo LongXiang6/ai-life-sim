@@ -6,7 +6,7 @@
  * 历法：12月真实公历分布（31/28/31/30/31/30/31/31/30/31/30/31） = 365天
  *
  * 季节推进流程：
- *   春(month 0-2, 90天) → 夏(month 3-5, 92天) → 秋(month 6-8, 92天) → 冬(month 9-11, 92天) → 春(下一年)
+ *   春(month 0-2, 90天) → 夏(month 3-5, 91天) → 秋(month 6-8, 92天) → 冬(month 9-11, 92天) → 春(下一年)
  *
  * 日期系统：
  *   day 0 表示每月第1天，day N-1 表示每月第N天
@@ -20,14 +20,16 @@ import { CALENDAR, SEASONS, SEASON_NAMES, MONTH_ZH, ERA_SPAN, ERA_NAME_POOL, REI
 
 /** 根据绝对年份推算纪元/年号信息（无限世代） */
 function resolveDisplayEra(year: number): Pick<RoundInfo, 'eraName' | 'eraYear' | 'reignTitle' | 'reignYear'> {
-  const eraIndex = Math.max(0, Math.floor((year - 1) / ERA_SPAN))
+  // year 从 1 开始推算（year=0 为出生年，无纪元信息，fallback 到 year=1）
+  const safeYear = Math.max(1, year)
+  const eraIndex = Math.max(0, Math.floor((safeYear - 1) / ERA_SPAN))
   const eraName = ERA_NAME_POOL[eraIndex % ERA_NAME_POOL.length]
   const eraStartYear = eraIndex * ERA_SPAN
-  const eraYear = year - eraStartYear
+  const eraYear = safeYear - eraStartYear
 
-  const reignIndex = Math.floor((year - 1) / REIGN_DURATION) % REIGN_TITLES.length
+  const reignIndex = Math.floor((safeYear - 1) / REIGN_DURATION) % REIGN_TITLES.length
   const reignTitle = REIGN_TITLES[reignIndex]
-  const reignYear = ((year - 1) % REIGN_DURATION) + 1
+  const reignYear = ((safeYear - 1) % REIGN_DURATION) + 1
 
   return { eraName, eraYear, reignTitle, reignYear }
 }
@@ -40,8 +42,86 @@ function createInitialRound(): RoundInfo {
     month: 0,
     day: 0,
     dayOfYear: 1,
+    totalDays: 0,
     ...resolveDisplayEra(0),
   }
+}
+
+/**
+ * 粒度切换时的周期边界对齐（纯函数，无副作用）。
+ * 当从粗粒度切换到细粒度时，粗粒度的叙事已覆盖当前整个周期，
+ * 细粒度应从下一个粗周期开始，避免时间倒流到已叙事过的时段。
+ *
+ * @returns 对齐后的新 RoundInfo（不修改入参 round）
+ */
+export function alignRoundToNextPeriod(
+  prevUnit: TimeStep['unit'],
+  newUnit: TimeStep['unit'],
+  round: RoundInfo,
+): RoundInfo {
+  const UNIT_ORDER: Record<TimeStep['unit'], number> = {
+    day: 0, month: 1, season: 2, year: 3,
+  }
+  const prevOrder = UNIT_ORDER[prevUnit]
+  const newOrder = UNIT_ORDER[newUnit]
+
+  // 粗→细才需要对齐；细→粗或同级不做额外跳转
+  if (prevOrder <= newOrder) {
+    return { ...round }
+  }
+
+  // 计算基础 totalDays：当前 totalDays + 已覆盖周期的天数
+  let { year, season, month, day, dayOfYear, totalDays } = round
+
+  switch (prevUnit) {
+    case 'year': {
+      // 年叙事已覆盖全年 → 跳到下一年春天
+      totalDays += CALENDAR.DAYS_PER_YEAR
+      year++
+      season = SEASONS.SPRING
+      month = 0
+      day = 0
+      dayOfYear = 1
+      break
+    }
+    case 'season': {
+      // 季叙事已覆盖整季 → 跳到下一季第一天
+      const startMonth = season * CALENDAR.MONTHS_PER_SEASON
+      let seasonDays = 0
+      for (let i = 0; i < CALENDAR.MONTHS_PER_SEASON; i++) {
+        seasonDays += CALENDAR.DAYS_IN_MONTH[startMonth + i]
+      }
+      totalDays += seasonDays
+      season = (season + 1) % CALENDAR.SEASONS_PER_YEAR
+      if (season === 0) year++
+      month = season * CALENDAR.MONTHS_PER_SEASON
+      day = 0
+      // 反算 dayOfYear
+      dayOfYear = 1
+      for (let m = 0; m < month; m++) {
+        dayOfYear += CALENDAR.DAYS_IN_MONTH[m]
+      }
+      break
+    }
+    case 'month': {
+      // 月叙事已覆盖整月 → 跳到下个月第一天
+      totalDays += CALENDAR.DAYS_IN_MONTH[month]
+      month++
+      if (month >= CALENDAR.MONTHS_PER_YEAR) {
+        month = 0
+        year++
+        dayOfYear = 1
+      } else {
+        dayOfYear += CALENDAR.DAYS_IN_MONTH[month - 1]
+      }
+      day = 0
+      season = Math.floor(month / CALENDAR.MONTHS_PER_SEASON)
+      break
+    }
+  }
+
+  const era = resolveDisplayEra(year)
+  return { year, season, month, day, dayOfYear, totalDays, ...era }
 }
 
 export class TimeSystem implements ISubSystem {
@@ -57,8 +137,16 @@ export class TimeSystem implements ISubSystem {
     return { ...this.round }
   }
 
+  /**
+   * 设置时间步进并自动对齐边界。
+   * 对齐逻辑由纯函数 alignRoundToNextPeriod 实现（可独立单测）。
+   */
   setTimeStep(step: TimeStep): void {
+    const prevUnit = this.timeStep.unit
     this.timeStep = step
+
+    // 委托纯函数做边界对齐（粗→细跳下一周期，细→粗原样返回）
+    this.round = alignRoundToNextPeriod(prevUnit, step.unit, this.round)
   }
 
   getSeasonName(): string {
@@ -91,6 +179,7 @@ export class TimeSystem implements ISubSystem {
    */
   skipYears(n: number): RoundInfo {
     this.round.year += n
+    this.round.totalDays += n * CALENDAR.DAYS_PER_YEAR
     this.round.season = SEASONS.SPRING
     this.round.month = 0
     this.round.day = 0
@@ -110,11 +199,45 @@ export class TimeSystem implements ISubSystem {
    *   年步进：year × 1/3/5/10/50/100/200/500/1000
    */
   advance(): RoundInfo {
+    const beforeTotalDays = this.round.totalDays
     switch (this.timeStep.unit) {
-      case 'day': return this.advanceDays(this.timeStep.value)
-      case 'month': return this.advanceMonths(this.timeStep.value)
-      case 'season': return this.advanceSeasons(this.timeStep.value)
-      case 'year': return this.advanceYears(this.timeStep.value)
+      case 'day': {
+        const result = this.advanceDays(this.timeStep.value)
+        if (result.totalDays <= beforeTotalDays) {
+          console.error(
+            `[TimeSystem] totalDays 未递增! ${beforeTotalDays} → ${result.totalDays} (step=${this.timeStep.unit}:${this.timeStep.value})`,
+          )
+        }
+        return result
+      }
+      case 'month': {
+        const result = this.advanceMonths(this.timeStep.value)
+        // 单调性安全网：推进后 totalDays 必须严格递增
+        if (result.totalDays <= beforeTotalDays) {
+          console.error(
+            `[TimeSystem] totalDays 未递增! ${beforeTotalDays} → ${result.totalDays} (step=${this.timeStep.unit}:${this.timeStep.value})`,
+          )
+        }
+        return result
+      }
+      case 'season': {
+        const result = this.advanceSeasons(this.timeStep.value)
+        if (result.totalDays <= beforeTotalDays) {
+          console.error(
+            `[TimeSystem] totalDays 未递增! ${beforeTotalDays} → ${result.totalDays} (step=${this.timeStep.unit}:${this.timeStep.value})`,
+          )
+        }
+        return result
+      }
+      case 'year': {
+        const result = this.advanceYears(this.timeStep.value)
+        if (result.totalDays <= beforeTotalDays) {
+          console.error(
+            `[TimeSystem] totalDays 未递增! ${beforeTotalDays} → ${result.totalDays} (step=${this.timeStep.unit}:${this.timeStep.value})`,
+          )
+        }
+        return result
+      }
     }
   }
 
@@ -132,6 +255,7 @@ export class TimeSystem implements ISubSystem {
 
   private advanceOneDay(): RoundInfo {
     const r = this.round
+    r.totalDays++
 
     // 月末判断：当月最后一天
     const daysInCurrentMonth = CALENDAR.DAYS_IN_MONTH[r.month]
@@ -172,15 +296,16 @@ export class TimeSystem implements ISubSystem {
 
     // 当前月天数
     const daysInCurrentMonth = CALENDAR.DAYS_IN_MONTH[r.month]
+    r.totalDays += daysInCurrentMonth
 
-    // 绝对天数：从第 1 年第 1 天开始计数（0-based）
-    const totalDays = (r.year - 1) * CALENDAR.DAYS_PER_YEAR + r.dayOfYear - 1
+    // 绝对天数：从 epoch 起点（year=0, day=1）开始计数（0-based）
+    const totalDays = r.year * CALENDAR.DAYS_PER_YEAR + r.dayOfYear - 1
 
     // 推进当前月的实际天数
     const newTotal = totalDays + daysInCurrentMonth
 
     // 从绝对天数反算年份和年内天数
-    r.year = Math.floor(newTotal / CALENDAR.DAYS_PER_YEAR) + 1
+    r.year = Math.floor(newTotal / CALENDAR.DAYS_PER_YEAR)
     r.dayOfYear = (newTotal % CALENDAR.DAYS_PER_YEAR) + 1
 
     this.applyDayOfYearToRound(r)
@@ -228,6 +353,7 @@ export class TimeSystem implements ISubSystem {
     for (let i = 0; i < CALENDAR.MONTHS_PER_SEASON; i++) {
       seasonDays += CALENDAR.DAYS_IN_MONTH[startMonth + i]
     }
+    r.totalDays += seasonDays
 
     const oldSeason = r.season
     r.season = (r.season + 1) % CALENDAR.SEASONS_PER_YEAR
@@ -259,6 +385,7 @@ export class TimeSystem implements ISubSystem {
   private advanceYears(count: number): RoundInfo {
     for (let i = 0; i < count; i++) {
       this.round.year++
+      this.round.totalDays += CALENDAR.DAYS_PER_YEAR
       this.round.season = SEASONS.SPRING
       this.round.month = 0
       this.round.day = 0

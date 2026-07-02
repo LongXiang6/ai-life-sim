@@ -61,7 +61,13 @@ export function buildWorldCoherenceHint(
 }
 
 /**
- * 解析世界观事件风格 hint（idealist / 史前 / 默认 essence）
+ * 解析世界观事件风格 hint
+ *
+ * 优先级：
+ *   1. AI 明确判定的 essenceTag（idealist_cultivation）→ 直接采用专属风格
+ *   2. 校准配置中的用户风格设定（最高用户意图）
+ *   3. essenceTag 默认风格
+ *   描述关键词仅作"补充提示"拼接在默认风格之后，不强制替换
  */
 export function resolveWorldviewStyleHint(opts: {
   cal?: WorldCalibration | null
@@ -71,23 +77,35 @@ export function resolveWorldviewStyleHint(opts: {
 }): string {
   const { cal, essenceTag, worldDescription = '', worldType: _worldType } = opts
 
-  const isIdealistWillpower =
-    essenceTag === 'idealist_cultivation'
-    || /无灵气|无魔力|无.*外部.*自然能量|意志即力量|心相|玄关|登天路/.test(worldDescription)
-
-  if (isIdealistWillpower) {
+  // AI 明确判定的唯心修炼世界 → 专属风格（最高优先级，无需 regex）
+  if (essenceTag === 'idealist_cultivation') {
     return IDEALIST_WILLPOWER_STYLE_HINT
   }
 
+  // 用户校准配置优先
   if (cal?.styleGuide?.worldviewStyleHint?.trim()) {
     return cal.styleGuide.worldviewStyleHint.trim()
   }
 
-  return getWorldviewStyleHint(cal, essenceTag)
+  // 默认风格
+  const baseHint = getWorldviewStyleHint(cal, essenceTag)
+
+  // 描述含唯心关键词 → 追加补充提示（不替换 AI 默认风格）
+  if (/无灵气|无魔力|无.*外部.*自然能量|意志即力量|心相|玄关|登天路/.test(worldDescription)) {
+    return `${baseHint}\n若描述明确属唯心体系，可采用意志/心相/玄关叙事；若属混合或不确定，仍以 ${baseHint} 为准`
+  }
+
+  return baseHint
 }
 
 /**
- * 时间线风格提示：保留 essence 默认风格，但要求 AI 先对照 worldDescription 决定是否采用
+ * 时间线风格提示
+ *
+ * 优先级：
+ *   1. AI essenceTag = idealist_cultivation → 专属风格
+ *   2. 校准配置策略（prehistoric 等）→ 直接采用
+ *   3. essenceTag 默认风格（describe 字段传入）
+ *   史前关键词仅作"补充约束"追加，不替换 AI/校准决策
  */
 export function buildTimelineStyleHint(
   _civilizationStage: string,
@@ -97,13 +115,12 @@ export function buildTimelineStyleHint(
   worldType?: string,
   essenceTag?: string,
 ): string {
-  const isIdealistWillpower =
-    essenceTag === 'idealist_cultivation'
-    || /无灵气|无魔力|无.*外部.*自然能量|意志即力量|心相|玄关|登天路/.test(worldDescription)
-
-  if (isIdealistWillpower) {
+  // AI 明确判定唯心修炼 → 专属风格
+  if (essenceTag === 'idealist_cultivation') {
     return IDEALIST_WILLPOWER_STYLE_HINT
   }
+
+  // 校准配置策略优先
   const strategy = calibration?.formulas?.eventDistributionStrategy
   if (strategy === 'prehistoric') {
     return [
@@ -112,15 +129,30 @@ export function buildTimelineStyleHint(
     ].join(' ')
   }
 
+  // AI essenceTag 默认风格为主体
+  const constraints: string[] = []
+
+  // 史前关键词 → 补充约束（不替换主体风格）
   if (/地猿|史前|新近纪|上新世|中新世|猿人|早期人类|古猿/.test(worldDescription)) {
+    constraints.push('若描述含史前/地猿元素，可写环境变迁、种群迁徙、工具创新、气候波动、栖息地变化；勿写智人走出非洲、国家、修仙、宇宙战争；尺度限于种群与区域')
+  }
+
+  // 唯心关键词 → 补充约束
+  if (/无灵气|无魔力|无.*外部.*自然能量|意志即力量|心相|玄关|登天路/.test(worldDescription)) {
+    constraints.push('若描述含唯心/意志关键词，可写玄关、登天路、心相等叙事；若属混合或不确定，仍以默认风格为准')
+  }
+
+  if (constraints.length === 0) {
     return [
-      '环境变迁、种群迁徙、工具使用、气候波动、栖息地变化',
-      '（勿写智人走出非洲、国家、修仙、宇宙战争；尺度限于种群与区域）',
+      essenceStyleHint,
+      '（须先对照 worldDescription 与 systemApplicability：若该风格与设定不符，改写实/环境/种群级事件，勿强行套用）',
     ].join(' ')
   }
 
   return [
     essenceStyleHint,
-    '（须先对照 worldDescription 与 systemApplicability：若该风格与设定不符，改写实/环境/种群级事件，勿强行套用）',
+    '（约束：',
+    constraints.join('；'),
+    '；对照 worldDescription 与 systemApplicability 判断是否适用）',
   ].join(' ')
 }

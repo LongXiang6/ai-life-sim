@@ -32,7 +32,7 @@ const DESTINY_PATTERN_SYSTEM_PROMPT = stringifyPrompt({
     description: '描述（50-60字为佳，现代白话，写满一段；只写先天/已有特质，禁止未来剧情）',
     rarity: 'common | fine | rare | epic | legendary',
     polarity: 'positive | negative | mixed',
-    effect: '效果概括（15-25字，定性描述，禁止数值）',
+    effect: '效果概括（≥10字，定性描述，禁止数值）',
     attrBonus: {
       physique: '体魄 (integer)',
       mind: '心智 (integer)',
@@ -68,18 +68,17 @@ const DESTINY_PATTERN_SYSTEM_PROMPT = stringifyPrompt({
   },
   lengthRequirements: {
     description: '每条 50–60 汉字为佳（含标点）；低于 50 字仍可接受但不宜过短',
-    effect: '每条 15–25 汉字',
+    effect: '每条 ≥10 汉字（定性描述，浓缩游戏效果）',
     exampleDescription: DESTINY_PATTERN_MODERN_EXAMPLE.description,
     antiPattern: '禁止 20 字以内的单句描述；禁止「初二配眼镜」「1999年入职上市」等未来事件',
   },
   systemModifierRules: {
     common_fine: '禁止输出 systemModifiers',
-    rare: '最多 1 个个人向字段，范围 0.95~1.08',
-    epic: '最多 1 个人 + 1 个世界向字段，范围 0.93~1.12',
-    legendary: '最多 2 个人 + 2 个世界向字段，范围 0.88~1.15',
+    rare: '最多 1 个个人向字段（轻微影响），范围 0.95~1.08',
+    epic: '最多 2 个个人向字段（显著影响），范围 0.90~1.15',
+    legendary: '最多 2 个个人向字段（深度影响），范围 0.85~1.20',
     personalFields: '见 user.personalModifierFields',
-    worldFields: '见 user.worldModifierFields',
-    principle: '影响力宜小；worldDescription 与 coherenceHint 优先于 essenceTag 与 worldTags',
+    principle: 'common/fine 不可带修饰符；rare/epic/legendary 可影响个人系统',
   },
   rarityDistribution: {
     common: { count: '7-8 条', ratio: '≈40%' },
@@ -118,13 +117,13 @@ export const destinyPatternOutputSchema = z.array(
     polarity: z.enum(['positive', 'negative', 'mixed']).describe('极性'),
     effect: z.string().describe('效果描述'),
     attrBonus: z.object({
-      physique: z.number().optional(),
-      mind: z.number().optional(),
-      talentAptitude: z.number().optional(),
-      charisma: z.number().optional(),
-      resources: z.number().optional(),
+      physique: z.coerce.number().optional(),
+      mind: z.coerce.number().optional(),
+      talentAptitude: z.coerce.number().optional(),
+      charisma: z.coerce.number().optional(),
+      resources: z.coerce.number().optional(),
     }).optional(),
-    systemModifiers: z.record(z.string(), z.number()).optional(),
+    systemModifiers: z.record(z.string(), z.coerce.number()).optional(),
   }),
 )
 

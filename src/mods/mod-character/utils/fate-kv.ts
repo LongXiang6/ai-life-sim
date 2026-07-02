@@ -19,7 +19,6 @@ export const FATE_STABLE_USER_KEYS = [
   'spatialForm',
   'powerCeiling',
   'personalModifierFields',
-  'worldModifierFields',
 ] as const
 
 /** 每批变化的 user 字段（existingNames 放最后以最大化前缀命中） */

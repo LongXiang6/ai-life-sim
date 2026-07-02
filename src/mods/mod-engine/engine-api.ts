@@ -21,7 +21,7 @@ export type {
 } from './subsystems/summary-compressor-system'
 
 export { applyGameSave, collectGameSavePayload } from './helpers/save-restore'
-export { clearPreGenQueue, getPreGenQueueLength } from './helpers/pre-gen-queue'
+export { checkAndClearPreGenOnTimeStepChange, clearPreGenQueue, getPreGenQueueLength } from './helpers/pre-gen-queue'
 export { formatNarrativeTimeLabel } from './helpers/narrative-calendar'
 export { buildOrchestratorWorldSetting } from './helpers/orchestrator-world-setting'
 

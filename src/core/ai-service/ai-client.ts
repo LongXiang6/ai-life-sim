@@ -18,6 +18,7 @@ import type { AIModelConfig } from '@/foundation'
 
 import { z } from 'zod'
 import type { ZodSchema } from 'zod'
+import { parseAIJSON } from './parse-ai-json'
 import type { DebugLogCategory } from '../logger/debug-logger'
 import { logger } from '../logger/client-logger'
 import {
@@ -180,8 +181,8 @@ export interface AICallOptions {
   overrideTopP?: number
   /** 是否 JSON 模式；false 时显式关闭（即使 config.responseFormat 已设） */
   jsonMode?: boolean
-  /** 剧情一致性种子 */
-  storySeed?: string
+  /** 剧情一致性种子（最终转为 number 发送给 provider API） */
+  storySeed?: string | number
   /** Provider ID（默认从 config.model 推断） */
   providerId?: string
   /** 自定义 API Key（优先于服务端 env） */
@@ -257,22 +258,22 @@ function parseUsage(usage?: AIResponse['usage']): AICallUsageSnapshot | undefine
   }
 }
 
-/** 记录一次成功 AI 调用（一次 API = 一条 debug-log；空响应不写） */
-function logSuccessfulAICall(
+/** 记录一次成功 AI 调用（异步，等待发送完成） */
+async function logSuccessfulAICall(
   messages: Array<{ role: string; content: string }>,
   response: string,
   options: AICallOptions,
   pool: CachePoolType,
   usage?: AICallUsageSnapshot,
   finishReason?: string,
-): void {
+): Promise<void> {
   if (!isValidAiContent(response)) return
 
   const maxTokens = resolveMaxTokens(options)
   const truncated = isTruncatedResponse(usage, maxTokens, finishReason)
   const resolvedMeta = options.logMetaResolver?.(response) ?? {}
 
-  recordAICallLog({
+  await recordAICallLog({
     category: resolveLogCategory(pool, options.logCategory),
     messages,
     response,
@@ -293,8 +294,8 @@ function logSuccessfulAICall(
   })
 }
 
-/** 最终失败时记录（明确标记失败，避免与成功日志混淆） */
-function logFailedAICall(
+/** 最终失败时记录（异步，等待发送完成） */
+async function logFailedAICall(
   messages: Array<{ role: string; content: string }>,
   options: AICallOptions,
   pool: CachePoolType,
@@ -302,14 +303,14 @@ function logFailedAICall(
   usage?: AICallUsageSnapshot,
   finishReason?: string,
   lastContent?: string,
-): void {
+): Promise<void> {
   const maxTokens = resolveMaxTokens(options)
   const truncated = isTruncatedResponse(usage, maxTokens, finishReason)
   const resolverMeta = lastContent && options.logMetaResolver
     ? options.logMetaResolver(lastContent)
     : {}
 
-  recordAICallLog({
+  await recordAICallLog({
     category: resolveLogCategory(pool, options.logCategory),
     messages,
     response: lastContent?.trim()
@@ -508,7 +509,7 @@ function buildRequestBody(
   }
 
   if (options?.storySeed) {
-    body.seed = options.storySeed
+    body.seed = Number(options.storySeed)
   }
 
   // 推理强度 → thinking 参数
@@ -637,13 +638,13 @@ async function executeAiFetchWithRetry(
           await new Promise((r) => setTimeout(r, getBackoffDelay(attempt)))
           continue
         }
-        logFailedAICall(
+        await logFailedAICall(
           messages, options, pool, 'AI 返回空响应', usage, finishReason, lastContent,
         )
         throw new Error('AI 返回了空内容')
       }
 
-      logSuccessfulAICall(messages, content, options, pool, usage, finishReason)
+      await logSuccessfulAICall(messages, content, options, pool, usage, finishReason)
       return content
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
@@ -665,7 +666,7 @@ async function executeAiFetchWithRetry(
         onAiError(`AI 调用失败：${formatAiError(err)}`)
       }
       if (!(err instanceof Error && err.message === 'AI 返回了空内容')) {
-        logFailedAICall(
+        await logFailedAICall(
           messages,
           options,
           pool,
@@ -682,7 +683,7 @@ async function executeAiFetchWithRetry(
   if (onAiError) {
     onAiError('AI 调用失败，已达最大重试次数')
   }
-  logFailedAICall(
+  await logFailedAICall(
     messages, options, pool, '已达最大重试次数', lastUsage, lastFinishReason, lastContent,
   )
   throw new Error('AI 调用失败，已达最大重试次数')
@@ -749,14 +750,37 @@ async function validateWithRetry(
   let parsed: unknown
   try {
     parsed = JSON.parse(content)
-  } catch (error) {
-    // JSON.parse 失败 → 非 JSON 响应
-    if (callContext.options.strictSchema) {
-      throw error instanceof Error
-        ? new Error(`AI response is not valid JSON: ${error.message}`)
-        : new Error('AI response is not valid JSON')
+  } catch (jsonError) {
+    // JSON.parse 失败 → 先尝试 parseAIJSON 多层容错修复
+    const repaired = parseAIJSON(content)
+    if (repaired !== null) {
+      logger.warnRaw('ai-client', '原始 JSON 解析失败，通过 parseAIJSON 修复成功', '')
+      parsed = repaired
+    } else if (callContext.options.strictSchema) {
+      // 修复失败 → 重试一次再严格抛错
+      logger.warnRaw('ai-client', 'JSON 解析失败，重试一次', (jsonError as Error).message)
+      const { outputSchema: _, ...restOpts } = callContext.options
+      try {
+        const retryContent = await callAI(
+          callContext.systemPrompt,
+          callContext.userPrompt,
+          { ...restOpts, extraUserMessages: ['前次输出 JSON 格式无效，请严格按照 JSON Schema 输出合法 JSON，禁止 markdown 包裹。'] },
+        )
+        const retryRepaired = parseAIJSON(retryContent)
+        if (retryRepaired !== null) {
+          parsed = retryRepaired
+        } else {
+          // parseAIJSON 也修不好，尝试原生 JSON.parse
+          parsed = JSON.parse(retryContent)
+        }
+      } catch (retryErr) {
+        throw retryErr instanceof Error
+          ? new Error(`AI response is not valid JSON after retry: ${retryErr.message}`)
+          : new Error('AI response is not valid JSON after retry')
+      }
+    } else {
+      return content
     }
-    return content
   }
 
   const validation = schema.safeParse(parsed)

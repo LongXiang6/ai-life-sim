@@ -21,15 +21,17 @@
  */
 
 import { eventBus, callAIWithPromptTemplate, buildSegmentedPrompt, getNarrativeUserSegments } from '@/core'
-import { adaptationManager } from './adaptation-manager-system'
 import { isInstrumentEnabled, getInstrumentHooks } from '@/core/instrument/instrument-mode'
 import type { NarrativeStage, YearEvent } from '@/foundation'
+import { formatEraYear } from '@/foundation/utils/format-time'
+import { saveManager } from '@/core/storage/save-manager'
 import {
-  getWorldRules,
+  adaptationManager,
   DEFAULT_ENGINE_CONFIG,
   MAX_NARRATIVE_HISTORY,
   MAX_CHARACTER_CREATIONS,
   USE_AI_SUMMARY_COMPRESSION,
+  getWorldRules,
   buildWordCountInstruction,
   buildStyleInstruction,
   resolveNarrativeToneHint,
@@ -58,27 +60,22 @@ import {
   buildNarrativeHints,
   classifyActionScale,
   INFORMATION_PRIORITY_RULE,
-  type BridgeSnapshot,
-  type EventLifecycleTracker,
-  type DomainEvent,
-  type SubsystemInstruction,
-  type NarrativeHintInput,
-} from '../helpers/orchestrator-pipeline-support'
-import { RoundCommitBus, type RoundCommitSource, type RoundCommitResult } from '../helpers/round-commit-bus'
-import { runNarrativeInterceptors } from '../helpers/narrative-interceptor-pipeline'
-import {
+  RoundCommitBus,
+  runNarrativeInterceptors,
   buildNarrativeTimeContext,
   readEraStartYearFromConfig,
   readBirthEraYearFromConfig,
   formatNarrativeTimeLabel,
   resolveCalendarEraYear,
-} from '../helpers/narrative-calendar'
-import { formatEraYear } from '@/foundation/utils/format-time'
-import { buildTimeScaleNarrativeHint } from '../helpers/time-scale-narrative'
-import { computeNarrativeMaxTokens, DEFAULT_WORD_COUNT_TARGET } from '../constants/narrative-config'
-import { generateArchetypeHint, buildLifespanReminder, countConsecutiveConflictRounds } from '../helpers/life-stage-archetypes'
-import { simulationBridge } from '../simulation/simulation-bridge'
-import {
+  buildTimeScaleNarrativeHint,
+  generateArchetypeHint,
+  buildLifespanReminder,
+  countConsecutiveConflictRounds,
+  collectGameSavePayload,
+  computeNarrativeMaxTokens,
+  DEFAULT_WORD_COUNT_TARGET,
+  SUBSYSTEM_GUIDE,
+  simulationBridge,
   TimeSystem,
   timeSystem,
   narrativeParser,
@@ -88,10 +85,21 @@ import {
   memoryLifecycle,
   coreMemory,
   subsystemRelevance,
-} from '../bootstrap/engine-subsystem-registry'
-import { saveManager } from '@/core/storage/save-manager'
-import { collectGameSavePayload } from '../helpers/save-restore'
-import { useEngineStore } from '../store'
+  useEngineStore,
+  type BridgeSnapshot,
+  type EventLifecycleTracker,
+  type DomainEvent,
+  type SubsystemInstruction,
+  type NarrativeHintInput,
+  type RoundCommitSource,
+  type RoundCommitResult,
+  type EngineState,
+  type RoundInfo,
+  type RoundResult,
+  type NarrativeChunk,
+  type CharacterCreation,
+  type ParsedNarrative,
+} from './shared'
 
 import { useSettingsStore } from '@/mods/mod-settings'
 import { getDestinyPatternSystem } from '@/mods/mod-character/destiny-pattern-access'
@@ -100,8 +108,6 @@ import { useCharacterStore } from '@/mods/mod-character'
 import { ECONOMIC_TIER_CONFIG, MAX_REACHABLE_STAGE } from '@/mods/mod-power-system'
 import type { EconomicTierInfo } from '@/mods/mod-power-system'
 
-import type { EngineState, RoundInfo, RoundResult, NarrativeChunk, CharacterCreation } from '../types'
-import type { ParsedNarrative } from './narrative-parser-system'
 import type {
   ISubSystem,
   SubSystemState,
@@ -271,7 +277,7 @@ export class OrchestratorSystem implements ISubSystem {
 
   private state: EngineState = {
     status: 'idle',
-    round: { year: 0, season: 0, month: 0, day: 0, dayOfYear: 1, ...TimeSystem.resolveDisplayEra(0) },
+    round: { year: 0, season: 0, month: 0, day: 0, dayOfYear: 1, totalDays: 0, ...TimeSystem.resolveDisplayEra(0) },
     timeStep: DEFAULT_ENGINE_CONFIG.timeStep,
     totalRounds: 0,
     narrativeHistory: [],
@@ -545,8 +551,6 @@ export class OrchestratorSystem implements ISubSystem {
       ...this.state,
       streamingNarrative: '',
       narrativeError: null,
-      pendingChoices: prev.pendingChoices,
-      selectedChoiceId: prev.selectedChoiceId,
       resolvedBranches: prev.resolvedBranches,
       forceBranchNext: prev.forceBranchNext,
     }))
@@ -938,6 +942,419 @@ export class OrchestratorSystem implements ISubSystem {
     return result
   }
 
+  // === 世界方向修正 ===
+
+  /**
+   * 从 AI 叙事中检测世界方向关键词并应用到子系统
+   */
+  private _applyWorldDirectionFromNarrative(
+    narrative: string,
+  ): void {
+    try {
+      // 从叙事文本中检测方向关键词
+      const direction: WorldDirection = {}
+
+      if (narrative.includes('繁荣') || narrative.includes('兴盛') || narrative.includes('昌盛')) {
+        direction.market = { direction: '繁荣', magnitude: 0.3 }
+        direction.population = { direction: '繁荣', magnitude: 0.3 }
+      }
+      if (narrative.includes('衰退') || narrative.includes('衰落') || narrative.includes('凋敝')) {
+        direction.market = { direction: '衰退', magnitude: 0.3 }
+        direction.population = { direction: '衰退', magnitude: 0.3 }
+      }
+      if (narrative.includes('危机') || narrative.includes('灾难') || narrative.includes('浩劫')) {
+        direction.market = { direction: '危机', magnitude: 0.4 }
+        direction.ecology = { direction: '危机', magnitude: 0.4 }
+      }
+      if (narrative.includes('恢复') || narrative.includes('复兴') || narrative.includes('重建')) {
+        direction.market = { direction: '恢复', magnitude: 0.2 }
+        direction.ecology = { direction: '恢复', magnitude: 0.2 }
+      }
+
+      if (Object.keys(direction).length > 0) {
+        const context = this.buildRoundContext()
+        applyWorldDirection(
+          direction,
+          this.lastSubsystemStates,
+          this.subsystems,
+          context,
+          (change) => { this.applyRoundChanges([change], 'world-direction') },
+        )
+        // 重新收集状态以反映方向修正
+        this.collectSubsystemStates()
+      }
+    } catch (e) {
+      console.error('[Orchestrator] 世界方向修正失败:', e)
+    }
+  }
+
+  // === 死后尾声 ===
+
+  private async _checkAndTriggerEpilogue(aiConfig: AIModelConfig, sessionId?: string): Promise<void> {
+    try {
+      const healthSub = this.subsystems.find((s) => s.id === 'health')
+      if (!healthSub) return
+
+      const context = this.buildRoundContext()
+      const healthState = healthSub.collectState(context)
+      const hData = healthState.data as { isDead?: boolean }
+      if (!hData?.isDead) return
+
+      const epilogueSub = this.subsystems.find((s) => s.id === 'post-death-epilogue') as unknown as {
+        hasEpilogue: () => boolean
+        generateEpilogue: (
+          ctx: RoundContext,
+          config: AIModelConfig,
+          history: string[],
+          sid?: string,
+        ) => Promise<string>
+      } | undefined
+      if (!epilogueSub) return
+
+      if (epilogueSub.hasEpilogue()) return
+
+      const freshContext = this.buildRoundContext()
+      const narrativeHistory = this.state.narrativeHistory.map((n) => n.text)
+
+      await epilogueSub.generateEpilogue(freshContext, aiConfig, narrativeHistory, sessionId)
+        .then((epilogueText) => {
+          // console.log(`[Orchestrator] 死后尾声已生成（${epilogueText.length} 字符）`)
+          eventBus.emit('mod-character:died', { epilogueGenerated: true, length: epilogueText.length })
+        })
+        .catch((e) => {
+          console.error('[Orchestrator] 死后尾声生成失败:', e)
+        })
+    } catch (e) {
+      console.error('[Orchestrator] 死亡检测异常:', e)
+    }
+  }
+
+  // === 自动保存 ===
+
+  /**
+   * 自动保存：无条件保存当前游戏状态到 slot 0 临时存档槽。
+   * 原间隔判断已移除，由外部（hooks.ts）在叙事完成后统一调用。
+   */
+  public triggerAutoSave(): void {
+    if (this.state.totalRounds <= 0) return
+    if (this.state.status !== 'running') return
+
+    const worldName = this.worldSetting?.name ?? ''
+    const characterName = this.characterState?.name ?? ''
+
+    void saveManager.autoSave(worldName, characterName, collectGameSavePayload()).then(() => {
+      useEngineStore.getState().setLastAutoSaveRound(this.state.totalRounds)
+      // console.log(`[Orchestrator] 自动保存完成（第 ${this.state.totalRounds} 轮）`)
+    }).catch((err) => {
+      console.error('[Orchestrator] 自动保存失败:', err)
+    })
+  }
+
+  // === 压缩 ===
+
+  private buildYearEvents(): YearEvent[] {
+    const r = this.state.round
+    const age = this.characterState?.age ?? Math.max(0, r.year - 1)
+    return this.state.narrativeHistory.map((n, i) => ({
+      id: i + 1,
+      age,
+      totalMonths: (r.year - 1) * 12 + r.month,
+      eraYear: r.eraYear,
+      eraName: r.eraName,
+      narrative: n.text,
+      timeLabel: `${r.eraName}${r.eraYear}年`,
+    }))
+  }
+
+  /** Phase 6：L1–L6 AI 压缩 + 记忆生命周期索引 */
+  private runCompressionPipeline(): void {
+    if (!USE_AI_SUMMARY_COMPRESSION) return
+    if (!this.lastAiConfig || !this.worldSetting || !this.characterState) return
+
+    const decision = memoryLifecycle.decideCompression()
+    const turnCount = this.state.totalRounds - 1
+
+    void summaryCompressor
+      .generateCompressedSummaries(
+        this.lastAiConfig,
+        this.buildYearEvents(),
+        this.worldSetting,
+        this.characterState,
+        turnCount,
+        undefined,
+        this.lastSessionId,
+        memoryLifecycle,
+      )
+      .then((result) => {
+        this.state.compressedSummaries = result.newCompressedSummaries
+        const stats = summaryCompressor.getStats()
+        this.state.compressionStats = {
+          l1Count: stats.totalL1,
+          l2Count: stats.totalL2,
+          l3Count: stats.totalL3,
+          l4Count: stats.totalL4,
+          lastAt: stats.lastCompressionAt,
+        }
+        useEngineStore.getState().setCompressedSummaries(result.newCompressedSummaries)
+        useEngineStore.getState().setCompressionStats(this.state.compressionStats)
+
+        const compressedSummaries = result.newCompressedSummaries
+        if (compressedSummaries?.summaries) {
+          const newL1s = compressedSummaries.summaries.filter(
+            (s) => s.level === 1 && s.endRound >= this.state.totalRounds - 10,
+          )
+          for (const l1 of newL1s) {
+            memoryLifecycle.addToIndex(
+              1,
+              l1.startRound,
+              l1.endRound,
+              l1.content,
+              memoryLifecycle.getTaggedEvents().filter(
+                (e) => e.round >= l1.startRound && e.round <= l1.endRound,
+              ),
+            )
+          }
+        }
+
+        if (decision.shouldCompress) {
+          memoryLifecycle.clearTaggedEvents()
+          eventBus.emit('mod-engine:narrative-compressed', {
+            level: 'L1',
+            reason: decision.reason,
+            stats: this.state.compressionStats,
+          })
+        }
+      })
+      .catch((err) => {
+        console.error('[Orchestrator] 叙事压缩失败:', err)
+      })
+  }
+
+  private checkAndCompress(): void {
+    this.runCompressionPipeline()
+  }
+
+  getCompressedNarrativeHistory(): string {
+    // 使用记忆生命周期系统构建富Prompt上下文
+    // DS V4 1M上下文：4个压缩层级 + L0原文 + 状态卡 + 检索命中
+
+    const summaries = summaryCompressor.getSummaries()
+    const recentTexts = this.state.narrativeHistory.slice(-5).map((n) => n.text)
+
+    // 构建状态卡
+    const stateCardLines: string[] = Object.values(this.lastSubsystemStates)
+      .filter((s) => s.id !== this.id)
+      .map((s) => s.summary)
+      .filter(Boolean)
+    const stateCard = stateCardLines.join('\n')
+
+    // 组装富Prompt（4层级+L0）
+    const richContext = memoryLifecycle.buildRichPrompt(
+      stateCard,
+      recentTexts,
+      summaries,
+    )
+
+    return memoryLifecycle.formatRichPromptForInjection(richContext)
+  }
+
+  // === 控制 ===
+
+  start(): void {
+    this.state.status = 'running'
+  }
+
+  pause(): void {
+    this.state.status = 'paused'
+  }
+
+  resume(): void {
+    if (this.state.status === 'paused') {
+      this.state.status = 'running'
+    }
+  }
+
+  stop(): void {
+    this.state.status = 'complete'
+  }
+
+  // === ISubSystem 实现 ===
+
+  collectState(_context: RoundContext): SubSystemState {
+    const lifecycleCount = Object.keys(this.eventLifecycle).length
+    return {
+      id: this.id,
+      summary: `【${this.label}】${this.state.status} | 第 ${this.state.totalRounds} 回合 | 第${this.state.round.year}年 | 事件追踪×${lifecycleCount} | 压缩 L1×${this.state.compressionStats.l1Count} | 突破×${this.totalBreakthroughs}`,
+      data: structuredClone(this.state) as unknown as Record<string, unknown>,
+    }
+  }
+
+  applyChanges(changes: SubSystemChanges, _context: RoundContext): void {
+    if (!changes || typeof changes !== 'object') {
+      throw new Error(`[${this.id}] Invalid changes: expected object`)
+    }
+    if (changes.id !== this.id) {
+      throw new Error(`[${this.id}] Changes ID mismatch`)
+    }
+    if (!changes.changes || typeof changes.changes !== 'object' || Array.isArray(changes.changes)) {
+      throw new Error(`[${this.id}] Invalid changes.changes: expected plain object`)
+    }
+    if (!changes.description || changes.description.trim() === '') {
+      throw new Error(`[${this.id}] Missing changes.description`)
+    }
+    void changes.changes;
+  }
+
+  reset(): void {
+    this.state = {
+      status: 'idle',
+      round: { year: 1, season: 0, month: 0, day: 0, dayOfYear: 1, totalDays: 365, ...TimeSystem.resolveDisplayEra(1) },
+      timeStep: DEFAULT_ENGINE_CONFIG.timeStep,
+      totalRounds: 0,
+      narrativeHistory: [],
+      currentNarrative: '',
+      compressionStats: { l1Count: 0, l2Count: 0, l3Count: 0, l4Count: 0, lastAt: 0 },
+      compressedSummaries: { summaries: [] },
+      lastAutoSaveRound: 0,
+      characterCreations: [],
+    }
+    this.lastSubsystemStates = {}
+    this.eventLifecycle = {}
+    this.totalBreakthroughs = 0
+    this.prevAbbreviationSnapshot = {}
+    this.prevRoundYear = 0
+    this.prevBridgeSnapshot = {}
+    this.lastNarrativeText = ''
+    this.worldSetting = null
+    this.characterState = null
+    this.worldEventBus.reset()
+    summaryCompressor.reset()
+    memoryLifecycle.reset()
+    adaptationManager.clear()
+    globalDeadLoopDetector.resetAll()
+  }
+
+  /** 读档后从 EngineStore 恢复 orchestrator 内部状态 */
+  hydrateFromEngineStore(): void {
+    const store = useEngineStore.getState()
+    this.state = {
+      status: store.status === 'complete' ? 'complete' : 'idle',
+      round: { ...store.round },
+      timeStep: { ...store.timeStep },
+      totalRounds: store.totalRounds,
+      narrativeHistory: store.narrativeHistory.map((chunk) => ({ ...chunk })),
+      currentNarrative: store.currentNarrative,
+      compressionStats: { ...store.compressionStats },
+      compressedSummaries: structuredClone(store.compressedSummaries),
+      lastAutoSaveRound: store.lastAutoSaveRound,
+      characterCreations: [...(store.characterCreations ?? [])] as CharacterCreation[],
+    }
+    timeSystem.importRound(store.round)
+    timeSystem.setTimeStep(store.timeStep)
+    if (store.narrativeHistory.length > 0) {
+      this.lastNarrativeText = store.narrativeHistory[store.narrativeHistory.length - 1]?.text ?? ''
+    }
+    adaptationManager.clear()
+    this.start()
+  }
+
+  // === 叙事后处理 ===
+
+  /**
+   * 执行叙事后处理：连锁反应 + 寿命突破 + 寿命损失
+   */
+  private _runNarrativePostProcessing(narrative: string): void {
+    try {
+      // 从子系统状态提取所需数据
+      const healthState = this.lastSubsystemStates?.['health']
+      const economyState = this.lastSubsystemStates?.['economy']
+      const reputationState = this.lastSubsystemStates?.['reputation']
+      const lifespanState = this.lastSubsystemStates?.['lifespan']
+      const characterBase = this.lastSubsystemStates?.['character-base']
+      const luckState = this.lastSubsystemStates?.['luck']
+      const faithState = this.lastSubsystemStates?.['faith']
+
+      const currentHealth = (healthState?.data as { hp?: number } | undefined)?.hp ?? 50
+      const currentWealth =
+        (economyState?.data as { currency?: { playerWealth?: number } } | undefined)?.currency
+          ?.playerWealth ?? 0
+      const currentReputation = (reputationState?.data as { fame?: number } | undefined)?.fame ?? 0
+      const maxAge = (lifespanState?.data as { maxAge?: number } | undefined)?.maxAge ?? DEFAULT_MAX_AGE_FALLBACK
+      const currentAge = (characterBase?.data as { age?: number } | undefined)?.age ?? 1
+      const luckBonus = (luckState?.data as { luck?: number } | undefined)?.luck ?? 0
+      const devotionLevel = (faithState?.data as { devotionLevel?: number } | undefined)?.devotionLevel ?? 0
+
+      const postResult = runPostNarrativePhase({
+        narrative,
+        currentHealth,
+        currentWealth,
+        currentReputation,
+        currentAge,
+        maxAge,
+        luckBonus,
+        totalBreakthroughs: this.totalBreakthroughs,
+        devotionLevel,
+      })
+
+      // 应用连锁反应结果到子系统
+      const healthDelta = postResult.chainResult.updatedHealth - currentHealth
+      if (healthDelta !== 0) {
+        this.applyRoundChanges([{
+          id: 'health',
+          description: '叙事后处理：连锁反应 — 健康修正',
+          changes: { hpDelta: healthDelta },
+        }], 'post-narrative')
+      }
+      if (postResult.chainResult.wealthChange !== 0) {
+        this.applyRoundChanges([{
+          id: 'economy',
+          description: '叙事后处理：连锁反应 — 财富修正',
+          changes: { wealthDelta: postResult.chainResult.wealthChange },
+        }], 'post-narrative')
+      }
+      if (postResult.chainResult.reputationChange !== 0) {
+        this.applyRoundChanges([{
+          id: 'reputation',
+          description: '叙事后处理：连锁反应 — 声望修正',
+          changes: { addFame: postResult.chainResult.reputationChange },
+        }], 'post-narrative')
+      }
+
+      // 应用寿命突破结果
+      if (postResult.breakthroughResult.triggered) {
+        this.totalBreakthroughs = postResult.breakthroughResult.totalBreakthroughs
+        if (postResult.newMaxAge) {
+          this.applyRoundChanges([{
+            id: 'lifespan',
+            description: `叙事后处理：寿命突破 +${postResult.breakthroughResult.yearsGained}年`,
+            changes: { maxAge: postResult.newMaxAge },
+          }], 'post-narrative')
+        }
+      }
+
+      // 应用寿命损失结果
+      if (postResult.lossResult && postResult.newMaxAge) {
+        this.applyRoundChanges([{
+          id: 'lifespan',
+          description: `叙事后处理：寿命损失 -${postResult.lossResult.yearsLost}年`,
+          changes: { maxAge: postResult.newMaxAge },
+        }], 'post-narrative')
+      }
+
+      // 发出通知事件
+      if (postResult.notificationText) {
+        eventBus.emit('mod-engine:post-narrative-notification', {
+          text: postResult.notificationText,
+          chain: postResult.chainResult,
+          breakthrough: postResult.breakthroughResult,
+          loss: postResult.lossResult,
+        })
+      }
+    } catch (e) {
+      console.error('[Orchestrator] 叙事后处理失败:', e)
+    }
+  }
+
   // === 跨域联动 ===
 
   /**
@@ -1178,11 +1595,12 @@ export class OrchestratorSystem implements ISubSystem {
 
     const userInstruction = this.buildUserInstruction()
 
+    // 构建轻量 worldSetting（剥离每轮不变的静态参数，减少 Token 浪费）
+    // aiDetailedParameters（43字段，~2000字符）在世界初始化后不再变化，每轮重复发送无意义
+    const lightWorldSetting = this.buildLightWorldSetting(narrativeTime.eraLabel)
+
     const assembled: PromptContext = {
-      worldSetting: {
-        ...this.worldSetting,
-        era: narrativeTime.eraLabel,
-      },
+      worldSetting: lightWorldSetting,
       character: syncedCharacter,
       currentTime: narrativeTime.timeLabel,
       subsystemSummaries: summaries,
@@ -1233,6 +1651,35 @@ export class OrchestratorSystem implements ISubSystem {
           .join('；')
         ;(assembled as unknown as Record<string, unknown>).talents = talentDesc
       }
+
+      // 首轮叙事特殊指令：要求 AI 生成包含完整出生场景的叙事
+      const firstRoundInstruction = [
+        '这是角色人生的起点——首轮叙事必须包含以下全部要素：',
+        '① 出生场景：具体时间、地点、天气、接生场景的细节描写',
+        '② 家庭环境：父母的职业/身份/性格、家庭经济状况、居住环境的详细描写',
+        '③ 时代背景：所在地区的风俗、社会阶层、邻里关系、时代氛围',
+        '④ 感官体验：婴儿视角的听觉/视觉/触觉/嗅觉感受',
+        '⑤ 叙事自然分段，用具体细节和感官描写替代概括性叙述，严禁使用"这一年"作为段落开头',
+      ].join('\n')
+      assembled.userInstruction = assembled.userInstruction
+        ? `${assembled.userInstruction}\n\n${firstRoundInstruction}`
+        : firstRoundInstruction
+    }
+
+    // 注入子系统变更指南（从 System Prompt 移出，由 orchestrator 控制是否包含）
+    if (promptOpenIds.length > 0) {
+      assembled.subsystemGuideText = SUBSYSTEM_GUIDE
+    }
+
+    // 非首轮注入时间描写引导（指导 AI 避免"这一年"开头，使用自然标记替代）
+    if (this.state.totalRounds > 0) {
+      assembled.timeGuideText = [
+        '【时间描写指南】',
+        '- 使用季节流转、节气更替、作物成熟、衣物增减等自然标记代替"这一年"的抽象概括',
+        '- 宏观视角时使用："春去秋来，...""数月之后，...""转眼已是..."',
+        '- 聚焦视角时使用："那天下午...""夜里...""晨光熹微时..."',
+        '- 年龄增长时，通过身高/声音/力量的变化侧面体现，不直接说"你长大了一岁"',
+      ].join('\n')
     }
 
     if (isInstrumentEnabled()) {
@@ -1487,6 +1934,35 @@ export class OrchestratorSystem implements ISubSystem {
     return `你继续生活在${worldName}中，今年${age}岁。岁月平静地流逝着，没有什么特别的事情发生。生活依旧，你按照自己的方式继续前行。`
   }
 
+  /**
+   * 构建轻量 worldSetting，剥离每轮不变的静态参数。
+   * aiDetailedParameters（43字段 ~2000字符）在世界初始化后不再变化，
+   * 每轮发送到 AI 纯属 Token 浪费。这些参数的语义已通过 calibrationSummary、
+   * worldRules 等字段注入 AI。
+   */
+  private buildLightWorldSetting(eraLabel: string): import('@/foundation').WorldSetting {
+    if (!this.worldSetting) {
+      return { name: '', description: '', era: eraLabel, config: {} } as import('@/foundation').WorldSetting
+    }
+
+    const ws = this.worldSetting as unknown as Record<string, unknown>
+    const { config, ...rest } = ws
+    const lightConfig = config && typeof config === 'object'
+      ? { ...config as Record<string, unknown> }
+      : {}
+
+    // 剥离每轮不变的大字段
+    delete lightConfig.aiDetailedParameters
+    // description 在顶层已有，config 内重复
+    delete lightConfig.description
+
+    return {
+      ...rest,
+      era: eraLabel,
+      config: lightConfig,
+    } as unknown as import('@/foundation').WorldSetting
+  }
+
   private buildUserInstruction(): string | undefined {
     const lines: string[] = []
 
@@ -1526,12 +2002,25 @@ export class OrchestratorSystem implements ISubSystem {
       this.lastPlayerChoice = undefined
     }
     const resolved = useEngineStore.getState().resolvedBranches
-    const resolvedLines = Object.entries(resolved)
-      .filter(([, choice]) => choice.trim())
-      .map(([idx, choice]) => `第${Number(idx) + 1}轮:${choice}`)
+    const resolvedLines: string[] = []
+    for (const [id, choice] of Object.entries(resolved)) {
+      if (!choice.trim()) continue
+      const pos = this.state.narrativeHistory.findIndex((n) => n.id === id)
+      if (pos >= 0) {
+        resolvedLines.push(`第${pos + 1}轮:${choice}`)
+      } else {
+        resolvedLines.push(choice)
+      }
+    }
     if (resolvedLines.length > 0) {
       lines.push(`【历史分叉选择】${resolvedLines.join('；')}`)
       this.branchJustResolved = true
+    }
+
+    // 连续分叉抑制：上轮已解决分支，本轮禁止再生成新分支
+    const lastEntry = this.state.narrativeHistory[this.state.narrativeHistory.length - 1]
+    if (lastEntry?.resolvedChoice) {
+      lines.push('上轮已完成命运抉择，本轮禁止生成新的分支点(branch=false) - 给玩家至少一轮消化时间')
     }
     return lines.length > 0 ? lines.join('\n') : undefined
   }
@@ -1554,7 +2043,7 @@ export class OrchestratorSystem implements ISubSystem {
       forceBranch: useEngineStore.getState().forceBranchNext ?? false,
       branchJustResolved: this.branchJustResolved,
       consecutiveSameGoalRounds: this.consecutiveSameGoalRounds,
-      timeSkipYears: this.state.timeStep.value,
+      timeStep: this.state.timeStep,
       narrativeStyle: this.getNarrativeStyle(),
       lifeStage: resolveLifeStageFromAge(currentAge, maxAge, startingAge),
     }
@@ -1577,6 +2066,16 @@ export class OrchestratorSystem implements ISubSystem {
       ]
       title = title || '你该如何应对？'
       isBranch = true
+    }
+
+    // 连续分叉抑制：如果上一条叙事历史有 resolvedChoice（刚被解决），强制抑制新分叉点
+    const lastHistoryEntry = useEngineStore.getState().narrativeHistory[
+      useEngineStore.getState().narrativeHistory.length - 1
+    ]
+    const shouldSuppressBranch = lastHistoryEntry?.resolvedChoice && !useEngineStore.getState().forceBranchNext
+
+    if (shouldSuppressBranch) {
+      isBranch = false
     }
 
     if (useEngineStore.getState().forceBranchNext && !isBranch) {
@@ -1689,6 +2188,7 @@ export class OrchestratorSystem implements ISubSystem {
       this.lastNarrativeText = narrative
       const branchMeta = this.resolveBranchFromParsed(effectiveParsed)
       this.state.narrativeHistory.push({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
         text: narrative,
         isComplete: true,
         timestamp: Date.now(),
@@ -1731,435 +2231,7 @@ export class OrchestratorSystem implements ISubSystem {
     // 检查是否需要压缩（Phase 6：AI L1–L6 管线）
     this.runCompressionPipeline()
 
-    // 15. 自动保存检查（每 10 轮写入临时槽）
-    this.triggerAutoSave()
-
     return result
-  }
-
-  // === 叙事后处理 ===
-
-  /**
-   * 执行叙事后处理：连锁反应 + 寿命突破 + 寿命损失
-   */
-  private _runNarrativePostProcessing(narrative: string): void {
-    try {
-      // 从子系统状态提取所需数据
-      const healthState = this.lastSubsystemStates?.['health']
-      const economyState = this.lastSubsystemStates?.['economy']
-      const reputationState = this.lastSubsystemStates?.['reputation']
-      const lifespanState = this.lastSubsystemStates?.['lifespan']
-      const characterBase = this.lastSubsystemStates?.['character-base']
-      const luckState = this.lastSubsystemStates?.['luck']
-      const faithState = this.lastSubsystemStates?.['faith']
-
-      const currentHealth = (healthState?.data as { hp?: number } | undefined)?.hp ?? 50
-      const currentWealth =
-        (economyState?.data as { currency?: { playerWealth?: number } } | undefined)?.currency
-          ?.playerWealth ?? 0
-      const currentReputation = (reputationState?.data as { fame?: number } | undefined)?.fame ?? 0
-      const maxAge = (lifespanState?.data as { maxAge?: number } | undefined)?.maxAge ?? DEFAULT_MAX_AGE_FALLBACK
-      const currentAge = (characterBase?.data as { age?: number } | undefined)?.age ?? 1
-      const luckBonus = (luckState?.data as { luck?: number } | undefined)?.luck ?? 0
-      const devotionLevel = (faithState?.data as { devotionLevel?: number } | undefined)?.devotionLevel ?? 0
-
-      const postResult = runPostNarrativePhase({
-        narrative,
-        currentHealth,
-        currentWealth,
-        currentReputation,
-        currentAge,
-        maxAge,
-        luckBonus,
-        totalBreakthroughs: this.totalBreakthroughs,
-        devotionLevel,
-      })
-
-      // 应用连锁反应结果到子系统
-      const healthDelta = postResult.chainResult.updatedHealth - currentHealth
-      if (healthDelta !== 0) {
-        this.applyRoundChanges([{
-          id: 'health',
-          description: '叙事后处理：连锁反应 — 健康修正',
-          changes: { hpDelta: healthDelta },
-        }], 'post-narrative')
-      }
-      if (postResult.chainResult.wealthChange !== 0) {
-        this.applyRoundChanges([{
-          id: 'economy',
-          description: '叙事后处理：连锁反应 — 财富修正',
-          changes: { wealthDelta: postResult.chainResult.wealthChange },
-        }], 'post-narrative')
-      }
-      if (postResult.chainResult.reputationChange !== 0) {
-        this.applyRoundChanges([{
-          id: 'reputation',
-          description: '叙事后处理：连锁反应 — 声望修正',
-          changes: { addFame: postResult.chainResult.reputationChange },
-        }], 'post-narrative')
-      }
-
-      // 应用寿命突破结果
-      if (postResult.breakthroughResult.triggered) {
-        this.totalBreakthroughs = postResult.breakthroughResult.totalBreakthroughs
-        if (postResult.newMaxAge) {
-          this.applyRoundChanges([{
-            id: 'lifespan',
-            description: `叙事后处理：寿命突破 +${postResult.breakthroughResult.yearsGained}年`,
-            changes: { maxAge: postResult.newMaxAge },
-          }], 'post-narrative')
-        }
-      }
-
-      // 应用寿命损失结果
-      if (postResult.lossResult && postResult.newMaxAge) {
-        this.applyRoundChanges([{
-          id: 'lifespan',
-          description: `叙事后处理：寿命损失 -${postResult.lossResult.yearsLost}年`,
-          changes: { maxAge: postResult.newMaxAge },
-        }], 'post-narrative')
-      }
-
-      // 发出通知事件
-      if (postResult.notificationText) {
-        eventBus.emit('mod-engine:post-narrative-notification', {
-          text: postResult.notificationText,
-          chain: postResult.chainResult,
-          breakthrough: postResult.breakthroughResult,
-          loss: postResult.lossResult,
-        })
-      }
-    } catch (e) {
-      console.error('[Orchestrator] 叙事后处理失败:', e)
-    }
-  }
-
-  // === 世界方向修正 ===
-
-  /**
-   * 从 AI 叙事中检测世界方向关键词并应用到子系统
-   */
-  private _applyWorldDirectionFromNarrative(
-    narrative: string,
-  ): void {
-    try {
-      // 从叙事文本中检测方向关键词
-      const direction: WorldDirection = {}
-
-      if (narrative.includes('繁荣') || narrative.includes('兴盛') || narrative.includes('昌盛')) {
-        direction.market = { direction: '繁荣', magnitude: 0.3 }
-        direction.population = { direction: '繁荣', magnitude: 0.3 }
-      }
-      if (narrative.includes('衰退') || narrative.includes('衰落') || narrative.includes('凋敝')) {
-        direction.market = { direction: '衰退', magnitude: 0.3 }
-        direction.population = { direction: '衰退', magnitude: 0.3 }
-      }
-      if (narrative.includes('危机') || narrative.includes('灾难') || narrative.includes('浩劫')) {
-        direction.market = { direction: '危机', magnitude: 0.4 }
-        direction.ecology = { direction: '危机', magnitude: 0.4 }
-      }
-      if (narrative.includes('恢复') || narrative.includes('复兴') || narrative.includes('重建')) {
-        direction.market = { direction: '恢复', magnitude: 0.2 }
-        direction.ecology = { direction: '恢复', magnitude: 0.2 }
-      }
-
-      if (Object.keys(direction).length > 0) {
-        const context = this.buildRoundContext()
-        applyWorldDirection(
-          direction,
-          this.lastSubsystemStates,
-          this.subsystems,
-          context,
-          (change) => { this.applyRoundChanges([change], 'world-direction') },
-        )
-        // 重新收集状态以反映方向修正
-        this.collectSubsystemStates()
-      }
-    } catch (e) {
-      console.error('[Orchestrator] 世界方向修正失败:', e)
-    }
-  }
-
-  // === 死后尾声 ===
-
-  private async _checkAndTriggerEpilogue(aiConfig: AIModelConfig, sessionId?: string): Promise<void> {
-    try {
-      const healthSub = this.subsystems.find((s) => s.id === 'health')
-      if (!healthSub) return
-
-      const context = this.buildRoundContext()
-      const healthState = healthSub.collectState(context)
-      const hData = healthState.data as { isDead?: boolean }
-      if (!hData?.isDead) return
-
-      const epilogueSub = this.subsystems.find((s) => s.id === 'post-death-epilogue') as unknown as {
-        hasEpilogue: () => boolean
-        generateEpilogue: (
-          ctx: RoundContext,
-          config: AIModelConfig,
-          history: string[],
-          sid?: string,
-        ) => Promise<string>
-      } | undefined
-      if (!epilogueSub) return
-
-      if (epilogueSub.hasEpilogue()) return
-
-      const freshContext = this.buildRoundContext()
-      const narrativeHistory = this.state.narrativeHistory.map((n) => n.text)
-
-      await epilogueSub.generateEpilogue(freshContext, aiConfig, narrativeHistory, sessionId)
-        .then((epilogueText) => {
-          // console.log(`[Orchestrator] 死后尾声已生成（${epilogueText.length} 字符）`)
-          eventBus.emit('mod-character:died', { epilogueGenerated: true, length: epilogueText.length })
-        })
-        .catch((e) => {
-          console.error('[Orchestrator] 死后尾声生成失败:', e)
-        })
-    } catch (e) {
-      console.error('[Orchestrator] 死亡检测异常:', e)
-    }
-  }
-
-  // === 自动保存 ===
-
-  /** 自动保存：每轮触发，确保"显示到哪就保存到哪" */
-  private get autoSaveInterval(): number {
-    return 1
-  }
-
-  /**
-   * 检查是否需要自动保存
-   *
-   * 每 AUTO_SAVE_INTERVAL 轮调用一次 saveManager.autoSave()，
-   * 将当前游戏状态写入 slot 0 临时存档槽。
-   */
-  private triggerAutoSave(): void {
-    if (this.state.totalRounds <= 0) return
-    if (this.state.status !== 'running') return
-
-    const round = this.state.totalRounds
-    const interval = this.autoSaveInterval
-    // 第 1 轮也写入自动存档，其后按间隔触发
-    if (round !== 1 && round % interval !== 0) return
-
-    const worldName = this.worldSetting?.name ?? ''
-    const characterName = this.characterState?.name ?? ''
-
-    void saveManager.autoSave(worldName, characterName, collectGameSavePayload()).then(() => {
-      useEngineStore.getState().setLastAutoSaveRound(this.state.totalRounds)
-      // console.log(`[Orchestrator] 自动保存完成（第 ${this.state.totalRounds} 轮）`)
-    }).catch((err) => {
-      console.error('[Orchestrator] 自动保存失败:', err)
-    })
-  }
-
-  // === 压缩 ===
-
-  private buildYearEvents(): YearEvent[] {
-    const r = this.state.round
-    const age = this.characterState?.age ?? Math.max(0, r.year - 1)
-    return this.state.narrativeHistory.map((n, i) => ({
-      id: i + 1,
-      age,
-      totalMonths: (r.year - 1) * 12 + r.month,
-      eraYear: r.eraYear,
-      eraName: r.eraName,
-      narrative: n.text,
-      timeLabel: `${r.eraName}${r.eraYear}年`,
-    }))
-  }
-
-  /** Phase 6：L1–L6 AI 压缩 + 记忆生命周期索引 */
-  private runCompressionPipeline(): void {
-    if (!USE_AI_SUMMARY_COMPRESSION) return
-    if (!this.lastAiConfig || !this.worldSetting || !this.characterState) return
-
-    const decision = memoryLifecycle.decideCompression()
-    const turnCount = this.state.totalRounds - 1
-
-    void summaryCompressor
-      .generateCompressedSummaries(
-        this.lastAiConfig,
-        this.buildYearEvents(),
-        this.worldSetting,
-        this.characterState,
-        turnCount,
-        undefined,
-        this.lastSessionId,
-        memoryLifecycle,
-      )
-      .then((result) => {
-        this.state.compressedSummaries = result.newCompressedSummaries
-        const stats = summaryCompressor.getStats()
-        this.state.compressionStats = {
-          l1Count: stats.totalL1,
-          l2Count: stats.totalL2,
-          l3Count: stats.totalL3,
-          l4Count: stats.totalL4,
-          lastAt: stats.lastCompressionAt,
-        }
-        useEngineStore.getState().setCompressedSummaries(result.newCompressedSummaries)
-        useEngineStore.getState().setCompressionStats(this.state.compressionStats)
-
-        const compressedSummaries = result.newCompressedSummaries
-        if (compressedSummaries?.summaries) {
-          const newL1s = compressedSummaries.summaries.filter(
-            (s) => s.level === 1 && s.endRound >= this.state.totalRounds - 10,
-          )
-          for (const l1 of newL1s) {
-            memoryLifecycle.addToIndex(
-              1,
-              l1.startRound,
-              l1.endRound,
-              l1.content,
-              memoryLifecycle.getTaggedEvents().filter(
-                (e) => e.round >= l1.startRound && e.round <= l1.endRound,
-              ),
-            )
-          }
-        }
-
-        if (decision.shouldCompress) {
-          memoryLifecycle.clearTaggedEvents()
-          eventBus.emit('mod-engine:narrative-compressed', {
-            level: 'L1',
-            reason: decision.reason,
-            stats: this.state.compressionStats,
-          })
-        }
-      })
-      .catch((err) => {
-        console.error('[Orchestrator] 叙事压缩失败:', err)
-      })
-  }
-
-  private checkAndCompress(): void {
-    this.runCompressionPipeline()
-  }
-
-  getCompressedNarrativeHistory(): string {
-    // 使用记忆生命周期系统构建富Prompt上下文
-    // DS V4 1M上下文：4个压缩层级 + L0原文 + 状态卡 + 检索命中
-
-    const summaries = summaryCompressor.getSummaries()
-    const recentTexts = this.state.narrativeHistory.slice(-5).map((n) => n.text)
-
-    // 构建状态卡
-    const stateCardLines: string[] = Object.values(this.lastSubsystemStates)
-      .filter((s) => s.id !== this.id)
-      .map((s) => s.summary)
-      .filter(Boolean)
-    const stateCard = stateCardLines.join('\n')
-
-    // 组装富Prompt（4层级+L0）
-    const richContext = memoryLifecycle.buildRichPrompt(
-      stateCard,
-      recentTexts,
-      summaries,
-    )
-
-    return memoryLifecycle.formatRichPromptForInjection(richContext)
-  }
-
-  // === 控制 ===
-
-  start(): void {
-    this.state.status = 'running'
-  }
-
-  pause(): void {
-    this.state.status = 'paused'
-  }
-
-  resume(): void {
-    if (this.state.status === 'paused') {
-      this.state.status = 'running'
-    }
-  }
-
-  stop(): void {
-    this.state.status = 'complete'
-  }
-
-  // === ISubSystem 实现 ===
-
-  collectState(_context: RoundContext): SubSystemState {
-    const lifecycleCount = Object.keys(this.eventLifecycle).length
-    return {
-      id: this.id,
-      summary: `【${this.label}】${this.state.status} | 第 ${this.state.totalRounds} 回合 | 第${this.state.round.year}年 | 事件追踪×${lifecycleCount} | 压缩 L1×${this.state.compressionStats.l1Count} | 突破×${this.totalBreakthroughs}`,
-      data: structuredClone(this.state) as unknown as Record<string, unknown>,
-    }
-  }
-
-  applyChanges(changes: SubSystemChanges, _context: RoundContext): void {
-    if (!changes || typeof changes !== 'object') {
-      throw new Error(`[${this.id}] Invalid changes: expected object`)
-    }
-    if (changes.id !== this.id) {
-      throw new Error(`[${this.id}] Changes ID mismatch`)
-    }
-    if (!changes.changes || typeof changes.changes !== 'object' || Array.isArray(changes.changes)) {
-      throw new Error(`[${this.id}] Invalid changes.changes: expected plain object`)
-    }
-    if (!changes.description || changes.description.trim() === '') {
-      throw new Error(`[${this.id}] Missing changes.description`)
-    }
-    void changes.changes;
-  }
-
-  reset(): void {
-    this.state = {
-      status: 'idle',
-      round: { year: 1, season: 0, month: 0, day: 0, dayOfYear: 1, ...TimeSystem.resolveDisplayEra(1) },
-      timeStep: DEFAULT_ENGINE_CONFIG.timeStep,
-      totalRounds: 0,
-      narrativeHistory: [],
-      currentNarrative: '',
-      compressionStats: { l1Count: 0, l2Count: 0, l3Count: 0, l4Count: 0, lastAt: 0 },
-      compressedSummaries: { summaries: [] },
-      lastAutoSaveRound: 0,
-      characterCreations: [],
-    }
-    this.lastSubsystemStates = {}
-    this.eventLifecycle = {}
-    this.totalBreakthroughs = 0
-    this.prevAbbreviationSnapshot = {}
-    this.prevRoundYear = 0
-    this.prevBridgeSnapshot = {}
-    this.lastNarrativeText = ''
-    this.worldSetting = null
-    this.characterState = null
-    this.worldEventBus.reset()
-    summaryCompressor.reset()
-    memoryLifecycle.reset()
-    adaptationManager.clear()
-    globalDeadLoopDetector.resetAll()
-  }
-
-  /** 读档后从 EngineStore 恢复 orchestrator 内部状态 */
-  hydrateFromEngineStore(): void {
-    const store = useEngineStore.getState()
-    this.state = {
-      status: store.status === 'complete' ? 'complete' : 'idle',
-      round: { ...store.round },
-      timeStep: { ...store.timeStep },
-      totalRounds: store.totalRounds,
-      narrativeHistory: store.narrativeHistory.map((chunk) => ({ ...chunk })),
-      currentNarrative: store.currentNarrative,
-      compressionStats: { ...store.compressionStats },
-      compressedSummaries: structuredClone(store.compressedSummaries),
-      lastAutoSaveRound: store.lastAutoSaveRound,
-      characterCreations: [...(store.characterCreations ?? [])] as CharacterCreation[],
-    }
-    timeSystem.importRound(store.round)
-    timeSystem.setTimeStep(store.timeStep)
-    if (store.narrativeHistory.length > 0) {
-      this.lastNarrativeText = store.narrativeHistory[store.narrativeHistory.length - 1]?.text ?? ''
-    }
-    adaptationManager.clear()
-    this.start()
   }
 
   // === NarrativeStage 阶段机（#13: 吸收 Factorio Story Script） ===

@@ -229,7 +229,7 @@ export class DestinyPatternSystem implements ISubSystem {
     onBatchStart?: (batchIndex: number) => void,
   ): Promise<DestinyPattern[]> {
     if (!this.callAI) {
-      return this.generateFromPresets()
+      throw new Error('[destiny-pattern] AI 服务未就绪，请重试')
     }
 
     // 中止旧的后台填充，防止并发状态污染
@@ -408,30 +408,11 @@ export class DestinyPatternSystem implements ISubSystem {
       }
     }
 
-    const padToEarlyReady = (): void => {
-      if (earlyReadyFired || allPatterns.length >= DEFAULT_DESTINY_PATTERN_COUNT) return
-      const fallback = this.generateFromPresets()
-      for (const p of fallback) {
-        if (allPatterns.length >= DEFAULT_DESTINY_PATTERN_COUNT) break
-        if (!existingNames.includes(p.name)) {
-          allPatterns.push({
-            ...p,
-            id: `${DESTINY_PATTERN_ID_PREFIX.AI}-pad-${allPatterns.length}`,
-          })
-          existingNames.push(p.name)
-        }
-      }
-      this.state.candidates = [...allPatterns]
-      onProgress?.(allPatterns.length, [...allPatterns])
-    }
-
     const fireEarlyReady = (): void => {
-      if (earlyReadyFired) return
-      padToEarlyReady()
-      if (allPatterns.length >= DEFAULT_DESTINY_PATTERN_COUNT) {
-        earlyReadyFired = true
-        onEarlyReady?.([...allPatterns])
-      }
+      // AI 模式下不混入预设，但仍需等待 AI 积累够 12 条才切选取界面
+      if (earlyReadyFired || allPatterns.length < DEFAULT_DESTINY_PATTERN_COUNT) return
+      earlyReadyFired = true
+      onEarlyReady?.([...allPatterns])
     }
 
     // ══════════ 3 路并行首批请求（不同 seed 确保差异化，强制流式） ══════════
@@ -444,7 +425,7 @@ export class DestinyPatternSystem implements ISubSystem {
 
     // Promise.race：不必等最慢的批次，率先完成的批次若已达 12 条即触发 earlyReady
     await Promise.race(parallelPromises)
-    // 兜底：如果并行批次质量太差导致 < 12 条，用预设补齐再尝试
+    // 检查首批结果是否已达 12 条（不足则等后续批次通过 ingestItem 累积触发）
     fireEarlyReady()
 
     const fillRemainingBatches = async (): Promise<void> => {
@@ -459,19 +440,7 @@ export class DestinyPatternSystem implements ISubSystem {
           await runBatchWithRetry(batch)
         }
 
-        if (allPatterns.length < AI_DESTINY_PATTERN_BATCH_SIZE) {
-          const fallback = this.generateFromPresets()
-          for (const p of fallback) {
-            if (allPatterns.length >= AI_DESTINY_PATTERN_BATCH_SIZE * AI_DESTINY_PATTERN_BATCH_COUNT) break
-            if (!existingNames.includes(p.name)) {
-              allPatterns.push(p)
-              existingNames.push(p.name)
-            }
-          }
-          syncPoolStatus()
-          onProgress?.(allPatterns.length, [...allPatterns])
-        }
-
+        // AI 模式下不混入预设，有多少 AI 结果就保留多少
         this.state.candidates = [...allPatterns]
         console.info(`[destiny-pattern] 命格池填充完成: ${allPatterns.length}/${this.poolFillStatus.target} 条`)
       } finally {
