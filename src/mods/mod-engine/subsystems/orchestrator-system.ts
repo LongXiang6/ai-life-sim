@@ -107,6 +107,7 @@ import { useCharacterStore } from '@/mods/mod-character'
 
 import { ECONOMIC_TIER_CONFIG, MAX_REACHABLE_STAGE } from '@/mods/mod-power-system'
 import type { EconomicTierInfo } from '@/mods/mod-power-system'
+import { buildPowerCeilingPresetsForNarrative } from '@/mods/mod-world/utils/world-init-prompt-vars'
 
 import type {
   ISubSystem,
@@ -1547,9 +1548,6 @@ export class OrchestratorSystem implements ISubSystem {
     // 角色影响力文本（五维过滤：力量等级 → 叙事因果影响范围）
     const influenceText = this.buildInfluenceText()
 
-    // 经济总量文本（基于人口 × 财富的宏观经济概览）
-    const economyScaleText = this.buildEconomyScaleText()
-
     const config = this.worldSetting?.config ?? {}
     const coherenceHeader = buildNarrativeCoherenceHeader(config, syncedCharacter.age)
 
@@ -1572,19 +1570,25 @@ export class OrchestratorSystem implements ISubSystem {
     // 寿命提醒：告知 AI 角色当前寿命阶段约束
     const lifespanReminder = buildLifespanReminder(maxAge, syncedCharacter.age)
 
-    // 合并自定义文本
-    const combinedCustomText = [
+    // 合并静态自定义文本（世界创建后不变，享受 STABLE KV 缓存）
+    const staticCustomText = [
+      worldCustomizeText,
+      this.buildEconomyTierRules(),
+    ].filter(Boolean).join('\n')
+
+    // 合并动态叙事引导（每轮变化，放入 FAST 段避免污染 STABLE 前缀）
+    const narrativeGuidanceText = [
       coherenceHeader,
       lifeStageHint,
       archetypeHint,
       lifespanReminder,
-      worldCustomizeText,
-      economyScaleText,
       influenceText,
       slidingWindowText,
       coreMemory.buildNPCNetworkText(),
-      this.buildEconomyTierRules(),
     ].filter(Boolean).join('\n')
+
+    // 保留 combinedCustomText 用于 compatibility（组装时仅含静态部分）
+    const combinedCustomText = staticCustomText || undefined
 
     const calibrationRaw = this.worldSetting?.config?._calibration as
       | { styleGuide?: { narrativeTone?: string } }
@@ -1599,6 +1603,11 @@ export class OrchestratorSystem implements ISubSystem {
     // aiDetailedParameters（43字段，~2000字符）在世界初始化后不再变化，每轮重复发送无意义
     const lightWorldSetting = this.buildLightWorldSetting(narrativeTime.eraLabel)
 
+    // 力量体系预设（截断格式：≤天花板完整描述，超出仅简短境界名）
+    const powerCeilingPresets = buildPowerCeilingPresetsForNarrative(
+      typeof config.powerCeiling === 'number' ? config.powerCeiling : parseInt(String(config.powerCeiling), 10) || 5,
+    )
+
     const assembled: PromptContext = {
       worldSetting: lightWorldSetting,
       character: syncedCharacter,
@@ -1609,6 +1618,7 @@ export class OrchestratorSystem implements ISubSystem {
       timeBridgeSummary: buildTimeBridgeSummary(this.buildTimeBridgeInput()) || undefined,
       systemChangeSummary: systemChangeSummary || undefined,
       worldCustomizeText: combinedCustomText || undefined,
+      narrativeGuidanceText: narrativeGuidanceText || undefined,
       plotStructureText: plotStructure.buildPhaseGuidance() || undefined,
       foreshadowingText: foreshadowing.buildForeshadowingText() || undefined,
       worldTagsText: (this.worldSetting?.config?._worldTagsText as string) || undefined,
@@ -1640,6 +1650,7 @@ export class OrchestratorSystem implements ISubSystem {
       causalChainHint: this.buildCausalChainHint(),
       creationProtectionText: this.buildCreationProtectionText(),
       userInstruction,
+      powerCeilingPresets,
     }
 
     // 命格注入：首轮告知 AI 角色天赋特质
@@ -1649,7 +1660,7 @@ export class OrchestratorSystem implements ISubSystem {
         const talentDesc = patterns
           .map((p) => `${p.name}（${p.rarity}·${p.polarity}）：${p.description}`)
           .join('；')
-        ;(assembled as unknown as Record<string, unknown>).talents = talentDesc
+        assembled.talents = talentDesc
       }
 
       // 首轮叙事特殊指令：要求 AI 生成包含完整出生场景的叙事
@@ -1834,33 +1845,6 @@ export class OrchestratorSystem implements ISubSystem {
     const totalPower = subsystemRelevance.calculateTotalPower(this.lastSubsystemStates)
     const scope = subsystemRelevance.getInfluenceScope(totalPower)
     return subsystemRelevance.buildInfluenceText(totalPower, scope)
-  }
-
-  /**
-   * 构建经济总量文本（基于人口 × 财富的宏观经济概览）
-   */
-  private buildEconomyScaleText(): string | undefined {
-    const economyState = this.lastSubsystemStates?.['economy']
-    const populationState = this.lastSubsystemStates?.['population']
-    if (!economyState?.data || !populationState?.data) return undefined
-
-    const economyData = economyState.data as Record<string, unknown>
-    const populationData = populationState.data as Record<string, unknown>
-    const totalPopulation = (populationData.totalPopulation as number) ?? 0
-    const currency = economyData.currency as Record<string, unknown> | undefined
-    const playerWealth = (currency?.playerWealth as number) ?? 0
-
-    if (totalPopulation <= 0) return undefined
-
-    const totalEconomy = playerWealth * totalPopulation
-    let scale = '家庭级'
-    if (totalEconomy >= 1_000_000_000) scale = '帝国级'
-    else if (totalEconomy >= 100_000_000) scale = '王国级'
-    else if (totalEconomy >= 10_000_000) scale = '城邦级'
-    else if (totalEconomy >= 1_000_000) scale = '城镇级'
-    else if (totalEconomy >= 100_000) scale = '村落级'
-
-    return `【经济概览】总人口：${totalPopulation} · 人均财富：${playerWealth} · 经济总量：${totalEconomy}（${scale}）`
   }
 
   /**

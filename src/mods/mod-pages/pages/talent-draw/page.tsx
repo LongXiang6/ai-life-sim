@@ -553,6 +553,7 @@ export default function TalentDrawPage() {
             existingNames: [],
           },
           (count, patterns) => {
+            if (abortRef.current) return
             setStreamCount(count)
             fullPoolRef.current = patterns
             setLocalPoolSize(patterns.length)
@@ -709,6 +710,9 @@ export default function TalentDrawPage() {
 
   // ══════════ 返回阶段 ══════════
   const handleBack = useCallback(() => {
+    abortRef.current = true
+    if (msgTimerRef.current) clearInterval(msgTimerRef.current)
+    if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current)
     router.push('/new-game/character-create')
   }, [router])
 

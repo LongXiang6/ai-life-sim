@@ -103,21 +103,22 @@ const STABLE_JSON_KEYS = [
   '世界标签',
   '世界校准',
   '世界设定',
+  '力量体系',
   '玩家自定义',
   '原创保护',
   '叙事风格',
   '叙事基调',
-  '可变更子系统',
+  '子系统变更指南',
   '字数约束',
 ] as const
 
 const SLOW_JSON_KEYS = [
   '角色',
   '命格天赋',
-  '剧情阶段',
 ] as const
 
 const FAST_JSON_KEYS = [
+  '剧情阶段',
   '记忆摘要',
   '核心记忆',
   '待触发伏笔',
@@ -129,6 +130,8 @@ const FAST_JSON_KEYS = [
   '最近变化',
   '叙事历史',
   '指令',
+  '时间描写指南',
+  '叙事引导',
 ] as const
 
 
@@ -324,11 +327,12 @@ export function buildNarrativeUserJson(
     世界标签: context.worldTagsText,
     世界校准: context.calibrationSummary,
     世界设定: context.worldSetting,
+    力量体系: context.powerCeilingPresets,
     玩家自定义: context.worldCustomizeText,
     原创保护: context.creationProtectionText,
     叙事风格: context.narrativeStyle,
     叙事基调: context.narrativeToneHint,
-    可变更子系统: context.subsystemFields,
+    子系统变更指南: context.subsystemGuideText,
     字数约束: context.wordCountInstruction,
     当前时间: context.currentTime,
 
@@ -352,6 +356,10 @@ export function buildNarrativeUserJson(
     叙事历史: narrativeHistory,
 
     指令: context.userInstruction,
+
+    时间描写指南: context.timeGuideText,
+
+    叙事引导: context.narrativeGuidanceText,
 
     命格天赋: context.talents,
 

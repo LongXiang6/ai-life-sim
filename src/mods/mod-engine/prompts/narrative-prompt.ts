@@ -135,8 +135,20 @@ relationship:
   addRelation[](name,affinity:±N,reason) affinityDelta(±)
 reputation:
   fame(0~100) addFame(±) setFame(N) addReputation(±) dimension(str)
-foreshadowing:
-  type(8种) description priority(1~10)
+morality:
+  value(-100~100) delta(±)
+luck:
+  bonus delta(±)
+faith:
+  devotionLevel(0~100) delta(±)
+family:
+  status(enum:stable|conflict|dispersed|reunited) members
+education:
+  level(0~10) progress(0~100) graduated
+market:
+  activityLevel(0~1) trend(enum:bullish|bearish|stable)
+population:
+  total growthRate migrationDirection(enum:inward|outward|none)
 fate-prophecy:
   prophecy deadline(year) triggerCondition
 ---
@@ -177,12 +189,23 @@ export const SYSTEM_PROMPT = stringifyPrompt({
       ],
     },
 
+    allowedSubSystems: '可变更子系统仅下列ID，禁止自编：health lifespan attributes cultivation reputation morality relationships luck economy marriage family faith golden-finger market population settlement skill inventory combat-power work fate-prophecy',
+
     defense: {
       description: '降级策略',
       jsonError: 'JSON格式错误时修正为合法JSON，优先保证narrative有内容',
       noChanges: '无法判断子系统变化时返回空数组[]',
       totalFailure: '信息不足时输出最简JSON：{"narrative":"可用文本","changes":[]}',
     },
+
+    economicTier: '经济层级：物品稀缺度参照战力天花板。≤1阶→随处可得 | 2阶→区域中心 | 3阶→大型交易 | 4阶→特殊渠道 | ≥5阶→独一无二',
+
+    attributeRules: [
+      '所有属性范围-10~+10，0为凡人平平无奇。标签由 getAttrSemantic() 生成（8属性×11档完整描述）。',
+      '气运：开局随机±4，仅重大人生转折可变动（≤±1/次），由命格/奇遇/灾厄触发。',
+      '善恶：开局为0，每次变动≤±1，累计为善（+正）或恶（-负）。',
+      '属性变更仅用整数，单次波动≤2。narrative中须与属性变动描述呼应。',
+    ],
   },
 
   output: {
@@ -438,9 +461,9 @@ export const narrativePrompt: PromptTemplate = {
     '"世界标签": {{worldTagsText}},',
     '"世界校准": {{calibrationSummary}},',
     '"世界设定": {{worldSetting}},',
+    '"力量体系": {{powerCeilingPresets}},',
     '"玩家自定义": {{worldCustomizeText}},',
     '"原创保护": {{creationProtectionText}},',
-    '"可变更子系统": {{subsystemFields}},',
     '"子系统变更指南": {{subsystemGuideText}},',
     '"叙事风格": {{narrativeStyle}},',
     '"角色": {{character}},',
@@ -455,7 +478,6 @@ export const narrativePrompt: PromptTemplate = {
     '"当前状态": {{subsystemSummaries}},',
     '"最近变化": {{systemChangeSummary}},',
     '"叙事历史": {{narrativeHistory}},',
-    '"时间描写指南": {{timeGuideText}},',
     '"指令": {{userInstruction}}',
     '}',
   ].join('\n'),
@@ -465,9 +487,9 @@ export const narrativePrompt: PromptTemplate = {
     'worldTagsText',
     'calibrationSummary',
     'worldSetting',
+    'powerCeilingPresets',
     'worldCustomizeText',
     'creationProtectionText',
-    'subsystemFields',
     'narrativeStyle',
     'character',
     'talents',
@@ -482,7 +504,6 @@ export const narrativePrompt: PromptTemplate = {
     'eventInjectionText',
     'narrativeHistory',
     'subsystemGuideText',
-    'timeGuideText',
     'userInstruction',
   ],
   outputFormat: 'json',

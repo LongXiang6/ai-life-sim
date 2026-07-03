@@ -15,7 +15,6 @@ export default defineMod({
   consumes: [],
   subsystems: ['GoldenFingerSystem'],
   stores: ['useGoldenFingerStore'],
-  prompts: ['adaptation-golden-finger-prompt'],
   events: {
     emits: [
       'mod-golden-finger:assigned',

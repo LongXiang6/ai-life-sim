@@ -27,18 +27,6 @@ export default defineMod({
     'SkillSystem',
   ],
   stores: ['usePowerSystemStore'],
-  prompts: [
-    'adaptation-combat-power-prompt',
-    'adaptation-cultivation-prompt',
-    'adaptation-monster-prompt',
-    'adaptation-luck-prompt',
-    'adaptation-fortune-encounter-prompt',
-    'adaptation-faith-prompt',
-    'adaptation-supreme-item-prompt',
-    'adaptation-divine-intervention-prompt',
-    'adaptation-anomaly-phenomena-prompt',
-    'adaptation-special-material-prompt',
-  ],
   events: {
     emits: [
       'mod-power-system:stage-breakthrough',

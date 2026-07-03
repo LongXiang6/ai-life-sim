@@ -125,7 +125,7 @@ export { useRaceOrigin } from './prompts/use-race-origin'
 export { DESTINY_PATTERN_PRESETS_MATERIALIST } from './destiny-pattern-presets-materialist'
 export { DESTINY_PATTERN_PRESETS_IDEALIST } from './destiny-pattern-presets-idealist'
 
-export { raceOriginPrompt, RACE_ORIGIN_SYSTEM_PROMPT } from './prompts/race-origin'
+export { raceOriginPrompt } from './prompts/race-origin'
 export { destinyPatternPrompt } from './prompts/destiny-pattern-prompt'
 export { aggregatePatternSystemModifiers } from './utils/destiny-pattern-modifiers'
 export {

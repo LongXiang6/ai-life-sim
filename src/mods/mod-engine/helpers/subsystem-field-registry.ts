@@ -180,12 +180,14 @@ export function formatSubsystemFieldsForPrompt(_limitToIds?: string[]): string {
 const ailmentEntry = z.object({
   name: z.string(),
   severity: z.coerce.number().min(1).max(10),
+  rounds: z.coerce.number().min(0).optional(),
 })
 
 /** 关系条目 */
 const relationEntry = z.object({
   name: z.string(),
   type: z.string().optional(),
+  reason: z.string().optional(),
   affinity: z.coerce.number().optional(),
 })
 
@@ -289,6 +291,12 @@ export const SUBSYSTEM_CHANGE_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>
   'combat-power': z.object({
     rank: z.coerce.number().min(0).max(100).optional(),
     delta: z.coerce.number().optional(),
+  }).passthrough(),
+
+  'fate-prophecy': z.object({
+    prophecy: z.string().optional(),
+    deadline: z.coerce.number().optional(),
+    triggerCondition: z.string().optional(),
   }).passthrough(),
 }
 

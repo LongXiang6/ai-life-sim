@@ -33,7 +33,8 @@ export const PROMPT_CONTEXT_FIELDS = [
   "talents",
   "creationProtectionText",
   "subsystemGuideText",
-  "timeGuideText"
+  "timeGuideText",
+  "powerCeilingPresets"
 ] as const
 
 /** narrative-prompt 模板 variables[] */
@@ -43,6 +44,7 @@ export const NARRATIVE_PROMPT_VARIABLES = [
   "worldTagsText",
   "calibrationSummary",
   "worldSetting",
+  "powerCeilingPresets",
   "worldCustomizeText",
   "creationProtectionText",
   "subsystemFields",

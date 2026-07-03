@@ -19,6 +19,7 @@ import { useSettingsStore } from '@/mods/mod-settings'
 import { useWorldStore } from '@/mods/mod-world'
 
 import type { AIModelConfig } from '@/foundation'
+import { stringifyPrompt } from '@/foundation'
 
 /** 默认 AI 配置（用于种族由来生成，maxTokens 基于标准量 × 120% 冗余） */
 const DEFAULT_CONFIG: AIModelConfig = {
@@ -67,10 +68,11 @@ export function useRaceOrigin(worldDescription: string): {
     setHasAttempted(true)
 
     try {
-      const userPrompt = raceOriginPrompt.userPromptTemplate
-        .replace('{{worldDescription}}', worldDescription)
-        .replace('{{race}}', race)
-        .replace('{{characterBackground}}', background)
+      const userPrompt = stringifyPrompt({
+        worldDescription,
+        race,
+        characterBackground: background,
+      })
 
       const { customKey, customUrl, provider, customModel } = useSettingsStore.getState()
       const model = customModel || DEFAULT_CONFIG.model

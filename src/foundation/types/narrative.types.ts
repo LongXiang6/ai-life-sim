@@ -63,8 +63,10 @@ export interface PromptContext {
   timeBridgeSummary?: string,
   /** 系统变化摘要（与前轮对比的缩写快照差异） */
   systemChangeSummary?: string,
-  /** 世界自定义文本（玩家设定的宏观维度注入） */
+  /** 世界自定义文本（玩家设定的宏观维度注入，仅静态部分） */
   worldCustomizeText?: string,
+  /** 叙事引导文本（每轮动态变化：连贯性/生命阶段/原型/寿命/影响力/滑动窗口/NPC网络） */
+  narrativeGuidanceText?: string,
   /** 世界观标签文本 */
   worldTagsText?: string,
   /** 世界规则文本（根据世界观本质动态注入的叙事规则） */
@@ -101,6 +103,8 @@ export interface PromptContext {
   subsystemGuideText?: string,
   /** 时间描写引导（totalRounds > 0 时注入，指导 AI 避免"这一年"开头） */
   timeGuideText?: string,
+  /** 力量体系预设（截断格式：≤当前天花板的阶位完整描述，超出部分仅简短境界名） */
+  powerCeilingPresets?: string,
 }
 
 /**

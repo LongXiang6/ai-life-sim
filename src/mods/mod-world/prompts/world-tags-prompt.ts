@@ -10,64 +10,45 @@
 import { z } from 'zod'
 
 import type { PromptTemplate } from '@/foundation'
-import { stringifyPrompt } from '@/foundation'
 
 /** 世界标签生成输出 Schema（JSON Mode：顶层 object） */
 export const worldTagsOutputSchema = z.object({
   tags: z.array(z.string()).min(3).max(12),
 })
 
+const WORLD_TAGS_SYSTEM_PROMPT = `你是世界标签生成AI。根据世界描述和世界观类型，生成5-8个氛围标签（2-8字）。
+输出纯JSON对象 {"tags":["标签1",...]}，不markdown代码块包裹。
+
+// 示例覆盖不同世界观×不同氛围标签：
+
+// 修仙世界
+{"tags":["灵气充沛","弱肉强食","宗门林立","天道不仁","秘境遍布","因果轮回"]}
+
+// 星际科幻
+{"tags":["科技至上","星际殖民","文明竞争","AI觉醒","资源博弈","真空寂静"]}
+
+// 末日废土
+{"tags":["资源匮乏","废墟求生","变异横生","信任崩坏","末日余晖","弱者的团结"]}
+
+// 奇幻魔法
+{"tags":["魔力涌动","种族共存","神明干预","黑暗潜伏","契约至上","冒险者的黄金时代"]}
+
+核心约束：
+- 标签仅描述此世界真实存在的要素，禁止标注不存在的东西
+- 唯心/心相/无灵气世界禁止「灵气充沛」「仙凡并存」
+- 不适用的文明层勿生成相关标签（如史前世界勿标「诸侯割据」）
+- 标签简洁2-8字，不解释、不评价`
+
 export const worldTagsPrompt: PromptTemplate = {
   name: 'world-tags',
-  version: '1.1.0',
+  version: '2.0.0',
   mod: 'mod-world',
 
-  systemPrompt: stringifyPrompt({
-    role: '世界标签生成 AI',
-    task: '根据世界配置与用户维度选择，生成描述性标签；对 AI 决定模式的维度可自行判定最适值',
-    outputFormat: '纯 JSON 对象 { "tags": string[] }，不要 markdown 代码块包裹',
-    constraints: [
-      '返回 JSON 对象，tags 字段为 5-8 个世界标签字符串',
-      '先按 dimensionChoices 了解用户对各维度的决定权：AI决定模式下的维度可自行判定最适配置',
-      '再按 coherenceHint 与 worldDescription 分析世界观，标签仅描述本世界真实存在的要素',
-      'worldDescription 优先级高于 essenceTag / civilizationStage；标签不得与描述矛盾',
-      '唯心/心相/无灵气世界：禁止「灵气充沛」「仙凡并存」「洪荒黎明」「原始纪元」等不适用标签',
-      '不适用的文明层勿生成相关标签（如纯史前地猿世界勿标「诸侯割据」）',
-      '标签简洁（2-8 字）',
-      '用户选的 adaptive/custom 维度值作为参考，标签须与之协调',
-    ],
-    tagCategories: [
-      { name: '氛围类', examples: ['祥和', '战乱', '神秘', '压抑', '繁荣', '衰退', '动荡'] },
-      { name: '力量类', examples: ['灵气充沛', '魔力枯竭', '科技至上', '血脉为尊'] },
-      { name: '文明类', examples: ['礼崩乐坏', '盛世太平', '诸侯割据', '大一统'] },
-      { name: '环境类', examples: ['山峦叠嶂', '汪洋大陆', '无尽星空', '虚空位面'] },
-      { name: '社会类', examples: ['等级森严', '自由平等', '弱肉强食', '和谐共生'] },
-    ],
-    exampleOutput: { tags: ['灵气充沛', '诸侯割据', '灵气复苏', '弱肉强食', '仙凡并存'] },
-  }),
+  systemPrompt: WORLD_TAGS_SYSTEM_PROMPT,
 
-  userPromptTemplate: stringifyPrompt({
-    worldDescription: '{{worldDescription}}',
-    coherenceHint: '{{coherenceHint}}',
-    coherenceNote: '{{coherenceNote}}',
-    worldType: '{{worldType}}',
-    instruction: '根据以下世界配置与维度选择生成 5-8 个描述性标签',
-    outputInstruction: '输出纯 JSON 对象 { "tags": ["标签1", ...] }',
-    worldName: '{{worldName}}',
-    essenceTag: '{{essenceTag}}',
-    powerSystemTag: '{{powerSystemTag}}',
-    civilizationStage: '{{civilizationStage}}',
-    spatialForm: '{{spatialForm}}',
-    dimensionChoices: '{{dimensionChoices}}',
-    dimensionOptions: '{{dimensionOptions}}',
-    powerCeilingPresets: '{{powerCeilingPresets}}',
-  }),
+  userPromptTemplate: `{"worldDescription":"{{worldDescription}}","worldType":"{{worldType}}","coherenceHint":"{{coherenceHint}}"}`,
 
-  variables: [
-    'worldName', 'essenceTag', 'powerSystemTag', 'civilizationStage', 'spatialForm',
-    'worldDescription', 'dimensionChoices', 'dimensionOptions', 'powerCeilingPresets',
-    'coherenceHint', 'coherenceNote', 'worldType',
-  ],
+  variables: ['worldDescription', 'worldType', 'coherenceHint'],
 
   outputFormat: 'json',
   outputSchema: worldTagsOutputSchema,

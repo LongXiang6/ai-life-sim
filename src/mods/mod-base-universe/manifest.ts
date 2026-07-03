@@ -21,9 +21,6 @@ export default defineMod({
     'DivineCreationSystem',
   ],
   stores: ['useBaseUniverseStore'],
-  prompts: [
-    'adaptation-divine-creation-prompt',
-  ],
   events: {
     emits: [
       'mod-base-universe:celestial-phase-changed',

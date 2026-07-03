@@ -22,7 +22,7 @@ export default defineMod({
     'NPCMemorySystem',
   ],
   stores: ['useNPCStore'],
-  prompts: ['npc-behavior', 'adaptation-antagonist-prompt'],
+  prompts: ['npc-behavior'],
   events: {
     emits: [
       'mod-npc:npc-created',
