@@ -237,7 +237,19 @@ function getOrCreateTimelineSystem(
   return system
 }
 
-/** 后台静默 AI 初始化（不阻塞 UI） */
+/** 后台静默 AI 初始化（不阻塞 UI）
+ *
+ * 双通道策略（费用：5 次 AI 调用，和改造前一样，不翻倍）：
+ *   1. 服务端管道 /api/world-init —— 校准+标签（2 次 AI）
+ *      直连 DeepSeek，不受客户端切页面 abort 影响
+ *   2. 客户端管道 generateWorldInitBundle —— 全 5 步
+ *      检测到 store 已存校准缓存 → 自动跳过 step 1-2 → 实际调用 3 次
+ *      复用服务端结果但用 WorldTimelineSystem / EntitySystem 做完整校验
+ *
+ *   总计：服务端 2 + 客户端 3 = 5 次。
+ *   fate-preview 页的 useWorldInitPoller 轮询服务端结果写入 store，
+ *   客户端管道检测到 store 命中后跳过，避免双倍调用。
+ */
 export function startBackgroundWorldInit(
   config: WorldConfig,
   worldCode: number,
@@ -246,6 +258,34 @@ export function startBackgroundWorldInit(
   const lockKey = `init:${worldCode}`
   if (!tryAcquireFillLock(lockKey)) return
 
+  // ── 通道 1：服务端管道（不可被客户端切页面中断） ──
+  // 仅在校准/标签未缓存时启动。若 store 已有（localStorage 命中或之前已完成），
+  // 跳过服务端管道，避免重复 AI 调用、延长耗时。客户端管道会检测缓存自动跳过步1-2。
+  const worldState = useWorldStore.getState()
+  const needServerCalibration = !worldState.calibration || !worldState.worldTags?.length
+
+  if (needServerCalibration) {
+    const settings = useSettingsStore.getState()
+    const clientApiKey = settings.customKey || undefined
+    const clientBaseUrl = settings.customUrl || undefined
+    const clientModel = settings.customModel || undefined
+
+    void fetch('/api/world-init', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        worldCode,
+        config,
+        ...(clientApiKey ? { apiKey: clientApiKey } : {}),
+        ...(clientBaseUrl ? { baseUrl: clientBaseUrl } : {}),
+        ...(clientModel ? { model: clientModel } : {}),
+      }),
+    }).catch((err) => {
+      console.warn('[mod-world] 服务端初始化请求失败（不影响客户端管道）', err)
+    })
+  }
+
+  // ── 通道 2：客户端管道（时间线 + 上古史 + 实体） ──
   void generateWorldInitBundle(config, worldCode, startingYear).catch((err) => {
     console.warn('[mod-world] 后台世界 AI 初始化失败', err)
   }).finally(() => {

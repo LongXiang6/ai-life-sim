@@ -93,8 +93,8 @@ export const useSettingsStore = create<SettingsState>()(
         maxTokens: 4096,
         reasoningEffort: 'disabled',
         talentThinkingIntensity: 'disabled',
-        aiTalentGeneration: false,
-        preGenerateRounds: 0,
+        aiTalentGeneration: true,
+        preGenerateRounds: 1,
         storySeed: '',
 
         // 叙事偏好 —— wordCountTarget 初始值来自单一来源常量，与所有消费者共享

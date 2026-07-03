@@ -1,6 +1,6 @@
 /**
  * @module destiny-pattern-context.ts
- * @description 命格 AI 生成 Prompt 上下文组装 —— 聚合世界/角色/校准信息
+ * @description 命格 AI 生成 Prompt 上下文组装 —— 精简版仅传世界名、描述、角色
  * @mod mod-character
  */
 
@@ -10,8 +10,6 @@ import type { KvPromptOrderResult } from '@/core/ai-service/kv-prompt-order'
 
 import type { WorldCalibration, WorldConfig } from '@/mods/mod-world'
 import {
-  formatCalibrationSummary,
-  buildWorldCoherenceHint,
   formatWorldTagsText,
   WORLDVIEW_TAG_DEFAULTS,
   resolveWorldviewStyleHint,
@@ -22,7 +20,6 @@ import {
   PRESET_DESTINY_PATTERNS,
 } from '../constants'
 import { prepareFateUserPrompt } from '../utils/fate-kv'
-import { resolveDestinyPatternPromptWorldMeta } from '../utils/destiny-pattern-prompt-world-meta'
 
 /** 单条命格输出 token 估算（含 50–60 字描述 + 字段） */
 const DESTINY_PATTERN_TOKENS_PER_ITEM = 280
@@ -92,7 +89,7 @@ export function resolveDestinyPatternWorldTags(
   return `${structured}\n【主题风格】${styleHint}${aiLine}`
 }
 
-/** 组装并 stringify 命格 user Prompt（modifier 字段以嵌套 JSON 写入，避免引号破坏结构） */
+/** 组装并 stringify 命格 user Prompt（精简版：仅世界名、描述、角色，不再依赖校准管线） */
 export function buildDestinyPatternUserPrompt(input: BuildDestinyPatternContextInput): string {
   const cfg = input.worldConfig
   const names = [...input.existingNames]
@@ -107,41 +104,18 @@ export function buildDestinyPatternUserPrompt(input: BuildDestinyPatternContextI
   if (input.character.race) charParts.push(`种族=${input.character.race}`)
   if (input.character.gender) charParts.push(`性别=${input.character.gender}`)
   if (input.character.background) charParts.push(`背景=${input.character.background}`)
-  if (input.character.attributes && Object.keys(input.character.attributes).length > 0) {
-    charParts.push(`属性=${JSON.stringify(input.character.attributes)}`)
+
+  const obj: Record<string, unknown> = {
+    worldName: cfg?.name ?? '未知世界',
+    worldDescription: cfg?.description?.trim() || '（无详细描述）',
+    character: charParts.length > 0 ? charParts.join('，') : '（角色尚未设定）',
   }
 
-  const startingAge = input.character.startingAge ?? 0
+  if (names.length > 0) {
+    obj.existingNames = names.join('、')
+  }
 
-  const worldMeta = resolveDestinyPatternPromptWorldMeta(cfg)
-
-  return stringifyPrompt({
-    worldDescription: cfg?.description?.trim() || '（无详细描述，请结合 essenceTag 推断）',
-    coherenceHint: buildWorldCoherenceHint(
-      worldMeta.civilizationStage,
-      cfg?.description?.trim() ?? '',
-    ),
-    calibrationSummary: input.calibration
-      ? formatCalibrationSummary(input.calibration)
-      : '默认校准',
-    worldTags: resolveDestinyPatternWorldTags(cfg, input.worldTags),
-    worldName: cfg?.name ?? '未知世界',
-    essenceTag: cfg?.essenceTag ?? 'generic',
-    powerSystemTag: worldMeta.powerSystemTag,
-    civilizationStage: worldMeta.civilizationStage,
-    spatialForm: cfg?.spatialForm ?? 'unknown',
-    powerCeiling: String(worldMeta.powerCeiling),
-    personalModifierFields: worldMeta.personalModifierFields,
-    startingAge,
-    instruction: '请为以下世界生成 20 条命格或天赋',
-    character: charParts.length > 0 ? charParts.join('；') : '（角色尚未设定）',
-    // 精简约束清单：仅保留易被模型忽略的关键护栏，通用规则已在 System Prompt 中
-    requirements: [
-      'description 只写先天/已有特质，禁止未来时间节点与人生场景',
-      '紧凑 JSON {"patterns":[...]}，每条含 type 字段，attrBonus 仅含非零字段',
-    ],
-    existingNames: names.length > 0 ? names.join('、') : '无',
-  })
+  return stringifyPrompt(obj)
 }
 
 /** 填充模板后应用 KV 键序（供 talent-draw 等直接 callAI 路径复用） */

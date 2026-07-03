@@ -15,6 +15,7 @@ import { useGlobalStore, configStore } from '@/core'
 import { buildOrchestratorWorldSetting, orchestrator } from '@/mods/mod-engine/engine-api'
 import { useCharacterStore, randomName } from '@/mods/mod-character'
 import { useWorldStore } from '@/mods/mod-world'
+import { useWorldInitPoller } from '@/mods/mod-world'
 import type { WorldInitAIStatus } from '@/mods/mod-world'
 import { BottomActionBar, PageScroll } from '@/mods/mod-ui'
 
@@ -119,8 +120,12 @@ export default function FatePreviewPage() {
   const talents = useCharacterStore((s) => s.talents)
 
   const worldConfig = useWorldStore((s) => s.worldConfig)
+  const worldCode = useWorldStore((s) => s.worldCode)
   const worldInitAIStatus = useWorldStore((s) => s.worldInitAIStatus)
   const setGamePhase = useGlobalStore((s) => s.setGamePhase)
+
+  // 轮询服务端世界初始化结果，保证跨页面 AI 调用不丢失
+  useWorldInitPoller(worldCode)
 
   const genderLabel = GENDER_LABELS[gender] ?? gender
   const savedFp = loadFpState()

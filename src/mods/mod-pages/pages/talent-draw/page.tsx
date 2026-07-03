@@ -540,8 +540,8 @@ export default function TalentDrawPage() {
         const result = await getDestinyPatternSystem().generateWithAI(
           {
             worldConfig: useWorldStore.getState().worldConfig,
-            calibration: useWorldStore.getState().calibration,
-            worldTags: useWorldStore.getState().worldTags,
+            calibration: undefined,
+            worldTags: undefined,
             character: {
               name: useCharacterStore.getState().name,
               race: useCharacterStore.getState().race,

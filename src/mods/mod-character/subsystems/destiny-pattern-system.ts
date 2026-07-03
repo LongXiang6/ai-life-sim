@@ -294,6 +294,7 @@ export class DestinyPatternSystem implements ISubSystem {
 
     const runBatch = async (batch: number, seed?: number, forceStream?: boolean): Promise<void> => {
       onBatchStart?.(batch)
+      const t0 = performance.now()
       const kvPrepared = buildDestinyPatternUserPromptKv({
         ...contextInput,
         existingNames,
@@ -362,6 +363,12 @@ export class DestinyPatternSystem implements ISubSystem {
         throw new Error(`批次 ${batch + 1}/${AI_DESTINY_PATTERN_BATCH_COUNT} API 返回空结果`)
       }
       const firstIngest = ingestResponse(response)
+
+      console.info(
+        `[destiny-pattern] 批次 ${batch + 1} 首响应 ${((performance.now() - t0) / 1000).toFixed(1)}s` +
+        ` | 解析 ${firstIngest.parsedCount} 条 采纳 ${firstIngest.addedCount} 条` +
+        ` | 当前池 ${allPatterns.length} 条`,
+      )
 
       const responseComplete = response.trim().endsWith('}') || response.trim().endsWith(']')
       const looksTruncated = !responseComplete && firstIngest.parsedCount < AI_DESTINY_PATTERN_BATCH_SIZE / 2

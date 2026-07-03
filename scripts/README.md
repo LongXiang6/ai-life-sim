@@ -1,6 +1,6 @@
 # scripts/ 目录说明
 
-构建与检测脚本的根目录。**根目录仅保留本说明 + 两个子目录**，所有实现均在子目录内。
+构建与检测脚本的根目录。**根目录仅保留本说明 + 三个子目录**，所有实现均在子目录内。
 
 ## 目录结构
 
@@ -10,6 +10,9 @@ scripts/
 ├── codegen/                    # 构建期 codegen（dev/build 自动运行）
 │   ├── generate-mod-wiring.mjs
 │   └── create-mod.mjs
+├── dev/                        # 开发环境辅助（dev 预热等）
+│   ├── dev-with-warmup.mjs
+│   └── warm-dev-server.mjs
 └── check/                      # 检测 / 关闸（C3 闸）
     ├── index.mjs               # npm run check 入口
     ├── gate-check.mjs          # npm run gate-check

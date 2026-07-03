@@ -70,7 +70,7 @@ export { callAI, callAIConversation, callAIStream, callAIStreamConversation, cal
 export type { AICallOptions, CachePoolType, CacheHitInfo, PromptSegments, RoundCacheMetrics, ChatMessage, KVMessageStrategy, AICallLogContext, AICallUsageSnapshot, UnifiedCallOptions, PromptTemplateLike } from './ai-service'
 
 // 存储服务
-export { configStore, saveStore, cacheStore, tempStore, opfsStorage, saveManager, clearGameProgressFromLocalStorage } from './storage'
+export { configStore, saveStore, cacheStore, tempStore, opfsStorage, saveManager, clearGameProgressFromLocalStorage, flushOpfsQueueNow, safeCleanupReload } from './storage'
 export type { SaveMetadata } from './storage'
 
 // 主题

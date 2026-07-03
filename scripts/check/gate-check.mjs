@@ -1,92 +1,123 @@
 #!/usr/bin/env node
 /**
- * PDCA C闸一键验证：C1 lint → C2 tsc → C3 check
+ * PDCA C闸一键验证：C1 lint ╲ C2 tsc → C3 check
  * --quick：L1 快速路径（check:quick，跳过叙事回归与全量 PS 扫描）
  * --error-only：C3 后输出 FAIL 摘要（reports/checker-*.json）
+ *
+ * C1 和 C2 并行执行（lint / tsc 互不依赖），失败汇总后统一退出。
  */
-import { spawnSync } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
-import fs from 'node:fs';
 
-const checkDir = dirname(fileURLToPath(import.meta.url));
-const projectRoot = join(checkDir, '..', '..');
-const isWin = process.platform === 'win32';
-const quick = process.argv.includes('--quick');
-const verbose = process.argv.includes('--verbose');
-const quiet = !verbose;
-const errorOnly = process.argv.includes('--error-only') || quiet;
+import { spawn } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
+import fs from 'node:fs'
 
-const steps = [
-  { name: 'C1 lint', cmd: 'npm', args: ['run', 'lint'] },
-  { name: 'C2 tsc', cmd: 'npx', args: ['tsc', '--noEmit'] },
-  {
-    name: quick ? 'C3 check:quick' : 'C3 check',
-    cmd: 'npm',
-    args: ['run', quick ? 'check:quick' : 'check'],
-    env: quiet ? { CHECK_QUIET: '1' } : {},
-  },
-];
+const checkDir = dirname(fileURLToPath(import.meta.url))
+const projectRoot = join(checkDir, '..', '..')
+const isWin = process.platform === 'win32'
+const quick = process.argv.includes('--quick')
+const verbose = process.argv.includes('--verbose')
+const quiet = !verbose
+const errorOnly = process.argv.includes('--error-only') || quiet
 
-function runStep({ name, cmd, args, env = {} }) {
-  if (!quiet) console.log(`\n=== ${name} ===`);
-  const result = spawnSync(cmd, args, {
-    cwd: projectRoot,
-    stdio: quiet ? 'pipe' : 'inherit',
-    shell: isWin,
-    env: { ...process.env, ...env },
-  });
-  if (result.status !== 0) {
-    if (quiet) {
-      const out = `${result.stdout ?? ''}${result.stderr ?? ''}`.trim();
-      if (out) process.stderr.write(`${out}\n`);
-    }
-    console.error(`\n[gate-check] FAILED at ${name} (exit ${result.status ?? 1})`);
-    process.exit(result.status ?? 1);
+/** @returns {Promise<{name:string, code:number|null, signal:string|null, stdout:string, stderr:string}>} */
+function spawnAsync(name, cmd, args, opts = {}) {
+  return new Promise((resolve) => {
+    const child = spawn(cmd, args, {
+      cwd: projectRoot,
+      shell: isWin,
+      stdio: 'pipe',
+      ...opts,
+    })
+    let stdout = ''
+    let stderr = ''
+    child.stdout.on('data', (d) => { stdout += d.toString() })
+    child.stderr.on('data', (d) => { stderr += d.toString() })
+    child.on('error', () => resolve({ name, code: 1, signal: null, stdout, stderr }))
+    child.on('close', (code, signal) => resolve({ name, code, signal, stdout, stderr }))
+  })
+}
+
+function printStepResult({ name, code, signal, stdout, stderr }) {
+  const out = `${stdout}${stderr}`.trim()
+  if (code === 0) {
+    console.log(`[gate-check] ${name} passed`)
+    if (!quiet && out) console.log(out)
+  } else {
+    if (out) process.stderr.write(`${out}\n`)
+    console.error(`\n[gate-check] FAILED at ${name} (exit ${code ?? signal ?? 'unknown'})`)
   }
-  if (quiet) console.log(`[gate-check] ${name} passed`);
-  else console.log(`[gate-check] ${name} passed`);
 }
 
 function printErrorSummary() {
-  const reportsDir = join(projectRoot, 'reports');
-  if (!fs.existsSync(reportsDir)) return;
+  const reportsDir = join(projectRoot, 'reports')
+  if (!fs.existsSync(reportsDir)) return
   const runFiles = fs.readdirSync(reportsDir)
     .filter((f) => f.startsWith('check-run-') && f.endsWith('.json'))
     .map((f) => ({ f, m: fs.statSync(join(reportsDir, f)).mtimeMs }))
-    .sort((a, b) => b.m - a.m);
+    .sort((a, b) => b.m - a.m)
   if (runFiles.length > 0) {
-    console.log(`\n[gate-check] 报告: reports/${runFiles[0].f}`);
+    console.log(`\n[gate-check] 报告: reports/${runFiles[0].f}`)
   }
   const files = fs.readdirSync(reportsDir)
     .filter((f) => f.startsWith('checker-') && f.endsWith('.json'))
     .map((f) => ({ f, m: fs.statSync(join(reportsDir, f)).mtimeMs }))
-    .sort((a, b) => b.m - a.m);
-  if (files.length === 0) return;
+    .sort((a, b) => b.m - a.m)
+  if (files.length === 0) return
   try {
-    const json = JSON.parse(fs.readFileSync(join(reportsDir, files[0].f), 'utf8'));
-    const errors = (json.Results ?? []).filter((r) => r.Level === 'ERROR');
+    const json = JSON.parse(fs.readFileSync(join(reportsDir, files[0].f), 'utf8'))
+    const errors = (json.Results ?? []).filter((r) => r.Level === 'ERROR')
     if (errors.length === 0) {
-      console.log('\n[gate-check] ErrorOnly 摘要: 0 FAIL');
-      return;
+      console.log('\n[gate-check] ErrorOnly 摘要: 0 FAIL')
+      return
     }
-    console.log(`\n[gate-check] ErrorOnly 摘要 (${errors.length} FAIL):`);
+    console.log(`\n[gate-check] ErrorOnly 摘要 (${errors.length} FAIL):`)
     for (const e of errors.slice(0, 30)) {
-      console.log(`  ${e.Rule} ${e.File} — ${e.Message}`);
+      console.log(`  ${e.Rule} ${e.File} — ${e.Message}`)
     }
     if (errors.length > 30) {
-      console.log(`  ... 另有 ${errors.length - 30} 项，见 reports/${files[0].f}`);
+      console.log(`  ... 另有 ${errors.length - 30} 项，见 reports/${files[0].f}`)
     }
   } catch {
     // 摘要可选
   }
 }
 
-console.log(`[gate-check] Starting PDCA C gates (${quick ? 'quick' : 'full'})${quiet ? ', quiet' : ''}...`);
-for (const step of steps) {
-  runStep(step);
+async function main() {
+  console.log(`[gate-check] Starting PDCA C gates (${quick ? 'quick' : 'full'})${quiet ? ', quiet' : ''}...`)
+
+  // ── C1 + C2: lint / tsc 并行（互不依赖） ──
+  const [c1, c2] = await Promise.all([
+    spawnAsync('C1 lint', 'npm', ['run', 'lint']),
+    spawnAsync('C2 tsc', 'npx', ['tsc', '--noEmit']),
+  ])
+
+  printStepResult(c1)
+  printStepResult(c2)
+
+  if (c1.code !== 0 || c2.code !== 0) {
+    console.error('[gate-check] Aborting after C1/C2 failure')
+    process.exit(1)
+  }
+
+  // ── C3: 结构/领域扫描（顺序，依赖前两步通过） ──
+  const c3Name = quick ? 'C3 check:quick' : 'C3 check'
+  const c3 = await spawnAsync(c3Name, 'npm', ['run', quick ? 'check:quick' : 'check'], {
+    env: quiet ? { CHECK_QUIET: '1' } : {},
+  })
+
+  printStepResult(c3)
+
+  if (c3.code !== 0) {
+    if (errorOnly) printErrorSummary()
+    process.exit(c3.code ?? 1)
+  }
+
+  if (errorOnly) printErrorSummary()
+  console.log('\n[gate-check] All C gates passed.')
 }
-if (errorOnly) {
-  printErrorSummary();
-}
-console.log('\n[gate-check] All C gates passed.');
+
+main().catch((e) => {
+  console.error(`[gate-check] Fatal: ${e.message ?? e}`)
+  process.exit(1)
+})

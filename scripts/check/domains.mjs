@@ -14,7 +14,7 @@ export const DOMAINS = {
     label: '接线 / codegen',
     group: 'structural',
     atceTier: 'structural',
-    ruleIds: ['A-01', 'A-02', 'A-13', 'A-14', 'A-15', 'A-16', 'D-07'],
+    ruleIds: ['A-01', 'A-02', 'A-13', 'A-14', 'A-15', 'A-16', 'A-17', 'D-07'],
     triggers: [
       'scripts/check/domains/structural',
       'scripts/codegen/generate-mod-wiring',
@@ -26,12 +26,16 @@ export const DOMAINS = {
       'manifest.ts',
       '/index.ts',
       '.generated.ts',
+      'src/core/storage/',
+      'persist',
+      'localStorage.getItem',
     ],
     steps: [
       { cmd: 'node', args: ['scripts/codegen/generate-mod-wiring.mjs', '--check'] },
       { cmd: 'node', args: ['scripts/check/domains/structural/scan-typescript-wiring.mjs', '--quiet'] },
       { cmd: 'node', args: ['scripts/check/domains/structural/scan-mod-public-boundary.mjs', '--quiet'] },
       { cmd: 'node', args: ['scripts/check/domains/structural/scan-file-import-graph.mjs', '--quiet'] },
+      { cmd: 'node', args: ['scripts/check/domains/structural/scan-persist-format.mjs', '--quiet'] },
     ],
   },
   loader: {

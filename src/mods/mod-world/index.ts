@@ -83,6 +83,7 @@ export type { WorldInitAIStatus } from './store'
 
 // Hooks
 export { useWorld, useWorldEntities, useWorldTime } from './hooks'
+export { useWorldInitPoller } from './hooks/useWorldInitPoller'
 
 // AI Prompts
 export { worldConfigPrompt } from './prompts/world-config-prompt'
@@ -90,6 +91,8 @@ export { worldTagsPrompt } from './prompts/world-tags-prompt'
 export { worldTimelinePrompt } from './prompts/world-timeline-prompt'
 export { worldEntityPrompt } from './prompts/world-entity-prompt'
 export { worldCalibrationPrompt, worldCalibrationOutputSchema } from './prompts/world-calibration-prompt'
+export { worldDimensionCalibrationPrompt, worldDimensionCalibrationOutputSchema } from './prompts/world-dimension-calibration-prompt'
+export type { WorldDimensionCalibrationOutput } from './prompts/world-dimension-calibration-prompt'
 
 export {
   buildDefaultCalibration,
@@ -164,8 +167,13 @@ export {
   runWorldInitPipeline,
   createDefaultWorldInitSteps,
   createWorldInitPipelineContext,
+  fillPromptTemplate,
 } from './utils/world-init-pipeline'
 export type { WorldInitStep, WorldInitPipelineContext } from './utils/world-init-pipeline'
+
+export { parseWorldDimensionCalibrationResponse } from './utils/world-dimension-calibration-parse'
+export { parseWorldTagsResponse } from './utils/world-init-kv'
+export { filterCoherentWorldTags } from './utils/world-coherence-output-guard'
 
 export { resolvePresetWorldCode } from './utils/preset-world-code'
 export {

@@ -1,112 +1,54 @@
 /**
  * @module destiny-pattern-prompt.ts
- * @description 命格 AI 生成 Prompt —— 分批生成 100 条命格池（5 批 × 20 条）
+ * @description 命格 AI 生成 Prompt —— 示例驱动纯文本 system prompt，分批生成 20 条/批
  * @mod mod-character
  */
 
 import type { PromptTemplate } from '@/foundation'
-import { stringifyPrompt } from '@/foundation'
 
 import { z } from 'zod'
 
-import { DESTINY_PATTERN_MODERN_EXAMPLE } from '../utils/destiny-pattern-content-quality'
-import { DESTINY_PATTERN_FEW_SHOT_BLOCK } from '../constants/destiny-pattern-few-shots'
+const DESTINY_PATTERN_SYSTEM_PROMPT = `你是命格、天赋与特质生成器。根据世界观和角色信息，生成 20 条命格、天赋或特质。
+输出格式：{"patterns":[{...},...]}，每条一行紧凑 JSON，不格式美化、不 markdown 代码块。
 
-/** 命格专用叙事风格：与全局 NARRATIVE_STYLE_DEFAULT 的「简练」脱钩，避免与 50–60 字冲突 */
-const DESTINY_PATTERN_NARRATIVE_STYLE = [
-  '叙事用现代白话，准确、有画面感；description 以 50–60 汉字为佳',
-  '忌网游腔、忌与 worldDescription 不符的时代错置；描写风格须多样化，避免千篇一律的句式',
-  '只写角色与生俱来的天赋、体质、性格倾向、能力特长；禁止写人生开局场景',
-  '句式不拘一格：可省略主语从特质直接切入（如「对市场动向有着本能的敏锐」「数理推理能力出类拔萃」），也可用人称但不宜每条都雷同',
-].join('；')
+/*
+字段: name(2-8字) rarity polarity description(50-120汉字,微叙事体:①具体倾向/场景→②内心感悟→③一句话收束;写先天倾向不说既定事实) effect(≥10字定性) attrBonus systemModifiers(仅rare+可选,系数微调乘法1.0=不变)
+属性上限: common±1单属 fine±2或双±1 rare≤3(1-2属) epic≤5(1-3属) legendary≤7(1-3属)
+common/fine禁systemModifiers rare+可选1-2个 仅输出非零属性禁physique:0
+systemModifier可用字段(仅下列,禁止自编): luckPointModifier(气运获取) hpRecoveryModifier(生命恢复) staminaRecoveryModifier(体力恢复) breakthroughChanceModifier(寿命突破) cultivationSpeedModifier(修炼/战力成长) bottleneckModifier(修炼瓶颈) incomeModifier(职业收入) fertilityModifier(家族生育) devotionGainModifier(虔诚获取) lifespanModifier(寿命上限) attributeDecayModifier(属性衰减)
+*/
 
-const DESTINY_PATTERN_SYSTEM_PROMPT = stringifyPrompt({
-  role: '命格与天赋生成 AI',
-  task: '根据完整世界观与角色信息，生成 20 条命格或天赋（天赋特质卡片，不是人生故事）',
-  narrativeStyle: DESTINY_PATTERN_NARRATIVE_STYLE,
-  fewShotExamples: DESTINY_PATTERN_FEW_SHOT_BLOCK,
-  outputFormat: '纯 JSON 对象 { "patterns": [...] }，每条占一行，禁止 pretty-print，禁止 markdown 代码块',
-  outputSchema: {
-    type: '命格 | 特征（必填）',
-    name: '名称（2-8字）',
-    description: '描述（50-60字为佳，现代白话，写满一段；只写先天/已有特质，禁止未来剧情）',
-    rarity: 'common | fine | rare | epic | legendary',
-    polarity: 'positive | negative | mixed',
-    effect: '效果概括（≥10字，定性描述，禁止数值）',
-    attrBonus: {
-      physique: '体魄 (integer)',
-      mind: '心智 (integer)',
-      talentAptitude: '悟性 (integer)',
-      charisma: '魅力 (integer)',
-      resources: '出身 (integer)',
-    },
-    systemModifiers: '可选，模拟系数微调（乘法，1.0=无变化）',
-  },
-  typeDistribution: {
-    命格: '约 20–30% —— 命运气质/机缘标签（如吉星高照、天煞孤星），用抽象气质写',
-    特征: '约 70–80% —— 能力倾向与天赋特长（如商业嗅觉、逻辑天才、机械亲和）',
-    principle: '每批 20 条中特征占多数；禁止把未来剧情或出生场景写成命格',
-  },
-  temporalRules: {
-    focus: '每条命格/特征是「这个人有什么特质」的静态卡片，不是「出生后发生了什么」',
-    forbidden: [
-      '禁止写具体未来年龄节点（如初二、高三、30岁）',
-      '禁止写尚未发生的人生剧情（如父亲离世、公司上市）',
-      '禁止用「将会」「日后」「未来」「一年后」等预言式措辞',
-      '禁止以出生地、家庭悲剧、父母身世、宗族为主轴',
-      '禁止出生/婴儿/襁褓/摇篮/育幼/同龄婴儿/啼哭等场景描写',
-      '禁止把社会阶层、职业、婚姻等后天身份写成命格主体',
-      '禁止描写具体童年或学生行为场景（如放学后、课堂上、拼模型、玩小霸王、爬树翻墙等属于行为场景而非天赋特质）',
-    ],
-    allowed: [
-      '先天体质与感官（体弱、耳聪目明、平衡感佳）',
-      '性格倾向与习惯（慢热、观察力强、完美主义、夜猫子）',
-      '天赋特长与能力倾向（商业嗅觉、逻辑天才、机械亲和）',
-      '命格式气质标签（吉星高照 —— 抽象气质，不写具体事件）',
-    ],
-    writingStyle: 'description 句式须多样化：可省略主语从特质直接切入，也可用「你」但整批中每种句式不宜超过三分之一；关键是把特质写透写活，而非套固定模板',
-  },
-  lengthRequirements: {
-    description: '每条 50–60 汉字为佳（含标点）；低于 50 字仍可接受但不宜过短',
-    effect: '每条 ≥10 汉字（定性描述，浓缩游戏效果）',
-    exampleDescription: DESTINY_PATTERN_MODERN_EXAMPLE.description,
-    antiPattern: '禁止 20 字以内的单句描述；禁止「初二配眼镜」「1999年入职上市」等未来事件',
-  },
-  systemModifierRules: {
-    common_fine: '禁止输出 systemModifiers',
-    rare: '最多 1 个个人向字段（轻微影响），范围 0.95~1.08',
-    epic: '最多 2 个个人向字段（显著影响），范围 0.90~1.15',
-    legendary: '最多 2 个个人向字段（深度影响），范围 0.85~1.20',
-    personalFields: '见 user.personalModifierFields',
-    principle: 'common/fine 不可带修饰符；rare/epic/legendary 可影响个人系统',
-  },
-  rarityDistribution: {
-    common: { count: '7-8 条', ratio: '≈40%' },
-    fine: { count: '5-6 条', ratio: '≈30%' },
-    rare: { count: '2-3 条', ratio: '≈15%' },
-    epic: { count: '1-2 条', ratio: '≈10%' },
-    legendary: { count: '0-1 条', ratio: '≈5%' },
-    batchLimits: '每批 20 条：legendary 最多 3、epic 最多 8',
-    principle: '禁止整批几乎全是 common/fine；至少含 1 条 rare 及以上',
-  },
-  polarityDistribution: {
-    positive: '约 50%',
-    negative: '约 30%',
-    mixed: '约 20%',
-  },
-  designRequirements: [
-    '先按 coherenceHint 理解本世界成立的系统层，命格主题不得引入未启用的文明要素',
-    '命格须贴合 worldDescription 的核心设定（术语、力量体系、社会形态）',
-    '命格或天赋名称与描述须体现本世界独特性，禁止套用放之四海皆准的通用模板（如「魅力亲和」「资源达人」）',
-    '属性加成：common 仅 1 个属性 ±1；fine ±2 或双属性各 ±1；rare 双属性 +2/+1；epic 总和 ≤5；legendary 总和 ≤7',
-    'attrBonus 仅输出非零字段，禁止写 physique:0 等占位零值',
-    'common/fine 禁止 systemModifiers 字段；禁止 systemModifiers:null',
-    '输出紧凑单行 JSON，禁止 pretty-print 换行缩进',
-    '命格之间差异化，禁止与 existingNames 重复或近似',
-    'description 与 effect 禁止出现具体数字',
-    '每条必须含 type 字段，值为「命格」或「特征」',
-  ],
-})
+// 示例覆盖不同世界观×5级×3极性×全属性×全系统字段，均为可生成的标准写法:
+
+// 现代都市 — common 三种极性
+{"patterns":[
+{"name":"重力记忆","description":"身体与重力的关系异于所有人。第一次踩上滑板教练还在讲安全守则已经从坡顶飘了下去，旁人摔得七荤八素却能平稳穿过——没人相信你没练过，但你只是听懂了引力。任何需要身体重新适应重力的运动，天生就顺得像做过千百遍。","rarity":"common","effect":"平衡感和身体协调力极强","polarity":"positive","attrBonus":{"physique":1}},
+{"name":"方向失语","description":"东南西北四个字在认知里从来不是方位，是同一种颜色。站到熟悉的街角突然觉得世界被翻了一面，路牌上的箭头全指向同一个方向；不是迷路，是大脑拒绝把空间翻译成文字。也因此练出了绝佳的情景记忆——不靠路名，靠路边那棵歪脖子树的形状和转角面包店飘来的焦糖味。","rarity":"common","effect":"方向感极差但情景记忆惊人","polarity":"negative","attrBonus":{"mind":-1}},
+{"name":"熵增恐惧","description":"看到一份歪斜的文件摆在那里，不是觉得乱了——是觉得宇宙在朝那一角塌陷。书桌须按色谱排列，衣柜间隔必须均等，因为无序在眼中会自主扩散、像墨水渗进清水；唯一阻止它的方式是用精度封印。交出的每件事都近乎完美，但比旁人多花一倍时间。","rarity":"common","effect":"完成质量高但速度偏慢","polarity":"mixed","attrBonus":{}}
+]}
+
+// 星际科幻 — fine 全部 attrBonus 组合 + rare 概念挪借对照
+{"patterns":[
+{"name":"语义穿透","description":"第一次听到异星语言的时候没有慌张——听懂了。语法在脑子里自己拆成骨架，词汇顺着骨架爬进去排好了队；翻译芯片、语义矩阵、外交官的全套装备，不过是把你一直在做的事起了个名字。人话、代码、鲸歌，在认知皮层上是同一种材料。","rarity":"fine","effect":"跨语言与代码沟通天赋卓越","polarity":"positive","attrBonus":{"charisma":1,"talentAptitude":1}},
+{"name":"射线抗体真空","description":"细胞核的辐射修复通道天生缺失一个关键开关，微量电离辐射就能引发链式凋亡；别人晒太阳是补钙，晒太阳是给自己判缓刑。星际移民时代，这份体质是所有职业体检表上的第一道红灯。","rarity":"fine","effect":"极易受辐射伤害，必须生活在屏蔽区","polarity":"negative","attrBonus":{"physique":-2}},
+{"name":"信任延迟","description":"人际信任需要漫长的缓冲下载。初见时别人已经寒暄到第三轮你还在沉默地评估这段对话是否值得，但一旦连接建立，就能在众声喧哗中听出别人永远漏掉的低频信号，给出的回应精准得像手术刀。慢热的人多，能把沉默转化成洞察力的，万中无一。","rarity":"fine","effect":"初期社交慢热，熟悉后展现深度","polarity":"mixed","attrBonus":{"charisma":-1,"mind":1}},
+{"name":"价值共振","description":"价格不是数字，是形状。看一眼屏幕上的波动就能摸到它的曲率，预判下一拍的拐点——不是分析，是感官自己完成了卷积运算。稀有矿产的涨跌、航线政策的风向，在脑海中自动排成价值等高线，如同大提琴的泛音一般清晰。市场在你面前是透明的。","rarity":"rare","effect":"投资眼光精准，星际交易中总是占优","polarity":"positive","attrBonus":{"resources":2,"mind":1}}
+]}
+
+// 仙侠修真 — rare/epic/legendary 全叙事体 + systemModifiers
+{"patterns":[
+{"name":"代价守恒","description":"每次冲关都是硬烧——瓶颈如同熔点为常人数倍的合金，旁人三日破关须多熬整周。但一旦熔穿，那道壁垒便永久消失，不像旁人随时可能回退。不是慢，是浇筑。根基的密度是以煎熬作价买的，但买定离手，永不退货。","rarity":"rare","effect":"修炼瓶颈更难突破，但成功后的根基极其稳固","polarity":"mixed","attrBonus":{"talentAptitude":1,"physique":-1},"systemModifiers":{"bottleneckModifier":0.92,"attributeDecayModifier":1.08}},
+{"name":"社交引力","description":"不是故意成为中心。是每次聚在一起，话题绕完一圈之后总会回到你身上——不是你在引导，是共识在绕着你旋转，像行星不自知地被重物弯曲了轨道。不一定是话说得最多的，但开口时所有人静下来的那一瞬千年难遇。","rarity":"epic","effect":"人脉广博，易成为核心人物","polarity":"positive","attrBonus":{"charisma":3,"resources":1,"mind":1},"systemModifiers":{"luckPointModifier":1.08,"incomeModifier":1.05}},
+{"name":"概率偏斜","description":"别人翻古籍翻到眼底充血才寻得的机缘，你打个哈欠就从书架上掉下来一本——翻开的那一页。走投无路时恰好有前辈路过，濒死关头总有意外转机；不是运气，是你与命运签的默认协议比别人多了一条隐形条款。别人求之不得的，在你这儿是大概率事件。","rarity":"legendary","effect":"修炼速度与气运远超同辈，更有贵人庇佑","polarity":"positive","attrBonus":{"talentAptitude":3,"resources":2,"charisma":1},"systemModifiers":{"luckPointModifier":1.15,"lifespanModifier":1.08,"cultivationSpeedModifier":1.12}}
+]}
+
+// 奇幻神权 — epic/legendary 混搭叙事+概念
+{"patterns":[
+{"name":"昼夜解耦","description":"社会时钟彻底失效。白昼如同在海底行走，每一次抬头都是跟整个太阳系对抗；午夜脑波却在雷达上炸出尖峰，灵感像不受引力约束的漩涡越转越快。不是失眠——生物钟被钉在了另一个时区，回不来了，休养效率也慢了那最关键的一拍。","rarity":"epic","effect":"夜间思维极为活跃，但白天身心俱疲","polarity":"mixed","attrBonus":{"mind":2,"talentAptitude":2,"physique":-1},"systemModifiers":{"staminaRecoveryModifier":0.9,"hpRecoveryModifier":1.1}},
+{"name":"信号过敏","description":"社交感知系统天生失去了自动降噪——他人的微表情、语调偏移、呼吸间距，在你身上触发的是常人百倍强度的神经脉冲。走进一间屋子感受到的不是气氛，是每个在场者在神经系统上逐一敲打的电报码。不是怯懦，是天线增益被预设在了所有人望尘莫及的档位。","rarity":"rare","effect":"感知力极敏锐但社交场合严重不适，收入受损","polarity":"negative","attrBonus":{"charisma":-2,"talentAptitude":-1},"systemModifiers":{"incomeModifier":0.95}},
+{"name":"等价燃烧","description":"学一小时顶别人三天，不是更聪明——是大脑在燃烧寿命兑换悟性。每一天倒下去都感觉身体轻了一克，那是生命在无声地氧化。理解一切的速度冠绝群伦，因为付的货币是时间本身。不是在消耗体力——是在拆东墙补西墙，拆的是自己。","rarity":"legendary","effect":"悟性与脑力冠绝群伦，但寿命在无形中加速流失","polarity":"mixed","attrBonus":{"talentAptitude":4,"mind":2,"physique":-1},"systemModifiers":{"lifespanModifier":0.85,"breakthroughChanceModifier":1.2}},
+{"name":"神性遗传","description":"上古神明在血脉里留下了未关闭的表达式，每一代子嗣都可能触发这段古老代码、觉醒非凡之力；对神殿的叩拜不是信仰，是编译——神力在血管里运行的回应比所有正版授权都完整。","rarity":"epic","effect":"子嗣更易觉醒非凡力，神力回应更加丰沛","polarity":"positive","attrBonus":{"talentAptitude":2,"charisma":2},"systemModifiers":{"fertilityModifier":1.15,"devotionGainModifier":1.2}}
+]}`
 
 export const destinyPatternOutputSchema = z.array(
   z.object({

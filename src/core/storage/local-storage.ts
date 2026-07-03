@@ -10,6 +10,8 @@
  *   临时：{mod}:temp:{key}
  */
 
+import { enqueueOpfsWrite } from './persist-layer'
+
 const STORAGE_PREFIX = 'ai-life-sim'
 
 /** 配置存储 */
@@ -127,7 +129,11 @@ function read<T = unknown>(key: string): T | null {
 
 function write<T = unknown>(key: string, value: T): void {
   try {
-    localStorage.setItem(fullKey(key), JSON.stringify(value))
+    const finalKey = fullKey(key)
+    const json = JSON.stringify(value)
+    localStorage.setItem(finalKey, json)
+    // 自动同步到 OPFS 做持久备份
+    enqueueOpfsWrite(finalKey, json)
   } catch (e) {
     // QuotaExceededError：localStorage 满时触发，清理旧缓存后重试
     if (e instanceof DOMException && (
@@ -170,5 +176,7 @@ function write<T = unknown>(key: string, value: T): void {
 }
 
 function remove(key: string): void {
-  localStorage.removeItem(fullKey(key))
+  const finalKey = fullKey(key)
+  localStorage.removeItem(finalKey)
+  enqueueOpfsWrite(finalKey, null)
 }

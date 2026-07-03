@@ -16,7 +16,7 @@ import { DEFAULT_WORD_COUNT_TARGET } from '@/mods/mod-engine'
 import { useThemeStore, type ThemeType } from '@/core/theme/theme-store'
 import { useFontStore } from '@/core/theme/font-store'
 import { getCacheStats, resetCacheStats, getRoundCacheMetrics } from '@/core/ai-service'
-import { clearGameProgressFromLocalStorage, opfsStorage } from '@/core'
+import { clearGameProgressFromLocalStorage, opfsStorage, safeCleanupReload } from '@/core'
 
 import styles from './SettingsTabTheme.module.css'
 
@@ -180,9 +180,11 @@ export function SettingsTabTheme() {
     const removed = clearGameProgressFromLocalStorage()
     console.info(`[settings] 已清除 ${removed} 条游戏进度 localStorage`)
 
+    // 删除 path-based OPFS 存档大文件
     await opfsStorage.deleteDirectory('save')
 
-    window.location.reload()
+    // 安全 reload（内部先刷盘 OPFS 队列再 reload，防止 flat-key 删除未落地）
+    await safeCleanupReload()
   }, [])
   const handleCancelReset = useCallback(() => { setShowResetConfirm(false) }, [])
 

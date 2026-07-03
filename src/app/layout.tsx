@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @module layout.tsx
  * @description 根布局 —— 主题注入 + 全局 Provider + Foundation Token
  * @mod app
@@ -15,6 +15,7 @@ import './globals.css'
 import { ThemeProvider } from '@/core/theme'
 
 import { InitMods } from './_components/init-mods'
+import { StorageInit } from './_components/storage-init'
 
 import type { Metadata } from 'next'
 
@@ -28,9 +29,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="zh-CN" suppressHydrationWarning>
       <body>
         <ThemeProvider>
-          <InitMods>
-            {children}
-          </InitMods>
+          <StorageInit>
+            <InitMods>
+              {children}
+            </InitMods>
+          </StorageInit>
         </ThemeProvider>
       </body>
     </html>
