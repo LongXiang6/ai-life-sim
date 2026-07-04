@@ -7,13 +7,11 @@
 export {
   worldTagsPrompt,
   worldConfigPrompt,
-  worldTimelinePrompt,
   worldEntityPrompt,
   worldCalibrationPrompt,
   worldCalibrationOutputSchema,
   worldDimensionCalibrationPrompt,
   worldDimensionCalibrationOutputSchema,
-  pastHistoryPrompt,
   dimensionInferenceOutputSchema,
 } from './prompts'
 export { parseAIJSON } from './utils/parse-ai-json'
@@ -26,7 +24,6 @@ export {
 } from './utils/calibration-clamp'
 export {
   buildWorldCoherenceHint,
-  buildTimelineStyleHint,
   resolveWorldviewStyleHint,
 } from './utils/world-coherence-hints'
 export {
@@ -34,8 +31,6 @@ export {
   loadCachedWorldCalibration,
   loadCachedWorldInitBundle,
   saveCachedWorldCalibration,
-  isInitFingerprintChanged,
-  invalidatePastHistoryCache,
 } from './utils/world-init-calibration-cache'
 export { shouldSkipEntityAIGeneration } from './utils/entity-generation-gate'
 export {
@@ -45,4 +40,3 @@ export {
 export { formatWorldTagsText } from './constants/world-tag-defaults'
 export { WorldInitSystem } from './subsystems/world-init-system'
 export { WorldEntitySystem } from './subsystems/world-entity-system'
-export { WorldTimelineSystem } from './subsystems/world-timeline-system'

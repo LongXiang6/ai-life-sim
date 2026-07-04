@@ -356,9 +356,10 @@ if (-not $SkipSmokeTest) {
  * @mod mod-smoke
  */
 
-import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from '@/foundation';
+import { BaseSubsystem } from '@/core';
+import type { SubSystemState, SubSystemChanges, RoundContext } from '@/foundation';
 
-export class TestSystem implements ISubSystem {
+export class TestSystem extends BaseSubsystem {
   readonly id = 'test' as const;
   readonly mod = 'mod-smoke' as const;
   readonly label = 'Test System' as const;
@@ -451,7 +452,7 @@ export default defineMod({
   }
 
   # C1: Class name vs file name match
-  $classMatch = [regex]::Match($content, 'export class (\w+System)\s+implements\s+ISubSystem')
+  $classMatch = [regex]::Match($content, 'export class (\w+System)\s+(extends\s+BaseSubsystem\b|implements\s+ISubSystem\b)')
   if ($classMatch.Success) {
     $className = $classMatch.Groups[1].Value
     $parts = ($fileName -replace '\.ts$', '').Split('-')
@@ -464,7 +465,7 @@ export default defineMod({
       Smoke-Fail "C1-CLASS-MATCH" $relPath "" "Class '$className' does not match file '$fileName', expected '$expectedClassName'"
     }
   } else {
-    Smoke-Fail "C1-CLASS-EXPORT" $relPath "" "Missing 'export class XxxSystem implements ISubSystem'"
+    Smoke-Fail "C1-CLASS-EXPORT" $relPath "" "Missing 'export class XxxSystem extends BaseSubsystem'"
   }
 
   # C2: readonly metadata
@@ -567,11 +568,11 @@ export const notASubsystem = 42;
   }
 
   # C1 class check
-  $badClassMatch = [regex]::Match($invalidContent2, 'export class (\w+System)\s+implements\s+ISubSystem')
+  $badClassMatch = [regex]::Match($invalidContent2, 'export class (\w+System)\s+(extends\s+BaseSubsystem\b|implements\s+ISubSystem\b)')
   if (-not $badClassMatch.Success) {
-    Write-Host "    Expected C1 failure: no ISubSystem class found in invalid file" -ForegroundColor DarkGray
+    Write-Host "    Expected C1 failure: no subsystem class found in invalid file" -ForegroundColor DarkGray
   } else {
-    Smoke-Fail "C1-BAD-DETECT" $badRel "" "Invalid file unexpectedly has ISubSystem class"
+    Smoke-Fail "C1-BAD-DETECT" $badRel "" "Invalid file unexpectedly has subsystem class"
   }
 
   Write-TestResult "4-SMOKE: C1 invalid subsystem detection" $true "Invalid files correctly detected"

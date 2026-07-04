@@ -135,7 +135,7 @@ export function useWorldInitPoller(worldCode: number): void {
           const calDone = job.steps.calibration.status === 'done'
           const tagsDone = job.steps.tags.status === 'done'
 
-          // 保留客户端已有的 stepTimers（时间线/上古史/实体的计时器）
+          // 保留客户端已有的 stepTimers（实体的计时器）
           const stepTimers: Record<string, { start: number; end?: number }> = {
             ...currentStatus?.stepTimers,
           }
@@ -170,9 +170,6 @@ export function useWorldInitPoller(worldCode: number): void {
             calibrationGenerated: calDone || currentStatus?.calibrationGenerated || false,
             tagsGenerated: tagsDone || currentStatus?.tagsGenerated || false,
             configGenerated: currentStatus?.configGenerated || false,
-            // 以下三步由客户端管道负责，保留已有值
-            timelineGenerated: currentStatus?.timelineGenerated || false,
-            pastHistoryGenerated: currentStatus?.pastHistoryGenerated || false,
             entitiesGenerated: currentStatus?.entitiesGenerated || false,
             retryCount: currentStatus?.retryCount ?? 0,
             maxRetries: currentStatus?.maxRetries ?? 3,

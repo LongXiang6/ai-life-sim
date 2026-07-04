@@ -11,7 +11,6 @@ export {
   generateWorldInitBundle,
   startBackgroundWorldInit,
   startBackgroundWorldInitForCustom,
-  startTimelineStageBackground,
 } from './world-init-bundle'
 
 export type { WorldCommitResult, WorldInitBundleResult } from './world-init-bundle'

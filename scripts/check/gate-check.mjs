@@ -11,6 +11,7 @@ import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import fs from 'node:fs'
+import { cleanupOldReports } from './lib/cleanup-reports.mjs'
 
 const checkDir = dirname(fileURLToPath(import.meta.url))
 const projectRoot = join(checkDir, '..', '..')
@@ -84,6 +85,7 @@ function printErrorSummary() {
 }
 
 async function main() {
+  cleanupOldReports(projectRoot)
   console.log(`[gate-check] Starting PDCA C gates (${quick ? 'quick' : 'full'})${quiet ? ', quiet' : ''}...`)
 
   // ── C1 + C2: lint / tsc 并行（互不依赖） ──

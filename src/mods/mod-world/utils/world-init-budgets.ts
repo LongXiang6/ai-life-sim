@@ -16,9 +16,7 @@ import { clamp } from '@/core/shared'
 import {
   worldCalibrationPrompt,
   worldDimensionCalibrationPrompt,
-  pastHistoryPrompt,
   worldTagsPrompt,
-  worldTimelinePrompt,
   worldEntityPrompt,
 } from '../prompts'
 
@@ -31,9 +29,7 @@ export interface WorldInitPipelineBudgets {
   tags: number
   /** 与 calibration 相同（兼容旧引用） */
   config: number
-  timeline: number
   entities: number
-  pastHistory: number
 }
 
 /** 单步预算：system + user 模板 + worldDescription 填充后的 echo 风险 */
@@ -81,26 +77,12 @@ export function buildWorldInitPipelineBudgets(descriptionLength: number): WorldI
       768,
     ),
     config: calibration,
-    timeline: budgetForStep(
-      worldTimelinePrompt.systemPrompt,
-      worldTimelinePrompt.userPromptTemplate,
-      6000,
-      len,
-      6656,
-    ),
     entities: budgetForStep(
       worldEntityPrompt.systemPrompt,
       worldEntityPrompt.userPromptTemplate,
       7500,
       len,
       8192,
-    ),
-    pastHistory: budgetForStep(
-      pastHistoryPrompt.systemPrompt,
-      pastHistoryPrompt.userPromptTemplate,
-      4500,
-      len,
-      5120,
     ),
   }
 }
@@ -115,6 +97,5 @@ export const WORLD_INIT_PROMPT_REFS = {
   worldDimensionCalibrationPrompt,
   worldCalibrationPrompt,
   worldTagsPrompt,
-  worldTimelinePrompt,
   worldEntityPrompt,
 } as const

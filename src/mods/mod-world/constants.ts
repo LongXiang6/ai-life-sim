@@ -4,46 +4,6 @@
  * @mod mod-world
  */
 
-// ========== 时间线 ==========
-
-/** 阶段跨度：10,000 年 */
-export const STAGE_SPAN = 10_000
-
-/** 滑动窗口半径：当前阶段 ±1 */
-export const WINDOW_RADIUS = 1
-
-/** 每阶段段数（用于 AI 批填充粒度） */
-export const SEGMENTS_PER_STAGE = 100
-
-/** 每批填充段数 */
-export const BATCH_SEGMENTS = 10
-
-/** 段跨度：100 年 */
-export const SEGMENT_SPAN = 100
-
-// ========== 影响级别配置（9 级，对齐废弃项目 v3.0） ==========
-
-import type { ImpactLevel, ImpactLevelConfig } from './types'
-
-/** 9 级影响级别列表（从低到高） */
-export const IMPACT_LEVELS: ImpactLevel[] = [
-  'trivial', 'minor', 'local', 'regional', 'national',
-  'continental', 'world', 'cosmic', 'infinite',
-]
-
-/** 9 级影响级别完整参数配置表 */
-export const IMPACT_LEVEL_CONFIGS: Record<ImpactLevel, ImpactLevelConfig> = {
-  trivial:     { triggerRange: 1,      promptFrequencyYears: 1,    unlockYear: 0,      label: '琐事级', icon: '🔹' },
-  minor:       { triggerRange: 5,      promptFrequencyYears: 2,    unlockYear: 0,      label: '小事级', icon: '🔸' },
-  local:       { triggerRange: 10,     promptFrequencyYears: 5,    unlockYear: 0,      label: '局部级', icon: '🟢' },
-  regional:    { triggerRange: 30,     promptFrequencyYears: 10,   unlockYear: 0,      label: '区域级', icon: '🟡' },
-  national:    { triggerRange: 800,    promptFrequencyYears: 20,   unlockYear: 1000,   label: '国家级', icon: '🟠' },
-  continental: { triggerRange: 1500,   promptFrequencyYears: 50,   unlockYear: 2000,   label: '大陆级', icon: '🔴' },
-  world:       { triggerRange: 30000,  promptFrequencyYears: 100,  unlockYear: 50000,  label: '世界级', icon: '🌍' },
-  cosmic:      { triggerRange: 80000,  promptFrequencyYears: 300,  unlockYear: 100000, label: '宇宙级', icon: '🌌' },
-  infinite:    { triggerRange: 300000, promptFrequencyYears: 1000, unlockYear: 500000, label: '无限级', icon: '♾️' },
-}
-
 // ========== 世界观事件风格提示（12 种，对齐废弃项目） ==========
 
 const UNIVERSAL_EPIC = '诸天无尽寰宇降临、主神空间开启、多元宇宙战争、异界灵魂入侵、维度裂缝撕裂、跨位面征服、混沌纪元开端、万界融合'
@@ -184,10 +144,6 @@ export const ENTITY_GENERATION_COUNTS = {
 // ========== 存储键（符合 {mod}:{category}:{key} 格式） ==========
 
 export const STORAGE_KEYS = {
-  /** 时间线阶段存储：mod-world:timeline:stage:{worldCode}:{stageIndex} */
-  STAGE: 'mod-world:timeline:stage',
-  /** 时间线元数据：mod-world:timeline:meta:{worldCode} */
-  STAGE_META: 'mod-world:timeline:meta',
   /** 具名实体：mod-world:entities:{worldCode} */
   ENTITIES: 'mod-world:entities',
   /** 世界快照：mod-world:snapshot:{worldCode} */

@@ -97,18 +97,6 @@ function testAcceptValidEconomyTierRatios() {
   assert.deepEqual(clamped.formulas?.economyTierRatios, ratios)
 }
 
-/** timeline.impactDistribution 同步到 formulas.eventDistributionStrategy */
-function testImpactDistributionSync() {
-  const config = baseConfig()
-  const { clamped } = simulateAiCalibrationPath(
-    { timeline: { impactDistribution: 'apocalyptic' } },
-    config,
-  )
-
-  assert.equal(clamped.formulas?.eventDistributionStrategy, 'apocalyptic')
-  assert.equal(clamped.timeline?.impactDistribution, 'apocalyptic')
-}
-
 /** entities 范围 clamp + min≤max 修正 */
 function testEntityRangeClamp() {
   const config = baseConfig()
@@ -292,7 +280,6 @@ function main() {
   testRejectInvalidEconomyTierRatios()
   testSortNonMonotonicEconomyTierRatios()
   testAcceptValidEconomyTierRatios()
-  testImpactDistributionSync()
   testEntityRangeClamp()
   testNullRawFallback()
   testAiPathCultivationScenario()
@@ -302,7 +289,7 @@ function main() {
   testPhase4BIncomeModifier()
   testPhase4CConflictEscalationModifier()
   testPhase4CDevotionAndCausal()
-  console.log('[OK] world-calibration AI path — 17 cases passed')
+  console.log('[OK] world-calibration AI path — 16 cases passed')
 }
 
 main()

@@ -21,7 +21,6 @@ export default defineMod({
     { path: '/new-game/world-customize', page: 'world-customize' },
     { path: '/new-game/world-build', page: 'world-build' },
     { path: '/new-game/character-create', page: 'character-create' },
-    { path: '/timeline-analysis', page: 'timeline-analysis' },
     { path: '/talent-draw', page: 'talent-draw' },
     { path: '/attribute-alloc', page: 'attribute-alloc' },
     { path: '/fate-preview', page: 'fate-preview' },

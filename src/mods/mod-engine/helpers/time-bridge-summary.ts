@@ -17,7 +17,6 @@ export interface TimeBridgeInput {
   fromYear: number
   toYear: number
   tickCount: number
-  timelineTitles: string[]
   prevSnapshot: BridgeSnapshot
   currentSnapshot: BridgeSnapshot
   memoryL0Titles: string[]
@@ -73,12 +72,6 @@ export function buildTimeBridgeSummary(input: TimeBridgeInput): string | undefin
   if (input.toYear <= input.fromYear) return undefined
 
   const bullets: string[] = []
-
-  for (const title of input.timelineTitles) {
-    if (!title?.trim()) continue
-    bullets.push(truncateBullet(`世界事件：${title}`))
-    if (bullets.length >= MAX_BULLETS) break
-  }
 
   const { prevSnapshot, currentSnapshot } = input
 

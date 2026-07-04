@@ -121,49 +121,6 @@ export function getWorldTagsValidationDiagnostics(raw: string): WorldInitValidat
   }
 }
 
-type TimelineEventPayload = {
-  year?: number
-  title?: string
-  description?: string
-  impact?: string
-  type?: string
-}
-
-export function getTimelineEventsValidationDiagnostics(
-  raw: string,
-  guard?: CoherenceGuardContext,
-): WorldInitValidationDiagnostics {
-  const truncated = isLikelyTruncatedJSON(raw)
-  if (truncated) return truncatedDiagnostics()
-  const trimmed = raw.trim()
-  if (!trimmed || trimmed === '无') return emptyResponseDiagnostics('时间线')
-
-  if (guard) {
-    const violations = detectCoherenceViolations(raw, guard)
-    if (violations.length > 0) return coherenceDiagnostics(violations)
-  }
-
-  const parsed = parseAIJSON<TimelineEventPayload[]>(raw)
-  if (!parsed) {
-    return { ok: false, error: '时间线 JSON 无法解析', details: 'parseAIJSON 返回 null' }
-  }
-  if (!Array.isArray(parsed)) {
-    return { ok: false, error: '时间线须为数组', details: `实际类型: ${typeof parsed}` }
-  }
-  if (parsed.length === 0) {
-    return { ok: false, error: '时间线事件数组为空', details: 'events.length === 0' }
-  }
-  const thin = parsed.filter((e) => !e.title && !e.description)
-  if (thin.length === parsed.length) {
-    return {
-      ok: false,
-      error: '事件缺少 title/description',
-      details: `共 ${parsed.length} 条，均无 title 与 description`,
-    }
-  }
-  return { ok: true, error: null, details: '' }
-}
-
 const ENTITY_LAYER_KEYS = [
   'nations',
   'factions',
@@ -216,18 +173,16 @@ export function getEntityBundleValidationDiagnostics(
   return { ok: true, error: null, details: '' }
 }
 
-export type WorldInitContentLogKind = 'timeline' | 'past-history' | 'entities'
+export type WorldInitContentLogKind = 'entities'
 
-/** 时间线 / 上古史 / 实体单次 API 日志的 logMetaResolver */
+/** 实体单次 API 日志的 logMetaResolver */
 export function buildWorldInitContentLogMetaResolver(
   kind: WorldInitContentLogKind,
   guard: CoherenceGuardContext,
 ): (response: string) => Record<string, unknown> {
   return (response: string) => {
     const truncated = isLikelyTruncatedJSON(response)
-    const diagnostics = kind === 'entities'
-      ? getEntityBundleValidationDiagnostics(response, guard)
-      : getTimelineEventsValidationDiagnostics(response, guard)
+    const diagnostics = getEntityBundleValidationDiagnostics(response, guard)
     return resolveWorldInitFailureLogMeta({}, response, truncated, diagnostics)
   }
 }

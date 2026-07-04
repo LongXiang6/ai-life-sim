@@ -54,12 +54,14 @@ export interface RoundContext {
   subsystemStates: Record<string, SubSystemState>,
   /** 引擎累计推进次数（每轮 +1，用于子系统幂等 guard） */
   roundSequence?: number,
-  /** 本轮子系统应执行的 tick 数（年×N → N；日推可为 0） */
-  simulationTicks?: number,
-  /** 本轮角色年龄增量（年），连续模拟推进基准 */
-  ageYearsDelta?: number,
-  /** 本轮历法天数（生命周期/冷却/气候） */
-  calendarDaysDelta?: number,
+  /**
+   * 本轮推进天数（自上次推进以来的天数增量，整数，唯一时间增量源）
+   * 由 TimeSystem 产出（TimeSystem.getDaysPassed()），子系统只读。
+   * 取代旧的 ageYearsDelta / simulationTicks / calendarDaysDelta（已删除）。
+   */
+  daysPassed: number,
+  /** 游戏总天数（整数，唯一权威累计时间源），由 TimeSystem 产出，子系统只读 */
+  totalDays: number,
   /** 上一轮叙事全文（供 lifespan 减寿关键词检测，Round N → N+1） */
   lastNarrativeText?: string,
   /** 世界叙事锚定年（如 1991），0 = 未设定 */

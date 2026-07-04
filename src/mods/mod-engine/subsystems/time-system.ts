@@ -133,8 +133,19 @@ export class TimeSystem implements ISubSystem {
   private round: RoundInfo = createInitialRound()
   private timeStep: TimeStep = { unit: 'month', value: 1 }
 
+  /**
+   * 本轮推进的天数增量（最近一次 advance/skipYears 使 totalDays 增加的量）。
+   * 由 orchestrator 注入 RoundContext.daysPassed 供子系统读取（唯一时间增量源）。
+   */
+  private lastDaysPassed = 0
+
   getRound(): RoundInfo {
     return { ...this.round }
+  }
+
+  /** 本轮推进天数（最近一次 advance/skipYears 的 totalDays 增量，供 RoundContext.daysPassed 使用） */
+  getDaysPassed(): number {
+    return this.lastDaysPassed
   }
 
   /**
@@ -179,7 +190,9 @@ export class TimeSystem implements ISubSystem {
    */
   skipYears(n: number): RoundInfo {
     this.round.year += n
-    this.round.totalDays += n * CALENDAR.DAYS_PER_YEAR
+    const added = n * CALENDAR.DAYS_PER_YEAR
+    this.round.totalDays += added
+    this.lastDaysPassed = added
     this.round.season = SEASONS.SPRING
     this.round.month = 0
     this.round.day = 0
@@ -200,45 +213,33 @@ export class TimeSystem implements ISubSystem {
    */
   advance(): RoundInfo {
     const beforeTotalDays = this.round.totalDays
+
+    let result: RoundInfo
     switch (this.timeStep.unit) {
-      case 'day': {
-        const result = this.advanceDays(this.timeStep.value)
-        if (result.totalDays <= beforeTotalDays) {
-          console.error(
-            `[TimeSystem] totalDays 未递增! ${beforeTotalDays} → ${result.totalDays} (step=${this.timeStep.unit}:${this.timeStep.value})`,
-          )
-        }
-        return result
-      }
-      case 'month': {
-        const result = this.advanceMonths(this.timeStep.value)
-        // 单调性安全网：推进后 totalDays 必须严格递增
-        if (result.totalDays <= beforeTotalDays) {
-          console.error(
-            `[TimeSystem] totalDays 未递增! ${beforeTotalDays} → ${result.totalDays} (step=${this.timeStep.unit}:${this.timeStep.value})`,
-          )
-        }
-        return result
-      }
-      case 'season': {
-        const result = this.advanceSeasons(this.timeStep.value)
-        if (result.totalDays <= beforeTotalDays) {
-          console.error(
-            `[TimeSystem] totalDays 未递增! ${beforeTotalDays} → ${result.totalDays} (step=${this.timeStep.unit}:${this.timeStep.value})`,
-          )
-        }
-        return result
-      }
-      case 'year': {
-        const result = this.advanceYears(this.timeStep.value)
-        if (result.totalDays <= beforeTotalDays) {
-          console.error(
-            `[TimeSystem] totalDays 未递增! ${beforeTotalDays} → ${result.totalDays} (step=${this.timeStep.unit}:${this.timeStep.value})`,
-          )
-        }
-        return result
-      }
+      case 'day':
+        result = this.advanceDays(this.timeStep.value)
+        break
+      case 'month':
+        result = this.advanceMonths(this.timeStep.value)
+        break
+      case 'season':
+        result = this.advanceSeasons(this.timeStep.value)
+        break
+      case 'year':
+        result = this.advanceYears(this.timeStep.value)
+        break
     }
+
+    // 本轮天数增量（供 RoundContext.daysPassed）
+    this.lastDaysPassed = result.totalDays - beforeTotalDays
+
+    // 单调性安全网：推进后 totalDays 必须严格递增
+    if (result.totalDays <= beforeTotalDays) {
+      console.error(
+        `[TimeSystem] totalDays 未递增! ${beforeTotalDays} → ${result.totalDays} (step=${this.timeStep.unit}:${this.timeStep.value})`,
+      )
+    }
+    return result
   }
 
   // === 日推进 ===
@@ -437,6 +438,7 @@ export class TimeSystem implements ISubSystem {
   reset(): void {
     this.round = createInitialRound()
     this.timeStep = { unit: 'month', value: 1 }
+    this.lastDaysPassed = 0
   }
 
   /** 导出当前历法状态（预生成快照用） */
@@ -444,9 +446,10 @@ export class TimeSystem implements ISubSystem {
     return structuredClone(this.round)
   }
 
-  /** 恢复历法状态（预生成快照用） */
+  /** 恢复历法状态（预生成快照用）。快照恢复不算一次推进，daysPassed 归零。 */
   importRound(round: RoundInfo): void {
     this.round = structuredClone(round)
+    this.lastDaysPassed = 0
     this.syncEraFields()
   }
 }

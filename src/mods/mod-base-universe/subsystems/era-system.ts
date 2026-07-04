@@ -302,17 +302,8 @@ export class EraSystem implements ISubSystem {
     },)
   }
 
-  /** 获取时间线（含排序防御） */
-  private _getTimeline(context: RoundContext,): EraEntry[] {
-    const worldTimeline = context.subsystemStates['world-timeline']
-    if (
-      worldTimeline?.data
-      && Array.isArray((worldTimeline.data as Record<string, unknown>).timeline,)
-    ) {
-      // 副本排序：防御世界时间线数据乱序
-      const timeline = (worldTimeline.data as Record<string, unknown>).timeline as EraEntry[]
-      return [...timeline,].sort((a, b,) => a.startAnchorYear - b.startAnchorYear,)
-    }
+  /** 获取时间线 —— world-timeline 子系统已移除，始终返回空数组走日历纪年模式 */
+  private _getTimeline(_context: RoundContext,): EraEntry[] {
     return []
   }
 

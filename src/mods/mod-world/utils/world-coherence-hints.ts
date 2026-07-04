@@ -22,13 +22,6 @@ export const NARRATIVE_STYLE_DEFAULT = [
   '忌网游腔、忌与 worldDescription 不符的时代错置',
 ].join('；')
 
-/** 时间线/实体类 Prompt：在简练基础上强调描述长度下限 */
-export const TIMELINE_NARRATIVE_STYLE = [
-  '叙事用现代白话，准确、有画面感',
-  'description 须 50–80 汉字，勿为求短而省略细节',
-  '忌网游腔、忌与 worldDescription 不符的时代错置',
-].join('；')
-
 /** 供各 init Prompt 注入：AI 自行分析世界观后决定系统开关 */
 export const WORLD_SYSTEM_APPLICABILITY_FRAMEWORK = [
   '【世界观系统适用性 —— 须由你分析 worldDescription 后自行判定】',
@@ -96,63 +89,4 @@ export function resolveWorldviewStyleHint(opts: {
   }
 
   return baseHint
-}
-
-/**
- * 时间线风格提示
- *
- * 优先级：
- *   1. AI essenceTag = idealist_cultivation → 专属风格
- *   2. 校准配置策略（prehistoric 等）→ 直接采用
- *   3. essenceTag 默认风格（describe 字段传入）
- *   史前关键词仅作"补充约束"追加，不替换 AI/校准决策
- */
-export function buildTimelineStyleHint(
-  _civilizationStage: string,
-  worldDescription: string,
-  essenceStyleHint: string,
-  calibration?: WorldCalibration | null,
-  worldType?: string,
-  essenceTag?: string,
-): string {
-  // AI 明确判定唯心修炼 → 专属风格
-  if (essenceTag === 'idealist_cultivation') {
-    return IDEALIST_WILLPOWER_STYLE_HINT
-  }
-
-  // 校准配置策略优先
-  const strategy = calibration?.formulas?.eventDistributionStrategy
-  if (strategy === 'prehistoric') {
-    return [
-      '环境变迁、种群迁徙、工具创新、觅食域变动、古气候事件',
-      '（须对照 worldDescription；勿写国家战争、修仙、智人文明史、宇宙级 drama）',
-    ].join(' ')
-  }
-
-  // AI essenceTag 默认风格为主体
-  const constraints: string[] = []
-
-  // 史前关键词 → 补充约束（不替换主体风格）
-  if (/地猿|史前|新近纪|上新世|中新世|猿人|早期人类|古猿/.test(worldDescription)) {
-    constraints.push('若描述含史前/地猿元素，可写环境变迁、种群迁徙、工具创新、气候波动、栖息地变化；勿写智人走出非洲、国家、修仙、宇宙战争；尺度限于种群与区域')
-  }
-
-  // 唯心关键词 → 补充约束
-  if (/无灵气|无魔力|无.*外部.*自然能量|意志即力量|心相|玄关|登天路/.test(worldDescription)) {
-    constraints.push('若描述含唯心/意志关键词，可写玄关、登天路、心相等叙事；若属混合或不确定，仍以默认风格为准')
-  }
-
-  if (constraints.length === 0) {
-    return [
-      essenceStyleHint,
-      '（须先对照 worldDescription 与 systemApplicability：若该风格与设定不符，改写实/环境/种群级事件，勿强行套用）',
-    ].join(' ')
-  }
-
-  return [
-    essenceStyleHint,
-    '（约束：',
-    constraints.join('；'),
-    '；对照 worldDescription 与 systemApplicability 判断是否适用）',
-  ].join(' ')
 }

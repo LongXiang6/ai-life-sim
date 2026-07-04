@@ -122,11 +122,10 @@ export const MOD_SUBSYSTEM_IMPORTERS: Record<string, () => Promise<Record<string
     return { ...m0, ...m1 }
   },
   'mod-world': async () => {
-    const [m0, m1, m2] = await Promise.all([
+    const [m0, m1] = await Promise.all([
     import('@/mods/mod-world/subsystems/world-init-system'),
     import('@/mods/mod-world/subsystems/world-entity-system'),
-    import('@/mods/mod-world/subsystems/world-timeline-system'),
     ])
-    return { ...m0, ...m1, ...m2 }
+    return { ...m0, ...m1 }
   },
 }

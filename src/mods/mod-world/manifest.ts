@@ -9,11 +9,11 @@ import { defineMod } from '@/core'
 export default defineMod({
   name: 'mod-world',
   version: '1.0.0',
-  description: '世界生成与时间线管理',
+  description: '世界生成与实体管理',
   dependencies: ['mod-engine'],
-  provides: ['world', 'world-init', 'world-entity', 'world-timeline'],
+  provides: ['world', 'world-init', 'world-entity'],
   consumes: [],
-  subsystems: ['WorldInitSystem', 'WorldEntitySystem', 'WorldTimelineSystem'],
+  subsystems: ['WorldInitSystem', 'WorldEntitySystem'],
   /** 除 index.ts 外允许的跨 MOD 公共入口（重 API，与轻量 index 分离） */
   secondaryPublicEntries: ['world-init-api.ts'],
   stores: ['useWorldStore'],

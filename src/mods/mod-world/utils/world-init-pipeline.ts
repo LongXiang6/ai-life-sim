@@ -6,9 +6,7 @@
  * 1. dimension-calibration — 单次 AI：dimensions + calibration + W02 + worldTags
  *    （world-dimension-calibration-prompt；trigger: pipeline:dimension-calibration）
  * 2. tags-fallback — 仅当合并步未返回 worldTags
- * 3. timeline — 未来时间线填充
- * 4. past-history — 上古史
- * 5. entities — 具名实体（含 mapRegions）
+ * 3. entities — 具名实体（含 mapRegions）
  *
  * Fallback：缓存命中但缺 W02 → world-calibration-prompt（pipeline:calibration-fallback）
  * @mod mod-world
@@ -25,25 +23,18 @@ import type { WorldConfig, AnyWorldEntity, Settlement } from '../types'
 import { useWorldMapStore, type MarkerLayer } from '@/mods/mod-world-map'
 import {
   worldTagsPrompt,
-  worldTimelinePrompt,
-  pastHistoryPrompt,
   worldEntityPrompt,
   worldCalibrationPrompt,
   worldDimensionCalibrationPrompt,
   buildDefaultCalibration,
   clampCalibration,
   formatCalibrationSummary,
-  buildTimelineStyleHint,
-  resolveWorldviewStyleHint,
   buildWorldInitFingerprint,
   loadCachedWorldInitBundle,
   saveCachedWorldCalibration,
-  isInitFingerprintChanged,
-  invalidatePastHistoryCache,
   shouldSkipEntityAIGeneration,
   WorldInitSystem,
   WorldEntitySystem,
-  WorldTimelineSystem,
 } from '../world-init-bundle-deps'
 import type { DimensionInferenceOutput } from '../prompts/dimension-inference-schema'
 import { buildWorldInitPromptVars, formatWorldTagsForPrompt, formatEntityRangesForPrompt, formatRegionsForPrompt } from './world-init-prompt-vars'
@@ -133,8 +124,6 @@ export interface WorldInitPipelineResult {
   calibrationGenerated: boolean
   tagsGenerated: boolean
   configGenerated: boolean
-  timelineGenerated: boolean
-  pastHistoryGenerated: boolean
   entitiesGenerated: boolean
   errors: string[]
   rawTags?: string[]
@@ -157,14 +146,10 @@ export interface WorldInitPipelineContext {
   calibrationGenerated: boolean
   tagsGenerated: boolean
   configGenerated: boolean
-  timelineGenerated: boolean
-  pastHistoryGenerated: boolean
   entitiesGenerated: boolean
   rawTags?: string[]
   currentStep: string
   entitySystem: WorldEntitySystem
-  timelineSystem: WorldTimelineSystem
-  timelineSystemPrompt: string
 }
 
 export interface WorldInitStep {
@@ -566,7 +551,7 @@ function applyDimensionInferenceToContext(
   })
 }
 
-function finalizeAnchorYearAndTimeline(ctx: WorldInitPipelineContext): void {
+function finalizeAnchorYear(ctx: WorldInitPipelineContext): void {
   const eraFromCal = useWorldStore.getState().calibration?.timeline?.eraStartYear
   const anchorYear = typeof eraFromCal === 'number' && Number.isFinite(eraFromCal)
     ? eraFromCal
@@ -574,24 +559,6 @@ function finalizeAnchorYearAndTimeline(ctx: WorldInitPipelineContext): void {
   useWorldStore.getState().setEraStartYear(anchorYear)
   // 纪元名称同步到 world store：优先使用 WorldConfig 预设，缺省时留空由引擎自动判定
   if (ctx.config.eraName) useWorldStore.getState().setEraName(ctx.config.eraName)
-  reinitTimelineSystem(ctx, anchorYear)
-}
-
-function reinitTimelineSystem(ctx: WorldInitPipelineContext, anchorYear: number): void {
-  ctx.timelineSystemPrompt = worldTimelinePrompt.systemPrompt
-
-  ctx.timelineSystem.init(
-    ctx.worldCode,
-    ctx.worldCode,
-    ctx.config.essenceTag,
-    ctx.config.name,
-    ctx.config.description,
-    anchorYear,
-    ctx.config.civilizationStage,
-    ctx.promptVars.coherenceHint,
-    ctx.promptVars.coherenceNote,
-    ctx.config.worldType ?? 'idealist',
-  )
 }
 
 async function runCalibrationW02Fallback(ctx: WorldInitPipelineContext): Promise<void> {
@@ -627,15 +594,8 @@ function buildDimensionCalibrationStep(): WorldInitStep {
           console.info('[mod-world] 缓存无 W02 参数，补生成校准 fallback')
           await runCalibrationW02Fallback(ctx)
         }
-        finalizeAnchorYearAndTimeline(ctx)
+        finalizeAnchorYear(ctx)
         return
-      }
-
-      if (isInitFingerprintChanged(ctx.worldCode, ctx.initFingerprint)) {
-        console.info('[mod-world] 指纹变更，清除上古史缓存')
-        invalidatePastHistoryCache(ctx.worldCode)
-      } else {
-        console.info('[mod-world] 校准缓存未命中（可能已过期），保留上古史不删除')
       }
 
       syncCtxPromptVars(ctx)
@@ -670,7 +630,7 @@ function buildDimensionCalibrationStep(): WorldInitStep {
         await runCalibrationW02Fallback(ctx)
       }
       syncCtxPromptVars(ctx)
-      finalizeAnchorYearAndTimeline(ctx)
+      finalizeAnchorYear(ctx)
 
       console.info('[mod-world] 维度推断+校准完成:', {
         powerSystem: ctx.config.powerSystemTag,
@@ -712,84 +672,6 @@ function buildTagsFallbackStep(): WorldInitStep {
   }
 }
 
-function buildTimelineStep(): WorldInitStep {
-  return {
-    id: 'timeline',
-    label: '时间线生成',
-    run: async (ctx) => {
-      ctx.timelineSystemPrompt = worldTimelinePrompt.systemPrompt
-
-      ctx.timelineSystem.updateWorldviewContext({
-        essenceTag: ctx.config.essenceTag,
-        civilizationStage: ctx.config.civilizationStage,
-        worldType: ctx.config.worldType,
-        worldDescription: ctx.config.description,
-      })
-
-      ctx.timelineSystem.setAIService(
-        createWorldInitAIService(
-          ctx.aiConfig,
-          worldTimelinePrompt.systemPrompt,
-          ctx.budgets.timeline,
-          'world-init/pipeline:timeline-fill',
-          buildWorldInitContentLogMetaResolver('timeline', coherenceGuardFromConfig(ctx.config)),
-          { subPool: 'tl', worldCode: ctx.worldCode },
-          worldTimelinePrompt.outputSchema,
-        ),
-      )
-      await ctx.timelineSystem.fillStageWithAI(0, 0)
-      ctx.timelineGenerated = true
-    },
-  }
-}
-
-function buildPastHistoryStep(): WorldInitStep {
-  return {
-    id: 'past-history',
-    label: '过去历史',
-    critical: false,
-    run: async (ctx) => {
-      const store = useWorldStore.getState()
-      const cal = store.calibration ?? buildDefaultCalibration(ctx.config)
-      const styleHint = buildTimelineStyleHint(
-        ctx.config.civilizationStage,
-        ctx.config.description,
-        resolveWorldviewStyleHint({
-          cal,
-          essenceTag: ctx.config.essenceTag,
-          worldDescription: ctx.config.description,
-          worldType: ctx.config.worldType,
-        }),
-        cal,
-        ctx.config.worldType,
-        ctx.config.essenceTag,
-      )
-
-      ctx.timelineSystem.updateWorldviewContext({
-        essenceTag: ctx.config.essenceTag,
-        civilizationStage: ctx.config.civilizationStage,
-        worldType: ctx.config.worldType,
-        worldDescription: ctx.config.description,
-      })
-
-      ctx.timelineSystem.setPastHistoryAIService(
-        createWorldInitAIService(
-          ctx.aiConfig,
-          pastHistoryPrompt.systemPrompt,
-          ctx.budgets.pastHistory,
-          'world-init/pipeline:past-history',
-          buildWorldInitContentLogMetaResolver('past-history', coherenceGuardFromConfig(ctx.config)),
-          { subPool: 'tl', worldCode: ctx.worldCode },
-          pastHistoryPrompt.outputSchema,
-        ),
-        styleHint,
-      )
-      await ctx.timelineSystem.generatePastHistory(15)
-      ctx.pastHistoryGenerated = true
-    },
-  }
-}
-
 function buildEntitiesStep(): WorldInitStep {
   return {
     id: 'entities',
@@ -827,13 +709,11 @@ function buildEntitiesStep(): WorldInitStep {
   }
 }
 
-/** 默认 Pipeline（维度+校准单次→标签 fallback→时间线→上古史→实体） */
+/** 默认 Pipeline（维度+校准单次→标签 fallback→实体） */
 export function createDefaultWorldInitSteps(): WorldInitStep[] {
   return [
     buildDimensionCalibrationStep(),
     buildTagsFallbackStep(),
-    buildTimelineStep(),
-    buildPastHistoryStep(),
     buildEntitiesStep(),
   ]
 }
@@ -854,9 +734,6 @@ export function createWorldInitPipelineContext(
   useWorldStore.getState().setEraStartYear(anchorYear)
   // 纪元名称同步到 world store
   if (config.eraName) useWorldStore.getState().setEraName(config.eraName)
-  if (isInitFingerprintChanged(worldCode, initFingerprint)) {
-    invalidatePastHistoryCache(worldCode)
-  }
   const promptVars = buildWorldInitPromptVars(config, { beforeConfig: configBeforeCoherence })
 
   const entitySystem = new WorldEntitySystem()
@@ -875,15 +752,6 @@ export function createWorldInitPipelineContext(
   ))
   syncEntitySystemRegions(entitySystem, config)
 
-  const timelineSystem = new WorldTimelineSystem()
-  timelineSystem.init(
-    worldCode, worldCode, config.essenceTag, config.name, description, anchorYear,
-    config.civilizationStage, promptVars.coherenceHint, promptVars.coherenceNote,
-    config.worldType ?? 'idealist',
-  )
-
-  const timelineSystemPrompt = worldTimelinePrompt.systemPrompt
-
   return {
     config,
     configBeforeCoherence,
@@ -901,13 +769,9 @@ export function createWorldInitPipelineContext(
     calibrationGenerated: false,
     tagsGenerated: false,
     configGenerated: false,
-    timelineGenerated: false,
-    pastHistoryGenerated: false,
     entitiesGenerated: false,
     currentStep: '准备中',
     entitySystem,
-    timelineSystem,
-    timelineSystemPrompt,
   }
 }
 
@@ -923,11 +787,9 @@ function updatePipelineStatus(
     calibrationGenerated: ctx.calibrationGenerated,
     tagsGenerated: ctx.tagsGenerated,
     configGenerated: ctx.configGenerated,
-    timelineGenerated: ctx.timelineGenerated,
-    pastHistoryGenerated: ctx.pastHistoryGenerated,
     entitiesGenerated: ctx.entitiesGenerated,
     retryCount: ctx.calibrationGenerated && ctx.tagsGenerated && ctx.configGenerated
-      && ctx.timelineGenerated && ctx.pastHistoryGenerated && ctx.entitiesGenerated ? 0 : 1,
+      && ctx.entitiesGenerated ? 0 : 1,
     errors: ctx.errors,
   })
 }
@@ -943,8 +805,6 @@ export async function runWorldInitPipeline(
     calibrationGenerated: allGenFlags,
     tagsGenerated: allGenFlags,
     configGenerated: allGenFlags,
-    timelineGenerated: allGenFlags,
-    pastHistoryGenerated: allGenFlags,
     entitiesGenerated: allGenFlags,
     retryCount: 0,
     maxRetries: MAX_AI_RETRIES,
@@ -978,7 +838,7 @@ export async function runWorldInitPipeline(
   }
 
   const allOk = ctx.calibrationGenerated && ctx.tagsGenerated && ctx.configGenerated
-    && ctx.timelineGenerated && ctx.pastHistoryGenerated && ctx.entitiesGenerated
+    && ctx.entitiesGenerated
 
   useWorldStore.getState().setWorldInitAIStatus({
     status: allOk ? 'complete' : 'failed',
@@ -987,8 +847,6 @@ export async function runWorldInitPipeline(
     calibrationGenerated: ctx.calibrationGenerated,
     tagsGenerated: ctx.tagsGenerated,
     configGenerated: ctx.configGenerated,
-    timelineGenerated: ctx.timelineGenerated,
-    pastHistoryGenerated: ctx.pastHistoryGenerated,
     entitiesGenerated: ctx.entitiesGenerated,
     retryCount: MAX_AI_RETRIES,
     maxRetries: MAX_AI_RETRIES,
@@ -999,8 +857,6 @@ export async function runWorldInitPipeline(
     calibrationGenerated: ctx.calibrationGenerated,
     tagsGenerated: ctx.tagsGenerated,
     configGenerated: ctx.configGenerated,
-    timelineGenerated: ctx.timelineGenerated,
-    pastHistoryGenerated: ctx.pastHistoryGenerated,
     entitiesGenerated: ctx.entitiesGenerated,
     errors: ctx.errors,
     rawTags: ctx.rawTags,

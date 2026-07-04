@@ -1,7 +1,7 @@
 # smart-scanner.ps1
 
 $checkDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-. (Join-Path $checkDir "lib" "checker-utils.ps1")
+. ([System.IO.Path]::Combine($checkDir, "lib", "checker-utils.ps1"))
 
 Write-Host ""
 Write-Host "=== Smart Scanner ===" -ForegroundColor Cyan
@@ -168,8 +168,8 @@ foreach ($mn in $AllModInfo.Keys) {
   $actualClasses = @{}
   foreach ($sf in $subFiles) {
     $sc = Get-FileContent $sf.FullName
-    # Match: export class Xxx implements ISubSystem  or  export class Xxx extends ...
-    if ($sc -match "export class (\w+) (implements ISubSystem|extends \w)") {
+    # Match staged subsystem classes: new BaseSubsystem or legacy ISubSystem.
+    if ($sc -match "export class (\w+)\s+(?:extends\s+BaseSubsystem\b|implements\s+ISubSystem\b)") {
       $actualClasses[$Matches[1]] = $sf.Name
     }
   }
@@ -418,7 +418,7 @@ if (Test-Path $appApiDir) {
     if ($delegateMatch.Success) {
       $targetMod = $delegateMatch.Groups[1].Value
       $targetFile = $delegateMatch.Groups[2].Value
-      $modApiPath = Join-Path $SrcDir "mods" $targetMod "api" $targetFile
+      $modApiPath = [System.IO.Path]::Combine($SrcDir, "mods", $targetMod, "api", $targetFile)
       if (-not (Test-Path $modApiPath)) {
         Fail "D13-API-DELEGATE" $ar.Name "" "API delegate points to @/mods/$targetMod/api/$targetFile but file not found"
       }

@@ -202,7 +202,7 @@ $anomWarnings = $E.Warnings - $anomStartWarnings
 Write-Host "  [A5] Checking PromptContext fields vs narrative template variables..." -ForegroundColor DarkGray
 
 # Read PromptContext interface to know all valid fields
-$narrativeTypesPath = Join-Path $SrcDir "foundation" "types" "narrative.types.ts"
+$narrativeTypesPath = [System.IO.Path]::Combine($SrcDir, "foundation", "types", "narrative.types.ts")
 $promptCtxFields = @()
 if (Test-Path $narrativeTypesPath) {
   $ntContent = Get-FileContent $narrativeTypesPath
@@ -214,7 +214,7 @@ if (Test-Path $narrativeTypesPath) {
 }
 
 # Read orchestrator to find which PromptContext fields are assigned
-$orchPath = Join-Path $SrcDir "mods" "mod-engine" "subsystems" "orchestrator-system.ts"
+$orchPath = [System.IO.Path]::Combine($SrcDir, "mods", "mod-engine", "subsystems", "orchestrator-system.ts")
 $orchAssignedFields = @()
 $orchContent = ""
 if (Test-Path $orchPath) {
@@ -227,7 +227,7 @@ if (Test-Path $orchPath) {
 }
 
 # Only check the narrative prompt template (the one orchestrated by assemblePromptContext)
-$narrativePromptPath = Join-Path $SrcDir "mods" "mod-engine" "prompts" "narrative-prompt.ts"
+$narrativePromptPath = [System.IO.Path]::Combine($SrcDir, "mods", "mod-engine", "prompts", "narrative-prompt.ts")
 $narrativeTemplateVars = @()
 if (Test-Path $narrativePromptPath) {
   $npContent = Get-FileContent $narrativePromptPath
@@ -253,7 +253,7 @@ foreach ($v in $narrativeTemplateVars) {
 }
 
 # A5b: summary-prompt template variables must appear in userPromptTemplate
-$summaryPromptPath = Join-Path $SrcDir "mods" "mod-engine" "prompts" "summary-prompt.ts"
+$summaryPromptPath = [System.IO.Path]::Combine($SrcDir, "mods", "mod-engine", "prompts", "summary-prompt.ts")
 if (Test-Path $summaryPromptPath) {
   $spContent = Get-FileContent $summaryPromptPath
   if ($spContent -match "variables\s*:\s*\[([^\]]+)\]") {
@@ -282,7 +282,7 @@ $jsKeywords = @('if', 'for', 'while', 'switch', 'catch', 'function', 'return', '
                 'implements', 'yield', 'await', 'require')
 
 # Read register-subsystems.ts to identify which subsystems are runtime-registered
-$registerPath = Join-Path $SrcDir "mods" "mod-engine" "bootstrap" "register-subsystems.ts"
+$registerPath = [System.IO.Path]::Combine($SrcDir, "mods", "mod-engine", "bootstrap", "register-subsystems.ts")
 $registeredSubs = @()  # subsystem class names
 if (Test-Path $registerPath) {
   $regContent = Get-FileContent $registerPath

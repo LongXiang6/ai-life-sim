@@ -58,8 +58,8 @@ if (-not $OutputDir) {
 # -------------------------------------------------------
 . (Join-Path $checkDir "lib/checker-utils.ps1")
 
-$modScannerDir = Join-Path $checkDir "domains" "mod"
-$uiScannerDir = Join-Path $checkDir "domains" "ui"
+$modScannerDir = [System.IO.Path]::Combine($checkDir, "domains", "mod")
+$uiScannerDir = [System.IO.Path]::Combine($checkDir, "domains", "ui")
 
 function Resolve-ScannerPath([string]$Name) {
   switch ($Name) {
@@ -68,7 +68,24 @@ function Resolve-ScannerPath([string]$Name) {
     'anomaly' { return Join-Path $modScannerDir 'anomaly-scanner.ps1' }
     'ui'      { return Join-Path $uiScannerDir 'ui-scanner.ps1' }
     'css'     { return Join-Path $uiScannerDir 'css-scanner.ps1' }
-    default   { return Join-Path $checkDir "domains" "$Name" "$Name-scanner.ps1" }
+    default   { return [System.IO.Path]::Combine($checkDir, "domains", "$Name", "$Name-scanner.ps1") }
+  }
+}
+
+function Invoke-ScannerScript([string]$Name, [string]$ScannerPath) {
+  if (-not $ScannerPath -or -not (Test-Path $ScannerPath)) {
+    Fail "SCANNER-MISSING" "scripts/check" "" "scanner '$Name' not found: $ScannerPath"
+    return
+  }
+
+  $prevErrorActionPreference = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = "Stop"
+    . $ScannerPath
+  } catch {
+    Fail "SCANNER-EXEC" "scripts/check" "" "scanner '$Name' failed: $($_.Exception.Message)"
+  } finally {
+    $ErrorActionPreference = $prevErrorActionPreference
   }
 }
 
@@ -249,7 +266,7 @@ if ($Parallel.IsPresent) {
     # Sequential fallback
     foreach ($sn in $ActiveScanners) {
       $sp = Resolve-ScannerPath $sn
-      if (Test-Path $sp) { . $sp }
+      Invoke-ScannerScript $sn $sp
     }
   } finally {
     Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue
@@ -258,7 +275,7 @@ if ($Parallel.IsPresent) {
   # Sequential mode (default)
   foreach ($sn in $ActiveScanners) {
     $sp = Resolve-ScannerPath $sn
-    if (Test-Path $sp) { . $sp }
+    Invoke-ScannerScript $sn $sp
   }
 }
 
@@ -281,7 +298,7 @@ $smart2StartErrors = $E.Errors
 $smart2StartWarnings = $E.Warnings
 
 # === D19: Subsystem method order verification ===
-Write-Host "  [D19] Verifying ISubSystem method order..." -ForegroundColor DarkGray
+Write-Host "  [D19] Verifying subsystem lifecycle method order..." -ForegroundColor DarkGray
 foreach ($md in $modDirs) {
   $mn = $md.Name
   $subDir = Join-Path $md.FullName "subsystems"
@@ -290,15 +307,15 @@ foreach ($md in $modDirs) {
   foreach ($sf in $subFiles) {
     $sc = Get-FileContent $sf.FullName
     if (-not $sc) { continue }
-    if ($sc -notmatch 'implements ISubSystem') { continue }
+    if ($sc -notmatch '(implements\s+ISubSystem\b|extends\s+BaseSubsystem\b)') { continue }
     $relFP = "src/mods/${mn}/subsystems/$($sf.Name)"
-    $result = Test-FunctionOrder $sc $relFP @("collectState", "applyChanges", "reset") "ISubSystem"
+    $result = Test-FunctionOrder $sc $relFP @("collectState", "applyChanges", "reset") "subsystem"
     if (-not $result.AllFound) {
-      Fail "D19-METHOD-ORDER" $relFP "" "ISubSystem implementation missing required method: $($result.MissingMethod)"
+      Fail "D19-METHOD-ORDER" $relFP "" "subsystem implementation missing required method: $($result.MissingMethod)"
     } elseif ($result.OrderBroken) {
       Fail "D19-METHOD-ORDER" $relFP "" "'$($result.OutOfOrder)' appears out of order. Expected: collectState -> applyChanges -> reset"
     } else {
-      Pass "D19-METHOD-ORDER" $relFP "ISubSystem methods in correct order: collectState -> applyChanges -> reset"
+      Pass "D19-METHOD-ORDER" $relFP "subsystem methods in correct order: collectState -> applyChanges -> reset"
     }
   }
 }
@@ -337,7 +354,7 @@ foreach ($f in $allSrcFilesD20) {
 
 # === D21: Function internal logic order verification ===
 Write-Host "  [D21] Verifying function internal logic order..." -ForegroundColor DarkGray
-# Check ISubSystem methods for proper logic order (validate -> compute -> return)
+# Check subsystem methods for proper logic order (validate -> compute -> return)
 foreach ($f in $allSrcFilesD20) {
   $fc = Get-FileContent $f.FullName
   if (-not $fc) { continue }
@@ -357,7 +374,7 @@ foreach ($f in $allSrcFilesD20) {
     }
   }
 
-  # Check applyChanges for input validation (ISubSystem implementation only — match method signature with type annotation)
+  # Check applyChanges for input validation (subsystem implementation only; match method signature with type annotation)
   if ($fc -match 'applyChanges\s*\(\s*changes\s*:\s*SubSystemChanges') {
     $acBody = [regex]::Match($fc, 'applyChanges\s*\(\s*changes\s*:\s*SubSystemChanges[\s\S]*?\{([\s\S]*?)\n\s*\}')
     if ($acBody.Success) {
@@ -384,8 +401,8 @@ Write-Host "========================================================" -Foregroun
 $d34StartErrors = $E.Errors
 $d34StartWarnings = $E.Warnings
 
-# ISubSystem interface methods that are always called by the engine
-$isubsystemMethods = @('collectState', 'applyChanges', 'reset', 'advance', 'collectStateUpdate', 'collectStateFinalFix')
+# Subsystem lifecycle methods that are always called by the engine
+$subsystemLifecycleMethods = @('collectState', 'applyChanges', 'reset', 'advance', 'collectStateUpdate', 'collectStateFinalFix')
 
 foreach ($md in $modDirs) {
   $mn = $md.Name
@@ -418,13 +435,13 @@ foreach ($md in $modDirs) {
     $sc = Get-FileContent $subFile.FullName
     $subRelPath = "src/mods/${mn}/subsystems/$($subFile.Name)"
 
-    # Extract public method names (excluding ISubSystem methods and constructor)
+    # Extract public method names (excluding subsystem lifecycle methods and constructor)
     $methodMatches = [regex]::Matches($sc, '^\s*(?:public\s+|async\s+)?(?:public\s+)?(?:async\s+)?(\w+)\s*\(')
     $methodNames = @()
     foreach ($pm in $methodMatches) {
       $mname = $pm.Groups[1].Value
       if ($mname -eq 'constructor') { continue }
-      if ($mname -in $isubsystemMethods) { continue }
+      if ($mname -in $subsystemLifecycleMethods) { continue }
       if ($mname.StartsWith('_')) { continue }
       $methodNames += $mname
     }

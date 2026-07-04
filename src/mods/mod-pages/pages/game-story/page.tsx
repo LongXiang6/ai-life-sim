@@ -27,7 +27,6 @@ import {
 } from '@/mods/mod-character'
 import { resolveDestinyPatternWorldTags } from '@/mods/mod-character/destiny-pattern-access'
 import { useWorldStore } from '@/mods/mod-world'
-import { startTimelineStageBackground } from '@/mods/mod-world/world-init-api'
 import { usePowerSystemStore } from '@/mods/mod-power-system'
 import { useEconomyStore } from '@/mods/mod-economy'
 import { usePoliticsStore } from '@/mods/mod-politics'
@@ -246,15 +245,6 @@ export default function GamePage() {
     }
     prevCausalLenRef.current = nowLength
   }, [causalPending])
-
-  // 进入游戏后后台填充相邻时间线阶段（使用 ref 防重复触发）
-  const timelineBgTriggered = useRef(false)
-  useEffect(() => {
-    if (!worldConfig || worldCode === 0) return
-    if (timelineBgTriggered.current) return
-    timelineBgTriggered.current = true
-    startTimelineStageBackground(worldConfig, worldCode, 1)
-  }, [worldConfig, worldCode])
 
   // 点击外部关闭时间步进 / 更多菜单
   useEffect(() => {

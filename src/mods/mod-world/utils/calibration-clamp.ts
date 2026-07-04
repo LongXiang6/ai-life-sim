@@ -61,33 +61,7 @@ export const FORMULA_KEYS: (keyof WorldCalibrationFormulas)[] = [
   'conflictEscalationModifier', 'devotionGainModifier', 'causalCaptureRate',
 ]
 
-/** 策略 → 影响级别权重乘数（应用于 pickImpactForYear 基础权重） */
-export const STRATEGY_IMPACT_MULTIPLIERS: Record<
-  EventDistributionStrategy,
-  Partial<Record<string, number>>
-> = {
-  balanced: {},
-  prehistoric: {
-    trivial: 1.6, minor: 1.4, local: 1.2, regional: 0.9,
-    national: 0.3, continental: 0.2, world: 0.1, cosmic: 0.05, infinite: 0.05,
-  },
-  political: {
-    trivial: 0.7, minor: 0.8, local: 1.0, regional: 1.3,
-    national: 1.5, continental: 1.2, world: 1.0,
-  },
-  cosmic_epic: {
-    trivial: 0.5, minor: 0.6, local: 0.8, regional: 1.0,
-    world: 1.5, cosmic: 2.0, infinite: 2.5,
-  },
-  apocalyptic: {
-    trivial: 1.0, minor: 1.1, local: 1.2, regional: 1.3,
-    national: 1.1, continental: 1.0,
-  },
-  mystical: {
-    trivial: 1.0, minor: 1.0, local: 1.2, regional: 1.1,
-    cosmic: 1.3, infinite: 1.2,
-  },
-}
+
 
 export function clampModifier(value: number): number {
   if (!Number.isFinite(value)) return 1.0
@@ -268,9 +242,6 @@ export function buildDefaultCalibration(config: WorldConfig): WorldCalibration {
         ? undefined
         : (WORLDVIEW_STYLE_HINTS[config.essenceTag] ?? undefined),
     },
-    timeline: {
-      impactDistribution: strategy,
-    },
     world: {
       populationBase,
       mapTemplate: inferMapTemplate(config),
@@ -325,7 +296,6 @@ export function clampCalibration(
       ...(input.metadata ?? {}),
     },
     styleGuide: input.styleGuide ? { ...base.styleGuide, ...input.styleGuide } : base.styleGuide,
-    timeline: input.timeline ? { ...base.timeline, ...input.timeline } : base.timeline,
     entities: input.entities,
     world: input.world ? { ...base.world, ...input.world } : base.world,
     formulas: {
@@ -334,21 +304,11 @@ export function clampCalibration(
     },
   }
 
-  if (merged.timeline?.impactDistribution) {
-    merged.timeline.impactDistribution = normalizeStrategy(merged.timeline.impactDistribution)
-  }
-
   const aiFormulaStrategy = input.formulas?.eventDistributionStrategy
-  const aiTimelineStrategy = input.timeline?.impactDistribution
   if (aiFormulaStrategy != null) {
     merged.formulas = {
       ...merged.formulas,
       eventDistributionStrategy: normalizeStrategy(aiFormulaStrategy),
-    }
-  } else if (aiTimelineStrategy != null) {
-    merged.formulas = {
-      ...merged.formulas,
-      eventDistributionStrategy: normalizeStrategy(aiTimelineStrategy),
     }
   } else if (merged.formulas?.eventDistributionStrategy) {
     merged.formulas.eventDistributionStrategy = normalizeStrategy(merged.formulas.eventDistributionStrategy)
@@ -386,16 +346,6 @@ export function clampCalibration(
   }
 
   return merged
-}
-
-export function getEventDistributionStrategy(cal: WorldCalibration | null | undefined): EventDistributionStrategy {
-  return cal?.formulas?.eventDistributionStrategy
-    ?? cal?.timeline?.impactDistribution
-    ?? 'balanced'
-}
-
-export function getImpactRangeModifier(cal: WorldCalibration | null | undefined): number {
-  return clampModifier(cal?.formulas?.impactRangeModifier ?? 1.0)
 }
 
 /** 优先 calibration.styleGuide，fallback essence 常量 */
@@ -452,7 +402,7 @@ export function formatCalibrationSummary(cal: WorldCalibration): string {
   const parts: string[] = []
   const f = cal.formulas
 
-  const strategy = f?.eventDistributionStrategy ?? cal.timeline?.impactDistribution
+  const strategy = f?.eventDistributionStrategy
   if (strategy && strategy !== 'balanced') {
     parts.push(`事件策略=${strategy}`)
   }

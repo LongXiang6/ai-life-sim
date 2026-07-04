@@ -299,9 +299,51 @@ function Test-JsDocCompleteness($fileContent, $filePath) {
 $Global:CheckerOutputDir = $null
 $Global:CheckerJsonOnly = $false
 
+function Clear-OldCheckerReports {
+  param(
+    [string]$OutputDir,
+    [int]$MaxAgeMinutes = 10
+  )
+
+  if (-not $OutputDir) { return }
+  if (-not (Test-Path $OutputDir)) { return }
+
+  $cutoff = (Get-Date).AddMinutes(-1 * $MaxAgeMinutes)
+  $patterns = @(
+    "check-run-*.json",
+    "check-run-*.md",
+    "check-log-*.txt",
+    "checker-*.json",
+    "checker-*.md",
+    "report.html"
+  )
+
+  $deleted = 0
+  foreach ($pattern in $patterns) {
+    $files = @(Get-ChildItem -Path $OutputDir -File -Filter $pattern -ErrorAction SilentlyContinue)
+    foreach ($file in $files) {
+      if ($file.LastWriteTime -ge $cutoff) { continue }
+
+      try {
+        Remove-Item -LiteralPath $file.FullName -Force -ErrorAction Stop
+        $deleted++
+      } catch {
+        if ($env:CHECK_CLEAN_REPORTS_VERBOSE -eq '1') {
+          Write-Host "  [check:cleanup] cannot delete $($file.Name): $_" -ForegroundColor Yellow
+        }
+      }
+    }
+  }
+
+  if ($env:CHECK_CLEAN_REPORTS_VERBOSE -eq '1' -and $deleted -gt 0) {
+    Write-Host "  [check:cleanup] deleted $deleted old report file(s)" -ForegroundColor DarkGray
+  }
+}
+
 function Set-OutputOptions($outputDir, $jsonOnly) {
   $Global:CheckerOutputDir = $outputDir
   $Global:CheckerJsonOnly = $jsonOnly
+  Clear-OldCheckerReports $outputDir
 }
 
 function Save-Reports {

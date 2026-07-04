@@ -8,6 +8,7 @@ import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { DOMAINS } from '../domains.mjs'
+import { cleanupOldReports } from './cleanup-reports.mjs'
 import { writeCheckReport } from './report.mjs'
 import {
   buildRefactorSignals,
@@ -128,6 +129,7 @@ export function runDomain(domainId, opts) {
 export function runCheck({ projectRoot, profile, domainIds, quiet = true, modName = '' }) {
   const reportsDir = path.join(projectRoot, 'reports')
   fs.mkdirSync(reportsDir, { recursive: true })
+  cleanupOldReports(projectRoot)
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
   const results = []

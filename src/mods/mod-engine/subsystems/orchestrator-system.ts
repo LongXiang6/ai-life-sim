@@ -721,9 +721,8 @@ export class OrchestratorSystem implements ISubSystem {
       difficulty: (this.worldSetting?.config?.difficulty as RoundContext['difficulty']) ?? 'normal',
       subsystemStates: this.lastSubsystemStates,
       roundSequence: this.state.totalRounds,
-      simulationTicks: resolved.simulationTicks,
-      ageYearsDelta: resolved.simulationYears,
-      calendarDaysDelta: resolved.calendarDaysDelta,
+      daysPassed: timeSystem.getDaysPassed(),
+      totalDays: this.state.round.totalDays,
       lastNarrativeText: this.lastNarrativeText || undefined,
       eraStartYear: eraStartYear || undefined,
       birthEraYear: birthEraYear || undefined,
@@ -1715,26 +1714,16 @@ export class OrchestratorSystem implements ISubSystem {
 
   /** 组装 TS-5 bridge 摘要输入（本地、零 API） */
   private buildTimeBridgeInput() {
-    const resolved = resolveTimeStep(this.state.timeStep)
+    // tickCount = 本轮跨越的年数（桥接摘要按年触发）。旧代码用 resolveTimeStep().simulationTicks，
+    // 现直接用 toYear - fromYear（引擎已持有两端年份），不再依赖已删除的 simulationTicks。
     return {
       fromYear: this.prevRoundYear,
       toYear: this.state.round.year,
-      tickCount: resolved.simulationTicks,
-      timelineTitles: this.getTimelineEventTitles(this.prevRoundYear, this.state.round.year),
+      tickCount: Math.max(0, this.state.round.year - this.prevRoundYear),
       prevSnapshot: this.prevBridgeSnapshot,
       currentSnapshot: extractBridgeSnapshot(this.lastSubsystemStates),
       memoryL0Titles: this.getMemoryL0Titles(this.prevRoundYear, this.state.round.year),
     }
-  }
-
-  private getTimelineEventTitles(fromYear: number, toYear: number): string[] {
-    const sub = this.subsystems.find((s) => s.id === 'world-timeline') as {
-      getEventsInRange?: (start: number, end: number) => Array<{ title?: string }>
-    } | undefined
-    if (!sub?.getEventsInRange) return []
-    return sub.getEventsInRange(fromYear, toYear)
-      .map((e) => e.title)
-      .filter((t): t is string => typeof t === 'string' && t.trim() !== '')
   }
 
   private getMemoryL0Titles(fromYear: number, toYear: number): string[] {

@@ -53,6 +53,9 @@ export type { PrototypeStageResult } from './mod-loader/prototype-stage'
 // 存储命名空间
 export { createStorageNamespace } from './storage-namespace'
 
+// 子系统抽象基类（BaseSubsystem，implements ISubSystemV2；模拟系统重写梯队一）
+export { BaseSubsystem } from './subsystem-base'
+
 // 存储迁移
 export { autoMigrate, autoMigrateFromDir } from './store-migration/migration-runner'
 export type { MigrationStep, MigrationResult } from './store-migration/migration-runner'

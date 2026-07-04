@@ -96,8 +96,6 @@ export function useWorldConfirm() {
       calibrationGenerated: false,
       tagsGenerated: false,
       configGenerated: false,
-      timelineGenerated: false,
-      pastHistoryGenerated: false,
       entitiesGenerated: false,
       retryCount: 0,
       maxRetries: 3,

@@ -12,7 +12,7 @@ $archStartWarnings = $E.Warnings
 
 $Script:AllowedSecondaryPublicImports = @{}
 $checkDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$archRulesPath = Join-Path $checkDir "rules" "architecture-rules.json"
+$archRulesPath = [System.IO.Path]::Combine($checkDir, "rules", "architecture-rules.json")
 if (Test-Path $archRulesPath) {
   try {
     $archJson = Get-Content $archRulesPath -Raw | ConvertFrom-Json
@@ -322,10 +322,12 @@ foreach ($modDir in $modDirs) {
         Fail "C1-FILE-NAME" $relPath "" "                            {kebab-case}-system.ts   $fileName"
       }
 
-      #           C1:                                   
-      $classMatch = [regex]::Match($content, 'export class (\w+System)\s+implements\s+ISubSystem')
+      # C1: subsystem class export. New/touched subsystems should extend BaseSubsystem;
+      # legacy implements ISubSystem remains a warning during the staged migration.
+      $classMatch = [regex]::Match($content, 'export class (\w+System)\s+(extends\s+BaseSubsystem\b|implements\s+ISubSystem\b)')
       if ($classMatch.Success) {
         $className = $classMatch.Groups[1].Value
+        $classMode = $classMatch.Groups[2].Value
         $parts = ($fileName -replace '\.ts$', '').Split('-')
         $expectedClassName = ($parts | ForEach-Object { 
           $_.Substring(0,1).ToUpper() + $_.Substring(1) 
@@ -336,8 +338,14 @@ foreach ($modDir in $modDirs) {
         } else {
           Fail "C1-CLASS-MATCH" $relPath "" "                '$className'              '$fileName'                    '$expectedClassName'"
         }
+
+        if ($classMode -match '^extends') {
+          Pass "C1-CLASS-EXPORT" $relPath "subsystem class extends BaseSubsystem"
+        } else {
+          Warn "C1-LEGACY-ISUBSYSTEM" $relPath "" "legacy subsystem still implements ISubSystem; migrate to BaseSubsystem when touched/restored"
+        }
       } else {
-        Fail "C1-CLASS-EXPORT" $relPath "" "          'export class XxxSystem implements ISubSystem'       "
+        Fail "C1-CLASS-EXPORT" $relPath "" "expected 'export class XxxSystem extends BaseSubsystem' (legacy untouched files may still implement ISubSystem)"
       }
 
       #           C2: readonly                    
@@ -417,7 +425,7 @@ foreach ($modDir in $modDirs) {
         }
       } elseif ($content -match 'summary:\s*`') {
         $summaryVal2 = ""
-        $sm2 = [regex]::Match($content, "summary:\s*`([^`]+)`")
+        $sm2 = [regex]::Match($content, 'summary:\s*`([^`]+)`')
         if ($sm2.Success) { $summaryVal2 = $sm2.Groups[1].Value }
         if ($summaryVal2.Length -gt 2 -and $summaryVal2[0] -eq [char]0x3010 -and $summaryVal2[$summaryVal2.Length - 1] -eq [char]0x3011) {
           Pass "C5-SUMMARY-FMT" $relPath 'summary format [label]...'
@@ -503,7 +511,7 @@ foreach ($modDir in $modDirs) {
     $actualClasses = @()
     foreach ($sf in $subFiles) {
       $sc = Get-FileContent $sf.FullName
-      $cm = [regex]::Match($sc, 'export class (\w+) implements ISubSystem')
+      $cm = [regex]::Match($sc, 'export class (\w+)\s+(?:extends\s+BaseSubsystem\b|implements\s+ISubSystem\b)')
       if ($cm.Success) {
         $actualClasses += $cm.Groups[1].Value
       }
@@ -1113,8 +1121,8 @@ foreach ($md in $modDirs) {
     $helperExports = [regex]::Matches($sc, 'export (?:function|const)\s+(\w+)')
     foreach ($he in $helperExports) {
       $helperName = $he.Groups[1].Value
-      # Skip ISubSystem class definitions
-      if ($sc -match "class $helperName implements ISubSystem") { continue }
+      # Skip subsystem class definitions.
+      if ($sc -match "class\s+$helperName\s+(?:implements\s+ISubSystem\b|extends\s+BaseSubsystem\b)") { continue }
       # Skip known exception patterns
       if ($helperName -match 'System$') { continue }
       Warn "H4-HELPER-EXPORT" "src/mods/${mn}/subsystems/$($sf.Name)" "" "subsystem exports helper '$helperName', consider removing export or moving to utils.ts"
@@ -1211,4 +1219,3 @@ if ($foundationExports.Count -gt 0) {
 } else {
   Warn "G5-DUPLICATE-UTIL" "foundation" "" "No foundation utility exports found to compare against"
 }
-

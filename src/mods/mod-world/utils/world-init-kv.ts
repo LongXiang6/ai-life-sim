@@ -38,27 +38,6 @@ export const WORLD_INIT_STABLE_USER_KEYS = [
   'powerCeilingPresets',
 ] as const
 
-/** 时间线步变长字段 */
-export const WORLD_INIT_TIMELINE_VARIABLE_KEYS = [
-  'taskMode',
-  'instruction',
-  'requirements',
-  'outputInstruction',
-  'skeletonEvents',
-  'stageIndex',
-  'stageSpan',
-  'stageStartYear',
-  'stageEndYear',
-  'previousStageSummary',
-  'eventCount',
-  'count',
-  'eraAnchorYear',
-  'maxYearsAgo',
-  'minYearsAgo',
-  'timeRange',
-  'yearFieldNote',
-] as const
-
 /** 实体步变长字段 */
 export const WORLD_INIT_ENTITY_VARIABLE_KEYS = [
   'instruction',
@@ -84,11 +63,9 @@ export function applyWorldInitKvUserPrompt(
 ): KvPromptOrderResult {
   const variableKeys = subPool === 'geo'
     ? WORLD_INIT_ENTITY_VARIABLE_KEYS
-    : subPool === 'tl'
-      ? WORLD_INIT_TIMELINE_VARIABLE_KEYS
-      : subPool === 'tag'
-        ? WORLD_INIT_TAG_VARIABLE_KEYS
-        : WORLD_INIT_CAL_VARIABLE_KEYS
+    : subPool === 'tag'
+      ? WORLD_INIT_TAG_VARIABLE_KEYS
+      : WORLD_INIT_CAL_VARIABLE_KEYS
 
   return applyKvPromptOrder(filledUserPrompt, WORLD_INIT_STABLE_USER_KEYS, variableKeys)
 }

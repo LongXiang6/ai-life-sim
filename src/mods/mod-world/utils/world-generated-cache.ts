@@ -12,9 +12,6 @@ const CACHE_KEY_PATTERNS: RegExp[] = [
   /^mod-character:cache:destiny-pool:(\d+)/,
   /^mod-world:save:0:init-cal:(\d+)/,
   /^mod-world:save:0:entities:(\d+)/,
-  /^mod-world:save:0:timeline-meta:(\d+)/,
-  /^mod-world:save:0:timeline-stage:(\d+):\d+/,
-  /^mod-world:save:0:past-history:(\d+)/,
   /^mod-base-universe:save:0:world-map:(\d+)/,
   /^mod-pages:config:(?:talent-draw|fate-preview|attribute-alloc|character-create-form|character-create-gf):(\d+)/,
 ]
@@ -22,23 +19,6 @@ const CACHE_KEY_PATTERNS: RegExp[] = [
 function stripStoragePrefix(fullKey: string): string | null {
   if (!fullKey.startsWith(`${STORAGE_PREFIX}:`)) return null
   return fullKey.slice(STORAGE_PREFIX.length + 1)
-}
-
-function removeTimelineStagesForWorld(worldCode: number): void {
-  if (typeof window === 'undefined') return
-  const prefix = `mod-world:save:0:timeline-stage:${worldCode}:`
-  const keysToRemove: string[] = []
-  for (let i = 0; i < localStorage.length; i++) {
-    const raw = localStorage.key(i)
-    if (!raw) continue
-    const stripped = stripStoragePrefix(raw)
-    if (stripped?.startsWith(prefix)) {
-      keysToRemove.push(raw)
-    }
-  }
-  for (const key of keysToRemove) {
-    localStorage.removeItem(key)
-  }
 }
 
 /** 扫描 localStorage，返回存在 AI 生成缓存的 worldCode 集合 */
@@ -71,7 +51,7 @@ export function hasWorldGeneratedCache(worldCode: number): boolean {
 }
 
 /**
- * 清空指定 worldCode 下全部 AI 生成缓存（命格池 / 初始化校准 / 实体 / 时间线 / 地图 / 流程页状态）
+ * 清空指定 worldCode 下全部 AI 生成缓存（命格池 / 初始化校准 / 实体 / 地图 / 流程页状态）
  */
 export function clearWorldGeneratedCache(worldCode: number): void {
   if (!worldCode || typeof window === 'undefined') return
@@ -90,14 +70,10 @@ export function clearWorldGeneratedCache(worldCode: number): void {
 
   try {
     saveStore.remove('mod-world', 0, `entities:${worldCode}`)
-    saveStore.remove('mod-world', 0, `timeline-meta:${worldCode}`)
-    saveStore.remove('mod-world', 0, `past-history:${worldCode}`)
     saveStore.remove('mod-base-universe', 0, `world-map:${worldCode}`)
   } catch {
     /* ignore */
   }
-
-  removeTimelineStagesForWorld(worldCode)
 
   try {
     configStore.remove('mod-pages', `talent-draw:${worldCode}`)

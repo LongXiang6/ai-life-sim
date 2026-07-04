@@ -16,6 +16,7 @@ export const PROMPT_CONTEXT_FIELDS = [
   "timeBridgeSummary",
   "systemChangeSummary",
   "worldCustomizeText",
+  "narrativeGuidanceText",
   "worldTagsText",
   "worldRules",
   "memorySummary",
@@ -47,7 +48,6 @@ export const NARRATIVE_PROMPT_VARIABLES = [
   "powerCeilingPresets",
   "worldCustomizeText",
   "creationProtectionText",
-  "subsystemFields",
   "narrativeStyle",
   "character",
   "talents",
@@ -62,6 +62,5 @@ export const NARRATIVE_PROMPT_VARIABLES = [
   "eventInjectionText",
   "narrativeHistory",
   "subsystemGuideText",
-  "timeGuideText",
   "userInstruction"
 ] as const

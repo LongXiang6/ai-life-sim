@@ -128,7 +128,7 @@ export const GOLDEN_FINGER_TEMPLATES: GoldenFingerTemplate[] = [
     rules: ['每次使用消耗寿命', '不可在同一时间点连续使用',],
     persona: 'cold_machine',
     boosts: { mind: 0.20, luck: 0.10, },
-    targetSubsystems: ['era', 'causal-simulation', 'fate-prophecy', 'world-timeline',],
+    targetSubsystems: ['era', 'causal-simulation', 'fate-prophecy',],
   },
 
   // ===== 非面板类已移除（按流程要求，仅保留系统面板类） =====

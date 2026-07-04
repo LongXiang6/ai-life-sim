@@ -73,13 +73,3 @@ export function isInitFingerprintChanged(worldCode: number, fingerprint: string)
   if (!entry) return false
   return entry.fingerprint !== fingerprint
 }
-
-/** fingerprint 变更时清除上古史缓存（saveStore 不含指纹，须主动失效） */
-export function invalidatePastHistoryCache(worldCode: number): void {
-  if (!worldCode) return
-  try {
-    saveStore.remove('mod-world', 0, `past-history:${worldCode}`)
-  } catch {
-    /* ignore */
-  }
-}

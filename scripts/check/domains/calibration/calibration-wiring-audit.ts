@@ -26,7 +26,6 @@ interface WiringEntry {
 const FORMULA_WIRED: Partial<Record<string, string>> = {
   populationModifier: 'world-init-system',
   developmentModifier: 'world-init-system',
-  impactRangeModifier: 'getImpactRangeModifier',
   birthRateModifier: 'population-system',
   fertilityModifier: 'family-system',
   deathRateModifier: 'population-system',
@@ -56,7 +55,6 @@ const FORMULA_WIRED: Partial<Record<string, string>> = {
   industryProductivityModifier: 'industry-system',
   economyModifier: 'orchestrator (_economyModifier)',
   crossDomainEffectModifier: 'orchestrator-system',
-  eventDistributionStrategy: 'getEventDistributionStrategy',
   migrationRateModifier: 'population-system',
   literacyGrowthModifier: 'education-system',
   incomeModifier: 'work-system',
@@ -66,8 +64,6 @@ const FORMULA_WIRED: Partial<Record<string, string>> = {
 }
 
 const SPECIAL_PATTERNS: Record<string, string[]> = {
-  impactRangeModifier: ['getImpactRangeModifier'],
-  eventDistributionStrategy: ['getEventDistributionStrategy'],
   economyTierRatios: ['economyTierRatios'],
   crossDomainEffectModifier: ['crossDomainEffectModifier'],
   economyModifier: ['_economyModifier', 'economyModifier'],
@@ -77,8 +73,6 @@ const SPECIAL_PATTERNS: Record<string, string[]> = {
 
 /** 已知 backlog / defer（非漏接线） */
 const BACKLOG: Record<string, string> = {
-  'styleGuide.worldviewStyleHint': 'timeline/narrative 已接入 calibration',
-  'styleGuide.eventTypeWeights': 'world-timeline-system pickWeightedEventType',
   'styleGuide.narrativeTone': 'orchestrator narrativeToneHint',
   'entities.*': 'world-entity-system L1',
   'causal-simulation tokens': 'IT-6 排除 narrative token 结构校准',
@@ -166,7 +160,6 @@ function main() {
     assert.ok(workSrc.includes("getFormulaModifier('incomeModifier')"))
   }
   assert.ok(source.includes("getFormulaModifier('fertilityModifier')"), 'family 应读 fertilityModifier')
-  assert.ok(source.includes('pickWeightedEventType'), 'timeline 应按 eventTypeWeights 加权采样')
   assert.ok(source.includes('narrativeToneHint'), 'narrative tone hint 应已接入')
   assert.ok(source.includes('getWorldviewStyleHint'), 'styleGuide 读取 helper 应存在')
   assert.ok(source.includes('calibrationSummary'), 'narrative calibrationSummary 应已接入')

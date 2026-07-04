@@ -27,8 +27,6 @@ export interface WorldInitAIStatus {
   calibrationGenerated: boolean
   tagsGenerated: boolean
   configGenerated: boolean
-  timelineGenerated: boolean
-  pastHistoryGenerated: boolean
   entitiesGenerated: boolean
   retryCount: number
   maxRetries: number

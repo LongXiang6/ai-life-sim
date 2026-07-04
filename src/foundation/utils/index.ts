@@ -7,7 +7,7 @@
 export { cn } from './cn'
 export { parseJSON } from './parse-json'
 export { clamp } from './format-number'
-export { getRoundSequence, getAgeYearsDelta, consumeSimulationYears } from './round-advance'
+export { getRoundSequence } from './round-advance'
 export { parseChineseNumber } from './cn-number'
 export { extractDynamicAttrsFromNarrative } from './extract-dynamic-attrs'
 export type { AttrTagMap, ExtractedAttrs } from './extract-dynamic-attrs'

@@ -1,6 +1,6 @@
 /**
  * @module world-init-bundle.ts
- * @description 世界初始化统一调度 —— 本地快照 + 后台 Pipeline AI（校准/标签/参数/时间线/实体）
+ * @description 世界初始化统一调度 —— 本地快照 + 后台 Pipeline AI（校准/标签/参数/实体）
  * @mod mod-world
  */
 
@@ -10,25 +10,21 @@ import { useSettingsStore } from '@/mods/mod-settings'
 import { useWorldStore } from './store'
 import {
   formatWorldTagsText,
-  worldTimelinePrompt,
   buildDefaultCalibration,
   buildWorldCoherenceHint,
   applyCoherenceToWorldConfig,
   shouldSkipEntityAIGeneration,
   WorldInitSystem,
   WorldEntitySystem,
-  WorldTimelineSystem,
 } from './world-init-bundle-deps'
 import type { WorldConfig, WorldSnapshot } from './types'
 import {
-  createWorldInitAIService,
   createWorldInitPipelineContext,
   injectWorldInitOrchestratorContext,
   runWorldInitPipeline,
   syncEntitiesToMapMarkers,
 } from './utils/world-init-pipeline'
 import { buildWorldInitPipelineBudgets } from './utils/world-init-budgets'
-import { buildWorldInitContentLogMetaResolver } from './utils/world-init-ai-validation'
 import { isWorldInitAIAvailable } from './utils/world-init-fallback'
 import { resolvePipelineAnchorYear } from './utils/world-init-anchor-year'
 
@@ -54,7 +50,6 @@ export interface WorldInitBundleResult {
   calibrationGenerated: boolean
   tagsGenerated: boolean
   configGenerated: boolean
-  timelineGenerated: boolean
   entitiesGenerated: boolean
   errors: string[]
   rawTags?: string[]
@@ -109,18 +104,6 @@ export async function commitWorldInitialization(
   // 同步定居点为地图标记
   syncEntitiesToMapMarkers(entities)
 
-  const timelineSystem = new WorldTimelineSystem()
-  timelineSystem.init(
-    worldCode,
-    worldCode,
-    resolvedConfig.essenceTag,
-    resolvedConfig.name,
-    resolvedConfig.description,
-    anchorYear,
-    resolvedConfig.civilizationStage,
-    syncCoherence,
-  )
-
   const formattedTags = formatWorldTagsText(snapshot.tags)
 
   console.info(
@@ -151,7 +134,6 @@ export async function generateWorldInitBundle(
       calibrationGenerated: false,
       tagsGenerated: false,
       configGenerated: false,
-      timelineGenerated: false,
       entitiesGenerated: false,
       errors: [],
     }
@@ -171,19 +153,14 @@ export async function generateWorldInitBundle(
 
   const result = await runWorldInitPipeline(ctx)
 
-  // 缓存已初始化的 timelineSystem 实例，供后续 startTimelineStageBackground 复用
-  if (ctx.timelineSystem) {
-    cacheTimelineSystem(worldCode, ctx.timelineSystem)
-  }
-
   await injectWorldInitOrchestratorContext(config, result.rawTags)
 
   const successCount = [
     result.calibrationGenerated, result.tagsGenerated, result.configGenerated,
-    result.timelineGenerated, result.entitiesGenerated,
+    result.entitiesGenerated,
   ].filter(Boolean).length
   console.info(
-    `[mod-world] 世界 "${config.name}" AI 初始化完成: ${successCount}/5 成功` +
+    `[mod-world] 世界 "${config.name}" AI 初始化完成: ${successCount}/4 成功` +
     (result.errors.length > 0 ? `，${result.errors.length} 项失败` : ''),
   )
   if (result.errors.length > 0) {
@@ -209,44 +186,15 @@ function releaseFillLock(key: string): void {
   _IN_PROGRESS_FILLS.delete(key)
 }
 
-// ========== WorldTimelineSystem 实例缓存（避免重复 init） ==========
-
-const _TIMELINE_SYSTEM_CACHE = new Map<number, WorldTimelineSystem>()
-const _TIMELINE_SYSTEM_MAX_CACHE = 3
-
-/** pipeline 完成时将已初始化的 timelineSystem 实例缓存 */
-function cacheTimelineSystem(worldCode: number, system: WorldTimelineSystem): void {
-  if (_TIMELINE_SYSTEM_CACHE.has(worldCode)) return
-  // LRU：超出上限时删除最早条目
-  if (_TIMELINE_SYSTEM_CACHE.size >= _TIMELINE_SYSTEM_MAX_CACHE) {
-    const oldestKey = _TIMELINE_SYSTEM_CACHE.keys().next().value
-    if (oldestKey !== undefined) _TIMELINE_SYSTEM_CACHE.delete(oldestKey)
-  }
-  _TIMELINE_SYSTEM_CACHE.set(worldCode, system)
-}
-
-/** 获取或创建 WorldTimelineSystem 实例。优先取缓存，缓存未命中时调用 factory */
-function getOrCreateTimelineSystem(
-  worldCode: number,
-  factory: () => WorldTimelineSystem,
-): WorldTimelineSystem {
-  const cached = _TIMELINE_SYSTEM_CACHE.get(worldCode)
-  if (cached) return cached
-  const system = factory()
-  _TIMELINE_SYSTEM_CACHE.set(worldCode, system)
-  return system
-}
-
 /** 后台静默 AI 初始化（不阻塞 UI）
  *
- * 双通道策略（费用：5 次 AI 调用，和改造前一样，不翻倍）：
+ * 双通道策略：
  *   1. 服务端管道 /api/world-init —— 校准+标签（2 次 AI）
  *      直连 DeepSeek，不受客户端切页面 abort 影响
- *   2. 客户端管道 generateWorldInitBundle —— 全 5 步
- *      检测到 store 已存校准缓存 → 自动跳过 step 1-2 → 实际调用 3 次
- *      复用服务端结果但用 WorldTimelineSystem / EntitySystem 做完整校验
+ *   2. 客户端管道 generateWorldInitBundle —— 校准+标签+实体（3 步）
+ *      检测到 store 已存校准缓存 → 自动跳过 step 1-2 → 实际调用 1 次
  *
- *   总计：服务端 2 + 客户端 3 = 5 次。
+ *   总计：服务端 2 + 客户端 1 = 3 次。
  *   fate-preview 页的 useWorldInitPoller 轮询服务端结果写入 store，
  *   客户端管道检测到 store 命中后跳过，避免双倍调用。
  */
@@ -285,57 +233,9 @@ export function startBackgroundWorldInit(
     })
   }
 
-  // ── 通道 2：客户端管道（时间线 + 上古史 + 实体） ──
+  // ── 通道 2：客户端管道（实体） ──
   void generateWorldInitBundle(config, worldCode, startingYear).catch((err) => {
     console.warn('[mod-world] 后台世界 AI 初始化失败', err)
-  }).finally(() => {
-    releaseFillLock(lockKey)
-  })
-}
-
-/** 后台填充指定时间线阶段（游戏内滑动窗口扩展） */
-export function startTimelineStageBackground(
-  config: WorldConfig,
-  worldCode: number,
-  stageIndex: number,
-): void {
-  const lockKey = `tl:${worldCode}:stage${stageIndex}`
-  if (!tryAcquireFillLock(lockKey)) return
-
-  const { customKey } = useSettingsStore.getState()
-  const { eraStartYear } = useWorldStore.getState()
-  if (!customKey) { releaseFillLock(lockKey); return }
-
-  // 复用缓存实例（pipeline 已完成 init + setAIService），新实例才走 factory
-  const timelineSystem = getOrCreateTimelineSystem(worldCode, () => {
-    const ts = new WorldTimelineSystem()
-    ts.init(
-      worldCode,
-      worldCode,
-      config.essenceTag,
-      config.name,
-      config.description,
-      eraStartYear || undefined,
-    )
-    ts.setAIService(
-      createWorldInitAIService(
-        WORLD_AI_CONFIG,
-        worldTimelinePrompt.systemPrompt,
-        buildWorldInitPipelineBudgets(config.description.length).timeline,
-        'world-init/pipeline:timeline-fill',
-        buildWorldInitContentLogMetaResolver('timeline', {
-          worldDescription: config.description,
-          worldType: config.worldType,
-        }),
-        { subPool: 'tl', worldCode },
-        worldTimelinePrompt.outputSchema,
-      ),
-    )
-    return ts
-  })
-
-  void timelineSystem.fillStageWithAI(stageIndex).catch((err) => {
-    console.warn(`[mod-world] 时间线阶段 ${stageIndex} 后台填充失败`, err)
   }).finally(() => {
     releaseFillLock(lockKey)
   })

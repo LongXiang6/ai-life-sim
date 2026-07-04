@@ -23,7 +23,7 @@ export {
   TOKEN_BUDGET_HEADROOM,
 } from './utils'
 export type { EstimateTokenBudgetOptions } from './utils'
-export { getRoundSequence, getAgeYearsDelta, consumeSimulationYears } from './utils/round-advance'
+export { getRoundSequence } from './utils/round-advance'
 export type {
   AttrTagMap,
   ExtractedAttrs,

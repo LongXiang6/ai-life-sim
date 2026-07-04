@@ -35,7 +35,6 @@ export const NARRATIVE_PROMPT_KEYS = {
   LONG_TERM_MEMORY: 'long_term_memory',     // 长期记忆/关键事件
   NARRATIVE_DIRECTION: 'narrative_direction', // 叙事方向/玩家选择
   SAFETY_GUIDE: 'safety_guide',             // 安全约束/禁止内容
-  TIMELINE_CONTEXT: 'timeline_context',     // 时间线/历史事件
 } as const
 
 /** 叙事 Prompt Key 类型 */

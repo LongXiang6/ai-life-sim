@@ -14,9 +14,6 @@ export type {
   Settlement,
   TradeRoute,
   AnyWorldEntity,
-  TimelineEvent,
-  StageMeta,
-  WorldTimelineInternalState,
   WorldSnapshot,
   RegionData,
   // 世界标签 V2（6×39 层次标签体系）
@@ -38,7 +35,6 @@ export type {
 
 // 常量
 export {
-  STAGE_SPAN,
   ESSENCE_TAGS,
   MAP_TEMPLATES,
   SPACE_POWER_CAP,
@@ -88,7 +84,6 @@ export { useWorldInitPoller } from './hooks/useWorldInitPoller'
 // AI Prompts
 export { worldConfigPrompt } from './prompts/world-config-prompt'
 export { worldTagsPrompt } from './prompts/world-tags-prompt'
-export { worldTimelinePrompt } from './prompts/world-timeline-prompt'
 export { worldEntityPrompt } from './prompts/world-entity-prompt'
 export { worldCalibrationPrompt, worldCalibrationOutputSchema } from './prompts/world-calibration-prompt'
 export { worldDimensionCalibrationPrompt, worldDimensionCalibrationOutputSchema } from './prompts/world-dimension-calibration-prompt'
@@ -99,8 +94,6 @@ export {
   clampCalibration,
   clampModifier,
   formatCalibrationSummary,
-  getEventDistributionStrategy,
-  getImpactRangeModifier,
   getWorldviewStyleHint,
   FORMULA_KEYS,
   inferMapTemplate,
@@ -109,14 +102,9 @@ export {
   MODIFIER_MAX,
 } from './utils/calibration-clamp'
 
-export { getStageIndex } from './utils/stage-index'
+export { getWorldCalibration, getFormulaModifier } from './utils/calibration-access'
 
 export { formatAdaptationCalibrationBlock, fillAdaptationPrompt } from './utils/adaptation-prompt-calibration'
-
-export {
-  getWorldCalibration,
-  getFormulaModifier,
-} from './utils/calibration-access'
 
 export {
   isWorldInitAIAvailable,
@@ -127,9 +115,7 @@ export {
 
 export {
   buildWorldCoherenceHint,
-  buildTimelineStyleHint,
   resolveWorldviewStyleHint,
-  TIMELINE_NARRATIVE_STYLE,
   NARRATIVE_STYLE_DEFAULT,
 } from './utils/world-coherence-hints'
 

@@ -8,7 +8,6 @@ import assert from 'node:assert/strict'
 
 import {
   buildDefaultCalibration,
-  getEventDistributionStrategy,
 } from '@/mods/mod-world/utils/calibration-clamp'
 
 import { baseConfig, formula } from './world-calibration-test-helpers'
@@ -18,7 +17,7 @@ function testPrehistoricPrimitive() {
   const cal = buildDefaultCalibration(
     baseConfig({ civilizationStage: 'primitive', essenceTag: 'historical' }),
   )
-  const strategy = getEventDistributionStrategy(cal)
+  const strategy = cal.formulas?.eventDistributionStrategy
 
   assert.equal(strategy, 'prehistoric', 'strategy 应为 prehistoric')
   assert.ok(
@@ -56,7 +55,7 @@ function testPostApocalyptic() {
   const cal = buildDefaultCalibration(
     baseConfig({ essenceTag: 'postApocalyptic', civilizationStage: 'modern' }),
   )
-  const strategy = getEventDistributionStrategy(cal)
+  const strategy = cal.formulas?.eventDistributionStrategy
 
   assert.equal(strategy, 'apocalyptic', 'strategy 应为 apocalyptic')
   assert.ok(
@@ -110,7 +109,7 @@ function testCultivationMystical() {
       civilizationStage: 'medieval',
     }),
   )
-  const strategy = getEventDistributionStrategy(cal)
+  const strategy = cal.formulas?.eventDistributionStrategy
 
   assert.equal(strategy, 'mystical', 'strategy 应为 mystical')
   assert.ok(

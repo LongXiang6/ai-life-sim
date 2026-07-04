@@ -85,20 +85,6 @@ const WORLD_INIT_STEPS = [
     doneFlag: (s: WorldInitAIStatus) => s.tagsGenerated,
   },
   {
-    id: 'timeline',
-    label: '时间线生成',
-    icon: '📜',
-    description: '构建世界时间线与阶段骨架',
-    doneFlag: (s: WorldInitAIStatus) => s.timelineGenerated,
-  },
-  {
-    id: 'past-history',
-    label: '过去历史',
-    icon: '📖',
-    description: '生成世界上古历史事件',
-    doneFlag: (s: WorldInitAIStatus) => s.pastHistoryGenerated,
-  },
-  {
     id: 'entities',
     label: '实体生成',
     icon: '🏛️',
@@ -210,7 +196,6 @@ export default function FatePreviewPage() {
   const aiFailed = worldInitAIStatus?.status === 'failed'
   const aiProgress = worldInitAIStatus
     ? [worldInitAIStatus.calibrationGenerated, worldInitAIStatus.tagsGenerated,
-       worldInitAIStatus.timelineGenerated, worldInitAIStatus.pastHistoryGenerated,
        worldInitAIStatus.entitiesGenerated]
       .filter(Boolean).length
     : 0
@@ -376,7 +361,7 @@ export default function FatePreviewPage() {
                 : aiIsRunning ? '🌍 世界数据初始化中…'
                 : '🌍 等待世界数据初始化…'}
             </span>
-            <span className={styles.initPanelCounter}>{aiProgress}/5 步骤完成</span>
+            <span className={styles.initPanelCounter}>{aiProgress}/4 步骤完成</span>
           </div>
           <div className={styles.initStepList}>
             {WORLD_INIT_STEPS.map((step) => {
