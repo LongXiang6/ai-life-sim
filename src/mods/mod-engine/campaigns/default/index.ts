@@ -55,7 +55,9 @@ export function loadStages(
     {
       name: 'advance-time',
       onEnter: (_ctx) => {
-        eventBus.emit('mod-engine:round-start', orchestrator.getRound())
+        if (!orchestrator.isPreviewExecution()) {
+          eventBus.emit('mod-engine:round-start', orchestrator.getRound())
+        }
         orchestrator.advanceTime()
       },
       maxRounds: 1,
@@ -65,6 +67,7 @@ export function loadStages(
     {
       name: 'subsystem-advance',
       onEnter: () => {
+        if (orchestrator.isPreviewExecution()) return
         orchestrator.advanceAllSubsystems()
       },
       maxRounds: 1,
@@ -103,6 +106,10 @@ export function loadStages(
       name: 'cross-domain',
       onEnter: async (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
+        if (orchestrator.isPreviewExecution()) {
+          ctx._crossDomainTriggered = false
+          return
+        }
         const hadMacroEvents = !!ctx._eventInjectionText
         await orchestrator.executeCrossDomainLinkage()
         ctx._crossDomainTriggered = true
@@ -295,6 +302,14 @@ export function loadStages(
         const ctx = _ctx as StageRuntimeContext
         if (!ctx._fullContent) return
         orchestrator.setLastExecutedFullContent(ctx._fullContent)
+        if (orchestrator.isPreviewExecution()) {
+          ctx._roundResult = {
+            narrative: '',
+            changes: [],
+            notableEvents: [],
+          }
+          return
+        }
         const result = orchestrator.handleNarrativeResponse(ctx._fullContent)
 
         // 存储 notableEvents，供下一轮跨域联动使用
@@ -323,16 +338,16 @@ export function loadStages(
     {
       name: 'epilogue-check',
       onEnter: async (_ctx) => {
+        if (orchestrator.isPreviewExecution()) return
         await orchestrator.checkAndTriggerEpilogue(aiConfig, sessionId)
       },
       maxRounds: 1,
     },
 
-    // === 阶段 11: 压缩 + 自动保存（由 handleNarrativeResponse 内部处理） ===
+    // === 阶段 11: 预留扩展点（压缩在 handleNarrativeResponse 内部，自动保存由 hooks.ts 调用） ===
     {
       name: 'compress-save',
       onEnter: () => {
-        // handleNarrativeResponse 内部已调用 checkAndCompress() + triggerAutoSave()
         // 此阶段为占位，供未来扩展
       },
       maxRounds: 1,

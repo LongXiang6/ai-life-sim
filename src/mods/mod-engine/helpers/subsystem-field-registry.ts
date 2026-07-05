@@ -164,14 +164,6 @@ export const SUBSYSTEM_FIELD_MAP: Record<string, SubsystemFieldMeta> = {
   },
 }
 
-/**
- * 将注册表格式化为 Prompt 注入文本
- * @deprecated 已迁移至 System Prompt 的 subsystemGuide 字段，由叙事 prompts 直接定义。本函数保留仅供调试用途，不应再在运行时使用。
- */
-export function formatSubsystemFieldsForPrompt(_limitToIds?: string[]): string {
-  return '' // 已废弃：不再注入 User Prompt
-}
-
 // ============================================================
 // Zod 校验 Schema（AI changes 合法性验证）
 // ============================================================
@@ -291,12 +283,6 @@ export const SUBSYSTEM_CHANGE_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>
   'combat-power': z.object({
     rank: z.coerce.number().min(0).max(100).optional(),
     delta: z.coerce.number().optional(),
-  }).passthrough(),
-
-  'fate-prophecy': z.object({
-    prophecy: z.string().optional(),
-    deadline: z.coerce.number().optional(),
-    triggerCondition: z.string().optional(),
   }).passthrough(),
 }
 

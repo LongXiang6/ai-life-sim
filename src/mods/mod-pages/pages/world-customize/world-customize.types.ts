@@ -4,17 +4,14 @@
  * @mod mod-pages
  */
 
-import { UNIT_NAMES, RATING_DESCRIPTIONS, TRUE_INFINITE_DESCRIPTION } from '@/mods/mod-power-system'
-
 /** 字段大类 */
 export type FieldCategory = 'macro'
 
 /** 维度模式 */
-export type FieldMode = 'ai' | 'adaptive' | 'custom'
+export type FieldMode = 'adaptive' | 'custom'
 
 /** 模式标签 */
 export const FIELD_MODE_LABELS: Record<FieldMode, string> = {
-  ai: 'AI决定',
   adaptive: '选择',
   custom: '自定义',
 }
@@ -49,13 +46,12 @@ export const CATEGORY_LABELS: Record<FieldCategory, string> = {
   macro: '宇宙基础设定',
 }
 
-/** 生成力量上限选项（1-24阶，数字+单位名+详细描述） */
-function buildPowerCeilingOptions(_maxLevel: number): string[] {
+/** 生成力量上限选项（1-24阶）。页面只产出世界配置，不依赖力量系统运行时。 */
+function buildPowerCeilingOptions(maxLevel: number): string[] {
   const result: string[] = []
-  for (let i = 1; i <= 24; i++) {
-    const unit = UNIT_NAMES[i] ? `【${UNIT_NAMES[i]}级】` : ''
-    const desc = i === 24 ? TRUE_INFINITE_DESCRIPTION : (RATING_DESCRIPTIONS[i] ?? '')
-    result.push(`${i}阶${unit}：${desc}`)
+  const max = Math.min(Math.max(maxLevel, 1), 24)
+  for (let i = 1; i <= max; i++) {
+    result.push(`${i}阶`)
   }
   return result
 }
@@ -97,14 +93,6 @@ export function buildFieldDefs(maxPowerCeiling = 24): Array<Omit<EditableField, 
       options: ['位面', '宇宙', '位面晶壁群系', '多元宇宙群系', '诸天万界'],
       icon: '🌍',
       description: '决定世界的空间形态',
-    },
-    {
-      key: 'civilizationStage',
-      category: 'macro',
-      label: '文明阶段',
-      options: ['原始', '古代', '中世纪', '近代', '现代', '未来'],
-      icon: '🏛️',
-      description: '决定文明的发展程度',
     },
   ]
 }

@@ -15,7 +15,7 @@ import { encodeTimeStepKey } from '@/foundation'
 
 import { useSettingsStore } from '@/mods/mod-settings'
 
-import { orchestrator } from '../engine-api'
+import { orchestrator } from '../subsystems/orchestrator-system'
 import { useEngineStore } from '../store'
 import { computeNarrativeMaxTokens, DEFAULT_WORD_COUNT_TARGET } from '../constants/narrative-config'
 
@@ -108,15 +108,52 @@ export function checkAndClearPreGenOnTimeStepChange(currentStep: TimeStep): bool
 
 
 
-export function shiftPreGenQueue(): PreGenCachedRound | undefined {
+function takePreGenQueueItem(shouldNotify: boolean): PreGenCachedRound | undefined {
   const item = preGenQueue.shift()
-  notifyPreGenListeners()
   // 预生成防御：消费到分支点叙事 → 立即清空剩余预生成队列，避免后续预生成内容携带未解决分支
   if (item?.isBranchPoint) {
     console.log('[PreGen] 消费到分支点叙事，已清空预生成队列')
-    clearPreGenQueue()
+    preGenQueue.length = 0
+    preGenGen += 1
+    isPreGenActive = false
   }
+  if (shouldNotify) notifyPreGenListeners()
   return item
+}
+
+export function shiftPreGenQueue(): PreGenCachedRound | undefined {
+  return takePreGenQueueItem(true)
+}
+
+export function waitForPreGenQueueItem(timeoutMs?: number): Promise<PreGenCachedRound | undefined> {
+  const immediate = takePreGenQueueItem(true)
+  if (immediate || !isPreGenActive) return Promise.resolve(immediate)
+
+  return new Promise((resolve) => {
+    let settled = false
+    let unsubscribe: (() => void) | null = null
+    let timer: ReturnType<typeof setTimeout> | null = null
+
+    const finish = (item?: PreGenCachedRound) => {
+      if (settled) return
+      settled = true
+      if (timer) clearTimeout(timer)
+      unsubscribe?.()
+      resolve(item)
+    }
+
+    unsubscribe = subscribePreGenQueue(() => {
+      const item = takePreGenQueueItem(false)
+      if (item || !isPreGenActive) {
+        finish(item)
+        notifyPreGenListeners()
+      }
+    })
+
+    if (timeoutMs !== undefined && timeoutMs > 0) {
+      timer = setTimeout(() => finish(undefined), timeoutMs)
+    }
+  })
 }
 
 
@@ -215,7 +252,9 @@ export async function fillPreGenQueue(
 
   try {
 
-    await orchestrator.executeRoundV2(promptTemplate, aiConfig, sessionId)
+    await orchestrator.runPreviewRound(() =>
+      orchestrator.executeRoundV2(promptTemplate, aiConfig, sessionId),
+    )
 
 
 

@@ -73,7 +73,9 @@ export interface CompressionResult {
   /** 本轮新生成的 L1 摘要文本（可能为空） */
   newLatestSummary: string
   /** 是否需要在 UI 显示本轮总结 */
-  shouldShowSummary: boolean,
+  shouldShowSummary: boolean
+  /** 本轮是否真实生成或降级写入了新的压缩摘要 */
+  didCompress: boolean,
 }
 
 // 兼容旧导出
@@ -213,6 +215,7 @@ export class SummaryCompressorSystem implements ISubSystem {
         newCompressedSummaries: this.compressedSummaries,
         newLatestSummary: '',
         shouldShowSummary: false,
+        didCompress: false,
       }
     }
 
@@ -224,6 +227,11 @@ export class SummaryCompressorSystem implements ISubSystem {
     let summaries = [...this.compressedSummaries.summaries]
     let newLatestSummary = ''
     let shouldShowSummary = false
+    let didCompress = false
+    const appendSummary = (summary: CompressedSummaryItem): void => {
+      summaries = [...summaries, summary]
+      didCompress = true
+    }
 
     // ============================================================
     // Step 2: L1 块总结
@@ -283,7 +291,7 @@ export class SummaryCompressorSystem implements ISubSystem {
           })
 
           const trimmed = this.sanitizeContent(raw)
-          summaries = [...summaries, { level: 1 as const, startRound, endRound, content: trimmed }]
+          appendSummary({ level: 1 as const, startRound, endRound, content: trimmed })
           newLatestSummary = trimmed
           shouldShowSummary = true
           this.stats.totalL1++
@@ -298,7 +306,7 @@ export class SummaryCompressorSystem implements ISubSystem {
           const fallback = fallbackParts.length > 0
             ? fallbackParts.join('；')
             : `${startRound}~${endRound}轮叙事概略（生成失败）`
-          summaries = [...summaries, { level: 1 as const, startRound, endRound, content: fallback }]
+          appendSummary({ level: 1 as const, startRound, endRound, content: fallback })
           newLatestSummary = fallback
           shouldShowSummary = true
           this.stats.totalL1++
@@ -356,15 +364,15 @@ export class SummaryCompressorSystem implements ISubSystem {
               logMeta: { userId: `summ-${summarySessionId}` },
             })
 
-            summaries = [...summaries, { level: 2 as const, startRound, endRound, content: this.sanitizeContent(raw) }]
+            appendSummary({ level: 2 as const, startRound, endRound, content: this.sanitizeContent(raw) })
             this.stats.totalL2++
           } catch {
-            summaries = [...summaries, {
+            appendSummary({
               level: 2 as const,
               startRound,
               endRound,
               content: `${startRound}~${endRound}轮综合概略`,
-            }]
+            })
             this.stats.totalL2++
           }
         }
@@ -422,15 +430,15 @@ export class SummaryCompressorSystem implements ISubSystem {
               logMeta: { userId: `summ-${summarySessionId}` },
             })
 
-            summaries = [...summaries, { level: 3 as const, startRound, endRound, content: this.sanitizeContent(raw) }]
+            appendSummary({ level: 3 as const, startRound, endRound, content: this.sanitizeContent(raw) })
             this.stats.totalL3++
           } catch {
-            summaries = [...summaries, {
+            appendSummary({
               level: 3 as const,
               startRound,
               endRound,
               content: `${startRound}~${endRound}轮时代概略`,
-            }]
+            })
             this.stats.totalL3++
           }
         }
@@ -487,15 +495,15 @@ export class SummaryCompressorSystem implements ISubSystem {
               logMeta: { userId: `summ-${summarySessionId}` },
             })
 
-            summaries = [...summaries, { level: 4 as const, startRound, endRound, content: this.sanitizeContent(raw) }]
+            appendSummary({ level: 4 as const, startRound, endRound, content: this.sanitizeContent(raw) })
             this.stats.totalL4++
           } catch {
-            summaries = [...summaries, {
+            appendSummary({
               level: 4 as const,
               startRound,
               endRound,
               content: `${startRound}~${endRound}轮纪元概略`,
-            }]
+            })
             this.stats.totalL4++
           }
         }
@@ -552,15 +560,20 @@ export class SummaryCompressorSystem implements ISubSystem {
               logMeta: { userId: `summ-${summarySessionId}` },
             })
 
-            summaries = [...summaries, { level: 5, startRound, endRound, content: this.sanitizeContent(raw) } as unknown as CompressedSummaryItem]
+            appendSummary({
+              level: 5,
+              startRound,
+              endRound,
+              content: this.sanitizeContent(raw),
+            } as unknown as CompressedSummaryItem)
             this.stats.totalL5++
           } catch {
-            summaries = [...summaries, {
+            appendSummary({
               level: 5,
               startRound,
               endRound,
               content: `${startRound}~${endRound}轮时代概略`,
-            } as unknown as CompressedSummaryItem]
+            } as unknown as CompressedSummaryItem)
             this.stats.totalL5++
           }
         }
@@ -617,15 +630,20 @@ export class SummaryCompressorSystem implements ISubSystem {
               logMeta: { userId: `summ-${summarySessionId}` },
             })
 
-            summaries = [...summaries, { level: 6, startRound, endRound, content: this.sanitizeContent(raw) } as unknown as CompressedSummaryItem]
+            appendSummary({
+              level: 6,
+              startRound,
+              endRound,
+              content: this.sanitizeContent(raw),
+            } as unknown as CompressedSummaryItem)
             this.stats.totalL6++
           } catch {
-            summaries = [...summaries, {
+            appendSummary({
               level: 6,
               startRound,
               endRound,
               content: `${startRound}~${endRound}轮历史概略`,
-            } as unknown as CompressedSummaryItem]
+            } as unknown as CompressedSummaryItem)
             this.stats.totalL6++
           }
         }
@@ -639,12 +657,15 @@ export class SummaryCompressorSystem implements ISubSystem {
       summaries = summaries.slice(-MAX_SUMMARIES)
     }
     this.compressedSummaries = { summaries }
-    this.stats.lastCompressionAt = Date.now()
+    if (didCompress) {
+      this.stats.lastCompressionAt = Date.now()
+    }
 
     return {
       newCompressedSummaries: { summaries },
       newLatestSummary,
       shouldShowSummary,
+      didCompress,
     }
   }
 

@@ -912,7 +912,14 @@ scoreImportance(narrative: string, round: number,): ImportanceResult {
       maxImportance,
     }
 
-    this.searchIndex.push(entry,)
+    const existingIndex = this.searchIndex.findIndex(
+      (e,) => e.level === level && e.startRound === startRound && e.endRound === endRound,
+    )
+    if (existingIndex >= 0) {
+      this.searchIndex[existingIndex] = entry
+    } else {
+      this.searchIndex.push(entry,)
+    }
 
     // 限制索引大小
     if (this.searchIndex.length > MAX_INDEX_ENTRIES) {

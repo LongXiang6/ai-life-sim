@@ -23,23 +23,39 @@ const orchestrator = fs.readFileSync(
   path.join(root, 'src/mods/mod-engine/subsystems/orchestrator-system.ts'),
   'utf8',
 )
+const memoryLifecycle = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/subsystems/memory-lifecycle-system.ts'),
+  'utf8',
+)
+const summaryCompressor = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/subsystems/summary-compressor-system.ts'),
+  'utf8',
+)
+const summaryPrompt = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/prompts/summary-prompt.ts'),
+  'utf8',
+)
+const promptContract = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/bootstrap/prompt-context-contract.generated.ts'),
+  'utf8',
+)
 
 let failed = 0
 
-const requiredKeys = [
-  'worldCalibrationSummary',
+const requiredContextFields = [
+  'calibrationSummary',
   'memorySummary',
-  'eventInjection',
+  'eventInjectionText',
   'timeBridgeSummary',
   'narrativeToneHint',
-  'currentState',
+  'subsystemSummaries',
   'character',
   'worldSetting',
 ]
 
-for (const key of requiredKeys) {
-  if (!promptBuilder.includes(`'${key}'`)) {
-    console.error(`FAIL: prompt-builder missing JSON key ${key}`)
+for (const key of requiredContextFields) {
+  if (!promptBuilder.includes(`context.${key}`)) {
+    console.error(`FAIL: prompt-builder missing context field ${key}`)
     failed++
   }
 }
@@ -69,6 +85,64 @@ if (!orchestrator.includes('generateCompressedSummaries')) {
   failed++
 }
 
+const buildYearEventsStart = orchestrator.indexOf('private buildYearEvents')
+const buildYearEventsEnd = orchestrator.indexOf('/** Phase 6', buildYearEventsStart)
+const buildYearEvents = buildYearEventsStart >= 0 && buildYearEventsEnd > buildYearEventsStart
+  ? orchestrator.slice(buildYearEventsStart, buildYearEventsEnd)
+  : ''
+if (!buildYearEvents.includes('n.displayAge') || !buildYearEvents.includes('n.displayTimeLabel')) {
+  console.error('FAIL: buildYearEvents must use per-entry displayAge/displayTimeLabel')
+  failed++
+}
+
+if (!orchestrator.includes('decision.shouldCompress && result.didCompress')) {
+  console.error('FAIL: compression cleanup must wait for a real compression result')
+  failed++
+}
+
+if (
+  !memoryLifecycle.includes('existingIndex') ||
+  !memoryLifecycle.includes('e.level === level && e.startRound === startRound && e.endRound === endRound')
+) {
+  console.error('FAIL: memory lifecycle index must dedupe by level/startRound/endRound')
+  failed++
+}
+
+if (
+  !summaryCompressor.includes('didCompress: boolean') ||
+  !summaryCompressor.includes('if (didCompress)') ||
+  !summaryCompressor.includes('didCompress: false')
+) {
+  console.error('FAIL: summary compressor must report real compression and guard lastCompressionAt')
+  failed++
+}
+
+if (
+  !summaryPrompt.includes('只总结 eventRecords.narrative') ||
+  !summaryPrompt.includes('模拟系统可能延后')
+) {
+  console.error('FAIL: summary prompt must forbid inferred deferred simulation states')
+  failed++
+}
+
+const runtimeNarrativeVars = [
+  'narrativeToneHint',
+  'timeBridgeSummary',
+  'causalChainHint',
+  'timeGuideText',
+  'narrativeGuidanceText',
+]
+for (const variable of runtimeNarrativeVars) {
+  if (!narrativePrompt.includes(`'${variable}'`)) {
+    console.error(`FAIL: narrative prompt variables missing ${variable}`)
+    failed++
+  }
+  if (!promptContract.includes(`"${variable}"`)) {
+    console.error(`FAIL: prompt context contract missing narrative variable ${variable}`)
+    failed++
+  }
+}
+
 if (!promptBuilder.includes('buildConversationMessages')) {
   console.error('FAIL: buildConversationMessages / S3 not wired')
   failed++
@@ -93,8 +167,8 @@ if (!orchestrator.includes('lastNarrativeText')) {
 const fastMatch = promptBuilder.match(/const FAST_JSON_KEYS = \[([\s\S]*?)\] as const/)
 if (fastMatch) {
   const fastBlock = fastMatch[1]
-  const eventIdx = fastBlock.indexOf("'eventInjection'")
-  const stateIdx = fastBlock.indexOf("'currentState'")
+  const eventIdx = fastBlock.indexOf("'事件注入'")
+  const stateIdx = fastBlock.indexOf("'当前状态'")
   if (eventIdx < 0 || stateIdx < 0 || eventIdx > stateIdx) {
     console.error('FAIL: FAST_JSON_KEYS order — eventInjection must precede currentState')
     failed++

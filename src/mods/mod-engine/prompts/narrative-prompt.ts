@@ -23,6 +23,10 @@ import type { PromptTemplate } from '@/foundation'
 import { stringifyPrompt } from '@/foundation'
 
 import { z } from 'zod'
+import {
+  MVP_ALLOWED_SUBSYSTEMS_TEXT,
+  MVP_SUBSYSTEM_GUIDE,
+} from '../helpers/mvp-runtime-policy'
 
 /** AI JSON Mode 预期输出 Zod Schema */
 const NarrativeResponseSchema = z.object({
@@ -117,51 +121,7 @@ export const WORLD_RULES: Record<string, string> = {
  * 子系统变更字段指南（从 System Prompt 移出，由 orchestrator 动态注入 User Prompt）
  * 包含各子系统可变更字段说明与跨系统联动规则
  */
-export const SUBSYSTEM_GUIDE = `character-base:
-  physique(0~100) mind(0~100) comprehension(0~100) charisma(0~100) background(0~100)
-health:
-  hpDelta(-50~20) staminaDelta(N) spiritDelta(N) addDiseases[](name,severity,rounds) addInjuries[](name,severity,rounds)
-lifespan:
-  age(N) maxAge(N) lifespanDelta(±)
-cultivation:
-  realm(1~9) cultivationProgress(0~100) bottleneck(enum:physique|mind|comprehension|none)
-combat-power:
-  rank(0~100) delta(±)
-work:
-  job(str) income(±) promotion(bool)
-economy:
-  wealth(±) priceIndex(N) activityLevel(0~1) socialClass(enum:noble|commoner|peasant|merchant|cultivator)
-relationship:
-  addRelation[](name,affinity:±N,reason) affinityDelta(±)
-reputation:
-  fame(0~100) addFame(±) setFame(N) addReputation(±) dimension(str)
-morality:
-  value(-100~100) delta(±)
-luck:
-  bonus delta(±)
-faith:
-  devotionLevel(0~100) delta(±)
-family:
-  status(enum:stable|conflict|dispersed|reunited) members
-education:
-  level(0~10) progress(0~100) graduated
-market:
-  activityLevel(0~1) trend(enum:bullish|bearish|stable)
-population:
-  total growthRate migrationDirection(enum:inward|outward|none)
-fate-prophecy:
-  prophecy deadline(year) triggerCondition
----
-⚠️ 跨系统联动：
-  character-base.physique → health.hpMax, cultivation.speed
-  health.hp=0 → lifespan.dead → post-death-epilogue 启动
-  lifespan.age → attribute-decay 自动衰减
-  cultivation.realm ↑ → combat-power.rating 重算
-  cultivation.breakthrough → item.丹药 消耗, money 消耗
-  skill.effects.attr → character-base 永久增减
-  item.武器 → combat-power.rating
-  item.丹药 → cultivation.cultivationProgress / health.hpDelta
-  economy.wealth → item 购买力, work.income 影响财富`
+export const SUBSYSTEM_GUIDE = MVP_SUBSYSTEM_GUIDE
 
 /**
  * 固定 System Prompt —— 纯 JSON 结构化指令（KV Cache 100% 命中）
@@ -175,6 +135,8 @@ export const SYSTEM_PROMPT = stringifyPrompt({
       L0: [
           '优先读取用户消息末尾的「指令」字段',
           '叙事须以「当前状态」「最近变化」为核心依据，与历史叙事自然衔接',
+          '「当前时间」是本轮叙事结束节点；正文覆盖上一条叙事时间节点之后到当前节点之间发生的事件',
+          '若叙事历史为空且角色为0岁，本轮只写出生与家世，不概括出生后一整年的成长',
           '保证narrative在最前，changes紧随其后',
           '输出合法JSON，禁止markdown代码块包裹',
           '「原创保护」列出的内容均为角色亲自开创，严禁改写为外部来源',
@@ -189,7 +151,7 @@ export const SYSTEM_PROMPT = stringifyPrompt({
       ],
     },
 
-    allowedSubSystems: '可变更子系统仅下列ID，禁止自编：health lifespan attributes cultivation reputation morality relationships luck economy marriage family faith golden-finger market population settlement skill inventory combat-power work fate-prophecy',
+    allowedSubSystems: MVP_ALLOWED_SUBSYSTEMS_TEXT,
 
     defense: {
       description: '降级策略',
@@ -216,7 +178,7 @@ export const SYSTEM_PROMPT = stringifyPrompt({
       properties: {
         narrative: {
           type: 'string',
-          description: '必填：流畅的中文叙事文本。使用现在时态和第二人称"你"。包含多个自然段落（段落间用换行分隔），段落数量根据情节需要灵活安排。每轮至少包含1个具体细节（物品/地点/人物/感官）。字数遵循叙事偏好设置。应"展示"而非"告诉"——用具体场景和细节推进故事。保持叙事连贯，与前一轮衔接自然。叙事风格符合当前世界观设定，角色年龄与当前回合匹配。⚠️ 严禁以"这一年""本年度""这一轮"作为段落或叙事开头。叙事开头应从具体场景切入：季节/天气/具体事件/感官细节/内心感受。',
+          description: '必填：流畅的中文叙事文本。使用现在时态和第二人称"你"。包含多个自然段落（段落间用换行分隔），段落数量根据情节需要灵活安排。每轮至少包含1个具体细节（物品/地点/人物/感官）。字数遵循叙事偏好设置。应"展示"而非"告诉"——用具体场景和细节推进故事。保持叙事连贯，与前一轮衔接自然。叙事风格符合当前世界观设定，角色年龄与当前回合匹配。「当前时间」是本轮结束节点，正文只写上一叙事节点之后到当前节点之间的事件；0岁首轮只写出生与家世，不写翻身、爬行、学步、说话等后续月份成长。⚠️ 严禁以"这一年""本年度""这一轮"作为段落或叙事开头。叙事开头应从具体场景切入：季节/天气/具体事件/感官细节/内心感受。',
         },
         changes: {
           type: 'array',
@@ -300,28 +262,10 @@ export const SYSTEM_PROMPT = stringifyPrompt({
     },
   },
 
-  skillOperations: {
-    description: '可动态赋予/剥夺角色技能，技能须与世界观和角色经历自然匹配。',
-    grant: {
-      id: 'skill',
-      description: '赋予技能',
-      changes: {
-        newSkills: [
-          {
-            name: '技能名',
-            description: '描述',
-            effects: [{ attr: 'physique', value: 3 }],
-          },
-        ],
-      },
-    },
-    revoke: {
-      id: 'skill',
-      description: '移除技能',
-      changes: {
-        removeSkillId: 'skill_xxx',
-      },
-    },
+  mvpChangePolicy: {
+    description: '当前 MVP 只允许基础属性与寿命结构化变更；技能、经济、声望、关系、修炼、战力等模拟系统延后。',
+    noStateChange: '若本轮只是叙事推进、获得物品、学艺、社交或战斗结果，但没有明确改变 character-base/lifespan 字段，则 changes 返回 []。',
+    birthOpening: '0岁出生开场通常不提交 lifespan.age 变化；除非叙事明确推进到生日后年龄变化，否则 changes 返回 []。',
   },
 
   examples: [
@@ -349,14 +293,11 @@ export const SYSTEM_PROMPT = stringifyPrompt({
       },
     },
     {
-      description: '示例2：技能移除·重伤恢复',
-      input: { character: '角色因重伤暂时无法使用某项已习得技能' },
+      description: '示例2：受伤后的日常恢复',
+      input: { character: '角色因重伤暂时行动不便' },
       output: {
         narrative: '你试着按熟悉的节奏呼吸发力，肌肉却像不听使唤。教练说过的话在脑子里转，身体就是跟不上。你只好放慢动作，从最基本的步骤重新练起。',
-        changes: [
-          { id: 'health', description: '重伤后体能下降', changes: { hp: -30 } },
-          { id: 'skill', description: '暂时无法施展该项技能', changes: { removeSkillId: 'skill_example' } },
-        ],
+        changes: [],
       },
     },
     {
@@ -364,11 +305,7 @@ export const SYSTEM_PROMPT = stringifyPrompt({
       input: { character: '修仙者，遭遇妖兽', worldSetting: '仙侠世界' },
       output: {
         narrative: '你运转灵力，身形如电般闪至妖兽侧面。剑光划破夜空，精准刺入妖兽命门。妖兽发出一声凄厉嘶吼，轰然倒地。\n\n一颗内丹从妖兽体内浮现，散发着柔和青光。周围观战的散修眼中闪过一丝贪婪，却无人敢上前——方才那一剑已让他们认清差距。',
-        changes: [
-          { id: 'skill', description: '剑法实战中突破', changes: { newSkills: [{ name: '剑术', description: '基础剑法', effects: [{ attr: 'physique', value: 3 }] }] } },
-          { id: 'economy', description: '获得妖兽内丹可换灵石', changes: { money: 30 } },
-          { id: 'reputation', description: '一战成名', changes: { fame: 5 } },
-        ],
+        changes: [],
         notableEvents: ['斩杀妖兽', '剑术在实战中突破', '周围散修对主角心生敬畏'],
         importance: 'HIGH',
         branch: true,
@@ -391,10 +328,7 @@ export const SYSTEM_PROMPT = stringifyPrompt({
       input: { character: '铁匠学徒，16岁', worldSetting: '古代城镇' },
       output: {
         narrative: '你在铁匠铺当学徒的第三个月，终于亲手打出了一把像样的短刀。师傅老陈头检查了刀刃，难得没有骂人，只哼了一声"勉强能用"。隔壁药铺的小翠路过时探头看了一眼，笑着说这刀挺好看。你把刀挂在腰间，觉得这个冬天没那么冷了。',
-        changes: [
-          { id: 'skill', description: '锻造技艺初成', changes: { newSkills: [{ name: '锻造', description: '基础锻造', effects: [{ attr: 'physique', value: 2 }] }] } },
-          { id: 'relationships', description: '获得师父认可与邻家好感', changes: { 老陈: 3, 小翠: 5 } },
-        ],
+        changes: [],
         notableEvents: ['锻造出第一把合格短刀', '获得师父认可'],
       },
     },
@@ -403,10 +337,7 @@ export const SYSTEM_PROMPT = stringifyPrompt({
       input: { character: '宗门弟子，19岁，炼气三层', worldSetting: '修仙宗门内门' },
       output: {
         narrative: '你坐在蒲团上吐纳了三个时辰，丹田中那缕真气又壮了一分。执事堂的师兄传讯说本月份例已到——三枚聚气草、五粒养气丹。你将丹药收进储物袋，盘算着够支撑半个月的苦修。\n\n夜深时，你忽然想起山下坊市新到了一批妖兽材料，其中或许有辅助冲脉的虎骨散。但一摸口袋，灵石已经见底。',
-        changes: [
-          { id: 'cultivation', description: '夜间修炼略有精进', changes: { cultivationProgress: 12 } },
-          { id: 'economy', description: '本月份例已领，暂无灵石余额', changes: { wealth: 0 } },
-        ],
+        changes: [],
         notableEvents: ['领取本月宗门份例'],
         importance: 'LOW',
       },
@@ -420,6 +351,8 @@ export const SYSTEM_PROMPT = stringifyPrompt({
         '绝对禁止连续两轮以相同句式开头',
         '禁止使用"这一年"作为任何段落或全文的开头',
         '禁止使用"本年度""这一年里""这一年间"等同类替代',
+        '禁止重复叙述上一轮已经覆盖的年份、季节、月份或日期',
+        '叙事必须落在上一叙事时间节点之后，到「当前时间」为止的时间范围内',
         '近 3 轮叙事的内容/场景/主题不得在本轮重复——必须生成全新事件',
         '若距上一次叙事已过多年，应描写全新阶段的变化，不得延续上次事件的同一场景',
       ],
@@ -466,6 +399,7 @@ export const narrativePrompt: PromptTemplate = {
     '"原创保护": {{creationProtectionText}},',
     '"子系统变更指南": {{subsystemGuideText}},',
     '"叙事风格": {{narrativeStyle}},',
+    '"叙事基调": {{narrativeToneHint}},',
     '"角色": {{character}},',
     '"命格天赋": {{talents}},',
     '"记忆摘要": {{memorySummary}},',
@@ -474,10 +408,14 @@ export const narrativePrompt: PromptTemplate = {
     '"待触发伏笔": {{foreshadowingText}},',
     '"字数约束": {{wordCountInstruction}},',
     '"当前时间": {{currentTime}},',
+    '"时间桥摘要": {{timeBridgeSummary}},',
+    '"因果链提示": {{causalChainHint}},',
+    '"时间描写指南": {{timeGuideText}},',
     '"事件注入": {{eventInjectionText}},',
     '"当前状态": {{subsystemSummaries}},',
     '"最近变化": {{systemChangeSummary}},',
     '"叙事历史": {{narrativeHistory}},',
+    '"叙事引导": {{narrativeGuidanceText}},',
     '"指令": {{userInstruction}}',
     '}',
   ].join('\n'),
@@ -490,7 +428,9 @@ export const narrativePrompt: PromptTemplate = {
     'powerCeilingPresets',
     'worldCustomizeText',
     'creationProtectionText',
+    'subsystemGuideText',
     'narrativeStyle',
+    'narrativeToneHint',
     'character',
     'talents',
     'memorySummary',
@@ -499,11 +439,14 @@ export const narrativePrompt: PromptTemplate = {
     'foreshadowingText',
     'wordCountInstruction',
     'currentTime',
+    'timeBridgeSummary',
+    'causalChainHint',
+    'timeGuideText',
+    'eventInjectionText',
     'subsystemSummaries',
     'systemChangeSummary',
-    'eventInjectionText',
     'narrativeHistory',
-    'subsystemGuideText',
+    'narrativeGuidanceText',
     'userInstruction',
   ],
   outputFormat: 'json',

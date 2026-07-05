@@ -13,10 +13,14 @@ import { useRouter } from 'next/navigation'
 import { clamp } from '@/core/shared'
 
 import { useEngine, useNarrative, useSimulationAdvance, usePreGenQueueStatus } from '@/mods/mod-engine'
-import { collectGameSavePayload, formatNarrativeTimeLabel } from '@/mods/mod-engine/engine-api'
-import { orchestrator } from '@/mods/mod-engine/engine-api'
+import {
+  AVAILABLE_TIME_STEPS,
+  encodeTimeStepKey,
+  formatCurrentNarrativeTimeLabel,
+  saveCurrentGameToSlot,
+  setSimulationTimeStepByKey,
+} from '@/mods/mod-engine/engine-api'
 import { useEngineStore } from '@/mods/mod-engine'
-import { encodeTimeStepKey, decodeTimeStepKey, AVAILABLE_TIME_STEPS } from '@/foundation/constants/time-steps'
 import {
   useCharacterStore,
   ATTRIBUTE_NAMES,
@@ -27,32 +31,21 @@ import {
 } from '@/mods/mod-character'
 import { resolveDestinyPatternWorldTags } from '@/mods/mod-character/destiny-pattern-access'
 import { useWorldStore } from '@/mods/mod-world'
-import { usePowerSystemStore } from '@/mods/mod-power-system'
-import { useEconomyStore } from '@/mods/mod-economy'
-import { usePoliticsStore } from '@/mods/mod-politics'
-import { useHistoryDynamicsStore } from '@/mods/mod-history-dynamics'
-import { STRATUM_LABELS_DEFAULT } from '@/mods/mod-politics'
 import {
   NarrativeTimeline,
   type NarrativeEntry,
   ToastContainer,
   useToastStore,
   SaveDialog,
-  MAX_WIDTH,
-  NPCRelationshipPanel,
 } from '@/mods/mod-ui'
 
 import styles from './GameStory.module.css'
 
 const GENDER_LABELS: Record<string, string> = { male: '男', female: '女' }
 
-import { saveManager } from '@/core/storage/save-manager'
 import { cn } from '@/foundation/utils'
-import { formatEraYear } from '@/foundation/utils/format-time'
 
 import { useSimulationBranch } from './useSimulationBranch'
-
-type MoreSelectedKey = 'branch' | 'save' | 'settle' | 'main' | 'relation' | null
 
 interface TagSection {
   name: string
@@ -113,8 +106,6 @@ export default function GamePage() {
     unresolvedBranchIndex,
     branchTitle,
     branchOptions,
-    forceBranchNext,
-    handleForceBranch,
     handleBranchConfirm,
     handleBranchCancel,
     branchCustomText,
@@ -125,12 +116,11 @@ export default function GamePage() {
 
   const { narrativeHistory } = useNarrative()
   const preGenStatus = usePreGenQueueStatus()
-  const causalPending = useHistoryDynamicsStore((s) => s.causalSimulation.queue.pending)
   const streamingNarrative = useEngineStore((s) => s.streamingNarrative)
   const timeStep = useEngineStore((s) => s.timeStep)
   const activeTimeStepKey = encodeTimeStepKey(timeStep)
   const handleTimeStepChange = useCallback((key: string) => {
-    orchestrator.setTimeStep(decodeTimeStepKey(key))
+    setSimulationTimeStepByKey(key)
   }, [])
   const timeStepOptions = useMemo(
     () => AVAILABLE_TIME_STEPS.map((s) => ({
@@ -154,42 +144,12 @@ export default function GamePage() {
   const worldTags = useWorldStore((s) => s.worldTags)
   const eraStartYear = useWorldStore((s) => s.eraStartYear)
   const worldEraName = useWorldStore((s) => s.eraName)
-  const economy = useEconomyStore((s) => s.economy)
-  const settlement = useEconomyStore((s) => s.settlement)
-  const work = useEconomyStore((s) => s.work)
-  const item = useEconomyStore((s) => s.item)
-  const population = useEconomyStore((s) => s.population)
-  const playerWealth = economy.currency.playerWealth
-  const socialStratification = usePoliticsStore((s) => s.socialStratification)
-  const faction = usePoliticsStore((s) => s.faction)
-  const nationRelation = usePoliticsStore((s) => s.nationRelation)
-  const legal = usePoliticsStore((s) => s.legal)
-  const conflictCycle = usePoliticsStore((s) => s.conflictCycle)
-  const playerStratum = socialStratification.playerStratum
-  const stratumLabels = socialStratification.stratumLabels
-  const combatPowerState = usePowerSystemStore((s) => s.combatPower)
-  const cultivation = usePowerSystemStore((s) => s.cultivation)
-  const luck = usePowerSystemStore((s) => s.luck)
-  const fortuneEncounter = usePowerSystemStore((s) => s.fortuneEncounter)
-  const faith = usePowerSystemStore((s) => s.faith)
-  const supremeItem = usePowerSystemStore((s) => s.supremeItem)
-  const skills = usePowerSystemStore((s) => s.skills)
-  const materials = usePowerSystemStore((s) => s.materials)
-  const anomalyZones = usePowerSystemStore((s) => s.anomalyZones)
-  const combatPower = combatPowerState.powerValue
 
-  const [moreMenuOpen, setMoreMenuOpen] = useState(false)
-  const [moreSelected, setMoreSelected] = useState<MoreSelectedKey>(null)
-  const [causalToast, setCausalToast] = useState<string | null>(null)
-  const prevCausalLenRef = useRef(0)
   const [showWorldPanel, setShowWorldPanel] = useState(false)
-  const [showRelationshipPanel, setShowRelationshipPanel] = useState(false)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [timeStepOpen, setTimeStepOpen] = useState(false)
   const timeStepBtnRef = useRef<HTMLDivElement>(null)
-  const moreBtnRef = useRef<HTMLDivElement>(null)
   const [timeStepMenuRect, setTimeStepMenuRect] = useState<DOMRect | null>(null)
-  const [moreMenuRect, setMoreMenuRect] = useState<DOMRect | null>(null)
   const narrativeEndRef = useRef<HTMLDivElement>(null)
   const prevEventsLenRef = useRef(0)
   const toasts = useToastStore((s) => s.toasts)
@@ -223,44 +183,20 @@ export default function GamePage() {
       const rect = timeStepBtnRef.current?.getBoundingClientRect()
       setTimeStepMenuRect(rect ?? null)
     }
-    if (moreMenuOpen) {
-      const rect = moreBtnRef.current?.getBoundingClientRect()
-      setMoreMenuRect(rect ?? null)
-    }
-  }, [timeStepOpen, moreMenuOpen])
+  }, [timeStepOpen])
 
-  // 因果触发：pending 队列新增事件时显示 Toast
+  // 点击外部关闭时间步进菜单
   useEffect(() => {
-    const nowLength = causalPending.length
-    if (nowLength > prevCausalLenRef.current) {
-      const latest = causalPending[nowLength - 1]
-      if (latest?.captureDescription) {
-        const timer = window.setTimeout(() => {
-          setCausalToast(`📜 因果回响：${latest.captureDescription}`)
-          window.setTimeout(() => setCausalToast(null), 5000)
-        }, 0)
-        prevCausalLenRef.current = nowLength
-        return () => window.clearTimeout(timer)
-      }
-    }
-    prevCausalLenRef.current = nowLength
-  }, [causalPending])
-
-  // 点击外部关闭时间步进 / 更多菜单
-  useEffect(() => {
-    if (!timeStepOpen && !moreMenuOpen) return
+    if (!timeStepOpen) return
     const onDocClick = (e: MouseEvent) => {
       const target = e.target as Node
       if (timeStepOpen && timeStepBtnRef.current && !timeStepBtnRef.current.contains(target)) {
         setTimeStepOpen(false)
       }
-      if (moreMenuOpen && moreBtnRef.current && !moreBtnRef.current.contains(target)) {
-        setMoreMenuOpen(false)
-      }
     }
     document.addEventListener('mousedown', onDocClick)
     return () => document.removeEventListener('mousedown', onDocClick)
-  }, [timeStepOpen, moreMenuOpen])
+  }, [timeStepOpen])
 
   const isComplete = status === 'complete'
   const isDead = health.isDead
@@ -295,31 +231,9 @@ export default function GamePage() {
     return result
   }, [characterBase, patternBonus])
 
-  const stratumLabel = useMemo(() => {
-    if (!playerStratum) return ''
-    const labels = { ...STRATUM_LABELS_DEFAULT, ...stratumLabels }
-    return labels[playerStratum as keyof typeof labels] ?? playerStratum
-  }, [playerStratum, stratumLabels])
-
-  /** 对齐废弃项目：用世界锚定年 + 回合偏移显示纪元。Math.max 防 round.year=0 初始态回退到负年 */
-  const headerEraYear = useMemo(() => {
-    if (eraStartYear !== 0) return eraStartYear + Math.max(0, round.year - 1)
-    return round.eraYear
-  }, [eraStartYear, round.year, round.eraYear])
-
-  /** 纪元显示文本：优先使用世界配置的纪元名，缺省时回退引擎自动生成或纯年份 */
-  const eraDisplayText = useMemo(() => {
-    // 世界配置了自定义纪元名 → 直接使用
-    if (worldEraName) return formatEraYear(headerEraYear, worldEraName)
-    // 世界配置了自定义起始年但无纪元名 → 纯年份显示
-    if (eraStartYear !== 0) return formatEraYear(headerEraYear, '')
-    // 无自定义纪元 → 使用引擎自动生成的年号（如"创世纪元"）
-    return formatEraYear(headerEraYear, round.eraName)
-  }, [headerEraYear, eraStartYear, worldEraName, round.eraName])
-
   const narrativeTimeLabel = useMemo(
-    () => formatNarrativeTimeLabel(timeStep, eraDisplayText, round),
-    [timeStep, eraDisplayText, round],
+    () => formatCurrentNarrativeTimeLabel({ timeStep, round, eraStartYear, worldEraName }),
+    [timeStep, round, eraStartYear, worldEraName],
   )
 
   const worldTagsText = useMemo(
@@ -372,7 +286,6 @@ export default function GamePage() {
       if (worldConfig.name) items.push({ icon: '🌍', label: '世界', value: worldConfig.name })
       if (worldConfig.essenceTag) items.push({ icon: '🏷', label: '本质', value: worldConfig.essenceTag })
       if (worldConfig.powerSystemTag) items.push({ icon: '⚡', label: '体系', value: worldConfig.powerSystemTag })
-      if (worldConfig.civilizationStage) items.push({ icon: '🏛️', label: '文明', value: worldConfig.civilizationStage })
       if (worldConfig.spatialForm) items.push({ icon: '🌌', label: '空间', value: worldConfig.spatialForm })
     }
     return items
@@ -380,10 +293,10 @@ export default function GamePage() {
 
   const worldBasicStatus = useMemo(() => {
     const items: Array<{ icon: string; label: string; value: string }> = []
-    items.push({ icon: '📅', label: '纪元', value: `第 ${round.year} 年` })
+    items.push({ icon: '📅', label: '纪元', value: narrativeTimeLabel })
     items.push({ icon: '🌤', label: '季节', value: seasonName || '?' })
     return items
-  }, [round.year, seasonName])
+  }, [narrativeTimeLabel, seasonName])
 
   const worldCharStatus = useMemo(() => {
     const items: Array<{ icon: string; label: string; value: string }> = []
@@ -395,67 +308,10 @@ export default function GamePage() {
     return items
   }, [health])
 
-  const worldEconomyStatus = useMemo(() => {
-    const items: Array<{ icon: string; label: string; value: string }> = []
-    items.push({ icon: '💰', label: '财富', value: String(Math.round(economy.currency.playerWealth)) })
-    items.push({ icon: '📈', label: '市场', value: economy.marketPhase })
-    items.push({ icon: '🏷', label: '物价', value: String(Math.round(economy.priceIndex)) })
-    items.push({ icon: '👥', label: '人口', value: String(Math.round(population.totalPopulation)) })
-    if (settlement.playerSettlement) {
-      items.push({ icon: '🏘', label: '定居地', value: settlement.playerSettlement.name })
-    }
-    if (work.profession) {
-      items.push({ icon: '🧰', label: '职业', value: `${work.profession} Lv.${work.professionLevel}` })
-    }
-    return items
-  }, [economy.currency.playerWealth, economy.marketPhase, economy.priceIndex, population.totalPopulation, settlement.playerSettlement, work.profession, work.professionLevel])
-
-  const worldPoliticsStatus = useMemo(() => {
-    const items: Array<{ icon: string; label: string; value: string }> = []
-    if (stratumLabel) items.push({ icon: '🧭', label: '阶层', value: stratumLabel })
-    items.push({ icon: '⚖', label: '流动性', value: String(Math.round(socialStratification.socialMobility)) })
-    if (faction.factions.length > 0) items.push({ icon: '🏳', label: '势力', value: `${faction.factions.length} 个` })
-    if (nationRelation.relations.length > 0) items.push({ icon: '🕊', label: '国家关系', value: `${nationRelation.relations.length} 组` })
-    items.push({ icon: '📜', label: '法律', value: legal.systemType })
-    if (conflictCycle.enabled) items.push({ icon: '🔥', label: '冲突', value: `${conflictCycle.currentPhase} ${Math.round(conflictCycle.phaseProgress)}%` })
-    return items
-  }, [conflictCycle.currentPhase, conflictCycle.enabled, conflictCycle.phaseProgress, faction.factions.length, legal.systemType, nationRelation.relations.length, socialStratification.socialMobility, stratumLabel])
-
-  const worldPowerStatus = useMemo(() => {
-    const items: Array<{ icon: string; label: string; value: string }> = []
-    items.push({ icon: '⚔', label: '战力', value: `${combatPowerState.mainStage}-${combatPowerState.subStage} / ${Math.round(combatPowerState.powerValue)}` })
-    if (cultivation.enabled) items.push({ icon: '🌀', label: '修炼', value: cultivation.realmLabel })
-    items.push({ icon: '🍀', label: '气运', value: String(Math.round(luck.luck)) })
-    if (fortuneEncounter.totalEncounters > 0) items.push({ icon: '✨', label: '机缘', value: `${fortuneEncounter.totalEncounters} 次` })
-    if (faith.faithName) items.push({ icon: '🙏', label: '信仰', value: `${faith.faithName} ${faith.devotionLevel}` })
-    if (supremeItem.items.length > 0) items.push({ icon: '🏺', label: '至尊物品', value: `${supremeItem.items.length} 件` })
-    if (anomalyZones.length > 0) items.push({ icon: '🕳', label: '异常区', value: `${anomalyZones.length} 处` })
-    return items
-  }, [anomalyZones.length, combatPowerState.mainStage, combatPowerState.powerValue, combatPowerState.subStage, cultivation.enabled, cultivation.realmLabel, faith.devotionLevel, faith.faithName, fortuneEncounter.totalEncounters, luck.luck, supremeItem.items.length])
-
-  const worldInventoryStatus = useMemo(() => {
-    const items: Array<{ icon: string; label: string; value: string }> = []
-    items.push({ icon: '🎒', label: '物品', value: `${item.inventory.length}/${item.capacity}` })
-    if (skills.length > 0) items.push({ icon: '📘', label: '技能', value: `${skills.length} 个` })
-    const discoveredMaterials = materials.filter((m) => m.discovered).length
-    if (discoveredMaterials > 0) items.push({ icon: '⛏', label: '材料', value: `${discoveredMaterials} 种` })
-    return items
-  }, [item.capacity, item.inventory.length, materials, skills.length])
-
   // 手动存档处理
   const handleManualSave = useCallback(async (slot: number, name: string) => {
-    await saveManager.saveToSlot(slot, name, worldConfig?.name ?? '', characterName, collectGameSavePayload())
-    setMoreSelected('save')
+    await saveCurrentGameToSlot(slot, name, worldConfig?.name ?? '', characterName)
   }, [characterName, worldConfig?.name])
-
-  const moreButtonLabel = useMemo(() => {
-    if (moreSelected === 'branch') return '⚡ 分支'
-    if (moreSelected === 'save') return '💾 存档'
-    if (moreSelected === 'settle') return '🎬 结算'
-    if (moreSelected === 'main') return '🏠 主界面'
-    if (moreSelected === 'relation') return '👥 关系'
-    return '更多'
-  }, [moreSelected])
 
   const preGenHint = useMemo(() => {
     if (preGenStatus.maxRounds <= 0) return null
@@ -495,12 +351,6 @@ export default function GamePage() {
     <div className={styles.root}>
       {/* Toast 通知 */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-
-      {causalToast && (
-        <div className={styles.causalToast}>
-          <span>{causalToast}</span>
-        </div>
-      )}
 
       {/* 手动存档弹窗 */}
       <SaveDialog
@@ -551,23 +401,9 @@ export default function GamePage() {
               })}
             </div>
             <div className={styles.dynAttrRow}>
-              {[
-                { label: '财富', value: playerWealth },
-                { label: '战力', value: combatPower },
-                { label: '生命', value: health.hp },
-              ].map(({ label, value }) => (
-                <span
-                  key={label}
-                  className={`${styles.dynAttrItem} ${value > 0 ? styles.dynAttrPos : value < 0 ? styles.dynAttrNeg : styles.dynAttrZero}`}
-                >
-                  {label} {value > 0 ? '+' : ''}{value}
-                </span>
-              ))}
-              {playerStratum && (
-                <span className={`${styles.dynAttrItem} ${styles.dynAttrZero}`}>
-                  阶层 {stratumLabel}
-                </span>
-              )}
+              <span className={`${styles.dynAttrItem} ${health.hp > 0 ? styles.dynAttrPos : styles.dynAttrZero}`}>
+                生命 {health.hp}
+              </span>
             </div>
           </div>
           <div className={styles.headerRight}>
@@ -577,26 +413,6 @@ export default function GamePage() {
               <span className={styles.preGenHint}>{preGenHint}</span>
             )}
             <div className={styles.controlRow}>
-              <div ref={moreBtnRef}>
-                <button
-                  type="button"
-                  className={cn(styles.ctrlBtn, moreSelected === 'branch' && styles.ctrlBtnActive)}
-                  onClick={() => {
-                    if (moreSelected) {
-                      setMoreSelected(null)
-                      if (moreSelected === 'branch') {
-                        useEngineStore.getState().setForceBranchNext(false)
-                      }
-                      setMoreMenuOpen(false)
-                      return
-                    }
-                    setMoreMenuOpen((v) => !v)
-                    setTimeStepOpen(false)
-                  }}
-                >
-                  {moreButtonLabel}
-                </button>
-              </div>
               <div ref={timeStepBtnRef}>
                 <button
                   type="button"
@@ -615,6 +431,23 @@ export default function GamePage() {
                 }}
               >
                 📊 世界{showWorldPanel ? '▴' : '▾'}
+              </button>
+              <button
+                type="button"
+                className={styles.ctrlBtn}
+                onClick={() => {
+                  setShowSaveDialog(true)
+                  setTimeStepOpen(false)
+                }}
+              >
+                💾 存档
+              </button>
+              <button
+                type="button"
+                className={styles.ctrlBtn}
+                onClick={() => router.push('/')}
+              >
+                🏠 主界面
               </button>
             </div>
             <AutoSaveIndicator lastAutoSaveRound={lastAutoSaveRound} />
@@ -645,7 +478,7 @@ export default function GamePage() {
                 </div>
               </>
             )}
-            {(worldSurrounding.length > 0 || worldBasicStatus.length > 0 || worldCharStatus.length > 0 || worldEconomyStatus.length > 0 || worldPoliticsStatus.length > 0 || worldPowerStatus.length > 0 || worldInventoryStatus.length > 0) && (
+            {(worldSurrounding.length > 0 || worldBasicStatus.length > 0 || worldCharStatus.length > 0) && (
               <>
                 {worldSurrounding.length > 0 && (
                   <div style={{ marginTop: 12 }}>
@@ -683,57 +516,9 @@ export default function GamePage() {
                     </div>
                   </div>
                 )}
-                {worldEconomyStatus.length > 0 && (
-                  <div style={{ marginTop: 10 }}>
-                    <div className={styles.panelSectionTitleSm}>💰 经济与人口</div>
-                    <div className={styles.tagGrid}>
-                      {worldEconomyStatus.map((item) => (
-                        <span key={item.label} className={`${styles.tagChip} ${styles.tagChipEnv}`}>
-                          {item.icon} {item.label}：{item.value}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {worldPoliticsStatus.length > 0 && (
-                  <div style={{ marginTop: 10 }}>
-                    <div className={styles.panelSectionTitleSm}>🏛 社会与势力</div>
-                    <div className={styles.tagGrid}>
-                      {worldPoliticsStatus.map((item) => (
-                        <span key={item.label} className={`${styles.tagChip} ${styles.tagChipEnv}`}>
-                          {item.icon} {item.label}：{item.value}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {worldPowerStatus.length > 0 && (
-                  <div style={{ marginTop: 10 }}>
-                    <div className={styles.panelSectionTitleSm}>⚡ 力量与异常</div>
-                    <div className={styles.tagGrid}>
-                      {worldPowerStatus.map((item) => (
-                        <span key={item.label} className={`${styles.tagChip} ${styles.tagChipChar}`}>
-                          {item.icon} {item.label}：{item.value}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {worldInventoryStatus.length > 0 && (
-                  <div style={{ marginTop: 10 }}>
-                    <div className={styles.panelSectionTitleSm}>🎒 物品与技能</div>
-                    <div className={styles.tagGrid}>
-                      {worldInventoryStatus.map((item) => (
-                        <span key={item.label} className={`${styles.tagChip} ${styles.tagChipChar}`}>
-                          {item.icon} {item.label}：{item.value}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </>
             )}
-            {worldTagSections.length === 0 && worldSurrounding.length === 0 && worldEconomyStatus.length === 0 && worldPoliticsStatus.length === 0 && worldPowerStatus.length === 0 && worldInventoryStatus.length === 0 && (
+            {worldTagSections.length === 0 && worldSurrounding.length === 0 && worldBasicStatus.length === 0 && worldCharStatus.length === 0 && (
               <div className={styles.panelEmpty}>
                 <div className={styles.panelEmptyIcon}>🔔</div>
                 <p className={styles.panelEmptyText}>正在等待模拟数据，推进第一年后自动加载...</p>
@@ -773,88 +558,6 @@ export default function GamePage() {
         </div>,
         document.body,
       )}
-
-      {moreMenuOpen && moreMenuRect && typeof document !== 'undefined' && createPortal(
-        <div
-          className={styles.moreMenu}
-          style={{
-            position: 'fixed',
-            zIndex: 10000,
-            top: moreMenuRect.bottom + 4,
-            right: document.documentElement.clientWidth - moreMenuRect.right,
-            background: 'var(--color-bg-card)',
-            opacity: 1,
-          }}
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            type="button"
-            className={cn(styles.moreMenuItem, forceBranchNext && styles.moreMenuItemActive)}
-            onClick={() => {
-              setMoreSelected('branch')
-              setMoreMenuOpen(false)
-              handleForceBranch()
-            }}
-          >
-            ⚡ 分支{forceBranchNext ? '（下轮强制）' : ''}
-          </button>
-          <button
-            type="button"
-            className={styles.moreMenuItem}
-            onClick={() => {
-              setMoreSelected('relation')
-              setMoreMenuOpen(false)
-              setShowRelationshipPanel(true)
-            }}
-          >
-            👥 关系面板
-          </button>
-          <button
-            type="button"
-            className={styles.moreMenuItem}
-            onClick={() => {
-              setMoreMenuOpen(false)
-              setShowSaveDialog(true)
-            }}
-          >
-            💾 存档
-          </button>
-          {!isDead && (
-            <button
-              type="button"
-              className={styles.moreMenuItem}
-              onClick={() => {
-                setMoreSelected('settle')
-                setMoreMenuOpen(false)
-                handleGoToGameOver()
-              }}
-            >
-              🎬 结算
-            </button>
-          )}
-          <button
-            type="button"
-            className={styles.moreMenuItem}
-            onClick={() => {
-              setMoreSelected('main')
-              setMoreMenuOpen(false)
-              router.push('/')
-            }}
-          >
-            🏠 主界面
-          </button>
-        </div>,
-        document.body,
-      )}
-
-      {/* NPC 关系面板（可折叠） */}
-      {showRelationshipPanel && (
-        <div style={{ maxWidth: MAX_WIDTH, margin: '0 auto', padding: '0 16px' }}>
-          <NPCRelationshipPanel onClose={() => setShowRelationshipPanel(false)} />
-        </div>
-      )}
-
       {/* 主内容区：叙事 + 隐藏式推进 */}
       <div className={styles.mainArea}>
         <NarrativeTimeline

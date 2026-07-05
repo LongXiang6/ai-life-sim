@@ -34,7 +34,9 @@ export function buildSummarySystemPrompt(charLimit: number, level: 1 | 2 | 3 | 4
       constraints: [
         '按时间顺序列出所有发生的事件',
         '绝对客观，禁止评价性描述（禁用"取得了巨大成就""表现出了非凡勇气"等）',
-        '包含社会事件、角色个人事件',
+        '只总结 eventRecords.narrative 中明确写出的事实，不补写未出现的模拟系统状态、数值变化或隐藏因果',
+        '当前 MVP 中健康、经济、声望、关系、修炼、战力等模拟系统可能延后；除非叙事正文明确发生，否则不要把它们当成已落地状态',
+        '包含叙事正文中明确发生的角色事件、社会事件与环境变化',
         '每个时间段至少一条记录',
         '禁止"这几年都在修炼""日复一日"等模糊概括',
         `不超过${charLimit}字`,
@@ -48,7 +50,11 @@ export function buildSummarySystemPrompt(charLimit: number, level: 1 | 2 | 3 | 4
   return stringifyPrompt({
     role: '叙事总结器',
     outputFormat: fmt.format,
-    constraints: [`仅保留：${fmt.fields.join('、')}`, `不超过${charLimit}字`],
+    constraints: [
+      `仅保留：${fmt.fields.join('、')}`,
+      '只压缩输入摘要中已经出现的事实，禁止推断未出现的模拟系统状态或数值变化',
+      `不超过${charLimit}字`,
+    ],
     safety: SAFETY_GUIDE,
   })
 }
@@ -134,7 +140,13 @@ export const summaryPrompt: PromptTemplate = {
   systemPrompt: stringifyPrompt({
     role: '叙事总结器。将叙事内容压缩为客观事件列表。',
     outputFormat: '纯文本，每事件一行以"- "开头，按时间排序',
-    constraints: ['绝对客观禁止评价', '每时间段至少一条', '不超过指定字数'],
+    constraints: [
+      '绝对客观禁止评价',
+      '只总结叙事正文明确发生的事实',
+      '不补写延后模拟系统的状态或数值变化',
+      '每时间段至少一条',
+      '不超过指定字数',
+    ],
     safety: SAFETY_GUIDE,
   }),
   userPromptTemplate: stringifyPrompt({

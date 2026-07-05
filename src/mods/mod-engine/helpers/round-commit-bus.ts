@@ -14,6 +14,7 @@ import { deepSanitize } from './system-safety'
 import { validateChange } from './subsystem-field-registry'
 import { validateCrossDomainChange } from './cross-domain-change-validator'
 import { getNarrativeChangeBlockReason } from './subsystem-prompt-gate'
+import { shouldApplyMvpCommit } from './mvp-runtime-policy'
 
 export type RoundCommitSource =
   | 'narrative'
@@ -56,6 +57,10 @@ export class RoundCommitBus {
     for (const raw of commit.changes) {
       if (!raw.id) {
         rejected.push({ change: raw, reason: '空子系统 id' })
+        continue
+      }
+
+      if (!shouldApplyMvpCommit(commit.source, raw.id)) {
         continue
       }
 

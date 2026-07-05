@@ -6,6 +6,11 @@
 
 import type { RoundContext, SubSystemState } from '@/foundation'
 
+import {
+  isMvpNarrativeChangeSubsystem,
+  isMvpPromptSubsystem,
+} from './mvp-runtime-policy'
+
 /** memorySummary【当前状态】三层 */
 export type PromptStateLayer = 'personal' | 'local' | 'world'
 
@@ -69,7 +74,6 @@ const LOCAL_LAYER_IDS = new Set([
   'population',
   'industry',
   'agriculture',
-  'fate-prophecy',
 ])
 
 /** 其余 isRelevant 且开放的子系统默认归入世界背景 */
@@ -117,8 +121,9 @@ export function isSubsystemDataEnabled(data: unknown): boolean {
   return true
 }
 
-/** 子系统是否允许出现在 memorySummary / subsystemFields */
-export function isSubsystemOpenForPrompt(state: SubSystemState | undefined): boolean {
+/** 子系统是否允许出现在 memorySummary / subsystemGuideText 的叙事注入通道 */
+export function isSubsystemOpenForPrompt(state: SubSystemState | undefined, subsystemId = state?.id): boolean {
+  if (subsystemId && !isMvpPromptSubsystem(subsystemId)) return false
   if (!state?.summary?.trim()) return false
   if (isPromptNoiseSummary(state.summary)) return false
   if (!isSubsystemDataEnabled(state.data)) return false
@@ -138,7 +143,7 @@ export function collectMemoryStateSummaries(
   const lines: string[] = []
   for (const [id, state] of Object.entries(allStates)) {
     if (!isRelevant(id, context)) continue
-    if (!isSubsystemOpenForPrompt(state)) continue
+    if (!isSubsystemOpenForPrompt(state, id)) continue
     lines.push(normalizeSummaryLine(state.summary))
   }
   return lines
@@ -161,7 +166,7 @@ export function buildLayeredMemoryStateCard(
 
   for (const [id, state] of Object.entries(allStates)) {
     if (!isRelevant(id, context)) continue
-    if (!isSubsystemOpenForPrompt(state)) continue
+    if (!isSubsystemOpenForPrompt(state, id)) continue
     const layer = resolvePromptStateLayer(id)
     buckets[layer].push(normalizeSummaryLine(state.summary))
   }
@@ -202,8 +207,12 @@ export function getNarrativeChangeBlockReason(
   changes: Record<string, unknown>,
   context: RoundContext,
 ): string | null {
+  if (!isMvpNarrativeChangeSubsystem(subsystemId)) {
+    return `子系统 "${subsystemId}" 不在当前 MVP 叙事写入白名单，拒绝 narrative 变更`
+  }
+
   const state = context.subsystemStates[subsystemId]
-  if (state && !isSubsystemOpenForPrompt(state)) {
+  if (state && !isSubsystemOpenForPrompt(state, subsystemId)) {
     return `子系统 "${subsystemId}" 在本局未启用或未就绪，拒绝 narrative 变更`
   }
 
@@ -240,7 +249,7 @@ export function buildNarrativeCoherenceHeader(
     parts.push(`力量体系标签：${powerTag}；仅使用【当前状态】中已出现的能力与设定。`)
   }
   parts.push(`角色当前年龄 ${characterAge} 岁；叙事细节须与此匹配。`)
-  parts.push('changes 仅可提交 availableSubsystemFields 中列出的子系统。')
+  parts.push('changes 仅可提交「子系统变更指南」中列出的 MVP 子系统。')
   return parts.join('\n')
 }
 

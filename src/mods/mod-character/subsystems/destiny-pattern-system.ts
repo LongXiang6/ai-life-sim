@@ -238,6 +238,10 @@ export class DestinyPatternSystem implements ISubSystem {
     const allPatterns: DestinyPattern[] = []
     const existingNames: string[] = []
     let earlyReadyFired = false
+    let resolveEarlyReady: (() => void) | null = null
+    const earlyReadyPromise = new Promise<void>((resolve) => {
+      resolveEarlyReady = resolve
+    })
     const startingAge = contextInput.character.startingAge ?? 0
 
     this.poolFillAbortController = new AbortController()
@@ -289,6 +293,7 @@ export class DestinyPatternSystem implements ISubSystem {
       if (!earlyReadyFired && allPatterns.length >= DEFAULT_DESTINY_PATTERN_COUNT) {
         earlyReadyFired = true
         onEarlyReady?.([...allPatterns])
+        resolveEarlyReady?.()
       }
     }
 
@@ -429,11 +434,27 @@ export class DestinyPatternSystem implements ISubSystem {
     const PARALLEL_FIRST_COUNT = 3
     const PARALLEL_SEEDS = [42, 137, 256]
     const parallelPromises = PARALLEL_SEEDS.map((seed, i) => runBatchWithRetry(i, seed, true))
+    let nextBackgroundBatch = PARALLEL_FIRST_COUNT
 
     // Promise.race：不必等最慢的批次，率先完成的批次若已达 12 条即触发 earlyReady
     await Promise.race(parallelPromises)
     // 检查首批结果是否已达 12 条（不足则等后续批次通过 ingestItem 累积触发）
     fireEarlyReady()
+
+    if (!earlyReadyFired) {
+      await Promise.race([earlyReadyPromise, Promise.allSettled(parallelPromises)])
+      fireEarlyReady()
+    }
+
+    while (
+      !earlyReadyFired
+      && nextBackgroundBatch < AI_DESTINY_PATTERN_BATCH_COUNT
+      && !this.poolFillAbortController?.signal.aborted
+    ) {
+      await runBatchWithRetry(nextBackgroundBatch)
+      nextBackgroundBatch += 1
+      fireEarlyReady()
+    }
 
     const fillRemainingBatches = async (): Promise<void> => {
       try {
@@ -441,7 +462,7 @@ export class DestinyPatternSystem implements ISubSystem {
         await Promise.allSettled(parallelPromises)
 
         // 再串行填充后续批次（避免瞬间并发过多触发限流）
-        for (let batch = PARALLEL_FIRST_COUNT; batch < AI_DESTINY_PATTERN_BATCH_COUNT; batch++) {
+        for (let batch = nextBackgroundBatch; batch < AI_DESTINY_PATTERN_BATCH_COUNT; batch++) {
           if (this.poolFillAbortController?.signal.aborted) break
           if (allPatterns.length >= AI_DESTINY_PATTERN_BATCH_SIZE * AI_DESTINY_PATTERN_BATCH_COUNT) break
           await runBatchWithRetry(batch)

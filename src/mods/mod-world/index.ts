@@ -109,9 +109,12 @@ export { formatAdaptationCalibrationBlock, fillAdaptationPrompt } from './utils/
 export {
   isWorldInitAIAvailable,
   shouldUseStaticEntityFallback,
+} from './utils/world-init-fallback'
+
+export {
   shouldUseGenericSimulationPools,
   resolveStaticPoolWorldviewKey,
-} from './utils/world-init-fallback'
+} from './utils/world-pool-selectors'
 
 export {
   buildWorldCoherenceHint,
@@ -145,7 +148,10 @@ export {
   SPATIAL_FORM_ZH_MAP,
 } from './utils/world-config-mapping'
 
-export { buildWorldInitPromptVars } from './utils/world-init-prompt-vars'
+export {
+  buildWorldInitPromptVars,
+  buildPowerCeilingPresetsForNarrative,
+} from './utils/world-init-prompt-vars'
 export { buildWorldInitPipelineBudgets } from './utils/world-init-budgets'
 export type { WorldInitPipelineBudgets } from './utils/world-init-budgets'
 

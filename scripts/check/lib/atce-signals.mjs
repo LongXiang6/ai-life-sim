@@ -21,7 +21,11 @@ function extractRuleId(line) {
   const see = line.match(/见 (A-\d{2})/)
   if (see) return see[1]
   if (/eager singleton|A-14/i.test(line)) return 'A-14'
-  if (/orchestrator|A-15/i.test(line)) return 'A-15'
+  // A-15 兜底只认字面规则 ID：真实 A-15 失败行必带 "[A-15]" 或 "见 A-15"（见 scan-typescript-wiring.mjs）。
+  // 禁止用裸 "orchestrator" 字样兜底——否则任何落在 orchestrator-system.ts 上的其它规则失败
+  // （C3-APPLY-FIVE / C5-SUMMARY-FMT / A5-CTX-ORPHAN 等）都会被误标成 A-15 架构重构信号，
+  // 再经 repeat-offender 升级为 REFACTOR_MANDATORY，强制重构本无架构问题的核心叙事文件。
+  if (/\bA-15\b/i.test(line)) return 'A-15'
   if (/createInitialState|A-16/i.test(line)) return 'A-16'
   if (/world-init-bundle|barrel|A-01/i.test(line)) return 'A-01'
   if (/循环依赖|import 图|D-07/i.test(line)) return 'D-07'

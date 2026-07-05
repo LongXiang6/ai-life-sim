@@ -16,7 +16,7 @@ import type {
 } from '../types'
 
 import { ENTITY_GENERATION_COUNTS, WORLDVIEW_STYLE_HINTS } from '../constants'
-import { shouldUseGenericSimulationPools } from './world-init-fallback'
+import { shouldUseGenericSimulationPools } from './world-pool-selectors'
 
 export const MODIFIER_MIN = 0.01
 export const MODIFIER_MAX = 100

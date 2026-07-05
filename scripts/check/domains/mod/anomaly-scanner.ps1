@@ -238,10 +238,23 @@ if (Test-Path $narrativePromptPath) {
   }
 }
 
-# Check A: PromptContext field assigned by orchestrator but NOT in narrative template's variables
+# The narrative template does NOT use variables[]/{{placeholder}} at runtime: buildPrompt() routes
+# name==='narrative' to buildNarrativeUserJson(context) in prompt-builder.ts, which maps each
+# context.<field> to a Chinese JSON key. So a field also reaches the AI if it is consumed there —
+# checking variables[] alone falsely flags fields injected only via buildNarrativeUserJson.
+$promptBuilderPath = [System.IO.Path]::Combine($SrcDir, "core", "ai-service", "prompt-builder.ts")
+$promptBuilderCtxFields = @()
+if (Test-Path $promptBuilderPath) {
+  $pbContent = Get-FileContent $promptBuilderPath
+  $pbMatches = [regex]::Matches($pbContent, "context\.(\w+)")
+  $promptBuilderCtxFields = @($pbMatches | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique)
+}
+
+# Check A: PromptContext field assigned by orchestrator but reaching the AI through NEITHER the
+# narrative template variables[] NOR buildNarrativeUserJson(context.<field>) → truly never reaches AI
 foreach ($f in $orchAssignedFields) {
-  if ($f -notin $narrativeTemplateVars) {
-    Fail "A5-CTX-ORPHAN" "orchestrator-system.ts" "" "PromptContext field '$f' is assigned in assemblePromptContext() but narrative template has no {{$f}} — data computed every round but never reaches the AI"
+  if (($f -notin $narrativeTemplateVars) -and ($f -notin $promptBuilderCtxFields)) {
+    Fail "A5-CTX-ORPHAN" "orchestrator-system.ts" "" "PromptContext field '$f' is assigned in assemblePromptContext() but neither narrative template variables[] nor buildNarrativeUserJson consume it — data computed every round but never reaches the AI"
   }
 }
 
@@ -531,6 +544,13 @@ foreach ($stf in $storeFiles) {
 #    NOTE: Skips this.callAI(pattern) — these use injected AI service
 #    via setAIService(), where apiKey is passed at the injection site
 #    (e.g. world-init-bundle.ts's createAIService).
+#
+#    Spread-forwarding aware: apiKey counts as present when the options
+#    argument spreads (or is) a variable that forwards apiKey, e.g.
+#      const streamOpts = { ..., apiKey: customKey }; callAIDegraded(m, fb, streamOpts)
+#      const { ...restOptions } = options; const commonOpts = { ...restOptions }; callAI(s, u, commonOpts)
+#    Such "carrier" identifiers are traced per file so thin wrappers /
+#    pre-built option objects are not falsely flagged.
 # ============================================================
 Write-Host "  [A9] Checking AI call sites for missing apiKey..." -ForegroundColor DarkGray
 
@@ -547,6 +567,68 @@ foreach ($f in $allSrcFilesA9) {
   if ($fc -match 'setAIService\s*\(') { continue }
 
   $lines = $fc -split "`n"
+
+  # --- Build set of identifiers that forward apiKey (spread-forwarding detection) ---
+  # A variable "carries" apiKey if:
+  #   (1) it is a rest capture from object destructuring: const { a, ...rest } = opts  → rest
+  #   (2) it is assigned an object literal that contains a literal `apiKey` field
+  #   (3) it is assigned an object literal that spreads another carrier: { ...carrier }
+  #   (4) it is aliased directly from another carrier: const x = carrier
+  # Passes repeat to resolve transitive (3)/(4) chains.
+  $carriers = New-Object System.Collections.Generic.HashSet[string]
+
+  # Rule (1): rest captures from object destructuring
+  foreach ($m in [regex]::Matches($fc, '\.\.\.(\w+)\s*\}\s*=')) {
+    [void]$carriers.Add($m.Groups[1].Value)
+  }
+
+  # Collect variable assignments: object literals (with body text) and direct aliases
+  $assignments = @()
+  for ($si = 0; $si -lt $lines.Count; $si++) {
+    if ($lines[$si] -match '(?:const|let|var)\s+(\w+)\s*=\s*\{') {
+      $name = $Matches[1]
+      $depth = 0
+      $started = $false
+      $body = ''
+      for ($sj = $si; $sj -lt $lines.Count; $sj++) {
+        $t = $lines[$sj]
+        $body += $t + "`n"
+        $opens = ([regex]::Matches($t, '\{')).Count
+        $closes = ([regex]::Matches($t, '\}')).Count
+        $depth += $opens - $closes
+        if ($opens -gt 0) { $started = $true }
+        if ($started -and $depth -le 0) { break }
+      }
+      $assignments += @{ Name = $name; Body = $body }
+    }
+    elseif ($lines[$si] -match '(?:const|let|var)\s+(\w+)\s*=\s*(\w+)\s*;?\s*$') {
+      $assignments += @{ Name = $Matches[1]; Alias = $Matches[2] }
+    }
+  }
+
+  # Transitive resolution (rules 2/3/4)
+  for ($pass = 0; $pass -lt 4; $pass++) {
+    $changed = $false
+    foreach ($a in $assignments) {
+      if ($carriers.Contains($a.Name)) { continue }
+      $isCarrier = $false
+      if ($a.ContainsKey('Alias')) {
+        if ($carriers.Contains($a.Alias)) { $isCarrier = $true }
+      }
+      else {
+        $b = $a.Body
+        if ($b -match '\bapiKey\b') { $isCarrier = $true }
+        else {
+          foreach ($sp in [regex]::Matches($b, '\.\.\.(\w+)')) {
+            if ($carriers.Contains($sp.Groups[1].Value)) { $isCarrier = $true; break }
+          }
+        }
+      }
+      if ($isCarrier) { [void]$carriers.Add($a.Name); $changed = $true }
+    }
+    if (-not $changed) { break }
+  }
+
   for ($li = 0; $li -lt $lines.Count; $li++) {
     $line = $lines[$li]
     # Skip this.callAI() — injected AI service, apiKey handled at injection site
@@ -555,19 +637,34 @@ foreach ($f in $allSrcFilesA9) {
     if ($line -notmatch '(callAI|callAIStream|callAIStreamDegraded|callAIDegraded)\s*\(') { continue }
     $callName = $Matches[1]
 
-    # Check same line for apiKey
-    $foundApiKey = ($line -match '\bapiKey\b')
+    # Build the call's argument region, bounded by paren depth (max 20 lines)
+    $cm = [regex]::Match($line, "$([regex]::Escape($callName))\s*\(")
+    $segment = if ($cm.Success) { $line.Substring($cm.Index) } else { $line }
+    $regionText = $segment
+    $foundApiKey = ($segment -match '\bapiKey\b')
+    $depth = ([regex]::Matches($segment, '\(')).Count - ([regex]::Matches($segment, '\)')).Count
+    $closed = ($depth -le 0)
 
-    # Look ahead up to 20 lines for options block and apiKey
     $lookAhead = [Math]::Min($li + 20, $lines.Count - 1)
-    for ($lj = $li + 1; $lj -le $lookAhead; $lj++) {
+    for ($lj = $li + 1; (-not $closed) -and $lj -le $lookAhead; $lj++) {
       $nextLine = $lines[$lj]
-      if ($nextLine -match '\bapiKey\b') {
-        $foundApiKey = $true
-        break
+      $regionText += "`n" + $nextLine
+      if ($nextLine -match '\bapiKey\b') { $foundApiKey = $true }
+      $depth += ([regex]::Matches($nextLine, '\(')).Count - ([regex]::Matches($nextLine, '\)')).Count
+      if ($depth -le 0) { $closed = $true }
+    }
+
+    # Spread-forwarding: options region spreads a known apiKey carrier
+    if (-not $foundApiKey) {
+      foreach ($sp in [regex]::Matches($regionText, '\.\.\.(\w+)')) {
+        if ($carriers.Contains($sp.Groups[1].Value)) { $foundApiKey = $true; break }
       }
-      # Stop at end of call: ) alone, ); or })
-      if ($nextLine.Trim() -match '^(\)|\)\s*;|\)\s*,)\s*$') { break }
+    }
+    # Bare-identifier options arg that is a known carrier (e.g. callAIDegraded(msgs, fb, streamOpts))
+    if (-not $foundApiKey) {
+      foreach ($c in $carriers) {
+        if ($regionText -match "\b$([regex]::Escape($c))\b") { $foundApiKey = $true; break }
+      }
     }
 
     if (-not $foundApiKey) {

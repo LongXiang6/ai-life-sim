@@ -8,7 +8,7 @@
 
 import { useCallback, useMemo, useState } from 'react'
 
-import { clearPreGenQueue, orchestrator } from '@/mods/mod-engine/engine-api'
+import { resolveNarrativeBranchChoice, setForceBranchNextRound } from '@/mods/mod-engine/engine-api'
 import { useEngineStore } from '@/mods/mod-engine'
 
 interface UseSimulationBranchDeps {
@@ -18,8 +18,6 @@ interface UseSimulationBranchDeps {
 export function useSimulationBranch({ advanceRound }: UseSimulationBranchDeps) {
   const narrativeHistory = useEngineStore((s) => s.narrativeHistory)
   const forceBranchNext = useEngineStore((s) => s.forceBranchNext)
-  const setForceBranchNext = useEngineStore((s) => s.setForceBranchNext)
-  const resolveBranch = useEngineStore((s) => s.resolveBranch)
 
   const [branchCustomText, setBranchCustomText] = useState('')
   const [selectedBranchOptionId, setSelectedBranchOptionId] = useState<string | null>(null)
@@ -47,9 +45,8 @@ export function useSimulationBranch({ advanceRound }: UseSimulationBranchDeps) {
   )
 
   const handleForceBranch = useCallback(() => {
-    setForceBranchNext(!forceBranchNext)
-    clearPreGenQueue()
-  }, [forceBranchNext, setForceBranchNext])
+    setForceBranchNextRound(!forceBranchNext)
+  }, [forceBranchNext])
 
   const handleBranchConfirm = useCallback(async () => {
     if (unresolvedBranchIndex === null) return
@@ -71,14 +68,9 @@ export function useSimulationBranch({ advanceRound }: UseSimulationBranchDeps) {
       return
     }
 
-    resolveBranch(branchId, choice)
-    orchestrator.setLastPlayerChoice(choice)
-    clearPreGenQueue()
+    resolveNarrativeBranchChoice(branchId, choice)
     setBranchCustomText('')
     setSelectedBranchOptionId(null)
-
-    // 显式重置 forceBranchNext 防止在 resolveBranch→advanceRound 之间被 toggle
-    useEngineStore.getState().setForceBranchNext(false)
 
     await advanceRound()
   }, [
@@ -87,7 +79,6 @@ export function useSimulationBranch({ advanceRound }: UseSimulationBranchDeps) {
     branchOptions,
     selectedBranchOptionId,
     branchCustomText,
-    resolveBranch,
     advanceRound,
   ])
 

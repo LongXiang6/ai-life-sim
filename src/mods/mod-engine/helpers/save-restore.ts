@@ -5,15 +5,12 @@
  */
 
 import { useGlobalStore } from '@/core/global-store'
+import { saveManager } from '@/core/storage/save-manager'
 import { useCharacterStore } from '@/mods/mod-character'
-import { useEconomyStore } from '@/mods/mod-economy'
-import { useHistoryDynamicsStore } from '@/mods/mod-history-dynamics'
-import { usePoliticsStore } from '@/mods/mod-politics'
-import { usePowerSystemStore } from '@/mods/mod-power-system'
 import { useWorldStore } from '@/mods/mod-world'
 import { buildOrchestratorWorldSetting } from '@/mods/mod-engine/helpers/orchestrator-world-setting'
 
-import { orchestrator } from '../engine-api'
+import { orchestrator } from '../subsystems/orchestrator-system'
 import { clearPreGenQueue } from './pre-gen-queue'
 import { syncSubsystemStoresFromStates } from './subsystem-store-sync'
 import { useEngineStore } from '../store'
@@ -22,14 +19,42 @@ function serializeStoreSnapshot<T extends object>(state: T): Record<string, unkn
   return JSON.parse(JSON.stringify(state)) as Record<string, unknown>
 }
 
+function buildEngineSaveSnapshot(): Record<string, unknown> {
+  const store = useEngineStore.getState()
+  const o = orchestrator.getState()
+
+  const resolvedChoiceMap = new Map<string, string>()
+  for (const entry of store.narrativeHistory) {
+    if (entry.id && entry.resolvedChoice) {
+      resolvedChoiceMap.set(entry.id, entry.resolvedChoice)
+    }
+  }
+
+  const mergedHistory = o.narrativeHistory.map((entry) => {
+    if (entry.id && resolvedChoiceMap.has(entry.id)) {
+      return { ...entry, resolvedChoice: resolvedChoiceMap.get(entry.id) }
+    }
+    return entry
+  })
+
+  return serializeStoreSnapshot({
+    ...store,
+    ...o,
+    narrativeHistory: mergedHistory,
+    streamingNarrative: '',
+    narrativeError: null,
+    resolvedBranches: store.resolvedBranches,
+    forceBranchNext: store.forceBranchNext,
+  })
+}
+
 /**
  * 从存档数据恢复游戏状态（engine / character / world / core MOD stores / orchestrator）。
  *
  * 原子性保证：
  *   - 核心 store（engine / character / world）任一恢复失败即抛出，且**不切换 gamePhase**，
  *     避免进入「半恢复 + 停留在错误界面」的损坏态；调用方应 catch 并提示用户、留在安全页。
- *   - 可选 store（historyDynamics / economy / politics / powerSystem / orchestrator）单个坏数据
- *     仅记录告警并跳过，不阻断整体加载。
+ *   - 可选 store（orchestrator）坏数据仅记录告警并跳过，不阻断整体加载。
  */
 export function applyGameSave(data: Record<string, unknown>): void {
   // —— 核心 store：失败即抛，gamePhase 保持不变 ——
@@ -64,26 +89,6 @@ export function applyGameSave(data: Record<string, unknown>): void {
     }
   }
 
-  if (data.historyDynamics && typeof data.historyDynamics === 'object') {
-    restoreOptional('historyDynamics', () =>
-      useHistoryDynamicsStore.setState(data.historyDynamics as ReturnType<typeof useHistoryDynamicsStore.getState>))
-  }
-
-  if (data.economy && typeof data.economy === 'object') {
-    restoreOptional('economy', () =>
-      useEconomyStore.setState(data.economy as ReturnType<typeof useEconomyStore.getState>))
-  }
-
-  if (data.politics && typeof data.politics === 'object') {
-    restoreOptional('politics', () =>
-      usePoliticsStore.setState(data.politics as ReturnType<typeof usePoliticsStore.getState>))
-  }
-
-  if (data.powerSystem && typeof data.powerSystem === 'object') {
-    restoreOptional('powerSystem', () =>
-      usePowerSystemStore.setState(data.powerSystem as ReturnType<typeof usePowerSystemStore.getState>))
-  }
-
   if (data.orchestrator && typeof data.orchestrator === 'object') {
     restoreOptional('orchestrator', () => {
       orchestrator.restoreSnapshot(data.orchestrator as Parameters<typeof orchestrator.restoreSnapshot>[0])
@@ -104,15 +109,21 @@ export function collectGameSavePayload(): Record<string, unknown> {
   syncSubsystemStoresFromStates(orchestrator.getSubsystemStateSnapshot())
 
   return {
-    engine: serializeStoreSnapshot(useEngineStore.getState()),
+    engine: buildEngineSaveSnapshot(),
     character: serializeStoreSnapshot(useCharacterStore.getState()),
     world: serializeStoreSnapshot(useWorldStore.getState()),
-    historyDynamics: serializeStoreSnapshot(useHistoryDynamicsStore.getState()),
-    economy: serializeStoreSnapshot(useEconomyStore.getState()),
-    politics: serializeStoreSnapshot(usePoliticsStore.getState()),
-    powerSystem: serializeStoreSnapshot(usePowerSystemStore.getState()),
     orchestrator: serializeStoreSnapshot(orchestrator.captureSnapshot()),
   }
+}
+
+/** 手动存档公开入口；调用方只传 UI 输入，存档载荷由引擎统一收集。 */
+export async function saveCurrentGameToSlot(
+  slot: number,
+  name: string,
+  worldName: string,
+  characterName: string,
+): Promise<void> {
+  await saveManager.saveToSlot(slot, name, worldName, characterName, collectGameSavePayload())
 }
 
 function restoreOrchestratorContext(): void {

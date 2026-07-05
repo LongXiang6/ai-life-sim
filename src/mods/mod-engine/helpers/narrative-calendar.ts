@@ -88,6 +88,34 @@ export function formatNarrativeTimeLabel(
   }
 }
 
+export interface CurrentNarrativeTimeLabelInput {
+  timeStep: TimeStep
+  round: {
+    year: number
+    eraYear: number
+    eraName: string
+    season: number
+    month: number
+    day?: number
+  }
+  eraStartYear: number
+  worldEraName?: string
+}
+
+/** 当前 UI 顶栏时间标签；纪元偏移、世界纪元名与步长粒度统一收口在引擎侧。 */
+export function formatCurrentNarrativeTimeLabel(input: CurrentNarrativeTimeLabelInput): string {
+  const { timeStep, round, eraStartYear, worldEraName } = input
+  const headerEraYear = eraStartYear !== 0
+    ? eraStartYear + Math.max(0, round.year - 1)
+    : round.eraYear
+  const eraLabel = worldEraName
+    ? formatEraYear(headerEraYear, worldEraName)
+    : eraStartYear !== 0
+      ? formatEraYear(headerEraYear, '')
+      : formatEraYear(headerEraYear, round.eraName)
+  return formatNarrativeTimeLabel(timeStep, eraLabel, round)
+}
+
 /** 构建传给 AI 的「时间」字段（对齐废弃项目 时间: timeDesc） */
 export function buildNarrativeTimeContext(
   context: RoundContext,

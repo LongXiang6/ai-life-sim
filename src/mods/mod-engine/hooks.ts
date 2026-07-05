@@ -15,10 +15,11 @@ import { useWorldStore } from '@/mods/mod-world'
 
 import { narrativePrompt } from './prompts/narrative-prompt'
 import { computeNarrativeMaxTokens, DEFAULT_WORD_COUNT_TARGET } from './constants/narrative-config'
-import { clearPreGenQueue, fillPreGenQueue, getPreGenQueueStatus, shiftPreGenQueue, subscribePreGenQueue, checkAndClearPreGenOnTimeStepChange, type PreGenQueueStatus } from './helpers/pre-gen-queue'
+import { clearPreGenQueue, fillPreGenQueue, getPreGenQueueStatus, shiftPreGenQueue, subscribePreGenQueue, waitForPreGenQueueItem, checkAndClearPreGenOnTimeStepChange, type PreGenQueueStatus } from './helpers/pre-gen-queue'
 import { syncSubsystemStoresFromStates } from './helpers/subsystem-store-sync'
 import { useEngineStore } from './store'
-import { orchestrator, timeSystem } from './engine-api'
+import { orchestrator } from './subsystems/orchestrator-system'
+import { timeSystem } from './subsystems/time-system'
 import { simulationBridge } from './simulation/simulation-bridge'
 import type { SimulationSnapshot } from './simulation/simulation-types'
 
@@ -149,7 +150,13 @@ export function useSimulationAdvance() {
     orchestrator.start()
 
     const forceBranch = useEngineStore.getState().forceBranchNext
-    const cached = !forceBranch ? shiftPreGenQueue() : undefined
+    let cached = !forceBranch ? shiftPreGenQueue() : undefined
+    const shouldWaitForActivePreGen = !cached && !forceBranch && getPreGenQueueStatus().isActive
+    if (shouldWaitForActivePreGen) {
+      cached = await waitForPreGenQueueItem()
+      if (!cached) clearPreGenQueue()
+    }
+
     if (cached?.fullContent) {
       orchestrator.setPrefetchedNarrative(cached.fullContent)
       if (cached.isBranchPoint) clearPreGenQueue()
@@ -163,6 +170,7 @@ export function useSimulationAdvance() {
       )
 
       // 自动保存：叙事完成后立即保存最新状态（废弃项目做法：无条件保存）
+      syncOrchestratorToEngineStore()
       orchestrator.triggerAutoSave()
     } catch (err) {
       console.error('[useSimulationAdvance] 回合执行失败:', err)

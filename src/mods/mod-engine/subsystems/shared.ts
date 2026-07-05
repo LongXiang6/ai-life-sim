@@ -20,6 +20,8 @@ export {
   subsystemRelevance,
 } from '../bootstrap/engine-subsystem-registry'
 
+export { shouldAlignTimeStepTransition } from './time-system'
+
 // helpers
 export { adaptationManager } from './adaptation-manager-system'
 
@@ -40,13 +42,15 @@ export {
   globalDeadLoopDetector,
   sanitizeSubSystemState,
   clampNumber,
-  formatSubsystemFieldsForPrompt,
   buildLayeredMemoryStateCard,
   buildNarrativeCoherenceHeader,
   buildNarrativeWorldRules,
   collectMemoryStateSummaries,
   dedupeSummariesAgainstMemory,
   isSubsystemOpenForPrompt,
+  isMvpNarrativeChangeSubsystem,
+  isMvpPromptSubsystem,
+  isMvpRuntimeSubsystem,
   shouldSkipEconomyTierRules,
   runPostNarrativePhase,
   resolveTimeStep,
@@ -99,5 +103,5 @@ export { simulationBridge } from '../simulation/simulation-bridge'
 export { useEngineStore } from '../store'
 
 // types
-export type { EngineState, RoundInfo, RoundResult, NarrativeChunk, CharacterCreation } from '../types'
+export type { EngineState, RoundInfo, RoundResult, NarrativeChunk, CharacterCreation, TimeStep } from '../types'
 export type { ParsedNarrative } from './narrative-parser-system'

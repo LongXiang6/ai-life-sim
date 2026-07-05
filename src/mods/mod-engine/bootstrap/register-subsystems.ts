@@ -9,6 +9,7 @@ import type { ISubSystem, ModManifest } from '@/foundation'
 import { MOD_SUBSYSTEM_IMPORTERS } from '@/core/mod-loader/mod-subsystem-importers.generated'
 import { SUBSYSTEM_SINGLETON_ALIASES } from './subsystem-aliases.generated'
 import { orchestrator } from '../subsystems/orchestrator-system'
+import { isMvpRuntimeSubsystem } from '../helpers/mvp-runtime-policy'
 
 function isSubSystem(value: unknown): value is ISubSystem {
   return (
@@ -75,6 +76,9 @@ export async function registerAllSubsystems(manifests: ModManifest[]): Promise<n
       const instance = resolveSubsystemInstance(modExports, className)
       if (!instance) {
         console.warn(`[register-subsystems] 未找到子系统 ${manifest.name}/${className}`)
+        continue
+      }
+      if (!isMvpRuntimeSubsystem(instance.id)) {
         continue
       }
 

@@ -13,7 +13,7 @@ const CACHE_KEY_PATTERNS: RegExp[] = [
   /^mod-world:save:0:init-cal:(\d+)/,
   /^mod-world:save:0:entities:(\d+)/,
   /^mod-base-universe:save:0:world-map:(\d+)/,
-  /^mod-pages:config:(?:talent-draw|fate-preview|attribute-alloc|character-create-form|character-create-gf):(\d+)/,
+  /^mod-pages:config:(?:talent-draw|fate-preview|attribute-alloc|character-create-form):(\d+)/,
 ]
 
 function stripStoragePrefix(fullKey: string): string | null {
@@ -80,7 +80,6 @@ export function clearWorldGeneratedCache(worldCode: number): void {
     configStore.remove('mod-pages', `fate-preview:${worldCode}`)
     configStore.remove('mod-pages', `attribute-alloc:${worldCode}`)
     configStore.remove('mod-pages', `character-create-form:${worldCode}`)
-    configStore.remove('mod-pages', `character-create-gf:${worldCode}`)
   } catch {
     /* ignore */
   }

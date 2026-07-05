@@ -20,9 +20,16 @@ export type {
   CompressionResult,
 } from './subsystems/summary-compressor-system'
 
-export { applyGameSave, collectGameSavePayload } from './helpers/save-restore'
+export { applyGameSave, collectGameSavePayload, saveCurrentGameToSlot } from './helpers/save-restore'
 export { checkAndClearPreGenOnTimeStepChange, clearPreGenQueue, getPreGenQueueLength } from './helpers/pre-gen-queue'
-export { formatNarrativeTimeLabel } from './helpers/narrative-calendar'
+export { formatCurrentNarrativeTimeLabel, formatNarrativeTimeLabel } from './helpers/narrative-calendar'
+export {
+  AVAILABLE_TIME_STEPS,
+  encodeTimeStepKey,
+  setSimulationTimeStep,
+  setSimulationTimeStepByKey,
+} from './helpers/simulation-time-api'
+export { resolveNarrativeBranchChoice, setForceBranchNextRound } from './helpers/branch-commands'
 export { buildOrchestratorWorldSetting } from './helpers/orchestrator-world-setting'
 
 export type { NPCInteractionRecord } from './subsystems/core-memory-system'

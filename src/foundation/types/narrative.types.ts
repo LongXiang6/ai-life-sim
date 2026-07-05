@@ -79,8 +79,6 @@ export interface PromptContext {
   narrativeStyle?: string,
   /** Step 0 叙事语气提示（校准 styleGuide.narrativeTone 映射，≤30 字） */
   narrativeToneHint?: string,
-  /** 子系统可变更字段说明（注入 AI Prompt，告诉 AI 每个子系统接受哪些字段） */
-  subsystemFields?: string,
   /** MOD 声明的世界观规则文本（聚合自各 MOD 的 manifest.worldRules） */
   modWorldRules?: string,
   /** 情节结构引导文本（当前阶段 + 张力 + 叙事建议） */

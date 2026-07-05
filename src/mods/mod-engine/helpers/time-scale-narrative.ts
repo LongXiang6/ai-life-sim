@@ -21,7 +21,7 @@ export function buildTimeScaleNarrativeHint(timeStep: TimeStep): string {
   }
 
   const unitZh = unitLabel[unit] ?? unit
-  let hint = `【时间尺度】以${unitZh}为单位推进${amount > 1 ? `（本次跨越 ${amount}${unitZh}）` : ''}。`
+  let hint = `【时间尺度】当前时间是本轮叙事的结束节点；正文只写上一叙事节点之后到当前节点之间发生的事。以${unitZh}为单位推进${amount > 1 ? `（本次跨越 ${amount}${unitZh}）` : ''}。`
 
   switch (unit) {
     case 'day':
@@ -34,7 +34,7 @@ export function buildTimeScaleNarrativeHint(timeStep: TimeStep): string {
       hint += '请叙述这一季内的季节变化、活动与人物互动，中距视角。'
       break
     case 'year':
-      hint += '请概括这一年内的重要事件与发展趋势，避免逐日流水账，宏观视角。'
+      hint += '若这是0岁开场，只写出生与家世；其他年份请概括该时间段的重要事件与发展趋势，避免逐日流水账，宏观视角。'
       break
     default:
       hint += '叙事粒度须与时间步进匹配。'

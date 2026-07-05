@@ -16,12 +16,11 @@ import {
   buildCoherenceLocksFromUi,
   mapPowerSystemZhToTag,
   mapWorldviewEssenceZhToTag,
-  CIVILIZATION_ZH_MAP,
   SPATIAL_FORM_ZH_MAP,
   COHERENCE_LOCK_FIELD_MAP,
   formatCalibrationSummary,
 } from '@/mods/mod-world'
-import { commitWorldInitialization, startBackgroundWorldInit } from '@/mods/mod-world/world-init-api'
+import { commitWorldInitialization } from '@/mods/mod-world/world-init-api'
 import type { WorldConfig } from '@/mods/mod-world'
 
 import { useWorldCoherenceConfirm } from '../../hooks/useWorldCoherenceConfirm'
@@ -34,15 +33,33 @@ const DIMENSION_FIELD_KEYS = [
   'worldviewEssence',
   'powerCeiling',
   'universeScale',
-  'civilizationStage',
 ] as const
 
 const COHERENCE_LOCKABLE_KEYS = new Set(Object.keys(COHERENCE_LOCK_FIELD_MAP))
 
 function buildDimensionModes(fieldModes: Record<string, FieldMode>): Record<string, FieldMode> {
   return Object.fromEntries(
-    DIMENSION_FIELD_KEYS.map((k) => [k, fieldModes[k] ?? 'ai']),
+    DIMENSION_FIELD_KEYS.map((k) => [k, normalizeFieldMode(fieldModes[k])]),
   )
+}
+
+function buildDimensionValues(
+  fieldValues: Record<string, string>,
+  customValues: Record<string, string>,
+): Record<string, string> {
+  return Object.fromEntries(
+    DIMENSION_FIELD_KEYS.map((k) => [k, customValues[k] || fieldValues[k] || '']),
+  )
+}
+
+function buildActiveCoherenceLocks(coherenceLocks: Record<string, boolean>): Record<string, boolean> {
+  return Object.fromEntries(
+    DIMENSION_FIELD_KEYS.map((k) => [k, coherenceLocks[k] === true]),
+  )
+}
+
+function normalizeFieldMode(mode: unknown): FieldMode {
+  return mode === 'custom' ? 'custom' : 'adaptive'
 }
 
 interface SavedFieldsState {
@@ -86,10 +103,9 @@ function resolveWorldConfig(
   const spatialVal = getEffectiveValue('universeScale') || '宇宙'
   const spatialForm = SPATIAL_FORM_ZH_MAP[spatialVal] ?? 'plane'
 
-  const civVal = getEffectiveValue('civilizationStage') || '中世纪'
-  const civilizationStage = CIVILIZATION_ZH_MAP[civVal] ?? 'medieval'
+  const civilizationStage = existingConfig?.civilizationStage ?? 'medieval'
 
-  const templateDescriptionPattern = /^.世界观 · .空间形态 · .文明阶段$/
+  const templateDescriptionPattern = /^.+世界观 · .+空间形态$/
   const trimmedDesc = worldDescription.trim()
   const hasCustomDescription = trimmedDesc.length > 0
   const hasExistingDescription = existingConfig?.description
@@ -99,7 +115,7 @@ function resolveWorldConfig(
     ? trimmedDesc
     : hasExistingDescription
       ? existingConfig!.description
-      : `${powerSystemVal} 世界观 · ${spatialVal} 空间形态 · ${civVal} 文明阶段`
+      : `${powerSystemVal} 世界观 · ${spatialVal} 空间形态`
 
   const hasExistingName = existingConfig?.name && existingConfig.name !== '自定义世界'
 
@@ -113,7 +129,7 @@ function resolveWorldConfig(
     difficulty: existingConfig?.difficulty ?? 'normal',
     worldType: existingConfig?.worldType,
     description,
-    _coherenceLocks: buildCoherenceLocksFromUi(coherenceLocks),
+    _coherenceLocks: buildCoherenceLocksFromUi(buildActiveCoherenceLocks(coherenceLocks)),
   }
 }
 
@@ -184,7 +200,7 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
     return buildFieldDefs(24).map((def) => ({
       ...def,
       playerValue: fieldValues[def.key] ?? '',
-      mode: fieldModes[def.key] ?? ('ai' as FieldMode),
+      mode: normalizeFieldMode(fieldModes[def.key]),
       customValue: customValues[def.key] ?? '',
     }))
   }, [fieldModes, fieldValues, customValues])
@@ -259,10 +275,7 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
       const configWithModes: WorldConfig = {
         ...config,
         _dimensionModes: buildDimensionModes(fieldModes),
-        _dimensionValues: {
-          ...fieldValues,
-          ...customValues,
-        },
+        _dimensionValues: buildDimensionValues(fieldValues, customValues),
       }
 
       const worldCode = useWorldStore.getState().worldCode
@@ -296,7 +309,6 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
         { name: '', age: 0, gender: '未设定', background: '', attributes: {} },
       )
 
-      startBackgroundWorldInit(activeConfig, worldCode, useWorldStore.getState().eraStartYear)
       router.push('/new-game/character-create')
     })()
   }, [router, setGamePhase, setWorldName, setWorldConfig, setInitialized, fieldModes, fieldValues, customValues])

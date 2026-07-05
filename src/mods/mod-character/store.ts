@@ -81,6 +81,7 @@ interface CharacterStore {
 
   setName: (name: string) => void
   setGender: (gender: 'male' | 'female') => void
+  setAge: (age: number) => void
   setRace: (race: string) => void
   setBackground: (background: string) => void
   setRaceOrigin: (origin: string) => void
@@ -169,6 +170,7 @@ export const useCharacterStore = create<CharacterStore>()(
 
       setName: (name,) => set({ name, },),
       setGender: (gender,) => set({ gender, },),
+      setAge: (age,) => set({ age, },),
       setRace: (race,) => set({ race, },),
       setBackground: (background,) => set({ background, },),
       setRaceOrigin: (raceOrigin,) => set({ raceOrigin, },),
@@ -210,7 +212,7 @@ export const useCharacterStore = create<CharacterStore>()(
         return persistedState as CharacterStore
       },
       partialize: (state,) => {
-        const { getSummary: _a, setName: _b, setGender: _c, setRace: _d, setBackground: _e, setRaceOrigin: _f, setCharacterBase: _g, setDestinyPatterns: _h, setHealth: _i, setLifespan: _j, setLifeStage: _k, setDecay: _l, setMorality: _m, setTalents: _n, setWorldCode: _o, reset: _p, ...rest } = state
+        const { getSummary: _a, setName: _b, setGender: _c, setAge: _d, setRace: _e, setBackground: _f, setRaceOrigin: _g, setCharacterBase: _h, setDestinyPatterns: _i, setHealth: _j, setLifespan: _k, setLifeStage: _l, setDecay: _m, setMorality: _n, setTalents: _o, setWorldCode: _p, reset: _q, ...rest } = state
         return rest
       },
     },

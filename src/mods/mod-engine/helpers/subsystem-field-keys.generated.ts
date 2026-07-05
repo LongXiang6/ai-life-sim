@@ -107,10 +107,5 @@ export const SUBSYSTEM_ZOD_FIELD_KEYS: Record<string, readonly string[]> = {
   "combat-power": [
     "rank",
     "delta"
-  ],
-  "fate-prophecy": [
-    "prophecy",
-    "deadline",
-    "triggerCondition"
   ]
 } as const

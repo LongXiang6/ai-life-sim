@@ -16,7 +16,17 @@
 import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
 import type { TimeStep, RoundInfo } from '../types'
 
-import { CALENDAR, SEASONS, SEASON_NAMES, MONTH_ZH, ERA_SPAN, ERA_NAME_POOL, REIGN_TITLES, REIGN_DURATION } from '../constants'
+import {
+  CALENDAR,
+  DEFAULT_ENGINE_CONFIG,
+  SEASONS,
+  SEASON_NAMES,
+  MONTH_ZH,
+  ERA_SPAN,
+  ERA_NAME_POOL,
+  REIGN_TITLES,
+  REIGN_DURATION,
+} from '../constants'
 
 /** 根据绝对年份推算纪元/年号信息（无限世代） */
 function resolveDisplayEra(year: number): Pick<RoundInfo, 'eraName' | 'eraYear' | 'reignTitle' | 'reignYear'> {
@@ -47,8 +57,46 @@ function createInitialRound(): RoundInfo {
   }
 }
 
+function createDefaultTimeStep(): TimeStep {
+  return { ...DEFAULT_ENGINE_CONFIG.timeStep }
+}
+
+function normalizeTimeStep(step: Partial<TimeStep> | undefined): TimeStep {
+  const rawValue = typeof step?.value === 'number' ? step.value : Number(step?.value)
+  const value = Number.isFinite(rawValue) && rawValue > 0 ? Math.floor(rawValue) : 1
+
+  switch (step?.unit) {
+    case 'day':
+    case 'month':
+    case 'season':
+    case 'year':
+      return { unit: step.unit, value }
+    default:
+      return createDefaultTimeStep()
+  }
+}
+
+const TIME_STEP_UNIT_ORDER: Record<TimeStep['unit'], number> = {
+  day: 0,
+  month: 1,
+  season: 2,
+  year: 3,
+}
+
+/** 粗粒度切到细粒度时，下一轮应从已叙事周期之后开始。 */
+export function shouldAlignTimeStepTransition(
+  prevUnit: TimeStep['unit'],
+  newUnit: TimeStep['unit'],
+): boolean {
+  return TIME_STEP_UNIT_ORDER[prevUnit] > TIME_STEP_UNIT_ORDER[newUnit]
+}
+
 /**
- * 粒度切换时的周期边界对齐（纯函数，无副作用）。
+ * 周期边界对齐（纯函数，无副作用）。
+ *
+ * 注意：玩家交互式切换 timeStep 本身不调用该函数。若已经存在上一轮叙事，
+ * 下一次 advance 可调用该对齐逻辑；开局切换步长不会被动跳过时间。
+ *
  * 当从粗粒度切换到细粒度时，粗粒度的叙事已覆盖当前整个周期，
  * 细粒度应从下一个粗周期开始，避免时间倒流到已叙事过的时段。
  *
@@ -59,14 +107,8 @@ export function alignRoundToNextPeriod(
   newUnit: TimeStep['unit'],
   round: RoundInfo,
 ): RoundInfo {
-  const UNIT_ORDER: Record<TimeStep['unit'], number> = {
-    day: 0, month: 1, season: 2, year: 3,
-  }
-  const prevOrder = UNIT_ORDER[prevUnit]
-  const newOrder = UNIT_ORDER[newUnit]
-
   // 粗→细才需要对齐；细→粗或同级不做额外跳转
-  if (prevOrder <= newOrder) {
+  if (!shouldAlignTimeStepTransition(prevUnit, newUnit)) {
     return { ...round }
   }
 
@@ -131,7 +173,7 @@ export class TimeSystem implements ISubSystem {
   readonly description = '365天真实公历历法时间推进（12月不均等分布）' as const
 
   private round: RoundInfo = createInitialRound()
-  private timeStep: TimeStep = { unit: 'month', value: 1 }
+  private timeStep: TimeStep = createDefaultTimeStep()
 
   /**
    * 本轮推进的天数增量（最近一次 advance/skipYears 使 totalDays 增加的量）。
@@ -148,16 +190,30 @@ export class TimeSystem implements ISubSystem {
     return this.lastDaysPassed
   }
 
-  /**
-   * 设置时间步进并自动对齐边界。
-   * 对齐逻辑由纯函数 alignRoundToNextPeriod 实现（可独立单测）。
-   */
+  /** 设置叙事推进步长。切换本身不推进时间，只影响下一次 advance。 */
   setTimeStep(step: TimeStep): void {
-    const prevUnit = this.timeStep.unit
-    this.timeStep = step
+    this.timeStep = normalizeTimeStep(step)
+  }
 
-    // 委托纯函数做边界对齐（粗→细跳下一周期，细→粗原样返回）
-    this.round = alignRoundToNextPeriod(prevUnit, step.unit, this.round)
+  /**
+   * 将当前 round 对齐到上一轮粗粒度叙事覆盖周期之后。
+   * 用于“年→季 / 季→月 / 月→日”等粗到细切换后的下一次推进。
+   */
+  alignToNextPeriod(prevUnit: TimeStep['unit'], newUnit: TimeStep['unit']): RoundInfo {
+    const beforeTotalDays = this.round.totalDays
+    const aligned = alignRoundToNextPeriod(prevUnit, newUnit, this.round)
+
+    this.round = structuredClone(aligned)
+    this.lastDaysPassed = aligned.totalDays - beforeTotalDays
+    this.syncEraFields()
+
+    if (aligned.totalDays <= beforeTotalDays) {
+      console.error(
+        `[TimeSystem] 对齐后 totalDays 未递增! ${beforeTotalDays} → ${aligned.totalDays} (transition=${prevUnit}->${newUnit})`,
+      )
+    }
+
+    return this.getRound()
   }
 
   getSeasonName(): string {
@@ -333,6 +389,15 @@ export class TimeSystem implements ISubSystem {
     }
   }
 
+  private getContinuousMonthDays(startMonth: number, monthCount: number): number {
+    let days = 0
+    for (let i = 0; i < monthCount; i++) {
+      const month = (startMonth + i) % CALENDAR.MONTHS_PER_YEAR
+      days += CALENDAR.DAYS_IN_MONTH[month]
+    }
+    return days
+  }
+
   // === 季推进 ===
 
   /**
@@ -348,29 +413,16 @@ export class TimeSystem implements ISubSystem {
   private advanceOneSeason(): RoundInfo {
     const r = this.round
 
-    // 当前季三个月的实际天数之和
-    const startMonth = r.season * CALENDAR.MONTHS_PER_SEASON
-    let seasonDays = 0
-    for (let i = 0; i < CALENDAR.MONTHS_PER_SEASON; i++) {
-      seasonDays += CALENDAR.DAYS_IN_MONTH[startMonth + i]
-    }
-    r.totalDays += seasonDays
+    // 季/季度推进：从当前月份起连续推进 3 个真实月份，不按固定春夏秋冬边界回跳。
+    const seasonDays = this.getContinuousMonthDays(r.month, CALENDAR.MONTHS_PER_SEASON)
+    const currentAbsoluteDay = r.year * CALENDAR.DAYS_PER_YEAR + r.dayOfYear - 1
+    const newAbsoluteDay = currentAbsoluteDay + seasonDays
 
-    const oldSeason = r.season
-    r.season = (r.season + 1) % CALENDAR.SEASONS_PER_YEAR
-    r.dayOfYear += seasonDays
-
-    // 是否触发新年
-    if (r.season <= oldSeason) {
-      // 从冬→春，跨年了
-      r.year++
-      r.dayOfYear = 1
-      this.syncEraFields()
-    }
-
-    // 计算日和月：新季节从该季第一个月第 0 天开始
-    r.month = r.season * CALENDAR.MONTHS_PER_SEASON
-    r.day = 0
+    r.totalDays = newAbsoluteDay
+    r.year = Math.floor(newAbsoluteDay / CALENDAR.DAYS_PER_YEAR)
+    r.dayOfYear = (newAbsoluteDay % CALENDAR.DAYS_PER_YEAR) + 1
+    this.applyDayOfYearToRound(r)
+    this.syncEraFields()
 
     return this.getRound()
   }
@@ -401,7 +453,7 @@ export class TimeSystem implements ISubSystem {
   collectState(_context: RoundContext): SubSystemState {
     const r = this.round
     const monthName = MONTH_ZH[r.month]
-    const summary = `${r.eraName}${r.eraYear}年（${r.reignTitle}${r.reignYear}年）${this.getSeasonName()}季 ${monthName} 第${r.day + 1}日`
+    const summary = `【${this.label}】${r.eraName}${r.eraYear}年（${r.reignTitle}${r.reignYear}年）${this.getSeasonName()}季 ${monthName} 第${r.day + 1}日`
     return {
       id: this.id,
       summary,
@@ -431,13 +483,13 @@ export class TimeSystem implements ISubSystem {
       this.syncEraFields()
     }
     if (c.timeStep) {
-      this.timeStep = c.timeStep as unknown as TimeStep
+      this.setTimeStep(c.timeStep as unknown as TimeStep)
     }
   }
 
   reset(): void {
     this.round = createInitialRound()
-    this.timeStep = { unit: 'month', value: 1 }
+    this.timeStep = createDefaultTimeStep()
     this.lastDaysPassed = 0
   }
 

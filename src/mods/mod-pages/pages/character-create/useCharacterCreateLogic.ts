@@ -9,13 +9,11 @@
 import { useCallback, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 
-import { configStore } from '@/core'
 import {
   useCharacterStore, RACE_LIFESPAN, randomName,
   MAX_LIFESPAN_CAP, BASE_HUMAN_LIFESPAN,
   LIFESPAN_BG_BONUS_KEYWORDS, filterDigitsOnly,
 } from '@/mods/mod-character'
-import { useGoldenFingerStore, GOLDEN_FINGER_TEMPLATES } from '@/mods/mod-golden-finger'
 import { useWorldStore } from '@/mods/mod-world'
 
 import { useCharacterCreateForm, ATTRIBUTES } from './useCharacterCreateForm'
@@ -23,13 +21,6 @@ import { useCharacterCreateForm, ATTRIBUTES } from './useCharacterCreateForm'
 // ============================================================
 // 常量
 // ============================================================
-
-/** 金手指系统面板 */
-const PANEL_TEMPLATES = GOLDEN_FINGER_TEMPLATES.filter((t) =>
-  ['attribute_panel', 'quest_system', 'gacha_wheel', 'check_in', 'shop_panel',
-   'appraisal_skill', 'achievement_system', 'skill_deduction', 'sim_management', 'time_retrospect',
-  ].includes(t.kind)
-)
 
 /** 默认性别图标 */
 const DEFAULT_GENDER_ICONS: Record<string, string> = {
@@ -84,25 +75,6 @@ const TRANSMIGRATOR_KEYWORDS = [
 // 帮助函数
 // ============================================================
 
-/** 金手指持久化键（按世界编码隔离） */
-function gfStorageKey(): string {
-  const worldCode = useWorldStore.getState().worldCode
-  return `character-create-gf:${worldCode || 0}`
-}
-
-interface SavedGfState {
-  gfMode: 'off' | 'random' | 'manual'
-  gfPanelId: string | null
-}
-
-function loadGfState(): SavedGfState | null {
-  return configStore.get<SavedGfState>('mod-pages', gfStorageKey())
-}
-
-function persistGfState(state: SavedGfState): void {
-  configStore.set('mod-pages', gfStorageKey(), state)
-}
-
 /** 简单寿命计算（对齐 lifespan-system.computeMaxAge） */
 function computeMaxAge(race: string, background: string, manualOverride?: number): number {
   if (manualOverride && manualOverride > 0) {
@@ -140,6 +112,12 @@ function detectStartingAge(background: string): number {
     return 18
   }
   return 0
+}
+
+function clampStartingAge(age: number, maxAge: number): number {
+  const finiteAge = Number.isFinite(age) ? Math.trunc(age) : 0
+  const finiteMaxAge = Number.isFinite(maxAge) && maxAge > 0 ? Math.trunc(maxAge) : BASE_HUMAN_LIFESPAN
+  return Math.min(Math.max(finiteAge, 0), Math.max(finiteMaxAge - 1, 0))
 }
 
 // ============================================================
@@ -199,21 +177,6 @@ export const LABELS = {
   cancelBtn: '取消' as const,
   savePresetBtn: '+ 保存预设' as const,
 
-  // 金手指
-  gfLabel: '金手指' as const,
-  gfOff: '🔒 关闭' as const,
-  gfRandom: '🎲 随机' as const,
-  gfManual: '✋ 手动' as const,
-  gfTierLabels: {
-    legendary: '传说',
-    rare: '稀有',
-    uncommon: '特殊',
-    unique: '独一无二',
-  } as Record<string, string>,
-  gfDetailFeatures: '功能模块' as const,
-  gfDetailRules: '运行规则' as const,
-  gfDetailRelated: '关联系统：' as const,
-
   // 属性分配
   attrLabel: '属性分配' as const,
   remainingPointsHint: '剩余点数：' as const,
@@ -232,12 +195,6 @@ export const LABELS = {
   // 种族信息（非人类时显示）
   raceDisplaySeparator: ' · ' as const,
 
-  // 金手指模式标签
-  gfModeLabels: {
-    off: '🔒 关闭' as const,
-    random: '🎲 随机' as const,
-    manual: '✋ 手动' as const,
-  } as Record<string, string>,
 }
 
 // ============================================================
@@ -316,13 +273,6 @@ export interface UseCharacterCreateLogicReturn {
   computedStartingAge: number | null
   handleDetectLifespan: () => void
 
-  // 金手指
-  gfMode: 'off' | 'random' | 'manual'
-  setGfMode: (v: 'off' | 'random' | 'manual') => void
-  gfPanelId: string | null
-  setGfPanelId: (v: string | null) => void
-  PANEL_TEMPLATES: typeof PANEL_TEMPLATES
-
   // 导航
   handleBack: () => void
   handleNext: () => void
@@ -342,6 +292,7 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
   const store = useCharacterStore
   const setName = store((s) => s.setName)
   const setGender = store((s) => s.setGender)
+  const setAge = store((s) => s.setAge)
   const setCharacterBase = store((s) => s.setCharacterBase)
   const setLifespan = store((s) => s.setLifespan)
 
@@ -360,22 +311,6 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
     setName: setFormName, setNameError, setGender: setFormGender, setRace, setBackground,
     handleAttrChange,
   } = useCharacterCreateForm()
-
-  // ---- 金手指 ----
-  const savedGf = loadGfState()
-  const [gfMode, _setGfMode] = useState<'off' | 'random' | 'manual'>(savedGf?.gfMode ?? 'off')
-  const [gfPanelId, _setGfPanelId] = useState<string | null>(savedGf?.gfPanelId ?? null)
-  const setGoldenFinger = useGoldenFingerStore((s) => s.setGoldenFinger)
-
-  const setGfMode = useCallback((v: 'off' | 'random' | 'manual') => {
-    _setGfMode(v)
-    persistGfState({ gfMode: v, gfPanelId })
-  }, [gfPanelId])
-
-  const setGfPanelId = useCallback((v: string | null) => {
-    _setGfPanelId(v)
-    persistGfState({ gfMode, gfPanelId: v })
-  }, [gfMode])
 
   // ---- 自定义性别 ----
   const [customGenders, setCustomGenders] = useState<string[]>([])
@@ -491,6 +426,19 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
 
   const raceInfo = RACE_LIFESPAN[race]
 
+  const resolveAgeSetup = useCallback(() => {
+    const manualOverride = manualLifespan ? parseInt(manualLifespan, 10) : undefined
+    const maxAge = computedLifespan
+      ?? (raceInfo?.baseMaxAge ?? computeMaxAge(race, background, isNaN(manualOverride as number) ? undefined : manualOverride))
+    const manualStart = manualStartingAge ? parseInt(manualStartingAge, 10) : undefined
+    const detectedStart = computedStartingAge ?? detectStartingAge(background)
+    const startingAge = clampStartingAge(
+      manualStart !== undefined && !isNaN(manualStart) ? manualStart : detectedStart,
+      maxAge,
+    )
+    return { maxAge, startingAge }
+  }, [background, computedLifespan, computedStartingAge, manualLifespan, manualStartingAge, race, raceInfo])
+
   // ============================================================
   // 导航
   // ============================================================
@@ -503,36 +451,25 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
     const finalName = trimmed && trimmed !== 'AI命名' ? trimmed : randomName(genderForName)
     setName(finalName)
     setGender(gender)
+    const { maxAge, startingAge } = resolveAgeSetup()
+    setAge(startingAge)
 
     setCharacterBase({
       base: { ...attributes } as Record<string, number> & { physique: number; mind: number; talentAptitude: number; charisma: number; resources: number },
       current: { ...attributes } as Record<string, number> & { physique: number; mind: number; talentAptitude: number; charisma: number; resources: number },
       modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0, resources: 0 },
+      startingAge,
     })
 
     if (raceInfo) {
-      const mAge = computedLifespan ?? raceInfo.baseMaxAge
-      setLifespan({ race: raceInfo, maxAge: mAge, baseMaxAge: raceInfo.baseMaxAge })
+      setLifespan({ race: raceInfo, maxAge, baseMaxAge: raceInfo.baseMaxAge })
     }
 
     store.getState().setRace(race)
     store.getState().setBackground(background)
 
-    if (gfMode !== 'off') {
-      setGoldenFinger({
-        mode: gfMode,
-        assigned: gfMode === 'random',
-        template: gfMode === 'manual' && gfPanelId
-          ? GOLDEN_FINGER_TEMPLATES.find((t) => t.id === gfPanelId) ?? null
-          : null,
-        level: 0,
-        levelProgress: 0,
-        unlockedFeatures: [],
-      })
-    }
-
     router.push('/talent-draw')
-  }, [name, nameError, gender, race, setName, setGender, setCharacterBase, setLifespan, raceInfo, computedLifespan, background, attributes, router, gfMode, gfPanelId, setGoldenFinger, setNameError, store])
+  }, [name, nameError, gender, race, setName, setGender, setAge, setCharacterBase, setLifespan, raceInfo, background, attributes, router, setNameError, store, resolveAgeSetup])
 
   const handleBack = useCallback(() => {
     const trimmed = name.trim()
@@ -540,27 +477,21 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
     const finalName = trimmed && trimmed !== 'AI命名' ? trimmed : randomName(genderForName)
     setName(finalName)
     setGender(gender)
+    const { maxAge, startingAge } = resolveAgeSetup()
+    setAge(startingAge)
     store.getState().setRace(race)
     store.getState().setBackground(background)
     setCharacterBase({
       base: { ...attributes } as Record<string, number> & { physique: number; mind: number; talentAptitude: number; charisma: number; resources: number },
       current: { ...attributes } as Record<string, number> & { physique: number; mind: number; talentAptitude: number; charisma: number; resources: number },
       modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0, resources: 0 },
+      startingAge,
     })
-    if (gfMode !== 'off') {
-      setGoldenFinger({
-        mode: gfMode,
-        assigned: gfMode === 'random',
-        template: gfMode === 'manual' && gfPanelId
-          ? GOLDEN_FINGER_TEMPLATES.find((t) => t.id === gfPanelId) ?? null
-          : null,
-        level: 0,
-        levelProgress: 0,
-        unlockedFeatures: [],
-      })
+    if (raceInfo) {
+      setLifespan({ race: raceInfo, maxAge, baseMaxAge: raceInfo.baseMaxAge })
     }
     router.push('/new-game/world-customize')
-  }, [name, gender, race, attributes, background, router, gfMode, gfPanelId, setName, setGender, setCharacterBase, setGoldenFinger, store])
+  }, [name, gender, race, attributes, background, router, setName, setGender, setAge, setCharacterBase, setLifespan, raceInfo, store, resolveAgeSetup])
 
   return {
     // 表单
@@ -601,10 +532,6 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
     manualStartingAge, setManualStartingAge,
     computedLifespan, computedStartingAge,
     handleDetectLifespan,
-
-    // 金手指
-    gfMode, setGfMode, gfPanelId, setGfPanelId,
-    PANEL_TEMPLATES,
 
     // 导航
     handleBack, handleNext,

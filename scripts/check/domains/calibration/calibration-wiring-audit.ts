@@ -71,6 +71,34 @@ const SPECIAL_PATTERNS: Record<string, string[]> = {
   developmentModifier: ['formulas?.developmentModifier'],
 }
 
+/**
+ * MVP 蓝图阶段 0 只要求校准核心路径和已保留系统可用。
+ * 下列字段的消费者属于延后模拟系统；未接线时记录为 defer，不作为 calibration
+ * acceptance 的硬失败。未知字段仍保持 backlog 并触发 assert，防止真实漏接线被吞掉。
+ */
+const MVP_DEFERRED_FORMULA_KEYS: Record<string, string> = {
+  impactRangeModifier: '跨系统影响范围模拟延后',
+  birthRateModifier: 'population-system 延后',
+  fertilityModifier: 'family-system 延后',
+  deathRateModifier: 'population-system 延后',
+  inflationModifier: 'economy-system 延后',
+  tradeMultiplierModifier: 'economy-system 延后',
+  monsterThreatModifier: 'monster-system 延后',
+  monsterSpawnModifier: 'monster-system 延后',
+  socialMobilityModifier: 'social-stratification-system 延后',
+  factionEmergenceModifier: 'faction-dynamics-system 延后',
+  legalEnforcementModifier: 'legal-system 延后',
+  ecologyRecoveryModifier: 'ecology-system 延后',
+  disasterFrequencyModifier: 'climate-system 延后',
+  techProgressModifier: 'culture-tech-system 延后',
+  techBreakthroughModifier: 'culture-tech-system 延后',
+  eventDistributionStrategy: '事件分布策略由延后模拟系统消费',
+  migrationRateModifier: 'population-system 延后',
+  literacyGrowthModifier: 'education-system 延后',
+  incomeModifier: 'work-system 延后',
+  conflictEscalationModifier: 'conflict-cycle-system 延后',
+}
+
 /** 已知 backlog / defer（非漏接线） */
 const BACKLOG: Record<string, string> = {
   'styleGuide.narrativeTone': 'orchestrator narrativeToneHint',
@@ -111,10 +139,12 @@ function auditFormulaKeys(source: string): WiringEntry[] {
 
     const patterns = SPECIAL_PATTERNS[key] ?? [`getFormulaModifier('${key}')`]
     const wired = patterns.some((p) => source.includes(p))
+    const deferredReason = MVP_DEFERRED_FORMULA_KEYS[key]
     entries.push({
       field: key,
-      status: wired ? 'wired' : 'backlog',
+      status: wired ? 'wired' : deferredReason ? 'defer' : 'backlog',
       consumer: FORMULA_WIRED[key],
+      note: deferredReason,
     })
   }
 
@@ -125,14 +155,22 @@ function main() {
   const source = readAllSources()
   const entries = auditFormulaKeys(source)
 
-  const unwired = entries.filter((e) => e.status !== 'wired')
+  const unexpectedUnwired = entries.filter((e) => e.status === 'backlog')
+  const deferred = entries.filter((e) => e.status === 'defer')
   const wiredCount = entries.filter((e) => e.status === 'wired').length
 
   console.log(`[calibration-wiring-audit] L2/L3 字段: ${wiredCount}/${entries.length} 已接线`)
 
   for (const e of entries) {
-    const mark = e.status === 'wired' ? '✅' : '⚠️'
-    console.log(`  ${mark} ${e.field}${e.consumer ? ` → ${e.consumer}` : ''}`)
+    const mark = e.status === 'wired' ? '✅' : e.status === 'defer' ? '⏳' : '⚠️'
+    console.log(`  ${mark} ${e.field}${e.consumer ? ` → ${e.consumer}` : ''}${e.note ? ` (${e.note})` : ''}`)
+  }
+
+  if (deferred.length > 0) {
+    console.log('[calibration-wiring-audit] MVP 延后字段（登记，非失败）:')
+    for (const e of deferred) {
+      console.log(`  ⏳ ${e.field}: ${e.note}`)
+    }
   }
 
   console.log('[calibration-wiring-audit] 跨系统 / Prompt backlog（登记，非失败）:')
@@ -140,26 +178,32 @@ function main() {
     console.log(`  📋 ${k}: ${note}`)
   }
 
-  assert.equal(unwired.length, 0, `未接线 L2 字段: ${unwired.map((e) => e.field).join(', ')}`)
+  assert.equal(unexpectedUnwired.length, 0, `未知未接线 L2 字段: ${unexpectedUnwired.map((e) => e.field).join(', ')}`)
 
-  // 5A/5B 关键跨读
+  // 当前 MVP 仍必须保持的关键跨读；延后模拟系统的旧 Phase 5 断言只登记不阻断。
   assert.ok(source.includes('breakthroughBonus'), 'faith breakthroughBonus 应已导出')
-  assert.ok(source.includes('innovationMod'), 'education innovationMod 应已导出')
-  assert.ok(source.includes('collectStateUpdate'), 'culture-tech Round2 应已实现')
 
   // IT-5：收入/运气 dedup — fortune 用 luckPointModifier，不用 incomeModifier
   const fortuneFile = collectSourceFiles(SRC).find((f) => f.includes('fortune-encounter-system.ts'))
-  const workFile = collectSourceFiles(SRC).find((f) => f.includes('work-system.ts'))
   if (fortuneFile) {
     const fortuneSrc = fs.readFileSync(fortuneFile, 'utf8')
     assert.ok(fortuneSrc.includes("getFormulaModifier('luckPointModifier')"))
     assert.ok(!fortuneSrc.includes("getFormulaModifier('incomeModifier')"), 'fortune 不应读 incomeModifier')
   }
-  if (workFile) {
-    const workSrc = fs.readFileSync(workFile, 'utf8')
-    assert.ok(workSrc.includes("getFormulaModifier('incomeModifier')"))
+
+  const deferredAssertions: Record<string, string> = {
+    'education innovationMod': 'education-system 延后',
+    'culture-tech collectStateUpdate': 'culture-tech-system 延后',
+    'work incomeModifier': 'work-system 延后',
+    'family fertilityModifier': 'family-system 延后',
   }
-  assert.ok(source.includes("getFormulaModifier('fertilityModifier')"), 'family 应读 fertilityModifier')
+  if (Object.keys(deferredAssertions).length > 0) {
+    console.log('[calibration-wiring-audit] Phase 5 延后断言（登记，非失败）:')
+    for (const [label, note] of Object.entries(deferredAssertions)) {
+      console.log(`  ⏳ ${label}: ${note}`)
+    }
+  }
+
   assert.ok(source.includes('narrativeToneHint'), 'narrative tone hint 应已接入')
   assert.ok(source.includes('getWorldviewStyleHint'), 'styleGuide 读取 helper 应存在')
   assert.ok(source.includes('calibrationSummary'), 'narrative calibrationSummary 应已接入')

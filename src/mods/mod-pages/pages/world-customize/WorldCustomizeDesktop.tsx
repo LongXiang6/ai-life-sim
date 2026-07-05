@@ -2,7 +2,7 @@
 
 /**
  * @file WorldCustomizeDesktop.tsx
- * @description 世界自定义桌面端 —— 5维度 x 3模式 + 世界描述 + 标签锁定
+ * @description 世界自定义桌面端 —— 4维度 + 世界描述 + 标签锁定
  * @mod mod-pages
  */
 
@@ -15,7 +15,7 @@ import { FIELD_MODE_LABELS, WORLD_CUSTOM_TEXT_MAX_LENGTH, type EditableField, ty
 
 import styles from './WorldCustomizeDesktop.module.css'
 
-const MODES: FieldMode[] = ['ai', 'adaptive', 'custom']
+const MODES: FieldMode[] = ['adaptive', 'custom']
 
 function DimensionCard({
   field,
@@ -51,9 +51,6 @@ function DimensionCard({
         ))}
       </div>
 
-      {field.mode === 'ai' && (
-        <span className={styles.aiHint}>AI 将自动决定</span>
-      )}
       {field.mode === 'adaptive' && (
         <Dropdown
           value={field.playerValue}
@@ -104,7 +101,7 @@ export function WorldCustomizeDesktop() {
         <div className={styles.header}>
           <div className={styles.headerIcon}>🌌</div>
           <h1 className={styles.title}>世界自定义</h1>
-          <p className={styles.hint}>设定宇宙的宏观参数，AI 将根据你的选择初始化世界</p>
+          <p className={styles.hint}>设定宇宙的宏观参数，后续叙事会按这些规则展开</p>
         </div>
 
         <div className={styles.descSection}>
@@ -113,7 +110,7 @@ export function WorldCustomizeDesktop() {
             className={styles.descInput}
             value={worldDescription}
             onChange={(e) => setWorldDescription(e.target.value.slice(0, WORLD_CUSTOM_TEXT_MAX_LENGTH))}
-            placeholder="描述你的世界，AI 将据此推断各项设定…"
+            placeholder="补充你的世界背景、氛围、禁忌或核心规则…"
             rows={3}
             maxLength={WORLD_CUSTOM_TEXT_MAX_LENGTH}
           />
@@ -139,8 +136,8 @@ export function WorldCustomizeDesktop() {
         onBack={skip}
         backTitle="返回世界选择"
         onConfirm={save}
-        confirmText="确认并生成世界"
-        confirmTitle="确认自定义值并初始化世界"
+        confirmText="确认世界"
+        confirmTitle="确认自定义值并进入角色设定"
       />
     </>
   )

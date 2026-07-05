@@ -16,10 +16,10 @@
 |------|------|
 | **填空而非解题** | AI 打开一个子系统文件，看到的是带有占位符的模板，知道"这里填什么类型、输出什么结构"，不需要翻其他文件去猜 |
 | **编译期安全** | foundation 层定义跨域数据契约，跨系统读数据走类型安全的读取器，路径写错编译报错而非运行时静默 undefined |
-| **统一时间源** | 所有子系统从 `context.totalDays` 读取唯一时间源，不再各自计算年/月/日换算 |
+| **统一时间源** | TimeSystem 以"天"为唯一最小单位；所有子系统从 `daysPassed` / `context.totalDays` 读取时间，不再各自维护年/月/日缩放 |
 | **自检自动化** | 每个 MOD 完成填空后可跑 `npm run gate-check` 自动校验是否缺文件、缺导出、manifest 字段不匹配 ⚠️**待建设**（见下方现状说明） |
 
-**现状说明**：`scripts/check/domains/` 目前的 scanner（wiring / loader / mod / ui / narrative / calibration）**不校验**本文档新增的约定——子系统是否 `extends BaseSubsystem`、契约文件是否存在、§一文件存在性约束表是否满足。这些校验能力尚未落地，属于后续待建设的 checker 任务，本文档描述的是目标状态而非当前 `gate-check` 已有能力，恢复子系统时不能仅凭 `gate-check` 通过就认为符合本文档规范，仍需人工核对。
+**现状说明**：`scripts/check/domains/` 目前的 scanner（wiring / loader / mod / ui / narrative / calibration）**不校验**本文档新增的约定——子系统是否 `extends BaseSubsystem`、契约文件是否存在、§一文件存在性约束表是否满足。这些校验能力尚未落地，属于后续待建设的 checker 任务，本文档描述的是目标状态而非当前 `gate-check` 已有能力，恢复子系统时不能仅凭 `gate-check` 通过就认为符合本文档规范，仍需人工核对。反过来，迁移期 `gate-check` 的旧规则 FAIL 也不能直接逐行硬修，必须先按 MVP 蓝图建立“真实阻断 / 检测器误报 / 迁移期应降级 / MVP 后处理”分流表。
 
 ---
 
@@ -116,6 +116,12 @@
 
 ## 八、时间引擎的统一接口
 
+时间系统分两层，禁止混淆：
+
+- **底层时间粒度**：唯一最小单位是"天"。`TimeSystem` 只向外提供整数 `daysPassed` 与 `totalDays`。
+- **叙事推进步长**：玩家每次点击推进就是一个叙事轮次；默认步长是 1 年，但玩家可切换为日 / 月 / 季 / 年。步长只决定本轮换算出多少 `daysPassed`，不改变底层日粒度。
+- **步长切换不等于时间推进**：切换 `timeStep` 不能修改 `round` / `totalDays` / `daysPassed`，只能影响下一次 `TimeSystem.advance()` 的换算结果。开局默认年推进时，玩家切换到日 / 月 / 季不能被动跳过一年。
+
 所有子系统读取时间的唯一方式是：
 
 ```typescript
@@ -135,11 +141,16 @@ const daysPassed = this.getDaysPassed(context)  // 返回整数
 
 const days = this.getDaysPassed(context)        // 整数
 
+// 当前叙事轮次可能来自日/月/季/年任一玩家步长。
+// 子系统不关心玩家选择的是哪个按钮，只处理 TimeSystem 换算后的 days。
+
 // 如果需要年粒度判断：
 const currentYear = Math.floor(context.totalDays / 365)
 
 // 如果需要月粒度判断：
-const currentMonth = Math.floor((context.totalDays % 365) / 30) + 1
+// 伪代码：复用 TimeSystem/历法常量按 DAYS_IN_MONTH 累加换算，禁止用 /30 近似真实月份。
+const dayOfYear = (context.totalDays % 365) + 1
+const currentMonth = monthIndexFromDayOfYear(dayOfYear, CALENDAR.DAYS_IN_MONTH) + 1
 
 // 如果需要季节判断：
 const season = Math.floor((currentMonth - 1) / 3)  // 0=春 1=夏 2=秋 3=冬
@@ -151,6 +162,10 @@ while (this._dayAccumulator >= 30) {
   this._dayAccumulator -= 30
 }
 ```
+
+当前引擎口径为固定 365 天、2 月 28 天、不实现闰年；若后续要改闰年，必须同步修改 TimeSystem、`CALENDAR` 常量、RoundContext 说明和所有恢复蓝图，不能只改文档。
+
+叙事步长换算口径：日 = 1 天；月 = 从当前日期推进到下个月同序位置所跨的真实月份天数；季 = 从当前月份起连续 3 个真实月份天数之和；年 = 365 天。换算结果写入 `daysPassed`，累计结果写入 `totalDays`。
 
 ### 附：RoundContext 扩展说明
 

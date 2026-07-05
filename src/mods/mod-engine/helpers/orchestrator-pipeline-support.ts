@@ -32,7 +32,6 @@ export {
   type SubsystemInstruction,
 } from './cross-domain-rules'
 export { globalDeadLoopDetector, deepSanitize, sanitizeSubSystemState, clampNumber } from './system-safety'
-export { formatSubsystemFieldsForPrompt } from './subsystem-field-registry'
 // 激活 shared/ 的叙事 Prompt Key 常量 → 子系统用标准化 key 注入 Prompt 片段
 export { NARRATIVE_PROMPT_KEYS } from '@/core/shared'
 export type { NarrativePromptKey } from '@/core/shared'
@@ -48,6 +47,14 @@ export {
   isSubsystemOpenForPrompt,
   shouldSkipEconomyTierRules,
 } from './subsystem-prompt-gate'
+export {
+  MVP_ALLOWED_SUBSYSTEMS_TEXT,
+  MVP_SUBSYSTEM_GUIDE,
+  isMvpNarrativeChangeSubsystem,
+  isMvpPromptSubsystem,
+  isMvpRuntimeSubsystem,
+  shouldApplyMvpCommit,
+} from './mvp-runtime-policy'
 export { runPostNarrativePhase } from './post-narrative-processor'
 export { resolveTimeStep } from '../utils/time-step-resolver'
 export { mapSubsystemStatesToDetectionStates } from './detection-state-mapper'

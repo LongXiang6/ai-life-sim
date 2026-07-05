@@ -82,27 +82,6 @@
 }
 .outlineBtn:hover { background: var(--color-accent-glow); }
 
-/* ---- 框架：金手指详情面板，与桌面端一致 ---- */
-.gfDetail {
-  margin-top: 10px; padding: 12px; border-radius: 10px;
-  border: 1px solid var(--color-border); background: var(--color-bg-secondary);
-}
-.gfDetailHeader { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.gfDetailName { font-size: 14px; font-weight: 600; color: var(--color-text-primary); }
-.gfDetailTier {
-  font-size: 10px; padding: 2px 6px; border-radius: 6px; font-weight: 500;
-  background: var(--color-accent-glow); color: var(--color-primary);
-}
-.gfDetailDesc { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 10px; line-height: 1.5; }
-.gfDetailSubtitle { font-size: 11px; font-weight: 600; color: var(--color-text-primary); margin-bottom: 3px; }
-.gfDetailList { list-style: none; padding: 0; margin: 0 0 8px 0; }
-.gfDetailList li {
-  font-size: 11px; color: var(--color-text-secondary); padding: 1px 0; padding-left: 14px;
-  position: relative;
-}
-.gfDetailList li::before { content: '•'; position: absolute; left: 3px; color: var(--color-primary); }
-.gfDetailTarget { font-size: 10px; color: var(--color-text-tertiary); }
-
 /* 框架：背景预设卡片，与桌面端一致 */
 .bgPresetCard {
   padding: 10px 12px;

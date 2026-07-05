@@ -28,7 +28,7 @@ import {
   clampModifier,
   inferMapTemplate,
 } from './world-init-deps'
-import { shouldUseGenericSimulationPools } from '../utils/world-init-fallback'
+import { shouldUseGenericSimulationPools } from '../utils/world-pool-selectors'
 
 import { useWorldStore } from '../store'
 
