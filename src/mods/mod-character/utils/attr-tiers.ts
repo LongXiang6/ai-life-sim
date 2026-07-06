@@ -5,6 +5,7 @@
  */
 
 import { clamp } from '@/core/shared'
+import { TRANSCENDENT_ATTR_KEYS, TRANSCENDENT_TIER_THRESHOLDS } from '../constants'
 
 type AttrKey = 'physique' | 'mind' | 'talentAptitude' | 'charisma' | 'resources' | 'luck' | 'morality' | 'health'
 
@@ -142,15 +143,68 @@ export function getAttrTierIndex(value: number): number {
   return 0
 }
 
+/** 各可超凡属性的「领域」名词（用于拼接超凡档位描述） */
+const TRANSCENDENT_DOMAIN_LABELS: Record<string, { noun: string; highAdj: string; lowAdj: string }> = {
+  physique:       { noun: '肉身', highAdj: '', lowAdj: '' },
+  mind:           { noun: '心神', highAdj: '', lowAdj: '' },
+  talentAptitude: { noun: '道基', highAdj: '', lowAdj: '' },
+  charisma:       { noun: '威仪', highAdj: '', lowAdj: '' },
+}
+
+/** 正向超凡分层描述（凡人上限之上） */
+function transcendentPositive(key: string, value: number): string {
+  const t = TRANSCENDENT_TIER_THRESHOLDS
+  const noun = TRANSCENDENT_DOMAIN_LABELS[key]?.noun ?? '存在'
+  if (value <= t.sage) {
+    return `超凡入圣，已越人类极限，${noun}半步登神，凡俗武力再多也无法撼动`
+  }
+  if (value <= t.divine) {
+    return `神性显化，${noun}脱离血肉桎梏，言出法随，寻常超凡者仰望而不可及`
+  }
+  if (value <= t.divineKing) {
+    return `神王之姿，${noun}执掌一方法则，举手投足动摇山河，万灵俯首`
+  }
+  // 概念级：公式化生成（越高越接近"不可名状"），对齐 power-system generateNextStage 思路
+  const overflow = value - t.divineKing
+  const rank = Math.floor(overflow / 40) + 1
+  return `概念级·第${rank}重，${noun}已升华为世界的一部分，其存在本身即是法则，凡人语言无从描述`
+}
+
+/** 负向超凡分层描述（凡人下限之下，极端残缺/衰败） */
+function transcendentNegative(key: string, value: number): string {
+  const noun = TRANSCENDENT_DOMAIN_LABELS[key]?.noun ?? '存在'
+  const abs = Math.abs(value)
+  const t = TRANSCENDENT_TIER_THRESHOLDS
+  if (abs <= t.sage) {
+    return `${noun}残破到凡人无法存活的地步，全靠某种超凡之力续命`
+  }
+  if (abs <= t.divine) {
+    return `${noun}如同被诅咒的深渊，衰败到反噬周遭，接近者亦受牵累`
+  }
+  return `${noun}已跌入不可名状的负极，成为一种反世界的存在`
+}
+
 /**
  * 获取属性的语义描述
  * @param key 属性键名
  * @param effectiveValue 有效值
  * @returns 语义描述字符串
+ *
+ * 凡人区间（|v|≤10）沿用 11 档 ATTR_TIER_DESCRIPTIONS；
+ * 可超凡属性（TRANSCENDENT_ATTR_KEYS）超出 ±10 时走分层/公式化超凡描述。
  */
 export function getAttrSemantic(key: string, effectiveValue: number): string {
   const tiers = ATTR_TIER_DESCRIPTIONS[key as AttrKey]
   if (!tiers) return '未知'
+
+  const isTranscendent = (TRANSCENDENT_ATTR_KEYS as readonly string[]).includes(key)
+  if (isTranscendent && effectiveValue > TRANSCENDENT_TIER_THRESHOLDS.mortalCap) {
+    return transcendentPositive(key, effectiveValue)
+  }
+  if (isTranscendent && effectiveValue < -TRANSCENDENT_TIER_THRESHOLDS.mortalCap) {
+    return transcendentNegative(key, effectiveValue)
+  }
+
   const idx = getAttrTierIndex(effectiveValue)
   return tiers[idx]
 }

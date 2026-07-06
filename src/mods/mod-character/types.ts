@@ -159,7 +159,9 @@ export interface RaceLifespanConfig {
   /** 黄金年龄占比（如 [0.18, 0.40] = 18%~40% 寿命为黄金年龄） */
   goldenAgeRatio: [number, number]
   /** 衰减速率乘数（1.0 = 标准人类速率） */
-  decayMultiplier: number,
+  decayMultiplier: number
+  /** 可超凡属性的物种基准线（不含 resources，凡人锁定属性不设基准线）。未设置时默认 0，等同现状 */
+  attrBaselines?: Partial<Record<'physique' | 'mind' | 'talentAptitude' | 'charisma', number>>,
 }
 
 /** 突破途径 */
@@ -310,26 +312,31 @@ export interface CharacterSummary {
 // ============================================================
 
 // ============================================================
-// 气运（对齐废弃项目 luck-system.ts）
+// 气运（隐藏基础属性，用户不可见，仅 AI 叙事可读写；对齐废弃项目 luck-system.ts）
 // ============================================================
+
+/** 气运修正系数（气运值 → 四项全局系数） */
+export interface LuckModifiers {
+  /** 疾病回避概率修正（每点 +3%） */
+  diseaseAvoidance: number
+  /** 死亡回避概率修正（每点 +2%） */
+  deathAvoidChance: number
+  /** 叙事事件权重偏移（每点 +5%） */
+  eventWeightBias: number
+  /** 衰老加速修正（每点 -1%） */
+  ageDecayModifier: number
+}
 
 /** 气运子系统状态 */
 export interface LuckState {
-  /** 基础气运值（开局随机，0-10） */
-  base: number
-  /** 当前气运值（含后天修正） */
-  current: number
+  /** 气运值（-10~+10，0 为普通；负值不祥，正值走运） */
+  luck: number
   /** 气运修正系数 */
-  modifiers: {
-    /** 疾病回避概率修正（每点 +3%） */
-    diseaseAvoidance: number
-    /** 死亡回避概率修正（每点 +2%） */
-    deathAvoidChance: number
-    /** 叙事事件权重偏移（每点 +5%） */
-    eventWeightBias: number
-    /** 衰老加速修正（每点 -1%） */
-    ageDecayModifier: number,
-  }
+  modifiers: LuckModifiers
+  /** 大幅变化通知剩余轮数 */
+  luckNotificationRounds: number
+  /** 大幅变化通知文本 */
+  luckNotificationText: string
 }
 
 // ============================================================

@@ -77,6 +77,13 @@ export {
 export { runNarrativeInterceptors } from '../helpers/narrative-interceptor-pipeline'
 
 export {
+  digestLedger,
+  type DigestEntry,
+  type LedgerEvent,
+  type DigestLedgerSnapshot,
+} from '../helpers/digest-ledger'
+
+export {
   buildNarrativeTimeContext,
   readEraStartYearFromConfig,
   readBirthEraYearFromConfig,

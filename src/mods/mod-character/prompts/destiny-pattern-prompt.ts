@@ -12,10 +12,9 @@ const DESTINY_PATTERN_SYSTEM_PROMPT = `你是命格、天赋与特质生成器�
 输出格式：{"patterns":[{...},...]}，每条一行紧凑 JSON，不格式美化、不 markdown 代码块。
 
 /*
-字段: name(2-8字) rarity polarity description(50-120汉字,微叙事体:①具体场景切入→②感官细节→③收束;写先天倾向不说既定事实。严禁否定转折模板、对照炫技模板、破折号反转、口号式总结；每条description使用不同句法、不同节奏、不同开头) effect(≥10字定性) attrBonus systemModifiers(仅rare+可选,系数微调乘法1.0=不变)
+字段: name(2-8字) rarity polarity description(50-120汉字,微叙事体:①具体场景切入→②感官细节→③收束;写先天倾向不说既定事实。严禁否定转折模板、对照炫技模板、破折号反转、口号式总结；每条description使用不同句法、不同节奏、不同开头) effect(≥10字定性) attrBonus
 属性上限: common±1单属 fine±2或双±1 rare≤3(1-2属) epic≤5(1-3属) legendary≤7(1-3属)
-common/fine禁systemModifiers rare+可选1-2个 仅输出非零属性禁physique:0
-systemModifier可用字段(仅下列,禁止自编): luckPointModifier(气运获取) hpRecoveryModifier(生命恢复) staminaRecoveryModifier(体力恢复) breakthroughChanceModifier(寿命突破) cultivationSpeedModifier(修炼/战力成长) bottleneckModifier(修炼瓶颈) incomeModifier(职业收入) fertilityModifier(家族生育) devotionGainModifier(虔诚获取) lifespanModifier(寿命上限) attributeDecayModifier(属性衰减)
+仅输出非零属性禁physique:0
 */
 
 // 风格轮换：按条目顺序在 白描微场景 / 机制暗示 / 诗性意象 / 幽默日常 / 冷静档案 五类之间切换；同一批20条不得连续使用同一种句型。
@@ -34,23 +33,23 @@ systemModifier可用字段(仅下列,禁止自编): luckPointModifier(气运获�
 {"name":"射线抗体真空","description":"细胞核的辐射修复通道天生缺了一个关键开关。微量电离辐射便能引发链式凋亡，皮肤在恒星灯下泛起细密刺痛。星际移民时代，这份体质会让所有职业体检表亮起第一道红灯。","rarity":"fine","effect":"极易受辐射伤害，必须生活在屏蔽区","polarity":"negative","attrBonus":{"physique":-2}},
 {"name":"信任延迟","description":"初见时，寒暄像隔着厚玻璃传来，你习惯先观察杯沿水痕、语速停顿和眼神落点。一旦连接建立，喧哗里那些低频信号会变得异常清晰，回应精准得像手术刀。慢热被磨成了洞察。","rarity":"fine","effect":"初期社交慢热，熟悉后展现深度","polarity":"mixed","attrBonus":{"charisma":-1,"mind":1}},
 {"name":"价值共振","description":"价格在你眼中是形状。看一眼屏幕上的波动就能摸到它的曲率，预判下一拍的拐点。稀有矿产的涨跌、航线政策的风向，在脑海中自动排成价值等高线，如同大提琴泛音般清晰。","rarity":"rare","effect":"投资眼光精准，星际交易中占优","polarity":"positive","attrBonus":{"resources":2,"mind":1}},
-{"name":"航道偏幸","description":"星际货船的航线由算法规划，货舱间距精确到厘米。唯独你的船，每次出港都恰好抢在陨石雨前三十分钟穿过航路。调度中心查了二十次日志，每次结论都是程序没算错。你的运数不在算法可及的范围。","rarity":"rare","effect":"冒险行动中意外风险显著降低","polarity":"positive","attrBonus":{"resources":1,"talentAptitude":2},"systemModifiers":{"luckPointModifier":1.1,"incomeModifier":1.05}}
+{"name":"航道偏幸","description":"星际货船的航线由算法规划，货舱间距精确到厘米。唯独你的船，每次出港都恰好抢在陨石雨前三十分钟穿过航路。调度中心查了二十次日志，每次结论都是程序没算错。你的运数不在算法可及的范围。","rarity":"rare","effect":"冒险行动中意外风险显著降低","polarity":"positive","attrBonus":{"resources":1,"talentAptitude":2}}
 ]}
 
 // 仙侠修真 — rare/epic/legendary（代价前置→过程展开→反转收束）
 {"patterns":[
-{"name":"代价守恒","description":"每次冲关都像把骨头放进炉里慢慢煅烧。瓶颈迟迟不肯松口，汗水沿着脊背浸透蒲团；可一旦熔穿，那道壁垒便彻底失去回弹。根基的密度以煎熬作价，买定离手，永不退货。","rarity":"rare","effect":"修炼瓶颈更难突破，但成功后的根基极其稳固","polarity":"mixed","attrBonus":{"talentAptitude":1,"physique":-1},"systemModifiers":{"bottleneckModifier":0.92,"attributeDecayModifier":1.08}},
-{"name":"社交引力","description":"话题绕完一圈，总会回到你身上。开口时所有人静下来的那一瞬千年难遇，像行星不自知地弯曲了轨道，共识绕着一个看不见的重心旋转。不一定是说话最多的，但目光先到的那个一定是你。","rarity":"epic","effect":"人脉广博，易成为核心人物","polarity":"positive","attrBonus":{"charisma":3,"resources":1,"mind":1},"systemModifiers":{"luckPointModifier":1.08,"incomeModifier":1.05}},
-{"name":"概率偏斜","description":"古籍在书架深处松了钉，落地时正好翻到缺失多年的残页。山路将尽，远处灯火忽然亮起；剑光贴近喉间，又有风把落叶卷进对方眼中。命运的缝隙总在你身边微微张开。","rarity":"legendary","effect":"修炼速度与气运远超同辈，更有贵人庇佑","polarity":"positive","attrBonus":{"talentAptitude":3,"resources":2,"charisma":1},"systemModifiers":{"luckPointModifier":1.15,"lifespanModifier":1.08,"cultivationSpeedModifier":1.12}}
+{"name":"代价守恒","description":"每次冲关都像把骨头放进炉里慢慢煅烧。瓶颈迟迟不肯松口，汗水沿着脊背浸透蒲团；可一旦熔穿，那道壁垒便彻底失去回弹。根基的密度以煎熬作价，买定离手，永不退货。","rarity":"rare","effect":"修炼瓶颈更难突破，但成功后的根基极其稳固","polarity":"mixed","attrBonus":{"talentAptitude":1,"physique":-1}},
+{"name":"社交引力","description":"话题绕完一圈，总会回到你身上。开口时所有人静下来的那一瞬千年难遇，像行星不自知地弯曲了轨道，共识绕着一个看不见的重心旋转。不一定是说话最多的，但目光先到的那个一定是你。","rarity":"epic","effect":"人脉广博，易成为核心人物","polarity":"positive","attrBonus":{"charisma":3,"resources":1,"mind":1}},
+{"name":"概率偏斜","description":"古籍在书架深处松了钉，落地时正好翻到缺失多年的残页。山路将尽，远处灯火忽然亮起；剑光贴近喉间，又有风把落叶卷进对方眼中。命运的缝隙总在你身边微微张开。","rarity":"legendary","effect":"修炼速度与气运远超同辈，更有贵人庇佑","polarity":"positive","attrBonus":{"talentAptitude":3,"resources":2,"charisma":1}}
 ]}
 
 // 奇幻神权 — epic/legendary（状态速写→机制揭示→诗意收束）
 {"patterns":[
-{"name":"昼夜解耦","description":"社会时钟在你身上彻底失效。白昼如同海底行走，每一次抬头都是跟太阳系对抗；午夜脑波却在雷达上炸出尖峰，灵感像不受引力约束的漩涡越转越快。生物钟被钉在了另一个时区，休养效率慢了最关键的那一拍。","rarity":"epic","effect":"夜间思维极为活跃，但白天身心俱疲","polarity":"mixed","attrBonus":{"mind":2,"talentAptitude":2,"physique":-1},"systemModifiers":{"staminaRecoveryModifier":0.9,"hpRecoveryModifier":1.1}},
-{"name":"信号过敏","description":"社交感知系统天生失去了自动降噪。他人的微表情、语调偏移、呼吸间距，在你身上触发常人百倍强度的神经脉冲。走进一间屋子，感受的是每个在场者在神经系统上逐一敲打的电报码。天线增益被预设在了所有人望尘莫及的档位。","rarity":"rare","effect":"感知力极敏锐但社交场合严重不适","polarity":"negative","attrBonus":{"charisma":-2,"talentAptitude":-1},"systemModifiers":{"incomeModifier":0.95}},
-{"name":"等价燃烧","description":"学一小时便抵得上漫长苦读，可支付的货币是时间本身。每一天倒下去都感觉身体轻了一克，生命在无声地氧化。理解一切的速度冠绝群伦，寿命的暗账却始终挂着负数。","rarity":"legendary","effect":"悟性与脑力冠绝群伦，但寿命在无形中加速流失","polarity":"mixed","attrBonus":{"talentAptitude":4,"mind":2,"physique":-1},"systemModifiers":{"lifespanModifier":0.85,"breakthroughChanceModifier":1.2}},
-{"name":"神性遗传","description":"上古神明在血脉里留下了未关闭的表达式，每一代子嗣都可能触发这段古老代码、觉醒非凡之力。对神殿的叩拜更像编译——神力在血管里运行的回应比所有正版授权都完整。","rarity":"epic","effect":"子嗣更易觉醒非凡力，神力回应更加丰沛","polarity":"positive","attrBonus":{"talentAptitude":2,"charisma":2},"systemModifiers":{"fertilityModifier":1.15,"devotionGainModifier":1.2}},
-{"name":"厄运折射","description":"诅咒落到身上总会偏一寸，像雨点砸在倾斜的琉璃瓦上，最凶的一线力道滑向旁处。黑魔法反噬后，苦药汤仍然难喝，伤口却提前收口。厄运抵达你身边时，常被削去最沉的一层。","rarity":"legendary","effect":"免疫运气衰减类负面效果，厄运对你打折生效","polarity":"positive","attrBonus":{"physique":2,"talentAptitude":2,"mind":1},"systemModifiers":{"luckPointModifier":1.2,"staminaRecoveryModifier":1.1}}
+{"name":"昼夜解耦","description":"社会时钟在你身上彻底失效。白昼如同海底行走，每一次抬头都是跟太阳系对抗；午夜脑波却在雷达上炸出尖峰，灵感像不受引力约束的漩涡越转越快。生物钟被钉在了另一个时区，休养效率慢了最关键的那一拍。","rarity":"epic","effect":"夜间思维极为活跃，但白天身心俱疲","polarity":"mixed","attrBonus":{"mind":2,"talentAptitude":2,"physique":-1}},
+{"name":"信号过敏","description":"社交感知系统天生失去了自动降噪。他人的微表情、语调偏移、呼吸间距，在你身上触发常人百倍强度的神经脉冲。走进一间屋子，感受的是每个在场者在神经系统上逐一敲打的电报码。天线增益被预设在了所有人望尘莫及的档位。","rarity":"rare","effect":"感知力极敏锐但社交场合严重不适","polarity":"negative","attrBonus":{"charisma":-2,"talentAptitude":-1}},
+{"name":"等价燃烧","description":"学一小时便抵得上漫长苦读，可支付的货币是时间本身。每一天倒下去都感觉身体轻了一克，生命在无声地氧化。理解一切的速度冠绝群伦，寿命的暗账却始终挂着负数。","rarity":"legendary","effect":"悟性与脑力冠绝群伦，但寿命在无形中加速流失","polarity":"mixed","attrBonus":{"talentAptitude":4,"mind":2,"physique":-1}},
+{"name":"神性遗传","description":"上古神明在血脉里留下了未关闭的表达式，每一代子嗣都可能触发这段古老代码、觉醒非凡之力。对神殿的叩拜更像编译——神力在血管里运行的回应比所有正版授权都完整。","rarity":"epic","effect":"子嗣更易觉醒非凡力，神力回应更加丰沛","polarity":"positive","attrBonus":{"talentAptitude":2,"charisma":2}},
+{"name":"厄运折射","description":"诅咒落到身上总会偏一寸，像雨点砸在倾斜的琉璃瓦上，最凶的一线力道滑向旁处。黑魔法反噬后，苦药汤仍然难喝，伤口却提前收口。厄运抵达你身边时，常被削去最沉的一层。","rarity":"legendary","effect":"免疫运气衰减类负面效果，厄运对你打折生效","polarity":"positive","attrBonus":{"physique":2,"talentAptitude":2,"mind":1}}
 ]}`
 
 export const destinyPatternOutputSchema = z.array(
@@ -68,7 +67,6 @@ export const destinyPatternOutputSchema = z.array(
       charisma: z.coerce.number().optional(),
       resources: z.coerce.number().optional(),
     }).optional(),
-    systemModifiers: z.record(z.string(), z.coerce.number()).optional(),
   }),
 )
 

@@ -8,10 +8,11 @@
 export type FieldCategory = 'macro'
 
 /** 维度模式 */
-export type FieldMode = 'adaptive' | 'custom'
+export type FieldMode = 'ai' | 'adaptive' | 'custom'
 
 /** 模式标签 */
 export const FIELD_MODE_LABELS: Record<FieldMode, string> = {
+  ai: 'AI决定',
   adaptive: '选择',
   custom: '自定义',
 }
@@ -63,12 +64,12 @@ function buildPowerCeilingOptions(maxLevel: number): string[] {
 export function buildFieldDefs(maxPowerCeiling = 24): Array<Omit<EditableField, 'playerValue' | 'mode' | 'customValue'>> {
   return [
     {
-      key: 'powerSystem',
+      key: 'universeScale',
       category: 'macro',
-      label: '力量体系',
-      options: ['无', '修仙', '魔法', '灵能', '科技', '异能', '混合'],
-      icon: '⚡',
-      description: '决定世界的力量来源和修炼方式',
+      label: '世界空间形态',
+      options: ['位面', '宇宙', '位面晶壁群系', '多元宇宙群系', '诸天万界'],
+      icon: '🌍',
+      description: '决定世界的空间形态',
     },
     {
       key: 'worldviewEssence',
@@ -79,20 +80,20 @@ export function buildFieldDefs(maxPowerCeiling = 24): Array<Omit<EditableField, 
       description: '决定世界的底层运行规则',
     },
     {
+      key: 'powerSystem',
+      category: 'macro',
+      label: '力量体系',
+      options: ['无', '修仙', '魔法', '灵能', '科技', '异能', '混合'],
+      icon: '⚡',
+      description: '决定世界的力量来源和修炼方式',
+    },
+    {
       key: 'powerCeiling',
       category: 'macro',
       label: '力量上限',
       options: buildPowerCeilingOptions(maxPowerCeiling),
       icon: '✨',
       description: '决定世界力量体系的天花板',
-    },
-    {
-      key: 'universeScale',
-      category: 'macro',
-      label: '世界空间形态',
-      options: ['位面', '宇宙', '位面晶壁群系', '多元宇宙群系', '诸天万界'],
-      icon: '🌍',
-      description: '决定世界的空间形态',
     },
   ]
 }

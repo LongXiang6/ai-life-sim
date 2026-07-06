@@ -34,11 +34,11 @@ export const SUBSYSTEM_FIELD_MAP: Record<string, SubsystemFieldMeta> = {
   'character-base': {
     label: '基础属性',
     fields: {
-      'physique': '体魄（0-100）',
-      'mind': '心智（0-100）',
-      'comprehension': '悟性（0-100）',
-      'charisma': '魅力（0-100）',
-      'background': '出身（0-100）',
+      'physiqueDelta': '体魄增量（±，凡人-10~+10，可超凡向上无限；单轮≤2）',
+      'mindDelta': '心智增量（±，凡人-10~+10，可超凡向上无限；单轮≤2）',
+      'talentAptitudeDelta': '悟性增量（±，凡人-10~+10，可超凡向上无限；单轮≤2）',
+      'charismaDelta': '魅力增量（±，凡人-10~+10，可超凡向上无限；单轮≤2）',
+      'resourcesDelta': '出身增量（±，锁定 -10~+10 不可超凡；单轮≤2）',
     },
   },
   'health': {
@@ -189,11 +189,12 @@ const relationEntry = z.object({
  */
 export const SUBSYSTEM_CHANGE_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> = {
   'character-base': z.object({
-    physique: z.coerce.number().min(0).max(100).optional(),
-    mind: z.coerce.number().min(0).max(100).optional(),
-    comprehension: z.coerce.number().min(0).max(100).optional(),
-    charisma: z.coerce.number().min(0).max(100).optional(),
-    background: z.coerce.number().min(0).max(100).optional(),
+    // 增量字段（推荐）：单轮波动，范围 ±8，可超凡属性无绝对上限
+    physiqueDelta: z.coerce.number().min(-8).max(8).optional(),
+    mindDelta: z.coerce.number().min(-8).max(8).optional(),
+    talentAptitudeDelta: z.coerce.number().min(-8).max(8).optional(),
+    charismaDelta: z.coerce.number().min(-8).max(8).optional(),
+    resourcesDelta: z.coerce.number().min(-8).max(8).optional(),
   }).passthrough(),
 
   'health': z.object({

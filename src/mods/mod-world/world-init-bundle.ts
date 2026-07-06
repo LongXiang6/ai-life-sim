@@ -79,6 +79,17 @@ export async function commitWorldInitialization(
 
   store.setWorldConfig(resolvedConfig)
   store.setInitialized(true)
+  store.setWorldInitAIStatus({
+    status: 'complete',
+    currentStep: '本地初始化完成',
+    calibrationGenerated: true,
+    tagsGenerated: true,
+    configGenerated: true,
+    entitiesGenerated: true,
+    retryCount: 0,
+    maxRetries: 0,
+    errors: [],
+  })
 
   const anchorYear = resolvePipelineAnchorYear(resolvedConfig, startingYear)
   store.setEraStartYear(anchorYear)

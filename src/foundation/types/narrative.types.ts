@@ -174,7 +174,7 @@ export const DIFFICULTY_MULTIPLIERS_FORTUNE: Record<DifficultyLevel, number> = {
 // ============================================================
 
 /** 摘要压缩级别 */
-export type SummaryLevel = 1 | 2 | 3 | 4
+export type SummaryLevel = 1 | 2 | 3 | 4 | 5 | 6
 
 /** 压缩后的摘要条目 */
 export interface CompressedSummaryItem {

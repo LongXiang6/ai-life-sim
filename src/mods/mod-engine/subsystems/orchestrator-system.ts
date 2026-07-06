@@ -86,6 +86,7 @@ import {
   plotStructure,
   foreshadowing,
   memoryLifecycle,
+  digestLedger,
   coreMemory,
   subsystemRelevance,
   useEngineStore,
@@ -103,6 +104,7 @@ import {
   type CharacterCreation,
   type TimeStep,
   type ParsedNarrative,
+  type DigestLedgerSnapshot,
 } from './shared'
 
 import { useSettingsStore } from '@/mods/mod-settings'
@@ -111,7 +113,7 @@ import { useCharacterStore } from '@/mods/mod-character'
 
 import { ECONOMIC_TIER_CONFIG, MAX_REACHABLE_STAGE } from '@/mods/mod-power-system'
 import type { EconomicTierInfo } from '@/mods/mod-power-system'
-import { buildPowerCeilingPresetsForNarrative } from '@/mods/mod-world'
+import { buildPowerCeilingPresets } from '@/mods/mod-world'
 
 import type {
   ISubSystem,
@@ -277,6 +279,7 @@ export interface OrchestratorSnapshot {
   branchJustResolved?: boolean
   lastCommittedPlayerChoice?: string
   prefetchedNarrativeContent?: string | null
+  digestLedgerSnapshot?: DigestLedgerSnapshot
 }
 
 // ============================================================
@@ -590,6 +593,7 @@ export class OrchestratorSystem implements ISubSystem {
       branchJustResolved: this.branchJustResolved,
       lastCommittedPlayerChoice: this.lastCommittedPlayerChoice,
       prefetchedNarrativeContent: this.prefetchedNarrativeContent,
+      digestLedgerSnapshot: digestLedger.toSnapshot(),
     })
   }
 
@@ -612,6 +616,7 @@ export class OrchestratorSystem implements ISubSystem {
     this.branchJustResolved = snap.branchJustResolved ?? false
     this.lastCommittedPlayerChoice = snap.lastCommittedPlayerChoice
     this.prefetchedNarrativeContent = snap.prefetchedNarrativeContent ?? null
+    digestLedger.loadSnapshot(snap.digestLedgerSnapshot)
     if (snap.timeRound) timeSystem.importRound(snap.timeRound)
     useEngineStore.setState((prev) => ({
       ...prev,
@@ -1218,6 +1223,28 @@ export class OrchestratorSystem implements ISubSystem {
     this.runCompressionPipeline()
   }
 
+  /**
+   * 组装 memorySummary：既有富 Prompt（L1–L6 分层 + 检索）之上，
+   * 追加「摘要账本」按有效重要性挑选的长期记忆（想法1）。
+   * 账本用 AI 自述的 digest/keyEvents + 连锁 + 衰减，precise 优先于关键词猜测。
+   */
+  private buildMemorySummaryWithLedger(memoryStateCard: string): string {
+    const rich = memoryLifecycle.formatRichPromptForInjection(
+      memoryLifecycle.buildRichPrompt(
+        memoryStateCard,
+        this.state.narrativeHistory.slice(-5).map((n) => n.text),
+        summaryCompressor.getSummaries(),
+      ),
+    )
+
+    const currentRound = this.state.round.year
+    const ledgerLines = digestLedger.selectForPrompt(currentRound)
+    if (ledgerLines.length === 0) return rich
+
+    const ledgerBlock = ['【往事回响】', ...ledgerLines].join('\n')
+    return rich ? `${rich}\n\n${ledgerBlock}` : ledgerBlock
+  }
+
   getCompressedNarrativeHistory(): string {
     // 使用记忆生命周期系统构建富Prompt上下文
     // DS V4 1M上下文：4个压缩层级 + L0原文 + 状态卡 + 检索命中
@@ -1315,6 +1342,7 @@ export class OrchestratorSystem implements ISubSystem {
     this.worldEventBus.reset()
     summaryCompressor.reset()
     memoryLifecycle.reset()
+    digestLedger.reset()
     adaptationManager.clear()
     globalDeadLoopDetector.resetAll()
   }
@@ -1696,17 +1724,15 @@ export class OrchestratorSystem implements ISubSystem {
     // aiDetailedParameters（43字段，~2000字符）在世界初始化后不再变化，每轮重复发送无意义
     const lightWorldSetting = this.buildLightWorldSetting(narrativeTime.eraLabel)
 
-    // 力量体系预设（截断格式：≤天花板完整描述，超出仅简短境界名）
-    const powerCeilingPresets = buildPowerCeilingPresetsForNarrative(
-      typeof config.powerCeiling === 'number' ? config.powerCeiling : parseInt(String(config.powerCeiling), 10) || 5,
-    )
+    // 力量体系预设（全 24 阶完整表现描述，供 AI 完整理解各阶判断标准）
+    const powerCeilingPresets = buildPowerCeilingPresets()
 
     const assembled: PromptContext = {
       worldSetting: lightWorldSetting,
       character: syncedCharacter,
       currentTime: narrativeTime.timeLabel,
       subsystemSummaries: summaries,
-      narrativeHistory: this.state.narrativeHistory.slice(-8).map((n) => n.text),
+      narrativeHistory: this.state.narrativeHistory.slice(-20).map((n) => n.text),
       eventInjectionText: eventInjectionText || undefined,
       timeBridgeSummary: buildTimeBridgeSummary(this.buildTimeBridgeInput()) || undefined,
       systemChangeSummary: systemChangeSummary || undefined,
@@ -1725,13 +1751,7 @@ export class OrchestratorSystem implements ISubSystem {
         .join('\n') || undefined,
       narrativeStyle: this.getNarrativeStyle(),
       narrativeToneHint,
-      memorySummary: memoryLifecycle.formatRichPromptForInjection(
-        memoryLifecycle.buildRichPrompt(
-          memoryStateCard,
-          this.state.narrativeHistory.slice(-5).map((n) => n.text),
-          summaryCompressor.getSummaries(),
-        ),
-      ),
+      memorySummary: this.buildMemorySummaryWithLedger(memoryStateCard),
       coreMemory: coreMemory.buildCoreMemory() || undefined,
       // 从单一来源常量取默认字数，避免散落硬编码回退
       wordCountInstruction: [
@@ -2034,6 +2054,15 @@ export class OrchestratorSystem implements ISubSystem {
     // description 在顶层已有，config 内重复
     delete lightConfig.description
 
+    // 剥离所有 `_` 前缀内部字段（_aiFlags/_dimensionModes/_coherenceLocks/_dimensionValues 等）
+    // 这些是引擎内部消费的数据，通过 this.worldSetting.config 直接读取，无需进入发给 AI 的 worldSetting
+    // 同时删除值为 undefined 的字段，避免序列化噪声
+    for (const key of Object.keys(lightConfig)) {
+      if (key.startsWith('_') || lightConfig[key] === undefined) {
+        delete lightConfig[key]
+      }
+    }
+
     return {
       ...rest,
       era: eraLabel,
@@ -2230,6 +2259,16 @@ export class OrchestratorSystem implements ISubSystem {
       if (aiImportance) {
         memoryLifecycle.setAIRoundImportance(this.state.round.year, aiImportance)
       }
+      // 想法1：记录 AI 自述的 digest + keyEvents 到摘要账本（精确重要性主干）
+      const parsedDigest = (effectiveParsed as {
+        digest?: string
+        keyEvents?: Array<{ text: string; importance: number }>
+      })
+      digestLedger.record({
+        round: this.state.round.year,
+        digest: parsedDigest.digest,
+        keyEvents: parsedDigest.keyEvents,
+      })
       // 原创保护：提取 AI 标注的 creations 并累积
       const roundCreations = effectiveParsed.creations
       if (roundCreations?.length) {

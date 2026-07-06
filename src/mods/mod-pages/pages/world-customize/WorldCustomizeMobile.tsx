@@ -15,7 +15,7 @@ import { FIELD_MODE_LABELS, WORLD_CUSTOM_TEXT_MAX_LENGTH, type EditableField, ty
 
 import styles from './WorldCustomizeMobile.module.css'
 
-const MODES: FieldMode[] = ['adaptive', 'custom']
+const MODES: FieldMode[] = ['ai', 'adaptive', 'custom']
 
 function DimensionCard({
   field,
@@ -51,6 +51,9 @@ function DimensionCard({
         ))}
       </div>
 
+      {field.mode === 'ai' && (
+        <div className={styles.aiHint}>由 AI 根据世界描述判断</div>
+      )}
       {field.mode === 'adaptive' && (
         <Dropdown
           value={field.playerValue}

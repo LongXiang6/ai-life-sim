@@ -19,6 +19,7 @@ import {
   SPATIAL_FORM_ZH_MAP,
   COHERENCE_LOCK_FIELD_MAP,
   formatCalibrationSummary,
+  resolveWorldDimensionDecision,
 } from '@/mods/mod-world'
 import { commitWorldInitialization } from '@/mods/mod-world/world-init-api'
 import type { WorldConfig } from '@/mods/mod-world'
@@ -29,10 +30,10 @@ import { buildFieldDefs, type EditableField, type FieldMode } from './world-cust
 const STORAGE_KEY = 'mod-pages:world-customize-fields'
 
 const DIMENSION_FIELD_KEYS = [
-  'powerSystem',
-  'worldviewEssence',
-  'powerCeiling',
   'universeScale',
+  'worldviewEssence',
+  'powerSystem',
+  'powerCeiling',
 ] as const
 
 const COHERENCE_LOCKABLE_KEYS = new Set(Object.keys(COHERENCE_LOCK_FIELD_MAP))
@@ -44,11 +45,17 @@ function buildDimensionModes(fieldModes: Record<string, FieldMode>): Record<stri
 }
 
 function buildDimensionValues(
+  fieldModes: Record<string, FieldMode>,
   fieldValues: Record<string, string>,
   customValues: Record<string, string>,
 ): Record<string, string> {
   return Object.fromEntries(
-    DIMENSION_FIELD_KEYS.map((k) => [k, customValues[k] || fieldValues[k] || '']),
+    DIMENSION_FIELD_KEYS.map((k) => {
+      const mode = normalizeFieldMode(fieldModes[k])
+      if (mode === 'custom') return [k, customValues[k] || '']
+      if (mode === 'adaptive') return [k, fieldValues[k] || '']
+      return [k, '']
+    }),
   )
 }
 
@@ -59,7 +66,9 @@ function buildActiveCoherenceLocks(coherenceLocks: Record<string, boolean>): Rec
 }
 
 function normalizeFieldMode(mode: unknown): FieldMode {
-  return mode === 'custom' ? 'custom' : 'adaptive'
+  if (mode === 'custom') return 'custom'
+  if (mode === 'adaptive') return 'adaptive'
+  return 'ai'
 }
 
 interface SavedFieldsState {
@@ -83,10 +92,23 @@ function resolveWorldConfig(
   worldDescription: string,
   coherenceLocks: Record<string, boolean>,
   existingConfig?: WorldConfig | null,
+  aiDecision?: {
+    universeScale: string
+    worldviewEssence: string
+    powerSystem: string
+    powerCeiling: number
+  },
 ): WorldConfig {
   const getEffectiveValue = (key: string): string => {
     const field = baseFields.find((f) => f.key === key)
     if (!field) return ''
+    if (field.mode === 'ai' && aiDecision) {
+      if (key === 'powerCeiling') return `${aiDecision.powerCeiling}阶`
+      if (key === 'universeScale') return aiDecision.universeScale
+      if (key === 'worldviewEssence') return aiDecision.worldviewEssence
+      if (key === 'powerSystem') return aiDecision.powerSystem
+      return ''
+    }
     if (field.mode === 'custom' && field.customValue) return field.customValue
     if (field.mode === 'adaptive' && field.playerValue) return field.playerValue
     return ''
@@ -129,6 +151,9 @@ function resolveWorldConfig(
     difficulty: existingConfig?.difficulty ?? 'normal',
     worldType: existingConfig?.worldType,
     description,
+    _aiFlags: Object.fromEntries(
+      DIMENSION_FIELD_KEYS.map((k) => [k, baseFields.find((f) => f.key === k)?.mode === 'ai']),
+    ),
     _coherenceLocks: buildCoherenceLocksFromUi(buildActiveCoherenceLocks(coherenceLocks)),
   }
 }
@@ -275,7 +300,7 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
       const configWithModes: WorldConfig = {
         ...config,
         _dimensionModes: buildDimensionModes(fieldModes),
-        _dimensionValues: buildDimensionValues(fieldValues, customValues),
+        _dimensionValues: buildDimensionValues(fieldModes, fieldValues, customValues),
       }
 
       const worldCode = useWorldStore.getState().worldCode
@@ -286,6 +311,9 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
 
       setWorldConfig(activeConfig)
       setInitialized(true)
+      try {
+        configStore.set('mod-power-system', 'power-ceiling', String(activeConfig.powerCeiling))
+      } catch { /* 存储不可用 */ }
 
       const { calibration } = useWorldStore.getState()
 
@@ -314,14 +342,36 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
   }, [router, setGamePhase, setWorldName, setWorldConfig, setInitialized, fieldModes, fieldValues, customValues])
 
   const save = useCallback(() => {
-    const draft = resolveWorldConfig(
-      baseFields,
-      worldDescription,
-      coherenceLocks,
-      useWorldStore.getState().worldConfig,
-    )
-    requestCoherenceResolve(draft, commitWorld)
-  }, [baseFields, worldDescription, coherenceLocks, requestCoherenceResolve, commitWorld])
+    void (async () => {
+      const worldState = useWorldStore.getState()
+      const worldCode = worldState.worldCode || worldState.generateAndSetWorldCode()
+      const existing = worldState.worldConfig
+      const modes = buildDimensionModes(fieldModes)
+      const values = buildDimensionValues(fieldModes, fieldValues, customValues)
+      const preliminary = resolveWorldConfig(baseFields, worldDescription, coherenceLocks, existing)
+
+      // 世界自定义只做四个宏观属性的轻量 AI 决策；结果按 worldCode 缓存，后续进入同一世界直接复用。
+      const { decision } = await resolveWorldDimensionDecision({
+        worldCode,
+        worldName: preliminary.name,
+        worldDescription: worldDescription.trim() || preliminary.description,
+        modes,
+        values,
+      })
+
+      const draft = resolveWorldConfig(
+        baseFields,
+        worldDescription,
+        coherenceLocks,
+        existing,
+        decision,
+      )
+      requestCoherenceResolve(draft, commitWorld)
+    })()
+  }, [
+    baseFields, worldDescription, coherenceLocks, requestCoherenceResolve, commitWorld,
+    fieldModes, fieldValues, customValues,
+  ])
 
   const skip = useCallback(() => {
     router.push('/new-game/world-select')

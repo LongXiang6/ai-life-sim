@@ -149,7 +149,20 @@ export {
 } from './utils/world-config-mapping'
 
 export {
+  WORLD_DIMENSION_DECISION_KEYS,
+  hasAIDimensionMode,
+  resolveWorldDimensionDecision,
+} from './utils/world-dimension-decision'
+export type {
+  WorldDimensionDecision,
+  WorldDimensionDecisionInput,
+  WorldDimensionDecisionKey,
+  WorldDimensionMode,
+} from './utils/world-dimension-decision'
+
+export {
   buildWorldInitPromptVars,
+  buildPowerCeilingPresets,
   buildPowerCeilingPresetsForNarrative,
 } from './utils/world-init-prompt-vars'
 export { buildWorldInitPipelineBudgets } from './utils/world-init-budgets'

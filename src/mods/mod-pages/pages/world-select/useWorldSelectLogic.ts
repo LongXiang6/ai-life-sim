@@ -15,10 +15,8 @@ import { useRouter } from 'next/navigation'
 import {
   PRESET_WORLDS,
   allocateWorldCode,
-  buildWorldConfigFromCustom,
   type PresetWorld,
 } from '@/mods/mod-world'
-import { startBackgroundWorldInitForCustom } from '@/mods/mod-world/world-init-api'
 import { clearWorldGeneratedCache } from '@/mods/mod-world/world-init-api'
 
 import {
@@ -29,7 +27,7 @@ import {
   type EraEntry,
   type SavedCustomWorld,
 } from './useWorldSelectForm'
-import { isApiConfigured, useWorldConfirm } from './useWorldConfirm'
+import { useWorldConfirm } from './useWorldConfirm'
 import { useWorldSelectCache } from './useWorldSelectCache'
 import { saveStore } from '@/core'
 
@@ -206,28 +204,6 @@ export function useWorldSelectLogic() {
   }, [])
 
   // ============================================================
-  // 自定义世界后台初始化
-  // ============================================================
-
-  const triggerCustomWorldBackgroundInit = useCallback(
-    (cw: SavedCustomWorld) => {
-      if (!isApiConfigured()) return
-      const config = buildWorldConfigFromCustom(
-        {
-          name: cw.name,
-          description: cw.description,
-          worldview: cw.worldview,
-          eraName: cw.eraName,
-          eraStartYear: cw.eraStartYear,
-        },
-        difficulty,
-      )
-      startBackgroundWorldInitForCustom(config, cw.worldCode)
-    },
-    [difficulty],
-  )
-
-  // ============================================================
   // 选择自定义世界
   // ============================================================
 
@@ -284,7 +260,6 @@ export function useWorldSelectLogic() {
     }
     const updated = [...savedWorlds, newWorld]
     persistSaved(updated)
-    triggerCustomWorldBackgroundInit(newWorld)
     resetCustomForm()
     setSelectedWorld({
       id: newWorld.id,
@@ -302,7 +277,7 @@ export function useWorldSelectLogic() {
   }, [
     customName, customDesc, customEraName, customEraYear, isBC,
     autoEraEnabled, eraTimelineEntries, worldview, savedWorlds,
-    persistSaved, triggerCustomWorldBackgroundInit, resetCustomForm,
+    persistSaved, resetCustomForm,
   ])
 
   const handleStartEdit = useCallback((cw: SavedCustomWorld) => {
@@ -339,7 +314,6 @@ export function useWorldSelectLogic() {
     resetCustomForm()
     const edited = updated.find((cw) => cw.id === editingWorldId)
     if (edited) {
-      triggerCustomWorldBackgroundInit(edited)
       setSelectedWorld({
         id: edited.id,
         name: edited.name,
@@ -357,7 +331,7 @@ export function useWorldSelectLogic() {
   }, [
     customName, customDesc, customEraName, customEraYear, isBC,
     autoEraEnabled, eraTimelineEntries, worldview, editingWorldId,
-    savedWorlds, persistSaved, resetCustomForm, triggerCustomWorldBackgroundInit,
+    savedWorlds, persistSaved, resetCustomForm,
   ])
 
   const handleCancelEdit = useCallback(() => {

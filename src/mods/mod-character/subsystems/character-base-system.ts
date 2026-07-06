@@ -5,11 +5,14 @@
  */
 
 import type { ISubSystem, RoundContext, SubSystemState, SubSystemChanges } from '@/foundation'
-import type { BaseAttributes, AttributeModifiers, CharacterBaseState } from '../types'
+import type { BaseAttributes, AttributeModifiers, CharacterBaseState, RaceLifespanConfig } from '../types'
 
 import {
   MIN_ATTRIBUTE_VALUE,
   MAX_ATTRIBUTE_VALUE,
+  ATTR_HARD_CAP,
+  ATTR_DELTA_CLAMP,
+  TRANSCENDENT_ATTR_KEYS,
   ATTR_CN_ALIAS_TO_KEY,
   ATTR_INCREASE_KEYWORDS,
   ATTR_DECREASE_KEYWORDS,
@@ -85,23 +88,37 @@ export class CharacterBaseSystem implements ISubSystem {
       this.state.startingAge = clamp(ch.startingAge, 0, Infinity)
     }
 
+    // 主契约（P0）：扁平增量字段 physiqueDelta / mindDelta / talentAptitudeDelta /
+    //   charismaDelta / resourcesDelta。单轮增量按 ATTR_DELTA_CLAMP 钳制防拉爆，
+    //   叠加后再按属性类别（可超凡/凡人锁定）钳制最终值。
+    let applied = false
+    for (const key of ['physique', 'mind', 'talentAptitude', 'charisma', 'resources'] as const) {
+      const raw = ch[`${key}Delta`]
+      if (typeof raw === 'number' && Number.isFinite(raw)) {
+        const delta = clamp(raw, ATTR_DELTA_CLAMP[0], ATTR_DELTA_CLAMP[1])
+        this.state.base[key] = round(this.clampAttr(key, this.state.base[key] + delta))
+        applied = true
+      }
+    }
+
+    // 兼容契约（P1）：嵌套 base 绝对值 { base: { physique: N } }（老格式/手动覆盖）
     if (ch.base && typeof ch.base === 'object') {
       const b = ch.base as Partial<BaseAttributes>
       for (const key of ['physique', 'mind', 'talentAptitude', 'charisma', 'resources'] as const) {
         if (typeof b[key] === 'number') {
-          this.state.base[key] = Math.max(MIN_ATTRIBUTE_VALUE, Math.min(MAX_ATTRIBUTE_VALUE, b[key]!))
+          this.state.base[key] = round(this.clampAttr(key, b[key]!))
+          applied = true
         }
       }
-    } else {
-      // P2 降级：AI JSON 未显式声明 base 字段时，从 description 中补偿提取
+    }
+
+    // 降级路径（P2）：未给出任何结构化属性字段时，从 description 补偿提取增量
+    if (!applied) {
       const extracted = this.parseAttrFromNarrative(changes.description)
       if (extracted) {
         for (const key of ['physique', 'mind', 'talentAptitude', 'charisma', 'resources'] as const) {
           if (typeof extracted[key] === 'number') {
-            this.state.base[key] = Math.max(
-              MIN_ATTRIBUTE_VALUE,
-              Math.min(MAX_ATTRIBUTE_VALUE, this.state.base[key] + extracted[key]!)
-            )
+            this.state.base[key] = round(this.clampAttr(key, this.state.base[key] + extracted[key]!))
           }
         }
       }
@@ -129,6 +146,20 @@ export class CharacterBaseSystem implements ISubSystem {
   private aggregateModifiers(context: RoundContext): void {
     const modifiers: AttributeModifiers = {
       physique: 0, mind: 0, talentAptitude: 0, charisma: 0, resources: 0,
+    }
+
+    // 物种基准线（想法2：超凡领域，current = speciesBaseline + 玩家分配 + modifiers）
+    const lifespan = context.subsystemStates['lifespan']
+    if (lifespan?.data) {
+      const race = (lifespan.data as Record<string, unknown>).race as RaceLifespanConfig | undefined
+      if (race?.attrBaselines) {
+        for (const key of ['physique', 'mind', 'talentAptitude', 'charisma'] as const) {
+          const baseline = race.attrBaselines[key]
+          if (typeof baseline === 'number') {
+            modifiers[key] += baseline
+          }
+        }
+      }
     }
 
     // 命格修正
@@ -185,13 +216,22 @@ export class CharacterBaseSystem implements ISubSystem {
     this.state.modifiers = modifiers
   }
 
+  /**
+   * 分类钳制单个属性值。
+   * 可超凡属性（体魄/心智/悟性/魅力）放开到 [-ATTR_HARD_CAP, ATTR_HARD_CAP]，
+   * 凡人锁定属性（出身）保持 [-10, 10]。
+   */
+  private clampAttr(key: string, value: number): number {
+    if ((TRANSCENDENT_ATTR_KEYS as readonly string[]).includes(key)) {
+      return Math.max(-ATTR_HARD_CAP, Math.min(ATTR_HARD_CAP, value))
+    }
+    return Math.max(MIN_ATTRIBUTE_VALUE, Math.min(MAX_ATTRIBUTE_VALUE, value))
+  }
+
   private recalculateCurrent(): void {
     for (const key of ['physique', 'mind', 'talentAptitude', 'charisma', 'resources'] as const) {
       this.state.current[key] = round(
-        Math.max(
-          MIN_ATTRIBUTE_VALUE,
-          Math.min(MAX_ATTRIBUTE_VALUE, this.state.base[key] + this.state.modifiers[key])
-        )
+        this.clampAttr(key, this.state.base[key] + this.state.modifiers[key])
       )
     }
   }

@@ -18,7 +18,7 @@ export const MOD_SUBSYSTEM_IMPORTERS: Record<string, () => Promise<Record<string
     return { ...m0, ...m1, ...m2, ...m3, ...m4 }
   },
   'mod-character': async () => {
-    const [m0, m1, m2, m3, m4, m5, m6, m7] = await Promise.all([
+    const [m0, m1, m2, m3, m4, m5, m6, m7, m8] = await Promise.all([
     import('@/mods/mod-character/subsystems/character-base-system'),
     import('@/mods/mod-character/subsystems/destiny-pattern-system'),
     import('@/mods/mod-character/subsystems/health-system'),
@@ -26,9 +26,10 @@ export const MOD_SUBSYSTEM_IMPORTERS: Record<string, () => Promise<Record<string
     import('@/mods/mod-character/subsystems/life-stage-system'),
     import('@/mods/mod-character/subsystems/attribute-decay-system'),
     import('@/mods/mod-character/subsystems/morality-system'),
+    import('@/mods/mod-character/subsystems/luck-system'),
     import('@/mods/mod-character/subsystems/post-death-epilogue-system'),
     ])
-    return { ...m0, ...m1, ...m2, ...m3, ...m4, ...m5, ...m6, ...m7 }
+    return { ...m0, ...m1, ...m2, ...m3, ...m4, ...m5, ...m6, ...m7, ...m8 }
   },
   'mod-culture': async () => {
     const [m0, m1, m2, m3, m4, m5, m6, m7, m8, m9] = await Promise.all([
@@ -99,11 +100,10 @@ export const MOD_SUBSYSTEM_IMPORTERS: Record<string, () => Promise<Record<string
     return { ...m0, ...m1, ...m2, ...m3, ...m4, ...m5, ...m6 }
   },
   'mod-power-system': async () => {
-    const [m0, m1, m2, m3, m4, m5, m6, m7, m8, m9, m10] = await Promise.all([
+    const [m0, m1, m2, m3, m4, m5, m6, m7, m8, m9] = await Promise.all([
     import('@/mods/mod-power-system/subsystems/combat-power-system'),
     import('@/mods/mod-power-system/subsystems/cultivation-system'),
     import('@/mods/mod-power-system/subsystems/monster-system'),
-    import('@/mods/mod-power-system/subsystems/luck-system'),
     import('@/mods/mod-power-system/subsystems/fortune-encounter-system'),
     import('@/mods/mod-power-system/subsystems/faith-system'),
     import('@/mods/mod-power-system/subsystems/supreme-item-system'),
@@ -112,7 +112,7 @@ export const MOD_SUBSYSTEM_IMPORTERS: Record<string, () => Promise<Record<string
     import('@/mods/mod-power-system/subsystems/special-material-system'),
     import('@/mods/mod-power-system/subsystems/skill-system'),
     ])
-    return { ...m0, ...m1, ...m2, ...m3, ...m4, ...m5, ...m6, ...m7, ...m8, ...m9, ...m10 }
+    return { ...m0, ...m1, ...m2, ...m3, ...m4, ...m5, ...m6, ...m7, ...m8, ...m9 }
   },
   'mod-tech-level': async () => {
     const [m0, m1] = await Promise.all([

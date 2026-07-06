@@ -926,7 +926,7 @@ Write-Host "  [FAIL]      $($E.Errors)" -ForegroundColor $(if ($E.Errors -gt 0) 
 Write-Host "  [WARN]      $($E.Warnings)" -ForegroundColor $(if ($E.Warnings -gt 0) { "Yellow" } else { "Green" })
 Write-Host "  [OK]        $($E.Pass)" -ForegroundColor Green
 Write-Host ""
-Write-Host "  前瞻事件 WARN（D8-ORPHAN-EMIT / D14-EMIT-UNUSED 等）通常可忽略，详见 public/docs/MOD作者清单.md" -ForegroundColor DarkGray
+Write-Host "  前瞻事件 WARN（D8-ORPHAN-EMIT / D14-EMIT-UNUSED 等）通常可忽略，详见 .agents/skills/mod-dev-skill/" -ForegroundColor DarkGray
 Write-Host ""
 }
 

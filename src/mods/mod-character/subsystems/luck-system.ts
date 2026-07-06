@@ -1,7 +1,7 @@
 /**
  * @module LuckSystem
- * @description 气运子系统：运气值 → 四项全局修正系数，供 CelestialSystem 等引用
- * @mod mod-power-system
+ * @description 气运子系统（隐藏基础属性，用户不可见）：运气值 → 四项全局修正系数，供 AI 读写与 CelestialSystem 等引用
+ * @mod mod-character
  */
 
 import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
@@ -12,13 +12,13 @@ import {
   LUCK_DEATH_AVOID_CHANCE_PER_POINT,
   LUCK_EVENT_WEIGHT_PER_POINT,
   LUCK_AGE_DECAY_MODIFIER_PER_POINT,
-  LUCK_MIN,
-  LUCK_MAX,
+  MIN_LUCK,
+  MAX_LUCK,
   LUCK_MAJOR_CHANGE_THRESHOLD,
   LUCK_NOTIFICATION_DURATION,
-  round,
-  clamp,
 } from '../constants'
+import { round } from '../utils'
+import { clamp } from '@/core/shared'
 
 import { getFormulaModifier } from '@/mods/mod-world'
 
@@ -31,7 +31,7 @@ const ZERO_LUCK_MODIFIERS: LuckModifiers = {
 
 export class LuckSystem implements ISubSystem {
   readonly id = 'luck' as const
-  readonly mod = 'mod-power-system' as const
+  readonly mod = 'mod-character' as const
   readonly label = '气运' as const
   readonly description = '运气值 → 四项全局修正系数：疾病躲避、死亡回避、事件权重偏移、衰老衰减' as const
 
@@ -47,7 +47,7 @@ export class LuckSystem implements ISubSystem {
   }
 
   private computeModifiers(luck: number): LuckModifiers {
-    const clampedLuck = clamp(luck, LUCK_MIN, LUCK_MAX)
+    const clampedLuck = clamp(luck, MIN_LUCK, MAX_LUCK)
     const mod = getFormulaModifier('luckPointModifier')
     return {
       diseaseAvoidance: round(clampedLuck * LUCK_DISEASE_AVOIDANCE_PER_POINT * mod, 4),
@@ -68,7 +68,7 @@ export class LuckSystem implements ISubSystem {
 
     return {
       id: this.id,
-      summary: `【${this.label}】${this.state.luck}/10 点${this.getModifierSummary()}`,
+      summary: `【${this.label}】${this.state.luck} 点（${MIN_LUCK}~${MAX_LUCK}）${this.getModifierSummary()}`,
       data: structuredClone(this.state as unknown as Record<string, unknown>),
     }
   }
@@ -127,7 +127,7 @@ export class LuckSystem implements ISubSystem {
 
   /** 应用运气变更并检测大幅变化 */
   private _applyLuckChange(rawLuck: number): void {
-    const newLuck = clamp(rawLuck, LUCK_MIN, LUCK_MAX)
+    const newLuck = clamp(rawLuck, MIN_LUCK, MAX_LUCK)
     const oldLuck = this.state.luck
     this.state.luck = newLuck
     this.state.modifiers = this.computeModifiers(newLuck)
@@ -158,7 +158,7 @@ export class LuckSystem implements ISubSystem {
 
     for (const effect of crossEffects) {
       if (effect.targetSystem === 'luck' && effect.effectType === 'luck_boost') {
-        const newLuck = clamp(this.state.luck + effect.value, LUCK_MIN, LUCK_MAX)
+        const newLuck = clamp(this.state.luck + effect.value, MIN_LUCK, MAX_LUCK)
         this.state.luck = newLuck
         this.state.modifiers = this.computeModifiers(newLuck)
       }

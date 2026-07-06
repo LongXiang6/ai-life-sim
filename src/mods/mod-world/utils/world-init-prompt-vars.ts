@@ -34,7 +34,7 @@ export function buildPowerCeilingPresets(): string {
  * 力量体系预设（叙事用截断格式）
  *
  * ≤ currentCeiling 的阶位 → 完整描述（阶位 + 单位名 + 量级描述）
- * >  currentCeiling 的阶位 → 仅简短境界名（如"5阶【文明级】"）
+ * >  currentCeiling 的阶位 → 仅简短阶位表现标签（如"5阶【文明级】"）
  *
  * 用于叙事 prompt，让 AI 在角色未突破天花板时不必看到高阶完整描述，
  * 同时保留高阶简短标签供世界观突破参考。
@@ -51,7 +51,7 @@ export function buildPowerCeilingPresetsForNarrative(currentCeiling: number): st
       const desc = RATING_DESCRIPTIONS[i] ?? ''
       lines.push(`${i}阶${unit}：${desc}`)
     } else {
-      // 简短境界名：从 RATING_DESCRIPTIONS 提取首词/短语（"。"前的部分）
+      // 阶位表现标签：从 RATING_DESCRIPTIONS 提取首词/短语（"。"前的部分）
       const raw = i === 24 ? '真无限级' : (RATING_DESCRIPTIONS[i] ?? '')
       const shortLabel = i === 24 ? '真无限级' : raw.split('。')[0]
       lines.push(`${i}阶【${shortLabel}】`)

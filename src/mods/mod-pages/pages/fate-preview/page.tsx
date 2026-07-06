@@ -15,7 +15,6 @@ import { useGlobalStore, configStore } from '@/core'
 import { buildOrchestratorWorldSetting, orchestrator } from '@/mods/mod-engine/engine-api'
 import { useCharacterStore, randomName } from '@/mods/mod-character'
 import { useWorldStore } from '@/mods/mod-world'
-import { useWorldInitPoller } from '@/mods/mod-world'
 import type { WorldInitAIStatus } from '@/mods/mod-world'
 import { BottomActionBar, PageScroll } from '@/mods/mod-ui'
 
@@ -107,11 +106,9 @@ export default function FatePreviewPage() {
 
   const worldConfig = useWorldStore((s) => s.worldConfig)
   const worldCode = useWorldStore((s) => s.worldCode)
+  const worldInitialized = useWorldStore((s) => s.initialized)
   const worldInitAIStatus = useWorldStore((s) => s.worldInitAIStatus)
   const setGamePhase = useGlobalStore((s) => s.setGamePhase)
-
-  // 轮询服务端世界初始化结果，保证跨页面 AI 调用不丢失
-  useWorldInitPoller(worldCode)
 
   const genderLabel = GENDER_LABELS[gender] ?? gender
   const savedFp = loadFpState()
@@ -191,14 +188,15 @@ export default function FatePreviewPage() {
 
   const attrKeys = ['physique', 'mind', 'talentAptitude', 'charisma', 'resources'] as const
 
-  const aiComplete = worldInitAIStatus?.status === 'complete'
+  const localWorldReady = worldInitialized && !!worldConfig && worldCode > 0
+  const aiComplete = localWorldReady || worldInitAIStatus?.status === 'complete'
   const aiIsRunning = worldInitAIStatus?.status === 'running'
   const aiFailed = worldInitAIStatus?.status === 'failed'
   const aiProgress = worldInitAIStatus
     ? [worldInitAIStatus.calibrationGenerated, worldInitAIStatus.tagsGenerated,
-       worldInitAIStatus.entitiesGenerated]
+       worldInitAIStatus.configGenerated, worldInitAIStatus.entitiesGenerated]
       .filter(Boolean).length
-    : 0
+    : localWorldReady ? 4 : 0
   const aiStepLabel = worldInitAIStatus?.currentStep
 
   // ── 步骤计时器（时间戳由 Pipeline 直接写入 store，UI 只读 + 每秒刷新展示）──
@@ -402,8 +400,8 @@ export default function FatePreviewPage() {
         onBack={() => router.push('/attribute-alloc')}
         backTitle="返回重新分配属性"
         onConfirm={handleStartLife}
-        confirmText={aiComplete ? '开始人生' : (aiIsRunning ? '请等待…' : '等待世界初始化')}
-        confirmDisabled={!aiComplete}
+        confirmText={localWorldReady ? '开始人生' : (aiIsRunning ? '请等待…' : '等待世界初始化')}
+        confirmDisabled={!localWorldReady}
       />
     </>
   )

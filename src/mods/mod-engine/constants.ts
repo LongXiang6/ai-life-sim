@@ -136,9 +136,9 @@ export const STORAGE_KEYS = {
 // ============================================================
 
 /** 每个摘要块包含的轮次数 */
-export const SUMMARY_INTERVAL = 5
+export const SUMMARY_INTERVAL = 10
 
-/** L1 在目标块的第 1 轮触发（实际落后 3 块 = 15 轮） */
+/** L1 在目标块的第 1 轮触发（落后 2 块 = 保留最近约 20 轮原文） */
 export const COMPRESS_L1_DELAY_ROUNDS = 1
 
 /** 合并 N 个 L1 摘要为一个 L2 摘要 */
@@ -157,13 +157,13 @@ export const COMPRESS_L3_DELAY_ROUNDS = 2
 export const COMPRESS_L4_MERGE_COUNT = 5
 
 /** L2 合并区间 = SUMMARY_INTERVAL × COMPRESS_L2_MERGE_COUNT */
-export const COMPRESS_L2_MERGE_INTERVAL = 25
+export const COMPRESS_L2_MERGE_INTERVAL = 50
 
 /** L3 合并区间 = COMPRESS_L2_MERGE_INTERVAL × COMPRESS_L3_MERGE_COUNT */
-export const COMPRESS_L3_MERGE_INTERVAL = 125
+export const COMPRESS_L3_MERGE_INTERVAL = 250
 
 /** L4 合并区间 = COMPRESS_L3_MERGE_INTERVAL × COMPRESS_L4_MERGE_COUNT */
-export const COMPRESS_L4_MERGE_INTERVAL = 625
+export const COMPRESS_L4_MERGE_INTERVAL = 1250
 
 /** 合并 N 个 L4 纪元为一个 L5 时代 */
 export const COMPRESS_L5_MERGE_COUNT = 5
@@ -172,7 +172,7 @@ export const COMPRESS_L5_MERGE_COUNT = 5
 export const COMPRESS_L5_DELAY_ROUNDS = 2
 
 /** L5 合并区间 = COMPRESS_L4_MERGE_INTERVAL × COMPRESS_L5_MERGE_COUNT */
-export const COMPRESS_L5_MERGE_INTERVAL = 3125
+export const COMPRESS_L5_MERGE_INTERVAL = 6250
 
 /** 合并 N 个 L5 时代为一个 L6 历史 */
 export const COMPRESS_L6_MERGE_COUNT = 5
@@ -180,8 +180,8 @@ export const COMPRESS_L6_MERGE_COUNT = 5
 /** L6 压缩在 blockRound >= 2 时触发 */
 export const COMPRESS_L6_DELAY_ROUNDS = 2
 
-/** L6 合并区间 = COMPRESS_L5_MERGE_INTERVAL × COMPRESS_L6_MERGE_COUNT = 15625轮 */
-export const COMPRESS_L6_MERGE_INTERVAL = 15625
+/** L6 合并区间 = COMPRESS_L5_MERGE_INTERVAL × COMPRESS_L6_MERGE_COUNT = 31250轮 */
+export const COMPRESS_L6_MERGE_INTERVAL = 31250
 
 // ---- Token / 字数计算常量 ----
 

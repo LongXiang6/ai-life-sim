@@ -48,6 +48,11 @@ const NarrativeResponseSchema = z.object({
     priority: z.coerce.number().min(1).max(10),
   })).optional(),
   importance: z.enum(['HIGH', 'NORMAL', 'LOW']).optional(),
+  digest: z.string().optional(),
+  keyEvents: z.array(z.object({
+    text: z.string(),
+    importance: z.coerce.number().min(0).max(100),
+  })).max(5).optional(),
   branch: z.boolean().optional(),
   branchTitle: z.string().optional(),
   branchOptions: z.array(z.string()).min(2).max(4).optional(),
@@ -160,13 +165,11 @@ export const SYSTEM_PROMPT = stringifyPrompt({
       totalFailure: '信息不足时输出最简JSON：{"narrative":"可用文本","changes":[]}',
     },
 
-    economicTier: '经济层级：物品稀缺度参照战力天花板。≤1阶→随处可得 | 2阶→区域中心 | 3阶→大型交易 | 4阶→特殊渠道 | ≥5阶→独一无二',
-
     attributeRules: [
-      '所有属性范围-10~+10，0为凡人平平无奇。标签由 getAttrSemantic() 生成（8属性×11档完整描述）。',
-      '气运：开局随机±4，仅重大人生转折可变动（≤±1/次），由命格/奇遇/灾厄触发。',
-      '善恶：开局为0，每次变动≤±1，累计为善（+正）或恶（-负）。',
-      '属性变更仅用整数，单次波动≤2。narrative中须与属性变动描述呼应。',
+      '凡人属性区间 -10~+10，0为平平无奇。体魄/心智/悟性/魅力为可超凡属性，突破+10即进入超凡领域（超凡入圣/神性/神王/概念级），可无上限堆叠；出身与气运/善恶锁定在 -10~+10。语义标签由 getAttrSemantic() 生成。',
+      '属性变更用增量字段（physiqueDelta/mindDelta/talentAptitudeDelta/charismaDelta/resourcesDelta），正=增长负=下降，仅用整数，单次波动≤2（重大机缘可略高）。narrative中须与属性变动描述呼应。',
+      '气运（隐藏属性，用户不可见）：开局随机±4，仅重大人生转折可变动（≤±1/次），由命格/奇遇/灾厄触发。',
+      '善恶（隐藏属性，用户不可见）：开局为0，每次变动≤±1，累计为善（+正）或恶（-负）。',
     ],
   },
 
@@ -222,6 +225,24 @@ export const SYSTEM_PROMPT = stringifyPrompt({
           enum: ['HIGH', 'NORMAL', 'LOW'],
           description: '可选：本轮叙事全局重要程度。HIGH=重大转折（死亡/突破/背叛/婚约/关键抉择等改变命运的事件）。NORMAL=有值得注意的进展但非转折。LOW=日常流水/修行/工作/休息。系统会结合你的判断和关键词检测综合评定，此字段仅作参考辅助。',
         },
+        digest: {
+          type: 'string',
+          description: '建议填写：用一句话（≤40字）精简概括本轮叙事的核心意思，供长期记忆存档。应抓住"谁做了什么、结果如何"，省略环境描写与修辞。例："拜入青云门成为记名弟子，师父赠予一枚储物袋。"',
+        },
+        keyEvents: {
+          type: 'array',
+          maxItems: 5,
+          description: '建议填写：本轮发生的关键事件列表（最多5条），每条附一个 0~100 的重要性数值，数值越高越重要，用于长期记忆的保留与遗忘决策。评分参考：90~100=改变一生的转折（死亡/突破/立誓/生死抉择），不可遗忘；60~89=重要事件（结识关键人物/获得重宝/重大成败）；30~59=值得记住的进展；0~29=日常流水。若本轮某低分事件其实是后续大事的伏笔，可适度提高其分值。',
+          items: {
+            type: 'object',
+            required: ['text', 'importance'],
+            additionalProperties: false,
+            properties: {
+              text: { type: 'string', description: '事件精简描述（≤30字）' },
+              importance: { type: 'number', minimum: 0, maximum: 100, description: '重要性 0~100' },
+            },
+          },
+        },
         creations: {
           type: 'array',
           description: '可选：本轮叙事中角色新创造/开创/发明的内容。仅当叙事明确描述了角色的原创行为时才填写（如开创修炼体系、自创功法、发明新物品、设定新规则等）。已在前几轮标注过的内容无需重复标注。无则省略整个字段。',
@@ -258,7 +279,7 @@ export const SYSTEM_PROMPT = stringifyPrompt({
       type: 'pure_json',
       noMarkdownWrapping: true,
       description: '直接输出纯JSON对象，禁止用```json```代码块包裹。',
-      fieldOrder: ['narrative', 'changes', 'notableEvents', 'creations', 'foreshadowing', 'importance', 'branch', 'branchTitle', 'branchOptions'],
+      fieldOrder: ['narrative', 'changes', 'notableEvents', 'creations', 'foreshadowing', 'importance', 'digest', 'keyEvents', 'branch', 'branchTitle', 'branchOptions'],
     },
   },
 

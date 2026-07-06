@@ -2,7 +2,7 @@
  * @module talent-draw-page
  * @description 命格抽取页面 —— 对齐废弃项目 talent-draw UI 风格
  *   - 单按钮 + 设置控制 AI/预设
- *   - 缓存池 >= 90 条自动跳过按钮进入选取
+ *   - 缓存池 >= 12 条直接进入选取，低于 90 条时后台续填
  *   - 真实进度追踪（onProgress 回调）
  *   - 抽12选3 → 确认 → /attribute-alloc
  * @mod mod-pages
@@ -247,6 +247,102 @@ function persistTdState(state: SavedTdState): void {
   configStore.set('mod-pages', tdStorageKey(), state)
 }
 
+function drawSlotsFromPool(pool: DestinyPattern[]): (DestinyPattern | null)[] {
+  const shuffled = [...pool].sort(() => Math.random() - 0.5)
+  const drawn = shuffled.slice(0, DEFAULT_DESTINY_PATTERN_COUNT)
+  const newSlots: (DestinyPattern | null)[] = Array(12).fill(null)
+  drawn.forEach((p, i) => { newSlots[i] = p })
+  return newSlots
+}
+
+function buildDestinyPatternContext() {
+  return {
+    worldConfig: useWorldStore.getState().worldConfig,
+    calibration: undefined,
+    worldTags: undefined,
+    character: {
+      name: useCharacterStore.getState().name,
+      race: useCharacterStore.getState().race,
+      gender: useCharacterStore.getState().gender,
+      background: useCharacterStore.getState().background,
+      startingAge: useCharacterStore.getState().characterBase?.startingAge ?? 0,
+      attributes: useCharacterStore.getState().characterBase?.base as unknown as Record<string, number>,
+    },
+    existingNames: [],
+  }
+}
+
+function configureDestinyPatternAIService(): void {
+  getDestinyPatternSystem().setAIService(async (systemPrompt: string, userPrompt: string, options?: unknown) => {
+    const { callAI, callAIStream } = await import('@/core')
+    const { estimateDestinyPatternTokenBudget } = await import('@/mods/mod-character/destiny-pattern-access')
+    const opts = options as {
+      pool?: string
+      sessionId?: string
+      userSegments?: string[]
+      stablePrefixChars?: number
+      jsonMode?: boolean
+      stream?: boolean
+      onChunk?: (text: string) => void
+      signal?: AbortSignal
+      maxTokensOverride?: number
+      storySeed?: number
+    }
+    const useStream = opts?.stream === true
+    const {
+      provider,
+      customKey,
+      customUrl,
+      customModel,
+    } = useSettingsStore.getState()
+    const model = customModel || 'deepseek-v4-flash'
+    const maxTokens = opts?.maxTokensOverride
+      ?? estimateDestinyPatternTokenBudget(systemPrompt.length + userPrompt.length)
+    const defaultConfig: AIModelConfig = {
+      model,
+      temperature: 0.8,
+      maxTokens,
+      stream: useStream,
+      responseFormat: useStream ? undefined : undefined,
+      reasoningEffort: 'disabled',
+    }
+
+    const callOptions = {
+      config: defaultConfig,
+      pool: (opts?.pool ?? 'fate') as 'narrative' | 'summary' | 'worldInit' | 'fate' | 'lowFrequency',
+      sessionId: opts?.sessionId,
+      userSegments: opts?.userSegments,
+      jsonMode: opts?.jsonMode,
+      onChunk: opts?.onChunk,
+      signal: opts?.signal,
+      providerId: provider,
+      apiKey: customKey || undefined,
+      customBaseUrl: customUrl || undefined,
+      customModel: model,
+      reasoningEffort: 'disabled',
+      overrideMaxTokens: maxTokens,
+      storySeed: opts?.storySeed,
+      logCategory: 'talent-generate' as const,
+      logContext: {
+        callKind: useStream ? 'talent-generate-stream' : 'talent-generate-batch',
+        pool: 'fate',
+        model,
+        sessionId: opts?.sessionId,
+      },
+      logMeta: {
+        userId: opts?.sessionId ? `fate-${opts.sessionId}` : undefined,
+        stablePrefixChars: opts?.stablePrefixChars,
+      },
+    }
+
+    // 不设页面级超时；单次调用由 ai-client 兜底，池填充由 DestinyPatternSystem 负责续跑和持久化。
+    if (useStream) {
+      return await callAIStream(systemPrompt, userPrompt, callOptions)
+    }
+    return await callAI(systemPrompt, userPrompt, callOptions)
+  })
+}
+
 // ══════════════════════════════════════════════════════
 // 组件
 // ══════════════════════════════════════════════════════
@@ -290,11 +386,8 @@ function resolveInitialTalentDrawState(): InitialTalentDrawState {
     }
   }
 
-  if (cached.length >= DESTINY_PATTERN_FAST_DRAW_THRESHOLD) {
-    const shuffled = [...cached].sort(() => Math.random() - 0.5)
-    const drawn = shuffled.slice(0, DEFAULT_DESTINY_PATTERN_COUNT)
-    const newSlots: (DestinyPattern | null)[] = Array(12).fill(null)
-    drawn.forEach((p, i) => { newSlots[i] = p })
+  if (cached.length >= DEFAULT_DESTINY_PATTERN_COUNT) {
+    const newSlots = drawSlotsFromPool(cached)
     useCharacterStore.getState().setDestinyPatterns({ candidates: cached })
     return {
       phase: 'selecting',
@@ -343,11 +436,10 @@ export default function TalentDrawPage() {
     }
   }, [phase, slots, selectedSlotIndices])
 
-  // ══════════ 组件卸载时中止 AI 调用 ══════════
+  // ══════════ 组件卸载时只停止页面写状态，不中断后台池填充 ══════════
   useEffect(() => {
     return () => {
       abortRef.current = true
-      getDestinyPatternSystem().abortPoolFill()
     }
   }, [])
 
@@ -397,6 +489,53 @@ export default function TalentDrawPage() {
     return () => clearInterval(iv)
   }, [phase])
 
+  useEffect(() => {
+    if (phase !== 'selecting') return
+    const { aiTalentGeneration } = useSettingsStore.getState()
+    if (!aiTalentGeneration || localPoolSize >= DESTINY_PATTERN_FAST_DRAW_THRESHOLD) return
+
+    const cached = loadCachedPool()
+    if (
+      cached.length < DEFAULT_DESTINY_PATTERN_COUNT
+      || cached.length >= DESTINY_PATTERN_FAST_DRAW_THRESHOLD
+      || getDestinyPatternSystem().getPoolFillStatus().inProgress
+    ) {
+      return
+    }
+
+    let cancelled = false
+    configureDestinyPatternAIService()
+
+    // 缓存够 12 条时玩家先选；这里在后台从已有池续填，直到本世界命格池达到快速复用阈值。
+    void getDestinyPatternSystem().generateWithAI(
+      buildDestinyPatternContext(),
+      (_count, patterns) => {
+        if (patterns.length > 0) {
+          fullPoolRef.current = patterns
+          saveCachedPool(patterns)
+          useCharacterStore.getState().setDestinyPatterns({ candidates: patterns })
+        }
+        if (!cancelled) setLocalPoolSize(patterns.length)
+      },
+      undefined,
+      undefined,
+      { initialPatterns: cached },
+    ).then((patterns) => {
+      if (patterns.length > 0) {
+        fullPoolRef.current = patterns
+        saveCachedPool(patterns)
+        useCharacterStore.getState().setDestinyPatterns({ candidates: patterns })
+      }
+      if (!cancelled) setLocalPoolSize(patterns.length)
+    }).catch(() => {
+      /* 静默补池失败不阻断玩家继续选择，下一次进入页面会按缓存继续补。 */
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [phase, localPoolSize])
+
   // ══════════ 加载文案动画 + 超时 ══════════
   const displayElapsed = phase === 'generating' ? elapsedSeconds : 0
 
@@ -431,11 +570,7 @@ export default function TalentDrawPage() {
       // 预设模式
       const patterns = getDestinyPatternSystem().generateFromPresets(100)
       fullPoolRef.current = patterns
-      const shuffled = [...patterns].sort(() => Math.random() - 0.5)
-      const drawn = shuffled.slice(0, DEFAULT_DESTINY_PATTERN_COUNT)
-      const newSlots: (DestinyPattern | null)[] = Array(12).fill(null)
-      drawn.forEach((p, i) => { newSlots[i] = p })
-      setSlots(newSlots)
+      setSlots(drawSlotsFromPool(patterns))
       setSelectedSlotIndices([])
       setPhase('selecting')
       return
@@ -456,76 +591,7 @@ export default function TalentDrawPage() {
       return
     }
 
-    getDestinyPatternSystem().setAIService(async (systemPrompt: string, userPrompt: string, options?: unknown) => {
-      const { callAI, callAIStream } = await import('@/core')
-      const { estimateDestinyPatternTokenBudget } = await import('@/mods/mod-character/destiny-pattern-access')
-      const opts = options as {
-        pool?: string
-        sessionId?: string
-        userSegments?: string[]
-        stablePrefixChars?: number
-        jsonMode?: boolean
-        stream?: boolean
-        onChunk?: (text: string) => void
-        signal?: AbortSignal
-        maxTokensOverride?: number
-        storySeed?: number
-      }
-      const useStream = opts?.stream === true
-      const {
-        provider,
-        customKey,
-        customUrl,
-        customModel,
-      } = useSettingsStore.getState()
-      const model = customModel || 'deepseek-v4-flash'
-      const maxTokens = opts?.maxTokensOverride
-        ?? estimateDestinyPatternTokenBudget(systemPrompt.length + userPrompt.length)
-      const defaultConfig: AIModelConfig = {
-        model,
-        temperature: 0.8,
-        maxTokens,
-        stream: useStream,
-        responseFormat: useStream ? undefined : undefined,
-        reasoningEffort: 'disabled',
-      }
-
-      const callOptions = {
-        config: defaultConfig,
-        pool: (opts?.pool ?? 'fate') as 'narrative' | 'summary' | 'worldInit' | 'fate' | 'lowFrequency',
-        sessionId: opts?.sessionId,
-        userSegments: opts?.userSegments,
-        jsonMode: opts?.jsonMode,
-        onChunk: opts?.onChunk,
-        signal: opts?.signal,
-        providerId: provider,
-        apiKey: customKey || undefined,
-        customBaseUrl: customUrl || undefined,
-        customModel: model,
-        reasoningEffort: 'disabled',
-        overrideMaxTokens: maxTokens,
-        storySeed: opts?.storySeed,
-        logCategory: 'talent-generate' as const,
-        logContext: {
-          callKind: useStream ? 'talent-generate-stream' : 'talent-generate-batch',
-          pool: 'fate',
-          model,
-          sessionId: opts?.sessionId,
-        },
-        logMeta: {
-          userId: opts?.sessionId ? `fate-${opts.sessionId}` : undefined,
-          stablePrefixChars: opts?.stablePrefixChars,
-        },
-      }
-
-      // 不设页面级超时——并发多路请求自行竞争，单次调用由 ai-client 的 90s 兜底
-      const signal = opts?.signal
-
-      if (useStream) {
-        return await callAIStream(systemPrompt, userPrompt, { ...callOptions, signal })
-      }
-      return await callAI(systemPrompt, userPrompt, { ...callOptions, signal })
-    })
+    configureDestinyPatternAIService()
 
     // ══════════ 重试逻辑：仅按次数限制，不设时间上限 ══════════
     // 并发多路请求在 generateWithAI 内部竞争，此处只做整体兜底重试
@@ -538,20 +604,7 @@ export default function TalentDrawPage() {
 
       try {
         const result = await getDestinyPatternSystem().generateWithAI(
-          {
-            worldConfig: useWorldStore.getState().worldConfig,
-            calibration: undefined,
-            worldTags: undefined,
-            character: {
-              name: useCharacterStore.getState().name,
-              race: useCharacterStore.getState().race,
-              gender: useCharacterStore.getState().gender,
-              background: useCharacterStore.getState().background,
-              startingAge: useCharacterStore.getState().characterBase?.startingAge ?? 0,
-              attributes: useCharacterStore.getState().characterBase?.base as unknown as Record<string, number>,
-            },
-            existingNames: [],
-          },
+          buildDestinyPatternContext(),
           (count, patterns) => {
             if (abortRef.current) return
             setStreamCount(count)
@@ -571,17 +624,14 @@ export default function TalentDrawPage() {
             setLocalPoolSize(patterns.length)
             setGeneratingBatch(-1)
             if (msgTimerRef.current) clearInterval(msgTimerRef.current)
-            const shuffled = [...patterns].sort(() => Math.random() - 0.5)
-            const drawn = shuffled.slice(0, DEFAULT_DESTINY_PATTERN_COUNT)
-            const newSlots: (DestinyPattern | null)[] = Array(12).fill(null)
-            drawn.forEach((p, i) => { newSlots[i] = p })
-            setSlots(newSlots)
+            setSlots(drawSlotsFromPool(patterns))
             setSelectedSlotIndices([])
             setPhase('selecting')
           },
           (batchIndex) => {
             if (!earlyReady) setGeneratingBatch(batchIndex)
           },
+          { initialPatterns: loadCachedPool() },
         )
         return result
       } catch {
@@ -601,11 +651,7 @@ export default function TalentDrawPage() {
       // 兜底：如果 onEarlyReady 没触发
       if (!earlyReady && !abortRef.current) {
         fullPoolRef.current = result
-        const shuffled = [...result].sort(() => Math.random() - 0.5)
-        const drawn = shuffled.slice(0, DEFAULT_DESTINY_PATTERN_COUNT)
-        const newSlots: (DestinyPattern | null)[] = Array(12).fill(null)
-        drawn.forEach((p, i) => { newSlots[i] = p })
-        setSlots(newSlots)
+        setSlots(drawSlotsFromPool(result))
         setSelectedSlotIndices([])
         setPhase('selecting')
       }
@@ -661,6 +707,12 @@ export default function TalentDrawPage() {
       })
 
       // 保留 selecting 持久化，以便从属性分配页返回时恢复选取界面
+      persistTdState({
+        phase: 'selecting',
+        slots,
+        selectedSlotIndices,
+        aiTalentGeneration: useSettingsStore.getState().aiTalentGeneration,
+      })
       router.push('/attribute-alloc')
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : '选择无效，请重试')

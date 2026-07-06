@@ -90,18 +90,6 @@ export function useWorldConfirm() {
       } catch { /* 存储不可用 */ }
     }
 
-    const { setWorldInitAIStatus } = useWorldStore.getState()
-    setWorldInitAIStatus({
-      status: 'idle',
-      calibrationGenerated: false,
-      tagsGenerated: false,
-      configGenerated: false,
-      entitiesGenerated: false,
-      retryCount: 0,
-      maxRetries: 3,
-      errors: [],
-    })
-
     router.push('/new-game/world-customize')
     return true
   }, [router, setWorldviewId, setWorldName])

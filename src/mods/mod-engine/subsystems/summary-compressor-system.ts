@@ -61,6 +61,7 @@ import {
 } from '../utils'
 
 import type { MemoryLifecycleSystem } from './memory-lifecycle-system'
+import { digestLedger } from '../helpers/digest-ledger'
 
 // ============================================================
 // 类型（内部使用）
@@ -256,7 +257,12 @@ export class SummaryCompressorSystem implements ISubSystem {
           let summaryTokens = computeSummaryTokenBudget(totalNarrativeChars)
 
           // 语义重要性加权：高分事件保留更多细节，低分事件更激进压缩
-          if (memoryLifecycle) {
+          // 优先用 digestLedger 的 AI 自评数值重要性（更准），区间内无账本条目时降级回退关键词评分
+          const ledgerAvg = digestLedger.averageAdjustedImportance(startRound, endRound)
+          if (ledgerAvg !== null) {
+            const boostFactor = 0.75 + ledgerAvg * 1.0
+            summaryTokens = Math.round(summaryTokens * boostFactor)
+          } else if (memoryLifecycle) {
             const importanceScores = blockEvents
               .map(e => memoryLifecycle.rateImportance(e.narrative || ''))
             const avgImportance = importanceScores.length > 0
@@ -565,7 +571,7 @@ export class SummaryCompressorSystem implements ISubSystem {
               startRound,
               endRound,
               content: this.sanitizeContent(raw),
-            } as unknown as CompressedSummaryItem)
+            })
             this.stats.totalL5++
           } catch {
             appendSummary({
@@ -573,7 +579,7 @@ export class SummaryCompressorSystem implements ISubSystem {
               startRound,
               endRound,
               content: `${startRound}~${endRound}轮时代概略`,
-            } as unknown as CompressedSummaryItem)
+            })
             this.stats.totalL5++
           }
         }
@@ -635,7 +641,7 @@ export class SummaryCompressorSystem implements ISubSystem {
               startRound,
               endRound,
               content: this.sanitizeContent(raw),
-            } as unknown as CompressedSummaryItem)
+            })
             this.stats.totalL6++
           } catch {
             appendSummary({
@@ -643,7 +649,7 @@ export class SummaryCompressorSystem implements ISubSystem {
               startRound,
               endRound,
               content: `${startRound}~${endRound}轮历史概略`,
-            } as unknown as CompressedSummaryItem)
+            })
             this.stats.totalL6++
           }
         }

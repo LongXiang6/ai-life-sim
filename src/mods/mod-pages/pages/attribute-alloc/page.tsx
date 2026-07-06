@@ -198,10 +198,8 @@ export default function AttributeAllocPage() {
       current: { ...attrs } as Record<string, number> & { physique: number; mind: number; talentAptitude: number; charisma: number; resources: number },
       modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0, resources: 0 },
     })
-    // 清除持久化（确认后不再回退到此页面的编辑态）
+    // 只清除属性页编辑态；命格选取态按 worldCode 保留，保证从属性页返回时仍显示已选完成界面。
     configStore.remove('mod-pages', attrStorageKey())
-    const worldCode = useWorldStore.getState().worldCode
-    configStore.remove('mod-pages', `talent-draw:${worldCode || 0}`)
     setShowConfirm(false)
     router.push('/fate-preview')
   }

@@ -15,8 +15,47 @@ export const TOTAL_ATTRIBUTE_POINTS = 30
 
 /** 默认属性值 */
 export const DEFAULT_ATTRIBUTE_VALUE = 0
+/** 凡人领域下限（分配 UI 与出身锁定沿用） */
 export const MIN_ATTRIBUTE_VALUE = -10
+/** 凡人领域上限（人类物种极限；超出即踏入超凡领域） */
 export const MAX_ATTRIBUTE_VALUE = 10
+
+// ------------------------------------------------------------
+// 超凡领域（Transcendence）
+// ------------------------------------------------------------
+//
+// 设计（design-2026-07-06-compression-attributes.md 想法2）：
+//   ±10 是凡人（人类物种）的极限区间。体魄/心智/悟性/魅力 4 项可突破此界限
+//   向上（或向下）无限堆叠，进入超凡领域；出身(resources) 与隐藏属性
+//   气运(luck)/善恶(morality) 永久锁定在 ±10，不参与超凡堆叠。
+//   下游系统（战力/寿命等）直接读取放开后的数值自行换算，无需额外「是否超凡」布尔字段。
+
+/** 可超凡属性：突破 ±10 后无上限堆叠 */
+export const TRANSCENDENT_ATTR_KEYS = ['physique', 'mind', 'talentAptitude', 'charisma'] as const
+
+/** 凡人锁定属性：始终钳制 [-10, 10]（出身；气运/善恶为独立隐藏子系统另行锁定） */
+export const MORTAL_LOCKED_ATTR_KEYS = ['resources'] as const
+
+/**
+ * 属性硬上限/下限（防止数值溢出与 AI 失控；远超任何正常叙事所需）
+ * 可超凡属性钳制到 [-ATTR_HARD_CAP, ATTR_HARD_CAP]，实际"无上限"体验由映射档位覆盖。
+ */
+export const ATTR_HARD_CAP = 100000
+
+/** 单轮属性增量钳制（防 AI 一次性拉爆；正常波动≤2，重大转折可略高） */
+export const ATTR_DELTA_CLAMP: [number, number] = [-8, 8]
+
+/**
+ * 超凡领域档位阈值（正向；负向对称取绝对值）
+ * 凡人：|v|≤10（沿用 11 档 ATTR_TIER_DESCRIPTIONS）
+ * 超凡入圣：11–20 / 神性：21–40 / 神王：41–80 / 概念级：81+（公式化生成）
+ */
+export const TRANSCENDENT_TIER_THRESHOLDS = {
+  mortalCap: 10,
+  sage: 20,
+  divine: 40,
+  divineKing: 80,
+} as const
 
 /** 5 项属性名称（key 对齐废弃项目 ATTR_KEYS） */
 export const ATTRIBUTE_NAMES: Record<string, string> = {
@@ -617,9 +656,15 @@ export const LUCK_EVENT_WEIGHT_PER_POINT = 0.05
 /** 每点气运减缓衰老速率 */
 export const LUCK_AGE_DECAY_MODIFIER_PER_POINT = 0.01
 
-/** 气运值范围 */
-export const MIN_LUCK = 0
+/** 气运值范围（隐藏基础属性，与显性属性统一为 -10~+10；0 为常人无特殊气运） */
+export const MIN_LUCK = -10
 export const MAX_LUCK = 10
+
+/** 气运单次变化达到该幅度时触发"大幅变化"通知 */
+export const LUCK_MAJOR_CHANGE_THRESHOLD = 3
+
+/** 气运大幅变化通知持续的轮数 */
+export const LUCK_NOTIFICATION_DURATION = 5
 
 // ============================================================
 // 死因推断（对齐废弃项目 death-constants.ts）

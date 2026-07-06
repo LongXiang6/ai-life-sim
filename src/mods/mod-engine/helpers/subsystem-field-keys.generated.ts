@@ -28,11 +28,11 @@ export const SUBSYSTEM_FIELD_REGISTRY_KEYS = [
 /** SUBSYSTEM_CHANGE_SCHEMAS 各子系统 Zod 字段（codegen 自动推导） */
 export const SUBSYSTEM_ZOD_FIELD_KEYS: Record<string, readonly string[]> = {
   "character-base": [
-    "physique",
-    "mind",
-    "comprehension",
-    "charisma",
-    "background"
+    "physiqueDelta",
+    "mindDelta",
+    "talentAptitudeDelta",
+    "charismaDelta",
+    "resourcesDelta"
   ],
   "health": [
     "hpDelta",

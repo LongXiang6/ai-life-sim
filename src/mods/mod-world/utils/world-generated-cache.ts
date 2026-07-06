@@ -10,6 +10,7 @@ const STORAGE_PREFIX = 'ai-life-sim'
 
 const CACHE_KEY_PATTERNS: RegExp[] = [
   /^mod-character:cache:destiny-pool:(\d+)/,
+  /^mod-world:config:world-dimension-decision:(\d+)/,
   /^mod-world:save:0:init-cal:(\d+)/,
   /^mod-world:save:0:entities:(\d+)/,
   /^mod-base-universe:save:0:world-map:(\d+)/,
@@ -58,6 +59,12 @@ export function clearWorldGeneratedCache(worldCode: number): void {
 
   try {
     cacheStore.remove('mod-character', `destiny-pool:${worldCode}`)
+  } catch {
+    /* ignore */
+  }
+
+  try {
+    configStore.remove('mod-world', `world-dimension-decision:${worldCode}`)
   } catch {
     /* ignore */
   }
