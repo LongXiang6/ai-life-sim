@@ -43,7 +43,7 @@ export class LifespanSystem implements ISubSystem {
   readonly id = 'lifespan' as const
   readonly mod = 'mod-character' as const
   readonly label = '寿命' as const
-  readonly description = '三维度计算最大寿命（世界观×种族×背景） + 管理突破 + 检测减寿关键词' as const
+  readonly description = '三维度计算最大寿命（世界观×种族×背景） + 管理突破 + 落地结构化寿命增减' as const
 
   private state: LifespanState = {
     maxAge: 100,
@@ -147,7 +147,15 @@ export class LifespanSystem implements ISubSystem {
 
     // 直接设置 maxAge（手动覆盖，优先级最高）
     if (typeof ch.maxAge === 'number') {
-      this.state.maxAge = Math.min(ch.maxAge, MAX_LIFESPAN_CAP)
+      this.state.maxAge = round(clamp(ch.maxAge, 1, MAX_LIFESPAN_CAP))
+    }
+
+    // 结构化寿命增量：减寿/增寿由 LifespanSystem 自己落地，编排器不得二次计算 maxAge。
+    if (typeof ch.lifespanDelta === 'number') {
+      this.state.maxAge = round(clamp(this.state.maxAge + ch.lifespanDelta, 1, MAX_LIFESPAN_CAP))
+      if (ch.lifespanDelta < 0) {
+        this._pendingReductionNote = `结构化寿命变化（${ch.lifespanDelta}年）`
+      }
     }
 
     // 应用 AI 适配

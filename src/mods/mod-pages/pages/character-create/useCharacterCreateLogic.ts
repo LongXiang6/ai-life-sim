@@ -36,26 +36,10 @@ const ADDITIONAL_GENDERS: Record<string, string> = {
   '沃尔玛购物袋': '🛒', '性感母蟑螂': '🪳', '香菜': '🥬', '神奇海螺': '🐚',
 }
 
-/** 默认可见种族（对齐废弃项目 DEFAULT_RACES 少量核心种族） */
-const DEFAULT_VISIBLE_RACES: string[] = [
-  'human', 'elf', 'dwarf', 'orc', 'goblin', 'dragon', 'beastman',
-]
-
 /** 种族图标 */
 const DEFAULT_RACE_ICONS: Record<string, string> = {
   '人类': '🧑', '妖族': '🦊', '魔族': '👿', '精灵': '🧝', '龙裔': '🐲',
   'AI意识体': '💻', '灵兽': '🐉', '灵体': '👻', '半妖': '👤',
-}
-
-/** 更多面板中的额外种族 */
-const ADDITIONAL_RACES: Record<string, string> = {
-  '猫人': '🐱', '魔法少女': '✨', '虫族': '🐛', '狼人': '🐺',
-  '蘑菇人': '🍄', '神族': '⚡', '魅魔': '😈', '半精灵': '🧝', '半神': '⚡',
-  '巨龙': '🐉', '天使': '👼', '恶魔': '😈', '吸血鬼': '🧛', '不死族': '💀',
-  '亡灵': '💀', '丧尸': '🧟', '狐妖': '🦊', '亚人': '👤',
-  '兽人': '🐺', '哥布林': '👺', '人鱼': '🧜', '元素灵': '🌊', '树人': '🌳',
-  '史莱姆': '💧', '仿生人': '🤖', '数字生命': '🔢', '新人类': '👤',
-  '外星人': '👽', '人工智能': '🤖', '赛亚人': '👊', '克苏鲁': '🐙', '奇美拉': '🐉',
 }
 
 /** 背景预设图标 */
@@ -151,6 +135,9 @@ export const LABELS = {
   // 种族
   raceLabel: '种族' as const,
   moreRaceBtnTitle: '添加更多种族选项' as const,
+  humanRaceText: '人类' as const,
+  customRaceText: '自定义' as const,
+  raceSearchPlaceholder: '搜索种族...' as const,
 
   // 自定义种族面板
   customRacePlaceholder: '输入种族名称...' as const,
@@ -245,13 +232,18 @@ export interface UseCharacterCreateLogicReturn {
   customRaces: string[]
   showCustomRace: boolean
   setShowCustomRace: (v: boolean) => void
+  showRaceCatalog: boolean
+  setShowRaceCatalog: (v: boolean) => void
+  raceSearch: string
+  setRaceSearch: (v: string) => void
   customRaceInput: string
   setCustomRaceInput: (v: string) => void
   handleAddCustomRace: () => void
   removeCustomRace: (r: string) => void
   getRaceIcon: (r: string) => string
+  getRaceDisplayName: (r: string) => string
   raceInfo: typeof RACE_LIFESPAN[string] | undefined
-  ADDITIONAL_RACES: Record<string, string>
+  raceCatalogOptions: Array<{ id: string; name: string }>
 
   // 背景预设
   bgPresets: Record<string, string>
@@ -320,6 +312,8 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
   // ---- 自定义种族 ----
   const [customRaces, setCustomRaces] = useState<string[]>([])
   const [showCustomRace, setShowCustomRace] = useState(false)
+  const [showRaceCatalog, setShowRaceCatalog] = useState(false)
+  const [raceSearch, setRaceSearch] = useState('')
   const [customRaceInput, setCustomRaceInput] = useState('')
 
   // ---- 背景 ----
@@ -341,11 +335,18 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
 
   // ---- 合并选项列表 ----
   const allGenders = useMemo(() => ['男', '女', ...customGenders], [customGenders])
-  const allRaces = useMemo(() => [...DEFAULT_VISIBLE_RACES, ...customRaces], [customRaces])
+  const allRaces = useMemo(() => ['human', ...customRaces], [customRaces])
+  const raceCatalogOptions = useMemo(() => {
+    const q = raceSearch.trim().toLowerCase()
+    return Object.entries(RACE_LIFESPAN)
+      .map(([id, info]) => ({ id, name: info.name }))
+      .filter((item) => !q || item.id.toLowerCase().includes(q) || item.name.includes(raceSearch.trim()))
+  }, [raceSearch])
 
   // ---- 图标获取器 ----
   const getGenderIcon = (g: string) => DEFAULT_GENDER_ICONS[g] || ADDITIONAL_GENDERS[g] || '👤'
-  const getRaceIcon = (r: string) => DEFAULT_RACE_ICONS[r] || ADDITIONAL_RACES[r] || '👤'
+  const getRaceDisplayName = (r: string) => RACE_LIFESPAN[r]?.name || r
+  const getRaceIcon = (r: string) => DEFAULT_RACE_ICONS[getRaceDisplayName(r)] || '👤'
   const getBgPresetIcon = (n: string) => BG_PRESET_ICONS[n] || '📋'
 
   // ---- 随机名称 ----
@@ -389,9 +390,11 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
     const v = customRaceInput.trim()
     if (v && !allRaces.includes(v)) {
       setCustomRaces((prev) => [...prev, v])
+      setRace(v)
       setCustomRaceInput('')
+      setShowCustomRace(false)
     }
-  }, [customRaceInput, allRaces])
+  }, [customRaceInput, allRaces, setRace])
 
   const removeCustomRace = (r: string) => {
     setCustomRaces((prev) => prev.filter((x) => x !== r))
@@ -515,11 +518,14 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
     // 种族
     allRaces, customRaces,
     showCustomRace, setShowCustomRace,
+    showRaceCatalog, setShowRaceCatalog,
+    raceSearch, setRaceSearch,
     customRaceInput, setCustomRaceInput,
     handleAddCustomRace, removeCustomRace,
     getRaceIcon,
+    getRaceDisplayName,
     raceInfo,
-    ADDITIONAL_RACES,
+    raceCatalogOptions,
 
     // 背景预设
     bgPresets, showBgPresetInput, setShowBgPresetInput,

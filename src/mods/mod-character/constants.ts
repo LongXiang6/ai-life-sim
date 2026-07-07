@@ -42,9 +42,6 @@ export const MORTAL_LOCKED_ATTR_KEYS = ['resources'] as const
  */
 export const ATTR_HARD_CAP = 100000
 
-/** 单轮属性增量钳制（防 AI 一次性拉爆；正常波动≤2，重大转折可略高） */
-export const ATTR_DELTA_CLAMP: [number, number] = [-8, 8]
-
 /**
  * 超凡领域档位阈值（正向；负向对称取绝对值）
  * 凡人：|v|≤10（沿用 11 档 ATTR_TIER_DESCRIPTIONS）
@@ -369,81 +366,90 @@ export const BASE_HUMAN_LIFESPAN = 90
 /** 最大寿命上限（对齐废弃项目硬上限） */
 export const MAX_LIFESPAN_CAP = 300
 
-/** 种族寿命表（对齐废弃项目 RACE_LIFESPAN，55 种族） */
+/**
+ * 种族寿命表（对齐废弃项目 RACE_LIFESPAN，55 种族）
+ *
+ * attrBaselines 取值尺度（design-2026-07-06-compression-attributes.md 想法2「主题化·有界」）：
+ *   基准线本身留在凡人区间（|v|≤10），玩家满投单项 10 点后 current = 基准 + 10。
+ *   顶级种族主属性封顶 +8 → 满投 18，落在「超凡入圣」（11–20）顶端，不越「神性」（21）。
+ *   人类/半身人基准全 0 作对照组；未列种族默认无基准线（等同 0，向后兼容）。
+ *   分级参考：凡人对照 0 / 温和加成 +1~+3 / 强壮种族 +3~+5 / 顶级种族 +6~+8；
+ *   孱弱、无形、非人种族按主题给对应属性负基准（如魅力、体魄）。
+ */
 export const RACE_LIFESPAN: Record<string, RaceLifespanConfig> = {
-  // ---- 人类及亚种 ----
+  // ---- 人类及亚种（对照组，无基准线）----
   human:    { name: '人类',   baseMaxAge: 100, goldenAgeRatio: [0.18, 0.40,], decayMultiplier: 1.0, },
-  halfling: { name: '半身人', baseMaxAge: 100, goldenAgeRatio: [0.18, 0.40,], decayMultiplier: 1.0, },
+  halfling: { name: '半身人', baseMaxAge: 100, goldenAgeRatio: [0.18, 0.40,], decayMultiplier: 1.0, attrBaselines: { charisma: 1, physique: -1, }, },
 
-  // ---- 精灵亚种 ----
-  elf:          { name: '精灵',     baseMaxAge: 1000, goldenAgeRatio: [0.05, 0.30,], decayMultiplier: 0.1, },
-  highElf:      { name: '高等精灵',  baseMaxAge: 3000, goldenAgeRatio: [0.03, 0.25,], decayMultiplier: 0.05, },
-  nightElf:     { name: '暗夜精灵',  baseMaxAge: 1500, goldenAgeRatio: [0.04, 0.28,], decayMultiplier: 0.08, },
-  bloodElf:     { name: '血精灵',   baseMaxAge: 800,  goldenAgeRatio: [0.06, 0.32,], decayMultiplier: 0.12, },
-  darkelf:      { name: '暗精灵',   baseMaxAge: 800,  goldenAgeRatio: [0.06, 0.30,], decayMultiplier: 0.15, },
+  // ---- 精灵亚种（长寿善法，心智/悟性/魅力偏高，体魄偏弱）----
+  elf:          { name: '精灵',     baseMaxAge: 1000, goldenAgeRatio: [0.05, 0.30,], decayMultiplier: 0.1,  attrBaselines: { mind: 2, talentAptitude: 2, charisma: 2, physique: -1, }, },
+  highElf:      { name: '高等精灵',  baseMaxAge: 3000, goldenAgeRatio: [0.03, 0.25,], decayMultiplier: 0.05, attrBaselines: { mind: 4, talentAptitude: 4, charisma: 3, }, },
+  nightElf:     { name: '暗夜精灵',  baseMaxAge: 1500, goldenAgeRatio: [0.04, 0.28,], decayMultiplier: 0.08, attrBaselines: { mind: 2, talentAptitude: 3, charisma: 2, }, },
+  bloodElf:     { name: '血精灵',   baseMaxAge: 800,  goldenAgeRatio: [0.06, 0.32,], decayMultiplier: 0.12, attrBaselines: { mind: 2, talentAptitude: 3, charisma: 3, }, },
+  darkelf:      { name: '暗精灵',   baseMaxAge: 800,  goldenAgeRatio: [0.06, 0.30,], decayMultiplier: 0.15, attrBaselines: { mind: 2, talentAptitude: 2, charisma: 2, }, },
 
-  // ---- 矮人 ----
-  dwarf: { name: '矮人', baseMaxAge: 350, goldenAgeRatio: [0.10, 0.35,], decayMultiplier: 0.3, },
+  // ---- 矮人（坚韧强壮，体魄高，魅力略低）----
+  dwarf: { name: '矮人', baseMaxAge: 350, goldenAgeRatio: [0.10, 0.35,], decayMultiplier: 0.3, attrBaselines: { physique: 3, charisma: -1, }, },
 
-  // ---- 兽人/哥布林 ----
-  orc:      { name: '兽人',   baseMaxAge: 80,  goldenAgeRatio: [0.15, 0.35,], decayMultiplier: 1.2, },
-  halfOrc:  { name: '半兽人',  baseMaxAge: 60,  goldenAgeRatio: [0.17, 0.37,], decayMultiplier: 1.4, },
-  goblin:   { name: '哥布林',  baseMaxAge: 50,  goldenAgeRatio: [0.20, 0.40,], decayMultiplier: 1.8, },
-  beastman: { name: '兽人（兽化）', baseMaxAge: 70, goldenAgeRatio: [0.15, 0.35,], decayMultiplier: 1.3, },
-  gnome:    { name: '地精',   baseMaxAge: 60,  goldenAgeRatio: [0.18, 0.40,], decayMultiplier: 1.6, },
-  gnomeDeep:{ name: '侏儒',   baseMaxAge: 150, goldenAgeRatio: [0.15, 0.35,], decayMultiplier: 0.8, },
+  // ---- 兽人/哥布林（体魄强，心智/悟性/魅力偏低）----
+  orc:      { name: '兽人',   baseMaxAge: 80,  goldenAgeRatio: [0.15, 0.35,], decayMultiplier: 1.2, attrBaselines: { physique: 4, mind: -1, charisma: -2, }, },
+  halfOrc:  { name: '半兽人',  baseMaxAge: 60,  goldenAgeRatio: [0.17, 0.37,], decayMultiplier: 1.4, attrBaselines: { physique: 2, charisma: -1, }, },
+  goblin:   { name: '哥布林',  baseMaxAge: 50,  goldenAgeRatio: [0.20, 0.40,], decayMultiplier: 1.8, attrBaselines: { physique: -1, charisma: -3, talentAptitude: 1, }, },
+  beastman: { name: '兽人（兽化）', baseMaxAge: 70, goldenAgeRatio: [0.15, 0.35,], decayMultiplier: 1.3, attrBaselines: { physique: 3, charisma: -1, }, },
+  gnome:    { name: '地精',   baseMaxAge: 60,  goldenAgeRatio: [0.18, 0.40,], decayMultiplier: 1.6, attrBaselines: { mind: 2, talentAptitude: 2, physique: -2, }, },
+  gnomeDeep:{ name: '侏儒',   baseMaxAge: 150, goldenAgeRatio: [0.15, 0.35,], decayMultiplier: 0.8, attrBaselines: { mind: 2, talentAptitude: 1, physique: -1, }, },
 
-  // ---- 龙族 ----
-  dragon:    { name: '龙族',  baseMaxAge: 50000, goldenAgeRatio: [0.01, 0.20,], decayMultiplier: 0.01, },
-  dragonkin: { name: '龙裔',  baseMaxAge: 1500,  goldenAgeRatio: [0.10, 0.35,], decayMultiplier: 0.3, },
-  halfDragon:{ name: '半龙',  baseMaxAge: 500,   goldenAgeRatio: [0.12, 0.38,], decayMultiplier: 0.5, },
+  // ---- 龙族（顶级种族，体魄/心智/威仪极高）----
+  dragon:    { name: '龙族',  baseMaxAge: 50000, goldenAgeRatio: [0.01, 0.20,], decayMultiplier: 0.01, attrBaselines: { physique: 8, mind: 6, talentAptitude: 6, charisma: 6, }, },
+  dragonkin: { name: '龙裔',  baseMaxAge: 1500,  goldenAgeRatio: [0.10, 0.35,], decayMultiplier: 0.3,  attrBaselines: { physique: 4, mind: 2, charisma: 3, }, },
+  halfDragon:{ name: '半龙',  baseMaxAge: 500,   goldenAgeRatio: [0.12, 0.38,], decayMultiplier: 0.5,  attrBaselines: { physique: 3, charisma: 2, }, },
 
-  // ---- 仙神 ----
-  immortal: { name: '仙人',  baseMaxAge: 10000,  goldenAgeRatio: [0, 0,],       decayMultiplier: 0, },
-  divine:   { name: '神族',  baseMaxAge: 100000, goldenAgeRatio: [0.005, 0.15,], decayMultiplier: 0.001, },
-  celestial:{ name: '仙族',  baseMaxAge: 50000,  goldenAgeRatio: [0.005, 0.15,], decayMultiplier: 0.001, },
+  // ---- 仙神（顶级种族，悟性/心智/威仪极高）----
+  immortal: { name: '仙人',  baseMaxAge: 10000,  goldenAgeRatio: [0, 0,],       decayMultiplier: 0,     attrBaselines: { talentAptitude: 6, mind: 5, charisma: 4, physique: 3, }, },
+  divine:   { name: '神族',  baseMaxAge: 100000, goldenAgeRatio: [0.005, 0.15,], decayMultiplier: 0.001, attrBaselines: { physique: 6, mind: 7, talentAptitude: 8, charisma: 7, }, },
+  celestial:{ name: '仙族',  baseMaxAge: 50000,  goldenAgeRatio: [0.005, 0.15,], decayMultiplier: 0.001, attrBaselines: { talentAptitude: 7, mind: 6, charisma: 6, physique: 4, }, },
 
-  // ---- 魔族/妖族/鬼族 ----
-  demon:  { name: '魔族', baseMaxAge: 3000, goldenAgeRatio: [0.03, 0.20,], decayMultiplier: 0.03, },
-  monster:{ name: '妖族', baseMaxAge: 2000, goldenAgeRatio: [0.04, 0.25,], decayMultiplier: 0.05, },
-  ghost:  { name: '鬼族', baseMaxAge: 5000, goldenAgeRatio: [0.02, 0.20,], decayMultiplier: 0.02, },
+  // ---- 魔族/妖族/鬼族（强大偏邪，体魄/威仪高，视亚种而定）----
+  demon:  { name: '魔族', baseMaxAge: 3000, goldenAgeRatio: [0.03, 0.20,], decayMultiplier: 0.03, attrBaselines: { physique: 5, mind: 3, charisma: 4, }, },
+  monster:{ name: '妖族', baseMaxAge: 2000, goldenAgeRatio: [0.04, 0.25,], decayMultiplier: 0.05, attrBaselines: { physique: 4, talentAptitude: 3, charisma: 2, }, },
+  ghost:  { name: '鬼族', baseMaxAge: 5000, goldenAgeRatio: [0.02, 0.20,], decayMultiplier: 0.02, attrBaselines: { mind: 3, talentAptitude: 3, physique: -3, charisma: -2, }, },
 
-  // ---- 不死族 ----
-  undead:  { name: '不死族', baseMaxAge: 999999, goldenAgeRatio: [0, 0,], decayMultiplier: 0, },
-  undeadZombie:{ name: '僵尸', baseMaxAge: 5000, goldenAgeRatio: [0, 0,], decayMultiplier: 0, },
-  undeadLich:  { name: '亡灵', baseMaxAge: 10000, goldenAgeRatio: [0, 0,], decayMultiplier: 0, },
+  // ---- 不死族（无生机，体魄视形态而定，魅力多为负）----
+  undead:  { name: '不死族', baseMaxAge: 999999, goldenAgeRatio: [0, 0,], decayMultiplier: 0, attrBaselines: { physique: 2, charisma: -3, }, },
+  undeadZombie:{ name: '僵尸', baseMaxAge: 5000, goldenAgeRatio: [0, 0,], decayMultiplier: 0, attrBaselines: { physique: 3, mind: -5, talentAptitude: -4, charisma: -5, }, },
+  undeadLich:  { name: '亡灵', baseMaxAge: 10000, goldenAgeRatio: [0, 0,], decayMultiplier: 0, attrBaselines: { mind: 5, talentAptitude: 5, physique: -2, charisma: -3, }, },
 
-  // ---- 吸血鬼/狼人 ----
-  vampire:     { name: '吸血鬼',  baseMaxAge: 5000,  goldenAgeRatio: [0.02, 0.20,], decayMultiplier: 0.01, },
-  halfVampire: { name: '半吸血鬼', baseMaxAge: 500,   goldenAgeRatio: [0.10, 0.35,], decayMultiplier: 0.3, },
-  bloodline:   { name: '血族',    baseMaxAge: 10000, goldenAgeRatio: [0.01, 0.15,], decayMultiplier: 0.005, },
-  werewolf:    { name: '狼人',    baseMaxAge: 150,   goldenAgeRatio: [0.15, 0.38,], decayMultiplier: 0.8, },
+  // ---- 吸血鬼/狼人（魅力/体魄突出）----
+  vampire:     { name: '吸血鬼',  baseMaxAge: 5000,  goldenAgeRatio: [0.02, 0.20,], decayMultiplier: 0.01,  attrBaselines: { charisma: 5, physique: 4, mind: 3, }, },
+  halfVampire: { name: '半吸血鬼', baseMaxAge: 500,   goldenAgeRatio: [0.10, 0.35,], decayMultiplier: 0.3,   attrBaselines: { charisma: 3, physique: 2, }, },
+  bloodline:   { name: '血族',    baseMaxAge: 10000, goldenAgeRatio: [0.01, 0.15,], decayMultiplier: 0.005, attrBaselines: { charisma: 6, physique: 5, mind: 4, }, },
+  werewolf:    { name: '狼人',    baseMaxAge: 150,   goldenAgeRatio: [0.15, 0.38,], decayMultiplier: 0.8,   attrBaselines: { physique: 5, mind: -1, }, },
 
-  // ---- 天使/恶魔 ----
-  angel:     { name: '天使',   baseMaxAge: 50000, goldenAgeRatio: [0.005, 0.15,], decayMultiplier: 0.001, },
-  fallenAngel:{ name: '堕天使', baseMaxAge: 30000, goldenAgeRatio: [0.005, 0.15,], decayMultiplier: 0.002, },
-  archdemon: { name: '恶魔',   baseMaxAge: 10000, goldenAgeRatio: [0.01, 0.18,],  decayMultiplier: 0.005, },
+  // ---- 天使/恶魔（顶级种族，威仪/心智极高）----
+  angel:     { name: '天使',   baseMaxAge: 50000, goldenAgeRatio: [0.005, 0.15,], decayMultiplier: 0.001, attrBaselines: { charisma: 8, mind: 6, talentAptitude: 6, physique: 5, }, },
+  fallenAngel:{ name: '堕天使', baseMaxAge: 30000, goldenAgeRatio: [0.005, 0.15,], decayMultiplier: 0.002, attrBaselines: { charisma: 6, physique: 6, mind: 5, talentAptitude: 5, }, },
+  archdemon: { name: '恶魔',   baseMaxAge: 10000, goldenAgeRatio: [0.01, 0.18,],  decayMultiplier: 0.005, attrBaselines: { physique: 7, mind: 5, charisma: 5, }, },
 
   // ---- 妖精/人鱼/巨人 ----
-  fairy:   { name: '妖精', baseMaxAge: 300, goldenAgeRatio: [0.12, 0.35,], decayMultiplier: 0.5, },
-  merfolk: { name: '人鱼', baseMaxAge: 250, goldenAgeRatio: [0.10, 0.35,], decayMultiplier: 0.4, },
-  giant:   { name: '巨人', baseMaxAge: 300, goldenAgeRatio: [0.10, 0.35,], decayMultiplier: 0.6, },
+  fairy:   { name: '妖精', baseMaxAge: 300, goldenAgeRatio: [0.12, 0.35,], decayMultiplier: 0.5, attrBaselines: { charisma: 3, talentAptitude: 2, physique: -3, }, },
+  merfolk: { name: '人鱼', baseMaxAge: 250, goldenAgeRatio: [0.10, 0.35,], decayMultiplier: 0.4, attrBaselines: { charisma: 4, mind: 1, }, },
+  giant:   { name: '巨人', baseMaxAge: 300, goldenAgeRatio: [0.10, 0.35,], decayMultiplier: 0.6, attrBaselines: { physique: 6, mind: -2, talentAptitude: -1, }, },
 
-  // ---- AI / 机械 / 数字生命 ----
-  aiEntity:      { name: 'AI 意识体',  baseMaxAge: 50000,  goldenAgeRatio: [0, 0,], decayMultiplier: 0, },
-  android:       { name: '仿生人',     baseMaxAge: 300,    goldenAgeRatio: [0.05, 0.30,], decayMultiplier: 0.3, },
-  cyborg:        { name: '机械改造人',  baseMaxAge: 200,    goldenAgeRatio: [0.10, 0.40,], decayMultiplier: 0.5, },
-  machineLife:   { name: '机械生命',   baseMaxAge: 100000, goldenAgeRatio: [0, 0,],       decayMultiplier: 0, },
-  digitalLife:   { name: '数字生命',   baseMaxAge: 100000, goldenAgeRatio: [0, 0,],       decayMultiplier: 0, },
+  // ---- AI / 机械 / 数字生命（心智/悟性高，魅力低，体魄视形态）----
+  aiEntity:      { name: 'AI 意识体',  baseMaxAge: 50000,  goldenAgeRatio: [0, 0,], decayMultiplier: 0,   attrBaselines: { mind: 6, talentAptitude: 5, charisma: -2, }, },
+  android:       { name: '仿生人',     baseMaxAge: 300,    goldenAgeRatio: [0.05, 0.30,], decayMultiplier: 0.3, attrBaselines: { physique: 3, mind: 2, charisma: 1, }, },
+  cyborg:        { name: '机械改造人',  baseMaxAge: 200,    goldenAgeRatio: [0.10, 0.40,], decayMultiplier: 0.5, attrBaselines: { physique: 4, mind: 1, charisma: -1, }, },
+  machineLife:   { name: '机械生命',   baseMaxAge: 100000, goldenAgeRatio: [0, 0,],       decayMultiplier: 0, attrBaselines: { physique: 5, mind: 4, talentAptitude: 2, charisma: -3, }, },
+  digitalLife:   { name: '数字生命',   baseMaxAge: 100000, goldenAgeRatio: [0, 0,],       decayMultiplier: 0, attrBaselines: { mind: 6, talentAptitude: 4, physique: -2, charisma: -2, }, },
 
   // ---- 其他科幻/奇幻 ----
   clone:        { name: '克隆体',   baseMaxAge: 80,  goldenAgeRatio: [0.15, 0.35,], decayMultiplier: 1.2, },
-  alienHybrid:  { name: '外星混血', baseMaxAge: 200, goldenAgeRatio: [0.10, 0.35,], decayMultiplier: 0.7, },
-  alien:        { name: '外星人',   baseMaxAge: 500, goldenAgeRatio: [0.08, 0.30,], decayMultiplier: 0.5, },
-  elemental:    { name: '元素生物', baseMaxAge: 100000, goldenAgeRatio: [0, 0,], decayMultiplier: 0, },
-  energyBeing:  { name: '能量体',   baseMaxAge: 100000, goldenAgeRatio: [0, 0,], decayMultiplier: 0, },
-  alchemyGolem: { name: '炼金造物', baseMaxAge: 500, goldenAgeRatio: [0.05, 0.30,], decayMultiplier: 0.2, },
-  magicBeast:   { name: '魔法生物', baseMaxAge: 1000, goldenAgeRatio: [0.05, 0.30,], decayMultiplier: 0.1, },
+  alienHybrid:  { name: '外星混血', baseMaxAge: 200, goldenAgeRatio: [0.10, 0.35,], decayMultiplier: 0.7, attrBaselines: { mind: 2, talentAptitude: 2, }, },
+  alien:        { name: '外星人',   baseMaxAge: 500, goldenAgeRatio: [0.08, 0.30,], decayMultiplier: 0.5, attrBaselines: { mind: 3, talentAptitude: 3, charisma: -1, }, },
+  elemental:    { name: '元素生物', baseMaxAge: 100000, goldenAgeRatio: [0, 0,], decayMultiplier: 0, attrBaselines: { physique: 4, talentAptitude: 3, charisma: -2, }, },
+  energyBeing:  { name: '能量体',   baseMaxAge: 100000, goldenAgeRatio: [0, 0,], decayMultiplier: 0, attrBaselines: { mind: 5, talentAptitude: 4, physique: -3, charisma: -3, }, },
+  alchemyGolem: { name: '炼金造物', baseMaxAge: 500, goldenAgeRatio: [0.05, 0.30,], decayMultiplier: 0.2, attrBaselines: { physique: 4, mind: -2, charisma: -3, }, },
+  magicBeast:   { name: '魔法生物', baseMaxAge: 1000, goldenAgeRatio: [0.05, 0.30,], decayMultiplier: 0.1, attrBaselines: { physique: 3, talentAptitude: 3, }, },
 }
 
 /** 世界观寿命修正映射表（对齐废弃项目 LIFESPAN_WORLD_MAP，44 世界观） */

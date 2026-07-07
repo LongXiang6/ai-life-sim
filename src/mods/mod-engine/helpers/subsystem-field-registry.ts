@@ -8,7 +8,7 @@
  * 维护：新增子系统时在此注册一个条目即可，无需改 Prompt 模板。
  *
  * Zod 校验：SUBSYSTEM_CHANGE_SCHEMAS 用于验证 AI 返回的 changes，
- * 不合法字段自动丢弃并记录 warn，防止 AI 输出无效 key 污染子系统状态。
+ * 契约外字段自动剥离；类型/范围不合法时记录 warn，防止 AI 输出无效 key 污染子系统状态。
  */
 
 import { z } from 'zod'
@@ -25,147 +25,18 @@ export interface SubsystemFieldMeta {
   fields: Record<string, string>
 }
 
-// ============================================================
-// 注册表（按影响力分级：personal → town）
-// ============================================================
-
-export const SUBSYSTEM_FIELD_MAP: Record<string, SubsystemFieldMeta> = {
-  // ── personal 级（凡人可见）────────────────────────────
-  'character-base': {
-    label: '基础属性',
-    fields: {
-      'physiqueDelta': '体魄增量（±，凡人-10~+10，可超凡向上无限；单轮≤2）',
-      'mindDelta': '心智增量（±，凡人-10~+10，可超凡向上无限；单轮≤2）',
-      'talentAptitudeDelta': '悟性增量（±，凡人-10~+10，可超凡向上无限；单轮≤2）',
-      'charismaDelta': '魅力增量（±，凡人-10~+10，可超凡向上无限；单轮≤2）',
-      'resourcesDelta': '出身增量（±，锁定 -10~+10 不可超凡；单轮≤2）',
-    },
-  },
-  'health': {
-    label: '健康',
-    fields: {
-      'hpDelta': '生命值变化（正=恢复，负=受伤，范围 -50~+20）',
-      'staminaDelta': '体力变化量',
-      'spiritDelta': '精神变化量',
-      'addDiseases': '新增疾病 [{name, severity}]',
-      'addInjuries': '新增伤势 [{name, severity}]',
-    },
-  },
-  'lifespan': {
-    label: '寿命',
-    fields: {
-      'age': '当前年龄',
-      'lifespanDelta': '寿命变化（±年数）',
-      'maxAge': '最大寿命',
-    },
-  },
-  'morality': {
-    label: '道德',
-    fields: {
-      'value': '道德值（-100~100，负=邪恶，正=善良）',
-      'delta': '道德变化量',
-    },
-  },
-  'luck': {
-    label: '气运',
-    fields: {
-      'bonus': '气运加成值',
-      'delta': '气运变化量',
-    },
-  },
-  'faith': {
-    label: '信仰',
-    fields: {
-      'devotionLevel': '虔诚等级（0-100）',
-      'delta': '虔诚变化量',
-    },
-  },
-  'family': {
-    label: '家庭',
-    fields: {
-      'status': '家庭状态（stable/conflict/dispersed/reunited）',
-      'members': '家庭成员数量变化',
-    },
-  },
-  'education': {
-    label: '教育',
-    fields: {
-      'level': '教育等级（0-10）',
-      'progress': '学习进度（0-100）',
-      'graduated': '是否毕业',
-    },
-  },
-  'work': {
-    label: '工作',
-    fields: {
-      'job': '职业名称',
-      'income': '收入',
-      'promotion': '是否晋升',
-    },
-  },
-
-  // ── town 级（强者可见）────────────────────────────
-  'economy': {
-    label: '经济',
-    fields: {
-      'wealth': '财富变化量',
-      'priceIndex': '物价指数（100=正常）',
-      'activityLevel': '经济活动水平（0-1）',
-      'socialClass': '社会阶层（noble/commoner/peasant/merchant/cultivator）',
-    },
-  },
-  'reputation': {
-    label: '声望',
-    fields: {
-      'fame': '声望值（0-100）',
-      'delta': '声望变化量',
-      'addFame': '知名度增量（±值）',
-      'setFame': '设置知名度绝对值',
-      'addReputation': '维度声望增量（需配合 dimension）',
-      'dimension': '维度：military/political/academic/economic/moral/religious',
-    },
-  },
-  'relationship': {
-    label: '关系',
-    fields: {
-      'addRelation': '新增关系 [{name, type, affinity}]',
-      'affinityDelta': '好感变化（±值）',
-    },
-  },
-  'market': {
-    label: '市场',
-    fields: {
-      'activityLevel': '市场活跃度（0-1）',
-      'trend': '市场趋势（bullish/bearish/stable）',
-    },
-  },
-  'population': {
-    label: '人口',
-    fields: {
-      'total': '人口变化量',
-      'growthRate': '增长率',
-      'migrationDirection': '迁移方向（inward/outward/none）',
-    },
-  },
-  'cultivation': {
-    label: '修炼',
-    fields: {
-      'realm': '修炼境界（1-9：炼气→大乘）',
-      'cultivationProgress': '修炼进度（0-100）',
-      'bottleneck': '瓶颈（physique/mind/comprehension/none）',
-    },
-  },
-  'combat-power': {
-    label: '战力',
-    fields: {
-      'rank': '战力等级（0-100）',
-      'delta': '战力变化量',
-    },
-  },
+export interface SubsystemFieldContract {
+  /** 子系统中文名 */
+  label: string
+  /** 字段契约：key=字段名，description 用于 Prompt，schema 用于运行时校验 */
+  fields: Record<string, {
+    description: string
+    schema: z.ZodType<unknown>
+  }>
 }
 
 // ============================================================
-// Zod 校验 Schema（AI changes 合法性验证）
+// 子系统字段契约（唯一真源：字段说明 + Zod schema）
 // ============================================================
 
 /** 伤病/疾病条目 */
@@ -183,108 +54,336 @@ const relationEntry = z.object({
   affinity: z.coerce.number().optional(),
 })
 
+export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> = {
+  // ── personal 级（凡人可见）────────────────────────────
+  'character-base': {
+    label: '基础属性',
+    fields: {
+      physiqueDelta: {
+        description: '体魄增量（整数；正=增长，负=下降；AI 单轮建议≤2，schema 上限±8）',
+        schema: z.coerce.number().min(-8).max(8).optional(),
+      },
+      mindDelta: {
+        description: '心智增量（整数；正=增长，负=下降；AI 单轮建议≤2，schema 上限±8）',
+        schema: z.coerce.number().min(-8).max(8).optional(),
+      },
+      talentAptitudeDelta: {
+        description: '悟性增量（整数；正=增长，负=下降；AI 单轮建议≤2，schema 上限±8）',
+        schema: z.coerce.number().min(-8).max(8).optional(),
+      },
+      charismaDelta: {
+        description: '魅力增量（整数；正=增长，负=下降；AI 单轮建议≤2，schema 上限±8）',
+        schema: z.coerce.number().min(-8).max(8).optional(),
+      },
+      resourcesDelta: {
+        description: '出身增量（整数；正=改善，负=恶化；锁定 -10~+10，AI 单轮建议≤2）',
+        schema: z.coerce.number().min(-8).max(8).optional(),
+      },
+    },
+  },
+  'health': {
+    label: '健康',
+    fields: {
+      hpDelta: {
+        description: '生命值变化（正=恢复，负=受伤，范围 -50~+20）',
+        schema: z.coerce.number().min(-50).max(20).optional(),
+      },
+      staminaDelta: {
+        description: '体力变化量',
+        schema: z.coerce.number().optional(),
+      },
+      spiritDelta: {
+        description: '精神变化量',
+        schema: z.coerce.number().optional(),
+      },
+      addDiseases: {
+        description: '新增疾病 [{name, severity}]',
+        schema: z.array(ailmentEntry).optional(),
+      },
+      addInjuries: {
+        description: '新增伤势 [{name, severity}]',
+        schema: z.array(ailmentEntry).optional(),
+      },
+    },
+  },
+  'lifespan': {
+    label: '寿命',
+    fields: {
+      maxAge: {
+        description: '最大寿命绝对值（年；当前可落地字段；年龄由时间系统派生，不写 age）',
+        schema: z.coerce.number().min(0).optional(),
+      },
+      lifespanDelta: {
+        description: '最大寿命增量（年；负=减寿，正=增寿；仅叙事明确影响寿命时填写）',
+        schema: z.coerce.number().min(-1000).max(1000).optional(),
+      },
+    },
+  },
+  'morality': {
+    label: '道德',
+    fields: {
+      delta: {
+        description: '善恶变化量（整数；+1=趋善，-1=趋恶；单次仅重大行为可写）',
+        schema: z.coerce.number().min(-1).max(1).optional(),
+      },
+    },
+  },
+  'luck': {
+    label: '气运',
+    fields: {
+      luck: {
+        description: '气运绝对值（-10~+10；仅重大人生转折可设置，通常每次变化≤1）',
+        schema: z.coerce.number().min(-10).max(10).optional(),
+      },
+    },
+  },
+  'faith': {
+    label: '信仰',
+    fields: {
+      devotionLevel: {
+        description: '虔诚等级（0-100）',
+        schema: z.coerce.number().min(0).max(100).optional(),
+      },
+      delta: {
+        description: '虔诚变化量',
+        schema: z.coerce.number().optional(),
+      },
+    },
+  },
+  'family': {
+    label: '家庭',
+    fields: {
+      status: {
+        description: '家庭状态（stable/conflict/dispersed/reunited）',
+        schema: z.enum(['stable', 'conflict', 'dispersed', 'reunited']).optional(),
+      },
+      members: {
+        description: '家庭成员数量变化',
+        schema: z.coerce.number().optional(),
+      },
+    },
+  },
+  'education': {
+    label: '教育',
+    fields: {
+      level: {
+        description: '教育等级（0-10）',
+        schema: z.coerce.number().min(0).max(10).optional(),
+      },
+      progress: {
+        description: '学习进度（0-100）',
+        schema: z.coerce.number().min(0).max(100).optional(),
+      },
+      graduated: {
+        description: '是否毕业',
+        schema: z.boolean().optional(),
+      },
+    },
+  },
+  'work': {
+    label: '工作',
+    fields: {
+      job: {
+        description: '职业名称',
+        schema: z.string().optional(),
+      },
+      income: {
+        description: '收入',
+        schema: z.coerce.number().optional(),
+      },
+      promotion: {
+        description: '是否晋升',
+        schema: z.boolean().optional(),
+      },
+    },
+  },
+
+  // ── town 级（强者可见）────────────────────────────
+  'economy': {
+    label: '经济',
+    fields: {
+      wealth: {
+        description: '财富变化量',
+        schema: z.coerce.number().optional(),
+      },
+      priceIndex: {
+        description: '物价指数（100=正常）',
+        schema: z.coerce.number().optional(),
+      },
+      activityLevel: {
+        description: '经济活动水平（0-1）',
+        schema: z.coerce.number().min(0).max(1).optional(),
+      },
+      socialClass: {
+        description: '社会阶层（noble/commoner/peasant/merchant/cultivator）',
+        schema: z.enum(['noble', 'commoner', 'peasant', 'merchant', 'cultivator']).optional(),
+      },
+    },
+  },
+  'reputation': {
+    label: '声望',
+    fields: {
+      fame: {
+        description: '声望值（0-100）',
+        schema: z.coerce.number().min(0).max(100).optional(),
+      },
+      delta: {
+        description: '声望变化量',
+        schema: z.coerce.number().optional(),
+      },
+      addFame: {
+        description: '知名度增量（±值）',
+        schema: z.coerce.number().optional(),
+      },
+      setFame: {
+        description: '设置知名度绝对值',
+        schema: z.coerce.number().optional(),
+      },
+      addReputation: {
+        description: '维度声望增量（需配合 dimension）',
+        schema: z.coerce.number().optional(),
+      },
+      dimension: {
+        description: '维度：military/political/academic/economic/moral/religious',
+        schema: z.string().optional(),
+      },
+    },
+  },
+  'relationship': {
+    label: '关系',
+    fields: {
+      addRelation: {
+        description: '新增关系 [{name, type, affinity}]',
+        schema: z.array(relationEntry).optional(),
+      },
+      affinityDelta: {
+        description: '好感变化（±值）',
+        schema: z.coerce.number().optional(),
+      },
+    },
+  },
+  'market': {
+    label: '市场',
+    fields: {
+      activityLevel: {
+        description: '市场活跃度（0-1）',
+        schema: z.coerce.number().min(0).max(1).optional(),
+      },
+      trend: {
+        description: '市场趋势（bullish/bearish/stable）',
+        schema: z.enum(['bullish', 'bearish', 'stable']).optional(),
+      },
+    },
+  },
+  'population': {
+    label: '人口',
+    fields: {
+      total: {
+        description: '人口变化量',
+        schema: z.coerce.number().optional(),
+      },
+      growthRate: {
+        description: '增长率',
+        schema: z.coerce.number().optional(),
+      },
+      migrationDirection: {
+        description: '迁移方向（inward/outward/none）',
+        schema: z.enum(['inward', 'outward', 'none']).optional(),
+      },
+    },
+  },
+  'cultivation': {
+    label: '修炼',
+    fields: {
+      realm: {
+        description: '修炼境界（1-9：炼气→大乘）',
+        schema: z.coerce.number().min(1).max(9).optional(),
+      },
+      cultivationProgress: {
+        description: '修炼进度（0-100）',
+        schema: z.coerce.number().min(0).max(100).optional(),
+      },
+      bottleneck: {
+        description: '瓶颈（physique/mind/comprehension/none）',
+        schema: z.enum(['physique', 'mind', 'comprehension', 'none']).optional(),
+      },
+    },
+  },
+  'combat-power': {
+    label: '战力',
+    fields: {
+      rank: {
+        description: '战力等级（0-100）',
+        schema: z.coerce.number().min(0).max(100).optional(),
+      },
+      delta: {
+        description: '战力变化量',
+        schema: z.coerce.number().optional(),
+      },
+    },
+  },
+}
+
+// ============================================================
+// 派生表（保持旧导出名兼容调用方）
+// ============================================================
+
+function buildSubsystemFieldMap(
+  contracts: Record<string, SubsystemFieldContract>,
+): Record<string, SubsystemFieldMeta> {
+  return Object.fromEntries(
+    Object.entries(contracts).map(([id, contract]) => [
+      id,
+      {
+        label: contract.label,
+        fields: Object.fromEntries(
+          Object.entries(contract.fields).map(([field, meta]) => [field, meta.description]),
+        ),
+      },
+    ]),
+  )
+}
+
+function buildSubsystemChangeSchemas(
+  contracts: Record<string, SubsystemFieldContract>,
+): Record<string, z.ZodObject<z.ZodRawShape>> {
+  return Object.fromEntries(
+    Object.entries(contracts).map(([id, contract]) => {
+      const shape = Object.fromEntries(
+        Object.entries(contract.fields).map(([field, meta]) => [field, meta.schema]),
+      ) as z.ZodRawShape
+      // narrative/post-narrative schema 只允许契约字段流动，旧字段在这里剥离，避免再次漂移。
+      return [id, z.object(shape).strip()]
+    }),
+  )
+}
+
 /**
- * 各子系统的变更 Schema（passthrough 允许 AI 输出额外字段但会被 strip）
- * 仅验证类型和范围，不强制所有字段都存在。
+ * Prompt/文档用字段说明表。由 SUBSYSTEM_FIELD_CONTRACTS 派生，禁止手写第二份字段列表。
  */
-export const SUBSYSTEM_CHANGE_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> = {
-  'character-base': z.object({
-    // 增量字段（推荐）：单轮波动，范围 ±8，可超凡属性无绝对上限
-    physiqueDelta: z.coerce.number().min(-8).max(8).optional(),
-    mindDelta: z.coerce.number().min(-8).max(8).optional(),
-    talentAptitudeDelta: z.coerce.number().min(-8).max(8).optional(),
-    charismaDelta: z.coerce.number().min(-8).max(8).optional(),
-    resourcesDelta: z.coerce.number().min(-8).max(8).optional(),
-  }).passthrough(),
+export const SUBSYSTEM_FIELD_MAP: Record<string, SubsystemFieldMeta> =
+  buildSubsystemFieldMap(SUBSYSTEM_FIELD_CONTRACTS)
 
-  'health': z.object({
-    hpDelta: z.coerce.number().min(-50).max(20).optional(),
-    staminaDelta: z.coerce.number().optional(),
-    spiritDelta: z.coerce.number().optional(),
-    addDiseases: z.array(ailmentEntry).optional(),
-    addInjuries: z.array(ailmentEntry).optional(),
-  }).passthrough(),
+/**
+ * narrative/post-narrative 变更校验 Schema。由 SUBSYSTEM_FIELD_CONTRACTS 派生。
+ */
+export const SUBSYSTEM_CHANGE_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> =
+  buildSubsystemChangeSchemas(SUBSYSTEM_FIELD_CONTRACTS)
 
-  'lifespan': z.object({
-    age: z.coerce.number().min(0).optional(),
-    lifespanDelta: z.coerce.number().optional(),
-    maxAge: z.coerce.number().min(0).optional(),
-  }).passthrough(),
-
-  'morality': z.object({
-    value: z.coerce.number().min(-100).max(100).optional(),
-    delta: z.coerce.number().optional(),
-  }).passthrough(),
-
-  'luck': z.object({
-    bonus: z.coerce.number().optional(),
-    delta: z.coerce.number().optional(),
-  }).passthrough(),
-
-  'faith': z.object({
-    devotionLevel: z.coerce.number().min(0).max(100).optional(),
-    delta: z.coerce.number().optional(),
-  }).passthrough(),
-
-  'family': z.object({
-    status: z.enum(['stable', 'conflict', 'dispersed', 'reunited']).optional(),
-    members: z.coerce.number().optional(),
-  }).passthrough(),
-
-  'education': z.object({
-    level: z.coerce.number().min(0).max(10).optional(),
-    progress: z.coerce.number().min(0).max(100).optional(),
-    graduated: z.boolean().optional(),
-  }).passthrough(),
-
-  'work': z.object({
-    job: z.string().optional(),
-    income: z.coerce.number().optional(),
-    promotion: z.boolean().optional(),
-  }).passthrough(),
-
-  'economy': z.object({
-    wealth: z.coerce.number().optional(),
-    priceIndex: z.coerce.number().optional(),
-    activityLevel: z.coerce.number().min(0).max(1).optional(),
-    socialClass: z.enum(['noble', 'commoner', 'peasant', 'merchant', 'cultivator']).optional(),
-  }).passthrough(),
-
-  'reputation': z.object({
-    fame: z.coerce.number().min(0).max(100).optional(),
-    delta: z.coerce.number().optional(),
-    addFame: z.coerce.number().optional(),
-    setFame: z.coerce.number().optional(),
-    addReputation: z.coerce.number().optional(),
-    dimension: z.string().optional(),
-  }).passthrough(),
-
-  'relationship': z.object({
-    addRelation: z.array(relationEntry).optional(),
-    affinityDelta: z.coerce.number().optional(),
-  }).passthrough(),
-
-  'market': z.object({
-    activityLevel: z.coerce.number().min(0).max(1).optional(),
-    trend: z.enum(['bullish', 'bearish', 'stable']).optional(),
-  }).passthrough(),
-
-  'population': z.object({
-    total: z.coerce.number().optional(),
-    growthRate: z.coerce.number().optional(),
-    migrationDirection: z.enum(['inward', 'outward', 'none']).optional(),
-  }).passthrough(),
-
-  'cultivation': z.object({
-    realm: z.coerce.number().min(1).max(9).optional(),
-    cultivationProgress: z.coerce.number().min(0).max(100).optional(),
-    bottleneck: z.enum(['physique', 'mind', 'comprehension', 'none']).optional(),
-  }).passthrough(),
-
-  'combat-power': z.object({
-    rank: z.coerce.number().min(0).max(100).optional(),
-    delta: z.coerce.number().optional(),
-  }).passthrough(),
+/**
+ * 根据当前阶段的 narrativeChange 白名单生成给 AI 的字段指南。
+ */
+export function buildSubsystemGuide(subsystemIds: Iterable<string>): string {
+  const lines: string[] = []
+  for (const id of subsystemIds) {
+    const meta = SUBSYSTEM_FIELD_MAP[id]
+    if (!meta) continue
+    lines.push(`${id}（${meta.label}）:`)
+    for (const [field, description] of Object.entries(meta.fields)) {
+      lines.push(`  ${field}: ${description}`)
+    }
+  }
+  return lines.join('\n')
 }
 
 /**

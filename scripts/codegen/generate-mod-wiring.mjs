@@ -585,45 +585,49 @@ function parseNarrativePromptVars() {
   return [...match[1].matchAll(/'(\w+)'/g)].map((m) => m[1])
 }
 
-function parseSubsystemFieldMapKeys(content) {
-  const start = content.indexOf('export const SUBSYSTEM_FIELD_MAP')
-  const end = content.indexOf('export const SUBSYSTEM_CHANGE_SCHEMAS')
-  if (start < 0 || end < 0) return []
-  const block = content.slice(start, end)
-  return [...block.matchAll(/^\s+'([^']+)':\s*\{/gm)].map((m) => m[1])
-}
-
 /**
  * @param {string} content
  * @returns {Record<string, string[]>}
  */
-function parseSubsystemZodFieldKeys(content) {
-  const start = content.indexOf('export const SUBSYSTEM_CHANGE_SCHEMAS')
-  if (start < 0) return {}
-  const block = content.slice(start)
+function parseSubsystemFieldContracts(content) {
+  const start = content.indexOf('export const SUBSYSTEM_FIELD_CONTRACTS')
+  const end = content.indexOf('// ============================================================\n// 派生表')
   /** @type {Record<string, string[]>} */
-  const schemas = {}
-  for (const match of block.matchAll(/^\s+'([^']+)':\s*z\.object\(\{([\s\S]*?)\}\)\.passthrough\(\)/gm)) {
-    schemas[match[1]] = [...match[2].matchAll(/^\s+(\w+):/gm)].map((m) => m[1])
-  }
-  return schemas
-}
+  const contracts = {}
+  if (start < 0 || end < 0) return contracts
 
-/**
- * @param {string} content
- * @returns {Record<string, string[]>}
- */
-function parseSubsystemFieldMapFields(content) {
-  const start = content.indexOf('export const SUBSYSTEM_FIELD_MAP')
-  const end = content.indexOf('export const SUBSYSTEM_CHANGE_SCHEMAS')
-  /** @type {Record<string, string[]>} */
-  const result = {}
-  if (start < 0 || end < 0) return result
-  const block = content.slice(start, end)
-  for (const match of block.matchAll(/'([^']+)':\s*\{[\s\S]*?fields:\s*\{([\s\S]*?)\n\s+\},/g)) {
-    result[match[1]] = [...match[2].matchAll(/^\s+'([^']+)':/gm)].map((m) => m[1])
+  const lines = content.slice(start, end).split(/\r?\n/)
+  let currentId = ''
+  let inFields = false
+
+  for (const line of lines) {
+    const subsystemMatch = line.match(/^\s{2}'([^']+)':\s*\{/)
+    if (subsystemMatch && !inFields) {
+      currentId = subsystemMatch[1]
+      contracts[currentId] = []
+      continue
+    }
+
+    if (currentId && /^\s{4}fields:\s*\{/.test(line)) {
+      inFields = true
+      continue
+    }
+
+    if (inFields && /^\s{4}\},/.test(line)) {
+      inFields = false
+      currentId = ''
+      continue
+    }
+
+    if (inFields && currentId) {
+      const fieldMatch = line.match(/^\s{6}([A-Za-z]\w*):\s*\{/)
+      if (fieldMatch) {
+        contracts[currentId].push(fieldMatch[1])
+      }
+    }
   }
-  return result
+
+  return contracts
 }
 
 /**
@@ -631,29 +635,20 @@ function parseSubsystemFieldMapFields(content) {
  * @returns {{ mapKeys: string[], zodSchemas: Record<string, string[]> }}
  */
 function parseSubsystemFieldRegistry(content) {
-  const mapKeys = parseSubsystemFieldMapKeys(content)
-  const zodSchemas = parseSubsystemZodFieldKeys(content)
-  const mapFields = parseSubsystemFieldMapFields(content)
-
-  const zodKeys = Object.keys(zodSchemas)
-  const missingInZod = mapKeys.filter((k) => !zodKeys.includes(k))
-  const missingInMap = zodKeys.filter((k) => !mapKeys.includes(k))
-  if (missingInZod.length > 0 || missingInMap.length > 0) {
-    console.error('[generate-mod-wiring] SUBSYSTEM_FIELD_MAP 与 SUBSYSTEM_CHANGE_SCHEMAS 子系统 id 不一致')
-    if (missingInZod.length > 0) console.error(`  FIELD_MAP 有但 SCHEMAS 无: ${missingInZod.join(', ')}`)
-    if (missingInMap.length > 0) console.error(`  SCHEMAS 有但 FIELD_MAP 无: ${missingInMap.join(', ')}`)
+  const zodSchemas = parseSubsystemFieldContracts(content)
+  const mapKeys = Object.keys(zodSchemas)
+  if (mapKeys.length === 0) {
+    console.error('[generate-mod-wiring] 未解析到 SUBSYSTEM_FIELD_CONTRACTS')
     if (CHECK_ONLY) process.exit(1)
   }
 
-  for (const id of mapKeys) {
-    const mf = mapFields[id] ?? []
-    const zf = zodSchemas[id] ?? []
-    const missingZodFields = mf.filter((f) => !zf.includes(f))
-    const extraZodFields = zf.filter((f) => !mf.includes(f))
-    if (missingZodFields.length > 0 || extraZodFields.length > 0) {
-      console.error(`[generate-mod-wiring] 子系统 "${id}" FIELD_MAP 与 Zod schema 字段不一致`)
-      if (missingZodFields.length > 0) console.error(`  FIELD_MAP 有但 Zod 无: ${missingZodFields.join(', ')}`)
-      if (extraZodFields.length > 0) console.error(`  Zod 有但 FIELD_MAP 无: ${extraZodFields.join(', ')}`)
+  const requiredDerivations = [
+    'buildSubsystemFieldMap(SUBSYSTEM_FIELD_CONTRACTS)',
+    'buildSubsystemChangeSchemas(SUBSYSTEM_FIELD_CONTRACTS)',
+  ]
+  for (const marker of requiredDerivations) {
+    if (!content.includes(marker)) {
+      console.error(`[generate-mod-wiring] subsystem-field-registry.ts 缺少派生调用: ${marker}`)
       if (CHECK_ONLY) process.exit(1)
     }
   }
@@ -828,10 +823,10 @@ export const NARRATIVE_PROMPT_VARIABLES = ${JSON.stringify(narrativeVars, null, 
 function generateSubsystemFieldKeys(mapKeys, zodSchemas) {
   return `${GENERATED_BANNER}
 
-/** SUBSYSTEM_FIELD_MAP 注册的子系统 id 列表 */
+/** SUBSYSTEM_FIELD_CONTRACTS 注册的子系统 id 列表 */
 export const SUBSYSTEM_FIELD_REGISTRY_KEYS = ${JSON.stringify(mapKeys, null, 2)} as const
 
-/** SUBSYSTEM_CHANGE_SCHEMAS 各子系统 Zod 字段（codegen 自动推导） */
+/** SUBSYSTEM_FIELD_CONTRACTS 各子系统字段（codegen 自动推导） */
 export const SUBSYSTEM_ZOD_FIELD_KEYS: Record<string, readonly string[]> = ${JSON.stringify(zodSchemas, null, 2)} as const
 `
 }

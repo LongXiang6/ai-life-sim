@@ -81,7 +81,13 @@ function PatternAttrBonus({ pattern }: { pattern: DestinyPattern }) {
 /** 命格卡片底部：模拟系统加成 */
 function PatternSystemModifiers({ pattern }: { pattern: DestinyPattern }) {
   const items = formatPatternSystemModifiersForDisplay(pattern.systemModifiers)
-  if (items.length === 0) return null
+  if (items.length === 0) {
+    return (
+      <div className={styles.slotModifiers}>
+        <span className={styles.slotModifierEmpty}>无数值修正</span>
+      </div>
+    )
+  }
   return (
     <div className={styles.slotModifiers}>
       {items.map((item) => (
@@ -857,7 +863,7 @@ export default function TalentDrawPage() {
                         className={cn(getGlowClass(p.rarity), styles.slot, styles.slotAvailable)}
                         style={{
                           border: `2px solid ${rc.color}`,
-                          '--glow-delay': `${i * 0.35}s`,
+                          animationDelay: `${i * 0.35}s`,
                         } as React.CSSProperties}
                       >
                         <div className={styles.slotHeader}>
@@ -917,7 +923,7 @@ export default function TalentDrawPage() {
                       )}
                       style={{
                         border: isSlotSelected ? undefined : `1px solid ${rc.color}40`,
-                        '--glow-delay': `${idx * 0.2}s`,
+                        animationDelay: `${idx * 0.2}s`,
                       } as React.CSSProperties}
                     >
                       <div className={styles.slotHeader}>

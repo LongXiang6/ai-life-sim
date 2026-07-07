@@ -464,9 +464,9 @@ export class SubsystemRelevanceSystem implements ISubSystem {
           break
         }
         case 'luck': {
-          // 气运：bonus × 1
-          const bonus = (data.bonus as number) ?? 0
-          totalPower += bonus
+          // 气运：读取 LuckSystem.collectState() 暴露的 luck 绝对值，避免沿用旧 bonus 字段。
+          const luck = (data.luck as number) ?? 0
+          totalPower += luck
           break
         }
       }

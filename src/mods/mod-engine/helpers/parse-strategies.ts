@@ -11,7 +11,7 @@ import type { ParsedNarrative } from '../subsystems/narrative-parser-system'
 import type { ChineseTextProcessor } from './chinese-text-processor'
 import { validateRoundChanges } from './subsystem-field-registry'
 
-/** AI JSON Mode 预期输出格式 */
+/** AI META 段与旧 JSON 降级格式共用的结构 */
 interface RawAIResponse {
   narrative?: string
   changes?: Array<{
@@ -20,6 +20,14 @@ interface RawAIResponse {
     changes?: Record<string, unknown>
   }>
   notableEvents?: string[]
+  digest?: string
+  keyEvents?: Array<{
+    text?: string
+    importance?: number
+    entities?: string[]
+  }>
+  importance?: 'HIGH' | 'NORMAL' | 'LOW'
+  arcStatus?: 'start' | 'ongoing' | 'end'
   branch?: boolean
   branchTitle?: string
   branchOptions?: string[]
@@ -27,11 +35,66 @@ interface RawAIResponse {
   direction?: string | Record<string, { direction?: string; magnitude?: number }>
   /** AI 标注的创造内容（原创保护） */
   creations?: Array<{ name: string; description: string; category: string }>
+  /** AI 标注的伏笔 */
+  foreshadowing?: Array<{ type: string; description: string; priority?: number }>
 }
 
 function parseBranchOptions(value: unknown): string[] {
   if (!Array.isArray(value)) return []
   return value.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
+}
+
+function parseRawAIResponse(
+  raw: RawAIResponse,
+  processor: ChineseTextProcessor,
+  narrativeOverride?: string,
+): ParsedNarrative {
+  // 防御处理：JSON.parse 将 \\n 转为字面量 \n（两个字符），需替换为真实换行符
+  if (raw.narrative && typeof raw.narrative === 'string' && raw.narrative.includes('\\n')) {
+    raw.narrative = raw.narrative.replace(/\\n/g, '\n')
+  }
+
+  const narrative = processor.segmentParagraphs(narrativeOverride ?? raw.narrative ?? '')
+
+  // 提取 direction 字段（支持字符串和结构化对象两种格式）
+  let direction: ParsedNarrative['direction']
+  if (typeof raw.direction === 'string') {
+    direction = raw.direction
+  } else if (typeof raw.direction === 'object' && raw.direction !== null) {
+    const wd: Record<string, { direction?: string; magnitude?: number }> = {}
+    for (const [key, val] of Object.entries(raw.direction)) {
+      if (val && typeof val === 'object' && 'direction' in val) {
+        wd[key] = { direction: String(val.direction), magnitude: Number(val.magnitude ?? 0.3) }
+      }
+    }
+    direction = Object.keys(wd).length > 0 ? wd : undefined
+  }
+
+  return {
+    narrative,
+    changes: validateRoundChanges(
+      (raw.changes ?? []).map((c) => ({
+        id: c.id ?? '',
+        description: c.description ?? '',
+        changes: c.changes ?? {},
+      })),
+    ),
+    notableEvents: (raw.notableEvents ?? []).slice(0, 3),
+    direction,
+    creations: raw.creations?.length ? raw.creations : undefined,
+    foreshadowing: raw.foreshadowing?.length ? raw.foreshadowing : undefined,
+    importance: raw.importance,
+    digest: typeof raw.digest === 'string' ? raw.digest : undefined,
+    keyEvents: raw.keyEvents?.length ? raw.keyEvents.slice(0, 3).map((e) => ({
+      text: String(e.text ?? ''),
+      importance: Number(e.importance ?? 0),
+      entities: Array.isArray(e.entities) ? e.entities.filter((x): x is string => typeof x === 'string') : undefined,
+    })) : undefined,
+    arcStatus: raw.arcStatus,
+    branch: raw.branch === true,
+    branchTitle: typeof raw.branchTitle === 'string' ? raw.branchTitle : undefined,
+    branchOptions: parseBranchOptions(raw.branchOptions),
+  }
 }
 
 // ============================================================
@@ -51,7 +114,29 @@ export interface ParseStrategy {
 }
 
 // ============================================================
-// L0: JSON 解析策略
+// L0: [NARRATIVE] + [META] 信封解析策略
+// ============================================================
+
+export class TaggedMetaParseStrategy implements ParseStrategy {
+  readonly name = 'tagged-meta-parse'
+
+  parse(content: string, processor: ChineseTextProcessor): ParsedNarrative | null {
+    const narrativeMatch = content.match(/\[NARRATIVE\]([\s\S]*?)\[\/NARRATIVE\]/i)
+    const metaMatch = content.match(/\[META\]([\s\S]*?)\[\/META\]/i)
+    if (!narrativeMatch || !metaMatch) return null
+
+    try {
+      const narrative = narrativeMatch[1]?.trim() ?? ''
+      const raw = JSON.parse(metaMatch[1]?.trim() ?? '{}') as RawAIResponse
+      return parseRawAIResponse(raw, processor, narrative)
+    } catch {
+      return null
+    }
+  }
+}
+
+// ============================================================
+// L1: JSON 解析策略（旧格式降级）
 // ============================================================
 
 export class JsonParseStrategy implements ParseStrategy {
@@ -60,46 +145,7 @@ export class JsonParseStrategy implements ParseStrategy {
   parse(content: string, processor: ChineseTextProcessor): ParsedNarrative | null {
     try {
       const raw: RawAIResponse = JSON.parse(content)
-
-      // 防御处理：JSON.parse 将 \\n 转为字面量 \n（两个字符），需替换为真实换行符
-      if (raw.narrative && typeof raw.narrative === 'string' && raw.narrative.includes('\\n')) {
-        raw.narrative = raw.narrative.replace(/\\n/g, '\n')
-      }
-
-      const narrative = processor.segmentParagraphs(raw.narrative ?? '')
-
-      // 提取 direction 字段（支持字符串和结构化对象两种格式）
-      let direction: ParsedNarrative['direction']
-      if (typeof raw.direction === 'string') {
-        // 字符串格式 → 简单方向标签，后续仍由关键词检测处理
-        direction = raw.direction
-      } else if (typeof raw.direction === 'object' && raw.direction !== null) {
-        // 结构化格式 → 直接作为 WorldDirection 使用
-        const wd: Record<string, { direction?: string; magnitude?: number }> = {}
-        for (const [key, val] of Object.entries(raw.direction)) {
-          if (val && typeof val === 'object' && 'direction' in val) {
-            wd[key] = { direction: String(val.direction), magnitude: Number(val.magnitude ?? 0.3) }
-          }
-        }
-        direction = Object.keys(wd).length > 0 ? wd : undefined
-      }
-
-      return {
-        narrative,
-        changes: validateRoundChanges(
-          (raw.changes ?? []).map((c) => ({
-            id: c.id ?? '',
-            description: c.description ?? '',
-            changes: c.changes ?? {},
-          })),
-        ),
-        notableEvents: raw.notableEvents ?? [],
-        direction,
-        creations: raw.creations?.length ? raw.creations : undefined,
-        branch: raw.branch === true,
-        branchTitle: typeof raw.branchTitle === 'string' ? raw.branchTitle : undefined,
-        branchOptions: parseBranchOptions(raw.branchOptions),
-      }
+      return parseRawAIResponse(raw, processor)
     } catch {
       return null
     }

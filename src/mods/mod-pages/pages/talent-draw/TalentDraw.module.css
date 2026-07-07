@@ -41,27 +41,22 @@
 
 :global(.glow-common) {
   animation: glowPulseCommon 2.5s ease-in-out infinite;
-  animation-delay: var(--glow-delay, 0s);
   animation-fill-mode: backwards;
 }
 :global(.glow-fine) {
   animation: glowPulseFine 2.5s ease-in-out infinite;
-  animation-delay: var(--glow-delay, 0s);
   animation-fill-mode: backwards;
 }
 :global(.glow-rare) {
   animation: glowPulseRare 2.5s ease-in-out infinite;
-  animation-delay: var(--glow-delay, 0s);
   animation-fill-mode: backwards;
 }
 :global(.glow-epic) {
   animation: glowPulseEpic 3s ease-in-out infinite;
-  animation-delay: var(--glow-delay, 0s);
   animation-fill-mode: backwards;
 }
 :global(.glow-legendary) {
   animation: glowPulseLegendary 3.5s ease-in-out infinite;
-  animation-delay: var(--glow-delay, 0s);
   animation-fill-mode: backwards;
 }
 
@@ -422,6 +417,12 @@
 
 .slotModifierTagNeg {
   color: var(--color-danger, #ef4444);
+}
+
+.slotModifierEmpty {
+  font-size: 9px;
+  line-height: 1.2;
+  color: var(--color-text-tertiary);
 }
 
 .slotAttrBonus {

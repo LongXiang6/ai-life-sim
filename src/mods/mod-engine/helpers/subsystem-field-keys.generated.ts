@@ -5,7 +5,7 @@
  * Regenerate: npm run generate:wiring
  */
 
-/** SUBSYSTEM_FIELD_MAP 注册的子系统 id 列表 */
+/** SUBSYSTEM_FIELD_CONTRACTS 注册的子系统 id 列表 */
 export const SUBSYSTEM_FIELD_REGISTRY_KEYS = [
   "character-base",
   "health",
@@ -25,7 +25,7 @@ export const SUBSYSTEM_FIELD_REGISTRY_KEYS = [
   "combat-power"
 ] as const
 
-/** SUBSYSTEM_CHANGE_SCHEMAS 各子系统 Zod 字段（codegen 自动推导） */
+/** SUBSYSTEM_FIELD_CONTRACTS 各子系统字段（codegen 自动推导） */
 export const SUBSYSTEM_ZOD_FIELD_KEYS: Record<string, readonly string[]> = {
   "character-base": [
     "physiqueDelta",
@@ -42,17 +42,14 @@ export const SUBSYSTEM_ZOD_FIELD_KEYS: Record<string, readonly string[]> = {
     "addInjuries"
   ],
   "lifespan": [
-    "age",
-    "lifespanDelta",
-    "maxAge"
+    "maxAge",
+    "lifespanDelta"
   ],
   "morality": [
-    "value",
     "delta"
   ],
   "luck": [
-    "bonus",
-    "delta"
+    "luck"
   ],
   "faith": [
     "devotionLevel",

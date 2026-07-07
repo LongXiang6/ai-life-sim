@@ -57,6 +57,8 @@ export const MAX_LEDGER_ENTRIES = 500
 export interface LedgerEvent {
   /** 事件精简描述（AI 输出，≤30 字） */
   text: string
+  /** AI 标注的人物/地点/物品/组织；存在时优先用于连锁回溯 */
+  entities?: string[]
   /** AI 原始评分（0~100，永不修改，作审计与重算依据） */
   baseImportance: number
   /** 连锁回溯后的修正值（0~100，衰减基于此值计算） */
@@ -77,7 +79,7 @@ export interface DigestEntry {
 export interface RoundDigestInput {
   round: number
   digest?: string
-  keyEvents?: Array<{ text: string; importance: number }>
+  keyEvents?: Array<{ text: string; importance: number; entities?: string[] }>
 }
 
 /** 序列化快照（供存档持久化） */
@@ -146,7 +148,10 @@ export class DigestLedger {
       .filter((e) => e && typeof e.text === 'string' && e.text.trim() !== '')
       .map((e) => {
         const base = clamp01to100(Math.round(Number(e.importance) || 0))
-        return { text: e.text.trim(), baseImportance: base, adjustedImportance: base }
+        const entities = Array.isArray(e.entities)
+          ? e.entities.map((x) => x.trim()).filter(Boolean)
+          : undefined
+        return { text: e.text.trim(), entities, baseImportance: base, adjustedImportance: base }
       })
 
     if (!digest && events.length === 0) return false
@@ -207,7 +212,7 @@ export class DigestLedger {
     const key = `${round}#${ev.text}`
     let set = this.entityCache.get(key)
     if (!set) {
-      set = extractEntities(ev.text)
+      set = ev.entities?.length ? new Set(ev.entities) : extractEntities(ev.text)
       this.entityCache.set(key, set)
     }
     return set

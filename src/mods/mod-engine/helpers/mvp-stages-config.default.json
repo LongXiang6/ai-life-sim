@@ -33,8 +33,7 @@
         "luck",
         "morality"
       ],
-      "allowedSubsystemsText": "可变更子系统仅下列ID，禁止自编：character-base lifespan luck morality",
-      "subsystemGuide": "character-base（属性用增量字段，正=增长负=下降，单轮≤2）:\n  physiqueDelta 体魄 | mindDelta 心智 | talentAptitudeDelta 悟性 | charismaDelta 魅力 | resourcesDelta 出身\n  凡人区间 -10~+10（0=平平无奇）；体魄/心智/悟性/魅力可突破+10进入超凡（无上限）；出身锁定 -10~+10\nlifespan:\n  age(N) maxAge(N) lifespanDelta(±)\nluck（隐藏属性·气运）:\n  luck(-10~+10) —— 仅重大人生转折可变动（≤±1/次），由命格/奇遇/灾厄触发\nmorality（隐藏属性·善恶）:\n  morality(-10~+10) —— 每次变动≤±1，累计为善(+正)或恶(-负)\n---\nMVP 提交规则：\n  仅当叙事确实改变基础属性、寿命、气运或善恶时写 changes；普通剧情发展请返回空数组 []。\n  属性变更示例：{\"id\":\"character-base\",\"description\":\"勤修苦练，体魄增强\",\"changes\":{\"physiqueDelta\":2}}\n  健康、经济、声望、关系、修炼、战力、技能、家庭、信仰等模拟系统当前延后，禁止写入。"
+      "allowedSubsystemsText": "可变更子系统仅下列ID，禁止自编：character-base lifespan luck morality"
     }
   }
 }

@@ -10,17 +10,6 @@ import type { MoralityState, MoralityLevel } from '../types'
 
 import {
   MORALITY_LEVELS,
-  MORALITY_GOOD_KEYWORDS_MINOR,
-  MORALITY_GOOD_KEYWORDS_MODERATE,
-  MORALITY_GOOD_KEYWORDS_MAJOR,
-  MORALITY_EVIL_KEYWORDS_MINOR,
-  MORALITY_EVIL_KEYWORDS_MODERATE,
-  MORALITY_EVIL_KEYWORDS_MAJOR,
-  MORALITY_SCORE_MINOR,
-  MORALITY_SCORE_MODERATE,
-  MORALITY_SCORE_MAJOR_GOOD,
-  MORALITY_SCORE_MAJOR_EVIL,
-  MORALITY_EXCLUDE_KEYWORDS,
   MORALITY_DELTA_CLAMP,
 } from '../constants'
 import { round } from '../utils'
@@ -29,7 +18,7 @@ export class MoralitySystem implements ISubSystem {
   readonly id = 'morality' as const
   readonly mod = 'mod-character' as const
   readonly label = '善恶值' as const
-  readonly description = '持有善恶值，每轮由叙事解析器通过关键词分级匹配提取变化' as const
+  readonly description = '持有善恶值，每轮只接受 AI 结构化 morality.delta 变化' as const
 
   private state: MoralityState = {
     value: 0,
@@ -74,15 +63,9 @@ export class MoralitySystem implements ISubSystem {
     if (!changes.description || changes.description.trim() === '') return
     const ch = changes.changes
 
-    // 叙事关键词匹配结果
+    // 善恶判定由 AI 输出结构化 delta，系统只负责钳制与落地，不再从叙事文本猜测。
     if (typeof ch.delta === 'number') {
       this.applyDelta(ch.delta)
-    }
-
-    // 叙事文本（由 B1 Orchestrator 解析后传入 delta）
-    if (typeof ch.narrativeText === 'string' && typeof ch.delta === 'undefined') {
-      const delta = this.parseNarrative(ch.narrativeText)
-      this.applyDelta(delta)
     }
   }
 
@@ -92,45 +75,6 @@ export class MoralitySystem implements ISubSystem {
   }
 
   // -------- 公共方法 --------
-
-  /** 从叙事文本解析善恶变化（对齐废弃项目 extractMoralityChanges） */
-  parseNarrative(narrative: string): number {
-    let totalDelta = 0
-
-    // 按句子分割
-    const sentences = narrative.split(/[。？！；\n]/)
-    for (const sentence of sentences) {
-      // 排除非玩家行为的句子
-      if (MORALITY_EXCLUDE_KEYWORDS.some((kw) => sentence.includes(kw))) {
-        continue
-      }
-
-      // 只处理含"你"的句子（isPlayerAction）
-      if (!sentence.includes('你')) {
-        continue
-      }
-
-      // 分级匹配恶性关键词（恶性优先匹配，因为恶性权重更高）
-      if (MORALITY_EVIL_KEYWORDS_MAJOR.some((kw) => sentence.includes(kw))) {
-        totalDelta += MORALITY_SCORE_MAJOR_EVIL
-      } else if (MORALITY_EVIL_KEYWORDS_MODERATE.some((kw) => sentence.includes(kw))) {
-        totalDelta -= MORALITY_SCORE_MODERATE
-      } else if (MORALITY_EVIL_KEYWORDS_MINOR.some((kw) => sentence.includes(kw))) {
-        totalDelta -= MORALITY_SCORE_MINOR
-      }
-
-      // 分级匹配善行关键词
-      if (MORALITY_GOOD_KEYWORDS_MAJOR.some((kw) => sentence.includes(kw))) {
-        totalDelta += MORALITY_SCORE_MAJOR_GOOD
-      } else if (MORALITY_GOOD_KEYWORDS_MODERATE.some((kw) => sentence.includes(kw))) {
-        totalDelta += MORALITY_SCORE_MODERATE
-      } else if (MORALITY_GOOD_KEYWORDS_MINOR.some((kw) => sentence.includes(kw))) {
-        totalDelta += MORALITY_SCORE_MINOR
-      }
-    }
-
-    return totalDelta
-  }
 
   // -------- 内部方法 --------
 

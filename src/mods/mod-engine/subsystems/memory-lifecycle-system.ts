@@ -42,6 +42,7 @@ import type {
   SubSystemChanges,
   RoundContext,
 } from '@/foundation'
+import { extractEntities } from '../helpers/digest-ledger'
 
 // Uses pattern matching via patternManager; USE_PATTERN_MANAGER feature flag managed centrally
 
@@ -321,6 +322,9 @@ export class MemoryLifecycleSystem implements ISubSystem {
   /** AI 标注的轮次重要性映射（轮次 → 重要度） */
   private aiImportanceMap = new Map<number, 'HIGH' | 'NORMAL' | 'LOW'>()
 
+  /** AI 标注的事件弧状态（轮次 → start/ongoing/end），优先于关键词闭环检测 */
+  private aiArcStatusMap = new Map<number, 'start' | 'ongoing' | 'end'>()
+
   // ---- 公共方法 ----
 
   getStats() {
@@ -338,6 +342,11 @@ export class MemoryLifecycleSystem implements ISubSystem {
   /** 设置 AI 标注的轮次重要性（在 handleNarrativeResponse 中调用） */
   setAIRoundImportance(round: number, importance: 'HIGH' | 'NORMAL' | 'LOW'): void {
     this.aiImportanceMap.set(round, importance)
+  }
+
+  /** 设置 AI 标注的事件弧状态（在 handleNarrativeResponse 中调用） */
+  setAIArcStatus(round: number, status: 'start' | 'ongoing' | 'end'): void {
+    this.aiArcStatusMap.set(round, status)
   }
 
   // ============================================================
@@ -436,7 +445,7 @@ scoreImportance(narrative: string, round: number,): ImportanceResult {
     }
 
     // 检测事件闭环
-    const closureInfo = this.detectClosure(narrative,)
+    const closureInfo = this.resolveClosure(narrative, round)
     result.isClosure = closureInfo.detected
     result.closureType = closureInfo.type
 
@@ -475,7 +484,7 @@ scoreImportance(narrative: string, round: number,): ImportanceResult {
       closureType: 'none',
     }
 
-    const closureInfo = this.detectClosure(narrative,)
+    const closureInfo = this.resolveClosure(narrative, round)
     result.isClosure = closureInfo.detected
     result.closureType = closureInfo.type
 
@@ -506,7 +515,7 @@ scoreImportance(narrative: string, round: number,): ImportanceResult {
     }
   }
 
-  const closureInfo = this.detectClosure(narrative,)
+  const closureInfo = this.resolveClosure(narrative, round)
 
   // AI 标注可升级 LOW → NORMAL/HIGH（AI 判断"这很重要"但关键词没覆盖）
   const effectiveLowImportance: EventImportance =
@@ -572,6 +581,27 @@ scoreImportance(narrative: string, round: number,): ImportanceResult {
     }
 
     return { detected: false, type: 'none', }
+  }
+
+  /**
+   * 事件闭环判定：AI 结构化 arcStatus 优先，关键词模式仅作降级。
+   * arcStatus 不含具体类型时，用当前活跃类型；若没有活跃类型，归入 task。
+   */
+  private resolveClosure(narrative: string, round: number): { detected: boolean; type: ClosureType } {
+    const aiStatus = this.aiArcStatusMap.get(round)
+    if (aiStatus === 'start') {
+      if (this.activeClosure === 'none') this.activeClosure = 'task'
+      return { detected: false, type: this.activeClosure }
+    }
+    if (aiStatus === 'ongoing') {
+      return { detected: false, type: this.activeClosure === 'none' ? 'task' : this.activeClosure }
+    }
+    if (aiStatus === 'end') {
+      const closed = this.activeClosure === 'none' ? 'task' : this.activeClosure
+      this.activeClosure = 'none'
+      return { detected: true, type: closed }
+    }
+    return this.detectClosure(narrative)
   }
 
   // ============================================================
@@ -723,6 +753,8 @@ scoreImportance(narrative: string, round: number,): ImportanceResult {
   clearEvents(): void {
     this.rawEvents = []
     this.aggregatedEvents = []
+    this.aiImportanceMap.clear()
+    this.aiArcStatusMap.clear()
   }
 
   /**
@@ -831,8 +863,9 @@ scoreImportance(narrative: string, round: number,): ImportanceResult {
   }
 
   private areCausallyLinked(effect: string, cause: string,): boolean {
-    const effectWords = effect.toLowerCase().split(/\s+/,)
-    const causeWords = cause.toLowerCase().split(/\s+/,)
+    const effectWords = [...extractEntities(effect.toLowerCase())]
+    const causeWords = [...extractEntities(cause.toLowerCase())]
+    if (effectWords.length === 0 || causeWords.length === 0) return false
     let matches = 0
     for (const word of effectWords) {
       if (causeWords.includes(word,)) matches++

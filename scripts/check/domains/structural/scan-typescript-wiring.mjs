@@ -49,6 +49,57 @@ function parseJsonStringArray(content, constName) {
   }
 }
 
+/** @param {string} content @param {string} constName */
+function parseJsonObjectConst(content, constName) {
+  const match = content.match(new RegExp(`export const ${constName}[\\s\\S]*?=\\s*(\\{[\\s\\S]*?\\})\\s*as const`))
+  if (!match) return null
+  try {
+    return JSON.parse(match[1])
+  } catch {
+    return null
+  }
+}
+
+/** @param {string} content */
+function parseSubsystemFieldContracts(content) {
+  const start = content.indexOf('export const SUBSYSTEM_FIELD_CONTRACTS')
+  const end = content.indexOf('// ============================================================\n// 派生表')
+  /** @type {Record<string, string[]>} */
+  const contracts = {}
+  if (start < 0 || end < 0) return contracts
+
+  const lines = content.slice(start, end).split(/\r?\n/)
+  let currentId = ''
+  let inFields = false
+
+  for (const line of lines) {
+    const subsystemMatch = line.match(/^\s{2}'([^']+)':\s*\{/)
+    if (subsystemMatch && !inFields) {
+      currentId = subsystemMatch[1]
+      contracts[currentId] = []
+      continue
+    }
+
+    if (currentId && /^\s{4}fields:\s*\{/.test(line)) {
+      inFields = true
+      continue
+    }
+
+    if (inFields && /^\s{4}\},/.test(line)) {
+      inFields = false
+      currentId = ''
+      continue
+    }
+
+    if (inFields && currentId) {
+      const fieldMatch = line.match(/^\s{6}([A-Za-z]\w*):\s*\{/)
+      if (fieldMatch) contracts[currentId].push(fieldMatch[1])
+    }
+  }
+
+  return contracts
+}
+
 let failed = 0
 let hintCount = 0
 
@@ -65,26 +116,30 @@ if (failed > 0) process.exit(1)
 const fieldKeysGen = readRel('src/mods/mod-engine/helpers/subsystem-field-keys.generated.ts')
 const fieldRegistry = readRel('src/mods/mod-engine/helpers/subsystem-field-registry.ts')
 const genKeys = parseJsonStringArray(fieldKeysGen, 'SUBSYSTEM_FIELD_REGISTRY_KEYS')
-const mapBlock = fieldRegistry.slice(
-  fieldRegistry.indexOf('export const SUBSYSTEM_FIELD_MAP'),
-  fieldRegistry.indexOf('export const SUBSYSTEM_CHANGE_SCHEMAS'),
-)
-const sourceKeys = [...mapBlock.matchAll(/^\s+'([^']+)':\s*\{/gm)].map((m) => m[1])
+const genZodFields = parseJsonObjectConst(fieldKeysGen, 'SUBSYSTEM_ZOD_FIELD_KEYS')
+const sourceFieldContracts = parseSubsystemFieldContracts(fieldRegistry)
+const sourceKeys = Object.keys(sourceFieldContracts)
 
-if (!genKeys || genKeys.join('|') !== sourceKeys.join('|')) {
-  logFail('[FAIL] SUBSYSTEM_FIELD_REGISTRY_KEYS 与 SUBSYSTEM_FIELD_MAP 漂移')
+if (!genKeys || sourceKeys.length === 0 || genKeys.join('|') !== sourceKeys.join('|')) {
+  logFail('[FAIL] SUBSYSTEM_FIELD_REGISTRY_KEYS 与 SUBSYSTEM_FIELD_CONTRACTS 漂移')
   failed++
 } else {
-  logOk('[OK] subsystem field keys 与 registry 一致')
+  logOk('[OK] subsystem field keys 与字段契约一致')
 }
 
-const zodBlock = fieldRegistry.slice(fieldRegistry.indexOf('export const SUBSYSTEM_CHANGE_SCHEMAS'))
-const zodIds = [...zodBlock.matchAll(/^\s+'([^']+)':\s*z\.object/gm)].map((m) => m[1])
-if (genKeys && zodIds.join('|') !== genKeys.join('|')) {
-  logFail('[FAIL] SUBSYSTEM_CHANGE_SCHEMAS 子系统 id 与 generated keys 不一致')
+if (!fieldRegistry.includes('buildSubsystemFieldMap(SUBSYSTEM_FIELD_CONTRACTS)')
+  || !fieldRegistry.includes('buildSubsystemChangeSchemas(SUBSYSTEM_FIELD_CONTRACTS)')) {
+  logFail('[FAIL] SUBSYSTEM_FIELD_MAP / SUBSYSTEM_CHANGE_SCHEMAS 未从 SUBSYSTEM_FIELD_CONTRACTS 派生')
   failed++
 } else {
-  logOk('[OK] Zod schema 子系统 id 与 generated keys 一致')
+  logOk('[OK] registry map/schema 由字段契约派生')
+}
+
+if (!genZodFields || JSON.stringify(genZodFields) !== JSON.stringify(sourceFieldContracts)) {
+  logFail('[FAIL] SUBSYSTEM_ZOD_FIELD_KEYS 与 SUBSYSTEM_FIELD_CONTRACTS 字段漂移')
+  failed++
+} else {
+  logOk('[OK] Zod 字段列表与字段契约一致')
 }
 
 const stagesGen = readRel('src/mods/mod-engine/campaigns/default/stages.generated.ts')

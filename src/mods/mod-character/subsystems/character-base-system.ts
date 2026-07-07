@@ -11,15 +11,11 @@ import {
   MIN_ATTRIBUTE_VALUE,
   MAX_ATTRIBUTE_VALUE,
   ATTR_HARD_CAP,
-  ATTR_DELTA_CLAMP,
   TRANSCENDENT_ATTR_KEYS,
-  ATTR_CN_ALIAS_TO_KEY,
-  ATTR_INCREASE_KEYWORDS,
-  ATTR_DECREASE_KEYWORDS,
   TRANSMIGRATOR_KEYWORDS,
 } from '../constants'
 import { round } from '../utils'
-import { clamp } from '@/core/shared'
+import { clamp, clampCharacterAttributeDelta } from '@/core/shared'
 import { getAttrSemantic } from '../utils/attr-tiers'
 
 export class CharacterBaseSystem implements ISubSystem {
@@ -70,7 +66,7 @@ export class CharacterBaseSystem implements ISubSystem {
     }
   }
 
-  applyChanges(changes: SubSystemChanges, _context: RoundContext): void {
+  applyChanges(changes: SubSystemChanges, context: RoundContext): void {
     if (!changes || typeof changes !== 'object') return
     if (changes.id !== this.id) return
     if (!changes.changes || typeof changes.changes !== 'object' || Array.isArray(changes.changes)) return
@@ -89,15 +85,13 @@ export class CharacterBaseSystem implements ISubSystem {
     }
 
     // 主契约（P0）：扁平增量字段 physiqueDelta / mindDelta / talentAptitudeDelta /
-    //   charismaDelta / resourcesDelta。单轮增量按 ATTR_DELTA_CLAMP 钳制防拉爆，
+    //   charismaDelta / resourcesDelta。单轮增量由 balance-config 按 daysPassed 缩放，
     //   叠加后再按属性类别（可超凡/凡人锁定）钳制最终值。
-    let applied = false
     for (const key of ['physique', 'mind', 'talentAptitude', 'charisma', 'resources'] as const) {
       const raw = ch[`${key}Delta`]
       if (typeof raw === 'number' && Number.isFinite(raw)) {
-        const delta = clamp(raw, ATTR_DELTA_CLAMP[0], ATTR_DELTA_CLAMP[1])
+        const delta = clampCharacterAttributeDelta(raw, key, context.daysPassed)
         this.state.base[key] = round(this.clampAttr(key, this.state.base[key] + delta))
-        applied = true
       }
     }
 
@@ -107,19 +101,6 @@ export class CharacterBaseSystem implements ISubSystem {
       for (const key of ['physique', 'mind', 'talentAptitude', 'charisma', 'resources'] as const) {
         if (typeof b[key] === 'number') {
           this.state.base[key] = round(this.clampAttr(key, b[key]!))
-          applied = true
-        }
-      }
-    }
-
-    // 降级路径（P2）：未给出任何结构化属性字段时，从 description 补偿提取增量
-    if (!applied) {
-      const extracted = this.parseAttrFromNarrative(changes.description)
-      if (extracted) {
-        for (const key of ['physique', 'mind', 'talentAptitude', 'charisma', 'resources'] as const) {
-          if (typeof extracted[key] === 'number') {
-            this.state.base[key] = round(this.clampAttr(key, this.state.base[key] + extracted[key]!))
-          }
         }
       }
     }
@@ -234,60 +215,6 @@ export class CharacterBaseSystem implements ISubSystem {
         this.clampAttr(key, this.state.base[key] + this.state.modifiers[key])
       )
     }
-  }
-
-  /**
-   * P2 降级：从叙事文本中补偿提取属性变化
-   * 三阶段正则流水线，复刻废案 parseAttrChangesFromText
-   *
-   * 阶段 1：严格格式 "属性名 +/-数字"（如"力量+3"、"智力-2"）
-   * 阶段 2：自然语言增加 "属性名 提升/增加/增强 N点"（如"力量暴涨5点"）
-   * 阶段 3：自然语言减少 "属性名 下降/减少/降低 N点"（如"智力衰退2点"）
-   */
-  parseAttrFromNarrative(narrative: string): Partial<Record<string, number>> | null {
-    const result: Partial<Record<string, number>> = {}
-    let found = false
-
-    // 阶段 1：严格格式 "属性名 +/-数字"
-    const strictRe = /([\u4e00-\u9fff]+)\s*([+-]\s*\d+)/g
-    let m: RegExpExecArray | null
-    while ((m = strictRe.exec(narrative)) !== null) {
-      const key = ATTR_CN_ALIAS_TO_KEY[m[1]]
-      if (key) {
-        result[key] = (result[key] ?? 0) + parseInt(m[2].replace(/\s/g, ''), 10)
-        found = true
-      }
-    }
-
-    // 阶段 2：自然语言增加 "属性名 提升/增加/增强/上升/暴涨 N点"
-    const incKeywords = ATTR_INCREASE_KEYWORDS.join('|')
-    const incRe = new RegExp(
-      `([\\u4e00-\\u9fff]+)\\s*(?:${incKeywords})\\s*(\\d+)\\s*点?`,
-      'g'
-    )
-    while ((m = incRe.exec(narrative)) !== null) {
-      const key = ATTR_CN_ALIAS_TO_KEY[m[1]]
-      if (key) {
-        result[key] = (result[key] ?? 0) + parseInt(m[2], 10)
-        found = true
-      }
-    }
-
-    // 阶段 3：自然语言减少 "属性名 下降/减少/降低/衰退/损失 N点"
-    const decKeywords = ATTR_DECREASE_KEYWORDS.join('|')
-    const decRe = new RegExp(
-      `([\\u4e00-\\u9fff]+)\\s*(?:${decKeywords})\\s*(\\d+)\\s*点?`,
-      'g'
-    )
-    while ((m = decRe.exec(narrative)) !== null) {
-      const key = ATTR_CN_ALIAS_TO_KEY[m[1]]
-      if (key) {
-        result[key] = (result[key] ?? 0) - parseInt(m[2], 10)
-        found = true
-      }
-    }
-
-    return found ? result : null
   }
 
   private getAttrKeyLabel(key: string, value: number): string {

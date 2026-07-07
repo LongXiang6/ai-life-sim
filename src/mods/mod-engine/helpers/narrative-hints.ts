@@ -191,7 +191,7 @@ function hintBranchResolved(input: NarrativeHintInput): string[] {
     if (input.branchJustResolved) {
       if (scale === 'small') {
         hints.push(
-          `${choiceLabel}（小规模行动）——本轮直接描写从行动到结果的完整过程，时间压缩自然铺陈，一轮完成`,
+          `${choiceLabel}（小规模行动）——本轮聚焦这次行动最关键的一幕，写清行动、阻力与结果，一轮完成`,
         )
       } else if (scale === 'large') {
         hints.push(
@@ -251,7 +251,7 @@ function hintSceneJump(input: NarrativeHintInput): string[] {
     case 'year':
     default:
       hints.push(
-        `时间跳过${amount}年。描写此期间的进展与变迁——取得哪些阶段性成果，遇到什么新局面，不一笔带过`,
+        `时间跳过${amount}年。聚焦此期间最关键的一件事，写透它带来的阶段性结果，不罗列多年流水账`,
       )
       break
   }

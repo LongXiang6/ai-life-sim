@@ -8,11 +8,12 @@
  *   DegradationManager     → 解析层（JSON / 正则 / 纯文本策略串联）
  *   FallbackNarrativeBuilder → 后处理层（兜底叙事生成）
  *
- * 解析策略（全防御型 4 层降级管线）：
- *   L0: JSON.parse(content) → 段落自动分段 —— JSON Mode 主路径
- *   L1: 正则提取 narrative 字段（多版本文本交叉匹配 + 中文引号标准化）
- *   L2: 提取最长中文字符块 —— 纯文本响应
- *   L3: 返回空 narrative —— 彻底失败，由外部兜底叙事补充
+ * 解析策略（全防御型 5 层降级管线）：
+ *   L0: [NARRATIVE]+[META] 信封解析 —— 主叙事路径
+ *   L1: JSON.parse(content) → 段落自动分段 —— 旧格式降级
+ *   L2: 正则提取 narrative 字段（多版本文本交叉匹配 + 中文引号标准化）
+ *   L3: 提取最长中文字符块 —— 纯文本响应
+ *   L4: 返回空 narrative —— 彻底失败，由外部兜底叙事补充
  *
  * P1 优化：
  *   - P1-01: normalizeNarrativeParagraphs 段落自动分段（按句号+长度智能折段）
@@ -30,6 +31,7 @@ import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from 
 
 import {
   ChineseTextProcessor,
+  TaggedMetaParseStrategy,
   JsonParseStrategy,
   RegexExtractStrategy,
   PlainTextStrategy,
@@ -73,8 +75,8 @@ export interface ParsedNarrative {
   spanYears?: number
   /** 有序段落专属：段落标题 */
   title?: string
-  /** 有序段落专属：关键事件列表 */
-  keyEvents?: string[]
+  /** 关键事件列表：旧有序段落为 string[]，主叙事路径为结构化对象 */
+  keyEvents?: string[] | Array<{ text: string; importance: number; entities?: string[] }>
   /** 有序段落专属：属性变化文本 */
   attrChanges?: string
   /** 命运分叉点 */
@@ -83,6 +85,14 @@ export interface ParsedNarrative {
   branchOptions?: string[]
   /** AI 标注的本轮角色创造内容（R-7 结构化判定） */
   creations?: Array<{ name: string; description: string; category: string }>
+  /** AI 标注伏笔 */
+  foreshadowing?: Array<{ type: string; description: string; priority?: number }>
+  /** AI 自评重要性 */
+  importance?: 'HIGH' | 'NORMAL' | 'LOW'
+  /** 长期记忆摘要 */
+  digest?: string
+  /** 事件弧状态，用于替代闭环关键词检测 */
+  arcStatus?: 'start' | 'ongoing' | 'end'
 }
 
 /** 旧系统有序 JSON 输入项格式（支持紧凑键和完整键双格式） */
@@ -106,10 +116,11 @@ export class NarrativeParserSystem implements ISubSystem {
   readonly id = 'narrative-parser' as const
   readonly mod = 'mod-engine' as const
   readonly label = '叙事解析器' as const
-  readonly description = '全防御型解析 AI JSON Mode 输出为结构化回合结果，含多层降级、兜底叙事与段落预处理' as const
+  readonly description = '全防御型解析 AI 标签信封输出为结构化回合结果，含多层降级、兜底叙事与段落预处理' as const
 
   private textProcessor = new ChineseTextProcessor()
   private degradationManager = new DegradationManager([
+    new TaggedMetaParseStrategy(),
     new JsonParseStrategy(),
     new RegexExtractStrategy(),
     new PlainTextStrategy(),
@@ -128,11 +139,12 @@ export class NarrativeParserSystem implements ISubSystem {
   /**
    * 解析 AI JSON 响应
    *
-   * 全防御型 4 层降级管线：
-   *   L0: JSON.parse → 段落自动分段
-   *   L1: 正则提取 narrative（多版本文本交叉匹配 + 中文引号标准化）
-   *   L2: 提取最长中文字符块
-   *   L3: 返回空 narrative，由外部兜底叙事补充
+   * 全防御型 5 层降级管线：
+   *   L0: [NARRATIVE]+[META] 信封解析
+   *   L1: JSON.parse → 段落自动分段（旧格式降级）
+   *   L2: 正则提取 narrative（多版本文本交叉匹配 + 中文引号标准化）
+   *   L3: 提取最长中文字符块
+   *   L4: 返回空 narrative，由外部兜底叙事补充
    */
   parse(content: string): ParsedNarrative {
     const result = this.degradationManager.parse(content, this.textProcessor)

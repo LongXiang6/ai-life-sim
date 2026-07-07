@@ -1,6 +1,6 @@
 /**
  * @module narrative-prompt.ts
- * @description 叙事 Prompt 模板 —— KV Cache 优化 + JSON Mode + 全面防御 + 纯 JSON 结构化 System Prompt
+ * @description 叙事 Prompt 模板 —— KV Cache 优化 + 标签信封输出 + 全面防御
  * @mod mod-engine
  *
  * KV Cache 策略（适配 DeepSeek 上下文硬盘缓存机制）：
@@ -28,9 +28,8 @@ import {
   MVP_SUBSYSTEM_GUIDE,
 } from '../helpers/mvp-runtime-policy'
 
-/** AI JSON Mode 预期输出 Zod Schema */
+/** AI META 段预期输出 Zod Schema（正文由 [NARRATIVE] 段承载） */
 const NarrativeResponseSchema = z.object({
-  narrative: z.string(),
   changes: z.array(z.object({
     id: z.string(),
     description: z.string(),
@@ -52,7 +51,9 @@ const NarrativeResponseSchema = z.object({
   keyEvents: z.array(z.object({
     text: z.string(),
     importance: z.coerce.number().min(0).max(100),
-  })).max(5).optional(),
+    entities: z.array(z.string()).max(6).optional(),
+  })).max(3).optional(),
+  arcStatus: z.enum(['start', 'ongoing', 'end']).optional(),
   branch: z.boolean().optional(),
   branchTitle: z.string().optional(),
   branchOptions: z.array(z.string()).min(2).max(4).optional(),
@@ -129,10 +130,10 @@ export const WORLD_RULES: Record<string, string> = {
 export const SUBSYSTEM_GUIDE = MVP_SUBSYSTEM_GUIDE
 
 /**
- * 固定 System Prompt —— 纯 JSON 结构化指令（KV Cache 100% 命中）
+ * 固定 System Prompt —— 标签信封输出指令（KV Cache 100% 命中）
  *
- * 所有信息封装在 JSON 字段中，AI 期望输出严格遵循 output.schema 定义。
- * 不在 schema 中的字段禁止出现在输出中。
+ * narrative 正文放在 [NARRATIVE] 段，结构化元数据放在 [META] JSON 段。
+ * 不在 schema 中的字段禁止出现在 META 中。
  */
 export const SYSTEM_PROMPT = stringifyPrompt({
   rules: {
@@ -142,8 +143,9 @@ export const SYSTEM_PROMPT = stringifyPrompt({
           '叙事须以「当前状态」「最近变化」为核心依据，与历史叙事自然衔接',
           '「当前时间」是本轮叙事结束节点；正文覆盖上一条叙事时间节点之后到当前节点之间发生的事件',
           '若叙事历史为空且角色为0岁，本轮只写出生与家世，不概括出生后一整年的成长',
-          '保证narrative在最前，changes紧随其后',
-          '输出合法JSON，禁止markdown代码块包裹',
+          '最终输出必须且只能包含[NARRATIVE]正文[/NARRATIVE]与[META]JSON[/META]两段，禁止markdown代码块包裹',
+          'NARRATIVE正文必须且只分三段：场景铺陈、事件推进、心理余韵；段落之间用一个空行分隔',
+          '每轮只推进一个核心事件，可含自然连带反应，严禁并列多个不相关事件',
           '「原创保护」列出的内容均为角色亲自开创，严禁改写为外部来源',
         ],
       L1: [
@@ -162,27 +164,24 @@ export const SYSTEM_PROMPT = stringifyPrompt({
       description: '降级策略',
       jsonError: 'JSON格式错误时修正为合法JSON，优先保证narrative有内容',
       noChanges: '无法判断子系统变化时返回空数组[]',
-      totalFailure: '信息不足时输出最简JSON：{"narrative":"可用文本","changes":[]}',
+      totalFailure: '信息不足时输出最简格式：[NARRATIVE]三段可用文本[/NARRATIVE][META]{"changes":[]}[/META]',
     },
 
     attributeRules: [
       '凡人属性区间 -10~+10，0为平平无奇。体魄/心智/悟性/魅力为可超凡属性，突破+10即进入超凡领域（超凡入圣/神性/神王/概念级），可无上限堆叠；出身与气运/善恶锁定在 -10~+10。语义标签由 getAttrSemantic() 生成。',
-      '属性变更用增量字段（physiqueDelta/mindDelta/talentAptitudeDelta/charismaDelta/resourcesDelta），正=增长负=下降，仅用整数，单次波动≤2（重大机缘可略高）。narrative中须与属性变动描述呼应。',
+      '属性变更用增量字段（physiqueDelta/mindDelta/talentAptitudeDelta/charismaDelta/resourcesDelta），正=增长负=下降，仅用整数，单次波动≤2（重大机缘可略高）。若叙事明确提到属性变化，必须在 META.changes 中填写对应 delta。',
       '气运（隐藏属性，用户不可见）：开局随机±4，仅重大人生转折可变动（≤±1/次），由命格/奇遇/灾厄触发。',
-      '善恶（隐藏属性，用户不可见）：开局为0，每次变动≤±1，累计为善（+正）或恶（-负）。',
+      '善恶（隐藏属性，用户不可见）：开局为0，每次变动≤±1，累计为善（+正）或恶（-负）。若本轮有明确善恶行为，必须写 morality.delta。',
+      '寿命由 lifespan 管理。年龄禁止写入；若本轮明确减寿/增寿，写 lifespan.lifespanDelta（负=减寿，正=增寿）。',
     ],
   },
 
   output: {
     schema: {
       type: 'object',
-      required: ['narrative', 'changes'],
+      required: ['changes'],
       additionalProperties: false,
       properties: {
-        narrative: {
-          type: 'string',
-          description: '必填：流畅的中文叙事文本。使用现在时态和第二人称"你"。包含多个自然段落（段落间用换行分隔），段落数量根据情节需要灵活安排。每轮至少包含1个具体细节（物品/地点/人物/感官）。字数遵循叙事偏好设置。应"展示"而非"告诉"——用具体场景和细节推进故事。保持叙事连贯，与前一轮衔接自然。叙事风格符合当前世界观设定，角色年龄与当前回合匹配。「当前时间」是本轮结束节点，正文只写上一叙事节点之后到当前节点之间的事件；0岁首轮只写出生与家世，不写翻身、爬行、学步、说话等后续月份成长。⚠️ 严禁以"这一年""本年度""这一轮"作为段落或叙事开头。叙事开头应从具体场景切入：季节/天气/具体事件/感官细节/内心感受。',
-        },
         changes: {
           type: 'array',
           description: '必填：子系统变更数组。仅包含真正发生了变化的子系统，没有变化则为空数组[]。',
@@ -231,8 +230,8 @@ export const SYSTEM_PROMPT = stringifyPrompt({
         },
         keyEvents: {
           type: 'array',
-          maxItems: 5,
-          description: '建议填写：本轮发生的关键事件列表（最多5条），每条附一个 0~100 的重要性数值，数值越高越重要，用于长期记忆的保留与遗忘决策。评分参考：90~100=改变一生的转折（死亡/突破/立誓/生死抉择），不可遗忘；60~89=重要事件（结识关键人物/获得重宝/重大成败）；30~59=值得记住的进展；0~29=日常流水。若本轮某低分事件其实是后续大事的伏笔，可适度提高其分值。',
+          maxItems: 3,
+          description: '建议填写：本轮发生的关键事件列表（最多3条），每条附一个 0~100 的重要性数值和可选实体 entities，用于长期记忆的保留与遗忘决策。评分参考：90~100=改变一生的转折（死亡/突破/立誓/生死抉择），不可遗忘；60~89=重要事件；30~59=值得记住的进展；0~29=日常流水。',
           items: {
             type: 'object',
             required: ['text', 'importance'],
@@ -240,8 +239,14 @@ export const SYSTEM_PROMPT = stringifyPrompt({
             properties: {
               text: { type: 'string', description: '事件精简描述（≤30字）' },
               importance: { type: 'number', minimum: 0, maximum: 100, description: '重要性 0~100' },
+              entities: { type: 'array', items: { type: 'string' }, maxItems: 6, description: '事件相关人物/地点/物品/组织，用于记忆连锁' },
             },
           },
+        },
+        arcStatus: {
+          type: 'string',
+          enum: ['start', 'ongoing', 'end'],
+          description: '可选：事件弧状态。start=开启新事件线，ongoing=仍在推进，end=本轮形成阶段性闭环。',
         },
         creations: {
           type: 'array',
@@ -276,92 +281,75 @@ export const SYSTEM_PROMPT = stringifyPrompt({
     },
 
     format: {
-      type: 'pure_json',
+      type: 'tagged_meta',
       noMarkdownWrapping: true,
-      description: '直接输出纯JSON对象，禁止用```json```代码块包裹。',
-      fieldOrder: ['narrative', 'changes', 'notableEvents', 'creations', 'foreshadowing', 'importance', 'digest', 'keyEvents', 'branch', 'branchTitle', 'branchOptions'],
+      description: '直接输出两段：先 [NARRATIVE] 三段正文 [/NARRATIVE]，再 [META] 单个合法JSON对象 [/META]。META 禁止包含 narrative 字段。',
+      fieldOrder: ['changes', 'notableEvents', 'creations', 'foreshadowing', 'importance', 'digest', 'keyEvents', 'arcStatus', 'branch', 'branchTitle', 'branchOptions'],
     },
   },
 
   mvpChangePolicy: {
-    description: '当前 MVP 只允许基础属性与寿命结构化变更；技能、经济、声望、关系、修炼、战力等模拟系统延后。',
-    noStateChange: '若本轮只是叙事推进、获得物品、学艺、社交或战斗结果，但没有明确改变 character-base/lifespan 字段，则 changes 返回 []。',
-    birthOpening: '0岁出生开场通常不提交 lifespan.age 变化；除非叙事明确推进到生日后年龄变化，否则 changes 返回 []。',
+    description: '当前 MVP 只允许基础属性、寿命、气运、善恶结构化变更；技能、经济、声望、关系、修炼、战力等模拟系统延后。',
+    noStateChange: '若本轮只是叙事推进、获得物品、学艺、社交或战斗结果，但没有明确改变子系统变更指南中的字段，则 changes 返回 []。',
+    birthOpening: '0岁出生开场通常不提交 changes；年龄由时间推进与起始年龄派生，禁止写 lifespan.age。',
   },
 
   examples: [
     {
       description: '示例0：首轮叙事·出生与家庭',
       input: { character: '新生儿，0岁，刚出生', worldSetting: '古代市井家庭，父亲是武师' },
-      output: {
-        narrative: '接生的婆子剪断脐带时，你发出一声响亮的啼哭，震得窗纸嗡嗡作响。屋外父亲焦灼的脚步声一顿，随即传来他粗犷的笑声。\n\n茅草屋里弥漫着热水蒸腾的雾气，混着墙角药罐子里飘出的苦涩药味。母亲苍白的脸上挂着汗水，却还是侧过头，用温热的指尖轻轻碰了碰你的脸颊。你攥住她的手指，哭声渐渐平息。\n\n屋檐下挂着几串干辣椒和蒜辫，院子里的泥地上散落着劈好的柴火。街坊邻居的说话声从墙外传来，有人在喊"老张家的生了！"。父亲在院里转了三圈，最后蹲下来，把腰间的玉佩解下，在手里攥了又攥。',
-        changes: [],
-      },
+      output: `[NARRATIVE]
+接生的婆子剪断脐带时，你发出一声响亮的啼哭，震得窗纸嗡嗡作响。屋外父亲焦灼的脚步声一顿，随即传来他粗犷的笑声。
+
+茅草屋里弥漫着热水蒸腾的雾气，混着墙角药罐子里飘出的苦涩药味。母亲苍白的脸上挂着汗水，却还是侧过头，用温热的指尖轻轻碰了碰你的脸颊。
+
+屋檐下挂着几串干辣椒和蒜辫，院子里的泥地上散落着劈好的柴火。街坊邻居的说话声从墙外传来，父亲在院里转了三圈，最后蹲下来，把腰间的玉佩解下，在手里攥了又攥。
+[/NARRATIVE]
+[META]
+{"changes":[],"notableEvents":["出生于武师家庭"],"importance":"HIGH","digest":"出生于市井武师之家，父亲以玉佩相赠。","keyEvents":[{"text":"出生于武师家庭","importance":80,"entities":["父亲","母亲","玉佩"]}],"arcStatus":"start"}
+[/META]`,
     },
     {
       description: '示例1：现代日常·小学生活',
-      input: {
-        character: '小明，8岁',
-        worldSetting: '现代城市，普通家庭生活',
-        state: '健康良好，就读小学',
-      },
-      output: {
-        narrative: '放学铃响时，你背着书包跑出校门。妈妈站在梧桐树下的老位置朝你挥手，手里提着刚买的面包。你跑过去，闻到她袖口淡淡的洗衣皂味。书包带勒得肩膀有点疼，你把重心换到另一只脚，看着地上被夕阳拉长的影子。',
-        changes: [
-          { id: 'lifespan', description: '学年推进，年龄增长', changes: { age: 9 } },
-        ],
-        notableEvents: ['第一次在放学路上注意到影子随步伐变化'],
-      },
+      input: { character: '小明，8岁', worldSetting: '现代城市，普通家庭生活', state: '健康良好，就读小学' },
+      output: `[NARRATIVE]
+放学铃响时，你背着书包跑出校门。妈妈站在梧桐树下的老位置朝你挥手，手里提着刚买的面包。
+
+你跑过去，闻到她袖口淡淡的洗衣皂味。书包带勒得肩膀有点疼，你把重心换到另一只脚，看见夕阳把你和妈妈的影子拉得很长。
+
+回家的路上，你忽然觉得那条每天都走的小巷有了不同的颜色。妈妈问你今天学了什么，你想了想，只说太阳快落下去的时候，影子像另一个慢吞吞的自己。
+[/NARRATIVE]
+[META]
+{"changes":[],"notableEvents":["第一次在放学路上注意到影子随步伐变化"],"importance":"LOW","digest":"放学路上，你注意到夕阳下自己和母亲的影子。","keyEvents":[{"text":"注意到夕阳下的影子","importance":25,"entities":["妈妈","梧桐树","影子"]}],"arcStatus":"end"}
+[/META]`,
     },
     {
-      description: '示例2：受伤后的日常恢复',
-      input: { character: '角色因重伤暂时行动不便' },
-      output: {
-        narrative: '你试着按熟悉的节奏呼吸发力，肌肉却像不听使唤。教练说过的话在脑子里转，身体就是跟不上。你只好放慢动作，从最基本的步骤重新练起。',
-        changes: [],
-      },
-    },
-    {
-      description: '示例3：战斗·分支抉择',
+      description: '示例2：战斗·分支抉择',
       input: { character: '修仙者，遭遇妖兽', worldSetting: '仙侠世界' },
-      output: {
-        narrative: '你运转灵力，身形如电般闪至妖兽侧面。剑光划破夜空，精准刺入妖兽命门。妖兽发出一声凄厉嘶吼，轰然倒地。\n\n一颗内丹从妖兽体内浮现，散发着柔和青光。周围观战的散修眼中闪过一丝贪婪，却无人敢上前——方才那一剑已让他们认清差距。',
-        changes: [],
-        notableEvents: ['斩杀妖兽', '剑术在实战中突破', '周围散修对主角心生敬畏'],
-        importance: 'HIGH',
-        branch: true,
-        branchTitle: '如何处理这枚妖兽内丹？',
-        branchOptions: ['炼化吸收提升修为', '卖给坊市换取灵石', '留作炼丹材料'],
-      },
+      output: `[NARRATIVE]
+夜风掠过山坳时，妖兽的腥气先一步扑到你脸上。你握紧剑柄，脚下碎石被灵力震得轻轻跳动，远处几名散修屏住呼吸。
+
+你运转灵力，身形如电般闪至妖兽侧面。剑光划破夜色，精准刺入妖兽命门；它发出一声凄厉嘶吼，庞大的身躯轰然倒地。
+
+一颗内丹从妖兽体内浮现，散发着柔和青光。周围散修眼中闪过贪婪，却无人敢上前；你望着那枚内丹，意识到接下来的选择会改变这场胜利的意义。
+[/NARRATIVE]
+[META]
+{"changes":[{"id":"character-base","description":"生死战中剑术与体魄得到磨炼","changes":{"physiqueDelta":1,"mindDelta":1}}],"notableEvents":["斩杀妖兽","获得妖兽内丹"],"importance":"HIGH","digest":"你斩杀妖兽并取得内丹，面临处理选择。","keyEvents":[{"text":"斩杀妖兽取得内丹","importance":85,"entities":["妖兽","内丹","散修"]}],"arcStatus":"end","branch":true,"branchTitle":"如何处理这枚妖兽内丹？","branchOptions":["炼化吸收提升修为","卖给坊市换取灵石","留作炼丹材料"]}
+[/META]`,
     },
     {
-      description: '示例4：结局·自然老死',
-      input: { character: '年迈老人，一生为地方父母官', worldSetting: '古代世界' },
-      output: {
-        narrative: '冬日阳光透过窗棂洒在书案上，你放下手中笔，最后一次合上那本写了半生的笔记。窗外儿孙们的欢声笑语随风飘来，你嘴角含笑，缓缓闭上眼睛。\n\n你的一生算不上波澜壮阔，却也不算虚度。从寒门书生到一方父母官，修桥铺路、开仓放粮，在县志上留下几笔清名。弥留之际，你仿佛又看到年轻时挑灯夜读的身影。',
-        changes: [],
-        notableEvents: ['寿终正寝，享年七十八岁', '留下一生清名与半生笔记'],
-        importance: 'HIGH',
-      },
-    },
-    {
-      description: '示例5：日常·学艺社交',
+      description: '示例3：日常·学艺社交',
       input: { character: '铁匠学徒，16岁', worldSetting: '古代城镇' },
-      output: {
-        narrative: '你在铁匠铺当学徒的第三个月，终于亲手打出了一把像样的短刀。师傅老陈头检查了刀刃，难得没有骂人，只哼了一声"勉强能用"。隔壁药铺的小翠路过时探头看了一眼，笑着说这刀挺好看。你把刀挂在腰间，觉得这个冬天没那么冷了。',
-        changes: [],
-        notableEvents: ['锻造出第一把合格短刀', '获得师父认可'],
-      },
-    },
-    {
-      description: '示例6：日常修炼·跨系统联动',
-      input: { character: '宗门弟子，19岁，炼气三层', worldSetting: '修仙宗门内门' },
-      output: {
-        narrative: '你坐在蒲团上吐纳了三个时辰，丹田中那缕真气又壮了一分。执事堂的师兄传讯说本月份例已到——三枚聚气草、五粒养气丹。你将丹药收进储物袋，盘算着够支撑半个月的苦修。\n\n夜深时，你忽然想起山下坊市新到了一批妖兽材料，其中或许有辅助冲脉的虎骨散。但一摸口袋，灵石已经见底。',
-        changes: [],
-        notableEvents: ['领取本月宗门份例'],
-        importance: 'LOW',
-      },
+      output: `[NARRATIVE]
+铁匠铺的火光映在你脸上，热浪把额前碎发烤得发硬。你握着锤柄，听见炉膛里炭火噼啪作响，手心全是汗。
+
+第三个月的傍晚，你终于亲手打出一把像样的短刀。师傅老陈头检查刀刃，难得没有骂人，只哼了一声“勉强能用”；隔壁药铺的小翠探头看了一眼，笑着说这刀挺好看。
+
+你把短刀挂在腰间时，肩膀酸得几乎抬不起来，却还是忍不住摸了摸刀鞘。冬风从铺门外灌进来，你忽然觉得这个冬天没那么冷了。
+[/NARRATIVE]
+[META]
+{"changes":[{"id":"character-base","description":"长期锻打让体魄略有增长","changes":{"physiqueDelta":1}}],"notableEvents":["锻造出第一把合格短刀","获得师父认可"],"importance":"NORMAL","digest":"你打出第一把合格短刀，获得师父认可。","keyEvents":[{"text":"打出合格短刀","importance":55,"entities":["短刀","师傅老陈头","小翠"]}],"arcStatus":"end"}
+[/META]`,
     },
   ],
 
@@ -381,7 +369,7 @@ export const SYSTEM_PROMPT = stringifyPrompt({
     },
   },
 
-  task: '根据用户消息中的世界设定、规则与当前状态，生成叙事 JSON（含 narrative 与 changes）。叙事风格须符合 worldSetting 与 worldRules，不得引入状态中未成立的能力或设定。',
+  task: '根据用户消息中的世界设定、规则与当前状态，生成标签信封叙事：[NARRATIVE]内写三段中文正文，[META]内写结构化JSON。叙事风格须符合 worldSetting 与 worldRules，不得引入状态中未成立的能力或设定。',
 })
 
 /**
@@ -470,7 +458,7 @@ export const narrativePrompt: PromptTemplate = {
     'narrativeGuidanceText',
     'userInstruction',
   ],
-  outputFormat: 'json',
+  outputFormat: 'text',
   outputSchema: NarrativeResponseSchema,
 }
 

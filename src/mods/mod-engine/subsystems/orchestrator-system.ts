@@ -13,8 +13,8 @@
  *   7. 构建分段 Prompt (buildSegmentedPrompt — 模板顺序决定 KV Cache 命中区间)
  *   8. 调用 AI (callAIStream，流式输出)
  *   9. 解析响应 + 分发变更 (handleNarrativeResponse)
- *  10. 叙事后处理 (runPostNarrativePhase — 连锁反应 + 寿命突破/损失)
- *  11. 世界方向修正 (applyWorldDirection — AI direction → 子系统数值)
+ *  10. 叙事后处理 (runPostNarrativePhase — 连锁反应提示；寿命闭环归 LifespanSystem)
+ *  11. 世界方向修正 (MVP 暂停；未来段由存活子系统重新接入)
  *  12. 检测死亡并触发死后尾声 (PostDeathEpilogueSystem)
  *  13. 检查叙事压缩 (SummaryCompressor)
  *  14. 触发回合完成事件 (EventBus)
@@ -42,7 +42,6 @@ import {
   WorldEventBus,
   globalDeadLoopDetector,
   sanitizeSubSystemState,
-  clampNumber,
   buildLayeredMemoryStateCard,
   buildNarrativeCoherenceHeader,
   buildNarrativeWorldRules,
@@ -133,131 +132,6 @@ import type {
 /** 兜底叙事 maxAge 后备值（lifespan 子系统未注册时） */
 const DEFAULT_MAX_AGE_FALLBACK = 100
 
-// ============================================================
-// 世界方向修正（AI direction → 子系统数值自动修正）
-// ============================================================
-
-interface WorldDirection {
-  market?: { direction?: string; magnitude?: number }
-  faction?: { direction?: string; magnitude?: number }
-  population?: { direction?: string; magnitude?: number }
-  ecology?: { direction?: string; magnitude?: number }
-  climate?: { direction?: string; magnitude?: number }
-  culture?: { direction?: string; magnitude?: number }
-}
-
-/**
- * 将 AI 叙事中的世界方向指令应用到各子系统数值
- *
- * 方向关键词：繁荣 → +magnitude% | 衰退 → -magnitude% | 危机 → -2×magnitude%
- *            恢复 → +0.5×magnitude% | 波动 → ±magnitude% 随机
- *
- * 系数范围：0.8~1.2（E09 对齐蓝图计划书）
- *   繁荣/恢复 → 正向修正（最高 +20%）
- *   衰退/危机 → 负向修正（最低 -20%）
- *   波动 → ±10% 随机
- */
-function applyWorldDirection(
-  direction: WorldDirection | undefined,
-  subsystemStates: Record<string, SubSystemState>,
-  subsystems: ISubSystem[],
-  _context: RoundContext,
-  commitChange: (change: SubSystemChanges) => void,
-): void {
-  if (!direction) return
-
-  /** 将 magnitude 映射到 0.8~1.2 范围 */
-  const resolveMag = (d: { direction?: string; magnitude?: number }): number => {
-    const mag = d.magnitude ?? 0.3
-    let mult: number
-    switch (d.direction) {
-      case '繁荣': mult = 1 + mag * 0.2   // 最高 1.2
-        break
-      case '衰退': mult = 1 - mag * 0.2   // 最低 0.8
-        break
-      case '危机': mult = 1 - mag * 0.3   // 最低 0.7 → clamp 到 0.8
-        break
-      case '恢复': mult = 1 + mag * 0.1   // 最高 1.1
-        break
-      case '波动': mult = 1 + (Math.random() - 0.5) * mag * 0.2
-        break
-      default: mult = 1
-    }
-    // 钳制到 0.8~1.2 范围
-    return Math.min(1.2, Math.max(0.8, mult))
-  }
-
-  /**
-   * 提交一个世界方向修正变更（仅当子系统已注册且 changes 非空时）。
-   * 注意：changes 的键名必须是目标子系统 applyChanges() 真正认识的键，
-   * 否则会被静默忽略（这是历史 bug 的根因）。
-   */
-  const commit = (subId: string, label: string, changes: Record<string, unknown>): void => {
-    if (!subsystems.some((s) => s.id === subId)) return
-    if (Object.keys(changes).length === 0) return
-    commitChange({ id: subId, description: `世界方向修正: ${label}`, changes })
-  }
-
-  /** 读取子系统 data 的数值字段（支持 a.b.c 路径），非数值返回 undefined */
-  const readNum = (subId: string, path: string): number | undefined => {
-    let cur: unknown = subsystemStates[subId]?.data
-    for (const seg of path.split('.')) {
-      if (cur && typeof cur === 'object') cur = (cur as Record<string, unknown>)[seg]
-      else return undefined
-    }
-    return typeof cur === 'number' ? cur : undefined
-  }
-
-  // —— market → economy：繁荣/衰退写入通胀增量，priceIndex 会由 economy 根据 inflation 重新派生 ——
-  if (direction.market) {
-    const mult = resolveMag(direction.market)
-    if (mult !== 1) {
-      const inflationDelta = Math.round((mult - 1) * 20 * 10) / 10
-      if (inflationDelta !== 0) commit('economy', direction.market.direction ?? '波动', { inflationDelta })
-    }
-  }
-
-  // —— population：调整人口总数与增长率（population 认识 totalPopulation / growthRate）——
-  if (direction.population) {
-    const mult = resolveMag(direction.population)
-    if (mult !== 1) {
-      const changes: Record<string, unknown> = {}
-      const total = readNum('population', 'totalPopulation')
-      const growth = readNum('population', 'growthRate')
-      if (total !== undefined) changes.totalPopulation = clampNumber(Math.round(total * mult), 0, 1e12)
-      if (growth !== undefined) changes.growthRate = growth * mult
-      commit('population', direction.population.direction ?? '波动', changes)
-    }
-  }
-
-  // —— ecology：按倍率调整生态指标（ecology 认识 metrics.{biodiversityIndex,resilience}）——
-  if (direction.ecology) {
-    const mult = resolveMag(direction.ecology)
-    if (mult !== 1) {
-      const metrics: Record<string, number> = {}
-      const bio = readNum('ecology', 'metrics.biodiversityIndex')
-      const resilience = readNum('ecology', 'metrics.resilience')
-      if (bio !== undefined) metrics.biodiversityIndex = bio * mult
-      if (resilience !== undefined) metrics.resilience = resilience * mult
-      if (Object.keys(metrics).length > 0) commit('ecology', direction.ecology.direction ?? '波动', { metrics })
-    }
-  }
-
-  // —— culture → culture-tech：按倍率调整科技进度（techLevel 为离散等级，仅调 techProgress）——
-  if (direction.culture) {
-    const mult = resolveMag(direction.culture)
-    const progress = readNum('culture-tech', 'techProgress')
-    if (mult !== 1 && progress !== undefined) {
-      commit('culture-tech', direction.culture.direction ?? '波动', { techProgress: progress * mult })
-    }
-  }
-
-  // 注：direction.faction（派系）与 direction.climate（气候）暂不接入——
-  // faction-dynamics 无「整体倍率」标量通道（按具体派系操作），
-  // climate 的可写键（temperatureOffset/humidity）与「繁荣/衰退倍率」语义不符。
-  // 历史代码曾用 power/wealth、cooldownYears 等不存在的键，会被 applyChanges 静默忽略，已移除。
-}
-
 /** 预生成/快照：编排器可恢复状态 */
 export interface OrchestratorSnapshot {
   state: EngineState
@@ -329,7 +203,7 @@ export class OrchestratorSystem implements ISubSystem {
   /** K: MOD 清单（用于聚合各 MOD 的世界观规则） */
   private modManifests: ModManifest[] = []
 
-  /** 寿命突破累计次数 */
+  /** @deprecated 寿命突破次数由 LifespanSystem.breakthroughs 派生，保留旧快照字段避免读档结构抖动 */
   private totalBreakthroughs = 0
 
   /** Phase 6：压缩管线所需 AI 配置（executeRoundV2 注入） */
@@ -628,7 +502,7 @@ export class OrchestratorSystem implements ISubSystem {
     }))
   }
 
-  /** 世界方向修正（供 stage 闭包使用） */
+  /** 世界方向修正（供 stage 闭包使用；MVP 阶段只保留未来段入口） */
   applyWorldDirectionFromNarrative(narrative: string): void {
     this._applyWorldDirectionFromNarrative(narrative)
   }
@@ -1009,7 +883,7 @@ export class OrchestratorSystem implements ISubSystem {
       }
     }
 
-    // 11. 世界方向修正（优先使用 AI JSON Mode 的结构化 direction，兜底关键词检测）
+    // 11. 世界方向修正：MVP 阶段目标子系统未运行，仅保留未来段入口
     this._applyWorldDirectionFromNarrative(result.narrative)
 
     // 12. 检测死亡 → 触发死后尾声生成（等待完成后继续）
@@ -1021,44 +895,18 @@ export class OrchestratorSystem implements ISubSystem {
   // === 世界方向修正 ===
 
   /**
-   * 从 AI 叙事中检测世界方向关键词并应用到子系统
+   * 世界方向修正的未来段入口。
+   * 当前 MVP 下 economy/population/ecology/culture-tech 均不运行，且自由文本关键词
+   * 不再作为关键路径判定来源；待这些子系统按恢复段放行后，再接结构化 direction。
    */
   private _applyWorldDirectionFromNarrative(
-    narrative: string,
+    _narrative: string,
   ): void {
     try {
-      // 从叙事文本中检测方向关键词
-      const direction: WorldDirection = {}
-
-      if (narrative.includes('繁荣') || narrative.includes('兴盛') || narrative.includes('昌盛')) {
-        direction.market = { direction: '繁荣', magnitude: 0.3 }
-        direction.population = { direction: '繁荣', magnitude: 0.3 }
-      }
-      if (narrative.includes('衰退') || narrative.includes('衰落') || narrative.includes('凋敝')) {
-        direction.market = { direction: '衰退', magnitude: 0.3 }
-        direction.population = { direction: '衰退', magnitude: 0.3 }
-      }
-      if (narrative.includes('危机') || narrative.includes('灾难') || narrative.includes('浩劫')) {
-        direction.market = { direction: '危机', magnitude: 0.4 }
-        direction.ecology = { direction: '危机', magnitude: 0.4 }
-      }
-      if (narrative.includes('恢复') || narrative.includes('复兴') || narrative.includes('重建')) {
-        direction.market = { direction: '恢复', magnitude: 0.2 }
-        direction.ecology = { direction: '恢复', magnitude: 0.2 }
-      }
-
-      if (Object.keys(direction).length > 0) {
-        const context = this.buildRoundContext()
-        applyWorldDirection(
-          direction,
-          this.lastSubsystemStates,
-          this.subsystems,
-          context,
-          (change) => { this.applyRoundChanges([change], 'world-direction') },
-        )
-        // 重新收集状态以反映方向修正
-        this.collectSubsystemStates()
-      }
+      const hasLiveTarget = ['economy', 'population', 'ecology', 'culture-tech'].some((id) =>
+        this.subsystems.some((s) => s.id === id),
+      )
+      if (!hasLiveTarget) return
     } catch (e) {
       console.error('[Orchestrator] 世界方向修正失败:', e)
     }
@@ -1293,9 +1141,11 @@ export class OrchestratorSystem implements ISubSystem {
 
   collectState(_context: RoundContext): SubSystemState {
     const lifecycleCount = Object.keys(this.eventLifecycle).length
+    const lifespanData = this.lastSubsystemStates?.['lifespan']?.data as { breakthroughs?: unknown[] } | undefined
+    const breakthroughCount = lifespanData?.breakthroughs?.length ?? this.totalBreakthroughs
     return {
       id: this.id,
-      summary: `【${this.label}】${this.state.status} | 第 ${this.state.totalRounds} 回合 | 第${this.state.round.year}年 | 事件追踪×${lifecycleCount} | 压缩 L1×${this.state.compressionStats.l1Count} | 突破×${this.totalBreakthroughs}`,
+      summary: `【${this.label}】${this.state.status} | 第 ${this.state.totalRounds} 回合 | 第${this.state.round.year}年 | 事件追踪×${lifecycleCount} | 压缩 L1×${this.state.compressionStats.l1Count} | 突破×${breakthroughCount}`,
       data: structuredClone(this.state) as unknown as Record<string, unknown>,
     }
   }
@@ -1375,7 +1225,8 @@ export class OrchestratorSystem implements ISubSystem {
   // === 叙事后处理 ===
 
   /**
-   * 执行叙事后处理：连锁反应 + 寿命突破 + 寿命损失
+   * 执行叙事后处理：仅保留非权威连锁反应。
+   * 寿命突破/减寿由 LifespanSystem 在 collectStateUpdate 中读取上下文并闭环落地。
    */
   private _runNarrativePostProcessing(narrative: string): void {
     try {
@@ -1383,34 +1234,22 @@ export class OrchestratorSystem implements ISubSystem {
       const healthState = this.lastSubsystemStates?.['health']
       const economyState = this.lastSubsystemStates?.['economy']
       const reputationState = this.lastSubsystemStates?.['reputation']
-      const lifespanState = this.lastSubsystemStates?.['lifespan']
-      const characterBase = this.lastSubsystemStates?.['character-base']
-      const luckState = this.lastSubsystemStates?.['luck']
-      const faithState = this.lastSubsystemStates?.['faith']
 
       const currentHealth = (healthState?.data as { hp?: number } | undefined)?.hp ?? 50
       const currentWealth =
         (economyState?.data as { currency?: { playerWealth?: number } } | undefined)?.currency
           ?.playerWealth ?? 0
       const currentReputation = (reputationState?.data as { fame?: number } | undefined)?.fame ?? 0
-      const maxAge = (lifespanState?.data as { maxAge?: number } | undefined)?.maxAge ?? DEFAULT_MAX_AGE_FALLBACK
-      const currentAge = (characterBase?.data as { age?: number } | undefined)?.age ?? 1
-      const luckBonus = (luckState?.data as { luck?: number } | undefined)?.luck ?? 0
-      const devotionLevel = (faithState?.data as { devotionLevel?: number } | undefined)?.devotionLevel ?? 0
 
       const postResult = runPostNarrativePhase({
         narrative,
         currentHealth,
         currentWealth,
         currentReputation,
-        currentAge,
-        maxAge,
-        luckBonus,
-        totalBreakthroughs: this.totalBreakthroughs,
-        devotionLevel,
       })
 
-      // 应用连锁反应结果到子系统
+      // 应用连锁反应结果到子系统。MVP 阶段 health/economy/reputation 未开放时，
+      // RoundCommitBus 会按运行白名单跳过，避免后处理器绕过子系统恢复顺序。
       const healthDelta = postResult.chainResult.updatedHealth - currentHealth
       if (healthDelta !== 0 && isMvpNarrativeChangeSubsystem('health')) {
         this.applyRoundChanges([{
@@ -1434,34 +1273,11 @@ export class OrchestratorSystem implements ISubSystem {
         }], 'post-narrative')
       }
 
-      // 应用寿命突破结果
-      if (postResult.breakthroughResult.triggered) {
-        this.totalBreakthroughs = postResult.breakthroughResult.totalBreakthroughs
-        if (postResult.newMaxAge) {
-          this.applyRoundChanges([{
-            id: 'lifespan',
-            description: `叙事后处理：寿命突破 +${postResult.breakthroughResult.yearsGained}年`,
-            changes: { maxAge: postResult.newMaxAge },
-          }], 'post-narrative')
-        }
-      }
-
-      // 应用寿命损失结果
-      if (postResult.lossResult && postResult.newMaxAge) {
-        this.applyRoundChanges([{
-          id: 'lifespan',
-          description: `叙事后处理：寿命损失 -${postResult.lossResult.yearsLost}年`,
-          changes: { maxAge: postResult.newMaxAge },
-        }], 'post-narrative')
-      }
-
       // 发出通知事件
       if (postResult.notificationText) {
         eventBus.emit('mod-engine:post-narrative-notification', {
           text: postResult.notificationText,
           chain: postResult.chainResult,
-          breakthrough: postResult.breakthroughResult,
-          loss: postResult.lossResult,
         })
       }
     } catch (e) {
@@ -1783,7 +1599,7 @@ export class OrchestratorSystem implements ISubSystem {
             '③ 时代背景：所在地区的风俗、社会阶层、邻里关系、时代氛围',
             '④ 感官体验：婴儿视角的听觉/视觉/触觉/嗅觉感受',
             '⑤ 时间范围限制在出生当日或出生前后短时段，不写翻身、爬行、学步、说话等后续月份事件',
-            '⑥ 若没有明确年龄增长，不要在 changes 中写 lifespan.age；0岁开场通常返回 changes: []',
+            '⑥ 年龄由时间推进与起始年龄派生，不要在 changes 中写 lifespan.age；0岁开场通常返回 changes: []',
           ].join('\n')
         : [
             '这是角色人生记录的开场——先建立当前年龄的身份、家世、处境和所处环境。',
@@ -2259,6 +2075,10 @@ export class OrchestratorSystem implements ISubSystem {
       if (aiImportance) {
         memoryLifecycle.setAIRoundImportance(this.state.round.year, aiImportance)
       }
+      const aiArcStatus = (effectiveParsed as { arcStatus?: 'start' | 'ongoing' | 'end' }).arcStatus
+      if (aiArcStatus) {
+        memoryLifecycle.setAIArcStatus(this.state.round.year, aiArcStatus)
+      }
       // 想法1：记录 AI 自述的 digest + keyEvents 到摘要账本（精确重要性主干）
       const parsedDigest = (effectiveParsed as {
         digest?: string
@@ -2326,7 +2146,7 @@ export class OrchestratorSystem implements ISubSystem {
       }
     }
 
-    // 提取结构化世界方向（来自 AI JSON Mode 的 direction 字段）
+    // 提取结构化世界方向（来自 META 的 direction 字段；MVP 阶段仅透传，不回写世界目标）
     const worldDirection: RoundResult['direction'] =
       effectiveParsed.direction && typeof effectiveParsed.direction === 'object' && !Array.isArray(effectiveParsed.direction)
         ? (effectiveParsed.direction as Record<string, { direction?: string; magnitude?: number }>)

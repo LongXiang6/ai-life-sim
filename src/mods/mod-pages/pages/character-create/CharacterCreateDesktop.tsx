@@ -119,42 +119,37 @@ export function CharacterCreateDesktop() {
           <div className={styles.section}>
             <label className={styles.sectionLabel}>{L.raceLabel}</label>
             <div className={styles.optionGrid}>
-              {logic.allRaces.map((r) => {
-                const displayName = logic.RACE_LIFESPAN[r]?.name || r
-                const icon = logic.getRaceIcon(displayName)
-                const isCustom = logic.customRaces.includes(r)
-                return (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => logic.setRace(r)}
-                    className={`${styles.optionBtn} ${logic.race === r ? styles.optionBtnActive : ''}`}
-                    style={{ position: 'relative' }}
-                  >
-                    <span className={styles.optionIcon}>{icon}</span>
-                    <span className={styles.optionText}>{displayName}</span>
-                    {isCustom && (
-                      <span
-                        className={styles.itemDeleteBtn}
-                        onClick={(e) => { e.stopPropagation(); logic.removeCustomRace(r) }}
-                      >×</span>
-                    )}
-                  </button>
-                )
-              })}
+              <button
+                type="button"
+                onClick={() => logic.setRace('human')}
+                className={`${styles.optionBtn} ${logic.race === 'human' ? styles.optionBtnActive : ''}`}
+              >
+                <span className={styles.optionIcon}>{logic.getRaceIcon('human')}</span>
+                <span className={styles.optionText}>{L.humanRaceText}</span>
+              </button>
               <button
                 type="button"
                 onClick={() => logic.setShowCustomRace(!logic.showCustomRace)}
-                className={styles.optionBtn}
+                className={`${styles.optionBtn} ${logic.customRaces.includes(logic.race) ? styles.optionBtnActive : ''}`}
+              >
+                <span className={styles.optionIcon}>✦</span>
+                <span className={styles.optionText}>{L.customRaceText}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => logic.setShowRaceCatalog(!logic.showRaceCatalog)}
+                className={`${styles.optionBtn} ${logic.race !== 'human' && !logic.customRaces.includes(logic.race) ? styles.optionBtnActive : ''}`}
                 title={L.moreRaceBtnTitle}
               >
                 <span className={styles.optionIcon}>✨</span>
                 <span className={styles.optionText}>{L.moreBtnText}</span>
               </button>
             </div>
-            {logic.raceInfo && logic.race !== 'human' && (
+            {logic.race !== 'human' && (
               <div className={styles.raceInfo}>
-                {logic.raceInfo.name}{L.raceDisplaySeparator}{L.raceInfoPrefix} {logic.raceInfo.baseMaxAge} {L.raceInfoYearUnit}{L.raceDisplaySeparator}{L.raceInfoDecay} {logic.raceInfo.decayMultiplier}x
+                {logic.raceInfo
+                  ? `${logic.raceInfo.name}${L.raceDisplaySeparator}${L.raceInfoPrefix} ${logic.raceInfo.baseMaxAge} ${L.raceInfoYearUnit}${L.raceDisplaySeparator}${L.raceInfoDecay} ${logic.raceInfo.decayMultiplier}x`
+                  : logic.getRaceDisplayName(logic.race)}
               </div>
             )}
 
@@ -171,16 +166,27 @@ export function CharacterCreateDesktop() {
                   />
                   <button className={styles.customAddBtn} onClick={logic.handleAddCustomRace}>{L.customAddBtn}</button>
                 </div>
+              </div>
+            )}
+
+            {logic.showRaceCatalog && (
+              <div className={styles.customPanel}>
+                <input
+                  className={styles.customInput}
+                  placeholder={L.raceSearchPlaceholder}
+                  value={logic.raceSearch}
+                  onChange={(e) => logic.setRaceSearch(e.target.value)}
+                />
                 <div className={styles.moreGrid}>
-                  {Object.entries(logic.ADDITIONAL_RACES).map(([nm, icon]) => (
+                  {logic.raceCatalogOptions.map((item) => (
                     <button
-                      key={nm}
+                      key={item.id}
                       type="button"
-                      onClick={() => logic.setRace(nm)}
-                      className={`${styles.optionBtn} ${logic.race === nm ? styles.optionBtnActive : ''}`}
+                      onClick={() => { logic.setRace(item.id); logic.setShowRaceCatalog(false) }}
+                      className={`${styles.optionBtn} ${logic.race === item.id ? styles.optionBtnActive : ''}`}
                     >
-                      <span className={styles.optionIcon}>{icon}</span>
-                      <span className={styles.optionText}>{nm}</span>
+                      <span className={styles.optionIcon}>{logic.getRaceIcon(item.id)}</span>
+                      <span className={styles.optionText}>{item.name}</span>
                     </button>
                   ))}
                 </div>

@@ -24,6 +24,7 @@ import type {
 } from '@/foundation'
 
 import { coreMemory } from './core-memory-system'
+import { extractEntities } from '../helpers/digest-ledger'
 
 import {
   COMPRESS_L2_MERGE_INTERVAL,
@@ -394,9 +395,9 @@ export class MemoryForgettingSystem implements ISubSystem {
    * 计算两个摘要的相似度（用于检测重复）
    */
   private calculateSimilarity(content1: string, content2: string): number {
-    // 简单的词重叠率计算
-    const words1 = content1.split(/\s+/).filter((w) => w.length > 2)
-    const words2 = content2.split(/\s+/).filter((w) => w.length > 2)
+    // 中文没有天然空格，使用摘要账本同口径实体块计算重叠，避免整句变成一个 token。
+    const words1 = [...extractEntities(content1)]
+    const words2 = [...extractEntities(content2)]
 
     if (words1.length === 0 || words2.length === 0) return 0
 
