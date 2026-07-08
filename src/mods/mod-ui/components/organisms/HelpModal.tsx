@@ -69,75 +69,61 @@ function renderMdToHtml(md: string): string {
 /* ------------------------------------------------------------------ */
 
 function renderChangelogToHtml(text: string): string {
+  const escapeHtml = (value: string) =>
+    value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+
   const htmlParts: string[] = []
-  const lines = text.split('\n')
-  let version = ''
-  let date = ''
-  let currentCategory = ''
-  let inSection = false
-  let inList = false
+  const sections = text
+    .split(/^---\s*$/m)
+    .map((section) => section.trim())
+    .filter(Boolean)
 
-  function flushSection() {
-    if (inSection) { htmlParts.push('</div>'); inSection = false }
-    inList = false
-  }
+  for (const section of sections) {
+    const lines = section.split('\n')
+    const version = lines.find((line) => /^Version:\s*/i.test(line.trim()))?.replace(/^Version:\s*/i, '').trim() ?? ''
+    const date = lines.find((line) => /^Date:\s*/i.test(line.trim()))?.replace(/^Date:\s*/i, '').trim() ?? ''
+    let currentCategory = ''
+    let inList = false
 
-  function showVersionHeader() {
-    if (version && !htmlParts.some(p => p.includes(`>${version}<`))) {
-      htmlParts.push(`<div style="display:flex;align-items:baseline;gap:12px;margin-bottom:8px;border-bottom:1px solid var(--color-border);padding-bottom:6px"><span style="font-size:16px;font-weight:800;color:var(--color-primary)">${version}</span>${date ? `<span style="font-size:12px;color:var(--color-text-tertiary)">${date}</span>` : ''}</div>`)
-    }
-  }
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-    const trimmed = line.trim()
-    const indent = line.length - line.trimStart().length
-
-    if (/^-{3,}$/.test(trimmed)) {
-      flushSection()
-      htmlParts.push('<div style="margin-bottom:28px">')
-      inSection = true
-      version = ''; date = ''; currentCategory = ''
-      continue
+    htmlParts.push('<div style="margin-bottom:28px">')
+    if (version || date) {
+      htmlParts.push(`<div style="display:flex;align-items:baseline;gap:12px;margin-bottom:8px;border-bottom:1px solid var(--color-border);padding-bottom:6px">${version ? `<span style="font-size:16px;font-weight:800;color:var(--color-primary)">${escapeHtml(version)}</span>` : ''}${date ? `<span style="font-size:12px;color:var(--color-text-tertiary)">${escapeHtml(date)}</span>` : ''}</div>`)
     }
 
-    if (!inSection) continue
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed || /^Version:\s*/i.test(trimmed) || /^Date:\s*/i.test(trimmed)) continue
 
-    const versionMatch = trimmed.match(/^Version:\s*(.+)$/i)
-    if (versionMatch) { version = versionMatch[1].trim(); continue }
-    const dateMatch = trimmed.match(/^Date:\s*(.+)$/i)
-    if (dateMatch) { date = dateMatch[1].trim(); continue }
-    if (/^Version:\s*/.test(trimmed) || /^Date:\s*/.test(trimmed)) continue
-
-    if (indent < 4 && (trimmed.endsWith(':') || trimmed.endsWith('：')) && !trimmed.startsWith('-')) {
-      if (inList) { htmlParts.push('</ul>'); inList = false }
-      currentCategory = trimmed.slice(0, -1)
-      continue
-    }
-
-    if (trimmed.startsWith('-')) {
-      showVersionHeader()
-      if (!inList) {
-        if (currentCategory) {
-          htmlParts.push(`<div style="margin:6px 0 4px"><span style="font-size:14px;font-weight:700;color:var(--color-text-primary)">${currentCategory}</span></div>`)
-          currentCategory = ''
-        }
-        htmlParts.push('<ul style="margin:0 0 12px;paddingLeft:20px">')
-        inList = true
+      if ((trimmed.endsWith(':') || trimmed.endsWith('：')) && !trimmed.startsWith('-')) {
+        if (inList) { htmlParts.push('</ul>'); inList = false }
+        currentCategory = trimmed.slice(0, -1)
+        continue
       }
-      htmlParts.push(`<li style="margin-bottom:3px;font-size:13px;line-height:1.6">${trimmed.replace(/^- /, '')}</li>`)
-      continue
-    }
 
-    if (inList) { htmlParts.push('</ul>'); inList = false }
-    if (trimmed && !trimmed.startsWith('Version:') && !trimmed.startsWith('Date:')) {
+      if (trimmed.startsWith('-')) {
+        if (!inList) {
+          if (currentCategory) {
+            htmlParts.push(`<div style="margin:6px 0 4px"><span style="font-size:14px;font-weight:700;color:var(--color-text-primary)">${escapeHtml(currentCategory)}</span></div>`)
+          }
+          htmlParts.push('<ul style="margin:0 0 12px;padding-left:20px">')
+          inList = true
+        }
+        htmlParts.push(`<li style="margin-bottom:3px;font-size:13px;line-height:1.6">${escapeHtml(trimmed.replace(/^-+\s*/, ''))}</li>`)
+        continue
+      }
+
+      if (inList) { htmlParts.push('</ul>'); inList = false }
       currentCategory = ''
-      showVersionHeader()
-      htmlParts.push(`<p style="margin:4px 0;line-height:1.6;font-size:13px;color:var(--color-text-secondary)">${trimmed}</p>`)
+      htmlParts.push(`<p style="margin:4px 0;line-height:1.6;font-size:13px;color:var(--color-text-secondary)">${escapeHtml(trimmed)}</p>`)
     }
+    if (inList) htmlParts.push('</ul>')
+    htmlParts.push('</div>')
   }
 
-  flushSection()
   return htmlParts.join('')
 }
 
@@ -211,6 +197,7 @@ export function HelpModal({ visible, onClose }: HelpModalProps) {
       const res = await fetch(url, { signal: controller.signal })
       if (!res.ok) return null
       const text = await res.text()
+      if (!text.trimStart().startsWith('---')) return null
       return renderChangelogToHtml(text)
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'AbortError') return null

@@ -138,6 +138,7 @@ export function WorldSelectDesktop() {
               <div className={styles.grid}>
                 {logic.savedWorlds.map((cw) => {
                   const isSel = logic.selectedWorld?.id === cw.id
+                  const isPendingDelete = logic.pendingDeleteWorldId === cw.id
                   return (
                     <div key={cw.id} className={`${styles.card} ${isSel ? styles.cardSelected : ''}`}>
                       <div className={styles.savedCardContent} onClick={() => logic.handleSelectCustomWorld(cw)}>
@@ -167,11 +168,29 @@ export function WorldSelectDesktop() {
                           >✏️</button>
                         </span>
                         <span className={styles.cardBadgeBtn}>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); logic.handleDeleteCustom(cw) }}
-                            className={styles.btnDelete}
-                            title={L.deleteTitle}
-                          >🗑️</button>
+                          {isPendingDelete ? (
+                            <span className={styles.deleteConfirmGroup}>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); logic.handleConfirmDeleteCustom(cw) }}
+                                className={styles.btnDeleteConfirm}
+                                title={L.confirmDeleteTitle}
+                              >确认</button>
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); logic.handleCancelDeleteCustom() }}
+                                className={styles.btnDeleteCancel}
+                                title={L.cancelDeleteTitle}
+                              >取消</button>
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); logic.handleDeleteCustom(cw) }}
+                              className={styles.btnDelete}
+                              title={L.deleteTitle}
+                            >🗑️</button>
+                          )}
                         </span>
                       </div>
                     </div>
@@ -183,6 +202,12 @@ export function WorldSelectDesktop() {
                 {L.emptySavedHint}
               </p>
             )
+          )}
+
+          {logic.customFeedback && (
+            <div className={`${styles.feedback} ${logic.customFeedback.type === 'warning' ? styles.feedbackWarning : styles.feedbackSuccess}`}>
+              {logic.customFeedback.text}
+            </div>
           )}
 
           {/* Custom World Form */}

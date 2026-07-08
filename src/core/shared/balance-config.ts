@@ -21,6 +21,14 @@ export type NumericRange = readonly [number, number]
 export const BALANCE_DAYS_PER_YEAR = 365
 
 /**
+ * 短步长最小可感知属性变化。
+ *
+ * 日/月步长按年缩放后会得到小于 1 的上限，AI 输出的明确变化会被钳成近零；
+ * 因此只要本轮确实推进了时间，就允许至少 1 点变化，长步长仍按年上限放大。
+ */
+export const MIN_PERCEPTIBLE_ATTRIBUTE_DELTA = 1
+
+/**
  * 世界难度倍数：数值越高越难。
  *
  * normal = 标准难度；hard/nightmare/hell 逐级提高系统惩罚强度。
@@ -97,6 +105,7 @@ export function getElapsedGameYears(daysPassed: number): number {
  *
  * @example
  * ```ts
+ * resolveCharacterAttributeDeltaLimit('physique', 1) // [-1, 1]
  * resolveCharacterAttributeDeltaLimit('physique', 365) // [-8, 8]
  * resolveCharacterAttributeDeltaLimit('resources', 365) // [-2, 2]
  * ```
@@ -107,7 +116,14 @@ export function resolveCharacterAttributeDeltaLimit(
 ): NumericRange {
   const [min, max] = CHARACTER_ATTRIBUTE_DELTA_LIMITS_PER_YEAR[key]
   const elapsedYears = getElapsedGameYears(daysPassed)
-  return [min * elapsedYears, max * elapsedYears]
+  if (elapsedYears <= 0) return [0, 0]
+
+  const scaledMin = min * elapsedYears
+  const scaledMax = max * elapsedYears
+  return [
+    Math.min(scaledMin, -MIN_PERCEPTIBLE_ATTRIBUTE_DELTA),
+    Math.max(scaledMax, MIN_PERCEPTIBLE_ATTRIBUTE_DELTA),
+  ]
 }
 
 /**

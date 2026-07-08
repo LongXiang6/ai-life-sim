@@ -6,6 +6,7 @@
 
 'use client'
 
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { useCharacterStore } from '@/mods/mod-character'
@@ -188,6 +189,20 @@ export default function GameOverPage() {
   const worldConfig = useWorldStore((s) => s.worldConfig)
   const worldviewId = useGlobalStore((s) => s.worldviewId)
   const narrativeHistory = useEngineStore((s) => s.narrativeHistory)
+  const status = useEngineStore((s) => s.status)
+  const isDead = useCharacterStore((s) => s.health.isDead)
+
+  const canViewGameOver = status === 'complete' || isDead
+
+  useEffect(() => {
+    if (!canViewGameOver) {
+      router.replace(narrativeHistory.length > 0 ? '/game-story' : '/welcome')
+    }
+  }, [canViewGameOver, narrativeHistory.length, router])
+
+  if (!canViewGameOver) {
+    return null
+  }
 
   const allNarratives = narrativeHistory.map((n) => n.text)
 

@@ -1,0 +1,49 @@
+/**
+ * @file effects.css
+ * @description Foundation Effect Tokens: radius, motion, and glass surfaces.
+ */
+
+:root {
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.25rem;
+
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+  --duration-slow: 500ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasized: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --glass-surface-bg: color-mix(in srgb, var(--color-bg-card) 82%, transparent);
+  --glass-elevated-bg: color-mix(in srgb, var(--color-bg-card) 88%, transparent);
+  --glass-modal-bg: color-mix(in srgb, var(--color-bg-card) 94%, transparent);
+  --glass-popout-bg: color-mix(in srgb, var(--color-bg-card) 90%, transparent);
+  --glass-border: var(--color-border);
+  --glass-blur-surface: 12px;
+  --glass-blur-elevated: 18px;
+  --glass-blur-modal: 24px;
+  --glass-blur-popout: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 1ms;
+    --duration-normal: 1ms;
+    --duration-slow: 1ms;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --glass-surface-bg: color-mix(in srgb, var(--color-bg-card) 98%, transparent);
+    --glass-elevated-bg: color-mix(in srgb, var(--color-bg-card) 98%, transparent);
+    --glass-modal-bg: color-mix(in srgb, var(--color-bg-card) 98%, transparent);
+    --glass-popout-bg: color-mix(in srgb, var(--color-bg-card) 98%, transparent);
+    --glass-blur-surface: 0;
+    --glass-blur-elevated: 0;
+    --glass-blur-modal: 0;
+    --glass-blur-popout: 0;
+  }
+}

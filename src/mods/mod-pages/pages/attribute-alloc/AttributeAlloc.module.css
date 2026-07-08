@@ -1,6 +1,6 @@
 /* AttributeAlloc —— 对齐废弃项目 attribute-alloc.module.css */
 
-.inner { max-width: 500px; margin: 0 auto; }
+.inner { max-width: var(--content-max-width); margin: 0 auto; }
 
 /* Header */
 .header { text-align: center; margin-bottom: 20px; }

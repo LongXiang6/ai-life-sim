@@ -83,7 +83,7 @@ function PatternSystemModifiers({ pattern }: { pattern: DestinyPattern }) {
   const items = formatPatternSystemModifiersForDisplay(pattern.systemModifiers)
   if (items.length === 0) {
     return (
-      <div className={styles.slotModifiers}>
+      <div className={cn(styles.slotModifiers, styles.slotModifiersEmpty)}>
         <span className={styles.slotModifierEmpty}>无数值修正</span>
       </div>
     )
@@ -108,64 +108,64 @@ function PatternSystemModifiers({ pattern }: { pattern: DestinyPattern }) {
 
 const LOADING_PHASES = [
   [
-    '正在寻找最快的API节点...',
-    '正在搜索附近的命运服务器...',
-    '呼叫总部，请求命格扫描支援...',
-    '正在校准量子纠缠通信模块...',
+    '正在连接命运织机...',
+    '正在查阅你的世界背景...',
+    '正在整理角色档案...',
+    '正在校准命运纹路...',
     '正在向命运织布机发送请求...',
     '正在翻阅《命运大百科》第42卷...',
-    '正在唤醒沉睡的占卜精灵...',
+    '正在唤醒沉睡的占卜师...',
     '正在点亮水晶球，准备占卜...',
     '命运织布机正在穿针引线...',
     '正在打开传送门，连接异世界...',
-    '正在与命运服务器进行三次握手...',
-    '正在检测最佳路由路径...',
-    'SSL/TLS 证书验证通过，安全链路已就绪...',
-    '正在向云端的预言机发起连接请求...',
-    'DNS解析完成，正在跳转命运主机...',
-    '正在通过六道防火墙的层层审查...',
-    '安全令牌验证中，请稍候...',
-    '与命运节点的Ping值仅为12ms，连接优秀！',
+    '正在确认命格生成条件...',
+    '正在选择合适的推演路径...',
+    '安全连接已就绪...',
+    '正在向预言机发起请求...',
+    '正在进入命运推演流程...',
+    '正在通过六道试炼...',
+    '正在验证本次请求...',
+    '命运链路状态良好...',
   ],
   [
-    '节点已找到，开始建立TLS加密链路',
-    '链路构建中，协商加密参数',
-    '链路构建完成，准备发送请求',
-    '正在序列化你的输入数据',
+    '连接已建立，准备提交档案',
+    '正在整理世界与角色信息',
+    '准备发送命格推演请求',
+    '正在打包你的输入内容',
     '正在把你的信息打包成命运卷轴...',
     '命运女神正在审阅你的档案...',
     '正在根据你的命盘推演命格...',
-    '你的天命正在被一群AI猫头鹰分类中...',
-    '数据压缩完成，压缩比高达99.9%...',
-    '正在对输入数据进行量子编码...',
-    '已开启端到端加密，任何人都无法窃听...',
-    'HTTP/3 协议加速中，延迟再降低30%...',
-    '正在构建GraphQL查询语句...',
-    '请求头已设置，Authorization: Bearer ****...',
-    '数据分片完成，共16个分片，并行发送中...',
-    '已发送第1批数据包，等待ACK确认...',
-    '所有数据包已确认接收，传输零丢包！',
+    '你的天命正在被占星师分类中...',
+    '命运卷轴已经压缩完成...',
+    '正在为命格候选排序...',
+    '正在保护本次推演内容...',
+    '正在加速命运回响...',
+    '正在构建推演问题...',
+    '请求信息已经准备完毕...',
+    '正在分批提交推演材料...',
+    '第一批材料已送达，等待回应...',
+    '所有材料已确认接收...',
     '正在用摩斯密码复核关键参数...',
   ],
   [
-    '模型机房已确认，排队处理中',
-    '大模型唤醒，加载你的会话上下文',
-    '推理引擎预热，开始生成第一个token',
-    '生成中：已经写了 30% ...',
+    '预言机已回应，排队推演中',
+    '正在读取你的会话背景',
+    '正在预热命格推演',
+    '生成中：已经完成一部分...',
     '正在组织更流畅的表达方式',
-    'GPU集群已全部启动，算力拉满...',
-    '正在加载角色与世界设定的向量表示...',
-    '注意力机制正在扫描你的命运参数...',
-    'Transformer层数：96层，参数量：1.8万亿...',
-    '温度参数调至0.8，创意与精准兼得...',
-    'Top-P采样中，正在筛选最优命格组合...',
-    '模型正在进行自回归推理，每步都深思熟虑...',
-    '正在进行Beam Search，保留前5条最优路径...',
-    '生成速度：每秒128个token，性能强劲...',
-    '已生成的内容正在经过RLHF偏好对齐...',
+    '推演阵列已经启动...',
+    '正在理解角色与世界设定...',
+    '正在扫描你的命运参数...',
+    '正在展开多层命格推演...',
+    '正在平衡创意与合理性...',
+    '正在筛选更契合的命格组合...',
+    '模型正在逐步推敲结果...',
+    '正在保留更合适的候选路径...',
+    '生成速度稳定，继续等待...',
+    '正在让结果更符合玩家体验...',
     '模型正在反复推敲命格的合理性与趣味性...',
-    '激活函数 ReLU 正在高速运转...',
-    '嵌入层正在计算命格与角色间的匹配度...',
+    '命运纹路正在高速展开...',
+    '正在计算命格与角色的匹配度...',
   ],
   [
     '生成完毕，开始封装返回数据',
@@ -182,7 +182,7 @@ const LOADING_PHASES = [
     '等待总是值得的，就像等待流星...',
     '正在召唤幸运女神进行最后加持...',
     '正在确认命格没有被调包...',
-    'JSON解析完成，数据结构完整无损...',
+    '生成结果已解析，正在检查完整性...',
     '正在对命格进行最终的去重与排序...',
     'CRC32校验通过，数据完整性100%...',
     '正在将结果渲染为漂亮的卡片样式...',
@@ -844,7 +844,7 @@ export default function TalentDrawPage() {
                 <span className={isFull ? styles.headerStatsCountFull : styles.headerStatsCount}>
                   {selectedData.length}/{DESTINY_PATTERN_SELECT_COUNT}
                 </span>
-                <span className={styles.headerStatsPool}> · 命格库：{localPoolSize}条</span>
+                <span className={styles.headerStatsPool}> · 本次候选：{slots.length}条 · 本地库：{localPoolSize}条</span>
               </p>
             </div>
 
@@ -857,9 +857,11 @@ export default function TalentDrawPage() {
                   if (p) {
                     const rc = DESTINY_PATTERN_RARITY_CONFIG[p.rarity]
                     return (
-                      <div
+                      <button
+                        type="button"
                         key={p.id}
                         onClick={() => handleDeselect(p.id)}
+                        aria-label={`取消选择命格 ${p.name}`}
                         className={cn(getGlowClass(p.rarity), styles.slot, styles.slotAvailable)}
                         style={{
                           border: `2px solid ${rc.color}`,
@@ -880,7 +882,7 @@ export default function TalentDrawPage() {
                           <PatternAttrBonus pattern={p} />
                           <PatternSystemModifiers pattern={p} />
                         </div>
-                      </div>
+                      </button>
                     )
                   }
                   return (
@@ -912,9 +914,12 @@ export default function TalentDrawPage() {
                   const rc = DESTINY_PATTERN_RARITY_CONFIG[pattern.rarity]
                   const canClick = !isSlotSelected && !isFull
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={pattern.id}
-                      onClick={() => canClick && handleSlotClick(idx)}
+                      onClick={() => handleSlotClick(idx)}
+                      disabled={!canClick}
+                      aria-label={canClick ? `选择命格 ${pattern.name}` : `命格 ${pattern.name} 已不可选择`}
                       className={cn(
                         getGlowClass(pattern.rarity),
                         styles.slot,
@@ -944,7 +949,7 @@ export default function TalentDrawPage() {
                         {!isSlotSelected && <PatternAttrBonus pattern={pattern} />}
                         {!isSlotSelected && <PatternSystemModifiers pattern={pattern} />}
                       </div>
-                    </div>
+                    </button>
                   )
                 })}
               </div>

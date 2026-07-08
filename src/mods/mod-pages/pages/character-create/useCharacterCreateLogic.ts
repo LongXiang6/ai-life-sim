@@ -15,6 +15,7 @@ import {
   LIFESPAN_BG_BONUS_KEYWORDS, filterDigitsOnly,
 } from '@/mods/mod-character'
 import { useWorldStore } from '@/mods/mod-world'
+import { detectStartingAge } from '@/core/shared'
 
 import { useCharacterCreateForm, ATTRIBUTES } from './useCharacterCreateForm'
 
@@ -49,12 +50,6 @@ const BG_PRESET_ICONS: Record<string, string> = {
   '学者': '📚', '街头': '🏚️', '农家': '🌾', '流浪者': '🚶',
 }
 
-/** 穿越者关键词 */
-const TRANSMIGRATOR_KEYWORDS = [
-  '穿越', '魂穿', '重生', '转世', '夺舍', '附身', '觉醒',
-  '系统', '绑定', '降临', '投影', '异世界', '魂越',
-]
-
 // ============================================================
 // 帮助函数
 // ============================================================
@@ -87,15 +82,6 @@ function genderOptionToValue(option: string): 'male' | 'female' {
   if (option === '男') return 'male'
   if (option === '女') return 'female'
   return option as 'male' | 'female'
-}
-
-function detectStartingAge(background: string): number {
-  const isTransmigrator = TRANSMIGRATOR_KEYWORDS.some((kw) => background.includes(kw))
-  if (isTransmigrator) {
-    if (background.includes('婴儿') || background.includes('降生') || background.includes('出生')) return 0
-    return 18
-  }
-  return 0
 }
 
 function clampStartingAge(age: number, maxAge: number): number {
@@ -367,9 +353,12 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
     const startAge = manualStartingAge
       ? parseInt(manualStartingAge, 10)
       : detectStartingAge(background)
+    const resolvedStartAge = isNaN(startAge) ? detectStartingAge(background) : startAge
     setComputedLifespan(maxAge)
-    setComputedStartingAge(isNaN(startAge) ? detectStartingAge(background) : startAge)
-  }, [race, background, manualLifespan, manualStartingAge])
+    setComputedStartingAge(resolvedStartAge)
+    setManualLifespan(String(maxAge))
+    setManualStartingAge(String(clampStartingAge(resolvedStartAge, maxAge)))
+  }, [race, background, manualLifespan, manualStartingAge, setManualLifespan, setManualStartingAge])
 
   // ---- 自定义性别操作 ----
   const handleAddCustomGender = useCallback(() => {
@@ -391,8 +380,10 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
     if (v && !allRaces.includes(v)) {
       setCustomRaces((prev) => [...prev, v])
       setRace(v)
+      setRaceSearch('')
       setCustomRaceInput('')
       setShowCustomRace(false)
+      setShowRaceCatalog(false)
     }
   }, [customRaceInput, allRaces, setRace])
 
@@ -403,9 +394,20 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
 
   // ---- 背景预设操作 ----
   const handleAddBgPreset = useCallback(() => {
-    const n = bgPresetNameInput.trim()
-    if (n && background.trim() && !bgPresets[n]) {
-      setBgPresets((prev) => ({ ...prev, [n]: background }))
+    const content = background.trim()
+    if (!content) return
+
+    const inputName = bgPresetNameInput.trim()
+    const fallbackName = `背景预设${Object.keys(bgPresets).length + 1}`
+    let n = inputName || fallbackName
+    let suffix = 2
+    while (bgPresets[n]) {
+      n = `${inputName || fallbackName}-${suffix}`
+      suffix++
+    }
+
+    if (n) {
+      setBgPresets((prev) => ({ ...prev, [n]: content }))
       setBgPresetNameInput('')
       setShowBgPresetInput(false)
     }

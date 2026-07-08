@@ -497,6 +497,7 @@ export class OrchestratorSystem implements ISubSystem {
       ...this.state,
       streamingNarrative: '',
       narrativeError: null,
+      lastAutoSaveRound: Math.max(prev.lastAutoSaveRound ?? 0, this.state.lastAutoSaveRound ?? 0),
       resolvedBranches: prev.resolvedBranches,
       forceBranchNext: prev.forceBranchNext,
     }))

@@ -11,15 +11,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 
 import { useIsMobile } from '@/foundation'
-import { MAX_WIDTH } from '../../tokens'
+import { MAX_WIDTH, PAGE_PADDING } from '../../tokens'
 
 // ============================================================
 // 常量（对齐废弃项目 MOBILE 常量）
 // ============================================================
 
 const MOBILE = {
-  barPaddingV: '12px',
-  barPaddingH: '16px',
   barGap: '8px',
   btnHeight: '42px',
   btnPadding: '0 14px',
@@ -133,8 +131,9 @@ export function BottomActionBar({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: isMobile ? `${MOBILE.barPaddingV} ${MOBILE.barPaddingH}` : '16px 32px',
+    padding: PAGE_PADDING.bottomBar,
     background: 'var(--color-bg-primary)',
+    borderTop: '1px solid var(--color-border)',
     zIndex: 100,
   }
 
@@ -146,8 +145,7 @@ export function BottomActionBar({
     gap: isMobile ? MOBILE.barGap : '12px',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderTop: '1px solid var(--color-border)',
-    paddingTop: isMobile ? MOBILE.barPaddingV : '16px',
+    paddingTop: 0,
   }
 
   const backBtnStyle: React.CSSProperties = {

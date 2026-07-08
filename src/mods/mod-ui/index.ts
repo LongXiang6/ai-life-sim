@@ -108,5 +108,5 @@ export type { PageErrorBoundaryProps } from './components/organisms/PageErrorBou
 
 export { NPCRelationshipPanel } from './components/organisms/NPCRelationshipPanel'
 
-export { TOKENS, COLOR_TOKENS, SPACING_TOKENS, TYPOGRAPHY_TOKENS, MAX_WIDTH } from './tokens'
+export { TOKENS, COLOR_TOKENS, SPACING_TOKENS, TYPOGRAPHY_TOKENS, MAX_WIDTH, PAGE_PADDING } from './tokens'
 export type { ColorToken, SpacingToken, FontSizeToken, FontWeightToken } from './tokens'

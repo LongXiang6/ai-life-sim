@@ -12,7 +12,7 @@
 
 import React from 'react'
 import { useIsMobile } from '@/foundation'
-import { MAX_WIDTH } from '../../tokens'
+import { MAX_WIDTH, PAGE_PADDING } from '../../tokens'
 
 export interface PageScrollProps {
   children: React.ReactNode
@@ -32,7 +32,8 @@ export function PageScroll({ children, maxWidth = MAX_WIDTH, className = '' }: P
       position: 'relative',
       zIndex: 1,
       height: '100vh',
-      padding: isMobile ? '16px 16px 100px' : '24px 24px 120px',
+      padding: isMobile ? PAGE_PADDING.mobile : PAGE_PADDING.desktop,
+      background: 'var(--color-bg)',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',

@@ -221,6 +221,7 @@ export function loadStages(
           config: { ...aiConfig, model },
           pool: 'narrative' as const,
           strictSchema: true,
+          jsonMode: false,
           sessionId,
           apiKey: customKey || undefined,
           logContext,

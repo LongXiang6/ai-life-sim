@@ -122,6 +122,27 @@
 .savedCardActions { display: flex; gap: 4px; margin-top: 8px; justify-content: center; align-items: center; }
 .btnEdit { background: none; border: none; font-size: 14px; cursor: pointer; color: var(--color-primary); padding: 2px 4px; }
 .btnDelete { background: none; border: none; font-size: 14px; cursor: pointer; color: var(--color-error); padding: 2px 4px; }
+.btnDeleteConfirm,
+.btnDeleteCancel {
+  min-height: 28px;
+  padding: 2px 8px;
+  border-radius: 7px;
+  border: 1px solid var(--color-border);
+  font-size: 11px;
+  cursor: pointer;
+}
+.btnDeleteConfirm { color: var(--color-error); border-color: var(--color-error); background: color-mix(in srgb, var(--color-error) 8%, transparent); }
+.btnDeleteCancel { color: var(--color-text-secondary); background: var(--color-bg-primary); }
+.feedback {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--color-border);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.feedbackSuccess { color: var(--color-success); background: color-mix(in srgb, var(--color-success) 8%, transparent); }
+.feedbackWarning { color: var(--color-warning); background: color-mix(in srgb, var(--color-warning) 10%, transparent); }
 
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }

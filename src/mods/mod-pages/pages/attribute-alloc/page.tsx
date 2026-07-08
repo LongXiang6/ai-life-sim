@@ -20,7 +20,7 @@ import { useRouter } from 'next/navigation'
 import { configStore } from '@/core'
 import { useCharacterStore } from '@/mods/mod-character'
 import { useWorldStore } from '@/mods/mod-world'
-import { BottomActionBar } from '@/mods/mod-ui'
+import { BottomActionBar, PageScroll } from '@/mods/mod-ui'
 
 import styles from './AttributeAlloc.module.css'
 
@@ -227,7 +227,7 @@ export default function AttributeAllocPage() {
 
   return (
     <>
-      <div style={{ height: '100vh', overflowY: 'auto', background: 'var(--color-bg)', padding: '24px 32px 120px' }}>
+      <PageScroll>
         <div className={styles.inner}>
           {/* Header */}
           <div className={styles.header}>
@@ -285,7 +285,7 @@ export default function AttributeAllocPage() {
             })}
           </div>
         </div>
-      </div>
+      </PageScroll>
 
       {/* 底部操作栏 */}
       <BottomActionBar

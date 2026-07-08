@@ -63,6 +63,8 @@ export class LifespanSystem implements ISubSystem {
 
   /** 本轮减寿 UI 提示（collectStateUpdate 写入 summary 后清空） */
   private _pendingReductionNote: string | null = null
+  /** 最近一次结构化寿命增量所在轮次；同轮跳过关键词兜底，避免重复减寿。 */
+  private _lastStructuredDeltaRound = -1
 
   collectState(context: RoundContext): SubSystemState {
     const age = this.getCharacterAge(context)
@@ -107,7 +109,7 @@ export class LifespanSystem implements ISubSystem {
     }
   }
 
-  applyChanges(changes: SubSystemChanges, _context: RoundContext): void {
+  applyChanges(changes: SubSystemChanges, context: RoundContext): void {
     if (!changes || typeof changes !== 'object') return
     if (changes.id !== this.id) return
     if (!changes.changes || typeof changes.changes !== 'object' || Array.isArray(changes.changes)) return
@@ -152,6 +154,7 @@ export class LifespanSystem implements ISubSystem {
 
     // 结构化寿命增量：减寿/增寿由 LifespanSystem 自己落地，编排器不得二次计算 maxAge。
     if (typeof ch.lifespanDelta === 'number') {
+      this._lastStructuredDeltaRound = getRoundSequence(context)
       this.state.maxAge = round(clamp(this.state.maxAge + ch.lifespanDelta, 1, MAX_LIFESPAN_CAP))
       if (ch.lifespanDelta < 0) {
         this._pendingReductionNote = `结构化寿命变化（${ch.lifespanDelta}年）`
@@ -193,6 +196,7 @@ export class LifespanSystem implements ISubSystem {
     this.background = ''
     this._lastProcessedRound = -1
     this._pendingReductionNote = null
+    this._lastStructuredDeltaRound = -1
   }
 
   // -------- 内部方法 --------
@@ -295,6 +299,7 @@ export class LifespanSystem implements ISubSystem {
 
   private checkLifespanReduction(context: RoundContext): void {
     if (!LIFESPAN_NARRATIVE_REDUCTION_ENABLED) return
+    if (this._lastStructuredDeltaRound === getRoundSequence(context)) return
 
     const narrative = context.lastNarrativeText
     if (!narrative?.trim()) return

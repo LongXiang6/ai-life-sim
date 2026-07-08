@@ -6,6 +6,8 @@
 
 import type { DestinyPattern, DestinyPatternRarity, DestinyPatternPolarity, RaceLifespanConfig, LifeStageId, LifeStageConfig, MoralityLevel, BreakthroughPathway, DeathCause, } from './types'
 
+export { TRANSMIGRATOR_KEYWORDS } from '@/core/shared'
+
 // ============================================================
 // 基础属性（对齐废弃项目 attribute-config.ts）
 // ============================================================
@@ -477,12 +479,6 @@ export const LIFESPAN_BG_BONUS_KEYWORDS: Record<string, number> = {
   '系统无限寿命': 100000, '寿命无限': 100000, '寿命锁定': 100000,
   '寿元无限': 100000, '不老': 3000, '冻龄': 2000,
 }
-
-/** 穿越者检测关键词（对齐废弃项目 TRANSMIGRATOR_KEYWORDS，13 个） */
-export const TRANSMIGRATOR_KEYWORDS: string[] = [
-  '穿越', '魂穿', '重生', '转世', '夺舍', '附身', '觉醒', '系统', '绑定',
-  '降临', '投影', '异世界', '魂越',
-]
 
 /** 开始检查突破的年龄比例阈值（age/maxAge > 0.85） */
 export const BREAKTHROUGH_AGE_RATIO = 0.85

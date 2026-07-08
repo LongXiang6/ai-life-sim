@@ -16,10 +16,19 @@
   --spacing-1: 0.25rem;
   --spacing-2: 0.5rem;
   --spacing-3: 0.75rem;
+  --spacing-3\.5: 0.875rem;
   --spacing-4: 1rem;
   --spacing-5: 1.25rem;
   --spacing-6: 1.5rem;
   --spacing-8: 2rem;
   --spacing-10: 2.5rem;
   --spacing-12: 3rem;
+
+  /* 常用像素档位别名：用于把页面内联 px 间距收敛到 token。 */
+  --spacing-px-12: 0.75rem;
+  --spacing-px-14: 0.875rem;
+  --spacing-px-16: 1rem;
+  --spacing-px-20: 1.25rem;
+  --spacing-px-24: 1.5rem;
+  --spacing-px-32: 2rem;
 }

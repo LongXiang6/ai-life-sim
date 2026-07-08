@@ -25,6 +25,8 @@ export default defineMod({
     { path: '/attribute-alloc', page: 'attribute-alloc' },
     { path: '/fate-preview', page: 'fate-preview' },
     { path: '/game-story', page: 'game-story' },
+    { path: '/save-manager', page: 'save-manager' },
+    { path: '/debug-log', page: 'debug-log' },
     { path: '/game-over', page: 'game-over' },
   ],
   stores: [],

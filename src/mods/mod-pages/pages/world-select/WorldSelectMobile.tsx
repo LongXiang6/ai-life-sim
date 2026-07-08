@@ -126,6 +126,7 @@ export function WorldSelectMobile() {
               <div className={styles.presetGrid}>
                 {logic.savedWorlds.map((cw) => {
                   const isSel = logic.selectedWorld?.id === cw.id
+                  const isPendingDelete = logic.pendingDeleteWorldId === cw.id
                   return (
                     <div key={cw.id} className={`${styles.presetCard} ${isSel ? styles.presetCardSelected : ''}`}>
                       <div onClick={() => logic.handleSelectCustomWorld(cw)}>
@@ -145,8 +146,29 @@ export function WorldSelectMobile() {
                         )}
                         <button onClick={(e) => { e.stopPropagation(); logic.handleStartEdit(cw) }}
                           className={styles.btnEdit} title={L.editTitle}>✏️</button>
-                        <button onClick={(e) => { e.stopPropagation(); logic.handleDeleteCustom(cw) }}
-                          className={styles.btnDelete} title={L.deleteTitle}>🗑️</button>
+                        {isPendingDelete ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); logic.handleConfirmDeleteCustom(cw) }}
+                              className={styles.btnDeleteConfirm}
+                              title={L.confirmDeleteTitle}
+                            >确认</button>
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); logic.handleCancelDeleteCustom() }}
+                              className={styles.btnDeleteCancel}
+                              title={L.cancelDeleteTitle}
+                            >取消</button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); logic.handleDeleteCustom(cw) }}
+                            className={styles.btnDelete}
+                            title={L.deleteTitle}
+                          >🗑️</button>
+                        )}
                       </div>
                     </div>
                   )
@@ -157,6 +179,12 @@ export function WorldSelectMobile() {
                 {L.emptySavedHint}
               </p>
             )
+          )}
+
+          {logic.customFeedback && (
+            <div className={`${styles.feedback} ${logic.customFeedback.type === 'warning' ? styles.feedbackWarning : styles.feedbackSuccess}`}>
+              {logic.customFeedback.text}
+            </div>
           )}
 
           {/* 框架：世界名称/详细介绍/年代纪元/自动年号系统等全部字段，与桌面端一致 */}

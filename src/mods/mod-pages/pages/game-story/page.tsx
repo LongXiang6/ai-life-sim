@@ -153,6 +153,7 @@ export default function GamePage() {
   const narrativeEndRef = useRef<HTMLDivElement>(null)
   const prevEventsLenRef = useRef(0)
   const toasts = useToastStore((s) => s.toasts)
+  const addToast = useToastStore((s) => s.addToast)
   const dismissToast = useToastStore((s) => s.dismissToast)
 
   // 自动滚动到最新叙事（对齐废弃项目）
@@ -311,7 +312,8 @@ export default function GamePage() {
   // 手动存档处理
   const handleManualSave = useCallback(async (slot: number, name: string) => {
     await saveCurrentGameToSlot(slot, name, worldConfig?.name ?? '', characterName)
-  }, [characterName, worldConfig?.name])
+    addToast('success', `已保存到槽位 ${slot}`)
+  }, [addToast, characterName, worldConfig?.name])
 
   const preGenHint = useMemo(() => {
     if (preGenStatus.maxRounds <= 0) return null
@@ -555,6 +557,9 @@ export default function GamePage() {
               {opt.label}
             </button>
           ))}
+          <p className={styles.timeStepMenuHint}>
+            从年/季/月切到更细粒度时，下一轮会先进入未叙事周期，避免重写已经覆盖的时间。
+          </p>
         </div>,
         document.body,
       )}

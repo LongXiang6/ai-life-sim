@@ -10,6 +10,8 @@ import { useMemo, useState, useCallback } from 'react'
 
 import { saveManager } from '@/core/storage/save-manager'
 
+import styles from './SaveDialog.module.css'
+
 interface SaveDialogProps {
   open: boolean
   onClose: () => void
@@ -70,7 +72,7 @@ export function SaveDialog({ open, onClose, onSave, defaultWorldName, defaultCha
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      className={styles.overlay}
       onClick={onClose}
       onKeyDown={handleKeyDown}
       role="dialog"
@@ -78,83 +80,80 @@ export function SaveDialog({ open, onClose, onSave, defaultWorldName, defaultCha
       aria-label="存档"
     >
       <div
-        className="w-full max-w-sm mx-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg)] shadow-2xl p-6"
+        className={styles.dialog}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-lg font-semibold text-[var(--color-text-primary)] mb-4">保存存档</h2>
+        <h2 className={styles.title}>保存存档</h2>
 
         {/* 槽位选择 */}
-        <div className="mb-4">
-          <label className="block text-sm text-[var(--color-text-secondary)] mb-2">存档槽位</label>
-          <div className="flex gap-2">
+        <div className={styles.section}>
+          <label className={styles.label}>存档槽位</label>
+          <div className={styles.slotGrid}>
             {[1, 2, 3, 4, 5].map((s) => {
               const occupied = saveManager.slotExists(s)
               return (
                 <button
                   key={s}
+                  type="button"
                   onClick={() => {
                     setSlot(s)
                     setMessage(saveManager.slotExists(s) ? { type: 'warning', text: `槽位 ${s} 已有存档，保存会覆盖原内容` } : null)
                   }}
-                  className={`flex-1 py-2 rounded-lg border text-sm transition-colors ${
-                    activeSlot === s
-                      ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]'
-                      : occupied
-                        ? 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-tertiary)]'
-                        : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)]/50'
-                  }`}
+                  className={`${styles.slotBtn} ${activeSlot === s ? styles.slotBtnActive : ''} ${occupied ? styles.slotBtnOccupied : ''}`}
                 >
                   {s}
-                  {occupied && <span className="block text-xs">已占用</span>}
+                  {occupied && <span className={styles.slotOccupiedText}>已占用</span>}
                 </button>
               )
             })}
           </div>
-          <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
+          <p className={styles.hint}>
             {nextSlot >= 1 ? `推荐使用槽位 ${nextSlot}` : '所有槽位均已占用，请选择一个要覆盖的槽位'}
           </p>
         </div>
 
         {/* 存档命名 */}
-        <div className="mb-6">
-          <label className="block text-sm text-[var(--color-text-secondary)] mb-2">存档名称</label>
+        <div className={styles.section}>
+          <label className={styles.label}>存档名称</label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={suggestedName}
-            className="w-full px-3 py-2 text-sm bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)]"
+            className={styles.nameInput}
             autoFocus
           />
           {defaultWorldName && defaultCharacterName && (
-            <p className="text-xs text-[var(--color-text-tertiary)] mt-1">
+            <p className={styles.hint}>
               {defaultWorldName} · {defaultCharacterName}
             </p>
           )}
           {occupied && !message && (
-            <p className="text-xs text-[var(--color-warning)] mt-2">
+            <p className={styles.warningText}>
               槽位 {activeSlot} 已有存档，保存会覆盖原内容。
             </p>
           )}
           {message && (
-            <p className={`text-xs mt-2 ${message.type === 'error' ? 'text-[var(--color-error)]' : message.type === 'success' ? 'text-[var(--color-success)]' : 'text-[var(--color-warning)]'}`}>
+            <p className={`${styles.message} ${message.type === 'error' ? styles.messageError : message.type === 'success' ? styles.messageSuccess : styles.messageWarning}`}>
               {message.text}
             </p>
           )}
         </div>
 
         {/* 操作按钮 */}
-        <div className="flex gap-3">
+        <div className={styles.actions}>
           <button
+            type="button"
             onClick={onClose}
-            className="flex-1 py-2.5 rounded-lg border border-[var(--color-border)] text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
+            className={styles.cancelBtn}
           >
             取消
           </button>
           <button
+            type="button"
             onClick={handleSave}
             disabled={saving || activeSlot < 1}
-            className="flex-1 py-2.5 rounded-lg bg-[var(--color-primary)] text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+            className={styles.saveBtn}
           >
             {saving ? '保存中...' : activeSlot < 1 ? '请选择槽位' : occupied ? `覆盖存档 ${activeSlot}` : '保存'}
           </button>

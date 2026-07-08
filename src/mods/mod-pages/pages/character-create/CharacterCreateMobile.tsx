@@ -6,7 +6,7 @@
  * @mod mod-pages
  */
 
-import { BottomActionBar } from '@/mods/mod-ui'
+import { BottomActionBar, PageScroll } from '@/mods/mod-ui'
 import { useCharacterCreateLogic } from './useCharacterCreateLogic'
 
 import styles from './CharacterCreateMobile.module.css'
@@ -17,7 +17,7 @@ export function CharacterCreateMobile() {
 
   return (
     <>
-      <div style={{ minHeight: '100vh', paddingBottom: 80 }}>
+      <PageScroll>
         <div className={styles.container}>
           <div className={styles.inner}>
             {/* 布局：移动端居中标题 */}
@@ -323,7 +323,7 @@ export function CharacterCreateMobile() {
             </div>
           </div>
         </div>
-      </div>
+      </PageScroll>
 
       <BottomActionBar
         onBack={logic.handleBack}

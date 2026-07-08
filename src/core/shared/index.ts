@@ -14,3 +14,4 @@ export * from './character-utils';
 export * from './world-utils';
 export * from './narrative-utils';
 export * from './balance-config';
+export * from './character-origin';

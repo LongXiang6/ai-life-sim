@@ -9,7 +9,7 @@
 
 /* 布局标准源 */
 
-import { BottomActionBar } from '@/mods/mod-ui'
+import { BottomActionBar, PageScroll } from '@/mods/mod-ui'
 import { useCharacterCreateLogic } from './useCharacterCreateLogic'
 
 import styles from './CharacterCreateDesktop.module.css'
@@ -20,7 +20,7 @@ export function CharacterCreateDesktop() {
 
   return (
     <>
-      <div style={{ height: '100vh', overflowY: 'auto', background: 'var(--color-bg)', padding: '24px 32px 120px' }}>
+      <PageScroll>
         <div className={styles.inner}>
           {/* Header */}
           <div className={styles.header}>
@@ -314,7 +314,7 @@ export function CharacterCreateDesktop() {
             </div>
           </div>
         </div>
-      </div>
+      </PageScroll>
 
       <BottomActionBar
         onBack={logic.handleBack}

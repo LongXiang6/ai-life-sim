@@ -12,10 +12,9 @@ import {
   MAX_ATTRIBUTE_VALUE,
   ATTR_HARD_CAP,
   TRANSCENDENT_ATTR_KEYS,
-  TRANSMIGRATOR_KEYWORDS,
 } from '../constants'
 import { round } from '../utils'
-import { clamp, clampCharacterAttributeDelta } from '@/core/shared'
+import { clamp, clampCharacterAttributeDelta, detectStartingAge } from '@/core/shared'
 import { getAttrSemantic } from '../utils/attr-tiers'
 
 export class CharacterBaseSystem implements ISubSystem {
@@ -76,7 +75,7 @@ export class CharacterBaseSystem implements ISubSystem {
 
     // 背景文本：用于穿越者检测，自动设置起始年龄
     if (typeof ch.background === 'string') {
-      this.state.startingAge = this.detectStartingAge(ch.background)
+      this.state.startingAge = detectStartingAge(ch.background)
     }
 
     // 直接设置起始年龄（手动覆盖，优先级高于自动检测）
@@ -227,31 +226,4 @@ export class CharacterBaseSystem implements ISubSystem {
     return `${icons[key] ?? ''}${names[key] ?? key}${value}`
   }
 
-  /**
-   * 检测穿越者身份（对齐废弃项目 detectTransmigrator）
-   * 13 个关键词：穿越/魂穿/重生/转世/夺舍/附身/觉醒/系统/绑定/降临/投影/异世界/魂越
-   */
-  private detectTransmigrator(background: string): boolean {
-    if (!background) return false
-    return TRANSMIGRATOR_KEYWORDS.some(kw => background.includes(kw))
-  }
-
-  /**
-   * 检测起始年龄（对齐废弃项目 detectStartingAge）
-   * - 穿越者默认 18 岁（带有前世记忆的成年人）
-   * - 魂穿/魂越到婴儿/出生/降生场景的起始年龄为 0
-   * - 原生者起始年龄为 0
-   */
-  private detectStartingAge(background: string): number {
-    if (!background) return 0
-    if (this.detectTransmigrator(background)) {
-      // 魂穿/魂越到婴儿场景的特殊处理
-      if (background.includes('魂穿') || background.includes('魂越')) {
-        const infantMatch = background.match(/(?:魂穿|魂越).*?(?:婴儿|幼|0岁|出生|降生|转生)/)
-        if (infantMatch) return 0
-      }
-      return 18
-    }
-    return 0
-  }
 }

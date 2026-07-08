@@ -90,6 +90,8 @@ export const LABELS = {
   // ---- Card actions ----
   editTitle: '编辑',
   deleteTitle: '删除',
+  confirmDeleteTitle: '确认删除',
+  cancelDeleteTitle: '取消删除',
 
   // ---- Form buttons ----
   saveEditTitle: '保存编辑',
@@ -157,6 +159,8 @@ export function useWorldSelectLogic() {
     }
   })
   const [editingWorldId, setEditingWorldId] = useState<string | null>(null)
+  const [pendingDeleteWorldId, setPendingDeleteWorldId] = useState<string | null>(null)
+  const [customFeedback, setCustomFeedback] = useState<{ type: 'success' | 'warning'; text: string } | null>(null)
 
   // ---- 持久化已保存世界 ----
   const persistSaved = useCallback((worlds: SavedCustomWorld[]) => {
@@ -201,6 +205,7 @@ export function useWorldSelectLogic() {
   const handleSelectPreset = useCallback((w: PresetWorld) => {
     setSelectedWorld(w)
     setEditingWorldId(null)
+    setPendingDeleteWorldId(null)
   }, [])
 
   // ============================================================
@@ -222,6 +227,7 @@ export function useWorldSelectLogic() {
       icon: '🌍',
     })
     setEditingWorldId(null)
+    setPendingDeleteWorldId(null)
   }, [])
 
   // ============================================================
@@ -230,6 +236,7 @@ export function useWorldSelectLogic() {
 
   const resetCustomForm = useCallback(() => {
     setEditingWorldId(null)
+    setPendingDeleteWorldId(null)
     setCustomName('')
     setCustomDesc('')
     setCustomEraName('')
@@ -243,7 +250,10 @@ export function useWorldSelectLogic() {
   }, [])
 
   const handleAddCustom = useCallback(() => {
-    if (!customName.trim() || !customDesc.trim()) return
+    if (!customName.trim() || !customDesc.trim()) {
+      setCustomFeedback({ type: 'warning', text: '请先填写世界名称和详细介绍。' })
+      return
+    }
     const worldCode = allocateWorldCode()
     const signedYear = (parseInt(customEraYear) || 1) * (isBC ? -1 : 1)
     const newWorld: SavedCustomWorld = {
@@ -261,6 +271,7 @@ export function useWorldSelectLogic() {
     const updated = [...savedWorlds, newWorld]
     persistSaved(updated)
     resetCustomForm()
+    setCustomFeedback({ type: 'success', text: `已保存自定义世界「${newWorld.name}」。` })
     setSelectedWorld({
       id: newWorld.id,
       name: newWorld.name,
@@ -282,6 +293,8 @@ export function useWorldSelectLogic() {
 
   const handleStartEdit = useCallback((cw: SavedCustomWorld) => {
     setEditingWorldId(cw.id)
+    setPendingDeleteWorldId(null)
+    setCustomFeedback(null)
     setCustomName(cw.name)
     setCustomDesc(cw.description)
     setCustomEraName(cw.eraName)
@@ -294,7 +307,10 @@ export function useWorldSelectLogic() {
   }, [])
 
   const handleSaveEdit = useCallback(() => {
-    if (!customName.trim() || !customDesc.trim() || !editingWorldId) return
+    if (!customName.trim() || !customDesc.trim() || !editingWorldId) {
+      setCustomFeedback({ type: 'warning', text: '请先填写世界名称和详细介绍。' })
+      return
+    }
     const signedYear = (parseInt(customEraYear) || 1) * (isBC ? -1 : 1)
     const updated = savedWorlds.map((cw) =>
       cw.id === editingWorldId
@@ -314,6 +330,7 @@ export function useWorldSelectLogic() {
     resetCustomForm()
     const edited = updated.find((cw) => cw.id === editingWorldId)
     if (edited) {
+      setCustomFeedback({ type: 'success', text: `已保存「${edited.name}」的修改。` })
       setSelectedWorld({
         id: edited.id,
         name: edited.name,
@@ -336,14 +353,30 @@ export function useWorldSelectLogic() {
 
   const handleCancelEdit = useCallback(() => {
     resetCustomForm()
+    setCustomFeedback(null)
   }, [resetCustomForm])
 
   const handleDeleteCustom = useCallback(
+    (cw: SavedCustomWorld) => {
+      setPendingDeleteWorldId(cw.id)
+      setCustomFeedback({ type: 'warning', text: `再次确认后将删除「${cw.name}」，并清理该世界生成缓存。` })
+    },
+    [],
+  )
+
+  const handleCancelDeleteCustom = useCallback(() => {
+    setPendingDeleteWorldId(null)
+    setCustomFeedback(null)
+  }, [])
+
+  const handleConfirmDeleteCustom = useCallback(
     (cw: SavedCustomWorld) => {
       clearWorldGeneratedCache(cw.worldCode)
       const updated = savedWorlds.filter((w) => w.id !== cw.id)
       persistSaved(updated)
       if (selectedWorld?.id === cw.id) setSelectedWorld(null)
+      setPendingDeleteWorldId(null)
+      setCustomFeedback({ type: 'success', text: `已删除自定义世界「${cw.name}」。` })
     },
     [savedWorlds, selectedWorld, persistSaved],
   )
@@ -397,6 +430,8 @@ export function useWorldSelectLogic() {
     newEraEntryYear,
     savedWorlds,
     editingWorldId,
+    pendingDeleteWorldId,
+    customFeedback,
 
     // setter
     setShowMore,
@@ -420,6 +455,8 @@ export function useWorldSelectLogic() {
     handleSaveEdit,
     handleCancelEdit,
     handleDeleteCustom,
+    handleConfirmDeleteCustom,
+    handleCancelDeleteCustom,
     handleConfirm,
     handleBack,
 
