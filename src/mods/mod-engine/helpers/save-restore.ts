@@ -8,6 +8,7 @@ import { useGlobalStore } from '@/core/global-store'
 import { saveManager } from '@/core/storage/save-manager'
 import { useCharacterStore } from '@/mods/mod-character'
 import { useWorldStore } from '@/mods/mod-world'
+import { buildDefaultCalibration, formatCalibrationSummary } from '@/mods/mod-world'
 import { buildOrchestratorWorldSetting } from '@/mods/mod-engine/helpers/orchestrator-world-setting'
 
 import { orchestrator } from '../subsystems/orchestrator-system'
@@ -96,7 +97,7 @@ export function applyGameSave(data: Record<string, unknown>): void {
     })
   }
 
-  restoreOptional('orchestratorContext', restoreOrchestratorContext)
+  restoreOptional('orchestratorContext', ensureOrchestratorContextFromStores)
   clearPreGenQueue()
   // 只有核心恢复成功（未抛出）才进入模拟态
   useGlobalStore.getState().setGamePhase('simulation')
@@ -126,15 +127,39 @@ export async function saveCurrentGameToSlot(
   await saveManager.saveToSlot(slot, name, worldName, characterName, collectGameSavePayload())
 }
 
-function restoreOrchestratorContext(): void {
-  const worldConfig = useWorldStore.getState().worldConfig
+/**
+ * 从已持久化的 world / character store 重新注入 orchestrator 上下文。
+ *
+ * 用途：
+ * - applyGameSave() 恢复存档后同步上下文；
+ * - 刷新或直达 game-story 后，推进前补齐 orchestrator 单例中不会随 Zustand 自动恢复的运行态。
+ *
+ * 返回 false 表示世界配置尚未就绪，调用方可继续走页面守卫或错误提示。
+ */
+export function ensureOrchestratorContextFromStores(): boolean {
+  const worldState = useWorldStore.getState()
+  const worldConfig = worldState.worldConfig
   const character = useCharacterStore.getState()
-  const eraStartYear = useWorldStore.getState().eraStartYear
 
-  if (!worldConfig) return
+  if (!worldConfig) return false
+
+  const calibration = worldState.calibration ?? buildDefaultCalibration(worldConfig)
+  const worldTagsText = worldState.worldTags.length > 0
+    ? worldState.worldTags.join('、')
+    : undefined
 
   const worldSetting = buildOrchestratorWorldSetting(worldConfig, {
-    eraStartYear: eraStartYear || undefined,
+    eraStartYear: worldState.eraStartYear || undefined,
+    eraName: worldState.eraName || undefined,
+    extraConfig: {
+      ...(worldTagsText ? { _worldTagsText: worldTagsText } : {}),
+      _calibration: calibration,
+      _calibrationSummary: formatCalibrationSummary(calibration),
+      _economyModifier: calibration.formulas?.economyModifier ?? 1.0,
+      ...(worldConfig.aiDetailedParameters
+        ? { _aiDetailedParameters: worldConfig.aiDetailedParameters }
+        : {}),
+    },
   })
 
   const patterns = character.destinyPatterns.patterns ?? []
@@ -153,4 +178,5 @@ function restoreOrchestratorContext(): void {
       polarity: p.polarity,
     })),
   })
+  return true
 }

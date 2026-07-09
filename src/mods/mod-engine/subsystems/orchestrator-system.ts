@@ -134,6 +134,28 @@ const DEFAULT_MAX_AGE_FALLBACK = 100
 /** 普通命运分支最小间隔。强制分支不受此限制。 */
 const MIN_BRANCH_GAP_ROUNDS = 4
 
+function resolveRestoredAutoSaveRound(
+  restoredRound: number | undefined,
+  restoredTotalRounds: number | undefined,
+  previousRound: number | undefined,
+  previousTotalRounds: number | undefined,
+): number {
+  const restored = Math.max(0, restoredRound ?? 0)
+  const restoredTotal = Math.max(0, restoredTotalRounds ?? 0)
+  const previous = Math.max(0, previousRound ?? 0)
+  const previousTotal = Math.max(0, previousTotalRounds ?? 0)
+  const hasPreviousTimeline = previousRound !== undefined || previousTotalRounds !== undefined
+  const previousIsValid = hasPreviousTimeline && previous <= Math.max(previousTotal, restoredTotal)
+
+  if (restored <= restoredTotal) {
+    return previousIsValid ? Math.max(restored, previous) : restored
+  }
+
+  if (previousIsValid) return previous
+
+  return restoredTotal
+}
+
 /** 预生成/快照：编排器可恢复状态 */
 export interface OrchestratorSnapshot {
   state: EngineState
@@ -520,7 +542,12 @@ export class OrchestratorSystem implements ISubSystem {
       ...this.state,
       streamingNarrative: '',
       narrativeError: null,
-      lastAutoSaveRound: Math.max(prev.lastAutoSaveRound ?? 0, this.state.lastAutoSaveRound ?? 0),
+      lastAutoSaveRound: resolveRestoredAutoSaveRound(
+        this.state.lastAutoSaveRound,
+        this.state.totalRounds,
+        prev.lastAutoSaveRound,
+        prev.totalRounds,
+      ),
       resolvedBranches: prev.resolvedBranches,
       forceBranchNext: prev.forceBranchNext,
     }))
@@ -993,9 +1020,13 @@ export class OrchestratorSystem implements ISubSystem {
     const payload = collectGameSavePayload()
 
     void saveManager.autoSave(worldName, characterName, payload).then(() => {
-      const currentSavedRound = useEngineStore.getState().lastAutoSaveRound ?? 0
-      if (saveRound >= currentSavedRound) {
-        useEngineStore.getState().setLastAutoSaveRound(saveRound)
+      const store = useEngineStore.getState()
+      const currentSavedRound = store.lastAutoSaveRound ?? 0
+      const currentTotalRounds = store.totalRounds ?? saveRound
+      const savedRoundIsFromAnotherTimeline = currentSavedRound > currentTotalRounds
+      if (savedRoundIsFromAnotherTimeline || saveRound >= currentSavedRound) {
+        this.state.lastAutoSaveRound = saveRound
+        store.setLastAutoSaveRound(saveRound)
       }
       // console.log(`[Orchestrator] 自动保存完成（第 ${saveRound} 轮）`)
     }).catch((err) => {
@@ -1224,6 +1255,12 @@ export class OrchestratorSystem implements ISubSystem {
   /** 读档后从 EngineStore 恢复 orchestrator 内部状态 */
   hydrateFromEngineStore(): void {
     const store = useEngineStore.getState()
+    const lastAutoSaveRound = resolveRestoredAutoSaveRound(
+      store.lastAutoSaveRound,
+      store.totalRounds,
+      undefined,
+      undefined,
+    )
     this.state = {
       status: store.status === 'complete' ? 'complete' : 'idle',
       round: { ...store.round },
@@ -1233,8 +1270,11 @@ export class OrchestratorSystem implements ISubSystem {
       currentNarrative: store.currentNarrative,
       compressionStats: { ...store.compressionStats },
       compressedSummaries: structuredClone(store.compressedSummaries),
-      lastAutoSaveRound: store.lastAutoSaveRound,
+      lastAutoSaveRound,
       characterCreations: [...(store.characterCreations ?? [])] as CharacterCreation[],
+    }
+    if (lastAutoSaveRound !== store.lastAutoSaveRound) {
+      useEngineStore.getState().setLastAutoSaveRound(lastAutoSaveRound)
     }
     timeSystem.importRound(store.round)
     timeSystem.setTimeStep(store.timeStep)
@@ -1566,6 +1606,7 @@ export class OrchestratorSystem implements ISubSystem {
 
     // 力量体系预设（全 24 阶完整表现描述，供 AI 完整理解各阶判断标准）
     const powerCeilingPresets = buildPowerCeilingPresets()
+    const timeScaleHint = buildTimeScaleNarrativeHint(this.state.timeStep)
 
     const assembled: PromptContext = {
       worldSetting: lightWorldSetting,
@@ -1594,10 +1635,7 @@ export class OrchestratorSystem implements ISubSystem {
       memorySummary: this.buildMemorySummaryWithLedger(memoryStateCard),
       coreMemory: coreMemory.buildCoreMemory() || undefined,
       // 从单一来源常量取默认字数，避免散落硬编码回退
-      wordCountInstruction: [
-        buildWordCountInstruction(useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET),
-        buildTimeScaleNarrativeHint(this.state.timeStep),
-      ].join('\n'),
+      wordCountInstruction: buildWordCountInstruction(useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET),
       calibrationSummary: (this.worldSetting?.config?._calibrationSummary as string) || undefined,
       causalChainHint: this.buildCausalChainHint(),
       creationProtectionText: this.buildCreationProtectionText(),
@@ -1641,17 +1679,20 @@ export class OrchestratorSystem implements ISubSystem {
       assembled.subsystemGuideText = SUBSYSTEM_GUIDE
     }
 
-    // 非开场轮注入时间描写引导（指导 AI 避免"这一年"开头，使用自然标记替代）
-    if (!isOpeningNarrativeRound) {
-      assembled.timeGuideText = [
-        '【时间描写指南】',
-        '- 本轮叙事范围是上一条叙事时间节点之后，到「当前时间」所标记节点为止的时间段',
-        '- 使用季节流转、节气更替、作物成熟、衣物增减等自然标记代替"这一年"的抽象概括',
-        '- 宏观视角时使用："春去秋来，...""数月之后，...""转眼已是..."',
-        '- 聚焦视角时使用："那天下午...""夜里...""晨光熹微时..."',
-        '- 年龄增长时，通过身高/声音/力量的变化侧面体现，不直接说"你长大了一岁"',
-      ].join('\n')
-    }
+    // 每轮动态时间导演提示放在 FAST 段末尾，避免污染 STABLE 前缀缓存。
+    assembled.timeGuideText = [
+      timeScaleHint,
+      !isOpeningNarrativeRound
+        ? [
+            '【时间描写指南】',
+            '- 本轮叙事范围是上一条叙事时间节点之后，到「当前时间」所标记节点为止的时间段',
+            '- 使用季节流转、节气更替、作物成熟、衣物增减等自然标记代替"这一年"的抽象概括',
+            '- 宏观视角时使用："春去秋来，...""数月之后，...""转眼已是..."',
+            '- 聚焦视角时使用："那天下午...""夜里...""晨光熹微时..."',
+            '- 年龄增长时，通过身高/声音/力量的变化侧面体现，不直接说"你长大了一岁"',
+          ].join('\n')
+        : undefined,
+    ].filter(Boolean).join('\n')
 
     if (isInstrumentEnabled()) {
       const mem = assembled.memorySummary ?? ''

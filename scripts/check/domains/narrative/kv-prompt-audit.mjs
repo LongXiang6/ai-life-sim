@@ -169,12 +169,32 @@ if (fastMatch) {
   const fastBlock = fastMatch[1]
   const eventIdx = fastBlock.indexOf("'事件注入'")
   const stateIdx = fastBlock.indexOf("'当前状态'")
+  const directorIdx = fastBlock.indexOf("'本轮导演提示'")
   if (eventIdx < 0 || stateIdx < 0 || eventIdx > stateIdx) {
     console.error('FAIL: FAST_JSON_KEYS order — eventInjection must precede currentState')
     failed++
   }
+  if (directorIdx < 0 || !fastBlock.trim().endsWith("'本轮导演提示',")) {
+    console.error('FAIL: FAST_JSON_KEYS order — round director hint must be the final dynamic key')
+    failed++
+  }
 } else {
   console.error('FAIL: FAST_JSON_KEYS not found')
+  failed++
+}
+
+if (!promptBuilder.includes('buildRoundDirectorHint')) {
+  console.error('FAIL: round director hint builder missing')
+  failed++
+}
+
+const wordCountStart = orchestrator.indexOf('wordCountInstruction:')
+const wordCountEnd = orchestrator.indexOf('calibrationSummary:', wordCountStart)
+const wordCountBlock = wordCountStart >= 0 && wordCountEnd > wordCountStart
+  ? orchestrator.slice(wordCountStart, wordCountEnd)
+  : ''
+if (wordCountBlock.includes('buildTimeScaleNarrativeHint')) {
+  console.error('FAIL: time-scale hint must not be embedded in stable wordCountInstruction')
   failed++
 }
 

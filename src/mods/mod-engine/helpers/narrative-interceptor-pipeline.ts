@@ -33,7 +33,29 @@ export type NarrativeInterceptor = (
 
 const MAX_NARRATIVE_CHANGES = 24
 const MAX_NARRATIVE_LENGTH = 50_000
-const COMPLETE_NARRATIVE_END_RE = /[。！？…」”）】]$/
+const COMPLETE_NARRATIVE_END_CHARS = new Set(['。', '！', '？', '…', '」', '”', '）', '】'])
+
+function hasCompleteNarrativeEnd(text: string): boolean {
+  const trimmed = text.trim()
+  if (!trimmed) return false
+  const last = trimmed.at(-1)
+  return Boolean(last && COMPLETE_NARRATIVE_END_CHARS.has(last))
+}
+
+function trimIncompleteNarrativeTail(text: string): string {
+  const trimmed = text.trim()
+  if (!trimmed || hasCompleteNarrativeEnd(trimmed)) return trimmed
+
+  for (let i = trimmed.length - 1; i >= 0; i -= 1) {
+    const char = trimmed[i]
+    if (!char || !COMPLETE_NARRATIVE_END_CHARS.has(char)) continue
+
+    const cleaned = trimmed.slice(0, i + 1).trim()
+    return cleaned.length >= 40 ? cleaned : trimmed
+  }
+
+  return trimmed
+}
 
 /** 步骤 1：安全边界 */
 export function safetyInterceptor(ctx: NarrativeInterceptorContext): NarrativeInterceptorOutcome {
@@ -52,8 +74,14 @@ export function safetyInterceptor(ctx: NarrativeInterceptorContext): NarrativeIn
     parsed = { ...parsed, narrative: parsed.narrative.slice(0, MAX_NARRATIVE_LENGTH) }
   }
 
-  if (parsed.narrative && !COMPLETE_NARRATIVE_END_RE.test(parsed.narrative.trim())) {
-    warnings.push('叙事疑似未完整收束，后处理将尝试移除末尾残句')
+  if (parsed.narrative && !hasCompleteNarrativeEnd(parsed.narrative)) {
+    const repairedNarrative = trimIncompleteNarrativeTail(parsed.narrative)
+    if (repairedNarrative !== parsed.narrative.trim()) {
+      warnings.push('叙事疑似未完整收束，已移除末尾未完成片段')
+      parsed = { ...parsed, narrative: repairedNarrative }
+    } else {
+      warnings.push('叙事疑似未完整收束，且未找到可保留的完整句边界')
+    }
   }
 
   const cleaned = parsed.narrative.replace(

@@ -130,8 +130,7 @@ const FAST_JSON_KEYS = [
   '最近变化',
   '叙事历史',
   '指令',
-  '时间描写指南',
-  '叙事引导',
+  '本轮导演提示',
 ] as const
 
 
@@ -274,6 +273,24 @@ function resolveMessageStrategy(): PromptSegmentStrategy {
 
 }
 
+function buildRoundDirectorHint(context: PromptContext): string | undefined {
+
+  const parts = [
+
+    context.timeGuideText,
+
+    context.narrativeGuidanceText,
+
+  ].filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
+
+
+
+  if (parts.length === 0) return undefined
+
+  return parts.join('\n\n')
+
+}
+
 
 
 export interface BuildNarrativeUserJsonOptions {
@@ -357,9 +374,7 @@ export function buildNarrativeUserJson(
 
     指令: context.userInstruction,
 
-    时间描写指南: context.timeGuideText,
-
-    叙事引导: context.narrativeGuidanceText,
+    本轮导演提示: buildRoundDirectorHint(context),
 
     命格天赋: context.talents,
 

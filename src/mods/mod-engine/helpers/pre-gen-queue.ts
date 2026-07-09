@@ -22,6 +22,7 @@ import { computeNarrativeMaxTokens, DEFAULT_WORD_COUNT_TARGET } from '../constan
 export interface PreGenCachedRound {
   fullContent: string
   isBranchPoint: boolean
+  signature: string
 }
 
 export interface PreGenQueueStatus {
@@ -42,6 +43,18 @@ let lastPreGenTimeStepKey: string | null = null
 type PreGenListener = () => void
 
 const preGenListeners = new Set<PreGenListener>()
+
+function buildPreGenSignature(): string {
+  const state = useEngineStore.getState()
+  const lastEntry = state.narrativeHistory[state.narrativeHistory.length - 1]
+  return [
+    encodeTimeStepKey(state.timeStep),
+    state.totalRounds,
+    state.narrativeHistory.length,
+    lastEntry?.id ?? '',
+    state.round.totalDays,
+  ].join('|')
+}
 
 
 
@@ -109,7 +122,12 @@ export function checkAndClearPreGenOnTimeStepChange(currentStep: TimeStep): bool
 
 
 function takePreGenQueueItem(shouldNotify: boolean): PreGenCachedRound | undefined {
-  const item = preGenQueue.shift()
+  const currentSignature = buildPreGenSignature()
+  let item = preGenQueue.shift()
+  while (item && item.signature !== currentSignature) {
+    console.log('[PreGen] 丢弃上下文不匹配的预生成缓存')
+    item = preGenQueue.shift()
+  }
   if (item) {
     // 消费预生成项意味着主推进即将接管这份结果。这里让当前生成代失效，
     // 防止 fillPreGenQueue 收尾时因队列变空而基于旧快照递归补下一轮预生成。
@@ -253,6 +271,7 @@ export async function fillPreGenQueue(
 
 
   const snapshot = orchestrator.captureSnapshot()
+  const signature = buildPreGenSignature()
 
   let lastIsBranch = false
 
@@ -284,11 +303,9 @@ export async function fillPreGenQueue(
     }
 
     preGenQueue.push({
-
       fullContent,
-
       isBranchPoint,
-
+      signature,
     })
 
     lastIsBranch = isBranchPoint
@@ -301,7 +318,11 @@ export async function fillPreGenQueue(
 
   } finally {
 
-    orchestrator.restoreSnapshot(snapshot)
+    if (gen === preGenGen) {
+      orchestrator.restoreSnapshot(snapshot)
+    } else {
+      orchestrator.hydrateFromEngineStore()
+    }
 
     isPreGenActive = false
 

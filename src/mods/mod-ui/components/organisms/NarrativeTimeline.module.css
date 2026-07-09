@@ -1,13 +1,17 @@
 .settleBtn {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
-  padding: 16px;
+  min-height: 48px;
+  padding: 12px 16px;
   font-size: 16px;
   font-weight: 600;
-  background: transparent;
+  line-height: 1.35;
+  background: color-mix(in srgb, var(--color-bg-card) 88%, transparent);
   color: var(--color-primary);
-  border: 1px solid var(--color-primary);
-  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 55%, var(--color-border));
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -33,6 +37,7 @@
   flex: 1;
   display: flex;
   flex-direction: column;
+  min-height: 0;
   overflow: hidden;
   padding: 0 24px;
 }
@@ -40,7 +45,8 @@
 .scrollMain {
   flex: 1;
   overflow-y: auto;
-  padding: 8px 0 20px;
+  min-height: 0;
+  padding: 8px 0 12px;
 }
 
 .timelineInner {
@@ -183,20 +189,63 @@
   animation: blink 1s step-end infinite;
 }
 
+.advanceDock {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2px 0 calc(8px + env(safe-area-inset-bottom));
+  background: linear-gradient(
+    to bottom,
+    transparent 0,
+    color-mix(in srgb, var(--color-bg) 68%, transparent) 42%,
+    var(--color-bg) 100%
+  );
+}
+
 .advanceArea {
-  padding: 20px 0;
-  margin-top: 10px;
+  padding: 0;
+  margin: 0;
 }
 
 .advanceTap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
   text-align: center;
   user-select: none;
+  touch-action: manipulation;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  transition: opacity 0.2s ease, color 0.2s ease;
+}
+
+.advanceTap:hover {
+  background: transparent;
+}
+
+.advanceTap[aria-disabled='true'] {
+  opacity: 0.82;
+}
+
+.advanceTap[aria-disabled='true']:hover {
+  background: transparent;
+}
+
+.advanceTap:focus-visible,
+.settleBtn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-primary) 64%, transparent);
+  outline-offset: 2px;
 }
 
 .advanceText {
-  font-size: 13px;
+  width: 100%;
+  font-size: 13.5px;
   font-weight: 300;
-  padding: 10px 0;
+  line-height: 1.4;
+  padding: 8px 14px;
   letter-spacing: 0.5px;
   transition: color 0.3s ease;
 }

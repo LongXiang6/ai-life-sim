@@ -16,6 +16,7 @@ import { useWorldStore } from '@/mods/mod-world'
 import { narrativePrompt } from './prompts/narrative-prompt'
 import { computeNarrativeMaxTokens, DEFAULT_WORD_COUNT_TARGET } from './constants/narrative-config'
 import { clearPreGenQueue, fillPreGenQueue, getPreGenQueueStatus, shiftPreGenQueue, subscribePreGenQueue, waitForPreGenQueueItem, checkAndClearPreGenOnTimeStepChange, type PreGenQueueStatus } from './helpers/pre-gen-queue'
+import { ensureOrchestratorContextFromStores } from './helpers/save-restore'
 import { syncSubsystemStoresFromStates } from './helpers/subsystem-store-sync'
 import { useEngineStore } from './store'
 import { orchestrator } from './subsystems/orchestrator-system'
@@ -55,6 +56,20 @@ export function syncOrchestratorToEngineStore(): void {
     characterCreations: [...(o.characterCreations ?? [])],
     streamingNarrative: '',
   }))
+}
+
+function restoreRuntimeOrSyncStore(): void {
+  const store = useEngineStore.getState()
+  const runtime = orchestrator.getState()
+  const storeHasProgress = store.totalRounds > 0 || store.narrativeHistory.length > 0
+  const runtimeIsEmpty = runtime.totalRounds === 0 && runtime.narrativeHistory.length === 0
+
+  if (storeHasProgress && runtimeIsEmpty) {
+    orchestrator.hydrateFromEngineStore()
+    return
+  }
+
+  syncOrchestratorToEngineStore()
 }
 
 /**
@@ -117,7 +132,13 @@ export function useSimulationAdvance() {
       }
       useEngineStore.getState().appendStreamingChunk(chunk.text)
     })
-    syncOrchestratorToEngineStore()
+
+    const persistApi = useEngineStore.persist
+    if (!persistApi.hasHydrated()) {
+      return persistApi.onFinishHydration(restoreRuntimeOrSyncStore)
+    }
+
+    restoreRuntimeOrSyncStore()
   }, [])
 
   const advanceRound = useCallback(async () => {
@@ -141,6 +162,9 @@ export function useSimulationAdvance() {
       stream: true,
     }
 
+    // orchestrator 是运行时单例，刷新页面后不会随 Zustand 持久化自动恢复上下文；
+    // 推进和预生成前统一从 world/character store 补齐，避免页面层绕过引擎职责。
+    ensureOrchestratorContextFromStores()
     orchestrator.setTimeStep(useEngineStore.getState().timeStep)
 
     // 检测时间步长变化，变化时清空旧粒度的预生成队列

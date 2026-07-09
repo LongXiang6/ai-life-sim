@@ -253,40 +253,6 @@
   color: var(--color-warning);
 }
 
-.autoSave {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  color: var(--color-text-tertiary);
-  font-size: 12px;
-  line-height: 1.2;
-}
-
-.autoSaveLabel {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-}
-
-.autoSaveDot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 999px;
-  background: var(--color-text-tertiary);
-  flex: 0 0 auto;
-}
-
-.autoSaveDot[data-saved='true'] {
-  background: var(--color-success);
-}
-
-.autoSaveRound {
-  min-width: 0;
-}
-
 .worldPanelWrap {
   max-width: 960px;
   margin: 0 auto;
@@ -618,14 +584,6 @@
   max-width: 220px;
 }
 
-.preGenHint {
-  display: block;
-  font-size: 11px;
-  color: var(--color-text-tertiary);
-  text-align: right;
-  margin-bottom: 4px;
-}
-
 .moreMenu {
   position: fixed;
   z-index: 10000;
@@ -729,15 +687,15 @@
   }
 
   .header {
-    padding: 8px 10px 0;
+    padding: 6px 10px 0;
   }
 
   .headerInner {
     max-width: 100%;
     flex-direction: row;
     align-items: flex-start;
-    gap: 8px;
-    padding-bottom: 8px;
+    gap: 6px;
+    padding-bottom: 6px;
   }
 
   .headerLeft {
@@ -751,8 +709,17 @@
     gap: var(--spacing-1);
     margin-bottom: 2px;
     min-width: 0;
+    overflow: visible;
+  }
+
+  .headerTopRow {
     flex-wrap: nowrap;
     overflow: hidden;
+  }
+
+  .charRow {
+    flex-wrap: wrap;
+    row-gap: 2px;
   }
 
   .worldName {
@@ -772,14 +739,18 @@
   .charName,
   .charGender {
     flex: 0 0 auto;
-    font-size: 12px;
+    font-size: 11px;
   }
 
   .talentTag {
-    max-width: 72px;
+    max-width: 104px;
+    min-width: 0;
+    flex: 0 1 auto;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 9px;
+    padding: 1px 4px;
   }
 
   .attrRow {
@@ -833,16 +804,15 @@
   }
 
   .headerRight {
-    width: clamp(166px, 44vw, 182px);
-    flex: 0 0 clamp(166px, 44vw, 182px);
+    width: clamp(138px, 38vw, 154px);
+    flex: 0 0 clamp(138px, 38vw, 154px);
     align-items: flex-end;
     text-align: right;
     gap: 2px;
   }
 
   .eraDisplay,
-  .ageDisplay,
-  .preGenHint {
+  .ageDisplay {
     max-width: 100%;
     overflow: hidden;
     text-align: right;
@@ -850,22 +820,21 @@
     white-space: nowrap;
   }
 
-  .ageDisplay {
-    font-size: 16px;
+  .eraDisplay {
+    font-size: 10px;
   }
 
-  .preGenHint {
-    font-size: 10px;
-    margin-bottom: 0;
+  .ageDisplay {
+    font-size: 14px;
   }
 
   .controlRow {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 4px;
+    gap: 2px;
     justify-content: stretch;
     width: 100%;
-    margin-top: 3px;
+    margin-top: 2px;
   }
 
   .menuAnchor {
@@ -876,27 +845,15 @@
   .ctrlBtnPrimary {
     width: 100%;
     min-width: 0;
-    min-height: 40px;
-    padding: 6px 4px;
-    font-size: 11px;
+    min-height: 32px;
+    padding: 4px 2px;
+    font-size: 10px;
+    line-height: 1.2;
     white-space: nowrap;
   }
 
   .timeStepWrap {
     width: 100%;
-  }
-
-  .autoSave {
-    width: 100%;
-    gap: 4px;
-    overflow: hidden;
-    font-size: 10px;
-    white-space: nowrap;
-  }
-
-  .autoSaveRound {
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   .timeStepMenu {

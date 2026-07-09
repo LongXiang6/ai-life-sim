@@ -19,7 +19,6 @@ import {
   SPATIAL_FORM_ZH_MAP,
   COHERENCE_LOCK_FIELD_MAP,
   formatCalibrationSummary,
-  resolveWorldDimensionDecision,
 } from '@/mods/mod-world'
 import { commitWorldInitialization } from '@/mods/mod-world/world-init-api'
 import type { WorldConfig } from '@/mods/mod-world'
@@ -342,35 +341,11 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
   }, [router, setGamePhase, setWorldName, setWorldConfig, setInitialized, fieldModes, fieldValues, customValues])
 
   const save = useCallback(() => {
-    void (async () => {
-      const worldState = useWorldStore.getState()
-      const worldCode = worldState.worldCode || worldState.generateAndSetWorldCode()
-      const existing = worldState.worldConfig
-      const modes = buildDimensionModes(fieldModes)
-      const values = buildDimensionValues(fieldModes, fieldValues, customValues)
-      const preliminary = resolveWorldConfig(baseFields, worldDescription, coherenceLocks, existing)
-
-      // 世界自定义只做四个宏观属性的轻量 AI 决策；结果按 worldCode 缓存，后续进入同一世界直接复用。
-      const { decision } = await resolveWorldDimensionDecision({
-        worldCode,
-        worldName: preliminary.name,
-        worldDescription: worldDescription.trim() || preliminary.description,
-        modes,
-        values,
-      })
-
-      const draft = resolveWorldConfig(
-        baseFields,
-        worldDescription,
-        coherenceLocks,
-        existing,
-        decision,
-      )
-      requestCoherenceResolve(draft, commitWorld)
-    })()
+    const existing = useWorldStore.getState().worldConfig
+    const draft = resolveWorldConfig(baseFields, worldDescription, coherenceLocks, existing)
+    requestCoherenceResolve(draft, commitWorld)
   }, [
     baseFields, worldDescription, coherenceLocks, requestCoherenceResolve, commitWorld,
-    fieldModes, fieldValues, customValues,
   ])
 
   const skip = useCallback(() => {

@@ -35,7 +35,7 @@ export function buildSummarySystemPrompt(charLimit: number, level: 1 | 2 | 3 | 4
         '按时间顺序列出所有发生的事件',
         '绝对客观，禁止评价性描述（禁用"取得了巨大成就""表现出了非凡勇气"等）',
         '只总结 eventRecords.narrative 中明确写出的事实，不补写未出现的模拟系统状态、数值变化或隐藏因果',
-        '只提取事件推进段的事实；忽略场景铺陈、感官描写、心理余韵和修辞性句子',
+        '只提取剧情事实、后果和关系变化；忽略铺垫描写、感官细节、心理句和修辞性句子',
         '当前 MVP 中健康、经济、声望、关系、修炼、战力等模拟系统可能延后；除非叙事正文明确发生，否则不要把它们当成已落地状态',
         '包含叙事正文中明确发生的角色事件、社会事件与环境变化',
         '每个时间段至少一条记录',
@@ -136,7 +136,7 @@ export function buildSummaryPrompt(
  */
 export const summaryPrompt: PromptTemplate = {
   name: 'summary',
-  version: '2.0.0',
+  version: '2.0.1',
   mod: 'mod-engine',
   systemPrompt: stringifyPrompt({
     role: '叙事总结器。将叙事内容压缩为客观事件列表。',

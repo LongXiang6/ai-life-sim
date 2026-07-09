@@ -2,7 +2,7 @@
 
 /**
  * @module NarrativeTimeline
- * @description 叙事时间线 —— 对齐废弃项目：虚拟窗口、分隔线、流式段落、内嵌推进区
+ * @description 叙事时间线 —— 对齐废弃项目：虚拟窗口、分隔线、流式段落、固定推进区
  * @mod mod-ui
  */
 
@@ -294,6 +294,61 @@ export function NarrativeTimeline({
   }, [renderStart, entries, isGenerating, streamingText, streamingHeader, unresolvedBranchIndex, branchTitle, branchOptions, selectedBranchOptionId, branchCustomText, onBranchSelect, onBranchConfirm, onBranchCancel, onCustomInputChange])
 
   const canTapAdvance = showAdvance && !advanceBlocked && !isGenerating
+  const handleAdvanceKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!canTapAdvance) return
+    if (event.key !== 'Enter' && event.key !== ' ') return
+
+    event.preventDefault()
+    onAdvance?.()
+  }
+
+  const advanceControl = showAdvance ? (
+    <div className={styles.advanceDock}>
+      <div className={styles.advanceArea}>
+        {hasEndingEvent ? (
+          <button type="button" className={styles.settleBtn} onClick={onGoToGameOver}>
+            🎬 结算
+          </button>
+        ) : (
+          <div
+            className={styles.advanceTap}
+            onClick={canTapAdvance ? onAdvance : undefined}
+            onKeyDown={handleAdvanceKeyDown}
+            role="button"
+            tabIndex={canTapAdvance ? 0 : undefined}
+            aria-disabled={!canTapAdvance}
+            style={{ cursor: canTapAdvance ? 'pointer' : 'not-allowed' }}
+          >
+            <div
+              className={[
+                styles.advanceText,
+                isGenerating
+                  ? styles.advanceGenerating
+                  : advanceBlocked
+                    ? styles.advanceBlocked
+                    : canTapAdvance
+                      ? styles.advanceIdle
+                      : styles.advanceGenerating,
+              ].join(' ')}
+            >
+              {isGenerating ? (
+                <div className={styles.advanceGeneratingInner}>
+                  <span className={styles.advanceGeneratingRow}>
+                    <span className={styles.advanceSpinner} />
+                    AI 正在书写命运...
+                  </span>
+                </div>
+              ) : advanceBlocked ? (
+                advanceBlockedText
+              ) : (
+                advanceText
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  ) : null
 
   return (
     <div className={[styles.timelineShell, className].filter(Boolean).join(' ')}>
@@ -319,52 +374,9 @@ export function NarrativeTimeline({
           )}
 
           {eventElements}
-
-          {showAdvance && (
-            <div className={styles.advanceArea}>
-              {hasEndingEvent ? (
-                <button type="button" className={styles.settleBtn} onClick={onGoToGameOver}>
-                  🎬 结算
-                </button>
-              ) : (
-                <div
-                  className={styles.advanceTap}
-                  onClick={canTapAdvance ? onAdvance : undefined}
-                  role="button"
-                  tabIndex={canTapAdvance ? 0 : undefined}
-                  style={{ cursor: canTapAdvance ? 'pointer' : 'not-allowed' }}
-                >
-                  <div
-                    className={[
-                      styles.advanceText,
-                      isGenerating
-                        ? styles.advanceGenerating
-                        : advanceBlocked
-                          ? styles.advanceBlocked
-                          : canTapAdvance
-                            ? styles.advanceIdle
-                            : styles.advanceGenerating,
-                    ].join(' ')}
-                  >
-                    {isGenerating ? (
-                      <div className={styles.advanceGeneratingInner}>
-                        <span className={styles.advanceGeneratingRow}>
-                          <span className={styles.advanceSpinner} />
-                          AI 正在书写命运...
-                        </span>
-                      </div>
-                    ) : advanceBlocked ? (
-                      advanceBlockedText
-                    ) : (
-                      advanceText
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </main>
+      {advanceControl}
     </div>
   )
 }

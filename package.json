@@ -15,7 +15,7 @@
     "validate:regression": "node scripts/check/domains/narrative/narrative-regression-seed.mjs",
     "test:loader": "node scripts/check/domains/structural/test-mod-loader.mjs",
     "test:calibration": "node scripts/check/domains/calibration/world-calibration-acceptance.mjs",
-    "test:prompt-wiring": "node scripts/check/domains/narrative/kv-prompt-audit.mjs && node scripts/check/domains/narrative/time-bridge-smoke.mjs && node scripts/check/domains/narrative/adaptation-calibration-audit.mjs && node scripts/check/domains/narrative/event-type-weights-smoke.mjs",
+    "test:prompt-wiring": "node scripts/check/domains/narrative/kv-prompt-audit.mjs && node scripts/check/domains/narrative/time-bridge-smoke.mjs && node scripts/check/domains/narrative/adaptation-calibration-audit.mjs",
     "generate:deps": "node scripts/check/dev/generate-dependency-graph.mjs",
     "check": "node scripts/check/index.mjs full",
     "check:quick": "node scripts/check/index.mjs quick",

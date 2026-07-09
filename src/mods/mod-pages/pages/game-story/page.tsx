@@ -12,7 +12,7 @@ import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { clamp } from '@/core/shared'
 
-import { useEngine, useNarrative, useSimulationAdvance, usePreGenQueueStatus } from '@/mods/mod-engine'
+import { useEngine, useNarrative, useSimulationAdvance } from '@/mods/mod-engine'
 import {
   AVAILABLE_TIME_STEPS,
   encodeTimeStepKey,
@@ -80,25 +80,9 @@ function parseWorldTagsToSections(text: string): TagSection[] {
   return sections
 }
 
-function AutoSaveIndicator({ lastAutoSaveRound }: { lastAutoSaveRound: number }) {
-  const hasAutoSave = lastAutoSaveRound > 0
-
-  return (
-    <div className={styles.autoSave}>
-      <span className={styles.autoSaveLabel}>
-        <span className={styles.autoSaveDot} data-saved={hasAutoSave ? 'true' : 'false'} />
-        实时保存
-      </span>
-      {hasAutoSave
-        ? <span className={styles.autoSaveRound}>已保存至第 {lastAutoSaveRound} 轮</span>
-        : <span className={styles.autoSaveRound}>未保存</span>}
-    </div>
-  )
-}
-
 export default function GamePage() {
   const router = useRouter()
-  const { status, round, totalRounds, lastAutoSaveRound, seasonName, stop } = useEngine()
+  const { status, round, totalRounds, seasonName, stop } = useEngine()
   const { advanceRound, isAdvancing } = useSimulationAdvance()
 
   const {
@@ -115,7 +99,6 @@ export default function GamePage() {
   } = useSimulationBranch({ advanceRound })
 
   const { narrativeHistory } = useNarrative()
-  const preGenStatus = usePreGenQueueStatus()
   const streamingNarrative = useEngineStore((s) => s.streamingNarrative)
   const timeStep = useEngineStore((s) => s.timeStep)
   const activeTimeStepKey = encodeTimeStepKey(timeStep)
@@ -328,13 +311,6 @@ export default function GamePage() {
     addToast('success', `已保存到槽位 ${slot}`)
   }, [addToast, characterName, worldConfig?.name])
 
-  const preGenHint = useMemo(() => {
-    if (preGenStatus.maxRounds <= 0) return null
-    if (preGenStatus.isActive) return '预生成中…'
-    if (preGenStatus.queueLength > 0) return `缓存 ${preGenStatus.queueLength} 轮`
-    return null
-  }, [preGenStatus])
-
   const flowGuard = useMemo(() => {
     if (!worldConfig || worldCode === 0) {
       return { title: '世界尚未建立', message: '请先完成世界选择与构建，再进入模拟。', action: '/new-game/world-select' }
@@ -424,9 +400,6 @@ export default function GamePage() {
           <div className={styles.headerRight}>
             <span className={styles.eraDisplay}>{narrativeTimeLabel}</span>
             <span className={styles.ageDisplay}>{characterAge}岁</span>
-            {preGenHint && (
-              <span className={styles.preGenHint}>{preGenHint}</span>
-            )}
             <div className={styles.controlRow}>
               <div ref={moreBtnRef} className={styles.menuAnchor}>
                 <button
@@ -470,7 +443,6 @@ export default function GamePage() {
                 世界
               </button>
             </div>
-            <AutoSaveIndicator lastAutoSaveRound={lastAutoSaveRound} />
           </div>
         </div>
       </header>

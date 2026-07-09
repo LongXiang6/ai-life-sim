@@ -25,7 +25,10 @@ if (!bridge.includes('buildTimeBridgeSummary')) {
   console.error('FAIL: buildTimeBridgeSummary missing')
   failed++
 }
-if (!builder.includes("'timeBridgeSummary'")) {
+if (
+  !builder.includes('context.timeBridgeSummary') ||
+  !builder.includes("'时间桥摘要'")
+) {
   console.error('FAIL: prompt-builder missing timeBridgeSummary key')
   failed++
 }

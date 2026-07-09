@@ -195,11 +195,11 @@ function hintBranchResolved(input: NarrativeHintInput): string[] {
         )
       } else if (scale === 'large') {
         hints.push(
-          `${choiceLabel}（宏大目标）——本轮只需呈现阶段性起步或进展，可花费数年至数十年逐步实现`,
+          `${choiceLabel}（宏大目标）——本轮适合呈现一个代表性阻力、准备行动或阶段性结果，可花费数年至数十年逐步实现`,
         )
       } else {
         hints.push(
-          `${choiceLabel}（中型目标）——宏观视角描写阶段性进展，可花费数轮完成，每轮有实质推进`,
+          `${choiceLabel}（中型目标）——可先判断目标在当前世界中的关键阻力，再写本轮最具体的一次推进；可花费数轮完成，每轮尽量有实质后果`,
         )
       }
     } else if (!input.branchJustResolved) {
@@ -224,7 +224,7 @@ function hintSceneJump(input: NarrativeHintInput): string[] {
     input.currentAge > prevEvent.age
   ) {
     hints.push(
-      `距上次事件已过${input.currentAge - prevEvent.age}年，描写全新人生阶段和变化，不得延续上次事件的同一场景`,
+      `距上次事件已过${input.currentAge - prevEvent.age}年，优先体现新阶段的社会压力或关系变化，再选择一个新的剧情节点，避免延续上次事件的同一场景`,
     )
   }
 
@@ -235,23 +235,23 @@ function hintSceneJump(input: NarrativeHintInput): string[] {
   switch (unit) {
     case 'day':
       hints.push(
-        `推进${amount}天。描写这天内的具体行动、对话与感官细节，微观视角，一天内完成的事件`,
+        `推进${amount}天。近景/现场视角：写当天的一次具体行动、对话或突发状况，强调即时反馈；收尾优先给出直接结果或新的小问题`,
       )
       break
     case 'month':
       hints.push(
-        `推进${amount}个月。描写这段时间的日常细节与微小变化，偏生活流视角，避免概括整年`,
+        `推进${amount}个月。中近景视角：先点出本月压力、机会或关系变化，再落到一件代表性小事件；这件事尽量包含角色行动、具体阻力、可见后果或新线索，少写月度清单和纯心理余味`,
       )
       break
     case 'season':
       hints.push(
-        `推进${amount}个季度。描写这一季${amount > 1 ? '内' : ''}的季节变化与关键事件，中距视角，聚焦当季，禁止跨越到其他季节`,
+        `推进${amount}个季度。中景视角：体现这一季${amount > 1 ? '内' : ''}的环境、制度或人际变化，再写一个改变关系、目标或处境的关键节点；结尾优先落到阶段性后果`,
       )
       break
     case 'year':
     default:
       hints.push(
-        `时间跳过${amount}年。聚焦此期间最关键的一件事，写透它带来的阶段性结果，不罗列多年流水账`,
+        `时间跳过${amount}年。远景选材 + 近景落点：先判断世界大势和人生阶段的主要压力，再落到一到两个代表性场景，尽量让场景承担行动、阻力与后果，少写年度报告或多年流水账`,
       )
       break
   }
