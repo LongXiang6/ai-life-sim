@@ -44,6 +44,15 @@ function parseBranchOptions(value: unknown): string[] {
   return value.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
 }
 
+/** 清理 AI 在降级/嵌套输出时残留到正文里的信封标签，避免 UI 直接显示协议标记。 */
+function stripNarrativeEnvelopeArtifacts(text: string): string {
+  return text
+    .replace(/\[META\][\s\S]*$/i, '')
+    .replace(/\[\/?NARRATIVE\]/gi, '')
+    .replace(/\[\/META\]/gi, '')
+    .trim()
+}
+
 function parseRawAIResponse(
   raw: RawAIResponse,
   processor: ChineseTextProcessor,
@@ -54,7 +63,8 @@ function parseRawAIResponse(
     raw.narrative = raw.narrative.replace(/\\n/g, '\n')
   }
 
-  const narrative = processor.segmentParagraphs(narrativeOverride ?? raw.narrative ?? '')
+  const narrativeSource = stripNarrativeEnvelopeArtifacts(narrativeOverride ?? raw.narrative ?? '')
+  const narrative = processor.segmentParagraphs(narrativeSource)
 
   // 提取 direction 字段（支持字符串和结构化对象两种格式）
   let direction: ParsedNarrative['direction']

@@ -204,6 +204,10 @@
   margin-top: 4px;
 }
 
+.menuAnchor {
+  position: relative;
+}
+
 .ctrlBtn {
   padding: 4px 10px;
   font-size: 12px;
@@ -247,6 +251,40 @@
   background: color-mix(in srgb, var(--color-warning) 15%, transparent);
   border-color: var(--color-warning);
   color: var(--color-warning);
+}
+
+.autoSave {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.autoSaveLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.autoSaveDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--color-text-tertiary);
+  flex: 0 0 auto;
+}
+
+.autoSaveDot[data-saved='true'] {
+  background: var(--color-success);
+}
+
+.autoSaveRound {
+  min-width: 0;
 }
 
 .worldPanelWrap {
@@ -691,33 +729,99 @@
   }
 
   .header {
-    padding: var(--spacing-px-12) var(--spacing-px-12) 0;
+    padding: 8px 10px 0;
   }
 
   .headerInner {
     max-width: 100%;
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--spacing-px-12);
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 8px;
+    padding-bottom: 8px;
   }
 
   .headerLeft {
-    width: 100%;
+    width: auto;
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   .headerTopRow,
-  .charRow,
-  .attrRow,
-  .dynAttrRow {
+  .charRow {
     gap: var(--spacing-1);
+    margin-bottom: 2px;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow: hidden;
   }
 
   .worldName {
-    font-size: var(--font-size-sm);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+  }
+
+  .raceTag,
+  .endingTag {
+    flex: 0 0 auto;
+    padding-inline: 5px;
+  }
+
+  .charName,
+  .charGender {
+    flex: 0 0 auto;
+    font-size: 12px;
+  }
+
+  .talentTag {
+    max-width: 72px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .attrRow {
+    gap: 6px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-top: 2px;
+    padding-bottom: 1px;
+  }
+
+  .attrRow::-webkit-scrollbar {
+    display: none;
   }
 
   .attrItem {
-    min-width: 44px;
+    min-width: 0;
+    flex: 0 0 auto;
+  }
+
+  .attrIcon {
+    display: none;
+  }
+
+  .attrKey {
+    font-size: 10px;
+  }
+
+  .attrVal {
+    font-size: 10px;
+  }
+
+  .dynAttrRow {
+    gap: 4px;
+    flex-wrap: nowrap;
+    margin-top: 2px;
+    overflow: hidden;
+  }
+
+  .dynAttrItem {
+    padding-inline: 5px;
+    white-space: nowrap;
   }
 
   .dynAttrItem,
@@ -729,39 +833,85 @@
   }
 
   .headerRight {
-    width: 100%;
-    align-items: stretch;
-    text-align: left;
+    width: clamp(166px, 44vw, 182px);
+    flex: 0 0 clamp(166px, 44vw, 182px);
+    align-items: flex-end;
+    text-align: right;
+    gap: 2px;
   }
 
   .eraDisplay,
   .ageDisplay,
   .preGenHint {
-    text-align: left;
+    max-width: 100%;
+    overflow: hidden;
+    text-align: right;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .ageDisplay {
-    font-size: var(--font-size-xl);
+    font-size: 16px;
+  }
+
+  .preGenHint {
+    font-size: 10px;
+    margin-bottom: 0;
   }
 
   .controlRow {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--spacing-2);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
     justify-content: stretch;
+    width: 100%;
+    margin-top: 3px;
+  }
+
+  .menuAnchor {
+    width: 100%;
   }
 
   .ctrlBtn,
   .ctrlBtnPrimary {
     width: 100%;
     min-width: 0;
-    min-height: 44px;
-    padding: var(--spacing-2) var(--spacing-1);
-    font-size: var(--font-size-xs);
+    min-height: 40px;
+    padding: 6px 4px;
+    font-size: 11px;
+    white-space: nowrap;
   }
 
   .timeStepWrap {
     width: 100%;
+  }
+
+  .autoSave {
+    width: 100%;
+    gap: 4px;
+    overflow: hidden;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  .autoSaveRound {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .timeStepMenu {
+    max-height: min(360px, calc(100dvh - 120px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .timeStepItem,
+  .moreMenuItem {
+    min-height: 40px;
+  }
+
+  .moreMenu {
+    max-width: calc(100vw - 20px);
   }
 
   .worldPanelWrap {
@@ -773,7 +923,22 @@
   }
 
   .panel {
-    padding: var(--spacing-px-12);
+    max-height: 30dvh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 8px 10px;
+  }
+
+  .panelInner,
+  .tagGrid {
+    min-width: 0;
+  }
+
+  .tagChip {
+    max-width: 100%;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    white-space: normal;
   }
 
   .branchActions {

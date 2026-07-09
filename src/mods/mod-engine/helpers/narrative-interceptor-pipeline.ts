@@ -33,6 +33,7 @@ export type NarrativeInterceptor = (
 
 const MAX_NARRATIVE_CHANGES = 24
 const MAX_NARRATIVE_LENGTH = 50_000
+const COMPLETE_NARRATIVE_END_RE = /[。！？…」”）】]$/
 
 /** 步骤 1：安全边界 */
 export function safetyInterceptor(ctx: NarrativeInterceptorContext): NarrativeInterceptorOutcome {
@@ -49,6 +50,10 @@ export function safetyInterceptor(ctx: NarrativeInterceptorContext): NarrativeIn
   if (parsed.narrative.length > MAX_NARRATIVE_LENGTH) {
     warnings.push(`叙事文本超过 ${MAX_NARRATIVE_LENGTH} 字符，已截断`)
     parsed = { ...parsed, narrative: parsed.narrative.slice(0, MAX_NARRATIVE_LENGTH) }
+  }
+
+  if (parsed.narrative && !COMPLETE_NARRATIVE_END_RE.test(parsed.narrative.trim())) {
+    warnings.push('叙事疑似未完整收束，后处理将尝试移除末尾残句')
   }
 
   const cleaned = parsed.narrative.replace(

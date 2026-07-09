@@ -131,6 +131,8 @@ import type {
 
 /** 兜底叙事 maxAge 后备值（lifespan 子系统未注册时） */
 const DEFAULT_MAX_AGE_FALLBACK = 100
+/** 普通命运分支最小间隔。强制分支不受此限制。 */
+const MIN_BRANCH_GAP_ROUNDS = 4
 
 /** 预生成/快照：编排器可恢复状态 */
 export interface OrchestratorSnapshot {
@@ -151,6 +153,7 @@ export interface OrchestratorSnapshot {
   lastPlayerChoice?: string
   consecutiveSameGoalRounds?: number
   branchJustResolved?: boolean
+  lastBranchTotalRound?: number
   lastCommittedPlayerChoice?: string
   prefetchedNarrativeContent?: string | null
   digestLedgerSnapshot?: DigestLedgerSnapshot
@@ -232,6 +235,9 @@ export class OrchestratorSystem implements ISubSystem {
 
   /** 上轮是否为分叉点且已被解决 */
   private branchJustResolved = false
+
+  /** 最近一次生成分支的总轮次；预生成快照也依赖它判断普通分支冷却。 */
+  private lastBranchTotalRound = Number.NEGATIVE_INFINITY
 
   /** 缓存的上轮玩家选择（用于进度对比） */
   private lastCommittedPlayerChoice?: string
@@ -415,6 +421,17 @@ export class OrchestratorSystem implements ISubSystem {
     this.lastPlayerChoice = trimmed
   }
 
+  resolveBranchChoice(branchId: string, choice: string): void {
+    const trimmed = choice.trim()
+    if (!branchId || !trimmed) return
+
+    this.state.narrativeHistory = this.state.narrativeHistory.map((entry) =>
+      entry.id === branchId ? { ...entry, resolvedChoice: trimmed } : entry,
+    )
+    this.lastBranchTotalRound = Math.max(this.lastBranchTotalRound, this.state.totalRounds)
+    this.branchJustResolved = true
+  }
+
   setPrefetchedNarrative(content: string | null): void {
     this.prefetchedNarrativeContent = content?.trim() ? content : null
   }
@@ -435,6 +452,10 @@ export class OrchestratorSystem implements ISubSystem {
 
   isPreviewExecution(): boolean {
     return this.previewExecutionDepth > 0
+  }
+
+  isBranchCoolingDownForNextRound(): boolean {
+    return this.shouldSuppressBranchPoint(false, this.state.totalRounds + 1)
   }
 
   async runPreviewRound<T>(runner: () => Promise<T>): Promise<T> {
@@ -465,6 +486,7 @@ export class OrchestratorSystem implements ISubSystem {
       lastPlayerChoice: this.lastPlayerChoice,
       consecutiveSameGoalRounds: this.consecutiveSameGoalRounds,
       branchJustResolved: this.branchJustResolved,
+      lastBranchTotalRound: this.lastBranchTotalRound,
       lastCommittedPlayerChoice: this.lastCommittedPlayerChoice,
       prefetchedNarrativeContent: this.prefetchedNarrativeContent,
       digestLedgerSnapshot: digestLedger.toSnapshot(),
@@ -488,6 +510,7 @@ export class OrchestratorSystem implements ISubSystem {
     this.lastPlayerChoice = snap.lastPlayerChoice
     this.consecutiveSameGoalRounds = snap.consecutiveSameGoalRounds ?? 0
     this.branchJustResolved = snap.branchJustResolved ?? false
+    this.lastBranchTotalRound = snap.lastBranchTotalRound ?? Number.NEGATIVE_INFINITY
     this.lastCommittedPlayerChoice = snap.lastCommittedPlayerChoice
     this.prefetchedNarrativeContent = snap.prefetchedNarrativeContent ?? null
     digestLedger.loadSnapshot(snap.digestLedgerSnapshot)
@@ -1889,6 +1912,11 @@ export class OrchestratorSystem implements ISubSystem {
 
   private buildUserInstruction(): string | undefined {
     const lines: string[] = []
+    const hasFreshPlayerChoice = Boolean(this.lastPlayerChoice?.trim())
+    this.branchJustResolved = hasFreshPlayerChoice
+    if (hasFreshPlayerChoice) {
+      this.lastBranchTotalRound = Math.max(this.lastBranchTotalRound, this.state.totalRounds)
+    }
 
     // 信息优先级：开场叙事注入
     if (this.state.narrativeHistory.length === 0) {
@@ -1938,15 +1966,46 @@ export class OrchestratorSystem implements ISubSystem {
     }
     if (resolvedLines.length > 0) {
       lines.push(`【历史分叉选择】${resolvedLines.join('；')}`)
-      this.branchJustResolved = true
     }
 
     // 连续分叉抑制：上轮已解决分支，本轮禁止再生成新分支
     const lastEntry = this.state.narrativeHistory[this.state.narrativeHistory.length - 1]
     if (lastEntry?.resolvedChoice) {
       lines.push('上轮已完成命运抉择，本轮禁止生成新的分支点(branch=false) - 给玩家至少一轮消化时间')
+    } else if (this.shouldSuppressBranchPoint(false)) {
+      lines.push(`普通命运分支冷却中：距离上一次分支不足 ${MIN_BRANCH_GAP_ROUNDS} 轮，本轮必须设置 branch=false。`)
     }
     return lines.length > 0 ? lines.join('\n') : undefined
+  }
+
+  private getRoundsSinceLatestBranch(history: EngineState['narrativeHistory']): number | null {
+    for (let i = history.length - 1; i >= 0; i -= 1) {
+      if (history[i]?.isBranchPoint) {
+        return history.length - 1 - i
+      }
+    }
+    return null
+  }
+
+  private shouldSuppressBranchPoint(forceBranch: boolean, targetTotalRounds = this.state.totalRounds): boolean {
+    if (forceBranch) return false
+    if (this.branchJustResolved) return true
+
+    const roundsSinceTrackedBranch = targetTotalRounds - this.lastBranchTotalRound
+    if (roundsSinceTrackedBranch >= 0 && roundsSinceTrackedBranch < MIN_BRANCH_GAP_ROUNDS) {
+      return true
+    }
+
+    const historyDistances = [
+      this.getRoundsSinceLatestBranch(this.state.narrativeHistory),
+      this.getRoundsSinceLatestBranch(useEngineStore.getState().narrativeHistory),
+    ].filter((distance): distance is number => distance !== null)
+
+    if (historyDistances.some((distance) => distance < MIN_BRANCH_GAP_ROUNDS)) {
+      return true
+    }
+
+    return false
   }
 
   /** 构建 NarrativeHintInput（从当前 orchestrator 状态收集数据） */
@@ -1996,13 +2055,14 @@ export class OrchestratorSystem implements ISubSystem {
     const lastHistoryEntry = useEngineStore.getState().narrativeHistory[
       useEngineStore.getState().narrativeHistory.length - 1
     ]
-    const shouldSuppressBranch = lastHistoryEntry?.resolvedChoice && !useEngineStore.getState().forceBranchNext
+    const forceBranchNext = useEngineStore.getState().forceBranchNext
+    const shouldSuppressBranch = (lastHistoryEntry?.resolvedChoice || this.shouldSuppressBranchPoint(forceBranchNext)) && !forceBranchNext
 
     if (shouldSuppressBranch) {
       isBranch = false
     }
 
-    if (useEngineStore.getState().forceBranchNext && !isBranch) {
+    if (forceBranchNext && !isBranch) {
       options = [
         '正面迎击，不留退路',
         '迂回周旋，寻找更好时机',
@@ -2125,6 +2185,9 @@ export class OrchestratorSystem implements ISubSystem {
     if (narrative) {
       this.lastNarrativeText = narrative
       const branchMeta = this.resolveBranchFromParsed(effectiveParsed)
+      if (branchMeta.isBranchPoint) {
+        this.lastBranchTotalRound = this.state.totalRounds
+      }
       this.state.narrativeHistory.push({
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
         text: narrative,

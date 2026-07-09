@@ -125,8 +125,14 @@ export const useSettingsStore = create<SettingsState>()(
       }),
       {
         name: 'mod-settings:store',
-        version: 1,
-        migrate: (persistedState: unknown, _version: number) => persistedState as SettingsState,
+        version: 2,
+        migrate: (persistedState: unknown, version: number) => {
+          const state = persistedState as Partial<SettingsState>
+          if (version < 2 && state?.wordCountTarget === 500) {
+            return { ...state, wordCountTarget: DEFAULT_WORD_COUNT_TARGET } as SettingsState
+          }
+          return persistedState as SettingsState
+        },
         // 不持久化 set 函数
         partialize: (state,) => {
           const { setProvider: _sp, setCustomKey: _sck, setCustomUrl: _scu, setCustomModel: _scm, setTemperature: _st, setTopP: _stp, setMaxTokens: _smt, setReasoningEffort: _sre, setTalentThinkingIntensity: _stti, setAiTalentGeneration: _satg, setPreGenerateRounds: _spgr, setStorySeed: _sss, setNarrativeStyle: _sns, setWordCountTarget: _swct, setStreamingMode: _ssm, setTheme: _sth, ...rest } = state

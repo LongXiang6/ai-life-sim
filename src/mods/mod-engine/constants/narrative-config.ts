@@ -85,13 +85,18 @@ export const COMPACT_JSON_KEY_MAP: Record<string, string> = {
  * 所有 wordCountTarget 回退值、computeNarrativeMaxTokens 下限、store 初始值均从此派生
  * 改动此处即可全局生效，无需在多个文件中手动同步
  */
-export const DEFAULT_WORD_COUNT_TARGET = 500
+export const DEFAULT_WORD_COUNT_TARGET = 400
 
 /**
  * 根据大致字数生成 Prompt 字数约束文本
  */
 export function buildWordCountInstruction(target: number): string {
-  return `【字数要求：大约${target}字】叙事内容应在此字数附近，不要过短或过长。`
+  return [
+    `【字数要求：大约${target}字】叙事内容应在此字数附近，不要过短或过长。`,
+    '移动端可读性要求：三段合计控制在目标附近，每段不超过约160个汉字；不要为了凑字重复环境意象。',
+    '完整性要求：第三段必须完成心理余韵或阶段性收束，正文末尾不得停在未说完的引出句。',
+    '文字规范：使用常用简体中文，避免生僻字、异体字、日文新字体或繁体字混入。',
+  ].join('\n')
 }
 
 /** 废弃项目 NARRATIVE_WORD_COUNT_DEFAULT_MAX */

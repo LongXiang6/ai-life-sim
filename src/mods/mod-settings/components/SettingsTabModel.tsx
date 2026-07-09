@@ -47,7 +47,7 @@ const TALENT_THINKING_OPTIONS: Array<{ value: ReasoningEffort; label: string; de
   { value: 'level-6', label: '六级', desc: '极致推理，最大约 16384 tokens' },
 ]
 
-const WORD_COUNT_TARGET_OPTIONS = [50, 100, 150, 200, 300, 500, 800, 1000, 1500]
+const WORD_COUNT_TARGET_OPTIONS = [50, 100, 150, 200, 300, 400, 500, 800, 1000, 1500]
 
 export function SettingsTabModel() {
   const {

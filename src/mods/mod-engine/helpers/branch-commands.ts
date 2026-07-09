@@ -21,6 +21,7 @@ export function resolveNarrativeBranchChoice(branchId: string, choice: string): 
 
   const store = useEngineStore.getState()
   store.resolveBranch(branchId, trimmed)
+  orchestrator.resolveBranchChoice(branchId, trimmed)
   orchestrator.setLastPlayerChoice(trimmed)
   clearPreGenQueue()
   useEngineStore.getState().setForceBranchNext(false)

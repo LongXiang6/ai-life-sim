@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+@source not "../../.agents";
+@source not "../../docs";
 
 /* ═══════════════════════════════════════════════════════════════════
  * Foundation Token

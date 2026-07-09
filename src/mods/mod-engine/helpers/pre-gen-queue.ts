@@ -110,11 +110,15 @@ export function checkAndClearPreGenOnTimeStepChange(currentStep: TimeStep): bool
 
 function takePreGenQueueItem(shouldNotify: boolean): PreGenCachedRound | undefined {
   const item = preGenQueue.shift()
+  if (item) {
+    // 消费预生成项意味着主推进即将接管这份结果。这里让当前生成代失效，
+    // 防止 fillPreGenQueue 收尾时因队列变空而基于旧快照递归补下一轮预生成。
+    preGenGen += 1
+  }
   // 预生成防御：消费到分支点叙事 → 立即清空剩余预生成队列，避免后续预生成内容携带未解决分支
   if (item?.isBranchPoint) {
     console.log('[PreGen] 消费到分支点叙事，已清空预生成队列')
     preGenQueue.length = 0
-    preGenGen += 1
     isPreGenActive = false
   }
   if (shouldNotify) notifyPreGenListeners()
@@ -170,9 +174,13 @@ function narrativeJsonHasBranch(content: string): boolean {
 
   try {
 
-    const raw = JSON.parse(content) as { branch?: boolean; branchOptions?: unknown[] }
+    // 当前主叙事输出是 [NARRATIVE]/[META] 信封；预生成分支判断必须读 META，
+    // 否则分支会被误判成普通缓存并在后续主推进中打断玩家节奏。
+    const metaMatch = content.match(/\[META\]([\s\S]*?)\[\/META\]/i)
+    const jsonSource = metaMatch?.[1]?.trim() || content
+    const raw = JSON.parse(jsonSource) as { branch?: boolean; branchOptions?: unknown[] }
 
-    return raw.branch === true && Array.isArray(raw.branchOptions) && raw.branchOptions.length > 0
+    return raw.branch === true
 
   } catch {
 
@@ -268,15 +276,22 @@ export async function fillPreGenQueue(
 
 
 
+    const isBranchPoint = narrativeJsonHasBranch(fullContent)
+    if (isBranchPoint && orchestrator.isBranchCoolingDownForNextRound()) {
+      // 分支是强交互事件。冷却期内丢弃预生成分支，改由主推进用最新玩家选择现场生成。
+      lastIsBranch = true
+      return
+    }
+
     preGenQueue.push({
 
       fullContent,
 
-      isBranchPoint: narrativeJsonHasBranch(fullContent),
+      isBranchPoint,
 
     })
 
-    lastIsBranch = narrativeJsonHasBranch(fullContent)
+    lastIsBranch = isBranchPoint
 
 
 

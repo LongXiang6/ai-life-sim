@@ -84,14 +84,14 @@ function AutoSaveIndicator({ lastAutoSaveRound }: { lastAutoSaveRound: number })
   const hasAutoSave = lastAutoSaveRound > 0
 
   return (
-    <div className="flex items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
-      <span className="flex items-center gap-1">
-        <span className={`inline-block w-1.5 h-1.5 rounded-full ${hasAutoSave ? 'bg-[var(--color-success)]' : 'bg-[var(--color-text-tertiary)]'}`} />
+    <div className={styles.autoSave}>
+      <span className={styles.autoSaveLabel}>
+        <span className={styles.autoSaveDot} data-saved={hasAutoSave ? 'true' : 'false'} />
         实时保存
       </span>
       {hasAutoSave
-        ? <span>已保存至第 {lastAutoSaveRound} 轮</span>
-        : <span>未保存</span>}
+        ? <span className={styles.autoSaveRound}>已保存至第 {lastAutoSaveRound} 轮</span>
+        : <span className={styles.autoSaveRound}>未保存</span>}
     </div>
   )
 }
@@ -148,8 +148,11 @@ export default function GamePage() {
   const [showWorldPanel, setShowWorldPanel] = useState(false)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [timeStepOpen, setTimeStepOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
   const timeStepBtnRef = useRef<HTMLDivElement>(null)
+  const moreBtnRef = useRef<HTMLDivElement>(null)
   const [timeStepMenuRect, setTimeStepMenuRect] = useState<DOMRect | null>(null)
+  const [moreMenuRect, setMoreMenuRect] = useState<DOMRect | null>(null)
   const narrativeEndRef = useRef<HTMLDivElement>(null)
   const prevEventsLenRef = useRef(0)
   const toasts = useToastStore((s) => s.toasts)
@@ -186,18 +189,28 @@ export default function GamePage() {
     }
   }, [timeStepOpen])
 
-  // 点击外部关闭时间步进菜单
+  useLayoutEffect(() => {
+    if (moreOpen) {
+      const rect = moreBtnRef.current?.getBoundingClientRect()
+      setMoreMenuRect(rect ?? null)
+    }
+  }, [moreOpen])
+
+  // 点击外部关闭顶部弹出菜单
   useEffect(() => {
-    if (!timeStepOpen) return
+    if (!timeStepOpen && !moreOpen) return
     const onDocClick = (e: MouseEvent) => {
       const target = e.target as Node
       if (timeStepOpen && timeStepBtnRef.current && !timeStepBtnRef.current.contains(target)) {
         setTimeStepOpen(false)
       }
+      if (moreOpen && moreBtnRef.current && !moreBtnRef.current.contains(target)) {
+        setMoreOpen(false)
+      }
     }
     document.addEventListener('mousedown', onDocClick)
     return () => document.removeEventListener('mousedown', onDocClick)
-  }, [timeStepOpen])
+  }, [timeStepOpen, moreOpen])
 
   const isComplete = status === 'complete'
   const isDead = health.isDead
@@ -415,11 +428,30 @@ export default function GamePage() {
               <span className={styles.preGenHint}>{preGenHint}</span>
             )}
             <div className={styles.controlRow}>
-              <div ref={timeStepBtnRef}>
+              <div ref={moreBtnRef} className={styles.menuAnchor}>
                 <button
                   type="button"
                   className={styles.ctrlBtn}
-                  onClick={() => setTimeStepOpen((v) => !v)}
+                  aria-label="更多操作"
+                  aria-expanded={moreOpen}
+                  onClick={() => {
+                    setMoreOpen((v) => !v)
+                    setTimeStepOpen(false)
+                  }}
+                >
+                  更多
+                </button>
+              </div>
+              <div ref={timeStepBtnRef} className={styles.menuAnchor}>
+                <button
+                  type="button"
+                  className={styles.ctrlBtn}
+                  aria-label="时间推进长度切换"
+                  aria-expanded={timeStepOpen}
+                  onClick={() => {
+                    setTimeStepOpen((v) => !v)
+                    setMoreOpen(false)
+                  }}
                 >
                   {activeTimeStepLabel}
                 </button>
@@ -427,29 +459,15 @@ export default function GamePage() {
               <button
                 type="button"
                 className={`${styles.ctrlBtn} ${showWorldPanel ? styles.ctrlBtnWorldActive : ''}`}
+                aria-label="世界信息"
+                aria-expanded={showWorldPanel}
                 onClick={() => {
                   setShowWorldPanel(!showWorldPanel)
                   setTimeStepOpen(false)
+                  setMoreOpen(false)
                 }}
               >
-                📊 世界{showWorldPanel ? '▴' : '▾'}
-              </button>
-              <button
-                type="button"
-                className={styles.ctrlBtn}
-                onClick={() => {
-                  setShowSaveDialog(true)
-                  setTimeStepOpen(false)
-                }}
-              >
-                💾 存档
-              </button>
-              <button
-                type="button"
-                className={styles.ctrlBtn}
-                onClick={() => router.push('/')}
-              >
-                🏠 主界面
+                世界
               </button>
             </div>
             <AutoSaveIndicator lastAutoSaveRound={lastAutoSaveRound} />
@@ -528,6 +546,44 @@ export default function GamePage() {
             )}
           </div>
         </div>
+      )}
+
+      {moreOpen && moreMenuRect && typeof document !== 'undefined' && createPortal(
+        <div
+          className={styles.moreMenu}
+          style={{
+            position: 'fixed',
+            zIndex: 10000,
+            top: moreMenuRect.bottom + 4,
+            right: document.documentElement.clientWidth - moreMenuRect.right,
+            background: 'var(--color-bg-card)',
+            opacity: 1,
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            className={styles.moreMenuItem}
+            onClick={() => {
+              setShowSaveDialog(true)
+              setMoreOpen(false)
+            }}
+          >
+            存档
+          </button>
+          <button
+            type="button"
+            className={styles.moreMenuItem}
+            onClick={() => {
+              setMoreOpen(false)
+              router.push('/')
+            }}
+          >
+            主界面
+          </button>
+        </div>,
+        document.body,
       )}
 
       {timeStepOpen && timeStepMenuRect && typeof document !== 'undefined' && createPortal(
