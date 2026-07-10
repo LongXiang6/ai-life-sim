@@ -82,6 +82,14 @@ function persistState(state: SavedFormState): void {
   configStore.set('mod-pages', getStorageKey(), state)
 }
 
+export function clearCharacterCreateDrafts(): void {
+  for (const key of configStore.keys('mod-pages')) {
+    if (key.startsWith('character-create-form:')) {
+      configStore.remove('mod-pages', key)
+    }
+  }
+}
+
 const DEFAULT_ATTRIBUTES: Record<string, number> = {
   physique: 0,
   mind: 0,

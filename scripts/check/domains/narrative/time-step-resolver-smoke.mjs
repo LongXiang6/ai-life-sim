@@ -183,15 +183,19 @@ assertOk(
 
 const orchestratorAdvanceBody = extractBlock(orchestratorSrc, 'advanceTimeForCurrentStep(): RoundInfo')
 assertOk(
+  /timeSystem\.importRound\(this\.state\.round\)/.test(orchestratorAdvanceBody),
+  'orchestrator must sync TimeSystem from the authoritative round before advancing',
+)
+assertOk(
   /this\.state\.narrativeHistory\.length\s*>\s*0/.test(orchestratorAdvanceBody),
   'orchestrator must only align switched time steps after at least one completed narrative',
 )
 assertOk(
-  /shouldAlignTimeStepTransition\(this\.lastNarratedTimeStep\.unit,\s*this\.state\.timeStep\.unit\)/.test(orchestratorAdvanceBody),
-  'orchestrator must detect coarse-to-fine time-step transitions from the last narrated step',
+  /alignmentFromUnit\s*=\s*this\.pendingTimeStepAlignmentFromUnit\s*\?\?\s*this\.lastNarratedTimeStep\.unit/.test(orchestratorAdvanceBody),
+  'orchestrator must preserve the player-selected coarse-to-fine transition until the next round',
 )
 assertOk(
-  /timeSystem\.alignToNextPeriod\(this\.lastNarratedTimeStep\.unit,\s*this\.state\.timeStep\.unit\)/.test(orchestratorAdvanceBody),
+  /this\.pendingTimeStepAlignmentFromUnit\s*=\s*undefined[\s\S]*timeSystem\.alignToNextPeriod\(alignmentFromUnit,\s*this\.state\.timeStep\.unit\)/.test(orchestratorAdvanceBody),
   'orchestrator must align the next round instead of re-entering the already narrated period',
 )
 assertOk(
@@ -249,6 +253,12 @@ assertOk(
 assertOk(
   !/\bageYearsDelta\b|\bcalendarDaysDelta\b|\bsimulationTicks\b/.test(orchestratorCode),
   'orchestrator must not revive legacy time delta fields',
+)
+
+const narrativeAgeBody = extractBlock(orchestratorSrc, 'computeNarrativeAge(context')
+assertOk(
+  /Math\.floor\(Math\.max\(0,\s*context\.totalDays\s*-\s*365\)\s*\/\s*365\)/.test(narrativeAgeBody),
+  'narrative age must derive completed years from totalDays so month/day rounds do not add whole years',
 )
 
 assertOk(

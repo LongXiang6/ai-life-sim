@@ -46,7 +46,7 @@
   flex: 1;
   overflow-y: auto;
   min-height: 0;
-  padding: 8px 0 12px;
+  padding: 8px 0 calc(20px + env(safe-area-inset-bottom));
 }
 
 .timelineInner {
@@ -190,17 +190,10 @@
 }
 
 .advanceDock {
-  flex: 0 0 auto;
   width: 100%;
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 2px 0 calc(8px + env(safe-area-inset-bottom));
-  background: linear-gradient(
-    to bottom,
-    transparent 0,
-    color-mix(in srgb, var(--color-bg) 68%, transparent) 42%,
-    var(--color-bg) 100%
-  );
+  margin: 10px 0 0;
+  padding: 12px 0 4px;
+  background: transparent;
 }
 
 .advanceArea {

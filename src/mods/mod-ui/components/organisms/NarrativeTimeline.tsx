@@ -2,7 +2,7 @@
 
 /**
  * @module NarrativeTimeline
- * @description 叙事时间线 —— 对齐废弃项目：虚拟窗口、分隔线、流式段落、固定推进区
+ * @description 叙事时间线 —— 对齐废弃项目：虚拟窗口、分隔线、流式段落、故事尾部推进区
  * @mod mod-ui
  */
 
@@ -374,9 +374,9 @@ export function NarrativeTimeline({
           )}
 
           {eventElements}
+          {advanceControl}
         </div>
       </main>
-      {advanceControl}
     </div>
   )
 }

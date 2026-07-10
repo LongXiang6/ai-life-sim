@@ -249,6 +249,9 @@ export class OrchestratorSystem implements ISubSystem {
   /** 上一条已完成叙事采用的时间步长，用于粗→细切换后定位下一时间节点 */
   private lastNarratedTimeStep: TimeStep = { ...DEFAULT_ENGINE_CONFIG.timeStep }
 
+  /** 玩家粗→细切换后等待下一轮消费的原粒度；仅运行态使用，不进入存档契约。 */
+  private pendingTimeStepAlignmentFromUnit?: TimeStep['unit']
+
   /** 玩家分支选择（注入下一轮 Prompt，一次性消费） */
   private lastPlayerChoice?: string
 
@@ -330,13 +333,18 @@ export class OrchestratorSystem implements ISubSystem {
 
   /** 推进时间（供 stage 闭包使用） */
   private advanceTimeForCurrentStep(): RoundInfo {
+    // Orchestrator round 是存档/预生成恢复后的权威游标；推进前同步 TimeSystem，
+    // 避免运行时单例仍停在旧快照，导致粗→细切换只追平旧日期而重写已叙事周期。
+    timeSystem.importRound(this.state.round)
     timeSystem.setTimeStep(this.state.timeStep)
 
+    const alignmentFromUnit = this.pendingTimeStepAlignmentFromUnit ?? this.lastNarratedTimeStep.unit
     if (
       this.state.narrativeHistory.length > 0
-      && shouldAlignTimeStepTransition(this.lastNarratedTimeStep.unit, this.state.timeStep.unit)
+      && shouldAlignTimeStepTransition(alignmentFromUnit, this.state.timeStep.unit)
     ) {
-      return timeSystem.alignToNextPeriod(this.lastNarratedTimeStep.unit, this.state.timeStep.unit)
+      this.pendingTimeStepAlignmentFromUnit = undefined
+      return timeSystem.alignToNextPeriod(alignmentFromUnit, this.state.timeStep.unit)
     }
 
     return timeSystem.advance()
@@ -351,19 +359,28 @@ export class OrchestratorSystem implements ISubSystem {
     this.branchJustResolved = false
   }
 
-  /**
-   * 叙事用年龄：与 lifespan 子系统一样使用推进后的 round.year，避免同一 prompt 内年龄不一致。
-   */
+  /** 叙事用年龄：按绝对天数计算，细粒度回合不会错误增加整岁。 */
   private computeNarrativeAge(context: RoundContext): number {
     const baseState = context.subsystemStates?.['character-base']?.data
     const startingAge = (baseState && typeof baseState === 'object' && 'startingAge' in baseState)
       ? (baseState as Record<string, unknown>).startingAge as number
       : 0
-    return (startingAge ?? 0) + Math.max(0, context.round.year - 1)
+    const completedYears = Math.floor(Math.max(0, context.totalDays - 365) / 365)
+    return (startingAge ?? 0) + completedYears
   }
 
   /** 设置时间步进（UI → 引擎 + TimeSystem） */
   setTimeStep(step: RoundContext['timeStep']): void {
+    if (this.pendingTimeStepAlignmentFromUnit) {
+      if (!shouldAlignTimeStepTransition(this.pendingTimeStepAlignmentFromUnit, step.unit)) {
+        this.pendingTimeStepAlignmentFromUnit = undefined
+      }
+    } else if (
+      this.state.narrativeHistory.length > 0
+      && shouldAlignTimeStepTransition(this.state.timeStep.unit, step.unit)
+    ) {
+      this.pendingTimeStepAlignmentFromUnit = this.state.timeStep.unit
+    }
     this.state.timeStep = step
     timeSystem.setTimeStep(step)
     useEngineStore.getState().setTimeStep(step)
@@ -1038,7 +1055,7 @@ export class OrchestratorSystem implements ISubSystem {
 
   private buildYearEvents(): YearEvent[] {
     const fallbackRound = this.state.round
-    const fallbackAge = this.characterState?.age ?? Math.max(0, fallbackRound.year - 1)
+    const fallbackAge = this.computeNarrativeAge(this.buildRoundContext())
     const fallbackTimeLabel = `${fallbackRound.eraName}${fallbackRound.eraYear}年`
 
     return this.state.narrativeHistory.map((n, i) => {
@@ -1242,6 +1259,7 @@ export class OrchestratorSystem implements ISubSystem {
     this.prevBridgeSnapshot = {}
     this.lastNarrativeText = ''
     this.lastNarratedTimeStep = { ...DEFAULT_ENGINE_CONFIG.timeStep }
+    this.pendingTimeStepAlignmentFromUnit = undefined
     this.worldSetting = null
     this.characterState = null
     this.worldEventBus.reset()
@@ -1279,6 +1297,7 @@ export class OrchestratorSystem implements ISubSystem {
     timeSystem.importRound(store.round)
     timeSystem.setTimeStep(store.timeStep)
     this.lastNarratedTimeStep = { ...store.timeStep }
+    this.pendingTimeStepAlignmentFromUnit = undefined
     if (store.narrativeHistory.length > 0) {
       this.lastNarrativeText = store.narrativeHistory[store.narrativeHistory.length - 1]?.text ?? ''
     }
@@ -1908,7 +1927,7 @@ export class OrchestratorSystem implements ISubSystem {
 
   /** 基于当前状态生成兜底叙事（不依赖 AI） */
   private buildFallbackNarrativeFromState(): string {
-    const age = this.characterState?.age ?? Math.max(0, this.state.round.year - 1)
+    const age = this.computeNarrativeAge(this.buildRoundContext())
     const worldName = this.worldSetting?.name ?? '这个世界'
     return `你继续生活在${worldName}中，今年${age}岁。岁月平静地流逝着，没有什么特别的事情发生。生活依旧，你按照自己的方式继续前行。`
   }
@@ -2055,7 +2074,7 @@ export class OrchestratorSystem implements ISubSystem {
     const baseData = this.lastSubsystemStates?.['character-base']?.data as { startingAge?: number } | undefined
     const maxAge = lifespanData?.maxAge ?? 100
     const startingAge = baseData?.startingAge ?? 0
-    const currentAge = this.characterState?.age ?? Math.max(0, this.state.round.year - 1)
+    const currentAge = this.computeNarrativeAge(this.buildRoundContext())
 
     return {
       currentAge,
@@ -2138,7 +2157,7 @@ export class OrchestratorSystem implements ISubSystem {
 
     const effectiveParsed = interceptorOutcome.parsed
 
-    const ageAtRound = this.characterState?.age ?? this.computeNarrativeAge(this.buildRoundContext())
+    const ageAtRound = this.computeNarrativeAge(this.buildRoundContext())
     const worldConfig = (this.worldSetting?.config ?? {}) as Record<string, unknown>
     const eraStartYear = readEraStartYearFromConfig(worldConfig)
     const birthEraYear = readBirthEraYearFromConfig(worldConfig)

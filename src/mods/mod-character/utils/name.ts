@@ -14,44 +14,6 @@ function isCompoundSurname(s: string): boolean {
   return s.length >= 2
 }
 
-const CJK_START = 0x4E00
-const CJK_END = 0x9FA5
-
-function randomCJKChar(): string {
-  for (let i = 0; i < 100; i++) {
-    const code = CJK_START + Math.floor(Math.random() * (CJK_END - CJK_START + 1))
-    const char = String.fromCodePoint(code)
-    if (/^[\u4e00-\u9fa5]$/.test(char)) return char
-  }
-  return '\u4e00'
-}
-
-function buildNameUnicode(): string {
-  const surnameLen = Math.random() < 0.3 ? 2 : 1
-  let surname = ''
-  for (let i = 0; i < surnameLen; i++) {
-    surname += randomCJKChar()
-  }
-
-  const r = Math.random()
-  const givenCount = r < 0.3 ? 1 : r < 0.7 ? 2 : 3
-
-  let given = ''
-  const used = new Set<string>()
-  for (let i = 0; i < givenCount; i++) {
-    let char: string
-    let attempts = 0
-    do {
-      char = randomCJKChar()
-      attempts++
-    } while (used.has(char) && attempts < 50)
-    used.add(char)
-    given += char
-  }
-
-  return surname + given
-}
-
 function buildNamePool(surname: string, pool: string[]): string {
   const isCompound = isCompoundSurname(surname)
   let givenCount: number
@@ -89,34 +51,7 @@ export function randomName(gender?: string, isPrimitive = false): string {
   if (isPrimitive && Math.random() < 0.4) {
     return pickRandom(PRIMITIVE_NAME_POOL)
   }
-  // 75% 池选模式，25% Unicode 随机模式
-  if (Math.random() < 0.25) {
-    return randomNameUnicode(gender)
-  }
   return randomNamePool(gender)
-}
-
-function randomNameUnicode(gender?: string): string {
-  const useCompoundSurname = Math.random() < 0.08
-  const compoundSurnames = SURNAME_POOL.filter((s) => s.length >= 2)
-  const isCompound = useCompoundSurname && compoundSurnames.length > 0
-
-  if (isCompound) {
-    const compound = pickRandom(compoundSurnames)
-    let pool: string[]
-    if (!gender || gender === '自定义') {
-      pool = [...GIVEN_MALE_POOL, ...GIVEN_FEMALE_POOL, ...GIVEN_NEUTRAL_POOL]
-    } else if (gender === '男') {
-      pool = GIVEN_MALE_POOL
-    } else if (gender === '女') {
-      pool = GIVEN_FEMALE_POOL
-    } else {
-      pool = GIVEN_NEUTRAL_POOL
-    }
-    return buildNamePool(compound, pool)
-  }
-
-  return buildNameUnicode()
 }
 
 function randomNamePool(gender?: string): string {

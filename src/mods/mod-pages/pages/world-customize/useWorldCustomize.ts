@@ -113,16 +113,24 @@ function resolveWorldConfig(
     return ''
   }
 
-  const powerSystemVal = getEffectiveValue('powerSystem') || '修仙'
-  const worldviewVal = getEffectiveValue('worldviewEssence') || '唯心主义'
-  const powerSystemTag = mapPowerSystemZhToTag(powerSystemVal)
-  const essenceTag = mapWorldviewEssenceZhToTag(worldviewVal)
+  const powerSystemVal = getEffectiveValue('powerSystem')
+  const worldviewVal = getEffectiveValue('worldviewEssence')
+  const powerSystemTag = powerSystemVal
+    ? mapPowerSystemZhToTag(powerSystemVal)
+    : existingConfig?.powerSystemTag ?? 'none'
+  const essenceTag = worldviewVal
+    ? mapWorldviewEssenceZhToTag(worldviewVal)
+    : existingConfig?.essenceTag ?? 'modern'
 
   const powerCeilingVal = getEffectiveValue('powerCeiling')
-  const powerCeilingNum = parseInt(powerCeilingVal?.match(/^(\d+)/)?.[1] ?? '8') || 8
+  const powerCeilingNum = powerCeilingVal
+    ? parseInt(powerCeilingVal.match(/^(\d+)/)?.[1] ?? '8') || 8
+    : existingConfig?.powerCeiling ?? 8
 
-  const spatialVal = getEffectiveValue('universeScale') || '宇宙'
-  const spatialForm = SPATIAL_FORM_ZH_MAP[spatialVal] ?? 'plane'
+  const spatialVal = getEffectiveValue('universeScale')
+  const spatialForm = spatialVal
+    ? SPATIAL_FORM_ZH_MAP[spatialVal] ?? 'plane'
+    : existingConfig?.spatialForm ?? 'plane'
 
   const civilizationStage = existingConfig?.civilizationStage ?? 'medieval'
 
@@ -136,7 +144,7 @@ function resolveWorldConfig(
     ? trimmedDesc
     : hasExistingDescription
       ? existingConfig!.description
-      : `${powerSystemVal} 世界观 · ${spatialVal} 空间形态`
+      : `${powerSystemVal || powerSystemTag} 世界观 · ${spatialVal || spatialForm} 空间形态`
 
   const hasExistingName = existingConfig?.name && existingConfig.name !== '自定义世界'
 

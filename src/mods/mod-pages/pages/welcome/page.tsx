@@ -38,6 +38,7 @@ import {
 
 import WelcomeDesktop from './WelcomeDesktop'
 import WelcomeMobile from './WelcomeMobile'
+import { clearCharacterCreateDrafts } from '../character-create/useCharacterCreateForm'
 
 import type { SaveMetadata } from '@/core/storage/save-manager'
 
@@ -76,6 +77,7 @@ export default function WelcomePage() {
       return
     }
     // 重置所有游戏数据 store，清除上一局游戏的残留数据
+    clearCharacterCreateDrafts()
     useCharacterStore.getState().reset()
     useWorldStore.getState().reset()
     useEngineStore.getState().reset()
