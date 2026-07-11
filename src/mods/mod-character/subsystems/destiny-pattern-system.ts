@@ -197,6 +197,7 @@ export class DestinyPatternSystem extends BaseSubsystem {
         attrBonus: input.attrBonus
           ? this.validateAttrBonus(input.attrBonus as Record<string, number>, rarity)
           : {},
+        systemModifiers: validatePatternSystemModifiers(input.systemModifiers, rarity),
       }
 
       result.push(pattern)

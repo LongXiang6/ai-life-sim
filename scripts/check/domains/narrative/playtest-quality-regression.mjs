@@ -134,7 +134,12 @@ assertOk(!destinySystemSrc.includes('PARALLEL_SEEDS'), 'destiny initial generati
 assertOk(!destinyPromptSrc.includes('第一次踩上'), 'destiny prompt must not teach biographical event openings')
 assertOk(/稳定|先天|固有/.test(destinyPromptSrc) && /禁止.*年份|严禁.*年份/.test(destinyPromptSrc), 'destiny prompt must require timeless traits')
 assertOk(destinyPromptSrc.includes('JSON顶层数组') && !destinyPromptSrc.includes('{"patterns"'), 'destiny prompt must match the top-level array Zod contract')
-assertOk(/version:\s*'2\.7\.0'/.test(destinyPromptSrc), 'destiny prompt contract change must bump its version')
+assertOk(/version:\s*'2\.8\.0'/.test(destinyPromptSrc), 'destiny prompt contract change must bump its version')
+assertOk(destinyPromptSrc.includes('systemModifiers: destinyPatternSystemModifiersSchema.optional()'), 'destiny schema must accept validated system modifiers')
+assertOk(/legendary允许轻度概念规则/.test(destinyPromptSrc), 'legendary destiny patterns must support bounded conceptual rules')
+assertOk(/不得自动获胜/.test(destinyPromptSrc) && /条件、概率、代价、有限触发/.test(destinyPromptSrc), 'legendary conceptual rules must preserve cost and agency')
+assertOk(/effect写成叙事引擎可持续遵守的规则/.test(destinyPromptSrc), 'destiny effect must remain a narrative rule instead of only numeric modifiers')
+assertOk(/validatePatternSystemModifiers\(input\.systemModifiers, rarity\)/.test(destinySystemSrc), 'external AI destiny injection must validate system modifiers')
 assertOk(!talentDrawPageSrc.includes('buildTimeoutFallback'), 'AI destiny page must not build a preset timeout fallback')
 assertOk(!talentDrawPageSrc.includes('fallbackTimer'), 'AI destiny page must keep waiting instead of starting a fallback timer')
 assertSame(

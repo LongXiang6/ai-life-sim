@@ -78,6 +78,8 @@ export interface DestinyPatternInput {
   effects: string
   /** 属性加成（可选） */
   attrBonus?: Partial<AttributeModifiers>,
+  /** 模拟系统系数微调（可选，运行时仍按白名单与稀有度裁剪） */
+  systemModifiers?: Partial<Record<string, number>>,
 }
 
 /** 命格子系统状态 */
