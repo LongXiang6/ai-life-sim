@@ -151,6 +151,7 @@ export const SYSTEM_PROMPT = stringifyPrompt({
           'NARRATIVE正文最后应以完整中文句子收束，句末用。！？或引号后的完整标点，避免以“写着”“说”“问”“看见”“递来”等引出句中断',
           '每轮优先推进一个核心事件，可含自然连带反应；多个事件同时出现时，要让它们围绕同一个剧情因果',
           '禁止换皮复演最近两轮已经完成的主要场景、动作、对话结论或成长里程碑；角色已经学会、完成或经历的事，本轮只能写其下一阶段、后果或新的阻力',
+          '命运分叉只用于会改变身份、核心关系、长期目标、关键资源、阵营、存亡或不可逆轨迹的 HIGH 级抉择；吃什么、去哪玩、如何花小额零用钱等日常选择直接写入正文，branch=false',
           '「原创保护」列出的内容均为角色亲自开创，严禁改写为外部来源',
         ],
       L1: [
@@ -270,7 +271,7 @@ export const SYSTEM_PROMPT = stringifyPrompt({
         },
         branch: {
           type: 'boolean',
-          description: '可选：是否为命运分叉点。true 时须同时提供 branchTitle 与 branchOptions（2-4 个选项）。叙事正文应在此暂停，等待玩家抉择。',
+          description: '可选：是否为命运分叉点。仅当 importance=HIGH 且选择会改变身份、核心关系、长期目标、关键资源、阵营、存亡或不可逆轨迹时为 true；日常小事必须为 false。true 时须同时提供 branchTitle 与 branchOptions（2-4 个选项）。',
         },
         branchTitle: {
           type: 'string',
@@ -281,7 +282,7 @@ export const SYSTEM_PROMPT = stringifyPrompt({
           items: { type: 'string' },
           minItems: 2,
           maxItems: 4,
-          description: '分叉选项列表（branch=true 时必填），每条为可执行的行动描述。',
+          description: '分叉选项列表（branch=true 时必填），每条必须是会导向不同长期后果的可执行行动，不得只是措辞不同的同一路径。',
         },
       },
     },
@@ -316,20 +317,6 @@ export const SYSTEM_PROMPT = stringifyPrompt({
 [/META]`,
     },
     {
-      description: '示例1：现代日常·小学生活',
-      input: { character: '小明，8岁', worldSetting: '现代城市，普通家庭生活', state: '健康良好，就读小学' },
-      output: `[NARRATIVE]
-班主任把“小发明展示”的通知贴到黑板旁，点名让每个小组周五前交一个作品。同桌把你推到讲台边，说上次自然课是你答对了电路题，这次讲解也该由你来。
-
-晚上吃饭时，你小声提起想买材料，妈妈没有立刻答应，只从抽屉里翻出旧手电、废电池和一截铜线。你拆坏了弹簧，急得差点把螺丝刀摔在桌上，最后还是按妈妈画在草稿纸上的线路，把小灯泡接亮了一瞬。
-
-第二天早读前，你把那个歪歪扭扭的小盒子放到同桌面前。灯泡再次亮起时，他第一次没有抢着说话，只压低声音问你周五要不要一起站上讲台。
-[/NARRATIVE]
-[META]
-{"changes":[],"notableEvents":["报名小发明展示","用旧手电接亮小灯泡"],"importance":"NORMAL","digest":"你和同桌准备小发明展示，用旧手电接亮灯泡。","keyEvents":[{"text":"准备小发明展示","importance":45,"entities":["班主任","同桌","妈妈","小灯泡"]}],"arcStatus":"ongoing"}
-[/META]`,
-    },
-    {
       description: '示例2：战斗·分支抉择',
       input: { character: '修仙者，遭遇妖兽', worldSetting: '仙侠世界' },
       output: `[NARRATIVE]
@@ -341,20 +328,6 @@ export const SYSTEM_PROMPT = stringifyPrompt({
 [/NARRATIVE]
 [META]
 {"changes":[{"id":"character-base","description":"生死战中剑术与体魄得到磨炼","changes":{"physiqueDelta":1,"mindDelta":1}}],"notableEvents":["斩杀妖兽","获得妖兽内丹"],"importance":"HIGH","digest":"你斩杀妖兽并取得内丹，面临处理选择。","keyEvents":[{"text":"斩杀妖兽取得内丹","importance":85,"entities":["妖兽","内丹","散修"]}],"arcStatus":"end","branch":true,"branchTitle":"如何处理这枚妖兽内丹？","branchOptions":["炼化吸收提升修为","卖给坊市换取灵石","留作炼丹材料"]}
-[/META]`,
-    },
-    {
-      description: '示例3：日常·学艺社交',
-      input: { character: '铁匠学徒，16岁', worldSetting: '古代城镇' },
-      output: `[NARRATIVE]
-铁匠铺的火光映在你脸上，热浪把额前碎发烤得发硬。你握着锤柄，听见炉膛里炭火噼啪作响，手心全是汗。
-
-第三个月的傍晚，你终于亲手打出一把像样的短刀。师傅老陈头检查刀刃，难得没有骂人，只哼了一声“勉强能用”；隔壁药铺的小翠探头看了一眼，笑着说这刀挺好看。
-
-你把短刀挂在腰间时，肩膀酸得几乎抬不起来，却还是忍不住摸了摸刀鞘。冬风从铺门外灌进来，你忽然觉得这个冬天没那么冷了。
-[/NARRATIVE]
-[META]
-{"changes":[{"id":"character-base","description":"长期锻打让体魄略有增长","changes":{"physiqueDelta":1}}],"notableEvents":["锻造出第一把合格短刀","获得师父认可"],"importance":"NORMAL","digest":"你打出第一把合格短刀，获得师父认可。","keyEvents":[{"text":"打出合格短刀","importance":55,"entities":["短刀","师傅老陈头","小翠"]}],"arcStatus":"end"}
 [/META]`,
     },
   ],
@@ -408,7 +381,7 @@ export function getWorldRules(essenceTag?: string): string {
 
 export const narrativePrompt: PromptTemplate = {
   name: 'narrative',
-  version: '2.1.0',
+  version: '2.2.0',
   mod: 'mod-engine',
   systemPrompt: SYSTEM_PROMPT,
   userPromptTemplate: [

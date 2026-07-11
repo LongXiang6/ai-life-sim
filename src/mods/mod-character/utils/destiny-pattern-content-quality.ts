@@ -72,6 +72,15 @@ const FUTURE_EVENT_PATTERNS: RegExp[] = [
 
 ]
 
+/** 绝对时间、年龄节点和既往履历；命格必须描述稳定特质，不是人物小传。 */
+const BIOGRAPHICAL_EVENT_PATTERNS: RegExp[] = [
+  /(?:公元)?\d{3,4}年/,
+  /\d{1,3}岁(?:时|那年|前|后|起|开始)/,
+  /(?:第一次|有一次|某天|那天|那年|后来|此后|曾经|当时)/,
+  /你(?:曾|曾经|路过|遇到|收到|参加了|进入了|离开了|来到|发现了|经历了|目睹了)/,
+  /(?:春|夏|秋|冬)(?:天|季|末|初)?，?你(?:去|到|在|曾|路过|遇到)/,
+]
+
 
 
 /** 出生状态 / 婴儿阶段描写（命格应写特质，不是人生开局场景） */
@@ -156,6 +165,10 @@ export function hasFutureEventLanguage(text: string, startingAge = 0): boolean {
 
     if (pattern.test(normalized)) return true
 
+  }
+
+  for (const pattern of BIOGRAPHICAL_EVENT_PATTERNS) {
+    if (pattern.test(normalized)) return true
   }
 
 

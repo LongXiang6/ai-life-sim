@@ -144,7 +144,6 @@ export function NarrativeTimeline({
 
     for (let i = renderStart; i < entries.length; i++) {
       const entry = entries[i]
-      const isLatest = i === entries.length - 1 && !isGenerating
       const isEnding = entry.isDeath || entry.isLifeEnd
 
       if (i > renderStart || renderStart > 0) {
@@ -164,7 +163,6 @@ export function NarrativeTimeline({
           key={`entry-${i}`}
           className={[
             styles.entry,
-            isLatest ? styles.entryLatest : '',
             isEnding ? styles.entryEnding : '',
           ].filter(Boolean).join(' ')}
         >

@@ -221,12 +221,19 @@ function pickMessage(phases: string[][], elapsedSec: number): string {
 // 缓存（按世界编码隔离，见 destiny-pattern-pool-cache）
 // ══════════════════════════════════════════════════════
 
+function isAIGeneratedPattern(pattern: DestinyPattern): boolean {
+  return pattern.id.startsWith('ai-') || pattern.id.startsWith('ai_')
+}
+
 function loadCachedPool(): DestinyPattern[] {
-  return loadDestinyPatternPool(useWorldStore.getState().worldCode)
+  return loadDestinyPatternPool(useWorldStore.getState().worldCode).filter(isAIGeneratedPattern)
 }
 
 function saveCachedPool(patterns: DestinyPattern[]): void {
-  saveDestinyPatternPool(useWorldStore.getState().worldCode, patterns)
+  const aiPatterns = patterns.filter(isAIGeneratedPattern)
+  if (aiPatterns.length > 0) {
+    saveDestinyPatternPool(useWorldStore.getState().worldCode, aiPatterns)
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -371,9 +378,15 @@ function resolveInitialTalentDrawState(): InitialTalentDrawState {
   const cached = loadCachedPool()
   const { aiTalentGeneration } = useSettingsStore.getState()
 
-  if (saved?.phase === 'selecting' && saved.slots?.length === 12) {
+  const savedSlotsMatchMode = saved?.slots?.length === 12 && (
+    !aiTalentGeneration
+    || saved.slots.every((pattern) => pattern !== null && isAIGeneratedPattern(pattern))
+  )
+  const usableSaved = savedSlotsMatchMode ? saved : null
+
+  if (usableSaved?.phase === 'selecting') {
     // 若 AI 开关已变更，旧 session 不再有效，跳过恢复
-    if (saved.aiTalentGeneration !== aiTalentGeneration) {
+    if (usableSaved.aiTalentGeneration !== aiTalentGeneration) {
       // 回退到 idle，由用户重新点击按钮触发对应模式
       return {
         phase: 'idle',
@@ -385,14 +398,14 @@ function resolveInitialTalentDrawState(): InitialTalentDrawState {
     }
     return {
       phase: 'selecting',
-      slots: saved.slots,
-      selectedSlotIndices: saved.selectedSlotIndices ?? [],
-      localPoolSize: Math.max(cached.length, saved.slots.filter(Boolean).length),
-      pool: cached.length > 0 ? cached : saved.slots.filter((p): p is DestinyPattern => p !== null),
+      slots: usableSaved.slots,
+      selectedSlotIndices: usableSaved.selectedSlotIndices ?? [],
+      localPoolSize: Math.max(cached.length, usableSaved.slots.filter(Boolean).length),
+      pool: cached.length > 0 ? cached : usableSaved.slots.filter((p): p is DestinyPattern => p !== null),
     }
   }
 
-  if (cached.length >= DEFAULT_DESTINY_PATTERN_COUNT) {
+  if (aiTalentGeneration && cached.length >= DEFAULT_DESTINY_PATTERN_COUNT) {
     const newSlots = drawSlotsFromPool(cached)
     useCharacterStore.getState().setDestinyPatterns({ candidates: cached })
     return {
@@ -405,9 +418,9 @@ function resolveInitialTalentDrawState(): InitialTalentDrawState {
   }
 
   return {
-    phase: normalizeSavedPhase(saved?.phase),
-    slots: saved?.slots?.length === 12 ? saved.slots : Array(12).fill(null),
-    selectedSlotIndices: saved?.selectedSlotIndices ?? [],
+    phase: normalizeSavedPhase(usableSaved?.phase),
+    slots: usableSaved?.slots?.length === 12 ? usableSaved.slots : Array(12).fill(null),
+    selectedSlotIndices: usableSaved?.selectedSlotIndices ?? [],
     localPoolSize: cached.length,
     pool: cached,
   }
@@ -442,10 +455,15 @@ export default function TalentDrawPage() {
     }
   }, [phase, slots, selectedSlotIndices])
 
-  // ══════════ 组件卸载时只停止页面写状态，不中断后台池填充 ══════════
+  // ══════════ 组件卸载：未凑够 12 条时中止等待；已可选择后允许后台继续补池 ══════════
   useEffect(() => {
     return () => {
       abortRef.current = true
+      const destinySystem = getDestinyPatternSystem()
+      const status = destinySystem.getPoolFillStatus()
+      if (status.inProgress && status.count < DEFAULT_DESTINY_PATTERN_COUNT) {
+        destinySystem.abortPoolFill()
+      }
     }
   }, [])
 
@@ -484,7 +502,11 @@ export default function TalentDrawPage() {
     const syncPoolSize = () => {
       const cached = loadCachedPool()
       const candidates = useCharacterStore.getState().destinyPatterns.candidates
-      const best = cached.length >= candidates.length ? cached : candidates
+      const { aiTalentGeneration } = useSettingsStore.getState()
+      const usableCandidates = aiTalentGeneration
+        ? candidates.filter(isAIGeneratedPattern)
+        : candidates
+      const best = cached.length >= usableCandidates.length ? cached : usableCandidates
       if (best.length > 0) {
         fullPoolRef.current = best
         setLocalPoolSize(best.length)
@@ -542,7 +564,7 @@ export default function TalentDrawPage() {
     }
   }, [phase, localPoolSize])
 
-  // ══════════ 加载文案动画 + 超时 ══════════
+  // ══════════ 加载文案动画 + 等待计时 ══════════
   const displayElapsed = phase === 'generating' ? elapsedSeconds : 0
 
   useEffect(() => {
@@ -594,72 +616,55 @@ export default function TalentDrawPage() {
     const worldConfig = useWorldStore.getState().worldConfig
     if (!worldConfig) {
       setErrorMsg('世界配置未就绪，请返回选择世界')
+      setPhase('idle')
       return
     }
 
     configureDestinyPatternAIService()
 
-    // ══════════ 重试逻辑：仅按次数限制，不设时间上限 ══════════
-    // 并发多路请求在 generateWithAI 内部竞争，此处只做整体兜底重试
-    const MAX_ATTEMPTS = 3
-    let attemptCount = 0
     let earlyReady = false
 
-    const attemptCall = async (): Promise<DestinyPattern[]> => {
-      if (abortRef.current) return []
-
-      try {
-        const result = await getDestinyPatternSystem().generateWithAI(
-          buildDestinyPatternContext(),
-          (count, patterns) => {
-            if (abortRef.current) return
-            setStreamCount(count)
-            fullPoolRef.current = patterns
-            setLocalPoolSize(patterns.length)
-            if (patterns.length > 0) {
-              saveCachedPool(patterns)
-              useCharacterStore.getState().setDestinyPatterns({ candidates: patterns })
-            }
-          },
-          (patterns) => {
-            if (earlyReady || abortRef.current) return
-            earlyReady = true
-            fullPoolRef.current = patterns
-            saveCachedPool(patterns)
-            setStreamCount(patterns.length)
-            setLocalPoolSize(patterns.length)
-            setGeneratingBatch(-1)
-            if (msgTimerRef.current) clearInterval(msgTimerRef.current)
-            setSlots(drawSlotsFromPool(patterns))
-            setSelectedSlotIndices([])
-            setPhase('selecting')
-          },
-          (batchIndex) => {
-            if (!earlyReady) setGeneratingBatch(batchIndex)
-          },
-          { initialPatterns: loadCachedPool() },
-        )
-        return result
-      } catch {
-        if (abortRef.current) return []
-        attemptCount++
-        if (attemptCount >= MAX_ATTEMPTS) throw new Error('max retries exceeded')
-
-        await new Promise((resolve) => setTimeout(resolve, 3000))
-        if (!abortRef.current) return attemptCall()
-        return []
-      }
+    const revealPatterns = (patterns: DestinyPattern[], persist = true): boolean => {
+      if (earlyReady || abortRef.current || patterns.length < DEFAULT_DESTINY_PATTERN_COUNT) return false
+      earlyReady = true
+      fullPoolRef.current = patterns
+      if (persist) saveCachedPool(patterns)
+      useCharacterStore.getState().setDestinyPatterns({ candidates: patterns })
+      setStreamCount(patterns.length)
+      setLocalPoolSize(patterns.length)
+      setGeneratingBatch(-1)
+      if (msgTimerRef.current) clearInterval(msgTimerRef.current)
+      setSlots(drawSlotsFromPool(patterns))
+      setSelectedSlotIndices([])
+      setPhase('selecting')
+      return true
     }
 
     try {
-      const result = await attemptCall()
+      const result = await getDestinyPatternSystem().generateWithAI(
+        buildDestinyPatternContext(),
+        (count, patterns) => {
+          if (abortRef.current) return
+          setStreamCount(count)
+          fullPoolRef.current = patterns
+          setLocalPoolSize(patterns.length)
+          if (patterns.length > 0) {
+            saveCachedPool(patterns)
+            useCharacterStore.getState().setDestinyPatterns({ candidates: patterns })
+          }
+        },
+        (patterns) => {
+          revealPatterns(patterns)
+        },
+        (batchIndex) => {
+          if (!earlyReady) setGeneratingBatch(batchIndex)
+        },
+        { initialPatterns: loadCachedPool() },
+      )
 
-      // 兜底：如果 onEarlyReady 没触发
+      // 防御：正常由 onEarlyReady 切换；仅在回调遗漏但 AI 已满 12 条时补切换。
       if (!earlyReady && !abortRef.current) {
-        fullPoolRef.current = result
-        setSlots(drawSlotsFromPool(result))
-        setSelectedSlotIndices([])
-        setPhase('selecting')
+        revealPatterns(result)
       }
 
       if (result.length > 0) {
@@ -668,8 +673,10 @@ export default function TalentDrawPage() {
         setStreamCount(result.length)
       }
     } catch {
-      setErrorMsg('AI 命格生成失败，请检查网络后重试')
-      setPhase('idle')
+      if (!earlyReady) {
+        setErrorMsg('AI 命格生成失败，请检查网络后重试')
+        setPhase('idle')
+      }
     }
   }, [])
 

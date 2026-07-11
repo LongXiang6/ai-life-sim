@@ -20,7 +20,7 @@
  *  14. 触发回合完成事件 (EventBus)
  */
 
-import { eventBus, callAIWithPromptTemplate, buildSegmentedPrompt, getNarrativeUserSegments } from '@/core'
+import { BaseSubsystem, eventBus, callAIWithPromptTemplate, buildSegmentedPrompt, getNarrativeUserSegments } from '@/core'
 import { isInstrumentEnabled, getInstrumentHooks } from '@/core/instrument/instrument-mode'
 import type { NarrativeStage, YearEvent } from '@/foundation'
 import { formatEraYear } from '@/foundation/utils/format-time'
@@ -112,7 +112,12 @@ import { useCharacterStore } from '@/mods/mod-character'
 
 import { ECONOMIC_TIER_CONFIG, MAX_REACHABLE_STAGE } from '@/mods/mod-power-system'
 import type { EconomicTierInfo } from '@/mods/mod-power-system'
-import { buildPowerCeilingPresets } from '@/mods/mod-world'
+import { buildPowerCeilingPresetsForNarrative } from '@/mods/mod-world'
+import { buildCalendarNarrativeContext } from '../helpers/calendar-narrative-context'
+import {
+  isEligibleNarrativeBranch,
+  normalizeNarrativeBranchOptions,
+} from '../helpers/narrative-branch-policy'
 
 import type {
   ISubSystem,
@@ -181,11 +186,17 @@ export interface OrchestratorSnapshot {
   digestLedgerSnapshot?: DigestLedgerSnapshot
 }
 
+/** 预生成专用快照；补充不进入存档契约的步长对齐运行态。 */
+export interface OrchestratorPreviewSnapshot {
+  orchestrator: OrchestratorSnapshot
+  pendingTimeStepAlignmentFromUnit?: TimeStep['unit']
+}
+
 // ============================================================
 // OrchestratorSystem
 // ============================================================
 
-export class OrchestratorSystem implements ISubSystem {
+export class OrchestratorSystem extends BaseSubsystem {
   readonly id = 'orchestrator' as const
   readonly mod = 'mod-engine' as const
   readonly label = '模拟编排器' as const
@@ -532,8 +543,15 @@ export class OrchestratorSystem implements ISubSystem {
     })
   }
 
-  restoreSnapshot(snap: OrchestratorSnapshot): void {
-    this.state = structuredClone(snap.state)
+  capturePreviewSnapshot(): OrchestratorPreviewSnapshot {
+    return {
+      orchestrator: this.captureSnapshot(),
+      pendingTimeStepAlignmentFromUnit: this.pendingTimeStepAlignmentFromUnit,
+    }
+  }
+
+  /** 恢复预览会改写、但 EngineStore 不保存的 orchestrator 运行态。 */
+  private restoreSnapshotRuntimeState(snap: OrchestratorSnapshot): void {
     this.lastSubsystemStates = structuredClone(snap.lastSubsystemStates ?? {})
     this.eventLifecycle = structuredClone(snap.eventLifecycle ?? {})
     this.lastNotableEvents = [...(snap.lastNotableEvents ?? [])]
@@ -553,6 +571,11 @@ export class OrchestratorSystem implements ISubSystem {
     this.lastCommittedPlayerChoice = snap.lastCommittedPlayerChoice
     this.prefetchedNarrativeContent = snap.prefetchedNarrativeContent ?? null
     digestLedger.loadSnapshot(snap.digestLedgerSnapshot)
+  }
+
+  restoreSnapshot(snap: OrchestratorSnapshot): void {
+    this.state = structuredClone(snap.state)
+    this.restoreSnapshotRuntimeState(snap)
     if (snap.timeRound) timeSystem.importRound(snap.timeRound)
     useEngineStore.setState((prev) => ({
       ...prev,
@@ -568,6 +591,20 @@ export class OrchestratorSystem implements ISubSystem {
       resolvedBranches: prev.resolvedBranches,
       forceBranchNext: prev.forceBranchNext,
     }))
+  }
+
+  restorePreviewSnapshot(snap: OrchestratorPreviewSnapshot): void {
+    this.restoreSnapshot(snap.orchestrator)
+    this.pendingTimeStepAlignmentFromUnit = snap.pendingTimeStepAlignmentFromUnit
+  }
+
+  /**
+   * 预览失效时先撤销其非 Store 副作用，再从当前 EngineStore 重建权威时间线。
+   * 不能直接 restoreSnapshot，否则会覆盖用户在 AI 等待期间完成的步长切换。
+   */
+  reconcilePreviewSnapshotWithEngineStore(snap: OrchestratorPreviewSnapshot): void {
+    this.restoreSnapshotRuntimeState(snap.orchestrator)
+    this.hydrateFromEngineStore(snap.orchestrator.state.timeStep)
   }
 
   /** 世界方向修正（供 stage 闭包使用；MVP 阶段只保留未来段入口） */
@@ -1271,7 +1308,7 @@ export class OrchestratorSystem implements ISubSystem {
   }
 
   /** 读档后从 EngineStore 恢复 orchestrator 内部状态 */
-  hydrateFromEngineStore(): void {
+  hydrateFromEngineStore(previousTimeStep?: TimeStep): void {
     const store = useEngineStore.getState()
     const lastAutoSaveRound = resolveRestoredAutoSaveRound(
       store.lastAutoSaveRound,
@@ -1296,8 +1333,15 @@ export class OrchestratorSystem implements ISubSystem {
     }
     timeSystem.importRound(store.round)
     timeSystem.setTimeStep(store.timeStep)
-    this.lastNarratedTimeStep = { ...store.timeStep }
-    this.pendingTimeStepAlignmentFromUnit = undefined
+    const shouldRestorePendingAlignment = previousTimeStep
+      && store.narrativeHistory.length > 0
+      && shouldAlignTimeStepTransition(previousTimeStep.unit, store.timeStep.unit)
+    this.lastNarratedTimeStep = shouldRestorePendingAlignment
+      ? { ...previousTimeStep }
+      : { ...store.timeStep }
+    this.pendingTimeStepAlignmentFromUnit = shouldRestorePendingAlignment
+      ? previousTimeStep.unit
+      : undefined
     if (store.narrativeHistory.length > 0) {
       this.lastNarrativeText = store.narrativeHistory[store.narrativeHistory.length - 1]?.text ?? ''
     }
@@ -1623,9 +1667,19 @@ export class OrchestratorSystem implements ISubSystem {
     // aiDetailedParameters（43字段，~2000字符）在世界初始化后不再变化，每轮重复发送无意义
     const lightWorldSetting = this.buildLightWorldSetting(narrativeTime.eraLabel)
 
-    // 力量体系预设（全 24 阶完整表现描述，供 AI 完整理解各阶判断标准）
-    const powerCeilingPresets = buildPowerCeilingPresets()
+    // 非超凡世界不重复发送无关的 24 阶力量表；有力量体系时使用现有叙事精简格式。
+    const powerSystemTag = typeof config.powerSystemTag === 'string' ? config.powerSystemTag : ''
+    const powerCeiling = Number(config.powerCeiling)
+    const powerCeilingPresets = powerSystemTag === 'none' || !Number.isFinite(powerCeiling) || powerCeiling <= 1
+      ? undefined
+      : buildPowerCeilingPresetsForNarrative(powerCeiling)
     const timeScaleHint = buildTimeScaleNarrativeHint(this.state.timeStep)
+    const calendarNarrativeContext = buildCalendarNarrativeContext({
+      timeStep: this.state.timeStep,
+      calendarYear: narrativeTime.calendarYear,
+      month: this.state.round.month + 1,
+      day: this.state.round.day + 1,
+    })
 
     const assembled: PromptContext = {
       worldSetting: lightWorldSetting,
@@ -1642,7 +1696,6 @@ export class OrchestratorSystem implements ISubSystem {
       foreshadowingText: foreshadowing.buildForeshadowingText() || undefined,
       worldTagsText: (this.worldSetting?.config?._worldTagsText as string) || undefined,
       worldRules: buildNarrativeWorldRules(
-        config,
         getWorldRules(config.essenceTag as string | undefined),
       ) || undefined,
       modWorldRules: this.modManifests
@@ -1701,16 +1754,7 @@ export class OrchestratorSystem implements ISubSystem {
     // 每轮动态时间导演提示放在 FAST 段末尾，避免污染 STABLE 前缀缓存。
     assembled.timeGuideText = [
       timeScaleHint,
-      !isOpeningNarrativeRound
-        ? [
-            '【时间描写指南】',
-            '- 本轮叙事范围是上一条叙事时间节点之后，到「当前时间」所标记节点为止的时间段',
-            '- 使用季节流转、节气更替、作物成熟、衣物增减等自然标记代替"这一年"的抽象概括',
-            '- 宏观视角时使用："春去秋来，...""数月之后，...""转眼已是..."',
-            '- 聚焦视角时使用："那天下午...""夜里...""晨光熹微时..."',
-            '- 年龄增长时，通过身高/声音/力量的变化侧面体现，不直接说"你长大了一岁"',
-          ].join('\n')
-        : undefined,
+      calendarNarrativeContext,
     ].filter(Boolean).join('\n')
 
     if (isInstrumentEnabled()) {
@@ -2097,18 +2141,16 @@ export class OrchestratorSystem implements ISubSystem {
     branchTitle?: string
     branchOptions?: string[]
   } {
-    let options = [...(parsed.branchOptions ?? [])]
+    let options = normalizeNarrativeBranchOptions(parsed.branchOptions)
     let title = parsed.branchTitle?.trim() ?? ''
-    let isBranch = parsed.branch === true && options.length > 0
+    let isBranch = isEligibleNarrativeBranch(parsed)
 
-    if (parsed.branch === true && options.length === 0) {
-      options = [
-        '主动探查，深入调查并设法根除隐患',
-        '积蓄实力，待时机成熟再一举解决',
-        '暂避锋芒，转移重心以保存实力',
-      ]
-      title = title || '你该如何应对？'
-      isBranch = true
+    if (parsed.branch === true && !isBranch) {
+      console.warn('[Branch] 已抑制非 HIGH 或选项不完整的普通分叉点')
+    }
+
+    if (isBranch && !title) {
+      title = '你愿意承担哪一种长期后果？'
     }
 
     // 连续分叉抑制：如果上一条叙事历史有 resolvedChoice（刚被解决），强制抑制新分叉点

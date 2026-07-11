@@ -29,6 +29,11 @@ export function setSimulationTimeStep(step: TimeStep): void {
   if (!sameTimeStep(current, step)) {
     clearPreGenQueue()
   }
+  if (orchestrator.isPreviewExecution()) {
+    // 预览仍在使用共享 orchestrator 时只更新权威 store；预览退出后由 hydrate + 主推进统一接管。
+    useEngineStore.getState().setTimeStep(step)
+    return
+  }
   orchestrator.setTimeStep(step)
 }
 

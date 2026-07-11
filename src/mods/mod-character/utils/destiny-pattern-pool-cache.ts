@@ -7,6 +7,10 @@
 import { cacheStore } from '@/core'
 
 import type { DestinyPattern } from '../types'
+import {
+  rejectsBirthStateDestinyPatternContent,
+  rejectsFutureDestinyPatternContent,
+} from './destiny-pattern-content-quality'
 
 export function getDestinyPatternPoolCacheKey(worldCode: number): string {
   return `destiny-pool:${worldCode || 'default'}`
@@ -14,7 +18,12 @@ export function getDestinyPatternPoolCacheKey(worldCode: number): string {
 
 export function loadDestinyPatternPool(worldCode: number): DestinyPattern[] {
   try {
-    return cacheStore.get<DestinyPattern[]>('mod-character', getDestinyPatternPoolCacheKey(worldCode)) ?? []
+    const cached = cacheStore.get<DestinyPattern[]>('mod-character', getDestinyPatternPoolCacheKey(worldCode)) ?? []
+    // 旧缓存同样经过当前质量门禁，避免已生成的年份/履历文案继续出现在抽取结果里。
+    return cached.filter((pattern) => (
+      !rejectsFutureDestinyPatternContent(pattern)
+      && !rejectsBirthStateDestinyPatternContent(pattern)
+    ))
   } catch {
     return []
   }

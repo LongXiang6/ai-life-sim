@@ -54,6 +54,10 @@ export type {
 // Store
 export { useCultureStore } from './store'
 
+// 轻量节日历法上下文（不启动 CultureSystem）
+export { buildCultureCalendarNarrativeContext } from './calendar-context'
+export type { CultureCalendarNarrativeInput } from './calendar-context'
+
 // Hooks
 export {
   useReputation,

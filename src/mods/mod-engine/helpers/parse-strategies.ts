@@ -9,7 +9,9 @@
 import type { SubSystemChanges } from '@/foundation'
 import type { ParsedNarrative } from '../subsystems/narrative-parser-system'
 import type { ChineseTextProcessor } from './chinese-text-processor'
+import { normalizeNarrativeBranchOptions } from './narrative-branch-policy'
 import { validateRoundChanges } from './subsystem-field-registry'
+import { extractTaggedMetaEnvelope } from './tagged-meta-envelope'
 
 /** AI META 段与旧 JSON 降级格式共用的结构 */
 interface RawAIResponse {
@@ -37,11 +39,6 @@ interface RawAIResponse {
   creations?: Array<{ name: string; description: string; category: string }>
   /** AI 标注的伏笔 */
   foreshadowing?: Array<{ type: string; description: string; priority?: number }>
-}
-
-function parseBranchOptions(value: unknown): string[] {
-  if (!Array.isArray(value)) return []
-  return value.filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
 }
 
 /** 清理 AI 在降级/嵌套输出时残留到正文里的信封标签，避免 UI 直接显示协议标记。 */
@@ -103,7 +100,7 @@ function parseRawAIResponse(
     arcStatus: raw.arcStatus,
     branch: raw.branch === true,
     branchTitle: typeof raw.branchTitle === 'string' ? raw.branchTitle : undefined,
-    branchOptions: parseBranchOptions(raw.branchOptions),
+    branchOptions: normalizeNarrativeBranchOptions(raw.branchOptions),
   }
 }
 
@@ -131,14 +128,12 @@ export class TaggedMetaParseStrategy implements ParseStrategy {
   readonly name = 'tagged-meta-parse'
 
   parse(content: string, processor: ChineseTextProcessor): ParsedNarrative | null {
-    const narrativeMatch = content.match(/\[NARRATIVE\]([\s\S]*?)\[\/NARRATIVE\]/i)
-    const metaMatch = content.match(/\[META\]([\s\S]*?)\[\/META\]/i)
-    if (!narrativeMatch || !metaMatch) return null
+    const envelope = extractTaggedMetaEnvelope(content)
+    if (!envelope) return null
 
     try {
-      const narrative = narrativeMatch[1]?.trim() ?? ''
-      const raw = JSON.parse(metaMatch[1]?.trim() ?? '{}') as RawAIResponse
-      return parseRawAIResponse(raw, processor, narrative)
+      const raw = JSON.parse(envelope.metaJson) as RawAIResponse
+      return parseRawAIResponse(raw, processor, envelope.narrative)
     } catch {
       return null
     }

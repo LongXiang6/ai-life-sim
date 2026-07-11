@@ -4,8 +4,9 @@
  * @mod mod-character
  */
 
-import type { ISubSystem, RoundContext, SubSystemState, SubSystemChanges } from '@/foundation'
+import type { RoundContext, SubSystemState, SubSystemChanges } from '@/foundation'
 import type { DestinyPattern, DestinyPatternInput, DestinyPatternRarity, DestinyPatternPolarity, DestinyPatternState } from '../types'
+import { BaseSubsystem } from '@/core'
 import { clamp } from '@/core/shared'
 
 import {
@@ -36,8 +37,8 @@ import { rejectsFutureDestinyPatternContent, rejectsBirthStateDestinyPatternCont
 import { saveDestinyPatternPool } from '../utils/destiny-pattern-pool-cache'
 import { StreamingJsonArrayParser } from '../utils/streaming-json-array-parser'
 
-const POOL_FILL_BATCH_RETRIES = 3
-const POOL_FILL_RETRY_DELAY_MS = 2000
+const POOL_FILL_BATCH_RETRIES = 2
+const POOL_FILL_RETRY_DELAY_MS = 1000
 
 type DestinyPatternAIItem = {
   name: string
@@ -60,11 +61,11 @@ export type DestinyPatternPoolFillStatus = {
 export interface DestinyPatternAIGenerateOptions {
   /** 已有本地缓存池。AI 续填时以它为起点，避免每次重新从 0 生成。 */
   initialPatterns?: DestinyPattern[]
-  /** 目标池大小，默认 5 批 × 20 条。 */
+  /** 目标池大小，默认 8 批 × 12 条。 */
   targetCount?: number
 }
 
-export class DestinyPatternSystem implements ISubSystem {
+export class DestinyPatternSystem extends BaseSubsystem {
   readonly id = 'destiny-pattern' as const
   readonly mod = 'mod-character' as const
   readonly label = '命格' as const
@@ -224,10 +225,10 @@ export class DestinyPatternSystem implements ISubSystem {
   }
 
   /**
-   * AI 生成命格池（5 批 × 20 条 = 100 条）
+   * AI 生成命格池（首屏单路 12 条，随后后台续填至 96 条）
    *
    * 每批将已有命格名称拼入 existingNames 避免重复。
-   * 如果 AI 调用失败，降级使用 generateFromPresets() 从预设池生成。
+   * 首屏不足 12 条时持续串行请求，直到 AI 结果够用或调用方主动中止；不混入预设。
    */
   async generateWithAI(
     contextInput: BuildDestinyPatternContextInput,
@@ -248,17 +249,15 @@ export class DestinyPatternSystem implements ISubSystem {
       options?.targetCount ?? AI_DESTINY_PATTERN_BATCH_SIZE * AI_DESTINY_PATTERN_BATCH_COUNT,
     )
     const seededPatterns = this.dedupePatterns(options?.initialPatterns ?? [])
+      .filter((pattern) => this.isAIGeneratedPattern(pattern))
       .slice(0, targetCount)
     const allPatterns: DestinyPattern[] = [...seededPatterns]
     const existingNames: string[] = seededPatterns.map((p) => p.name)
     let earlyReadyFired = false
-    let resolveEarlyReady: (() => void) | null = null
-    const earlyReadyPromise = new Promise<void>((resolve) => {
-      resolveEarlyReady = resolve
-    })
     const startingAge = contextInput.character.startingAge ?? 0
 
-    this.poolFillAbortController = new AbortController()
+    const abortController = new AbortController()
+    this.poolFillAbortController = abortController
     this.poolFillStatus = {
       inProgress: true,
       count: allPatterns.length,
@@ -308,7 +307,6 @@ export class DestinyPatternSystem implements ISubSystem {
       if (!earlyReadyFired && allPatterns.length >= DEFAULT_DESTINY_PATTERN_COUNT) {
         earlyReadyFired = true
         onEarlyReady?.([...allPatterns])
-        resolveEarlyReady?.()
       }
     }
 
@@ -366,7 +364,7 @@ export class DestinyPatternSystem implements ISubSystem {
         maxTokensOverride: useStream ? bumpTokenBudget(baseTokenBudget) : baseTokenBudget,
         stablePrefixChars: kvPrepared.stablePrefixChars,
         storySeed: seed,
-        signal: this.poolFillAbortController?.signal,
+        signal: abortController.signal,
         outputSchema: destinyPatternPrompt.outputSchema,
         logContext: {
           callKind: useStream ? 'talent-generate-stream' : 'talent-generate-batch',
@@ -420,6 +418,7 @@ export class DestinyPatternSystem implements ISubSystem {
 
     const runBatchWithRetry = async (batch: number, seed?: number, forceStream?: boolean): Promise<void> => {
       for (let attempt = 0; attempt < POOL_FILL_BATCH_RETRIES; attempt++) {
+        if (abortController.signal.aborted) return
         try {
           await runBatch(batch, seed, forceStream)
           console.info(`[destiny-pattern] 批次 ${batch + 1}/${AI_DESTINY_PATTERN_BATCH_COUNT} 完成，当前池 ${allPatterns.length} 条`)
@@ -429,7 +428,7 @@ export class DestinyPatternSystem implements ISubSystem {
           console.warn(
             `[destiny-pattern] 批次 ${batch + 1}/${AI_DESTINY_PATTERN_BATCH_COUNT} 第 ${attempt + 1} 次失败: ${msg}`,
           )
-          if (attempt < POOL_FILL_BATCH_RETRIES - 1) {
+          if (attempt < POOL_FILL_BATCH_RETRIES - 1 && !abortController.signal.aborted) {
             await new Promise((resolve) => setTimeout(resolve, POOL_FILL_RETRY_DELAY_MS * (attempt + 1)))
           }
         }
@@ -443,42 +442,25 @@ export class DestinyPatternSystem implements ISubSystem {
       onEarlyReady?.([...allPatterns])
     }
 
-    // ══════════ 3 路并行首批请求（不同 seed 确保差异化，强制流式） ══════════
-    // ingestItem 内部在 allPatterns ≥ 12 时自动触发 onEarlyReady，任意一路先到即切选取界面
-    // 每路有独立的 StreamingJsonArrayParser 实例，互不干扰；JS 单线程保证 push() 原子性
-    // 考虑到每分钟 30 次 API 上限，并发 3 路 × 每路 3 次重试 = 最坏 9 次/轮，安全
-    const PARALLEL_SEEDS = [42, 137, 256]
-    const parallelPromises = PARALLEL_SEEDS.map((seed, i) => runBatchWithRetry(i, seed, true))
-    let nextBackgroundBatch = PARALLEL_SEEDS.length
-
-    // Promise.race：不必等最慢的批次，率先完成的批次若已达 12 条即触发 earlyReady
-    await Promise.race(parallelPromises)
-    // 检查首批结果是否已达 12 条（不足则等后续批次通过 ingestItem 累积触发）
+    // 首屏只发一路 12 项流式请求；质量门禁导致不足时才串行补下一批。
+    // 达到 12 项后立即返回页面，剩余批次再在后台顺序填充，避免 3×20 大输出竞争带宽与供应商队列。
+    let nextBackgroundBatch = 0
     fireEarlyReady()
-
-    if (!earlyReadyFired) {
-      await Promise.race([earlyReadyPromise, Promise.allSettled(parallelPromises)])
-      fireEarlyReady()
-    }
-
-    while (
-      !earlyReadyFired
-      && nextBackgroundBatch < AI_DESTINY_PATTERN_BATCH_COUNT
-      && !this.poolFillAbortController?.signal.aborted
-    ) {
-      await runBatchWithRetry(nextBackgroundBatch)
+    while (!earlyReadyFired && !abortController.signal.aborted) {
+      await runBatchWithRetry(
+        nextBackgroundBatch,
+        nextBackgroundBatch === 0 ? 42 : undefined,
+        nextBackgroundBatch === 0,
+      )
       nextBackgroundBatch += 1
       fireEarlyReady()
     }
 
     const fillRemainingBatches = async (): Promise<void> => {
       try {
-        // 等剩余并行批次完成，让它们在后台继续填充命格库
-        await Promise.allSettled(parallelPromises)
-
-        // 再串行填充后续批次（避免瞬间并发过多触发限流）
+        // 首屏可选后再串行填充后续批次，避免瞬间并发触发限流或拖慢首包。
         for (let batch = nextBackgroundBatch; batch < AI_DESTINY_PATTERN_BATCH_COUNT; batch++) {
-          if (this.poolFillAbortController?.signal.aborted) break
+          if (abortController.signal.aborted) break
           if (allPatterns.length >= targetCount) break
           await runBatchWithRetry(batch)
         }
@@ -487,16 +469,24 @@ export class DestinyPatternSystem implements ISubSystem {
         this.state.candidates = [...allPatterns]
         console.info(`[destiny-pattern] 命格池填充完成: ${allPatterns.length}/${this.poolFillStatus.target} 条`)
       } finally {
-        this.poolFillStatus.inProgress = false
-        this.poolFillStatus.count = allPatterns.length
-        this.poolFillAbortController = null
-        persistPoolToLocal()
+        if (this.poolFillAbortController === abortController) {
+          this.poolFillStatus.inProgress = false
+          this.poolFillStatus.count = allPatterns.length
+          this.poolFillAbortController = null
+          persistPoolToLocal()
+        }
       }
     }
 
-    this.poolFillPromise = fillRemainingBatches().finally(() => {
-      this.poolFillPromise = null
-      this.poolFillAbortController = null
+    const backgroundFillPromise = fillRemainingBatches()
+    this.poolFillPromise = backgroundFillPromise
+    void backgroundFillPromise.finally(() => {
+      if (this.poolFillPromise === backgroundFillPromise) {
+        this.poolFillPromise = null
+      }
+      if (this.poolFillAbortController === abortController) {
+        this.poolFillAbortController = null
+      }
     })
 
     return [...allPatterns]
@@ -600,6 +590,11 @@ export class DestinyPatternSystem implements ISubSystem {
       result.push(pattern)
     }
     return result
+  }
+
+  /** AI 池只接受 AI 前缀；兼容 generateFromAI 的旧下划线 ID。 */
+  private isAIGeneratedPattern(pattern: DestinyPattern): boolean {
+    return pattern.id.startsWith(`${DESTINY_PATTERN_ID_PREFIX.AI}-`) || pattern.id.startsWith('ai_')
   }
 
   private weightedRandomIndex(pool: typeof PRESET_DESTINY_PATTERNS): number {

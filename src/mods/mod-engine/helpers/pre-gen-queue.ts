@@ -18,6 +18,9 @@ import { useSettingsStore } from '@/mods/mod-settings'
 import { orchestrator } from '../subsystems/orchestrator-system'
 import { useEngineStore } from '../store'
 import { computeNarrativeMaxTokens, DEFAULT_WORD_COUNT_TARGET } from '../constants/narrative-config'
+import { isEligibleNarrativeBranch } from './narrative-branch-policy'
+import { PreGenActivityState } from './pre-gen-activity-state'
+import { extractTaggedMetaEnvelope } from './tagged-meta-envelope'
 
 export interface PreGenCachedRound {
   fullContent: string
@@ -32,8 +35,7 @@ export interface PreGenQueueStatus {
 }
 
 const preGenQueue: PreGenCachedRound[] = []
-let preGenGen = 0
-let isPreGenActive = false
+const preGenActivity = new PreGenActivityState()
 
 /** 上次预生成时的时间步长 key（用于检测粒度切换，自动清空旧队列） */
 let lastPreGenTimeStepKey: string | null = null
@@ -59,9 +61,13 @@ function buildPreGenSignature(): string {
 
 
 function notifyPreGenListeners(): void {
-
-  preGenListeners.forEach((listener) => listener())
-
+  for (const listener of preGenListeners) {
+    try {
+      listener()
+    } catch (error) {
+      console.warn('[PreGen] 队列订阅者执行失败:', error)
+    }
+  }
 }
 
 
@@ -85,8 +91,7 @@ export function getPreGenQueueStatus(): PreGenQueueStatus {
   const maxRounds = useSettingsStore.getState().preGenerateRounds ?? 0
 
   return {
-
-    isActive: isPreGenActive,
+    isActive: preGenActivity.isActive(),
 
     queueLength: preGenQueue.length,
 
@@ -100,8 +105,8 @@ export function getPreGenQueueStatus(): PreGenQueueStatus {
 
 export function clearPreGenQueue(): void {
   preGenQueue.length = 0
-  preGenGen += 1
-  isPreGenActive = false
+  preGenActivity.invalidate()
+  // 只让在途结果失效，不提前宣告后台执行结束；主推进必须等共享 orchestrator 释放。
   // 不重置 lastPreGenTimeStepKey（保留当前 key，防止并发 fillPreGenQueue 绕过 gen 失效机制）
   notifyPreGenListeners()
 }
@@ -131,13 +136,12 @@ function takePreGenQueueItem(shouldNotify: boolean): PreGenCachedRound | undefin
   if (item) {
     // 消费预生成项意味着主推进即将接管这份结果。这里让当前生成代失效，
     // 防止 fillPreGenQueue 收尾时因队列变空而基于旧快照递归补下一轮预生成。
-    preGenGen += 1
+    preGenActivity.invalidate()
   }
   // 预生成防御：消费到分支点叙事 → 立即清空剩余预生成队列，避免后续预生成内容携带未解决分支
   if (item?.isBranchPoint) {
     console.log('[PreGen] 消费到分支点叙事，已清空预生成队列')
     preGenQueue.length = 0
-    isPreGenActive = false
   }
   if (shouldNotify) notifyPreGenListeners()
   return item
@@ -149,7 +153,7 @@ export function shiftPreGenQueue(): PreGenCachedRound | undefined {
 
 export function waitForPreGenQueueItem(timeoutMs?: number): Promise<PreGenCachedRound | undefined> {
   const immediate = takePreGenQueueItem(true)
-  if (immediate || !isPreGenActive) return Promise.resolve(immediate)
+  if (immediate || !preGenActivity.isActive()) return Promise.resolve(immediate)
 
   return new Promise((resolve) => {
     let settled = false
@@ -166,7 +170,7 @@ export function waitForPreGenQueueItem(timeoutMs?: number): Promise<PreGenCached
 
     unsubscribe = subscribePreGenQueue(() => {
       const item = takePreGenQueueItem(false)
-      if (item || !isPreGenActive) {
+      if (item || !preGenActivity.isActive()) {
         finish(item)
         notifyPreGenListeners()
       }
@@ -189,23 +193,15 @@ export function getPreGenQueueLength(): number {
 
 
 function narrativeJsonHasBranch(content: string): boolean {
-
   try {
-
     // 当前主叙事输出是 [NARRATIVE]/[META] 信封；预生成分支判断必须读 META，
-    // 否则分支会被误判成普通缓存并在后续主推进中打断玩家节奏。
-    const metaMatch = content.match(/\[META\]([\s\S]*?)\[\/META\]/i)
-    const jsonSource = metaMatch?.[1]?.trim() || content
-    const raw = JSON.parse(jsonSource) as { branch?: boolean; branchOptions?: unknown[] }
-
-    return raw.branch === true
-
+    // 与主解析共用容错信封和分支资格，避免预生成接受主链会抑制的普通选择。
+    const envelope = extractTaggedMetaEnvelope(content)
+    const raw = JSON.parse(envelope?.metaJson ?? content) as Record<string, unknown>
+    return isEligibleNarrativeBranch(raw)
   } catch {
-
     return false
-
   }
-
 }
 
 
@@ -224,7 +220,7 @@ export async function fillPreGenQueue(
 
   if (maxRounds <= 0) return
 
-  if (isPreGenActive) return
+  if (preGenActivity.isActive()) return
 
   if (preGenQueue.length >= maxRounds) return
 
@@ -241,100 +237,70 @@ export async function fillPreGenQueue(
 
 
 
-  const gen = ++preGenGen
-
-  isPreGenActive = true
-
-  notifyPreGenListeners()
-
-
-
-  const { customModel, temperature } = useSettingsStore.getState()
-
-  // 从单一来源常量取默认字数，与 orchestrator、hooks 共享同一常量
-  const wordCountTarget = useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET
-
-  const model = customModel || 'deepseek-v4-flash'
-
-  const aiConfig: AIModelConfig = {
-
-    model,
-
-    temperature: temperature ?? 0.8,
-
-    maxTokens: computeNarrativeMaxTokens(wordCountTarget),
-
-    stream: false,
-
-  }
-
-
-
-  const snapshot = orchestrator.captureSnapshot()
-  const signature = buildPreGenSignature()
-
+  const gen = preGenActivity.begin()
   let lastIsBranch = false
-
-
-
   try {
-
-    await orchestrator.runPreviewRound(() =>
-      orchestrator.executeRoundV2(promptTemplate, aiConfig, sessionId),
-    )
-
-
-
-    if (gen !== preGenGen) return
-
-
-
-    const fullContent = orchestrator.getLastExecutedFullContent()
-
-    if (!fullContent?.trim()) return
-
-
-
-    const isBranchPoint = narrativeJsonHasBranch(fullContent)
-    if (isBranchPoint && orchestrator.isBranchCoolingDownForNextRound()) {
-      // 分支是强交互事件。冷却期内丢弃预生成分支，改由主推进用最新玩家选择现场生成。
-      lastIsBranch = true
-      return
-    }
-
-    preGenQueue.push({
-      fullContent,
-      isBranchPoint,
-      signature,
-    })
-
-    lastIsBranch = isBranchPoint
-
-
-
-  } catch (err) {
-
-    console.warn('[PreGen] 预生成失败:', err)
-
-  } finally {
-
-    if (gen === preGenGen) {
-      orchestrator.restoreSnapshot(snapshot)
-    } else {
-      orchestrator.hydrateFromEngineStore()
-    }
-
-    isPreGenActive = false
-
-    useEngineStore.setState({ streamingNarrative: '' })
-
     notifyPreGenListeners()
 
+    const { customModel, temperature } = useSettingsStore.getState()
+    // 从单一来源常量取默认字数，与 orchestrator、hooks 共享同一常量
+    const wordCountTarget = useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET
+    const model = customModel || 'deepseek-v4-flash'
+    const aiConfig: AIModelConfig = {
+      model,
+      temperature: temperature ?? 0.8,
+      maxTokens: computeNarrativeMaxTokens(wordCountTarget),
+      stream: false,
+    }
+
+    const snapshot = orchestrator.capturePreviewSnapshot()
+    const signature = buildPreGenSignature()
+
+    try {
+      await orchestrator.runPreviewRound(() =>
+        orchestrator.executeRoundV2(promptTemplate, aiConfig, sessionId),
+      )
+
+      if (!preGenActivity.isCurrent(gen)) return
+
+      const fullContent = orchestrator.getLastExecutedFullContent()
+      if (!fullContent?.trim()) return
+
+      const isBranchPoint = narrativeJsonHasBranch(fullContent)
+      if (isBranchPoint && orchestrator.isBranchCoolingDownForNextRound()) {
+        // 分支是强交互事件。冷却期内丢弃预生成分支，改由主推进用最新玩家选择现场生成。
+        lastIsBranch = true
+        return
+      }
+
+      preGenQueue.push({
+        fullContent,
+        isBranchPoint,
+        signature,
+      })
+      lastIsBranch = isBranchPoint
+    } catch (err) {
+      console.warn('[PreGen] 预生成失败:', err)
+    } finally {
+      if (preGenActivity.isCurrent(gen)) {
+        orchestrator.restorePreviewSnapshot(snapshot)
+      } else {
+        orchestrator.reconcilePreviewSnapshotWithEngineStore(snapshot)
+      }
+    }
+  } finally {
+    // begin() 后的任意读取、快照、恢复或 listener 异常都不能永久锁住主推进。
+    preGenActivity.finish(gen)
+    try {
+      useEngineStore.setState({ streamingNarrative: '' })
+    } finally {
+      notifyPreGenListeners()
+    }
   }
 
 
 
-  if (gen === preGenGen && preGenQueue.length < maxRounds && !lastIsBranch) {
+  if (preGenActivity.isCurrent(gen) && preGenQueue.length < maxRounds && !lastIsBranch) {
 
     void fillPreGenQueue(promptTemplate, sessionId)
 

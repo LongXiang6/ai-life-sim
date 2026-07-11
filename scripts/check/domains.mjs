@@ -102,6 +102,7 @@ export const DOMAINS = {
     steps: [
       { cmd: 'node', args: ['scripts/check/domains/narrative/validate-narrative-wiring.mjs'] },
       { cmd: 'node', args: ['scripts/check/domains/narrative/time-step-resolver-smoke.mjs'] },
+      { cmd: 'node', args: ['scripts/check/domains/narrative/playtest-quality-regression.mjs'] },
       { cmd: 'node', args: ['scripts/check/domains/narrative/narrative-regression-seed.mjs'] },
     ],
   },

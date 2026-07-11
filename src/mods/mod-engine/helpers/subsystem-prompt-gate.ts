@@ -253,18 +253,7 @@ export function buildNarrativeCoherenceHeader(
   return parts.join('\n')
 }
 
-/** 世界规则：description / 校准优先，tag 规则作兜底 */
-export function buildNarrativeWorldRules(
-  config: Record<string, unknown>,
-  fallbackFromTag: string,
-): string {
-  const parts: string[] = []
-  const cal = config._calibrationSummary
-  if (typeof cal === 'string' && cal.trim()) {
-    parts.push(cal.trim())
-  }
-  if (fallbackFromTag.trim()) {
-    parts.push(fallbackFromTag.trim())
-  }
-  return parts.join('\n')
+/** 世界规则只保留 tag 兜底；校准摘要已有独立字段，避免稳定 Prompt 重复发送。 */
+export function buildNarrativeWorldRules(fallbackFromTag: string): string {
+  return fallbackFromTag.trim()
 }

@@ -162,16 +162,8 @@ export function useSimulationAdvance() {
       stream: true,
     }
 
-    // orchestrator 是运行时单例，刷新页面后不会随 Zustand 持久化自动恢复上下文；
-    // 推进和预生成前统一从 world/character store 补齐，避免页面层绕过引擎职责。
-    ensureOrchestratorContextFromStores()
-    orchestrator.setTimeStep(useEngineStore.getState().timeStep)
-
     // 检测时间步长变化，变化时清空旧粒度的预生成队列
     checkAndClearPreGenOnTimeStepChange(useEngineStore.getState().timeStep)
-
-    // 推进前确保 orchestrator 可执行（避免 pause 后 status=paused 导致空回合）
-    orchestrator.start()
 
     const forceBranch = useEngineStore.getState().forceBranchNext
     let cached = !forceBranch ? shiftPreGenQueue() : undefined
@@ -180,6 +172,14 @@ export function useSimulationAdvance() {
       cached = await waitForPreGenQueueItem()
       if (!cached) clearPreGenQueue()
     }
+
+    // orchestrator 是运行时单例。必须等在途预览结束后再同步上下文和步长，
+    // 否则步长切换会在预览 AI 等待期间改写同一份运行态。
+    ensureOrchestratorContextFromStores()
+    orchestrator.setTimeStep(useEngineStore.getState().timeStep)
+
+    // 推进前确保 orchestrator 可执行（避免 pause 后 status=paused 导致空回合）
+    orchestrator.start()
 
     if (cached?.fullContent) {
       orchestrator.setPrefetchedNarrative(cached.fullContent)

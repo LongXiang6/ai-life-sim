@@ -123,9 +123,9 @@ export const DEFAULT_DESTINY_PATTERN_COUNT = 12
 /** 玩家选择数量（选3，对齐废弃项目 TALENT_SELECT_COUNT） */
 export const DESTINY_PATTERN_SELECT_COUNT = 3
 
-/** AI 批量生成：每批 20 条，分 5 批 */
-export const AI_DESTINY_PATTERN_BATCH_SIZE = 20
-export const AI_DESTINY_PATTERN_BATCH_COUNT = 5
+/** AI 批量生成：首屏每批正好 12 条，后台 8 批可填满 96 条本地池。 */
+export const AI_DESTINY_PATTERN_BATCH_SIZE = 12
+export const AI_DESTINY_PATTERN_BATCH_COUNT = 8
 
 /** 批量数量 + 满池数量（对齐废弃项目 TALENT_BULK_COUNT / TALENT_FULL_POOL_COUNT） */
 export const DESTINY_PATTERN_BULK_COUNT = 48

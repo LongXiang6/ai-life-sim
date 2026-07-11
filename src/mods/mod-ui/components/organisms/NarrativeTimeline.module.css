@@ -134,10 +134,6 @@
   transition: all 0.3s ease;
 }
 
-.entryLatest {
-  background: color-mix(in srgb, var(--color-text-primary) 3%, transparent);
-}
-
 .entryEnding {
   padding: 20px;
   border: 2px solid var(--color-error);
