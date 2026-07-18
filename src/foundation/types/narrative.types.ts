@@ -47,10 +47,12 @@ export interface CharacterState {
 
 /** Prompt 构建上下文 */
 export interface PromptContext {
-  /** 世界设定 */
-  worldSetting: WorldSetting,
-  /** 角色信息 */
-  character: CharacterState,
+  /** 主叙事 AI 的精简中文世界视图 */
+  worldNarrativeView: Record<string, unknown>,
+  /** 主叙事 AI 的本局稳定中文角色档案 */
+  characterProfileView: Record<string, unknown>,
+  /** 主叙事 AI 的每轮中文角色现状 */
+  characterStatusView: Record<string, unknown>,
   /** 子系统状态摘要（各子系统 summary 字符串数组） */
   subsystemSummaries: string[],
   /** 用户自定义指令 */
@@ -71,8 +73,12 @@ export interface PromptContext {
   worldTagsText?: string,
   /** 世界规则文本（根据世界观本质动态注入的叙事规则） */
   worldRules?: string,
-  /** 记忆摘要（长期记忆 + 近期记忆摘要） */
-  memorySummary?: string,
+  /** 压缩成功后才更新的长期记忆覆盖层 */
+  longTermMemory?: string,
+  /** 按本轮相关性装载的核心记忆、检索命中与摘要账本 */
+  relevantMemory?: string,
+  /** 最近完整叙事原文；只继承事实，不作为文风样本 */
+  recentNarrativeMemory?: string,
   /** 核心记忆（关键事件摘要，不受滚动窗口限制） */
   coreMemory?: string,
   /** 叙事风格（从用户设置读取，如：默认/史诗/写实/诗意） */
@@ -101,7 +107,7 @@ export interface PromptContext {
   subsystemGuideText?: string,
   /** 时间描写引导（totalRounds > 0 时注入，指导 AI 避免"这一年"开头） */
   timeGuideText?: string,
-  /** 力量体系预设（截断格式：≤当前天花板的阶位完整描述，超出部分仅简短境界名） */
+  /** 力量体系预设（叙事分层格式：当前可达范围完整说明，更高阶只提供边界名称） */
   powerCeilingPresets?: string,
 }
 

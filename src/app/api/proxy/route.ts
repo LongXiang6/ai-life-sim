@@ -22,7 +22,15 @@
 import { z } from 'zod'
 import { createHash, randomUUID } from 'crypto'
 
-import { AI_PROVIDERS } from '@/core/ai-service/provider-config'
+import {
+  AI_PROVIDERS,
+  DEFAULT_AI_PROVIDER_ID,
+} from '@/core/ai-service/provider-config'
+import {
+  hasServerProviderApiKey,
+  readServerProviderApiKey,
+} from '@/core/ai-service/server-provider-credentials'
+import { aggregateSseCompletion } from '@/core/ai-service/managed-sse-aggregation'
 import {
   appendServerJsonLine,
   safeLogSegment,
@@ -39,17 +47,6 @@ const MAX_BODY_SIZE = 512 * 1024
  * 流式响应一旦开始透传即清除该超时，由客户端 signal 控制后续生命周期。
  */
 const UPSTREAM_TIMEOUT_MS = 5 * 60 * 1000
-
-// ---- 服务端 API Key 映射 ----
-
-const SERVER_API_KEYS: Record<string, string> = {
-  deepseek: process.env.DEEPSEEK_API_KEY ?? '',
-  zhipu: process.env.ZHIPU_API_KEY ?? '',
-  aliyun: process.env.ALIBUN_API_KEY ?? '',
-  bytedance: process.env.BYTEDANCE_API_KEY ?? '',
-  tencent: process.env.TENCENT_API_KEY ?? '',
-  baidu: process.env.BAIDU_API_KEY ?? '',
-}
 
 // ---- Zod 校验 Schema ----
 
@@ -318,9 +315,8 @@ function getUpstreamHeaderSnapshot(headers: Headers): Record<string, string> {
 
 /** 仅暴露服务端是否已有可用密钥，不返回 Provider、密钥或其他配置细节。 */
 export function GET(request: Request): Response {
-  const providerId = new URL(request.url).searchParams.get('providerId') || 'deepseek'
-  const configured = Object.prototype.hasOwnProperty.call(SERVER_API_KEYS, providerId)
-    && Boolean(SERVER_API_KEYS[providerId])
+  const providerId = new URL(request.url).searchParams.get('providerId') || DEFAULT_AI_PROVIDER_ID
+  const configured = Boolean(AI_PROVIDERS[providerId]) && hasServerProviderApiKey(providerId)
   return Response.json(
     { configured },
     { headers: { 'Cache-Control': 'no-store' } },
@@ -338,7 +334,7 @@ export async function POST(request: Request): Promise<Response> {
   const ip = getClientIP(request)
   // 上游超时/取消守卫清理函数（try 内接线，catch/各出口调用，避免定时器与监听器泄漏）
   let clearUpstreamGuards: () => void = () => {}
-  let providerId = 'deepseek'
+  let providerId = DEFAULT_AI_PROVIDER_ID
   let model = ''
   let fingerprint = 'unknown'
   let isStream = false
@@ -431,13 +427,32 @@ export async function POST(request: Request): Promise<Response> {
     const providerConfig = AI_PROVIDERS[providerId]
     const isCustom = providerId === 'custom'
 
+    if (!isCustom && !providerConfig) {
+      await Promise.all([
+        writeProxyTrace(requestId, 'response', { status: 400, error: 'Unknown provider' }),
+        writeCurrentAccessLog(400, 'Unknown provider'),
+      ])
+      return jsonWithRequestId(requestId, { error: '未知的 AI Provider' }, 400)
+    }
+
+    if (
+      providerId === DEFAULT_AI_PROVIDER_ID
+      && !providerConfig.models.some((candidate) => candidate.name === body.model)
+    ) {
+      await Promise.all([
+        writeProxyTrace(requestId, 'response', { status: 400, error: 'Managed model not allowed' }),
+        writeCurrentAccessLog(400, 'Managed model not allowed'),
+      ])
+      return jsonWithRequestId(requestId, { error: '免费体验通道不支持该模型，请使用自定义接口' }, 400)
+    }
+
     // 确定 baseUrl
     const baseUrl = isCustom
       ? (body.baseUrl || '')
       : (providerConfig?.baseUrl ?? '')
 
     // 确定 API Key：请求体传入 > 服务端 env
-    const apiKey = body.apiKey || SERVER_API_KEYS[providerId] || ''
+    const apiKey = body.apiKey || readServerProviderApiKey(providerId)
 
     if (!baseUrl) {
       await Promise.all([
@@ -463,7 +478,8 @@ export async function POST(request: Request): Promise<Response> {
 
     if (body.temperature !== undefined) forwardBody.temperature = body.temperature
     if (body.max_tokens !== undefined) forwardBody.max_tokens = body.max_tokens
-    if (body.stream !== undefined) forwardBody.stream = body.stream
+    const aggregateManagedStream = providerId === DEFAULT_AI_PROVIDER_ID && !isStream
+    if (body.stream !== undefined) forwardBody.stream = aggregateManagedStream ? true : body.stream
     if (body.response_format !== undefined) forwardBody.response_format = body.response_format
     if (body.user_id !== undefined) forwardBody.user = body.user_id
     if (body.top_p !== undefined) forwardBody.top_p = body.top_p
@@ -565,7 +581,52 @@ export async function POST(request: Request): Promise<Response> {
       return jsonWithRequestId(requestId, errorBody, upstreamResp.status)
     }
 
-    // 7. 流式透传
+    // 7. 托管通道的非流式客户端请求改用完整 SSE 上游聚合，避免长叙事在上游 60 秒断连。
+    if (aggregateManagedStream && upstreamResp.body) {
+      clearTimeout(timeoutId)
+      try {
+        const aggregated = await aggregateSseCompletion(upstreamResp.body)
+        clearUpstreamGuards()
+        await Promise.all([
+          writeProxyTrace(requestId, 'response', {
+            status: 200,
+            upstreamHeaders: getUpstreamHeaderSnapshot(upstreamResp.headers),
+            responseBody: aggregated.responseBody,
+            transport: 'managed-sse-aggregation',
+            contentChars: aggregated.contentChars,
+          }),
+          writeCurrentAccessLog(200),
+        ])
+        return new Response(aggregated.responseBody, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-ai-request-id': requestId,
+          },
+        })
+      } catch (error) {
+        const aborted = request.signal.aborted
+        const message = error instanceof Error ? error.message : String(error)
+        upstreamController.abort()
+        clearUpstreamGuards()
+        const status = aborted ? 499 : 502
+        await Promise.all([
+          writeProxyTrace(requestId, 'response', {
+            status,
+            upstreamHeaders: getUpstreamHeaderSnapshot(upstreamResp.headers),
+            error: aborted ? 'Client aborted during managed SSE aggregation' : message,
+          }),
+          writeCurrentAccessLog(status, message),
+        ])
+        return jsonWithRequestId(
+          requestId,
+          { error: aborted ? '客户端已取消请求' : '托管通道流式聚合失败' },
+          status,
+        )
+      }
+    }
+
+    // 8. 流式透传
     if (isStream && upstreamResp.body) {
       // 首字节已到，连接超时使命完成；但保留 client-abort 接线直到流结束，
       // 以便流中途客户端断开时仍能取消上游。用显式 reader pump 捕获上游读取错误，
@@ -631,7 +692,7 @@ export async function POST(request: Request): Promise<Response> {
       })
     }
 
-    // 8. 非流式直接返回
+    // 9. 非流式直接返回
     clearUpstreamGuards()
     const responseBody = await upstreamResp.text()
     await Promise.all([

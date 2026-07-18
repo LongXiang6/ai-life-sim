@@ -260,15 +260,23 @@ export function buildNarrativeCoherenceHeader(
   characterAge: number,
 ): string | undefined {
   const parts: string[] = ['【叙事一致性】']
-  parts.push('世界基调以同条 Prompt 中 worldSetting.description 为准，禁止在此重复展开世界观全文。')
+  parts.push('世界基调以同条消息“世界设定”中的世界描述为准，禁止在此重复展开世界观全文。')
   const powerTag = config.powerSystemTag as string | undefined
   if (powerTag === 'none') {
     parts.push('本局无超自然力量体系；不得将未出现在【当前状态】中的超常能力写为已成立事实。')
   } else if (powerTag) {
-    parts.push(`力量体系标签：${powerTag}；仅使用【当前状态】中已出现的能力与设定。`)
+    const powerLabel: Record<string, string> = {
+      cultivation: '修炼体系',
+      martial: '武学体系',
+      technology: '科技体系',
+      magic: '魔法体系',
+      faith: '信仰体系',
+      mixed: '混合体系',
+    }
+    parts.push(`力量体系：${powerLabel[powerTag] ?? '按世界设定运行'}；仅使用【当前状态】中已出现的能力与设定。`)
   }
   parts.push(`角色当前年龄 ${characterAge} 岁；叙事细节须与此匹配。`)
-  parts.push('changes 仅可提交「子系统变更指南」中列出的 MVP 子系统。')
+  parts.push('状态变更仅可提交“状态变更指南”中列出的中文系统与字段。')
   return parts.join('\n')
 }
 

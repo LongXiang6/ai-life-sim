@@ -17,6 +17,7 @@ const candidateSuffixes = [
   '.mts',
   '.js',
   '.mjs',
+  '.json',
   path.join('', 'index.ts'),
   path.join('', 'index.tsx'),
   path.join('', 'index.mjs'),
@@ -59,6 +60,24 @@ export async function resolve(specifier, context, nextResolve) {
 }
 
 export async function load(url, context, nextLoad) {
+  if (/\.css$/.test(url)) {
+    return {
+      format: 'module',
+      source: 'export default {};',
+      shortCircuit: true,
+    }
+  }
+
+  if (/\.json$/.test(url)) {
+    const filePath = fileURLToPath(url)
+    const parsed = JSON.parse(await fs.readFile(filePath, 'utf8'))
+    return {
+      format: 'module',
+      source: `export default ${JSON.stringify(parsed)};`,
+      shortCircuit: true,
+    }
+  }
+
   if (/\.(?:ts|tsx|mts)$/.test(url)) {
     const filePath = fileURLToPath(url)
     const source = await fs.readFile(filePath, 'utf8')

@@ -27,7 +27,7 @@ if (!bridge.includes('buildTimeBridgeSummary')) {
 }
 if (
   !builder.includes('context.timeBridgeSummary') ||
-  !builder.includes("'时间桥摘要'")
+  !builder.includes("'时间跨度摘要'")
 ) {
   console.error('FAIL: prompt-builder missing timeBridgeSummary key')
   failed++

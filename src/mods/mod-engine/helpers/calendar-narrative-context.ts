@@ -68,7 +68,7 @@ export function buildCalendarNarrativeContext(input: CalendarNarrativeContextInp
     console.warn('[CalendarContext] 读取 mod-culture 节日上下文失败:', error)
   }
 
-  const worldviewRule = '真实或类现实世界应按角色所在国家/地区推断节假日、校历与工作制度；非现实世界遵循 worldSetting 中的历法、宗教、制度和社会节律，不套用现实国家模板。'
+  const worldviewRule = '真实或类现实世界应按角色所在国家或地区推断节假日、校历与工作制度；非现实世界遵循“世界设定”中的历法、宗教、制度和社会节律，不套用现实国家模板。'
 
   return ['【历法与社会作息】', canonicalSpanRule, worldviewRule, granularityRule, configuredFestival]
     .filter(Boolean)

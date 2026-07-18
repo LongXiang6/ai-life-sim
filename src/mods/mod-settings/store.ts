@@ -10,6 +10,11 @@ import { create, } from 'zustand'
 import { devtools, persist, } from 'zustand/middleware'
 
 import type { ThemeType, } from '@/core/theme/theme-store'
+import {
+  DEFAULT_AI_BASE_URL,
+  DEFAULT_AI_MODEL,
+  DEFAULT_AI_PROVIDER_ID,
+} from '@/core/ai-service'
 import { DEFAULT_WORD_COUNT_TARGET } from '@/mods/mod-engine'
 
 /** 叙事风格 */
@@ -23,10 +28,10 @@ export type ReasoningEffort = 'disabled' | 'level-1' | 'level-2' | 'level-3' | '
 
 /** 新用户、恢复默认与覆盖导入共享的唯一默认值。 */
 export const DEFAULT_SETTINGS_VALUES = {
-  provider: 'deepseek',
+  provider: DEFAULT_AI_PROVIDER_ID,
   customKey: '',
-  customUrl: '',
-  customModel: '',
+  customUrl: DEFAULT_AI_BASE_URL,
+  customModel: DEFAULT_AI_MODEL,
   temperature: 0.8,
   topP: 0.8,
   maxTokens: 4096,
@@ -135,16 +140,31 @@ export const useSettingsStore = create<SettingsState>()(
       }),
       {
         name: 'mod-settings:store',
-        version: 4,
+        version: 5,
         migrate: (persistedState: unknown, version: number) => {
           const state = persistedState as Partial<SettingsState>
+          const migrated = { ...state }
           if (version < 2 && state?.wordCountTarget === 500) {
-            return { ...state, wordCountTarget: DEFAULT_WORD_COUNT_TARGET } as SettingsState
+            migrated.wordCountTarget = DEFAULT_WORD_COUNT_TARGET
           }
           if (version < 3 && state?.wordCountTarget === 400) {
-            return { ...state, wordCountTarget: DEFAULT_WORD_COUNT_TARGET } as SettingsState
+            migrated.wordCountTarget = DEFAULT_WORD_COUNT_TARGET
           }
-          return persistedState as SettingsState
+          if (version < 5) {
+            const hasExplicitModelConfig = Boolean(
+              state.customKey?.trim()
+              || state.customUrl?.trim()
+              || state.customModel?.trim()
+              || state.provider === 'custom',
+            )
+            if (!hasExplicitModelConfig) {
+              migrated.provider = DEFAULT_AI_PROVIDER_ID
+              migrated.customKey = ''
+              migrated.customUrl = DEFAULT_AI_BASE_URL
+              migrated.customModel = DEFAULT_AI_MODEL
+            }
+          }
+          return migrated as SettingsState
         },
         // 不持久化 set 函数
         partialize: (state,) => {

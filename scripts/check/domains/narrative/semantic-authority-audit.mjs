@@ -38,6 +38,8 @@ const activeFiles = {
   archetypes: read('src/mods/mod-engine/helpers/life-stage-archetypes.ts'),
   parser: read('src/mods/mod-engine/helpers/parse-strategies.ts'),
   prompt: read('src/mods/mod-engine/prompts/narrative-prompt.ts'),
+  promptComponents: read('src/mods/mod-engine/prompts/narrative-prompt-components.ts'),
+  aiProtocol: read('src/mods/mod-engine/helpers/narrative-ai-protocol.ts'),
   plot: read('src/mods/mod-engine/subsystems/plot-structure-system.ts'),
   memory: read('src/mods/mod-engine/subsystems/memory-lifecycle-system.ts'),
   summary: read('src/mods/mod-engine/subsystems/summary-compressor-system.ts'),
@@ -117,34 +119,29 @@ if (fs.existsSync(path.join(root, 'src/mods/mod-engine/helpers/post-narrative-pr
   fail('legacy post-narrative text scanner must remain removed')
 }
 
-for (const field of [
-  'semanticSignals',
-  'narrativeRegister',
-  'relationshipUpdates',
-  'resolvedForeshadowingIds',
-]) {
-  assertIncludes(activeFiles.prompt, field, `narrative prompt missing structured field ${field}`)
+for (const field of ['语义信号', '叙事语域', '关系变化', '已回收伏笔编号']) {
+  assertIncludes(activeFiles.aiProtocol, field, `Chinese narrative protocol missing structured field ${field}`)
 }
-for (const register of ['life', 'fate', 'legacy']) {
+for (const register of ['生活', '命运', '传承']) {
   assertIncludes(
-    activeFiles.prompt,
-    `${register}:`,
+    activeFiles.aiProtocol,
+    `'${register}'`,
     `narrative prompt must define the ${register} register`,
   )
 }
-assertIncludes(activeFiles.prompt, 'narrativeRegister: NARRATIVE_REGISTERS', 'prompt register values must come from the live schema constants')
-assertIncludes(activeFiles.prompt, "version: '2.9.0'", 'branch-intent semantic contract must bump the prompt version to 2.9.0')
+assertIncludes(activeFiles.aiProtocol, 'AI_NARRATIVE_REGISTERS = createEnumTranslator', 'prompt register values must come from the Chinese translation authority')
+assertIncludes(activeFiles.prompt, "version: '3.0.0'", 'Chinese semantic contract must bump the prompt version to 3.0.0')
 assertIncludes(
-  activeFiles.prompt,
-  '无变化必须直接填 []，不得输出 shape/types 包装对象',
+  activeFiles.aiProtocol,
+  '没有变化返回空数组',
   'relationshipUpdates prompt must require the array shape accepted by the runtime schema',
 )
-if (/relationshipUpdates\s*:\s*\{\s*shape\s*:/.test(activeFiles.prompt)) {
-  fail('relationshipUpdates prompt must not model the runtime array as a shape/types wrapper object')
+if (/关系变化\s*:\s*\{\s*shape\s*:/.test(activeFiles.aiProtocol)) {
+  fail('Chinese relationship updates must not be modeled as a shape/types wrapper object')
 }
 assertIncludes(
-  activeFiles.prompt,
-  '无明确实体填 []',
+  activeFiles.aiProtocol,
+  '没有明确实体也必须返回空数组',
   'prompt must require an explicit empty entities array instead of local inference',
 )
 assertIncludes(

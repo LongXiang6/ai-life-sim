@@ -3,7 +3,7 @@
  * @description 沉浸模式 Two-pass API —— 先记忆预热再叙事生成（蓝图 F5）
  * @mod mod-engine
  *
- * Pass 1：注入 coreMemory + 伏笔 + 记忆摘要，让模型先「理解世界」
+ * Pass 1：注入核心记忆、分层记忆与伏笔，让模型先理解当前连续性
  * Pass 2：正常流式叙事（campaign ai-narration 阶段）
  *
  * 默认关闭（IMMERSION_TWO_PASS_ENABLED = false），开启后 API 成本约 2×。
@@ -39,9 +39,11 @@ export async function runImmersionWarmupPass(
   if (!IMMERSION_TWO_PASS_ENABLED) return undefined
 
   const memoryParts = [
+    promptContext.longTermMemory && `【长期记忆】\n${promptContext.longTermMemory}`,
     promptContext.coreMemory && `【核心记忆】\n${promptContext.coreMemory}`,
+    promptContext.relevantMemory && `【相关往事】\n${promptContext.relevantMemory}`,
+    promptContext.recentNarrativeMemory && `【近期完整经历】\n${promptContext.recentNarrativeMemory}`,
     promptContext.foreshadowingText && `【活跃伏笔】\n${promptContext.foreshadowingText}`,
-    promptContext.memorySummary && `【记忆摘要】\n${promptContext.memorySummary}`,
   ].filter(Boolean)
 
   if (memoryParts.length === 0) return undefined

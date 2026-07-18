@@ -837,7 +837,50 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
   }
 
   /**
-   * 将富Prompt上下文格式化为注入文本
+   * 格式化低频变化的长期记忆覆盖层。
+   * 这里只包含已经建立覆盖关系的 L1—L6 摘要，因此仅在压缩成功时变化，
+   * 可以稳定放在记忆消息的前缀。
+   */
+  formatLongTermMemoryForInjection(context: RichPromptContext): string {
+    const parts: string[] = []
+
+    if (context.historyOutline) {
+      parts.push('【一生纵览】', context.historyOutline)
+    }
+    if (context.l4Summary) {
+      parts.push('【纪元概览】', context.l4Summary)
+    }
+    if (context.l3Summary) {
+      parts.push('【远距记忆】', context.l3Summary)
+    }
+    if (context.l2Summary) {
+      parts.push('【中距记忆】', context.l2Summary)
+    }
+    if (context.l1Summaries.length > 0) {
+      parts.push('【近期摘要】', context.l1Summaries.join('\n---\n'))
+    }
+
+    return parts.join('\n')
+  }
+
+  /** 只格式化本轮检索命中的相关往事；未命中时不注入占位文字。 */
+  formatRetrievedMemoryForInjection(context: RichPromptContext): string {
+    if (context.retrievalHits.length === 0) return ''
+    return ['【相关往事】', ...context.retrievalHits].join('\n')
+  }
+
+  /** 只格式化近期完整原文，作为事实连续性而非文风示例。 */
+  formatRecentNarrativesForInjection(context: RichPromptContext): string {
+    if (context.recentNarratives.length === 0) return ''
+    return [
+      '【近期完整经历】',
+      '以下内容是已经发生的完整事实，只继承人物、关系、因果和线索；不得模仿其中的人称、措辞或段落结构。',
+      context.recentNarratives.join('\n---\n'),
+    ].join('\n')
+  }
+
+  /**
+   * 将富Prompt上下文格式化为兼容旧消费者的完整注入文本
    *
    * 顺序设计原则：
    *   - 历史框架在前 → AI先建立"时代认知"
@@ -848,32 +891,8 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
   formatRichPromptForInjection(context: RichPromptContext,): string {
     const parts: string[] = []
 
-    // 1. 历史纲要（L6，一生纵览）
-    if (context.historyOutline) {
-      parts.push('【一生纵览】',)
-      parts.push(context.historyOutline,)
-    }
-
-    // 2. 纪元记忆（L4，数百轮范围）
-    if (context.l4Summary) {
-      parts.push('',)
-      parts.push('【纪元概览】',)
-      parts.push(context.l4Summary,)
-    }
-
-    // 3. 远距离记忆（L3，百轮范围）
-    if (context.l3Summary) {
-      parts.push('',)
-      parts.push('【远距记忆】',)
-      parts.push(context.l3Summary,)
-    }
-
-    // 4. 中距离记忆（L2，数十轮范围）
-    if (context.l2Summary) {
-      parts.push('',)
-      parts.push('【中距记忆】',)
-      parts.push(context.l2Summary,)
-    }
+    const longTerm = this.formatLongTermMemoryForInjection(context)
+    if (longTerm) parts.push(longTerm)
 
     // 5. 状态卡（当前角色/世界状态）
     if (context.stateCard) {
@@ -882,27 +901,11 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
       parts.push(context.stateCard,)
     }
 
-    // 6. 检索命中（"突然想起来的往事"）
-    if (context.retrievalHits.length > 0) {
-      parts.push('',)
-      parts.push('【记忆回溯】',)
-      parts.push(context.retrievalHits.join('\n',))
-    }
+    const retrieved = this.formatRetrievedMemoryForInjection(context)
+    if (retrieved) parts.push('', retrieved)
 
-    // 7. 近距离记忆（L1，最近2条摘要）
-    if (context.l1Summaries.length > 0) {
-      parts.push('',)
-      parts.push('【近期摘要】',)
-      parts.push(context.l1Summaries.join('\n---\n',))
-    }
-
-    // 8. 最新发展（L0原文，短期完整记忆）
-    if (context.recentNarratives.length > 0) {
-      parts.push('',)
-      parts.push('【最新发展】',)
-      parts.push('以下是已发生事实的原始记录，只用于延续人物、关系、因果和线索；不得模仿其中的叙述人称、措辞或段落结构。',)
-      parts.push(context.recentNarratives.join('\n---\n',))
-    }
+    const recent = this.formatRecentNarrativesForInjection(context)
+    if (recent) parts.push('', recent)
 
     return parts.join('\n',)
   }

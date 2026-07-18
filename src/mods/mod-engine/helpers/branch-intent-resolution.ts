@@ -5,6 +5,14 @@
  */
 
 import type { NarrativeIntentResolution } from './narrative-semantic-signals'
+import {
+  AI_INTENT_EXECUTION_MODES,
+  AI_INTENT_FEASIBILITIES,
+  AI_INTENT_RISK_LEVELS,
+  AI_INTENT_STATUSES,
+  toNarrativeAIIntentId,
+  translateInternalIntentResolutionToAI,
+} from './narrative-ai-protocol'
 
 export interface BranchIntentState {
   intentId: string
@@ -171,12 +179,12 @@ export function commitBranchIntentResolution(
 
 function serializeIntent(intent: BranchIntentState): Record<string, unknown> {
   return {
-    intentId: intent.intentId,
-    branchId: intent.branchId,
-    choice: intent.choice,
-    createdRound: intent.createdRound,
-    updatedRound: intent.updatedRound,
-    previousResolution: intent.resolution ?? null,
+    意图编号: toNarrativeAIIntentId(intent.intentId),
+    分支编号: intent.branchId,
+    玩家选择: intent.choice,
+    建立轮次: intent.createdRound,
+    更新轮次: intent.updatedRound,
+    上次判定: translateInternalIntentResolutionToAI(intent.resolution),
   }
 }
 
@@ -188,7 +196,8 @@ export function buildBranchIntentInstruction(
     '【当前命运意图；本轮必须评估并推进】',
     JSON.stringify(serializeIntent(focused)),
     '玩家选择表达行动、立场或长期方向，不保证结果。请先结合世界规则、角色能力、资源、关系、阻力、运气与本轮时间跨度评估，再据此写正文。',
-    `META.intentResolution 必须存在且 intentId 必须严格等于 ${focused.intentId}；分别返回 feasibility、executionMode、status、riskLevel、progress、blockers、prerequisites、costs、timeHorizon、reason 与 nextStep。`,
+    `“命运意图判定”必须存在，意图编号必须严格等于 ${toNarrativeAIIntentId(focused.intentId)}；完整返回可行性、执行方式、状态、风险等级、进度、阻碍、前置条件、代价、预计耗时、判定理由与下一步。`,
+    `可行性只能为${AI_INTENT_FEASIBILITIES.aiValues.join('、')}；执行方式只能为${AI_INTENT_EXECUTION_MODES.aiValues.join('、')}；状态只能为${AI_INTENT_STATUSES.aiValues.join('、')}；风险等级只能为${AI_INTENT_RISK_LEVELS.aiValues.join('、')}。`,
     '小型行动可以在本轮完成；中大型目标应持续推进，明确当前阶段、具体阻碍、代价和下一步。失败必须产生可信后果，受阻必须说明解除条件，不得因为玩家点击选项就直接保证成功。',
   ]
 

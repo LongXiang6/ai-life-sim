@@ -101,7 +101,7 @@ export function useWorldConfirm() {
   ): Promise<boolean> => {
     if (!await hasAvailableApiConfiguration()) {
       alert(
-        'API 未配置：请打开设置 → 模型调用填入 API Key，或在本地环境配置 DEEPSEEK_API_KEY 后再继续。',
+        '服务器免费体验通道暂不可用：请打开设置 → 模型调用，填写自己的 API Key、接口和模型后继续。',
       )
       return false
     }

@@ -79,7 +79,7 @@ export interface CompressionResult {
   newLatestSummary: string
   /** 是否需要在 UI 显示本轮总结 */
   shouldShowSummary: boolean
-  /** 本轮是否真实生成或降级写入了新的压缩摘要 */
+  /** 本轮是否生成了通过完整覆盖校验的新压缩摘要 */
   didCompress: boolean,
 }
 
@@ -315,20 +315,7 @@ export class SummaryCompressorSystem extends BaseSubsystem {
           shouldShowSummary = true
           this.stats.totalL1++
         } catch {
-          // 失败降级：保留完整叙事文本（不截断）
-          const fallbackParts: string[] = []
-          for (const e of blockEvents) {
-            if (e.narrative) {
-              fallbackParts.push(`${e.age}岁 ${e.narrative}`)
-            }
-          }
-          if (fallbackParts.length > 0) {
-            const fallback = fallbackParts.join('；')
-            appendSummary({ level: 1 as const, startRound, endRound, content: fallback })
-            newLatestSummary = fallback
-            shouldShowSummary = true
-            this.stats.totalL1++
-          }
+          // 保留目标区间的完整原始事件等待后续重试；失败不得建立覆盖节点或成功统计。
         }
       }
     }

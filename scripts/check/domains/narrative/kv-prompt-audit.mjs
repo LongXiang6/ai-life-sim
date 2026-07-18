@@ -5,6 +5,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
 import { getProjectRoot } from '../../lib/project-root.mjs'
+import { buildMvpSubsystemGuide } from '../../../../src/mods/mod-engine/helpers/mvp-runtime-policy.ts'
+import { narrativePrompt as liveNarrativePrompt } from '../../../../src/mods/mod-engine/prompts/narrative-prompt.ts'
+import { NARRATIVE_SYSTEM_COMPONENTS } from '../../../../src/mods/mod-engine/prompts/narrative-prompt-components.ts'
 
 const root = getProjectRoot(import.meta.url)
 
@@ -14,6 +17,10 @@ const promptBuilder = fs.readFileSync(
 )
 const narrativePrompt = fs.readFileSync(
   path.join(root, 'src/mods/mod-engine/prompts/narrative-prompt.ts'),
+  'utf8',
+)
+const narrativePromptComponents = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/prompts/narrative-prompt-components.ts'),
   'utf8',
 )
 const campaign = fs.readFileSync(
@@ -48,11 +55,6 @@ const promptGate = fs.readFileSync(
   path.join(root, 'src/mods/mod-engine/helpers/subsystem-prompt-gate.ts'),
   'utf8',
 )
-const mvpRuntimePolicy = fs.readFileSync(
-  path.join(root, 'src/mods/mod-engine/helpers/mvp-runtime-policy.ts'),
-  'utf8',
-)
-
 let failed = 0
 
 function assertOk(condition, message) {
@@ -99,13 +101,17 @@ function compileStandaloneFunction(sourceText, fileName, functionName, environme
 
 const requiredContextFields = [
   'calibrationSummary',
-  'memorySummary',
+  'longTermMemory',
+  'relevantMemory',
+  'recentNarrativeMemory',
+  'coreMemory',
   'eventInjectionText',
   'timeBridgeSummary',
   'narrativeToneHint',
   'subsystemSummaries',
-  'character',
-  'worldSetting',
+  'characterProfileView',
+  'characterStatusView',
+  'worldNarrativeView',
 ]
 
 for (const key of requiredContextFields) {
@@ -181,18 +187,14 @@ if (
   failed++
 }
 
-const runtimeNarrativeVars = [
+const runtimeNarrativeContextFields = [
   'narrativeToneHint',
   'timeBridgeSummary',
   'causalChainHint',
   'timeGuideText',
   'narrativeGuidanceText',
 ]
-for (const variable of runtimeNarrativeVars) {
-  if (!narrativePrompt.includes(`'${variable}'`)) {
-    console.error(`FAIL: narrative prompt variables missing ${variable}`)
-    failed++
-  }
+for (const variable of runtimeNarrativeContextFields) {
   if (!promptContract.includes(`"${variable}"`)) {
     console.error(`FAIL: prompt context contract missing narrative variable ${variable}`)
     failed++
@@ -219,25 +221,24 @@ if (lifespanSystem.includes('lastNarrativeText')) {
   failed++
 }
 
-// eventInjection before currentState in prompt-builder FAST_JSON_KEYS
-const fastMatch = promptBuilder.match(/const FAST_JSON_KEYS = \[([\s\S]*?)\] as const/)
-if (fastMatch) {
-  const fastBlock = fastMatch[1]
-  const eventIdx = fastBlock.indexOf("'事件注入'")
-  const stateIdx = fastBlock.indexOf("'当前状态'")
-  const directorIdx = fastBlock.indexOf("'本轮导演提示'")
-  if (eventIdx < 0 || stateIdx < 0 || eventIdx > stateIdx) {
-    console.error('FAIL: FAST_JSON_KEYS order — eventInjection must precede currentState')
-    failed++
+for (const [name, requiredKeys] of [
+  ['GLOBAL_JSON_KEYS', ['世界设定', '角色档案', '状态变更指南']],
+  ['MEMORY_JSON_KEYS', ['长期记忆', '核心记忆', '相关往事', '近期完整经历']],
+  ['ROUND_JSON_KEYS', ['当前时间', '角色现状', '本轮触发事项', '本轮导演提示']],
+]) {
+  const match = promptBuilder.match(new RegExp(`const ${name} = \\[([\\s\\S]*?)\\] as const`))
+  assertOk(Boolean(match), `${name} must remain an explicit ordered layer`)
+  for (const key of requiredKeys) {
+    assertOk(match?.[1]?.includes(`'${key}'`), `${name} missing ${key}`)
   }
-  if (directorIdx < 0 || !fastBlock.trim().endsWith("'本轮导演提示',")) {
-    console.error('FAIL: FAST_JSON_KEYS order — round director hint must be the final dynamic key')
-    failed++
-  }
-} else {
-  console.error('FAIL: FAST_JSON_KEYS not found')
-  failed++
 }
+assertOk(
+  promptBuilder.indexOf('全局信息: pickJsonKeys')
+    < promptBuilder.indexOf('记忆: pickJsonKeys')
+    && promptBuilder.indexOf('记忆: pickJsonKeys')
+      < promptBuilder.indexOf('本轮引导: pickJsonKeys'),
+  'three-layer assembly must remain global information -> memory -> round guidance',
+)
 
 if (!promptBuilder.includes('buildRoundDirectorHint')) {
   console.error('FAIL: round director hint builder missing')
@@ -254,13 +255,13 @@ const migratedHistoryHint = buildRoundDirectorHint?.({
   narrativeGuidanceText: '剧情提示',
 }) ?? ''
 assertOk(
-  migratedHistoryHint.endsWith('仅在 [NARRATIVE] 正文中，全程以第二人称“你”指代玩家角色。'),
-  'the final S2 user segment must restate second-person narration after historical memory',
+  migratedHistoryHint.endsWith('仅在“正文”中，全程以第二人称“你”指代玩家角色。'),
+  'the final round-guidance layer must restate second-person narration after historical memory',
 )
 assertOk(
   migratedHistoryHint.includes('不得模仿其人称、措辞或段落结构')
-    && memoryLifecycle.includes('以下是已发生事实的原始记录')
-    && memoryLifecycle.includes('不得模仿其中的叙述人称、措辞或段落结构'),
+    && memoryLifecycle.includes('以下内容是已经发生的完整事实')
+    && memoryLifecycle.includes('不得模仿其中的人称、措辞或段落结构'),
   'legacy narrative text must remain factual memory rather than a style sample',
 )
 
@@ -294,35 +295,23 @@ assertOk(
   'MOD world rules must include only active runtime providers, preserve order, and dedupe text',
 )
 
-const buildMvpSubsystemGuide = compileStandaloneFunction(
-  mvpRuntimePolicy,
-  'mvp-runtime-policy.ts',
-  'buildMvpSubsystemGuide',
-  {
-    MVP_NARRATIVE_CHANGE_SUBSYSTEM_IDS: new Set([
-      'character-base',
-      'lifespan',
-      'luck',
-      'morality',
-    ]),
-    buildSubsystemGuide: (ids) => `guide:${[...ids].join(',')}`,
-  },
-)
-const activeGuide = buildMvpSubsystemGuide?.([
+const activeGuide = buildMvpSubsystemGuide([
   'morality',
   'character-base',
   'inactive-system',
   'lifespan',
 ]) ?? ''
 assertOk(
-  activeGuide.includes('本轮可变更子系统仅：character-base lifespan morality')
-    && activeGuide.includes('guide:character-base,lifespan,morality')
+  activeGuide.includes('本轮可变更系统仅限：基础属性、寿命、道德')
+    && activeGuide.includes('体魄变化')
+    && activeGuide.includes('最大寿命')
+    && activeGuide.includes('道德变化')
     && !activeGuide.includes('inactive-system')
-    && !activeGuide.includes(' luck'),
-  'subsystem guide must be the stable-order intersection of active and writable systems',
+    && !activeGuide.includes('气运绝对值'),
+  'subsystem guide must expose the stable-order Chinese intersection of active writable systems',
 )
 assertOk(
-  buildMvpSubsystemGuide?.(['inactive-system']) === '',
+  buildMvpSubsystemGuide(['inactive-system']) === '',
   'no writable active subsystem must produce no subsystem guide',
 )
 
@@ -366,7 +355,7 @@ assertOk(
   'ordinary and equipped mythic effects must both be injected every round',
 )
 assertOk(
-  narrativePrompt.includes('普通命格与已装备神话命格的 effect 都是每轮持续遵守的叙事规则'),
+  narrativePromptComponents.includes('普通命格与已装备神话命格的效果是持续叙事规则'),
   'system prompt must define ordinary and mythic effects as persistent rules while keeping mythic inheritance narrative-only',
 )
 
@@ -391,32 +380,27 @@ for (const inactiveConnection of [
   )
 }
 assertOk(
-  narrativePrompt.includes("version: '2.9.0'") && !narrativePrompt.includes('examples: ['),
+  liveNarrativePrompt.version === '3.0.0'
+    && !narrativePromptComponents.includes('examples: ['),
   'optimized prompt must be versioned and must not duplicate the schema into large few-shot examples',
 )
 assertOk(
-  narrativePrompt.includes('正文全程用第二人称“你”指代玩家角色')
-    && narrativePrompt.includes('禁止写成第三人称传记、履历或编年报告')
-    && narrativePrompt.includes('每轮至少落入一个可辨认的现场')
-    && narrativePrompt.includes('婴幼儿阶段仍使用“你”')
-    && narrativePrompt.includes('娱乐性与持续游玩意愿')
-    && narrativePrompt.includes('styleReference'),
-  'main narrative prompt must lock second-person viewpoint and scene-level immersion without changing the META schema',
+  narrativePromptComponents.includes('正文全程用第二人称“你”指代玩家角色')
+    && narrativePromptComponents.includes('不写第三人称传记、履历或编年报告')
+    && narrativePromptComponents.includes('每轮至少落入一个可辨认的现场')
+    && narrativePromptComponents.includes('娱乐性、代入感和继续游玩的意愿')
+    && NARRATIVE_SYSTEM_COMPONENTS.some((component) => component.kind === '示例'),
+  'main narrative components must lock second-person viewpoint and scene-level immersion',
 )
 assertOk(
-  narrativePrompt.includes('三段围绕同一条因果主线')
-    && narrativePrompt.includes('不得把三个独立日常、地点或人物各写成一段')
-    && narrativePrompt.includes('不得按时间切成互不相干的生活切片'),
+  narrativePromptComponents.includes('围绕同一条因果主线')
+    && narrativePromptComponents.includes('不得把三个独立日常、地点或人物各写成一段')
+    && narrativePromptComponents.includes('时间是剧情的观察尺度，不是逐步记账任务'),
   'main narrative prompt must reject annual disconnected-life-slice output while retaining one causal storyline',
 )
-const systemPromptStart = narrativePrompt.indexOf('export const SYSTEM_PROMPT')
-const systemPromptEnd = narrativePrompt.indexOf('\n})', systemPromptStart)
-const systemPromptSource = systemPromptStart >= 0 && systemPromptEnd > systemPromptStart
-  ? narrativePrompt.slice(systemPromptStart, systemPromptEnd + 3)
-  : ''
 assertOk(
-  systemPromptSource.length > 0 && systemPromptSource.length < 5_500,
-  'fixed SYSTEM_PROMPT source must stay compact enough for efficient repeated simulation calls',
+  liveNarrativePrompt.systemPrompt.length > 0 && liveNarrativePrompt.systemPrompt.length < 8_000,
+  'compiled fixed SYSTEM_PROMPT must stay compact enough for efficient repeated simulation calls',
 )
 for (const duplicatedStaticContract of [
   'allowedSubSystems:',
@@ -425,7 +409,7 @@ for (const duplicatedStaticContract of [
   'resourcesDelta',
 ]) {
   assertOk(
-    !systemPromptSource.includes(duplicatedStaticContract),
+    !liveNarrativePrompt.systemPrompt.includes(duplicatedStaticContract),
     `fixed prompt must not duplicate runtime-derived field contracts: ${duplicatedStaticContract}`,
   )
 }

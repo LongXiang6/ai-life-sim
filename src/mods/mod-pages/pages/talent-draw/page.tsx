@@ -29,6 +29,7 @@ import { useSettingsStore } from '@/mods/mod-settings'
 import { PageErrorBoundary } from '@/mods/mod-ui'
 import { cn } from '@/foundation/utils'
 import { configStore } from '@/core'
+import { DEFAULT_AI_MODEL } from '@/core/ai-service'
 import { getDestinyPatternSystem, loadDestinyPatternPool, saveDestinyPatternPool } from '@/mods/mod-character/destiny-pattern-access'
 
 import type { AIModelConfig } from '@/foundation'
@@ -187,7 +188,7 @@ function configureDestinyPatternAIService(): void {
       customModel,
       talentThinkingIntensity,
     } = useSettingsStore.getState()
-    const model = customModel || 'deepseek-v4-flash'
+    const model = customModel || DEFAULT_AI_MODEL
     const maxTokens = opts?.maxTokensOverride
       ?? estimateDestinyPatternTokenBudget(systemPrompt.length + userPrompt.length)
     const defaultConfig: AIModelConfig = {

@@ -9,7 +9,12 @@
 import { useCallback, useState } from 'react'
 
 import { configStore } from '@/core'
-import { AI_PROVIDERS } from '@/core/ai-service'
+import {
+  AI_PROVIDERS,
+  DEFAULT_AI_BASE_URL,
+  DEFAULT_AI_MODEL,
+  DEFAULT_AI_PROVIDER_ID,
+} from '@/core/ai-service'
 
 import { useSettingsStore } from '../store'
 import { SettingsHelpTooltip } from './SettingsHelpTooltip'
@@ -89,8 +94,8 @@ export function SettingsTabPresets() {
     if (!saved) return { state: 'idle', duration: null, tokens: '', testedAt: null }
 
     const store = useSettingsStore.getState()
-    const activeUrl = store.customUrl || 'https://api.deepseek.com/v1'
-    const activeModel = store.customModel || 'deepseek-v4-flash'
+    const activeUrl = store.customUrl || DEFAULT_AI_BASE_URL
+    const activeModel = store.customModel || DEFAULT_AI_MODEL
     if (saved.testedUrl === activeUrl && saved.testedModel === activeModel) {
       return {
         state: saved.state,
@@ -116,8 +121,8 @@ export function SettingsTabPresets() {
     saveConnState({
       state: 'idle',
       duration: null,
-      testedUrl: testedUrl || 'https://api.deepseek.com/v1',
-      testedModel: testedModel || 'deepseek-v4-flash',
+      testedUrl: testedUrl || DEFAULT_AI_BASE_URL,
+      testedModel: testedModel || DEFAULT_AI_MODEL,
       testedAt: Date.now(),
     })
   }, [])
@@ -139,8 +144,8 @@ export function SettingsTabPresets() {
   const runConnTest = useCallback(() => {
     setConnTest({ state: 'testing', duration: null, tokens: '', testedAt: null })
     const providerConfig = AI_PROVIDERS[provider]
-    const testUrl = customUrl || providerConfig?.baseUrl || 'https://api.deepseek.com/v1'
-    const testModel = customModel || providerConfig?.models[0]?.name || 'deepseek-v4-flash'
+    const testUrl = customUrl || providerConfig?.baseUrl || DEFAULT_AI_BASE_URL
+    const testModel = customModel || providerConfig?.models[0]?.name || DEFAULT_AI_MODEL
 
     if (provider === 'custom' && (!customKey || !customUrl || !customModel)) {
       const testedAt = Date.now()
@@ -214,13 +219,13 @@ export function SettingsTabPresets() {
   }, [customKey, customModel, customUrl, provider])
 
   const handleClearAPIConfig = useCallback(() => {
-    setProvider('deepseek')
+    setProvider(DEFAULT_AI_PROVIDER_ID)
     setCustomKey('')
-    setCustomUrl('')
-    setCustomModel('')
-    setSelectedVendorIdx(PROVIDER_OPTIONS.findIndex((vendor) => vendor.id === 'deepseek'))
-    setSelectedModelName(null)
-    markConnectionUntested('https://api.deepseek.com/v1', 'deepseek-v4-flash')
+    setCustomUrl(DEFAULT_AI_BASE_URL)
+    setCustomModel(DEFAULT_AI_MODEL)
+    setSelectedVendorIdx(PROVIDER_OPTIONS.findIndex((vendor) => vendor.id === DEFAULT_AI_PROVIDER_ID))
+    setSelectedModelName(DEFAULT_AI_MODEL)
+    markConnectionUntested(DEFAULT_AI_BASE_URL, DEFAULT_AI_MODEL)
   }, [markConnectionUntested, setCustomKey, setCustomModel, setCustomUrl, setProvider])
 
   const connectionLabel = connTest.state === 'connected'
@@ -326,7 +331,9 @@ export function SettingsTabPresets() {
           <div className={styles.cardBody}>
             <p className={styles.supportingText}>
               {selectedModelName
-                ? '预设模型的地址与名称已填入；可使用本地服务端密钥测试，也可填写 Key 覆盖。'
+                ? provider === DEFAULT_AI_PROVIDER_ID
+                  ? '免费体验地址与模型已填入；API Key 留空时由服务器安全提供，也可填写自己的 Key 覆盖。'
+                  : '预设模型的地址与名称已填入；可使用本地服务端密钥测试，也可填写 Key 覆盖。'
                 : '手动填写兼容 OpenAI 协议的 API Key、接口地址与模型名称。'}
             </p>
             <div className={styles.fieldGrid}>
@@ -336,7 +343,7 @@ export function SettingsTabPresets() {
                   type="password"
                   autoComplete="off"
                   className={styles.presetInput}
-                  placeholder="例如 sk-xxx"
+                  placeholder={provider === DEFAULT_AI_PROVIDER_ID ? '服务器已托管；填写后使用自己的 Key' : '例如 sk-xxx'}
                   value={customKey}
                   onChange={(event) => {
                     setCustomKey(event.target.value)
@@ -349,7 +356,7 @@ export function SettingsTabPresets() {
                 <input
                   inputMode="url"
                   className={styles.presetInput}
-                  placeholder="https://api.deepseek.com/v1"
+                  placeholder={DEFAULT_AI_BASE_URL}
                   value={customUrl}
                   onChange={(event) => {
                     markCustomProvider()
@@ -362,7 +369,7 @@ export function SettingsTabPresets() {
                 <span>模型名称</span>
                 <input
                   className={styles.presetInput}
-                  placeholder="例如 deepseek-v4-flash"
+                  placeholder={`例如 ${DEFAULT_AI_MODEL}`}
                   value={customModel}
                   onChange={(event) => {
                     markCustomProvider()
@@ -380,7 +387,9 @@ export function SettingsTabPresets() {
                   ? `已配置 · ${customModel || '未选模型'}`
                   : provider === 'custom'
                     ? '自定义接口需要 API Key'
-                    : '可使用本地服务端密钥'}</strong>
+                    : provider === DEFAULT_AI_PROVIDER_ID
+                      ? `服务器免费体验 · ${customModel || DEFAULT_AI_MODEL}`
+                      : '可使用本地服务端密钥'}</strong>
               </div>
               <div className={styles.connectionStatus} data-state={connTest.state}>
                 <span className={styles.statusDot} aria-hidden="true" />
@@ -425,7 +434,7 @@ export function SettingsTabPresets() {
         <div className={styles.sectionCard}>
           <div className={styles.actionBody}>
             <p className={styles.supportingText}>
-              测试会发送一条最短请求；恢复默认会清空本地 API Key、网址和模型名称。
+              测试会发送一条最短请求；恢复默认会清空本地 Key，并切回服务器免费体验通道。
             </p>
             <div className={styles.actionRow}>
               <button

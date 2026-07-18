@@ -249,10 +249,10 @@ export class PlotStructureSystem extends BaseSubsystem {
 
     return [
       `【当前情节阶段】${label}（第${round}轮）`,
-      `- 张力值：${tension}/100`,
-      `- 引导：${guidance}`,
-      tension >= 70 ? '- ⚠ 注意：张力已突破高位，为高潮或转折做铺垫' : '',
-      tension <= 20 ? '- ℹ 提示：张力较低，可以引入新的矛盾或冲突元素' : '',
+      `张力：${tension}/100`,
+      `引导：${guidance}`,
+      tension >= 70 ? '高张力：为高潮或转折做铺垫。' : '',
+      tension <= 20 ? '低张力：可以引入新的矛盾、欲望或关系压力。' : '',
     ].filter(Boolean).join('\n')
   }
 

@@ -11,7 +11,10 @@
  */
 
 import { mvpStageLoader } from './mvp-stage-loader'
-import { buildSubsystemGuide } from './subsystem-field-registry'
+import {
+  buildSubsystemGuide,
+  getNarrativeAISubsystemContracts,
+} from './subsystem-field-registry'
 
 export const MVP_EXTERNAL_RUNTIME_SUBSYSTEM_IDS = mvpStageLoader.getExternalRuntimeSubsystems()
 
@@ -36,11 +39,14 @@ export function buildMvpSubsystemGuide(activeSubsystemIds: Iterable<string>): st
 
   if (writableIds.length === 0) return ''
 
+  const writableNames = getNarrativeAISubsystemContracts(writableIds)
+    .map((contract) => contract.aiName)
+
   return [
-    `本轮可变更子系统仅：${writableIds.join(' ')}`,
+    `本轮可变更系统仅限：${writableNames.join('、')}`,
     buildSubsystemGuide(writableIds),
-    '提交规则：仅当剧情明确造成上述字段变化时写 changes；否则返回 []。',
-    '只使用上列 ID 与字段；年龄由时间系统派生，禁止写 age；未列系统不得写入。',
+    '提交规则：只有剧情明确造成上述数值变化时才写入“状态变更”；否则返回空数组。',
+    '只使用上列中文系统名与中文字段名；当前年龄由时间系统派生，禁止提交年龄；未列系统不得写入。',
   ].join('\n')
 }
 

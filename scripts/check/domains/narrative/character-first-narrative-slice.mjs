@@ -142,14 +142,14 @@ check(
   () => {
     requireFragments('src/core/ai-service/ai-client.ts', ["fetchWithTimeout('/api/proxy'", 'fetchAIStreamResponse'])
     requireFragments('src/mods/mod-engine/helpers/narrative-response-quality.ts', [
-      'const metadataResult = NarrativeResponseSchema.safeParse(metadata)',
-      'if (!metadataResult.success)',
+      'translateNarrativeAIResponse(parseNarrativeAIDataJson(envelope.metaJson))',
       'if (paragraphs.length !== 3)',
     ])
-    return requireFragments('src/mods/mod-engine/helpers/narrative-semantic-signals.ts', [
-      'export const NarrativeResponseSchema',
-      'changes: z.array(z.object({',
-      'semanticSignals: NarrativeSemanticSignalsSchema',
+    return requireFragments('src/mods/mod-engine/helpers/narrative-ai-protocol.ts', [
+      'export const NarrativeAIResponseSchema',
+      '状态变更: z.array(NarrativeAIChangeSchema)',
+      '语义信号: NarrativeAISemanticSignalsSchema',
+      '新延迟因果: z.array(NarrativeAIDeferredCausalitySchema).optional()',
     ])
   },
 )
@@ -181,7 +181,7 @@ check(
   () => {
     const stores = [
       ['src/mods/mod-world/store.ts', "name: 'mod-world:persist:world-state'", 'version: 4'],
-      ['src/mods/mod-settings/store.ts', "name: 'mod-settings:store'", 'version: 4'],
+      ['src/mods/mod-settings/store.ts', "name: 'mod-settings:store'", 'version: 5'],
       ['src/mods/mod-character/store.ts', "name: 'mod-character:persist:character-state'", 'version: 2'],
       ['src/mods/mod-engine/store.ts', "name: 'mod-engine:persist:engine-state'", 'version: 2'],
     ]

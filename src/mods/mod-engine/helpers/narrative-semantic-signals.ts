@@ -46,6 +46,9 @@ export const NARRATIVE_RELATIONSHIP_TYPES = [
   'other',
 ] as const
 
+export const NARRATIVE_DEFERRED_CAUSAL_TYPES = ['kindness', 'grudge', 'promise', 'debt'] as const
+export const NARRATIVE_DEFERRED_CAUSAL_SEVERITIES = ['minor', 'normal', 'major', 'critical'] as const
+
 export const NarrativeSemanticSignalsSchema = z.object({
   eventType: z.enum(NARRATIVE_EVENT_TYPES),
   conflictIntensity: z.coerce.number().int().min(0).max(100),
@@ -107,6 +110,14 @@ export const NarrativeIntentResolutionSchema = z.object({
   nextStep: z.string().min(1).optional(),
 }).strict()
 
+export const NarrativeDeferredCausalitySchema = z.object({
+  type: z.enum(NARRATIVE_DEFERRED_CAUSAL_TYPES),
+  severity: z.enum(NARRATIVE_DEFERRED_CAUSAL_SEVERITIES),
+  description: z.string().min(1),
+  relatedPerson: z.string().min(1).optional(),
+  relatedFaction: z.string().min(1).optional(),
+}).strict()
+
 /** 主叙事 AI 的完整语义包。任一字段非法时，消费方不得零散采信其余字段。 */
 export const NarrativeRoundMetadataSchema = z.object({
   notableEvents: z.array(z.string().min(1)).optional(),
@@ -121,6 +132,7 @@ export const NarrativeRoundMetadataSchema = z.object({
   branchTitle: z.string().min(1).optional(),
   branchOptions: z.array(z.string().min(1)).min(2).max(4).optional(),
   intentResolution: NarrativeIntentResolutionSchema.optional(),
+  deferredCausality: z.array(NarrativeDeferredCausalitySchema).optional(),
 })
 
 /** 标签信封 META 的完整运行时 Schema；预生成与主叙事质量门禁共用。 */
@@ -193,6 +205,7 @@ export function normalizeNarrativeResponseMetadata(raw: unknown): unknown {
 export type NarrativeSemanticSignals = z.infer<typeof NarrativeSemanticSignalsSchema>
 export type NarrativeRelationshipUpdate = NarrativeSemanticSignals['relationshipUpdates'][number]
 export type NarrativeIntentResolution = z.infer<typeof NarrativeIntentResolutionSchema>
+export type NarrativeDeferredCausality = z.infer<typeof NarrativeDeferredCausalitySchema>
 export type NarrativeRoundMetadata = z.infer<typeof NarrativeRoundMetadataSchema>
 
 /** 无有效 AI 语义时的可识别、中立降级；不得由正文扫描补全。 */

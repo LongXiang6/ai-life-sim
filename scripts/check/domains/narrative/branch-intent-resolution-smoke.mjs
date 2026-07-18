@@ -109,6 +109,12 @@ const instruction = buildBranchIntentInstruction(firstIntent, [otherIntent])
 assertOk(instruction.includes(firstIntent.choice), 'focused intent instruction must retain the complete player choice')
 assertOk(instruction.includes(otherIntent.choice), 'other unresolved intents must remain in Prompt context')
 assertOk(!/成功率|%/.test(instruction), 'intent instruction must not request pseudo-precise success probability')
+assertOk(
+  instruction.includes('命运分支:branch-one')
+    && !instruction.includes('intentResolution')
+    && !instruction.includes('feasibility'),
+  'AI-visible intent instruction must use the Chinese ID prefix and Chinese protocol fields only',
+)
 
 let collection = upsertBranchIntent([], 'branch-one', firstIntent.choice, 8)
 assertOk(collection.focusedIntentId === firstIntent.intentId, 'branch selection must create a focused stable intent')
@@ -150,8 +156,8 @@ const orchestratorSource = read('src/mods/mod-engine/subsystems/orchestrator-sys
 assertOk(!/callAI|fetch\s*\(/.test(branchCommands), 'selecting a branch must not add a separate AI request')
 assertOk(branchCommands.includes('orchestrator.resolveBranchChoice'), 'branch selection must hand the intent to the owning orchestrator')
 assertOk(
-  responseQuality.includes('当前没有玩家命运意图，禁止生成 intentResolution')
-    && responseQuality.includes('validateIntentResolution(metadataResult.data.intentResolution, expectedIntentId)'),
+  responseQuality.includes('当前没有玩家命运意图，禁止生成命运意图判定')
+    && responseQuality.includes('validateIntentResolution(metadata.intentResolution, expectedIntentId)'),
   'main quality gate must require matching intentResolution and reject unsolicited intent state',
 )
 assertOk(

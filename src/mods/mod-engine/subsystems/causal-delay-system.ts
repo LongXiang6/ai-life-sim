@@ -109,32 +109,11 @@ const CAUSAL_TYPE_DESCRIPTIONS: Record<CausalEventType, string> = {
   debt: '债务',
 }
 
-/** 因果触发模板 */
-const CAUSAL_TRIGGER_TEMPLATES: Record<CausalEventType, Record<CausalSeverity, string[]>> = {
-  kindness: {
-    minor: ['善有善报，当初的善意如今得到了回报。', '曾经的帮助，如今换来了意想不到的收获。'],
-    normal: ['当初的恩情，如今得到了回报，对方前来相助。', '善行终有报，当初的帮助如今换来了重要的支持。'],
-    major: ['大恩必有回报，当初的善举如今改变了命运。', '曾经的救命之恩，如今换来了命运的转折。'],
-    critical: ['因果循环，当初的恩德如今成为了人生的转折点。', '善报终至，当初的重大善举如今换来了命运的眷顾。'],
-  },
-  grudge: {
-    minor: ['旧怨未消，当初的矛盾如今又浮现心头。', '曾经的冲突，如今换来了新的麻烦。'],
-    normal: ['仇怨未了，当初的仇恨如今引发了新的冲突。', '旧恨难消，当初的敌意如今换来了报复。'],
-    major: ['大仇必报，当初的仇恨如今引发了重大事件。', '仇恨终有报，当初的重大冲突如今换来了命运的转折。'],
-    critical: ['因果循环，当初的仇恨如今成为了人生的转折点。', '恶报终至，当初的重大仇恨如今换来了命运的审判。'],
-  },
-  promise: {
-    minor: ['当初的承诺，如今到了兑现的时候。', '曾经的约定，如今需要履行。'],
-    normal: ['承诺终需兑现，当初的约定如今引发了新的事件。', '约定未忘，当初的承诺如今换来了新的机遇。'],
-    major: ['重大承诺，如今到了兑现的关键时刻。', '当初的重要约定，如今成为了命运的转折点。'],
-    critical: ['命运之约，当初的承诺如今决定了人生的走向。', '关键承诺，当初的约定如今换来了命运的抉择。'],
-  },
-  debt: {
-    minor: ['旧债未清，当初的债务如今需要偿还。', '曾经的欠债，如今换来了新的压力。'],
-    normal: ['债务终需偿还，当初的欠债如今引发了新的事件。', '欠债未忘，当初的债务如今换来了新的麻烦。'],
-    major: ['重大债务，如今到了偿还的关键时刻。', '当初的重要欠债，如今成为了命运的转折点。'],
-    critical: ['命运之债，当初的债务如今决定了人生的走向。', '关键债务，当初的欠债如今换来了命运的审判。'],
-  },
+const CAUSAL_SEVERITY_DESCRIPTIONS: Record<CausalSeverity, string> = {
+  minor: '轻微',
+  normal: '普通',
+  major: '重大',
+  critical: '关键',
 }
 
 // ============================================================
@@ -301,58 +280,66 @@ export class CausalDelaySystem implements ISubSystem {
       }
     }
 
-    // 标记为已触发
-    for (const event of toTrigger) {
-      event.triggered = true
-      event.triggeredRound = currentRound
-      this.stats.totalTriggered++
-      this.stats.pendingEvents--
-
-      // 同步到记忆遗忘系统（标记为已解决）
-      memoryForgetting.resolveCausalMark(event.round, event.type)
-    }
-
-    // 构建叙事文本
+    // 此处仅返回本轮到期事项，不提前消费。只有主叙事完整协议与状态提交
+    // 均通过后，orchestrator 才调用 commitCausalTriggers() 确认兑现。
     const narrativeText = this.buildTriggerNarrative(toTrigger)
-
-    this.stats.lastTriggerAt = Date.now()
-
-    console.debug(`[CausalDelay] 触发${toTrigger.length}个因果事件：${toTrigger.map((e) => CAUSAL_TYPE_DESCRIPTIONS[e.type]).join('、')}`)
 
     return {
       hasTriggered: true,
-      triggeredEvents: toTrigger,
+      triggeredEvents: structuredClone(toTrigger),
       narrativeText,
     }
+  }
+
+  /** 主叙事有效提交后，确认本轮已经兑现的因果事项。 */
+  commitCausalTriggers(
+    eventIds: readonly string[],
+    currentRound: number,
+    triggerResult?: string,
+  ): CausalEvent[] {
+    const idSet = new Set(eventIds)
+    if (idSet.size === 0) return []
+
+    const committed: CausalEvent[] = []
+    for (const event of this.causalEvents) {
+      if (event.triggered || !idSet.has(event.id)) continue
+      event.triggered = true
+      event.triggeredRound = currentRound
+      event.triggerResult = triggerResult?.trim() || undefined
+      this.stats.totalTriggered++
+      this.stats.pendingEvents = Math.max(0, this.stats.pendingEvents - 1)
+      memoryForgetting.resolveCausalMark(event.round, event.type)
+      committed.push(structuredClone(event))
+    }
+
+    if (committed.length > 0) {
+      this.stats.lastTriggerAt = Date.now()
+      console.debug(
+        `[CausalDelay] 确认兑现${committed.length}个因果事件：${committed.map((event) => CAUSAL_TYPE_DESCRIPTIONS[event.type]).join('、')}`,
+      )
+    }
+    return committed
   }
 
   /**
    * 构建触发叙事文本
    */
   private buildTriggerNarrative(events: CausalEvent[]): string {
-    const parts: string[] = []
+    const parts: string[] = [
+      '【本轮到期因果；必须纳入同一条剧情主线】',
+      '以下只陈述已经成立并到达处理节点的事实，不预设必然成功、报恩、复仇或清偿结果；请依据当前世界、人物能力、关系与阻力裁决具体展开。',
+    ]
 
     for (const event of events) {
-      const templates = CAUSAL_TRIGGER_TEMPLATES[event.type][event.severity]
-      const template = templates[Math.floor(Math.random() * templates.length)]
-
-      // 构建完整叙事
-      let narrative = template
-
-      // 添加相关人物信息
-      if (event.relatedPerson) {
-        narrative += `（与${event.relatedPerson}相关）`
-      }
-
-      // 添加相关势力信息
-      if (event.relatedFaction) {
-        narrative += `（涉及${event.relatedFaction}）`
-      }
-
-      // 添加原始事件描述
-      narrative += `——当初的事件：${event.description}`
-
-      parts.push(narrative)
+      const fields = [
+        `类型：${CAUSAL_TYPE_DESCRIPTIONS[event.type]}`,
+        `严重程度：${CAUSAL_SEVERITY_DESCRIPTIONS[event.severity]}`,
+        `成立于第${event.round}轮、${event.age}岁时`,
+        `已成立事实：${event.description}`,
+        event.relatedPerson ? `相关人物：${event.relatedPerson}` : undefined,
+        event.relatedFaction ? `相关势力：${event.relatedFaction}` : undefined,
+      ].filter((field): field is string => Boolean(field))
+      parts.push(fields.join('；'))
     }
 
     return parts.join('\n')
@@ -392,21 +379,6 @@ export class CausalDelaySystem implements ISubSystem {
     }
 
     return parts.join('\n')
-  }
-
-  /**
-   * 清理已触发的旧事件
-   */
-  cleanupOldTriggeredEvents(maxAge: number = 100): void {
-    this.causalEvents = this.causalEvents.filter((e) => {
-      // 保留未触发的事件
-      if (!e.triggered) return true
-      // 保留最近触发的重大事件
-      if (e.severity === 'critical' || e.severity === 'major') return true
-      // 清理旧的已触发事件
-      const ageSinceTrigger = e.triggeredRound ? Date.now() - e.triggeredRound : 0
-      return ageSinceTrigger < maxAge
-    })
   }
 
   // ============================================================
@@ -458,6 +430,47 @@ export class CausalDelaySystem implements ISubSystem {
           relatedFaction?: string
         }
       this.recordCausalEvent(type, severity, round, age, description, relatedPerson, relatedFaction)
+    }
+  }
+
+  capturePreviewState(): unknown {
+    return structuredClone({
+      config: this.config,
+      causalEvents: this.causalEvents,
+      stats: this.stats,
+    })
+  }
+
+  restorePreviewState(snapshot: unknown): void {
+    this.restoreCollectedState(snapshot)
+  }
+
+  restoreCollectedState(snapshot: unknown): void {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
+    const record = snapshot as Record<string, unknown>
+    const config = record.config
+    const events = record.causalEvents
+    const stats = record.stats
+
+    if (config && typeof config === 'object' && !Array.isArray(config)) {
+      const next = config as Partial<CausalConfig>
+      this.config = {
+        ...DEFAULT_CAUSAL_CONFIG,
+        ...next,
+        severityDelayMultipliers: {
+          ...DEFAULT_CAUSAL_CONFIG.severityDelayMultipliers,
+          ...(next.severityDelayMultipliers ?? {}),
+        },
+      }
+    }
+    if (Array.isArray(events)) {
+      this.causalEvents = structuredClone(events) as CausalEvent[]
+    }
+    if (stats && typeof stats === 'object' && !Array.isArray(stats)) {
+      this.stats = {
+        ...this.stats,
+        ...(stats as Partial<typeof this.stats>),
+      }
     }
   }
 

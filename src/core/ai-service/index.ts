@@ -31,6 +31,9 @@ export { diagnoseApiError, diagnoseProxyError } from './api-error'
 export type { ApiDiagnostic } from './api-error'
 export {
   AI_PROVIDERS,
+  DEFAULT_AI_PROVIDER_ID,
+  DEFAULT_AI_BASE_URL,
+  DEFAULT_AI_MODEL,
   REASONING_BUDGET_MAP,
   REASONING_EFFORT_OPTIONS,
   resolveProvider,

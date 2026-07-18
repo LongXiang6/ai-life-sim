@@ -63,6 +63,7 @@ async function main() {
   const consoleErrors = []
   const visitedPaths = []
   let proxyPostCount = 0
+  let managedRequestWithoutClientKey = false
 
   page.on('console', (message) => {
     if (message.type() === 'error') consoleErrors.push(message.text())
@@ -81,6 +82,9 @@ async function main() {
 
     proxyPostCount += 1
     const body = request.postDataJSON()
+    if (body.providerId === 'managed' && body.model === 'grok-4.5' && body.apiKey === undefined) {
+      managedRequestWithoutClientKey = true
+    }
     if (body.stream === true) {
       const event = JSON.stringify({ choices: [{ delta: { content: fixtureResponse }, finish_reason: 'stop' }] })
       await route.fulfill({
@@ -139,12 +143,12 @@ async function main() {
       },
     }))
     localStorage.setItem('mod-settings:store', JSON.stringify({
-      version: 4,
+      version: 5,
       state: {
-        provider: 'deepseek',
-        customKey: 'fixture-key',
-        customUrl: '',
-        customModel: '',
+        provider: 'managed',
+        customKey: '',
+        customUrl: 'https://dasuapi.com/v1',
+        customModel: 'grok-4.5',
         temperature: 0.8,
         topP: 0.8,
         maxTokens: 4096,
@@ -216,6 +220,7 @@ async function main() {
     else routeCursor = index
   }
   if (persistedState.character.name !== '林序') failures.push('character name was not persisted')
+  if (!managedRequestWithoutClientKey) failures.push('managed provider request without a browser API key was not observed')
   if (persistedState.character.destinyPatterns?.patterns?.length !== 3) failures.push('three destiny patterns were not persisted')
   const base = persistedState.character.characterBase?.base ?? {}
   if ([base.physique, base.mind, base.talentAptitude, base.charisma].join(',') !== '8,8,7,7') {

@@ -201,7 +201,7 @@ for (const expected of [
   'coreMemory.recordRelationshipUpdates(\n          semanticSignals.relationshipUpdates,\n          roundSequence,',
   'foreshadowing.detectForeshadowing(\n          roundSequence,',
   'round: roundSequence,',
-  'const currentRound = this.state.totalRounds',
+  'const roundSequence = this.state.totalRounds',
 ]) {
   assertIncludes(orchestrator, expected, `round-indexed narrative state must use totalRounds: ${expected}`)
 }
@@ -352,17 +352,40 @@ for (const expected of [
 
 const preGen = read('src/mods/mod-engine/helpers/pre-gen-queue.ts')
 assertIncludes(preGen, "if (useEngineStore.getState().status === 'complete') return", 'terminal timelines must not start another background preview')
-assertIncludes(preGen, 'NarrativeResponseSchema.safeParse(raw)', 'pre-generated rounds must pass the complete active narrative META schema before entering the queue')
+assertIncludes(preGen, 'translateNarrativeAIResponse(parseNarrativeAIDataJson(envelope.metaJson))', 'pre-generated rounds must pass the complete Chinese protocol and strict translation before entering the queue')
 assertIncludes(preGen, 'inspectNarrativeResponseQuality(fullContent, wordCountTarget, expectedIntentId)', 'pre-generated rounds must also pass the active protocol, paragraph and branch-intent gate')
 assertIncludes(preGen, '预生成响应缺少有效叙事 META，已放弃缓存', 'invalid or fallback pre-generated responses must be discarded')
 assertOk(
   !/void\s+fillPreGenQueue\(promptTemplate,\s*sessionId\)/.test(preGen),
   'pre-generation failure paths must not recursively retry without a budget or backoff',
 )
+const causalDelaySource = read('src/mods/mod-engine/subsystems/causal-delay-system.ts')
+const causalCheckStart = causalDelaySource.indexOf('checkCausalTrigger(currentRound: number)')
+const causalCommitStart = causalDelaySource.indexOf('commitCausalTriggers(', causalCheckStart)
+const causalCheckBlock = causalDelaySource.slice(causalCheckStart, causalCommitStart)
+assertOk(
+  causalCheckStart >= 0
+    && causalCommitStart > causalCheckStart
+    && !causalCheckBlock.includes('event.triggered = true')
+    && causalDelaySource.slice(causalCommitStart).includes('event.triggered = true'),
+  'due causal events must be previewed without consumption and committed only after narrative acceptance',
+)
+assertOk(
+  causalDelaySource.includes('capturePreviewState(): unknown')
+    && causalDelaySource.includes('restoreCollectedState(snapshot: unknown)')
+    && causalDelaySource.includes('causalEvents: this.causalEvents'),
+  'causal pending and terminal states must participate in preview and save restoration',
+)
+assertOk(
+  orchestrator.includes('this.pendingNarrativeCausalEventIds = triggeredCausality.triggeredEvents.map')
+    && orchestrator.indexOf('causalDelay.commitCausalTriggers(')
+      > orchestrator.indexOf('const hasValidatedSemanticMetadata'),
+  'orchestrator must confirm due causality only inside the validated semantic commit path',
+)
 const campaignQuality = read('src/mods/mod-engine/campaigns/default/index.ts')
 assertIncludes(campaignQuality, 'inspectNarrativeResponseQuality(', 'main and preview generation must inspect the full response before commit')
 assertIncludes(campaignQuality, 'buildNarrativeRepairInstruction(', 'an invalid protocol or paragraph response must receive one format-repair attempt')
-assertIncludes(campaignQuality, '【上一版完整输出，仅用于压缩与纠错】', 'the rewrite must include the rejected draft without mutating the stable prompt prefix')
+assertIncludes(campaignQuality, '【上一版完整输出，仅用于格式纠错】', 'the rewrite must include the rejected draft without mutating the stable prompt prefix')
 assertIncludes(campaignQuality, 'inspectNarrativeResponseQuality(prefetched, wordCountTarget, expectedIntentId)', 'cached narrative must pass the same gate again at the main-round consumption boundary')
 assertIncludes(campaignQuality, 'ctx._fullContent = undefined', 'a twice-rejected response must not reach post-processing')
 const roundHooks = read('src/mods/mod-engine/hooks.ts')

@@ -56,7 +56,7 @@ export default function WelcomePage() {
       return
     }
     if (!await hasAvailableApiConfiguration()) {
-      addToast('warning', '未检测到可用 API：请在模型调用中填入 Key，或在本地环境配置 DEEPSEEK_API_KEY', 5000)
+      addToast('warning', '服务器免费体验通道暂不可用：可在“模型调用”中填写自己的 Key、接口和模型', 5000)
       setSettingsTab('model-call')
       setShowSettings(true)
       return

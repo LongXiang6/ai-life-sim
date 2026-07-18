@@ -403,7 +403,14 @@ export function formatCalibrationSummary(cal: WorldCalibration): string {
 
   const strategy = f?.eventDistributionStrategy
   if (strategy && strategy !== 'balanced') {
-    parts.push(`事件策略=${strategy}`)
+    const strategyLabels: Record<string, string> = {
+      prehistoric: '史前生存',
+      political: '政治博弈',
+      cosmic_epic: '宇宙史诗',
+      apocalyptic: '灾变求生',
+      mystical: '神秘演进',
+    }
+    parts.push(`事件策略=${strategyLabels[strategy] ?? '按世界设定分布'}`)
   }
   if (cal.world?.populationBase) {
     parts.push(`人口基数=${cal.world.populationBase}`)

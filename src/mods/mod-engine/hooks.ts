@@ -13,6 +13,7 @@ import type { AIModelConfig } from '@/foundation'
 import { eventBus, CoreEvents } from '@/core/event-bus'
 import { useGlobalStore } from '@/core/global-store'
 import { runtimeRegistry } from '@/core/mod-loader/runtime-registry'
+import { DEFAULT_AI_MODEL } from '@/core/ai-service'
 import { useSettingsStore } from '@/mods/mod-settings'
 import { useWorldStore } from '@/mods/mod-world'
 
@@ -204,7 +205,7 @@ export function useSimulationAdvance() {
     // 从单一来源常量取默认字数，与 orchestrator、pre-gen 共享同一常量
     const wordCountTarget = useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET
 
-    const model = customModel || 'deepseek-v4-flash'
+    const model = customModel || DEFAULT_AI_MODEL
     const aiConfig: AIModelConfig = {
       model,
       temperature: temperature ?? 0.8,

@@ -21,6 +21,7 @@ import { BaseSubsystem } from '@/core'
 
 import { memoryForgetting } from './memory-forgetting-system'
 import { summaryCompressor } from './summary-compressor-system'
+import { toNarrativeAIForeshadowingId } from '../helpers/narrative-ai-protocol'
 import { clampNumber } from '../helpers/system-safety'
 
 // ============================================================
@@ -295,7 +296,7 @@ export class ForeshadowingSystem extends BaseSubsystem {
     for (const { record, score } of scored) {
       const typeLabel = FORESHADOWING_TYPE_LABELS[record.type]
       const hint = this.buildResolutionHint(record, score)
-      lines.push(`\n▪ [id=${record.id}·${record.priority}级·${typeLabel}] 第${record.plantedRound}轮：${record.description}`)
+      lines.push(`\n▪ [编号=${toNarrativeAIForeshadowingId(record.id)}·${record.priority}级·${typeLabel}] 第${record.plantedRound}轮：${record.description}`)
 
       const context = this.getPlantedContext(record.plantedRound)
       if (context) {

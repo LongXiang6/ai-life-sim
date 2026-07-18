@@ -110,6 +110,8 @@ assertOk(
     && summaryCoverage.includes('摘要正文为空'),
   'summary coverage validation must reject missing markers and empty content',
 )
+reject(compressor, /fallbackParts|失败降级：保留完整叙事文本/, 'failed L1 compression must not create a fallback coverage node or success statistic')
+assertOk(compressor.includes('失败不得建立覆盖节点或成功统计'), 'failed L1 compression must retain original leaves for retry')
 reject(engineUtils, /computeSummaryCharLimit|inputTextLength\s*\/\s*(?:2|4|8|10|12)/, 'summary token headroom must not shrink by level or convert into a character cap')
 assertOk(engineUtils.includes('computeCoverageSafeSummaryTokens'), 'summary token budgets must provide coverage-safe technical headroom')
 reject(ledger, /MAX_LEDGER_ENTRIES|entry\.events\.shift\(|kept[\s\S]{0,120}\.slice\(/, 'digest ledger must not delete or top-N truncate narrative facts')
@@ -167,7 +169,7 @@ reject(forgetting, /causalEvents\.shift\(/, 'causal protection marks must not be
 reject(eventLifecycle, /activeDisasters\.slice\(/, 'event lifecycle must not ignore disasters after a fixed count')
 reject(branchPolicy, /\.slice\(0,\s*4\)/, 'branch option normalization must not silently remove valid options')
 reject(narrativePrompt, /digest:[^\n]*(?:不超过|最多)\d+|keyEvents:[^\n]*最多\d+|entities[^\n]*最多\d+|relationshipUpdates:[^\n]*最多\d+|resolvedForeshadowingIds:[^\n]*最多\d+|notableEvents:[^\n]*最多\d+|creations:[^\n]*最多\d+|foreshadowing:[^\n]*最多\d+/, 'narrative Prompt must not induce fixed character or item limits on semantic META')
-assertOk(narrativePrompt.includes("version: '2.9.0'"), 'no-truncation narrative contract must use Prompt version 2.9.0')
+assertOk(narrativePrompt.includes("version: '3.0.0'"), 'no-truncation narrative contract must use Prompt version 3.0.0')
 assertOk(
   branchIntent.includes('其他未完成命运意图；保持事实连续，不得静默删除')
     && orchestrator.includes('branchIntents: this.branchIntents')

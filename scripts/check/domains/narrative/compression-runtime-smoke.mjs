@@ -5,7 +5,7 @@
  *   1. 主叙事 META 必须带 digest、keyEvents 与每事件 importance/entities；
  *   2. 摘要账本实际按权重保留高分事件、折叠低分事件；
  *   3. L1 延迟窗口的首个覆盖区间与最近完整原文窗口不能产生空洞；
- *   4. 摘要必须带完整覆盖标记，失败时不得伪造高层覆盖节点。
+ *   4. 摘要必须带完整覆盖标记，任何层级失败时不得伪造覆盖节点或成功统计。
  *
  * 该脚本不调用外部 AI，只验证进入运行时后的结构与调度契约。
  */
@@ -196,8 +196,10 @@ assertOk(
 assertOk(
   compressorSource.includes('requireCompletedSummaryContent')
     && summaryCoverageSource.includes('摘要缺少完整覆盖标记')
-    && !/轮(?:综合|时代|纪元|历史)概略/.test(compressorSource),
-  'incomplete or failed higher-level compression must retain leaves instead of creating placeholder coverage',
+    && !/轮(?:综合|时代|纪元|历史)概略/.test(compressorSource)
+    && !compressorSource.includes('fallbackParts')
+    && compressorSource.includes('失败不得建立覆盖节点或成功统计'),
+  'incomplete or failed compression at every level must retain leaves without creating fallback coverage or success statistics',
 )
 assertOk(
   engineUtilsSource.includes('computeCoverageSafeSummaryTokens')

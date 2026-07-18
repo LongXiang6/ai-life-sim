@@ -10,11 +10,13 @@
 
  * Phase 7 策略：
 
- *   S1（默认）：单条 user JSON，键按 稳定→缓变→速变 排序
+ *   S1：单条用户消息，内部保持全局→记忆→本轮顺序
 
- *   S2：两条 user，稳定+缓变 | 速变
+ *   S2：两条用户消息，全局 | 记忆+本轮
 
- *   S3：system + user(stable) + assistant ack + 滑动 user/assistant + user(current)
+ *   S3：固定前缀 + 多轮历史对话 + 当前消息
+
+ *   S4（默认）：三条用户消息，全局信息 | 记忆 | 本轮引导
 
  *
 
@@ -49,7 +51,7 @@ import type { ChatMessage } from './conversation-messages'
 
 /** KV 分段策略 */
 
-export type PromptSegmentStrategy = 'S1' | 'S2' | 'S3' | 'legacy'
+export type PromptSegmentStrategy = 'S1' | 'S2' | 'S3' | 'S4' | 'legacy'
 
 
 
@@ -69,7 +71,7 @@ export interface PromptSegments {
 
   full: string
 
-  /** 可选：S2 双 user 分段 */
+  /** 可选：S2/S4 用户消息分层 */
 
   userSegments?: string[]
 
@@ -91,15 +93,19 @@ export interface PromptSegments {
 
   variableSuffix: string
 
+  /** 记忆层字符数（观测用） */
+
+  memorySegmentChars?: number
+
 }
 
 
 
-/** JSON 键序：L0 稳定 → L1 缓变 → L2 速变（注意力 + KV 前缀） */
+/** 三层键序：全局信息 → 记忆 → 本轮引导。每层内部仍按慢到快排序。 */
 
-const STABLE_JSON_KEYS = [
+const GLOBAL_JSON_KEYS = [
   '世界规则',
-  'MOD世界规则',
+  '模组世界规则',
   '世界标签',
   '世界校准',
   '世界设定',
@@ -108,28 +114,30 @@ const STABLE_JSON_KEYS = [
   '原创保护',
   '叙事风格',
   '叙事基调',
-  '子系统变更指南',
-  '字数约束',
-] as const
-
-const SLOW_JSON_KEYS = [
-  '角色',
+  '状态变更指南',
+  '篇幅偏好',
+  '角色档案',
   '命格天赋',
 ] as const
 
-const FAST_JSON_KEYS = [
-  '剧情阶段',
-  '记忆摘要',
+const MEMORY_JSON_KEYS = [
+  '长期记忆',
   '核心记忆',
-  '待触发伏笔',
-  '事件注入',
-  '时间桥摘要',
-  '因果链提示',
+  '相关往事',
+  '近期完整经历',
+] as const
+
+const ROUND_JSON_KEYS = [
   '当前时间',
+  '角色现状',
   '当前状态',
   '最近变化',
-  '叙事历史',
-  '指令',
+  '当前情节阶段',
+  '本轮可回收伏笔',
+  '本轮触发事项',
+  '时间跨度摘要',
+  '已触发因果',
+  '玩家与系统指令',
   '本轮导演提示',
 ] as const
 
@@ -137,11 +145,11 @@ const FAST_JSON_KEYS = [
 
 type NarrativeJsonKey =
 
-  | (typeof STABLE_JSON_KEYS)[number]
+  | (typeof GLOBAL_JSON_KEYS)[number]
 
-  | (typeof SLOW_JSON_KEYS)[number]
+  | (typeof MEMORY_JSON_KEYS)[number]
 
-  | (typeof FAST_JSON_KEYS)[number]
+  | (typeof ROUND_JSON_KEYS)[number]
 
 
 
@@ -203,7 +211,7 @@ function dedupNarrativeHistory(
 
   narrativeHistory: string[],
 
-  memorySummary?: string,
+  recentNarrativeMemory?: string,
 
 ): string[] {
 
@@ -215,7 +223,7 @@ function dedupNarrativeHistory(
 
 
 
-  if (memorySummary?.includes('【最新发展】')) {
+  if (recentNarrativeMemory?.includes('【近期完整经历】')) {
 
     history = history.slice(-2)
 
@@ -223,11 +231,11 @@ function dedupNarrativeHistory(
 
 
 
-  if (!memorySummary?.trim()) return history
+  if (!recentNarrativeMemory?.trim()) return history
 
 
 
-  const memoryNorm = memorySummary.trim()
+  const memoryNorm = recentNarrativeMemory.trim()
 
   const memoryHashes = collectMemoryTextHashes(memoryNorm)
 
@@ -265,6 +273,8 @@ function dedupNarrativeHistory(
 
 function resolveMessageStrategy(): PromptSegmentStrategy {
 
+  if (KV_MESSAGE_STRATEGY === 'S4') return 'S4'
+
   if (KV_MESSAGE_STRATEGY === 'S3') return 'S3'
 
   if (KV_MESSAGE_STRATEGY === 'S2' || KV_TWO_USER_SEGMENTS) return 'S2'
@@ -286,15 +296,14 @@ function buildRoundDirectorHint(context: PromptContext): string | undefined {
 
 
   // 旧存档和已压缩记忆可能保留历史版本的第三人称原文。它们只承载
-  // 已发生的事实，不能成为本轮的文风样本；此项必须放在最后一个 S2
-  // user 段的末尾，避免大段历史原文在近因位置覆盖当前叙事契约。
+  // 已发生的事实，不能成为本轮的文风样本；此项必须放在最后一层
+  // 本轮引导的末尾，避免大段历史原文在近因位置覆盖当前叙事契约。
   parts.push(
     '【玩家体验写作裁决】若本轮按年或更长跨度推进，正文仍只选择一个最能承载冲突的代表性现场；三段必须连续承接同一地点、同一目标或同一件正在发生的事。禁止用“春天……秋天……入冬……”或类似逐季年表拼接三个独立日常；跨季只用一句过渡，随后回到同一现场的行动、阻力与后果。',
   )
   parts.push(
-    '【本轮正文视角】记忆摘要与叙事历史只用于继承已发生的事实、关系、因果和线索；即使其中使用角色姓名、他/她或第三人称，也不得模仿其人称、措辞或段落结构。仅在 [NARRATIVE] 正文中，全程以第二人称“你”指代玩家角色。',
+    '【本轮正文视角】记忆只用于继承已发生的事实、关系、因果和线索；即使其中使用角色姓名、他/她或第三人称，也不得模仿其人称、措辞或段落结构。仅在“正文”中，全程以第二人称“你”指代玩家角色。',
   )
-
   return parts.join('\n\n')
 
 }
@@ -321,96 +330,49 @@ export function buildNarrativeUserJson(
 
   context: PromptContext,
 
-  options?: BuildNarrativeUserJsonOptions,
+  _options?: BuildNarrativeUserJsonOptions,
 
 ): Record<string, unknown> {
-
-  const omitHistory = options?.omitNarrativeHistory ?? resolveMessageStrategy() === 'S3'
-
-  let narrativeHistory = dedupNarrativeHistory(
-
-    context.narrativeHistory ?? [],
-
-    context.memorySummary,
-
-  )
-
-
-
-  if (omitHistory) {
-
-    narrativeHistory = []
-
-  }
-
-
-
   const raw: Record<NarrativeJsonKey, unknown> = {
 
     世界规则: context.worldRules,
-    MOD世界规则: context.modWorldRules,
+    模组世界规则: context.modWorldRules,
     世界标签: context.worldTagsText,
     世界校准: context.calibrationSummary,
-    世界设定: context.worldSetting,
+    世界设定: context.worldNarrativeView,
     力量体系: context.powerCeilingPresets,
     玩家自定义: context.worldCustomizeText,
     原创保护: context.creationProtectionText,
     叙事风格: context.narrativeStyle,
     叙事基调: context.narrativeToneHint,
-    子系统变更指南: context.subsystemGuideText,
-    字数约束: context.wordCountInstruction,
-    当前时间: context.currentTime,
-
-    角色: context.character,
-
-    记忆摘要: context.memorySummary,
-
-    核心记忆: context.coreMemory,
-
-    剧情阶段: context.plotStructureText,
-
-    待触发伏笔: context.foreshadowingText,
-
-    事件注入: context.eventInjectionText,
-    时间桥摘要: context.timeBridgeSummary,
-    因果链提示: context.causalChainHint,
-    当前状态: context.subsystemSummaries,
-
-    最近变化: context.systemChangeSummary,
-
-    叙事历史: narrativeHistory,
-
-    指令: context.userInstruction,
-
-    本轮导演提示: buildRoundDirectorHint(context),
-
+    状态变更指南: context.subsystemGuideText,
+    篇幅偏好: context.wordCountInstruction,
+    角色档案: context.characterProfileView,
     命格天赋: context.talents,
 
+    长期记忆: context.longTermMemory,
+    核心记忆: context.coreMemory,
+    相关往事: context.relevantMemory,
+    近期完整经历: context.recentNarrativeMemory,
+
+    当前时间: context.currentTime,
+    角色现状: context.characterStatusView,
+    当前状态: context.subsystemSummaries,
+    最近变化: context.systemChangeSummary,
+    当前情节阶段: context.plotStructureText,
+    本轮可回收伏笔: context.foreshadowingText,
+    本轮触发事项: context.eventInjectionText,
+    时间跨度摘要: context.timeBridgeSummary,
+    已触发因果: context.causalChainHint,
+    玩家与系统指令: context.userInstruction,
+    本轮导演提示: buildRoundDirectorHint(context),
   }
 
-
-
-  const orderedKeys = [...STABLE_JSON_KEYS, ...SLOW_JSON_KEYS, ...FAST_JSON_KEYS]
-
-  const obj: Record<string, unknown> = {}
-
-
-
-  for (const key of orderedKeys) {
-
-    const value = raw[key]
-
-    if (key === '叙事历史' && omitHistory) continue
-
-    if (OMIT_EMPTY_PROMPT_FIELDS && isEmptyPromptValue(value)) continue
-
-    obj[key] = value
-
+  return {
+    全局信息: pickJsonKeys(raw, GLOBAL_JSON_KEYS),
+    记忆: pickJsonKeys(raw, MEMORY_JSON_KEYS),
+    本轮引导: pickJsonKeys(raw, ROUND_JSON_KEYS),
   }
-
-
-
-  return obj
 
 }
 
@@ -429,8 +391,9 @@ function pickJsonKeys(obj: Record<string, unknown>, keys: readonly string[]): Re
   const out: Record<string, unknown> = {}
 
   for (const key of keys) {
-
-    if (key in obj) out[key] = obj[key]
+    const value = obj[key]
+    if (OMIT_EMPTY_PROMPT_FIELDS && isEmptyPromptValue(value)) continue
+    out[key] = value
 
   }
 
@@ -450,25 +413,34 @@ export function buildSegmentedPrompt(template: PromptTemplate, context: PromptCo
 
   const strategy = resolveMessageStrategy()
 
-  const fullObj = buildNarrativeUserJson(context, { omitNarrativeHistory: strategy === 'S3' })
+  const fullObj = buildNarrativeUserJson(context)
 
   const full = jsonToPromptString(fullObj)
 
+  const globalInfo = (fullObj.全局信息 ?? {}) as Record<string, unknown>
+  const memory = (fullObj.记忆 ?? {}) as Record<string, unknown>
+  const roundGuidance = (fullObj.本轮引导 ?? {}) as Record<string, unknown>
 
+  const globalStr = jsonToPromptString({ 全局信息: globalInfo })
+  const memoryStr = jsonToPromptString({ 记忆: memory })
+  const roundStr = jsonToPromptString({ 本轮引导: roundGuidance })
+  const memoryAndRoundStr = `${memoryStr}\n${roundStr}`
+  const stablePrefixChars = globalStr.length
+  const memorySegmentChars = memoryStr.length
 
-  const stableObj = pickJsonKeys(fullObj, STABLE_JSON_KEYS)
-
-  const slowObj = pickJsonKeys(fullObj, SLOW_JSON_KEYS)
-
-  const fastObj = pickJsonKeys(fullObj, FAST_JSON_KEYS)
-
-
-
-  const stableSlowStr = jsonToPromptString({ ...stableObj, ...slowObj })
-
-  const stablePrefixChars = stableSlowStr.length
-
-  const fastStr = jsonToPromptString(fastObj)
+  if (strategy === 'S4') {
+    const userSegments = [globalStr, memoryStr, roundStr]
+    return {
+      stablePrefixChars,
+      memorySegmentChars,
+      full,
+      userSegments,
+      userMessageCount: 3,
+      strategy: 'S4',
+      stablePrefix: globalStr,
+      variableSuffix: memoryAndRoundStr,
+    }
+  }
 
 
 
@@ -478,17 +450,17 @@ export function buildSegmentedPrompt(template: PromptTemplate, context: PromptCo
 
       systemPrompt: template.systemPrompt,
 
-      stableUserJson: stableSlowStr,
+      stableUserJson: globalStr,
 
       slidingWindow: KV_CONVERSATION_WINDOW,
 
-      currentUserJson: fastStr,
+      currentUserJson: memoryAndRoundStr,
 
       narrativeHistory: dedupNarrativeHistory(
 
         context.narrativeHistory ?? [],
 
-        context.memorySummary,
+        context.recentNarrativeMemory,
 
       ),
 
@@ -502,6 +474,8 @@ export function buildSegmentedPrompt(template: PromptTemplate, context: PromptCo
 
       stablePrefixChars,
 
+      memorySegmentChars,
+
       full,
 
       messages,
@@ -510,9 +484,9 @@ export function buildSegmentedPrompt(template: PromptTemplate, context: PromptCo
 
       strategy: 'S3',
 
-      stablePrefix: stableSlowStr,
+      stablePrefix: globalStr,
 
-      variableSuffix: fastStr,
+      variableSuffix: memoryAndRoundStr,
 
     }
 
@@ -522,11 +496,13 @@ export function buildSegmentedPrompt(template: PromptTemplate, context: PromptCo
 
   if (strategy === 'S2') {
 
-    const userSegments = [stableSlowStr, fastStr]
+    const userSegments = [globalStr, memoryAndRoundStr]
 
     return {
 
       stablePrefixChars,
+
+      memorySegmentChars,
 
       full,
 
@@ -550,15 +526,17 @@ export function buildSegmentedPrompt(template: PromptTemplate, context: PromptCo
 
     stablePrefixChars,
 
+    memorySegmentChars,
+
     full,
 
     userMessageCount: 1,
 
     strategy: 'S1',
 
-    stablePrefix: stableSlowStr,
+    stablePrefix: globalStr,
 
-    variableSuffix: fastStr,
+    variableSuffix: memoryAndRoundStr,
 
   }
 

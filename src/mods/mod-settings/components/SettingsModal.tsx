@@ -47,6 +47,7 @@ interface SettingsModalProps {
  */
 export function SettingsModal({ open, onClose, initialTab }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? 'appearance')
+  const [settingsRevision, setSettingsRevision] = useState(0)
   const modalRef = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
   const settingsAreDefault = useSettingsStore(areSettingsDefault)
@@ -140,6 +141,7 @@ export function SettingsModal({ open, onClose, initialTab }: SettingsModalProps)
   const handleRestoreDefaults = () => {
     useSettingsStore.setState({ ...DEFAULT_SETTINGS_VALUES })
     setFontFamily('default')
+    setSettingsRevision((current) => current + 1)
   }
 
   return (
@@ -215,7 +217,7 @@ export function SettingsModal({ open, onClose, initialTab }: SettingsModalProps)
         >
           {activeTab === 'appearance' && <SettingsTabTheme />}
           {activeTab === 'ai' && <SettingsTabModel />}
-          {activeTab === 'model-call' && <SettingsTabPresets />}
+          {activeTab === 'model-call' && <SettingsTabPresets key={settingsRevision} />}
           {activeTab === 'prompt' && <SettingsTabPrompt />}
         </div>
 

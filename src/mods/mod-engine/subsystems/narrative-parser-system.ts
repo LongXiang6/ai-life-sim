@@ -9,9 +9,9 @@
  *   FallbackNarrativeBuilder → 后处理层（兜底叙事生成）
  *
  * 解析策略（全防御型 5 层降级管线）：
- *   L0: [NARRATIVE]+[META] 信封解析 —— 主叙事路径
- *   L1: JSON.parse(content) → 段落自动分段 —— 旧格式降级
- *   L2: 正则提取 narrative 字段（多版本文本交叉匹配 + 中文引号标准化）
+ *   L0: [正文]+[回合数据] 信封解析 —— 主叙事路径
+ *   L1: 仅提取中文“正文”字段，不接收旧英文结构化协议
+ *   L2: 正则提取正文字段（多版本文本交叉匹配 + 中文引号标准化）
  *   L3: 提取最长中文字符块 —— 纯文本响应
  *   L4: 返回空 narrative —— 彻底失败，由外部兜底叙事补充
  *
@@ -30,6 +30,7 @@
 import type { SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
 import { BaseSubsystem } from '@/core'
 import type {
+  NarrativeDeferredCausality,
   NarrativeIntentResolution,
   NarrativeSemanticSignals,
 } from '../helpers/narrative-semantic-signals'
@@ -104,9 +105,11 @@ export interface ParsedNarrative {
   semanticSignals?: NarrativeSemanticSignals
   /** 当前聚焦命运意图的结构化执行结果。 */
   intentResolution?: NarrativeIntentResolution
+  /** 本轮明确形成、由本地系统延后触发的因果事项。 */
+  deferredCausality?: NarrativeDeferredCausality[]
 }
 
-/** 旧系统有序 JSON 输入项格式（支持紧凑键和完整键双格式） */
+/** 旧系统有序对象输入项格式；不属于主叙事中文结构化成功路径。 */
 interface LegacyOrderedItem {
   o?: number; order?: number
   n?: string; narrative?: string
@@ -145,12 +148,12 @@ export class NarrativeParserSystem extends BaseSubsystem {
   // ============================================================
 
   /**
-   * 解析 AI JSON 响应
+   * 解析 AI 中文信封响应
    *
    * 全防御型 5 层降级管线：
-   *   L0: [NARRATIVE]+[META] 信封解析
-   *   L1: JSON.parse → 段落自动分段（旧格式降级）
-   *   L2: 正则提取 narrative（多版本文本交叉匹配 + 中文引号标准化）
+   *   L0: [正文]+[回合数据] 信封解析
+   *   L1: 中文正文字段降级
+   *   L2: 正则提取正文（多版本文本交叉匹配 + 中文引号标准化）
    *   L3: 提取最长中文字符块
    *   L4: 返回空 narrative，由外部兜底叙事补充
    */
@@ -171,16 +174,22 @@ export class NarrativeParserSystem extends BaseSubsystem {
   parsePartial(rawText: string): string | null {
     const normalized = this.textProcessor.normalizeQuotes(rawText)
 
+    const bodyOpen = normalized.indexOf('[正文]')
+    if (bodyOpen >= 0) {
+      const bodyStart = bodyOpen + '[正文]'.length
+      const dataOpen = normalized.indexOf('[回合数据]', bodyStart)
+      const bodyClose = normalized.indexOf('[/正文]', bodyStart)
+      const ends = [dataOpen, bodyClose].filter((index) => index >= bodyStart)
+      const bodyEnd = ends.length > 0 ? Math.min(...ends) : normalized.length
+      const body = normalized.slice(bodyStart, bodyEnd).trim()
+      if (body.length >= 20) return body
+    }
+
     const tryExtract = (text: string): string | null => {
-      // 策略 1："narrative":"部分文本"
-      const jsonMatch = text.match(/"narrative"\s*:\s*"((?:[^"\\]|\\.)*)/)
+      // 策略 1："正文":"部分文本"
+      const jsonMatch = text.match(/"正文"\s*:\s*"((?:[^"\\]|\\.)*)/)
       if (jsonMatch && jsonMatch[1].length >= 20) {
         return this.textProcessor.unescapeJson(jsonMatch[1])
-      }
-      // 策略 2："n":"部分文本"（紧凑键）
-      const compactMatch = text.match(/"n"\s*:\s*"((?:[^"\\]|\\.)*)/)
-      if (compactMatch && compactMatch[1].length >= 20) {
-        return this.textProcessor.unescapeJson(compactMatch[1])
       }
       return null
     }

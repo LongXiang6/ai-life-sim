@@ -27,7 +27,11 @@ import {
   type AICallUsageSnapshot,
 } from '../logger/ai-call-log'
 import { diagnoseApiError } from './api-error'
-import { REASONING_BUDGET_MAP } from './provider-config'
+import {
+  DEFAULT_AI_MODEL,
+  DEFAULT_AI_PROVIDER_ID,
+  REASONING_BUDGET_MAP,
+} from './provider-config'
 import { isValidAiContent, mergeStreamTextChunk } from './stream-text-extractor'
 
 // ══════════════ 全局 AI 错误通知器（由 UI 层注入） ══════════════
@@ -146,7 +150,7 @@ const MAX_ROUND_CACHE_METRICS = 10
 /** 单轮 narrative 调用 KV 观测 */
 export interface RoundCacheMetrics {
   timestamp: number
-  strategy: 'S1' | 'S2' | 'S3'
+  strategy: 'S1' | 'S2' | 'S3' | 'S4'
   stablePrefixChars: number
   userMessageCount: number
 }
@@ -582,8 +586,11 @@ function buildProxyBody(
   if (aiBody.thinking !== undefined) proxyBody.thinking = aiBody.thinking
 
   // Provider 路由信息
-  const providerId = options?.providerId ?? 'deepseek'
+  const providerId = options?.providerId ?? DEFAULT_AI_PROVIDER_ID
   proxyBody.providerId = providerId
+  if (options?.providerId === undefined) {
+    proxyBody.model = DEFAULT_AI_MODEL
+  }
 
   // DeepSeek V4 的 thinking 对象必须显式携带 type；启用时同时保留用户选择的预算。
   const reasoningEffort = options?.reasoningEffort ?? config.reasoningEffort ?? 'disabled'

@@ -4,6 +4,13 @@
  * @mod mod-engine
  */
 
+import {
+  NARRATIVE_BODY_CLOSE_TAG,
+  NARRATIVE_BODY_OPEN_TAG,
+  NARRATIVE_DATA_CLOSE_TAG,
+  NARRATIVE_DATA_OPEN_TAG,
+} from './narrative-ai-protocol'
+
 export interface TaggedMetaEnvelope {
   narrative: string
   metaJson: string
@@ -61,23 +68,23 @@ function extractBalancedJsonObject(source: string): string | null {
 }
 
 /**
- * 提取 `[NARRATIVE]` + `[META]` 信封。
+ * 提取 `[正文]` + `[回合数据]` 信封。
  *
  * 容忍：
- * - 第二个 `[NARRATIVE]` 被误写成正文结束标签；
- * - 缺少 `[/NARRATIVE]`，由 `[META]` 直接终止正文；
- * - 缺少 `[/META]`，但 META 内首个 JSON 对象结构完整。
+ * - 第二个 `[正文]` 被误写成正文结束标签；
+ * - 缺少 `[/正文]`，由 `[回合数据]` 直接终止正文；
+ * - 缺少 `[/回合数据]`，但回合数据内首个对象结构完整。
  */
 export function extractTaggedMetaEnvelope(content: string): TaggedMetaEnvelope | null {
-  const narrativeOpen = findMarker(content, /\[NARRATIVE\]/i)
+  const narrativeOpen = findMarker(content, /\[正文\]/)
   if (!narrativeOpen) return null
 
   const narrativeStart = narrativeOpen.index + narrativeOpen.length
-  const metaOpen = findMarker(content, /\[META\]/i, narrativeStart)
+  const metaOpen = findMarker(content, /\[回合数据\]/, narrativeStart)
   if (!metaOpen) return null
 
-  const narrativeClose = findMarker(content, /\[\/NARRATIVE\]/i, narrativeStart)
-  const duplicatedNarrativeOpen = findMarker(content, /\[NARRATIVE\]/i, narrativeStart)
+  const narrativeClose = findMarker(content, /\[\/正文\]/, narrativeStart)
+  const duplicatedNarrativeOpen = findMarker(content, /\[正文\]/, narrativeStart)
   const narrativeEndCandidates = [
     narrativeClose?.index,
     duplicatedNarrativeOpen?.index,
@@ -88,10 +95,18 @@ export function extractTaggedMetaEnvelope(content: string): TaggedMetaEnvelope |
   if (!narrative) return null
 
   const metaStart = metaOpen.index + metaOpen.length
-  const metaClose = findMarker(content, /\[\/META\]/i, metaStart)
+  const metaClose = findMarker(content, /\[\/回合数据\]/, metaStart)
   const metaSection = content.slice(metaStart, metaClose?.index ?? content.length).trim()
   const metaJson = extractBalancedJsonObject(metaSection)
   if (!metaJson) return null
 
   return { narrative, metaJson }
 }
+
+/** 导出常量，供协议审计确认解析器与 Prompt 使用同一信封。 */
+export const TAGGED_NARRATIVE_PROTOCOL = {
+  narrativeOpen: NARRATIVE_BODY_OPEN_TAG,
+  narrativeClose: NARRATIVE_BODY_CLOSE_TAG,
+  dataOpen: NARRATIVE_DATA_OPEN_TAG,
+  dataClose: NARRATIVE_DATA_CLOSE_TAG,
+} as const

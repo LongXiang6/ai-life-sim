@@ -1,8 +1,9 @@
 import { resolveNarrativeWordCountRange } from '../constants/narrative-config'
 import {
-  NarrativeResponseSchema,
-  normalizeNarrativeResponseMetadata,
-} from './narrative-semantic-signals'
+  buildNarrativeAIProtocolRepairChecklist,
+  parseNarrativeAIDataJson,
+  translateNarrativeAIResponse,
+} from './narrative-ai-protocol'
 import { extractTaggedMetaEnvelope } from './tagged-meta-envelope'
 import { validateIntentResolution } from './branch-intent-resolution'
 
@@ -26,24 +27,20 @@ export function inspectNarrativeResponseQuality(
 ): NarrativeResponseQuality {
   const envelope = extractTaggedMetaEnvelope(content)
   if (!envelope) {
-    return { valid: false, reason: '缺少完整的 [NARRATIVE]/[META] 标签信封', narrativeChars: 0, paragraphCount: 0 }
+    return { valid: false, reason: '缺少完整的 [正文]/[回合数据] 标签信封', narrativeChars: 0, paragraphCount: 0 }
   }
 
-  let metadata: unknown
+  let metadata: ReturnType<typeof translateNarrativeAIResponse>
   try {
-    metadata = normalizeNarrativeResponseMetadata(JSON.parse(envelope.metaJson))
+    metadata = translateNarrativeAIResponse(parseNarrativeAIDataJson(envelope.metaJson))
   } catch {
-    return { valid: false, reason: 'META 不是完整合法的 JSON 对象', narrativeChars: 0, paragraphCount: 0 }
+    return { valid: false, reason: '回合数据不是完整合法的中文协议对象', narrativeChars: 0, paragraphCount: 0 }
   }
-  const metadataResult = NarrativeResponseSchema.safeParse(metadata)
-  if (!metadataResult.success) {
-    return { valid: false, reason: 'META 字段形状与运行时 Schema 不一致', narrativeChars: 0, paragraphCount: 0 }
-  }
-  if (expectedIntentId === null && metadataResult.data.intentResolution) {
-    return { valid: false, reason: '当前没有玩家命运意图，禁止生成 intentResolution', narrativeChars: 0, paragraphCount: 0 }
+  if (expectedIntentId === null && metadata.intentResolution) {
+    return { valid: false, reason: '当前没有玩家命运意图，禁止生成命运意图判定', narrativeChars: 0, paragraphCount: 0 }
   }
   if (typeof expectedIntentId === 'string') {
-    const intentError = validateIntentResolution(metadataResult.data.intentResolution, expectedIntentId)
+    const intentError = validateIntentResolution(metadata.intentResolution, expectedIntentId)
     if (intentError) {
       return { valid: false, reason: intentError, narrativeChars: 0, paragraphCount: 0 }
     }
@@ -79,18 +76,19 @@ export function buildNarrativeRepairInstruction(
 ): string {
   const { target } = resolveNarrativeWordCountRange(wordCountTarget)
   const instructions = [
-    '上一版未通过协议或结构门禁，请只为修复输出格式从头重写完整的 [NARRATIVE] 与 [META]，不要解释或点评。',
+    '上一版未通过协议或结构门禁，请只为修复格式从头重写完整的 [正文] 与 [回合数据]，不要解释或点评。',
     `失败原因：${quality.reason}。`,
     `玩家偏好约 ${target} 字仅作节奏参考；不要因为字数偏离而删掉完整句、压扁人物行动或重复生成内容。`,
     '优先恢复三段自然分隔、同一条因果主线和完整的可见后果；保留最有吸引力的现场、人物声音、行动阻力与下一步悬念。',
-    'META.changes 每项必须严格为 {"id":"...","description":"...","changes":{...}}；属性字段不能放在该项顶层；没有明确变化就返回 []。',
-    '若包含命运分叉，META.branchOptions 必须是2—4个字符串组成的数组，不要输出带 title/description 的对象。',
-    'META.keyEvents 必须完整记录本轮因果主线中所有值得长期继承的关键事实，不得因条数省略；META 必须严格使用既定字段和数组形状。',
+    '“状态变更”每项必须严格使用“系统、说明、变更”；数值字段只能放在“变更”对象内，没有明确变化就返回空数组。',
+    '若包含命运分支，“分支选项”必须是二至四个字符串组成的数组，不要输出带标题或说明的对象。',
+    '“关键事件”必须完整记录本轮因果主线中所有值得长期继承的事实，不得因条数省略；回合数据必须严格使用既定中文字段和数组形状。',
+    ...buildNarrativeAIProtocolRepairChecklist(),
   ]
   if (typeof expectedIntentId === 'string') {
-    instructions.push(`当前命运意图仍在执行，META.intentResolution 必须存在且 intentId 必须严格等于 ${expectedIntentId}。`)
+    instructions.push(`当前命运意图仍在执行，“命运意图判定”必须存在，意图编号必须严格照抄本轮提示中的中文编号。`)
   } else if (expectedIntentId === null) {
-    instructions.push('当前没有玩家命运意图，META 中不得输出 intentResolution。')
+    instructions.push('当前没有玩家命运意图，回合数据中不得输出“命运意图判定”。')
   }
   return instructions.join('\n')
 }

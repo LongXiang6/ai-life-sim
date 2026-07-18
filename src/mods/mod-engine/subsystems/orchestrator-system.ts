@@ -38,12 +38,9 @@ import {
   WorldEventBus,
   globalDeadLoopDetector,
   sanitizeSubSystemState,
-  buildLayeredMemoryStateCard,
   buildNarrativeCoherenceHeader,
   buildNarrativeWorldRules,
   collectActiveModWorldRules,
-  collectMemoryStateSummaries,
-  dedupeSummariesAgainstMemory,
   isSubsystemOpenForPrompt,
   isMvpNarrativeChangeSubsystem,
   isMvpPromptSubsystem,
@@ -127,6 +124,15 @@ import {
   type BranchIntentState,
 } from '../helpers/branch-intent-resolution'
 import { getSeasonForMonth } from '../helpers/calendar-season.js'
+import {
+  projectCharacterForNarrativeAI,
+  projectWorldSettingForNarrativeAI,
+} from '../helpers/narrative-ai-input-view'
+import { AI_CREATION_CATEGORIES } from '../helpers/narrative-ai-protocol'
+import {
+  compileNarrativeDynamicComponents,
+} from '../prompts/narrative-prompt-components'
+import type { NarrativePromptComponent } from '../helpers/narrative-prompt-component-types'
 
 import type {
   ISubSystem,
@@ -375,6 +381,9 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   /** 最近一次 AI 原始 JSON 输出（预生成队列用） */
   private lastExecutedFullContent: string | null = null
+
+  /** 本轮已到期但尚未在有效叙事提交中确认兑现的因果事项。 */
+  private pendingNarrativeCausalEventIds: string[] = []
 
   /** 预生成/预览执行深度：只允许临时推进到 AI 输出，不提交真实副作用 */
   private previewExecutionDepth = 0
@@ -794,6 +803,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.lastAiConfig = snap.lastAiConfig ?? null
     this.lastSessionId = snap.lastSessionId
     this.lastExecutedFullContent = snap.lastExecutedFullContent ?? null
+    this.pendingNarrativeCausalEventIds = []
     this.lastPlayerChoice = snap.lastPlayerChoice
     this.consecutiveSameGoalRounds = snap.consecutiveSameGoalRounds ?? 0
     this.branchJustResolved = snap.branchJustResolved ?? false
@@ -1510,25 +1520,35 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   /**
-   * 组装 memorySummary：既有富 Prompt（L1–L6 分层 + 检索）之上，
-   * 追加「摘要账本」按有效重要性挑选的长期记忆（想法1）。
-   * 账本用 AI 自述的 digest/keyEvents + 连锁 + 衰减，precise 优先于关键词猜测。
+   * 组装主叙事三层消息中的“记忆”层。
+   * 长期覆盖摘要在前，只在成功压缩时变化；相关往事与近期完整原文在后，
+   * 从而让同一摘要版本下的请求尽量复用相同前缀。
    */
-  private buildMemorySummaryWithLedger(memoryStateCard: string): string {
-    const rich = memoryLifecycle.formatRichPromptForInjection(
-      memoryLifecycle.buildRichPrompt(
-        memoryStateCard,
-        this.state.narrativeHistory.slice(-RECENT_NARRATIVE_WINDOW).map((n) => n.text),
-        summaryCompressor.getSummaries(),
-      ),
+  private buildPromptMemoryLayers(): {
+    longTermMemory?: string
+    relevantMemory?: string
+    recentNarrativeMemory?: string
+  } {
+    const richContext = memoryLifecycle.buildRichPrompt(
+      '',
+      this.state.narrativeHistory.slice(-RECENT_NARRATIVE_WINDOW).map((n) => n.text),
+      summaryCompressor.getSummaries(),
     )
 
-    const currentRound = this.state.totalRounds
-    const ledgerLines = digestLedger.selectForPrompt(currentRound)
-    if (ledgerLines.length === 0) return rich
+    const longTermMemory = memoryLifecycle.formatLongTermMemoryForInjection(richContext)
+    const retrievedMemory = memoryLifecycle.formatRetrievedMemoryForInjection(richContext)
+    const ledgerLines = digestLedger.selectForPrompt(this.state.totalRounds)
+    const ledgerMemory = ledgerLines.length > 0
+      ? ['【往事回响】', ...ledgerLines].join('\n')
+      : ''
+    const relevantMemory = [retrievedMemory, ledgerMemory].filter(Boolean).join('\n\n')
+    const recentNarrativeMemory = memoryLifecycle.formatRecentNarrativesForInjection(richContext)
 
-    const ledgerBlock = ['【往事回响】', ...ledgerLines].join('\n')
-    return rich ? `${rich}\n\n${ledgerBlock}` : ledgerBlock
+    return {
+      longTermMemory: longTermMemory || undefined,
+      relevantMemory: relevantMemory || undefined,
+      recentNarrativeMemory: recentNarrativeMemory || undefined,
+    }
   }
 
   getCompressedNarrativeHistory(): string {
@@ -1651,10 +1671,12 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.lastAiConfig = null
     this.lastSessionId = undefined
     this.lastExecutedFullContent = null
+    this.pendingNarrativeCausalEventIds = []
     this.lastPlayerChoice = undefined
     this.lastCommittedPlayerChoice = undefined
     this.branchIntents = []
     this.focusedBranchIntentId = undefined
+    this.pendingNarrativeCausalEventIds = []
     this.consecutiveSameGoalRounds = 0
     this.branchJustResolved = false
     this.lastBranchTotalRound = Number.NEGATIVE_INFINITY
@@ -1888,20 +1910,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     const promptOpenIds = Object.keys(memoryRelevantStates).filter(
       (id) => id !== this.id && isSubsystemOpenForPrompt(memoryRelevantStates[id], id),
     )
-    const isRelevant = (id: string, ctx: RoundContext) =>
-      isMvpPromptSubsystem(id) && subsystemRelevance.isRelevant(id, ctx)
-
-    const memoryStateSummaries = collectMemoryStateSummaries(
-      this.lastSubsystemStates,
-      isRelevant,
-      context,
-    )
-    const memoryStateCard = buildLayeredMemoryStateCard(
-      this.lastSubsystemStates,
-      isRelevant,
-      context,
-    )
-
     // 获取适配后的 summaries（adaptation 管线：缓存命中用适配文本，未命中用原始文本）
     const rawStateSummaries = Object.values(relevantStates)
       .filter((s) => s.id !== this.id && isSubsystemOpenForPrompt(s, s.id))
@@ -1909,10 +1917,8 @@ export class OrchestratorSystem extends BaseSubsystem {
       .filter((s) => s.summary)
     const adaptedMap = adaptationManager.getAdaptedSummaries(rawStateSummaries)
 
-    const summaries: string[] = dedupeSummariesAgainstMemory(
-      rawStateSummaries.map((s) => adaptedMap.get(s.id) ?? s.summary),
-      memoryStateSummaries,
-    )
+    const summaries: string[] = rawStateSummaries
+      .map((s) => adaptedMap.get(s.id) ?? s.summary)
 
     // 滑动窗口变化摘要（最近 3 轮内有变化的系统）
     const slidingWindowText = subsystemRelevance.buildSlidingWindowSummary(
@@ -1952,16 +1958,40 @@ export class OrchestratorSystem extends BaseSubsystem {
     // 寿命提醒：告知 AI 角色当前寿命阶段约束
     const lifespanReminder = buildLifespanReminder(maxAge, syncedCharacter.age)
 
-    // 合并动态叙事引导（每轮变化，放入 FAST 段避免污染 STABLE 前缀）
-    const narrativeGuidanceText = [
-      coherenceHeader,
-      lifeStageHint,
-      archetypeHint,
-      lifespanReminder,
-      influenceText,
-      slidingWindowText,
-      coreMemory.buildNPCNetworkText(),
-    ].filter(Boolean).join('\n')
+    // 按生命周期和顺序装配动态写作组件；未触发组件不进入本轮消息。
+    const dynamicGuidanceSources: Array<{
+      id: string
+      content: string | undefined
+      order: number
+      kind: NarrativePromptComponent['kind']
+      authority: NarrativePromptComponent['authority']
+    }> = [
+      { id: 'round-coherence', content: coherenceHeader, order: 10, kind: '硬限制', authority: '世界与协议' },
+      { id: 'life-stage', content: lifeStageHint, order: 20, kind: '硬限制', authority: '当前事实' },
+      { id: 'event-archetype', content: archetypeHint, order: 30, kind: '写作规则', authority: '剧情引导' },
+      { id: 'lifespan-reminder', content: lifespanReminder, order: 40, kind: '硬限制', authority: '当前事实' },
+      { id: 'influence-boundary', content: influenceText, order: 50, kind: '硬限制', authority: '当前事实' },
+      { id: 'recent-system-changes', content: slidingWindowText, order: 60, kind: '流程指令', authority: '当前事实' },
+      { id: 'npc-network', content: coreMemory.buildNPCNetworkText(), order: 70, kind: '流程指令', authority: '当前事实' },
+    ]
+    const narrativeGuidanceText = compileNarrativeDynamicComponents(
+      dynamicGuidanceSources
+        .filter((source) => Boolean(source.content?.trim()))
+        .map((source) => ({
+          id: source.id,
+          title: source.id,
+          kind: source.kind,
+          lifecycle: '每轮更新',
+           authority: source.authority,
+           order: source.order,
+           dependsOn: [],
+           assemblyPosition: '本轮引导',
+           loadWhen: '对应动态来源在本轮返回非空内容',
+           exitWhen: '触发条件不再成立',
+           acceptanceEvidence: 'npm run test:narrative-protocol',
+           content: source.content!,
+        })),
+    )
 
     const calibrationRaw = this.worldSetting?.config?._calibration as
       | { styleGuide?: { narrativeTone?: string } }
@@ -1982,6 +2012,9 @@ export class OrchestratorSystem extends BaseSubsystem {
     // 构建轻量 worldSetting（剥离每轮不变的静态参数，减少 Token 浪费）
     // aiDetailedParameters（43字段，~2000字符）在世界初始化后不再变化，每轮重复发送无意义
     const lightWorldSetting = this.buildLightWorldSetting(narrativeTime.eraLabel)
+    const worldNarrativeView = projectWorldSettingForNarrativeAI(lightWorldSetting)
+    const characterNarrativeView = projectCharacterForNarrativeAI(syncedCharacter)
+    const promptMemory = this.buildPromptMemoryLayers()
 
     // 非超凡世界不重复发送无关的 24 阶力量表；有力量体系时使用现有叙事精简格式。
     const powerSystemTag = typeof config.powerSystemTag === 'string' ? config.powerSystemTag : ''
@@ -2008,14 +2041,18 @@ export class OrchestratorSystem extends BaseSubsystem {
       daysPassed: timeSystem.getDaysPassed(),
       timeStepAlignment: this.lastTimeStepAlignment,
     })
+    const triggeredCausality = causalDelay.checkCausalTrigger(this.state.totalRounds)
+    this.pendingNarrativeCausalEventIds = triggeredCausality.triggeredEvents.map((event) => event.id)
 
     const assembled: PromptContext = {
-      worldSetting: lightWorldSetting,
-      character: syncedCharacter,
+      worldNarrativeView,
+      characterProfileView: characterNarrativeView.profile,
+      characterStatusView: characterNarrativeView.status,
       currentTime: narrativeTime.timeLabel,
       subsystemSummaries: summaries,
       narrativeHistory: this.state.narrativeHistory.slice(-20).map((n) => n.text),
       eventInjectionText: eventInjectionText || undefined,
+      causalChainHint: triggeredCausality.narrativeText || undefined,
       timeBridgeSummary: buildTimeBridgeSummary(this.buildTimeBridgeInput()) || undefined,
       systemChangeSummary: systemChangeSummary || undefined,
       narrativeGuidanceText: narrativeGuidanceText || undefined,
@@ -2032,7 +2069,9 @@ export class OrchestratorSystem extends BaseSubsystem {
       narrativeStyle: this.getNarrativeStyle(),
       narrativeToneHint,
       talents: [destinyPatternText, mythicPatternText].filter(Boolean).join('\n') || undefined,
-      memorySummary: this.buildMemorySummaryWithLedger(memoryStateCard),
+      longTermMemory: promptMemory.longTermMemory,
+      relevantMemory: promptMemory.relevantMemory,
+      recentNarrativeMemory: promptMemory.recentNarrativeMemory,
       coreMemory: coreMemory.buildCoreMemory() || undefined,
       // 从单一来源常量取默认字数，避免散落硬编码回退
       wordCountInstruction: buildWordCountInstruction(useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET),
@@ -2044,7 +2083,7 @@ export class OrchestratorSystem extends BaseSubsystem {
 
     if (isOpeningNarrativeRound) {
       const firstRoundInstruction = isBirthOpeningRound
-        ? '0岁开场只写出生当日或前后短时段：用婴儿可感知的细节建立家庭处境与时代环境；禁止跨到翻身、爬行、学步或说话。年龄由时间系统派生，禁止写 lifespan.age，changes 通常为 []。'
+        ? '【出生开场】只写出生当日或前后短时段：用婴儿可感知的细节建立家庭处境与时代环境；禁止跨到翻身、爬行、学步或说话。当前年龄由时间系统派生，状态变更通常为空数组。'
         : '人生记录开场：从当前年龄附近的具体场景建立身份、家世、环境与社会位置，不概述此前整段人生。'
       assembled.userInstruction = assembled.userInstruction
         ? `${assembled.userInstruction}\n\n${firstRoundInstruction}`
@@ -2062,7 +2101,11 @@ export class OrchestratorSystem extends BaseSubsystem {
     ].filter(Boolean).join('\n')
 
     if (isInstrumentEnabled()) {
-      const mem = assembled.memorySummary ?? ''
+      const mem = [
+        assembled.longTermMemory,
+        assembled.relevantMemory,
+        assembled.recentNarrativeMemory,
+      ].filter(Boolean).join('\n')
       const core = assembled.coreMemory ?? ''
       const fore = assembled.foreshadowingText ?? ''
       const plot = assembled.plotStructureText ?? ''
@@ -2128,14 +2171,15 @@ export class OrchestratorSystem extends BaseSubsystem {
     const changes: string[] = []
     for (const [id, currText] of Object.entries(current)) {
       const prevText = prev[id]
+      const systemLabel = this.subsystems.find((subsystem) => subsystem.id === id)?.label ?? id
       if (prevText && prevText !== currText) {
-        changes.push(`${id}: ${prevText} → ${currText}`)
+        changes.push(`${systemLabel}：${prevText} → ${currText}`)
         // 同步记录到 SubsystemRelevanceSystem 滑动窗口
         if (!this.isPreviewExecution()) {
           subsystemRelevance.recordChange(id, this.state.totalRounds, `${prevText} → ${currText}`)
         }
       } else if (!prevText && currText) {
-        changes.push(`${id}: 新增 — ${currText}`)
+        changes.push(`${systemLabel}：新增 — ${currText}`)
         if (!this.isPreviewExecution()) {
           subsystemRelevance.recordChange(id, this.state.totalRounds, `新增: ${currText}`)
         }
@@ -2151,9 +2195,12 @@ export class OrchestratorSystem extends BaseSubsystem {
   private buildCreationProtectionText(): string | undefined {
     const creations = this.state.characterCreations
     if (!creations.length) return undefined
-    const lines = creations.map((c) =>
-      `- [${c.category}] ${c.name}：${c.description}（第${c.confirmedRound}轮开创）`,
-    )
+    const lines = creations.map((c) => {
+      const category = AI_CREATION_CATEGORIES.internalToAI[
+        c.category as keyof typeof AI_CREATION_CATEGORIES.internalToAI
+      ] ?? '其他'
+      return `- [${category}] ${c.name}：${c.description}（第${c.confirmedRound}轮开创）`
+    })
     return [
       '【原创保护（硬性约束）】以下为角色亲自开创的内容，其来源是角色自身的创造力。',
       '严禁在后续叙事中将其改写为「遗迹发现」「古人传承」「秘境所得」「他人遗留」等外部来源。',
@@ -2228,7 +2275,32 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   private buildUserInstruction(): string | undefined {
-    const lines: string[] = []
+    const components: NarrativePromptComponent[] = []
+    let order = 10
+    const addComponent = (
+      id: string,
+      content: string,
+      kind: NarrativePromptComponent['kind'] = '流程指令',
+      authority: NarrativePromptComponent['authority'] = '玩家意图',
+    ) => {
+      if (!content.trim()) return
+      components.push({
+        id,
+        title: id,
+        kind,
+        lifecycle: '条件触发',
+        authority,
+        order,
+        dependsOn: [],
+        assemblyPosition: '本轮引导',
+        loadWhen: '对应玩家、系统或生命周期触发条件成立',
+        exitWhen: '触发条件不再成立',
+        acceptanceEvidence: 'npm run test:narrative-protocol',
+        content,
+      })
+      order += 10
+    }
+
     const hasFreshPlayerChoice = Boolean(this.lastPlayerChoice?.trim())
     this.branchJustResolved = hasFreshPlayerChoice
     if (hasFreshPlayerChoice) {
@@ -2237,16 +2309,16 @@ export class OrchestratorSystem extends BaseSubsystem {
 
     // 信息优先级：开场叙事注入
     if (this.state.narrativeHistory.length === 0) {
-      lines.push(INFORMATION_PRIORITY_RULE)
+      addComponent('opening-information-priority', INFORMATION_PRIORITY_RULE, '硬限制', '世界与协议')
     }
 
     // 动态 hints（移植自废弃项目 buildNarrativeRoundPrompt）
     const hints = buildNarrativeHints(this.buildHintInput())
     if (hints.mandatory.length > 0) {
-      lines.push(`指令（必遵）：${hints.mandatory.join('。')}`)
+      addComponent('mandatory-round-hints', `【本轮必须遵守】${hints.mandatory.join('。')}`, '硬限制', '当前事实')
     }
     if (hints.optional.length > 0) {
-      lines.push(`参考建议：${hints.optional.join('。')}`)
+      addComponent('optional-round-hints', `【本轮参考建议】${hints.optional.join('。')}`, '写作规则', '剧情引导')
     }
 
     const focusedIntent = this.getFocusedBranchIntentRuntime()
@@ -2254,15 +2326,20 @@ export class OrchestratorSystem extends BaseSubsystem {
       const otherActiveIntents = this.branchIntents.filter(
         (intent) => intent.intentId !== focusedIntent.intentId,
       )
-      lines.push(buildBranchIntentInstruction(focusedIntent, otherActiveIntents))
+      addComponent(
+        'focused-branch-intent',
+        buildBranchIntentInstruction(focusedIntent, otherActiveIntents),
+        '流程指令',
+        '玩家意图',
+      )
     }
 
     // 原有逻辑
     if (useEngineStore.getState().forceBranchNext) {
-      lines.push('【强制分叉】本轮必须设置 branch=true，并提供 branchTitle 与 2-4 个 branchOptions；叙事正文在抉择前结束，不要替玩家做决定。')
+      addComponent('forced-branch', '【强制分支】本轮必须将“命运分支”设为真，并提供“分支标题”与二至四个字符串“分支选项”；正文在抉择前结束，不要替玩家做决定。')
     }
     if (this.lastPlayerChoice) {
-      lines.push(`【玩家选择】${this.lastPlayerChoice}`)
+      addComponent('fresh-player-choice', `【玩家选择】${this.lastPlayerChoice}`)
       this.lastCommittedPlayerChoice = this.lastPlayerChoice
       this.lastPlayerChoice = undefined
     }
@@ -2278,17 +2355,17 @@ export class OrchestratorSystem extends BaseSubsystem {
       }
     }
     if (resolvedLines.length > 0) {
-      lines.push(`【历史分叉选择】${resolvedLines.join('；')}`)
+      addComponent('resolved-branch-history', `【历史分支选择】${resolvedLines.join('；')}`, '流程指令', '当前事实')
     }
 
     // 连续分叉抑制：上轮已解决分支，本轮禁止再生成新分支
     const lastEntry = this.state.narrativeHistory[this.state.narrativeHistory.length - 1]
     if (lastEntry?.resolvedChoice) {
-      lines.push('上轮已完成命运抉择，本轮禁止生成新的分支点(branch=false) - 给玩家至少一轮消化时间')
+      addComponent('branch-cooldown-after-choice', '上轮已完成命运抉择，本轮禁止生成新的命运分支，给玩家至少一轮消化时间。', '硬限制', '当前事实')
     } else if (this.shouldSuppressBranchPoint(false)) {
-      lines.push(`普通命运分支冷却中：距离上一次分支不足 ${MIN_BRANCH_GAP_ROUNDS} 轮，本轮必须设置 branch=false。`)
+      addComponent('branch-cooldown', `普通命运分支冷却中：距离上一次分支不足 ${MIN_BRANCH_GAP_ROUNDS} 轮，本轮禁止生成命运分支。`, '硬限制', '当前事实')
     }
-    return lines.length > 0 ? lines.join('\n') : undefined
+    return compileNarrativeDynamicComponents(components)
   }
 
   private getRoundsSinceLatestBranch(history: EngineState['narrativeHistory']): number | null {
@@ -2440,9 +2517,9 @@ export class OrchestratorSystem extends BaseSubsystem {
       }
     }
 
-    // 若解析结果仍是原始 JSON，强制再提取 narrative 字段
+    // 若解析结果仍是原始对象文本，强制再提取中文正文字段
     const trimmed = narrative.trimStart()
-    if (trimmed.startsWith('{') && trimmed.includes('"narrative"')) {
+    if (trimmed.startsWith('{') && trimmed.includes('"正文"')) {
       const reparsed = narrativeParser.parse(content)
       if (reparsed.narrative?.trim()) {
         narrative = reparsed.narrative
@@ -2525,6 +2602,33 @@ export class OrchestratorSystem extends BaseSubsystem {
           digest: effectiveParsed.digest,
           keyEvents: structuredKeyEvents,
         })
+
+        causalDelay.commitCausalTriggers(
+          this.pendingNarrativeCausalEventIds,
+          roundSequence,
+          effectiveParsed.digest,
+        )
+        this.pendingNarrativeCausalEventIds = []
+
+        const causalKeys = new Set(
+          causalDelay.getCausalEvents().map((existing) =>
+            `${existing.type}\u0000${existing.round}\u0000${existing.description}`,
+          ),
+        )
+        for (const item of effectiveParsed.deferredCausality ?? []) {
+          const key = `${item.type}\u0000${roundSequence}\u0000${item.description}`
+          if (causalKeys.has(key)) continue
+          causalDelay.recordCausalEvent(
+            item.type,
+            item.severity,
+            roundSequence,
+            ageAtRound,
+            item.description,
+            item.relatedPerson,
+            item.relatedFaction,
+          )
+          causalKeys.add(key)
+        }
 
         // 原创保护：只累积完整语义包中经校验的 creations。
         const roundCreations = effectiveParsed.creations

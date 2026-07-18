@@ -7,8 +7,9 @@
 
 /** PromptContext 接口字段（codegen 自 foundation/types/narrative.types.ts） */
 export const PROMPT_CONTEXT_FIELDS = [
-  "worldSetting",
-  "character",
+  "worldNarrativeView",
+  "characterProfileView",
+  "characterStatusView",
   "subsystemSummaries",
   "userInstruction",
   "narrativeHistory",
@@ -19,7 +20,9 @@ export const PROMPT_CONTEXT_FIELDS = [
   "narrativeGuidanceText",
   "worldTagsText",
   "worldRules",
-  "memorySummary",
+  "longTermMemory",
+  "relevantMemory",
+  "recentNarrativeMemory",
   "coreMemory",
   "narrativeStyle",
   "narrativeToneHint",
@@ -38,33 +41,4 @@ export const PROMPT_CONTEXT_FIELDS = [
 ] as const
 
 /** narrative-prompt 模板 variables[] */
-export const NARRATIVE_PROMPT_VARIABLES = [
-  "worldRules",
-  "modWorldRules",
-  "worldTagsText",
-  "calibrationSummary",
-  "worldSetting",
-  "powerCeilingPresets",
-  "worldCustomizeText",
-  "creationProtectionText",
-  "subsystemGuideText",
-  "narrativeStyle",
-  "narrativeToneHint",
-  "character",
-  "talents",
-  "memorySummary",
-  "coreMemory",
-  "plotStructureText",
-  "foreshadowingText",
-  "wordCountInstruction",
-  "currentTime",
-  "timeBridgeSummary",
-  "causalChainHint",
-  "timeGuideText",
-  "eventInjectionText",
-  "subsystemSummaries",
-  "systemChangeSummary",
-  "narrativeHistory",
-  "narrativeGuidanceText",
-  "userInstruction"
-] as const
+export const NARRATIVE_PROMPT_VARIABLES = [] as const

@@ -12,6 +12,7 @@
 
 import type { AIModelConfig, PromptTemplate, TimeStep } from '@/foundation'
 import { encodeTimeStepKey } from '@/foundation'
+import { DEFAULT_AI_MODEL } from '@/core/ai-service'
 
 import { useSettingsStore } from '@/mods/mod-settings'
 
@@ -21,10 +22,12 @@ import { computeNarrativeMaxTokens, DEFAULT_WORD_COUNT_TARGET } from '../constan
 import { isEligibleNarrativeBranch } from './narrative-branch-policy'
 import { inspectNarrativeResponseQuality } from './narrative-response-quality'
 import {
-  NarrativeResponseSchema,
-  normalizeNarrativeResponseMetadata,
   type NarrativeRoundMetadata,
 } from './narrative-semantic-signals'
+import {
+  parseNarrativeAIDataJson,
+  translateNarrativeAIResponse,
+} from './narrative-ai-protocol'
 import { PreGenActivityState } from './pre-gen-activity-state'
 import { extractTaggedMetaEnvelope } from './tagged-meta-envelope'
 
@@ -239,9 +242,7 @@ function parsePreGenMetadata(content: string): NarrativeRoundMetadata | null {
   try {
     const envelope = extractTaggedMetaEnvelope(content)
     if (!envelope) return null
-    const raw = normalizeNarrativeResponseMetadata(JSON.parse(envelope.metaJson)) as Record<string, unknown>
-    const parsed = NarrativeResponseSchema.safeParse(raw)
-    return parsed.success ? parsed.data : null
+    return translateNarrativeAIResponse(parseNarrativeAIDataJson(envelope.metaJson))
   } catch {
     return null
   }
@@ -295,7 +296,7 @@ export async function fillPreGenQueue(
     const { customModel, temperature, reasoningEffort } = useSettingsStore.getState()
     // 从单一来源常量取默认字数，与 orchestrator、hooks 共享同一常量
     const wordCountTarget = useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET
-    const model = customModel || 'deepseek-v4-flash'
+    const model = customModel || DEFAULT_AI_MODEL
     const aiConfig: AIModelConfig = {
       model,
       temperature: temperature ?? 0.8,

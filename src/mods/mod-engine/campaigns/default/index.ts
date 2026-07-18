@@ -28,6 +28,10 @@ import {
   buildNarrativeRepairInstruction,
   inspectNarrativeResponseQuality,
 } from '../../helpers/narrative-response-quality'
+import {
+  compileNarrativeDynamicComponents,
+  createNarrativeRepairComponent,
+} from '../../prompts/narrative-prompt-components'
 
 /** 阶段运行时上下文（扩展 RoundContext，携带本轮调用参数 + 阶段间临时数据） */
 export interface StageRuntimeContext extends RoundContext {
@@ -195,7 +199,7 @@ export function loadStages(
             stableUserPrefix: baseSegments.stablePrefix,
             logContext: {
               round: orchestrator.getState().totalRounds,
-              age: ctx._promptContext.character?.age,
+              age: Number(ctx._promptContext.characterStatusView.年龄),
               strategy: baseSegments.strategy,
               callKind: 'immersion-warmup',
               pool: 'narrative',
@@ -230,7 +234,7 @@ export function loadStages(
         const roundInfo = orchestrator.getState().round
         const logContext = {
           round: orchestrator.getState().totalRounds,
-          age: ctx._promptContext.character?.age ?? roundInfo.year,
+          age: Number(ctx._promptContext.characterStatusView.年龄) || roundInfo.year,
           era: ctx._promptContext.currentTime ?? `${roundInfo.eraName}${roundInfo.eraYear}年`,
           strategy: segments.strategy,
           callKind: 'narrative-main',
@@ -312,7 +316,11 @@ export function loadStages(
           )
           if (!initialQuality.valid) {
             const previousContent = ctx._fullContent ?? ''
-            const repairInstruction = buildNarrativeRepairInstruction(initialQuality, wordCountTarget, expectedIntentId)
+            const repairInstruction = compileNarrativeDynamicComponents([
+              createNarrativeRepairComponent(
+                buildNarrativeRepairInstruction(initialQuality, wordCountTarget, expectedIntentId),
+              ),
+            ]) ?? ''
             if (useStream) {
               orchestrator.resetCurrentNarrative()
               useEngineStore.setState({ streamingNarrative: '' })
@@ -337,7 +345,7 @@ export function loadStages(
                   onChunk: undefined,
                   userSegments: getNarrativeUserSegments(segments),
                   extraUserMessages: [
-                    `${repairInstruction}\n\n【上一版完整输出，仅用于压缩与纠错】\n${previousContent}`,
+                    `${repairInstruction}\n\n【上一版完整输出，仅用于格式纠错】\n${previousContent}`,
                   ],
                 },
               )
@@ -361,7 +369,13 @@ export function loadStages(
           }
 
           recordRoundCacheMetrics({
-            strategy: segments.strategy === 'S2' ? 'S2' : segments.strategy === 'S3' ? 'S3' : 'S1',
+            strategy: segments.strategy === 'S4'
+              ? 'S4'
+              : segments.strategy === 'S2'
+                ? 'S2'
+                : segments.strategy === 'S3'
+                  ? 'S3'
+                  : 'S1',
             stablePrefixChars: segments.stablePrefixChars,
             userMessageCount: segments.userMessageCount ?? 1,
           })

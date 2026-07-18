@@ -37,11 +37,28 @@ const narrativePrompt = fs.readFileSync(
   path.join(ROOT, 'src/mods/mod-engine/prompts/narrative-prompt.ts'),
   'utf8',
 )
-for (const field of ['coreMemory', 'memorySummary', 'foreshadowingText']) {
-  if (!narrativePrompt.includes(`{{${field}}}`)) {
-    console.error(`[FAIL] narrative-prompt 缺少模板变量 {{${field}}}`)
+const promptBuilder = fs.readFileSync(
+  path.join(ROOT, 'src/core/ai-service/prompt-builder.ts'),
+  'utf8',
+)
+const narrativeComponents = fs.readFileSync(
+  path.join(ROOT, 'src/mods/mod-engine/prompts/narrative-prompt-components.ts'),
+  'utf8',
+)
+for (const field of ['长期记忆', '核心记忆', '相关往事', '近期完整经历', '本轮可回收伏笔']) {
+  if (!promptBuilder.includes(field)) {
+    console.error(`[FAIL] prompt-builder 缺少三层中文字段 ${field}`)
     failed++
   }
+}
+if (!narrativePrompt.includes("version: '3.0.0'") || !narrativePrompt.includes('NarrativeAIResponseSchema')) {
+  console.error('[FAIL] narrative-prompt 未接入 3.0.0 中文协议 Schema')
+  failed++
+}
+if (!narrativeComponents.includes('COMPILED_NARRATIVE_SYSTEM_PROMPT')
+  || !narrativeComponents.includes('buildNarrativeAIProtocolGuide')) {
+  console.error('[FAIL] narrative-prompt-components 未成为固定提示词与中文协议指南的装配权威')
+  failed++
 }
 
 if (failed > 0) {

@@ -62,14 +62,14 @@ function hintForceBranch(input: NarrativeHintInput): string[] {
     const agency = input.currentAge < 6
       ? '角色尚无成人式自主能力：把选择写成照料者、监护人或所处环境替角色作出的家庭层面决定；选项仍须是会长期改变你的核心关系、身份、居所、照料安排或关键机会的不同后果，不能把婴儿的本能反应伪装成选择。'
       : '选项必须是角色在当前能力与处境下确实能作出的选择，不能把日常动作、拖延或不同措辞伪装成不同人生方向。'
-    hints.push(`必须生成合格命运分叉：branch=true，提供 branchTitle 与2—4个不同长期后果的 branchOptions；META 必须为 importance=HIGH、semanticSignals.irreversible=true、semanticSignals.narrativeRegister=fate（高潮收束可为legacy）。${agency}`)
+    hints.push(`必须生成合格命运分支：“命运分支”为真，提供“分支标题”与二至四个不同长期后果的“分支选项”；“重要程度”为高、“不可逆”为真、“叙事语域”为命运，高潮收束可以为传承。${agency}`)
   }
   if (input.currentAge === 3 && input.startingAge === 0) {
-    hints.push('3岁节点如生成分叉，仍须是照料、归属、居所或关键机会等不可逆的家庭层面命运转折；普通玩耍和短暂偏好必须 branch=false。')
+    hints.push('3岁节点如生成分支，仍须是照料、归属、居所或关键机会等不可逆的家庭层面命运转折；普通玩耍和短暂偏好不得生成命运分支。')
   }
   if (input.round > 0 && input.round % 15 === 0 && !input.branchJustResolved) {
     hints.push(
-      `已推进${input.round}轮，建议生成一个重要的命运分叉点(branch=true)——提供2-4个各有特色的选项，每个选项指向大相径庭的人生方向`,
+      `已推进${input.round}轮，若当前确有不可逆的人生转折，可以生成命运分支并提供二至四个各有特色的方向；不得为满足轮次机械制造分支`,
     )
   }
   return hints
@@ -90,7 +90,7 @@ function hintBranchResolved(input: NarrativeHintInput): string[] {
         : `玩家选择了"${input.lastPlayerChoice}"`
     if (input.branchJustResolved) {
       hints.push(
-        `${choiceLabel}。请结合世界规则、角色能力、资源和本轮时间跨度判断行动规模：小型行动可在本轮完成；中大型目标只呈现当前阶段的阻力、行动与后果。将判断写入 semanticSignals.actionScale`,
+        `${choiceLabel}。请结合世界规则、角色能力、资源和本轮时间跨度判断行动规模：小型行动可在本轮完成；中大型目标只呈现当前阶段的阻力、行动与后果，并在“语义信号”的“行动规模”中同步记录。`,
       )
     } else if (!input.branchJustResolved) {
       const progressLabel =

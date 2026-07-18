@@ -14,10 +14,14 @@ import { normalizeNarrativeBranchOptions } from './narrative-branch-policy'
 import { extractTaggedMetaEnvelope } from './tagged-meta-envelope'
 import {
   NarrativeResponseSchema,
-  normalizeNarrativeResponseMetadata,
   type NarrativeIntentResolution,
+  type NarrativeDeferredCausality,
   type NarrativeSemanticSignals,
 } from './narrative-semantic-signals'
+import {
+  parseNarrativeAIDataJson,
+  translateNarrativeAIResponse,
+} from './narrative-ai-protocol'
 
 /** AI META 段与旧 JSON 降级格式共用的结构 */
 interface RawAIResponse {
@@ -41,6 +45,7 @@ interface RawAIResponse {
   branchTitle?: string
   branchOptions?: string[]
   intentResolution?: NarrativeIntentResolution
+  deferredCausality?: NarrativeDeferredCausality[]
   /** 世界方向指令（结构化格式），如 {"market":{"direction":"繁荣","magnitude":0.3},"population":{"direction":"繁荣","magnitude":0.3}} */
   direction?: string | Record<string, { direction?: string; magnitude?: number }>
   /** AI 标注的创造内容（原创保护） */
@@ -52,9 +57,9 @@ interface RawAIResponse {
 /** 清理 AI 在降级/嵌套输出时残留到正文里的信封标签，避免 UI 直接显示协议标记。 */
 function stripNarrativeEnvelopeArtifacts(text: string): string {
   return text
-    .replace(/\[META\][\s\S]*$/i, '')
-    .replace(/\[\/?NARRATIVE\]/gi, '')
-    .replace(/\[\/META\]/gi, '')
+    .replace(/\[回合数据\][\s\S]*$/, '')
+    .replace(/\[\/?正文\]/g, '')
+    .replace(/\[\/回合数据\]/g, '')
     .trim()
 }
 
@@ -113,6 +118,7 @@ function parseRawAIResponse(
     branchTitle: metadata?.branchTitle,
     branchOptions: normalizeNarrativeBranchOptions(metadata?.branchOptions),
     intentResolution: metadata?.intentResolution,
+    deferredCausality: metadata?.deferredCausality,
   }
 }
 
@@ -133,7 +139,7 @@ export interface ParseStrategy {
 }
 
 // ============================================================
-// L0: [NARRATIVE] + [META] 信封解析策略
+// L0: [正文] + [回合数据] 信封解析策略
 // ============================================================
 
 export class TaggedMetaParseStrategy implements ParseStrategy {
@@ -144,7 +150,7 @@ export class TaggedMetaParseStrategy implements ParseStrategy {
     if (!envelope) return null
 
     try {
-      const raw = normalizeNarrativeResponseMetadata(JSON.parse(envelope.metaJson)) as RawAIResponse
+      const raw = translateNarrativeAIResponse(parseNarrativeAIDataJson(envelope.metaJson)) as RawAIResponse
       return parseRawAIResponse(raw, processor, envelope.narrative)
     } catch {
       return null
@@ -153,7 +159,7 @@ export class TaggedMetaParseStrategy implements ParseStrategy {
 }
 
 // ============================================================
-// L1: JSON 解析策略（旧格式降级）
+// L1: 仅正文对象降级；不得从旧英文协议接收结构化状态
 // ============================================================
 
 export class JsonParseStrategy implements ParseStrategy {
@@ -161,8 +167,9 @@ export class JsonParseStrategy implements ParseStrategy {
 
   parse(content: string, processor: ChineseTextProcessor): ParsedNarrative | null {
     try {
-      const raw = normalizeNarrativeResponseMetadata(JSON.parse(content)) as RawAIResponse
-      return parseRawAIResponse(raw, processor)
+      const parsed = JSON.parse(content) as Record<string, unknown>
+      if (typeof parsed.正文 !== 'string') return null
+      return parseRawAIResponse({ narrative: parsed.正文 }, processor)
     } catch {
       return null
     }
@@ -183,7 +190,7 @@ export class RegexExtractStrategy implements ParseStrategy {
   }
 
   /**
-   * L1 降级：从残缺 JSON 中提取 narrative 字段
+   * L1 降级：从残缺中文对象中提取正文字段
    * 包含中文引号标准化 + 多版本文本交叉匹配
    */
   private extractNarrativeField(raw: string, processor: ChineseTextProcessor): string | null {
@@ -201,9 +208,7 @@ export class RegexExtractStrategy implements ParseStrategy {
       .replace(/([\u4e00-\u9fff])'([\u4e00-\u9fff])/g, "$1\\'$2")
 
     const patterns = [
-      /"narrative"\s*:\s*"((?:[^"\\]|\\.)*)"/,
-      /"叙事"\s*:\s*"((?:[^"\\]|\\.)*)"/,
-      /"n"\s*:\s*"((?:[^"\\]|\\.)*)"/,
+      /"正文"\s*:\s*"((?:[^"\\]|\\.)*)"/,
     ]
 
     let best: string | null = null

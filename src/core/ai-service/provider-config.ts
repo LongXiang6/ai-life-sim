@@ -1,9 +1,9 @@
 /**
  * @module provider-config.ts
- * @description AI Provider 配置 —— 6 家厂商预设 + 自定义 Provider 解析
+ * @description AI Provider 配置 —— 服务器托管默认通道、厂商预设与自定义 Provider 解析
  * @mod core
  *
- * 支持厂商：DeepSeek / 智谱AI / 阿里云 / 字节跳动 / 腾讯云 / 百度智能云
+ * 支持：服务器托管免费体验通道、DeepSeek 与自定义 OpenAI 兼容接口
  * 废弃项目参考：ai-models.ts MODEL_PRESETS
  */
 
@@ -26,9 +26,29 @@ export interface AIProviderConfig {
   supportsThinking: boolean,
 }
 
-// ---- 6 家厂商预设 ----
+// ---- 默认通道 ----
+
+/** 默认使用服务器托管通道；公开接口与模型可以进入客户端，凭据绝不能进入。 */
+export const DEFAULT_AI_PROVIDER_ID = 'managed'
+export const DEFAULT_AI_BASE_URL = 'https://dasuapi.com/v1'
+export const DEFAULT_AI_MODEL = 'grok-4.5'
+
+// ---- Provider 预设 ----
 
 export const AI_PROVIDERS: Record<string, AIProviderConfig> = {
+  managed: {
+    id: DEFAULT_AI_PROVIDER_ID,
+    name: '免费体验通道',
+    icon: '免',
+    baseUrl: DEFAULT_AI_BASE_URL,
+    supportsThinking: false,
+    models: [{
+      name: DEFAULT_AI_MODEL,
+      label: 'Grok 4.5',
+      notes: '由项目服务器安全托管体验凭据；浏览器不会接收或保存服务器密钥。',
+    }],
+    notes: '默认体验通道。可直接使用，也可在下方填写自己的 Key、接口与模型覆盖。',
+  },
   deepseek: {
     id: 'deepseek',
     name: '深度求索 (DeepSeek)',

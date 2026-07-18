@@ -23,9 +23,14 @@ import {
   computeNarrativeMaxTokens,
 } from '../../../../src/mods/mod-engine/constants/narrative-config.ts'
 import {
-  NarrativeResponseSchema,
-  normalizeNarrativeResponseMetadata,
-} from '../../../../src/mods/mod-engine/helpers/narrative-semantic-signals.ts'
+  DEFAULT_AI_BASE_URL,
+  DEFAULT_AI_MODEL,
+  DEFAULT_AI_PROVIDER_ID,
+} from '../../../../src/core/ai-service/provider-config.ts'
+import {
+  NarrativeAIResponseSchema,
+  translateNarrativeAIResponse,
+} from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
 import {
   rejectsFutureDestinyPatternContent,
 } from '../../../../src/mods/mod-character/utils/destiny-pattern-content-quality.ts'
@@ -93,10 +98,21 @@ function loadPersistMigration(sourceText) {
     { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
   ).outputText
   const module = { exports: undefined }
-  new Function('module', 'exports', 'DEFAULT_WORD_COUNT_TARGET', transpiled)(
+  new Function(
+    'module',
+    'exports',
+    'DEFAULT_WORD_COUNT_TARGET',
+    'DEFAULT_AI_PROVIDER_ID',
+    'DEFAULT_AI_BASE_URL',
+    'DEFAULT_AI_MODEL',
+    transpiled,
+  )(
     module,
     module.exports,
     DEFAULT_WORD_COUNT_TARGET,
+    DEFAULT_AI_PROVIDER_ID,
+    DEFAULT_AI_BASE_URL,
+    DEFAULT_AI_MODEL,
   )
   return module.exports
 }
@@ -262,31 +278,31 @@ activity.finish(generation)
 assertOk(!activity.isActive(), 'pre-gen finish must release the single-writer gate')
 
 const validEnvelope = extractTaggedMetaEnvelope(
-  '[NARRATIVE]第一段。\n\n第二段。[/NARRATIVE]\n[META]{"changes":[]}[/META]',
+  '[正文]第一段。\n\n第二段。[/正文]\n[回合数据]{"状态变更":[]}[/回合数据]',
 )
 assertSame(validEnvelope?.narrative, '第一段。\n\n第二段。', 'valid tagged envelope narrative')
-assertSame(validEnvelope?.metaJson, '{"changes":[]}', 'valid tagged envelope meta')
+assertSame(validEnvelope?.metaJson, '{"状态变更":[]}', 'valid tagged envelope meta')
 
 const duplicatedNarrativeTag = extractTaggedMetaEnvelope(
-  '[NARRATIVE]完整正文第一段。\n\n完整正文第二段。[NARRATIVE]\n[META]{"changes":[],"digest":"含有{括号}的字符串"}[/META]',
+  '[正文]完整正文第一段。\n\n完整正文第二段。[正文]\n[回合数据]{"状态变更":[],"本轮摘要":"含有{括号}的字符串"}[/回合数据]',
 )
 assertOk(
   duplicatedNarrativeTag?.narrative.includes('完整正文第二段。'),
-  'duplicated [NARRATIVE] must be tolerated as a mistaken closing marker',
+  'duplicated [正文] must be tolerated as a mistaken closing marker',
 )
 
 const missingClosers = extractTaggedMetaEnvelope(
-  '[NARRATIVE]没有正文结束标签，但内容完整。\n[META]{"changes":[],"digest":"仍应恢复"}',
+  '[正文]没有正文结束标签，但内容完整。\n[回合数据]{"状态变更":[],"本轮摘要":"仍应恢复"}',
 )
 assertSame(
   missingClosers?.narrative,
   '没有正文结束标签，但内容完整。',
-  'META opening must terminate narrative when [/NARRATIVE] is missing',
+  'round-data opening must terminate narrative when [/正文] is missing',
 )
 assertSame(
   missingClosers?.metaJson,
-  '{"changes":[],"digest":"仍应恢复"}',
-  'balanced META JSON must recover without [/META]',
+  '{"状态变更":[],"本轮摘要":"仍应恢复"}',
+  'balanced round-data JSON must recover without [/回合数据]',
 )
 
 assertOk(
@@ -488,6 +504,7 @@ const orchestratorSrc = readRel('src/mods/mod-engine/subsystems/orchestrator-sys
 const timeScaleSrc = readRel('src/mods/mod-engine/helpers/time-scale-narrative.ts')
 const narrativeCalendarSrc = readRel('src/mods/mod-engine/helpers/narrative-calendar.ts')
 const narrativePromptSrc = readRel('src/mods/mod-engine/prompts/narrative-prompt.ts')
+const narrativePromptComponentsSrc = readRel('src/mods/mod-engine/prompts/narrative-prompt-components.ts')
 const narrativeInterceptorSrc = readRel('src/mods/mod-engine/helpers/narrative-interceptor-pipeline.ts')
 const powerContextSrc = readRel('src/mods/mod-world/utils/world-init-prompt-vars.ts')
 const timelineCssSrc = readRel('src/mods/mod-ui/components/organisms/NarrativeTimeline.module.css')
@@ -542,71 +559,51 @@ assertOk(
     && narrativeQualitySrc.includes('字数偏离只作为提示'),
   'narrative length must not be implemented as a retry or rejection gate',
 )
-const flatChangesMetadata = {
-  changes: [{ id: 'character-base', description: '测试协议形状', mindDelta: 1 }],
-}
-const normalizedFlatChanges = normalizeNarrativeResponseMetadata(flatChangesMetadata)
-assertSame(
-  NarrativeResponseSchema.safeParse({
-    ...normalizedFlatChanges,
-    importance: 'LOW',
-    digest: '测试',
-    keyEvents: [],
-    arcStatus: 'ongoing',
-    semanticSignals: {
-      eventType: 'routine',
-      conflictIntensity: 0,
-      tensionDelta: 0,
-      actionScale: 'small',
-      irreversible: false,
-      impactScope: 'personal',
-      narrativeRegister: 'life',
-      registerReason: '协议形状测试',
-      arcType: 'none',
-      relationshipUpdates: [],
-      resolvedForeshadowingIds: [],
-    },
-  }).success,
-  true,
-  'flat change fields must be mechanically normalized before strict schema validation',
-)
-const objectBranchMetadata = normalizeNarrativeResponseMetadata({
-  changes: [],
-  importance: 'HIGH',
-  digest: '照料者决定迁居。',
-  keyEvents: [],
-  arcStatus: 'start',
-  semanticSignals: {
-    eventType: 'journey',
-    conflictIntensity: 20,
-    tensionDelta: 3,
-    actionScale: 'small',
-    irreversible: true,
-    impactScope: 'relationship',
-    narrativeRegister: 'fate',
-    registerReason: '家庭去向改变',
-    arcType: 'journey',
-    relationshipUpdates: [],
-    resolvedForeshadowingIds: [],
+const chineseMetadata = {
+  状态变更: [{ 系统: '基础属性', 说明: '你完成了心智训练。', 变更: { 心智变化: 1 } }],
+  重要程度: '普通',
+  本轮摘要: '你在压力下完成了一次心智训练。',
+  关键事件: [{ 内容: '你完成了心智训练。', 重要度: 45, 涉及实体: ['你'] }],
+  情节状态: '进行中',
+  语义信号: {
+    事件类型: '日常',
+    冲突强度: 10,
+    张力变化: 0,
+    行动规模: '小',
+    不可逆: false,
+    影响范围: '个人',
+    叙事语域: '生活',
+    语域理由: '这是一次具体的日常训练。',
+    情节类型: '无',
+    关系变化: [],
+    已回收伏笔编号: [],
   },
-  branch: true,
-  branchTitle: '去向未定',
-  branchOptions: [
-    { title: '留下', description: '继续留在原地' },
-    { title: '迁居', description: '随照料者离开' },
-  ],
-})
-assertSame(
-  NarrativeResponseSchema.safeParse(objectBranchMetadata).success,
-  true,
-  'branch option objects must be mechanically normalized to the string-array contract',
+}
+assertOk(
+  NarrativeAIResponseSchema.safeParse(chineseMetadata).success
+    && translateNarrativeAIResponse(chineseMetadata).changes[0]?.changes.mindDelta === 1,
+  'Chinese system and field names must pass the AI schema and translate to the internal field contract',
 )
-assertSame(
-  objectBranchMetadata.branchOptions[0],
-  '留下：继续留在原地',
-  'normalized branch option should retain title and description text',
+assertOk(
+  !NarrativeAIResponseSchema.safeParse({
+    ...chineseMetadata,
+    changes: [{ id: 'character-base', description: 'legacy', mindDelta: 1 }],
+  }).success,
+  'English legacy change fields must not be accepted alongside the Chinese protocol',
 )
-assertOk(/version:\s*4/.test(settingsStoreSrc), 'settings persistence must include the current presentation-preference migration version')
+assertOk(
+  !NarrativeAIResponseSchema.safeParse({
+    ...chineseMetadata,
+    命运分支: true,
+    分支标题: '去向未定',
+    分支选项: [
+      { 标题: '留下', 说明: '继续留在原地' },
+      { 标题: '迁居', 说明: '随照料者离开' },
+    ],
+  }).success,
+  'branch options must already be Chinese string choices; object compatibility must not enter the strict path',
+)
+assertOk(/version:\s*5/.test(settingsStoreSrc), 'settings persistence must include the current managed-provider migration version')
 const migrateSettings = loadPersistMigration(settingsStoreSrc)
 assertSame(
   migrateSettings({ wordCountTarget: 400, theme: 'minimal-white' }, 2).wordCountTarget,
@@ -618,12 +615,29 @@ assertSame(
   300,
   'persisted explicit non-default word counts must be preserved',
 )
+const migratedManagedDefault = migrateSettings({
+  provider: 'deepseek',
+  customKey: '',
+  customUrl: '',
+  customModel: '',
+}, 4)
+assertSame(migratedManagedDefault.provider, DEFAULT_AI_PROVIDER_ID, 'old empty defaults must migrate to the managed provider')
+assertSame(migratedManagedDefault.customUrl, DEFAULT_AI_BASE_URL, 'managed migration must restore the public default interface')
+assertSame(migratedManagedDefault.customModel, DEFAULT_AI_MODEL, 'managed migration must restore the public default model')
+const preservedCustomConfig = migrateSettings({
+  provider: 'custom',
+  customKey: 'player-key',
+  customUrl: 'https://player.example/v1',
+  customModel: 'player-model',
+}, 4)
+assertSame(preservedCustomConfig.provider, 'custom', 'explicit player provider must survive migration')
+assertSame(preservedCustomConfig.customModel, 'player-model', 'explicit player model must survive migration')
 assertOk(
   /export async function hasAvailableApiConfiguration\(\)[\s\S]{0,300}provider === 'custom'[\s\S]{0,220}fetch\(`\/api\/proxy\?providerId=\$\{encodeURIComponent\(provider\)\}`/.test(settingsStoreSrc)
-    && /export function GET\(request: Request\): Response[\s\S]{0,260}hasOwnProperty\.call\(SERVER_API_KEYS, providerId\)[\s\S]{0,120}Boolean\(SERVER_API_KEYS\[providerId\]\)[\s\S]{0,120}\{ configured \}/.test(proxyRouteSrc)
+    && /export function GET\(request: Request\): Response[\s\S]{0,260}Boolean\(AI_PROVIDERS\[providerId\]\)[\s\S]{0,120}hasServerProviderApiKey\(providerId\)[\s\S]{0,120}\{ configured \}/.test(proxyRouteSrc)
     && /await hasAvailableApiConfiguration\(\)/.test(welcomePageSrc)
     && /await hasAvailableApiConfiguration\(\)/.test(worldConfirmSrc),
-  'a server-side DeepSeek key must satisfy the client entry gates without exposing the secret to the browser',
+  'a server-side managed key must satisfy the client entry gates without exposing the secret to the browser',
 )
 
 assertOk(/AI_DESTINY_PATTERN_BATCH_SIZE\s*=\s*10/.test(constantsSrc), 'destiny each AI batch must request 10 items')
@@ -838,20 +852,20 @@ const mayIndex = 4
 const monthAfterSeasonStep = (mayIndex + 3) % 12
 assertSame(Math.floor(((monthAfterSeasonStep + 10) % 12) / 3), 1, 'month->season must land in the following solar season')
 assertOk(/candidate\.importance\s*===\s*'HIGH'/.test(branchPolicySrc), 'ordinary branch points must require HIGH importance')
-assertOk(narrativePromptSrc.includes('身份、核心关系、长期目标、关键资源、阵营、存亡或不可逆轨迹'), 'branch prompt must define fate-changing impact dimensions')
-assertOk(/version:\s*'2\.9\.0'/.test(narrativePromptSrc), 'branch-intent narrative prompt must use version 2.9.0')
+assertOk(narrativePromptComponentsSrc.includes('身份、核心关系、长期目标、关键资源、阵营、存亡或其他不可逆轨迹'), 'branch prompt must define fate-changing impact dimensions')
+assertOk(/version:\s*'3\.0\.0'/.test(narrativePromptSrc), 'branch-intent narrative prompt must use version 3.0.0')
 assertOk(
   /semanticSignals\?\.irreversible\s*===\s*true/.test(branchPolicySrc)
     && /narrativeRegister\s*===\s*'fate'/.test(branchPolicySrc),
   'branch eligibility must require an irreversible fate or legacy semantic signal',
 )
 assertOk(
-  narrativePromptSrc.includes('正文全程用第二人称“你”指代玩家角色')
-    && narrativePromptSrc.includes('每轮至少落入一个可辨认的现场')
-    && narrativePromptSrc.includes('禁止写成第三人称传记、履历或编年报告'),
+  narrativePromptComponentsSrc.includes('正文全程用第二人称“你”指代玩家角色')
+    && narrativePromptComponentsSrc.includes('每轮至少落入一个可辨认的现场')
+    && narrativePromptComponentsSrc.includes('不写第三人称传记、履历或编年报告'),
   'narrative prompt must preserve second-person viewpoint, scene-level immersion, and anti-biography constraints',
 )
-assertOk(narrativePromptSrc.includes('阳历3—5月春季、6—8月夏季、9—11月秋季、12—2月冬季'), 'narrative prompt must define the canonical solar season mapping')
+assertOk(narrativePromptComponentsSrc.includes('三至五月为春，六至八月为夏，九至十一月为秋，十二月至二月为冬'), 'narrative prompt must define the canonical solar season mapping')
 assertOk(!/narrative:\s*parsed\.narrative\.slice\(/.test(narrativeInterceptorSrc), 'narrative interceptor must never hard-truncate the story')
 assertOk(!narrativeInterceptorSrc.includes('trimIncompleteNarrativeTail'), 'incomplete narrative tails must be preserved instead of deleted')
 assertOk(timelineTsxSrc.includes('splitNarrativeParagraphs(entry.text)'), 'timeline must render the normalized three-paragraph contract')

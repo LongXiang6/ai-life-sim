@@ -28,6 +28,12 @@
 
 import { randomUUID } from 'crypto'
 import { z } from 'zod'
+import {
+  AI_PROVIDERS,
+  DEFAULT_AI_MODEL,
+  DEFAULT_AI_PROVIDER_ID,
+} from '@/core/ai-service/provider-config'
+import { readServerProviderApiKey } from '@/core/ai-service/server-provider-credentials'
 import type { WorldConfig } from '@/mods/mod-world'
 import {
   buildWorldInitPromptVars,
@@ -74,6 +80,7 @@ type WorldInitJob = {
 // ============================================================
 
 type PipelineOptions = {
+  providerId?: string
   apiKey?: string
   baseUrl?: string
   model?: string
@@ -127,29 +134,38 @@ function getLatestJobByWorldCode(worldCode: number): WorldInitJob | undefined {
 }
 
 // ============================================================
-// 服务端 DeepSeek 直连
+// 服务端 Provider 直连
 // ============================================================
 
-const DEEPSEEK_BASE_URL = 'https://api.deepseek.com/v1'
 const AI_TIMEOUT_MS = 120_000
 
-async function callDeepSeekDirect(
+async function callProviderDirect(
   systemPrompt: string,
   userPrompt: string,
   opts: {
     maxTokens?: number
     temperature?: number
     jsonMode?: boolean
+    providerId?: string
     model?: string
     apiKey?: string
     baseUrl?: string
   },
 ): Promise<string> {
-  const apiKey = opts.apiKey || process.env.DEEPSEEK_API_KEY
-  if (!apiKey) throw new Error('DEEPSEEK_API_KEY 未配置（请在 .env.local 中设置或在客户端配置页填写）')
+  const providerId = opts.providerId || DEFAULT_AI_PROVIDER_ID
+  const isCustom = providerId === 'custom'
+  const provider = AI_PROVIDERS[providerId]
+  if (!isCustom && !provider) throw new Error(`未知的 AI Provider: ${providerId}`)
 
-  const baseUrl = opts.baseUrl || DEEPSEEK_BASE_URL
-  const model = opts.model || 'deepseek-v4-flash'
+  const apiKey = opts.apiKey || readServerProviderApiKey(providerId)
+  if (!apiKey) throw new Error(`${providerId} API Key 未配置`)
+
+  const baseUrl = isCustom ? opts.baseUrl : provider?.baseUrl
+  const model = isCustom ? opts.model : (opts.model || provider?.models[0]?.name)
+  if (!baseUrl || !model) throw new Error(`${providerId} 接口或模型未配置`)
+  if (providerId === DEFAULT_AI_PROVIDER_ID && model !== DEFAULT_AI_MODEL) {
+    throw new Error('免费体验通道不支持该模型，请使用自定义接口')
+  }
 
   const body: Record<string, unknown> = {
     model,
@@ -178,7 +194,7 @@ async function callDeepSeekDirect(
 
   if (!response.ok) {
     const errorText = await response.text()
-    throw new Error(`DeepSeek API ${response.status}: ${errorText.slice(0, 500)}`)
+    throw new Error(`${providerId} API ${response.status}: ${errorText.slice(0, 500)}`)
   }
 
   const data = (await response.json()) as {
@@ -187,7 +203,7 @@ async function callDeepSeekDirect(
   const content = data.choices?.[0]?.message?.content
 
   if (!content || content.trim() === '') {
-    throw new Error('DeepSeek 返回空内容')
+    throw new Error(`${providerId} 返回空内容`)
   }
 
   return content
@@ -221,10 +237,10 @@ async function runCalibrationStep(
       promptVars,
     )
 
-    const raw = await callDeepSeekDirect(
+    const raw = await callProviderDirect(
       worldDimensionCalibrationPrompt.systemPrompt,
       userPrompt,
-      { maxTokens: budgets.dimensionCalibration, temperature: 0.3, jsonMode: true, apiKey: opts.apiKey, baseUrl: opts.baseUrl, model: opts.model },
+      { maxTokens: budgets.dimensionCalibration, temperature: 0.3, jsonMode: true, providerId: opts.providerId, apiKey: opts.apiKey, baseUrl: opts.baseUrl, model: opts.model },
     )
 
     const bundle = parseWorldDimensionCalibrationResponse(raw)
@@ -263,10 +279,10 @@ async function runTagsStep(
       promptVars,
     )
 
-    const raw = await callDeepSeekDirect(
+    const raw = await callProviderDirect(
       worldTagsPrompt.systemPrompt,
       userPrompt,
-      { maxTokens: budgets.tags, temperature: 0.6, jsonMode: true, apiKey: opts.apiKey, baseUrl: opts.baseUrl, model: opts.model },
+      { maxTokens: budgets.tags, temperature: 0.6, jsonMode: true, providerId: opts.providerId, apiKey: opts.apiKey, baseUrl: opts.baseUrl, model: opts.model },
     )
 
     const tags = parseWorldTagsResponse(raw)
@@ -354,6 +370,7 @@ async function runServerPipeline(
 const PostBodySchema = z.object({
   worldCode: z.number().int().min(0),
   config: z.record(z.string(), z.unknown()),
+  providerId: z.string().optional(),
   apiKey: z.string().optional(),
   baseUrl: z.string().optional(),
   model: z.string().optional(),
@@ -371,7 +388,7 @@ export async function POST(request: Request): Promise<Response> {
       )
     }
 
-    const { worldCode, config, apiKey, baseUrl, model } = parsed.data
+    const { worldCode, config, providerId, apiKey, baseUrl, model } = parsed.data
 
     const existing = getLatestJobByWorldCode(worldCode)
     if (existing?.status === 'running') {
@@ -381,7 +398,7 @@ export async function POST(request: Request): Promise<Response> {
       )
     }
 
-    const opts: PipelineOptions = { apiKey, baseUrl, model }
+    const opts: PipelineOptions = { providerId, apiKey, baseUrl, model }
 
     runServerPipeline(config, worldCode, opts).catch((err) => {
       console.error(`[world-init/api] worldCode=${worldCode} 异常:`, err)

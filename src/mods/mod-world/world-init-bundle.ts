@@ -236,6 +236,7 @@ export function startBackgroundWorldInit(
       body: JSON.stringify({
         worldCode,
         config,
+        providerId: settings.provider,
         ...(clientApiKey ? { apiKey: clientApiKey } : {}),
         ...(clientBaseUrl ? { baseUrl: clientBaseUrl } : {}),
         ...(clientModel ? { model: clientModel } : {}),

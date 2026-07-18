@@ -23,7 +23,7 @@ export interface ConversationBuildOptions {
 
 /** 固定 assistant 确认 —— 稳定前缀的一部分，利于 KV 命中 */
 const STABLE_ACK =
-  '已读取世界设定与角色档案，将按规则生成叙事 JSON。'
+  '已读取全局信息，将按中文协议生成三段正文与回合数据。'
 
 /**
  * S3 消息链：
@@ -40,7 +40,7 @@ export function buildConversationMessages(opts: ConversationBuildOptions): ChatM
   for (let i = 0; i < window.length; i++) {
     messages.push({
       role: 'user',
-      content: JSON.stringify({ continue: true, priorRound: i + 1 }),
+      content: JSON.stringify({ 继续: true, 此前轮次: i + 1 }),
     })
     messages.push({
       role: 'assistant',

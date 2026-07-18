@@ -19,6 +19,7 @@ import { useEngineStore, usePreGenQueueStatus } from '@/mods/mod-engine'
 import { useSettingsStore } from '@/mods/mod-settings'
 
 import { callAI, useGlobalStore } from '@/core'
+import { DEFAULT_AI_MODEL } from '@/core/ai-service'
 // 统一使用 shared/ 的 clamp 替代内联 Math.max/Math.min
 import { clamp } from '@/core/shared'
 
@@ -296,7 +297,7 @@ export default function GameOverPage() {
 
     try {
       const { provider, customKey, customUrl, customModel } = useSettingsStore.getState()
-      const model = customModel || 'deepseek-v4-flash'
+      const model = customModel || DEFAULT_AI_MODEL
       const candidates = await generateMythicPatternCandidates({
         worldName,
         worldDescription: worldConfig?.description,

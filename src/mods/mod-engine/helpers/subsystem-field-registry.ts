@@ -28,8 +28,12 @@ export interface SubsystemFieldMeta {
 export interface SubsystemFieldContract {
   /** 子系统中文名 */
   label: string
+  /** 主叙事 AI 协议中的唯一中文系统名；未声明时禁止向 AI 开放 */
+  aiName?: string
   /** 字段契约：key=字段名，description 用于 Prompt，schema 用于运行时校验 */
   fields: Record<string, {
+    /** 主叙事 AI 协议中的唯一中文字段名；未声明时禁止向 AI 开放 */
+    aiName?: string
     description: string
     schema: z.ZodType<unknown>
   }>
@@ -58,21 +62,26 @@ export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> =
   // ── personal 级（凡人可见）────────────────────────────
   'character-base': {
     label: '基础属性',
+    aiName: '基础属性',
     fields: {
       physiqueDelta: {
-        description: '体魄增量（整数；正=增长，负=下降；AI 单轮建议≤2，schema 上限±8）',
+        aiName: '体魄变化',
+        description: '整数；正为增长，负为下降；建议单轮不超过2，协议范围为-8至8',
         schema: z.coerce.number().min(-8).max(8).optional(),
       },
       mindDelta: {
-        description: '心智增量（整数；正=增长，负=下降；AI 单轮建议≤2，schema 上限±8）',
+        aiName: '心智变化',
+        description: '整数；正为增长，负为下降；建议单轮不超过2，协议范围为-8至8',
         schema: z.coerce.number().min(-8).max(8).optional(),
       },
       talentAptitudeDelta: {
-        description: '悟性增量（整数；正=增长，负=下降；AI 单轮建议≤2，schema 上限±8）',
+        aiName: '悟性变化',
+        description: '整数；正为增长，负为下降；建议单轮不超过2，协议范围为-8至8',
         schema: z.coerce.number().min(-8).max(8).optional(),
       },
       charismaDelta: {
-        description: '魅力增量（整数；正=增长，负=下降；AI 单轮建议≤2，schema 上限±8）',
+        aiName: '魅力变化',
+        description: '整数；正为增长，负为下降；建议单轮不超过2，协议范围为-8至8',
         schema: z.coerce.number().min(-8).max(8).optional(),
       },
     },
@@ -104,12 +113,15 @@ export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> =
   },
   'lifespan': {
     label: '寿命',
+    aiName: '寿命',
     fields: {
       maxAge: {
-        description: '最大寿命绝对值（年；当前可落地字段；年龄由时间系统派生，不写 age）',
+        aiName: '最大寿命',
+        description: '最大寿命绝对值，单位为年；当前年龄由时间系统派生，禁止提交年龄',
         schema: z.coerce.number().min(0).optional(),
       },
       lifespanDelta: {
+        aiName: '最大寿命变化',
         description: '最大寿命增量（年；负=减寿，正=增寿；仅叙事明确影响寿命时填写）',
         schema: z.coerce.number().min(-1000).max(1000).optional(),
       },
@@ -117,8 +129,10 @@ export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> =
   },
   'morality': {
     label: '道德',
+    aiName: '道德',
     fields: {
       delta: {
+        aiName: '道德变化',
         description: '善恶变化量（整数；+1=趋善，-1=趋恶；单次仅重大行为可写）',
         schema: z.coerce.number().min(-1).max(1).optional(),
       },
@@ -126,8 +140,10 @@ export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> =
   },
   'luck': {
     label: '气运',
+    aiName: '气运',
     fields: {
       luck: {
+        aiName: '气运绝对值',
         description: '气运绝对值（-10~+10；仅重大人生转折可设置，通常每次变化≤1）',
         schema: z.coerce.number().min(-10).max(10).optional(),
       },
@@ -366,17 +382,89 @@ export const SUBSYSTEM_FIELD_MAP: Record<string, SubsystemFieldMeta> =
 export const SUBSYSTEM_CHANGE_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>> =
   buildSubsystemChangeSchemas(SUBSYSTEM_FIELD_CONTRACTS)
 
+export interface NarrativeAISubsystemContract {
+  internalId: string
+  aiName: string
+  fields: Record<string, {
+    internalName: string
+    aiName: string
+    description: string
+  }>
+}
+
+/**
+ * 返回主叙事 AI 可见的中文子系统契约。
+ * 未配置中文名时显式失败，避免未来启用新写入系统后重新泄漏英文协议。
+ */
+export function getNarrativeAISubsystemContract(internalId: string): NarrativeAISubsystemContract {
+  const contract = SUBSYSTEM_FIELD_CONTRACTS[internalId]
+  if (!contract?.aiName) {
+    throw new Error(`子系统 ${internalId} 缺少主叙事 AI 中文名称`)
+  }
+
+  const fields: NarrativeAISubsystemContract['fields'] = {}
+  for (const [internalName, meta] of Object.entries(contract.fields)) {
+    if (!meta.aiName) {
+      throw new Error(`子系统 ${internalId}.${internalName} 缺少主叙事 AI 中文字段名`)
+    }
+    fields[meta.aiName] = {
+      internalName,
+      aiName: meta.aiName,
+      description: meta.description,
+    }
+  }
+
+  return {
+    internalId,
+    aiName: contract.aiName,
+    fields,
+  }
+}
+
+export function getNarrativeAISubsystemContracts(
+  subsystemIds: Iterable<string>,
+): NarrativeAISubsystemContract[] {
+  return [...subsystemIds].map(getNarrativeAISubsystemContract)
+}
+
+/** 将 AI 中文系统名与字段名严格转回内部运行契约；未知项由调用方整包拒绝。 */
+export function translateNarrativeAIChangeToInternal(input: {
+  systemName: string
+  description: string
+  fields: Record<string, unknown>
+}, allowedSubsystemIds: Iterable<string>): SubSystemChanges {
+  const contracts = getNarrativeAISubsystemContracts(allowedSubsystemIds)
+  const contract = contracts.find((item) => item.aiName === input.systemName)
+  if (!contract) {
+    throw new Error(`未知或本轮不可写的中文子系统：${input.systemName}`)
+  }
+
+  const changes: Record<string, unknown> = {}
+  for (const [aiName, value] of Object.entries(input.fields)) {
+    const field = contract.fields[aiName]
+    if (!field) {
+      throw new Error(`子系统 ${input.systemName} 含未知中文字段：${aiName}`)
+    }
+    changes[field.internalName] = value
+  }
+
+  return {
+    id: contract.internalId,
+    description: input.description,
+    changes,
+  }
+}
+
 /**
  * 根据当前阶段的 narrativeChange 白名单生成给 AI 的字段指南。
  */
 export function buildSubsystemGuide(subsystemIds: Iterable<string>): string {
   const lines: string[] = []
-  for (const id of subsystemIds) {
-    const meta = SUBSYSTEM_FIELD_MAP[id]
-    if (!meta) continue
-    lines.push(`${id}（${meta.label}）:`)
-    for (const [field, description] of Object.entries(meta.fields)) {
-      lines.push(`  ${field}: ${description}`)
+  for (const contract of getNarrativeAISubsystemContracts(subsystemIds)) {
+    lines.push(`${contract.aiName}：`)
+    lines.push(`  “变更”对象只允许键：${Object.values(contract.fields).map((field) => `“${field.aiName}”`).join('、')}`)
+    for (const field of Object.values(contract.fields)) {
+      lines.push(`  ${field.aiName}：${field.description}`)
     }
   }
   return lines.join('\n')
