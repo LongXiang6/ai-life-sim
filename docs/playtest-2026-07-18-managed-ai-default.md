@@ -8,10 +8,10 @@
 下级组成：公开 Provider 预设、设置默认与迁移、代理凭据选择、玩家自定义覆盖、部署环境
 适用范围：欢迎页开始条件、模型调用设置、恢复默认、`/api/proxy` 与发布前 AI 实测
 拥有者：core AI Provider 配置、mod-settings 与 app AI proxy
-最后验证：2026-07-18；上游直连、完整 SSE 聚合、后台世界初始化、项目代理、浏览器真实首轮与确定性回归通过；部署证据待本任务最终门禁补全
+最后验证：2026-07-18；上游直连、完整 SSE 聚合、后台世界初始化、项目代理、浏览器真实首轮、完整门禁、生产构建与服务器发布验证通过
 取代关系：none
 运行真源：`src/core/ai-service/provider-config.ts`、`src/mods/mod-settings/store.ts`、`src/app/api/proxy/route.ts`
-验收证据：`npm run test:managed-ai-default`、`npm run test:ai-proxy`、浏览器玩家路径、密钥缺席扫描、交付门禁与生产旁路验证
+验收证据：`npm run test:managed-ai-default`、`npm run test:ai-proxy`、浏览器玩家路径、密钥缺席扫描、完整 gate/build、3001 旁路、3000 正式服务、HTTPS 与 Certbot 模拟续期
 
 ## 1. 当前结论
 
@@ -60,6 +60,13 @@
 - 传输修复后，真实首稿完整返回；严格中文协议触发一次格式修复，最终成功提交第 1 轮。页面显示三段第二人称正文，包含出生现场、身体感受、人物回应与下一步落点，未显示结构化协议。
 - 修复后的浏览器阶段没有新增错误；开发日志中保留的三条 502 均发生在传输修复之前，可由请求时间与 ID 区分。
 
-## 5. 待完成发布验收
+## 5. 发布验收
 
-- 完整门禁、生产构建、服务器私有环境文件权限、3001 旁路、3000 切换、HTTPS 与部署后日志密钥缺席扫描通过。
+- 游戏版本为 `5.0.4`；`check:changelog`、完整 `gate-check` 与生产 `build` 通过。
+- 发布包在 `/root/ai-life-sim-releases/` 独立构建，3001 旁路的欢迎页、配置探测与无客户端 Key 实际请求通过后，原子切换 `/root/ai-life-sim` 并重建 PM2 主进程。
+- 正式 3000 服务的欢迎页、配置探测与无客户端 Key 实际请求通过；PM2 在计划内重启后在线，Nginx 配置校验通过。
+- `https://ai-mnrs.icu/welcome` 与公网配置探测返回 HTTP 200；证书覆盖 `ai-mnrs.icu` 与 `www.ai-mnrs.icu`，有效期至 2026-10-16。
+- 服务器 `.env.local` 与 `.env.production` 权限均为 `0600 root:root`。托管 Key 只存在于私有环境文件，Next Server Actions 加密值在发布时完成安全轮换。
+- AI 诊断目录迁移到 `/var/log/ai-life-sim`，权限为 `0700 root:root`，不再随原子发布目录切换。
+- 生产实际请求后扫描 695 个构建、PM2 与 AI 日志文件，托管 Key 命中数为 0。
+- 自动续期由 `snap.certbot.renew.timer` 管理，状态为 enabled；`certbot renew --dry-run --no-random-sleep-on-renew` 模拟续期成功。
