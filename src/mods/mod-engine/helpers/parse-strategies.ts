@@ -15,6 +15,7 @@ import { extractTaggedMetaEnvelope } from './tagged-meta-envelope'
 import {
   NarrativeResponseSchema,
   normalizeNarrativeResponseMetadata,
+  type NarrativeIntentResolution,
   type NarrativeSemanticSignals,
 } from './narrative-semantic-signals'
 
@@ -39,6 +40,7 @@ interface RawAIResponse {
   branch?: boolean
   branchTitle?: string
   branchOptions?: string[]
+  intentResolution?: NarrativeIntentResolution
   /** 世界方向指令（结构化格式），如 {"market":{"direction":"繁荣","magnitude":0.3},"population":{"direction":"繁荣","magnitude":0.3}} */
   direction?: string | Record<string, { direction?: string; magnitude?: number }>
   /** AI 标注的创造内容（原创保护） */
@@ -110,6 +112,7 @@ function parseRawAIResponse(
     branch: metadata?.branch === true,
     branchTitle: metadata?.branchTitle,
     branchOptions: normalizeNarrativeBranchOptions(metadata?.branchOptions),
+    intentResolution: metadata?.intentResolution,
   }
 }
 

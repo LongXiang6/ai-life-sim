@@ -1,5 +1,6 @@
 const path = require('node:path')
 const { chromium } = require('playwright')
+const { version: appVersion } = require('../../../../package.json')
 
 const baseUrl = process.env.UI_BASE_URL || 'http://localhost:63300'
 const chromePath = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
@@ -53,8 +54,8 @@ async function main() {
     await page.screenshot({ path: path.join(reportDir, `help-c3-real-${width}.png`), fullPage: false })
 
     await dialog.getByRole('tab', { name: '更新日志', exact: true }).click()
-    await dialog.getByText('5.0.0', { exact: true }).waitFor()
-    const changelogVisible = await dialog.getByText('主叙事固定为第二人称“你”，以一个代表性现场承载当前时间跨度内发生的故事。', { exact: true }).isVisible()
+    await dialog.getByText(appVersion, { exact: true }).waitFor()
+    const changelogVisible = await dialog.getByText('新增任务完成后的游戏版本递增与更新日志记录流程。', { exact: true }).isVisible()
     await page.screenshot({ path: path.join(reportDir, `help-c3-changelog-${width}.png`), fullPage: false })
 
     const checks = [

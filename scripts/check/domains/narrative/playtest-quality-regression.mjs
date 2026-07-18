@@ -784,9 +784,11 @@ assertOk(
   'the destiny page adapter must preserve the subsystem output schema and enforce it for non-streaming calls',
 )
 assertOk(
-  /providerId === 'deepseek'\s*&&\s*reasoningEffort === 'disabled'[\s\S]{0,120}thinking = \{ type: 'disabled' \}/.test(aiClientSrc)
-    && /z\.object\(\{ type: z\.enum\(\['enabled', 'disabled'\]\) \}\)\.strict\(\)/.test(proxyRouteSrc),
-  'DeepSeek disabled reasoning must be transmitted explicitly so hidden thinking cannot consume the entire output budget',
+  /providerId === 'deepseek'[\s\S]{0,220}reasoningEffort === 'disabled'[\s\S]{0,120}thinking = \{ type: 'disabled' \}/.test(aiClientSrc)
+    && /\{ type: 'enabled', budget_tokens: budgetTokens \}/.test(aiClientSrc)
+    && /type: z\.literal\('enabled'\)[\s\S]{0,160}budget_tokens/.test(proxyRouteSrc)
+    && /type: z\.literal\('disabled'\)/.test(proxyRouteSrc),
+  'DeepSeek reasoning must transmit an explicit enabled/disabled type and preserve enabled budgets',
 )
 assertOk(
   /const usedNames = new Set<string>\(\)[\s\S]{0,700}!usedNames\.has\(patternNameKey\(p\)\)/.test(talentDrawPageSrc),
@@ -837,7 +839,7 @@ const monthAfterSeasonStep = (mayIndex + 3) % 12
 assertSame(Math.floor(((monthAfterSeasonStep + 10) % 12) / 3), 1, 'month->season must land in the following solar season')
 assertOk(/candidate\.importance\s*===\s*'HIGH'/.test(branchPolicySrc), 'ordinary branch points must require HIGH importance')
 assertOk(narrativePromptSrc.includes('身份、核心关系、长期目标、关键资源、阵营、存亡或不可逆轨迹'), 'branch prompt must define fate-changing impact dimensions')
-assertOk(/version:\s*'2\.8\.0'/.test(narrativePromptSrc), 'entertainment-first narrative prompt must use version 2.8.0')
+assertOk(/version:\s*'2\.9\.0'/.test(narrativePromptSrc), 'branch-intent narrative prompt must use version 2.9.0')
 assertOk(
   /semanticSignals\?\.irreversible\s*===\s*true/.test(branchPolicySrc)
     && /narrativeRegister\s*===\s*'fate'/.test(branchPolicySrc),

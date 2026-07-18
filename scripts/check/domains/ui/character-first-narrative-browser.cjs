@@ -1,0 +1,246 @@
+const fs = require('node:fs')
+
+const baseUrl = process.env.UI_BASE_URL || 'http://localhost:3000'
+const configuredChromePath = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+const worldCode = 202607180001
+
+const narrativeParagraphs = [
+  '雨刚停，你从城南车站走进这座陌生城市。潮湿的柏油路映着清晨的灯牌，你把仅有的行李放在脚边，先记下周围的街道与人声。',
+  '旧书店的门铃在风里轻响。店主没有追问你的来历，只把一张招工启事推到柜台边；你读完条件，意识到这份工作既能维持生活，也能让你慢慢认识附近的人。',
+  '你收起启事，决定今天先熟悉街区，再在傍晚回来答复。第一步并不宏大，但这座城市已经给了你一个可以继续追寻的方向。',
+]
+
+const narrativeMeta = {
+  changes: [],
+  importance: 'NORMAL',
+  digest: '你抵达陌生城市，在旧书店发现一份能连接生活与人际的工作机会。',
+  keyEvents: [{ text: '你在旧书店发现招工启事并决定傍晚答复', importance: 60, entities: ['旧书店', '店主'] }],
+  arcStatus: 'start',
+  semanticSignals: {
+    eventType: 'discovery',
+    conflictIntensity: 8,
+    tensionDelta: 2,
+    actionScale: 'small',
+    irreversible: false,
+    impactScope: 'personal',
+    narrativeRegister: 'life',
+    registerReason: '开局生活事件建立角色与世界的第一条联系',
+    arcType: 'life_stage',
+    relationshipUpdates: [],
+    resolvedForeshadowingIds: [],
+  },
+}
+
+const fixtureResponse = `[NARRATIVE]${narrativeParagraphs.join('\n\n')}[/NARRATIVE]\n[META]${JSON.stringify(narrativeMeta)}[/META]`
+
+function unavailable(message) {
+  console.error(`[character-first-narrative-browser] UNAVAILABLE: ${message}`)
+  process.exit(2)
+}
+
+let chromium
+try {
+  ;({ chromium } = require('playwright'))
+} catch {
+  unavailable('Playwright is not installed. Run the static slice now; use this runner in an existing Playwright-compatible environment without changing project dependencies.')
+}
+
+async function waitForEnabled(page, name, timeout = 30000) {
+  await page.waitForFunction(
+    (buttonName) => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes(buttonName) && !button.disabled),
+    name,
+    { timeout },
+  )
+}
+
+async function main() {
+  const launchOptions = { headless: true }
+  if (fs.existsSync(configuredChromePath)) launchOptions.executablePath = configuredChromePath
+
+  const browser = await chromium.launch(launchOptions)
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const page = await context.newPage()
+  const consoleErrors = []
+  const visitedPaths = []
+  let proxyPostCount = 0
+
+  page.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push(message.text())
+  })
+  page.on('pageerror', (error) => consoleErrors.push(error.message))
+  page.on('framenavigated', (frame) => {
+    if (frame === page.mainFrame()) visitedPaths.push(new URL(frame.url()).pathname)
+  })
+
+  await page.route('**/api/proxy**', async (route) => {
+    const request = route.request()
+    if (request.method() === 'GET') {
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ configured: true }) })
+      return
+    }
+
+    proxyPostCount += 1
+    const body = request.postDataJSON()
+    if (body.stream === true) {
+      const event = JSON.stringify({ choices: [{ delta: { content: fixtureResponse }, finish_reason: 'stop' }] })
+      await route.fulfill({
+        status: 200,
+        headers: { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-cache' },
+        body: `data: ${event}\n\ndata: [DONE]\n\n`,
+      })
+      return
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ choices: [{ message: { content: fixtureResponse }, finish_reason: 'stop' }] }),
+    })
+  })
+
+  await page.addInitScript(({ fixtureWorldCode }) => {
+    localStorage.clear()
+    localStorage.setItem('mod-world:persist:world-state', JSON.stringify({
+      version: 4,
+      state: {
+        worldConfig: {
+          name: '现代地球',
+          eraName: '公元',
+          eraStartYear: 2000,
+          essenceTag: 'modern',
+          powerSystemTag: 'none',
+          powerCeiling: 8,
+          spatialForm: 'plane',
+          civilizationStage: 'modern',
+          difficulty: 'normal',
+          description: '用于角色创建到首轮叙事的可重复浏览器夹具。',
+          worldType: 'materialist',
+        },
+        entities: [],
+        initialized: true,
+        worldCode: fixtureWorldCode,
+        currentYear: 2000,
+        worldTags: ['现代', '现实'],
+        eraStartYear: 2000,
+        eraName: '公元',
+        calibration: null,
+        destinyPatternModifiers: {},
+        worldInitAIStatus: {
+          status: 'complete',
+          currentStep: '完成',
+          calibrationGenerated: true,
+          tagsGenerated: true,
+          configGenerated: true,
+          entitiesGenerated: true,
+          retryCount: 0,
+          maxRetries: 3,
+          errors: [],
+        },
+      },
+    }))
+    localStorage.setItem('mod-settings:store', JSON.stringify({
+      version: 4,
+      state: {
+        provider: 'deepseek',
+        customKey: 'fixture-key',
+        customUrl: '',
+        customModel: '',
+        temperature: 0.8,
+        topP: 0.8,
+        maxTokens: 4096,
+        reasoningEffort: 'disabled',
+        talentThinkingIntensity: 'disabled',
+        aiTalentGeneration: false,
+        preGenerateRounds: 0,
+        storySeed: '20260718',
+        narrativeStyle: 'default',
+        wordCountTarget: 200,
+        streamingMode: 'off',
+        comfortableParagraphs: true,
+        reduceMotion: true,
+        theme: 'minimal-white',
+      },
+    }))
+  }, { fixtureWorldCode: worldCode })
+
+  await page.goto(`${baseUrl}/new-game/character-create`, { waitUntil: 'domcontentloaded' })
+  await page.getByRole('heading', { name: '塑造角色' }).waitFor()
+  await page.getByLabel('角色姓名').fill('林序')
+  await page.getByRole('button', { name: /确认角色/ }).click()
+  await page.waitForURL('**/talent-draw')
+
+  await page.getByRole('button', { name: /开始抽取/ }).click()
+  await waitForEnabled(page, '进入命格选择')
+  await page.getByRole('button', { name: /进入命格选择/ }).click()
+  await page.getByRole('heading', { name: '选择命格' }).waitFor()
+
+  for (let index = 0; index < 3; index += 1) {
+    const node = page.getByRole('button', { name: /^查看命格：/ }).nth(index)
+    await node.click()
+    await page.getByTitle('加入命格槽').click()
+  }
+  await waitForEnabled(page, '确认命格')
+  await page.getByRole('button', { name: /确认命格/ }).click()
+  await page.waitForURL('**/attribute-alloc')
+
+  await page.getByRole('button', { name: '平均分配' }).click()
+  await page.getByRole('button', { name: /确认属性/ }).click()
+  await page.waitForURL('**/fate-preview')
+
+  await waitForEnabled(page, '开始人生')
+  await page.getByRole('button', { name: /开始人生/ }).click()
+  await page.waitForURL('**/game-story')
+  await page.getByRole('heading', { name: '故事进行中' }).waitFor()
+
+  await waitForEnabled(page, '轻触，让岁月流转', 60000)
+  await page.getByRole('button', { name: /轻触，让岁月流转/ }).click()
+  await page.getByText(narrativeParagraphs[0], { exact: true }).waitFor({ timeout: 60000 })
+  for (const paragraph of narrativeParagraphs) {
+    await page.getByText(paragraph, { exact: true }).waitFor()
+  }
+
+  const persistedState = await page.evaluate(() => {
+    const parse = (key) => JSON.parse(localStorage.getItem(key) || '{}').state || {}
+    return {
+      character: parse('mod-character:persist:character-state'),
+      engine: parse('mod-engine:persist:engine-state'),
+    }
+  })
+
+  const failures = []
+  const expectedRouteOrder = ['/new-game/character-create', '/talent-draw', '/attribute-alloc', '/fate-preview', '/game-story']
+  let routeCursor = -1
+  for (const expected of expectedRouteOrder) {
+    const index = visitedPaths.indexOf(expected, routeCursor + 1)
+    if (index < 0) failures.push(`route not observed in order: ${expected}`)
+    else routeCursor = index
+  }
+  if (persistedState.character.name !== '林序') failures.push('character name was not persisted')
+  if (persistedState.character.destinyPatterns?.patterns?.length !== 3) failures.push('three destiny patterns were not persisted')
+  const base = persistedState.character.characterBase?.base ?? {}
+  if ([base.physique, base.mind, base.talentAptitude, base.charisma].join(',') !== '8,8,7,7') {
+    failures.push(`average attributes drifted: ${JSON.stringify(base)}`)
+  }
+  if ((persistedState.engine.narrativeHistory?.length ?? 0) < 1) failures.push('first narrative was not committed to engine history')
+  if (proxyPostCount !== 1) failures.push(`expected one main proxy POST, observed ${proxyPostCount}`)
+  if (consoleErrors.length > 0) failures.push(`console errors: ${consoleErrors.join(' | ')}`)
+
+  console.log(JSON.stringify({
+    status: failures.length === 0 ? 'pass' : 'fail',
+    visitedPaths,
+    proxyPostCount,
+    narrativeParagraphs: narrativeParagraphs.length,
+    persistedDestinyPatterns: persistedState.character.destinyPatterns?.patterns?.length ?? 0,
+    persistedNarrativeEntries: persistedState.engine.narrativeHistory?.length ?? 0,
+    consoleErrors,
+    failures,
+  }, null, 2))
+
+  await browser.close()
+  if (failures.length > 0) process.exit(1)
+}
+
+main().catch((error) => {
+  console.error('[character-first-narrative-browser] FAIL', error)
+  process.exit(1)
+})

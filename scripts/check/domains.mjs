@@ -129,6 +129,7 @@ export const DOMAINS = {
       { cmd: 'node', args: ['scripts/check/domains/narrative/semantic-authority-audit.mjs'] },
       { cmd: 'node', args: ['scripts/check/domains/narrative/time-step-resolver-smoke.mjs'] },
       { cmd: 'node', args: ['scripts/check/domains/narrative/playtest-quality-regression.mjs'] },
+      { cmd: 'node', args: ['scripts/check/domains/narrative/branch-intent-resolution-smoke.mjs'] },
       { cmd: 'node', args: ['scripts/check/domains/narrative/starting-age-authority-regression.mjs'] },
       { cmd: 'node', args: ['scripts/check/domains/narrative/runtime-subsystem-state-regression.mjs'] },
       { cmd: 'node', args: ['scripts/check/domains/narrative/compression-runtime-smoke.mjs'] },

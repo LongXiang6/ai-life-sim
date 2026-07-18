@@ -29,7 +29,10 @@
 
 import type { SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
 import { BaseSubsystem } from '@/core'
-import type { NarrativeSemanticSignals } from '../helpers/narrative-semantic-signals'
+import type {
+  NarrativeIntentResolution,
+  NarrativeSemanticSignals,
+} from '../helpers/narrative-semantic-signals'
 
 import {
   ChineseTextProcessor,
@@ -99,6 +102,8 @@ export interface ParsedNarrative {
   arcStatus?: 'start' | 'ongoing' | 'end'
   /** Schema 校验后的权威叙事语义；缺失时由消费方使用显式中立降级。 */
   semanticSignals?: NarrativeSemanticSignals
+  /** 当前聚焦命运意图的结构化执行结果。 */
+  intentResolution?: NarrativeIntentResolution
 }
 
 /** 旧系统有序 JSON 输入项格式（支持紧凑键和完整键双格式） */

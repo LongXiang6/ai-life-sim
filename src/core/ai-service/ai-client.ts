@@ -50,6 +50,19 @@ class RateLimitError extends Error {
   }
 }
 
+/** 代理或上游返回的 HTTP 错误，保留状态、完整诊断正文和关联请求 ID。 */
+class AIHttpError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly responseText: string,
+    public readonly requestId?: string,
+    stream = false,
+  ) {
+    super(`AI API ${stream ? 'stream ' : ''}error ${status}: ${responseText}`)
+    this.name = 'AIHttpError'
+  }
+}
+
 /** 从 429 响应中解析 provider 的 retryAfter（秒），失败则返回 undefined */
 async function parseRetryAfter(resp: Response): Promise<number | undefined> {
   try {
@@ -70,12 +83,25 @@ function isRetryError(e: unknown): boolean {
   return false
 }
 
+/** 400 等确定性参数错误不做无意义的同请求重试；仅临时故障进入内部退避。 */
+function isRetryableAiError(error: unknown): boolean {
+  if (error instanceof RateLimitError) return true
+  if (error instanceof AIHttpError) return error.status === 408 || error.status === 429 || error.status >= 500
+  if (error instanceof Error && error.name === 'AbortError') return false
+  return true
+}
+
 /** 格式化 AI 错误为简短用户消息，包含 API 诊断信息 */
 function formatAiError(e: unknown, status?: number, errorText?: string): string {
   // 如果有状态码，使用诊断工具
   if (status && errorText) {
     const diag = diagnoseApiError(status, errorText)
     return `AI API 错误 ${status}：${diag.summary}`
+  }
+  if (e instanceof AIHttpError) {
+    const diag = diagnoseApiError(e.status, e.responseText)
+    const requestHint = e.requestId ? `（请求ID：${e.requestId}）` : ''
+    return `AI API 错误 ${e.status}：${diag.summary}${requestHint}`
   }
   if (e instanceof Error) {
     const msg = e.message
@@ -232,6 +258,7 @@ interface FetchAIResult {
   content: string
   usage?: AICallUsageSnapshot
   finishReason?: string
+  requestId?: string
 }
 
 function resolveMaxTokens(options: AICallOptions): number {
@@ -266,6 +293,7 @@ async function logSuccessfulAICall(
   pool: CachePoolType,
   usage?: AICallUsageSnapshot,
   finishReason?: string,
+  requestId?: string,
 ): Promise<void> {
   if (!isValidAiContent(response)) return
 
@@ -288,6 +316,7 @@ async function logSuccessfulAICall(
       maxTokens,
       truncated,
       ...(finishReason ? { finishReason } : {}),
+      ...(requestId ? { requestId } : {}),
       ...resolvedMeta,
       ...options.logMeta,
     },
@@ -303,6 +332,7 @@ async function logFailedAICall(
   usage?: AICallUsageSnapshot,
   finishReason?: string,
   lastContent?: string,
+  requestId?: string,
 ): Promise<void> {
   const maxTokens = resolveMaxTokens(options)
   const truncated = isTruncatedResponse(usage, maxTokens, finishReason)
@@ -330,6 +360,7 @@ async function logFailedAICall(
       maxTokens,
       truncated,
       ...(finishReason ? { finishReason } : {}),
+      ...(requestId ? { requestId } : {}),
       validationPassed: false,
       validationError: reason,
       validationDetails: typeof resolverMeta.validationDetails === 'string'
@@ -554,10 +585,17 @@ function buildProxyBody(
   const providerId = options?.providerId ?? 'deepseek'
   proxyBody.providerId = providerId
 
-  // DeepSeek V4 默认可能进入思考模式；显式关闭才能避免推理内容耗尽 max_tokens 后正文为空。
+  // DeepSeek V4 的 thinking 对象必须显式携带 type；启用时同时保留用户选择的预算。
   const reasoningEffort = options?.reasoningEffort ?? config.reasoningEffort ?? 'disabled'
-  if (providerId === 'deepseek' && reasoningEffort === 'disabled') {
-    proxyBody.thinking = { type: 'disabled' }
+  if (providerId === 'deepseek') {
+    if (reasoningEffort === 'disabled') {
+      proxyBody.thinking = { type: 'disabled' }
+    } else {
+      const budgetTokens = REASONING_BUDGET_MAP[reasoningEffort] ?? 0
+      proxyBody.thinking = budgetTokens > 0
+        ? { type: 'enabled', budget_tokens: budgetTokens }
+        : { type: 'enabled' }
+    }
   }
 
   // 自定义配置
@@ -629,13 +667,15 @@ async function executeAiFetchWithRetry(
   let lastUsage: AICallUsageSnapshot | undefined
   let lastFinishReason: string | undefined
   let lastContent: string | undefined
+  let lastRequestId: string | undefined
 
   for (let attempt = 0; attempt < MAX_RETRY; attempt++) {
     try {
-      const { content, usage, finishReason } = await fetchFn()
+      const { content, usage, finishReason, requestId } = await fetchFn()
       lastUsage = usage
       lastFinishReason = finishReason
       lastContent = content
+      lastRequestId = requestId
 
       if (!isValidAiContent(content)) {
         if (attempt < MAX_RETRY - 1) {
@@ -645,18 +685,19 @@ async function executeAiFetchWithRetry(
           continue
         }
         await logFailedAICall(
-          messages, options, pool, 'AI 返回空响应', usage, finishReason, lastContent,
+          messages, options, pool, 'AI 返回空响应', usage, finishReason, lastContent, requestId,
         )
         throw new Error('AI 返回了空内容')
       }
 
-      await logSuccessfulAICall(messages, content, options, pool, usage, finishReason)
+      await logSuccessfulAICall(messages, content, options, pool, usage, finishReason, requestId)
       return content
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
         throw err
       }
-      if (attempt < MAX_RETRY - 1) {
+      if (err instanceof AIHttpError) lastRequestId = err.requestId
+      if (attempt < MAX_RETRY - 1 && isRetryableAiError(err)) {
         // 重试前清空消费端已 append 的部分流式文本，避免拼接重复
         options.onResetStream?.()
         // 429 限流时取 provider 的 retryAfter 与固定退避中的较大值
@@ -680,6 +721,7 @@ async function executeAiFetchWithRetry(
           lastUsage,
           lastFinishReason,
           lastContent,
+          lastRequestId,
         )
       }
       throw err
@@ -690,7 +732,7 @@ async function executeAiFetchWithRetry(
     onAiError('AI 调用失败，已达最大重试次数')
   }
   await logFailedAICall(
-    messages, options, pool, '已达最大重试次数', lastUsage, lastFinishReason, lastContent,
+    messages, options, pool, '已达最大重试次数', lastUsage, lastFinishReason, lastContent, lastRequestId,
   )
   throw new Error('AI 调用失败，已达最大重试次数')
 }
@@ -708,6 +750,7 @@ async function fetchAIResponse(
     body: JSON.stringify(proxyBody),
     signal,
   }, TIMEOUT_MS)
+  const requestId = resp.headers.get('x-ai-request-id') ?? undefined
 
   if (resp.status === 429) {
     throw new RateLimitError(await parseRetryAfter(resp))
@@ -716,7 +759,7 @@ async function fetchAIResponse(
   if (!resp.ok) {
     const errText = await resp.text().catch(() => 'Unknown error')
     logger.errorRaw('ai-client', `AI API 返回 ${resp.status}`, errText)
-    throw new Error(`AI API error ${resp.status}: ${errText}`)
+    throw new AIHttpError(resp.status, errText, requestId)
   }
 
   const data = (await resp.json()) as AIResponse
@@ -730,6 +773,7 @@ async function fetchAIResponse(
     content: data.choices?.[0]?.message?.content ?? '',
     usage,
     finishReason: data.choices?.[0]?.finish_reason,
+    requestId,
   }
 }
 
@@ -894,6 +938,7 @@ async function fetchAIStreamResponse(
     body: JSON.stringify(proxyBody),
     signal,
   }, TIMEOUT_MS)
+  const requestId = resp.headers.get('x-ai-request-id') ?? undefined
 
   if (resp.status === 429) {
     throw new RateLimitError(await parseRetryAfter(resp))
@@ -902,10 +947,11 @@ async function fetchAIStreamResponse(
   if (!resp.ok) {
     const errText = await resp.text().catch(() => 'Unknown error')
     logger.errorRaw('ai-client', `AI Stream 返回 ${resp.status}`, errText)
-    throw new Error(`AI API stream error ${resp.status}: ${errText}`)
+    throw new AIHttpError(resp.status, errText, requestId, true)
   }
 
-  return handleStreamResponse(resp, onChunk)
+  const result = await handleStreamResponse(resp, onChunk)
+  return { ...result, requestId }
 }
 
 /**

@@ -157,10 +157,11 @@ export function loadStages(
 
         const wordCountTarget = useSettingsStore.getState().wordCountTarget
           ?? DEFAULT_WORD_COUNT_TARGET
+        const expectedIntentId = orchestrator.getFocusedBranchIntent()?.intentId ?? null
 
         const prefetched = orchestrator.consumePrefetchedNarrative()
         if (prefetched) {
-          const prefetchedQuality = inspectNarrativeResponseQuality(prefetched, wordCountTarget)
+          const prefetchedQuality = inspectNarrativeResponseQuality(prefetched, wordCountTarget, expectedIntentId)
           if (prefetchedQuality.valid) {
             orchestrator.resetCurrentNarrative()
             if (!orchestrator.isPreviewExecution()) {
@@ -307,10 +308,11 @@ export function loadStages(
           const initialQuality = inspectNarrativeResponseQuality(
             ctx._fullContent ?? '',
             wordCountTarget,
+            expectedIntentId,
           )
           if (!initialQuality.valid) {
             const previousContent = ctx._fullContent ?? ''
-            const repairInstruction = buildNarrativeRepairInstruction(initialQuality, wordCountTarget)
+            const repairInstruction = buildNarrativeRepairInstruction(initialQuality, wordCountTarget, expectedIntentId)
             if (useStream) {
               orchestrator.resetCurrentNarrative()
               useEngineStore.setState({ streamingNarrative: '' })
@@ -344,6 +346,7 @@ export function loadStages(
             const repairedQuality = inspectNarrativeResponseQuality(
               ctx._fullContent ?? '',
               wordCountTarget,
+              expectedIntentId,
             )
             if (!repairedQuality.valid) {
               const logQualityFailure = orchestrator.isPreviewExecution() ? console.info : console.warn

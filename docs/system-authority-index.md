@@ -75,7 +75,42 @@ Supersession: none
 - Each subsystem owns its private state and `collectState()` representation. The orchestrator owns collection order, application phases, snapshots, and cross-system commit flow.
 - Save aggregation and restoration are owned by `src/mods/mod-engine/helpers/save-restore.ts`, `OrchestratorSystem` snapshots, and `src/core/storage/save-manager.ts`. A system must not invent a second persistence owner.
 - Main narrative AI may write only the IDs in `narrativeChange`; current writable systems are `character-base`, `lifespan`, `luck`, and `morality`.
-- Main narrative Prompt `2.8.0` and its Zod/JSON Schema own the semantic META contract. The parser preserves the full raw change array, strict field validation rejects unknown keys, RoundCommit preflights the full bundle, and orchestrator rolls back unexpected partial writes; any failure rejects all META while preserving the narrative body.
+- Main narrative Prompt `2.9.0` and its Zod/JSON Schema own the semantic META contract, including focused branch-intent resolution. The parser preserves the full raw change array, strict field validation rejects unknown keys, RoundCommit preflights the full bundle, and orchestrator rolls back unexpected partial writes; any failure rejects all META while preserving the narrative body.
+
+### 3.1 AI call observability
+
+```text
+SystemId: ai-call-observability
+SystemPath: project > simulation-runtime > platform-services > ai-call-observability
+ParentGoal: preserve enough secure production evidence to diagnose every AI request and player-visible failure
+PrimaryGovernanceParent: core logger plus app AI proxy
+ChildSystems: proxy access index, full AI traces, raw upstream errors, client event logs
+Authority: A1 current user request; A3 this index; A4 live proxy, client and server log store
+RootPosition: R1
+Weight: W5
+Sequence: S1 request envelope > S2 upstream lifecycle > S3 client-visible result > S4 retention cleanup
+Responsibility: correlate and securely retain complete AI request, response, error and client failure evidence
+NonResponsibility: does not own Provider credentials, gameplay state, narrative truth, model choice or public log browsing authorization
+Inputs: sanitized proxy request envelope, upstream lifecycle, client error events, environment retention policy
+OutputsAndWrites: request IDs, access JSONL, full trace JSONL, raw error files and client event files
+PublicStateOrAPI: x-ai-request-id response header and requestId error field; no public filesystem access
+Dependencies: app proxy, core AI client, core client logger, Node filesystem and deployment environment
+Lifecycle: active for every proxy call; cleanup runs opportunistically after writes at a bounded interval
+RuntimeLivenessSource: app API route registration and active Next.js server process
+AIParticipation: observes Provider traffic only; never authors or applies semantic game state
+PersistenceAuthority: AI_LOG_DIR plus server-log-store retention and capacity policy
+Implementation: src/app/api/proxy/route.ts; src/app/api/log/route.ts; src/core/logger/server-log-store.ts
+AcceptanceEvidence: npm run test:ai-proxy; unreachable-upstream HTTP probe; secret-absence check; delivery gates
+LastVerified: 2026-07-18
+Supersession: none
+```
+
+- `src/app/api/proxy/route.ts` owns one request ID per proxy call and records the complete sanitized request envelope, upstream response or error, status, duration, retry observation and stream terminal state. The request ID is returned to the client for screenshot and server-log correlation.
+- `src/core/logger/server-log-store.ts` owns persistent log-root resolution, secret redaction, `0700` directories, `0600` files, per-file rotation, age retention and total-cap cleanup. Production should set `AI_LOG_DIR` outside `/root/ai-life-sim/` so atomic deployments do not move active evidence into version backups; defaults are 30 days and 5 GiB unless environment policy overrides them.
+- API keys, Authorization headers, cookies, passwords, token-like credentials and credential-bearing URL query values must never be written. Prompt and response semantics remain otherwise complete so diagnosis does not depend on lossy previews.
+- Diagnostic copies are operational evidence, not the authoritative narrative or save-state store. Retention cleanup may delete old diagnostic copies after the configured policy, but it must never delete or truncate gameplay-owned story data.
+- The proxy observes repeated fingerprints and retry counts but does not enforce a fixed identical-request rejection, because current AI candidate preparation intentionally continues until its product condition is satisfied or the player leaves.
+- Acceptance evidence: `npm run test:ai-proxy`, a local unreachable-upstream HTTP probe confirming the enabled-thinking Schema and request-ID path, secret-absence inspection, TypeScript/lint, structural check and the delivery gate.
 
 ## 4. External MVP systems
 
@@ -95,7 +130,7 @@ All six external systems persist through their collected state when included in 
 | SystemId | Responsibility | NonResponsibility | Inputs | OutputsAndWrites | AI participation | Implementation |
 |---|---|---|---|---|---|---|
 | `time` | Own calendar advancement and canonical `daysPassed` and `totalDays` derivation | Does not own narrative pacing decisions, age business rules, or subsystem formulas | Selected time step and current time state | Canonical round time state | Deterministic local only | `src/mods/mod-engine/subsystems/time-system.ts` |
-| `orchestrator` | Own ordered simulation phases, subsystem collection, AI narrative calls, parsing handoff, branch flow, commit, snapshots, and autosave coordination | Does not calculate owning subsystem business rules or silently rewrite their state | Registered live systems, `RoundContext`, AI configuration, branch choice, stores | Engine state, phase transitions, narrative history, subsystem snapshots, commits | Owns the main narrative call lifecycle, not provider-specific semantic shortcuts | `src/mods/mod-engine/subsystems/orchestrator-system.ts` |
+| `orchestrator` | Own ordered simulation phases, subsystem collection, AI narrative calls, parsing handoff, branch flow, focused intent lifecycle, commit, snapshots, and autosave coordination | Does not calculate owning subsystem business rules, promise that a player choice succeeds, or silently rewrite their state | Registered live systems, `RoundContext`, AI configuration, branch choice, unresolved branch intents, stores | Engine state, phase transitions, narrative history with accepted intent resolutions, unresolved intent snapshots, subsystem snapshots, commits | Owns the single main narrative call lifecycle; AI supplies Schema-validated semantic feasibility and execution results without an extra preflight call | `src/mods/mod-engine/subsystems/orchestrator-system.ts`, `src/mods/mod-engine/helpers/branch-intent-resolution.ts` |
 | `narrative-parser` | Parse the AI response envelope into a structured round result with controlled protocol degradation | Does not decide product meaning or directly write subsystem state | Raw AI response text and declared response contract | Parsed narrative and structured change bundle | Consumes AI output; deterministic parsing | `src/mods/mod-engine/subsystems/narrative-parser-system.ts` |
 | `summary-compressor` | Own the hierarchical summary set, complete-coverage marker and traceable multi-level compression pipeline | Does not silently delete story facts, convert token budgets into semantic character caps, or create placeholder coverage after AI failure | Narrative history, existing summaries, coverage-safe output headroom, AI service when required | Only completed summaries and successful compression statistics; lower leaves remain on failure | Uses AI for semantic summary levels; `[SUMMARY_COMPLETE]` is required before a coverage node may be committed | `src/mods/mod-engine/subsystems/summary-compressor-system.ts`, `src/mods/mod-engine/prompts/summary-prompt.ts` |
 | `memory-engine` | Extract and own structured long-term memory from narrative and numeric subsystem state | Does not own never-forget policy or general narrative compression | Narrative text and collected subsystem states | Relationships, status, wealth, locations, and event memory | Consumes AI narrative result; extraction/application is locally owned | `src/mods/mod-engine/subsystems/memory-engine-system.ts` |

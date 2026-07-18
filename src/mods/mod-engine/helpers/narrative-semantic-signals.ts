@@ -23,6 +23,10 @@ export const NARRATIVE_IMPACT_SCOPES = [
 
 export const NARRATIVE_REGISTERS = ['life', 'fate', 'legacy'] as const
 export const NARRATIVE_ACTION_SCALES = ['small', 'medium', 'large'] as const
+export const NARRATIVE_INTENT_FEASIBILITIES = ['executable', 'conditional', 'blocked', 'impossible'] as const
+export const NARRATIVE_INTENT_EXECUTION_MODES = ['immediate', 'progressive', 'deferred'] as const
+export const NARRATIVE_INTENT_STATUSES = ['progressing', 'blocked', 'succeeded', 'partially_succeeded', 'failed'] as const
+export const NARRATIVE_INTENT_RISK_LEVELS = ['low', 'medium', 'high', 'extreme'] as const
 export const NARRATIVE_ARC_TYPES = [
   'battle',
   'journey',
@@ -88,6 +92,21 @@ export const NarrativeCreationSchema = z.object({
   category: z.enum(['power_system', 'technique', 'ability', 'rule', 'object', 'other']),
 }).strict()
 
+export const NarrativeIntentResolutionSchema = z.object({
+  intentId: z.string().min(1),
+  feasibility: z.enum(NARRATIVE_INTENT_FEASIBILITIES),
+  executionMode: z.enum(NARRATIVE_INTENT_EXECUTION_MODES),
+  status: z.enum(NARRATIVE_INTENT_STATUSES),
+  riskLevel: z.enum(NARRATIVE_INTENT_RISK_LEVELS),
+  progress: z.coerce.number().min(0).max(100),
+  blockers: z.array(z.string().min(1)),
+  prerequisites: z.array(z.string().min(1)),
+  costs: z.array(z.string().min(1)),
+  timeHorizon: z.string().min(1),
+  reason: z.string().min(1),
+  nextStep: z.string().min(1).optional(),
+}).strict()
+
 /** 主叙事 AI 的完整语义包。任一字段非法时，消费方不得零散采信其余字段。 */
 export const NarrativeRoundMetadataSchema = z.object({
   notableEvents: z.array(z.string().min(1)).optional(),
@@ -101,6 +120,7 @@ export const NarrativeRoundMetadataSchema = z.object({
   branch: z.boolean().optional(),
   branchTitle: z.string().min(1).optional(),
   branchOptions: z.array(z.string().min(1)).min(2).max(4).optional(),
+  intentResolution: NarrativeIntentResolutionSchema.optional(),
 })
 
 /** 标签信封 META 的完整运行时 Schema；预生成与主叙事质量门禁共用。 */
@@ -172,6 +192,7 @@ export function normalizeNarrativeResponseMetadata(raw: unknown): unknown {
 
 export type NarrativeSemanticSignals = z.infer<typeof NarrativeSemanticSignalsSchema>
 export type NarrativeRelationshipUpdate = NarrativeSemanticSignals['relationshipUpdates'][number]
+export type NarrativeIntentResolution = z.infer<typeof NarrativeIntentResolutionSchema>
 export type NarrativeRoundMetadata = z.infer<typeof NarrativeRoundMetadataSchema>
 
 /** 无有效 AI 语义时的可识别、中立降级；不得由正文扫描补全。 */

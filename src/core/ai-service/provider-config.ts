@@ -34,7 +34,7 @@ export const AI_PROVIDERS: Record<string, AIProviderConfig> = {
     name: '深度求索 (DeepSeek)',
     icon: '🔍',
     baseUrl: 'https://api.deepseek.com/v1',
-    supportsThinking: false,
+    supportsThinking: true,
     models: [
       {
         name: 'deepseek-v4-pro',

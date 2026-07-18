@@ -16,6 +16,10 @@ import {
   NARRATIVE_ARC_TYPES,
   NARRATIVE_EVENT_TYPES,
   NARRATIVE_IMPACT_SCOPES,
+  NARRATIVE_INTENT_EXECUTION_MODES,
+  NARRATIVE_INTENT_FEASIBILITIES,
+  NARRATIVE_INTENT_RISK_LEVELS,
+  NARRATIVE_INTENT_STATUSES,
   NARRATIVE_REGISTERS,
   NARRATIVE_RELATIONSHIP_TYPES,
   NarrativeResponseSchema,
@@ -96,7 +100,7 @@ export const SYSTEM_PROMPT = stringifyPrompt({
       legacy: '传承层 legacy 仅用于高潮或收束中的死亡、牺牲、使命继承、承诺兑现、伏笔回收，且必须有既有因果或意象支撑。',
       selection: '时间跨度本身不能触发升格；基础文风与语域正交。不得靠堆砌“星辰、命运、时代”等词制造宏大感。',
     },
-    branch: '命运分叉只用于会改变身份、核心关系、长期目标、关键资源、阵营、存亡或不可逆轨迹的 HIGH 级抉择；branch=true 时 META 必须同时是 importance=HIGH、semanticSignals.irreversible=true、semanticSignals.narrativeRegister=fate（高潮收束可为legacy）。婴幼儿阶段只允许照料者、监护人或环境作出的长期家庭安排成为分叉，不得把本能反应写成成人选择；日常小事直接写入正文并令 branch=false。',
+    branch: '命运分叉只用于会改变身份、核心关系、长期目标、关键资源、阵营、存亡或不可逆轨迹的 HIGH 级抉择；选项写行动、立场或方向，不承诺成功结果。branch=true 时 META 必须同时是 importance=HIGH、semanticSignals.irreversible=true、semanticSignals.narrativeRegister=fate（高潮收束可为legacy）。婴幼儿阶段只允许照料者、监护人或环境作出的长期家庭安排成为分叉，不得把本能反应写成成人选择；日常小事直接写入正文并令 branch=false。',
   },
 
   metaContract: {
@@ -121,11 +125,14 @@ export const SYSTEM_PROMPT = stringifyPrompt({
         resolvedForeshadowingIds: '填入「待触发伏笔」中本轮确实回收的全部稳定ID；无则 []。',
       },
     },
+    conditional: {
+      intentResolution: `有【当前命运意图】时照抄 intentId并必填，否则禁止。feasibility=${NARRATIVE_INTENT_FEASIBILITIES.join('|')}；executionMode=${NARRATIVE_INTENT_EXECUTION_MODES.join('|')}；status=${NARRATIVE_INTENT_STATUSES.join('|')}；riskLevel=${NARRATIVE_INTENT_RISK_LEVELS.join('|')}；非终态给 nextStep。`,
+    },
     optional: {
       notableEvents: '记录本轮全部值得长期继承的事件简述，不得因条数或字符数省略。',
       creations: '提交本轮全部明确原创且未登记过的 {name,description,category}；category 为 power_system | technique | ability | rule | object | other。',
       foreshadowing: '提交本轮全部新伏笔 {type,description,priority}；type 为 prophecy | mysterious_item | secret_identity | unfinished_business | oath | mysterious_person | hidden_power | ancient_ruin | other，priority 为1—10。回收旧伏笔不得在此重复新增。',
-      branch: 'boolean；true 时必须同时给 branchTitle 与2—4个会导向不同长期后果的 branchOptions。branchOptions 必须是字符串数组，每项直接写一个可供玩家点击的选项文本（例如 ["留在原地", "随照料者迁居"]），不要输出 {title,description} 对象；并与 HIGH、不可逆、fate/legacy 的必填 META 字段保持一致。',
+      branch: 'boolean；true 时必须同时给 branchTitle 与2—4个会导向不同长期后果的 branchOptions。branchOptions 必须是字符串数组，每项写玩家可以采取的行动、立场或方向（例如 ["留在原地", "随照料者迁居"]），不得直接承诺尚未实现的成功结果，也不要输出 {title,description} 对象；并与 HIGH、不可逆、fate/legacy 的必填 META 字段保持一致。',
     },
   },
 
@@ -136,7 +143,7 @@ export const SYSTEM_PROMPT = stringifyPrompt({
     '信息不足时仍输出一个具体、克制且符合现有状态的三段事件，不制造新的世界规则；字数偏离目标不属于失败。',
   ],
 
-  task: '依据用户消息选择本轮最合理且最能让玩家继续游玩的一件事，全程用第二人称写成有现场、有行动、有阻力、人物反应、可见后果与下一步牵引的三段中文剧情，并在 META 中同步提交结构化事实。',
+  task: '依据用户消息选择本轮最合理且最能让玩家继续游玩的一件事；存在当前命运意图时先完成结构化可行性与执行状态判断，再全程用第二人称写成有现场、有行动、有阻力、人物反应、可见后果与下一步牵引的三段中文剧情，并在 META 中同步提交结构化事实。',
 })
 
 /**
@@ -155,7 +162,7 @@ export function getWorldRules(essenceTag?: string): string {
 
 export const narrativePrompt: PromptTemplate = {
   name: 'narrative',
-  version: '2.8.0',
+  version: '2.9.0',
   mod: 'mod-engine',
   systemPrompt: SYSTEM_PROMPT,
   userPromptTemplate: [

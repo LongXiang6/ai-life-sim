@@ -306,6 +306,7 @@ export async function fillPreGenQueue(
 
     const snapshot = orchestrator.capturePreviewSnapshot()
     const signature = buildPreGenSignature(promptTemplate)
+    const expectedIntentId = snapshot.orchestrator.focusedBranchIntentId ?? null
 
     try {
       await orchestrator.runPreviewRound(() =>
@@ -319,7 +320,7 @@ export async function fillPreGenQueue(
 
       const wordCountTarget = useSettingsStore.getState().wordCountTarget
         ?? DEFAULT_WORD_COUNT_TARGET
-      const responseQuality = inspectNarrativeResponseQuality(fullContent, wordCountTarget)
+      const responseQuality = inspectNarrativeResponseQuality(fullContent, wordCountTarget, expectedIntentId)
       if (!responseQuality.valid) {
         console.info('[PreGen] 预生成响应未通过协议或段落结构门禁，已放弃缓存:', responseQuality.reason)
         return

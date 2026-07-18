@@ -4,15 +4,21 @@
  * @mod app
  *
  * 功能：
- *   - 按日期写入 logs/client-errors-YYYY-MM-DD.log
- *   - 如有 raw 字段，额外保存完整原文到 logs/raw-responses/
- *   - 受 NEXT_PUBLIC_DISABLE_DEBUG_LOGS 环境变量控制
+ *   - 按日期写入 AI_LOG_DIR/client-events/
+ *   - 如有 raw 字段，额外保存完整原文到 AI_LOG_DIR/client-raw/
+ *   - 与 AI 代理日志共享脱敏、轮转与过期清理策略
  */
 
 import { z } from 'zod'
 
-/** 日志文件最大大小 50MB */
-const MAX_LOG_SIZE = 50 * 1024 * 1024
+import {
+  appendServerJsonLine,
+  appendServerText,
+  safeLogSegment,
+  writeServerLogFile,
+} from '@/core/logger/server-log-store'
+
+const MAX_BODY_SIZE = 4 * 1024 * 1024
 
 /** 请求体 Zod 校验 */
 const ClientLogSchema = z.object({
@@ -34,52 +40,30 @@ type ClientLogEntry = z.infer<typeof ClientLogSchema>
 
 /** 检查是否禁用 */
 function isDisabled(): boolean {
-  return process.env.NEXT_PUBLIC_DISABLE_DEBUG_LOGS === 'true'
+  return process.env.AI_DIAGNOSTIC_LOGS_ENABLED === 'false'
 }
 
 /** 写入日志（异步） */
 async function writeLogAsync(entry: ClientLogEntry): Promise<void> {
-  const fs = await import('fs/promises')
-  const path = await import('path')
-
   const dateStr = new Date(entry.timestamp).toISOString().slice(0, 10)
-  const logFile = `logs/client-errors-${dateStr}.log`
-  const fullPath = path.join(process.cwd(), logFile)
-
-  // 确保目录存在
-  const dir = path.dirname(fullPath)
-  await fs.mkdir(dir, { recursive: true }).catch(() => {})
-
-  // 检查文件大小
-  try {
-    const stat = await fs.stat(fullPath)
-    if (stat.size > MAX_LOG_SIZE) {
-      const backupPath = fullPath.replace('.log', `-${Date.now()}.log`)
-      await fs.rename(fullPath, backupPath)
-    }
-  } catch {
-    // 文件不存在，首次写入
-  }
 
   // 格式化日志行
   const time = new Date(entry.timestamp).toISOString()
-  const argsStr = entry.args ? ` | args: ${JSON.stringify(entry.args).slice(0, 500)}` : ''
+  const argsStr = entry.args ? ` | args: ${JSON.stringify(entry.args)}` : ''
   const errorStr = entry.error ? ` | error: ${entry.error}` : ''
-  const stackStr = entry.stack ? ` | stack: ${entry.stack.slice(0, 1000)}` : ''
+  const stackStr = entry.stack ? ` | stack: ${entry.stack}` : ''
   const actionStr = entry.action ? ` | action: ${entry.action}` : ''
   const line = `[${time}] [${entry.level.toUpperCase()}] [${entry.module}] ${entry.message}${actionStr}${argsStr}${errorStr}${stackStr}\n`
 
-  await fs.appendFile(fullPath, line)
-
-  const jsonlFile = `logs/client-events-${dateStr}.jsonl`
-  await fs.appendFile(path.join(process.cwd(), jsonlFile), JSON.stringify(entry) + '\n')
+  await Promise.all([
+    appendServerText(`client-events/client-errors-${dateStr}.log`, line),
+    appendServerJsonLine(`client-events/client-events-${dateStr}.jsonl`, entry),
+  ])
 
   // 如果有 raw 字段，额外保存完整原文
   if (entry.raw) {
-    const rawDir = path.join(process.cwd(), 'logs', 'raw-responses')
-    await fs.mkdir(rawDir, { recursive: true }).catch(() => {})
     const timestamp = new Date(entry.timestamp).toISOString().replace(/[:.]/g, '-')
-    const rawFile = `${entry.module}-${entry.level}-${timestamp}.txt`
+    const rawFile = `${safeLogSegment(entry.module)}-${entry.level}-${timestamp}.txt`
     const rawContent = [
       `Timestamp: ${time}`,
       `Module: ${entry.module}`,
@@ -89,13 +73,8 @@ async function writeLogAsync(entry: ClientLogEntry): Promise<void> {
       '--- Raw Content ---',
       entry.raw,
     ].join('\n')
-    await fs.writeFile(path.join(rawDir, rawFile), rawContent)
+    await writeServerLogFile(`client-raw/${rawFile}`, rawContent)
   }
-}
-
-/** 同步包装 */
-function writeLog(entry: ClientLogEntry): void {
-  void writeLogAsync(entry)
 }
 
 /**
@@ -112,11 +91,14 @@ export async function POST(request: Request): Promise<Response> {
   if (!bodyText) {
     return Response.json({ error: '请求体为空' }, { status: 400 })
   }
+  if (Buffer.byteLength(bodyText) > MAX_BODY_SIZE) {
+    return Response.json({ error: '请求体超大' }, { status: 413 })
+  }
 
   try {
     const raw = JSON.parse(bodyText)
     const entry = ClientLogSchema.parse(raw)
-    writeLog(entry)
+    await writeLogAsync(entry)
     return Response.json({ ok: true })
   } catch {
     return Response.json({ error: '请求体格式不正确' }, { status: 400 })

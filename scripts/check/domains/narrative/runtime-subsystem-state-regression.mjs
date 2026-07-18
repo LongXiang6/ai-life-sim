@@ -353,7 +353,7 @@ for (const expected of [
 const preGen = read('src/mods/mod-engine/helpers/pre-gen-queue.ts')
 assertIncludes(preGen, "if (useEngineStore.getState().status === 'complete') return", 'terminal timelines must not start another background preview')
 assertIncludes(preGen, 'NarrativeResponseSchema.safeParse(raw)', 'pre-generated rounds must pass the complete active narrative META schema before entering the queue')
-assertIncludes(preGen, 'inspectNarrativeResponseQuality(fullContent, wordCountTarget)', 'pre-generated rounds must also pass the active protocol and paragraph-structure gate')
+assertIncludes(preGen, 'inspectNarrativeResponseQuality(fullContent, wordCountTarget, expectedIntentId)', 'pre-generated rounds must also pass the active protocol, paragraph and branch-intent gate')
 assertIncludes(preGen, '预生成响应缺少有效叙事 META，已放弃缓存', 'invalid or fallback pre-generated responses must be discarded')
 assertOk(
   !/void\s+fillPreGenQueue\(promptTemplate,\s*sessionId\)/.test(preGen),
@@ -363,7 +363,7 @@ const campaignQuality = read('src/mods/mod-engine/campaigns/default/index.ts')
 assertIncludes(campaignQuality, 'inspectNarrativeResponseQuality(', 'main and preview generation must inspect the full response before commit')
 assertIncludes(campaignQuality, 'buildNarrativeRepairInstruction(', 'an invalid protocol or paragraph response must receive one format-repair attempt')
 assertIncludes(campaignQuality, '【上一版完整输出，仅用于压缩与纠错】', 'the rewrite must include the rejected draft without mutating the stable prompt prefix')
-assertIncludes(campaignQuality, 'inspectNarrativeResponseQuality(prefetched, wordCountTarget)', 'cached narrative must pass the same gate again at the main-round consumption boundary')
+assertIncludes(campaignQuality, 'inspectNarrativeResponseQuality(prefetched, wordCountTarget, expectedIntentId)', 'cached narrative must pass the same gate again at the main-round consumption boundary')
 assertIncludes(campaignQuality, 'ctx._fullContent = undefined', 'a twice-rejected response must not reach post-processing')
 const roundHooks = read('src/mods/mod-engine/hooks.ts')
 assertIncludes(roundHooks, 'const roundSnapshot = orchestrator.capturePreviewSnapshot()', 'real rounds must capture the complete runtime rollback point before advancing time')

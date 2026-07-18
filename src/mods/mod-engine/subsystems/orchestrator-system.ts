@@ -113,7 +113,19 @@ import {
   isEligibleNarrativeBranch,
   normalizeNarrativeBranchOptions,
 } from '../helpers/narrative-branch-policy'
-import { createNeutralNarrativeSemanticSignals } from '../helpers/narrative-semantic-signals'
+import {
+  createNeutralNarrativeSemanticSignals,
+  type NarrativeIntentResolution,
+} from '../helpers/narrative-semantic-signals'
+import {
+  buildBranchIntentInstruction,
+  commitBranchIntentResolution,
+  findFocusedBranchIntent,
+  findMostRecentlyUpdatedBranchIntentId,
+  upsertBranchIntent,
+  validateIntentResolutionForState,
+  type BranchIntentState,
+} from '../helpers/branch-intent-resolution'
 import { getSeasonForMonth } from '../helpers/calendar-season.js'
 
 import type {
@@ -218,6 +230,8 @@ export interface OrchestratorSnapshot {
   branchJustResolved?: boolean
   lastBranchTotalRound?: number
   lastCommittedPlayerChoice?: string
+  branchIntents?: BranchIntentState[]
+  focusedBranchIntentId?: string
   prefetchedNarrativeContent?: string | null
   digestLedgerSnapshot?: DigestLedgerSnapshot
 }
@@ -349,6 +363,12 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   /** 缓存的上轮玩家选择（用于进度对比） */
   private lastCommittedPlayerChoice?: string
+
+  /** 所有尚未进入终态的命运选择；不得因新分支或容量压力静默丢失。 */
+  private branchIntents: BranchIntentState[] = []
+
+  /** 本轮主叙事必须评估并推进的命运意图。 */
+  private focusedBranchIntentId?: string
 
   /** 预生成缓存：跳过 AI 叙事阶段 */
   private prefetchedNarrativeContent: string | null = null
@@ -627,6 +647,23 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.lastPlayerChoice = trimmed
   }
 
+  private getFocusedBranchIntentRuntime(): BranchIntentState | undefined {
+    return findFocusedBranchIntent(this.branchIntents, this.focusedBranchIntentId)
+  }
+
+  getFocusedBranchIntent(): BranchIntentState | undefined {
+    const intent = this.getFocusedBranchIntentRuntime()
+    return intent ? structuredClone(intent) : undefined
+  }
+
+  getActiveBranchIntents(): BranchIntentState[] {
+    return structuredClone(this.branchIntents)
+  }
+
+  private focusMostRecentlyUpdatedBranchIntent(): void {
+    this.focusedBranchIntentId = findMostRecentlyUpdatedBranchIntentId(this.branchIntents)
+  }
+
   resolveBranchChoice(branchId: string, choice: string): void {
     const trimmed = choice.trim()
     if (!branchId || !trimmed) return
@@ -636,6 +673,10 @@ export class OrchestratorSystem extends BaseSubsystem {
     )
     this.lastBranchTotalRound = Math.max(this.lastBranchTotalRound, this.state.totalRounds)
     this.branchJustResolved = true
+
+    const next = upsertBranchIntent(this.branchIntents, branchId, trimmed, this.state.totalRounds)
+    this.branchIntents = next.intents
+    this.focusedBranchIntentId = next.focusedIntentId
   }
 
   setPrefetchedNarrative(content: string | null): void {
@@ -696,6 +737,8 @@ export class OrchestratorSystem extends BaseSubsystem {
       branchJustResolved: this.branchJustResolved,
       lastBranchTotalRound: this.lastBranchTotalRound,
       lastCommittedPlayerChoice: this.lastCommittedPlayerChoice,
+      branchIntents: this.branchIntents,
+      focusedBranchIntentId: this.focusedBranchIntentId,
       prefetchedNarrativeContent: this.prefetchedNarrativeContent,
       digestLedgerSnapshot: digestLedger.toSnapshot(),
     })
@@ -756,6 +799,13 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.branchJustResolved = snap.branchJustResolved ?? false
     this.lastBranchTotalRound = snap.lastBranchTotalRound ?? Number.NEGATIVE_INFINITY
     this.lastCommittedPlayerChoice = snap.lastCommittedPlayerChoice
+    this.branchIntents = Array.isArray(snap.branchIntents)
+      ? structuredClone(snap.branchIntents)
+      : []
+    this.focusedBranchIntentId = snap.focusedBranchIntentId
+    if (!this.getFocusedBranchIntentRuntime()) {
+      this.focusMostRecentlyUpdatedBranchIntent()
+    }
     this.prefetchedNarrativeContent = snap.prefetchedNarrativeContent ?? null
     digestLedger.loadSnapshot(snap.digestLedgerSnapshot)
   }
@@ -1603,6 +1653,8 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.lastExecutedFullContent = null
     this.lastPlayerChoice = undefined
     this.lastCommittedPlayerChoice = undefined
+    this.branchIntents = []
+    this.focusedBranchIntentId = undefined
     this.consecutiveSameGoalRounds = 0
     this.branchJustResolved = false
     this.lastBranchTotalRound = Number.NEGATIVE_INFINITY
@@ -1646,6 +1698,8 @@ export class OrchestratorSystem extends BaseSubsystem {
       lastAutoSaveRound,
       characterCreations: [...(store.characterCreations ?? [])] as CharacterCreation[],
     }
+    this.branchIntents = []
+    this.focusedBranchIntentId = undefined
     if (lastAutoSaveRound !== store.lastAutoSaveRound) {
       useEngineStore.getState().setLastAutoSaveRound(lastAutoSaveRound)
     }
@@ -2195,6 +2249,14 @@ export class OrchestratorSystem extends BaseSubsystem {
       lines.push(`参考建议：${hints.optional.join('。')}`)
     }
 
+    const focusedIntent = this.getFocusedBranchIntentRuntime()
+    if (focusedIntent) {
+      const otherActiveIntents = this.branchIntents.filter(
+        (intent) => intent.intentId !== focusedIntent.intentId,
+      )
+      lines.push(buildBranchIntentInstruction(focusedIntent, otherActiveIntents))
+    }
+
     // 原有逻辑
     if (useEngineStore.getState().forceBranchNext) {
       lines.push('【强制分叉】本轮必须设置 branch=true，并提供 branchTitle 与 2-4 个 branchOptions；叙事正文在抉择前结束，不要替玩家做决定。')
@@ -2320,6 +2382,31 @@ export class OrchestratorSystem extends BaseSubsystem {
       : { isBranchPoint: false }
   }
 
+  private commitFocusedBranchIntentResolution(
+    resolution: NarrativeIntentResolution,
+  ): NarrativeIntentResolution | undefined {
+    const result = commitBranchIntentResolution(
+      this.branchIntents,
+      this.focusedBranchIntentId,
+      resolution,
+      this.state.totalRounds,
+    )
+    if (result.error || !result.committed) {
+      console.warn('[BranchIntent] 已拒绝不一致的 intentResolution:', result.error)
+      return undefined
+    }
+
+    this.branchIntents = result.intents
+    this.focusedBranchIntentId = result.focusedIntentId
+    if (result.terminal) {
+      this.consecutiveSameGoalRounds = 0
+    } else {
+      this.consecutiveSameGoalRounds = Math.max(1, this.consecutiveSameGoalRounds + 1)
+    }
+
+    return result.committed
+  }
+
   handleNarrativeResponse(content: string): RoundResult {
     const parsed = narrativeParser.parse(content)
 
@@ -2364,10 +2451,20 @@ export class OrchestratorSystem extends BaseSubsystem {
 
     narrative = normalizeNarrativeParagraphs(narrative)
 
-    // 状态变更先做整包预检与提交。若意外出现部分写入失败，立即恢复提交前快照；
-    // 本轮所有 AI META（包括摘要、关系、伏笔和原创）一并拒绝，只保留正文。
+    const focusedIntentBeforeCommit = this.getFocusedBranchIntentRuntime()
+    const intentResolutionError = focusedIntentBeforeCommit
+      ? validateIntentResolutionForState(focusedIntentBeforeCommit, effectiveParsed.intentResolution)
+      : effectiveParsed.intentResolution
+        ? '当前没有玩家命运意图，禁止提交 intentResolution'
+        : undefined
+    if (intentResolutionError) {
+      console.warn('[BranchIntent] 本轮 META 未通过命运意图契约:', intentResolutionError)
+    }
+
+    // 状态变更先做整包预检与提交。命运意图契约也是完整 META 的一部分；
+    // 任一失败都不得先写入子系统。若意外出现部分写入失败，立即恢复提交前快照。
     const narrativeCommitSnapshot = this.captureSubsystemPreviewStates()
-    let commitResult = interceptorOutcome.blocked
+    let commitResult = interceptorOutcome.blocked || intentResolutionError
       ? { committed: [], rejected: [] }
       : this.applyRoundChanges(effectiveParsed.changes, 'narrative')
     if (commitResult.rejected.length > 0) {
@@ -2383,6 +2480,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     const hasValidatedSemanticMetadata = !interceptorOutcome.blocked
       && stateChangeBundleAccepted
       && effectiveParsed.semanticSignals !== undefined
+      && intentResolutionError === undefined
     if (narrative) {
       const semanticSignals = hasValidatedSemanticMetadata
         ? effectiveParsed.semanticSignals!
@@ -2445,6 +2543,12 @@ export class OrchestratorSystem extends BaseSubsystem {
       }
     }
 
+    const committedIntentResolution = hasValidatedSemanticMetadata
+      && focusedIntentBeforeCommit
+      && effectiveParsed.intentResolution
+      ? this.commitFocusedBranchIntentResolution(effectiveParsed.intentResolution)
+      : undefined
+
     // 更新叙事历史：完整保存，不按字符、轮数或容量移除旧故事。
     this.state.currentNarrative = narrative
     if (narrative) {
@@ -2462,6 +2566,9 @@ export class OrchestratorSystem extends BaseSubsystem {
         timestamp: Date.now(),
         displayAge: ageAtRound,
         displayTimeLabel,
+        ...(committedIntentResolution
+          ? { intentResolution: committedIntentResolution }
+          : {}),
         ...(branchMeta.isBranchPoint
           ? {
               isBranchPoint: true,
@@ -2497,6 +2604,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       })),
       notableEvents: hasValidatedSemanticMetadata ? effectiveParsed.notableEvents : [],
       direction: worldDirection,
+      intentResolution: committedIntentResolution,
     }
     eventBus.emit('mod-engine:round-complete', result)
     this.publishSimulationSnapshot()

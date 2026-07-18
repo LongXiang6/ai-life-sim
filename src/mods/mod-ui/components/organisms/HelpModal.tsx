@@ -1,8 +1,9 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { HELP_CHAPTERS, probeMaxChunk, renderChangelogToHtml, renderMdToHtml } from './help-content'
+import { HELP_CHAPTERS, renderChangelogToHtml } from './help-content'
 import { HelpChangelogContent } from './HelpChangelogContent'
+import { fetchHelpHtml, fetchLatestChangelogChunk } from './help-resource-loader'
 import { useHelpModalFocusTrap } from './HelpModalFocusTrap'
 import { HelpModalNavigation } from './HelpModalNavigation'
 import { useHelpModalScrollSpy } from './HelpModalScrollSpy'
@@ -10,12 +11,6 @@ import styles from './HelpModal.module.css'
 export interface HelpModalProps { visible: boolean; onClose: () => void }
 
 type HelpTab = 'docs' | 'changelog'
-
-async function fetchHelpHtml(signal?: AbortSignal): Promise<string> {
-  const response = await fetch('/help.md', { signal })
-  if (!response.ok) throw new Error(`HTTP ${response.status}`)
-  return renderMdToHtml(await response.text())
-}
 
 export function HelpModal({ visible, onClose }: HelpModalProps) {
   const [tab, setTab] = useState<HelpTab>('docs')
@@ -58,12 +53,13 @@ export function HelpModal({ visible, onClose }: HelpModalProps) {
 
   const loadNewestChangelog = useCallback(async () => {
     abortRef.current?.abort()
-    const { maxFound, newestHtml } = await probeMaxChunk(loadChangelogChunk)
-    if (maxFound > 0 && newestHtml !== null) {
-      setMaxChunk(maxFound)
-      setCurrentChunk(maxFound)
+    const latestChunk = await fetchLatestChangelogChunk()
+    const newestHtml = await loadChangelogChunk(latestChunk)
+    if (newestHtml !== null) {
+      setMaxChunk(latestChunk)
+      setCurrentChunk(latestChunk)
       setChangelogHtmls([newestHtml])
-      setHasMore(maxFound > 1)
+      setHasMore(latestChunk > 1)
     } else {
       setHasMore(false)
       setLoadError('暂无更新日志')
@@ -102,7 +98,11 @@ export function HelpModal({ visible, onClose }: HelpModalProps) {
     setCurrentChunk(0)
     setMaxChunk(0)
     setHasMore(true)
-    void loadNewestChangelog()
+    void loadNewestChangelog().catch((error: unknown) => {
+      setHasMore(false)
+      setLoadError(error instanceof Error ? error.message : '更新日志加载失败')
+      setLoading(false)
+    })
   }, [tab, loadDocs, loadNewestChangelog])
 
   useEffect(() => {

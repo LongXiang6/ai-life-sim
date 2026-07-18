@@ -12,19 +12,21 @@
  *
  * 存储策略：
  *   - 每次 AI 调用生成独立文件，文件名带时间戳
- *   - 路径：logs/ai-debug/{category}/{category}-{YYYY-MM-DD}_{HH-mm-ss}.log
- *   - 单文件上限 50MB（超过则跳过写入并告警）
+ *   - 路径：AI_LOG_DIR/ai-debug/{category}/{category}-{timestamp}-{uniqueId}.log
+ *   - 与服务端代理日志共享按天数、总容量和单文件大小的轮转清理
  *   - 受 NEXT_PUBLIC_DISABLE_DEBUG_LOGS 环境变量控制
  *   - 完整保留 AI 输入/输出（不截断）
  */
 
 import { z } from 'zod'
+import { randomUUID } from 'crypto'
+import path from 'path'
 
-/** 日志文件最大大小 50MB */
-const MAX_LOG_SIZE = 50 * 1024 * 1024
-
-/** 单个分类目录最大文件数（防止无限堆积） */
-const MAX_FILES_PER_CATEGORY = 500
+import {
+  getServerLogRoot,
+  safeLogSegment,
+  writeServerLogFile,
+} from '@/core/logger/server-log-store'
 
 /** 请求体 Zod 校验 */
 const DebugLogSchema = z.object({
@@ -62,13 +64,13 @@ function formatTimestamp(ts: number): string {
 
 /** 获取分类目录路径 */
 function getCategoryDir(category: string): string {
-  return `${process.cwd()}\\logs\\ai-debug\\${category}`.replace(/\//g, '\\')
+  return path.join(getServerLogRoot(), 'ai-debug', safeLogSegment(category))
 }
 
 /** 获取日志文件路径（独立文件，带时间戳） */
 function getLogFilePath(category: string, timestamp: number): string {
   const dir = getCategoryDir(category)
-  return `${dir}\\${category}-${formatTimestamp(timestamp)}.log`
+  return path.join(dir, `${safeLogSegment(category)}-${formatTimestamp(timestamp)}-${randomUUID()}.log`)
 }
 
 /** 检查是否禁用 */
@@ -78,44 +80,7 @@ function isDisabled(): boolean {
 
 /** 写入日志条目（每个调用创建独立文件） */
 async function writeLogEntry(category: string, entry: DebugLogEntry): Promise<void> {
-  const [{ existsSync, mkdirSync, readdirSync, unlinkSync, writeFileSync }] = await Promise.all([
-    import('fs'),
-  ])
-  const dir = getCategoryDir(category)
   const logPath = getLogFilePath(category, entry.timestamp)
-
-  // 确保分类目录存在
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true })
-  }
-
-  // 检查并清理旧文件（保留最近 MAX_FILES_PER_CATEGORY 个）
-  if (existsSync(dir)) {
-    const files = readdirSync(dir)
-      .filter(f => f.endsWith('.log'))
-      .sort() // 按文件名（时间戳）升序排列，旧文件在前
-    if (files.length >= MAX_FILES_PER_CATEGORY) {
-      // 删除最旧的超出部分
-      const toDelete = files.slice(0, files.length - MAX_FILES_PER_CATEGORY + 1)
-      for (const f of toDelete) {
-        try {
-          unlinkSync(`${dir}\\${f}`)
-        } catch {
-          // 删除失败静默忽略
-        }
-      }
-    }
-  }
-
-  // 若文件已存在（同秒内多次调用），追加序号避免覆盖
-  let targetPath = logPath
-  if (existsSync(targetPath)) {
-    let seq = 1
-    while (existsSync(`${logPath.replace('.log', '')}_${seq}.log`)) {
-      seq++
-    }
-    targetPath = `${logPath.replace('.log', '')}_${seq}.log`
-  }
 
   // 格式化日志内容
   const time = formatBeijingLogTime(entry.timestamp)
@@ -159,13 +124,8 @@ async function writeLogEntry(category: string, entry: DebugLogEntry): Promise<vo
     entry.response ? `【AI 返回】(${entry.response.length} 字符)\n${entry.response}` : '',
   ].filter(Boolean).join('\n\n') + '\n'
 
-  const content = Buffer.from(lines, 'utf-8')
-  if (content.length > MAX_LOG_SIZE) {
-    console.warn(`[debug-log] 单条日志超出 50MB 上限 (${(content.length / 1024 / 1024).toFixed(1)}MB)，跳过写入: ${targetPath}`)
-    return
-  }
-
-  writeFileSync(targetPath, content)
+  const relativePath = path.relative(getServerLogRoot(), logPath)
+  await writeServerLogFile(relativePath, lines)
 }
 
 // ---- POST: 写入日志 ----
@@ -211,9 +171,8 @@ export async function GET(request: Request): Promise<Response> {
   const category = url.searchParams.get('category') ?? 'narrative-rounds'
   const limit = parseInt(url.searchParams.get('limit') ?? '50', 10)
 
-  const [{ existsSync, readdirSync, readFileSync }, { join }] = await Promise.all([
+  const [{ existsSync, readdirSync, readFileSync }] = await Promise.all([
     import('fs'),
-    import('path'),
   ])
   const dir = getCategoryDir(category)
 
@@ -230,7 +189,7 @@ export async function GET(request: Request): Promise<Response> {
 
   const entries = files.map(f => {
     try {
-      return readFileSync(join(dir, f), 'utf-8')
+      return readFileSync(path.join(dir, f), 'utf-8')
     } catch {
       return `[读取失败] ${f}`
     }
@@ -254,11 +213,10 @@ export async function DELETE(request: Request): Promise<Response> {
   const url = new URL(request.url)
   const category = url.searchParams.get('category')
 
-  const [{ existsSync, rmSync }, { join }] = await Promise.all([
+  const [{ existsSync, rmSync }] = await Promise.all([
     import('fs'),
-    import('path'),
   ])
-  const baseDir = join(process.cwd(), 'logs', 'ai-debug')
+  const baseDir = path.join(getServerLogRoot(), 'ai-debug')
 
   if (category) {
     // 删除指定分类目录

@@ -25,6 +25,14 @@ function matchKeyword(text: string, keywords: string[]): boolean {
  */
 export function diagnoseApiError(status: number, errorText: string): ApiDiagnostic {
   if (status === 400) {
+    if (matchKeyword(errorText, ['thinking']) && matchKeyword(errorText, ['type', 'budget_tokens'])) {
+      return {
+        level: 'error',
+        summary: 'AI 推理参数不兼容',
+        detail: `当前模型拒绝了 thinking 参数：${errorText.slice(0, 300)}`,
+        suggestion: '→ 临时关闭推理强度后重试\n→ 将请求 ID 提供给维护者核对 Provider 参数契约',
+      }
+    }
     if (matchKeyword(errorText, ['api key', 'apikey'])) {
       return {
         level: 'error',

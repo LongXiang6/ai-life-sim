@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * PDCA C闸一键验证：C1 lint ╲ C2 tsc → C3 check
+ * PDCA C闸一键验证：C0 game changelog → C1 lint ╲ C2 tsc → C3 check
  * --quick：L1 快速路径（check:quick，跳过叙事回归与全量 PS 扫描）
  * --error-only：C3 后输出 FAIL 摘要（reports/checker-*.json）
  *
@@ -87,6 +87,17 @@ function printErrorSummary() {
 async function main() {
   cleanupOldReports(projectRoot)
   console.log(`[gate-check] Starting PDCA C gates (${quick ? 'quick' : 'full'})${quiet ? ', quiet' : ''}...`)
+
+  const c0 = await spawnAsync(
+    'C0 game changelog',
+    'node',
+    ['scripts/check/domains/ui/game-changelog-regression.mjs'],
+  )
+  printStepResult(c0)
+  if (c0.code !== 0) {
+    console.error('[gate-check] Aborting after C0 failure')
+    process.exit(c0.code ?? 1)
+  }
 
   // ── C1 + C2: lint / tsc 并行（互不依赖） ──
   const [c1, c2] = await Promise.all([

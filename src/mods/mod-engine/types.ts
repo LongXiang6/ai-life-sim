@@ -9,6 +9,7 @@
 
 import type { TimeStep, } from '@/foundation'
 import type { CompressedSummaries, } from '@/foundation'
+import type { NarrativeIntentResolution } from './helpers/narrative-semantic-signals'
 
 export type { TimeStep, }
 
@@ -58,6 +59,8 @@ export interface NarrativeChunk {
   branchOptions?: string[],
   /** 玩家已确认的分支选择 */
   resolvedChoice?: string,
+  /** 本轮对当前命运意图的结构化执行结果。 */
+  intentResolution?: NarrativeIntentResolution,
   /** 该条叙事写入时的角色年龄（快照） */
   displayAge?: number,
   /** 该条叙事写入时的纪元/时间标签（快照） */
@@ -110,5 +113,7 @@ export interface RoundResult {
   notableEvents: string[]
   /** AI 回复中的结构化世界方向指令（如 {market:{direction:"繁荣",magnitude:0.3}}），为空时由关键词检测兜底 */
   direction?: Record<string, { direction?: string; magnitude?: number }>
+  /** 本轮经完整 META 与状态提交共同验证的命运意图结果。 */
+  intentResolution?: NarrativeIntentResolution
 }
 
