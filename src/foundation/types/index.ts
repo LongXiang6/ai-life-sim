@@ -55,6 +55,7 @@ export type {
   LifeStage,
   DeathCause,
   WorldDirectionRecord,
+  YearEventKeyEvent,
   YearEvent,
   LongTermMemory,
 } from './narrative.types'

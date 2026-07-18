@@ -49,6 +49,9 @@ export const FOLD_THRESHOLD = 40
 /** 账本条目上限（超出后从最旧且有效重要性最低者开始丢弃） */
 export const MAX_LEDGER_ENTRIES = 500
 
+/** AI 对整轮叙事的粗粒度重要性。 */
+export type DigestImportance = 'HIGH' | 'NORMAL' | 'LOW'
+
 // ============================================================
 // 类型
 // ============================================================
@@ -69,6 +72,8 @@ export interface LedgerEvent {
 export interface DigestEntry {
   /** 叙事回合序号（对齐 orchestrator.totalRounds，与日历年无关） */
   round: number
+  /** AI 对整轮叙事的粗粒度重要性 */
+  importance?: DigestImportance
   /** 本轮一句话精简（AI 输出） */
   digest: string
   /** 本轮关键事件列表 */
@@ -78,6 +83,7 @@ export interface DigestEntry {
 /** AI 单轮输出的账本原料 */
 export interface RoundDigestInput {
   round: number
+  importance?: DigestImportance
   digest?: string
   keyEvents?: Array<{ text: string; importance: number; entities?: string[] }>
 }
@@ -158,7 +164,12 @@ export class DigestLedger {
 
     // 同轮去重：若该轮已存在条目则覆盖（重算/重放场景）
     const existingIdx = this.entries.findIndex((en) => en.round === input.round)
-    const entry: DigestEntry = { round: input.round, digest, events }
+    const entry: DigestEntry = {
+      round: input.round,
+      importance: input.importance,
+      digest,
+      events,
+    }
     if (existingIdx >= 0) {
       this.entries[existingIdx] = entry
     } else {

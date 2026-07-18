@@ -591,7 +591,8 @@ function parseNarrativePromptVars() {
  */
 function parseSubsystemFieldContracts(content) {
   const start = content.indexOf('export const SUBSYSTEM_FIELD_CONTRACTS')
-  const end = content.indexOf('// ============================================================\n// 派生表')
+  // 派生表标题在重写后可能被删除；以第一个派生导出作为稳定边界。
+  const end = content.indexOf('export const SUBSYSTEM_FIELD_MAP', start)
   /** @type {Record<string, string[]>} */
   const contracts = {}
   if (start < 0 || end < 0) return contracts

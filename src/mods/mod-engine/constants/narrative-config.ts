@@ -48,8 +48,10 @@ export const WORD_COUNT_RANGES: WordCountRange[] = [
 // 压缩系统参数
 // ============================================================
 
-/** 每 N 轮生成一个摘要 */
-export const SUMMARY_INTERVAL = 5
+/**
+ * @deprecated 压缩调度的唯一来源是 `../constants.ts`；此兼容导出保持同一数值。
+ */
+export const SUMMARY_INTERVAL = 10
 
 /** 最大上下文事件数 */
 export const MAX_CONTEXT_EVENTS = 20

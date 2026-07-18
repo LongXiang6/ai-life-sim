@@ -63,7 +63,8 @@ function parseJsonObjectConst(content, constName) {
 /** @param {string} content */
 function parseSubsystemFieldContracts(content) {
   const start = content.indexOf('export const SUBSYSTEM_FIELD_CONTRACTS')
-  const end = content.indexOf('// ============================================================\n// 派生表')
+  // 生成器以派生导出为边界，不能依赖已被重写删除的注释标题。
+  const end = content.indexOf('export const SUBSYSTEM_FIELD_MAP', start)
   /** @type {Record<string, string[]>} */
   const contracts = {}
   if (start < 0 || end < 0) return contracts

@@ -12,7 +12,9 @@ const root = getProjectRoot(import.meta.url)
 let failed = 0
 
 function read(rel) {
-  return fs.readFileSync(path.join(root, rel), 'utf8')
+  // PowerShell/Windows checkouts may retain CRLF.  Normalize here so the
+  // regression contract checks source semantics rather than line endings.
+  return fs.readFileSync(path.join(root, rel), 'utf8').replace(/\r\n/g, '\n')
 }
 
 function assertOk(condition, message) {
@@ -224,7 +226,11 @@ assertIncludes(orchestrator, 'useEngineStore.setState(snap.engineStoreRuntime)',
 assertIncludes(orchestrator, 'private pendingCompression: Promise<void> | null = null', 'orchestrator must track in-flight summary compression')
 assertIncludes(orchestrator, 'async waitForBackgroundCompression(): Promise<void>', 'runtime consumers must be able to await compression commit')
 assertIncludes(orchestrator, 'const existingL1Keys = new Set(', 'compression must identify newly created L1 summaries exactly')
-assertIncludes(orchestrator, 'maxIndexedEndRound = Math.max(maxIndexedEndRound, l1.endRound)', 'compression must track the exact indexed coverage boundary')
+assertOk(
+  orchestrator.includes('maxIndexedEndRound = Math.max(maxIndexedEndRound, summary.endRound)')
+    || orchestrator.includes('maxIndexedEndRound = Math.max(maxIndexedEndRound, l1.endRound)'),
+  'compression must track the exact indexed coverage boundary',
+)
 assertIncludes(orchestrator, 'memoryLifecycle.clearTaggedEventsThrough(maxIndexedEndRound)', 'compression must only clear events already covered by L1 summaries')
 assertOk(
   !orchestrator.includes('s.endRound >= this.state.totalRounds - 10'),

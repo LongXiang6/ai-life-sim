@@ -218,7 +218,8 @@ Full gate 剩余 FAIL 分流表：
 ### 6.3 数据压缩（防 token 爆炸，MVP 必须可用）
 - `summary-compressor-system.ts`：层级摘要压缩。
 - `memory-engine-system.ts` + `memory-lifecycle-system.ts` + `memory-forgetting-system.ts` + `core-memory-system.ts`：记忆分层与遗忘。
-- **验收点**：连续推进多年（如快进 50 年）后，注入 AI 的上下文 token 不随游戏时长线性爆炸——靠层级压缩把旧叙事收敛为摘要。压缩不得损伤关键因果（AI-07/AI-08：存完整叙事，摘要独立生成，禁止用 slice 破坏原文）。
+- **验收点**：连续推进多年（如快进 50 年）后，注入 AI 的上下文 token 不随游戏时长线性爆炸——靠层级压缩把旧叙事收敛为摘要。L1 每 10 轮一块并延迟一个完整块，首次在第 21 轮覆盖第 1—10 轮；延迟期间保留最近 20 轮完整原文，不能漏掉尚未形成摘要的中间轮次；叙事历史滑动窗口达到保留上限后仍按真实回合 ID 选取目标块。压缩不得损伤关键因果（AI-07/AI-08：存完整叙事，摘要独立生成，禁止用 slice 破坏原文）。
+- **结构验收点**：每个真实叙事响应都必须通过 `NarrativeResponseSchema`，携带 `digest` 与带 `importance/entities` 的 `keyEvents`；L1 Prompt 必须接收这些结构化压缩线索并优先保留高权重事件。L2—L6 生成后写入检索索引，L1 清理原始事件时不丢失远期实体召回。
 
 ### 6.4 存档 + 自动存档
 - `core/storage/save-manager.ts`（`saveManager`）+ `persist-layer` + `local-storage`/`opfs-storage`。

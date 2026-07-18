@@ -8,15 +8,15 @@
  * 为什么需要压缩：
  *   每轮生成叙事文本后追加到历史，连续数百轮后 Prompt 将超出 AI token 限制。
  *   压缩器通过六级渐进压缩解决此问题：
- *   - L1 块总结：将最近的 5 轮叙事压缩为一段摘要（落后 3 块延迟执行）
- *   - L2 深度压缩：将 5 条 L1 摘要再压缩为一条（25轮）
- *   - L3 骨架压缩：将 5 条 L2 摘要压缩为时代骨架（125轮）
- *   - L4 纪元压缩：将 5 条 L3 骨架压缩为纪元概览（625轮）
- *   - L5 时代压缩：将 5 条 L4 纪元压缩为时代概略（3125轮）
- *   - L6 历史压缩：将 5 条 L5 时代压缩为历史概略（15625轮）
+ *   - L1 块总结：将连续 10 轮叙事压缩为一段摘要（落后 1 个完整块延迟执行）
+ *   - L2 深度压缩：将 5 条 L1 摘要再压缩为一条（50轮）
+ *   - L3 骨架压缩：将 5 条 L2 摘要压缩为时代骨架（250轮）
+ *   - L4 纪元压缩：将 5 条 L3 骨架压缩为纪元概览（1250轮）
+ *   - L5 时代压缩：将 5 条 L4 纪元压缩为时代概略（6250轮）
+ *   - L6 历史压缩：将 5 条 L5 时代压缩为历史概略（31250轮）
  *
- * 这确保 AI 始终有最近 15 轮原始上下文，同时距离越远的历史被压缩得越紧凑。
- * L6 层级覆盖 15625 轮，日步进玩家可体验约 43 年人生。
+ * 这确保 AI 始终有覆盖延迟区间的最近 20 轮原始上下文，同时距离越远的历史被压缩得越紧凑。
+ * L6 层级覆盖 31250 轮，日步进玩家可体验约 85 年人生。
  */
 
 import type {
@@ -40,6 +40,7 @@ import { buildSummaryPrompt, buildSummarySystemPrompt } from '../prompts/summary
 import {
   SUMMARY_INTERVAL,
   COMPRESS_L1_DELAY_ROUNDS,
+  RECENT_NARRATIVE_WINDOW,
   COMPRESS_L2_MERGE_COUNT,
   COMPRESS_L2_DELAY_ROUNDS,
   COMPRESS_L3_MERGE_COUNT,
@@ -109,7 +110,7 @@ export class SummaryCompressorSystem extends BaseSubsystem {
   readonly id = 'summary-compressor' as const
   readonly mod = 'mod-engine' as const
   readonly label = '叙事压缩' as const
-  readonly description = '四级压缩管线管理叙事历史，防止 Prompt 超 token 限制' as const
+  readonly description = '六级压缩管线管理叙事历史，防止 Prompt 超 token 限制' as const
 
   /** 当前压缩摘要状态 */
   private compressedSummaries: CompressedSummaries = { summaries: [] }
@@ -254,7 +255,7 @@ export class SummaryCompressorSystem extends BaseSubsystem {
     // ============================================================
     // Step 2: L1 块总结
     // ============================================================
-    // Phase 7A-4：L1 提前 1 块触发（约第 10 轮而非 15 轮）
+    // Phase 7A-4：L1 延迟一个完整块触发（第 21 轮开始生成第 1—10 轮）
     if (!isBlockBoundary && blockRound === COMPRESS_L1_DELAY_ROUNDS && blockIndex >= 2) {
       const targetBlock = blockIndex - 2
       const startRound = targetBlock * SUMMARY_INTERVAL + 1
@@ -265,7 +266,11 @@ export class SummaryCompressorSystem extends BaseSubsystem {
         (s) => s.level === 1 && s.startRound === startRound,
       )
       if (!existing) {
-        const blockEvents = events.slice(startRound - 1, endRound)
+        // `events` 是保留窗口，不一定从第 1 轮开始；必须按真实 round/id
+        // 取目标块，不能把 round 当作当前数组的零基下标。
+        const blockEvents = events.filter(
+          (event) => event.id >= startRound && event.id <= endRound,
+        )
         try {
           const totalNarrativeChars = blockEvents.reduce(
             (sum, e) => sum + (e.narrative?.length || 0),
@@ -592,7 +597,7 @@ export class SummaryCompressorSystem extends BaseSubsystem {
     }
 
     // ============================================================
-    // Step 7: L6 历史压缩（最高层级，15625轮）
+    // Step 7: L6 历史压缩（最高层级，31250轮）
     // ============================================================
     if (blockRound >= COMPRESS_L6_DELAY_ROUNDS) {
       const unmergedL5 = summaries
@@ -789,7 +794,7 @@ export class SummaryCompressorSystem extends BaseSubsystem {
 
     if (summaries.length === 0) {
       if (recentNarratives.length > 0) {
-        parts.push('【最新发展】\n' + recentNarratives.slice(-5).join('\n---\n'))
+        parts.push('【最新发展】\n' + recentNarratives.slice(-RECENT_NARRATIVE_WINDOW).join('\n---\n'))
       }
       return parts.join('\n\n')
     }
@@ -829,7 +834,7 @@ export class SummaryCompressorSystem extends BaseSubsystem {
     }
 
     if (recentNarratives.length > 0) {
-      parts.push('【最新发展】\n' + recentNarratives.slice(-5).join('\n---\n'))
+      parts.push('【最新发展】\n' + recentNarratives.slice(-RECENT_NARRATIVE_WINDOW).join('\n---\n'))
     }
 
     return parts.join('\n\n')

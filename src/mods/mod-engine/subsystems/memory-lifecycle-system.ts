@@ -4,7 +4,7 @@
  * @mod mod-engine
  *
  * 四方案融合设计：
- *   A. 三层记忆分离：状态卡(始终在)+叙事窗(L0近期)+历史纲(L6)，L2-L5转为检索索引
+ *   A. 三层记忆分离：状态卡(始终在)+叙事窗(L0近期)+历史纲(L6)，L2-L6转为检索索引
  *   B. 重要度分层：消费 AI 的 HIGH/NORMAL/LOW，差异化压缩保留
  *   C. 事件闭环驱动：消费 AI 的 arcStatus/arcType，避免语义断裂
  *   D. 事件聚合（合并自 span-event-aggregator）：严重度排序 + 因果链合并 + 比例限制 + 数量上限
@@ -14,9 +14,9 @@
  *
  * 每轮Prompt注入内容（精简到极致）：
  *   1. 状态卡（subsystem summaries，结构化当前状态）
- *   2. 最近5轮L0原文（细节完整的短期记忆）
+ *   2. 最近20轮L0原文（覆盖延迟压缩区间的细节完整短期记忆）
  *   3. L6历史纲要（一生纵览，长期记忆框架）
- *   4. 检索命中摘要（L2-L5 中按 AI 标注实体匹配，"突然想起来的往事"）
+ *   4. 检索命中摘要（L2-L6 中按 AI 标注实体匹配，"突然想起来的往事"）
  *   5. 聚合事件（严重事件优先，因果链合并，比例控制）
  *
  * AI 重要性约定：
@@ -39,6 +39,7 @@
 import type { SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
 import { BaseSubsystem } from '@/core'
 import type { NarrativeSemanticSignals } from '../helpers/narrative-semantic-signals'
+import { RECENT_NARRATIVE_WINDOW } from '../constants'
 
 // ============================================================
 // 类型定义
@@ -178,7 +179,7 @@ export interface CompressionDecision {
 export interface RichPromptContext {
   /** 状态卡 */
   stateCard: string
-  /** 最近N轮原文 */
+  /** 最近完整原文窗口（覆盖延迟 L1 尚未形成摘要的区间） */
   recentNarratives: string[]
   /** L1 近距离记忆（最近2条摘要） */
   l1Summaries: string[]
@@ -190,7 +191,7 @@ export interface RichPromptContext {
   l4Summary: string
   /** L6 历史纲要（一生纵览） */
   historyOutline: string
-  /** 检索命中（从 L2-L5 结构化实体匹配） */
+  /** 检索命中（从 L2-L6 结构化实体匹配） */
   retrievalHits: string[],
 }
 
@@ -228,7 +229,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
   /** 当前块中已标记的事件（尚未压缩） */
   private taggedEvents: TaggedEvent[] = []
 
-  /** 检索索引（L2-L5 摘要的结构化实体索引） */
+  /** 检索索引（L2-L6 摘要的结构化实体索引） */
   private searchIndex: IndexEntry[] = []
 
   /** 当前是否在战斗/任务/旅程中 */
@@ -638,7 +639,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
   /**
    * 将压缩后的摘要添加到检索索引
    *
-   * L2-L5摘要不注入Prompt，而是存入索引。
+   * L2-L6摘要不重复注入Prompt，而是存入索引。
    * 当后续回合的 AI 结构化实体与索引重合时，按需检索并临时注入。
    */
   addToIndex(
@@ -669,8 +670,46 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
       maxImportance,
     }
 
+    this.upsertIndexEntry(entry)
+  }
+
+  /**
+   * 将 L2-L6 摘要加入同一检索索引。
+   *
+   * L1 生成后，覆盖区间内的原始 TaggedEvent 会按延迟策略清理；高层摘要
+   * 因此从已经建立的低层索引继承实体与最高重要度，避免远期记忆失去可检索性。
+   */
+  addCompressedSummaryToIndex(
+    level: number,
+    startRound: number,
+    endRound: number,
+    content: string,
+  ): void {
+    const overlapping = this.searchIndex.filter(
+      (entry) => entry.startRound <= endRound && entry.endRound >= startRound,
+    )
+    const tags = new Set(overlapping.flatMap((entry) => entry.tags))
+    let maxImportance: EventImportance = 'LOW'
+    for (const entry of overlapping) {
+      if (entry.maxImportance === 'HIGH') maxImportance = 'HIGH'
+      else if (entry.maxImportance === 'NORMAL' && maxImportance === 'LOW') {
+        maxImportance = 'NORMAL'
+      }
+    }
+
+    this.upsertIndexEntry({
+      level,
+      startRound,
+      endRound,
+      content,
+      tags: [...tags],
+      maxImportance,
+    })
+  }
+
+  private upsertIndexEntry(entry: IndexEntry): void {
     const existingIndex = this.searchIndex.findIndex(
-      (e,) => e.level === level && e.startRound === startRound && e.endRound === endRound,
+      (e,) => e.level === entry.level && e.startRound === entry.startRound && e.endRound === entry.endRound,
     )
     if (existingIndex >= 0) {
       this.searchIndex[existingIndex] = entry
@@ -765,7 +804,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
   }
 
   // ============================================================
-  // 核心方法4：富Prompt组装（4压缩层级+L0，适配1M上下文）
+  // 核心方法4：富Prompt组装（5压缩层级+L0，适配1M上下文）
   // ============================================================
 
   /**
@@ -781,7 +820,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
    *   7. 检索命中 → 按需注入
    *   8. L0 → 最近N轮原文（短期完整记忆）
    *
-   * 共4个压缩层级 + L0原文 + 状态卡 + 检索命中
+   * 共5个压缩层级 + L0原文 + 状态卡 + 检索命中
    *
    * @param subsystemSummaries 子系统状态文本
    * @param recentNarratives 最近原始叙事
@@ -823,7 +862,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
 
     return {
       stateCard: subsystemSummaries,
-      recentNarratives: recentNarratives.slice(-5,),
+      recentNarratives: recentNarratives.slice(-RECENT_NARRATIVE_WINDOW,),
       l1Summaries: l1s,
       l2Summary: l2Recent?.content || '',
       l3Summary: l3Recent?.content || '',

@@ -101,6 +101,7 @@ export { collectGameSavePayload } from '../helpers/save-restore'
 
 // constants
 export { computeNarrativeMaxTokens, DEFAULT_WORD_COUNT_TARGET } from '../constants/narrative-config'
+export { RECENT_NARRATIVE_WINDOW } from '../constants'
 
 // simulation
 export { simulationBridge } from '../simulation/simulation-bridge'

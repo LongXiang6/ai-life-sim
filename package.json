@@ -13,6 +13,7 @@
     "mod:create": "node scripts/codegen/create-mod.mjs",
     "validate:narrative": "node scripts/check/domains/narrative/validate-narrative-wiring.mjs && node scripts/check/domains/narrative/semantic-authority-audit.mjs",
     "validate:regression": "node scripts/check/domains/narrative/narrative-regression-seed.mjs",
+    "test:compression-runtime": "node scripts/check/domains/narrative/compression-runtime-smoke.mjs",
     "test:loader": "node scripts/check/domains/structural/test-mod-loader.mjs",
     "test:calibration": "node scripts/check/domains/calibration/world-calibration-acceptance.mjs",
     "test:prompt-wiring": "node scripts/check/domains/narrative/kv-prompt-audit.mjs && node scripts/check/domains/narrative/time-bridge-smoke.mjs && node scripts/check/domains/narrative/adaptation-calibration-audit.mjs",

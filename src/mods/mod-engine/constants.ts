@@ -143,6 +143,14 @@ export const SUMMARY_INTERVAL = 10
 /** L1 在目标块的第 1 轮触发（落后 2 块 = 保留最近约 20 轮原文） */
 export const COMPRESS_L1_DELAY_ROUNDS = 1
 
+/**
+ * 主叙事 Prompt 保留的最近完整原文轮数。
+ *
+ * L1 延迟一个完整块后才生成摘要，因此窗口必须覆盖“当前块 + 延迟块”
+ * 的未压缩区间；否则会在新 L1 形成前把中间几轮从 Prompt 中漏掉。
+ */
+export const RECENT_NARRATIVE_WINDOW = SUMMARY_INTERVAL * (COMPRESS_L1_DELAY_ROUNDS + 1)
+
 /** 合并 N 个 L1 摘要为一个 L2 摘要 */
 export const COMPRESS_L2_MERGE_COUNT = 5
 

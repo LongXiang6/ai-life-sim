@@ -70,7 +70,7 @@
 
 - **分段是"软建议 + 事后补救"，无硬结构**：`narrative` 是单个 string，描述为"段落数量根据情节需要灵活安排"（[narrative-prompt.ts:184](file:///D:/AI/ai-life-sim/src/mods/mod-engine/prompts/narrative-prompt.ts#L184)）。唯一兜底是 [normalize-narrative-paragraphs.ts:8-21](file:///D:/AI/ai-life-sim/src/mods/mod-engine/helpers/normalize-narrative-paragraphs.ts#L8-L21)：**仅当 AI 完全没输出 `\n\n` 时**才按句号机械切 3 段。首轮示例是 3 段，但示例 1/2/5 是单段——few-shot 本身在暗示"段落随意"。
 - **事件密度无上限，反被多处推高**：`notableEvents` 上限 3、`keyEvents` 上限 5，字段存在会诱导 AI 每轮塞满；字数默认 500（`buildWordCountInstruction`，[narrative-config.ts:93](file:///D:/AI/ai-life-sim/src/mods/mod-engine/constants/narrative-config.ts#L93)）只管长度不管密度；`narrative-hints.ts` 的 year 档提示"描写进展与变迁…不一笔带过"反而鼓励一轮覆盖更多进展，与目标冲突。
-- **压缩机制**：每 `SUMMARY_INTERVAL=10` 轮压一块，预算 `computeSummaryTokenBudget = max(3600, 原文字数×2.4)`，再按 digest 平均重要性 0.75~1.75 加权。L1 prompt 要求"绝对客观、每事件一行"，但**未明说"忽略景物/心理描写"**。
+- **压缩机制（历史核验）**：每 `SUMMARY_INTERVAL=10` 轮压一块，预算 `computeSummaryTokenBudget = max(3600, 原文字数×2.4)`，再按 digest 平均重要性 0.75~1.75 加权。L1 prompt 要求"绝对客观、每事件一行"，但**未明说"忽略景物/心理描写"**。2026-07-18 的运行核验进一步要求把 `digest` 与每事件 `importance` 直接传入 L1，且把近期完整原文窗口扩为覆盖延迟区间的 20 轮；旧的“只按预算加权、最近5轮”口径已被 `PD-014` 取代。
 - **KV 缓存结构**：SYSTEM_PROMPT 完全固定（100% 前缀命中）；user JSON 三段 STABLE→SLOW→FAST（[prompt-builder.ts:100-135](file:///D:/AI/ai-life-sim/src/core/ai-service/prompt-builder.ts#L100-L135)）；有守卫脚本 `scripts/check/domains/narrative/kv-prompt-audit.mjs` 校验键序。
 
 ### 三段划分建议：入景 → 推进 → 余韵
@@ -104,7 +104,17 @@
 
 1. **预算与字数部分解耦**：三段式后原文字数不降（甚至略升，多了描写），但信息量降了。若仍 `字数×2.4` 会把景物/心理描写喂给摘要器，产出冗长摘要，与目标相悖。建议系数 `2.4 → 1.5` 或改**按 keyEvents 条数**估预算（保留 `MIN_SUMMARY_TOKENS` 保底）。**风险中**，建议先改措辞观察再动系数。
 2. **L1 prompt 强化"只提事件、丢弃描写"**：[summary-prompt.ts:34-43](file:///D:/AI/ai-life-sim/src/mods/mod-engine/prompts/summary-prompt.ts#L34-L43) 加"只提取事件推进段事实，忽略场景铺陈与心理描写"。`digest` 字段描述已是"省略环境描写与修辞"，可作模板。**风险低**。
-3. L2-L6 无需改，L1 变短自然级联。
+3. L2-L6 的摘要格式保持不变，但生成后必须继续进入检索索引；高层摘要从低层索引继承实体与最高重要度，避免 L1 清理后失去远期召回。
+
+### 2026-07-18 压缩运行链路同步（PD-014）
+
+本节 supersede 仅涉及压缩运行时的旧实现备注，不改变 G1/G2 已确认的叙事质量方向：
+
+- 主叙事真实提交与预生成都必须先通过 `NarrativeResponseSchema`，因此 `digest`、`keyEvents[].importance`、`entities` 不是“可选的提示字段”，而是进入账本的必要结构。
+- L1 延迟一个完整 10 轮块；第一次在第 21 轮整理第 1—10 轮。生产 Prompt 保留最近 20 轮完整原文，确保第 21—31 轮之间不会遗漏尚未形成 L1 的中间叙事。
+- L1 User Prompt 同时接收原文、`digest` 和带权 `keyEvents`；摘要正文只写正文已确认的事实，权重只决定保留顺序。
+- L2—L6 生成后写入检索索引；后续实体召回可以命中高层摘要，且摘要层级仍按当前富 Prompt 规则注入。
+- `memoryLifecycle.decideCompression()` 的闭环/容量结果只作为原因与预算观测；实际 AI 摘要仍遵守固定延迟窗口，清理边界以新生成的 L1 覆盖范围为准。
 
 ### G1 已确认决策（2026-07-07）
 

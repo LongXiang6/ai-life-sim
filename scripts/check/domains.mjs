@@ -121,6 +121,7 @@ export const DOMAINS = {
       { cmd: 'node', args: ['scripts/check/domains/narrative/playtest-quality-regression.mjs'] },
       { cmd: 'node', args: ['scripts/check/domains/narrative/starting-age-authority-regression.mjs'] },
       { cmd: 'node', args: ['scripts/check/domains/narrative/runtime-subsystem-state-regression.mjs'] },
+      { cmd: 'node', args: ['scripts/check/domains/narrative/compression-runtime-smoke.mjs'] },
       { cmd: 'node', args: ['scripts/check/domains/narrative/narrative-regression-seed.mjs'] },
     ],
   },

@@ -35,6 +35,9 @@ export function buildSummarySystemPrompt(charLimit: number, level: 1 | 2 | 3 | 4
         '按时间顺序列出所有发生的事件',
         '绝对客观，禁止评价性描述（禁用"取得了巨大成就""表现出了非凡勇气"等）',
         '只总结 eventRecords.narrative 中明确写出的事实，不补写未出现的模拟系统状态、数值变化或隐藏因果',
+        'eventRecords.digest 是本轮 AI 已提交的一句话事实压缩；只用于确认事件主线，不得扩写其中未在正文出现的内容',
+        'eventRecords.keyEvents 是本轮 AI 已提交的带权事件；importance 越高越优先保留，低分事件可以合并，但不得让高分事件被日常细节淹没',
+        '结构化 importance 只表示保留优先级，不得把分值本身写进摘要正文，也不得据此推断正文没有写出的状态',
         '只提取剧情事实、后果和关系变化；忽略铺垫描写、感官细节、心理句和修辞性句子',
         '当前 MVP 中健康、经济、声望、关系、修炼、战力等模拟系统可能延后；除非叙事正文明确发生，否则不要把它们当成已落地状态',
         '包含叙事正文中明确发生的角色事件、社会事件与环境变化',
@@ -110,11 +113,23 @@ export function buildSummaryPrompt(
     charLimit,
   }
 
-  const eventRecords = events.map((e) => ({
+  const eventRecords = events.map((e) => {
+    const record: Record<string, unknown> = {
     age: e.age,
     time: buildTimeStr(e),
     narrative: e.narrative,
-  }))
+    }
+    if (e.importance) record.importance = e.importance
+    if (e.digest) record.digest = e.digest
+    if (e.keyEvents && e.keyEvents.length > 0) {
+      record.keyEvents = e.keyEvents.map((event) => ({
+        text: event.text,
+        importance: event.importance,
+        ...(event.entities && event.entities.length > 0 ? { entities: event.entities } : {}),
+      }))
+    }
+    return record
+  })
   userData.eventRecords = eventRecords
 
   if (existingSummaries.length > 0) {

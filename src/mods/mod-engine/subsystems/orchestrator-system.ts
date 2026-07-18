@@ -73,6 +73,7 @@ import {
   collectGameSavePayload,
   computeNarrativeMaxTokens,
   DEFAULT_WORD_COUNT_TARGET,
+  RECENT_NARRATIVE_WINDOW,
   simulationBridge,
   TimeSystem,
   timeSystem,
@@ -1321,18 +1322,38 @@ export class OrchestratorSystem extends BaseSubsystem {
     const fallbackRound = this.state.round
     const fallbackAge = this.computeNarrativeAge(this.buildRoundContext())
     const fallbackTimeLabel = `${fallbackRound.eraName}${fallbackRound.eraYear}年`
+    const ledgerByRound = new Map(
+      digestLedger.getEntries().map((entry) => [entry.round, entry]),
+    )
+    const firstRound = Math.max(
+      1,
+      this.state.totalRounds - this.state.narrativeHistory.length + 1,
+    )
 
     return this.state.narrativeHistory.map((n, i) => {
+      const round = firstRound + i
+      const ledgerEntry = ledgerByRound.get(round)
       const age = n.displayAge ?? fallbackAge
       const timeLabel = n.displayTimeLabel?.trim() || fallbackTimeLabel
 
       return {
-        id: i + 1,
+        id: round,
         age,
         totalMonths: Math.max(0, Math.round(age * 12)),
         eraYear: fallbackRound.eraYear,
         eraName: '',
         narrative: n.text,
+        digest: ledgerEntry?.digest || undefined,
+        importance: ledgerEntry?.importance,
+        keyEvents: ledgerEntry?.events.length
+          ? ledgerEntry.events.map((event) => ({
+              text: event.text,
+              importance: event.adjustedImportance,
+              ...(event.entities && event.entities.length > 0
+                ? { entities: event.entities }
+                : {}),
+            }))
+          : undefined,
         timeLabel,
       }
     })
@@ -1351,6 +1372,11 @@ export class OrchestratorSystem extends BaseSubsystem {
       summaryCompressor.getSummaries().summaries
         .filter((summary) => summary.level === 1)
         .map((summary) => `${summary.startRound}:${summary.endRound}`),
+    )
+    const existingSummaryKeys = new Set(
+      summaryCompressor.getSummaries().summaries.map(
+        (summary) => `${summary.level}:${summary.startRound}:${summary.endRound}`,
+      ),
     )
 
     const task = summaryCompressor
@@ -1380,21 +1406,34 @@ export class OrchestratorSystem extends BaseSubsystem {
         const compressedSummaries = result.newCompressedSummaries
         let maxIndexedEndRound = 0
         if (compressedSummaries?.summaries) {
-          const newL1s = compressedSummaries.summaries.filter(
-            (summary) => summary.level === 1
-              && !existingL1Keys.has(`${summary.startRound}:${summary.endRound}`),
-          )
-          for (const l1 of newL1s) {
-            memoryLifecycle.addToIndex(
-              1,
-              l1.startRound,
-              l1.endRound,
-              l1.content,
-              memoryLifecycle.getTaggedEvents().filter(
-                (e) => e.round >= l1.startRound && e.round <= l1.endRound,
-              ),
-            )
-            maxIndexedEndRound = Math.max(maxIndexedEndRound, l1.endRound)
+          const newSummaries = compressedSummaries.summaries
+            .filter((summary) => summary.level === 1
+              ? !existingL1Keys.has(`${summary.startRound}:${summary.endRound}`)
+              : !existingSummaryKeys.has(
+                  `${summary.level}:${summary.startRound}:${summary.endRound}`,
+                ))
+            .sort((a, b) => a.level - b.level)
+
+          for (const summary of newSummaries) {
+            if (summary.level === 1) {
+              memoryLifecycle.addToIndex(
+                1,
+                summary.startRound,
+                summary.endRound,
+                summary.content,
+                memoryLifecycle.getTaggedEvents().filter(
+                  (e) => e.round >= summary.startRound && e.round <= summary.endRound,
+                ),
+              )
+              maxIndexedEndRound = Math.max(maxIndexedEndRound, summary.endRound)
+            } else {
+              memoryLifecycle.addCompressedSummaryToIndex(
+                summary.level,
+                summary.startRound,
+                summary.endRound,
+                summary.content,
+              )
+            }
           }
         }
 
@@ -1432,7 +1471,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     const rich = memoryLifecycle.formatRichPromptForInjection(
       memoryLifecycle.buildRichPrompt(
         memoryStateCard,
-        this.state.narrativeHistory.slice(-5).map((n) => n.text),
+        this.state.narrativeHistory.slice(-RECENT_NARRATIVE_WINDOW).map((n) => n.text),
         summaryCompressor.getSummaries(),
       ),
     )
@@ -1447,10 +1486,12 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   getCompressedNarrativeHistory(): string {
     // 使用记忆生命周期系统构建富Prompt上下文
-    // DS V4 1M上下文：4个压缩层级 + L0原文 + 状态卡 + 检索命中
+    // DS V4 1M上下文：5个压缩层级 + L0原文 + 状态卡 + 检索命中
 
     const summaries = summaryCompressor.getSummaries()
-    const recentTexts = this.state.narrativeHistory.slice(-5).map((n) => n.text)
+    const recentTexts = this.state.narrativeHistory
+      .slice(-RECENT_NARRATIVE_WINDOW)
+      .map((n) => n.text)
 
     // 构建状态卡
     const stateCardLines: string[] = Object.values(this.lastSubsystemStates)
@@ -2366,6 +2407,7 @@ export class OrchestratorSystem extends BaseSubsystem {
         )
         digestLedger.record({
           round: roundSequence,
+          importance: effectiveParsed.importance,
           digest: effectiveParsed.digest,
           keyEvents: structuredKeyEvents,
         })

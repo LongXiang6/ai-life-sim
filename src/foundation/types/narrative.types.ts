@@ -220,6 +220,15 @@ export interface WorldDirectionRecord {
 }
 
 /** 叙事事件（压缩器核心输入） */
+export interface YearEventKeyEvent {
+  /** AI 对事件的精简描述 */
+  text: string
+  /** AI 给出的 0—100 事件重要性；用于压缩保留优先级 */
+  importance: number
+  /** AI 明确标注的人物、地点、物品或组织 */
+  entities?: string[]
+}
+
 export interface YearEvent {
   id: number,
   age: number,
@@ -229,6 +238,12 @@ export interface YearEvent {
   displayEraName?: string,
   displayEraYear?: number,
   narrative: string,
+  /** AI 每轮返回的一句话故事压缩字段 */
+  digest?: string,
+  /** AI 每轮返回的带权事件列表 */
+  keyEvents?: YearEventKeyEvent[],
+  /** AI 对整轮叙事的粗粒度重要性 */
+  importance?: 'HIGH' | 'NORMAL' | 'LOW',
   timeLabel: string,
   dynamicAttrs?: Record<string, number>,
   baseAttrChanges?: Record<string, number>,

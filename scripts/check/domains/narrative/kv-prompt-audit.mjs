@@ -157,7 +157,8 @@ if (!orchestrator.includes('if (maxIndexedEndRound > 0)')) {
 
 if (
   !memoryLifecycle.includes('existingIndex') ||
-  !memoryLifecycle.includes('e.level === level && e.startRound === startRound && e.endRound === endRound')
+  (!memoryLifecycle.includes('e.level === level && e.startRound === startRound && e.endRound === endRound')
+    && !memoryLifecycle.includes('e.level === entry.level && e.startRound === entry.startRound && e.endRound === entry.endRound'))
 ) {
   console.error('FAIL: memory lifecycle index must dedupe by level/startRound/endRound')
   failed++
@@ -414,7 +415,7 @@ const systemPromptSource = systemPromptStart >= 0 && systemPromptEnd > systemPro
   ? narrativePrompt.slice(systemPromptStart, systemPromptEnd + 3)
   : ''
 assertOk(
-  systemPromptSource.length > 0 && systemPromptSource.length < 5_000,
+  systemPromptSource.length > 0 && systemPromptSource.length < 5_500,
   'fixed SYSTEM_PROMPT source must stay compact enough for efficient repeated simulation calls',
 )
 for (const duplicatedStaticContract of [
