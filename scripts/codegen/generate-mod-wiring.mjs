@@ -139,7 +139,7 @@ function buildSubsystemAliases(modDir, classNames) {
  */
 function stripLineComments(block) {
   return block
-    .split('\n')
+    .split(/\r\n?|\n/)
     .map((line) => line.replace(/\/\/.*$/, ''))
     .join('\n')
 }
@@ -202,6 +202,25 @@ function extractRemoteApiExports(indexContent) {
   }
 
   return [...names].sort()
+}
+
+/** 生成器必须在 Windows CRLF 与 Linux LF 工作副本中得到完全相同的 Remote 契约。 */
+function assertRemoteApiExtractionIsLineEndingAgnostic() {
+  const lfSource = `export {
+  // 常量不属于 Remote API
+  STATIC_VALUE,
+  // 业务函数需要注册
+  computeValue,
+} from './public-api'
+`
+  const expected = ['computeValue']
+
+  for (const source of [lfSource, lfSource.replaceAll('\n', '\r\n')]) {
+    const actual = extractRemoteApiExports(source)
+    if (actual.length !== expected.length || actual.some((name, index) => name !== expected[index])) {
+      throw new Error(`[generate-mod-wiring] Remote API 导出解析不支持当前换行格式: ${JSON.stringify(actual)}`)
+    }
+  }
 }
 
 /**
@@ -880,6 +899,7 @@ function writeOrCheck(filePath, content) {
 }
 
 function main() {
+  assertRemoteApiExtractionIsLineEndingAgnostic()
   const modDirs = listModDirs()
   /** @type {Record<string, string>} */
   const allAliases = {}
