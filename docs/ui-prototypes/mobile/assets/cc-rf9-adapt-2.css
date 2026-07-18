@@ -1,0 +1,27 @@
+body[data-screen] {
+  background-color: #f2f4f3;
+  background-image:
+    radial-gradient(ellipse at 16% 18%, rgba(73, 88, 87, .035), transparent 30%),
+    radial-gradient(ellipse at 84% 78%, rgba(109, 127, 148, .035), transparent 34%);
+}
+
+body[data-screen] :is(.phone, .mobile-viewport),
+body[data-screen="game-over"] .viewport {
+  background-color: #fff;
+  background-image:
+    radial-gradient(ellipse at 92% 10%, rgba(154, 121, 102, .04), transparent 26%),
+    radial-gradient(ellipse at 12% 88%, rgba(78, 94, 91, .032), transparent 31%);
+  border-color: #dde3e6;
+  box-shadow: 0 20px 52px rgba(24, 30, 38, .095);
+}
+
+body[data-screen] :is(.surface, .dialog-panel, .save-dialog, .world, .budget, .overview, .seed, .init, .verdict, .mythic) {
+  border-color: #e1e6e9;
+  background-color: rgba(255, 255, 255, .94);
+  box-shadow: 0 8px 24px rgba(24, 30, 38, .045);
+}
+
+body[data-screen] :is(.bottom > .bar, .bottom .bar, .footer, .phone-footer) {
+  border-radius: 20px;
+  box-shadow: 0 11px 30px rgba(24, 30, 38, .09);
+}

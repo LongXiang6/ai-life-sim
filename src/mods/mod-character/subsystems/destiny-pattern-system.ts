@@ -18,6 +18,7 @@ import {
   DESTINY_PATTERN_ID_PREFIX,
   AI_DESTINY_PATTERN_BATCH_SIZE,
   AI_DESTINY_PATTERN_BATCH_COUNT,
+  AI_DESTINY_PATTERN_FIRST_SCREEN_CONCURRENCY,
 } from '../constants'
 import { destinyPatternPrompt } from '../prompts/destiny-pattern-prompt'
 import { bumpTokenBudget } from '@/foundation'
@@ -32,13 +33,19 @@ import {
 import { buildFateKvSessionId } from '../utils/fate-kv'
 import { useWorldStore } from '@/mods/mod-world'
 import { useSettingsStore } from '@/mods/mod-settings'
+import { useCharacterStore } from '../store'
 import { validatePatternSystemModifiers } from '../utils/destiny-pattern-modifiers'
 import { rejectsFutureDestinyPatternContent, rejectsBirthStateDestinyPatternContent } from '../utils/destiny-pattern-content-quality'
 import { saveDestinyPatternPool } from '../utils/destiny-pattern-pool-cache'
 import { StreamingJsonArrayParser } from '../utils/streaming-json-array-parser'
+import { sanitizeDestinyPatternState } from '../utils/character-state-migration'
 
 const POOL_FILL_BATCH_RETRIES = 2
 const POOL_FILL_RETRY_DELAY_MS = 1000
+
+function destinyPatternNameKey(name: string): string {
+  return name.trim().toLocaleLowerCase()
+}
 
 type DestinyPatternAIItem = {
   name: string
@@ -61,7 +68,7 @@ export type DestinyPatternPoolFillStatus = {
 export interface DestinyPatternAIGenerateOptions {
   /** 已有本地缓存池。AI 续填时以它为起点，避免每次重新从 0 生成。 */
   initialPatterns?: DestinyPattern[]
-  /** 目标池大小，默认 8 批 × 12 条。 */
+  /** 目标池大小，默认 10 批 × 10 条。 */
   targetCount?: number
 }
 
@@ -69,7 +76,7 @@ export class DestinyPatternSystem extends BaseSubsystem {
   readonly id = 'destiny-pattern' as const
   readonly mod = 'mod-character' as const
   readonly label = '命格' as const
-  readonly description = '管理角色命格池，支持抽12选3 + AI 流式生成 + 内置预设双模式' as const
+  readonly description = '管理角色命格池，支持抽5选3 + AI 流式生成 + 内置预设双模式' as const
 
   private idCounter = 0
   private callAI: ((systemPrompt: string, userPrompt: string, options?: unknown) => Promise<string>) | null = null
@@ -140,11 +147,23 @@ export class DestinyPatternSystem extends BaseSubsystem {
     }
   }
 
+  /** 将创建流程已确认的候选与命格写入运行时单例。 */
+  hydrateFromStore(): void {
+    this.restoreCollectedState(useCharacterStore.getState().destinyPatterns)
+  }
+
+  /** 从 orchestrator collectState().data 恢复命格运行态。 */
+  restoreCollectedState(snapshot: unknown): void {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
+    this.state = sanitizeDestinyPatternState(snapshot)
+    this.idCounter = Math.max(this.idCounter, this.state.candidates.length + this.state.patterns.length)
+  }
+
   // -------- 公共方法 --------
 
-  /** 内置模式：从预设池随机生成候选命格（抽12，暂存 candidates，不直接写入 patterns） */
+  /** 内置模式：从预设池随机生成候选命格（抽5，暂存 candidates，不直接写入 patterns） */
   generateFromPresets(count = DEFAULT_DESTINY_PATTERN_COUNT): DestinyPattern[] {
-    const pool = [...PRESET_DESTINY_PATTERNS]
+    const pool = PRESET_DESTINY_PATTERNS.filter((pattern) => pattern.polarity !== 'negative')
     const result: DestinyPattern[] = []
 
     // 加权随机抽取
@@ -226,10 +245,10 @@ export class DestinyPatternSystem extends BaseSubsystem {
   }
 
   /**
-   * AI 生成命格池（首屏单路 12 条，随后后台续填至 96 条）
+   * AI 生成命格池（首屏三路并发、每路 10 条，随后后台续填至约 100 条）
    *
    * 每批将已有命格名称拼入 existingNames 避免重复。
-   * 首屏不足 12 条时持续串行请求，直到 AI 结果够用或调用方主动中止；不混入预设。
+   * 首屏累计 5 条有效去重命格后立即交接；三路都不足时继续请求，直到 AI 结果够用或调用方主动中止；不混入预设。
    */
   async generateWithAI(
     contextInput: BuildDestinyPatternContextInput,
@@ -254,6 +273,7 @@ export class DestinyPatternSystem extends BaseSubsystem {
       .slice(0, targetCount)
     const allPatterns: DestinyPattern[] = [...seededPatterns]
     const existingNames: string[] = seededPatterns.map((p) => p.name)
+    const existingNameKeys = new Set(existingNames.map(destinyPatternNameKey))
     let earlyReadyFired = false
     const startingAge = contextInput.character.startingAge ?? 0
 
@@ -276,18 +296,35 @@ export class DestinyPatternSystem extends BaseSubsystem {
       saveDestinyPatternPool(useWorldStore.getState().worldCode, [...allPatterns])
     }
 
+    let resolveEarlyReady: (() => void) | null = null
+    const earlyReadyPromise = new Promise<void>((resolve) => {
+      resolveEarlyReady = resolve
+    })
+
+    const fireEarlyReady = (): void => {
+      if (earlyReadyFired || allPatterns.length < DEFAULT_DESTINY_PATTERN_COUNT) return
+      earlyReadyFired = true
+      onEarlyReady?.([...allPatterns])
+      resolveEarlyReady?.()
+      resolveEarlyReady = null
+    }
+
     const ingestItem = (item: DestinyPatternAIItem) => {
-      if (!item?.name || existingNames.includes(item.name)) return
+      const normalizedName = item?.name?.trim()
+      const nameKey = normalizedName ? destinyPatternNameKey(normalizedName) : ''
+      if (!normalizedName || existingNameKeys.has(nameKey)) return
       if (allPatterns.length >= targetCount) return
       if (!this.passesContentQuality(item, startingAge)) return
 
-      const rarity = this.validateRarity(item.rarity) ?? 'common'
+      const rarity = this.validateRarity(item.rarity)
+      const polarity = this.validatePolarity(item.polarity)
+      if (!rarity || !polarity) return
       const pattern: DestinyPattern = {
         id: `${DESTINY_PATTERN_ID_PREFIX.AI}-${Date.now()}-${allPatterns.length}`,
-        name: item.name,
+        name: normalizedName,
         description: item.description,
         rarity,
-        polarity: this.validatePolarity(item.polarity) ?? 'positive',
+        polarity,
         effect: item.effect,
         attrBonus: this.validateAttrBonus(item.attrBonus, item.rarity),
         systemModifiers: validatePatternSystemModifiers(
@@ -299,16 +336,14 @@ export class DestinyPatternSystem extends BaseSubsystem {
       }
 
       allPatterns.push(pattern)
-      existingNames.push(item.name)
+      existingNames.push(normalizedName)
+      existingNameKeys.add(nameKey)
       this.state.candidates = [...allPatterns]
       syncPoolStatus()
       onProgress?.(allPatterns.length, [...allPatterns])
       persistPoolToLocal()
 
-      if (!earlyReadyFired && allPatterns.length >= DEFAULT_DESTINY_PATTERN_COUNT) {
-        earlyReadyFired = true
-        onEarlyReady?.([...allPatterns])
-      }
+      fireEarlyReady()
     }
 
     const runBatch = async (batch: number, seed?: number, forceStream?: boolean): Promise<void> => {
@@ -425,6 +460,9 @@ export class DestinyPatternSystem extends BaseSubsystem {
           console.info(`[destiny-pattern] 批次 ${batch + 1}/${AI_DESTINY_PATTERN_BATCH_COUNT} 完成，当前池 ${allPatterns.length} 条`)
           return
         } catch (err) {
+          // 页面离开或流程取消时，AbortController 触发的是预期的清理路径，
+          // 不应把它记录成 API 失败警告或让用户误以为命格生成出错。
+          if (abortController.signal.aborted) return
           const msg = err instanceof Error ? err.message : String(err)
           console.warn(
             `[destiny-pattern] 批次 ${batch + 1}/${AI_DESTINY_PATTERN_BATCH_COUNT} 第 ${attempt + 1} 次失败: ${msg}`,
@@ -436,22 +474,29 @@ export class DestinyPatternSystem extends BaseSubsystem {
       }
     }
 
-    const fireEarlyReady = (): void => {
-      // AI 模式下不混入预设，但仍需等待 AI 积累够 12 条才切选取界面
-      if (earlyReadyFired || allPatterns.length < DEFAULT_DESTINY_PATTERN_COUNT) return
-      earlyReadyFired = true
-      onEarlyReady?.([...allPatterns])
+    // 首屏同时发起三路独立的 10 项流式请求。任一路或任意组合累计出 5 条
+    // 有效去重命格就立即触发页面交接；其余请求不阻塞交接，继续由后台收集。
+    let nextBackgroundBatch = 0
+    const parallelPromises: Promise<void>[] = []
+    fireEarlyReady()
+
+    if (!earlyReadyFired && !abortController.signal.aborted) {
+      const parallelSeeds = [42, 137, 256].slice(0, AI_DESTINY_PATTERN_FIRST_SCREEN_CONCURRENCY)
+      parallelPromises.push(
+        ...parallelSeeds.map((seed, index) => runBatchWithRetry(index, seed, true)),
+      )
+      nextBackgroundBatch = parallelSeeds.length
+
+      const allParallelSettled = Promise.allSettled(parallelPromises).then(() => undefined)
+      await Promise.race([earlyReadyPromise, allParallelSettled])
+      fireEarlyReady()
     }
 
-    // 首屏只发一路 12 项流式请求；质量门禁导致不足时才串行补下一批。
-    // 达到 12 项后立即返回页面，剩余批次再在后台顺序填充，避免 3×20 大输出竞争带宽与供应商队列。
-    let nextBackgroundBatch = 0
-    fireEarlyReady()
+    // 三路都结束但仍未达到 5 条时，继续单路请求；不设置人为批次数上限，
+    // 直到质量合格的 AI 命格足够或用户离开页面触发 AbortController。
     while (!earlyReadyFired && !abortController.signal.aborted) {
       await runBatchWithRetry(
         nextBackgroundBatch,
-        nextBackgroundBatch === 0 ? 42 : undefined,
-        nextBackgroundBatch === 0,
       )
       nextBackgroundBatch += 1
       fireEarlyReady()
@@ -459,7 +504,10 @@ export class DestinyPatternSystem extends BaseSubsystem {
 
     const fillRemainingBatches = async (): Promise<void> => {
       try {
-        // 首屏可选后再串行填充后续批次，避免瞬间并发触发限流或拖慢首包。
+        // 首屏可选后再串行填充后续批次；先等仍在运行的首屏请求写入共享池。
+        if (parallelPromises.length > 0) {
+          await Promise.allSettled(parallelPromises)
+        }
         for (let batch = nextBackgroundBatch; batch < AI_DESTINY_PATTERN_BATCH_COUNT; batch++) {
           if (abortController.signal.aborted) break
           if (allPatterns.length >= targetCount) break
@@ -585,10 +633,11 @@ export class DestinyPatternSystem extends BaseSubsystem {
     const seenNames = new Set<string>()
     for (const pattern of patterns) {
       if (!pattern?.id || !pattern.name) continue
-      if (seenIds.has(pattern.id) || seenNames.has(pattern.name)) continue
+      const nameKey = destinyPatternNameKey(pattern.name)
+      if (seenIds.has(pattern.id) || seenNames.has(nameKey)) continue
       seenIds.add(pattern.id)
-      seenNames.add(pattern.name)
-      result.push(pattern)
+      seenNames.add(nameKey)
+      result.push({ ...pattern, name: pattern.name.trim() })
     }
     return result
   }
@@ -614,7 +663,7 @@ export class DestinyPatternSystem extends BaseSubsystem {
     const entries = Object.entries(bonuses).filter(([, v]) => v !== 0)
     if (entries.length === 0) return ''
     const names: Record<string, string> = {
-      physique: '体魄', mind: '心智', talentAptitude: '悟性', charisma: '魅力', resources: '出身',
+      physique: '体魄', mind: '心智', talentAptitude: '悟性', charisma: '魅力',
     }
     return entries.map(([k, v]) => {
       const sign = (v ?? 0) > 0 ? '+' : ''
@@ -702,7 +751,7 @@ export class DestinyPatternSystem extends BaseSubsystem {
 
   /** 校验极性值是否合法 */
   private validatePolarity(polarity: string): DestinyPatternPolarity | null {
-    const valid: DestinyPatternPolarity[] = ['positive', 'negative', 'mixed']
+    const valid: DestinyPatternPolarity[] = ['positive', 'mixed']
     return valid.includes(polarity as DestinyPatternPolarity) ? (polarity as DestinyPatternPolarity) : null
   }
 
@@ -713,7 +762,7 @@ export class DestinyPatternSystem extends BaseSubsystem {
   ): Partial<Record<string, number>> {
     if (!bonus || typeof bonus !== 'object') return {}
 
-    const validKeys = ['physique', 'mind', 'talentAptitude', 'charisma', 'resources']
+    const validKeys = ['physique', 'mind', 'talentAptitude', 'charisma']
     const result: Record<string, number> = {}
     const maxTotal = rarity === 'legendary' ? 7 : rarity === 'epic' ? 5 : rarity === 'rare' ? 4 : rarity === 'fine' ? 3 : 1
 
@@ -743,4 +792,12 @@ export class DestinyPatternSystem extends BaseSubsystem {
     }
     return labels[rarity] ?? rarity
   }
+}
+
+let runtimeDestinyPatternSystem: DestinyPatternSystem | undefined
+
+/** 创建页与 loader 共用的懒加载运行时单例。 */
+export function getDestinyPatternSystem(): DestinyPatternSystem {
+  runtimeDestinyPatternSystem ??= new DestinyPatternSystem()
+  return runtimeDestinyPatternSystem
 }

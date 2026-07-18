@@ -15,13 +15,10 @@
  *   4. 含 enabled 开关，用户可选择性启用
  */
 
-import type {
-  ISubSystem,
-  SubSystemState,
-  SubSystemChanges,
-  RoundContext,
-} from '@/foundation'
+import type { SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
 import { getRoundSequence } from '@/foundation'
+import { BaseSubsystem } from '@/core'
+import type { NarrativeSemanticSignals } from '../helpers/narrative-semantic-signals'
 // mod-engine 使用 system-safety 的 clampNumber（含 safeNumber 保护）
 import { clampNumber } from '../helpers/system-safety'
 
@@ -71,23 +68,10 @@ export interface PlotStructureState {
   chapterCount: number
   tensionLevel: number
   lastClimaxRound: number
+  lastConflictIntensity: number
+  consecutiveConflictRounds: number
+  lastNarrativeRegister: NarrativeSemanticSignals['narrativeRegister']
   phaseHistory: Array<{ phase: PlotPhase; round: number }>,
-}
-
-// ============================================================
-// 张力关卡键词（用于从叙事中检测张力信号）
-// ============================================================
-
-const TENSION_KEYWORDS: Record<string, number> = {
-  // 高强度
-  杀: 15, 死: 15, 毁灭: 15, 背叛: 12, 崩: 12, 袭: 10,
-  决战: 15, 爆发: 12, 围攻: 10, 灾难: 12, 天劫: 15,
-  // 中强度
-  敌: 8, 战: 7, 威胁: 8, 危机: 8, 冲突: 7, 阴谋: 7,
-  伤势: 7, 困境: 7, 险: 6, 逃: 6, 追: 6, 斗: 6,
-  试探: 5, 暗流: 6, 压力: 7, 紧张: 6,
-  // 低强度（日常）
-  日常: -5, 平静: -5, 安逸: -5, 休息: -3, 闲: -3,
 }
 
 // ============================================================
@@ -108,7 +92,7 @@ const PHASE_GUIDANCE: Record<PlotPhase, string> = {
 // PlotStructureSystem
 // ============================================================
 
-export class PlotStructureSystem implements ISubSystem {
+export class PlotStructureSystem extends BaseSubsystem {
   readonly id = 'plot-structure' as const
   readonly mod = 'mod-engine' as const
   readonly label = '情节结构' as const
@@ -121,6 +105,9 @@ export class PlotStructureSystem implements ISubSystem {
     chapterCount: 1,
     tensionLevel: 30,
     lastClimaxRound: 0,
+    lastConflictIntensity: 0,
+    consecutiveConflictRounds: 0,
+    lastNarrativeRegister: 'life',
     phaseHistory: [],
   }
 
@@ -180,9 +167,32 @@ export class PlotStructureSystem implements ISubSystem {
       chapterCount: 1,
       tensionLevel: 30,
       lastClimaxRound: 0,
+      lastConflictIntensity: 0,
+      consecutiveConflictRounds: 0,
+      lastNarrativeRegister: 'life',
       phaseHistory: [],
     }
     this._lastProcessedRound = -1
+  }
+
+  /** 预生成会临时推进情节阶段；结束后必须完整恢复真实时间线。 */
+  capturePreviewState(): unknown {
+    return structuredClone({
+      state: this.state,
+      lastProcessedRound: this._lastProcessedRound,
+    })
+  }
+
+  restorePreviewState(snapshot: unknown): void {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
+    const value = snapshot as {
+      state?: PlotStructureState
+      lastProcessedRound?: number
+    }
+    if (value.state) this.state = structuredClone(value.state)
+    if (typeof value.lastProcessedRound === 'number') {
+      this._lastProcessedRound = value.lastProcessedRound
+    }
   }
 
   // ---- 公共访问器 ----
@@ -195,6 +205,24 @@ export class PlotStructureSystem implements ISubSystem {
   /** 获取张力水平 */
   getTensionLevel(): number {
     return this.state.tensionLevel
+  }
+
+  getConsecutiveConflictRounds(): number {
+    return this.state.consecutiveConflictRounds
+  }
+
+  /** 消费主叙事 AI 的结构化语义，不读取正文。 */
+  recordNarrativeSignals(signals: NarrativeSemanticSignals): void {
+    this.state.lastConflictIntensity = signals.conflictIntensity
+    this.state.lastNarrativeRegister = signals.narrativeRegister
+    this.state.consecutiveConflictRounds = signals.conflictIntensity >= 40
+      ? this.state.consecutiveConflictRounds + 1
+      : 0
+    this.state.tensionLevel = clampNumber(
+      this.state.tensionLevel + signals.tensionDelta,
+      0,
+      100,
+    )
   }
 
   /** 获取情节状态 */
@@ -234,13 +262,12 @@ export class PlotStructureSystem implements ISubSystem {
   private advancePhase(context: RoundContext): void {
     this.state.phaseRound++
 
-    // 从叙事中估算张力变化
-    this.updateTension(context)
+    this.applyPhaseTensionDrift()
 
     // 检查是否需要转移阶段
-    const nextPhase = this.shouldTransition(context)
+    const nextPhase = this.shouldTransition()
     if (nextPhase) {
-      this.performTransition(nextPhase, context.round.year)
+      this.performTransition(nextPhase, getRoundSequence(context))
     }
   }
 
@@ -271,7 +298,7 @@ export class PlotStructureSystem implements ISubSystem {
   }
 
   /** 判断是否应该进入下一阶段 */
-  private shouldTransition(context: RoundContext): PlotPhase | null {
+  private shouldTransition(): PlotPhase | null {
     const phase = this.state.currentPhase
     const durations = DEFAULT_PHASE_DURATIONS[phase]
     const directionModifier = 1.0
@@ -283,7 +310,7 @@ export class PlotStructureSystem implements ISubSystem {
     switch (phase) {
       case 'setup':
         // 铺垫期：达到最小轮数 + 有事件触发时转移
-        if (this.state.phaseRound >= adjustedMin && this.hasConflictSignal(context)) {
+        if (this.state.phaseRound >= adjustedMin && this.state.lastConflictIntensity >= 30) {
           return 'rising_action'
         }
         // 超过最大轮数强制转移
@@ -336,43 +363,10 @@ export class PlotStructureSystem implements ISubSystem {
     return null
   }
 
-  /** 检查上下文中有无冲突信号 */
-  private hasConflictSignal(context: RoundContext): boolean {
-    const summaries = Object.values(context.subsystemStates ?? {})
-    const combinedText = summaries
-      .map((s) => s.summary ?? '')
-      .join('')
-
-    // 检测冲突关键词
-    const conflictKeywords = ['敌', '战', '冲突', '威胁', '挑衅', '攻击', '入侵', '危机', '阴谋', '陷害', '仇']
-    return conflictKeywords.some((kw) => combinedText.includes(kw))
-  }
-
-  /** 更新张力水平 */
-  private updateTension(context: RoundContext): void {
-    // 从子系统摘要中估算张力变化
-    const summaries = Object.values(context.subsystemStates ?? {})
-    const combinedText = summaries
-      .map((s) => s.summary ?? '')
-      .join('')
-
-    let delta = 0
-    for (const [keyword, weight] of Object.entries(TENSION_KEYWORDS)) {
-      if (combinedText.includes(keyword)) {
-        delta += weight
-      }
-    }
-
-    // 钳制变化量
-    // 紧张度变化不超过 [-10, 15]，防止单轮跳变过大
-    delta = clampNumber(delta, -10, 15)
-
-    // 阶段影响基础衰减
-    const phaseDecay = this.getPhaseTensionDecay()
-
-    // 紧张度限制在 [0, 100]
+  /** 阶段自身的确定性张力漂移；叙事语义增量由 recordNarrativeSignals 提供。 */
+  private applyPhaseTensionDrift(): void {
     this.state.tensionLevel = clampNumber(
-      this.state.tensionLevel + delta + phaseDecay,
+      this.state.tensionLevel + this.getPhaseTensionDecay(),
       0,
       100,
     )

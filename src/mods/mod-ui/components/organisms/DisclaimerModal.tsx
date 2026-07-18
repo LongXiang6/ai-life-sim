@@ -10,7 +10,7 @@
  *   "我已知晓" + "退出" 双按钮
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 
 import styles from './DisclaimerModal.module.css'
@@ -50,6 +50,8 @@ export interface DisclaimerModalProps {
 export function DisclaimerModal({ visible, onAccept, onClose }: DisclaimerModalProps) {
   const [content, setContent] = useState('')
   const [loading, setLoading] = useState(true)
+  const frameRef = useRef<HTMLDivElement>(null)
+  const acceptRef = useRef<HTMLButtonElement>(null)
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
@@ -62,30 +64,82 @@ export function DisclaimerModal({ visible, onAccept, onClose }: DisclaimerModalP
   }, [visible])
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  useEffect(() => {
+    if (!visible) return
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
+    const focusFrame = window.requestAnimationFrame(() => {
+      if (loading) frameRef.current?.focus()
+      else acceptRef.current?.focus()
+    })
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onClose()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusable = Array.from(
+        frameRef.current?.querySelectorAll<HTMLElement>('button:not([disabled])') ?? [],
+      )
+      const first = focusable[0]
+      const last = focusable.at(-1)
+      if (!first || !last) {
+        event.preventDefault()
+        frameRef.current?.focus()
+      } else if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.cancelAnimationFrame(focusFrame)
+      document.removeEventListener('keydown', handleKeyDown)
+      if (previouslyFocused?.isConnected) previouslyFocused.focus()
+    }
+  }, [loading, onClose, visible])
+
   if (!visible) return null
 
   return createPortal(
     <div className={styles.overlay}>
-      <div className={styles.frame} onClick={e => e.stopPropagation()}>
-        <div className={styles.header}>
-          <div className={styles.title}>📜 免责声明</div>
-        </div>
+      <div
+        ref={frameRef}
+        className={styles.frame}
+        onClick={e => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="disclaimer-title"
+        tabIndex={-1}
+      >
+        <span className={styles.spine} aria-hidden="true" />
+        <header className={styles.header}>
+          <div className={styles.metaRow} aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>附 · 须知</span></div>
+          <h2 id="disclaimer-title" className={styles.title}>开始之前</h2>
+          <p>请阅读并确认以下使用说明。</p>
+        </header>
         <div className={styles.body}>
           <div className={styles.content}>
             {loading ? (
-              <p style={{ textAlign: 'center', color: 'var(--color-text-tertiary)', padding: '20px 0', fontSize: 13 }}>📄 加载中...</p>
+              <p className={styles.loading}>加载中…</p>
             ) : (
               <pre className={styles.contentPre}>{content}</pre>
             )}
           </div>
         </div>
         <div className={styles.footer}>
+          <button onClick={onClose} className={styles.cancelBtn} aria-label="退出">×</button>
           <button
+            ref={acceptRef}
             onClick={onAccept}
             disabled={loading}
             className={`${styles.acceptBtn} ${loading ? styles.acceptBtnDisabled : styles.acceptBtnEnabled}`}
-          >我已知晓</button>
-          <button onClick={onClose} className={styles.cancelBtn}>退出</button>
+          ><span><strong>我已知晓</strong><small>接受说明并进入人生序章</small></span><i aria-hidden="true">→</i></button>
         </div>
       </div>
     </div>,

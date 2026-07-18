@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>命格选取 · 统一创建流程</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../assets/library.css">
+  <link rel="stylesheet" href="../assets/creation-flow-unified.css">
+  <script src="../assets/prototype.js" defer></script>
+  <script src="../assets/creation-flow-unified.js" defer></script>
+  <style>
+    body[data-screen="mythic-inheritance"] .cf-slot-row { margin-top: 4px; }
+  </style>
+</head>
+<body data-screen="mythic-inheritance" data-creation-step="6">
+  <main class="creation-shell">
+    <header class="creation-review">
+      <p class="creation-review-label">CREATION FLOW · 06 / 08</p>
+      <h1>命格选取</h1>
+      <p class="creation-review-copy">从同一座星盘中选满三个普通命格；神话传承独立可选，不占普通命格槽。</p>
+    </header>
+
+    <section class="creation-stage" aria-label="命格选取移动端界面">
+      <div class="creation-phone">
+        <div data-flow-art></div>
+        <div class="cf-screen">
+          <header class="cf-header" data-creation-header data-title="选择命格" data-subtitle="从五星位中选满三条，可另选一项神话传承。"></header>
+
+          <div class="cf-slot-row" aria-label="已选普通命格">
+            <button class="cf-slot" type="button" data-slot="0" aria-label="普通命格槽一，空"><small>星契 01</small><strong>待选择</strong></button>
+            <button class="cf-slot" type="button" data-slot="1" aria-label="普通命格槽二，空"><small>星契 02</small><strong>待选择</strong></button>
+            <button class="cf-slot" type="button" data-slot="2" aria-label="普通命格槽三，空"><small>星契 03</small><strong>待选择</strong></button>
+          </div>
+
+          <div class="cf-selection-stage">
+            <div class="cf-astrolabe" data-astrolabe aria-label="五星位命格星盘"></div>
+          </div>
+
+          <section class="cf-focus" aria-live="polite">
+            <div>
+              <small data-focus-meta>精良命格 · 悟性 +2</small>
+              <strong data-focus-name>见微知命</strong>
+              <p data-focus-copy>细微变化常常比宏大征兆更早显露。洞察事件 +12%</p>
+            </div>
+            <button class="cf-focus-add" type="button" data-add aria-label="将见微知命加入普通命格槽" title="加入命格槽"><span data-icon="plus"></span></button>
+          </section>
+
+          <div class="cf-selection-tools">
+            <button class="cf-reroll" type="button" data-redraw aria-label="重新抽取未选择的普通命格"><span data-icon="shuffle"></span><span>重新抽取</span></button>
+            <button class="cf-library-trigger" type="button" data-library-trigger aria-expanded="false">
+              <span>神话传承库</span><strong data-mythic-current>本局不携带</strong>
+            </button>
+          </div>
+        </div>
+
+        <section class="cf-library" data-library aria-hidden="true" aria-labelledby="mythic-library-title" inert>
+          <div class="cf-library-head">
+            <div><strong id="mythic-library-title">神话传承库</strong></div>
+            <button class="cf-library-close" type="button" data-library-close aria-label="关闭神话传承库" title="关闭"><span data-icon="close"></span></button>
+          </div>
+          <div class="cf-library-list" data-library-list></div>
+        </section>
+
+        <footer class="cf-footer">
+          <button class="cf-back" type="button" data-flow-to="talent-draw" aria-label="返回命格抽取" title="返回命格抽取"><span data-icon="back"></span></button>
+          <button class="cf-next" type="button" data-flow-to="attribute-alloc" disabled aria-label="还需选择三条普通命格">
+            <span class="cf-next-number">07</span>
+            <span class="cf-next-copy"><strong>确认命格</strong><small data-selection-status>还需选择 3 条普通命格</small></span>
+            <span class="cf-next-arrow" data-icon="arrow"></span>
+          </button>
+        </footer>
+        <div class="cf-toast" role="status" aria-live="polite"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      const baseOrdinary = [
+        { name: '见微知命', rarity: '精良', attr: '悟性 +2', copy: '细微变化常常比宏大征兆更早显露。', system: '洞察事件 +12%' },
+        { name: '雨幕听心', rarity: '稀有', attr: '心智 +3', copy: '雨声帮助你辨认他人未说出口的情绪。', system: '共情事件 +15%' },
+        { name: '不燃之烬', rarity: '传说', attr: '体魄 +5', copy: '真正熄灭之物也会留下拒绝消散的余温。', system: '逆境成长 +24%' },
+        { name: '簿命长风', rarity: '普通', attr: '魅力 +1', copy: '漂泊时你更容易适应新的生活节奏。', system: '迁徙适应 +6%' },
+        { name: '山海余响', rarity: '史诗', attr: '悟性 +3', copy: '古老地域会在你心中留下难以磨灭的回声。', system: '传承事件 +18%' },
+      ]
+      const redrawNames = [
+        '拾光者', '静水深流', '无字碑', '风来有信', '昼夜同尘', '掌灯人',
+        '旧梦新枝', '闻潮', '孤峰照雪', '缓弦', '纸上春秋', '雁归迟',
+        '松间问月', '行舟不系', '一念归真', '鹤影听风', '长街微雨', '枕星而眠',
+        '山止川行', '照夜白', '浮生一页', '春灯未灭', '归云入岫', '潮声旧约',
+      ]
+      const mythics = [
+        { name: '本局不携带', copy: '保留独立神话槽，不影响三个普通命格。' },
+        { name: '长夜见灯', copy: '绝路之中，微小而真实的希望更容易被你看见。' },
+        { name: '未竟之愿', copy: '真正重要却未完成的愿望，会留下仍可追寻的回声。' },
+        { name: '凡心不灭', copy: '宏大力量改变一切时，你仍保留重新选择自己的余地。' },
+        { name: '与潮同归', copy: '失去无法避免时，你更容易理解告别并留下新的连接。' },
+      ]
+
+      function init() {
+        const slots = Array.from(document.querySelectorAll('[data-slot]'))
+        const add = document.querySelector('[data-add]')
+        const next = document.querySelector('.cf-next')
+        const status = document.querySelector('[data-selection-status]')
+        const library = document.querySelector('[data-library]')
+        const libraryTrigger = document.querySelector('[data-library-trigger]')
+        const currentMythic = document.querySelector('[data-mythic-current]')
+        const focus = document.querySelector('.cf-focus')
+        const redraw = document.querySelector('[data-redraw]')
+        const savedFateState = CreationFlow.fateState.read()
+        const savedCandidates = Array.isArray(savedFateState.candidates) ? savedFateState.candidates : []
+        let ordinary = baseOrdinary.map(function (item, index) {
+          const candidate = savedCandidates[index]
+          if (!candidate || !candidate.name) return Object.assign({}, item)
+          return Object.assign({}, item, {
+            name: candidate.name,
+            rarity: candidate.rarity || item.rarity,
+          })
+        })
+        let activeIndex = Number.isFinite(savedFateState.activeIndex) ? Number(savedFateState.activeIndex) : 0
+        let redrawRound = Number.isFinite(savedFateState.redrawRound) ? Number(savedFateState.redrawRound) : 0
+        let selectedMythic = 0
+
+        function saveFateState(index) {
+          CreationFlow.fateState.write({
+            candidates: ordinary.map(function (item) { return Object.assign({}, item) }),
+            activeIndex: Number.isFinite(index) ? index : activeIndex,
+            redrawRound: redrawRound,
+          })
+        }
+
+        const astrolabe = CreationFlow.astrolabe(document.querySelector('[data-astrolabe]'), {
+          items: ordinary,
+          revealedCount: ordinary.length,
+          activeIndex: activeIndex,
+          onSelect: function (item, index) {
+            activeIndex = index
+            focus.dataset.rarity = item.rarity
+            document.querySelector('[data-focus-meta]').textContent = `${item.rarity}命格 · ${item.attr}`
+            document.querySelector('[data-focus-name]').textContent = item.name
+            document.querySelector('[data-focus-copy]').textContent = `${item.copy}${item.system}`
+            add.setAttribute('aria-label', `将${item.name}加入普通命格槽`)
+            saveFateState(index)
+          },
+        })
+        astrolabe.startCycle()
+
+        function updateSelection() {
+          const amount = slots.filter(function (slot) { return slot.dataset.name }).length
+          const remaining = ordinary.length ? 3 - amount : 3
+          next.disabled = remaining !== 0
+          next.setAttribute('aria-label', remaining === 0 ? '确认命格并进入属性分配' : `还需选择${remaining}条普通命格`)
+          status.textContent = remaining === 0 ? '三条普通命格已签订 · 继续分配属性' : `还需选择 ${remaining} 条普通命格`
+        }
+
+        function renderSlot(slot, item) {
+          if (!item) {
+            const number = Number(slot.dataset.slot) + 1
+            delete slot.dataset.name
+            delete slot.dataset.rarity
+            slot.classList.remove('is-filled')
+            slot.innerHTML = `<small>星契 ${String(number).padStart(2, '0')}</small><strong>待选择</strong>`
+            slot.setAttribute('aria-label', `普通命格槽${number}，空`)
+            return
+          }
+          slot.dataset.name = item.name
+          slot.dataset.rarity = item.rarity
+          slot.classList.add('is-filled')
+          slot.innerHTML = `<small>${item.rarity}命格</small><strong>${item.name}</strong>`
+          slot.setAttribute('aria-label', `移除普通命格：${item.name}`)
+        }
+
+        add.addEventListener('click', function () {
+          const item = ordinary[activeIndex]
+          if (slots.some(function (slot) { return slot.dataset.name === item.name })) {
+            CreationFlow.notify(`${item.name}已在星契中`)
+            return
+          }
+          const target = slots.find(function (slot) { return !slot.dataset.name })
+          if (!target) {
+            CreationFlow.notify('三个普通命格槽已满')
+            return
+          }
+          renderSlot(target, item)
+          updateSelection()
+          const nextIndex = ordinary.findIndex(function (candidate) {
+            return !slots.some(function (slot) { return slot.dataset.name === candidate.name })
+          })
+          if (nextIndex >= 0) astrolabe.render(nextIndex, { emitWave: true, restartCycle: true })
+        })
+
+        slots.forEach(function (slot) {
+          slot.addEventListener('click', function () {
+            if (!slot.dataset.name) return
+            const removed = slot.dataset.name
+            renderSlot(slot, null)
+            updateSelection()
+            CreationFlow.notify(`已移除${removed}`)
+          })
+        })
+
+        redraw.addEventListener('click', function () {
+          const selectedNames = new Set(slots.filter(function (slot) { return slot.dataset.name }).map(function (slot) { return slot.dataset.name }))
+          const reservedNames = new Set(selectedNames)
+          redrawRound += 1
+          ordinary = ordinary.map(function (item, index) {
+            if (selectedNames.has(item.name)) return item
+            const start = (redrawRound * 7 + index) % redrawNames.length
+            let nextName = item.name
+            for (let offset = 0; offset < redrawNames.length; offset += 1) {
+              const candidate = redrawNames[(start + offset) % redrawNames.length]
+              if (candidate !== item.name && !reservedNames.has(candidate)) {
+                nextName = candidate
+                break
+              }
+            }
+            reservedNames.add(nextName)
+            const originalCopy = item.copy.replace(/^此签已重新显现。/, '')
+            return Object.assign({}, item, { name: nextName, copy: `此签已重新显现。${originalCopy}` })
+          })
+          astrolabe.replaceItems(ordinary, activeIndex, true)
+          astrolabe.restartCycle()
+          saveFateState(activeIndex)
+          CreationFlow.notify(selectedNames.size
+            ? `已保留${selectedNames.size}条星契，重新抽取其余命格`
+            : '五条普通命格已重新抽取')
+        })
+
+        document.querySelector('[data-library-list]').innerHTML = mythics.map(function (item, index) {
+          return `<button class="${index === selectedMythic ? 'is-selected' : ''}" type="button" data-mythic-index="${index}" aria-pressed="${index === selectedMythic}"><strong>${item.name}</strong><span>${item.copy}</span></button>`
+        }).join('')
+
+        function setLibrary(open) {
+          library.classList.toggle('is-open', open)
+          library.setAttribute('aria-hidden', String(!open))
+          libraryTrigger.setAttribute('aria-expanded', String(open))
+          if (open) library.removeAttribute('inert')
+          else library.setAttribute('inert', '')
+        }
+
+        libraryTrigger.addEventListener('click', function () { setLibrary(true) })
+        document.querySelector('[data-library-close]').addEventListener('click', function () { setLibrary(false) })
+        document.querySelectorAll('[data-mythic-index]').forEach(function (button) {
+          button.addEventListener('click', function () {
+            selectedMythic = Number(button.dataset.mythicIndex)
+            currentMythic.textContent = mythics[selectedMythic].name
+            document.querySelectorAll('[data-mythic-index]').forEach(function (candidate) {
+              const selected = candidate === button
+              candidate.classList.toggle('is-selected', selected)
+              candidate.setAttribute('aria-pressed', String(selected))
+            })
+            setLibrary(false)
+            CreationFlow.notify(`神话传承 · ${mythics[selectedMythic].name}`)
+          })
+        })
+
+        document.addEventListener('keydown', function (event) {
+          if (event.key === 'Escape' && library.classList.contains('is-open')) setLibrary(false)
+        })
+        window.addEventListener('pagehide', function () {
+          saveFateState(astrolabe.getActiveIndex())
+          astrolabe.destroy()
+        }, { once: true })
+        updateSelection()
+      }
+
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true })
+      else init()
+    })()
+  </script>
+</body>
+</html>

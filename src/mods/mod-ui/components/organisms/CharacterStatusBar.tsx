@@ -36,7 +36,6 @@ export interface BaseAttributes {
   mind: number
   talentAptitude: number
   charisma: number
-  resources: number
   luck: number,
 }
 
@@ -151,7 +150,6 @@ export function CharacterStatusBar({
           <AttributeTag icon="🧠" label="心智" value={base.mind} />
           <AttributeTag icon="⭐" label="悟性" value={base.talentAptitude} />
           <AttributeTag icon="💫" label="魅力" value={base.charisma} />
-          <AttributeTag icon="🏠" label="出身" value={base.resources} />
           <AttributeTag icon="🍀" label="气运" value={base.luck} />
         </div>
 

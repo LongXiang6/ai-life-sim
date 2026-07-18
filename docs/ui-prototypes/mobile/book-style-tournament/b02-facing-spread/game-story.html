@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>B02 · 故事进行中</title>
+  <link rel="stylesheet" href="tokens.css">
+  <style>
+    .story-spread .leaf { min-height: 1120px; }
+    .timeline-label {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 20px 0 0;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+      color: var(--faint);
+      font-size: 10px;
+    }
+    .look-back { width: 100%; min-height: 40px; border: 0; border-bottom: 1px solid var(--line-soft); background: transparent; color: var(--muted); font-size: 10px; cursor: pointer; }
+    .earlier-note { margin: 12px 0 0; padding: 12px 0; border-bottom: 1px solid var(--line-soft); color: var(--muted); font-family: var(--serif); font-size: 12px; line-height: 1.75; }
+    .story-entry { padding: 24px 0 12px; }
+    .entry-meta { display: flex; justify-content: space-between; gap: 12px; color: var(--faint); font-size: 10px; font-variant-numeric: tabular-nums; }
+    .story-prose { font-family: var(--serif); font-size: 15px; line-height: 1.95; }
+    .story-prose p { margin: 14px 0 0; }
+    .story-separator { margin: 10px 0 -4px; color: var(--accent); font-family: var(--serif); font-size: 13px; text-align: center; }
+    .identity-sheet { margin-top: 22px; padding-bottom: 16px; border-bottom: 1px solid var(--line); }
+    .identity-line { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+    .identity-line h3 { margin: 0; font-family: var(--serif); font-size: 23px; font-weight: 600; }
+    .identity-line span { color: var(--muted); font-size: 10px; }
+    .time-line { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-top: 9px; }
+    .time-line strong { font-family: var(--serif); font-size: 17px; font-weight: 600; }
+    .time-line span { color: var(--faint); font-size: 10px; text-align: right; }
+    .world-line { margin-top: 14px; color: var(--muted); font-family: var(--serif); font-size: 12px; }
+    .attribute-ledger { display: grid; grid-template-columns: repeat(5, 1fr); margin: 16px 0 0; border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }
+    .attribute-ledger div { min-width: 0; padding: 10px 2px; border-right: 1px solid var(--line-soft); text-align: center; }
+    .attribute-ledger div:last-child { border-right: 0; }
+    .attribute-ledger dt { color: var(--faint); font-size: 8px; }
+    .attribute-ledger dd { margin: 4px 0 0; color: var(--muted); font-size: 10px; font-variant-numeric: tabular-nums; }
+    .attribute-ledger .rise { color: var(--accent); }
+    .tool-row { display: grid; grid-template-columns: repeat(3, 1fr); margin: 16px 0 0; border-bottom: 1px solid var(--line); }
+    .tool-row button {
+      min-height: 38px;
+      border: 0;
+      border-right: 1px solid var(--line-soft);
+      background: transparent;
+      color: var(--muted);
+      font-size: 10px;
+      cursor: pointer;
+    }
+    .tool-row button:last-child { border-right: 0; }
+    .tool-row button.active { background: var(--accent-soft); color: var(--ink); }
+    .tool-section { display: none; border-bottom: 1px solid var(--line); }
+    .tool-section.open { display: block; }
+    .time-options { display: grid; grid-template-columns: repeat(4, 1fr); padding: 8px 0; }
+    .time-options button {
+      min-height: 34px;
+      border: 0;
+      background: transparent;
+      color: var(--faint);
+      font-size: 9px;
+      cursor: pointer;
+    }
+    .time-options button.active { color: var(--ink); text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 5px; }
+    .tool-hint { margin: 0; padding: 0 4px 10px; color: var(--faint); font-size: 9px; line-height: 1.55; }
+    .world-ledger { padding: 8px 0 12px; }
+    .ledger-label { margin: 10px 0 6px; color: var(--faint); font-size: 9px; }
+    .talent-line { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 8px; padding: 7px 0; border-top: 1px solid var(--line-soft); font-family: var(--serif); font-size: 11px; line-height: 1.5; }
+    .talent-line span { color: var(--faint); font-family: var(--sans); font-size: 8px; }
+    .status-terms { display: flex; flex-wrap: wrap; gap: 7px 14px; margin-top: 8px; color: var(--muted); font-size: 9px; }
+    .status-terms span::before { margin-right: 4px; color: var(--accent); content: "·"; }
+    .more-actions { padding: 7px 0; }
+    .more-actions button,
+    .more-actions a { width: 100%; min-height: 38px; border: 0; border-bottom: 1px solid var(--line-soft); background: transparent; color: var(--muted); font-size: 10px; text-align: left; text-decoration: none; cursor: pointer; }
+    .more-actions a { display: flex; align-items: center; }
+    .branch-block { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--line); }
+    .branch-question { margin: 0 0 10px; font-family: var(--serif); font-size: 15px; font-weight: 600; line-height: 1.7; }
+    .branch-choice {
+      position: relative;
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr);
+      min-height: 58px;
+      align-items: center;
+      gap: 8px;
+      border-top: 1px solid var(--line-soft);
+      color: var(--muted);
+      font-family: var(--serif);
+      font-size: 12px;
+      line-height: 1.6;
+      cursor: pointer;
+    }
+    .branch-choice::before { color: var(--faint); font-family: var(--sans); font-size: 9px; content: attr(data-index); }
+    .branch-choice input { position: absolute; opacity: 0; pointer-events: none; }
+    .branch-choice.selected { color: var(--ink); }
+    .branch-choice.selected::before { color: var(--accent); text-decoration: underline; text-underline-offset: 4px; }
+    .branch-actions { display: flex; justify-content: space-between; gap: 16px; margin-top: 10px; }
+    .branch-actions button { min-height: 38px; padding: 0; border: 0; background: transparent; color: var(--muted); font-size: 10px; cursor: pointer; }
+    .branch-actions .confirm-choice { color: var(--ink); font-family: var(--serif); font-size: 12px; font-weight: 600; }
+    .branch-actions .confirm-choice:disabled { color: var(--faint); }
+    .resolved { margin-top: 14px; padding: 12px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); color: var(--muted); font-family: var(--serif); font-size: 12px; line-height: 1.7; }
+    .continuation-spread { margin-top: 18px; }
+    .continuation-spread[hidden] { display: none; }
+    .continuation-spread .leaf { min-height: 560px; }
+    .advance-status { margin: 24px 0; color: var(--muted); font-family: var(--serif); font-size: 14px; line-height: 1.8; }
+    .advance-action { margin-top: 18px; }
+    .save-slots { border-top: 1px solid var(--line); }
+    .save-slot { padding: 11px 0; border-bottom: 1px solid var(--line-soft); color: var(--muted); font-size: 11px; }
+    @media (max-width: 699px) {
+      .story-spread .leaf { min-height: 0; }
+      .story-spread .leaf--reading { min-height: 920px; }
+      .story-spread .leaf--action { min-height: 930px; }
+      .continuation-spread .leaf { min-height: 520px; }
+      .attribute-ledger dt { font-size: 7px; }
+      .attribute-ledger dd { font-size: 9px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="book-shell">
+    <nav class="review-bar" aria-label="候选导航"><a href="index.html">B02 页面目录</a><span class="task-mark">CORE SIMULATION · ROUND 12</span></nav>
+    <header class="book-heading">
+      <div><h1>故事进行中</h1><p>正文占一页，人物、世界状态与选择占另一页。</p></div>
+      <div class="chapter-code">LIFE OF LIN QINGHE</div>
+    </header>
+    <section class="spread story-spread" aria-label="故事正文与状态行动对开页">
+      <article class="leaf leaf--reading" id="story-reading">
+        <header class="leaf-head">
+          <p class="leaf-role">左页 · 故事进程</p>
+          <h2 class="leaf-title">林清和的第十二轮人生。</h2>
+          <p class="leaf-deck">旧底片把她带到沈家废园，墙上的四个字让这段往事重新开口。</p>
+        </header>
+        <div class="timeline-label"><span>故事进程</span><span>第 12 轮</span></div>
+        <button class="look-back" type="button" aria-expanded="false">向上回望更早的十二段人生</button>
+        <p class="earlier-note" hidden>更早的记忆被折在前页：旧书店、无鱼线的鱼竿，以及孙伯始终没有说完的那句话。</p>
+        <article class="story-entry">
+          <div class="entry-meta"><span>2006年 · 杏月</span><span>6 岁</span></div>
+          <div class="story-prose"><p>午后的旧书店里，窗格把阳光切成细长的方块。你趴在柜台边，用放大镜对着那张旧底片一寸寸移动。</p><p>底片深处的人影终于露出轮廓：他站在沈家废园的砖墙旁，手里握着一根没有鱼线的旧鱼竿。</p></div>
+        </article>
+        <div class="story-separator">卷间</div>
+        <article class="story-entry">
+          <div class="entry-meta"><span>2006年 · 桃月</span><span>6 岁</span></div>
+          <div class="story-prose"><p>周六清晨，孙伯带你绕到废园背后。墙根刻着一行已经模糊的字，他蹲下擦去青苔，只辨认出“存米七斗”四个字。</p><p>巡街的脚步声从巷口逼近。孙伯把底片塞回你手里，低声问你，是继续查下去，还是先把它交给父亲。</p></div>
+        </article>
+        <a class="turn-link" href="#story-actions">转至本轮选择<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg></a>
+        <footer class="folio"><span>正文页</span><span class="page-mark">左四</span></footer>
+      </article>
+
+      <article class="leaf leaf--action" id="story-actions">
+        <header class="leaf-head">
+          <p class="leaf-role">右页 · 状态与行动</p>
+          <h2 class="leaf-title">当前人生账簿。</h2>
+          <p class="leaf-deck">状态不覆盖正文；确认选择后，下一段人生会在新页展开。</p>
+        </header>
+        <section class="identity-sheet" aria-label="人物与时间">
+          <div class="identity-line"><h3>林清和</h3><span>女 · 人类</span></div>
+          <div class="time-line"><strong class="age">6岁</strong><span class="era">2006年 · 桃月</span></div>
+          <div class="world-line">现代地球 · 滨海旧城</div>
+          <dl class="attribute-ledger">
+            <div><dt>体魄</dt><dd>−1</dd></div><div><dt>心智</dt><dd class="rise">+4</dd></div><div><dt>悟性</dt><dd class="rise">+3</dd></div><div><dt>魅力</dt><dd>−1</dd></div><div><dt>生命</dt><dd>100</dd></div>
+          </dl>
+        </section>
+        <div class="tool-row" role="tablist" aria-label="状态工具">
+          <button type="button" role="tab" aria-selected="false" data-tool="more">更多</button>
+          <button class="active" type="button" role="tab" aria-selected="true" data-tool="time">月</button>
+          <button type="button" role="tab" aria-selected="false" data-tool="world">世界</button>
+        </div>
+        <section class="tool-section" data-tool-panel="more">
+          <div class="more-actions"><button class="open-save" type="button">手动存档</button><a href="../../fate-preview/final.html">返回命运预览</a></div>
+        </section>
+        <section class="tool-section open" data-tool-panel="time">
+          <div class="time-options" aria-label="下一轮推进步长">
+            <button type="button" data-step="日">日</button><button class="active" type="button" data-step="月">月</button><button type="button" data-step="季">季</button><button type="button" data-step="年">年</button><button type="button" data-step="3年">3年</button><button type="button" data-step="5年">5年</button><button type="button" data-step="10年">10年</button><button type="button" data-step="50年">50年</button><button type="button" data-step="100年">100年</button><button type="button" data-step="200年">200年</button><button type="button" data-step="500年">500年</button><button type="button" data-step="1000年">1000年</button>
+          </div>
+          <p class="tool-hint">只改变下一轮推进步长，当前时间不会立即变化。</p>
+        </section>
+        <section class="tool-section" data-tool-panel="world">
+          <div class="world-ledger">
+            <p class="ledger-label">角色词条</p>
+            <div class="talent-line"><span>01</span>体能守恒织网与冬夜回声的共振契约</div><div class="talent-line"><span>02</span>完美主义的选择刑</div><div class="talent-line"><span>03</span>旧日信标</div>
+            <p class="ledger-label">世界与当前状态</p>
+            <div class="status-terms"><span>城市为主</span><span>温带气候</span><span>市场经济</span><span>无超自然</span><span>体力 100</span><span>精神 100</span></div>
+          </div>
+        </section>
+
+        <section class="branch-block">
+          <p class="branch-question">巡街脚步逼近。底片留在你手中，你准备怎么做？</p>
+          <div class="branch-form">
+            <label class="branch-choice" data-index="01"><input type="radio" name="branch"><span>继续跟着孙伯调查废园，先弄清墙上刻字的来历。</span></label>
+            <label class="branch-choice" data-index="02"><input type="radio" name="branch"><span>把底片交给父亲，问他是否认识照片中的人。</span></label>
+            <textarea class="field custom-choice" aria-label="自定义选择" placeholder="也可以写下你的做法……"></textarea>
+            <div class="branch-actions"><button class="clear-choice" type="button">清空</button><button class="confirm-choice" type="button" disabled>确认选择</button></div>
+          </div>
+          <div class="resolved" hidden>你决定：<span></span></div>
+        </section>
+        <footer class="folio"><span>状态页</span><span class="page-mark">右四</span></footer>
+      </article>
+    </section>
+
+    <section class="spread continuation-spread" hidden aria-label="选择后的下一组对开页">
+      <article class="leaf leaf--reading">
+        <header class="leaf-head"><p class="leaf-role">续页 · 新段落</p><h2 class="leaf-title">选择落下，命运继续书写。</h2><p class="leaf-deck next-meta">2006年 · 槐月 · 6 岁</p></header>
+        <div class="story-prose generated-prose"><p>你在巡街人影转入巷口前做出了决定。孙伯没有催促，只把废园墙上的字又默念了一遍。</p><p class="choice-echo"></p></div>
+        <footer class="folio"><span>新正文</span><span class="page-mark">左五</span></footer>
+      </article>
+      <article class="leaf leaf--action">
+        <header class="leaf-head"><p class="leaf-role">续页 · 岁月推进</p><h2 class="leaf-title">下一段人生已经准备好。</h2><p class="leaf-deck">推进步长为“<span class="current-step">月</span>”，当前时间将在确认后改变。</p></header>
+        <p class="advance-status">故事已经沿着你的选择继续。轻触页尾动作，让岁月再次流转。</p>
+        <button class="primary-action advance-action" type="button"><span>轻触，让岁月流转</span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg></button>
+        <a class="secondary-action" href="../../game-over/final.html">原型串联 · 跳到人生结算</a>
+        <footer class="folio"><span>下一轮</span><span class="page-mark">右五</span></footer>
+      </article>
+    </section>
+
+    <div class="modal save-modal" aria-hidden="true">
+      <section class="dialog" role="dialog" aria-modal="true" aria-label="手动存档">
+        <h2>手动存档</h2>
+        <div class="save-slots"><div class="save-slot">槽位 1 · 林清和 · 第 12 轮</div><div class="save-slot">槽位 2 · 空</div><div class="save-slot">槽位 3 · 空</div></div>
+        <div class="dialog-actions"><button class="save-close" type="button">取消</button><button class="save-confirm" type="button">保存</button></div>
+      </section>
+    </div>
+    <div class="toast" role="status" aria-live="polite"></div>
+  </main>
+  <script>
+    const toast = document.querySelector('.toast');
+    function showToast(message) { toast.textContent = message; toast.classList.add('show'); clearTimeout(showToast.timer); showToast.timer = setTimeout(() => toast.classList.remove('show'), 1300); }
+
+    const lookBack = document.querySelector('.look-back');
+    lookBack.addEventListener('click', () => {
+      const note = document.querySelector('.earlier-note');
+      note.hidden = !note.hidden;
+      lookBack.setAttribute('aria-expanded', String(!note.hidden));
+      lookBack.textContent = note.hidden ? '向上回望更早的十二段人生' : '收起更早的人生片段';
+    });
+
+    document.querySelectorAll('[data-tool]').forEach(button => button.addEventListener('click', () => {
+      const name = button.dataset.tool;
+      document.querySelectorAll('[data-tool]').forEach(item => { item.classList.toggle('active', item === button); item.setAttribute('aria-selected', String(item === button)); });
+      document.querySelectorAll('[data-tool-panel]').forEach(panel => panel.classList.toggle('open', panel.dataset.toolPanel === name));
+    }));
+
+    let currentStep = '月';
+    document.querySelectorAll('[data-step]').forEach(button => button.addEventListener('click', () => {
+      document.querySelectorAll('[data-step]').forEach(item => item.classList.remove('active'));
+      button.classList.add('active');
+      currentStep = button.dataset.step;
+      document.querySelector('[data-tool="time"]').textContent = currentStep;
+      document.querySelector('.current-step').textContent = currentStep;
+      showToast('下一轮按' + currentStep + '推进 · 当前时间未改变');
+    }));
+
+    const modal = document.querySelector('.save-modal');
+    document.querySelector('.open-save').addEventListener('click', () => { modal.classList.add('open'); modal.setAttribute('aria-hidden', 'false'); });
+    document.querySelector('.save-close').addEventListener('click', () => { modal.classList.remove('open'); modal.setAttribute('aria-hidden', 'true'); });
+    document.querySelector('.save-confirm').addEventListener('click', () => { modal.classList.remove('open'); modal.setAttribute('aria-hidden', 'true'); showToast('已保存到槽位 1'); });
+
+    const choices = Array.from(document.querySelectorAll('.branch-choice input'));
+    const custom = document.querySelector('.custom-choice');
+    const confirm = document.querySelector('.confirm-choice');
+    function updateConfirm() { confirm.disabled = !(custom.value.trim() || choices.some(choice => choice.checked)); }
+    choices.forEach(choice => choice.addEventListener('change', () => {
+      custom.value = '';
+      document.querySelectorAll('.branch-choice').forEach(label => label.classList.remove('selected'));
+      choice.closest('.branch-choice').classList.add('selected');
+      updateConfirm();
+    }));
+    custom.addEventListener('input', () => {
+      if (custom.value.trim()) { choices.forEach(choice => { choice.checked = false; }); document.querySelectorAll('.branch-choice').forEach(label => label.classList.remove('selected')); }
+      updateConfirm();
+    });
+    document.querySelector('.clear-choice').addEventListener('click', () => {
+      choices.forEach(choice => { choice.checked = false; });
+      document.querySelectorAll('.branch-choice').forEach(label => label.classList.remove('selected'));
+      custom.value = '';
+      updateConfirm();
+    });
+    confirm.addEventListener('click', () => {
+      const selected = choices.find(choice => choice.checked);
+      const choice = custom.value.trim() || (selected && selected.closest('.branch-choice').querySelector('span').textContent.trim());
+      if (!choice) return;
+      document.querySelector('.branch-form').hidden = true;
+      const resolved = document.querySelector('.resolved');
+      resolved.querySelector('span').textContent = choice;
+      resolved.hidden = false;
+      const continuation = document.querySelector('.continuation-spread');
+      continuation.querySelector('.choice-echo').textContent = '“' + choice + '”这句话落下后，新的线索也随之展开。';
+      continuation.hidden = false;
+      showToast('选择已记录 · 新一页已经生成');
+      if (window.matchMedia('(max-width: 699px)').matches) setTimeout(() => continuation.scrollIntoView({ behavior: 'smooth', block: 'start' }), 200);
+    });
+
+    let year = 2006, month = 3, age = 6, day = 0;
+    const months = ['霜月','杏月','桃月','槐月','榴月','荷月','兰月','桂月','菊月','露月','葭月','冰月'];
+    function advanceClock() {
+      if (currentStep === '日') { day += 1; return year + '年 · ' + months[month] + ' · 第' + (day + 1) + '日 · ' + age + ' 岁'; }
+      day = 0;
+      const monthJump = currentStep === '月' ? 1 : currentStep === '季' ? 3 : 0;
+      if (monthJump) { const total = month + monthJump; const years = Math.floor(total / 12); month = total % 12; year += years; age += years; }
+      else { const years = currentStep === '年' ? 1 : (parseInt(currentStep, 10) || 1); year += years; age += years; }
+      return year + '年 · ' + months[month] + ' · ' + age + ' 岁';
+    }
+    document.querySelector('.advance-action').addEventListener('click', event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.querySelector('span').textContent = 'AI 正在书写命运……';
+      setTimeout(() => {
+        const meta = advanceClock();
+        document.querySelector('.next-meta').textContent = meta;
+        const paragraph = document.createElement('p');
+        paragraph.textContent = '时间继续向前，旧底片背后的线索再次浮现。你开始明白，每一次选择都会让故事通向不同的地方。';
+        document.querySelector('.generated-prose').appendChild(paragraph);
+        document.querySelector('.era').textContent = meta.replace(/ · \d+ 岁$/, '');
+        document.querySelector('.age').textContent = age + '岁';
+        button.disabled = false;
+        button.querySelector('span').textContent = '轻触，让岁月流转';
+        showToast('岁月已经向前 · ' + meta);
+      }, 650);
+    });
+  </script>
+</body>
+</html>

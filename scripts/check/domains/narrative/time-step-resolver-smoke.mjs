@@ -49,6 +49,7 @@ function extractBlock(src, marker) {
 
 const resolverSrc = readRel('src/mods/mod-engine/utils/time-step-resolver.ts')
 const timeSystemSrc = readRel('src/mods/mod-engine/subsystems/time-system.ts')
+const calendarSeasonSrc = readRel('src/mods/mod-engine/helpers/calendar-season.js')
 const orchestratorSrc = readRel('src/mods/mod-engine/subsystems/orchestrator-system.ts')
 const constantsSrc = readRel('src/mods/mod-engine/constants.ts')
 const mapperSrc = readRel('src/mods/mod-engine/helpers/detection-state-mapper.ts')
@@ -71,41 +72,89 @@ function dayOfYearForMonth(monthIndex) {
   return MONTH_DAYS.slice(0, monthIndex).reduce((sum, days) => sum + days, 1)
 }
 
-function specAlignAfterNarratedPeriod(prevUnit, round) {
+function seasonForMonth(monthIndex) {
+  const normalizedMonth = ((monthIndex % 12) + 12) % 12
+  return Math.floor(((normalizedMonth + 10) % 12) / 3)
+}
+
+function specAlignAfterNarratedPeriod(prevUnit, round, prevValue = 1) {
   const next = { ...round }
+  const amount = Math.max(1, Math.floor(prevValue))
+  let daysPassed
   switch (prevUnit) {
-    case 'year':
-      next.totalDays += 365
-      next.year += 1
-      next.season = 0
-      next.month = 0
-      next.day = 0
-      next.dayOfYear = 1
+    case 'day':
+      daysPassed = amount
       break
-    case 'season': {
-      const startMonth = next.season * 3
-      const days = MONTH_DAYS.slice(startMonth, startMonth + 3).reduce((sum, d) => sum + d, 0)
-      next.totalDays += days
-      next.season = (next.season + 1) % 4
-      if (next.season === 0) next.year += 1
-      next.month = next.season * 3
-      next.day = 0
-      next.dayOfYear = dayOfYearForMonth(next.month)
-      break
-    }
     case 'month':
-      next.totalDays += MONTH_DAYS[next.month]
-      next.month += 1
-      if (next.month >= 12) {
-        next.month = 0
-        next.year += 1
-      }
-      next.day = 0
-      next.season = Math.floor(next.month / 3)
-      next.dayOfYear = dayOfYearForMonth(next.month)
+      daysPassed = Array.from({ length: amount }, (_, offset) => MONTH_DAYS[(next.month + offset) % 12])
+        .reduce((sum, days) => sum + days, 0)
+      break
+    case 'season':
+      daysPassed = Array.from({ length: amount * 3 }, (_, offset) => MONTH_DAYS[(next.month + offset) % 12])
+        .reduce((sum, days) => sum + days, 0)
+      break
+    case 'year':
+      daysPassed = amount * 365
       break
   }
+
+  const newAbsoluteDay = next.totalDays + daysPassed
+  next.totalDays = newAbsoluteDay
+  next.year = Math.floor(newAbsoluteDay / 365)
+  next.dayOfYear = (newAbsoluteDay % 365) + 1
+  let remaining = next.dayOfYear - 1
+  for (let month = 0; month < MONTH_DAYS.length; month++) {
+    if (remaining < MONTH_DAYS[month]) {
+      next.month = month
+      next.day = remaining
+      next.season = seasonForMonth(month)
+      break
+    }
+    remaining -= MONTH_DAYS[month]
+  }
   return next
+}
+
+function specAdvanceRound(round, unit, value = 1) {
+  const next = { ...round }
+  const amount = Math.max(1, Math.floor(value))
+  let daysPassed = 0
+  switch (unit) {
+    case 'day':
+      daysPassed = amount
+      break
+    case 'month':
+      daysPassed = Array.from({ length: amount }, (_, offset) => MONTH_DAYS[(next.month + offset) % 12])
+        .reduce((sum, days) => sum + days, 0)
+      break
+    case 'season':
+      daysPassed = Array.from({ length: amount * 3 }, (_, offset) => MONTH_DAYS[(next.month + offset) % 12])
+        .reduce((sum, days) => sum + days, 0)
+      break
+    case 'year':
+      daysPassed = amount * 365
+      break
+  }
+
+  const newAbsoluteDay = next.totalDays + daysPassed
+  next.totalDays = newAbsoluteDay
+  next.year = Math.floor(newAbsoluteDay / 365)
+  next.dayOfYear = (newAbsoluteDay % 365) + 1
+  let remaining = next.dayOfYear - 1
+  for (let month = 0; month < MONTH_DAYS.length; month++) {
+    if (remaining < MONTH_DAYS[month]) {
+      next.month = month
+      next.day = remaining
+      next.season = seasonForMonth(month)
+      break
+    }
+    remaining -= MONTH_DAYS[month]
+  }
+  return next
+}
+
+function specNarrativeAge(totalDays, startingAge = 0) {
+  return startingAge + Math.floor(Math.max(0, totalDays - 365) / 365)
 }
 
 assertOk(
@@ -169,7 +218,7 @@ assertOk(
 
 const alignmentBody = extractBlock(timeSystemSrc, 'alignToNextPeriod(prevUnit')
 assertOk(
-  /alignRoundToNextPeriod\(prevUnit,\s*newUnit,\s*this\.round\)/.test(alignmentBody),
+  /alignRoundToNextPeriod\(prevUnit,\s*newUnit,\s*this\.round,\s*prevValue\)/.test(alignmentBody),
   'TimeSystem.alignToNextPeriod must use the pure boundary alignment helper',
 )
 assertOk(
@@ -177,8 +226,10 @@ assertOk(
   'TimeSystem.alignToNextPeriod must derive daysPassed from alignment totalDays delta',
 )
 assertOk(
-  /shouldAlignTimeStepTransition/.test(timeSystemSrc),
-  'time-system must expose coarse-to-fine transition detection',
+  /getSeasonForMonth/.test(timeSystemSrc)
+    && /getSeasonForMonth/.test(calendarSeasonSrc)
+    && /normalizedMonth\s*\+\s*10/.test(calendarSeasonSrc),
+  'time system must use the shared solar-season mapping helper',
 )
 
 const orchestratorAdvanceBody = extractBlock(orchestratorSrc, 'advanceTimeForCurrentStep(): RoundInfo')
@@ -195,51 +246,84 @@ assertOk(
   'orchestrator must preserve the player-selected coarse-to-fine transition until the next round',
 )
 assertOk(
-  /this\.pendingTimeStepAlignmentFromUnit\s*=\s*undefined[\s\S]*timeSystem\.alignToNextPeriod\(alignmentFromUnit,\s*this\.state\.timeStep\.unit\)/.test(orchestratorAdvanceBody),
+  /this\.pendingTimeStepAlignmentFromUnit\s*=\s*undefined[\s\S]*timeSystem\.alignToNextPeriod\(\s*alignmentFromUnit[\s\S]*alignmentFromValue/.test(orchestratorAdvanceBody),
   'orchestrator must align the next round instead of re-entering the already narrated period',
+)
+assertOk(
+  /previousNarrativeRound/.test(orchestratorCode)
+    && /previousNode:[\s\S]{0,260}daysPassed:\s*timeSystem\.getDaysPassed\(\)/.test(orchestratorCode),
+  'narrative Prompt must receive the real previous node and elapsed-day window instead of inferring it from the new granularity',
 )
 assertOk(
   !/totalRounds\s*===\s*0/.test(orchestratorCode),
   'opening-round prompt logic must not rely on totalRounds === 0 after advanceTime increments it',
 )
 
-const yearToSeason = specAlignAfterNarratedPeriod('year', {
-  year: 2010,
-  season: 0,
+const openingAnnualRound = {
+  year: 1002,
+  season: seasonForMonth(0),
   month: 0,
   day: 0,
   dayOfYear: 1,
-  totalDays: 2010 * 365,
-})
-assertSame(yearToSeason.year, 2011, 'year->season must start at next year')
-assertSame(yearToSeason.season, 0, 'year->season must start in spring')
-assertSame(yearToSeason.month, 0, 'year->season must start in January')
-assertSame(yearToSeason.totalDays, 2011 * 365, 'year->season must advance exactly one narrated year')
+  totalDays: 1002 * 365,
+}
+const yearToMonth = specAlignAfterNarratedPeriod('year', openingAnnualRound)
+assertSame(yearToMonth.year, 1003, 'year->month must start at the next year')
+assertSame(yearToMonth.month, 0, 'year->month must land on January')
+assertSame(yearToMonth.day, 0, 'year->month must land on January 1')
+assertSame(yearToMonth.season, seasonForMonth(0), 'January must be winter under the solar calendar')
+assertSame(yearToMonth.totalDays, 1003 * 365, 'year->month must skip exactly the already narrated year')
 
-const seasonToMonth = specAlignAfterNarratedPeriod('season', {
-  year: 2010,
-  season: 1,
-  month: 3,
-  day: 0,
-  dayOfYear: 91,
-  totalDays: 2010 * 365 + 90,
-})
-assertSame(seasonToMonth.year, 2010, 'season->month summer must stay in the same year')
-assertSame(seasonToMonth.season, 2, 'season->month summer must move to autumn quarter')
-assertSame(seasonToMonth.month, 6, 'season->month summer must move to July')
-assertSame(seasonToMonth.dayOfYear, 182, 'season->month summer must move to July 1')
+const yearToDay = specAlignAfterNarratedPeriod('year', { ...openingAnnualRound, year: 1005, totalDays: 1005 * 365 })
+assertSame(yearToDay.year, 1006, 'year->day must start at the next year')
+assertSame(yearToDay.month, 0, 'year->day must land on January')
+assertSame(yearToDay.day, 0, 'year->day must land on January 1')
 
-const monthToDay = specAlignAfterNarratedPeriod('month', {
-  year: 2010,
-  season: 1,
-  month: 5,
+const nextMonthAfterAlignment = specAdvanceRound(yearToMonth, 'month')
+assertSame(nextMonthAfterAlignment.year, 1003, 'the next monthly round must remain in the aligned year')
+assertSame(nextMonthAfterAlignment.month, 1, 'the next monthly round after January must be February')
+assertSame(nextMonthAfterAlignment.totalDays, 1003 * 365 + 31, 'the next monthly round must add January\'s 31 days')
+
+const nextDayAfterAlignment = specAdvanceRound(yearToDay, 'day')
+assertSame(nextDayAfterAlignment.year, 1006, 'the next daily round must remain in the aligned year')
+assertSame(nextDayAfterAlignment.month, 0, 'the next daily round must remain in January')
+assertSame(nextDayAfterAlignment.day, 1, 'the next daily round must be January 2')
+
+const monthEnd = { ...yearToMonth, month: 1, day: 0, dayOfYear: 32, totalDays: yearToMonth.totalDays + 31, season: seasonForMonth(1) }
+const monthToDay = specAlignAfterNarratedPeriod('month', monthEnd)
+assertSame(monthToDay.year, 1003, 'month->day must remain in the current year when possible')
+assertSame(monthToDay.month, 2, 'month->day must start after the already narrated February')
+assertSame(monthToDay.day, 0, 'month->day must land on March 1')
+
+const seasonStart = { ...openingAnnualRound, year: 1002, month: 2, day: 0, dayOfYear: 60, totalDays: 1002 * 365 + 59, season: seasonForMonth(2) }
+const seasonToMonth = specAlignAfterNarratedPeriod('season', seasonStart)
+assertSame(seasonToMonth.year, 1002, 'season->month must remain in the current year when possible')
+assertSame(seasonToMonth.month, 5, 'season->month must start after the already narrated March-May window')
+assertSame(seasonToMonth.day, 0, 'season->month must land on June 1')
+
+const sameGranularity = { ...yearToMonth }
+assertSame(sameGranularity.totalDays, yearToMonth.totalDays, 'same-granularity changes must not move the round')
+
+const seasonMapping = [
+  [1, 3], [2, 3], [3, 0], [5, 0], [6, 1], [8, 1], [9, 2], [11, 2], [12, 3],
+]
+for (const [month, expectedSeason] of seasonMapping) {
+  assertSame(seasonForMonth(month - 1), expectedSeason, `${month}月 must map to the solar season index ${expectedSeason}`)
+}
+
+const decemberStart = {
+  year: 1,
+  season: 3,
+  month: 11,
   day: 0,
-  dayOfYear: 152,
-  totalDays: 2010 * 365 + 151,
-})
-assertSame(monthToDay.month, 6, 'month->day June must move to July')
-assertSame(monthToDay.day, 0, 'month->day must land on the first day of next month')
-assertSame(monthToDay.dayOfYear, 182, 'month->day June must move to July 1')
+  dayOfYear: dayOfYearForMonth(11),
+  totalDays: 365 + dayOfYearForMonth(11) - 1,
+}
+const yearBoundary = specAdvanceRound(decemberStart, 'month')
+assertSame(yearBoundary.year, 2, 'December month advance must cross into the next year exactly once')
+assertSame(yearBoundary.month, 0, 'December month advance must land on January 1')
+assertSame(yearBoundary.totalDays, 730, 'December month advance must end at the canonical 730-day boundary')
+assertSame(specNarrativeAge(yearBoundary.totalDays), 1, 'age must increment exactly at the completed 365-day boundary after opening')
 
 const contextBody = extractBlock(orchestratorSrc, 'buildRoundContext(): RoundContext')
 assertOk(
@@ -281,8 +365,8 @@ assertOk(
   'orchestrator must expose preview execution isolation',
 )
 assertOk(
-  /if\s*\(!this\.isPreviewExecution\(\)\)\s*\{[\s\S]*subsystemRelevance\.recordState/.test(orchestratorCode),
-  'preview execution must not record subsystem relevance state',
+  /if\s*\(!this\.isPreviewExecution\(\)\s*&&\s*recordRelevance\)\s*\{[\s\S]*subsystemRelevance\.recordState/.test(orchestratorCode),
+  'preview execution and same-round refreshes must not record duplicate subsystem relevance state',
 )
 assertOk(
   /if\s*\(!this\.isPreviewExecution\(\)\)\s*\{[\s\S]*useCharacterStore\.setState/.test(orchestratorCode),

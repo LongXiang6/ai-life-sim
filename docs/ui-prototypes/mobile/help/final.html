@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>说明 · AI Life Sim</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../assets/library.css">
+  <link rel="stylesheet" href="../assets/creation-flow-unified.css">
+  <link rel="stylesheet" href="../assets/end-flow-unified.css">
+  <script src="../assets/prototype.js" defer></script>
+  <script src="../assets/creation-flow-unified.js" defer></script>
+</head>
+<body data-screen="help">
+  <main class="end-shell">
+    <header class="end-review">
+      <p class="end-review-label">GUIDE · NOTES</p>
+      <h1>说明</h1>
+      <p class="end-review-copy">功能说明与更新日志延续命书的同一阅读秩序，章节索引用于定位，正文保持连续，不拆成密集卡片。</p>
+    </header>
+
+    <section class="end-stage" aria-label="说明移动端界面">
+      <div class="creation-phone end-phone">
+        <div data-flow-art></div>
+        <div class="end-screen">
+          <header class="end-header">
+            <div class="end-meta"><span>AI LIFE SIM · 命书</span><span>附 · 说明</span></div>
+            <div class="end-title-row">
+              <div class="end-title-copy"><h2>说明</h2><p>沿章节阅读，也可快速定位当前需要的功能。</p></div>
+              <div class="cf-title-mark" aria-hidden="true"><span>阅</span></div>
+            </div>
+            <div class="end-divider" aria-hidden="true"><span></span></div>
+          </header>
+
+          <nav class="end-tabs two help-modes" role="tablist" aria-label="说明类别">
+            <button type="button" role="tab" class="mode" data-view="guide" aria-selected="true">功能说明</button>
+            <button type="button" role="tab" class="mode" data-view="updates" aria-selected="false">更新日志</button>
+          </nav>
+
+          <nav class="chapter-nav" aria-label="说明章节">
+            <button class="active" type="button" data-target="start">开始</button>
+            <button type="button" data-target="world">世界选择</button>
+            <button type="button" data-target="customize">世界配置</button>
+            <button type="button" data-target="character">角色创建</button>
+            <button type="button" data-target="fate">命格</button>
+            <button type="button" data-target="story">故事</button>
+          </nav>
+
+          <div class="end-scroll help-viewport">
+            <section class="help-view active" data-view-id="guide">
+              <p class="help-intro">从选择世界到走完一生，每个页面只承担当前阶段最重要的决定。</p>
+              <article class="help-chapter" id="start"><span class="chapter-index">01 / 开始</span><h3>开始与设置</h3><p>欢迎页提供开始新人生、读取存档、设置和说明入口。</p><ul><li>开始新人生会从世界选择进入一次全新人生。</li><li>读取存档会展示已有记录，再回到对应故事进度。</li><li>设置中的叙事字数是生成目标，完整句优先。</li></ul></article>
+              <article class="help-chapter" id="world"><span class="chapter-index">02 / 世界</span><h3>世界选择</h3><p>选择一个预设世界，或进入世界配置创建自己的舞台。</p><ul><li>世界决定时代、社会结构、自然规律和可用题材。</li><li>难度会影响风险与资源，不直接替角色做选择。</li></ul></article>
+              <article class="help-chapter" id="customize"><span class="chapter-index">03 / 配置</span><h3>世界配置</h3><p>调整世界描述、空间形态、世界本质、力量体系与力量上限，再继续角色创建。</p><div class="help-tip">生成期间可以取消；离开页面前会明确提示尚未完成的内容。</div></article>
+              <article class="help-chapter" id="character"><span class="chapter-index">04 / 角色</span><h3>角色创建</h3><p>决定姓名、性别、种族、寿命、起始年龄与背景。随机姓名不会覆盖其他已经完成的选择。</p></article>
+              <article class="help-chapter" id="fate"><span class="chapter-index">05 / 命格</span><h3>命格与属性</h3><p>等待命盘解析完成，从候选中选择普通命格，再按世界规则分配初始属性。神话传承独立于普通命槽。</p><ul><li>点击星位查看说明，再加入普通命槽。</li><li>已加入的命格可以再次点击移除。</li><li>剩余属性点未用完时，确认会再次提示。</li></ul></article>
+              <article class="help-chapter" id="story"><span class="chapter-index">06 / 故事</span><h3>故事与选择</h3><p>每一轮故事会给出可选行动，也允许写下自己的做法。确认后，AI 会沿选择继续叙事。</p><ul><li>时间步长只影响下一轮，不会立即改变当前时间。</li><li>世界面板保存角色词条与当前世界状态。</li><li>人生结束后可回望三幕，并封存一项神话概念。</li></ul></article>
+            </section>
+
+            <section class="help-view" data-view-id="updates">
+              <article class="release"><div class="release-head"><b>移动端原型 · 统一串联</b><time>2026-07-16</time></div><p>创建、模拟、结算与辅助页面统一采用真白纸面、灰蓝状态、宋体标题、中性正文、淡墨与敦煌圆纹。</p><ul><li>移动端界面统一为 330 × 674 观察基线。</li><li>结算、设置与说明统一页首、内容层级和底栏语法。</li><li>辅助页面继续保留原有状态与滚动交互。</li></ul></article>
+              <article class="release"><div class="release-head"><b>产品语义校准</b><time>2026-07-11</time></div><p>移动控件不再机械使用统一 48px 视觉框；每轮叙事默认目标调整为约 200 字。</p></article>
+            </section>
+          </div>
+        </div>
+
+        <footer class="cf-footer end-footer">
+          <button class="cf-back" type="button" data-flow-back aria-label="关闭说明" title="关闭说明"><span data-icon="close"></span></button>
+          <button class="cf-next" type="button" data-flow-back><span class="cf-next-number">返</span><span class="cf-next-copy"><strong>读完说明</strong><small>返回进入说明前的界面</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button>
+        </footer>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const phone = document.querySelector('.end-phone')
+      const viewport = phone.querySelector('.help-viewport')
+      const chapterNav = phone.querySelector('.chapter-nav')
+      let pinnedChapter = ''
+
+      function markChapter(id) {
+        phone.querySelectorAll('[data-target]').forEach(function (button) { button.classList.toggle('active', button.dataset.target === id) })
+      }
+
+      phone.querySelectorAll('.mode').forEach(function (mode) {
+        mode.addEventListener('click', function () {
+          pinnedChapter = ''
+          phone.querySelectorAll('.mode').forEach(function (item) { item.setAttribute('aria-selected', String(item === mode)) })
+          phone.querySelectorAll('.help-view').forEach(function (view) { view.classList.toggle('active', view.dataset.viewId === mode.dataset.view) })
+          chapterNav.hidden = mode.dataset.view !== 'guide'
+          viewport.scrollTop = 0
+          if (mode.dataset.view === 'guide') markChapter('start')
+        })
+      })
+
+      phone.querySelectorAll('[data-target]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          pinnedChapter = button.dataset.target
+          markChapter(pinnedChapter)
+          const target = phone.querySelector('#' + button.dataset.target)
+          viewport.scrollTo({ top: target.offsetTop - 3, behavior: 'smooth' })
+        })
+      })
+
+      ;['wheel', 'touchstart', 'pointerdown'].forEach(function (eventName) {
+        viewport.addEventListener(eventName, function () { pinnedChapter = '' }, { passive: true })
+      })
+
+      viewport.addEventListener('scroll', function () {
+        if (!phone.querySelector('[data-view-id="guide"]').classList.contains('active')) return
+        const chapters = Array.from(phone.querySelectorAll('.help-chapter'))
+        if (pinnedChapter) {
+          markChapter(pinnedChapter)
+          return
+        }
+        let active = chapters[0]
+        const atBottom = viewport.scrollTop + viewport.clientHeight >= viewport.scrollHeight - 2
+        if (atBottom) active = chapters[chapters.length - 1]
+        else chapters.forEach(function (chapter) { if (chapter.offsetTop <= viewport.scrollTop + 55) active = chapter })
+        markChapter(active.id)
+      })
+    })
+  </script>
+</body>
+</html>

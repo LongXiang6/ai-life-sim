@@ -22,7 +22,7 @@ import {
   type WorldConfig,
 } from '@/mods/mod-world'
 import { commitWorldInitialization, resolvePresetWorldCode } from '@/mods/mod-world/world-init-api'
-import { isApiConfigured } from '@/mods/mod-settings'
+import { hasAvailableApiConfiguration, isApiConfigured } from '@/mods/mod-settings'
 
 import { useWorldCoherenceConfirm } from '../../hooks/useWorldCoherenceConfirm'
 
@@ -34,7 +34,7 @@ const WORLDVIEW_ROUTE_MAP: Record<string, 'modern' | 'cultivation' | 'post-apoca
   survival_horror: 'post-apocalyptic',
 }
 
-export { isApiConfigured } from '@/mods/mod-settings'
+export { hasAvailableApiConfiguration, isApiConfigured } from '@/mods/mod-settings'
 
 export function useWorldConfirm() {
   const router = useRouter()
@@ -99,9 +99,9 @@ export function useWorldConfirm() {
     difficulty: Difficulty,
     options?: { worldCode?: number; customWorldview?: string },
   ): Promise<boolean> => {
-    if (!isApiConfigured()) {
+    if (!await hasAvailableApiConfiguration()) {
       alert(
-        '⚠️ API 未配置：请打开设置 → 模型调用，填入 API Key、网址和模型名称后保存，再继续游戏。',
+        'API 未配置：请打开设置 → 模型调用填入 API Key，或在本地环境配置 DEEPSEEK_API_KEY 后再继续。',
       )
       return false
     }
@@ -118,13 +118,18 @@ export function useWorldConfirm() {
         )
       : buildWorldConfigFromPreset(selectedWorld, difficulty)
 
-    return new Promise<boolean>((resolve) => {
-      requestCoherenceResolve(draft, async (config) => {
-        const ok = await proceedWithConfig(config, selectedWorld, { worldCode: options?.worldCode })
-        resolve(ok)
-      })
+    return new Promise<boolean>((resolve, reject) => {
+      requestCoherenceResolve(
+        draft,
+        (config) => {
+          void proceedWithConfig(config, selectedWorld, { worldCode: options?.worldCode })
+            .then(resolve)
+            .catch(reject)
+        },
+        () => resolve(false),
+      )
     })
   }, [proceedWithConfig, requestCoherenceResolve])
 
-  return { handleConfirm, isApiConfigured, conflictModal }
+  return { handleConfirm, isApiConfigured, hasAvailableApiConfiguration, conflictModal }
 }

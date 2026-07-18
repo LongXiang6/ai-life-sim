@@ -1,10 +1,10 @@
 /**
  * @module talent-draw-page
- * @description 命格抽取页面 —— 对齐废弃项目 talent-draw UI 风格
+ * @description 命格抽取与选择 —— 对齐移动端方案库的五位星盘与独立神话槽
  *   - 单按钮 + 设置控制 AI/预设
- *   - 缓存池 >= 12 条直接进入选取，低于 90 条时后台续填
+ *   - 缓存池 >= 5 条进入完成交接态，玩家确认后展开选取，后台可继续补池
  *   - 真实进度追踪（onProgress 回调）
- *   - 抽12选3 → 确认 → /attribute-alloc
+ *   - 抽5选3 + 可选神话传承 → 确认 → /attribute-alloc
  * @mod mod-pages
  */
 
@@ -16,17 +16,16 @@ import { useRouter } from 'next/navigation'
 import {
   useCharacterStore,
   DESTINY_PATTERN_RARITY_CONFIG,
-  DESTINY_PATTERN_POLARITY_CONFIG,
   DESTINY_PATTERN_SELECT_COUNT,
   DEFAULT_DESTINY_PATTERN_COUNT,
   DESTINY_PATTERN_FAST_DRAW_THRESHOLD,
   aggregatePatternSystemModifiers,
   formatPatternSystemModifiersForDisplay,
   ATTRIBUTE_NAMES,
+  useMythicLibraryStore,
 } from '@/mods/mod-character'
 import { useWorldStore } from '@/mods/mod-world'
 import { useSettingsStore } from '@/mods/mod-settings'
-import { BottomActionBar, PageScroll } from '@/mods/mod-ui'
 import { PageErrorBoundary } from '@/mods/mod-ui'
 import { cn } from '@/foundation/utils'
 import { configStore } from '@/core'
@@ -35,186 +34,37 @@ import { getDestinyPatternSystem, loadDestinyPatternPool, saveDestinyPatternPool
 import type { AIModelConfig } from '@/foundation'
 
 
-import type { DestinyPattern, DestinyPatternRarity } from '@/mods/mod-character'
+import type { DestinyPattern, MythicPattern } from '@/mods/mod-character'
 
 import styles from './TalentDraw.module.css'
+import { useCreationStoresHydrated } from '../../hooks/useCreationStoresHydrated'
+import { TalentAstrolabe } from './TalentAstrolabe'
+import { FlowIcon, TalentFlowArt } from './TalentFlowArt'
 
-type PagePhase = 'idle' | 'generating' | 'selecting'
+type PagePhase = 'idle' | 'generating' | 'ready' | 'selecting'
 
-const SLOT_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+const ATTR_BONUS_KEYS = ['physique', 'mind', 'talentAptitude', 'charisma'] as const
 
-/** 极性 → 颜色映射 */
-const POLARITY_COLORS: Record<string, string> = Object.fromEntries(
-  Object.entries(DESTINY_PATTERN_POLARITY_CONFIG).map(([k, v]) => [k, v.color]),
-)
-
-const ATTR_BONUS_KEYS = ['physique', 'mind', 'talentAptitude', 'charisma', 'resources'] as const
-
-/** 命格卡片：效果概括（模拟向定性描述，与 attrBonus 并存） */
-function PatternEffect({ pattern }: { pattern: DestinyPattern }) {
-  const text = pattern.effect?.trim()
-  if (!text) return null
-  return <p className={styles.slotEffect}>{text}</p>
+function createSelectedUiSlots(indices: number[]): (number | null)[] {
+  return Array.from({ length: DESTINY_PATTERN_SELECT_COUNT }, (_, index) => indices[index] ?? null)
 }
 
-/** 命格卡片：基础属性加成 */
-function PatternAttrBonus({ pattern }: { pattern: DestinyPattern }) {
-  if (!pattern.attrBonus) return null
-  const tags = ATTR_BONUS_KEYS
-    .map((k) => {
-      const v = pattern.attrBonus?.[k as keyof typeof pattern.attrBonus]
-      if (typeof v !== 'number' || v === 0) return null
-      const label = `${ATTRIBUTE_NAMES[k] ?? k} ${v > 0 ? '+' : ''}${v}`
-      return { label, neg: v < 0 }
-    })
-    .filter((t): t is { label: string; neg: boolean } => t !== null)
-  if (tags.length === 0) return null
-  return (
-    <div className={styles.slotAttrBonus}>
-      {tags.map((t) => (
-        <span key={t.label} className={cn(styles.slotAttrBonusTag, t.neg && styles.slotAttrBonusTagNeg)}>{t.label}</span>
-      ))}
-    </div>
-  )
+function formatPatternAttrSummary(pattern: DestinyPattern): string {
+  if (!pattern.attrBonus) return '无属性加成'
+  const labels = ATTR_BONUS_KEYS.flatMap((key) => {
+    const value = pattern.attrBonus?.[key]
+    if (typeof value !== 'number' || value === 0) return []
+    return [`${ATTRIBUTE_NAMES[key] ?? key} ${value > 0 ? '+' : ''}${value}`]
+  })
+  return labels.length > 0 ? labels.join(' · ') : '无属性加成'
 }
 
-/** 命格卡片底部：模拟系统加成 */
-function PatternSystemModifiers({ pattern }: { pattern: DestinyPattern }) {
-  const items = formatPatternSystemModifiersForDisplay(pattern.systemModifiers)
-  if (items.length === 0) {
-    return (
-      <div className={cn(styles.slotModifiers, styles.slotModifiersEmpty)}>
-        <span className={styles.slotModifierEmpty}>无数值修正</span>
-      </div>
-    )
-  }
-  return (
-    <div className={styles.slotModifiers}>
-      {items.map((item) => (
-        <span
-          key={item.label}
-          className={cn(styles.slotModifierTag, !item.isBeneficial && styles.slotModifierTagNeg)}
-        >
-          {item.display}
-        </span>
-      ))}
-    </div>
-  )
-}
-
-// ══════════════════════════════════════════════════════
-// 加载文案（5阶段 × ~18条，对齐废弃项目 talent-draw-messages.ts）
-// ══════════════════════════════════════════════════════
-
-const LOADING_PHASES = [
-  [
-    '正在连接命运织机...',
-    '正在查阅你的世界背景...',
-    '正在整理角色档案...',
-    '正在校准命运纹路...',
-    '正在向命运织布机发送请求...',
-    '正在翻阅《命运大百科》第42卷...',
-    '正在唤醒沉睡的占卜师...',
-    '正在点亮水晶球，准备占卜...',
-    '命运织布机正在穿针引线...',
-    '正在打开传送门，连接异世界...',
-    '正在确认命格生成条件...',
-    '正在选择合适的推演路径...',
-    '安全连接已就绪...',
-    '正在向预言机发起请求...',
-    '正在进入命运推演流程...',
-    '正在通过六道试炼...',
-    '正在验证本次请求...',
-    '命运链路状态良好...',
-  ],
-  [
-    '连接已建立，准备提交档案',
-    '正在整理世界与角色信息',
-    '准备发送命格推演请求',
-    '正在打包你的输入内容',
-    '正在把你的信息打包成命运卷轴...',
-    '命运女神正在审阅你的档案...',
-    '正在根据你的命盘推演命格...',
-    '你的天命正在被占星师分类中...',
-    '命运卷轴已经压缩完成...',
-    '正在为命格候选排序...',
-    '正在保护本次推演内容...',
-    '正在加速命运回响...',
-    '正在构建推演问题...',
-    '请求信息已经准备完毕...',
-    '正在分批提交推演材料...',
-    '第一批材料已送达，等待回应...',
-    '所有材料已确认接收...',
-    '正在用摩斯密码复核关键参数...',
-  ],
-  [
-    '预言机已回应，排队推演中',
-    '正在读取你的会话背景',
-    '正在预热命格推演',
-    '生成中：已经完成一部分...',
-    '正在组织更流畅的表达方式',
-    '推演阵列已经启动...',
-    '正在理解角色与世界设定...',
-    '正在扫描你的命运参数...',
-    '正在展开多层命格推演...',
-    '正在平衡创意与合理性...',
-    '正在筛选更契合的命格组合...',
-    '模型正在逐步推敲结果...',
-    '正在保留更合适的候选路径...',
-    '生成速度稳定，继续等待...',
-    '正在让结果更符合玩家体验...',
-    '模型正在反复推敲命格的合理性与趣味性...',
-    '命运纹路正在高速展开...',
-    '正在计算命格与角色的匹配度...',
-  ],
-  [
-    '生成完毕，开始封装返回数据',
-    '数据正在回传，校验完整性',
-    '快要成功了，最后一步处理',
-    '马上展示结果，请稍等',
-    '命运邮件已经寄出，正在派送中...',
-    '命格数据正在穿越互联网的大洋...',
-    '数据包正在经历九九八十一道校验...',
-    '正在对生成结果进行最终美化...',
-    '就快好了，深呼吸，准备迎接你的命格吧...',
-    '命运之门正在缓缓开启...',
-    '最后一层封印即将解除...',
-    '等待总是值得的，就像等待流星...',
-    '正在召唤幸运女神进行最后加持...',
-    '正在确认命格没有被调包...',
-    '生成结果已解析，正在检查完整性...',
-    '正在对命格进行最终的去重与排序...',
-    'CRC32校验通过，数据完整性100%...',
-    '正在将结果渲染为漂亮的卡片样式...',
-  ],
-  [
-    '服务器小哥正在泡咖啡，稍等一下...',
-    '客服小精灵说：您的请求正在处理中~',
-    '好饭不怕晚，好命格需要耐心...',
-    '正在拉取你的前世今生命运线...',
-    '一只程序猿正在键盘上疯狂敲打...（开玩笑的，AI在工作）',
-    '我们调用了9999个GPU核心，只为让你满意...',
-    '量子计算机说：你这命运有点复杂啊...',
-    '命运织布机卡线了，正在用牙签捅一捅...',
-    '正在询问塔罗牌和易经八卦的一致性...',
-    '服务器说：稍等，我喝口水再继续...',
-    '你的命运太精彩了，AI都忍不住多看几遍...',
-    '占卜精灵打了个喷嚏，我们正在给它递纸巾...',
-    '命运线程打结了，织女正在耐心解开...',
-    '命格太好，系统正在犹豫要不要藏几个...',
-    '一只蝴蝶在服务器机房扇动翅膀，轻微延迟...',
-    '你的命格包正在经历宇宙射线的洗礼...',
-    '最后一个命格卡在传送带上，正在踹它一脚...',
-    '月老路过，顺路帮你检查了一下缘分参数...',
-    '太上老君正在炼丹炉旁审核你的命格...',
-    '天机不可泄露太多，AI正在帮你打码...',
-  ],
-]
-
-function pickMessage(phases: string[][], elapsedSec: number): string {
-  const phaseIdx = Math.min(Math.floor(elapsedSec / 9), phases.length - 1)
-  const pool = phases[phaseIdx]
-  return pool[Math.floor(Math.random() * pool.length)]
+function formatPatternFocusCopy(pattern: DestinyPattern): string {
+  return [
+    pattern.description.trim(),
+    pattern.effect?.trim(),
+    ...formatPatternSystemModifiersForDisplay(pattern.systemModifiers).map((item) => item.display),
+  ].filter(Boolean).join(' · ')
 }
 
 // ══════════════════════════════════════════════════════
@@ -225,12 +75,31 @@ function isAIGeneratedPattern(pattern: DestinyPattern): boolean {
   return pattern.id.startsWith('ai-') || pattern.id.startsWith('ai_')
 }
 
+function patternNameKey(pattern: DestinyPattern): string {
+  return pattern.name.trim().toLocaleLowerCase()
+}
+
+function uniquePatternsByIdentity(patterns: DestinyPattern[]): DestinyPattern[] {
+  const seenIds = new Set<string>()
+  const seenNames = new Set<string>()
+  return patterns.filter((pattern) => {
+    if (pattern.polarity === 'negative') return false
+    const nameKey = patternNameKey(pattern)
+    if (seenIds.has(pattern.id) || seenNames.has(nameKey)) return false
+    seenIds.add(pattern.id)
+    seenNames.add(nameKey)
+    return true
+  })
+}
+
 function loadCachedPool(): DestinyPattern[] {
-  return loadDestinyPatternPool(useWorldStore.getState().worldCode).filter(isAIGeneratedPattern)
+  return uniquePatternsByIdentity(
+    loadDestinyPatternPool(useWorldStore.getState().worldCode).filter(isAIGeneratedPattern),
+  )
 }
 
 function saveCachedPool(patterns: DestinyPattern[]): void {
-  const aiPatterns = patterns.filter(isAIGeneratedPattern)
+  const aiPatterns = uniquePatternsByIdentity(patterns.filter(isAIGeneratedPattern))
   if (aiPatterns.length > 0) {
     saveDestinyPatternPool(useWorldStore.getState().worldCode, aiPatterns)
   }
@@ -261,11 +130,19 @@ function persistTdState(state: SavedTdState): void {
 }
 
 function drawSlotsFromPool(pool: DestinyPattern[]): (DestinyPattern | null)[] {
-  const shuffled = [...pool].sort(() => Math.random() - 0.5)
+  const uniquePool = uniquePatternsByIdentity(pool)
+  const shuffled = uniquePool.sort(() => Math.random() - 0.5)
   const drawn = shuffled.slice(0, DEFAULT_DESTINY_PATTERN_COUNT)
-  const newSlots: (DestinyPattern | null)[] = Array(12).fill(null)
+  const newSlots: (DestinyPattern | null)[] = Array(DEFAULT_DESTINY_PATTERN_COUNT).fill(null)
   drawn.forEach((p, i) => { newSlots[i] = p })
   return newSlots
+}
+
+function revealSlotsInOrder(patterns: DestinyPattern[]): (DestinyPattern | null)[] {
+  const revealed = uniquePatternsByIdentity(patterns).slice(0, DEFAULT_DESTINY_PATTERN_COUNT)
+  const nextSlots: (DestinyPattern | null)[] = Array(DEFAULT_DESTINY_PATTERN_COUNT).fill(null)
+  revealed.forEach((pattern, index) => { nextSlots[index] = pattern })
+  return nextSlots
 }
 
 function buildDestinyPatternContext() {
@@ -300,6 +177,7 @@ function configureDestinyPatternAIService(): void {
       signal?: AbortSignal
       maxTokensOverride?: number
       storySeed?: number
+      outputSchema?: Parameters<typeof callAI>[2]['outputSchema']
     }
     const useStream = opts?.stream === true
     const {
@@ -307,6 +185,7 @@ function configureDestinyPatternAIService(): void {
       customKey,
       customUrl,
       customModel,
+      talentThinkingIntensity,
     } = useSettingsStore.getState()
     const model = customModel || 'deepseek-v4-flash'
     const maxTokens = opts?.maxTokensOverride
@@ -316,8 +195,7 @@ function configureDestinyPatternAIService(): void {
       temperature: 0.8,
       maxTokens,
       stream: useStream,
-      responseFormat: useStream ? undefined : undefined,
-      reasoningEffort: 'disabled',
+      reasoningEffort: talentThinkingIntensity,
     }
 
     const callOptions = {
@@ -332,9 +210,11 @@ function configureDestinyPatternAIService(): void {
       apiKey: customKey || undefined,
       customBaseUrl: customUrl || undefined,
       customModel: model,
-      reasoningEffort: 'disabled',
+      reasoningEffort: talentThinkingIntensity,
       overrideMaxTokens: maxTokens,
       storySeed: opts?.storySeed,
+      outputSchema: opts?.outputSchema,
+      strictSchema: !useStream && Boolean(opts?.outputSchema),
       logCategory: 'talent-generate' as const,
       logContext: {
         callKind: useStream ? 'talent-generate-stream' : 'talent-generate-batch',
@@ -377,11 +257,12 @@ function resolveInitialTalentDrawState(): InitialTalentDrawState {
   const saved = loadTdState()
   const cached = loadCachedPool()
   const { aiTalentGeneration } = useSettingsStore.getState()
+  const savedPatterns = saved?.slots?.filter((pattern): pattern is DestinyPattern => pattern !== null) ?? []
 
-  const savedSlotsMatchMode = saved?.slots?.length === 12 && (
-    !aiTalentGeneration
-    || saved.slots.every((pattern) => pattern !== null && isAIGeneratedPattern(pattern))
-  )
+  const savedSlotsMatchMode = saved?.slots?.length === DEFAULT_DESTINY_PATTERN_COUNT
+    && savedPatterns.length === DEFAULT_DESTINY_PATTERN_COUNT
+    && uniquePatternsByIdentity(savedPatterns).length === DEFAULT_DESTINY_PATTERN_COUNT
+    && (!aiTalentGeneration || savedPatterns.every(isAIGeneratedPattern))
   const usableSaved = savedSlotsMatchMode ? saved : null
 
   if (usableSaved?.phase === 'selecting') {
@@ -390,7 +271,7 @@ function resolveInitialTalentDrawState(): InitialTalentDrawState {
       // 回退到 idle，由用户重新点击按钮触发对应模式
       return {
         phase: 'idle',
-        slots: Array(12).fill(null),
+        slots: Array(DEFAULT_DESTINY_PATTERN_COUNT).fill(null),
         selectedSlotIndices: [],
         localPoolSize: cached.length,
         pool: cached,
@@ -409,7 +290,7 @@ function resolveInitialTalentDrawState(): InitialTalentDrawState {
     const newSlots = drawSlotsFromPool(cached)
     useCharacterStore.getState().setDestinyPatterns({ candidates: cached })
     return {
-      phase: 'selecting',
+      phase: 'ready',
       slots: newSlots,
       selectedSlotIndices: [],
       localPoolSize: cached.length,
@@ -419,49 +300,77 @@ function resolveInitialTalentDrawState(): InitialTalentDrawState {
 
   return {
     phase: normalizeSavedPhase(usableSaved?.phase),
-    slots: usableSaved?.slots?.length === 12 ? usableSaved.slots : Array(12).fill(null),
+    slots: usableSaved?.slots?.length === DEFAULT_DESTINY_PATTERN_COUNT
+      ? usableSaved.slots
+      : Array(DEFAULT_DESTINY_PATTERN_COUNT).fill(null),
     selectedSlotIndices: usableSaved?.selectedSlotIndices ?? [],
     localPoolSize: cached.length,
     pool: cached,
   }
 }
 
-export default function TalentDrawPage() {
+function TalentDrawContent() {
   const router = useRouter()
+  const mythicLibrary = useMythicLibraryStore((state) => state.patterns)
+  const equippedMythicPattern = useCharacterStore((state) => state.equippedMythicPattern)
+  const setEquippedMythicPattern = useCharacterStore((state) => state.setEquippedMythicPattern)
 
   const [initialDraw] = useState(() => resolveInitialTalentDrawState())
 
   const [phase, setPhase] = useState<PagePhase>(initialDraw.phase)
   const [slots, setSlots] = useState<(DestinyPattern | null)[]>(initialDraw.slots)
-  const [selectedSlotIndices, setSelectedSlotIndices] = useState<number[]>(initialDraw.selectedSlotIndices)
+  const [selectedUiSlots, setSelectedUiSlots] = useState<(number | null)[]>(
+    () => createSelectedUiSlots(initialDraw.selectedSlotIndices),
+  )
   const [isRegenerating, setIsRegenerating] = useState(false)
-  const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [streamCount, setStreamCount] = useState(0)
-  const [generatingBatch, setGeneratingBatch] = useState(-1)
-  const [loadingMessage, setLoadingMessage] = useState(LOADING_PHASES[0][0])
   const [localPoolSize, setLocalPoolSize] = useState(initialDraw.localPoolSize)
   const [errorMsg, setErrorMsg] = useState('')
+  const [activeSlotIndex, setActiveSlotIndex] = useState(0)
+  const [libraryOpen, setLibraryOpen] = useState(false)
+  const [cycleRevision, setCycleRevision] = useState(0)
+  const [toastMessage, setToastMessage] = useState('')
 
-  const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const msgTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const fullPoolRef = useRef<DestinyPattern[]>(initialDraw.pool)
   const abortRef = useRef(false)
+  const librarySheetRef = useRef<HTMLElement | null>(null)
+  const libraryTriggerRef = useRef<HTMLButtonElement | null>(null)
+  const libraryCloseRef = useRef<HTMLButtonElement | null>(null)
+  const toastTimerRef = useRef<number | null>(null)
 
-  // 持久化选取状态（phase / slots / selectedSlotIndices）
+  const selectedSlotIndices = useMemo(
+    () => selectedUiSlots.filter((index): index is number => index !== null),
+    [selectedUiSlots],
+  )
+
+  const notify = useCallback((message: string) => {
+    setToastMessage(message)
+    if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = window.setTimeout(() => {
+      setToastMessage('')
+      toastTimerRef.current = null
+    }, 1450)
+  }, [])
+
+  useEffect(() => () => {
+    if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current)
+  }, [])
+
+  // 持久化稳定状态（ready 是不落盘的视觉交接态，刷新后由缓存重新构建）
   useEffect(() => {
-    if (phase !== 'generating') {
+    if (phase === 'idle' || phase === 'selecting') {
       const { aiTalentGeneration } = useSettingsStore.getState()
       persistTdState({ phase, slots, selectedSlotIndices, aiTalentGeneration })
     }
   }, [phase, slots, selectedSlotIndices])
 
-  // ══════════ 组件卸载：未凑够 12 条时中止等待；已可选择后允许后台继续补池 ══════════
+  // ══════════ 组件卸载：离开命格流程即中止页面不再需要的补池请求 ══════════
   useEffect(() => {
     return () => {
       abortRef.current = true
       const destinySystem = getDestinyPatternSystem()
       const status = destinySystem.getPoolFillStatus()
-      if (status.inProgress && status.count < DEFAULT_DESTINY_PATTERN_COUNT) {
+      if (status.inProgress) {
         destinySystem.abortPoolFill()
       }
     }
@@ -474,39 +383,89 @@ export default function TalentDrawPage() {
   )
 
   const isFull = selectedData.length >= DESTINY_PATTERN_SELECT_COUNT
+  const activePattern = slots[activeSlotIndex] ?? slots.find((pattern): pattern is DestinyPattern => pattern !== null) ?? null
+  const activePatternSelected = activePattern
+    ? selectedSlotIndices.some((index) => slots[index]?.id === activePattern.id)
+    : false
 
-  // ══════════ 进度文案（早进选取阈值 = DEFAULT_DESTINY_PATTERN_COUNT = 12） ══════════
+  useEffect(() => {
+    if ((phase !== 'ready' && phase !== 'selecting') || libraryOpen || slots.filter(Boolean).length < 2) return
+    const interval = window.setInterval(() => {
+      setActiveSlotIndex((current) => {
+        for (let offset = 1; offset <= slots.length; offset++) {
+          const next = (current - offset + slots.length) % slots.length
+          if (slots[next]) return next
+        }
+        return current
+      })
+      setCycleRevision((revision) => revision + 1)
+    }, 4000)
+    return () => window.clearInterval(interval)
+  }, [cycleRevision, libraryOpen, phase, slots])
+
+  const handleFocusSlot = useCallback((index: number) => {
+    setActiveSlotIndex(index)
+    setCycleRevision((revision) => revision + 1)
+  }, [])
+
+  useEffect(() => {
+    if (!libraryOpen) return
+    const trigger = libraryTriggerRef.current
+    const focusFrame = window.requestAnimationFrame(() => libraryCloseRef.current?.focus())
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const sheet = librarySheetRef.current
+      if (!sheet) return
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setLibraryOpen(false)
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusable = Array.from(sheet.querySelectorAll<HTMLElement>('button:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+        .filter((element) => element.getClientRects().length > 0)
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.cancelAnimationFrame(focusFrame)
+      document.removeEventListener('keydown', handleKeyDown)
+      trigger?.focus()
+    }
+  }, [libraryOpen])
+
+  // ══════════ 进度文案（首满 5 条进入完成交接态） ══════════
   const progressTarget = DEFAULT_DESTINY_PATTERN_COUNT
   const displayStreamCount = Math.min(streamCount, progressTarget)
-
-  const progressText = streamCount > 0
-    ? `${displayStreamCount}/${progressTarget}`
-    : generatingBatch >= 0
-      ? `第 ${generatingBatch + 1} 批请求中...`
-      : '等待 AI 响应...'
-
-  const progressPercent = useMemo(
-    () => Math.min((displayStreamCount / progressTarget) * 100, 100),
-    [displayStreamCount, progressTarget],
-  )
-
-  const formatElapsed = (sec: number) => {
-    const s = Math.floor(sec)
-    const m = Math.floor(s / 60)
-    const rs = s % 60
-    return `${m}:${String(rs).padStart(2, '0')}`
-  }
+  const latestStreamPattern = displayStreamCount > 0 ? slots[displayStreamCount - 1] : null
+  const progressText = latestStreamPattern
+    ? `${DESTINY_PATTERN_RARITY_CONFIG[latestStreamPattern.rarity].label} · ${latestStreamPattern.name}`
+    : '连接命盘'
+  const generationMessage = latestStreamPattern
+    ? displayStreamCount < progressTarget
+      ? `${latestStreamPattern.name}已显现，正在生成第 ${displayStreamCount + 1} 条有效命格。`
+      : `${latestStreamPattern.name}已显现，五条命格已就绪。`
+    : '正在生成第 1 条有效命格。'
 
   // ══════════ 挂载时恢复命格库 + 定时同步池大小 ══════════
   useEffect(() => {
     const syncPoolSize = () => {
-      const cached = loadCachedPool()
       const candidates = useCharacterStore.getState().destinyPatterns.candidates
       const { aiTalentGeneration } = useSettingsStore.getState()
+      const cached = aiTalentGeneration ? loadCachedPool() : []
       const usableCandidates = aiTalentGeneration
         ? candidates.filter(isAIGeneratedPattern)
         : candidates
-      const best = cached.length >= usableCandidates.length ? cached : usableCandidates
+      const uniqueCandidates = uniquePatternsByIdentity(usableCandidates)
+      const best = cached.length >= uniqueCandidates.length ? cached : uniqueCandidates
       if (best.length > 0) {
         fullPoolRef.current = best
         setLocalPoolSize(best.length)
@@ -520,13 +479,16 @@ export default function TalentDrawPage() {
   useEffect(() => {
     if (phase !== 'selecting') return
     const { aiTalentGeneration } = useSettingsStore.getState()
-    if (!aiTalentGeneration || localPoolSize >= DESTINY_PATTERN_FAST_DRAW_THRESHOLD) return
+    const destinySystem = getDestinyPatternSystem()
+    const cachedPoolSize = loadCachedPool().length
+    const runtimePoolSize = destinySystem.getPoolFillStatus().count
+    if (!aiTalentGeneration || Math.max(cachedPoolSize, runtimePoolSize) >= DESTINY_PATTERN_FAST_DRAW_THRESHOLD) return
 
     const cached = loadCachedPool()
     if (
       cached.length < DEFAULT_DESTINY_PATTERN_COUNT
       || cached.length >= DESTINY_PATTERN_FAST_DRAW_THRESHOLD
-      || getDestinyPatternSystem().getPoolFillStatus().inProgress
+      || destinySystem.getPoolFillStatus().inProgress
     ) {
       return
     }
@@ -534,59 +496,38 @@ export default function TalentDrawPage() {
     let cancelled = false
     configureDestinyPatternAIService()
 
-    // 缓存够 12 条时玩家先选；这里在后台从已有池续填，直到本世界命格池达到快速复用阈值。
-    void getDestinyPatternSystem().generateWithAI(
+    // 缓存够 5 条时玩家先选；这里在后台从已有池续填，直到本世界命格池达到快速复用阈值。
+    void destinySystem.generateWithAI(
       buildDestinyPatternContext(),
       (_count, patterns) => {
-        if (patterns.length > 0) {
-          fullPoolRef.current = patterns
-          saveCachedPool(patterns)
-          useCharacterStore.getState().setDestinyPatterns({ candidates: patterns })
+        const uniquePatterns = uniquePatternsByIdentity(patterns)
+        if (uniquePatterns.length > 0) {
+          fullPoolRef.current = uniquePatterns
+          saveCachedPool(uniquePatterns)
+          useCharacterStore.getState().setDestinyPatterns({ candidates: uniquePatterns })
         }
-        if (!cancelled) setLocalPoolSize(patterns.length)
+        if (!cancelled) setLocalPoolSize(uniquePatterns.length)
       },
       undefined,
       undefined,
       { initialPatterns: cached },
     ).then((patterns) => {
-      if (patterns.length > 0) {
-        fullPoolRef.current = patterns
-        saveCachedPool(patterns)
-        useCharacterStore.getState().setDestinyPatterns({ candidates: patterns })
+      const uniquePatterns = uniquePatternsByIdentity(patterns)
+      if (uniquePatterns.length > 0) {
+        fullPoolRef.current = uniquePatterns
+        saveCachedPool(uniquePatterns)
+        useCharacterStore.getState().setDestinyPatterns({ candidates: uniquePatterns })
       }
-      if (!cancelled) setLocalPoolSize(patterns.length)
+      if (!cancelled) setLocalPoolSize(uniquePatterns.length)
     }).catch(() => {
       /* 静默补池失败不阻断玩家继续选择，下一次进入页面会按缓存继续补。 */
     })
 
     return () => {
       cancelled = true
-    }
-  }, [phase, localPoolSize])
-
-  // ══════════ 加载文案动画 + 等待计时 ══════════
-  const displayElapsed = phase === 'generating' ? elapsedSeconds : 0
-
-  useEffect(() => {
-    if (phase !== 'generating') return // 离开生成阶段时仅清理 timer，不 setState
-
-    // 计时器：每秒 +1
-    const elapsedTimer = setInterval(() => {
-      setElapsedSeconds((prev) => prev + 1)
-    }, 1000)
-    elapsedTimerRef.current = elapsedTimer
-
-    // 文案切换：每 2s 根据当前耗时随机选一条
-    msgTimerRef.current = setInterval(() => {
-      setElapsedSeconds((prev) => {
-        setLoadingMessage(pickMessage(LOADING_PHASES, prev))
-        return prev
-      })
-    }, 2000)
-
-    return () => {
-      clearInterval(msgTimerRef.current as ReturnType<typeof setInterval>)
-      clearInterval(elapsedTimer)
+      if (destinySystem.getPoolFillStatus().inProgress) {
+        destinySystem.abortPoolFill()
+      }
     }
   }, [phase])
 
@@ -596,21 +537,28 @@ export default function TalentDrawPage() {
 
     if (!aiTalentGeneration) {
       // 预设模式
-      const patterns = getDestinyPatternSystem().generateFromPresets(100)
+      const patterns = uniquePatternsByIdentity(getDestinyPatternSystem().generateFromPresets(100))
       fullPoolRef.current = patterns
+      useCharacterStore.getState().setDestinyPatterns({ candidates: patterns })
       setSlots(drawSlotsFromPool(patterns))
-      setSelectedSlotIndices([])
-      setPhase('selecting')
+      setActiveSlotIndex(0)
+      setSelectedUiSlots(createSelectedUiSlots([]))
+      setLocalPoolSize(patterns.length)
+      setStreamCount(DEFAULT_DESTINY_PATTERN_COUNT)
+      setPhase('ready')
+      setCycleRevision((revision) => revision + 1)
+      notify('五条命格已生成')
       return
     }
 
     // AI 模式
+    const initialPatterns = loadCachedPool()
     setPhase('generating')
-    setStreamCount(0)
-    setGeneratingBatch(-1)
-    setElapsedSeconds(0)
+    setStreamCount(Math.min(initialPatterns.length, DEFAULT_DESTINY_PATTERN_COUNT))
+    setSlots(revealSlotsInOrder(initialPatterns))
+    setActiveSlotIndex(0)
     setErrorMsg('')
-    setSelectedSlotIndices([])
+    setSelectedUiSlots(createSelectedUiSlots([]))
     abortRef.current = false
 
     const worldConfig = useWorldStore.getState().worldConfig
@@ -625,52 +573,58 @@ export default function TalentDrawPage() {
     let earlyReady = false
 
     const revealPatterns = (patterns: DestinyPattern[], persist = true): boolean => {
-      if (earlyReady || abortRef.current || patterns.length < DEFAULT_DESTINY_PATTERN_COUNT) return false
+      const visiblePatterns = uniquePatternsByIdentity(patterns)
+      if (earlyReady || abortRef.current || visiblePatterns.length < DEFAULT_DESTINY_PATTERN_COUNT) return false
       earlyReady = true
-      fullPoolRef.current = patterns
-      if (persist) saveCachedPool(patterns)
-      useCharacterStore.getState().setDestinyPatterns({ candidates: patterns })
-      setStreamCount(patterns.length)
-      setLocalPoolSize(patterns.length)
-      setGeneratingBatch(-1)
-      if (msgTimerRef.current) clearInterval(msgTimerRef.current)
-      setSlots(drawSlotsFromPool(patterns))
-      setSelectedSlotIndices([])
-      setPhase('selecting')
+      fullPoolRef.current = visiblePatterns
+      if (persist) saveCachedPool(visiblePatterns)
+      useCharacterStore.getState().setDestinyPatterns({ candidates: visiblePatterns })
+      setStreamCount(Math.min(visiblePatterns.length, DEFAULT_DESTINY_PATTERN_COUNT))
+      setLocalPoolSize(visiblePatterns.length)
+      setSlots(revealSlotsInOrder(visiblePatterns))
+      setActiveSlotIndex(0)
+      setSelectedUiSlots(createSelectedUiSlots([]))
+      setPhase('ready')
+      setCycleRevision((revision) => revision + 1)
+      notify('五条命格已生成')
       return true
     }
 
     try {
       const result = await getDestinyPatternSystem().generateWithAI(
         buildDestinyPatternContext(),
-        (count, patterns) => {
+        (_count, patterns) => {
           if (abortRef.current) return
-          setStreamCount(count)
-          fullPoolRef.current = patterns
-          setLocalPoolSize(patterns.length)
-          if (patterns.length > 0) {
-            saveCachedPool(patterns)
-            useCharacterStore.getState().setDestinyPatterns({ candidates: patterns })
+          const uniquePatterns = uniquePatternsByIdentity(patterns)
+          if (!earlyReady) {
+            setStreamCount(Math.min(uniquePatterns.length, DEFAULT_DESTINY_PATTERN_COUNT))
+            setSlots(revealSlotsInOrder(uniquePatterns))
           }
+          fullPoolRef.current = uniquePatterns
+          setLocalPoolSize(uniquePatterns.length)
+          if (uniquePatterns.length > 0) {
+            saveCachedPool(uniquePatterns)
+            useCharacterStore.getState().setDestinyPatterns({ candidates: uniquePatterns })
+          }
+          revealPatterns(uniquePatterns)
         },
         (patterns) => {
           revealPatterns(patterns)
         },
-        (batchIndex) => {
-          if (!earlyReady) setGeneratingBatch(batchIndex)
-        },
-        { initialPatterns: loadCachedPool() },
+        undefined,
+        { initialPatterns },
       )
 
-      // 防御：正常由 onEarlyReady 切换；仅在回调遗漏但 AI 已满 12 条时补切换。
+      // 防御：正常由 onEarlyReady 切换；仅在回调遗漏但 AI 已满 5 条时补切换。
       if (!earlyReady && !abortRef.current) {
         revealPatterns(result)
       }
 
       if (result.length > 0) {
-        saveCachedPool(result)
-        setLocalPoolSize(result.length)
-        setStreamCount(result.length)
+        const uniqueResult = uniquePatternsByIdentity(result)
+        saveCachedPool(uniqueResult)
+        setLocalPoolSize(uniqueResult.length)
+        setStreamCount(Math.min(uniqueResult.length, DEFAULT_DESTINY_PATTERN_COUNT))
       }
     } catch {
       if (!earlyReady) {
@@ -678,17 +632,50 @@ export default function TalentDrawPage() {
         setPhase('idle')
       }
     }
-  }, [])
+  }, [notify])
+
+  const handleEnterSelection = useCallback(() => {
+    if (slots.filter(Boolean).length < DEFAULT_DESTINY_PATTERN_COUNT) return
+    setPhase('selecting')
+  }, [slots])
 
   // ══════════ 槽位交互 ══════════
   const handleSlotClick = useCallback((idx: number) => {
-    if (selectedSlotIndices.length >= DESTINY_PATTERN_SELECT_COUNT) return
-    setSelectedSlotIndices((prev) => [...prev, idx])
-  }, [selectedSlotIndices])
+    if (selectedSlotIndices.includes(idx)) {
+      const pattern = slots[idx]
+      if (pattern) notify(`${pattern.name}已在星契中`)
+      return
+    }
+    const targetSlot = selectedUiSlots.findIndex((index) => index === null)
+    if (targetSlot < 0) {
+      notify('三个普通命格槽已满')
+      return
+    }
+    setSelectedUiSlots((current) => current.map((value, index) => index === targetSlot ? idx : value))
+    const nextIndex = slots.findIndex((pattern, index) => pattern && index !== idx && !selectedSlotIndices.includes(index))
+    if (nextIndex >= 0) setActiveSlotIndex(nextIndex)
+    setCycleRevision((revision) => revision + 1)
+  }, [notify, selectedSlotIndices, selectedUiSlots, slots])
 
-  const handleDeselect = useCallback((id: string) => {
-    setSelectedSlotIndices((prev) => prev.filter((i) => slots[i]?.id !== id))
-  }, [slots])
+  const handleAddActivePattern = useCallback(() => {
+    if (!activePattern) return
+    const index = slots.findIndex((pattern) => pattern?.id === activePattern.id)
+    if (index >= 0) handleSlotClick(index)
+  }, [activePattern, handleSlotClick, slots])
+
+  const handleDeselect = useCallback((uiSlotIndex: number) => {
+    const patternIndex = selectedUiSlots[uiSlotIndex]
+    const pattern = patternIndex === null ? null : slots[patternIndex]
+    if (patternIndex === null || !pattern) return
+    setSelectedUiSlots((current) => current.map((value, index) => index === uiSlotIndex ? null : value))
+    notify(`已移除${pattern.name}`)
+  }, [notify, selectedUiSlots, slots])
+
+  const handleEquipMythic = useCallback((pattern: MythicPattern | null) => {
+    setEquippedMythicPattern(pattern)
+    setLibraryOpen(false)
+    notify(`神话传承 · ${pattern?.name ?? '本局不携带'}`)
+  }, [notify, setEquippedMythicPattern])
 
   // ══════════ 确认选择 → 跳转 ══════════
   const handleConfirm = useCallback(() => {
@@ -734,7 +721,8 @@ export default function TalentDrawPage() {
 
   // ══════════ 重新抽取（从未选槽位逐槽从本地池重抽） ══════════
   const handleRedraw = useCallback(() => {
-    const cached = loadCachedPool()
+    const { aiTalentGeneration } = useSettingsStore.getState()
+    const cached = aiTalentGeneration ? loadCachedPool() : []
     const pool = cached.length > 0 ? cached : fullPoolRef.current
     if (pool.length < 5) return
 
@@ -744,42 +732,78 @@ export default function TalentDrawPage() {
 
     // 仅锁定已选槽位 ID；未选槽先清空再重抽，避免小池子下 usedIds 过早耗尽
     const usedIds = new Set<string>()
+    const usedNames = new Set<string>()
     for (const idx of currentSelected) {
       const s = newSlots[idx]
-      if (s?.id) usedIds.add(s.id)
+      if (!s) continue
+      usedIds.add(s.id)
+      usedNames.add(patternNameKey(s))
     }
 
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < DEFAULT_DESTINY_PATTERN_COUNT; i++) {
       if (!currentSelected.includes(i)) {
         newSlots[i] = null
-        const available = pool.filter((p) => !usedIds.has(p.id))
+        const available = pool.filter((p) => (
+          !usedIds.has(p.id) && !usedNames.has(patternNameKey(p))
+        ))
         if (available.length === 0) continue
         const pick = available[Math.floor(Math.random() * available.length)]
         usedIds.add(pick.id)
+        usedNames.add(patternNameKey(pick))
         newSlots[i] = pick
       }
     }
 
     setSlots(newSlots)
-    setIsRegenerating(false)
-  }, [slots, selectedSlotIndices])
+    setActiveSlotIndex((current) => newSlots[current] ? current : 0)
+    setCycleRevision((revision) => revision + 1)
+    notify(currentSelected.length > 0
+      ? `已保留${currentSelected.length}条星契，重新抽取其余命格`
+      : '五条普通命格已重新抽取')
+    window.requestAnimationFrame(() => setIsRegenerating(false))
+  }, [notify, slots, selectedSlotIndices])
 
   const reDrawDisabled = isRegenerating || localPoolSize <= DEFAULT_DESTINY_PATTERN_COUNT
 
-  // ══════════ 稀有度光效 ══════════
-  const getGlowClass = useCallback((rarity: string) => {
-    const rc = DESTINY_PATTERN_RARITY_CONFIG[rarity as DestinyPatternRarity]
-    if (!rc) return ''
-    return `glow-${rarity}`
-  }, [])
-
   // ══════════ 返回阶段 ══════════
   const handleBack = useCallback(() => {
+    if (phase === 'selecting') {
+      setLibraryOpen(false)
+      setPhase('ready')
+      return
+    }
     abortRef.current = true
-    if (msgTimerRef.current) clearInterval(msgTimerRef.current)
-    if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current)
     router.push('/new-game/character-create')
-  }, [router])
+  }, [phase, router])
+
+  const astrolabePatterns = slots
+  const footerDisabled = phase === 'generating'
+    || (phase === 'ready' && slots.filter(Boolean).length < DEFAULT_DESTINY_PATTERN_COUNT)
+    || (phase === 'selecting' && selectedData.length !== DESTINY_PATTERN_SELECT_COUNT)
+  const footerTitle = phase === 'idle'
+    ? '开始抽取'
+    : phase === 'generating'
+      ? '正在生成'
+      : phase === 'ready'
+        ? '进入命格选择'
+        : '确认命格'
+  const footerCopy = phase === 'idle'
+    ? `持续生成，直至 ${DEFAULT_DESTINY_PATTERN_COUNT} 条有效命格就绪`
+    : phase === 'generating'
+      ? latestStreamPattern
+        ? `已完成 ${displayStreamCount} / ${DEFAULT_DESTINY_PATTERN_COUNT} · ${latestStreamPattern.name}`
+        : `已完成 0 / ${DEFAULT_DESTINY_PATTERN_COUNT} · 正在连接命盘`
+      : phase === 'ready'
+        ? '五条命格已就绪 · 双搏水波持续轮转'
+        : selectedData.length === DESTINY_PATTERN_SELECT_COUNT
+          ? '三条普通命格已签订 · 继续分配属性'
+          : `还需选择 ${DESTINY_PATTERN_SELECT_COUNT - selectedData.length} 条普通命格`
+
+  const handleFooterAction = () => {
+    if (phase === 'idle') void doGenerate()
+    else if (phase === 'ready') handleEnterSelection()
+    else if (phase === 'selecting') handleConfirm()
+  }
 
   // ============================================================
   // 渲染
@@ -787,208 +811,232 @@ export default function TalentDrawPage() {
 
   return (
     <PageErrorBoundary message="命格抽取页面出现错误">
-      <>
-      {/* ═══════════════ Idle ═══════════════ */}
-      {phase === 'idle' && (
-        <div className={styles.initCenter}>
-          <div className={styles.initHeader}>
-            <div className={styles.initIcon}>✨</div>
-            <h2 className={styles.initTitle}>命格抽取</h2>
-            <p className={styles.initSubtitle}>命运将为你揭示命格</p>
-            <button onClick={doGenerate} className={styles.genBtn}>
-              ✓ 抽取命格
-            </button>
-            <div className={styles.backBtnMargin}>
-              <button onClick={handleBack} className={styles.outlineBtn}>← 返回</button>
-            </div>
-          </div>
-        </div>
-      )}
+      <main className={styles.page} data-phase={phase}>
+        <article className={styles.book} aria-labelledby="talent-page-title">
+          <TalentFlowArt />
 
-      {/* ═══════════════ Generating ═══════════════ */}
-      {phase === 'generating' && (
-        <div className={styles.initCenter}>
-          <div className={styles.initHeader}>
-            <div className={styles.initIcon}>✨</div>
-            <h2 className={styles.initTitle}>命格抽取</h2>
-            <p className={styles.initSubtitle}>命运将为你揭示命格</p>
-            <div className={styles.loadingBar}>
-              <div className={styles.loadingMsgRow}>
-                <span className={styles.loadingSpinner146} />
-                <span className={styles.loadingMsg}>{loadingMessage}</span>
+          <div className={styles.screen}>
+            <header className={styles.header}>
+              <div className={styles.meta} aria-hidden="true">
+                <span>AI LIFE SIM · 命书</span>
+                <span>{phase === 'selecting' ? '06' : '05'} / 08</span>
               </div>
-              <div className={styles.progressRow}>
-                <span className={styles.loadingSpinner30} />
-                <div className={styles.progressTrack}>
-                  <div
-                    className={cn(
-                      styles.progressFill,
-                      streamCount > 0 && styles.progressFillActive,
-                    )}
-                    style={{ width: `${progressPercent}%` }}
-                  />
+              <div className={styles.titleRow}>
+                <div className={styles.titleCopy}>
+                  <h1 id="talent-page-title">{phase === 'selecting' ? '选择命格' : '抽取命格'}</h1>
+                  <p>{phase === 'selecting'
+                    ? '从五星位中选满三条，可另选一项神话传承。'
+                    : '持续生成五条有效命格，完成后进入选择。'}</p>
                 </div>
-                <span className={styles.progressText}>{progressText}</span>
-                <span className={styles.elapsedText}>{formatElapsed(displayElapsed)}</span>
+                <div className={styles.titleMark} aria-hidden="true"><span>{phase === 'selecting' ? '06' : '05'}</span></div>
               </div>
-            </div>
-            <div className={styles.backBtnMarginLoading}>
-              <button onClick={handleBack} className={styles.outlineBtn}>← 返回</button>
-            </div>
-          </div>
-        </div>
-      )}
+            </header>
 
-      {/* ═══════════════ Selecting ═══════════════ */}
-      {phase === 'selecting' && (
-        <PageScroll>
-          <div className={styles.container}>
-            <div className={styles.screenHeader}>
-              <div className={styles.headerIcon}>✨</div>
-              <h2 className={styles.headerTitle}>命格选取</h2>
-              <p className={styles.headerStats}>
-                已选择{' '}
-                <span className={isFull ? styles.headerStatsCountFull : styles.headerStatsCount}>
-                  {selectedData.length}/{DESTINY_PATTERN_SELECT_COUNT}
-                </span>
-                <span className={styles.headerStatsPool}> · 本次候选：{slots.length}条 · 本地库：{localPoolSize}条</span>
-              </p>
-            </div>
-
-            {/* 已选择的命格 */}
-            <div className={styles.selectedSection}>
-              <h4 className={styles.selectedTitle}>已选择的命格</h4>
-              <div className={styles.talentGrid}>
-                {Array.from({ length: DESTINY_PATTERN_SELECT_COUNT }).map((_, i) => {
-                  const p = selectedData[i]
-                  if (p) {
-                    const rc = DESTINY_PATTERN_RARITY_CONFIG[p.rarity]
-                    return (
-                      <button
-                        type="button"
-                        key={p.id}
-                        onClick={() => handleDeselect(p.id)}
-                        aria-label={`取消选择命格 ${p.name}`}
-                        className={cn(getGlowClass(p.rarity), styles.slot, styles.slotAvailable)}
-                        style={{
-                          border: `2px solid ${rc.color}`,
-                          animationDelay: `${i * 0.35}s`,
-                        } as React.CSSProperties}
-                      >
-                        <div className={styles.slotHeader}>
-                          <span className={styles.slotNum} style={{ color: POLARITY_COLORS[p.polarity] || 'var(--color-text-primary)' }}>
-                            {p.name}
-                          </span>
-                          <span className={styles.slotRarity} style={{ background: `${rc.color}20`, color: rc.color }}>
-                            {rc.label}
-                          </span>
-                        </div>
-                        <div className={styles.slotBody}>
-                          <p className={cn(styles.slotDesc, styles.slotDescNormal)}>{p.description}</p>
-                          <PatternEffect pattern={p} />
-                          <PatternAttrBonus pattern={p} />
-                          <PatternSystemModifiers pattern={p} />
-                        </div>
-                      </button>
-                    )
-                  }
-                  return (
-                    <div key={`empty-${i}`} className={cn(styles.slot, styles.slotEmpty, styles.selectedSlotPlaceholder)}>
-                      <span className={styles.slotEmptyNum}>?</span>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* 未选命格网格 */}
-            <div className={styles.gridSection}>
-              <h4 className={styles.gridTitle}>
-                未选命格
-                {isRegenerating && <span className={styles.regeneratingHint}>刷新中...</span>}
-              </h4>
-              <div className={cn(styles.talentGrid, isRegenerating && styles.talentGridLoading)}>
-                {SLOT_NUMBERS.map((slotNum, idx) => {
-                  const pattern = slots[idx]
-                  const isSlotSelected = selectedSlotIndices.includes(idx)
-                  if (!pattern) {
-                    return (
-                      <div key={`empty-slot-${idx}`} className={cn(styles.slot, styles.slotEmpty)}>
-                        <span className={styles.slotEmptyNum}>#{slotNum}</span>
-                      </div>
-                    )
-                  }
-                  const rc = DESTINY_PATTERN_RARITY_CONFIG[pattern.rarity]
-                  const canClick = !isSlotSelected && !isFull
+            {phase === 'selecting' ? (
+              <div className={styles.selectedSlots} aria-label="已选普通命格">
+                {selectedUiSlots.map((patternIndex, uiSlotIndex) => {
+                  const pattern = patternIndex === null ? null : slots[patternIndex]
+                  const rarityLabel = pattern ? DESTINY_PATTERN_RARITY_CONFIG[pattern.rarity].label : undefined
                   return (
                     <button
                       type="button"
-                      key={pattern.id}
-                      onClick={() => handleSlotClick(idx)}
-                      disabled={!canClick}
-                      aria-label={canClick ? `选择命格 ${pattern.name}` : `命格 ${pattern.name} 已不可选择`}
-                      className={cn(
-                        getGlowClass(pattern.rarity),
-                        styles.slot,
-                        isSlotSelected ? styles.slotSelected : '',
-                        isFull && !isSlotSelected ? styles.slotFull : styles.slotAvailable,
-                      )}
-                      style={{
-                        border: isSlotSelected ? undefined : `1px solid ${rc.color}40`,
-                        animationDelay: `${idx * 0.2}s`,
-                      } as React.CSSProperties}
+                      key={`selected-ui-slot-${uiSlotIndex}`}
+                      className={cn(styles.selectedSlot, pattern && styles.selectedSlotFilled)}
+                      data-rarity={rarityLabel}
+                      onClick={() => handleDeselect(uiSlotIndex)}
+                      aria-label={pattern ? `移除普通命格：${pattern.name}` : `普通命格槽${uiSlotIndex + 1}，空`}
                     >
-                      <div className={styles.slotHeader}>
-                        <span className={cn(styles.slotNum, isSlotSelected && styles.slotNumMuted)} style={{ color: isSlotSelected ? undefined : (POLARITY_COLORS[pattern.polarity] || 'var(--color-text-primary)') }}>
-                          #{slotNum} {pattern.name}
-                        </span>
-                        {isSlotSelected ? (
-                          <span className={styles.slotStatus}>已选</span>
-                        ) : (
-                          <span className={styles.slotRarity} style={{ background: `${rc.color}20`, color: rc.color }}>{rc.label}</span>
-                        )}
-                      </div>
-                      <div className={styles.slotBody}>
-                        <p className={cn(styles.slotDesc, isSlotSelected ? styles.slotDescMuted : styles.slotDescNormal)}>
-                          {pattern.description}
-                        </p>
-                        {!isSlotSelected && <PatternEffect pattern={pattern} />}
-                        {!isSlotSelected && <PatternAttrBonus pattern={pattern} />}
-                        {!isSlotSelected && <PatternSystemModifiers pattern={pattern} />}
-                      </div>
+                      <small>{pattern ? `${rarityLabel}命格` : `星契 ${String(uiSlotIndex + 1).padStart(2, '0')}`}</small>
+                      <strong>{pattern?.name ?? '待选择'}</strong>
                     </button>
                   )
                 })}
               </div>
-            </div>
+            ) : null}
 
-            {errorMsg && <p className={styles.validationMsg}>{errorMsg}</p>}
+            <section
+              className={cn(
+                styles.astrolabeStage,
+                phase === 'selecting' ? styles.selectionStage : styles.drawStage,
+                phase === 'ready' && styles.completeStage,
+              )}
+              aria-busy={phase === 'generating'}
+            >
+              <TalentAstrolabe
+                patterns={astrolabePatterns}
+                activeIndex={activeSlotIndex}
+                phase={phase}
+                selectedIndices={selectedSlotIndices}
+                waveRevision={cycleRevision}
+                onFocus={handleFocusSlot}
+              />
+
+              {phase !== 'selecting' ? (
+                <div className={styles.drawCopy}>
+                  <strong>{phase === 'idle'
+                    ? '让命运揭示你的命格'
+                    : phase === 'generating'
+                      ? '命格正在归位'
+                      : '五命格已归位'}</strong>
+                  <p>{phase === 'idle'
+                    ? '准备就绪后开始抽取，五条命格会依次归位。'
+                    : phase === 'generating'
+                      ? generationMessage
+                      : '星盘每四秒转至下一星位；点击下一步将在同一位置展开选择。'}</p>
+                  <div className={styles.drawReadout} role="status" aria-live="polite">
+                    <span>{phase === 'generating' ? progressText : phase === 'ready' ? '解析完成' : '等待解析'}</span>
+                    <b>{phase === 'ready' ? DEFAULT_DESTINY_PATTERN_COUNT : displayStreamCount} / {DEFAULT_DESTINY_PATTERN_COUNT}</b>
+                  </div>
+                  {phase === 'ready' ? (
+                    <button type="button" className={styles.reroll} onClick={handleRedraw} disabled={reDrawDisabled}>
+                      <FlowIcon name="shuffle" />
+                      <span>{isRegenerating ? '刷新中…' : '重新抽取'}</span>
+                    </button>
+                  ) : null}
+                  {errorMsg ? <p className={styles.validationMsg} role="alert">{errorMsg}</p> : null}
+                </div>
+              ) : null}
+            </section>
+
+            {phase === 'selecting' ? (
+              <>
+                <section
+                  className={styles.focusCard}
+                  data-rarity={activePattern ? DESTINY_PATTERN_RARITY_CONFIG[activePattern.rarity].label : undefined}
+                  aria-live="polite"
+                >
+                  {activePattern ? (
+                    <>
+                      <div className={styles.focusCopy}>
+                        <small>{DESTINY_PATTERN_RARITY_CONFIG[activePattern.rarity].label}命格 · {formatPatternAttrSummary(activePattern)}</small>
+                        <strong>{activePattern.name}</strong>
+                        <p>{formatPatternFocusCopy(activePattern)}</p>
+                      </div>
+                      <button
+                        type="button"
+                        className={styles.focusAdd}
+                        onClick={handleAddActivePattern}
+                        disabled={activePatternSelected || isFull}
+                        aria-label={activePatternSelected ? `${activePattern.name} 已选择` : `将${activePattern.name}加入普通命格槽`}
+                        title="加入命格槽"
+                      >
+                        {activePatternSelected ? '✓' : <FlowIcon name="plus" />}
+                      </button>
+                    </>
+                  ) : <p className={styles.focusEmpty}>选择一个星位查看命格。</p>}
+                </section>
+
+                <div className={styles.selectionTools}>
+                  <button
+                    type="button"
+                    className={styles.reroll}
+                    onClick={handleRedraw}
+                    disabled={reDrawDisabled}
+                    aria-label="重新抽取未选择的普通命格"
+                    title={reDrawDisabled ? `本地库需多于 ${DEFAULT_DESTINY_PATTERN_COUNT} 条才能重抽` : '保留已选命格，替换其余星位'}
+                  >
+                    <FlowIcon name="shuffle" />
+                    <span>{isRegenerating ? '刷新中…' : '重新抽取'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.libraryTrigger}
+                    ref={libraryTriggerRef}
+                    onClick={() => setLibraryOpen(true)}
+                    aria-expanded={libraryOpen}
+                    aria-controls="mythic-library-sheet"
+                  >
+                    <span>神话传承库</span>
+                    <strong>{equippedMythicPattern?.name ?? '本局不携带'}</strong>
+                  </button>
+                </div>
+                {errorMsg ? <p className={styles.validationMsg} role="alert">{errorMsg}</p> : null}
+              </>
+            ) : null}
           </div>
 
-          <BottomActionBar
-            onBack={handleBack}
-            backTitle="返回"
-            onConfirm={handleConfirm}
-            confirmDisabled={selectedData.length !== DESTINY_PATTERN_SELECT_COUNT}
-            confirmTitle={selectedData.length === DESTINY_PATTERN_SELECT_COUNT
-              ? `确认选择 ${DESTINY_PATTERN_SELECT_COUNT} 个命格`
-              : `请选择 ${DESTINY_PATTERN_SELECT_COUNT} 个命格`}
-            confirmText="确认命格 →"
-            moreLabel="更多"
-            moreItems={[
-              {
-                label: '🔄 重新抽取',
-                disabled: reDrawDisabled,
-                title: reDrawDisabled
-                  ? `本地命格库不足 ${DEFAULT_DESTINY_PATTERN_COUNT + 1} 条（当前${localPoolSize}条），请等待后台填充`
-                  : '从未选槽位依次单独从本地命格库重新抽取',
-                onClick: handleRedraw,
-              },
-            ]}
-          />
-        </PageScroll>
-      )}
-    </>
+          {libraryOpen ? (
+            <section
+              id="mythic-library-sheet"
+              ref={librarySheetRef}
+              className={styles.librarySheet}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="mythic-library-title"
+            >
+              <header className={styles.libraryHead}>
+                <strong id="mythic-library-title">神话传承库</strong>
+                <button ref={libraryCloseRef} type="button" onClick={() => setLibraryOpen(false)} aria-label="关闭神话传承库">
+                  <FlowIcon name="close" />
+                </button>
+              </header>
+              <div className={styles.libraryList}>
+                <button
+                  type="button"
+                  className={`${styles.libraryItem} ${equippedMythicPattern === null ? styles.libraryItemActive : ''}`}
+                  onClick={() => handleEquipMythic(null)}
+                  aria-pressed={equippedMythicPattern === null}
+                >
+                  <strong>本局不携带</strong>
+                  <span>保留独立神话槽，不影响三个普通命格。</span>
+                </button>
+                {mythicLibrary.map((pattern) => (
+                  <button
+                    type="button"
+                    key={pattern.id}
+                    className={`${styles.libraryItem} ${equippedMythicPattern?.id === pattern.id ? styles.libraryItemActive : ''}`}
+                    onClick={() => handleEquipMythic(pattern)}
+                    aria-pressed={equippedMythicPattern?.id === pattern.id}
+                  >
+                    <strong>{pattern.name}</strong>
+                    <span>{pattern.effect || pattern.concept}</span>
+                  </button>
+                ))}
+                {mythicLibrary.length === 0 ? <p className={styles.libraryEmpty}>尚未在人生结算中封存神话词条。</p> : null}
+              </div>
+            </section>
+          ) : null}
+
+          <footer className={styles.footer}>
+            <button type="button" className={styles.backButton} onClick={handleBack} aria-label={phase === 'selecting' ? '返回命格抽取' : '返回角色创建'}>
+              <FlowIcon name="back" />
+            </button>
+            <button
+              type="button"
+              className={styles.nextButton}
+              onClick={handleFooterAction}
+              disabled={footerDisabled}
+            >
+              <span className={styles.nextNumber}>{phase === 'selecting' ? '07' : '06'}</span>
+              <span className={styles.nextCopy}><strong>{footerTitle}</strong><small>{footerCopy}</small></span>
+              <span className={styles.nextArrow} aria-hidden="true"><FlowIcon name="arrow" /></span>
+            </button>
+          </footer>
+          <div className={cn(styles.toast, toastMessage && styles.toastVisible)} role="status" aria-live="polite">
+            {toastMessage}
+          </div>
+        </article>
+      </main>
     </PageErrorBoundary>
   )
+}
+
+export default function TalentDrawPage() {
+  const router = useRouter()
+  const storesHydrated = useCreationStoresHydrated()
+  const worldConfig = useWorldStore((state) => state.worldConfig)
+  const worldCode = useWorldStore((state) => state.worldCode)
+  const worldInitialized = useWorldStore((state) => state.initialized)
+  const characterName = useCharacterStore((state) => state.name)
+  const hasWorld = Boolean(worldConfig && worldCode > 0 && worldInitialized)
+  const hasCharacter = Boolean(characterName.trim())
+
+  useEffect(() => {
+    if (!storesHydrated) return
+    if (!hasWorld) router.replace('/new-game/world-select')
+    else if (!hasCharacter) router.replace('/new-game/character-create')
+  }, [hasCharacter, hasWorld, router, storesHydrated])
+
+  if (!storesHydrated || !hasWorld || !hasCharacter) return null
+  return <TalentDrawContent />
 }

@@ -11,7 +11,7 @@
     "lint": "eslint",
     "generate:wiring": "node scripts/codegen/generate-mod-wiring.mjs",
     "mod:create": "node scripts/codegen/create-mod.mjs",
-    "validate:narrative": "node scripts/check/domains/narrative/validate-narrative-wiring.mjs",
+    "validate:narrative": "node scripts/check/domains/narrative/validate-narrative-wiring.mjs && node scripts/check/domains/narrative/semantic-authority-audit.mjs",
     "validate:regression": "node scripts/check/domains/narrative/narrative-regression-seed.mjs",
     "test:loader": "node scripts/check/domains/structural/test-mod-loader.mjs",
     "test:calibration": "node scripts/check/domains/calibration/world-calibration-acceptance.mjs",

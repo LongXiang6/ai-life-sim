@@ -11,6 +11,7 @@
  */
 
 import { mvpStageLoader } from './mvp-stage-loader'
+import { buildSubsystemGuide } from './subsystem-field-registry'
 
 export const MVP_EXTERNAL_RUNTIME_SUBSYSTEM_IDS = mvpStageLoader.getExternalRuntimeSubsystems()
 
@@ -24,9 +25,57 @@ export const MVP_ALLOWED_SUBSYSTEMS_TEXT = mvpStageLoader.getAllowedSubsystemsTe
 
 export const MVP_SUBSYSTEM_GUIDE = mvpStageLoader.getSubsystemGuide()
 
+/**
+ * 仅为本轮实际开放、且属于当前阶段 narrativeChange 白名单的子系统生成指南。
+ * 顺序跟随阶段配置，避免注册顺序变化破坏稳定 Prompt 前缀。
+ */
+export function buildMvpSubsystemGuide(activeSubsystemIds: Iterable<string>): string {
+  const activeIds = new Set(activeSubsystemIds)
+  const writableIds = [...MVP_NARRATIVE_CHANGE_SUBSYSTEM_IDS]
+    .filter((id) => activeIds.has(id))
+
+  if (writableIds.length === 0) return ''
+
+  return [
+    `本轮可变更子系统仅：${writableIds.join(' ')}`,
+    buildSubsystemGuide(writableIds),
+    '提交规则：仅当剧情明确造成上述字段变化时写 changes；否则返回 []。',
+    '只使用上列 ID 与字段；年龄由时间系统派生，禁止写 age；未列系统不得写入。',
+  ].join('\n')
+}
+
 export function isMvpRuntimeSubsystem(subsystemId: string): boolean {
   return MVP_EXTERNAL_RUNTIME_SUBSYSTEM_IDS.has(subsystemId)
     || MVP_ENGINE_RUNTIME_SUBSYSTEM_IDS.has(subsystemId)
+}
+
+/** 返回当前尚未注册的 MVP 外部运行时子系统，供推进/存读档入口做最终防线。 */
+export function getMissingMvpExternalRuntimeSubsystemIds(
+  registeredIds: Iterable<string>,
+): string[] {
+  const registered = new Set(registeredIds)
+  return [...MVP_EXTERNAL_RUNTIME_SUBSYSTEM_IDS].filter((id) => !registered.has(id))
+}
+
+export interface MvpRuntimeReadiness {
+  ready: boolean
+  loaderReady: boolean
+  missingSubsystems: string[]
+}
+
+/** 合并 loader 里程碑与实际绑定，避免 UI、推进、存读档各自维护不同判定。 */
+export function resolveMvpRuntimeReadiness(input: {
+  allModsLoaded: boolean
+  runtimeRegistryFrozen: boolean
+  registeredIds: Iterable<string>
+}): MvpRuntimeReadiness {
+  const loaderReady = input.allModsLoaded || input.runtimeRegistryFrozen
+  const missingSubsystems = getMissingMvpExternalRuntimeSubsystemIds(input.registeredIds)
+  return {
+    ready: loaderReady && missingSubsystems.length === 0,
+    loaderReady,
+    missingSubsystems,
+  }
 }
 
 export function isMvpPromptSubsystem(subsystemId: string): boolean {

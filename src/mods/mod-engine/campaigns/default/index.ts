@@ -23,6 +23,11 @@ import { useSettingsStore } from '@/mods/mod-settings'
 import { useEngineStore } from '../../store'
 import { orchestrator } from '../../subsystems/orchestrator-system'
 import { runImmersionWarmupPass } from '../../helpers/immersion-two-pass'
+import { DEFAULT_WORD_COUNT_TARGET } from '../../constants/narrative-config'
+import {
+  buildNarrativeRepairInstruction,
+  inspectNarrativeResponseQuality,
+} from '../../helpers/narrative-response-quality'
 
 /** 阶段运行时上下文（扩展 RoundContext，携带本轮调用参数 + 阶段间临时数据） */
 export interface StageRuntimeContext extends RoundContext {
@@ -114,7 +119,7 @@ export function loadStages(
         await orchestrator.executeCrossDomainLinkage()
         ctx._crossDomainTriggered = true
 
-        orchestrator.collectAllSubsystemStates()
+        orchestrator.collectAllSubsystemStates(false)
 
         if (hadMacroEvents) {
           const reDetect = buildEventInjectionText(
@@ -150,16 +155,29 @@ export function loadStages(
         const ctx = _ctx as StageRuntimeContext
         if (!ctx._promptContext) return
 
+        const wordCountTarget = useSettingsStore.getState().wordCountTarget
+          ?? DEFAULT_WORD_COUNT_TARGET
+
         const prefetched = orchestrator.consumePrefetchedNarrative()
         if (prefetched) {
-          orchestrator.resetCurrentNarrative()
-          useEngineStore.setState({ streamingNarrative: '' })
-          ctx._fullContent = prefetched
-          return
+          const prefetchedQuality = inspectNarrativeResponseQuality(prefetched, wordCountTarget)
+          if (prefetchedQuality.valid) {
+            orchestrator.resetCurrentNarrative()
+            if (!orchestrator.isPreviewExecution()) {
+              useEngineStore.setState({ streamingNarrative: '' })
+            }
+            ctx._fullContent = prefetched
+            return
+          }
+          console.info(
+            '[Orchestrator] 预生成叙事未通过主推进复验，已改为实时生成:',
+            prefetchedQuality.reason,
+          )
         }
 
-        const { customKey, provider, customUrl, customModel } = useSettingsStore.getState()
+        const { customKey, provider, customUrl, customModel, storySeed } = useSettingsStore.getState()
         const model = customModel || aiConfig.model
+        const normalizedStorySeed = storySeed.trim() || undefined
         const routeOpts = { providerId: provider, customBaseUrl: customUrl || undefined, customModel: model }
 
         const baseSegments = buildSegmentedPrompt(promptTemplate, ctx._promptContext)
@@ -201,9 +219,12 @@ export function loadStages(
           : baseSegments
         const fallbackNarrative = orchestrator.buildFallbackNarrative()
         orchestrator.resetCurrentNarrative()
-        useEngineStore.setState({ streamingNarrative: '' })
+        if (!orchestrator.isPreviewExecution()) {
+          useEngineStore.setState({ streamingNarrative: '' })
+        }
 
-        const useStream = useSettingsStore.getState().streamingMode === 'stream'
+        const useStream = !orchestrator.isPreviewExecution()
+          && useSettingsStore.getState().streamingMode === 'stream'
 
         const roundInfo = orchestrator.getState().round
         const logContext = {
@@ -226,6 +247,7 @@ export function loadStages(
           apiKey: customKey || undefined,
           logContext,
           ...routeOpts,
+          ...(normalizedStorySeed ? { storySeed: normalizedStorySeed } : {}),
           ...(useStream
             ? {
                 onChunk: (chunk: string) => {
@@ -282,6 +304,59 @@ export function loadStages(
             }
           }
 
+          const initialQuality = inspectNarrativeResponseQuality(
+            ctx._fullContent ?? '',
+            wordCountTarget,
+          )
+          if (!initialQuality.valid) {
+            const previousContent = ctx._fullContent ?? ''
+            const repairInstruction = buildNarrativeRepairInstruction(initialQuality, wordCountTarget)
+            if (useStream) {
+              orchestrator.resetCurrentNarrative()
+              useEngineStore.setState({ streamingNarrative: '' })
+            }
+
+            if (segments.strategy === 'S3' && segments.messages?.length) {
+              ctx._fullContent = await callAIDegraded(
+                [
+                  ...segments.messages,
+                  { role: 'assistant', content: previousContent },
+                  { role: 'user', content: repairInstruction },
+                ],
+                fallbackNarrative,
+                { ...streamOpts, onChunk: undefined },
+              )
+            } else {
+              ctx._fullContent = await callAIWithPromptTemplate(
+                promptTemplate,
+                segments.full,
+                {
+                  ...streamOpts,
+                  onChunk: undefined,
+                  userSegments: getNarrativeUserSegments(segments),
+                  extraUserMessages: [
+                    `${repairInstruction}\n\n【上一版完整输出，仅用于压缩与纠错】\n${previousContent}`,
+                  ],
+                },
+              )
+            }
+
+            const repairedQuality = inspectNarrativeResponseQuality(
+              ctx._fullContent ?? '',
+              wordCountTarget,
+            )
+            if (!repairedQuality.valid) {
+              const logQualityFailure = orchestrator.isPreviewExecution() ? console.info : console.warn
+              logQualityFailure('[Orchestrator] 叙事完整重写后仍未通过质量门禁:', repairedQuality.reason)
+              orchestrator.resetCurrentNarrative()
+              orchestrator.setLastExecutedFullContent(undefined)
+              if (!orchestrator.isPreviewExecution()) {
+                useEngineStore.setState({ streamingNarrative: '' })
+              }
+              ctx._fullContent = undefined
+            }
+          }
+
           recordRoundCacheMetrics({
             strategy: segments.strategy === 'S2' ? 'S2' : segments.strategy === 'S3' ? 'S3' : 'S1',
             stablePrefixChars: segments.stablePrefixChars,
@@ -289,14 +364,18 @@ export function loadStages(
           })
         } catch (err) {
           console.error('[Orchestrator] AI 调用完全失败（降级链耗尽）:', err)
-          ctx._fullContent = fallbackNarrative
+          orchestrator.resetCurrentNarrative()
+          orchestrator.setLastExecutedFullContent(undefined)
+          if (!orchestrator.isPreviewExecution()) {
+            useEngineStore.setState({ streamingNarrative: '' })
+          }
+          ctx._fullContent = undefined
         }
       },
-      shouldProceed: (_ctx) => (_ctx as StageRuntimeContext)._fullContent !== undefined,
       maxRounds: 1,
     },
 
-    // === 阶段 9: 解析响应 + 分发变更 + 叙事后处理 + 世界方向修正 ===
+    // === 阶段 9: 解析响应 + 分发变更 + 世界方向修正 ===
     {
       name: 'post-processing',
       onEnter: (_ctx) => {
@@ -318,14 +397,10 @@ export function loadStages(
           orchestrator.setLastNotableEvents(result.notableEvents)
         }
 
-        // 叙事后处理
+        // 记忆生命周期：消费 handleNarrativeResponse 已登记的结构化语义
         if (result.narrative) {
-          orchestrator.runNarrativePostProcessing(result.narrative)
-        }
-
-        // 记忆生命周期：重要性评分
-        if (result.narrative) {
-          memoryLifecycle.scoreImportance(result.narrative, orchestrator.getRound().year)
+          const state = orchestrator.getState()
+          memoryLifecycle.scoreImportance(result.narrative, state.totalRounds, state.round.year)
         }
 
         // 世界方向修正

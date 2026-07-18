@@ -3,7 +3,8 @@
   "registryPath": "scripts/check/rules/registry.json",
   "allowedSecondaryPublicImports": {
     "mod-character": [
-      "destiny-pattern-access"
+      "destiny-pattern-access",
+      "mythic-pattern-access"
     ],
     "mod-engine": [
       "engine-api"

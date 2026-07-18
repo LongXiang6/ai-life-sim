@@ -26,7 +26,6 @@ export const ATTRIBUTES: AttrDef[] = [
   { key: 'mind', label: '心智', desc: '影响学习效率、技能上限、谋略' },
   { key: 'talentAptitude', label: '悟性', desc: '影响修炼速度、顿悟概率' },
   { key: 'charisma', label: '魅力', desc: '影响社交关系、人际品质' },
-  { key: 'resources', label: '出身', desc: '影响社会阶层起点与初始资源' },
 ]
 
 /** 表单持久化数据结构 */
@@ -95,7 +94,13 @@ const DEFAULT_ATTRIBUTES: Record<string, number> = {
   mind: 0,
   talentAptitude: 0,
   charisma: 0,
-  resources: 0,
+}
+
+function sanitizeAttributes(input: Record<string, number> | undefined): Record<string, number> {
+  return Object.fromEntries(ATTRIBUTES.map(({ key }) => {
+    const value = input?.[key]
+    return [key, typeof value === 'number' && Number.isFinite(value) ? value : 0]
+  }))
 }
 
 export function useCharacterCreateForm(): UseCharacterCreateFormReturn {
@@ -110,7 +115,7 @@ export function useCharacterCreateForm(): UseCharacterCreateFormReturn {
   const [background, _setBackground] = useState(saved?.background ?? '')
   const [attributes, setAttributes] = useState<Record<string, number>>(
     saved?.attributes && Object.keys(saved.attributes).length > 0
-      ? saved.attributes
+      ? sanitizeAttributes(saved.attributes)
       : { ...DEFAULT_ATTRIBUTES },
   )
 
@@ -132,22 +137,22 @@ export function useCharacterCreateForm(): UseCharacterCreateFormReturn {
   const setName = useCallback((v: string) => {
     _setName(v)
     configStore.set('mod-pages', getStorageKey(), { name: v, gender, race, background, attributes })
-  }, [gender, race, background, attributes])
+  }, [_setName, gender, race, background, attributes])
 
   const setGender = useCallback((v: 'male' | 'female') => {
     _setGender(v)
     persistState({ name, gender: v, race, background, attributes })
-  }, [name, race, background, attributes])
+  }, [_setGender, name, race, background, attributes])
 
   const setRace = useCallback((v: string) => {
     _setRace(v)
     persistState({ name, gender, race: v, background, attributes })
-  }, [name, gender, background, attributes])
+  }, [_setRace, name, gender, background, attributes])
 
   const setBackground = useCallback((v: string) => {
     _setBackground(v)
     persistState({ name, gender, race, background: v, attributes })
-  }, [name, gender, race, attributes])
+  }, [_setBackground, name, gender, race, attributes])
 
   const handleAttrChange = useCallback((key: string, value: number) => {
     const current = attributes[key]

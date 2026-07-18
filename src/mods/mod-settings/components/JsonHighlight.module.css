@@ -1,4 +1,4 @@
-/* JSON 语法高亮 —— VS Code Dark+ 风格 */
+/* JSON 语法高亮 —— 白纸灰蓝设置面板专用配色 */
 
 .code {
   font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
@@ -7,37 +7,37 @@
   white-space: pre-wrap;
   word-break: break-all;
   display: block;
-  color: var(--color-text-primary, #d4d4d4);
+  color: #29313a;
 }
 
 .tkKey {
-  color: #9cdcfe; /* VS Code 键名蓝 */
+  color: #4f6882;
 }
 
 .tkString {
-  color: #ce9178; /* VS Code 字符串橙 */
+  color: #76584a;
 }
 
 .tkNumber {
-  color: #b5cea8; /* VS Code 数字绿 */
+  color: #4f6b57;
 }
 
 .tkBool {
-  color: #569cd6; /* VS Code 关键字蓝 */
+  color: #655b7b;
 }
 
 .tkNull {
-  color: #569cd6;
+  color: #655b7b;
 }
 
 .tkBracket {
-  color: #ffd700; /* 金色括号 */
+  color: #756437;
 }
 
 .tkColon {
-  color: #d4d4d4; /* 灰色 */
+  color: #606a74;
 }
 
 .tkComma {
-  color: #808080; /* 深灰 */
+  color: #68717b;
 }

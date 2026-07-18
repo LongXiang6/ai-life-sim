@@ -1,7 +1,7 @@
 {
   "version": 2,
   "architectureConfigPath": "scripts/check/rules/architecture-rules.json",
-  "description": "检测规则元数据单源 — 关联 scanner、技能反模式、ATCE 触发",
+  "description": "检测规则元数据单源 — 关联 scanner、项目上下文与 ATCE 信号",
   "rules": {
     "A-01": {
       "tier": "structural",
@@ -9,7 +9,7 @@
       "scanners": [
         "check/domains/structural/scan-typescript-wiring"
       ],
-      "skillRef": "testing-skill/resources/anti-patterns.md#A-01",
+      "skillRef": "ai-life-sim-mod-development/references/mod-spec-architecture.md",
       "refactorHint": "重 API 拆到 secondaryPublicEntries；index.ts 保持轻量 barrel"
     },
     "A-13": {
@@ -19,7 +19,7 @@
         "check/domains/structural/scan-typescript-wiring",
         "check/domains/mod/arch-scanner"
       ],
-      "skillRef": "testing-skill/resources/anti-patterns.md#A-13",
+      "skillRef": "ai-life-sim-mod-development/references/mod-spec-architecture.md",
       "refactorHint": "消除模块加载环：barrel 拆分 + dynamic import + 构造期禁读 Store"
     },
     "A-14": {
@@ -29,7 +29,7 @@
         "check/domains/structural/scan-typescript-wiring",
         "check/domains/mod/arch-scanner"
       ],
-      "skillRef": "testing-skill/resources/anti-patterns.md#A-14",
+      "skillRef": "ai-life-sim-mod-development/references/mod-spec-subsystem.md",
       "refactorHint": "删除 subsystems/index 顶层 new；只导出类，用 getXxxSystem() 懒加载"
     },
     "A-15": {
@@ -39,7 +39,7 @@
         "check/domains/structural/scan-typescript-wiring",
         "check/domains/mod/arch-scanner"
       ],
-      "skillRef": "testing-skill/resources/anti-patterns.md#A-15",
+      "skillRef": "ai-life-sim/references/architecture.md",
       "refactorHint": "非 mod-engine 禁静态 orchestrator；运行期 await import()"
     },
     "A-16": {
@@ -48,7 +48,7 @@
       "scanners": [
         "check/domains/structural/scan-typescript-wiring"
       ],
-      "skillRef": "testing-skill/resources/anti-patterns.md#A-16",
+      "skillRef": "ai-life-sim-mod-development/references/mod-spec-subsystem.md",
       "refactorHint": "createInitialState 纯默认值；Store/校准读取移到运行期方法"
     },
     "A-17": {
@@ -66,7 +66,7 @@
       "scanners": [
         "check/domains/mod/arch-scanner"
       ],
-      "skillRef": "testing-skill/resources/anti-patterns.md#A-05",
+      "skillRef": "ai-life-sim/references/architecture.md",
       "refactorHint": "core/foundation 变更须 ATCE + 合约；系统性问题优先上移契约"
     },
     "D-07": {
@@ -75,21 +75,21 @@
       "scanners": [
         "check/domains/structural/scan-file-import-graph"
       ],
-      "skillRef": "decision-tree ATCE 快速判定",
+      "skillRef": "../docs/archive/agent-governance-2026-07-11/skills/ai-life-sim-testing/references/decision-tree.md",
       "refactorHint": "subsystems/index barrel ≥10 import 为 FAIL；loader 使用按文件 codegen"
     },
     "P-09": {
       "tier": "process",
       "atceTrigger": true,
       "scanners": [],
-      "skillRef": "testing-skill/resources/anti-patterns-extended.md#P-09",
+      "skillRef": "../docs/archive/agent-governance-2026-07-11/skills/ai-life-sim-testing/references/anti-patterns-extended.md#P-09",
       "refactorHint": "未经 Patch vs 重构对比不得直接 patch（B-29）"
     },
     "B-29": {
       "tier": "process",
       "atceTrigger": true,
       "scanners": [],
-      "skillRef": "prohibited-behaviors.md#B-29",
+      "skillRef": "../docs/archive/agent-governance-2026-07-11/ai-life-sim-references/prohibited-behaviors.md#B-29",
       "refactorHint": "完成 ATCE 表并推荐长远更优方案"
     },
     "A-02": {
@@ -98,7 +98,7 @@
       "scanners": [
         "check/domains/structural/scan-mod-public-boundary"
       ],
-      "skillRef": "testing-skill/resources/anti-patterns.md#A-02",
+      "skillRef": "ai-life-sim-mod-development/references/mod-spec-architecture.md",
       "refactorHint": "跨 MOD 只走 index.ts 或 manifest.secondaryPublicEntries；历史债务须登记并分批收敛"
     },
     "A-18": {

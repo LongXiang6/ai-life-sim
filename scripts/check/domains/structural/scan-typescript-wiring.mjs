@@ -272,7 +272,11 @@ if (constructorStoreViolations === 0) {
   logOk('[OK] 子系统 createInitialState 无构造期 Store 读取')
 }
 
-const templatePath = path.join(ROOT, '..', '.agents/skills/mod-dev-skill/templates/subsystem.template.ts')
+const templatePath = path.join(
+  ROOT,
+  '..',
+  '.agents/skills/ai-life-sim-mod-development/assets/templates/subsystem.template.ts',
+)
 if (fs.existsSync(templatePath)) {
   const tpl = fs.readFileSync(templatePath, 'utf8')
   const markers = archRules.templateRequiredMarkers ?? []

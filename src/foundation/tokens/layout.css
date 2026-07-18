@@ -14,7 +14,7 @@
 
 :root {
   /* === 布局 === */
-  --content-max-width: 960px;
+  --content-max-width: 42rem;
   --page-padding-x: var(--spacing-px-24);
   --card-gap: var(--spacing-px-24);
 }
@@ -22,7 +22,7 @@
 /* 移动端布局（design-tokens.md § 布局系统） */
 @media (max-width: 767px) {
   :root {
-    --content-max-width: 100%;
+    --content-max-width: 42rem;
     --page-padding-x: var(--spacing-px-16);
     --card-gap: var(--spacing-px-16);
   }

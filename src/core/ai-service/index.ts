@@ -24,7 +24,6 @@ export {
   KV_MESSAGE_STRATEGY,
   BRIDGE_SUMMARY_MIN_TICKS,
   KV_CONVERSATION_WINDOW,
-  LIFESPAN_NARRATIVE_REDUCTION_ENABLED,
   EXPERIMENTAL_TIME_STEPS_UI,
 } from './prompt-flags'
 export type { KVMessageStrategy } from './prompt-flags'

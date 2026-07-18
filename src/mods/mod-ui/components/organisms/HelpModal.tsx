@@ -1,184 +1,27 @@
 'use client'
-
-/**
- * @module HelpModal.tsx
- * @description 帮助弹窗 —— 功能说明 + 更新日志（分片滑动加载）
- * @mod mod-ui
- *
- * 参照废弃项目 HelpModal 重写：
- *   2 选项卡（功能说明 / 更新日志）、/help.md Markdown 渲染、
- *   changelog 分片探测加载 + "加载更多历史版本"、桌面端/移动端双 CSS Module
- */
-
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useIsMobile } from '@/foundation/utils/use-is-mobile'
-
-import desktopStyles from './desktop/help-modal.module.css'
-import mobileStyles from './mobile/help-modal.module.css'
-
-export interface HelpModalProps {
-  visible: boolean
-  onClose: () => void
-}
+import { HELP_CHAPTERS, probeMaxChunk, renderChangelogToHtml, renderMdToHtml } from './help-content'
+import { HelpChangelogContent } from './HelpChangelogContent'
+import { useHelpModalFocusTrap } from './HelpModalFocusTrap'
+import { HelpModalNavigation } from './HelpModalNavigation'
+import { useHelpModalScrollSpy } from './HelpModalScrollSpy'
+import styles from './HelpModal.module.css'
+export interface HelpModalProps { visible: boolean; onClose: () => void }
 
 type HelpTab = 'docs' | 'changelog'
 
-/* ------------------------------------------------------------------ */
-/*  简易 Markdown → HTML 渲染器（内联样式，避免额外依赖）              */
-/* ------------------------------------------------------------------ */
-
-function renderMdToHtml(md: string): string {
-  const lines = md.split('\n')
-  const htmlParts: string[] = []
-  let inList = false
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-    const trimmed = line.trim()
-
-    if (/^### (.+)$/.test(line)) {
-      if (inList) { htmlParts.push('</ul>'); inList = false }
-      htmlParts.push(`<h3 style="font-size:16px;font-weight:700;margin:14px 0 6px;color:var(--color-text-primary)">${line.replace(/^### /, '')}</h3>`)
-    } else if (/^## (.+)$/.test(line)) {
-      if (inList) { htmlParts.push('</ul>'); inList = false }
-      htmlParts.push(`<h2 style="font-size:18px;font-weight:800;margin:16px 0 10px;color:var(--color-primary);border-bottom:1px solid var(--color-border);padding-bottom:4px">${line.replace(/^## /, '')}</h2>`)
-    } else if (/^# (.+)$/.test(line)) {
-      if (inList) { htmlParts.push('</ul>'); inList = false }
-      htmlParts.push(`<h1 style="font-size:21px;font-weight:800;margin:0 0 12px;color:var(--color-text-primary)">${line.replace(/^# /, '')}</h1>`)
-    } else if (/^- \*\*(.+?)\*\*(.*)$/.test(line)) {
-      if (!inList) { htmlParts.push('<ul style="paddingLeft:20px;margin:4px 0 8px">'); inList = true }
-      htmlParts.push(`<li style="margin-bottom:3px;font-size:13px;line-height:1.6"><strong style="color:var(--color-text-primary)">${line.match(/^- \*\*(.+?)\*\*(.*)$/)![1]}</strong>${line.match(/^- \*\*(.+?)\*\*(.*)$/)![2]}</li>`)
-    } else if (/^- (.+)$/.test(line)) {
-      if (!inList) { htmlParts.push('<ul style="paddingLeft:20px;margin:4px 0 8px">'); inList = true }
-      htmlParts.push(`<li style="margin-bottom:3px;font-size:13px;line-height:1.6">${line.replace(/^- /, '')}</li>`)
-    } else if (trimmed === '') {
-      if (inList) { htmlParts.push('</ul>'); inList = false }
-    } else {
-      if (inList) { htmlParts.push('</ul>'); inList = false }
-      const bolded = line.replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--color-text-primary)">$1</strong>')
-      htmlParts.push(`<p style="margin:4px 0;line-height:1.7;font-size:13px">${bolded}</p>`)
-    }
-  }
-  if (inList) htmlParts.push('</ul>')
-  return htmlParts.join('')
+async function fetchHelpHtml(signal?: AbortSignal): Promise<string> {
+  const response = await fetch('/help.md', { signal })
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  return renderMdToHtml(await response.text())
 }
 
-/* ------------------------------------------------------------------ */
-/*  Changelog 文本 → HTML 渲染器                                      */
-/* ------------------------------------------------------------------ */
-
-function renderChangelogToHtml(text: string): string {
-  const escapeHtml = (value: string) =>
-    value
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-
-  const htmlParts: string[] = []
-  const sections = text
-    .split(/^---\s*$/m)
-    .map((section) => section.trim())
-    .filter(Boolean)
-
-  for (const section of sections) {
-    const lines = section.split('\n')
-    const version = lines.find((line) => /^Version:\s*/i.test(line.trim()))?.replace(/^Version:\s*/i, '').trim() ?? ''
-    const date = lines.find((line) => /^Date:\s*/i.test(line.trim()))?.replace(/^Date:\s*/i, '').trim() ?? ''
-    let currentCategory = ''
-    let inList = false
-
-    htmlParts.push('<div style="margin-bottom:28px">')
-    if (version || date) {
-      htmlParts.push(`<div style="display:flex;align-items:baseline;gap:12px;margin-bottom:8px;border-bottom:1px solid var(--color-border);padding-bottom:6px">${version ? `<span style="font-size:16px;font-weight:800;color:var(--color-primary)">${escapeHtml(version)}</span>` : ''}${date ? `<span style="font-size:12px;color:var(--color-text-tertiary)">${escapeHtml(date)}</span>` : ''}</div>`)
-    }
-
-    for (const line of lines) {
-      const trimmed = line.trim()
-      if (!trimmed || /^Version:\s*/i.test(trimmed) || /^Date:\s*/i.test(trimmed)) continue
-
-      if ((trimmed.endsWith(':') || trimmed.endsWith('：')) && !trimmed.startsWith('-')) {
-        if (inList) { htmlParts.push('</ul>'); inList = false }
-        currentCategory = trimmed.slice(0, -1)
-        continue
-      }
-
-      if (trimmed.startsWith('-')) {
-        if (!inList) {
-          if (currentCategory) {
-            htmlParts.push(`<div style="margin:6px 0 4px"><span style="font-size:14px;font-weight:700;color:var(--color-text-primary)">${escapeHtml(currentCategory)}</span></div>`)
-          }
-          htmlParts.push('<ul style="margin:0 0 12px;padding-left:20px">')
-          inList = true
-        }
-        htmlParts.push(`<li style="margin-bottom:3px;font-size:13px;line-height:1.6">${escapeHtml(trimmed.replace(/^-+\s*/, ''))}</li>`)
-        continue
-      }
-
-      if (inList) { htmlParts.push('</ul>'); inList = false }
-      currentCategory = ''
-      htmlParts.push(`<p style="margin:4px 0;line-height:1.6;font-size:13px;color:var(--color-text-secondary)">${escapeHtml(trimmed)}</p>`)
-    }
-    if (inList) htmlParts.push('</ul>')
-    htmlParts.push('</div>')
-  }
-
-  return htmlParts.join('')
-}
-
-/* ------------------------------------------------------------------ */
-/*  常量                                                               */
-/* ------------------------------------------------------------------ */
-
-/** 探测分片号的安全上限 */
-const MAX_CHANGELOG_CHUNKS = 100
-
-/** 二分探测最大分片号（log2(100) ≈ 7 次请求即定位） */
-async function probeMaxChunk(
-  loadChunk: (idx: number) => Promise<string | null>,
-): Promise<{ maxFound: number; newestHtml: string | null }> {
-  let lo = 1
-  let hi = MAX_CHANGELOG_CHUNKS
-  let lastSuccess: number | null = null
-  let lastHtml: string | null = null
-
-  while (lo <= hi) {
-    const mid = Math.ceil((lo + hi) / 2)
-    try {
-      const html = await loadChunk(mid)
-      if (html !== null) {
-        lastSuccess = mid
-        lastHtml = html
-        lo = mid + 1
-      } else {
-        hi = mid - 1
-      }
-    } catch {
-      hi = mid - 1
-    }
-  }
-
-  return { maxFound: lastSuccess ?? 0, newestHtml: lastHtml }
-}
-
-/* ------------------------------------------------------------------ */
-/*  组件                                                               */
-/* ------------------------------------------------------------------ */
-
-/**
- * 帮助弹窗组件 —— 功能说明 + 更新日志
- * @param {HelpModalProps} props - 组件属性
- */
 export function HelpModal({ visible, onClose }: HelpModalProps) {
-  const isMobile = useIsMobile()
-  const styles = isMobile ? mobileStyles : desktopStyles
-
   const [tab, setTab] = useState<HelpTab>('docs')
+  const [activeChapter, setActiveChapter] = useState(HELP_CHAPTERS[0].id)
   const [content, setContent] = useState('')
   const [loading, setLoading] = useState(true)
-
-  // changelog 分片加载状态
   const [changelogHtmls, setChangelogHtmls] = useState<string[]>([])
   const [currentChunk, setCurrentChunk] = useState(0)
   const [maxChunk, setMaxChunk] = useState(0)
@@ -186,167 +29,166 @@ export function HelpModal({ visible, onClose }: HelpModalProps) {
   const [hasMore, setHasMore] = useState(true)
   const [loadError, setLoadError] = useState('')
   const abortRef = useRef<AbortController | null>(null)
+  const contentViewportRef = useRef<HTMLDivElement>(null)
+  const modalRef = useHelpModalFocusTrap(visible, onClose)
 
-  /** 加载单个 changelog 分片 */
   const loadChangelogChunk = useCallback(async (chunkIndex: number): Promise<string | null> => {
-    const url = `/changelog-${chunkIndex}.txt`
     const controller = new AbortController()
     abortRef.current = controller
-
     try {
-      const res = await fetch(url, { signal: controller.signal })
-      if (!res.ok) return null
-      const text = await res.text()
-      if (!text.trimStart().startsWith('---')) return null
-      return renderChangelogToHtml(text)
-    } catch (err: unknown) {
-      if (err instanceof DOMException && err.name === 'AbortError') return null
-      throw err
+      const response = await fetch(`/changelog-${chunkIndex}.txt`, { signal: controller.signal })
+      if (!response.ok) return null
+      const text = await response.text()
+      return text.trimStart().startsWith('---') ? renderChangelogToHtml(text) : null
+    } catch (error: unknown) {
+      if (error instanceof DOMException && error.name === 'AbortError') return null
+      throw error
     }
   }, [])
 
-  /** 初始加载 */
-  const loadContent = useCallback(async (currentTab: HelpTab) => {
-    if (!visible) return
-
-    if (abortRef.current) { abortRef.current.abort() }
-
-    if (currentTab === 'changelog') {
-      setLoading(true)
-      setChangelogHtmls([])
-      setCurrentChunk(0)
-      setMaxChunk(0)
-      setHasMore(true)
-      setLoadError('')
-
-      const { maxFound, newestHtml } = await probeMaxChunk(loadChangelogChunk)
-
-      if (maxFound > 0 && newestHtml !== null) {
-        setMaxChunk(maxFound)
-        setCurrentChunk(maxFound)
-        setChangelogHtmls([newestHtml])
-        setHasMore(maxFound > 1)
-      } else {
-        setHasMore(false)
-        setLoadError('暂无更新日志')
-      }
-      setLoading(false)
-    } else {
-      setLoading(true)
-      try {
-        const res = await fetch('/help.md')
-        const text = await res.text()
-        setContent(renderMdToHtml(text))
-      } catch {
-        setContent('<p style="color:var(--color-error)">加载文档失败，请检查网络连接。</p>')
-      }
-      setLoading(false)
+  const loadDocs = useCallback(async () => {
+    abortRef.current?.abort()
+    try {
+      setContent(await fetchHelpHtml())
+    } catch {
+      setContent('<p class="help-load-error">加载文档失败，请检查网络连接。</p>')
     }
-  }, [visible, loadChangelogChunk])
+    setLoading(false)
+  }, [])
 
-  /** 加载更旧的分片 */
+  const loadNewestChangelog = useCallback(async () => {
+    abortRef.current?.abort()
+    const { maxFound, newestHtml } = await probeMaxChunk(loadChangelogChunk)
+    if (maxFound > 0 && newestHtml !== null) {
+      setMaxChunk(maxFound)
+      setCurrentChunk(maxFound)
+      setChangelogHtmls([newestHtml])
+      setHasMore(maxFound > 1)
+    } else {
+      setHasMore(false)
+      setLoadError('暂无更新日志')
+    }
+    setLoading(false)
+  }, [loadChangelogChunk])
+
+  useEffect(() => {
+    if (!visible || content) return
+    const controller = new AbortController()
+    abortRef.current = controller
+    void fetchHelpHtml(controller.signal)
+      .then((html) => {
+        setContent(html)
+        setLoading(false)
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return
+        setContent('<p class="help-load-error">加载文档失败，请检查网络连接。</p>')
+        setLoading(false)
+      })
+    return () => controller.abort()
+  }, [visible, content])
+
+  const handleTabChange = useCallback((nextTab: HelpTab) => {
+    if (nextTab === tab) return
+    setTab(nextTab)
+    setLoading(true)
+    setLoadError('')
+    if (nextTab === 'docs') {
+      setActiveChapter(HELP_CHAPTERS[0].id)
+      void loadDocs()
+      return
+    }
+    setChangelogHtmls([])
+    setCurrentChunk(0)
+    setMaxChunk(0)
+    setHasMore(true)
+    void loadNewestChangelog()
+  }, [tab, loadDocs, loadNewestChangelog])
+
+  useEffect(() => {
+    if (!visible) {
+      abortRef.current?.abort()
+      abortRef.current = null
+    }
+  }, [visible])
+
   const handleLoadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return
-    const prevChunk = currentChunk - 1
-    if (prevChunk < 1) {
+    const previousChunk = currentChunk - 1
+    if (previousChunk < 1) {
       setHasMore(false)
       return
     }
     setLoadingMore(true)
     setLoadError('')
     try {
-      const html = await loadChangelogChunk(prevChunk)
+      const html = await loadChangelogChunk(previousChunk)
       if (html !== null) {
-        setChangelogHtmls(prev => [...prev, html])
-        setCurrentChunk(prevChunk)
-        setHasMore(prevChunk > 1)
+        setChangelogHtmls((previous) => [...previous, html])
+        setCurrentChunk(previousChunk)
+        setHasMore(previousChunk > 1)
       } else {
         setHasMore(false)
       }
-    } catch (err: unknown) {
-      setLoadError(err instanceof Error ? err.message : '加载失败')
+    } catch (error: unknown) {
+      setLoadError(error instanceof Error ? error.message : '加载失败')
     }
     setLoadingMore(false)
   }, [loadingMore, hasMore, currentChunk, loadChangelogChunk])
 
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => { loadContent(tab) }, [tab, loadContent])
-  /* eslint-enable react-hooks/set-state-in-effect */
-
-  useEffect(() => {
-    if (!visible && abortRef.current) {
-      abortRef.current.abort()
-      abortRef.current = null
-    }
-  }, [visible])
+  const handleChapterClick = useHelpModalScrollSpy({
+    visible,
+    enabled: tab === 'docs',
+    loading,
+    content,
+    viewportRef: contentViewportRef,
+    setActiveChapter,
+  })
 
   if (!visible) return null
 
   return createPortal(
-    <div className={styles.overlay} onClick={onClose}>
-      <div className={styles.modalFrame} onClick={e => e.stopPropagation()}>
-        <div className={styles.header}>
-          <span className={styles.headerTitle}>📖 帮助</span>
-          <button className={styles.closeBtn} onClick={onClose}>关闭</button>
-        </div>
-
-        <div className={styles.tabBar}>
-          <button onClick={() => setTab('docs')} className={`${styles.tab} ${tab === 'docs' ? styles.tabActive : ''}`}>
-            功能说明
-          </button>
-          <button onClick={() => setTab('changelog')} className={`${styles.tab} ${tab === 'changelog' ? styles.tabActive : ''}`}>
-            更新日志
-          </button>
-        </div>
-
-        {tab === 'docs' ? (
-          loading ? (
-            <p className={styles.loading}>📄 加载中...</p>
-          ) : (
-            <div dangerouslySetInnerHTML={{ __html: content }} />
-          )
-        ) : (
-          loading ? (
-            <p className={styles.loading}>📄 加载中...</p>
-          ) : (
+    <div
+      className={styles.overlay}
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="说明"
+    >
+      <div ref={modalRef} className={styles.modalFrame} onClick={(event) => event.stopPropagation()} tabIndex={-1}>
+        <span className={styles.spine} aria-hidden="true" />
+        <header className={styles.header}>
+          <div className={styles.metaRow} aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>附 · 说明</span></div>
+          <div className={styles.titleRow}>
             <div>
-              {changelogHtmls.map((html, i) => (
-                <div key={i} dangerouslySetInnerHTML={{ __html: html }} />
-              ))}
-
-              {loadError && (
-                <p style={{ color: 'var(--color-error)', fontSize: 13, margin: '12px 0' }}>{loadError}</p>
-              )}
-
-              {hasMore && currentChunk > 1 && (
-                <div style={{ textAlign: 'center', margin: '20px 0 8px' }}>
-                  <button
-                    onClick={handleLoadMore}
-                    disabled={loadingMore}
-                    style={{
-                      padding: '8px 32px',
-                      fontSize: 13,
-                      borderRadius: 8,
-                      border: '1px solid var(--color-border)',
-                      background: 'var(--color-bg-card)',
-                      color: 'var(--color-text-primary)',
-                      cursor: loadingMore ? 'not-allowed' : 'pointer',
-                      opacity: loadingMore ? 0.6 : 1,
-                    }}
-                  >
-                    {loadingMore ? '⏳ 加载中...' : '📜 加载更多历史版本'}
-                  </button>
-                </div>
-              )}
-
-              {!hasMore && changelogHtmls.length > 0 && maxChunk > 1 && (
-                <p style={{ textAlign: 'center', color: 'var(--color-text-tertiary)', fontSize: 12, margin: '16px 0 8px' }}>
-                  — 已加载全部 {maxChunk} 个分片 —
-                </p>
-              )}
+              <h2 className={styles.headerTitle}>说明</h2>
+              <p>沿章节阅读，也可快速定位当前需要的功能。</p>
             </div>
-          )
-        )}
+            <span className={styles.titleMark} aria-hidden="true"><span>阅</span></span>
+          </div>
+          <div className={styles.divider} aria-hidden="true"><span /></div>
+        </header>
+
+        <HelpModalNavigation tab={tab} activeChapter={activeChapter} onTabChange={handleTabChange} onChapterClick={handleChapterClick} />
+
+        <div ref={contentViewportRef} className={styles.contentViewport} role="tabpanel" aria-live="polite">
+          {loading ? (
+            <p className={styles.loading}>加载中…</p>
+          ) : tab === 'docs' ? (
+            <div className={styles.docsContent} dangerouslySetInnerHTML={{ __html: content }} />
+          ) : (
+            <HelpChangelogContent htmls={changelogHtmls} loadError={loadError} hasMore={hasMore} currentChunk={currentChunk} maxChunk={maxChunk} loadingMore={loadingMore} onLoadMore={handleLoadMore} />
+          )}
+        </div>
+
+        <footer className={styles.footer}>
+          <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="关闭说明">×</button>
+          <button type="button" className={styles.doneBtn} onClick={onClose}>
+            <span className={styles.doneIndex}>返</span>
+            <span className={styles.doneCopy}><strong>读完说明</strong><small>返回进入说明前的界面</small></span>
+            <span className={styles.doneArrow} aria-hidden="true">→</span>
+          </button>
+        </footer>
       </div>
     </div>,
     document.body,

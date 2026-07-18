@@ -1,6 +1,6 @@
 /**
  * @module attr-tiers
- * @description 属性语义映射 —— 将 5 属性 × 多档数值映射为 AI 可消费的语义描述
+ * @description 属性语义映射 —— 将 4 属性 × 多档数值映射为 AI 可消费的语义描述
  * @mod foundation
  *
  * 用于 Prompt 注入，将数值属性转化为自然语言描述，
@@ -10,7 +10,7 @@
 // ──── 类型 ────
 
 /** 属性语义映射键（与 AttributeId 中可分配属性对应） */
-export type AttrKey = 'physique' | 'mind' | 'comprehension' | 'charisma' | 'origin'
+export type AttrKey = 'physique' | 'mind' | 'comprehension' | 'charisma'
 
 /** 属性档位描述 */
 export interface AttrTier {
@@ -77,18 +77,6 @@ const ATTR_TIER_MAP: Readonly<Record<AttrKey, ReadonlyArray<AttrTier>>> = {
     { value: 9, label: '倾国倾城', description: '倾国倾城，绝世风华' },
     { value: 10, label: '仙姿玉貌', description: '仙姿玉貌，不染凡尘' },
   ],
-  origin: [
-    { value: 1, label: '乞丐', description: '沿街乞食，衣不蔽体' },
-    { value: 2, label: '赤贫', description: '家徒四壁，一贫如洗' },
-    { value: 3, label: '贫寒', description: '家境贫寒，勉强度日' },
-    { value: 4, label: '温饱', description: '衣食无忧，小有积蓄' },
-    { value: 5, label: '小康', description: '家境小康，生活安稳' },
-    { value: 6, label: '殷实', description: '家底殷实，富足有余' },
-    { value: 7, label: '富贵', description: '富贵荣华，锦衣玉食' },
-    { value: 8, label: '豪门', description: '豪门望族，权势显赫' },
-    { value: 9, label: '望族', description: '世代簪缨，名满天下' },
-    { value: 10, label: '皇亲国戚', description: '皇亲国戚，贵不可言' },
-  ],
 }
 
 // ──── 属性中文名称映射 ────
@@ -98,7 +86,6 @@ const ATTR_NAMES: Readonly<Record<AttrKey, string>> = {
   mind: '心智',
   comprehension: '悟性',
   charisma: '魅力',
-  origin: '出身',
 }
 
 // ──── 公开函数 ────

@@ -13,7 +13,6 @@ export type CharacterBalanceAttributeKey =
   | 'mind'
   | 'talentAptitude'
   | 'charisma'
-  | 'resources'
 
 export type NumericRange = readonly [number, number]
 
@@ -44,7 +43,7 @@ export const WORLD_DIFFICULTY_MULTIPLIERS: Readonly<Record<DifficultyLevel, numb
 /**
  * 角色基础属性每游戏年的 AI 增量上限。
  *
- * 非出身属性沿用旧的一年步长 ±8 手感；出身是慢变量，每年最多 ±2。
+ * 四项基础属性沿用旧的一年步长 ±8 手感。
  * 实际单轮上限由 daysPassed / 365 缩放，避免日/月步长被 AI 一次拉爆。
  */
 export const CHARACTER_ATTRIBUTE_DELTA_LIMITS_PER_YEAR: Readonly<Record<CharacterBalanceAttributeKey, NumericRange>> = {
@@ -52,7 +51,6 @@ export const CHARACTER_ATTRIBUTE_DELTA_LIMITS_PER_YEAR: Readonly<Record<Characte
   mind: [-8, 8],
   talentAptitude: [-8, 8],
   charisma: [-8, 8],
-  resources: [-2, 2],
 }
 
 /**
@@ -107,7 +105,6 @@ export function getElapsedGameYears(daysPassed: number): number {
  * ```ts
  * resolveCharacterAttributeDeltaLimit('physique', 1) // [-1, 1]
  * resolveCharacterAttributeDeltaLimit('physique', 365) // [-8, 8]
- * resolveCharacterAttributeDeltaLimit('resources', 365) // [-2, 2]
  * ```
  */
 export function resolveCharacterAttributeDeltaLimit(
@@ -140,7 +137,6 @@ export function resolveCharacterAttributeDeltaLimit(
  * @example
  * ```ts
  * clampCharacterAttributeDelta(20, 'physique', 365) // 8
- * clampCharacterAttributeDelta(20, 'resources', 365) // 2
  * ```
  */
 export function clampCharacterAttributeDelta(

@@ -6,13 +6,12 @@
  * @mod mod-pages
  */
 
-import { useEffect, useMemo, useRef, useState, useCallback, useLayoutEffect } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 
 import { useRouter } from 'next/navigation'
 import { clamp } from '@/core/shared'
 
-import { useEngine, useNarrative, useSimulationAdvance } from '@/mods/mod-engine'
+import { useEngine, useNarrative, usePreGenQueueStatus, useSimulationAdvance } from '@/mods/mod-engine'
 import {
   AVAILABLE_TIME_STEPS,
   encodeTimeStepKey,
@@ -24,10 +23,8 @@ import { useEngineStore } from '@/mods/mod-engine'
 import {
   useCharacterStore,
   ATTRIBUTE_NAMES,
-  ATTRIBUTE_ICONS,
   ATTR_KEYS,
   RACE_LIFESPAN,
-  DESTINY_PATTERN_RARITY_CONFIG,
 } from '@/mods/mod-character'
 import { resolveDestinyPatternWorldTags } from '@/mods/mod-character/destiny-pattern-access'
 import { useWorldStore } from '@/mods/mod-world'
@@ -40,10 +37,9 @@ import {
 } from '@/mods/mod-ui'
 
 import styles from './GameStory.module.css'
+import { resolveWorldDimensionLabels } from '../../helpers/world-dimension-labels'
 
 const GENDER_LABELS: Record<string, string> = { male: '男', female: '女' }
-
-import { cn } from '@/foundation/utils'
 
 import { useSimulationBranch } from './useSimulationBranch'
 
@@ -83,13 +79,25 @@ function parseWorldTagsToSections(text: string): TagSection[] {
 export default function GamePage() {
   const router = useRouter()
   const { status, round, totalRounds, seasonName, stop } = useEngine()
-  const { advanceRound, isAdvancing } = useSimulationAdvance()
+  const {
+    advanceRound,
+    isAdvancing,
+    isRuntimeReady,
+    runtimeReadiness,
+  } = useSimulationAdvance()
+  const runtimeIncomplete = runtimeReadiness.loaderReady
+    && runtimeReadiness.missingSubsystems.length > 0
+  const runtimeBlockedText = runtimeIncomplete
+    ? '核心系统加载不完整'
+    : '核心系统初始化中'
 
   const {
     hasUnresolvedBranch,
     unresolvedBranchIndex,
     branchTitle,
     branchOptions,
+    forceBranchNext,
+    handleForceBranch,
     handleBranchConfirm,
     handleBranchCancel,
     branchCustomText,
@@ -100,7 +108,9 @@ export default function GamePage() {
 
   const { narrativeHistory } = useNarrative()
   const streamingNarrative = useEngineStore((s) => s.streamingNarrative)
+  const narrativeError = useEngineStore((s) => s.narrativeError)
   const timeStep = useEngineStore((s) => s.timeStep)
+  const preGenStatus = usePreGenQueueStatus()
   const activeTimeStepKey = encodeTimeStepKey(timeStep)
   const handleTimeStepChange = useCallback((key: string) => {
     setSimulationTimeStepByKey(key)
@@ -121,6 +131,7 @@ export default function GamePage() {
   const race = useCharacterStore((s) => s.race)
   const characterBase = useCharacterStore((s) => s.characterBase)
   const destinyPatterns = useCharacterStore((s) => s.destinyPatterns.patterns)
+  const equippedMythicPattern = useCharacterStore((s) => s.equippedMythicPattern)
   const talents = useCharacterStore((s) => s.talents)
   const worldConfig = useWorldStore((s) => s.worldConfig)
   const worldCode = useWorldStore((s) => s.worldCode)
@@ -130,33 +141,24 @@ export default function GamePage() {
 
   const [showWorldPanel, setShowWorldPanel] = useState(false)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
-  const [timeStepOpen, setTimeStepOpen] = useState(false)
-  const [moreOpen, setMoreOpen] = useState(false)
-  const timeStepBtnRef = useRef<HTMLDivElement>(null)
-  const moreBtnRef = useRef<HTMLDivElement>(null)
-  const [timeStepMenuRect, setTimeStepMenuRect] = useState<DOMRect | null>(null)
-  const [moreMenuRect, setMoreMenuRect] = useState<DOMRect | null>(null)
   const narrativeEndRef = useRef<HTMLDivElement>(null)
   const prevEventsLenRef = useRef(0)
   const toasts = useToastStore((s) => s.toasts)
   const addToast = useToastStore((s) => s.addToast)
   const dismissToast = useToastStore((s) => s.dismissToast)
 
-  // 自动滚动到最新叙事（对齐废弃项目）
+  // 整个书页正文是唯一滚动根；新叙事只在这条连续阅读流内定位。
   useEffect(() => {
     const container = narrativeEndRef.current
     if (!container) return
     if (narrativeHistory.length > prevEventsLenRef.current) {
       const newEventIdx = narrativeHistory.length - 1
       const separatorEl = container.querySelector(`[data-separator-for="${newEventIdx}"]`)
-      const headerEl = container.querySelector('[data-narrative-header]')
-      const headerHeight = headerEl ? (headerEl as HTMLElement).offsetHeight + 12 : 48
       if (separatorEl) {
         const targetScroll = separatorEl.getBoundingClientRect().top
           - container.getBoundingClientRect().top
           + container.scrollTop
-          - headerHeight
-          - 8
+          - 12
         container.scrollTo({ top: clamp(targetScroll, 0, Infinity), behavior: 'smooth' })
       } else {
         container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
@@ -164,36 +166,6 @@ export default function GamePage() {
     }
     prevEventsLenRef.current = narrativeHistory.length
   }, [narrativeHistory.length, streamingNarrative])
-
-  useLayoutEffect(() => {
-    if (timeStepOpen) {
-      const rect = timeStepBtnRef.current?.getBoundingClientRect()
-      setTimeStepMenuRect(rect ?? null)
-    }
-  }, [timeStepOpen])
-
-  useLayoutEffect(() => {
-    if (moreOpen) {
-      const rect = moreBtnRef.current?.getBoundingClientRect()
-      setMoreMenuRect(rect ?? null)
-    }
-  }, [moreOpen])
-
-  // 点击外部关闭顶部弹出菜单
-  useEffect(() => {
-    if (!timeStepOpen && !moreOpen) return
-    const onDocClick = (e: MouseEvent) => {
-      const target = e.target as Node
-      if (timeStepOpen && timeStepBtnRef.current && !timeStepBtnRef.current.contains(target)) {
-        setTimeStepOpen(false)
-      }
-      if (moreOpen && moreBtnRef.current && !moreBtnRef.current.contains(target)) {
-        setMoreOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', onDocClick)
-    return () => document.removeEventListener('mousedown', onDocClick)
-  }, [timeStepOpen, moreOpen])
 
   const isComplete = status === 'complete'
   const isDead = health.isDead
@@ -220,13 +192,17 @@ export default function GamePage() {
 
   const displayBaseAttrs = useMemo(() => {
     const base = characterBase?.current ?? characterBase?.base
+    // 创建完成但尚未执行首轮时，Store.current 仍是玩家分配的基础值，
+    // 因此需要临时叠加命格预览值。首轮同步后 current 已由
+    // CharacterBaseSystem 聚合 modifiers，继续叠加会把命格计算两次。
+    const includeCreationPatternBonus = totalRounds === 0
     const result: Record<string, number> = {}
     for (const k of ATTR_KEYS) {
       const v = (base as unknown as Record<string, number> | undefined)?.[k] ?? 0
-      result[k] = v + (patternBonus[k] ?? 0)
+      result[k] = v + (includeCreationPatternBonus ? (patternBonus[k] ?? 0) : 0)
     }
     return result
-  }, [characterBase, patternBonus])
+  }, [characterBase, patternBonus, totalRounds])
 
   const narrativeTimeLabel = useMemo(
     () => formatCurrentNarrativeTimeLabel({ timeStep, round, eraStartYear, worldEraName }),
@@ -249,9 +225,22 @@ export default function GamePage() {
   }, [router, stop])
 
   const handleNarrativeAdvance = useCallback(async () => {
-    if (isDead || isComplete || isAdvancing || hasUnresolvedBranch) return
+    if (narrativeError || !isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch) return
     await advanceRound()
-  }, [isDead, isComplete, isAdvancing, hasUnresolvedBranch, advanceRound])
+  }, [narrativeError, isRuntimeReady, isDead, isComplete, isAdvancing, hasUnresolvedBranch, advanceRound])
+
+  const handleNarrativeRetry = useCallback(async () => {
+    if (!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch) return
+    await advanceRound()
+  }, [isRuntimeReady, isDead, isComplete, isAdvancing, hasUnresolvedBranch, advanceRound])
+
+  const narrativeAdvanceBlockedText = !isRuntimeReady
+    ? runtimeBlockedText
+    : narrativeError
+      ? hasUnresolvedBranch
+        ? '完成分支后再重新尝试'
+        : '请使用上方“重新尝试”恢复本段故事'
+      : '完成分支后继续'
 
   const activeTimeStepLabel = timeStepOptions.find((o) => o.value === activeTimeStepKey)?.label ?? '按年'
 
@@ -280,10 +269,11 @@ export default function GamePage() {
   const worldSurrounding = useMemo(() => {
     const items: Array<{ icon: string; label: string; value: string }> = []
     if (worldConfig) {
+      const labels = resolveWorldDimensionLabels(worldConfig)
       if (worldConfig.name) items.push({ icon: '🌍', label: '世界', value: worldConfig.name })
-      if (worldConfig.essenceTag) items.push({ icon: '🏷', label: '本质', value: worldConfig.essenceTag })
-      if (worldConfig.powerSystemTag) items.push({ icon: '⚡', label: '体系', value: worldConfig.powerSystemTag })
-      if (worldConfig.spatialForm) items.push({ icon: '🌌', label: '空间', value: worldConfig.spatialForm })
+      if (worldConfig.essenceTag) items.push({ icon: '🏷', label: '本质', value: labels.essence })
+      if (worldConfig.powerSystemTag) items.push({ icon: '⚡', label: '体系', value: labels.powerSystem })
+      if (worldConfig.spatialForm) items.push({ icon: '🌌', label: '空间', value: labels.spatialForm })
     }
     return items
   }, [worldConfig])
@@ -307,9 +297,17 @@ export default function GamePage() {
 
   // 手动存档处理
   const handleManualSave = useCallback(async (slot: number, name: string) => {
+    if (!isRuntimeReady) {
+      throw new Error(runtimeIncomplete
+        ? '核心模拟系统未完整加载，请刷新页面后重试。'
+        : '核心模拟系统仍在初始化，请稍候重试。')
+    }
+    if (preGenStatus.isActive || isAdvancing) {
+      throw new Error('当前回合或下一段故事仍在生成，完成后才能保存。')
+    }
     await saveCurrentGameToSlot(slot, name, worldConfig?.name ?? '', characterName)
     addToast('success', `已保存到槽位 ${slot}`)
-  }, [addToast, characterName, worldConfig?.name])
+  }, [addToast, characterName, isAdvancing, isRuntimeReady, preGenStatus.isActive, runtimeIncomplete, worldConfig?.name])
 
   const flowGuard = useMemo(() => {
     if (!worldConfig || worldCode === 0) {
@@ -340,10 +338,7 @@ export default function GamePage() {
 
   return (
     <div className={styles.root}>
-      {/* Toast 通知 */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
-
-      {/* 手动存档弹窗 */}
       <SaveDialog
         open={showSaveDialog}
         onClose={() => setShowSaveDialog(false)}
@@ -352,287 +347,234 @@ export default function GamePage() {
         defaultCharacterName={characterName}
       />
 
-      {/* 顶部状态栏（对齐废弃项目 GameSimulationDesktop） */}
-      <header className={styles.header}>
-        <div className={styles.headerInner}>
-          <div className={styles.headerLeft}>
-            <div className={styles.headerTopRow}>
-              <span className={styles.worldName}>{worldConfig?.name ?? '未知世界'}</span>
-              <span className={styles.raceTag}>{raceInfo.name}</span>
-              {isDead && <span className={styles.endingTag}>🏁 人生落幕</span>}
-            </div>
-            <div className={styles.charRow}>
-              <span className={styles.charName}>{characterName || '未命名'}</span>
-              <span className={styles.charGender}>· {genderLabel}</span>
-              {(destinyPatterns ?? []).slice(0, 3).map((p) => {
-                const rc = DESTINY_PATTERN_RARITY_CONFIG[p.rarity]
-                return (
-                  <span
-                    key={p.id}
-                    className={styles.talentTag}
-                    style={{ background: `${rc.color}10`, color: rc.color, border: `1px solid ${rc.color}20` }}
-                  >
-                    {p.name}
-                  </span>
-                )
-              })}
-            </div>
-            <div className={styles.attrRow}>
-              {ATTR_KEYS.map((k) => {
-                const v = displayBaseAttrs[k] ?? 0
-                return (
-                  <span key={k} className={styles.attrItem}>
-                    <span className={styles.attrIcon}>{ATTRIBUTE_ICONS[k]}</span>
-                    <span className={styles.attrKey}>{ATTRIBUTE_NAMES[k]}</span>
-                    <span className={`${styles.attrVal} ${v > 0 ? styles.attrValPos : v < 0 ? styles.attrValNeg : styles.attrValZero}`}>
-                      {v > 0 ? '+' : ''}{v}
-                    </span>
-                  </span>
-                )
-              })}
-            </div>
-            <div className={styles.dynAttrRow}>
-              <span className={`${styles.dynAttrItem} ${health.hp > 0 ? styles.dynAttrPos : styles.dynAttrZero}`}>
-                生命 {health.hp}
-              </span>
-            </div>
-          </div>
-          <div className={styles.headerRight}>
-            <span className={styles.eraDisplay}>{narrativeTimeLabel}</span>
-            <span className={styles.ageDisplay}>{characterAge}岁</span>
-            <div className={styles.controlRow}>
-              <div ref={moreBtnRef} className={styles.menuAnchor}>
-                <button
-                  type="button"
-                  className={styles.ctrlBtn}
-                  aria-label="更多操作"
-                  aria-expanded={moreOpen}
-                  onClick={() => {
-                    setMoreOpen((v) => !v)
-                    setTimeStepOpen(false)
-                  }}
-                >
-                  更多
-                </button>
-              </div>
-              <div ref={timeStepBtnRef} className={styles.menuAnchor}>
-                <button
-                  type="button"
-                  className={styles.ctrlBtn}
-                  aria-label="时间推进长度切换"
-                  aria-expanded={timeStepOpen}
-                  onClick={() => {
-                    setTimeStepOpen((v) => !v)
-                    setMoreOpen(false)
-                  }}
-                >
-                  {activeTimeStepLabel}
-                </button>
-              </div>
-              <button
-                type="button"
-                className={`${styles.ctrlBtn} ${showWorldPanel ? styles.ctrlBtnWorldActive : ''}`}
-                aria-label="世界信息"
-                aria-expanded={showWorldPanel}
-                onClick={() => {
-                  setShowWorldPanel(!showWorldPanel)
-                  setTimeStepOpen(false)
-                  setMoreOpen(false)
-                }}
-              >
-                世界
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* 世界信息面板（可折叠，对齐废弃项目标签布局） */}
-      {showWorldPanel && (
-        <div className={styles.panel}>
-          <div className={styles.panelInner}>
-            {worldTagSections.length > 0 && (
-              <>
-                <h4 className={styles.panelSectionTitle}>📄 世界规则</h4>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {worldTagSections.map((section) => (
-                    <div key={section.name}>
-                      <div className={styles.panelSectionTitleSm}>{section.name}</div>
-                      <div className={styles.tagGrid}>
-                        {section.tags.map((tag) => (
-                          <span key={`${section.name}-${tag.key}`} className={styles.tagChip}>
-                            {tag.key}：{tag.value}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-            {(worldSurrounding.length > 0 || worldBasicStatus.length > 0 || worldCharStatus.length > 0) && (
-              <>
-                {worldSurrounding.length > 0 && (
-                  <div style={{ marginTop: 12 }}>
-                    <div className={styles.panelSectionTitleSm}>📍 你的周边</div>
-                    <div className={styles.tagGrid}>
-                      {worldSurrounding.map((item) => (
-                        <span key={item.label} className={`${styles.tagChip} ${styles.tagChipEnv}`}>
-                          {item.icon} {item.label}：{item.value}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {worldBasicStatus.length > 0 && (
-                  <div style={{ marginTop: 10 }}>
-                    <div className={styles.panelSectionTitleSm}>🔔 基础状态</div>
-                    <div className={styles.tagGrid}>
-                      {worldBasicStatus.map((item) => (
-                        <span key={item.label} className={`${styles.tagChip} ${styles.tagChipEnv}`}>
-                          {item.icon} {item.label}：{item.value}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {worldCharStatus.length > 0 && (
-                  <div style={{ marginTop: 10 }}>
-                    <div className={styles.panelSectionTitleSm}>👁 角色状态</div>
-                    <div className={styles.tagGrid}>
-                      {worldCharStatus.map((item) => (
-                        <span key={item.label} className={`${styles.tagChip} ${styles.tagChipChar}`}>
-                          {item.icon} {item.label}：{item.value}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-            {worldTagSections.length === 0 && worldSurrounding.length === 0 && worldBasicStatus.length === 0 && worldCharStatus.length === 0 && (
-              <div className={styles.panelEmpty}>
-                <div className={styles.panelEmptyIcon}>🔔</div>
-                <p className={styles.panelEmptyText}>正在等待模拟数据，推进第一年后自动加载...</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {moreOpen && moreMenuRect && typeof document !== 'undefined' && createPortal(
-        <div
-          className={styles.moreMenu}
-          style={{
-            position: 'fixed',
-            zIndex: 10000,
-            top: moreMenuRect.bottom + 4,
-            right: document.documentElement.clientWidth - moreMenuRect.right,
-            background: 'var(--color-bg-card)',
-            opacity: 1,
-          }}
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            type="button"
-            className={styles.moreMenuItem}
-            onClick={() => {
-              setShowSaveDialog(true)
-              setMoreOpen(false)
-            }}
-          >
-            存档
-          </button>
-          <button
-            type="button"
-            className={styles.moreMenuItem}
-            onClick={() => {
-              setMoreOpen(false)
-              router.push('/')
-            }}
-          >
-            主界面
-          </button>
-        </div>,
-        document.body,
-      )}
-
-      {timeStepOpen && timeStepMenuRect && typeof document !== 'undefined' && createPortal(
-        <div
-          className={styles.timeStepMenu}
-          style={{
-            position: 'fixed',
-            zIndex: 10000,
-            top: timeStepMenuRect.bottom + 4,
-            right: document.documentElement.clientWidth - timeStepMenuRect.right,
-            background: 'var(--color-bg-card)',
-            opacity: 1,
-          }}
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {timeStepOptions.map((opt) => (
+      <section className={styles.bookShell} aria-label="故事进行中">
+        <div className={styles.stickyShell}>
+          <header className={styles.readerBar}>
+            <span className={styles.identity}>
+              <strong>{characterName || '未命名'}</strong>
+              <small>{worldConfig?.name ?? '未知世界'} · {raceInfo.name} · {characterAge}岁 · {narrativeTimeLabel}</small>
+            </span>
             <button
-              key={opt.value}
               type="button"
-              className={cn(styles.timeStepItem, opt.value === activeTimeStepKey && styles.timeStepItemActive)}
-              onClick={() => {
-                handleTimeStepChange(opt.value)
-                setTimeStepOpen(false)
-              }}
+              className={`${styles.forceButton} ${forceBranchNext ? styles.forceButtonActive : ''}`}
+              aria-label={forceBranchNext ? '取消下一轮强制分支' : '强制下一轮分支'}
+              aria-pressed={forceBranchNext}
+              disabled={!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch}
+              onClick={handleForceBranch}
             >
-              {opt.label}
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M6 3v12M18 9a9 9 0 0 1-9 9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                <circle cx="18" cy="6" r="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                <circle cx="6" cy="18" r="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
+              </svg>
+              <span className={styles.srOnly}>强制下一轮分支</span>
             </button>
-          ))}
-          <p className={styles.timeStepMenuHint}>
-            从年/季/月切到更细粒度时，下一轮会先进入未叙事周期，避免重写已经覆盖的时间。
-          </p>
-        </div>,
-        document.body,
-      )}
-      {/* 主内容区：叙事 + 隐藏式推进 */}
-      <div className={styles.mainArea}>
-        <NarrativeTimeline
-          entries={narrativeEntries}
-          streamingText={streamingNarrative}
-          scrollContainerRef={narrativeEndRef}
-          streamingHeader={streamingHeader}
-          turnCount={totalRounds}
-          showAdvance={!isDead && !isComplete}
-          advanceBlocked={hasUnresolvedBranch}
-          advanceBlockedText="✔ 请先选择命运"
-          isGenerating={isAdvancing}
-          hasEndingEvent={isDead}
-          advanceText="轻触，让岁月流转"
-          onAdvance={handleNarrativeAdvance}
-          onGoToGameOver={handleGoToGameOver}
-          unresolvedBranchIndex={unresolvedBranchIndex}
-          branchTitle={branchTitle}
-          branchOptions={branchOptions}
-          selectedBranchOptionId={selectedBranchOptionId}
-          branchCustomText={branchCustomText}
-          onBranchSelect={setSelectedBranchOptionId}
-          onBranchConfirm={handleBranchConfirm}
-          onBranchCancel={handleBranchCancel}
-          onCustomInputChange={setBranchCustomText}
-        />
+            <button
+              type="button"
+              className={styles.infoToggle}
+              aria-label={showWorldPanel ? '收起当前信息' : '展开当前信息'}
+              aria-expanded={showWorldPanel}
+              aria-controls="current-information-panel"
+              onClick={() => setShowWorldPanel((value) => !value)}
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
+                <path d="M12 10.5v6M12 7.2v.2" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+              </svg>
+            </button>
+          </header>
+          <div className={styles.readerDivider} aria-hidden="true"><span /></div>
 
-        {isDead && !streamingNarrative && (
-          <div className={styles.statusBanner}>
-            <h2 className={styles.statusTitle}>{characterName} 的一生已落幕</h2>
-            <p className={styles.statusDesc}>
-              模拟已完成。角色在第 {round.year} 年 {seasonName} 离世。
-            </p>
-          </div>
-        )}
+          {showWorldPanel && (
+            <section id="current-information-panel" className={styles.infoPanel} aria-label="当前信息">
+              <div className={styles.infoInner}>
+                <div className={styles.panelHead}>
+                  <strong>当前信息</strong>
+                  <button
+                    type="button"
+                    className={styles.infoClose}
+                    aria-label="关闭当前信息"
+                    onClick={() => setShowWorldPanel(false)}
+                  >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="m7 7 10 10M17 7 7 17" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                  </button>
+                </div>
 
-        {isComplete && !isDead && !streamingNarrative && narrativeHistory.length === 0 && (
-          <div className={styles.statusBanner}>
-            <p className={styles.statusDesc}>模拟已结束</p>
-          </div>
-        )}
-      </div>
+              <section className={styles.currentBlock}>
+                <div className={styles.identityIndex}>
+                  <span>{characterName} · {genderLabel} · {raceInfo.name}</span>
+                  <small>{worldConfig?.name} · {narrativeTimeLabel}</small>
+                </div>
+                <div className={styles.attributes}>
+                  {ATTR_KEYS.map((key) => {
+                    const value = displayBaseAttrs[key] ?? 0
+                    return (
+                      <span key={key}>
+                        {ATTRIBUTE_NAMES[key]} <b className={value > 0 ? styles.rise : value < 0 ? styles.fall : ''}>
+                          {value > 0 ? '+' : ''}{value}
+                        </b>
+                      </span>
+                    )
+                  })}
+                  <span>生命 <b>{health.hp}/{health.maxHp}</b></span>
+                </div>
+              </section>
+
+              <div className={styles.infoBody}>
+                <section className={styles.infoBlock}>
+                  <div className={styles.sectionLine}>
+                    <strong>推进步长</strong>
+                    <small>{activeTimeStepLabel} · 下一轮生效</small>
+                  </div>
+                  <div className={styles.stepGrid}>
+                    {timeStepOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={option.value === activeTimeStepKey ? styles.stepActive : ''}
+                        aria-pressed={option.value === activeTimeStepKey}
+                        onClick={() => handleTimeStepChange(option.value)}
+                      >
+                        {option.label.replace(/^按/, '')}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+
+                <details className={styles.ledgerDisclosure} open>
+                  <summary>
+                    <strong>世界与角色账簿</strong>
+                    <small>{preGenStatus.isActive ? '下一段正在准备' : preGenStatus.queueLength > 0 ? '下一段已准备' : '实时生成'}</small>
+                  </summary>
+                  <div className={styles.ledgerContent}>
+                    <p className={styles.ledgerLabel}>角色词条</p>
+                    {(destinyPatterns ?? []).map((pattern, index) => (
+                      <span key={pattern.id} className={styles.talent} data-index={String(index + 1).padStart(2, '0')}>
+                        {pattern.name}
+                      </span>
+                    ))}
+                    {talents.map((talent, index) => (
+                      <span key={talent.id} className={styles.talent} data-index={String((destinyPatterns?.length ?? 0) + index + 1).padStart(2, '0')}>
+                        {talent.name}
+                      </span>
+                    ))}
+                    {(destinyPatterns?.length ?? 0) === 0 && talents.length === 0 && (
+                      <span className={styles.mutedText}>暂无角色词条</span>
+                    )}
+
+                    <p className={styles.ledgerLabel}>神话传承 · 独立槽</p>
+                    {equippedMythicPattern ? (
+                      <div className={styles.mythicRule}>
+                        <strong>{equippedMythicPattern.name} · {equippedMythicPattern.concept}</strong>
+                        <span>{equippedMythicPattern.effect}</span>
+                      </div>
+                    ) : <span className={styles.mutedText}>本局未携带神话传承</span>}
+
+                    <p className={styles.ledgerLabel}>世界与当前状态</p>
+                    <div className={styles.stateList}>
+                      {worldSurrounding.map((item) => <span key={item.label}>{item.label} {item.value}</span>)}
+                      {worldBasicStatus.map((item) => <span key={item.label}>{item.label} {item.value}</span>)}
+                      {worldCharStatus.map((item) => <span key={item.label}>{item.label} {item.value}</span>)}
+                    </div>
+                    {worldTagSections.map((section) => (
+                      <div key={section.name} className={styles.ruleGroup}>
+                        <p className={styles.ledgerLabel}>{section.name}</p>
+                        <div className={styles.stateList}>
+                          {section.tags.map((tag) => <span key={`${section.name}-${tag.key}`}>{tag.key} {tag.value}</span>)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </details>
+              </div>
+
+                <section className={styles.moreActions}>
+                  <div className={styles.sectionLine}>
+                    <strong>更多</strong>
+                    <small>当前章节</small>
+                  </div>
+                  <div className={styles.moreActionRow}>
+                    <button
+                      type="button"
+                      disabled={!isRuntimeReady || isAdvancing || preGenStatus.isActive}
+                      title={!isRuntimeReady ? `${runtimeBlockedText}，暂时不能保存` : isAdvancing || preGenStatus.isActive ? '故事生成完成后才能保存' : undefined}
+                      onClick={() => {
+                        setShowWorldPanel(false)
+                        setShowSaveDialog(true)
+                      }}
+                    >
+                      手动存档
+                    </button>
+                    <button type="button" onClick={() => router.push('/welcome')}>返回主界面</button>
+                  </div>
+                </section>
+              </div>
+            </section>
+          )}
+        </div>
+
+        <div ref={narrativeEndRef} className={styles.reading} role="main">
+          <header className={styles.chapterHead}>
+            <small>第 {Math.max(totalRounds, 1)} 回 · 故事进程</small>
+            <h1>故事进行中</h1>
+            <div className={styles.chapterRule}>
+              <span>{!isRuntimeReady ? runtimeBlockedText : isAdvancing ? '命书正在续写' : hasUnresolvedBranch ? '等待你的选择' : forceBranchNext ? '已请求命运分叉' : '岁月流转'}</span>
+            </div>
+          </header>
+
+          {runtimeIncomplete && (
+            <div className={styles.errorNotice} role="alert">
+              <strong>核心系统未完整加载</strong>
+              <span>请刷新页面后再继续；当前进度不会被推进或覆盖。</span>
+            </div>
+          )}
+
+          {narrativeError && (
+            <div className={styles.errorNotice} role="alert">
+              <strong>这一段未能写完</strong>
+              <span>{narrativeError}</span>
+              {!hasUnresolvedBranch && !isDead && !isComplete && (
+                <button type="button" disabled={!isRuntimeReady || isAdvancing} onClick={handleNarrativeRetry}>重新尝试</button>
+              )}
+            </div>
+          )}
+
+          <NarrativeTimeline
+            entries={narrativeEntries}
+            streamingText={streamingNarrative}
+            scrollContainerRef={narrativeEndRef}
+            streamingHeader={streamingHeader}
+            turnCount={totalRounds}
+            showAdvance={!isDead && !isComplete}
+            advanceBlocked={!isRuntimeReady || hasUnresolvedBranch || Boolean(narrativeError)}
+            advanceBlockedText={narrativeAdvanceBlockedText}
+            isGenerating={isAdvancing}
+            hasEndingEvent={isDead}
+            advanceText="轻触，让岁月流转"
+            onAdvance={handleNarrativeAdvance}
+            onGoToGameOver={handleGoToGameOver}
+            unresolvedBranchIndex={unresolvedBranchIndex}
+            branchTitle={branchTitle}
+            branchOptions={branchOptions}
+            selectedBranchOptionId={selectedBranchOptionId}
+            branchCustomText={branchCustomText}
+            onBranchSelect={setSelectedBranchOptionId}
+            onBranchConfirm={handleBranchConfirm}
+            onBranchCancel={handleBranchCancel}
+            onCustomInputChange={setBranchCustomText}
+          />
+
+          {(isDead || isComplete) && !streamingNarrative && (
+            <section className={styles.statusBanner}>
+              <h2>{isDead ? `${characterName} 的一生已落幕` : '本卷人生已经写完'}</h2>
+              <p>{isDead ? `角色在第 ${round.year} 年 ${seasonName} 离世。` : `共走过 ${totalRounds} 轮，结算页将整理这一生的轨迹。`}</p>
+              <button type="button" onClick={handleGoToGameOver}>前往人生结算</button>
+            </section>
+          )}
+        </div>
+      </section>
     </div>
   )
 }

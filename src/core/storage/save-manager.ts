@@ -47,6 +47,23 @@ export interface SaveMetadata {
 
 const MOD_KEY = 'save-manager'
 const KEY_INDEX = 'index'
+const REQUIRED_CORE_SAVE_FILES = ['engine', 'character', 'world'] as const
+
+/**
+ * OPFS 目录替换与 localStorage 索引必须作为一个串行事务执行。
+ * 自动存档是 fire-and-forget；若不排队，它可能与手动存档同时读到旧索引，
+ * 最后完成者会覆盖另一方的元数据更新。
+ */
+let saveOperationTail: Promise<void> = Promise.resolve()
+
+function enqueueSaveOperation<T>(operation: () => Promise<T>): Promise<T> {
+  const result = saveOperationTail.then(operation)
+  saveOperationTail = result.then(
+    () => undefined,
+    () => undefined,
+  )
+  return result
+}
 
 /**
  * 读取所有存档元数据索引（存于 configStore，不关联特定存档槽）
@@ -60,6 +77,13 @@ function loadIndex(): SaveMetadata[] {
  */
 function saveIndex(metaList: SaveMetadata[]): void {
   configStore.set(MOD_KEY, KEY_INDEX, metaList)
+}
+
+function findFirstAvailableManualSlot(metaList: SaveMetadata[]): number {
+  const occupied = new Set(metaList.filter((meta) => meta.slot > 0).map((meta) => meta.slot))
+  let slot = 1
+  while (occupied.has(slot)) slot++
+  return slot
 }
 
 function saveDir(slot: number): string {
@@ -85,14 +109,23 @@ async function copyDirFiles(fromDir: string, toDir: string): Promise<void> {
     const fileName = filePath.split('/').pop()
     if (!fileName) continue
     const buffer = await opfsStorage.readFile(filePath)
-    if (buffer) await opfsStorage.writeFile(`${toDir}/${fileName}`, buffer)
+    if (!buffer) {
+      throw new Error(`复制存档目录失败：无法读取 ${filePath}`)
+    }
+    await opfsStorage.writeFile(`${toDir}/${fileName}`, buffer)
   }
 }
 
-async function replaceSaveDir(slot: number, tmpDir: string): Promise<void> {
+interface SaveDirTransaction {
+  commit: () => Promise<void>
+  rollback: () => Promise<void>
+}
+
+async function replaceSaveDir(slot: number, tmpDir: string): Promise<SaveDirTransaction> {
   const targetDir = saveDir(slot)
   const backupDir = makeWorkDir(slot, 'bak')
   let hasBackup = false
+  let targetMutationStarted = false
 
   try {
     if ((await opfsStorage.listFiles(targetDir)).length > 0) {
@@ -100,19 +133,212 @@ async function replaceSaveDir(slot: number, tmpDir: string): Promise<void> {
       hasBackup = true
     }
 
+    targetMutationStarted = true
     await opfsStorage.deleteDirectory(targetDir)
     await copyDirFiles(tmpDir, targetDir)
     await opfsStorage.deleteDirectory(tmpDir)
-    if (hasBackup) await opfsStorage.deleteDirectory(backupDir)
   } catch (err) {
-    await opfsStorage.deleteDirectory(targetDir)
-    if (hasBackup) {
-      await copyDirFiles(backupDir, targetDir)
-      await opfsStorage.deleteDirectory(backupDir)
+    try {
+      if (targetMutationStarted) {
+        await opfsStorage.deleteDirectory(targetDir)
+        if (hasBackup) await copyDirFiles(backupDir, targetDir)
+      }
+      if (hasBackup) await opfsStorage.deleteDirectory(backupDir)
+      await opfsStorage.deleteDirectory(tmpDir)
+    } catch (rollbackError) {
+      throw new Error('存档目录替换失败，且旧存档回滚未完成。', {
+        cause: { originalError: err, rollbackError },
+      })
     }
-    await opfsStorage.deleteDirectory(tmpDir)
     throw err
   }
+
+  let settled = false
+  return {
+    commit: async () => {
+      if (settled) return
+      settled = true
+      if (!hasBackup) return
+      try {
+        await opfsStorage.deleteDirectory(backupDir)
+      } catch (error) {
+        // 新存档与索引均已提交；遗留备份只占空间，不应把成功写入反报为失败。
+        console.warn(`[save-manager] 存档槽 ${slot} 的事务备份清理失败:`, error)
+      }
+    },
+    rollback: async () => {
+      if (settled) return
+      await opfsStorage.deleteDirectory(targetDir)
+      if (hasBackup) await copyDirFiles(backupDir, targetDir)
+      settled = true
+      if (hasBackup) await opfsStorage.deleteDirectory(backupDir)
+    },
+  }
+}
+
+async function saveToSlotUnlocked(
+  slot: number,
+  name: string,
+  worldName: string,
+  characterName: string,
+  data: Record<string, unknown>,
+): Promise<SaveMetadata> {
+  const metaList = loadIndex()
+  const totalRounds = (data.engine as { totalRounds?: number } | undefined)?.totalRounds ?? 0
+  const existingIdx = metaList.findIndex((m) => m.slot === slot)
+  const existing = existingIdx >= 0 ? metaList[existingIdx] : undefined
+  const metadata: SaveMetadata = {
+    ...(existing ?? { slot }),
+    name: name || `存档 ${slot}`,
+    timestamp: Date.now(),
+    version: ENGINE_VERSION,
+    worldName: worldName || '',
+    characterName: characterName || '',
+    totalRounds,
+    isAutoSave: false,
+  }
+
+  const tmpDir = makeWorkDir(slot, 'tmp')
+  let transaction: SaveDirTransaction | null = null
+  try {
+    await writePayloadToDir(tmpDir, data)
+    transaction = await replaceSaveDir(slot, tmpDir)
+
+    if (existingIdx >= 0) metaList[existingIdx] = metadata
+    else metaList.push(metadata)
+    saveIndex(metaList)
+    await transaction.commit()
+  } catch (err) {
+    await opfsStorage.deleteDirectory(tmpDir)
+    if (transaction) {
+      try {
+        await transaction.rollback()
+      } catch (rollbackError) {
+        throw new Error(`存档槽 ${slot} 写入失败，且旧存档回滚未完成。`, {
+          cause: { originalError: err, rollbackError },
+        })
+      }
+    }
+    throw err
+  }
+
+  return metadata
+}
+
+async function loadSaveUnlocked(slot: number): Promise<Record<string, unknown> | null> {
+  const metaList = loadIndex()
+  const meta = metaList.find((m) => m.slot === slot)
+  if (!meta) return null
+
+  const decoder = new TextDecoder()
+  const data: Record<string, unknown> = { _meta: meta }
+
+  const files = await opfsStorage.listFiles(`save/${slot}`)
+  for (const filePath of files) {
+    const fileName = filePath.split('/').pop()!
+    if (fileName === 'meta.json') continue
+
+    const buffer = await opfsStorage.readFile(filePath)
+    if (buffer) {
+      const key = fileName.replace('.json', '')
+      try {
+        data[key] = JSON.parse(decoder.decode(buffer))
+      } catch (error) {
+        if (REQUIRED_CORE_SAVE_FILES.includes(key as typeof REQUIRED_CORE_SAVE_FILES[number])) {
+          throw new Error(`存档槽 ${slot} 的核心文件 ${fileName} 已损坏，已中止加载。`, {
+            cause: error,
+          })
+        }
+        console.warn(`[save-manager] 存档槽 ${slot} 的可选文件 ${fileName} 已损坏，已跳过。`)
+      }
+    }
+  }
+
+  const missingCoreFiles = REQUIRED_CORE_SAVE_FILES.filter((key) => {
+    const value = data[key]
+    return !value || typeof value !== 'object' || Array.isArray(value)
+  })
+  if (missingCoreFiles.length > 0) {
+    throw new Error(
+      `存档槽 ${slot} 缺少有效核心文件：${missingCoreFiles.map((key) => `${key}.json`).join('、')}，已中止加载。`,
+    )
+  }
+
+  // 版本守卫：拒绝加载由更新引擎写入的存档，避免降级损坏。
+  // 旧版本存档目前没有可执行的 save-version 迁移链，按兼容路径加载并标记。
+  const versionDiff = compareVersions(meta.version, ENGINE_VERSION)
+  if (versionDiff > 0) {
+    throw new Error(`存档版本 ${meta.version} 高于当前引擎版本 ${ENGINE_VERSION}，请使用更新版本打开。`)
+  }
+  if (versionDiff < 0) {
+    data._needsMigration = true
+    console.info(`[save-manager] 存档版本（${meta.version}）低于当前引擎版本（${ENGINE_VERSION}），当前按兼容路径加载。`)
+  }
+
+  return data
+}
+
+async function deleteSaveUnlocked(slot: number): Promise<void> {
+  const metaList = loadIndex()
+  const idx = metaList.findIndex((m) => m.slot === slot)
+  if (idx === -1) return
+
+  metaList.splice(idx, 1)
+  saveIndex(metaList)
+
+  const files = await opfsStorage.listFiles(`save/${slot}`)
+  for (const filePath of files) {
+    await opfsStorage.deleteFile(filePath)
+  }
+}
+
+async function autoSaveUnlocked(
+  worldName: string,
+  characterName: string,
+  data: Record<string, unknown>,
+): Promise<SaveMetadata> {
+  const AUTO_SLOT = 0
+  const metaList = loadIndex()
+  let existing = metaList.find((m) => m.slot === AUTO_SLOT)
+
+  const totalRounds = (data.engine as { totalRounds?: number } | undefined)?.totalRounds ?? 0
+
+  const existingIdx = metaList.findIndex((m) => m.slot === AUTO_SLOT)
+  existing = {
+    ...(existing ?? { slot: AUTO_SLOT, name: '自动存档' }),
+    timestamp: Date.now(),
+    version: ENGINE_VERSION,
+    worldName: worldName || '',
+    characterName: characterName || '',
+    totalRounds,
+    isAutoSave: true,
+  }
+
+  const tmpDir = makeWorkDir(AUTO_SLOT, 'tmp')
+  let transaction: SaveDirTransaction | null = null
+  try {
+    await writePayloadToDir(tmpDir, data)
+    transaction = await replaceSaveDir(AUTO_SLOT, tmpDir)
+
+    if (existingIdx >= 0) metaList[existingIdx] = existing
+    else metaList.push(existing)
+    saveIndex(metaList)
+    await transaction.commit()
+  } catch (err) {
+    await opfsStorage.deleteDirectory(tmpDir)
+    if (transaction) {
+      try {
+        await transaction.rollback()
+      } catch (rollbackError) {
+        throw new Error('自动存档写入失败，且旧自动存档回滚未完成。', {
+          cause: { originalError: err, rollbackError },
+        })
+      }
+    }
+    throw err
+  }
+
+  return existing
 }
 
 /** 存档管理器 */
@@ -132,9 +358,10 @@ export const saveManager = {
     characterName: string,
     data: Record<string, unknown>
   ): Promise<SaveMetadata> {
-    const metaList = loadIndex()
-    const slot = metaList.length > 0 ? Math.max(...metaList.map((m) => m.slot)) + 1 : 1
-    return this.saveToSlot(slot, name, worldName, characterName, data)
+    return enqueueSaveOperation(() => {
+      const slot = findFirstAvailableManualSlot(loadIndex())
+      return saveToSlotUnlocked(slot, name, worldName, characterName, data)
+    })
   },
 
   /**
@@ -147,45 +374,13 @@ export const saveManager = {
     characterName: string,
     data: Record<string, unknown>,
   ): Promise<SaveMetadata> {
-    const metaList = loadIndex()
-    const totalRounds = (data.engine as { totalRounds?: number } | undefined)?.totalRounds ?? 0
-    const existingIdx = metaList.findIndex((m) => m.slot === slot)
-    const existing = existingIdx >= 0 ? metaList[existingIdx] : undefined
-    const metadata: SaveMetadata = {
-      ...(existing ?? { slot }),
-      name: name || `存档 ${slot}`,
-      timestamp: Date.now(),
-      version: ENGINE_VERSION,
-      worldName: worldName || '',
-      characterName: characterName || '',
-      totalRounds,
-      isAutoSave: false,
-    }
-
-    const tmpDir = makeWorkDir(slot, 'tmp')
-    const backupDir = makeWorkDir(slot, 'bak')
-    try {
-      await writePayloadToDir(tmpDir, data)
-      if ((await opfsStorage.listFiles(saveDir(slot))).length > 0) {
-        await copyDirFiles(saveDir(slot), backupDir)
-      }
-      await replaceSaveDir(slot, tmpDir)
-
-      if (existingIdx >= 0) metaList[existingIdx] = metadata
-      else metaList.push(metadata)
-      saveIndex(metaList)
-    } catch (err) {
-      await opfsStorage.deleteDirectory(tmpDir)
-      await opfsStorage.deleteDirectory(saveDir(slot))
-      if ((await opfsStorage.listFiles(backupDir)).length > 0) {
-        await copyDirFiles(backupDir, saveDir(slot))
-      }
-      await opfsStorage.deleteDirectory(backupDir)
-      throw err
-    }
-    await opfsStorage.deleteDirectory(backupDir)
-
-    return metadata
+    return enqueueSaveOperation(() => saveToSlotUnlocked(
+      slot,
+      name,
+      worldName,
+      characterName,
+      data,
+    ))
   },
 
   /**
@@ -204,41 +399,7 @@ export const saveManager = {
    * @returns 存档数据对象，不存在返回 null
    */
   async loadSave(slot: number): Promise<Record<string, unknown> | null> {
-    const metaList = loadIndex()
-    const meta = metaList.find((m) => m.slot === slot)
-    if (!meta) return null
-
-    const decoder = new TextDecoder()
-    const data: Record<string, unknown> = { _meta: meta }
-
-    const files = await opfsStorage.listFiles(`save/${slot}`)
-    for (const filePath of files) {
-      const fileName = filePath.split('/').pop()!
-      if (fileName === 'meta.json') continue
-
-      const buffer = await opfsStorage.readFile(filePath)
-      if (buffer) {
-        const key = fileName.replace('.json', '')
-        try {
-          data[key] = JSON.parse(decoder.decode(buffer))
-        } catch {
-          // 跳过无法解析的文件
-        }
-      }
-    }
-
-    // 版本守卫：拒绝加载由更新引擎写入的存档，避免降级损坏。
-    // 旧版本存档目前没有可执行的 save-version 迁移链，按兼容路径加载并标记。
-    const versionDiff = compareVersions(meta.version, ENGINE_VERSION)
-    if (versionDiff > 0) {
-      throw new Error(`存档版本 ${meta.version} 高于当前引擎版本 ${ENGINE_VERSION}，请使用更新版本打开。`)
-    }
-    if (versionDiff < 0) {
-      data._needsMigration = true
-      console.info(`[save-manager] 存档版本（${meta.version}）低于当前引擎版本（${ENGINE_VERSION}），当前按兼容路径加载。`)
-    }
-
-    return data
+    return enqueueSaveOperation(() => loadSaveUnlocked(slot))
   },
 
   /**
@@ -247,18 +408,7 @@ export const saveManager = {
    * @param slot 存档槽号
    */
   async deleteSave(slot: number): Promise<void> {
-    const metaList = loadIndex()
-    const idx = metaList.findIndex((m) => m.slot === slot)
-    if (idx === -1) return
-
-    metaList.splice(idx, 1)
-    saveIndex(metaList)
-
-    // 删除 OPFS 文件
-    const files = await opfsStorage.listFiles(`save/${slot}`)
-    for (const filePath of files) {
-      await opfsStorage.deleteFile(filePath)
-    }
+    return enqueueSaveOperation(() => deleteSaveUnlocked(slot))
   },
 
   /**
@@ -277,56 +427,14 @@ export const saveManager = {
     characterName: string,
     data: Record<string, unknown>,
   ): Promise<SaveMetadata> {
-    const AUTO_SLOT = 0
-    const metaList = loadIndex()
-    let existing = metaList.find((m) => m.slot === AUTO_SLOT)
-
-    const totalRounds = (data.engine as { totalRounds?: number } | undefined)?.totalRounds ?? 0
-
-    const existingIdx = metaList.findIndex((m) => m.slot === AUTO_SLOT)
-    existing = {
-      ...(existing ?? { slot: AUTO_SLOT, name: '自动存档' }),
-      timestamp: Date.now(),
-      version: ENGINE_VERSION,
-      worldName: worldName || '',
-      characterName: characterName || '',
-      totalRounds,
-      isAutoSave: true,
-    }
-
-    const tmpDir = makeWorkDir(AUTO_SLOT, 'tmp')
-    const backupDir = makeWorkDir(AUTO_SLOT, 'bak')
-    try {
-      await writePayloadToDir(tmpDir, data)
-      if ((await opfsStorage.listFiles(saveDir(AUTO_SLOT))).length > 0) {
-        await copyDirFiles(saveDir(AUTO_SLOT), backupDir)
-      }
-      await replaceSaveDir(AUTO_SLOT, tmpDir)
-
-      if (existingIdx >= 0) metaList[existingIdx] = existing
-      else metaList.push(existing)
-      saveIndex(metaList)
-    } catch (err) {
-      await opfsStorage.deleteDirectory(tmpDir)
-      await opfsStorage.deleteDirectory(saveDir(AUTO_SLOT))
-      if ((await opfsStorage.listFiles(backupDir)).length > 0) {
-        await copyDirFiles(backupDir, saveDir(AUTO_SLOT))
-      }
-      await opfsStorage.deleteDirectory(backupDir)
-      throw err
-    }
-    await opfsStorage.deleteDirectory(backupDir)
-
-    return existing
+    return enqueueSaveOperation(() => autoSaveUnlocked(worldName, characterName, data))
   },
 
   /**
    * 获取下一个可用存档槽号
    */
   getNextSlot(): number {
-    const saves = this.listSaves()
-    if (saves.length === 0) return 1
-    return Math.max(...saves.map((s) => s.slot)) + 1
+    return findFirstAvailableManualSlot(loadIndex())
   },
 
   /**

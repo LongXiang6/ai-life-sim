@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>设置重构第一轮 · 四条路线</title>
+  <link rel="stylesheet" href="../assets/library-history.css">
+  <script src="../assets/prototype.js" defer></script>
+  <style>
+    :root {
+      --rf-paper: #fbfaf6;
+      --rf-paper-deep: #f4f1e9;
+      --rf-ink: #272622;
+      --rf-soft: #6d6961;
+      --rf-faint: #999289;
+      --rf-rule: #d8d2c8;
+      --rf-rule-light: #ebe7df;
+      --rf-accent: #8b3f36;
+      --rf-accent-soft: #f4e9e5;
+      --rf-serif: "Songti SC", "STSong", "SimSun", serif;
+      --rf-sans: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body { background: #efeee9; color: var(--rf-ink); font-family: var(--rf-sans); }
+    button, textarea { font: inherit; }
+    .shell { width: min(calc(100% - 28px), 1510px); }
+    .topbar { margin-bottom: 24px; }
+    .round-head { display: grid; max-width: 900px; gap: 8px; margin-bottom: 24px; }
+    .round-head h1 { margin: 0; font-family: var(--rf-serif); font-weight: 600; letter-spacing: 0; }
+    .round-head .subtitle { margin: 0; }
+    .round-status { color: var(--rf-accent); font-size: 12px; }
+    .option-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+    .option-card { min-width: 0; border-radius: 6px; background: rgba(255,255,255,.72); box-shadow: 0 8px 24px rgba(50,45,38,.06); }
+    .option-card:hover { transform: translateY(-2px); box-shadow: 0 12px 28px rgba(50,45,38,.1); }
+    .option-card.selected { outline: 2px solid var(--rf-accent); outline-offset: 3px; }
+    .option-copy { padding: 0 16px 16px; }
+    .option-copy h2 { margin: 0 0 7px; font-family: var(--rf-serif); font-size: 17px; font-weight: 600; letter-spacing: 0; }
+    .option-copy p { min-height: 60px; margin: 0 0 12px; color: var(--rf-soft); font-size: 12px; line-height: 1.65; }
+    .route-tag { color: var(--rf-accent); font-size: 10px; }
+    .choose-route { width: 100%; min-height: 36px; margin-top: 12px; border: 1px solid var(--rf-rule); background: transparent; color: var(--rf-ink); cursor: pointer; }
+    .selected .choose-route { border-color: var(--rf-accent); color: var(--rf-accent); }
+
+    .rf-phone.phone {
+      width: min(292px, calc(100% - 24px));
+      height: 590px;
+      border-color: var(--rf-rule);
+      border-radius: 18px;
+      background: var(--rf-paper);
+      color: var(--rf-ink);
+      box-shadow: 0 12px 28px rgba(52,47,40,.1);
+      font-family: var(--rf-sans);
+    }
+    .rf-phone::before { position: absolute; top: 12px; bottom: 12px; left: 10px; width: 1px; background: var(--rf-rule-light); content: ""; }
+    .rf-head { height: 72px; padding: 14px 16px 7px 22px; border-bottom: 1px solid var(--rf-rule); }
+    .running { display: flex; justify-content: space-between; color: var(--rf-faint); font-size: 6px; letter-spacing: .09em; }
+    .title-line { display: flex; align-items: end; justify-content: space-between; gap: 8px; margin-top: 8px; }
+    .title-line h3 { margin: 0; font-family: var(--rf-serif); font-size: 19px; font-weight: 600; letter-spacing: 0; }
+    .title-line span { color: var(--rf-faint); font-size: 7px; }
+    .rf-close, .icon-action { width: 30px; height: 30px; padding: 0; border: 0; background: transparent; color: var(--rf-soft); cursor: pointer; }
+    .rf-body { position: relative; height: 468px; overflow: hidden; padding-left: 10px; }
+    .rf-footer { position: absolute; right: 0; bottom: 0; left: 10px; z-index: 8; display: flex; height: 48px; align-items: center; justify-content: space-between; gap: 8px; padding: 0 14px 0 12px; border-top: 1px solid var(--rf-rule); background: rgba(251,250,246,.97); }
+    .rf-footer small { color: var(--rf-faint); font-size: 6px; }
+    .restore { min-width: 74px; min-height: 32px; padding: 0 8px; border: 0; background: transparent; color: var(--rf-accent); font-size: 7px; cursor: pointer; }
+    .restore:disabled { color: var(--rf-faint); cursor: default; }
+    .rf-content { height: 420px; overflow: hidden; padding: 10px 14px 9px 12px; }
+    .view, .task-view, .drawer-view { display: none; }
+    .view.active, .task-view.active, .drawer-view.active { display: block; animation: rf-reveal .16s ease both; }
+    .view-intro { margin: 0 0 7px; color: var(--rf-soft); font-size: 7px; line-height: 1.45; }
+    .section-cap { display: flex; align-items: end; justify-content: space-between; min-height: 17px; margin-top: 4px; color: var(--rf-faint); font-size: 6px; }
+    .section-cap b { color: var(--rf-soft); font-size: 7px; font-weight: 650; }
+    .ruled { border-top: 1px solid var(--rf-rule); border-bottom: 1px solid var(--rf-rule); }
+    .setting-row { display: grid; min-height: 39px; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 7px; padding: 4px 0; }
+    .setting-row + .setting-row { border-top: 1px solid var(--rf-rule-light); }
+    .setting-copy { min-width: 0; }
+    .setting-copy b { display: block; font-family: var(--rf-serif); font-size: 8px; font-weight: 600; }
+    .setting-copy small { display: block; margin-top: 2px; overflow-wrap: anywhere; color: var(--rf-faint); font-size: 5.5px; line-height: 1.3; }
+    .toggle { position: relative; width: 32px; height: 19px; padding: 0; border: 1px solid var(--rf-rule); border-radius: 999px; background: transparent; cursor: pointer; }
+    .toggle::after { position: absolute; top: 3px; left: 3px; width: 11px; height: 11px; border-radius: 50%; background: var(--rf-faint); content: ""; transition: .15s ease; }
+    .toggle[aria-checked="true"] { border-color: rgba(139,63,54,.55); background: var(--rf-accent-soft); }
+    .toggle[aria-checked="true"]::after { left: 16px; background: var(--rf-accent); }
+    .value-action { min-width: 48px; min-height: 30px; padding: 0 2px; border: 0; background: transparent; color: var(--rf-soft); font-size: 7px; text-align: right; cursor: pointer; }
+    .value-action::after { margin-left: 4px; color: var(--rf-faint); content: "›"; }
+    .stepper { display: grid; grid-template-columns: 26px 44px 26px; align-items: center; }
+    .stepper button { width: 26px; height: 30px; padding: 0; border: 0; background: transparent; color: var(--rf-soft); cursor: pointer; }
+    .stepper button:disabled { color: var(--rf-rule); }
+    .stepper output { font-family: var(--rf-serif); font-size: 7px; text-align: center; }
+    .segments { display: grid; grid-template-columns: repeat(4,1fr); border-top: 1px solid var(--rf-rule); border-bottom: 1px solid var(--rf-rule); }
+    .segments button { min-height: 31px; padding: 0; border: 0; border-right: 1px solid var(--rf-rule-light); background: transparent; color: var(--rf-faint); font-size: 6px; cursor: pointer; }
+    .segments button:last-child { border-right: 0; }
+    .segments button.active { background: var(--rf-accent-soft); color: var(--rf-accent); }
+    .model-list { border-top: 1px solid var(--rf-rule); border-bottom: 1px solid var(--rf-rule); }
+    .model-list button { display: flex; width: 100%; min-height: 36px; align-items: center; justify-content: space-between; padding: 0; border: 0; border-bottom: 1px solid var(--rf-rule-light); background: transparent; color: var(--rf-soft); font-size: 7px; cursor: pointer; }
+    .model-list button:last-child { border-bottom: 0; }
+    .model-list button.active { color: var(--rf-ink); font-family: var(--rf-serif); }
+    .model-list button.active::after { color: var(--rf-accent); font-family: var(--rf-sans); font-size: 6px; content: "当前"; }
+    .prompt { width: 100%; height: 112px; margin-top: 6px; padding: 9px 0; resize: none; border: 0; border-top: 1px solid var(--rf-rule); border-bottom: 1px solid var(--rf-rule); outline: 0; background: transparent; color: var(--rf-soft); font-size: 7px; line-height: 1.55; }
+    .note { margin: 5px 0 0; color: var(--rf-faint); font-size: 5.5px; line-height: 1.4; }
+    .toast { position: absolute; z-index: 20; right: 14px; bottom: 55px; left: 24px; padding: 7px; border: 1px solid var(--rf-rule); background: var(--rf-paper); color: var(--rf-soft); font-size: 6px; text-align: center; opacity: 0; transform: translateY(5px); transition: .16s ease; pointer-events: none; }
+    .toast.show { opacity: 1; transform: none; }
+
+    /* ST-RF1-1: B01 index plus continuous ruled entries */
+    .folio-tabs { display: grid; height: 48px; grid-template-columns: repeat(4,1fr); margin-left: 10px; border-bottom: 1px solid var(--rf-rule); }
+    .folio-tabs button { min-width: 0; padding: 0 2px; border: 0; border-right: 1px solid var(--rf-rule-light); background: transparent; color: var(--rf-faint); font-size: 6px; cursor: pointer; }
+    .folio-tabs button:last-child { border-right: 0; }
+    .folio-tabs button small { display: block; margin-bottom: 3px; font-size: 5px; }
+    .folio-tabs button[aria-selected="true"] { color: var(--rf-accent); box-shadow: inset 0 -2px var(--rf-accent); }
+    .route-one .rf-body { height: 420px; }
+    .route-one .rf-content { height: 372px; }
+
+    /* ST-RF1-2: one-open chapter accordion */
+    .accordion { height: 420px; overflow: hidden; padding: 8px 14px 0 12px; }
+    .fold { border-bottom: 1px solid var(--rf-rule); }
+    .fold:first-child { border-top: 1px solid var(--rf-rule); }
+    .fold-head { display: grid; width: 100%; height: 35px; grid-template-columns: 24px 1fr auto; align-items: center; gap: 5px; padding: 0; border: 0; background: transparent; color: var(--rf-soft); text-align: left; cursor: pointer; }
+    .fold-head small { color: var(--rf-faint); font-size: 5px; }
+    .fold-head b { font-family: var(--rf-serif); font-size: 8px; font-weight: 600; }
+    .fold-head::after { content: "＋"; font-size: 9px; }
+    .fold.open .fold-head { color: var(--rf-accent); }
+    .fold.open .fold-head::after { content: "−"; }
+    .fold-body { display: none; height: 279px; overflow: hidden; padding: 2px 0 6px 29px; }
+    .fold.open .fold-body { display: block; animation: rf-reveal .16s ease both; }
+    .fold-body .setting-row { min-height: 36px; }
+    .fold-body .section-cap { min-height: 15px; }
+
+    /* ST-RF1-3: task directory and filter */
+    .task-directory { display: grid; height: 66px; grid-template-columns: repeat(2,1fr); margin-left: 10px; border-bottom: 1px solid var(--rf-rule); }
+    .task-directory button { display: flex; min-width: 0; align-items: center; gap: 6px; padding: 0 8px; border: 0; border-right: 1px solid var(--rf-rule-light); border-bottom: 1px solid var(--rf-rule-light); background: transparent; color: var(--rf-soft); font-size: 6px; text-align: left; cursor: pointer; }
+    .task-directory button:nth-child(even) { border-right: 0; }
+    .task-directory button:nth-child(n+3) { border-bottom: 0; }
+    .task-directory button span { color: var(--rf-faint); font-size: 5px; }
+    .task-directory button[aria-selected="true"] { color: var(--rf-accent); background: var(--rf-accent-soft); }
+    .filterbar { display: flex; height: 34px; align-items: center; justify-content: space-between; gap: 6px; padding: 0 14px 0 22px; border-bottom: 1px solid var(--rf-rule); }
+    .filterbar span { color: var(--rf-faint); font-size: 6px; }
+    .filterbar div { display: flex; gap: 3px; }
+    .filterbar button { min-height: 26px; padding: 0 7px; border: 0; background: transparent; color: var(--rf-faint); font-size: 6px; cursor: pointer; }
+    .filterbar button.active { color: var(--rf-accent); text-decoration: underline; text-underline-offset: 4px; }
+    .route-three .rf-body { height: 370px; }
+    .route-three .rf-content { height: 320px; }
+    .task-heading { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 5px; }
+    .task-heading b { font-family: var(--rf-serif); font-size: 10px; }
+    .task-heading span { color: var(--rf-faint); font-size: 5px; }
+    .shortcut { display: grid; width: 100%; min-height: 38px; grid-template-columns: 1fr auto; align-items: center; padding: 0; border: 0; border-bottom: 1px solid var(--rf-rule-light); background: transparent; color: var(--rf-soft); font-size: 7px; text-align: left; cursor: pointer; }
+    .shortcut::after { color: var(--rf-faint); content: "›"; }
+
+    /* ST-RF1-4: index, check page and context overlay */
+    .check-page { height: 420px; overflow: hidden; padding: 8px 14px 6px 12px; }
+    .check-page .setting-row { min-height: 37px; }
+    .scope-index { display: grid; grid-template-columns: repeat(4,1fr); margin-top: 7px; border-top: 1px solid var(--rf-rule); border-bottom: 1px solid var(--rf-rule); }
+    .scope-index button { min-height: 38px; padding: 0 3px; border: 0; border-right: 1px solid var(--rf-rule-light); background: transparent; color: var(--rf-soft); font-size: 5.5px; cursor: pointer; }
+    .scope-index button:last-child { border-right: 0; }
+    .check-list { border-top: 1px solid var(--rf-rule); }
+    .check-line { display: grid; min-height: 27px; grid-template-columns: 1fr auto; align-items: center; border-bottom: 1px solid var(--rf-rule-light); color: var(--rf-soft); font-size: 6px; }
+    .check-line button { min-width: 72px; min-height: 25px; padding: 0; border: 0; background: transparent; color: var(--rf-accent); font-size: 6px; text-align: right; cursor: pointer; }
+    .context-layer { position: absolute; z-index: 12; top: 72px; right: 0; bottom: 48px; left: 10px; display: none; overflow: hidden; padding: 10px 14px 8px 12px; background: var(--rf-paper); }
+    .context-layer.open { display: block; animation: drawer-in .2s ease both; }
+    .drawer-head { display: flex; height: 34px; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--rf-rule); }
+    .drawer-head b { font-family: var(--rf-serif); font-size: 10px; font-weight: 600; }
+    .drawer-head button { width: 30px; height: 30px; padding: 0; border: 0; background: transparent; color: var(--rf-soft); cursor: pointer; }
+    .drawer-view { padding-top: 5px; }
+
+    button:focus-visible, textarea:focus-visible, .option-card:focus-visible { outline: 1px dotted var(--rf-accent); outline-offset: 2px; }
+    @keyframes rf-reveal { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+    @keyframes drawer-in { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: none; } }
+    @media (max-width: 1320px) { .option-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+    @media (max-width: 720px) {
+      .shell { width: min(calc(100% - 18px), 430px); padding-top: 18px; }
+      .option-grid { grid-template-columns: 1fr; }
+      .option-copy p { min-height: 0; }
+      .rf-phone.phone { width: min(320px, calc(100vw - 54px)); }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar"><a href="index.html">← 返回设置界面历史</a><span class="status wait" data-selection>待选择 · ST-RF1-1 / 2 / 3 / 4</span></div>
+    <header class="round-head">
+      <p class="eyebrow">SETTINGS · REFACTOR ROUND 01</p>
+      <h1>设置重构第一轮</h1>
+      <p class="subtitle">同一组设置，四种信息架构。每版都保留四类范围、完整字段、约 200 字默认值和一键恢复；点选候选只标记本轮偏好，不覆盖最终稿。</p>
+      <span class="round-status">请在四版中选择一条路线，或指出需要融合的局部。</span>
+    </header>
+
+    <section class="option-grid" aria-label="设置重构候选">
+      <article class="option-card" data-choice="ST-RF1-1 B01 顶部索引 + 连续条目">
+        <div class="phone rf-phone route-one" data-prototype="rf1-1">
+          <header class="rf-head"><div class="running"><span>附录 · 偏好索引</span><span>ST-RF1-1</span></div><div class="title-line"><h3>设置</h3><span>四章 · 即时生效</span></div></header>
+          <nav class="folio-tabs" aria-label="设置章节">
+            <button type="button" data-show-view="personal" aria-selected="false"><small>01</small>个性化</button>
+            <button type="button" data-show-view="model" aria-selected="true"><small>02</small>模型设置</button>
+            <button type="button" data-show-view="calls" aria-selected="false"><small>03</small>模型调用</button>
+            <button type="button" data-show-view="prompt" aria-selected="false"><small>04</small>Prompt</button>
+          </nav>
+          <div class="rf-body"><div class="rf-content">
+            <section class="view" data-view="personal">
+              <p class="view-intro">阅读与动效偏好，不改变模拟事实。</p>
+              <div class="section-cap"><b>阅读体验</b><span>即时生效</span></div>
+              <div class="ruled">
+                <div class="setting-row"><div class="setting-copy"><b>段落舒展</b><small>为长叙事增加少量行间距</small></div><button class="toggle" type="button" data-toggle-key="paragraph" role="switch" aria-label="段落舒展"></button></div>
+                <div class="setting-row"><div class="setting-copy"><b>减少动态效果</b><small>保留必要变化，降低装饰动画</small></div><button class="toggle" type="button" data-toggle-key="motion" role="switch" aria-label="减少动态效果"></button></div>
+              </div>
+            </section>
+            <section class="view active" data-view="model">
+              <p class="view-intro">沿书页顺序连续检查生成方式、推理、字数与预生成。</p>
+              <div class="section-cap"><b>AI 内容</b><span>生成方式</span></div>
+              <div class="ruled"><div class="setting-row"><div class="setting-copy"><b>AI 命格生成</b><small>调用 AI 实时生成随机命格</small></div><button class="toggle" type="button" data-toggle-key="fate" role="switch" aria-label="AI 命格生成"></button></div></div>
+              <div class="section-cap"><b>推理模式</b><span>按用途设置</span></div>
+              <div class="ruled"><div class="setting-row"><div class="setting-copy"><b>全局推理</b><small>所有可用请求的默认方式</small></div><button class="value-action" type="button" data-value-key="globalReason"></button></div><div class="setting-row"><div class="setting-copy"><b>命格生成</b><small>可独立覆盖全局设置</small></div><button class="value-action" type="button" data-value-key="fateReason"></button></div></div>
+              <div class="section-cap"><b>叙事长度</b><span>完整句优先</span></div>
+              <div class="ruled"><div class="setting-row"><div class="setting-copy"><b>每轮叙事大致字数</b><small>生成目标，不硬截断完整句</small></div><div class="stepper"><button type="button" data-delta="-50" aria-label="减少叙事字数">−</button><output data-words></output><button type="button" data-delta="50" aria-label="增加叙事字数">＋</button></div></div></div>
+              <div class="section-cap"><b>预生成轮数</b><span>降低等待感</span></div>
+              <div class="segments" data-option-group="pregen"><button type="button" data-option="关闭">关闭</button><button type="button" data-option="1 轮">1 轮</button><button type="button" data-option="2 轮">2 轮</button><button type="button" data-option="3 轮">3 轮</button></div>
+            </section>
+            <section class="view" data-view="calls">
+              <p class="view-intro">按调用用途选择模型，选择结果在当前行明确标记。</p>
+              <div class="section-cap"><b>主叙事模型</b><span>当前配置</span></div>
+              <div class="model-list" data-option-group="primary"><button type="button" data-option="默认模型">默认模型</button><button type="button" data-option="高速模型">高速模型</button><button type="button" data-option="深度模型">深度模型</button></div>
+              <div class="section-cap"><b>后台任务</b><span>独立选择</span></div>
+              <div class="model-list" data-option-group="background"><button type="button" data-option="跟随默认">跟随默认</button><button type="button" data-option="高速模型">高速模型</button></div>
+            </section>
+            <section class="view" data-view="prompt">
+              <p class="view-intro">补充叙事偏好，不覆盖世界事实与结构化契约。</p>
+              <div class="section-cap"><b>叙事偏好</b><span>可选</span></div>
+              <textarea class="prompt" data-prompt aria-label="叙事偏好"></textarea>
+              <p class="note">仅作为玩家偏好附加到叙事上下文。</p>
+            </section>
+          </div></div>
+          <footer class="rf-footer"><small data-dirty-label>当前为默认设置</small><button class="restore" type="button" data-restore disabled>恢复默认</button></footer><div class="toast" role="status" aria-live="polite"></div>
+        </div>
+        <div class="option-copy"><span class="route-tag">ST-RF1-1 · 稳妥收敛</span><h2>B01 顶部索引 + 连续条目</h2><p>保留 B01 的章节目录，把标签、当前值与解释压回同一条阅读轴；四章随时直达，返回成本最低。</p><button class="choose-route" type="button">选择 ST-RF1-1</button></div>
+      </article>
+
+      <article class="option-card" data-choice="ST-RF1-2 章节手风琴">
+        <div class="phone rf-phone route-two" data-prototype="rf1-2">
+          <header class="rf-head"><div class="running"><span>附录 · 章节校订</span><span>ST-RF1-2</span></div><div class="title-line"><h3>设置</h3><span>一次展开一章</span></div></header>
+          <div class="rf-body"><div class="accordion">
+            <section class="fold" data-fold="personal"><button class="fold-head" type="button" data-accordion="personal"><small>01</small><b>个性化</b><span>2 项</span></button><div class="fold-body">
+              <p class="view-intro">阅读与动效偏好，不改变模拟事实。</p><div class="ruled"><div class="setting-row"><div class="setting-copy"><b>段落舒展</b><small>为长叙事增加少量行间距</small></div><button class="toggle" type="button" data-toggle-key="paragraph" role="switch" aria-label="段落舒展"></button></div><div class="setting-row"><div class="setting-copy"><b>减少动态效果</b><small>保留必要变化，降低装饰动画</small></div><button class="toggle" type="button" data-toggle-key="motion" role="switch" aria-label="减少动态效果"></button></div></div>
+            </div></section>
+            <section class="fold open" data-fold="model"><button class="fold-head" type="button" data-accordion="model"><small>02</small><b>模型设置</b><span>5 项</span></button><div class="fold-body">
+              <div class="section-cap"><b>AI 内容</b><span>生成方式</span></div><div class="ruled"><div class="setting-row"><div class="setting-copy"><b>AI 命格生成</b><small>实时生成随机命格</small></div><button class="toggle" type="button" data-toggle-key="fate" role="switch" aria-label="AI 命格生成"></button></div></div>
+              <div class="section-cap"><b>推理模式</b><span>按用途</span></div><div class="ruled"><div class="setting-row"><div class="setting-copy"><b>全局推理</b></div><button class="value-action" type="button" data-value-key="globalReason"></button></div><div class="setting-row"><div class="setting-copy"><b>命格生成</b></div><button class="value-action" type="button" data-value-key="fateReason"></button></div></div>
+              <div class="section-cap"><b>叙事长度</b><span>完整句优先</span></div><div class="ruled"><div class="setting-row"><div class="setting-copy"><b>每轮叙事大致字数</b></div><div class="stepper"><button type="button" data-delta="-50" aria-label="减少叙事字数">−</button><output data-words></output><button type="button" data-delta="50" aria-label="增加叙事字数">＋</button></div></div></div>
+              <div class="section-cap"><b>预生成轮数</b><span>降低等待</span></div><div class="segments" data-option-group="pregen"><button type="button" data-option="关闭">关闭</button><button type="button" data-option="1 轮">1 轮</button><button type="button" data-option="2 轮">2 轮</button><button type="button" data-option="3 轮">3 轮</button></div>
+            </div></section>
+            <section class="fold" data-fold="calls"><button class="fold-head" type="button" data-accordion="calls"><small>03</small><b>模型调用</b><span>2 组</span></button><div class="fold-body">
+              <p class="view-intro">按调用用途独立选择模型。</p><div class="section-cap"><b>主叙事模型</b><span>当前配置</span></div><div class="model-list" data-option-group="primary"><button type="button" data-option="默认模型">默认模型</button><button type="button" data-option="高速模型">高速模型</button><button type="button" data-option="深度模型">深度模型</button></div><div class="section-cap"><b>后台任务</b><span>独立选择</span></div><div class="model-list" data-option-group="background"><button type="button" data-option="跟随默认">跟随默认</button><button type="button" data-option="高速模型">高速模型</button></div>
+            </div></section>
+            <section class="fold" data-fold="prompt"><button class="fold-head" type="button" data-accordion="prompt"><small>04</small><b>Prompt</b><span>1 项</span></button><div class="fold-body">
+              <p class="view-intro">补充叙事偏好，不覆盖世界事实。</p><div class="section-cap"><b>叙事偏好</b><span>可选</span></div><textarea class="prompt" data-prompt aria-label="叙事偏好"></textarea><p class="note">仅附加到叙事上下文。</p>
+            </div></section>
+          </div></div>
+          <footer class="rf-footer"><small data-dirty-label>当前为默认设置</small><button class="restore" type="button" data-restore disabled>恢复默认</button></footer><div class="toast" role="status" aria-live="polite"></div>
+        </div>
+        <div class="option-copy"><span class="route-tag">ST-RF1-2 · 聚焦单章</span><h2>章节手风琴</h2><p>四章始终保留在视野内，每次只打开一个设置范围；章节数与项目数先行，展开后集中编辑。</p><button class="choose-route" type="button">选择 ST-RF1-2</button></div>
+      </article>
+
+      <article class="option-card" data-choice="ST-RF1-3 用户任务目录 + 过滤">
+        <div class="phone rf-phone route-three" data-prototype="rf1-3">
+          <header class="rf-head"><div class="running"><span>附录 · 按任务查找</span><span>ST-RF1-3</span></div><div class="title-line"><h3>设置目录</h3><span>11 项可检索</span></div></header>
+          <nav class="task-directory" aria-label="按用户任务分类">
+            <button type="button" data-task="read" aria-selected="false"><span>01</span>调整阅读体验</button><button type="button" data-task="create" aria-selected="true"><span>02</span>控制内容生成</button><button type="button" data-task="compute" aria-selected="false"><span>03</span>分配模型调用</button><button type="button" data-task="voice" aria-selected="false"><span>04</span>定调叙事语气</button>
+          </nav>
+          <div class="filterbar"><span>过滤显示</span><div><button type="button" data-filter="all" class="active">当前任务</button><button type="button" data-filter="common">常用 4 项</button></div></div>
+          <div class="rf-body"><div class="rf-content">
+            <section class="task-view" data-task-view="read"><div class="task-heading"><b>调整阅读体验</b><span>个性化 · 2 项</span></div><div class="ruled"><div class="setting-row"><div class="setting-copy"><b>段落舒展</b><small>为长叙事增加少量行间距</small></div><button class="toggle" type="button" data-toggle-key="paragraph" role="switch" aria-label="段落舒展"></button></div><div class="setting-row"><div class="setting-copy"><b>减少动态效果</b><small>保留必要变化，降低装饰动画</small></div><button class="toggle" type="button" data-toggle-key="motion" role="switch" aria-label="减少动态效果"></button></div></div></section>
+            <section class="task-view active" data-task-view="create"><div class="task-heading"><b>控制内容生成</b><span>模型设置 · 5 项</span></div>
+              <div class="ruled"><div class="setting-row"><div class="setting-copy"><b>AI 命格生成</b><small>实时生成随机命格</small></div><button class="toggle" type="button" data-toggle-key="fate" role="switch" aria-label="AI 命格生成"></button></div><div class="setting-row"><div class="setting-copy"><b>全局推理</b><small>所有可用请求的默认方式</small></div><button class="value-action" type="button" data-value-key="globalReason"></button></div><div class="setting-row"><div class="setting-copy"><b>命格生成推理</b><small>独立覆盖全局设置</small></div><button class="value-action" type="button" data-value-key="fateReason"></button></div><div class="setting-row"><div class="setting-copy"><b>每轮叙事大致字数</b><small>生成目标，完整句优先</small></div><div class="stepper"><button type="button" data-delta="-50" aria-label="减少叙事字数">−</button><output data-words></output><button type="button" data-delta="50" aria-label="增加叙事字数">＋</button></div></div></div><div class="section-cap"><b>预生成轮数</b><span>降低等待感</span></div><div class="segments" data-option-group="pregen"><button type="button" data-option="关闭">关闭</button><button type="button" data-option="1 轮">1 轮</button><button type="button" data-option="2 轮">2 轮</button><button type="button" data-option="3 轮">3 轮</button></div>
+            </section>
+            <section class="task-view" data-task-view="compute"><div class="task-heading"><b>分配模型调用</b><span>模型调用 · 2 组</span></div><div class="section-cap"><b>主叙事模型</b><span>当前配置</span></div><div class="model-list" data-option-group="primary"><button type="button" data-option="默认模型">默认模型</button><button type="button" data-option="高速模型">高速模型</button><button type="button" data-option="深度模型">深度模型</button></div><div class="section-cap"><b>后台任务</b><span>独立选择</span></div><div class="model-list" data-option-group="background"><button type="button" data-option="跟随默认">跟随默认</button><button type="button" data-option="高速模型">高速模型</button></div></section>
+            <section class="task-view" data-task-view="voice"><div class="task-heading"><b>定调叙事语气</b><span>Prompt · 1 项</span></div><p class="view-intro">补充叙事偏好，不覆盖世界事实与结构化契约。</p><textarea class="prompt" data-prompt aria-label="叙事偏好"></textarea><p class="note">仅作为玩家偏好附加到叙事上下文。</p></section>
+            <section class="task-view" data-task-view="common"><div class="task-heading"><b>常用设置</b><span>跨分类 · 4 项</span></div><div class="ruled"><div class="setting-row"><div class="setting-copy"><b>AI 命格生成</b><small>控制实时随机命格</small></div><button class="toggle" type="button" data-toggle-key="fate" role="switch" aria-label="AI 命格生成"></button></div><div class="setting-row"><div class="setting-copy"><b>每轮叙事大致字数</b></div><div class="stepper"><button type="button" data-delta="-50" aria-label="减少叙事字数">−</button><output data-words></output><button type="button" data-delta="50" aria-label="增加叙事字数">＋</button></div></div></div><div class="section-cap"><b>预生成轮数</b><span>降低等待</span></div><div class="segments" data-option-group="pregen"><button type="button" data-option="关闭">关闭</button><button type="button" data-option="1 轮">1 轮</button><button type="button" data-option="2 轮">2 轮</button><button type="button" data-option="3 轮">3 轮</button></div><button class="shortcut" type="button" data-task-jump="compute">主叙事模型 <span data-summary="primary"></span></button></section>
+          </div></div>
+          <footer class="rf-footer"><small data-dirty-label>当前为默认设置</small><button class="restore" type="button" data-restore disabled>恢复默认</button></footer><div class="toast" role="status" aria-live="polite"></div>
+        </div>
+        <div class="option-copy"><span class="route-tag">ST-RF1-3 · 按任务重排</span><h2>用户任务目录 + 过滤</h2><p>把技术分类翻译成“阅读、生成、调用、语气”四个用户任务，并提供常用项过滤与明确的返回目录。</p><button class="choose-route" type="button">选择 ST-RF1-3</button></div>
+      </article>
+
+      <article class="option-card" data-choice="ST-RF1-4 设置索引 + 当前参数检查页">
+        <div class="phone rf-phone route-four" data-prototype="rf1-4">
+          <header class="rf-head"><div class="running"><span>附录 · 开局前检查</span><span>ST-RF1-4</span></div><div class="title-line"><h3>当前参数</h3><span>常用项直接编辑</span></div></header>
+          <div class="rf-body"><div class="check-page">
+            <p class="view-intro">先确认最常改的生成参数，再按上下文进入完整设置。</p>
+            <div class="section-cap"><b>本轮常用</b><span>直接编辑</span></div>
+            <div class="ruled"><div class="setting-row"><div class="setting-copy"><b>AI 命格生成</b><small>实时生成随机命格</small></div><button class="toggle" type="button" data-toggle-key="fate" role="switch" aria-label="AI 命格生成"></button></div><div class="setting-row"><div class="setting-copy"><b>每轮叙事大致字数</b><small>完整句优先</small></div><div class="stepper"><button type="button" data-delta="-50" aria-label="减少叙事字数">−</button><output data-words></output><button type="button" data-delta="50" aria-label="增加叙事字数">＋</button></div></div></div>
+            <div class="section-cap"><b>预生成轮数</b><span>降低等待感</span></div><div class="segments" data-option-group="pregen"><button type="button" data-option="关闭">关闭</button><button type="button" data-option="1 轮">1 轮</button><button type="button" data-option="2 轮">2 轮</button><button type="button" data-option="3 轮">3 轮</button></div>
+            <div class="section-cap"><b>参数检查</b><span>点按进入上下文页</span></div><div class="check-list"><div class="check-line"><span>推理模式</span><button type="button" data-drawer-open="model"><span data-summary="reason"></span> ›</button></div><div class="check-line"><span>模型调用</span><button type="button" data-drawer-open="calls"><span data-summary="primary"></span> ›</button></div><div class="check-line"><span>叙事 Prompt</span><button type="button" data-drawer-open="prompt"><span data-summary="prompt"></span> ›</button></div></div>
+            <nav class="scope-index" aria-label="完整设置索引"><button type="button" data-drawer-open="personal">个性化</button><button type="button" data-drawer-open="model">模型设置</button><button type="button" data-drawer-open="calls">模型调用</button><button type="button" data-drawer-open="prompt">Prompt</button></nav>
+          </div></div>
+          <div class="context-layer" aria-hidden="true"><div class="drawer-head"><b data-drawer-title>设置范围</b><button type="button" data-drawer-close aria-label="返回参数检查页">×</button></div>
+            <section class="drawer-view" data-drawer="personal"><p class="view-intro">返回后仍能看到所有参数摘要。</p><div class="section-cap"><b>阅读体验</b><span>即时生效</span></div><div class="ruled"><div class="setting-row"><div class="setting-copy"><b>段落舒展</b><small>为长叙事增加少量行间距</small></div><button class="toggle" type="button" data-toggle-key="paragraph" role="switch" aria-label="段落舒展"></button></div><div class="setting-row"><div class="setting-copy"><b>减少动态效果</b><small>降低装饰动画</small></div><button class="toggle" type="button" data-toggle-key="motion" role="switch" aria-label="减少动态效果"></button></div></div></section>
+            <section class="drawer-view" data-drawer="model"><p class="view-intro">生成、推理、字数与预生成集中在同一上下文页。</p><div class="ruled"><div class="setting-row"><div class="setting-copy"><b>AI 命格生成</b></div><button class="toggle" type="button" data-toggle-key="fate" role="switch" aria-label="AI 命格生成"></button></div><div class="setting-row"><div class="setting-copy"><b>全局推理</b></div><button class="value-action" type="button" data-value-key="globalReason"></button></div><div class="setting-row"><div class="setting-copy"><b>命格生成推理</b></div><button class="value-action" type="button" data-value-key="fateReason"></button></div><div class="setting-row"><div class="setting-copy"><b>每轮叙事大致字数</b></div><div class="stepper"><button type="button" data-delta="-50" aria-label="减少叙事字数">−</button><output data-words></output><button type="button" data-delta="50" aria-label="增加叙事字数">＋</button></div></div></div><div class="section-cap"><b>预生成轮数</b><span>完整句优先</span></div><div class="segments" data-option-group="pregen"><button type="button" data-option="关闭">关闭</button><button type="button" data-option="1 轮">1 轮</button><button type="button" data-option="2 轮">2 轮</button><button type="button" data-option="3 轮">3 轮</button></div></section>
+            <section class="drawer-view" data-drawer="calls"><p class="view-intro">为主叙事与后台任务分别选择模型。</p><div class="section-cap"><b>主叙事模型</b><span>当前配置</span></div><div class="model-list" data-option-group="primary"><button type="button" data-option="默认模型">默认模型</button><button type="button" data-option="高速模型">高速模型</button><button type="button" data-option="深度模型">深度模型</button></div><div class="section-cap"><b>后台任务</b><span>独立选择</span></div><div class="model-list" data-option-group="background"><button type="button" data-option="跟随默认">跟随默认</button><button type="button" data-option="高速模型">高速模型</button></div></section>
+            <section class="drawer-view" data-drawer="prompt"><p class="view-intro">补充叙事偏好，不覆盖世界事实与结构化契约。</p><div class="section-cap"><b>叙事偏好</b><span>可选</span></div><textarea class="prompt" data-prompt aria-label="叙事偏好"></textarea><p class="note">仅作为玩家偏好附加到叙事上下文。</p></section>
+          </div>
+          <footer class="rf-footer"><small data-dirty-label>当前为默认设置</small><button class="restore" type="button" data-restore disabled>恢复默认</button></footer><div class="toast" role="status" aria-live="polite"></div>
+        </div>
+        <div class="option-copy"><span class="route-tag">ST-RF1-4 · 大胆重构</span><h2>设置索引 + 参数检查页</h2><p>主页面只放常用项和当前参数摘要；其余配置从对应摘要进入覆盖页，关闭后立刻回到检查位置。</p><button class="choose-route" type="button">选择 ST-RF1-4</button></div>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const promptDefault = '更关注人物关系的渐变与选择带来的长期回声；保持叙事克制，不提前替角色总结一生。';
+      const defaults = { paragraph: true, motion: false, fate: true, globalReason: '关闭', fateReason: '关闭', words: 200, pregen: '关闭', primary: '默认模型', background: '跟随默认', prompt: promptDefault };
+
+      function cloneDefaults() { return Object.assign({}, defaults); }
+      function isDirty(state) { return Object.keys(defaults).some(function (key) { return state[key] !== defaults[key]; }); }
+      function showToast(phone, message) { const toast = phone.querySelector('.toast'); toast.textContent = message; toast.classList.add('show'); clearTimeout(toast._timer); toast._timer = setTimeout(function () { toast.classList.remove('show'); }, 1100); }
+      function render(phone) {
+        const state = phone._state;
+        phone.querySelectorAll('[data-toggle-key]').forEach(function (button) { button.setAttribute('aria-checked', String(Boolean(state[button.dataset.toggleKey]))); });
+        phone.querySelectorAll('[data-value-key]').forEach(function (button) { button.textContent = state[button.dataset.valueKey]; });
+        phone.querySelectorAll('[data-words]').forEach(function (output) { output.textContent = state.words + ' 字'; });
+        phone.querySelectorAll('[data-delta="-50"]').forEach(function (button) { button.disabled = state.words <= 100; });
+        phone.querySelectorAll('[data-delta="50"]').forEach(function (button) { button.disabled = state.words >= 1000; });
+        phone.querySelectorAll('[data-option-group]').forEach(function (group) { group.querySelectorAll('[data-option]').forEach(function (button) { button.classList.toggle('active', state[group.dataset.optionGroup] === button.dataset.option); }); });
+        phone.querySelectorAll('[data-prompt]').forEach(function (field) { if (document.activeElement !== field) field.value = state.prompt; });
+        phone.querySelectorAll('[data-summary="primary"]').forEach(function (node) { node.textContent = state.primary; });
+        phone.querySelectorAll('[data-summary="reason"]').forEach(function (node) { node.textContent = state.globalReason + ' / ' + state.fateReason; });
+        phone.querySelectorAll('[data-summary="prompt"]').forEach(function (node) { node.textContent = state.prompt === promptDefault ? '默认偏好' : '已自定义'; });
+        const dirty = isDirty(state);
+        phone.querySelectorAll('[data-restore]').forEach(function (button) { button.disabled = !dirty; });
+        phone.querySelectorAll('[data-dirty-label]').forEach(function (node) { node.textContent = dirty ? '有未恢复的调整' : '当前为默认设置'; });
+      }
+
+      document.querySelectorAll('[data-prototype]').forEach(function (phone) {
+        phone._state = cloneDefaults();
+        phone._lastTask = 'create';
+        phone.addEventListener('click', function (event) {
+          const target = event.target.closest('button');
+          if (!target || !phone.contains(target) || target.disabled) return;
+          event.stopPropagation();
+          if (target.dataset.showView) {
+            phone.querySelectorAll('[data-show-view]').forEach(function (button) { button.setAttribute('aria-selected', String(button === target)); });
+            phone.querySelectorAll('[data-view]').forEach(function (view) { view.classList.toggle('active', view.dataset.view === target.dataset.showView); });
+          } else if (target.dataset.accordion) {
+            phone.querySelectorAll('[data-fold]').forEach(function (fold) { fold.classList.toggle('open', fold.dataset.fold === target.dataset.accordion); });
+          } else if (target.dataset.task) {
+            phone._lastTask = target.dataset.task;
+            phone.querySelectorAll('[data-task]').forEach(function (button) { button.setAttribute('aria-selected', String(button === target)); });
+            phone.querySelectorAll('[data-task-view]').forEach(function (view) { view.classList.toggle('active', view.dataset.taskView === target.dataset.task); });
+            phone.querySelectorAll('[data-filter]').forEach(function (button) { button.classList.toggle('active', button.dataset.filter === 'all'); });
+          } else if (target.dataset.filter) {
+            const viewName = target.dataset.filter === 'common' ? 'common' : phone._lastTask;
+            phone.querySelectorAll('[data-filter]').forEach(function (button) { button.classList.toggle('active', button === target); });
+            phone.querySelectorAll('[data-task-view]').forEach(function (view) { view.classList.toggle('active', view.dataset.taskView === viewName); });
+          } else if (target.dataset.taskJump) {
+            const taskButton = phone.querySelector('[data-task="' + target.dataset.taskJump + '"]'); if (taskButton) taskButton.click();
+          } else if (target.dataset.toggleKey) {
+            const key = target.dataset.toggleKey; phone._state[key] = !phone._state[key]; showToast(phone, target.getAttribute('aria-label') + ' · ' + (phone._state[key] ? '已开启' : '已关闭'));
+          } else if (target.dataset.valueKey) {
+            const key = target.dataset.valueKey; phone._state[key] = phone._state[key] === '关闭' ? '开启' : '关闭'; showToast(phone, '推理模式 · ' + phone._state[key]);
+          } else if (target.dataset.delta) {
+            phone._state.words = Math.max(100, Math.min(1000, phone._state.words + Number(target.dataset.delta)));
+          } else if (target.dataset.option) {
+            const group = target.closest('[data-option-group]'); phone._state[group.dataset.optionGroup] = target.dataset.option; showToast(phone, '已选择 · ' + target.dataset.option);
+          } else if (target.hasAttribute('data-restore')) {
+            phone._state = cloneDefaults(); showToast(phone, '已恢复默认设置');
+          } else if (target.dataset.drawerOpen) {
+            const layer = phone.querySelector('.context-layer'); const titles = { personal: '个性化', model: '模型设置', calls: '模型调用', prompt: 'Prompt' };
+            layer.classList.add('open'); layer.setAttribute('aria-hidden', 'false'); layer.querySelector('[data-drawer-title]').textContent = titles[target.dataset.drawerOpen]; layer.querySelectorAll('[data-drawer]').forEach(function (view) { view.classList.toggle('active', view.dataset.drawer === target.dataset.drawerOpen); });
+          } else if (target.hasAttribute('data-drawer-close')) {
+            const layer = phone.querySelector('.context-layer'); layer.classList.remove('open'); layer.setAttribute('aria-hidden', 'true');
+          }
+          render(phone);
+        });
+        phone.querySelectorAll('[data-prompt]').forEach(function (field) { field.addEventListener('input', function (event) { event.stopPropagation(); phone._state.prompt = field.value; render(phone); }); field.addEventListener('click', function (event) { event.stopPropagation(); }); });
+        render(phone);
+      });
+
+      document.querySelectorAll('.option-card').forEach(function (card) {
+        card.querySelector('.choose-route').addEventListener('click', function (event) { event.stopPropagation(); window.selectChoice(card); card.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
+        card.addEventListener('click', function (event) { if (!event.target.closest('button,textarea')) window.selectChoice(card); });
+      });
+    });
+  </script>
+</body>
+</html>

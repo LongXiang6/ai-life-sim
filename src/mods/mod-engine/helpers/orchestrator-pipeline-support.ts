@@ -40,14 +40,15 @@ export {
   buildMemoryStateCard,
   buildNarrativeCoherenceHeader,
   buildNarrativeWorldRules,
+  collectActiveModWorldRules,
   collectMemoryStateSummaries,
   dedupeSummariesAgainstMemory,
   getNarrativeChangeBlockReason,
   isPromptNoiseSummary,
   isSubsystemOpenForPrompt,
-  shouldSkipEconomyTierRules,
 } from './subsystem-prompt-gate'
 export {
+  buildMvpSubsystemGuide,
   MVP_ALLOWED_SUBSYSTEMS_TEXT,
   MVP_SUBSYSTEM_GUIDE,
   isMvpNarrativeChangeSubsystem,
@@ -55,7 +56,6 @@ export {
   isMvpRuntimeSubsystem,
   shouldApplyMvpCommit,
 } from './mvp-runtime-policy'
-export { runPostNarrativePhase } from './post-narrative-processor'
 export { resolveTimeStep } from '../utils/time-step-resolver'
 export { mapSubsystemStatesToDetectionStates } from './detection-state-mapper'
 export {
@@ -65,15 +65,11 @@ export {
 export {
   generateArchetypeHint,
   buildLifespanReminder,
-  countConsecutiveConflictRounds,
-  isLastEventConflict,
-  isPlayerGoalPeaceful,
   type NarrativeArchetype,
 } from './life-stage-archetypes'
 export { normalizeNarrativeParagraphs } from './normalize-narrative-paragraphs'
 export {
   buildNarrativeHints,
-  classifyActionScale,
   INFORMATION_PRIORITY_RULE,
 } from './narrative-hints'
 export type { NarrativeHintInput, NarrativeHints } from './narrative-hints'

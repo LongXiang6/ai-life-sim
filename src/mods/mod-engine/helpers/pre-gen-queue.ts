@@ -19,6 +19,12 @@ import { orchestrator } from '../subsystems/orchestrator-system'
 import { useEngineStore } from '../store'
 import { computeNarrativeMaxTokens, DEFAULT_WORD_COUNT_TARGET } from '../constants/narrative-config'
 import { isEligibleNarrativeBranch } from './narrative-branch-policy'
+import { inspectNarrativeResponseQuality } from './narrative-response-quality'
+import {
+  NarrativeResponseSchema,
+  normalizeNarrativeResponseMetadata,
+  type NarrativeRoundMetadata,
+} from './narrative-semantic-signals'
 import { PreGenActivityState } from './pre-gen-activity-state'
 import { extractTaggedMetaEnvelope } from './tagged-meta-envelope'
 
@@ -37,6 +43,21 @@ export interface PreGenQueueStatus {
 const preGenQueue: PreGenCachedRound[] = []
 const preGenActivity = new PreGenActivityState()
 
+/**
+ * 当前运行时只支持可靠地预生成“下一轮”。历史持久化值 2/3 仍可读取，
+ * 但统一收敛为开启，避免重复生成同一个下一轮。
+ */
+function resolveEffectivePreGenMaxRounds(): number {
+  const configuredRounds = useSettingsStore.getState().preGenerateRounds ?? 0
+  return configuredRounds > 0 ? 1 : 0
+}
+
+function enforceEffectivePreGenQueueLimit(maxRounds: number): void {
+  if (preGenQueue.length > maxRounds) {
+    preGenQueue.length = maxRounds
+  }
+}
+
 /** 上次预生成时的时间步长 key（用于检测粒度切换，自动清空旧队列） */
 let lastPreGenTimeStepKey: string | null = null
 
@@ -46,8 +67,9 @@ type PreGenListener = () => void
 
 const preGenListeners = new Set<PreGenListener>()
 
-function buildPreGenSignature(): string {
+function buildPreGenSignature(promptTemplate: PromptTemplate): string {
   const state = useEngineStore.getState()
+  const settings = useSettingsStore.getState()
   const lastEntry = state.narrativeHistory[state.narrativeHistory.length - 1]
   return [
     encodeTimeStepKey(state.timeStep),
@@ -55,6 +77,19 @@ function buildPreGenSignature(): string {
     state.narrativeHistory.length,
     lastEntry?.id ?? '',
     state.round.totalDays,
+    settings.provider,
+    settings.customUrl,
+    settings.customModel,
+    settings.temperature,
+    settings.reasoningEffort,
+    settings.wordCountTarget,
+    settings.storySeed,
+    settings.narrativeStyle,
+    promptTemplate.name,
+    promptTemplate.version,
+    promptTemplate.systemPrompt,
+    promptTemplate.userPromptTemplate,
+    promptTemplate.outputFormat,
   ].join('|')
 }
 
@@ -88,7 +123,8 @@ export function subscribePreGenQueue(listener: PreGenListener): () => void {
 
 export function getPreGenQueueStatus(): PreGenQueueStatus {
 
-  const maxRounds = useSettingsStore.getState().preGenerateRounds ?? 0
+  const maxRounds = resolveEffectivePreGenMaxRounds()
+  enforceEffectivePreGenQueueLimit(maxRounds)
 
   return {
     isActive: preGenActivity.isActive(),
@@ -126,8 +162,12 @@ export function checkAndClearPreGenOnTimeStepChange(currentStep: TimeStep): bool
 
 
 
-function takePreGenQueueItem(shouldNotify: boolean): PreGenCachedRound | undefined {
-  const currentSignature = buildPreGenSignature()
+function takePreGenQueueItem(
+  promptTemplate: PromptTemplate,
+  shouldNotify: boolean,
+): PreGenCachedRound | undefined {
+  enforceEffectivePreGenQueueLimit(resolveEffectivePreGenMaxRounds())
+  const currentSignature = buildPreGenSignature(promptTemplate)
   let item = preGenQueue.shift()
   while (item && item.signature !== currentSignature) {
     console.log('[PreGen] 丢弃上下文不匹配的预生成缓存')
@@ -147,12 +187,15 @@ function takePreGenQueueItem(shouldNotify: boolean): PreGenCachedRound | undefin
   return item
 }
 
-export function shiftPreGenQueue(): PreGenCachedRound | undefined {
-  return takePreGenQueueItem(true)
+export function shiftPreGenQueue(promptTemplate: PromptTemplate): PreGenCachedRound | undefined {
+  return takePreGenQueueItem(promptTemplate, true)
 }
 
-export function waitForPreGenQueueItem(timeoutMs?: number): Promise<PreGenCachedRound | undefined> {
-  const immediate = takePreGenQueueItem(true)
+export function waitForPreGenQueueItem(
+  promptTemplate: PromptTemplate,
+  timeoutMs?: number,
+): Promise<PreGenCachedRound | undefined> {
+  const immediate = takePreGenQueueItem(promptTemplate, true)
   if (immediate || !preGenActivity.isActive()) return Promise.resolve(immediate)
 
   return new Promise((resolve) => {
@@ -169,7 +212,7 @@ export function waitForPreGenQueueItem(timeoutMs?: number): Promise<PreGenCached
     }
 
     unsubscribe = subscribePreGenQueue(() => {
-      const item = takePreGenQueueItem(false)
+      const item = takePreGenQueueItem(promptTemplate, false)
       if (item || !preGenActivity.isActive()) {
         finish(item)
         notifyPreGenListeners()
@@ -185,28 +228,28 @@ export function waitForPreGenQueueItem(timeoutMs?: number): Promise<PreGenCached
 
 
 export function getPreGenQueueLength(): number {
-
+  enforceEffectivePreGenQueueLimit(resolveEffectivePreGenMaxRounds())
   return preGenQueue.length
 
 }
 
 
 
-function narrativeJsonHasBranch(content: string): boolean {
+function parsePreGenMetadata(content: string): NarrativeRoundMetadata | null {
   try {
-    // 当前主叙事输出是 [NARRATIVE]/[META] 信封；预生成分支判断必须读 META，
-    // 与主解析共用容错信封和分支资格，避免预生成接受主链会抑制的普通选择。
     const envelope = extractTaggedMetaEnvelope(content)
-    const raw = JSON.parse(envelope?.metaJson ?? content) as Record<string, unknown>
-    return isEligibleNarrativeBranch(raw)
+    if (!envelope) return null
+    const raw = normalizeNarrativeResponseMetadata(JSON.parse(envelope.metaJson)) as Record<string, unknown>
+    const parsed = NarrativeResponseSchema.safeParse(raw)
+    return parsed.success ? parsed.data : null
   } catch {
-    return false
+    return null
   }
 }
 
 
 
-/** 空闲时后台填充预生成队列（读取设置 preGenerateRounds） */
+/** 空闲时后台填充下一轮预生成队列（历史正数设置统一视为开启） */
 
 export async function fillPreGenQueue(
 
@@ -216,9 +259,12 @@ export async function fillPreGenQueue(
 
 ): Promise<void> {
 
-  const maxRounds = useSettingsStore.getState().preGenerateRounds ?? 0
+  const maxRounds = resolveEffectivePreGenMaxRounds()
+  enforceEffectivePreGenQueueLimit(maxRounds)
 
   if (maxRounds <= 0) return
+
+  if (useEngineStore.getState().status === 'complete') return
 
   if (preGenActivity.isActive()) return
 
@@ -238,11 +284,15 @@ export async function fillPreGenQueue(
 
 
   const gen = preGenActivity.begin()
-  let lastIsBranch = false
   try {
     notifyPreGenListeners()
 
-    const { customModel, temperature } = useSettingsStore.getState()
+    // 上一真实回合的异步摘要压缩可能仍在提交。预生成快照必须等它完成，
+    // 否则恢复旧快照会回滚刚生成的摘要与记忆索引。
+    await orchestrator.waitForBackgroundCompression()
+    if (!preGenActivity.isCurrent(gen)) return
+
+    const { customModel, temperature, reasoningEffort } = useSettingsStore.getState()
     // 从单一来源常量取默认字数，与 orchestrator、hooks 共享同一常量
     const wordCountTarget = useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET
     const model = customModel || 'deepseek-v4-flash'
@@ -251,10 +301,11 @@ export async function fillPreGenQueue(
       temperature: temperature ?? 0.8,
       maxTokens: computeNarrativeMaxTokens(wordCountTarget),
       stream: false,
+      reasoningEffort,
     }
 
     const snapshot = orchestrator.capturePreviewSnapshot()
-    const signature = buildPreGenSignature()
+    const signature = buildPreGenSignature(promptTemplate)
 
     try {
       await orchestrator.runPreviewRound(() =>
@@ -266,10 +317,25 @@ export async function fillPreGenQueue(
       const fullContent = orchestrator.getLastExecutedFullContent()
       if (!fullContent?.trim()) return
 
-      const isBranchPoint = narrativeJsonHasBranch(fullContent)
+      const wordCountTarget = useSettingsStore.getState().wordCountTarget
+        ?? DEFAULT_WORD_COUNT_TARGET
+      const responseQuality = inspectNarrativeResponseQuality(fullContent, wordCountTarget)
+      if (!responseQuality.valid) {
+        console.info('[PreGen] 预生成响应未通过协议或段落结构门禁，已放弃缓存:', responseQuality.reason)
+        return
+      }
+
+      // 预生成会被主推进直接消费，因此必须先通过与主解析相同的 META Schema。
+      // 本地 fallback、缺失标签或畸形 JSON 都留给真实推进重新请求，不能伪装成有效缓存。
+      const metadata = parsePreGenMetadata(fullContent)
+      if (!metadata) {
+        console.info('[PreGen] 预生成响应缺少有效叙事 META，已放弃缓存')
+        return
+      }
+
+      const isBranchPoint = isEligibleNarrativeBranch(metadata)
       if (isBranchPoint && orchestrator.isBranchCoolingDownForNextRound()) {
         // 分支是强交互事件。冷却期内丢弃预生成分支，改由主推进用最新玩家选择现场生成。
-        lastIsBranch = true
         return
       }
 
@@ -278,7 +344,6 @@ export async function fillPreGenQueue(
         isBranchPoint,
         signature,
       })
-      lastIsBranch = isBranchPoint
     } catch (err) {
       console.warn('[PreGen] 预生成失败:', err)
     } finally {
@@ -291,20 +356,13 @@ export async function fillPreGenQueue(
   } finally {
     // begin() 后的任意读取、快照、恢复或 listener 异常都不能永久锁住主推进。
     preGenActivity.finish(gen)
-    try {
-      useEngineStore.setState({ streamingNarrative: '' })
-    } finally {
-      notifyPreGenListeners()
-    }
+    notifyPreGenListeners()
   }
 
 
 
-  if (preGenActivity.isCurrent(gen) && preGenQueue.length < maxRounds && !lastIsBranch) {
-
-    void fillPreGenQueue(promptTemplate, sessionId)
-
-  }
+  // 当前运行时只支持可靠预生成“下一轮”，单次尝试结束后不递归补池。
+  // 失败、空响应或 Schema 无效时等待下一次真实回合触发，避免后台无退避无限请求。
 
 }
 

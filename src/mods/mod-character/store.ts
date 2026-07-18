@@ -18,12 +18,15 @@ import type {
   AttributeDecayState,
   MoralityState,
   CharacterSummary,
+  MythicPattern,
+  MythicPatternCandidate,
 } from './types'
 import type { TalentPreset, } from './prompts/talent-presets'
 
 import { DEFAULT_LIFE_STAGES, DEFAULT_STAGE_DISPLAY_NAMES, } from './constants'
 
 import type { LifeStageId, LifeStageConfig, } from './types'
+import { sanitizeCharacterStateSnapshot } from './utils/character-state-migration'
 
 /** 天赋池缓存键（按世界编码隔离） */
 function destinyPoolCacheKey(worldCode: number,): string {
@@ -70,6 +73,13 @@ interface CharacterStore {
 
   talents: TalentPreset[]
 
+  /** 本局结算生成的三个神话词条候选。 */
+  mythicCandidates: MythicPatternCandidate[]
+  /** 本局从跨局总库选择携带的独立神话词条；可留空。 */
+  equippedMythicPattern: MythicPattern | null
+  /** 本局结算已封存到总库的神话词条 ID；用于防止重复入库。 */
+  sealedMythicPatternId: string | null
+
   /** 当前世界编码（用于天赋池隔离） */
   worldCode: number
   /** 命格池缓存键（按世界编码隔离） */
@@ -93,15 +103,18 @@ interface CharacterStore {
   setDecay: (state: Partial<AttributeDecayState>) => void
   setMorality: (state: Partial<MoralityState>) => void
   setTalents: (talents: TalentPreset[]) => void
+  setMythicCandidates: (patterns: MythicPatternCandidate[]) => void
+  setEquippedMythicPattern: (pattern: MythicPattern | null) => void
+  setSealedMythicPatternId: (id: string | null) => void
   setWorldCode: (code: number) => void
 
   reset: () => void,
 }
 
 const initialCharacterBase: CharacterBaseState = {
-  base: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0, resources: 0, },
-  current: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0, resources: 0, },
-  modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0, resources: 0, },
+  base: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0, },
+  current: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0, },
+  modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0, },
   startingAge: 0,
 }
 
@@ -147,6 +160,9 @@ export const useCharacterStore = create<CharacterStore>()(
       decay: initialDecay,
       morality: initialMorality,
       talents: [],
+      mythicCandidates: [],
+      equippedMythicPattern: null,
+      sealedMythicPatternId: null,
       worldCode: 0,
       destinyPoolCacheKey: destinyPoolCacheKey(0,),
       talentPoolCacheKey: talentPoolCacheKey(0,),
@@ -182,6 +198,9 @@ export const useCharacterStore = create<CharacterStore>()(
       setDecay: (partial,) => set((s,) => ({ decay: { ...s.decay, ...partial, }, }),),
       setMorality: (partial,) => set((s,) => ({ morality: { ...s.morality, ...partial, }, }),),
       setTalents: (talents,) => set({ talents, },),
+      setMythicCandidates: (mythicCandidates,) => set({ mythicCandidates, sealedMythicPatternId: null, },),
+      setEquippedMythicPattern: (equippedMythicPattern,) => set({ equippedMythicPattern, },),
+      setSealedMythicPatternId: (sealedMythicPatternId,) => set({ sealedMythicPatternId, },),
       setWorldCode: (code,) => set({
         worldCode: code,
         destinyPoolCacheKey: destinyPoolCacheKey(code,),
@@ -198,23 +217,29 @@ export const useCharacterStore = create<CharacterStore>()(
         decay: initialDecay,
         morality: initialMorality,
         talents: [],
+        mythicCandidates: [],
+        equippedMythicPattern: null,
+        sealedMythicPatternId: null,
       },),
     }),
     {
       name: 'mod-character:persist:character-state',
-      version: 1,
+      version: 2,
       migrate: (persistedState: unknown, _version: number) => {
         // 结构完整性校验：防止损坏数据导致白屏
         if (typeof persistedState !== 'object' || persistedState === null || Array.isArray(persistedState)) {
           console.warn('[CharacterStore] migrate: 数据格式异常，使用默认状态')
           return undefined as unknown as CharacterStore
         }
-        return persistedState as CharacterStore
+        return sanitizeCharacterStateSnapshot(persistedState) as unknown as CharacterStore
       },
       partialize: (state,) => {
-        const { getSummary: _a, setName: _b, setGender: _c, setAge: _d, setRace: _e, setBackground: _f, setRaceOrigin: _g, setCharacterBase: _h, setDestinyPatterns: _i, setHealth: _j, setLifespan: _k, setLifeStage: _l, setDecay: _m, setMorality: _n, setTalents: _o, setWorldCode: _p, reset: _q, ...rest } = state
+        const { getSummary: _a, setName: _b, setGender: _c, setAge: _d, setRace: _e, setBackground: _f, setRaceOrigin: _g, setCharacterBase: _h, setDestinyPatterns: _i, setHealth: _j, setLifespan: _k, setLifeStage: _l, setDecay: _m, setMorality: _n, setTalents: _o, setMythicCandidates: _p, setEquippedMythicPattern: _q, setSealedMythicPatternId: _r, setWorldCode: _s, reset: _t, ...rest } = state
         return rest
       },
     },
   ),
 )
+
+/** Manifest stores 统一从 store.ts 生成 wiring；跨局总库仍由独立文件持久化。 */
+export { useMythicLibraryStore } from './mythic-library-store'

@@ -4,17 +4,8 @@
  * @mod mod-character
  */
 
-import { DestinyPatternSystem } from './subsystems/destiny-pattern-system'
-
-let _destinyPatternSystem: DestinyPatternSystem | undefined
-
-/** 命格子系统懒加载单例 —— 页面级共享状态，避免模块顶层实例化 */
-export function getDestinyPatternSystem(): DestinyPatternSystem {
-  if (!_destinyPatternSystem) {
-    _destinyPatternSystem = new DestinyPatternSystem()
-  }
-  return _destinyPatternSystem
-}
+/** 命格子系统懒加载单例 —— 与 MOD loader 注册的运行时实例保持同一权威。 */
+export { getDestinyPatternSystem } from './subsystems/destiny-pattern-system'
 
 export {
   loadDestinyPatternPool,

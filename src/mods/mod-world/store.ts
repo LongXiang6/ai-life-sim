@@ -15,6 +15,7 @@ import type {
   WorldCalibration,
   FormulaModifierKey,
 } from './types'
+import { sanitizeWorldStateSnapshot } from './utils/world-state-migration'
 
 /** AI 世界初始化状态 */
 export interface WorldInitAIStatus {
@@ -129,7 +130,7 @@ export const useWorldStore = create<WorldStore>()(
     }),
     {
       name: 'mod-world:persist:world-state',
-      version: 3,
+      version: 4,
       migrate: (persistedState: unknown, version: number) => {
         const state = persistedState as Record<string, unknown>
         if (version < 2 && state.calibration === undefined) {
@@ -138,7 +139,7 @@ export const useWorldStore = create<WorldStore>()(
         if (version < 3 && state.destinyPatternModifiers === undefined) {
           state.destinyPatternModifiers = {}
         }
-        return state as unknown as WorldStore
+        return sanitizeWorldStateSnapshot(state) as unknown as WorldStore
       },
       partialize: (state,) => {
         const {

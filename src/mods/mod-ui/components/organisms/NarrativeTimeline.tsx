@@ -54,6 +54,11 @@ export interface NarrativeTimelineProps {
   onCustomInputChange?: (text: string) => void
 }
 
+/** 正文契约以空行分段；保留段内单换行，避免归一化合并后再次被拆成额外段落。 */
+function splitNarrativeParagraphs(text: string): string[] {
+  return text.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean)
+}
+
 export function NarrativeTimeline({
   entries,
   streamingText,
@@ -151,7 +156,7 @@ export function NarrativeTimeline({
           <div data-separator-for={i} key={`divider-${i}`}>
             <div className={styles.separator}>
               <div className={styles.separatorLine} />
-              <span className={styles.separatorMark}>✦</span>
+              <span className={styles.separatorMark} aria-hidden="true" />
               <div className={styles.separatorLine} />
             </div>
           </div>,
@@ -173,7 +178,7 @@ export function NarrativeTimeline({
             </div>
           )}
           <div className={styles.entryBody}>
-            {entry.text.split(/\n+/).filter(Boolean).map((paragraph, pIdx) => (
+            {splitNarrativeParagraphs(entry.text).map((paragraph, pIdx) => (
               <p key={pIdx} className={styles.entryParagraph}>{paragraph.trim()}</p>
             ))}
           </div>
@@ -194,7 +199,8 @@ export function NarrativeTimeline({
           )}
           {entry.isBranchPoint && !entry.resolvedChoice && i === unresolvedBranchIndex && (
             <div className={styles.branchPending}>
-              <p className={styles.branchPendingTitle}>⚡ 命运分叉点：{branchTitle}</p>
+              <p className={styles.branchKicker}>命运分叉</p>
+              <h3 className={styles.branchPendingTitle}>{branchTitle}</h3>
               {branchOptions.length > 0 && (
                 <div className={styles.branchOptionsList}>
                   {branchOptions.map((option, optIdx) => (
@@ -206,6 +212,7 @@ export function NarrativeTimeline({
                         checked={selectedBranchOptionId === String(optIdx)}
                         onChange={() => onBranchSelect?.(String(optIdx))}
                       />
+                      <span className={styles.branchNumber}>{String(optIdx + 1).padStart(2, '0')}</span>
                       <span>{option}</span>
                     </label>
                   ))}
@@ -213,7 +220,7 @@ export function NarrativeTimeline({
               )}
               <textarea
                 className={styles.branchCustomInput}
-                placeholder="或手动输入你的选择..."
+                placeholder="也可以写下你的做法……"
                 value={branchCustomText ?? ''}
                 onChange={(e) => onCustomInputChange?.(e.target.value)}
                 rows={3}
@@ -221,17 +228,18 @@ export function NarrativeTimeline({
               <div className={styles.branchActions}>
                 <button
                   type="button"
-                  className={styles.branchConfirmBtn}
-                  onClick={() => onBranchConfirm?.()}
-                >
-                  确认选择
-                </button>
-                <button
-                  type="button"
                   className={styles.branchCancelBtn}
                   onClick={() => onBranchCancel?.()}
                 >
-                  取消
+                  清空
+                </button>
+                <button
+                  type="button"
+                  className={styles.branchConfirmBtn}
+                  disabled={(selectedBranchOptionId === null || selectedBranchOptionId === undefined) && !(branchCustomText ?? '').trim()}
+                  onClick={() => onBranchConfirm?.()}
+                >
+                  确认选择
                 </button>
               </div>
             </div>
@@ -239,7 +247,7 @@ export function NarrativeTimeline({
           {entry.isBranchPoint && entry.resolvedChoice && (
             <div className={styles.branchResolved}>
               <p className={styles.branchResolvedTitle}>
-                ⚠️ 命运分叉点：{entry.branchTitle ?? '你的抉择'}
+                命运分叉 · {entry.branchTitle ?? '你的抉择'}
               </p>
               <p className={styles.branchResolvedChoice}>
                 你的选择：<span>{entry.resolvedChoice}</span>
@@ -255,7 +263,7 @@ export function NarrativeTimeline({
         <div key="stream-divider">
           <div className={styles.separator}>
             <div className={styles.separatorLine} />
-            <span className={styles.separatorMark}>✦</span>
+            <span className={styles.separatorMark} aria-hidden="true" />
             <div className={styles.separatorLine} />
           </div>
         </div>,
@@ -272,7 +280,7 @@ export function NarrativeTimeline({
           )}
           <div className={styles.entryBody}>
             {streamingText ? (
-              streamingText.split(/\n+/).filter(Boolean).map((paragraph, idx, arr) => (
+              splitNarrativeParagraphs(streamingText).map((paragraph, idx, arr) => (
                 <p key={idx} className={styles.entryParagraph}>
                   {paragraph.trim()}
                   {idx === arr.length - 1 && <span className={styles.cursor} />}
@@ -292,57 +300,44 @@ export function NarrativeTimeline({
   }, [renderStart, entries, isGenerating, streamingText, streamingHeader, unresolvedBranchIndex, branchTitle, branchOptions, selectedBranchOptionId, branchCustomText, onBranchSelect, onBranchConfirm, onBranchCancel, onCustomInputChange])
 
   const canTapAdvance = showAdvance && !advanceBlocked && !isGenerating
-  const handleAdvanceKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (!canTapAdvance) return
-    if (event.key !== 'Enter' && event.key !== ' ') return
-
-    event.preventDefault()
-    onAdvance?.()
-  }
+  const advanceTitle = isGenerating
+    ? '命书正在续写……'
+    : advanceBlocked
+      ? advanceBlockedText
+      : advanceText
+  const advanceHint = isGenerating
+    ? '下一段人生正在生成'
+    : advanceBlocked
+      ? '当前故事仍在等待处理'
+      : '下一段故事已经准备好'
 
   const advanceControl = showAdvance ? (
     <div className={styles.advanceDock}>
       <div className={styles.advanceArea}>
         {hasEndingEvent ? (
           <button type="button" className={styles.settleBtn} onClick={onGoToGameOver}>
-            🎬 结算
+            <strong>前往人生结算</strong>
+            <small>这一生的轨迹已经写完</small>
           </button>
         ) : (
-          <div
-            className={styles.advanceTap}
-            onClick={canTapAdvance ? onAdvance : undefined}
-            onKeyDown={handleAdvanceKeyDown}
-            role="button"
-            tabIndex={canTapAdvance ? 0 : undefined}
-            aria-disabled={!canTapAdvance}
-            style={{ cursor: canTapAdvance ? 'pointer' : 'not-allowed' }}
+          <button
+            type="button"
+            className={[
+              styles.advanceTap,
+              isGenerating
+                ? styles.advanceGenerating
+                : advanceBlocked
+                  ? styles.advanceBlocked
+                  : styles.advanceIdle,
+            ].join(' ')}
+            disabled={!canTapAdvance}
+            onClick={onAdvance}
           >
-            <div
-              className={[
-                styles.advanceText,
-                isGenerating
-                  ? styles.advanceGenerating
-                  : advanceBlocked
-                    ? styles.advanceBlocked
-                    : canTapAdvance
-                      ? styles.advanceIdle
-                      : styles.advanceGenerating,
-              ].join(' ')}
-            >
-              {isGenerating ? (
-                <div className={styles.advanceGeneratingInner}>
-                  <span className={styles.advanceGeneratingRow}>
-                    <span className={styles.advanceSpinner} />
-                    AI 正在书写命运...
-                  </span>
-                </div>
-              ) : advanceBlocked ? (
-                advanceBlockedText
-              ) : (
-                advanceText
-              )}
-            </div>
-          </div>
+            <span className={styles.advanceText}>
+              <strong>{advanceTitle}</strong>
+              <small>{advanceHint}</small>
+            </span>
+          </button>
         )}
       </div>
     </div>
@@ -350,7 +345,7 @@ export function NarrativeTimeline({
 
   return (
     <div className={[styles.timelineShell, className].filter(Boolean).join(' ')}>
-      <main ref={scrollRef} className={styles.scrollMain}>
+      <div ref={scrollContainerRef ? undefined : internalScrollRef} className={styles.scrollMain}>
         <div className={styles.timelineInner}>
           <div data-narrative-header className={styles.timelineHeader}>
             <span className={styles.timelineHeaderLabel}>故事进程</span>
@@ -359,22 +354,22 @@ export function NarrativeTimeline({
 
           {entries.length === 0 && !isGenerating && (
             <div className={styles.emptyState}>
-              <div className={styles.emptyIcon}>📖</div>
-              <p>故事即将开始...</p>
-              <p className={styles.emptyHint}>请点击下方文字开始模拟</p>
+              <div className={styles.emptyIcon}>卷首</div>
+              <p>这一生尚未落笔</p>
+              <p className={styles.emptyHint}>轻触下方，让第一段岁月开始</p>
             </div>
           )}
 
           {renderStart > 0 && (
             <div ref={sentinelRef} className={styles.loadMore} onClick={loadMore} role="button" tabIndex={0}>
-              向上滚动加载更早的叙事（已隐藏 {renderStart} 条）
+              向上回望更早的 {renderStart} 段人生
             </div>
           )}
 
           {eventElements}
           {advanceControl}
         </div>
-      </main>
+      </div>
     </div>
   )
 }

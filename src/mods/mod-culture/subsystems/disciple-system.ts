@@ -6,7 +6,7 @@
  * ===== 清空说明（模拟系统全面重写 2026-07）=====
  * 本子系统被清空为「抛错桩」——collectState/applyChanges 抛出，强制暴露仍依赖它的调用方
  * （引擎 Round1/2/3 收集与 RoundCommit 均有 try-catch 兜底，抛出被捕获记录、不致回合崩溃）。
- * 属于【④ 剩余模拟系统段】（→ .agents/skills/mod-dev-skill/resources/mod-spec-rewrite-tiers.md），将在该段恢复。
+ * 属于【④ 剩余模拟系统段】（→ .agents/skills/ai-life-sim-mod-development/references/mod-spec-rewrite-tiers.md），将在该段恢复。
  *
  * 恢复后的职责：管理弟子能力成长、忠诚度变化、生命周期与成名陨落。
  * 恢复时（参照 templates/subsystem.template.ts，extends BaseSubsystem）：

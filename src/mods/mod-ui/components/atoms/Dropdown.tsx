@@ -8,7 +8,7 @@
  * 来源：废弃项目 components/ui/dropdown/Dropdown.tsx
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useId } from 'react'
 import styles from './Dropdown.module.css'
 
 interface DropdownProps {
@@ -33,6 +33,7 @@ export function Dropdown({ value, options, onChange, className, placeholder }: D
   const [upward, setUpward] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
+  const panelId = useId()
 
   const handleClickOutside = useCallback((e: MouseEvent) => {
     if (ref.current && !ref.current.contains(e.target as Node)) {
@@ -68,20 +69,32 @@ export function Dropdown({ value, options, onChange, className, placeholder }: D
         type="button"
         className={styles.trigger}
         onClick={() => setOpen(!open)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={panelId}
       >
         <span className={styles.triggerText}>{displayText}</span>
-        <span className={`${styles.arrow} ${open ? styles.arrowUp : ''}`}>▼</span>
+        <span className={`${styles.arrow} ${open ? styles.arrowUp : ''}`} aria-hidden="true">▼</span>
       </button>
       {open && (
-        <div className={`${styles.panel} ${upward ? styles.panelUp : ''}`} ref={panelRef}>
+        <div
+          id={panelId}
+          className={`${styles.panel} ${upward ? styles.panelUp : ''}`}
+          ref={panelRef}
+          role="listbox"
+          aria-label="可选项"
+        >
           {options.map(opt => (
-            <div
+            <button
+              type="button"
               key={opt}
               className={`${styles.option} ${opt === value ? styles.optionSelected : ''}`}
               onClick={() => handleSelect(opt)}
+              role="option"
+              aria-selected={opt === value}
             >
               {opt}
-            </div>
+            </button>
           ))}
         </div>
       )}

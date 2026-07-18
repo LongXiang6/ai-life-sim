@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>命格抽取 · 统一创建流程</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../assets/library.css">
+  <link rel="stylesheet" href="../assets/creation-flow-unified.css">
+  <script src="../assets/prototype.js" defer></script>
+  <script src="../assets/creation-flow-unified.js" defer></script>
+</head>
+<body data-screen="talent-draw" data-creation-step="5">
+  <main class="creation-shell">
+    <header class="creation-review">
+      <p class="creation-review-label">CREATION FLOW · 05 / 08</p>
+      <h1>命格抽取</h1>
+      <p class="creation-review-copy">五条有效命格依次归位；完成后，星盘保持原位交接到命格选择。</p>
+    </header>
+
+    <section class="creation-stage" aria-label="命格抽取移动端界面">
+      <div class="creation-phone">
+        <div data-flow-art></div>
+        <div class="cf-screen">
+          <header class="cf-header" data-creation-header data-title="抽取命格" data-subtitle="持续生成五条有效命格，完成后进入选择。"></header>
+
+          <div class="cf-draw-stage" data-draw-stage aria-busy="false">
+            <div class="cf-astrolabe" data-astrolabe aria-label="五星位命格星盘"></div>
+            <div class="cf-draw-copy">
+              <strong data-draw-title>让命运揭示你的命格</strong>
+              <p data-draw-message>准备就绪后开始抽取，五条命格会依次归位。</p>
+              <div class="cf-draw-readout" role="status" aria-live="polite"><span data-draw-phase>等待解析</span><b data-draw-count>0 / 5</b></div>
+              <button class="cf-reroll" type="button" data-redraw hidden><span data-icon="shuffle"></span><span>重新抽取</span></button>
+            </div>
+          </div>
+        </div>
+
+        <footer class="cf-footer">
+          <button class="cf-back" type="button" data-flow-to="character-create" aria-label="返回角色创建" title="返回角色创建"><span data-icon="back"></span></button>
+          <button class="cf-next" type="button" data-draw-action>
+            <span class="cf-next-number">06</span>
+            <span class="cf-next-copy"><strong data-action-title>开始抽取</strong><small data-action-copy>持续生成，直至五条有效命格就绪</small></span>
+            <span class="cf-next-arrow" data-icon="arrow"></span>
+          </button>
+        </footer>
+        <div class="cf-toast" role="status" aria-live="polite"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      const ordinary = [
+        { name: '见微知命', rarity: '精良' },
+        { name: '雨幕听心', rarity: '稀有' },
+        { name: '不燃之烬', rarity: '传说' },
+        { name: '簿命长风', rarity: '普通' },
+        { name: '山海余响', rarity: '史诗' },
+      ]
+      const redrawNames = [
+        '拾光者', '静水深流', '无字碑', '风来有信', '昼夜同尘', '掌灯人',
+        '旧梦新枝', '闻潮', '孤峰照雪', '缓弦', '纸上春秋', '雁归迟',
+        '松间问月', '行舟不系', '一念归真', '鹤影听风', '长街微雨', '枕星而眠',
+        '山止川行', '照夜白', '浮生一页', '春灯未灭', '归云入岫', '潮声旧约',
+      ]
+
+      function init() {
+        const stage = document.querySelector('[data-draw-stage]')
+        const action = document.querySelector('[data-draw-action]')
+        const actionTitle = document.querySelector('[data-action-title]')
+        const actionCopy = document.querySelector('[data-action-copy]')
+        const drawTitle = document.querySelector('[data-draw-title]')
+        const drawMessage = document.querySelector('[data-draw-message]')
+        const phase = document.querySelector('[data-draw-phase]')
+        const count = document.querySelector('[data-draw-count]')
+        const redraw = document.querySelector('[data-redraw]')
+        let timer = 0
+        let loaded = 0
+        let running = false
+        let complete = false
+        let revision = 0
+        let redrawRound = 0
+        let currentCandidates = ordinary.map(function (item) { return Object.assign({}, item) })
+
+        const astrolabe = CreationFlow.astrolabe(document.querySelector('[data-astrolabe]'), {
+          items: currentCandidates,
+          interactive: false,
+          revealedCount: 0,
+        })
+
+        function saveFateState() {
+          CreationFlow.fateState.write({
+            candidates: currentCandidates.map(function (item) { return Object.assign({}, item) }),
+            activeIndex: astrolabe.getActiveIndex(),
+            redrawRound: redrawRound,
+          })
+        }
+
+        function finish(runRevision) {
+          if (runRevision !== revision) return
+          running = false
+          complete = true
+          stage.classList.add('is-complete')
+          stage.setAttribute('aria-busy', 'false')
+          action.disabled = false
+          action.setAttribute('aria-label', '进入命格选择')
+          actionTitle.textContent = '进入命格选择'
+          actionCopy.textContent = '五条命格已就绪 · 双搏水波持续轮转'
+          drawTitle.textContent = '五命格已归位'
+          drawMessage.textContent = '星盘每四秒转至下一星位；点击下一步将在同一位置展开选择。'
+          phase.textContent = '解析完成'
+          redraw.hidden = false
+          astrolabe.pulse()
+          astrolabe.startCycle()
+          saveFateState()
+          CreationFlow.notify('五条命格已生成')
+        }
+
+        function loadNext(runRevision) {
+          if (!running || runRevision !== revision) return
+          const item = currentCandidates[loaded]
+          astrolabe.reveal(loaded)
+          loaded += 1
+          count.textContent = `${loaded} / ${currentCandidates.length}`
+          actionCopy.textContent = `已完成 ${loaded} / ${currentCandidates.length}`
+          phase.textContent = `${item.rarity} · ${item.name}`
+          drawMessage.textContent = `${item.name}已显现，正在解析下一星位。`
+          if (loaded === currentCandidates.length) {
+            timer = window.setTimeout(function () { finish(runRevision) }, 320)
+            return
+          }
+          timer = window.setTimeout(function () { loadNext(runRevision) }, 220)
+        }
+
+        function start() {
+          if (running || complete) return
+          revision += 1
+          const runRevision = revision
+          running = true
+          stage.setAttribute('aria-busy', 'true')
+          action.disabled = true
+          action.setAttribute('aria-label', '正在生成命格')
+          actionTitle.textContent = '正在生成'
+          actionCopy.textContent = `已完成 0 / ${currentCandidates.length}`
+          drawTitle.textContent = '命格正在归位'
+          drawMessage.textContent = '正在生成第 1 条有效命格'
+          phase.textContent = '连接命盘'
+          redraw.hidden = true
+          timer = window.setTimeout(function () { loadNext(runRevision) }, 180)
+        }
+
+        function buildRedrawCandidates() {
+          redrawRound += 1
+          const offset = ((redrawRound - 1) * 7) % redrawNames.length
+          return ordinary.map(function (item, index) {
+            return Object.assign({}, item, { name: redrawNames[(offset + index) % redrawNames.length] })
+          })
+        }
+
+        function restartDraw() {
+          revision += 1
+          running = false
+          complete = false
+          loaded = 0
+          window.clearTimeout(timer)
+          astrolabe.stopCycle()
+          currentCandidates = buildRedrawCandidates()
+          astrolabe.replaceItems(currentCandidates, 0, false)
+          astrolabe.setRevealed(0)
+          stage.classList.remove('is-complete')
+          stage.setAttribute('aria-busy', 'false')
+          action.disabled = false
+          action.removeAttribute('aria-label')
+          actionTitle.textContent = '开始抽取'
+          actionCopy.textContent = '重新解析五条有效命格'
+          drawTitle.textContent = '命运正在重新编排'
+          drawMessage.textContent = '旧星签已散去，正在准备新一轮抽取。'
+          phase.textContent = '等待重连'
+          count.textContent = `0 / ${currentCandidates.length}`
+          redraw.hidden = true
+          CreationFlow.notify('重新抽取五条命格')
+          start()
+        }
+
+        action.addEventListener('click', function () {
+          if (!complete) {
+            start()
+            return
+          }
+          astrolabe.stopCycle()
+          saveFateState()
+          PrototypeFlow.handoff('mythic-inheritance', { kind: 'astrolabe', delay: 420 })
+        })
+
+        redraw.addEventListener('click', restartDraw)
+
+        window.addEventListener('pagehide', function () {
+          revision += 1
+          running = false
+          window.clearTimeout(timer)
+          astrolabe.destroy()
+        }, { once: true })
+      }
+
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true })
+      else init()
+    })()
+  </script>
+</body>
+</html>

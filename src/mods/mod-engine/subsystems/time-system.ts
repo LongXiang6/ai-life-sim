@@ -5,8 +5,9 @@
  *
  * 历法：12月真实公历分布（31/28/31/30/31/30/31/31/30/31/30/31） = 365天
  *
- * 季节推进流程：
- *   春(month 0-2, 90天) → 夏(month 3-5, 91天) → 秋(month 6-8, 92天) → 冬(month 9-11, 92天) → 春(下一年)
+ * 季节显示：
+ *   3–5月春季 → 6–8月夏季 → 9–11月秋季 → 12–2月冬季。
+ * 季步长仍按连续三个真实月份推进，不把叙事窗口强行切成固定季度。
  *
  * 日期系统：
  *   day 0 表示每月第1天，day N-1 表示每月第N天
@@ -19,7 +20,6 @@ import type { TimeStep, RoundInfo } from '../types'
 import {
   CALENDAR,
   DEFAULT_ENGINE_CONFIG,
-  SEASONS,
   SEASON_NAMES,
   MONTH_ZH,
   ERA_SPAN,
@@ -27,6 +27,7 @@ import {
   REIGN_TITLES,
   REIGN_DURATION,
 } from '../constants'
+import { getSeasonForMonth } from '../helpers/calendar-season.js'
 
 /** 根据绝对年份推算纪元/年号信息（无限世代） */
 function resolveDisplayEra(year: number): Pick<RoundInfo, 'eraName' | 'eraYear' | 'reignTitle' | 'reignYear'> {
@@ -48,7 +49,7 @@ function resolveDisplayEra(year: number): Pick<RoundInfo, 'eraName' | 'eraYear' 
 function createInitialRound(): RoundInfo {
   return {
     year: 0,
-    season: SEASONS.SPRING,
+    season: getSeasonForMonth(0),
     month: 0,
     day: 0,
     dayOfYear: 1,
@@ -83,7 +84,7 @@ const TIME_STEP_UNIT_ORDER: Record<TimeStep['unit'], number> = {
   year: 3,
 }
 
-/** 粗粒度切到细粒度时，下一轮应从已叙事周期之后开始。 */
+/** 判断是否为粗粒度切到细粒度；这种切换下一轮必须消费一次边界对齐。 */
 export function shouldAlignTimeStepTransition(
   prevUnit: TimeStep['unit'],
   newUnit: TimeStep['unit'],
@@ -106,64 +107,75 @@ export function alignRoundToNextPeriod(
   prevUnit: TimeStep['unit'],
   newUnit: TimeStep['unit'],
   round: RoundInfo,
+  prevValue = 1,
 ): RoundInfo {
   // 粗→细才需要对齐；细→粗或同级不做额外跳转
   if (!shouldAlignTimeStepTransition(prevUnit, newUnit)) {
     return { ...round }
   }
 
-  // 计算基础 totalDays：当前 totalDays + 已覆盖周期的天数
-  let { year, season, month, day, dayOfYear, totalDays } = round
+  const amount = Number.isFinite(prevValue) && prevValue > 0 ? Math.floor(prevValue) : 1
+  const baseTotalDays = Math.max(0, Math.floor(round.totalDays))
+  let skippedDays: number
 
   switch (prevUnit) {
-    case 'year': {
-      // 年叙事已覆盖全年 → 跳到下一年春天
-      totalDays += CALENDAR.DAYS_PER_YEAR
-      year++
-      season = SEASONS.SPRING
-      month = 0
-      day = 0
-      dayOfYear = 1
+    case 'year':
+      skippedDays = amount * CALENDAR.DAYS_PER_YEAR
       break
-    }
-    case 'season': {
-      // 季叙事已覆盖整季 → 跳到下一季第一天
-      const startMonth = season * CALENDAR.MONTHS_PER_SEASON
-      let seasonDays = 0
-      for (let i = 0; i < CALENDAR.MONTHS_PER_SEASON; i++) {
-        seasonDays += CALENDAR.DAYS_IN_MONTH[startMonth + i]
-      }
-      totalDays += seasonDays
-      season = (season + 1) % CALENDAR.SEASONS_PER_YEAR
-      if (season === 0) year++
-      month = season * CALENDAR.MONTHS_PER_SEASON
-      day = 0
-      // 反算 dayOfYear
-      dayOfYear = 1
-      for (let m = 0; m < month; m++) {
-        dayOfYear += CALENDAR.DAYS_IN_MONTH[m]
-      }
+    case 'season':
+      skippedDays = getContinuousMonthDays(round.month, amount * CALENDAR.MONTHS_PER_SEASON)
       break
-    }
-    case 'month': {
-      // 月叙事已覆盖整月 → 跳到下个月第一天
-      totalDays += CALENDAR.DAYS_IN_MONTH[month]
-      month++
-      if (month >= CALENDAR.MONTHS_PER_YEAR) {
-        month = 0
-        year++
-        dayOfYear = 1
-      } else {
-        dayOfYear += CALENDAR.DAYS_IN_MONTH[month - 1]
-      }
-      day = 0
-      season = Math.floor(month / CALENDAR.MONTHS_PER_SEASON)
+    case 'month':
+      skippedDays = getContinuousMonthDays(round.month, amount)
       break
-    }
+    case 'day':
+    default:
+      skippedDays = amount
+      break
   }
 
-  const era = resolveDisplayEra(year)
-  return { year, season, month, day, dayOfYear, totalDays, ...era }
+  return roundFromTotalDays(baseTotalDays + skippedDays)
+}
+
+/** 根据绝对天数生成完整回合节点（0-based totalDays 对应当年1月1日）。 */
+function roundFromTotalDays(totalDays: number): RoundInfo {
+  const normalizedTotalDays = Math.max(0, Math.floor(totalDays))
+  const year = Math.floor(normalizedTotalDays / CALENDAR.DAYS_PER_YEAR)
+  const dayOfYear = (normalizedTotalDays % CALENDAR.DAYS_PER_YEAR) + 1
+  let remaining = dayOfYear - 1
+  let month = 0
+  let day = 0
+
+  for (let m = 0; m < CALENDAR.MONTHS_PER_YEAR; m++) {
+    const daysInMonth = CALENDAR.DAYS_IN_MONTH[m]
+    if (remaining < daysInMonth) {
+      month = m
+      day = remaining
+      break
+    }
+    remaining -= daysInMonth
+  }
+
+  return {
+    year,
+    season: getSeasonForMonth(month),
+    month,
+    day,
+    dayOfYear,
+    totalDays: normalizedTotalDays,
+    ...resolveDisplayEra(year),
+  }
+}
+
+/** 连续月份天数；允许跨年，不把 12 月后的月份索引越界。 */
+function getContinuousMonthDays(startMonth: number, monthCount: number): number {
+  let days = 0
+  for (let i = 0; i < monthCount; i++) {
+    const month = ((startMonth + i) % CALENDAR.MONTHS_PER_YEAR + CALENDAR.MONTHS_PER_YEAR)
+      % CALENDAR.MONTHS_PER_YEAR
+    days += CALENDAR.DAYS_IN_MONTH[month]
+  }
+  return days
 }
 
 export class TimeSystem implements ISubSystem {
@@ -197,11 +209,11 @@ export class TimeSystem implements ISubSystem {
 
   /**
    * 将当前 round 对齐到上一轮粗粒度叙事覆盖周期之后。
-   * 用于“年→季 / 季→月 / 月→日”等粗到细切换后的下一次推进。
+   * 粗→细切换的下一轮消费一次，细→粗与同粒度不做额外跳转。
    */
-  alignToNextPeriod(prevUnit: TimeStep['unit'], newUnit: TimeStep['unit']): RoundInfo {
+  alignToNextPeriod(prevUnit: TimeStep['unit'], newUnit: TimeStep['unit'], prevValue = 1): RoundInfo {
     const beforeTotalDays = this.round.totalDays
-    const aligned = alignRoundToNextPeriod(prevUnit, newUnit, this.round)
+    const aligned = alignRoundToNextPeriod(prevUnit, newUnit, this.round, prevValue)
 
     this.round = structuredClone(aligned)
     this.lastDaysPassed = aligned.totalDays - beforeTotalDays
@@ -217,7 +229,7 @@ export class TimeSystem implements ISubSystem {
   }
 
   getSeasonName(): string {
-    return SEASON_NAMES[this.round.season]
+    return SEASON_NAMES[getSeasonForMonth(this.round.month)]
   }
 
   /**
@@ -240,7 +252,7 @@ export class TimeSystem implements ISubSystem {
   }
 
   /**
-   * 时间快进：跳过 N 年到春天第一天
+   * 时间快进：跳过 N 年到新年第一天（1月，按阳历属于冬季）
    * 用于 AI 叙事中的"十年后"类场景——一次调用完成跳跃，无需循环
    * 来源：废案 calendar.ts 的 timeSkipYears 功能
    */
@@ -249,7 +261,7 @@ export class TimeSystem implements ISubSystem {
     const added = n * CALENDAR.DAYS_PER_YEAR
     this.round.totalDays += added
     this.lastDaysPassed = added
-    this.round.season = SEASONS.SPRING
+    this.round.season = getSeasonForMonth(0)
     this.round.month = 0
     this.round.day = 0
     this.round.dayOfYear = 1
@@ -325,14 +337,14 @@ export class TimeSystem implements ISubSystem {
         r.year++
         r.dayOfYear = 1
         this.syncEraFields()
-        r.season = 0 // 春天
+        r.season = getSeasonForMonth(r.month)
         return this.getRound()
       }
     } else {
       r.day++
     }
     r.dayOfYear++
-    r.season = Math.floor(r.month / CALENDAR.MONTHS_PER_SEASON)
+    r.season = getSeasonForMonth(r.month)
     return this.getRound()
   }
 
@@ -382,7 +394,7 @@ export class TimeSystem implements ISubSystem {
       if (remaining < dim) {
         r.month = m
         r.day = remaining
-        r.season = Math.floor(m / CALENDAR.MONTHS_PER_SEASON)
+        r.season = getSeasonForMonth(m)
         return
       }
       remaining -= dim
@@ -439,7 +451,7 @@ export class TimeSystem implements ISubSystem {
     for (let i = 0; i < count; i++) {
       this.round.year++
       this.round.totalDays += CALENDAR.DAYS_PER_YEAR
-      this.round.season = SEASONS.SPRING
+      this.round.season = getSeasonForMonth(0)
       this.round.month = 0
       this.round.day = 0
       this.round.dayOfYear = 1
@@ -480,6 +492,7 @@ export class TimeSystem implements ISubSystem {
     const c = changes.changes
     if (c.round) {
       Object.assign(this.round, c.round)
+      this.round.season = getSeasonForMonth(this.round.month)
       this.syncEraFields()
     }
     if (c.timeStep) {
@@ -501,6 +514,7 @@ export class TimeSystem implements ISubSystem {
   /** 恢复历法状态（预生成快照用）。快照恢复不算一次推进，daysPassed 归零。 */
   importRound(round: RoundInfo): void {
     this.round = structuredClone(round)
+    this.round.season = getSeasonForMonth(this.round.month)
     this.lastDaysPassed = 0
     this.syncEraFields()
   }

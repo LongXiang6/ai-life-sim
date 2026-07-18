@@ -16,11 +16,11 @@
 // ──── 属性键 ────
 
 /** 属性标识键 */
-export type AttributeId = 'physique' | 'mind' | 'comprehension' | 'charisma' | 'origin' | 'fortune'
+export type AttributeId = 'physique' | 'mind' | 'comprehension' | 'charisma' | 'fortune'
 
-/** 玩家可分配属性键（5项，允许加点分配） */
+/** 玩家可分配属性键（4项，允许加点分配） */
 export const ASSIGNABLE_ATTRIBUTE_IDS: readonly AttributeId[] = [
-  'physique', 'mind', 'comprehension', 'charisma', 'origin',
+  'physique', 'mind', 'comprehension', 'charisma',
 ] as const
 
 /** 隐藏属性键（1项，开局随机，玩家不可见） */
@@ -42,7 +42,6 @@ export const ATTRIBUTE_NAMES: Readonly<Record<AttributeId, string>> = {
   mind: '心智',
   comprehension: '悟性',
   charisma: '魅力',
-  origin: '出身',
   fortune: '气运',
 }
 
@@ -57,7 +56,6 @@ export const ATTRIBUTE_DESCRIPTIONS: Readonly<Record<AttributeId, string>> = {
   mind: '智力水平、意志力与心理韧性',
   comprehension: '学习能力、领悟速度与理解深度',
   charisma: '外貌、社交感染力与领导气质',
-  origin: '家庭背景、出身阶层与社会起点',
   fortune: '运气、机遇、命运青睐程度',
 }
 
@@ -87,6 +85,5 @@ export interface AttributeData {
   mind: number,
   comprehension: number,
   charisma: number,
-  origin: number,
   fortune: number,
 }

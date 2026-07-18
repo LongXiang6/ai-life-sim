@@ -21,6 +21,28 @@ export type StreamingMode = 'off' | 'stream'
 /** 推理强度 */
 export type ReasoningEffort = 'disabled' | 'level-1' | 'level-2' | 'level-3' | 'level-4' | 'level-5' | 'level-6'
 
+/** 新用户、恢复默认与覆盖导入共享的唯一默认值。 */
+export const DEFAULT_SETTINGS_VALUES = {
+  provider: 'deepseek',
+  customKey: '',
+  customUrl: '',
+  customModel: '',
+  temperature: 0.8,
+  topP: 0.8,
+  maxTokens: 4096,
+  reasoningEffort: 'disabled' as ReasoningEffort,
+  talentThinkingIntensity: 'disabled' as ReasoningEffort,
+  aiTalentGeneration: true,
+  preGenerateRounds: 1,
+  storySeed: '',
+  narrativeStyle: 'default' as NarrativeStyle,
+  wordCountTarget: DEFAULT_WORD_COUNT_TARGET,
+  streamingMode: 'off' as StreamingMode,
+  comfortableParagraphs: true,
+  reduceMotion: false,
+  theme: 'minimal-white' as ThemeType,
+} as const
+
 interface SettingsState {
   // ---- AI 模型配置 ----
   /** 当前 Provider ID */
@@ -55,6 +77,10 @@ interface SettingsState {
   wordCountTarget: number
   /** 叙事显示模式 */
   streamingMode: StreamingMode
+  /** 长叙事使用更舒展的段落行距 */
+  comfortableParagraphs: boolean
+  /** 降低装饰动画与过渡 */
+  reduceMotion: boolean
 
   // ---- 外观 ----
   /** 主题 */
@@ -76,6 +102,8 @@ interface SettingsState {
   setNarrativeStyle: (style: NarrativeStyle) => void
   setWordCountTarget: (target: number) => void
   setStreamingMode: (mode: StreamingMode) => void
+  setComfortableParagraphs: (enabled: boolean) => void
+  setReduceMotion: (enabled: boolean) => void
   setTheme: (theme: ThemeType) => void,
 }
 
@@ -83,27 +111,7 @@ export const useSettingsStore = create<SettingsState>()(
   devtools(
     persist(
       (set,) => ({
-        // AI 模型配置
-        provider: 'deepseek',
-        customKey: '',
-        customUrl: '',
-        customModel: '',
-        temperature: 0.8,
-        topP: 0.8,
-        maxTokens: 4096,
-        reasoningEffort: 'disabled',
-        talentThinkingIntensity: 'disabled',
-        aiTalentGeneration: true,
-        preGenerateRounds: 1,
-        storySeed: '',
-
-        // 叙事偏好 —— wordCountTarget 初始值来自单一来源常量，与所有消费者共享
-        narrativeStyle: 'default',
-        wordCountTarget: DEFAULT_WORD_COUNT_TARGET,
-        streamingMode: 'off',
-
-        // 外观
-        theme: 'minimal-white',
+        ...DEFAULT_SETTINGS_VALUES,
 
         // 操作
         setProvider: (provider,) => set({ provider, },),
@@ -121,21 +129,26 @@ export const useSettingsStore = create<SettingsState>()(
         setNarrativeStyle: (narrativeStyle,) => set({ narrativeStyle, },),
         setWordCountTarget: (wordCountTarget,) => set({ wordCountTarget, },),
         setStreamingMode: (streamingMode,) => set({ streamingMode, },),
+        setComfortableParagraphs: (comfortableParagraphs,) => set({ comfortableParagraphs, },),
+        setReduceMotion: (reduceMotion,) => set({ reduceMotion, },),
         setTheme: (theme,) => set({ theme, },),
       }),
       {
         name: 'mod-settings:store',
-        version: 2,
+        version: 4,
         migrate: (persistedState: unknown, version: number) => {
           const state = persistedState as Partial<SettingsState>
           if (version < 2 && state?.wordCountTarget === 500) {
+            return { ...state, wordCountTarget: DEFAULT_WORD_COUNT_TARGET } as SettingsState
+          }
+          if (version < 3 && state?.wordCountTarget === 400) {
             return { ...state, wordCountTarget: DEFAULT_WORD_COUNT_TARGET } as SettingsState
           }
           return persistedState as SettingsState
         },
         // 不持久化 set 函数
         partialize: (state,) => {
-          const { setProvider: _sp, setCustomKey: _sck, setCustomUrl: _scu, setCustomModel: _scm, setTemperature: _st, setTopP: _stp, setMaxTokens: _smt, setReasoningEffort: _sre, setTalentThinkingIntensity: _stti, setAiTalentGeneration: _satg, setPreGenerateRounds: _spgr, setStorySeed: _sss, setNarrativeStyle: _sns, setWordCountTarget: _swct, setStreamingMode: _ssm, setTheme: _sth, ...rest } = state
+          const { setProvider: _sp, setCustomKey: _sck, setCustomUrl: _scu, setCustomModel: _scm, setTemperature: _st, setTopP: _stp, setMaxTokens: _smt, setReasoningEffort: _sre, setTalentThinkingIntensity: _stti, setAiTalentGeneration: _satg, setPreGenerateRounds: _spgr, setStorySeed: _sss, setNarrativeStyle: _sns, setWordCountTarget: _swct, setStreamingMode: _ssm, setComfortableParagraphs: _scp, setReduceMotion: _srm, setTheme: _sth, ...rest } = state
           return rest
         },
       },
@@ -150,4 +163,23 @@ export function isApiConfigured(): boolean {
   if (!customKey) return false
   if (provider === 'custom') return Boolean(customUrl && customModel)
   return true
+}
+
+/** 客户端设置或本地服务端环境任一可用即可开始游戏；不会把服务端密钥暴露到浏览器。 */
+export async function hasAvailableApiConfiguration(): Promise<boolean> {
+  if (isApiConfigured()) return true
+  if (typeof window === 'undefined') return false
+  const { provider } = useSettingsStore.getState()
+  if (provider === 'custom') return false
+  try {
+    const response = await fetch(`/api/proxy?providerId=${encodeURIComponent(provider)}`, {
+      method: 'GET',
+      cache: 'no-store',
+    })
+    if (!response.ok) return false
+    const result = await response.json() as { configured?: unknown }
+    return result.configured === true
+  } catch {
+    return false
+  }
 }

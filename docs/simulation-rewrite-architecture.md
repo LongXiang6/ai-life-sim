@@ -25,7 +25,7 @@
 
 ## 一、标准 MOD 目录树 —— 固定文件清单
 
-每个 MOD（无论 page 类还是 subsystem 类）应包含的固定文件清单、目录结构、文件存在性约束表，**唯一权威源在** `.agents/skills/mod-dev-skill/resources/mod-spec-quality-checklists.md` §15.1（校验清单）+ `.agents/rules/mod-architecture.mdc`（编码时自动附加的摘要）。本文档不重复贴表格，避免和 `.agents` 两处手动同步。
+每个 MOD（无论 page 类还是 subsystem 类）的目录、公开入口和通信约定，以实际代码、manifest 类型和 `.agents/skills/ai-life-sim-mod-development/references/mod-spec-architecture.md` 为准。本文档不重复维护第二份完整检查表。
 
 核心结构提要：`manifest.ts`/`index.ts`/`types.ts`/`constants.ts` 必填（后两者内容为空时至少留占位或说明性注释）；`store.ts` 无状态不建；`_internal/control.ts` 永远存在（可 `export {}`）；`subsystems/`/`prompts/`/`utils/`/`components/` 按需。
 
@@ -33,7 +33,7 @@
 
 ## 二、抽象基类 —— 所有子系统的统一契约
 
-`core/subsystem-base.ts` 中的轻量抽象基类 `BaseSubsystem`（**已实际建成**，implements `ISubSystemV2`）。所有子系统继承它，而非直接实现 `ISubSystem` 接口。完整代码见该文件本身（代码不会和自己产生不一致，是最权威的来源）；AI 面向的规范说明 → `.agents/skills/mod-dev-skill/resources/mod-spec-subsystem.md` §8（含 ISubSystem V1/V2/V3 版本现状核实）。
+`core/subsystem-base.ts` 中的轻量抽象基类 `BaseSubsystem`（**已实际建成**，implements `ISubSystemV2`）。所有子系统继承它，而非直接实现 `ISubSystem` 接口。完整代码见该文件本身（代码不会和自己产生不一致，是最权威的来源）；项目上下文见 `.agents/skills/ai-life-sim-mod-development/references/mod-spec-subsystem.md`。
 
 基类提供：4 个必填声明（id/mod/label/description）+ 3 个必实现方法（collectState/applyChanges/reset）+ 4 个有默认空实现的可选方法（advance/collectStateUpdate/collectStateFinalFix/formatForPrompt）+ 3 个共享工具方法（clamp/getDaysPassed/readSubsystem）。
 
@@ -60,19 +60,19 @@
 4. 所有读天数的代码统一改为 `this.getDaysPassed(context)`，删除 `getAgeYearsDelta(context)`、`context.ageYearsDelta`、`context.simulationTicks` 等旧调用（见 §八附「彻底删除」清单）。
 5. 跨子系统读取数据的地方，把 `as Record<string, unknown>` 强转改为 `this.readSubsystem<XxxContract>(context, 'xxx-id')`。
 
-这一步不是"设计完基类就完事"，而是随每个子系统在恢复段中逐个执行的清单。`.agents/skills/mod-dev-skill/` 侧的模板、规则文件同步更新（见配套的技能文件修订）。
+这一步不是"设计完基类就完事"，而是随每个子系统在恢复段中逐个执行的清单。对应模板和项目上下文位于 `.agents/skills/ai-life-sim-mod-development/`。
 
 ---
 
 ## 三、Foundation 跨域数据契约 —— 类型安全的子系统间通信
 
-`foundation/subsystem-contracts/` 目录（**已建成空聚合入口**，随恢复段逐个补充契约文件）。完整目录结构、契约文件模板、使用方式对比（旧写法 `as Record<string, unknown>` 强转 vs 新写法 `readSubsystem<T>()`）、契约生成时机与维护约定 → `.agents/skills/mod-dev-skill/resources/mod-spec-subsystem-contracts.md`（唯一权威源，不在此重复）。
+`foundation/subsystem-contracts/` 目录（**已建成空聚合入口**，随恢复段逐个补充契约文件）。完整目录结构、契约文件模板、使用方式对比（旧写法 `as Record<string, unknown>` 强转 vs 新写法 `readSubsystem<T>()`）、契约生成时机与维护约定见 `.agents/skills/ai-life-sim-mod-development/references/mod-spec-subsystem-contracts.md`。
 
 ---
 
 ## 四、标准子系统文件模板 —— AI 填空骨架
 
-每个子系统 `.ts` 文件的标准模板，**唯一权威源在** `.agents/skills/mod-dev-skill/templates/subsystem.template.ts`（AI 按此模板创建新子系统或恢复旧子系统）。本文档不重复贴模板全文——避免两处手动同步、改一处漏改另一处；模板内容变化时只改该文件，本节保持指针。
+每个子系统 `.ts` 文件的标准模板位于 `.agents/skills/ai-life-sim-mod-development/assets/templates/subsystem.template.ts`。本文档不重复贴模板全文，避免两处手动同步。
 
 模板包含的核心结构：
 
@@ -96,19 +96,19 @@
 
 ## 五、清空状态下的注释模板
 
-当子系统被清空但结构保留时，方法体使用统一注释格式（而非只写一行 `// TODO`）。**唯一权威源同样在** `.agents/skills/mod-dev-skill/templates/subsystem.template.ts` 文件末尾的"清空状态下的注释模板"块——包含恢复段标注、恢复后职责、`collectState`/`applyChanges` 应做的事、需读取的其他子系统数据、存储键五项要点。本文档不重复贴出，改动时只改模板文件。
+当子系统被清空但结构保留时，方法体使用统一注释格式（而非只写一行 `// TODO`）。当前模板位于 `.agents/skills/ai-life-sim-mod-development/assets/templates/subsystem.template.ts`，本文档不重复贴出。
 
 ---
 
 ## 六、Manifest 模板 —— 标准声明格式
 
-完整字段列表、依赖前缀速查表（硬依赖/软引用 `~`/可选 `?`/冲突 `!`），**唯一权威源是实际类型定义** `foundation/types/mod.types.ts` 的 `ModManifest`/`ModManifestV2`（已核实字段完全一致：name/version/description/dependencies/provides/consumes/subsystems/routes/stores/events/prompts/remoteApi/secondaryPublicEntries/worldRules/campaignHooks/featureFlags）+ `.agents/skills/mod-dev-skill/resources/mod-spec-architecture-extended.md` §4；模板文件 → `.agents/skills/mod-dev-skill/templates/mod-manifest.template.ts`。本文档不重复贴字段列表。
+完整字段列表、依赖前缀速查表（硬依赖/软引用 `~`/可选 `?`/冲突 `!`），以 `foundation/types/mod.types.ts` 的 `ModManifest`/`ModManifestV2` 与 `.agents/skills/ai-life-sim-mod-development/references/mod-spec-architecture-extended.md` 为准；模板位于 `.agents/skills/ai-life-sim-mod-development/assets/templates/mod-manifest.template.ts`。
 
 ---
 
 ## 七、Store 模板 —— 持久化状态的标准写法
 
-**唯一权威源是模板文件** `.agents/skills/mod-dev-skill/templates/mod-store.template.ts`（Zustand + persist 到 localStorage，存储键格式 `mod-[领域名]:persist:[store名]`）。本文档不重复贴代码，避免和模板文件手动同步。
+Store 模板位于 `.agents/skills/ai-life-sim-mod-development/assets/templates/mod-store.template.ts`（Zustand + persist 到 localStorage，存储键格式 `mod-[领域名]:persist:[store名]`）。本文档不重复贴代码。
 
 **重要提醒**（模板文件里已有，这里再强调一次因为容易被忽略）：store 结构变更时（字段重命名、新增必填字段）必须实现 `migrate` 函数处理旧版本数据，否则用户旧存档会崩溃。
 

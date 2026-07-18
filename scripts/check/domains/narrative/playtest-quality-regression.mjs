@@ -5,18 +5,45 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
+import ts from 'typescript'
 import { getProjectRoot } from '../../lib/project-root.mjs'
 
 import { PreGenActivityState } from '../../../../src/mods/mod-engine/helpers/pre-gen-activity-state.ts'
 import { isEligibleNarrativeBranch } from '../../../../src/mods/mod-engine/helpers/narrative-branch-policy.ts'
 import { extractTaggedMetaEnvelope } from '../../../../src/mods/mod-engine/helpers/tagged-meta-envelope.ts'
 import {
+  buildCanonicalCalendarNarrativeHint,
+  buildTimeScaleNarrativeHint,
+} from '../../../../src/mods/mod-engine/helpers/time-scale-narrative.ts'
+import { normalizeNarrativeParagraphs } from '../../../../src/mods/mod-engine/helpers/normalize-narrative-paragraphs.ts'
+import {
+  DEFAULT_WORD_COUNT_TARGET,
+  NARRATIVE_WORD_COUNT_DEFAULT_MAX,
+  buildWordCountInstruction,
+  computeNarrativeMaxTokens,
+} from '../../../../src/mods/mod-engine/constants/narrative-config.ts'
+import {
+  NarrativeResponseSchema,
+  normalizeNarrativeResponseMetadata,
+} from '../../../../src/mods/mod-engine/helpers/narrative-semantic-signals.ts'
+import {
   rejectsFutureDestinyPatternContent,
 } from '../../../../src/mods/mod-character/utils/destiny-pattern-content-quality.ts'
+import { sanitizeCharacterStateSnapshot } from '../../../../src/mods/mod-character/utils/character-state-migration.ts'
+import { mythicPatternOutputSchema } from '../../../../src/mods/mod-character/prompts/mythic-pattern-prompt.ts'
 import { findFestivalsOnDate } from '../../../../src/mods/mod-culture/utils/festival-calendar.ts'
+import {
+  formatWorldTagsText,
+  WORLDVIEW_TAG_DEFAULTS,
+} from '../../../../src/mods/mod-world/constants/world-tag-defaults.ts'
+import { sanitizeWorldStateSnapshot } from '../../../../src/mods/mod-world/utils/world-state-migration.ts'
 
 const root = getProjectRoot(import.meta.url)
 let failed = 0
+const narrativeQualitySrc = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/helpers/narrative-response-quality.ts'),
+  'utf8',
+)
 
 function readRel(rel) {
   return fs.readFileSync(path.join(root, rel), 'utf8')
@@ -35,6 +62,194 @@ function assertSame(actual, expected, message) {
     failed++
   }
 }
+
+function assertIncludes(actual, expected, message) {
+  assertOk(actual.includes(expected), `${message} (missing=${expected})`)
+}
+
+function compactNarrative(text) {
+  return text.replace(/\s+/g, '')
+}
+
+function loadPersistMigration(sourceText) {
+  const sourceFile = ts.createSourceFile('settings-store.ts', sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
+  let migrationExpression
+  const visit = (node) => {
+    if (
+      !migrationExpression
+      && ts.isPropertyAssignment(node)
+      && node.name.getText(sourceFile) === 'migrate'
+    ) {
+      migrationExpression = node.initializer.getText(sourceFile)
+      return
+    }
+    ts.forEachChild(node, visit)
+  }
+  visit(sourceFile)
+  if (!migrationExpression) throw new Error('settings persist migration not found')
+
+  const transpiled = ts.transpileModule(
+    `module.exports = ${migrationExpression}`,
+    { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
+  ).outputText
+  const module = { exports: undefined }
+  new Function('module', 'exports', 'DEFAULT_WORD_COUNT_TARGET', transpiled)(
+    module,
+    module.exports,
+    DEFAULT_WORD_COUNT_TARGET,
+  )
+  return module.exports
+}
+
+function loadTalentPoolHelpers(sourceText) {
+  const sourceFile = ts.createSourceFile('talent-draw-page.tsx', sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
+  const helperNames = new Set(['patternNameKey', 'uniquePatternsByIdentity', 'drawSlotsFromPool'])
+  const declarations = []
+  for (const statement of sourceFile.statements) {
+    if (ts.isFunctionDeclaration(statement) && statement.name && helperNames.has(statement.name.text)) {
+      declarations.push(statement.getText(sourceFile))
+    }
+  }
+  assertSame(declarations.length, helperNames.size, 'talent draw pool helpers must remain executable regression targets')
+
+  const transpiled = ts.transpileModule(
+    `${declarations.join('\n')}\nmodule.exports = { uniquePatternsByIdentity, drawSlotsFromPool }`,
+    { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
+  ).outputText
+  const module = { exports: undefined }
+  new Function('module', 'exports', 'DEFAULT_DESTINY_PATTERN_COUNT', transpiled)(module, module.exports, 5)
+  return module.exports
+}
+
+function assertThreeParagraphsPreservingContent(input, message) {
+  const normalized = normalizeNarrativeParagraphs(input)
+  const paragraphs = normalized.split(/\n\s*\n/).filter(Boolean)
+  assertSame(paragraphs.length, 3, `${message}: must render exactly three paragraphs`)
+  assertSame(
+    compactNarrative(normalized),
+    compactNarrative(input).replaceAll('晩', '晚'),
+    `${message}: normalization must preserve the full narrative`,
+  )
+}
+
+assertThreeParagraphsPreservingContent(
+  '第一句交代起点。第二句出现压力。第三句采取行动。第四句遇到阻力。第五句形成后果。第六句留下线索但没有句号',
+  'single-paragraph narrative',
+)
+assertThreeParagraphsPreservingContent(
+  `第一段完整保留。
+
+第二段也要保留未完成的尾句`,
+  'two-paragraph narrative',
+)
+assertThreeParagraphsPreservingContent(
+  `第一段。
+
+第二段。
+
+第三段。
+
+第四段。
+
+第五段。`,
+  'five-paragraph narrative',
+)
+
+const threeYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 3 })
+assertIncludes(threeYearHint, '完整覆盖连续3年', 'three-year hint must cover the full span')
+assertIncludes(threeYearHint, '起点阶段', 'three-year hint must narrate the starting phase')
+assertIncludes(threeYearHint, '当前年份', 'three-year hint must land on the target year')
+assertIncludes(threeYearHint, '而非只写目标年份', 'three-year hint must reject target-year-only output')
+
+const tenYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 10 })
+assertIncludes(tenYearHint, '完整覆盖连续10年', 'ten-year hint must cover the full span')
+assertIncludes(tenYearHint, '跨阶段改变', 'ten-year hint must require life/era phase change')
+assertIncludes(tenYearHint, '期间决定性转折', 'ten-year hint must include an intermediate turning point')
+
+const oneYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 1 })
+assertIncludes(oneYearHint, '年度单场景视角', 'one-year hint must prioritize one representative scene')
+assertIncludes(oneYearHint, '三段不得分别换季、换地点或换任务', 'one-year hint must reject season-by-season vignettes')
+
+const januaryCalendar = buildCanonicalCalendarNarrativeHint({
+  timeStep: { unit: 'day', value: 1 },
+  calendarYear: 2026,
+  month: 1,
+  day: 2,
+})
+assertIncludes(januaryCalendar, '3—5月春季、6—8月夏季、9—11月秋季、12—2月冬季', 'calendar hint must define canonical solar months')
+assertIncludes(januaryCalendar, '结束节点属于冬季', 'January must resolve to winter')
+assertIncludes(januaryCalendar, '1月必须称冬季', 'cold January weather must not be relabeled as another season')
+assertIncludes(januaryCalendar, '不得把该月改称其他季节', 'calendar guidance must separate weather from season naming')
+
+const crossYearDays = buildCanonicalCalendarNarrativeHint({
+  timeStep: { unit: 'day', value: 3 },
+  calendarYear: 2026,
+  month: 1,
+  day: 2,
+})
+assertIncludes(crossYearDays, '2025年12月31日至2026年1月2日，共3天', 'day span must cross the year canonically')
+
+const crossSeasonMonths = buildCanonicalCalendarNarrativeHint({
+  timeStep: { unit: 'month', value: 3 },
+  calendarYear: 2026,
+  month: 2,
+  day: 1,
+})
+assertIncludes(crossSeasonMonths, '2025年12月至2026年2月，共3个月', 'month span must cross year and season')
+assertIncludes(crossSeasonMonths, '结束节点属于冬季', 'February must resolve to winter')
+
+const multiSeasonCalendar = buildCanonicalCalendarNarrativeHint({
+  timeStep: { unit: 'season', value: 2 },
+  calendarYear: 2026,
+  month: 8,
+  day: 1,
+})
+assertIncludes(multiSeasonCalendar, '连续推进2个季度（6个月）', 'season hint must respect requested amount')
+assertIncludes(multiSeasonCalendar, '不得把跨季跨度写成单一季节', 'multi-season hint must require seasonal change')
+
+const multiYearCalendar = buildCanonicalCalendarNarrativeHint({
+  timeStep: { unit: 'year', value: 10 },
+  calendarYear: 2035,
+  month: 1,
+  day: 1,
+})
+assertIncludes(multiYearCalendar, '2026年至2035年，共10年', 'year span must name its complete range')
+assertIncludes(multiYearCalendar, '不能只描写目标年份', 'calendar hint must reject target-year-only output')
+
+const oneYearCalendar = buildCanonicalCalendarNarrativeHint({
+  timeStep: { unit: 'year', value: 1 },
+  calendarYear: 2026,
+  month: 1,
+  day: 1,
+})
+assertIncludes(oneYearCalendar, '正文主体锁定一个代表性现场', 'single-year calendar guidance must not reuse multi-year staging language')
+assertOk(!oneYearCalendar.includes('多年推进必须'), 'single-year calendar guidance must not request a multi-year composition')
+
+const coarseToFineWindow = buildCanonicalCalendarNarrativeHint({
+  timeStep: { unit: 'month', value: 1 },
+  calendarYear: 2026,
+  month: 2,
+  day: 1,
+  previousNode: { calendarYear: 2026, month: 1, day: 1 },
+  daysPassed: 31,
+})
+assertIncludes(coarseToFineWindow, '上一叙事节点为2026年1月1日', 'runtime calendar hint must name the previous narrative node')
+assertIncludes(coarseToFineWindow, '当前结束节点为2026年2月1日', 'runtime calendar hint must name the current end node')
+assertIncludes(coarseToFineWindow, '已推进31天（1月）', 'runtime calendar hint must use actual elapsed days after a coarse-to-fine switch')
+assertIncludes(coarseToFineWindow, '不得重复上一节点之前已经完成的周期', 'runtime calendar hint must prohibit replaying completed periods')
+assertOk(!coarseToFineWindow.includes('本轮覆盖2026年2月'), 'runtime month span must not mislabel the ended February node as the narrated month')
+
+const alignedBridgeWindow = buildCanonicalCalendarNarrativeHint({
+  timeStep: { unit: 'month', value: 1 },
+  calendarYear: 1003,
+  month: 1,
+  day: 1,
+  previousNode: { calendarYear: 1002, month: 1, day: 1 },
+  daysPassed: 365,
+  timeStepAlignment: { fromUnit: 'year', fromValue: 1 },
+})
+assertIncludes(alignedBridgeWindow, '边界对齐桥接', 'coarse-to-fine bridge must be explicit in the calendar prompt')
+assertIncludes(alignedBridgeWindow, '不能把被跳过的跨度重新写成当前月的流水账', 'bridge prompt must prevent replaying the skipped coarse window')
 
 // 预生成：失效只代表结果不可用，后台执行结束前仍必须保持 active，阻止主推进并发写单例。
 const activity = new PreGenActivityState()
@@ -87,6 +302,141 @@ assertOk(
   'destiny quality gate must allow timeless inherent traits',
 )
 
+const validMythicCandidates = Array.from({ length: 3 }, (_, index) => ({
+  name: `神话${index}`,
+  concept: `概念${index}`,
+  effect: '这是一条保留现实代价、玩家选择余地、外部对抗空间与结果不确定性的纯概念叙事规则。',
+}))
+assertOk(mythicPatternOutputSchema.safeParse(validMythicCandidates).success, 'mythic schema must accept exactly three valid concepts')
+assertOk(!mythicPatternOutputSchema.safeParse(validMythicCandidates.slice(0, 2)).success, 'mythic schema must reject fewer than three concepts')
+
+const migratedCharacter = sanitizeCharacterStateSnapshot({
+  characterBase: {
+    base: { physique: 1, mind: 2, talentAptitude: 3, charisma: 4, resources: 9 },
+    current: { physique: 1, mind: 2, talentAptitude: 3, charisma: 4, resources: 9 },
+    modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0, resources: 2 },
+    startingAge: 18,
+  },
+  destinyPatterns: {
+    candidates: [],
+    patterns: [{
+      id: 'legacy-pattern',
+      name: '旧命格',
+      description: '旧命格描述',
+      effect: '旧命格效果',
+      rarity: 'rare',
+      polarity: 'positive',
+      attrBonus: { mind: 1, resources: 4 },
+    }],
+  },
+  talents: [],
+})
+assertOk(!('resources' in migratedCharacter.characterBase.base), 'old character saves must remove resources from base attributes')
+assertOk(!('resources' in migratedCharacter.destinyPatterns.patterns[0].attrBonus), 'old character saves must remove resources from destiny bonuses')
+assertSame(migratedCharacter.equippedMythicPattern, null, 'old character saves must default the equipped mythic slot to empty')
+
+const legacyScpDescription = '基金会为收容物赋予SCP编号。休谟指数用于衡量现实强度，现实扭曲者能够改变规则。玩家追加：故事从2000年开始。'
+let migratedScpWorld
+for (const legacyPowerSystemTag of ['none', 'technology']) {
+  migratedScpWorld = sanitizeWorldStateSnapshot({
+    worldConfig: {
+      name: 'SCP基金会',
+      description: legacyScpDescription,
+      essenceTag: 'modern',
+      powerSystemTag: legacyPowerSystemTag,
+      powerCeiling: 8,
+      spatialForm: 'plane',
+      civilizationStage: 'modern',
+      difficulty: 'hard',
+      worldType: 'idealist',
+      _dimensionValues: {
+        universeScale: '位面',
+        worldviewEssence: '唯物主义',
+        powerSystem: '科技体系',
+        powerCeiling: '8阶',
+      },
+    },
+    calibration: {
+      metadata: {
+        essenceTag: 'modern',
+        civilizationStage: 'modern',
+        powerSystemTag: legacyPowerSystemTag,
+        spatialForm: 'plane',
+        difficulty: 'hard',
+      },
+      timeline: { eraStartYear: 2000 },
+      formulas: { techProgressModifier: 1.4 },
+    },
+    worldTags: ['无超自然', '异常收容', '休谟指数'],
+    entities: [{ id: 'site-19', name: 'Site-19' }],
+    eraStartYear: 2000,
+  })
+  assertSame(migratedScpWorld.worldConfig.essenceTag, 'mixed', `old SCP ${legacyPowerSystemTag} saves must migrate to mixed essence`)
+  assertSame(migratedScpWorld.worldConfig.powerSystemTag, 'mixed', `old SCP ${legacyPowerSystemTag} saves must migrate to mixed power system`)
+  assertSame(migratedScpWorld.worldConfig.worldType, 'mixed', `old SCP ${legacyPowerSystemTag} saves must migrate to mixed world type`)
+  assertSame(migratedScpWorld.worldConfig.description, legacyScpDescription, 'old SCP descriptions and player additions must be preserved')
+  assertSame(migratedScpWorld.worldConfig.spatialForm, 'plane', 'old SCP spatial form must be preserved')
+  assertSame(migratedScpWorld.worldConfig.difficulty, 'hard', 'old SCP difficulty must be preserved')
+  assertSame(migratedScpWorld.eraStartYear, 2000, 'old SCP era must be preserved')
+  assertSame(migratedScpWorld.calibration.metadata.essenceTag, 'mixed', 'old SCP calibration metadata must match migrated essence')
+  assertSame(migratedScpWorld.calibration.metadata.powerSystemTag, 'mixed', 'old SCP calibration metadata must match migrated power system')
+  assertSame(migratedScpWorld.calibration.formulas.techProgressModifier, 1.4, 'old SCP numeric calibration must be preserved')
+  assertSame(migratedScpWorld.entities[0].id, 'site-19', 'old SCP entities must be preserved')
+  assertSame(migratedScpWorld.worldTags.length, 2, 'only contradictory old SCP atmosphere tags must be invalidated')
+  assertSame(migratedScpWorld.worldTags[0], '异常收容', 'valid old SCP atmosphere tags must be preserved')
+  assertSame(migratedScpWorld.worldTags[1], '休谟指数', 'valid old SCP setting facts must remain available to the Prompt')
+  assertSame(migratedScpWorld.worldConfig._dimensionValues.universeScale, '位面', 'unrelated dimension display values must be preserved')
+  assertOk(!('worldviewEssence' in migratedScpWorld.worldConfig._dimensionValues), 'old SCP essence display overrides must be cleared')
+  assertOk(!('powerSystem' in migratedScpWorld.worldConfig._dimensionValues), 'old SCP power display overrides must be cleared')
+}
+
+const migratedScpLedger = formatWorldTagsText(WORLDVIEW_TAG_DEFAULTS[migratedScpWorld.worldConfig.essenceTag])
+assertIncludes(migratedScpLedger, '科技与超自然共存', 'migrated SCP ledger must state the mixed-world rule')
+assertOk(!migratedScpLedger.includes('无超自然'), 'migrated SCP ledger must not claim there is no supernatural power')
+assertOk(!migratedScpLedger.includes('严禁超自然'), 'migrated SCP ledger must not forbid supernatural power')
+assertOk(!migratedScpLedger.includes('硬性禁止：超自然力量'), 'migrated SCP ledger must not retain the old hard prohibition')
+
+const legacyScpWithoutTags = sanitizeWorldStateSnapshot({
+  worldConfig: {
+    name: 'SCP基金会',
+    description: legacyScpDescription,
+    essenceTag: 'modern',
+    powerSystemTag: 'technology',
+    powerCeiling: 8,
+    spatialForm: 'plane',
+    civilizationStage: 'modern',
+    difficulty: 'normal',
+  },
+})
+assertOk(Array.isArray(legacyScpWithoutTags.worldTags), 'old SCP saves with missing derived tags must normalize to an empty list')
+assertSame(legacyScpWithoutTags.worldTags.length, 0, 'missing old SCP tags must not break restored Prompt context')
+
+const ordinaryModernWorld = {
+  worldConfig: {
+    name: '现代地球',
+    description: '普通现代社会。',
+    essenceTag: 'modern',
+    powerSystemTag: 'none',
+    powerCeiling: 8,
+    spatialForm: 'plane',
+    civilizationStage: 'modern',
+    difficulty: 'normal',
+  },
+}
+const untouchedModernWorld = sanitizeWorldStateSnapshot(ordinaryModernWorld)
+assertSame(untouchedModernWorld.worldConfig.essenceTag, 'modern', 'ordinary modern saves must not be migrated')
+assertSame(untouchedModernWorld.worldConfig.powerSystemTag, 'none', 'ordinary modern power systems must remain unchanged')
+
+const sameNameCustomWorld = sanitizeWorldStateSnapshot({
+  worldConfig: {
+    ...ordinaryModernWorld.worldConfig,
+    name: 'SCP基金会',
+    description: '同名但由玩家自定义的现实机构世界。',
+  },
+})
+assertSame(sameNameCustomWorld.worldConfig.essenceTag, 'modern', 'same-name custom worlds must not be mistaken for the SCP preset')
+assertSame(sameNameCustomWorld.worldConfig.powerSystemTag, 'none', 'same-name custom world power systems must remain unchanged')
+
 const festivals = [
   { name: '星潮纪念日', date: '3-15', description: '纪念星潮归来', importance: 4 },
   { name: '仙盟大会', date: '3-15', description: '五年一度', importance: 5, frequencyYears: 5 },
@@ -100,22 +450,37 @@ assertOk(isEligibleNarrativeBranch({
   branch: true,
   importance: 'HIGH',
   branchOptions: ['承担后果', '另寻出路'],
+  semanticSignals: { irreversible: true, narrativeRegister: 'fate' },
 }), 'HIGH branch with two valid options must be eligible')
 assertOk(!isEligibleNarrativeBranch({
   branch: true,
   importance: 'NORMAL',
   branchOptions: ['承担后果', '另寻出路'],
+  semanticSignals: { irreversible: true, narrativeRegister: 'fate' },
 }), 'non-HIGH branch must be suppressed')
 assertOk(!isEligibleNarrativeBranch({
   branch: true,
   importance: 'HIGH',
   branchOptions: ['唯一选项', '   '],
+  semanticSignals: { irreversible: true, narrativeRegister: 'fate' },
 }), 'branch with fewer than two valid options must be suppressed')
+assertOk(!isEligibleNarrativeBranch({
+  branch: true,
+  importance: 'HIGH',
+  branchOptions: ['留在原处', '随照料者迁居'],
+  semanticSignals: { irreversible: false, narrativeRegister: 'life' },
+}), 'a daily life event must not become a destiny branch merely because it has options')
 
 const constantsSrc = readRel('src/mods/mod-character/constants.ts')
 const destinySystemSrc = readRel('src/mods/mod-character/subsystems/destiny-pattern-system.ts')
 const destinyPromptSrc = readRel('src/mods/mod-character/prompts/destiny-pattern-prompt.ts')
+const characterStoreSrc = readRel('src/mods/mod-character/store.ts')
+const characterMigrationSrc = readRel('src/mods/mod-character/utils/character-state-migration.ts')
+const mythicPromptSrc = readRel('src/mods/mod-character/prompts/mythic-pattern-prompt.ts')
+const mythicAccessSrc = readRel('src/mods/mod-character/mythic-pattern-access.ts')
+const mythicLibrarySrc = readRel('src/mods/mod-character/mythic-library-store.ts')
 const talentDrawPageSrc = readRel('src/mods/mod-pages/pages/talent-draw/page.tsx')
+const talentDrawCssSrc = readRel('src/mods/mod-pages/pages/talent-draw/TalentDraw.module.css')
 const preGenSrc = readRel('src/mods/mod-engine/helpers/pre-gen-queue.ts')
 const branchPolicySrc = readRel('src/mods/mod-engine/helpers/narrative-branch-policy.ts')
 const hooksSrc = readRel('src/mods/mod-engine/hooks.ts')
@@ -123,23 +488,224 @@ const orchestratorSrc = readRel('src/mods/mod-engine/subsystems/orchestrator-sys
 const timeScaleSrc = readRel('src/mods/mod-engine/helpers/time-scale-narrative.ts')
 const narrativeCalendarSrc = readRel('src/mods/mod-engine/helpers/narrative-calendar.ts')
 const narrativePromptSrc = readRel('src/mods/mod-engine/prompts/narrative-prompt.ts')
+const narrativeInterceptorSrc = readRel('src/mods/mod-engine/helpers/narrative-interceptor-pipeline.ts')
 const timelineCssSrc = readRel('src/mods/mod-ui/components/organisms/NarrativeTimeline.module.css')
 const timelineTsxSrc = readRel('src/mods/mod-ui/components/organisms/NarrativeTimeline.tsx')
 const cultureIndexSrc = readRel('src/mods/mod-culture/index.ts')
+const settingsStoreSrc = readRel('src/mods/mod-settings/store.ts')
+const aiClientSrc = readRel('src/core/ai-service/ai-client.ts')
+const proxyRouteSrc = readRel('src/app/api/proxy/route.ts')
+const welcomePageSrc = readRel('src/mods/mod-pages/pages/welcome/page.tsx')
+const worldConfirmSrc = readRel('src/mods/mod-pages/pages/world-select/useWorldConfirm.ts')
+const gameOverPageSrc = readRel('src/mods/mod-pages/pages/game-over/page.tsx')
 
-assertOk(/AI_DESTINY_PATTERN_BATCH_SIZE\s*=\s*12/.test(constantsSrc), 'destiny first batch must request 12 items')
-assertOk(/AI_DESTINY_PATTERN_BATCH_COUNT\s*=\s*8/.test(constantsSrc), 'destiny background batches must keep a 96-item full pool')
+const talentPoolHelpers = loadTalentPoolHelpers(talentDrawPageSrc)
+const normalizedDuplicatePool = [
+  { id: 'a', name: '拖延症' },
+  { id: 'b', name: ' 拖延症 ' },
+  ...Array.from({ length: 3 }, (_, index) => ({ id: `unique-${index}`, name: `唯一命格${index}` })),
+]
+assertSame(
+  talentPoolHelpers.uniquePatternsByIdentity(normalizedDuplicatePool).length,
+  4,
+  'display identity must collapse names that differ only by surrounding whitespace',
+)
+assertSame(
+  talentPoolHelpers.drawSlotsFromPool(normalizedDuplicatePool).filter(Boolean).length,
+  4,
+  'a raw five-item pool with one normalized duplicate must not pretend to fill five slots',
+)
+assertSame(
+  talentPoolHelpers.uniquePatternsByIdentity([
+    ...normalizedDuplicatePool,
+    { id: 'extra', name: '补足命格' },
+  ]).length,
+  5,
+  'readiness must become possible once five display-unique candidates exist',
+)
+
+assertSame(DEFAULT_WORD_COUNT_TARGET, 200, 'new and reset games must default to about 200 narrative characters')
+assertSame(NARRATIVE_WORD_COUNT_DEFAULT_MAX, 200, 'legacy narrative default alias must follow the single authority')
+assertSame(computeNarrativeMaxTokens(50), 8192, 'low word-count preferences must retain a generous narrative budget')
+assertSame(computeNarrativeMaxTokens(200), 8192, '200-character preferences must not become a small output ceiling')
+assertIncludes(buildWordCountInstruction(200), '玩家偏好约200字', 'word-count prompt must reflect the 200-character default as a soft preference')
+assertOk(
+  buildWordCountInstruction(200).includes('不是硬上限、硬下限或重写条件')
+    && buildWordCountInstruction(200).includes('文笔、人物代入、现场感')
+    && buildWordCountInstruction(200).includes('不要为了凑字重复环境意象'),
+  'the 200-character target must guide rhythm without becoming a length gate',
+)
+assertOk(
+  !narrativeQualitySrc.includes('retryMin')
+    && !narrativeQualitySrc.includes('retryMax')
+    && narrativeQualitySrc.includes('字数偏离只作为提示'),
+  'narrative length must not be implemented as a retry or rejection gate',
+)
+const flatChangesMetadata = {
+  changes: [{ id: 'character-base', description: '测试协议形状', mindDelta: 1 }],
+}
+const normalizedFlatChanges = normalizeNarrativeResponseMetadata(flatChangesMetadata)
+assertSame(
+  NarrativeResponseSchema.safeParse({
+    ...normalizedFlatChanges,
+    importance: 'LOW',
+    digest: '测试',
+    keyEvents: [],
+    arcStatus: 'ongoing',
+    semanticSignals: {
+      eventType: 'routine',
+      conflictIntensity: 0,
+      tensionDelta: 0,
+      actionScale: 'small',
+      irreversible: false,
+      impactScope: 'personal',
+      narrativeRegister: 'life',
+      registerReason: '协议形状测试',
+      arcType: 'none',
+      relationshipUpdates: [],
+      resolvedForeshadowingIds: [],
+    },
+  }).success,
+  true,
+  'flat change fields must be mechanically normalized before strict schema validation',
+)
+const objectBranchMetadata = normalizeNarrativeResponseMetadata({
+  changes: [],
+  importance: 'HIGH',
+  digest: '照料者决定迁居。',
+  keyEvents: [],
+  arcStatus: 'start',
+  semanticSignals: {
+    eventType: 'journey',
+    conflictIntensity: 20,
+    tensionDelta: 3,
+    actionScale: 'small',
+    irreversible: true,
+    impactScope: 'relationship',
+    narrativeRegister: 'fate',
+    registerReason: '家庭去向改变',
+    arcType: 'journey',
+    relationshipUpdates: [],
+    resolvedForeshadowingIds: [],
+  },
+  branch: true,
+  branchTitle: '去向未定',
+  branchOptions: [
+    { title: '留下', description: '继续留在原地' },
+    { title: '迁居', description: '随照料者离开' },
+  ],
+})
+assertSame(
+  NarrativeResponseSchema.safeParse(objectBranchMetadata).success,
+  true,
+  'branch option objects must be mechanically normalized to the string-array contract',
+)
+assertSame(
+  objectBranchMetadata.branchOptions[0],
+  '留下：继续留在原地',
+  'normalized branch option should retain title and description text',
+)
+assertOk(/version:\s*4/.test(settingsStoreSrc), 'settings persistence must include the current presentation-preference migration version')
+const migrateSettings = loadPersistMigration(settingsStoreSrc)
+assertSame(
+  migrateSettings({ wordCountTarget: 400, theme: 'minimal-white' }, 2).wordCountTarget,
+  200,
+  'persisted version-2 old default 400 must migrate to the new default 200',
+)
+assertSame(
+  migrateSettings({ wordCountTarget: 300, theme: 'minimal-white' }, 2).wordCountTarget,
+  300,
+  'persisted explicit non-default word counts must be preserved',
+)
+assertOk(
+  /export async function hasAvailableApiConfiguration\(\)[\s\S]{0,300}provider === 'custom'[\s\S]{0,220}fetch\(`\/api\/proxy\?providerId=\$\{encodeURIComponent\(provider\)\}`/.test(settingsStoreSrc)
+    && /export function GET\(request: Request\): Response[\s\S]{0,260}hasOwnProperty\.call\(SERVER_API_KEYS, providerId\)[\s\S]{0,120}Boolean\(SERVER_API_KEYS\[providerId\]\)[\s\S]{0,120}\{ configured \}/.test(proxyRouteSrc)
+    && /await hasAvailableApiConfiguration\(\)/.test(welcomePageSrc)
+    && /await hasAvailableApiConfiguration\(\)/.test(worldConfirmSrc),
+  'a server-side DeepSeek key must satisfy the client entry gates without exposing the secret to the browser',
+)
+
+assertOk(/AI_DESTINY_PATTERN_BATCH_SIZE\s*=\s*10/.test(constantsSrc), 'destiny each AI batch must request 10 items')
+assertOk(/AI_DESTINY_PATTERN_BATCH_COUNT\s*=\s*10/.test(constantsSrc), 'destiny background batches must keep an approximately 100-item full pool')
+assertOk(/AI_DESTINY_PATTERN_FIRST_SCREEN_CONCURRENCY\s*=\s*3/.test(constantsSrc), 'destiny first screen must use three concurrent requests')
 assertOk(!constantsSrc.includes('DESTINY_PATTERN_EARLY_READY_TIMEOUT_MS'), 'AI destiny readiness must not time out to presets')
-assertOk(!destinySystemSrc.includes('PARALLEL_SEEDS'), 'destiny initial generation must not launch three large parallel calls')
+assertOk(
+  /const parallelSeeds = \[42, 137, 256\]/.test(destinySystemSrc)
+    && /parallelPromises\.push\([\s\S]{0,260}runBatchWithRetry\(index, seed, true\)/.test(destinySystemSrc)
+    && /Promise\.race\(\[earlyReadyPromise, allParallelSettled\]\)/.test(destinySystemSrc)
+    && /Promise\.allSettled\(parallelPromises\)/.test(destinySystemSrc),
+  'destiny first screen must race three streamed requests and keep the remaining calls in the background',
+)
+assertOk(
+  /\.length\(AI_DESTINY_PATTERN_BATCH_SIZE\)/.test(destinyPromptSrc),
+  'destiny output schema length must follow the ten-item batch authority',
+)
 assertOk(!destinyPromptSrc.includes('第一次踩上'), 'destiny prompt must not teach biographical event openings')
 assertOk(/稳定|先天|固有/.test(destinyPromptSrc) && /禁止.*年份|严禁.*年份/.test(destinyPromptSrc), 'destiny prompt must require timeless traits')
 assertOk(destinyPromptSrc.includes('JSON顶层数组') && !destinyPromptSrc.includes('{"patterns"'), 'destiny prompt must match the top-level array Zod contract')
-assertOk(/version:\s*'2\.8\.0'/.test(destinyPromptSrc), 'destiny prompt contract change must bump its version')
+assertOk(/version:\s*'3\.2\.0'/.test(destinyPromptSrc), 'destiny prompt contract change must bump its version')
+assertOk(
+  /polarity：positive\/mixed/.test(destinyPromptSrc)
+    && !/z\.enum\(\['positive', 'negative', 'mixed'\]\)/.test(destinyPromptSrc),
+  'destiny prompt and schema must reject purely negative candidates',
+)
+assertOk(
+  /const polarity = this\.validatePolarity\(item\.polarity\)[\s\S]{0,100}if \(!rarity \|\| !polarity\) return/.test(destinySystemSrc)
+    && !/polarity:\s*this\.validatePolarity\(item\.polarity\)\s*\?\?\s*'positive'/.test(destinySystemSrc),
+  'streamed destiny ingestion must reject invalid or negative polarity instead of relabeling it as positive',
+)
+assertOk(!destinyPromptSrc.includes('resources:'), 'destiny output schema must reject the removed resources attribute')
+assertOk(
+  destinyPromptSrc.includes('physique/mind/talentAptitude/charisma'),
+  'destiny prompt must name the only four allowed attrBonus keys instead of relying on post-response rejection',
+)
 assertOk(destinyPromptSrc.includes('systemModifiers: destinyPatternSystemModifiersSchema.optional()'), 'destiny schema must accept validated system modifiers')
 assertOk(/legendary允许轻度概念规则/.test(destinyPromptSrc), 'legendary destiny patterns must support bounded conceptual rules')
 assertOk(/不得自动获胜/.test(destinyPromptSrc) && /条件、概率、代价、有限触发/.test(destinyPromptSrc), 'legendary conceptual rules must preserve cost and agency')
 assertOk(/effect写成叙事引擎可持续遵守的规则/.test(destinyPromptSrc), 'destiny effect must remain a narrative rule instead of only numeric modifiers')
 assertOk(/validatePatternSystemModifiers\(input\.systemModifiers, rarity\)/.test(destinySystemSrc), 'external AI destiny injection must validate system modifiers')
+assertOk(/version:\s*2/.test(characterStoreSrc), 'character persistence must bump for the four-attribute and mythic-state migration')
+assertOk(
+  ['mythicCandidates', 'equippedMythicPattern', 'sealedMythicPatternId'].every((field) => characterStoreSrc.includes(field)),
+  'character store must persist current-life mythic candidates, equipment, and sealed identity',
+)
+assertOk(
+  /BASE_ATTRIBUTE_KEYS\s*=\s*\['physique', 'mind', 'talentAptitude', 'charisma'\]/.test(characterMigrationSrc)
+    && !/BASE_ATTRIBUTE_KEYS[^\n]*resources/.test(characterMigrationSrc),
+  'character migration must keep exactly four base attributes',
+)
+assertOk(
+  /sanitizeDestinyPatternState/.test(characterMigrationSrc) && /sanitizeAttrBonus/.test(characterMigrationSrc),
+  'old character saves and destiny pools must remove retired attribute bonuses',
+)
+assertOk(/\.length\(3\)/.test(mythicPromptSrc), 'mythic settlement schema must require exactly three candidates')
+assertOk(
+  /纯概念/.test(mythicPromptSrc) && /不得出现属性加成、概率百分比、模拟系数/.test(mythicPromptSrc),
+  'mythic candidates must remain non-numeric conceptual rules',
+)
+assertOk(
+  /generateMythicPatternCandidates/.test(mythicAccessSrc) && /setMythicPatternAIService/.test(mythicAccessSrc),
+  'mod-character must expose a configurable mythic candidate generator',
+)
+assertOk(
+  !/existingMythicPatterns:[\s\S]{0,220}effect:\s*pattern\.effect/.test(mythicAccessSrc),
+  'the unbounded mythic library context must send only compact name/concept indexes instead of every stored effect',
+)
+assertOk(
+  /finalState\?: Readonly<Record<string, unknown>>/.test(mythicAccessSrc)
+    && /lifeDigests\?: readonly/.test(mythicAccessSrc)
+    && /finalState: input\.finalState/.test(mythicAccessSrc)
+    && /lifeDigests: input\.lifeDigests/.test(mythicAccessSrc)
+    && /finalState: mythicFinalState/.test(gameOverPageSrc)
+    && /lifeDigests: mythicLifeDigests/.test(gameOverPageSrc),
+  'mythic settlement must include a compact structured final state and compressed life digests alongside narrative records',
+)
+assertOk(
+  /mod-character:persist:mythic-library/.test(mythicLibrarySrc)
+    && /patterns: MythicPattern\[\]/.test(mythicLibrarySrc)
+    && /addPattern/.test(mythicLibrarySrc),
+  'mythic library must use an independent cross-run persistent store',
+)
 assertOk(!talentDrawPageSrc.includes('buildTimeoutFallback'), 'AI destiny page must not build a preset timeout fallback')
 assertOk(!talentDrawPageSrc.includes('fallbackTimer'), 'AI destiny page must keep waiting instead of starting a fallback timer')
 assertSame(
@@ -148,32 +714,90 @@ assertSame(
   'preset generation must appear only in the explicit non-AI branch',
 )
 assertOk(
+  /PRESET_DESTINY_PATTERNS\.filter\(\(pattern\) => pattern\.polarity !== 'negative'\)/.test(destinySystemSrc),
+  'explicit non-AI generation must also exclude legacy purely negative preset entries',
+)
+assertOk(
   /if\s*\(!aiTalentGeneration\)\s*\{[\s\S]{0,260}generateFromPresets\s*\(/.test(talentDrawPageSrc),
   'preset generation must stay behind the disabled-AI branch',
 )
 assertOk(
   /while\s*\(\s*!earlyReadyFired\s*&&\s*!abortController\.signal\.aborted\s*\)/.test(destinySystemSrc),
-  'AI destiny readiness must keep requesting until 12 valid items or cancellation',
+  'AI destiny readiness must keep requesting until 5 valid items or cancellation',
 )
 assertOk(
   /dedupePatterns\(options\?\.initialPatterns \?\? \[\]\)[\s\S]{0,100}filter\(\(pattern\) => this\.isAIGeneratedPattern\(pattern\)\)/.test(destinySystemSrc),
   'generateWithAI must reject preset entries even when a caller passes them as initial cache',
 )
 assertOk(
+  /function destinyPatternNameKey[\s\S]{0,160}trim\(\)\.toLocaleLowerCase\(\)/.test(destinySystemSrc)
+    && /existingNameKeys\.has\(nameKey\)/.test(destinySystemSrc)
+    && /seenNames\.has\(nameKey\)/.test(destinySystemSrc),
+  'the AI pool authority must dedupe normalized display names before declaring five candidates ready',
+)
+assertOk(
   !/!earlyReadyFired[\s\S]{0,180}nextBackgroundBatch\s*<\s*AI_DESTINY_PATTERN_BATCH_COUNT/.test(destinySystemSrc),
-  'AI destiny readiness must not stop at the eight background batches',
+  'AI destiny readiness must not stop at the configured background batches',
 )
 assertOk(
-  /getPoolFillStatus\(\)[\s\S]{0,180}status\.inProgress[\s\S]{0,120}status\.count\s*<\s*DEFAULT_DESTINY_PATTERN_COUNT[\s\S]{0,120}abortPoolFill\(\)/.test(talentDrawPageSrc),
-  'leaving the page must abort an unfinished under-12 AI readiness loop',
+  (talentDrawPageSrc.match(/abortPoolFill\(\)/g) ?? []).length >= 2
+    && talentDrawPageSrc.includes("if (phase !== 'selecting') return"),
+  'leaving the page must abort page-owned AI readiness and background refill loops',
 )
 assertOk(
-  /isAIGeneratedPattern[\s\S]{0,500}loadDestinyPatternPool[\s\S]{0,160}filter\(isAIGeneratedPattern\)/.test(talentDrawPageSrc),
+  /function loadCachedPool[\s\S]{0,260}loadDestinyPatternPool[\s\S]{0,160}filter\(isAIGeneratedPattern\)/.test(talentDrawPageSrc),
   'AI cache restoration must exclude preset patterns',
 )
 assertOk(
   /const usableSaved = savedSlotsMatchMode \? saved : null/.test(talentDrawPageSrc),
   'an incompatible saved selection must not fall through into the selecting phase',
+)
+assertOk(
+  /type PagePhase = 'idle' \| 'generating' \| 'ready' \| 'selecting'/.test(talentDrawPageSrc),
+  'destiny draw must keep an explicit non-persisted handoff state after five candidates are ready',
+)
+assertOk(
+  /const revealPatterns = \(patterns:[\s\S]{0,260}visiblePatterns\.length < DEFAULT_DESTINY_PATTERN_COUNT[\s\S]{0,900}setSlots\((?:drawSlotsFromPool|revealSlotsInOrder)\(visiblePatterns\)\)[\s\S]{0,180}setPhase\('ready'\)/.test(talentDrawPageSrc),
+  'AI destiny readiness must require five display-unique candidates before the completed handoff opens',
+)
+assertOk(
+  /phase === 'ready'[\s\S]{0,1600}进入命格选择/.test(talentDrawPageSrc),
+  'the completed destiny handoff must expose an explicit enter-selection action',
+)
+assertOk(
+  /function uniquePatternsByIdentity[\s\S]{0,700}seenIds[\s\S]{0,300}seenNames[\s\S]{0,300}patternNameKey/.test(talentDrawPageSrc),
+  'a five-slot destiny draw must remove duplicate IDs and duplicate display names',
+)
+assertOk(
+  /const savedSlotsMatchMode[\s\S]{0,360}uniquePatternsByIdentity\(savedPatterns\)\.length === DEFAULT_DESTINY_PATTERN_COUNT/.test(talentDrawPageSrc),
+  'persisted selecting slots must not restore a normalized duplicate set',
+)
+assertOk(
+  /\(_?count, patterns\) => \{[\s\S]{0,900}revealPatterns\(uniquePatterns\)/.test(talentDrawPageSrc),
+  'AI progress must re-check display-unique readiness after the raw early-ready callback',
+)
+assertOk(
+  /outputSchema\?: Parameters<typeof callAI>\[2\]\['outputSchema'\]/.test(talentDrawPageSrc)
+    && /outputSchema:\s*opts\?\.outputSchema/.test(talentDrawPageSrc)
+    && /strictSchema:\s*!useStream\s*&&\s*Boolean\(opts\?\.outputSchema\)/.test(talentDrawPageSrc),
+  'the destiny page adapter must preserve the subsystem output schema and enforce it for non-streaming calls',
+)
+assertOk(
+  /providerId === 'deepseek'\s*&&\s*reasoningEffort === 'disabled'[\s\S]{0,120}thinking = \{ type: 'disabled' \}/.test(aiClientSrc)
+    && /z\.object\(\{ type: z\.enum\(\['enabled', 'disabled'\]\) \}\)\.strict\(\)/.test(proxyRouteSrc),
+  'DeepSeek disabled reasoning must be transmitted explicitly so hidden thinking cannot consume the entire output budget',
+)
+assertOk(
+  /const usedNames = new Set<string>\(\)[\s\S]{0,700}!usedNames\.has\(patternNameKey\(p\)\)/.test(talentDrawPageSrc),
+  'destiny redraw must not reintroduce duplicate display names into the visible slots',
+)
+assertOk(
+  /\.astrolabe\s*\{[^}]*width:\s*286px[^}]*height:\s*286px/s.test(talentDrawCssSrc)
+    && /\.fateNode\s*\{[^}]*width:\s*48px[^}]*height:\s*48px/s.test(talentDrawCssSrc)
+    && /\.drawReadout\s*\{[^}]*display:\s*flex/s.test(talentDrawCssSrc)
+    && (talentDrawPageSrc.match(/<TalentAstrolabe\b/g) ?? []).length === 1
+    && !/progressTrack|progressFill/.test(talentDrawPageSrc),
+  'the completed destiny handoff must keep the approved 286px astrolabe, 48px nodes, and compact readout',
 )
 
 assertOk(/preGenActivity\.invalidate\(\)/.test(preGenSrc), 'clearPreGenQueue must invalidate through activity state')
@@ -186,22 +810,49 @@ assertOk(orchestratorSrc.includes('capturePreviewSnapshot'), 'pre-gen snapshots 
 assertOk(/hydrateFromEngineStore\(previousTimeStep\?/.test(orchestratorSrc), 'stale preview hydration must accept the previous time step')
 assertOk(orchestratorSrc.includes('reconcilePreviewSnapshotWithEngineStore'), 'stale preview must reconcile non-store state before hydrating authoritative store state')
 
-assertOk(timeScaleSrc.includes('年度宏观视角'), 'year step must use annual macro perspective')
+assertOk(timeScaleSrc.includes('年度单场景视角'), 'year step must use one representative annual scene')
+assertOk(
+  timeScaleSrc.includes('三段不得分别换季、换地点或换任务')
+    && timeScaleSrc.includes('同一因果主线')
+    && timeScaleSrc.includes('拼接独立生活切片'),
+  'year-scale guidance must prohibit disconnected vignettes and retain one causal arc',
+)
 assertOk(timeScaleSrc.includes('季度中景视角'), 'season step must use quarterly medium perspective')
 assertOk(timeScaleSrc.includes('月度近景视角'), 'month step must use monthly close perspective')
 assertOk(timeScaleSrc.includes('单日生活视角'), 'day step must use daily-life perspective')
 assertOk(/case 'year'[\s\S]{0,120}return eraLabel/.test(narrativeCalendarSrc), 'year label must contain only the year/era')
-assertOk(/case 'season'[\s\S]{0,160}SEASON_NAMES/.test(narrativeCalendarSrc), 'season label must include year and season')
+assertOk(
+  /seasonName/.test(narrativeCalendarSrc)
+    && /getSeasonForMonth\(round\.month\)/.test(narrativeCalendarSrc),
+  'season label must derive the season from the solar month',
+)
 assertOk(/case 'month'[\s\S]{0,220}round\.month \+ 1/.test(narrativeCalendarSrc), 'month label must include year, season and month')
 assertOk(/case 'day'[\s\S]{0,260}dayNum/.test(narrativeCalendarSrc), 'day label must include year, season, month and day')
 assertOk(orchestratorSrc.includes('currentTime: narrativeTime.timeLabel'), 'AI currentTime must use the authoritative formatted time label')
 
-// 2007年夏季5月切到季推进：连续推进5/6/7月后应落在8月，即秋季，不回到本年春季。
+// 2007年春季5月切到季推进：连续推进5/6/7月后应落在8月，即夏季，不回到本年冬季。
 const mayIndex = 4
 const monthAfterSeasonStep = (mayIndex + 3) % 12
-assertSame(Math.floor(monthAfterSeasonStep / 3), 2, 'month->season must land in the following season')
+assertSame(Math.floor(((monthAfterSeasonStep + 10) % 12) / 3), 1, 'month->season must land in the following solar season')
 assertOk(/candidate\.importance\s*===\s*'HIGH'/.test(branchPolicySrc), 'ordinary branch points must require HIGH importance')
 assertOk(narrativePromptSrc.includes('身份、核心关系、长期目标、关键资源、阵营、存亡或不可逆轨迹'), 'branch prompt must define fate-changing impact dimensions')
+assertOk(/version:\s*'2\.7\.1'/.test(narrativePromptSrc), 'entertainment-first narrative prompt must use version 2.7.1')
+assertOk(
+  /semanticSignals\?\.irreversible\s*===\s*true/.test(branchPolicySrc)
+    && /narrativeRegister\s*===\s*'fate'/.test(branchPolicySrc),
+  'branch eligibility must require an irreversible fate or legacy semantic signal',
+)
+assertOk(
+  narrativePromptSrc.includes('正文全程用第二人称“你”指代玩家角色')
+    && narrativePromptSrc.includes('每轮至少落入一个可辨认的现场')
+    && narrativePromptSrc.includes('禁止写成第三人称传记、履历或编年报告'),
+  'narrative prompt must preserve second-person viewpoint, scene-level immersion, and anti-biography constraints',
+)
+assertOk(narrativePromptSrc.includes('阳历3—5月春季、6—8月夏季、9—11月秋季、12—2月冬季'), 'narrative prompt must define the canonical solar season mapping')
+assertOk(!/narrative:\s*parsed\.narrative\.slice\(/.test(narrativeInterceptorSrc), 'narrative interceptor must never hard-truncate the story')
+assertOk(!narrativeInterceptorSrc.includes('trimIncompleteNarrativeTail'), 'incomplete narrative tails must be preserved instead of deleted')
+assertOk(timelineTsxSrc.includes('splitNarrativeParagraphs(entry.text)'), 'timeline must render the normalized three-paragraph contract')
+assertOk(timelineTsxSrc.includes('splitNarrativeParagraphs(streamingText)'), 'streaming timeline must use the same paragraph contract')
 assertOk(orchestratorSrc.includes('buildPowerCeilingPresetsForNarrative'), 'narrative prompt must use the compact power context helper')
 assertOk(/powerSystemTag[\s\S]{0,180}none/.test(orchestratorSrc), 'non-supernatural worlds must omit irrelevant power presets')
 assertOk(cultureIndexSrc.includes('buildCultureCalendarNarrativeContext'), 'mod-culture must expose the calendar adapter')

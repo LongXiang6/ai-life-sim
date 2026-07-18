@@ -1,34 +1,583 @@
-/* ===== 废弃项目同款：settings-tab-theme.module.css ===== */
+.tabRoot {
+  width: 100%;
+  color: #1c2025;
+}
 
-/* Layout */
+.preferenceIntro {
+  margin: 0 0 1rem;
+  color: #7a8188;
+  font-size: 0.72rem;
+  line-height: 1.6;
+}
+
+.settingRow {
+  display: grid;
+  min-height: 3.5rem;
+  padding: 0.55rem 0.7rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.settingCopy strong,
+.settingCopy small {
+  display: block;
+}
+
+.settingCopy strong {
+  color: #343c44;
+  font-family: "Songti SC", STSong, SimSun, serif;
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.settingCopy small {
+  margin-top: 0.2rem;
+  color: #8a9096;
+  font-size: 0.66rem;
+  line-height: 1.5;
+}
+
+.toggle {
+  position: relative;
+  width: 2.75rem;
+  min-width: 2.75rem;
+  height: 2rem;
+  padding: 0.25rem;
+  border: 1px solid #d7dde2;
+  border-radius: 999px;
+  background: #f1f3f5;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+
+.toggle::after {
+  position: absolute;
+  top: 0.3125rem;
+  left: 0.3125rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(41 50 60 / 16%);
+  content: "";
+  transition: transform 160ms ease;
+}
+
+.toggle[aria-checked="true"] {
+  border-color: #8a9caf;
+  background: #6d7f94;
+}
+
+.toggle[aria-checked="true"]::after {
+  transform: translateX(0.75rem);
+}
+
+.toggle:focus-visible {
+  outline: 2px solid rgb(109 127 148 / 52%);
+  outline-offset: 2px;
+}
+
 .section {
-  background: var(--color-surface); border-radius: 12px; overflow: hidden;
-  margin-bottom: 20px; border: 1px solid var(--color-border);
+  margin: 0 0 clamp(1rem, 2.6vw, 1.4rem);
 }
-.sectionHeader {
-  padding: 14px 16px 10px; border-bottom: 1px solid var(--color-border);
-  font-size: 13px; font-weight: 600; color: var(--color-text-secondary); letter-spacing: -0.2px;
+
+.section:last-child {
+  margin-bottom: 0;
 }
-.sectionBody { padding: 12px 16px 16px; }
-.sectionBodyFlex { padding: 12px 16px 16px; display: flex; gap: 8px; flex-wrap: wrap; }
 
-/* Buttons */
-.chipBtn { padding: 6px 14px; font-size: 12px; border-radius: 8px; cursor: pointer; color: var(--color-text-primary); transition: all 0.2s ease; }
-.styleBtn { padding: 8px 16px; font-size: 13px; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; }
-.actionBtn { padding: 7px 14px; font-size: 12px; border-radius: 8px; cursor: pointer; border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text-primary); transition: all 0.2s ease; }
-.smallBtn { padding: 4px 10px; font-size: 11px; border-radius: 6px; cursor: pointer; border: 1px solid var(--color-border); background: var(--color-bg); }
-.modeBtn { padding: 3px 10px; font-size: 11px; border-radius: 6px; cursor: pointer; border: 1px solid var(--color-border); color: var(--color-text-primary); }
+.sectionLabel,
+.groupHeading,
+.cacheSummary,
+.importModeRow,
+.dataActions,
+.dialogActions {
+  display: flex;
+  align-items: center;
+}
 
-/* Typography */
-.subLabel { font-size: 11px; font-weight: 400; color: var(--color-text-tertiary); margin-left: 6px; }
-.hint { font-size: 12px; color: var(--color-text-tertiary); line-height: 1.6; }
-.cacheHint { font-size: 11px; color: var(--color-text-tertiary); margin-top: 6px; line-height: 1.5; }
-.cacheInfo { font-size: 13px; color: var(--color-text-primary); }
-.cacheInfoFlex { flex: 1; }
-.modeGroupLabel { font-size: 11px; color: var(--color-text-tertiary); }
-.flexRowSm { display: flex; gap: 6px; flex-wrap: wrap; }
-.statsRow { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
-.presetRow { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; align-items: center; }
-.modeGroup { display: flex; gap: 4px; align-items: center; margin-left: 4px; }
-.progressBar { height: 6px; border-radius: 3px; background: var(--color-bg); overflow: hidden; }
-.progressFill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
+.sectionLabel {
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 0.5rem;
+  padding-inline: clamp(0.15rem, 0.7vw, 0.35rem);
+}
+
+.sectionLabel h3,
+.resetDialog h3 {
+  margin: 0;
+  color: #303942;
+  font-family: "Songti SC", STSong, SimSun, serif;
+  font-size: clamp(0.9rem, 2.2vw, 1rem);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.sectionLabel > span,
+.groupHeading > span:last-child {
+  color: #90969d;
+  font-size: clamp(0.68rem, 1.7vw, 0.74rem);
+  font-weight: 400;
+  text-align: right;
+}
+
+.sectionCard {
+  overflow: hidden;
+  border: 1px solid #e1e5e9;
+  border-radius: clamp(0.55rem, 1.8vw, 0.75rem);
+  background: #fff;
+  box-shadow: 0 0.35rem 1.15rem rgb(37 46 56 / 5%);
+}
+
+.optionGroup,
+.cacheBody,
+.dataBody {
+  padding: clamp(0.8rem, 2.4vw, 1rem);
+}
+
+.optionGroup + .optionGroup {
+  border-top: 1px solid #edf0f2;
+}
+
+.groupHeading {
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.groupHeading > span:first-child,
+.importModeRow > span {
+  color: #4c5661;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.themeGrid,
+.fontGrid,
+.narrativeGrid,
+.streamGrid {
+  display: grid;
+  gap: clamp(0.4rem, 1.4vw, 0.55rem);
+}
+
+.themeGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.fontGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.narrativeGrid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.streamGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.choiceButton,
+.fontButton,
+.textButton,
+.segmentedControl button,
+.secondaryButton,
+.dangerButton,
+.confirmDangerButton {
+  border: 1px solid #e1e5e9;
+  background: #f7f8f9;
+  color: #3a424a;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.choiceButton {
+  display: flex;
+  min-width: 0;
+  min-height: clamp(3.3rem, 8vw, 4rem);
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: clamp(0.6rem, 1.8vw, 0.75rem);
+  border-radius: 0.55rem;
+  text-align: left;
+}
+
+.choiceButton:hover,
+.fontButton:hover,
+.secondaryButton:hover,
+.textButton:hover {
+  border-color: #b6c0cb;
+  background: #f0f3f6;
+}
+
+.choiceButton[aria-pressed="true"],
+.fontButton[aria-pressed="true"],
+.segmentedControl button[aria-pressed="true"] {
+  border-color: #6d7f94;
+  background: #eef2f6;
+  color: #465b72;
+  box-shadow: inset 0 0 0 1px rgb(109 127 148 / 12%);
+}
+
+.choiceTitle {
+  overflow: hidden;
+  width: 100%;
+  color: inherit;
+  font-size: clamp(0.75rem, 1.9vw, 0.82rem);
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.choiceDescription {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #8b9299;
+  font-size: clamp(0.62rem, 1.55vw, 0.69rem);
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.choiceButton[aria-pressed="true"] .choiceDescription {
+  color: #6c7b8b;
+}
+
+.fontButton {
+  min-width: 0;
+  min-height: clamp(2.15rem, 6vw, 2.5rem);
+  padding: 0.4rem 0.55rem;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  font-size: clamp(0.72rem, 1.8vw, 0.8rem);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fontButton[data-font="pingfang"] {
+  font-family: "PingFang SC", sans-serif;
+}
+
+.fontButton[data-font="yahei"] {
+  font-family: "Microsoft YaHei", "YaHei SC", sans-serif;
+}
+
+.fontButton[data-font="source-han-sans"] {
+  font-family: "Source Han Sans SC", "Noto Sans SC", sans-serif;
+}
+
+.fontButton[data-font="songti"] {
+  font-family: SimSun, "Songti SC", serif;
+}
+
+.fontButton[data-font="heiti"] {
+  font-family: SimHei, "Heiti SC", sans-serif;
+}
+
+.fontButton[data-font="kaiti"] {
+  font-family: KaiTi, STKaiti, serif;
+}
+
+.cacheSummary {
+  flex-wrap: wrap;
+  gap: clamp(0.75rem, 3vw, 1.5rem);
+  margin-bottom: 0.75rem;
+}
+
+.cacheSummary > div:not(.cacheActions) {
+  display: flex;
+  min-width: 6.5rem;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.metricLabel {
+  color: #91979e;
+  font-size: 0.68rem;
+}
+
+.cacheSummary strong {
+  color: #39434d;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.cacheActions {
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.textButton {
+  min-height: 2rem;
+  padding: 0.3rem 0.65rem;
+  border-radius: 0.45rem;
+  font-size: 0.7rem;
+}
+
+.progressBar {
+  display: block;
+  width: 100%;
+  height: 0.35rem;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: #e9edf1;
+  appearance: none;
+}
+
+.progressBar::-webkit-progress-bar {
+  border-radius: 999px;
+  background: #e9edf1;
+}
+
+.progressBar::-webkit-progress-value {
+  border-radius: 999px;
+  background: #6d7f94;
+}
+
+.progressBar::-moz-progress-bar {
+  border-radius: 999px;
+  background: #6d7f94;
+}
+
+.supportingText {
+  margin: 0.55rem 0 0;
+  color: #878e96;
+  font-size: clamp(0.68rem, 1.7vw, 0.75rem);
+  line-height: 1.6;
+}
+
+.roundMetrics {
+  margin-top: 0.9rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #edf0f2;
+}
+
+.roundMetrics ul {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.roundMetrics li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: #727b84;
+  font-size: clamp(0.65rem, 1.6vw, 0.72rem);
+  line-height: 1.45;
+}
+
+.roundMetrics li span:last-child {
+  color: #989ea5;
+  text-align: right;
+}
+
+.dataBody > .supportingText {
+  margin-top: 0;
+}
+
+.importModeRow {
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #edf0f2;
+}
+
+.segmentedControl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(3.6rem, 1fr));
+  gap: 0.2rem;
+  padding: 0.2rem;
+  border-radius: 0.5rem;
+  background: #f0f2f4;
+}
+
+.segmentedControl button {
+  min-height: 1.9rem;
+  padding: 0.25rem 0.65rem;
+  border-color: transparent;
+  border-radius: 0.38rem;
+  background: transparent;
+  font-size: 0.7rem;
+}
+
+.dataActions {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.85rem;
+}
+
+.secondaryButton,
+.dangerButton,
+.confirmDangerButton {
+  min-height: clamp(2.15rem, 6vw, 2.45rem);
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.5rem;
+  font-size: clamp(0.72rem, 1.8vw, 0.8rem);
+}
+
+.dangerButton {
+  margin-left: auto;
+  border-color: #d8b9b6;
+  background: #fffafa;
+  color: #9f4d48;
+}
+
+.dangerButton:hover {
+  border-color: #c5938f;
+  background: #fbefee;
+}
+
+.resetOverlay {
+  position: fixed;
+  z-index: 1800;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  background: rgb(239 242 245 / 92%);
+}
+
+.resetDialog {
+  width: min(100%, 25rem);
+  padding: clamp(1rem, 4vw, 1.4rem);
+  border: 1px solid #dce1e5;
+  border-radius: 0.75rem;
+  background: #fff;
+  box-shadow: 0 1.4rem 3.5rem rgb(41 50 60 / 14%);
+}
+
+.resetDialog h3 {
+  color: #313940;
+  font-size: clamp(1rem, 3.2vw, 1.15rem);
+}
+
+.resetDialog > p {
+  margin: 0.75rem 0 0;
+  color: #6c747c;
+  font-size: clamp(0.74rem, 2vw, 0.82rem);
+  line-height: 1.65;
+}
+
+.resetWarning {
+  padding: 0.65rem 0.75rem;
+  border-left: 2px solid #b86660;
+  background: #fbf3f2;
+  color: #984b46 !important;
+}
+
+.dialogActions {
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.confirmDangerButton {
+  border-color: #a6534d;
+  background: #a6534d;
+  color: #fff;
+  font-weight: 650;
+}
+
+.confirmDangerButton:hover {
+  border-color: #8f4540;
+  background: #8f4540;
+}
+
+.choiceButton:active,
+.fontButton:active,
+.textButton:active,
+.secondaryButton:active,
+.dangerButton:active,
+.confirmDangerButton:active {
+  transform: translateY(1px);
+}
+
+.choiceButton:focus-visible,
+.fontButton:focus-visible,
+.textButton:focus-visible,
+.segmentedControl button:focus-visible,
+.secondaryButton:focus-visible,
+.dangerButton:focus-visible,
+.confirmDangerButton:focus-visible,
+.resetDialog:focus-visible {
+  outline: 2px solid rgb(109 127 148 / 58%);
+  outline-offset: 2px;
+}
+
+@media (max-width: 42rem) {
+  .themeGrid,
+  .narrativeGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fontGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 25rem) {
+  .fontGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .streamGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .cacheSummary {
+    align-items: stretch;
+  }
+
+  .cacheActions {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .cacheActions .textButton {
+    flex: 1 1 0;
+  }
+
+  .roundMetrics li {
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+
+  .roundMetrics li span:last-child {
+    text-align: left;
+  }
+
+  .dataActions > button {
+    flex: 1 1 calc(50% - 0.25rem);
+  }
+
+  .dangerButton {
+    flex-basis: 100% !important;
+    margin-left: 0;
+  }
+
+  .dialogActions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toggle,
+  .toggle::after,
+  .choiceButton,
+  .fontButton,
+  .textButton,
+  .segmentedControl button,
+  .secondaryButton,
+  .dangerButton,
+  .confirmDangerButton {
+    transition-duration: 1ms;
+  }
+}

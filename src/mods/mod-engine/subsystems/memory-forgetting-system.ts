@@ -218,6 +218,27 @@ export class MemoryForgettingSystem implements ISubSystem {
     return { ...this.stats }
   }
 
+  /** 预生成会种植/回收未来伏笔保护标记；结束后必须完整恢复。 */
+  capturePreviewState(): unknown {
+    return structuredClone({
+      config: this.config,
+      causalEvents: this.causalEvents,
+      stats: this.stats,
+    })
+  }
+
+  restorePreviewState(snapshot: unknown): void {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
+    const value = snapshot as {
+      config?: ForgettingConfig
+      causalEvents?: CausalMarkedEvent[]
+      stats?: ReturnType<MemoryForgettingSystem['getStats']>
+    }
+    if (value.config) this.config = structuredClone(value.config)
+    if (value.causalEvents) this.causalEvents = structuredClone(value.causalEvents)
+    if (value.stats) this.stats = structuredClone(value.stats)
+  }
+
   // ============================================================
   // 核心方法：遗忘检查
   // ============================================================

@@ -9,7 +9,7 @@ import type { DestinyPattern, DestinyPatternRarity, DestinyPatternPolarity, Race
 export { TRANSMIGRATOR_KEYWORDS } from '@/core/shared'
 
 // ============================================================
-// 基础属性（对齐废弃项目 attribute-config.ts）
+// 基础属性
 // ============================================================
 
 /** 总属性分配点数 */
@@ -17,7 +17,7 @@ export const TOTAL_ATTRIBUTE_POINTS = 30
 
 /** 默认属性值 */
 export const DEFAULT_ATTRIBUTE_VALUE = 0
-/** 凡人领域下限（分配 UI 与出身锁定沿用） */
+/** 凡人领域下限（分配 UI 沿用） */
 export const MIN_ATTRIBUTE_VALUE = -10
 /** 凡人领域上限（人类物种极限；超出即踏入超凡领域） */
 export const MAX_ATTRIBUTE_VALUE = 10
@@ -28,15 +28,15 @@ export const MAX_ATTRIBUTE_VALUE = 10
 //
 // 设计（design-2026-07-06-compression-attributes.md 想法2）：
 //   ±10 是凡人（人类物种）的极限区间。体魄/心智/悟性/魅力 4 项可突破此界限
-//   向上（或向下）无限堆叠，进入超凡领域；出身(resources) 与隐藏属性
-//   气运(luck)/善恶(morality) 永久锁定在 ±10，不参与超凡堆叠。
+//   向上（或向下）无限堆叠，进入超凡领域；隐藏属性气运(luck)/善恶(morality)
+//   永久锁定在 ±10，不参与超凡堆叠。
 //   下游系统（战力/寿命等）直接读取放开后的数值自行换算，无需额外「是否超凡」布尔字段。
 
 /** 可超凡属性：突破 ±10 后无上限堆叠 */
 export const TRANSCENDENT_ATTR_KEYS = ['physique', 'mind', 'talentAptitude', 'charisma'] as const
 
-/** 凡人锁定属性：始终钳制 [-10, 10]（出身；气运/善恶为独立隐藏子系统另行锁定） */
-export const MORTAL_LOCKED_ATTR_KEYS = ['resources'] as const
+/** 当前没有玩家可分配的凡人锁定属性；气运/善恶由独立隐藏子系统锁定。 */
+export const MORTAL_LOCKED_ATTR_KEYS = [] as const
 
 /**
  * 属性硬上限/下限（防止数值溢出与 AI 失控；远超任何正常叙事所需）
@@ -56,17 +56,16 @@ export const TRANSCENDENT_TIER_THRESHOLDS = {
   divineKing: 80,
 } as const
 
-/** 5 项属性名称（key 对齐废弃项目 ATTR_KEYS） */
+/** 4 项基础属性名称 */
 export const ATTRIBUTE_NAMES: Record<string, string> = {
   physique: '体魄',
   mind: '心智',
   talentAptitude: '悟性',
   charisma: '魅力',
-  resources: '出身',
 }
 
-/** 5 项属性 key 数组 */
-export const ATTR_KEYS = ['physique', 'mind', 'talentAptitude', 'charisma', 'resources',] as const
+/** 4 项基础属性 key 数组 */
+export const ATTR_KEYS = ['physique', 'mind', 'talentAptitude', 'charisma',] as const
 
 /** 属性图标映射 */
 export const ATTRIBUTE_ICONS: Record<string, string> = {
@@ -74,7 +73,6 @@ export const ATTRIBUTE_ICONS: Record<string, string> = {
   mind: '\u{1F9E0}',
   talentAptitude: '\u2B50',
   charisma: '\u{1F4AB}',
-  resources: '\u{1F3E0}',
 }
 
 /** 属性中文别名 → 英文 key 映射（用于从叙事文本中反向提取属性变化） */
@@ -83,7 +81,6 @@ export const ATTR_CN_ALIAS_TO_KEY: Record<string, string> = {
   '心智': 'mind', '智力': 'mind', '智慧': 'mind', '头脑': 'mind',
   '悟性': 'talentAptitude', '天赋': 'talentAptitude', '资质': 'talentAptitude',
   '魅力': 'charisma', '容貌': 'charisma', '气质': 'charisma',
-  '出身': 'resources', '资源': 'resources', '门第': 'resources',
 }
 
 /** 属性自然语言增加关键词 */
@@ -117,19 +114,22 @@ export const DESTINY_PATTERN_RARITY_LIMITS: Partial<Record<DestinyPatternRarity,
   epic: 6,
 }
 
-/** 默认生成候选命格数（抽12） */
-export const DEFAULT_DESTINY_PATTERN_COUNT = 12
+/** 默认生成候选命格数（抽5） */
+export const DEFAULT_DESTINY_PATTERN_COUNT = 5
 
 /** 玩家选择数量（选3，对齐废弃项目 TALENT_SELECT_COUNT） */
 export const DESTINY_PATTERN_SELECT_COUNT = 3
 
-/** AI 批量生成：首屏每批正好 12 条，后台 8 批可填满 96 条本地池。 */
-export const AI_DESTINY_PATTERN_BATCH_SIZE = 12
-export const AI_DESTINY_PATTERN_BATCH_COUNT = 8
+/** AI 批量生成：每路请求正好 10 条，后台最多 10 批填满约 100 条本地池。 */
+export const AI_DESTINY_PATTERN_BATCH_SIZE = 10
+export const AI_DESTINY_PATTERN_BATCH_COUNT = 10
+
+/** AI 命格首屏并发路数：任一路先产出有效命格即可尽快完成首屏。 */
+export const AI_DESTINY_PATTERN_FIRST_SCREEN_CONCURRENCY = 3
 
 /** 批量数量 + 满池数量（对齐废弃项目 TALENT_BULK_COUNT / TALENT_FULL_POOL_COUNT） */
-export const DESTINY_PATTERN_BULK_COUNT = 48
-export const DESTINY_PATTERN_FULL_POOL_COUNT = 96
+export const DESTINY_PATTERN_BULK_COUNT = 50
+export const DESTINY_PATTERN_FULL_POOL_COUNT = 100
 
 /** 快速抽取阈值（池 ≥90 条时跳过 AI 生成，对齐废弃项目 TALENT_POOL_FAST_DRAW_THRESHOLD） */
 export const DESTINY_PATTERN_FAST_DRAW_THRESHOLD = 90

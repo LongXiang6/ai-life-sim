@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>第四章 · 命印归位</title>
+  <link rel="stylesheet" href="tokens.css">
+</head>
+<body>
+  <main class="folio-page ritual-page">
+    <div class="folio-running-head"><span>AI LIFE SIM · 新人生</span><span>04 / 抽取</span></div>
+    <header class="chapter-head">
+      <p class="chapter-kicker">第四章 · 命格抽取</p>
+      <h1 class="chapter-title">命印归位</h1>
+      <p class="chapter-lead">十二条命格依次显现。全部归位后，才可翻至神话传承式命格选取。</p>
+      <div class="chapter-rule"><span>P1 · 云紫宽环</span></div>
+    </header>
+
+    <figure class="ritual-plate" aria-labelledby="ritual-caption">
+      <div class="aura" aria-hidden="true">
+        <i class="aura-wave"></i><i class="aura-wave"></i><i class="aura-wave"></i><i class="aura-wave"></i><i class="aura-wave"></i><i class="aura-wave"></i>
+        <span class="aura-core"><i class="aura-layer"></i><i class="aura-layer"></i><i class="aura-layer"></i><i class="aura-layer"></i><i class="aura-layer"></i><b class="aura-glyph">命</b></span>
+      </div>
+      <figcaption class="plate-caption" id="ritual-caption"><strong>让命运揭示你的命格</strong><span>五层云紫光场 · 宽环慢波</span></figcaption>
+    </figure>
+
+    <section class="seal-register" aria-labelledby="seal-register-title">
+      <div class="seal-register-head"><span id="seal-register-title">十二命印</span><span class="seal-count">0 / 12</span></div>
+      <div class="seals" aria-live="polite"></div>
+    </section>
+    <p class="ritual-status" role="status" aria-live="polite">命印尚未归位。</p>
+
+    <footer class="chapter-end">
+      <button class="chapter-next draw-action" type="button">
+        <span class="next-number">01</span>
+        <span class="next-copy"><strong>开始抽取</strong><small>十二命印将依次显现</small></span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M6 14l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <nav class="footnote-nav" aria-label="次要路径"><a href="../../character-create/final.html">返回角色创建</a><a href="index.html">B01 目录</a></nav>
+    </footer>
+  </main>
+
+  <script>
+    (() => {
+      const rarities = [
+        ['common', '普通'], ['fine', '精良'], ['common', '普通'], ['rare', '稀有'],
+        ['fine', '精良'], ['common', '普通'], ['epic', '史诗'], ['fine', '精良'],
+        ['rare', '稀有'], ['common', '普通'], ['legendary', '传说'], ['common', '普通']
+      ];
+      const page = document.querySelector('.ritual-page');
+      const button = document.querySelector('.draw-action');
+      const count = document.querySelector('.seal-count');
+      const status = document.querySelector('.ritual-status');
+      const seals = document.querySelector('.seals');
+      const buttonTitle = button.querySelector('strong');
+      const buttonHint = button.querySelector('small');
+      const buttonNumber = button.querySelector('.next-number');
+      const buttonIcon = button.querySelector('svg');
+
+      seals.innerHTML = rarities.map((item, index) => `<span class="seal ${item[0]}"><i>${String(index + 1).padStart(2, '0')}</i><b>${item[1]}</b></span>`).join('');
+
+      button.addEventListener('click', () => {
+        if (button.dataset.done === 'true') {
+          window.location.href = '../../mythic-inheritance/final.html';
+          return;
+        }
+        if (page.classList.contains('drawing')) return;
+
+        page.classList.add('drawing');
+        button.disabled = true;
+        buttonTitle.textContent = '命格生成中';
+        buttonHint.textContent = '请等待十二命印全部归位';
+        status.textContent = '命运正在书写，当前不可继续。';
+        const items = Array.from(seals.querySelectorAll('.seal'));
+        let index = 0;
+        const timer = setInterval(() => {
+          items[index].classList.add('lit');
+          index += 1;
+          count.textContent = `${index} / 12`;
+          buttonNumber.textContent = String(index).padStart(2, '0');
+          status.textContent = `已归位 ${index} 枚命印。`;
+          if (index === items.length) {
+            clearInterval(timer);
+            setTimeout(() => {
+              page.classList.remove('drawing');
+              page.classList.add('complete');
+              button.disabled = false;
+              button.dataset.done = 'true';
+              buttonTitle.textContent = '进入命格选择';
+              buttonHint.textContent = '下一章 · 神话传承';
+              buttonNumber.textContent = '05';
+              buttonIcon.innerHTML = '<path d="M5 12h13M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>';
+              status.textContent = '十二命印已全部归位，可以进入命格选择。';
+            }, 420);
+          }
+        }, 520);
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>角色创建 · 统一创建流程</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../assets/library.css">
+  <link rel="stylesheet" href="../assets/creation-flow-unified.css">
+  <script src="../assets/prototype.js" defer></script>
+  <script src="../assets/creation-flow-unified.js" defer></script>
+</head>
+<body data-screen="character-create" data-creation-step="4">
+  <main class="creation-shell">
+    <header class="creation-review">
+      <p class="creation-review-label">CREATION FLOW · 04 / 08</p>
+      <h1>角色创建</h1>
+      <p class="creation-review-copy">沿用统一白纸与灰蓝秩序，先确定身份，再安排寿命与起始年龄，最后补充人生背景。</p>
+    </header>
+
+    <section class="creation-stage" aria-label="角色创建移动端界面">
+      <div class="creation-phone">
+        <div data-flow-art></div>
+        <div class="cf-screen">
+          <header class="cf-header" data-creation-header data-title="塑造角色" data-subtitle="写下这段人生的起点。"></header>
+
+          <section class="cf-summary" aria-live="polite">
+            <div class="cf-summary-symbol">人</div>
+            <div class="cf-summary-copy"><strong data-summary-name>未命名角色</strong><span data-summary-line>男性 · 人类 · 尚未填写背景</span></div>
+            <div class="cf-summary-facts"><div><span>寿命</span><strong data-summary-life>80 年</strong></div><div><span>起始</span><strong data-summary-age>出生</strong></div><div><span>世界</span><strong>潮汐城邦</strong></div></div>
+          </section>
+
+          <nav class="cf-tabs" role="tablist" aria-label="角色创建步骤">
+            <button type="button" role="tab" data-panel-tab="identity" aria-controls="panel-identity" aria-selected="true">01 · 身份</button>
+            <button type="button" role="tab" data-panel-tab="life" aria-controls="panel-life" aria-selected="false">02 · 寿命</button>
+            <button type="button" role="tab" data-panel-tab="background" aria-controls="panel-background" aria-selected="false">03 · 背景</button>
+          </nav>
+
+          <section class="cf-section cf-pane is-active" id="panel-identity" role="tabpanel" data-panel="identity">
+            <div class="cf-section-head"><strong>核心身份</strong><small>01 / 03 · 姓名、性别与种族</small></div>
+            <div class="cf-field-row">
+              <input class="cf-field" data-name aria-label="角色姓名" autocomplete="off" placeholder="输入角色姓名...">
+              <button class="cf-icon-button" type="button" data-random aria-label="随机生成姓名">随机</button>
+            </div>
+            <div class="cf-choice-grid">
+              <div>
+                <span class="cf-choice-label">性别</span>
+                <div class="cf-segmented" data-choice="gender">
+                  <button class="is-active" type="button" data-value="男性" aria-pressed="true">男</button>
+                  <button type="button" data-value="女性" aria-pressed="false">女</button>
+                  <button type="button" data-value="自定义性别" aria-pressed="false">自定</button>
+                </div>
+              </div>
+              <div>
+                <span class="cf-choice-label">种族</span>
+                <div class="cf-segmented two" data-choice="race">
+                  <button class="is-active" type="button" data-value="人类" aria-pressed="true">人类</button>
+                  <button type="button" data-value="自定义种族" aria-pressed="false">自定</button>
+                </div>
+                <div class="cf-caption" data-race-caption>基础寿命约 80 年</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="cf-section cf-pane" id="panel-life" role="tabpanel" data-panel="life" hidden>
+            <div class="cf-section-head"><strong>寿命与起始</strong><small>02 / 03 · 人生跨度与开篇时点</small></div>
+            <div class="cf-choice-grid">
+              <label><span class="cf-choice-label">预期寿命</span><input class="cf-field" data-life type="number" min="1" step="1" value="80" inputmode="numeric" aria-label="预期寿命"></label>
+              <label><span class="cf-choice-label">起始年龄</span><select class="cf-select" data-age aria-label="起始年龄"><option>出生</option><option>18 岁</option><option>自定义</option></select></label>
+            </div>
+            <p class="cf-caption">寿命影响人生阶段节奏，起始年龄决定故事从哪一页展开。</p>
+          </section>
+
+          <section class="cf-section cf-pane" id="panel-background" role="tabpanel" data-panel="background" hidden>
+            <div class="cf-section-head"><strong>人生背景</strong><small data-background-count>0 / 120</small></div>
+            <textarea class="cf-textarea" data-background maxlength="120" aria-label="人生背景" placeholder="写下家庭、成长环境或人生起点..."></textarea>
+            <p class="cf-caption">背景可稍后补充，不影响进入命格抽取。</p>
+          </section>
+        </div>
+
+        <footer class="cf-footer">
+          <button class="cf-back" type="button" data-flow-to="world-customize" data-flow-back aria-label="返回世界配置" title="返回世界配置"><span data-icon="back"></span></button>
+          <button class="cf-next" type="button" data-action="confirm" data-next-screen="talent-draw"><span class="cf-next-number">05</span><span class="cf-next-copy"><strong>确认角色</strong><small data-action-hint>填写姓名后 · 进入命格抽取</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button>
+        </footer>
+        <div class="cf-toast" role="status" aria-live="polite"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      const names = ['林晚舟', '沈清衡', '顾星河', '叶知秋', '苏明远', '陈予安']
+      const state = { nameIndex: 0, gender: '男性', race: '人类' }
+      const name = document.querySelector('[data-name]')
+      const life = document.querySelector('[data-life]')
+      const age = document.querySelector('[data-age]')
+      const background = document.querySelector('[data-background]')
+      const confirm = document.querySelector('[data-action="confirm"]')
+
+      function notify(message) {
+        if (window.CreationFlow) window.CreationFlow.notify(message)
+      }
+
+      function openPanel(key, focusTab) {
+        document.querySelectorAll('[data-panel-tab]').forEach(function (button) {
+          const active = button.dataset.panelTab === key
+          button.setAttribute('aria-selected', String(active))
+          if (active && focusTab) button.focus()
+        })
+        document.querySelectorAll('[data-panel]').forEach(function (panel) {
+          const active = panel.dataset.panel === key
+          panel.classList.toggle('is-active', active)
+          panel.hidden = !active
+        })
+      }
+
+      function update() {
+        const characterName = name.value.trim()
+        const lifeValue = Number(life.value)
+        document.querySelector('[data-summary-name]').textContent = characterName || '未命名角色'
+        document.querySelector('[data-summary-line]').textContent = `${state.gender} · ${state.race} · ${background.value.trim() ? '已填写背景' : '尚未填写背景'}`
+        document.querySelector('[data-summary-life]').textContent = Number.isFinite(lifeValue) && lifeValue >= 1 ? `${Math.floor(lifeValue)} 年` : '待设定'
+        document.querySelector('[data-summary-age]').textContent = age.value
+        document.querySelector('[data-background-count]').textContent = `${background.value.length} / 120`
+        document.querySelector('[data-action-hint]').textContent = characterName ? `${characterName} · 进入命格抽取` : '填写姓名后 · 进入命格抽取'
+        if (characterName && Number.isFinite(lifeValue) && lifeValue >= 1) confirm.setAttribute('data-flow-to', confirm.dataset.nextScreen)
+        else confirm.removeAttribute('data-flow-to')
+      }
+
+      document.querySelector('[data-random]').addEventListener('click', function () {
+        name.value = names[state.nameIndex++ % names.length]
+        update()
+        notify(`已随机姓名 · ${name.value}`)
+      })
+
+      ;[name, life, age, background].forEach(function (field) {
+        field.addEventListener('input', update)
+        field.addEventListener('change', update)
+      })
+
+      document.querySelectorAll('[data-choice]').forEach(function (group) {
+        group.querySelectorAll('[data-value]').forEach(function (button) {
+          button.addEventListener('click', function () {
+            group.querySelectorAll('[data-value]').forEach(function (item) {
+              const active = item === button
+              item.classList.toggle('is-active', active)
+              item.setAttribute('aria-pressed', String(active))
+            })
+            state[group.dataset.choice] = button.dataset.value
+            if (group.dataset.choice === 'race') {
+              document.querySelector('[data-race-caption]').textContent = state.race === '人类' ? '基础寿命约 80 年' : '寿命需要单独设定'
+            }
+            update()
+          })
+        })
+      })
+
+      document.querySelectorAll('[data-panel-tab]').forEach(function (button) {
+        button.addEventListener('click', function () { openPanel(button.dataset.panelTab) })
+      })
+
+      confirm.addEventListener('click', function (event) {
+        if (!name.value.trim()) {
+          event.preventDefault()
+          event.stopPropagation()
+          openPanel('identity')
+          name.focus()
+          notify('请先填写角色姓名')
+          return
+        }
+        if (!Number.isFinite(Number(life.value)) || Number(life.value) < 1) {
+          event.preventDefault()
+          event.stopPropagation()
+          openPanel('life')
+          life.focus()
+          notify('预期寿命需为大于 0 的数字')
+        }
+      })
+
+      update()
+    })()
+  </script>
+</body>
+</html>

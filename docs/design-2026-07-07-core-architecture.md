@@ -3,7 +3,7 @@
 日期：2026-07-07
 状态：**执行蓝图（供 GPT 逐步实施，主 AI 审查）**。本文档是 [plan-2026-07-07-narrative-deregex-ui-eval.md](file:///D:/AI/ai-life-sim/docs/plan-2026-07-07-narrative-deregex-ui-eval.md) 中 D7 / D9 / D5+D12+D13 三项**动 core/foundation** 决策的落地步骤，把「决策 + 方向」细化到「数据结构 + 改动清单 + 验证关卡」。
 
-> ⚠️ 本文档涉及 `src/core/` 与 `src/foundation/`，属 AGENTS.md B-01/B-02 红线范围。每个阶段实施前须按 `.agents/核心流程.md` 风险分级停下确认，实施后须跑 `npm run gate-check` + 存档兼容验证。
+> ⚠️ 本文档涉及 `src/core/` 与 `src/foundation/`。若改变公开契约、持久化、运行态结构或跨模块语义，按 `D:\AI\AGENTS.md` 权限边界先确认；实施后运行对应关闸和存档兼容验证。
 
 ---
 
@@ -12,9 +12,9 @@
 新电脑继续时先读：
 
 1. `AGENTS.md`
-2. `.agents/核心流程.md`
-3. `.agents/skills/ai-life-sim-skill/SKILL-INDEX.md`
-4. `.agents/cross-domain-contracts.md`
+2. `.agents/skills/ai-life-sim/SKILL.md`
+3. `.agents/skills/ai-life-sim/references/architecture.md`
+4. `.agents/skills/ai-life-sim-mod-development/SKILL.md`
 5. 本文档
 
 先跑：
@@ -263,6 +263,6 @@ C-0 已确认 `RoundContext.daysPassed` 是本轮实际推进天数，`context.t
 ## 交付与审查约定（配合"GPT 执行 + 主 AI 审查"分工）
 
 - GPT 每完成一个阶段（C-0/C-1/C-2/C-3）产出一次交付说明：改了哪些文件、贴关键 diff、贴 gate-check 结果。
-- 主 AI 按 `.agents/核心流程.md` 第五步（修改对比）逐条审查：是否只改必要范围、是否漏改同名调用点、验证关卡是否真跑。
+- 主 AI 按 `D:\AI\AGENTS.md` 的范围和验证边界复查：是否只改必要范围、是否漏改同名调用点、验证关卡是否真跑。
 - C-3 动 core/foundation 前，GPT 必须先停下出改动清单等确认，不得直接改。
 - 每阶段独立可交付、可回滚；C-1 未验证稳定前不进 C-3。

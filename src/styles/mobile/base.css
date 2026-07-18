@@ -10,7 +10,7 @@
 /* ===== 移动端 CSS 变量覆盖 ===== */
 @media (max-width: 767px) {
   :root {
-    --content-max-width: 100%;
+    --content-max-width: 42rem;
     --page-padding-x: 16px;
     --card-gap: 16px;
   }
@@ -31,13 +31,14 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* 移动端滚动条 */
+  /* 方案库统一隐藏滚动条，但不改变容器的 overflow 与触摸滚动能力。 */
   ::-webkit-scrollbar {
-    width: 4px;
-    height: 4px;
+    display: none;
+    width: 0;
+    height: 0;
   }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb { background: transparent; }
 }
 
 /* ===== 移动端触摸优化 ===== */

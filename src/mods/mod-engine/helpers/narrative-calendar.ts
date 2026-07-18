@@ -8,6 +8,7 @@ import type { RoundContext, TimeStep, WorldSetting } from '@/foundation'
 import { formatEraYear } from '@/foundation/utils/format-time'
 
 import { SEASON_NAMES } from '../constants'
+import { getSeasonForMonth } from './calendar-season.js'
 import { timeSystem } from '../subsystems/time-system'
 
 export {
@@ -69,19 +70,18 @@ export function formatNarrativeTimeLabel(
   eraLabel: string,
   round: { season: number; month: number; day?: number },
 ): string {
+  const seasonName = SEASON_NAMES[getSeasonForMonth(round.month)] ?? ''
   switch (timeStep.unit) {
     case 'day': {
       const monthName = `${round.month + 1}月`
       const dayNum = (round.day ?? 0) + 1
-      const season = SEASON_NAMES[round.season] ?? ''
-      return `${eraLabel} · ${season}季 · ${monthName}${dayNum}日`
+      return `${eraLabel} · ${seasonName}季 · ${monthName}${dayNum}日`
     }
     case 'month': {
-      const season = SEASON_NAMES[round.season] ?? ''
-      return `${eraLabel} · ${season}季 · ${round.month + 1}月`
+      return `${eraLabel} · ${seasonName}季 · ${round.month + 1}月`
     }
     case 'season':
-      return `${eraLabel} · ${SEASON_NAMES[round.season] ?? ''}季`
+      return `${eraLabel} · ${seasonName}季`
     case 'year':
     default:
       return eraLabel

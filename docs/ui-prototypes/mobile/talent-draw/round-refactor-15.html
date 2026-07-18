@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>命格抽取重构第十五轮 · 主周期高速分档</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --canvas: #f1f3f2;
+      --paper: #fbfcfd;
+      --ink: #2b3338;
+      --ink-soft: #6a747a;
+      --ink-faint: #9ba4a9;
+      --rule: #dce2e5;
+      --rule-light: #eaedef;
+      --accent: #748b94;
+      --accent-rgb: 116, 139, 148;
+      --glyph-rgb: 61, 80, 89;
+      --wash-rgb: 121, 140, 147;
+      --surface-rgb: 252, 253, 253;
+      --serif: "Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", serif;
+      --sans: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+      --route-ease: cubic-bezier(0.16, 0.8, 0.2, 1);
+      --travel-ease: cubic-bezier(0.4, 0, 0.2, 1);
+      --center-ease: cubic-bezier(0.2, 0.74, 0.2, 1);
+    }
+
+    * { box-sizing: border-box; }
+    html { min-width: 0; background: var(--canvas); }
+    body { min-width: 0; margin: 0; background: var(--canvas); color: var(--ink); font-family: var(--sans); font-size: 14px; letter-spacing: 0; }
+    button, summary { color: inherit; font: inherit; letter-spacing: 0; }
+    button, a, summary { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, a:focus-visible, summary:focus-visible, [role="radio"]:focus-visible { outline: 1px dotted var(--ink-soft); outline-offset: 3px; }
+    a { color: inherit; }
+
+    .review-shell { width: min(1440px, calc(100% - 28px)); margin: 0 auto; padding: 22px 0 42px; }
+    .review-topbar, .review-meta, .candidate-head, .choice-row, .running-head,
+    .progress-copy, .chapter-action, .chapter-nav { display: flex; align-items: center; justify-content: space-between; }
+    .review-topbar { gap: 20px; color: var(--ink-soft); font-size: 12px; }
+    .review-topbar a { min-height: 34px; padding: 8px 0; text-decoration-color: var(--rule); text-underline-offset: 4px; }
+    .review-status { color: var(--accent); font-weight: 650; }
+    .review-title { max-width: 22em; margin: 18px 0 0; font-family: var(--serif); font-size: 32px; font-weight: 600; line-height: 1.3; }
+    .review-lead { max-width: 72em; margin: 9px 0 0; color: var(--ink-soft); font-size: 12px; line-height: 1.7; }
+    .review-meta { gap: 18px; margin-top: 18px; padding: 9px 0; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); color: var(--ink-faint); font-size: 10px; }
+
+    .candidate-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 18px; }
+    .candidate { min-width: 0; padding: 11px 8px 13px; border: 1px solid var(--rule); border-radius: 8px; background: rgba(253, 254, 253, 0.74); cursor: pointer; transition: border-color 160ms, box-shadow 160ms, transform 160ms; }
+    .candidate:hover { border-color: rgba(var(--accent-rgb), 0.52); transform: translateY(-2px); }
+    .candidate[aria-checked="true"] { border-color: var(--accent); box-shadow: inset 0 -3px 0 var(--accent); }
+    .candidate-head { align-items: baseline; gap: 10px; padding: 0 2px 9px; }
+    .candidate-code { color: var(--accent); font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .candidate-route { min-width: 0; color: var(--ink-soft); font-family: var(--serif); font-size: 12px; text-align: right; }
+
+    .phone {
+      --node-size: 48px;
+      --birth-scale: 0.82;
+      --settled-opacity: 0.67;
+      --marker-opacity: 0.62;
+      --guide-opacity: 0.3;
+      --center-shift: 54px;
+      --center-scale: 1;
+      --center-time: 760ms;
+      --title-size: 24px;
+      --action-size: 14px;
+      --status-size: 10px;
+      --support-size: 10px;
+      --meta-size: 8px;
+      --wave-duration: 2.1666667s;
+      --wave-delay: 300ms;
+      position: relative;
+      width: min(100%, 320px);
+      height: 650px;
+      margin: 0 auto;
+      overflow: hidden;
+      border: 1px solid var(--rule);
+      border-radius: 17px;
+      background: var(--paper);
+      color: var(--ink);
+      box-shadow: 0 15px 36px rgba(45, 59, 55, 0.07);
+    }
+    .folio-page { position: relative; height: 100%; overflow: hidden; padding: 16px 24px 70px; border-radius: inherit; isolation: isolate; }
+    .folio-page::before { position: absolute; z-index: -2; inset: 0; background: linear-gradient(180deg, rgba(var(--wash-rgb), 0.018), transparent 36%, rgba(var(--wash-rgb), 0.012)); content: ""; }
+    .folio-page::after { position: absolute; z-index: -1; top: 104px; right: -54px; width: 190px; height: 140px; border-radius: 46% 54% 49% 51%; background: rgba(var(--wash-rgb), 0.025); filter: blur(24px); content: ""; transform: rotate(-12deg); }
+    .running-head { position: relative; z-index: 12; min-height: 18px; align-items: flex-start; gap: 12px; color: var(--ink-faint); font-size: var(--meta-size); font-weight: 650; transition: opacity 360ms ease, transform 520ms var(--center-ease); }
+    .running-head span:last-child, .count { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+    .chapter-head { position: relative; z-index: 10; min-height: 76px; margin-top: 11px; transition: opacity 360ms ease, transform 520ms var(--center-ease), filter 360ms ease; }
+    .chapter-kicker { float: right; margin: 5px 0 0 10px; color: var(--ink-faint); font-size: var(--meta-size); font-weight: 650; }
+    .chapter-title { margin: 0; font-family: var(--serif); font-size: var(--title-size); font-weight: 600; line-height: 1.24; }
+    .chapter-lead { width: 230px; margin: 7px 0 0; color: var(--ink-soft); font-family: var(--serif); font-size: var(--support-size); line-height: 1.55; }
+
+    .orbit-stage { position: relative; z-index: 3; width: 310px; height: 310px; margin: 5px 0 0 50%; transform: translateX(-50%); transition: transform var(--center-time) var(--center-ease); isolation: isolate; }
+    .orbit-stage::before { position: absolute; z-index: -1; inset: 29px 17px 48px 31px; border-radius: 56% 44% 46% 54%; background: radial-gradient(ellipse at 44% 48%, rgba(var(--wash-rgb), 0.12), rgba(var(--wash-rgb), 0.04) 42%, transparent 70%); filter: blur(19px); opacity: 0.58; content: ""; transform: rotate(4deg); }
+    .orbit-guide { position: absolute; z-index: 0; top: 50%; left: 50%; width: 256px; height: 256px; border: 1px solid rgba(var(--accent-rgb), var(--guide-opacity)); border-radius: 50%; opacity: 0.25; transform: translate(-50%, -50%); transition: opacity 420ms ease; }
+    .aura { position: absolute; z-index: 1; top: 50%; left: 50%; width: 220px; height: 220px; transform: translate(-50%, -50%); isolation: isolate; }
+    .aura-core { position: absolute; inset: 0; display: grid; place-items: center; isolation: isolate; }
+    .aura-layer { position: absolute; z-index: -1; border-radius: 50%; }
+    .aura-layer.l5 { width: 220px; height: 220px; background: rgba(var(--wash-rgb), 0.025); }
+    .aura-layer.l4 { width: 194px; height: 194px; background: rgba(var(--wash-rgb), 0.045); }
+    .aura-layer.l3 { width: 166px; height: 166px; background: rgba(var(--wash-rgb), 0.066); }
+    .aura-layer.l2 { width: 138px; height: 138px; background: rgba(var(--wash-rgb), 0.092); }
+    .aura-layer.l1 { width: 110px; height: 110px; background: radial-gradient(circle, rgba(var(--surface-rgb), 0.985) 0%, rgba(var(--surface-rgb), 0.955) 67%, rgba(var(--wash-rgb), 0.18) 100%); }
+    .aura-glyph { position: relative; z-index: 9; color: rgb(var(--glyph-rgb)); font-family: var(--serif); font-size: 31px; font-weight: 500; line-height: 1; text-shadow: 0 0 14px rgba(var(--wash-rgb), 0.15); }
+    .resolving .aura-glyph { animation: parse-pulse 1.02s var(--route-ease) both; }
+    .arrival-wave { position: absolute; z-index: 3; top: 50%; left: 50%; width: 72px; height: 72px; border: 0.8px solid rgba(var(--glyph-rgb), 0.24); border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%) scale(0.64); animation: arrival-wave 1.35s cubic-bezier(0.12, 0.62, 0.2, 1) both; }
+    .completion-wave { position: absolute; z-index: 2; top: 50%; left: 50%; width: 84px; height: 84px; border: 1px solid rgba(var(--glyph-rgb), 0.28); border-radius: 50%; opacity: 0; pointer-events: none; transform: translate(-50%, -50%) scale(0.72); }
+    .wave-b { border-width: 0.55px; border-color: rgba(var(--glyph-rgb), 0.12); }
+
+    .target-marker { position: absolute; z-index: 4; top: 50%; left: 50%; display: grid; width: 22px; height: 22px; place-items: center; color: var(--ink-faint); font-size: 6px; font-variant-numeric: tabular-nums; opacity: var(--marker-opacity); transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))); transition: opacity 300ms; }
+    .target-marker::before { position: absolute; inset: 4px; border: 1px solid var(--rule-light); border-radius: 50%; content: ""; }
+    .target-marker.claimed { opacity: 0.1; }
+    .fate-node { --tier: 100, 116, 139; --rarity-scale: 0.86; position: absolute; z-index: 6; top: 50%; left: 50%; display: grid; width: var(--node-size); height: var(--node-size); place-items: center; border: 0; border-radius: 50%; background: transparent; color: rgb(var(--tier)); opacity: 0; transform: translate(-50%, -50%) scale(0.46); filter: saturate(0.88); pointer-events: none; transition: transform 240ms var(--route-ease), opacity 240ms ease, filter 300ms ease; }
+    .fate-node::before { position: absolute; inset: 5px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 255, 255, 0.94) 0 4%, rgba(var(--tier), 0.25) 29%, rgba(var(--tier), 0.1) 52%, transparent 74%); filter: blur(5px); content: ""; transform: scale(var(--rarity-scale)); }
+    .fate-node::after { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle, rgba(var(--tier), 0.1), transparent 66%); filter: blur(var(--node-blur, 7px)); content: ""; }
+    .fate-node span { position: relative; z-index: 2; display: block; width: 34px; font-size: 7px; font-weight: 760; line-height: 1.08; text-align: center; text-shadow: 0 1px 2px #fff, 0 0 7px #fff; opacity: 0.82; transition: opacity 180ms ease; }
+    .fate-node.born:not(.travelling) span { opacity: 0; transition-duration: 0ms; }
+    .fate-node.born { opacity: 1; transform: translate(-50%, -50%) scale(var(--birth-scale)); filter: saturate(1.03) brightness(1.02); }
+    .fate-node.travelling { transition: transform 820ms var(--travel-ease), opacity 220ms ease, filter 300ms ease; }
+    .fate-node.settled { opacity: var(--settled-opacity); transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) scale(var(--rarity-scale)); }
+    .fate-node.common { --tier: 100, 116, 139; --rarity-scale: 0.86; --node-blur: 7px; }
+    .fate-node.fine { --tier: 25, 138, 67; --rarity-scale: 0.92; --node-blur: 8px; }
+    .fate-node.rare { --tier: 37, 99, 185; --rarity-scale: 1; --node-blur: 10px; }
+    .fate-node.epic { --tier: 128, 56, 192; --rarity-scale: 1.06; --node-blur: 12px; }
+    .fate-node.legendary { --tier: 169, 103, 8; --rarity-scale: 1.12; --node-blur: 14px; }
+
+    .progress-line { min-height: 28px; margin: -1px 2px 0; padding: 2px; border: 0; background: transparent; transition: opacity 300ms ease, transform 480ms var(--center-ease), filter 300ms ease; }
+    .progress-copy { gap: 10px; color: var(--ink-faint); font-size: var(--status-size); line-height: 1.35; }
+    .state-copy { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .count { color: var(--ink); font-family: var(--serif); font-size: var(--status-size); }
+
+    .chapter-end { position: absolute; z-index: 20; right: 17px; bottom: 12px; left: 17px; }
+    .chapter-nav { width: 100%; min-height: 53px; gap: 10px; }
+    .back-button { display: grid; flex: 0 0 36px; width: 36px; height: 36px; padding: 0; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--ink-soft); cursor: pointer; }
+    .back-button svg { width: 17px; height: 17px; }
+    .chapter-action { min-width: 0; flex: 1; min-height: 53px; gap: 9px; padding: 3px 0; border: 0; background: transparent; color: var(--ink); cursor: pointer; text-align: left; }
+    .chapter-action:disabled { color: var(--ink-faint); cursor: not-allowed; }
+    .action-number { width: 22px; color: var(--ink-faint); font-size: var(--meta-size); font-variant-numeric: tabular-nums; }
+    .action-copy { min-width: 0; flex: 1; }
+    .action-copy strong, .action-copy small { display: block; }
+    .action-copy strong { font-family: var(--serif); font-size: var(--action-size); font-weight: 600; line-height: 1.2; }
+    .action-copy small { margin-top: 3px; overflow: hidden; color: var(--ink-faint); font-size: var(--meta-size); line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+    .action-arrow { width: 17px; height: 17px; padding: 5px; border: 1px solid rgba(var(--accent-rgb), 0.44); border-radius: 50%; box-sizing: content-box; color: var(--accent); }
+
+    .centering .chapter-head, .complete .chapter-head { opacity: 0; filter: blur(2px); transform: translateY(-12px); }
+    .centering .progress-line { opacity: 0; filter: blur(2px); transform: translateY(72px); }
+    .complete .progress-line { opacity: 1; filter: none; transform: translateY(72px); }
+    .centering .orbit-stage, .complete .orbit-stage { transform: translate(-50%, var(--center-shift)) scale(var(--center-scale)); }
+    .centering .fate-node.settled, .complete .fate-node.settled { opacity: calc(var(--settled-opacity) - 0.04); }
+    .complete .aura-glyph { animation: completion-breathe 2.8s ease-in-out infinite; }
+    .v1, .v2, .v3, .v4 { --paper: #fbfcfd; --ink: #2b3338; --ink-soft: #6a747a; --ink-faint: #9ba4a9; --rule: #dce2e5; --rule-light: #eaedef; --accent: #748b94; --accent-rgb: 116, 139, 148; --glyph-rgb: 61, 80, 89; --wash-rgb: 121, 140, 147; --surface-rgb: 252, 253, 253; }
+    .v1, .v2, .v3, .v4 { --title-size: 24px; --action-size: 14px; --status-size: 10px; --support-size: 10px; --meta-size: 8px; }
+    .v1 { --wave-duration: 2.5s; --wave-delay: 300ms; }
+    .v2 { --wave-duration: 2.1666667s; --wave-delay: 300ms; }
+    .v3 { --wave-duration: 1.8333333s; --wave-delay: 300ms; }
+    .v4 { --wave-duration: 1.5s; --wave-delay: 300ms; }
+    .v1 .chapter-end, .v2 .chapter-end, .v3 .chapter-end, .v4 .chapter-end { border-top: 1px solid var(--rule); background: rgba(var(--surface-rgb), 0.58); backdrop-filter: blur(10px); }
+    .v1 .chapter-nav, .v2 .chapter-nav, .v3 .chapter-nav, .v4 .chapter-nav { padding: 2px 0 0; }
+
+    .complete .wave-a { animation: main-wave var(--wave-duration) cubic-bezier(0.16, 0.64, 0.2, 1) infinite; }
+    .complete .wave-b { animation: after-wave var(--wave-duration) cubic-bezier(0.16, 0.64, 0.2, 1) var(--wave-delay) infinite; }
+
+    .choice-row { align-items: stretch; gap: 10px; margin-top: 10px; }
+    .select-candidate { min-width: 102px; min-height: 36px; padding: 6px 12px; border: 1px solid var(--rule); border-radius: 8px; background: rgba(255, 255, 255, 0.5); color: var(--ink-soft); cursor: pointer; font-size: 10px; }
+    .candidate[aria-checked="true"] .select-candidate { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+    .route-notes { min-width: 0; flex: 1; border-top: 1px solid var(--rule-light); border-bottom: 1px solid var(--rule-light); }
+    .route-notes summary { min-height: 36px; padding: 10px 0; color: var(--ink-soft); cursor: pointer; font-family: var(--serif); font-size: 10px; }
+    .route-notes p { margin: 0 0 10px; color: var(--ink-faint); font-size: 9px; line-height: 1.6; }
+
+    @keyframes parse-pulse { 0%, 100% { transform: scale(1); } 24% { transform: scale(1.12); } 42% { transform: scale(0.995); } 62% { transform: scale(1.075); } 82% { transform: scale(1); } }
+    @keyframes arrival-wave { 0% { opacity: 0; border-width: 0.9px; transform: translate(-50%, -50%) scale(0.64); } 10% { opacity: 0.24; } 72% { opacity: 0.05; border-width: 0.35px; } 100% { opacity: 0; border-width: 0.2px; transform: translate(-50%, -50%) scale(4.08); } }
+    @keyframes completion-breathe { 0%, 100% { transform: scale(1); } 48% { transform: scale(1.055); } }
+    @keyframes main-wave { 0%, 10% { opacity: 0; border-width: 1px; transform: translate(-50%, -50%) scale(0.72); } 17% { opacity: 0.34; } 72% { opacity: 0.07; border-width: 0.4px; } 100% { opacity: 0; border-width: 0.2px; transform: translate(-50%, -50%) scale(8.2); } }
+    @keyframes after-wave { 0%, 10% { opacity: 0; border-width: 0.55px; transform: translate(-50%, -50%) scale(0.78); } 17% { opacity: 0.13; } 72% { opacity: 0.025; border-width: 0.25px; } 100% { opacity: 0; border-width: 0.14px; transform: translate(-50%, -50%) scale(8.34); } }
+    @keyframes page-old { to { opacity: 0; transform: translateY(-7px); } }
+    @keyframes page-new { from { opacity: 0; transform: translateY(7px); } }
+    @view-transition { navigation: auto; }
+    ::view-transition-old(root) { animation: page-old 220ms cubic-bezier(0.4, 0, 0.2, 1) both; }
+    ::view-transition-new(root) { animation: page-new 280ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+
+    @media (max-width: 1320px) { .candidate-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 760px) { .candidate-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 680px) {
+      .review-shell { width: min(100% - 18px, 430px); padding-top: 14px; }
+      .review-topbar { align-items: flex-start; }
+      .review-title { margin-top: 12px; font-size: 28px; }
+      .review-meta { align-items: flex-start; }
+      .phone { width: min(100%, 342px); }
+    }
+    @media (max-width: 389px) {
+      .review-shell { width: calc(100% - 12px); }
+      .candidate-route { font-size: 11px; }
+      .phone { width: min(100%, 330px); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="review-shell">
+    <div class="review-topbar"><a href="index.html">返回命格抽取历史</a><span class="review-status" id="selection-status" aria-live="polite">待选择 · 尚未选定</span></div>
+    <h1 class="review-title">完成大水波 · 高速分档</h1>
+    <p class="review-lead">第十四轮选择 TD-RF14-4。本轮锁定尾波间隔、字体层级、中心净空和全部抽取机制，将完成后水波主周期从 2.5s 到 1.5s 精确三等分。</p>
+    <div class="review-meta"><span>第四章 · 命格抽取</span><span>TD-RF15 · 01—04</span></div>
+    <section class="candidate-grid" id="options" role="radiogroup" aria-label="命格抽取重构第十五轮候选"></section>
+  </main>
+
+  <script>
+    (() => {
+      const rarities = [
+        ['common', '普通'], ['fine', '精良'], ['common', '普通'], ['rare', '稀有'],
+        ['fine', '精良'], ['common', '普通'], ['epic', '史诗'], ['fine', '精良'],
+        ['rare', '稀有'], ['common', '普通'], ['legendary', '传说'], ['common', '普通']
+      ];
+      const variants = [
+        { id: 'TD-RF15-1', cls: 'v1', name: '快速周期 · 2.50s', hold: 180, center: 760, note: '主周期 2.5s，尾波延迟保持 300ms；四版中最接近上一轮节奏。' },
+        { id: 'TD-RF15-2', cls: 'v2', name: '紧凑周期 · 2.17s', hold: 180, center: 760, note: '主周期精确为 2.1666667s，尾波延迟保持 300ms；速度提升清晰。' },
+        { id: 'TD-RF15-3', cls: 'v3', name: '迅疾周期 · 1.83s', hold: 180, center: 760, note: '主周期精确为 1.8333333s，尾波延迟保持 300ms；扩散节奏显著加快。' },
+        { id: 'TD-RF15-4', cls: 'v4', name: '极快周期 · 1.50s', hold: 180, center: 760, note: '主周期 1.5s，尾波延迟保持 300ms；四版中速度最快。' }
+      ];
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const wait = (duration) => new Promise((resolve) => window.setTimeout(resolve, reducedMotion ? 20 : duration));
+
+      function auraMarkup() {
+        return '<span class="aura-core"><i class="aura-layer l5"></i><i class="aura-layer l4"></i><i class="aura-layer l3"></i><i class="aura-layer l2"></i><i class="aura-layer l1"></i><b class="aura-glyph">命</b></span>';
+      }
+
+      function candidateMarkup(variant) {
+        return `<article class="candidate" role="radio" aria-checked="false" tabindex="0" data-choice="${variant.id}">
+          <header class="candidate-head"><span class="candidate-code">${variant.id}</span><span class="candidate-route">${variant.name}</span></header>
+          <div class="phone draw-view ${variant.cls}" data-hold="${variant.hold}" data-center="${variant.center}"><div class="folio-page">
+            <div class="running-head"><span>AI LIFE SIM · 命书</span><span>04 / 抽取</span></div>
+            <header class="chapter-head"><p class="chapter-kicker">第四章 · 命格抽取</p><h2 class="chapter-title">命格抽取</h2><p class="chapter-lead">正在解析十二枚先天命印，并依序归入命盘。</p></header>
+            <section class="orbit-stage" aria-label="半透明圆形命印归位">
+              <i class="orbit-guide"></i><div class="aura">${auraMarkup()}</div>
+              <div class="completion-waves" aria-hidden="true"><i class="completion-wave wave-a"></i><i class="completion-wave wave-b"></i></div>
+              <div class="target-markers"></div><div class="fate-nodes"></div>
+            </section>
+            <div class="progress-line"><div class="progress-copy"><span class="state-copy" role="status" aria-live="polite">等待第一枚命印</span><span class="count">0 / 12</span></div></div>
+            <footer class="chapter-end"><div class="chapter-nav">
+              <button class="back-button" type="button" aria-label="返回角色创建" title="返回角色创建"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+              <button class="chapter-action draw-button" type="button"><span class="action-number">01</span><span class="action-copy"><strong class="button-label">开始抽取</strong><small class="button-hint">命印抵达星位后计入进度</small></span><svg class="action-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M6 14l6 6 6-6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+            </div></footer>
+          </div></div>
+          <div class="choice-row"><button class="select-candidate" type="button">选择此版</button><details class="route-notes"><summary>栏位说明</summary><p>${variant.note}</p></details></div>
+        </article>`;
+      }
+
+      document.getElementById('options').innerHTML = variants.map(candidateMarkup).join('');
+      document.querySelectorAll('.draw-view').forEach((view) => {
+        const markers = view.querySelector('.target-markers');
+        const nodes = view.querySelector('.fate-nodes');
+        rarities.forEach((item, index) => {
+          const angle = (index * 30 - 90) * Math.PI / 180;
+          const x = Math.round(Math.cos(angle) * 128);
+          const y = Math.round(Math.sin(angle) * 128);
+          const style = `--x:${x}px;--y:${y}px`;
+          markers.insertAdjacentHTML('beforeend', `<span class="target-marker" style="${style}" data-index="${index}">${String(index + 1).padStart(2, '0')}</span>`);
+          nodes.insertAdjacentHTML('beforeend', `<span class="fate-node ${item[0]}" style="${style}" data-index="${index}" data-phase="waiting"><span>${item[1]}</span></span>`);
+        });
+      });
+
+      function selectCandidate(candidate) {
+        document.querySelectorAll('.candidate').forEach((item) => {
+          const selected = item === candidate;
+          item.setAttribute('aria-checked', String(selected));
+          item.querySelector('.select-candidate').textContent = selected ? '已选择' : '选择此版';
+        });
+        document.getElementById('selection-status').textContent = `待确认 · 当前选择 ${candidate.dataset.choice}`;
+      }
+
+      document.querySelectorAll('.candidate').forEach((candidate) => {
+        candidate.addEventListener('click', (event) => {
+          if (event.target.closest('.draw-button, .back-button, .select-candidate, details, a')) return;
+          selectCandidate(candidate);
+        });
+        candidate.addEventListener('keydown', (event) => {
+          if (event.target !== candidate || (event.key !== 'Enter' && event.key !== ' ')) return;
+          event.preventDefault();
+          selectCandidate(candidate);
+        });
+        candidate.querySelector('.select-candidate').addEventListener('click', (event) => {
+          event.stopPropagation();
+          selectCandidate(candidate);
+        });
+      });
+
+      function restartResolvePulse(view) {
+        view.classList.remove('resolving');
+        void view.offsetWidth;
+        view.classList.add('resolving');
+        const wave = document.createElement('i');
+        wave.className = 'arrival-wave';
+        view.querySelector('.orbit-stage').appendChild(wave);
+        window.setTimeout(() => wave.remove(), 1500);
+      }
+
+      async function runDraw(view) {
+        const button = view.querySelector('.draw-button');
+        const count = view.querySelector('.count');
+        const status = view.querySelector('.state-copy');
+        const buttonLabel = view.querySelector('.button-label');
+        const buttonHint = view.querySelector('.button-hint');
+        const actionNumber = view.querySelector('.action-number');
+        const nodes = Array.from(view.querySelectorAll('.fate-node'));
+        const markers = Array.from(view.querySelectorAll('.target-marker'));
+
+        view.classList.add('drawing');
+        button.disabled = true;
+        buttonLabel.textContent = '命印解析中';
+        buttonHint.textContent = '抵达星位后计入进度';
+        for (let index = 0; index < nodes.length; index += 1) {
+          const ordinal = String(index + 1).padStart(2, '0');
+          const node = nodes[index];
+          status.textContent = `正在解析第 ${ordinal} 枚命印`;
+          actionNumber.textContent = ordinal;
+          await wait(180);
+          node.dataset.phase = 'born';
+          node.classList.add('born');
+          status.textContent = `第 ${ordinal} 枚解析成功，正在归位`;
+          restartResolvePulse(view);
+          await wait(240);
+          node.dataset.phase = 'travelling';
+          node.classList.add('travelling', 'settled');
+          await wait(820);
+          node.classList.remove('born', 'travelling');
+          node.dataset.phase = 'settled';
+          markers[index].classList.add('claimed');
+          count.textContent = `${index + 1} / 12`;
+          status.textContent = index + 1 < nodes.length ? `已归位 ${index + 1} 枚命印` : '十二命印已全部归位';
+          await wait(40);
+        }
+        view.classList.remove('drawing', 'resolving');
+        buttonLabel.textContent = '星盘收束中';
+        buttonHint.textContent = '十二命印已全部归位';
+        actionNumber.textContent = '12';
+        await wait(Number(view.dataset.hold));
+        view.classList.add('centering');
+        await wait(Number(view.dataset.center));
+        view.classList.add('complete');
+        button.disabled = false;
+        button.dataset.done = 'true';
+        buttonLabel.textContent = '进入下一阶段';
+        buttonHint.textContent = '第五章 · 神话传承';
+        actionNumber.textContent = '05';
+        button.setAttribute('aria-label', '十二命印已完成，进入下一阶段');
+      }
+
+      document.querySelectorAll('.draw-view').forEach((view) => {
+        const candidate = view.closest('.candidate');
+        const button = view.querySelector('.draw-button');
+        view.querySelector('.back-button').addEventListener('click', (event) => {
+          event.stopPropagation();
+          selectCandidate(candidate);
+          window.location.href = '../character-create/final.html';
+        });
+        button.addEventListener('click', (event) => {
+          event.stopPropagation();
+          selectCandidate(candidate);
+          if (button.dataset.done === 'true') {
+            window.location.href = '../mythic-inheritance/final.html';
+            return;
+          }
+          if (view.classList.contains('drawing') || view.classList.contains('centering')) return;
+          runDraw(view);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
+
+
+

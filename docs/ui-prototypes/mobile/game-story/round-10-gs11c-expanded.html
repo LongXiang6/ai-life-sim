@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light-aurora">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>核心模拟 / 故事页第十轮</title>
+  <link rel="stylesheet" href="../assets/library-history.css">
+  <link rel="stylesheet" href="../../../../src/foundation/tokens/index.css">
+  <script src="../assets/prototype.js" defer></script>
+  <style>
+    .phone.runtime-phone { --menu-top: 94px; width: 320px; height: 650px; display: flex; flex-direction: column; background: var(--color-bg-primary); color: var(--color-text-primary); font-family: Inter,"Microsoft YaHei",system-ui,sans-serif; }
+    .runtime-phone button,.runtime-phone textarea,.runtime-phone input { font-family:inherit; }
+    .hud { position:relative; z-index:5; display:grid; flex:0 0 auto; grid-template-columns:minmax(0,1fr) auto; grid-template-areas:"identity clock" "world world" "talents talents" "attrs attrs" "tools tools"; gap:4px 10px; padding:7px 14px 6px; border-bottom:1px solid var(--glass-border); background:linear-gradient(135deg,var(--color-primary-light),transparent 72%),var(--glass-surface-bg); box-shadow:var(--shadow-sm); backdrop-filter:blur(var(--glass-blur-surface)); }
+    .identity-line { grid-area:identity; display:flex; min-width:0; align-items:baseline; gap:4px; overflow:hidden; }
+    .world-name { grid-area:world; align-self:center; overflow:hidden; color:var(--color-text-secondary); font-size:7.2px; font-weight:620; text-align:center; text-overflow:ellipsis; white-space:nowrap; }
+    .race { flex:0 0 auto; padding:1px 4px; border-radius:var(--radius-sm); background:var(--color-bg-tertiary); color:var(--color-text-tertiary); font-size:6.2px; }
+    .char { flex:0 0 auto; color:var(--color-text-primary); font-family:"Noto Serif SC","Songti SC",serif; font-size:10px; font-weight:760; letter-spacing:.04em; }
+    .gender { flex:0 0 auto; color:var(--color-text-tertiary); font-size:6.8px; }
+    .clock { grid-area:clock; display:flex; align-items:baseline; justify-content:flex-end; gap:5px; white-space:nowrap; }
+    .era { color:var(--color-text-tertiary); font-size:6.8px; }
+    .age { color:var(--color-primary); font-size:11.5px; font-weight:780; }
+    .talents { grid-area:talents; display:flex; gap:0; min-width:0; overflow-x:auto; color:var(--color-primary); scrollbar-width:none; }
+    .talents::-webkit-scrollbar { display: none; }
+    .talent { flex:0 0 auto; padding:1px 0; border:0; background:transparent; color:var(--color-primary); font-size:6.5px; white-space:nowrap; }
+    .talent + .talent::before { content:" / "; margin:0 4px; color:var(--color-text-tertiary); }
+    .tools { grid-area:tools; display:flex; flex:0 0 auto; align-items:center; justify-content:center; gap:0; padding-top:2px; border-top:1px solid color-mix(in srgb,var(--color-border) 42%,transparent); }
+    .runtime-phone .tool { position:relative; min-width:0; min-height:22px; padding:0 6px; border:0; border-radius:0; background:transparent; color:var(--color-text-tertiary); font-family:var(--font-family-sans,Inter,"Microsoft YaHei",system-ui,sans-serif); font-size:6.55px; font-weight:650; line-height:1; white-space:nowrap; cursor:pointer; }
+    .tool + .tool::before { content:"·"; position:absolute; left:-1px; color:var(--color-border); }
+    .tool.active,.tool[aria-expanded="true"] { background:transparent; color:var(--color-primary); }
+    .attrs { grid-area:attrs; display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:0; padding-top:3px; border-top:1px solid color-mix(in srgb,var(--color-border) 50%,transparent); color:var(--color-text-secondary); font-size:6.05px; }
+    .attrs span { display:flex; min-width:0; align-items:baseline; justify-content:center; gap:1px; padding:3px 1px; overflow:hidden; border-radius:0; white-space:nowrap; }
+    .attrs span + span { border-left:1px solid color-mix(in srgb,var(--color-border) 44%,transparent); }
+    .attrs em { overflow: hidden; color: var(--color-text-secondary); font-style: normal; text-overflow: clip; white-space: nowrap; }
+    .attrs b { flex: 0 0 auto; color: var(--color-success); font-size: 6.35px; font-weight: 760; white-space: nowrap; }
+    .attrs b.negative { color: var(--color-text-tertiary); }
+    .world-panel { display: none; flex: 0 0 auto; max-height: 30%; overflow-y: auto; padding: 8px 10px; border-bottom: 1px solid var(--color-border); background: var(--glass-elevated-bg); }
+    .world-panel.open { display: block; }
+    .panel-title { margin-bottom: 5px; color: var(--color-text-primary); font-size: 9px; font-weight: 760; }
+    .panel-sub { margin: 6px 0 3px; color: var(--color-text-secondary); font-size: 7px; font-weight: 700; }
+    .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+    .chip { padding: 3px 6px; border-radius: 999px; background: color-mix(in srgb,var(--color-primary) 8%,transparent); color: var(--color-text-secondary); font-size: 7px; }
+    .timeline { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 12px calc(12px + env(safe-area-inset-bottom)); }
+    .timeline-head { position: static; display: flex; justify-content: space-between; margin: 0; padding: 6px 0 5px; border-bottom: 1px solid color-mix(in srgb,var(--color-border) 62%,transparent); background: transparent; color: var(--color-text-tertiary); font-size: 8px; }
+    .load-more { padding: 7px 0; color: var(--color-text-tertiary); text-align: center; font-size: 7.3px; }
+    .entry { padding: 8px 4px 5px; }
+    .entry-meta { display: flex; justify-content: space-between; margin-bottom: 7px; color: var(--color-text-tertiary); font-size: 7.5px; }
+    .prose { color: var(--color-text-primary); font-family: "Noto Serif SC","Songti SC",serif; font-size: 10.5px; line-height: 1.78; }
+    .prose p { margin: 0 0 9px; text-indent: 2em; }
+    .separator { display: flex; align-items: center; gap: 8px; margin: 3px 0; color: var(--color-text-tertiary); font-size: 8px; }
+    .separator::before,.separator::after { content:""; flex:1; height:1px; background:linear-gradient(90deg,transparent,var(--color-border)); }
+    .separator::after { background:linear-gradient(90deg,var(--color-border),transparent); }
+    .branch { margin:13px 2px 0; padding:11px 0 4px; border:0; border-radius:0; background:transparent; }
+    .branch-heading { display:grid; grid-template-columns:1fr; gap:4px; align-items:start; margin-bottom:9px; text-align:center; }
+    .branch-mark { display:grid; width:17px; height:17px; margin:0 auto 1px; place-items:center; border-radius:50%; background:color-mix(in srgb,var(--color-warning) 11%,transparent); color:var(--color-warning); font-size:7.5px; }
+    .branch-kicker { display:block; margin-bottom:2px; color:var(--color-warning); font-size:6.8px; font-weight:760; letter-spacing:.12em; white-space:nowrap; }
+    .branch-question { margin:0; color:var(--color-text-primary); font-family:"Noto Serif SC","Songti SC",serif; font-size:9.4px; font-weight:650; line-height:1.55; }
+    .branch-option { display:flex; align-items:flex-start; gap:8px; min-height:36px; margin:0; padding:8px 6px; border:0; border-top:1px solid color-mix(in srgb,var(--color-border) 52%,transparent); border-radius:0; background:transparent; color:var(--color-text-primary); font-size:8.2px; line-height:1.5; cursor:pointer; transition:background var(--duration-fast),color var(--duration-fast); }
+    .branch-option:has(input:checked),.branch-option.selected { background:var(--color-primary-light); color:var(--color-primary); }
+    .branch-option input { flex:0 0 auto; width:13px; height:13px; margin:1px 0 0; accent-color:var(--color-primary); }
+    .branch-input { width:100%; min-height:48px; margin-top:5px; padding:8px 6px; resize:vertical; border:0; border-bottom:1px solid var(--color-border); border-radius:0; outline:none; background:transparent; color:var(--color-text-primary); font-size:8.2px; line-height:1.5; text-align:center; }
+    .branch-input:focus { border-bottom-color:var(--color-primary); }
+    .branch-actions { display:flex; justify-content:center; gap:6px; margin-top:8px; }
+    .branch-actions button,.dialog-actions button { min-height:30px; padding:6px 10px; border-radius:var(--radius-md); font-size:7.6px; white-space:nowrap; }
+    .confirm { border:0; background:var(--color-primary); color:var(--color-text-on-primary); }
+    .branch-actions .confirm { border:1px solid color-mix(in srgb,var(--color-primary) 38%,var(--color-border)); background:var(--color-primary-light); color:var(--color-primary); box-shadow:0 2px 8px color-mix(in srgb,var(--color-primary) 8%,transparent); }
+    .branch-actions .confirm:hover { background:color-mix(in srgb,var(--color-primary) 14%,transparent); }
+    .cancel { border:1px solid var(--color-border); background:transparent; color:var(--color-text-secondary); }
+    .branch-resolved { display:none; margin-top:12px; padding:9px 10px; border-left:2px solid var(--color-primary); background:var(--color-primary-light); color:var(--color-text-secondary); font-size:8px; line-height:1.55; }
+    .branch-resolved.show { display:block; }
+    .advance { width:100%; min-height:58px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; margin:10px 0 2px; padding:9px 12px; border:0; background:transparent; color:var(--color-text-tertiary); text-align:center; cursor:not-allowed; }
+    .advance::before { content:""; width:42px; height:1px; margin-bottom:3px; background:linear-gradient(90deg,transparent,var(--color-border),transparent); }
+    .advance-title { color:inherit; font-family:"Noto Serif SC","Songti SC",serif; font-size:10.5px; font-weight:650; letter-spacing:.08em; white-space:nowrap; }
+    .advance-hint { color:var(--color-text-tertiary); font-size:7.2px; font-weight:500; letter-spacing:.02em; white-space:nowrap; }
+    .advance[data-state="generating"] { color:var(--color-text-secondary); }
+    .advance[data-state="ready"] { color:var(--color-primary); cursor:pointer; }
+    .advance[data-state="ready"]::before { background:linear-gradient(90deg,transparent,var(--color-primary),transparent); }
+    .popover { display:none; position:absolute; z-index:20; top:var(--menu-top); right:8px; min-width:112px; max-height:190px; overflow-y:auto; padding:4px; border:1px solid var(--glass-border); border-radius:var(--radius-lg); background:var(--glass-popout-bg); box-shadow:var(--shadow-lg); }
+    .popover.open { display:block; }
+    .popover button { display:block; width:100%; min-height:34px; padding:7px 9px; border:0; border-radius:var(--radius-md); background:transparent; color:var(--color-text-primary); text-align:left; font-size:8px; }
+    .popover button.active { background:var(--color-primary-light); color:var(--color-primary); }
+    .popover-hint { margin:4px; padding-top:5px; border-top:1px solid var(--color-border); color:var(--color-text-tertiary); font-size:7px; line-height:1.45; }
+    .save-overlay { display:none; position:absolute; inset:0; z-index:30; align-items:center; justify-content:center; padding:14px; background:color-mix(in srgb,var(--color-text-primary) 28%,transparent); backdrop-filter:blur(3px); }
+    .save-overlay.open { display:flex; }
+    .save-dialog { width:100%; padding:13px; border:1px solid var(--glass-border); border-radius:var(--radius-xl); background:var(--glass-modal-bg); box-shadow:var(--shadow-lg); }
+    .save-dialog h4 { margin:0 0 8px; font-size:11px; }
+    .save-slot { margin-bottom:6px; padding:8px; border:1px solid var(--color-border); border-radius:var(--radius-md); color:var(--color-text-secondary); font-size:8px; }
+    .dialog-actions { display:flex; justify-content:flex-end; gap:6px; margin-top:8px; }
+    .toast { position:absolute; left:50%; bottom:16px; z-index:40; max-width:85%; padding:7px 10px; border-radius:999px; background:color-mix(in srgb,var(--color-text-primary) 86%,transparent); color:var(--color-bg-card); font-size:8px; opacity:0; transform:translate(-50%,8px); transition:opacity var(--duration-fast),transform var(--duration-fast); }
+    .toast.show { opacity:1; transform:translate(-50%,0); }
+    .option-note { margin:0 18px 15px; padding:9px 11px; border-radius:11px; background:var(--color-bg-secondary); color:var(--color-text-secondary); font-size:11px; line-height:1.55; }
+
+    .hud :is(.world-name,.race,.char,.gender,.era,.age,.talent,.tool),
+    .timeline-head span,.entry-meta span,.branch-actions button,.popover button,.chip,.save-slot { white-space:nowrap; }
+
+    /* GS12A：直接精修 GS11C，所有内容收进 14px 安全区。 */
+    .gs12a { --menu-top:108px; }
+    .gs12a .char { font-size:10.5px; }
+    .gs12a .tool { padding-inline:10px; }
+    .gs12a .branch { border-top:1px solid color-mix(in srgb,var(--color-warning) 24%,var(--color-border)); }
+
+    /* GS12B：左右锚点，保留安全边距但减少一行 HUD。 */
+    .gs12b { --menu-top:91px; }
+    .gs12b .hud { grid-template-areas:"identity clock" "world tools" "talents talents" "attrs attrs"; gap:3px 10px; }
+    .gs12b .world-name { text-align:left; }
+    .gs12b .tools { justify-content:flex-end; padding-top:0; border-top:0; }
+    .gs12b .branch { border-top:1px solid color-mix(in srgb,var(--color-warning) 26%,var(--color-border)); border-bottom:1px solid color-mix(in srgb,var(--color-warning) 18%,var(--color-border)); }
+    .gs12b .branch-mark { background:transparent; }
+    .gs12b .branch-actions .confirm { background:transparent; box-shadow:none; }
+
+    /* GS12C：大胆的中心书页，所有身份信息沿中轴展开。 */
+    .gs12c { --menu-top:126px; }
+    .gs12c .hud { grid-template-columns:1fr; grid-template-areas:"identity" "clock" "world" "talents" "attrs" "tools"; row-gap:4px; }
+    .gs12c .identity-line,.gs12c .clock { justify-content:center; }
+    .gs12c .char { font-size:11px; letter-spacing:.1em; }
+    .gs12c .age { font-size:10px; }
+    .gs12c .world-name { color:var(--color-text-primary); }
+    .gs12c .branch-mark { width:14px; height:14px; background:transparent; border:1px solid color-mix(in srgb,var(--color-warning) 42%,transparent); }
+    .gs12c .branch-question { font-size:10px; }
+    .gs12c .branch-actions .confirm { border-color:var(--color-primary); background:var(--color-primary); color:var(--color-text-on-primary); box-shadow:0 4px 12px color-mix(in srgb,var(--color-primary) 18%,transparent); }
+
+    /* GS12D：时间侧轨，把年龄与纪年收进右侧信息脊。 */
+    .gs12d { --menu-top:96px; }
+    .gs12d .hud { grid-template-columns:minmax(0,1fr) 76px; grid-template-areas:"identity clock" "world clock" "talents tools" "attrs attrs"; gap:3px 9px; }
+    .gs12d .world-name { text-align:left; }
+    .gs12d .clock { flex-direction:column; align-items:flex-end; justify-content:center; gap:1px; padding-left:8px; border-left:1px solid color-mix(in srgb,var(--color-border) 56%,transparent); }
+    .gs12d .tools { justify-content:flex-end; padding-top:0; border-top:0; }
+    .gs12d .tool { padding-inline:4px; }
+    .gs12d .branch { padding:11px 9px 9px; border:1px solid var(--glass-border); border-radius:var(--radius-lg); background:color-mix(in srgb,var(--glass-elevated-bg) 62%,transparent); }
+    .gs12d .branch-option:first-of-type { border-top-color:transparent; }
+
+    /* GS12E：双岛玻璃，允许更明显的实验性材质分区。 */
+    .gs12e { --menu-top:103px; }
+    .gs12e .hud { grid-template-areas:"identity clock" "world tools" "talents talents" "attrs attrs"; padding-top:9px; padding-bottom:8px; }
+    .gs12e .identity-line,.gs12e .clock { padding:4px 7px; border:1px solid var(--glass-border); border-radius:var(--radius-md); background:color-mix(in srgb,var(--glass-elevated-bg) 66%,transparent); }
+    .gs12e .world-name { text-align:left; padding-left:7px; }
+    .gs12e .tools { justify-content:flex-end; padding-top:0; padding-right:4px; border-top:0; }
+    .gs12e .attrs span { background:color-mix(in srgb,var(--color-primary-light) 58%,transparent); }
+    .gs12e .branch { border-top:1px solid color-mix(in srgb,var(--color-warning) 24%,var(--color-border)); }
+    .gs12e .branch-option { margin-bottom:3px; border:1px solid color-mix(in srgb,var(--color-border) 62%,transparent); border-radius:var(--radius-md); }
+    .gs12e .branch-actions .confirm { background:color-mix(in srgb,var(--glass-elevated-bg) 72%,var(--color-primary-light)); backdrop-filter:blur(var(--glass-blur-elevated)); }
+
+    @media(max-width:980px){.option-copy{padding-top:2px}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar"><a href="index.html">← 返回故事页历史</a><span data-selection>本轮结果：GS12D / GS12E 融合晋级</span></div>
+    <p class="eyebrow">CORE SIMULATION · ROUND 10</p>
+    <h1>GS11C 扩展迭代：安全边距与开放分叉</h1>
+    <p class="subtitle">五稿全部扩大 HUD 左右安全边距，沿用居中开放式命运分叉，并用项目主色重做确认操作。A/B 为克制迭代，C/D/E 为不受既有谱系限制的实验方案。</p>
+    <section class="option-grid" id="optionGrid"></section>
+    <p class="selection">本轮结果：GS12D 的时间侧轨与 GS12E 的规则分块融合晋级。下一轮修正触控尺寸与左右行对齐，并移除分叉标签文字。</p>
+  </main>
+  <template id="phoneTemplate">
+    <div class="phone runtime-phone">
+      <header class="hud"><div class="identity-line"><span class="char">林清和</span><span class="gender">· 女</span><span class="race">人类</span></div><div class="clock"><span class="age">6岁</span><span class="era">2006年·桃月</span></div><span class="world-name">现代地球 · 滨海旧城</span><div class="tools"><button type="button" class="tool more-button" aria-expanded="false">更多</button><button type="button" class="tool time-button active" aria-expanded="false">月</button><button type="button" class="tool world-button" aria-expanded="false">世界</button></div><div class="talents"><span class="talent">体能守恒织网</span><span class="talent">完美主义的选择刑</span><span class="talent">旧日信标</span></div><div class="attrs"><span><em>体魄</em><b class="negative">−1</b></span><span><em>心智</em><b>+4</b></span><span><em>悟性</em><b>+3</b></span><span><em>魅力</em><b class="negative">−1</b></span><span><em>出身</em><b>+2</b></span><span><em>生命</em><b>100</b></span></div></header>
+      <div class="popover more-popover"><button type="button" data-action="save">存档</button><button type="button" data-action="home">主界面</button></div><div class="popover time-popover"><button data-step="日">日</button><button data-step="月" class="active">月</button><button data-step="季">季</button><button data-step="年">年</button><button data-step="3年">3年</button><button data-step="5年">5年</button><button data-step="10年">10年</button><button data-step="50年">50年</button><button data-step="100年">100年</button><button data-step="200年">200年</button><button data-step="500年">500年</button><button data-step="1000年">1000年</button><p class="popover-hint">切换只影响下一轮；旧预生成失效，当前时间不改变。</p></div>
+      <section class="world-panel"><div class="panel-title">世界规则</div><div class="panel-sub">世界标签</div><div class="chips"><span class="chip">社会：城市为主</span><span class="chip">环境：温带气候</span><span class="chip">经济：市场经济</span><span class="chip">超自然：无超自然</span></div><div class="panel-sub">角色状态</div><div class="chips"><span class="chip">生命：100/100</span><span class="chip">体力：100</span><span class="chip">精神：100</span></div></section>
+      <main class="timeline"><div class="timeline-head"><span>故事进程</span><span>第 12 轮</span></div><div class="load-more">向上滚动加载更早的叙事（已隐藏 12 条）</div><article class="entry"><div class="entry-meta"><span>2006年 · 杏月</span><span>6 岁</span></div><div class="prose"><p>午后的旧书店里，窗格把阳光切成细长的方块。你趴在柜台边，用放大镜对着那张旧底片一寸寸移动。</p><p>底片深处的人影终于露出轮廓：他站在沈家废园的砖墙旁，手里握着一根没有鱼线的旧鱼竿。</p></div></article><div class="separator">✦</div><article class="entry"><div class="entry-meta"><span>2006年 · 桃月</span><span>6 岁</span></div><div class="prose"><p>周六清晨，孙伯带你绕到废园背后。墙根刻着一行已经模糊的字，他蹲下擦去青苔，只辨认出“存米七斗”四个字。</p><p>巡街的脚步声从巷口逼近。孙伯把底片塞回你手里，低声问你，是继续查下去，还是先把它交给父亲。</p></div><section class="branch branch-pending"><div class="branch-heading"><span class="branch-mark">◇</span><div><span class="branch-kicker">命运分叉</span><p class="branch-question">巡街脚步逼近，你要如何处理这张底片？</p></div></div><label class="branch-option"><input type="radio" name="branch"><span>继续跟着孙伯调查废园，先弄清墙上刻字的来历。</span></label><label class="branch-option"><input type="radio" name="branch"><span>把底片交给父亲，问他是否认识照片中的人。</span></label><textarea class="branch-input" placeholder="写下另一种选择…"></textarea><div class="branch-actions"><button class="confirm">确认此选择</button><button class="cancel">清空</button></div></section><div class="branch-resolved">你选择了：<span class="resolved-text"></span></div></article><button class="advance" data-state="blocked" disabled><span class="advance-title">完成抉择后继续</span><span class="advance-hint">当前命运分叉尚未解决</span></button></main>
+      <div class="save-overlay"><div class="save-dialog"><h4>手动存档</h4><div class="save-slot">槽位 1 · 林清和 · 第 12 轮</div><div class="save-slot">槽位 2 · 空</div><div class="save-slot">槽位 3 · 空</div><div class="dialog-actions"><button class="cancel save-close">取消</button><button class="confirm save-confirm">保存</button></div></div></div><div class="toast"></div>
+    </div>
+  </template>
+  <script>
+    const variants=[{cls:'gs12a',choice:'GS12A 安全区精修',title:'GS12A · 安全区精修',copy:'直接精修 GS11C：角色与年龄左右锚定，其余信息沿中轴展开，整体收进 14px 安全区。',tag:'最稳妥 · GS11C 直系',note:'层级变化最少，边缘呼吸明显改善；HUD 仍保留五层结构。'},{cls:'gs12b',choice:'GS12B 左右锚点',title:'GS12B · 左右锚点',copy:'世界与轻量命令共享一行，减少一层高度；分叉使用上下细线与主色描边确认。',tag:'更紧凑 · 主操作最轻',note:'叙事面积最大；世界名与工具需要共同分配第二行宽度。'},{cls:'gs12c',choice:'GS12C 中心书页',title:'GS12C · 中心书页',copy:'角色、时间、世界全部沿中轴展开，像书页卷首；确认操作使用正式项目的主色实心态。',tag:'大胆居中 · 仪式感最强',note:'最具叙事气质，但顶部高度最大，适合偏阅读化的方向。'},{cls:'gs12d',choice:'GS12D 时间侧轨',title:'GS12D · 时间侧轨',copy:'年龄与纪年收进右侧信息脊，命格和工具共用下方横轨；分叉使用轻玻璃承托。',tag:'实验布局 · 时间最清楚',note:'信息分组最鲜明；右侧时间脊需要观察长期阅读是否突兀。'},{cls:'gs12e',choice:'GS12E 双岛玻璃',title:'GS12E · 双岛玻璃',copy:'角色与时间形成两块微玻璃信息岛，属性和选项也获得轻材质反馈。',tag:'材质最明显 · 项目感最强',note:'最接近 Liquid Glass 方向，但装饰强度也是五稿中最高。'}]
+    const grid=document.getElementById('optionGrid'),tpl=document.getElementById('phoneTemplate');variants.forEach((v,i)=>{const a=document.createElement('article');a.className='option-card';a.dataset.choice=v.choice;a.innerHTML=`<div class="phone-host"></div><div class="option-copy"><h3>${v.title}</h3><p>${v.copy}</p><span class="tag">${v.tag}</span></div><p class="option-note">${v.note}</p>`;a.addEventListener('click',()=>window.selectChoice(a));const p=tpl.content.firstElementChild.cloneNode(true);p.classList.add(v.cls);p.querySelectorAll('.branch-option input').forEach(r=>r.name=`branch-${i}`);a.querySelector('.phone-host').appendChild(p);grid.appendChild(a)})
+    function toast(p,t){const e=p.querySelector('.toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),1000)}
+    document.querySelectorAll('.runtime-phone').forEach(p=>{
+      p.querySelectorAll('button,textarea,input,label').forEach(e=>e.addEventListener('click',x=>x.stopPropagation()))
+      const close=()=>{p.querySelectorAll('.popover').forEach(x=>x.classList.remove('open'));p.querySelectorAll('.tool').forEach(x=>x.setAttribute('aria-expanded','false'))}
+      p.querySelector('.more-button').addEventListener('click',e=>{const x=p.querySelector('.more-popover'),o=!x.classList.contains('open');close();if(o){x.classList.add('open');e.currentTarget.setAttribute('aria-expanded','true')}})
+      p.querySelector('.time-button').addEventListener('click',e=>{const x=p.querySelector('.time-popover'),o=!x.classList.contains('open');close();if(o){x.classList.add('open');e.currentTarget.setAttribute('aria-expanded','true')}})
+      p.querySelector('.world-button').addEventListener('click',e=>{close();const x=p.querySelector('.world-panel');x.classList.toggle('open');e.currentTarget.setAttribute('aria-expanded',String(x.classList.contains('open')))})
+      p.querySelectorAll('[data-step]').forEach(x=>x.addEventListener('click',()=>{p.querySelectorAll('[data-step]').forEach(y=>y.classList.remove('active'));x.classList.add('active');p.querySelector('.time-button').textContent=x.dataset.step;close();toast(p,`下一轮按${x.dataset.step}推进 · 当前时间未改变`)}))
+      p.querySelector('[data-action="save"]').addEventListener('click',()=>{close();p.querySelector('.save-overlay').classList.add('open')})
+      p.querySelector('[data-action="home"]').addEventListener('click',()=>toast(p,'将返回主界面'))
+      p.querySelector('.save-close').addEventListener('click',()=>p.querySelector('.save-overlay').classList.remove('open'))
+      p.querySelector('.save-confirm').addEventListener('click',()=>{p.querySelector('.save-overlay').classList.remove('open');toast(p,'已保存到槽位 1')})
+      const adv=p.querySelector('.advance')
+      const setAdvance=(state,title,hint)=>{adv.dataset.state=state;adv.innerHTML=`<span class="advance-title">${title}</span><span class="advance-hint">${hint}</span>`}
+      p.querySelectorAll('.branch-option input').forEach(input=>input.addEventListener('change',()=>{p.querySelectorAll('.branch-option').forEach(option=>option.classList.remove('selected'));input.closest('.branch-option').classList.add('selected')}))
+      p.querySelector('.branch-actions .confirm').addEventListener('click',()=>{const c=p.querySelector('.branch-input').value.trim(),r=p.querySelector('.branch-option input:checked'),choice=c||r?.closest('.branch-option').querySelector('span').textContent.trim();if(!choice){toast(p,'请先选择或输入意图');return}p.querySelector('.branch-pending').style.display='none';p.querySelector('.resolved-text').textContent=choice;p.querySelector('.branch-resolved').classList.add('show');adv.disabled=true;setAdvance('generating','命运正在续写','AI 正在生成下一段人生');setTimeout(()=>{adv.disabled=false;setAdvance('ready','继续故事','让岁月沿着你的选择流转')},1100)})
+      p.querySelector('.branch-actions .cancel').addEventListener('click',()=>{p.querySelectorAll('.branch-option input').forEach(x=>x.checked=false);p.querySelectorAll('.branch-option').forEach(x=>x.classList.remove('selected'));p.querySelector('.branch-input').value=''})
+      adv.addEventListener('click',()=>{if(adv.dataset.state!=='ready')return;adv.disabled=true;setAdvance('generating','命运正在续写','新的故事即将展开');setTimeout(()=>{adv.disabled=false;setAdvance('ready','继续故事','轻触后进入下一段人生');toast(p,'下一段叙事已准备')},1000)})
+    })
+  </script>
+</body>
+</html>

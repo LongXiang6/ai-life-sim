@@ -3,7 +3,7 @@
  * @description 世界选择页共享业务逻辑 hook —— 桌面端/移动端共用
  * @mod mod-pages
  *
- * 从 WorldSelectDesktop 提取全部状态、业务函数、计算值、LABELS 常量。
+ * 集中维护世界选择状态、业务函数、计算值与 LABELS 常量。
  * 桌面端为标准源（source of truth），移动端严格对齐。
  */
 
@@ -15,9 +15,11 @@ import { useRouter } from 'next/navigation'
 import {
   PRESET_WORLDS,
   allocateWorldCode,
+  useWorldStore,
   type PresetWorld,
+  type WorldConfig,
 } from '@/mods/mod-world'
-import { clearWorldGeneratedCache } from '@/mods/mod-world/world-init-api'
+import { clearWorldGeneratedCache, resolvePresetWorldCode } from '@/mods/mod-world/world-init-api'
 
 import {
   useWorldSelectForm,
@@ -75,7 +77,7 @@ export const LABELS = {
   adModeTitle: '公元模式',
 
   // ---- Auto era system ----
-  formLabelAutoEra: '📅 自动年号系统',
+  formLabelAutoEra: '自动年号系统',
   autoEraEnabledText: '✔ 已启用',
   autoEraDisabledText: '✘ 启用',
   autoEraEnabledTitle: '已启用：年号会根据时间线自动切换',
@@ -115,24 +117,82 @@ export const LABELS = {
   difficultyTitles: DIFFICULTY_TITLES,
 } as const
 
+function loadSavedWorlds(): SavedCustomWorld[] {
+  try {
+    const parsed = saveStore.get<SavedCustomWorld[]>('mod-pages', 0, 'custom-worlds') ?? []
+    return parsed.map((world) => ({
+      ...world,
+      worldCode: world.worldCode ?? allocateWorldCode(),
+    }))
+  } catch {
+    return []
+  }
+}
+
+function savedCustomWorldToPreset(world: SavedCustomWorld): PresetWorld {
+  return {
+    id: world.id,
+    name: world.name,
+    description: world.description,
+    worldviewId: (world.worldview === 'auto' ? 'idealist' : world.worldview) as PresetWorld['worldviewId'],
+    category: 'modern',
+    summary: world.description.slice(0, 50),
+    era: `${world.eraName}${Math.abs(world.eraStartYear)}年`,
+    config: { eraStartYear: world.eraStartYear, worldCode: world.worldCode, worldview: world.worldview },
+    races: ['人类'],
+    genders: ['男', '女'],
+    icon: '🌍',
+  }
+}
+
+function resolveRestoredWorld(
+  config: WorldConfig | null,
+  worldCode: number,
+  savedWorlds: SavedCustomWorld[],
+): PresetWorld | null {
+  if (!config) return null
+
+  const savedMatch = savedWorlds.find((world) =>
+    (world.worldCode === worldCode && world.name === config.name)
+      || (world.name === config.name && world.description === config.description),
+  )
+  if (savedMatch) return savedCustomWorldToPreset(savedMatch)
+
+  return PRESET_WORLDS.find((world) =>
+    (resolvePresetWorldCode(world) === worldCode && world.name === config.name)
+      || (world.name === config.name && world.description === config.description),
+  ) ?? null
+}
+
 // ============================================================
 // Hook
 // ============================================================
 
 export function useWorldSelectLogic() {
   const router = useRouter()
+  const existingWorldConfig = useWorldStore((state) => state.worldConfig)
+  const existingWorldCode = useWorldStore((state) => state.worldCode)
   const { handleConfirm: confirmWorld, conflictModal } = useWorldConfirm()
   const { worldCodesWithCache, rotatingWorldCode, handleClearWorldCache } = useWorldSelectCache()
   const [isConfirming, setIsConfirming] = useState(false)
+  const [confirmError, setConfirmError] = useState('')
+
+  // ---- 已保存世界 ----
+  const [savedWorlds, setSavedWorlds] = useState<SavedCustomWorld[]>(loadSavedWorlds)
 
   // ---- 预设世界选择 ----
-  const [selectedWorld, setSelectedWorld] = useState<PresetWorld | null>(null)
+  const restoredWorld = useMemo(
+    () => resolveRestoredWorld(existingWorldConfig, existingWorldCode, savedWorlds),
+    [existingWorldCode, existingWorldConfig, savedWorlds],
+  )
+  const [selectedWorldOverride, setSelectedWorld] = useState<PresetWorld | null>(null)
+  const selectedWorld = selectedWorldOverride ?? restoredWorld
   const [showMore, setShowMore] = useState(false)
   const [showCustom, setShowCustom] = useState(false)
   const [showCustomForm, setShowCustomForm] = useState(false)
 
   // ---- 难度 ----
-  const { difficulty, setDifficulty } = useWorldSelectForm()
+  const { difficulty, setDifficulty } = useWorldSelectForm(existingWorldConfig?.difficulty ?? 'normal')
 
   // ---- 自定义世界表单 ----
   const [customName, setCustomName] = useState('')
@@ -146,18 +206,6 @@ export function useWorldSelectLogic() {
   const [newEraEntryYear, setNewEraEntryYear] = useState('')
   const [worldview, setWorldview] = useState('auto')
 
-  // ---- 已保存世界 ----
-  const [savedWorlds, setSavedWorlds] = useState<SavedCustomWorld[]>(() => {
-    try {
-      const parsed = saveStore.get<SavedCustomWorld[]>('mod-pages', 0, 'custom-worlds') ?? []
-      return parsed.map((w) => ({
-        ...w,
-        worldCode: w.worldCode ?? allocateWorldCode(),
-      }))
-    } catch {
-      return []
-    }
-  })
   const [editingWorldId, setEditingWorldId] = useState<string | null>(null)
   const [pendingDeleteWorldId, setPendingDeleteWorldId] = useState<string | null>(null)
   const [customFeedback, setCustomFeedback] = useState<{ type: 'success' | 'warning'; text: string } | null>(null)
@@ -184,7 +232,10 @@ export function useWorldSelectLogic() {
         label: DIFFICULTY_CONFIG[d].label,
         icon: difficulty === d ? ('✔' as const) : undefined,
         title: DIFFICULTY_TITLES[d],
-        onClick: () => setDifficulty(d),
+        onClick: () => {
+          setDifficulty(d)
+          setConfirmError('')
+        },
       })),
     [difficulty, setDifficulty],
   )
@@ -197,6 +248,7 @@ export function useWorldSelectLogic() {
         : LABELS.confirmDisabledTitle,
     [selectedWorld],
   )
+  const selectedDifficultyLabel = LABELS.difficultyItems[difficulty].label
 
   // ============================================================
   // 预设世界选择
@@ -206,6 +258,7 @@ export function useWorldSelectLogic() {
     setSelectedWorld(w)
     setEditingWorldId(null)
     setPendingDeleteWorldId(null)
+    setConfirmError('')
   }, [])
 
   // ============================================================
@@ -228,6 +281,7 @@ export function useWorldSelectLogic() {
     })
     setEditingWorldId(null)
     setPendingDeleteWorldId(null)
+    setConfirmError('')
   }, [])
 
   // ============================================================
@@ -272,6 +326,7 @@ export function useWorldSelectLogic() {
     persistSaved(updated)
     resetCustomForm()
     setCustomFeedback({ type: 'success', text: `已保存自定义世界「${newWorld.name}」。` })
+    setConfirmError('')
     setSelectedWorld({
       id: newWorld.id,
       name: newWorld.name,
@@ -331,6 +386,7 @@ export function useWorldSelectLogic() {
     const edited = updated.find((cw) => cw.id === editingWorldId)
     if (edited) {
       setCustomFeedback({ type: 'success', text: `已保存「${edited.name}」的修改。` })
+      setConfirmError('')
       setSelectedWorld({
         id: edited.id,
         name: edited.name,
@@ -376,6 +432,7 @@ export function useWorldSelectLogic() {
       persistSaved(updated)
       if (selectedWorld?.id === cw.id) setSelectedWorld(null)
       setPendingDeleteWorldId(null)
+      setConfirmError('')
       setCustomFeedback({ type: 'success', text: `已删除自定义世界「${cw.name}」。` })
     },
     [savedWorlds, selectedWorld, persistSaved],
@@ -387,17 +444,23 @@ export function useWorldSelectLogic() {
 
   const handleConfirm = useCallback(async () => {
     if (!selectedWorld || isConfirming) return
+    setConfirmError('')
     setIsConfirming(true)
-    const worldCode =
-      typeof selectedWorld.config.worldCode === 'number'
-        ? selectedWorld.config.worldCode
-        : undefined
-    const customWorldview =
-      typeof selectedWorld.config.worldview === 'string'
-        ? selectedWorld.config.worldview
-        : undefined
-    await confirmWorld(selectedWorld, difficulty, { worldCode, customWorldview })
-    setIsConfirming(false)
+    try {
+      const worldCode =
+        typeof selectedWorld.config.worldCode === 'number'
+          ? selectedWorld.config.worldCode
+          : undefined
+      const customWorldview =
+        typeof selectedWorld.config.worldview === 'string'
+          ? selectedWorld.config.worldview
+          : undefined
+      await confirmWorld(selectedWorld, difficulty, { worldCode, customWorldview })
+    } catch (error) {
+      setConfirmError(`世界初始化失败：${error instanceof Error ? error.message : '未知错误'}`)
+    } finally {
+      setIsConfirming(false)
+    }
   }, [selectedWorld, isConfirming, difficulty, confirmWorld])
 
   // ============================================================
@@ -432,6 +495,8 @@ export function useWorldSelectLogic() {
     editingWorldId,
     pendingDeleteWorldId,
     customFeedback,
+    isConfirming,
+    confirmError,
 
     // setter
     setShowMore,
@@ -464,6 +529,7 @@ export function useWorldSelectLogic() {
     presetMain,
     presetMore,
     difficultyItems,
+    selectedDifficultyLabel,
     confirmTitle,
 
     // 从子 hook 透传

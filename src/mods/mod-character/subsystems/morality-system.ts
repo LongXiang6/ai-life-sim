@@ -13,6 +13,7 @@ import {
   MORALITY_DELTA_CLAMP,
 } from '../constants'
 import { round } from '../utils'
+import { useCharacterStore } from '../store'
 
 export class MoralitySystem implements ISubSystem {
   readonly id = 'morality' as const
@@ -74,6 +75,33 @@ export class MoralitySystem implements ISubSystem {
     this._lastProcessedRound = -1
   }
 
+  hydrateFromStore(): void {
+    this.restoreCollectedState(useCharacterStore.getState().morality)
+  }
+
+  restoreCollectedState(snapshot: unknown): void {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
+    const value = snapshot as Partial<MoralityState>
+    if (typeof value.value !== 'number' || typeof value.level !== 'string' || typeof value.roundDelta !== 'number') return
+    this.state = structuredClone({
+      value: value.value,
+      level: value.level,
+      roundDelta: value.roundDelta,
+    }) as MoralityState
+    this._lastProcessedRound = -1
+  }
+
+  capturePreviewState(): unknown {
+    return structuredClone({ state: this.state, lastProcessedRound: this._lastProcessedRound })
+  }
+
+  restorePreviewState(snapshot: unknown): void {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
+    const value = snapshot as { state?: MoralityState; lastProcessedRound?: number }
+    this.restoreCollectedState(value.state)
+    if (typeof value.lastProcessedRound === 'number') this._lastProcessedRound = value.lastProcessedRound
+  }
+
   // -------- 公共方法 --------
 
   // -------- 内部方法 --------
@@ -111,4 +139,12 @@ export class MoralitySystem implements ISubSystem {
     if (delta === 0) return '0'
     return delta > 0 ? `+${delta}` : `${delta}`
   }
+}
+
+let runtimeMoralitySystem: MoralitySystem | undefined
+
+/** Loader 与引擎共享的懒加载善恶单例。 */
+export function getMoralitySystem(): MoralitySystem {
+  runtimeMoralitySystem ??= new MoralitySystem()
+  return runtimeMoralitySystem
 }

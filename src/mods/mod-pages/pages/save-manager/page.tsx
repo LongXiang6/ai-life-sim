@@ -12,7 +12,8 @@
 import { useState, useEffect, useCallback } from 'react'
 
 import { saveManager, type SaveMetadata } from '@/core/storage/save-manager'
-import { applyGameSave } from '@/mods/mod-engine/engine-api'
+import { applyGameSave, orchestrator } from '@/mods/mod-engine/engine-api'
+import { useEngineStore } from '@/mods/mod-engine'
 import { useRouter } from 'next/navigation'
 
 import styles from './save-manager.module.css'
@@ -37,8 +38,9 @@ export default function SaveManagerPage() {
     try {
       const data = await saveManager.loadSave(slot)
       if (data) {
+        await orchestrator.waitForBackgroundCompression()
         applyGameSave(data)
-        router.push('/game-story')
+        router.push(useEngineStore.getState().status === 'complete' ? '/game-over' : '/game-story')
       }
     } catch (err) {
       alert(`加载失败: ${err instanceof Error ? err.message : '未知错误'}`)
@@ -63,23 +65,28 @@ export default function SaveManagerPage() {
     return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')} ${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`
   }
 
-  if (loading) {
-    return (
-      <div className={styles.container}>
-        <p className={styles.loading}>加载中...</p>
-      </div>
-    )
-  }
-
   const autoSaves = saves.filter((s) => s.isAutoSave)
   const normalSaves = saves.filter((s) => !s.isAutoSave)
 
   return (
     <div className={styles.container}>
       <div className={styles.frame}>
-        <div className={styles.title}>存档管理</div>
+        <header className={styles.header}>
+          <button
+            type="button"
+            className={styles.backButton}
+            onClick={() => router.push('/welcome')}
+            aria-label="返回欢迎页"
+          >
+            ← 返回
+          </button>
+          <h1 className={styles.title}>存档管理</h1>
+          <span aria-hidden="true" />
+        </header>
 
-        {saves.length === 0 ? (
+        {loading ? (
+          <p className={styles.loading}>加载中...</p>
+        ) : saves.length === 0 ? (
           <p className={styles.empty}>暂无本地模拟存档</p>
         ) : (
           <div className={styles.list}>
@@ -91,7 +98,12 @@ export default function SaveManagerPage() {
                   key={slot.slot}
                   className={`${styles.slot} ${styles.slotAuto} ${isDelConfirm ? styles.slotDeleteConfirm : ''}`}
                 >
-                  <div onClick={() => handleLoad(slot.slot)} className={styles.slotRow}>
+                  <button
+                    type="button"
+                    onClick={() => handleLoad(slot.slot)}
+                    className={styles.slotRow}
+                    aria-label={`加载存档：${slot.name}，${slot.totalRounds}轮`}
+                  >
                     <div>
                       <div className={`${styles.name} ${styles.nameAuto}`}>{slot.name}</div>
                       <div className={styles.meta}>
@@ -99,8 +111,9 @@ export default function SaveManagerPage() {
                       </div>
                       <div className={styles.time}>{formatTime(slot.timestamp)}</div>
                     </div>
-                  </div>
+                  </button>
                   <button
+                    type="button"
                     onClick={(e) => { e.stopPropagation(); handleDelete(slot.slot) }}
                     title={isDelConfirm ? '再次点击确认删除此存档' : '删除此存档'}
                     className={`${styles.deleteBtn} ${isDelConfirm ? styles.deleteConfirmColor : ''}`}
@@ -119,7 +132,12 @@ export default function SaveManagerPage() {
                   key={slot.slot}
                   className={`${styles.slot} ${isDelConfirm ? styles.slotDeleteConfirm : ''}`}
                 >
-                  <div onClick={() => handleLoad(slot.slot)} className={styles.slotRow}>
+                  <button
+                    type="button"
+                    onClick={() => handleLoad(slot.slot)}
+                    className={styles.slotRow}
+                    aria-label={`加载存档：${slot.name}，${slot.totalRounds}轮`}
+                  >
                     <div>
                       <div className={styles.name}>{slot.name}</div>
                       <div className={styles.meta}>
@@ -127,8 +145,9 @@ export default function SaveManagerPage() {
                       </div>
                       <div className={styles.time}>{formatTime(slot.timestamp)}</div>
                     </div>
-                  </div>
+                  </button>
                   <button
+                    type="button"
                     onClick={(e) => { e.stopPropagation(); handleDelete(slot.slot) }}
                     title={isDelConfirm ? '再次点击确认删除此存档' : '删除此存档'}
                     className={`${styles.deleteBtn} ${isDelConfirm ? styles.deleteConfirmColor : ''}`}

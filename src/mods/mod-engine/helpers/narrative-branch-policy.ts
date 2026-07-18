@@ -8,6 +8,10 @@ export interface NarrativeBranchCandidate {
   branch?: unknown
   importance?: unknown
   branchOptions?: unknown
+  semanticSignals?: {
+    irreversible?: unknown
+    narrativeRegister?: unknown
+  }
 }
 
 export function normalizeNarrativeBranchOptions(value: unknown): string[] {
@@ -18,9 +22,17 @@ export function normalizeNarrativeBranchOptions(value: unknown): string[] {
     .slice(0, 4)
 }
 
-/** 普通分支只有达到 HIGH 且提供至少两个有效选项时才进入交互链路。 */
+/**
+ * 命运分叉只接受经 META 自证的不可逆高影响选择。
+ *
+ * `branch=true` 与选项文本本身不构成业务事实；否则模型把一件日常小事
+ * 包装为选项时，主链会错误地把它呈现成玩家的人生抉择。
+ */
 export function isEligibleNarrativeBranch(candidate: NarrativeBranchCandidate): boolean {
   return candidate.branch === true
     && candidate.importance === 'HIGH'
     && normalizeNarrativeBranchOptions(candidate.branchOptions).length >= 2
+    && candidate.semanticSignals?.irreversible === true
+    && (candidate.semanticSignals.narrativeRegister === 'fate'
+      || candidate.semanticSignals.narrativeRegister === 'legacy')
 }

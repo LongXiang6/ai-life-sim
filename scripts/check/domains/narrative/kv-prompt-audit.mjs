@@ -3,6 +3,7 @@
  */
 import fs from 'node:fs'
 import path from 'node:path'
+import ts from 'typescript'
 import { getProjectRoot } from '../../lib/project-root.mjs'
 
 const root = getProjectRoot(import.meta.url)
@@ -31,6 +32,10 @@ const summaryCompressor = fs.readFileSync(
   path.join(root, 'src/mods/mod-engine/subsystems/summary-compressor-system.ts'),
   'utf8',
 )
+const lifespanSystem = fs.readFileSync(
+  path.join(root, 'src/mods/mod-character/subsystems/lifespan-system.ts'),
+  'utf8',
+)
 const summaryPrompt = fs.readFileSync(
   path.join(root, 'src/mods/mod-engine/prompts/summary-prompt.ts'),
   'utf8',
@@ -39,8 +44,58 @@ const promptContract = fs.readFileSync(
   path.join(root, 'src/mods/mod-engine/bootstrap/prompt-context-contract.generated.ts'),
   'utf8',
 )
+const promptGate = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/helpers/subsystem-prompt-gate.ts'),
+  'utf8',
+)
+const mvpRuntimePolicy = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/helpers/mvp-runtime-policy.ts'),
+  'utf8',
+)
 
 let failed = 0
+
+function assertOk(condition, message) {
+  if (!condition) {
+    console.error(`FAIL: ${message}`)
+    failed++
+  }
+}
+
+function findDescendant(node, predicate) {
+  if (predicate(node)) return node
+  let found
+  ts.forEachChild(node, (child) => {
+    if (!found) found = findDescendant(child, predicate)
+  })
+  return found
+}
+
+function compileStandaloneFunction(sourceText, fileName, functionName, environment = {}) {
+  const sourceFile = ts.createSourceFile(
+    fileName,
+    sourceText,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  )
+  const declaration = findDescendant(sourceFile, (node) =>
+    ts.isFunctionDeclaration(node) && node.name?.text === functionName,
+  )
+  assertOk(!!declaration, `${functionName} must remain a named, testable helper`)
+  if (!declaration) return null
+
+  const declarationText = declaration.getText(sourceFile).replace(/^export\s+/, '')
+  const output = ts.transpileModule(declarationText, {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText
+  const names = Object.keys(environment)
+  const values = Object.values(environment)
+  return new Function(...names, `${output}\nreturn ${functionName}`)(...values)
+}
 
 const requiredContextFields = [
   'calibrationSummary',
@@ -95,8 +150,8 @@ if (!buildYearEvents.includes('n.displayAge') || !buildYearEvents.includes('n.di
   failed++
 }
 
-if (!orchestrator.includes('decision.shouldCompress && result.didCompress')) {
-  console.error('FAIL: compression cleanup must wait for a real compression result')
+if (!orchestrator.includes('if (maxIndexedEndRound > 0)')) {
+  console.error('FAIL: compression cleanup must wait until a new L1 range was actually indexed')
   failed++
 }
 
@@ -158,8 +213,8 @@ if (!orchestrator.includes('buildTimeBridgeSummary')) {
   failed++
 }
 
-if (!orchestrator.includes('lastNarrativeText')) {
-  console.error('FAIL: lifespan lastNarrativeText not wired')
+if (lifespanSystem.includes('lastNarrativeText')) {
+  console.error('FAIL: lifespan must not infer lifespan changes from narrative text')
   failed++
 }
 
@@ -188,6 +243,26 @@ if (!promptBuilder.includes('buildRoundDirectorHint')) {
   failed++
 }
 
+const buildRoundDirectorHint = compileStandaloneFunction(
+  promptBuilder,
+  'prompt-builder.ts',
+  'buildRoundDirectorHint',
+)
+const migratedHistoryHint = buildRoundDirectorHint?.({
+  timeGuideText: '时间提示',
+  narrativeGuidanceText: '剧情提示',
+}) ?? ''
+assertOk(
+  migratedHistoryHint.endsWith('仅在 [NARRATIVE] 正文中，全程以第二人称“你”指代玩家角色。'),
+  'the final S2 user segment must restate second-person narration after historical memory',
+)
+assertOk(
+  migratedHistoryHint.includes('不得模仿其人称、措辞或段落结构')
+    && memoryLifecycle.includes('以下是已发生事实的原始记录')
+    && memoryLifecycle.includes('不得模仿其中的叙述人称、措辞或段落结构'),
+  'legacy narrative text must remain factual memory rather than a style sample',
+)
+
 const wordCountStart = orchestrator.indexOf('wordCountInstruction:')
 const wordCountEnd = orchestrator.indexOf('calibrationSummary:', wordCountStart)
 const wordCountBlock = wordCountStart >= 0 && wordCountEnd > wordCountStart
@@ -196,6 +271,162 @@ const wordCountBlock = wordCountStart >= 0 && wordCountEnd > wordCountStart
 if (wordCountBlock.includes('buildTimeScaleNarrativeHint')) {
   console.error('FAIL: time-scale hint must not be embedded in stable wordCountInstruction')
   failed++
+}
+
+const collectActiveModWorldRules = compileStandaloneFunction(
+  promptGate,
+  'subsystem-prompt-gate.ts',
+  'collectActiveModWorldRules',
+)
+const activeRules = collectActiveModWorldRules?.([
+  { name: 'mod-engine', worldRules: '引擎规则' },
+  { name: 'mod-character', worldRules: '角色规则' },
+  { name: 'mod-world', worldRules: '共享规则' },
+  { name: 'mod-npc', worldRules: '未启用 NPC 规则' },
+  { name: 'mod-duplicate', worldRules: '共享规则' },
+], [
+  { mod: 'mod-character' },
+  { mod: 'mod-world' },
+])
+assertOk(
+  activeRules === '引擎规则\n角色规则\n共享规则',
+  'MOD world rules must include only active runtime providers, preserve order, and dedupe text',
+)
+
+const buildMvpSubsystemGuide = compileStandaloneFunction(
+  mvpRuntimePolicy,
+  'mvp-runtime-policy.ts',
+  'buildMvpSubsystemGuide',
+  {
+    MVP_NARRATIVE_CHANGE_SUBSYSTEM_IDS: new Set([
+      'character-base',
+      'lifespan',
+      'luck',
+      'morality',
+    ]),
+    buildSubsystemGuide: (ids) => `guide:${[...ids].join(',')}`,
+  },
+)
+const activeGuide = buildMvpSubsystemGuide?.([
+  'morality',
+  'character-base',
+  'inactive-system',
+  'lifespan',
+]) ?? ''
+assertOk(
+  activeGuide.includes('本轮可变更子系统仅：character-base lifespan morality')
+    && activeGuide.includes('guide:character-base,lifespan,morality')
+    && !activeGuide.includes('inactive-system')
+    && !activeGuide.includes(' luck'),
+  'subsystem guide must be the stable-order intersection of active and writable systems',
+)
+assertOk(
+  buildMvpSubsystemGuide?.(['inactive-system']) === '',
+  'no writable active subsystem must produce no subsystem guide',
+)
+
+const formatEquippedMythicPatternForPrompt = compileStandaloneFunction(
+  orchestrator,
+  'orchestrator-system.ts',
+  'formatEquippedMythicPatternForPrompt',
+)
+const formatDestinyPatternsForPrompt = compileStandaloneFunction(
+  orchestrator,
+  'orchestrator-system.ts',
+  'formatDestinyPatternsForPrompt',
+)
+assertOk(
+  formatEquippedMythicPatternForPrompt?.(null) === undefined
+    && formatEquippedMythicPatternForPrompt?.({ name: '空壳', concept: '空', effect: '   ' }) === undefined,
+  'empty mythic slots or empty effects must not enter the prompt',
+)
+assertOk(
+  formatEquippedMythicPatternForPrompt?.({
+    name: '未熄之诺',
+    concept: '承诺',
+    effect: '真诚许下的承诺更难被世界轻易抹去。',
+  }) === '【已装备神话命格·每轮遵守】未熄之诺（承诺）：真诚许下的承诺更难被世界轻易抹去。',
+  'equipped mythic effects must be formatted as an explicit per-round narrative rule',
+)
+assertOk(
+  formatDestinyPatternsForPrompt?.([], false) === undefined
+    && formatDestinyPatternsForPrompt?.([
+      { name: '潮声', description: '能从潮声中辨认远方变化。', effect: '潮声会提示环境变化，但不会给出确定答案。' },
+    ], false) === '【普通命格·每轮遵守】潮声：潮声会提示环境变化，但不会给出确定答案。'
+    && formatDestinyPatternsForPrompt?.([
+      { name: '潮声', description: '能从潮声中辨认远方变化。', effect: '潮声会提示环境变化，但不会给出确定答案。' },
+    ], true)?.includes('特质说明：能从潮声中辨认远方变化。'),
+  'ordinary destiny effects must stay compact but remain explicit per-round rules, with descriptions added only at opening',
+)
+assertOk(
+  orchestrator.includes('useCharacterStore.getState().equippedMythicPattern')
+    && orchestrator.includes('const destinyPatternText = formatDestinyPatternsForPrompt(')
+    && orchestrator.includes("talents: [destinyPatternText, mythicPatternText].filter(Boolean).join('\\n') || undefined"),
+  'ordinary and equipped mythic effects must both be injected every round',
+)
+assertOk(
+  narrativePrompt.includes('普通命格与已装备神话命格的 effect 都是每轮持续遵守的叙事规则'),
+  'system prompt must define ordinary and mythic effects as persistent rules while keeping mythic inheritance narrative-only',
+)
+
+assertOk(
+  orchestrator.includes('collectActiveModWorldRules(')
+    && !orchestrator.includes('.filter((m) => m.worldRules)'),
+  'orchestrator must not aggregate worldRules from every loaded manifest',
+)
+assertOk(
+  orchestrator.includes('buildMvpSubsystemGuide(promptOpenIds)')
+    && !orchestrator.includes('assembled.subsystemGuideText = SUBSYSTEM_GUIDE'),
+  'orchestrator must inject a guide derived from the systems open in this round',
+)
+for (const inactiveConnection of [
+  'buildEconomyTierRules',
+  'buildCausalChainHint',
+  "@/mods/mod-power-system",
+]) {
+  assertOk(
+    !orchestrator.includes(inactiveConnection),
+    `inactive prompt connection must stay removed: ${inactiveConnection}`,
+  )
+}
+assertOk(
+  narrativePrompt.includes("version: '2.7.1'") && !narrativePrompt.includes('examples: ['),
+  'optimized prompt must be versioned and must not duplicate the schema into large few-shot examples',
+)
+assertOk(
+  narrativePrompt.includes('正文全程用第二人称“你”指代玩家角色')
+    && narrativePrompt.includes('禁止写成第三人称传记、履历或编年报告')
+    && narrativePrompt.includes('每轮至少落入一个可辨认的现场')
+    && narrativePrompt.includes('婴幼儿阶段仍使用“你”')
+    && narrativePrompt.includes('娱乐性与持续游玩意愿')
+    && narrativePrompt.includes('styleReference'),
+  'main narrative prompt must lock second-person viewpoint and scene-level immersion without changing the META schema',
+)
+assertOk(
+  narrativePrompt.includes('三段围绕同一条因果主线')
+    && narrativePrompt.includes('不得把三个独立日常、地点或人物各写成一段')
+    && narrativePrompt.includes('不得按时间切成互不相干的生活切片'),
+  'main narrative prompt must reject annual disconnected-life-slice output while retaining one causal storyline',
+)
+const systemPromptStart = narrativePrompt.indexOf('export const SYSTEM_PROMPT')
+const systemPromptEnd = narrativePrompt.indexOf('\n})', systemPromptStart)
+const systemPromptSource = systemPromptStart >= 0 && systemPromptEnd > systemPromptStart
+  ? narrativePrompt.slice(systemPromptStart, systemPromptEnd + 3)
+  : ''
+assertOk(
+  systemPromptSource.length > 0 && systemPromptSource.length < 5_000,
+  'fixed SYSTEM_PROMPT source must stay compact enough for efficient repeated simulation calls',
+)
+for (const duplicatedStaticContract of [
+  'allowedSubSystems:',
+  'attributeRules:',
+  'mvpChangePolicy:',
+  'resourcesDelta',
+]) {
+  assertOk(
+    !systemPromptSource.includes(duplicatedStaticContract),
+    `fixed prompt must not duplicate runtime-derived field contracts: ${duplicatedStaticContract}`,
+  )
 }
 
 if (failed === 0) {

@@ -30,6 +30,7 @@ import { ADAPTATION_PROMPT_MAP } from '../helpers/adaptation-prompt-registry.gen
 interface PendingAdaptation {
   subsystemId: string
   rawSummary: string
+  cacheKey: string
 }
 
 // ---------------------------------------------------------------------------
@@ -94,11 +95,17 @@ function extractAdaptedText(content: string): string | undefined {
 // ---------------------------------------------------------------------------
 
 export class AdaptationManager {
-  /** 缓存：key = subsystemId::hash(rawSummary) → adaptedText */
+  /** 缓存：key 同时包含摘要、世界、会话和非敏感模型路由。 */
   private cache = new Map<string, string>()
 
-  /** 失败计数：key = subsystemId → 连续失败次数（3 次后永久跳过） */
+  /** 失败计数：key = 完整 cacheKey → 连续失败次数（3 次后跳过该配置组合） */
   private failureCounts = new Map<string, number>()
+
+  /** 同一 cacheKey 的在途请求只允许一个。 */
+  private inFlight = new Map<string, Promise<string>>()
+
+  /** clear() 后让旧世界仍在途的适配结果失效。 */
+  private generation = 0
 
   /** AI 配置（由 orchestrator 每轮注入） */
   private aiConfig: AIModelConfig | null = null
@@ -140,7 +147,7 @@ export class AdaptationManager {
 
     for (const s of states) {
       if (!s.summary) continue
-      const cacheKey = s.id + '::' + simpleHash(s.summary)
+      const cacheKey = this.buildCacheKey(s.id, s.summary)
 
       if (this.cache.has(cacheKey)) {
         result.set(s.id, this.cache.get(cacheKey)!)
@@ -164,16 +171,17 @@ export class AdaptationManager {
 
     for (const s of states) {
       if (!s.summary) continue
-      const cacheKey = s.id + '::' + simpleHash(s.summary)
+      const cacheKey = this.buildCacheKey(s.id, s.summary)
       if (this.cache.has(cacheKey)) continue // 已缓存
+      if (this.inFlight.has(cacheKey)) continue // 已在后台适配
 
       const prompt = ADAPTATION_PROMPT_MAP[s.id]
       if (!prompt) continue // 无对应 adaptation prompt
 
-      const failures = this.failureCounts.get(s.id) ?? 0
+      const failures = this.failureCounts.get(cacheKey) ?? 0
       if (failures >= 3) continue // 永久跳过
 
-      pending.push({ subsystemId: s.id, rawSummary: s.summary })
+      pending.push({ subsystemId: s.id, rawSummary: s.summary, cacheKey })
     }
 
     return pending
@@ -188,6 +196,7 @@ export class AdaptationManager {
   async adaptPending(states: Array<{ id: string; summary: string }>): Promise<void> {
     const pending = this.getPendingAdaptations(states)
     if (!pending.length || !this.aiConfig) return
+    const generation = this.generation
 
     // 限制并发：最多 3 个同时
     const CONCURRENCY_LIMIT = 3
@@ -197,34 +206,24 @@ export class AdaptationManager {
       const batch = pending.slice(i, i + CONCURRENCY_LIMIT)
 
       await Promise.allSettled(
-        batch.map((p) =>
-          this.adaptOne(p)
-            .then(
-              (adapted) => {
-                const key = p.subsystemId + '::' + simpleHash(p.rawSummary)
-                this.cache.set(key, adapted)
-                // 成功后重置失败计数
-                this.failureCounts.delete(p.subsystemId)
-              },
-              (err) => {
-                const failures = (this.failureCounts.get(p.subsystemId) ?? 0) + 1
-                this.failureCounts.set(p.subsystemId, failures)
-                if (process.env.NODE_ENV === 'development') {
-                  console.warn(
-                    `[Adaptation] 适配失败 (${failures}/3) [${p.subsystemId}]:`,
-                    (err as Error)?.message ?? err,
-                  )
-                }
-              },
-            )
-            // 超时兜底：8 秒后放弃
-            .then((result) => {
-              const timeout = new Promise<never>((_, reject) =>
-                setTimeout(() => reject(new Error('TIMEOUT')), TIMEOUT_MS),
+        batch.map(async (p) => {
+          try {
+            const adapted = await this.getOrStartAdaptation(p, TIMEOUT_MS)
+            if (generation !== this.generation) return
+            this.cache.set(p.cacheKey, adapted)
+            this.failureCounts.delete(p.cacheKey)
+          } catch (err) {
+            if (generation !== this.generation) return
+            const failures = (this.failureCounts.get(p.cacheKey) ?? 0) + 1
+            this.failureCounts.set(p.cacheKey, failures)
+            if (process.env.NODE_ENV === 'development') {
+              console.warn(
+                `[Adaptation] 适配失败 (${failures}/3) [${p.subsystemId}]:`,
+                (err as Error)?.message ?? err,
               )
-              return Promise.race([result, timeout])
-            }),
-        ),
+            }
+          }
+        }),
       )
     }
   }
@@ -232,6 +231,42 @@ export class AdaptationManager {
   // -----------------------------------------------------------------------
   // 内部方法
   // -----------------------------------------------------------------------
+
+  private buildCacheKey(subsystemId: string, rawSummary: string): string {
+    const routeSignature = JSON.stringify({
+      worldview: simpleHash(this.worldviewText),
+      sessionId: this.sessionId ?? '',
+      model: this.aiConfig?.model ?? '',
+      temperature: this.aiConfig?.temperature ?? null,
+      maxTokens: this.aiConfig?.maxTokens ?? null,
+      reasoningEffort: this.aiConfig?.reasoningEffort ?? 'disabled',
+      providerId: this.aiRouteOptions.providerId ?? '',
+      customBaseUrl: this.aiRouteOptions.customBaseUrl ?? '',
+      customModel: this.aiRouteOptions.customModel ?? '',
+    })
+    return `${subsystemId}::${simpleHash(rawSummary)}::${simpleHash(routeSignature)}`
+  }
+
+  private getOrStartAdaptation(
+    pending: PendingAdaptation,
+    timeoutMs: number,
+  ): Promise<string> {
+    const existing = this.inFlight.get(pending.cacheKey)
+    if (existing) return existing
+
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+    const timeout = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => reject(new Error('TIMEOUT')), timeoutMs)
+    })
+    const task = Promise.race([this.adaptOne(pending), timeout]).finally(() => {
+      if (timeoutId !== undefined) clearTimeout(timeoutId)
+      if (this.inFlight.get(pending.cacheKey) === task) {
+        this.inFlight.delete(pending.cacheKey)
+      }
+    })
+    this.inFlight.set(pending.cacheKey, task)
+    return task
+  }
 
   /** 适配单个子系统的 summary */
   private async adaptOne(pending: PendingAdaptation): Promise<string> {
@@ -259,9 +294,12 @@ export class AdaptationManager {
 
   /** 清空缓存（reset 时调用） */
   clear(): void {
+    this.generation++
     this.cache.clear()
     this.failureCounts.clear()
+    this.inFlight.clear()
     this.aiConfig = null
+    this.aiRouteOptions = {}
     this.sessionId = undefined
     this.worldviewText = ''
   }

@@ -26,10 +26,25 @@ import { isOPFSSupported, opfsFlushQueue, opfsRestoreAll } from './opfs-storage'
 
 /** OPFS 写入队列刷新间隔（毫秒） */
 const OPFS_FLUSH_INTERVAL_MS = 500
+/** 部分浏览器/来源的 OPFS 句柄可能永久 pending；启动页不能因此无限阻塞。 */
+export const STORAGE_INIT_TIMEOUT_MS = 5_000
 
-let _initialized = false
+let _initializationPromise: Promise<void> | null = null
 let _opfsQueue: Array<{ key: string; value: string | null }> = []
 let _flushTimer: ReturnType<typeof setTimeout> | null = null
+
+async function restoreOpfsEntriesWithinTimeout(): Promise<Awaited<ReturnType<typeof opfsRestoreAll>> | null> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<null>((resolve) => {
+    timeoutId = setTimeout(() => resolve(null), STORAGE_INIT_TIMEOUT_MS)
+  })
+
+  try {
+    return await Promise.race([opfsRestoreAll(), timeout])
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId)
+  }
+}
 
 function scheduleFlush(): void {
   if (!isOPFSSupported() || _opfsQueue.length === 0) return
@@ -100,25 +115,32 @@ export function enqueueOpfsWrite(key: string, value: string | null): void {
  *   - 对于 localStorage 中缺失的 key，从 OPFS 恢复
  *   - localStorage 已有的 key 不覆盖（防止回退旧数据）
  */
-export async function initStorage(): Promise<void> {
-  if (_initialized) return
-  _initialized = true
+export function initStorage(): Promise<void> {
+  if (_initializationPromise) return _initializationPromise
 
-  if (typeof window === 'undefined' || !isOPFSSupported()) return
+  _initializationPromise = (async () => {
+    if (typeof window === 'undefined' || !isOPFSSupported()) return
 
-  try {
-    const entries = await opfsRestoreAll()
-    let restored = 0
-    for (const { key, value } of entries) {
-      if (!localStorage.getItem(key) && value) {
-        localStorage.setItem(key, value)
-        restored++
+    try {
+      const entries = await restoreOpfsEntriesWithinTimeout()
+      if (!entries) {
+        console.info('[persist-layer] OPFS 恢复等待超时，已使用现有 localStorage 继续启动')
+        return
       }
+      let restored = 0
+      for (const { key, value } of entries) {
+        if (!localStorage.getItem(key) && value) {
+          localStorage.setItem(key, value)
+          restored++
+        }
+      }
+      if (restored > 0) {
+        console.info(`[persist-layer] 从 OPFS 恢复了 ${restored} 个条目到 localStorage`)
+      }
+    } catch {
+      // OPFS 不可用，继续使用 localStorage
     }
-    if (restored > 0) {
-      console.info(`[persist-layer] 从 OPFS 恢复了 ${restored} 个条目到 localStorage`)
-    }
-  } catch {
-    // OPFS 不可用，继续使用 localStorage
-  }
+  })()
+
+  return _initializationPromise
 }

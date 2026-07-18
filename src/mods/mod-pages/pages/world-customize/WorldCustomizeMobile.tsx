@@ -2,146 +2,115 @@
 
 /**
  * @file WorldCustomizeMobile.tsx
- * @description 世界自定义移动端 —— 维度 + 描述 + 锁定
+ * @description 世界配置响应式白纸创建流视图。
  * @mod mod-pages
  */
 
-import React from 'react'
+import { useWorldStore } from '@/mods/mod-world'
 
-import { BottomActionBar, Dropdown, PageScroll } from '@/mods/mod-ui'
-
+import { WorldCustomizeBottomBar } from './WorldCustomizeBottomBar'
+import { WorldCustomizeDimensionCard } from './WorldCustomizeDimensionCard'
 import { useWorldCustomize } from './useWorldCustomize'
-import { FIELD_MODE_LABELS, WORLD_CUSTOM_TEXT_MAX_LENGTH, type EditableField, type FieldMode } from './world-customize.types'
+import { WORLD_CUSTOM_TEXT_MAX_LENGTH } from './world-customize.types'
 
 import styles from './WorldCustomizeMobile.module.css'
 
-const MODES: FieldMode[] = ['ai', 'adaptive', 'custom']
-
-function DimensionCard({
-  field,
-  onModeChange,
-  onValueChange,
-  onCustomChange,
-}: {
-  field: EditableField
-  onModeChange: (mode: FieldMode) => void
-  onValueChange: (value: string) => void
-  onCustomChange: (value: string) => void
-}) {
-  return (
-    <div className={styles.dimCard}>
-      <div className={styles.dimTop}>
-        <div className={styles.dimIcon}>{field.icon}</div>
-        <div className={styles.dimBody}>
-          <div className={styles.dimLabel}>{field.label}</div>
-          <div className={styles.dimDesc}>{field.description}</div>
-        </div>
-      </div>
-
-      <div className={styles.modeBar}>
-        {MODES.map((m) => (
-          <button
-            key={m}
-            type="button"
-            className={`${styles.modeBtn} ${field.mode === m ? styles.modeBtnActive : ''}`}
-            onClick={() => onModeChange(m)}
-          >
-            {FIELD_MODE_LABELS[m]}
-          </button>
-        ))}
-      </div>
-
-      {field.mode === 'ai' && (
-        <div className={styles.aiHint}>由 AI 根据世界描述判断</div>
-      )}
-      {field.mode === 'adaptive' && (
-        <Dropdown
-          value={field.playerValue}
-          options={field.options}
-          onChange={onValueChange}
-          placeholder="请选择"
-          className={styles.dimDropdown}
-        />
-      )}
-      {field.mode === 'custom' && (
-        <textarea
-          value={field.customValue || ''}
-          onChange={(e) => {
-            onCustomChange(e.target.value.slice(0, WORLD_CUSTOM_TEXT_MAX_LENGTH))
-            const el = e.target
-            el.style.height = 'auto'
-            el.style.height = el.scrollHeight + 'px'
-          }}
-          placeholder="输入自定义内容..."
-          className={styles.customInput}
-          rows={1}
-          maxLength={WORLD_CUSTOM_TEXT_MAX_LENGTH}
-        />
-      )}
-    </div>
-  )
-}
-
 export function WorldCustomizeMobile() {
-  const {
-    groupedFields,
-    worldDescription,
-    setFieldMode,
-    setFieldValue,
-    setCustomValue,
-    setWorldDescription,
-    save,
-    skip,
-    conflictModal,
-  } = useWorldCustomize()
+  const logic = useWorldCustomize()
+  const macroFields = logic.groupedFields.macro ?? []
+  const worldConfig = useWorldStore((state) => state.worldConfig)
 
-  const macroFields = groupedFields['macro'] || []
+  const summarizeField = (key: string) => {
+    const field = macroFields.find((item) => item.key === key)
+    if (!field) return '待设定'
+    if (field.mode === 'adaptive') return field.playerValue || '待选择'
+    if (field.mode === 'custom') return field.customValue.trim() || '待填写'
+    return 'AI 判断'
+  }
 
   return (
-    <PageScroll>
-      {conflictModal}
-      <div className={styles.container}>
-        <div className={styles.header}>
-          <div className={styles.headerIcon}>🌌</div>
-          <h1 className={styles.title}>世界自定义</h1>
-          <p className={styles.hint}>设定宇宙的宏观参数，后续叙事会按这些规则展开</p>
-        </div>
+    <>
+      {logic.conflictModal}
+      <main className={styles.page} aria-busy={logic.isSaving}>
+        <div className={styles.container}>
+          <div className={styles.paper}>
+            <span className={styles.spine} aria-hidden="true" />
+            <header className={styles.header}>
+              <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>03 / 08</span></div>
+              <div className={styles.titleRow}>
+                <div>
+                  <h1>配置世界</h1>
+                  <p>确认这段人生的底层规则。</p>
+                </div>
+                <span className={styles.titleMark} aria-hidden="true"><span>03</span></span>
+              </div>
+            </header>
 
-        <div className={styles.descSection}>
-          <label className={styles.descLabel}>世界描述</label>
-          <textarea
-            className={styles.descInput}
-            value={worldDescription}
-            onChange={(e) => setWorldDescription(e.target.value.slice(0, WORLD_CUSTOM_TEXT_MAX_LENGTH))}
-            placeholder="补充你的世界背景、氛围、禁忌或核心规则…"
-            rows={3}
-            maxLength={WORLD_CUSTOM_TEXT_MAX_LENGTH}
-          />
-          <div className={styles.descCharCount}>
-            {worldDescription.length}/{WORLD_CUSTOM_TEXT_MAX_LENGTH}
+            <section className={styles.worldSummary} aria-live="polite">
+              <span className={styles.summaryMark} aria-hidden="true">界</span>
+              <div className={styles.summaryCopy}>
+                <strong>{worldConfig?.name ?? '自定义世界'}</strong>
+                <span>{worldConfig ? '已选世界 · 当前配置草稿' : '世界规则草稿 · 尚未初始化'}</span>
+              </div>
+              <div className={styles.summaryFacts}>
+                <div><span>空间</span><strong>{summarizeField('universeScale')}</strong></div>
+                <div><span>本质</span><strong>{summarizeField('worldviewEssence')}</strong></div>
+                <div><span>上限</span><strong>{summarizeField('powerCeiling')}</strong></div>
+              </div>
+            </section>
+
+            <section className={`${styles.paperSection} ${styles.descriptionSection}`}>
+              <div className={styles.sectionHeading}>
+                <label htmlFor="world-description">世界描述</label>
+                <span>{logic.worldDescription.length} / {WORLD_CUSTOM_TEXT_MAX_LENGTH}</span>
+              </div>
+              <textarea
+                id="world-description"
+                className={styles.descriptionInput}
+                value={logic.worldDescription}
+                maxLength={WORLD_CUSTOM_TEXT_MAX_LENGTH}
+                rows={3}
+                disabled={logic.isSaving}
+                placeholder="补充世界背景、氛围、禁忌或核心规则…"
+                onChange={(event) => logic.setWorldDescription(event.target.value.slice(0, WORLD_CUSTOM_TEXT_MAX_LENGTH))}
+              />
+            </section>
+
+            <section className={`${styles.paperSection} ${styles.rulesSection}`}>
+              <div className={styles.sectionHeading}>
+                <strong>世界规则</strong><span>从基础形态到力量边界</span>
+              </div>
+              <ol
+                className={`${styles.dimensionList} ${logic.isSaving ? styles.controlsDisabled : ''}`}
+                aria-busy={logic.isSaving}
+                inert={logic.isSaving ? true : undefined}
+              >
+                {macroFields.map((field) => (
+                  <WorldCustomizeDimensionCard
+                    key={field.key}
+                    field={field}
+                    onModeChange={(mode) => logic.setFieldMode(field.key, mode)}
+                    onValueChange={(value) => logic.setFieldValue(field.key, value)}
+                    onCustomChange={(value) => logic.setCustomValue(field.key, value)}
+                  />
+                ))}
+              </ol>
+            </section>
+
+            {logic.saveError && <p className={styles.errorMessage} role="alert">{logic.saveError}</p>}
           </div>
         </div>
-
-        <div className={styles.dimList}>
-          {macroFields.map((field) => (
-            <DimensionCard
-              key={field.key}
-              field={field}
-              onModeChange={(mode) => setFieldMode(field.key, mode)}
-              onValueChange={(v) => setFieldValue(field.key, v)}
-              onCustomChange={(v) => setCustomValue(field.key, v)}
-            />
-          ))}
-        </div>
-      </div>
-
-      <BottomActionBar
-        onBack={skip}
-        backTitle="返回世界选择"
-        onConfirm={save}
-        confirmText="确认世界"
-        confirmTitle="确认自定义值并进入角色设定"
+      </main>
+      <WorldCustomizeBottomBar
+        onBack={logic.skip}
+        onConfirm={logic.save}
+        isSaving={logic.isSaving}
+        canConfirm={logic.canSave}
+        blockedReason={logic.saveBlockReason}
+        worldName={worldConfig?.name ?? '当前世界'}
       />
-    </PageScroll>
+    </>
   )
 }
+
+export default WorldCustomizeMobile

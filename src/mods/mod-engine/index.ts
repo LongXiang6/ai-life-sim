@@ -21,6 +21,7 @@ export {
   CALENDAR,
   SEASONS,
   SEASON_NAMES,
+  getSeasonForMonth,
   MONTH_ZH,
   ERA_SPAN,
   ERA_NAME_POOL,

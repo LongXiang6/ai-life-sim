@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>设置 · AI Life Sim · Pi C 柔和胶囊</title>
+  <link rel="stylesheet" href="../assets/library-history.css">
+  <link rel="stylesheet" href="../assets/library.css">
+  <script src="../assets/prototype.js" defer></script>
+  <style>
+    :root { --paper:#fbfaf7; --surface:#fffefd; --ink:#292724; --soft:#6e6961; --faint:#9a9389; --line:#d9d3c9; --line-light:#e9e5de; --mist:#9ca9ac; }
+    * { box-sizing:border-box; }
+    body { background:#f3f1ec; color:var(--ink); }
+    button { font:inherit; }
+    .shell { width:min(100% - 24px,760px); padding-top:24px; }
+    .prototype-head { max-width:520px; margin:0 auto 18px; text-align:center; }
+    .prototype-head p { color:var(--soft); font-size:12px; line-height:1.7; }
+    .stage { display:grid; place-items:center; }
+    .phone { width:292px; height:620px; margin:0; border-color:var(--line); background:var(--paper); color:var(--ink); box-shadow:0 13px 30px rgba(62,55,44,.075); }
+    .head { display:flex; height:67px; align-items:center; justify-content:space-between; padding:14px 17px 7px; }
+    .title-wrap small { display:block; color:var(--faint); font-size:6px; letter-spacing:.13em; }
+    .title-wrap h2 { margin:5px 0 0; font-family:"Songti SC","STSong","SimSun",serif; font-size:19px; font-weight:600; }
+    .close { min-width:42px; min-height:42px; padding:0; border:0; background:transparent; color:var(--soft); font-size:8px; cursor:pointer; }
+    .tabs { display:flex; gap:2px; overflow-x:auto; padding:0 13px 8px; border-bottom:1px solid var(--line); white-space:nowrap; }
+    .tab { position:relative; flex:0 0 auto; min-height:38px; padding:0 8px; border:0; background:transparent; color:var(--faint); font-size:7px; cursor:pointer; }
+    .tab[aria-selected="true"] { color:var(--ink); }
+    .tab[aria-selected="true"]::after { position:absolute; right:8px; bottom:0; left:8px; height:1px; background:var(--mist); content:""; }
+    .content { height:501px; overflow-y:auto; padding:10px 16px 30px; }
+    .panel { display:none; animation:reveal .2s ease both; }
+    .panel.active { display:block; }
+    .panel-intro { margin:0 0 12px; color:var(--soft); font-size:7px; line-height:1.6; }
+    .section-label { display:flex; align-items:end; justify-content:space-between; margin:13px 1px 6px; }
+    .section-label b { color:var(--soft); font-size:7px; letter-spacing:.07em; }
+    .section-label span { color:var(--faint); font-size:6px; }
+    .group { border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+    .row { display:flex; min-height:57px; align-items:center; justify-content:space-between; gap:10px; padding:8px 1px; }
+    .row + .row { border-top:1px solid var(--line-light); }
+    .row-copy { min-width:0; }
+    .row-copy b { display:block; font-family:"Songti SC","STSong",serif; font-size:9px; font-weight:600; }
+    .row-copy p { margin:4px 0 0; color:var(--faint); font-size:6px; line-height:1.45; }
+    .toggle { position:relative; width:34px; height:19px; flex:0 0 auto; padding:0; border:1px solid var(--line); border-radius:999px; background:transparent; cursor:pointer; transition:.2s ease; }
+    .toggle::after { position:absolute; top:3px; left:3px; width:11px; height:11px; border-radius:50%; background:var(--faint); content:""; transition:.2s ease; }
+    .toggle[aria-checked="true"] { border-color:var(--mist); background:rgba(156,169,172,.14); }
+    .toggle[aria-checked="true"]::after { left:18px; background:var(--soft); }
+    .value-action { min-width:55px; min-height:34px; padding:0 6px; border:0; background:transparent; color:var(--soft); font-size:7px; cursor:pointer; text-align:right; }
+    .value-action::after { margin-left:5px; color:var(--faint); content:"›"; }
+    .stepper { display:flex; align-items:center; gap:3px; }
+    .stepper button { width:31px; height:34px; padding:0; border:0; background:transparent; color:var(--soft); cursor:pointer; }
+    .stepper output { min-width:45px; color:var(--ink); font-family:"Songti SC","STSong",serif; font-size:8px; text-align:center; }
+    .segmented { display:grid; grid-template-columns:repeat(4,1fr); border-top:1px solid var(--line); border-bottom:1px solid var(--line); }
+    .segment { min-height:40px; padding:0; border:0; border-right:1px solid var(--line-light); background:transparent; color:var(--faint); font-size:7px; cursor:pointer; }
+    .segment:last-child { border-right:0; }
+    .segment.active { color:var(--ink); background:rgba(156,169,172,.07); font-weight:650; }
+    .inline-note { margin:7px 1px 0; color:var(--faint); font-size:5.8px; line-height:1.55; }
+    .prompt-sample { width:100%; min-height:118px; padding:10px; resize:vertical; border:1px solid var(--line); outline:0; background:var(--surface); color:var(--soft); font-size:7px; line-height:1.6; }
+    .model-list button { display:flex; width:100%; min-height:46px; align-items:center; justify-content:space-between; padding:0; border:0; border-bottom:1px solid var(--line-light); background:transparent; color:var(--soft); font-size:7px; cursor:pointer; }
+    .model-list button.active { color:var(--ink); }
+    .model-list button.active::after { content:"当前"; color:var(--mist); font-size:6px; }
+    .toast { position:absolute; z-index:10; right:17px; bottom:17px; left:17px; padding:8px; border:1px solid var(--line); background:var(--surface); color:var(--soft); font-size:7px; text-align:center; opacity:0; transform:translateY(7px); transition:.2s ease; pointer-events:none; }
+    .toast.show { opacity:1; transform:none; }
+    button:focus-visible,textarea:focus-visible { outline:1px dotted var(--soft); outline-offset:2px; }
+    @keyframes reveal { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+    @media(max-width:390px){.phone{width:min(320px,calc(100vw - 42px))}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+  </style>
+  <link rel="stylesheet" href="round-04-pi-c.css">
+</head>
+<body data-screen="settings" data-pi-variant="C"><a class="pi-history-back" href="index.html">← Pi C · 柔和胶囊</a>
+  <main class="shell">
+    <header class="prototype-head"><p class="eyebrow">SETTINGS · FINAL</p><h1>设置</h1><p>无外框标签与连续分组保持高密度信息清晰，常用控件按内容校准在紧凑触控区间。</p></header>
+    <section class="stage" aria-label="设置移动端原型">
+      <div class="phone">
+        <header class="head"><div class="title-wrap"><small>PREFERENCES</small><h2>设置</h2></div><button class="close" data-flow-back aria-label="关闭设置">关闭</button></header>
+        <nav class="tabs" role="tablist"><button class="tab" role="tab" aria-selected="false" data-panel="personal">个性化</button><button class="tab" role="tab" aria-selected="true" data-panel="model">模型设置</button><button class="tab" role="tab" aria-selected="false" data-panel="calls">模型调用</button><button class="tab" role="tab" aria-selected="false" data-panel="prompt">Prompt</button></nav>
+        <div class="content">
+          <section class="panel" data-panel-id="personal"><p class="panel-intro">调整阅读体验与界面偏好，不改变模拟中的事实与数值。</p><div class="section-label"><b>阅读体验</b><span>即时生效</span></div><div class="group"><div class="row"><div class="row-copy"><b>段落舒展</b><p>为长叙事增加少量行间距</p></div><button class="toggle" role="switch" aria-checked="true" aria-label="段落舒展"></button></div><div class="row"><div class="row-copy"><b>减少动态效果</b><p>保留必要状态变化，降低装饰动画</p></div><button class="toggle" role="switch" aria-checked="false" aria-label="减少动态效果"></button></div></div></section>
+          <section class="panel active" data-panel-id="model"><p class="panel-intro">决定 AI 内容的生成方式、推理模式与叙事目标长度。</p><div class="section-label"><b>AI 内容</b><span>生成方式</span></div><div class="group"><div class="row"><div class="row-copy"><b>AI 命格生成</b><p>调用 AI 实时生成随机命格</p></div><button class="toggle" role="switch" aria-checked="true" aria-label="AI 命格生成"></button></div></div><div class="section-label"><b>推理模式</b><span>按用途设置</span></div><div class="group"><div class="row"><div class="row-copy"><b>全局推理</b><p>所有可用请求的默认方式</p></div><button class="value-action" data-value="关闭">关闭</button></div><div class="row"><div class="row-copy"><b>命格生成</b><p>可独立覆盖全局设置</p></div><button class="value-action" data-value="关闭">关闭</button></div></div><div class="section-label"><b>叙事长度</b><span>完整句优先</span></div><div class="group"><div class="row"><div class="row-copy"><b>每轮叙事大致字数</b><p>生成目标，不会硬截断完整句</p></div><div class="stepper"><button data-delta="-50" aria-label="减少叙事字数">−</button><output>200 字</output><button data-delta="50" aria-label="增加叙事字数">＋</button></div></div></div><div class="section-label"><b>预生成轮数</b><span>降低等待感</span></div><div class="segmented"><button class="segment active">关闭</button><button class="segment">1 轮</button><button class="segment">2 轮</button><button class="segment">3 轮</button></div><p class="inline-note">字数是生成目标，完整剧情与完整句优先。</p></section>
+          <section class="panel" data-panel-id="calls"><p class="panel-intro">为不同用途选择调用模型；原型只演示选择状态。</p><div class="section-label"><b>主叙事模型</b><span>当前配置</span></div><div class="model-list group"><button class="active">默认模型</button><button>高速模型</button><button>深度模型</button></div><div class="section-label"><b>后台任务</b><span>独立选择</span></div><div class="model-list group"><button class="active">跟随默认</button><button>高速模型</button></div></section>
+          <section class="panel" data-panel-id="prompt"><p class="panel-intro">查看自定义补充指令；不会覆盖世界事实和结构化输出契约。</p><div class="section-label"><b>叙事偏好</b><span>可选</span></div><textarea class="prompt-sample" aria-label="叙事偏好">更关注人物关系的渐变与选择带来的长期回声；保持叙事克制，不提前替角色总结一生。</textarea><p class="inline-note">此处内容仅作为玩家偏好附加到叙事上下文。</p></section>
+        </div>
+        <div class="toast" role="status" aria-live="polite"></div>
+      </div>
+    </section>
+  </main>
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const phone=document.querySelector('.phone');
+      const toast=function(message){const node=phone.querySelector('.toast');node.textContent=message;node.classList.add('show');clearTimeout(node._timer);node._timer=setTimeout(function(){node.classList.remove('show')},1100)};
+      phone.querySelectorAll('.tab').forEach(function(tab){tab.addEventListener('click',function(){phone.querySelectorAll('.tab').forEach(function(item){item.setAttribute('aria-selected','false')});tab.setAttribute('aria-selected','true');phone.querySelectorAll('.panel').forEach(function(panel){panel.classList.toggle('active',panel.dataset.panelId===tab.dataset.panel)});phone.querySelector('.content').scrollTop=0})});
+      phone.querySelectorAll('.toggle').forEach(function(toggle){toggle.addEventListener('click',function(){const value=toggle.getAttribute('aria-checked')!=='true';toggle.setAttribute('aria-checked',String(value));toast((toggle.getAttribute('aria-label')||'设置')+' · '+(value?'已开启':'已关闭'))})});
+      phone.querySelectorAll('.value-action').forEach(function(button){button.addEventListener('click',function(){const next=button.dataset.value==='关闭'?'开启':'关闭';button.dataset.value=next;button.textContent=next;toast('推理模式 · '+next)})});
+      let words=200;phone.querySelectorAll('[data-delta]').forEach(function(button){button.addEventListener('click',function(){words=Math.max(100,Math.min(1000,words+Number(button.dataset.delta)));phone.querySelector('.stepper output').textContent=words+' 字'})});
+      phone.querySelectorAll('.segment').forEach(function(button){button.addEventListener('click',function(){phone.querySelectorAll('.segment').forEach(function(item){item.classList.remove('active')});button.classList.add('active');toast('预生成 · '+button.textContent)})});
+      phone.querySelectorAll('.model-list').forEach(function(list){list.querySelectorAll('button').forEach(function(button){button.addEventListener('click',function(){list.querySelectorAll('button').forEach(function(item){item.classList.remove('active')});button.classList.add('active');toast('已选择 · '+button.textContent)})})});
+    });
+  </script>
+</body>
+</html>

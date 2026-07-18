@@ -33,6 +33,9 @@ export const SEASONS = {
 /** 季节名称 */
 export const SEASON_NAMES = ['春', '夏', '秋', '冬',] as const
 
+/** 按阳历月份返回季节索引；实现位于无副作用的日历 helper。 */
+export { getSeasonForMonth } from './helpers/calendar-season.js'
+
 /** 中文月名（来自废案 calendar.ts 的 MONTH_LABELS）
  *  正月/杏月/桃月/槐月/榴月/荷月/兰月/桂月/菊月/露月/冬月/腊月 */
 export const MONTH_ZH = [
@@ -95,7 +98,6 @@ export {
   KV_MESSAGE_STRATEGY,
   BRIDGE_SUMMARY_MIN_TICKS,
   KV_CONVERSATION_WINDOW,
-  LIFESPAN_NARRATIVE_REDUCTION_ENABLED,
   EXPERIMENTAL_TIME_STEPS_UI,
 } from '@/core/ai-service/prompt-flags'
 export type { KVMessageStrategy } from '@/core/ai-service/prompt-flags'
@@ -208,5 +210,3 @@ export const SUMMARY_L5_MIN_TOKENS = 1800
 
 /** L6 合并 token 保底 */
 export const SUMMARY_L6_MIN_TOKENS = 2000
-
-

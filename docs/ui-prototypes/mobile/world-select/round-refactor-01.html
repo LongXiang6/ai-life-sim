@@ -1,0 +1,1442 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>世界选择 · 重构第一轮</title>
+  <link rel="icon" href="data:,">
+  <style>
+    @view-transition { navigation: auto; }
+
+    ::view-transition-old(root) { animation: page-out 160ms ease both; }
+    ::view-transition-new(root) { animation: page-in 190ms ease both; }
+
+    @keyframes page-out {
+      to { opacity: 0; transform: translateY(-3px); }
+    }
+
+    @keyframes page-in {
+      from { opacity: 0; transform: translateY(3px); }
+    }
+
+    :root {
+      color-scheme: light;
+      --canvas: #e9e9e6;
+      --paper: #fffefa;
+      --paper-strong: #ffffff;
+      --ink: #262522;
+      --ink-soft: #66635d;
+      --ink-faint: #969189;
+      --rule: #d7d3ca;
+      --rule-light: #e9e6df;
+      --accent: #756aa5;
+      --accent-rgb: 117, 106, 165;
+      --serif: "Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", serif;
+      --sans: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      min-width: 0;
+      background: var(--canvas);
+    }
+
+    body {
+      min-width: 0;
+      margin: 0;
+      background: var(--canvas);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 14px;
+      letter-spacing: 0;
+    }
+
+    button,
+    input,
+    textarea {
+      color: inherit;
+      font: inherit;
+      letter-spacing: 0;
+    }
+
+    button,
+    a {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:focus-visible,
+    a:focus-visible,
+    input:focus-visible,
+    textarea:focus-visible {
+      outline: 1px dotted var(--ink-soft);
+      outline-offset: 3px;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .review-shell {
+      width: min(100%, 1440px);
+      margin: 0 auto;
+      padding: 22px 12px 34px;
+    }
+
+    .review-head {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: end;
+      gap: 18px;
+      padding: 0 4px 18px;
+      border-bottom: 1px solid #c9c9c4;
+    }
+
+    .review-back {
+      display: inline-block;
+      min-height: 34px;
+      margin-bottom: 8px;
+      padding: 7px 0;
+      color: #5f5d58;
+      font-size: 11px;
+      text-decoration: underline;
+      text-decoration-color: #bbb9b2;
+      text-underline-offset: 4px;
+    }
+
+    .review-head h1 {
+      margin: 0;
+      font-family: var(--serif);
+      font-size: 30px;
+      font-weight: 600;
+      line-height: 1.25;
+    }
+
+    .review-intro {
+      max-width: 48em;
+      margin: 8px 0 0;
+      color: #67655f;
+      font-family: var(--serif);
+      font-size: 13px;
+      line-height: 1.75;
+    }
+
+    .review-status {
+      padding-bottom: 3px;
+      color: #77746e;
+      font-size: 10px;
+      line-height: 1.5;
+      text-align: right;
+    }
+
+    .review-status strong {
+      display: block;
+      color: var(--ink);
+      font-family: var(--serif);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .candidate-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .candidate {
+      min-width: 0;
+      padding: 12px 10px 14px;
+      border: 1px solid #d4d4cf;
+      background: #f1f1ee;
+      transition: border-color 180ms ease, background 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    }
+
+    .candidate:hover {
+      border-color: #bcbab2;
+      transform: translateY(-2px);
+    }
+
+    .candidate.selected {
+      border-color: var(--accent);
+      background: #f5f4f7;
+      box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.18);
+    }
+
+    .candidate-meta {
+      display: grid;
+      min-height: 72px;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: start;
+      padding: 0 2px 10px;
+    }
+
+    .candidate-code {
+      color: #77746e;
+      font-size: 9px;
+      font-weight: 700;
+      line-height: 1.4;
+    }
+
+    .candidate-title {
+      margin: 4px 0 0;
+      font-family: var(--serif);
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+
+    .candidate-note {
+      margin: 3px 0 0;
+      color: #79766f;
+      font-size: 9px;
+      line-height: 1.45;
+    }
+
+    .candidate-pick {
+      min-height: 34px;
+      padding: 5px 0 5px 8px;
+      border: 0;
+      background: transparent;
+      color: #6c6962;
+      cursor: pointer;
+      font-size: 9px;
+      text-decoration: underline;
+      text-decoration-color: #bbb8af;
+      text-underline-offset: 4px;
+    }
+
+    .candidate-pick[aria-pressed="true"] {
+      color: var(--accent);
+      text-decoration-color: var(--accent);
+    }
+
+    .phone {
+      position: relative;
+      width: min(100%, 318px);
+      height: 640px;
+      margin: 0 auto;
+      overflow: hidden;
+      border: 1px solid #cbc8bf;
+      border-radius: 5px;
+      background: var(--paper);
+      box-shadow: 0 16px 34px rgba(38, 37, 34, 0.1);
+      isolation: isolate;
+    }
+
+    .phone::before {
+      position: absolute;
+      z-index: 0;
+      top: 18px;
+      bottom: 70px;
+      left: 17px;
+      width: 1px;
+      background: linear-gradient(to bottom, var(--rule-light), var(--rule) 10% 86%, var(--rule-light));
+      content: "";
+    }
+
+    .phone-page {
+      position: absolute;
+      z-index: 1;
+      inset: 0 0 57px;
+      overflow: hidden;
+      padding: 17px 18px 12px 29px;
+    }
+
+    .running-head {
+      display: flex;
+      min-height: 22px;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--ink-faint);
+      font-size: 7px;
+      font-weight: 700;
+      line-height: 1.4;
+      text-transform: uppercase;
+    }
+
+    .chapter-head {
+      margin-top: 8px;
+    }
+
+    .chapter-head h2 {
+      margin: 0;
+      font-family: var(--serif);
+      font-size: 23px;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+
+    .chapter-lead {
+      margin: 4px 0 0;
+      color: var(--ink-soft);
+      font-family: var(--serif);
+      font-size: 9px;
+      line-height: 1.55;
+    }
+
+    .chapter-rule {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+      color: var(--ink-faint);
+      font-size: 7px;
+    }
+
+    .chapter-rule::before {
+      height: 1px;
+      background: var(--rule);
+      content: "";
+    }
+
+    .section-label {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 10px 0 5px;
+    }
+
+    .section-label strong {
+      font-family: var(--serif);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .section-label span {
+      color: var(--ink-faint);
+      font-size: 7px;
+      text-align: right;
+    }
+
+    .world-reading {
+      position: relative;
+      min-height: 124px;
+      margin-top: 10px;
+      padding: 0 0 10px 31px;
+      border-bottom: 1px solid var(--rule);
+      transition: opacity 150ms ease, transform 150ms ease;
+    }
+
+    .world-reading.updating {
+      opacity: 0.34;
+      transform: translateY(3px);
+    }
+
+    .world-mark {
+      position: absolute;
+      top: 1px;
+      left: 0;
+      display: grid;
+      width: 23px;
+      height: 23px;
+      place-items: center;
+      border: 1px solid var(--rule);
+      border-radius: 50%;
+      color: var(--ink-soft);
+      font-family: var(--serif);
+      font-size: 8px;
+    }
+
+    .world-counter,
+    .world-era {
+      color: var(--ink-faint);
+      font-size: 7px;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.4;
+    }
+
+    .world-reading h3 {
+      margin: 4px 0 0;
+      font-family: var(--serif);
+      font-size: 17px;
+      font-weight: 600;
+      line-height: 1.3;
+    }
+
+    .world-era { margin-top: 2px; }
+
+    .world-description {
+      margin: 6px 0 0;
+      color: var(--ink-soft);
+      font-family: var(--serif);
+      font-size: 9px;
+      line-height: 1.55;
+    }
+
+    .world-facts {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      margin: 7px 0 0;
+      border-top: 1px solid var(--rule-light);
+    }
+
+    .world-facts div {
+      min-width: 0;
+      padding: 5px 3px 0 0;
+    }
+
+    .world-facts dt,
+    .world-facts dd {
+      margin: 0;
+    }
+
+    .world-facts dt {
+      color: var(--ink-faint);
+      font-size: 6px;
+    }
+
+    .world-facts dd {
+      margin-top: 2px;
+      color: var(--ink-soft);
+      font-size: 7px;
+      line-height: 1.35;
+    }
+
+    .world-directory,
+    .sheet-worlds {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      border-top: 1px solid var(--rule);
+    }
+
+    .world-choice {
+      position: relative;
+      display: grid;
+      min-width: 0;
+      min-height: 34px;
+      grid-template-columns: 22px minmax(0, 1fr);
+      align-items: center;
+      gap: 2px;
+      padding: 3px 5px 3px 0;
+      border: 0;
+      border-bottom: 1px solid var(--rule-light);
+      background: transparent;
+      color: var(--ink-soft);
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .world-choice:nth-child(odd) {
+      border-right: 1px solid var(--rule-light);
+    }
+
+    .world-choice .choice-index {
+      color: var(--ink-faint);
+      font-size: 7px;
+    }
+
+    .world-choice .choice-name {
+      overflow-wrap: anywhere;
+      font-family: var(--serif);
+      font-size: 9px;
+      line-height: 1.3;
+    }
+
+    .world-choice[aria-selected="true"] {
+      color: var(--ink);
+    }
+
+    .world-choice[aria-selected="true"]::after {
+      position: absolute;
+      right: 5px;
+      bottom: -1px;
+      left: 22px;
+      height: 2px;
+      background: var(--accent);
+      content: "";
+    }
+
+    .portal-list {
+      border-top: 1px solid var(--rule);
+    }
+
+    .portal-row {
+      position: relative;
+      display: grid;
+      width: 100%;
+      min-height: 31px;
+      grid-template-columns: 29px minmax(0, 1fr) 14px;
+      align-items: center;
+      gap: 2px;
+      padding: 0;
+      border: 0;
+      border-bottom: 1px solid var(--rule-light);
+      background: transparent;
+      color: var(--ink-soft);
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .portal-row .portal-index {
+      color: var(--ink-faint);
+      font-size: 7px;
+    }
+
+    .portal-row strong {
+      font-family: var(--serif);
+      font-size: 9px;
+      font-weight: 600;
+    }
+
+    .portal-row small {
+      display: block;
+      margin-top: 1px;
+      color: var(--ink-faint);
+      font-size: 6px;
+    }
+
+    .portal-row .arrow {
+      color: var(--ink-faint);
+      font-size: 10px;
+      text-align: right;
+    }
+
+    .portal-row.primary-entry {
+      color: var(--ink);
+    }
+
+    .portal-row.primary-entry::before {
+      position: absolute;
+      width: 2px;
+      height: 16px;
+      background: var(--accent);
+      content: "";
+      transform: translateX(-9px);
+    }
+
+    .difficulty {
+      display: grid;
+      grid-template-columns: 48px repeat(3, minmax(0, 1fr));
+      align-items: center;
+      margin-top: 8px;
+      border-top: 1px solid var(--rule-light);
+      border-bottom: 1px solid var(--rule-light);
+    }
+
+    .difficulty > span {
+      color: var(--ink-faint);
+      font-size: 7px;
+    }
+
+    .difficulty button {
+      min-height: 31px;
+      padding: 3px 0;
+      border: 0;
+      background: transparent;
+      color: var(--ink-faint);
+      cursor: pointer;
+      font-size: 8px;
+    }
+
+    .difficulty button.active {
+      color: var(--ink);
+      box-shadow: inset 0 -2px 0 var(--accent);
+    }
+
+    .phone-footer {
+      position: absolute;
+      z-index: 5;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      display: grid;
+      height: 57px;
+      grid-template-columns: 74px minmax(0, 1fr);
+      align-items: center;
+      gap: 8px;
+      padding: 7px 17px 8px 29px;
+      border-top: 1px solid var(--rule);
+      background: rgba(255, 254, 250, 0.97);
+    }
+
+    .phone-footer button {
+      min-height: 38px;
+      padding: 4px 0;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .back-action {
+      color: var(--ink-soft);
+      font-size: 8px;
+      text-align: left;
+      text-decoration: underline;
+      text-decoration-color: var(--rule);
+      text-underline-offset: 4px;
+    }
+
+    .confirm-action {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 15px;
+      align-items: center;
+      color: var(--ink);
+      font-family: var(--serif);
+      font-size: 11px;
+      font-weight: 600;
+      text-align: left;
+    }
+
+    .confirm-action span:last-child {
+      font-family: var(--sans);
+      font-size: 12px;
+      text-align: right;
+    }
+
+    .confirm-action:disabled {
+      color: var(--ink-faint);
+      cursor: not-allowed;
+    }
+
+    .sheet {
+      position: absolute;
+      z-index: 20;
+      inset: 0 0 57px;
+      overflow: hidden;
+      padding: 18px 18px 14px 29px;
+      border-top: 3px solid var(--accent);
+      background: var(--paper);
+      clip-path: inset(100% 0 0 0);
+      opacity: 0;
+      pointer-events: none;
+      transition: clip-path 260ms cubic-bezier(.22, .74, .24, 1), opacity 180ms ease;
+    }
+
+    .sheet.open {
+      clip-path: inset(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .sheet-head {
+      display: grid;
+      min-height: 42px;
+      grid-template-columns: minmax(0, 1fr) 34px;
+      align-items: start;
+      gap: 10px;
+      padding-bottom: 9px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .sheet-head h3 {
+      margin: 0;
+      font-family: var(--serif);
+      font-size: 18px;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+
+    .sheet-head p {
+      margin: 3px 0 0;
+      color: var(--ink-faint);
+      font-size: 7px;
+      line-height: 1.45;
+    }
+
+    .sheet-close {
+      display: grid;
+      width: 34px;
+      height: 34px;
+      place-items: center;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: var(--ink-soft);
+      cursor: pointer;
+      font-size: 20px;
+      line-height: 1;
+    }
+
+    .sheet-section-title {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin: 13px 0 6px;
+      color: var(--ink-faint);
+      font-size: 7px;
+    }
+
+    .sheet-section-title strong {
+      color: var(--ink);
+      font-family: var(--serif);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .sheet-empty {
+      margin: 17px 0 0;
+      padding: 15px 0;
+      border-top: 1px solid var(--rule-light);
+      border-bottom: 1px solid var(--rule-light);
+      color: var(--ink-soft);
+      font-family: var(--serif);
+      font-size: 11px;
+      line-height: 1.7;
+    }
+
+    .custom-form {
+      display: grid;
+      gap: 0;
+      margin-top: 8px;
+      border-top: 1px solid var(--rule);
+    }
+
+    .field {
+      display: grid;
+      grid-template-columns: 68px minmax(0, 1fr);
+      align-items: start;
+      border-bottom: 1px solid var(--rule-light);
+    }
+
+    .field label {
+      padding: 11px 7px 8px 0;
+      color: var(--ink-faint);
+      font-size: 7px;
+    }
+
+    .field input,
+    .field textarea {
+      width: 100%;
+      min-width: 0;
+      min-height: 36px;
+      padding: 8px 0;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--ink);
+      font-family: var(--serif);
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .field textarea {
+      min-height: 67px;
+      resize: none;
+    }
+
+    .form-submit {
+      justify-self: end;
+      min-height: 38px;
+      margin-top: 6px;
+      padding: 4px 0 4px 14px;
+      border: 0;
+      background: transparent;
+      color: var(--ink);
+      cursor: pointer;
+      font-family: var(--serif);
+      font-size: 10px;
+      font-weight: 600;
+      text-decoration: underline;
+      text-decoration-color: var(--accent);
+      text-underline-offset: 4px;
+    }
+
+    .form-status {
+      min-height: 16px;
+      margin: 4px 0 0;
+      color: var(--accent);
+      font-size: 7px;
+      line-height: 1.45;
+    }
+
+    .rule-ledger {
+      margin-top: 12px;
+      border-top: 1px solid var(--rule);
+    }
+
+    .rule-ledger div {
+      display: grid;
+      min-height: 40px;
+      grid-template-columns: 58px minmax(0, 1fr);
+      align-items: center;
+      gap: 7px;
+      border-bottom: 1px solid var(--rule-light);
+    }
+
+    .rule-ledger dt,
+    .rule-ledger dd { margin: 0; }
+
+    .rule-ledger dt {
+      color: var(--ink-faint);
+      font-size: 7px;
+    }
+
+    .rule-ledger dd {
+      font-family: var(--serif);
+      font-size: 10px;
+    }
+
+    .phone-toast {
+      position: absolute;
+      z-index: 50;
+      right: 12px;
+      bottom: 68px;
+      left: 23px;
+      padding: 8px 10px;
+      border: 1px solid var(--rule);
+      background: var(--paper-strong);
+      color: var(--ink-soft);
+      font-size: 8px;
+      line-height: 1.5;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(5px);
+      transition: opacity 160ms ease, transform 160ms ease;
+    }
+
+    .phone-toast.show {
+      opacity: 1;
+      transform: none;
+    }
+
+    /* RF1-2: custom editor first, preset worlds become a directory drawer. */
+    .route-editor .chapter-head h2 { font-size: 22px; }
+
+    .current-line {
+      display: flex;
+      min-height: 34px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 8px;
+      padding: 5px 0;
+      border-top: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule-light);
+      color: var(--ink-faint);
+      font-size: 7px;
+    }
+
+    .current-line strong {
+      color: var(--ink);
+      font-family: var(--serif);
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .editor-caption {
+      margin: 11px 0 2px;
+      color: var(--accent);
+      font-family: var(--serif);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .route-editor .custom-form { margin-top: 4px; }
+    .route-editor .field textarea { min-height: 77px; }
+    .route-editor .form-status { min-height: 19px; }
+
+    .editor-directory {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 1fr;
+      margin-top: 6px;
+      border-top: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .editor-directory button {
+      min-height: 43px;
+      padding: 5px 7px;
+      border: 0;
+      border-right: 1px solid var(--rule-light);
+      background: transparent;
+      color: var(--ink-soft);
+      cursor: pointer;
+      font-size: 8px;
+      text-align: left;
+    }
+
+    .editor-directory button:last-child { border-right: 0; }
+
+    .editor-directory strong,
+    .editor-directory small { display: block; }
+
+    .editor-directory strong {
+      color: var(--ink);
+      font-family: var(--serif);
+      font-size: 9px;
+      font-weight: 600;
+    }
+
+    .editor-directory small {
+      margin-top: 2px;
+      color: var(--ink-faint);
+      font-size: 6px;
+    }
+
+    .editor-tools {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .editor-tools button {
+      min-height: 31px;
+      padding: 4px 0;
+      border: 0;
+      background: transparent;
+      color: var(--ink-soft);
+      cursor: pointer;
+      font-size: 7px;
+      text-decoration: underline;
+      text-decoration-color: var(--rule);
+      text-underline-offset: 3px;
+    }
+
+    /* RF1-3: a focus page with a compact index, custom always appears first. */
+    .focus-index {
+      display: grid;
+      grid-template-columns: 1.35fr repeat(6, minmax(0, 1fr));
+      margin-top: 10px;
+      border-top: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .focus-index button {
+      position: relative;
+      min-width: 0;
+      min-height: 38px;
+      padding: 4px 1px;
+      border: 0;
+      border-right: 1px solid var(--rule-light);
+      background: transparent;
+      color: var(--ink-faint);
+      cursor: pointer;
+      font-size: 7px;
+      text-align: center;
+    }
+
+    .focus-index button:last-child { border-right: 0; }
+
+    .focus-index button[aria-selected="true"] {
+      color: var(--ink);
+      box-shadow: inset 0 -2px 0 var(--accent);
+    }
+
+    .focus-index .custom-index {
+      color: var(--accent);
+      font-family: var(--serif);
+      font-size: 8px;
+      font-weight: 600;
+    }
+
+    .route-focus .world-reading {
+      min-height: 229px;
+      margin-top: 15px;
+      padding-left: 0;
+    }
+
+    .route-focus .world-mark {
+      position: static;
+      width: 31px;
+      height: 31px;
+      margin-bottom: 12px;
+      font-size: 10px;
+    }
+
+    .route-focus .world-counter {
+      position: absolute;
+      top: 6px;
+      right: 0;
+    }
+
+    .route-focus .world-reading h3 { font-size: 21px; }
+
+    .route-focus .world-description {
+      max-width: 24em;
+      min-height: 43px;
+      font-size: 10px;
+      line-height: 1.7;
+    }
+
+    .route-focus .world-facts { margin-top: 11px; }
+
+    .focus-portals {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      border-top: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .focus-portals button {
+      min-height: 41px;
+      padding: 4px 2px;
+      border: 0;
+      border-right: 1px solid var(--rule-light);
+      background: transparent;
+      color: var(--ink-soft);
+      cursor: pointer;
+      font-size: 7px;
+    }
+
+    .focus-portals button:last-child { border-right: 0; }
+
+    /* RF1-4: the empty fate-book page begins with authorship. */
+    .route-blank .phone-page {
+      background-image: linear-gradient(to bottom, transparent 31px, rgba(215, 211, 202, 0.34) 32px);
+      background-size: 100% 32px;
+    }
+
+    .route-blank .running-head,
+    .route-blank .chapter-head,
+    .route-blank .blank-editor,
+    .route-blank .blank-tools,
+    .route-blank .difficulty {
+      position: relative;
+      z-index: 1;
+      background: var(--paper);
+    }
+
+    .route-blank .chapter-head { padding-bottom: 6px; }
+
+    .blank-editor {
+      margin-top: 7px;
+      padding-top: 2px;
+      border-top: 1px solid var(--rule);
+    }
+
+    .blank-field {
+      display: grid;
+      grid-template-columns: 58px minmax(0, 1fr);
+      align-items: start;
+      border-bottom: 1px solid var(--rule-light);
+    }
+
+    .blank-field label {
+      padding: 12px 6px 8px 0;
+      color: var(--ink-faint);
+      font-size: 7px;
+    }
+
+    .blank-field input,
+    .blank-field textarea {
+      width: 100%;
+      min-width: 0;
+      min-height: 39px;
+      padding: 8px 0;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--ink);
+      font-family: var(--serif);
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    .blank-field textarea {
+      min-height: 102px;
+      resize: none;
+    }
+
+    .blank-submit-row {
+      display: flex;
+      min-height: 49px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .blank-submit-row .form-status {
+      flex: 1;
+      margin: 0;
+    }
+
+    .blank-submit-row .form-submit {
+      flex: 0 0 auto;
+      margin: 0;
+    }
+
+    .blank-tools {
+      display: grid;
+      grid-template-columns: 1.25fr 1fr 1fr;
+      margin-top: 9px;
+      border-top: 1px solid var(--rule);
+      border-bottom: 1px solid var(--rule);
+    }
+
+    .blank-tools button {
+      min-height: 44px;
+      padding: 5px 4px;
+      border: 0;
+      border-right: 1px solid var(--rule-light);
+      background: transparent;
+      color: var(--ink-soft);
+      cursor: pointer;
+      font-size: 7px;
+    }
+
+    .blank-tools button:last-child { border-right: 0; }
+
+    .blank-tools strong,
+    .blank-tools small { display: block; }
+
+    .blank-tools strong {
+      color: var(--ink);
+      font-family: var(--serif);
+      font-size: 9px;
+      font-weight: 600;
+    }
+
+    .blank-tools small {
+      margin-top: 2px;
+      color: var(--ink-faint);
+      font-size: 6px;
+    }
+
+    .template-saved {
+      width: 100%;
+      min-height: 38px;
+      margin-top: 10px;
+      padding: 5px 0;
+      border: 0;
+      border-top: 1px solid var(--rule-light);
+      border-bottom: 1px solid var(--rule-light);
+      background: transparent;
+      color: var(--ink-soft);
+      cursor: pointer;
+      font-size: 8px;
+      text-align: left;
+    }
+
+    @media (max-width: 1099px) {
+      .candidate-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .candidate-meta { min-height: 66px; }
+    }
+
+    @media (max-width: 559px) {
+      .review-shell { padding: 15px 12px 28px; }
+      .review-head { grid-template-columns: 1fr; gap: 9px; }
+      .review-head h1 { font-size: 26px; }
+      .review-status { text-align: left; }
+      .candidate-grid { grid-template-columns: 1fr; }
+      .candidate { padding-right: 8px; padding-left: 8px; }
+      .candidate-meta { min-height: 0; padding: 2px 4px 11px; }
+      .phone { width: min(100%, 330px); }
+    }
+
+    @media (max-width: 389px) {
+      .review-shell { padding-right: 10px; padding-left: 10px; }
+      .review-head { padding-right: 3px; padding-left: 3px; }
+      .candidate { padding-right: 7px; padding-left: 7px; }
+      .phone { width: min(100%, 326px); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="review-shell">
+    <header class="review-head">
+      <div>
+        <a class="review-back" href="index.html">← 返回世界选择历史</a>
+        <h1>世界选择 · 重构第一轮</h1>
+        <p class="review-intro">四案共用“可操作的命书单页”基底，从稳妥章节目录逐步推进到空白命书。点选候选高亮，再分别试用世界、自定义、难度与确认流程。</p>
+      </div>
+      <div class="review-status"><strong data-review-selection>当前选择 · WS-RF1-1</strong>待用户选择 · 01 最稳妥 / 04 最大胆</div>
+    </header>
+
+    <section class="candidate-grid" aria-label="世界选择重构第一轮候选">
+      <article class="candidate selected" data-choice="WS-RF1-1">
+        <header class="candidate-meta">
+          <div><div class="candidate-code">WS-RF1-1 · 稳妥</div><h2 class="candidate-title">单页章节目录</h2><p class="candidate-note">保留当前规则阅读顺序，压缩为三段命书目录。</p></div>
+          <button class="candidate-pick" type="button" aria-pressed="true">已选此案</button>
+        </header>
+        <section class="phone route-folio" data-app="rf1-1" data-selected-world="现代地球" data-difficulty-value="普通">
+          <div class="phone-page">
+            <div class="running-head"><span>AI LIFE SIM · 第一章</span><span>01 / 06</span></div>
+            <header class="chapter-head"><h2>择一方世界</h2><p class="chapter-lead">先读此界规则，再把这一页定为人生开端。</p><div class="chapter-rule"><span data-current-page>当前选页 · 01 / 24</span></div></header>
+            <article class="world-reading" aria-live="polite">
+              <span class="world-mark" data-current-mark>现</span><span class="world-counter" data-current-counter>01 / 24</span>
+              <h3 data-current-name>现代地球</h3><p class="world-era" data-current-era>公元 2000 年 · 写实世界</p><p class="world-description" data-current-desc>互联网正在改变生活，平凡人生也会被时代推动。</p>
+              <dl class="world-facts"><div><dt>科技</dt><dd data-rule-tech>快速发展</dd></div><div><dt>超凡</dt><dd data-rule-power>近乎不存在</dd></div><div><dt>危险</dt><dd data-rule-danger>现实尺度</dd></div></dl>
+            </article>
+            <div class="section-label"><strong>第一节 · 快速选择</strong><span>六个主世界</span></div>
+            <div class="world-directory" role="listbox" aria-label="主世界">
+              <button class="world-choice" type="button" data-world="现代地球" aria-selected="true"><span class="choice-index">01</span><span class="choice-name">现代地球</span></button>
+              <button class="world-choice" type="button" data-world="武道割据" aria-selected="false"><span class="choice-index">02</span><span class="choice-name">武道割据</span></button>
+              <button class="world-choice" type="button" data-world="SCP基金会" aria-selected="false"><span class="choice-index">03</span><span class="choice-name">SCP 基金会</span></button>
+              <button class="world-choice" type="button" data-world="战锤40K" aria-selected="false"><span class="choice-index">04</span><span class="choice-name">战锤 40K</span></button>
+              <button class="world-choice" type="button" data-world="赛博2077" aria-selected="false"><span class="choice-index">05</span><span class="choice-name">赛博 2077</span></button>
+              <button class="world-choice" type="button" data-world="修真世界" aria-selected="false"><span class="choice-index">06</span><span class="choice-name">修真世界</span></button>
+            </div>
+            <div class="section-label"><strong>第二节 · 页尾目录</strong><span>自定置前</span></div>
+            <div class="portal-list">
+              <button class="portal-row primary-entry" type="button" data-open-sheet="custom"><span class="portal-index">02.1</span><span><strong>自定义世界</strong><small>写下名称、年代与世界描述</small></span><span class="arrow">→</span></button>
+              <button class="portal-row" type="button" data-open-sheet="more"><span class="portal-index">02.2</span><span><strong>更多世界</strong><small>另有 18 个预设世界</small></span><span class="arrow">→</span></button>
+              <button class="portal-row" type="button" data-open-sheet="saved"><span class="portal-index">02.3</span><span><strong>已保存</strong><small>读取保存过的世界</small></span><span class="arrow">→</span></button>
+            </div>
+            <div class="difficulty" aria-label="人生难度"><span>难度</span><button type="button" data-difficulty="轻松">轻松</button><button class="active" type="button" data-difficulty="普通">普通</button><button type="button" data-difficulty="艰难">艰难</button></div>
+          </div>
+          <div class="phone-footer"><button class="back-action" type="button" data-back>返回</button><button class="confirm-action" type="button" data-confirm><span>确认世界 · 下一章</span><span>→</span></button></div>
+
+          <section class="sheet" data-sheet="custom" aria-hidden="true"><header class="sheet-head"><div><h3>自定义世界</h3><p>只写世界的入口信息，四维配置留在下一章。</p></div><button class="sheet-close" type="button" data-close-sheet aria-label="关闭自定义世界" title="关闭">×</button></header><form class="custom-form" data-custom-form novalidate><div class="field"><label>世界名称</label><input name="name" autocomplete="off" placeholder="例如：潮汐城邦"></div><div class="field"><label>起始年代</label><input name="era" autocomplete="off" placeholder="例如：群岛历 218 年"></div><div class="field"><label>世界描述</label><textarea name="description" placeholder="写下世界描述与一条核心规则"></textarea></div><button class="form-submit" type="submit">生成并选择世界</button><p class="form-status" data-form-status role="status"></p></form></section>
+          <section class="sheet" data-sheet="more" aria-hidden="true"><header class="sheet-head"><div><h3>更多世界</h3><p>从预设目录选取，仍可返回主世界。</p></div><button class="sheet-close" type="button" data-close-sheet aria-label="关闭更多世界" title="关闭">×</button></header><div class="sheet-section-title"><strong>预设世界 · 07—11</strong><span>点击即选择</span></div><div class="sheet-worlds"><button class="world-choice" type="button" data-world="蒸汽纪元" aria-selected="false"><span class="choice-index">07</span><span class="choice-name">蒸汽纪元</span></button><button class="world-choice" type="button" data-world="末日废土" aria-selected="false"><span class="choice-index">08</span><span class="choice-name">末日废土</span></button><button class="world-choice" type="button" data-world="星际文明" aria-selected="false"><span class="choice-index">09</span><span class="choice-name">星际文明</span></button><button class="world-choice" type="button" data-world="魔法学院" aria-selected="false"><span class="choice-index">10</span><span class="choice-name">魔法学院</span></button><button class="world-choice" type="button" data-world="神话洪荒" aria-selected="false"><span class="choice-index">11</span><span class="choice-name">神话洪荒</span></button></div></section>
+          <section class="sheet" data-sheet="saved" aria-hidden="true"><header class="sheet-head"><div><h3>已保存世界</h3><p>保存记录会在这里成为可选目录。</p></div><button class="sheet-close" type="button" data-close-sheet aria-label="关闭已保存世界" title="关闭">×</button></header><p class="sheet-empty">此页尚无保存记录。创建并保存过的世界会保留名称、年代与描述摘要。</p></section>
+          <div class="phone-toast" role="status" aria-live="polite"></div>
+        </section>
+      </article>
+
+      <article class="candidate" data-choice="WS-RF1-2">
+        <header class="candidate-meta">
+          <div><div class="candidate-code">WS-RF1-2 · 编辑优先</div><h2 class="candidate-title">自定义成为主编辑区</h2><p class="candidate-note">先写自己的世界，预设世界退入章节目录抽屉。</p></div>
+          <button class="candidate-pick" type="button" aria-pressed="false">选择此案</button>
+        </header>
+        <section class="phone route-editor" data-app="rf1-2" data-selected-world="现代地球" data-difficulty-value="普通">
+          <div class="phone-page">
+            <div class="running-head"><span>AI LIFE SIM · 第一章</span><span>01 / 06</span></div>
+            <header class="chapter-head"><h2>写下你的世界</h2><p class="chapter-lead">自定义是正文；预设只是可随时引用的目录。</p></header>
+            <div class="current-line"><span>当前可确认世界</span><strong data-current-name>现代地球</strong></div>
+            <p class="editor-caption">第一节 · 自定义正文</p>
+            <form class="custom-form" data-custom-form novalidate>
+              <div class="field"><label>世界名称</label><input name="name" autocomplete="off" placeholder="为世界命名"></div>
+              <div class="field"><label>起始年代</label><input name="era" autocomplete="off" placeholder="从何时开始"></div>
+              <div class="field"><label>世界描述</label><textarea name="description" placeholder="一段能决定人生可能性的描述"></textarea></div>
+              <button class="form-submit" type="submit">写入并选择此世界</button><p class="form-status" data-form-status role="status">填写后可替换当前预设。</p>
+            </form>
+            <div class="editor-directory"><button type="button" data-open-sheet="presets"><strong>预设世界目录</strong><small>六个主世界与更多世界</small></button><button type="button" data-open-sheet="saved"><strong>已保存</strong><small>读取旧命书</small></button></div>
+            <div class="editor-tools"><button type="button" data-open-sheet="rules">查看当前规则摘要</button><button type="button" data-open-sheet="presets">更换预设世界</button></div>
+            <div class="difficulty" aria-label="人生难度"><span>难度</span><button type="button" data-difficulty="轻松">轻松</button><button class="active" type="button" data-difficulty="普通">普通</button><button type="button" data-difficulty="艰难">艰难</button></div>
+          </div>
+          <div class="phone-footer"><button class="back-action" type="button" data-back>返回</button><button class="confirm-action" type="button" data-confirm><span>确认当前世界</span><span>→</span></button></div>
+
+          <section class="sheet" data-sheet="presets" aria-hidden="true"><header class="sheet-head"><div><h3>预设世界目录</h3><p>借用一册现成世界，或继续查看更多预设。</p></div><button class="sheet-close" type="button" data-close-sheet aria-label="关闭预设世界目录" title="关闭">×</button></header><div class="sheet-section-title"><strong>主世界 · 01—06</strong><span>点击即选择</span></div><div class="sheet-worlds"><button class="world-choice" type="button" data-world="现代地球" aria-selected="true"><span class="choice-index">01</span><span class="choice-name">现代地球</span></button><button class="world-choice" type="button" data-world="武道割据" aria-selected="false"><span class="choice-index">02</span><span class="choice-name">武道割据</span></button><button class="world-choice" type="button" data-world="SCP基金会" aria-selected="false"><span class="choice-index">03</span><span class="choice-name">SCP 基金会</span></button><button class="world-choice" type="button" data-world="战锤40K" aria-selected="false"><span class="choice-index">04</span><span class="choice-name">战锤 40K</span></button><button class="world-choice" type="button" data-world="赛博2077" aria-selected="false"><span class="choice-index">05</span><span class="choice-name">赛博 2077</span></button><button class="world-choice" type="button" data-world="修真世界" aria-selected="false"><span class="choice-index">06</span><span class="choice-name">修真世界</span></button></div><button class="portal-row" type="button" data-open-sheet="more"><span class="portal-index">＋</span><span><strong>更多世界</strong><small>打开其余 18 个预设</small></span><span class="arrow">→</span></button></section>
+          <section class="sheet" data-sheet="more" aria-hidden="true"><header class="sheet-head"><div><h3>更多世界</h3><p>预设目录第二册。</p></div><button class="sheet-close" type="button" data-close-sheet aria-label="关闭更多世界" title="关闭">×</button></header><div class="sheet-section-title"><strong>预设世界 · 07—11</strong><span>点击即选择</span></div><div class="sheet-worlds"><button class="world-choice" type="button" data-world="蒸汽纪元" aria-selected="false"><span class="choice-index">07</span><span class="choice-name">蒸汽纪元</span></button><button class="world-choice" type="button" data-world="末日废土" aria-selected="false"><span class="choice-index">08</span><span class="choice-name">末日废土</span></button><button class="world-choice" type="button" data-world="星际文明" aria-selected="false"><span class="choice-index">09</span><span class="choice-name">星际文明</span></button><button class="world-choice" type="button" data-world="魔法学院" aria-selected="false"><span class="choice-index">10</span><span class="choice-name">魔法学院</span></button><button class="world-choice" type="button" data-world="神话洪荒" aria-selected="false"><span class="choice-index">11</span><span class="choice-name">神话洪荒</span></button></div></section>
+          <section class="sheet" data-sheet="rules" aria-hidden="true"><header class="sheet-head"><div><h3>当前规则摘要</h3><p><span data-current-name>现代地球</span> · <span data-current-era>公元 2000 年 · 写实世界</span></p></div><button class="sheet-close" type="button" data-close-sheet aria-label="关闭规则摘要" title="关闭">×</button></header><dl class="rule-ledger"><div><dt>世界描述</dt><dd data-current-desc>互联网正在改变生活，平凡人生也会被时代推动。</dd></div><div><dt>科技</dt><dd data-rule-tech>快速发展</dd></div><div><dt>超凡</dt><dd data-rule-power>近乎不存在</dd></div><div><dt>危险</dt><dd data-rule-danger>现实尺度</dd></div></dl></section>
+          <section class="sheet" data-sheet="saved" aria-hidden="true"><header class="sheet-head"><div><h3>已保存世界</h3><p>从旧命书继续。</p></div><button class="sheet-close" type="button" data-close-sheet aria-label="关闭已保存世界" title="关闭">×</button></header><p class="sheet-empty">此页尚无保存记录。</p></section>
+          <div class="phone-toast" role="status" aria-live="polite"></div>
+        </section>
+      </article>
+
+      <article class="candidate" data-choice="WS-RF1-3">
+        <header class="candidate-meta">
+          <div><div class="candidate-code">WS-RF1-3 · 聚焦重排</div><h2 class="candidate-title">当前焦点页 + 紧凑索引</h2><p class="candidate-note">一次读透一个世界，自定义成为索引第一入口。</p></div>
+          <button class="candidate-pick" type="button" aria-pressed="false">选择此案</button>
+        </header>
+        <section class="phone route-focus" data-app="rf1-3" data-selected-world="现代地球" data-difficulty-value="普通">
+          <div class="phone-page">
+            <div class="running-head"><span>AI LIFE SIM · 世界焦点页</span><span>01 / 06</span></div>
+            <header class="chapter-head"><h2>当前世界</h2><p class="chapter-lead">先选索引，再专注阅读这一页。</p></header>
+            <nav class="focus-index" aria-label="紧凑世界索引">
+              <button class="custom-index" type="button" data-open-sheet="custom" aria-selected="false">自定</button><button type="button" data-world="现代地球" aria-selected="true">现代</button><button type="button" data-world="武道割据" aria-selected="false">武道</button><button type="button" data-world="SCP基金会" aria-selected="false">异常</button><button type="button" data-world="战锤40K" aria-selected="false">40K</button><button type="button" data-world="赛博2077" aria-selected="false">赛博</button><button type="button" data-world="修真世界" aria-selected="false">修真</button>
+            </nav>
+            <article class="world-reading" aria-live="polite"><span class="world-mark" data-current-mark>现</span><span class="world-counter" data-current-counter>01 / 24</span><h3 data-current-name>现代地球</h3><p class="world-era" data-current-era>公元 2000 年 · 写实世界</p><p class="world-description" data-current-desc>互联网正在改变生活，平凡人生也会被时代推动。</p><dl class="world-facts"><div><dt>科技</dt><dd data-rule-tech>快速发展</dd></div><div><dt>超凡</dt><dd data-rule-power>近乎不存在</dd></div><div><dt>危险</dt><dd data-rule-danger>现实尺度</dd></div></dl></article>
+            <div class="section-label"><strong>世界索引</strong><span>次级目录</span></div>
+            <div class="focus-portals"><button type="button" data-open-sheet="more">更多世界</button><button type="button" data-open-sheet="saved">已保存</button><button type="button" data-open-sheet="custom">自定义</button></div>
+            <div class="difficulty" aria-label="人生难度"><span>难度</span><button type="button" data-difficulty="轻松">轻松</button><button class="active" type="button" data-difficulty="普通">普通</button><button type="button" data-difficulty="艰难">艰难</button></div>
+          </div>
+          <div class="phone-footer"><button class="back-action" type="button" data-back>返回</button><button class="confirm-action" type="button" data-confirm><span>确认这一页</span><span>→</span></button></div>
+
+          <section class="sheet" data-sheet="custom" aria-hidden="true"><header class="sheet-head"><div><h3>自定义世界</h3><p>这是紧凑索引的第一入口。</p></div><button class="sheet-close" type="button" data-close-sheet aria-label="关闭自定义世界" title="关闭">×</button></header><form class="custom-form" data-custom-form novalidate><div class="field"><label>世界名称</label><input name="name" autocomplete="off" placeholder="例如：潮汐城邦"></div><div class="field"><label>起始年代</label><input name="era" autocomplete="off" placeholder="例如：群岛历 218 年"></div><div class="field"><label>世界描述</label><textarea name="description" placeholder="写下世界描述与一条核心规则"></textarea></div><button class="form-submit" type="submit">写成当前焦点页</button><p class="form-status" data-form-status role="status"></p></form></section>
+          <section class="sheet" data-sheet="more" aria-hidden="true"><header class="sheet-head"><div><h3>更多世界</h3><p>从索引第二册切换当前焦点页。</p></div><button class="sheet-close" type="button" data-close-sheet aria-label="关闭更多世界" title="关闭">×</button></header><div class="sheet-section-title"><strong>预设世界 · 07—11</strong><span>点击即选择</span></div><div class="sheet-worlds"><button class="world-choice" type="button" data-world="蒸汽纪元" aria-selected="false"><span class="choice-index">07</span><span class="choice-name">蒸汽纪元</span></button><button class="world-choice" type="button" data-world="末日废土" aria-selected="false"><span class="choice-index">08</span><span class="choice-name">末日废土</span></button><button class="world-choice" type="button" data-world="星际文明" aria-selected="false"><span class="choice-index">09</span><span class="choice-name">星际文明</span></button><button class="world-choice" type="button" data-world="魔法学院" aria-selected="false"><span class="choice-index">10</span><span class="choice-name">魔法学院</span></button><button class="world-choice" type="button" data-world="神话洪荒" aria-selected="false"><span class="choice-index">11</span><span class="choice-name">神话洪荒</span></button></div></section>
+          <section class="sheet" data-sheet="saved" aria-hidden="true"><header class="sheet-head"><div><h3>已保存世界</h3><p>保存世界也会成为焦点页。</p></div><button class="sheet-close" type="button" data-close-sheet aria-label="关闭已保存世界" title="关闭">×</button></header><p class="sheet-empty">此页尚无保存记录。</p></section>
+          <div class="phone-toast" role="status" aria-live="polite"></div>
+        </section>
+      </article>
+
+      <article class="candidate" data-choice="WS-RF1-4">
+        <header class="candidate-meta">
+          <div><div class="candidate-code">WS-RF1-4 · 最大胆</div><h2 class="candidate-title">空白命书页</h2><p class="candidate-note">先落笔创世，预设与存档都只是可套用的模板抽屉。</p></div>
+          <button class="candidate-pick" type="button" aria-pressed="false">选择此案</button>
+        </header>
+        <section class="phone route-blank" data-app="rf1-4" data-selected-world="" data-difficulty-value="普通">
+          <div class="phone-page">
+            <div class="running-head"><span>AI LIFE SIM · 空白命书</span><span>01 / 06</span></div>
+            <header class="chapter-head"><h2>此界尚未命名</h2><p class="chapter-lead">名称、年代与一段描述，就是这页的第一笔。</p></header>
+            <form class="blank-editor" data-custom-form data-blank-form novalidate>
+              <div class="blank-field"><label>世界名称</label><input name="name" autocomplete="off" placeholder="写下世界名称"></div>
+              <div class="blank-field"><label>起始年代</label><input name="era" autocomplete="off" placeholder="写下起始年代"></div>
+              <div class="blank-field"><label>世界描述</label><textarea name="description" placeholder="这个世界如何运转，人生可能在哪里发生？"></textarea></div>
+              <div class="blank-submit-row"><p class="form-status" data-form-status role="status">命书尚未落款。</p><button class="form-submit" type="submit">写成当前世界</button></div>
+            </form>
+            <div class="blank-tools"><button type="button" data-open-sheet="templates"><strong>模板抽屉</strong><small>预设 / 更多</small></button><button type="button" data-open-sheet="saved"><strong>已保存</strong><small>旧命书</small></button><button type="button" data-open-sheet="rules"><strong>规则摘要</strong><small>当前页</small></button></div>
+            <div class="difficulty" aria-label="人生难度"><span>难度</span><button type="button" data-difficulty="轻松">轻松</button><button class="active" type="button" data-difficulty="普通">普通</button><button type="button" data-difficulty="艰难">艰难</button></div>
+          </div>
+          <div class="phone-footer"><button class="back-action" type="button" data-back>返回</button><button class="confirm-action" type="button" data-confirm disabled><span>为命书落款后确认</span><span>→</span></button></div>
+
+          <section class="sheet" data-sheet="templates" aria-hidden="true"><header class="sheet-head"><div><h3>世界模板抽屉</h3><p>模板会填入空白页，仍可继续改写。</p></div><button class="sheet-close" type="button" data-close-sheet aria-label="关闭模板抽屉" title="关闭">×</button></header><div class="sheet-section-title"><strong>预设世界 · 01—06</strong><span>套用模板</span></div><div class="sheet-worlds"><button class="world-choice" type="button" data-world="现代地球" data-template aria-selected="false"><span class="choice-index">01</span><span class="choice-name">现代地球</span></button><button class="world-choice" type="button" data-world="武道割据" data-template aria-selected="false"><span class="choice-index">02</span><span class="choice-name">武道割据</span></button><button class="world-choice" type="button" data-world="SCP基金会" data-template aria-selected="false"><span class="choice-index">03</span><span class="choice-name">SCP 基金会</span></button><button class="world-choice" type="button" data-world="战锤40K" data-template aria-selected="false"><span class="choice-index">04</span><span class="choice-name">战锤 40K</span></button><button class="world-choice" type="button" data-world="赛博2077" data-template aria-selected="false"><span class="choice-index">05</span><span class="choice-name">赛博 2077</span></button><button class="world-choice" type="button" data-world="修真世界" data-template aria-selected="false"><span class="choice-index">06</span><span class="choice-name">修真世界</span></button></div><div class="sheet-section-title"><strong>更多世界 · 07—11</strong><span>更多预设</span></div><div class="sheet-worlds"><button class="world-choice" type="button" data-world="蒸汽纪元" data-template aria-selected="false"><span class="choice-index">07</span><span class="choice-name">蒸汽纪元</span></button><button class="world-choice" type="button" data-world="末日废土" data-template aria-selected="false"><span class="choice-index">08</span><span class="choice-name">末日废土</span></button><button class="world-choice" type="button" data-world="星际文明" data-template aria-selected="false"><span class="choice-index">09</span><span class="choice-name">星际文明</span></button><button class="world-choice" type="button" data-world="魔法学院" data-template aria-selected="false"><span class="choice-index">10</span><span class="choice-name">魔法学院</span></button><button class="world-choice" type="button" data-world="神话洪荒" data-template aria-selected="false"><span class="choice-index">11</span><span class="choice-name">神话洪荒</span></button></div></section>
+          <section class="sheet" data-sheet="rules" aria-hidden="true"><header class="sheet-head"><div><h3>当前规则摘要</h3><p data-current-name>空白命书 · 尚未选择世界</p></div><button class="sheet-close" type="button" data-close-sheet aria-label="关闭规则摘要" title="关闭">×</button></header><dl class="rule-ledger"><div><dt>世界描述</dt><dd data-current-desc>先写下世界，或从模板抽屉套用一页。</dd></div><div><dt>科技</dt><dd data-rule-tech>待设定</dd></div><div><dt>超凡</dt><dd data-rule-power>待设定</dd></div><div><dt>危险</dt><dd data-rule-danger>待设定</dd></div></dl></section>
+          <section class="sheet" data-sheet="saved" aria-hidden="true"><header class="sheet-head"><div><h3>已保存世界</h3><p>旧命书也是一种模板。</p></div><button class="sheet-close" type="button" data-close-sheet aria-label="关闭已保存世界" title="关闭">×</button></header><p class="sheet-empty">此页尚无保存记录。</p></section>
+          <div class="phone-toast" role="status" aria-live="polite"></div>
+        </section>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const worlds = {
+        '现代地球': { mark: '现', counter: '01 / 24', name: '现代地球', era: '公元 2000 年 · 写实世界', description: '互联网正在改变生活，平凡人生也会被时代推动。', facts: ['快速发展', '近乎不存在', '现实尺度'] },
+        '武道割据': { mark: '武', counter: '02 / 24', name: '武道割据', era: '乱世江湖 · 武侠世界', description: '门派林立、恩怨纠葛，一技之长即可改写命运。', facts: ['冷兵器时代', '内功外劲', '江湖杀机'] },
+        'SCP基金会': { mark: '异', counter: '03 / 24', name: 'SCP 基金会', era: '当代 · 异常收容', description: '日常表象之下，异常项目被严密收容与研究。', facts: ['保密前沿', '异常现象', '收容失效'] },
+        '战锤40K': { mark: '40K', counter: '04 / 24', name: '战锤 40K', era: '遥远的未来 · 只有战争', description: '帝国与异族永世征战，个体在星海中微不足道。', facts: ['失落高科', '亚空间', '全面战争'] },
+        '赛博2077': { mark: '霓', counter: '05 / 24', name: '赛博 2077', era: '2077 · 霓虹废土', description: '义体改造与企业统治交织，街头是唯一的自由。', facts: ['义体网络', '几乎没有', '都市丛林'] },
+        '修真世界': { mark: '仙', counter: '06 / 24', name: '修真世界', era: '仙道纪元 · 灵气复苏', description: '灵根与功法决定起点，长生之路布满试炼。', facts: ['法宝阵法', '修真飞升', '天劫秘境'] },
+        '蒸汽纪元': { mark: '汽', counter: '07 / 24', name: '蒸汽纪元', era: '机炉历 88 年 · 工业奇想', description: '黄铜机芯与城市烟塔一起运转，发明也制造新的阶层。', facts: ['蒸汽机械', '秘术传闻', '工坊事故'] },
+        '末日废土': { mark: '烬', counter: '08 / 24', name: '末日废土', era: '灾后 17 年 · 生存世界', description: '旧文明只剩废墟，水源、信任与迁徙路线决定明天。', facts: ['遗留科技', '变异未知', '资源匮乏'] },
+        '星际文明': { mark: '星', counter: '09 / 24', name: '星际文明', era: '联盟历 632 年 · 群星时代', description: '航道连接远方殖民地，选择会跨越星系留下回声。', facts: ['星际航行', '意识技术', '深空风险'] },
+        '魔法学院': { mark: '术', counter: '10 / 24', name: '魔法学院', era: '学院历 304 年 · 魔法世界', description: '古老学派守护知识，每一次天赋显现都伴随代价。', facts: ['炼金器具', '体系魔法', '试炼失控'] },
+        '神话洪荒': { mark: '古', counter: '11 / 24', name: '神话洪荒', era: '上古纪元 · 神话世界', description: '山海初定，神祇与众生共享天地秩序。', facts: ['先天器物', '神通法则', '天地劫数'] }
+      };
+
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const candidates = [...document.querySelectorAll('.candidate')];
+
+      const selectCandidate = (candidate) => {
+        candidates.forEach((item) => {
+          const selected = item === candidate;
+          item.classList.toggle('selected', selected);
+          const button = item.querySelector('.candidate-pick');
+          button.setAttribute('aria-pressed', String(selected));
+          button.textContent = selected ? '已选此案' : '选择此案';
+        });
+        document.querySelector('[data-review-selection]').textContent = `当前选择 · ${candidate.dataset.choice}`;
+      };
+
+      candidates.forEach((candidate) => {
+        candidate.addEventListener('click', () => selectCandidate(candidate));
+        candidate.querySelector('.candidate-pick').addEventListener('click', (event) => {
+          event.stopPropagation();
+          selectCandidate(candidate);
+        });
+      });
+
+      const closeSheets = (app) => {
+        app.querySelectorAll('.sheet.open').forEach((sheet) => {
+          sheet.classList.remove('open');
+          sheet.setAttribute('aria-hidden', 'true');
+        });
+      };
+
+      const openSheet = (app, key) => {
+        closeSheets(app);
+        const sheet = app.querySelector(`[data-sheet="${key}"]`);
+        if (!sheet) return;
+        sheet.classList.add('open');
+        sheet.setAttribute('aria-hidden', 'false');
+        sheet.querySelector('button, input, textarea')?.focus({ preventScroll: true });
+      };
+
+      const showToast = (app, message) => {
+        const toast = app.querySelector('.phone-toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        window.clearTimeout(toast._timer);
+        toast._timer = window.setTimeout(() => toast.classList.remove('show'), 1500);
+      };
+
+      const writeText = (app, selector, value) => {
+        app.querySelectorAll(selector).forEach((node) => { node.textContent = value; });
+      };
+
+      const selectWorld = (app, data, sourceName) => {
+        const reading = app.querySelector('.world-reading');
+        if (reading) reading.classList.add('updating');
+        window.setTimeout(() => {
+          writeText(app, '[data-current-mark]', data.mark);
+          writeText(app, '[data-current-counter]', data.counter);
+          writeText(app, '[data-current-name]', data.name);
+          writeText(app, '[data-current-era]', data.era);
+          writeText(app, '[data-current-desc]', data.description);
+          writeText(app, '[data-rule-tech]', data.facts[0]);
+          writeText(app, '[data-rule-power]', data.facts[1]);
+          writeText(app, '[data-rule-danger]', data.facts[2]);
+          writeText(app, '[data-current-page]', `当前选页 · ${data.counter}`);
+          if (reading) reading.classList.remove('updating');
+        }, reducedMotion ? 0 : 120);
+
+        app.dataset.selectedWorld = data.name;
+        app.querySelectorAll('[data-world]').forEach((button) => {
+          button.setAttribute('aria-selected', String(button.dataset.world === sourceName));
+        });
+        const confirm = app.querySelector('[data-confirm]');
+        confirm.disabled = false;
+        confirm.querySelector('span:first-child').textContent = app.matches('.route-blank') ? '确认命书 · 下一章' : confirm.querySelector('span:first-child').textContent;
+      };
+
+      document.querySelectorAll('[data-app]').forEach((app) => {
+        app.querySelectorAll('[data-open-sheet]').forEach((button) => button.addEventListener('click', () => openSheet(app, button.dataset.openSheet)));
+        app.querySelectorAll('[data-close-sheet]').forEach((button) => button.addEventListener('click', () => closeSheets(app)));
+
+        app.querySelectorAll('[data-world]').forEach((button) => button.addEventListener('click', () => {
+          const data = worlds[button.dataset.world];
+          if (!data) return;
+          if (button.hasAttribute('data-template')) {
+            const form = app.querySelector('[data-blank-form]');
+            form.elements.name.value = data.name;
+            form.elements.era.value = data.era;
+            form.elements.description.value = data.description;
+            app.querySelector('[data-form-status]').textContent = `已套用“${data.name}”，可继续改写。`;
+          }
+          selectWorld(app, data, button.dataset.world);
+          closeSheets(app);
+          showToast(app, button.hasAttribute('data-template') ? `已套用模板 · ${data.name}` : `已选择世界 · ${data.name}`);
+        }));
+
+        app.querySelectorAll('[data-difficulty]').forEach((button) => button.addEventListener('click', () => {
+          app.querySelectorAll('[data-difficulty]').forEach((item) => item.classList.toggle('active', item === button));
+          app.dataset.difficultyValue = button.dataset.difficulty;
+          showToast(app, `人生难度 · ${button.dataset.difficulty}`);
+        }));
+
+        app.querySelectorAll('[data-custom-form]').forEach((form) => {
+          if (form.hasAttribute('data-blank-form')) {
+            form.addEventListener('input', () => {
+              app.dataset.selectedWorld = '';
+              const confirm = app.querySelector('[data-confirm]');
+              confirm.disabled = true;
+              confirm.querySelector('span:first-child').textContent = '为命书落款后确认';
+              app.querySelector('[data-form-status]').textContent = '草稿有改动，重新落款后生效。';
+            });
+          }
+
+          form.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const name = form.elements.name.value.trim();
+            const era = form.elements.era.value.trim();
+            const description = form.elements.description.value.trim();
+            const status = form.querySelector('[data-form-status]');
+            if (!name || !era || !description) {
+              status.textContent = '请补全世界名称、起始年代与世界描述。';
+              return;
+            }
+            const custom = { mark: '创', counter: '自定义', name, era, description, facts: ['由设定决定', '由设定决定', '由设定决定'] };
+            selectWorld(app, custom, '');
+            status.textContent = `“${name}”已成为当前世界。`;
+            if (!app.matches('.route-editor, .route-blank')) closeSheets(app);
+            showToast(app, `已选择自定义世界 · ${name}`);
+          });
+        });
+
+        app.querySelector('[data-back]').addEventListener('click', () => showToast(app, '返回欢迎页 · 当前选择将保留'));
+        app.querySelector('[data-confirm]').addEventListener('click', () => {
+          const name = app.dataset.selectedWorld;
+          if (!name) return;
+          showToast(app, `已确认“${name}” · 下一步：世界配置`);
+        });
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') document.querySelectorAll('[data-app]').forEach(closeSheets);
+      });
+    })();
+  </script>
+</body>
+</html>

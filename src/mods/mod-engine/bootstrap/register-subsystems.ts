@@ -35,6 +35,13 @@ function resolveSubsystemInstance(
     return modExports[camelCase]
   }
 
+  const getterName = `get${className}`
+  const getter = modExports[getterName]
+  if (typeof getter === 'function') {
+    const instance = (getter as () => unknown)()
+    if (isSubSystem(instance)) return instance
+  }
+
   const ClassCtor = modExports[className]
   if (typeof ClassCtor === 'function') {
     return new (ClassCtor as new () => ISubSystem)()

@@ -4,21 +4,23 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  color: #1c2229;
+  color-scheme: light;
 }
 
 .section {
-  background: var(--color-surface);
+  background: #fff;
   border-radius: 12px;
   overflow: hidden;
-  border: 1px solid var(--color-border);
+  border: 1px solid #d9dee4;
 }
 
 .sectionHeader {
   padding: 14px 16px 10px;
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid #d9dee4;
   font-size: 13px;
   font-weight: 600;
-  color: var(--color-text-secondary);
+  color: #59636e;
   letter-spacing: -0.2px;
 }
 
@@ -28,7 +30,7 @@
 
 .descText {
   font-size: 12px;
-  color: var(--color-text-tertiary);
+  color: #7a838d;
   margin: 0;
   line-height: 1.5;
 }
@@ -38,7 +40,7 @@
   display: flex;
   gap: 4px;
   margin-bottom: 12px;
-  background: var(--color-bg);
+  background: #f6f8fa;
   border-radius: 8px;
   padding: 3px;
 }
@@ -48,7 +50,7 @@
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 500;
-  color: var(--color-text-tertiary);
+  color: #7a838d;
   background: none;
   border: none;
   border-radius: 6px;
@@ -57,20 +59,20 @@
 }
 
 .previewToggle:hover {
-  color: var(--color-text-primary);
+  color: #1c2229;
 }
 
 .previewToggleActive {
-  background: var(--color-surface);
-  color: var(--color-primary);
+  background: #fff;
+  color: #6d7f94;
   font-weight: 600;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 /* ===== Prompt Preview ===== */
 .promptPreview {
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
+  background: #f6f8fa;
+  border: 1px solid #d9dee4;
   border-radius: 8px;
   padding: 14px;
   max-height: 300px;
@@ -78,23 +80,20 @@
   font-family: 'SF Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
   font-size: 11px;
   line-height: 1.6;
-  color: var(--color-text-primary);
+  color: #1c2229;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .promptPreview::-webkit-scrollbar {
-  width: 4px;
-}
-
-.promptPreview::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: 2px;
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 /* Variable highlighting */
 .varHighlight {
-  background: var(--color-primary);
+  background: #6d7f94;
   color: white;
   padding: 1px 3px;
   border-radius: 3px;
@@ -103,7 +102,7 @@
 }
 
 .systemLabel {
-  background: var(--color-primary);
+  background: #6d7f94;
   color: white;
   padding: 0 6px;
   border-radius: 4px;
@@ -114,7 +113,7 @@
 }
 
 .userLabel {
-  background: var(--color-success, #22c55e);
+  background: #718779;
   color: white;
   padding: 0 6px;
   border-radius: 4px;
@@ -132,8 +131,8 @@
 }
 
 .statCard {
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
+  background: #f6f8fa;
+  border: 1px solid #d9dee4;
   border-radius: 8px;
   padding: 10px 12px;
   text-align: center;
@@ -142,13 +141,13 @@
 .statValue {
   font-size: 20px;
   font-weight: 700;
-  color: var(--color-primary);
+  color: #6d7f94;
   line-height: 1.2;
 }
 
 .statLabel {
   font-size: 10px;
-  color: var(--color-text-tertiary);
+  color: #7a838d;
   margin-top: 4px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -156,14 +155,14 @@
 
 .statSub {
   font-size: 10px;
-  color: var(--color-text-tertiary);
+  color: #7a838d;
   margin-top: 2px;
 }
 
 /* ===== Progress Bar ===== */
 .progressBar {
   height: 4px;
-  background: var(--color-bg);
+  background: #e9eef3;
   border-radius: 2px;
   overflow: hidden;
   margin-top: 4px;
@@ -171,7 +170,7 @@
 
 .progressFill {
   height: 100%;
-  background: var(--color-primary);
+  background: #6d7f94;
   border-radius: 2px;
   transition: width 0.3s ease;
 }
@@ -196,22 +195,22 @@
   border-radius: 12px;
   font-size: 11px;
   font-family: 'SF Mono', 'Consolas', monospace;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  color: var(--color-text-secondary);
+  background: #f6f8fa;
+  border: 1px solid #d9dee4;
+  color: #59636e;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .varTag:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
+  border-color: #6d7f94;
+  color: #6d7f94;
 }
 
 .varTagActive {
-  background: var(--color-primary);
+  background: #6d7f94;
   color: white;
-  border-color: var(--color-primary);
+  border-color: #6d7f94;
 }
 
 /* ===== Model Context Info ===== */
@@ -220,17 +219,17 @@
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
+  background: #f6f8fa;
+  border: 1px solid #d9dee4;
   border-radius: 8px;
   font-size: 11px;
-  color: var(--color-text-secondary);
+  color: #59636e;
 }
 
 .contextBar {
   flex: 1;
   height: 6px;
-  background: var(--color-border);
+  background: #d9dee4;
   border-radius: 3px;
   overflow: hidden;
 }

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>欢迎界面第十三轮 · S2-A2a-12C 极简白布局</title>
+  <link rel="stylesheet" href="../assets/library-history.css">
+  <style>
+    /* 第十三轮固定：中性纸白主体 + 低饱和杂色点缀。入口始终是透明文字命中区。 */
+    button{font-family:inherit}.option-card{cursor:default}.option-card:hover{transform:none}.three-grid{max-width:1060px}.intro-note{max-width:875px;margin:0 0 22px;color:#69717d;font-size:13px;line-height:1.7}.phone{height:590px}.welcome-phone{overflow:hidden;background:#fcfcfb}.welcome-phone::before{position:absolute;inset:0;background-image:radial-gradient(rgba(47,53,60,.08) .38px,transparent .52px);background-size:6px 6px;opacity:.14;content:""}.curve{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}.copy{position:absolute;z-index:2}.brand{display:flex;align-items:center;gap:7px;color:#555b63}.brand::before{width:17px;height:1px;background:#aeb2b4;content:""}.headline{margin:0;color:#1b1e22;font-family:"Songti SC","STSong","SimSun",serif;font-size:24px;font-weight:600;line-height:1.3;letter-spacing:-.78px}.intro{margin:12px 0 0;color:#70747a;font-size:8.8px;font-weight:440;line-height:1.8;letter-spacing:.05px}.actions{position:absolute;z-index:3}.ui-button{display:flex;min-height:42px;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;color:#24272c;cursor:pointer;transition:opacity .16s ease,transform .16s ease}.ui-button:active{opacity:.54;transform:translateY(1px)}.ui-button:focus-visible,.utility-links button:focus-visible{outline:1px dotted #59616b;outline-offset:2px}.entry-label{font-family:"Songti SC","STSong","SimSun",serif;font-size:10px;font-weight:600;letter-spacing:.94px}.load-stack{display:grid;gap:2px}.load-stack b{font-family:"Songti SC","STSong","SimSun",serif;font-size:8.8px;font-weight:600;letter-spacing:.7px;line-height:1}.load-stack span{color:#85898d;font-family:"SF Pro Text","PingFang SC","Microsoft YaHei UI",sans-serif;font-size:5.5px;font-weight:500;letter-spacing:.14px;line-height:1}.utility-links{display:flex;align-items:center;gap:17px}.utility-links button{padding:3px 1px;border:0;background:transparent;color:#696e75;font-size:7px;font-weight:520;letter-spacing:.15px;cursor:pointer}.utility-links button+button{position:relative}.utility-links button+button::before{position:absolute;top:4px;bottom:4px;left:-9px;width:1px;background:#d7d8d7;content:""}.footer{color:#85898e;font-size:6.5px;letter-spacing:.02px;white-space:nowrap}.toast{position:absolute;bottom:76px;left:50%;z-index:30;padding:7px 10px;border-radius:999px;background:rgba(34,37,41,.9);color:#fff;font-size:6px;opacity:0;pointer-events:none;transform:translate(-50%,8px);transition:opacity .18s,transform .18s;white-space:nowrap}.toast.show{opacity:1;transform:translate(-50%,0)}.dimension{display:inline-block;margin-top:8px;color:#7a8089;font-size:11px;font-variant-numeric:tabular-nums}
+
+    /* 13A · 正文目录：文章结束后立即给出两条纵向入口，不再依附底栏。 */
+    .body-directory .copy{top:105px;right:25px;left:25px}.body-directory .brand{font-family:"SF Pro Text","PingFang SC","Microsoft YaHei UI",sans-serif;font-size:7.3px;font-weight:680;letter-spacing:1.95px}.body-directory .headline{margin-top:31px}.body-directory .actions{top:318px;right:25px;left:25px}.body-directory .entry-list{display:grid;gap:1px}.body-directory .ui-button{position:relative;align-items:center;width:100%;padding-left:27px;text-align:left}.body-directory .ui-button::before{position:absolute;left:0;width:17px;height:1px;background:#a9adb0;content:""}.body-directory .ui-button.primary::before{background:#535a60}.body-directory .ui-button.soft{color:#474c52}.body-directory .ui-button.soft::before{width:9px;background:#b8aa8e}.body-directory .utility-links{margin-top:20px;padding-left:27px}.body-directory .footer{margin-top:12px;padding-left:27px}.body-directory .curve-main path{stroke:#d3d5d6}.body-directory .curve-main circle:nth-of-type(1){fill:#aeb4ba}.body-directory .curve-main circle:nth-of-type(2){fill:#b8aa8e}.body-directory .curve-main circle:nth-of-type(3){fill:#aeb4ba}
+
+    /* 13B · 曲线分岔：动作在路径的两个停靠点上展开，阅读顺序仍由上至下。 */
+    .branching-path .copy{top:82px;right:25px;left:25px}.branching-path .brand{font-family:"SF Pro Text","PingFang SC","Microsoft YaHei UI",sans-serif;font-size:7.3px;font-weight:680;letter-spacing:1.95px}.branching-path .headline{margin-top:29px}.branching-path .actions{top:343px;right:24px;left:24px}.branching-path .branch-entry{position:relative;align-items:center;width:100%;padding-left:25px;text-align:left}.branching-path .branch-entry::before{position:absolute;left:0;width:12px;height:12px;border:1px solid #aeb3b8;border-radius:50%;background:#fcfcfb;content:""}.branching-path .branch-entry.primary::before{border-color:#555d65;background:#555d65;box-shadow:inset 0 0 0 4px #fcfcfb}.branching-path .branch-entry.soft{margin-top:24px;padding-left:137px}.branching-path .branch-entry.soft::before{left:112px;border-color:#b7a888}.branching-path .branch-entry.soft::after{position:absolute;top:20px;left:119px;width:1px;height:20px;background:#d5d2ca;content:""}.branching-path .utility-links{justify-content:center;margin-top:32px}.branching-path .footer{margin-top:11px;text-align:center}.branching-path .curve-main path{stroke:#cfd2d2}.branching-path .curve-branch path{stroke:#cfd2d2}.branching-path .curve-branch path:last-child{stroke:#d8d3c9}.branching-path .curve-main circle{fill:#606971}.branching-path .curve-branch circle:first-of-type{fill:#606971}.branching-path .curve-branch circle:last-of-type{fill:#b7a888}
+
+    /* 13C · 页边索引：以书脊留白组织内容，入口沿页边纵向排开。 */
+    .margin-index .spine{position:absolute;top:49px;bottom:45px;left:22px;z-index:2;width:1px;background:linear-gradient(#d9dada 0 12%,#b6bbbd 12% 47%,#d9dada 47% 100%)}.margin-index .brand{position:absolute;top:71px;left:11px;z-index:3;display:block;color:#5d6368;font-family:"SF Pro Text","PingFang SC","Microsoft YaHei UI",sans-serif;font-size:6.5px;font-weight:680;letter-spacing:1.6px;transform:rotate(-90deg);transform-origin:left top;white-space:nowrap}.margin-index .brand::before{display:none}.margin-index .copy{top:133px;right:25px;left:53px}.margin-index .headline{font-size:21px;letter-spacing:-.95px}.margin-index .intro{max-width:184px}.margin-index .actions{right:25px;bottom:31px;left:53px}.margin-index .index-entry{position:relative;align-items:center;width:100%;padding-left:20px;text-align:left}.margin-index .index-entry::before{position:absolute;left:0;width:9px;height:1px;background:#aeb2b4;content:""}.margin-index .index-entry.primary::before{width:14px;background:#515960}.margin-index .index-entry.soft{margin-top:8px;color:#4b5055}.margin-index .index-entry.soft::before{background:#b8aa8e}.margin-index .utility-links{margin-top:17px}.margin-index .footer{margin-top:11px}.margin-index .curve-main path{stroke:#d4d6d5}.margin-index .curve-main circle:first-of-type{fill:#8da0a1}.margin-index .curve-main circle:last-of-type{fill:#b7a888}
+
+    @media(max-width:980px){.three-grid{grid-template-columns:1fr}}@media(prefers-reduced-motion:reduce){.toast,.ui-button{transition:none}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar"><a href="index.html">← 返回欢迎界面历史</a><span class="status">第十三轮 · 12C 极简白布局</span></div>
+    <p class="eyebrow">WELCOME · ROUND 13</p>
+    <h1>S2-A2a-12C 极简白布局迭代</h1>
+    <p class="subtitle">固定“书页落款”的纯文字入口、欢迎文案和存档信息；这轮只改变内容在白色页面中的秩序。主体回到中性纸白、浅灰与石墨黑，蓝灰、灰金与灰绿只用于稀疏的路径节点。</p>
+    <p class="intro-note">三稿都没有常驻按钮底色、边框、投影或圆角轮廓；“开始新人生”与“读取存档 / 3 个记录”均保留至少 42px 的透明稳定命中区。设置、说明、页脚与原有点击提示语义不变。</p>
+    <section class="option-grid three-grid">
+      <article class="option-card">
+        <div class="phone welcome-phone body-directory">
+          <svg class="curve curve-main" viewBox="0 0 292 590" aria-hidden="true"><path d="M254 0 C216 76,273 143,239 214 S214 330,258 393 S264 514,225 610" fill="none" stroke-width="1.05"/><circle cx="254" cy="0" r="3.2"/><circle cx="239" cy="214" r="2.9"/><circle cx="258" cy="393" r="2.9"/></svg>
+          <div class="copy"><div class="brand">AI LIFE SIM</div><div class="headline">一生很长，<br>也只由几次选择组成。</div><div class="intro">选择世界与出身，走过关系、机会、代价和告别。</div></div>
+          <div class="actions"><div class="entry-list"><button class="ui-button primary new-life"><span class="entry-label">开始新人生</span></button><button class="ui-button soft load-save" aria-label="读取存档，3 个记录"><span class="load-stack"><b>读取存档</b><span>3 个记录</span></span></button></div><div class="utility-links"><button class="settings">设置</button><button class="help">说明</button></div><div class="footer">故事小分队交流群 · 1097782298</div></div><div class="toast" role="status" aria-live="polite"></div>
+        </div>
+        <div class="option-copy"><span class="tag">S2-A2a-13A · 正文目录</span><h3>从叙述自然落到选择</h3><p>简介结束后直接进入两条纵向目录，视线不必回到底部寻找入口。右侧路径只留在页边，主体保持中性白。</p><span class="dimension">vertical directory · text only</span></div>
+      </article>
+      <article class="option-card">
+        <div class="phone welcome-phone branching-path">
+          <svg class="curve curve-main" viewBox="0 0 292 590" aria-hidden="true"><path d="M267 0 C232 82,269 160,224 235 C199 277,167 301,66 349" fill="none" stroke-width="1.05"/><circle cx="267" cy="0" r="3.2"/></svg><svg class="curve curve-branch" viewBox="0 0 292 590" aria-hidden="true"><path d="M66 349 C105 365,126 391,126 428" fill="none" stroke-width="1.05"/><path d="M66 349 C105 344,150 342,223 342" fill="none" stroke-width="1.05"/><circle cx="66" cy="349" r="3.2"/><circle cx="126" cy="428" r="2.8"/></svg>
+          <div class="copy"><div class="brand">AI LIFE SIM</div><div class="headline">一生很长，<br>也只由几次选择组成。</div><div class="intro">选择世界与出身，走过关系、机会、代价和告别。</div></div>
+          <div class="actions"><button class="ui-button branch-entry primary new-life"><span class="entry-label">开始新人生</span></button><button class="ui-button branch-entry soft load-save" aria-label="读取存档，3 个记录"><span class="load-stack"><b>读取存档</b><span>3 个记录</span></span></button><div class="utility-links"><button class="settings">设置</button><button class="help">说明</button></div><div class="footer">故事小分队交流群 · 1097782298</div></div><div class="toast" role="status" aria-live="polite"></div>
+        </div>
+        <div class="option-copy"><span class="tag">S2-A2a-13B · 曲线分岔</span><h3>把两个入口放回人生路径</h3><p>曲线在内容下方形成两个安静的停靠点：一条去往新人生，一条落向已有记录。文字仍是唯一的操作表面。</p><span class="dimension">branching path · text only</span></div>
+      </article>
+      <article class="option-card">
+        <div class="phone welcome-phone margin-index">
+          <span class="spine" aria-hidden="true"></span><div class="brand">AI LIFE SIM</div>
+          <svg class="curve curve-main" viewBox="0 0 292 590" aria-hidden="true"><path d="M272 9 C227 100,274 188,235 267 S207 418,253 519 S261 573,241 610" fill="none" stroke-width="1.05"/><circle cx="272" cy="9" r="3.1"/><circle cx="235" cy="267" r="2.9"/></svg>
+          <div class="copy"><div class="headline">一生很长，<br>也只由几次选择组成。</div><div class="intro">选择世界与出身，走过关系、机会、代价和告别。</div></div>
+          <div class="actions"><button class="ui-button index-entry primary new-life"><span class="entry-label">开始新人生</span></button><button class="ui-button index-entry soft load-save" aria-label="读取存档，3 个记录"><span class="load-stack"><b>读取存档</b><span>3 个记录</span></span></button><div class="utility-links"><button class="settings">设置</button><button class="help">说明</button></div><div class="footer">故事小分队交流群 · 1097782298</div></div><div class="toast" role="status" aria-live="polite"></div>
+        </div>
+        <div class="option-copy"><span class="tag">S2-A2a-13C · 页边索引</span><h3>像书的装订页留出起点</h3><p>品牌移到细窄页边，正文和入口沿内页纵向排开；右侧曲线与两颗杂色节点只提供轻微的时间感。</p><span class="dimension">margin index · text only</span></div>
+      </article>
+    </section>
+  </main>
+  <script>
+    function showToast(phone,message){const toast=phone.querySelector('.toast');toast.textContent=message;toast.classList.add('show');clearTimeout(toast._timer);toast._timer=setTimeout(function(){toast.classList.remove('show')},1300)}
+    document.querySelectorAll('.welcome-phone').forEach(function(phone){phone.querySelector('.new-life').onclick=function(){showToast(phone,'开始新人生 · 原型演示')};phone.querySelector('.load-save').onclick=function(){showToast(phone,'打开全部 3 个存档')};phone.querySelector('.settings').onclick=function(){showToast(phone,'打开设置')};phone.querySelector('.help').onclick=function(){showToast(phone,'打开说明')}})
+  </script>
+</body>
+</html>

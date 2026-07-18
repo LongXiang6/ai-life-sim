@@ -31,7 +31,7 @@ export const GOLDEN_FINGER_TEMPLATES: GoldenFingerTemplate[] = [
     features: ['日常任务', '主线任务', '成就任务', '隐藏任务',],
     rules: ['任务失败扣除对应属性', '主线任务不可跳过',],
     persona: 'cold_machine',
-    boosts: { luck: 0.10, resources: 0.10, },
+    boosts: { luck: 0.10, },
     targetSubsystems: ['event-pool', 'item', 'economy',],
   },
   {
@@ -67,7 +67,7 @@ export const GOLDEN_FINGER_TEMPLATES: GoldenFingerTemplate[] = [
     features: ['物品商城', '功法商城', '限时特卖', 'VIP等级',],
     rules: ['天道点数通过任务和签到获取', 'VIP等级决定商品品质上限',],
     persona: 'cold_machine',
-    boosts: { resources: 0.15, },
+    boosts: {},
     targetSubsystems: ['economy', 'item', 'personal-ability',],
   },
   {

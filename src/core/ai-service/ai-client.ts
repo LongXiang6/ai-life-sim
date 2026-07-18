@@ -554,6 +554,12 @@ function buildProxyBody(
   const providerId = options?.providerId ?? 'deepseek'
   proxyBody.providerId = providerId
 
+  // DeepSeek V4 默认可能进入思考模式；显式关闭才能避免推理内容耗尽 max_tokens 后正文为空。
+  const reasoningEffort = options?.reasoningEffort ?? config.reasoningEffort ?? 'disabled'
+  if (providerId === 'deepseek' && reasoningEffort === 'disabled') {
+    proxyBody.thinking = { type: 'disabled' }
+  }
+
   // 自定义配置
   if (providerId === 'custom') {
     if (options?.apiKey) proxyBody.apiKey = options.apiKey

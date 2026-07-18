@@ -1,6 +1,6 @@
 /**
  * @module fate-preview-page
- * @description 命运总览页面 —— 对齐废弃项目 FatePreviewDesktop UI 风格
+ * @description 命运预览页面 —— 统一白纸创建流
  * @mod mod-pages
  */
 
@@ -14,20 +14,25 @@ import { useGlobalStore, configStore } from '@/core'
 
 import { buildOrchestratorWorldSetting, orchestrator } from '@/mods/mod-engine/engine-api'
 import { useCharacterStore, randomName } from '@/mods/mod-character'
+import { useSettingsStore } from '@/mods/mod-settings'
 import { useWorldStore } from '@/mods/mod-world'
 import type { WorldInitAIStatus } from '@/mods/mod-world'
-import { BottomActionBar, PageScroll } from '@/mods/mod-ui'
+import { BottomActionBar } from '@/mods/mod-ui'
 
 import {
   DESTINY_PATTERN_RARITY_CONFIG,
   DESTINY_PATTERN_POLARITY_CONFIG,
+  DESTINY_PATTERN_SELECT_COUNT,
   TALENT_RARITY_CONFIG,
   TALENT_POLARITY_CONFIG,
   ATTRIBUTE_NAMES,
   RACE_LIFESPAN,
 } from '@/mods/mod-character'
+import type { LifespanState, RaceLifespanConfig } from '@/mods/mod-character'
 
 import styles from './FatePreview.module.css'
+import { resolveWorldDimensionLabels } from '../../helpers/world-dimension-labels'
+import { useCreationStoresHydrated } from '../../hooks/useCreationStoresHydrated'
 
 const GENDER_LABELS: Record<string, string> = {
   male: '男',
@@ -44,6 +49,40 @@ function resolveDisplayName(rawName: string, gender: string): string {
   const trimmed = rawName.trim()
   if (trimmed && trimmed !== 'AI命名') return trimmed
   return randomName(resolveRandomNameGender(gender))
+}
+
+function resolvePreviewRaceInfo(race: string, lifespan: LifespanState): RaceLifespanConfig {
+  const catalogRace = RACE_LIFESPAN[race]
+  if (catalogRace) return catalogRace
+  if (lifespan.race?.name === race) return lifespan.race
+
+  const fallbackRace = lifespan.race ?? RACE_LIFESPAN.human!
+  return {
+    ...fallbackRace,
+    name: race.trim() || fallbackRace.name || '未知',
+    baseMaxAge: lifespan.maxAge > 0 ? lifespan.maxAge : fallbackRace.baseMaxAge,
+  }
+}
+
+function hasConfirmedCharacter(
+  name: string,
+  race: string,
+  startingAge: number,
+  lifespan: LifespanState,
+): boolean {
+  const expectedRaceName = RACE_LIFESPAN[race]?.name ?? race.trim()
+  return Boolean(
+    name.trim()
+    && expectedRaceName
+    && lifespan.race?.name === expectedRaceName
+    && Number.isFinite(lifespan.maxAge)
+    && lifespan.maxAge > 0
+    && Number.isFinite(lifespan.baseMaxAge)
+    && lifespan.baseMaxAge > 0
+    && Number.isFinite(startingAge)
+    && startingAge >= 0
+    && startingAge < lifespan.maxAge
+  )
 }
 
 /** 持久化存储键（按世界编码隔离） */
@@ -72,27 +111,38 @@ const WORLD_INIT_STEPS = [
   {
     id: 'calibration',
     label: '维度推断与校准',
-    icon: '🧭',
+    shortLabel: '校准',
+    icon: '01',
     description: 'AI 推断世界观维度与规则体系',
     doneFlag: (s: WorldInitAIStatus) => s.calibrationGenerated,
   },
   {
     id: 'tags',
     label: '标签生成',
-    icon: '🏷️',
+    shortLabel: '标签',
+    icon: '02',
     description: '生成力量体系/文明阶段等标签',
     doneFlag: (s: WorldInitAIStatus) => s.tagsGenerated,
   },
   {
+    id: 'config',
+    label: '规则配置',
+    shortLabel: '参数',
+    icon: '03',
+    description: '整理世界规则与运行参数',
+    doneFlag: (s: WorldInitAIStatus) => s.configGenerated,
+  },
+  {
     id: 'entities',
     label: '实体生成',
-    icon: '🏛️',
+    shortLabel: '实体',
+    icon: '04',
     description: '生成地理/文化/组织实体',
     doneFlag: (s: WorldInitAIStatus) => s.entitiesGenerated,
   },
 ] as const
 
-export default function FatePreviewPage() {
+function FatePreviewContent() {
   const router = useRouter()
 
   const name = useCharacterStore((s) => s.name)
@@ -101,6 +151,7 @@ export default function FatePreviewPage() {
   const background = useCharacterStore((s) => s.background)
   const characterBase = useCharacterStore((s) => s.characterBase)
   const destinyPatterns = useCharacterStore((s) => s.destinyPatterns)
+  const equippedMythicPattern = useCharacterStore((s) => s.equippedMythicPattern)
   const lifespan = useCharacterStore((s) => s.lifespan)
   const talents = useCharacterStore((s) => s.talents)
 
@@ -111,15 +162,40 @@ export default function FatePreviewPage() {
   const setGamePhase = useGlobalStore((s) => s.setGamePhase)
 
   const genderLabel = GENDER_LABELS[gender] ?? gender
+  const startingAge = characterBase.startingAge
   const savedFp = loadFpState()
-  const [storySeed, _setStorySeed] = useState(savedFp?.storySeed ?? '')
+  const settingsStorySeed = useSettingsStore((s) => s.storySeed)
+  const setSettingsStorySeed = useSettingsStore((s) => s.setStorySeed)
+  const [storySeed, _setStorySeed] = useState(savedFp?.storySeed ?? settingsStorySeed ?? '')
 
   const setStorySeed = useCallback((v: string) => {
     _setStorySeed(v)
     persistFpState({ storySeed: v })
-  }, [])
+    setSettingsStorySeed(v)
+  }, [setSettingsStorySeed])
 
   const selectedPatterns = useMemo(() => destinyPatterns.patterns ?? [], [destinyPatterns.patterns])
+  const characterConfirmed = hasConfirmedCharacter(name, race, startingAge, lifespan)
+  const destinyPatternsConfirmed = selectedPatterns.length === DESTINY_PATTERN_SELECT_COUNT
+  const creationGateReason = !characterConfirmed
+    ? '角色资料尚未确认，请返回角色创建完成确认。'
+    : !destinyPatternsConfirmed
+      ? `当前已确认 ${selectedPatterns.length} 条命格；开始人生前必须恰好确认 ${DESTINY_PATTERN_SELECT_COUNT} 条。`
+      : null
+  const localWorldReady = worldInitialized && !!worldConfig && worldCode > 0
+  const initStepsComplete = Boolean(
+    worldInitAIStatus
+    && WORLD_INIT_STEPS.every((step) => step.doneFlag(worldInitAIStatus)),
+  )
+  const aiComplete = localWorldReady
+    && worldInitAIStatus?.status === 'complete'
+    && initStepsComplete
+  const aiIsRunning = worldInitAIStatus?.status === 'running'
+  const aiFailed = worldInitAIStatus?.status === 'failed'
+  const aiProgress = worldInitAIStatus
+    ? WORLD_INIT_STEPS.filter((step) => step.doneFlag(worldInitAIStatus)).length
+    : 0
+  const aiStepLabel = worldInitAIStatus?.currentStep
 
   /** 属性加成汇总 */
   const attrBonuses = useMemo(() => {
@@ -139,12 +215,12 @@ export default function FatePreviewPage() {
     return bonuses
   }, [selectedPatterns, talents])
 
-  const raceInfo = useMemo(() =>
-    RACE_LIFESPAN[race] ?? { name: '未知', baseMaxAge: 100, decayMultiplier: 1.0 },
-  [race])
+  const raceInfo = useMemo(() => resolvePreviewRaceInfo(race, lifespan), [race, lifespan])
 
   /** 开始人生 */
   const handleStartLife = useCallback(() => {
+    if (!characterConfirmed || !destinyPatternsConfirmed || !aiComplete) return
+
     const displayName = resolveDisplayName(name, gender)
     if (displayName !== name.trim()) {
       useCharacterStore.getState().setName(displayName)
@@ -166,7 +242,7 @@ export default function FatePreviewPage() {
       worldSetting,
       {
         name: displayName,
-        age: 0,
+        age: startingAge,
         gender,
         background: useCharacterStore.getState().background || `${displayName}，来自${worldConfig?.name ?? '未知世界'}的穿越者`,
         attributes: characterBase.base as unknown as Record<string, unknown>,
@@ -174,30 +250,40 @@ export default function FatePreviewPage() {
       },
     )
 
-    // 显式重置角色 store 的 age，确保 game-story 页面读取到正确的起始年龄
-    useCharacterStore.setState({ age: 0 })
+    // 首轮叙事会从 character-base 子系统派生年龄；经编排器提交总线同步同一个创建结果，避免首轮回写旧年龄。
+    orchestrator.applyRoundChanges([
+      {
+        id: 'character-base',
+        description: '角色创建完成，写入玩家确认的基础属性与起始年龄',
+        changes: { startingAge, base: characterBase.base },
+      },
+      {
+        id: 'destiny-pattern',
+        description: '角色创建完成，写入玩家确认的命格',
+        changes: { patterns: selectedPatterns },
+      },
+      {
+        id: 'lifespan',
+        description: '角色创建完成，写入玩家确认的种族与寿命',
+        changes: {
+          raceId: race,
+          worldName: worldConfig?.name ?? '',
+          maxAge: lifespan.maxAge,
+        },
+      },
+    ], 'manual')
+
+    // 角色创建写入的 startingAge 是开局年龄单一来源；这里只同步当前年龄，不重新推导或覆盖。
+    useCharacterStore.setState({ age: startingAge })
+    setSettingsStorySeed(storySeed)
 
     setGamePhase('simulation')
     router.push('/game-story')
-  }, [name, gender, characterBase.base, worldConfig, setGamePhase, router, selectedPatterns])
+  }, [aiComplete, characterConfirmed, destinyPatternsConfirmed, name, gender, race, startingAge, lifespan.maxAge, characterBase.base, worldConfig, setGamePhase, router, selectedPatterns, setSettingsStorySeed, storySeed])
 
-  // 图标映射
-  const attrIcons: Record<string, string> = {
-    physique: '💪', mind: '🧠', talentAptitude: '💡', charisma: '🎭', resources: '💰',
-  }
+  const attrKeys = ['physique', 'mind', 'talentAptitude', 'charisma'] as const
 
-  const attrKeys = ['physique', 'mind', 'talentAptitude', 'charisma', 'resources'] as const
-
-  const localWorldReady = worldInitialized && !!worldConfig && worldCode > 0
-  const aiComplete = localWorldReady || worldInitAIStatus?.status === 'complete'
-  const aiIsRunning = worldInitAIStatus?.status === 'running'
-  const aiFailed = worldInitAIStatus?.status === 'failed'
-  const aiProgress = worldInitAIStatus
-    ? [worldInitAIStatus.calibrationGenerated, worldInitAIStatus.tagsGenerated,
-       worldInitAIStatus.configGenerated, worldInitAIStatus.entitiesGenerated]
-      .filter(Boolean).length
-    : localWorldReady ? 4 : 0
-  const aiStepLabel = worldInitAIStatus?.currentStep
+  const worldDimensionLabels = worldConfig ? resolveWorldDimensionLabels(worldConfig) : null
 
   // ── 步骤计时器（时间戳由 Pipeline 直接写入 store，UI 只读 + 每秒刷新展示）──
   const [now, setNow] = useState(() => Date.now())
@@ -219,190 +305,189 @@ export default function FatePreviewPage() {
 
   return (
     <>
-      <PageScroll>
-      <div className={styles.container}>
-        <h2 className={styles.headerTitle}>🌅 身世总览</h2>
-
-        <div className={styles.mainCard}>
-          {/* 角色头部 */}
-          <div className={styles.charHeader}>
-            <div className={styles.charIcon}>👤</div>
-            <div className={styles.charName}>{name || '未命名'}</div>
-            <div className={styles.charMeta}>
-              {genderLabel} · {raceInfo.name} · {worldConfig?.name ?? '未知世界'}
+      <main className={styles.page}>
+        <div className={styles.paper}>
+          <span className={styles.spine} aria-hidden="true" />
+          <header className={styles.header}>
+            <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>08 / 08</span></div>
+            <div className={styles.titleRow}>
+              <div>
+                <h1 className={styles.headerTitle}>核对命书</h1>
+                <p className={styles.headerSubtitle}>确认所有起点，然后开启人生。</p>
+              </div>
+              <span className={styles.titleMark} aria-hidden="true"><span>08</span></span>
             </div>
-          </div>
+          </header>
 
-          {/* 基本信息 */}
-          <div className={styles.section}>
-            <h4 className={styles.sectionTitle}>📋 基本信息</h4>
-            <div className={styles.infoGrid}>
-              <span className={styles.infoLabel}>姓名：</span>
-              <span className={styles.infoValue}>{name || '未命名'}</span>
-              <span className={styles.infoLabel}>性别：</span>
-              <span className={styles.infoValue}>{genderLabel}</span>
-              <span className={styles.infoLabel}>种族：</span>
-              <span className={styles.infoValue}>{raceInfo.name}</span>
-              <span className={styles.infoLabel}>世界：</span>
-              <span className={styles.infoValue}>{worldConfig?.name ?? '未知世界'}</span>
+          <section className={`${styles.section} ${styles.worldSection}`} aria-labelledby="world-character-title">
+            <div className={styles.sectionHeading}>
+              <strong id="world-character-title">世界与角色</strong>
+              <span>最终核对</span>
             </div>
-          </div>
+            <div className={styles.reviewWorld}>
+              <span className={styles.worldSource}>{worldConfig ? '已确认世界 · 描述原文' : '世界资料待确认'}</span>
+              <h2>{worldConfig?.name ?? '尚未建立世界'}</h2>
+              <p>{worldConfig?.description || '返回创建流程完成世界选择与规则确认。'}</p>
+              <div className={styles.reviewIdentity}>
+                <strong>{name || '未命名'} · {genderLabel || '未设定'} · {raceInfo.name}</strong>
+                <span className={styles.startingAge}><span>起始年龄：</span><span>{startingAge} 岁</span></span>
+              </div>
+            </div>
+            <div className={styles.stats}>
+              <div><b>{lifespan.maxAge > 0 ? lifespan.maxAge : raceInfo.baseMaxAge} 年</b><span>预期寿命</span></div>
+              <div><b>{worldDimensionLabels?.powerSystem ?? '待确认'}</b><span>力量体系</span></div>
+              <div><b>{worldDimensionLabels?.spatialForm ?? '待确认'}</b><span>世界空间</span></div>
+            </div>
+            {background && <p className={styles.backgroundExcerpt}><b>人生背景</b>{background}</p>}
+          </section>
 
-          {/* 属性 */}
-          <div className={styles.section}>
-            <h4 className={styles.sectionTitle}>📊 属性（含命格加成）</h4>
+          <section className={`${styles.section} ${styles.attributesSection}`} aria-labelledby="attributes-patterns-title">
+            <div className={styles.sectionHeading}>
+              <strong id="attributes-patterns-title">属性与命格</strong>
+              <span>四项属性 · {selectedPatterns.length} 条命格</span>
+            </div>
             <div className={styles.attrGrid}>
-              {attrKeys.map((k) => {
-                const base = (characterBase.base as unknown as Record<string, number>)[k] ?? 0
-                const bonus = attrBonuses[k] ?? 0
-                const v = base + bonus
+              {attrKeys.map((key) => {
+                const base = characterBase.base[key] ?? 0
+                const bonus = attrBonuses[key] ?? 0
+                const value = base + bonus
                 return (
-                  <div key={k} className={styles.attrItem}>
-                    <span>{attrIcons[k]} {ATTRIBUTE_NAMES[k]}</span>
-                    <span className={`${styles.attrValue} ${v > 0 ? styles.attrValuePos : v < 0 ? styles.attrValueNeg : styles.attrValueZero}`}>
-                      {v > 0 ? '+' : ''}{v}
-                    </span>
+                  <div key={key} className={styles.attrItem}>
+                    <span>{ATTRIBUTE_NAMES[key]}</span>
+                    <b className={`${styles.attrValue} ${value > 0 ? styles.attrValuePos : value < 0 ? styles.attrValueNeg : styles.attrValueZero}`}>
+                      {value > 0 ? '+' : ''}{value}
+                    </b>
                   </div>
                 )
               })}
             </div>
-          </div>
-
-          {/* 命格标签 */}
-          {selectedPatterns.length > 0 && (
-            <div className={styles.section}>
-              <h4 className={styles.sectionTitle}>🌟 命格 ({selectedPatterns.length})</h4>
-              <div className={styles.talentRow}>
-                {selectedPatterns.map((t) => {
-                  const rc = DESTINY_PATTERN_RARITY_CONFIG[t.rarity]
-                  const pc = DESTINY_PATTERN_POLARITY_CONFIG[t.polarity]
-                  return (
-                    <span key={t.id} className={styles.talentPill} style={{ background: `${rc.color}20`, color: rc.color }}>
-                      {t.name}
-                      {pc && <span style={{ marginLeft: 4, fontSize: 10, color: pc.color }}>{pc.label}</span>}
-                    </span>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* 天赋标签 */}
-          {talents.length > 0 && (
-            <div className={styles.section}>
-              <h4 className={styles.sectionTitle}>✨ 天赋 ({talents.length})</h4>
-              <div className={styles.talentRow}>
-                {talents.map((t) => {
-                  const rc = TALENT_RARITY_CONFIG[t.rarity]
-                  const pc = TALENT_POLARITY_CONFIG[t.polarity]
-                  return (
-                    <span key={t.id} className={styles.talentPill} style={{ background: `${rc.color}20`, color: rc.color }}>
-                      {t.name}
-                      {pc && <span style={{ marginLeft: 4, fontSize: 10, color: pc.color }}>{pc.label}</span>}
-                    </span>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* 模拟种子 */}
-          <div className={styles.section}>
-            <h4 className={styles.sectionTitle}>🎲 模拟种子</h4>
-            <div className={styles.seedBox}>
-              <div className={styles.seedRow}>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={8}
-                  value={storySeed}
-                  onChange={(e) => setStorySeed(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                  placeholder="留空则随机生成（最多 8 位数字）"
-                  className={styles.seedInput}
-                />
-                <button type="button" onClick={() => setStorySeed(String(Math.floor(Math.random() * 100000000)))} className={styles.seedBtn}>
-                  🎲 随机
-                </button>
-              </div>
-              <div className={styles.seedHint}>
-                决定本存档剧情模拟的随机性。相同种子 + 相同操作可获得相近的剧情走向。留空则每次随机。
-              </div>
-            </div>
-          </div>
-
-          {/* 背景信息 */}
-          {background && (
-            <div className={styles.section}>
-              <h4 className={styles.sectionTitle}>🎭 背景信息</h4>
-              <div className={styles.bgBox}>{background}</div>
-            </div>
-          )}
-
-          {/* 寿命信息 */}
-          <div className={styles.section}>
-            <h4 className={styles.sectionTitle}>🕐 寿命信息</h4>
-            <div className={styles.lifespanInfo}>
-              <span>{raceInfo.name} · 基础寿命 {raceInfo.baseMaxAge} 年</span>
-              {lifespan.maxAge > 0 && <span> · 当前最大寿命 {lifespan.maxAge} 年</span>}
-              {raceInfo.decayMultiplier > 0 && <span> · 衰减 {raceInfo.decayMultiplier}x</span>}
-            </div>
-          </div>
-        </div>
-
-        {/* AI 世界初始化进度面板 */}
-        <div className={styles.initPanel}>
-          <div className={styles.initPanelHeader}>
-            <span className={styles.initPanelTitle}>
-              {aiComplete ? '✅ 世界数据初始化完成'
-                : aiFailed ? '❌ 世界数据初始化失败'
-                : aiIsRunning ? '🌍 世界数据初始化中…'
-                : '🌍 等待世界数据初始化…'}
-            </span>
-            <span className={styles.initPanelCounter}>{aiProgress}/4 步骤完成</span>
-          </div>
-          <div className={styles.initStepList}>
-            {WORLD_INIT_STEPS.map((step) => {
-              const done = worldInitAIStatus ? step.doneFlag(worldInitAIStatus) : false
-              const isCurrent = !done && aiIsRunning && aiStepLabel === step.label
-              const failed = aiFailed && isCurrent
-              const seconds = getStepSeconds(step.label)
-              const statusText = failed ? '调用失败' : done ? '已完成' : isCurrent ? '调用中' : '等待中'
-              const statusClass = failed ? styles.initStepStatusTextFailed : done ? styles.initStepStatusTextDone : isCurrent ? styles.initStepStatusTextActive : styles.initStepStatusTextWaiting
-              return (
-                <div key={step.id} className={`${styles.initStepRow} ${done ? styles.initStepDone : ''} ${isCurrent ? styles.initStepCurrent : ''} ${failed ? styles.initStepFailed : ''}`}>
-                  <span className={styles.initStepIcon}>{step.icon}</span>
-                  <div className={styles.initStepInfo}>
-                    <span className={styles.initStepLabel}>{step.label}</span>
-                    <span className={`${styles.initStepStatusText} ${statusClass}`}>{statusText}</span>
+            <div className={styles.talentRow}>
+              {selectedPatterns.length > 0 ? selectedPatterns.map((pattern) => {
+                const rarity = DESTINY_PATTERN_RARITY_CONFIG[pattern.rarity]
+                const polarity = DESTINY_PATTERN_POLARITY_CONFIG[pattern.polarity]
+                return (
+                  <div key={pattern.id} className={styles.patternRow}>
+                    <div className={styles.patternHeading}>
+                      <strong>{pattern.name}</strong>
+                      <small>{rarity.label}{polarity ? ` · ${polarity.label}` : ''}</small>
+                    </div>
+                    <span>{pattern.description}</span>
                   </div>
-                  <span className={styles.initStepTimer}>{seconds !== null ? `${seconds}s` : '—'}</span>
-                  <span className={styles.initStepStatus}>
-                    {failed ? '❌' : done ? '✅' : isCurrent ? <span className={styles.loading149} /> : '○'}
-                  </span>
-                </div>
-              )
-            })}
-          </div>
-          {aiFailed && worldInitAIStatus?.errors?.length && (
-            <div className={styles.initPanelErrors}>
-              {worldInitAIStatus.errors.map((e, i) => (
-                <div key={i} className={styles.initPanelErrorItem}>⚠️ {e}</div>
-              ))}
+                )
+              }) : <p className={styles.emptyText}>尚未确认命格。</p>}
             </div>
-          )}
-        </div>
-      </div>
+            <div className={styles.mythicSlot} aria-label="本局神话传承">
+              <div>
+                <small>神话传承 · 独立槽</small>
+                <strong>{equippedMythicPattern?.name ?? '本局不携带'}</strong>
+              </div>
+              <p>{equippedMythicPattern
+                ? `${equippedMythicPattern.concept}：${equippedMythicPattern.effect}`
+                : '不占三个普通命格；可返回命格选择页从跨局总库装备。'}</p>
+            </div>
+            {talents.length > 0 && (
+              <div className={styles.talentPills} aria-label="角色天赋">
+                {talents.map((talent) => {
+                  const rarity = TALENT_RARITY_CONFIG[talent.rarity]
+                  const polarity = TALENT_POLARITY_CONFIG[talent.polarity]
+                  return <span key={talent.id} className={styles.talentPill}>{talent.name}<small>{rarity.label}{polarity ? ` · ${polarity.label}` : ''}</small></span>
+                })}
+              </div>
+            )}
+          </section>
 
-      </PageScroll>
+          <section className={`${styles.section} ${styles.seedSection}`} aria-labelledby="seed-title">
+            <div className={styles.sectionHeading}>
+              <strong id="seed-title">模拟种子</strong>
+              <span>留空则每次随机</span>
+            </div>
+            <div className={styles.seedRow}>
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={8}
+                value={storySeed}
+                onChange={(event) => setStorySeed(event.target.value.replace(/\D/g, '').slice(0, 8))}
+                placeholder="最多 8 位数字"
+                className={styles.seedInput}
+                aria-label="自定义模拟种子"
+              />
+              <button type="button" onClick={() => setStorySeed(String(Math.floor(Math.random() * 100000000)))} className={styles.seedBtn}>随机</button>
+            </div>
+            <p className={styles.seedHint}>相同种子与相同操作会得到相近的剧情走向。</p>
+          </section>
+
+          <section className={`${styles.section} ${styles.initSection}`} aria-labelledby="world-init-title">
+            <div className={styles.sectionHeading}>
+              <strong id="world-init-title">世界初始化</strong>
+              <span aria-live="polite">{aiProgress} / 4 完成</span>
+            </div>
+            {creationGateReason && <p className={styles.gateNotice} role="alert">{creationGateReason}</p>}
+            <div className={styles.initStepList}>
+              {WORLD_INIT_STEPS.map((step) => {
+                const done = worldInitAIStatus ? step.doneFlag(worldInitAIStatus) : false
+                const isCurrent = !done && aiIsRunning && aiStepLabel === step.label
+                const failed = aiFailed && !done && aiStepLabel === step.label
+                const seconds = getStepSeconds(step.label)
+                return (
+                  <div
+                    key={step.id}
+                    className={`${styles.initStepRow} ${done ? styles.initStepDone : ''} ${isCurrent ? styles.initStepCurrent : ''} ${failed ? styles.initStepFailed : ''}`}
+                    title={step.description}
+                  >
+                    <i className={styles.initStepIcon}>{failed ? '×' : done ? '✓' : isCurrent ? <span className={styles.loading149} /> : step.icon}</i>
+                    <strong className={styles.initStepLabel}>{step.shortLabel}</strong>
+                    <span className={styles.initStepTimer}>{done ? `${seconds ?? 0}s` : seconds !== null ? `${seconds}s` : isCurrent ? '调用中' : '等待'}</span>
+                  </div>
+                )
+              })}
+            </div>
+            <p className={styles.initCaption}>
+              {aiComplete ? '世界初始化完成，可以开启这段人生。' : aiFailed ? '初始化出现错误，请检查下方信息。' : aiIsRunning ? '四项任务正在执行，完成后统一解锁开局。' : '等待世界初始化任务开始。'}
+            </p>
+            {aiFailed && worldInitAIStatus?.errors?.length ? (
+              <div className={styles.initPanelErrors}>
+                {worldInitAIStatus.errors.map((error, index) => <p key={`${index}-${error}`} className={styles.initPanelErrorItem}>{error}</p>)}
+              </div>
+            ) : null}
+          </section>
+        </div>
+      </main>
 
       <BottomActionBar
-        onBack={() => router.push('/attribute-alloc')}
-        backTitle="返回重新分配属性"
+        onBack={() => router.push(!characterConfirmed ? '/new-game/character-create' : !destinyPatternsConfirmed ? '/talent-draw' : '/attribute-alloc')}
+        backTitle={!characterConfirmed ? '返回确认角色' : !destinyPatternsConfirmed ? '返回确认命格' : '返回重新分配属性'}
         onConfirm={handleStartLife}
-        confirmText={localWorldReady ? '开始人生' : (aiIsRunning ? '请等待…' : '等待世界初始化')}
-        confirmDisabled={!localWorldReady}
+        confirmText={creationGateReason ? '创建信息未完成' : aiComplete ? '开始人生' : aiFailed ? '初始化失败' : (aiIsRunning ? '请等待…' : '等待世界初始化')}
+        confirmNumber="完成"
+        confirmDescription={creationGateReason ?? (aiComplete ? '所有起点已确认 · 开启人生' : aiFailed ? '请返回世界配置重新确认' : aiIsRunning ? `世界初始化 ${aiProgress} / 4` : '等待世界初始化完成')}
+        confirmDisabled={Boolean(creationGateReason) || !aiComplete}
+        confirmTitle={creationGateReason ?? (!aiComplete ? aiFailed ? '世界初始化失败，请返回世界配置重新确认' : '等待世界初始化完成' : '开始人生')}
       />
     </>
   )
+}
+
+export default function FatePreviewPage() {
+  const router = useRouter()
+  const storesHydrated = useCreationStoresHydrated()
+  const worldConfig = useWorldStore((state) => state.worldConfig)
+  const worldCode = useWorldStore((state) => state.worldCode)
+  const worldInitialized = useWorldStore((state) => state.initialized)
+  const characterName = useCharacterStore((state) => state.name)
+  const selectedPatternCount = useCharacterStore((state) => state.destinyPatterns.patterns.length)
+  const hasWorld = Boolean(worldConfig && worldCode > 0 && worldInitialized)
+  const hasCharacter = Boolean(characterName.trim())
+  const hasPatterns = selectedPatternCount === DESTINY_PATTERN_SELECT_COUNT
+
+  useEffect(() => {
+    if (!storesHydrated) return
+    if (!hasWorld) router.replace('/new-game/world-select')
+    else if (!hasCharacter) router.replace('/new-game/character-create')
+    else if (!hasPatterns) router.replace('/talent-draw')
+  }, [hasCharacter, hasPatterns, hasWorld, router, storesHydrated])
+
+  if (!storesHydrated || !hasWorld || !hasCharacter || !hasPatterns) return null
+  return <FatePreviewContent />
 }

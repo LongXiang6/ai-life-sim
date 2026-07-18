@@ -5,9 +5,11 @@
  */
 
 import type { SubSystemState } from '@/foundation'
+import { useCharacterStore } from '@/mods/mod-character'
 import { useEconomyStore } from '@/mods/mod-economy'
 import { usePoliticsStore } from '@/mods/mod-politics'
 import { usePowerSystemStore } from '@/mods/mod-power-system'
+import { useWorldStore } from '@/mods/mod-world'
 
 function dataOf<T extends object>(states: Record<string, SubSystemState>, id: string): T | undefined {
   const data = states[id]?.data
@@ -17,6 +19,24 @@ function dataOf<T extends object>(states: Record<string, SubSystemState>, id: st
 /** 将最近一轮收集到的子系统 private state 写回 UI store。 */
 export function syncSubsystemStoresFromStates(states: Record<string, SubSystemState> | undefined): void {
   if (!states) return
+
+  const characterBase = dataOf<Record<string, unknown>>(states, 'character-base')
+  const destinyPatterns = dataOf<Record<string, unknown>>(states, 'destiny-pattern')
+  const lifespan = dataOf<Record<string, unknown>>(states, 'lifespan')
+  const morality = dataOf<Record<string, unknown>>(states, 'morality')
+  if (characterBase || destinyPatterns || lifespan || morality) {
+    useCharacterStore.setState((prev) => ({
+      characterBase: characterBase ? { ...prev.characterBase, ...characterBase } : prev.characterBase,
+      destinyPatterns: destinyPatterns ? { ...prev.destinyPatterns, ...destinyPatterns } : prev.destinyPatterns,
+      lifespan: lifespan ? { ...prev.lifespan, ...lifespan } : prev.lifespan,
+      morality: morality ? { ...prev.morality, ...morality } : prev.morality,
+    }))
+  }
+
+  const worldEntity = dataOf<{ entities?: unknown[] }>(states, 'world-entity')
+  if (Array.isArray(worldEntity?.entities)) {
+    useWorldStore.setState({ entities: worldEntity.entities as ReturnType<typeof useWorldStore.getState>['entities'] })
+  }
 
   const economy = dataOf<Record<string, unknown>>(states, 'economy')
   const settlement = dataOf<Record<string, unknown>>(states, 'settlement')

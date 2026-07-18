@@ -12,7 +12,6 @@ export const DEFAULT_NPC_ATTRIBUTES: NPCAttributes = {
   mind: 3,
   talentAptitude: 3,
   charisma: 3,
-  resources: 3,
   loyalty: 0,
   aggression: 20,
   greed: 20,

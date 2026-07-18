@@ -12,6 +12,11 @@ import type { ChineseTextProcessor } from './chinese-text-processor'
 import { normalizeNarrativeBranchOptions } from './narrative-branch-policy'
 import { validateRoundChanges } from './subsystem-field-registry'
 import { extractTaggedMetaEnvelope } from './tagged-meta-envelope'
+import {
+  NarrativeRoundMetadataSchema,
+  normalizeNarrativeResponseMetadata,
+  type NarrativeSemanticSignals,
+} from './narrative-semantic-signals'
 
 /** AI META 段与旧 JSON 降级格式共用的结构 */
 interface RawAIResponse {
@@ -30,6 +35,7 @@ interface RawAIResponse {
   }>
   importance?: 'HIGH' | 'NORMAL' | 'LOW'
   arcStatus?: 'start' | 'ongoing' | 'end'
+  semanticSignals?: NarrativeSemanticSignals
   branch?: boolean
   branchTitle?: string
   branchOptions?: string[]
@@ -62,6 +68,8 @@ function parseRawAIResponse(
 
   const narrativeSource = stripNarrativeEnvelopeArtifacts(narrativeOverride ?? raw.narrative ?? '')
   const narrative = processor.segmentParagraphs(narrativeSource)
+  const metadataResult = NarrativeRoundMetadataSchema.safeParse(raw)
+  const metadata = metadataResult.success ? metadataResult.data : undefined
 
   // 提取 direction 字段（支持字符串和结构化对象两种格式）
   let direction: ParsedNarrative['direction']
@@ -86,21 +94,18 @@ function parseRawAIResponse(
         changes: c.changes ?? {},
       })),
     ),
-    notableEvents: (raw.notableEvents ?? []).slice(0, 3),
+    notableEvents: metadata?.notableEvents ?? [],
     direction,
-    creations: raw.creations?.length ? raw.creations : undefined,
-    foreshadowing: raw.foreshadowing?.length ? raw.foreshadowing : undefined,
-    importance: raw.importance,
-    digest: typeof raw.digest === 'string' ? raw.digest : undefined,
-    keyEvents: raw.keyEvents?.length ? raw.keyEvents.slice(0, 3).map((e) => ({
-      text: String(e.text ?? ''),
-      importance: Number(e.importance ?? 0),
-      entities: Array.isArray(e.entities) ? e.entities.filter((x): x is string => typeof x === 'string') : undefined,
-    })) : undefined,
-    arcStatus: raw.arcStatus,
-    branch: raw.branch === true,
-    branchTitle: typeof raw.branchTitle === 'string' ? raw.branchTitle : undefined,
-    branchOptions: normalizeNarrativeBranchOptions(raw.branchOptions),
+    creations: metadata?.creations?.length ? metadata.creations : undefined,
+    foreshadowing: metadata?.foreshadowing?.length ? metadata.foreshadowing : undefined,
+    importance: metadata?.importance,
+    digest: metadata?.digest,
+    keyEvents: metadata?.keyEvents,
+    arcStatus: metadata?.arcStatus,
+    semanticSignals: metadata?.semanticSignals,
+    branch: metadata?.branch === true,
+    branchTitle: metadata?.branchTitle,
+    branchOptions: normalizeNarrativeBranchOptions(metadata?.branchOptions),
   }
 }
 
@@ -132,7 +137,7 @@ export class TaggedMetaParseStrategy implements ParseStrategy {
     if (!envelope) return null
 
     try {
-      const raw = JSON.parse(envelope.metaJson) as RawAIResponse
+      const raw = normalizeNarrativeResponseMetadata(JSON.parse(envelope.metaJson)) as RawAIResponse
       return parseRawAIResponse(raw, processor, envelope.narrative)
     } catch {
       return null
@@ -149,7 +154,7 @@ export class JsonParseStrategy implements ParseStrategy {
 
   parse(content: string, processor: ChineseTextProcessor): ParsedNarrative | null {
     try {
-      const raw: RawAIResponse = JSON.parse(content)
+      const raw = normalizeNarrativeResponseMetadata(JSON.parse(content)) as RawAIResponse
       return parseRawAIResponse(raw, processor)
     } catch {
       return null

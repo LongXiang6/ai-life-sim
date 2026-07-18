@@ -75,10 +75,6 @@ export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> =
         description: '魅力增量（整数；正=增长，负=下降；AI 单轮建议≤2，schema 上限±8）',
         schema: z.coerce.number().min(-8).max(8).optional(),
       },
-      resourcesDelta: {
-        description: '出身增量（整数；正=改善，负=恶化；锁定 -10~+10，AI 单轮建议≤2）',
-        schema: z.coerce.number().min(-8).max(8).optional(),
-      },
     },
   },
   'health': {

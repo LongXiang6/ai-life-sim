@@ -5,16 +5,70 @@
  */
 
 import { useGlobalStore } from '@/core/global-store'
+import { runtimeRegistry } from '@/core/mod-loader/runtime-registry'
 import { saveManager } from '@/core/storage/save-manager'
-import { useCharacterStore } from '@/mods/mod-character'
-import { useWorldStore } from '@/mods/mod-world'
+import { sanitizeCharacterStateSnapshot, useCharacterStore } from '@/mods/mod-character'
+import { sanitizeWorldStateSnapshot, useWorldStore } from '@/mods/mod-world'
 import { buildDefaultCalibration, formatCalibrationSummary } from '@/mods/mod-world'
 import { buildOrchestratorWorldSetting } from '@/mods/mod-engine/helpers/orchestrator-world-setting'
 
 import { orchestrator } from '../subsystems/orchestrator-system'
-import { clearPreGenQueue } from './pre-gen-queue'
+import { resolveMvpRuntimeReadiness } from './mvp-runtime-policy'
+import { clearPreGenQueue, getPreGenQueueStatus } from './pre-gen-queue'
 import { syncSubsystemStoresFromStates } from './subsystem-store-sync'
 import { useEngineStore } from '../store'
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function assertPreGenIdle(action: string): void {
+  if (getPreGenQueueStatus().isActive) {
+    throw new Error(`下一段故事仍在后台准备，暂时不能${action}。请等待准备完成后重试。`)
+  }
+}
+
+function assertCompressionIdle(action: string): void {
+  if (orchestrator.isBackgroundCompressionActive()) {
+    throw new Error(`上一轮记忆仍在整理，暂时不能${action}。请等待整理完成后重试。`)
+  }
+}
+
+function assertRuntimeReady(action: string): void {
+  const readiness = resolveMvpRuntimeReadiness({
+    allModsLoaded: useGlobalStore.getState().allModsLoaded,
+    runtimeRegistryFrozen: runtimeRegistry.isFrozen(),
+    registeredIds: orchestrator.getSubsystemBindings().map(({ id }) => id),
+  })
+  if (!readiness.loaderReady) {
+    throw new Error(`核心模拟系统仍在初始化，暂时不能${action}。请稍候重试。`)
+  }
+
+  if (readiness.missingSubsystems.length > 0) {
+    console.error(`[save-restore] ${action}前发现核心子系统未注册:`, readiness.missingSubsystems)
+    throw new Error(`核心模拟系统未完整加载，暂时不能${action}。请刷新页面后重试。`)
+  }
+}
+
+function assertCoreSavePayload(data: Record<string, unknown>): {
+  engine: Record<string, unknown>
+  character: Record<string, unknown>
+  world: Record<string, unknown>
+} {
+  const invalid = ['engine', 'character', 'world'].filter((key) => !isPlainRecord(data[key]))
+  if (invalid.length > 0) {
+    throw new Error(`存档缺少有效核心状态：${invalid.join('、')}，已中止恢复。`)
+  }
+
+  const engine = data.engine as Record<string, unknown>
+  const character = data.character as Record<string, unknown>
+  const world = data.world as Record<string, unknown>
+  if (!isPlainRecord(world.worldConfig)) {
+    throw new Error('存档中的世界配置无效，已中止恢复。')
+  }
+
+  return { engine, character, world }
+}
 
 function serializeStoreSnapshot<T extends object>(state: T): Record<string, unknown> {
   return JSON.parse(JSON.stringify(state)) as Record<string, unknown>
@@ -58,9 +112,23 @@ function buildEngineSaveSnapshot(): Record<string, unknown> {
  *   - 可选 store（orchestrator）坏数据仅记录告警并跳过，不阻断整体加载。
  */
 export function applyGameSave(data: Record<string, unknown>): void {
-  // —— 核心 store：失败即抛，gamePhase 保持不变 ——
-  if (data.engine && typeof data.engine === 'object') {
-    const engine = data.engine as Partial<ReturnType<typeof useEngineStore.getState>>
+  assertRuntimeReady('加载存档')
+  assertPreGenIdle('加载存档')
+  assertCompressionIdle('加载存档')
+  const core = assertCoreSavePayload(data)
+  const migratedCharacter = sanitizeCharacterStateSnapshot(core.character)
+  const migratedWorld = sanitizeWorldStateSnapshot(core.world)
+  const savedTerminal = core.engine.status === 'complete'
+  const previous = {
+    engine: useEngineStore.getState(),
+    character: useCharacterStore.getState(),
+    world: useWorldStore.getState(),
+    orchestrator: orchestrator.captureSnapshot(),
+  }
+  let restoredOrchestratorSnapshot = false
+  try {
+    // —— 核心 store：失败即回滚，gamePhase 保持不变 ——
+    const engine = core.engine as Partial<ReturnType<typeof useEngineStore.getState>>
     useEngineStore.setState((prev) => ({
       ...prev,
       ...engine,
@@ -68,39 +136,58 @@ export function applyGameSave(data: Record<string, unknown>): void {
       narrativeError: null,
       resolvedBranches: engine.resolvedBranches ?? prev.resolvedBranches ?? {},
       forceBranchNext: engine.forceBranchNext ?? false,
-      status: engine.status === 'complete' ? 'complete' : 'idle',
+      status: savedTerminal ? 'complete' : 'idle',
     }))
+    useCharacterStore.setState(migratedCharacter as unknown as ReturnType<typeof useCharacterStore.getState>)
+    useWorldStore.setState(migratedWorld as unknown as ReturnType<typeof useWorldStore.getState>)
     orchestrator.hydrateFromEngineStore()
-  }
 
-  if (data.character && typeof data.character === 'object') {
-    useCharacterStore.setState(data.character as ReturnType<typeof useCharacterStore.getState>)
-  }
-
-  if (data.world && typeof data.world === 'object') {
-    useWorldStore.setState(data.world as ReturnType<typeof useWorldStore.getState>)
-  }
-
-  // —— 可选 store：单个失败隔离，不阻断加载 ——
-  const restoreOptional = (label: string, fn: () => void): void => {
-    try {
-      fn()
-    } catch (err) {
-      console.error(`[applyGameSave] 可选状态「${label}」恢复失败，已跳过:`, err)
+    // —— 可选 store：单个失败隔离，不阻断加载 ——
+    const restoreOptional = (label: string, fn: () => void): void => {
+      try {
+        fn()
+      } catch (err) {
+        console.error(`[applyGameSave] 可选状态「${label}」恢复失败，已跳过:`, err)
+      }
     }
-  }
 
-  if (data.orchestrator && typeof data.orchestrator === 'object') {
-    restoreOptional('orchestrator', () => {
-      orchestrator.restoreSnapshot(data.orchestrator as Parameters<typeof orchestrator.restoreSnapshot>[0])
-      syncSubsystemStoresFromStates(orchestrator.getSubsystemStateSnapshot())
-    })
-  }
+    if (data.orchestrator && typeof data.orchestrator === 'object') {
+      restoreOptional('orchestrator', () => {
+        orchestrator.restoreSnapshot(data.orchestrator as Parameters<typeof orchestrator.restoreSnapshot>[0])
+        restoredOrchestratorSnapshot = true
+        syncSubsystemStoresFromStates(orchestrator.getSubsystemStateSnapshot())
+      })
+    }
 
-  restoreOptional('orchestratorContext', ensureOrchestratorContextFromStores)
-  clearPreGenQueue()
-  // 只有核心恢复成功（未抛出）才进入模拟态
-  useGlobalStore.getState().setGamePhase('simulation')
+    if (!restoredOrchestratorSnapshot) {
+      // restoreSnapshot() 在发现坏快照前可能已部分改写单例内部字段；
+      // 必须从刚恢复的 EngineStore 完整重建，而不只是重灌子系统私有状态。
+      orchestrator.hydrateFromEngineStore()
+    }
+
+    if (savedTerminal) {
+      orchestrator.stop()
+      useEngineStore.setState({ status: 'complete' })
+    }
+
+    if (!ensureOrchestratorContextFromStores()) {
+      throw new Error('存档中的世界上下文无法恢复，已中止进入模拟。')
+    }
+    clearPreGenQueue()
+    // 只有核心恢复成功（未抛出）才进入模拟态
+    useGlobalStore.getState().setGamePhase('simulation')
+  } catch (error) {
+    try {
+      useCharacterStore.setState(previous.character, true)
+      useWorldStore.setState(previous.world, true)
+      orchestrator.restoreSnapshot(previous.orchestrator)
+      useEngineStore.setState(previous.engine, true)
+      ensureOrchestratorContextFromStores()
+    } catch (rollbackError) {
+      console.error('[applyGameSave] 核心状态回滚失败:', rollbackError)
+    }
+    throw error
+  }
 }
 
 /** 收集当前可持久化快照（供手动/自动存档）。
@@ -124,6 +211,9 @@ export async function saveCurrentGameToSlot(
   worldName: string,
   characterName: string,
 ): Promise<void> {
+  assertRuntimeReady('手动存档')
+  assertPreGenIdle('手动存档')
+  assertCompressionIdle('手动存档')
   await saveManager.saveToSlot(slot, name, worldName, characterName, collectGameSavePayload())
 }
 

@@ -12,41 +12,12 @@
  * 这些记忆不受 buildRichPrompt 的滚动窗口限制，在 Prompt 中分层注入。
  */
 
-import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
-import { getRoundSequence } from '@/foundation'
+import type { SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
+import { BaseSubsystem } from '@/core'
 import { memoryLifecycle } from './memory-lifecycle-system'
 import { summaryCompressor } from './summary-compressor-system'
-import { patternManager } from '../patterns'
 import { useEngineStore } from '../store'
-
-// ============================================================
-// 特性开关
-// ============================================================
-
-/** 是否使用统一模式管理层（默认关闭，确保向后兼容） */
-let USE_PATTERN_MANAGER = false
-
-/**
- * 启用统一模式管理器
- */
-export function enablePatternManager(): void {
-  USE_PATTERN_MANAGER = true
-}
-
-/**
- * 禁用统一模式管理器
- */
-export function disablePatternManager(): void {
-  USE_PATTERN_MANAGER = false
-}
-
-/**
- * 获取模式管理器启用状态
- * @returns 是否启用统一模式管理器
- */
-export function isPatternManagerEnabled(): boolean {
-  return USE_PATTERN_MANAGER
-}
+import type { NarrativeRelationshipUpdate } from '../helpers/narrative-semantic-signals'
 
 // ============================================================
 // 类型定义
@@ -78,15 +49,6 @@ const INTERACTION_LABELS: Record<string, string> = {
   other: '重要互动',
 }
 
-/** 互动分类关键词 */
-const INTERACTION_KEYWORDS: Array<{ type: string; keywords: string[] }> = [
-  { type: 'conflict', keywords: ['战斗', '对抗', '冲突', '敌对', '决裂', '仇', '杀'] },
-  { type: 'alliance', keywords: ['结盟', '合作', '联手', '同盟', '约定', '协议'] },
-  { type: 'betrayal', keywords: ['背叛', '出卖', '背弃', '叛变', '反水'] },
-  { type: 'marriage', keywords: ['娶', '嫁', '成婚', '结婚', '道侣', '夫妻'] },
-  { type: 'death', keywords: ['死', '去世', '陨落', '阵亡', '牺牲'] },
-]
-
 /** 每 NPC 最多保留互动数 */
 const MAX_INTERACTIONS_PER_NPC = 5
 
@@ -103,7 +65,7 @@ const KEEP_RECENT_EVENTS = 12
 // CoreMemorySystem
 // ============================================================
 
-export class CoreMemorySystem implements ISubSystem {
+export class CoreMemorySystem extends BaseSubsystem {
   readonly id = 'core-memory' as const
   readonly mod = 'mod-engine' as const
   readonly label = '核心记忆管理' as const
@@ -112,25 +74,13 @@ export class CoreMemorySystem implements ISubSystem {
   /** NPC 关系网：name → 互动记录列表 */
   private npcMap = new Map<string, NPCInteractionRecord[]>()
 
-  /** 上一轮处理过的回合（防重复） */
-  private lastProcessedRound = -1
-
   // === ISubSystem 接口实现 ===
 
-  /** 每轮收集后分析叙事，提取 NPC 关系 */
-  collectState(context: RoundContext): SubSystemState {
-    const currentRound = getRoundSequence(context)
-
+  /** 每轮恢复并暴露已由结构化语义写入的 NPC 关系。 */
+  collectState(_context: RoundContext): SubSystemState {
     // 存档恢复：首次调用时从持久化 store 中恢复 NPC 关系网
     if (this.npcMap.size === 0) {
       this.restoreFromStore()
-    }
-
-    const lastNarrative = this.extractLastNarrative(context)
-
-    if (lastNarrative && currentRound !== this.lastProcessedRound) {
-      this.onNarrativeGenerated(lastNarrative, currentRound)
-      this.lastProcessedRound = currentRound
     }
 
     return {
@@ -160,7 +110,6 @@ export class CoreMemorySystem implements ISubSystem {
   /** 重置 */
   reset(): void {
     this.npcMap.clear()
-    this.lastProcessedRound = -1
     // 同步清空持久化 store
     useEngineStore.getState().setCoreMemoryNpcMap({})
   }
@@ -172,59 +121,60 @@ export class CoreMemorySystem implements ISubSystem {
     return this.npcMap
   }
 
+  /** 读档/硬刷新后显式从 EngineStore 恢复，避免依赖未注册的 collectState 调用。 */
+  hydrateFromStore(): void {
+    this.npcMap.clear()
+    this.restoreFromStore()
+  }
+
+  /** 预生成会消费未来关系更新并写入 Store；结束后必须同时恢复单例与 Store。 */
+  capturePreviewState(): unknown {
+    return structuredClone([...this.npcMap.entries()])
+  }
+
+  restorePreviewState(snapshot: unknown): void {
+    if (!Array.isArray(snapshot)) return
+    this.npcMap.clear()
+    for (const entry of snapshot) {
+      if (!Array.isArray(entry) || entry.length !== 2 || typeof entry[0] !== 'string') continue
+      if (!Array.isArray(entry[1])) continue
+      this.npcMap.set(entry[0], structuredClone(entry[1]) as NPCInteractionRecord[])
+    }
+    this.syncToStore()
+  }
+
   /** 获取受保护 NPC 名称列表（供 memoryForgetting 娱乐性护栏使用） */
   getProtectedNpcNames(): string[] {
     return [...this.npcMap.keys()]
   }
 
-  /** 叙事生成后调用：提取 NPC 关系更新关系网 */
-  onNarrativeGenerated(narrative: string, round: number): void {
-    const relationships = patternManager.extractRelationships(narrative)
-
-    for (const rel of relationships) {
-      const confidence = (rel as Record<string, unknown>).confidence as number | undefined
-      if (confidence !== undefined && confidence < 0.6) continue
-
-      const data = (rel as Record<string, unknown>)
-      const npcName = data.name as string | undefined
-      if (!npcName || npcName.trim().length === 0) continue
-
-      const records = this.npcMap.get(npcName) || []
-
-      // 首次相遇：总是记录
-      if (records.length === 0) {
-        records.push({
-          npcName,
-          round,
-          type: 'first_meeting',
-          summary: this.buildRelationshipSummary(rel),
-        })
-        this.enforceNPCLimit()
+  /** 由主叙事 AI 的结构化 relationshipUpdates 更新关系网。 */
+  recordRelationshipUpdates(updates: NarrativeRelationshipUpdate[], round: number): void {
+    for (const update of updates) {
+      const npcName = update.name.trim()
+      if (!npcName) continue
+      const records = this.npcMap.get(npcName) ?? []
+      const duplicate = records.some((record) =>
+        record.round === round
+        && record.type === update.type
+        && record.summary === update.summary,
+      )
+      if (duplicate) continue
+      records.push({
+        npcName,
+        round,
+        type: update.type,
+        summary: update.summary,
+      })
+      if (records.length > MAX_INTERACTIONS_PER_NPC) {
+        const first = records[0]
+        const recent = records.slice(-(MAX_INTERACTIONS_PER_NPC - 1))
+        this.npcMap.set(npcName, [first, ...recent])
+      } else {
         this.npcMap.set(npcName, records)
-        continue
       }
-
-      // 关键互动：分类并记录
-      const classification = this.classifyInteraction(rel)
-      if (classification) {
-        records.push({
-          npcName,
-          round,
-          type: classification as typeof records[number]['type'],
-          summary: this.buildRelationshipSummary(rel),
-        })
-        // 每 NPC 最多 5 条：保留第一条（相遇）+ 最近 4 条
-        if (records.length > MAX_INTERACTIONS_PER_NPC) {
-          const first = records[0]
-          const recent = records.slice(-(MAX_INTERACTIONS_PER_NPC - 1))
-          this.npcMap.set(npcName, [first, ...recent])
-        } else {
-          this.npcMap.set(npcName, records)
-        }
-      }
+      this.enforceNPCLimit()
     }
-
-    // 每次更新后同步到持久化 store
     this.syncToStore()
   }
 
@@ -255,7 +205,8 @@ export class CoreMemorySystem implements ISubSystem {
       const keyInteractions = records.filter((r) => r.type !== 'first_meeting')
 
       lines.push(`\n▸ ${name}`)
-      lines.push(`  初次相遇（第${first.round}轮）：${first.summary}`)
+      const firstLabel = INTERACTION_LABELS[first.type] ?? first.type
+      lines.push(`  ${firstLabel}（第${first.round}轮）：${first.summary}`)
 
       for (const interaction of keyInteractions) {
         const typeLabel = INTERACTION_LABELS[interaction.type] ?? interaction.type
@@ -356,47 +307,6 @@ export class CoreMemorySystem implements ISubSystem {
     // 逐条拼接（每段已经是 AI 生成的完整段落，不做字符截断）
     const lines = relevant.map((s) => `[L${s.level}·${s.startRound}-${s.endRound}轮] ${s.content}`)
     return `【早期关键事件合辑·${eventCount}条】\n${lines.join('\n')}`
-  }
-
-  /** 从 RoundContext 提取最新叙事文本 */
-  private extractLastNarrative(context: RoundContext): string | undefined {
-    const orchState = context.subsystemStates['orchestrator']?.data as Record<string, unknown> | undefined
-    return orchState?.lastNarrative as string | undefined
-  }
-
-  /** 构建关系摘要（不超过 80 字） */
-  private buildRelationshipSummary(rel: unknown): string {
-    const data = rel as Record<string, unknown>
-    const action = data.action as string | undefined
-    const type = data.type as string | undefined
-    const name = data.name as string | undefined
-
-    const parts: string[] = []
-    if (action) parts.push(action)
-    if (type) parts.push(type)
-    if (name) parts.push(`与${name}`)
-
-    return parts.join('') || '未记录'
-  }
-
-  /** 判断互动是否属于关键类型 */
-  private classifyInteraction(rel: unknown): string | null {
-    const data = rel as Record<string, unknown>
-    const desc = (data.description as string) || (data.summary as string) || ''
-    const extractedType = data.type as string | undefined
-
-    // 先检查关系类型字段
-    if (extractedType === 'spouse') return 'marriage'
-    if (extractedType === 'enemy') return 'conflict'
-
-    // 再按关键词分类
-    for (const { type, keywords } of INTERACTION_KEYWORDS) {
-      for (const kw of keywords) {
-        if (desc.includes(kw)) return type
-      }
-    }
-
-    return null // 非关键互动，不记录
   }
 
   /** 强制 NPC 数量上限（移除最久未更新的） */

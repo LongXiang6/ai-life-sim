@@ -27,7 +27,9 @@
  *   - P2-04: buildFallbackNarrative i18n 支持（locale 参数）
  */
 
-import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
+import type { SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
+import { BaseSubsystem } from '@/core'
+import type { NarrativeSemanticSignals } from '../helpers/narrative-semantic-signals'
 
 import {
   ChineseTextProcessor,
@@ -93,6 +95,8 @@ export interface ParsedNarrative {
   digest?: string
   /** 事件弧状态，用于替代闭环关键词检测 */
   arcStatus?: 'start' | 'ongoing' | 'end'
+  /** Schema 校验后的权威叙事语义；缺失时由消费方使用显式中立降级。 */
+  semanticSignals?: NarrativeSemanticSignals
 }
 
 /** 旧系统有序 JSON 输入项格式（支持紧凑键和完整键双格式） */
@@ -105,14 +109,11 @@ interface LegacyOrderedItem {
   a?: string; attrChanges?: string
 }
 
-/** P2-01: 情感倾向 */
-type SentimentTendency = 'positive' | 'negative' | 'neutral' | 'mixed'
-
 // ============================================================
 // 主类
 // ============================================================
 
-export class NarrativeParserSystem implements ISubSystem {
+export class NarrativeParserSystem extends BaseSubsystem {
   readonly id = 'narrative-parser' as const
   readonly mod = 'mod-engine' as const
   readonly label = '叙事解析器' as const
@@ -290,8 +291,7 @@ export class NarrativeParserSystem implements ISubSystem {
    *   2. 重复字符检测（10 连以上）
    *   3. 非中文内容检测
    *   4. 叙事连贯性评分（基于句长方差和标点分布）
-   *   5. 情感倾向检测（正/负/中性/混合）
-   *   6. 敏感词检测（基础关键词列表）
+   *   5. 语义质量由主叙事 AI 的 Schema 字段负责，本地只检查结构与格式
    */
   checkNarrativeQuality(narrative: string): string[] {
     const issues: string[] = []
@@ -308,35 +308,7 @@ export class NarrativeParserSystem implements ISubSystem {
       if (variance > avg * 3) issues.push('句长波动过大，叙事连贯性偏低')
     }
 
-    // 情感倾向检测
-    const sentiment = this.detectSentiment(narrative)
-    if (sentiment === 'negative') issues.push('情感倾向：极度负面')
-
     return issues
-  }
-
-  /**
-   * P2-01: 情感倾向检测
-   * 基于正/负面关键词计数
-   */
-  private detectSentiment(text: string): SentimentTendency {
-    const positive = [
-      '幸福', '快乐', '喜悦', '成功', '繁荣', '和平', '进步', '希望',
-      '美好', '温暖', '光辉', '荣耀', '丰收', '治愈', '团圆',
-    ]
-    const negative = [
-      '悲伤', '痛苦', '恐惧', '失败', '萧条', '战争', '死亡', '绝望',
-      '黑暗', '毁灭', '失落', '崩溃', '瘟疫', '灾难', '背叛',
-      '惨', '屠', '灭', '绝', '尸',
-    ]
-
-    const posCount = positive.filter((w) => text.includes(w)).length
-    const negCount = negative.filter((w) => text.includes(w)).length
-
-    if (posCount > negCount * 2) return 'positive'
-    if (negCount > posCount * 2) return 'negative'
-    if (posCount > 0 && negCount > 0) return 'mixed'
-    return 'neutral'
   }
 
   // ============================================================

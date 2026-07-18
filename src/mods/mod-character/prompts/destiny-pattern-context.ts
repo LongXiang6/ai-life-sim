@@ -21,7 +21,7 @@ import {
 } from '../constants'
 import { prepareFateUserPrompt } from '../utils/fate-kv'
 
-/** 单条命格输出 token 估算（含 50–60 字描述 + 字段） */
+/** 单条命格输出 token 估算（含描述 + 字段） */
 const DESTINY_PATTERN_TOKENS_PER_ITEM = 280
 
 /** description / effect 长度门禁（下限放宽至 20 字以接纳更多合理短描述，上限移除） */

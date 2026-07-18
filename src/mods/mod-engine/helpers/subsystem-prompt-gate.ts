@@ -4,7 +4,7 @@
  * @mod mod-engine
  */
 
-import type { RoundContext, SubSystemState } from '@/foundation'
+import type { ModManifest, RoundContext, SubSystemState } from '@/foundation'
 
 import {
   isMvpNarrativeChangeSubsystem,
@@ -130,6 +130,37 @@ export function isSubsystemOpenForPrompt(state: SubSystemState | undefined, subs
   return true
 }
 
+export interface ActivePromptModBinding {
+  readonly mod: string
+}
+
+/**
+ * 只聚合真正参与当前运行链的 MOD 规则。
+ * manifest 被加载仅代表代码可用，不代表其规则应进入本轮叙事 Prompt。
+ */
+export function collectActiveModWorldRules(
+  manifests: readonly ModManifest[],
+  activeBindings: Iterable<ActivePromptModBinding>,
+): string | undefined {
+  const activeModNames = new Set<string>(['mod-engine'])
+  for (const binding of activeBindings) {
+    const modName = binding.mod.trim()
+    if (modName) activeModNames.add(modName)
+  }
+
+  const seenRules = new Set<string>()
+  const rules: string[] = []
+  for (const manifest of manifests) {
+    if (!activeModNames.has(manifest.name)) continue
+    const rule = manifest.worldRules?.trim()
+    if (!rule || seenRules.has(rule)) continue
+    seenRules.add(rule)
+    rules.push(rule)
+  }
+
+  return rules.length > 0 ? rules.join('\n') : undefined
+}
+
 function normalizeSummaryLine(summary: string): string {
   return summary.trim()
 }
@@ -221,18 +252,6 @@ export function getNarrativeChangeBlockReason(
   }
 
   return null
-}
-
-export function shouldSkipEconomyTierRules(config: Record<string, unknown>): boolean {
-  const powerSystemTag = config.powerSystemTag as string | undefined
-  if (powerSystemTag === 'none') return true
-  const ceiling = config.powerCeiling
-  if (typeof ceiling === 'number' && ceiling <= 1) return true
-  if (typeof ceiling === 'string') {
-    const n = Number(ceiling)
-    if (!Number.isNaN(n) && n <= 1) return true
-  }
-  return false
 }
 
 /** 叙事一致性头（自然语言，非 tag 正则切换） */

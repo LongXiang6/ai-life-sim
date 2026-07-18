@@ -1,4 +1,399 @@
-/* ===== 废弃项目同款：settings-tab-presets.module.css ===== */
-.presetInput { background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 8px; color: var(--color-text-primary); width: 100%; outline: none; transition: border-color 0.3s ease; box-sizing: border-box; }
-.presetInput:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-light); }
-.presetInput::placeholder { color: var(--color-text-tertiary); }
+.tabRoot {
+  width: 100%;
+  color: #1c2025;
+}
+
+.section {
+  margin: 0 0 clamp(1rem, 2.6vw, 1.4rem);
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.sectionLabel,
+.groupHeading,
+.connectionRow,
+.connectionStatus,
+.actionRow {
+  display: flex;
+  align-items: center;
+}
+
+.sectionLabel {
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0 0 0.5rem;
+  padding-inline: clamp(0.15rem, 0.7vw, 0.35rem);
+}
+
+.sectionLabel h3 {
+  margin: 0;
+  color: #303942;
+  font-family: "Songti SC", STSong, SimSun, serif;
+  font-size: clamp(0.9rem, 2.2vw, 1rem);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+}
+
+.sectionLabel > span,
+.groupHeading > span:last-child {
+  color: #90969d;
+  font-size: clamp(0.68rem, 1.7vw, 0.74rem);
+  font-weight: 400;
+  text-align: right;
+}
+
+.sectionCard {
+  overflow: hidden;
+  border: 1px solid #e1e5e9;
+  border-radius: clamp(0.55rem, 1.8vw, 0.75rem);
+  background: #fff;
+  box-shadow: 0 0.35rem 1.15rem rgb(37 46 56 / 5%);
+}
+
+.mutedCard {
+  background: #fafbfb;
+  box-shadow: none;
+}
+
+.cardBody,
+.actionBody {
+  padding: clamp(0.8rem, 2.4vw, 1rem);
+}
+
+.supportingText {
+  margin: 0;
+  color: #858d95;
+  font-size: clamp(0.68rem, 1.7vw, 0.75rem);
+  line-height: 1.6;
+}
+
+.vendorGrid,
+.modelGrid {
+  display: grid;
+  gap: clamp(0.4rem, 1.4vw, 0.55rem);
+}
+
+.vendorGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 0.75rem;
+}
+
+.modelPicker {
+  margin-top: 0.9rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #edf0f2;
+}
+
+.groupHeading {
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.groupHeading > span:first-child {
+  color: #4c5661;
+  font-size: 0.78rem;
+  font-weight: 650;
+}
+
+.modelGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.vendorButton,
+.modelButton,
+.retryButton,
+.primaryButton,
+.secondaryButton {
+  border: 1px solid #e1e5e9;
+  background: #f7f8f9;
+  color: #3a424a;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease, transform 140ms ease, opacity 140ms ease;
+}
+
+.vendorButton,
+.modelButton {
+  min-width: 0;
+  min-height: clamp(2.2rem, 6vw, 2.55rem);
+  padding: 0.45rem 0.65rem;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  font-size: clamp(0.72rem, 1.8vw, 0.8rem);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vendorButton:hover,
+.modelButton:hover,
+.retryButton:hover,
+.secondaryButton:hover {
+  border-color: #b6c0cb;
+  background: #f0f3f6;
+}
+
+.vendorButton[aria-pressed="true"],
+.modelButton[aria-pressed="true"] {
+  border-color: #6d7f94;
+  background: #eef2f6;
+  color: #465b72;
+  font-weight: 650;
+  box-shadow: inset 0 0 0 1px rgb(109 127 148 / 12%);
+}
+
+.modelNotes,
+.vendorNotes,
+.providerGuide {
+  margin: 0.65rem 0 0;
+  font-size: clamp(0.65rem, 1.65vw, 0.72rem);
+  line-height: 1.6;
+  white-space: pre-line;
+}
+
+.modelNotes {
+  padding: 0.6rem 0.7rem;
+  border-left: 2px solid #8797a9;
+  background: #f4f6f8;
+  color: #65717d;
+}
+
+.vendorNotes {
+  color: #8a9198;
+}
+
+.providerGuide {
+  padding: 0.6rem 0.7rem;
+  border: 1px solid #dce3e9;
+  background: #f7f9fb;
+  color: #65778a;
+}
+
+.providerGuide a {
+  color: #50677f;
+  font-weight: 650;
+  text-underline-offset: 0.14em;
+}
+
+.fieldGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(0.65rem, 2vw, 0.85rem);
+  margin-top: 0.8rem;
+}
+
+.field:first-child {
+  grid-column: 1 / -1;
+}
+
+.field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.field > span {
+  color: #69727b;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.presetInput {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: clamp(2.25rem, 6vw, 2.55rem);
+  padding: 0.5rem 0.7rem;
+  border: 1px solid #dfe3e7;
+  border-radius: 0.5rem;
+  outline: none;
+  background: #fafbfc;
+  color: #2f373f;
+  font: inherit;
+  font-size: clamp(0.74rem, 1.9vw, 0.82rem);
+  transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.presetInput:hover {
+  border-color: #c5ccd3;
+  background: #fff;
+}
+
+.presetInput:focus {
+  border-color: #6d7f94;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgb(109 127 148 / 12%);
+}
+
+.presetInput::placeholder {
+  color: #a3a8ae;
+}
+
+.connectionRow {
+  justify-content: space-between;
+  gap: 0.85rem;
+  margin-top: 0.9rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #edf0f2;
+}
+
+.configSummary {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.configSummary span {
+  color: #91979e;
+  font-size: 0.67rem;
+}
+
+.configSummary strong {
+  overflow: hidden;
+  color: #4b555f;
+  font-size: clamp(0.7rem, 1.8vw, 0.78rem);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.connectionStatus {
+  flex: 0 0 auto;
+  gap: 0.38rem;
+  color: #858d95;
+  font-size: clamp(0.66rem, 1.7vw, 0.73rem);
+}
+
+.statusDot {
+  width: 0.48rem;
+  height: 0.48rem;
+  border-radius: 50%;
+  background: #a1a6ac;
+}
+
+.connectionStatus[data-state="connected"] .statusDot {
+  background: #66806d;
+}
+
+.connectionStatus[data-state="failed"] .statusDot {
+  background: #a85d57;
+}
+
+.connectionStatus[data-state="testing"] .statusDot {
+  background: #a3865b;
+  animation: statusPulse 1s ease-in-out infinite;
+}
+
+.retryButton {
+  min-height: 1.8rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 0.4rem;
+  font-size: 0.66rem;
+}
+
+.actionRow {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+}
+
+.primaryButton,
+.secondaryButton {
+  min-height: clamp(2.2rem, 6vw, 2.5rem);
+  padding: 0.45rem 1rem;
+  border-radius: 0.5rem;
+  font-size: clamp(0.72rem, 1.8vw, 0.8rem);
+}
+
+.primaryButton {
+  border-color: #61758c;
+  background: #61758c;
+  color: #fff;
+  font-weight: 650;
+}
+
+.primaryButton:hover {
+  border-color: #52677e;
+  background: #52677e;
+}
+
+.vendorButton:active,
+.modelButton:active,
+.retryButton:active,
+.primaryButton:active,
+.secondaryButton:active {
+  transform: translateY(1px);
+}
+
+.retryButton:disabled,
+.primaryButton:disabled {
+  cursor: wait;
+  opacity: 0.55;
+  transform: none;
+}
+
+.vendorButton:focus-visible,
+.modelButton:focus-visible,
+.retryButton:focus-visible,
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible {
+  outline: 2px solid rgb(109 127 148 / 58%);
+  outline-offset: 2px;
+}
+
+@keyframes statusPulse {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+@media (max-width: 42rem) {
+  .vendorGrid,
+  .modelGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 28rem) {
+  .fieldGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .field:first-child {
+    grid-column: auto;
+  }
+
+  .connectionRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .connectionStatus {
+    flex-wrap: wrap;
+  }
+
+  .actionRow > button {
+    flex: 1 1 0;
+  }
+}
+
+@media (max-width: 22rem) {
+  .vendorGrid,
+  .modelGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vendorButton,
+  .modelButton,
+  .retryButton,
+  .primaryButton,
+  .secondaryButton,
+  .presetInput {
+    animation-duration: 1ms;
+    transition-duration: 1ms;
+  }
+}

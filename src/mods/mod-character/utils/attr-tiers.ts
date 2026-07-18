@@ -7,15 +7,15 @@
 import { clamp } from '@/core/shared'
 import { TRANSCENDENT_ATTR_KEYS, TRANSCENDENT_TIER_THRESHOLDS } from '../constants'
 
-type AttrKey = 'physique' | 'mind' | 'talentAptitude' | 'charisma' | 'resources' | 'luck' | 'morality' | 'health'
+type AttrKey = 'physique' | 'mind' | 'talentAptitude' | 'charisma' | 'luck' | 'morality' | 'health'
 
 /** 隐藏属性列表（传给 AI 但不展示给用户） */
 export const HIDDEN_ATTRS: AttrKey[] = ['luck', 'morality', 'health']
 
 /** 可见属性 */
-export const VISIBLE_ATTR_KEYS: AttrKey[] = ['physique', 'mind', 'talentAptitude', 'charisma', 'resources']
+export const VISIBLE_ATTR_KEYS: AttrKey[] = ['physique', 'mind', 'talentAptitude', 'charisma']
 
-/** 8项基础属性 × 11档语义描述（索引0最差，5平平无奇，10最好） */
+/** 7项角色属性 × 11档语义描述（索引0最差，5平平无奇，10最好） */
 export const ATTR_TIER_DESCRIPTIONS: Record<AttrKey, string[]> = {
   physique: [
     '瘫痪在床，命悬一线，随时可能死去',
@@ -68,19 +68,6 @@ export const ATTR_TIER_DESCRIPTIONS: Record<AttrKey, string[]> = {
     '俊朗不凡，引人注目，走到哪都是焦点',
     '倾国倾城，一见难忘，让人心甘情愿追随',
     '绝世容颜，颠倒众生，一颦一笑牵动人心',
-  ],
-  resources: [
-    '赤贫如洗，负债累累，连饭都吃不上',
-    '家境赤贫，一贫如洗，衣不蔽体',
-    '家境贫寒，捉襟见肘，艰难度日',
-    '手头拮据，勉强温饱，经不起任何变故',
-    '不太宽裕，存不下钱，月月光',
-    '平平无奇',
-    '略有家资，吃穿不愁，有些余钱',
-    '家境殷实，小有资产，日子过得滋润',
-    '家资丰厚，一方富户，呼风唤雨',
-    '富甲一方，财雄势大，钱能通神',
-    '富可敌国，权势滔天，财富撼动天下',
   ],
   luck: [
     '天厌之人，整个世界都在与你为敌，万物都在想方设法让你毁灭',

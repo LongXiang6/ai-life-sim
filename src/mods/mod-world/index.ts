@@ -76,6 +76,7 @@ export type { CustomWorldInput } from './utils/preset-to-config'
 // Store
 export { useWorldStore } from './store'
 export type { WorldInitAIStatus } from './store'
+export { sanitizeWorldStateSnapshot } from './utils/world-state-migration'
 
 // Hooks
 export { useWorld, useWorldEntities, useWorldTime } from './hooks'
