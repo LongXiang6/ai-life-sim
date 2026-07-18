@@ -53,8 +53,8 @@ async function main() {
     await page.screenshot({ path: path.join(reportDir, `help-c3-real-${width}.png`), fullPage: false })
 
     await dialog.getByRole('tab', { name: '更新日志', exact: true }).click()
-    await dialog.getByText('4.0.5', { exact: true }).waitFor()
-    const changelogVisible = await dialog.getByText('注册存档管理页和 Debug 日志页路由。', { exact: true }).isVisible()
+    await dialog.getByText('5.0.0', { exact: true }).waitFor()
+    const changelogVisible = await dialog.getByText('主叙事固定为第二人称“你”，以一个代表性现场承载当前时间跨度内发生的故事。', { exact: true }).isVisible()
     await page.screenshot({ path: path.join(reportDir, `help-c3-changelog-${width}.png`), fullPage: false })
 
     const checks = [

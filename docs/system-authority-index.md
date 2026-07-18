@@ -3,6 +3,9 @@
 文档角色：system-index
 权威层级：A3
 状态：active
+体系路径：project > governance > system-index
+上级目标：让项目中的运行与延后系统拥有唯一责任、接口、生命周期和验收路由
+下级组成：活动权威登记、外部 MVP 系统、引擎 MVP 系统、延后剧情系统
 适用范围：MVP 运行子系统、延后但承载剧情事实的系统、状态与写入所有权、AI 参与、持久化和运行存活性
 拥有者：`mod-engine` 运行注册与各 owning MOD
 最后验证：2026-07-18；对照[运行阶段策略](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、子系统实现、Prompt/Schema、持久化路径和[硬截断审计](../scripts/check/domains/narrative/no-hard-truncation-audit.mjs)
@@ -14,6 +17,7 @@
 
 - This index owns responsibility routing, not detailed field schemas or runtime implementation.
 - Use the authority ladder in `.agents/skills/ai-life-sim/references/authority-hierarchy.md` when sources conflict.
+- Treat `SystemPath` as a conceptual ownership path rather than a filesystem path. Each responsibility has one primary governance parent and one runtime owner; model other relationships as dependencies, producers, adapters, or consumers.
 - Use live code and types for exact data shape. Use [mvp-stages-config.default.json](../src/mods/mod-engine/helpers/mvp-stages-config.default.json) for runtime liveness; a source file or manifest entry alone is insufficient.
 - Update this index in the same task when a system is added, removed, renamed, activated, deactivated, changes owner or responsibility, changes public state or API authority, changes AI participation, or changes persistence behavior.
 
@@ -35,6 +39,25 @@
 ## 3. Runtime and persistence contract
 
 The current stage is `mvp`.
+
+```text
+project
+├─ simulation-runtime
+│  ├─ external-product-systems
+│  └─ engine-orchestration-systems
+└─ deferred-story-state
+```
+
+For active runtime rows, apply these composition defaults unless a row or linked authority overrides them:
+
+```text
+SystemPath: project > simulation-runtime > external-product-systems|engine-orchestration-systems > <SystemId>
+ParentGoal: contribute owned state or orchestration to the playable narrative simulation
+PrimaryGovernanceParent: owning MOD for external systems; mod-engine for engine systems
+ChildSystems: implementation-owned composed units or none
+Dependencies: Inputs plus linked public contracts, registration, and consumers
+Lifecycle: registration and liveness policy plus owned collectState/restore path
+```
 
 Unless a row states otherwise, every active card uses these shared fields:
 
@@ -90,6 +113,8 @@ All engine systems persist through the orchestrator and engine save payload when
 
 These systems are outside the current MVP runtime list but remain governed by `PD-015`; deferred liveness does not permit fixed-capacity deletion.
 
+Their default `SystemPath` is `project > deferred-story-state > <owning domain or contract>`. Their parent goal is to preserve complete, attributable story state until the owning system is activated; their owner, dependencies, persistence authority, and AI participation are declared in each row and linked implementation.
+
 | System or contract | Owner | Responsibility and persistence authority | AI participation | Current no-truncation contract |
 |---|---|---|---|---|
 | NPC store, behavior, and memory | `mod-npc` | Zustand `mod-npc:persist:npc-state` owns NPC roster, behavior, global events, relations, and memories; persisted version 2 removes the legacy `maxNPCs` field | Key-NPC behavior Prompt may generate structured behavior | Preserve every NPC, behavior, event, trait and memory; age only lowers importance, while same-year merging embeds every source ID, summary, detail, keyword, relation and emotion instead of keeping a fixed tail |
@@ -107,11 +132,17 @@ For every system change, record:
 
 ```text
 SystemId:
+SystemPath:
+ParentGoal:
+PrimaryGovernanceParent:
+ChildSystems:
 Authority: A1-A5 sources affected
 RootPosition: R0-R4
 Weight: W5-W1 within the same authority and root position
 Sequence: S1-Sn
 Responsibility change:
+Dependencies change:
+Lifecycle change:
 Public API or state change:
 Runtime liveness change:
 AI participation change:

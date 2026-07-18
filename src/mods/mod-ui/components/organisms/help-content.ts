@@ -53,7 +53,9 @@ function formatInline(value: string): string {
 }
 
 export function renderMdToHtml(md: string): string {
-  const lines = md.split('\n')
+  // 静态文档可能来自 Windows CRLF、Unix LF 或局部编辑后的混合换行。
+  // 先规范化再识别标题，避免行尾 \r 让章节标题退化成普通段落。
+  const lines = md.replace(/\r\n?/g, '\n').split('\n')
   const htmlParts: string[] = []
   let inList = false
   let inSection = false
