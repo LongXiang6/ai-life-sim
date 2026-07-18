@@ -130,19 +130,19 @@ for (const register of ['生活', '命运', '传承']) {
   )
 }
 assertIncludes(activeFiles.aiProtocol, 'AI_NARRATIVE_REGISTERS = createEnumTranslator', 'prompt register values must come from the Chinese translation authority')
-assertIncludes(activeFiles.prompt, "version: '3.0.0'", 'Chinese semantic contract must bump the prompt version to 3.0.0')
+assertIncludes(activeFiles.prompt, "version: '4.0.0'", 'tiered Chinese semantic contract must bump the prompt version to 4.0.0')
 assertIncludes(
   activeFiles.aiProtocol,
-  '没有变化返回空数组',
-  'relationshipUpdates prompt must require the array shape accepted by the runtime schema',
+  '无内容、无变化时省略整个字段',
+  'AI-visible optional data must omit empty fields instead of emitting noise',
 )
 if (/关系变化\s*:\s*\{\s*shape\s*:/.test(activeFiles.aiProtocol)) {
   fail('Chinese relationship updates must not be modeled as a shape/types wrapper object')
 }
 assertIncludes(
   activeFiles.aiProtocol,
-  '没有明确实体也必须返回空数组',
-  'prompt must require an explicit empty entities array instead of local inference',
+  '禁止空数组、空对象、空字符串和 null',
+  'prompt must require omission instead of noisy empty fields',
 )
 assertIncludes(
   activeFiles.parser,
@@ -151,7 +151,7 @@ assertIncludes(
 )
 assertIncludes(
   activeFiles.parser,
-  'metadataRejected: Boolean(metadataResult && !metadataResult.success)',
+  'metadataRejected: metadataRejectedOverride || Boolean(metadataResult && !metadataResult.success)',
   'parser must expose complete META rejection to the whole-package interceptor',
 )
 assertIncludes(
@@ -188,7 +188,7 @@ assertIncludes(
 const validMetadata = {
   importance: 'NORMAL',
   digest: '日常的一天过去。',
-  keyEvents: [{ text: '完成日常工作', importance: 20, entities: [] }],
+  keyEvents: [{ text: '完成日常工作', importance: 20 }],
   arcStatus: 'ongoing',
   semanticSignals: {
     eventType: 'routine',
@@ -227,9 +227,9 @@ if (NarrativeResponseSchema.safeParse(legacyChangeFields).success) {
 }
 
 const missingEntities = structuredClone(validMetadata)
-delete missingEntities.keyEvents[0].entities
+missingEntities.keyEvents[0].entities = []
 if (NarrativeRoundMetadataSchema.safeParse(missingEntities).success) {
-  fail('metadata without keyEvents.entities must fail validation')
+  fail('empty keyEvents.entities must fail; no entities should omit the field')
 }
 
 const invalidConflict = structuredClone(validMetadata)

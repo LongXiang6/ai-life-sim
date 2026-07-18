@@ -23,7 +23,7 @@ export interface ConversationBuildOptions {
 
 /** 固定 assistant 确认 —— 稳定前缀的一部分，利于 KV 命中 */
 const STABLE_ACK =
-  '已读取全局信息，将按中文协议生成三段正文与回合数据。'
+  '已读取全局信息，将按中文协议生成三段正文、摘要与按需数据。'
 
 /**
  * S3 消息链：

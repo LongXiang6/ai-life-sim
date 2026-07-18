@@ -1,17 +1,19 @@
 # 主叙事 Prompt 3.0 中文协议验收
 
-文档角色：acceptance
-权威层级：A5
-状态：active
+文档角色：history
+权威层级：A6
+状态：superseded
 体系路径：project > simulation-runtime > engine-orchestration-systems > orchestrator > narrative-prompt-call-chain
 上级目标：提高主叙事文笔、代入感、连贯性、协议可靠性与上下文效率
 下级组成：固定 Prompt 组件、中文 AI 协议、投影视图、三层消息、格式修复、延迟因果
 适用范围：主叙事 AI 输入、输出、解析、状态提交、预生成与 Prompt 调试页
 拥有者：`mod-engine` 主叙事调用链
 最后验证：2026-07-18；固定快照回归、DeepSeek 实际调用切片、真实玩家路径、完整门禁与生产构建
-取代关系：none
+取代关系：superseded by `docs/playtest-2026-07-18-prompt-4-tiered-protocol.md`
 运行真源：`src/mods/mod-engine/prompts/narrative-prompt-components.ts`、`src/mods/mod-engine/helpers/narrative-ai-protocol.ts`、`src/core/ai-service/prompt-builder.ts`
-验收证据：`npm run test:narrative-protocol`、`npm run test:prompt-wiring`、`npm run validate:narrative`、`npm run gate-check`、`npm run build`、本文件实际模型与浏览器记录
+验收证据：本文件保留 Prompt 3.0 历史记录；当前验收转至 `docs/playtest-2026-07-18-prompt-4-tiered-protocol.md`
+
+历史说明：Prompt 3.0 的 `[正文]/[回合数据]` 全字段必填协议已被用户确认的 Prompt 4.0 分级协议取代，不再作为当前实现或验收指令。
 
 ## 1. 验收结论
 

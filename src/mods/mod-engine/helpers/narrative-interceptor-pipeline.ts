@@ -72,6 +72,9 @@ export function schemaInterceptor(ctx: NarrativeInterceptorContext): NarrativeIn
     return {
       parsed: {
         narrative: ctx.parsed.narrative,
+        digest: ctx.parsed.digest,
+        metadataRejected: true,
+        structuredDataPresent: ctx.parsed.structuredDataPresent,
         changes: [],
         notableEvents: [],
       },
@@ -85,6 +88,9 @@ export function schemaInterceptor(ctx: NarrativeInterceptorContext): NarrativeIn
     return {
       parsed: {
         narrative: ctx.parsed.narrative,
+        digest: ctx.parsed.digest,
+        metadataRejected: true,
+        structuredDataPresent: ctx.parsed.structuredDataPresent,
         changes: [],
         notableEvents: [],
       },

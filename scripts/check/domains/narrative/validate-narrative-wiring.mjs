@@ -51,13 +51,14 @@ for (const field of ['长期记忆', '核心记忆', '相关往事', '近期完�
     failed++
   }
 }
-if (!narrativePrompt.includes("version: '3.0.0'") || !narrativePrompt.includes('NarrativeAIResponseSchema')) {
-  console.error('[FAIL] narrative-prompt 未接入 3.0.0 中文协议 Schema')
+if (!narrativePrompt.includes("version: '4.0.0'") || !narrativePrompt.includes('NarrativeAIResponseSchema')) {
+  console.error('[FAIL] narrative-prompt 未接入 4.0.0 分级中文协议 Schema')
   failed++
 }
 if (!narrativeComponents.includes('COMPILED_NARRATIVE_SYSTEM_PROMPT')
-  || !narrativeComponents.includes('buildNarrativeAIProtocolGuide')) {
-  console.error('[FAIL] narrative-prompt-components 未成为固定提示词与中文协议指南的装配权威')
+  || !narrativeComponents.includes('buildNarrativeAIProtocolBaseRules')
+  || !narrativeComponents.includes('buildNarrativeAIProtocolStandardExample')) {
+  console.error('[FAIL] narrative-prompt-components 未成为基础约束与唯一标准示例的装配权威')
   failed++
 }
 

@@ -1,5 +1,5 @@
 /**
- * 主叙事 3.0：中文协议、三层上下文、严格转译与延迟因果回归。
+ * 主叙事 4.0：分级中文协议、三层上下文、严格转译与延迟因果回归。
  */
 
 import fs from 'node:fs'
@@ -12,11 +12,13 @@ import {
 } from '../../../../src/core/ai-service/prompt-builder.ts'
 import {
   NarrativeAIResponseSchema,
+  buildNarrativeAIProtocolStandardExample,
   fromNarrativeAIIntentId,
   parseNarrativeAIDataJson,
   toNarrativeAIIntentId,
   translateNarrativeAIResponse,
 } from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
+import { extractTaggedMetaEnvelope } from '../../../../src/mods/mod-engine/helpers/tagged-meta-envelope.ts'
 import {
   projectCharacterForNarrativeAI,
   projectWorldSettingForNarrativeAI,
@@ -102,7 +104,6 @@ function buildChineseRoundData(overrides = {}) {
       },
     ],
     重要程度: '高',
-    本轮摘要: '你兑现旧诺，并因现实阻力付出代价。',
     关键事件: [
       {
         内容: '你在渡口兑现对林舟的承诺，同时暴露了自己的行踪。',
@@ -152,13 +153,14 @@ function buildChineseRoundData(overrides = {}) {
   }
 }
 
+const roundDigest = '你兑现旧诺，并因现实阻力付出代价。'
 const validChineseData = buildChineseRoundData()
 assertOk(
   NarrativeAIResponseSchema.safeParse(validChineseData).success,
   'complete Chinese round data must pass the only AI-visible schema',
 )
 
-const translated = translateNarrativeAIResponse(validChineseData)
+const translated = translateNarrativeAIResponse(validChineseData, roundDigest)
 assertOk(
   translated.changes[0]?.id === 'morality'
     && translated.changes[0]?.changes.delta === 1,
@@ -173,6 +175,15 @@ assertOk(
   translated.deferredCausality?.[0]?.type === 'promise'
     && translated.deferredCausality[0].severity === 'major',
   'Chinese deferred causality must translate to the owning local subsystem contract',
+)
+const standardExampleEnvelope = extractTaggedMetaEnvelope(buildNarrativeAIProtocolStandardExample())
+assertOk(
+  Boolean(standardExampleEnvelope?.dataPresent)
+    && translateNarrativeAIResponse(
+      parseNarrativeAIDataJson(standardExampleEnvelope?.dataSection ?? ''),
+      standardExampleEnvelope?.summary ?? '',
+    ).intentResolution?.status === 'progressing',
+  'the single annotated standard example must remain directly parseable by the local scanner and strict schema',
 )
 const repeatedOldCausalityField = structuredClone(validChineseData)
 repeatedOldCausalityField.延迟因果 = repeatedOldCausalityField.新延迟因果
@@ -189,7 +200,7 @@ assertOk(
 )
 const curlyProtocolJson = JSON.stringify(validChineseData).replace(/"([^"\\]*(?:\\.[^"\\]*)*)"/gu, '“$1”')
 assertOk(
-  translateNarrativeAIResponse(parseNarrativeAIDataJson(curlyProtocolJson)).digest
+  translateNarrativeAIResponse(parseNarrativeAIDataJson(curlyProtocolJson), roundDigest).digest
     === translated.digest,
   'Chinese syntax quotes must be repaired structurally without changing or dropping semantic fields',
 )
@@ -212,19 +223,19 @@ assertOk(
   'legacy English META must not enter the successful AI protocol path',
 )
 assertThrows(
-  () => translateNarrativeAIResponse(legacyEnglishData),
+  () => translateNarrativeAIResponse(legacyEnglishData, roundDigest),
   'legacy English META must fail strict translation',
 )
 assertThrows(
   () => translateNarrativeAIResponse(buildChineseRoundData({
     状态变更: [{ 系统: '未知系统', 说明: '非法目标', 变更: { 数值: 1 } }],
-  })),
+  }), roundDigest),
   'an unknown Chinese subsystem must reject the complete structured bundle',
 )
 assertThrows(
   () => translateNarrativeAIResponse(buildChineseRoundData({
     状态变更: [{ 系统: '道德', 说明: '非法字段', 变更: { 未知字段: 1 } }],
-  })),
+  }), roundDigest),
   'an unknown Chinese field must reject the complete structured bundle',
 )
 
@@ -309,18 +320,64 @@ for (const forbiddenInternalName of [
   )
 }
 
-const validEnvelope = `[正文]你在旧渡口停下船，林舟的灯从雨里亮起。\n\n你推开追兵横在栈桥上的长矛，让船队先解缆。\n\n最后一根缆绳落水时，北岸的号角也响了，你必须带着他们穿过封锁。[/正文]\n[回合数据]${JSON.stringify(validChineseData)}[/回合数据]`
+const validEnvelope = `⟦正文⟧\n你在旧渡口停下船，林舟的灯从雨里亮起。\n\n你推开追兵横在栈桥上的长矛，让船队先解缆。\n\n最后一根缆绳落水时，北岸的号角也响了，你必须带着他们穿过封锁。\n⟦摘要⟧\n${roundDigest}\n⟦数据⟧\n${JSON.stringify(validChineseData)}\n⟦结束⟧`
 assertOk(
   inspectNarrativeResponseQuality(validEnvelope, 200, 'branch:夺回家园').valid,
   'a complete Chinese envelope must pass the live protocol and paragraph gate',
 )
+const modelNoOpConditionalData = structuredClone(validChineseData)
+modelNoOpConditionalData.状态变更 = []
+modelNoOpConditionalData.原创内容 = []
+modelNoOpConditionalData.新延迟因果 = []
+modelNoOpConditionalData.语义信号.关系变化 = []
+modelNoOpConditionalData.语义信号.已回收伏笔编号 = []
+modelNoOpConditionalData.命运分支 = false
+modelNoOpConditionalData.命运意图判定.阻碍 = []
+modelNoOpConditionalData.命运意图判定.前置条件 = []
+modelNoOpConditionalData.命运意图判定.代价 = []
+const tolerantConditionalEnvelope = `⟦正文⟧\n第一段完整现场。\n\n第二段完整行动。\n\n第三段完整后果。\n⟦摘要⟧\n${roundDigest}\n⟦数据⟧\n${JSON.stringify(modelNoOpConditionalData)}\n⟦结束⟧`
+assertOk(
+  inspectNarrativeResponseQuality(tolerantConditionalEnvelope, 200, 'branch:夺回家园').valid,
+  'conditional intent data may normalize explicit no-op arrays and branch=false to omission without losing the intent result',
+)
+const nearSynonymConditionalData = structuredClone(modelNoOpConditionalData)
+nearSynonymConditionalData.新伏笔 = [{ 类型: '隐藏信息', 说明: '保留说明并归入其他', 优先级: 7 }]
+nearSynonymConditionalData.语义信号.关系变化 = [{ 姓名: '林舟', 类型: '怀疑', 说明: '保留关系说明并归入其他' }]
+assertOk(
+  inspectNarrativeResponseQuality(
+    tolerantConditionalEnvelope.replace(JSON.stringify(modelNoOpConditionalData), JSON.stringify(nearSynonymConditionalData)),
+    200,
+    'branch:夺回家园',
+  ).valid,
+  'optional near-synonym enums must not turn an otherwise valid conditional narrative into a hard reasoning error',
+)
+const minimumEnvelope = `⟦正文⟧\n第一段。\n\n第二段。\n\n第三段。\n⟦摘要⟧\n本轮发生了一个完整的小事件。\n⟦结束⟧`
+assertOk(
+  inspectNarrativeResponseQuality(minimumEnvelope, 200, null).valid,
+  'ordinary rounds must accept the minimum body-summary protocol without structured data',
+)
+assertOk(
+  !inspectNarrativeResponseQuality(minimumEnvelope, 200, 'branch:夺回家园').valid,
+  'an active fate intent must still require its complete conditional data',
+)
+assertOk(
+  !inspectNarrativeResponseQuality(minimumEnvelope, 200, null, true).valid,
+  'a forced branch must still require branch data',
+)
+const invalidOptionalDataEnvelope = `${minimumEnvelope.replace('\n⟦结束⟧', '\n⟦数据⟧\n{"状态变更": []}\n⟦结束⟧')}`
+const invalidOptionalDataQuality = inspectNarrativeResponseQuality(invalidOptionalDataEnvelope, 200, null)
+assertOk(
+  invalidOptionalDataQuality.valid
+    && invalidOptionalDataQuality.structuredDataStatus === 'rejected',
+  'invalid optional data must preserve body and summary without triggering a rewrite',
+)
 const legacyEnvelope = `[正文]第一段。\n\n第二段。\n\n第三段。[/正文]\n[回合数据]${JSON.stringify(legacyEnglishData)}[/回合数据]`
 assertOk(
   !inspectNarrativeResponseQuality(legacyEnvelope, 200, null).valid,
-  'an English legacy envelope must remain narrative-only failure, never accepted META',
+  'the old tagged envelope must not enter the successful protocol path',
 )
 
-assertOk(narrativePrompt.version === '3.0.0', 'Chinese protocol behavior must use Prompt 3.0.0')
+assertOk(narrativePrompt.version === '4.0.0', 'tiered Chinese protocol behavior must use Prompt 4.0.0')
 for (const forbiddenProtocolToken of [
   '[NARRATIVE]',
   '[META]',
@@ -335,10 +392,21 @@ for (const forbiddenProtocolToken of [
   )
 }
 assertOk(
-  narrativePrompt.systemPrompt.includes('[正文]')
-    && narrativePrompt.systemPrompt.includes('[回合数据]')
-    && narrativePrompt.systemPrompt.includes('第二人称“你”'),
-  'System Prompt must expose the Chinese envelope and second-person contract',
+  narrativePrompt.systemPrompt.includes('⟦正文⟧')
+    && narrativePrompt.systemPrompt.includes('⟦摘要⟧')
+    && narrativePrompt.systemPrompt.includes('⟦数据⟧')
+    && narrativePrompt.systemPrompt.includes('⟦结束⟧')
+    && narrativePrompt.systemPrompt.includes('第二人称“你”')
+    && narrativePrompt.systemPrompt.includes('不得填写“任务”等情节类型')
+    && narrativePrompt.systemPrompt.includes('不得填写“冲突”等事件类型')
+    && narrativePrompt.systemPrompt.includes('数据区不是字段清单')
+    && narrativePrompt.systemPrompt.includes('禁止输出 false'),
+  'System Prompt must expose the tiered Chinese protocol and second-person contract',
+)
+assertOk(
+  !narrativePrompt.systemPrompt.trimStart().startsWith('{')
+    && narrativePrompt.systemPrompt.trimEnd().endsWith('⟦结束⟧'),
+  'System Prompt must use low-noise plain constraints first and the single standard example last',
 )
 assertOk(
   new Set(NARRATIVE_SYSTEM_COMPONENTS.map((component) => component.id)).size
@@ -408,7 +476,7 @@ assertOk(
 )
 
 console.log(
-  `METRIC: prompt-3.0 system=${narrativePrompt.systemPrompt.length} global=${firstSegments.userSegments?.[0]?.length ?? 0} memory=${firstSegments.userSegments?.[1]?.length ?? 0} round=${firstSegments.userSegments?.[2]?.length ?? 0}`,
+  `METRIC: prompt-4.0 system=${narrativePrompt.systemPrompt.length} global=${firstSegments.userSegments?.[0]?.length ?? 0} memory=${firstSegments.userSegments?.[1]?.length ?? 0} round=${firstSegments.userSegments?.[2]?.length ?? 0}`,
 )
 
 if (failed > 0) process.exit(1)

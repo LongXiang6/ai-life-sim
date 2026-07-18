@@ -291,6 +291,8 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   private subsystems: ISubSystem[] = []
   private onNarrativeChunk: ((chunk: NarrativeChunk) => void) | null = null
+  /** 流式原始协议缓冲；UI 只接收其中已解析出的正文增量。 */
+  private rawNarrativeStream = ''
 
   /** 上次收集的子系统状态缓存 */
   private lastSubsystemStates: Record<string, SubSystemState> = {}
@@ -623,14 +625,30 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   /** 重置当前叙事文本（供 stage 闭包使用） */
   resetCurrentNarrative(): void {
+    this.rawNarrativeStream = ''
     this.state.currentNarrative = ''
   }
 
-  /** 追加叙事流式块（供 stage 闭包使用） */
+  /** 追加原始流式块，但只把正文区增量交给 UI，协议标记与数据区不显示。 */
   appendNarrativeChunk(chunk: string): void {
-    this.state.currentNarrative += chunk
+    this.rawNarrativeStream += chunk
+    const visibleNarrative = narrativeParser.parsePartial(this.rawNarrativeStream)
+    if (!visibleNarrative) return
+
+    const previous = this.state.currentNarrative
+    if (visibleNarrative.startsWith(previous)) {
+      const delta = visibleNarrative.slice(previous.length)
+      this.state.currentNarrative = visibleNarrative
+      if (delta && this.onNarrativeChunk) {
+        this.onNarrativeChunk({ text: delta, isComplete: false, timestamp: Date.now() })
+      }
+      return
+    }
+
+    this.state.currentNarrative = visibleNarrative
     if (this.onNarrativeChunk) {
-      this.onNarrativeChunk({ text: chunk, isComplete: false, timestamp: Date.now() })
+      this.onNarrativeChunk({ text: '', isComplete: false, isReset: true, timestamp: Date.now() })
+      this.onNarrativeChunk({ text: visibleNarrative, isComplete: false, timestamp: Date.now() })
     }
   }
 
@@ -1648,6 +1666,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       characterCreations: [],
     }
     this.lastSubsystemStates = {}
+    this.rawNarrativeStream = ''
     this.eventLifecycle = {}
     this.totalBreakthroughs = 0
     this.prevAbbreviationSnapshot = {}
@@ -2083,7 +2102,7 @@ export class OrchestratorSystem extends BaseSubsystem {
 
     if (isOpeningNarrativeRound) {
       const firstRoundInstruction = isBirthOpeningRound
-        ? '【出生开场】只写出生当日或前后短时段：用婴儿可感知的细节建立家庭处境与时代环境；禁止跨到翻身、爬行、学步或说话。当前年龄由时间系统派生，状态变更通常为空数组。'
+        ? '【出生开场】只写出生当日或前后短时段：用婴儿可感知的细节建立家庭处境与时代环境；禁止跨到翻身、爬行、学步或说话。当前年龄由时间系统派生；没有永久数值变化时省略状态变更。'
         : '人生记录开场：从当前年龄附近的具体场景建立身份、家世、环境与社会位置，不概述此前整段人生。'
       assembled.userInstruction = assembled.userInstruction
         ? `${assembled.userInstruction}\n\n${firstRoundInstruction}`
@@ -2332,6 +2351,13 @@ export class OrchestratorSystem extends BaseSubsystem {
         '流程指令',
         '玩家意图',
       )
+    } else {
+      addComponent(
+        'no-focused-branch-intent',
+        '【命运意图条件】本轮没有玩家命运意图，禁止输出“命运意图判定”字段；不要从标准示例复制条件字段。',
+        '流程指令',
+        '玩家意图',
+      )
     }
 
     // 原有逻辑
@@ -2531,9 +2557,12 @@ export class OrchestratorSystem extends BaseSubsystem {
     const focusedIntentBeforeCommit = this.getFocusedBranchIntentRuntime()
     const intentResolutionError = focusedIntentBeforeCommit
       ? validateIntentResolutionForState(focusedIntentBeforeCommit, effectiveParsed.intentResolution)
-      : effectiveParsed.intentResolution
-        ? '当前没有玩家命运意图，禁止提交 intentResolution'
-        : undefined
+      : undefined
+    if (!focusedIntentBeforeCommit && effectiveParsed.intentResolution) {
+      // 条件字段误复制不会获得任何写入权限；仅丢弃该字段，保留本轮合法正文、摘要、
+      // 语义和分支，避免标准示例的条件字段复制把整个分支结果拖成推理错误。
+      console.warn('[BranchIntent] 当前没有玩家命运意图，禁止提交 intentResolution')
+    }
     if (intentResolutionError) {
       console.warn('[BranchIntent] 本轮 META 未通过命运意图契约:', intentResolutionError)
     }
@@ -2553,62 +2582,41 @@ export class OrchestratorSystem extends BaseSubsystem {
     const stateChangeBundleAccepted = commitResult.rejected.length === 0
       && committedChanges.length === effectiveParsed.changes.length
 
-    // 语义权威：仅消费完整 Schema 与状态变更整包均通过的 META；否则使用显式中立降级。
-    const hasValidatedSemanticMetadata = !interceptorOutcome.blocked
+    // 数据区只有在完整 Schema、命运意图和状态变更整包都通过时才可消费。
+    const structuredDataAccepted = !interceptorOutcome.blocked
       && stateChangeBundleAccepted
-      && effectiveParsed.semanticSignals !== undefined
       && intentResolutionError === undefined
+      && effectiveParsed.metadataRejected !== true
+      && effectiveParsed.structuredDataPresent === true
+    const hasValidatedSemanticMetadata = structuredDataAccepted
+      && effectiveParsed.semanticSignals !== undefined
     if (narrative) {
       const semanticSignals = hasValidatedSemanticMetadata
         ? effectiveParsed.semanticSignals!
         : createNeutralNarrativeSemanticSignals()
+      const roundSequence = this.state.totalRounds
+      const structuredKeyEvents = structuredDataAccepted && Array.isArray(effectiveParsed.keyEvents)
+        ? effectiveParsed.keyEvents.filter((event): event is {
+            text: string
+            importance: number
+            entities?: string[]
+          } => typeof event === 'object' && event !== null && typeof event.text === 'string')
+        : []
 
       plotStructure.recordNarrativeSignals(semanticSignals)
-      if (hasValidatedSemanticMetadata) {
-        const roundSequence = this.state.totalRounds
-        const structuredKeyEvents = Array.isArray(effectiveParsed.keyEvents)
-          ? effectiveParsed.keyEvents.filter((event): event is {
-              text: string
-              importance: number
-              entities?: string[]
-            } => typeof event === 'object' && event !== null && typeof event.text === 'string')
-          : []
-        const entities = structuredKeyEvents.flatMap((event) => event.entities ?? [])
+      digestLedger.record({
+        round: roundSequence,
+        importance: structuredDataAccepted ? effectiveParsed.importance : undefined,
+        digest: effectiveParsed.digest,
+        keyEvents: structuredKeyEvents,
+      })
 
-        memoryLifecycle.setAISemanticAnalysis(
-          roundSequence,
-          effectiveParsed.importance!,
-          effectiveParsed.arcStatus!,
-          semanticSignals,
-          entities,
-        )
-        coreMemory.recordRelationshipUpdates(
-          semanticSignals.relationshipUpdates,
-          roundSequence,
-        )
+      if (structuredDataAccepted) {
         foreshadowing.detectForeshadowing(
           roundSequence,
           this.characterState?.age ?? 0,
           effectiveParsed.foreshadowing,
         )
-        foreshadowing.resolveForeshadowing(
-          semanticSignals.resolvedForeshadowingIds,
-          narrative,
-          roundSequence,
-        )
-        digestLedger.record({
-          round: roundSequence,
-          importance: effectiveParsed.importance,
-          digest: effectiveParsed.digest,
-          keyEvents: structuredKeyEvents,
-        })
-
-        causalDelay.commitCausalTriggers(
-          this.pendingNarrativeCausalEventIds,
-          roundSequence,
-          effectiveParsed.digest,
-        )
-        this.pendingNarrativeCausalEventIds = []
 
         const causalKeys = new Set(
           causalDelay.getCausalEvents().map((existing) =>
@@ -2630,7 +2638,7 @@ export class OrchestratorSystem extends BaseSubsystem {
           causalKeys.add(key)
         }
 
-        // 原创保护：只累积完整语义包中经校验的 creations。
+        // 原创保护：只累积完整数据区中经校验的 creations。
         const roundCreations = effectiveParsed.creations
         if (roundCreations?.length) {
           for (const c of roundCreations) {
@@ -2644,6 +2652,35 @@ export class OrchestratorSystem extends BaseSubsystem {
             }
           }
         }
+      }
+
+      if (hasValidatedSemanticMetadata) {
+        const entities = structuredKeyEvents.flatMap((event) => event.entities ?? [])
+
+        memoryLifecycle.setAISemanticAnalysis(
+          roundSequence,
+          effectiveParsed.importance!,
+          effectiveParsed.arcStatus!,
+          semanticSignals,
+          entities,
+        )
+        coreMemory.recordRelationshipUpdates(
+          semanticSignals.relationshipUpdates,
+          roundSequence,
+        )
+        foreshadowing.resolveForeshadowing(
+          semanticSignals.resolvedForeshadowingIds,
+          narrative,
+          roundSequence,
+        )
+
+        causalDelay.commitCausalTriggers(
+          this.pendingNarrativeCausalEventIds,
+          roundSequence,
+          effectiveParsed.digest,
+        )
+        this.pendingNarrativeCausalEventIds = []
+
       }
     }
 
@@ -2706,7 +2743,7 @@ export class OrchestratorSystem extends BaseSubsystem {
         description: c.description,
         changes: c.changes,
       })),
-      notableEvents: hasValidatedSemanticMetadata ? effectiveParsed.notableEvents : [],
+      notableEvents: structuredDataAccepted ? effectiveParsed.notableEvents : [],
       direction: worldDirection,
       intentResolution: committedIntentResolution,
     }

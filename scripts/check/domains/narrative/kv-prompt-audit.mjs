@@ -355,7 +355,7 @@ assertOk(
   'ordinary and equipped mythic effects must both be injected every round',
 )
 assertOk(
-  narrativePromptComponents.includes('普通命格与已装备神话命格的效果是持续叙事规则'),
+  narrativePromptComponents.includes('普通与已装备神话命格效果每轮持续生效'),
   'system prompt must define ordinary and mythic effects as persistent rules while keeping mythic inheritance narrative-only',
 )
 
@@ -380,22 +380,22 @@ for (const inactiveConnection of [
   )
 }
 assertOk(
-  liveNarrativePrompt.version === '3.0.0'
+  liveNarrativePrompt.version === '4.0.0'
     && !narrativePromptComponents.includes('examples: ['),
-  'optimized prompt must be versioned and must not duplicate the schema into large few-shot examples',
+  'optimized prompt must be versioned and keep one governed standard example instead of duplicate examples',
 )
 assertOk(
-  narrativePromptComponents.includes('正文全程用第二人称“你”指代玩家角色')
-    && narrativePromptComponents.includes('不写第三人称传记、履历或编年报告')
-    && narrativePromptComponents.includes('每轮至少落入一个可辨认的现场')
+  narrativePromptComponents.includes('正文全程用第二人称“你”')
+    && narrativePromptComponents.includes('不写全知旁白、第三人称传记或编年报告')
+    && narrativePromptComponents.includes('至少保留一个可感知现场')
     && narrativePromptComponents.includes('娱乐性、代入感和继续游玩的意愿')
     && NARRATIVE_SYSTEM_COMPONENTS.some((component) => component.kind === '示例'),
   'main narrative components must lock second-person viewpoint and scene-level immersion',
 )
 assertOk(
-  narrativePromptComponents.includes('围绕同一条因果主线')
-    && narrativePromptComponents.includes('不得把三个独立日常、地点或人物各写成一段')
-    && narrativePromptComponents.includes('时间是剧情的观察尺度，不是逐步记账任务'),
+  narrativePromptComponents.includes('连续推进同一因果主线')
+    && narrativePromptComponents.includes('三个独立生活切片')
+    && narrativePromptComponents.includes('时间服务剧情，不逐步记账'),
   'main narrative prompt must reject annual disconnected-life-slice output while retaining one causal storyline',
 )
 assertOk(

@@ -1,6 +1,6 @@
 /**
  * @module narrative-prompt.ts
- * @description 主叙事 Prompt —— 组件化固定前缀 + 三层中文上下文 + 中文回合数据
+ * @description 主叙事 Prompt —— 组件化固定前缀 + 三层中文上下文 + 分级中文协议
  * @mod mod-engine
  *
  * 固定提示词由 narrative-prompt-components.ts 编译；用户消息由 core Prompt Builder
@@ -48,7 +48,7 @@ export function getWorldRules(essenceTag?: string): string {
 
 export const narrativePrompt: PromptTemplate = {
   name: 'narrative',
-  version: '3.0.0',
+  version: '4.0.0',
   mod: 'mod-engine',
   systemPrompt: SYSTEM_PROMPT,
   userPromptTemplate: '主叙事用户消息由统一编译器装配为“全局信息、记忆、本轮引导”三层。',

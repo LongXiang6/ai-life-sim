@@ -241,8 +241,11 @@ export function getPreGenQueueLength(): number {
 function parsePreGenMetadata(content: string): NarrativeRoundMetadata | null {
   try {
     const envelope = extractTaggedMetaEnvelope(content)
-    if (!envelope) return null
-    return translateNarrativeAIResponse(parseNarrativeAIDataJson(envelope.metaJson))
+    if (!envelope?.dataPresent) return null
+    return translateNarrativeAIResponse(
+      parseNarrativeAIDataJson(envelope.dataSection ?? ''),
+      envelope.summary,
+    )
   } catch {
     return null
   }
@@ -327,15 +330,10 @@ export async function fillPreGenQueue(
         return
       }
 
-      // 预生成会被主推进直接消费，因此必须先通过与主解析相同的 META Schema。
-      // 本地 fallback、缺失标签或畸形 JSON 都留给真实推进重新请求，不能伪装成有效缓存。
+      // 普通轮允许正文+摘要作为最低成功；有效数据区仍用于预判命运分支。
+      // 当前命运意图已经由质量门禁要求完整数据，因此不会把缺失条件字段的结果写入缓存。
       const metadata = parsePreGenMetadata(fullContent)
-      if (!metadata) {
-        console.info('[PreGen] 预生成响应缺少有效叙事 META，已放弃缓存')
-        return
-      }
-
-      const isBranchPoint = isEligibleNarrativeBranch(metadata)
+      const isBranchPoint = metadata ? isEligibleNarrativeBranch(metadata) : false
       if (isBranchPoint && orchestrator.isBranchCoolingDownForNextRound()) {
         // 分支是强交互事件。冷却期内丢弃预生成分支，改由主推进用最新玩家选择现场生成。
         return

@@ -19,6 +19,10 @@ import {
   type NarrativeSemanticSignals,
 } from './narrative-semantic-signals'
 import {
+  NARRATIVE_BODY_TAG,
+  NARRATIVE_DATA_TAG,
+  NARRATIVE_END_TAG,
+  NARRATIVE_SUMMARY_TAG,
   parseNarrativeAIDataJson,
   translateNarrativeAIResponse,
 } from './narrative-ai-protocol'
@@ -56,10 +60,20 @@ interface RawAIResponse {
 
 /** 清理 AI 在降级/嵌套输出时残留到正文里的信封标签，避免 UI 直接显示协议标记。 */
 function stripNarrativeEnvelopeArtifacts(text: string): string {
-  return text
-    .replace(/\[回合数据\][\s\S]*$/, '')
-    .replace(/\[\/?正文\]/g, '')
-    .replace(/\[\/回合数据\]/g, '')
+  const normalized = text.replace(/\r\n?/gu, '\n')
+  const bodyStart = normalized.indexOf(NARRATIVE_BODY_TAG)
+  const narrativeStart = bodyStart >= 0 ? bodyStart + NARRATIVE_BODY_TAG.length : 0
+  const summaryStart = normalized.indexOf(NARRATIVE_SUMMARY_TAG, narrativeStart)
+  const dataStart = normalized.indexOf(NARRATIVE_DATA_TAG, narrativeStart)
+  const endCandidates = [summaryStart, dataStart]
+    .filter((index) => index >= narrativeStart)
+  const narrativeEnd = endCandidates.length > 0 ? Math.min(...endCandidates) : normalized.length
+  return normalized
+    .slice(narrativeStart, narrativeEnd)
+    .replaceAll(NARRATIVE_END_TAG, '')
+    .replace(/\[回合数据\][\s\S]*$/u, '')
+    .replace(/\[\/?正文\]/gu, '')
+    .replace(/\[\/回合数据\]/gu, '')
     .trim()
 }
 
@@ -67,6 +81,8 @@ function parseRawAIResponse(
   raw: RawAIResponse,
   processor: ChineseTextProcessor,
   narrativeOverride?: string,
+  metadataRejectedOverride = false,
+  structuredDataPresent = false,
 ): ParsedNarrative {
   // 防御处理：JSON.parse 将 \\n 转为字面量 \n（两个字符），需替换为真实换行符
   if (raw.narrative && typeof raw.narrative === 'string' && raw.narrative.includes('\\n')) {
@@ -105,7 +121,8 @@ function parseRawAIResponse(
     // 解析阶段只做结构映射。完整数组必须原样进入整包拦截器，禁止先删非法项后部分提交。
     changes: mapRawNarrativeChanges(raw.changes),
     notableEvents: metadata?.notableEvents ?? [],
-    metadataRejected: Boolean(metadataResult && !metadataResult.success),
+    metadataRejected: metadataRejectedOverride || Boolean(metadataResult && !metadataResult.success),
+    structuredDataPresent,
     direction,
     creations: metadata?.creations?.length ? metadata.creations : undefined,
     foreshadowing: metadata?.foreshadowing?.length ? metadata.foreshadowing : undefined,
@@ -139,7 +156,7 @@ export interface ParseStrategy {
 }
 
 // ============================================================
-// L0: [正文] + [回合数据] 信封解析策略
+// L0: 正文 + 摘要 + 可选数据分区协议
 // ============================================================
 
 export class TaggedMetaParseStrategy implements ParseStrategy {
@@ -149,11 +166,28 @@ export class TaggedMetaParseStrategy implements ParseStrategy {
     const envelope = extractTaggedMetaEnvelope(content)
     if (!envelope) return null
 
+    if (!envelope.dataPresent) {
+      return parseRawAIResponse(
+        { digest: envelope.summary },
+        processor,
+        envelope.narrative,
+      )
+    }
+
     try {
-      const raw = translateNarrativeAIResponse(parseNarrativeAIDataJson(envelope.metaJson)) as RawAIResponse
-      return parseRawAIResponse(raw, processor, envelope.narrative)
+      const raw = translateNarrativeAIResponse(
+        parseNarrativeAIDataJson(envelope.dataSection ?? ''),
+        envelope.summary,
+      ) as RawAIResponse
+      return parseRawAIResponse(raw, processor, envelope.narrative, false, true)
     } catch {
-      return null
+      return parseRawAIResponse(
+        { digest: envelope.summary },
+        processor,
+        envelope.narrative,
+        true,
+        true,
+      )
     }
   }
 }

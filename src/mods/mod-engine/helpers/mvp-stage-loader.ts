@@ -112,7 +112,7 @@ export class MvpStageLoader {
       guide,
       '---',
       'MVP 提交规则：',
-      '  仅当叙事确实改变基础属性、寿命、气运或善恶时写 changes；普通剧情发展请返回空数组 []。',
+      '  仅当叙事确实改变基础属性、寿命、气运或善恶时写状态变更；普通剧情省略整个字段。',
       '  属性变更示例：{"id":"character-base","description":"勤修苦练，体魄增强","changes":{"physiqueDelta":2}}',
       '  年龄由时间推进与起始年龄派生，禁止写 lifespan.age；只有明确减寿/增寿事件才写 lifespanDelta。',
       '  未列入上方字段指南的模拟系统当前延后，禁止写入。',

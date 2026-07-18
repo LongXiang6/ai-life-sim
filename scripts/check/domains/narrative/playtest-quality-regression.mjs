@@ -278,31 +278,38 @@ activity.finish(generation)
 assertOk(!activity.isActive(), 'pre-gen finish must release the single-writer gate')
 
 const validEnvelope = extractTaggedMetaEnvelope(
-  '[正文]第一段。\n\n第二段。[/正文]\n[回合数据]{"状态变更":[]}[/回合数据]',
+  '⟦正文⟧\n第一段。\n\n第二段。\n⟦摘要⟧\n本轮完成了一件事。\n⟦数据⟧\n{"重要程度":"普通","情节状态":"进行中","语义信号":{"事件类型":"日常","冲突强度":10,"张力变化":0,"行动规模":"小","不可逆":false,"影响范围":"个人","叙事语域":"生活","语域理由":"日常事件。","情节类型":"无"}}\n⟦结束⟧',
 )
 assertSame(validEnvelope?.narrative, '第一段。\n\n第二段。', 'valid tagged envelope narrative')
-assertSame(validEnvelope?.metaJson, '{"状态变更":[]}', 'valid tagged envelope meta')
+assertSame(validEnvelope?.summary, '本轮完成了一件事。', 'valid tagged envelope summary')
+assertOk(validEnvelope?.dataPresent === true, 'valid tagged envelope must expose the optional data section')
 
-const duplicatedNarrativeTag = extractTaggedMetaEnvelope(
-  '[正文]完整正文第一段。\n\n完整正文第二段。[正文]\n[回合数据]{"状态变更":[],"本轮摘要":"含有{括号}的字符串"}[/回合数据]',
+const minimumEnvelope = extractTaggedMetaEnvelope(
+  '⟦正文⟧\n完整正文第一段。\n\n完整正文第二段。\n⟦摘要⟧\n含有{括号}的摘要。\n⟦结束⟧',
 )
 assertOk(
-  duplicatedNarrativeTag?.narrative.includes('完整正文第二段。'),
-  'duplicated [正文] must be tolerated as a mistaken closing marker',
+  minimumEnvelope?.narrative.includes('完整正文第二段。')
+    && minimumEnvelope.summary === '含有{括号}的摘要。'
+    && minimumEnvelope.dataPresent === false,
+  'minimum body-summary output must parse without a data section',
 )
 
-const missingClosers = extractTaggedMetaEnvelope(
-  '[正文]没有正文结束标签，但内容完整。\n[回合数据]{"状态变更":[],"本轮摘要":"仍应恢复"}',
+const malformedDataEnvelope = extractTaggedMetaEnvelope(
+  '⟦正文⟧\n正文仍然完整。\n⟦摘要⟧\n摘要仍然完整。\n⟦数据⟧\n{"状态变更": [}\n⟦结束⟧',
 )
 assertSame(
-  missingClosers?.narrative,
-  '没有正文结束标签，但内容完整。',
-  'round-data opening must terminate narrative when [/正文] is missing',
+  malformedDataEnvelope?.narrative,
+  '正文仍然完整。',
+  'malformed optional data must not destroy the extracted narrative',
 )
 assertSame(
-  missingClosers?.metaJson,
-  '{"状态变更":[],"本轮摘要":"仍应恢复"}',
-  'balanced round-data JSON must recover without [/回合数据]',
+  malformedDataEnvelope?.summary,
+  '摘要仍然完整。',
+  'malformed optional data must not destroy the extracted summary',
+)
+assertOk(
+  extractTaggedMetaEnvelope('⟦正文⟧\n正文。\n⟦摘要⟧\n摘要。') === null,
+  'missing deterministic end marker must not be accepted as complete output',
 )
 
 assertOk(
@@ -562,7 +569,6 @@ assertOk(
 const chineseMetadata = {
   状态变更: [{ 系统: '基础属性', 说明: '你完成了心智训练。', 变更: { 心智变化: 1 } }],
   重要程度: '普通',
-  本轮摘要: '你在压力下完成了一次心智训练。',
   关键事件: [{ 内容: '你完成了心智训练。', 重要度: 45, 涉及实体: ['你'] }],
   情节状态: '进行中',
   语义信号: {
@@ -575,13 +581,14 @@ const chineseMetadata = {
     叙事语域: '生活',
     语域理由: '这是一次具体的日常训练。',
     情节类型: '无',
-    关系变化: [],
-    已回收伏笔编号: [],
   },
 }
 assertOk(
   NarrativeAIResponseSchema.safeParse(chineseMetadata).success
-    && translateNarrativeAIResponse(chineseMetadata).changes[0]?.changes.mindDelta === 1,
+    && translateNarrativeAIResponse(
+      chineseMetadata,
+      '你在压力下完成了一次心智训练。',
+    ).changes[0]?.changes.mindDelta === 1,
   'Chinese system and field names must pass the AI schema and translate to the internal field contract',
 )
 assertOk(
@@ -852,20 +859,20 @@ const mayIndex = 4
 const monthAfterSeasonStep = (mayIndex + 3) % 12
 assertSame(Math.floor(((monthAfterSeasonStep + 10) % 12) / 3), 1, 'month->season must land in the following solar season')
 assertOk(/candidate\.importance\s*===\s*'HIGH'/.test(branchPolicySrc), 'ordinary branch points must require HIGH importance')
-assertOk(narrativePromptComponentsSrc.includes('身份、核心关系、长期目标、关键资源、阵营、存亡或其他不可逆轨迹'), 'branch prompt must define fate-changing impact dimensions')
-assertOk(/version:\s*'3\.0\.0'/.test(narrativePromptSrc), 'branch-intent narrative prompt must use version 3.0.0')
+assertOk(narrativePromptComponentsSrc.includes('身份、核心关系、长期目标、关键资源、阵营、存亡等不可逆轨迹'), 'branch prompt must define fate-changing impact dimensions')
+assertOk(/version:\s*'4\.0\.0'/.test(narrativePromptSrc), 'branch-intent narrative prompt must use version 4.0.0')
 assertOk(
   /semanticSignals\?\.irreversible\s*===\s*true/.test(branchPolicySrc)
     && /narrativeRegister\s*===\s*'fate'/.test(branchPolicySrc),
   'branch eligibility must require an irreversible fate or legacy semantic signal',
 )
 assertOk(
-  narrativePromptComponentsSrc.includes('正文全程用第二人称“你”指代玩家角色')
-    && narrativePromptComponentsSrc.includes('每轮至少落入一个可辨认的现场')
-    && narrativePromptComponentsSrc.includes('不写第三人称传记、履历或编年报告'),
+  narrativePromptComponentsSrc.includes('正文全程用第二人称“你”')
+    && narrativePromptComponentsSrc.includes('至少保留一个可感知现场')
+    && narrativePromptComponentsSrc.includes('不写全知旁白、第三人称传记或编年报告'),
   'narrative prompt must preserve second-person viewpoint, scene-level immersion, and anti-biography constraints',
 )
-assertOk(narrativePromptComponentsSrc.includes('三至五月为春，六至八月为夏，九至十一月为秋，十二月至二月为冬'), 'narrative prompt must define the canonical solar season mapping')
+assertOk(narrativePromptComponentsSrc.includes('阳历季节：3—5月春、6—8月夏、9—11月秋、12—2月冬'), 'narrative prompt must define the canonical solar season mapping')
 assertOk(!/narrative:\s*parsed\.narrative\.slice\(/.test(narrativeInterceptorSrc), 'narrative interceptor must never hard-truncate the story')
 assertOk(!narrativeInterceptorSrc.includes('trimIncompleteNarrativeTail'), 'incomplete narrative tails must be preserved instead of deleted')
 assertOk(timelineTsxSrc.includes('splitNarrativeParagraphs(entry.text)'), 'timeline must render the normalized three-paragraph contract')

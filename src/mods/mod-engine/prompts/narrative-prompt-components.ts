@@ -4,11 +4,9 @@
  * @mod mod-engine
  */
 
-import { stringifyPrompt } from '@/foundation'
-
 import {
-  buildNarrativeAIProtocolExample,
-  buildNarrativeAIProtocolGuide,
+  buildNarrativeAIProtocolBaseRules,
+  buildNarrativeAIProtocolStandardExample,
 } from '../helpers/narrative-ai-protocol'
 import type { NarrativePromptComponent } from '../helpers/narrative-prompt-component-types'
 
@@ -27,9 +25,8 @@ const NARRATIVE_SYSTEM_COMPONENT_DEFINITIONS: readonly Omit<
     dependsOn: [],
     exitWhen: '永不退出',
     content: [
-      '你是人生模拟器的主叙事引擎。先判断本轮最值得发生的一件事，再以第二人称写出玩家亲历的中文剧情与可校验回合数据。',
-      '核心目标是娱乐性、代入感和继续游玩的意愿；文笔、人物声音、现场、行动阻力、可见后果与未解决牵引优先于字数精确。',
-      '玩家消息中的本轮指令优先；不得替玩家完成尚未选择的命运分支。',
+      '你是人生模拟器的主叙事引擎。选择本轮最值得发生的一件事，以娱乐性、代入感和继续游玩的意愿为目标写中文剧情。',
+      '文笔、人物声音、现场、阻力、后果和后续牵引优先于字数；遵守本轮玩家指令，不替玩家做未选择的决定。',
     ],
   },
   {
@@ -42,9 +39,8 @@ const NARRATIVE_SYSTEM_COMPONENT_DEFINITIONS: readonly Omit<
     dependsOn: ['世界设定', '当前状态', '记忆'],
     exitWhen: '永不退出',
     content: [
-      '世界设定、玩家自定义与已启用模组规则共同定义事实边界；冲突时采用更具体、更新的玩家设定。',
-      '当前状态、最近变化、记忆与近期完整经历共同构成因果；不得只续写上一段，也不得引入尚未成立的能力、关系或资源。',
-      '普通命格与已装备神话命格的效果是持续叙事规则，但都不能绕过条件、代价、死亡、世界规则或玩家选择。',
+      '事实优先级：更具体、更新的玩家设定 > 世界与模组规则 > 当前状态、记忆和近期经历。',
+      '不得引入尚未成立的能力、关系或资源；普通与已装备神话命格效果每轮持续生效，但不能绕过条件、代价、死亡、世界规则或玩家选择。',
     ],
   },
   {
@@ -57,10 +53,9 @@ const NARRATIVE_SYSTEM_COMPONENT_DEFINITIONS: readonly Omit<
     dependsOn: ['本轮引导'],
     exitWhen: '永不退出',
     content: [
-      '正文必须且只分三段，段间空一行，围绕同一条因果主线：触发与压力、行动与阻力、后果与新局面。三段不要求等长。',
-      '每轮至少落入一个可辨认的现场。先写你能看见、听见、触到或合理推断的细节，再写具体动作、对话、他人回应和可见后果。',
-      '平静轮也要有欲望、关系回声、意外、压力或悬念；禁止流水账、年度报告、空泛感悟、同义反复和为凑字堆景物。',
-      '不得把三个独立日常、地点或人物各写成一段；换场必须明确承接上一段的行动、阻力或后果。结尾必须是完整中文句子。',
+      '正文且只分三段，段间空一行，依次写触发与压力、行动与阻力、后果与新局面；三段连续推进同一因果主线。',
+      '至少保留一个可感知现场、具体动作或对话、人物回应和可见后果；平静轮也要有欲望、关系回声、意外、压力或悬念。',
+      '禁止流水账、年度报告、空泛感悟、同义反复、三个独立生活切片和为凑字堆景物；结尾必须完整。',
     ],
   },
   {
@@ -73,9 +68,8 @@ const NARRATIVE_SYSTEM_COMPONENT_DEFINITIONS: readonly Omit<
     dependsOn: ['角色档案', '角色现状'],
     exitWhen: '永不退出',
     content: [
-      '正文全程用第二人称“你”指代玩家角色。除他人直接称呼或必须消歧外，不用角色姓名、“他”“她”“主角”或“角色”作叙事主语。',
-      '镜头只进入你当时能感知、回忆或合理推断的范围，不用全知旁白泄露幕后事实，不写第三人称传记、履历或编年报告。',
-      '历史原文只用于继承事实、关系、因果和线索，不得模仿其中的人称、措辞或段落结构。',
+      '正文全程用第二人称“你”；除直接称呼或消歧外，不用姓名、他、她、主角或角色作叙事主语。',
+      '镜头只写你能感知、回忆或合理推断的内容，不写全知旁白、第三人称传记或编年报告；历史原文只继承事实。',
     ],
   },
   {
@@ -88,9 +82,8 @@ const NARRATIVE_SYSTEM_COMPONENT_DEFINITIONS: readonly Omit<
     dependsOn: ['当前时间', '本轮时间跨度'],
     exitWhen: '永不退出',
     content: [
-      '当前时间是本轮结束节点；正文覆盖上一叙事节点之后到当前节点之间发生的事。',
-      '时间是剧情的观察尺度，不是逐步记账任务。跨月、跨季或跨年只概述同一主线的积累与变化，主体仍选择最有冲突力的代表性现场。',
-      '季节按阳历：三至五月为春，六至八月为夏，九至十一月为秋，十二月至二月为冬。天气、衣着、农事和节庆必须服从实际月份。',
+      '当前时间是本轮结束节点；时间服务剧情，不逐步记账。跨月、季、年只概述积累，主体仍锁定一个代表性现场。',
+      '阳历季节：3—5月春、6—8月夏、9—11月秋、12—2月冬；天气、衣着、农事和节庆服从月份。',
     ],
   },
   {
@@ -103,9 +96,8 @@ const NARRATIVE_SYSTEM_COMPONENT_DEFINITIONS: readonly Omit<
     dependsOn: ['叙事风格', '叙事基调', '语义信号'],
     exitWhen: '永不退出',
     content: [
-      '默认、史诗、写实、诗意只调节镜头与措辞，不改变剧情事实。',
-      '生活语域用于日常、学习、工作和局部关系；命运语域只用于不可逆轨迹变化；传承语域只用于有既有因果支撑的高潮或收束。',
-      '时间跨度本身不能让语域升级；不得靠堆砌“星辰、命运、时代”等词制造宏大感。',
+      '基础文风只调节镜头和措辞；生活用于日常，命运用于不可逆轨迹变化，传承只用于有既有因果支撑的高潮或收束。',
+      '时间跨度不能让语域自动升级；不用宏大词堆砌代替因果。',
     ],
   },
   {
@@ -118,72 +110,31 @@ const NARRATIVE_SYSTEM_COMPONENT_DEFINITIONS: readonly Omit<
     dependsOn: ['语义信号', '分支冷却'],
     exitWhen: '永不退出',
     content: [
-      '命运分支只用于会改变身份、核心关系、长期目标、关键资源、阵营、存亡或其他不可逆轨迹的高重要度抉择。',
-      '选项写玩家可采取的行动、立场或方向，不承诺成功结果。普通日常直接写入正文，不生成分支。',
-      '命运分支为真时，重要程度必须为高、不可逆必须为真、叙事语域必须为命运；高潮收束可以为传承。',
-    ],
-  },
-  {
-    id: 'style-example',
-    title: '极短文风参照',
-    kind: '示例',
-    lifecycle: '全局常驻',
-    authority: '文风参考',
-    order: 80,
-    dependsOn: [],
-    exitWhen: '经成对评估证明无收益时退出',
-    content: [
-      '可取：雨水落到你的手背，你把门推开半寸。屋里的谈话立刻停下，你仍握着门环。对方把空椅推向你，没说完的话成了你必须面对的新局面。',
-      '不可取：某年某月，角色进入屋内，并由此开启了人生的新阶段。',
+      '命运分支只用于改变身份、核心关系、长期目标、关键资源、阵营、存亡等不可逆轨迹的高重要度抉择。',
+      '选项只写行动、立场或方向，不承诺成功；分支必须高重要度、不可逆并使用命运或传承语域。',
     ],
   },
   {
     id: 'chinese-output-protocol',
-    title: '中文输出协议',
+    title: '基础输出约束',
     kind: '输出协议',
     lifecycle: '全局常驻',
     authority: '世界与协议',
-    order: 90,
-    dependsOn: ['中文字段指南'],
+    order: 80,
+    dependsOn: ['本轮引导'],
     exitWhen: '永不退出',
-    content: buildNarrativeAIProtocolGuide(),
+    content: buildNarrativeAIProtocolBaseRules(),
   },
   {
-    id: 'chinese-protocol-shape-example',
-    title: '中文回合数据形状示例',
+    id: 'chinese-protocol-standard-example',
+    title: '标准返回示例',
     kind: '示例',
     lifecycle: '全局常驻',
     authority: '世界与协议',
-    order: 95,
-    dependsOn: ['中文输出协议'],
-    exitWhen: '中文协议通过率在固定模型评估中稳定且移除示例不降低通过率时退出',
-    content: buildNarrativeAIProtocolExample(),
-  },
-  {
-    id: 'integrity-and-failure',
-    title: '完整性与失败处理',
-    kind: '硬限制',
-    lifecycle: '全局常驻',
-    authority: '世界与协议',
-    order: 100,
-    dependsOn: ['中文输出协议'],
+    order: 90,
+    dependsOn: ['基础输出约束', '中文字段指南'],
     exitWhen: '永不退出',
-    content: [
-      '不得为篇幅、数组条数、上下文预算或格式便利删短、截尾或只提交部分剧情事实；需要凝练时必须保持全部事实可追踪。',
-      '篇幅只是玩家节奏偏好，不是失败条件。完整剧情、好文笔、人物代入、因果推进和继续游玩的意愿优先。',
-      '无法判断数值变化时返回空状态变更；信息不足时写一个具体、克制、符合既有状态的事件，不制造新世界规则。',
-    ],
-  },
-  {
-    id: 'round-task',
-    title: '执行任务',
-    kind: '流程指令',
-    lifecycle: '全局常驻',
-    authority: '玩家意图',
-    order: 110,
-    dependsOn: ['本轮引导', '中文输出协议'],
-    exitWhen: '永不退出',
-    content: '依据最后一层“本轮引导”选择最合理、最有吸引力的一件事；先完成结构化判断，再写有现场、有行动、有阻力、有人物回应、有可见后果和下一步牵引的三段剧情。',
+    content: buildNarrativeAIProtocolStandardExample(),
   },
 ] as const
 
@@ -217,14 +168,19 @@ export function compileNarrativePromptComponents(
   components: readonly NarrativePromptComponent[],
 ): string {
   const ordered = [...components].sort((a, b) => a.order - b.order)
-  const promptObject: Record<string, string | string[]> = {}
+  const seenTitles = new Set<string>()
+  const parts: string[] = []
   for (const component of ordered) {
-    if (promptObject[component.title]) {
+    if (seenTitles.has(component.title)) {
       throw new Error(`主叙事提示词组件标题重复：${component.title}`)
     }
-    promptObject[component.title] = component.content
+    seenTitles.add(component.title)
+    const content = Array.isArray(component.content)
+      ? component.content.join('\n')
+      : component.content
+    if (content.trim()) parts.push(content.trim())
   }
-  return stringifyPrompt(promptObject)
+  return parts.join('\n')
 }
 
 /** 动态组件按权威与顺序装配为紧凑文本；组件元数据只供本地治理，不发送给 AI。 */

@@ -11,27 +11,24 @@ const narrativeParagraphs = [
 ]
 
 const narrativeMeta = {
-  changes: [],
-  importance: 'NORMAL',
-  digest: '你抵达陌生城市，在旧书店发现一份能连接生活与人际的工作机会。',
-  keyEvents: [{ text: '你在旧书店发现招工启事并决定傍晚答复', importance: 60, entities: ['旧书店', '店主'] }],
-  arcStatus: 'start',
-  semanticSignals: {
-    eventType: 'discovery',
-    conflictIntensity: 8,
-    tensionDelta: 2,
-    actionScale: 'small',
-    irreversible: false,
-    impactScope: 'personal',
-    narrativeRegister: 'life',
-    registerReason: '开局生活事件建立角色与世界的第一条联系',
-    arcType: 'life_stage',
-    relationshipUpdates: [],
-    resolvedForeshadowingIds: [],
+  重要程度: '普通',
+  关键事件: [{ 内容: '你在旧书店发现招工启事并决定傍晚答复', 重要度: 60, 涉及实体: ['旧书店', '店主'] }],
+  情节状态: '开始',
+  语义信号: {
+    事件类型: '发现',
+    冲突强度: 8,
+    张力变化: 2,
+    行动规模: '小',
+    不可逆: false,
+    影响范围: '个人',
+    叙事语域: '生活',
+    语域理由: '开局生活事件建立角色与世界的第一条联系',
+    情节类型: '人生阶段',
   },
 }
 
-const fixtureResponse = `[NARRATIVE]${narrativeParagraphs.join('\n\n')}[/NARRATIVE]\n[META]${JSON.stringify(narrativeMeta)}[/META]`
+const fixtureSummary = '你抵达陌生城市，在旧书店发现一份能连接生活与人际的工作机会。'
+const fixtureResponse = `⟦正文⟧\n${narrativeParagraphs.join('\n\n')}\n⟦摘要⟧\n${fixtureSummary}\n⟦数据⟧\n${JSON.stringify(narrativeMeta)}\n⟦结束⟧`
 
 function unavailable(message) {
   console.error(`[character-first-narrative-browser] UNAVAILABLE: ${message}`)

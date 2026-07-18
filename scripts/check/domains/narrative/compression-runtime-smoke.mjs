@@ -2,7 +2,7 @@
  * 叙事压缩运行时冒烟检查。
  *
  * 覆盖：
- *   1. 主叙事 META 必须带 digest、keyEvents 与每事件 importance/entities；
+ *   1. 主叙事最低成功必须带 digest；可选 keyEvents 一旦出现仍必须带 importance；
  *   2. 摘要账本实际按权重保留高分事件、折叠低分事件；
  *   3. L1 延迟窗口的首个覆盖区间与最近完整原文窗口不能产生空洞；
  *   4. 摘要必须带完整覆盖标记，任何层级失败时不得伪造覆盖节点或成功统计。
@@ -73,14 +73,19 @@ const validMetadata = {
 
 assertOk(
   NarrativeResponseSchema.safeParse(validMetadata).success,
-  'valid narrative response must include digest and weighted keyEvents',
+  'valid structured narrative response may include digest and weighted keyEvents',
+)
+
+assertOk(
+  NarrativeResponseSchema.safeParse({ changes: [], digest: '你平稳度过了这一轮。' }).success,
+  'minimum body-summary success must be able to record digest without invented weights or entities',
 )
 
 const missingDigest = structuredClone(validMetadata)
 delete missingDigest.digest
 assertOk(
   !NarrativeResponseSchema.safeParse(missingDigest).success,
-  'response without the extra digest field must fail the active META schema',
+  'the independently extracted round digest must remain required internally',
 )
 
 const missingWeight = structuredClone(validMetadata)

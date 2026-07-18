@@ -9,7 +9,7 @@
  *   FallbackNarrativeBuilder → 后处理层（兜底叙事生成）
  *
  * 解析策略（全防御型 5 层降级管线）：
- *   L0: [正文]+[回合数据] 信封解析 —— 主叙事路径
+ *   L0: 正文+摘要+可选数据分区解析 —— 主叙事路径
  *   L1: 仅提取中文“正文”字段，不接收旧英文结构化协议
  *   L2: 正则提取正文字段（多版本文本交叉匹配 + 中文引号标准化）
  *   L3: 提取最长中文字符块 —— 纯文本响应
@@ -34,6 +34,10 @@ import type {
   NarrativeIntentResolution,
   NarrativeSemanticSignals,
 } from '../helpers/narrative-semantic-signals'
+import {
+  NARRATIVE_BODY_TAG,
+  NARRATIVE_SUMMARY_TAG,
+} from '../helpers/narrative-ai-protocol'
 
 import {
   ChineseTextProcessor,
@@ -71,6 +75,8 @@ export interface ParsedNarrative {
   notableEvents: string[]
   /** META 存在但未通过完整 Schema；消费方必须保留正文并整包拒绝 META。 */
   metadataRejected?: boolean
+  /** AI 是否实际输出了数据区；省略表示本轮没有结构化提交。 */
+  structuredDataPresent?: boolean
   /**
    * AI 输出的世界方向指令
    * - 字符串格式：简单方向标签（如 "修炼/突破"），用于叙事方向
@@ -151,7 +157,7 @@ export class NarrativeParserSystem extends BaseSubsystem {
    * 解析 AI 中文信封响应
    *
    * 全防御型 5 层降级管线：
-   *   L0: [正文]+[回合数据] 信封解析
+   *   L0: 正文+摘要+可选数据分区解析
    *   L1: 中文正文字段降级
    *   L2: 正则提取正文（多版本文本交叉匹配 + 中文引号标准化）
    *   L3: 提取最长中文字符块
@@ -174,13 +180,11 @@ export class NarrativeParserSystem extends BaseSubsystem {
   parsePartial(rawText: string): string | null {
     const normalized = this.textProcessor.normalizeQuotes(rawText)
 
-    const bodyOpen = normalized.indexOf('[正文]')
+    const bodyOpen = normalized.indexOf(NARRATIVE_BODY_TAG)
     if (bodyOpen >= 0) {
-      const bodyStart = bodyOpen + '[正文]'.length
-      const dataOpen = normalized.indexOf('[回合数据]', bodyStart)
-      const bodyClose = normalized.indexOf('[/正文]', bodyStart)
-      const ends = [dataOpen, bodyClose].filter((index) => index >= bodyStart)
-      const bodyEnd = ends.length > 0 ? Math.min(...ends) : normalized.length
+      const bodyStart = bodyOpen + NARRATIVE_BODY_TAG.length
+      const summaryOpen = normalized.indexOf(NARRATIVE_SUMMARY_TAG, bodyStart)
+      const bodyEnd = summaryOpen >= bodyStart ? summaryOpen : normalized.length
       const body = normalized.slice(bodyStart, bodyEnd).trim()
       if (body.length >= 20) return body
     }

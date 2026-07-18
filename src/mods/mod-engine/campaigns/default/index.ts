@@ -162,10 +162,16 @@ export function loadStages(
         const wordCountTarget = useSettingsStore.getState().wordCountTarget
           ?? DEFAULT_WORD_COUNT_TARGET
         const expectedIntentId = orchestrator.getFocusedBranchIntent()?.intentId ?? null
+        const requireBranch = useEngineStore.getState().forceBranchNext
 
         const prefetched = orchestrator.consumePrefetchedNarrative()
         if (prefetched) {
-          const prefetchedQuality = inspectNarrativeResponseQuality(prefetched, wordCountTarget, expectedIntentId)
+          const prefetchedQuality = inspectNarrativeResponseQuality(
+            prefetched,
+            wordCountTarget,
+            expectedIntentId,
+            requireBranch,
+          )
           if (prefetchedQuality.valid) {
             orchestrator.resetCurrentNarrative()
             if (!orchestrator.isPreviewExecution()) {
@@ -313,31 +319,49 @@ export function loadStages(
             ctx._fullContent ?? '',
             wordCountTarget,
             expectedIntentId,
+            requireBranch,
           )
+          if (initialQuality.dataAdvisory) {
+            console.info('[Orchestrator]', initialQuality.dataAdvisory)
+          }
           if (!initialQuality.valid) {
-            const previousContent = ctx._fullContent ?? ''
-            const repairInstruction = compileNarrativeDynamicComponents([
-              createNarrativeRepairComponent(
-                buildNarrativeRepairInstruction(initialQuality, wordCountTarget, expectedIntentId),
-              ),
-            ]) ?? ''
-            if (useStream) {
-              orchestrator.resetCurrentNarrative()
-              useEngineStore.setState({ streamingNarrative: '' })
-            }
+            const runTargetedRepair = async (
+              quality: ReturnType<typeof inspectNarrativeResponseQuality>,
+              previousContent: string,
+              finalAttempt: boolean,
+            ): Promise<string> => {
+              const repairInstruction = compileNarrativeDynamicComponents([
+                createNarrativeRepairComponent(
+                  [
+                    buildNarrativeRepairInstruction(
+                      quality,
+                      wordCountTarget,
+                      expectedIntentId,
+                      requireBranch,
+                    ),
+                    ...(finalAttempt
+                      ? ['这是最后一次协议修复机会：只修复信封、三段结构和条件数据，保留上一版已成立的剧情事实，不要解释。']
+                      : []),
+                  ].join('\n'),
+                ),
+              ]) ?? ''
+              if (useStream) {
+                orchestrator.resetCurrentNarrative()
+                useEngineStore.setState({ streamingNarrative: '' })
+              }
 
-            if (segments.strategy === 'S3' && segments.messages?.length) {
-              ctx._fullContent = await callAIDegraded(
-                [
-                  ...segments.messages,
-                  { role: 'assistant', content: previousContent },
-                  { role: 'user', content: repairInstruction },
-                ],
-                fallbackNarrative,
-                { ...streamOpts, onChunk: undefined },
-              )
-            } else {
-              ctx._fullContent = await callAIWithPromptTemplate(
+              if (segments.strategy === 'S3' && segments.messages?.length) {
+                return callAIDegraded(
+                  [
+                    ...segments.messages,
+                    { role: 'assistant', content: previousContent },
+                    { role: 'user', content: repairInstruction },
+                  ],
+                  fallbackNarrative,
+                  { ...streamOpts, onChunk: undefined },
+                )
+              }
+              return callAIWithPromptTemplate(
                 promptTemplate,
                 segments.full,
                 {
@@ -351,11 +375,29 @@ export function loadStages(
               )
             }
 
-            const repairedQuality = inspectNarrativeResponseQuality(
+            const previousContent = ctx._fullContent ?? ''
+            ctx._fullContent = await runTargetedRepair(initialQuality, previousContent, false)
+            let repairedQuality = inspectNarrativeResponseQuality(
               ctx._fullContent ?? '',
               wordCountTarget,
               expectedIntentId,
+              requireBranch,
             )
+            if (repairedQuality.dataAdvisory) {
+              console.info('[Orchestrator]', repairedQuality.dataAdvisory)
+            }
+            // 条件意图/强制分支是玩家当前动作的关键路径；首轮修复仍波动时，
+            // 再进行一次同一失败原因的协议修复，避免玩家只能靠刷新恢复。
+            if (!repairedQuality.valid && (expectedIntentId || requireBranch)) {
+              const secondPreviousContent = ctx._fullContent ?? previousContent
+              ctx._fullContent = await runTargetedRepair(repairedQuality, secondPreviousContent, true)
+              repairedQuality = inspectNarrativeResponseQuality(
+                ctx._fullContent ?? '',
+                wordCountTarget,
+                expectedIntentId,
+                requireBranch,
+              )
+            }
             if (!repairedQuality.valid) {
               const logQualityFailure = orchestrator.isPreviewExecution() ? console.info : console.warn
               logQualityFailure('[Orchestrator] 叙事完整重写后仍未通过质量门禁:', repairedQuality.reason)

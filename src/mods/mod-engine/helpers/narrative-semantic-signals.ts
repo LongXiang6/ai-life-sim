@@ -70,7 +70,7 @@ export const NarrativeSemanticSignalsSchema = z.object({
 export const NarrativeKeyEventSchema = z.object({
   text: z.string().min(1),
   importance: z.coerce.number().min(0).max(100),
-  entities: z.array(z.string().min(1)),
+  entities: z.array(z.string().min(1)).min(1).optional(),
 }).strict()
 
 export const NarrativeForeshadowingMarkSchema = z.object({
@@ -118,21 +118,55 @@ export const NarrativeDeferredCausalitySchema = z.object({
   relatedFaction: z.string().min(1).optional(),
 }).strict()
 
-/** 主叙事 AI 的完整语义包。任一字段非法时，消费方不得零散采信其余字段。 */
+/**
+ * 主叙事摘要始终独立提交；其余结构化数据按需出现。
+ * 语义核心、命运分支和命运意图仍分别作为不可拆散的条件契约。
+ */
 export const NarrativeRoundMetadataSchema = z.object({
   notableEvents: z.array(z.string().min(1)).optional(),
   creations: z.array(NarrativeCreationSchema).optional(),
   foreshadowing: z.array(NarrativeForeshadowingMarkSchema).optional(),
-  importance: z.enum(['HIGH', 'NORMAL', 'LOW']),
+  importance: z.enum(['HIGH', 'NORMAL', 'LOW']).optional(),
   digest: z.string().min(1),
-  keyEvents: z.array(NarrativeKeyEventSchema),
-  arcStatus: z.enum(['start', 'ongoing', 'end']),
-  semanticSignals: NarrativeSemanticSignalsSchema,
+  keyEvents: z.array(NarrativeKeyEventSchema).optional(),
+  arcStatus: z.enum(['start', 'ongoing', 'end']).optional(),
+  semanticSignals: NarrativeSemanticSignalsSchema.optional(),
   branch: z.boolean().optional(),
   branchTitle: z.string().min(1).optional(),
   branchOptions: z.array(z.string().min(1)).min(2).max(4).optional(),
   intentResolution: NarrativeIntentResolutionSchema.optional(),
   deferredCausality: z.array(NarrativeDeferredCausalitySchema).optional(),
+}).strict().superRefine((metadata, context) => {
+  const semanticCore = [metadata.importance, metadata.arcStatus, metadata.semanticSignals]
+  const semanticCoreCount = semanticCore.filter((value) => value !== undefined).length
+  if (semanticCoreCount > 0 && semanticCoreCount < semanticCore.length) {
+    context.addIssue({
+      code: 'custom',
+      message: '重要程度、情节状态与语义信号必须同时提交或同时省略',
+    })
+  }
+
+  const branchFields = [metadata.branch, metadata.branchTitle, metadata.branchOptions]
+  const branchFieldCount = branchFields.filter((value) => value !== undefined).length
+  if (branchFieldCount > 0 && branchFieldCount < branchFields.length) {
+    context.addIssue({
+      code: 'custom',
+      message: '命运分支、分支标题与分支选项必须同时提交或同时省略',
+    })
+  }
+  if (metadata.branch === false) {
+    context.addIssue({
+      code: 'custom',
+      path: ['branch'],
+      message: '没有命运分支时应省略字段，不输出 false',
+    })
+  }
+  if ((metadata.branch || metadata.intentResolution) && semanticCoreCount !== semanticCore.length) {
+    context.addIssue({
+      code: 'custom',
+      message: '命运分支或命运意图判定必须同时提交完整语义核心',
+    })
+  }
 })
 
 /** 标签信封 META 的完整运行时 Schema；预生成与主叙事质量门禁共用。 */

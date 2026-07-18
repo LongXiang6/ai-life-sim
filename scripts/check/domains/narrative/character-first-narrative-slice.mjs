@@ -138,18 +138,19 @@ check(
 check(
   'V7',
   'Product/Simulation/AIEnvelope',
-  'Does the live narrative path use the proxy and strict three-paragraph structured envelope?',
+  'Does the live narrative path use the proxy and tiered three-paragraph body-summary protocol?',
   () => {
     requireFragments('src/core/ai-service/ai-client.ts', ["fetchWithTimeout('/api/proxy'", 'fetchAIStreamResponse'])
     requireFragments('src/mods/mod-engine/helpers/narrative-response-quality.ts', [
-      'translateNarrativeAIResponse(parseNarrativeAIDataJson(envelope.metaJson))',
+      'parseNarrativeAIDataJson(envelope.dataSection ?? \'\')',
+      'envelope.summary',
       'if (paragraphs.length !== 3)',
     ])
     return requireFragments('src/mods/mod-engine/helpers/narrative-ai-protocol.ts', [
       'export const NarrativeAIResponseSchema',
-      '状态变更: z.array(NarrativeAIChangeSchema)',
-      '语义信号: NarrativeAISemanticSignalsSchema',
-      '新延迟因果: z.array(NarrativeAIDeferredCausalitySchema).optional()',
+      '状态变更: z.array(NarrativeAIChangeSchema).min(1).optional()',
+      '语义信号: NarrativeAISemanticSignalsSchema.optional()',
+      '新延迟因果: z.array(NarrativeAIDeferredCausalitySchema).min(1).optional()',
     ])
   },
 )

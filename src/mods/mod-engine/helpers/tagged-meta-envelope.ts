@@ -1,112 +1,94 @@
 /**
  * @module tagged-meta-envelope.ts
- * @description AI 叙事标签信封容错提取 —— 恢复常见漏标签与误闭合输出
+ * @description 主叙事分区协议提取：正文、摘要、可选数据与确定性结束标记
  * @mod mod-engine
  */
 
 import {
-  NARRATIVE_BODY_CLOSE_TAG,
-  NARRATIVE_BODY_OPEN_TAG,
-  NARRATIVE_DATA_CLOSE_TAG,
-  NARRATIVE_DATA_OPEN_TAG,
+  NARRATIVE_BODY_TAG,
+  NARRATIVE_DATA_TAG,
+  NARRATIVE_END_TAG,
+  NARRATIVE_SUMMARY_TAG,
 } from './narrative-ai-protocol'
 
 export interface TaggedMetaEnvelope {
   narrative: string
-  metaJson: string
+  summary: string
+  dataPresent: boolean
+  dataSection?: string
 }
 
-interface MarkerMatch {
-  index: number
-  length: number
+interface LineMarker {
+  lineStart: number
+  lineEnd: number
+  contentStart: number
 }
 
-function findMarker(content: string, pattern: RegExp, fromIndex = 0): MarkerMatch | null {
-  const source = content.slice(fromIndex)
-  const match = pattern.exec(source)
-  if (!match || match.index < 0) return null
-  return { index: fromIndex + match.index, length: match[0].length }
-}
+/** 只识别独占一行的协议标记，避免正文中偶然出现相同字符时误分区。 */
+function findLineMarker(content: string, marker: string, fromIndex = 0): LineMarker | null {
+  let searchFrom = fromIndex
+  while (searchFrom < content.length) {
+    const markerIndex = content.indexOf(marker, searchFrom)
+    if (markerIndex < 0) return null
 
-/** 按 JSON 字符串/转义规则寻找首个闭合对象，避免字符串中的花括号破坏深度。 */
-function extractBalancedJsonObject(source: string): string | null {
-  const start = source.indexOf('{')
-  if (start < 0) return null
-
-  let depth = 0
-  let inString = false
-  let escaped = false
-
-  for (let i = start; i < source.length; i++) {
-    const char = source[i]
-
-    if (inString) {
-      if (escaped) {
-        escaped = false
-      } else if (char === '\\') {
-        escaped = true
-      } else if (char === '"') {
-        inString = false
-      }
-      continue
-    }
-
-    if (char === '"') {
-      inString = true
-      continue
-    }
-    if (char === '{') depth += 1
-    if (char === '}') {
-      depth -= 1
-      if (depth === 0) {
-        return source.slice(start, i + 1)
+    const lineStart = content.lastIndexOf('\n', markerIndex - 1) + 1
+    const nextNewline = content.indexOf('\n', markerIndex + marker.length)
+    const lineEnd = nextNewline < 0 ? content.length : nextNewline
+    const line = content.slice(lineStart, lineEnd).replace(/\r$/u, '').trim()
+    if (line === marker) {
+      return {
+        lineStart,
+        lineEnd,
+        contentStart: nextNewline < 0 ? content.length : nextNewline + 1,
       }
     }
+
+    searchFrom = markerIndex + marker.length
   }
-
   return null
 }
 
 /**
- * 提取 `[正文]` + `[回合数据]` 信封。
+ * 提取 `正文 -> 摘要 -> 可选数据 -> 结束`。
  *
- * 容忍：
- * - 第二个 `[正文]` 被误写成正文结束标签；
- * - 缺少 `[/正文]`，由 `[回合数据]` 直接终止正文；
- * - 缺少 `[/回合数据]`，但回合数据内首个对象结构完整。
+ * 正文、摘要和结束标记始终必填；数据区可省略。数据区即使畸形也原样返回，
+ * 由唯一 JSON/Schema 权威做整包判定，提取器不补括号、不删字段、不猜语义。
  */
 export function extractTaggedMetaEnvelope(content: string): TaggedMetaEnvelope | null {
-  const narrativeOpen = findMarker(content, /\[正文\]/)
-  if (!narrativeOpen) return null
+  const normalized = content.replace(/^\uFEFF/u, '').replace(/\r\n?/gu, '\n')
+  const bodyMarker = findLineMarker(normalized, NARRATIVE_BODY_TAG)
+  if (!bodyMarker || normalized.slice(0, bodyMarker.lineStart).trim()) return null
 
-  const narrativeStart = narrativeOpen.index + narrativeOpen.length
-  const metaOpen = findMarker(content, /\[回合数据\]/, narrativeStart)
-  if (!metaOpen) return null
+  const summaryMarker = findLineMarker(normalized, NARRATIVE_SUMMARY_TAG, bodyMarker.contentStart)
+  if (!summaryMarker) return null
 
-  const narrativeClose = findMarker(content, /\[\/正文\]/, narrativeStart)
-  const duplicatedNarrativeOpen = findMarker(content, /\[正文\]/, narrativeStart)
-  const narrativeEndCandidates = [
-    narrativeClose?.index,
-    duplicatedNarrativeOpen?.index,
-    metaOpen.index,
-  ].filter((value): value is number => typeof value === 'number' && value >= narrativeStart)
-  const narrativeEnd = Math.min(...narrativeEndCandidates)
-  const narrative = content.slice(narrativeStart, narrativeEnd).trim()
-  if (!narrative) return null
+  const endMarker = findLineMarker(normalized, NARRATIVE_END_TAG, summaryMarker.contentStart)
+  if (!endMarker || normalized.slice(endMarker.lineEnd).trim()) return null
 
-  const metaStart = metaOpen.index + metaOpen.length
-  const metaClose = findMarker(content, /\[\/回合数据\]/, metaStart)
-  const metaSection = content.slice(metaStart, metaClose?.index ?? content.length).trim()
-  const metaJson = extractBalancedJsonObject(metaSection)
-  if (!metaJson) return null
+  const dataMarker = findLineMarker(normalized, NARRATIVE_DATA_TAG, summaryMarker.contentStart)
+  if (dataMarker && dataMarker.lineStart >= endMarker.lineStart) return null
 
-  return { narrative, metaJson }
+  const narrative = normalized.slice(bodyMarker.contentStart, summaryMarker.lineStart).trim()
+  const summaryEnd = dataMarker?.lineStart ?? endMarker.lineStart
+  const summary = normalized.slice(summaryMarker.contentStart, summaryEnd).trim()
+  if (!narrative || !summary) return null
+
+  if (!dataMarker) {
+    return { narrative, summary, dataPresent: false }
+  }
+
+  return {
+    narrative,
+    summary,
+    dataPresent: true,
+    dataSection: normalized.slice(dataMarker.contentStart, endMarker.lineStart).trim(),
+  }
 }
 
-/** 导出常量，供协议审计确认解析器与 Prompt 使用同一信封。 */
+/** 导出常量，供协议审计确认解析器与 Prompt 使用同一分区协议。 */
 export const TAGGED_NARRATIVE_PROTOCOL = {
-  narrativeOpen: NARRATIVE_BODY_OPEN_TAG,
-  narrativeClose: NARRATIVE_BODY_CLOSE_TAG,
-  dataOpen: NARRATIVE_DATA_OPEN_TAG,
-  dataClose: NARRATIVE_DATA_CLOSE_TAG,
+  body: NARRATIVE_BODY_TAG,
+  summary: NARRATIVE_SUMMARY_TAG,
+  data: NARRATIVE_DATA_TAG,
+  end: NARRATIVE_END_TAG,
 } as const

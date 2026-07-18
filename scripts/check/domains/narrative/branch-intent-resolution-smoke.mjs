@@ -39,7 +39,6 @@ function buildMetadata(intentResolution) {
     keyEvents: [{
       text: '你推进已选择的长期方向并确认当前阶段结果。',
       importance: 90,
-      entities: [],
     }],
     arcStatus: intentResolution.status === 'progressing' ? 'ongoing' : 'end',
     semanticSignals: {
@@ -156,9 +155,10 @@ const orchestratorSource = read('src/mods/mod-engine/subsystems/orchestrator-sys
 assertOk(!/callAI|fetch\s*\(/.test(branchCommands), 'selecting a branch must not add a separate AI request')
 assertOk(branchCommands.includes('orchestrator.resolveBranchChoice'), 'branch selection must hand the intent to the owning orchestrator')
 assertOk(
-  responseQuality.includes('当前没有玩家命运意图，禁止生成命运意图判定')
-    && responseQuality.includes('validateIntentResolution(metadata.intentResolution, expectedIntentId)'),
-  'main quality gate must require matching intentResolution and reject unsolicited intent state',
+  responseQuality.includes('validateIntentResolution(metadata.intentResolution, expectedIntentId)')
+    && responseQuality.includes('当前命运意图要求完整语义数据与命运意图判定')
+    && orchestratorSource.includes('当前没有玩家命运意图，禁止提交 intentResolution'),
+  'active intent must require matching data while unsolicited intent state is rejected before writes',
 )
 assertOk(
   orchestratorSource.indexOf('intentResolutionError') < orchestratorSource.indexOf("this.applyRoundChanges(effectiveParsed.changes, 'narrative')")
