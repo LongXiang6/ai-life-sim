@@ -40,8 +40,8 @@ export const worldCalibrationOutputSchema = z.object({
     difficulty: z.enum(['normal', 'hard', 'nightmare', 'hell']).optional(),
   }).optional(),
   styleGuide: z.object({
-    worldviewStyleHint: z.string().max(200).optional(),
-    narrativeTone: z.string().max(50).optional(),
+    worldviewStyleHint: z.string().optional(),
+    narrativeTone: z.string().optional(),
     eventTypeWeights: z.record(z.string(), z.coerce.number().min(0)).optional(),
   }).optional(),
   timeline: z.object({
@@ -116,23 +116,23 @@ export const worldCalibrationOutputSchema = z.object({
 export const worldCalibrationBundleOutputSchema = z.object({
   calibration: worldCalibrationOutputSchema,
   aiDetailedParameters: worldConfigOutputSchema.optional(),
-  worldTags: z.array(z.string()).min(3).max(12).optional(),
+  worldTags: z.array(z.string()).min(1).optional(),
 })
 
 export type WorldCalibrationBundleOutput = z.infer<typeof worldCalibrationBundleOutputSchema>
 
 export const worldCalibrationPrompt: PromptTemplate = {
   name: 'world-calibration',
-  version: '1.0.0',
+  version: '1.1.0',
   mod: 'mod-world',
 
   systemPrompt: stringifyPrompt({
     role: '世界模拟校准 AI',
-    task: '根据 WorldConfig、世界描述与用户维度选择，输出合并 JSON：calibration（稀疏）+ aiDetailedParameters（W02 全字段）+ worldTags（5-8 个氛围标签）。AI决定模式的维度可自行判定最适值',
+    task: '根据 WorldConfig、世界描述与用户维度选择，输出合并 JSON：calibration（稀疏）+ aiDetailedParameters（W02 全字段）+ 覆盖世界真实氛围所需的 worldTags。AI决定模式的维度可自行判定最适值',
     outputFormat: '纯 JSON 对象 { calibration, aiDetailedParameters, worldTags }；calibration 稀疏，aiDetailedParameters 全字段必填，worldTags 为字符串数组',
     constraints: [
       '顶层必须含 calibration 与 aiDetailedParameters 两个字段',
-      '同时输出 worldTags：5-8 个描述性标签字符串数组，须与 worldDescription 一致，禁止与描述矛盾',
+      '同时输出 worldTags：完整覆盖 worldDescription 中实际成立的描述性标签，去重但不得因固定条数省略，禁止与描述矛盾',
       '严格使用 camelCase 字段名，禁止自造字段',
       '禁止 markdown 代码块、禁止解释文字、禁止占位符',
       '先阅读 dimensionChoices，了解用户对每个维度的决定权：AI决定模式下可自由调整该维度的值',

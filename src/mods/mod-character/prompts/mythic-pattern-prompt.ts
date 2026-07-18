@@ -13,9 +13,9 @@ const MYTHIC_PATTERN_SYSTEM_PROMPT = `你是人生神话词条的凝结器。根
 输出且只输出含正好3个对象的紧凑JSON顶层数组，不要对象包装，不要markdown。
 
 每项字段：
-- name：2-8字，像从完整人生凝结出的神话称号。
-- concept：2-6字，概括唯一核心概念，如“承诺”“铭记”“善意”。
-- effect：30-100汉字，描述下一段人生中持续生效的纯概念叙事规则。
+- name：简短、鲜明，像从完整人生凝结出的神话称号。
+- concept：用精炼短语概括唯一核心概念，如“承诺”“铭记”“善意”。
+- effect：完整描述下一段人生中持续生效的纯概念叙事规则，不得为满足字符数删掉条件、代价或边界。
 
 硬性规则：
 1. finalState、lifeDigests、lifeRecords 与 lifeSummary 共同构成人生事实；神话词条必须能从其中的选择、代价、关系、承诺或回响找到因果来源，不得凭空添加未发生的经历。
@@ -26,9 +26,9 @@ const MYTHIC_PATTERN_SYSTEM_PROMPT = `你是人生神话词条的凝结器。根
 6. 若用户消息含 existingMythicPatterns，候选名称不得与总库已有名称重复，核心概念也应优先避开已有概念。`
 
 export const mythicPatternCandidateSchema = z.object({
-  name: z.string().min(2).max(8),
-  concept: z.string().min(2).max(6),
-  effect: z.string().min(30).max(100),
+  name: z.string().min(2),
+  concept: z.string().min(2),
+  effect: z.string().min(1),
 }).strict()
 
 export const mythicPatternOutputSchema = z.array(mythicPatternCandidateSchema).length(3)
@@ -37,7 +37,7 @@ type MythicPatternOutput = z.infer<typeof mythicPatternOutputSchema>
 
 export const mythicPatternPrompt: PromptTemplate<MythicPatternOutput> = {
   name: 'mythic-pattern',
-  version: '1.0.1',
+  version: '1.1.0',
   mod: 'mod-character',
   systemPrompt: MYTHIC_PATTERN_SYSTEM_PROMPT,
   userPromptTemplate: '',

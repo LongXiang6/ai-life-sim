@@ -14,10 +14,10 @@ const DESTINY_PATTERN_SYSTEM_PROMPT = `你是命格、天赋与人格特质生�
 输出且只输出含正好${AI_DESTINY_PATTERN_BATCH_SIZE}个对象的紧凑JSON顶层数组：[{...},{...}]，不要对象包装，不要markdown。
 
 每条字段：
-- name：2-8字。
+- name：简短、鲜明的命格名称。
 - rarity：common/fine/rare/epic/legendary。
 - polarity：positive/mixed。禁止 negative；mixed 必须同时包含明确收益与有限代价。
-- description：50-110汉字，定义角色开局前已经成立且长期稳定的天赋、体质、认知方式、性格倾向或代价机制。
+- description：完整定义角色开局前已经成立且长期稳定的天赋、体质、认知方式、性格倾向或代价机制，不得为满足字符数删掉条件、收益或代价。
 - effect：至少10字，概括实际影响。
 - attrBonus：只允许 physique/mind/talentAptitude/charisma（体魄/心智/悟性/魅力），只写非零项。common仅单属性±1；fine总量≤2；rare≤3；epic≤5；legendary≤7。
 - systemModifiers：可选的模拟系数对象。common/fine省略；rare最多1个个人字段、0.95-1.08；epic最多2个个人字段和1个世界字段、0.90-1.15；legendary最多2个个人字段和2个世界字段、0.85-1.20。个人字段仅可用 luckPointModifier/hpRecoveryModifier/staminaRecoveryModifier/breakthroughChanceModifier/cultivationSpeedModifier/bottleneckModifier/incomeModifier/fertilityModifier/devotionGainModifier/lifespanModifier/attributeDecayModifier；世界字段仅可用 birthRateModifier/deathRateModifier/warFrequencyModifier/techProgressModifier/disasterFrequencyModifier/monsterThreatModifier/socialMobilityModifier/migrationRateModifier/economyModifier/factionEmergenceModifier。
@@ -64,8 +64,8 @@ const destinyPatternSystemModifiersSchema = z.object({
 export const destinyPatternOutputSchema = z.array(
   z.object({
     type: z.enum(['命格', '特征']).optional(),
-    name: z.string().describe('命格名称（2-8字）'),
-    description: z.string().describe('命格描述（50-120字）'),
+    name: z.string().describe('简短、鲜明的命格名称'),
+    description: z.string().describe('完整命格描述，不得按字符数删短'),
     rarity: z.enum(['common', 'fine', 'rare', 'epic', 'legendary']).describe('稀有度'),
     polarity: z.enum(['positive', 'mixed']).describe('极性：正向，或收益与有限代价并存'),
     effect: z.string().describe('效果描述'),
@@ -83,7 +83,7 @@ export type DestinyPatternOutput = z.infer<typeof destinyPatternOutputSchema>
 
 export const destinyPatternPrompt: PromptTemplate<DestinyPatternOutput> = {
   name: 'destiny-pattern',
-  version: '3.2.0',
+  version: '3.3.0',
   mod: 'mod-character',
   systemPrompt: DESTINY_PATTERN_SYSTEM_PROMPT,
   userPromptTemplate: '',

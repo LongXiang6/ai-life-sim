@@ -4,7 +4,7 @@
  * @mod mod-engine
  *
  * 设计理念：
- *   memoryLifecycle 的均匀截断策略（L1×2 + L2×1）导致"均匀遗忘"——
+ *   旧版 memoryLifecycle 的固定条数选取曾导致“均匀遗忘”——
  *   关键事件和琐碎事件被同等对待。本系统维护一组"永久记忆"：
  *   1. 关键事件摘要（HIGH 重要性条目，来自 searchIndex）
  *   2. NPC 关系网记忆（首次相遇 + 关键互动）
@@ -48,12 +48,6 @@ const INTERACTION_LABELS: Record<string, string> = {
   death: '离世',
   other: '重要互动',
 }
-
-/** 每 NPC 最多保留互动数 */
-const MAX_INTERACTIONS_PER_NPC = 5
-
-/** 总 NPC 上限 */
-const MAX_NPC_COUNT = 20
 
 /** 关键事件摘要最大条目数 */
 const MAX_CORE_EVENTS = 15
@@ -166,14 +160,7 @@ export class CoreMemorySystem extends BaseSubsystem {
         type: update.type,
         summary: update.summary,
       })
-      if (records.length > MAX_INTERACTIONS_PER_NPC) {
-        const first = records[0]
-        const recent = records.slice(-(MAX_INTERACTIONS_PER_NPC - 1))
-        this.npcMap.set(npcName, [first, ...recent])
-      } else {
-        this.npcMap.set(npcName, records)
-      }
-      this.enforceNPCLimit()
+      this.npcMap.set(npcName, records)
     }
     this.syncToStore()
   }
@@ -196,12 +183,10 @@ export class CoreMemorySystem extends BaseSubsystem {
     if (this.npcMap.size === 0) return ''
 
     const lines: string[] = ['【关键人物关系】']
-    let count = 0
 
     for (const [name, records] of this.npcMap) {
-      if (count >= MAX_NPC_COUNT) break
-
       const first = records[0]
+      if (!first) continue
       const keyInteractions = records.filter((r) => r.type !== 'first_meeting')
 
       lines.push(`\n▸ ${name}`)
@@ -212,8 +197,6 @@ export class CoreMemorySystem extends BaseSubsystem {
         const typeLabel = INTERACTION_LABELS[interaction.type] ?? interaction.type
         lines.push(`  ${typeLabel}（第${interaction.round}轮）：${interaction.summary}`)
       }
-
-      count++
     }
 
     return lines.join('\n')
@@ -249,7 +232,14 @@ export class CoreMemorySystem extends BaseSubsystem {
     // 用 summaryCompressor 的 AI 压缩摘要替代硬截断
     const overflowStart = overflow[0].startRound
     const overflowEnd = overflow[overflow.length - 1].endRound
-    const mergedContent = this.buildMergedSummary(overflowStart, overflowEnd, overflow.length)
+    const mergedContent = this.buildMergedSummary(overflow)
+    if (!mergedContent) {
+      return sorted.map((entry) => ({
+        rounds: `${entry.startRound}-${entry.endRound}`,
+        importance: 'HIGH' as const,
+        content: entry.content,
+      }))
+    }
 
     const mergedEntry: CoreMemoryEntry = {
       rounds: `${overflowStart}-${overflowEnd}`,
@@ -267,10 +257,16 @@ export class CoreMemorySystem extends BaseSubsystem {
   }
 
   /** 用已有 AI 压缩摘要构建合并文本（禁止硬截断） */
-  private buildMergedSummary(startRound: number, endRound: number, eventCount: number): string {
+  private buildMergedSummary(
+    entries: Array<{ startRound: number; endRound: number }>,
+  ): string | null {
+    if (entries.length === 0) return null
+    const startRound = entries[0].startRound
+    const endRound = entries[entries.length - 1].endRound
+    const eventCount = entries.length
     const { summaries } = summaryCompressor.getSummaries()
     if (summaries.length === 0) {
-      return `早期共${eventCount}个关键事件（摘要不可用）`
+      return null
     }
 
     // 筛选覆盖溢出区间的摘要：L2 优先（25轮跨度），L2 不足时 L3 兜底，均不足时 L1 兜底
@@ -301,31 +297,19 @@ export class CoreMemorySystem extends BaseSubsystem {
           return `【早期关键事件合辑·${eventCount}条（L1摘要）】\n${lines.join('\n')}`
         }
       }
-      return `早期共${eventCount}个关键事件（无覆盖摘要）`
+      return null
+    }
+
+    const fullyCovered = entries.every((entry) => relevant.some(
+      (summary) => summary.startRound <= entry.startRound && summary.endRound >= entry.endRound,
+    ))
+    if (!fullyCovered) {
+      return null
     }
 
     // 逐条拼接（每段已经是 AI 生成的完整段落，不做字符截断）
     const lines = relevant.map((s) => `[L${s.level}·${s.startRound}-${s.endRound}轮] ${s.content}`)
     return `【早期关键事件合辑·${eventCount}条】\n${lines.join('\n')}`
-  }
-
-  /** 强制 NPC 数量上限（移除最久未更新的） */
-  private enforceNPCLimit(): void {
-    if (this.npcMap.size <= MAX_NPC_COUNT) return
-
-    // 按最后互动轮次排序，移除最早的
-    const entries = [...this.npcMap.entries()]
-      .sort((a, b) => {
-        const aLast = a[1][a[1].length - 1]?.round ?? 0
-        const bLast = b[1][b[1].length - 1]?.round ?? 0
-        return aLast - bLast
-      })
-
-    // 移除最早的，保留 MAX_NPC_COUNT 个
-    const toRemove = entries.slice(0, entries.length - MAX_NPC_COUNT)
-    for (const [name] of toRemove) {
-      this.npcMap.delete(name)
-    }
   }
 
   /** 将 npcMap 同步到持久化 store（每次叙事更新后调用） */

@@ -489,6 +489,7 @@ const timeScaleSrc = readRel('src/mods/mod-engine/helpers/time-scale-narrative.t
 const narrativeCalendarSrc = readRel('src/mods/mod-engine/helpers/narrative-calendar.ts')
 const narrativePromptSrc = readRel('src/mods/mod-engine/prompts/narrative-prompt.ts')
 const narrativeInterceptorSrc = readRel('src/mods/mod-engine/helpers/narrative-interceptor-pipeline.ts')
+const powerContextSrc = readRel('src/mods/mod-world/utils/world-init-prompt-vars.ts')
 const timelineCssSrc = readRel('src/mods/mod-ui/components/organisms/NarrativeTimeline.module.css')
 const timelineTsxSrc = readRel('src/mods/mod-ui/components/organisms/NarrativeTimeline.tsx')
 const cultureIndexSrc = readRel('src/mods/mod-culture/index.ts')
@@ -643,7 +644,7 @@ assertOk(
 assertOk(!destinyPromptSrc.includes('第一次踩上'), 'destiny prompt must not teach biographical event openings')
 assertOk(/稳定|先天|固有/.test(destinyPromptSrc) && /禁止.*年份|严禁.*年份/.test(destinyPromptSrc), 'destiny prompt must require timeless traits')
 assertOk(destinyPromptSrc.includes('JSON顶层数组') && !destinyPromptSrc.includes('{"patterns"'), 'destiny prompt must match the top-level array Zod contract')
-assertOk(/version:\s*'3\.2\.0'/.test(destinyPromptSrc), 'destiny prompt contract change must bump its version')
+assertOk(/version:\s*'3\.3\.0'/.test(destinyPromptSrc), 'destiny prompt contract change must bump its version')
 assertOk(
   /polarity：positive\/mixed/.test(destinyPromptSrc)
     && !/z\.enum\(\['positive', 'negative', 'mixed'\]\)/.test(destinyPromptSrc),
@@ -836,7 +837,7 @@ const monthAfterSeasonStep = (mayIndex + 3) % 12
 assertSame(Math.floor(((monthAfterSeasonStep + 10) % 12) / 3), 1, 'month->season must land in the following solar season')
 assertOk(/candidate\.importance\s*===\s*'HIGH'/.test(branchPolicySrc), 'ordinary branch points must require HIGH importance')
 assertOk(narrativePromptSrc.includes('身份、核心关系、长期目标、关键资源、阵营、存亡或不可逆轨迹'), 'branch prompt must define fate-changing impact dimensions')
-assertOk(/version:\s*'2\.7\.1'/.test(narrativePromptSrc), 'entertainment-first narrative prompt must use version 2.7.1')
+assertOk(/version:\s*'2\.8\.0'/.test(narrativePromptSrc), 'entertainment-first narrative prompt must use version 2.8.0')
 assertOk(
   /semanticSignals\?\.irreversible\s*===\s*true/.test(branchPolicySrc)
     && /narrativeRegister\s*===\s*'fate'/.test(branchPolicySrc),
@@ -853,7 +854,8 @@ assertOk(!/narrative:\s*parsed\.narrative\.slice\(/.test(narrativeInterceptorSrc
 assertOk(!narrativeInterceptorSrc.includes('trimIncompleteNarrativeTail'), 'incomplete narrative tails must be preserved instead of deleted')
 assertOk(timelineTsxSrc.includes('splitNarrativeParagraphs(entry.text)'), 'timeline must render the normalized three-paragraph contract')
 assertOk(timelineTsxSrc.includes('splitNarrativeParagraphs(streamingText)'), 'streaming timeline must use the same paragraph contract')
-assertOk(orchestratorSrc.includes('buildPowerCeilingPresetsForNarrative'), 'narrative prompt must use the compact power context helper')
+assertOk(orchestratorSrc.includes('buildPowerCeilingPresetsForNarrative'), 'narrative prompt must use the power context helper')
+assertOk(!powerContextSrc.includes("split('。')[0]"), 'power context must preserve complete descriptions above the current ceiling')
 assertOk(/powerSystemTag[\s\S]{0,180}none/.test(orchestratorSrc), 'non-supernatural worlds must omit irrelevant power presets')
 assertOk(cultureIndexSrc.includes('buildCultureCalendarNarrativeContext'), 'mod-culture must expose the calendar adapter')
 

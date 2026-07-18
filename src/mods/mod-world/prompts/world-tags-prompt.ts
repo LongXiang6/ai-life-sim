@@ -13,10 +13,10 @@ import type { PromptTemplate } from '@/foundation'
 
 /** 世界标签生成输出 Schema（JSON Mode：顶层 object） */
 export const worldTagsOutputSchema = z.object({
-  tags: z.array(z.string()).min(3).max(12),
+  tags: z.array(z.string()).min(1),
 })
 
-const WORLD_TAGS_SYSTEM_PROMPT = `你是世界标签生成AI。根据世界描述和世界观类型，生成5-8个氛围标签（2-8字）。
+const WORLD_TAGS_SYSTEM_PROMPT = `你是世界标签生成AI。根据世界描述和世界观类型，生成覆盖世界真实氛围所需的全部精炼标签。
 输出纯JSON对象 {"tags":["标签1",...]}，不markdown代码块包裹。
 
 // 示例覆盖不同世界观×不同氛围标签：
@@ -37,11 +37,11 @@ const WORLD_TAGS_SYSTEM_PROMPT = `你是世界标签生成AI。根据世界描�
 - 标签仅描述此世界真实存在的要素，禁止标注不存在的东西
 - 唯心/心相/无灵气世界禁止「灵气充沛」「仙凡并存」
 - 不适用的文明层勿生成相关标签（如史前世界勿标「诸侯割据」）
-- 标签简洁2-8字，不解释、不评价`
+- 标签应简洁，不解释、不评价；不得为了满足固定条数或字符数省略世界描述中已经成立的关键氛围`
 
 export const worldTagsPrompt: PromptTemplate = {
   name: 'world-tags',
-  version: '2.0.0',
+  version: '2.1.0',
   mod: 'mod-world',
 
   systemPrompt: WORLD_TAGS_SYSTEM_PROMPT,

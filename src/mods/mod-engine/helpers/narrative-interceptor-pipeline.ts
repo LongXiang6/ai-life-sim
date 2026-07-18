@@ -31,7 +31,6 @@ export type NarrativeInterceptor = (
   ctx: NarrativeInterceptorContext,
 ) => NarrativeInterceptorOutcome
 
-const MAX_NARRATIVE_CHANGES = 24
 const NARRATIVE_LENGTH_WARNING_THRESHOLD = 50_000
 const COMPLETE_NARRATIVE_END_CHARS = new Set(['。', '！', '？', '…', '」', '”', '）', '】'])
 
@@ -46,13 +45,6 @@ function hasCompleteNarrativeEnd(text: string): boolean {
 export function safetyInterceptor(ctx: NarrativeInterceptorContext): NarrativeInterceptorOutcome {
   const warnings: string[] = []
   let parsed = ctx.parsed
-
-  if (parsed.changes.length > MAX_NARRATIVE_CHANGES) {
-    warnings.push(
-      `变更数量 ${parsed.changes.length} 超过上限 ${MAX_NARRATIVE_CHANGES}，已截断`,
-    )
-    parsed = { ...parsed, changes: parsed.changes.slice(0, MAX_NARRATIVE_CHANGES) }
-  }
 
   if (parsed.narrative.length > NARRATIVE_LENGTH_WARNING_THRESHOLD) {
     warnings.push(`叙事文本超过 ${NARRATIVE_LENGTH_WARNING_THRESHOLD} 字符，已保留全文`)
@@ -74,16 +66,37 @@ export function safetyInterceptor(ctx: NarrativeInterceptorContext): NarrativeIn
   return { parsed, blocked: false, warnings }
 }
 
-/** 步骤 2：schema 校验（丢弃非法 changes，不阻断叙事） */
+/** 步骤 2：schema 校验。任一非法变更出现时整包拒绝状态变更，禁止部分提交。 */
 export function schemaInterceptor(ctx: NarrativeInterceptorContext): NarrativeInterceptorOutcome {
+  if (ctx.parsed.metadataRejected) {
+    return {
+      parsed: {
+        narrative: ctx.parsed.narrative,
+        changes: [],
+        notableEvents: [],
+      },
+      blocked: false,
+      warnings: ['完整 META Schema 校验失败，已整包拒绝本轮 META；叙事正文保持完整'],
+    }
+  }
+
   const validChanges = validateRoundChanges(ctx.parsed.changes)
-  const dropped = ctx.parsed.changes.length - validChanges.length
-  const warnings = dropped > 0 ? [`schema 拦截器丢弃 ${dropped} 条非法变更`] : []
+  if (ctx.parsed.changes.length > 0 && validChanges.length === 0) {
+    return {
+      parsed: {
+        narrative: ctx.parsed.narrative,
+        changes: [],
+        notableEvents: [],
+      },
+      blocked: false,
+      warnings: ['schema 拦截器发现非法变更，已整包拒绝本轮 META；叙事正文保持完整'],
+    }
+  }
 
   return {
     parsed: { ...ctx.parsed, changes: validChanges },
     blocked: false,
-    warnings,
+    warnings: [],
   }
 }
 

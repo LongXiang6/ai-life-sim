@@ -180,10 +180,6 @@ export class MemoryForgettingSystem implements ISubSystem {
     )
     if (!existing) {
       this.causalEvents.push(event)
-      // 上限保护：保持最多 100 条因果事件
-      if (this.causalEvents.length > 100) {
-        this.causalEvents.shift()
-      }
     }
   }
 

@@ -27,7 +27,6 @@ export {
   MAX_CAUSAL_PER_DECADE,
   MAX_CAUSAL_PER_30_YEARS,
   CAUSAL_DELAY_RANGE,
-  MAX_CAUSAL_QUEUE_SIZE,
 } from './constants'
 
 // === 工具函数 ===

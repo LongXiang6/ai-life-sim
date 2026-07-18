@@ -19,9 +19,7 @@ import type {
 interface NPCStore {
   /** 所有 NPC（按 ID 索引） */
   npcs: Record<string, NPCState>
-  /** NPC 数量上限 */
-  maxNPCs: number
-  /** 最近行为事件（跨 NPC 的全局摘要） */
+  /** 行为事件（跨 NPC 的完整全局记录） */
   recentGlobalEvents: string[]
 
   /** 添加 NPC */
@@ -54,7 +52,6 @@ interface NPCStore {
 
 const initialState = {
   npcs: {} as Record<string, NPCState>,
-  maxNPCs: 20,
   recentGlobalEvents: [] as string[],
 }
 
@@ -64,8 +61,7 @@ export const useNPCStore = create<NPCStore>()(
       ...initialState,
 
       addNPC: (npc) => {
-        const { npcs, maxNPCs } = get()
-        if (Object.keys(npcs).length >= maxNPCs) return
+        const { npcs } = get()
         set({ npcs: { ...npcs, [npc.id]: npc } })
       },
 
@@ -98,7 +94,7 @@ export const useNPCStore = create<NPCStore>()(
         const { npcs } = get()
         const npc = npcs[npcId]
         if (!npc) return
-        const recentBehaviors = [behavior, ...npc.recentBehaviors].slice(0, 20)
+        const recentBehaviors = [behavior, ...npc.recentBehaviors]
         set({
           npcs: {
             ...npcs,
@@ -110,7 +106,7 @@ export const useNPCStore = create<NPCStore>()(
       addGlobalEvent: (event) => {
         const { recentGlobalEvents } = get()
         set({
-          recentGlobalEvents: [event, ...recentGlobalEvents].slice(0, 20),
+          recentGlobalEvents: [event, ...recentGlobalEvents],
         })
       },
 
@@ -125,7 +121,7 @@ export const useNPCStore = create<NPCStore>()(
               name: n.name,
               alive: n.alive,
               age: n.age,
-              description: `${n.name}，${n.age}岁，${n.gender === 'male' ? '男' : '女'}，${n.personality.traits.slice(0, 2).join('、')}`,
+              description: `${n.name}，${n.age}岁，${n.gender === 'male' ? '男' : '女'}，${n.personality.traits.join('、')}`,
               relationToPlayer: playerRelation
                 ? `${playerRelation.type}，好感度 ${playerRelation.affinity}`
                 : '无直接关系',
@@ -145,7 +141,7 @@ export const useNPCStore = create<NPCStore>()(
               name: n.name,
               alive: n.alive,
               age: n.age,
-              description: `${n.name}（${n.personality.traits.slice(0, 2).join('、')}）`,
+              description: `${n.name}（${n.personality.traits.join('、')}）`,
               relationToPlayer: playerRelation
                 ? `${playerRelation.type}·好感${playerRelation.affinity}`
                 : '无关',
@@ -155,7 +151,7 @@ export const useNPCStore = create<NPCStore>()(
           totalNPCs: Object.keys(npcs).length,
           aliveNPCs: aliveNPCs.length,
           keyNPCs,
-          recentEvents: recentGlobalEvents.slice(0, 5),
+          recentEvents: [...recentGlobalEvents],
         }
       },
 
@@ -179,8 +175,13 @@ export const useNPCStore = create<NPCStore>()(
     }),
     {
       name: 'mod-npc:persist:npc-state',
-      version: 1,
-      migrate: (persistedState: unknown, _version: number) => persistedState as NPCStore,
+      version: 2,
+      migrate: (persistedState: unknown, version: number) => {
+        if (!persistedState || typeof persistedState !== 'object') return persistedState as NPCStore
+        if (version >= 2) return persistedState as NPCStore
+        const { maxNPCs: _legacyCap, ...rest } = persistedState as Record<string, unknown>
+        return rest as unknown as NPCStore
+      },
       partialize: (state) => {
         const {
           addNPC: _a, removeNPC: _b, updateNPC: _c, killNPC: _d,

@@ -184,7 +184,7 @@ export class GeographySystem implements ISubSystem {
       year,
     }
 
-    this.state.tectonicEvents = [...this.state.tectonicEvents.slice(-19), event]
+    this.state.tectonicEvents = [...this.state.tectonicEvents, event]
 
     // 强板块活动可能导致地形变化（magnitude >= 7）
     if (magnitude >= 7 && this.state.regionTerrains[affectedRegion]) {
@@ -235,7 +235,7 @@ export class GeographySystem implements ISubSystem {
     }
 
     if (changed.length > 0) {
-      this.state.recentlyChanged = [...new Set([...this.state.recentlyChanged, ...changed])].slice(-20)
+      this.state.recentlyChanged = [...new Set([...this.state.recentlyChanged, ...changed])]
     }
   }
 
@@ -252,7 +252,7 @@ export class GeographySystem implements ISubSystem {
       this.state.regionTerrains[regionId].terrainType = 'volcanic'
       this.state.regionTerrains[regionId].marchDifficulty = TERRAIN_MARCH_DIFFICULTY['volcanic'] ?? 10
       this.state.regionTerrains[regionId].elevation = TERRAIN_ELEVATION['volcanic'] ?? 100
-      this.state.recentlyChanged = [...new Set([...this.state.recentlyChanged, regionId])].slice(-20)
+      this.state.recentlyChanged = [...new Set([...this.state.recentlyChanged, regionId])]
     }
   }
 
@@ -271,13 +271,13 @@ export class GeographySystem implements ISubSystem {
     }
 
     if (changed.length > 0) {
-      this.state.recentlyChanged = [...new Set([...this.state.recentlyChanged, ...changed])].slice(-20)
+      this.state.recentlyChanged = [...new Set([...this.state.recentlyChanged, ...changed])]
     }
   }
 
   /** 记录板块活动导致的地形变化 */
   private recordTectonicChange(regionId: string): void {
-    this.state.recentlyChanged = [...new Set([...this.state.recentlyChanged, regionId])].slice(-20)
+    this.state.recentlyChanged = [...new Set([...this.state.recentlyChanged, regionId])]
   }
 
   // ─── 领域方法 ───

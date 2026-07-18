@@ -36,7 +36,11 @@ import type {
 import { BaseSubsystem, callAI } from '@/core'
 import { useSettingsStore } from '@/mods/mod-settings'
 
-import { buildSummaryPrompt, buildSummarySystemPrompt } from '../prompts/summary-prompt'
+import {
+  buildSummaryPrompt,
+  buildSummarySystemPrompt,
+} from '../prompts/summary-prompt'
+import { requireCompletedSummaryContent } from '../helpers/summary-coverage'
 import {
   SUMMARY_INTERVAL,
   COMPRESS_L1_DELAY_ROUNDS,
@@ -289,7 +293,6 @@ export class SummaryCompressorSystem extends BaseSubsystem {
             character,
             [],
             resolvedBranches,
-            summaryTokens,
           )
 
           const raw = await callAI(system, user, {
@@ -315,17 +318,17 @@ export class SummaryCompressorSystem extends BaseSubsystem {
           // 失败降级：保留完整叙事文本（不截断）
           const fallbackParts: string[] = []
           for (const e of blockEvents) {
-            if (e.narrative && e.narrative.length > 10) {
+            if (e.narrative) {
               fallbackParts.push(`${e.age}岁 ${e.narrative}`)
             }
           }
-          const fallback = fallbackParts.length > 0
-            ? fallbackParts.join('；')
-            : `${startRound}~${endRound}轮叙事概略（生成失败）`
-          appendSummary({ level: 1 as const, startRound, endRound, content: fallback })
-          newLatestSummary = fallback
-          shouldShowSummary = true
-          this.stats.totalL1++
+          if (fallbackParts.length > 0) {
+            const fallback = fallbackParts.join('；')
+            appendSummary({ level: 1 as const, startRound, endRound, content: fallback })
+            newLatestSummary = fallback
+            shouldShowSummary = true
+            this.stats.totalL1++
+          }
         }
       }
     }
@@ -361,10 +364,7 @@ export class SummaryCompressorSystem extends BaseSubsystem {
 
           try {
             const maxTokens = computeSummaryL2Tokens(eventsForMerge.length)
-            const system = buildSummarySystemPrompt(
-              Math.floor(maxTokens * 1.5),
-              2,
-            )
+            const system = buildSummarySystemPrompt(2)
 
             const raw = await callAI(system, eventsForMerge, {
               config: aiConfig,
@@ -383,13 +383,7 @@ export class SummaryCompressorSystem extends BaseSubsystem {
             appendSummary({ level: 2 as const, startRound, endRound, content: this.sanitizeContent(raw) })
             this.stats.totalL2++
           } catch {
-            appendSummary({
-              level: 2 as const,
-              startRound,
-              endRound,
-              content: `${startRound}~${endRound}轮综合概略`,
-            })
-            this.stats.totalL2++
+            // 保留全部 L1 叶子等待后续重试；失败不得伪造覆盖节点。
           }
         }
       }
@@ -427,10 +421,7 @@ export class SummaryCompressorSystem extends BaseSubsystem {
 
           try {
             const maxTokens = computeSummaryL3Tokens(eventsForMerge.length)
-            const system = buildSummarySystemPrompt(
-              Math.floor(maxTokens * 1.5),
-              3,
-            )
+            const system = buildSummarySystemPrompt(3)
 
             const raw = await callAI(system, eventsForMerge, {
               config: aiConfig,
@@ -449,13 +440,7 @@ export class SummaryCompressorSystem extends BaseSubsystem {
             appendSummary({ level: 3 as const, startRound, endRound, content: this.sanitizeContent(raw) })
             this.stats.totalL3++
           } catch {
-            appendSummary({
-              level: 3 as const,
-              startRound,
-              endRound,
-              content: `${startRound}~${endRound}轮时代概略`,
-            })
-            this.stats.totalL3++
+            // 保留全部 L2 叶子等待后续重试；失败不得伪造覆盖节点。
           }
         }
       }
@@ -492,10 +477,7 @@ export class SummaryCompressorSystem extends BaseSubsystem {
 
           try {
             const maxTokens = computeSummaryL4Tokens(eventsForMerge.length)
-            const system = buildSummarySystemPrompt(
-              Math.floor(maxTokens * 1.5),
-              4,
-            )
+            const system = buildSummarySystemPrompt(4)
 
             const raw = await callAI(system, eventsForMerge, {
               config: aiConfig,
@@ -514,13 +496,7 @@ export class SummaryCompressorSystem extends BaseSubsystem {
             appendSummary({ level: 4 as const, startRound, endRound, content: this.sanitizeContent(raw) })
             this.stats.totalL4++
           } catch {
-            appendSummary({
-              level: 4 as const,
-              startRound,
-              endRound,
-              content: `${startRound}~${endRound}轮纪元概略`,
-            })
-            this.stats.totalL4++
+            // 保留全部 L3 叶子等待后续重试；失败不得伪造覆盖节点。
           }
         }
       }
@@ -557,10 +533,7 @@ export class SummaryCompressorSystem extends BaseSubsystem {
 
           try {
             const maxTokens = computeSummaryL5Tokens(eventsForMerge.length)
-            const system = buildSummarySystemPrompt(
-              Math.floor(maxTokens * 1.5),
-              5,
-            )
+            const system = buildSummarySystemPrompt(5)
 
             const raw = await callAI(system, eventsForMerge, {
               config: aiConfig,
@@ -584,13 +557,7 @@ export class SummaryCompressorSystem extends BaseSubsystem {
             })
             this.stats.totalL5++
           } catch {
-            appendSummary({
-              level: 5,
-              startRound,
-              endRound,
-              content: `${startRound}~${endRound}轮时代概略`,
-            })
-            this.stats.totalL5++
+            // 保留全部 L4 叶子等待后续重试；失败不得伪造覆盖节点。
           }
         }
       }
@@ -627,10 +594,7 @@ export class SummaryCompressorSystem extends BaseSubsystem {
 
           try {
             const maxTokens = computeSummaryL6Tokens(eventsForMerge.length)
-            const system = buildSummarySystemPrompt(
-              Math.floor(maxTokens * 1.5),
-              6,
-            )
+            const system = buildSummarySystemPrompt(6)
 
             const raw = await callAI(system, eventsForMerge, {
               config: aiConfig,
@@ -654,24 +618,14 @@ export class SummaryCompressorSystem extends BaseSubsystem {
             })
             this.stats.totalL6++
           } catch {
-            appendSummary({
-              level: 6,
-              startRound,
-              endRound,
-              content: `${startRound}~${endRound}轮历史概略`,
-            })
-            this.stats.totalL6++
+            // 保留全部 L5 叶子等待后续重试；失败不得伪造覆盖节点。
           }
         }
       }
     }
 
-    // Step 8: 更新内部状态并返回
-    // 上限保护：防止 summaries 无限增长（500条 ≈ ~125KB，安全上限）
-    const MAX_SUMMARIES = 500
-    if (summaries.length > MAX_SUMMARIES) {
-      summaries = summaries.slice(-MAX_SUMMARIES)
-    }
+    // Step 8: 更新内部状态并返回。所有层级摘要完整保留；容量压力只能通过
+    // 更高层语义压缩与叶子摘要注入处理，禁止按条目数淘汰历史事实。
     this.compressedSummaries = { summaries }
     if (didCompress) {
       this.stats.lastCompressionAt = Date.now()
@@ -842,7 +796,7 @@ export class SummaryCompressorSystem extends BaseSubsystem {
 
   /** 清理 AI 返回内容 */
   private sanitizeContent(raw: string): string {
-    return raw.trim()
+    return requireCompletedSummaryContent(raw)
   }
 
   // ============================================================

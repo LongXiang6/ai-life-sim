@@ -128,7 +128,7 @@ function detectRawEvents(states: DetectionStates): {
   const disasterLabels: Record<string, string> = { drought: '干旱', severe_winter: '严寒', flood: '洪涝', radiation_storm: '辐射风暴', heaven_drought: '天旱' }
   const climate = states.climateState
   if (climate && climate.activeDisasters && climate.activeDisasters.length > 0) {
-    for (const d of climate.activeDisasters.slice(0, 2)) {
+    for (const d of climate.activeDisasters) {
       const label = disasterLabels[d.type] || '天灾'
       rawEvents.push({ eventType: label, severity: 0.6, dataChange: '持续中', statusDesc: '极端气候影响，民生艰难' })
       thresholds[label] = () => !(states.climateState?.activeDisasters || []).some((dd) => (disasterLabels[dd.type] || '天灾') === label)

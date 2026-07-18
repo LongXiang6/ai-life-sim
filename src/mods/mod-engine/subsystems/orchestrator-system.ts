@@ -27,8 +27,6 @@ import { saveManager } from '@/core/storage/save-manager'
 import {
   adaptationManager,
   DEFAULT_ENGINE_CONFIG,
-  MAX_NARRATIVE_HISTORY,
-  MAX_CHARACTER_CREATIONS,
   USE_AI_SUMMARY_COMPRESSION,
   getWorldRules,
   buildWordCountInstruction,
@@ -37,7 +35,6 @@ import {
   buildEventInjectionText,
   buildTimeBridgeSummary,
   extractBridgeSnapshot,
-  extractL0Title,
   WorldEventBus,
   globalDeadLoopDetector,
   sanitizeSubSystemState,
@@ -2045,12 +2042,15 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   private getMemoryL0Titles(fromYear: number, toYear: number): string[] {
+    const digestByRound = new Map(
+      digestLedger.getEntries().map((entry) => [entry.round, entry.digest.trim()]),
+    )
     return memoryLifecycle.getTaggedEvents()
       .filter((e) => {
         const calendarYear = e.calendarYear ?? e.round
         return calendarYear > fromYear && calendarYear <= toYear
       })
-      .map((e) => extractL0Title(e.narrative))
+      .map((e) => digestByRound.get(e.round) || e.narrative.trim())
       .filter(Boolean)
   }
 
@@ -2364,8 +2364,24 @@ export class OrchestratorSystem extends BaseSubsystem {
 
     narrative = normalizeNarrativeParagraphs(narrative)
 
-    // 语义权威：仅消费 Schema 校验后的 META；缺失时使用显式中立降级。
+    // 状态变更先做整包预检与提交。若意外出现部分写入失败，立即恢复提交前快照；
+    // 本轮所有 AI META（包括摘要、关系、伏笔和原创）一并拒绝，只保留正文。
+    const narrativeCommitSnapshot = this.captureSubsystemPreviewStates()
+    let commitResult = interceptorOutcome.blocked
+      ? { committed: [], rejected: [] }
+      : this.applyRoundChanges(effectiveParsed.changes, 'narrative')
+    if (commitResult.rejected.length > 0) {
+      this.restoreSubsystemPreviewStates(narrativeCommitSnapshot)
+      console.warn('[RoundCommit] 本轮叙事变更未能完整提交，已回滚并整包拒绝 META')
+      commitResult = { committed: [], rejected: commitResult.rejected }
+    }
+    const committedChanges = commitResult.committed
+    const stateChangeBundleAccepted = commitResult.rejected.length === 0
+      && committedChanges.length === effectiveParsed.changes.length
+
+    // 语义权威：仅消费完整 Schema 与状态变更整包均通过的 META；否则使用显式中立降级。
     const hasValidatedSemanticMetadata = !interceptorOutcome.blocked
+      && stateChangeBundleAccepted
       && effectiveParsed.semanticSignals !== undefined
     if (narrative) {
       const semanticSignals = hasValidatedSemanticMetadata
@@ -2425,21 +2441,11 @@ export class OrchestratorSystem extends BaseSubsystem {
               })
             }
           }
-          while (this.state.characterCreations.length > MAX_CHARACTER_CREATIONS) {
-            this.state.characterCreations.shift()
-          }
         }
       }
     }
 
-    // 叙事与状态硬分离：仅经 RoundCommit 总线提交变更
-    const commitResult = interceptorOutcome.blocked
-      ? { committed: [], rejected: [] }
-      : this.applyRoundChanges(effectiveParsed.changes, 'narrative')
-
-    const committedChanges = commitResult.committed
-
-    // 更新叙事历史（限制最大长度，超出时移除最旧条目）
+    // 更新叙事历史：完整保存，不按字符、轮数或容量移除旧故事。
     this.state.currentNarrative = narrative
     if (narrative) {
       this.lastNarrativeText = narrative
@@ -2465,10 +2471,6 @@ export class OrchestratorSystem extends BaseSubsystem {
           : {}),
       })
       this.lastNarratedTimeStep = { ...this.state.timeStep }
-      // 超出阈值时移除最旧条目，防止内存和存档无限增长
-      while (this.state.narrativeHistory.length > MAX_NARRATIVE_HISTORY) {
-        this.state.narrativeHistory.shift()
-      }
     }
 
     // commit 已修改子系统私有状态；立即刷新快照，确保 UI 同步与本轮自动存档不是上一轮数据。
@@ -2716,7 +2718,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       )
       if (this.worldSetting) {
         const config = this.worldSetting.config
-        const essenceTag = typeof config.essenceTag === 'string' ? config.essenceTag : this.worldSetting.description.slice(0, 30)
+        const essenceTag = typeof config.essenceTag === 'string' ? config.essenceTag : this.worldSetting.description
         adaptationManager.setWorldviewText(essenceTag, this.worldSetting.description)
       }
     }

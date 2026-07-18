@@ -21,7 +21,6 @@ export type {
 // 常量
 export {
   MEMORY_RETENTION,
-  MEMORY_SUMMARY_LIMITS,
 } from './types'
 
 export { DEFAULT_NPC_ATTRIBUTES } from './constants'

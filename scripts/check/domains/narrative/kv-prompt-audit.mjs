@@ -391,7 +391,7 @@ for (const inactiveConnection of [
   )
 }
 assertOk(
-  narrativePrompt.includes("version: '2.7.1'") && !narrativePrompt.includes('examples: ['),
+  narrativePrompt.includes("version: '2.8.0'") && !narrativePrompt.includes('examples: ['),
   'optimized prompt must be versioned and must not duplicate the schema into large few-shot examples',
 )
 assertOk(

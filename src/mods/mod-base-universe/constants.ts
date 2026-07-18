@@ -73,9 +73,6 @@ export const CELESTIAL_RARITY_WEIGHTS: Record<string, number> = {
   epic: 1,
 }
 
-/** 天象历史保留最近 N 条记录 */
-export const CELESTIAL_HISTORY_MAX = 10
-
 export const CELESTIAL_EVENT_POOL: Record<CelestialPhase, CelestialEvent[]> = {
   normal: [
     { name: '天象平稳', hint: '星辰运转如常', luckMod: 0, skillMod: 0, healthMod: 0, rarity: 'common', },

@@ -112,6 +112,3 @@ export const MAX_CAUSAL_PER_30_YEARS = 2
 
 /** 因果事件默认延时范围 */
 export const CAUSAL_DELAY_RANGE: [number, number] = [3, 15,]
-
-/** 因果队列最大长度 */
-export const MAX_CAUSAL_QUEUE_SIZE = 20

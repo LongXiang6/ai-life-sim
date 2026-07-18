@@ -1,6 +1,6 @@
 import { Dropdown } from '@/mods/mod-ui'
 
-import { WORLD_CUSTOM_TEXT_MAX_LENGTH, type EditableField, type FieldMode } from './world-customize.types'
+import { type EditableField, type FieldMode } from './world-customize.types'
 
 import styles from './WorldCustomizeMobile.module.css'
 
@@ -40,10 +40,9 @@ export function WorldCustomizeDimensionCard({ field, onModeChange, onValueChange
         {field.mode === 'custom' && (
           <textarea
             value={field.customValue}
-            maxLength={WORLD_CUSTOM_TEXT_MAX_LENGTH}
             rows={2}
             placeholder="输入自定义内容…"
-            onChange={(event) => onCustomChange(event.target.value.slice(0, WORLD_CUSTOM_TEXT_MAX_LENGTH))}
+            onChange={(event) => onCustomChange(event.target.value)}
           />
         )}
       </div>

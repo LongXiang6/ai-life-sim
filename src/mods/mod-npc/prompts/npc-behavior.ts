@@ -25,14 +25,14 @@ export type NpcBehaviorOutput = z.infer<typeof npcBehaviorOutputSchema>
 
 export const npcBehaviorPrompt: PromptTemplate<NpcBehaviorOutput> = {
   name: 'npc-behavior',
-  version: '1.0.0',
+  version: '1.1.0',
   mod: 'mod-npc',
   systemPrompt: `你是一个 NPC 行为生成器。根据下方提供的 NPC 状态、性格、记忆和与角色的关系，生成一段简洁的行为叙事。
 
 ## 规则
 - 行为必须符合 NPC 的性格和当前状态
 - 考虑 NPC 对目标角色的好感度和过往记忆
-- 行为叙事简洁（50-100 字），不要过度展开
+- 行为叙事应凝练但完整，保留动机、动作、对象与直接后果，不得为了字数删掉语义
 - 输出格式严格按照 JSON
 
 ## 行为类型说明

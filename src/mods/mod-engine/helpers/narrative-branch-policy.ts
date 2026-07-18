@@ -19,7 +19,6 @@ export function normalizeNarrativeBranchOptions(value: unknown): string[] {
   return value
     .filter((x): x is string => typeof x === 'string' && x.trim().length > 0)
     .map((option) => option.trim())
-    .slice(0, 4)
 }
 
 /**

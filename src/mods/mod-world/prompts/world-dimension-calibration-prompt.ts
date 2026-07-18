@@ -31,7 +31,7 @@ export type WorldDimensionCalibrationOutput = z.infer<typeof worldDimensionCalib
 
 export const worldDimensionCalibrationPrompt: PromptTemplate = {
   name: 'world-dimension-calibration',
-  version: '1.0.0',
+  version: '1.1.0',
   mod: 'mod-world',
 
   systemPrompt: stringifyPrompt({
@@ -75,7 +75,7 @@ export const worldDimensionCalibrationPrompt: PromptTemplate = {
     calibrationRules: [
       '顶层含 dimensions、calibration、aiDetailedParameters、worldTags',
       'calibration 稀疏；aiDetailedParameters 全 43 字段必填且扁平（禁止 worldview/sociology 等嵌套分组）',
-      'worldTags：5-8 个氛围标签，与 worldDescription 一致',
+      'worldTags：完整覆盖 worldDescription 中实际成立的氛围标签，去重但不得因固定条数省略',
       'styleGuide.worldviewStyleHint 写在 calibration.styleGuide 内，禁止根级 worldviewStyleHint',
       'calibration.metadata 仅含 essenceTag/civilizationStage/powerSystemTag/spatialForm/difficulty（camelCase 英文 tag，禁止 snake_case）',
       'dimensions.powerCeiling 必须为整数 1-24，禁止字符串',

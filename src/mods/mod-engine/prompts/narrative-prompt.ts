@@ -104,8 +104,8 @@ export const SYSTEM_PROMPT = stringifyPrompt({
     required: {
       changes: '[{id,description,changes}]；只能使用「子系统变更指南」列出的 ID 与字段；无明确数值变化填 []。',
       importance: 'HIGH | NORMAL | LOW。HIGH 仅用于改变命运的转折；LOW 用于普通日常。',
-      digest: '一句话概括“谁做了什么、结果如何”，不超过40个汉字。',
-      keyEvents: '[{text,importance,entities}]，通常只填1条主事件，最多3条；无关键事件填 []。若有多条，必须是同一因果主线中的触发、推进或后果，禁止记录成三个独立季节日常。importance 为0—100，entities 最多6个，无明确实体填 []。',
+      digest: '用完整的一句话概括“谁做了什么、结果如何”；不得为满足字符数而删掉行动、对象、代价或结果。',
+      keyEvents: '[{text,importance,entities}]，完整记录本轮因果主线中所有值得长期继承的触发、推进与后果；通常只有1条主事件，但不得因固定条数省略已发生的关键事实。importance 为0—100，entities 填入该事件涉及的全部明确实体，无明确实体填 []。',
       arcStatus: 'start | ongoing | end。',
       semanticSignals: {
         eventType: NARRATIVE_EVENT_TYPES,
@@ -115,22 +115,23 @@ export const SYSTEM_PROMPT = stringifyPrompt({
         irreversible: 'boolean',
         impactScope: NARRATIVE_IMPACT_SCOPES,
         narrativeRegister: NARRATIVE_REGISTERS,
-        registerReason: '1—80字，说明本轮为何属于该语域',
+        registerReason: '完整说明本轮为何属于该语域，不设字符上限',
         arcType: NARRATIVE_ARC_TYPES,
-        relationshipUpdates: `[{name,type,summary}]，最多6条；无变化必须直接填 []，不得输出 shape/types 包装对象。type 只能为 ${NARRATIVE_RELATIONSHIP_TYPES.join(' | ')}。`,
-        resolvedForeshadowingIds: '只填「待触发伏笔」中本轮确实回收的稳定ID，最多5个；无则 []。',
+        relationshipUpdates: `[{name,type,summary}]，提交本轮全部实际关系变化；无变化必须直接填 []，不得输出 shape/types 包装对象。type 只能为 ${NARRATIVE_RELATIONSHIP_TYPES.join(' | ')}。`,
+        resolvedForeshadowingIds: '填入「待触发伏笔」中本轮确实回收的全部稳定ID；无则 []。',
       },
     },
     optional: {
-      notableEvents: '最多3条值得记录的事件简述。',
-      creations: '最多6条 {name,description,category}；category 为 power_system | technique | ability | rule | object | other；只记录本轮明确原创且未登记过的内容。',
-      foreshadowing: '最多5条新伏笔 {type,description,priority}；type 为 prophecy | mysterious_item | secret_identity | unfinished_business | oath | mysterious_person | hidden_power | ancient_ruin | other，priority 为1—10。回收旧伏笔不得在此重复新增。',
+      notableEvents: '记录本轮全部值得长期继承的事件简述，不得因条数或字符数省略。',
+      creations: '提交本轮全部明确原创且未登记过的 {name,description,category}；category 为 power_system | technique | ability | rule | object | other。',
+      foreshadowing: '提交本轮全部新伏笔 {type,description,priority}；type 为 prophecy | mysterious_item | secret_identity | unfinished_business | oath | mysterious_person | hidden_power | ancient_ruin | other，priority 为1—10。回收旧伏笔不得在此重复新增。',
       branch: 'boolean；true 时必须同时给 branchTitle 与2—4个会导向不同长期后果的 branchOptions。branchOptions 必须是字符串数组，每项直接写一个可供玩家点击的选项文本（例如 ["留在原地", "随照料者迁居"]），不要输出 {title,description} 对象；并与 HIGH、不可逆、fate/legacy 的必填 META 字段保持一致。',
     },
   },
 
   failurePolicy: [
     'JSON 有格式错误时先修正为合法 JSON；不得省略必填 META 字段。',
+    '不得为了满足字段字数、数组条数或上下文预算而删短、截尾或只提交部分叙事事实；需要凝练时必须保持全部事实可追踪。',
     '无法判断 changes 时返回 []；无法可靠判断语义时使用可识别的生活层中立值，不从正文猜测。',
     '信息不足时仍输出一个具体、克制且符合现有状态的三段事件，不制造新的世界规则；字数偏离目标不属于失败。',
   ],
@@ -154,7 +155,7 @@ export function getWorldRules(essenceTag?: string): string {
 
 export const narrativePrompt: PromptTemplate = {
   name: 'narrative',
-  version: '2.7.1',
+  version: '2.8.0',
   mod: 'mod-engine',
   systemPrompt: SYSTEM_PROMPT,
   userPromptTemplate: [

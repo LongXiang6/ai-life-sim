@@ -360,9 +360,8 @@ export function getWorldviewStyleHint(
 }
 
 const SUMMARY_DEVIATION_RATIO = 0.2
-const SUMMARY_MAX_LEN = 150
 
-/** 高感知 modifier 摘要标签（顺序优先，超长时截断保留前列） */
+/** 高感知 modifier 摘要标签。 */
 const SUMMARY_MODIFIER_LABELS: Partial<Record<keyof WorldCalibrationFormulas, string>> = {
   eventDistributionStrategy: '事件策略',
   cultivationSpeedModifier: '修炼速度',
@@ -397,7 +396,7 @@ function formatModifierForSummary(value: number): string {
   return String(rounded)
 }
 
-/** 供后续 AI Prompt 注入的简短摘要（稀疏：仅偏离默认 ±20% 的项，≤150 字） */
+/** 供后续 AI Prompt 注入的语义摘要（稀疏：仅偏离默认 ±20% 的项）。 */
 export function formatCalibrationSummary(cal: WorldCalibration): string {
   const parts: string[] = []
   const f = cal.formulas
@@ -423,7 +422,5 @@ export function formatCalibrationSummary(cal: WorldCalibration): string {
   }
 
   if (parts.length === 0) return '默认校准'
-  const joined = parts.join('；')
-  if (joined.length <= SUMMARY_MAX_LEN) return joined
-  return `${joined.slice(0, SUMMARY_MAX_LEN - 1)}…`
+  return parts.join('；')
 }

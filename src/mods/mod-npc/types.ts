@@ -156,15 +156,6 @@ export const MEMORY_RETENTION: Record<MemoryImportance, number> = {
   critical: 120,
 }
 
-/** 记忆重要性 → 摘要长度上限（字符数） */
-export const MEMORY_SUMMARY_LIMITS: Record<MemoryImportance, number> = {
-  trivial: 20,
-  minor: 50,
-  notable: 100,
-  major: 200,
-  critical: 400,
-}
-
 // ============================================================
 // NPC 完整状态
 // ============================================================
@@ -189,7 +180,7 @@ export interface NPCState {
   attributes: NPCAttributes
   /** 性格 */
   personality: NPCPersonality
-  /** 最近行为记录（最多保留 20 条） */
+  /** 行为记录；完整保留，不按固定条数淘汰 */
   recentBehaviors: NPCBehaviorRecord[]
   /** 关系网络 */
   relations: NPCRelation[]

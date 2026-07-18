@@ -341,11 +341,10 @@ export class CultureSystem implements ISubSystem {
 
   // ─── 领域方法 ───
 
-  getDominantValues(): { value: CulturalValue; score: number }[] {
+  getValuesByDominance(): { value: CulturalValue; score: number }[] {
     return ALL_CULTURAL_VALUES
       .map((v) => ({ value: v, score: this.state.values[v] }))
       .sort((a, b) => b.score - a.score)
-      .slice(0, 3)
   }
 
   getFestivalCount(): number {
@@ -376,7 +375,7 @@ export class CultureSystem implements ISubSystem {
 
   formatForPrompt(): string {
     const { cultureName, traditionStrength, reformResistance, culturalInertia, reformPressure, festivals, rituals, taboos, customs, notableEvents, artProsperity } = this.state
-    const topValues = this.getDominantValues()
+    const topValues = this.getValuesByDominance()
       .map((v) => `${CULTURAL_VALUE_LABELS[v.value]}(${v.score})`)
       .join('、')
     const reformViability = (this.getReformViability() * 100).toFixed(0)
@@ -405,7 +404,7 @@ export class CultureSystem implements ISubSystem {
   // ─── 摘要构建 ───
 
   private buildSummary(): string {
-    const topValues = this.getDominantValues()
+    const topValues = this.getValuesByDominance()
       .map((v) => CULTURAL_VALUE_LABELS[v.value])
       .join('、')
     const triggeredCount = this.state.festivals.filter((f) => f.lastTriggeredYear === this._lastProcessedRound).length

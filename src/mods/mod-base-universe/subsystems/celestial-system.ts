@@ -31,7 +31,6 @@ import {
   CELESTIAL_LUCK_MODS,
   CELESTIAL_PROBABILITIES,
   CELESTIAL_RARITY_WEIGHTS,
-  CELESTIAL_HISTORY_MAX,
   CELESTIAL_PHASE_DURATION_RANGE,
   CELESTIAL_COOLDOWN_RANGE,
 } from '../constants'
@@ -239,7 +238,7 @@ export class CelestialSystem implements ISubSystem {
     let phaseDuration = input.phaseDuration
     let cooldownYears = input.cooldownYears
     let activeEvents: string[] = input.activeEvents
-    let history = [...input.history]
+    const history = [...input.history]
     let crossEffects: CelestialCrossEffect[] = []
 
     // 冷却中减少冷却年数
@@ -299,9 +298,6 @@ export class CelestialSystem implements ISubSystem {
         events: activeEvents,
         eraYear: input.eraYear,
       })
-      if (history.length > CELESTIAL_HISTORY_MAX) {
-        history = history.slice(-CELESTIAL_HISTORY_MAX)
-      }
     }
 
     // 生成跨域效果

@@ -200,7 +200,7 @@ export class ForgettingAnalyzer {
       const keywords = (data?.matchedKeywords as string[]) || []
       return {
         shouldForget: false,
-        reasons: keywords.slice(0, 3).map(k => ({ type: 'important' as const, keyword: k })),
+        reasons: keywords.map(k => ({ type: 'important' as const, keyword: k })),
       }
     }
 
@@ -210,7 +210,7 @@ export class ForgettingAnalyzer {
       const keywords = (data?.matchedKeywords as string[]) || []
       return {
         shouldForget: false,
-        reasons: keywords.slice(0, 3).map(k => ({ type: 'relationship' as const, keyword: k })),
+        reasons: keywords.map(k => ({ type: 'relationship' as const, keyword: k })),
       }
     }
 
@@ -227,7 +227,7 @@ export class ForgettingAnalyzer {
     if (this.trivialPattern.test(summary)) {
       const data = this.trivialPattern.extract(summary)
       const keywords = (data?.matchedKeywords as string[]) || []
-      reasons.push(...keywords.slice(0, 3).map(k => ({ type: 'trivial' as const, keyword: k })))
+      reasons.push(...keywords.map(k => ({ type: 'trivial' as const, keyword: k })))
     }
 
     return {

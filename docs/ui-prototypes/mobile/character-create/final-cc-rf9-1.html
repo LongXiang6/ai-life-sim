@@ -72,8 +72,8 @@
           </section>
 
           <section class="cf-section cf-pane" id="panel-background" role="tabpanel" data-panel="background" hidden>
-            <div class="cf-section-head"><strong>人生背景</strong><small data-background-count>0 / 120</small></div>
-            <textarea class="cf-textarea" data-background maxlength="120" aria-label="人生背景" placeholder="写下家庭、成长环境或人生起点..."></textarea>
+            <div class="cf-section-head"><strong>人生背景</strong><small data-background-count>0 字</small></div>
+            <textarea class="cf-textarea" data-background aria-label="人生背景" placeholder="写下家庭、成长环境或人生起点..."></textarea>
             <p class="cf-caption">背景可稍后补充，不影响进入命格抽取。</p>
           </section>
         </div>
@@ -121,7 +121,7 @@
         document.querySelector('[data-summary-line]').textContent = `${state.gender} · ${state.race} · ${background.value.trim() ? '已填写背景' : '尚未填写背景'}`
         document.querySelector('[data-summary-life]').textContent = Number.isFinite(lifeValue) && lifeValue >= 1 ? `${Math.floor(lifeValue)} 年` : '待设定'
         document.querySelector('[data-summary-age]').textContent = age.value
-        document.querySelector('[data-background-count]').textContent = `${background.value.length} / 120`
+        document.querySelector('[data-background-count]').textContent = `${background.value.length} 字`
         document.querySelector('[data-action-hint]').textContent = characterName ? `${characterName} · 进入命格抽取` : '填写姓名后 · 进入命格抽取'
         if (characterName && Number.isFinite(lifeValue) && lifeValue >= 1) confirm.setAttribute('data-flow-to', confirm.dataset.nextScreen)
         else confirm.removeAttribute('data-flow-to')

@@ -8,7 +8,6 @@ import { CALENDAR, SEASON_NAMES } from './constants'
 import { getSeasonForMonth } from './helpers/calendar-season.js'
 import {
   MIN_SUMMARY_TOKENS,
-  SUMMARY_CHARS_DEFAULT,
   SUMMARY_L2_MIN_TOKENS,
   SUMMARY_L3_MIN_TOKENS,
   SUMMARY_L4_MIN_TOKENS,
@@ -103,49 +102,49 @@ export function computeSummaryTokenBudget(eventsNarrativeLength: number): number
 }
 
 /**
- * 将 token 预算转换为字符数限制
- * 公式: max(floor(tokenBudget / 1.5), 3000)
+ * 摘要输出只设置足以复述完整输入的技术余量；语义压缩由 Prompt 完成，
+ * 不能用逐层缩小的 token 上限强迫模型截断事实。
  */
-export function computeSummaryCharLimit(tokenBudget: number): number {
-  return Math.max(Math.floor(tokenBudget / 1.5), SUMMARY_CHARS_DEFAULT)
+function computeCoverageSafeSummaryTokens(inputTextLength: number, minimum: number): number {
+  return Math.max(Math.ceil(inputTextLength * 1.2), minimum)
 }
 
 /**
  * 计算 L2 合并 token 预算
- * 公式: max(ceil(inputTextLength / 2), 1000)
+ * 输出余量足以覆盖完整输入；压缩失败时保留 L1，不宣告覆盖。
  */
 export function computeSummaryL2Tokens(inputTextLength: number): number {
-  return Math.max(Math.ceil(inputTextLength / 2), SUMMARY_L2_MIN_TOKENS)
+  return computeCoverageSafeSummaryTokens(inputTextLength, SUMMARY_L2_MIN_TOKENS)
 }
 
 /**
  * 计算 L3 合并 token 预算
- * 公式: max(ceil(inputTextLength / 4), 1200)
+ * 输出余量足以覆盖完整输入；压缩失败时保留 L2，不宣告覆盖。
  */
 export function computeSummaryL3Tokens(inputTextLength: number): number {
-  return Math.max(Math.ceil(inputTextLength / 4), SUMMARY_L3_MIN_TOKENS)
+  return computeCoverageSafeSummaryTokens(inputTextLength, SUMMARY_L3_MIN_TOKENS)
 }
 
 /**
  * 计算 L4 合并 token 预算
- * 公式: max(ceil(inputTextLength / 8), 1500)
+ * 输出余量足以覆盖完整输入；压缩失败时保留 L3，不宣告覆盖。
  */
 export function computeSummaryL4Tokens(inputTextLength: number): number {
-  return Math.max(Math.ceil(inputTextLength / 8), SUMMARY_L4_MIN_TOKENS)
+  return computeCoverageSafeSummaryTokens(inputTextLength, SUMMARY_L4_MIN_TOKENS)
 }
 
 /**
  * 计算 L5 合并 token 预算
- * 公式: max(ceil(inputTextLength / 10), 1800)
+ * 输出余量足以覆盖完整输入；压缩失败时保留 L4，不宣告覆盖。
  */
 export function computeSummaryL5Tokens(inputTextLength: number): number {
-  return Math.max(Math.ceil(inputTextLength / 10), SUMMARY_L5_MIN_TOKENS)
+  return computeCoverageSafeSummaryTokens(inputTextLength, SUMMARY_L5_MIN_TOKENS)
 }
 
 /**
  * 计算 L6 合并 token 预算
- * 公式: max(ceil(inputTextLength / 12), 2000)
+ * 输出余量足以覆盖完整输入；压缩失败时保留 L5，不宣告覆盖。
  */
 export function computeSummaryL6Tokens(inputTextLength: number): number {
-  return Math.max(Math.ceil(inputTextLength / 12), SUMMARY_L6_MIN_TOKENS)
+  return computeCoverageSafeSummaryTokens(inputTextLength, SUMMARY_L6_MIN_TOKENS)
 }

@@ -1,10 +1,10 @@
 /**
  * @module subsystem-relevance-system.ts
- * @description 子系统相关性过滤 + 滑动窗口 —— 五维过滤（年龄/阶层/势力/影响力/始终相关）+ 系统数据动态卸载
+ * @description 子系统相关性过滤 + 非破坏性近期窗口 —— 五维过滤（年龄/阶层/势力/影响力/始终相关）
  * @mod mod-engine
  *
  * 设计理念：传递给 AI 的数据 = 不可变信息 + 叙事故事 + 部分系统数据
- * - 只保留最近 3 轮有变化的系统数据，节约 token
+ * - 完整保存系统状态与变更记录；Prompt 可选取最近 3 轮变化，但不得删除旧记录
  * - 根据角色年龄/阶层/势力/影响力等判断哪些系统数据需要传入 Prompt
  *
  * 五维过滤：
@@ -151,9 +151,9 @@ export class SubsystemRelevanceSystem implements ISubSystem {
   readonly id = 'subsystem-relevance' as const
   readonly mod = 'mod-engine' as const
   readonly label = '子系统相关性过滤' as const
-  readonly description = '四维过滤（年龄/阶层/势力/始终相关）+ 系统数据动态卸载，只保留最近3轮有变化的系统数据' as const
+  readonly description = '五维相关性过滤 + 完整变更追踪；Prompt 使用非破坏性近期窗口' as const
 
-  /** 各子系统的状态快照历史（滑动窗口） */
+  /** 各子系统的完整状态快照历史 */
   private stateHistory: Record<string, SystemStateSnapshot[]> = {}
 
   /** 变更记录（用于检测哪些系统有变化） */
@@ -215,7 +215,7 @@ export class SubsystemRelevanceSystem implements ISubSystem {
   }
 
   /**
-   * 记录子系统状态（用于滑动窗口）
+   * 记录子系统状态；完整保留，近期窗口只在读取时选择
    */
   recordState(subsystemId: string, state: SubSystemState, round: number,): void {
     if (!this.stateHistory[subsystemId]) {
@@ -224,10 +224,6 @@ export class SubsystemRelevanceSystem implements ISubSystem {
 
     this.stateHistory[subsystemId].push({ round, state, })
 
-    // 保持滑动窗口大小
-    while (this.stateHistory[subsystemId].length > SLIDING_WINDOW_SIZE) {
-      this.stateHistory[subsystemId].shift()
-    }
   }
 
   /**
@@ -236,9 +232,6 @@ export class SubsystemRelevanceSystem implements ISubSystem {
   recordChange(subsystemId: string, round: number, changeSummary: string,): void {
     this.changeRecords.push({ subsystemId, round, changeSummary, })
 
-    // 清理过期记录（保留最近 2*SLIDING_WINDOW_SIZE 条）
-    const cutoffRound = round - SLIDING_WINDOW_SIZE * 2
-    this.changeRecords = this.changeRecords.filter(r => r.round >= cutoffRound,)
   }
 
   /**

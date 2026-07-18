@@ -14,7 +14,6 @@ import {
   CAUSAL_DELAY_RANGE,
   MAX_CAUSAL_PER_DECADE,
   MAX_CAUSAL_PER_30_YEARS,
-  MAX_CAUSAL_QUEUE_SIZE,
 } from '../constants'
 
 import { getFormulaModifier } from '@/mods/mod-world'
@@ -56,9 +55,6 @@ export class CausalSimulationSystem implements ISubSystem {
     // 频率限制检查
     if (this.state.queue.recentDecadeCount >= decadeCap) return null
     if (this.state.queue.recent30YearCount >= cap30) return null
-
-    // 检查队列最大长度
-    if (this.state.queue.pending.length >= MAX_CAUSAL_QUEUE_SIZE) return null
 
     // 遍历正则规则匹配
     for (const rule of CAUSAL_REGEX_RULES) {

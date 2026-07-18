@@ -1210,14 +1210,12 @@ export class WorldMapSystem implements ISubSystem {
       ? region.resources
         .slice()
         .sort((a, b) => b.abundance - a.abundance)
-        .slice(0, 4)
         .map((res) => `${res.type}(${res.abundance})`)
         .join('、')
       : '无'
     const neighborNames = region.neighbors
       .map((id) => this._state.regions.find((r) => r.id === id)?.name)
       .filter(Boolean)
-      .slice(0, 4)
     const neighborText = neighborNames.length > 0 ? neighborNames.join('、') : '无'
     const bg = region.narrativeBackground ? ` · 背景：${region.narrativeBackground}` : ''
 
@@ -1239,16 +1237,16 @@ export class WorldMapSystem implements ISubSystem {
     if (factionCounts.size === 0) return '当前无活跃势力'
 
     const sorted = Array.from(factionCounts.entries()).sort((a, b) => b[1] - a[1])
-    const top = sorted.slice(0, 5).map(([name, count]) => `${name}（${count}区域）`)
-    let result = `势力分布：${top.join('、')}` + (sorted.length > 5 ? ` 等${sorted.length}个势力` : '')
+    const factions = sorted.map(([name, count]) => `${name}（${count}区域）`)
+    let result = `势力分布：${factions.join('、')}`
 
-    // 附加外交关系摘要（取前 3 条非中立/非贸易关系）
+    // 附加全部非中立/非贸易关系
     const relations = this._state.factionRelations ?? []
     const notable = relations.filter(
       (r) => r.relation === 'war' || r.relation === 'alliance' || r.relation === 'vassal',
     )
     if (notable.length > 0) {
-      const relationLines = notable.slice(0, 3).map(
+      const relationLines = notable.map(
         (r) => {
           const mark = FACTION_RELATION_MARKS[r.relation] ?? ''
           const label = FACTION_RELATION_LABELS[r.relation] ?? r.relation

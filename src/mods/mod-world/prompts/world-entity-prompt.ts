@@ -15,7 +15,7 @@ export const worldEntityOutputSchema = z.unknown()
 
 export const worldEntityPrompt: PromptTemplate = {
   name: 'world-entity',
-  version: '1.3.0',
+  version: '1.4.0',
   mod: 'mod-world',
 
   systemPrompt: worldEntityGeneratorSystemPrompt,

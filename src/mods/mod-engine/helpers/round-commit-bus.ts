@@ -53,6 +53,7 @@ export class RoundCommitBus {
   commit(commit: RoundCommit, context: RoundContext): RoundCommitResult {
     const committed: SubSystemChanges[] = []
     const rejected: RoundCommitRejected[] = []
+    const prepared: SubSystemChanges[] = []
 
     for (const raw of commit.changes) {
       if (!raw.id) {
@@ -61,6 +62,9 @@ export class RoundCommitBus {
       }
 
       if (!shouldApplyMvpCommit(commit.source, raw.id)) {
+        if (commit.source === 'narrative') {
+          rejected.push({ change: raw, reason: `子系统 "${raw.id}" 不在本轮叙事可写范围` })
+        }
         continue
       }
 
@@ -116,12 +120,23 @@ export class RoundCommitBus {
         changes: sanitized.result as Record<string, unknown>,
       }
 
+      prepared.push(safeChange)
+    }
+
+    // 主叙事必须先完成整包预检；任一项失败时，在任何子系统写入前拒绝全部变更。
+    if (commit.source === 'narrative' && rejected.length > 0) {
+      console.warn(`[RoundCommit] narrative 预检失败，整包拒绝 ${commit.changes.length} 条变更`)
+      return { committed: [], rejected }
+    }
+
+    for (const change of prepared) {
       try {
-        this.applyChange(safeChange, context)
-        committed.push(safeChange)
+        this.applyChange(change, context)
+        committed.push(change)
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e)
-        rejected.push({ change: safeChange, reason: msg })
+        rejected.push({ change, reason: msg })
+        if (commit.source === 'narrative') break
       }
     }
 

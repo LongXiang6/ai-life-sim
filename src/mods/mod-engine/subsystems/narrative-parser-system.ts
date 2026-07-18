@@ -65,6 +65,8 @@ export interface ParsedNarrative {
   narrative: string
   changes: SubSystemChanges[]
   notableEvents: string[]
+  /** META 存在但未通过完整 Schema；消费方必须保留正文并整包拒绝 META。 */
+  metadataRejected?: boolean
   /**
    * AI 输出的世界方向指令
    * - 字符串格式：简单方向标签（如 "修炼/突破"），用于叙事方向

@@ -31,8 +31,8 @@
           </section>
 
           <section class="cf-section">
-            <div class="cf-section-head"><strong>世界描述</strong><small data-description-count>34 / 5000</small></div>
-            <textarea class="cf-textarea" data-description maxlength="5000" aria-label="世界描述">潮汐决定城市的贸易节律、迁徙方向与每个人回家的时间。</textarea>
+            <div class="cf-section-head"><strong>世界描述</strong><small data-description-count>34 字</small></div>
+            <textarea class="cf-textarea" data-description aria-label="世界描述">潮汐决定城市的贸易节律、迁徙方向与每个人回家的时间。</textarea>
           </section>
 
           <section class="cf-section">
@@ -69,7 +69,7 @@
       const description = document.querySelector('[data-description]')
 
       description.addEventListener('input', function () {
-        document.querySelector('[data-description-count]').textContent = `${description.value.length} / 5000`
+        document.querySelector('[data-description-count]').textContent = `${description.value.length} 字`
       })
 
       document.querySelectorAll('[data-setting]').forEach(function (setting) {

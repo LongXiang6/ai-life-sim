@@ -54,7 +54,7 @@ const DEATH_NARRATIVE_SYSTEM_PROMPT = stringifyPrompt({
   requirements: [
     '第二人称叙事（"你"）',
     '基于主题生成对应内容',
-    '总字数300-500字',
+    '自然完整展开死亡后的现场、人物反应与后果；文笔和事实完整优先，不设字符范围',
     '语气庄重、有文学感',
     '基于数据真实描述，可适度虚构细节',
   ],
@@ -67,7 +67,7 @@ const EPILOGUE_SYSTEM_PROMPT = stringifyPrompt({
   requirements: [
     '第二人称叙事（"你"）',
     '分为四个部分：生平概述、巅峰时刻、遗产影响、尾声寄语',
-    '总字数800-1500字',
+    '完整回顾一生的关键因果、关系与遗产；文笔和事实完整优先，不设字符范围',
     '语气庄重、有文学感，但不过分煽情',
     '基于数据真实描述，不虚构重大事件',
   ],
@@ -493,7 +493,7 @@ export class PostDeathEpilogueSystem implements ISubSystem {
     }
 
     if (narrativeHistory.length > 0) {
-      data.beforeDeath = narrativeHistory.slice(-10)
+      data.beforeDeath = [...narrativeHistory]
     }
 
     if (this.deathNarratives.length > 0) {
@@ -642,7 +642,7 @@ export class PostDeathEpilogueSystem implements ISubSystem {
 
     // 一生叙事
     if (narrativeHistory.length > 0) {
-      data.lifeEvents = narrativeHistory.slice(-30)
+      data.lifeEvents = [...narrativeHistory]
       data.lifeEventCount = narrativeHistory.length
     }
 
@@ -691,14 +691,13 @@ export class PostDeathEpilogueSystem implements ISubSystem {
     // 提取关键事件摘要
     let eventSummary = ''
     if (narrativeHistory.length > 0) {
-      const keyEvents = narrativeHistory.slice(-5)
-      eventSummary = `\n一生历经：${keyEvents.join('；')}。`
+      eventSummary = `\n一生历经：${narrativeHistory.join('；')}。`
     }
 
     // 死后叙事摘要
     let deathSummary = ''
     if (this.deathNarratives.length > 0) {
-      deathSummary = `\n死后世界：${this.deathNarratives.slice(0, 3).join('；')}。`
+      deathSummary = `\n死后世界：${this.deathNarratives.join('；')}。`
     }
 
     return `${name}，${worldName}的一位平凡过客，享年 ${age} 岁。${moralText}因${deathText}而逝。${eventSummary}${deathSummary}\n其生平已载入${worldName}的历史长卷，后人或有评说。`

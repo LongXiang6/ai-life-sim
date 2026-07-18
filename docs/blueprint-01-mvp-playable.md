@@ -1,8 +1,16 @@
-# 蓝图一 · MVP 最小可玩版本（交付 GPT 5.5 执行）
+# 蓝图一 · MVP 最小可玩版本（交付 AI 执行）
 
-> 状态：待执行 | 版本：v1.4 | 创建：2026-07-04 | 校准：2026-07-04 | 接手基线：2026-07-04
-> 定位：本文件是**MVP 执行蓝图**，但不替代 `.agents/` 技能体系；执行者必须先按下方「执行权威优先级」加载技能和项目规范，再用本蓝图约束 MVP 范围。
-> 目标读者：一个没有本项目历史对话上下文的 AI 执行者。
+文档角色：selected-target
+权威层级：A2
+状态：active
+适用范围：MVP 可玩路径、恢复范围和验收链路
+拥有者：产品决策与 `mod-engine` MVP runtime policy
+最后验证：2026-07-18；对照当前 Skills、MVP runtime policy 与系统职责索引
+取代关系：none
+运行真源：`src/mods/mod-engine/helpers/mvp-stages-config.default.json` 与实际玩家路径
+验收证据：结构、MOD、UI、lint、TypeScript、交付 gate 与玩家路径
+
+版本：v1.4；创建：2026-07-04。本文档约束 MVP 范围，但不替代 `.agents/` 技能体系。
 
 ---
 
@@ -19,7 +27,7 @@
 本蓝图只定义 MVP 范围和执行目标；遇到不清楚或与技能文件冲突时，按以下优先级执行：
 
 1. `docs/product-decisions.md`：当前产品语义的唯一真源，生效 `PD-xxx` 优先于旧计划和本文档。
-2. `D:\AI\AGENTS.md` 与 `.agents/skills/ai-life-sim/SKILL.md`：项目边界、总体架构、运行权威和精确命令。
+2. `../../AGENTS.md` 与 `.agents/skills/ai-life-sim/SKILL.md`：项目边界、总体架构、运行权威和精确命令。
 3. 对应域 Skill：MOD / 子系统使用 `ai-life-sim-mod-development`，Prompt / Token 使用 `ai-life-sim-prompt-engineering`，UI 使用 `ai-life-sim-ui`。
 4. 本蓝图：只作为 MVP 范围、页面链路、延后清单和验收标准。
 5. 实际代码与运行配置：用调用链和 `mvp-stages-config.default.json` 核实当前状态，文件存在不代表系统正在运行。
@@ -32,16 +40,16 @@
 
 | 主题 | 权威源 | 要点 |
 |------|--------|------|
-| 项目边界与命令 | `D:\AI\AGENTS.md` | 修改权限、工作区、结构检查与交付关闸 |
-| 项目架构 / 为什么叙事是根 | `.agents/skills/ai-life-sim/SKILL.md` + `references/architecture.md` | foundation→core→mods→app；mod-engine 是叙事根 |
-| 子系统写法（BaseSubsystem） | `.agents/skills/ai-life-sim-mod-development/references/mod-spec-subsystem.md` | 子系统 `extends BaseSubsystem`；时间只读 `this.getDaysPassed(context)` |
+| 项目边界与命令 | `../../AGENTS.md` | 修改权限、工作区、结构检查与交付关闸 |
+| 项目架构 / 为什么叙事是根 | `.agents/skills/ai-life-sim/SKILL.md` + `docs/system-authority-index.md` | foundation→core→mods→app；mod-engine 是叙事根 |
+| 子系统写法（BaseSubsystem） | `.agents/skills/ai-life-sim-mod-development/SKILL.md` + `src/core/subsystem-base.ts` | 新建或恢复子系统遵循 live BaseSubsystem；时间只读 canonical RoundContext |
 | 子系统模板 / 清空桩模板 | `.agents/skills/ai-life-sim-mod-development/assets/templates/subsystem.template.ts` | 恢复子系统使用当前模板；延后系统优先从执行路径隔离 |
-| 分段恢复优先级 | `.agents/skills/ai-life-sim-mod-development/references/mod-spec-rewrite-tiers.md` | 本蓝图即"① 核心架构 + ② 主引擎 + MVP 角色链路" |
+| 分段恢复优先级 | 本蓝图 + `docs/simulation-rewrite-discussion-plan.md` | 当前 A2 目标与历史恢复决策；冲突时以活动产品决策和本蓝图为准 |
 | 决策背景 | `docs/simulation-rewrite-discussion-plan.md` | 清空范围、时间引擎方案已确认 |
-| MOD 清单 / 依赖 | `.agents/skills/ai-life-sim-mod-development/references/mod-spec-mod-list.md` | 当前 MOD 拓扑与依赖 |
-| 关闸命令 | `D:\AI\AGENTS.md` §5 | 使用 structural、MOD、lint、tsc 和相应 gate |
+| MOD 清单 / 依赖 | live manifests + `src/foundation/types/mod.types.ts` + MVP runtime policy | 当前依赖、公开边界与运行成员 |
+| 关闸命令 | `../../AGENTS.md` §5 | 使用 structural、MOD、lint、tsc 和相应 gate |
 
-**改变 `src/core/` 或 `src/foundation/` 的公开契约、持久化、运行态结构或跨模块语义时，按 `AGENTS.md` 权限边界先确认。**
+**改变 `src/core/` 或 `src/foundation/` 的公开契约、持久化、运行态结构或跨模块语义时，按 `../../AGENTS.md` 权限边界处理。**
 
 **迁移口径**：本蓝图不要求一次性机械迁移所有 74 个旧子系统；凡本轮实际触碰、清空、恢复的子系统，必须按当前技能模板迁到 `extends BaseSubsystem`。未触碰的保留系统不得"顺手"大迁移，除非链路检索证明它阻断 MVP。
 
@@ -61,10 +69,10 @@
 当前最新基线：
 1. `npm run lint`：PASS。
 2. `npx tsc --noEmit`：PASS。
-3. `npm run check:structural`：PASS（`reports/check-run-2026-07-05T04-52-21.json`）。
-4. `node scripts/check/index.mjs narrative`：PASS（`reports/check-run-2026-07-05T04-51-36.json`），已把 `time-step-resolver-smoke.mjs` 接入 narrative 域，覆盖默认年步长、切换不推进、`daysPassed/totalDays` 注入、日/月/季/年换算静态契约。
+3. `npm run check:structural`：当时通过；历史 JSON 报告未保留，交付时必须重跑当前命令。
+4. `node scripts/check/index.mjs narrative`：当时通过，并覆盖默认年步长、切换不推进、`daysPassed/totalDays` 注入、日/月/季/年换算静态契约；历史 JSON 报告未保留。
 5. `npm run test:calibration`：PASS；前三个 runner 全 OK，`calibration-wiring-audit` 将 20 个延后模拟字段登记为 `defer`，未知未接线字段仍会失败。
-6. `npm run gate-check`：C1/C2 PASS，C3 FAIL；`wiring` / `loader` / `calibration` / `narrative` PASS，`mod` / `ui` FAIL，ATCE=`REVIEW`，无 repeat offender（`reports/check-run-2026-07-05T04-54-25.json`）。`mod` raw log 仍按全量扫描输出大量延后系统 C3/C4/C5，但正式报告的 primary issue 已收敛到 80 行；该域仍需后续按 MVP/defer 口径整理 scanner 或修活跃核心子系统格式。
+6. `npm run gate-check`：当时 C1/C2 通过、C3 失败；历史报告未保留。当前交付不得沿用该结果，必须记录新基线并运行现行 gate。
 
 本轮已清零或降级的旧阻断：
 - `fate-prophecy` 已从活跃叙事变更链移出，并通过 codegen 同步 `subsystem-field-keys.generated.ts`。
@@ -75,7 +83,7 @@
 
 阶段 A+B 已完成的新增收敛：
 - `TimeSystem` 当前实现保持底层日粒度：`setTimeStep()` 只改变下一轮步长，`advance()` 用 `totalDays` 差值写入 `lastDaysPassed`；narrative 域新增冒烟覆盖该契约，旧 `simulationTicks/ageYearsDelta` 检查已移除。
-- 新增 `mod-engine/helpers/mvp-runtime-policy.ts` 作为 MVP 运行策略单一来源：外部运行子系统仅 `character-base` / `destiny-pattern` / `lifespan` / `world-entity`；AI 结构化写入仅允许 `character-base` / `lifespan`。
+- MVP 运行策略由 `src/mods/mod-engine/helpers/mvp-stages-config.default.json` 与 runtime policy 共同执行：当前外部运行子系统为 `character-base` / `destiny-pattern` / `lifespan` / `luck` / `morality` / `world-entity`；AI 结构化写入允许 `character-base` / `lifespan` / `luck` / `morality`。
 - `registerAllSubsystems()`、orchestrator 本地推进/状态收集、Prompt 状态卡、跨域联动、RoundCommit 提交总线均接入 MVP allowlist。延后模拟系统保持 manifest/文件存在，但不进入正常叙事回合，不再因清空桩在玩法路径持续 `console.error`。
 - `narrative-prompt.ts` 的 `allowedSubSystems`、`SUBSYSTEM_GUIDE` 和示例已改成 MVP 写入口径，普通剧情优先返回 `changes: []`，避免 AI 被示例诱导写 health/economy/skill 等延后系统。
 
@@ -176,16 +184,16 @@ Full gate 剩余 FAIL 分流表：
 
 | MOD | 子系统 | 现状 |
 |-----|--------|------|
-| mod-economy | economy / population / item / settlement / work | ✅ 已抛错桩 |
-| mod-politics | conflict-cycle / faction-dynamics / legal / social-stratification / social-values | ✅ 已抛错桩 |
+| mod-economy | economy / population / item / settlement / work | 状态：已完成； 已抛错桩 |
+| mod-politics | conflict-cycle / faction-dynamics / legal / social-stratification / social-values | 状态：已完成； 已抛错桩 |
 | mod-politics | nation-relation / language-naming | ⬜ 需清空 |
-| mod-culture | disciple / education / family / personal-ability / works | ✅ 已抛错桩 |
+| mod-culture | disciple / education / family / personal-ability / works | 状态：已完成； 已抛错桩 |
 | mod-culture | culture / art / reputation / relationship / achievement | ⬜ 需清空 |
-| mod-environment-ecology | climate / ecology | ✅ 已抛错桩 |
+| mod-environment-ecology | climate / ecology | 状态：已完成； 已抛错桩 |
 | mod-environment-ecology | geography / natural-resource / pollution | ⬜ 需清空 |
-| mod-tech-level | culture-tech | ✅ 已抛错桩 |
+| mod-tech-level | culture-tech | 状态：已完成； 已抛错桩 |
 | mod-tech-level | industry | ⬜ 需清空 |
-| mod-power-system | monster | ✅ 已抛错桩 |
+| mod-power-system | monster | 状态：已完成； 已抛错桩 |
 | mod-power-system | combat-power / cultivation / luck / fortune-encounter / faith / supreme-item / divine-intervention / anomaly-phenomena / special-material / skill | ⬜ 需清空 |
 | mod-character | health / life-stage / attribute-decay / morality / post-death-epilogue | ⬜ 需清空（**注意：destiny/base/lifespan 保留，这 5 个延后**） |
 | mod-npc | npc-attribute / npc-behavior / npc-memory | ⬜ 需清空 |
@@ -194,9 +202,9 @@ Full gate 剩余 FAIL 分流表：
 | mod-world | `world-init-system` 的 AI 部分（保留手动写入路径）；`world-entity-system` 保留基础数据；`world-init-deps` 视情保留 | ⬜ 部分清空（注：旧 `world-timeline-system` 已在先前重构中删除，不存在） |
 | mod-world-map | 世界地图渲染 | ⬜ 延后 |
 | mod-golden-finger | golden-finger | ⬜ 延后（插件段） |
-| mod-difficulty | store/constants/UI 难度选择 | ✅ 保留配置输入；仅延后难度驱动的模拟扩展 |
+| mod-difficulty | store/constants/UI 难度选择 | 状态：已完成； 保留配置输入；仅延后难度驱动的模拟扩展 |
 
-> ⚠️ MOD 级依赖不受影响：`mod-character` 的 manifest 依赖 `mod-power-system`，但那是**加载顺序**依赖，不是子系统数据依赖——power-system 的子系统全是抛错桩不影响 character 的 destiny/base/lifespan 运行。
+> 风险提示： MOD 级依赖不受影响：`mod-character` 的 manifest 依赖 `mod-power-system`，但那是**加载顺序**依赖，不是子系统数据依赖——power-system 的子系统全是抛错桩不影响 character 的 destiny/base/lifespan 运行。
 
 ---
 
@@ -218,12 +226,19 @@ Full gate 剩余 FAIL 分流表：
 ### 6.3 数据压缩（防 token 爆炸，MVP 必须可用）
 - `summary-compressor-system.ts`：层级摘要压缩。
 - `memory-engine-system.ts` + `memory-lifecycle-system.ts` + `memory-forgetting-system.ts` + `core-memory-system.ts`：记忆分层与遗忘。
-- **验收点**：连续推进多年（如快进 50 年）后，注入 AI 的上下文 token 不随游戏时长线性爆炸——靠层级压缩把旧叙事收敛为摘要。L1 每 10 轮一块并延迟一个完整块，首次在第 21 轮覆盖第 1—10 轮；延迟期间保留最近 20 轮完整原文，不能漏掉尚未形成摘要的中间轮次；叙事历史滑动窗口达到保留上限后仍按真实回合 ID 选取目标块。压缩不得损伤关键因果（AI-07/AI-08：存完整叙事，摘要独立生成，禁止用 slice 破坏原文）。
+- **验收点**：连续推进多年（如快进 50 年）后，注入 AI 的上下文 token 不随游戏时长线性爆炸——靠层级压缩把旧叙事收敛为摘要。L1 每 10 轮一块并延迟一个完整块，首次在第 21 轮覆盖第 1—10 轮；延迟期间保留最近 20 轮完整原文，不能漏掉尚未形成摘要的中间轮次；原始叙事、摘要账本和检索索引不设置容量淘汰上限，目标块始终按真实回合 ID 选取。压缩不得损伤关键因果（AI-07/AI-08：存完整叙事，摘要独立生成，禁止用字符、条目、数组位置或容量上限破坏原文与语义事实）。
 - **结构验收点**：每个真实叙事响应都必须通过 `NarrativeResponseSchema`，携带 `digest` 与带 `importance/entities` 的 `keyEvents`；L1 Prompt 必须接收这些结构化压缩线索并优先保留高权重事件。L2—L6 生成后写入检索索引，L1 清理原始事件时不丢失远期实体召回。
 
-### 6.4 存档 + 自动存档
+### 6.4 剧情质量硬截断红线（PD-015）
+- 任何叙事正文、摘要、事件、记忆、关系、伏笔、因果标记、原创设定和用户叙事输入都不得按字符、条目、数组位置或容量上限静默丢弃。
+- 长局容量只通过分层语义摘要、叶子摘要注入、可追踪检索与 OPFS 存档解决；原始叙事完整保存。近期窗口是非破坏性 Prompt 选择，窗口之外必须由摘要/检索覆盖。
+- 世界描述、维度自定义文本和角色背景不设会砍掉输入的 `maxLength`；界面只显示实际字数，不改变定版布局。
+- AI 结构化变更若含非法项则整包拒绝状态变更，禁止“只提交前 N 条”或“删掉坏项后提交剩余项”。
+- 主叙事及其他剧情规则 AI 的 Prompt、Zod/JSON Schema 不得对语义文本或事实数组设置字符/条数上限；外围 MOD 的天象、纪元、地理、外交、NPC、文化、艺术与地图历史同样不得固定容量淘汰。
+
+### 6.5 存档 + 自动存档
 - `core/storage/save-manager.ts`（`saveManager`）+ `persist-layer` + `local-storage`/`opfs-storage`。
-- 自动存档接线点：`mod-engine/helpers/save-restore.ts` + `orchestrator-system.ts`（回合结束后触发）+ `mod-ui/.../GameBottomBar.tsx`（手动存档按钮）。
+- 自动存档接线点：`src/mods/mod-engine/helpers/save-restore.ts` + `src/mods/mod-engine/subsystems/orchestrator-system.ts`（回合结束后触发）+ `src/mods/mod-ui/components/organisms/GameBottomBar.tsx`（手动存档按钮）。
 - **验收点**：推进若干回合 → 自动存档 → 刷新页面 → 从 `save-manager` 读档 → 世界/角色/时间/叙事历史正确恢复。
 
 ---
@@ -266,8 +281,9 @@ Full gate 剩余 FAIL 分流表：
 2. 启动 → 新游戏 → 选世界（预设或自定义手动配置）→ AI 抽命格并选择 → 设定角色 → 配属性 → 看身世 → 进核心模拟，**全程无红色报错、无崩溃、无清空桩持续刷 `console.error`**。
 3. 核心模拟底层按整数天推进；默认叙事步长为「年」，玩家可切换为「日 / 月 / 季 / 年」，AI 生成叙事，角色寿命/属性随 `daysPassed` 变化。
 4. 连续推进多年，token 不爆炸（压缩生效）。
-5. 能手动存档、自动存档、读档恢复。
-6. C1 lint = 0，C2 tsc = 0，C3 gate-check 按 L3 要求处理；若仍有 FAIL，必须逐项说明是否为本阶段遗留、是否已纳入后续阶段，不能宣称无视。
+5. 长局原始叙事、摘要、关系、伏笔、因果标记和用户设定不因字符数、条目数或容量上限被截断；近期窗口之外由压缩与检索覆盖。
+6. 能手动存档、自动存档、读档恢复。
+7. C1 lint = 0，C2 tsc = 0，C3 gate-check 按 L3 要求处理；若仍有 FAIL，必须逐项说明是否为本阶段遗留、是否已纳入后续阶段，不能宣称无视。
 
 ---
 
@@ -278,8 +294,8 @@ Full gate 剩余 FAIL 分流表：
 - 不懂就停：世界配置去 AI 的边界、命格 AI 的返回结构等有歧义时，列选项问用户。
 - 动 core/foundation 前说明风险等确认（B-01/B-02）。
 - 本轮实际触碰、清空、恢复的子系统一律 `extends BaseSubsystem`；时间只读 `this.getDaysPassed(context)`；禁止复活 `ageYearsDelta`/`simulationTicks`。
-- 禁止硬编码 maxTokens、禁止 slice 截断叙事/记忆。
+- 禁止硬编码 maxTokens；禁止以 `slice/substring/shift/splice`、固定字符数、固定条数、容量淘汰或部分提交等任何破坏性方式截断剧情语义。允许语义压缩和可解释遗忘，但原始事实与覆盖链必须可追踪。
 
 ---
 
-*配套：`docs/simulation-rewrite-discussion-plan.md`（决策）· `docs/simulation-rewrite-architecture.md`（模板体系）· `.agents/skills/ai-life-sim-mod-development/references/mod-spec-rewrite-tiers.md`（分段）*
+配套：`docs/simulation-rewrite-discussion-plan.md`（历史决策背景）、`docs/simulation-rewrite-architecture.md`（架构）、`docs/system-authority-index.md`（活动系统职责）。

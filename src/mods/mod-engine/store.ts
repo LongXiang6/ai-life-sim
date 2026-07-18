@@ -163,10 +163,6 @@ export const useEngineStore = create<EngineStore>()(
       },
       partialize: (state,) => {
         const { setStatus: _a, appendNarrative: _b, setCurrentNarrative: _c, advanceRound: _d, setCompressionStats: _e, setCompressedSummaries: _f, appendStreamingChunk: _g, finalizeNarrative: _h, setNarrativeError: _i, setLastAutoSaveRound: _j, setCoreMemoryNpcMap: _n, setForceBranchNext: _fb, resolveBranch: _rb, reset: _o, ...rest } = state
-        // 仅持久化最近 50 条叙事历史，防止 localStorage 膨胀
-        if (rest.narrativeHistory && rest.narrativeHistory.length > 50) {
-          rest.narrativeHistory = rest.narrativeHistory.slice(-50)
-        }
         return rest
       },
     },

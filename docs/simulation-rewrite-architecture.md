@@ -1,14 +1,23 @@
 # MOD 架构优化设计 —— 降低 AI 认知负担的自动化模板体系
 
-> 状态：设计稿 | 版本：一版
-> 用途：定义各 MOD 内每个文件的职责边界、填写规范、占位符格式。AI 打开任一 MOD 只需按此文档填空。
-> 前置：模拟系统全面重写讨论计划书（`simulation-rewrite-discussion-plan.md`）
+文档角色：architecture
+权威层级：A3
+状态：active
+适用范围：MOD 目录、BaseSubsystem、Foundation 跨域契约、生成接线与子系统模板
+拥有者：`ai-life-sim-mod-development` 与 live architecture sources
+最后验证：2026-07-18；对照当前 Skill、BaseSubsystem、manifest 类型和子系统模板
+取代关系：none
+运行真源：`src/core/subsystem-base.ts`、`src/foundation/types/mod.types.ts`、`src/foundation/subsystem-contracts/`、生成接线脚本
+验收证据：治理检查、活动引用审计、结构检查
+
+用途：定义各 MOD 内文件的职责边界、填写规范和占位符格式。
+前置：`simulation-rewrite-discussion-plan.md`
 
 ---
 
 ## 〇、设计目标
 
-当前 18 个 MOD（mod-religion、mod-diplomacy、mod-fate-prophecy 待创建）、73 个子系统的结构虽然统一了 manifest 接口，但在更细的粒度上缺乏约束——同样的 `collectState` 方法，有的读 `getAgeYearsDelta`、有的不读；跨系统数据用 `as Record<string, unknown>` 强转；applyChanges 有的抛异常有的静默忽略。
+项目 MOD 已统一 manifest 入口，但更细粒度的子系统职责、跨域契约和 applyChanges 所有权仍必须由 live source 与系统职责索引约束。静态 MOD 或子系统数量不在本文档重复维护。
 
 重构后的 ARCHITECTURE 应达到四个目标：
 
@@ -17,7 +26,7 @@
 | **填空而非解题** | AI 打开一个子系统文件，看到的是带有占位符的模板，知道"这里填什么类型、输出什么结构"，不需要翻其他文件去猜 |
 | **编译期安全** | foundation 层定义跨域数据契约，跨系统读数据走类型安全的读取器，路径写错编译报错而非运行时静默 undefined |
 | **统一时间源** | TimeSystem 以"天"为唯一最小单位；所有子系统从 `daysPassed` / `context.totalDays` 读取时间，不再各自维护年/月/日缩放 |
-| **自检自动化** | 每个 MOD 完成填空后可跑 `npm run gate-check` 自动校验是否缺文件、缺导出、manifest 字段不匹配 ⚠️**待建设**（见下方现状说明） |
+| **自检自动化** | 每个 MOD 完成填空后可跑 `npm run gate-check` 自动校验是否缺文件、缺导出、manifest 字段不匹配 风险提示：**待建设**（见下方现状说明） |
 
 **现状说明**：`scripts/check/domains/` 目前的 scanner（wiring / loader / mod / ui / narrative / calibration）**不校验**本文档新增的约定——子系统是否 `extends BaseSubsystem`、契约文件是否存在、§一文件存在性约束表是否满足。这些校验能力尚未落地，属于后续待建设的 checker 任务，本文档描述的是目标状态而非当前 `gate-check` 已有能力，恢复子系统时不能仅凭 `gate-check` 通过就认为符合本文档规范，仍需人工核对。反过来，迁移期 `gate-check` 的旧规则 FAIL 也不能直接逐行硬修，必须先按 MVP 蓝图建立“真实阻断 / 检测器误报 / 迁移期应降级 / MVP 后处理”分流表。
 
@@ -25,7 +34,7 @@
 
 ## 一、标准 MOD 目录树 —— 固定文件清单
 
-每个 MOD（无论 page 类还是 subsystem 类）的目录、公开入口和通信约定，以实际代码、manifest 类型和 `.agents/skills/ai-life-sim-mod-development/references/mod-spec-architecture.md` 为准。本文档不重复维护第二份完整检查表。
+每个 MOD（无论 page 类还是 subsystem 类）的目录、公开入口和通信约定，以实际代码、`src/foundation/types/mod.types.ts`、`src/core/mod-loader/` 与 `.agents/skills/ai-life-sim-mod-development/SKILL.md` 为准。本文档不重复维护第二份完整检查表。
 
 核心结构提要：`manifest.ts`/`index.ts`/`types.ts`/`constants.ts` 必填（后两者内容为空时至少留占位或说明性注释）；`store.ts` 无状态不建；`_internal/control.ts` 永远存在（可 `export {}`）；`subsystems/`/`prompts/`/`utils/`/`components/` 按需。
 
@@ -33,7 +42,7 @@
 
 ## 二、抽象基类 —— 所有子系统的统一契约
 
-`core/subsystem-base.ts` 中的轻量抽象基类 `BaseSubsystem`（**已实际建成**，implements `ISubSystemV2`）。所有子系统继承它，而非直接实现 `ISubSystem` 接口。完整代码见该文件本身（代码不会和自己产生不一致，是最权威的来源）；项目上下文见 `.agents/skills/ai-life-sim-mod-development/references/mod-spec-subsystem.md`。
+`src/core/subsystem-base.ts` 中的轻量抽象基类 `BaseSubsystem` 是新建或恢复子系统的当前基线。完整契约以该文件、`src/foundation/types/subsystem.types.ts` 和 `.agents/skills/ai-life-sim-mod-development/SKILL.md` 为准；不得从历史快照复制第二份接口。
 
 基类提供：4 个必填声明（id/mod/label/description）+ 3 个必实现方法（collectState/applyChanges/reset）+ 4 个有默认空实现的可选方法（advance/collectStateUpdate/collectStateFinalFix/formatForPrompt）+ 3 个共享工具方法（clamp/getDaysPassed/readSubsystem）。
 
@@ -66,7 +75,7 @@
 
 ## 三、Foundation 跨域数据契约 —— 类型安全的子系统间通信
 
-`foundation/subsystem-contracts/` 目录（**已建成空聚合入口**，随恢复段逐个补充契约文件）。完整目录结构、契约文件模板、使用方式对比（旧写法 `as Record<string, unknown>` 强转 vs 新写法 `readSubsystem<T>()`）、契约生成时机与维护约定见 `.agents/skills/ai-life-sim-mod-development/references/mod-spec-subsystem-contracts.md`。
+`src/foundation/subsystem-contracts/` 是 provider-owned 跨域类型契约入口。目录结构、当前契约和使用方式以 live source 与 `.agents/skills/ai-life-sim-mod-development/SKILL.md` 为准；`readSubsystem<T>()` 提供编译期类型，不替代运行时验证。
 
 ---
 
@@ -76,11 +85,10 @@
 
 模板包含的核心结构：
 
-- 文件头注释（职责 / 输入 / 输出 / 向 AI 注入 / 存储键，§十一 1.1 格式）
+- 文件头注释（职责 / 非职责 / 输入 / 输出与写入 / AI 参与 / 状态权威 / 持久化权威 / 运行存活）
 - `class {SubsystemName}System extends BaseSubsystem`（§二 迁移范围）
 - `collectState` / `applyChanges` / `reset` 三个必填方法的填空区注释（A/B）
-- `advance` / `formatForPrompt` / `collectStateUpdate` 三个可选方法的填空区注释（D/C/E）
-- 文件末尾附带的"清空状态注释模板"（对应下方 §五）
+- 只在 live contract 需要时增加 `advance` / `formatForPrompt` / `collectStateUpdate` 等可选方法；模板不预生成无用方法
 
 ### 填空区说明
 
@@ -102,15 +110,15 @@
 
 ## 六、Manifest 模板 —— 标准声明格式
 
-完整字段列表、依赖前缀速查表（硬依赖/软引用 `~`/可选 `?`/冲突 `!`），以 `foundation/types/mod.types.ts` 的 `ModManifest`/`ModManifestV2` 与 `.agents/skills/ai-life-sim-mod-development/references/mod-spec-architecture-extended.md` 为准；模板位于 `.agents/skills/ai-life-sim-mod-development/assets/templates/mod-manifest.template.ts`。
+完整字段、依赖语义和公开入口以 `src/foundation/types/mod.types.ts`、live `manifest.ts`、依赖解析器和 `.agents/skills/ai-life-sim-mod-development/SKILL.md` 为准。项目不维护第二份通用 manifest 模板；修改声明后运行 `npm run generate:wiring`。
 
 ---
 
 ## 七、Store 模板 —— 持久化状态的标准写法
 
-Store 模板位于 `.agents/skills/ai-life-sim-mod-development/assets/templates/mod-store.template.ts`（Zustand + persist 到 localStorage，存储键格式 `mod-[领域名]:persist:[store名]`）。本文档不重复贴代码。
+项目不维护通用 Store 模板。新增或修改 Store 时读取 owning MOD 的 live Store、`src/core/storage/` 和实际 save/restore 调用链；持久化键、迁移和兼容行为由 owning source 决定，不得从历史模板猜测。
 
-**重要提醒**（模板文件里已有，这里再强调一次因为容易被忽略）：store 结构变更时（字段重命名、新增必填字段）必须实现 `migrate` 函数处理旧版本数据，否则用户旧存档会崩溃。
+Store 或存档结构变更时，必须按当前产品阶段和用户决定明确迁移或不兼容策略，并验证旧数据处理；不得留下未声明的隐式兼容行为。
 
 ---
 
@@ -129,10 +137,10 @@ const daysPassed = this.getDaysPassed(context)  // 返回整数
 ```
 
 不再存在以下模式：
-- ❌ `getAgeYearsDelta(context)` → 年增量浮点数
-- ❌ `context.ageYearsDelta` → 直接读 context 上的可选字段
-- ❌ `context.simulationTicks` → 年累加器模式
-- ❌ `for (let y = 0; y < years; y++)` → 零循环冻结
+- 禁止： `getAgeYearsDelta(context)` → 年增量浮点数
+- 禁止： `context.ageYearsDelta` → 直接读 context 上的可选字段
+- 禁止： `context.simulationTicks` → 年累加器模式
+- 禁止： `for (let y = 0; y < years; y++)` → 零循环冻结
 
 时间引擎负责将整数的天数转换为子系统需要的周期判断：
 
@@ -174,7 +182,7 @@ while (this._dayAccumulator >= 30) {
 | 分组 | 字段 | 处理 |
 |------|------|------|
 | 保留不动 | `worldId` `characterId` `round` `timeStep` `difficulty` `subsystemStates` `lastNarrativeText` `eraStartYear` `birthEraYear` `essenceTag` | 与本次时间引擎重写无关，原样保留 |
-| **彻底删除**（⚠️ 实际影响面已核实，见下方修正） | `ageYearsDelta` `calendarDaysDelta` `simulationTicks` | 连同 `foundation/utils/round-advance.ts` 中的 `getAgeYearsDelta`/`consumeSimulationYears` 一并删除。不做兼容层、不标记 `@deprecated` 过渡——讨论计划书 §二已明确"消除年累加器" |
+| **彻底删除**（风险提示： 实际影响面已核实，见下方修正） | `ageYearsDelta` `calendarDaysDelta` `simulationTicks` | 连同 `foundation/utils/round-advance.ts` 中的 `getAgeYearsDelta`/`consumeSimulationYears` 一并删除。不做兼容层、不标记 `@deprecated` 过渡——讨论计划书 §二已明确"消除年累加器" |
 | 新增 | `daysPassed` `totalDays` | 见下 |
 
 **当前状态修正（2026-07-04 再核实）**：`RoundContext.daysPassed`/`totalDays` 已落地；`mod-engine/subsystems/orchestrator-system.ts` 已注入这两个字段；`mod-engine/utils/time-step-resolver.ts` 只保留步长规范化；`foundation/utils/round-advance.ts` 只保留 `roundSequence` 读取。此前关于"活跃子系统旧字段影响面必须合并删除"的记录是历史中间态，不再作为当前执行事实。执行前仍需全量搜索 `ageYearsDelta` / `calendarDaysDelta` / `simulationTicks` / `getAgeYearsDelta` / `consumeSimulationYears`，并区分历史注释、清空说明和真实活代码。
@@ -265,7 +273,9 @@ AI 在新增或删除子系统时**不需要手改这些生成文件**——只�
 
 ## 十一、AI 文档规范
 
-### 11.1 文件头部注释（每个源文件都必须有）
+项目 AI 权威文档统一遵循 `.agents/skills/ai-life-sim/references/ai-documentation-contract.md`。以下仅保留源文件注释的最低要求。
+
+### 11.1 文件头部注释（职责复杂或非显然的源文件）
 
 ```typescript
 /**

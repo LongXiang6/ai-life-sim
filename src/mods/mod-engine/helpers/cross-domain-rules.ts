@@ -419,9 +419,6 @@ export class WorldEventBus {
 
   recordEvent(event: DomainEvent): void {
     this.eventHistory.push(event)
-    if (this.eventHistory.length > 500) {
-      this.eventHistory = this.eventHistory.slice(-500)
-    }
   }
 
   /**

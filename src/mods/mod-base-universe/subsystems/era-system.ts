@@ -359,11 +359,6 @@ export class EraSystem implements ISubSystem {
       endedYear: null,
     },)
 
-    // 限制历史长度（保留最近 20 条）
-    if (this._state.history.length > 20) {
-      this._state.history = this._state.history.slice(-20,)
-    }
-
     this._previousEraName = newName
   }
 

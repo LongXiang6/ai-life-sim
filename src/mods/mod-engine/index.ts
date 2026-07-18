@@ -40,14 +40,11 @@ export {
   COMPRESS_L4_MERGE_COUNT,
   MIN_SUMMARY_TOKENS,
   MAX_SUMMARY_TOKENS,
-  MAX_NARRATIVE_HISTORY,
 } from './constants'
 export {
   NARRATIVE_STYLE_PROMPTS,
   WORD_COUNT_RANGES,
   DEFAULT_WORD_COUNT_TARGET,
-  MAX_CONTEXT_EVENTS,
-  SLIDING_WINDOW_RECENT_EVENTS_BASE,
   COMPACT_JSON_KEY_MAP,
   buildWordCountInstruction,
   buildStyleInstruction,
@@ -89,7 +86,6 @@ export {
   daysBetween,
   timeStepLabel,
   computeSummaryTokenBudget,
-  computeSummaryCharLimit,
   computeSummaryL2Tokens,
   computeSummaryL3Tokens,
   computeSummaryL4Tokens,

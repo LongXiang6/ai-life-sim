@@ -115,16 +115,6 @@ export const IMMERSION_TWO_PASS_ENABLED = false
 /** 可用时间步长列表（从细到粗） */
 export { AVAILABLE_TIME_STEPS } from '@/foundation/constants/time-steps'
 
-/** 叙事历史最大保留条数（超出后移除最旧条目，压缩先于删除） */
-export const MAX_NARRATIVE_HISTORY = 200
-
-/**
- * 角色原创设定（characterCreations）最大保留条数。
- * 该数组会被完整注入每轮 prompt 的稳定段，必须设上限以防内存膨胀与 prompt 撑爆。
- * 超出时移除最早确认的条目（保留最近创造的设定）。
- */
-export const MAX_CHARACTER_CREATIONS = 80
-
 /** 存储键（规范格式：{mod}:{category}:{key}） */
 export const STORAGE_KEYS = {
   ENGINE_CONFIG: 'mod-engine:config:main',
@@ -200,9 +190,6 @@ export const MIN_SUMMARY_TOKENS = 3600
 
 /** @deprecated 摘要预算不再封顶；保留常量兼容旧引用 */
 export const MAX_SUMMARY_TOKENS = Number.MAX_SAFE_INTEGER
-
-/** 摘要字符数默认保底 */
-export const SUMMARY_CHARS_DEFAULT = 3000
 
 /** L2 合并 token 保底 */
 export const SUMMARY_L2_MIN_TOKENS = 1000

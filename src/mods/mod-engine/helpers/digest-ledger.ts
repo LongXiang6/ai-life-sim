@@ -20,8 +20,8 @@
  *      低分事件，按 chainFactor 提升其 adjustedImportance（前置事件被"追认"重要）。
  *   2. 时间衰减（effectiveImportance）：查询时按 age 衰减，越低分衰减越快；
  *      ≥ LOCK_THRESHOLD 的事件永不衰减（刻骨铭心）。
- *   3. 剪枝合并（selectForPrompt / foldLowImportance）：注入 prompt 时按有效
- *      重要性排序取 Top-N，低分连续段折叠为一行。
+ *   3. 语义折叠（selectForPrompt）：注入 prompt 时保留全部高权事件，
+ *      低分连续段折叠为一行；不按固定条目数删除账本事实。
  */
 
 // ============================================================
@@ -46,9 +46,6 @@ export const DECAY_RATE_PER_AGE = 0.15
 /** 低于此有效重要性的事件在注入 prompt 时会被折叠合并 */
 export const FOLD_THRESHOLD = 40
 
-/** 账本条目上限（超出后从最旧且有效重要性最低者开始丢弃） */
-export const MAX_LEDGER_ENTRIES = 500
-
 /** AI 对整轮叙事的粗粒度重要性。 */
 export type DigestImportance = 'HIGH' | 'NORMAL' | 'LOW'
 
@@ -58,7 +55,7 @@ export type DigestImportance = 'HIGH' | 'NORMAL' | 'LOW'
 
 /** 账本中的单个关键事件 */
 export interface LedgerEvent {
-  /** 事件精简描述（AI 输出，≤30 字） */
+  /** 事件精简描述（AI 输出） */
   text: string
   /** AI 标注的人物/地点/物品/组织；是连锁回溯的唯一语义来源 */
   entities?: string[]
@@ -179,7 +176,6 @@ export class DigestLedger {
     // 新事件入账后执行连锁回溯
     this.reinforceChains(entry)
 
-    this.enforceCapacity()
     return true
   }
 
@@ -247,32 +243,6 @@ export class DigestLedger {
     return clamp01to100(Math.round(decayed))
   }
 
-  // ---- 容量控制 ----
-
-  /** 超出上限时，从有效重要性最低（近似用 adjusted）且最旧的条目里裁剪事件 */
-  private enforceCapacity(): void {
-    let total = this.entries.reduce((sum, e) => sum + Math.max(1, e.events.length), 0)
-    if (total <= MAX_LEDGER_ENTRIES) return
-
-    // 优先丢弃最旧条目里 adjustedImportance 最低的事件
-    const sortedOldFirst = [...this.entries].sort((a, b) => a.round - b.round)
-    for (const entry of sortedOldFirst) {
-      if (total <= MAX_LEDGER_ENTRIES) break
-      if (entry.events.length === 0) continue
-      // 按 adjusted 升序，从最不重要的开始丢
-      entry.events.sort((a, b) => a.adjustedImportance - b.adjustedImportance)
-      while (entry.events.length > 0 && total > MAX_LEDGER_ENTRIES) {
-        // 保护锁定级事件
-        if (entry.events[0].adjustedImportance >= LOCK_THRESHOLD) break
-        entry.events.shift()
-        total--
-      }
-    }
-
-    // 清掉既无 digest 又无 events 的空壳条目
-    this.entries = this.entries.filter((e) => e.digest || e.events.length > 0)
-  }
-
   // ---- 查询 / 注入 ----
 
   /**
@@ -296,9 +266,9 @@ export class DigestLedger {
    *   1. 计算每条事件的有效重要性。
    *   2. 有效重要性 ≥ FOLD_THRESHOLD 的事件逐条保留（附轮次）。
    *   3. 低于阈值的连续事件按轮次段折叠为一行概略。
-   *   4. 高分优先，最终不超过 limit 条。
+   *   4. 不设置固定条目上限；容量压力交给摘要层处理。
    */
-  selectForPrompt(currentRound: number, limit = 24): string[] {
+  selectForPrompt(currentRound: number): string[] {
     if (this.entries.length === 0) return []
 
     interface Scored {
@@ -320,10 +290,8 @@ export class DigestLedger {
     const kept = scored.filter((s) => s.effective >= FOLD_THRESHOLD)
     const folded = scored.filter((s) => s.effective < FOLD_THRESHOLD)
 
-    // 高分逐条：按有效重要性降序，取前 limit-? 个
-    kept.sort((a, b) => b.effective - a.effective)
+    // 高分逐条完整保留，并按时间顺序注入。
     const keptLines = kept
-      .slice(0, Math.max(0, limit - 1))
       .sort((a, b) => a.round - b.round)
       .map((s) => `[${s.round}轮·${s.effective}] ${s.text}`)
 

@@ -1,9 +1,18 @@
 # 核心架构执行文档：契约单一真源 + 判定落地闭环 + 系数核心
 
-日期：2026-07-07
-状态：**执行蓝图（供 GPT 逐步实施，主 AI 审查）**。本文档是 [plan-2026-07-07-narrative-deregex-ui-eval.md](file:///D:/AI/ai-life-sim/docs/plan-2026-07-07-narrative-deregex-ui-eval.md) 中 D7 / D9 / D5+D12+D13 三项**动 core/foundation** 决策的落地步骤，把「决策 + 方向」细化到「数据结构 + 改动清单 + 验证关卡」。
+文档角色：architecture
+权威层级：A3
+状态：active
+适用范围：字段契约单一真源、判定与落地所有权、时间和难度系数输入
+拥有者：`core`、`foundation` 与 owning subsystem contracts
+最后验证：2026-07-18；引用与当前治理入口同步
+取代关系：none
+运行真源：live contracts、owning subsystem implementations、generated wiring
+验收证据：结构检查、MOD 检查、lint、TypeScript 与相关回归
 
-> ⚠️ 本文档涉及 `src/core/` 与 `src/foundation/`。若改变公开契约、持久化、运行态结构或跨模块语义，按 `D:\AI\AGENTS.md` 权限边界先确认；实施后运行对应关闸和存档兼容验证。
+日期：2026-07-07。本文档细化 [plan-2026-07-07-narrative-deregex-ui-eval.md](plan-2026-07-07-narrative-deregex-ui-eval.md) 中 D7 / D9 / D5+D12+D13 的数据结构、改动清单和验证关卡。
+
+风险级别：高。本文档涉及 `src/core/` 与 `src/foundation/`；改变公开契约、持久化、运行态结构或跨模块语义时，按 `../../AGENTS.md` 权限边界处理并验证存档兼容。
 
 ---
 
@@ -11,11 +20,12 @@
 
 新电脑继续时先读：
 
-1. `AGENTS.md`
+1. `../../AGENTS.md`
 2. `.agents/skills/ai-life-sim/SKILL.md`
-3. `.agents/skills/ai-life-sim/references/architecture.md`
+3. `.agents/skills/ai-life-sim/references/authority-hierarchy.md`
 4. `.agents/skills/ai-life-sim-mod-development/SKILL.md`
-5. 本文档
+5. `docs/system-authority-index.md`
+6. 本文档
 
 先跑：
 
@@ -27,7 +37,7 @@ node .agents/scripts/check-governance.mjs
 
 | 项 | 状态 | 下一步 |
 |----|------|--------|
-| 技能/规则索引 | 已整理为 `AGENTS.md → 核心流程 → cross-domain → SKILL-INDEX → 域 SKILL → 末端文件` | 若改 `.agents/`，改后跑治理检查 |
+| 技能/规则索引 | 当前链路为 `../../AGENTS.md` → `$ai-life-sim` → authority hierarchy / execution flow → 域 Skill → live source | 若改 `.agents/`，改后跑治理、引用与插件结构检查 |
 | C-0 前置核对 | 已完成并写入本文档 | 继续执行 C-2 或先复核 C-1 实际代码状态 |
 | C-1 契约单一真源 | 文档记录为已实施 | 先用 `rg "SUBSYSTEM_FIELD_CONTRACTS|subsystemGuide|SUBSYSTEM_CHANGE_SCHEMAS" ai-life-sim/src` 复核 |
 | C-2 系数核心 | 已实施 | `core/shared/balance-config.ts` 为当前单一入口 |
@@ -86,15 +96,15 @@ plan 文档把它们拆在 §八(P1)、§五(E1)、§十(P3)，但它们指向�
 2. **DeepSeek JSON Mode：主叙事路径已启用，D11 方案 A 需要调整。**
    - `narrative-prompt.ts` 当前 `outputFormat: 'json'`（`narrative-prompt.ts:473`）。
    - `callAIWithPromptTemplate()` 会把 JSON prompt 转成 `jsonMode: true`（`ai-call-wrapper.ts:44-47`），`ai-client.ts` 会发送 `response_format: { type: 'json_object' }`（`ai-client.ts:503-507`），代理路由会透传（`app/api/proxy/route.ts:323-326`）。
-   - 例外：default campaign 的 S3 非流式分支直接走 `callAIDegraded()`（`campaigns/default/index.ts:264-269`），其 `streamOpts` 未显式带 `jsonMode`；后续改 D11/G1 时应一起收口，避免同一叙事管线 JSON Mode 行为分叉。
+   - 例外：default campaign 的 S3 非流式分支位于 `src/mods/mod-engine/campaigns/default/index.ts`；修改 D11/G1 时复核它与主叙事调用的 response mode 是否一致。
 3. **`RoundContext` / `OrchestratorSnapshot` 基线已确认。**
    - `RoundContext` 已包含 `daysPassed` / `totalDays`，由 TimeSystem 作为唯一时间增量源注入（`subsystem.types.ts:57-64`）。
    - `OrchestratorSnapshot` 当前包含 `lastSubsystemStates`、`timeRound`、`lastNarratedTimeStep`、预生成和摘要账本等存档相关字段（`orchestrator-system.ts:262-282`，`orchestrator-system.ts:575-620`）。
 4. **`timeStep` / 本轮跨越时间：无需为 C-2 新增 `RoundContext` 字段。**
    - 子系统可读 `context.timeStep`，本轮实际推进天数由 `TimeSystem.getDaysPassed()` 注入 `context.daysPassed`（`time-system.ts:188-190`，`orchestrator-system.ts:784-799`）。
    - C-2 的"本轮游戏年数"可从 `context.daysPassed / 365` 派生；除非 C-3 后续要做接口强约束，否则不要仅为 balance-config 增加 `RoundContext` 字段。
-5. **文档引用缺口：`docs/blueprint-01-mvp-playable.md` 当前不存在。**
-   - 该路径被 `simulation-rewrite-discussion-plan.md`、`ARCHITECTURE.md`、`mod-spec-rewrite-tiers.md` 等引用；不阻断 C-1/C-2 设计，但恢复子系统或判断 MVP 范围前必须补齐或改正引用。
+5. **文档引用缺口已解决。**
+   - MVP 范围读取 `docs/blueprint-01-mvp-playable.md`；系统职责和运行成员读取 `docs/system-authority-index.md` 与 MVP runtime policy，不再依赖已删除的旧架构或恢复梯队引用。
 
 ---
 
@@ -161,7 +171,7 @@ export const MORALITY_CONTRACT = {
 2. 手动构造一次 AI 变更（如 `morality.delta = -1`），跑一轮，确认善恶值真的变了（修复前很可能不变）。
 3. `npm run gate-check` 零错误。
 
-### ⚠️ 手感变化提示（对应 D7）
+### 风险提示： 手感变化提示（对应 D7）
 
 修复后善恶/气运/寿命会**开始真正变动**——此前可能一直静止。这会改变现有存档的行为表现，属预期内，实施时在交付说明中明确指出。
 
@@ -231,7 +241,7 @@ C-0 已确认 `RoundContext.daysPassed` 是本轮实际推进天数，`context.t
 2. **B1 属性单一写权威**：删 `character-base-system.ts` 的 `parseAttrFromNarrative` 叙事正则兜底（与 G2 去正则化一致），base 的唯一写入路径是 AI `*Delta`。
 3. **B8/B9 跨域收敛**：跨域数值修正的三条路径（cross-domain-rules / applyWorldDirection / 叙事关键词兜底 direction）目标子系统多为死代码，MVP 下整体禁用或明确标注未来段；字段名归一化只留 validator 一处。
 
-### ⚠️ 为什么这是高风险（动 core/foundation）
+### 风险提示： 为什么这是高风险（动 core/foundation）
 
 - 可能改 `RoundContext`、`SubSystemChanges`、`ISubSystem` 接口（`foundation/types/subsystem.types.ts`）——波及全部子系统 + 存档序列化。
 - 可能改 `OrchestratorSnapshot` / `captureSnapshot`——直接影响存档兼容。
@@ -263,6 +273,6 @@ C-0 已确认 `RoundContext.daysPassed` 是本轮实际推进天数，`context.t
 ## 交付与审查约定（配合"GPT 执行 + 主 AI 审查"分工）
 
 - GPT 每完成一个阶段（C-0/C-1/C-2/C-3）产出一次交付说明：改了哪些文件、贴关键 diff、贴 gate-check 结果。
-- 主 AI 按 `D:\AI\AGENTS.md` 的范围和验证边界复查：是否只改必要范围、是否漏改同名调用点、验证关卡是否真跑。
+- 主 AI 按 `../../AGENTS.md` 的范围和验证边界复查：是否只改必要范围、是否漏改同名调用点、验证关卡是否真跑。
 - C-3 动 core/foundation 前，GPT 必须先停下出改动清单等确认，不得直接改。
 - 每阶段独立可交付、可回滚；C-1 未验证稳定前不进 C-3。

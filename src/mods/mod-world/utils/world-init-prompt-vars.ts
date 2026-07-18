@@ -31,31 +31,19 @@ export function buildPowerCeilingPresets(): string {
 }
 
 /**
- * 力量体系预设（叙事用截断格式）
+ * 力量体系预设（叙事完整格式）
  *
- * ≤ currentCeiling 的阶位 → 完整描述（阶位 + 单位名 + 量级描述）
- * >  currentCeiling 的阶位 → 仅简短阶位表现标签（如"5阶【文明级】"）
+ * 所有阶位均提供完整描述（阶位 + 单位名 + 量级描述）。当前天花板只决定
+ * 叙事可达范围，不能成为截断更高阶世界观语义的理由。
  *
- * 用于叙事 prompt，让 AI 在角色未突破天花板时不必看到高阶完整描述，
- * 同时保留高阶简短标签供世界观突破参考。
- *
- * @param currentCeiling - 当前世界战力天花板（1-23）
+ * @param _currentCeiling - 当前世界战力天花板（保留参数兼容；不再用于缩短描述）
  */
-export function buildPowerCeilingPresetsForNarrative(currentCeiling: number): string {
+export function buildPowerCeilingPresetsForNarrative(_currentCeiling: number): string {
   const lines: string[] = []
-  const ceiling = Math.max(1, Math.min(23, Math.floor(currentCeiling)))
   for (let i = 1; i <= 24; i++) {
-    if (i <= ceiling) {
-      // 完整描述
-      const unit = UNIT_NAMES[i] ? `【${UNIT_NAMES[i]}级】` : ''
-      const desc = RATING_DESCRIPTIONS[i] ?? ''
-      lines.push(`${i}阶${unit}：${desc}`)
-    } else {
-      // 阶位表现标签：从 RATING_DESCRIPTIONS 提取首词/短语（"。"前的部分）
-      const raw = i === 24 ? '真无限级' : (RATING_DESCRIPTIONS[i] ?? '')
-      const shortLabel = i === 24 ? '真无限级' : raw.split('。')[0]
-      lines.push(`${i}阶【${shortLabel}】`)
-    }
+    const unit = UNIT_NAMES[i] ? `【${UNIT_NAMES[i]}级】` : ''
+    const desc = i === 24 ? '真无限级' : (RATING_DESCRIPTIONS[i] ?? '')
+    lines.push(`${i}阶${unit}：${desc}`)
   }
   return lines.join('\n')
 }

@@ -134,10 +134,6 @@ export const DESTINY_PATTERN_FULL_POOL_COUNT = 100
 /** 快速抽取阈值（池 ≥90 条时跳过 AI 生成，对齐废弃项目 TALENT_POOL_FAST_DRAW_THRESHOLD） */
 export const DESTINY_PATTERN_FAST_DRAW_THRESHOLD = 90
 
-/** 存储容量管理（对齐废弃项目 MAX_WORLD_SIZE_MB / TOTAL_MAX_MB） */
-export const DESTINY_PATTERN_MAX_WORLD_SIZE_MB = 10
-export const DESTINY_PATTERN_TOTAL_MAX_MB = 500
-
 /** 自定义世界编码起始偏移（对齐废弃项目 CUSTOM_WORLD_CODE_START） */
 export const CUSTOM_WORLD_CODE_START = 10000
 

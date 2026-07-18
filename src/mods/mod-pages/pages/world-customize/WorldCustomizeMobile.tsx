@@ -11,7 +11,6 @@ import { useWorldStore } from '@/mods/mod-world'
 import { WorldCustomizeBottomBar } from './WorldCustomizeBottomBar'
 import { WorldCustomizeDimensionCard } from './WorldCustomizeDimensionCard'
 import { useWorldCustomize } from './useWorldCustomize'
-import { WORLD_CUSTOM_TEXT_MAX_LENGTH } from './world-customize.types'
 
 import styles from './WorldCustomizeMobile.module.css'
 
@@ -62,17 +61,16 @@ export function WorldCustomizeMobile() {
             <section className={`${styles.paperSection} ${styles.descriptionSection}`}>
               <div className={styles.sectionHeading}>
                 <label htmlFor="world-description">世界描述</label>
-                <span>{logic.worldDescription.length} / {WORLD_CUSTOM_TEXT_MAX_LENGTH}</span>
+                <span>{logic.worldDescription.length} 字</span>
               </div>
               <textarea
                 id="world-description"
                 className={styles.descriptionInput}
                 value={logic.worldDescription}
-                maxLength={WORLD_CUSTOM_TEXT_MAX_LENGTH}
                 rows={3}
                 disabled={logic.isSaving}
                 placeholder="补充世界背景、氛围、禁忌或核心规则…"
-                onChange={(event) => logic.setWorldDescription(event.target.value.slice(0, WORLD_CUSTOM_TEXT_MAX_LENGTH))}
+                onChange={(event) => logic.setWorldDescription(event.target.value)}
               />
             </section>
 

@@ -206,7 +206,7 @@ export class ArtSystem implements ISubSystem {
 
     // ── 世界观分层风格涌现 ──
     const seq = getStyleSequence(worldview)
-    const canEmerge = this.state.currentStyles.length < 6 && Math.random() < this.state.prestige / 500
+    const canEmerge = Math.random() < this.state.prestige / 500
     if (canEmerge) {
       const nextStyle = seq.find((s) => !this.state.currentStyles.includes(s))
       if (nextStyle) {
@@ -217,12 +217,6 @@ export class ArtSystem implements ISubSystem {
           this.state.currentStyles.push(pickRandom(fallback))
         }
       }
-    }
-
-    // ── 艺术流派衰退 ──
-    if (this.state.currentStyles.length > 4 && Math.random() < 0.03) {
-      const idx = Math.floor(Math.random() * this.state.currentStyles.length)
-      this.state.currentStyles.splice(idx, 1)
     }
 
     // ── 随机艺术事件（3% 概率） ──
@@ -273,10 +267,9 @@ export class ArtSystem implements ISubSystem {
     return this.state.notableWorks.length
   }
 
-  getTopWorks(limit = 5): Artwork[] {
+  getWorksByQuality(): Artwork[] {
     return [...this.state.notableWorks]
       .sort((a, b) => b.quality - a.quality)
-      .slice(0, limit)
   }
 
   /** 获取声望中文标签 */
@@ -313,12 +306,9 @@ export class ArtSystem implements ISubSystem {
 
     if (this.state.notableWorks.length > 0) {
       lines.push(`著名作品（共 ${this.state.notableWorks.length} 件）：`)
-      const topWorks = this.getTopWorks(3)
-      for (const w of topWorks) {
+      const worksByQuality = this.getWorksByQuality()
+      for (const w of worksByQuality) {
         lines.push(`  ·《${w.name}》— ${w.creator}，品质 ${w.quality}，影响力 ${w.influence}`)
-      }
-      if (this.state.notableWorks.length > 3) {
-        lines.push(`  ...及其他 ${this.state.notableWorks.length - 3} 件`)
       }
     } else {
       lines.push('尚无著名作品。')

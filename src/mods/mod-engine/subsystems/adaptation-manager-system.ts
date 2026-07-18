@@ -71,7 +71,7 @@ function extractAdaptedText(content: string): string | undefined {
       return parsed.narrativeHint
     }
     if (Array.isArray(parsed.narrativeHints) && parsed.narrativeHints.length) {
-      return parsed.narrativeHints[0]
+      return parsed.narrativeHints.filter((value: unknown) => typeof value === 'string' && value).join('；')
     }
     if (typeof parsed.name === 'string' && typeof parsed.description === 'string') {
       return `${parsed.name}：${parsed.description}`
@@ -80,14 +80,13 @@ function extractAdaptedText(content: string): string | undefined {
       const hints = Array.isArray(parsed.narrativeHints) ? parsed.narrativeHints.join('；') : ''
       return `${parsed.realmName}${hints ? '——' + hints : ''}`
     }
-    // 兜底：取第一个字符串字段
-    for (const v of Object.values(parsed)) {
-      if (typeof v === 'string' && v) return v
-    }
+    // 兜底：保留全部字符串字段，避免只取第一项丢失适配语义。
+    const values = Object.values(parsed).filter((v): v is string => typeof v === 'string' && v.length > 0)
+    if (values.length > 0) return values.join('；')
   } catch {
-    // JSON parse failed → 返回 raw content 的前 200 字
+    // JSON parse failed → 保留完整原始内容，由上层决定是否接受。
   }
-  return content.slice(0, 200) || undefined
+  return content || undefined
 }
 
 // ---------------------------------------------------------------------------

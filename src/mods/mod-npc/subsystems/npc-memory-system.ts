@@ -6,8 +6,8 @@
  * 记忆生命周期：
  *   1. 创建 → 分配 importance 等级
  *   2. 衰减 → 每年检查 memoryAge > RETENTION[imp] → importance 降一级
- *   3. 遗忘 → trivial 记忆超期后删除
- *   4. 摘要 → 同一年内多条 trivial 记忆合并为一条 minor
+ *   3. 保留 → 固定年限只能降低 importance，不能删除剧情事实
+ *   4. 摘要 → 同一年内多条 trivial 记忆可做全事实、可追踪的语义合并
  */
 
 import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
@@ -22,7 +22,7 @@ export class NPCMemorySystem implements ISubSystem {
   readonly id = 'npc-memory' as const
   readonly mod = 'mod-npc' as const
   readonly label = 'NPC 记忆系统' as const
-  readonly description = '管理 NPC 独立记忆链：创建、衰减、遗忘、摘要合并' as const
+  readonly description = '管理 NPC 独立记忆链：创建、重要性衰减、完整保留与可追踪语义合并' as const
 
   collectState(_context: RoundContext): SubSystemState {
     return {
@@ -73,7 +73,7 @@ export class NPCMemorySystem implements ISubSystem {
 
     return {
       ...npc,
-      memories: [memory, ...npc.memories].slice(0, 200),
+      memories: [memory, ...npc.memories],
     }
   }
 
@@ -91,11 +91,6 @@ export class NPCMemorySystem implements ISubSystem {
         newImportance = IMPORTANCE_DEGRADE[currentIdx + 1]
       }
 
-      // trivial 记忆超期 2 倍后删除
-      if (newImportance === 'trivial' && memoryAge > MEMORY_RETENTION.trivial * 2) {
-        continue
-      }
-
       updatedMemories.push({
         ...mem,
         importance: newImportance,
@@ -105,7 +100,7 @@ export class NPCMemorySystem implements ISubSystem {
     return { ...npc, memories: updatedMemories }
   }
 
-  /** 压缩同一年内的多条 trivial 记忆 */
+  /** 将同一年内的多条 trivial 记忆做全事实语义合并；不得只保留前/后 N 条。 */
   static compressTrivial(npcs: Record<string, NPCState>, npcId: string, currentYear: number): NPCState | null {
     const npc = npcs[npcId]
     if (!npc) return null
@@ -116,20 +111,24 @@ export class NPCMemorySystem implements ISubSystem {
 
     if (trivialMemories.length < 3) return null
 
-    // 保留最新 2 条，其余合并为一条 minor
-    const toKeep = trivialMemories.slice(0, 2)
-    const toMerge = trivialMemories.slice(2)
-    const mergedSummary = toMerge.map((m) => m.summary).join('；')
-    const mergedKeywords = [...new Set(toMerge.flatMap((m) => m.keywords))].slice(0, 5)
+    const mergedRecords = trivialMemories.map((memory) => {
+      const keywords = memory.keywords.length > 0 ? memory.keywords.join('、') : '无'
+      const related = memory.relatedId ?? '无'
+      return `[来源 ${memory.id}] 摘要：${memory.summary}；详情：${memory.detail}；关键词：${keywords}；关联：${related}；情绪值：${memory.emotionValence}`
+    })
+    const mergedContent = `本年完整记忆合并：${mergedRecords.join('\n')}`
+    const mergedKeywords = [...new Set(trivialMemories.flatMap((m) => m.keywords))]
+    const averageEmotion = trivialMemories.reduce((sum, memory) => sum + memory.emotionValence, 0)
+      / trivialMemories.length
 
     const mergedMemory: NPCMemory = {
       id: `mem_${npcId}_compressed_${currentYear}`,
       keywords: mergedKeywords,
-      summary: `本年内发生多件事：${mergedSummary}`,
-      detail: mergedSummary,
+      summary: mergedContent,
+      detail: mergedContent,
       importance: 'minor',
       createdYear: currentYear,
-      emotionValence: 0,
+      emotionValence: clamp(averageEmotion, -10, 10),
       decayRate: 0.1,
     }
 
@@ -139,15 +138,14 @@ export class NPCMemorySystem implements ISubSystem {
 
     return {
       ...npc,
-      memories: [...toKeep, mergedMemory, ...otherMemories].slice(0, 200),
+      memories: [mergedMemory, ...otherMemories],
     }
   }
 
-  /** 获取 NPC 的近期记忆摘要（注入 Prompt） */
-  static getRecentMemories(npc: NPCState, limit: number = 5): string {
+  /** 获取 NPC 的全部重要记忆摘要（注入 Prompt） */
+  static getRecentMemories(npc: NPCState): string {
     const important = npc.memories
       .filter((m) => m.importance !== 'trivial')
-      .slice(0, limit)
     if (important.length === 0) return '无近期重要记忆'
     return important.map((m) => `[${m.importance}] ${m.summary}`).join('\n')
   }

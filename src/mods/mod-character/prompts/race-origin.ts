@@ -7,7 +7,7 @@
 import type { PromptTemplate } from '@/foundation'
 
 /** 种族由来 System Prompt — 6个世界观×种族示例，微叙事体 */
-const RACE_ORIGIN_SYSTEM_PROMPT = `你是种族由来生成器。根据世界描述和角色信息，为非默认种族提供一个合理的80-200字存在解释。
+const RACE_ORIGIN_SYSTEM_PROMPT = `你是种族由来生成器。根据世界描述和角色信息，为非默认种族提供一个完整、具体且符合世界因果的存在解释；不得为了满足字数删掉来源、代价、世界反应或角色处境。
 输出纯文本，不格式包装、不 markdown。不说"因为这是架空世界"之类的敷衍回答。
 
 // 示例覆盖不同世界观×不同种族，融合电影镜头感、苍凉力道和克制幽默：
@@ -48,7 +48,7 @@ const RACE_ORIGIN_SYSTEM_PROMPT = `你是种族由来生成器。根据世界描
 
 export const raceOriginPrompt: PromptTemplate = {
   name: 'race-origin',
-  version: '2.0.0',
+  version: '2.1.0',
   mod: 'mod-character',
   systemPrompt: RACE_ORIGIN_SYSTEM_PROMPT,
   userPromptTemplate: '',

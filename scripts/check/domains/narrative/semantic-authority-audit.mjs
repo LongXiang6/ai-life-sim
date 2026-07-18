@@ -133,7 +133,7 @@ for (const register of ['life', 'fate', 'legacy']) {
   )
 }
 assertIncludes(activeFiles.prompt, 'narrativeRegister: NARRATIVE_REGISTERS', 'prompt register values must come from the live schema constants')
-assertIncludes(activeFiles.prompt, "version: '2.7.1'", 'single-scene entertainment contract must bump the prompt version to 2.7.1')
+assertIncludes(activeFiles.prompt, "version: '2.8.0'", 'single-scene entertainment contract must bump the prompt version to 2.8.0')
 assertIncludes(
   activeFiles.prompt,
   '无变化必须直接填 []，不得输出 shape/types 包装对象',
@@ -149,8 +149,13 @@ assertIncludes(
 )
 assertIncludes(
   activeFiles.parser,
-  'NarrativeRoundMetadataSchema.safeParse(raw)',
-  'parser must validate the complete semantic metadata bundle',
+  'NarrativeResponseSchema.safeParse(metadataCandidate)',
+  'parser must validate the complete semantic metadata and raw change bundle together',
+)
+assertIncludes(
+  activeFiles.parser,
+  'metadataRejected: Boolean(metadataResult && !metadataResult.success)',
+  'parser must expose complete META rejection to the whole-package interceptor',
 )
 assertIncludes(
   activeFiles.orchestrator,

@@ -9,11 +9,11 @@
 import type { SubSystemChanges } from '@/foundation'
 import type { ParsedNarrative } from '../subsystems/narrative-parser-system'
 import type { ChineseTextProcessor } from './chinese-text-processor'
+import { mapRawNarrativeChanges } from './narrative-change-bundle'
 import { normalizeNarrativeBranchOptions } from './narrative-branch-policy'
-import { validateRoundChanges } from './subsystem-field-registry'
 import { extractTaggedMetaEnvelope } from './tagged-meta-envelope'
 import {
-  NarrativeRoundMetadataSchema,
+  NarrativeResponseSchema,
   normalizeNarrativeResponseMetadata,
   type NarrativeSemanticSignals,
 } from './narrative-semantic-signals'
@@ -68,8 +68,16 @@ function parseRawAIResponse(
 
   const narrativeSource = stripNarrativeEnvelopeArtifacts(narrativeOverride ?? raw.narrative ?? '')
   const narrative = processor.segmentParagraphs(narrativeSource)
-  const metadataResult = NarrativeRoundMetadataSchema.safeParse(raw)
-  const metadata = metadataResult.success ? metadataResult.data : undefined
+  const {
+    narrative: _protocolNarrative,
+    direction: _legacyDirection,
+    ...metadataCandidate
+  } = raw
+  const hasMetadata = Object.keys(metadataCandidate).length > 0
+  const metadataResult = hasMetadata
+    ? NarrativeResponseSchema.safeParse(metadataCandidate)
+    : undefined
+  const metadata = metadataResult?.success ? metadataResult.data : undefined
 
   // 提取 direction 字段（支持字符串和结构化对象两种格式）
   let direction: ParsedNarrative['direction']
@@ -87,14 +95,10 @@ function parseRawAIResponse(
 
   return {
     narrative,
-    changes: validateRoundChanges(
-      (raw.changes ?? []).map((c) => ({
-        id: c.id ?? '',
-        description: c.description ?? '',
-        changes: c.changes ?? {},
-      })),
-    ),
+    // 解析阶段只做结构映射。完整数组必须原样进入整包拦截器，禁止先删非法项后部分提交。
+    changes: mapRawNarrativeChanges(raw.changes),
     notableEvents: metadata?.notableEvents ?? [],
+    metadataRejected: Boolean(metadataResult && !metadataResult.success),
     direction,
     creations: metadata?.creations?.length ? metadata.creations : undefined,
     foreshadowing: metadata?.foreshadowing?.length ? metadata.foreshadowing : undefined,

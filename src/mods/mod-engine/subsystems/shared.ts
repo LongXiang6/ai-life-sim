@@ -30,8 +30,6 @@ export { adaptationManager } from './adaptation-manager-system'
 
 export {
   DEFAULT_ENGINE_CONFIG,
-  MAX_NARRATIVE_HISTORY,
-  MAX_CHARACTER_CREATIONS,
   USE_AI_SUMMARY_COMPRESSION,
   getWorldRules,
   buildWordCountInstruction,
@@ -40,7 +38,6 @@ export {
   buildEventInjectionText,
   buildTimeBridgeSummary,
   extractBridgeSnapshot,
-  extractL0Title,
   WorldEventBus,
   globalDeadLoopDetector,
   sanitizeSubSystemState,

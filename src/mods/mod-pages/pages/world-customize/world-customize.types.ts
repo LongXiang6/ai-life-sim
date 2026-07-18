@@ -17,9 +17,6 @@ export const FIELD_MODE_LABELS: Record<FieldMode, string> = {
   custom: '自定义',
 }
 
-/** 世界描述 / 维度自定义文本最大字数 */
-export const WORLD_CUSTOM_TEXT_MAX_LENGTH = 5000
-
 /** 单个可编辑维度 */
 export interface EditableField {
   /** 关联 key */

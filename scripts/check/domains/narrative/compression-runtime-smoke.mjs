@@ -4,7 +4,8 @@
  * 覆盖：
  *   1. 主叙事 META 必须带 digest、keyEvents 与每事件 importance/entities；
  *   2. 摘要账本实际按权重保留高分事件、折叠低分事件；
- *   3. L1 延迟窗口的首个覆盖区间与最近完整原文窗口不能产生空洞。
+ *   3. L1 延迟窗口的首个覆盖区间与最近完整原文窗口不能产生空洞；
+ *   4. 摘要必须带完整覆盖标记，失败时不得伪造高层覆盖节点。
  *
  * 该脚本不调用外部 AI，只验证进入运行时后的结构与调度契约。
  */
@@ -111,6 +112,17 @@ assertOk(
   digestLedger.averageAdjustedImportance(1, 2) !== null,
   'summary budgeting must be able to read the ledger importance average',
 )
+for (let round = 3; round <= 522; round++) {
+  digestLedger.record({
+    round,
+    digest: `第${round}轮摘要`,
+    keyEvents: [{ text: `第${round}轮事件`, importance: 10, entities: [`实体${round}`] }],
+  })
+}
+assertOk(
+  digestLedger.getEntries().length === 522,
+  'long-session digest ledger must retain every recorded round instead of applying a capacity cut',
+)
 
 function expectedL1Range(totalRounds) {
   const blockIndex = Math.floor(totalRounds / SUMMARY_INTERVAL)
@@ -134,23 +146,29 @@ assertOk(
   'the raw prompt window must cover all rounds waiting for delayed L1 compression',
 )
 
-// 历史达到保留上限后，events 可能从第 22 轮等较晚轮次开始；L1 仍必须
-// 按事件真实 id 选取目标区间，而不是把 round 当作数组下标。
-const retainedWindow = Array.from({ length: 200 }, (_, index) => ({ id: index + 22 }))
-const delayedBlock = retainedWindow.filter((event) => event.id >= 191 && event.id <= 200)
-assertOk(
-  delayedBlock.length === 10
-    && delayedBlock[0]?.id === 191
-    && delayedBlock.at(-1)?.id === 200,
-  'delayed L1 selection must remain correct after the narrative history window is trimmed',
-)
-
 const orchestratorSource = fs.readFileSync(
   path.join(root, 'src/mods/mod-engine/subsystems/orchestrator-system.ts'),
   'utf8',
 )
+assertOk(
+  !orchestratorSource.includes('MAX_NARRATIVE_HISTORY')
+    && !orchestratorSource.includes('narrativeHistory.shift()'),
+  'long-session narrative history must remain complete while summary selection uses real round ids',
+)
 const summaryPromptSource = fs.readFileSync(
   path.join(root, 'src/mods/mod-engine/prompts/summary-prompt.ts'),
+  'utf8',
+)
+const compressorSource = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/subsystems/summary-compressor-system.ts'),
+  'utf8',
+)
+const summaryCoverageSource = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/helpers/summary-coverage.ts'),
+  'utf8',
+)
+const engineUtilsSource = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/utils.ts'),
   'utf8',
 )
 const memorySource = fs.readFileSync(
@@ -159,8 +177,9 @@ const memorySource = fs.readFileSync(
 )
 assertOk(
   orchestratorSource.includes('slice(-RECENT_NARRATIVE_WINDOW)')
-    && memorySource.includes('recentNarratives.slice(-RECENT_NARRATIVE_WINDOW'),
-  'production memory assembly must use the delayed-compression-safe raw window',
+    && memorySource.includes('recentNarratives: [...recentNarratives]')
+    && memorySource.includes('selectLeafSummaries'),
+  'production memory assembly must preserve the caller-provided raw window and use hierarchical leaf summaries',
 )
 assertOk(
   summaryPromptSource.includes('eventRecords.digest')
@@ -169,8 +188,33 @@ assertOk(
   'L1 summary Prompt must receive the extra digest and per-event weights',
 )
 assertOk(
+  summaryPromptSource.includes('SUMMARY_COMPLETION_MARKER')
+    && !summaryPromptSource.includes('charLimit')
+    && !summaryPromptSource.includes('不超过指定字数'),
+  'summary Prompt must require complete coverage without a semantic character cap',
+)
+assertOk(
+  compressorSource.includes('requireCompletedSummaryContent')
+    && summaryCoverageSource.includes('摘要缺少完整覆盖标记')
+    && !/轮(?:综合|时代|纪元|历史)概略/.test(compressorSource),
+  'incomplete or failed higher-level compression must retain leaves instead of creating placeholder coverage',
+)
+assertOk(
+  engineUtilsSource.includes('computeCoverageSafeSummaryTokens')
+    && !/inputTextLength\s*\/\s*(?:2|4|8|10|12)/.test(engineUtilsSource),
+  'higher compression levels must keep coverage-safe output headroom instead of progressively shrinking the hard token ceiling',
+)
+assertOk(
   orchestratorSource.includes('addCompressedSummaryToIndex('),
   'higher-level summaries must remain searchable after lower-level events are cleared',
+)
+
+assertOk(
+  memorySource.includes('coveredRanges')
+    && memorySource.includes('summary.startRound >= range.start')
+    && memorySource.includes('summary.endRound <= range.end')
+    && memorySource.includes('visibleByLevel.set'),
+  'leaf-summary assembly must replace only fully covered lower levels and retain uncovered summaries',
 )
 
 digestLedger.reset()

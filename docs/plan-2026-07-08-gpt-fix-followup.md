@@ -4,6 +4,8 @@
 状态：**待执行**。本文档基于对 commit `2d569b3`（GPT 执行 [plan-2026-07-07-narrative-deregex-ui-eval.md](file:///D:/AI/ai-life-sim/docs/plan-2026-07-07-narrative-deregex-ui-eval.md) 的产出）的复核审查结果，列出需要修复的问题。所有诊断均基于实际读代码（file:line），不是转述。
 
 > 执行前先读 `D:\AI\AGENTS.md` 与匹配的项目 Skill；本计划仍按真实回归优先于未完成项的顺序处理。
+>
+> 2026-07-18 同步：本文对 `keyEvents/notableEvents=3` 的评价仅记录 2026-07-08 当时状态；固定条数口径已被 `PD-015` 取代，当前实现必须完整提交结构化剧情事实。
 
 ---
 

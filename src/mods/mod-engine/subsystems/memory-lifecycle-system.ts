@@ -7,7 +7,7 @@
  *   A. 三层记忆分离：状态卡(始终在)+叙事窗(L0近期)+历史纲(L6)，L2-L6转为检索索引
  *   B. 重要度分层：消费 AI 的 HIGH/NORMAL/LOW，差异化压缩保留
  *   C. 事件闭环驱动：消费 AI 的 arcStatus/arcType，避免语义断裂
- *   D. 事件聚合（合并自 span-event-aggregator）：严重度排序 + 因果链合并 + 比例限制 + 数量上限
+ *   D. 事件聚合（合并自 span-event-aggregator）：严重度排序 + 因果链合并，完整保留当前事件
  *
  * 架构：
  *   AI META → 重要度/事件弧/实体 → L0 标记 → 事件聚合 → 差异化压缩 → 检索索引 → Prompt注入
@@ -17,7 +17,7 @@
  *   2. 最近20轮L0原文（覆盖延迟压缩区间的细节完整短期记忆）
  *   3. L6历史纲要（一生纵览，长期记忆框架）
  *   4. 检索命中摘要（L2-L6 中按 AI 标注实体匹配，"突然想起来的往事"）
- *   5. 聚合事件（严重事件优先，因果链合并，比例控制）
+ *   5. 聚合事件（严重事件优先，因果链合并，不做固定条数淘汰）
  *
  * AI 重要性约定：
  *   HIGH   = 死亡/战斗/突破/背叛/结婚/生子/重大转折
@@ -27,19 +27,14 @@
  * 事件聚合规则（原 span-event-aggregator）：
  *   严重度排序：critical > major > normal > color
  *   因果链合并：将因果相关的事件合并为一条
- *   比例限制：色彩事件(color)不超过总数的 20%
- *   数量上限：最多 15 条事件
+ *   完整保留：不得按严重度、比例或固定条数删除事件
  *
- * 差异化保留：
- *   HIGH   800字→640字 (80%)
- *   NORMAL 800字→240字 (30%)
- *   LOW    800字→80字  (10%)
+ * 长局上下文通过分层语义摘要、覆盖区间与实体检索组织；原始事件和索引不做容量淘汰。
  */
 
 import type { SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
 import { BaseSubsystem } from '@/core'
 import type { NarrativeSemanticSignals } from '../helpers/narrative-semantic-signals'
-import { RECENT_NARRATIVE_WINDOW } from '../constants'
 
 // ============================================================
 // 类型定义
@@ -147,16 +142,6 @@ interface RawEvent {
   effect?: string
 }
 
-/** 事件聚合配置 */
-const MAX_EVENTS = 15
-const MAX_EVENTS_BY_SEVERITY: Record<EventSeverity, number> = {
-  critical: 3,
-  major: 5,
-  normal: 5,
-  color: 3,
-}
-const COLOR_EVENT_RATIO = 0.2
-
 /** 压缩触发决策 */
 export interface CompressionDecision {
   /** 是否触发压缩 */
@@ -175,21 +160,21 @@ export interface CompressionDecision {
   taggedEvents: TaggedEvent[],
 }
 
-/** 富Prompt注入内容（4压缩层级+L0，适配DS V4 1M上下文） */
+/** 富Prompt注入内容（叶子摘要层级+L0，适配长上下文） */
 export interface RichPromptContext {
   /** 状态卡 */
   stateCard: string
   /** 最近完整原文窗口（覆盖延迟 L1 尚未形成摘要的区间） */
   recentNarratives: string[]
-  /** L1 近距离记忆（最近2条摘要） */
+  /** L1 近距离叶子摘要 */
   l1Summaries: string[]
-  /** L2 中距离记忆（最近1条） */
+  /** L2 中距离叶子摘要 */
   l2Summary: string
-  /** L3 远距离记忆（最近1条） */
+  /** L3 远距离叶子摘要 */
   l3Summary: string
-  /** L4 纪元记忆（最近1条） */
+  /** L4 纪元叶子摘要 */
   l4Summary: string
-  /** L6 历史纲要（一生纵览） */
+  /** L5-L6 历史纲要（一生纵览） */
   historyOutline: string
   /** 检索命中（从 L2-L6 结构化实体匹配） */
   retrievalHits: string[],
@@ -207,12 +192,6 @@ const CAPACITY_THRESHOLD = 15
 
 /** 最少回合数才触发压缩 */
 const MIN_ROUNDS_FOR_COMPRESSION = 3
-
-/** 检索索引最大条目数 */
-const MAX_INDEX_ENTRIES = 50
-
-/** 每轮检索命中最大注入量 */
-const MAX_RETRIEVAL_HITS = 3
 
 // ============================================================
 // MemoryLifecycleSystem
@@ -530,9 +509,8 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
   aggregate(): AggregatedEvent[] {
     const sorted = this.sortBySeverity(this.rawEvents,)
     const merged = this.mergeCausalChains(sorted,)
-    const limited = this.applyLimits(merged,)
 
-    this.aggregatedEvents = limited.map(e => ({
+    this.aggregatedEvents = merged.map(e => ({
       id: e.id,
       severity: e.severity,
       title: e.title,
@@ -596,40 +574,6 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
   private mergeCausalChains(events: RawEvent[],): RawEvent[] {
     // 因果关系只能来自结构化事件链接；当前 RawEvent 没有稳定 ID 链时保持原序列。
     return events
-  }
-
-  private applyLimits(events: RawEvent[],): RawEvent[] {
-    const bySeverity: Record<EventSeverity, RawEvent[]> = {
-      critical: [],
-      major: [],
-      normal: [],
-      color: [],
-    }
-
-    for (const event of events) {
-      if (bySeverity[event.severity].length < MAX_EVENTS_BY_SEVERITY[event.severity]) {
-        bySeverity[event.severity].push(event,)
-      }
-    }
-
-    let result: RawEvent[] = []
-    for (const severity of ['critical', 'major', 'normal', 'color',] as EventSeverity[]) {
-      result = result.concat(bySeverity[severity],)
-    }
-
-    if (result.length > MAX_EVENTS) {
-      result = result.slice(0, MAX_EVENTS,)
-    }
-
-    const colorEvents = result.filter(e => e.severity === 'color',)
-    const maxColorEvents = Math.floor(result.length * COLOR_EVENT_RATIO,)
-    if (colorEvents.length > maxColorEvents) {
-      const nonColorEvents = result.filter(e => e.severity !== 'color',)
-      const limitedColorEvents = colorEvents.slice(-maxColorEvents,)
-      result = nonColorEvents.concat(limitedColorEvents,)
-    }
-
-    return result
   }
 
   // ============================================================
@@ -716,17 +660,6 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
     } else {
       this.searchIndex.push(entry,)
     }
-
-    // 限制索引大小
-    if (this.searchIndex.length > MAX_INDEX_ENTRIES) {
-      // 优先删除 LOW 旧条目
-      const lowIndex = this.searchIndex.findIndex((e,) => e.maxImportance === 'LOW',)
-      if (lowIndex >= 0) {
-        this.searchIndex.splice(lowIndex, 1,)
-      } else {
-        this.searchIndex.shift() // 删除最旧的
-      }
-    }
   }
 
   /**
@@ -759,10 +692,11 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
 
     for (const entry of this.searchIndex) {
       let score = 0
+      let entityMatches = 0
 
-      // 0. 重要性基础分（HIGH 条目不应依赖实体命中才出现）
+      // HIGH 条目作为长期核心记忆保底；NORMAL/LOW 只在当前实体命中时召回，
+      // 避免把整个索引无差别塞回 Prompt。
       if (entry.maxImportance === 'HIGH') score += 4
-      else if (entry.maxImportance === 'NORMAL') score += 2
 
       // 0b. AI 标注重要性加成（F1：跨轮次 AI importance 参与排序）
       for (let r = entry.startRound; r <= entry.endRound; r++) {
@@ -774,28 +708,32 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
       // 1. AI 实体精确匹配
       for (const tag of entry.tags) {
         if (currentEntities.has(tag)) {
+          entityMatches++
           score += 3
         }
       }
 
+      if (entry.maxImportance !== 'HIGH' && entityMatches === 0) continue
+
       // 3. 重要度加成
-    if (entry.maxImportance === 'HIGH') score *= 2
-    else if (entry.maxImportance === 'NORMAL') score *= 1.5
+      if (entry.maxImportance === 'HIGH') score *= 2
+      else if (entry.maxImportance === 'NORMAL') score *= 1.5
 
-    // 4. HIGH 保底：重要记忆即使无实体命中也应进入候选
-    if (score === 0 && entry.maxImportance === 'HIGH') {
-      score = 5
+      // 4. HIGH 保底：重要记忆即使无实体命中也应进入候选
+      if (score === 0 && entry.maxImportance === 'HIGH') {
+        score = 5
+      }
+
+      if (score > 0) {
+        results.push({ entry, score, })
+      }
     }
 
-    if (score > 0) {
-      results.push({ entry, score, })
-    }
-  }
+    // 按得分排序并保留全部语义命中。无命中的条目仍完整保存在索引中，
+    // 由叶子摘要覆盖历史，或在后续实体再次出现时召回。
+    results.sort((a, b,) => b.score - a.score,)
 
-  // 按得分排序，取前N个（扩容 1 个槽位为重要性注入留空间）
-  results.sort((a, b,) => b.score - a.score,)
-
-  const hits = results.slice(0, MAX_RETRIEVAL_HITS + 1,).map(
+    const hits = results.map(
       (r,) => `[记忆回溯：${r.entry.startRound}-${r.entry.endRound}轮] ${r.entry.content}`,
     )
 
@@ -831,7 +769,12 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
     subsystemSummaries: string,
     recentNarratives: string[],
     compressedSummaries: {
-      summaries: Array<{ level: number; content: string }>,
+      summaries: Array<{
+        level: number
+        startRound: number
+        endRound: number
+        content: string
+      }>,
     },
   ): RichPromptContext {
     // 检索命中
@@ -840,36 +783,57 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
       : ''
     const retrievalHits = this.retrieveFromIndex(queryText,)
 
-    // 提取各层级摘要（按时间排序取最近N条）
+    // 只注入没有被更高层摘要覆盖的叶子摘要。所有摘要仍完整保存在存储和
+    // 检索索引中，这里是语义压缩后的无损覆盖选择，不是固定条数截断。
     const summaries = compressedSummaries.summaries
-
-    const l1s = summaries
-      .filter((s,) => s.level === 1,)
-      .slice(-2,) // 最近2条L1
-      .map((s,) => s.content,)
-
-    const l2Recent = summaries
-      .filter((s,) => s.level === 2,)
-      .slice(-1,)[0] // 最近1条L2
-
-    const l3Recent = summaries
-      .filter((s,) => s.level === 3,)
-      .slice(-1,)[0] // 最近1条L3
-
-    const l4Recent = summaries
-      .filter((s,) => s.level === 4,)
-      .slice(-1,)[0] // 最近1条L4
+    const visibleByLevel = this.selectLeafSummaries(summaries)
 
     return {
       stateCard: subsystemSummaries,
-      recentNarratives: recentNarratives.slice(-RECENT_NARRATIVE_WINDOW,),
-      l1Summaries: l1s,
-      l2Summary: l2Recent?.content || '',
-      l3Summary: l3Recent?.content || '',
-      l4Summary: l4Recent?.content || '',
-      historyOutline: this.extractHistoryOutline(compressedSummaries,),
+      recentNarratives: [...recentNarratives],
+      l1Summaries: visibleByLevel.get(1) ?? [],
+      l2Summary: (visibleByLevel.get(2) ?? []).join('\n'),
+      l3Summary: (visibleByLevel.get(3) ?? []).join('\n'),
+      l4Summary: (visibleByLevel.get(4) ?? []).join('\n'),
+      historyOutline: [
+        ...(visibleByLevel.get(6) ?? []),
+        ...(visibleByLevel.get(5) ?? []),
+      ].join('\n'),
       retrievalHits,
     }
+  }
+
+  private selectLeafSummaries(summaries: Array<{
+    level: number
+    startRound: number
+    endRound: number
+    content: string
+  }>): Map<number, string[]> {
+    const byLevel = new Map<number, typeof summaries>()
+    for (const summary of summaries) {
+      const items = byLevel.get(summary.level) ?? []
+      items.push(summary)
+      byLevel.set(summary.level, items)
+    }
+
+    const coveredRanges: Array<{ start: number; end: number }> = []
+    const visibleByLevel = new Map<number, string[]>()
+    const levels = [...byLevel.keys()].sort((a, b) => b - a)
+    for (const level of levels) {
+      const visible = (byLevel.get(level) ?? [])
+        .filter((summary) => !coveredRanges.some(
+          (range) => summary.startRound >= range.start && summary.endRound <= range.end,
+        ))
+        .sort((a, b) => a.startRound - b.startRound)
+
+      if (visible.length === 0) continue
+      for (const summary of visible) {
+        coveredRanges.push({ start: summary.startRound, end: summary.endRound })
+      }
+      visibleByLevel.set(level, visible.map((summary) => summary.content))
+    }
+
+    return visibleByLevel
   }
 
   /**

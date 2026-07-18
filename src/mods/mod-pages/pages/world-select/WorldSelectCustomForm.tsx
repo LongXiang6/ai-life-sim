@@ -14,8 +14,8 @@ export function WorldSelectCustomForm({ logic }: { logic: WorldSelectLogic }) {
       </label>
       <label className={styles.formField}>
         <span>{L.formLabelDesc}</span>
-        <textarea value={logic.customDesc} maxLength={5000} placeholder={L.formPlaceholderDesc} onChange={(event) => logic.setCustomDesc(event.target.value.slice(0, 5000))} />
-        <small className={logic.customDesc.length > 4500 ? styles.charCountWarning : ''}>{logic.customDesc.length}/5000</small>
+        <textarea value={logic.customDesc} placeholder={L.formPlaceholderDesc} onChange={(event) => logic.setCustomDesc(event.target.value)} />
+        <small>{logic.customDesc.length} 字</small>
       </label>
       <fieldset className={styles.eraFieldset}>
         <legend>{L.formLabelEra}</legend>

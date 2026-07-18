@@ -21,14 +21,15 @@ import { useWorldStore } from '@/mods/mod-world'
 import type { AIModelConfig } from '@/foundation'
 import { stringifyPrompt } from '@/foundation'
 
-/** 默认 AI 配置（用于种族由来生成，maxTokens 基于标准量 × 120% 冗余） */
+/** 默认 AI 配置：只提供充足技术余量，不把输出预算当成剧情字数上限。 */
 const DEFAULT_CONFIG: AIModelConfig = {
   model: 'deepseek-v4-flash',
   temperature: 0.7,
   maxTokens: estimateTokenBudget(
     raceOriginPrompt.systemPrompt,
     raceOriginPrompt.userPromptTemplate,
-    80,  // 输出 50-100 字 ~80 tokens
+    4096,
+    8192,
   ),
   responseFormat: { type: 'text' },
   reasoningEffort: 'disabled',

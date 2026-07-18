@@ -5,7 +5,7 @@ import styles from './CharacterCreateMobile.module.css'
 export function CharacterBackgroundSection({ logic }: { logic: UseCharacterCreateLogicReturn }) {
   return (
     <section className={`${styles.section} ${styles.backgroundSection}`}>
-      <div className={styles.sectionHeading}><h2>人生背景</h2><span>{logic.background.length} / 5000 · 可选</span></div>
+      <div className={styles.sectionHeading}><h2>人生背景</h2><span>{logic.background.length} 字 · 可选</span></div>
       {Object.keys(logic.bgPresets).length > 0 && (
         <div className={styles.backgroundPresets}>
           {Object.entries(logic.bgPresets).map(([name, content]) => (
@@ -16,7 +16,7 @@ export function CharacterBackgroundSection({ logic }: { logic: UseCharacterCreat
           ))}
         </div>
       )}
-      <textarea className={styles.backgroundTextarea} value={logic.background} maxLength={5000} placeholder={logic.LABELS.bgPlaceholder} onChange={(event) => logic.setBackground(event.target.value)} />
+      <textarea className={styles.backgroundTextarea} value={logic.background} placeholder={logic.LABELS.bgPlaceholder} onChange={(event) => logic.setBackground(event.target.value)} />
       <div className={styles.backgroundFooter}>
         <span>留空也可以继续</span>
         {logic.showBgPresetInput ? (

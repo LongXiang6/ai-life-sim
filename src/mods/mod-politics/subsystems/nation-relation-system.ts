@@ -174,7 +174,6 @@ export class NationRelationSystem implements ISubSystem {
         // 战争结束检测：peace 积累足够 or 随机
         if (rel.peace >= NATION_PEACE_ALLY_THRESHOLD || Math.random() < 0.08) {
           rel.recentEvents.push(`${rel.nationName}战争结束`)
-          if (rel.recentEvents.length > 5) rel.recentEvents.shift()
 
           // 战争结束后转为 hostile（概率）或 neutral
           if (Math.random() < NATION_WAR_END_TO_HOSTILE) {
@@ -196,7 +195,6 @@ export class NationRelationSystem implements ISubSystem {
         if (rel.tension >= NATION_TENSION_WAR_THRESHOLD / getFormulaModifier('warFrequencyModifier')) {
           rel.stance = 'war'
           rel.recentEvents.push(`${rel.nationName}→宣战！`)
-          if (rel.recentEvents.length > 5) rel.recentEvents.shift()
         }
       } else if (rel.stance === 'ally') {
         // ── 同盟状态 ──
@@ -229,10 +227,6 @@ export class NationRelationSystem implements ISubSystem {
       const drift = (stanceTarget - rel.relation) * driftRate * 0.1
       rel.relation = clamp(round(rel.relation + drift), NATION_RELATION_RANGE.min, NATION_RELATION_RANGE.max)
 
-      // 清除空事件列表
-      if (rel.recentEvents.length > 5) {
-        rel.recentEvents = rel.recentEvents.slice(-5)
-      }
     }
   }
 
@@ -297,7 +291,7 @@ export class NationRelationSystem implements ISubSystem {
     const allEvents = this.state.relations.flatMap((r) => r.recentEvents)
     if (allEvents.length > 0) {
       lines.push('最近外交事件：')
-      for (const evt of allEvents.slice(-5)) {
+      for (const evt of allEvents) {
         lines.push(`  · ${evt}`)
       }
     }

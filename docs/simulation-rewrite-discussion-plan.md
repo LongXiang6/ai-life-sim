@@ -1,7 +1,16 @@
 # 模拟系统全面重写 — 讨论计划书
 
-> 状态：已确认 | 版本：终版
-> 所有决策点已确认，可进入下一步。
+文档角色：history
+权威层级：A6
+状态：historical
+适用范围：2026-07-04 模拟重写讨论背景与已确认的历史恢复思路
+拥有者：historical rewrite discussion
+最后验证：2026-07-18；活动入口与引用同步
+取代关系：活动产品语义由 `docs/product-decisions.md`，MVP 目标由 `docs/blueprint-01-mvp-playable.md`，系统职责由 `docs/system-authority-index.md` 取代
+运行真源：not-applicable；运行状态读取 live source 与 MVP runtime policy
+验收证据：仅作历史解释，不作为当前完成证据
+
+版本：终版历史记录。原决策点记录用于解释重写背景，不直接覆盖当前 A1-A5 权威。
 
 ---
 
@@ -95,14 +104,14 @@
 
 | 原则 | 说明 |
 |------|------|
-| ✅ 整数日 | 唯一最小粒度为"日"。所有时间计算用整数。 |
-| ✅ 一年 365 天 | 固定不变。 |
-| ✅ 一个月为真实分布 | 1月31天、2月28天、3月31天、4月30天、5月31天、6月30天、7月31天、8月31天、9月30天、10月31天、11月30天、12月31天。当前 MVP 固定 365 天，不实现闰年。 |
-| ✅ 无需时辰/小时 | "日"就是最小单位，不再向下细分。 |
-| ✅ 单一权威源 | TimeSystem 是唯一有权管理时间的模块。 |
-| ✅ 叙事步长可切换 | 时间引擎底层最小单位仍是"日"；开局默认一次叙事推进 1 年，但玩家可切换为按日、按月、按季度、按年推进。 |
-| ✅ 消除浮点数 | 不再出现 `1/365`、`0.00274` 等浮点数。 |
-| ✅ 消除年累加器 | 不再需要 `_simYearAccumulator`、`consumeSimulationYears` 等。 |
+| 状态：已确认； 整数日 | 唯一最小粒度为"日"。所有时间计算用整数。 |
+| 状态：已确认； 一年 365 天 | 固定不变。 |
+| 状态：已确认； 一个月为真实分布 | 1月31天、2月28天、3月31天、4月30天、5月31天、6月30天、7月31天、8月31天、9月30天、10月31天、11月30天、12月31天。当前 MVP 固定 365 天，不实现闰年。 |
+| 状态：已确认； 无需时辰/小时 | "日"就是最小单位，不再向下细分。 |
+| 状态：已确认； 单一权威源 | TimeSystem 是唯一有权管理时间的模块。 |
+| 状态：已确认； 叙事步长可切换 | 时间引擎底层最小单位仍是"日"；开局默认一次叙事推进 1 年，但玩家可切换为按日、按月、按季度、按年推进。 |
+| 状态：已确认； 消除浮点数 | 不再出现 `1/365`、`0.00274` 等浮点数。 |
+| 状态：已确认； 消除年累加器 | 不再需要 `_simYearAccumulator`、`consumeSimulationYears` 等。 |
 
 TimeSystem 需要提供：
 
@@ -133,7 +142,7 @@ TimeSystem 需要提供：
 - `_internal/` —— 内部机房，放 MOD 自己的实现细节和生命周期逻辑
 - 当前大部分 MOD 的 `_internal/control.ts` 为空占位（仅 `mod-engine` 有实际代码），目的是保持结构统一
 
-**决策：** ✅ 保留现有 `_internal/` 结构。
+**决策：** 状态：已确认； 保留现有 `_internal/` 结构。
 
 ### 3.3 抽象基类
 
@@ -143,7 +152,7 @@ TimeSystem 需要提供：
 - AI 新建子系统时只需看基类就知道要写什么、输入什么、返回什么
 - 基类还提供共享工具方法（如值域限制），各子系统不需要重复实现
 
-**决策：** ✅ 引入轻量抽象基类。
+**决策：** 状态：已确认； 引入轻量抽象基类。
 
 ### 3.4 标准化方向
 
@@ -154,7 +163,7 @@ TimeSystem 需要提供：
 | AI 减少决策负担 | 抽象基类定义全部必实现方法 |
 | 自检自动化 | manifest 自校验 |
 
-**✅ foundation 层的跨域数据契约现在设计——这是 MOD 架构升级的第一步。**
+**状态：已确认； foundation 层的跨域数据契约现在设计——这是 MOD 架构升级的第一步。**
 
 ---
 
@@ -181,7 +190,7 @@ TimeSystem 需要提供：
 
 ---
 
-## 五、恢复优先级（已确认，⚠️ 2026-07-04 追加决策后调整为 §五附 v2 五段式，本表保留作历史记录）
+## 五、恢复优先级（已确认，风险提示： 2026-07-04 追加决策后调整为 §五附 v2 五段式，本表保留作历史记录）
 
 | 梯队 | 蓝图文件 | 恢复内容 |
 |------|---------|---------|
@@ -192,9 +201,9 @@ TimeSystem 需要提供：
 | **五** | 蓝图五 | 文化 + 政治 + 生态 + 修炼 + NPC 等 |
 | **六** | 蓝图六 | 文明阶段界面 |
 
-✅ 寿命不提前——保持在第三梯队。
-✅ 废弃项目不再参考。
-✅ 一个梯队对应一个蓝图文件。
+状态：已确认； 寿命不提前——保持在第三梯队。
+状态：已确认； 废弃项目不再参考。
+状态：已确认； 一个梯队对应一个蓝图文件。
 
 ---
 
@@ -209,15 +218,15 @@ TimeSystem 需要提供：
 | 段 | 内容 | 与原梯队对应 |
 |---|------|-------------|
 | **① 核心架构文件** | `foundation/` 全部（types/defines/tokens/constants/utils/compat）+ `core/subsystem-base.ts`（已建成）+ `foundation/subsystem-contracts/`（已建成，空聚合入口）+ `RoundContext.daysPassed`/`totalDays` 扩展（已建成；旧字段已从 RoundContext 删除，见 architecture.md §八附当前状态修正） | 原梯队一的"MOD 架构设计"部分 |
-| **② 主引擎文件** | `mod-engine/subsystems/time-system.ts`（日粒度重写）、`orchestrator-system.ts`（编排器骨架）、`utils/time-step-resolver.ts`、`prompts/narrative-prompt.ts`、`summary-compressor-system.ts`、记忆引擎相关子系统、`subsystem-relevance-system.ts` | 原梯队一的"时间引擎+编排器骨架"部分、梯队二的"AI叙事生成" |
+| **② 主引擎文件** | `src/mods/mod-engine/subsystems/time-system.ts`、`src/mods/mod-engine/subsystems/orchestrator-system.ts`、`src/mods/mod-engine/utils/time-step-resolver.ts`、`src/mods/mod-engine/prompts/narrative-prompt.ts`、压缩与记忆相关 owning systems | 原梯队一的"时间引擎+编排器骨架"部分、梯队二的"AI叙事生成" |
 | **③ 关键功能系统**（候选清单，**顺序由用户决定**，不预设先后） | `character-base-system.ts`（未清空）、`destiny-pattern-system.ts`（未清空）、`lifespan-system.ts`（未清空）、`health-system.ts`、`mod-world` 世界初始化子系统、`population-system.ts`（人口，多系统依赖它的数据） | 原梯队三全部 + 梯队四的健康/经济/人口部分 |
 | **④ 剩余模拟系统**（含原梯队六文明阶段界面，已确认并入本段，不单独成段） | mod-culture、mod-politics、mod-environment-ecology、mod-power-system（除 character-base 外）、mod-npc、mod-tech-level、mod-history-dynamics、mod-base-universe（除保留部分）、mod-world-map、文明阶段界面 UI | 原梯队五全部 + 梯队六 |
 | **⑤ 插件** | mod-religion（待创建）、mod-diplomacy（待创建）、mod-fate-prophecy（待创建）、**mod-golden-finger（已确认归入本段，不算关键系统）** | 原梯队四的金手指部分 |
 
-✅ mod-golden-finger 归入⑤插件段（已确认，设计上是外挂式全能面板，插件属性强于"关键系统"属性）。
-✅ 原梯队六"文明阶段界面"并入④剩余模拟系统段（已确认，不单独成段）。
-✅ ③关键功能系统只是候选清单，具体先做哪个、按什么顺序，由用户在执行时决定，不在本文档预先排定。
-✅ ①②两段没有业务判断空间，必须先做完，后面的段落才有地基可用。
+状态：已确认； mod-golden-finger 归入⑤插件段（已确认，设计上是外挂式全能面板，插件属性强于"关键系统"属性）。
+状态：已确认； 原梯队六"文明阶段界面"并入④剩余模拟系统段（已确认，不单独成段）。
+状态：已确认； ③关键功能系统只是候选清单，具体先做哪个、按什么顺序，由用户在执行时决定，不在本文档预先排定。
+状态：已确认； ①②两段没有业务判断空间，必须先做完，后面的段落才有地基可用。
 
 ---
 

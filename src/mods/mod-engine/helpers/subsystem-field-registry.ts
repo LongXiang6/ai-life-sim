@@ -8,7 +8,7 @@
  * 维护：新增子系统时在此注册一个条目即可，无需改 Prompt 模板。
  *
  * Zod 校验：SUBSYSTEM_CHANGE_SCHEMAS 用于验证 AI 返回的 changes，
- * 契约外字段自动剥离；类型/范围不合法时记录 warn，防止 AI 输出无效 key 污染子系统状态。
+ * 契约外字段与类型/范围不合法项均拒绝；消费方必须整包拒绝本轮 AI 状态变更。
  */
 
 import { z } from 'zod'
@@ -348,8 +348,8 @@ function buildSubsystemChangeSchemas(
       const shape = Object.fromEntries(
         Object.entries(contract.fields).map(([field, meta]) => [field, meta.schema]),
       ) as z.ZodRawShape
-      // narrative/post-narrative schema 只允许契约字段流动，旧字段在这里剥离，避免再次漂移。
-      return [id, z.object(shape).strip()]
+      // 契约外字段属于非法 META，禁止静默剥离后把剩余字段伪装成完整结果。
+      return [id, z.object(shape).strict()]
     }),
   )
 }
@@ -386,7 +386,7 @@ export function buildSubsystemGuide(subsystemIds: Iterable<string>): string {
  * 校验单条 AI 变更
  *
  * @param change AI 返回的原始 change
- * @returns 校验通过返回清理后的 change，失败返回 null（并输出 warn）
+ * @returns 校验通过返回规范化后的 change，失败返回 null（并输出 warn）
  */
 export function validateChange(
   change: SubSystemChanges,
@@ -416,20 +416,25 @@ export function validateChange(
 
 /**
  * 批量校验 AI 返回的 changes 数组
- * @returns 通过校验的变更列表（无效项已自动丢弃）
+ * @returns 仅当全部变更均合法时返回完整列表；任一项非法则整包返回空数组
  */
 export function validateRoundChanges(changes: SubSystemChanges[]): SubSystemChanges[] {
   if (!changes || changes.length === 0) return []
 
   const valid: SubSystemChanges[] = []
+  let invalidCount = 0
   for (const change of changes) {
     const validated = validateChange(change)
-    if (validated) valid.push(validated)
+    if (validated) {
+      valid.push(validated)
+    } else {
+      invalidCount++
+    }
   }
 
-  const dropped = changes.length - valid.length
-  if (dropped > 0) {
-    console.warn(`[Validator] 本轮丢弃 ${dropped}/${changes.length} 条不合法变更`)
+  if (invalidCount > 0) {
+    console.warn(`[Validator] 本轮存在 ${invalidCount}/${changes.length} 条不合法变更，整包拒绝`)
+    return []
   }
 
   return valid

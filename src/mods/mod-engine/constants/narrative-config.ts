@@ -53,12 +53,6 @@ export const WORD_COUNT_RANGES: WordCountRange[] = [
  */
 export const SUMMARY_INTERVAL = 10
 
-/** 最大上下文事件数 */
-export const MAX_CONTEXT_EVENTS = 20
-
-/** 滑动窗口基础事件数 */
-export const SLIDING_WINDOW_RECENT_EVENTS_BASE = 20
-
 // ============================================================
 // 紧凑 JSON 键名映射（用于压缩 Prompt 中的 JSON 字段名）
 // ============================================================
@@ -163,14 +157,9 @@ const NARRATIVE_TONE_ZH: Record<string, string> = {
   mixed: '混合基调',
 }
 
-const NARRATIVE_TONE_HINT_MAX_LEN = 30
-
-/** 将 calibration styleGuide.narrativeTone 映射为叙事 stable 段提示（≤30 字） */
+/** 将 calibration styleGuide.narrativeTone 映射为叙事 stable 段提示。 */
 export function resolveNarrativeToneHint(tone: string | undefined): string | undefined {
   const raw = tone?.trim()
   if (!raw) return undefined
-  const mapped = NARRATIVE_TONE_ZH[raw] ?? raw
-  return mapped.length > NARRATIVE_TONE_HINT_MAX_LEN
-    ? mapped.slice(0, NARRATIVE_TONE_HINT_MAX_LEN)
-    : mapped
+  return NARRATIVE_TONE_ZH[raw] ?? raw
 }

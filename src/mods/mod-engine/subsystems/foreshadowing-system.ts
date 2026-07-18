@@ -100,15 +100,6 @@ export interface ForeshadowingState {
 // 常量
 // ============================================================
 
-/** 活跃伏笔上限 */
-const MAX_ACTIVE_FORESHADOWING = 10
-
-/** 超时回合数 */
-const TIMEOUT_ROUNDS = 200
-
-/** 单次 Prompt 注入上限 */
-const MAX_PROMPT_FORESHADOWING = 3
-
 // ============================================================
 // ForeshadowingSystem
 // ============================================================
@@ -147,9 +138,6 @@ export class ForeshadowingSystem extends BaseSubsystem {
         data: structuredClone(this.state as unknown as Record<string, unknown>),
       }
     }
-
-    // 检查活跃伏笔的触发条件
-    this.checkActiveForeshadowing(context)
 
     return {
       id: this.id,
@@ -300,24 +288,18 @@ export class ForeshadowingSystem extends BaseSubsystem {
       }))
       .filter((s) => s.score > 0)
       .sort((a, b) => b.score - a.score)
-      .slice(0, MAX_PROMPT_FORESHADOWING)
 
     if (scored.length === 0) return ''
 
     const lines: string[] = ['【待回收伏笔】（按优先级排列）']
-    let contextInjected = 0
     for (const { record, score } of scored) {
       const typeLabel = FORESHADOWING_TYPE_LABELS[record.type]
       const hint = this.buildResolutionHint(record, score)
       lines.push(`\n▪ [id=${record.id}·${record.priority}级·${typeLabel}] 第${record.plantedRound}轮：${record.description}`)
 
-      // 附带种植上下文（最多 3 条伏笔注入上下文，控制 token）
-      if (contextInjected < 3) {
-        const context = this.getPlantedContext(record.plantedRound)
-        if (context) {
-          lines.push(`  种植背景：${context}`)
-          contextInjected++
-        }
+      const context = this.getPlantedContext(record.plantedRound)
+      if (context) {
+        lines.push(`  种植背景：${context}`)
       }
 
       if (hint) lines.push(`  回收提示：${hint}`)
@@ -391,37 +373,11 @@ export class ForeshadowingSystem extends BaseSubsystem {
 
   /** 添加活跃伏笔 */
   private addActive(record: ForeshadowingRecord): void {
-    // 超上限时移除最低优先级
-    if (this.state.active.length >= MAX_ACTIVE_FORESHADOWING) {
-      const lowest = this.state.active.reduce((min, r) =>
-        r.priority < min.priority ? r : min,
-      )
-      this.state.active = this.state.active.filter((r) => r.id !== lowest.id)
-      this.state.unresolved.push(lowest)
-      this.state.stats.totalUnresolved++
-    }
-
     this.state.active.push(record)
     this.state.stats.totalPlanted++
 
     // 标记为不可遗忘事件
     memoryForgetting.markForeshadowEvent(record.plantedRound, record.description)
-  }
-
-  /** 检查活跃伏笔触发条件 */
-  private checkActiveForeshadowing(context: RoundContext): void {
-    const currentRound = getRoundSequence(context)
-
-    // 超时检查 + 条件满足自动标记
-    for (const record of [...this.state.active]) {
-      if (currentRound - record.plantedRound > TIMEOUT_ROUNDS) {
-        this.state.active = this.state.active.filter((r) => r.id !== record.id)
-        this.state.unresolved.push(record)
-        this.state.stats.totalUnresolved++
-        continue
-      }
-
-    }
   }
 
   /** 计算伏笔的"接近触发"分数 (0-10) */

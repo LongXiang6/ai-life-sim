@@ -329,10 +329,9 @@ export class MemoryEngineSystem implements ISubSystem {
       parts.push(`曾到过：${this.memory.locations.join('、')}`)
     }
 
-    // 最近重大事件
+    // 重大事件完整保留；长期体积由独立摘要系统控制，不能在记忆档案里硬截断。
     if (this.memory.majorEvents.length) {
-      const recentEvents = this.memory.majorEvents.slice(-3)
-      parts.push(`近期事件：${recentEvents.map(e => e.description).join('；')}`)
+      parts.push(`重大事件：${this.memory.majorEvents.map(e => e.description).join('；')}`)
     }
 
     if (parts.length === 0) {
@@ -657,10 +656,6 @@ export class MemoryEngineSystem implements ISubSystem {
       existing.quality = quality
     } else {
       this.memory.relationships.push({ name, relation, quality })
-      // 上限保护：保持最多 50 条关系记录
-      if (this.memory.relationships.length > 50) {
-        this.memory.relationships.shift()
-      }
     }
   }
 
@@ -671,10 +666,6 @@ export class MemoryEngineSystem implements ISubSystem {
     )
     if (!exists) {
       this.memory.majorEvents.push({ round, description, category })
-      // 保持最多 50 条事件记录
-      if (this.memory.majorEvents.length > 50) {
-        this.memory.majorEvents.shift()
-      }
     }
   }
 

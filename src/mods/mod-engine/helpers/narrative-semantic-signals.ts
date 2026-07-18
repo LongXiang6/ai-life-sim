@@ -50,20 +50,20 @@ export const NarrativeSemanticSignalsSchema = z.object({
   irreversible: z.boolean(),
   impactScope: z.enum(NARRATIVE_IMPACT_SCOPES),
   narrativeRegister: z.enum(NARRATIVE_REGISTERS),
-  registerReason: z.string().min(1).max(80),
+  registerReason: z.string().min(1),
   arcType: z.enum(NARRATIVE_ARC_TYPES),
   relationshipUpdates: z.array(z.object({
-    name: z.string().min(1).max(40),
+    name: z.string().min(1),
     type: z.enum(NARRATIVE_RELATIONSHIP_TYPES),
-    summary: z.string().min(1).max(80),
-  }).strict()).max(6),
-  resolvedForeshadowingIds: z.array(z.string().min(1).max(80)).max(5),
+    summary: z.string().min(1),
+  }).strict()),
+  resolvedForeshadowingIds: z.array(z.string().min(1)),
 }).strict()
 
 export const NarrativeKeyEventSchema = z.object({
-  text: z.string().min(1).max(80),
+  text: z.string().min(1),
   importance: z.coerce.number().min(0).max(100),
-  entities: z.array(z.string().min(1).max(40)).max(6),
+  entities: z.array(z.string().min(1)),
 }).strict()
 
 export const NarrativeForeshadowingMarkSchema = z.object({
@@ -78,29 +78,29 @@ export const NarrativeForeshadowingMarkSchema = z.object({
     'ancient_ruin',
     'other',
   ]),
-  description: z.string().min(1).max(120),
+  description: z.string().min(1),
   priority: z.coerce.number().min(1).max(10),
 }).strict()
 
 export const NarrativeCreationSchema = z.object({
-  name: z.string().min(1).max(40),
-  description: z.string().min(1).max(120),
+  name: z.string().min(1),
+  description: z.string().min(1),
   category: z.enum(['power_system', 'technique', 'ability', 'rule', 'object', 'other']),
 }).strict()
 
 /** 主叙事 AI 的完整语义包。任一字段非法时，消费方不得零散采信其余字段。 */
 export const NarrativeRoundMetadataSchema = z.object({
-  notableEvents: z.array(z.string().min(1).max(120)).max(3).optional(),
-  creations: z.array(NarrativeCreationSchema).max(6).optional(),
-  foreshadowing: z.array(NarrativeForeshadowingMarkSchema).max(5).optional(),
+  notableEvents: z.array(z.string().min(1)).optional(),
+  creations: z.array(NarrativeCreationSchema).optional(),
+  foreshadowing: z.array(NarrativeForeshadowingMarkSchema).optional(),
   importance: z.enum(['HIGH', 'NORMAL', 'LOW']),
-  digest: z.string().min(1).max(80),
-  keyEvents: z.array(NarrativeKeyEventSchema).max(3),
+  digest: z.string().min(1),
+  keyEvents: z.array(NarrativeKeyEventSchema),
   arcStatus: z.enum(['start', 'ongoing', 'end']),
   semanticSignals: NarrativeSemanticSignalsSchema,
   branch: z.boolean().optional(),
-  branchTitle: z.string().min(1).max(120).optional(),
-  branchOptions: z.array(z.string().min(1).max(120)).min(2).max(4).optional(),
+  branchTitle: z.string().min(1).optional(),
+  branchOptions: z.array(z.string().min(1)).min(2).max(4).optional(),
 })
 
 /** 标签信封 META 的完整运行时 Schema；预生成与主叙事质量门禁共用。 */
@@ -215,26 +215,24 @@ export const NARRATIVE_SEMANTIC_SIGNALS_JSON_SCHEMA = {
     irreversible: { type: 'boolean' },
     impactScope: { type: 'string', enum: [...NARRATIVE_IMPACT_SCOPES] },
     narrativeRegister: { type: 'string', enum: [...NARRATIVE_REGISTERS] },
-    registerReason: { type: 'string', minLength: 1, maxLength: 80 },
+    registerReason: { type: 'string', minLength: 1 },
     arcType: { type: 'string', enum: [...NARRATIVE_ARC_TYPES] },
     relationshipUpdates: {
       type: 'array',
-      maxItems: 6,
       items: {
         type: 'object',
         required: ['name', 'type', 'summary'],
         additionalProperties: false,
         properties: {
-          name: { type: 'string', minLength: 1, maxLength: 40 },
+          name: { type: 'string', minLength: 1 },
           type: { type: 'string', enum: [...NARRATIVE_RELATIONSHIP_TYPES] },
-          summary: { type: 'string', minLength: 1, maxLength: 80 },
+          summary: { type: 'string', minLength: 1 },
         },
       },
     },
     resolvedForeshadowingIds: {
       type: 'array',
-      maxItems: 5,
-      items: { type: 'string', minLength: 1, maxLength: 80 },
+      items: { type: 'string', minLength: 1 },
     },
   },
 } as const

@@ -39,16 +39,15 @@ export class EventPoolSystem implements ISubSystem {
 
     const currentYear = context.round.year
 
-    // 1. 清理过期条目：triggeredYear + triggerWindow[1] < currentYear
-    this.state.entries = this.state.entries.filter((entry) => {
+    // 1. 标记过期条目：状态完整保留，禁止把已触发/过期事件从唯一历史数组删除。
+    for (const entry of this.state.entries) {
       if (entry.triggered) {
         const expireYear = entry.triggeredYear + entry.triggerWindow[1]
         if (expireYear < currentYear) {
           entry.expired = true
         }
       }
-      return !entry.expired
-    })
+    }
 
     // 2. 补充预设事件池
     if (
