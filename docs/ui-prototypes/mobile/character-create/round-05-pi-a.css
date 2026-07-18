@@ -1,0 +1,100 @@
+:root{
+  --canvas:#e7e4dd;
+  --paper:#f4f0e7;
+  --surface:#fbf8ef;
+  --ink:#171716;
+  --soft:#555047;
+  --faint:#827a6d;
+  --line:#b9ad9b;
+  --light:#d8cfbf;
+  --mist:#5f665f;
+}
+body{
+  background:#e7e4dd;
+  color:#171716;
+  font-family:"Songti SC","STSong","SimSun",serif;
+}
+button,input,textarea,select{
+  font-family:"SF Pro Text","PingFang SC","Microsoft YaHei UI",sans-serif;
+}
+.topbar,.eyebrow,.subtitle,.sub,.section-label,.summary p,.caption,.life-grid label,.action{
+  color:#5b554a;
+}
+h1,.title,.summary b,.group-head span,.primary{
+  font-family:"Songti SC","STSong","SimSun",serif;
+  font-weight:650;
+}
+.phone{
+  border-color:#a99c8a;
+  background:
+    radial-gradient(circle at 18% 0,rgba(255,255,255,.55),transparent 34%),
+    linear-gradient(180deg,#f7f1e6,#eee6d8);
+  box-shadow:0 16px 34px rgba(31,27,22,.18),0 0 0 5px rgba(255,255,255,.28);
+}
+.screen{
+  background:linear-gradient(180deg,rgba(255,252,244,.68),rgba(242,235,221,.52));
+}
+.step{
+  color:#84745f;
+  font-weight:800;
+}
+.summary{
+  border-bottom-color:#b9ad9b;
+}
+.avatar{
+  border-color:#988b78;
+  background:#efe5d1;
+  color:#2b2720;
+  box-shadow:inset 0 0 0 2px rgba(255,255,255,.38);
+}
+.fact{
+  border-top-color:#d4c8b5;
+}
+.fact b,.summary b{
+  color:#211f1b;
+}
+.fact span,.section-label span:last-child,.group-head b{
+  color:#887d6d;
+}
+.groups{
+  border-top-color:#b9ad9b;
+}
+.group{
+  border-bottom-color:#d8cfbf;
+}
+.field{
+  border-color:#bbae9a;
+  border-radius:6px;
+  background:#fffaf0;
+  color:#171716;
+  box-shadow:inset 0 1px 2px rgba(53,44,31,.055);
+}
+.field::placeholder,.background::placeholder{
+  color:#9a8d7a;
+}
+.random,.chip,.action{
+  border-color:#c8bda9;
+  border-radius:6px;
+  background:rgba(255,250,240,.38);
+  color:#5b554a;
+}
+.chip.active{
+  border-color:#3d413c;
+  background:#eee5d4;
+  color:#181817;
+  box-shadow:inset 0 -2px 0 #5f665f;
+}
+.bottom{
+  border-top-color:#b9ad9b;
+  background:rgba(244,240,231,.94);
+  box-shadow:0 -10px 18px rgba(45,38,29,.08);
+}
+.primary{
+  border-color:#171716;
+  background:#171716;
+  color:#fffaf0;
+  box-shadow:0 5px 12px rgba(23,23,22,.18);
+}
+.random:active,.chip:active,.action:active{
+  opacity:.78;
+}

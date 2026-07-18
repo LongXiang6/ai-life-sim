@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>欢迎界面第十六轮 · S2-A2a-15C 优雅白</title>
+  <link rel="stylesheet" href="../assets/library-history.css">
+  <style>
+    /*
+      Elegant White · 为 15C 自研的纸张调色板
+      纸白不是旧主题的冷灰或灰紫：用无明显色相的暖中性白承接炭黑排印；
+      鼠尾草、沙金、灰玫瑰、雾蓝只允许作为曲线的微小节点，不承担任何背景。
+    */
+    :root {
+      color-scheme:light;
+      --ew-canvas:#f3f1ec;
+      --ew-paper:#fbfaf7;
+      --ew-surface:#fffefd;
+      --ew-ink:#292724;
+      --ew-ink-soft:#6e6961;
+      --ew-ink-faint:#9a9389;
+      --ew-line:#d9d3c9;
+      --ew-line-light:#e9e5de;
+      --ew-sage:#879486;
+      --ew-gold:#ae986d;
+      --ew-rose:#b69c99;
+      --ew-mist:#9ca9ac;
+    }
+    * { box-sizing:border-box; }
+    body { background:var(--ew-canvas); color:var(--ew-ink); }
+    .shell { max-width:1180px; }
+    .topbar a,.eyebrow { color:var(--ew-ink-soft); }
+    .status { border:1px solid var(--ew-line); border-radius:999px; background:var(--ew-surface); color:var(--ew-ink-soft); }
+    h1 { color:var(--ew-ink); }
+    .subtitle,.intro-note { max-width:875px; color:var(--ew-ink-soft); font-size:13px; line-height:1.7; }
+    code { color:var(--ew-ink); font-family:"SF Mono","Cascadia Mono",monospace; font-size:.94em; }
+    .option-card { cursor:default; border-color:var(--ew-line); border-radius:20px; background:var(--ew-surface); box-shadow:0 10px 28px rgba(62,55,44,.055); }
+    .option-card:hover { transform:none; box-shadow:0 10px 28px rgba(62,55,44,.055); }
+    .option-copy h3 { color:var(--ew-ink); }
+    .option-copy p,.dimension { color:var(--ew-ink-soft); }
+    .tag { border:1px solid var(--ew-line); border-radius:999px; background:var(--ew-paper); color:var(--ew-ink-soft); }
+    .three-grid { max-width:1060px; }
+    .phone { height:590px; }
+    .welcome-phone { overflow:hidden; border-color:var(--ew-line); border-radius:32px; background:var(--ew-paper); box-shadow:0 13px 30px rgba(62,55,44,.075); }
+    .welcome-phone::before { position:absolute; inset:0; z-index:0; pointer-events:none; content:""; }
+    .curve { position:absolute; inset:0; z-index:1; width:100%; height:100%; pointer-events:none; }
+    .spine { position:absolute; z-index:2; width:1px; }
+    .copy,.actions { position:absolute; z-index:3; }
+    .brand { position:absolute; z-index:4; color:var(--ew-ink-soft); font-family:"SF Pro Text","PingFang SC","Microsoft YaHei UI",sans-serif; font-size:6.4px; font-weight:680; letter-spacing:1.58px; white-space:nowrap; transform:rotate(-90deg); transform-origin:left top; }
+    .headline { margin:0; color:var(--ew-ink); font-family:"Songti SC","STSong","SimSun",serif; font-size:21px; font-weight:600; line-height:1.34; letter-spacing:-.92px; }
+    .intro { max-width:181px; margin:12px 0 0; color:var(--ew-ink-soft); font-size:8.7px; font-weight:440; line-height:1.8; letter-spacing:.04px; }
+    .ui-button { display:flex; min-height:42px; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--ew-ink); cursor:pointer; transition:opacity .16s ease,transform .16s ease; }
+    .ui-button:active { opacity:.56; transform:translateY(1px); }
+    .ui-button:focus-visible,.utility-links button:focus-visible { outline:1px dotted var(--ew-ink-soft); outline-offset:2px; }
+    .entry-label { font-family:"Songti SC","STSong","SimSun",serif; font-size:10px; font-weight:600; letter-spacing:.92px; }
+    .load-stack { display:grid; gap:2px; }
+    .load-stack b { font-family:"Songti SC","STSong","SimSun",serif; font-size:8.8px; font-weight:600; letter-spacing:.68px; line-height:1; }
+    .load-stack span { color:var(--ew-ink-faint); font-family:"SF Pro Text","PingFang SC","Microsoft YaHei UI",sans-serif; font-size:5.5px; font-weight:500; letter-spacing:.14px; line-height:1; }
+    .utility-links { display:flex; align-items:center; gap:17px; }
+    .utility-links button { min-height:18px; padding:3px 1px; border:0; background:transparent; color:var(--ew-ink-soft); font-family:inherit; font-size:7px; font-weight:520; letter-spacing:.15px; cursor:pointer; }
+    .utility-links button+button { position:relative; }
+    .utility-links button+button::before { position:absolute; top:4px; bottom:4px; left:-9px; width:1px; background:var(--ew-line); content:""; }
+    .footer { color:var(--ew-ink-faint); font-size:6.5px; letter-spacing:.02px; white-space:nowrap; }
+    .toast { position:absolute; bottom:76px; left:50%; z-index:30; padding:7px 10px; border-radius:999px; background:var(--ew-ink); color:var(--ew-surface); font-size:6px; opacity:0; pointer-events:none; transform:translate(-50%,8px); transition:opacity .18s,transform .18s; white-space:nowrap; }
+    .toast.show { opacity:1; transform:translate(-50%,0); }
+    .dimension { display:inline-block; margin-top:8px; font-size:11px; font-variant-numeric:tabular-nums; }
+
+    /* 固定 15C：书脊、正文、页尾引线和 01 / 02 的几何位置完全一致。 */
+    .route-tail .spine { top:44px; bottom:44px; left:26px; background:linear-gradient(var(--ew-line-light) 0 12%,var(--ew-line) 12% 65%,var(--ew-line-light) 65% 100%); }
+    .route-tail .brand { top:69px; left:15px; }
+    .route-tail .copy { top:137px; right:27px; left:57px; }
+    .route-tail .route-guide { position:absolute; right:27px; bottom:146px; left:57px; z-index:3; height:1px; background:linear-gradient(90deg,var(--ew-line) 0 76%,transparent 76% 79%,var(--ew-line) 79% 100%); }
+    .route-tail .route-guide::before { position:absolute; top:-2px; right:0; width:5px; height:5px; border-radius:50%; background:var(--ew-ink-faint); content:""; }
+    .route-tail .actions { right:27px; bottom:29px; left:57px; }
+    .route-tail .route-label { margin:0 0 1px; color:var(--ew-ink-faint); font-family:"SF Pro Text","PingFang SC",sans-serif; font-size:5.6px; font-weight:620; letter-spacing:.66px; }
+    .route-tail .route-entry { position:relative; align-items:center; width:100%; padding-left:23px; text-align:left; }
+    .route-tail .route-entry::before { position:absolute; top:50%; left:0; width:14px; height:1px; background:var(--ew-ink-faint); content:""; }
+    .route-tail .route-entry.primary::before { width:19px; background:var(--ew-ink-soft); }
+    .route-tail .route-entry.soft { margin-top:0; }
+    .route-tail .route-entry.soft::before { width:10px; background:var(--ew-line); }
+    .route-tail .route-number { position:absolute; top:50%; left:0; color:var(--ew-ink-faint); font-family:"SF Pro Text","PingFang SC",sans-serif; font-size:5.4px; font-weight:650; letter-spacing:.25px; transform:translateY(-50%); }
+    .route-tail .route-entry.primary .route-number { color:var(--ew-ink-soft); }
+    .route-tail .route-entry .ui-button { align-items:center; flex:1; text-align:left; }
+    .route-tail .utility-links { margin-top:9px; padding-left:23px; }
+    .route-tail .footer { margin-top:9px; padding-left:23px; }
+    .route-tail .curve-main path { stroke:var(--ew-line); }
+    .route-tail .curve-main circle { fill:var(--ew-ink-faint); }
+    .route-tail .curve-main .bookmark-sage,.route-tail .curve-main .bookmark-rose,.route-tail .curve-main .bookmark-mist { opacity:0; }
+
+    /* 16A · 墨金端点：炭灰的路径只在最终停靠点落一粒低饱和沙金。 */
+    .ink-gold { background:var(--ew-paper); }
+    .ink-gold::before { background-image:radial-gradient(rgba(74,66,55,.09) .35px,transparent .52px); background-size:8px 8px; opacity:.12; }
+    .ink-gold .route-guide { background:linear-gradient(90deg,var(--ew-line) 0 76%,transparent 76% 79%,var(--ew-gold) 79% 100%); }
+    .ink-gold .route-guide::before { background:var(--ew-gold); }
+    .ink-gold .curve-main circle:first-of-type { fill:var(--ew-ink-faint); }
+    .ink-gold .curve-main circle:last-of-type { fill:var(--ew-gold); }
+
+    /* 16B · 书签杂点：同一纸白上，把三个低饱和色收为细小的书签节点。 */
+    .bookmark-notes { background:var(--ew-surface); }
+    .bookmark-notes::before { border:1px solid rgba(217,211,201,.52); background:linear-gradient(90deg,rgba(233,229,222,.58),transparent 18%); opacity:.66; }
+    .bookmark-notes .route-guide { background:linear-gradient(90deg,var(--ew-line) 0 76%,transparent 76% 79%,var(--ew-sage) 79% 100%); }
+    .bookmark-notes .route-guide::before { background:var(--ew-sage); }
+    .bookmark-notes .curve-main circle:first-of-type { fill:var(--ew-rose); }
+    .bookmark-notes .curve-main circle:last-of-type { fill:var(--ew-sage); }
+    .bookmark-notes .curve-main .bookmark-mist { opacity:1; fill:var(--ew-mist); }
+
+    /* 16C · 素白微彩：最接近纯白书页，色彩压成一颗几乎退到灰中的雾蓝节点。 */
+    .bare-white { background:#fdfcf9; }
+    .bare-white::before { background:radial-gradient(ellipse at 78% 86%,rgba(255,254,253,.88),transparent 48%); opacity:.82; }
+    .bare-white .route-guide { background:linear-gradient(90deg,var(--ew-line-light) 0 76%,transparent 76% 79%,var(--ew-mist) 79% 100%); }
+    .bare-white .route-guide::before { background:var(--ew-mist); }
+    .bare-white .route-entry.primary::before { background:var(--ew-ink); }
+    .bare-white .curve-main path { stroke:var(--ew-line-light); }
+    .bare-white .curve-main circle:first-of-type { fill:var(--ew-ink-faint); }
+    .bare-white .curve-main circle:last-of-type { fill:var(--ew-mist); }
+
+    @media(max-width:980px) { .three-grid { grid-template-columns:1fr; } }
+    @media(prefers-reduced-motion:reduce) { .toast,.ui-button { transition:none; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar"><a href="index.html">← 返回欢迎界面历史</a><span class="status">第十六轮 · 自研优雅白</span></div>
+    <p class="eyebrow">WELCOME · ROUND 16</p>
+    <h1>S2-A2a-15C 自研优雅白</h1>
+    <p class="subtitle">固定第十五轮 15C 的页尾路径终点对齐、左侧书脊与无框文字入口。本轮不沿用任何旧主题：从纸白、炭黑、暖灰线条重新设计一套更适合书页式欢迎界面的优雅白。</p>
+    <p class="intro-note">三稿共享同一套纸白和排印基调，只比较微小节点的点缀策略；色彩永远不作为背景或按钮出现。开始新人生与读取存档仍是至少 42px 的透明文字命中区，设置、说明、页脚和 Toast 语义不变。</p>
+    <section class="option-grid three-grid">
+      <article class="option-card">
+        <div class="phone welcome-phone route-tail ink-gold">
+          <span class="spine" aria-hidden="true"></span><div class="brand">AI LIFE SIM</div><span class="route-guide" aria-hidden="true"></span>
+          <svg class="curve curve-main" viewBox="0 0 292 590" aria-hidden="true"><path d="M272 8 C228 98,275 181,239 272 S213 421,254 503 S260 568,242 610" fill="none" stroke-width="1"/><circle cx="272" cy="8" r="3"/><circle cx="239" cy="272" r="2.6"/><circle class="bookmark-mist" cx="254" cy="503" r="1.7"/></svg>
+          <div class="copy"><div class="headline">一生很长，<br>也只由几次选择组成。</div><div class="intro">选择世界与出身，走过关系、机会、代价和告别。</div></div>
+          <div class="actions"><div class="route-label">路径终点 / 选择</div><div class="route-entry primary"><span class="route-number">01</span><button class="ui-button new-life"><span class="entry-label">开始新人生</span></button></div><div class="route-entry soft"><span class="route-number">02</span><button class="ui-button load-save" aria-label="读取存档，3 个记录"><span class="load-stack"><b>读取存档</b><span>3 个记录</span></span></button></div><div class="utility-links"><button class="settings">设置</button><button class="help">说明</button></div><div class="footer">故事小分队交流群 · 1097782298</div></div><div class="toast" role="status" aria-live="polite"></div>
+        </div>
+        <div class="option-copy"><span class="tag">S2-A2a-16A · 墨金端点</span><h3>一粒沙金停在终点</h3><p>纸面与路径维持炭灰和暖灰，只有终点和引线末端落一粒低饱和沙金；像书页中一个安静的落款。</p><span class="dimension">ink &amp; muted gold · terminal mark</span></div>
+      </article>
+      <article class="option-card">
+        <div class="phone welcome-phone route-tail bookmark-notes">
+          <span class="spine" aria-hidden="true"></span><div class="brand">AI LIFE SIM</div><span class="route-guide" aria-hidden="true"></span>
+          <svg class="curve curve-main" viewBox="0 0 292 590" aria-hidden="true"><path d="M272 8 C228 98,275 181,239 272 S213 421,254 503 S260 568,242 610" fill="none" stroke-width="1"/><circle cx="272" cy="8" r="3"/><circle cx="239" cy="272" r="2.6"/><circle class="bookmark-mist" cx="254" cy="503" r="1.7"/></svg>
+          <div class="copy"><div class="headline">一生很长，<br>也只由几次选择组成。</div><div class="intro">选择世界与出身，走过关系、机会、代价和告别。</div></div>
+          <div class="actions"><div class="route-label">路径终点 / 选择</div><div class="route-entry primary"><span class="route-number">01</span><button class="ui-button new-life"><span class="entry-label">开始新人生</span></button></div><div class="route-entry soft"><span class="route-number">02</span><button class="ui-button load-save" aria-label="读取存档，3 个记录"><span class="load-stack"><b>读取存档</b><span>3 个记录</span></span></button></div><div class="utility-links"><button class="settings">设置</button><button class="help">说明</button></div><div class="footer">故事小分队交流群 · 1097782298</div></div><div class="toast" role="status" aria-live="polite"></div>
+        </div>
+        <div class="option-copy"><span class="tag">S2-A2a-16B · 书签杂点</span><h3>三个细小的页边书签</h3><p>灰玫瑰、鼠尾草和雾蓝只落在三颗小节点上；颜色被控制在读不到“主题色”的尺度，只替路径做标记。</p><span class="dimension">bookmark notes · three quiet markers</span></div>
+      </article>
+      <article class="option-card">
+        <div class="phone welcome-phone route-tail bare-white">
+          <span class="spine" aria-hidden="true"></span><div class="brand">AI LIFE SIM</div><span class="route-guide" aria-hidden="true"></span>
+          <svg class="curve curve-main" viewBox="0 0 292 590" aria-hidden="true"><path d="M272 8 C228 98,275 181,239 272 S213 421,254 503 S260 568,242 610" fill="none" stroke-width="1"/><circle cx="272" cy="8" r="3"/><circle cx="239" cy="272" r="2.6"/><circle class="bookmark-mist" cx="254" cy="503" r="1.7"/></svg>
+          <div class="copy"><div class="headline">一生很长，<br>也只由几次选择组成。</div><div class="intro">选择世界与出身，走过关系、机会、代价和告别。</div></div>
+          <div class="actions"><div class="route-label">路径终点 / 选择</div><div class="route-entry primary"><span class="route-number">01</span><button class="ui-button new-life"><span class="entry-label">开始新人生</span></button></div><div class="route-entry soft"><span class="route-number">02</span><button class="ui-button load-save" aria-label="读取存档，3 个记录"><span class="load-stack"><b>读取存档</b><span>3 个记录</span></span></button></div><div class="utility-links"><button class="settings">设置</button><button class="help">说明</button></div><div class="footer">故事小分队交流群 · 1097782298</div></div><div class="toast" role="status" aria-live="polite"></div>
+        </div>
+        <div class="option-copy"><span class="tag">S2-A2a-16C · 素白微彩</span><h3>只让雾蓝一闪而过</h3><p>最接近纯白书页：路径退为柔和灰米，雾蓝只在页尾端点轻触一下，留出最大留白与最少装饰。</p><span class="dimension">bare white · one mist mark</span></div>
+      </article>
+    </section>
+  </main>
+  <script>
+    function showToast(phone,message){const toast=phone.querySelector('.toast');toast.textContent=message;toast.classList.add('show');clearTimeout(toast._timer);toast._timer=setTimeout(function(){toast.classList.remove('show')},1300)}
+    document.querySelectorAll('.welcome-phone').forEach(function(phone){phone.querySelector('.new-life').onclick=function(){showToast(phone,'开始新人生 · 原型演示')};phone.querySelector('.load-save').onclick=function(){showToast(phone,'打开全部 3 个存档')};phone.querySelector('.settings').onclick=function(){showToast(phone,'打开设置')};phone.querySelector('.help').onclick=function(){showToast(phone,'打开说明')}})
+  </script>
+</body>
+</html>

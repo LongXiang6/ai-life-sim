@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>设置界面第三轮重做 · S1C 选项卡锁定</title>
+  <link rel="stylesheet" href="../assets/library-history.css">
+  <script src="../assets/prototype.js" defer></script>
+  <style>
+    .phone{background:linear-gradient(180deg,#fafbfe,#f3f5fa)}
+    .head{display:flex;align-items:center;justify-content:space-between;padding:20px 15px 10px}.head b{font-size:18px}.close{padding:7px 8px;border:0;border-radius:10px;background:transparent;color:#5e687e;font-size:10px}
+    /* 锁定：与第二轮 S1C 完全相同的无外框横向标签结构 */
+    .tabs{display:flex;gap:4px;overflow:hidden;padding:0 12px 10px;white-space:nowrap}.tab{flex:0 0 auto;padding:8px 9px;color:#7b8498;font-size:8px;border-radius:10px}.tab.active{color:#485ba9;font-weight:750}
+    .content{height:510px;overflow:hidden;padding:0 12px 24px}.section-title{display:flex;align-items:end;justify-content:space-between;margin:11px 3px 6px;color:#68738b}.section-title b{font-size:9px}.section-title span{color:#929aab;font-size:7px}.panel{overflow:hidden;border:1px solid #dce2eb;border-radius:14px;background:rgba(255,255,255,.8)}.row{display:flex;align-items:center;justify-content:space-between;gap:9px;min-height:43px;padding:10px 11px}.row+.row{border-top:1px solid #e8ebf1}.label{font-size:10px;font-weight:680}.hint{margin-top:3px;color:#858da0;font-size:7px;line-height:1.4}.value{color:#5363aa;font-size:9px;white-space:nowrap}.toggle{width:32px;height:18px;padding:3px;border-radius:999px;background:#6677c8}.toggle i{display:block;width:12px;height:12px;margin-left:auto;border-radius:50%;background:#fff}
+    .seg{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;padding:3px;border-radius:10px;background:#edf0f6}.seg span{padding:6px 2px;text-align:center;color:#7b8496;font-size:7px;border-radius:8px}.seg .on{background:#fff;color:#4e5fac;font-weight:700;box-shadow:0 2px 7px rgba(43,53,83,.08)}
+    .airy .panel{margin-bottom:10px;box-shadow:0 6px 16px rgba(43,52,80,.04)}.airy .section-title{margin-top:12px}.airy .value-box{padding:6px 8px;border-radius:9px;background:#eef1f8;color:#5363aa;font-size:8px}.airy .seg-wrap{padding:9px 10px}
+    .joined .content{padding-left:14px;padding-right:14px}.joined .master{border:1px solid #dce2eb;border-radius:15px;background:rgba(255,255,255,.8);overflow:hidden}.joined .block+.block{border-top:1px solid #e4e8ef}.joined .section-title{margin:0;padding:9px 10px 2px}.joined .row{padding-left:10px;padding-right:10px}.joined .block .row+.row{border-top:1px solid #eef0f4}.joined .seg{margin:4px 10px 10px}
+    .compact .status-line{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;padding:9px 10px;border:1px solid #dfe4ed;border-radius:12px;background:rgba(255,255,255,.64);color:#7d869a;font-size:7px}.compact .status-line b{color:#5060a7;font-size:9px}.compact .section-title{margin-top:9px}.compact .row{min-height:39px;padding-top:8px;padding-bottom:8px}.compact .hint{display:none}.compact .panel{border-radius:13px}.compact .seg{margin-top:7px}
+    .selection{margin-top:18px;color:#69748d;font-size:12px}
+  </style>
+</head>
+<body><main class="shell">
+  <div class="topbar"><a href="index.html">← 返回设置界面历史</a><span data-selection>本轮结果：R1 定版</span></div>
+  <p class="eyebrow">SETTINGS · ROUND 03 · REWRITE</p>
+  <h1>S1C：锁定顶部选项卡后重写</h1>
+  <p class="subtitle">三稿顶部完全一致：无外框横向标签，只有“模型设置”使用浅色激活底。本轮最终选择 R1。</p>
+  <section class="option-grid">
+    <article class="option-card airy" data-choice="R1 独立章节卡片" onclick="selectChoice(this)">
+      <div class="phone"><div class="head"><b>设置</b><button class="close">关闭</button></div><div class="tabs"><span class="tab">个性化</span><span class="tab active" style="background:#edf1ff">模型设置</span><span class="tab">模型调用</span><span class="tab">Prompt</span></div><div class="content"><div class="section-title"><b>AI 内容</b><span>生成方式</span></div><div class="panel"><div class="row"><div><div class="label">AI 命格生成</div><div class="hint">关闭后使用本地预设命格</div></div><div class="toggle"><i></i></div></div></div><div class="section-title"><b>叙事长度</b><span>完整句优先</span></div><div class="panel"><div class="row"><div><div class="label">每轮叙事字数</div><div class="hint">生成目标，不做硬截断</div></div><div class="value-box">200 字</div></div></div><div class="section-title"><b>推理模式</b><span>按用途设置</span></div><div class="panel"><div class="row"><div><div class="label">全局推理</div><div class="hint">叙事与模拟判断</div></div><div class="value">关闭　›</div></div><div class="row"><div><div class="label">命格推理</div><div class="hint">仅影响命格生成</div></div><div class="value">关闭　›</div></div></div><div class="section-title"><b>预生成轮数</b><span>降低等待感</span></div><div class="panel seg-wrap"><div class="seg"><span class="on">关闭</span><span>1 轮</span><span>2 轮</span><span>3 轮</span></div></div></div></div>
+      <div class="option-copy"><h3>R1 · 独立章节卡片</h3><p>沿用 S1C 的明确标题，每个概念各有边界。阅读最轻松，页面层级最直观。</p><span class="tag">清晰 · 舒展 · 稳妥</span></div>
+    </article>
+    <article class="option-card joined" data-choice="R2 连续整组面板" onclick="selectChoice(this)">
+      <div class="phone"><div class="head"><b>设置</b><button class="close">关闭</button></div><div class="tabs"><span class="tab">个性化</span><span class="tab active" style="background:#edf1ff">模型设置</span><span class="tab">模型调用</span><span class="tab">Prompt</span></div><div class="content"><div class="master"><section class="block"><div class="section-title"><b>AI 内容</b><span>生成方式</span></div><div class="row"><div><div class="label">AI 命格生成</div><div class="hint">关闭后使用本地预设命格</div></div><div class="toggle"><i></i></div></div></section><section class="block"><div class="section-title"><b>叙事长度</b><span>完整句优先</span></div><div class="row"><div><div class="label">每轮叙事字数</div><div class="hint">生成目标，不做硬截断</div></div><div class="value">200 字　›</div></div></section><section class="block"><div class="section-title"><b>推理模式</b><span>按用途设置</span></div><div class="row"><div class="label">全局推理</div><div class="value">关闭　›</div></div><div class="row"><div class="label">命格推理</div><div class="value">关闭　›</div></div></section><section class="block"><div class="section-title"><b>预生成轮数</b><span>降低等待感</span></div><div class="seg"><span class="on">关闭</span><span>1 轮</span><span>2 轮</span><span>3 轮</span></div></section></div></div></div>
+      <div class="option-copy"><h3>R2 · 连续整组面板</h3><p>章节标题仍然清晰，但所有设置合并为一个整体表面。杂讯更少，更像完整系统设置。</p><span class="tag">整体 · 安静 · 中等密度</span></div>
+    </article>
+    <article class="option-card compact" data-choice="R3 紧凑状态列表" onclick="selectChoice(this)">
+      <div class="phone"><div class="head"><b>设置</b><button class="close">关闭</button></div><div class="tabs"><span class="tab">个性化</span><span class="tab active" style="background:#edf1ff">模型设置</span><span class="tab">模型调用</span><span class="tab">Prompt</span></div><div class="content"><div class="status-line"><span>当前叙事配置</span><b>200 字 · AI 开启</b></div><div class="section-title"><b>生成</b><span>1 项</span></div><div class="panel"><div class="row"><div class="label">AI 命格生成</div><div class="toggle"><i></i></div></div></div><div class="section-title"><b>叙事</b><span>1 项</span></div><div class="panel"><div class="row"><div class="label">每轮叙事字数</div><div class="value">200 字　›</div></div></div><div class="section-title"><b>推理模式</b><span>2 项</span></div><div class="panel"><div class="row"><div class="label">全局推理</div><div class="value">关闭　›</div></div><div class="row"><div class="label">命格推理</div><div class="value">关闭　›</div></div></div><div class="section-title"><b>预生成轮数</b><span>当前关闭</span></div><div class="seg"><span class="on">关闭</span><span>1 轮</span><span>2 轮</span><span>3 轮</span></div></div></div>
+      <div class="option-copy"><h3>R3 · 紧凑状态列表</h3><p>保留章节标题，减少次要说明，并增加一行当前配置摘要。单屏效率最高。</p><span class="tag">紧凑 · 快速 · 状态优先</span></div>
+    </article>
+  </section>
+  <p class="selection">点击 R1、R2 或 R3 标记选择。顶部选项卡在三稿中完全相同，不参与本轮比较。</p>
+</main></body></html>

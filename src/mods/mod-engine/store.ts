@@ -9,7 +9,7 @@
 import { create, } from 'zustand'
 import { persist, } from 'zustand/middleware'
 
-import { DEFAULT_ENGINE_CONFIG, } from './constants'
+import { DEFAULT_ENGINE_CONFIG, getSeasonForMonth, } from './constants'
 
 import type { EngineState, SimulationStatus, NarrativeChunk, CompressionStats, CharacterCreation, } from './types'
 import type { CompressedSummaries, } from '@/foundation'
@@ -55,7 +55,7 @@ interface EngineStore extends EngineState {
 
 const initialRound = {
   year: 1,
-  season: 0,
+  season: getSeasonForMonth(0),
   month: 0,
   day: 0,
   dayOfYear: 1,

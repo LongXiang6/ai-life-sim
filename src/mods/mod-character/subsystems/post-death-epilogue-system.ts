@@ -588,7 +588,6 @@ export class PostDeathEpilogueSystem implements ISubSystem {
           mind: cur.mind,
           talentAptitude: cur.talentAptitude,
           charisma: cur.charisma,
-          resources: cur.resources,
         }
       }
     }

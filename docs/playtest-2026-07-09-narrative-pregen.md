@@ -34,7 +34,7 @@
 
 | 项 | 结果 |
 |---|---|
-| 已读规则入口 | `.agents/核心流程.md`、`.agents/cross-domain-contracts.md`、`ai-life-sim-skill/SKILL.md`、`SKILL-INDEX.md`、`ARCHITECTURE.md`、`testing-skill/SKILL.md` |
+| 已读项目入口 | `D:\AI\AGENTS.md`、`ai-life-sim/SKILL.md`、`ai-life-sim-prompt-engineering/SKILL.md`；验证命令以 `AGENTS.md` 为准 |
 | 当前任务分级 | 测试记录为 L0；若修复预生成链路，预计触及 `mod-engine` 引擎根，需先做链路证据；若动 `core/` 或 `foundation/` 必须确认 |
 | 已知历史记录 | 2026-07-08 已完成多轮点击测试和修复复测，本轮聚焦叙事质量与预生成竞态 |
 
@@ -342,7 +342,7 @@ npm run dev
 
 - Dev server 报 `src/app/globals.css` 生成产物中存在非法的 duration 通配符 CSS 变量。
 - 源文件 `src/app/globals.css` 只有 104 行，报错行号来自 Tailwind/PostCSS 生成代码。
-- 全局搜索发现 `.agents/skills/ui-liquid-glass-skill/resources/design-tokens.md` 文档里含 duration 通配符禁止示例。
+- 全局搜索发现当时的 UI Skill 设计 Token 文档含 duration 通配符禁止示例；该文档现已迁移为 `.agents/skills/ai-life-sim-ui/references/design-tokens.md`。
 
 处理：
 

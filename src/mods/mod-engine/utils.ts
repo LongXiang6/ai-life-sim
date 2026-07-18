@@ -5,6 +5,7 @@
  */
 
 import { CALENDAR, SEASON_NAMES } from './constants'
+import { getSeasonForMonth } from './helpers/calendar-season.js'
 import {
   MIN_SUMMARY_TOKENS,
   SUMMARY_CHARS_DEFAULT,
@@ -23,7 +24,7 @@ import type { RoundInfo, TimeStep } from './types'
  * 格式化回合信息为可读字符串
  */
 export function formatRound(round: RoundInfo): string {
-  const season = SEASON_NAMES[round.season] ?? '?'
+  const season = SEASON_NAMES[getSeasonForMonth(round.month)] ?? '?'
   return `第${round.year}年 ${season}季 第${round.month + 1}月 第${round.day + 1}日`
 }
 

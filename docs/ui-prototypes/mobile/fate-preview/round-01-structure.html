@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>命运预览第一轮</title>
+  <link rel="stylesheet" href="../assets/library-history.css">
+  <script src="../assets/prototype.js" defer></script>
+  <style>
+    .phone{height:650px;background:linear-gradient(180deg,#fafbfe,#f0f3f8)}
+    .screen{height:100%;overflow:auto;padding:17px 10px 66px;scrollbar-width:none}
+    .screen::-webkit-scrollbar{display:none}
+    .kicker{color:#77839a;font-size:6px;font-weight:800;letter-spacing:.16em}
+    .mobile-title{margin-top:4px;font-size:18px;font-weight:780;letter-spacing:-.03em}
+    .mobile-sub{margin-top:3px;color:#788298;font-size:7px;line-height:1.45}
+    .glass{border:1px solid rgba(199,207,221,.82);background:rgba(255,255,255,.76);box-shadow:0 5px 16px rgba(43,52,76,.045);backdrop-filter:blur(14px)}
+    .section-label{display:flex;align-items:center;justify-content:space-between;margin:9px 1px 5px;color:#667188;font-size:7px;font-weight:760}
+    .section-label small{color:#929aaa;font-size:6px;font-weight:550}
+    .pill{display:inline-flex;align-items:center;gap:3px;padding:3px 6px;border-radius:999px;font-size:5px;font-weight:700}
+    .rare{background:#eaf0ff;color:#5770ab}.epic{background:#f1eafb;color:#765c9f}.fine{background:#e8f6ef;color:#3d8061}.neutral{background:#eef1f5;color:#667084}
+    .attr-positive{color:#3f7c61}.attr-negative{color:#b96565}
+    .seed-input{min-width:0;height:32px;border:1px solid #d8deea;border-radius:10px;background:#f7f8fb;color:#354058;font:inherit;letter-spacing:.12em;outline:none}
+    .seed-random{height:32px;border:1px solid #d7ddea;border-radius:10px;background:#fff;color:#53628c;font:inherit}
+    .state-note{margin-top:6px;color:#7e879a;font-size:5px;line-height:1.5}
+    .state-note b{color:#a95f5f}
+    .bottom{position:absolute;z-index:3;left:0;right:0;bottom:0;padding:7px 10px 8px;border-top:1px solid rgba(215,221,231,.95);background:rgba(250,251,254,.94);backdrop-filter:blur(15px)}
+    .bottom-bar{display:flex;align-items:center;justify-content:space-between}
+    .bottom button{height:32px;border-radius:10px;font:inherit;font-size:7px}
+    .back-action{width:64px;border:1px solid #d6dce7;background:#fff;color:#4d586e}
+    .start-action{width:112px;border:1px solid #1c2540;background:#1c2540;color:#fff;font-weight:760}
+    .start-action[disabled]{border-color:#d4d9e2;background:#dfe3ea;color:#8b93a2}
+    .bottom-hint{color:#8790a1;font-size:5px}
+    .option-note{margin:0 18px 15px;padding:9px 11px;border-radius:11px;background:#f2f4fa;color:#69748c;font-size:11px;line-height:1.55}
+
+    /* F1 · 叙事卷轴 */
+    .f1 .screen{background:radial-gradient(circle at 85% 7%,rgba(153,167,215,.22),transparent 25%),linear-gradient(180deg,#fbfaf7,#f3f2ee)}
+    .f1-hero{position:relative;overflow:hidden;margin-top:8px;padding:12px;border-radius:15px;color:#fff;background:linear-gradient(135deg,#27334f,#6a668d)}
+    .f1-hero:after{content:"";position:absolute;right:-18px;top:-24px;width:84px;height:84px;border:1px solid rgba(255,255,255,.18);border-radius:50%;box-shadow:0 0 0 13px rgba(255,255,255,.04)}
+    .f1-avatar{display:grid;width:34px;height:34px;place-items:center;border:1px solid rgba(255,255,255,.25);border-radius:12px;background:rgba(255,255,255,.12);font-size:15px}
+    .f1-name{margin-top:9px;font-size:15px;font-weight:760}.f1-meta{margin-top:3px;color:rgba(255,255,255,.72);font-size:6px}
+    .f1-world{position:absolute;right:10px;bottom:11px;max-width:105px;text-align:right}.f1-world b{display:block;font-size:8px}.f1-world span{font-size:5px;color:rgba(255,255,255,.68)}
+    .f1-facts{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:6px}
+    .f1-fact{padding:6px;border-radius:9px;background:rgba(255,255,255,.72);text-align:center}.f1-fact b{display:block;font-size:7px}.f1-fact span{display:block;margin-top:2px;color:#858e9f;font-size:5px}
+    .f1-attrs{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+    .f1-attr{padding:6px 2px;border-radius:9px;background:rgba(255,255,255,.75);text-align:center}.f1-attr span{display:block;color:#778197;font-size:5px}.f1-attr b{display:block;margin-top:3px;font-size:9px}
+    .f1-destiny{display:grid;gap:5px}.f1-destiny-card{display:grid;grid-template-columns:1fr auto;gap:4px;padding:7px 8px;border-radius:10px}.f1-destiny-card b{font-size:7px}.f1-destiny-card p{grid-column:1/-1;margin:0;color:#7a8498;font-size:5px;line-height:1.45}
+    .f1-mini-row{display:flex;flex-wrap:wrap;gap:4px}.f1-mini-row span{padding:4px 6px;border-radius:7px;background:rgba(255,255,255,.75);color:#67738a;font-size:5px}
+    .f1-story{padding:8px 9px;border-radius:11px;color:#6f798d;font-size:6px;line-height:1.55}.f1-story b{display:block;margin-bottom:3px;color:#3e495f;font-size:7px}
+    .f1-seed{display:grid;grid-template-columns:1fr 58px;gap:5px}.f1-seed input{padding:0 8px}.f1-seed button{font-size:6px}
+    .f1-init{padding:8px 9px;border-radius:11px}.f1-init-head{display:flex;justify-content:space-between;color:#46536d;font-size:7px;font-weight:720}.f1-init-head span:last-child{color:#6174ae}
+    .f1-progress{height:3px;margin-top:6px;border-radius:999px;background:#e7eaf0;overflow:hidden}.f1-progress i{display:block;width:75%;height:100%;background:#7384c2}
+    .f1-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-top:6px}.f1-step{text-align:center;color:#8b94a5;font-size:5px}.f1-step b{display:grid;width:17px;height:17px;margin:0 auto 3px;place-items:center;border-radius:6px;background:#edf0f5}.f1-step.done{color:#47775f}.f1-step.active{color:#5367a6}.f1-step.active b{background:#e9edff}
+
+    /* F2 · 核对清单 */
+    .f2 .screen{background:linear-gradient(180deg,#f8fafc,#edf2f5)}
+    .f2-head{display:flex;align-items:flex-end;justify-content:space-between}.f2-count{padding:5px 7px;border-radius:9px;background:#e7f4ed;color:#397458;font-size:6px;font-weight:750}
+    .f2-summary{display:flex;align-items:center;gap:8px;margin-top:8px;padding:8px;border-radius:12px}.f2-portrait{display:grid;width:32px;height:32px;place-items:center;border-radius:10px;background:#e9edf5;font-size:13px}.f2-summary b{display:block;font-size:8px}.f2-summary span{display:block;margin-top:2px;color:#7c879b;font-size:5px}.f2-edit{margin-left:auto;color:#5367a4!important;font-size:6px!important}
+    .check-list{display:grid;gap:5px;margin-top:7px}.check{overflow:hidden;border-radius:11px}.check-head{display:grid;grid-template-columns:18px 1fr auto;align-items:center;gap:6px;padding:7px 8px}.check-num{display:grid;width:18px;height:18px;place-items:center;border-radius:6px;background:#e9f4ee;color:#40765b;font-size:6px;font-weight:800}.check-title b{display:block;font-size:7px}.check-title span{display:block;margin-top:2px;color:#8992a3;font-size:5px}.check-ok{color:#4e7b63;font-size:7px}.check-body{padding:0 8px 8px}
+    .f2-info{display:grid;grid-template-columns:repeat(2,1fr);gap:4px}.f2-info div{padding:5px 6px;border-radius:7px;background:#f3f5f8}.f2-info span{display:block;color:#8a93a4;font-size:5px}.f2-info b{display:block;margin-top:2px;font-size:6px}
+    .f2-attrline{display:grid;grid-template-columns:repeat(5,1fr);gap:3px}.f2-attrline div{padding:5px 2px;border-radius:7px;background:#f3f5f8;text-align:center}.f2-attrline span{display:block;color:#8992a3;font-size:5px}.f2-attrline b{font-size:7px}
+    .f2-patterns{display:flex;flex-wrap:wrap;gap:3px}.f2-pattern{padding:4px 5px;border-radius:7px;background:#f3eef9;color:#725c92;font-size:5px}.f2-pattern em{margin-left:3px;color:#9b89af;font-style:normal}.f2-copy{padding:6px;border-radius:7px;background:#f3f5f8;color:#6f7a8e;font-size:5px;line-height:1.5}
+    .f2-seed{display:grid;grid-template-columns:82px 1fr;gap:4px}.f2-seed-toggle{display:grid;grid-template-columns:1fr 1fr;height:32px;padding:2px;border-radius:9px;background:#eef1f6}.f2-seed-toggle span{display:grid;place-items:center;border-radius:7px;color:#8790a1;font-size:5px}.f2-seed-toggle .active{background:#fff;color:#5267a3;font-weight:750;box-shadow:0 1px 4px rgba(40,50,75,.08)}.f2-seed input{padding:0 7px;font-size:6px}
+    .f2-init{padding:7px;border-radius:9px;background:#f5f6f9}.f2-init-top{display:flex;justify-content:space-between;font-size:6px}.f2-init-top b{color:#44775b}.f2-init-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-top:5px}.f2-init-grid span{padding:4px 2px;border-radius:5px;background:#e9f4ee;color:#4d7760;text-align:center;font-size:5px}
+    .f2-error-sample{margin-top:5px;padding:5px 6px;border:1px solid #efd3d3;border-radius:7px;background:#fff5f5;color:#a35e5e;font-size:5px;line-height:1.45}
+
+    /* F3 · 命盘仪表 */
+    .f3 .screen{color:#e9ecf5;background:radial-gradient(circle at 50% 16%,#2f3550,#171b2c 43%,#111522)}
+    .f3 .kicker,.f3 .mobile-sub{color:#8993ad}.f3 .mobile-title{color:#fff}
+    .f3-orbit{position:relative;height:135px;margin-top:7px;border:1px solid rgba(170,183,221,.16);border-radius:17px;background:radial-gradient(circle at center,rgba(134,147,199,.2),transparent 60%);overflow:hidden}
+    .f3-orbit:before,.f3-orbit:after{content:"";position:absolute;left:50%;top:50%;border:1px solid rgba(168,182,222,.14);border-radius:50%;transform:translate(-50%,-50%)}
+    .f3-orbit:before{width:110px;height:110px}.f3-orbit:after{width:72px;height:72px}
+    .f3-core{position:absolute;z-index:2;left:50%;top:50%;text-align:center;transform:translate(-50%,-50%)}.f3-core i{display:grid;width:36px;height:36px;margin:auto;place-items:center;border:1px solid rgba(255,255,255,.22);border-radius:50%;background:rgba(116,128,176,.24);font-style:normal;font-size:15px}.f3-core b{display:block;margin-top:4px;font-size:9px}.f3-core span{display:block;margin-top:2px;color:#9ca6bf;font-size:5px}
+    .orbit-tag{position:absolute;z-index:2;padding:4px 6px;border:1px solid rgba(179,191,225,.16);border-radius:7px;background:rgba(20,25,41,.62);color:#c7cee2;font-size:5px}.orbit-world{top:9px;left:10px}.orbit-age{top:12px;right:12px}.orbit-race{bottom:11px;left:13px}.orbit-life{right:10px;bottom:10px}
+    .f3-tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-top:6px}.f3-tabs span{padding:5px 2px;border-radius:7px;background:rgba(255,255,255,.05);color:#8f9ab3;text-align:center;font-size:5px}.f3-tabs span:first-child{background:rgba(126,143,205,.22);color:#edf1ff}
+    .f3-panel{margin-top:6px;padding:8px;border:1px solid rgba(179,191,225,.15);border-radius:11px;background:rgba(255,255,255,.055)}
+    .f3-panel-head{display:flex;justify-content:space-between;color:#aeb8ce;font-size:6px}.f3-panel-head b{color:#f1f3fa;font-size:7px}
+    .f3-world-copy{margin-top:5px;color:#9ba5bc;font-size:5px;line-height:1.5}
+    .f3-attrs{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;margin-top:6px}.f3-attrs div{padding:5px 1px;border-radius:7px;background:rgba(255,255,255,.055);text-align:center}.f3-attrs span{display:block;color:#8691aa;font-size:5px}.f3-attrs b{display:block;margin-top:2px;color:#f0f2f8;font-size:8px}
+    .f3-pattern-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:6px}.f3-pattern-grid div{min-height:42px;padding:6px;border:1px solid rgba(157,138,202,.25);border-radius:8px;background:rgba(125,101,165,.12)}.f3-pattern-grid b{display:block;color:#e7def5;font-size:6px}.f3-pattern-grid span{display:block;margin-top:3px;color:#9d91b4;font-size:5px;line-height:1.35}
+    .f3-talent-row{display:flex;gap:4px;margin-top:5px}.f3-talent-row span{padding:4px 6px;border-radius:6px;background:rgba(91,153,126,.12);color:#a9d1bc;font-size:5px}
+    .f3-record{display:grid;grid-template-columns:1.6fr 1fr;gap:4px;margin-top:6px}.f3-record div{padding:6px;border-radius:8px;background:rgba(255,255,255,.045);color:#9ca6ba;font-size:5px;line-height:1.45}.f3-record b{display:block;margin-bottom:3px;color:#dce1ef;font-size:6px}
+    .f3-seeds{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:6px}.f3-seed-card{height:32px;padding:5px 7px;border:1px solid rgba(177,189,222,.16);border-radius:8px;background:rgba(255,255,255,.045);color:#aab4ca;font-size:5px}.f3-seed-card.active{border-color:#788ac5;background:rgba(103,121,184,.18);color:#edf1ff}.f3-seed-card b{display:block;font-size:6px}
+    .f3-init{margin-top:6px;padding:7px;border:1px solid rgba(224,134,134,.28);border-radius:9px;background:rgba(150,69,75,.12)}.f3-init-head{display:flex;justify-content:space-between;color:#e6b8b8;font-size:6px}.f3-init p{margin:4px 0 0;color:#bda1aa;font-size:5px;line-height:1.4}.f3-init-steps{display:flex;gap:3px;margin-top:5px}.f3-init-steps span{flex:1;height:3px;border-radius:99px;background:#53627f}.f3-init-steps .failed{background:#b76770}.f3-init-steps .wait{background:#343b50}
+    .f3 .bottom{border-color:rgba(124,136,169,.22);background:rgba(15,19,31,.92)}.f3 .back-action{border-color:#3a4258;background:#1c2132;color:#c7cddd}.f3 .bottom-hint{color:#7d879f}.f3 .start-action[disabled]{border-color:#353c4f;background:#2c3242;color:#6e788e}
+
+    @media (max-width:980px){.phone{height:650px}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar">
+      <a href="index.html">← 返回命运预览历史</a>
+      <span data-selection>尚未选择</span>
+    </div>
+    <p class="eyebrow">FATE PREVIEW · ROUND 01</p>
+    <h1>正式开局前，怎样完成最后一次核对？</h1>
+    <p class="subtitle">三稿均保留角色、世界、命格、天赋、五项属性、背景、寿命、随机或自定义种子、返回修改、世界初始化门控，以及“开始人生”主操作。控件按 PD-008 保持紧凑，不套用统一大尺寸。</p>
+
+    <section class="option-grid">
+      <article class="option-card" data-choice="F1 叙事卷轴总览" onclick="selectChoice(this)">
+        <div class="phone f1">
+          <div class="screen">
+            <div class="kicker">NEW LIFE · 06 / FINAL</div>
+            <div class="mobile-title">身世总览</div>
+            <div class="mobile-sub">翻阅这一生的开端，确认后正式进入模拟。</div>
+
+            <section class="f1-hero">
+              <div class="f1-avatar">砚</div>
+              <div class="f1-name">沈砚</div>
+              <div class="f1-meta">男 · 人类 · 起始年龄 18 岁</div>
+              <div class="f1-world"><span>即将诞生于</span><b>雾海纪元</b><span>群岛文明 · 灵潮复苏</span></div>
+            </section>
+            <div class="f1-facts">
+              <div class="f1-fact"><b>100 年</b><span>基础寿命</span></div>
+              <div class="f1-fact"><b>112 年</b><span>当前上限</span></div>
+              <div class="f1-fact"><b>1.0×</b><span>衰减倍率</span></div>
+            </div>
+
+            <div class="section-label"><span>最终属性</span><small>已计入命格与天赋</small></div>
+            <div class="f1-attrs glass">
+              <div class="f1-attr"><span>体魄</span><b class="attr-positive">+7</b></div>
+              <div class="f1-attr"><span>心智</span><b class="attr-positive">+9</b></div>
+              <div class="f1-attr"><span>悟性</span><b class="attr-positive">+8</b></div>
+              <div class="f1-attr"><span>魅力</span><b>+4</b></div>
+              <div class="f1-attr"><span>出身</span><b>+3</b></div>
+            </div>
+
+            <div class="section-label"><span>三重命格</span><small>持续影响叙事</small></div>
+            <div class="f1-destiny">
+              <div class="f1-destiny-card glass"><b>逆境余火</b><span class="pill rare">稀有 · 正面</span><p>身处绝境时，更容易找到尚未熄灭的转机。</p></div>
+              <div class="f1-destiny-card glass"><b>守诺之人</b><span class="pill epic">传奇 · 正面</span><p>真诚承诺具有有限因果惯性，但不会免除代价。</p></div>
+              <div class="f1-destiny-card glass"><b>市井耳目</b><span class="pill rare">稀有 · 中立</span><p>更容易从日常闲谈中获得有用消息。</p></div>
+            </div>
+
+            <div class="section-label"><span>天赋</span><small>2 项</small></div>
+            <div class="f1-mini-row"><span>快速学习 · 精良</span><span>敏锐观察 · 稀有</span></div>
+
+            <div class="section-label"><span>背景信息</span><small>角色起点</small></div>
+            <div class="f1-story glass"><b>雾港旧书铺的学徒</b>自幼在港区长大，熟悉潮汐航路与街巷传闻。一次异常灵潮让他听见了海雾中的低语。</div>
+
+            <div class="section-label"><span>模拟种子</span><small>留空则每次随机</small></div>
+            <div class="f1-seed">
+              <input class="seed-input" value="63284017" aria-label="自定义模拟种子" readonly>
+              <button class="seed-random" type="button">🎲 随机</button>
+            </div>
+            <div class="state-note">最多 8 位数字；相同种子与相同操作可获得相近走向。</div>
+
+            <div class="section-label"><span>世界初始化</span><small>3 / 4 · 进行中</small></div>
+            <div class="f1-init glass">
+              <div class="f1-init-head"><span>正在生成地理与组织实体</span><span>28s</span></div>
+              <div class="f1-progress"><i></i></div>
+              <div class="f1-steps">
+                <div class="f1-step done"><b>✓</b>维度校准</div>
+                <div class="f1-step done"><b>✓</b>标签生成</div>
+                <div class="f1-step done"><b>✓</b>世界配置</div>
+                <div class="f1-step active"><b>···</b>实体生成</div>
+              </div>
+              <div class="state-note"><b>失败态：</b>显示具体错误，保留已完成步骤，主操作继续禁用。</div>
+            </div>
+          </div>
+          <div class="bottom">
+            <div class="bottom-bar"><button class="back-action" type="button">返回</button><span class="bottom-hint">可返回修改属性</span><button class="start-action" type="button" disabled>开始人生</button></div>
+          </div>
+        </div>
+        <div class="option-copy">
+          <h3>F1 · 叙事卷轴总览</h3>
+          <p>角色和世界先形成“人生开篇”，再按属性、命格、背景、种子与初始化顺序向下核对，最接近叙事产品气质。</p>
+          <span class="tag">沉浸 · 顺序阅读 · 开篇感</span>
+        </div>
+        <p class="option-note">优点是情绪连续；代价是返回定位某一项时需要更多滚动，后续可增加轻量锚点。</p>
+      </article>
+
+      <article class="option-card" data-choice="F2 七项核对清单" onclick="selectChoice(this)">
+        <div class="phone f2">
+          <div class="screen">
+            <div class="f2-head">
+              <div><div class="kicker">FINAL CHECK · 06</div><div class="mobile-title">开局核对</div></div>
+              <span class="f2-count">7 项已就绪</span>
+            </div>
+            <div class="mobile-sub">逐项检查创建结果；返回修改不会清空其他有效选择。</div>
+
+            <div class="f2-summary glass">
+              <div class="f2-portrait">砚</div>
+              <div><b>沈砚 · 18 岁</b><span>男 · 人类 · 雾海纪元</span></div>
+              <span class="f2-edit">返回可修改</span>
+            </div>
+
+            <div class="check-list">
+              <section class="check glass">
+                <div class="check-head"><span class="check-num">1</span><div class="check-title"><b>角色身份</b><span>姓名、性别、种族、起始年龄</span></div><span class="check-ok">✓</span></div>
+                <div class="check-body f2-info"><div><span>姓名</span><b>沈砚</b></div><div><span>性别</span><b>男</b></div><div><span>种族</span><b>人类</b></div><div><span>起始年龄</span><b>18 岁</b></div></div>
+              </section>
+
+              <section class="check glass">
+                <div class="check-head"><span class="check-num">2</span><div class="check-title"><b>世界</b><span>雾海纪元 · 群岛文明</span></div><span class="check-ok">✓</span></div>
+                <div class="check-body"><div class="f2-copy">灵潮复苏后的群岛世界，城市依潮汐航路相连，旧神遗迹正从海雾中重新显现。</div></div>
+              </section>
+
+              <section class="check glass">
+                <div class="check-head"><span class="check-num">3</span><div class="check-title"><b>最终属性</b><span>基础分配 + 命格 / 天赋加成</span></div><span class="check-ok">✓</span></div>
+                <div class="check-body f2-attrline"><div><span>体魄</span><b>+7</b></div><div><span>心智</span><b>+9</b></div><div><span>悟性</span><b>+8</b></div><div><span>魅力</span><b>+4</b></div><div><span>出身</span><b>+3</b></div></div>
+              </section>
+
+              <section class="check glass">
+                <div class="check-head"><span class="check-num">4</span><div class="check-title"><b>命格与天赋</b><span>命格 3 · 天赋 2</span></div><span class="check-ok">✓</span></div>
+                <div class="check-body"><div class="f2-patterns"><span class="f2-pattern">逆境余火 <em>稀有·正面</em></span><span class="f2-pattern">守诺之人 <em>传奇·正面</em></span><span class="f2-pattern">市井耳目 <em>稀有·中立</em></span><span class="pill fine">快速学习</span><span class="pill fine">敏锐观察</span></div></div>
+              </section>
+
+              <section class="check glass">
+                <div class="check-head"><span class="check-num">5</span><div class="check-title"><b>背景</b><span>雾港旧书铺的学徒</span></div><span class="check-ok">✓</span></div>
+                <div class="check-body"><div class="f2-copy">熟悉潮汐航路与街巷传闻，一次异常灵潮让他听见海雾中的低语。</div></div>
+              </section>
+
+              <section class="check glass">
+                <div class="check-head"><span class="check-num">6</span><div class="check-title"><b>寿命</b><span>人类 · 基础 100 年 · 当前 112 年 · 衰减 1.0×</span></div><span class="check-ok">✓</span></div>
+              </section>
+
+              <section class="check glass">
+                <div class="check-head"><span class="check-num">7</span><div class="check-title"><b>模拟种子</b><span>随机或最多 8 位自定义数字</span></div><span class="check-ok">✓</span></div>
+                <div class="check-body f2-seed"><div class="f2-seed-toggle"><span>随机</span><span class="active">自定义</span></div><input class="seed-input" value="63284017" aria-label="自定义模拟种子" readonly></div>
+              </section>
+
+              <section class="check glass">
+                <div class="check-head"><span class="check-num">✓</span><div class="check-title"><b>世界数据初始化完成</b><span>4 / 4 · 主操作已解锁</span></div><span class="check-ok">✓</span></div>
+                <div class="check-body">
+                  <div class="f2-init"><div class="f2-init-top"><span>总耗时 41s</span><b>可以正式开局</b></div><div class="f2-init-grid"><span>校准 ✓</span><span>标签 ✓</span><span>配置 ✓</span><span>实体 ✓</span></div></div>
+                  <div class="f2-error-sample">错误态示例：实体生成失败 · 显示服务返回错误，并保持“开始人生”禁用。</div>
+                </div>
+              </section>
+            </div>
+          </div>
+          <div class="bottom">
+            <div class="bottom-bar"><button class="back-action" type="button">返回</button><span class="bottom-hint">全部选择会保留</span><button class="start-action" type="button">开始人生</button></div>
+          </div>
+        </div>
+        <div class="option-copy">
+          <h3>F2 · 七项核对清单</h3>
+          <p>把最终核对变成明确的完成清单，每项都有摘要和状态，适合快速发现遗漏、理解为什么暂时不能开局。</p>
+          <span class="tag">高确定性 · 易定位 · 状态清楚</span>
+        </div>
+        <p class="option-note">功能最透明，但清单感会削弱一点“命运揭晓”的仪式性；需要靠文案与材质维持叙事氛围。</p>
+      </article>
+
+      <article class="option-card" data-choice="F3 命盘仪表总览" onclick="selectChoice(this)">
+        <div class="phone f3">
+          <div class="screen">
+            <div class="kicker">FATE MATRIX · READY CHECK</div>
+            <div class="mobile-title">命盘已成</div>
+            <div class="mobile-sub">角色、世界与命格汇聚为开局状态。</div>
+
+            <section class="f3-orbit">
+              <span class="orbit-tag orbit-world">世界 · 雾海纪元</span>
+              <span class="orbit-tag orbit-age">起始 · 18 岁</span>
+              <span class="orbit-tag orbit-race">男 · 人类</span>
+              <span class="orbit-tag orbit-life">寿命 · 112 年</span>
+              <div class="f3-core"><i>砚</i><b>沈砚</b><span>雾港旧书铺学徒</span></div>
+            </section>
+            <div class="f3-tabs"><span>总览</span><span>角色</span><span>命格</span><span>世界</span></div>
+
+            <section class="f3-panel">
+              <div class="f3-panel-head"><b>世界坐标</b><span>群岛文明 · 灵潮复苏</span></div>
+              <div class="f3-world-copy">潮汐航路连接诸城，旧神遗迹正从海雾中显现。角色背景、势力与地理实体将在此展开。</div>
+            </section>
+
+            <section class="f3-panel">
+              <div class="f3-panel-head"><b>最终属性</b><span>含命格 / 天赋加成</span></div>
+              <div class="f3-attrs"><div><span>体魄</span><b>+7</b></div><div><span>心智</span><b>+9</b></div><div><span>悟性</span><b>+8</b></div><div><span>魅力</span><b>+4</b></div><div><span>出身</span><b>+3</b></div></div>
+            </section>
+
+            <section class="f3-panel">
+              <div class="f3-panel-head"><b>命格阵列 · 3</b><span>叙事规则持续生效</span></div>
+              <div class="f3-pattern-grid"><div><b>逆境余火</b><span>稀有 · 正面<br>绝境保留转机</span></div><div><b>守诺之人</b><span>传奇 · 正面<br>有限因果惯性</span></div><div><b>市井耳目</b><span>稀有 · 中立<br>消息更易显现</span></div></div>
+              <div class="f3-talent-row"><span>天赋 · 快速学习</span><span>天赋 · 敏锐观察</span></div>
+            </section>
+
+            <div class="f3-record">
+              <div><b>背景记录</b>熟悉港区航路与街巷传闻，曾在异常灵潮中听见海雾低语。</div>
+              <div><b>寿命刻度</b>基础 100 年<br>当前 112 年<br>衰减 1.0×</div>
+            </div>
+
+            <section class="f3-panel">
+              <div class="f3-panel-head"><b>模拟种子</b><span>选择一种开局方式</span></div>
+              <div class="f3-seeds"><div class="f3-seed-card"><b>🎲 随机种子</b>每次生成不同走向</div><div class="f3-seed-card active"><b>自定义种子</b>63284017 · 最多 8 位</div></div>
+            </section>
+
+            <section class="f3-init">
+              <div class="f3-init-head"><b>世界初始化失败 · 3 / 4</b><span>41s</span></div>
+              <p>实体生成服务未返回有效结果。已完成的校准、标签与配置会保留；错误不伪装成成功。</p>
+              <div class="f3-init-steps"><span></span><span></span><span></span><span class="failed"></span></div>
+              <div class="state-note">等待 / 进行中 / 失败时禁用开局；仅 4 / 4 完成后解锁。</div>
+            </section>
+          </div>
+          <div class="bottom">
+            <div class="bottom-bar"><button class="back-action" type="button">返回</button><span class="bottom-hint">返回修改属性</span><button class="start-action" type="button" disabled>开始人生</button></div>
+          </div>
+        </div>
+        <div class="option-copy">
+          <h3>F3 · 命盘仪表总览</h3>
+          <p>以角色为中心，把世界、年龄、寿命、属性和命格组织成一张“开局命盘”，空间关系最强，辨识度也最高。</p>
+          <span class="tag">仪式感 · 空间总览 · 强辨识</span>
+        </div>
+        <p class="option-note">视觉记忆点最强，但深色专属表达与六主题适配成本更高；正式实现需全部映射项目主题 Token。</p>
+      </article>
+    </section>
+    <p class="selection">点击 F1、F2 或 F3 标记选择。底栏返回键固定为 64×32，开始人生固定为 112×32；其余控件按任务密度落在约 32–44px 范围。</p>
+  </main>
+</body>
+</html>

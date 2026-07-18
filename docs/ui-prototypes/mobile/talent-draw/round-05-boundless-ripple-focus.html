@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>命格抽取第五轮 · 三种无界波纹界面</title>
+  <link rel="stylesheet" href="../assets/library-history.css">
+  <script src="../assets/prototype.js" defer></script>
+  <script>
+    const RARITIES = [
+      ['common','普通'],['fine','精良'],['common','普通'],['rare','稀有'],
+      ['fine','精良'],['common','普通'],['epic','史诗'],['fine','精良'],
+      ['rare','稀有'],['common','普通'],['legendary','传说'],['common','普通']
+    ]
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.querySelectorAll('.seals').forEach((container) => {
+        container.innerHTML = RARITIES.map(([rarity, label], index) => `
+          <span class="seal ${rarity}"><i>${String(index + 1).padStart(2,'0')}</i><b>${label}</b></span>
+        `).join('')
+      })
+    })
+
+    function startDraw(event, button) {
+      event.stopPropagation()
+      const phone = button.closest('.phone')
+      if (button.dataset.done === 'true') {
+        phone.classList.remove('drawing', 'complete', 'impact')
+        phone.querySelectorAll('.seal').forEach((seal) => seal.classList.remove('lit'))
+        phone.querySelector('.count').textContent = '0 / 12'
+        phone.querySelector('.status').textContent = '点击开始抽取'
+        button.dataset.done = 'false'
+        button.textContent = '开始抽取'
+        return
+      }
+      if (phone.classList.contains('drawing')) return
+      phone.classList.add('drawing')
+      button.disabled = true
+      button.textContent = '生成中'
+      phone.querySelector('.status').textContent = '正在推演命格…'
+      const seals = [...phone.querySelectorAll('.seal')]
+      let index = 0
+      const timer = setInterval(() => {
+        phone.classList.remove('impact')
+        void phone.offsetWidth
+        phone.classList.add('impact')
+        seals[index].classList.add('lit')
+        index += 1
+        phone.querySelector('.count').textContent = `${index} / 12`
+        if (index === seals.length) {
+          clearInterval(timer)
+          setTimeout(() => {
+            phone.classList.remove('drawing', 'impact')
+            phone.classList.add('complete')
+            phone.querySelector('.status').textContent = '十二命格已归位'
+            button.disabled = false
+            button.dataset.done = 'true'
+            button.textContent = '进入命格选择'
+          }, 260)
+        }
+      }, 280)
+    }
+  </script>
+  <style>
+    .phone{--ink:#172039;--muted:#7c869b;--line:#dce2ec;--wave:103,88,176;background:linear-gradient(180deg,#fbfcff,#f1f4fa)}
+    .screen{position:relative;height:100%;overflow:hidden;padding:18px 10px 62px}
+    .micro{color:#748099;font-size:7px;font-weight:750;letter-spacing:.13em}
+    .title{color:var(--ink);font-size:18px;font-weight:780;letter-spacing:-.03em}
+    .sub{color:var(--muted);font-size:7px;line-height:1.5}
+    .count{font-variant-numeric:tabular-nums}
+    .core-stage{position:absolute;z-index:2;width:92px;height:92px;transition:left .68s cubic-bezier(.2,.78,.2,1),top .68s cubic-bezier(.2,.78,.2,1),transform .68s cubic-bezier(.2,.78,.2,1)}
+    .wave,.impact-wave{position:absolute;top:50%;left:50%;width:58px;height:58px;margin:-29px;border:1px solid rgba(var(--wave),.38);border-radius:50%;opacity:0;pointer-events:none}
+    .impact-wave{border-width:1.5px;border-color:rgba(var(--wave),.58)}
+    .core{position:absolute;z-index:3;top:50%;left:50%;display:grid;width:58px;height:58px;margin:-29px;place-items:center;border:1px solid rgba(var(--wave),.22);border-radius:50%;background:rgba(244,241,252,.92);box-shadow:0 8px 24px rgba(var(--wave),.14);color:rgb(var(--wave));font-size:19px;font-style:normal}
+    .drawing .core,.complete .core{animation:breathe .9s ease-in-out infinite alternate}
+    .drawing .wave{animation:ripple 2.3s ease-out infinite}.drawing .w2{animation-delay:.38s}.drawing .w3{animation-delay:.76s}.drawing .w4{animation-delay:1.14s}.drawing .w5{animation-delay:1.52s}.drawing .w6{animation-delay:1.9s}
+    .impact .impact-wave{animation:impact .82s ease-out}
+    .complete .wave{border-width:1.3px;border-color:rgba(var(--wave),.52);animation:finalRipple 2.7s ease-out infinite}.complete .w2{animation-delay:.45s}.complete .w3{animation-delay:.9s}.complete .w4{animation-delay:1.35s}.complete .w5{animation-delay:1.8s}.complete .w6{animation-delay:2.25s}
+    .seal{display:grid;place-items:center;border:1px solid var(--line);background:rgba(255,255,255,.72);color:#a1a9b7;transition:.24s ease}.seal i,.seal b{grid-area:1/1;font-style:normal;font-size:6px}.seal b{opacity:0}.seal.lit{transform:translateY(-1px)}.seal.lit i{opacity:0}.seal.lit b{opacity:1}
+    .seal.common.lit{border-color:#94a3b8;background:#f1f4f7;color:#64748b;box-shadow:0 0 6px rgba(148,163,184,.5)}.seal.fine.lit{border-color:#22c55e;background:#edf9f1;color:#198a43;box-shadow:0 0 8px rgba(34,197,94,.42)}.seal.rare.lit{border-color:#3b82f6;background:#edf4ff;color:#2563b9;box-shadow:0 0 11px rgba(59,130,246,.42)}.seal.epic.lit{border-color:#a855f7;background:#f7efff;color:#8038c0;box-shadow:0 0 15px rgba(168,85,247,.4)}.seal.legendary.lit{border-color:#f59e0b;background:#fff7e8;color:#a96708;box-shadow:0 0 18px rgba(245,158,11,.46)}
+    .bottom{position:absolute;z-index:9;right:0;bottom:0;left:0;padding:6px 10px 7px;border-top:1px solid #e0e5ed;background:rgba(250,251,254,.92);backdrop-filter:blur(10px)}
+    .bar{display:flex;align-items:center;justify-content:space-between}.action{display:grid;height:32px;place-items:center;border:1px solid #dce2eb;border-radius:10px;background:#fff;color:#465169;font-size:7px}.back{width:64px}.primary{width:112px;border-color:#1b2440;background:#1b2440;color:#fff;font-weight:700}.primary:disabled{opacity:.76}
+    .option-note{margin:0 18px 15px;padding:9px 11px;border-radius:11px;background:#f2f4fa;color:#69748c;font-size:11px;line-height:1.55}
+
+    /* A · 中轴仪式场 */
+    .axis{--wave:103,88,176}.axis .head{position:relative;z-index:4}.axis .title{margin-top:5px}.axis .sub{margin-top:3px}.axis .core-stage{top:104px;left:50%;transform:translateX(-50%)}
+    .axis .ritual-copy{position:absolute;z-index:4;top:208px;left:10px;width:270px;text-align:center;transition:.4s ease}.axis .ritual-copy h3{margin:0;font-size:12px}.axis .ritual-copy p{margin:5px 0 0;color:var(--muted);font-size:7px}
+    .axis .seal-panel{position:absolute;z-index:4;top:278px;left:10px;width:270px;padding:10px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.76);transition:.55s ease}.axis .seal-head{display:flex;justify-content:space-between;color:#68738a;font-size:7px;font-weight:700}.axis .seals{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-top:8px}.axis .seal{height:34px;border-radius:9px}.axis .status{margin:8px 0 0;color:var(--muted);font-size:6px}
+    .axis.complete .seal-panel{opacity:0;transform:translateY(30px) scale(.94);filter:blur(5px)}.axis.complete .ritual-copy{opacity:0;transform:translateY(-12px)}.axis.complete .core-stage{top:249px;left:50%;transform:translateX(-50%) scale(1.28)}
+
+    /* B · 无框水面 */
+    .water{--wave:67,111,181;background:linear-gradient(180deg,#fbfdff 0%,#eef5fb 100%)}.water .mini-nav{display:flex;align-items:center;justify-content:space-between;color:#6f7c93;font-size:7px}.water .mini-step{padding:4px 7px;border:1px solid rgba(105,129,160,.18);border-radius:999px;background:rgba(255,255,255,.58)}
+    .water .headline{position:absolute;z-index:4;top:54px;left:18px;width:220px}.water .headline .title{font-size:21px}.water .headline .sub{width:190px;margin-top:5px;font-size:8px}.water .core-stage{top:157px;left:66%;transform:translateX(-50%)}
+    .water .floating-meta{position:absolute;z-index:4;top:262px;left:18px;display:flex;width:254px;justify-content:space-between;color:#66758d;font-size:7px;transition:.45s ease}.water .seal-field{position:absolute;z-index:4;top:292px;left:20px;display:grid;width:250px;grid-template-columns:repeat(4,1fr);gap:7px;transition:.55s ease}.water .seal{height:38px;border-radius:12px;background:rgba(255,255,255,.5);backdrop-filter:blur(8px)}
+    .water .bottom{border-top-color:rgba(125,145,174,.16);background:rgba(244,249,253,.86)}.water .primary{width:154px;background:#1d3554;border-color:#1d3554}.water.complete .headline{opacity:.34}.water.complete .floating-meta,.water.complete .seal-field{opacity:0;transform:translateY(34px);filter:blur(5px)}.water.complete .core-stage{top:249px;left:50%;transform:translateX(-50%) scale(1.32)}
+
+    /* C · 偏轴命阵 */
+    .offset{--wave:126,73,157;background:linear-gradient(150deg,#fcfbff,#f2f0f8)}.offset .head{position:absolute;z-index:4;top:20px;right:15px;text-align:right}.offset .head .title{margin-top:4px}.offset .head .sub{width:180px;margin-top:4px}.offset .vertical-mark{position:absolute;z-index:4;top:23px;left:15px;color:#8b7897;font-size:7px;font-weight:760;letter-spacing:.12em;writing-mode:vertical-rl}
+    .offset .core-stage{top:126px;left:32%;transform:translateX(-50%)}.offset .core-label{position:absolute;z-index:4;top:220px;left:18px;color:#6c6076;font-size:8px;line-height:1.5;transition:.42s ease}.offset .seal-matrix{position:absolute;z-index:4;top:264px;left:52px;width:220px;transition:.55s ease}.offset .matrix-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:8px;color:#756980;font-size:7px}.offset .seals{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}.offset .seal{height:39px;border-radius:6px 13px 6px 13px}.offset .seal:nth-child(4n+2),.offset .seal:nth-child(4n+4){transform:translateY(6px)}.offset .seal.lit:nth-child(4n+2),.offset .seal.lit:nth-child(4n+4){transform:translateY(5px)}.offset .status{position:absolute;z-index:4;top:416px;right:20px;color:#83758b;font-size:6px;transition:.4s ease}.offset .primary{background:#30213b;border-color:#30213b}.offset.complete .head{opacity:.36}.offset.complete .core-label,.offset.complete .seal-matrix,.offset.complete .status{opacity:0;transform:translateY(32px);filter:blur(5px)}.offset.complete .core-stage{top:249px;left:50%;transform:translateX(-50%) scale(1.3)}
+
+    @keyframes breathe{to{transform:scale(1.08);filter:brightness(1.04);box-shadow:0 10px 30px rgba(var(--wave),.2)}}
+    @keyframes ripple{0%{opacity:.58;transform:scale(.65)}62%{opacity:.2}100%{opacity:0;transform:scale(6.3)}}
+    @keyframes impact{0%{opacity:.72;transform:scale(.7)}100%{opacity:0;transform:scale(5.1)}}
+    @keyframes finalRipple{0%{opacity:.72;transform:scale(.7)}58%{opacity:.3}100%{opacity:0;transform:scale(7.6)}}
+    @media(prefers-reduced-motion:reduce){.drawing *,.complete *,.impact *{animation:none!important}.core-stage,.seal-panel,.seal-field,.seal-matrix,.ritual-copy,.core-label,.status{transition:none!important}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar"><a href="index.html">← 返回命格抽取历史</a><span data-selection>尚未选择</span></div>
+    <p class="eyebrow">DESTINY PATTERN · ROUND 05</p>
+    <h1>无界波纹：三种不同界面</h1>
+    <p class="subtitle">三套界面都取消核心外层大圆，波纹直接向页面外扩散；抽取完成后十二格隐去，呼吸核心移动到屏幕中心并放大。此轮只选择整体构图，不选择细节。</p>
+
+    <section class="option-grid">
+      <article class="option-card" data-choice="A 中轴仪式场" onclick="selectChoice(this)">
+        <div class="phone axis">
+          <div class="screen">
+            <div class="head"><div class="micro">NEW LIFE · 04</div><div class="title">命格抽取</div><div class="sub">十二条命格归位后，进入命格选择。</div></div>
+            <div class="core-stage"><i class="wave w1"></i><i class="wave w2"></i><i class="wave w3"></i><i class="wave w4"></i><i class="wave w5"></i><i class="wave w6"></i><i class="impact-wave"></i><i class="core">命</i></div>
+            <div class="ritual-copy"><h3>让命运揭示你的命格</h3><p>波纹从呼吸核心向整个页面扩散。</p></div>
+            <div class="seal-panel"><div class="seal-head"><span>十二命印</span><span class="count">0 / 12</span></div><div class="seals"></div><p class="status">点击开始抽取</p></div>
+          </div>
+          <div class="bottom"><div class="bar"><span class="action back">返回</span><button class="action primary" onclick="startDraw(event,this)">开始抽取</button></div></div>
+        </div>
+        <div class="option-copy"><h3>A · 中轴仪式场</h3><p>标题、核心、说明、十二格全部沿中轴排列，阅读顺序稳定，完成时核心垂直落到屏幕中心。</p><span class="tag">规整 · 清楚 · 仪式感</span></div>
+        <p class="option-note">最接近当前流程，但去掉了外层大圆并放大了波纹范围。</p>
+      </article>
+
+      <article class="option-card" data-choice="B 无框水面" onclick="selectChoice(this)">
+        <div class="phone water">
+          <div class="screen">
+            <div class="mini-nav"><span>← 返回</span><span class="mini-step">04 · 命格</span></div>
+            <div class="headline"><div class="title">十二种可能，<br>正在浮现</div><div class="sub">无需命盘外框，命格像水面上的光点逐一显现。</div></div>
+            <div class="core-stage"><i class="wave w1"></i><i class="wave w2"></i><i class="wave w3"></i><i class="wave w4"></i><i class="wave w5"></i><i class="wave w6"></i><i class="impact-wave"></i><i class="core">命</i></div>
+            <div class="floating-meta"><span class="status">点击开始抽取</span><span class="count">0 / 12</span></div>
+            <div class="seal-field seals"></div>
+          </div>
+          <div class="bottom"><div class="bar"><span class="action back">返回</span><button class="action primary" onclick="startDraw(event,this)">开始抽取</button></div></div>
+        </div>
+        <div class="option-copy"><h3>B · 无框水面</h3><p>取消十二格外层卡片，让命印直接漂浮在页面下半区；核心偏右，与左侧大标题形成更开放的水面构图。</p><span class="tag">留白 · 轻盈 · 最现代</span></div>
+        <p class="option-note">与前四轮差异最大，页面更像完整场景，而不是一张表单。</p>
+      </article>
+
+      <article class="option-card" data-choice="C 偏轴命阵" onclick="selectChoice(this)">
+        <div class="phone offset">
+          <div class="screen">
+            <div class="vertical-mark">DESTINY · 04</div>
+            <div class="head"><div class="micro">NEW LIFE</div><div class="title">命格抽取</div><div class="sub">命格逐一落入阵列，完成后归于中心。</div></div>
+            <div class="core-stage"><i class="wave w1"></i><i class="wave w2"></i><i class="wave w3"></i><i class="wave w4"></i><i class="wave w5"></i><i class="wave w6"></i><i class="impact-wave"></i><i class="core">命</i></div>
+            <div class="core-label">呼吸核心<br>释放命运波纹</div>
+            <div class="seal-matrix"><div class="matrix-head"><span>十二命印</span><span class="count">0 / 12</span></div><div class="seals"></div></div>
+            <div class="status">点击开始抽取</div>
+          </div>
+          <div class="bottom"><div class="bar"><span class="action back">返回</span><button class="action primary" onclick="startDraw(event,this)">开始抽取</button></div></div>
+        </div>
+        <div class="option-copy"><h3>C · 偏轴命阵</h3><p>核心位于左上，十二格组成错位签阵；完成后核心斜向移动到屏幕中心，动势最明显。</p><span class="tag">独特 · 非对称 · 游戏感</span></div>
+        <p class="option-note">构图最有识别度，也最不像常规创建流程页面。</p>
+      </article>
+    </section>
+
+    <p class="selection">请选择 A、B 或 C。下一轮只保留胜出的整体构图，再围绕它设计三种新的细化方向。</p>
+  </main>
+</body>
+</html>

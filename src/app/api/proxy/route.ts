@@ -67,7 +67,10 @@ const ProxyRequestSchema = z.object({
   user_id: z.string().optional(),
   top_p: z.number().min(0).max(1).optional(),
   seed: z.number().optional(),
-  thinking: z.object({ budget_tokens: z.number() }).optional(),
+  thinking: z.union([
+    z.object({ budget_tokens: z.number().int().positive() }).strict(),
+    z.object({ type: z.enum(['enabled', 'disabled']) }).strict(),
+  ]).optional(),
   // Provider 路由
   providerId: z.string().default('deepseek'),
   baseUrl: z.string().url().optional(),
@@ -239,6 +242,17 @@ async function saveRawResponse(providerId: string, model: string, status: number
 }
 
 // ---- 主处理 ----
+
+/** 仅暴露服务端是否已有可用密钥，不返回 Provider、密钥或其他配置细节。 */
+export function GET(request: Request): Response {
+  const providerId = new URL(request.url).searchParams.get('providerId') || 'deepseek'
+  const configured = Object.prototype.hasOwnProperty.call(SERVER_API_KEYS, providerId)
+    && Boolean(SERVER_API_KEYS[providerId])
+  return Response.json(
+    { configured },
+    { headers: { 'Cache-Control': 'no-store' } },
+  )
+}
 
 /**
  * AI API 代理 —— 动态多 Provider 转发

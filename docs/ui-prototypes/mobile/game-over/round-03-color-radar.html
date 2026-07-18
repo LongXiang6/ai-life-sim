@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>结算界面第三轮</title>
+  <link rel="stylesheet" href="../assets/library-history.css">
+  <script src="../assets/prototype.js" defer></script>
+  <style>
+    .phone{height:710px;color:var(--ink);background:var(--page-bg)}
+    .viewport{height:100%;overflow:auto;padding:14px 13px 72px;background:radial-gradient(circle at 50% 17%,var(--halo),transparent 27%),linear-gradient(180deg,var(--page-bg-top),var(--page-bg));scrollbar-width:none}
+    .viewport::-webkit-scrollbar{display:none}
+    .c1{--page-bg:#f2eee5;--page-bg-top:#fbf8f1;--ink:#202b3c;--muted:#717989;--faint:#979eaa;--line:rgba(103,112,127,.2);--glass:rgba(255,252,244,.63);--accent:#b48649;--accent-2:#5d718c;--accent-soft:rgba(93,113,140,.14);--halo:rgba(180,134,73,.12);--verdict-a:#263449;--verdict-b:#3b4659;--verdict-text:#fffaf0;--button:#263449}
+    .c2{--page-bg:#f1edf3;--page-bg-top:#faf6fa;--ink:#302b3f;--muted:#7d7488;--faint:#9c93a4;--line:rgba(115,101,128,.19);--glass:rgba(255,249,255,.61);--accent:#b87679;--accent-2:#776da4;--accent-soft:rgba(119,109,164,.14);--halo:rgba(184,118,121,.12);--verdict-a:#493f60;--verdict-b:#685067;--verdict-text:#fff8fc;--button:#493f60}
+    .c3{--page-bg:#eaf1ef;--page-bg-top:#f6faf8;--ink:#203638;--muted:#6e7f7c;--faint:#91a09d;--line:rgba(74,107,106,.19);--glass:rgba(248,255,252,.59);--accent:#b77952;--accent-2:#4f7c7c;--accent-soft:rgba(79,124,124,.14);--halo:rgba(79,124,124,.13);--verdict-a:#24484a;--verdict-b:#365e60;--verdict-text:#f7fffc;--button:#24484a}
+    .mobile-top{display:flex;align-items:center;justify-content:space-between;min-height:27px}
+    .mobile-top button{height:27px;padding:0 9px;border:1px solid var(--line);border-radius:10px;background:var(--glass);color:var(--muted);font-size:6px;backdrop-filter:blur(14px)}
+    .identity{text-align:center;margin-top:3px}.identity h2{margin:0;font-family:"Songti SC","STSong",serif;font-size:21px;font-weight:650;letter-spacing:.06em}.identity p{margin:2px 0 0;color:var(--muted);font-size:5.5px}
+
+    /* 优化命盘：开放标签、精确点位、减少卡片感 */
+    .radar-wrap{position:relative;width:218px;height:206px;margin:2px auto 0}
+    .radar-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;filter:drop-shadow(0 8px 18px var(--accent-soft))}
+    .radar-grid{fill:none;stroke:var(--line)}.radar-axis{stroke:var(--line)}
+    .radar-area{fill:var(--accent-soft);stroke:var(--accent-2);stroke-width:1.5}
+    .radar-dot{fill:var(--accent-2);stroke:var(--page-bg-top);stroke-width:1.5;transition:r .18s ease,fill .18s ease}.radar-dot.active-dot{r:4;fill:var(--accent)}
+    .radar-center{position:absolute;top:70px;left:75px;display:grid;width:68px;height:68px;place-items:center;border:1px solid var(--line);border-radius:50%;background:var(--glass);box-shadow:0 10px 24px var(--accent-soft);backdrop-filter:blur(16px)}
+    .radar-center div{text-align:center}.radar-center span{display:block;color:var(--muted);font-size:5px}.radar-center b{display:block;margin-top:1px;font-size:17px}.radar-center i{display:block;color:var(--accent);font-size:4.8px;font-style:normal}
+    .axis{position:absolute;min-width:38px;padding:2px;border:0;background:transparent;color:var(--muted);text-align:center;font-size:5px;line-height:1.15}
+    .axis b{display:block;margin-top:1px;color:var(--ink);font-size:8px}.axis:after{display:block;width:0;height:1px;margin:3px auto 0;background:var(--accent);content:"";transition:width .18s ease}.axis.active{color:var(--accent)}.axis.active:after{width:13px}.axis.active b{color:var(--accent)}
+    .axis-1{top:0;left:90px}.axis-2{top:55px;right:-1px}.axis-3{right:12px;bottom:7px}.axis-4{bottom:7px;left:12px}.axis-5{top:55px;left:-1px}
+    .score-comment{display:flex;align-items:center;justify-content:center;gap:6px;min-height:16px;margin-top:-5px;color:var(--muted);font-size:5px}.score-comment:before,.score-comment:after{width:18px;height:1px;background:var(--line);content:""}.score-comment b{color:var(--accent);font-weight:700}
+
+    .story-divider{display:flex;align-items:center;gap:7px;margin:4px 2px 7px;color:var(--faint);font-size:5px;font-weight:720;letter-spacing:.12em}.story-divider:before,.story-divider:after{height:1px;flex:1;background:var(--line);content:""}
+    .acts{padding:0 4px}.acts-head{display:flex;align-items:end;justify-content:space-between;margin-bottom:4px}.acts-head b{font-family:"Songti SC","STSong",serif;font-size:9px}.acts-head span{color:var(--faint);font-size:5px}
+    .act{position:relative;display:grid;grid-template-columns:38px 1fr;gap:8px;padding:6px 0 7px 13px}.act:before{position:absolute;top:0;bottom:0;left:3px;width:1px;background:var(--line);content:""}.act:first-of-type:before{top:10px}.act:last-of-type:before{bottom:17px}.act:after{position:absolute;top:10px;left:0;width:7px;height:7px;border:2px solid var(--page-bg);border-radius:50%;background:var(--accent-2);box-shadow:0 0 0 1px var(--line);content:""}.act:last-of-type:after{background:var(--accent)}
+    .act-age{color:var(--accent-2);font-size:5.5px;font-weight:760}.act-age span{display:block;margin-top:2px;color:var(--faint);font-size:4.7px;font-weight:500}.act-copy b{display:block;font-family:"Songti SC","STSong",serif;font-size:7.4px}.act-copy p{margin:2px 0 0;color:var(--muted);font-size:5.3px;line-height:1.48}
+    .verdict{margin-top:5px;padding:10px 11px;border-radius:15px;background:linear-gradient(135deg,var(--verdict-a),var(--verdict-b));color:var(--verdict-text);box-shadow:0 11px 24px rgba(28,37,54,.12)}
+    .verdict small{color:color-mix(in srgb,var(--verdict-text) 55%,transparent);font-size:4.6px;letter-spacing:.13em}.verdict h4{margin:4px 0 0;font-family:"Songti SC","STSong",serif;font-size:9.5px;font-weight:600}.verdict p{margin:4px 0 0;color:color-mix(in srgb,var(--verdict-text) 75%,transparent);font-size:5.5px;line-height:1.55}.verdict-meta{display:flex;gap:8px;margin-top:6px;color:color-mix(in srgb,var(--verdict-text) 52%,transparent);font-size:4.7px}
+
+    .bottom{position:absolute;z-index:5;right:0;bottom:0;left:0;padding:8px 10px 10px;border-top:1px solid var(--line);background:color-mix(in srgb,var(--page-bg-top) 91%,transparent);backdrop-filter:blur(18px)}
+    .bottom .bar{display:grid;grid-template-columns:62px 1fr 108px;gap:5px}.bottom button{height:34px;border-radius:10px;font-size:6px;font-weight:720}
+    .home-action,.data-action{border:1px solid var(--line);background:var(--glass);color:var(--muted)}.new-action{border:1px solid var(--button);background:var(--button);color:#fff}
+    .prototype-toast{position:absolute;z-index:8;right:18px;bottom:61px;left:18px;padding:7px 9px;border-radius:9px;background:var(--verdict-a);color:#fff;font-size:6px;text-align:center;opacity:0;transform:translateY(5px);transition:.18s ease;pointer-events:none}.prototype-toast.show{opacity:1;transform:none}
+    .option-note{margin:0 18px 15px;padding:9px 11px;border-radius:11px;background:#f2f4fa;color:#69748c;font-size:11px;line-height:1.55}
+    @media (prefers-reduced-motion:reduce){.radar-dot,.axis:after,.prototype-toast{transition:none}}
+    @media (max-width:980px){.phone{height:710px}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar"><a href="index.html">← 返回结算界面历史</a><span data-selection>尚未选择</span></div>
+    <p class="eyebrow">GAME OVER · ROUND 03</p>
+    <h1>结构锁定，只比较终章配色与五维命盘</h1>
+    <p class="subtitle">三稿全部采用 R2B 的人生三幕与 R2C 的尾部终局卡。五维数值、轴顺序和评语保持不变；本轮移除五个白色标签盒，改为开放式标签、精确多边形点位与更轻的中心层。</p>
+    <section class="option-grid">
+
+      <article class="option-card" data-choice="C1 暮金墨蓝" onclick="selectChoice(this)">
+        <div class="phone c1">
+          <div class="viewport"><div class="mobile-top"><span></span><button data-demo="返回首页">返回首页</button></div><header class="identity"><h2>沈砚</h2><p>雾海纪元 · 18—87 岁</p></header>
+            <section class="radar-wrap">
+              <svg class="radar-svg" viewBox="0 0 224 212" aria-label="五维评分：体魄72、心智86、悟性91、魅力64、气运78">
+                <polygon class="radar-grid" points="112,31 189.04,86.97 159.61,177.53 64.39,177.53 34.96,86.97"/><polygon class="radar-grid" points="112,47.2 173.63,91.98 150.09,164.42 73.91,164.42 50.37,91.98"/><polygon class="radar-grid" points="112,63.4 158.22,96.98 140.57,151.32 83.43,151.32 65.78,96.98"/><polygon class="radar-grid" points="112,79.6 142.82,101.99 131.04,138.21 92.96,138.21 81.18,101.99"/>
+                <line class="radar-axis" x1="112" y1="112" x2="112" y2="31"/><line class="radar-axis" x1="112" y1="112" x2="189.04" y2="86.97"/><line class="radar-axis" x1="112" y1="112" x2="159.61" y2="177.53"/><line class="radar-axis" x1="112" y1="112" x2="64.39" y2="177.53"/><line class="radar-axis" x1="112" y1="112" x2="34.96" y2="86.97"/>
+                <polygon class="radar-area" points="112,53.68 178.25,90.47 155.33,171.62 81.53,153.94 51.91,92.48"/><circle class="radar-dot active-dot" data-dot="0" cx="112" cy="53.68" r="3"/><circle class="radar-dot" data-dot="1" cx="178.25" cy="90.47" r="3"/><circle class="radar-dot" data-dot="2" cx="155.33" cy="171.62" r="3"/><circle class="radar-dot" data-dot="3" cx="81.53" cy="153.94" r="3"/><circle class="radar-dot" data-dot="4" cx="51.91" cy="92.48" r="3"/>
+              </svg>
+              <button class="axis axis-1 active" data-index="0" data-axis="体魄" data-comment="身强体壮"><span>体魄</span><b>72</b></button><button class="axis axis-2" data-index="1" data-axis="心智" data-comment="智冠群雄"><span>心智</span><b>86</b></button><button class="axis axis-3" data-index="2" data-axis="悟性" data-comment="天纵奇才"><span>悟性</span><b>91</b></button><button class="axis axis-4" data-index="3" data-axis="魅力" data-comment="魅力四射"><span>魅力</span><b>64</b></button><button class="axis axis-5" data-index="4" data-axis="气运" data-comment="气运加身"><span>气运</span><b>78</b></button><div class="radar-center"><div><span>综合评分</span><b>78</b><i>人生落幕</i></div></div>
+            </section><div class="score-comment"><span>体魄</span><b>身强体壮</b></div><div class="story-divider">一生回望</div>
+            <section class="acts"><div class="acts-head"><b>人生三幕</b><span>从 69 轮叙事中提取</span></div>
+              <div class="act"><div class="act-age">18—32<span>初入世</span></div><div class="act-copy"><b>离开雾港，追随潮声</b><p>从旧书铺学徒成为远行者，第一次看见海雾之外的世界。</p></div></div><div class="act"><div class="act-age">33—61<span>立于世</span></div><div class="act-copy"><b>在代价到来时守住誓约</b><p>得到知识与声望，也因自己的选择失去无法挽回的人。</p></div></div><div class="act"><div class="act-age">62—87<span>别于世</span></div><div class="act-copy"><b>把余生留给未完的书</b><p>回到雾港整理一生所学，在潮声中平静走完最后一程。</p></div></div>
+              <div class="verdict"><small>FINAL VERDICT</small><h4>此生没有白白经过</h4><p>沈砚没有成为高悬天际的名字，却让一些人的命运因此不同。</p><div class="verdict-meta"><span>善良</span><span>69 轮世事</span><span>享年 87 岁</span></div></div>
+            </section></div><div class="bottom"><div class="bar"><button class="home-action" data-demo="返回首页">首页</button><button class="data-action" data-demo="打开模拟数据">模拟数据</button><button class="new-action" data-demo="开始新人生">开始新人生</button></div></div><div class="prototype-toast"></div>
+        </div>
+        <div class="option-copy"><h3>C1 · 暮金墨蓝</h3><p>暖灰纸面、墨蓝文字与暮金节点。强调“人生被写完”的庄重感，终局卡与主按钮都由深墨蓝收束。</p><span class="tag">庄重 · 编辑感 · 最像终章</span></div><p class="option-note">色温比上一轮明显更暖，但不走泛黄复古；最适合叙事优先的告别氛围。</p>
+      </article>
+
+      <article class="option-card" data-choice="C2 雾紫霞光" onclick="selectChoice(this)">
+        <div class="phone c2">
+          <div class="viewport"><div class="mobile-top"><span></span><button data-demo="返回首页">返回首页</button></div><header class="identity"><h2>沈砚</h2><p>雾海纪元 · 18—87 岁</p></header>
+            <section class="radar-wrap"><svg class="radar-svg" viewBox="0 0 224 212" aria-label="五维评分：体魄72、心智86、悟性91、魅力64、气运78"><polygon class="radar-grid" points="112,31 189.04,86.97 159.61,177.53 64.39,177.53 34.96,86.97"/><polygon class="radar-grid" points="112,47.2 173.63,91.98 150.09,164.42 73.91,164.42 50.37,91.98"/><polygon class="radar-grid" points="112,63.4 158.22,96.98 140.57,151.32 83.43,151.32 65.78,96.98"/><polygon class="radar-grid" points="112,79.6 142.82,101.99 131.04,138.21 92.96,138.21 81.18,101.99"/><line class="radar-axis" x1="112" y1="112" x2="112" y2="31"/><line class="radar-axis" x1="112" y1="112" x2="189.04" y2="86.97"/><line class="radar-axis" x1="112" y1="112" x2="159.61" y2="177.53"/><line class="radar-axis" x1="112" y1="112" x2="64.39" y2="177.53"/><line class="radar-axis" x1="112" y1="112" x2="34.96" y2="86.97"/><polygon class="radar-area" points="112,53.68 178.25,90.47 155.33,171.62 81.53,153.94 51.91,92.48"/><circle class="radar-dot active-dot" data-dot="0" cx="112" cy="53.68" r="3"/><circle class="radar-dot" data-dot="1" cx="178.25" cy="90.47" r="3"/><circle class="radar-dot" data-dot="2" cx="155.33" cy="171.62" r="3"/><circle class="radar-dot" data-dot="3" cx="81.53" cy="153.94" r="3"/><circle class="radar-dot" data-dot="4" cx="51.91" cy="92.48" r="3"/></svg>
+              <button class="axis axis-1 active" data-index="0" data-axis="体魄" data-comment="身强体壮"><span>体魄</span><b>72</b></button><button class="axis axis-2" data-index="1" data-axis="心智" data-comment="智冠群雄"><span>心智</span><b>86</b></button><button class="axis axis-3" data-index="2" data-axis="悟性" data-comment="天纵奇才"><span>悟性</span><b>91</b></button><button class="axis axis-4" data-index="3" data-axis="魅力" data-comment="魅力四射"><span>魅力</span><b>64</b></button><button class="axis axis-5" data-index="4" data-axis="气运" data-comment="气运加身"><span>气运</span><b>78</b></button><div class="radar-center"><div><span>综合评分</span><b>78</b><i>人生落幕</i></div></div></section><div class="score-comment"><span>体魄</span><b>身强体壮</b></div><div class="story-divider">一生回望</div>
+            <section class="acts"><div class="acts-head"><b>人生三幕</b><span>从 69 轮叙事中提取</span></div><div class="act"><div class="act-age">18—32<span>初入世</span></div><div class="act-copy"><b>离开雾港，追随潮声</b><p>从旧书铺学徒成为远行者，第一次看见海雾之外的世界。</p></div></div><div class="act"><div class="act-age">33—61<span>立于世</span></div><div class="act-copy"><b>在代价到来时守住誓约</b><p>得到知识与声望，也因自己的选择失去无法挽回的人。</p></div></div><div class="act"><div class="act-age">62—87<span>别于世</span></div><div class="act-copy"><b>把余生留给未完的书</b><p>回到雾港整理一生所学，在潮声中平静走完最后一程。</p></div></div><div class="verdict"><small>FINAL VERDICT</small><h4>此生没有白白经过</h4><p>沈砚没有成为高悬天际的名字，却让一些人的命运因此不同。</p><div class="verdict-meta"><span>善良</span><span>69 轮世事</span><span>享年 87 岁</span></div></div></section></div><div class="bottom"><div class="bar"><button class="home-action" data-demo="返回首页">首页</button><button class="data-action" data-demo="打开模拟数据">模拟数据</button><button class="new-action" data-demo="开始新人生">开始新人生</button></div></div><div class="prototype-toast"></div>
+        </div>
+        <div class="option-copy"><h3>C2 · 雾紫霞光</h3><p>灰紫底色、雾紫命盘与克制的霞红节点。更接近“命运在暮色中收束”，情绪柔和但仍保持重量。</p><span class="tag">命运感 · 柔和 · 情绪化</span></div><p class="option-note">比 C1 更有梦境与回忆气质；需要确认是否会与其他浅色主题产生过强的专属视觉。</p>
+      </article>
+
+      <article class="option-card" data-choice="C3 松石铜光" onclick="selectChoice(this)">
+        <div class="phone c3">
+          <div class="viewport"><div class="mobile-top"><span></span><button data-demo="返回首页">返回首页</button></div><header class="identity"><h2>沈砚</h2><p>雾海纪元 · 18—87 岁</p></header>
+            <section class="radar-wrap"><svg class="radar-svg" viewBox="0 0 224 212" aria-label="五维评分：体魄72、心智86、悟性91、魅力64、气运78"><polygon class="radar-grid" points="112,31 189.04,86.97 159.61,177.53 64.39,177.53 34.96,86.97"/><polygon class="radar-grid" points="112,47.2 173.63,91.98 150.09,164.42 73.91,164.42 50.37,91.98"/><polygon class="radar-grid" points="112,63.4 158.22,96.98 140.57,151.32 83.43,151.32 65.78,96.98"/><polygon class="radar-grid" points="112,79.6 142.82,101.99 131.04,138.21 92.96,138.21 81.18,101.99"/><line class="radar-axis" x1="112" y1="112" x2="112" y2="31"/><line class="radar-axis" x1="112" y1="112" x2="189.04" y2="86.97"/><line class="radar-axis" x1="112" y1="112" x2="159.61" y2="177.53"/><line class="radar-axis" x1="112" y1="112" x2="64.39" y2="177.53"/><line class="radar-axis" x1="112" y1="112" x2="34.96" y2="86.97"/><polygon class="radar-area" points="112,53.68 178.25,90.47 155.33,171.62 81.53,153.94 51.91,92.48"/><circle class="radar-dot active-dot" data-dot="0" cx="112" cy="53.68" r="3"/><circle class="radar-dot" data-dot="1" cx="178.25" cy="90.47" r="3"/><circle class="radar-dot" data-dot="2" cx="155.33" cy="171.62" r="3"/><circle class="radar-dot" data-dot="3" cx="81.53" cy="153.94" r="3"/><circle class="radar-dot" data-dot="4" cx="51.91" cy="92.48" r="3"/></svg>
+              <button class="axis axis-1 active" data-index="0" data-axis="体魄" data-comment="身强体壮"><span>体魄</span><b>72</b></button><button class="axis axis-2" data-index="1" data-axis="心智" data-comment="智冠群雄"><span>心智</span><b>86</b></button><button class="axis axis-3" data-index="2" data-axis="悟性" data-comment="天纵奇才"><span>悟性</span><b>91</b></button><button class="axis axis-4" data-index="3" data-axis="魅力" data-comment="魅力四射"><span>魅力</span><b>64</b></button><button class="axis axis-5" data-index="4" data-axis="气运" data-comment="气运加身"><span>气运</span><b>78</b></button><div class="radar-center"><div><span>综合评分</span><b>78</b><i>人生落幕</i></div></div></section><div class="score-comment"><span>体魄</span><b>身强体壮</b></div><div class="story-divider">一生回望</div>
+            <section class="acts"><div class="acts-head"><b>人生三幕</b><span>从 69 轮叙事中提取</span></div><div class="act"><div class="act-age">18—32<span>初入世</span></div><div class="act-copy"><b>离开雾港，追随潮声</b><p>从旧书铺学徒成为远行者，第一次看见海雾之外的世界。</p></div></div><div class="act"><div class="act-age">33—61<span>立于世</span></div><div class="act-copy"><b>在代价到来时守住誓约</b><p>得到知识与声望，也因自己的选择失去无法挽回的人。</p></div></div><div class="act"><div class="act-age">62—87<span>别于世</span></div><div class="act-copy"><b>把余生留给未完的书</b><p>回到雾港整理一生所学，在潮声中平静走完最后一程。</p></div></div><div class="verdict"><small>FINAL VERDICT</small><h4>此生没有白白经过</h4><p>沈砚没有成为高悬天际的名字，却让一些人的命运因此不同。</p><div class="verdict-meta"><span>善良</span><span>69 轮世事</span><span>享年 87 岁</span></div></div></section></div><div class="bottom"><div class="bar"><button class="home-action" data-demo="返回首页">首页</button><button class="data-action" data-demo="打开模拟数据">模拟数据</button><button class="new-action" data-demo="开始新人生">开始新人生</button></div></div><div class="prototype-toast"></div>
+        </div>
+        <div class="option-copy"><h3>C3 · 松石铜光</h3><p>浅松石底、深青终局卡与铜色落点。避开常见蓝紫游戏 UI，更像一本被时间氧化后的个人史。</p><span class="tag">独特 · 沉静 · 时间质感</span></div><p class="option-note">辨识度最高，也最不依赖泛用蓝紫；如果选中，正式实现需要重点验证六主题映射。</p>
+      </article>
+    </section>
+    <p class="selection">点击 C1、C2 或 C3 标记选择。点击任一五维标签，可查看对应原始评语并突出精确数据点。</p>
+  </main>
+  <script>
+    document.addEventListener('DOMContentLoaded',function(){
+      document.querySelectorAll('.axis').forEach(function(axis){axis.addEventListener('click',function(event){event.stopPropagation();var phone=axis.closest('.phone');phone.querySelectorAll('.axis').forEach(function(item){item.classList.remove('active')});phone.querySelectorAll('.radar-dot').forEach(function(item){item.classList.remove('active-dot')});axis.classList.add('active');phone.querySelector('[data-dot="'+axis.dataset.index+'"]').classList.add('active-dot');phone.querySelector('.score-comment').innerHTML='<span>'+axis.dataset.axis+'</span><b>'+axis.dataset.comment+'</b>'})});
+      document.querySelectorAll('[data-demo]').forEach(function(button){button.addEventListener('click',function(event){event.stopPropagation();var phone=button.closest('.phone');var toast=phone.querySelector('.prototype-toast');toast.textContent=button.dataset.demo+' · 原型演示';toast.classList.add('show');window.setTimeout(function(){toast.classList.remove('show')},1200)})})
+    })
+  </script>
+</body>
+</html>

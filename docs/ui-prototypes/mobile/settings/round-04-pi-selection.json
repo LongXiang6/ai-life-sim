@@ -1,0 +1,59 @@
+{
+  "sources": {
+    "A": {
+      "name": "Indigo Glass",
+      "from": [
+        "round-02-s1-refinement.html · S1C 清晰标题整组操作",
+        "round-03b-s1c-tabs-locked.html · R1 独立章节卡片（定版）",
+        "library-history.css cool indigo tokens"
+      ],
+      "skin": "cool blue-gray canvas, frosted glass groups, indigo chip tab, filled indigo toggle"
+    },
+    "B": {
+      "name": "System Slate",
+      "from": [
+        "round-02-s1-refinement.html · S1B 文本标签平铺行",
+        "round-03b underline-adjacent flat list calm",
+        "library-history.css system slate hairlines"
+      ],
+      "skin": "flat paper, hairline groups, indigo underline tab, minimal shadow, square edges"
+    },
+    "C": {
+      "name": "Soft Capsule",
+      "from": [
+        "round-02-s1-refinement.html · S1A 柔和胶囊分组",
+        "round-03 soft segmented chrome / pill tab tray",
+        "library-history.css lavender capsule accents"
+      ],
+      "skin": "lavender pill tab tray, frosted rounded panels, raised white segment chips"
+    },
+    "rejected_final_skin": "final.html warm paper #fbfaf7 / Songti / mist taupe — treated as vetoed surface"
+  },
+  "scores": {
+    "A": {
+      "old_style_fit": 38,
+      "layout_fidelity": 29,
+      "mobile_usability": 18,
+      "change_restraint": 9,
+      "total": 94
+    },
+    "B": {
+      "old_style_fit": 32,
+      "layout_fidelity": 30,
+      "mobile_usability": 17,
+      "change_restraint": 10,
+      "total": 89
+    },
+    "C": {
+      "old_style_fit": 34,
+      "layout_fidelity": 27,
+      "mobile_usability": 18,
+      "change_restraint": 8,
+      "total": 87
+    }
+  },
+  "status": "rejected_by_user",
+  "rejection_reason": "整轮仅更换颜色、材质与主题，没有建立与欢迎页同源的书本式排版语言。",
+  "former_recommendation": "A",
+  "former_rationale": "A closest to locked R1/S1C indigo glass: soft chip tab, frosted groups, filled toggle. Keeps final.html list geometry while restoring mature cool history skin. B is purer flat slate but less like the winning R1 material. C is distinct soft-capsule but tray chrome drifts farther from locked tab silhouette. Layout/mechanism frozen; only color, type, border, radius, shadow, opacity."
+}

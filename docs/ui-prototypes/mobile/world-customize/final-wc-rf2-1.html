@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>世界配置 · 统一创建流程</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../assets/library.css">
+  <link rel="stylesheet" href="../assets/creation-flow-unified.css">
+  <script src="../assets/prototype.js" defer></script>
+  <script src="../assets/creation-flow-unified.js" defer></script>
+</head>
+<body data-screen="world-customize" data-creation-step="3">
+  <main class="creation-shell">
+    <header class="creation-review">
+      <p class="creation-review-label">CREATION FLOW · 03 / 08</p>
+      <h1>世界配置</h1>
+      <p class="creation-review-copy">以统一白纸承托组织世界规则，先确认世界身份，再按空间、本质、力量和上限依次配置。</p>
+    </header>
+
+    <section class="creation-stage" aria-label="世界配置移动端界面">
+      <div class="creation-phone">
+        <div data-flow-art></div>
+        <div class="cf-screen">
+          <header class="cf-header" data-creation-header data-title="配置世界" data-subtitle="确认这段人生的底层规则。"></header>
+
+          <section class="cf-summary">
+            <div class="cf-summary-symbol">界</div>
+            <div class="cf-summary-copy"><strong>潮汐城邦</strong><span>群岛历 218 年 · 保存世界</span></div>
+            <div class="cf-summary-facts"><div><span>空间</span><strong data-summary-space>群岛世界</strong></div><div><span>本质</span><strong data-summary-essence>多元规则</strong></div><div><span>上限</span><strong data-summary-limit>3 阶</strong></div></div>
+          </section>
+
+          <section class="cf-section">
+            <div class="cf-section-head"><strong>世界描述</strong><small data-description-count>34 / 5000</small></div>
+            <textarea class="cf-textarea" data-description maxlength="5000" aria-label="世界描述">潮汐决定城市的贸易节律、迁徙方向与每个人回家的时间。</textarea>
+          </section>
+
+          <section class="cf-section">
+            <div class="cf-section-head"><strong>世界规则</strong><small>从基础形态到力量边界</small></div>
+            <ol class="cf-setting-list">
+              <li class="cf-setting" data-setting="space"><span class="cf-setting-mark">形</span><div class="cf-setting-copy"><div class="cf-setting-heading"><strong>空间形态</strong><small>世界的空间结构</small></div><div class="cf-segmented" data-mode-group><button type="button" data-mode="ai">AI</button><button class="is-active" type="button" data-mode="select">选择</button><button type="button" data-mode="custom">自定</button></div><div data-setting-value><select class="cf-select" aria-label="世界空间形态"><option>单一大陆</option><option>多大陆</option><option selected>群岛世界</option></select></div></div></li>
+              <li class="cf-setting" data-setting="essence"><span class="cf-setting-mark">本</span><div class="cf-setting-copy"><div class="cf-setting-heading"><strong>世界本质</strong><small>底层运行规则</small></div><div class="cf-segmented" data-mode-group><button type="button" data-mode="ai">AI</button><button class="is-active" type="button" data-mode="select">选择</button><button type="button" data-mode="custom">自定</button></div><div data-setting-value><select class="cf-select" aria-label="世界本质"><option>唯物主义</option><option selected>多元规则</option><option>唯心主义</option></select></div></div></li>
+              <li class="cf-setting" data-setting="power"><span class="cf-setting-mark">力</span><div class="cf-setting-copy"><div class="cf-setting-heading"><strong>力量体系</strong><small>力量来源与成长方式</small></div><div class="cf-segmented" data-mode-group><button class="is-active" type="button" data-mode="ai">AI</button><button type="button" data-mode="select">选择</button><button type="button" data-mode="custom">自定</button></div><div data-setting-value><input class="cf-field" value="由 AI 判断" aria-label="力量体系 AI 结果" disabled></div></div></li>
+              <li class="cf-setting" data-setting="limit"><span class="cf-setting-mark">限</span><div class="cf-setting-copy"><div class="cf-setting-heading"><strong>力量上限</strong><small>力量体系的天花板</small></div><div class="cf-segmented" data-mode-group><button type="button" data-mode="ai">AI</button><button class="is-active" type="button" data-mode="select">选择</button><button type="button" data-mode="custom">自定</button></div><div data-setting-value><select class="cf-select" aria-label="力量上限"><option>1 阶</option><option selected>3 阶</option><option>5 阶</option></select></div></div></li>
+            </ol>
+          </section>
+        </div>
+
+        <footer class="cf-footer">
+          <button class="cf-back" type="button" data-flow-to="world-select" data-flow-back aria-label="返回世界选择" title="返回世界选择"><span data-icon="back"></span></button>
+          <button class="cf-next" type="button" data-flow-to="character-create"><span class="cf-next-number">04</span><span class="cf-next-copy"><strong>确认世界</strong><small>潮汐城邦 · 下一步塑造角色</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button>
+        </footer>
+        <div class="cf-toast" role="status" aria-live="polite"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      const maps = {
+        space: ['单一大陆', '多大陆', '群岛世界'],
+        essence: ['唯物主义', '多元规则', '唯心主义'],
+        power: ['无超凡力量', '科技强化', '潮汐契约'],
+        limit: ['1 阶', '3 阶', '5 阶'],
+      }
+      const selected = { space: 2, essence: 1, power: 1, limit: 1 }
+      const labels = { space: '空间形态', essence: '世界本质', power: '力量体系', limit: '力量上限' }
+      const summaries = { space: '[data-summary-space]', essence: '[data-summary-essence]', limit: '[data-summary-limit]' }
+      const description = document.querySelector('[data-description]')
+
+      description.addEventListener('input', function () {
+        document.querySelector('[data-description-count]').textContent = `${description.value.length} / 5000`
+      })
+
+      document.querySelectorAll('[data-setting]').forEach(function (setting) {
+        setting.querySelectorAll('[data-mode]').forEach(function (button) {
+          button.addEventListener('click', function () {
+            const key = setting.dataset.setting
+            const mode = button.dataset.mode
+            setting.querySelectorAll('[data-mode]').forEach(function (item) { item.classList.toggle('is-active', item === button) })
+            const value = setting.querySelector('[data-setting-value]')
+            if (mode === 'ai') value.innerHTML = `<input class="cf-field" value="由 AI 判断" aria-label="${labels[key]} AI 结果" disabled>`
+            if (mode === 'custom') value.innerHTML = `<input class="cf-field" aria-label="${labels[key]}自定义设定" placeholder="输入自定义内容...">`
+            if (mode === 'select') value.innerHTML = `<select class="cf-select" aria-label="${labels[key]}">${maps[key].map(function (item, index) { return `<option${index === selected[key] ? ' selected' : ''}>${item}</option>` }).join('')}</select>`
+            const summary = summaries[key] && document.querySelector(summaries[key])
+            if (summary) summary.textContent = mode === 'ai' ? 'AI 判断' : mode === 'custom' ? '自定义' : maps[key][selected[key]]
+            CreationFlow.notify(`${labels[key]} · ${mode === 'ai' ? 'AI 判断' : mode === 'custom' ? '自定义' : '选择'}`)
+          })
+        })
+      })
+    })()
+  </script>
+</body>
+</html>

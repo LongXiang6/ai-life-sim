@@ -35,6 +35,7 @@ import {
   shouldSkipEntityAIGeneration,
   WorldInitSystem,
   WorldEntitySystem,
+  getWorldEntitySystem,
 } from '../world-init-bundle-deps'
 import type { DimensionInferenceOutput } from '../prompts/dimension-inference-schema'
 import { buildWorldInitPromptVars, formatWorldTagsForPrompt, formatEntityRangesForPrompt, formatRegionsForPrompt } from './world-init-prompt-vars'
@@ -736,7 +737,7 @@ export function createWorldInitPipelineContext(
   if (config.eraName) useWorldStore.getState().setEraName(config.eraName)
   const promptVars = buildWorldInitPromptVars(config, { beforeConfig: configBeforeCoherence })
 
-  const entitySystem = new WorldEntitySystem()
+  const entitySystem = getWorldEntitySystem()
   entitySystem.setWorldContext(
     config.name, description, config.civilizationStage, promptVars.coherenceHint,
     promptVars.coherenceNote, config.worldType ?? 'idealist',

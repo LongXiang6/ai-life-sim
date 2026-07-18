@@ -61,8 +61,11 @@ export class FateProphecySystem implements ISubSystem {
   // ============================================================
 
   collectState(context: RoundContext): SubSystemState {
-    // 计算当前季度
-    this._currentQuarter = context.round.year * 4 + context.round.season
+    // 阳历季节的显示索引以春季为 0、冬季为 3，不能直接当作年内递增季度。
+    // 预言生命周期需要的是跨年单调的三个月时间桶：1–2 月冬季、3–5 月春季、
+    // 6–8 月夏季、9–11 月秋季、12 月进入下一冬季桶。
+    const absoluteMonth = context.round.year * 12 + context.round.month
+    this._currentQuarter = Math.floor((absoluteMonth + 2) / 3)
 
     // 🔴 round-idempotent 守卫
     if (getRoundSequence(context) === this._lastProcessedRound) {

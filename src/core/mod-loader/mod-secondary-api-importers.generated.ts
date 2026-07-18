@@ -9,6 +9,7 @@
 export const MOD_SECONDARY_API_IMPORTERS: Record<string, readonly (() => Promise<Record<string, unknown>>)[]> = {
   'mod-character': [
     () => import('@/mods/mod-character/destiny-pattern-access') as Promise<Record<string, unknown>>,
+    () => import('@/mods/mod-character/mythic-pattern-access') as Promise<Record<string, unknown>>,
   ],
   'mod-engine': [
     () => import('@/mods/mod-engine/engine-api') as Promise<Record<string, unknown>>,

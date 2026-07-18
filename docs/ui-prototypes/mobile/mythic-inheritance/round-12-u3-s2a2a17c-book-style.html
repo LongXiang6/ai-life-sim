@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="minimal-white">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>神话传承第十二轮 · U3书墨字效</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../assets/library-history.css">
+  <script src="../assets/prototype.js" defer></script>
+  <style>
+    :root{
+      color-scheme:light;
+      --ew-canvas:#f3f1ec;
+      --ew-paper:#fbfaf7;
+      --ew-surface:#fffefd;
+      --ew-ink:#292724;
+      --ew-ink-soft:#6e6961;
+      --ew-ink-faint:#9a9389;
+      --ew-line:#d9d3c9;
+      --ew-line-light:#e9e5de;
+      --ew-mist:#9ca9ac;
+      --common:100 110 127;
+      --fine:55 139 96;
+      --rare:66 111 192;
+      --epic:139 71 193;
+      --legendary:205 132 27;
+      --ease:cubic-bezier(.16,.8,.2,1);
+    }
+    *{box-sizing:border-box}
+    body{background:var(--ew-canvas);color:var(--ew-ink)}
+    button{font:inherit}
+    .shell{max-width:1180px}
+    .topbar a,.eyebrow{color:var(--ew-ink-soft)}
+    h1{color:var(--ew-ink)}
+    .subtitle{max-width:900px;color:var(--ew-ink-soft)}
+    .option-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .option-card{min-width:0;width:100%;border-color:var(--ew-line);border-radius:20px;background:var(--ew-surface);box-shadow:0 10px 28px rgba(62,55,44,.055)}
+    .option-copy h3{color:var(--ew-ink)}
+    .option-copy p,.selection{color:var(--ew-ink-soft)}
+    .tag{border-color:var(--ew-line);background:var(--ew-paper);color:var(--ew-ink-soft)}
+    .round-note{margin-bottom:18px;padding:10px 12px;border:1px solid var(--ew-line);border-radius:12px;background:rgba(255,254,253,.68);color:var(--ew-ink-soft);font-size:12px;line-height:1.65}
+    .round-note b{color:var(--ew-ink)}
+    .option-note{margin:0 18px 15px;padding:9px 11px;border-top:1px solid var(--ew-line-light);background:transparent;color:var(--ew-ink-soft);font-size:11px;line-height:1.58}
+
+    .phone{height:692px;border-color:var(--ew-line);border-radius:32px;background:var(--ew-paper);box-shadow:0 13px 30px rgba(62,55,44,.075);color:var(--ew-ink)}
+    .screen{position:relative;display:flex;height:100%;flex-direction:column;overflow:hidden;background:radial-gradient(ellipse at 76% 88%,rgba(255,254,253,.9),transparent 47%)}
+    .screen::before{position:absolute;z-index:0;inset:0;background:linear-gradient(90deg,rgba(233,229,222,.22),transparent 18%,transparent 84%,rgba(233,229,222,.12));content:"";pointer-events:none}
+    .page-curve{position:absolute;z-index:1;inset:0;width:100%;height:100%;pointer-events:none}
+    .page-curve path{fill:none;stroke:var(--ew-line-light);stroke-width:1}
+    .page-curve circle{fill:var(--ew-ink-faint)}
+    .page-curve circle:last-child{fill:var(--ew-mist)}
+    .book-spine{position:absolute;z-index:3;top:37px;bottom:38px;left:26px;width:1px;background:linear-gradient(var(--ew-line-light) 0 10%,var(--ew-line) 10% 70%,var(--ew-line-light) 70% 100%);pointer-events:none}
+    .book-brand{position:absolute;z-index:4;top:67px;left:15px;color:var(--ew-ink-soft);font-family:"SF Pro Text","PingFang SC","Microsoft YaHei UI",sans-serif;font-size:6.3px;font-weight:680;letter-spacing:1.56px;white-space:nowrap;transform:rotate(-90deg);transform-origin:left top}
+    .folio-mark{position:relative;display:inline-block;width:22px;height:15px;flex:0 0 auto;color:var(--ew-ink-faint)}
+    .folio-mark b{position:absolute;top:50%;left:0;font-family:"SF Pro Text","PingFang SC",sans-serif;font-size:5.7px;font-weight:660;letter-spacing:.15px;line-height:1;transform:translateY(-50%)}
+    .folio-mark::before{position:absolute;top:1px;right:8px;bottom:1px;width:1px;background:currentColor;content:"";opacity:.68}
+    .folio-mark::after{position:absolute;top:4px;right:0;width:5px;height:1px;background:currentColor;box-shadow:0 6px 0 currentColor;content:"";opacity:.68}
+    .hair-route{position:absolute;z-index:2;right:24px;left:48px;height:1px;background:linear-gradient(90deg,var(--ew-line-light) 0 76%,transparent 76% 79%,var(--ew-mist) 79% 100%);pointer-events:none}
+    .hair-route::after{position:absolute;top:-2px;right:0;width:5px;height:5px;border-radius:50%;background:var(--ew-mist);content:""}
+
+    .head{position:relative;z-index:5;padding:14px 23px 5px 48px}
+    .head-top{display:flex;align-items:center;justify-content:space-between}
+    .step{color:var(--ew-ink-faint);font-size:5.7px;font-weight:620;letter-spacing:.68px}
+    .head-row{display:flex;align-items:flex-end;justify-content:space-between;margin-top:3px}
+    .head h4{margin:0;color:var(--ew-ink);font-family:"Songti SC","STSong","SimSun",serif;font-size:18px;font-weight:600;letter-spacing:-.45px}
+    .count{color:var(--ew-ink-faint);font-size:6px}
+    .count b{color:var(--ew-ink);font-family:"Songti SC","STSong","SimSun",serif;font-size:10px;font-weight:600}
+
+    .contracts{position:relative;z-index:5;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:2px 23px 7px 48px}
+    .contract{position:relative;display:grid;min-width:0;height:38px;padding:5px 0 4px;align-content:center;border:0;border-top:1px solid var(--ew-line-light);border-bottom:1px solid var(--ew-line);border-radius:0;background:transparent;color:var(--ew-ink-faint);overflow:hidden;text-align:left;cursor:pointer}
+    .contract::after{position:absolute;right:0;bottom:-1px;width:12px;height:1px;background:var(--ew-mist);content:"";opacity:.36}
+    .contract small{font-size:5px;letter-spacing:.08em}
+    .contract b{display:block;max-width:66px;overflow:hidden;margin-top:2px;color:var(--ew-ink);font-family:"Songti SC","STSong","SimSun",serif;font-size:7px;font-weight:600;text-overflow:ellipsis;white-space:nowrap}
+    .contract.filled{border-bottom-color:var(--ew-ink-soft);color:var(--ew-ink-soft)}
+
+    .mythic-rail{position:relative;z-index:5;display:grid;grid-template-columns:25px minmax(0,1fr) 34px;min-height:45px;margin:0 23px 3px 48px;padding:5px 0;align-items:center;gap:8px;border-top:1px solid var(--ew-line-light);border-bottom:1px solid var(--ew-line);background:transparent}
+    .mythic-glyph{position:relative;display:grid;width:25px;height:25px;place-items:center;color:var(--ew-ink-soft)}
+    .mythic-glyph::before,.mythic-glyph::after{position:absolute;border:1px solid currentColor;border-radius:50%;content:"";opacity:.34}
+    .mythic-glyph::before{inset:3px}
+    .mythic-glyph::after{inset:7px;border-style:dotted}
+    .mythic-glyph i{width:4px;height:4px;border-radius:50%;background:currentColor;box-shadow:0 0 8px rgba(110,105,97,.18)}
+    .rail-copy{min-width:0}
+    .rail-copy b,.rail-copy p{display:block;overflow:hidden;margin:0;text-overflow:ellipsis;white-space:nowrap}
+    .rail-copy b{color:var(--ew-ink);font-family:"Songti SC","STSong","SimSun",serif;font-size:8px;font-weight:600;letter-spacing:.18px}
+    .rail-copy p{margin-top:2px;color:var(--ew-ink-faint);font-size:5px}
+
+    .icon,.mythic-trigger,.lib-close,.clear-mythic{display:grid;padding:0;place-items:center;border:0;border-radius:0;background:transparent;color:var(--ew-ink-soft);cursor:pointer}
+    .icon:active,.mythic-trigger:active,.lib-close:active,.clear-mythic:active{opacity:.55;transform:translateY(1px)}
+    .icon:focus-visible,.mythic-trigger:focus-visible,.lib-close:focus-visible,.clear-mythic:focus-visible,.contract:focus-visible,.celestial:focus-visible,.core:focus-visible,.add:focus-visible,.footer-btn:focus-visible,.mythic-card:focus-visible{outline:1px dotted var(--ew-ink-soft);outline-offset:2px}
+    .icon svg,.mythic-trigger svg,.lib-close svg,.clear-mythic svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.45}
+    .mythic-trigger{position:relative;width:34px;height:34px}
+    .mythic-trigger::before{position:absolute;top:2px;bottom:2px;left:4px;width:1px;background:var(--ew-line);content:""}
+    .mythic-trigger svg{margin-left:7px}
+    .utility{position:relative;z-index:5;display:flex;min-height:26px;align-items:center;justify-content:space-between;padding:0 23px 1px 48px;color:var(--ew-ink-faint);font-size:5.7px}
+    .utility-label{display:flex;align-items:center;gap:6px;letter-spacing:.16px}
+    .utility-label::before{width:10px;height:1px;background:var(--ew-mist);box-shadow:5px 3px 0 -1px var(--ew-mist);content:"";opacity:.72}
+    .icon{width:29px;height:29px;color:var(--ew-ink-soft)}
+
+    .content{position:relative;z-index:4;min-height:0;flex:1;padding:0 10px 62px 35px;overflow-y:auto;scrollbar-width:none}
+    .content::-webkit-scrollbar{display:none}
+    .astrolabe{--core-rgb:61 57 50;position:relative;width:258px;height:258px;margin:0 auto;isolation:isolate}
+    .v1 .astrolabe{--core-rgb:61 57 50}
+    .v2 .astrolabe{--core-rgb:125 87 71}
+    .v3 .astrolabe{--core-rgb:100 119 122}
+    .cloud{position:absolute;z-index:1;top:50%;left:50%;width:220px;height:220px;transform:translate(-50%,-50%);pointer-events:none}
+    .layer{position:absolute;top:50%;left:50%;border-radius:50%;transform:translate(-50%,-50%)}
+    .l1{width:110px;height:110px;background:radial-gradient(circle,var(--ew-surface) 0%,rgba(251,250,247,.86) 62%,rgba(156,169,172,.12) 100%)}
+    .l2{width:138px;height:138px;background:rgba(156,169,172,.055)}
+    .l3{width:166px;height:166px;background:rgba(156,169,172,.036)}
+    .l4{width:194px;height:194px;background:rgba(156,169,172,.023)}
+    .l5{width:220px;height:220px;background:rgba(156,169,172,.011)}
+    .orbit,.inner,.stars{position:absolute;z-index:2;border-radius:50%;pointer-events:none}
+    .orbit{inset:18px;border:1px solid rgba(156,169,172,.19);background:repeating-conic-gradient(from -90deg,transparent 0 29.5deg,rgba(156,169,172,.09) 29.5deg 30deg);box-shadow:inset 0 0 32px rgba(156,169,172,.03)}
+    .inner{inset:49px;border:1px solid rgba(156,169,172,.12)}
+    .stars{inset:58px;background:radial-gradient(circle at 23% 31%,rgba(110,105,97,.16) 0 1px,transparent 1.4px),radial-gradient(circle at 75% 24%,rgba(156,169,172,.17) 0 1px,transparent 1.4px),radial-gradient(circle at 65% 72%,rgba(110,105,97,.11) 0 1px,transparent 1.5px),radial-gradient(circle at 31% 69%,rgba(156,169,172,.13) 0 1px,transparent 1.5px)}
+    .zenith{position:absolute;z-index:12;top:0;left:50%;width:58px;height:56px;border:1px solid transparent;border-top-color:rgba(110,105,97,.4);border-right-color:rgba(156,169,172,.16);border-left-color:rgba(156,169,172,.16);border-radius:50% 50% 44% 44%;transform:translateX(-50%);pointer-events:none}
+    .zenith::before{position:absolute;top:-4px;left:50%;width:3px;height:3px;border-radius:50%;background:var(--ew-ink-soft);box-shadow:0 0 7px rgba(110,105,97,.14);content:"";transform:translateX(-50%)}
+    .celestial{--rgb:var(--common);--x:0px;--y:0px;position:absolute;z-index:6;top:50%;left:50%;display:grid;width:48px;height:48px;padding:0;place-items:center;border:0;border-radius:50%;background:transparent;color:rgb(var(--rgb));opacity:.66;transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y)));transition:transform .82s var(--ease),opacity .3s ease,filter .3s ease;cursor:pointer}
+    .celestial::before{position:absolute;inset:5px;border-radius:50%;background:radial-gradient(circle,rgba(255,254,253,.94) 0 4%,rgb(var(--rgb)/.25) 29%,rgb(var(--rgb)/.1) 52%,transparent 74%);filter:blur(5px);content:"";transform:scale(var(--scale,1))}
+    .celestial::after{position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle,rgb(var(--rgb)/.1),transparent 66%);filter:blur(var(--blur,10px));content:""}
+    .celestial span{position:relative;z-index:2;display:block;width:32px;color:rgb(var(--rgb));font-size:7.3px;font-weight:760;letter-spacing:-.035em;line-height:1.08;text-align:center;text-shadow:0 1px 2px var(--ew-surface),0 0 7px var(--ew-surface);opacity:.8;transform:scale(.96);transition:opacity .24s ease,transform .35s var(--ease)}
+    .celestial.common{--rgb:var(--common);--scale:.84;--blur:7px}
+    .celestial.fine{--rgb:var(--fine);--scale:.92;--blur:8px}
+    .celestial.rare{--rgb:var(--rare);--scale:1;--blur:10px}
+    .celestial.epic{--rgb:var(--epic);--scale:1.07;--blur:12px}
+    .celestial.legendary{--rgb:var(--legendary);--scale:1.14;--blur:14px}
+    .celestial.focused{z-index:11;opacity:1;filter:saturate(1.04) brightness(1.01)}
+    .celestial.focused::before{filter:blur(4px);transform:scale(calc(var(--scale)*1.13))}
+    .celestial.focused span{opacity:1;font-weight:810;transform:scale(1.04)}
+
+    .core{position:absolute;z-index:9;top:50%;left:50%;display:grid;width:110px;height:110px;padding:0;place-items:center;border:0;border-radius:50%;background:transparent;color:rgb(var(--core-rgb));transform:translate(-50%,-50%);cursor:pointer}
+    .core b{position:relative;z-index:7;font-family:"Songti SC","STSong","SimSun",serif;font-size:29px;font-weight:600;line-height:1;letter-spacing:-1.4px;will-change:transform;animation:water-heart 1.62s ease-in-out infinite}
+    .core b::before{position:absolute;inset:0;z-index:-1;content:"命";color:inherit;pointer-events:none}
+    .v1 .core b{color:rgb(var(--core-rgb));text-shadow:0 1px 0 rgba(255,254,253,.9),-.25px .2px 0 rgba(41,39,36,.22),0 0 1.4px rgba(61,57,50,.22)}
+    .v1 .core b::before{opacity:.18;filter:blur(.62px);transform:translate(.35px,.45px) scale(1.018)}
+    .v2 .core b{color:rgb(var(--core-rgb));font-weight:580;text-shadow:0 1px 0 rgba(255,254,253,.92),0 0 1px rgba(125,87,71,.21)}
+    .v2 .core b::before{opacity:.11;filter:blur(.38px);transform:translate(-.3px,.5px) scale(1.012)}
+    .v3 .core b{color:rgb(var(--core-rgb));font-weight:560;text-shadow:0 1px 0 rgba(255,254,253,.92),0 0 1.1px rgba(100,119,122,.18)}
+    .v3 .core b::before{opacity:.1;filter:blur(.45px);transform:translate(.25px,.35px) scale(1.012)}
+    .core.paused::after{position:absolute;right:17px;bottom:18px;width:9px;height:9px;background:linear-gradient(90deg,rgb(var(--core-rgb)/.58) 0 30%,transparent 30% 62%,rgb(var(--core-rgb)/.58) 62% 92%,transparent 92%);box-shadow:0 0 0 3px rgba(251,250,247,.86);content:""}
+    .heart-wave{position:absolute;z-index:4;top:50%;left:50%;width:54px;height:54px;border-radius:50%;pointer-events:none;transform:translate(-50%,-50%)}
+    .heart-wave::before,.heart-wave::after{position:absolute;inset:0;border:1.05px solid rgb(var(--core-rgb)/.22);border-radius:50%;opacity:0;content:"";animation-duration:3.24s;animation-name:u3-small;animation-timing-function:linear;animation-iteration-count:infinite;animation-delay:var(--delay)}
+    .heart-wave::after{border-color:rgb(var(--core-rgb)/.065);filter:blur(1.2px);animation-name:u3-small-tail}
+    .cycle-wave{position:absolute;z-index:5;top:50%;left:50%;width:92px;height:92px;border:1.8px solid rgb(var(--core-rgb)/.23);border-radius:50%;opacity:0;pointer-events:none;transform:translate(-50%,-50%) scale(.58)}
+    .cycle-wave.active{animation-fill-mode:both}
+    .cycle-tail{border-width:.8px}
+    .tail-b{display:none}
+    .cycle-main.active{animation:u3-large-main 2.72s cubic-bezier(.12,.62,.2,1)}
+    .tail-a.active{animation:u3-large-tail 2.78s cubic-bezier(.12,.62,.2,1) .24s}
+    .astrolabe.paused-state .core b,.astrolabe.paused-state .heart-wave::before,.astrolabe.paused-state .heart-wave::after,.astrolabe.paused-state .cycle-wave{animation-play-state:paused!important}
+
+    .detail{--rgb:var(--rare);position:relative;margin:4px 13px 0 13px;padding:8px 41px 7px 29px;border:0;border-top:1px solid var(--ew-line-light);border-bottom:1px solid var(--ew-line);background:transparent}
+    .detail .folio-mark{position:absolute;top:8px;left:0;color:var(--ew-ink-faint)}
+    .detail-kicker{display:block;margin-bottom:2px;color:var(--ew-ink-faint);font-size:5px;font-weight:620;letter-spacing:.68px}
+    .detail strong{display:block;margin-bottom:3px;color:rgb(var(--rgb));font-family:"Songti SC","STSong","SimSun",serif;font-size:8px;font-weight:600;letter-spacing:.2px}
+    .detail p{min-height:24px;margin:0;color:var(--ew-ink-soft);font-size:6px;line-height:1.52}
+    .maps{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:5px}
+    .maps div{padding-top:4px;border-top:1px solid color-mix(in srgb,rgb(var(--rgb)) 16%,var(--ew-line-light));background:transparent}
+    .maps small{display:block;color:var(--ew-ink-faint);font-size:5px}
+    .maps b{color:rgb(var(--rgb));font-size:6px;font-weight:650}
+    .add{position:absolute;right:2px;bottom:9px;display:grid;width:34px;height:34px;padding:0;place-items:center;border:0;border-left:1px solid var(--ew-line);border-radius:0;background:transparent;color:rgb(var(--rgb));cursor:pointer}
+    .add::after{position:absolute;right:1px;bottom:4px;width:5px;height:1px;background:currentColor;box-shadow:0 6px 0 currentColor;content:"";opacity:.5}
+    .add svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-linecap:round;stroke-width:1.6}
+
+    .bottom{position:absolute;right:0;bottom:0;left:0;z-index:50;padding:5px 23px 7px 48px;border-top:1px solid var(--ew-line-light);background:linear-gradient(180deg,rgba(251,250,247,.83),var(--ew-paper) 42%)}
+    .footer{display:grid;grid-template-columns:58px minmax(0,1fr) 86px;min-height:43px;align-items:center;gap:7px}
+    .footer-btn{position:relative;display:flex;height:42px;padding:0 0 0 27px;align-items:center;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--ew-ink-soft);cursor:pointer}
+    .footer-btn::before{position:absolute;top:13px;left:12px;bottom:13px;width:1px;background:currentColor;content:"";opacity:.58}
+    .footer-btn::after{position:absolute;top:16px;left:18px;width:5px;height:1px;background:currentColor;box-shadow:0 6px 0 currentColor;content:"";opacity:.58}
+    .footer-btn.secondary{width:58px;padding-left:27px}
+    .footer-btn.primary{justify-content:flex-start;min-width:86px;padding:0 0 0 28px;border:0;background:transparent;box-shadow:none;color:var(--ew-ink);font-family:"Songti SC","STSong","SimSun",serif;font-size:10px;font-weight:600;letter-spacing:.72px}
+    .footer-btn:disabled{color:var(--ew-ink-faint);opacity:.52}
+    .footer-btn svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.65}
+    .footer-btn.primary svg{display:none}
+    .footer-hint{color:var(--ew-ink-faint);font-size:5.4px;letter-spacing:.25px;text-align:center}
+
+    .scrim{position:absolute;z-index:80;inset:0;background:rgba(41,39,36,.13);opacity:0;pointer-events:none;transition:opacity .24s ease}
+    .scrim.open{opacity:1;pointer-events:auto}
+    .library{position:absolute;z-index:90;right:12px;bottom:56px;left:36px;visibility:hidden;max-height:362px;padding:13px 14px 12px 18px;border:1px solid var(--ew-line);border-radius:2px;background:rgba(251,250,247,.975);box-shadow:0 -12px 30px rgba(62,55,44,.09);opacity:0;overflow:hidden;transform:translateY(calc(100% + 66px));transition:opacity .3s ease,transform .3s ease;backdrop-filter:blur(18px)}
+    .library::before{position:absolute;top:13px;bottom:13px;left:8px;width:1px;background:var(--ew-line-light);content:""}
+    .library.open{visibility:visible;opacity:1;transform:translateY(0)}
+    .lib-head{display:flex;justify-content:space-between;padding-bottom:8px;border-bottom:1px solid var(--ew-line)}
+    .lib-head b{font-family:"Songti SC","STSong","SimSun",serif;font-size:10px;font-weight:600;letter-spacing:.3px}
+    .lib-head p{margin:3px 0 0;color:var(--ew-ink-faint);font-size:5px}
+    .lib-close,.clear-mythic{width:32px;height:32px}
+    .mythic-list{display:grid;max-height:248px;margin-top:2px;overflow-y:auto}
+    .mythic-card{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 31px;gap:7px;padding:8px 0;border:0;border-bottom:1px solid var(--ew-line-light);border-radius:0;background:transparent;color:var(--ew-ink);text-align:left;cursor:pointer}
+    .mythic-card::before{position:absolute;top:7px;bottom:7px;left:-10px;width:1px;background:transparent;content:""}
+    .mythic-card.selected::before{background:var(--ew-ink-soft)}
+    .mythic-card.selected{background:transparent}
+    .mythic-card b{font-family:"Songti SC","STSong","SimSun",serif;font-size:8px;font-weight:600}
+    .mythic-card p{margin:3px 0;color:var(--ew-ink-soft);font-size:5px;line-height:1.45}
+    .mark{position:relative;align-self:center;width:30px;height:30px;color:var(--ew-mist)}
+    .mark svg{position:absolute;inset:0;width:30px;height:30px;fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.25}
+    .mark .check{display:none}
+    .mythic-card.selected .mark{color:var(--ew-ink-soft)}
+    .mythic-card.selected .mark .idle{display:none}
+    .mythic-card.selected .mark .check{display:block;fill:transparent;stroke:currentColor;stroke-width:1.45}
+    .lib-foot{display:flex;align-items:center;justify-content:space-between;margin-top:5px}
+    .lib-foot small{color:var(--ew-ink-faint);font-size:5px}
+
+    @keyframes water-heart{0%,25%,100%{transform:scale(1)}42%{transform:scale(1.11)}53%{transform:scale(.995)}67%{transform:scale(1.085)}80%{transform:scale(1)}}
+    @keyframes u3-small{0%{opacity:0;border-width:1.05px;transform:scale(.5)}7%{opacity:.22}58%{opacity:.08;border-width:.46px}79%{opacity:0;border-width:.25px;transform:scale(4.22)}100%{opacity:0;border-width:.25px;transform:scale(4.22)}}
+    @keyframes u3-small-tail{0%{opacity:0;border-width:.72px;transform:scale(.5)}7%{opacity:.055}58%{opacity:.018;border-width:.34px}79%{opacity:0;border-width:.25px;transform:scale(4.22)}100%{opacity:0;border-width:.25px;transform:scale(4.22)}}
+    @keyframes u3-large-main{0%{opacity:0;border-width:1.8px;transform:translate(-50%,-50%) scale(.58)}9%{opacity:.23}68%{opacity:.06;border-width:.55px}100%{opacity:0;border-width:.25px;transform:translate(-50%,-50%) scale(3.9)}}
+    @keyframes u3-large-tail{0%{opacity:0;border-width:.8px;transform:translate(-50%,-50%) scale(.64)}12%{opacity:.065}75%{opacity:.018;border-width:.32px}100%{opacity:0;border-width:.25px;transform:translate(-50%,-50%) scale(4.05)}}
+
+    @media(max-width:980px){.option-grid{grid-template-columns:1fr}.round-note{margin-right:12px;margin-left:12px}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.001s!important;transition-delay:0s!important}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar"><a href="index.html">← 返回神话传承历史</a><span data-selection>尚未选择</span></div>
+    <p class="eyebrow">MYTHIC INHERITANCE · ROUND 12 · U3</p>
+    <h1>第十二轮：命字的书墨气质</h1>
+    <p class="subtitle">U3「极缓薄纹」晋级，U1、U2 淘汰。主体对齐欢迎界面定版 S2-A2a-17C 的暖白书页、左书脊、右侧路径曲线与双刻页标；本轮只比较中心“命”的三种书墨字效。</p>
+    <p class="round-note"><b>继续优胜劣汰，不是定版。</b>三稿共同冻结 1.62s 双搏、约 405ms 峰距、极缓薄小水波，以及轮转、节点点击和重排触发的主波与尾迹大水波。稀有度节点颜色不变，其余流程保持不变。</p>
+    <section class="option-grid" id="options"></section>
+    <p class="selection">点击 V1、V2 或 V3 选择下一轮方向。点击中心“命”可同时暂停或恢复双搏、水波与四秒轮转。</p>
+  </main>
+  <script>
+    const ordinary=[
+      {name:'见微知命',rarity:'fine',copy:'细微变化常常比宏大征兆更早显露。',attr:'悟性 +2',system:'洞察事件 +12%'},
+      {name:'雨幕听心',rarity:'rare',copy:'雨声帮助你辨认他人未说出口的情绪。',attr:'心智 +3',system:'共情事件 +15%'},
+      {name:'不燃之烬',rarity:'legendary',copy:'真正熄灭之物也会留下拒绝消散的余温。',attr:'体魄 +5',system:'逆境成长 +24%'},
+      {name:'簿命长风',rarity:'common',copy:'漂泊时你更容易适应新的生活节奏。',attr:'魅力 +1',system:'迁徙适应 +6%'},
+      {name:'山海余响',rarity:'epic',copy:'古老地域会在你心中留下难以磨灭的回声。',attr:'悟性 +3',system:'传承事件 +18%'},
+      {name:'借月生花',rarity:'fine',copy:'寂静时刻更容易孕育清晰而温柔的创造。',attr:'魅力 +2',system:'创作灵感 +10%'},
+      {name:'逆鳞',rarity:'rare',copy:'重要之物受威胁时，你会异常坚定。',attr:'体魄 +3',system:'守护意志 +15%'},
+      {name:'人间烟火',rarity:'common',copy:'寻常生活更容易恢复精力与安定感。',attr:'心智 +1',system:'日常恢复 +6%'},
+      {name:'星骨',rarity:'legendary',copy:'遥远未知会持续牵引你越过既定边界。',attr:'悟性 +5',system:'探索机遇 +24%'},
+      {name:'守拙',rarity:'fine',copy:'缓慢练习会换来不易崩塌的根基。',attr:'体魄 +2',system:'成长稳定 +10%'},
+      {name:'渡鸦信使',rarity:'rare',copy:'失散的信息会沿意外路径重新抵达。',attr:'魅力 +3',system:'信息事件 +15%'},
+      {name:'梦中故园',rarity:'epic',copy:'重要地点会在梦中保存未理解的记忆。',attr:'心智 +4',system:'记忆回响 +18%'}
+    ];
+    const mythics=[
+      ['长夜见灯','绝路之中，微小而真实的希望更容易被你看见。'],
+      ['未竟之愿','真正重要却未完成的愿望，会留下仍可追寻的回声。'],
+      ['凡心不灭','宏大力量改变一切时，你仍保留重新选择自己的余地。'],
+      ['与潮同归','失去无法避免时，你更容易理解告别并留下新的连接。']
+    ];
+    const svg={
+      library:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><ellipse cx="12" cy="12" rx="10" ry="4" transform="rotate(-24 12 12)"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg>',
+      shuffle:'<svg viewBox="0 0 24 24"><path d="M4 7h3c5 0 5 10 10 10h3M17 14l3 3-3 3M4 17h3c2 0 3-.8 4-2M15 7h5M17 4l3 3-3 3"/></svg>',
+      back:'<svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg>',
+      ok:'<svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>',
+      add:'<svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>',
+      close:'<svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>',
+      clear:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="m7 17 10-10"/></svg>'
+    };
+    const idle='<svg class="idle" viewBox="0 0 30 30"><circle cx="15" cy="15" r="11"/><path d="M19 5.5a11 11 0 0 0 0 19M15 11v8M11 15h8"/></svg>';
+    const check='<svg class="check" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13"/><path d="M19 3.7a13 13 0 0 0 0 22.6M9.5 15l3.5 3.5 7.5-8"/></svg>';
+    const variants=[
+      {id:'V1',cls:'v1',name:'松烟活字',tag:'warm soot letterpress',desc:'暖黑松烟墨带极轻活字压印和墨晕，字骨最稳，也最贴近 17C 的正文气质。'},
+      {id:'V2',cls:'v2',name:'赭墨批印',tag:'restrained ochre note',desc:'克制赭褐像书页上的旧批注，只给中心一点温度，不形成警告红或印章按钮。'},
+      {id:'V3',cls:'v3',name:'青灰旧墨',tag:'mist blue-grey ink',desc:'低饱和青灰旧墨呼应右侧 mist 路径线，气质最轻，也最接近旧书边缘的退色墨迹。'}
+    ];
+    function nameHtml(name){return name.length===4?name.slice(0,2)+'<br>'+name.slice(2):name}
+    function folio(number){return '<span class="folio-mark" aria-hidden="true"><b>'+number+'</b></span>'}
+    function phone(v){
+      const nodes=ordinary.map(function(x,i){return '<button class="celestial '+x.rarity+'" data-i="'+i+'" aria-label="查看命格：'+x.name+'"><span aria-hidden="true">'+nameHtml(x.name)+'</span></button>'}).join('');
+      const slots=[1,2,3].map(function(i){return '<button class="contract" aria-label="普通命槽 '+i+'，空"><small>星契 0'+i+'</small></button>'}).join('');
+      const cards=mythics.map(function(m,i){return '<button class="mythic-card '+(i===0?'selected':'')+'" data-mi="'+i+'" aria-label="'+(i===0?'当前神话传承：':'选择神话传承：')+m[0]+'" aria-pressed="'+(i===0)+'"><div><b>'+m[0]+'</b><p>'+m[1]+'</p></div><span class="mark" aria-hidden="true">'+idle+check+'</span></button>'}).join('');
+      return '<article class="option-card" data-choice="'+v.id+' '+v.name+'" onclick="selectChoice(this)">'+
+        '<div class="phone '+v.cls+'"><div class="screen">'+
+        '<span class="book-spine" aria-hidden="true"></span><div class="book-brand">AI LIFE SIM</div>'+
+        '<svg class="page-curve" viewBox="0 0 292 692" aria-hidden="true"><path d="M272 5 C228 95,275 181,240 282 S214 471,254 563 S260 646,242 706"/><circle cx="272" cy="5" r="2.7"/><circle cx="240" cy="282" r="2.2"/><circle cx="254" cy="563" r="1.6"/></svg>'+
+        '<span class="hair-route" style="top:126px" aria-hidden="true"></span>'+
+        '<header class="head"><div class="head-top"><div class="step">NEW LIFE · 05 / FATE</div>'+folio('05')+'</div><div class="head-row"><h4>选择命格</h4><span class="count"><b>0</b> / 3</span></div></header>'+
+        '<div class="contracts">'+slots+'</div>'+
+        '<div class="mythic-rail"><span class="mythic-glyph"><i></i></span><div class="rail-copy"><b data-mythic-name>'+mythics[0][0]+'</b><p data-mythic-summary>'+mythics[0][1]+'</p></div><button class="mythic-trigger open-library" aria-label="打开神话总库">'+svg.library+'</button></div>'+
+        '<div class="utility"><span class="utility-label">十二星位 · 天顶观测</span><button class="icon reroll" aria-label="重排待选命格">'+svg.shuffle+'</button></div>'+
+        '<div class="content"><div class="astrolabe"><div class="cloud"><i class="layer l5"></i><i class="layer l4"></i><i class="layer l3"></i><i class="layer l2"></i><i class="layer l1"></i></div><div class="orbit"></div><div class="inner"></div><div class="stars"></div><i class="cycle-wave cycle-main"></i><i class="cycle-wave cycle-tail tail-a"></i><div class="zenith"></div>'+nodes+
+        '<button class="core" aria-label="暂停心跳与星盘轮转"><i class="heart-wave wa1" style="--delay:.68s"></i><i class="heart-wave wb1" style="--delay:1.085s"></i><i class="heart-wave wa2" style="--delay:2.3s"></i><i class="heart-wave wb2" style="--delay:2.705s"></i><b>命</b></button></div>'+
+        '<div class="detail">'+folio('06')+'<span class="detail-kicker">星位注解 / 当前观测</span><strong></strong><p></p><div class="maps"><div><small>属性映射</small><b></b></div><div><small>系统映射</small><b></b></div></div><button class="add" aria-label="将当前命格加入普通命槽">'+svg.add+'</button></div></div>'+
+        '<div class="scrim"></div><section class="library" aria-hidden="true" aria-label="神话总库"><div class="lib-head"><div><b>神话总库</b><p>跨世界共用 · 本局可留空</p></div><button class="lib-close" aria-label="关闭神话总库">'+svg.close+'</button></div><div class="mythic-list">'+cards+'</div><div class="lib-foot"><small>独立于三个普通星契</small><button class="clear-mythic" aria-label="清空本局神话传承">'+svg.clear+'</button></div></section>'+
+        '<footer class="bottom"><div class="footer"><button class="footer-btn secondary" aria-label="返回上一步">'+svg.back+'</button><span class="footer-hint">路径终点 / 命格确认</span><button class="footer-btn primary confirm" aria-label="确认命格选择" disabled>'+svg.ok+'<span>确认</span></button></div></footer>'+
+        '</div></div><div class="option-copy"><span class="tag">'+v.id+' · '+v.tag+'</span><h3>'+v.name+'</h3><p>'+v.desc+'</p></div><p class="option-note">共同基线：S2-A2a-17C 暖白书页、左书脊、路径曲线、双刻页标与透明文字动作；U3 双搏、水波及全部选择功能保持一致。</p></article>';
+    }
+    document.querySelector('#options').innerHTML=variants.map(phone).join('');
+    function bind(phone){
+      let active=0,paused=false,timer;
+      const nodes=[].slice.call(phone.querySelectorAll('.celestial'));
+      const core=phone.querySelector('.core');
+      const astro=phone.querySelector('.astrolabe');
+      const largeWaves=[].slice.call(phone.querySelectorAll('.cycle-wave'));
+      const detail=phone.querySelector('.detail');
+      const slots=[].slice.call(phone.querySelectorAll('.contract'));
+      const rgb={common:'var(--common)',fine:'var(--fine)',rare:'var(--rare)',epic:'var(--epic)',legendary:'var(--legendary)'};
+      function emitLargeWave(){
+        largeWaves.forEach(function(wave){wave.classList.remove('active')});
+        void astro.offsetWidth;
+        largeWaves.forEach(function(wave){wave.classList.add('active')});
+      }
+      function draw(large){
+        nodes.forEach(function(node,i){
+          const pos=(i-active+12)%12;
+          const angle=(-90+pos*30)*Math.PI/180;
+          node.style.setProperty('--x',Math.cos(angle)*104+'px');
+          node.style.setProperty('--y',Math.sin(angle)*104+'px');
+          node.classList.toggle('focused',i===active);
+        });
+        const item=ordinary[active];
+        const rarity=rgb[item.rarity];
+        detail.style.setProperty('--rgb',rarity);
+        detail.querySelector('strong').textContent=item.name;
+        detail.querySelector('p').textContent=item.copy;
+        detail.querySelectorAll('.maps b')[0].textContent=item.attr;
+        detail.querySelectorAll('.maps b')[1].textContent=item.system;
+        if(large)emitLargeWave();
+      }
+      function cycle(){active=(active+11)%12;draw(true)}
+      function resetTimer(){clearInterval(timer);if(!paused)timer=setInterval(cycle,4000)}
+      function count(){
+        const amount=slots.filter(function(slot){return slot.classList.contains('filled')}).length;
+        phone.querySelector('.count b').textContent=amount;
+        phone.querySelector('.confirm').disabled=amount===0;
+      }
+      draw(false);
+      resetTimer();
+      nodes.forEach(function(node){
+        node.addEventListener('click',function(event){
+          event.stopPropagation();
+          active=Number(node.dataset.i);
+          draw(true);
+          resetTimer();
+        });
+      });
+      core.addEventListener('click',function(event){
+        event.stopPropagation();
+        paused=!paused;
+        core.classList.toggle('paused',paused);
+        astro.classList.toggle('paused-state',paused);
+        core.setAttribute('aria-label',paused?'恢复心跳与星盘轮转':'暂停心跳与星盘轮转');
+        resetTimer();
+      });
+      phone.querySelector('.reroll').addEventListener('click',function(event){
+        event.stopPropagation();
+        active=(active+7)%12;
+        draw(true);
+        resetTimer();
+      });
+      phone.querySelector('.add').addEventListener('click',function(event){
+        event.stopPropagation();
+        const item=ordinary[active];
+        if(slots.some(function(slot){return slot.dataset.name===item.name}))return;
+        const slot=slots.find(function(candidate){return !candidate.classList.contains('filled')});
+        if(!slot)return;
+        slot.classList.add('filled');
+        slot.dataset.name=item.name;
+        slot.innerHTML='<small>已签订</small><b>'+item.name+'</b>';
+        slot.setAttribute('aria-label','移除普通命格：'+item.name);
+        count();
+      });
+      slots.forEach(function(slot,i){
+        slot.addEventListener('click',function(event){
+          event.stopPropagation();
+          if(!slot.classList.contains('filled'))return;
+          slot.classList.remove('filled');
+          delete slot.dataset.name;
+          slot.innerHTML='<small>星契 0'+(i+1)+'</small>';
+          slot.setAttribute('aria-label','普通命槽 '+(i+1)+'，空');
+          count();
+        });
+      });
+      const library=phone.querySelector('.library');
+      const scrim=phone.querySelector('.scrim');
+      function open(){library.classList.add('open');scrim.classList.add('open');library.setAttribute('aria-hidden','false')}
+      function close(){library.classList.remove('open');scrim.classList.remove('open');library.setAttribute('aria-hidden','true')}
+      phone.querySelector('.open-library').addEventListener('click',function(event){event.stopPropagation();open()});
+      phone.querySelector('.lib-close').addEventListener('click',function(event){event.stopPropagation();close()});
+      scrim.addEventListener('click',function(event){event.stopPropagation();close()});
+      phone.querySelectorAll('.mythic-card').forEach(function(card){
+        card.addEventListener('click',function(event){
+          event.stopPropagation();
+          const item=mythics[Number(card.dataset.mi)];
+          phone.querySelector('[data-mythic-name]').textContent=item[0];
+          phone.querySelector('[data-mythic-summary]').textContent=item[1];
+          phone.querySelectorAll('.mythic-card').forEach(function(candidate){
+            const selected=candidate===card;
+            candidate.classList.toggle('selected',selected);
+            candidate.setAttribute('aria-pressed',String(selected));
+          });
+          close();
+        });
+      });
+      phone.querySelector('.clear-mythic').addEventListener('click',function(event){
+        event.stopPropagation();
+        phone.querySelector('[data-mythic-name]').textContent='本局不携带';
+        phone.querySelector('[data-mythic-summary]').textContent='仍可从跨世界总库选择一项神话传承。';
+        phone.querySelectorAll('.mythic-card').forEach(function(card){card.classList.remove('selected');card.setAttribute('aria-pressed','false')});
+        close();
+      });
+      phone.addEventListener('click',function(event){event.stopPropagation()});
+    }
+    document.querySelectorAll('.phone').forEach(bind);
+  </script>
+</body>
+</html>

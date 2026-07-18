@@ -4,6 +4,7 @@
  * @mod mod-character
  */
 
+import { getRoundSequence } from '@/foundation'
 import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
 import type { LuckState, LuckModifiers } from '../types'
 
@@ -21,6 +22,7 @@ import { round } from '../utils'
 import { clamp } from '@/core/shared'
 
 import { getFormulaModifier } from '@/mods/mod-world'
+import { usePowerSystemStore } from '@/mods/mod-power-system'
 
 const ZERO_LUCK_MODIFIERS: LuckModifiers = {
   diseaseAvoidance: 0,
@@ -36,6 +38,7 @@ export class LuckSystem implements ISubSystem {
   readonly description = '运气值 → 四项全局修正系数：疾病躲避、死亡回避、事件权重偏移、衰老衰减' as const
 
   private state: LuckState = this.createInitialState()
+  private _lastProcessedRound = -1
 
   private createInitialState(): LuckState {
     return {
@@ -58,12 +61,14 @@ export class LuckSystem implements ISubSystem {
   }
 
   collectState(context: RoundContext): SubSystemState {
-    // 天象跨域效果：吉兆带来额外运势
-    this._applyCelestialLuckEffect(context)
-
-    // 衰减通知轮数
-    if (this.state.luckNotificationRounds > 0) {
-      this.state.luckNotificationRounds--
+    const currentRound = getRoundSequence(context)
+    if (currentRound !== this._lastProcessedRound) {
+      this._lastProcessedRound = currentRound
+      // 天象跨域效果与通知衰减每个真实回合只执行一次；重复 collect/预生成不得重复消费。
+      this._applyCelestialLuckEffect(context)
+      if (this.state.luckNotificationRounds > 0) {
+        this.state.luckNotificationRounds--
+      }
     }
 
     return {
@@ -167,5 +172,47 @@ export class LuckSystem implements ISubSystem {
 
   reset(): void {
     this.state = this.createInitialState()
+    this._lastProcessedRound = -1
   }
+
+  hydrateFromStore(): void {
+    this.restoreCollectedState(usePowerSystemStore.getState().luck)
+  }
+
+  restoreCollectedState(snapshot: unknown): void {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
+    const value = snapshot as Partial<LuckState>
+    if (
+      typeof value.luck !== 'number'
+      || !value.modifiers
+      || typeof value.luckNotificationRounds !== 'number'
+      || typeof value.luckNotificationText !== 'string'
+    ) return
+    this.state = structuredClone({
+      luck: value.luck,
+      modifiers: value.modifiers,
+      luckNotificationRounds: value.luckNotificationRounds,
+      luckNotificationText: value.luckNotificationText,
+    })
+    this._lastProcessedRound = -1
+  }
+
+  capturePreviewState(): unknown {
+    return structuredClone({ state: this.state, lastProcessedRound: this._lastProcessedRound })
+  }
+
+  restorePreviewState(snapshot: unknown): void {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
+    const value = snapshot as { state?: LuckState; lastProcessedRound?: number }
+    this.restoreCollectedState(value.state)
+    if (typeof value.lastProcessedRound === 'number') this._lastProcessedRound = value.lastProcessedRound
+  }
+}
+
+let runtimeLuckSystem: LuckSystem | undefined
+
+/** Loader 与引擎共享的懒加载气运单例。 */
+export function getLuckSystem(): LuckSystem {
+  runtimeLuckSystem ??= new LuckSystem()
+  return runtimeLuckSystem
 }

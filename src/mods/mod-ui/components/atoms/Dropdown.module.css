@@ -74,16 +74,28 @@
 
 /* ===== 选项 ===== */
 .option {
+  display: block;
+  width: 100%;
   padding: 8px 12px;
+  border: 0;
+  background: transparent;
   font-size: 13px;
+  font-family: inherit;
   color: var(--color-text-primary);
   cursor: pointer;
   transition: background 0.1s;
+  text-align: left;
   word-break: break-all;
 }
 
-.option:hover {
+.option:hover,
+.option:focus-visible {
   background: var(--color-bg-secondary);
+}
+
+.option:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: -2px;
 }
 
 .optionSelected {

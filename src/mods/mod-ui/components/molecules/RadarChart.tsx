@@ -2,7 +2,7 @@
 
 /**
  * @module RadarChart.tsx
- * @description 五维评分雷达图分子组件 —— SVG 绘制五边形雷达图
+ * @description 多维评分雷达图分子组件 —— 根据输入维度绘制等边雷达图
  * @mod mod-ui
  *
  * Apple HIG 设计原则：
@@ -11,8 +11,6 @@
  *
  * 来源：废弃项目 pages/game-over/game-over-radar.tsx
  */
-
-'use client'
 
 export interface RadarDimension {
   /** 维度标签 */
@@ -24,7 +22,7 @@ export interface RadarDimension {
 }
 
 export interface RadarChartProps {
-  /** 五维数据 */
+  /** 多维数据 */
   dimensions: RadarDimension[]
   /** 图表尺寸（默认 280） */
   size?: number
@@ -34,13 +32,12 @@ export interface RadarChartProps {
   className?: string
 }
 
-/** 默认五维（体魄/心智/悟性/魅力/魅力） */
+/** 默认四维（体魄/心智/悟性/魅力） */
 export const DEFAULT_DIMENSIONS: RadarDimension[] = [
   { label: '体魄', value: 50 },
   { label: '心智', value: 50 },
   { label: '悟性', value: 50 },
   { label: '魅力', value: 50 },
-  { label: '出身', value: 50 },
 ]
 
 export function RadarChart({

@@ -39,4 +39,4 @@ export {
 } from './utils/world-coherence-inference'
 export { formatWorldTagsText } from './constants/world-tag-defaults'
 export { WorldInitSystem } from './subsystems/world-init-system'
-export { WorldEntitySystem } from './subsystems/world-entity-system'
+export { WorldEntitySystem, getWorldEntitySystem } from './subsystems/world-entity-system'

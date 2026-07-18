@@ -266,7 +266,6 @@ export class MemoryEngineSystem implements ISubSystem {
       const data = charBase.data as Record<string, unknown>
       if (data.current) {
         const attrs = data.current as Record<string, number>
-        this.updateWealthFromAttrs(attrs)
         this.updateReputationFromAttrs(attrs)
       }
     }
@@ -675,16 +674,6 @@ export class MemoryEngineSystem implements ISubSystem {
       // 保持最多 50 条事件记录
       if (this.memory.majorEvents.length > 50) {
         this.memory.majorEvents.shift()
-      }
-    }
-  }
-
-  private updateWealthFromAttrs(attrs: Record<string, number>): void {
-    const resources = attrs.resources || 0
-    if (resources !== 0) {
-      this.memory.wealth = {
-        description: this.getWealthDescription(resources * 1000),
-        level: Math.min(10, Math.floor(resources / 2)),
       }
     }
   }

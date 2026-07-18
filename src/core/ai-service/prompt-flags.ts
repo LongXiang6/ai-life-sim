@@ -25,9 +25,6 @@ export const KV_CONVERSATION_WINDOW = 6
 /** year×N 达到此 tick 数时注入 bridge summary */
 export const BRIDGE_SUMMARY_MIN_TICKS = 10
 
-/** 叙事减寿关键词检测（Round N 叙事 → Round N+1 lifespan） */
-export const LIFESPAN_NARRATIVE_REDUCTION_ENABLED = true
-
 /** 实验性时间步进 UI（日/月/季步进，默认开启） */
 export const EXPERIMENTAL_TIME_STEPS_UI = true
 

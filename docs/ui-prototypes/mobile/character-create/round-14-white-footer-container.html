@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>角色创建 · 纯白操作承托</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f5f7;
+      --ink: #15181d;
+      --muted: #69707a;
+      --serif: "Songti SC", "STSong", "SimSun", serif;
+      --sans: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { background: var(--bg); }
+    body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 14px; }
+    button, input, textarea, select { font: inherit; color: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid rgba(105, 126, 153, .48); outline-offset: 2px; }
+    a { color: inherit; text-decoration: none; }
+    svg { display: block; }
+
+    .review-shell { width: min(100%, 1440px); margin: 0 auto; padding: 22px 12px 36px; }
+    .review-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 22px; padding: 0 5px 19px; }
+    .review-back { display: inline-flex; min-height: 34px; align-items: center; margin-bottom: 7px; color: var(--muted); font-size: 11px; }
+    .review-head h1 { margin: 0; font-family: var(--serif); font-size: 28px; font-weight: 600; line-height: 1.24; }
+    .review-intro { max-width: 78em; margin: 8px 0 0; color: var(--muted); font-size: 11.5px; line-height: 1.72; }
+    .review-status { padding-bottom: 2px; color: #78807b; font-size: 10px; line-height: 1.5; text-align: right; }
+    .review-status strong { display: block; color: var(--ink); font-family: var(--serif); font-size: 13.5px; font-weight: 600; }
+    .candidate-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; }
+    .candidate { min-width: 0; padding: 11px 9px 15px; border: 1px solid #e8eaed; border-radius: 18px; background: #fff; box-shadow: 0 10px 30px rgba(17, 24, 39, .035); transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease; }
+    .candidate:hover { transform: translateY(-2px); }
+    .candidate.selected { border-color: #8e9dad; box-shadow: 0 0 0 3px rgba(113, 130, 153, .12), 0 13px 34px rgba(17, 24, 39, .065); }
+    .candidate-meta { display: grid; min-height: 98px; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; padding: 2px 4px 11px; }
+    .candidate-code { color: #6f7884; font-size: 9px; font-weight: 700; }
+    .candidate-title { margin: 5px 0 0; font-family: var(--serif); font-size: 16px; font-weight: 600; }
+    .candidate-note { margin: 4px 0 0; color: #7b838e; font-size: 9px; line-height: 1.45; }
+    .candidate-pick { min-height: 34px; padding: 5px 0 5px 8px; border: 0; background: transparent; color: #6c7580; cursor: pointer; font-size: 9px; }
+    .candidate-pick[aria-pressed="true"] { color: #52677f; font-weight: 700; }
+
+    .phone {
+      --page: #fff;
+      --surface: #fff;
+      --soft: #f6f8fa;
+      --ink: #15181d;
+      --ink-soft: #606874;
+      --ink-faint: #9299a3;
+      --line: #e4e8ec;
+      --accent: #697e99;
+      --accent-soft: #eaf0f6;
+      position: relative;
+      width: min(100%, 320px);
+      height: 674px;
+      margin: 0 auto;
+      overflow: hidden;
+      border: 1px solid #dfe3e8;
+      border-radius: 34px;
+      background: var(--page);
+      box-shadow: 0 20px 48px rgba(17, 24, 39, .105);
+      color: var(--ink);
+      isolation: isolate;
+    }
+
+    .screen { position: absolute; z-index: 2; inset: 0 0 70px; overflow: hidden; padding: 14px 15px 8px; }
+    .screen-top { display: flex; justify-content: space-between; color: var(--ink-faint); font-size: 6.2px; font-weight: 650; }
+    .title-row { display: flex; align-items: end; justify-content: space-between; margin-top: 7px; }
+    .title-row h2 { margin: 0; font-size: 21px; font-weight: 700; line-height: 1.15; }
+    .title-row p { margin: 4px 0 0; color: var(--ink-soft); font-size: 7px; }
+    .title-mark { display: grid; width: 30px; height: 30px; place-items: center; border: 1px solid #e2e6ea; border-radius: 10px; color: var(--accent); font-family: var(--serif); font-size: 10px; }
+
+    .summary { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 9px; margin-top: 10px; padding: 10px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: 0 8px 24px rgba(17, 24, 39, .04); }
+    .avatar { display: grid; width: 38px; height: 38px; place-items: center; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-family: var(--serif); font-size: 13px; }
+    .summary-copy { align-self: center; min-width: 0; }
+    .summary-copy strong { display: block; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+    .summary-copy p { margin: 4px 0 0; overflow: hidden; color: var(--ink-soft); font-size: 6.5px; text-overflow: ellipsis; white-space: nowrap; }
+    .facts { display: grid; grid-column: 1 / -1; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin-top: 1px; }
+    .fact { padding: 6px 7px; border-radius: 8px; background: var(--soft); }
+    .fact span, .fact strong { display: block; }
+    .fact span { color: var(--ink-faint); font-size: 5.5px; }
+    .fact strong { margin-top: 3px; overflow: hidden; color: var(--ink-soft); font-size: 6.5px; text-overflow: ellipsis; white-space: nowrap; }
+
+    .workspace { margin-top: 9px; }
+    .section-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+    .section-tabs button { display: grid; min-width: 0; min-height: 34px; place-items: center; padding: 4px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink-faint); cursor: pointer; font-size: 6.5px; line-height: 1.2; }
+    .section-tabs button[aria-selected="true"] { border-color: #d5dee8; background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+    .tab-number { display: none; }
+    .forms { margin-top: 7px; }
+    .edit-panel { display: none; }
+    .edit-panel.is-active { display: block; min-height: 198px; padding: 12px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: 0 8px 22px rgba(17, 24, 39, .035); }
+    .panel-head { display: flex; align-items: start; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .panel-title strong { display: block; font-family: var(--serif); font-size: 11px; font-weight: 600; }
+    .panel-title span { display: block; margin-top: 3px; color: var(--ink-faint); font-size: 5.8px; }
+    .panel-progress { color: var(--ink-faint); font-size: 6px; font-variant-numeric: tabular-nums; }
+    .name-row { display: grid; grid-template-columns: minmax(0, 1fr) 54px; gap: 5px; }
+    .field { width: 100%; height: 32px; padding: 0 8px; border: 1px solid #e1e6ea; border-radius: 9px; outline: 0; background: #fff; color: var(--ink); font-size: 7px; }
+    .random { height: 32px; border: 1px solid #dfe4e8; border-radius: 9px; background: var(--soft); color: var(--accent); cursor: pointer; font-size: 6.5px; }
+    .choice-row { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 11px; }
+    .choice-label { display: block; margin-bottom: 5px; color: var(--ink-faint); font-size: 5.8px; }
+    .chips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; }
+    .chips.race { grid-template-columns: 1fr 1fr; }
+    .chip { min-height: 29px; padding: 3px; border: 1px solid #e3e7eb; border-radius: 8px; background: #fff; color: var(--ink-soft); cursor: pointer; font-size: 6.2px; }
+    .chip.active { border-color: #d1dbe5; background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+    .caption { margin-top: 5px; color: var(--ink-faint); font-size: 5.5px; line-height: 1.35; }
+    .life-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .life-grid label, .background-label { color: var(--ink-faint); font-size: 5.8px; }
+    .life-grid .field { margin-top: 5px; }
+    .life-note { margin: 12px 0 0; padding: 9px 10px; border-radius: 10px; background: var(--soft); color: var(--ink-soft); font-family: var(--serif); font-size: 6.5px; line-height: 1.55; }
+    .background { height: 112px; margin-top: 5px; padding: 9px; resize: none; line-height: 1.55; }
+    .background-foot { display: flex; justify-content: space-between; margin-top: 6px; color: var(--ink-faint); font-size: 5.5px; }
+
+    .bottom-bar { position: absolute; z-index: 15; right: 12px; bottom: 9px; left: 12px; border: 1px solid #e7e9ec; border-radius: 18px; background: rgba(255, 255, 255, .9); box-shadow: 0 8px 24px rgba(17, 24, 39, .07); backdrop-filter: blur(14px); }
+    .chapter-nav { display: flex; min-height: 52px; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 7px; }
+    .back-button { display: grid; flex: 0 0 36px; width: 36px; height: 36px; place-items: center; padding: 0; border: 1px solid #e6e9ec; border-radius: 50%; background: #f8f9fa; color: var(--ink-soft); cursor: pointer; }
+    .back-button svg { width: 17px; height: 17px; }
+    .chapter-action { display: flex; min-width: 0; min-height: 48px; flex: 1; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 1px; border: 0; background: transparent; color: var(--ink); cursor: pointer; text-align: left; }
+    .action-number { width: 20px; color: var(--ink-faint); font-size: 6.2px; font-variant-numeric: tabular-nums; }
+    .action-copy { min-width: 0; flex: 1; }
+    .action-copy strong, .action-copy small { display: block; }
+    .action-copy strong { font-size: 12.2px; font-weight: 680; line-height: 1.2; }
+    .action-copy small { margin-top: 3px; overflow: hidden; color: var(--ink-faint); font-size: 6.2px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+    .action-arrow { width: 15px; height: 15px; padding: 5px; border-radius: 50%; background: var(--accent); box-sizing: content-box; color: #fff; }
+    .back-button path, .action-arrow path { fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .phone-toast { position: absolute; z-index: 20; right: 18px; bottom: 77px; left: 18px; padding: 8px 9px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 7px; text-align: center; opacity: 0; pointer-events: none; transform: translateY(5px); transition: opacity 160ms ease, transform 160ms ease; }
+    .phone-toast.show { opacity: 1; transform: none; }
+
+    .geometry-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+    .scenery-art { position: absolute; z-index: 1; inset: 0; overflow: hidden; pointer-events: none; }
+    .corner-medallion { position: absolute; width: var(--medallion-size, 118px); height: var(--medallion-size, 118px); color: #74878b; opacity: var(--medallion-opacity, .1); }
+    .corner-medallion use { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
+    .medallion-tl { top: 0; left: 0; transform: translate(-50%, -50%); }
+    .medallion-tr { top: 0; right: 0; transform: translate(50%, -50%); }
+    .medallion-bl { bottom: 0; left: 0; transform: translate(-50%, 50%); }
+    .medallion-br { right: 0; bottom: 0; transform: translate(50%, 50%); }
+    .ink-wash { position: absolute; right: -10px; bottom: var(--ink-bottom, 62px); width: 340px; height: var(--ink-height, 204px); opacity: var(--ink-opacity, .7); }
+    .ink-wash .wash-far { fill: #51615e; opacity: .032; }
+    .ink-wash .wash-mist { fill: #73817e; opacity: .03; }
+    .ink-wash .wash-mid { fill: #485753; opacity: .042; }
+    .ink-wash .wash-near { fill: #6b7975; opacity: .033; }
+    .ink-wash .wash-line, .ink-wash .wash-ripple { fill: none; stroke: #53625e; stroke-linecap: round; }
+    .ink-wash .wash-line { stroke-width: .85; opacity: .055; }
+    .ink-wash .wash-ripple { stroke-width: .65; opacity: .04; }
+    .theme-cool-tabs .section-tabs { padding: 3px; border-radius: 12px; background: var(--soft); }
+    .theme-cool-tabs .section-tabs button { min-height: 31px; border-color: transparent; background: transparent; }
+    .theme-cool-tabs .section-tabs button[aria-selected="true"] { border-color: #e1e6eb; background: #fff; box-shadow: 0 3px 10px rgba(17, 24, 39, .045); }
+    .theme-cool-tabs .edit-panel.is-active { min-height: 204px; }
+    .title-heading { display: flex; align-items: center; gap: 7px; }
+    .title-flourish { display: none; width: 34px; height: 9px; color: #70859a; }
+    .title-mark { position: relative; overflow: visible; }
+    .title-mark span { position: relative; z-index: 2; display: grid; width: 17px; height: 17px; place-items: center; border-radius: 50%; background: rgba(255, 255, 255, .94); }
+    .mark-geometry { position: absolute; z-index: 1; inset: -6px; display: none; width: 42px; height: 42px; color: #70859a; }
+    .summary { position: relative; overflow: hidden; }
+    .summary-band { position: absolute; top: 2px; right: 16px; left: 58px; display: none; width: auto; height: 6px; color: #8597a8; opacity: .34; }
+    .avatar-wrap { position: relative; width: 38px; height: 38px; }
+    .avatar-geometry { position: absolute; inset: -6px; display: none; width: 50px; height: 50px; color: #718898; }
+    .avatar-wrap .avatar { position: relative; z-index: 1; }
+    .tab-geometry { display: none; width: 10px; height: 10px; color: #718898; }
+    .panel-name { display: flex; align-items: center; gap: 5px; }
+    .heading-geometry { display: none; width: 18px; height: 7px; color: #7d8f9f; }
+    .action-number { position: relative; }
+    .action-number span { position: relative; z-index: 1; }
+    .action-geometry { position: absolute; top: 50%; left: 50%; display: none; width: 22px; height: 22px; color: #7b8e9f; transform: translate(-50%, -50%); }
+
+    /* The selected RF4-2 base is fixed across this round. */
+    .theme-pearl-tabs .mark-geometry, .theme-pearl-tabs .title-flourish, .theme-pearl-tabs .tab-geometry { display: block; }
+    .theme-pearl-tabs .mark-geometry { opacity: .32; }
+    .theme-pearl-tabs .title-flourish { opacity: .48; }
+    .theme-pearl-tabs .section-tabs button { grid-template-columns: 11px auto; gap: 3px; }
+    .theme-pearl-tabs .section-tabs button .tab-geometry { opacity: .18; }
+    .theme-pearl-tabs .section-tabs button[aria-selected="true"] .tab-geometry { opacity: .78; }
+
+    /* 01: a restrained quarter medallion with the lightest four-layer wash. */
+    .art-quarter-lotus { --medallion-size: 118px; --medallion-opacity: .12; --ink-height: 198px; --ink-opacity: .64; }
+
+    /* 02: the pearl-and-lotus wheel extends farther into each corner. */
+    .art-quarter-pearl { --medallion-size: 136px; --medallion-opacity: .135; --ink-height: 208px; --ink-opacity: .74; }
+    .art-quarter-pearl .ink-wash { right: -18px; }
+
+    /* 03: a deeper caisson wheel and a wider middle ridge. */
+    .art-quarter-caisson { --medallion-size: 154px; --medallion-opacity: .15; --ink-height: 218px; --ink-opacity: .84; }
+    .art-quarter-caisson .ink-wash { right: -4px; width: 350px; }
+
+    /* 04: the fullest radial geometry and deepest ink layering, still pale. */
+    .art-quarter-mandala { --medallion-size: 174px; --medallion-opacity: .17; --ink-height: 230px; --ink-opacity: .96; }
+    .art-quarter-mandala .ink-wash { right: -16px; width: 360px; }
+
+    /* All four candidates inherit RF6-3. Only the wash-to-footer relationship changes. */
+    .footer-mist-frame { --ink-bottom: 12px; }
+    .footer-mist-frame .bottom-bar { border-color: transparent; background: rgba(255, 255, 255, .32); box-shadow: none; backdrop-filter: blur(9px); }
+
+    .footer-soft-bridge { --ink-bottom: 4px; }
+    .footer-soft-bridge .bottom-bar { border-color: transparent; background: rgba(255, 255, 255, .18); box-shadow: none; backdrop-filter: blur(7px); }
+
+    .footer-ink-continuity { --ink-bottom: -4px; }
+    .footer-ink-continuity .bottom-bar { border-color: transparent; background: rgba(255, 255, 255, .08); box-shadow: none; backdrop-filter: blur(4px); }
+
+    .footer-open-page { --ink-bottom: -12px; }
+    .footer-open-page .bottom-bar { border-color: transparent; background: transparent; box-shadow: none; backdrop-filter: none; }
+    .footer-open-page .chapter-nav { padding-right: 2px; padding-left: 2px; }
+
+    /* Shared RF7-4 polish: quiet the lower motifs and lift actions off the edge. */
+    .detail-footer { --lower-medallion-opacity: .08; --lower-medallion-shift: 0px; --footer-bottom: 13px; --footer-inset: 15px; }
+    .detail-footer .medallion-tl { opacity: .115; }
+    .detail-footer .medallion-bl, .detail-footer .medallion-br { opacity: var(--lower-medallion-opacity); }
+    .detail-footer .medallion-bl { transform: translate(-50%, 50%) translateY(var(--lower-medallion-shift)); }
+    .detail-footer .medallion-br { transform: translate(50%, 50%) translateY(var(--lower-medallion-shift)); }
+    .detail-footer .bottom-bar { right: var(--footer-inset); bottom: var(--footer-bottom); left: var(--footer-inset); }
+    .detail-footer .action-copy small { margin-top: 2px; }
+
+    .detail-light-avoid { --lower-medallion-opacity: .09; --lower-medallion-shift: 0px; --footer-bottom: 12px; --footer-inset: 14px; --ink-bottom: -14px; }
+
+    .detail-breathing-align { --lower-medallion-opacity: .075; --lower-medallion-shift: 0px; --footer-bottom: 14px; --footer-inset: 16px; --ink-bottom: -15px; }
+    .detail-breathing-align .chapter-nav { gap: 10px; }
+    .detail-breathing-align .action-number { width: 18px; }
+
+    .detail-action-focus { --lower-medallion-opacity: .064; --lower-medallion-shift: 0px; --footer-bottom: 14px; --footer-inset: 16px; --ink-bottom: -16px; }
+    .detail-action-focus .chapter-action { gap: 7px; }
+    .detail-action-focus .action-number { width: 18px; }
+    .detail-action-focus .action-copy strong { font-size: 12.5px; }
+    .detail-action-focus .action-copy small { color: #9aa1aa; font-size: 6px; }
+
+    .detail-quiet-colophon { --lower-medallion-opacity: .05; --lower-medallion-shift: 0px; --footer-bottom: 15px; --footer-inset: 18px; --ink-bottom: -18px; --ink-opacity: .79; }
+    .detail-quiet-colophon .chapter-nav { min-height: 50px; gap: 9px; }
+    .detail-quiet-colophon .action-number { width: 18px; }
+    .detail-quiet-colophon .action-copy small { color: #9da4ac; }
+
+    /* RF9 keeps every primary surface true white; color only marks selection. */
+    .white-round {
+      --page: #fff;
+      --surface: #fff;
+      --soft: #f7f8f9;
+      --ink: #17191d;
+      --ink-soft: #626870;
+      --ink-faint: #969ba2;
+      --line: #e5e7ea;
+      --accent: #6d7f94;
+      --accent-soft: #f0f3f6;
+      --lower-medallion-opacity: .065;
+      --lower-medallion-shift: 0px;
+      --ink-bottom: -16px;
+      background: #fff;
+    }
+    .white-round .summary,
+    .white-round .edit-panel.is-active,
+    .white-round .field,
+    .white-round .chip,
+    .white-round .theme-cool-tabs .section-tabs button[aria-selected="true"] { background: #fff; }
+    .white-round .corner-medallion { color: #7f858a; }
+    .white-round .ink-wash .wash-far { fill: #555b60; }
+    .white-round .ink-wash .wash-mist { fill: #72777c; }
+    .white-round .ink-wash .wash-mid { fill: #4f555a; }
+    .white-round .ink-wash .wash-near { fill: #686e73; }
+    .white-round .ink-wash .wash-line,
+    .white-round .ink-wash .wash-ripple { stroke: #5d6368; }
+    .white-round.footer-open-page .bottom-bar {
+      background: #fff;
+      backdrop-filter: none;
+    }
+    .white-round .back-button { background: #fff; }
+    .white-round .chapter-nav { padding-right: 7px; padding-left: 7px; }
+
+    .footer-white-support {
+      --footer-bottom: 12px;
+      --footer-inset: 14px;
+    }
+    .footer-white-support.footer-open-page .bottom-bar {
+      border-color: #e3e5e8;
+      border-radius: 18px;
+      box-shadow: 0 9px 26px rgba(24, 28, 34, .08);
+    }
+
+    .footer-white-rail {
+      --footer-bottom: 13px;
+      --footer-inset: 21px;
+    }
+    .footer-white-rail.footer-open-page .bottom-bar {
+      border-color: #e5e7e9;
+      border-radius: 16px;
+      box-shadow: 0 7px 22px rgba(24, 28, 34, .075);
+    }
+    .footer-white-rail .chapter-nav { gap: 10px; padding-right: 8px; padding-left: 8px; }
+    .footer-white-rail .action-number { width: 18px; }
+
+    .footer-white-lift {
+      --footer-bottom: 14px;
+      --footer-inset: 18px;
+      --lower-medallion-opacity: .052;
+    }
+    .footer-white-lift.footer-open-page .bottom-bar {
+      border-color: transparent;
+      border-radius: 20px;
+      box-shadow: 0 12px 30px rgba(24, 28, 34, .105);
+    }
+    .footer-white-lift .chapter-nav { gap: 9px; padding-right: 8px; padding-left: 8px; }
+    .footer-white-lift .action-number { width: 18px; }
+    .footer-white-lift .action-copy small { color: #9da2a8; }
+
+    .footer-white-capsule {
+      --footer-bottom: 15px;
+      --footer-inset: 27px;
+      --lower-medallion-opacity: .045;
+      --ink-bottom: -19px;
+    }
+    .footer-white-capsule.footer-open-page .bottom-bar {
+      border-color: #e6e8ea;
+      border-radius: 999px;
+      box-shadow: 0 10px 28px rgba(24, 28, 34, .095);
+    }
+    .footer-white-capsule .chapter-nav { min-height: 50px; gap: 8px; padding-right: 7px; padding-left: 7px; }
+    .footer-white-capsule .back-button { flex-basis: 36px; width: 36px; height: 36px; }
+    .footer-white-capsule .action-number { display: none; }
+    .footer-white-capsule .action-copy strong { font-size: 12px; }
+    .footer-white-capsule .action-copy small { color: #9da2a8; font-size: 5.8px; }
+
+    @media (max-width: 1099px) {
+      .candidate-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .candidate-meta { min-height: 91px; }
+    }
+
+    @media (max-width: 559px) {
+      .review-shell { padding: 15px 11px 28px; }
+      .review-head { grid-template-columns: 1fr; gap: 9px; padding-right: 3px; padding-left: 3px; }
+      .review-head h1 { font-size: 24px; }
+      .review-status { text-align: left; }
+      .candidate-grid { grid-template-columns: 1fr; }
+      .candidate { padding-right: 8px; padding-left: 8px; }
+      .candidate-meta { min-height: 0; padding: 3px 4px 12px; }
+      .phone { width: min(100%, 330px); }
+    }
+
+    @media (max-width: 389px) {
+      .review-shell { padding-right: 9px; padding-left: 9px; }
+      .phone { width: min(100%, 326px); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="review-shell">
+    <header class="review-head">
+      <div>
+        <a class="review-back" href="index.html">← 返回角色创建历史</a>
+        <h1>角色创建 · 纯白操作承托</h1>
+        <p class="review-intro">固定继承已选 CC-RF8-1 的信息结构、藻井曼轮与下移云山。四版把主页面、摘要、编辑区和底部操作容器全部统一为纯白，只用极淡中性灰区分层次，并比较白色承托栏从稳妥恢复到紧凑胶囊的不同收尾方式。</p>
+      </div>
+      <div class="review-status"><strong data-review-selection>当前选择 · CC-RF9-1</strong>待用户选择 · 01 最稳妥 / 04 最大胆</div>
+    </header>
+
+    <section class="candidate-grid" aria-label="角色创建纯白底部容器候选">
+      <article class="candidate selected" data-choice="CC-RF9-1">
+        <header class="candidate-meta"><div><div class="candidate-code">CC-RF9-1 · 最稳妥</div><h2 class="candidate-title">白纸承托</h2><p class="candidate-note">恢复原尺寸白色容器，以极细中性边框和轻投影承托返回与确认，其余布局保持。</p></div><button class="candidate-pick" type="button" aria-pressed="true">已选此案</button></header>
+        <section class="phone theme-cool-tabs theme-pearl-tabs art-quarter-caisson footer-open-page detail-footer white-round footer-white-support" data-app="cc-rf9-1"></section>
+      </article>
+      <article class="candidate" data-choice="CC-RF9-2">
+        <header class="candidate-meta"><div><div class="candidate-code">CC-RF9-2 · 收窄</div><h2 class="candidate-title">内收白栏</h2><p class="candidate-note">容器左右再留 7px 空气，收紧步骤与文案间距，让白色操作栏更像页内控件。</p></div><button class="candidate-pick" type="button" aria-pressed="false">选择此案</button></header>
+        <section class="phone theme-cool-tabs theme-pearl-tabs art-quarter-caisson footer-open-page detail-footer white-round footer-white-rail" data-app="cc-rf9-2"></section>
+      </article>
+      <article class="candidate" data-choice="CC-RF9-3">
+        <header class="candidate-meta"><div><div class="candidate-code">CC-RF9-3 · 轻悬浮</div><h2 class="candidate-title">无界白托</h2><p class="candidate-note">取消容器描边，仅用柔和投影建立白色层级，底部装饰同步后退，视觉更轻。</p></div><button class="candidate-pick" type="button" aria-pressed="false">选择此案</button></header>
+        <section class="phone theme-cool-tabs theme-pearl-tabs art-quarter-caisson footer-open-page detail-footer white-round footer-white-lift" data-app="cc-rf9-3"></section>
+      </article>
+      <article class="candidate" data-choice="CC-RF9-4">
+        <header class="candidate-meta"><div><div class="candidate-code">CC-RF9-4 · 最大胆</div><h2 class="candidate-title">白色胶囊</h2><p class="candidate-note">缩成紧凑圆角胶囊并隐藏步骤号，集中呈现返回、确认与去向，仍保留完整操作语义。</p></div><button class="candidate-pick" type="button" aria-pressed="false">选择此案</button></header>
+        <section class="phone theme-cool-tabs theme-pearl-tabs art-quarter-caisson footer-open-page detail-footer white-round footer-white-capsule" data-app="cc-rf9-4"></section>
+      </article>
+    </section>
+  </main>
+
+  <svg class="geometry-defs" aria-hidden="true" focusable="false">
+    <symbol id="lotus-eight" viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width=".9">
+      <g transform="translate(16 16)"><ellipse cx="0" cy="-6.5" rx="2.6" ry="6.5"/><ellipse cx="0" cy="-6.5" rx="2.6" ry="6.5" transform="rotate(45)"/><ellipse cx="0" cy="-6.5" rx="2.6" ry="6.5" transform="rotate(90)"/><ellipse cx="0" cy="-6.5" rx="2.6" ry="6.5" transform="rotate(135)"/><ellipse cx="0" cy="-6.5" rx="2.6" ry="6.5" transform="rotate(180)"/><ellipse cx="0" cy="-6.5" rx="2.6" ry="6.5" transform="rotate(225)"/><ellipse cx="0" cy="-6.5" rx="2.6" ry="6.5" transform="rotate(270)"/><ellipse cx="0" cy="-6.5" rx="2.6" ry="6.5" transform="rotate(315)"/><circle r="3"/><circle r="11.5" stroke-width=".55"/></g>
+    </symbol>
+    <symbol id="caisson-square" viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width=".8">
+      <rect x="5" y="5" width="30" height="30" rx="7"/><path d="m20 7 13 13-13 13L7 20Z"/><circle cx="20" cy="20" r="8.5"/><circle cx="20" cy="20" r="2.4" fill="currentColor" stroke="none"/><circle cx="20" cy="7" r="1.2" fill="currentColor" stroke="none"/><circle cx="33" cy="20" r="1.2" fill="currentColor" stroke="none"/><circle cx="20" cy="33" r="1.2" fill="currentColor" stroke="none"/><circle cx="7" cy="20" r="1.2" fill="currentColor" stroke="none"/>
+    </symbol>
+    <symbol id="diamond-chain" viewBox="0 0 48 12" fill="none" stroke="currentColor" stroke-width=".75">
+      <path d="M2 6h44M10 2l4 4-4 4-4-4ZM24 2l4 4-4 4-4-4ZM38 2l4 4-4 4-4-4Z"/><circle cx="3" cy="6" r="1" fill="currentColor" stroke="none"/><circle cx="45" cy="6" r="1" fill="currentColor" stroke="none"/>
+    </symbol>
+    <symbol id="pearl-band" viewBox="0 0 240 10" fill="none" stroke="currentColor" stroke-width=".55">
+      <path d="M5 5h230"/><g fill="white"><circle cx="8" cy="5" r="2.2"/><circle cx="22" cy="5" r="2.2"/><circle cx="36" cy="5" r="2.2"/><circle cx="50" cy="5" r="2.2"/><circle cx="64" cy="5" r="2.2"/><circle cx="78" cy="5" r="2.2"/><circle cx="92" cy="5" r="2.2"/><circle cx="106" cy="5" r="2.2"/><circle cx="120" cy="5" r="2.2"/><circle cx="134" cy="5" r="2.2"/><circle cx="148" cy="5" r="2.2"/><circle cx="162" cy="5" r="2.2"/><circle cx="176" cy="5" r="2.2"/><circle cx="190" cy="5" r="2.2"/><circle cx="204" cy="5" r="2.2"/><circle cx="218" cy="5" r="2.2"/><circle cx="232" cy="5" r="2.2"/></g>
+    </symbol>
+    <symbol id="radial-medallion" viewBox="0 0 160 160" fill="none" stroke="currentColor" stroke-width=".72">
+      <g transform="translate(80 80)">
+        <circle r="75"/><circle r="70"/><circle r="64" stroke-dasharray="1 5" stroke-width="1.15"/><circle r="57"/><circle r="45"/><circle r="31"/><circle r="17"/>
+        <path d="M0-70 5-60 0-49-5-60Z"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(22.5)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(45)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(67.5)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(90)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(112.5)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(135)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(157.5)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(180)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(202.5)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(225)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(247.5)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(270)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(292.5)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(315)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(337.5)"/>
+        <path d="M0-55V-32M0 55V32M-55 0h23M55 0H32M-39-39l16 16M39-39 23-23M39 39 23 23M-39 39l16-16" opacity=".72"/>
+        <path d="M0-45 9-35 0-25-9-35Z"/><path d="M0-45 9-35 0-25-9-35Z" transform="rotate(45)"/><path d="M0-45 9-35 0-25-9-35Z" transform="rotate(90)"/><path d="M0-45 9-35 0-25-9-35Z" transform="rotate(135)"/><path d="M0-45 9-35 0-25-9-35Z" transform="rotate(180)"/><path d="M0-45 9-35 0-25-9-35Z" transform="rotate(225)"/><path d="M0-45 9-35 0-25-9-35Z" transform="rotate(270)"/><path d="M0-45 9-35 0-25-9-35Z" transform="rotate(315)"/>
+        <ellipse cy="-18" rx="6" ry="16"/><ellipse cy="-18" rx="6" ry="16" transform="rotate(45)"/><ellipse cy="-18" rx="6" ry="16" transform="rotate(90)"/><ellipse cy="-18" rx="6" ry="16" transform="rotate(135)"/><ellipse cy="-18" rx="6" ry="16" transform="rotate(180)"/><ellipse cy="-18" rx="6" ry="16" transform="rotate(225)"/><ellipse cy="-18" rx="6" ry="16" transform="rotate(270)"/><ellipse cy="-18" rx="6" ry="16" transform="rotate(315)"/>
+        <rect x="-12" y="-12" width="24" height="24" transform="rotate(45)"/><circle r="5"/><circle r="1.8" fill="currentColor" stroke="none"/>
+      </g>
+    </symbol>
+  </svg>
+
+  <template id="character-template">
+    <div class="scenery-art" aria-hidden="true">
+      <svg class="corner-medallion medallion-tl" viewBox="0 0 160 160"><use href="#radial-medallion"/></svg>
+      <svg class="corner-medallion medallion-tr" viewBox="0 0 160 160"><use href="#radial-medallion"/></svg>
+      <svg class="corner-medallion medallion-bl" viewBox="0 0 160 160"><use href="#radial-medallion"/></svg>
+      <svg class="corner-medallion medallion-br" viewBox="0 0 160 160"><use href="#radial-medallion"/></svg>
+      <svg class="ink-wash" viewBox="0 0 340 220" preserveAspectRatio="xMidYMax meet">
+        <path class="wash-far" d="M0 170c25-16 48-21 72-14 18-26 39-39 62-35 19-39 47-61 77-54 18-26 40-35 63-25 22-16 44-18 66-9v187H0Z"/>
+        <path class="wash-mist" d="M0 181c34-12 63-13 89-4 24-25 50-34 78-25 28-25 59-31 92-16 27-18 54-20 81-11v95H0Z"/>
+        <path class="wash-mid" d="M0 190c31-18 62-20 92-8 24-22 51-29 79-19 28-23 59-28 92-14 26-16 52-18 77-9v80H0Z"/>
+        <path class="wash-near" d="M0 204c36-10 68-9 98 2 33-13 66-14 99-2 32-12 64-13 96-2 18-6 34-6 47-2v20H0Z"/>
+        <path class="wash-line" d="M7 177c38-25 74-27 109-9 37-27 76-33 116-14 35-22 70-24 103-7"/>
+        <path class="wash-ripple" d="M22 201c25-5 49-5 73 0m35 8c32-5 64-5 95 0m31-9c23-4 45-4 66 0"/>
+      </svg>
+    </div>
+    <div class="screen">
+      <div class="screen-top"><span>CHARACTER CREATE · 命书</span><span>03 / 06</span></div>
+      <div class="title-row"><div><div class="title-heading"><h2>塑造角色</h2><svg class="title-flourish" viewBox="0 0 48 12" aria-hidden="true"><use href="#diamond-chain"/></svg></div><p>写下这段人生的起点。</p></div><div class="title-mark"><svg class="mark-geometry" viewBox="0 0 40 40" aria-hidden="true"><use href="#caisson-square"/></svg><span>03</span></div></div>
+      <section class="summary" aria-live="polite">
+        <svg class="summary-band" viewBox="0 0 240 10" preserveAspectRatio="none" aria-hidden="true"><use href="#pearl-band"/></svg>
+        <div class="avatar-wrap"><svg class="avatar-geometry" viewBox="0 0 32 32" aria-hidden="true"><use href="#lotus-eight"/></svg><div class="avatar">人</div></div>
+        <div class="summary-copy"><strong data-summary-name>未命名角色</strong><p data-summary-line>男性 · 人类 · 尚未填写背景</p></div>
+        <div class="facts"><div class="fact"><span>寿命</span><strong data-summary-life>80 年</strong></div><div class="fact"><span>起始</span><strong data-summary-age>出生</strong></div><div class="fact"><span>世界</span><strong>潮汐城邦</strong></div></div>
+      </section>
+      <div class="workspace">
+        <nav class="section-tabs" aria-label="角色创建章节">
+          <button type="button" data-panel-tab="identity" aria-selected="true"><svg class="tab-geometry" viewBox="0 0 32 32" aria-hidden="true"><use href="#lotus-eight"/></svg><span>核心身份</span></button>
+          <button type="button" data-panel-tab="life" aria-selected="false"><svg class="tab-geometry" viewBox="0 0 32 32" aria-hidden="true"><use href="#lotus-eight"/></svg><span>寿命起始</span></button>
+          <button type="button" data-panel-tab="background" aria-selected="false"><svg class="tab-geometry" viewBox="0 0 32 32" aria-hidden="true"><use href="#lotus-eight"/></svg><span>人生背景</span></button>
+        </nav>
+        <div class="forms">
+          <section class="edit-panel is-active" data-panel="identity">
+            <div class="panel-head"><div class="panel-title"><div class="panel-name"><svg class="heading-geometry" viewBox="0 0 48 12" aria-hidden="true"><use href="#diamond-chain"/></svg><strong>核心身份</strong></div><span>姓名、性别与种族</span></div><span class="panel-progress">01 / 03</span></div>
+            <div class="name-row"><input class="field" data-name aria-label="角色姓名" placeholder="输入角色姓名…"><button class="random" type="button" data-random>随机</button></div>
+            <div class="choice-row">
+              <div><span class="choice-label">性别</span><div class="chips" data-choice="gender"><button class="chip active" type="button" data-value="男性">男</button><button class="chip" type="button" data-value="女性">女</button><button class="chip" type="button" data-value="自定义性别">自定</button></div></div>
+              <div><span class="choice-label">种族</span><div class="chips race" data-choice="race"><button class="chip active" type="button" data-value="人类">人类</button><button class="chip" type="button" data-value="自定义种族">自定</button></div><div class="caption" data-race-caption>人类 · 基础寿命约 80 年</div></div>
+            </div>
+          </section>
+          <section class="edit-panel" data-panel="life">
+            <div class="panel-head"><div class="panel-title"><div class="panel-name"><svg class="heading-geometry" viewBox="0 0 48 12" aria-hidden="true"><use href="#diamond-chain"/></svg><strong>寿命与起始</strong></div><span>决定人生跨度与开篇时点</span></div><span class="panel-progress">02 / 03</span></div>
+            <div class="life-grid"><label>预期寿命<input class="field" data-life type="number" min="1" value="80"></label><label>起始年龄<select class="field" data-age><option>出生</option><option>18 岁</option><option>自定义</option></select></label></div>
+            <p class="life-note">寿命会影响人生阶段节奏；起始年龄决定故事从哪一页展开。</p>
+          </section>
+          <section class="edit-panel" data-panel="background">
+            <div class="panel-head"><div class="panel-title"><div class="panel-name"><svg class="heading-geometry" viewBox="0 0 48 12" aria-hidden="true"><use href="#diamond-chain"/></svg><strong>人生背景</strong></div><span>家庭、成长环境与人生起点</span></div><span class="panel-progress">03 / 03</span></div>
+            <label class="background-label">背景简述<textarea class="field background" data-background maxlength="120" aria-label="人生背景" placeholder="写下家庭、成长环境或人生起点…"></textarea></label>
+            <div class="background-foot"><span>可稍后补充</span><span data-background-count>0 / 120</span></div>
+          </section>
+        </div>
+      </div>
+    </div>
+    <footer class="bottom-bar"><div class="chapter-nav"><button class="back-button" type="button" data-action="back" aria-label="返回世界配置" title="返回世界配置"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg></button><button class="chapter-action" type="button" data-action="confirm"><span class="action-number"><svg class="action-geometry" viewBox="0 0 32 32" aria-hidden="true"><use href="#lotus-eight"/></svg><span>04</span></span><span class="action-copy"><strong>确认角色</strong><small data-action-hint>填写姓名后 · 下一步命格抽取</small></span><svg class="action-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button></div></footer>
+    <div class="phone-toast" role="status" aria-live="polite"></div>
+  </template>
+
+  <script>
+    (() => {
+      const names = ['林晚舟', '沈清衡', '顾星河', '叶知秋', '苏明远', '陈予安'];
+      const candidates = [...document.querySelectorAll('.candidate')];
+      const template = document.querySelector('#character-template');
+
+      const showToast = (app, message) => {
+        const toast = app.querySelector('.phone-toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(toast._timer);
+        toast._timer = setTimeout(() => toast.classList.remove('show'), 1400);
+      };
+
+      const openPanel = (app, key, focus = false) => {
+        app.querySelectorAll('[data-panel-tab]').forEach((button) => button.setAttribute('aria-selected', String(button.dataset.panelTab === key)));
+        app.querySelectorAll('[data-panel]').forEach((panel) => panel.classList.toggle('is-active', panel.dataset.panel === key));
+        if (focus) app.querySelector(`[data-panel-tab="${key}"]`).focus();
+      };
+
+      const wire = (app, index) => {
+        app.append(template.content.cloneNode(true));
+        const state = { nameIndex: index, gender: '男性', race: '人类' };
+        const name = app.querySelector('[data-name]');
+        const life = app.querySelector('[data-life]');
+        const age = app.querySelector('[data-age]');
+        const background = app.querySelector('[data-background]');
+
+        const update = () => {
+          app.querySelector('[data-summary-name]').textContent = name.value.trim() || '未命名角色';
+          app.querySelector('[data-summary-line]').textContent = `${state.gender} · ${state.race} · ${background.value.trim() ? '已填写背景' : '尚未填写背景'}`;
+          app.querySelector('[data-summary-life]').textContent = `${life.value || 80} 年`;
+          app.querySelector('[data-summary-age]').textContent = age.value;
+          app.querySelector('[data-background-count]').textContent = `${background.value.length} / 120`;
+          app.querySelector('[data-action-hint]').textContent = name.value.trim() ? `${name.value.trim()} · 下一步命格抽取` : '填写姓名后 · 下一步命格抽取';
+        };
+
+        app.querySelector('[data-random]').addEventListener('click', () => {
+          name.value = names[state.nameIndex++ % names.length];
+          update();
+          showToast(app, `已随机姓名 · ${name.value}`);
+        });
+
+        [name, life, age, background].forEach((field) => {
+          field.addEventListener('input', update);
+          field.addEventListener('change', update);
+        });
+
+        app.querySelectorAll('[data-choice]').forEach((group) => {
+          group.querySelectorAll('[data-value]').forEach((button) => button.addEventListener('click', () => {
+            group.querySelectorAll('[data-value]').forEach((item) => item.classList.toggle('active', item === button));
+            state[group.dataset.choice] = button.dataset.value;
+            if (group.dataset.choice === 'race') {
+              app.querySelector('[data-race-caption]').textContent = state.race === '人类' ? '人类 · 基础寿命约 80 年' : '自定义种族 · 寿命待设定';
+            }
+            update();
+          }));
+        });
+
+        app.querySelectorAll('[data-panel-tab]').forEach((button) => button.addEventListener('click', () => openPanel(app, button.dataset.panelTab)));
+
+        app.addEventListener('click', (event) => {
+          const action = event.target.closest('[data-action]');
+          if (!action) return;
+          event.stopPropagation();
+          if (action.dataset.action === 'back') showToast(app, '返回世界配置 · 当前角色保留');
+          if (action.dataset.action === 'confirm') {
+            if (!name.value.trim()) {
+              openPanel(app, 'identity');
+              name.focus();
+              showToast(app, '请先填写角色姓名');
+              return;
+            }
+            showToast(app, '已确认角色 · 下一步命格抽取');
+          }
+        });
+
+        update();
+      };
+
+      document.querySelectorAll('[data-app]').forEach(wire);
+
+      const selectCandidate = (candidate) => {
+        candidates.forEach((item) => {
+          const selected = item === candidate;
+          item.classList.toggle('selected', selected);
+          const button = item.querySelector('.candidate-pick');
+          button.setAttribute('aria-pressed', String(selected));
+          button.textContent = selected ? '已选此案' : '选择此案';
+        });
+        document.querySelector('[data-review-selection]').textContent = `当前选择 · ${candidate.dataset.choice}`;
+      };
+
+      candidates.forEach((candidate) => {
+        candidate.addEventListener('click', () => selectCandidate(candidate));
+        candidate.querySelector('.candidate-pick').addEventListener('click', (event) => {
+          event.stopPropagation();
+          selectCandidate(candidate);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
+

@@ -7,6 +7,7 @@
  * ═══════════════════════════════════════════════════════════════════ */
 @import '../foundation/tokens/spacing.css';
 @import '../foundation/tokens/typography.css';
+@import '../foundation/tokens/effects.css';
 @import '../foundation/tokens/breakpoints.css';
 @import '../foundation/tokens/layout.css';
 
@@ -55,12 +56,39 @@ body {
   transition: background 0.3s ease, color 0.3s ease;
 }
 
-/* ==================== 滚动条（Apple HIG 极简隐藏） ==================== */
-::-webkit-scrollbar { width: 0; height: 0; background: transparent; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: transparent; }
-html { scrollbar-width: none; }
-body { -ms-overflow-style: none; }
+html[data-paragraph-comfort='true'] {
+  --narrative-line-height: 1.87;
+  --narrative-paragraph-gap: 0.4375rem;
+}
+
+html[data-paragraph-comfort='false'] {
+  --narrative-line-height: 1.72;
+  --narrative-paragraph-gap: 0.25rem;
+}
+
+html[data-reduce-motion='true'] *,
+html[data-reduce-motion='true'] *::before,
+html[data-reduce-motion='true'] *::after {
+  scroll-behavior: auto !important;
+  animation-duration: 1ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 1ms !important;
+}
+
+/* ==================== 滚动条（方案库契约：保留滚动能力，隐藏全部视觉轨道） ==================== */
+html,
+body,
+* {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+*::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
 
 /* ==================== 聚焦环（Apple HIG 无障碍） ==================== */
 :focus-visible {

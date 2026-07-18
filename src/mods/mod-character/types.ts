@@ -1,14 +1,14 @@
 /**
  * @module types.ts
- * @description MOD 类型定义 —— 角色系统（5 基础属性 + 命格 + 健康 + 寿命 + 生命阶段 + 年龄衰减 + 善恶值）
+ * @description MOD 类型定义 —— 角色系统（4 基础属性 + 命格 + 健康 + 寿命 + 生命阶段 + 年龄衰减 + 善恶值）
  * @mod mod-character
  */
 
 // ============================================================
-// 基础属性（5 项，对齐废弃项目 attribute-config.ts）
+// 基础属性（4 项）
 // ============================================================
 
-/** 5 项基础属性（luck -> LuckSystem, reputation -> ReputationSystem, health -> HealthSystem, morality -> MoralitySystem） */
+/** 4 项基础属性（luck -> LuckSystem, reputation -> ReputationSystem, health -> HealthSystem, morality -> MoralitySystem） */
 export interface BaseAttributes {
   /** 体魄：影响 HP 恢复、体力上限、抗病 */
   physique: number
@@ -18,8 +18,6 @@ export interface BaseAttributes {
   talentAptitude: number
   /** 魅力：外貌魅力，影响社交 / 关系品质 */
   charisma: number
-  /** 出身：家境出身，影响社会阶层起点（与当前金钱无关） */
-  resources: number,
 }
 
 /** 属性修正（来自命格 / 伤病 / 衰减的叠加） */
@@ -28,18 +26,17 @@ export interface AttributeModifiers {
   mind: number
   talentAptitude: number
   charisma: number
-  resources: number,
 }
 
 /** 基础属性子系统状态 */
 export interface CharacterBaseState {
   /** 初始属性（不可变，来自角色创建时的分配） */
   base: BaseAttributes
-  /** 当前属性（= base + modifiers，钳制 [-10, 10]） */
+  /** 当前属性（= base + modifiers，按超凡属性规则钳制） */
   current: BaseAttributes
   /** 聚合修正值（命格 bonus + 伤病 effects + 衰减 modifiers） */
   modifiers: AttributeModifiers
-  /** 起始年龄（穿越者 18 岁起步，原生者 0 岁，对齐废弃项目 detectStartingAge） */
+  /** 起始年龄（由角色创建或结构化变更显式提供） */
   startingAge: number,
 }
 
@@ -82,9 +79,36 @@ export interface DestinyPatternInput {
   systemModifiers?: Partial<Record<string, number>>,
 }
 
+/** 一生结算时由 AI 生成的神话词条候选。纯概念规则，不携带属性或模拟系数。 */
+export interface MythicPatternCandidate {
+  /** 神话词条名称，如“未熄之诺” */
+  name: string
+  /** 概念标签，如“承诺” */
+  concept: string
+  /** 下一局叙事持续遵守的非数值概念规则 */
+  effect: string
+}
+
+/** 神话词条的来源元数据；只用于总库追溯，不参与效果判定。 */
+export interface MythicPatternSource {
+  worldName: string
+  characterName: string
+  finalAge?: number
+  /** 当前人生的稳定标识，用于保证同一人生最多封存一个神话词条。 */
+  runId?: string
+}
+
+/** 已封存到跨局总库的神话词条。 */
+export interface MythicPattern extends MythicPatternCandidate {
+  /** 由本地内容身份生成的稳定 ID，AI 不负责生成。 */
+  id: string
+  acquiredAt: number
+  source: MythicPatternSource
+}
+
 /** 命格子系统状态 */
 export interface DestinyPatternState {
-  /** 候选命格列表（抽12后暂存，待玩家选3） */
+  /** 候选命格列表（抽5后暂存，待玩家选3） */
   candidates: DestinyPattern[]
   /** 角色持有的命格列表（选3后确认） */
   patterns: DestinyPattern[]
@@ -162,7 +186,7 @@ export interface RaceLifespanConfig {
   goldenAgeRatio: [number, number]
   /** 衰减速率乘数（1.0 = 标准人类速率） */
   decayMultiplier: number
-  /** 可超凡属性的物种基准线（不含 resources，凡人锁定属性不设基准线）。未设置时默认 0，等同现状 */
+  /** 可超凡属性的物种基准线。未设置时默认 0，等同现状 */
   attrBaselines?: Partial<Record<'physique' | 'mind' | 'talentAptitude' | 'charisma', number>>,
 }
 

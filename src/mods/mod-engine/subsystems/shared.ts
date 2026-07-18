@@ -13,9 +13,12 @@ export {
   timeSystem,
   narrativeParser,
   summaryCompressor,
+  memoryEngine,
   plotStructure,
   foreshadowing,
   memoryLifecycle,
+  memoryForgetting,
+  causalDelay,
   coreMemory,
   subsystemRelevance,
 } from '../bootstrap/engine-subsystem-registry'
@@ -45,21 +48,20 @@ export {
   buildLayeredMemoryStateCard,
   buildNarrativeCoherenceHeader,
   buildNarrativeWorldRules,
+  collectActiveModWorldRules,
   collectMemoryStateSummaries,
   dedupeSummariesAgainstMemory,
   isSubsystemOpenForPrompt,
   isMvpNarrativeChangeSubsystem,
   isMvpPromptSubsystem,
   isMvpRuntimeSubsystem,
-  shouldSkipEconomyTierRules,
-  runPostNarrativePhase,
+  buildMvpSubsystemGuide,
   resolveTimeStep,
   mapSubsystemStatesToDetectionStates,
   buildLifeStageNarrativeHint,
   resolveLifeStageFromAge,
   normalizeNarrativeParagraphs,
   buildNarrativeHints,
-  classifyActionScale,
   INFORMATION_PRIORITY_RULE,
   type BridgeSnapshot,
   type EventLifecycleTracker,
@@ -93,15 +95,12 @@ export {
 
 export { buildTimeScaleNarrativeHint } from '../helpers/time-scale-narrative'
 
-export { generateArchetypeHint, buildLifespanReminder, countConsecutiveConflictRounds } from '../helpers/life-stage-archetypes'
+export { generateArchetypeHint, buildLifespanReminder } from '../helpers/life-stage-archetypes'
 
 export { collectGameSavePayload } from '../helpers/save-restore'
 
 // constants
 export { computeNarrativeMaxTokens, DEFAULT_WORD_COUNT_TARGET } from '../constants/narrative-config'
-
-// prompts
-export { SUBSYSTEM_GUIDE } from '../prompts/narrative-prompt'
 
 // simulation
 export { simulationBridge } from '../simulation/simulation-bridge'

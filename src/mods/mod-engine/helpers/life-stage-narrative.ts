@@ -6,24 +6,52 @@
 
 import type { LifeStageId } from '@/mods/mod-character'
 
+interface LifeStageBoundaries {
+  youngAdultStart: number
+  youngAdultExclusiveEnd: number
+  adultExclusiveEnd: number
+  middleAgeExclusiveEnd: number
+}
+
+function getLifeStageBoundaries(maxAge: number, startingAge: number): LifeStageBoundaries {
+  const normalizedMaxAge = Math.max(0, Math.round(maxAge))
+  const youngAdultStart = Math.max(18, Math.round(startingAge))
+  const youngAdultExclusiveEnd = Math.max(
+    youngAdultStart + 3,
+    Math.round(normalizedMaxAge * 0.2),
+  )
+  const adultExclusiveEnd = Math.max(
+    youngAdultExclusiveEnd + 1,
+    Math.round(normalizedMaxAge * 0.5),
+  )
+  const middleAgeExclusiveEnd = Math.max(
+    adultExclusiveEnd + 1,
+    Math.round(normalizedMaxAge * 0.75),
+  )
+
+  return {
+    youngAdultStart,
+    youngAdultExclusiveEnd,
+    adultExclusiveEnd,
+    middleAgeExclusiveEnd,
+  }
+}
+
 export function resolveLifeStageFromAge(
   age: number,
   maxAge: number,
   startingAge: number,
 ): LifeStageId {
-  if (startingAge >= 18) {
-    if (age < startingAge + 3) return 'young_adult'
-    if (age < Math.round(maxAge * 0.2)) return 'young_adult'
-    if (age < Math.round(maxAge * 0.5)) return 'adult'
-    if (age < Math.round(maxAge * 0.75)) return 'middle_age'
-    return 'elder'
+  const boundaries = getLifeStageBoundaries(maxAge, startingAge)
+
+  if (startingAge < 18) {
+    if (age < 3) return 'infant'
+    if (age < 12) return 'child'
+    if (age < 18) return 'teenager'
   }
-  if (age < 3) return 'infant'
-  if (age < 12) return 'child'
-  if (age < 18) return 'teenager'
-  if (age < Math.round(maxAge * 0.2)) return 'young_adult'
-  if (age < Math.round(maxAge * 0.5)) return 'adult'
-  if (age < Math.round(maxAge * 0.75)) return 'middle_age'
+  if (age < boundaries.youngAdultExclusiveEnd) return 'young_adult'
+  if (age < boundaries.adultExclusiveEnd) return 'adult'
+  if (age < boundaries.middleAgeExclusiveEnd) return 'middle_age'
   return 'elder'
 }
 
@@ -35,9 +63,18 @@ export function buildLifeStageNarrativeHint(
   currentAge: number,
 ): string {
   const isTransmigrator = startingAge >= 18
-  const youngAdultEnd = Math.round(maxAge * 0.2)
-  const adultEnd = Math.round(maxAge * 0.5)
-  const middleAgeEnd = Math.round(maxAge * 0.75)
+  const {
+    youngAdultStart,
+    youngAdultExclusiveEnd,
+    adultExclusiveEnd,
+    middleAgeExclusiveEnd,
+  } = getLifeStageBoundaries(maxAge, startingAge)
+  const youngAdultEnd = youngAdultExclusiveEnd - 1
+  const adultStart = youngAdultExclusiveEnd
+  const adultEnd = adultExclusiveEnd - 1
+  const middleAgeStart = adultExclusiveEnd
+  const middleAgeEnd = middleAgeExclusiveEnd - 1
+  const elderStart = middleAgeExclusiveEnd
 
   const stages: Record<LifeStageId, string> = {
     infant: isTransmigrator
@@ -49,10 +86,10 @@ export function buildLifeStageNarrativeHint(
     teenager: isTransmigrator
       ? `探索期（${startingAge}-${youngAdultEnd}岁）：利用前世经验迅速成长`
       : '少年期（12-18岁）：自我意识觉醒，叙事须符合该年龄段',
-    young_adult: `青年期（${Math.max(18, startingAge)}-${youngAdultEnd}岁）：独立与人生选择密集期`,
-    adult: `成年期（${youngAdultEnd + 1}-${adultEnd}岁）：事业与家庭关键期`,
-    middle_age: `中年期（${adultEnd + 1}-${middleAgeEnd}岁）：传承与人生意义`,
-    elder: `老年期（${middleAgeEnd + 1}-${maxAge}岁）：暮年与回顾`,
+    young_adult: `青年期（${youngAdultStart}-${youngAdultEnd}岁）：独立与人生选择密集期`,
+    adult: `成年期（${adultStart}-${adultEnd}岁）：事业与家庭关键期`,
+    middle_age: `中年期（${middleAgeStart}-${middleAgeEnd}岁）：传承与人生意义`,
+    elder: `老年期（${elderStart}-${maxAge}岁）：暮年与回顾`,
     deceased: '已故',
   }
 

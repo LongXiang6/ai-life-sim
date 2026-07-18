@@ -1,0 +1,682 @@
+.container {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  width: 100%;
+  height: 100dvh;
+  min-height: 0;
+  margin: 0 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-padding-bottom: max(0.85rem, env(safe-area-inset-bottom));
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding: max(1rem, env(safe-area-inset-top)) clamp(1rem, 5vw, 4.5rem)
+    max(0.85rem, env(safe-area-inset-bottom));
+  background: #fff;
+  color: #17191d;
+  font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+}
+
+.container::after {
+  position: absolute;
+  z-index: -1;
+  top: -5rem;
+  right: -5rem;
+  width: clamp(10rem, 26vw, 16rem);
+  aspect-ratio: 1;
+  border: 1px solid rgb(154 121 102 / 9%);
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 0 1.2rem rgb(154 121 102 / 2.5%),
+    inset 0 0 0 2.5rem rgb(154 121 102 / 2%);
+  content: "";
+}
+
+.runningHead {
+  display: flex;
+  padding-left: clamp(1.6rem, 5vw, 3.2rem);
+  justify-content: space-between;
+  color: #969ba2;
+  font-size: clamp(0.58rem, 1.7vw, 0.72rem);
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
+.spine {
+  position: absolute;
+  top: 3.2rem;
+  bottom: 2.2rem;
+  left: clamp(1.5rem, 5vw, 3.2rem);
+  width: 1px;
+  background: linear-gradient(180deg, transparent, #e5e7ea 8% 90%, transparent);
+}
+
+.verticalBrand {
+  position: absolute;
+  top: 7.8rem;
+  left: calc(clamp(1.5rem, 5vw, 3.2rem) - 0.72rem);
+  color: #969ba2;
+  font-size: 0.5rem;
+  font-weight: 700;
+  white-space: nowrap;
+  transform: rotate(-90deg);
+  transform-origin: left top;
+}
+
+.trajectory {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.trajectoryPath {
+  fill: none;
+  stroke: #e5e7ea;
+  stroke-width: 1;
+}
+
+.trajectoryNode,
+.trajectoryStart {
+  fill: #9a7966;
+  opacity: 0.62;
+}
+
+.intro {
+  align-self: center;
+  width: min(100%, 36rem);
+  padding: clamp(2rem, 8dvh, 5rem) 0 clamp(1.5rem, 5dvh, 3rem) clamp(1.7rem, 5vw, 3.2rem);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0;
+  color: #969ba2;
+  font-family: "Songti SC", STSong, SimSun, serif;
+  font-size: clamp(0.68rem, 1.8vw, 0.8rem);
+}
+
+.brand::after {
+  width: 3rem;
+  height: 1px;
+  background: #e5e7ea;
+  content: "";
+}
+
+.title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+  margin: clamp(0.9rem, 3vw, 1.5rem) 0 0;
+  color: #17191d;
+  font-family: "Songti SC", STSong, SimSun, serif;
+  font-size: clamp(1.75rem, 6.7vw, 3.55rem);
+  font-weight: 600;
+  line-height: 1.34;
+  letter-spacing: 0;
+}
+
+.subtitle {
+  max-width: 30rem;
+  margin: 0.85rem 0 0;
+  color: #626870;
+  font-size: clamp(0.78rem, 2.5vw, 0.95rem);
+  line-height: 1.75;
+}
+
+.actions {
+  width: min(100%, var(--content-max-width));
+  margin-left: clamp(1.7rem, 5vw, 3.2rem);
+}
+
+.routeHeading,
+.utilityHeading {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0 0 0.35rem;
+  color: #969ba2;
+  font-family: "Songti SC", STSong, SimSun, serif;
+  font-size: 0.68rem;
+}
+
+.routeHeading::after {
+  height: 1px;
+  background: #e5e7ea;
+  content: "";
+  flex: 1;
+}
+
+.utilityHeading {
+  margin-top: 0.55rem;
+}
+
+.routeAction {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  min-height: clamp(3.25rem, 8dvh, 4.15rem);
+  grid-template-columns: 2.4rem minmax(0, 1fr) 2.5rem;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 0;
+  border: 0;
+  border-top: 1px solid #f0f1f3;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.routeAction:hover,
+.routeAction:focus-visible {
+  background: rgb(240 243 246 / 72%);
+}
+
+.routeAction:active {
+  transform: translateY(1px);
+}
+
+.primaryBtn {
+  border-top-color: #e5e7ea;
+}
+
+.savedAction {
+  min-height: clamp(3.25rem, 8dvh, 4rem);
+}
+
+.routeIndex {
+  position: relative;
+  align-self: stretch;
+  display: grid;
+  place-items: center;
+  color: #969ba2;
+  font-size: 0.64rem;
+  font-weight: 700;
+}
+
+.routeIndex::after {
+  position: absolute;
+  top: 20%;
+  right: 0;
+  bottom: 20%;
+  width: 1px;
+  background: #e5e7ea;
+  content: "";
+}
+
+.routeCopy {
+  min-width: 0;
+}
+
+.routeCopy strong,
+.routeCopy small {
+  display: block;
+}
+
+.routeCopy strong {
+  font-family: "Songti SC", STSong, SimSun, serif;
+  font-size: clamp(0.93rem, 2.7vw, 1.08rem);
+  font-weight: 600;
+}
+
+.routeCopy small {
+  margin-top: 0.24rem;
+  overflow: hidden;
+  color: #969ba2;
+  font-size: clamp(0.64rem, 2vw, 0.76rem);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.routeArrow {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  place-items: center;
+  border: 1px solid #dce2e8;
+  border-radius: 50%;
+  background: #fff;
+  color: #6d7f94;
+  font-size: 1rem;
+}
+
+.routeArrow svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.routeArrow path {
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.primaryBtn .routeArrow {
+  border-color: #6d7f94;
+  background: #6d7f94;
+  color: #fff;
+}
+
+.secondaryActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: clamp(0.8rem, 4vw, 2.5rem);
+}
+
+.secondaryBtn {
+  min-height: 3rem;
+}
+
+.footerLink {
+  display: block;
+  width: fit-content;
+  margin: 0.55rem 0 0 auto;
+  padding: 0.2rem 0;
+  color: #969ba2;
+  font-size: 0.62rem;
+  text-decoration: none;
+}
+
+.saveSheet {
+  position: absolute;
+  z-index: 30;
+  right: clamp(0.75rem, 3vw, 1rem);
+  bottom: max(0.75rem, env(safe-area-inset-bottom));
+  left: clamp(0.75rem, 3vw, 1rem);
+  max-height: min(74dvh, 38rem);
+  padding: clamp(0.85rem, 3.5vw, 1.1rem);
+  overflow-y: auto;
+  border: 1px solid #dce2e8;
+  border-radius: clamp(1rem, 5vw, 1.5rem);
+  background: rgb(255 255 255 / 99.5%);
+  box-shadow: 0 1.25rem 3rem rgb(17 24 39 / 16%);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(1rem);
+  transition: opacity 170ms ease, transform 190ms ease;
+}
+
+.saveSheetOpen {
+  opacity: 1;
+  pointer-events: auto;
+  transform: none;
+}
+
+.saveSheetHead {
+  display: flex;
+  margin-bottom: 0.65rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.saveSheetHead strong,
+.saveSheetHead small {
+  display: block;
+}
+
+.saveSheetHead strong {
+  font-family: "Songti SC", STSong, SimSun, serif;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.saveSheetHead small {
+  margin-top: 0.2rem;
+  color: #969ba2;
+  font-size: 0.66rem;
+}
+
+.saveSheetClose {
+  display: grid;
+  width: 2.25rem;
+  height: 2.25rem;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 1px solid #e5e7ea;
+  border-radius: 50%;
+  background: #fff;
+  color: #626870;
+  cursor: pointer;
+}
+
+.saveSheetClose svg {
+  width: 0.9rem;
+  height: 0.9rem;
+}
+
+.saveSheetClose path {
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-width: 1.5;
+}
+
+.saveList {
+  display: grid;
+  max-height: min(38dvh, 18rem);
+  overflow-y: auto;
+  gap: 0.4rem;
+}
+
+.saveItem {
+  display: grid;
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.5rem 0.65rem;
+  grid-template-columns: minmax(0, 1fr) 1rem;
+  align-items: center;
+  gap: 0.55rem;
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
+  background: #f6f8fa;
+  color: #17191d;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.saveItem strong,
+.saveItem small {
+  display: block;
+}
+
+.saveItem strong {
+  overflow: hidden;
+  font-size: 0.75rem;
+  font-weight: 680;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saveItem small {
+  margin-top: 0.2rem;
+  overflow: hidden;
+  color: #969ba2;
+  font-size: 0.61rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saveCheck {
+  position: relative;
+  width: 0.9rem;
+  height: 0.9rem;
+  border: 1px solid #dce2e8;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.saveItem[aria-pressed="true"] {
+  border-color: #d8e0e8;
+  background: #f0f3f6;
+}
+
+.saveItem[aria-pressed="true"] .saveCheck {
+  border-color: #6d7f94;
+  background: #6d7f94;
+}
+
+.saveItem[aria-pressed="true"] .saveCheck::after {
+  position: absolute;
+  top: 0.2rem;
+  left: 0.18rem;
+  width: 0.38rem;
+  height: 0.2rem;
+  border-bottom: 1px solid #fff;
+  border-left: 1px solid #fff;
+  content: "";
+  transform: rotate(-45deg);
+}
+
+.saveEmpty {
+  min-height: 5rem;
+  padding: 1.25rem 0.75rem;
+  border-block: 1px solid #f0f1f3;
+  color: #626870;
+  font-size: 0.7rem;
+  line-height: 1.7;
+  text-align: center;
+}
+
+.saveSheetStatus {
+  min-height: 1.2rem;
+  margin: 0.5rem 0.15rem 0;
+  color: #626870;
+  font-size: 0.65rem;
+}
+
+.deleteSelected {
+  display: block;
+  width: 100%;
+  min-height: 2.25rem;
+  margin-top: 0.35rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid #e5e7ea;
+  border-radius: 0.75rem;
+  background: #fff;
+  color: #8d6d73;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.68rem;
+}
+
+.deleteSelected:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.continueSave {
+  display: flex;
+  width: 100%;
+  min-height: 2.75rem;
+  margin-top: 0.4rem;
+  padding: 0 0.65rem 0 0.8rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: #17191d;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.continueSave strong,
+.continueSave small {
+  display: block;
+}
+
+.continueSave strong { font-size: 0.75rem; }
+.continueSave small { margin-top: 0.12rem; color: #d9dfe5; font-size: 0.6rem; }
+.continueSave svg { width: 1rem; height: 1rem; }
+.continueSave path { fill: none; stroke: currentcolor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; }
+.continueSave:disabled { cursor: not-allowed; opacity: 0.48; }
+
+.deleteDialogOverlay {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom));
+  background: rgb(23 25 29 / 18%);
+}
+
+.deleteDialog {
+  width: min(100%, 25rem);
+  padding: 1rem;
+  border: 1px solid #e5e7ea;
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 1rem 2.5rem rgb(24 28 34 / 16%);
+}
+
+.deleteDialog h2 {
+  margin: 0;
+  color: #17191d;
+  font-family: "Songti SC", STSong, SimSun, serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.deleteDialog p {
+  margin: 0.55rem 0 0;
+  color: #626870;
+  font-size: 0.72rem;
+  line-height: 1.65;
+}
+
+.deleteDialogActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin-top: 0.9rem;
+}
+
+.deleteCancel,
+.deleteConfirm {
+  min-height: 2.25rem;
+  padding: 0 0.65rem;
+  border: 1px solid #e5e7ea;
+  border-radius: 0.65rem;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.7rem;
+}
+
+.deleteCancel {
+  background: #fff;
+  color: #626870;
+}
+
+.deleteConfirm {
+  border-color: #8d6d73;
+  background: #8d6d73;
+  color: #fff;
+}
+
+.deleteCancel:disabled,
+.deleteConfirm:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.routeAction:focus-visible,
+.footerLink:focus-visible,
+.saveSheetClose:focus-visible,
+.saveItem:focus-visible,
+.continueSave:focus-visible,
+.deleteSelected:focus-visible,
+.deleteCancel:focus-visible,
+.deleteConfirm:focus-visible {
+  outline: 2px solid rgb(109 127 148 / 48%);
+  outline-offset: 2px;
+}
+
+@media (max-width: 42rem) {
+  .container {
+    width: 100%;
+  }
+
+  .intro {
+    padding-top: clamp(2rem, 8dvh, 4.5rem);
+  }
+}
+
+@media (min-width: 42.01rem) {
+  .container {
+    width: min(100%, var(--content-max-width));
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+
+  .runningHead {
+    padding-left: 1.6rem;
+    font-size: 0.62rem;
+  }
+
+  .spine {
+    left: 1.5rem;
+  }
+
+  .verticalBrand {
+    left: 0.78rem;
+  }
+
+  .intro {
+    width: 100%;
+    padding-right: 0;
+    padding-left: 1.7rem;
+  }
+
+  .title {
+    font-size: 2.35rem;
+  }
+
+  .subtitle {
+    font-size: 0.82rem;
+  }
+
+  .actions {
+    width: auto;
+    margin-left: 1.7rem;
+  }
+
+  .secondaryActions {
+    column-gap: 0.8rem;
+  }
+}
+
+@media (max-width: 23rem) {
+  .container {
+    padding-inline: 0.75rem;
+  }
+
+  .spine {
+    left: 1.3rem;
+  }
+
+  .verticalBrand {
+    left: 0.58rem;
+  }
+
+  .runningHead,
+  .intro,
+  .actions {
+    padding-left: 1.45rem;
+    margin-left: 0;
+  }
+
+  .secondaryActions {
+    grid-template-columns: 1fr;
+  }
+
+  .saveSheet {
+    right: 0.55rem;
+    bottom: max(0.55rem, env(safe-area-inset-bottom));
+    left: 0.55rem;
+    padding: 0.8rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .routeAction,
+  .saveSheet {
+    transition: none;
+  }
+}

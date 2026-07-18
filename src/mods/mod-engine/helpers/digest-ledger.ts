@@ -16,7 +16,7 @@
  *       低分合并成一行概略；查询时叠加时间衰减，久远的低分事件淡出。
  *
  * 三个算法：
- *   1. 连锁回溯（reinforceChains）：高分事件出现时，向前回看共享实体/关键词的
+ *   1. 连锁回溯（reinforceChains）：高分事件出现时，向前回看 AI 标注的共享实体，
  *      低分事件，按 chainFactor 提升其 adjustedImportance（前置事件被"追认"重要）。
  *   2. 时间衰减（effectiveImportance）：查询时按 age 衰减，越低分衰减越快；
  *      ≥ LOCK_THRESHOLD 的事件永不衰减（刻骨铭心）。
@@ -57,7 +57,7 @@ export const MAX_LEDGER_ENTRIES = 500
 export interface LedgerEvent {
   /** 事件精简描述（AI 输出，≤30 字） */
   text: string
-  /** AI 标注的人物/地点/物品/组织；存在时优先用于连锁回溯 */
+  /** AI 标注的人物/地点/物品/组织；是连锁回溯的唯一语义来源 */
   entities?: string[]
   /** AI 原始评分（0~100，永不修改，作审计与重算依据） */
   baseImportance: number
@@ -67,7 +67,7 @@ export interface LedgerEvent {
 
 /** 账本中的单轮条目 */
 export interface DigestEntry {
-  /** 轮次（对齐 orchestrator 的 round.year 语义） */
+  /** 叙事回合序号（对齐 orchestrator.totalRounds，与日历年无关） */
   round: number
   /** 本轮一句话精简（AI 输出） */
   digest: string
@@ -212,7 +212,7 @@ export class DigestLedger {
     const key = `${round}#${ev.text}`
     let set = this.entityCache.get(key)
     if (!set) {
-      set = ev.entities?.length ? new Set(ev.entities) : extractEntities(ev.text)
+      set = new Set(ev.entities ?? [])
       this.entityCache.set(key, set)
     }
     return set
@@ -266,7 +266,7 @@ export class DigestLedger {
 
   /**
    * 计算 [startRound, endRound] 区间内所有账本事件的 adjustedImportance 均值（归一化到 0~1）。
-   * 区间内无账本条目时返回 null，供调用方降级回退关键词评分。
+   * 区间内无账本条目时返回 null，调用方使用固定中性值。
    */
   averageAdjustedImportance(startRound: number, endRound: number): number | null {
     const scores: number[] = []

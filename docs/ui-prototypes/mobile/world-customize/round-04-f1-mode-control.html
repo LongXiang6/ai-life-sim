@@ -1,0 +1,72 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>世界配置第四轮 · F1 模式按钮</title><link rel="stylesheet" href="../assets/library-history.css"><script src="../assets/prototype.js" defer></script><script defer>window.addEventListener('DOMContentLoaded',()=>{
+if(location.hash==='#m2-final'){
+document.querySelectorAll('.option-card').forEach(card=>{if(card.dataset.choice!=='M2 右上紧凑分段')card.remove()});
+document.querySelector('h1').textContent='世界配置最终方案 · M2';
+document.querySelector('.subtitle').textContent='F1 世界宪章卡片，右上使用 AI / 选择 / 自定紧凑分段控件，当前值保留整行。';
+document.querySelector('.selection').textContent='M2 · 右上紧凑分段已定版并同步到真实移动端世界配置页面。';
+document.querySelector('[data-selection]').textContent='已定版：M2'
+}
+const reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches
+const fadeMs=reduceMotion?0:160
+const modeValues={
+'AI':{label:'当前结果',value:'由 AI 判断'},
+'选择':{label:'当前选择',value:'请选择选项　⌄'},
+'自定':{label:'当前自定',value:'输入自定义内容…'}
+}
+const dimDefaults={
+'世界空间形态':{'选择':'球形行星　⌄','自定':'环带群岛结构…'},
+'世界观本质':{'选择':'唯物主义　⌄','自定':'双层规则宇宙…'},
+'力量体系':{'选择':'科技强化　⌄','自定':'共鸣驱动体系…'},
+'力量上限':{'选择':'1 阶　⌄','自定':'上限可成长…'}
+}
+document.querySelectorAll('.option-card[data-choice="M2 右上紧凑分段"]').forEach(card=>{
+const phone=card.querySelector('.phone')
+if(!phone)return
+phone.addEventListener('click',e=>e.stopPropagation())
+phone.querySelectorAll('.dim').forEach(dim=>{
+const mode=dim.querySelector('.compact-mode')
+const current=dim.querySelector('.current')
+const title=dim.querySelector('.copy b')?.textContent||''
+if(!mode||!current)return
+mode.querySelectorAll('span').forEach(span=>{
+span.style.cursor='pointer'
+span.addEventListener('click',()=>{
+if(span.classList.contains('active'))return
+mode.querySelectorAll('span').forEach(s=>s.classList.remove('active'))
+span.classList.add('active')
+const key=span.textContent.trim()
+const base=modeValues[key]||modeValues['AI']
+const value=key==='AI'?base.value:(dimDefaults[title]?.[key]||base.value)
+const apply=()=>{
+const label=current.querySelector('span')
+const bold=current.querySelector('b')
+if(label)label.textContent=base.label
+if(bold)bold.textContent=value
+}
+if(fadeMs===0){apply();return}
+current.classList.add('is-fading')
+window.setTimeout(()=>{
+apply()
+current.classList.remove('is-fading')
+current.classList.add('is-entering')
+window.setTimeout(()=>current.classList.remove('is-entering'),fadeMs)
+},fadeMs)
+})
+})
+})
+})
+})</script>
+<style>
+.phone{background:linear-gradient(180deg,#fafbfe,#f1f4f9)}.page{height:100%;overflow:auto;padding:19px 10px 65px}.step{color:#758099;font-size:7px;font-weight:750;letter-spacing:.12em}.title{margin-top:5px;font-size:18px;font-weight:760}.sub{margin-top:3px;color:#7b8498;font-size:8px;line-height:1.45}.card{border:1px solid #dce2eb;border-radius:13px;background:rgba(255,255,255,.82);box-shadow:0 5px 15px rgba(35,45,70,.035)}.desc{margin-top:9px;padding:9px}.label-row{display:flex;justify-content:space-between;color:#657087;font-size:7px;font-weight:700}.label-row span{color:#8992a4;font-size:6px;font-weight:500}.textarea{min-height:50px;margin-top:6px;padding:8px;border:1px solid #dce2eb;border-radius:9px;background:#f5f6f9;color:#929bad;font-size:7px}.section-title{display:flex;justify-content:space-between;margin:9px 1px 5px;color:#5f6b83;font-size:7px;font-weight:700}.section-title span{color:#8a93a5;font-size:6px;font-weight:500}.list{display:grid;gap:5px}.dim{padding:8px}.head{display:flex;align-items:center;gap:7px}.mark{display:grid;place-items:center;width:25px;height:25px;border-radius:8px;background:#e9edfb;color:#5364ad;font-size:7px;font-weight:800}.copy{flex:1;min-width:0}.copy b{display:block;font-size:8px}.copy span{display:block;margin-top:2px;overflow:hidden;color:#818b9e;font-size:6px;text-overflow:ellipsis;white-space:nowrap}.current{display:flex;align-items:center;justify-content:space-between;margin-top:6px;padding:6px 7px;border:1px solid #dce2eb;border-radius:8px;background:#fafbfc;color:#46516c;font-size:6px;transition:opacity .16s ease,transform .16s ease}.current span{color:#8790a2}.current.is-fading{opacity:0;transform:translateY(2px)}.current.is-entering{animation:current-in .16s ease}.full-mode{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;margin-top:6px;padding:3px;border-radius:9px;background:#eef0f5}.full-mode span{display:grid;min-height:25px;place-items:center;border-radius:7px;color:#707b91;font-size:6px}.full-mode .active{background:#fff;color:#5263ac;font-weight:700;box-shadow:0 1px 4px rgba(45,56,90,.1)}.compact-mode{display:flex;flex:0 0 auto;padding:2px;border:1px solid #dce2eb;border-radius:9px;background:#f4f5f8}.compact-mode span{display:grid;min-width:25px;height:23px;place-items:center;border-radius:7px;color:#707b91;font-size:6px;transition:background .16s ease,color .16s ease,font-weight .16s ease,box-shadow .16s ease}.compact-mode span:nth-child(2){min-width:29px}.compact-mode .active{background:#e6eafb;color:#5263ac;font-weight:700}.labeled-mode{display:grid;grid-template-columns:33px 1fr;gap:5px;align-items:center;margin-top:6px}.mode-label{color:#7d879a;font-size:6px}.mode-track{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;padding:3px;border:1px solid #dce2eb;border-radius:9px;background:#fafbfc}.mode-track span{display:grid;min-height:24px;place-items:center;border-radius:7px;color:#707b91;font-size:6px}.mode-track .active{background:#e9edfb;color:#5263ac;font-weight:700}.dot{display:inline-block;width:4px;height:4px;margin-right:3px;border-radius:50%;background:#6879c7}.bottom{position:absolute;left:0;right:0;bottom:0;padding:6px 10px 7px;border-top:1px solid #e0e4eb;background:rgba(250,251,254,.95)}.bar{display:flex;align-items:center;justify-content:space-between}.action{display:grid;height:32px;place-items:center;border:1px solid #dce2eb;border-radius:10px;background:#fff;color:#465169;font-size:7px}.back{width:64px}.primary{width:112px;border-color:#1b2440;background:#1b2440;color:#fff;font-weight:700}.option-note{margin:0 18px 15px;padding:9px 11px;border-radius:11px;background:#f2f4fa;color:#69748c;font-size:11px;line-height:1.55}
+@keyframes current-in{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:translateY(0)}}
+@media (prefers-reduced-motion:reduce){
+.compact-mode span,.current{transition:none!important;animation:none!important}
+.current.is-fading,.current.is-entering{opacity:1;transform:none}
+}
+</style></head>
+<body><main class="shell"><div class="topbar"><a href="index.html">← 返回世界配置历史</a><span data-selection>尚未选择</span></div><p class="eyebrow">WORLD CONFIG · ROUND 04</p><h1>F1 细化：AI / 选择 / 自定义</h1><p class="subtitle">锁定 F1 的维度卡和当前值控件。本轮只比较三个模式按钮的文字、尺寸、选中态与所在位置。</p><section class="option-grid">
+<article class="option-card" data-choice="M1 全宽等分模式" onclick="selectChoice(this)"><div class="phone"><div class="page"><div class="step">NEW LIFE · 02</div><div class="title">配置你的世界</div><div class="sub">确认宏观规则，角色与叙事会在这些边界内展开。</div><div class="card desc"><div class="label-row">世界描述 <span>126 / 5000</span></div><div class="textarea">现代文明正处于互联网兴起的年代，科技与时代机会共同改变生活……</div></div><div class="section-title">世界宪章 <span>4 个维度</span></div><div class="list"><div class="card dim"><div class="head"><div class="mark">形</div><div class="copy"><b>世界空间形态</b><span>决定世界的空间结构</span></div></div><div class="full-mode"><span class="active">AI 决定</span><span>选择</span><span>自定义</span></div><div class="current"><span>当前结果</span><b>由 AI 判断</b></div></div><div class="card dim"><div class="head"><div class="mark">本</div><div class="copy"><b>世界观本质</b><span>决定底层运行规则</span></div></div><div class="full-mode"><span>AI 决定</span><span class="active">选择</span><span>自定义</span></div><div class="current"><span>当前选择</span><b>唯物主义　⌄</b></div></div><div class="card dim"><div class="head"><div class="mark">力</div><div class="copy"><b>力量体系</b><span>决定力量来源与成长方式</span></div></div><div class="full-mode"><span class="active">AI 决定</span><span>选择</span><span>自定义</span></div><div class="current"><span>当前结果</span><b>由 AI 判断</b></div></div><div class="card dim"><div class="head"><div class="mark">限</div><div class="copy"><b>力量上限</b><span>决定力量体系的天花板</span></div></div><div class="full-mode"><span>AI 决定</span><span class="active">选择</span><span>自定义</span></div><div class="current"><span>当前选择</span><b>1 阶　⌄</b></div></div></div></div><div class="bottom"><div class="bar"><span class="action back">返回</span><span class="action primary">确认世界</span></div></div></div><div class="option-copy"><h3>M1 · 全宽等分模式</h3><p>三个按钮独占一整行，使用完整文字，选中项以白色浮层突出。</p><span class="tag">最易理解 · 最稳触控</span></div><p class="option-note">模式含义最清楚，但每张卡片会增加约一行高度。</p></article>
+<article class="option-card" data-choice="M2 右上紧凑分段" onclick="selectChoice(this)"><div class="phone"><div class="page"><div class="step">NEW LIFE · 02</div><div class="title">配置你的世界</div><div class="sub">模式控件位于标题右侧，当前值保持整行呈现。</div><div class="card desc"><div class="label-row">世界描述 <span>126 / 5000</span></div><div class="textarea">现代文明正处于互联网兴起的年代，科技与时代机会共同改变生活……</div></div><div class="section-title">世界宪章 <span>4 个维度</span></div><div class="list"><div class="card dim"><div class="head"><div class="mark">形</div><div class="copy"><b>世界空间形态</b><span>空间结构</span></div><div class="compact-mode"><span class="active">AI</span><span>选择</span><span>自定</span></div></div><div class="current"><span>当前结果</span><b>由 AI 判断</b></div></div><div class="card dim"><div class="head"><div class="mark">本</div><div class="copy"><b>世界观本质</b><span>底层规则</span></div><div class="compact-mode"><span>AI</span><span class="active">选择</span><span>自定</span></div></div><div class="current"><span>当前选择</span><b>唯物主义　⌄</b></div></div><div class="card dim"><div class="head"><div class="mark">力</div><div class="copy"><b>力量体系</b><span>力量来源</span></div><div class="compact-mode"><span class="active">AI</span><span>选择</span><span>自定</span></div></div><div class="current"><span>当前结果</span><b>由 AI 判断</b></div></div><div class="card dim"><div class="head"><div class="mark">限</div><div class="copy"><b>力量上限</b><span>力量天花板</span></div><div class="compact-mode"><span>AI</span><span class="active">选择</span><span>自定</span></div></div><div class="current"><span>当前选择</span><b>1 阶　⌄</b></div></div></div></div><div class="bottom"><div class="bar"><span class="action back">返回</span><span class="action primary">确认世界</span></div></div></div><div class="option-copy"><h3>M2 · 右上紧凑分段</h3><p>保留 F1 原位置，扩大分段控件并将“选”改成“选择”，减少缩写歧义。</p><span class="tag">最紧凑 · 状态直观</span></div><p class="option-note">“自定义”仍缩写为“自定”，适合追求较低卡片高度。</p></article>
+<article class="option-card" data-choice="M3 标签式分段行" onclick="selectChoice(this)"><div class="phone"><div class="page"><div class="step">NEW LIFE · 02</div><div class="title">配置你的世界</div><div class="sub">模式控件单独成行，并用标签说明其作用。</div><div class="card desc"><div class="label-row">世界描述 <span>126 / 5000</span></div><div class="textarea">现代文明正处于互联网兴起的年代，科技与时代机会共同改变生活……</div></div><div class="section-title">世界宪章 <span>4 个维度</span></div><div class="list"><div class="card dim"><div class="head"><div class="mark">形</div><div class="copy"><b>世界空间形态</b><span>决定世界的空间结构</span></div></div><div class="labeled-mode"><span class="mode-label">设定方式</span><div class="mode-track"><span class="active"><i class="dot"></i>AI</span><span>选择</span><span>自定义</span></div></div><div class="current"><span>当前结果</span><b>由 AI 判断</b></div></div><div class="card dim"><div class="head"><div class="mark">本</div><div class="copy"><b>世界观本质</b><span>决定底层运行规则</span></div></div><div class="labeled-mode"><span class="mode-label">设定方式</span><div class="mode-track"><span>AI</span><span class="active"><i class="dot"></i>选择</span><span>自定义</span></div></div><div class="current"><span>当前选择</span><b>唯物主义　⌄</b></div></div><div class="card dim"><div class="head"><div class="mark">力</div><div class="copy"><b>力量体系</b><span>决定力量来源与成长方式</span></div></div><div class="labeled-mode"><span class="mode-label">设定方式</span><div class="mode-track"><span class="active"><i class="dot"></i>AI</span><span>选择</span><span>自定义</span></div></div><div class="current"><span>当前结果</span><b>由 AI 判断</b></div></div><div class="card dim"><div class="head"><div class="mark">限</div><div class="copy"><b>力量上限</b><span>决定力量体系的天花板</span></div></div><div class="labeled-mode"><span class="mode-label">设定方式</span><div class="mode-track"><span>AI</span><span class="active"><i class="dot"></i>选择</span><span>自定义</span></div></div><div class="current"><span>当前选择</span><b>1 阶　⌄</b></div></div></div></div><div class="bottom"><div class="bar"><span class="action back">返回</span><span class="action primary">确认世界</span></div></div></div><div class="option-copy"><h3>M3 · 标签式分段行</h3><p>在三按钮前增加“设定方式”标签，使用完整文字并强化非颜色选中标记。</p><span class="tag">语义最清楚 · 层级完整</span></div><p class="option-note">比 M1 更有字段感，按钮区略窄，但含义与选中状态最明确。</p></article>
+</section><p class="selection">本轮结论：定版 M2 · 右上紧凑分段。模式控件使用 AI / 选择 / 自定，当前值保持整行。</p></main></body></html>
+

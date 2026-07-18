@@ -51,8 +51,9 @@ export interface SavedCustomWorld {
   worldCode: number
 }
 
-export function useWorldSelectForm() {
-  const [difficulty, setDifficulty] = useState<Difficulty>('normal')
+export function useWorldSelectForm(initialDifficulty: Difficulty = 'normal') {
+  const [difficultyOverride, setDifficulty] = useState<Difficulty | null>(null)
+  const difficulty = difficultyOverride ?? initialDifficulty
   const [showDifficultyDropdown, setShowDifficultyDropdown] = useState(false)
 
   return {

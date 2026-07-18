@@ -1,0 +1,19 @@
+/* B · M2 restrained editorial ink, sourced from round-04 M2 and round-03 F1 */
+:root{--canvas:#e8e5de;--paper:#f5f1e8;--surface:#fbf8f0;--ink:#242522;--soft:#686961;--faint:#96968b;--line:#c9c6ba;--light:#ddd9cd;--mist:#7b8278;font-family:"Songti SC","STSong","SimSun",serif;color-scheme:light}
+body{background:#e8e5de;color:var(--ink)}
+.topbar,.eyebrow,.subtitle{color:var(--soft)}
+.title,.copy b,h1{font-family:"Songti SC","STSong","SimSun",serif;font-weight:600;letter-spacing:.01em}
+.phone{border-color:#bcbbae;border-radius:18px;background:var(--paper);box-shadow:0 12px 26px rgba(48,46,39,.14)}
+.screen{background:linear-gradient(180deg,rgba(255,252,244,.2),rgba(220,216,203,.14))}
+.description{border-color:var(--line);border-radius:4px;background:var(--surface);box-shadow:inset 0 1px 0 rgba(255,255,255,.7)}
+.description:focus{border-color:#7b8278}
+.dimension{border-color:var(--light)}
+.mark{border-color:#aaa99c;border-radius:50%;background:transparent;color:var(--soft)}
+.modes{border-color:var(--light);border-radius:3px;background:rgba(251,248,240,.7)}
+.mode{border-radius:2px;color:var(--faint)}
+.mode.active{background:var(--ink);color:var(--surface)}
+.current select,.current input{border-color:var(--light);border-radius:3px;background:var(--surface)}
+.current .ai-value{border-color:#bcb9ac;border-radius:3px;background:rgba(251,248,240,.62)}
+.bottom{border-color:var(--line);background:rgba(245,241,232,.94)}
+.action{border-color:var(--line);border-radius:3px;background:var(--surface);color:var(--soft)}
+.primary{border-color:var(--ink);background:var(--ink);color:var(--surface);font-family:"Songti SC","STSong","SimSun",serif;box-shadow:0 3px 7px rgba(36,37,34,.12)}

@@ -5,7 +5,7 @@
  *
  * 废弃项目源文件：
  *   - D:\AI\废弃项目\src\lib\prompts\narrative\life-sim-narrative.ts（hint 生成逻辑）
- *   - D:\AI\废弃项目\src\lib\prompts\narrative\life-sim-lifecycle.ts（actionScale / lifespan）
+ *   - D:\AI\废弃项目\src\lib\prompts\narrative\life-sim-lifecycle.ts（lifespan）
  *
  * 职责：根据当前回合状态生成 mandatory（必遵）与 optional（参考）两类 hint，
  * 由 orchestrator 注入 PromptContext.userInstruction → AI user prompt 的 instruction 字段。
@@ -46,60 +46,26 @@ export interface NarrativeHints {
 export const INFORMATION_PRIORITY_RULE = [
   '【信息优先级】冲突时按此裁决：',
   '1[最高] 世界观逻辑（世界设定 + 世界标签 + 世界法则）= 剧情合理性（因果链、事件连锁反应、人设一致性）',
-  '2 基础属性（体魄/心智/悟性/魅力/出身/气运/善恶/健康）',
+  '2 基础属性（体魄/心智/悟性/魅力/气运/善恶/健康）',
   '3 生命状态（年龄 + 健康值 + 寿命上限）',
   '4 角色身份/背景',
   '5[最低] 隐藏命格',
   '世界观与剧情合理性同优先级——冲突时优先保证故事张力，但不得违背世界设定的核心规则。',
 ].join(' > ')
 
-// ═══════════════════ 行动规模分类 ═══════════════════
-
-const SMALL_ACTION_KEYWORDS = [
-  '跟踪', '调查', '打探', '传话', '采购', '拜访', '探访', '查看', '巡视',
-  '小战斗', '伏击', '偷袭', '抓捕', '审问', '搜捕', '追击', '突袭',
-  '约见', '会谈', '送礼', '交易', '购买', '出售', '雇佣', '招募少量',
-  '送信', '通知', '邀请', '赴宴', '参加',
-  '收拾', '清理', '解决', '处理', '除掉', '根除', '肃清',
-]
-
-const LARGE_ACTION_KEYWORDS = [
-  '征服', '称霸', '统一', '建立王朝', '改朝换代', '推翻',
-  '修仙大成', '飞升', '成神', '证道', '开宗立派',
-  '统一天下', '建立帝国', '开创盛世',
-  '探索秘境', '破解上古之谜', '寻找传说',
-]
-
-const MULTI_STEP_KEYWORDS = [
-  '然后', '之后', '接着', '再', '最后', '并', '以及',
-  '先', '第一步', '第二步', '最后一步',
-]
-
-/** 根据玩家指令关键词分类行动规模（移植自 life-sim-lifecycle.ts） */
-export function classifyActionScale(playerChoice: string): 'small' | 'medium' | 'large' {
-  if (!playerChoice) return 'medium'
-
-  const isLarge = LARGE_ACTION_KEYWORDS.some(kw => playerChoice.includes(kw))
-  if (isLarge) return 'large'
-
-  const isMulti = MULTI_STEP_KEYWORDS.filter(kw => playerChoice.includes(kw)).length
-  const verbCount = (playerChoice.match(/[去到闯奔赴访见求拜请]/g) || []).length
-  if (isMulti >= 2 || verbCount >= 4 || playerChoice.length > 80) return 'medium'
-
-  const smallMatch = SMALL_ACTION_KEYWORDS.some(kw => playerChoice.includes(kw))
-  if (smallMatch) return 'small'
-
-  return 'medium'
-}
-
-// ═══════════════════ 7 个 hint 子函数 ═══════════════════
+// ═══════════════════ hint 子函数 ═══════════════════
 
 // --- 1. 强制分叉 ---
 function hintForceBranch(input: NarrativeHintInput): string[] {
   const hints: string[] = []
-  if (input.forceBranch) hints.push('必须生成分叉点(branch=true)')
+  if (input.forceBranch) {
+    const agency = input.currentAge < 6
+      ? '角色尚无成人式自主能力：把选择写成照料者、监护人或所处环境替角色作出的家庭层面决定；选项仍须是会长期改变你的核心关系、身份、居所、照料安排或关键机会的不同后果，不能把婴儿的本能反应伪装成选择。'
+      : '选项必须是角色在当前能力与处境下确实能作出的选择，不能把日常动作、拖延或不同措辞伪装成不同人生方向。'
+    hints.push(`必须生成合格命运分叉：branch=true，提供 branchTitle 与2—4个不同长期后果的 branchOptions；META 必须为 importance=HIGH、semanticSignals.irreversible=true、semanticSignals.narrativeRegister=fate（高潮收束可为legacy）。${agency}`)
+  }
   if (input.currentAge === 3 && input.startingAge === 0) {
-    hints.push('必须触发分叉点')
+    hints.push('3岁节点如生成分叉，仍须是照料、归属、居所或关键机会等不可逆的家庭层面命运转折；普通玩耍和短暂偏好必须 branch=false。')
   }
   if (input.round > 0 && input.round % 15 === 0 && !input.branchJustResolved) {
     hints.push(
@@ -109,72 +75,7 @@ function hintForceBranch(input: NarrativeHintInput): string[] {
   return hints
 }
 
-// --- 2. 结婚年龄提示 ---
-function hintMarriageAge(input: NarrativeHintInput): string[] {
-  const hints: string[] = []
-  if (
-    input.maxAge < 150 &&
-    input.currentAge >= 22 &&
-    input.currentAge <= 28 &&
-    input.startingAge >= 18
-  ) {
-    const recentNarratives = input.recentEvents
-      .slice(-3)
-      .map(e => e.narrative || '')
-      .join(' ')
-    const marriageKeywords = /结婚|成婚|娶了|嫁给|迎娶|嫁给了|结为夫妻|成亲/g
-    if (!marriageKeywords.test(recentNarratives)) {
-      hints.push(
-        '人生步入谈婚论嫁的年龄，可考虑涉及婚姻/婚恋话题。若角色处境自然导向即可，不必强制分叉',
-      )
-    }
-  }
-  return hints
-}
-
-// --- 3. 奇遇/秘境频率控制 ---
-function hintAdventureFrequency(input: NarrativeHintInput): string[] {
-  const hints: string[] = []
-  if (input.recentEvents.length >= 2) {
-    const recentNarratives = input.recentEvents
-      .slice(-6)
-      .map(e => e.narrative || '')
-    const sideQuestPatterns =
-      /秘境|遗迹|密藏|远古|上古|传承|奇遇|山洞|地宫|宝藏|遗物|石室/g
-    const sideQuestCount = recentNarratives.filter(n =>
-      sideQuestPatterns.test(n),
-    ).length
-    if (sideQuestCount >= 3) {
-      hints.push(
-        `最近已有${sideQuestCount}次秘境/遗迹/奇遇类事件，建议本轮转向社会活动/人际互动/日常成长等其他方向`,
-      )
-    }
-  }
-  return hints
-}
-
-// --- 4. 疾病/重伤延续 ---
-function hintDiseaseContinuity(input: NarrativeHintInput): string[] {
-  const hints: string[] = []
-  const lastEvent = input.recentEvents.length > 0
-    ? input.recentEvents[input.recentEvents.length - 1]
-    : null
-  if (lastEvent) {
-    const lastNarrative = lastEvent.narrative || ''
-    const hasDisease =
-      /重病|重伤|生病|病倒|病危|病重|染病|中毒|绝症|伤势加重|病情恶化|病入膏肓|命悬一线|奄奄一息|卧病|卧床/.test(
-        lastNarrative,
-      )
-    if (hasDisease) {
-      hints.push(
-        '上轮角色患重病/受重伤，本轮应自然延续病情发展（恶化、并发症或恢复过程），不视为重复事件',
-      )
-    }
-  }
-  return hints
-}
-
-// --- 5. 分支解决 + 行动规模 ---
+// --- 2. 分支解决 + 玩家选择 ---
 function hintBranchResolved(input: NarrativeHintInput): string[] {
   const hints: string[] = []
   if (input.branchJustResolved) {
@@ -183,25 +84,14 @@ function hintBranchResolved(input: NarrativeHintInput): string[] {
     )
   }
   if (input.lastPlayerChoice) {
-    const scale = classifyActionScale(input.lastPlayerChoice)
     const choiceLabel =
       input.currentAge < 6
         ? `家庭层面选择"${input.lastPlayerChoice}"`
         : `玩家选择了"${input.lastPlayerChoice}"`
     if (input.branchJustResolved) {
-      if (scale === 'small') {
-        hints.push(
-          `${choiceLabel}（小规模行动）——本轮聚焦这次行动最关键的一幕，写清行动、阻力与结果，一轮完成`,
-        )
-      } else if (scale === 'large') {
-        hints.push(
-          `${choiceLabel}（宏大目标）——本轮适合呈现一个代表性阻力、准备行动或阶段性结果，可花费数年至数十年逐步实现`,
-        )
-      } else {
-        hints.push(
-          `${choiceLabel}（中型目标）——可先判断目标在当前世界中的关键阻力，再写本轮最具体的一次推进；可花费数轮完成，每轮尽量有实质后果`,
-        )
-      }
+      hints.push(
+        `${choiceLabel}。请结合世界规则、角色能力、资源和本轮时间跨度判断行动规模：小型行动可在本轮完成；中大型目标只呈现当前阶段的阻力、行动与后果。将判断写入 semanticSignals.actionScale`,
+      )
     } else if (!input.branchJustResolved) {
       const progressLabel =
         input.currentAge < 6
@@ -215,7 +105,7 @@ function hintBranchResolved(input: NarrativeHintInput): string[] {
   return hints
 }
 
-// --- 6. 场景跳跃（根据 timeStep.unit 生成粒度匹配的跳转提示） ---
+// --- 3. 场景跳跃（根据 timeStep.unit 生成粒度匹配的跳转提示） ---
 function hintSceneJump(input: NarrativeHintInput): string[] {
   const hints: string[] = []
   const prevEvent = input.recentEvents[input.recentEvents.length - 1]
@@ -235,23 +125,31 @@ function hintSceneJump(input: NarrativeHintInput): string[] {
   switch (unit) {
     case 'day':
       hints.push(
-        `推进${amount}天。近景/现场视角：写当天的一次具体行动、对话或突发状况，强调即时反馈；收尾优先给出直接结果或新的小问题`,
+        amount === 1
+          ? '推进1天。近景/现场视角：写当天的一次具体行动、对话或突发状况，强调即时反馈；收尾优先给出直接结果或新的小问题'
+          : `推进${amount}天。连续日近景视角：体现起始状况、期间变化与结束节点，不要只写最后一天`,
       )
       break
     case 'month':
       hints.push(
-        `推进${amount}个月。中近景视角：先点出本月压力、机会或关系变化，再落到一件代表性小事件；这件事尽量包含角色行动、具体阻力、可见后果或新线索，少写月度清单和纯心理余味`,
+        amount === 1
+          ? '推进1个月。中近景视角：先点出本月压力、机会或关系变化，再落到一件代表性小事件；这件事尽量包含角色行动、具体阻力、可见后果或新线索，少写月度清单和纯心理余味'
+          : `推进${amount}个月。跨月阶段视角：体现数月内的积累、转折与当前月后果，不要只写最后一个月`,
       )
       break
     case 'season':
       hints.push(
-        `推进${amount}个季度。中景视角：体现这一季${amount > 1 ? '内' : ''}的环境、制度或人际变化，再写一个改变关系、目标或处境的关键节点；结尾优先落到阶段性后果`,
+        amount === 1
+          ? '推进1个季度。中景视角：体现这一季的环境、制度或人际变化，再写一个改变关系、目标或处境的关键节点；结尾优先落到阶段性后果'
+          : `推进${amount}个季度。跨季度中景视角：按季节、制度或关系的阶段变化串起一个核心因果，结尾落到当前季度后果，不要把跨度写成同一季的一幕`,
       )
       break
     case 'year':
     default:
       hints.push(
-        `时间跳过${amount}年。远景选材 + 近景落点：先判断世界大势和人生阶段的主要压力，再落到一到两个代表性场景，尽量让场景承担行动、阻力与后果，少写年度报告或多年流水账`,
+        amount === 1
+          ? '时间推进1年。先确定年度主要压力或你要推进的目标，随后只写一个代表性现场中的行动、阻力与可见后果；年度背景最多一句，禁止再写第二个季节、地点或独立日常'
+          : `时间跳过${amount}年。完整覆盖起点、期间阶段变化与当前节点；围绕同一条主要因果写出长期改变，代表性节点必须前后承接，不要只写目标年份、逐年记流水账或拼接独立生活切片`,
       )
       break
   }
@@ -259,7 +157,7 @@ function hintSceneJump(input: NarrativeHintInput): string[] {
   return hints
 }
 
-// --- 7. 寿命提醒 ---
+// --- 4. 寿命提醒 ---
 function hintLifespanReminder(input: NarrativeHintInput): string[] {
   const hints: string[] = []
   const maxAge = input.maxAge
@@ -290,12 +188,9 @@ export function buildNarrativeHints(input: NarrativeHintInput): NarrativeHints {
   return {
     mandatory: [
       ...hintForceBranch(input),
-      ...hintAdventureFrequency(input),
-      ...hintDiseaseContinuity(input),
       ...hintLifespanReminder(input),
     ],
     optional: [
-      ...hintMarriageAge(input),
       ...hintBranchResolved(input),
       ...hintSceneJump(input),
     ],

@@ -2,7 +2,7 @@
 
 /**
  * @module welcome-page
- * @description 欢迎首页 —— 星空背景即时渲染，弹层延迟加载
+ * @description 欢迎首页 —— 统一书页式响应布局，弹层延迟加载
  * @mod mod-pages
  */
 
@@ -11,34 +11,18 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 
-import { useIsMobile } from '@/foundation'
-import { useGlobalStore } from '@/core/global-store'
-import { useCharacterStore } from '@/mods/mod-character'
-import { useWorldStore } from '@/mods/mod-world'
 import { useEngineStore } from '@/mods/mod-engine'
-import { useEconomyStore } from '@/mods/mod-economy'
-import { usePoliticsStore } from '@/mods/mod-politics'
-import { useHistoryDynamicsStore } from '@/mods/mod-history-dynamics'
-import { usePowerSystemStore } from '@/mods/mod-power-system'
-import { useCultureStore } from '@/mods/mod-culture'
-import { useNPCStore } from '@/mods/mod-npc'
-import { useEnvironmentEcologyStore } from '@/mods/mod-environment-ecology'
-import { useBaseUniverseStore } from '@/mods/mod-base-universe'
-import { useTechLevelStore } from '@/mods/mod-tech-level'
-import { useGoldenFingerStore } from '@/mods/mod-golden-finger'
 import { saveManager } from '@/core/storage/save-manager'
-import { applyGameSave } from '@/mods/mod-engine/engine-api'
-import { isApiConfigured } from '@/mods/mod-settings'
+import { applyGameSave, orchestrator } from '@/mods/mod-engine/engine-api'
+import { hasAvailableApiConfiguration } from '@/mods/mod-settings'
 import {
-  StarfieldBackground,
   isDisclaimerAccepted,
   acceptDisclaimer,
   useToastStore,
 } from '@/mods/mod-ui'
 
-import WelcomeDesktop from './WelcomeDesktop'
-import WelcomeMobile from './WelcomeMobile'
-import { clearCharacterCreateDrafts } from '../character-create/useCharacterCreateForm'
+import WelcomeView from './WelcomeView'
+import { resetForNewLife } from '../game-over/reset-new-life'
 
 import type { SaveMetadata } from '@/core/storage/save-manager'
 
@@ -46,70 +30,76 @@ const WelcomeModals = dynamic(() => import('./WelcomeModals'), { ssr: false })
 
 export default function WelcomePage() {
   const router = useRouter()
-  const setGamePhase = useGlobalStore((s) => s.setGamePhase)
-  const [latestSave, setLatestSave] = useState<SaveMetadata | null>(null)
+  const [saves, setSaves] = useState<SaveMetadata[]>([])
+  const [selectedSlot, setSelectedSlot] = useState<number | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [settingsTab, setSettingsTab] = useState<'appearance' | 'model-call'>('appearance')
   const [showHelp, setShowHelp] = useState(false)
   const [showDisclaimer, setShowDisclaimer] = useState(false)
   const { toasts, addToast, dismissToast } = useToastStore()
-  const isMobile = useIsMobile()
   const pendingActionRef = useRef<'start-new-game' | null>(null)
 
   useEffect(() => {
+    const availableSaves = saveManager.listSaves()
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLatestSave(saveManager.listSaves()[0] ?? null)
+    setSaves(availableSaves)
+    setSelectedSlot(availableSaves[0]?.slot ?? null)
     if (!isDisclaimerAccepted()) {
       setShowDisclaimer(true)
     }
   }, [])
 
-  const handleStartNewGame = useCallback(() => {
+  const handleStartNewGame = useCallback(async () => {
     if (!isDisclaimerAccepted()) {
       pendingActionRef.current = 'start-new-game'
       setShowDisclaimer(true)
       return
     }
-    if (!isApiConfigured()) {
-      addToast('warning', '请先配置 API Key，填入 Key 后点击「保存配置」即可开始模拟', 5000)
+    if (!await hasAvailableApiConfiguration()) {
+      addToast('warning', '未检测到可用 API：请在模型调用中填入 Key，或在本地环境配置 DEEPSEEK_API_KEY', 5000)
       setSettingsTab('model-call')
       setShowSettings(true)
       return
     }
-    // 重置所有游戏数据 store，清除上一局游戏的残留数据
-    clearCharacterCreateDrafts()
-    useCharacterStore.getState().reset()
-    useWorldStore.getState().reset()
-    useEngineStore.getState().reset()
-    useEconomyStore.getState().reset()
-    usePoliticsStore.getState().reset()
-    useHistoryDynamicsStore.getState().reset()
-    usePowerSystemStore.getState().reset()
-    useCultureStore.getState().reset()
-    useNPCStore.getState().reset()
-    useEnvironmentEcologyStore.getState().reset()
-    useBaseUniverseStore.getState().reset()
-    useTechLevelStore.getState().reset()
-    useGoldenFingerStore.getState().reset()
-    pendingActionRef.current = null
-    setGamePhase('world_build')
-    router.push('/new-game')
-  }, [router, setGamePhase, addToast])
-
-  const handleContinue = useCallback(async () => {
-    if (!latestSave) return
     try {
-      const data = await saveManager.loadSave(latestSave.slot)
-      if (data) {
-        applyGameSave(data)
-      }
-      router.push('/game-story')
+      await resetForNewLife()
+    } catch (error) {
+      addToast('warning', error instanceof Error ? error.message : '当前后台任务尚未结束，请稍候重试')
+      return
+    }
+    pendingActionRef.current = null
+    router.push('/new-game')
+  }, [router, addToast])
+
+  const handleContinue = useCallback(async (slot: number): Promise<boolean> => {
+    try {
+      const data = await saveManager.loadSave(slot)
+      if (!data) throw new Error(`槽位 ${slot} 不存在或存档内容已丢失`)
+      await orchestrator.waitForBackgroundCompression()
+      applyGameSave(data)
+      router.push(useEngineStore.getState().status === 'complete' ? '/game-over' : '/game-story')
+      return true
     } catch (err) {
       // 核心存档恢复失败：留在欢迎页并提示，避免进入半加载的损坏游戏态
       console.error('[welcome] 继续游戏加载失败:', err)
       addToast('error', `存档加载失败：${err instanceof Error ? err.message : '未知错误'}`, 5000)
+      return false
     }
-  }, [latestSave, router, addToast])
+  }, [router, addToast])
+
+  const handleDeleteSave = useCallback(async (slot: number): Promise<boolean> => {
+    try {
+      await saveManager.deleteSave(slot)
+      setSaves((previous) => previous.filter((save) => save.slot !== slot))
+      setSelectedSlot((current) => current === slot ? null : current)
+      addToast('success', '存档已删除')
+      return true
+    } catch (err) {
+      console.error('[welcome] 删除存档失败:', err)
+      addToast('error', `删除存档失败：${err instanceof Error ? err.message : '未知错误'}`, 5000)
+      return false
+    }
+  }, [addToast])
 
   const handleDisclaimerAccept = useCallback(() => {
     acceptDisclaimer()
@@ -122,25 +112,16 @@ export default function WelcomePage() {
 
   return (
     <>
-      <StarfieldBackground count={300} speed={0.5} enableOrbits={false} />
-
-      {isMobile ? (
-        <WelcomeMobile
-          onStartNewGame={handleStartNewGame}
-          onContinue={handleContinue}
-          latestSave={latestSave}
-          onOpenSettings={() => { setSettingsTab('appearance'); setShowSettings(true) }}
-          onOpenHelp={() => setShowHelp(true)}
-        />
-      ) : (
-        <WelcomeDesktop
-          onStartNewGame={handleStartNewGame}
-          onContinue={handleContinue}
-          latestSave={latestSave}
-          onOpenSettings={() => { setSettingsTab('appearance'); setShowSettings(true) }}
-          onOpenHelp={() => setShowHelp(true)}
-        />
-      )}
+      <WelcomeView
+        onStartNewGame={handleStartNewGame}
+        saves={saves}
+        selectedSlot={selectedSlot}
+        onSelectSave={setSelectedSlot}
+        onContinueSave={handleContinue}
+        onDeleteSave={handleDeleteSave}
+        onOpenSettings={() => { setSettingsTab('appearance'); setShowSettings(true) }}
+        onOpenHelp={() => setShowHelp(true)}
+      />
 
       <WelcomeModals
         toasts={toasts}

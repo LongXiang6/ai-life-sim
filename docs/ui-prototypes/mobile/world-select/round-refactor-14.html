@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>世界选择 · 重构第十四轮</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root { color-scheme:light; --canvas:#f3f1ec; --surface:#fffefd; --ink:#292724; --ink-soft:#6e6961; --ink-faint:#9a9389; --line:#d9d3c9; --line-soft:#e8e3da; --mist:#9ca9ac; --mist-light:#edf1f0; --pearl:#f6f4ef; --pearl-light:#faf8f4; --danger:#8e665e; --serif:"Songti SC","STSong","SimSun",serif; --sans:"SF Pro Text","PingFang SC","Microsoft YaHei UI",sans-serif; }
+    * { box-sizing:border-box; }
+    html { min-width:0; background:var(--canvas); }
+    body { min-width:0; margin:0; background:var(--canvas); color:var(--ink); font-family:var(--sans); font-size:14px; letter-spacing:0; }
+    button,input,textarea { color:inherit; font:inherit; letter-spacing:0; }
+    button,a { -webkit-tap-highlight-color:transparent; }
+    button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible { outline:1px dotted var(--ink-soft); outline-offset:2px; }
+    a { color:inherit; text-decoration:none; }
+    .review-shell { width:min(100%,1440px); margin:0 auto; padding:22px 12px 34px; }
+    .review-head { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:end; gap:18px; padding:0 4px 18px; border-bottom:1px solid #d1ccc3; }
+    .review-back { display:inline-block; min-height:34px; margin-bottom:8px; padding:7px 0; color:var(--ink-soft); font-size:11px; text-decoration:underline; text-decoration-color:#bdb7ad; text-underline-offset:4px; }
+    .review-head h1 { margin:0; font-family:var(--serif); font-size:30px; font-weight:600; line-height:1.25; }
+    .review-intro { max-width:66em; margin:8px 0 0; color:var(--ink-soft); font-family:var(--serif); font-size:13px; line-height:1.75; }
+    .review-status { padding-bottom:3px; color:#7e786f; font-size:10px; line-height:1.5; text-align:right; }
+    .review-status strong { display:block; color:var(--ink); font-family:var(--serif); font-size:14px; font-weight:600; }
+    .candidate-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-top:14px; }
+    .candidate { min-width:0; padding:12px 10px 14px; border:1px solid #d8d3ca; border-radius:6px; background:#f7f5f1; transition:border-color 180ms ease,background 180ms ease,box-shadow 180ms ease,transform 180ms ease; }
+    .candidate:hover { border-color:#bbb5ab; transform:translateY(-2px); }
+    .candidate.selected { border-color:var(--mist); background:#faf9f6; box-shadow:0 0 0 2px rgba(156,169,172,.2); }
+    .candidate-meta { display:grid; min-height:86px; grid-template-columns:minmax(0,1fr) auto; gap:8px; align-items:start; padding:0 2px 10px; }
+    .candidate-code { color:#79736b; font-size:9px; font-weight:700; line-height:1.4; }
+    .candidate-title { margin:4px 0 0; font-family:var(--serif); font-size:16px; font-weight:600; line-height:1.35; }
+    .candidate-note { margin:3px 0 0; color:#817b72; font-size:9px; line-height:1.45; }
+    .candidate-pick { min-height:34px; padding:5px 0 5px 8px; border:0; background:transparent; color:var(--ink-soft); cursor:pointer; font-size:9px; text-decoration:underline; text-decoration-color:#bbb5ab; text-underline-offset:4px; }
+    .candidate-pick[aria-pressed="true"] { color:#637174; text-decoration-color:var(--mist); }
+
+    .phone { --type-page:26px; --type-section:13px; --type-primary:10px; --type-secondary:7px; --type-action:8px; position:relative; width:min(100%,318px); height:640px; margin:0 auto; overflow:hidden; border:1px solid var(--line); border-radius:32px; background:#fdfcf9; box-shadow:0 13px 30px rgba(62,55,44,.075); isolation:isolate; }
+    .phone-page { position:absolute; z-index:1; inset:0 0 60px; overflow:hidden; padding:16px 24px 10px; }
+    .running-head { display:flex; min-height:14px; align-items:flex-start; justify-content:space-between; gap:8px; color:var(--ink-faint); font-size:var(--type-secondary); font-weight:600; line-height:1.3; }
+    .page-head { margin-top:5px; }
+    .page-head h2 { margin:0; font-family:var(--serif); font-size:var(--type-page); font-weight:600; line-height:1.18; }
+    .header-status { display:flex; min-height:42px; align-items:center; justify-content:space-between; gap:12px; margin-top:4px; padding:4px 8px; border:1px solid var(--line-soft); border-radius:7px; background:#fbfaf7; }
+    .current-world { min-width:0; }
+    .current-world span,.current-world strong { display:block; }
+    .current-world span { color:var(--ink-faint); font-size:var(--type-secondary); line-height:1.25; }
+    .current-world strong { max-width:155px; margin-top:2px; overflow:hidden; font-family:var(--serif); font-size:var(--type-primary); font-weight:600; line-height:1.25; text-overflow:ellipsis; white-space:nowrap; }
+    .difficulty-control { min-width:62px; min-height:32px; padding:3px 0 3px 7px; border:0; background:transparent; cursor:pointer; text-align:right; }
+    .difficulty-control span,.difficulty-control strong { display:block; }
+    .difficulty-control span { color:var(--ink-faint); font-size:var(--type-secondary); line-height:1.25; }
+    .difficulty-control strong { margin-top:1px; color:var(--ink); font-family:var(--serif); font-size:var(--type-primary); font-weight:600; line-height:1.25; }
+    .section { margin-top:0; padding:8px 0 7px; border-top:1px solid var(--line-soft); }
+    .custom-section { border-bottom:1px solid var(--line-soft); }
+    .section-head { display:flex; min-height:24px; align-items:flex-start; justify-content:space-between; gap:8px; }
+    .section-head strong { color:var(--ink); font-family:var(--serif); font-size:var(--type-section); font-weight:600; line-height:1.25; }
+    .section-head span { padding-top:2px; color:var(--ink-faint); font-size:var(--type-secondary); line-height:1.3; }
+    .saved-list { display:grid; gap:4px; }
+    .saved-choice { position:relative; display:grid; width:100%; min-width:0; min-height:42px; grid-template-columns:minmax(0,1fr) auto; align-items:start; gap:7px; padding:6px 8px; border:0; border-radius:7px; background:var(--pearl-light); color:var(--ink); cursor:pointer; text-align:left; }
+    .saved-choice strong,.saved-choice small { display:block; }
+    .saved-choice strong { overflow-wrap:anywhere; font-family:var(--serif); font-size:var(--type-primary); font-weight:600; line-height:1.25; }
+    .saved-choice small { margin-top:3px; color:var(--ink-faint); font-size:var(--type-secondary); line-height:1.3; }
+    .saved-choice>span:last-child { padding-top:2px; color:var(--ink-faint); font-size:var(--type-secondary); line-height:1.3; }
+    .saved-choice[aria-pressed="true"] { background:var(--mist-light); box-shadow:inset 3px 0 0 var(--mist); }
+    .saved-choice[aria-pressed="true"]::after { position:absolute; top:8px; right:8px; width:4px; height:4px; border-radius:50%; background:var(--mist); content:""; }
+    .manage-row { display:flex; min-height:27px; align-items:center; gap:17px; padding:1px 6px 0; }
+    .manage-row[hidden] { display:none; }
+    .manage-row button { min-height:27px; padding:4px 0; border:0; background:transparent; color:var(--ink-soft); cursor:pointer; font-size:var(--type-action); }
+    .manage-row [data-manage="delete"] { color:var(--danger); }
+    .preset-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; }
+    .preset-grid button { min-width:0; min-height:32px; padding:4px 3px; border:0; border-radius:6px; background:var(--pearl-light); color:var(--ink); cursor:pointer; font-family:var(--serif); font-size:var(--type-primary); font-weight:500; line-height:1.2; text-align:left; }
+    .preset-grid button[aria-selected="true"] { background:var(--mist-light); box-shadow:inset 0 -2px 0 var(--mist); }
+    .custom-form { display:grid; gap:4px; }
+    .field-pair { display:grid; grid-template-columns:1.08fr .92fr; gap:4px; }
+    .field { display:block; min-width:0; padding:5px 7px 4px; border:0; border-radius:7px; background:var(--pearl-light); }
+    .field>span { display:block; color:var(--ink-faint); font-size:var(--type-secondary); line-height:1.25; }
+    .field input,.field textarea { display:block; width:100%; min-width:0; padding:0; border:0; outline:0; background:transparent; color:var(--ink); font-family:var(--serif); font-size:var(--type-primary); }
+    .field input { min-height:21px; }
+    .field textarea { min-height:35px; line-height:1.35; resize:none; }
+    input::placeholder,textarea::placeholder { color:#aaa39a; opacity:1; }
+    .boundary-bands .phone-page { padding-right:22px; padding-left:22px; }
+    .boundary-bands .header-status { border-color:#d8e0de; background:var(--mist-light); }
+    .boundary-bands .section { margin-right:-8px; margin-left:-8px; padding-right:8px; padding-left:8px; }
+    .boundary-bands .saved-section { background:#faf9f6; }
+    .boundary-bands .preset-section { background:#fdfcf9; }
+    .boundary-bands .custom-section { background:#f7f5f1; }
+    .boundary-headed .phone-page { padding-right:22px; padding-left:22px; }
+    .boundary-headed .header-status { border-color:#d8e0de; background:var(--mist-light); }
+    .boundary-headed .section { margin-right:-10px; margin-left:-10px; padding:0 10px 8px; }
+    .boundary-headed .section-head { min-height:33px; margin:0 -10px 7px; padding:7px 10px 6px; background:var(--pearl); }
+    .boundary-headed .saved-section .section-head { background:var(--mist-light); }
+    .boundary-headed .custom-section .section-head { background:#f1efea; }
+    .boundary-weighted .phone-page { padding:14px 20px 10px; }
+    .boundary-weighted .running-head { min-height:13px; }
+    .boundary-weighted .header-status { min-height:44px; border-color:var(--mist); background:var(--mist-light); }
+    .boundary-weighted .current-world strong { font-size:12px; }
+    .boundary-weighted .section { margin-right:-10px; margin-left:-10px; padding:8px 10px 7px; }
+    .boundary-weighted .saved-section { background:#f2f5f4; }
+    .boundary-weighted .preset-section { padding-top:7px; padding-bottom:7px; background:#fdfcf9; }
+    .boundary-weighted .custom-section { background:#f6f4ef; }
+    .boundary-weighted .saved-section .section-head strong,.boundary-weighted .custom-section .section-head strong { font-size:14px; }
+    .boundary-weighted .preset-section .section-head strong { color:var(--ink-soft); font-size:11px; }
+    .boundary-weighted .saved-choice[aria-pressed="true"] strong { font-size:11px; }
+    .boundary-weighted .preset-grid button { color:var(--ink-soft); font-size:9px; }
+    .boundary-weighted .confirm-action { font-size:14px; }
+
+    .phone-footer { position:absolute; z-index:5; right:0; bottom:0; left:0; display:grid; height:60px; grid-template-columns:48px minmax(0,1fr); align-items:center; gap:12px; padding:8px 24px 9px; background:rgba(253,252,249,.97); box-shadow:0 -9px 24px rgba(62,55,44,.045); }
+    .phone-footer button { min-height:40px; padding:4px 0; border:0; background:transparent; cursor:pointer; }
+    .back-action { color:var(--ink-soft); font-size:var(--type-action); text-align:left; }
+    .confirm-action { color:var(--ink); font-family:var(--serif); font-size:var(--type-section); font-weight:600; text-align:right; }
+    .confirm-action:disabled { color:#b5afa6; cursor:not-allowed; }
+    .sheet { position:absolute; z-index:20; inset:39px 8px 60px; overflow:hidden; padding:16px 14px 14px 24px; border:1px solid var(--line); border-radius:24px 24px 0 0; background:#fdfcf9; box-shadow:0 -10px 28px rgba(62,55,44,.1); clip-path:inset(100% 0 0 0); opacity:0; pointer-events:none; transition:clip-path 250ms cubic-bezier(.22,.74,.24,1),opacity 180ms ease; }
+    .sheet.open { clip-path:inset(0); opacity:1; pointer-events:auto; }
+    .sheet-head { display:grid; min-height:45px; grid-template-columns:minmax(0,1fr) 34px; align-items:start; gap:9px; padding-bottom:9px; }
+    .sheet-head h3 { margin:0; font-family:var(--serif); font-size:calc(var(--type-section) + 5px); font-weight:600; line-height:1.3; }
+    .sheet-head p { margin:3px 0 0; color:var(--ink-faint); font-size:var(--type-secondary); line-height:1.4; }
+    .sheet-close { display:grid; width:34px; height:34px; place-items:center; padding:0; border:0; background:transparent; color:var(--ink-soft); cursor:pointer; font-size:18px; line-height:1; }
+    .edit-form { display:grid; gap:8px; margin-top:12px; }
+    .edit-form .field { padding:7px 8px 5px; }
+    .edit-form .field input,.edit-form .field textarea { font-size:var(--type-primary); }
+    .edit-form .field input { min-height:29px; }
+    .edit-form .field textarea { min-height:78px; }
+    .sheet-actions { display:grid; grid-template-columns:65px minmax(0,1fr); gap:8px; margin-top:10px; }
+    .sheet-actions button { min-height:38px; padding:4px 0; border:0; border-radius:7px; background:var(--pearl); color:var(--ink-soft); cursor:pointer; font-size:var(--type-action); }
+    .sheet-actions .save-edit { background:var(--ink); color:var(--surface); font-family:var(--serif); font-size:var(--type-primary); }
+    .edit-status { min-height:14px; margin:6px 0 0; color:var(--danger); font-size:var(--type-secondary); }
+    .dialog-layer { position:absolute; z-index:30; inset:0; display:grid; place-items:center; padding:23px; background:rgba(251,250,247,.91); opacity:0; pointer-events:none; transition:opacity 160ms ease; }
+    .dialog-layer.open { opacity:1; pointer-events:auto; }
+    .dialog { width:100%; padding:17px 15px 14px; border-radius:9px; background:var(--surface); box-shadow:0 12px 32px rgba(62,55,44,.12); }
+    .dialog h3 { margin:0; font-family:var(--serif); font-size:var(--type-section); font-weight:600; }
+    .dialog p { margin:7px 0 0; color:var(--ink-soft); font-size:var(--type-secondary); line-height:1.6; }
+    .dialog-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin-top:14px; }
+    .dialog-actions button { min-height:38px; border:0; border-radius:7px; background:var(--pearl); color:var(--ink-soft); cursor:pointer; font-size:var(--type-action); }
+    .dialog-actions .danger-confirm { background:#f3eae7; color:#845b52; }
+    .phone-toast { position:absolute; z-index:50; right:24px; bottom:71px; left:24px; padding:7px 9px; border-radius:999px; background:var(--ink); color:var(--surface); font-size:var(--type-action); line-height:1.45; text-align:center; opacity:0; pointer-events:none; transform:translateY(5px); transition:opacity 160ms ease,transform 160ms ease; }
+    .phone-toast.show { opacity:1; transform:none; }
+    @media(max-width:1099px){.candidate-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.candidate-meta{min-height:82px;}}
+    @media(max-width:559px){.review-shell{padding:15px 12px 28px;}.review-head{grid-template-columns:1fr;gap:9px;}.review-head h1{font-size:26px;}.review-status{text-align:left;}.candidate-grid{grid-template-columns:1fr;}.candidate{padding-right:8px;padding-left:8px;}.candidate-meta{min-height:0;padding:2px 4px 11px;}.phone{width:min(100%,330px);}}
+    @media(max-width:389px){.review-shell{padding-right:10px;padding-left:10px;}.review-head{padding-right:3px;padding-left:3px;}.candidate{padding-right:7px;padding-left:7px;}.phone{width:min(100%,326px);}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;}}
+  </style>
+</head>
+<body>
+  <main class="review-shell">
+    <header class="review-head"><div><a class="review-back" href="index.html">← 返回世界选择历史</a><h1>世界选择 · 重构第十四轮</h1><p class="review-intro">第十三轮由 WS-RF13-2 晋级。本轮按权重树组织界面：根任务统领当前状态、已保存、预设、自定义与确认五个分支，直接完成任务的状态和操作获得更高权重；四案保持同一字号基底，逐步加强每个块的边界感。</p></div><div class="review-status"><strong data-review-selection>当前选择 · WS-RF14-1</strong>待用户选择 · 01 最稳 / 04 最强分区</div></header>
+    <section class="candidate-grid" aria-label="世界选择重构第十四轮候选">
+      <article class="candidate selected" data-choice="WS-RF14-1"><header class="candidate-meta"><div><div class="candidate-code">WS-RF14-1 · 最稳妥</div><h2 class="candidate-title">规则分隔</h2><p class="candidate-note">细线与留白划分状态、保存、预设、自定义四个块。</p></div><button class="candidate-pick" type="button" aria-pressed="true">已选此案</button></header><section class="phone boundary-rules" data-app="rf14-1" data-selected-world="潮汐城邦" data-source="saved" data-difficulty-value="普通"></section></article>
+      <article class="candidate" data-choice="WS-RF14-2"><header class="candidate-meta"><div><div class="candidate-code">WS-RF14-2 · 清晰增强</div><h2 class="candidate-title">浅带分区</h2><p class="candidate-note">以轻底色页带承载各分支，块边界更容易扫读。</p></div><button class="candidate-pick" type="button" aria-pressed="false">选择此案</button></header><section class="phone boundary-bands" data-app="rf14-2" data-selected-world="潮汐城邦" data-source="saved" data-difficulty-value="普通"></section></article>
+      <article class="candidate" data-choice="WS-RF14-3"><header class="candidate-meta"><div><div class="candidate-code">WS-RF14-3 · 标题边界</div><h2 class="candidate-title">章首分带</h2><p class="candidate-note">每个分节拥有独立标题带，标题与内容边界最明确。</p></div><button class="candidate-pick" type="button" aria-pressed="false">选择此案</button></header><section class="phone boundary-headed" data-app="rf14-3" data-selected-world="潮汐城邦" data-source="saved" data-difficulty-value="普通"></section></article>
+      <article class="candidate" data-choice="WS-RF14-4"><header class="candidate-meta"><div><div class="candidate-code">WS-RF14-4 · 最大胆</div><h2 class="candidate-title">权重分区</h2><p class="candidate-note">保存与自定义主分支前置强调，预设退为支持分支。</p></div><button class="candidate-pick" type="button" aria-pressed="false">选择此案</button></header><section class="phone boundary-weighted" data-app="rf14-4" data-selected-world="潮汐城邦" data-source="saved" data-difficulty-value="普通"></section></article>
+    </section>
+  </main>
+  <template id="page-template">
+    <div class="phone-page"><div class="running-head"><span>新人生 / 世界</span><span>01 / 06</span></div><header class="page-head"><h2>选择世界</h2></header><div class="header-status"><div class="current-world"><span>当前世界</span><strong data-current-label>潮汐城邦</strong></div><button class="difficulty-control" type="button" data-difficulty-cycle><span>难度</span><strong data-difficulty-label>普通</strong></button></div>
+      <section class="section saved-section"><header class="section-head"><strong>已保存世界</strong><span data-saved-count>2 个可继续</span></header><div class="saved-list" data-saved-list></div><div class="manage-row" data-manage-row><button type="button" data-manage="edit">修改</button><button type="button" data-manage="reset">重置</button><button type="button" data-manage="delete">删除</button></div></section>
+      <section class="section preset-section"><header class="section-head"><strong>预设世界</strong><span>6 个可选</span></header><div class="preset-grid" aria-label="预设世界"><button type="button" data-preset="现代地球" aria-selected="false">现代地球</button><button type="button" data-preset="武道割据" aria-selected="false">武道割据</button><button type="button" data-preset="SCP基金会" aria-selected="false">SCP 基金会</button><button type="button" data-preset="战锤40K" aria-selected="false">战锤 40K</button><button type="button" data-preset="赛博2077" aria-selected="false">赛博 2077</button><button type="button" data-preset="修真世界" aria-selected="false">修真世界</button></div></section>
+      <section class="section custom-section"><header class="section-head"><strong>新建自定义世界</strong><span>填写即选择</span></header><form class="custom-form" data-custom-form><div class="field-pair"><label class="field"><span>世界名称</span><input data-custom-field="name" autocomplete="off" placeholder="为世界命名"></label><label class="field"><span>起始年代</span><input data-custom-field="era" autocomplete="off" placeholder="写下年代"></label></div><label class="field"><span>世界描述</span><textarea data-custom-field="description" placeholder="写下世界的样子与一条核心规则"></textarea></label></form></section>
+    </div><footer class="phone-footer"><button class="back-action" type="button" data-back>返回</button><button class="confirm-action" type="button" data-confirm><span data-confirm-label>确认 · 潮汐城邦</span></button></footer>
+  </template>
+  <template id="overlay-template"><section class="sheet" data-sheet="edit" aria-hidden="true"><header class="sheet-head"><div><h3>修改保存世界</h3><p>保存后会更新这份自定义世界。</p></div><button class="sheet-close" type="button" data-close-overlay aria-label="关闭修改面板" title="关闭">×</button></header><form class="edit-form" data-edit-form><label class="field"><span>世界名称</span><input name="name" autocomplete="off"></label><label class="field"><span>起始年代</span><input name="era" autocomplete="off"></label><label class="field"><span>世界描述</span><textarea name="description"></textarea></label><div class="sheet-actions"><button type="button" data-close-overlay>取消</button><button class="save-edit" type="submit">保存修改</button></div><p class="edit-status" data-edit-status role="status"></p></form></section><div class="dialog-layer" data-dialog-layer aria-hidden="true"><section class="dialog" role="alertdialog" aria-modal="true"><h3 data-dialog-title>确认操作</h3><p data-dialog-copy></p><div class="dialog-actions"><button type="button" data-dialog-cancel>取消</button><button class="danger-confirm" type="button" data-dialog-confirm>确认</button></div></section></div><div class="phone-toast" role="status" aria-live="polite"></div></template>
+  <script>
+    (()=>{
+      const presetWorlds={'现代地球':{name:'现代地球',era:'公元 2000 年',description:'互联网正在改变生活，平凡人生也会被时代推动。'},'武道割据':{name:'武道割据',era:'乱世江湖',description:'门派林立、恩怨纠葛，一技之长即可改写命运。'},'SCP基金会':{name:'SCP 基金会',era:'当代异常收容',description:'日常表象之下，异常项目被严密收容与研究。'},'战锤40K':{name:'战锤 40K',era:'遥远的未来',description:'帝国与异族永世征战，个体在星海中微不足道。'},'赛博2077':{name:'赛博 2077',era:'公元 2077 年',description:'义体改造与企业统治交织，街头是普通人争取自由的地方。'},'修真世界':{name:'修真世界',era:'仙道纪元',description:'灵根与功法决定起点，长生之路布满试炼。'}};
+      const initialSaved=[{id:'tide',original:{name:'潮汐城邦',era:'群岛历 218 年',description:'潮汐决定城市的贸易节律、迁徙方向与每个人回家的时间。'},updated:'最近修改'},{id:'ember',original:{name:'余烬花园',era:'灾后 31 年',description:'人们在旧城废墟的温室里重建共同体，水与种子比货币更珍贵。'},updated:'昨日保存'}],levels=['轻松','普通','艰难'];const clone=value=>JSON.parse(JSON.stringify(value));
+      document.querySelectorAll('[data-app]').forEach((app,index)=>{app.append(document.querySelector('#page-template').content.cloneNode(true));app.append(document.querySelector('#overlay-template').content.cloneNode(true));const title=app.querySelector('[data-dialog-title]');title.id=`rf14-dialog-title-${index+1}`;app.querySelector('.dialog').setAttribute('aria-labelledby',title.id);});
+      const candidates=[...document.querySelectorAll('.candidate')];const selectCandidate=candidate=>{candidates.forEach(item=>{const selected=item===candidate;item.classList.toggle('selected',selected);const button=item.querySelector('.candidate-pick');button.setAttribute('aria-pressed',String(selected));button.textContent=selected?'已选此案':'选择此案';});document.querySelector('[data-review-selection]').textContent=`当前选择 · ${candidate.dataset.choice}`;};candidates.forEach(candidate=>{candidate.addEventListener('click',()=>selectCandidate(candidate));candidate.querySelector('.candidate-pick').addEventListener('click',event=>{event.stopPropagation();selectCandidate(candidate);});});
+      const showToast=(app,message)=>{const toast=app.querySelector('.phone-toast');toast.textContent=message;toast.classList.add('show');clearTimeout(toast._timer);toast._timer=setTimeout(()=>toast.classList.remove('show'),1500);};const hideToast=app=>{const toast=app.querySelector('.phone-toast');clearTimeout(toast._timer);toast.classList.remove('show');};const closeOverlays=app=>{app.querySelectorAll('.sheet.open').forEach(sheet=>{sheet.classList.remove('open');sheet.setAttribute('aria-hidden','true');});const layer=app.querySelector('[data-dialog-layer]');layer.classList.remove('open');layer.setAttribute('aria-hidden','true');};
+      const updateSelection=(app,state)=>{const name=state.selectedWorld?.name||'正在书写';app.dataset.selectedWorld=state.selectedWorld?.name||'';app.dataset.source=state.source;app.querySelector('[data-current-label]').textContent=name;app.querySelector('[data-confirm-label]').textContent=state.selectedWorld?`确认 · ${name}`:'请补全自定义世界';app.querySelector('[data-confirm]').disabled=!state.selectedWorld;};const setPresetState=(app,state)=>app.querySelectorAll('[data-preset]').forEach(button=>button.setAttribute('aria-selected',String(state.source==='preset'&&button.dataset.preset===state.selectedPreset)));
+      const renderSaved=(app,state)=>{const list=app.querySelector('[data-saved-list]');list.replaceChildren();state.saved.forEach(entry=>{const button=document.createElement('button');button.type='button';button.className='saved-choice';button.dataset.savedId=entry.id;button.setAttribute('aria-pressed',String(state.source==='saved'&&state.selectedSavedId===entry.id));const copy=document.createElement('span'),name=document.createElement('strong'),summary=document.createElement('small'),status=document.createElement('span');name.textContent=entry.current.name;summary.textContent=`${entry.current.era} · ${entry.updated}`;status.textContent=entry.updated==='最近修改'?'最近':'存档';copy.append(name,summary);button.append(copy,status);button.addEventListener('click',()=>selectSaved(app,state,entry.id));list.append(button);});app.querySelector('[data-saved-count]').textContent=`${state.saved.length} 个可继续`;app.querySelector('[data-manage-row]').hidden=!(state.source==='saved'&&state.selectedSavedId);};
+      const selectSaved=(app,state,id)=>{const entry=state.saved.find(item=>item.id===id);if(!entry)return;state.source='saved';state.selectedSavedId=id;state.selectedPreset='';state.selectedWorld=clone(entry.current);renderSaved(app,state);setPresetState(app,state);updateSelection(app,state);showToast(app,`已选择保存世界 · ${entry.current.name}`);};const selectPreset=(app,state,key)=>{state.source='preset';state.selectedSavedId='';state.selectedPreset=key;state.selectedWorld=clone(presetWorlds[key]);renderSaved(app,state);setPresetState(app,state);updateSelection(app,state);showToast(app,`已选择预设世界 · ${state.selectedWorld.name}`);};const syncCustom=(app,state)=>{const fields=Object.fromEntries([...app.querySelectorAll('[data-custom-field]')].map(field=>[field.dataset.customField,field.value.trim()]));if(!Object.values(fields).some(Boolean)&&state.source!=='custom')return;state.source='custom';state.selectedSavedId='';state.selectedPreset='';state.selectedWorld=Object.values(fields).every(Boolean)?fields:null;renderSaved(app,state);setPresetState(app,state);updateSelection(app,state);};
+      const openEdit=(app,state)=>{const entry=state.saved.find(item=>item.id===state.selectedSavedId);if(!entry)return;hideToast(app);state.editingId=entry.id;const form=app.querySelector('[data-edit-form]');form.elements.name.value=entry.current.name;form.elements.era.value=entry.current.era;form.elements.description.value=entry.current.description;form.querySelector('[data-edit-status]').textContent='';const sheet=app.querySelector('[data-sheet="edit"]');sheet.classList.add('open');sheet.setAttribute('aria-hidden','false');form.elements.name.focus({preventScroll:true});};const openDialog=(app,state,action)=>{const entry=state.saved.find(item=>item.id===state.selectedSavedId);if(!entry)return;hideToast(app);state.pendingAction=action;const deleting=action==='delete';app.querySelector('[data-dialog-title]').textContent=deleting?'删除保存世界？':'重置保存世界？';app.querySelector('[data-dialog-copy]').textContent=deleting?`“${entry.current.name}”将从保存列表移除，此操作无法撤销。`:`“${entry.current.name}”将恢复为首次保存时的名称、年代与描述。`;app.querySelector('[data-dialog-confirm]').textContent=deleting?'确认删除':'确认重置';const layer=app.querySelector('[data-dialog-layer]');layer.classList.add('open');layer.setAttribute('aria-hidden','false');};
+      document.querySelectorAll('[data-app]').forEach(app=>{const state={saved:initialSaved.map(entry=>({...clone(entry),current:clone(entry.original)})),source:'saved',selectedSavedId:'tide',selectedPreset:'',selectedWorld:clone(initialSaved[0].original),difficultyIndex:1,editingId:'',pendingAction:''};app._state=state;renderSaved(app,state);setPresetState(app,state);updateSelection(app,state);app.querySelectorAll('[data-preset]').forEach(button=>button.addEventListener('click',()=>selectPreset(app,state,button.dataset.preset)));app.querySelectorAll('[data-custom-field]').forEach(field=>field.addEventListener('input',()=>syncCustom(app,state)));app.querySelectorAll('[data-manage]').forEach(button=>button.addEventListener('click',()=>button.dataset.manage==='edit'?openEdit(app,state):openDialog(app,state,button.dataset.manage)));app.querySelectorAll('[data-close-overlay],[data-dialog-cancel]').forEach(button=>button.addEventListener('click',()=>closeOverlays(app)));app.querySelector('[data-difficulty-cycle]').addEventListener('click',()=>{state.difficultyIndex=(state.difficultyIndex+1)%levels.length;const value=levels[state.difficultyIndex];app.dataset.difficultyValue=value;app.querySelector('[data-difficulty-label]').textContent=value;showToast(app,`人生难度 · ${value}`);});
+        app.querySelector('[data-edit-form]').addEventListener('submit',event=>{event.preventDefault();const form=event.currentTarget,values={name:form.elements.name.value.trim(),era:form.elements.era.value.trim(),description:form.elements.description.value.trim()};if(!Object.values(values).every(Boolean)){form.querySelector('[data-edit-status]').textContent='请补全名称、年代与描述。';return;}const entry=state.saved.find(item=>item.id===state.editingId);if(!entry)return;entry.current=values;entry.updated='刚刚修改';if(state.source==='saved'&&state.selectedSavedId===entry.id)state.selectedWorld=clone(values);closeOverlays(app);renderSaved(app,state);updateSelection(app,state);showToast(app,`已保存修改 · ${values.name}`);});app.querySelector('[data-dialog-confirm]').addEventListener('click',()=>{const entry=state.saved.find(item=>item.id===state.selectedSavedId);if(!entry)return;if(state.pendingAction==='reset'){entry.current=clone(entry.original);entry.updated='已重置';state.selectedWorld=clone(entry.current);closeOverlays(app);renderSaved(app,state);updateSelection(app,state);showToast(app,`已重置 · ${entry.current.name}`);return;}if(state.pendingAction==='delete'){const deletedName=entry.current.name;state.saved=state.saved.filter(item=>item.id!==entry.id);closeOverlays(app);if(state.saved.length)selectSaved(app,state,state.saved[0].id);else selectPreset(app,state,'现代地球');showToast(app,`已删除 · ${deletedName}`);}});app.querySelector('[data-back]').addEventListener('click',()=>showToast(app,'返回欢迎页 · 当前选择将保留'));app.querySelector('[data-confirm]').addEventListener('click',()=>{if(!state.selectedWorld)return;showToast(app,`已确认“${state.selectedWorld.name}” · 下一步：世界配置`);});});document.addEventListener('keydown',event=>{if(event.key==='Escape')document.querySelectorAll('[data-app]').forEach(closeOverlays);});
+    })();
+  </script>
+</body>
+</html>

@@ -2,11 +2,15 @@
 
 /**
  * @module SettingsModal.tsx
- * @description 设置弹窗容器 —— 参照废弃项目：🎨个性化 → 🤖模型设置 → 🔌模型调用
+ * @description 设置弹窗容器 —— 横向紧凑标签 + 单一响应式 Sheet
  * @mod mod-settings
  */
 
-import { useState, useCallback } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
+
+import { useFontStore } from '@/core/theme/font-store'
+
+import { DEFAULT_SETTINGS_VALUES, useSettingsStore } from '../store'
 
 import { SettingsTabTheme } from './SettingsTabTheme'
 import { SettingsTabModel } from './SettingsTabModel'
@@ -17,12 +21,17 @@ import styles from './SettingsModal.module.css'
 
 type TabId = 'appearance' | 'ai' | 'model-call' | 'prompt'
 
-const TABS: { id: TabId; label: string; icon: string }[] = [
-  { id: 'appearance', label: '个性化', icon: '🎨' },
-  { id: 'ai', label: '模型设置', icon: '🤖' },
-  { id: 'model-call', label: '模型调用', icon: '🔌' },
-  { id: 'prompt', label: 'Prompt', icon: '📝' },
+const TABS: { id: TabId; label: string; index: string }[] = [
+  { id: 'appearance', label: '个性化', index: '01' },
+  { id: 'ai', label: '模型设置', index: '02' },
+  { id: 'model-call', label: '模型调用', index: '03' },
+  { id: 'prompt', label: 'Prompt', index: '04' },
 ]
+
+function areSettingsDefault(state: ReturnType<typeof useSettingsStore.getState>): boolean {
+  return (Object.keys(DEFAULT_SETTINGS_VALUES) as Array<keyof typeof DEFAULT_SETTINGS_VALUES>)
+    .every((key) => state[key] === DEFAULT_SETTINGS_VALUES[key])
+}
 
 interface SettingsModalProps {
   open: boolean
@@ -31,62 +40,193 @@ interface SettingsModalProps {
   initialTab?: TabId
 }
 
-/** 设置弹窗容器 —— 参照废弃项目：🎨个性化 → 🤖模型设置 → 🔌模型调用
+/** 设置弹窗容器 —— 横向紧凑标签 + 单一响应式 Sheet
  * @param open 是否打开弹窗
  * @param onClose 关闭回调
  * @param initialTab 初始激活的标签页（默认 'appearance'）
  */
 export function SettingsModal({ open, onClose, initialTab }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? 'appearance')
+  const modalRef = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
+  const settingsAreDefault = useSettingsStore(areSettingsDefault)
+  const fontFamily = useFontStore((state) => state.fontFamily)
+  const setFontFamily = useFontStore((state) => state.setFontFamily)
+  const allSettingsAreDefault = settingsAreDefault && fontFamily === 'default'
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') onClose()
+  useEffect(() => {
+    onCloseRef.current = onClose
   }, [onClose])
 
+  useEffect(() => {
+    if (!open) return
+
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null
+    const focusFrame = window.requestAnimationFrame(() => modalRef.current?.focus())
+
+    const handleDocumentKeyDown = (event: KeyboardEvent) => {
+      const modal = modalRef.current
+      if (!modal) return
+
+      const nestedDialog = modal.querySelector<HTMLElement>('[role="alertdialog"][aria-modal="true"]')
+      if (event.key === 'Escape') {
+        if (nestedDialog) return
+        event.preventDefault()
+        onCloseRef.current()
+        return
+      }
+
+      if (event.key !== 'Tab') return
+
+      const focusScope = nestedDialog ?? modal
+      const portalRoots = nestedDialog
+        ? []
+        : Array.from(document.querySelectorAll<HTMLElement>('[data-settings-modal-portal]'))
+      const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      const focusableElements = [focusScope, ...portalRoots]
+        .flatMap((root) => Array.from(root.querySelectorAll<HTMLElement>(focusableSelector)))
+        .filter((element) => element.getClientRects().length > 0 && element.getAttribute('aria-hidden') !== 'true')
+
+      if (focusableElements.length === 0) {
+        event.preventDefault()
+        focusScope.focus()
+        return
+      }
+
+      const firstElement = focusableElements[0]
+      const lastElement = focusableElements[focusableElements.length - 1]
+      const activeElement = document.activeElement
+      const activeElementIsInScope = focusScope.contains(activeElement)
+        || portalRoots.some((root) => root.contains(activeElement))
+      const activeElementIsFocusable = focusableElements.includes(activeElement as HTMLElement)
+
+      if (event.shiftKey) {
+        if (activeElement === firstElement || !activeElementIsInScope || !activeElementIsFocusable) {
+          event.preventDefault()
+          lastElement.focus()
+        }
+      } else if (activeElement === lastElement || !activeElementIsInScope || !activeElementIsFocusable) {
+        event.preventDefault()
+        firstElement.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleDocumentKeyDown)
+    return () => {
+      window.cancelAnimationFrame(focusFrame)
+      document.removeEventListener('keydown', handleDocumentKeyDown)
+      if (previouslyFocused?.isConnected) previouslyFocused.focus()
+    }
+  }, [open])
+
   if (!open) return null
+
+  const activeTabIndex = TABS.find((tab) => tab.id === activeTab)?.index ?? '01'
+  const handleTabKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>, index: number) => {
+    let nextIndex: number | null = null
+    if (event.key === 'ArrowRight') nextIndex = (index + 1) % TABS.length
+    else if (event.key === 'ArrowLeft') nextIndex = (index - 1 + TABS.length) % TABS.length
+    else if (event.key === 'Home') nextIndex = 0
+    else if (event.key === 'End') nextIndex = TABS.length - 1
+    if (nextIndex === null) return
+
+    event.preventDefault()
+    const nextTab = TABS[nextIndex]
+    setActiveTab(nextTab.id)
+    window.requestAnimationFrame(() => document.getElementById(`settings-tab-${nextTab.id}`)?.focus())
+  }
+  const handleRestoreDefaults = () => {
+    useSettingsStore.setState({ ...DEFAULT_SETTINGS_VALUES })
+    setFontFamily('default')
+  }
 
   return (
     <div
       className={styles.overlay}
       onClick={onClose}
-      onKeyDown={handleKeyDown}
-      role="dialog"
-      aria-modal="true"
-      aria-label="设置"
     >
       <div
+        ref={modalRef}
         className={styles.modalFrame}
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-dialog-title"
+        tabIndex={-1}
       >
-        {/* 标题栏 */}
-        <div className={styles.header}>
-          <h2 className={styles.title}>⚙️ 设置</h2>
-          <button onClick={onClose} className={styles.closeBtn}>
-            关闭
-          </button>
-        </div>
+        <span className={styles.spine} aria-hidden="true" />
+
+        <header className={styles.header}>
+          <div className={styles.metaRow} aria-hidden="true">
+            <span>AI LIFE SIM · 命书</span>
+            <span>附 · {activeTabIndex}</span>
+          </div>
+          <div className={styles.titleRow}>
+            <div>
+              <h2 id="settings-dialog-title" className={styles.title}>设置</h2>
+              <p>偏好即时生效，不改变已经发生的模拟事实。</p>
+            </div>
+            <span className={styles.titleMark} aria-hidden="true"><span>设</span></span>
+          </div>
+          <div className={styles.divider} aria-hidden="true"><span /></div>
+        </header>
 
         {/* Tab 栏 */}
-        <div className={styles.tabBar}>
-          {TABS.map((tab) => (
+        <div className={styles.tabBar} role="tablist" aria-label="设置分类">
+          {TABS.map((tab, index) => (
             <button
+              type="button"
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
+              onKeyDown={(event) => handleTabKeyDown(event, index)}
               className={`${styles.tab} ${activeTab === tab.id ? styles.tabActive : ''}`}
+              role="tab"
+              id={`settings-tab-${tab.id}`}
+              aria-selected={activeTab === tab.id}
+              aria-controls={activeTab === tab.id ? `settings-panel-${tab.id}` : undefined}
+              tabIndex={activeTab === tab.id ? 0 : -1}
             >
-              <span>{tab.icon}</span>
+              <small>{tab.index}</small>
               <span>{tab.label}</span>
             </button>
           ))}
         </div>
 
+        <div className={styles.settingsTools}>
+          <small>{allSettingsAreDefault ? '当前为默认设置' : '已有调整 · 即时生效'}</small>
+          <button
+            type="button"
+            className={styles.restoreAction}
+            disabled={allSettingsAreDefault}
+            onClick={handleRestoreDefaults}
+          >
+            恢复默认
+          </button>
+        </div>
+
         {/* Tab 内容 */}
-        <div className={styles.tabContent}>
+        <div
+          id={`settings-panel-${activeTab}`}
+          className={styles.tabContent}
+          role="tabpanel"
+          aria-labelledby={`settings-tab-${activeTab}`}
+        >
           {activeTab === 'appearance' && <SettingsTabTheme />}
           {activeTab === 'ai' && <SettingsTabModel />}
           {activeTab === 'model-call' && <SettingsTabPresets />}
           {activeTab === 'prompt' && <SettingsTabPrompt />}
         </div>
+
+        <footer className={styles.footer}>
+          <button type="button" onClick={onClose} className={styles.closeBtn} aria-label="关闭设置">×</button>
+          <button type="button" onClick={onClose} className={styles.doneBtn}>
+            <span className={styles.doneIndex}>返</span>
+            <span className={styles.doneCopy}><strong>完成设置</strong><small>所有调整已即时生效</small></span>
+            <span className={styles.doneArrow} aria-hidden="true">→</span>
+          </button>
+        </footer>
       </div>
     </div>
   )

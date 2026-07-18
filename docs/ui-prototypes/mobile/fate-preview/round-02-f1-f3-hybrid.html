@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light-aurora">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>命运预览第二轮 · F1 × F3</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../assets/library-history.css">
+  <script src="../assets/prototype.js" defer></script>
+  <style>
+    :root {
+      --color-primary:#6366f1;
+      --color-primary-hover:#4f46e5;
+      --color-primary-light:rgba(99,102,241,.08);
+      --color-text-on-primary:#fff;
+      --color-success:#10b981;
+      --color-warning:#f59e0b;
+      --color-error:#ef4444;
+      --color-error-bg:rgba(239,68,68,.06);
+      --color-bg-primary:#f8f7ff;
+      --color-bg-secondary:#efedfa;
+      --color-bg-tertiary:#e2def7;
+      --color-bg-card:#fff;
+      --color-text-primary:#1e1b4b;
+      --color-text-secondary:#6b7280;
+      --color-text-tertiary:#9ca3af;
+      --color-border:#d4d0ee;
+      --glass-surface-bg:color-mix(in srgb,var(--color-bg-card) 82%,transparent);
+      --glass-elevated-bg:color-mix(in srgb,var(--color-bg-card) 88%,transparent);
+      --glass-border:color-mix(in srgb,var(--color-border) 78%,transparent);
+      --glass-blur-surface:14px;
+      --glass-blur-elevated:18px;
+      --radius-md:.5rem;
+      --radius-lg:.75rem;
+      --radius-xl:1rem;
+      --radius-2xl:1.25rem;
+      --duration-fast:150ms;
+      --ease-standard:cubic-bezier(.2,0,0,1);
+    }
+
+    .phone{height:650px;background:var(--color-bg-primary);color:var(--color-text-primary)}
+    .screen{height:100%;overflow:auto;padding:17px 10px 70px;background:radial-gradient(circle at 88% 5%,var(--color-primary-light),transparent 27%),linear-gradient(180deg,var(--color-bg-primary),color-mix(in srgb,var(--color-bg-secondary) 38%,var(--color-bg-primary)));scrollbar-width:none}
+    .screen::-webkit-scrollbar{display:none}
+    .kicker{color:var(--color-text-tertiary);font-size:6px;font-weight:800;letter-spacing:.16em}
+    .mobile-title{margin-top:4px;font-size:18px;font-weight:780;letter-spacing:-.03em}
+    .mobile-sub{margin-top:3px;color:var(--color-text-secondary);font-size:7px;line-height:1.45}
+    .glass{border:1px solid var(--glass-border);background:var(--glass-elevated-bg);box-shadow:0 5px 16px color-mix(in srgb,var(--color-primary) 5%,transparent);backdrop-filter:blur(var(--glass-blur-elevated))}
+    .section-label{display:flex;align-items:center;justify-content:space-between;margin:9px 1px 5px;color:var(--color-text-primary);font-size:7px;font-weight:760}
+    .section-label small{color:var(--color-text-tertiary);font-size:6px;font-weight:550}
+    .pill{display:inline-flex;align-items:center;padding:3px 6px;border-radius:999px;background:var(--color-primary-light);color:var(--color-primary-hover);font-size:5px;font-weight:700}
+    .fine{background:color-mix(in srgb,var(--color-success) 11%,transparent);color:color-mix(in srgb,var(--color-success) 72%,var(--color-text-primary))}
+    .legend{background:color-mix(in srgb,var(--color-primary) 14%,transparent);color:var(--color-primary-hover)}
+    .state-note{margin-top:5px;color:var(--color-text-tertiary);font-size:5px;line-height:1.5}
+
+    .fate-orbit{position:relative;height:132px;margin-top:8px;overflow:hidden;border:1px solid var(--glass-border);border-radius:var(--radius-xl);background:linear-gradient(145deg,var(--glass-elevated-bg),color-mix(in srgb,var(--color-primary-light) 78%,var(--color-bg-card)));box-shadow:0 8px 22px color-mix(in srgb,var(--color-primary) 9%,transparent);backdrop-filter:blur(var(--glass-blur-elevated))}
+    .fate-orbit:before,.fate-orbit:after{content:"";position:absolute;left:50%;top:50%;border:1px solid color-mix(in srgb,var(--color-primary) 17%,transparent);border-radius:50%;transform:translate(-50%,-50%)}
+    .fate-orbit:before{width:110px;height:110px}.fate-orbit:after{width:72px;height:72px}
+    .fate-core{position:absolute;z-index:2;left:50%;top:50%;text-align:center;transform:translate(-50%,-50%)}
+    .fate-core i{display:grid;width:36px;height:36px;margin:auto;place-items:center;border:1px solid color-mix(in srgb,var(--color-primary) 30%,transparent);border-radius:50%;background:var(--color-primary-light);color:var(--color-primary-hover);font-style:normal;font-size:15px;font-weight:750}
+    .fate-core b{display:block;margin-top:4px;font-size:9px}.fate-core span{display:block;margin-top:2px;color:var(--color-text-secondary);font-size:5px}
+    .orbit-tag{position:absolute;z-index:2;padding:4px 6px;border:1px solid var(--glass-border);border-radius:7px;background:var(--glass-surface-bg);color:var(--color-text-secondary);font-size:5px;backdrop-filter:blur(var(--glass-blur-surface))}
+    .orbit-world{top:9px;left:10px}.orbit-age{top:12px;right:12px}.orbit-race{bottom:11px;left:13px}.orbit-life{right:10px;bottom:10px}
+
+    .anchor-row{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-top:6px;padding:2px;border-radius:9px;background:color-mix(in srgb,var(--color-bg-secondary) 72%,transparent)}
+    .anchor-row span{padding:5px 2px;border-radius:7px;color:var(--color-text-tertiary);text-align:center;font-size:5px}.anchor-row .active{background:var(--glass-elevated-bg);color:var(--color-primary-hover);font-weight:760;box-shadow:0 2px 7px color-mix(in srgb,var(--color-primary) 8%,transparent)}
+    .fact-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:6px}.fact-strip div{padding:6px 2px;border-radius:9px;background:var(--glass-surface-bg);text-align:center}.fact-strip b{display:block;font-size:7px}.fact-strip span{display:block;margin-top:2px;color:var(--color-text-tertiary);font-size:5px}
+    .attr-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding:6px;border-radius:11px}.attr-grid div{padding:5px 1px;border-radius:8px;background:color-mix(in srgb,var(--color-bg-secondary) 58%,transparent);text-align:center}.attr-grid span{display:block;color:var(--color-text-secondary);font-size:5px}.attr-grid b{display:block;margin-top:2px;color:var(--color-primary-hover);font-size:8px}
+    .destiny-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}.destiny-card{min-width:0;min-height:62px;padding:7px;border-radius:10px}.destiny-card b{display:block;font-size:6px}.destiny-card .pill{margin-top:4px}.destiny-card p{margin:4px 0 0;color:var(--color-text-secondary);font-size:5px;line-height:1.4}
+    .talent-row{display:flex;flex-wrap:wrap;gap:4px}.talent-row span{padding:4px 6px;border-radius:7px;background:color-mix(in srgb,var(--color-success) 9%,var(--color-bg-card));color:color-mix(in srgb,var(--color-success) 66%,var(--color-text-primary));font-size:5px}
+    .story-card{padding:8px 9px;border-radius:11px;color:var(--color-text-secondary);font-size:6px;line-height:1.55}.story-card b{display:block;margin-bottom:3px;color:var(--color-text-primary);font-size:7px}
+    .world-card{padding:8px 9px;border-radius:11px}.world-head{display:flex;justify-content:space-between;gap:6px}.world-head b{font-size:7px}.world-head span{color:var(--color-text-tertiary);font-size:5px}.world-card p{margin:5px 0 0;color:var(--color-text-secondary);font-size:5px;line-height:1.5}
+    .split-record{display:grid;grid-template-columns:1.55fr 1fr;gap:4px}.split-record>div{padding:7px;border-radius:10px}.split-record b{display:block;margin-bottom:3px;font-size:6px}.split-record p{margin:0;color:var(--color-text-secondary);font-size:5px;line-height:1.45}
+    .seed-choice{display:grid;grid-template-columns:1fr 1fr;gap:4px}.seed-choice div{height:34px;padding:5px 7px;border:1px solid var(--glass-border);border-radius:9px;background:var(--glass-surface-bg);color:var(--color-text-secondary);font-size:5px}.seed-choice .active{border-color:color-mix(in srgb,var(--color-primary) 45%,var(--color-border));background:var(--color-primary-light);color:var(--color-primary-hover)}.seed-choice b{display:block;font-size:6px}
+    .seed-inline{display:grid;grid-template-columns:1fr 58px;gap:5px}.seed-inline input,.seed-inline button{height:32px;border:1px solid var(--color-border);border-radius:10px;background:var(--glass-elevated-bg);color:var(--color-text-primary);font:inherit;font-size:6px}.seed-inline input{min-width:0;padding:0 8px;letter-spacing:.12em}.seed-inline button{color:var(--color-primary-hover)}
+    .init-card{padding:8px 9px;border-radius:11px}.init-head{display:flex;justify-content:space-between;color:var(--color-text-primary);font-size:7px;font-weight:720}.init-head span:last-child{color:var(--color-primary)}
+    .progress{height:3px;margin-top:6px;border-radius:999px;background:var(--color-bg-tertiary);overflow:hidden}.progress i{display:block;width:75%;height:100%;background:var(--color-primary)}
+    .init-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-top:6px}.init-step{text-align:center;color:var(--color-text-tertiary);font-size:5px}.init-step b{display:grid;width:17px;height:17px;margin:0 auto 3px;place-items:center;border-radius:6px;background:var(--color-bg-secondary)}.init-step.done{color:color-mix(in srgb,var(--color-success) 72%,var(--color-text-primary))}.init-step.active{color:var(--color-primary-hover)}.init-step.active b{background:var(--color-primary-light)}
+    .init-compact{padding:7px 8px;border-radius:10px}.init-compact .init-steps{margin-top:5px}.init-compact .state-note{padding-top:5px;border-top:1px solid var(--glass-border)}
+    .option-note{margin:0 18px 15px;padding:9px 11px;border-radius:11px;background:#f2f4fa;color:#69748c;font-size:11px;line-height:1.55}
+
+    .hero-card{position:relative;overflow:hidden;margin-top:8px;padding:12px;border:1px solid var(--glass-border);border-radius:var(--radius-xl);background:linear-gradient(135deg,var(--glass-elevated-bg),color-mix(in srgb,var(--color-primary-light) 92%,var(--color-bg-card)));box-shadow:0 8px 22px color-mix(in srgb,var(--color-primary) 8%,transparent)}
+    .hero-card:after{content:"";position:absolute;right:-18px;top:-24px;width:84px;height:84px;border:1px solid color-mix(in srgb,var(--color-primary) 14%,transparent);border-radius:50%;box-shadow:0 0 0 13px color-mix(in srgb,var(--color-primary) 4%,transparent)}
+    .hero-avatar{display:grid;width:34px;height:34px;place-items:center;border:1px solid color-mix(in srgb,var(--color-primary) 25%,transparent);border-radius:12px;background:var(--color-primary-light);color:var(--color-primary-hover);font-size:15px;font-weight:750}.hero-name{margin-top:9px;font-size:15px;font-weight:760}.hero-meta{margin-top:3px;color:var(--color-text-secondary);font-size:6px}.hero-world{position:absolute;z-index:1;right:10px;bottom:11px;max-width:105px;text-align:right}.hero-world b{display:block;color:var(--color-text-primary);font-size:8px}.hero-world span{font-size:5px;color:var(--color-text-tertiary)}
+    .mini-orbit{position:relative;height:78px;margin-top:6px;border:1px solid var(--glass-border);border-radius:12px;background:var(--glass-surface-bg);overflow:hidden}.mini-orbit:before,.mini-orbit:after{content:"";position:absolute;left:50%;top:50%;border:1px solid color-mix(in srgb,var(--color-primary) 15%,transparent);border-radius:50%;transform:translate(-50%,-50%)}.mini-orbit:before{width:88px;height:88px}.mini-orbit:after{width:50px;height:50px}.mini-orbit strong{position:absolute;left:50%;top:50%;z-index:2;color:var(--color-primary-hover);font-size:7px;transform:translate(-50%,-50%)}.mini-orbit span{position:absolute;z-index:2;color:var(--color-text-secondary);font-size:5px}.mini-orbit .a{left:9px;top:9px}.mini-orbit .b{right:9px;top:9px}.mini-orbit .c{left:9px;bottom:9px}.mini-orbit .d{right:9px;bottom:9px}
+
+    .bottom{position:absolute;z-index:3;left:0;right:0;bottom:0;padding:7px 10px 8px;border-top:1px solid var(--glass-border);background:var(--glass-surface-bg);backdrop-filter:blur(var(--glass-blur-surface))}.bottom-bar{display:flex;align-items:center;justify-content:space-between}.bottom button{height:32px;border-radius:10px;font:inherit;font-size:7px}.back-action{width:64px;border:1px solid var(--color-border);background:var(--glass-elevated-bg);color:var(--color-text-secondary)}.start-action{width:112px;border:1px solid var(--color-primary);background:var(--color-primary);color:var(--color-text-on-primary);font-weight:760}.start-action[disabled]{border-color:var(--color-border);background:var(--color-bg-tertiary);color:var(--color-text-tertiary)}.bottom-hint{color:var(--color-text-tertiary);font-size:5px}
+    @media (max-width:980px){.option-grid{grid-template-columns:minmax(0,1fr)}.option-card{min-width:0}.phone{height:650px}}
+    @media (prefers-reduced-motion:reduce){*{transition-duration:1ms!important;animation-duration:1ms!important}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar">
+      <a href="index.html">← 返回命运预览历史</a>
+      <span data-selection>尚未选择</span>
+    </div>
+    <p class="eyebrow">FATE PREVIEW · ROUND 02</p>
+    <h1>F1 的叙事卷轴，怎样吸收 F3 的命盘总览？</h1>
+    <p class="subtitle">三稿都保留 F1 的纵向阅读顺序，并吸收 F3 的角色中心、空间总览与紧凑分组。深色命盘配色已完全移除，所有页面内颜色均映射到项目 Light Aurora 语义 Token，正式实现时可自然跟随六主题切换。</p>
+
+    <section class="option-grid">
+      <article class="option-card" data-choice="G1 命盘序章" onclick="selectChoice(this)">
+        <div class="phone">
+          <div class="screen">
+            <div class="kicker">NEW LIFE · 06 / FINAL</div>
+            <div class="mobile-title">命运将启</div>
+            <div class="mobile-sub">先看见这一生的轮廓，再沿叙事卷轴完成最后核对。</div>
+
+            <section class="fate-orbit">
+              <span class="orbit-tag orbit-world">世界 · 雾海纪元</span>
+              <span class="orbit-tag orbit-age">起始 · 18 岁</span>
+              <span class="orbit-tag orbit-race">男 · 人类</span>
+              <span class="orbit-tag orbit-life">寿命 · 112 年</span>
+              <div class="fate-core"><i>砚</i><b>沈砚</b><span>雾港旧书铺学徒</span></div>
+            </section>
+            <div class="anchor-row"><span class="active">总览</span><span>命格</span><span>背景</span><span>开局</span></div>
+
+            <div class="section-label"><span>最终属性</span><small>已计入命格与天赋</small></div>
+            <div class="attr-grid glass"><div><span>体魄</span><b>+7</b></div><div><span>心智</span><b>+9</b></div><div><span>悟性</span><b>+8</b></div><div><span>魅力</span><b>+4</b></div><div><span>出身</span><b>+3</b></div></div>
+
+            <div class="section-label"><span>三重命格</span><small>持续影响叙事</small></div>
+            <div class="destiny-grid">
+              <div class="destiny-card glass"><b>逆境余火</b><span class="pill">稀有 · 正面</span><p>绝境中更容易发现尚未熄灭的转机。</p></div>
+              <div class="destiny-card glass"><b>守诺之人</b><span class="pill legend">传奇 · 正面</span><p>真诚承诺具有有限的因果惯性。</p></div>
+              <div class="destiny-card glass"><b>市井耳目</b><span class="pill">稀有 · 中立</span><p>日常闲谈中的消息更容易显现。</p></div>
+            </div>
+            <div class="section-label"><span>天赋</span><small>2 项</small></div>
+            <div class="talent-row"><span>快速学习 · 精良</span><span>敏锐观察 · 稀有</span></div>
+
+            <div class="section-label"><span>背景信息</span><small>角色起点</small></div>
+            <div class="story-card glass"><b>雾港旧书铺的学徒</b>自幼在港区长大，熟悉潮汐航路与街巷传闻。一次异常灵潮让他听见海雾中的低语。</div>
+
+            <div class="section-label"><span>模拟种子</span><small>随机或最多 8 位</small></div>
+            <div class="seed-choice"><div><b>🎲 随机种子</b>每次生成不同走向</div><div class="active"><b>自定义种子</b>63284017</div></div>
+
+            <div class="section-label"><span>世界初始化</span><small>3 / 4 · 进行中</small></div>
+            <div class="init-card glass"><div class="init-head"><span>正在生成地理与组织实体</span><span>28s</span></div><div class="progress"><i></i></div><div class="init-steps"><div class="init-step done"><b>✓</b>维度校准</div><div class="init-step done"><b>✓</b>标签生成</div><div class="init-step done"><b>✓</b>世界配置</div><div class="init-step active"><b>···</b>实体生成</div></div><div class="state-note">失败时保留已完成步骤，并继续禁用主操作。</div></div>
+          </div>
+          <div class="bottom"><div class="bottom-bar"><button class="back-action" type="button">返回</button><span class="bottom-hint">可返回修改</span><button class="start-action" type="button" disabled>开始人生</button></div></div>
+        </div>
+        <div class="option-copy"><h3>G1 · 命盘序章</h3><p>F3 命盘成为 F1 卷轴的开篇视觉，后续仍按属性、命格、背景、种子和初始化顺序阅读。</p><span class="tag">融合最直接 · 仪式感强 · 路径清楚</span></div>
+        <p class="option-note">最贴近“F1 大布局 + F3 大布局”的直接合并；顶部稍高，但第一屏信息记忆点最强。</p>
+      </article>
+
+      <article class="option-card" data-choice="G2 叙事主角 + 命盘分区" onclick="selectChoice(this)">
+        <div class="phone">
+          <div class="screen">
+            <div class="kicker">NEW LIFE · 06 / FINAL</div>
+            <div class="mobile-title">身世总览</div>
+            <div class="mobile-sub">以人物开篇，以命盘分区快速确认一生的起始条件。</div>
+
+            <section class="hero-card">
+              <div class="hero-avatar">砚</div><div class="hero-name">沈砚</div><div class="hero-meta">男 · 人类 · 起始年龄 18 岁</div>
+              <div class="hero-world"><span>即将诞生于</span><b>雾海纪元</b><span>群岛文明 · 灵潮复苏</span></div>
+            </section>
+            <div class="fact-strip"><div><b>100 年</b><span>基础寿命</span></div><div><b>112 年</b><span>当前上限</span></div><div><b>1.0×</b><span>衰减倍率</span></div></div>
+            <div class="anchor-row"><span class="active">角色</span><span>命格</span><span>世界</span><span>开局</span></div>
+
+            <div class="section-label"><span>角色命盘</span><small>属性与人生影响</small></div>
+            <div class="mini-orbit"><span class="a">体魄 +7</span><span class="b">心智 +9</span><span class="c">悟性 +8</span><span class="d">魅力 +4</span><strong>出身 +3</strong></div>
+
+            <div class="section-label"><span>命格阵列</span><small>命格 3 · 天赋 2</small></div>
+            <div class="destiny-grid"><div class="destiny-card glass"><b>逆境余火</b><span class="pill">稀有</span><p>绝境保留转机。</p></div><div class="destiny-card glass"><b>守诺之人</b><span class="pill legend">传奇</span><p>承诺形成有限惯性。</p></div><div class="destiny-card glass"><b>市井耳目</b><span class="pill">稀有</span><p>消息更易显现。</p></div></div>
+            <div class="talent-row" style="margin-top:5px"><span>快速学习</span><span>敏锐观察</span></div>
+
+            <div class="section-label"><span>世界与背景</span><small>故事将从这里开始</small></div>
+            <div class="world-card glass"><div class="world-head"><b>雾海纪元</b><span>群岛文明 · 灵潮复苏</span></div><p>潮汐航路连接诸城，旧神遗迹正从海雾中显现。</p></div>
+            <div class="story-card glass" style="margin-top:5px"><b>雾港旧书铺的学徒</b>熟悉港区航路与街巷传闻，曾在异常灵潮中听见海雾低语。</div>
+
+            <div class="section-label"><span>模拟种子</span><small>留空则每次随机</small></div>
+            <div class="seed-inline"><input value="63284017" aria-label="自定义模拟种子" readonly><button type="button">🎲 随机</button></div>
+
+            <div class="section-label"><span>世界初始化</span><small>3 / 4 · 进行中</small></div>
+            <div class="init-card glass"><div class="init-head"><span>正在生成地理与组织实体</span><span>28s</span></div><div class="progress"><i></i></div><div class="init-steps"><div class="init-step done"><b>✓</b>校准</div><div class="init-step done"><b>✓</b>标签</div><div class="init-step done"><b>✓</b>配置</div><div class="init-step active"><b>···</b>实体</div></div></div>
+          </div>
+          <div class="bottom"><div class="bottom-bar"><button class="back-action" type="button">返回</button><span class="bottom-hint">选择均会保留</span><button class="start-action" type="button" disabled>开始人生</button></div></div>
+        </div>
+        <div class="option-copy"><h3>G2 · 叙事主角 + 命盘分区</h3><p>保留 F1 最成熟的人物开篇，把 F3 的命盘感下放到属性、命格、世界等分区中。</p><span class="tag">叙事优先 · 混合自然 · 第一屏更轻</span></div>
+        <p class="option-note">F1 占比最高，F3 主要贡献空间组织；最稳妥，但“命盘已成”的独特仪式感相对弱一些。</p>
+      </article>
+
+      <article class="option-card" data-choice="G3 双层总览" onclick="selectChoice(this)">
+        <div class="phone">
+          <div class="screen">
+            <div class="kicker">FATE PREVIEW · FINAL CHECK</div>
+            <div class="mobile-title">这一生的开端</div>
+            <div class="mobile-sub">上层看命运轮廓，下层像卷轴一样核对故事细节。</div>
+
+            <section class="fate-orbit" style="height:112px">
+              <span class="orbit-tag orbit-world">雾海纪元</span><span class="orbit-tag orbit-age">18 岁</span><span class="orbit-tag orbit-race">男 · 人类</span><span class="orbit-tag orbit-life">112 年</span>
+              <div class="fate-core"><i>砚</i><b>沈砚</b><span>旧书铺学徒</span></div>
+            </section>
+            <div class="split-record" style="margin-top:6px"><div class="glass"><b>世界坐标</b><p>群岛文明 · 灵潮复苏<br>潮汐航路连接诸城。</p></div><div class="glass"><b>寿命刻度</b><p>基础 100 年<br>当前 112 年</p></div></div>
+
+            <div class="section-label"><span>命运总览</span><small>属性 · 命格 · 天赋</small></div>
+            <div class="attr-grid glass"><div><span>体魄</span><b>+7</b></div><div><span>心智</span><b>+9</b></div><div><span>悟性</span><b>+8</b></div><div><span>魅力</span><b>+4</b></div><div><span>出身</span><b>+3</b></div></div>
+            <div class="destiny-grid" style="margin-top:5px"><div class="destiny-card glass"><b>逆境余火</b><span class="pill">稀有</span><p>绝境保留转机。</p></div><div class="destiny-card glass"><b>守诺之人</b><span class="pill legend">传奇</span><p>承诺形成有限惯性。</p></div><div class="destiny-card glass"><b>市井耳目</b><span class="pill">稀有</span><p>消息更易显现。</p></div></div>
+            <div class="talent-row" style="margin-top:5px"><span>天赋 · 快速学习</span><span>天赋 · 敏锐观察</span></div>
+
+            <div class="section-label"><span>人生序章</span><small>雾港旧书铺的学徒</small></div>
+            <div class="story-card glass">自幼在港区长大，熟悉潮汐航路与街巷传闻。一次异常灵潮让他听见海雾中的低语。</div>
+
+            <div class="section-label"><span>开局参数</span><small>种子与世界初始化</small></div>
+            <div class="seed-choice"><div><b>🎲 随机种子</b>生成不同走向</div><div class="active"><b>自定义种子</b>63284017</div></div>
+            <div class="init-compact glass" style="margin-top:5px"><div class="init-head"><span>世界初始化 · 3 / 4</span><span>28s</span></div><div class="progress"><i></i></div><div class="init-steps"><div class="init-step done"><b>✓</b>校准</div><div class="init-step done"><b>✓</b>标签</div><div class="init-step done"><b>✓</b>配置</div><div class="init-step active"><b>···</b>实体</div></div><div class="state-note">正在生成地理与组织实体；仅 4 / 4 后解锁。</div></div>
+          </div>
+          <div class="bottom"><div class="bottom-bar"><button class="back-action" type="button">返回</button><span class="bottom-hint">可返回修改</span><button class="start-action" type="button" disabled>开始人生</button></div></div>
+        </div>
+        <div class="option-copy"><h3>G3 · 双层总览</h3><p>把 F3 压缩成顶部“命运轮廓”，再用 F1 的卷轴承载命格说明、人生序章和开局参数。</p><span class="tag">信息最紧凑 · 首屏覆盖高 · 滚动最短</span></div>
+        <p class="option-note">适合快速核对，空间利用率最高；代价是信息分组更密，需要确认是否仍有足够的叙事呼吸感。</p>
+      </article>
+    </section>
+    <p class="selection">点击 G1、G2 或 G3 标记选择。三稿没有使用 F3 的深色专属配色，结构色全部来自项目语义 Token；底部操作仍遵守 PD-008 的紧凑密度。</p>
+  </main>
+</body>
+</html>

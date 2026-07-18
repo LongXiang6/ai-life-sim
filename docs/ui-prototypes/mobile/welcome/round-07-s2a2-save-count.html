@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>欢迎界面第七轮 · S2-A2 存档数量表达</title>
+  <link rel="stylesheet" href="../assets/library-history.css">
+  <style>
+    button{font-family:inherit}.option-card{cursor:default}.option-card:hover{transform:none}.three-grid{max-width:1060px}.intro-note{max-width:860px;margin:0 0 22px;color:#69748b;font-size:13px;line-height:1.7}.phone{height:590px}.welcome-phone{background:radial-gradient(circle at 75% 10%,rgba(143,164,255,.16),transparent 28%),#f8f9fc}.curve{position:absolute;inset:0;width:100%;height:100%}.copy{position:relative;padding:166px 16px 0}.brand{color:#5e6982;font-size:8px;font-weight:750;letter-spacing:1.7px}.headline{margin-top:34px;font-size:25px;font-weight:780;line-height:1.2;letter-spacing:-.7px}.intro{max-width:235px;margin-top:14px;color:#6f7890;font-size:9px;line-height:1.7}.actions{position:absolute;right:18px;bottom:24px;left:18px}.entry-pair{display:grid;width:232px;margin-inline:auto;grid-template-columns:1.12fr .88fr;gap:8px}.ui-button{display:grid;height:38px;place-items:center;border:1px solid #dce2eb;border-radius:10px;background:rgba(255,255,255,.86);color:#384158;font-size:8px;cursor:pointer}.ui-button.primary{border-color:#18213d;background:#18213d;color:#fff;font-weight:700}.ui-button.soft{border-color:#cfd6eb;background:#f0f3ff;color:#5565a4}.load-stack{display:grid;place-content:center}.load-stack b{font-size:7.5px}.load-stack span{margin-top:1px;color:#7a86b5;font-size:5px}.load-inline{display:inline-flex;align-items:baseline;justify-content:center;gap:4px;white-space:nowrap}.load-inline b{font-size:7.5px}.load-inline small{color:#7a86b5;font-size:5px;font-weight:500}.load-badge-button{position:relative}.load-badge-button .button-label{font-size:7.5px;font-weight:700}.save-badge{position:absolute;top:4px;right:5px;display:grid;min-width:11px;height:11px;padding:0 3px;place-items:center;border:1px solid rgba(85,101,164,.18);border-radius:999px;background:#dfe5ff;color:#5262a5;font-size:5px;font-weight:750;line-height:1}.utility-links{display:flex;align-items:center;justify-content:center;gap:18px;margin-top:11px}.utility-links button{padding:3px 2px;border:0;background:transparent;color:#68738b;font-size:7px;cursor:pointer}.utility-links button+button{position:relative}.utility-links button+button::before{position:absolute;top:4px;bottom:4px;left:-10px;width:1px;background:#dce2eb;content:""}.footer{margin-top:10px;color:#7c86a0;font-size:7px;text-align:center}.toast{position:absolute;bottom:92px;left:50%;z-index:30;padding:7px 10px;border-radius:999px;background:rgba(50,47,70,.9);color:#fff;font-size:6px;opacity:0;pointer-events:none;transform:translate(-50%,8px);transition:opacity .18s,transform .18s;white-space:nowrap}.toast.show{opacity:1;transform:translate(-50%,0)}.dimension{display:inline-block;margin-top:8px;color:#7b8498;font-size:11px;font-variant-numeric:tabular-nums}.phone button:focus-visible{outline:2px solid #6577d4;outline-offset:2px}
+    @media(max-width:980px){.three-grid{grid-template-columns:1fr}}
+    @media(prefers-reduced-motion:reduce){.toast{transition:none}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar"><a href="index.html">← 返回欢迎界面历史</a><span class="status">第七轮 · S2-A2 存档数量</span></div>
+    <p class="eyebrow">WELCOME · ROUND 07</p>
+    <h1>S2-A2 存档数量表达迭代</h1>
+    <p class="subtitle">固定 S2-A2 的按钮尺寸与主次比例，只比较“3 个记录”在读取存档按钮中的呈现方式。</p>
+    <p class="intro-note">三稿均保留原背景曲线、欢迎文案、设置与说明入口、页脚和点击反馈。按钮组统一为 232px 宽、38px 高、1.12fr / .88fr、8px 间距。</p>
+    <section class="option-grid three-grid">
+      <article class="option-card">
+        <div class="phone welcome-phone save-count-stacked">
+          <svg class="curve" viewBox="0 0 292 590" aria-hidden="true"><path d="M260 0 C160 90,285 175,205 255 S90 365,190 445 S280 520,230 610" fill="none" stroke="#c8cfe1" stroke-width="1.2"/><circle cx="260" cy="0" r="4" fill="#d99c13"/><circle cx="205" cy="255" r="3.5" fill="#8e96a4"/><circle cx="190" cy="445" r="3.5" fill="#8e96a4"/></svg>
+          <div class="copy"><div class="brand">AI LIFE SIM</div><div class="headline">一生很长，<br>也只由几次选择组成。</div><div class="intro">选择世界与出身，走过关系、机会、代价和告别。</div></div>
+          <div class="actions"><div class="entry-pair"><button class="ui-button primary new-life">开始新人生</button><button class="ui-button soft load-save" aria-label="读取存档，3 个记录"><span class="load-stack"><b>读取存档</b><span>3 个记录</span></span></button></div><div class="utility-links"><button class="settings">设置</button><button class="help">说明</button></div><div class="footer">故事小分队交流群 · 1097782298</div></div>
+          <div class="toast" role="status" aria-live="polite"></div>
+        </div>
+        <div class="option-copy"><span class="tag">S2-A2a · 双行</span><h3>保留当前表达</h3><p>标题与记录数量上下分层，信息最完整，也会让次按钮内部更接近一个小型信息块。</p><span class="dimension">232 × 38px · 双行居中</span></div>
+      </article>
+      <article class="option-card">
+        <div class="phone welcome-phone save-count-inline">
+          <svg class="curve" viewBox="0 0 292 590" aria-hidden="true"><path d="M260 0 C160 90,285 175,205 255 S90 365,190 445 S280 520,230 610" fill="none" stroke="#c8cfe1" stroke-width="1.2"/><circle cx="260" cy="0" r="4" fill="#d99c13"/><circle cx="205" cy="255" r="3.5" fill="#8e96a4"/><circle cx="190" cy="445" r="3.5" fill="#8e96a4"/></svg>
+          <div class="copy"><div class="brand">AI LIFE SIM</div><div class="headline">一生很长，<br>也只由几次选择组成。</div><div class="intro">选择世界与出身，走过关系、机会、代价和告别。</div></div>
+          <div class="actions"><div class="entry-pair"><button class="ui-button primary new-life">开始新人生</button><button class="ui-button soft load-save" aria-label="读取存档，3 个记录"><span class="load-inline"><b>读取存档</b><small>3 个</small></span></button></div><div class="utility-links"><button class="settings">设置</button><button class="help">说明</button></div><div class="footer">故事小分队交流群 · 1097782298</div></div>
+          <div class="toast" role="status" aria-live="polite"></div>
+        </div>
+        <div class="option-copy"><span class="tag">S2-A2b · 行内</span><h3>一眼读完</h3><p>数量缩成同一行的轻量补充，按钮更像普通操作，但较窄空间内文字会更紧凑。</p><span class="dimension">232 × 38px · 行内小字</span></div>
+      </article>
+      <article class="option-card">
+        <div class="phone welcome-phone save-count-badge">
+          <svg class="curve" viewBox="0 0 292 590" aria-hidden="true"><path d="M260 0 C160 90,285 175,205 255 S90 365,190 445 S280 520,230 610" fill="none" stroke="#c8cfe1" stroke-width="1.2"/><circle cx="260" cy="0" r="4" fill="#d99c13"/><circle cx="205" cy="255" r="3.5" fill="#8e96a4"/><circle cx="190" cy="445" r="3.5" fill="#8e96a4"/></svg>
+          <div class="copy"><div class="brand">AI LIFE SIM</div><div class="headline">一生很长，<br>也只由几次选择组成。</div><div class="intro">选择世界与出身，走过关系、机会、代价和告别。</div></div>
+          <div class="actions"><div class="entry-pair"><button class="ui-button primary new-life">开始新人生</button><button class="ui-button soft load-save load-badge-button" aria-label="读取存档，3 个记录"><span class="button-label">读取存档</span><span class="save-badge" aria-hidden="true">3</span></button></div><div class="utility-links"><button class="settings">设置</button><button class="help">说明</button></div><div class="footer">故事小分队交流群 · 1097782298</div></div>
+          <div class="toast" role="status" aria-live="polite"></div>
+        </div>
+        <div class="option-copy"><span class="tag">S2-A2c · 角标</span><h3>操作名称最干净</h3><p>按钮正文只保留“读取存档”，数量收进右上角角标，层级最轻，但角标更接近通知语义。</p><span class="dimension">232 × 38px · 右上角标</span></div>
+      </article>
+    </section>
+  </main>
+  <script>
+    function showToast(phone,message){const toast=phone.querySelector('.toast');toast.textContent=message;toast.classList.add('show');clearTimeout(toast._timer);toast._timer=setTimeout(function(){toast.classList.remove('show')},1300)}
+    document.querySelectorAll('.welcome-phone').forEach(function(phone){phone.querySelector('.new-life').onclick=function(){showToast(phone,'开始新人生 · 原型演示')};phone.querySelector('.load-save').onclick=function(){showToast(phone,'打开全部 3 个存档')};phone.querySelector('.settings').onclick=function(){showToast(phone,'打开设置')};phone.querySelector('.help').onclick=function(){showToast(phone,'打开说明')}})
+  </script>
+</body>
+</html>

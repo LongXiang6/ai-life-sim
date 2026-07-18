@@ -622,4 +622,25 @@ export class WorldEntitySystem implements ISubSystem {
     this.worldName = ''
     this.worldDescription = ''
   }
+
+  /** 将世界初始化流程写入 Store 的实体同步到叙事运行时单例。 */
+  hydrateFromStore(): void {
+    this.restoreCollectedState({ entities: useWorldStore.getState().entities })
+  }
+
+  /** 从 orchestrator collectState().data 恢复实体权威。 */
+  restoreCollectedState(snapshot: unknown): void {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
+    const entities = (snapshot as { entities?: unknown }).entities
+    if (!Array.isArray(entities)) return
+    this.state = { entities: structuredClone(entities) as AnyWorldEntity[] }
+  }
+}
+
+let runtimeWorldEntitySystem: WorldEntitySystem | undefined
+
+/** Loader 与叙事引擎共享的懒加载实体单例。 */
+export function getWorldEntitySystem(): WorldEntitySystem {
+  runtimeWorldEntitySystem ??= new WorldEntitySystem()
+  return runtimeWorldEntitySystem
 }

@@ -1,7 +1,7 @@
 # 技能体系更新提案：根优先元原则 + 本次调研固化红线
 
 日期：2026-07-07
-状态：**已落地（2026-07-07）**。本文件保留提案原文作为变更依据；实际规则已同步到 `.agents/`，并通过治理检查。
+状态：**历史提案，2026-07-11 已退役**。原治理资料保存在 `D:\AI\docs\archive\agent-governance-2026-07-11\`；当前只使用四个高自由度项目上下文 Skill。
 
 > 背景：本次 2026-07-07 的调研（见 [plan](file:///D:/AI/ai-life-sim/docs/plan-2026-07-07-narrative-deregex-ui-eval.md) §八 P1）查出一批"会反复发生"的问题——字段契约三方漂移、寿命双算、死代码伪装成活代码、中文 `split(/\s+/)` 失效。这些靠改一次代码治不住，须固化成红线/理念，让后续每个 AI（含 GPT 执行者）开工必读，同类错误不再被引入。
 
@@ -13,15 +13,15 @@
 
 | 项 | 落地位置 |
 |----|----------|
-| 根优先元原则 | `.agents/核心流程.md`、`ai-life-sim-skill/SKILL.md`、`testing-skill/resources/decision-tree.md` |
-| Markdown 低噪声 | `.agents/核心流程.md`、`ai-life-sim-skill/SKILL.md` |
+| 根优先元原则 | 历史工作流已归档；当前范围与权限见 `D:\AI\AGENTS.md` |
+| Markdown 低噪声 | 当前入口文档与四个 Skill 保持项目事实优先、低噪声 |
 | 字段契约单一真源红线 | `prohibited-behaviors.md` B-49、`anti-patterns.md` E-09 |
 | 判定/落地闭环红线 | `prohibited-behaviors.md` B-50、`anti-patterns.md` E-10 |
 | 根优先镜像红线 | `prohibited-behaviors.md` B-51、`anti-patterns.md` P-10 |
 | Markdown 低噪声镜像红线 | `prohibited-behaviors.md` B-52、`anti-patterns.md` P-11 |
-| 死代码识别 | `.agents/核心流程.md` 链路检索 |
+| 死代码识别 | 当前由 `ai-life-sim` 的运行权威说明与 MVP runtime 配置定位 |
 | 中文分词反模式 | `anti-patterns.md` C-27 |
-| 技能末端索引 | `SKILL-INDEX.md`、各域 `SKILL.md` |
+| 技能入口 | 四个现行 `SKILL.md` 及各自直接 references |
 | 自动治理检查 | `.agents/scripts/check-governance.mjs` |
 
 验证：
@@ -32,7 +32,7 @@ node .agents/scripts/check-governance.mjs --verbose
 
 通过标准：无撤废语残留、镜像同步、元原则入口同步、testing P 编号唯一、`.agents` 末端索引完整。
 
-换机后若继续改规则，先读 `.agents/skills/ai-life-sim-skill/SKILL-INDEX.md` 的「索引拓扑」，改后必须跑上方命令。
+换机后从 `D:\AI\AGENTS.md` 和匹配的现行 Skill 进入；修改 `.agents` 后运行当前插件、治理和引用检查。
 
 ---
 
@@ -56,7 +56,7 @@ node .agents/scripts/check-governance.mjs --verbose
 ## 二、提案 1：根优先元原则（最重要，放核心流程顶层）
 
 ### 落地位置
-`.agents/核心流程.md` —— 在「〇、开工前提」之后、「一、理解复述」之前，新增一节「优先级原则」。它是元原则，管"先做哪件"，与六步（管"怎么做一步"）正交，应置于流程最前。
+历史方案原计划把该原则放入独立工作流文档；该工作流已归档，当前不再作为模型必须执行的固定六步。
 
 ### 拟新增内容（措辞草案）
 
@@ -107,7 +107,7 @@ node .agents/scripts/check-governance.mjs --verbose
 
 **问题**：MVP 白名单外的子系统"已实现但不运行"，读代码看不出来，是"不清楚哪个系统在起作用"的最大来源。
 
-**建议落地**：这不适合做红线（不是禁止行为），适合补进 `.agents/核心流程.md` 第三步「链路检索」或 `mod-dev-skill` 的子系统规范：
+**当前落点**：由 `ai-life-sim` 说明运行权威，由 `ai-life-sim-mod-development` 说明子系统注册与 runtime policy：
 
 > 判断某子系统"是否实际运行"，先查 MVP 运行白名单（`mvp-stages-config.default.json` 的 runtime.external / engine），不能因为文件存在、类已定义就假设它在跑。抛错桩（collectState 直接 throw）与非白名单子系统属"已实现未启用"，改动前须确认其运行状态。
 
@@ -130,10 +130,10 @@ node .agents/scripts/check-governance.mjs --verbose
 
 | 提案 | 落地位置 | 类型 | 需同步 |
 |------|---------|------|--------|
-| A 根优先元原则 | `核心流程.md` 新增节 + 三铁律区提及 | 元原则 | AGENTS.md / prohibited 顶部流程引用 |
+| A 根优先元原则 | 历史工作流归档 | 元原则 | 当前不作为独立模型纪律 |
 | B 字段契约单一真源 | `anti-patterns.md` E-09 + `prohibited-behaviors.md` B-49 | 红线 | 镜像映射表 + Must 清单 |
 | C 判定/落地闭环 | `anti-patterns.md` E-10 + `prohibited-behaviors.md` B-50 | 红线 | 镜像映射表 + Must 清单 |
-| D 死代码识别 | `核心流程.md` 第三步 或 `mod-dev-skill` 子系统规范 | 检索规范 | 对应 skill 索引 |
+| D 死代码识别 | `ai-life-sim` + `ai-life-sim-mod-development` | 项目事实 | MVP runtime 配置 |
 | E 中文分词 | `anti-patterns.md` C-27 | 代码反模式 | 无（不进 prohibited） |
 
 **落地后必做**（核心流程第五步第 5 条）：跑 `node .agents/scripts/check-governance.mjs` 确认 0 ERROR（撤废语残留 + 镜像编号同步），并核对所有引用处索引描述已更新。

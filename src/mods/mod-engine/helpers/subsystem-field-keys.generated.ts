@@ -31,8 +31,7 @@ export const SUBSYSTEM_ZOD_FIELD_KEYS: Record<string, readonly string[]> = {
     "physiqueDelta",
     "mindDelta",
     "talentAptitudeDelta",
-    "charismaDelta",
-    "resourcesDelta"
+    "charismaDelta"
   ],
   "health": [
     "hpDelta",

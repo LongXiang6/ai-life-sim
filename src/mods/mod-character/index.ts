@@ -12,6 +12,9 @@ export type {
   DestinyPatternRarity,
   DestinyPatternPolarity,
   DestinyPatternState,
+  MythicPattern,
+  MythicPatternCandidate,
+  MythicPatternSource,
   Disease,
   Injury,
   HealthState,
@@ -75,6 +78,7 @@ export {
   DEFAULT_DESTINY_PATTERN_COUNT,
   AI_DESTINY_PATTERN_BATCH_SIZE,
   AI_DESTINY_PATTERN_BATCH_COUNT,
+  AI_DESTINY_PATTERN_FIRST_SCREEN_CONCURRENCY,
   DESTINY_PATTERN_BULK_COUNT,
   DESTINY_PATTERN_FULL_POOL_COUNT,
   DESTINY_PATTERN_FAST_DRAW_THRESHOLD,
@@ -119,6 +123,7 @@ export {
 } from './life-stage-pools'
 
 export { useCharacterStore } from './store'
+export { useMythicLibraryStore, sealMythicPatternCandidate } from './mythic-library-store'
 export { useCharacter, useHealth, useDestinyPatterns } from './hooks'
 export { useRaceOrigin } from './prompts/use-race-origin'
 
@@ -127,6 +132,7 @@ export { DESTINY_PATTERN_PRESETS_IDEALIST } from './destiny-pattern-presets-idea
 
 export { raceOriginPrompt } from './prompts/race-origin'
 export { destinyPatternPrompt } from './prompts/destiny-pattern-prompt'
+export { sanitizeCharacterStateSnapshot } from './utils/character-state-migration'
 export { aggregatePatternSystemModifiers } from './utils/destiny-pattern-modifiers'
 export {
   formatPatternSystemModifiersForDisplay,

@@ -4,7 +4,7 @@
  * @mod foundation
  *
  * 背景：模拟系统全面重写梯队一（`ai-life-sim/docs/simulation-rewrite-architecture.md` §三、
- * `.agents/skills/mod-dev-skill/resources/mod-spec-subsystem-contracts.md`）。
+ * `.agents/skills/ai-life-sim-mod-development/references/mod-spec-subsystem-contracts.md`）。
  *
  * 使用约定：
  * - 每个会被其他子系统引用的子系统，在此目录下建一个 `{子系统id}.contract.ts` 文件，

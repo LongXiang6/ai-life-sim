@@ -1,6 +1,6 @@
 /**
  * @module orchestrator-system.ts
- * @description 引擎编排子系统 —— 协调各子系统，执行完整模拟主循环（含本地模拟、事件追踪、跨域联动、叙事后处理、安全检查）
+ * @description 引擎编排子系统 —— 协调各子系统，执行完整模拟主循环（含本地模拟、事件追踪、跨域联动、安全检查）
  * @mod mod-engine
  *
  * 完整 13 步管线：
@@ -13,11 +13,10 @@
  *   7. 构建分段 Prompt (buildSegmentedPrompt — 模板顺序决定 KV Cache 命中区间)
  *   8. 调用 AI (callAIStream，流式输出)
  *   9. 解析响应 + 分发变更 (handleNarrativeResponse)
- *  10. 叙事后处理 (runPostNarrativePhase — 连锁反应提示；寿命闭环归 LifespanSystem)
- *  11. 世界方向修正 (MVP 暂停；未来段由存活子系统重新接入)
- *  12. 检测死亡并触发死后尾声 (PostDeathEpilogueSystem)
- *  13. 检查叙事压缩 (SummaryCompressor)
- *  14. 触发回合完成事件 (EventBus)
+ *  10. 世界方向修正 (MVP 暂停；未来段由存活子系统重新接入)
+ *  11. 检测死亡并触发死后尾声 (PostDeathEpilogueSystem)
+ *  12. 检查叙事压缩 (SummaryCompressor)
+ *  13. 触发回合完成事件 (EventBus)
  */
 
 import { BaseSubsystem, eventBus, callAIWithPromptTemplate, buildSegmentedPrompt, getNarrativeUserSegments } from '@/core'
@@ -45,14 +44,14 @@ import {
   buildLayeredMemoryStateCard,
   buildNarrativeCoherenceHeader,
   buildNarrativeWorldRules,
+  collectActiveModWorldRules,
   collectMemoryStateSummaries,
   dedupeSummariesAgainstMemory,
   isSubsystemOpenForPrompt,
   isMvpNarrativeChangeSubsystem,
   isMvpPromptSubsystem,
   isMvpRuntimeSubsystem,
-  shouldSkipEconomyTierRules,
-  runPostNarrativePhase,
+  buildMvpSubsystemGuide,
   resolveTimeStep,
   shouldAlignTimeStepTransition,
   mapSubsystemStatesToDetectionStates,
@@ -60,7 +59,6 @@ import {
   resolveLifeStageFromAge,
   normalizeNarrativeParagraphs,
   buildNarrativeHints,
-  classifyActionScale,
   INFORMATION_PRIORITY_RULE,
   RoundCommitBus,
   runNarrativeInterceptors,
@@ -72,19 +70,20 @@ import {
   buildTimeScaleNarrativeHint,
   generateArchetypeHint,
   buildLifespanReminder,
-  countConsecutiveConflictRounds,
   collectGameSavePayload,
   computeNarrativeMaxTokens,
   DEFAULT_WORD_COUNT_TARGET,
-  SUBSYSTEM_GUIDE,
   simulationBridge,
   TimeSystem,
   timeSystem,
   narrativeParser,
   summaryCompressor,
+  memoryEngine,
   plotStructure,
   foreshadowing,
   memoryLifecycle,
+  memoryForgetting,
+  causalDelay,
   digestLedger,
   coreMemory,
   subsystemRelevance,
@@ -110,14 +109,14 @@ import { useSettingsStore } from '@/mods/mod-settings'
 import { getDestinyPatternSystem } from '@/mods/mod-character/destiny-pattern-access'
 import { useCharacterStore } from '@/mods/mod-character'
 
-import { ECONOMIC_TIER_CONFIG, MAX_REACHABLE_STAGE } from '@/mods/mod-power-system'
-import type { EconomicTierInfo } from '@/mods/mod-power-system'
 import { buildPowerCeilingPresetsForNarrative } from '@/mods/mod-world'
 import { buildCalendarNarrativeContext } from '../helpers/calendar-narrative-context'
 import {
   isEligibleNarrativeBranch,
   normalizeNarrativeBranchOptions,
 } from '../helpers/narrative-branch-policy'
+import { createNeutralNarrativeSemanticSignals } from '../helpers/narrative-semantic-signals'
+import { getSeasonForMonth } from '../helpers/calendar-season.js'
 
 import type {
   ISubSystem,
@@ -135,9 +134,41 @@ import type {
 // Uses pattern matching via patternManager; USE_PATTERN_MANAGER feature flag managed centrally
 
 /** 兜底叙事 maxAge 后备值（lifespan 子系统未注册时） */
-const DEFAULT_MAX_AGE_FALLBACK = 100
 /** 普通命运分支最小间隔。强制分支不受此限制。 */
 const MIN_BRANCH_GAP_ROUNDS = 4
+
+function formatEquippedMythicPatternForPrompt(pattern: {
+  name: string
+  concept: string
+  effect: string
+} | null | undefined): string | undefined {
+  if (!pattern) return undefined
+  const effect = pattern.effect.trim()
+  if (!effect) return undefined
+
+  const name = pattern.name.trim() || '未命名神话命格'
+  const concept = pattern.concept.trim()
+  return `【已装备神话命格·每轮遵守】${name}${concept ? `（${concept}）` : ''}：${effect}`
+}
+
+function formatDestinyPatternsForPrompt(
+  patterns: readonly { name: string; description: string; effect: string }[],
+  includeDescription: boolean,
+): string | undefined {
+  const rows = patterns.flatMap((pattern) => {
+    const name = pattern.name.trim()
+    const effect = pattern.effect.trim()
+    const description = pattern.description.trim()
+    const rule = effect || description
+    if (!name || !rule) return []
+    const openingDetail = includeDescription && description && description !== rule
+      ? `；特质说明：${description}`
+      : ''
+    return [`${name}：${rule}${openingDetail}`]
+  })
+  if (rows.length === 0) return undefined
+  return `【普通命格·每轮遵守】${rows.join('；')}`
+}
 
 function resolveRestoredAutoSaveRound(
   restoredRound: number | undefined,
@@ -170,10 +201,17 @@ export interface OrchestratorSnapshot {
   prevAbbreviationSnapshot: Record<string, string>
   prevRoundYear: number
   prevBridgeSnapshot: BridgeSnapshot
+  /** 本次叙事开始前的时间节点；用于给 Prompt 提供真实的起止窗口。 */
+  previousNarrativeRound?: RoundInfo
   lastNarrativeText: string
   totalBreakthroughs: number
   timeRound: RoundInfo
   lastNarratedTimeStep?: TimeStep
+  /** 当前叙事是否处于粗→细切换后的首轮边界对齐桥接。 */
+  lastTimeStepAlignment?: {
+    fromUnit: TimeStep['unit']
+    fromValue: number
+  }
   lastAiConfig?: AIModelConfig | null
   lastSessionId?: string
   lastExecutedFullContent?: string | null
@@ -190,6 +228,24 @@ export interface OrchestratorSnapshot {
 export interface OrchestratorPreviewSnapshot {
   orchestrator: OrchestratorSnapshot
   pendingTimeStepAlignmentFromUnit?: TimeStep['unit']
+  pendingTimeStepAlignmentFromValue?: number
+  /** 叙事前同步会直接写入 CharacterStore 的运行态字段。 */
+  characterStoreRuntime: Pick<
+    ReturnType<typeof useCharacterStore.getState>,
+    'age'
+  >
+  engineStoreRuntime: Pick<
+    ReturnType<typeof useEngineStore.getState>,
+    'status' | 'streamingNarrative' | 'narrativeError'
+  >
+  subsystemPreviewStates: Record<string, unknown>
+}
+
+type RuntimeManagedSubsystem = ISubSystem & {
+  hydrateFromStore?: () => void
+  restoreCollectedState?: (snapshot: unknown) => void
+  capturePreviewState?: () => unknown
+  restorePreviewState?: (snapshot: unknown) => void
 }
 
 // ============================================================
@@ -204,7 +260,7 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   private state: EngineState = {
     status: 'idle',
-    round: { year: 0, season: 0, month: 0, day: 0, dayOfYear: 1, totalDays: 0, ...TimeSystem.resolveDisplayEra(0) },
+    round: { year: 0, season: getSeasonForMonth(0), month: 0, day: 0, dayOfYear: 1, totalDays: 0, ...TimeSystem.resolveDisplayEra(0) },
     timeStep: DEFAULT_ENGINE_CONFIG.timeStep,
     totalRounds: 0,
     narrativeHistory: [],
@@ -236,7 +292,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   /** P3: AI 上轮输出的 notableEvents（作为跨域联动补充触发源） */
   private lastNotableEvents: string[] = []
 
-  /** K: MOD 清单（用于聚合各 MOD 的世界观规则） */
+  /** 已加载 MOD 清单；组装 Prompt 时再按实际运行绑定过滤规则。 */
   private modManifests: ModManifest[] = []
 
   /** @deprecated 寿命突破次数由 LifespanSystem.breakthroughs 派生，保留旧快照字段避免读档结构抖动 */
@@ -254,14 +310,32 @@ export class OrchestratorSystem extends BaseSubsystem {
   private prevRoundYear = 0
   private prevBridgeSnapshot: BridgeSnapshot = {}
 
-  /** 上一轮叙事全文（写入 RoundContext.lastNarrativeText 供 lifespan 减寿检测） */
+  /** 本次叙事开始前的权威时间节点（不随步长切换额外跳转）。 */
+  private previousNarrativeRound: RoundInfo = {
+    year: 0,
+    season: getSeasonForMonth(0),
+    month: 0,
+    day: 0,
+    dayOfYear: 1,
+    totalDays: 0,
+    ...TimeSystem.resolveDisplayEra(0),
+  }
+
+  /** 上一轮叙事全文（兼容旧 RoundContext；不得用于本地语义判定） */
   private lastNarrativeText = ''
 
   /** 上一条已完成叙事采用的时间步长，用于粗→细切换后定位下一时间节点 */
   private lastNarratedTimeStep: TimeStep = { ...DEFAULT_ENGINE_CONFIG.timeStep }
 
+  /** 当前回合若由粗→细切换触发，仅用于 Prompt 说明，不改变时间结果。 */
+  private lastTimeStepAlignment?: {
+    fromUnit: TimeStep['unit']
+    fromValue: number
+  }
+
   /** 玩家粗→细切换后等待下一轮消费的原粒度；仅运行态使用，不进入存档契约。 */
   private pendingTimeStepAlignmentFromUnit?: TimeStep['unit']
+  private pendingTimeStepAlignmentFromValue?: number
 
   /** 玩家分支选择（注入下一轮 Prompt，一次性消费） */
   private lastPlayerChoice?: string
@@ -287,6 +361,9 @@ export class OrchestratorSystem extends BaseSubsystem {
   /** 预生成/预览执行深度：只允许临时推进到 AI 输出，不提交真实副作用 */
   private previewExecutionDepth = 0
 
+  /** 真实回合异步摘要压缩；下一次推进/预生成/读档前必须等待其提交完成。 */
+  private pendingCompression: Promise<void> | null = null
+
   /** 子系统状态写入总线（叙事 / 跨域 / 后处理等统一入口） */
   private readonly roundCommitBus = new RoundCommitBus(
     (id) => this.subsystems.find((s) => s.id === id),
@@ -296,6 +373,72 @@ export class OrchestratorSystem extends BaseSubsystem {
     },
   )
 
+  private asRuntimeManaged(subsystem: ISubSystem): RuntimeManagedSubsystem {
+    return subsystem as RuntimeManagedSubsystem
+  }
+
+  /** 从各 MOD Store 水合当前已注册的 MVP 子系统，不改变公开 ISubSystem 契约。 */
+  hydrateSubsystemsFromStores(): void {
+    for (const subsystem of this.subsystems) {
+      try {
+        this.asRuntimeManaged(subsystem).hydrateFromStore?.()
+      } catch (error) {
+        console.warn(`[Orchestrator] 子系统 ${subsystem.id} Store 水合失败:`, error)
+      }
+    }
+  }
+
+  /** 将持久化的 collectState().data 写回对应私有运行态。 */
+  private restoreSubsystemsFromCollectedStates(states: Record<string, SubSystemState>): void {
+    for (const subsystem of this.subsystems) {
+      const data = states[subsystem.id]?.data
+      if (data === undefined) continue
+      try {
+        this.asRuntimeManaged(subsystem).restoreCollectedState?.(data)
+      } catch (error) {
+        console.warn(`[Orchestrator] 子系统 ${subsystem.id} 状态恢复失败:`, error)
+      }
+    }
+  }
+
+  private captureSubsystemPreviewStates(): Record<string, unknown> {
+    const snapshots: Record<string, unknown> = {}
+    const previewSubsystems = new Map<string, ISubSystem>([
+      ...this.subsystems.map((subsystem) => [subsystem.id, subsystem] as const),
+      [memoryLifecycle.id, memoryLifecycle],
+      [memoryForgetting.id, memoryForgetting],
+      [plotStructure.id, plotStructure],
+      [foreshadowing.id, foreshadowing],
+      [coreMemory.id, coreMemory],
+    ])
+    for (const subsystem of previewSubsystems.values()) {
+      const capture = this.asRuntimeManaged(subsystem).capturePreviewState
+      if (!capture) continue
+      snapshots[subsystem.id] = capture.call(subsystem)
+    }
+    return structuredClone(snapshots)
+  }
+
+  private restoreSubsystemPreviewStates(snapshots: Record<string, unknown> | undefined): void {
+    if (!snapshots) return
+    const previewSubsystems = new Map<string, ISubSystem>([
+      ...this.subsystems.map((subsystem) => [subsystem.id, subsystem] as const),
+      [memoryLifecycle.id, memoryLifecycle],
+      [memoryForgetting.id, memoryForgetting],
+      [plotStructure.id, plotStructure],
+      [foreshadowing.id, foreshadowing],
+      [coreMemory.id, coreMemory],
+    ])
+    for (const subsystem of previewSubsystems.values()) {
+      if (!(subsystem.id in snapshots)) continue
+      try {
+        this.asRuntimeManaged(subsystem).restorePreviewState?.(structuredClone(snapshots[subsystem.id]))
+      } catch (error) {
+        console.warn(`[Orchestrator] 子系统 ${subsystem.id} 预生成快照恢复失败:`, error)
+      }
+    }
+  }
+
   registerSubsystem(subsystem: ISubSystem): void {
     if (!isMvpRuntimeSubsystem(subsystem.id)) {
       return
@@ -304,6 +447,11 @@ export class OrchestratorSystem extends BaseSubsystem {
       return
     }
     this.subsystems.push(subsystem)
+    try {
+      this.asRuntimeManaged(subsystem).hydrateFromStore?.()
+    } catch (error) {
+      console.warn(`[Orchestrator] 子系统 ${subsystem.id} 初始水合失败:`, error)
+    }
   }
 
   /** 清空外部 MOD 子系统（registerAllSubsystems 重入前调用） */
@@ -316,7 +464,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     return this.subsystems.map((s) => ({ id: s.id, mod: s.mod }))
   }
 
-  /** K: 存储 MOD 清单（用于聚合各 MOD 的世界观规则） */
+  /** 存储已加载 MOD 清单；manifest 存在不等于其规则进入 Prompt。 */
   setManifests(manifests: ModManifest[]): void {
     this.modManifests = manifests
   }
@@ -344,18 +492,30 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   /** 推进时间（供 stage 闭包使用） */
   private advanceTimeForCurrentStep(): RoundInfo {
-    // Orchestrator round 是存档/预生成恢复后的权威游标；推进前同步 TimeSystem，
-    // 避免运行时单例仍停在旧快照，导致粗→细切换只追平旧日期而重写已叙事周期。
+    // Orchestrator round 是存档/预生成恢复后的权威游标。粗粒度叙事已经
+    // 覆盖了当前周期；切到更细粒度时，必须先消费一次“周期对齐”，再让
+    // 后续回合从新的合法节点继续推进，不能把已讲过的年份/季度/月重放。
     timeSystem.importRound(this.state.round)
     timeSystem.setTimeStep(this.state.timeStep)
+    this.lastTimeStepAlignment = undefined
 
     const alignmentFromUnit = this.pendingTimeStepAlignmentFromUnit ?? this.lastNarratedTimeStep.unit
+    const alignmentFromValue = this.pendingTimeStepAlignmentFromValue ?? this.lastNarratedTimeStep.value
     if (
       this.state.narrativeHistory.length > 0
       && shouldAlignTimeStepTransition(alignmentFromUnit, this.state.timeStep.unit)
     ) {
       this.pendingTimeStepAlignmentFromUnit = undefined
-      return timeSystem.alignToNextPeriod(alignmentFromUnit, this.state.timeStep.unit)
+      this.pendingTimeStepAlignmentFromValue = undefined
+      this.lastTimeStepAlignment = {
+        fromUnit: alignmentFromUnit,
+        fromValue: alignmentFromValue,
+      }
+      return timeSystem.alignToNextPeriod(
+        alignmentFromUnit,
+        this.state.timeStep.unit,
+        alignmentFromValue,
+      )
     }
 
     return timeSystem.advance()
@@ -363,6 +523,7 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   /** 推进时间（供 stage 闭包使用） */
   advanceTime(): void {
+    this.previousNarrativeRound = { ...this.state.round }
     this.prevRoundYear = this.state.round.year
     this.prevBridgeSnapshot = extractBridgeSnapshot(this.lastSubsystemStates)
     this.state.round = this.advanceTimeForCurrentStep()
@@ -385,12 +546,14 @@ export class OrchestratorSystem extends BaseSubsystem {
     if (this.pendingTimeStepAlignmentFromUnit) {
       if (!shouldAlignTimeStepTransition(this.pendingTimeStepAlignmentFromUnit, step.unit)) {
         this.pendingTimeStepAlignmentFromUnit = undefined
+        this.pendingTimeStepAlignmentFromValue = undefined
       }
     } else if (
       this.state.narrativeHistory.length > 0
-      && shouldAlignTimeStepTransition(this.state.timeStep.unit, step.unit)
+      && shouldAlignTimeStepTransition(this.lastNarratedTimeStep.unit, step.unit)
     ) {
-      this.pendingTimeStepAlignmentFromUnit = this.state.timeStep.unit
+      this.pendingTimeStepAlignmentFromUnit = this.lastNarratedTimeStep.unit
+      this.pendingTimeStepAlignmentFromValue = this.lastNarratedTimeStep.value
     }
     this.state.timeStep = step
     timeSystem.setTimeStep(step)
@@ -407,8 +570,8 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   /** 三回合收集所有子系统状态（供 stage 闭包使用） */
-  collectAllSubsystemStates(): void {
-    this.collectSubsystemStates()
+  collectAllSubsystemStates(recordRelevance = true): void {
+    this.collectSubsystemStates(false, recordRelevance)
   }
 
   /** 获取事件检测所需的状态快照（供 stage 闭包使用） */
@@ -452,11 +615,6 @@ export class OrchestratorSystem extends BaseSubsystem {
   /** 执行跨域联动（供 stage 闭包使用，无参版本） */
   async executeCrossDomainLinkage(): Promise<void> {
     await this._executeCrossDomainLinkage(this.buildRoundContext())
-  }
-
-  /** 叙事后处理（供 stage 闭包使用） */
-  runNarrativePostProcessing(narrative: string): void {
-    this._runNarrativePostProcessing(narrative)
   }
 
   setLastPlayerChoice(choice: string): void {
@@ -526,10 +684,12 @@ export class OrchestratorSystem extends BaseSubsystem {
       prevAbbreviationSnapshot: this.prevAbbreviationSnapshot,
       prevRoundYear: this.prevRoundYear,
       prevBridgeSnapshot: this.prevBridgeSnapshot,
+      previousNarrativeRound: this.previousNarrativeRound,
       lastNarrativeText: this.lastNarrativeText,
       totalBreakthroughs: this.totalBreakthroughs,
       timeRound: timeSystem.exportRound(),
       lastNarratedTimeStep: this.lastNarratedTimeStep,
+      lastTimeStepAlignment: this.lastTimeStepAlignment,
       lastAiConfig: this.lastAiConfig,
       lastSessionId: this.lastSessionId,
       lastExecutedFullContent: this.lastExecutedFullContent,
@@ -543,24 +703,53 @@ export class OrchestratorSystem extends BaseSubsystem {
     })
   }
 
+  isBackgroundCompressionActive(): boolean {
+    return this.pendingCompression !== null
+  }
+
+  async waitForBackgroundCompression(): Promise<void> {
+    while (this.pendingCompression) {
+      await this.pendingCompression
+    }
+  }
+
   capturePreviewSnapshot(): OrchestratorPreviewSnapshot {
+    const engineStore = useEngineStore.getState()
+    const characterStore = useCharacterStore.getState()
     return {
       orchestrator: this.captureSnapshot(),
       pendingTimeStepAlignmentFromUnit: this.pendingTimeStepAlignmentFromUnit,
+      pendingTimeStepAlignmentFromValue: this.pendingTimeStepAlignmentFromValue,
+      characterStoreRuntime: {
+        age: characterStore.age,
+      },
+      engineStoreRuntime: {
+        status: engineStore.status,
+        streamingNarrative: engineStore.streamingNarrative,
+        narrativeError: engineStore.narrativeError,
+      },
+      subsystemPreviewStates: this.captureSubsystemPreviewStates(),
     }
   }
 
   /** 恢复预览会改写、但 EngineStore 不保存的 orchestrator 运行态。 */
   private restoreSnapshotRuntimeState(snap: OrchestratorSnapshot): void {
     this.lastSubsystemStates = structuredClone(snap.lastSubsystemStates ?? {})
+    this.restoreSubsystemsFromCollectedStates(this.lastSubsystemStates)
     this.eventLifecycle = structuredClone(snap.eventLifecycle ?? {})
     this.lastNotableEvents = [...(snap.lastNotableEvents ?? [])]
     this.prevAbbreviationSnapshot = { ...(snap.prevAbbreviationSnapshot ?? {}) }
     this.prevRoundYear = snap.prevRoundYear ?? this.state.round.year
     this.prevBridgeSnapshot = structuredClone(snap.prevBridgeSnapshot ?? {})
+    this.previousNarrativeRound = {
+      ...(snap.previousNarrativeRound ?? snap.state.round ?? this.state.round),
+    }
     this.lastNarrativeText = snap.lastNarrativeText ?? ''
     this.totalBreakthroughs = snap.totalBreakthroughs ?? 0
     this.lastNarratedTimeStep = { ...(snap.lastNarratedTimeStep ?? this.state.timeStep) }
+    this.lastTimeStepAlignment = snap.lastTimeStepAlignment
+      ? { ...snap.lastTimeStepAlignment }
+      : undefined
     this.lastAiConfig = snap.lastAiConfig ?? null
     this.lastSessionId = snap.lastSessionId
     this.lastExecutedFullContent = snap.lastExecutedFullContent ?? null
@@ -576,7 +765,12 @@ export class OrchestratorSystem extends BaseSubsystem {
   restoreSnapshot(snap: OrchestratorSnapshot): void {
     this.state = structuredClone(snap.state)
     this.restoreSnapshotRuntimeState(snap)
-    if (snap.timeRound) timeSystem.importRound(snap.timeRound)
+    // 旧存档可能保留了按旧规则计算的 season；以月份重新推导当前节点，
+    // 但不改写历史叙事条目的时间标签。
+    timeSystem.importRound(snap.timeRound ?? this.state.round)
+    this.state.round = timeSystem.getRound()
+    summaryCompressor.restoreFromEngineState(this.state.compressedSummaries, this.state.compressionStats)
+    coreMemory.hydrateFromStore()
     useEngineStore.setState((prev) => ({
       ...prev,
       ...this.state,
@@ -596,6 +790,10 @@ export class OrchestratorSystem extends BaseSubsystem {
   restorePreviewSnapshot(snap: OrchestratorPreviewSnapshot): void {
     this.restoreSnapshot(snap.orchestrator)
     this.pendingTimeStepAlignmentFromUnit = snap.pendingTimeStepAlignmentFromUnit
+    this.pendingTimeStepAlignmentFromValue = snap.pendingTimeStepAlignmentFromValue
+    this.restoreSubsystemPreviewStates(snap.subsystemPreviewStates)
+    useEngineStore.setState(snap.engineStoreRuntime)
+    useCharacterStore.setState(snap.characterStoreRuntime)
   }
 
   /**
@@ -603,8 +801,15 @@ export class OrchestratorSystem extends BaseSubsystem {
    * 不能直接 restoreSnapshot，否则会覆盖用户在 AI 等待期间完成的步长切换。
    */
   reconcilePreviewSnapshotWithEngineStore(snap: OrchestratorPreviewSnapshot): void {
+    const store = useEngineStore.getState()
+    const storeHasProgress = store.totalRounds > 0 || store.narrativeHistory.length > 0
+    if (!storeHasProgress) {
+      this.reset()
+      return
+    }
     this.restoreSnapshotRuntimeState(snap.orchestrator)
-    this.hydrateFromEngineStore(snap.orchestrator.state.timeStep)
+    this.restoreSubsystemPreviewStates(snap.subsystemPreviewStates)
+    this.hydrateFromEngineStore(snap.orchestrator.state.timeStep, true)
   }
 
   /** 世界方向修正（供 stage 闭包使用；MVP 阶段只保留未来段入口） */
@@ -631,6 +836,19 @@ export class OrchestratorSystem extends BaseSubsystem {
   // === 上下文注入 ===
 
   setContext(worldSetting: WorldSetting, characterState: CharacterState): void {
+    const store = useEngineStore.getState()
+    const storeHasProgress = store.totalRounds > 0 || store.narrativeHistory.length > 0
+    const runtimeHasResidualState = this.state.totalRounds > 0
+      || this.state.narrativeHistory.length > 0
+      || Object.keys(this.lastSubsystemStates).length > 0
+
+    // 新人生 Store 已清空时，旧 orchestrator/子系统单例不得反向复活上一局。
+    if (!storeHasProgress && runtimeHasResidualState) {
+      this.reset()
+    }
+    if (!storeHasProgress) {
+      this.hydrateSubsystemsFromStores()
+    }
     this.worldSetting = worldSetting
     this.characterState = characterState
   }
@@ -669,9 +887,22 @@ export class OrchestratorSystem extends BaseSubsystem {
    *
    * @param refreshContext - 每轮是否重新构建 RoundContext（默认 false，复用同一次）
    */
-  private collectSubsystemStates(refreshContext = false): Record<string, SubSystemState> {
+  private collectSubsystemStates(
+    refreshContext = false,
+    recordRelevance = true,
+  ): Record<string, SubSystemState> {
     const context = this.buildRoundContext()
     const states: Record<string, SubSystemState> = {}
+
+    // 这两项是 mod-engine 内部叙事运行态，不进入外部子系统状态卡，
+    // 但必须随每个真实/预生成回合推进，才能让阶段与伏笔计时保持有效。
+    for (const subsystem of [plotStructure, foreshadowing]) {
+      try {
+        subsystem.collectState(context)
+      } catch (error) {
+        console.error(`[Orchestrator] 内部叙事系统 ${subsystem.id} 推进失败:`, error)
+      }
+    }
 
     const allSubs = this.subsystems.filter((s) => s.id !== this.id && isMvpRuntimeSubsystem(s.id))
 
@@ -702,7 +933,7 @@ export class OrchestratorSystem extends BaseSubsystem {
         states[state.id] = sanitized.result as SubSystemState
 
         // 记录状态到滑动窗口（供 SubsystemRelevanceSystem 过滤使用）
-        if (!this.isPreviewExecution()) {
+        if (!this.isPreviewExecution() && recordRelevance) {
           subsystemRelevance.recordState(sub.id, sanitized.result as SubSystemState, this.state.totalRounds)
         }
       } catch (e) {
@@ -969,15 +1200,11 @@ export class OrchestratorSystem extends BaseSubsystem {
       this.lastNotableEvents = result.notableEvents
     }
 
-    // 10. 叙事后处理（连锁反应 + 寿命突破/损失）
-    if (result.narrative) {
-      this._runNarrativePostProcessing(result.narrative)
-    }
-
-    // 10c. 记忆生命周期：重要性评分（每轮分析叙事重要度+检测事件闭环）
+    // 10. 记忆生命周期：消费 AI 结构化重要度与事件弧状态
     if (result.narrative) {
       const importanceResult = memoryLifecycle.scoreImportance(
         result.narrative,
+        this.state.totalRounds,
         this.state.round.year,
       )
       if (importanceResult.importance === 'HIGH' || importanceResult.isClosure) {
@@ -1066,7 +1293,7 @@ export class OrchestratorSystem extends BaseSubsystem {
    */
   public triggerAutoSave(): void {
     if (this.state.totalRounds <= 0) return
-    if (this.state.status !== 'running') return
+    if (this.state.status !== 'running' && this.state.status !== 'complete') return
 
     const worldName = this.worldSetting?.name ?? ''
     const characterName = this.characterState?.name ?? ''
@@ -1116,11 +1343,17 @@ export class OrchestratorSystem extends BaseSubsystem {
     if (!USE_AI_SUMMARY_COMPRESSION) return
     if (this.isPreviewExecution()) return
     if (!this.lastAiConfig || !this.worldSetting || !this.characterState) return
+    if (this.pendingCompression) return
 
     const decision = memoryLifecycle.decideCompression()
     const turnCount = this.state.totalRounds - 1
+    const existingL1Keys = new Set(
+      summaryCompressor.getSummaries().summaries
+        .filter((summary) => summary.level === 1)
+        .map((summary) => `${summary.startRound}:${summary.endRound}`),
+    )
 
-    void summaryCompressor
+    const task = summaryCompressor
       .generateCompressedSummaries(
         this.lastAiConfig,
         this.buildYearEvents(),
@@ -1145,9 +1378,11 @@ export class OrchestratorSystem extends BaseSubsystem {
         useEngineStore.getState().setCompressionStats(this.state.compressionStats)
 
         const compressedSummaries = result.newCompressedSummaries
+        let maxIndexedEndRound = 0
         if (compressedSummaries?.summaries) {
           const newL1s = compressedSummaries.summaries.filter(
-            (s) => s.level === 1 && s.endRound >= this.state.totalRounds - 10,
+            (summary) => summary.level === 1
+              && !existingL1Keys.has(`${summary.startRound}:${summary.endRound}`),
           )
           for (const l1 of newL1s) {
             memoryLifecycle.addToIndex(
@@ -1159,14 +1394,16 @@ export class OrchestratorSystem extends BaseSubsystem {
                 (e) => e.round >= l1.startRound && e.round <= l1.endRound,
               ),
             )
+            maxIndexedEndRound = Math.max(maxIndexedEndRound, l1.endRound)
           }
         }
 
-        if (decision.shouldCompress && result.didCompress) {
-          memoryLifecycle.clearTaggedEvents()
+        if (maxIndexedEndRound > 0) {
+          const clearedEvents = memoryLifecycle.clearTaggedEventsThrough(maxIndexedEndRound)
           eventBus.emit('mod-engine:narrative-compressed', {
             level: 'L1',
-            reason: decision.reason,
+            reason: decision.shouldCompress ? decision.reason : 'interval',
+            clearedEvents,
             stats: this.state.compressionStats,
           })
         }
@@ -1174,6 +1411,12 @@ export class OrchestratorSystem extends BaseSubsystem {
       .catch((err) => {
         console.error('[Orchestrator] 叙事压缩失败:', err)
       })
+      .finally(() => {
+        if (this.pendingCompression === task) {
+          this.pendingCompression = null
+        }
+      })
+    this.pendingCompression = task
   }
 
   private checkAndCompress(): void {
@@ -1194,7 +1437,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       ),
     )
 
-    const currentRound = this.state.round.year
+    const currentRound = this.state.totalRounds
     const ledgerLines = digestLedger.selectForPrompt(currentRound)
     if (ledgerLines.length === 0) return rich
 
@@ -1276,9 +1519,17 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   reset(): void {
+    for (const subsystem of this.subsystems) {
+      try {
+        subsystem.reset()
+      } catch (error) {
+        console.warn(`[Orchestrator] 子系统 ${subsystem.id} 重置失败:`, error)
+      }
+    }
+    timeSystem.reset()
     this.state = {
       status: 'idle',
-      round: { year: 1, season: 0, month: 0, day: 0, dayOfYear: 1, totalDays: 365, ...TimeSystem.resolveDisplayEra(1) },
+      round: { year: 0, season: getSeasonForMonth(0), month: 0, day: 0, dayOfYear: 1, totalDays: 0, ...TimeSystem.resolveDisplayEra(0) },
       timeStep: DEFAULT_ENGINE_CONFIG.timeStep,
       totalRounds: 0,
       narrativeHistory: [],
@@ -1294,21 +1545,50 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.prevAbbreviationSnapshot = {}
     this.prevRoundYear = 0
     this.prevBridgeSnapshot = {}
+    this.previousNarrativeRound = {
+      year: 0,
+      season: getSeasonForMonth(0),
+      month: 0,
+      day: 0,
+      dayOfYear: 1,
+      totalDays: 0,
+      ...TimeSystem.resolveDisplayEra(0),
+    }
     this.lastNarrativeText = ''
+    this.lastNotableEvents = []
     this.lastNarratedTimeStep = { ...DEFAULT_ENGINE_CONFIG.timeStep }
+    this.lastTimeStepAlignment = undefined
     this.pendingTimeStepAlignmentFromUnit = undefined
+    this.pendingTimeStepAlignmentFromValue = undefined
+    this.lastAiConfig = null
+    this.lastSessionId = undefined
+    this.lastExecutedFullContent = null
+    this.lastPlayerChoice = undefined
+    this.lastCommittedPlayerChoice = undefined
+    this.consecutiveSameGoalRounds = 0
+    this.branchJustResolved = false
+    this.lastBranchTotalRound = Number.NEGATIVE_INFINITY
+    this.prefetchedNarrativeContent = null
     this.worldSetting = null
     this.characterState = null
     this.worldEventBus.reset()
+    narrativeParser.reset()
     summaryCompressor.reset()
+    memoryEngine.reset()
     memoryLifecycle.reset()
+    memoryForgetting.reset()
+    causalDelay.reset()
+    subsystemRelevance.reset()
+    plotStructure.reset()
+    foreshadowing.reset()
+    coreMemory.reset()
     digestLedger.reset()
     adaptationManager.clear()
     globalDeadLoopDetector.resetAll()
   }
 
   /** 读档后从 EngineStore 恢复 orchestrator 内部状态 */
-  hydrateFromEngineStore(previousTimeStep?: TimeStep): void {
+  hydrateFromEngineStore(previousTimeStep?: TimeStep, preserveAdaptationCache = false): void {
     const store = useEngineStore.getState()
     const lastAutoSaveRound = resolveRestoredAutoSaveRound(
       store.lastAutoSaveRound,
@@ -1332,7 +1612,12 @@ export class OrchestratorSystem extends BaseSubsystem {
       useEngineStore.getState().setLastAutoSaveRound(lastAutoSaveRound)
     }
     timeSystem.importRound(store.round)
+    // 读取旧存档时不要继续信任旧 season 序号，当前节点始终按阳历月份重算。
+    this.state.round = timeSystem.getRound()
     timeSystem.setTimeStep(store.timeStep)
+    // EngineStore 的 round 是最近一条已完成叙事的结束节点；
+    // 读档后下一轮从这里开始，不能按当前步长重新推断或回放旧周期。
+    this.previousNarrativeRound = { ...store.round }
     const shouldRestorePendingAlignment = previousTimeStep
       && store.narrativeHistory.length > 0
       && shouldAlignTimeStepTransition(previousTimeStep.unit, store.timeStep.unit)
@@ -1342,74 +1627,17 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.pendingTimeStepAlignmentFromUnit = shouldRestorePendingAlignment
       ? previousTimeStep.unit
       : undefined
+    this.pendingTimeStepAlignmentFromValue = shouldRestorePendingAlignment
+      ? previousTimeStep.value
+      : undefined
     if (store.narrativeHistory.length > 0) {
       this.lastNarrativeText = store.narrativeHistory[store.narrativeHistory.length - 1]?.text ?? ''
     }
-    adaptationManager.clear()
-    this.start()
-  }
-
-  // === 叙事后处理 ===
-
-  /**
-   * 执行叙事后处理：仅保留非权威连锁反应。
-   * 寿命突破/减寿由 LifespanSystem 在 collectStateUpdate 中读取上下文并闭环落地。
-   */
-  private _runNarrativePostProcessing(narrative: string): void {
-    try {
-      // 从子系统状态提取所需数据
-      const healthState = this.lastSubsystemStates?.['health']
-      const economyState = this.lastSubsystemStates?.['economy']
-      const reputationState = this.lastSubsystemStates?.['reputation']
-
-      const currentHealth = (healthState?.data as { hp?: number } | undefined)?.hp ?? 50
-      const currentWealth =
-        (economyState?.data as { currency?: { playerWealth?: number } } | undefined)?.currency
-          ?.playerWealth ?? 0
-      const currentReputation = (reputationState?.data as { fame?: number } | undefined)?.fame ?? 0
-
-      const postResult = runPostNarrativePhase({
-        narrative,
-        currentHealth,
-        currentWealth,
-        currentReputation,
-      })
-
-      // 应用连锁反应结果到子系统。MVP 阶段 health/economy/reputation 未开放时，
-      // RoundCommitBus 会按运行白名单跳过，避免后处理器绕过子系统恢复顺序。
-      const healthDelta = postResult.chainResult.updatedHealth - currentHealth
-      if (healthDelta !== 0 && isMvpNarrativeChangeSubsystem('health')) {
-        this.applyRoundChanges([{
-          id: 'health',
-          description: '叙事后处理：连锁反应 — 健康修正',
-          changes: { hpDelta: healthDelta },
-        }], 'post-narrative')
-      }
-      if (postResult.chainResult.wealthChange !== 0 && isMvpNarrativeChangeSubsystem('economy')) {
-        this.applyRoundChanges([{
-          id: 'economy',
-          description: '叙事后处理：连锁反应 — 财富修正',
-          changes: { wealthDelta: postResult.chainResult.wealthChange },
-        }], 'post-narrative')
-      }
-      if (postResult.chainResult.reputationChange !== 0 && isMvpNarrativeChangeSubsystem('reputation')) {
-        this.applyRoundChanges([{
-          id: 'reputation',
-          description: '叙事后处理：连锁反应 — 声望修正',
-          changes: { addFame: postResult.chainResult.reputationChange },
-        }], 'post-narrative')
-      }
-
-      // 发出通知事件
-      if (postResult.notificationText) {
-        eventBus.emit('mod-engine:post-narrative-notification', {
-          text: postResult.notificationText,
-          chain: postResult.chainResult,
-        })
-      }
-    } catch (e) {
-      console.error('[Orchestrator] 叙事后处理失败:', e)
-    }
+    this.hydrateSubsystemsFromStores()
+    summaryCompressor.restoreFromEngineState(store.compressedSummaries, store.compressionStats)
+    coreMemory.hydrateFromStore()
+    if (!preserveAdaptationCache) adaptationManager.clear()
+    if (this.state.status !== 'complete') this.start()
   }
 
   // === 跨域联动 ===
@@ -1605,8 +1833,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.prevAbbreviationSnapshot = currentAbbrev
 
     // 世界自定义文本（注入玩家设定的宏观维度 + 经济总量 + 角色影响力）
-    const worldCustomizeText = this.buildWorldCustomizeText()
-
     // 角色影响力文本（五维过滤：力量等级 → 叙事因果影响范围）
     const influenceText = this.buildInfluenceText()
 
@@ -1629,16 +1855,10 @@ export class OrchestratorSystem extends BaseSubsystem {
     const archetypeHint = generateArchetypeHint(
       resolveLifeStageFromAge(syncedCharacter.age, maxAge, startingAge),
       'normal',
-      countConsecutiveConflictRounds(this.state.narrativeHistory.slice(-10).map((n) => n.text)),
+      plotStructure.getConsecutiveConflictRounds(),
     )
     // 寿命提醒：告知 AI 角色当前寿命阶段约束
     const lifespanReminder = buildLifespanReminder(maxAge, syncedCharacter.age)
-
-    // 合并静态自定义文本（世界创建后不变，享受 STABLE KV 缓存）
-    const staticCustomText = [
-      worldCustomizeText,
-      this.buildEconomyTierRules(),
-    ].filter(Boolean).join('\n')
 
     // 合并动态叙事引导（每轮变化，放入 FAST 段避免污染 STABLE 前缀）
     const narrativeGuidanceText = [
@@ -1651,9 +1871,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       coreMemory.buildNPCNetworkText(),
     ].filter(Boolean).join('\n')
 
-    // 保留 combinedCustomText 用于 compatibility（组装时仅含静态部分）
-    const combinedCustomText = staticCustomText || undefined
-
     const calibrationRaw = this.worldSetting?.config?._calibration as
       | { styleGuide?: { narrativeTone?: string } }
       | undefined
@@ -1662,6 +1879,13 @@ export class OrchestratorSystem extends BaseSubsystem {
     )
 
     const userInstruction = this.buildUserInstruction()
+    const mythicPatternText = formatEquippedMythicPatternForPrompt(
+      useCharacterStore.getState().equippedMythicPattern,
+    )
+    const destinyPatternText = formatDestinyPatternsForPrompt(
+      getDestinyPatternSystem().getPatterns(),
+      isOpeningNarrativeRound,
+    )
 
     // 构建轻量 worldSetting（剥离每轮不变的静态参数，减少 Token 浪费）
     // aiDetailedParameters（43字段，~2000字符）在世界初始化后不再变化，每轮重复发送无意义
@@ -1674,11 +1898,23 @@ export class OrchestratorSystem extends BaseSubsystem {
       ? undefined
       : buildPowerCeilingPresetsForNarrative(powerCeiling)
     const timeScaleHint = buildTimeScaleNarrativeHint(this.state.timeStep)
+    const previousCalendarYear = resolveCalendarEraYear(
+      this.previousNarrativeRound.year,
+      readEraStartYearFromConfig(config),
+      readBirthEraYearFromConfig(config),
+    )
     const calendarNarrativeContext = buildCalendarNarrativeContext({
       timeStep: this.state.timeStep,
       calendarYear: narrativeTime.calendarYear,
       month: this.state.round.month + 1,
       day: this.state.round.day + 1,
+      previousNode: {
+        calendarYear: previousCalendarYear,
+        month: this.previousNarrativeRound.month + 1,
+        day: this.previousNarrativeRound.day + 1,
+      },
+      daysPassed: timeSystem.getDaysPassed(),
+      timeStepAlignment: this.lastTimeStepAlignment,
     })
 
     const assembled: PromptContext = {
@@ -1690,7 +1926,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       eventInjectionText: eventInjectionText || undefined,
       timeBridgeSummary: buildTimeBridgeSummary(this.buildTimeBridgeInput()) || undefined,
       systemChangeSummary: systemChangeSummary || undefined,
-      worldCustomizeText: combinedCustomText || undefined,
       narrativeGuidanceText: narrativeGuidanceText || undefined,
       plotStructureText: plotStructure.buildPhaseGuidance() || undefined,
       foreshadowingText: foreshadowing.buildForeshadowingText() || undefined,
@@ -1698,58 +1933,35 @@ export class OrchestratorSystem extends BaseSubsystem {
       worldRules: buildNarrativeWorldRules(
         getWorldRules(config.essenceTag as string | undefined),
       ) || undefined,
-      modWorldRules: this.modManifests
-        .filter((m) => m.worldRules)
-        .map((m) => m.worldRules)
-        .join('\n') || undefined,
+      modWorldRules: collectActiveModWorldRules(
+        this.modManifests,
+        this.getSubsystemBindings(),
+      ),
       narrativeStyle: this.getNarrativeStyle(),
       narrativeToneHint,
+      talents: [destinyPatternText, mythicPatternText].filter(Boolean).join('\n') || undefined,
       memorySummary: this.buildMemorySummaryWithLedger(memoryStateCard),
       coreMemory: coreMemory.buildCoreMemory() || undefined,
       // 从单一来源常量取默认字数，避免散落硬编码回退
       wordCountInstruction: buildWordCountInstruction(useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET),
       calibrationSummary: (this.worldSetting?.config?._calibrationSummary as string) || undefined,
-      causalChainHint: this.buildCausalChainHint(),
       creationProtectionText: this.buildCreationProtectionText(),
       userInstruction,
       powerCeilingPresets,
     }
 
-    // 命格注入：开场叙事告知 AI 角色天赋特质
     if (isOpeningNarrativeRound) {
-      const patterns = getDestinyPatternSystem().getPatterns()
-      if (patterns.length > 0) {
-        const talentDesc = patterns
-          .map((p) => `${p.name}（${p.rarity}·${p.polarity}）：${p.description}`)
-          .join('；')
-        assembled.talents = talentDesc
-      }
-
       const firstRoundInstruction = isBirthOpeningRound
-        ? [
-            '这是角色人生的起点——0岁开场只写出生与家世，不写出生后一整年的成长概述。',
-            '① 出生场景：具体时间、地点、天气、接生场景的细节描写',
-            '② 家庭环境：父母的职业/身份/性格、家庭经济状况、居住环境的详细描写',
-            '③ 时代背景：所在地区的风俗、社会阶层、邻里关系、时代氛围',
-            '④ 感官体验：婴儿视角的听觉/视觉/触觉/嗅觉感受',
-            '⑤ 时间范围限制在出生当日或出生前后短时段，不写翻身、爬行、学步、说话等后续月份事件',
-            '⑥ 年龄由时间推进与起始年龄派生，不要在 changes 中写 lifespan.age；0岁开场通常返回 changes: []',
-          ].join('\n')
-        : [
-            '这是角色人生记录的开场——先建立当前年龄的身份、家世、处境和所处环境。',
-            '① 从具体场景切入，交代角色身边的人、居住环境和社会位置',
-            '② 只叙述当前开场节点附近发生的事，不概括一整段已过去的人生',
-            '③ 叙事自然分段，用具体细节和感官描写替代概括性叙述',
-          ].join('\n')
+        ? '0岁开场只写出生当日或前后短时段：用婴儿可感知的细节建立家庭处境与时代环境；禁止跨到翻身、爬行、学步或说话。年龄由时间系统派生，禁止写 lifespan.age，changes 通常为 []。'
+        : '人生记录开场：从当前年龄附近的具体场景建立身份、家世、环境与社会位置，不概述此前整段人生。'
       assembled.userInstruction = assembled.userInstruction
         ? `${assembled.userInstruction}\n\n${firstRoundInstruction}`
         : firstRoundInstruction
     }
 
-    // 注入子系统变更指南（从 System Prompt 移出，由 orchestrator 控制是否包含）
-    if (promptOpenIds.length > 0) {
-      assembled.subsystemGuideText = SUBSYSTEM_GUIDE
-    }
+    // 只注入当前实际开放且可由叙事写入的字段，避免延后系统进入 Prompt。
+    const activeSubsystemGuide = buildMvpSubsystemGuide(promptOpenIds)
+    if (activeSubsystemGuide) assembled.subsystemGuideText = activeSubsystemGuide
 
     // 每轮动态时间导演提示放在 FAST 段末尾，避免污染 STABLE 前缀缓存。
     assembled.timeGuideText = [
@@ -1793,31 +2005,12 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   private getMemoryL0Titles(fromYear: number, toYear: number): string[] {
     return memoryLifecycle.getTaggedEvents()
-      .filter((e) => e.round > fromYear && e.round <= toYear)
+      .filter((e) => {
+        const calendarYear = e.calendarYear ?? e.round
+        return calendarYear > fromYear && calendarYear <= toYear
+      })
       .map((e) => extractL0Title(e.narrative))
       .filter(Boolean)
-  }
-
-  /** Phase 7D-4：待兑现因果链注入叙事 Prompt */
-  private buildCausalChainHint(): string | undefined {
-    const data = this.lastSubsystemStates['causal-simulation']?.data as {
-      queue?: {
-        pending?: Array<{
-          actionType?: string
-          triggerYear?: number
-          captureDescription?: string
-        }>
-      }
-    } | undefined
-    const pending = data?.queue?.pending
-    if (!pending?.length) return undefined
-    const lines = pending.slice(0, 3).map((e) => {
-      const type = e.actionType ?? '因果'
-      const year = e.triggerYear ?? '?'
-      const desc = (e.captureDescription ?? '').slice(0, 48)
-      return `- ${type}（预计${year}年兑现）${desc ? `：${desc}` : ''}`
-    })
-    return `【待兑现因果链】\n${lines.join('\n')}`
   }
 
   /** 构建子系统缩写快照（用于变化摘要对比） */
@@ -1874,28 +2067,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     ].join('\n')
   }
 
-  /** 构建世界自定义文本 */
-  private buildWorldCustomizeText(): string | undefined {
-    const parts: string[] = []
-    const config = this.worldSetting?.config ?? {}
-
-    if (config.powerCeiling) {
-      parts.push(`力量上限：${config.powerCeiling}`)
-    }
-    // spatialForm 是注入时使用的字段名（与 universeScale 同义但命名统一）
-    const spaceForm = (config.spatialForm || config.universeScale) as string | undefined
-    if (spaceForm) {
-      parts.push(`空间形态：${spaceForm}`)
-    }
-    if (config.civilizationStage) {
-      parts.push(`文明阶段：${config.civilizationStage}`)
-    }
-
-    return parts.length > 0
-      ? `【玩家自定义宏观维度】\n${parts.join('\n')}`
-      : undefined
-  }
-
   /**
    * 构建角色影响力文本（五维过滤：力量等级 → 叙事因果影响范围）
    */
@@ -1903,59 +2074,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     const totalPower = subsystemRelevance.calculateTotalPower(this.lastSubsystemStates)
     const scope = subsystemRelevance.getInfluenceScope(totalPower)
     return subsystemRelevance.buildInfluenceText(totalPower, scope)
-  }
-
-  /**
-   * 战力→经济层级规则（注入 AI Prompt）
-   *
-   * 告诉 AI 当前世界天花板下物品/丹药/装备的经济层级，
-   * AI 据此在叙事中推理合理价格。
-   */
-  private buildEconomyTierRules(): string | undefined {
-    const config = this.worldSetting?.config ?? {}
-    if (shouldSkipEconomyTierRules(config)) return undefined
-
-    const powerCeilingRaw = config.powerCeiling
-    if (!powerCeilingRaw) return undefined
-
-    const ceilingMatch = String(powerCeilingRaw).match(/(\d+)/)
-    const worldCeiling = ceilingMatch ? parseInt(ceilingMatch[1], 10) : MAX_REACHABLE_STAGE
-    if (worldCeiling < 1) return undefined
-
-    const calRaw = config._calibration as { formulas?: { economyTierRatios?: number[] } } | undefined
-    const ratioList = calRaw?.formulas?.economyTierRatios ?? [0.25, 0.45, 0.65, 0.85, 1.0]
-    const economyMod = typeof config._economyModifier === 'number' ? config._economyModifier : 1.0
-
-    const lines: string[] = [
-      '【经济层级映射规则】',
-      `当前世界战力天花板为 ${worldCeiling} 阶。物品稀缺度按以下层级划分：`,
-    ]
-    if (economyMod !== 1.0) {
-      lines.push(`（世界经济活跃度修正 ×${economyMod.toFixed(2)}）`)
-    }
-
-    // 计算各层级的阈值（支持校准 economyTierRatios）
-    const thresholds = [
-      { tier: 1, stage: Math.floor(worldCeiling * ratioList[0]!), info: (ECONOMIC_TIER_CONFIG as Record<number, EconomicTierInfo>)[1] },
-      { tier: 2, stage: Math.floor(worldCeiling * ratioList[1]!), info: (ECONOMIC_TIER_CONFIG as Record<number, EconomicTierInfo>)[2] },
-      { tier: 3, stage: Math.floor(worldCeiling * ratioList[2]!), info: (ECONOMIC_TIER_CONFIG as Record<number, EconomicTierInfo>)[3] },
-      { tier: 4, stage: Math.floor(worldCeiling * ratioList[3]!), info: (ECONOMIC_TIER_CONFIG as Record<number, EconomicTierInfo>)[4] },
-      { tier: 5, stage: Math.floor(worldCeiling * ratioList[4]!), info: (ECONOMIC_TIER_CONFIG as Record<number, EconomicTierInfo>)[5] },
-    ]
-
-    let prevMax = 0
-    for (const t of thresholds) {
-      if (!t.info) continue
-      const range = prevMax === 0
-        ? `物品阶位 ≤ ${t.stage} 阶`
-        : `物品阶位 ${prevMax + 1}~${t.stage} 阶`
-      lines.push(`  ${range} → ${t.info.label}（${t.info.rarity}，${t.info.availability}）`)
-      prevMax = t.stage
-    }
-
-    lines.push('描述物品价格或交易场景时，请参照上述稀缺度层级。')
-
-    return lines.join('\n')
   }
 
   /** 获取所有子系统的状态上下文字符串（供外部 UI Panel 使用） */
@@ -2036,24 +2154,12 @@ export class OrchestratorSystem extends BaseSubsystem {
       lines.push(`参考建议：${hints.optional.join('。')}`)
     }
 
-    // 原创保护安全网：双重保险，确保即使 AI 忽略 JSON 中的「原创保护」字段也不改写
-    if (this.state.characterCreations.length > 0) {
-      const names = this.state.characterCreations.map((c) => c.name).join('、')
-      lines.push(`【原创保护】角色已开创：${names}。这些内容的来源是角色自身创造力，严禁改写为遗迹/秘境/古人传承等外部来源。`)
-    }
-
     // 原有逻辑
     if (useEngineStore.getState().forceBranchNext) {
       lines.push('【强制分叉】本轮必须设置 branch=true，并提供 branchTitle 与 2-4 个 branchOptions；叙事正文在抉择前结束，不要替玩家做决定。')
     }
     if (this.lastPlayerChoice) {
-      const scale = classifyActionScale(this.lastPlayerChoice)
-      const scaleHint = scale === 'small'
-        ? '（小规模行动——一轮直接完成）'
-        : scale === 'large'
-          ? '（宏大目标——分阶段逐步实现）'
-          : ''
-      lines.push(`【玩家选择】${this.lastPlayerChoice}${scaleHint}`)
+      lines.push(`【玩家选择】${this.lastPlayerChoice}`)
       this.lastCommittedPlayerChoice = this.lastPlayerChoice
       this.lastPlayerChoice = undefined
     }
@@ -2141,12 +2247,12 @@ export class OrchestratorSystem extends BaseSubsystem {
     branchTitle?: string
     branchOptions?: string[]
   } {
-    let options = normalizeNarrativeBranchOptions(parsed.branchOptions)
+    const options = normalizeNarrativeBranchOptions(parsed.branchOptions)
     let title = parsed.branchTitle?.trim() ?? ''
     let isBranch = isEligibleNarrativeBranch(parsed)
 
     if (parsed.branch === true && !isBranch) {
-      console.warn('[Branch] 已抑制非 HIGH 或选项不完整的普通分叉点')
+      console.warn('[Branch] 已抑制未满足 HIGH、不可逆命运语义或有效选项要求的分叉点')
     }
 
     if (isBranch && !title) {
@@ -2162,16 +2268,6 @@ export class OrchestratorSystem extends BaseSubsystem {
 
     if (shouldSuppressBranch) {
       isBranch = false
-    }
-
-    if (forceBranchNext && !isBranch) {
-      options = [
-        '正面迎击，不留退路',
-        '迂回周旋，寻找更好时机',
-        '另辟蹊径，改变原有计划',
-      ]
-      title = '命运分叉：你打算如何抉择？'
-      isBranch = true
     }
 
     if (isBranch) {
@@ -2210,9 +2306,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     // P1: 兜底叙事
     let narrative = effectiveParsed.narrative
     if (interceptorOutcome.blocked || !narrative) {
-      const lifespanState = this.lastSubsystemStates?.['lifespan']
-      const maxAge = (lifespanState?.data as { maxAge?: number } | undefined)?.maxAge ?? DEFAULT_MAX_AGE_FALLBACK
-      narrative = narrativeParser.buildFallbackNarrative(this.state.round.year, maxAge)
+      narrative = this.buildFallbackNarrativeFromState()
       if (interceptorOutcome.blocked) {
         console.warn('[NarrativeInterceptor] 已阻断状态提交:', interceptorOutcome.blockReason)
       }
@@ -2229,50 +2323,71 @@ export class OrchestratorSystem extends BaseSubsystem {
 
     narrative = normalizeNarrativeParagraphs(narrative)
 
-    // 伏笔检测：从新叙事中检测新伏笔（本地关键词 + AI 主动标注）
+    // 语义权威：仅消费 Schema 校验后的 META；缺失时使用显式中立降级。
+    const hasValidatedSemanticMetadata = !interceptorOutcome.blocked
+      && effectiveParsed.semanticSignals !== undefined
     if (narrative) {
-      const aiMarked = (effectiveParsed as { foreshadowing?: Array<{ type: string; description: string; priority?: number }> }).foreshadowing
-      foreshadowing.detectForeshadowing(narrative, this.state.round.year, this.characterState?.age ?? 0, aiMarked)
-      // AI 重要性标注：传递给 memoryLifecycle 辅助评分
-      const aiImportance = (effectiveParsed as { importance?: 'HIGH' | 'NORMAL' | 'LOW' }).importance
-      if (aiImportance) {
-        memoryLifecycle.setAIRoundImportance(this.state.round.year, aiImportance)
-      }
-      const aiArcStatus = (effectiveParsed as { arcStatus?: 'start' | 'ongoing' | 'end' }).arcStatus
-      if (aiArcStatus) {
-        memoryLifecycle.setAIArcStatus(this.state.round.year, aiArcStatus)
-      }
-      // 想法1：记录 AI 自述的 digest + keyEvents 到摘要账本（精确重要性主干）
-      const parsedDigest = (effectiveParsed as {
-        digest?: string
-        keyEvents?: Array<{ text: string; importance: number }>
-      })
-      digestLedger.record({
-        round: this.state.round.year,
-        digest: parsedDigest.digest,
-        keyEvents: parsedDigest.keyEvents,
-      })
-      // 原创保护：提取 AI 标注的 creations 并累积
-      const roundCreations = effectiveParsed.creations
-      if (roundCreations?.length) {
-        for (const c of roundCreations) {
-          // 按 name 去重，避免重复追加
-          if (!this.state.characterCreations.some((existing) => existing.name === c.name)) {
-            this.state.characterCreations.push({
-              name: c.name,
-              description: c.description,
-              category: c.category as CharacterCreation['category'],
-              confirmedRound: this.state.totalRounds,
-            })
+      const semanticSignals = hasValidatedSemanticMetadata
+        ? effectiveParsed.semanticSignals!
+        : createNeutralNarrativeSemanticSignals()
+
+      plotStructure.recordNarrativeSignals(semanticSignals)
+      if (hasValidatedSemanticMetadata) {
+        const roundSequence = this.state.totalRounds
+        const structuredKeyEvents = Array.isArray(effectiveParsed.keyEvents)
+          ? effectiveParsed.keyEvents.filter((event): event is {
+              text: string
+              importance: number
+              entities?: string[]
+            } => typeof event === 'object' && event !== null && typeof event.text === 'string')
+          : []
+        const entities = structuredKeyEvents.flatMap((event) => event.entities ?? [])
+
+        memoryLifecycle.setAISemanticAnalysis(
+          roundSequence,
+          effectiveParsed.importance!,
+          effectiveParsed.arcStatus!,
+          semanticSignals,
+          entities,
+        )
+        coreMemory.recordRelationshipUpdates(
+          semanticSignals.relationshipUpdates,
+          roundSequence,
+        )
+        foreshadowing.detectForeshadowing(
+          roundSequence,
+          this.characterState?.age ?? 0,
+          effectiveParsed.foreshadowing,
+        )
+        foreshadowing.resolveForeshadowing(
+          semanticSignals.resolvedForeshadowingIds,
+          narrative,
+          roundSequence,
+        )
+        digestLedger.record({
+          round: roundSequence,
+          digest: effectiveParsed.digest,
+          keyEvents: structuredKeyEvents,
+        })
+
+        // 原创保护：只累积完整语义包中经校验的 creations。
+        const roundCreations = effectiveParsed.creations
+        if (roundCreations?.length) {
+          for (const c of roundCreations) {
+            if (!this.state.characterCreations.some((existing) => existing.name === c.name)) {
+              this.state.characterCreations.push({
+                name: c.name,
+                description: c.description,
+                category: c.category as CharacterCreation['category'],
+                confirmedRound: this.state.totalRounds,
+              })
+            }
+          }
+          while (this.state.characterCreations.length > MAX_CHARACTER_CREATIONS) {
+            this.state.characterCreations.shift()
           }
         }
-        // 超出上限时移除最早确认的设定，防止数组无限增长撑爆 prompt 稳定段
-        while (this.state.characterCreations.length > MAX_CHARACTER_CREATIONS) {
-          this.state.characterCreations.shift()
-        }
       }
-      // 检查是否回收了已有伏笔
-      foreshadowing.checkResolution(narrative, this.state.round.year)
     }
 
     // 叙事与状态硬分离：仅经 RoundCommit 总线提交变更
@@ -2286,7 +2401,9 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.state.currentNarrative = narrative
     if (narrative) {
       this.lastNarrativeText = narrative
-      const branchMeta = this.resolveBranchFromParsed(effectiveParsed)
+      const branchMeta = hasValidatedSemanticMetadata
+        ? this.resolveBranchFromParsed(effectiveParsed)
+        : { isBranchPoint: false as const }
       if (branchMeta.isBranchPoint) {
         this.lastBranchTotalRound = this.state.totalRounds
       }
@@ -2312,9 +2429,17 @@ export class OrchestratorSystem extends BaseSubsystem {
       }
     }
 
+    // commit 已修改子系统私有状态；立即刷新快照，确保 UI 同步与本轮自动存档不是上一轮数据。
+    if (committedChanges.length > 0) {
+      this.collectSubsystemStates(false, false)
+    }
+
     // 提取结构化世界方向（来自 META 的 direction 字段；MVP 阶段仅透传，不回写世界目标）
     const worldDirection: RoundResult['direction'] =
-      effectiveParsed.direction && typeof effectiveParsed.direction === 'object' && !Array.isArray(effectiveParsed.direction)
+      hasValidatedSemanticMetadata
+      && effectiveParsed.direction
+      && typeof effectiveParsed.direction === 'object'
+      && !Array.isArray(effectiveParsed.direction)
         ? (effectiveParsed.direction as Record<string, { direction?: string; magnitude?: number }>)
         : undefined
 
@@ -2326,7 +2451,7 @@ export class OrchestratorSystem extends BaseSubsystem {
         description: c.description,
         changes: c.changes,
       })),
-      notableEvents: effectiveParsed.notableEvents,
+      notableEvents: hasValidatedSemanticMetadata ? effectiveParsed.notableEvents : [],
       direction: worldDirection,
     }
     eventBus.emit('mod-engine:round-complete', result)
@@ -2340,8 +2465,37 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   // === NarrativeStage 阶段机（#13: 吸收 Factorio Story Script） ===
 
-  /** 缓存的叙事阶段（从 campaigns/ 加载） */
+  /**
+   * 缓存的叙事阶段（从 campaigns/ 加载）。
+   *
+   * Campaign 的阶段闭包会捕获 Prompt、模型配置和会话 ID，因而不能只按
+   * "是否已经加载过" 复用；否则热更新或设置变更后仍会向 AI 发送旧 Prompt。
+   */
   private _stages: NarrativeStage[] | null = null
+  private _stagesCacheKey: string | null = null
+
+  private buildCampaignStagesCacheKey(
+    aiConfig: AIModelConfig,
+    promptTemplate: PromptTemplate,
+    sessionId: string | undefined,
+    modName: string,
+    campaignName: string,
+  ): string {
+    return JSON.stringify({
+      modName,
+      campaignName,
+      sessionId,
+      aiConfig,
+      prompt: {
+        name: promptTemplate.name,
+        version: promptTemplate.version,
+        systemPrompt: promptTemplate.systemPrompt,
+        userPromptTemplate: promptTemplate.userPromptTemplate,
+        variables: promptTemplate.variables,
+        outputFormat: promptTemplate.outputFormat,
+      },
+    })
+  }
 
   /**
    * 从 MOD 的 campaigns/ 目录加载叙事阶段定义
@@ -2362,7 +2516,14 @@ export class OrchestratorSystem extends BaseSubsystem {
     modName = 'mod-engine',
     campaignName = 'default',
   ): Promise<NarrativeStage[]> {
-    if (this._stages) return this._stages
+    const cacheKey = this.buildCampaignStagesCacheKey(
+      aiConfig,
+      promptTemplate,
+      sessionId,
+      modName,
+      campaignName,
+    )
+    if (this._stages && this._stagesCacheKey === cacheKey) return this._stages
 
     try {
       const campaign = await import(`@/mods/${modName}/campaigns/${campaignName}`) as {
@@ -2371,11 +2532,13 @@ export class OrchestratorSystem extends BaseSubsystem {
       }
       const stages = campaign.loadStages?.(aiConfig, promptTemplate, sessionId) ?? campaign.stages ?? []
       this._stages = stages
+      this._stagesCacheKey = cacheKey
       return stages
     } catch {
       // MOD 没有 campaigns 目录 → 使用空数组（报错，不静默回退）
       console.warn('[Orchestrator] 未找到 campaign 定义，无法执行阶段机')
       this._stages = []
+      this._stagesCacheKey = cacheKey
       return []
     }
   }
@@ -2492,6 +2655,8 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.state.status = 'running'
     this.lastAiConfig = effectiveAiConfig
     this.lastSessionId = sessionId
+    // 每次执行都从空结果开始，避免预览/HMR 后沿用上一轮完整响应。
+    this.lastExecutedFullContent = null
 
     // 注入 AI 配置 + 世界观信息到 adaptation 管线
     const { customKey, provider, customUrl, customModel } = useSettingsStore.getState()
@@ -2524,6 +2689,18 @@ export class OrchestratorSystem extends BaseSubsystem {
 
     // 使用阶段机驱动回合管线
     await this.runStageMachine(stages, context)
+
+    if (!this.lastExecutedFullContent) {
+      const rejection = new Error('叙事生成结果未通过完整性与结构门禁，本轮未推进，请重新尝试。')
+      rejection.name = 'NarrativeGenerationRejectedError'
+      throw rejection
+    }
+
+    // maxRounds 是回合完成后的终局边界；达到时立即进入 complete，
+    // 不要求玩家再点击一次空推进。
+    if (this.shouldStop()) {
+      this.state.status = 'complete'
+    }
 
     // Instrument: onRoundEnd
     if (isInstrumentEnabled()) {

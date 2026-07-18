@@ -25,7 +25,7 @@ const BLOCKED_SKILL_NAMES = new Set(['skill', 'ability', '未知技能', '新技
 
 /** 技能效果属性白名单 */
 const VALID_ATTRS = new Set([
-  'physique', 'mind', 'talentAptitude', 'charisma', 'resources',
+  'physique', 'mind', 'talentAptitude', 'charisma',
   'combatPower', 'luck', 'health', 'stamina', 'spirit',
   'attack', 'defense', 'speed', 'cultivation',
 ])

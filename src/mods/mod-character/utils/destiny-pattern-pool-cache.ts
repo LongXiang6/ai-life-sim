@@ -11,6 +11,7 @@ import {
   rejectsBirthStateDestinyPatternContent,
   rejectsFutureDestinyPatternContent,
 } from './destiny-pattern-content-quality'
+import { sanitizeDestinyPattern } from './character-state-migration'
 
 export function getDestinyPatternPoolCacheKey(worldCode: number): string {
   return `destiny-pool:${worldCode || 'default'}`
@@ -20,10 +21,13 @@ export function loadDestinyPatternPool(worldCode: number): DestinyPattern[] {
   try {
     const cached = cacheStore.get<DestinyPattern[]>('mod-character', getDestinyPatternPoolCacheKey(worldCode)) ?? []
     // 旧缓存同样经过当前质量门禁，避免已生成的年份/履历文案继续出现在抽取结果里。
-    return cached.filter((pattern) => (
-      !rejectsFutureDestinyPatternContent(pattern)
-      && !rejectsBirthStateDestinyPatternContent(pattern)
-    ))
+    return cached
+      .map(sanitizeDestinyPattern)
+      .filter((pattern): pattern is DestinyPattern => pattern !== null)
+      .filter((pattern) => (
+        !rejectsFutureDestinyPatternContent(pattern)
+        && !rejectsBirthStateDestinyPatternContent(pattern)
+      ))
   } catch {
     return []
   }
@@ -32,7 +36,10 @@ export function loadDestinyPatternPool(worldCode: number): DestinyPattern[] {
 export function saveDestinyPatternPool(worldCode: number, patterns: DestinyPattern[]): void {
   if (patterns.length === 0) return
   try {
-    cacheStore.set('mod-character', getDestinyPatternPoolCacheKey(worldCode), patterns)
+    const sanitized = patterns
+      .map(sanitizeDestinyPattern)
+      .filter((pattern): pattern is DestinyPattern => pattern !== null)
+    cacheStore.set('mod-character', getDestinyPatternPoolCacheKey(worldCode), sanitized)
   } catch {
     // ignore quota / private mode
   }

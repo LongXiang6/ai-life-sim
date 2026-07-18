@@ -18,7 +18,9 @@ const CATEGORY_ESSENCE: Record<WorldCategory, string> = {
   post_apocalyptic: 'post-apocalyptic',
   modern: 'modern',
   survival_horror: 'dark-fantasy',
-  mixed: 'modern',
+  // 现代社会与超常异常并存的世界不能退化为纯现代世界；否则初始化会
+  // 选中 MODERN 标签表，向叙事注入“无超自然”的硬约束。
+  mixed: 'mixed',
 }
 
 const CATEGORY_POWER: Record<WorldCategory, string> = {
@@ -29,7 +31,7 @@ const CATEGORY_POWER: Record<WorldCategory, string> = {
   post_apocalyptic: 'none',
   modern: 'none',
   survival_horror: 'magic',
-  mixed: 'none',
+  mixed: 'mixed',
 }
 
 const CATEGORY_SPATIAL: Record<WorldCategory, string> = {
@@ -102,19 +104,11 @@ export function buildWorldConfigFromPreset(
   preset: PresetWorld,
   difficulty: DifficultyLevel,
 ): WorldConfig {
-  let essenceTag = CATEGORY_ESSENCE[preset.category] ?? 'modern'
+  const essenceTag = CATEGORY_ESSENCE[preset.category] ?? 'modern'
   let powerSystemTag = CATEGORY_POWER[preset.category] ?? 'none'
 
   if (preset.worldviewId === 'materialist') {
     powerSystemTag = 'none'
-  } else if (preset.worldviewId === 'idealist' && preset.category === 'mixed') {
-    if (isWorldInitAIAvailable()) {
-      essenceTag = 'modern'
-      powerSystemTag = 'technology'
-    } else {
-      essenceTag = inferEssenceFromText(preset.description)
-      powerSystemTag = essenceTag === 'modern' || essenceTag === 'scifi' ? 'technology' : 'cultivation'
-    }
   }
 
   const spatialForm = CATEGORY_SPATIAL[preset.category] ?? 'plane'
@@ -128,6 +122,7 @@ export function buildWorldConfigFromPreset(
     civilizationStage: inferCivilizationFromPreset(preset),
     difficulty,
     description: preset.description,
+    worldType: preset.category === 'mixed' ? 'mixed' : preset.worldviewId,
   }
 }
 

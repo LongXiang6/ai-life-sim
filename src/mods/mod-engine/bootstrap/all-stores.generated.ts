@@ -7,6 +7,7 @@
 
 export { useBaseUniverseStore } from '@/mods/mod-base-universe/store'
 export { useCharacterStore } from '@/mods/mod-character/store'
+export { useMythicLibraryStore } from '@/mods/mod-character/store'
 export { useCultureStore } from '@/mods/mod-culture/store'
 export { useDifficultyStore } from '@/mods/mod-difficulty/store'
 export { useEconomyStore } from '@/mods/mod-economy/store'

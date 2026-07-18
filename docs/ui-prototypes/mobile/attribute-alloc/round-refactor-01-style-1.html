@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>属性分配 · 统一创建流程</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../assets/library.css">
+  <link rel="stylesheet" href="../assets/creation-flow-unified.css">
+  <script src="../assets/prototype.js" defer></script>
+  <script src="../assets/creation-flow-unified.js" defer></script>
+  <style>
+    .cf-stepper button:disabled { cursor: not-allowed; opacity: .36; }
+    .cf-dialog-actions .is-primary { border-color: var(--cf-accent); background: var(--cf-accent); color: #fff; }
+  </style>
+</head>
+<body data-screen="attribute-alloc" data-creation-step="7">
+  <main class="creation-shell">
+    <header class="creation-review">
+      <p class="creation-review-label">CREATION FLOW · 07 / 08</p>
+      <h1>属性分配</h1>
+      <p class="creation-review-copy">用同一套分区、排版与操作语法分配四项自由属性；预算状态先于具体数值，辅助操作收在属性列表之后。</p>
+    </header>
+
+    <section class="creation-stage" aria-label="属性分配移动端界面">
+      <div class="creation-phone">
+        <div data-flow-art></div>
+        <div class="cf-screen">
+          <header class="cf-header" data-creation-header data-title="分配属性" data-subtitle="塑造这段人生的先天起点。"></header>
+
+          <section class="cf-section" aria-labelledby="budget-title">
+            <div class="cf-section-head"><strong id="budget-title">自由属性预算</strong><small>命格加成不占预算</small></div>
+            <div class="cf-budget">
+              <div class="cf-budget-score"><div><b data-used>10</b><span>/ 30</span></div></div>
+              <div class="cf-budget-copy">
+                <strong>剩余 <span data-remain aria-live="polite">20</span> 点</strong>
+                <p>四项可在 -5 至 15 之间调整，确认后仍可返回修改。</p>
+                <div class="cf-meter" data-budget-meter role="progressbar" aria-label="已使用属性点" aria-valuemin="0" aria-valuemax="30" aria-valuenow="10"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="cf-section" aria-labelledby="attribute-title">
+            <div class="cf-section-head"><strong id="attribute-title">四项自由属性</strong><small>数值越高，倾向越明显</small></div>
+            <ol class="cf-attribute-list" data-attribute-list></ol>
+            <div class="cf-tools">
+              <button class="cf-secondary-button" type="button" data-reset>重置</button>
+              <button class="cf-secondary-button" type="button" data-average>平均分配</button>
+            </div>
+          </section>
+        </div>
+
+        <footer class="cf-footer">
+          <button class="cf-back" type="button" data-flow-to="mythic-inheritance" data-flow-back aria-label="返回命格选择" title="返回命格选择"><span data-icon="back"></span></button>
+          <button class="cf-next" type="button" data-confirm><span class="cf-next-number">08</span><span class="cf-next-copy"><strong>确认属性</strong><small data-footer-status>尚余 20 点 · 下一步核对命运</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button>
+        </footer>
+
+        <div class="cf-dialog" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="unused-title" data-unused-dialog inert>
+          <div class="cf-dialog-panel">
+            <h3 id="unused-title">仍有属性点未使用</h3>
+            <p>剩余 <strong data-dialog-remain></strong> 点不会自动分配。你可以继续调整，也可以保留当前配置进入命运预览。</p>
+            <div class="cf-dialog-actions">
+              <button class="cf-secondary-button" type="button" data-dialog-close>继续分配</button>
+              <button class="cf-secondary-button is-primary" type="button" data-flow-to="fate-preview">仍然确认</button>
+            </div>
+          </div>
+        </div>
+        <div class="cf-toast" role="status" aria-live="polite"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      const attributes = [
+        { name: '体魄', bonus: 2 },
+        { name: '心智', bonus: 1 },
+        { name: '悟性', bonus: 0 },
+        { name: '魅力', bonus: 0 },
+      ]
+      const defaults = [6, 4, 2, -2]
+      const total = 30
+      const minimum = -5
+      const maximum = 15
+      let values = defaults.slice()
+
+      const list = document.querySelector('[data-attribute-list]')
+      const dialog = document.querySelector('[data-unused-dialog]')
+      const closeButton = document.querySelector('[data-dialog-close]')
+
+      function signed(value) {
+        return `${value > 0 ? '+' : ''}${value}`
+      }
+
+      function describe(value) {
+        if (value < 0) return value < -3 ? '明显受限' : '略显不足'
+        if (value === 0) return '常人水平'
+        if (value < 5) return '稳步发展'
+        if (value < 9) return '天赋出众'
+        return '凡俗巅峰'
+      }
+
+      function usedPoints() {
+        return values.reduce(function (sum, value) { return sum + value }, 0)
+      }
+
+      function closeDialog() {
+        dialog.classList.remove('is-open')
+        dialog.setAttribute('aria-hidden', 'true')
+        dialog.inert = true
+        document.querySelector('[data-confirm]').focus()
+      }
+
+      function render() {
+        const used = usedPoints()
+        const remain = total - used
+        document.querySelector('[data-used]').textContent = used
+        document.querySelector('[data-remain]').textContent = remain
+        const meter = document.querySelector('[data-budget-meter]')
+        const metered = Math.max(0, Math.min(total, used))
+        meter.setAttribute('aria-valuenow', metered)
+        meter.setAttribute('aria-valuetext', `已使用 ${used} 点，剩余 ${remain} 点`)
+        document.querySelector('[data-footer-status]').textContent = remain > 0
+          ? `尚余 ${remain} 点 · 下一步核对命运`
+          : '预算已分配 · 下一步核对命运'
+        meter.innerHTML = Array.from({ length: 15 }, function (_, index) {
+          return `<i class="${index < Math.round(metered / total * 15) ? 'is-on' : ''}"></i>`
+        }).join('')
+
+        list.innerHTML = attributes.map(function (attribute, index) {
+          const value = values[index]
+          const axisPosition = Math.round((value - minimum) / (maximum - minimum) * 14)
+          const cannotDecrease = value <= minimum
+          const cannotIncrease = value >= maximum || remain <= 0
+          const bonus = attribute.bonus ? ` · 命格 +${attribute.bonus}` : ''
+          const axis = Array.from({ length: 15 }, function (_, axisIndex) {
+            const distance = Math.abs(axisIndex - axisPosition)
+            const classes = [distance > 5 ? 'is-far' : distance > 2 ? 'is-mid' : '', axisIndex === axisPosition ? 'is-on' : ''].filter(Boolean).join(' ')
+            return `<i class="${classes}"></i>`
+          }).join('')
+          return `<li class="cf-attribute">
+            <div class="cf-attribute-name"><strong>${attribute.name}</strong><span>${describe(value)}${bonus}</span><span class="cf-attribute-base">自由属性 ${signed(value)}</span></div>
+            <div class="cf-stepper">
+              <button type="button" data-index="${index}" data-delta="-1" aria-label="降低${attribute.name}"${cannotDecrease ? ' disabled' : ''}>−</button>
+              <b>${signed(value)}</b>
+              <button type="button" data-index="${index}" data-delta="1" aria-label="提高${attribute.name}"${cannotIncrease ? ' disabled' : ''}>＋</button>
+            </div>
+            <div class="cf-axis" aria-hidden="true">${axis}</div>
+          </li>`
+        }).join('')
+      }
+
+      list.addEventListener('click', function (event) {
+        const button = event.target.closest('[data-delta]')
+        if (!button || button.disabled) return
+        const index = Number(button.dataset.index)
+        const next = values[index] + Number(button.dataset.delta)
+        const nextUsed = values.reduce(function (sum, value, valueIndex) {
+          return sum + (valueIndex === index ? next : value)
+        }, 0)
+        if (next < minimum || next > maximum || nextUsed > total) return
+        values[index] = next
+        render()
+      })
+
+      document.querySelector('[data-reset]').addEventListener('click', function () {
+        values = defaults.slice()
+        render()
+        CreationFlow.notify('已恢复进入本页时的属性')
+      })
+
+      document.querySelector('[data-average]').addEventListener('click', function () {
+        values = [8, 8, 7, 7]
+        render()
+        CreationFlow.notify('30 点已平均分配')
+      })
+
+      document.querySelector('[data-confirm]').addEventListener('click', function () {
+        const remain = total - usedPoints()
+        if (remain <= 0) {
+          PrototypeFlow.go('fate-preview')
+          return
+        }
+        document.querySelector('[data-dialog-remain]').textContent = remain
+        dialog.classList.add('is-open')
+        dialog.setAttribute('aria-hidden', 'false')
+        dialog.inert = false
+        closeButton.focus()
+      })
+
+      closeButton.addEventListener('click', closeDialog)
+      dialog.addEventListener('click', function (event) {
+        if (event.target === dialog) closeDialog()
+      })
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && dialog.classList.contains('is-open')) closeDialog()
+      })
+
+      render()
+    })()
+  </script>
+</body>
+</html>

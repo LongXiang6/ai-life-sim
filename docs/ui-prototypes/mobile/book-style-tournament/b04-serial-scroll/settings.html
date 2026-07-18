@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>设置 · B04 章回长卷</title>
+  <link rel="stylesheet" href="tokens.css">
+</head>
+<body>
+  <div class="progress-track" aria-hidden="true"><div class="progress-bar"></div></div>
+  <main class="book">
+    <header class="masthead" id="top">
+      <div class="folio-line">
+        <a class="return-link" href="index.html">返回 B04 目录</a>
+        <a class="text-action" href="../../welcome/final-s2a2-17c.html">关闭设置</a>
+      </div>
+      <p class="kicker">PREFERENCES · SETTINGS REGISTER</p>
+      <h1>偏好条款</h1>
+      <p class="lead">四个原选项卡成为连续长卷的章节定位。所有设置项同时保留在阅读轴上，便于快速扫描、回看与恢复默认。</p>
+    </header>
+
+    <div class="reading-layout">
+      <nav class="chapter-nav" role="tablist" aria-label="设置章节">
+        <button role="tab" aria-selected="true" aria-controls="personal" data-target="personal">个性化</button>
+        <button role="tab" aria-selected="false" aria-controls="model" data-target="model">模型设置</button>
+        <button role="tab" aria-selected="false" aria-controls="calls" data-target="calls">模型调用</button>
+        <button role="tab" aria-selected="false" aria-controls="prompt" data-target="prompt">Prompt</button>
+      </nav>
+
+      <div class="scroll-main">
+        <section class="chapter settings-chapter is-current" id="personal" role="tabpanel" data-chapter>
+          <div class="chapter-mark">第一章 · 个性化</div>
+          <h2>阅读体验</h2>
+          <p class="chapter-intro">调整阅读体验与界面偏好，不改变模拟中的事实与数值。</p>
+          <div class="section-meta"><span>阅读体验</span><span>即时生效</span></div>
+          <div class="setting-row">
+            <div class="setting-copy"><strong>段落舒展</strong><p>为长叙事增加少量行间距</p></div>
+            <button class="toggle" type="button" role="switch" aria-checked="true" aria-label="段落舒展"></button>
+          </div>
+          <div class="setting-row">
+            <div class="setting-copy"><strong>减少动态效果</strong><p>保留必要状态变化，降低装饰动画</p></div>
+            <button class="toggle" type="button" role="switch" aria-checked="false" aria-label="减少动态效果"></button>
+          </div>
+        </section>
+
+        <div class="turn-divider" aria-hidden="true">生成条款</div>
+
+        <section class="chapter settings-chapter" id="model" role="tabpanel" data-chapter>
+          <div class="chapter-mark">第二章 · 模型设置</div>
+          <h2>生成方式与叙事尺度</h2>
+          <p class="chapter-intro">决定 AI 内容的生成方式、推理模式与叙事目标长度。</p>
+
+          <div class="settings-group">
+            <div class="section-meta"><span>AI 内容</span><span>生成方式</span></div>
+            <div class="setting-row">
+              <div class="setting-copy"><strong>AI 命格生成</strong><p>调用 AI 实时生成随机命格</p></div>
+              <button class="toggle" type="button" role="switch" aria-checked="true" aria-label="AI 命格生成"></button>
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <div class="section-meta"><span>推理模式</span><span>按用途设置</span></div>
+            <div class="setting-row">
+              <div class="setting-copy"><strong>全局推理</strong><p>所有可用请求的默认方式</p></div>
+              <button class="value-action" type="button" data-value="关闭">关闭</button>
+            </div>
+            <div class="setting-row">
+              <div class="setting-copy"><strong>命格生成</strong><p>可独立覆盖全局设置</p></div>
+              <button class="value-action" type="button" data-value="关闭">关闭</button>
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <div class="section-meta"><span>叙事长度</span><span>完整句优先</span></div>
+            <div class="setting-row">
+              <div class="setting-copy"><strong>每轮叙事大致字数</strong><p>生成目标，不会硬截断完整句</p></div>
+              <div class="stepper"><button type="button" data-delta="-50" aria-label="减少叙事字数">−</button><output>200 字</output><button type="button" data-delta="50" aria-label="增加叙事字数">＋</button></div>
+            </div>
+            <p class="notice">字数是生成目标，完整剧情与完整句优先。</p>
+          </div>
+
+          <div class="settings-group">
+            <div class="section-meta"><span>预生成轮数</span><span>降低等待感</span></div>
+            <div class="segment-strip" role="group" aria-label="预生成轮数">
+              <button class="selected" type="button">关闭</button><button type="button">1 轮</button><button type="button">2 轮</button><button type="button">3 轮</button>
+            </div>
+          </div>
+        </section>
+
+        <div class="turn-divider" aria-hidden="true">调用条款</div>
+
+        <section class="chapter settings-chapter" id="calls" role="tabpanel" data-chapter>
+          <div class="chapter-mark">第三章 · 模型调用</div>
+          <h2>不同用途的模型</h2>
+          <p class="chapter-intro">为不同用途选择调用模型；原型只演示选择状态。</p>
+
+          <div class="settings-group">
+            <div class="section-meta"><span>主叙事模型</span><span>当前配置</span></div>
+            <div class="model-list" data-model-group="narrative">
+              <button class="model-option selected" type="button">默认模型</button>
+              <button class="model-option" type="button">高速模型</button>
+              <button class="model-option" type="button">深度模型</button>
+            </div>
+          </div>
+
+          <div class="settings-group">
+            <div class="section-meta"><span>后台任务</span><span>独立选择</span></div>
+            <div class="model-list" data-model-group="background">
+              <button class="model-option selected" type="button">跟随默认</button>
+              <button class="model-option" type="button">高速模型</button>
+            </div>
+          </div>
+        </section>
+
+        <div class="turn-divider" aria-hidden="true">补充指令</div>
+
+        <section class="chapter settings-chapter" id="prompt" role="tabpanel" data-chapter>
+          <div class="chapter-mark">第四章 · Prompt</div>
+          <h2>叙事偏好</h2>
+          <p class="chapter-intro">查看自定义补充指令；不会覆盖世界事实和结构化输出契约。</p>
+          <div class="section-meta"><span>叙事偏好</span><span>可选</span></div>
+          <textarea class="prompt-field" aria-label="叙事偏好">更关注人物关系的渐变与选择带来的长期回声；保持叙事克制，不提前替角色总结一生。</textarea>
+          <p class="notice">此处内容仅作为玩家偏好附加到叙事上下文。</p>
+        </section>
+
+        <div class="turn-divider" aria-hidden="true">卷末校准</div>
+
+        <section class="chapter" id="colophon" data-chapter>
+          <div class="chapter-mark">卷末 · 恢复与离开</div>
+          <h2>设置落款</h2>
+          <p class="chapter-intro">恢复默认会回到 200 字叙事目标、关闭预生成，并重置本卷的开关、推理、模型与补充指令。</p>
+          <div class="end-actions">
+            <button class="text-action reset-defaults" type="button">恢复默认</button>
+            <a class="primary-action" href="../../welcome/final-s2a2-17c.html">完成并关闭</a>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <footer class="serial-footer"><p>设置卷 · 默认每轮叙事约 200 字 · 完整剧情与完整句优先</p></footer>
+  </main>
+  <div class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (function () {
+      const defaultPrompt = '更关注人物关系的渐变与选择带来的长期回声；保持叙事克制，不提前替角色总结一生。';
+      const toast = document.querySelector('.toast');
+      function announce(message) {
+        toast.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(toast._timer);
+        toast._timer = setTimeout(function () { toast.classList.remove('show'); }, 1200);
+      }
+
+      document.querySelectorAll('.toggle').forEach(function (toggle) {
+        toggle.addEventListener('click', function () {
+          const value = toggle.getAttribute('aria-checked') !== 'true';
+          toggle.setAttribute('aria-checked', String(value));
+          announce((toggle.getAttribute('aria-label') || '设置') + ' · ' + (value ? '已开启' : '已关闭'));
+        });
+      });
+
+      document.querySelectorAll('.value-action').forEach(function (button) {
+        button.addEventListener('click', function () {
+          const next = button.dataset.value === '关闭' ? '开启' : '关闭';
+          button.dataset.value = next;
+          button.textContent = next;
+          announce('推理模式 · ' + next);
+        });
+      });
+
+      let words = 200;
+      document.querySelectorAll('[data-delta]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          words = Math.max(100, Math.min(1000, words + Number(button.dataset.delta)));
+          document.querySelector('.stepper output').textContent = words + ' 字';
+        });
+      });
+
+      document.querySelectorAll('.segment-strip button').forEach(function (button) {
+        button.addEventListener('click', function () {
+          document.querySelectorAll('.segment-strip button').forEach(function (item) { item.classList.remove('selected'); });
+          button.classList.add('selected');
+          announce('预生成 · ' + button.textContent);
+        });
+      });
+
+      document.querySelectorAll('.model-list').forEach(function (list) {
+        list.querySelectorAll('.model-option').forEach(function (button) {
+          button.addEventListener('click', function () {
+            list.querySelectorAll('.model-option').forEach(function (item) { item.classList.remove('selected'); });
+            button.classList.add('selected');
+            announce('已选择 · ' + button.textContent);
+          });
+        });
+      });
+
+      const tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+      const chapters = Array.from(document.querySelectorAll('[data-chapter]'));
+      tabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          document.getElementById(tab.dataset.target).scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+        });
+      });
+
+      document.querySelector('.reset-defaults').addEventListener('click', function () {
+        const toggles = document.querySelectorAll('.toggle');
+        toggles[0].setAttribute('aria-checked', 'true');
+        toggles[1].setAttribute('aria-checked', 'false');
+        toggles[2].setAttribute('aria-checked', 'true');
+        document.querySelectorAll('.value-action').forEach(function (button) { button.dataset.value = '关闭'; button.textContent = '关闭'; });
+        words = 200;
+        document.querySelector('.stepper output').textContent = '200 字';
+        document.querySelectorAll('.segment-strip button').forEach(function (button, index) { button.classList.toggle('selected', index === 0); });
+        document.querySelectorAll('.model-list').forEach(function (list) { list.querySelectorAll('.model-option').forEach(function (button, index) { button.classList.toggle('selected', index === 0); }); });
+        document.querySelector('.prompt-field').value = defaultPrompt;
+        announce('已恢复默认设置 · 每轮叙事 200 字');
+      });
+
+      const bar = document.querySelector('.progress-bar');
+      function updateScrollState() {
+        const max = document.documentElement.scrollHeight - innerHeight;
+        bar.style.transform = 'scaleX(' + (max > 0 ? scrollY / max : 0) + ')';
+        let current = chapters[0];
+        chapters.forEach(function (chapter) { if (chapter.getBoundingClientRect().top <= 110) current = chapter; });
+        chapters.forEach(function (chapter) { chapter.classList.toggle('is-current', chapter === current); });
+        tabs.forEach(function (tab) { tab.setAttribute('aria-selected', String(tab.dataset.target === current.id)); });
+      }
+      addEventListener('scroll', updateScrollState, { passive: true });
+      updateScrollState();
+    }());
+  </script>
+</body>
+</html>

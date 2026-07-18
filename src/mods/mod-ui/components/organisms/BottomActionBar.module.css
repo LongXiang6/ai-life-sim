@@ -1,144 +1,239 @@
-/* BottomActionBar */
-
-/* ── 外层容器 ── */
 .bar {
   position: fixed;
+  z-index: 100;
+  right: 0;
   bottom: 0;
   left: 0;
-  right: 0;
-  z-index: 40;
-  border-top: 1px solid var(--color-border);
-  background: var(--color-bg-secondary);
-  backdrop-filter: blur(4px);
+  padding: 0.5rem clamp(0.5rem, 2vw, 1rem) max(0.5rem, env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, transparent, rgb(242 244 243 / 92%) 35%);
+  pointer-events: none;
 }
 
-/* 非 fixed 模式 */
-.barStatic {
-  border-top: 1px solid var(--color-border);
-  background: var(--color-bg-secondary);
-  backdrop-filter: blur(4px);
-}
-
-/* ── 内层容器 ── */
 .inner {
+  display: grid;
+  width: 100%;
+  min-height: 3.45rem;
+  margin: 0 auto;
+  grid-template-columns: auto minmax(0, 1fr) minmax(8rem, auto);
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem;
+  border: 1px solid #e3e6e9;
+  border-radius: 1.1rem;
+  background: rgb(255 255 255 / 97%);
+  box-shadow: 0 0.65rem 1.8rem rgb(24 30 38 / 8%);
+  pointer-events: auto;
+}
+
+.innerNoMore {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+.left,
+.middle,
+.right {
+  min-width: 0;
+}
+
+.middle {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin: 0 auto;
+  justify-content: center;
 }
 
-.innerDesktop {
-  padding: 0.75rem 1rem;
+.right {
+  display: flex;
+  justify-content: flex-end;
 }
 
-/* ── 左侧区域 ── */
-.left {
-  flex-shrink: 0;
+.backButton,
+.backPlaceholder {
+  width: 2.45rem;
+  height: 2.45rem;
 }
 
-/* ── 中间标题 ── */
-.title {
-  flex: 1;
+.backButton {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid #e3e6e9;
+  border-radius: 50%;
+  background: #f8f9fa;
+  color: #626870;
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.backPlaceholder {
+  display: block;
+}
+
+.secondaryButton,
+.confirmButton {
+  display: inline-flex;
+  min-height: 2.45rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.8rem;
+  border-radius: 0.75rem;
+  font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.secondaryButton {
+  max-width: 100%;
+  border: 1px solid #e5e7ea;
+  background: #f8f9fa;
+  color: #626870;
+  white-space: nowrap;
+}
+
+.confirmButton {
+  display: grid;
+  width: 100%;
+  min-width: 8rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  border: 0;
+  background: transparent;
+  color: #17191d;
+  text-align: left;
+}
+
+.confirmNumber {
+  width: 2rem;
+  color: #969ba2;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 0.68rem;
   text-align: center;
 }
 
-.titleText {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: var(--color-text-primary);
+.confirmCopy {
+  min-width: 0;
+}
+
+.confirmCopy strong,
+.confirmCopy small {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* ── 右侧区域 ── */
-.right {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
+.confirmCopy strong {
+  font-weight: 650;
 }
 
-.rightDesktop {
-  gap: 0.5rem;
+.confirmCopy small {
+  margin-top: 0.1rem;
+  color: #969ba2;
+  font-size: 0.625rem;
 }
 
-/* ── 更多按钮包裹 ── */
+.confirmArrow {
+  display: grid;
+  width: 1.75rem;
+  height: 1.75rem;
+  place-items: center;
+  border-radius: 50%;
+  background: #6d7f94;
+  color: #fff;
+}
+
+.confirmButton:disabled,
+.secondaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.confirmButton:disabled .confirmArrow {
+  background: #dfe4e9;
+  color: #969ba2;
+}
+
+.backButton:hover,
+.backButton:focus-visible,
+.secondaryButton:hover:not(:disabled),
+.secondaryButton:focus-visible,
+.confirmButton:focus-visible {
+  outline: 2px solid rgb(109 127 148 / 45%);
+  outline-offset: 2px;
+}
+
 .moreWrapper {
   position: relative;
+  display: flex;
+  min-width: 0;
+  justify-content: center;
 }
 
-/* ── 下拉菜单 ── */
+.chevron {
+  font-size: 0.68rem;
+}
+
 .dropdown {
   position: absolute;
-  bottom: 100%;
-  margin-bottom: 0.5rem;
-  min-width: 160px;
-  border-radius: 0.5rem;
-  border: 1px solid var(--color-border);
-  background: var(--color-bg-primary);
-  box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
-  z-index: 50;
+  bottom: calc(100% + 0.55rem);
+  min-width: 10rem;
+  max-width: min(82vw, 20rem);
+  overflow: hidden;
+  border: 1px solid #e1e5e9;
+  border-radius: 0.75rem;
+  background: #fff;
+  box-shadow: 0 0.9rem 2.2rem rgb(24 30 38 / 14%);
 }
 
-.dropdownLeft {
-  right: 0;
-}
+.dropdownLeft { left: 0; }
+.dropdownRight { right: 0; }
+.dropdownCenter { left: 50%; transform: translateX(-50%); }
 
-.dropdownCenter {
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.dropdownRight {
-  right: 0;
-}
-
-/* ── 下拉菜单项 ── */
 .dropdownItem {
-  display: block;
+  display: flex;
   width: 100%;
+  min-height: 2.55rem;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.75rem;
+  border: 0;
+  border-bottom: 1px solid #f0f1f3;
+  background: #fff;
+  color: #17191d;
+  font: 0.75rem "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
   text-align: left;
-  padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  font-family: inherit;
-  border: none;
-  background: none;
   cursor: pointer;
-  transition: colors 0.15s;
-  color: var(--color-text-primary);
 }
 
-.dropdownItem:hover {
-  background: var(--color-bg-tertiary);
+.dropdownItem:last-child { border-bottom: 0; }
+.dropdownItem:hover:not(:disabled) { background: #f0f3f6; }
+.dropdownItem:disabled { color: #969ba2; cursor: not-allowed; }
+
+@media (max-width: 24rem) {
+  .inner {
+    grid-template-columns: auto minmax(0, 0.72fr) minmax(7rem, 1.28fr);
+    gap: 0.35rem;
+  }
+
+  .secondaryButton,
+  .confirmButton {
+    min-width: 0;
+    padding-inline: 0.55rem;
+  }
+
+  .confirmButton {
+    min-width: 7rem;
+  }
+
+  .innerNoMore {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
 }
 
-.dropdownItemDanger {
-  color: var(--color-error);
-}
-
-.dropdownItemDanger:hover {
-  background: var(--color-error-bg);
-}
-
-/* 暗色模式危险项 */
-:global(.dark) .dropdownItemDanger:hover {
-  background: rgba(239, 68, 68, 0.08);
-}
-
-.dropdownItemDisabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.dropdownItemFirst {
-  border-radius: 0.5rem 0.5rem 0 0;
-}
-
-.dropdownItemLast {
-  border-radius: 0 0 0.5rem 0.5rem;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.dropdownItemMiddle {
-  border-bottom: 1px solid var(--color-border);
+@media (prefers-reduced-motion: reduce) {
+  .backButton,
+  .secondaryButton,
+  .confirmButton {
+    transition: none;
+  }
 }

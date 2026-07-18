@@ -14,7 +14,7 @@ export type TalentRarity = 'common' | 'fine' | 'rare' | 'epic' | 'legendary'
 export type TalentPolarity = 'positive' | 'neutral' | 'negative'
 
 /** 属性加成键 */
-export type AttrBonusKey = 'physique' | 'mind' | 'talentAptitude' | 'charisma' | 'resources' | 'luck'
+export type AttrBonusKey = 'physique' | 'mind' | 'talentAptitude' | 'charisma' | 'luck'
 
 /** 天赋定义 */
 export interface TalentPreset {
@@ -73,9 +73,9 @@ const POSITIVE_TALENTS: TalentPreset[] = [
     name: '家学渊源',
     description: '出身名门，自幼耳濡目染',
     rarity: 'fine',
-    effect: '初始出身+3，初始财富+20%',
+    effect: '更容易获得家庭教育与初始人脉支持',
     polarity: 'positive',
-    attrBonus: { resources: 3 },
+    attrBonus: {},
   },
   {
     id: 'lucky_star',
@@ -240,9 +240,9 @@ const NEGATIVE_TALENTS: TalentPreset[] = [
     name: '出身寒微',
     description: '家境贫寒，资源匮乏',
     rarity: 'common',
-    effect: '初始出身-3，初始财富-50%',
+    effect: '初始家庭资源匮乏，需要依靠后续经历改善处境',
     polarity: 'negative',
-    attrBonus: { resources: -3 },
+    attrBonus: {},
   },
   {
     id: 'bad_luck',

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>说明 · AI Life Sim</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <script src="../assets/prototype.js" defer></script>
+  <style>
+    :root { --paper:#fbfaf7; --surface:#fffefd; --ink:#292724; --soft:#6e6961; --faint:#9a9389; --line:#d9d3c9; --line-light:#e9e5de; --mist:#9ca9ac; }
+    * { box-sizing:border-box; }
+    body { background:#f3f1ec; color:var(--ink); }
+    button { font:inherit; }
+    .shell { width:min(100% - 24px,760px); padding-top:24px; }
+    .prototype-head { max-width:520px; margin:0 auto 18px; text-align:center; }
+    .prototype-head p { color:var(--soft); font-size:12px; line-height:1.7; }
+    .stage { display:grid; place-items:center; }
+    .phone { width:292px; height:620px; margin:0; border-color:var(--line); background:var(--paper); color:var(--ink); box-shadow:0 13px 30px rgba(62,55,44,.075); }
+    .head { display:flex; height:67px; align-items:center; justify-content:space-between; padding:14px 17px 7px; }
+    .title-wrap small { display:block; color:var(--faint); font-size:6px; letter-spacing:.13em; }
+    .title-wrap h2 { margin:5px 0 0; font-family:"Songti SC","STSong","SimSun",serif; font-size:19px; font-weight:600; }
+    .close { min-width:42px; min-height:42px; border:0; background:transparent; color:var(--soft); font-size:8px; cursor:pointer; }
+    .modes { display:flex; gap:4px; padding:0 14px 8px; border-bottom:1px solid var(--line); }
+    .mode { position:relative; min-height:38px; padding:0 9px; border:0; background:transparent; color:var(--faint); font-size:7px; cursor:pointer; }
+    .mode.active { color:var(--ink); }
+    .mode.active::after { position:absolute; right:9px; bottom:0; left:9px; height:1px; background:var(--mist); content:""; }
+    .reading { height:507px; overflow:hidden; }
+    .chapter-nav { display:flex; gap:3px; overflow-x:auto; padding:8px 13px; border-bottom:1px solid var(--line-light); white-space:nowrap; }
+    .chapter-nav button { flex:0 0 auto; min-height:34px; padding:0 8px; border:0; background:transparent; color:var(--faint); font-size:6.5px; cursor:pointer; }
+    .chapter-nav button.active { color:var(--ink); text-decoration:underline; text-underline-offset:5px; }
+    .viewport { height:464px; overflow-y:auto; padding:3px 17px 42px; scroll-behavior:smooth; }
+    .view { display:none; animation:reveal .2s ease both; }
+    .view.active { display:block; }
+    .intro { margin:11px 0 4px; color:var(--soft); font-family:"Songti SC","STSong",serif; font-size:9px; line-height:1.75; }
+    .chapter { padding:17px 0 15px; border-bottom:1px solid var(--line); scroll-margin-top:5px; }
+    .chapter-index { color:var(--mist); font-size:6px; letter-spacing:.12em; }
+    .chapter h3 { margin:5px 0 8px; font-family:"Songti SC","STSong","SimSun",serif; font-size:13px; font-weight:600; }
+    .chapter p { margin:0 0 8px; color:var(--soft); font-size:7.5px; line-height:1.78; }
+    .chapter ul { margin:0; padding-left:15px; color:var(--soft); font-size:7px; line-height:1.8; }
+    .tip { margin-top:9px; padding:8px 9px; border-left:1px solid var(--mist); background:rgba(156,169,172,.055); color:var(--soft); font-size:6.5px; line-height:1.65; }
+    .release { padding:15px 0; border-bottom:1px solid var(--line); }
+    .release-head { display:flex; align-items:center; justify-content:space-between; }
+    .release-head b { font-family:"Songti SC","STSong",serif; font-size:11px; }
+    .release-head time { color:var(--faint); font-size:6px; }
+    .release p { margin:8px 0 0; color:var(--soft); font-size:7px; line-height:1.7; }
+    .release ul { margin:7px 0 0; padding-left:15px; color:var(--soft); font-size:7px; line-height:1.75; }
+    button:focus-visible { outline:1px dotted var(--soft); outline-offset:2px; }
+    @keyframes reveal { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+    @media(max-width:390px){.phone{width:min(320px,calc(100vw - 42px))}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+  </style>
+<!-- CC-RF9 VISUAL ADAPTATION ONLY: BEGIN -->
+  <link rel="stylesheet" href="../assets/cc-rf9-adapt-base.css">
+  <link rel="stylesheet" href="../assets/cc-rf9-adapt-3.css">
+<!-- CC-RF9 VISUAL ADAPTATION ONLY: END -->
+</head>
+<body data-screen="help">
+  <main class="shell">
+    <header class="prototype-head"><p class="eyebrow">HELP · FINAL</p><h1>说明</h1><p>以连续阅读为主，章节索引用于快速定位；正文不拆成密集卡片，保持轻盈的书页节奏。</p></header>
+    <section class="stage" aria-label="说明移动端原型">
+      <div class="phone">
+        <header class="head"><div class="title-wrap"><small>GUIDE / NOTES</small><h2>说明</h2></div><button class="close" data-flow-back aria-label="关闭说明">关闭</button></header>
+        <nav class="modes"><button class="mode active" data-view="guide">功能说明</button><button class="mode" data-view="updates">更新日志</button></nav>
+        <div class="reading">
+          <nav class="chapter-nav" aria-label="说明章节"><button class="active" data-target="start">开始</button><button data-target="world">世界选择</button><button data-target="customize">世界定制</button><button data-target="character">角色创建</button><button data-target="fate">命格</button><button data-target="story">故事</button></nav>
+          <div class="viewport">
+            <section class="view active" data-view-id="guide">
+              <p class="intro">从选择世界到走完一生，每个页面只承担当前阶段最重要的决定。</p>
+              <article class="chapter" id="start"><span class="chapter-index">01 / BEGIN</span><h3>开始与设置</h3><p>欢迎页提供开始新人生、读取存档、设置和说明入口。</p><ul><li>开始新人生会从世界选择进入一次全新人生。</li><li>读取存档会展示已有记录，再回到对应故事进度。</li><li>设置中的叙事字数是生成目标，完整句优先。</li></ul></article>
+              <article class="chapter" id="world"><span class="chapter-index">02 / WORLD</span><h3>世界选择</h3><p>选择一个预设世界，或进入世界定制创建自己的舞台。</p><ul><li>世界决定时代、社会结构、自然规律和可用题材。</li><li>难度会影响风险与资源，不直接替角色做选择。</li></ul></article>
+              <article class="chapter" id="customize"><span class="chapter-index">03 / CUSTOMIZE</span><h3>世界定制</h3><p>调整名称、介绍、纪元与世界观类型，保存后继续角色创建。</p><div class="tip">生成期间可以取消；离开页面前会明确提示未保存内容。</div></article>
+              <article class="chapter" id="character"><span class="chapter-index">04 / CHARACTER</span><h3>角色创建</h3><p>决定姓名、性别、种族与出身。随机只改变当前可随机字段，不覆盖已经锁定的选择。</p></article>
+              <article class="chapter" id="fate"><span class="chapter-index">05 / FATE</span><h3>命格与属性</h3><p>从候选中选择普通命格，并按世界规则分配初始属性。神话传承独立于普通命槽。</p><ul><li>点击星位查看说明，再加入普通命槽。</li><li>已加入的命格可以再次点击移除。</li></ul></article>
+              <article class="chapter" id="story"><span class="chapter-index">06 / STORY</span><h3>故事与选择</h3><p>每一轮故事会给出可选行动，也允许写下自己的做法。确认后，AI 会沿选择继续叙事。</p><ul><li>时间步长只影响下一轮，不会立即改变当前时间。</li><li>世界面板保存角色词条与当前世界状态。</li><li>人生结束后可回望三幕，并封存一项神话概念。</li></ul></article>
+            </section>
+            <section class="view" data-view-id="updates">
+              <article class="release"><div class="release-head"><b>移动端原型 · 首版串联</b><time>2026-07-13</time></div><p>统一采用暖白书页、宋体标题、细分隔与雾灰强调，并完成完整人生流程串联。</p><ul><li>所有页面加入无缝过场与返回语义。</li><li>故事、结算、传承、设置与说明完成视觉转化。</li><li>非欢迎页面移除专属背景线条。</li></ul></article>
+              <article class="release"><div class="release-head"><b>产品语义校准</b><time>2026-07-11</time></div><p>移动控件不再机械使用统一 48px 视觉框；每轮叙事默认目标调整为约 200 字。</p></article>
+            </section>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script>
+    document.addEventListener('DOMContentLoaded',function(){
+      const phone=document.querySelector('.phone'),viewport=phone.querySelector('.viewport');
+      phone.querySelectorAll('.mode').forEach(function(mode){mode.addEventListener('click',function(){phone.querySelectorAll('.mode').forEach(function(item){item.classList.remove('active')});mode.classList.add('active');phone.querySelectorAll('.view').forEach(function(view){view.classList.toggle('active',view.dataset.viewId===mode.dataset.view)});phone.querySelector('.chapter-nav').hidden=mode.dataset.view!=='guide';viewport.scrollTop=0})});
+      phone.querySelectorAll('[data-target]').forEach(function(button){button.addEventListener('click',function(){phone.querySelectorAll('[data-target]').forEach(function(item){item.classList.remove('active')});button.classList.add('active');const target=phone.querySelector('#'+button.dataset.target);viewport.scrollTo({top:target.offsetTop-3,behavior:'smooth'})})});
+      viewport.addEventListener('scroll',function(){if(!phone.querySelector('[data-view-id="guide"]').classList.contains('active'))return;const chapters=Array.from(phone.querySelectorAll('.chapter'));let active=chapters[0];chapters.forEach(function(chapter){if(chapter.offsetTop<=viewport.scrollTop+55)active=chapter});phone.querySelectorAll('[data-target]').forEach(function(button){button.classList.toggle('active',button.dataset.target===active.id)})});
+    });
+  </script>
+</body>
+</html>

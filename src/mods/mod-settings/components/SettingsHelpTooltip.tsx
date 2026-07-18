@@ -2,9 +2,14 @@
 
 /**
  * @module SettingsHelpTooltip
- * @description 废案同款 ⓘ 帮助提示组件
+ * @description 设置项帮助提示组件
  * @mod mod-settings
  */
+
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+
+import styles from './SettingsHelpTooltip.module.css'
 
 interface SettingsHelpTooltipProps {
   helpKey: string
@@ -14,7 +19,7 @@ interface SettingsHelpTooltipProps {
   width?: number
 }
 
-/** 废案同款 ⓘ 帮助提示组件
+/** 设置项帮助提示组件
  * @param helpKey 帮助标识键
  * @param helpOpen 帮助开启状态映射
  * @param helpData 帮助数据映射
@@ -28,30 +33,73 @@ export function SettingsHelpTooltip({
   toggleHelp,
   width = 260,
 }: SettingsHelpTooltipProps) {
+  const isOpen = Boolean(helpOpen[helpKey])
+  const tooltipId = `settings-help-${useId().replace(/:/g, '')}`
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const tooltipRef = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState<{ top: number; left: number; width: number } | null>(null)
+
+  const updatePosition = useCallback(() => {
+    const trigger = triggerRef.current
+    if (!trigger) return
+
+    const viewportPadding = 12
+    const gap = 6
+    const triggerRect = trigger.getBoundingClientRect()
+    const tooltipWidth = Math.min(width, Math.max(0, window.innerWidth - viewportPadding * 2))
+    const maxLeft = Math.max(viewportPadding, window.innerWidth - tooltipWidth - viewportPadding)
+    const left = Math.min(Math.max(triggerRect.right + gap, viewportPadding), maxLeft)
+    const tooltipHeight = tooltipRef.current?.getBoundingClientRect().height ?? 0
+    const belowTop = triggerRect.bottom + gap
+    const top = tooltipHeight > 0 && belowTop + tooltipHeight > window.innerHeight - viewportPadding
+      ? Math.max(viewportPadding, triggerRect.top - tooltipHeight - gap)
+      : Math.max(viewportPadding, belowTop)
+
+    setPosition({ top, left, width: tooltipWidth })
+  }, [width])
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    const positionFrame = window.requestAnimationFrame(updatePosition)
+    window.addEventListener('resize', updatePosition)
+    window.addEventListener('scroll', updatePosition, true)
+    return () => {
+      window.cancelAnimationFrame(positionFrame)
+      window.removeEventListener('resize', updatePosition)
+      window.removeEventListener('scroll', updatePosition, true)
+    }
+  }, [isOpen, updatePosition])
+
   return (
-    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', marginLeft: 4 }}>
-      <span
-        onClick={(e) => { e.stopPropagation(); toggleHelp(helpKey) }}
-        style={{
-          fontSize: 12, cursor: 'pointer', color: 'var(--color-text-tertiary)',
-          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          width: 16, height: 16, borderRadius: '50%',
-          border: '1px solid var(--color-border)', lineHeight: 1, userSelect: 'none',
+    <span className={styles.wrapper}>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation()
+          if (!isOpen) updatePosition()
+          toggleHelp(helpKey)
         }}
+        className={styles.trigger}
         title="点击查看说明"
+        aria-label="查看说明"
+        aria-expanded={isOpen}
+        aria-describedby={isOpen ? tooltipId : undefined}
       >
         ⓘ
-      </span>
-      {helpOpen[helpKey] && (
-        <div style={{
-          position: 'absolute', left: 'calc(100% + 6px)', top: -8, zIndex: 100,
-          background: 'var(--color-surface)', border: '1px solid var(--color-border)',
-          borderRadius: 8, padding: '8px 10px', fontSize: 11,
-          color: 'var(--color-text-primary)', lineHeight: 1.5,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.3)', width, whiteSpace: 'normal',
-        }}>
+      </button>
+      {isOpen && position && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={tooltipRef}
+          id={tooltipId}
+          role="tooltip"
+          className={styles.tooltip}
+          style={position}
+        >
           {helpData[helpKey]}
-        </div>
+        </div>,
+        document.body,
       )}
     </span>
   )

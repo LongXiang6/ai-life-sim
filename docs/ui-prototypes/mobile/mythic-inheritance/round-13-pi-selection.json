@@ -1,0 +1,43 @@
+{
+  "sources": {
+    "A": {
+      "name": "云紫星盘",
+      "from": "round-08 Q3 云紫名称星盘"
+    },
+    "B": {
+      "name": "优雅白脉冲",
+      "from": "round-10 S1 优雅白心律"
+    },
+    "C": {
+      "name": "深夜水波",
+      "from": "round-11 T2 双搏水波"
+    }
+  },
+  "scores": {
+    "A": {
+      "old_style_fit": 38,
+      "layout_fidelity": 30,
+      "mobile_usability": 19,
+      "change_restraint": 10,
+      "total": 97
+    },
+    "B": {
+      "old_style_fit": 33,
+      "layout_fidelity": 30,
+      "mobile_usability": 17,
+      "change_restraint": 9,
+      "total": 89
+    },
+    "C": {
+      "old_style_fit": 33,
+      "layout_fidelity": 30,
+      "mobile_usability": 17,
+      "change_restraint": 9,
+      "total": 89
+    }
+  },
+  "status": "rejected_by_user",
+  "rejection_reason": "整轮仅更换颜色、材质与主题，没有建立与欢迎页同源的书本式排版语言。",
+  "former_recommendation": "A",
+  "former_rationale": "A 回到第八轮云紫星盘语言，同时新候选仍逐字继承 final 中 U1/U2/U3 三套机制。"
+}

@@ -28,6 +28,15 @@ import { buildFieldDefs, type EditableField, type FieldMode } from './world-cust
 
 const STORAGE_KEY = 'mod-pages:world-customize-fields'
 
+/** 开启全新人生时清理上一条时间线的世界配置草稿。 */
+export function clearWorldCustomizeDraft(): void {
+  try {
+    configStore.remove('mod-pages', STORAGE_KEY)
+  } catch {
+    // 存储不可用时不阻断新人生重置。
+  }
+}
+
 const DIMENSION_FIELD_KEYS = [
   'universeScale',
   'worldviewEssence',
@@ -71,6 +80,8 @@ function normalizeFieldMode(mode: unknown): FieldMode {
 }
 
 interface SavedFieldsState {
+  worldCode?: number
+  worldName?: string
   fieldModes: Record<string, FieldMode>
   fieldValues: Record<string, string>
   customValues: Record<string, string>
@@ -178,6 +189,10 @@ export interface UseWorldCustomizeReturn {
   isCoherenceLockable: (fieldKey: string) => boolean
   save: () => void
   skip: () => void
+  isSaving: boolean
+  canSave: boolean
+  saveBlockReason: string | null
+  saveError: string
   conflictModal: React.ReactNode
 }
 
@@ -192,7 +207,13 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
   const loadSavedState = (): SavedFieldsState => {
     try {
       const raw = configStore.get<SavedFieldsState>('mod-pages', STORAGE_KEY)
-      if (raw) return raw
+      const currentWorldCode = useWorldStore.getState().worldCode
+      const currentWorldName = useWorldStore.getState().worldConfig?.name ?? ''
+      if (
+        raw
+        && raw.worldCode === currentWorldCode
+        && raw.worldName === currentWorldName
+      ) return raw
     } catch { /* ignore */ }
     return { fieldModes: {}, fieldValues: {}, customValues: {} }
   }
@@ -209,6 +230,8 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
   const [coherenceLocks, setCoherenceLocks] = useState<Record<string, boolean>>(
     saved.coherenceLocks ?? {},
   )
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   const persist = useCallback((
     modes: Record<string, FieldMode>,
@@ -219,6 +242,8 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
   ) => {
     try {
       configStore.set('mod-pages', STORAGE_KEY, {
+        worldCode: useWorldStore.getState().worldCode,
+        worldName: useWorldStore.getState().worldConfig?.name ?? '',
         fieldModes: modes,
         fieldValues: values,
         customValues: customs,
@@ -245,6 +270,17 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
     }
     return groups
   }, [baseFields])
+
+  // AI 模式会在初始化时生成结果；“选择”和“自定”则必须由玩家先给出值。
+  // 不允许空值落入 resolveWorldConfig 的历史默认值，否则 UI 显示“待选择”却仍能进入下一步。
+  const incompleteFields = useMemo(() => baseFields.filter((field) => (
+    (field.mode === 'adaptive' && !field.playerValue.trim())
+      || (field.mode === 'custom' && !field.customValue.trim())
+  )), [baseFields])
+  const saveBlockReason = incompleteFields.length > 0
+    ? `请先完成${incompleteFields.map((field) => `「${field.label}」`).join('、')}`
+    : null
+  const canSave = !isSaving && saveBlockReason === null
 
   const setFieldMode = useCallback((key: string, mode: FieldMode) => {
     setFieldModes((prev) => {
@@ -299,66 +335,87 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
     })
   }, [fieldModes, fieldValues, customValues, worldDescription, persist])
 
-  const commitWorld = useCallback((config: WorldConfig) => {
-    void (async () => {
-      setGamePhase('world_build')
-      setWorldName(config.name)
+  const commitWorld = useCallback(async (config: WorldConfig) => {
+    setGamePhase('world_build')
+    setWorldName(config.name)
 
-      const configWithModes: WorldConfig = {
-        ...config,
-        _dimensionModes: buildDimensionModes(fieldModes),
-        _dimensionValues: buildDimensionValues(fieldModes, fieldValues, customValues),
-      }
+    const configWithModes: WorldConfig = {
+      ...config,
+      _dimensionModes: buildDimensionModes(fieldModes),
+      _dimensionValues: buildDimensionValues(fieldModes, fieldValues, customValues),
+    }
 
-      const worldCode = useWorldStore.getState().worldCode
-        || useWorldStore.getState().generateAndSetWorldCode()
+    const worldCode = useWorldStore.getState().worldCode
+      || useWorldStore.getState().generateAndSetWorldCode()
 
-      const result = await commitWorldInitialization(configWithModes, worldCode)
-      const activeConfig = result.config
+    const result = await commitWorldInitialization(configWithModes, worldCode)
+    const activeConfig = result.config
 
-      setWorldConfig(activeConfig)
-      setInitialized(true)
-      try {
-        configStore.set('mod-power-system', 'power-ceiling', String(activeConfig.powerCeiling))
-      } catch { /* 存储不可用 */ }
+    setWorldConfig(activeConfig)
+    setInitialized(true)
+    try {
+      configStore.set('mod-power-system', 'power-ceiling', String(activeConfig.powerCeiling))
+    } catch { /* 存储不可用 */ }
 
-      const { calibration } = useWorldStore.getState()
+    const { calibration } = useWorldStore.getState()
 
-      orchestrator.setContext(
-        {
-          name: activeConfig.name,
-          description: activeConfig.description,
-          era: activeConfig.civilizationStage,
-          config: {
-            spatialForm: activeConfig.spatialForm,
-            essenceTag: activeConfig.essenceTag,
-            powerSystemTag: activeConfig.powerSystemTag,
-            powerCeiling: activeConfig.powerCeiling,
-            civilizationStage: activeConfig.civilizationStage,
-            _worldTagsText: result.formattedTags,
-            _calibration: calibration,
-            _calibrationSummary: calibration ? formatCalibrationSummary(calibration) : '',
-            _economyModifier: calibration?.formulas?.economyModifier ?? 1.0,
-          },
+    orchestrator.setContext(
+      {
+        name: activeConfig.name,
+        description: activeConfig.description,
+        era: activeConfig.civilizationStage,
+        config: {
+          spatialForm: activeConfig.spatialForm,
+          essenceTag: activeConfig.essenceTag,
+          powerSystemTag: activeConfig.powerSystemTag,
+          powerCeiling: activeConfig.powerCeiling,
+          civilizationStage: activeConfig.civilizationStage,
+          _worldTagsText: result.formattedTags,
+          _calibration: calibration,
+          _calibrationSummary: calibration ? formatCalibrationSummary(calibration) : '',
+          _economyModifier: calibration?.formulas?.economyModifier ?? 1.0,
         },
-        { name: '', age: 0, gender: '未设定', background: '', attributes: {} },
-      )
+      },
+      { name: '', age: 0, gender: '未设定', background: '', attributes: {} },
+    )
 
-      router.push('/new-game/character-create')
-    })()
+    router.push('/new-game/character-create')
   }, [router, setGamePhase, setWorldName, setWorldConfig, setInitialized, fieldModes, fieldValues, customValues])
 
   const save = useCallback(() => {
-    const existing = useWorldStore.getState().worldConfig
-    const draft = resolveWorldConfig(baseFields, worldDescription, coherenceLocks, existing)
-    requestCoherenceResolve(draft, commitWorld)
+    if (isSaving) return
+    setSaveError('')
+    if (saveBlockReason) {
+      setSaveError(saveBlockReason)
+      return
+    }
+    setIsSaving(true)
+    try {
+      const existing = useWorldStore.getState().worldConfig
+      const draft = resolveWorldConfig(baseFields, worldDescription, coherenceLocks, existing)
+      requestCoherenceResolve(
+        draft,
+        (config) => {
+          void commitWorld(config)
+            .catch((error) => {
+              setSaveError(`世界初始化失败：${error instanceof Error ? error.message : '未知错误'}`)
+            })
+            .finally(() => setIsSaving(false))
+        },
+        () => setIsSaving(false),
+      )
+    } catch (error) {
+      setSaveError(`世界配置失败：${error instanceof Error ? error.message : '未知错误'}`)
+      setIsSaving(false)
+    }
   }, [
-    baseFields, worldDescription, coherenceLocks, requestCoherenceResolve, commitWorld,
+    isSaving, saveBlockReason, baseFields, worldDescription, coherenceLocks, requestCoherenceResolve, commitWorld,
   ])
 
   const skip = useCallback(() => {
+    if (isSaving) return
     router.push('/new-game/world-select')
-  }, [router])
+  }, [isSaving, router])
 
   return {
     fields: baseFields,
@@ -373,6 +430,10 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
     isCoherenceLockable: (key) => COHERENCE_LOCKABLE_KEYS.has(key),
     save,
     skip,
+    isSaving,
+    canSave,
+    saveBlockReason,
+    saveError,
     conflictModal,
   }
 }

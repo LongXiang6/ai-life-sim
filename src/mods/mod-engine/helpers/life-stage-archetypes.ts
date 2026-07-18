@@ -7,7 +7,7 @@
  *   - 每个生命阶段有对应的允许叙事类型池（STAGE_ARCHETYPES），限制 AI 不越界
  *   - 权重随机选取叙事类型（generateArchetypeHint），避免千篇一律
  *   - 寿命提醒（buildLifespanReminder），告知 AI 角色的寿命阶段约束
- *   - 连续冲突检测：5 轮连续战斗强制回日常
+ *   - 连续冲突保护：消费 PlotStructureSystem 的结构化冲突轮数，5 轮后强制回日常
  *
  * 调用链：
  *   orchestrator-system → buildLifeStageNarrativeHint + generateArchetypeHint + buildLifespanReminder
@@ -75,13 +75,11 @@ function isConflictArchetype(a: NarrativeArchetype): boolean {
  * @param lifeStage       - 当前生命阶段
  * @param difficulty      - 游戏难度（normal / hard / nightmare / hell），影响危机权重
  * @param consecutiveConflictRounds - 当前已连续冲突的轮数
- * @param playerHasPeacefulIntent   - 玩家是否表达了和平意图
  */
 function selectArchetype(
   lifeStage: LifeStageId,
   difficulty: string = 'normal',
   consecutiveConflictRounds: number = 0,
-  playerHasPeacefulIntent: boolean = false,
 ): NarrativeArchetype | null {
   const allowed = STAGE_ARCHETYPES[lifeStage]
   if (!allowed || allowed.length === 0) return null
@@ -132,18 +130,6 @@ function selectArchetype(
     archetype = 'routine'
   }
 
-  // 玩家和平意图保护：玩家想和平 → 50% 概率替换冲突类型
-  if (isConflictArchetype(archetype) && playerHasPeacefulIntent) {
-    if (Math.random() < 0.5) {
-      const peacefulPool = (['social', 'social', 'opportunity', 'opportunity',
-        'exploration', 'rumor', 'routine'] as NarrativeArchetype[])
-        .filter((a) => allowed.includes(a))
-      archetype = peacefulPool.length > 0
-        ? peacefulPool[Math.floor(Math.random() * peacefulPool.length)]!
-        : 'routine'
-    }
-  }
-
   return archetype
 }
 
@@ -153,16 +139,14 @@ function selectArchetype(
  * @param lifeStage         当前生命阶段
  * @param difficulty        游戏难度
  * @param consecutiveConflictRounds 连续冲突轮数
- * @param playerHasPeacefulIntent   玩家是否表达了和平意图
  * @returns Prompt 注入文本，无可用类型时返回空字符串
  */
 export function generateArchetypeHint(
   lifeStage: LifeStageId,
   difficulty: string = 'normal',
   consecutiveConflictRounds: number = 0,
-  playerHasPeacefulIntent: boolean = false,
 ): string {
-  const archetype = selectArchetype(lifeStage, difficulty, consecutiveConflictRounds, playerHasPeacefulIntent)
+  const archetype = selectArchetype(lifeStage, difficulty, consecutiveConflictRounds)
   if (!archetype) return ''
   const label = ARC_LABELS[archetype]
   return ` 【叙事引导】本回合参考风格：${label}。`
@@ -171,39 +155,6 @@ export function generateArchetypeHint(
 // ============================================================
 // 寿命提醒（废弃项目 buildLifespanReminder）
 // ============================================================
-
-/** 战斗关键词（用于判断叙事是否为冲突类型） */
-const BATTLE_KEYWORDS = [
-  '战', '打', '杀', '攻击', '入侵', '进攻', '防守', '抵御', '抵抗',
-  '围城', '突围', '交锋', '厮杀', '搏斗', '伏击', '突袭', '追击',
-  '溃败', '决战', '征伐', '讨伐', '剿灭', '镇压', '还击',
-]
-
-/**
- * 检测最近叙事是否涉及战斗（>=3 个战斗关键词即判断为冲突）
- */
-export function isLastEventConflict(lastNarrative?: string): boolean {
-  if (!lastNarrative) return false
-  const matchCount = BATTLE_KEYWORDS.filter((kw) => lastNarrative.includes(kw)).length
-  return matchCount >= 3
-}
-
-/**
- * 统计连续冲突轮数（从最近的叙事倒着往前数）
- *
- * @param recentNarratives 最近的叙事文本列表（按时间从旧到新）
- */
-export function countConsecutiveConflictRounds(recentNarratives: string[]): number {
-  let count = 0
-  for (let i = recentNarratives.length - 1; i >= 0; i--) {
-    if (isLastEventConflict(recentNarratives[i])) {
-      count++
-    } else {
-      break
-    }
-  }
-  return count
-}
 
 /**
  * 寿命进度提醒 —— 告知 AI 角色当前的寿命阶段约束
@@ -231,24 +182,4 @@ export function buildLifespanReminder(maxAge: number, currentAge: number): strin
   }
 
   return ''
-}
-
-// ============================================================
-// 玩家和平意图检测（废弃项目 isPlayerGoalPeaceful）
-// ============================================================
-
-/** 和平意图关键词（对应玩家选择中的发展/建设/经营类指令） */
-const PEACEFUL_GOAL_KEYWORDS = [
-  '发展', '建设', '经营', '扩张', '拓展', '壮大', '巩固', '强化',
-  '培养', '训练', '修炼', '学习', '研究', '经商', '贸易', '种田',
-  '内政', '治理', '整顿', '改革', '招募', '结交', '联姻', '结盟',
-  '外交', '和谈', '谈判',
-]
-
-/**
- * 检测玩家指令是否表达了和平发展意图
- */
-export function isPlayerGoalPeaceful(lastPlayerChoice?: string): boolean {
-  if (!lastPlayerChoice) return false
-  return PEACEFUL_GOAL_KEYWORDS.some((kw) => lastPlayerChoice.includes(kw))
 }

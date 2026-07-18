@@ -45,6 +45,7 @@ next-env.d.ts
 
 # local generated artifacts
 *.local
+.superpowers/
 
 # environment exports without leading dot
 env.*

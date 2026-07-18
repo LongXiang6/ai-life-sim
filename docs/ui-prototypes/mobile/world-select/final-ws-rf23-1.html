@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>世界选择 · 统一创建流程</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../assets/library.css">
+  <link rel="stylesheet" href="../assets/creation-flow-unified.css">
+  <script src="../assets/prototype.js" defer></script>
+  <script src="../assets/creation-flow-unified.js" defer></script>
+  <style>
+    .ws-summary-rule {
+      display: grid;
+      grid-column: 1 / -1;
+      grid-template-columns: 38px minmax(0, 1fr);
+      gap: 8px;
+      margin-top: 2px;
+      padding-top: 8px;
+      border-top: 1px solid var(--cf-line);
+    }
+
+    .ws-summary-rule span {
+      color: var(--cf-faint);
+      font-size: 6px;
+    }
+
+    .ws-summary-rule p {
+      display: -webkit-box;
+      margin: 0;
+      overflow: hidden;
+      color: var(--cf-muted);
+      font-size: 6.5px;
+      line-height: 1.45;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    .ws-source-tabs { margin-top: 9px; }
+
+    .ws-world-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .ws-world-choice {
+      display: grid;
+      width: 100%;
+      min-height: 45px;
+      grid-template-columns: minmax(0, 1fr) 18px;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 6px;
+      border: 0;
+      border-top: 1px solid var(--cf-line);
+      background: transparent;
+      color: var(--cf-ink);
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .ws-world-list li:first-child .ws-world-choice { border-top: 0; }
+    .ws-world-choice[aria-pressed="true"] { border-radius: 8px; background: var(--cf-accent-soft); }
+    .ws-world-choice strong,
+    .ws-world-choice small { display: block; }
+    .ws-world-choice strong { overflow: hidden; font-size: 8px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+    .ws-world-choice small { margin-top: 3px; overflow: hidden; color: var(--cf-faint); font-size: 6px; text-overflow: ellipsis; white-space: nowrap; }
+
+    .ws-choice-mark {
+      position: relative;
+      width: 14px;
+      height: 14px;
+      border: 1px solid var(--cf-line-strong);
+      border-radius: 50%;
+      background: #fff;
+    }
+
+    .ws-world-choice[aria-pressed="true"] .ws-choice-mark { border-color: var(--cf-accent); background: var(--cf-accent); }
+    .ws-world-choice[aria-pressed="true"] .ws-choice-mark::after {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 6px;
+      height: 3px;
+      border-bottom: 1px solid #fff;
+      border-left: 1px solid #fff;
+      content: "";
+      transform: rotate(-45deg);
+    }
+
+    .ws-manage {
+      display: flex;
+      min-height: 29px;
+      align-items: center;
+      gap: 16px;
+      margin-top: 3px;
+      padding: 3px 6px 0;
+      border-top: 1px solid var(--cf-line);
+    }
+
+    .ws-manage[hidden] { display: none; }
+    .ws-manage button { min-height: 28px; padding: 3px 0; border: 0; background: transparent; color: var(--cf-muted); cursor: pointer; font-size: 6.5px; }
+    .ws-manage button[data-manage="delete"] { color: var(--cf-negative); }
+
+    .ws-custom-fields { display: grid; gap: 8px; }
+    .ws-field-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+    .ws-label { display: block; min-width: 0; }
+    .ws-label > span { display: block; margin-bottom: 5px; color: var(--cf-faint); font-size: 6px; }
+    .ws-custom-fields .cf-textarea { height: 58px; }
+    .ws-custom-action { width: 100%; margin-top: 8px; border-color: #d1dbe5; background: var(--cf-accent-soft); color: var(--cf-accent); font-weight: 700; }
+    .ws-form-status { min-height: 9px; margin: 5px 1px 0; color: var(--cf-negative); font-size: 6px; }
+
+    .ws-preset-grid,
+    .ws-more-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+
+    .ws-preset-grid button,
+    .ws-more-grid button {
+      min-height: 32px;
+      padding: 4px;
+      border: 1px solid var(--cf-line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--cf-muted);
+      cursor: pointer;
+      font-size: 6.5px;
+      line-height: 1.25;
+    }
+
+    .ws-preset-grid button[aria-pressed="true"] { border-color: #d1dbe5; background: var(--cf-accent-soft); color: var(--cf-accent); font-weight: 700; }
+    .ws-more-trigger { width: 100%; margin-top: 6px; }
+
+    .ws-difficulty { padding-bottom: 9px; }
+    .ws-difficulty .cf-section-head { margin-bottom: 6px; }
+    .ws-difficulty-options button { min-height: 28px; }
+
+    .ws-overlay {
+      position: absolute;
+      z-index: 7;
+      inset: 0;
+      display: grid;
+      align-items: end;
+      padding: 18px;
+      background: rgba(23, 25, 29, .15);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease;
+    }
+
+    .ws-overlay.is-open { opacity: 1; pointer-events: auto; }
+
+    .ws-overlay-panel {
+      max-height: 546px;
+      overflow-y: auto;
+      padding: 14px;
+      border: 1px solid var(--cf-line);
+      border-radius: 14px;
+      background: #fff;
+      box-shadow: 0 18px 44px rgba(23, 25, 29, .13);
+      transform: translateY(8px);
+      transition: transform 180ms ease;
+    }
+
+    .ws-overlay.is-open .ws-overlay-panel { transform: none; }
+    .ws-overlay-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .ws-overlay-head h3 { margin: 0; font-family: var(--cf-serif); font-size: 13px; font-weight: 600; }
+    .ws-overlay-head p { margin: 4px 0 0; color: var(--cf-muted); font-size: 6.5px; line-height: 1.45; }
+    .ws-overlay-close { display: grid; flex: 0 0 30px; width: 30px; height: 30px; place-items: center; padding: 0; border: 1px solid var(--cf-line); border-radius: 9px; background: #fff; color: var(--cf-muted); cursor: pointer; }
+    .ws-overlay-close svg { width: 14px; height: 14px; }
+
+    .ws-edit-form { display: grid; gap: 8px; margin-top: 12px; }
+    .ws-edit-form .cf-textarea { height: 74px; }
+    .ws-overlay-actions { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 6px; margin-top: 10px; }
+    .ws-overlay-actions button { min-height: 36px; border: 1px solid var(--cf-line); border-radius: 9px; background: #fff; color: var(--cf-muted); cursor: pointer; font-size: 7px; }
+    .ws-overlay-actions .ws-primary-command { border-color: var(--cf-ink); background: var(--cf-ink); color: #fff; font-weight: 700; }
+    .ws-overlay-actions .ws-danger-command { border-color: #eadcde; background: #f5ecee; color: var(--cf-negative); font-weight: 700; }
+    .ws-edit-status { min-height: 10px; margin: 5px 0 0; color: var(--cf-negative); font-size: 6px; }
+    .ws-more-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 12px; }
+    .ws-more-grid button { min-height: 43px; text-align: left; }
+    .ws-more-grid strong,
+    .ws-more-grid small { display: block; }
+    .ws-more-grid strong { color: var(--cf-ink); font-size: 7.5px; }
+    .ws-more-grid small { margin-top: 3px; color: var(--cf-faint); font-size: 5.5px; }
+    .ws-confirm-copy { margin: 8px 0 0; color: var(--cf-muted); font-size: 7px; line-height: 1.55; }
+  </style>
+</head>
+<body data-screen="world-select" data-creation-step="2">
+  <main class="creation-shell">
+    <header class="creation-review">
+      <p class="creation-review-label">CREATION FLOW · 02 / 08</p>
+      <h1>世界选择</h1>
+      <p class="creation-review-copy">沿用统一白纸、宋体标题与灰蓝状态，先确认当前世界，再选择来源与难度。</p>
+    </header>
+
+    <section class="creation-stage" aria-label="世界选择移动端界面">
+      <div class="creation-phone" data-world-select>
+        <div data-flow-art></div>
+        <div class="cf-screen">
+          <header class="cf-header" data-creation-header data-title="选择世界" data-subtitle="决定这段人生从哪一方天地开始。"></header>
+
+          <section class="cf-summary" aria-live="polite">
+            <div class="cf-summary-symbol">界</div>
+            <div class="cf-summary-copy"><strong data-current-name>潮汐城邦</strong><span data-current-line>群岛历 218 年 · 保存世界</span></div>
+            <div class="cf-summary-facts"><div><span>来源</span><strong data-summary-source>已保存</strong></div><div><span>年代</span><strong data-summary-era>群岛历 218 年</strong></div><div><span>难度</span><strong data-summary-difficulty>普通</strong></div></div>
+            <div class="ws-summary-rule"><span>规则</span><p data-current-description>潮汐决定城市的贸易节律、迁徙方向与每个人回家的时间。</p></div>
+          </section>
+
+          <nav class="cf-tabs ws-source-tabs" role="tablist" aria-label="世界来源">
+            <button type="button" role="tab" data-source-tab="saved" aria-controls="world-source-saved" aria-selected="true">01 · 已保存</button>
+            <button type="button" role="tab" data-source-tab="preset" aria-controls="world-source-preset" aria-selected="false">02 · 预设</button>
+            <button type="button" role="tab" data-source-tab="custom" aria-controls="world-source-custom" aria-selected="false">03 · 自定义</button>
+          </nav>
+
+          <section class="cf-section cf-pane is-active" id="world-source-saved" role="tabpanel" data-source-panel="saved">
+            <div class="cf-section-head"><strong>已保存世界</strong><small data-saved-count>2 个可用</small></div>
+            <ul class="ws-world-list" data-saved-list></ul>
+            <div class="ws-manage" data-manage-row>
+              <button type="button" data-manage="edit">编辑</button>
+              <button type="button" data-manage="reset">恢复原稿</button>
+              <button type="button" data-manage="delete">删除</button>
+            </div>
+          </section>
+
+          <section class="cf-section cf-pane" id="world-source-preset" role="tabpanel" data-source-panel="preset" hidden>
+            <div class="cf-section-head"><strong>预设世界</strong><small>选择后立即更新摘要</small></div>
+            <div class="ws-preset-grid" aria-label="预设世界">
+              <button type="button" data-preset="现代地球" aria-pressed="false">现代地球</button>
+              <button type="button" data-preset="武道割据" aria-pressed="false">武道割据</button>
+              <button type="button" data-preset="SCP基金会" aria-pressed="false">SCP 基金会</button>
+              <button type="button" data-preset="战锤40K" aria-pressed="false">战锤 40K</button>
+              <button type="button" data-preset="赛博2077" aria-pressed="false">赛博 2077</button>
+              <button type="button" data-preset="修真世界" aria-pressed="false">修真世界</button>
+            </div>
+            <button class="cf-secondary-button ws-more-trigger" type="button" data-open-overlay="more">查看更多预设</button>
+          </section>
+
+          <section class="cf-section cf-pane" id="world-source-custom" role="tabpanel" data-source-panel="custom" hidden>
+            <div class="cf-section-head"><strong>创建自定义世界</strong><small>名称、年代与描述均必填</small></div>
+            <form data-custom-form>
+              <div class="ws-custom-fields">
+                <div class="ws-field-pair">
+                  <label class="ws-label"><span>世界名称</span><input class="cf-field" name="name" autocomplete="off" placeholder="为世界命名"></label>
+                  <label class="ws-label"><span>起始年代</span><input class="cf-field" name="era" autocomplete="off" placeholder="写下年代"></label>
+                </div>
+                <label class="ws-label"><span>世界描述</span><textarea class="cf-textarea" name="description" maxlength="240" placeholder="写下世界的样子与一条核心规则"></textarea></label>
+              </div>
+              <button class="cf-secondary-button ws-custom-action" type="submit">创建并选择此世界</button>
+              <p class="ws-form-status" data-custom-status role="status"></p>
+            </form>
+          </section>
+
+          <section class="cf-section ws-difficulty">
+            <div class="cf-section-head"><strong>人生难度</strong><small>影响资源与事件压力</small></div>
+            <div class="cf-segmented ws-difficulty-options" data-difficulty-options>
+              <button type="button" data-difficulty="轻松" aria-pressed="false">轻松</button>
+              <button class="is-active" type="button" data-difficulty="普通" aria-pressed="true">普通</button>
+              <button type="button" data-difficulty="艰难" aria-pressed="false">艰难</button>
+            </div>
+          </section>
+        </div>
+
+        <footer class="cf-footer">
+          <button class="cf-back" type="button" data-flow-to="welcome" aria-label="返回欢迎页" title="返回欢迎页"><span data-icon="back"></span></button>
+          <button class="cf-next" type="button" data-confirm data-flow-to="world-customize"><span class="cf-next-number">03</span><span class="cf-next-copy"><strong>确认世界</strong><small data-confirm-hint>潮汐城邦 · 下一步配置世界</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button>
+        </footer>
+
+        <section class="ws-overlay" data-overlay="edit" aria-hidden="true">
+          <div class="ws-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="ws-edit-title">
+            <header class="ws-overlay-head"><div><h3 id="ws-edit-title">编辑保存世界</h3><p>保存后，当前世界摘要会同步更新。</p></div><button class="ws-overlay-close" type="button" data-close-overlay aria-label="关闭编辑"><span data-icon="close"></span></button></header>
+            <form class="ws-edit-form" data-edit-form>
+              <label class="ws-label"><span>世界名称</span><input class="cf-field" name="name" autocomplete="off"></label>
+              <label class="ws-label"><span>起始年代</span><input class="cf-field" name="era" autocomplete="off"></label>
+              <label class="ws-label"><span>世界描述</span><textarea class="cf-textarea" name="description" maxlength="240"></textarea></label>
+              <p class="ws-edit-status" data-edit-status role="status"></p>
+              <div class="ws-overlay-actions"><button type="button" data-close-overlay>取消</button><button class="ws-primary-command" type="submit">保存修改</button></div>
+            </form>
+          </div>
+        </section>
+
+        <section class="ws-overlay" data-overlay="more" aria-hidden="true">
+          <div class="ws-overlay-panel" role="dialog" aria-modal="true" aria-labelledby="ws-more-title">
+            <header class="ws-overlay-head"><div><h3 id="ws-more-title">更多预设世界</h3><p>选择后将直接成为当前世界。</p></div><button class="ws-overlay-close" type="button" data-close-overlay aria-label="关闭更多预设"><span data-icon="close"></span></button></header>
+            <div class="ws-more-grid">
+              <button type="button" data-more-preset="蒸汽纪元"><strong>蒸汽纪元</strong><small>齿轮与远航</small></button>
+              <button type="button" data-more-preset="末日废土"><strong>末日废土</strong><small>灾后重建</small></button>
+              <button type="button" data-more-preset="星海联邦"><strong>星海联邦</strong><small>星际文明</small></button>
+              <button type="button" data-more-preset="魔法学院"><strong>魔法学院</strong><small>秘术与成长</small></button>
+              <button type="button" data-more-preset="神话洪荒"><strong>神话洪荒</strong><small>诸神纪元</small></button>
+              <button type="button" data-more-preset="寂静极地"><strong>寂静极地</strong><small>生存远征</small></button>
+            </div>
+          </div>
+        </section>
+
+        <section class="ws-overlay" data-overlay="confirm" aria-hidden="true">
+          <div class="ws-overlay-panel" role="alertdialog" aria-modal="true" aria-labelledby="ws-confirm-title" aria-describedby="ws-confirm-copy">
+            <header class="ws-overlay-head"><div><h3 id="ws-confirm-title" data-confirm-title>确认操作</h3></div><button class="ws-overlay-close" type="button" data-close-overlay aria-label="关闭确认"><span data-icon="close"></span></button></header>
+            <p class="ws-confirm-copy" id="ws-confirm-copy" data-confirm-copy></p>
+            <div class="ws-overlay-actions"><button type="button" data-close-overlay>取消</button><button class="ws-danger-command" type="button" data-confirm-action>确认</button></div>
+          </div>
+        </section>
+
+        <div class="cf-toast" role="status" aria-live="polite"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      const presetWorlds = {
+        '现代地球': { name: '现代地球', era: '公元 2000 年', description: '互联网正在改变生活，平凡人生也会被时代推动。' },
+        '武道割据': { name: '武道割据', era: '乱世江湖', description: '门派林立、恩怨纠葛，一技之长即可改写命运。' },
+        'SCP基金会': { name: 'SCP 基金会', era: '当代异常收容', description: '日常表象之下，异常项目被严密收容与研究。' },
+        '战锤40K': { name: '战锤 40K', era: '遥远的未来', description: '帝国与异族永世征战，个体在星海中微不足道。' },
+        '赛博2077': { name: '赛博 2077', era: '公元 2077 年', description: '义体改造与企业统治交织，街头是普通人争取自由的地方。' },
+        '修真世界': { name: '修真世界', era: '仙道纪元', description: '灵根与功法决定起点，长生之路布满试炼。' },
+        '蒸汽纪元': { name: '蒸汽纪元', era: '工业历 77 年', description: '浮空舰与蒸汽机关连接群岛，远航者重新绘制世界边界。' },
+        '末日废土': { name: '末日废土', era: '灾变后 19 年', description: '旧秩序崩塌之后，聚落在匮乏与互助之间艰难重建。' },
+        '星海联邦': { name: '星海联邦', era: '联邦历 406 年', description: '人类跨越星门建立联邦，身份与故乡都有了新的尺度。' },
+        '魔法学院': { name: '魔法学院', era: '银塔历 312 年', description: '年轻施法者在古老学院学习秘术，也承担知识带来的代价。' },
+        '神话洪荒': { name: '神话洪荒', era: '诸神纪元', description: '天地初定、神祇行世，凡人的选择也会卷入宏大因果。' },
+        '寂静极地': { name: '寂静极地', era: '远征第 8 年', description: '长夜笼罩极地城站，补给、信任与归途同样珍贵。' },
+      }
+      const initialSaved = [
+        { id: 'tide', original: { name: '潮汐城邦', era: '群岛历 218 年', description: '潮汐决定城市的贸易节律、迁徙方向与每个人回家的时间。' }, updated: '最近修改' },
+        { id: 'ember', original: { name: '余烬花园', era: '灾后 31 年', description: '人们在旧城废墟的温室里重建共同体，水与种子比货币更珍贵。' }, updated: '昨日保存' },
+      ]
+      const sourceLabels = { saved: '已保存', preset: '预设', custom: '自定义' }
+      const clone = function (value) { return JSON.parse(JSON.stringify(value)) }
+      const root = document.querySelector('[data-world-select]')
+      const state = {
+        saved: initialSaved.map(function (entry) { return { id: entry.id, original: clone(entry.original), current: clone(entry.original), updated: entry.updated } }),
+        source: 'saved',
+        selectedSavedId: 'tide',
+        selectedPreset: '',
+        selectedWorld: clone(initialSaved[0].original),
+        activePanel: 'saved',
+        difficulty: '普通',
+        editingId: '',
+        pendingAction: '',
+      }
+      let returnFocus = null
+
+      function notify(message) {
+        if (window.CreationFlow) window.CreationFlow.notify(message)
+      }
+
+      function updateSummary() {
+        const world = state.selectedWorld
+        root.querySelector('[data-current-name]').textContent = world ? world.name : '尚未选择'
+        root.querySelector('[data-current-line]').textContent = world ? `${world.era} · ${sourceLabels[state.source]}世界` : '请先选择或创建世界'
+        root.querySelector('[data-current-description]').textContent = world ? world.description : '选择一方世界，作为这段人生的开端。'
+        root.querySelector('[data-summary-source]').textContent = sourceLabels[state.source] || '待选择'
+        root.querySelector('[data-summary-era]').textContent = world ? world.era : '待确定'
+        root.querySelector('[data-summary-difficulty]').textContent = state.difficulty
+        root.querySelector('[data-confirm-hint]').textContent = world ? `${world.name} · 下一步配置世界` : '请先选择或创建世界'
+        const confirm = root.querySelector('[data-confirm]')
+        confirm.disabled = !world
+        if (world) confirm.setAttribute('data-flow-to', 'world-customize')
+        else confirm.removeAttribute('data-flow-to')
+      }
+
+      function showPanel(key) {
+        state.activePanel = key
+        root.querySelectorAll('[data-source-tab]').forEach(function (button) {
+          button.setAttribute('aria-selected', String(button.dataset.sourceTab === key))
+        })
+        root.querySelectorAll('[data-source-panel]').forEach(function (panel) {
+          const active = panel.dataset.sourcePanel === key
+          panel.classList.toggle('is-active', active)
+          panel.hidden = !active
+        })
+      }
+
+      function updatePresetButtons() {
+        root.querySelectorAll('[data-preset]').forEach(function (button) {
+          button.setAttribute('aria-pressed', String(state.source === 'preset' && state.selectedPreset === button.dataset.preset))
+        })
+      }
+
+      function renderSaved() {
+        const list = root.querySelector('[data-saved-list]')
+        list.replaceChildren()
+        state.saved.forEach(function (entry) {
+          const item = document.createElement('li')
+          const button = document.createElement('button')
+          const copy = document.createElement('span')
+          const name = document.createElement('strong')
+          const detail = document.createElement('small')
+          const mark = document.createElement('span')
+          button.type = 'button'
+          button.className = 'ws-world-choice'
+          button.dataset.savedId = entry.id
+          button.setAttribute('aria-pressed', String(state.source === 'saved' && state.selectedSavedId === entry.id))
+          name.textContent = entry.current.name
+          detail.textContent = `${entry.current.era} · ${entry.updated}`
+          mark.className = 'ws-choice-mark'
+          mark.setAttribute('aria-hidden', 'true')
+          copy.append(name, detail)
+          button.append(copy, mark)
+          button.addEventListener('click', function () { selectSaved(entry.id) })
+          item.append(button)
+          list.append(item)
+        })
+        root.querySelector('[data-saved-count]').textContent = `${state.saved.length} 个可用`
+        root.querySelector('[data-manage-row]').hidden = !(state.source === 'saved' && state.selectedSavedId)
+      }
+
+      function selectSaved(id) {
+        const entry = state.saved.find(function (item) { return item.id === id })
+        if (!entry) return
+        state.source = 'saved'
+        state.selectedSavedId = id
+        state.selectedPreset = ''
+        state.selectedWorld = clone(entry.current)
+        showPanel('saved')
+        renderSaved()
+        updatePresetButtons()
+        updateSummary()
+        notify(`已选择保存世界 · ${entry.current.name}`)
+      }
+
+      function selectPreset(key) {
+        const world = presetWorlds[key]
+        if (!world) return
+        state.source = 'preset'
+        state.selectedSavedId = ''
+        state.selectedPreset = key
+        state.selectedWorld = clone(world)
+        showPanel('preset')
+        renderSaved()
+        updatePresetButtons()
+        updateSummary()
+        closeOverlays(false)
+        notify(`已选择预设世界 · ${world.name}`)
+      }
+
+      function closeOverlays(restoreFocus) {
+        root.querySelectorAll('[data-overlay].is-open').forEach(function (overlay) {
+          overlay.classList.remove('is-open')
+          overlay.setAttribute('aria-hidden', 'true')
+        })
+        if (restoreFocus !== false && returnFocus && returnFocus.isConnected) returnFocus.focus()
+        returnFocus = null
+      }
+
+      function openOverlay(name, trigger) {
+        closeOverlays(false)
+        returnFocus = trigger || document.activeElement
+        const overlay = root.querySelector(`[data-overlay="${name}"]`)
+        overlay.classList.add('is-open')
+        overlay.setAttribute('aria-hidden', 'false')
+        const focusTarget = overlay.querySelector('input, button')
+        if (focusTarget) focusTarget.focus()
+      }
+
+      function openEdit(trigger) {
+        const entry = state.saved.find(function (item) { return item.id === state.selectedSavedId })
+        if (!entry) return
+        state.editingId = entry.id
+        const form = root.querySelector('[data-edit-form]')
+        form.elements.name.value = entry.current.name
+        form.elements.era.value = entry.current.era
+        form.elements.description.value = entry.current.description
+        root.querySelector('[data-edit-status]').textContent = ''
+        openOverlay('edit', trigger)
+        form.elements.name.focus()
+      }
+
+      function openConfirmation(action, trigger) {
+        const entry = state.saved.find(function (item) { return item.id === state.selectedSavedId })
+        if (!entry) return
+        state.pendingAction = action
+        const deleting = action === 'delete'
+        root.querySelector('[data-confirm-title]').textContent = deleting ? '删除保存世界？' : '恢复保存世界？'
+        root.querySelector('[data-confirm-copy]').textContent = deleting
+          ? `“${entry.current.name}”将从保存列表移除，此操作无法撤销。`
+          : `“${entry.current.name}”将恢复为首次保存时的名称、年代与描述。`
+        root.querySelector('[data-confirm-action]').textContent = deleting ? '确认删除' : '确认恢复'
+        openOverlay('confirm', trigger)
+        root.querySelector('[data-confirm-action]').focus()
+      }
+
+      root.querySelectorAll('[data-source-tab]').forEach(function (button) {
+        button.addEventListener('click', function () { showPanel(button.dataset.sourceTab) })
+      })
+
+      root.querySelectorAll('[data-preset]').forEach(function (button) {
+        button.addEventListener('click', function () { selectPreset(button.dataset.preset) })
+      })
+
+      root.querySelectorAll('[data-more-preset]').forEach(function (button) {
+        button.addEventListener('click', function () { selectPreset(button.dataset.morePreset) })
+      })
+
+      root.querySelector('[data-custom-form]').addEventListener('submit', function (event) {
+        event.preventDefault()
+        const form = event.currentTarget
+        const values = {
+          name: form.elements.name.value.trim(),
+          era: form.elements.era.value.trim(),
+          description: form.elements.description.value.trim(),
+        }
+        if (!Object.values(values).every(Boolean)) {
+          root.querySelector('[data-custom-status]').textContent = '请补全名称、年代与世界描述。'
+          return
+        }
+        state.source = 'custom'
+        state.selectedSavedId = ''
+        state.selectedPreset = ''
+        state.selectedWorld = values
+        root.querySelector('[data-custom-status]').textContent = ''
+        renderSaved()
+        updatePresetButtons()
+        updateSummary()
+        notify(`已创建自定义世界 · ${values.name}`)
+      })
+
+      root.querySelectorAll('[data-difficulty]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          state.difficulty = button.dataset.difficulty
+          root.querySelectorAll('[data-difficulty]').forEach(function (item) {
+            const active = item === button
+            item.classList.toggle('is-active', active)
+            item.setAttribute('aria-pressed', String(active))
+          })
+          updateSummary()
+          notify(`人生难度 · ${state.difficulty}`)
+        })
+      })
+
+      root.querySelectorAll('[data-manage]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          if (button.dataset.manage === 'edit') openEdit(button)
+          else openConfirmation(button.dataset.manage, button)
+        })
+      })
+
+      root.querySelectorAll('[data-open-overlay]').forEach(function (button) {
+        button.addEventListener('click', function () { openOverlay(button.dataset.openOverlay, button) })
+      })
+
+      root.querySelectorAll('[data-close-overlay]').forEach(function (button) {
+        button.addEventListener('click', function () { closeOverlays(true) })
+      })
+
+      root.querySelectorAll('[data-overlay]').forEach(function (overlay) {
+        overlay.addEventListener('click', function (event) {
+          if (event.target === overlay) closeOverlays(true)
+        })
+      })
+
+      root.querySelector('[data-edit-form]').addEventListener('submit', function (event) {
+        event.preventDefault()
+        const form = event.currentTarget
+        const values = {
+          name: form.elements.name.value.trim(),
+          era: form.elements.era.value.trim(),
+          description: form.elements.description.value.trim(),
+        }
+        if (!Object.values(values).every(Boolean)) {
+          root.querySelector('[data-edit-status]').textContent = '请补全名称、年代与世界描述。'
+          return
+        }
+        const entry = state.saved.find(function (item) { return item.id === state.editingId })
+        if (!entry) return
+        entry.current = values
+        entry.updated = '刚刚修改'
+        if (state.source === 'saved' && state.selectedSavedId === entry.id) state.selectedWorld = clone(values)
+        closeOverlays(false)
+        renderSaved()
+        updateSummary()
+        notify(`已保存修改 · ${values.name}`)
+      })
+
+      root.querySelector('[data-confirm-action]').addEventListener('click', function () {
+        const entry = state.saved.find(function (item) { return item.id === state.selectedSavedId })
+        if (!entry) return
+        if (state.pendingAction === 'reset') {
+          entry.current = clone(entry.original)
+          entry.updated = '已恢复'
+          state.selectedWorld = clone(entry.current)
+          closeOverlays(false)
+          renderSaved()
+          updateSummary()
+          notify(`已恢复原稿 · ${entry.current.name}`)
+          return
+        }
+        const deletedName = entry.current.name
+        state.saved = state.saved.filter(function (item) { return item.id !== entry.id })
+        closeOverlays(false)
+        if (state.saved.length) selectSaved(state.saved[0].id)
+        else selectPreset('现代地球')
+        notify(`已删除 · ${deletedName}`)
+      })
+
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') closeOverlays(true)
+      })
+
+      renderSaved()
+      updatePresetButtons()
+      updateSummary()
+    })()
+  </script>
+</body>
+</html>

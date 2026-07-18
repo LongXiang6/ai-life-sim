@@ -19,7 +19,8 @@ const SUBSYSTEM_TEMPLATE = path.join(
   '..',
   '.agents',
   'skills',
-  'mod-dev-skill',
+  'ai-life-sim-mod-development',
+  'assets',
   'templates',
   'subsystem.template.ts',
 )

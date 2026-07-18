@@ -2,7 +2,7 @@
 
 /**
  * @file useCharacterCreateLogic.ts
- * @description 角色创建共享业务逻辑 hook —— 从 CharacterCreateDesktop 提取，供 Desktop/Mobile 复用
+ * @description 角色创建共享业务逻辑 hook —— 供单一响应式创建界面复用
  * @mod mod-pages
  */
 
@@ -12,10 +12,10 @@ import { useRouter } from 'next/navigation'
 import {
   useCharacterStore, RACE_LIFESPAN, randomName,
   MAX_LIFESPAN_CAP, BASE_HUMAN_LIFESPAN,
-  LIFESPAN_BG_BONUS_KEYWORDS, filterDigitsOnly,
+  filterDigitsOnly,
 } from '@/mods/mod-character'
+import type { BaseAttributes, RaceLifespanConfig } from '@/mods/mod-character'
 import { useWorldStore } from '@/mods/mod-world'
-import { detectStartingAge } from '@/core/shared'
 
 import { useCharacterCreateForm, ATTRIBUTES } from './useCharacterCreateForm'
 
@@ -54,8 +54,8 @@ const BG_PRESET_ICONS: Record<string, string> = {
 // 帮助函数
 // ============================================================
 
-/** 简单寿命计算（对齐 lifespan-system.computeMaxAge） */
-function computeMaxAge(race: string, background: string, manualOverride?: number): number {
+/** 角色创建阶段只使用显式覆盖或结构化种族寿命。 */
+function computeMaxAge(race: string, manualOverride?: number): number {
   if (manualOverride && manualOverride > 0) {
     return Math.min(manualOverride, MAX_LIFESPAN_CAP)
   }
@@ -65,11 +65,52 @@ function computeMaxAge(race: string, background: string, manualOverride?: number
 
   if (raceInfo && raceInfo.baseMaxAge > maxAge) maxAge = raceInfo.baseMaxAge
 
-  for (const [kw, bonus] of Object.entries(LIFESPAN_BG_BONUS_KEYWORDS)) {
-    if (background.includes(kw) && bonus > maxAge) maxAge = bonus
+  return Math.min(Math.max(maxAge, 1), MAX_LIFESPAN_CAP)
+}
+
+/** 将目录种族或玩家自定义种族统一写成 Character Store 已有的结构化寿命形状。 */
+function buildConfirmedRaceLifespan(race: string, maxAge: number): RaceLifespanConfig {
+  const catalogRace = RACE_LIFESPAN[race]
+  if (catalogRace) return { ...catalogRace }
+
+  const humanDefaults = RACE_LIFESPAN.human!
+  return {
+    ...humanDefaults,
+    name: race.trim() || '自定义种族',
+    baseMaxAge: maxAge,
+  }
+}
+
+/** 只把当前四项公开基础属性写入角色状态，忽略旧编辑态中的遗留字段。 */
+function toBaseAttributes(attributes: Record<string, number>): BaseAttributes {
+  return {
+    physique: attributes.physique ?? 0,
+    mind: attributes.mind ?? 0,
+    talentAptitude: attributes.talentAptitude ?? 0,
+    charisma: attributes.charisma ?? 0,
+  }
+}
+
+function readStoredAgeSetup(race: string): { maxAge: number; startingAge: number } | null {
+  const character = useCharacterStore.getState()
+  const expectedRaceName = RACE_LIFESPAN[race]?.name ?? race.trim()
+  const { lifespan, characterBase } = character
+
+  if (
+    !character.name.trim()
+    || character.race !== race
+    || !expectedRaceName
+    || lifespan.race.name !== expectedRaceName
+    || !Number.isFinite(lifespan.maxAge)
+    || lifespan.maxAge <= 0
+    || !Number.isFinite(characterBase.startingAge)
+    || characterBase.startingAge < 0
+    || characterBase.startingAge >= lifespan.maxAge
+  ) {
+    return null
   }
 
-  return Math.min(Math.max(maxAge, 1), MAX_LIFESPAN_CAP)
+  return { maxAge: lifespan.maxAge, startingAge: characterBase.startingAge }
 }
 
 function isGenderOptionActive(option: string, current: string): boolean {
@@ -82,12 +123,6 @@ function genderOptionToValue(option: string): 'male' | 'female' {
   if (option === '男') return 'male'
   if (option === '女') return 'female'
   return option as 'male' | 'female'
-}
-
-function clampStartingAge(age: number, maxAge: number): number {
-  const finiteAge = Number.isFinite(age) ? Math.trunc(age) : 0
-  const finiteMaxAge = Number.isFinite(maxAge) && maxAge > 0 ? Math.trunc(maxAge) : BASE_HUMAN_LIFESPAN
-  return Math.min(Math.max(finiteAge, 0), Math.max(finiteMaxAge - 1, 0))
 }
 
 // ============================================================
@@ -249,6 +284,11 @@ export interface UseCharacterCreateLogicReturn {
   setManualStartingAge: (v: string) => void
   computedLifespan: number | null
   computedStartingAge: number | null
+  previewLifespan: number
+  previewStartingAge: number
+  ageSetupError: string | null
+  canProceed: boolean
+  nextBlockReason: string | null
   handleDetectLifespan: () => void
 
   // 导航
@@ -291,12 +331,17 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
   } = useCharacterCreateForm()
 
   // ---- 自定义性别 ----
-  const [customGenders, setCustomGenders] = useState<string[]>([])
+  const [customGenders, setCustomGenders] = useState<string[]>(() => {
+    const selectedGender = gender as string
+    return selectedGender !== 'male' && selectedGender !== 'female' ? [selectedGender] : []
+  })
   const [showCustomGender, setShowCustomGender] = useState(false)
   const [customGenderInput, setCustomGenderInput] = useState('')
 
   // ---- 自定义种族 ----
-  const [customRaces, setCustomRaces] = useState<string[]>([])
+  const [customRaces, setCustomRaces] = useState<string[]>(() =>
+    race && !RACE_LIFESPAN[race] ? [race] : [],
+  )
   const [showCustomRace, setShowCustomRace] = useState(false)
   const [showRaceCatalog, setShowRaceCatalog] = useState(false)
   const [raceSearch, setRaceSearch] = useState('')
@@ -308,16 +353,35 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
   const [bgPresetNameInput, setBgPresetNameInput] = useState('')
 
   // ---- 寿命 ----
-  const [_manualLifespan, _setManualLifespan] = useState('')
-  const [_manualStartingAge, _setManualStartingAge] = useState('')
-  const [computedLifespan, setComputedLifespan] = useState<number | null>(null)
-  const [computedStartingAge, setComputedStartingAge] = useState<number | null>(null)
+  const [storedAgeSetup] = useState(() => readStoredAgeSetup(race))
+  const [_manualLifespan, _setManualLifespan] = useState(() => storedAgeSetup ? String(storedAgeSetup.maxAge) : '')
+  const [_manualStartingAge, _setManualStartingAge] = useState(() => (
+    storedAgeSetup && storedAgeSetup.startingAge > 0 ? String(storedAgeSetup.startingAge) : ''
+  ))
+  const [computedLifespan, setComputedLifespan] = useState<number | null>(() => storedAgeSetup?.maxAge ?? null)
+  const [computedStartingAge, setComputedStartingAge] = useState<number | null>(() => storedAgeSetup?.startingAge ?? null)
 
   const setManualLifespan = useCallback((v: string) => _setManualLifespan(filterDigitsOnly(v)), [])
   const setManualStartingAge = useCallback((v: string) => _setManualStartingAge(filterDigitsOnly(v)), [])
 
   const manualLifespan = _manualLifespan
   const manualStartingAge = _manualStartingAge
+
+  // 输入框保留“出生”的空值语义；预览值单独推导，避免把 0 写回受控输入造成 090、09018 等前缀累积。
+  const ageSetupPreview = useMemo(() => {
+    const confirmedManualMaxAge = manualLifespan
+      ? Number.parseInt(manualLifespan, 10)
+      : undefined
+    const maxAge = confirmedManualMaxAge !== undefined && Number.isFinite(confirmedManualMaxAge)
+      ? computeMaxAge(race, confirmedManualMaxAge)
+      : computedLifespan ?? computeMaxAge(race)
+    const parsedStartingAge = manualStartingAge ? Number.parseInt(manualStartingAge, 10) : 0
+    const startingAge = Number.isFinite(parsedStartingAge) ? parsedStartingAge : 0
+    const error = startingAge >= maxAge
+      ? `起始年龄必须小于预期寿命（${maxAge} 岁）`
+      : null
+    return { maxAge, startingAge, error }
+  }, [computedLifespan, manualLifespan, manualStartingAge, race])
 
   // ---- 合并选项列表 ----
   const allGenders = useMemo(() => ['男', '女', ...customGenders], [customGenders])
@@ -348,17 +412,9 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
 
   // ---- 寿命检测 ----
   const handleDetectLifespan = useCallback(() => {
-    const manualOverride = manualLifespan ? parseInt(manualLifespan, 10) : undefined
-    const maxAge = computeMaxAge(race, background, isNaN(manualOverride as number) ? undefined : manualOverride)
-    const startAge = manualStartingAge
-      ? parseInt(manualStartingAge, 10)
-      : detectStartingAge(background)
-    const resolvedStartAge = isNaN(startAge) ? detectStartingAge(background) : startAge
-    setComputedLifespan(maxAge)
-    setComputedStartingAge(resolvedStartAge)
-    setManualLifespan(String(maxAge))
-    setManualStartingAge(String(clampStartingAge(resolvedStartAge, maxAge)))
-  }, [race, background, manualLifespan, manualStartingAge, setManualLifespan, setManualStartingAge])
+    setComputedLifespan(ageSetupPreview.maxAge)
+    setComputedStartingAge(ageSetupPreview.startingAge)
+  }, [ageSetupPreview])
 
   // ---- 自定义性别操作 ----
   const handleAddCustomGender = useCallback(() => {
@@ -432,17 +488,13 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
   const raceInfo = RACE_LIFESPAN[race]
 
   const resolveAgeSetup = useCallback(() => {
-    const manualOverride = manualLifespan ? parseInt(manualLifespan, 10) : undefined
-    const maxAge = computedLifespan
-      ?? (raceInfo?.baseMaxAge ?? computeMaxAge(race, background, isNaN(manualOverride as number) ? undefined : manualOverride))
-    const manualStart = manualStartingAge ? parseInt(manualStartingAge, 10) : undefined
-    const detectedStart = computedStartingAge ?? detectStartingAge(background)
-    const startingAge = clampStartingAge(
-      manualStart !== undefined && !isNaN(manualStart) ? manualStart : detectedStart,
-      maxAge,
-    )
-    return { maxAge, startingAge }
-  }, [background, computedLifespan, computedStartingAge, manualLifespan, manualStartingAge, race, raceInfo])
+    return { maxAge: ageSetupPreview.maxAge, startingAge: ageSetupPreview.startingAge }
+  }, [ageSetupPreview])
+
+  const nextBlockReason = !name.trim() || name.trim() === 'AI命名'
+    ? '请先填写角色姓名，或使用随机生成'
+    : ageSetupPreview.error
+  const canProceed = nextBlockReason === null
 
   // ============================================================
   // 导航
@@ -452,51 +504,50 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
     if (nameError) setNameError('')
 
     const trimmed = name.trim()
-    const genderForName = gender === 'male' ? '男' : gender === 'female' ? '女' : undefined
-    const finalName = trimmed && trimmed !== 'AI命名' ? trimmed : randomName(genderForName)
-    setName(finalName)
+    if (!trimmed || trimmed === 'AI命名') {
+      setNameError('请先填写角色姓名，或使用随机生成')
+      return
+    }
+    if (ageSetupPreview.error) return
+    setName(trimmed)
     setGender(gender)
     const { maxAge, startingAge } = resolveAgeSetup()
     setAge(startingAge)
 
+    const confirmedAttributes = toBaseAttributes(attributes)
     setCharacterBase({
-      base: { ...attributes } as Record<string, number> & { physique: number; mind: number; talentAptitude: number; charisma: number; resources: number },
-      current: { ...attributes } as Record<string, number> & { physique: number; mind: number; talentAptitude: number; charisma: number; resources: number },
-      modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0, resources: 0 },
+      base: confirmedAttributes,
+      current: { ...confirmedAttributes },
+      modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
       startingAge,
     })
 
-    if (raceInfo) {
-      setLifespan({ race: raceInfo, maxAge, baseMaxAge: raceInfo.baseMaxAge })
-    }
+    const confirmedRace = buildConfirmedRaceLifespan(race, maxAge)
+    setLifespan({ race: confirmedRace, maxAge, baseMaxAge: confirmedRace.baseMaxAge })
 
     store.getState().setRace(race)
     store.getState().setBackground(background)
 
     router.push('/talent-draw')
-  }, [name, nameError, gender, race, setName, setGender, setAge, setCharacterBase, setLifespan, raceInfo, background, attributes, router, setNameError, store, resolveAgeSetup])
+  }, [name, nameError, gender, race, setName, setGender, setAge, setCharacterBase, setLifespan, background, attributes, router, setNameError, store, resolveAgeSetup, ageSetupPreview.error])
 
   const handleBack = useCallback(() => {
-    const trimmed = name.trim()
-    const genderForName = gender === 'male' ? '男' : gender === 'female' ? '女' : undefined
-    const finalName = trimmed && trimmed !== 'AI命名' ? trimmed : randomName(genderForName)
-    setName(finalName)
     setGender(gender)
     const { maxAge, startingAge } = resolveAgeSetup()
     setAge(startingAge)
     store.getState().setRace(race)
     store.getState().setBackground(background)
+    const confirmedAttributes = toBaseAttributes(attributes)
     setCharacterBase({
-      base: { ...attributes } as Record<string, number> & { physique: number; mind: number; talentAptitude: number; charisma: number; resources: number },
-      current: { ...attributes } as Record<string, number> & { physique: number; mind: number; talentAptitude: number; charisma: number; resources: number },
-      modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0, resources: 0 },
+      base: confirmedAttributes,
+      current: { ...confirmedAttributes },
+      modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
       startingAge,
     })
-    if (raceInfo) {
-      setLifespan({ race: raceInfo, maxAge, baseMaxAge: raceInfo.baseMaxAge })
-    }
+    const confirmedRace = buildConfirmedRaceLifespan(race, maxAge)
+    setLifespan({ race: confirmedRace, maxAge, baseMaxAge: confirmedRace.baseMaxAge })
     router.push('/new-game/world-customize')
-  }, [name, gender, race, attributes, background, router, setName, setGender, setAge, setCharacterBase, setLifespan, raceInfo, store, resolveAgeSetup])
+  }, [gender, race, attributes, background, router, setGender, setAge, setCharacterBase, setLifespan, store, resolveAgeSetup])
 
   return {
     // 表单
@@ -539,6 +590,11 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
     manualLifespan, setManualLifespan,
     manualStartingAge, setManualStartingAge,
     computedLifespan, computedStartingAge,
+    previewLifespan: ageSetupPreview.maxAge,
+    previewStartingAge: ageSetupPreview.startingAge,
+    ageSetupError: ageSetupPreview.error,
+    canProceed,
+    nextBlockReason,
     handleDetectLifespan,
 
     // 导航

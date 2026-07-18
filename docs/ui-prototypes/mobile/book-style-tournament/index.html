@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>B05 · 逐页四选一排版评审</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f4f4f1;
+      --sheet: #ffffff;
+      --ink: #171717;
+      --muted: #6d6b66;
+      --faint: #99958d;
+      --line: #d8d5ce;
+      --line-strong: #aaa59b;
+      --accent: #6f648d;
+      --accent-soft: #f1eff5;
+      --serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, serif;
+      --sans: Inter, "Noto Sans SC", "Microsoft YaHei", sans-serif;
+      --preview-width: 390px;
+      --preview-height: 844px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      background: var(--paper);
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: var(--sans);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    button,
+    a { font: inherit; }
+
+    button { color: inherit; }
+
+    a { color: inherit; }
+
+    button:focus-visible,
+    a:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+
+    .topbar {
+      min-height: 52px;
+      border-bottom: 1px solid var(--line);
+      background: var(--sheet);
+    }
+
+    .topbar-inner,
+    .review-shell {
+      width: min(1580px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .topbar-inner {
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      color: var(--muted);
+      font-size: 12px;
+      text-transform: uppercase;
+    }
+
+    .topbar-status {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .review-shell { padding: 46px 0 80px; }
+
+    .intro {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(250px, 360px);
+      gap: 56px;
+      align-items: end;
+      padding-bottom: 34px;
+      border-bottom: 1px solid var(--line-strong);
+    }
+
+    .eyebrow,
+    .round-number,
+    .candidate-code,
+    .preview-label {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      font-family: var(--serif);
+      font-weight: 600;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      max-width: 780px;
+      margin-top: 10px;
+      font-size: 42px;
+      line-height: 1.24;
+    }
+
+    .intro-copy {
+      max-width: 760px;
+      margin: 16px 0 0;
+      color: #46443f;
+      font-family: var(--serif);
+      font-size: 17px;
+      line-height: 1.9;
+    }
+
+    .intro-meta {
+      display: grid;
+      border-top: 1px solid var(--line);
+    }
+
+    .intro-meta a {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      border-bottom: 1px solid var(--line);
+      text-decoration: none;
+    }
+
+    .intro-meta a::after { content: "↗"; color: var(--accent); }
+
+    .round-nav {
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      margin-top: 24px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, .96);
+      backdrop-filter: blur(12px);
+    }
+
+    .round-nav a {
+      min-width: 0;
+      min-height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 14px;
+      text-decoration: none;
+    }
+
+    .round-nav a + a { border-left: 1px solid var(--line); }
+
+    .round-nav b {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .summary-value {
+      flex: 0 0 auto;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .summary-value.has-choice { color: var(--accent); font-weight: 700; }
+
+    .page-round {
+      scroll-margin-top: 78px;
+      padding-top: 58px;
+    }
+
+    .round-heading {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 24px;
+      align-items: end;
+      margin-bottom: 18px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--line-strong);
+    }
+
+    .round-heading h2 {
+      margin-top: 4px;
+      font-size: 30px;
+    }
+
+    .round-heading p {
+      max-width: 720px;
+      margin: 8px 0 0;
+      color: var(--muted);
+    }
+
+    .round-choice {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .round-choice strong {
+      color: var(--accent);
+      font-size: 13px;
+    }
+
+    .clear-choice {
+      width: 32px;
+      height: 32px;
+      display: none;
+      place-items: center;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    .clear-choice.is-visible { display: grid; }
+
+    .candidate-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      align-items: start;
+    }
+
+    .candidate {
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background: var(--sheet);
+      transition: border-color 150ms ease, box-shadow 150ms ease;
+    }
+
+    .candidate.is-selected {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent);
+    }
+
+    .candidate-head {
+      min-height: 94px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 15px 14px 13px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .candidate-head h3 {
+      margin-top: 4px;
+      font-size: 19px;
+    }
+
+    .select-button {
+      flex: 0 0 auto;
+      min-height: 34px;
+      padding: 6px 10px;
+      border: 1px solid var(--line-strong);
+      border-radius: 3px;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .select-button:hover { border-color: var(--accent); color: var(--accent); }
+
+    .select-button[aria-pressed="true"] {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .preview-stage {
+      position: relative;
+      width: 100%;
+      min-height: 420px;
+      overflow: hidden;
+      background: #ecebe7;
+    }
+
+    .preview-canvas {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      width: var(--preview-width);
+      height: var(--preview-height);
+      transform-origin: top left;
+    }
+
+    .preview-canvas iframe {
+      display: block;
+      width: var(--preview-width);
+      height: var(--preview-height);
+      border: 0;
+      background: #fff;
+    }
+
+    .candidate-foot {
+      min-height: 122px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 14px;
+      border-top: 1px solid var(--line);
+    }
+
+    .candidate-foot p {
+      margin: 0;
+      color: #4d4a45;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    .open-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: auto;
+      color: var(--muted);
+      font-size: 11px;
+      text-decoration: none;
+    }
+
+    .open-link::after { content: "↗"; color: var(--accent); }
+
+    .decision-summary {
+      display: grid;
+      grid-template-columns: 220px minmax(0, 1fr);
+      gap: 28px;
+      margin-top: 62px;
+      padding: 28px 0;
+      border-top: 1px solid var(--line-strong);
+      border-bottom: 1px solid var(--line-strong);
+    }
+
+    .decision-summary h2 { font-size: 23px; }
+
+    .decision-list {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0;
+      border-left: 1px solid var(--line);
+    }
+
+    .decision-item {
+      min-height: 68px;
+      padding: 10px 14px;
+      border-top: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .decision-item span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .decision-item strong {
+      display: block;
+      margin-top: 5px;
+      color: var(--accent);
+    }
+
+    @media (max-width: 1080px) {
+      .candidate-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .decision-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 760px) {
+      .topbar-inner,
+      .review-shell { width: calc(100% - 24px); }
+
+      .review-shell { padding-top: 34px; }
+
+      .intro { grid-template-columns: 1fr; gap: 26px; }
+
+      h1 { font-size: 32px; }
+
+      .intro-copy { font-size: 16px; }
+
+      .round-nav {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .round-nav a:nth-child(3) { border-left: 0; border-top: 1px solid var(--line); }
+      .round-nav a:nth-child(4) { border-top: 1px solid var(--line); }
+
+      .round-heading { grid-template-columns: 1fr; align-items: start; }
+
+      .round-choice { justify-content: space-between; }
+
+      .decision-summary { grid-template-columns: 1fr; gap: 18px; }
+    }
+
+    @media (max-width: 560px) {
+      .topbar-inner { gap: 10px; }
+
+      .candidate-grid,
+      .decision-list { grid-template-columns: 1fr; }
+
+      .candidate-head { min-height: 82px; }
+
+      .candidate-foot { min-height: auto; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      * { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <span>AI LIFE SIM · PAGE-BY-PAGE REVIEW</span>
+      <span class="topbar-status">B05 · 四选一</span>
+    </div>
+  </header>
+
+  <main class="review-shell">
+    <section class="intro" aria-labelledby="page-title">
+      <div>
+        <span class="eyebrow">第一阶段 · 现有候选直接评审</span>
+        <h1 id="page-title">同一界面，四种排版并排比较</h1>
+        <p class="intro-copy">B01–B04 的现成页面保持原样。下面按具体界面分成四轮，每轮同时展示四个版本并独立记录选择，不需要在母版目录之间来回切换。</p>
+      </div>
+      <nav class="intro-meta" aria-label="评审资料">
+        <a href="EVALUATION.md">查看证据与差异</a>
+        <a href="../BOOK-STYLE-CODEX-THREAD-PLAN.md">查看竞赛任务书</a>
+        <a href="../index.html">返回移动端方案库</a>
+      </nav>
+    </section>
+
+    <nav class="round-nav" aria-label="界面评审导航">
+      <a href="#world-select"><b>世界选择</b><span class="summary-value" data-summary="world-select">待选择</span></a>
+      <a href="#talent-draw"><b>命格抽取</b><span class="summary-value" data-summary="talent-draw">待选择</span></a>
+      <a href="#game-story"><b>核心模拟</b><span class="summary-value" data-summary="game-story">待选择</span></a>
+      <a href="#settings"><b>设置</b><span class="summary-value" data-summary="settings">待选择</span></a>
+    </nav>
+
+    <section class="page-round" id="world-select" data-page="world-select" aria-labelledby="world-select-title">
+      <header class="round-heading">
+        <div>
+          <span class="round-number">01 / 04 · WORLD SELECT</span>
+          <h2 id="world-select-title">世界选择 · 四种排版</h2>
+          <p>同一组世界、规则摘要、更多/存档/自定义入口、难度和确认流程，只比较信息组织与阅读节奏。</p>
+        </div>
+        <div class="round-choice" aria-live="polite">本页选择：<strong data-current-choice>待选择</strong><button class="clear-choice" type="button" title="清除世界选择页的选择" aria-label="清除世界选择页的选择">×</button></div>
+      </header>
+      <div class="candidate-grid">
+        <article class="candidate" data-choice="B01">
+          <header class="candidate-head"><div><span class="candidate-code">B01 · Chapter Folio</span><h3>章节书页</h3></div><button class="select-button" type="button" aria-pressed="false">选择 B01</button></header>
+          <div class="preview-stage"><div class="preview-canvas"><iframe src="b01-chapter-folio/world-select.html" title="世界选择 B01 章节书页" loading="eager"></iframe></div></div>
+          <footer class="candidate-foot"><p>规则、世界目录与难度按章节收束，纵向最紧凑，章末确认路径最短。</p><a class="open-link" href="b01-chapter-folio/world-select.html" target="_blank">打开完整页面</a></footer>
+        </article>
+        <article class="candidate" data-choice="B02">
+          <header class="candidate-head"><div><span class="candidate-code">B02 · Facing Spread</span><h3>对开书册</h3></div><button class="select-button" type="button" aria-pressed="false">选择 B02</button></header>
+          <div class="preview-stage"><div class="preview-canvas"><iframe src="b02-facing-spread/world-select.html" title="世界选择 B02 对开书册" loading="eager"></iframe></div></div>
+          <footer class="candidate-foot"><p>左页解释规则、右页负责选择；宽屏关系明确，窄屏按先读后做串联。</p><a class="open-link" href="b02-facing-spread/world-select.html" target="_blank">打开完整页面</a></footer>
+        </article>
+        <article class="candidate" data-choice="B03">
+          <header class="candidate-head"><div><span class="candidate-code">B03 · Marginalia</span><h3>批注手稿</h3></div><button class="select-button" type="button" aria-pressed="false">选择 B03</button></header>
+          <div class="preview-stage"><div class="preview-canvas"><iframe src="b03-marginalia/world-select.html" title="世界选择 B03 批注手稿" loading="eager"></iframe></div></div>
+          <footer class="candidate-foot"><p>世界目录是正文，规则、选中原因与流程状态退到旁批和脚注。</p><a class="open-link" href="b03-marginalia/world-select.html" target="_blank">打开完整页面</a></footer>
+        </article>
+        <article class="candidate" data-choice="B04">
+          <header class="candidate-head"><div><span class="candidate-code">B04 · Serial Scroll</span><h3>章回长卷</h3></div><button class="select-button" type="button" aria-pressed="false">选择 B04</button></header>
+          <div class="preview-stage"><div class="preview-canvas"><iframe src="b04-serial-scroll/world-select.html" title="世界选择 B04 章回长卷" loading="eager"></iframe></div></div>
+          <footer class="candidate-foot"><p>世界被写成连续谱牒，章节定位和卷线最强，但完成选择所需滚动最长。</p><a class="open-link" href="b04-serial-scroll/world-select.html" target="_blank">打开完整页面</a></footer>
+        </article>
+      </div>
+    </section>
+
+    <section class="page-round" id="talent-draw" data-page="talent-draw" aria-labelledby="talent-draw-title">
+      <header class="round-heading">
+        <div>
+          <span class="round-number">02 / 04 · TALENT DRAW</span>
+          <h2 id="talent-draw-title">命格抽取 · 四种排版</h2>
+          <p>四版均保留 P1 云紫宽环、十二命印、抽取中禁用与完成状态，只比较仪式焦点和信息编排。</p>
+        </div>
+        <div class="round-choice" aria-live="polite">本页选择：<strong data-current-choice>待选择</strong><button class="clear-choice" type="button" title="清除命格抽取页的选择" aria-label="清除命格抽取页的选择">×</button></div>
+      </header>
+      <div class="candidate-grid">
+        <article class="candidate" data-choice="B01">
+          <header class="candidate-head"><div><span class="candidate-code">B01 · Chapter Folio</span><h3>章节书页</h3></div><button class="select-button" type="button" aria-pressed="false">选择 B01</button></header>
+          <div class="preview-stage"><div class="preview-canvas"><iframe src="b01-chapter-folio/talent-draw.html" title="命格抽取 B01 章节书页" loading="eager"></iframe></div></div>
+          <footer class="candidate-foot"><p>宽环与十二命印集中在一张仪式书页，同屏关系最紧凑。</p><a class="open-link" href="b01-chapter-folio/talent-draw.html" target="_blank">打开完整页面</a></footer>
+        </article>
+        <article class="candidate" data-choice="B02">
+          <header class="candidate-head"><div><span class="candidate-code">B02 · Facing Spread</span><h3>对开书册</h3></div><button class="select-button" type="button" aria-pressed="false">选择 B02</button></header>
+          <div class="preview-stage"><div class="preview-canvas"><iframe src="b02-facing-spread/talent-draw.html" title="命格抽取 B02 对开书册" loading="eager"></iframe></div></div>
+          <footer class="candidate-foot"><p>仪式释义和抽取行动分成两页，机制解释最完整，移动端更长。</p><a class="open-link" href="b02-facing-spread/talent-draw.html" target="_blank">打开完整页面</a></footer>
+        </article>
+        <article class="candidate" data-choice="B03">
+          <header class="candidate-head"><div><span class="candidate-code">B03 · Marginalia</span><h3>批注手稿</h3></div><button class="select-button" type="button" aria-pressed="false">选择 B03</button></header>
+          <div class="preview-stage"><div class="preview-canvas"><iframe src="b03-marginalia/talent-draw.html" title="命格抽取 B03 批注手稿" loading="eager"></iframe></div></div>
+          <footer class="candidate-foot"><p>宽环保持中心，稀有度、计数和抽取状态通过注记补充。</p><a class="open-link" href="b03-marginalia/talent-draw.html" target="_blank">打开完整页面</a></footer>
+        </article>
+        <article class="candidate" data-choice="B04">
+          <header class="candidate-head"><div><span class="candidate-code">B04 · Serial Scroll</span><h3>章回长卷</h3></div><button class="select-button" type="button" aria-pressed="false">选择 B04</button></header>
+          <div class="preview-stage"><div class="preview-canvas"><iframe src="b04-serial-scroll/talent-draw.html" title="命格抽取 B04 章回长卷" loading="eager"></iframe></div></div>
+          <footer class="candidate-foot"><p>十二命印成为仪轨谱牒，叙事顺序最强，但环与命印被滚动分开。</p><a class="open-link" href="b04-serial-scroll/talent-draw.html" target="_blank">打开完整页面</a></footer>
+        </article>
+      </div>
+    </section>
+
+    <section class="page-round" id="game-story" data-page="game-story" aria-labelledby="game-story-title">
+      <header class="round-heading">
+        <div>
+          <span class="round-number">03 / 04 · CORE SIMULATION</span>
+          <h2 id="game-story-title">核心模拟 · 四种排版</h2>
+          <p>四版使用相同人物、HUD、故事正文、世界账簿与分支操作，只比较长阅读中的状态位置和推进节奏。</p>
+        </div>
+        <div class="round-choice" aria-live="polite">本页选择：<strong data-current-choice>待选择</strong><button class="clear-choice" type="button" title="清除核心模拟页的选择" aria-label="清除核心模拟页的选择">×</button></div>
+      </header>
+      <div class="candidate-grid">
+        <article class="candidate" data-choice="B01">
+          <header class="candidate-head"><div><span class="candidate-code">B01 · Chapter Folio</span><h3>章节书页</h3></div><button class="select-button" type="button" aria-pressed="false">选择 B01</button></header>
+          <div class="preview-stage"><div class="preview-canvas"><iframe src="b01-chapter-folio/game-story.html" title="核心模拟 B01 章节书页" loading="eager"></iframe></div></div>
+          <footer class="candidate-foot"><p>HUD、正文与章末抉择集中在单页，阅读路径短且推进动作稳定。</p><a class="open-link" href="b01-chapter-folio/game-story.html" target="_blank">打开完整页面</a></footer>
+        </article>
+        <article class="candidate" data-choice="B02">
+          <header class="candidate-head"><div><span class="candidate-code">B02 · Facing Spread</span><h3>对开书册</h3></div><button class="select-button" type="button" aria-pressed="false">选择 B02</button></header>
+          <div class="preview-stage"><div class="preview-canvas"><iframe src="b02-facing-spread/game-story.html" title="核心模拟 B02 对开书册" loading="eager"></iframe></div></div>
+          <footer class="candidate-foot"><p>正文和状态行动各占一页，宽屏职责最清楚，移动端形成前后页。</p><a class="open-link" href="b02-facing-spread/game-story.html" target="_blank">打开完整页面</a></footer>
+        </article>
+        <article class="candidate" data-choice="B03">
+          <header class="candidate-head"><div><span class="candidate-code">B03 · Marginalia</span><h3>批注手稿</h3></div><button class="select-button" type="button" aria-pressed="false">选择 B03</button></header>
+          <div class="preview-stage"><div class="preview-canvas"><iframe src="b03-marginalia/game-story.html" title="核心模拟 B03 批注手稿" loading="eager"></iframe></div></div>
+          <footer class="candidate-foot"><p>故事保持正文中心，风险、状态和 HUD 解释退为动态旁批。</p><a class="open-link" href="b03-marginalia/game-story.html" target="_blank">打开完整页面</a></footer>
+        </article>
+        <article class="candidate" data-choice="B04">
+          <header class="candidate-head"><div><span class="candidate-code">B04 · Serial Scroll</span><h3>章回长卷</h3></div><button class="select-button" type="button" aria-pressed="false">选择 B04</button></header>
+          <div class="preview-stage"><div class="preview-canvas"><iframe src="b04-serial-scroll/game-story.html" title="核心模拟 B04 章回长卷" loading="eager"></iframe></div></div>
+          <footer class="candidate-foot"><p>人物、纪年、故事和选择落在同一时间轴，是长卷命题最自然的一页。</p><a class="open-link" href="b04-serial-scroll/game-story.html" target="_blank">打开完整页面</a></footer>
+        </article>
+      </div>
+    </section>
+
+    <section class="page-round" id="settings" data-page="settings" aria-labelledby="settings-title">
+      <header class="round-heading">
+        <div>
+          <span class="round-number">04 / 04 · SETTINGS</span>
+          <h2 id="settings-title">设置 · 四种排版</h2>
+          <p>四版均保留四个设置范围、全部控件、默认约 200 字和恢复默认，只比较高密度表单的书本化方式。</p>
+        </div>
+        <div class="round-choice" aria-live="polite">本页选择：<strong data-current-choice>待选择</strong><button class="clear-choice" type="button" title="清除设置页的选择" aria-label="清除设置页的选择">×</button></div>
+      </header>
+      <div class="candidate-grid">
+        <article class="candidate" data-choice="B01">
+          <header class="candidate-head"><div><span class="candidate-code">B01 · Chapter Folio</span><h3>章节书页</h3></div><button class="select-button" type="button" aria-pressed="false">选择 B01</button></header>
+          <div class="preview-stage"><div class="preview-canvas"><iframe src="b01-chapter-folio/settings.html" title="设置 B01 章节书页" loading="eager"></iframe></div></div>
+          <footer class="candidate-foot"><p>顶部索引配合连续条目，扫描最快，但最接近常规设置表单。</p><a class="open-link" href="b01-chapter-folio/settings.html" target="_blank">打开完整页面</a></footer>
+        </article>
+        <article class="candidate" data-choice="B02">
+          <header class="candidate-head"><div><span class="candidate-code">B02 · Facing Spread</span><h3>对开书册</h3></div><button class="select-button" type="button" aria-pressed="false">选择 B02</button></header>
+          <div class="preview-stage"><div class="preview-canvas"><iframe src="b02-facing-spread/settings.html" title="设置 B02 对开书册" loading="eager"></iframe></div></div>
+          <footer class="candidate-foot"><p>目录页选择范围、参数页完成修改，768px 清楚，移动端多一次空间移动。</p><a class="open-link" href="b02-facing-spread/settings.html" target="_blank">打开完整页面</a></footer>
+        </article>
+        <article class="candidate" data-choice="B03">
+          <header class="candidate-head"><div><span class="candidate-code">B03 · Marginalia</span><h3>批注手稿</h3></div><button class="select-button" type="button" aria-pressed="false">选择 B03</button></header>
+          <div class="preview-stage"><div class="preview-canvas"><iframe src="b03-marginalia/settings.html" title="设置 B03 批注手稿" loading="eager"></iframe></div></div>
+          <footer class="candidate-foot"><p>当前值和影响范围都成为校记，解释完整，但批注密度最高。</p><a class="open-link" href="b03-marginalia/settings.html" target="_blank">打开完整页面</a></footer>
+        </article>
+        <article class="candidate" data-choice="B04">
+          <header class="candidate-head"><div><span class="candidate-code">B04 · Serial Scroll</span><h3>章回长卷</h3></div><button class="select-button" type="button" aria-pressed="false">选择 B04</button></header>
+          <div class="preview-stage"><div class="preview-canvas"><iframe src="b04-serial-scroll/settings.html" title="设置 B04 章回长卷" loading="eager"></iframe></div></div>
+          <footer class="candidate-foot"><p>四个设置范围全部展开为条款长卷，跨章节比较方便，单项修改路径最长。</p><a class="open-link" href="b04-serial-scroll/settings.html" target="_blank">打开完整页面</a></footer>
+        </article>
+      </div>
+    </section>
+
+    <section class="decision-summary" aria-labelledby="decision-title">
+      <div><span class="eyebrow">本轮结果</span><h2 id="decision-title">逐页选择记录</h2></div>
+      <div class="decision-list">
+        <div class="decision-item"><span>世界选择</span><strong data-decision="world-select">待选择</strong></div>
+        <div class="decision-item"><span>命格抽取</span><strong data-decision="talent-draw">待选择</strong></div>
+        <div class="decision-item"><span>核心模拟</span><strong data-decision="game-story">待选择</strong></div>
+        <div class="decision-item"><span>设置</span><strong data-decision="settings">待选择</strong></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const storageKey = 'ai-life-sim-book-style-page-choices-v1';
+      const labels = {
+        B01: 'B01 · 章节书页',
+        B02: 'B02 · 对开书册',
+        B03: 'B03 · 批注手稿',
+        B04: 'B04 · 章回长卷'
+      };
+      let selections = {};
+
+      try {
+        selections = JSON.parse(localStorage.getItem(storageKey) || '{}');
+      } catch (_) {
+        selections = {};
+      }
+
+      function saveSelections() {
+        try { localStorage.setItem(storageKey, JSON.stringify(selections)); } catch (_) {}
+      }
+
+      function renderRound(round) {
+        const page = round.dataset.page;
+        const selected = selections[page] || '';
+        round.querySelectorAll('.candidate').forEach((candidate) => {
+          const active = candidate.dataset.choice === selected;
+          candidate.classList.toggle('is-selected', active);
+          const button = candidate.querySelector('.select-button');
+          button.setAttribute('aria-pressed', String(active));
+          button.textContent = active ? '已选择' : `选择 ${candidate.dataset.choice}`;
+        });
+        round.querySelector('[data-current-choice]').textContent = selected ? labels[selected] : '待选择';
+        round.querySelector('.clear-choice').classList.toggle('is-visible', Boolean(selected));
+        const shortLabel = selected || '待选择';
+        const summary = document.querySelector(`[data-summary="${page}"]`);
+        summary.textContent = shortLabel;
+        summary.classList.toggle('has-choice', Boolean(selected));
+        document.querySelector(`[data-decision="${page}"]`).textContent = selected ? labels[selected] : '待选择';
+      }
+
+      document.querySelectorAll('.page-round').forEach((round) => {
+        round.querySelectorAll('.select-button').forEach((button) => {
+          button.addEventListener('click', () => {
+            selections[round.dataset.page] = button.closest('.candidate').dataset.choice;
+            saveSelections();
+            renderRound(round);
+          });
+        });
+        round.querySelector('.clear-choice').addEventListener('click', () => {
+          delete selections[round.dataset.page];
+          saveSelections();
+          renderRound(round);
+        });
+        renderRound(round);
+      });
+
+      function resizePreview(stage) {
+        const scale = Math.min(1, stage.clientWidth / 390);
+        const canvas = stage.querySelector('.preview-canvas');
+        stage.style.height = `${Math.round(844 * scale)}px`;
+        canvas.style.transform = `translateX(-${Math.round(195 * scale)}px) scale(${scale})`;
+      }
+
+      const stages = Array.from(document.querySelectorAll('.preview-stage'));
+      const observer = new ResizeObserver((entries) => entries.forEach((entry) => resizePreview(entry.target)));
+      stages.forEach((stage) => {
+        observer.observe(stage);
+        resizePreview(stage);
+      });
+    })();
+  </script>
+</body>
+</html>

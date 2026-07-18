@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>命格抽取 · B04 章回长卷</title>
+  <link rel="stylesheet" href="tokens.css">
+</head>
+<body>
+  <div class="progress-track" aria-hidden="true"><div class="progress-bar"></div></div>
+  <main class="book">
+    <header class="masthead" id="top">
+      <div class="folio-line">
+        <a class="return-link" href="index.html">返回 B04 目录</a>
+        <span>创建流程 · 04 / 抽取</span>
+      </div>
+      <p class="kicker">NEW LIFE · DESTINY PATTERN</p>
+      <h1>第四回　十二印归命</h1>
+      <p class="lead">P1 云紫宽环悬于卷首，十二命印沿卷轴逐条归位。全部完成后，命印退入归档，只留下进入命格选择的卷末动作。</p>
+    </header>
+
+    <div class="reading-layout">
+      <nav class="chapter-nav" aria-label="本卷回目">
+        <a href="#ritual" aria-current="location">仪轨卷首</a>
+        <a href="#seals">十二命印</a>
+        <a href="#outcome">归位结果</a>
+        <a href="#colophon">卷末去向</a>
+      </nav>
+
+      <div class="scroll-main">
+        <section class="chapter is-current" id="ritual" data-chapter>
+          <div class="chapter-mark">卷首 · P1 云紫宽环</div>
+          <h2>让命运揭示你的命格</h2>
+          <p class="chapter-intro">五层低饱和宽环围住柔白内核，以单一云紫强调仪式状态，不把稀有度变成彩色信息流。</p>
+          <div class="ritual-stage" aria-label="P1 云紫宽环">
+            <div class="wide-ring" aria-hidden="true">
+              <i class="ring-layer"></i><i class="ring-layer"></i><i class="ring-layer"></i><i class="ring-layer"></i><i class="ring-layer"></i>
+              <i class="ring-wave w1"></i><i class="ring-wave w2"></i><i class="ring-wave w3"></i><i class="ring-wave w4"></i><i class="ring-wave w5"></i><i class="ring-wave w6"></i>
+              <span class="ring-core">命</span>
+            </div>
+          </div>
+          <p class="status-line"><span>仪式状态</span><strong class="ritual-status">等待抽取</strong></p>
+        </section>
+
+        <div class="turn-divider" aria-hidden="true">命印次第</div>
+
+        <section class="chapter" id="seals" data-chapter>
+          <div class="chapter-mark">第一节 · 十二命印</div>
+          <div class="seal-meta"><span>按序归位</span><strong class="seal-count">0 / 12</strong></div>
+          <h2>命印谱牒</h2>
+          <p class="chapter-intro">序号、归位状态与稀有度以谱牒条目呈现。普通、精良、稀有、史诗与传说保留原含义，只用文字和线条层级区分。</p>
+          <div class="seal-live">
+            <div class="seal-ledger" aria-live="polite"></div>
+          </div>
+          <details class="seal-archive" hidden>
+            <summary>
+              <span class="summary-mark">成</span>
+              <span class="summary-copy"><strong>十二命印已归档</strong><small>完成态默认收起，展开可回看本轮谱牒</small></span>
+              <svg class="disclosure" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 6l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </summary>
+            <div class="detail-body"><div class="seal-ledger archive-ledger"></div></div>
+          </details>
+          <div class="chapter-actions">
+            <a class="text-action" href="../../character-create/final.html">返回角色创建</a>
+            <button class="primary-action draw-action" type="button">开始抽取</button>
+          </div>
+        </section>
+
+        <div class="turn-divider" aria-hidden="true">十二印合卷</div>
+
+        <section class="chapter" id="outcome" data-chapter>
+          <div class="chapter-mark">第二节 · 归位结果</div>
+          <div class="ritual-outcome pending-outcome">
+            <strong>尚未成卷</strong>
+            <span>十二条命格全部归位后显示结果</span>
+          </div>
+          <div class="ritual-outcome complete-outcome" hidden>
+            <strong>十二印归命</strong>
+            <span>命格已全部生成，可以进入命格选择</span>
+          </div>
+          <p class="chapter-intro" style="margin-top: 24px;">完成态保留宽环的慢呼吸涌波；命印正文退出主轴并收进归档，使视线重新回到“命”字核心。</p>
+        </section>
+
+        <div class="turn-divider" aria-hidden="true">下一卷</div>
+
+        <section class="chapter" id="colophon" data-chapter>
+          <div class="chapter-mark">卷末 · 流程去向</div>
+          <h2>进入命格选择</h2>
+          <p class="chapter-intro">抽取与神话传承式命格选择仍是两个不同阶段。本卷只完成十二命印抽取，不在这里改写后续选择机制。</p>
+          <div class="end-actions">
+            <a class="text-action" href="#ritual">回到仪轨卷首</a>
+            <button class="primary-action enter-action" type="button" disabled>完成抽取后进入</button>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <footer class="serial-footer"><p>卷四 · 命格抽取 · P1 云紫宽环与十二命印机制保留</p></footer>
+  </main>
+  <div class="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (function () {
+      const rarities = [['common', '普通'], ['fine', '精良'], ['common', '普通'], ['rare', '稀有'], ['fine', '精良'], ['common', '普通'], ['epic', '史诗'], ['fine', '精良'], ['rare', '稀有'], ['common', '普通'], ['legendary', '传说'], ['common', '普通']];
+      const liveLedger = document.querySelector('.seal-live .seal-ledger');
+      const archiveLedger = document.querySelector('.archive-ledger');
+      function sealMarkup(item, index, lit) {
+        return '<div class="seal-row ' + item[0] + (lit ? ' lit' : '') + '"><span>' + String(index + 1).padStart(2, '0') + '</span><b>' + (lit ? '命印已归位' : '等待归位') + '</b><span class="seal-rarity">' + (lit ? item[1] : '未揭示') + '</span></div>';
+      }
+      liveLedger.innerHTML = rarities.map(function (item, index) { return sealMarkup(item, index, false); }).join('');
+      archiveLedger.innerHTML = rarities.map(function (item, index) { return sealMarkup(item, index, true); }).join('');
+
+      const draw = document.querySelector('.draw-action');
+      const enter = document.querySelector('.enter-action');
+      const toast = document.querySelector('.toast');
+      function announce(message) {
+        toast.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(toast._timer);
+        toast._timer = setTimeout(function () { toast.classList.remove('show'); }, 1200);
+      }
+      draw.addEventListener('click', function () {
+        if (draw.dataset.done === 'true') {
+          location.href = '../../mythic-inheritance/final.html';
+          return;
+        }
+        if (document.body.classList.contains('drawing')) return;
+        document.body.classList.add('drawing');
+        draw.disabled = true;
+        draw.textContent = '生成中';
+        document.querySelector('.ritual-status').textContent = '命印正在归位';
+        const rows = Array.from(liveLedger.querySelectorAll('.seal-row'));
+        let index = 0;
+        const timer = setInterval(function () {
+          const row = rows[index];
+          row.classList.add('lit');
+          row.querySelector('b').textContent = '命印已归位';
+          row.querySelector('.seal-rarity').textContent = rarities[index][1];
+          index += 1;
+          document.querySelector('.seal-count').textContent = index + ' / 12';
+          if (index === 12) {
+            clearInterval(timer);
+            setTimeout(function () {
+              document.body.classList.remove('drawing');
+              document.body.classList.add('complete');
+              document.querySelector('.seal-live').hidden = true;
+              document.querySelector('.seal-archive').hidden = false;
+              document.querySelector('.pending-outcome').hidden = true;
+              document.querySelector('.complete-outcome').hidden = false;
+              document.querySelector('.ritual-status').textContent = '十二命印已归位';
+              draw.disabled = false;
+              draw.dataset.done = 'true';
+              draw.textContent = '进入命格选择';
+              enter.disabled = false;
+              enter.textContent = '进入命格选择';
+              announce('十二命印全部归位');
+            }, 420);
+          }
+        }, 400);
+      });
+      enter.addEventListener('click', function () { if (!enter.disabled) location.href = '../../mythic-inheritance/final.html'; });
+
+      const bar = document.querySelector('.progress-bar');
+      const chapters = Array.from(document.querySelectorAll('[data-chapter]'));
+      const links = Array.from(document.querySelectorAll('.chapter-nav a'));
+      function updateScrollState() {
+        const max = document.documentElement.scrollHeight - innerHeight;
+        bar.style.transform = 'scaleX(' + (max > 0 ? scrollY / max : 0) + ')';
+        let current = chapters[0];
+        chapters.forEach(function (chapter) { if (chapter.getBoundingClientRect().top <= 110) current = chapter; });
+        chapters.forEach(function (chapter) { chapter.classList.toggle('is-current', chapter === current); });
+        links.forEach(function (link) { link.setAttribute('aria-current', link.getAttribute('href') === '#' + current.id ? 'location' : 'false'); });
+      }
+      addEventListener('scroll', updateScrollState, { passive: true });
+      updateScrollState();
+    }());
+  </script>
+</body>
+</html>

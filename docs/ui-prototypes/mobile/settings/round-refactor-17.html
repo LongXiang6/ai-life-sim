@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>设置 · 原机制视觉适配</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../assets/style-adaptation-review.css">
+</head>
+<body>
+  <main class="review-shell">
+    <div class="review-topbar"><a href="index.html">← 返回设置界面历史</a><span class="review-status" data-selection-status>待用户选择</span></div>
+    <header class="review-head">
+      <h1>设置 · 原机制视觉适配</h1>
+      <p>三版均直接运行设置 final.html：四章页签、开关、推理方式、叙事字数、预生成、模型选择、Prompt 与恢复默认全部沿用原实现。</p>
+      <div class="review-proof"><span><b>运行真源</b> final.html</span><span><b>DOM / JavaScript</b> 原样复制</span><span><b>候选差异</b> 仅 CSS 视觉层</span></div>
+    </header>
+    <section class="candidate-grid" aria-label="设置原机制视觉适配三选一">
+      <article class="candidate" data-candidate="ST-RF17-1">
+        <header class="candidate-head">
+          <div><span class="candidate-code">ST-RF17-1</span><h2>极简白纸</h2></div>
+          <button class="candidate-select" type="button" data-select-candidate aria-pressed="false">选择此版</button>
+          <p>以纯白、灰蓝状态和统一白色承托栏适配设置界面，不改变任何选项与状态。</p>
+        </header>
+        <div class="preview-frame"><iframe src="round-refactor-17-style-1.html" title="ST-RF17-1 · 极简白纸"></iframe></div>
+        <p class="candidate-note"><b>运行方式：</b>完整复用当前 final.html，仅在文档头部追加两条 CSS 引用。</p>
+      </article>
+      <article class="candidate" data-candidate="ST-RF17-2">
+        <header class="candidate-head">
+          <div><span class="candidate-code">ST-RF17-2</span><h2>淡墨承托</h2></div>
+          <button class="candidate-select" type="button" data-select-candidate aria-pressed="false">选择此版</button>
+          <p>只增加淡墨层次、柔和边界与承托感，四章设置和恢复默认逻辑保持原样。</p>
+        </header>
+        <div class="preview-frame"><iframe src="round-refactor-17-style-2.html" title="ST-RF17-2 · 淡墨承托"></iframe></div>
+        <p class="candidate-note"><b>运行方式：</b>完整复用当前 final.html，仅在文档头部追加两条 CSS 引用。</p>
+      </article>
+      <article class="candidate" data-candidate="ST-RF17-3">
+        <header class="candidate-head">
+          <div><span class="candidate-code">ST-RF17-3</span><h2>书页精修</h2></div>
+          <button class="candidate-select" type="button" data-select-candidate aria-pressed="false">选择此版</button>
+          <p>只加强书页字阶、细线与白色操作承托，全部设置状态仍来自原稿。</p>
+        </header>
+        <div class="preview-frame"><iframe src="round-refactor-17-style-3.html" title="ST-RF17-3 · 书页精修"></iframe></div>
+        <p class="candidate-note"><b>运行方式：</b>完整复用当前 final.html，仅在文档头部追加两条 CSS 引用。</p>
+      </article>
+    </section>
+    <p class="review-foot">候选中的操作可直接点击验证；选择某一视觉方案不会改变设置内部的原始状态与流程。</p>
+  </main>
+  <script src="../assets/style-adaptation-review.js"></script>
+</body>
+</html>

@@ -84,7 +84,7 @@ export function writeCheckReport({
     ]),
     '',
     `> Full JSON: \`${path.basename(jsonPath)}\``,
-    `> ATCE 模板: \`.agents/skills/ai-life-sim-skill/resources/atce-template.md\``,
+    `> 项目上下文: \`../AGENTS.md\``,
     '',
   ]
     .filter((line, i, arr) => line !== '' || arr[i - 1] !== '')

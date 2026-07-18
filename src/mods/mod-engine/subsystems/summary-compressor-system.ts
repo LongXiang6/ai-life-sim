@@ -20,7 +20,6 @@
  */
 
 import type {
-  ISubSystem,
   SubSystemState,
   SubSystemChanges,
   RoundContext,
@@ -34,7 +33,7 @@ import type {
   NarrativeDirection,
   AIModelConfig,
 } from '@/foundation'
-import { callAI } from '@/core'
+import { BaseSubsystem, callAI } from '@/core'
 import { useSettingsStore } from '@/mods/mod-settings'
 
 import { buildSummaryPrompt, buildSummarySystemPrompt } from '../prompts/summary-prompt'
@@ -106,7 +105,7 @@ export interface CompressorStats {
 // SummaryCompressorSystem
 // ============================================================
 
-export class SummaryCompressorSystem implements ISubSystem {
+export class SummaryCompressorSystem extends BaseSubsystem {
   readonly id = 'summary-compressor' as const
   readonly mod = 'mod-engine' as const
   readonly label = '叙事压缩' as const
@@ -134,6 +133,24 @@ export class SummaryCompressorSystem implements ISubSystem {
 
   getStats(): CompressorStats {
     return { ...this.stats }
+  }
+
+  /** 从 EngineState 已有字段恢复压缩器私有状态，不扩展存档载荷。 */
+  restoreFromEngineState(
+    summaries: CompressedSummaries | undefined,
+    stats?: { l1Count?: number; l2Count?: number; l3Count?: number; l4Count?: number; lastAt?: number },
+  ): void {
+    this.compressedSummaries = structuredClone(summaries ?? { summaries: [] })
+    const countLevel = (level: number) => this.compressedSummaries.summaries.filter((item) => item.level === level).length
+    this.stats = {
+      totalL1: stats?.l1Count ?? countLevel(1),
+      totalL2: stats?.l2Count ?? countLevel(2),
+      totalL3: stats?.l3Count ?? countLevel(3),
+      totalL4: stats?.l4Count ?? countLevel(4),
+      totalL5: countLevel(5),
+      totalL6: countLevel(6),
+      lastCompressionAt: stats?.lastAt ?? 0,
+    }
   }
 
   // ---- 旧 API 兼容（保留，供现有代码过渡） ----
@@ -201,7 +218,7 @@ export class SummaryCompressorSystem implements ISubSystem {
     turnCount: number,
     resolvedBranches?: Record<number, string>,
     storySeed?: string,
-    memoryLifecycle?: MemoryLifecycleSystem,
+    _memoryLifecycle?: MemoryLifecycleSystem,
   ): Promise<CompressionResult> {
     // 读取用户 AI 设置
     const { customKey, provider, customUrl, customModel } = useSettingsStore.getState()
@@ -256,22 +273,10 @@ export class SummaryCompressorSystem implements ISubSystem {
           )
           let summaryTokens = computeSummaryTokenBudget(totalNarrativeChars)
 
-          // 语义重要性加权：高分事件保留更多细节，低分事件更激进压缩
-          // 优先用 digestLedger 的 AI 自评数值重要性（更准），区间内无账本条目时降级回退关键词评分
-          const ledgerAvg = digestLedger.averageAdjustedImportance(startRound, endRound)
-          if (ledgerAvg !== null) {
-            const boostFactor = 0.75 + ledgerAvg * 1.0
-            summaryTokens = Math.round(summaryTokens * boostFactor)
-          } else if (memoryLifecycle) {
-            const importanceScores = blockEvents
-              .map(e => memoryLifecycle.rateImportance(e.narrative || ''))
-            const avgImportance = importanceScores.length > 0
-              ? importanceScores.reduce((a, b) => a + b, 0) / importanceScores.length
-              : 0.5
-            // 重要性系数：低分(0-0.3)压缩更多(×0.7)，高分(0.7-1.0)保留更多(×1.3)
-            const boostFactor = 0.75 + avgImportance * 1.0
-            summaryTokens = Math.round(summaryTokens * boostFactor)
-          }
+          // 只使用 AI 摘要账本的重要性；缺失时采用中性 0.5，不扫描叙事正文。
+          const ledgerAvg = digestLedger.averageAdjustedImportance(startRound, endRound) ?? 0.5
+          const boostFactor = 0.75 + ledgerAvg
+          summaryTokens = Math.round(summaryTokens * boostFactor)
 
           const { system, user } = buildSummaryPrompt(
             blockEvents,

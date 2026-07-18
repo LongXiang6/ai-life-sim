@@ -5,21 +5,21 @@
  *
  * 四方案融合设计：
  *   A. 三层记忆分离：状态卡(始终在)+叙事窗(L0近期)+历史纲(L6)，L2-L5转为检索索引
- *   B. 重要度分层：每轮叙事评分为HIGH/NORMAL/LOW，差异化压缩保留
- *   C. 事件闭环驱动：检测叙事弧完成后再触发压缩，避免语义断裂
+ *   B. 重要度分层：消费 AI 的 HIGH/NORMAL/LOW，差异化压缩保留
+ *   C. 事件闭环驱动：消费 AI 的 arcStatus/arcType，避免语义断裂
  *   D. 事件聚合（合并自 span-event-aggregator）：严重度排序 + 因果链合并 + 比例限制 + 数量上限
  *
  * 架构：
- *   L0原始叙事 → 重要性评分 → 事件闭环检测 → 事件聚合(严重度排序+因果合并+比例限制) → 差异化压缩 → 检索索引 → Prompt注入
+ *   AI META → 重要度/事件弧/实体 → L0 标记 → 事件聚合 → 差异化压缩 → 检索索引 → Prompt注入
  *
  * 每轮Prompt注入内容（精简到极致）：
  *   1. 状态卡（subsystem summaries，结构化当前状态）
  *   2. 最近5轮L0原文（细节完整的短期记忆）
  *   3. L6历史纲要（一生纵览，长期记忆框架）
- *   4. 检索命中摘要（L2-L5中匹配当前关键字的内容，"突然想起来的往事"）
+ *   4. 检索命中摘要（L2-L5 中按 AI 标注实体匹配，"突然想起来的往事"）
  *   5. 聚合事件（严重事件优先，因果链合并，比例控制）
  *
- * 重要性评分规则：
+ * AI 重要性约定：
  *   HIGH   = 死亡/战斗/突破/背叛/结婚/生子/重大转折
  *   NORMAL = 人际关系变化/职业变动/旅行/学习/普通事件
  *   LOW    = 日常流水/重复训练/闲逛/无事发生
@@ -36,15 +36,9 @@
  *   LOW    800字→80字  (10%)
  */
 
-import type {
-  ISubSystem,
-  SubSystemState,
-  SubSystemChanges,
-  RoundContext,
-} from '@/foundation'
-import { extractEntities } from '../helpers/digest-ledger'
-
-// Uses pattern matching via patternManager; USE_PATTERN_MANAGER feature flag managed centrally
+import type { SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
+import { BaseSubsystem } from '@/core'
+import type { NarrativeSemanticSignals } from '../helpers/narrative-semantic-signals'
 
 // ============================================================
 // 类型定义
@@ -66,7 +60,8 @@ export type ClosureType =
 export interface ImportanceResult {
   importance: EventImportance
   score: number
-  matchedKeywords: string[]
+  semanticTags: string[]
+  source: 'ai' | 'fallback'
   isClosure: boolean
   closureType: ClosureType,
 }
@@ -75,6 +70,8 @@ export interface ImportanceResult {
 export interface TaggedEvent {
   /** 轮次 */
   round: number
+  /** 事件发生的日历年，仅供时间跨度展示；唯一键仍为 roundSequence。 */
+  calendarYear?: number
   /** 叙事文本 */
   narrative: string
   /** 重要度 */
@@ -83,7 +80,7 @@ export interface TaggedEvent {
   isClosure: boolean
   /** 闭环类型 */
   closureType: ClosureType
-  /** 标记的检索关键词 */
+  /** AI 标注的检索实体 */
   tags: string[],
 }
 
@@ -97,7 +94,7 @@ export interface IndexEntry {
   endRound: number
   /** 摘要内容 */
   content: string
-  /** 索引关键词 */
+  /** 索引实体 */
   tags: string[]
   /** 最高重要度 */
   maxImportance: EventImportance,
@@ -158,7 +155,6 @@ const MAX_EVENTS_BY_SEVERITY: Record<EventSeverity, number> = {
   color: 3,
 }
 const COLOR_EVENT_RATIO = 0.2
-const CAUSAL_SIMILARITY_THRESHOLD = 0.6
 
 /** 压缩触发决策 */
 export interface CompressionDecision {
@@ -194,72 +190,8 @@ export interface RichPromptContext {
   l4Summary: string
   /** L6 历史纲要（一生纵览） */
   historyOutline: string
-  /** 检索命中（从L2-L5关键词匹配） */
+  /** 检索命中（从 L2-L5 结构化实体匹配） */
   retrievalHits: string[],
-}
-
-// ============================================================
-// 常量
-// ============================================================
-
-/** 重要性关键词 - HIGH */
-const HIGH_KEYWORDS: string[] = [
-  '死亡', '阵亡', '牺牲', '战死', '去世',
-  '突破', '觉醒', '飞升', '入魔', '涅槃',
-  '背叛', '复仇', '决裂', '血战', '大捷',
-  '结婚', '生子', '诞子', '继承', '登基',
-  '婚约', '订婚', '成亲', '大婚',
-  '发现', '发明', '创造', '毁灭', '拯救',
-  '契约', '诅咒', '预言', '命运', '天机',
-  '折寿', '减寿', '禁术', '寿元',
-  '重伤', '濒死', '重生', '转世', '升仙',
-]
-
-/** 重要性关键词 - NORMAL */
-const NORMAL_KEYWORDS: string[] = [
-  '相识', '结识', '成为朋友', '结盟',  '合作',
-  '迁移', '旅行', '远行', '搬迁', '抵达',
-  '学习', '拜师', '收徒', '传授', '习得',
-  '晋升', '升职', '任职', '离职', '转行',
-  '获得', '得到', '发现', '接收', '赠与',
-  '经商', '交易', '出售', '购买', '投资',
-  '冲突', '争吵', '不和', '矛盾', '分歧',
-  '和解', '和好', '原谅', '释怀', '放下',
-]
-
-/** 重要性关键词 - LOW */
-const LOW_KEYWORDS: string[] = [
-  '日常', '生活', '吃饭', '睡觉', '散步',
-  '看书', '练习', '修炼', '打坐', '冥想',
-  '逛街', '闲逛', '漫步', '休整', '调整',
-  '整理', '打扫', '清洗', '维护', '检查',
-  '闲聊', '闲谈', '应酬', '寒暄', '客套',
-  '重复', '日复一日', '一如既往', '平淡', '寻常',
-]
-
-/** 闭环检测模式 */
-const CLOSURE_PATTERNS: Record<ClosureType, { start: RegExp; end: RegExp }> = {
-  battle: {
-    start: /战斗|开战|出击|交[战锋]|厮杀|决战/,
-    end: /胜利|凯旋|战败|撤退|击退|歼灭|平定|终[结战]|结束.*(战斗|战役|战争)/,
-  },
-  journey: {
-    start: /出发|启程|动身|踏上|前往|离家|出行/,
-    end: /抵达|到达|返回|归来|回到|到达.*(目的地|终点)/,
-  },
-  task: {
-    start: /接受.*(任务|委托|请求)|答应|承诺|约定/,
-    end: /完成.*(任务|委托|请求)|兑现|实现.*(承诺|约定)/,
-  },
-  relationship: {
-    start: /相识|结识|认识|遇见|相遇/,
-    end: /成为.*(朋友|敌人|师徒|伴侣|夫妻)|结盟|决裂|和解|订婚/,
-  },
-  life_stage: {
-    start: /年幼|童年|少年|青年|壮年|中年|老年|暮年/,
-    end: /成年|及冠|及笄|弱冠|而立|不惑|知天命/,
-  },
-  none: { start: /$^/, end: /$^/, }, // 永不匹配,
 }
 
 /** 每个重要度级别的保留比例 */
@@ -275,7 +207,7 @@ const CAPACITY_THRESHOLD = 15
 /** 最少回合数才触发压缩 */
 const MIN_ROUNDS_FOR_COMPRESSION = 3
 
-/** 检索关键词索引最大条目数 */
+/** 检索索引最大条目数 */
 const MAX_INDEX_ENTRIES = 50
 
 /** 每轮检索命中最大注入量 */
@@ -285,7 +217,7 @@ const MAX_RETRIEVAL_HITS = 3
 // MemoryLifecycleSystem
 // ============================================================
 
-export class MemoryLifecycleSystem implements ISubSystem {
+export class MemoryLifecycleSystem extends BaseSubsystem {
   readonly id = 'memory-lifecycle' as const
   readonly mod = 'mod-engine' as const
   readonly label = '记忆生命周期' as const
@@ -296,7 +228,7 @@ export class MemoryLifecycleSystem implements ISubSystem {
   /** 当前块中已标记的事件（尚未压缩） */
   private taggedEvents: TaggedEvent[] = []
 
-  /** 检索索引（L2-L5摘要的关键词索引） */
+  /** 检索索引（L2-L5 摘要的结构化实体索引） */
   private searchIndex: IndexEntry[] = []
 
   /** 当前是否在战斗/任务/旅程中 */
@@ -322,8 +254,12 @@ export class MemoryLifecycleSystem implements ISubSystem {
   /** AI 标注的轮次重要性映射（轮次 → 重要度） */
   private aiImportanceMap = new Map<number, 'HIGH' | 'NORMAL' | 'LOW'>()
 
-  /** AI 标注的事件弧状态（轮次 → start/ongoing/end），优先于关键词闭环检测 */
+  /** AI 标注的事件弧状态（轮次 → start/ongoing/end） */
   private aiArcStatusMap = new Map<number, 'start' | 'ongoing' | 'end'>()
+
+  /** AI 结构化事件弧类型与实体标签。 */
+  private aiArcTypeMap = new Map<number, ClosureType>()
+  private aiEntityMap = new Map<number, string[]>()
 
   // ---- 公共方法 ----
 
@@ -339,269 +275,77 @@ export class MemoryLifecycleSystem implements ISubSystem {
     return [...this.searchIndex,]
   }
 
-  /** 设置 AI 标注的轮次重要性（在 handleNarrativeResponse 中调用） */
-  setAIRoundImportance(round: number, importance: 'HIGH' | 'NORMAL' | 'LOW'): void {
+  /** 记录经 Schema 校验的 AI 语义，供重要性、闭环与检索系统消费。 */
+  setAISemanticAnalysis(
+    round: number,
+    importance: EventImportance,
+    arcStatus: 'start' | 'ongoing' | 'end',
+    signals: NarrativeSemanticSignals,
+    entities: string[],
+  ): void {
     this.aiImportanceMap.set(round, importance)
+    this.aiArcStatusMap.set(round, arcStatus)
+    this.aiArcTypeMap.set(round, signals.arcType)
+    this.aiEntityMap.set(round, [...new Set(entities.filter(Boolean))])
   }
-
-  /** 设置 AI 标注的事件弧状态（在 handleNarrativeResponse 中调用） */
-  setAIArcStatus(round: number, status: 'start' | 'ongoing' | 'end'): void {
-    this.aiArcStatusMap.set(round, status)
-  }
-
-  // ============================================================
-  // 核心方法0：重要性评分（简化版，返回 0-1 分数供压缩决策使用）
-  // 设计：基于关键词命中计算 0-1 重要性分数
-  //   - HIGH 关键词命中 → 0.8-1.0
-  //   - NORMAL 关键词命中 → 0.3-0.7
-  //   - LOW / 无命中 → 0.0-0.2
-  // ============================================================
 
   /**
-   * 评估叙事片段的语义重要性（0-1 分数）
-   *
-   * 用途：供压缩系统按重要性加权分配 Token 预算
-   *   高分事件：保留更多细节（更高 token budget）
-   *   低分事件：可更激进压缩（节省 token）
-   *
-   * @param narrative 叙事文本
-   * @returns 0-1 重要性分数
+   * 只消费结构化 AI 语义。缺失时使用可识别的 LOW 中立降级，不扫描正文。
    */
-  rateImportance(narrative: string): number {
-    let hitCount = 0
+  scoreImportance(narrative: string, round: number, calendarYear?: number): ImportanceResult {
+    const importance = this.aiImportanceMap.get(round) ?? 'LOW'
+    const source: ImportanceResult['source'] = this.aiImportanceMap.has(round) ? 'ai' : 'fallback'
+    const semanticTags = this.aiEntityMap.get(round) ?? []
+    const closureInfo = this.resolveClosure(round)
+    const score = importance === 'HIGH' ? 9 : importance === 'NORMAL' ? 5 : 1
 
-    // 检查 HIGH 关键词（权重最高）
-    for (const kw of HIGH_KEYWORDS) {
-      if (narrative.includes(kw)) {
-        hitCount++
-      }
-    }
-
-    // 上限检查：HIGH 命中即高分段
-    if (hitCount > 0) {
-      return Math.min(1.0, 0.7 + hitCount * 0.1)
-    }
-
-    // 检查 NORMAL 关键词
-    for (const kw of NORMAL_KEYWORDS) {
-      if (narrative.includes(kw)) {
-        hitCount++
-      }
-    }
-
-    if (hitCount > 0) {
-      return Math.min(0.7, 0.2 + hitCount * 0.1)
-    }
-
-    // 检查 LOW 关键词
-    for (const kw of LOW_KEYWORDS) {
-      if (narrative.includes(kw)) {
-        hitCount++
-      }
-    }
-
-    // 无匹配关键词：最低分（日常流水）
-    return Math.min(0.2, hitCount * 0.05)
-  }
-
-  // ============================================================
-  // 核心方法1：重要性评分 + 闭环检测
-  // ============================================================
-
-  /**
- * 分析一轮叙事的重要性并检测是否闭环
- *
- * 判定策略：最高命中等级制
- *   - 只要命中一个HIGH关键词 → HIGH（日常再多也无法淹没重要事件）
- *   - 命中NORMAL关键词（且无HIGH） → NORMAL
- *   - 什么都没有命中 → LOW
- *
- * @param narrative 本轮叙事文本
- * @param round 轮次
- * @returns 评分结果
- */
-scoreImportance(narrative: string, round: number,): ImportanceResult {
-  const matchedKeywords: string[] = []
-
-  // ⭐ F1：优先参考 AI 标注的重要性（辅助关键词匹配，不替代）
-  const aiImportance = this.aiImportanceMap.get(round)
-  const aiBoost = aiImportance === 'HIGH' ? 2 : aiImportance === 'NORMAL' ? 0 : -1
-
-  // 检查HIGH关键词（优先级最高，只要命中就是HIGH）
-  for (const kw of HIGH_KEYWORDS) {
-    if (narrative.includes(kw,)) {
-      matchedKeywords.push(kw,)
-    }
-  }
-
-  if (matchedKeywords.length > 0) {
-    // 命中HIGH关键词 → 直接判定为HIGH
-    const result: ImportanceResult = {
-      importance: 'HIGH',
-      score: matchedKeywords.length * 3,
-      matchedKeywords,
-      isClosure: false,
-      closureType: 'none',
-    }
-
-    // 检测事件闭环
-    const closureInfo = this.resolveClosure(narrative, round)
-    result.isClosure = closureInfo.detected
-    result.closureType = closureInfo.type
-
-    // 存入已标记事件
-    this.taggedEvents.push({
+    const existingIndex = this.taggedEvents.findIndex((event) => event.round === round)
+    const tagged: TaggedEvent = {
       round,
+      calendarYear,
       narrative,
-      importance: 'HIGH',
-      isClosure: result.isClosure,
-      closureType: result.closureType,
-      tags: matchedKeywords,
-    },)
+      importance,
+      isClosure: closureInfo.detected,
+      closureType: closureInfo.type,
+      tags: semanticTags,
+    }
+    if (existingIndex >= 0) this.taggedEvents[existingIndex] = tagged
+    else this.taggedEvents.push(tagged)
 
-    this.stats.totalScored++
-    this.stats.totalHigh++
+    if (existingIndex < 0) {
+      this.stats.totalScored++
+      if (importance === 'HIGH') this.stats.totalHigh++
+      else if (importance === 'NORMAL') this.stats.totalNormal++
+      else this.stats.totalLow++
+    }
 
-    return result
-  }
-
-  // 检查NORMAL关键词
-  const normalHits: string[] = []
-  for (const kw of NORMAL_KEYWORDS) {
-    if (narrative.includes(kw,)) {
-      normalHits.push(kw,)
+    return {
+      importance,
+      score,
+      semanticTags,
+      source,
+      isClosure: closureInfo.detected,
+      closureType: closureInfo.type,
     }
   }
 
-  if (normalHits.length > 0) {
-    // 命中NORMAL关键词 → 但 AI 标注 HIGH 时升级
-    const effectiveImportance: EventImportance = aiBoost >= 2 ? 'HIGH' : 'NORMAL'
-    const result: ImportanceResult = {
-      importance: effectiveImportance,
-      score: normalHits.length * 2 + aiBoost,
-      matchedKeywords: normalHits,
-      isClosure: false,
-      closureType: 'none',
-    }
-
-    const closureInfo = this.resolveClosure(narrative, round)
-    result.isClosure = closureInfo.detected
-    result.closureType = closureInfo.type
-
-    this.taggedEvents.push({
-      round,
-      narrative,
-      importance: effectiveImportance,
-      isClosure: result.isClosure,
-      closureType: result.closureType,
-      tags: normalHits,
-    },)
-
-    this.stats.totalScored++
-    if (effectiveImportance === 'HIGH') {
-      this.stats.totalHigh++
-    } else {
-      this.stats.totalNormal++
-    }
-
-    return result
-  }
-
-  // 无 HIGH/NORMAL 匹配 → 检查 LOW 关键词 + AI 标注
-  const lowHits: string[] = []
-  for (const kw of LOW_KEYWORDS) {
-    if (narrative.includes(kw,)) {
-      lowHits.push(kw,)
-    }
-  }
-
-  const closureInfo = this.resolveClosure(narrative, round)
-
-  // AI 标注可升级 LOW → NORMAL/HIGH（AI 判断"这很重要"但关键词没覆盖）
-  const effectiveLowImportance: EventImportance =
-    aiBoost >= 2 ? 'HIGH' : aiBoost >= 0 ? 'NORMAL' : 'LOW'
-
-  this.taggedEvents.push({
-    round,
-    narrative,
-    importance: effectiveLowImportance,
-    isClosure: closureInfo.detected,
-    closureType: closureInfo.type,
-    tags: lowHits,
-  },)
-
-  this.stats.totalScored++
-  if (effectiveLowImportance === 'HIGH') {
-    this.stats.totalHigh++
-  } else if (effectiveLowImportance === 'NORMAL') {
-    this.stats.totalNormal++
-  } else {
-    this.stats.totalLow++
-  }
-
-  return {
-    importance: effectiveLowImportance,
-    score: lowHits.length + aiBoost,
-    matchedKeywords: lowHits,
-    isClosure: closureInfo.detected,
-    closureType: closureInfo.type,
-  }
-}
-
-  /**
-   * 检测叙事中是否发生了事件闭环
-   */
-  private detectClosure(narrative: string,): { detected: boolean; type: ClosureType } {
-    // 检查当前活跃的闭环类型
-    if (this.activeClosure !== 'none') {
-      const pattern = CLOSURE_PATTERNS[this.activeClosure]
-      if (pattern.end.test(narrative,)) {
-        // 闭环结束
-        const closed = this.activeClosure
-        this.activeClosure = 'none'
-        return { detected: true, type: closed, }
-      }
-      // 正在战斗中/任务中，未闭合
-      return { detected: false, type: this.activeClosure, }
-    }
-
-    // 检查是否有新的闭环开始
-    for (const [type, patterns,] of Object.entries(CLOSURE_PATTERNS,)) {
-      if (type === 'none') continue
-      if (patterns.start.test(narrative,)) {
-        // 新闭环开始
-        this.activeClosure = type as ClosureType
-        // 同时检查是否在同轮内完成闭环
-        if (patterns.end.test(narrative,)) {
-          this.activeClosure = 'none'
-          return { detected: true, type: type as ClosureType, }
-        }
-        return { detected: false, type: type as ClosureType, }
-      }
-    }
-
-    return { detected: false, type: 'none', }
-  }
-
-  /**
-   * 事件闭环判定：AI 结构化 arcStatus 优先，关键词模式仅作降级。
-   * arcStatus 不含具体类型时，用当前活跃类型；若没有活跃类型，归入 task。
-   */
-  private resolveClosure(narrative: string, round: number): { detected: boolean; type: ClosureType } {
-    const aiStatus = this.aiArcStatusMap.get(round)
-    if (aiStatus === 'start') {
-      if (this.activeClosure === 'none') this.activeClosure = 'task'
+  private resolveClosure(round: number): { detected: boolean; type: ClosureType } {
+    const status = this.aiArcStatusMap.get(round)
+    const typed = this.aiArcTypeMap.get(round) ?? 'none'
+    if (!status) return { detected: false, type: 'none' }
+    if (status === 'start') {
+      this.activeClosure = typed === 'none' ? 'task' : typed
       return { detected: false, type: this.activeClosure }
     }
-    if (aiStatus === 'ongoing') {
-      return { detected: false, type: this.activeClosure === 'none' ? 'task' : this.activeClosure }
+    if (status === 'ongoing') {
+      if (typed !== 'none') this.activeClosure = typed
+      return { detected: false, type: this.activeClosure }
     }
-    if (aiStatus === 'end') {
-      const closed = this.activeClosure === 'none' ? 'task' : this.activeClosure
-      this.activeClosure = 'none'
-      return { detected: true, type: closed }
-    }
-    return this.detectClosure(narrative)
+    const closed = typed !== 'none'
+      ? typed
+      : this.activeClosure === 'none' ? 'task' : this.activeClosure
+    this.activeClosure = 'none'
+    return { detected: true, type: closed }
   }
 
   // ============================================================
@@ -714,17 +458,34 @@ scoreImportance(narrative: string, round: number,): ImportanceResult {
     }
 
     if (lowEvents.length > 0) {
-      prompt += `【日常流水（保留10%关键词）】\n`
+      prompt += `【日常流水（低比例保留细节）】\n`
       prompt += lowEvents.map((e,) => `第${e.round}轮[LOW]：${e.narrative}`,).join('\n',)
     }
 
     return prompt
   }
 
-  /** 压缩完成后清空已标记事件 */
-  clearTaggedEvents(): void {
-    this.stats.totalCompressions++
-    this.taggedEvents = []
+  /** 只清理已被摘要覆盖的事件，保留尚未进入任何摘要的新回合。 */
+  clearTaggedEventsThrough(endRound: number): number {
+    const previousLength = this.taggedEvents.length
+    this.taggedEvents = this.taggedEvents.filter((event) => event.round > endRound)
+    const removed = previousLength - this.taggedEvents.length
+    if (removed > 0) this.stats.totalCompressions++
+
+    for (const key of this.aiImportanceMap.keys()) {
+      if (key <= endRound) this.aiImportanceMap.delete(key)
+    }
+    for (const key of this.aiArcStatusMap.keys()) {
+      if (key <= endRound) this.aiArcStatusMap.delete(key)
+    }
+    for (const key of this.aiArcTypeMap.keys()) {
+      if (key <= endRound) this.aiArcTypeMap.delete(key)
+    }
+    for (const key of this.aiEntityMap.keys()) {
+      if (key <= endRound) this.aiEntityMap.delete(key)
+    }
+
+    return removed
   }
 
   // ============================================================
@@ -753,6 +514,10 @@ scoreImportance(narrative: string, round: number,): ImportanceResult {
   clearEvents(): void {
     this.rawEvents = []
     this.aggregatedEvents = []
+    this.aiImportanceMap.clear()
+    this.aiArcStatusMap.clear()
+    this.aiArcTypeMap.clear()
+    this.aiEntityMap.clear()
     this.aiImportanceMap.clear()
     this.aiArcStatusMap.clear()
   }
@@ -828,49 +593,8 @@ scoreImportance(narrative: string, round: number,): ImportanceResult {
   }
 
   private mergeCausalChains(events: RawEvent[],): RawEvent[] {
-    if (events.length <= 1) return events
-
-    const merged: RawEvent[] = []
-    const usedIndices = new Set<number>()
-
-    for (let i = 0; i < events.length; i++) {
-      if (usedIndices.has(i,)) continue
-
-      const current = events[i]
-      const mergedEvent = { ...current, }
-
-      for (let j = i + 1; j < events.length; j++) {
-        if (usedIndices.has(j,)) continue
-
-        const other = events[j]
-        if (current.effect && other.cause && this.areCausallyLinked(current.effect, other.cause,)) {
-          mergedEvent.description += ` → ${other.description}`
-          usedIndices.add(j,)
-        } else if (current.cause && other.effect && this.areCausallyLinked(other.effect, current.cause,)) {
-          mergedEvent.description = `${other.description} → ${mergedEvent.description}`
-          mergedEvent.title = other.title
-          mergedEvent.severity = SEVERITY_WEIGHT[current.severity] >= SEVERITY_WEIGHT[other.severity]
-            ? current.severity : other.severity
-          usedIndices.add(j,)
-        }
-      }
-
-      merged.push(mergedEvent,)
-      usedIndices.add(i,)
-    }
-
-    return merged
-  }
-
-  private areCausallyLinked(effect: string, cause: string,): boolean {
-    const effectWords = [...extractEntities(effect.toLowerCase())]
-    const causeWords = [...extractEntities(cause.toLowerCase())]
-    if (effectWords.length === 0 || causeWords.length === 0) return false
-    let matches = 0
-    for (const word of effectWords) {
-      if (causeWords.includes(word,)) matches++
-    }
-    return matches / Math.max(effectWords.length, causeWords.length,) >= CAUSAL_SIMILARITY_THRESHOLD
+    // 因果关系只能来自结构化事件链接；当前 RawEvent 没有稳定 ID 链时保持原序列。
+    return events
   }
 
   private applyLimits(events: RawEvent[],): RawEvent[] {
@@ -915,7 +639,7 @@ scoreImportance(narrative: string, round: number,): ImportanceResult {
    * 将压缩后的摘要添加到检索索引
    *
    * L2-L5摘要不注入Prompt，而是存入索引。
-   * 当后续叙事中出现匹配关键词时，按需检索并临时注入。
+   * 当后续回合的 AI 结构化实体与索引重合时，按需检索并临时注入。
    */
   addToIndex(
     level: number,
@@ -924,7 +648,7 @@ scoreImportance(narrative: string, round: number,): ImportanceResult {
     content: string,
     events: TaggedEvent[],
   ): void {
-    // 从原始事件中提取关键词
+    // 汇总 AI 标注的结构化实体
     const allTags = new Set<string>()
     let maxImportance: EventImportance = 'LOW'
 
@@ -967,36 +691,37 @@ scoreImportance(narrative: string, round: number,): ImportanceResult {
   }
 
   /**
-   * 按需检索：给定叙事文本，从索引中检索匹配的摘要
+   * 按需检索：按当前回合 AI 标注实体从索引中检索摘要。
    *
    * 检索策略（替代动态多层级地图）：
-   *   1. 关键词匹配：叙事文本中的词与索引标签匹配
+   *   1. 实体匹配：当前回合 AI 标注实体与索引标签精确匹配
    *   2. 重要度加成：HIGH 事件优先，NORMAL 次之
-   *   3. 区域感知：如果叙事中提到地点/区域名，额外加成该区域的条目
+   *   3. 地点/区域同样由 keyEvents.entities 显式标注
    *
    * 设计理念：不创建动态多层级地图系统，而是利用已有的检索索引机制。
-   * 当角色移动到新的区域时，叙事中会自然提到该区域的名字，
-   * 检索引擎会自动从索引中调取该区域的叙事历史，实现"区域感知"。
+   * 当角色移动到新的区域时，AI 在 keyEvents.entities 中标注稳定名称，
+   * 检索引擎据此调取相关叙事历史，实现"区域感知"。
    *
    * 这等价于：L0=角色当前位置的叙事，L1=城镇级摘要，L2=区域级摘要，
-   * L3=大陆级摘要，L4+=世界级摘要。检索引擎按关键词匹配自动选择
+   * L3=大陆级摘要，L4+=世界级摘要。检索引擎按结构化实体匹配自动选择
    * 相关层级的摘要注入 Prompt，无需手动管理地图层级。
    *
-   * @param queryText 当前叙事（用于关键词匹配）
+   * @param _queryText 兼容旧调用；不再读取正文做语义检索
    * @returns 匹配的摘要内容列表
    */
-  retrieveFromIndex(queryText: string,): string[] {
+  retrieveFromIndex(_queryText: string,): string[] {
     if (this.searchIndex.length === 0) return []
-
-    // 提取叙事中的地点/区域关键词
-    const regionKeywords = this.extractRegionKeywords(queryText,)
+    const latestRound = this.aiEntityMap.size > 0
+      ? Math.max(...this.aiEntityMap.keys())
+      : undefined
+    const currentEntities = new Set(latestRound === undefined ? [] : this.aiEntityMap.get(latestRound))
 
     const results: Array<{ entry: IndexEntry; score: number }> = []
 
     for (const entry of this.searchIndex) {
       let score = 0
 
-      // 0. 重要性基础分（娱乐性优先：HIGH 条目不应依赖关键词才出现）
+      // 0. 重要性基础分（HIGH 条目不应依赖实体命中才出现）
       if (entry.maxImportance === 'HIGH') score += 4
       else if (entry.maxImportance === 'NORMAL') score += 2
 
@@ -1007,21 +732,10 @@ scoreImportance(narrative: string, round: number,): ImportanceResult {
         if (aiImp === 'NORMAL') score += 2
       }
 
-      // 1. 关键词匹配
+      // 1. AI 实体精确匹配
       for (const tag of entry.tags) {
-        if (queryText.includes(tag,)) {
-          score += 1
-        }
-      }
-
-      // 2. 区域感知加成：如果叙事中提到该条目所在区域，额外加分
-      for (const region of regionKeywords) {
-        if (entry.tags.includes(region,)) {
-          score += 2 // 区域匹配权重较高
-        }
-        // 区域名也匹配内容中的文本
-        if (entry.content.includes(region,)) {
-          score += 1
+        if (currentEntities.has(tag)) {
+          score += 3
         }
       }
 
@@ -1029,7 +743,7 @@ scoreImportance(narrative: string, round: number,): ImportanceResult {
     if (entry.maxImportance === 'HIGH') score *= 2
     else if (entry.maxImportance === 'NORMAL') score *= 1.5
 
-    // 4. HIGH 保底：重要记忆即使无关键词也应进入候选（娱乐性 > token）
+    // 4. HIGH 保底：重要记忆即使无实体命中也应进入候选
     if (score === 0 && entry.maxImportance === 'HIGH') {
       score = 5
     }
@@ -1048,36 +762,6 @@ scoreImportance(narrative: string, round: number,): ImportanceResult {
 
     this.stats.totalRetrievals += hits.length
     return hits
-  }
-
-  /**
-   * 从叙事文本中提取地点/区域关键词
-   *
-   * 策略：匹配常见的地点模式（XX城、XX国、XX大陆、XX山脉等）
-   *
-   * @param text 叙事文本
-   * @returns 提取到的区域关键词列表
-   */
-  private extractRegionKeywords(text: string,): string[] {
-    const regionPatterns = [
-      /([\u4e00-\u9fa5]{1,6}(?:城|镇|村|庄|堡|寨))/g,
-      /([\u4e00-\u9fa5]{1,6}(?:国|邦|帝国|王国|共和国))/g,
-      /([\u4e00-\u9fa5]{1,6}(?:大陆|洲|岛屿|半岛))/g,
-      /([\u4e00-\u9fa5]{1,6}(?:山脉|河流|湖泊|森林|沙漠|草原|海洋))/g,
-      /([\u4e00-\u9fa5]{1,6}(?:秘境|禁地|圣地|遗迹|战场))/g,
-    ]
-
-    const keywords = new Set<string>()
-    for (const pattern of regionPatterns) {
-      const matches = text.match(pattern,)
-      if (matches) {
-        for (const match of matches) {
-          keywords.add(match,)
-        }
-      }
-    }
-
-    return [...keywords,]
   }
 
   // ============================================================
@@ -1213,6 +897,7 @@ scoreImportance(narrative: string, round: number,): ImportanceResult {
     if (context.recentNarratives.length > 0) {
       parts.push('',)
       parts.push('【最新发展】',)
+      parts.push('以下是已发生事实的原始记录，只用于延续人物、关系、因果和线索；不得模仿其中的叙述人称、措辞或段落结构。',)
       parts.push(context.recentNarratives.join('\n---\n',))
     }
 
@@ -1286,6 +971,48 @@ scoreImportance(narrative: string, round: number,): ImportanceResult {
       throw new Error(`[${this.id}] Missing changes.description`,)
     }
     void changes.changes; // 记忆生命周期系统一般不从外部接收变更
+  }
+
+  /** 预生成会读取检索索引并累加统计；结束后必须恢复真实时间线。 */
+  capturePreviewState(): unknown {
+    return structuredClone({
+      taggedEvents: this.taggedEvents,
+      searchIndex: this.searchIndex,
+      activeClosure: this.activeClosure,
+      rawEvents: this.rawEvents,
+      aggregatedEvents: this.aggregatedEvents,
+      stats: this.stats,
+      aiImportanceMap: this.aiImportanceMap,
+      aiArcStatusMap: this.aiArcStatusMap,
+      aiArcTypeMap: this.aiArcTypeMap,
+      aiEntityMap: this.aiEntityMap,
+    })
+  }
+
+  restorePreviewState(snapshot: unknown): void {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
+    const value = snapshot as {
+      taggedEvents?: TaggedEvent[]
+      searchIndex?: IndexEntry[]
+      activeClosure?: ClosureType
+      rawEvents?: RawEvent[]
+      aggregatedEvents?: AggregatedEvent[]
+      stats?: ReturnType<MemoryLifecycleSystem['getStats']>
+      aiImportanceMap?: Map<number, EventImportance>
+      aiArcStatusMap?: Map<number, 'start' | 'ongoing' | 'end'>
+      aiArcTypeMap?: Map<number, ClosureType>
+      aiEntityMap?: Map<number, string[]>
+    }
+    if (value.taggedEvents) this.taggedEvents = structuredClone(value.taggedEvents)
+    if (value.searchIndex) this.searchIndex = structuredClone(value.searchIndex)
+    if (value.activeClosure) this.activeClosure = value.activeClosure
+    if (value.rawEvents) this.rawEvents = structuredClone(value.rawEvents)
+    if (value.aggregatedEvents) this.aggregatedEvents = structuredClone(value.aggregatedEvents)
+    if (value.stats) this.stats = structuredClone(value.stats)
+    if (value.aiImportanceMap) this.aiImportanceMap = structuredClone(value.aiImportanceMap)
+    if (value.aiArcStatusMap) this.aiArcStatusMap = structuredClone(value.aiArcStatusMap)
+    if (value.aiArcTypeMap) this.aiArcTypeMap = structuredClone(value.aiArcTypeMap)
+    if (value.aiEntityMap) this.aiEntityMap = structuredClone(value.aiEntityMap)
   }
 
   reset(): void {

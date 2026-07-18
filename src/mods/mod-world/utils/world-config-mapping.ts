@@ -9,12 +9,21 @@ import type { WorldConfig } from '../types'
 /** 力量体系中文 → powerSystemTag */
 export const POWER_SYSTEM_ZH_MAP: Record<string, string> = {
   无: 'none',
+  无超自然: 'none',
+  无超自然力量: 'none',
+  '普通人的知识、技能与社会资源': 'none',
   修仙: 'cultivation',
+  修仙体系: 'cultivation',
   魔法: 'magic',
+  魔法体系: 'magic',
   灵能: 'psi',
+  灵能体系: 'psi',
   科技: 'technology',
+  科技体系: 'technology',
   异能: 'psi',
+  异能体系: 'psi',
   混合: 'mixed',
+  混合体系: 'mixed',
 }
 
 /** 世界观本质中文 → essenceTag */
@@ -57,7 +66,7 @@ export const COHERENCE_LOCK_FIELD_MAP: Record<string, keyof NonNullable<WorldCon
 }
 
 export function mapPowerSystemZhToTag(zh: string): string {
-  return POWER_SYSTEM_ZH_MAP[zh] ?? 'cultivation'
+  return POWER_SYSTEM_ZH_MAP[zh.trim()] ?? 'mixed'
 }
 
 export function mapWorldviewEssenceZhToTag(zh: string): string {

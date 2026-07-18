@@ -31,7 +31,7 @@ export function PageScroll({ children, maxWidth = MAX_WIDTH, className = '' }: P
     <div className={className} style={{
       position: 'relative',
       zIndex: 1,
-      height: '100vh',
+      height: '100dvh',
       padding: isMobile ? PAGE_PADDING.mobile : PAGE_PADDING.desktop,
       background: 'var(--color-bg)',
       display: 'flex',

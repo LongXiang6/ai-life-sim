@@ -15,7 +15,7 @@ import {
   applyCoherenceToWorldConfig,
   shouldSkipEntityAIGeneration,
   WorldInitSystem,
-  WorldEntitySystem,
+  getWorldEntitySystem,
 } from './world-init-bundle-deps'
 import type { WorldConfig, WorldSnapshot } from './types'
 import {
@@ -96,7 +96,8 @@ export async function commitWorldInitialization(
   // 纪元名称同步到 world store
   if (resolvedConfig.eraName) store.setEraName(resolvedConfig.eraName)
 
-  const entitySystem = new WorldEntitySystem()
+  const entitySystem = getWorldEntitySystem()
+  entitySystem.reset()
   entitySystem.setRegions(snapshot.regions)
   const syncCoherence = buildWorldCoherenceHint(resolvedConfig.civilizationStage, resolvedConfig.description)
   entitySystem.setWorldContext(

@@ -13,12 +13,12 @@
 
 | # | 决策 | 落地要点 |
 |---|------|---------|
-| D1 | **G1 三段式用方案 A** | 保持 `narrative` 为 string，输出规约 + 改写示例强制三段。**无需考虑前缀缓存失效**（开发阶段，一次性改完即可）。`narrative-hints.ts` 中与"聚焦单事件"冲突的措辞（year 档"进展与变迁"、branchResolved"完整过程"等）**一并软化**。⚠️ 待办：把"开发阶段不考虑向前兼容 / 缓存失效"这一前提**写入相关技能声明**（ai-prompt-skill / 核心流程），避免后续 AI 反复顾虑缓存。 |
+| D1 | **G1 三段式用方案 A** | 保持 `narrative` 为 string，输出规约 + 改写示例强制三段。**无需考虑前缀缓存失效**（开发阶段，一次性改完即可）。`narrative-hints.ts` 中与"聚焦单事件"冲突的措辞（year 档"进展与变迁"、branchResolved"完整过程"等）**一并软化**。当前 Prompt 项目上下文由 `ai-life-sim-prompt-engineering` 提供，具体缓存行为以实时调用链为准。 |
 | D2 | **事件密度上限收到 3** | `notableEvents` 与 `keyEvents` 上限均设为 **3**（非之前建议的 1 / 2~3）。三段式仍单核心事件，但允许至多 3 条关键事件记录，兼顾 digestLedger 连锁质量。 |
 | D3 | **摘要预算：先改措辞观察 + 轻微调系数** | 先落 L1 prompt"只提事件、忽略描写"措辞，观察实际摘要长度；系数 `×2.4` 仅做**轻微下调**（非激进砍到 1.5），保留 `MIN_SUMMARY_TOKENS` 保底。 |
 | D4 | **G2 去正则化做全量** | A 类全部迁移（A1~A6），不止 P0。仍遵循"AI 出语义 + 符号钳制兜底 + 漏字段降级"护栏。技术债（`split(/\s+/)` 中文失效、穿越者双实现）一并修。 |
 | D5 | **E1：resources 设为慢变量** | `ATTR_DELTA_CLAMP` 改 `Record<AttrKey,[number,number]>`，resources 收窄。**数值体系理念修正**：不以"几轮达成"为锚点，而以**游戏内时间跨度**为锚点——时间引擎（TimeSystem）是核心中的核心，几乎所有系统都与时间引擎相关，成长/衰减/超凡速率应换算到"每年/每阶段"而非"每轮"。 |
-| D6 | **E2：先做 token 治理系统性重构** | 先立 spacing/typography/MAX_WIDTH token 规矩再逐页替换。**新建 ui-liquid-glass-skill**（仓库中不存在实际文件）：定义适配游戏界面的设计风格规范。风格方向见下方 §六 补充。 |
+| D6 | **E2：先做 token 治理系统性重构** | 先立 spacing/typography/MAX_WIDTH token 规矩再逐页替换。相关视觉与主题上下文现由 `ai-life-sim-ui` 提供，风格方向见下方 §六 补充。 |
 
 ### 第二批决策（2026-07-07，追加三项评估拍板）
 
@@ -109,7 +109,7 @@
 ### G1 已确认决策（2026-07-07）
 
 1. ✅ **Schema 方案 A**。项目处于开发阶段，不考虑向前兼容/存档迁移，方案 B 的"击穿存档历史"顾虑不成立——但仍先上 A（string + 输出规约 + 示例），因为它对解析链、UI、压缩器零改动，是最小改动达成目标的路径。若后续需要更硬的结构化，再评估 B。
-2. ✅ **无需考虑 KV 前缀失效**。开发阶段一次性失效可接受。**须在 ai-prompt-skill 中声明**："修改 SYSTEM_PROMPT 会令 KV 前缀缓存失效一次，开发阶段不作为约束，但所有 SYSTEM_PROMPT 改动应尽量合并成一次提交发布。"（skill 落地时补充此条）
+2. ✅ **无需考虑 KV 前缀失效**。开发阶段一次性失效可接受。当前实现应读取 `ai-life-sim-prompt-engineering` 与实时调用链，不在 Skill 中长期复制供应商缓存细节。
 3. ✅ **`narrative-hints.ts` 措辞一并软化**。year 档"进展与变迁…不一笔带过"、branchResolved"完整过程"等与"聚焦单事件"冲突的 hint，改为"聚焦此期间最关键的一件事，写透它"。与 SYSTEM_PROMPT 三段式规约同批改，消除 system 与 user hint 打架。
 4. ✅ **摘要预算：先改措辞观察，再轻微调系数**。第一步只加 L1 prompt 的"只提事件、忽略描写"措辞（风险低）；观察三段式上线后摘要实际长度，再决定 `2.4` 是否下调、下调幅度（轻微，保留 `MIN_SUMMARY_TOKENS` 保底）。不一步到位动系数。
 5. ✅ **`keyEvents` 上限定为 3**（见 D2）。上限 3 仍能为 digestLedger 连锁回溯提供足够事件交集，不会因过少失效。
@@ -257,9 +257,9 @@
 ### E2 决策（已确认 2026-07-07）
 
 - **先做 token 治理这类系统性重构**（上面建议顺序 1-5 全部采纳）：扩 `spacing.css` 档位、固化 `PAGE_PADDING`/`MAX_WIDTH`、强制走 PageScroll、统一容器宽度、对齐底栏内边距、建 typography 层级 token。这是纯前端重构、与 AI 侧无耦合，可独立并行。
-- **`ui-liquid-glass-skill` 实际文件缺失 → 需新编写一个**：仓库里 AGENTS.md 提到该 skill 但 `.claude/skills`、`docs/` 均无实际文件。确认要**新建这个 skill**，定义一套适配"游戏界面的苹果 UI 设计风格"（Apple HIG，与现有极简白基调一致）的玻璃视觉规范：通透度、blur 半径、边框、层次、`--color-surface` 使用约定、统一 `glass` 工具类。skill 建立后，§四 A2 命格底栏和本节玻璃化都据此规范落地。
+- **UI 项目上下文已落地为 `ai-life-sim-ui`**：它提供项目视觉身份、主题 Token、核心交互语义和响应式契约；精确数值继续以实时 CSS Token 与 `.agents/skills/ai-life-sim-ui/references/design-tokens.md` 为准。
   - 风格取向：现有主题已是 Apple HIG 极简白，继续沿这条线做"精致克制的玻璃拟态"最自洽——不追求重度毛玻璃，而是细腻边框 + 轻通透 + 克制阴影，符合"高端精品"定位。
-  - ⚠️ 编写 skill 属于**改 `.agents/` 规则体系**，按 AGENTS.md 边界规则需单独确认后再落地，并同步更新所有引用处索引。
+  - Skill 已于后续治理迁移中建立，并在 2026-07-11 精简为高自由度项目上下文。
 
 ---
 
@@ -466,7 +466,7 @@ MVP 白名单（[mvp-stages-config.default.json:6-29](file:///D:/AI/ai-life-sim/
 
 已落地：
 
-- D1：`ai-prompt-skill` 与 `.agents/核心流程.md` 已补充开发阶段缓存/兼容边界；`.agents` 治理检查通过。
+- D1：Prompt 缓存/兼容边界已落地；当前入口为 `ai-life-sim-prompt-engineering`，`.agents` 治理检查通过。
 - D2/D10/D11/G1/P2：主叙事改为 `[NARRATIVE]` 三段正文 + `[META]` JSON；主叙事关闭 JSON Mode；`notableEvents` / `keyEvents` 上限为 3；摘要 L1 提示只提事件事实。
 - D4/G2：属性、善恶、减寿、重要性、遗忘相似度、闭环检测均改为 AI 结构化字段优先；中文 `split(/\s+/)` 技术债改用实体块重叠。
 - D5/D12/D13/P3：新增 `core/shared/balance-config.ts`，统一属性增量时间缩放与世界难度倍数语义。

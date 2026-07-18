@@ -1,0 +1,58 @@
+.wrapper {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.3rem;
+  vertical-align: middle;
+}
+
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05rem;
+  height: 1.05rem;
+  padding: 0;
+  border: 1px solid #cfd5db;
+  border-radius: 50%;
+  background: #f8f9fa;
+  color: #78838e;
+  font: inherit;
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease;
+}
+
+.trigger:hover {
+  border-color: #aeb9c4;
+  background: #eef2f6;
+  color: #536a82;
+}
+
+.trigger:focus-visible {
+  outline: 2px solid rgb(109 127 148 / 58%);
+  outline-offset: 2px;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 1700;
+  box-sizing: border-box;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #dce1e5;
+  border-radius: 0.55rem;
+  background: #fff;
+  box-shadow: 0 0.8rem 2rem rgb(40 49 58 / 13%);
+  color: #4c5660;
+  font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+  font-size: clamp(0.7rem, 1.8vw, 0.78rem);
+  font-weight: 400;
+  line-height: 1.6;
+  white-space: normal;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trigger {
+    transition-duration: 1ms;
+  }
+}

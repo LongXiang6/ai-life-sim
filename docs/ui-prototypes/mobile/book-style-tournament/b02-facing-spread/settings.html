@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>B02 · 设置</title>
+  <link rel="stylesheet" href="tokens.css">
+  <style>
+    .settings-spread .leaf { min-height: 840px; }
+    .settings-tabs { margin-top: 20px; border-top: 1px solid var(--line); }
+    .settings-tab {
+      position: relative;
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr) auto;
+      width: 100%;
+      min-height: 70px;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      background: transparent;
+      color: var(--muted);
+      text-align: left;
+      cursor: pointer;
+    }
+    .settings-tab .tab-no { color: var(--faint); font-size: 10px; font-variant-numeric: tabular-nums; }
+    .settings-tab b { display: block; font-family: var(--serif); font-size: 15px; font-weight: 600; }
+    .settings-tab small { display: block; margin-top: 4px; color: var(--faint); font-size: 9px; }
+    .settings-tab[aria-selected="true"] { color: var(--ink); }
+    .settings-tab[aria-selected="true"]::after { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); content: ""; }
+    .settings-scope { margin: 24px 0 0; color: var(--muted); font-family: var(--serif); font-size: 13px; line-height: 1.8; }
+    .reset-action { width: 100%; margin-top: 24px; }
+    .settings-panel { display: none; }
+    .settings-panel.active { display: block; }
+    .panel-intro { margin: 20px 0 0; color: var(--muted); font-family: var(--serif); font-size: 13px; line-height: 1.75; }
+    .setting-group { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .setting-row {
+      display: flex;
+      min-height: 66px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 10px 0;
+    }
+    .setting-row + .setting-row { border-top: 1px solid var(--line-soft); }
+    .setting-copy { min-width: 0; }
+    .setting-copy b { display: block; font-family: var(--serif); font-size: 13px; font-weight: 600; }
+    .setting-copy p { margin: 5px 0 0; color: var(--faint); font-size: 9px; line-height: 1.5; }
+    .value-action {
+      min-width: 54px;
+      min-height: 36px;
+      padding: 0;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      background: transparent;
+      color: var(--muted);
+      font-size: 10px;
+      cursor: pointer;
+    }
+    .stepper { display: flex; flex: 0 0 auto; align-items: center; gap: 3px; }
+    .stepper button { width: 34px; height: 36px; padding: 0; border: 0; background: transparent; color: var(--muted); font-size: 15px; cursor: pointer; }
+    .stepper output { min-width: 52px; color: var(--ink); font-family: var(--serif); font-size: 12px; text-align: center; }
+    .segmented { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .segment {
+      min-height: 42px;
+      padding: 0;
+      border: 0;
+      border-right: 1px solid var(--line-soft);
+      background: transparent;
+      color: var(--faint);
+      font-size: 10px;
+      cursor: pointer;
+    }
+    .segment:last-child { border-right: 0; }
+    .segment.active { background: var(--accent-soft); color: var(--ink); font-weight: 600; }
+    .inline-note { margin: 9px 0 0; color: var(--faint); font-size: 9px; line-height: 1.6; }
+    .model-list { border-top: 1px solid var(--line); }
+    .model-list button {
+      display: flex;
+      width: 100%;
+      min-height: 48px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0;
+      border: 0;
+      border-bottom: 1px solid var(--line-soft);
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      text-align: left;
+      cursor: pointer;
+    }
+    .model-list button.active { color: var(--ink); font-weight: 600; }
+    .model-list button.active::after { color: var(--accent); content: "当前"; font-size: 9px; font-weight: 500; }
+    .prompt-field { min-height: 170px; }
+    .close-settings { width: 100%; margin-top: 24px; }
+    @media (max-width: 699px) {
+      .settings-spread .leaf { min-height: 0; }
+      .settings-spread .leaf--reading { min-height: 660px; }
+      .settings-spread .leaf--action { min-height: 780px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="book-shell">
+    <nav class="review-bar" aria-label="候选导航"><a href="index.html">B02 页面目录</a><span class="task-mark">PREFERENCES · 04 VOLUMES</span></nav>
+    <header class="book-heading">
+      <div><h1>设置</h1><p>目录页选择范围，参数页完成修改。</p></div>
+      <div class="chapter-code">SETTINGS · FACING SPREAD</div>
+    </header>
+    <section class="spread settings-spread" aria-label="设置目录与参数对开页">
+      <article class="leaf leaf--reading">
+        <header class="leaf-head">
+          <p class="leaf-role">左页 · 设置卷签</p>
+          <h2 class="leaf-title">先选择要改动的范围。</h2>
+          <p class="leaf-deck">界面偏好、生成方式、调用模型与叙事补充指令彼此分卷。</p>
+        </header>
+        <nav class="settings-tabs" role="tablist" aria-label="设置分类">
+          <button class="settings-tab" type="button" role="tab" aria-selected="false" data-panel="personal"><span class="tab-no">01</span><span><b>个性化</b><small>阅读体验与界面偏好</small></span></button>
+          <button class="settings-tab" type="button" role="tab" aria-selected="true" data-panel="model"><span class="tab-no">02</span><span><b>模型设置</b><small>生成、推理与叙事长度</small></span></button>
+          <button class="settings-tab" type="button" role="tab" aria-selected="false" data-panel="calls"><span class="tab-no">03</span><span><b>模型调用</b><small>主叙事与后台任务</small></span></button>
+          <button class="settings-tab" type="button" role="tab" aria-selected="false" data-panel="prompt"><span class="tab-no">04</span><span><b>Prompt</b><small>玩家的叙事偏好</small></span></button>
+        </nav>
+        <p class="settings-scope">当前卷签：<b class="scope-name">模型设置</b><br><span class="scope-description">决定 AI 内容的生成方式、推理模式与叙事目标长度。</span></p>
+        <button class="secondary-action reset-action" type="button">恢复默认</button>
+        <a class="turn-link" href="#settings-actions">转至当前参数页<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M14 7l5 5-5 5"/></svg></a>
+        <footer class="folio"><span>目录页</span><span class="page-mark">左六</span></footer>
+      </article>
+
+      <article class="leaf leaf--action" id="settings-actions">
+        <header class="leaf-head">
+          <p class="leaf-role">右页 · 当前参数</p>
+          <h2 class="leaf-title panel-title">模型设置</h2>
+          <p class="leaf-deck panel-deck">决定 AI 内容的生成方式、推理模式与叙事目标长度。</p>
+        </header>
+
+        <section class="settings-panel" data-panel-id="personal">
+          <p class="panel-intro">调整阅读体验与界面偏好，不改变模拟中的事实与数值。</p>
+          <div class="section-rule"><h2>阅读体验</h2><span>即时生效</span></div>
+          <div class="setting-group">
+            <div class="setting-row"><div class="setting-copy"><b>段落舒展</b><p>为长叙事增加少量行间距</p></div><button class="toggle" type="button" role="switch" aria-checked="true" aria-label="段落舒展" data-default="true"></button></div>
+            <div class="setting-row"><div class="setting-copy"><b>减少动态效果</b><p>保留必要状态变化，降低装饰动画</p></div><button class="toggle" type="button" role="switch" aria-checked="false" aria-label="减少动态效果" data-default="false"></button></div>
+          </div>
+        </section>
+
+        <section class="settings-panel active" data-panel-id="model">
+          <p class="panel-intro">决定 AI 内容的生成方式、推理模式与叙事目标长度。</p>
+          <div class="section-rule"><h2>AI 内容</h2><span>生成方式</span></div>
+          <div class="setting-group"><div class="setting-row"><div class="setting-copy"><b>AI 命格生成</b><p>调用 AI 实时生成随机命格</p></div><button class="toggle" type="button" role="switch" aria-checked="true" aria-label="AI 命格生成" data-default="true"></button></div></div>
+          <div class="section-rule"><h2>推理模式</h2><span>按用途设置</span></div>
+          <div class="setting-group">
+            <div class="setting-row"><div class="setting-copy"><b>全局推理</b><p>所有可用请求的默认方式</p></div><button class="value-action" type="button" data-value="关闭">关闭</button></div>
+            <div class="setting-row"><div class="setting-copy"><b>命格生成</b><p>可独立覆盖全局设置</p></div><button class="value-action" type="button" data-value="关闭">关闭</button></div>
+          </div>
+          <div class="section-rule"><h2>叙事长度</h2><span>完整句优先</span></div>
+          <div class="setting-group"><div class="setting-row"><div class="setting-copy"><b>每轮叙事大致字数</b><p>生成目标，不会硬截断完整句</p></div><div class="stepper"><button type="button" data-delta="-50" aria-label="减少叙事字数" title="减少叙事字数">−</button><output>200 字</output><button type="button" data-delta="50" aria-label="增加叙事字数" title="增加叙事字数">＋</button></div></div></div>
+          <div class="section-rule"><h2>预生成轮数</h2><span>降低等待感</span></div>
+          <div class="segmented" role="group" aria-label="预生成轮数"><button class="segment active" type="button">关闭</button><button class="segment" type="button">1 轮</button><button class="segment" type="button">2 轮</button><button class="segment" type="button">3 轮</button></div>
+          <p class="inline-note">字数是生成目标，完整剧情与完整句优先。</p>
+        </section>
+
+        <section class="settings-panel" data-panel-id="calls">
+          <p class="panel-intro">为不同用途选择调用模型；原型只演示选择状态。</p>
+          <div class="section-rule"><h2>主叙事模型</h2><span>当前配置</span></div>
+          <div class="model-list" data-model-list="main"><button class="active" type="button">默认模型</button><button type="button">高速模型</button><button type="button">深度模型</button></div>
+          <div class="section-rule"><h2>后台任务</h2><span>独立选择</span></div>
+          <div class="model-list" data-model-list="background"><button class="active" type="button">跟随默认</button><button type="button">高速模型</button></div>
+        </section>
+
+        <section class="settings-panel" data-panel-id="prompt">
+          <p class="panel-intro">查看自定义补充指令；不会覆盖世界事实和结构化输出契约。</p>
+          <div class="section-rule"><h2>叙事偏好</h2><span>可选</span></div>
+          <textarea class="field prompt-field" aria-label="叙事偏好">更关注人物关系的渐变与选择带来的长期回声；保持叙事克制，不提前替角色总结一生。</textarea>
+          <p class="inline-note">此处内容仅作为玩家偏好附加到叙事上下文。</p>
+        </section>
+
+        <button class="secondary-action close-settings" type="button">关闭设置</button>
+        <footer class="folio"><span>参数页</span><span class="page-mark">右六</span></footer>
+      </article>
+    </section>
+    <div class="toast" role="status" aria-live="polite"></div>
+  </main>
+  <script>
+    const descriptions = {
+      personal: ['个性化','调整阅读体验与界面偏好，不改变模拟中的事实与数值。'],
+      model: ['模型设置','决定 AI 内容的生成方式、推理模式与叙事目标长度。'],
+      calls: ['模型调用','为不同用途选择调用模型；原型只演示选择状态。'],
+      prompt: ['Prompt','查看自定义补充指令；不会覆盖世界事实和结构化输出契约。']
+    };
+    const defaultPrompt = '更关注人物关系的渐变与选择带来的长期回声；保持叙事克制，不提前替角色总结一生。';
+    const toast = document.querySelector('.toast');
+    function showToast(message) { toast.textContent = message; toast.classList.add('show'); clearTimeout(showToast.timer); showToast.timer = setTimeout(() => toast.classList.remove('show'), 1200); }
+    function selectPanel(name, shouldScroll) {
+      document.querySelectorAll('.settings-tab').forEach(tab => tab.setAttribute('aria-selected', String(tab.dataset.panel === name)));
+      document.querySelectorAll('.settings-panel').forEach(panel => panel.classList.toggle('active', panel.dataset.panelId === name));
+      document.querySelector('.scope-name').textContent = descriptions[name][0];
+      document.querySelector('.scope-description').textContent = descriptions[name][1];
+      document.querySelector('.panel-title').textContent = descriptions[name][0];
+      document.querySelector('.panel-deck').textContent = descriptions[name][1];
+      if (shouldScroll && window.matchMedia('(max-width: 699px)').matches) document.querySelector('#settings-actions').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    document.querySelectorAll('.settings-tab').forEach(tab => tab.addEventListener('click', () => selectPanel(tab.dataset.panel, true)));
+    document.querySelectorAll('.toggle').forEach(toggle => toggle.addEventListener('click', () => {
+      const value = toggle.getAttribute('aria-checked') !== 'true';
+      toggle.setAttribute('aria-checked', String(value));
+      showToast((toggle.getAttribute('aria-label') || '设置') + ' · ' + (value ? '已开启' : '已关闭'));
+    }));
+    document.querySelectorAll('.value-action').forEach(button => button.addEventListener('click', () => {
+      const next = button.dataset.value === '关闭' ? '开启' : '关闭';
+      button.dataset.value = next;
+      button.textContent = next;
+      showToast('推理模式 · ' + next);
+    }));
+    let words = 200;
+    document.querySelectorAll('[data-delta]').forEach(button => button.addEventListener('click', () => {
+      words = Math.max(100, Math.min(1000, words + Number(button.dataset.delta)));
+      document.querySelector('.stepper output').textContent = words + ' 字';
+    }));
+    document.querySelectorAll('.segment').forEach(button => button.addEventListener('click', () => {
+      document.querySelectorAll('.segment').forEach(item => item.classList.remove('active'));
+      button.classList.add('active');
+      showToast('预生成 · ' + button.textContent);
+    }));
+    document.querySelectorAll('.model-list').forEach(list => list.querySelectorAll('button').forEach(button => button.addEventListener('click', () => {
+      list.querySelectorAll('button').forEach(item => item.classList.remove('active'));
+      button.classList.add('active');
+      showToast('已选择 · ' + button.textContent);
+    })));
+    document.querySelector('.reset-action').addEventListener('click', () => {
+      document.querySelectorAll('.toggle').forEach(toggle => toggle.setAttribute('aria-checked', toggle.dataset.default));
+      document.querySelectorAll('.value-action').forEach(button => { button.dataset.value = '关闭'; button.textContent = '关闭'; });
+      words = 200;
+      document.querySelector('.stepper output').textContent = '200 字';
+      document.querySelectorAll('.segment').forEach((button, index) => button.classList.toggle('active', index === 0));
+      document.querySelectorAll('.model-list').forEach(list => list.querySelectorAll('button').forEach((button, index) => button.classList.toggle('active', index === 0)));
+      document.querySelector('.prompt-field').value = defaultPrompt;
+      showToast('已恢复默认设置 · 每轮约 200 字');
+    });
+    document.querySelector('.close-settings').addEventListener('click', () => {
+      if (history.length > 1) history.back(); else window.location.href = 'index.html';
+    });
+  </script>
+</body>
+</html>

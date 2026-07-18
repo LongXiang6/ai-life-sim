@@ -1,0 +1,17 @@
+/* C · 深夜水波; source: round-11 T2 双搏水波 */
+:root{--canvas:#121824;--paper:#1b2330;--surface:rgba(34,43,57,.9);--ink:#edf2f4;--soft:#b0bac6;--faint:#7f8b9b;--line:#3d495b;--light:#2c3747;--mist:#9b8ed0;--positive:#74b292;--negative:#d18491;color-scheme:dark}
+body{background:linear-gradient(145deg,#1b2230,#0d131d);color:#edf2f4;font-family:Inter,"PingFang SC","Microsoft YaHei UI",system-ui,sans-serif}
+.phone{border-color:#3d495b;border-radius:26px;background:linear-gradient(180deg,#222b39,#171e2a);color:#edf2f4;box-shadow:0 18px 40px rgba(3,7,14,.42)}
+.screen,.page,.viewport,.content{background:linear-gradient(180deg,transparent,rgba(155,142,208,.17));color:#edf2f4}
+.topbar,.eyebrow,.subtitle,.sub,.caption,.hint,.footer-hint,.bottom-hint,.advance-hint,.panel-label,.entry-meta,.verdict-meta,.section-label{color:#b0bac6}
+h1,.title,.identity h2,.advance-title,.verdict,.focus-title,.current-name{font-family:"Songti SC","STSong","SimSun",serif;color:#edf2f4}
+:is(.world,.catalog,.summary-copy,.detail-body,.mini-form,.seal-wrap,.astrolabe,.mythic-card,.option-card,.attr,.budget,.dialog-panel,.overview,.character,.seed,.parallel,.task,.world-panel,.hud,.timeline,.entry,.branch-option,.branch-question,.branch-resolved,.advance,.save-dialog,.save-slot,.mythic,.verdict,.store,.current,.focus){border-color:#3d495b;border-radius:10px;background:rgba(34,43,57,.9);color:#edf2f4;box-shadow:0 7px 18px color-mix(in srgb,#edf2f4 9%,transparent)}
+:is(.fact,.mark,.catalog-mark,.chip,.seal,.segment,.metric,.selector,.talent,.tool,.time-button,.world-button,.more-button,.footer-btn,.action,.value,.stepper button,.reset,.average){border-color:#3d495b;border-radius:10px;background:color-mix(in srgb,rgba(34,43,57,.9) 88%,transparent);color:#b0bac6}
+:is(.selected,.active,.on,.done,.primary,.confirm,.start,.continue,.store.selected,.selector.selected,.chip.active,.segment.active,.branch-option.active){border-color:#9b8ed0;background:#9b8ed0;color:#101821;box-shadow:0 4px 12px color-mix(in srgb,#9b8ed0 28%,transparent)}
+.bottom,.footer{border-color:#3d495b;background:color-mix(in srgb,#1b2330 92%,transparent)}
+input,textarea,select{border-color:#3d495b;border-radius:10px;background:rgba(34,43,57,.9);color:#edf2f4}
+.pi-history-back{position:fixed;z-index:9999;top:10px;left:10px;padding:7px 10px;border:1px solid #3d495b;border-radius:999px;background:color-mix(in srgb,#1b2330 92%,transparent);color:#b0bac6;font:600 11px/1 Inter,"PingFang SC","Microsoft YaHei UI",system-ui,sans-serif;text-decoration:none;box-shadow:0 5px 14px color-mix(in srgb,#edf2f4 12%,transparent);backdrop-filter:blur(10px)}
+:root{--primary:155 142 208;--wave:155 142 208;--glyph:155 142 208;--ink:237 242 244;--muted:176 186 198;--line:61 73 91;--white:27 35 48}
+.astrolabe,.core,.mythic-card,.library{border-color:#3d495b;background:rgba(34,43,57,.9)}
+.cycle-wave,.heart-wave{border-color:color-mix(in srgb,#9b8ed0 42%,transparent)}
+.mythic-glyph,.detail-kicker,.tag{color:#9b8ed0}

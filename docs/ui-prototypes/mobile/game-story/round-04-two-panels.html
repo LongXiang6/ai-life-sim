@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light-aurora">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>核心模拟 / 故事页第四轮</title>
+  <link rel="stylesheet" href="../assets/library-history.css">
+  <link rel="stylesheet" href="../../../../src/foundation/tokens/index.css">
+  <script src="../assets/prototype.js" defer></script>
+  <style>
+    .phone { background: var(--color-bg-secondary); color: var(--color-text-primary); font-family: Inter,"Microsoft YaHei",system-ui,sans-serif; }
+    .screen { height: 100%; overflow-y: auto; padding-bottom: 12px; scrollbar-width: none; }
+    .screen::-webkit-scrollbar { display: none; }
+    .info-panel,.story-panel { border: 1px solid var(--glass-border); background: var(--glass-elevated-bg); box-shadow: var(--shadow-sm); backdrop-filter: blur(var(--glass-blur-elevated)); }
+    .info-top { display: grid; grid-template-columns: minmax(0,1fr) 126px; gap: 8px; align-items: center; }
+    .identity { min-width: 0; }
+    .world { overflow: hidden; color: var(--color-text-primary); font-size: 8px; font-weight: 760; text-overflow: ellipsis; white-space: nowrap; }
+    .person { margin-top: 3px; overflow: hidden; color: var(--color-text-secondary); font-size: 6px; text-overflow: ellipsis; white-space: nowrap; }
+    .person b { color: var(--color-primary); }
+    .tools { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 2px; padding: 3px; border: 1px solid var(--glass-border); border-radius: var(--radius-lg); background: var(--glass-surface-bg); box-shadow: var(--shadow-sm); }
+    .tool { display: grid; min-height: 28px; place-items: center; border-radius: var(--radius-md); color: var(--color-text-secondary); font-size: 6px; font-weight: 680; }
+    .tool.active { background: var(--color-primary-light); color: var(--color-primary); }
+    .info-rule { height: 1px; margin: 8px 0 7px; background: var(--color-border); }
+    .info-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+    .info-kicker { color: var(--color-primary); font-size: 5.2px; font-weight: 760; letter-spacing: .14em; }
+    .info-title { margin-top: 3px; color: var(--color-text-primary); font-family: "Noto Serif SC","Songti SC",serif; font-size: 10px; font-weight: 760; }
+    .info-time { color: var(--color-text-tertiary); font-size: 5.8px; white-space: nowrap; }
+    .stats { display: flex; gap: 8px; margin-top: 7px; overflow-x: auto; color: var(--color-text-secondary); font-size: 5.8px; scrollbar-width: none; }
+    .stats::-webkit-scrollbar { display: none; }
+    .stats span { flex: 0 0 auto; }
+    .stats b { color: var(--color-success); }
+    .story-title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+    .story-title-row h2 { margin: 0; color: var(--color-text-primary); font-family: "Noto Serif SC","Songti SC",serif; font-size: 11px; }
+    .story-title-row span { color: var(--color-text-tertiary); font-size: 5.8px; }
+    .prose { color: var(--color-text-primary); font-family: "Noto Serif SC","Songti SC",serif; font-size: 7.2px; line-height: 1.8; }
+    .prose p { margin: 0 0 8px; text-indent: 2em; }
+    .changes { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 7px; }
+    .change { padding: 3px 6px; border: 1px solid color-mix(in srgb,var(--color-success) 24%,transparent); border-radius: var(--radius-sm); background: color-mix(in srgb,var(--color-success) 8%,transparent); color: var(--color-success); font-size: 5.3px; }
+    .divider { display: flex; align-items: center; gap: 7px; margin: 9px 0; color: var(--color-text-tertiary); font-size: 5.8px; }
+    .divider::before,.divider::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg,transparent,var(--color-border)); }
+    .divider::after { background: linear-gradient(90deg,var(--color-border),transparent); }
+    /* 固定采用 GS5B 的命运分支选项卡。 */
+    .branch { margin-top: 9px; padding: 9px 9px 3px; border: 1px solid var(--glass-border); border-radius: var(--radius-lg); background: linear-gradient(145deg,var(--color-primary-light),transparent 72%),var(--glass-elevated-bg); box-shadow: var(--shadow-sm); }
+    .branch-kicker { margin-bottom: 3px; color: var(--color-primary); font-size: 5.3px; font-weight: 760; letter-spacing: .14em; }
+    .branch-title { margin-bottom: 6px; color: var(--color-text-primary); font-family: "Noto Serif SC","Songti SC",serif; font-size: 7.3px; font-weight: 760; }
+    .choice { display: grid; grid-template-columns: 17px minmax(0,1fr); gap: 5px; align-items: start; padding: 6px 0; border-bottom: 1px solid var(--color-border); color: var(--color-text-secondary); font-size: 6px; line-height: 1.45; }
+    .choice-letter { color: var(--color-primary); font-weight: 780; text-align: center; }
+    .choice.active { color: var(--color-text-primary); }
+    .choice.active .choice-letter { text-decoration: underline; text-underline-offset: 3px; }
+    .intent { width: 100%; min-height: 42px; margin-top: 7px; padding: 7px; resize: none; border: 1px solid var(--color-border); border-radius: var(--radius-md); outline: none; background: var(--glass-modal-bg); color: var(--color-text-primary); font: inherit; font-size: 5.8px; line-height: 1.45; }
+    .intent::placeholder { color: var(--color-text-tertiary); }
+    .intent:focus { border-color: var(--color-border-focus); box-shadow: 0 0 0 2px var(--color-primary-light); }
+    .branch-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 3px; }
+    .branch-actions span { display: grid; min-height: 32px; padding: 0 8px; place-items: center; color: var(--color-text-secondary); font-size: 5.8px; }
+    .branch-actions .confirm { color: var(--color-primary); font-weight: 760; }
+    .advance { min-height: 34px; padding: 11px 3px 5px; color: var(--color-text-tertiary); text-align: center; font-family: "Noto Serif SC","Songti SC",serif; font-size: 6px; letter-spacing: .1em; }
+    .advance::before,.advance::after { content: "·"; margin: 0 6px; }
+    .option-note { margin: 0 18px 15px; padding: 9px 11px; border-radius: 11px; background: #f2f4fa; color: #69748c; font-size: 11px; line-height: 1.55; }
+
+    /* GS6A：两个独立圆角卡片。 */
+    .gs6a .screen { padding: 8px; }
+    .gs6a .info-panel { padding: 9px; border-radius: var(--radius-xl); }
+    .gs6a .story-panel { margin-top: 8px; padding: 11px 10px 8px; border-radius: var(--radius-xl); }
+    .gs6a .info-title-wrap { padding-left: 8px; border-left: 2px solid var(--color-primary); }
+
+    /* GS6B：信息封面与故事叠页。 */
+    .gs6b { background: linear-gradient(180deg,var(--color-primary-light),var(--color-bg-secondary) 38%); }
+    .gs6b .info-panel { padding: 10px 10px 14px; border-width: 0 0 1px; border-radius: 0 0 var(--radius-2xl) var(--radius-2xl); box-shadow: var(--shadow); }
+    .gs6b .info-title-row { margin-top: 8px; padding: 8px 9px; border-radius: var(--radius-lg); background: var(--glass-surface-bg); }
+    .gs6b .stats { padding: 0 9px; }
+    .gs6b .story-panel { margin: 8px; padding: 11px 10px 8px; border-radius: var(--radius-xl); }
+    .gs6b .story-title-row { padding-bottom: 7px; border-bottom: 1px solid var(--color-border); }
+
+    /* GS6C：紧凑信息仪表与宽故事面板。 */
+    .gs6c .screen { padding: 7px; }
+    .gs6c .info-panel { padding: 8px; border-radius: var(--radius-lg); }
+    .gs6c .info-rule { margin: 7px 0 6px; }
+    .gs6c .info-summary { display: grid; grid-template-columns: 34px minmax(0,1fr) auto; gap: 7px; align-items: center; }
+    .gs6c .round-no { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid var(--glass-border); border-radius: var(--radius-md); background: var(--color-primary-light); color: var(--color-primary); font-size: 8px; font-weight: 780; }
+    .gs6c .info-time { padding: 4px 6px; border-radius: 999px; background: var(--glass-surface-bg); }
+    .gs6c .stats { padding-top: 6px; border-top: 1px solid var(--color-border); }
+    .gs6c .story-panel { margin-top: 7px; padding: 11px 10px 8px; border-radius: var(--radius-lg); }
+    .gs6c .story-title-row { margin: -2px -2px 8px; padding: 0 2px 7px; border-bottom: 1px solid var(--color-border); }
+
+    @media (max-width: 980px) { .option-copy { padding-top: 2px; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar"><a href="index.html">← 返回故事页历史</a><span data-selection>本轮结果：全部淘汰</span></div>
+    <p class="eyebrow">CORE SIMULATION · ROUND 04</p>
+    <h1>双板块重组：信息在上，故事在下</h1>
+    <p class="subtitle">三稿严格分成两个视觉板块。顶部统一采用 GS5C 的三段工具按钮，底部统一采用 GS5B 的命运分支选项卡；本轮只比较信息板块与故事板块的边界、比例和衔接方式。</p>
+    <section class="option-grid">
+      <article class="option-card" data-choice="GS6A 独立双卡" onclick="selectChoice(this)">
+        <div class="phone gs6a"><div class="screen">
+          <section class="info-panel"><div class="info-top"><div class="identity"><div class="world">雾港纪事 · 潮汐群岛</div><div class="person"><b>林澈 · 17 岁</b> · 人族 · 生命 92</div></div><div class="tools"><span class="tool">更多</span><span class="tool active">按月</span><span class="tool">世界</span></div></div><div class="info-rule"></div><div class="info-title-row"><div class="info-title-wrap"><div class="info-kicker">CHAPTER 18 · 雨季末</div><div class="info-title">无帆船的回声</div></div><span class="info-time">潮历 112 年</span></div><div class="stats"><span>生命 <b>92</b></span><span>体魄 +3</span><span>心智 +6</span><span>悟性 +8</span><span>魅力 +2</span><span>出身 0</span></div></section>
+          <section class="story-panel"><div class="story-title-row"><h2>港区雾门</h2><span>第 18 轮</span></div><div class="prose"><p>退潮后的长堤露出一排青黑色礁石。你跟着药师穿过雾门，第一次看见禁港里的无帆船。</p><p>船腹传来三次缓慢的敲击。药师把一枚生锈的钥匙塞进你掌心。</p></div><div class="changes"><span class="change">心智 +0.4</span><span class="change">港务会声望 +1</span></div><div class="divider">雨季末</div><div class="prose"><p>夜里，巷口同时站着巡潮司来客与失踪三年的旧友。</p></div><section class="branch"><div class="branch-kicker">命运分叉</div><div class="branch-title">你准备如何回应？</div><div class="choice active"><span class="choice-letter">A</span><span>相信旧友，先听完他的解释。</span></div><div class="choice"><span class="choice-letter">B</span><span>请巡潮司出示凭证，再决定是否合作。</span></div><textarea class="intent" aria-label="自定义意图" placeholder="写下其他行动与目的……"></textarea><div class="branch-actions"><span>取消</span><span class="confirm">确认选择</span></div></section><div class="advance">请先完成命运选择</div></section>
+        </div></div><div class="option-copy"><h3>GS6A · 独立双卡</h3><p>信息与故事各自成为完整圆角卡片，中间留出明确间隔，结构一眼可懂。</p><span class="tag">边界最清楚 · 最稳妥</span></div><p class="option-note">双板块语义最明确，但两张大卡片会带来较强的“面板感”。</p>
+      </article>
+
+      <article class="option-card" data-choice="GS6B 封面叠页" onclick="selectChoice(this)">
+        <div class="phone gs6b"><div class="screen">
+          <section class="info-panel"><div class="info-top"><div class="identity"><div class="world">雾港纪事 · 潮汐群岛</div><div class="person"><b>林澈 · 17 岁</b> · 人族 · 生命 92</div></div><div class="tools"><span class="tool">更多</span><span class="tool active">按月</span><span class="tool">世界</span></div></div><div class="info-title-row"><div><div class="info-kicker">CHAPTER 18 · 雨季末</div><div class="info-title">无帆船的回声</div></div><span class="info-time">潮历 112 年</span></div><div class="stats"><span>生命 <b>92</b></span><span>体魄 +3</span><span>心智 +6</span><span>悟性 +8</span><span>魅力 +2</span><span>出身 0</span></div></section>
+          <section class="story-panel"><div class="story-title-row"><h2>港区雾门</h2><span>第 18 轮</span></div><div class="prose"><p>退潮后的长堤露出一排青黑色礁石。你跟着药师穿过雾门，第一次看见禁港里的无帆船。</p><p>船腹传来三次缓慢的敲击。药师把一枚生锈的钥匙塞进你掌心。</p></div><div class="changes"><span class="change">心智 +0.4</span><span class="change">港务会声望 +1</span></div><div class="divider">下一幕</div><div class="prose"><p>夜里，巷口同时站着巡潮司来客与失踪三年的旧友。</p></div><section class="branch"><div class="branch-kicker">命运分叉</div><div class="branch-title">钥匙应该交给谁？</div><div class="choice"><span class="choice-letter">A</span><span>让旧友进门，但先要求他说明来历。</span></div><div class="choice active"><span class="choice-letter">B</span><span>与巡潮司交涉，要求查阅禁港档案。</span></div><textarea class="intent" aria-label="自定义意图" placeholder="描述其他行动、态度与底线……"></textarea><div class="branch-actions"><span>取消</span><span class="confirm">确认选择</span></div></section><div class="advance">请先完成命运选择</div></section>
+        </div></div><div class="option-copy"><h3>GS6B · 封面叠页</h3><p>上方信息板块像章节封面，下方故事板块像独立书页，视觉衔接更偏叙事产品。</p><span class="tag">章节感强 · 氛围完整</span></div><p class="option-note">最有故事封面感，但上方板块的存在感较强，需要避免抢过正文。</p>
+      </article>
+
+      <article class="option-card" data-choice="GS6C 信息仪表" onclick="selectChoice(this)">
+        <div class="phone gs6c"><div class="screen">
+          <section class="info-panel"><div class="info-top"><div class="identity"><div class="world">雾港纪事 · 潮汐群岛</div><div class="person"><b>林澈 · 17 岁</b> · 人族 · 生命 92</div></div><div class="tools"><span class="tool">更多</span><span class="tool active">按月</span><span class="tool">世界</span></div></div><div class="info-rule"></div><div class="info-summary"><div class="round-no">18</div><div><div class="info-kicker">雨季末 · 港区雾门</div><div class="info-title">无帆船的回声</div></div><span class="info-time">112 年</span></div><div class="stats"><span>生命 <b>92</b></span><span>体魄 +3</span><span>心智 +6</span><span>悟性 +8</span><span>魅力 +2</span><span>出身 0</span></div></section>
+          <section class="story-panel"><div class="story-title-row"><h2>本轮故事</h2><span>17 岁</span></div><div class="prose"><p>退潮后的长堤露出一排青黑色礁石。你跟着药师穿过雾门，第一次看见禁港里的无帆船。</p><p>船腹传来三次缓慢的敲击。药师把一枚生锈的钥匙塞进你掌心。</p></div><div class="changes"><span class="change">心智 +0.4</span><span class="change">港务会声望 +1</span></div><div class="divider">雨季末</div><div class="prose"><p>夜里，巷口同时站着巡潮司来客与失踪三年的旧友。</p></div><section class="branch"><div class="branch-kicker">命运分叉</div><div class="branch-title">你准备如何回应？</div><div class="choice active"><span class="choice-letter">A</span><span>让旧友进门，但保留退路。</span></div><div class="choice"><span class="choice-letter">B</span><span>先确认巡潮司的身份和条件。</span></div><textarea class="intent" aria-label="自定义意图" placeholder="写下其他行动与目的……"></textarea><div class="branch-actions"><span>取消</span><span class="confirm">确认选择</span></div></section><div class="advance">请先完成命运选择</div></section>
+        </div></div><div class="option-copy"><h3>GS6C · 信息仪表</h3><p>上方信息板块压缩成紧凑仪表，下方故事板块获得最大空间，章节编号成为快速定位点。</p><span class="tag">信息高效 · 正文面积最大</span></div><p class="option-note">效率最好，但相比 GS6A、GS6B 更偏功能型，叙事气质较弱。</p>
+      </article>
+    </section>
+    <p class="selection">本轮结论：GS6A / GS6B / GS6C 全部淘汰。大信息板块和故事卡片压缩了连续阅读区，也没有准确表达正式页的菜单、步长、分支阻断、流式生成与存档机制。</p>
+  </main>
+</body>
+</html>

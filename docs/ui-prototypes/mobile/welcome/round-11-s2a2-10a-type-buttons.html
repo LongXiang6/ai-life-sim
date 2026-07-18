@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>欢迎界面第十一轮 · S2-A2a-10A 按钮与文字样式</title>
+  <link rel="stylesheet" href="../assets/library-history.css">
+  <style>
+    button{font-family:inherit}.option-card{cursor:default}.option-card:hover{transform:none}.three-grid{max-width:1060px}.intro-note{max-width:870px;margin:0 0 22px;color:#69748b;font-size:13px;line-height:1.7}.phone{height:590px}.welcome-phone{overflow:hidden;background:#f8f9fc}.curve{position:absolute;inset:0;width:100%;height:100%}.copy{position:relative;padding:160px 16px 0}.brand{display:flex;align-items:center;gap:7px}.brand::before{width:18px;height:1px;content:""}.headline{margin-top:34px}.intro{max-width:235px;margin-top:14px}.actions{position:absolute;right:18px;bottom:25px;left:18px}.entry-pair{display:grid;width:232px;margin-inline:auto;grid-template-columns:1.12fr .88fr;gap:8px}.ui-button{display:grid;height:38px;place-items:center;cursor:pointer;transition:transform .16s ease,box-shadow .16s ease,filter .16s ease}.load-stack{display:grid;place-content:center}.load-stack span{margin-top:1px}.utility-links{display:flex;align-items:center;justify-content:center;gap:18px;margin-top:13px}.utility-links button{padding:3px 2px;border:0;background:transparent;cursor:pointer}.utility-links button+button{position:relative}.utility-links button+button::before{position:absolute;top:4px;bottom:4px;left:-10px;width:1px;background:#dce1e9;content:""}.footer{margin-top:11px;text-align:center}.toast{position:absolute;bottom:92px;left:50%;z-index:30;padding:7px 10px;border-radius:999px;background:rgba(50,47,70,.9);color:#fff;font-size:6px;opacity:0;pointer-events:none;transform:translate(-50%,8px);transition:opacity .18s,transform .18s;white-space:nowrap}.toast.show{opacity:1;transform:translate(-50%,0)}.dimension{display:inline-block;margin-top:8px;color:#7b8498;font-size:11px;font-variant-numeric:tabular-nums}.phone button:focus-visible{outline:2px solid #6577d4;outline-offset:2px}.ui-button:active{transform:translateY(1px)}
+
+    /* 固定基底 — S2-A2a-10A 冷白珍珠。 */
+    .cold-pearl{background:radial-gradient(ellipse at 79% 7%,rgba(191,204,235,.22),transparent 29%),radial-gradient(ellipse at 9% 91%,rgba(222,226,237,.25),transparent 32%),linear-gradient(148deg,#fff 0%,#f9fafc 47%,#f3f5f9 100%)}
+    .cold-pearl::before{position:absolute;inset:0;background-image:radial-gradient(rgba(89,101,132,.095) .42px,transparent .53px);background-size:5px 5px;opacity:.16;content:""}
+    .cold-pearl::after{position:absolute;top:75px;right:-55px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle at 41% 42%,rgba(255,255,255,.85),rgba(234,239,249,.26) 43%,transparent 69%);filter:blur(2px);content:""}
+    .cold-pearl .curve-halo{opacity:.15;filter:blur(4px);transform:translateX(-1px)}.cold-pearl .curve-halo path{stroke:#a8b8d8;stroke-width:2.5}.cold-pearl .curve-main path{stroke:#b8c2d5}.cold-pearl .brand{color:#68718a}.cold-pearl .brand::before{background:linear-gradient(90deg,#aeb9ce,#edf0f6)}.cold-pearl .headline{color:#171e35;text-shadow:0 1px #fff}.cold-pearl .intro{color:#777f92}.cold-pearl .entry-pair{filter:drop-shadow(0 8px 16px rgba(46,55,78,.09))}.cold-pearl .load-stack span{color:#8992a7}.cold-pearl .utility-links button{color:#69738a}.cold-pearl .footer{color:#7f879a}
+
+    /* 11A — 凝练无衬线：字形紧凑、边缘利落，按钮保持轻柔而有确定性。 */
+    .modern-sans{font-family:"SF Pro Text","PingFang SC","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif}
+    .modern-sans .brand{font-size:7.5px;font-weight:680;letter-spacing:2.05px}
+    .modern-sans .headline{font-size:25px;font-weight:680;line-height:1.25;letter-spacing:-1.05px}
+    .modern-sans .intro{font-size:8.8px;font-weight:430;line-height:1.78;letter-spacing:.08px}
+    .modern-sans .ui-button{border:1px solid rgba(174,184,202,.68);border-radius:14px;font-size:8.5px;font-weight:620;letter-spacing:.08px;box-shadow:inset 0 1px rgba(255,255,255,.95),inset 0 -1px rgba(89,102,132,.045),0 2px 5px rgba(44,52,74,.055)}
+    .modern-sans .ui-button.primary{border-color:#283047;background:linear-gradient(160deg,#424b63 0%,#242c43 58%,#1b2237 100%);color:#fff;box-shadow:inset 0 1px rgba(255,255,255,.19),inset 0 -1px rgba(6,12,28,.17),0 5px 13px rgba(29,36,57,.16);text-shadow:0 1px rgba(5,9,20,.2)}
+    .modern-sans .ui-button.soft{background:linear-gradient(155deg,rgba(255,255,255,.99),rgba(239,242,247,.96));color:#56617a}
+    .modern-sans .load-stack b{font-size:7.9px;font-weight:640;line-height:1.08}.modern-sans .load-stack span{font-size:5.2px;font-weight:480;line-height:1.1;letter-spacing:.16px}
+    .modern-sans .utility-links button{font-size:7px;font-weight:520;letter-spacing:.12px}.modern-sans .footer{font-size:7px;letter-spacing:.02px}
+
+    /* 11B — 克制书卷：宋体只用于叙事标题与简介，操作区仍用清晰的无衬线。 */
+    .quiet-literary{font-family:"SF Pro Text","PingFang SC","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif}
+    .quiet-literary .brand{font-size:7.2px;font-weight:620;letter-spacing:2.35px}
+    .quiet-literary .headline{font-family:"Songti SC","STSong","SimSun",serif;font-size:23.5px;font-weight:600;line-height:1.4;letter-spacing:.05px}
+    .quiet-literary .intro{font-family:"Songti SC","STSong","SimSun",serif;font-size:9.2px;font-weight:400;line-height:1.86;letter-spacing:.2px}
+    .quiet-literary .ui-button{border:1px solid rgba(174,184,202,.64);border-radius:16px;font-size:8.3px;font-weight:580;letter-spacing:.18px;box-shadow:inset 0 1px rgba(255,255,255,.98),inset 0 -1px rgba(104,117,145,.04),0 2px 5px rgba(44,52,74,.05)}
+    .quiet-literary .ui-button.primary{border-color:#31384d;background:linear-gradient(180deg,#40485e 0%,#242b40 58%,#1e2539 100%);color:#fff;box-shadow:inset 0 1px rgba(255,255,255,.17),inset 0 -1px rgba(6,12,28,.14),0 5px 13px rgba(29,36,57,.15);text-shadow:0 1px rgba(5,9,20,.18)}
+    .quiet-literary .ui-button.soft{background:linear-gradient(180deg,rgba(255,255,255,.99),rgba(240,243,248,.97));color:#59637a}
+    .quiet-literary .load-stack b{font-size:7.8px;font-weight:590;line-height:1.08}.quiet-literary .load-stack span{font-size:5.1px;font-weight:450;line-height:1.12;letter-spacing:.2px}
+    .quiet-literary .utility-links button{font-size:6.9px;font-weight:480;letter-spacing:.3px}.quiet-literary .footer{font-family:"Songti SC","STSong","SimSun",serif;font-size:7.1px;letter-spacing:.08px}
+
+    /* 11C — 珠光字阶：两行标题以轻重层级形成微光起伏，按钮用圆润高光收束。 */
+    .pearl-hierarchy{font-family:"SF Pro Display","PingFang SC","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif}
+    .pearl-hierarchy .brand{font-size:7.4px;font-weight:720;letter-spacing:1.82px}
+    .pearl-hierarchy .headline{font-size:25px;line-height:1.27;letter-spacing:-.72px}
+    .pearl-hierarchy .headline .line-one{font-weight:580;color:#343d56}
+    .pearl-hierarchy .headline .line-two{font-weight:750;color:#151c32;text-shadow:0 1px #fff,0 7px 16px rgba(81,94,126,.07)}
+    .pearl-hierarchy .intro{font-size:8.7px;font-weight:450;line-height:1.8;letter-spacing:.12px;color:#737d92}
+    .pearl-hierarchy .ui-button{position:relative;overflow:hidden;border:1px solid rgba(172,183,203,.66);border-radius:19px;font-size:8.4px;font-weight:650;letter-spacing:.12px;box-shadow:inset 0 1px rgba(255,255,255,1),inset 0 -2px 5px rgba(97,111,140,.035),0 2px 5px rgba(44,52,74,.05)}
+    .pearl-hierarchy .ui-button::after{position:absolute;top:1px;right:8px;left:8px;height:9px;border-radius:50%;background:linear-gradient(180deg,rgba(255,255,255,.24),transparent);pointer-events:none;content:""}
+    .pearl-hierarchy .ui-button.primary{border-color:#2b334b;background:linear-gradient(135deg,#414a62 0%,#252d45 55%,#1a2136 100%);color:#fff;box-shadow:inset 0 1px rgba(255,255,255,.2),inset 0 -2px 5px rgba(7,13,29,.18),0 5px 13px rgba(29,36,57,.17);text-shadow:0 1px rgba(5,9,20,.2)}
+    .pearl-hierarchy .ui-button.soft{background:linear-gradient(140deg,#fff 0%,#f4f6fa 55%,#ebeff5 100%);color:#505c77}
+    .pearl-hierarchy .load-stack b{font-size:7.9px;font-weight:670;line-height:1.05}.pearl-hierarchy .load-stack span{font-size:5.1px;font-weight:500;line-height:1.1;letter-spacing:.18px}
+    .pearl-hierarchy .utility-links button{font-size:6.9px;font-weight:570;letter-spacing:.16px}.pearl-hierarchy .footer{font-size:6.9px;font-weight:450;letter-spacing:.08px}
+
+    @media(max-width:980px){.three-grid{grid-template-columns:1fr}}
+    @media(prefers-reduced-motion:reduce){.toast,.ui-button{transition:none}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar"><a href="index.html">← 返回欢迎界面历史</a><span class="status">第十一轮 · 10A 按钮与文字样式</span></div>
+    <p class="eyebrow">WELCOME · ROUND 11</p>
+    <h1>S2-A2a-10A 按钮与文字迭代</h1>
+    <p class="subtitle">固定 10A 的冷白珍珠背景、人生曲线与开放布局，只比较标题排印、品牌字标、简介字阶，以及主次按钮的圆角、字重和边缘高光。</p>
+    <p class="intro-note">三稿均保持按钮组 232px 宽、38px 高、1.12fr / .88fr 与 8px 间距；“读取存档 / 3 个记录”继续双行显示，全部文案、设置、说明、页脚和点击反馈不变。</p>
+    <section class="option-grid three-grid">
+      <article class="option-card">
+        <div class="phone welcome-phone cold-pearl modern-sans">
+          <svg class="curve curve-halo" viewBox="0 0 292 590" aria-hidden="true"><path d="M260 0 C160 90,285 175,205 255 S90 365,190 445 S280 520,230 610" fill="none"/></svg>
+          <svg class="curve curve-main" viewBox="0 0 292 590" aria-hidden="true"><path d="M260 0 C160 90,285 175,205 255 S90 365,190 445 S280 520,230 610" fill="none" stroke-width="1.1"/><circle cx="260" cy="0" r="4" fill="#b6c0d2"/><circle cx="205" cy="255" r="3.2" fill="#929bab"/><circle cx="190" cy="445" r="3.2" fill="#929bab"/></svg>
+          <div class="copy"><div class="brand">AI LIFE SIM</div><div class="headline">一生很长，<br>也只由几次选择组成。</div><div class="intro">选择世界与出身，走过关系、机会、代价和告别。</div></div>
+          <div class="actions"><div class="entry-pair"><button class="ui-button primary new-life">开始新人生</button><button class="ui-button soft load-save" aria-label="读取存档，3 个记录"><span class="load-stack"><b>读取存档</b><span>3 个记录</span></span></button></div><div class="utility-links"><button class="settings">设置</button><button class="help">说明</button></div><div class="footer">故事小分队交流群 · 1097782298</div></div>
+          <div class="toast" role="status" aria-live="polite"></div>
+        </div>
+        <div class="option-copy"><span class="tag">S2-A2a-11A · 凝练无衬线</span><h3>利落、现代、最清晰</h3><p>收紧标题字面与字距，以中等字重保持克制；14px 圆角按钮用精确的冷灰边缘和短促高光，操作感最明确。</p><span class="dimension">232 × 38px · concise sans</span></div>
+      </article>
+      <article class="option-card">
+        <div class="phone welcome-phone cold-pearl quiet-literary">
+          <svg class="curve curve-halo" viewBox="0 0 292 590" aria-hidden="true"><path d="M260 0 C160 90,285 175,205 255 S90 365,190 445 S280 520,230 610" fill="none"/></svg>
+          <svg class="curve curve-main" viewBox="0 0 292 590" aria-hidden="true"><path d="M260 0 C160 90,285 175,205 255 S90 365,190 445 S280 520,230 610" fill="none" stroke-width="1.1"/><circle cx="260" cy="0" r="4" fill="#b6c0d2"/><circle cx="205" cy="255" r="3.2" fill="#929bab"/><circle cx="190" cy="445" r="3.2" fill="#929bab"/></svg>
+          <div class="copy"><div class="brand">AI LIFE SIM</div><div class="headline">一生很长，<br>也只由几次选择组成。</div><div class="intro">选择世界与出身，走过关系、机会、代价和告别。</div></div>
+          <div class="actions"><div class="entry-pair"><button class="ui-button primary new-life">开始新人生</button><button class="ui-button soft load-save" aria-label="读取存档，3 个记录"><span class="load-stack"><b>读取存档</b><span>3 个记录</span></span></button></div><div class="utility-links"><button class="settings">设置</button><button class="help">说明</button></div><div class="footer">故事小分队交流群 · 1097782298</div></div>
+          <div class="toast" role="status" aria-live="polite"></div>
+        </div>
+        <div class="option-copy"><span class="tag">S2-A2a-11B · 克制书卷</span><h3>安静、叙事、最有书卷感</h3><p>标题与简介换成可靠的系统宋体栈，增加行距但不扩大版面；16px 圆角按钮仍使用无衬线，兼顾叙事气质与操作清晰度。</p><span class="dimension">232 × 38px · quiet literary</span></div>
+      </article>
+      <article class="option-card">
+        <div class="phone welcome-phone cold-pearl pearl-hierarchy">
+          <svg class="curve curve-halo" viewBox="0 0 292 590" aria-hidden="true"><path d="M260 0 C160 90,285 175,205 255 S90 365,190 445 S280 520,230 610" fill="none"/></svg>
+          <svg class="curve curve-main" viewBox="0 0 292 590" aria-hidden="true"><path d="M260 0 C160 90,285 175,205 255 S90 365,190 445 S280 520,230 610" fill="none" stroke-width="1.1"/><circle cx="260" cy="0" r="4" fill="#b6c0d2"/><circle cx="205" cy="255" r="3.2" fill="#929bab"/><circle cx="190" cy="445" r="3.2" fill="#929bab"/></svg>
+          <div class="copy"><div class="brand">AI LIFE SIM</div><div class="headline"><span class="line-one">一生很长，</span><br><span class="line-two">也只由几次选择组成。</span></div><div class="intro">选择世界与出身，走过关系、机会、代价和告别。</div></div>
+          <div class="actions"><div class="entry-pair"><button class="ui-button primary new-life">开始新人生</button><button class="ui-button soft load-save" aria-label="读取存档，3 个记录"><span class="load-stack"><b>读取存档</b><span>3 个记录</span></span></button></div><div class="utility-links"><button class="settings">设置</button><button class="help">说明</button></div><div class="footer">故事小分队交流群 · 1097782298</div></div>
+          <div class="toast" role="status" aria-live="polite"></div>
+        </div>
+        <div class="option-copy"><span class="tag">S2-A2a-11C · 珠光字阶</span><h3>圆润、精致、最成套</h3><p>两行标题以轻重字阶制造珠光起伏，第二行成为视觉落点；19px 圆角按钮加入极薄弧面高光，与冷白珍珠材质呼应。</p><span class="dimension">232 × 38px · pearl hierarchy</span></div>
+      </article>
+    </section>
+  </main>
+  <script>
+    function showToast(phone,message){const toast=phone.querySelector('.toast');toast.textContent=message;toast.classList.add('show');clearTimeout(toast._timer);toast._timer=setTimeout(function(){toast.classList.remove('show')},1300)}
+    document.querySelectorAll('.welcome-phone').forEach(function(phone){phone.querySelector('.new-life').onclick=function(){showToast(phone,'开始新人生 · 原型演示')};phone.querySelector('.load-save').onclick=function(){showToast(phone,'打开全部 3 个存档')};phone.querySelector('.settings').onclick=function(){showToast(phone,'打开设置')};phone.querySelector('.help').onclick=function(){showToast(phone,'打开说明')}})
+  </script>
+</body>
+</html>

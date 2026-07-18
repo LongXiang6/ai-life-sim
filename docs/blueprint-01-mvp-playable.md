@@ -14,17 +14,17 @@
 
 ---
 
-## 〇.1 执行权威优先级（必须遵守）
+## 〇.1 执行权威优先级
 
 本蓝图只定义 MVP 范围和执行目标；遇到不清楚或与技能文件冲突时，按以下优先级执行：
 
-1. `.agents/核心流程.md`：行为流程唯一权威，必须先复述、列计划、链路检索，再执行。
-2. `.agents/skills/ai-life-sim-skill/SKILL-INDEX.md` + `.agents/cross-domain-contracts.md`：任务路由、跨域契约、分包决策。
-3. 对应域 skill：MOD / 子系统走 `mod-dev-skill`，AI Prompt / Token 走 `ai-prompt-skill`，UI 走 `ui-liquid-glass-skill`，验证走 `testing-skill`。
-4. 本蓝图：只作为 MVP 本轮范围、页面链路、延后清单和验收标准。
-5. 实际代码链路：技能文件的"当前状态"可能滞后；改动前必须用链路检索核实真实代码，再决定怎么改。
+1. `docs/product-decisions.md`：当前产品语义的唯一真源，生效 `PD-xxx` 优先于旧计划和本文档。
+2. `D:\AI\AGENTS.md` 与 `.agents/skills/ai-life-sim/SKILL.md`：项目边界、总体架构、运行权威和精确命令。
+3. 对应域 Skill：MOD / 子系统使用 `ai-life-sim-mod-development`，Prompt / Token 使用 `ai-life-sim-prompt-engineering`，UI 使用 `ai-life-sim-ui`。
+4. 本蓝图：只作为 MVP 范围、页面链路、延后清单和验收标准。
+5. 实际代码与运行配置：用调用链和 `mvp-stages-config.default.json` 核实当前状态，文件存在不代表系统正在运行。
 
-若技能文件和实际代码状态冲突，不能凭猜测选择一边；先贴出证据，按 `.agents/核心流程.md` 的"不懂就停"处理。
+若当前 Skill、旧计划与实际代码冲突，先按产品决策和运行配置判定；仍有多种合理解释时列出证据与影响后再确认。
 
 ---
 
@@ -32,17 +32,16 @@
 
 | 主题 | 权威源 | 要点 |
 |------|--------|------|
-| 行为流程 + 三铁律 | `.agents/核心流程.md` | 先读后改、需求优先、不懂就停；改前贴链路检索证据 |
-| 技能路由 | `.agents/skills/ai-life-sim-skill/SKILL-INDEX.md` + `.agents/cross-domain-contracts.md` | 先判断涉及哪些域、是否触发跨域契约、是否需要分包 |
-| 项目架构 / 为什么叙事是根 | `.agents/skills/ai-life-sim-skill/ARCHITECTURE.md` | 4 层：foundation→core→mods→app；mod-engine 是叙事根 |
-| 子系统写法（BaseSubsystem） | `.agents/skills/mod-dev-skill/resources/mod-spec-subsystem.md` §8 | 子系统 `extends BaseSubsystem`；时间只读 `this.getDaysPassed(context)` |
-| 子系统模板 / 清空桩模板 | `.agents/skills/mod-dev-skill/templates/subsystem.template.ts` | 恢复子系统 = 照模板填空；延后系统 = 执行路径隔离优先，必要时再用清空桩 |
-| 分段恢复优先级 | `.agents/skills/mod-dev-skill/resources/mod-spec-rewrite-tiers.md` | 本蓝图即"① 核心架构 + ② 主引擎 + MVP 角色链路" |
+| 项目边界与命令 | `D:\AI\AGENTS.md` | 修改权限、工作区、结构检查与交付关闸 |
+| 项目架构 / 为什么叙事是根 | `.agents/skills/ai-life-sim/SKILL.md` + `references/architecture.md` | foundation→core→mods→app；mod-engine 是叙事根 |
+| 子系统写法（BaseSubsystem） | `.agents/skills/ai-life-sim-mod-development/references/mod-spec-subsystem.md` | 子系统 `extends BaseSubsystem`；时间只读 `this.getDaysPassed(context)` |
+| 子系统模板 / 清空桩模板 | `.agents/skills/ai-life-sim-mod-development/assets/templates/subsystem.template.ts` | 恢复子系统使用当前模板；延后系统优先从执行路径隔离 |
+| 分段恢复优先级 | `.agents/skills/ai-life-sim-mod-development/references/mod-spec-rewrite-tiers.md` | 本蓝图即"① 核心架构 + ② 主引擎 + MVP 角色链路" |
 | 决策背景 | `docs/simulation-rewrite-discussion-plan.md` | 清空范围、时间引擎方案已确认 |
-| MOD 清单 / 依赖 | `.agents/skills/mod-dev-skill/resources/mod-spec-mod-list.md` | 18 个 MOD 及真实依赖 |
-| 关闸命令 | `.agents/skills/testing-skill/SKILL.md` §1 | 编码前 `npm run check:structural`；交付按级别跑 `npm run gate-check` |
+| MOD 清单 / 依赖 | `.agents/skills/ai-life-sim-mod-development/references/mod-spec-mod-list.md` | 当前 MOD 拓扑与依赖 |
+| 关闸命令 | `D:\AI\AGENTS.md` §5 | 使用 structural、MOD、lint、tsc 和相应 gate |
 
-**动 `src/core/` 或 `src/foundation/` 前必须说明风险并等用户确认（B-01/B-02）。**
+**改变 `src/core/` 或 `src/foundation/` 的公开契约、持久化、运行态结构或跨模块语义时，按 `AGENTS.md` 权限边界先确认。**
 
 **迁移口径**：本蓝图不要求一次性机械迁移所有 74 个旧子系统；凡本轮实际触碰、清空、恢复的子系统，必须按当前技能模板迁到 `extends BaseSubsystem`。未触碰的保留系统不得"顺手"大迁移，除非链路检索证明它阻断 MVP。
 
@@ -129,7 +128,7 @@ Full gate 剩余 FAIL 分流表：
     │  （mod-character character-base + lifespan 保留）
     ▼
 基础属性配置 attribute-alloc
-    │  手动分配 5 项基础属性
+    │  手动分配 4 项基础属性（体魄 / 心智 / 悟性 / 魅力）
     │  （mod-character/subsystems/character-base-system.ts 保留）
     ▼
 身世预览 fate-preview
@@ -282,4 +281,4 @@ Full gate 剩余 FAIL 分流表：
 
 ---
 
-*配套：`docs/simulation-rewrite-discussion-plan.md`（决策）· `docs/simulation-rewrite-architecture.md`（模板体系）· `.agents/skills/mod-dev-skill/resources/mod-spec-rewrite-tiers.md`（分段）*
+*配套：`docs/simulation-rewrite-discussion-plan.md`（决策）· `docs/simulation-rewrite-architecture.md`（模板体系）· `.agents/skills/ai-life-sim-mod-development/references/mod-spec-rewrite-tiers.md`（分段）*

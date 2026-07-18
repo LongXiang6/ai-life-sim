@@ -15,8 +15,8 @@ import { devtools, persist } from 'zustand/middleware'
 /** 主题类型 */
 export type ThemeType = 'minimal-white' | 'minimal-black' | 'reading-yellow' | 'dark-cosmos' | 'light-aurora' | 'cyber-neon'
 
-/** 需要星空背景的主题 */
-export const STARFIELD_THEMES: ThemeType[] = ['dark-cosmos', 'minimal-black', 'cyber-neon']
+/** 定版界面固定使用白纸主题；保留旧类型仅用于兼容历史持久化值。 */
+export const STARFIELD_THEMES: ThemeType[] = []
 
 /** 主题 Store 状态 */
 interface ThemeState {
@@ -40,28 +40,28 @@ export const useThemeStore = create<ThemeState>()(
     persist(
       (set) => ({
         theme: 'minimal-white',
-        themes: ['minimal-white', 'minimal-black', 'reading-yellow', 'dark-cosmos', 'light-aurora', 'cyber-neon'],
-        setTheme: (theme) => {
-          set({ theme })
+        themes: ['minimal-white'],
+        setTheme: () => {
+          set({ theme: 'minimal-white' })
           if (typeof document !== 'undefined') {
-            document.documentElement.setAttribute('data-theme', theme)
+            document.documentElement.setAttribute('data-theme', 'minimal-white')
           }
         },
       }),
       {
         name: 'core-theme-store',
-        migrate: (persistedState: { theme?: string } | unknown, version: number) => {
+        migrate: (persistedState: { theme?: string; themes?: ThemeType[] } | unknown, version: number) => {
+          const state = persistedState as { theme?: string; themes?: ThemeType[] }
           // v0 → v1: 迁移旧主题值到新主题
           if (version === 0) {
-            const state = persistedState as { theme?: string }
             const oldTheme = state?.theme
             if (oldTheme && LEGACY_THEME_MAP[oldTheme]) {
-              return { ...state, theme: LEGACY_THEME_MAP[oldTheme] }
+              state.theme = LEGACY_THEME_MAP[oldTheme]
             }
           }
-          return persistedState as ThemeState
+          return { ...state, theme: 'minimal-white', themes: ['minimal-white'] } as ThemeState
         },
-        version: 1,
+        version: 2,
       },
     ),
     { name: 'core-theme' },

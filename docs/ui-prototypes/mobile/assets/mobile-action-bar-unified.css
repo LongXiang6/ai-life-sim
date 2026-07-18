@@ -1,0 +1,318 @@
+:root {
+  --mobile-nav-surface: #fff;
+  --mobile-nav-line: #e3e5e8;
+  --mobile-nav-control-line: #e5e7ea;
+  --mobile-nav-ink: #626870;
+  --mobile-nav-accent: #6d7f94;
+  --mobile-nav-disabled: #d9dfe5;
+  --mobile-nav-shadow: 0 9px 26px rgba(24, 28, 34, .08);
+  --mobile-nav-focus: rgba(109, 127, 148, .48);
+}
+
+/*
+ * Shared navigation surface for the selected white-paper family.
+ * DOM, routing, disabled states and page-specific action order remain owned
+ * by each original prototype; this file only aligns their visual grammar.
+ */
+body[data-screen="world-select"] .chapter-end,
+body[data-screen="world-customize"] .bottom-bar,
+body[data-screen="character-create"] .bottom-bar,
+body:is(
+  [data-screen="talent-draw"],
+  [data-screen="mythic-inheritance"],
+  [data-screen="attribute-alloc"],
+  [data-screen="fate-preview"],
+  [data-screen="game-over"]
+) .bottom {
+  right: 14px !important;
+  bottom: 12px !important;
+  left: 14px !important;
+  padding: 0 !important;
+  border: 1px solid var(--mobile-nav-line) !important;
+  border-radius: 18px !important;
+  background: var(--mobile-nav-surface) !important;
+  box-shadow: var(--mobile-nav-shadow) !important;
+  backdrop-filter: none !important;
+}
+
+body:is(
+  [data-screen="world-select"],
+  [data-screen="world-customize"],
+  [data-screen="character-create"]
+) .chapter-nav,
+body:is(
+  [data-screen="talent-draw"],
+  [data-screen="mythic-inheritance"],
+  [data-screen="attribute-alloc"],
+  [data-screen="fate-preview"],
+  [data-screen="game-over"]
+) .bottom > :is(.bar, .footer) {
+  min-height: 52px !important;
+  align-items: center;
+  gap: 8px !important;
+  padding: 2px 7px !important;
+  border: 0 !important;
+  border-radius: inherit !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+/* One return-control family: 38px circular target, white surface, gray-blue ink. */
+body[data-screen="world-select"] .back-button,
+body[data-screen="world-customize"] .back-button,
+body[data-screen="character-create"] .back-button,
+body[data-screen="mythic-inheritance"] .footer-btn.secondary,
+body[data-screen="talent-draw"] .bottom .action.back,
+body[data-screen="attribute-alloc"] .bottom .bar > .action:not(.primary),
+body[data-screen="fate-preview"] .bottom .bar > .action:not(.primary),
+body[data-screen="game-over"] .bottom .bar > button:first-child {
+  position: relative;
+  display: grid !important;
+  width: 38px !important;
+  min-width: 38px !important;
+  max-width: 38px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  flex: 0 0 38px !important;
+  place-items: center;
+  padding: 0 !important;
+  border: 1px solid var(--mobile-nav-control-line) !important;
+  border-radius: 50% !important;
+  background: #fff !important;
+  color: var(--mobile-nav-ink) !important;
+  box-shadow: none !important;
+}
+
+body:is(
+  [data-screen="world-select"],
+  [data-screen="world-customize"],
+  [data-screen="character-create"]
+) .back-button svg,
+body[data-screen="mythic-inheritance"] .footer-btn.secondary svg {
+  width: 17px !important;
+  height: 17px !important;
+}
+
+body[data-screen="talent-draw"] .bottom .action.back,
+body[data-screen="attribute-alloc"] .bottom .bar > .action:not(.primary),
+body[data-screen="fate-preview"] .bottom .bar > .action:not(.primary),
+body[data-screen="game-over"] .bottom .bar > button:first-child {
+  overflow: hidden;
+  font-size: 0 !important;
+}
+
+body[data-screen="talent-draw"] .bottom .action.back::before,
+body[data-screen="attribute-alloc"] .bottom .bar > .action:not(.primary)::before,
+body[data-screen="fate-preview"] .bottom .bar > .action:not(.primary)::before,
+body[data-screen="game-over"] .bottom .bar > button:first-child::before {
+  position: absolute;
+  top: 13px;
+  left: 11px;
+  width: 9px;
+  height: 9px;
+  border-bottom: 1.5px solid currentColor;
+  border-left: 1.5px solid currentColor;
+  content: "";
+  transform: rotate(45deg);
+}
+
+body[data-screen="talent-draw"] .bottom .action.back::after,
+body[data-screen="attribute-alloc"] .bottom .bar > .action:not(.primary)::after,
+body[data-screen="fate-preview"] .bottom .bar > .action:not(.primary)::after,
+body[data-screen="game-over"] .bottom .bar > button:first-child::after {
+  position: absolute;
+  top: 18px;
+  left: 11px;
+  width: 16px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: currentColor;
+  content: "";
+}
+
+/* Compact pages keep their one-line primary actions, but share the same metrics. */
+body:is(
+  [data-screen="talent-draw"],
+  [data-screen="mythic-inheritance"],
+  [data-screen="attribute-alloc"],
+  [data-screen="fate-preview"]
+) .bottom .primary,
+body[data-screen="game-over"] .bottom .bar .next {
+  min-height: 38px !important;
+  border: 1px solid var(--mobile-nav-accent) !important;
+  border-radius: 12px !important;
+  background: var(--mobile-nav-accent) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+body:is(
+  [data-screen="talent-draw"],
+  [data-screen="mythic-inheritance"],
+  [data-screen="attribute-alloc"],
+  [data-screen="fate-preview"]
+) .bottom .primary:disabled {
+  border-color: var(--mobile-nav-disabled) !important;
+  background: var(--mobile-nav-disabled) !important;
+  color: #fff !important;
+  opacity: 1 !important;
+}
+
+body:is(
+  [data-screen="world-select"],
+  [data-screen="world-customize"],
+  [data-screen="character-create"]
+) .chapter-action :is(.action-copy small) {
+  margin-top: 2px !important;
+}
+
+body:is(
+  [data-screen="world-select"],
+  [data-screen="world-customize"],
+  [data-screen="character-create"]
+) .chapter-action:disabled .action-arrow,
+body:is(
+  [data-screen="world-select"],
+  [data-screen="world-customize"],
+  [data-screen="character-create"]
+) .chapter-action[aria-disabled="true"] .action-arrow {
+  background: var(--mobile-nav-disabled) !important;
+  color: #fff !important;
+}
+
+body[data-screen="fate-preview"] .bottom .bar {
+  grid-template-columns: 38px minmax(0, 1fr) 92px !important;
+}
+
+body[data-screen="game-over"] .bottom .bar {
+  grid-template-columns: 38px minmax(0, 1fr) !important;
+}
+
+body[data-screen="game-over"] .bottom .bar .next {
+  border-left: 1px solid var(--mobile-nav-accent) !important;
+}
+
+body[data-screen="mythic-inheritance"] .content {
+  padding-bottom: 64px !important;
+}
+
+body[data-screen="mythic-inheritance"] .library {
+  bottom: 70px !important;
+}
+
+/* Settings/help use source-return semantics, so only their close control is shared. */
+body[data-screen="settings"] .close-settings,
+body[data-screen="help"] .close {
+  position: relative;
+  display: grid !important;
+  width: 38px !important;
+  min-width: 38px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  place-items: center;
+  padding: 0 !important;
+  border: 1px solid var(--mobile-nav-control-line) !important;
+  border-radius: 50% !important;
+  background: #fff !important;
+  color: var(--mobile-nav-ink) !important;
+  font-size: 0 !important;
+  text-align: center !important;
+  box-shadow: none !important;
+}
+
+body[data-screen="settings"] .close-settings::before,
+body[data-screen="help"] .close::before {
+  content: "×";
+  font-family: var(--sans, sans-serif);
+  font-size: 17px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+body[data-screen="settings"] .phone-head {
+  position: relative;
+}
+
+body[data-screen="settings"] .running {
+  padding-right: 44px;
+}
+
+body[data-screen="settings"] .title-line {
+  padding-right: 44px;
+}
+
+body[data-screen="settings"] .close-settings {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+}
+
+body[data-screen="settings"] .phone-footer {
+  right: 14px !important;
+  bottom: 12px !important;
+  left: 14px !important;
+  border: 1px solid var(--mobile-nav-line) !important;
+  border-radius: 18px !important;
+  background: #fff !important;
+  box-shadow: var(--mobile-nav-shadow) !important;
+}
+
+body[data-screen="settings"] .restore {
+  min-height: 32px;
+  border-radius: 10px;
+}
+
+body[data-screen] :is(
+  .back-button,
+  .footer-btn.secondary,
+  .bottom .action.back,
+  .bottom .bar > .action:not(.primary),
+  .bottom .bar > button:first-child,
+  .bottom .primary,
+  .bottom .next,
+  .chapter-action,
+  .close-settings,
+  .head > .close,
+  .restore
+):focus-visible {
+  outline: 2px solid var(--mobile-nav-focus) !important;
+  outline-offset: 2px !important;
+}
+
+/* Hide prototype-review chrome when a selected page runs inside flow.html. */
+html.embedded-preview body[data-screen] > :is(.shell, .final-shell) {
+  width: 100%;
+  min-height: 100vh;
+  padding: 12px 0 28px;
+}
+
+html.embedded-preview body[data-screen] > :is(.shell, .final-shell) > :is(
+  .topbar,
+  .prototype-head,
+  .eyebrow,
+  h1,
+  .subtitle,
+  .final-label,
+  .spec-summary
+) {
+  display: none !important;
+}
+
+html.embedded-preview body[data-screen] > :is(.shell, .final-shell) > :is(.stage, .final-stage) {
+  margin-top: 0 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-screen] :is(
+    .back-button,
+    .footer-btn.secondary,
+    .bottom button,
+    .chapter-action,
+    .close-settings,
+    .head > .close,
+    .restore
+  ) {
+    transition: none !important;
+  }
+}

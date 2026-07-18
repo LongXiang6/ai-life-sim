@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>欢迎界面第十七轮 · S2-A2a-16C 动作层级</title>
+  <link rel="stylesheet" href="../assets/library-history.css">
+  <style>
+    :root {
+      color-scheme:light;
+      --ew-canvas:#f3f1ec;
+      --ew-paper:#fbfaf7;
+      --ew-surface:#fffefd;
+      --ew-ink:#292724;
+      --ew-ink-soft:#6e6961;
+      --ew-ink-faint:#9a9389;
+      --ew-line:#d9d3c9;
+      --ew-line-light:#e9e5de;
+      --ew-mist:#9ca9ac;
+    }
+    * { box-sizing:border-box; }
+    body { background:var(--ew-canvas); color:var(--ew-ink); }
+    .shell { max-width:1180px; }
+    .topbar a,.eyebrow { color:var(--ew-ink-soft); }
+    .status { border:1px solid var(--ew-line); border-radius:999px; background:var(--ew-surface); color:var(--ew-ink-soft); }
+    h1 { color:var(--ew-ink); }
+    .subtitle,.intro-note { max-width:875px; color:var(--ew-ink-soft); font-size:13px; line-height:1.7; }
+    code { color:var(--ew-ink); font-family:"SF Mono","Cascadia Mono",monospace; font-size:.94em; }
+    .option-card { cursor:default; border-color:var(--ew-line); border-radius:20px; background:var(--ew-surface); box-shadow:0 10px 28px rgba(62,55,44,.055); }
+    .option-card:hover { transform:none; box-shadow:0 10px 28px rgba(62,55,44,.055); }
+    .option-copy h3 { color:var(--ew-ink); }
+    .option-copy p,.dimension { color:var(--ew-ink-soft); }
+    .tag { border:1px solid var(--ew-line); border-radius:999px; background:var(--ew-paper); color:var(--ew-ink-soft); }
+    .three-grid { max-width:1060px; }
+    .phone { height:590px; }
+    .welcome-phone { overflow:hidden; border-color:var(--ew-line); border-radius:32px; background:#fdfcf9; box-shadow:0 13px 30px rgba(62,55,44,.075); }
+    .welcome-phone::before { position:absolute; inset:0; z-index:0; pointer-events:none; background:radial-gradient(ellipse at 78% 86%,rgba(255,254,253,.88),transparent 48%); content:""; opacity:.82; }
+    .curve { position:absolute; inset:0; z-index:1; width:100%; height:100%; pointer-events:none; }
+    .spine { position:absolute; z-index:2; width:1px; }
+    .copy,.actions { position:absolute; z-index:3; }
+    .brand { position:absolute; z-index:4; color:var(--ew-ink-soft); font-family:"SF Pro Text","PingFang SC","Microsoft YaHei UI",sans-serif; font-size:6.4px; font-weight:680; letter-spacing:1.58px; white-space:nowrap; transform:rotate(-90deg); transform-origin:left top; }
+    .headline { margin:0; color:var(--ew-ink); font-family:"Songti SC","STSong","SimSun",serif; font-size:21px; font-weight:600; line-height:1.34; letter-spacing:-.92px; }
+    .intro { max-width:181px; margin:12px 0 0; color:var(--ew-ink-soft); font-size:8.7px; font-weight:440; line-height:1.8; letter-spacing:.04px; }
+    .ui-button { display:flex; min-height:42px; padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; color:var(--ew-ink); cursor:pointer; transition:opacity .16s ease,transform .16s ease; }
+    .ui-button:active { opacity:.56; transform:translateY(1px); }
+    .ui-button:focus-visible,.utility-links button:focus-visible { outline:1px dotted var(--ew-ink-soft); outline-offset:2px; }
+    .entry-label { font-family:"Songti SC","STSong","SimSun",serif; font-weight:600; line-height:1; }
+    .load-stack { display:grid; gap:3px; }
+    .load-stack b { font-family:"Songti SC","STSong","SimSun",serif; font-weight:600; line-height:1; }
+    .load-stack span { color:var(--ew-ink-faint); font-family:"SF Pro Text","PingFang SC","Microsoft YaHei UI",sans-serif; font-weight:520; line-height:1; }
+    .utility-links { display:flex; align-items:center; gap:17px; }
+    .utility-links button { min-height:18px; padding:3px 1px; border:0; background:transparent; color:var(--ew-ink-soft); font-family:inherit; font-size:7px; font-weight:520; letter-spacing:.15px; cursor:pointer; }
+    .utility-links button+button { position:relative; }
+    .utility-links button+button::before { position:absolute; top:4px; bottom:4px; left:-9px; width:1px; background:var(--ew-line); content:""; }
+    .footer { color:var(--ew-ink-faint); font-size:6.5px; letter-spacing:.02px; white-space:nowrap; }
+    .toast { position:absolute; bottom:76px; left:50%; z-index:30; padding:7px 10px; border-radius:999px; background:var(--ew-ink); color:var(--ew-surface); font-size:6px; opacity:0; pointer-events:none; transform:translate(-50%,8px); transition:opacity .18s,transform .18s; white-space:nowrap; }
+    .toast.show { opacity:1; transform:translate(-50%,0); }
+    .dimension { display:inline-block; margin-top:8px; font-size:11px; font-variant-numeric:tabular-nums; }
+
+    /* 固定 16C：自研优雅白、左书脊、正文与路径曲线不变。 */
+    .action-study .spine { top:44px; bottom:44px; left:26px; background:linear-gradient(var(--ew-line-light) 0 12%,var(--ew-line) 12% 65%,var(--ew-line-light) 65% 100%); }
+    .action-study .brand { top:69px; left:15px; }
+    .action-study .copy { top:137px; right:27px; left:57px; }
+    .action-study .route-guide { position:absolute; right:27px; left:57px; z-index:3; height:1px; background:linear-gradient(90deg,var(--ew-line-light) 0 76%,transparent 76% 79%,var(--ew-mist) 79% 100%); }
+    .action-study .route-guide::before { position:absolute; top:-2px; right:0; width:5px; height:5px; border-radius:50%; background:var(--ew-mist); content:""; }
+    .action-study .actions { right:27px; bottom:29px; left:57px; }
+    .action-study .route-label { margin:0 0 1px; color:var(--ew-ink-faint); font-family:"SF Pro Text","PingFang SC",sans-serif; font-size:5.6px; font-weight:620; letter-spacing:.66px; }
+    .action-study .route-entry { position:relative; align-items:center; width:100%; padding-left:28px; text-align:left; }
+    .action-study .route-entry .ui-button { align-items:center; flex:1; text-align:left; }
+    .action-study .route-entry.soft { margin-top:0; }
+    .action-study .action-mark { position:absolute; top:50%; left:0; width:21px; height:14px; color:var(--ew-ink-faint); transform:translateY(-50%); }
+    .action-study .mark-number { position:absolute; top:50%; left:0; font-family:"SF Pro Text","PingFang SC",sans-serif; font-size:5.7px; font-weight:660; letter-spacing:.15px; line-height:1; transform:translateY(-50%); }
+    .action-study .route-entry.primary .action-mark { color:var(--ew-ink-soft); }
+    .action-study .route-entry.soft .action-mark { color:var(--ew-ink-faint); }
+    .action-study .utility-links { margin-top:9px; padding-left:28px; }
+    .action-study .footer { margin-top:9px; padding-left:28px; }
+    .action-study .curve-main path { stroke:var(--ew-line-light); }
+    .action-study .curve-main circle { fill:var(--ew-ink-faint); }
+    .action-study .curve-main circle:first-of-type { fill:var(--ew-ink-faint); }
+    .action-study .curve-main circle:last-of-type { fill:var(--ew-mist); }
+
+    /* 17A · 针点引标：横线轻度上移，数字之后由一根发丝线落到小圆点。 */
+    .needle-mark .route-guide { bottom:170px; }
+    .needle-mark .entry-label { font-size:12px; letter-spacing:1.02px; }
+    .needle-mark .load-stack b { font-size:10px; letter-spacing:.72px; }
+    .needle-mark .load-stack span { font-size:6px; letter-spacing:.18px; }
+    .needle-mark .action-mark::before { position:absolute; top:50%; left:10px; width:10px; height:1px; background:currentColor; content:""; opacity:.72; }
+    .needle-mark .action-mark::after { position:absolute; top:50%; right:0; width:2.5px; height:2.5px; border-radius:50%; background:currentColor; content:""; transform:translateY(-1px); }
+    .needle-mark .route-entry.soft .action-mark::after { background:var(--ew-mist); }
+
+    /* 17B · 折页角标：横线再抬高，数字右侧用开放折角提示路径转向。 */
+    .fold-mark .route-guide { bottom:178px; }
+    .fold-mark .entry-label { font-size:12.2px; letter-spacing:1.04px; }
+    .fold-mark .load-stack b { font-size:9.9px; letter-spacing:.74px; }
+    .fold-mark .load-stack span { font-size:6.1px; letter-spacing:.18px; }
+    .fold-mark .action-mark::before { position:absolute; top:3px; right:0; width:7px; height:8px; border-bottom:1px solid currentColor; border-left:1px solid currentColor; content:""; opacity:.76; }
+    .fold-mark .action-mark::after { position:absolute; right:-1px; bottom:2px; width:3px; height:1px; background:currentColor; content:""; opacity:.76; }
+    .fold-mark .route-entry.soft .action-mark::before,.fold-mark .route-entry.soft .action-mark::after { color:var(--ew-mist); opacity:.62; }
+
+    /* 17C · 双刻页标：最大留白，数字与双刻度组成细长的页边索引。 */
+    .folio-mark .route-guide { bottom:186px; }
+    .folio-mark .entry-label { font-size:12.4px; letter-spacing:1.08px; }
+    .folio-mark .load-stack b { font-size:10.1px; letter-spacing:.76px; }
+    .folio-mark .load-stack span { font-size:6.2px; letter-spacing:.2px; }
+    .folio-mark .action-mark::before { position:absolute; top:1px; right:8px; bottom:1px; width:1px; background:currentColor; content:""; opacity:.68; }
+    .folio-mark .action-mark::after { position:absolute; top:4px; right:0; width:5px; height:1px; background:currentColor; box-shadow:0 6px 0 currentColor; content:""; opacity:.68; }
+    .folio-mark .route-entry.soft .action-mark::before,.folio-mark .route-entry.soft .action-mark::after { color:var(--ew-mist); opacity:.52; }
+
+    @media(max-width:980px) { .three-grid { grid-template-columns:1fr; } }
+    @media(prefers-reduced-motion:reduce) { .toast,.ui-button { transition:none; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar"><a href="index.html">← 返回欢迎界面历史</a><span class="status">第十七轮 · 动作层级</span></div>
+    <p class="eyebrow">WELCOME · ROUND 17</p>
+    <h1>S2-A2a-16C 文字入口层级</h1>
+    <p class="subtitle">固定 16C「素白微彩」的自研优雅白、左侧书脊、标题正文、路径曲线和页尾收束。本轮只调整文字入口上方横线的高度、入口左侧强调符号，以及主次文字的字号层级。</p>
+    <p class="intro-note">三稿继续使用无边框、无底板、无投影的透明文字入口，并保留至少 42px 命中区。主入口约 12px，读取存档约 10px，存档数量约 6px；横线均已明显离开入口文字。</p>
+    <section class="option-grid three-grid">
+      <article class="option-card">
+        <div class="phone welcome-phone action-study needle-mark">
+          <span class="spine" aria-hidden="true"></span><div class="brand">AI LIFE SIM</div><span class="route-guide" aria-hidden="true"></span>
+          <svg class="curve curve-main" viewBox="0 0 292 590" aria-hidden="true"><path d="M272 8 C228 98,275 181,239 272 S213 421,254 503 S260 568,242 610" fill="none" stroke-width="1"/><circle cx="272" cy="8" r="3"/><circle cx="239" cy="272" r="2.6"/><circle cx="254" cy="503" r="1.7"/></svg>
+          <div class="copy"><div class="headline">一生很长，<br>也只由几次选择组成。</div><div class="intro">选择世界与出身，走过关系、机会、代价和告别。</div></div>
+          <div class="actions"><div class="route-label">路径终点 / 选择</div><div class="route-entry primary"><span class="action-mark" aria-hidden="true"><span class="mark-number">01</span></span><button class="ui-button new-life"><span class="entry-label">开始新人生</span></button></div><div class="route-entry soft"><span class="action-mark" aria-hidden="true"><span class="mark-number">02</span></span><button class="ui-button load-save" aria-label="读取存档，3 个记录"><span class="load-stack"><b>读取存档</b><span>3 个记录</span></span></button></div><div class="utility-links"><button class="settings">设置</button><button class="help">说明</button></div><div class="footer">故事小分队交流群 · 1097782298</div></div><div class="toast" role="status" aria-live="polite"></div>
+        </div>
+        <div class="option-copy"><span class="tag">S2-A2a-17A · 针点引标</span><h3>发丝线停在一点</h3><p>横线向上移动 24px，和动作标题保持紧凑呼应。左侧数字接一根短线与微小端点，主入口更醒目，读取入口保持克制。</p><span class="dimension">guide +24px · 12 / 10 / 6px</span></div>
+      </article>
+      <article class="option-card">
+        <div class="phone welcome-phone action-study fold-mark">
+          <span class="spine" aria-hidden="true"></span><div class="brand">AI LIFE SIM</div><span class="route-guide" aria-hidden="true"></span>
+          <svg class="curve curve-main" viewBox="0 0 292 590" aria-hidden="true"><path d="M272 8 C228 98,275 181,239 272 S213 421,254 503 S260 568,242 610" fill="none" stroke-width="1"/><circle cx="272" cy="8" r="3"/><circle cx="239" cy="272" r="2.6"/><circle cx="254" cy="503" r="1.7"/></svg>
+          <div class="copy"><div class="headline">一生很长，<br>也只由几次选择组成。</div><div class="intro">选择世界与出身，走过关系、机会、代价和告别。</div></div>
+          <div class="actions"><div class="route-label">路径终点 / 选择</div><div class="route-entry primary"><span class="action-mark" aria-hidden="true"><span class="mark-number">01</span></span><button class="ui-button new-life"><span class="entry-label">开始新人生</span></button></div><div class="route-entry soft"><span class="action-mark" aria-hidden="true"><span class="mark-number">02</span></span><button class="ui-button load-save" aria-label="读取存档，3 个记录"><span class="load-stack"><b>读取存档</b><span>3 个记录</span></span></button></div><div class="utility-links"><button class="settings">设置</button><button class="help">说明</button></div><div class="footer">故事小分队交流群 · 1097782298</div></div><div class="toast" role="status" aria-live="polite"></div>
+        </div>
+        <div class="option-copy"><span class="tag">S2-A2a-17B · 折页角标</span><h3>路径在页边轻轻转向</h3><p>横线上移 32px，留出更从容的呼吸。数字右侧是一枚开放折角，保留路径意象，又不会形成按钮边框。</p><span class="dimension">guide +32px · 12.2 / 9.9 / 6.1px</span></div>
+      </article>
+      <article class="option-card">
+        <div class="phone welcome-phone action-study folio-mark">
+          <span class="spine" aria-hidden="true"></span><div class="brand">AI LIFE SIM</div><span class="route-guide" aria-hidden="true"></span>
+          <svg class="curve curve-main" viewBox="0 0 292 590" aria-hidden="true"><path d="M272 8 C228 98,275 181,239 272 S213 421,254 503 S260 568,242 610" fill="none" stroke-width="1"/><circle cx="272" cy="8" r="3"/><circle cx="239" cy="272" r="2.6"/><circle cx="254" cy="503" r="1.7"/></svg>
+          <div class="copy"><div class="headline">一生很长，<br>也只由几次选择组成。</div><div class="intro">选择世界与出身，走过关系、机会、代价和告别。</div></div>
+          <div class="actions"><div class="route-label">路径终点 / 选择</div><div class="route-entry primary"><span class="action-mark" aria-hidden="true"><span class="mark-number">01</span></span><button class="ui-button new-life"><span class="entry-label">开始新人生</span></button></div><div class="route-entry soft"><span class="action-mark" aria-hidden="true"><span class="mark-number">02</span></span><button class="ui-button load-save" aria-label="读取存档，3 个记录"><span class="load-stack"><b>读取存档</b><span>3 个记录</span></span></button></div><div class="utility-links"><button class="settings">设置</button><button class="help">说明</button></div><div class="footer">故事小分队交流群 · 1097782298</div></div><div class="toast" role="status" aria-live="polite"></div>
+        </div>
+        <div class="option-copy"><span class="tag">S2-A2a-17C · 双刻页标</span><h3>两道刻度形成页边索引</h3><p>横线上移 40px，页尾留白最舒展。数字配一根竖线和两道短刻，像书页索引，也让 12.4px 主入口获得最清晰的层级。</p><span class="dimension">guide +40px · 12.4 / 10.1 / 6.2px</span></div>
+      </article>
+    </section>
+  </main>
+  <script>
+    function showToast(phone,message){const toast=phone.querySelector('.toast');toast.textContent=message;toast.classList.add('show');clearTimeout(toast._timer);toast._timer=setTimeout(function(){toast.classList.remove('show')},1300)}
+    document.querySelectorAll('.welcome-phone').forEach(function(phone){phone.querySelector('.new-life').onclick=function(){showToast(phone,'开始新人生 · 原型演示')};phone.querySelector('.load-save').onclick=function(){showToast(phone,'打开全部 3 个存档')};phone.querySelector('.settings').onclick=function(){showToast(phone,'打开设置')};phone.querySelector('.help').onclick=function(){showToast(phone,'打开说明')}})
+  </script>
+</body>
+</html>

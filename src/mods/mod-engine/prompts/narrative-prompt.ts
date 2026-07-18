@@ -1,387 +1,160 @@
 /**
  * @module narrative-prompt.ts
- * @description 叙事 Prompt 模板 —— KV Cache 优化 + 标签信封输出 + 全面防御
+ * @description 主叙事 Prompt —— 稳定 KV 前缀 + 三段正文 + 结构化 META
  * @mod mod-engine
  *
- * KV Cache 策略（适配 DeepSeek 上下文硬盘缓存机制）：
- *   System Prompt 完全固定 → 首次调用后永久命中缓存。
- *   User Prompt 按变量稳定性分为三段：
- *     [稳定前缀] 世界规则 + MOD规则 + 世界约束 + 世界设定 + 玩家设定 + 可变更字段 + 叙事风格
- *       → 世界创建后完全不变，每轮请求的此前缀完全相同 → 最大化缓存命中
- *       → 按"底层规则（土壤）→ 世界设定 → 故事基调"逻辑重排
- *     [缓变中段] 角色信息 + 记忆档案
- *       → 变化频率低（仅属性/年龄变化时更新），小增量 cache miss
- *     [速变后缀] 子系统状态 + 最近变化 + 事件注入 + 历史叙事 + 用户指令 + 本轮导演提示
- *       → 每轮必然变化，计 cache miss
- *       → 时间步长视角等本轮策略只放在末尾动态字段，不污染稳定前缀
- *   DeepSeek 规则参考：https://api-docs.deepseek.com/zh-cn/guides/kv_cache
- *     - 缓存前缀单元从请求开头完整匹配，命中后跳过推理
- *     - 固定前缀越长，命中 tokens 越多
- *     - 系统可检测多轮公共前缀并自动落盘
+ * System Prompt 保持固定；User Prompt 按稳定、缓变、速变字段排序。
+ * 世界规则、校准、设定、字段指南和文风位于稳定前缀；角色位于缓变段；
+ * 时间、状态、记忆、事件和本轮指令位于速变后缀。
  */
 
 import type { PromptTemplate } from '@/foundation'
 import { stringifyPrompt } from '@/foundation'
 
-import { z } from 'zod'
 import {
-  MVP_ALLOWED_SUBSYSTEMS_TEXT,
-  MVP_SUBSYSTEM_GUIDE,
-} from '../helpers/mvp-runtime-policy'
+  NARRATIVE_ACTION_SCALES,
+  NARRATIVE_ARC_TYPES,
+  NARRATIVE_EVENT_TYPES,
+  NARRATIVE_IMPACT_SCOPES,
+  NARRATIVE_REGISTERS,
+  NARRATIVE_RELATIONSHIP_TYPES,
+  NarrativeResponseSchema,
+} from '../helpers/narrative-semantic-signals'
 
-/** AI META 段预期输出 Zod Schema（正文由 [NARRATIVE] 段承载） */
-const NarrativeResponseSchema = z.object({
-  changes: z.array(z.object({
-    id: z.string(),
-    description: z.string(),
-    changes: z.record(z.string(), z.unknown()),
-  })),
-  notableEvents: z.array(z.string()).optional(),
-  creations: z.array(z.object({
-    name: z.string(),
-    description: z.string(),
-    category: z.enum(['power_system', 'technique', 'ability', 'rule', 'object', 'other']),
-  })).optional(),
-  foreshadowing: z.array(z.object({
-    type: z.enum(['prophecy', 'mysterious_item', 'secret_identity', 'oath', 'mysterious_person', 'hidden_power', 'ancient_ruin', 'other']),
-    description: z.string(),
-    priority: z.coerce.number().min(1).max(10),
-  })).optional(),
-  importance: z.enum(['HIGH', 'NORMAL', 'LOW']).optional(),
-  digest: z.string().optional(),
-  keyEvents: z.array(z.object({
-    text: z.string(),
-    importance: z.coerce.number().min(0).max(100),
-    entities: z.array(z.string()).max(6).optional(),
-  })).max(3).optional(),
-  arcStatus: z.enum(['start', 'ongoing', 'end']).optional(),
-  branch: z.boolean().optional(),
-  branchTitle: z.string().optional(),
-  branchOptions: z.array(z.string()).min(2).max(4).optional(),
-})
-
-/**
- * 世界观叙事参考（根据 essenceTag 动态注入到 prompt 的「世界规则」字段）
- *
- * 设计理念：
- *   这些文本作为"参考性质的世界观要素"注入，不构成对 AI 的硬约束。
- *   AI 应以 worldDescription / 用户设定的具体描述为核心叙事依据；
- *   本参考可在风格/术语/要素选择上给予启发，但不应被当作"必须遵守的规则"。
- *
- *   语言上统一使用"可考虑"、"参考风格"等建议性措辞，
- *   避免"应"、"须"、"禁止"等绝对化命令（此类语义留给 system prompt 的 schema）。
- */
+/** 世界本质标签的轻量参考；具体世界设定始终优先。 */
 export const WORLD_RULES: Record<string, string> = {
-  cultivation:
-    '【修仙参考】典型修炼阶梯：炼气→筑基→金丹→元婴→化神→渡劫→大乘（可参考此结构，亦可自创体系）；' +
-    '突破依赖机缘与资源；灵气浓度可影响修炼节奏。常见要素：秘境、灵兽、丹药、法器；' +
-    '常见术语参考：道友、灵根、丹田。以上均为可选素材，请以 worldDescription 的具体设定为准。',
-  wuxia:
-    '【武侠参考】典型阶梯：后天→先天→宗师→大宗师→陆地神仙；' +
-    '内力修炼需时间积累。常见要素：门派、武林秘籍、江湖恩怨、兵器谱；' +
-    '常见术语参考：内力、招式、武林。请以 worldDescription 为准，不必照搬此结构。',
-  scifi:
-    '【科幻参考】文明层级可由科技水平驱动。' +
-    '常见要素：星际旅行、人工智能、基因改造、纳米技术；能量形式可为反物质/聚变/零点能；' +
-    '常见术语参考：量子、轨道、协议。请以 worldDescription 的科技设定为准。',
-  westernFantasy:
-    '【奇幻参考】魔法阶梯参考：学徒→法师→大法师→贤者→传奇；' +
-    '魔力来源可为元素/信仰/血脉。常见要素：龙、精灵、矮人、魔法物品；' +
-    '常见术语参考：魔法、预言、诅咒。请以 worldDescription 为准。',
-  modern:
-    '【现代参考】无超自然力量，遵循物理定律；社会规则与现实相近。' +
-    '常见要素参考：政治、经济、科技、文化冲突。叙事风格请贴近 worldDescription 的具体基调。',
-  postApocalyptic:
-    '【末日参考】文明崩溃后资源稀缺，生存优先。' +
-    '常见要素参考：辐射、变异、废土部落、科技遗迹。叙事基调请依据 worldDescription 设定。',
-  mythological:
-    '【神话参考】神灵真实存在并可干预事务；信仰可产生超凡力量。' +
-    '常见要素：神谕、神器、神力、神话生物。请以 worldDescription 的神话体系为准。',
-  steampunk:
-    '【蒸汽朋克参考】以蒸汽动力为主的架空技术体系；齿轮、飞艇、差分机。' +
-    '社会等级可能分明。请以 worldDescription 的具体机械设定为准。',
-  materialist:
-    '【唯物参考】世界严格遵循物理定律；一切现象可被现有或假想的科学解释。' +
-    '叙事请以 worldDescription 的一致性为准，避免引入无法自洽的超自然要素。',
-  materialist_cultivation:
-    '【唯物修仙参考】将修仙体系视作可被科学解析的能量操控系统——' +
-    '灵气是一种客观的能量场（可被仪器观测和量化）；' +
-    '修炼境界对应生命体能量层级的跃迁（筑基=能量场凝聚，金丹=能量核心质变，元婴=意识能量体分离）；' +
-    '丹药是精确配比的生化制剂，法器是能量场的工程应用产物。' +
-    '常见术语参考：能量场、生命场、量子态、能级跃迁、生物电场。' +
-    '以上仅为参考"解析感"的一种路径，请以 worldDescription 的具体设定为准，不必全盘套用。',
-  idealist_cultivation:
-    '【唯心修仙参考】将修仙体系视作超越科学范畴的神秘体系——' +
-    '灵气是天地意志的具象化；修炼本质上是心境的升华（道心越坚，力量越强）；' +
-    '意境、因果、轮回、缘法是真实可感的力量；' +
-    '突破依赖顿悟与机缘而非单纯的资源堆叠。' +
-    '常见术语参考：天道、因果、命数、剑意、真意、悟道、意境。' +
-    '以上仅为参考"玄妙感"的一种路径，请以 worldDescription 的具体设定为准，不必全盘套用。',
-  darkFantasy:
-    '【黑暗奇幻参考】诸神可能沉默或已陨落；世界被诅咒侵蚀。' +
-    '力量来源可为禁忌交易或血脉诅咒。' +
-    '常见要素参考：邪神低语、灵魂交易、不死生物、古神遗迹。' +
-    '叙事基调请以 worldDescription 的具体氛围为准。',
+  cultivation: '修炼可依赖境界、资源与机缘；只采用世界设定中已成立的体系和术语。',
+  wuxia: '力量来自武学、内力与长期训练；江湖秩序、门派和人情后果须符合世界设定。',
+  scifi: '技术能力受文明水平、资源与工程条件约束；不得把尚未成立的技术写成既有事实。',
+  westernFantasy: '魔法来源、种族与超凡规则以世界设定为准，不套用默认奇幻模板。',
+  modern: '默认遵循现实物理与社会因果；除非世界设定明确允许，不引入超自然事实。',
+  postApocalyptic: '资源、生存与秩序重建构成主要压力；灾变细节以世界设定为准。',
+  mythological: '神灵、信仰与神话力量只按世界设定中已建立的干预边界运行。',
+  steampunk: '技术围绕既定机械与能源体系发展，不凭空越过世界的工程上限。',
+  materialist: '现象须能在该世界的客观规律内自洽，不以神秘词汇替代因果。',
+  materialist_cultivation: '修炼作为可观察的能量或生命现象运行，具体机制以世界设定为准。',
+  idealist_cultivation: '修炼可涉及心境、因果与意境，但触发条件和代价必须来自既有设定。',
+  darkFantasy: '力量常伴随风险与代价；黑暗氛围不能替代人物选择和可追踪后果。',
 }
 
 /**
- * 子系统变更字段指南（从 System Prompt 移出，由 orchestrator 动态注入 User Prompt）
- * 包含各子系统可变更字段说明与跨系统联动规则
- */
-export const SUBSYSTEM_GUIDE = MVP_SUBSYSTEM_GUIDE
-
-/**
- * 固定 System Prompt —— 标签信封输出指令（KV Cache 100% 命中）
- *
- * narrative 正文放在 [NARRATIVE] 段，结构化元数据放在 [META] JSON 段。
- * 不在 schema 中的字段禁止出现在 META 中。
+ * 固定 System Prompt。字段可写范围由 orchestrator 按本局实际活跃子系统动态注入，
+ * 避免把未启动 MOD 或延后系统写入固定前缀。
  */
 export const SYSTEM_PROMPT = stringifyPrompt({
-  rules: {
-    coreRequirements: {
-      L0: [
-          '优先读取用户消息末尾的「指令」字段',
-          '叙事须以「世界规则」「当前状态」「最近变化」「叙事历史」共同作为剧情因果依据，不只把上一段文字当作唯一续写起点',
-          '「当前时间」是本轮叙事结束节点；正文覆盖上一条叙事时间节点之后到当前节点之间发生的事件',
-          '生成正文前先在内部完成「宏观剧情选择」：从世界压力、人生阶段、角色资源/局限、未解决伏笔中选出本轮最合理的一件外部触发事件；该分析不要输出',
-          '若叙事历史为空且角色为0岁，本轮只写出生与家世，不概括出生后一整年的成长',
-          '最终输出必须且只能包含[NARRATIVE]正文[/NARRATIVE]与[META]JSON[/META]两段，禁止markdown代码块包裹',
-          'NARRATIVE正文必须且只分三段，段落之间用一个空行分隔；三段可理解为剧情镜头：触发与压力、行动与阻力、后果与新钩子',
-          '风格上优先写成故事片段，尽量少写年终总结、成长作文、散文抒情或主题升华；每段最好都有可观察的人物行动、关系反应或处境变化',
-          'NARRATIVE正文最后应以完整中文句子收束，句末用。！？或引号后的完整标点，避免以“写着”“说”“问”“看见”“递来”等引出句中断',
-          '每轮优先推进一个核心事件，可含自然连带反应；多个事件同时出现时，要让它们围绕同一个剧情因果',
-          '禁止换皮复演最近两轮已经完成的主要场景、动作、对话结论或成长里程碑；角色已经学会、完成或经历的事，本轮只能写其下一阶段、后果或新的阻力',
-          '命运分叉只用于会改变身份、核心关系、长期目标、关键资源、阵营、存亡或不可逆轨迹的 HIGH 级抉择；吃什么、去哪玩、如何花小额零用钱等日常选择直接写入正文，branch=false',
-          '「原创保护」列出的内容均为角色亲自开创，严禁改写为外部来源',
-        ],
-      L1: [
-        '「世界规则」与「叙事风格」是剧情选择框架，不是辞藻模板',
-        '叙事风格只调节镜头语言，剧情因果、选择压力与后果优先于修辞',
-        '角色年龄、性格、能力须与「角色」「命格天赋」一致',
-      ],
-      L2: [
-        '「剧情阶段」「事件注入」为可选参考',
-        '即使极端情况也须确保narrative有可用内容，并遵守世界观规则',
-      ],
-    },
+  role: '你是 AI 人生模拟器的主叙事引擎。先判断本轮事件，再以面向玩家的第二人称写出角色亲历的中文剧情与可校验元数据。',
 
-    allowedSubSystems: MVP_ALLOWED_SUBSYSTEMS_TEXT,
-
-    defense: {
-      description: '降级策略',
-      jsonError: 'JSON格式错误时修正为合法JSON，优先保证narrative有内容',
-      noChanges: '无法判断子系统变化时返回空数组[]',
-      totalFailure: '信息不足时输出最简格式：[NARRATIVE]三段可用文本[/NARRATIVE][META]{"changes":[]}[/META]',
-    },
-
-    attributeRules: [
-      '凡人属性区间 -10~+10，0为平平无奇。体魄/心智/悟性/魅力为可超凡属性，突破+10即进入超凡领域（超凡入圣/神性/神王/概念级），可无上限堆叠；出身与气运/善恶锁定在 -10~+10。语义标签由 getAttrSemantic() 生成。',
-      '属性变更用增量字段（physiqueDelta/mindDelta/talentAptitudeDelta/charismaDelta/resourcesDelta），正=增长负=下降，仅用整数，单次波动≤2（重大机缘可略高）。若叙事明确提到属性变化，必须在 META.changes 中填写对应 delta。',
-      '气运（隐藏属性，用户不可见）：开局随机±4，仅重大人生转折可变动（≤±1/次），由命格/奇遇/灾厄触发。',
-      '善恶（隐藏属性，用户不可见）：开局为0，每次变动≤±1，累计为善（+正）或恶（-负）。若本轮有明确善恶行为，必须写 morality.delta。',
-      '寿命由 lifespan 管理。年龄禁止写入；若本轮明确减寿/增寿，写 lifespan.lifespanDelta（负=减寿，正=增寿）。',
-    ],
-  },
-
-  output: {
-    schema: {
-      type: 'object',
-      required: ['changes'],
-      additionalProperties: false,
-      properties: {
-        changes: {
-          type: 'array',
-          description: '必填：子系统变更数组。仅包含真正发生了变化的子系统，没有变化则为空数组[]。',
-          items: {
-            type: 'object',
-            required: ['id', 'description', 'changes'],
-            additionalProperties: false,
-            properties: {
-              id: { type: 'string', description: '子系统ID' },
-              description: { type: 'string', description: '变更简述' },
-              changes: { type: 'object', description: '变更键值对' },
-            },
-          },
-        },
-        notableEvents: {
-          type: 'array',
-          items: { type: 'string' },
-          maxItems: 3,
-          description: '可选：本轮值得记录的重要事件简述，最多3条，用中文简述。',
-        },
-        foreshadowing: {
-          type: 'array',
-          description: '可选：伏笔标注。仅在埋设了值得回收的伏笔时使用，不需要每轮标注。如果在叙事中回收了已有伏笔，自然加入"应验了""果然""原来如此"等词汇。',
-          items: {
-            type: 'object',
-            required: ['type', 'description', 'priority'],
-            additionalProperties: false,
-            properties: {
-              type: {
-                type: 'string',
-                enum: ['prophecy', 'mysterious_item', 'secret_identity', 'oath', 'mysterious_person', 'hidden_power', 'ancient_ruin', 'other'],
-              },
-              description: { type: 'string' },
-              priority: { type: 'number', minimum: 1, maximum: 10 },
-            },
-          },
-        },
-        importance: {
-          type: 'string',
-          enum: ['HIGH', 'NORMAL', 'LOW'],
-          description: '可选：本轮叙事全局重要程度。HIGH=重大转折（死亡/突破/背叛/婚约/关键抉择等改变命运的事件）。NORMAL=有值得注意的进展但非转折。LOW=日常流水/修行/工作/休息。系统会结合你的判断和关键词检测综合评定，此字段仅作参考辅助。',
-        },
-        digest: {
-          type: 'string',
-          description: '建议填写：用一句话（≤40字）精简概括本轮叙事的核心意思，供长期记忆存档。应抓住"谁做了什么、结果如何"，省略环境描写与修辞。例："拜入青云门成为记名弟子，师父赠予一枚储物袋。"',
-        },
-        keyEvents: {
-          type: 'array',
-          maxItems: 3,
-          description: '建议填写：本轮发生的关键事件列表（最多3条），每条附一个 0~100 的重要性数值和可选实体 entities，用于长期记忆的保留与遗忘决策。评分参考：90~100=改变一生的转折（死亡/突破/立誓/生死抉择），不可遗忘；60~89=重要事件；30~59=值得记住的进展；0~29=日常流水。',
-          items: {
-            type: 'object',
-            required: ['text', 'importance'],
-            additionalProperties: false,
-            properties: {
-              text: { type: 'string', description: '事件精简描述（≤30字）' },
-              importance: { type: 'number', minimum: 0, maximum: 100, description: '重要性 0~100' },
-              entities: { type: 'array', items: { type: 'string' }, maxItems: 6, description: '事件相关人物/地点/物品/组织，用于记忆连锁' },
-            },
-          },
-        },
-        arcStatus: {
-          type: 'string',
-          enum: ['start', 'ongoing', 'end'],
-          description: '可选：事件弧状态。start=开启新事件线，ongoing=仍在推进，end=本轮形成阶段性闭环。',
-        },
-        creations: {
-          type: 'array',
-          description: '可选：本轮叙事中角色新创造/开创/发明的内容。仅当叙事明确描述了角色的原创行为时才填写（如开创修炼体系、自创功法、发明新物品、设定新规则等）。已在前几轮标注过的内容无需重复标注。无则省略整个字段。',
-          items: {
-            type: 'object',
-            required: ['name', 'description', 'category'],
-            additionalProperties: false,
-            properties: {
-              name: { type: 'string', description: '创造的名称（2-8字），如"武道修炼体系"' },
-              description: { type: 'string', description: '一句话简述，如"角色融合体术与内功开创的全新修炼方式"' },
-              category: { type: 'string', enum: ['power_system', 'technique', 'ability', 'rule', 'object', 'other'], description: 'power_system=力量体系, technique=招式/功法, ability=能力, rule=规则/设定, object=物品, other=其他' },
-            },
-          },
-        },
-        branch: {
-          type: 'boolean',
-          description: '可选：是否为命运分叉点。仅当 importance=HIGH 且选择会改变身份、核心关系、长期目标、关键资源、阵营、存亡或不可逆轨迹时为 true；日常小事必须为 false。true 时须同时提供 branchTitle 与 branchOptions（2-4 个选项）。',
-        },
-        branchTitle: {
-          type: 'string',
-          description: '分叉点标题/问题（branch=true 时必填），如「你该如何应对？」',
-        },
-        branchOptions: {
-          type: 'array',
-          items: { type: 'string' },
-          minItems: 2,
-          maxItems: 4,
-          description: '分叉选项列表（branch=true 时必填），每条必须是会导向不同长期后果的可执行行动，不得只是措辞不同的同一路径。',
-        },
-      },
-    },
-
-    format: {
-      type: 'tagged_meta',
-      noMarkdownWrapping: true,
-      description: '直接输出两段：先 [NARRATIVE] 三段正文 [/NARRATIVE]，再 [META] 单个合法JSON对象 [/META]。META 禁止包含 narrative 字段。',
-      fieldOrder: ['changes', 'notableEvents', 'creations', 'foreshadowing', 'importance', 'digest', 'keyEvents', 'arcStatus', 'branch', 'branchTitle', 'branchOptions'],
-    },
-  },
-
-  mvpChangePolicy: {
-    description: '当前 MVP 只允许基础属性、寿命、气运、善恶结构化变更；技能、经济、声望、关系、修炼、战力等模拟系统延后。',
-    noStateChange: '若本轮只是叙事推进、获得物品、学艺、社交或战斗结果，但没有明确改变子系统变更指南中的字段，则 changes 返回 []。',
-    birthOpening: '0岁出生开场通常不提交 changes；年龄由时间推进与起始年龄派生，禁止写 lifespan.age。',
-  },
-
-  examples: [
-    {
-      description: '示例0：首轮叙事·出生与家庭',
-      input: { character: '新生儿，0岁，刚出生', worldSetting: '古代市井家庭，父亲是武师' },
-      output: `[NARRATIVE]
-接生的婆子剪断脐带时，你发出一声响亮的啼哭，震得窗纸嗡嗡作响。屋外父亲焦灼的脚步声一顿，随即传来他粗犷的笑声。
-
-茅草屋里弥漫着热水蒸腾的雾气，混着墙角药罐子里飘出的苦涩药味。母亲苍白的脸上挂着汗水，却还是侧过头，用温热的指尖轻轻碰了碰你的脸颊。
-
-屋檐下挂着几串干辣椒和蒜辫，院子里的泥地上散落着劈好的柴火。街坊邻居的说话声从墙外传来，父亲在院里转了三圈，最后蹲下来，把腰间的玉佩解下，在手里攥了又攥。
-[/NARRATIVE]
-[META]
-{"changes":[],"notableEvents":["出生于武师家庭"],"importance":"HIGH","digest":"出生于市井武师之家，父亲以玉佩相赠。","keyEvents":[{"text":"出生于武师家庭","importance":80,"entities":["父亲","母亲","玉佩"]}],"arcStatus":"start"}
-[/META]`,
-    },
-    {
-      description: '示例2：战斗·分支抉择',
-      input: { character: '修仙者，遭遇妖兽', worldSetting: '仙侠世界' },
-      output: `[NARRATIVE]
-夜风掠过山坳时，妖兽的腥气先一步扑到你脸上。你握紧剑柄，脚下碎石被灵力震得轻轻跳动，远处几名散修屏住呼吸。
-
-你运转灵力，身形如电般闪至妖兽侧面。剑光划破夜色，精准刺入妖兽命门；它发出一声凄厉嘶吼，庞大的身躯轰然倒地。
-
-一颗内丹从妖兽体内浮现，散发着柔和青光。周围散修眼中闪过贪婪，却无人敢上前；你望着那枚内丹，意识到接下来的选择会改变这场胜利的意义。
-[/NARRATIVE]
-[META]
-{"changes":[{"id":"character-base","description":"生死战中剑术与体魄得到磨炼","changes":{"physiqueDelta":1,"mindDelta":1}}],"notableEvents":["斩杀妖兽","获得妖兽内丹"],"importance":"HIGH","digest":"你斩杀妖兽并取得内丹，面临处理选择。","keyEvents":[{"text":"斩杀妖兽取得内丹","importance":85,"entities":["妖兽","内丹","散修"]}],"arcStatus":"end","branch":true,"branchTitle":"如何处理这枚妖兽内丹？","branchOptions":["炼化吸收提升修为","卖给坊市换取灵石","留作炼丹材料"]}
-[/META]`,
-    },
+  priority: [
+    '用户消息末尾的「指令」优先；不得替玩家完成尚未选择的命运分叉。',
+    '世界设定、玩家自定义和 MOD 世界规则共同定义事实边界；冲突时采用更具体、更新的用户设定。',
+    '当前状态、最近变化、记忆与叙事历史共同构成因果；不得只续写上一段，也不得引入状态中未成立的能力、关系或资源。',
   ],
 
-  narrativeQuality: {
-    storyFirst: {
-      description: '宏观剧情选择与个人镜头',
-      rules: [
-        '先判断世界大势、制度/家庭/学校/职业/势力压力如何落到角色身上，再选择适合当前时间跨度的剧情材料',
-        '正文优先写角色亲历或直接承受的个人场景；需要交代世界大势时，用它解释人物处境，不写成旁白式世界报告',
-        '优先写外部触发、人物互动、阻力、选择、代价、后果；抽象感悟和漂亮比喻应服务剧情，不单独占据段落',
-        '第三段优先留下新局面、关系变化、目标压力或下一轮钩子；收尾可以有余味，但不要只靠道理总结',
-      ],
+  entertainmentPriority: [
+    '项目核心是娱乐性与持续游玩意愿：每轮都要让玩家感到“这件事正在发生在我身上”，并对下一步产生好奇。',
+    '文笔、人物声音、现场感、选择或压力、行动阻力、可见后果和未解决的牵引，优先于字数精确、平均分段或格式化的漂亮句。',
+    '平静轮也要有微小的欲望、关系回声、意外或悬念；避免流水账、年度报告、空泛感悟、同义反复和为凑字堆砌环境。',
+    '不要为了目标字数删掉有价值的动作、对话、代价或后果；故事需要展开就自然展开，需要收束就利落收束。',
+  ],
+
+  narrativeContract: {
+    envelope: '最终只能输出 [NARRATIVE]正文[/NARRATIVE] 与 [META]单个合法JSON对象[/META]；禁止 Markdown 代码块，META 禁止 narrative 字段。',
+    threeParagraphs: [
+      '正文必须且只分三段，段间一个空行；三段是自然的阅读节奏，不要求等长：触发与压力；行动与阻力；后果与新局面。',
+      '三段围绕同一条因果主线：先确定你本轮想应对的压力或目标，随后只写为此采取的行动、遭遇的阻力及其可见后果。时间过渡只能交代同一主线的积累、变化或余波。',
+      '不得把三个独立日常、地点或人物各写成一段；第二、三段若换场，必须能明确说明它如何承接前一段的行动、阻力或后果。',
+      '结尾使用完整中文句子和完整标点，不以引出句中断。',
+    ],
+    viewpointAndImmersion: [
+      '正文全程用第二人称“你”指代玩家角色。除他人直接称呼或必须消歧外，禁止用角色姓名、“他/她”、“主角”或“角色”作为叙事主语，禁止写成第三人称传记、履历或编年报告。',
+      '镜头只进入你当时能够感知、回忆或合理推断的范围：先写你看见、听见、触到的细节、身体反应、具体动作或对话，再写他人的回应与可见后果；不得用全知旁白泄露幕后事实。',
+      '每轮至少落入一个可辨认的现场，并让段落围绕你正在承受的压力、想做的事和实际行动推进。感官细节少而准确，不堆砌风景；跨月或跨年可概述过渡，但至少保留一个代表性现场。',
+      '婴幼儿阶段仍使用“你”，只写当时能够产生的感受、反应和动作；家庭决定由照料者作出，不赋予婴幼儿成人式思考、知识或自主规划。',
+    ],
+    styleReference: {
+      preferred: '只学习废弃项目短场景的镜头与句法，不复用事实：雨水落到你的手背，你把门推开半寸。\n\n屋里的谈话立刻停下，你仍握着门环。\n\n对方把空椅推向你，刚才没有说完的话成了你必须面对的新局面。',
+      rejected: '不要写成：某年某月，角色进入屋内，并由此开启了人生的新阶段。',
     },
-    antiRepetition: {
-      description: '叙事质量引导',
-      rules: [
-        '尽量避免连续两轮以相同句式开头',
-        '尽量不用"这一年"作为段落或全文的开头；可直接从事件、人物动作或时间节点切入',
-        '少用"本年度""这一年里""这一年间"等总结式开头',
-        '避免复述上一轮已经覆盖的年份、季节、月份或日期',
-        '叙事必须落在上一叙事时间节点之后，到「当前时间」为止的时间范围内',
-        '近 3 轮叙事的内容/场景/主题若已相近，本轮优先换一个事件角度、关系对象或冲突来源',
-        '若距上一次叙事已过多年，优先描写全新阶段的变化，避免延续上次事件的同一场景',
-      ],
-      openingExamples: '推荐开头方式：以外部压力开场（通知书/征召令/裁员名单/师父传唤/城门戒严）/ 以关系变化开场（朋友提出请求、家人隐瞒消息、上级临时改令）/ 以具体行动开场（你推门进屋、把名单翻到最后一页、接过烫手的信封）',
+    causality: [
+      '从世界压力、人生阶段、角色资源与局限、未解决伏笔中选择最合理的外部触发；世界大势只用于解释人物处境，不写成世界报告。',
+      '优先写可观察的行动、互动、阻力、选择、代价与后果；少写年终总结、成长作文、空泛感悟或强行升华。',
+      '禁止换皮复演最近两轮已完成的场景、结论或里程碑；已完成内容只能进入下一阶段、后果或新阻力。',
+      '「原创保护」中的内容均由角色亲自开创，不得改写为遗迹、秘境、古人传承或他人遗留。',
+      '普通命格与已装备神话命格的 effect 都是每轮持续遵守的叙事规则；神话 effect 不得转成属性变化，两类规则都不得绕过条件、代价、死亡或玩家选择。',
+    ],
+    time: [
+      '「当前时间」是本轮结束节点；正文覆盖上一叙事节点之后至当前节点的完整跨度。',
+      '单周期写起因、推进、后果；跨月、跨季或跨年先用至多一句交代跨度，其余正文仍锁定一个代表性现场。只有明确的多年阶段提示才需要交代起点、转折与当前节点，但仍不得按时间切成互不相干的生活切片。',
+      '项目历法固定为阳历3—5月春季、6—8月夏季、9—11月秋季、12—2月冬季；天气、衣着、农事与节庆须服从月份和跨度。',
+      '「字数约束」只是玩家偏好的软提示；完整剧情、好文笔和玩家体验优先，严禁因字数偏离触发重写或删句。',
+    ],
+    opening: '叙事历史为空且角色为0岁时，只写出生当日或前后短时段的出生、家世和环境，不概括之后一整年的成长。',
+    styleAndRegister: {
+      baseStyle: '默认、史诗、写实、诗意是基础文风，只调节镜头与措辞，不改变剧情事实。',
+      life: '生活层 life 为默认：日常、学习、工作和局部关系变化应具体、自然、克制。',
+      fate: '命运层 fate 仅用于身份、核心关系、长期目标、关键资源、阵营、存亡或其他不可逆轨迹变化。',
+      legacy: '传承层 legacy 仅用于高潮或收束中的死亡、牺牲、使命继承、承诺兑现、伏笔回收，且必须有既有因果或意象支撑。',
+      selection: '时间跨度本身不能触发升格；基础文风与语域正交。不得靠堆砌“星辰、命运、时代”等词制造宏大感。',
+    },
+    branch: '命运分叉只用于会改变身份、核心关系、长期目标、关键资源、阵营、存亡或不可逆轨迹的 HIGH 级抉择；branch=true 时 META 必须同时是 importance=HIGH、semanticSignals.irreversible=true、semanticSignals.narrativeRegister=fate（高潮收束可为legacy）。婴幼儿阶段只允许照料者、监护人或环境作出的长期家庭安排成为分叉，不得把本能反应写成成人选择；日常小事直接写入正文并令 branch=false。',
+  },
+
+  metaContract: {
+    authority: 'META 是冲突、张力、行动规模、关系变化、伏笔回收、事件闭环与语域的权威来源；本地系统不会从正文关键词反推。',
+    required: {
+      changes: '[{id,description,changes}]；只能使用「子系统变更指南」列出的 ID 与字段；无明确数值变化填 []。',
+      importance: 'HIGH | NORMAL | LOW。HIGH 仅用于改变命运的转折；LOW 用于普通日常。',
+      digest: '一句话概括“谁做了什么、结果如何”，不超过40个汉字。',
+      keyEvents: '[{text,importance,entities}]，通常只填1条主事件，最多3条；无关键事件填 []。若有多条，必须是同一因果主线中的触发、推进或后果，禁止记录成三个独立季节日常。importance 为0—100，entities 最多6个，无明确实体填 []。',
+      arcStatus: 'start | ongoing | end。',
+      semanticSignals: {
+        eventType: NARRATIVE_EVENT_TYPES,
+        conflictIntensity: '0—100整数',
+        tensionDelta: '-10—15整数',
+        actionScale: NARRATIVE_ACTION_SCALES,
+        irreversible: 'boolean',
+        impactScope: NARRATIVE_IMPACT_SCOPES,
+        narrativeRegister: NARRATIVE_REGISTERS,
+        registerReason: '1—80字，说明本轮为何属于该语域',
+        arcType: NARRATIVE_ARC_TYPES,
+        relationshipUpdates: `[{name,type,summary}]，最多6条；无变化必须直接填 []，不得输出 shape/types 包装对象。type 只能为 ${NARRATIVE_RELATIONSHIP_TYPES.join(' | ')}。`,
+        resolvedForeshadowingIds: '只填「待触发伏笔」中本轮确实回收的稳定ID，最多5个；无则 []。',
+      },
+    },
+    optional: {
+      notableEvents: '最多3条值得记录的事件简述。',
+      creations: '最多6条 {name,description,category}；category 为 power_system | technique | ability | rule | object | other；只记录本轮明确原创且未登记过的内容。',
+      foreshadowing: '最多5条新伏笔 {type,description,priority}；type 为 prophecy | mysterious_item | secret_identity | unfinished_business | oath | mysterious_person | hidden_power | ancient_ruin | other，priority 为1—10。回收旧伏笔不得在此重复新增。',
+      branch: 'boolean；true 时必须同时给 branchTitle 与2—4个会导向不同长期后果的 branchOptions。branchOptions 必须是字符串数组，每项直接写一个可供玩家点击的选项文本（例如 ["留在原地", "随照料者迁居"]），不要输出 {title,description} 对象；并与 HIGH、不可逆、fate/legacy 的必填 META 字段保持一致。',
     },
   },
 
-  task: '根据用户消息中的世界设定、规则与当前状态，先从宏观世界和人生阶段判断本轮最合理的剧情事件，再写成角色亲历的三段中文剧情正文；[META]内写结构化JSON。叙事风格须符合 worldSetting 与 worldRules，不得引入状态中未成立的能力或设定。',
+  failurePolicy: [
+    'JSON 有格式错误时先修正为合法 JSON；不得省略必填 META 字段。',
+    '无法判断 changes 时返回 []；无法可靠判断语义时使用可识别的生活层中立值，不从正文猜测。',
+    '信息不足时仍输出一个具体、克制且符合现有状态的三段事件，不制造新的世界规则；字数偏离目标不属于失败。',
+  ],
+
+  task: '依据用户消息选择本轮最合理且最能让玩家继续游玩的一件事，全程用第二人称写成有现场、有行动、有阻力、人物反应、可见后果与下一步牵引的三段中文剧情，并在 META 中同步提交结构化事实。',
 })
 
 /**
- * 世界观参考注入函数
- * @param essenceTag 世界观本质标签（可选）
- * @returns 匹配的世界观参考文本（标注为"仅供参考"），无匹配返回空字符串
+ * 世界观参考注入函数。
+ * @returns 匹配标签的轻量参考；无匹配返回空字符串。
  */
 export function getWorldRules(essenceTag?: string): string {
   if (!essenceTag) return ''
-  // 分离复合标签（如 "cultivation-dark-fantasy"）
   const tags = essenceTag.split('-')
-  const rules: string[] = []
-  for (const tag of tags) {
-    const rule = WORLD_RULES[tag]
-    if (rule) rules.push(rule)
-  }
+  const rules = tags
+    .map((tag) => WORLD_RULES[tag])
+    .filter((rule): rule is string => Boolean(rule))
   if (rules.length === 0) return ''
-  // 用参考性质的前缀包裹，明确告知 AI 这些为"参考"而非"必须遵守的规则"
-  return '\n【以上世界观要素仅供参考——AI 请以 worldDescription 与用户设定为最高依据，可自由决定是否采纳】\n' + rules.join('\n')
+  return `【标签参考；具体 worldSetting 与用户设定优先】\n${rules.join('\n')}`
 }
 
 export const narrativePrompt: PromptTemplate = {
   name: 'narrative',
-  version: '2.2.0',
+  version: '2.7.1',
   mod: 'mod-engine',
   systemPrompt: SYSTEM_PROMPT,
   userPromptTemplate: [
@@ -452,16 +225,10 @@ export const narrativePrompt: PromptTemplate = {
   outputSchema: NarrativeResponseSchema,
 }
 
-/**
- * 降级叙事 Prompt（当 AI 完全无法生成时使用）
- */
-export const FALLBACK_NARRATIVE_PROMPT = `你是一个简洁的叙事助手。根据角色年龄，生成一段简短的叙事文本。
+/** 当主 AI 完全不可用时的纯文本降级 Prompt。 */
+export const FALLBACK_NARRATIVE_PROMPT = `你是一个重视文笔与代入感的叙事助手。根据角色年龄与世界观，写一件具体、完整且让玩家想知道后续的小事。
 
 角色年龄：{{age}}岁
 世界观：{{worldview}}
 
-要求：
-- 输出纯文本，不要 JSON
-- 100-150字
-- 描述该年龄段可能发生的一件事
-- 保持中立客观`
+要求：自然篇幅，不以字数为目标；严格三段，段间一个空行；全程以第二人称“你”指代角色；至少写一个角色当时可感知的现场、一个具体动作或对话、一个阻力或意外及其直接后果；保持世界观中立，不写第三人称传记、年度总结或全知旁白；不要输出JSON。`

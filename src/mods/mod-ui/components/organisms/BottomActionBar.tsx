@@ -2,39 +2,14 @@
 
 /**
  * @module BottomActionBar.tsx
- * @description 统一底部操作栏 —— 完全对齐废弃项目 BottomActionBar
+ * @description 创建流程统一底栏：圆形返回、弹性辅助操作与流式主操作
  * @mod mod-ui
- *
- * 来源：废弃项目 components/layout/bottom-action-bar/BottomActionBar.tsx
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { useIsMobile } from '@/foundation'
-import { MAX_WIDTH, PAGE_PADDING } from '../../tokens'
-
-// ============================================================
-// 常量（对齐废弃项目 MOBILE 常量）
-// ============================================================
-
-const MOBILE = {
-  barGap: '8px',
-  btnHeight: '42px',
-  btnPadding: '0 14px',
-  btnRadius: '8px',
-  btnFontSize: '13px',
-  backWidth: '100px',
-  confirmWidth: '120px',
-  moreMinWidth: '80px',
-  borderWidth: '1.5px',
-  dropdownRadius: '8px',
-  dropdownItemPadding: '9px 12px',
-  dropdownFontSize: '13px',
-} as const
-
-// ============================================================
-// 类型
-// ============================================================
+import { MAX_WIDTH } from '../../tokens'
+import styles from './BottomActionBar.module.css'
 
 export interface MoreMenuItem {
   label: string
@@ -45,59 +20,38 @@ export interface MoreMenuItem {
 }
 
 export interface BottomActionBarProps {
-  /** 返回按钮回调 */
   onBack?: () => void
-  /** 返回按钮 hover 提示 */
   backTitle?: string
-  /** 确认按钮回调 */
   onConfirm?: () => void
-  /** 确认按钮文本 */
   confirmText?: string
-  /** 确认按钮是否禁用 */
+  confirmNumber?: string
+  confirmDescription?: string
   confirmDisabled?: boolean
-  /** 确认按钮 hover 提示 */
   confirmTitle?: string
-  /** 更多下拉按钮标签 */
   moreLabel?: string
-  /** 更多菜单项（1个=独立按钮，2+个=下拉菜单） */
   moreItems?: MoreMenuItem[]
-  /** 下拉菜单对齐方式 */
   dropdownAlign?: 'left' | 'center' | 'right'
-  /** 自定义类名 */
   className?: string
-  /** 内容区最大宽度 */
   maxWidth?: string
 }
 
-// ============================================================
-// Hook: 点击外部关闭
-// ============================================================
-
 function useClickOutside(ref: React.RefObject<HTMLElement | null>, handler: () => void) {
   useEffect(() => {
-    const listener = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        handler()
-      }
+    const listener = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) handler()
     }
     document.addEventListener('mousedown', listener)
     return () => document.removeEventListener('mousedown', listener)
-  }, [ref, handler])
+  }, [handler, ref])
 }
 
-// ============================================================
-// 组件
-// ============================================================
-
-/**
- * 统一底部操作栏组件 —— 返回按钮 + 确认按钮 + 更多操作下拉菜单
- * @param {BottomActionBarProps} props - 组件属性
- */
 export function BottomActionBar({
   onBack,
-  backTitle,
+  backTitle = '返回上一步',
   onConfirm,
   confirmText = '确认',
+  confirmNumber,
+  confirmDescription,
   confirmDisabled = false,
   confirmTitle,
   moreLabel = '更多',
@@ -106,226 +60,107 @@ export function BottomActionBar({
   className = '',
   maxWidth = MAX_WIDTH,
 }: BottomActionBarProps) {
-  const isMobile = useIsMobile()
   const [moreOpen, setMoreOpen] = useState(false)
   const moreRef = useRef<HTMLDivElement>(null)
-
   useClickOutside(moreRef, useCallback(() => setMoreOpen(false), []))
 
-  const handleBack = useCallback(() => {
-    onBack?.()
-  }, [onBack])
-
-  const handleConfirm = useCallback(() => {
-    if (!confirmDisabled) onConfirm?.()
-  }, [onConfirm, confirmDisabled])
-
-  const hasMore = moreItems && moreItems.length > 0
-  const singleExtra = hasMore && moreItems!.length === 1
-  const hasDropdown = hasMore && moreItems!.length >= 2
-
-  // ---- 内联样式（对齐废弃项目） ----
-
-  const barStyle: React.CSSProperties = {
-    position: 'fixed',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: PAGE_PADDING.bottomBar,
-    background: 'var(--color-bg-primary)',
-    borderTop: '1px solid var(--color-border)',
-    zIndex: 100,
-  }
-
-  const innerStyle: React.CSSProperties = {
-    maxWidth,
-    width: '100%',
-    margin: '0 auto',
-    display: 'flex',
-    gap: isMobile ? MOBILE.barGap : '12px',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 0,
-  }
-
-  const backBtnStyle: React.CSSProperties = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    height: isMobile ? MOBILE.btnHeight : '38px',
-    width: isMobile ? MOBILE.backWidth : '90px',
-    padding: MOBILE.btnPadding,
-    fontSize: MOBILE.btnFontSize,
-    fontWeight: 500,
-    borderRadius: MOBILE.btnRadius,
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    border: `${MOBILE.borderWidth} solid var(--color-bg-tertiary)`,
-    background: 'transparent',
-    color: 'var(--color-primary)',
-    whiteSpace: 'nowrap' as const,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  }
-
-  const confirmBtnStyle: React.CSSProperties = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    height: isMobile ? MOBILE.btnHeight : '38px',
-    width: isMobile ? MOBILE.confirmWidth : '110px',
-    padding: MOBILE.btnPadding,
-    fontSize: MOBILE.btnFontSize,
-    fontWeight: 500,
-    borderRadius: MOBILE.btnRadius,
-    cursor: confirmDisabled ? 'not-allowed' : 'pointer',
-    opacity: confirmDisabled ? 0.5 : 1,
-    transition: 'all 0.2s ease',
-    border: `${MOBILE.borderWidth} solid var(--color-bg-tertiary)`,
-    background: 'transparent',
-    color: 'var(--color-primary)',
-    whiteSpace: 'nowrap' as const,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  }
-
-  const extraBtnStyle: React.CSSProperties = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    height: isMobile ? MOBILE.btnHeight : '38px',
-    minWidth: isMobile ? MOBILE.moreMinWidth : '80px',
-    padding: MOBILE.btnPadding,
-    fontSize: MOBILE.btnFontSize,
-    fontWeight: 500,
-    borderRadius: MOBILE.btnRadius,
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    border: `${MOBILE.borderWidth} solid var(--color-bg-tertiary)`,
-    background: 'transparent',
-    color: 'var(--color-primary)',
-    whiteSpace: 'nowrap' as const,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  }
-
-  const moreBtnStyle: React.CSSProperties = {
-    ...extraBtnStyle,
-  }
-
-  const dropdownPosStyle: React.CSSProperties = {
-    position: 'absolute',
-    bottom: '100%',
-    marginBottom: '6px',
-    minWidth: '150px',
-    width: 'max-content',
-    maxWidth: isMobile ? '80vw' : '320px',
-    background: 'var(--color-bg-card)',
-    border: '1px solid var(--color-border)',
-    borderRadius: isMobile ? MOBILE.dropdownRadius : '10px',
-    boxShadow: '0 8px 30px rgba(0,0,0,0.35)',
-    overflow: 'hidden',
-    zIndex: 101,
-  }
-
-  if (dropdownAlign === 'left') {
-    dropdownPosStyle.left = 0
-  } else if (dropdownAlign === 'right') {
-    dropdownPosStyle.right = 0
-  } else {
-    dropdownPosStyle.left = '50%'
-    dropdownPosStyle.transform = 'translateX(-50%)'
-  }
-
-  const dropdownItemStyle = (disabled = false): React.CSSProperties => ({
-    display: 'block',
-    width: '100%',
-    textAlign: 'left' as const,
-    padding: isMobile ? MOBILE.dropdownItemPadding : '9px 12px',
-    fontSize: isMobile ? MOBILE.dropdownFontSize : '13px',
-    border: 'none',
-    borderRadius: 0,
-    background: 'transparent',
-    color: disabled ? 'var(--color-text-muted)' : 'var(--color-text-primary)',
-    fontWeight: 400,
-    cursor: disabled ? 'not-allowed' : 'pointer',
-    transition: 'all 0.15s ease',
-    whiteSpace: 'nowrap' as const,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  })
-
-  // ============================================================
-  // 渲染
-  // ============================================================
+  const hasMore = (moreItems?.length ?? 0) > 0
+  const singleExtra = moreItems?.length === 1
+  const hasDropdown = (moreItems?.length ?? 0) >= 2
+  const dropdownClass = dropdownAlign === 'left'
+    ? styles.dropdownLeft
+    : dropdownAlign === 'right'
+      ? styles.dropdownRight
+      : styles.dropdownCenter
 
   return (
-    <div className={className} style={barStyle}>
-      <div style={innerStyle}>
-        {/* 左侧：返回按钮 */}
-        {onBack && (
-          <button style={backBtnStyle} onClick={handleBack} title={backTitle}>
-            ← 返回
-          </button>
-        )}
-
-        {/* 中间：单个额外操作（1个 moreItem = 独立按钮） */}
-        {singleExtra && moreItems && (
-          <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+    <div className={`${styles.bar} ${className}`.trim()}>
+      <div className={`${styles.inner} ${hasMore ? '' : styles.innerNoMore}`.trim()} style={{ maxWidth }}>
+        <div className={styles.left}>
+          {onBack ? (
             <button
-              style={extraBtnStyle}
-              onClick={() => { moreItems[0].onClick() }}
+              type="button"
+              className={styles.backButton}
+              onClick={onBack}
+              title={backTitle}
+              aria-label={backTitle}
+            >
+              <span aria-hidden="true">←</span>
+            </button>
+          ) : <span className={styles.backPlaceholder} aria-hidden="true" />}
+        </div>
+
+        {hasMore ? <div className={styles.middle}>
+          {singleExtra && moreItems ? (
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={moreItems[0].onClick}
               disabled={moreItems[0].disabled}
               title={moreItems[0].title}
             >
-              {moreItems[0].icon && <span>{moreItems[0].icon}</span>}
-              {moreItems[0].label}
+              {moreItems[0].icon ? <span aria-hidden="true">{moreItems[0].icon}</span> : null}
+              <span>{moreItems[0].label}</span>
             </button>
-          </div>
-        )}
+          ) : null}
 
-        {/* 中间：下拉菜单（2+个 moreItems） */}
-        {hasDropdown && (
-          <div ref={moreRef} style={{ position: 'relative', display: 'flex', justifyContent: 'center', flex: 1 }}>
-            <button style={moreBtnStyle} onClick={() => setMoreOpen(prev => !prev)} title={moreLabel}>
-              {moreLabel}
-              <span style={{ fontSize: '10px', marginLeft: '2px', opacity: 0.6 }}>▼</span>
-            </button>
-            {moreOpen && (
-              <div style={dropdownPosStyle}>
-                {moreItems!.map((item, idx) => (
-                  <button
-                    key={idx}
-                    style={dropdownItemStyle(item.disabled)}
-                    onClick={() => {
-                      if (!item.disabled) {
+          {hasDropdown ? (
+            <div ref={moreRef} className={styles.moreWrapper}>
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={() => setMoreOpen((open) => !open)}
+                aria-haspopup="menu"
+                aria-expanded={moreOpen}
+                title={moreLabel}
+              >
+                <span>{moreLabel}</span><span className={styles.chevron} aria-hidden="true">⌃</span>
+              </button>
+              {moreOpen ? (
+                <div className={`${styles.dropdown} ${dropdownClass}`} role="menu">
+                  {moreItems!.map((item) => (
+                    <button
+                      type="button"
+                      key={`${item.label}-${item.title ?? ''}`}
+                      className={styles.dropdownItem}
+                      onClick={() => {
+                        if (item.disabled) return
                         item.onClick()
                         setMoreOpen(false)
-                      }
-                    }}
-                    title={item.title}
-                  >
-                    {item.icon && <span style={{ marginRight: 6 }}>{item.icon}</span>}
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+                      }}
+                      disabled={item.disabled}
+                      title={item.title}
+                      role="menuitem"
+                    >
+                      {item.icon ? <span aria-hidden="true">{item.icon}</span> : null}
+                      <span>{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
-        {/* 无额外操作时占位 */}
-        {!hasMore && <div style={{ flex: 1 }} />}
+        </div> : null}
 
-        {/* 右侧：确认按钮 */}
-        {onConfirm && (
-          <button style={confirmBtnStyle} onClick={handleConfirm} disabled={confirmDisabled} title={confirmTitle}>
-            {confirmText}
-          </button>
-        )}
+        <div className={styles.right}>
+          {onConfirm ? (
+            <button
+              type="button"
+              className={styles.confirmButton}
+              onClick={() => { if (!confirmDisabled) onConfirm?.() }}
+              disabled={confirmDisabled}
+              title={confirmTitle}
+            >
+              {confirmNumber ? <span className={styles.confirmNumber}>{confirmNumber}</span> : null}
+              <span className={styles.confirmCopy}>
+                <strong>{confirmText}</strong>
+                {confirmDescription ? <small>{confirmDescription}</small> : null}
+              </span>
+              <span className={styles.confirmArrow} aria-hidden="true">→</span>
+            </button>
+          ) : null}
+        </div>
       </div>
     </div>
   )

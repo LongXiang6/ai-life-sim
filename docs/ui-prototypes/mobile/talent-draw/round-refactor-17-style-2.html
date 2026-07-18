@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>命格抽取 · P1 云紫宽环</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <script src="../assets/prototype.js" defer></script>
+  <style>
+    :root {
+      --paper:#fbfaf7; --surface:#fffefd; --ink:#292724; --soft:#6e6961;
+      --faint:#9a9389; --line:#d9d3c9; --light:#e9e5de;
+      --wave:132,123,180; --glyph:93,82,164;
+    }
+    body { background:var(--ew-canvas); color:var(--ink); }
+    .shell { width:min(900px,calc(100% - 24px)); padding:18px 0 42px; }
+    .topbar { margin-bottom:18px; color:var(--soft); font-size:12px; }
+    .eyebrow { color:var(--soft); }
+    h1 { font-family:"Songti SC","STSong","SimSun",serif; font-size:28px; }
+    .subtitle { color:var(--soft); font-size:12px; }
+    .stage { display:grid; justify-items:center; margin-top:18px; }
+    .phone { width:min(292px,calc(100vw - 32px)); height:692px; margin:0; border-color:var(--line); background:var(--paper); box-shadow:0 13px 30px rgba(62,55,44,.075); }
+    .page { position:relative; height:100%; overflow:hidden; padding:22px 15px 72px; background:linear-gradient(180deg,var(--paper),#f8f6f2); }
+    .step { color:var(--faint); font-size:7px; font-weight:700; letter-spacing:.16em; }
+    .title { margin-top:6px; font-family:"Songti SC","STSong","SimSun",serif; font-size:20px; font-weight:600; }
+    .sub { margin-top:5px; color:var(--soft); font-size:8px; line-height:1.55; }
+    .aura { position:absolute; z-index:2; top:98px; left:50%; width:220px; height:220px; transform:translateX(-50%); transition:top .72s cubic-bezier(.2,.75,.2,1),transform .72s cubic-bezier(.2,.75,.2,1); }
+    .wave { position:absolute; top:50%; left:50%; width:70px; height:70px; margin:-35px; border:1px solid rgba(var(--wave),.22); border-radius:50%; opacity:0; }
+    .sun { position:absolute; z-index:3; inset:0; display:grid; place-items:center; isolation:isolate; }
+    .layer { position:absolute; z-index:-1; border-radius:50%; }
+    .l1 { width:110px; height:110px; background:radial-gradient(circle,#fff 0%,#faf9fd 68%,rgba(174,166,211,.22) 100%); }
+    .l2 { width:138px; height:138px; background:rgba(151,141,198,.09); }
+    .l3 { width:166px; height:166px; background:rgba(151,141,198,.065); }
+    .l4 { width:194px; height:194px; background:rgba(151,141,198,.043); }
+    .l5 { width:220px; height:220px; background:rgba(151,141,198,.022); }
+    .glyph { position:relative; z-index:3; color:rgb(var(--glyph)); font-family:"Songti SC","STSong",serif; font-size:31px; font-weight:500; text-shadow:0 0 14px rgba(var(--wave),.16); }
+    .ritual-copy { position:absolute; z-index:4; top:326px; right:15px; left:15px; text-align:center; transition:.45s ease; }
+    .ritual-copy h2 { margin:0; font-family:"Songti SC","STSong",serif; font-size:13px; font-weight:600; }
+    .ritual-copy p { margin:6px 0 0; color:var(--soft); font-size:7px; }
+    .seal-wrap { position:absolute; z-index:4; top:391px; right:15px; left:15px; padding:10px 10px 11px; border:1px solid var(--line); border-radius:12px; background:rgba(255,254,253,.78); backdrop-filter:blur(10px); transition:.58s ease; }
+    .seal-head { display:flex; justify-content:space-between; color:var(--soft); font-size:7px; font-weight:650; }
+    .seals { display:grid; grid-template-columns:repeat(6,1fr); gap:5px; margin-top:8px; }
+    .seal { display:grid; height:34px; place-items:center; border:1px solid var(--light); border-radius:8px; background:rgba(255,254,253,.86); color:var(--faint); transition:.25s ease; }
+    .seal i,.seal b { grid-area:1/1; font-style:normal; }
+    .seal i { font-size:6px; }
+    .seal b { opacity:0; font-size:6px; }
+    .seal.lit { transform:translateY(-1px); }
+    .seal.lit i { opacity:0; }
+    .seal.lit b { opacity:1; }
+    .seal.common.lit { border-color:#94a3b8; background:#f1f4f7; color:#64748b; box-shadow:0 0 6px rgba(148,163,184,.45); }
+    .seal.fine.lit { border-color:#22c55e; background:#edf9f1; color:#198a43; box-shadow:0 0 8px rgba(34,197,94,.38); }
+    .seal.rare.lit { border-color:#3b82f6; background:#edf4ff; color:#2563b9; box-shadow:0 0 12px rgba(59,130,246,.38); }
+    .seal.epic.lit { border-color:#a855f7; background:#f7efff; color:#8038c0; box-shadow:0 0 16px rgba(168,85,247,.36); }
+    .seal.legendary.lit { border-color:#f59e0b; background:#fff7e8; color:#a96708; box-shadow:0 0 20px rgba(245,158,11,.4); }
+    .bottom { position:absolute; z-index:9; right:0; bottom:0; left:0; padding:7px 15px 10px; border-top:1px solid var(--line); background:rgba(251,250,247,.95); backdrop-filter:blur(10px); }
+    .bar { display:flex; align-items:center; justify-content:space-between; }
+    .action { height:34px; border:1px solid var(--line); border-radius:8px; background:var(--surface); color:var(--soft); font-size:7px; cursor:pointer; }
+    .back { width:64px; }
+    .primary { width:112px; border-color:var(--ink); background:var(--ink); color:var(--surface); font-family:"Songti SC","STSong",serif; font-size:9px; font-weight:600; }
+    .primary:disabled { opacity:.5; }
+    .drawing .wave { animation:slow-clear 4.8s ease-out infinite; }
+    .drawing .w2 { animation-delay:.8s; } .drawing .w3 { animation-delay:1.6s; }
+    .drawing .w4 { animation-delay:2.4s; } .drawing .w5 { animation-delay:3.2s; } .drawing .w6 { animation-delay:4s; }
+    .drawing .l1 { animation:layer-glow 3.8s 0s ease-in-out infinite; }
+    .drawing .l2 { animation:layer-glow 3.8s .26s ease-in-out infinite; }
+    .drawing .l3 { animation:layer-glow 3.8s .52s ease-in-out infinite; }
+    .drawing .l4 { animation:layer-glow 3.8s .78s ease-in-out infinite; }
+    .drawing .l5 { animation:layer-glow 3.8s 1.04s ease-in-out infinite; }
+    .complete .seal-wrap { opacity:0; filter:blur(5px); transform:translateY(32px) scale(.94); }
+    .complete .ritual-copy { opacity:0; }
+    .complete .aura { top:224px; transform:translateX(-50%) scale(1.02); }
+    .complete .wave { border-width:1.25px; border-color:rgba(var(--wave),.36); animation:finish-surge 5.6s cubic-bezier(.2,.62,.28,1) infinite; }
+    .complete .w2 { animation-delay:1.4s; } .complete .w3 { animation-delay:2.8s; } .complete .w4 { animation-delay:4.2s; }
+    .complete .w5,.complete .w6 { display:none; }
+    .complete .layer { animation:complete-glow 3.2s ease-in-out infinite alternate; }
+    @keyframes layer-glow { 0%,62%,100% { filter:brightness(1); } 22%,38% { filter:brightness(1.12); } }
+    @keyframes complete-glow { to { filter:brightness(1.08); } }
+    @keyframes slow-clear { 0% { opacity:.34; transform:scale(.8); } 68% { opacity:.11; } 100% { opacity:0; transform:scale(6.8); } }
+    @keyframes finish-surge { 0%,15% { opacity:.03; transform:scale(.78); } 25% { opacity:.42; } 72% { opacity:.14; } 100% { opacity:0; transform:scale(7.4); } }
+    @media (prefers-reduced-motion:reduce) {
+      .drawing *,.complete * { animation:none!important; }
+      .aura,.seal-wrap,.ritual-copy { transition:none; }
+    }
+  </style>
+<!-- CC-RF9 VISUAL ADAPTATION ONLY: BEGIN -->
+  <link rel="stylesheet" href="../assets/cc-rf9-adapt-base.css">
+  <link rel="stylesheet" href="../assets/cc-rf9-adapt-2.css">
+<!-- CC-RF9 VISUAL ADAPTATION ONLY: END -->
+</head>
+<body data-screen="talent-draw">
+  <main class="shell">
+    <div class="topbar"><span>移动端创建流程</span><span>04 · 抽取</span></div>
+    <p class="eyebrow">DESTINY PATTERN · P1 FINAL</p>
+    <h1>命格抽取</h1>
+    <p class="subtitle">保留 P1 云紫宽环原机制；十二条命格全部归位后，进入神话传承式命格选取。</p>
+    <section class="stage">
+      <div class="phone">
+        <div class="page">
+          <div class="step">NEW LIFE · 04 / DRAW</div>
+          <div class="title">命格抽取</div>
+          <div class="sub">十二条命格归位后，进入命格选择。</div>
+          <div class="aura">
+            <i class="wave w1"></i><i class="wave w2"></i><i class="wave w3"></i><i class="wave w4"></i><i class="wave w5"></i><i class="wave w6"></i>
+            <span class="sun"><i class="layer l5"></i><i class="layer l4"></i><i class="layer l3"></i><i class="layer l2"></i><i class="layer l1"></i><b class="glyph">命</b></span>
+          </div>
+          <div class="ritual-copy"><h2>让命运揭示你的命格</h2><p>低饱和云紫，保留命格仪式的神秘感。</p></div>
+          <div class="seal-wrap"><div class="seal-head"><span>十二命印</span><span class="count">0 / 12</span></div><div class="seals"></div></div>
+        </div>
+        <footer class="bottom"><div class="bar"><button class="action back" data-flow-to="character-create">返回</button><button class="action primary start" type="button">开始抽取</button></div></footer>
+      </div>
+    </section>
+  </main>
+  <script>
+    const rarities=[['common','普通'],['fine','精良'],['common','普通'],['rare','稀有'],['fine','精良'],['common','普通'],['epic','史诗'],['fine','精良'],['rare','稀有'],['common','普通'],['legendary','传说'],['common','普通']];
+    const phone=document.querySelector('.phone');
+    const button=document.querySelector('.start');
+    const seals=document.querySelector('.seals');
+    seals.innerHTML=rarities.map(function(item,index){return '<span class="seal '+item[0]+'"><i>'+String(index+1).padStart(2,'0')+'</i><b>'+item[1]+'</b></span>'}).join('');
+    button.addEventListener('click',function(){
+      if(button.dataset.done==='true'){PrototypeFlow.go('mythic-inheritance');return}
+      if(phone.classList.contains('drawing'))return;
+      phone.classList.add('drawing');
+      button.disabled=true;
+      button.textContent='生成中';
+      const items=Array.from(phone.querySelectorAll('.seal'));
+      let index=0;
+      const timer=setInterval(function(){
+        items[index].classList.add('lit');
+        index+=1;
+        phone.querySelector('.count').textContent=index+' / 12';
+        if(index===12){
+          clearInterval(timer);
+          setTimeout(function(){
+            phone.classList.remove('drawing');
+            phone.classList.add('complete');
+            button.disabled=false;
+            button.dataset.done='true';
+            button.textContent='进入命格选择';
+          },420);
+        }
+      },520);
+    });
+  </script>
+</body>
+</html>

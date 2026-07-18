@@ -1,0 +1,18 @@
+/* C · 墨绿预算簿; source: round-01/02 预算与中文描述 */
+:root{--canvas:#dfe1dc;--paper:#f0f1ec;--surface:rgba(249,249,244,.9);--ink:#252925;--soft:#626860;--faint:#92988f;--line:#c2c8bf;--light:#dce1da;--mist:#557267;--positive:#4f8069;--negative:#a96770;color-scheme:light}
+body{background:#dfe1dc;color:#252925;font-family:"Songti SC","STSong","SimSun",serif}
+.phone{border-color:#c2c8bf;border-radius:20px;background:linear-gradient(180deg,#f4f5f0,#e8ebe5);color:#252925;box-shadow:0 13px 28px rgba(42,47,42,.15)}
+.screen,.page,.viewport,.content{background:linear-gradient(180deg,transparent,rgba(85,114,103,.13));color:#252925}
+.topbar,.eyebrow,.subtitle,.sub,.caption,.hint,.footer-hint,.bottom-hint,.advance-hint,.panel-label,.entry-meta,.verdict-meta,.section-label{color:#626860}
+h1,.title,.identity h2,.advance-title,.verdict,.focus-title,.current-name{font-family:"Songti SC","STSong","SimSun",serif;color:#252925}
+:is(.world,.catalog,.summary-copy,.detail-body,.mini-form,.seal-wrap,.astrolabe,.mythic-card,.option-card,.attr,.budget,.dialog-panel,.overview,.character,.seed,.parallel,.task,.world-panel,.hud,.timeline,.entry,.branch-option,.branch-question,.branch-resolved,.advance,.save-dialog,.save-slot,.mythic,.verdict,.store,.current,.focus){border-color:#c2c8bf;border-radius:5px;background:rgba(249,249,244,.9);color:#252925;box-shadow:0 7px 18px color-mix(in srgb,#252925 9%,transparent)}
+:is(.fact,.mark,.catalog-mark,.chip,.seal,.segment,.metric,.selector,.talent,.tool,.time-button,.world-button,.more-button,.footer-btn,.action,.value,.stepper button,.reset,.average){border-color:#c2c8bf;border-radius:5px;background:color-mix(in srgb,rgba(249,249,244,.9) 88%,transparent);color:#626860}
+:is(.selected,.active,.on,.done,.primary,.confirm,.start,.continue,.store.selected,.selector.selected,.chip.active,.segment.active,.branch-option.active){border-color:#557267;background:#557267;color:#fff;box-shadow:0 4px 12px color-mix(in srgb,#557267 28%,transparent)}
+.bottom,.footer{border-color:#c2c8bf;background:color-mix(in srgb,#f0f1ec 92%,transparent)}
+input,textarea,select{border-color:#c2c8bf;border-radius:5px;background:rgba(249,249,244,.9);color:#252925}
+.pi-history-back{position:fixed;z-index:9999;top:10px;left:10px;padding:7px 10px;border:1px solid #c2c8bf;border-radius:999px;background:color-mix(in srgb,#f0f1ec 92%,transparent);color:#626860;font:600 11px/1 "Songti SC","STSong","SimSun",serif;text-decoration:none;box-shadow:0 5px 14px color-mix(in srgb,#252925 12%,transparent);backdrop-filter:blur(10px)}
+.segments span.on,.axis span.on,.score{background:#557267;color:#fff}
+.segments span.mid{background:color-mix(in srgb,#557267 48%,#f0f1ec)}
+.segments span.far{background:color-mix(in srgb,#557267 22%,#f0f1ec)}
+.value.negative,.semantic.negative{color:#a96770}
+.value:not(.negative),.semantic:not(.negative){color:#4f8069}

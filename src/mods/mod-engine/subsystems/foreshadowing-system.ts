@@ -1,27 +1,23 @@
 /**
  * @module foreshadowing-system.ts
- * @description 伏笔追踪系统 —— 检测、潜伏、回收叙事伏笔
+ * @description 伏笔追踪系统 —— 记录、潜伏、回收 AI 结构化标注的叙事伏笔
  * @mod mod-engine
  *
  * 设计理念：
  *   网文创作强调"草蛇灰线，伏脉千里"。本系统追踪 AI 叙事中埋设的伏笔，
- *   在条件满足时引导 AI 自然回收。纯本地检测，不额外调用 AI。
+ *   在条件满足时引导 AI 自然回收。本地只管理生命周期，不扫描正文判断语义。
  *
  * 核心机制：
- *   1. 伏笔来源：本地关键词检测 + AI 主动标注（output 中附带可选字段）
- *   2. 生命周期：埋设 → 潜伏 → 条件检测 → 回收 → 归档
+ *   1. 伏笔来源：AI 主动标注 foreshadowing
+ *   2. 生命周期：埋设 → 潜伏 → AI 按稳定 ID 回收 → 归档
  *   3. Prompt 注入极简（~150字），仅注入接近触发的伏笔
  *   4. 安全上限：活跃伏笔 ≤ 10 条，超时自动归档
  *   5. 含 enabled 开关
  */
 
-import type {
-  ISubSystem,
-  SubSystemState,
-  SubSystemChanges,
-  RoundContext,
-} from '@/foundation'
+import type { SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
 import { getRoundSequence } from '@/foundation'
+import { BaseSubsystem } from '@/core'
 
 import { memoryForgetting } from './memory-forgetting-system'
 import { summaryCompressor } from './summary-compressor-system'
@@ -60,14 +56,6 @@ const FORESHADOWING_TYPE_LABELS: Record<ForeshadowingType, string> = {
 export interface ForeshadowingTriggerConditions {
   /** 最少延迟回合数 */
   minRound?: number
-  /** 目标境界 */
-  targetRealm?: string
-  /** 目标地点（在叙事文本中检测） */
-  targetLocation?: string
-  /** 目标人物 */
-  targetPerson?: string
-  /** 目标事件类型 */
-  targetEvent?: string
 }
 
 /** 伏笔记录 */
@@ -109,45 +97,6 @@ export interface ForeshadowingState {
 }
 
 // ============================================================
-// 伏笔检测关键词（本地）
-// ============================================================
-
-/** 伏笔特征词 → 伏笔类型映射 */
-const FORESHADOWING_KEYWORDS: Record<string, ForeshadowingType> = {
-  // 预言
-  预言: 'prophecy', 宿命: 'prophecy', 天机: 'prophecy', 神谕: 'prophecy',
-  注定: 'prophecy', 命运: 'prophecy',
-  // 神秘物品
-  古玉: 'mysterious_item', 玉佩: 'mysterious_item', 令牌: 'mysterious_item',
-  残片: 'mysterious_item', 古卷: 'mysterious_item', 法器: 'mysterious_item',
-  异宝: 'mysterious_item', 灵宝: 'mysterious_item',
-  // 身世之谜
-  身世: 'secret_identity', 来历不明: 'secret_identity', 遗孤: 'secret_identity',
-  弃婴: 'secret_identity', 血脉: 'secret_identity',
-  // 未竟之事
-  未竟: 'unfinished_business', 遗愿: 'unfinished_business',
-  托付: 'unfinished_business', 未了: 'unfinished_business',
-  // 誓言
-  发誓: 'oath', 立誓: 'oath', 誓言: 'oath', 约定: 'oath',
-  承诺: 'oath', 盟约: 'oath',
-  // 神秘人物
-  神秘人: 'mysterious_person', 蒙面: 'mysterious_person',
-  高人: 'mysterious_person', 世外: 'mysterious_person',
-  // 隐藏力量
-  封印: 'hidden_power', 觉醒: 'hidden_power', 潜力: 'hidden_power',
-  蛰伏: 'hidden_power', 沉睡: 'hidden_power',
-  // 上古遗迹
-  遗迹: 'ancient_ruin', 秘境: 'ancient_ruin', 古墓: 'ancient_ruin',
-  洞府: 'ancient_ruin', 禁地: 'ancient_ruin',
-}
-
-/** 伏笔回收关键词 */
-const FORESHADOWING_RESOLUTION_KEYWORDS = [
-  '应验', '终于', '揭晓', '兑现', '真相大白', '水落石出',
-  '果然', '原来', '终究', '尘埃落定', '昭示', '显现',
-]
-
-// ============================================================
 // 常量
 // ============================================================
 
@@ -164,7 +113,7 @@ const MAX_PROMPT_FORESHADOWING = 3
 // ForeshadowingSystem
 // ============================================================
 
-export class ForeshadowingSystem implements ISubSystem {
+export class ForeshadowingSystem extends BaseSubsystem {
   readonly id = 'foreshadowing' as const
   readonly mod = 'mod-engine' as const
   readonly label = '伏笔追踪' as const
@@ -177,12 +126,6 @@ export class ForeshadowingSystem implements ISubSystem {
     unresolved: [],
     stats: { totalPlanted: 0, totalResolved: 0, totalUnresolved: 0 },
   }
-
-  /** 最近一轮的叙事文本（供检测用） */
-  private lastNarrative = ''
-
-  /** 最近一轮的上下文（供高级触发条件检测用） */
-  private lastContext: RoundContext | null = null
 
   private _lastProcessedRound = -1
 
@@ -197,8 +140,6 @@ export class ForeshadowingSystem implements ISubSystem {
       }
     }
     this._lastProcessedRound = getRoundSequence(context)
-    this.lastContext = context
-
     if (!this.state.enabled) {
       return {
         id: this.id,
@@ -241,9 +182,27 @@ export class ForeshadowingSystem implements ISubSystem {
       unresolved: [],
       stats: { totalPlanted: 0, totalResolved: 0, totalUnresolved: 0 },
     }
-    this.lastNarrative = ''
-    this.lastContext = null
     this._lastProcessedRound = -1
+  }
+
+  /** 预生成会临时推进伏笔计时；结束后必须完整恢复真实时间线。 */
+  capturePreviewState(): unknown {
+    return structuredClone({
+      state: this.state,
+      lastProcessedRound: this._lastProcessedRound,
+    })
+  }
+
+  restorePreviewState(snapshot: unknown): void {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
+    const value = snapshot as {
+      state?: ForeshadowingState
+      lastProcessedRound?: number
+    }
+    if (value.state) this.state = structuredClone(value.state)
+    if (typeof value.lastProcessedRound === 'number') {
+      this._lastProcessedRound = value.lastProcessedRound
+    }
   }
 
   // ---- 公共访问器 ----
@@ -271,16 +230,14 @@ export class ForeshadowingSystem implements ISubSystem {
   // ---- 核心方法：检测新伏笔 ----
 
   /**
-   * 从叙事文本中检测新伏笔
+   * 消费 AI 主动标注的新伏笔
    * 调用时机：AI 叙事输出后、解析完成时
    *
-   * @param narrative AI 生成的叙事文本
    * @param round 当前回合
    * @param age 角色年龄
    * @param aiMarked AI 主动标注的伏笔（来自 output JSON 的可选字段）
    */
   detectForeshadowing(
-    narrative: string,
     round: number,
     age: number,
     aiMarked?: Array<{ type: string; description: string; priority?: number }>,
@@ -288,9 +245,6 @@ export class ForeshadowingSystem implements ISubSystem {
     if (!this.state.enabled) return []
 
     const detected: ForeshadowingRecord[] = []
-    this.lastNarrative = narrative
-
-    // 方式 1：AI 主动标注（优先）
     if (aiMarked && aiMarked.length > 0) {
       for (const mark of aiMarked) {
         const record = this.createForeshadowingRecord(
@@ -307,54 +261,26 @@ export class ForeshadowingSystem implements ISubSystem {
       }
     }
 
-    // 方式 2：本地关键词检测
-    for (const [keyword, type] of Object.entries(FORESHADOWING_KEYWORDS)) {
-      if (narrative.includes(keyword)) {
-        // 检查是否与已有伏笔重复
-        const isDuplicate = this.state.active.some(
-          (r) => r.description.includes(keyword) && Math.abs(r.plantedRound - round) <= 2,
-        )
-        if (!isDuplicate) {
-          const description = this.extractForeshadowingSnippet(narrative, keyword)
-          const record = this.createForeshadowingRecord(type, description, round, age, 4)
-          if (record) {
-            this.addActive(record)
-            detected.push(record)
-          }
-        }
-      }
-    }
-
     return detected
   }
 
-  /** 检查已有叙事是否回收了伏笔 */
-  checkResolution(narrative: string, round: number): ForeshadowingRecord[] {
+  /** 按 AI 返回的稳定 ID 回收伏笔。 */
+  resolveForeshadowing(ids: string[], narrative: string, round: number): ForeshadowingRecord[] {
     if (!this.state.enabled) return []
 
     const resolved: ForeshadowingRecord[] = []
 
-    for (const keyword of FORESHADOWING_RESOLUTION_KEYWORDS) {
-      if (narrative.includes(keyword)) {
-        // 检查是否有活跃伏笔在当前叙事中被回收
-        for (const record of this.state.active) {
-          if (narrative.includes(record.description)) {
-            record.resolved = true
-            record.resolvedRound = round
-            record.resolvedNarrative = narrative
-
-            // 移动到已回收列表
-            this.state.active = this.state.active.filter((r) => r.id !== record.id)
-            this.state.resolved.push(record)
-            this.state.stats.totalResolved++
-
-            // 标记伏笔已回收
-            memoryForgetting.resolveForeshadowMark(record.plantedRound)
-
-            resolved.push(record)
-          }
-        }
-      }
+    const requested = new Set(ids)
+    for (const record of [...this.state.active]) {
+      if (!requested.has(record.id)) continue
+      record.resolved = true
+      record.resolvedRound = round
+      record.resolvedNarrative = narrative
+      this.state.active = this.state.active.filter((item) => item.id !== record.id)
+      this.state.resolved.push(record)
+      this.state.stats.totalResolved++
+      memoryForgetting.resolveForeshadowMark(record.plantedRound)
+      resolved.push(record)
     }
 
     return resolved
@@ -383,7 +309,7 @@ export class ForeshadowingSystem implements ISubSystem {
     for (const { record, score } of scored) {
       const typeLabel = FORESHADOWING_TYPE_LABELS[record.type]
       const hint = this.buildResolutionHint(record, score)
-      lines.push(`\n▪ [${record.priority}级·${typeLabel}] 第${record.plantedRound}轮：${record.description}`)
+      lines.push(`\n▪ [id=${record.id}·${record.priority}级·${typeLabel}] 第${record.plantedRound}轮：${record.description}`)
 
       // 附带种植上下文（最多 3 条伏笔注入上下文，控制 token）
       if (contextInjected < 3) {
@@ -463,16 +389,6 @@ export class ForeshadowingSystem implements ISubSystem {
     }
   }
 
-  /** 从叙事中提取伏笔相关片段 */
-  private extractForeshadowingSnippet(narrative: string, keyword: string): string {
-    const idx = narrative.indexOf(keyword)
-    if (idx === -1) return keyword
-
-    const start = Math.max(0, idx - 15)
-    const end = Math.min(narrative.length, idx + 40)
-    return narrative.slice(start, end).replace(/\n/g, ' ').trim()
-  }
-
   /** 添加活跃伏笔 */
   private addActive(record: ForeshadowingRecord): void {
     // 超上限时移除最低优先级
@@ -505,68 +421,7 @@ export class ForeshadowingSystem implements ISubSystem {
         continue
       }
 
-      // 高级触发条件检查：所有条件满足 → 高强度标记（score 会在 calculateTriggerScore 中体现）
-      // 只在 Prompt 中通过 score 体现，不自动 resolve（由 AI 叙事回收）
     }
-  }
-
-  /** 检查高级触发条件是否满足 */
-  private checkAdvancedConditions(
-    conditions: ForeshadowingTriggerConditions,
-    context: RoundContext,
-  ): { score: number; metConditions: string[] } {
-    let score = 0
-    const met: string[] = []
-
-    // targetRealm: 检查 cultivation 子系统
-    if (conditions.targetRealm) {
-      const cultivationState = context.subsystemStates?.['cultivation']
-      const realm = (cultivationState?.data as { realm?: string } | undefined)?.realm
-      if (realm && realm === conditions.targetRealm) {
-        score += 3
-        met.push(`已突破至${realm}`)
-      }
-    }
-
-    // targetLocation: 检查叙事文本和 subsystemStates 中的位置信息
-    if (conditions.targetLocation) {
-      const foundInNarrative = this.lastNarrative.includes(conditions.targetLocation)
-      const foundInSubsystems = this.checkLocationInSubsystems(context, conditions.targetLocation)
-      if (foundInNarrative || foundInSubsystems) {
-        score += 3
-        met.push(`已到达${conditions.targetLocation}`)
-      }
-    }
-
-    // targetPerson: 检查叙事文本和 NPC 子系统
-    if (conditions.targetPerson) {
-      if (this.lastNarrative.includes(conditions.targetPerson)) {
-        score += 3
-        met.push(`已遇到${conditions.targetPerson}`)
-      }
-    }
-
-    // targetEvent: 检查闭环事件或叙事文本
-    if (conditions.targetEvent) {
-      if (this.lastNarrative.includes(conditions.targetEvent)) {
-        score += 2
-        met.push(`事件${conditions.targetEvent}已发生`)
-      }
-    }
-
-    return { score, metConditions: met }
-  }
-
-  /** 在子系统状态中搜索位置信息 */
-  private checkLocationInSubsystems(context: RoundContext, location: string): boolean {
-    if (!context.subsystemStates) return false
-
-    for (const state of Object.values(context.subsystemStates)) {
-      const summary = state.summary ?? ''
-      if (summary.includes(location)) return true
-    }
-
-    return false
   }
 
   /** 计算伏笔的"接近触发"分数 (0-10) */
@@ -574,7 +429,6 @@ export class ForeshadowingSystem implements ISubSystem {
     const { triggerConditions } = record
 
     let score = 0
-    let advancedMet: string[] = []
 
     // 基于最少延迟：越接近触发时间，分数越高
     if (triggerConditions.minRound) {
@@ -595,25 +449,6 @@ export class ForeshadowingSystem implements ISubSystem {
     const age = this._lastProcessedRound - record.plantedRound
     if (age > 100) score -= 3
     if (age > 50) score -= 1
-
-    // 高级触发条件检查
-    if (this.lastContext) {
-      const advanced = this.checkAdvancedConditions(triggerConditions, this.lastContext)
-      score += advanced.score
-      advancedMet = advanced.metConditions
-
-      // 所有指定条件都满足 → 额外加分
-      const specifiedConditions = [
-        triggerConditions.targetRealm,
-        triggerConditions.targetLocation,
-        triggerConditions.targetPerson,
-        triggerConditions.targetEvent,
-      ].filter(Boolean).length
-
-      if (specifiedConditions > 0 && advancedMet.length >= specifiedConditions) {
-        score += 3  // 所有条件满足，加速回收
-      }
-    }
 
     return clampNumber(score, 0, 10)
   }

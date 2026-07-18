@@ -62,7 +62,7 @@ export const DESTINY_PATTERN_PRESETS_IDEALIST: Omit<DestinyPattern, 'id'>[] = [
   { name: '身手敏捷', description: '你的身手比一般人敏捷', rarity: 'fine', effect: '轻功和身法有小幅优势', polarity: 'positive', attrBonus: { physique: 1 } },
   // ----- 中立 -----
   { name: '内向性格', description: '你喜欢独处，在安静环境中工作效率更高', rarity: 'fine', effect: '独自工作效率+，社交场合略-', polarity: 'mixed', attrBonus: { mind: 1, charisma: -1 } },
-  { name: '浪漫主义', description: '你看待世界的方式充满诗意', rarity: 'fine', effect: '感情事件获得额外加成，现实事务略感吃力', polarity: 'mixed', attrBonus: { charisma: 1, resources: -1 } },
+  { name: '浪漫主义', description: '你看待世界的方式充满诗意', rarity: 'fine', effect: '感情事件获得额外加成，现实事务略感吃力', polarity: 'mixed', attrBonus: { charisma: 1 } },
   { name: '追求完美', description: '你对自己要求很高，凡事都想做到最好', rarity: 'fine', effect: '作品质量更高，但耗时更长', polarity: 'mixed', attrBonus: { talentAptitude: 1, mind: -1 } },
   // ----- 负面 -----
   { name: '不拘小节', description: '你对细节不太在意，或者说根本懒得在意', rarity: 'fine', effect: '细节相关的工作容易出错', polarity: 'negative', attrBonus: { mind: -1, charisma: 1 } },
@@ -88,7 +88,7 @@ export const DESTINY_PATTERN_PRESETS_IDEALIST: Omit<DestinyPattern, 'id'>[] = [
   { name: '话痨', description: '你特别能聊，和谁都能搭上话', rarity: 'common', effect: '社交破冰容易，但言多必失', polarity: 'mixed', attrBonus: { charisma: 1 } },
   { name: '容易相信人', description: '你觉得世界上还是好人多', rarity: 'common', effect: '获得信任更快，但也更容易被骗', polarity: 'mixed', attrBonus: { charisma: 1 } },
   { name: '白日梦', description: '你经常沉浸在自己的想象世界里', rarity: 'common', effect: '创意类工作有加成，但现实中容易走神', polarity: 'mixed', attrBonus: { talentAptitude: 1, mind: -1 } },
-  { name: '理想主义', description: '你相信世界可以变得更美好', rarity: 'common', effect: '坚持原则更容易，但现实中可能碰壁', polarity: 'mixed', attrBonus: { charisma: 1, resources: -1 } },
+  { name: '理想主义', description: '你相信世界可以变得更美好', rarity: 'common', effect: '坚持原则更容易，但现实中可能碰壁', polarity: 'mixed', attrBonus: { charisma: 1 } },
   { name: '共情', description: '你能感同身受他人的喜怒哀乐', rarity: 'common', effect: '社交更顺利，但也更容易心累', polarity: 'mixed', attrBonus: { charisma: 1, mind: -1 } },
   // ----- 负面 -----
   { name: '社恐倾向', description: '你在人多的场合会有些不自在', rarity: 'common', effect: '大型社交场合略微不利', polarity: 'negative', attrBonus: { charisma: -1 } },

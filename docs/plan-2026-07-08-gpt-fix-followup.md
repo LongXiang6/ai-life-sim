@@ -3,7 +3,7 @@
 日期：2026-07-08
 状态：**待执行**。本文档基于对 commit `2d569b3`（GPT 执行 [plan-2026-07-07-narrative-deregex-ui-eval.md](file:///D:/AI/ai-life-sim/docs/plan-2026-07-07-narrative-deregex-ui-eval.md) 的产出）的复核审查结果，列出需要修复的问题。所有诊断均基于实际读代码（file:line），不是转述。
 
-> 执行前必读：`.agents/核心流程.md` 的「元原则：根优先」——先修 P0（真实回归），再修 P1（未完成/未达标项）。
+> 执行前先读 `D:\AI\AGENTS.md` 与匹配的项目 Skill；本计划仍按真实回归优先于未完成项的顺序处理。
 
 ---
 
@@ -19,7 +19,7 @@
 
 gate-check 失败的定性很重要：80 个问题全部集中在 mod-world/mod-tech-level/mod-power-system/mod-npc/mod-culture/mod-politics/mod-economy 等模块，已核实 `git show 2d569b3` 对这些路径完全没有改动记录——这是遗留技术债，不是 GPT 这次引入的。但 GPT 交付时没有跑 gate-check 确认，属流程缺陷：说"全部执行完成"，但没有验证过项目自己定义的交付关卡是否通过。
 
-> 后续处理：gate-check 的 mod domain 已从 `npm run check`（full profile）中暂时移除，不再阻断交付（见 `testing-skill/SKILL.md §1.5`）。**本文档不再要求跑 gate-check**，见下方「三、交付要求」。
+> 后续处理：gate-check 的 mod domain 已从 full profile 中暂时移除，不再阻断该历史批次；当前命令与适用范围以 `D:\AI\AGENTS.md` §5 为准。
 
 ### 逐项符合度总表
 
@@ -151,7 +151,7 @@ gate-check 失败的定性很重要：80 个问题全部集中在 mod-world/mod-
 2. **交付前必须实际运行并附输出**：
    - `npx tsc --noEmit`（须 0 错误）
    - `npm run lint`（须 0 错误）
-3. **不要求跑 `npm run gate-check`**——mod domain 检查已暂时移出交付关卡（见 `testing-skill/SKILL.md §1.5`），本轮不作为验收依据。
+3. **本历史批次不要求跑 `npm run gate-check`**——mod domain 当时已暂时移出交付关卡；后续任务使用 `D:\AI\AGENTS.md` 的当前关闸规则。
 4. 若因为某项技术原因暂不能完全修复（如 P1-3 需要先调查），如实说明现状和调查结论，不要绕过或用无关的改动掩盖。
 
 ---
