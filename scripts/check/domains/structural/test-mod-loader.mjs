@@ -5,15 +5,21 @@
 
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { getProjectRoot } from '../../lib/project-root.mjs'
 
 const ROOT = getProjectRoot(import.meta.url)
 const runner = path.join(ROOT, 'scripts', 'check', 'domains', 'structural', 'test-mod-loader-runner.ts')
+const loader = path.join(ROOT, 'scripts', 'check', 'lib', 'typescript-loader.mjs')
 
-const result = spawnSync('npx', ['tsx', runner], {
+const result = spawnSync(process.execPath, [
+  '--no-warnings=ExperimentalWarning',
+  '--loader',
+  pathToFileURL(loader).href,
+  runner,
+], {
   cwd: ROOT,
   encoding: 'utf8',
-  shell: true,
 })
 
 if (result.stdout) process.stdout.write(result.stdout)

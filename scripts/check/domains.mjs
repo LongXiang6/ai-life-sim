@@ -6,7 +6,7 @@
  * 规则元数据 → rules/registry.json
  */
 
-/** @typedef {{ cmd: string, args?: string[], cwd?: string, env?: Record<string,string> }} CheckStep */
+/** @typedef {{ cmd: string, args?: string[], cwd?: string, env?: Record<string,string>, platforms?: string[] }} CheckStep */
 
 /** @type {Record<string, { label: string, group: string, atceTier: string, ruleIds: string[], steps: CheckStep[], triggers: string[] }>} */
 export const DOMAINS = {
@@ -65,6 +65,7 @@ export const DOMAINS = {
         cmd: 'powershell',
         args: ['-File', 'scripts/check/domains/mod/run-mod-scanners.ps1', '-ErrorOnly'],
         env: { CHECK_QUIET: '1' },
+        platforms: ['win32'],
       },
     ],
   },
@@ -85,6 +86,7 @@ export const DOMAINS = {
         cmd: 'powershell',
         args: ['-File', 'scripts/check/domains/ui/run-ui-scanners.ps1', '-ErrorOnly'],
         env: { CHECK_QUIET: '1' },
+        platforms: ['win32'],
       },
       { cmd: 'node', args: ['scripts/check/domains/ui/mobile-ui-regression.mjs'] },
     ],

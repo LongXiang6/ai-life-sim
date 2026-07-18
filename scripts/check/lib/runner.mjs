@@ -7,6 +7,7 @@
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { DOMAINS } from '../domains.mjs'
 import { cleanupOldReports } from './cleanup-reports.mjs'
 import { writeCheckReport } from './report.mjs'
@@ -57,6 +58,27 @@ export function runDomain(domainId, opts) {
   for (const step of domain.steps) {
     /** @type {string[]} */
     let args = [...(step.args ?? [])]
+
+    if (step.platforms && !step.platforms.includes(process.platform)) {
+      fs.appendFileSync(
+        logFile,
+        `\n--- SKIP ${step.cmd} ${args.join(' ')} (platform ${process.platform}) ---\n`,
+        'utf8',
+      )
+      if (!opts.quiet) {
+        console.log(`[check:${domainId}] SKIP ${step.cmd} on ${process.platform}`)
+      }
+      continue
+    }
+
+    if (step.cmd === 'node') {
+      args = [
+        '--no-warnings=ExperimentalWarning',
+        '--loader',
+        pathToFileURL(path.join(opts.projectRoot, 'scripts', 'check', 'lib', 'typescript-loader.mjs')).href,
+        ...args,
+      ]
+    }
 
     if (opts.modName && domainId === 'mod') {
       args = [...args, '-ModName', opts.modName]

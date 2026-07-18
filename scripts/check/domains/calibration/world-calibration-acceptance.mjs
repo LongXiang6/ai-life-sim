@@ -7,10 +7,11 @@ import { spawnSync } from 'node:child_process'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const DIR = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.join(DIR, '..', '..', '..', '..')
+const loader = path.join(ROOT, 'scripts', 'check', 'lib', 'typescript-loader.mjs')
 const presetMappingSource = fs.readFileSync(
   path.join(ROOT, 'src', 'mods', 'mod-world', 'utils', 'preset-to-config.ts'),
   'utf8',
@@ -43,10 +44,14 @@ const runners = [
 ]
 
 for (const runner of runners) {
-  const result = spawnSync('npx', ['tsx', runner], {
+  const result = spawnSync(process.execPath, [
+    '--no-warnings=ExperimentalWarning',
+    '--loader',
+    pathToFileURL(loader).href,
+    runner,
+  ], {
     cwd: ROOT,
     encoding: 'utf8',
-    shell: true,
   })
 
   if (result.stdout) process.stdout.write(result.stdout)
