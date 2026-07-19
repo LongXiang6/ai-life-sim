@@ -12,9 +12,12 @@
 import { z } from 'zod'
 
 import {
+  appendSourceJsonLine,
   appendServerJsonLine,
   appendServerText,
+  getServerRequestSource,
   safeLogSegment,
+  type ServerRequestSource,
   writeServerLogFile,
 } from '@/core/logger/server-log-store'
 
@@ -31,6 +34,7 @@ const ClientLogSchema = z.object({
   error: z.string().optional(),
   errorName: z.string().optional(),
   stack: z.string().optional(),
+  requestId: z.string().optional(),
   eventType: z.enum(['log', 'exception', 'user_action']).optional(),
   action: z.string().optional(),
   context: z.record(z.string(), z.unknown()).optional(),
@@ -44,8 +48,15 @@ function isDisabled(): boolean {
 }
 
 /** 写入日志（异步） */
-async function writeLogAsync(entry: ClientLogEntry): Promise<void> {
-  const dateStr = new Date(entry.timestamp).toISOString().slice(0, 10)
+async function writeLogAsync(entry: ClientLogEntry, source: ServerRequestSource): Promise<void> {
+  const receivedAt = Date.now()
+  const dateStr = new Date(receivedAt).toISOString().slice(0, 10)
+  const storedEntry = {
+    ...entry,
+    sourceIp: source.ip,
+    sourceId: source.sourceId,
+    receivedAt,
+  }
 
   // 格式化日志行
   const time = new Date(entry.timestamp).toISOString()
@@ -53,11 +64,13 @@ async function writeLogAsync(entry: ClientLogEntry): Promise<void> {
   const errorStr = entry.error ? ` | error: ${entry.error}` : ''
   const stackStr = entry.stack ? ` | stack: ${entry.stack}` : ''
   const actionStr = entry.action ? ` | action: ${entry.action}` : ''
-  const line = `[${time}] [${entry.level.toUpperCase()}] [${entry.module}] ${entry.message}${actionStr}${argsStr}${errorStr}${stackStr}\n`
+  const requestIdStr = entry.requestId ? ` | requestId: ${entry.requestId}` : ''
+  const line = `[${time}] [${entry.level.toUpperCase()}] [${entry.module}] [${source.ip}] ${entry.message}${requestIdStr}${actionStr}${argsStr}${errorStr}${stackStr}\n`
 
   await Promise.all([
     appendServerText(`client-events/client-errors-${dateStr}.log`, line),
-    appendServerJsonLine(`client-events/client-events-${dateStr}.jsonl`, entry),
+    appendServerJsonLine(`client-events/client-events-${dateStr}.jsonl`, storedEntry),
+    appendSourceJsonLine(source, `client-events-${dateStr}.jsonl`, storedEntry),
   ])
 
   // 如果有 raw 字段，额外保存完整原文
@@ -68,12 +81,17 @@ async function writeLogAsync(entry: ClientLogEntry): Promise<void> {
       `Timestamp: ${time}`,
       `Module: ${entry.module}`,
       `Level: ${entry.level}`,
+      `Source IP: ${source.ip}`,
+      ...(entry.requestId ? [`Request ID: ${entry.requestId}`] : []),
       `Message: ${entry.message}`,
       '',
       '--- Raw Content ---',
       entry.raw,
     ].join('\n')
-    await writeServerLogFile(`client-raw/${rawFile}`, rawContent)
+    await Promise.all([
+      writeServerLogFile(`client-raw/${rawFile}`, rawContent),
+      writeServerLogFile(`sources/${source.sourceId}/client-raw/${rawFile}`, rawContent),
+    ])
   }
 }
 
@@ -98,7 +116,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const raw = JSON.parse(bodyText)
     const entry = ClientLogSchema.parse(raw)
-    await writeLogAsync(entry)
+    await writeLogAsync(entry, getServerRequestSource(request))
     return Response.json({ ok: true })
   } catch {
     return Response.json({ error: '请求体格式不正确' }, { status: 400 })

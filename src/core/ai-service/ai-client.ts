@@ -765,7 +765,10 @@ async function fetchAIResponse(
 
   if (!resp.ok) {
     const errText = await resp.text().catch(() => 'Unknown error')
-    logger.errorRaw('ai-client', `AI API 返回 ${resp.status}`, errText)
+    logger.errorRaw('ai-client', `AI API 返回 ${resp.status}`, errText, undefined, {
+      requestId,
+      status: resp.status,
+    })
     throw new AIHttpError(resp.status, errText, requestId)
   }
 
@@ -953,7 +956,10 @@ async function fetchAIStreamResponse(
 
   if (!resp.ok) {
     const errText = await resp.text().catch(() => 'Unknown error')
-    logger.errorRaw('ai-client', `AI Stream 返回 ${resp.status}`, errText)
+    logger.errorRaw('ai-client', `AI Stream 返回 ${resp.status}`, errText, undefined, {
+      requestId,
+      status: resp.status,
+    })
     throw new AIHttpError(resp.status, errText, requestId, true)
   }
 

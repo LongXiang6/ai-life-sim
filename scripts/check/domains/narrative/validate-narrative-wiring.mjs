@@ -51,8 +51,8 @@ for (const field of ['长期记忆', '核心记忆', '相关往事', '近期完�
     failed++
   }
 }
-if (!narrativePrompt.includes("version: '4.0.0'") || !narrativePrompt.includes('NarrativeAIResponseSchema')) {
-  console.error('[FAIL] narrative-prompt 未接入 4.0.0 分级中文协议 Schema')
+if (!narrativePrompt.includes("version: '4.1.0'") || !narrativePrompt.includes('NarrativeAIResponseSchema')) {
+  console.error('[FAIL] narrative-prompt 未接入 4.1.0 分级中文协议 Schema')
   failed++
 }
 if (!narrativeComponents.includes('COMPILED_NARRATIVE_SYSTEM_PROMPT')

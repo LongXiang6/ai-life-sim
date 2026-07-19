@@ -1,6 +1,6 @@
 {
   "name": "ai-life-sim",
-  "version": "5.0.7",
+  "version": "5.0.8",
   "private": true,
   "scripts": {
     "dev": "node scripts/codegen/generate-mod-wiring.mjs && next dev --turbopack",
@@ -12,6 +12,7 @@
     "generate:wiring": "node scripts/codegen/generate-mod-wiring.mjs",
     "mod:create": "node scripts/codegen/create-mod.mjs",
     "release:record": "node scripts/release/record-game-update.mjs",
+    "logs:inspect": "node scripts/ops/inspect-ai-logs.mjs",
     "check:changelog": "node scripts/check/domains/ui/game-changelog-regression.mjs",
     "validate:narrative": "node scripts/check/domains/narrative/validate-narrative-wiring.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/semantic-authority-audit.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs",
     "validate:regression": "node scripts/check/domains/narrative/narrative-regression-seed.mjs",
@@ -19,7 +20,8 @@
     "test:creation-first-narrative:browser": "node scripts/check/domains/ui/character-first-narrative-browser.cjs",
     "test:compression-runtime": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/compression-runtime-smoke.mjs",
     "test:narrative-protocol": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs",
-    "test:ai-proxy": "node scripts/check/domains/narrative/ai-proxy-observability-regression.mjs",
+    "test:narrative-opening:live": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-opening-live-eval.mjs",
+    "test:ai-proxy": "node scripts/check/domains/narrative/ai-proxy-observability-regression.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/server-log-store-smoke.mjs",
     "test:managed-ai-default": "node scripts/check/domains/narrative/managed-ai-default-regression.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/managed-sse-aggregation-smoke.mjs",
     "test:loader": "node scripts/check/domains/structural/test-mod-loader.mjs",
     "test:calibration": "node scripts/check/domains/calibration/world-calibration-acceptance.mjs",

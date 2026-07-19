@@ -9,6 +9,18 @@ import 'server-only'
 import { promises as fs } from 'fs'
 import path from 'path'
 
+import {
+  redactSensitiveData,
+  type ServerRequestSource,
+} from './server-log-safety'
+
+export {
+  getServerRequestSource,
+  redactSensitiveData,
+  safeLogSegment,
+  type ServerRequestSource,
+} from './server-log-safety'
+
 const DEFAULT_RETENTION_DAYS = 30
 const DEFAULT_MAX_TOTAL_BYTES = 5 * 1024 * 1024 * 1024
 const DEFAULT_MAX_FILE_BYTES = 64 * 1024 * 1024
@@ -43,12 +55,6 @@ export function getServerLogRoot(): string {
   return path.join(/* turbopackIgnore: true */ process.cwd(), 'logs')
 }
 
-/** 将任意动态字段压缩为安全文件名片段。 */
-export function safeLogSegment(value: string): string {
-  const normalized = value.trim().replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/^\.+/, '')
-  return normalized.slice(0, 96) || 'unknown'
-}
-
 function resolveLogPath(relativePath: string): string {
   const root = getServerLogRoot()
   const target = path.resolve(root, relativePath)
@@ -58,31 +64,13 @@ function resolveLogPath(relativePath: string): string {
   return target
 }
 
-function isSensitiveKey(key: string): boolean {
-  const normalized = key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase()
-  return /(^|[_-])(api[_-]?key|authorization|access[_-]?token|refresh[_-]?token|secret|password|cookie)($|[_-])/.test(normalized)
-}
-
-function redactSensitiveString(value: string): string {
-  return value
-    .replace(/Bearer\s+[^\s"']+/gi, 'Bearer [REDACTED]')
-    .replace(/\bsk-[a-zA-Z0-9_-]{12,}\b/g, '[REDACTED_API_KEY]')
-    .replace(/([?&](?:api[_-]?key|access[_-]?token|token|secret|password)=)[^&#\s]*/gi, '$1[REDACTED]')
-}
-
-/** 递归脱敏结构化数据；保留 Prompt、响应和叙事正文的完整非密钥内容。 */
-export function redactSensitiveData(value: unknown, key = ''): unknown {
-  if (isSensitiveKey(key)) return '[REDACTED]'
-  if (typeof value === 'string') return redactSensitiveString(value)
-  if (Array.isArray(value)) return value.map((item) => redactSensitiveData(item))
-  if (value && typeof value === 'object') {
-    const output: Record<string, unknown> = {}
-    for (const [childKey, childValue] of Object.entries(value as Record<string, unknown>)) {
-      output[childKey] = redactSensitiveData(childValue, childKey)
-    }
-    return output
-  }
-  return value
+/** 在同一安全根目录下写入按来源分类的 JSONL。 */
+export async function appendSourceJsonLine(
+  source: ServerRequestSource,
+  relativePath: string,
+  value: unknown,
+): Promise<boolean> {
+  return appendServerJsonLine(`sources/${source.sourceId}/${relativePath}`, value)
 }
 
 async function ensureSecureDirectory(dir: string): Promise<void> {
@@ -210,7 +198,7 @@ export async function writeServerLogFile(
   try {
     const target = resolveLogPath(relativePath)
     const serialized = typeof content === 'string' || Buffer.isBuffer(content)
-      ? content
+      ? String(redactSensitiveData(Buffer.isBuffer(content) ? content.toString('utf8') : content))
       : JSON.stringify(redactSensitiveData(content), null, 2)
     await ensureSecureDirectory(path.dirname(target))
     await fs.writeFile(target, serialized, { mode: 0o600 })

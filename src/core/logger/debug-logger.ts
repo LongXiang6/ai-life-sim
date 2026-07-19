@@ -3,7 +3,7 @@
  * @description 客户端 AI 调试日志工具 —— 按分类发送 AI 调用日志到服务端
  * @mod core
  *
- * 受 NEXT_PUBLIC_DISABLE_DEBUG_LOGS 环境变量控制
+ * 生产环境默认继续采集；公开查看能力由页面与服务端路由独立关闭。
  * 废弃项目参考：src/lib/utils/debug-ai-logger.ts
  */
 
@@ -31,6 +31,8 @@ export interface DebugLogEntry {
   prompt?: string
   /** AI 完整响应 */
   response?: string
+  /** 代理返回的关联请求 ID */
+  requestId?: string
   /** 元信息 */
   meta?: Record<string, unknown>
 }
@@ -38,7 +40,13 @@ export interface DebugLogEntry {
 /** 检查是否禁用调试日志 */
 function isDisabled(): boolean {
   if (typeof process === 'undefined') return false
-  return process.env.NEXT_PUBLIC_DISABLE_DEBUG_LOGS === 'true'
+  return process.env.NEXT_PUBLIC_DISABLE_DEBUG_LOG_COLLECTION === 'true'
+}
+
+function withRequestId(entry: DebugLogEntry): DebugLogEntry {
+  const requestId = entry.requestId
+    ?? (typeof entry.meta?.requestId === 'string' ? entry.meta.requestId : undefined)
+  return requestId ? { ...entry, requestId } : entry
 }
 
 /**
@@ -53,7 +61,7 @@ export async function logAICall(entry: DebugLogEntry): Promise<void> {
     await fetch(LOG_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(entry),
+      body: JSON.stringify(withRequestId(entry)),
     })
   } catch {
     // 日志发送失败静默忽略，不阻塞主流程
@@ -71,7 +79,7 @@ const SEND_BEACON_MAX_BYTES = 48_000
 export async function logAICallFireAndForget(entry: DebugLogEntry): Promise<boolean> {
   if (isDisabled()) return false
 
-  const payload = JSON.stringify(entry)
+  const payload = JSON.stringify(withRequestId(entry))
   const useFetch = payload.length > SEND_BEACON_MAX_BYTES
     || typeof navigator === 'undefined'
     || !navigator.sendBeacon

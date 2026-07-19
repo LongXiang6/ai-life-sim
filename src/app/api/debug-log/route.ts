@@ -23,10 +23,15 @@ import { randomUUID } from 'crypto'
 import path from 'path'
 
 import {
+  appendSourceJsonLine,
+  getServerRequestSource,
   getServerLogRoot,
   safeLogSegment,
+  type ServerRequestSource,
   writeServerLogFile,
 } from '@/core/logger/server-log-store'
+
+const MAX_BODY_SIZE = 8 * 1024 * 1024
 
 /** 请求体 Zod 校验 */
 const DebugLogSchema = z.object({
@@ -37,6 +42,7 @@ const DebugLogSchema = z.object({
   era: z.string().optional(),
   prompt: z.string().optional(),
   response: z.string().optional(),
+  requestId: z.string().optional(),
   meta: z.record(z.string(), z.unknown()).optional(),
 })
 
@@ -74,13 +80,23 @@ function getLogFilePath(category: string, timestamp: number): string {
 }
 
 /** 检查是否禁用 */
-function isDisabled(): boolean {
-  return process.env.NEXT_PUBLIC_DISABLE_DEBUG_LOGS === 'true'
+function isWriteDisabled(): boolean {
+  return process.env.AI_DIAGNOSTIC_LOGS_ENABLED === 'false'
+}
+
+function isPublicReadDisabled(): boolean {
+  return process.env.NODE_ENV === 'production'
+    || process.env.NEXT_PUBLIC_DISABLE_DEBUG_LOGS === 'true'
 }
 
 /** 写入日志条目（每个调用创建独立文件） */
-async function writeLogEntry(category: string, entry: DebugLogEntry): Promise<void> {
-  const logPath = getLogFilePath(category, entry.timestamp)
+async function writeLogEntry(
+  category: string,
+  entry: DebugLogEntry,
+  source: ServerRequestSource,
+): Promise<void> {
+  const receivedAt = Date.now()
+  const logPath = getLogFilePath(category, receivedAt)
 
   // 格式化日志内容
   const time = formatBeijingLogTime(entry.timestamp)
@@ -118,6 +134,9 @@ async function writeLogEntry(category: string, entry: DebugLogEntry): Promise<vo
 
   const lines = [
     `时间: ${time}`,
+    `服务端接收: ${new Date(receivedAt).toISOString()}`,
+    `来源 IP: ${source.ip}`,
+    entry.requestId ? `请求 ID: ${entry.requestId}` : '',
     entry.round !== undefined ? `轮次: ${entry.round} | 年龄: ${entry.age ?? '?'} | 纪元: ${entry.era ?? '?'}` : '',
     metaLines.length > 0 ? `【元信息】\n${metaLines.join('\n')}` : entry.meta ? `【元信息】${JSON.stringify(entry.meta)}` : '',
     entry.prompt ? `【发送给 AI】(${entry.prompt.length} 字符)\n${entry.prompt}` : '',
@@ -125,7 +144,17 @@ async function writeLogEntry(category: string, entry: DebugLogEntry): Promise<vo
   ].filter(Boolean).join('\n\n') + '\n'
 
   const relativePath = path.relative(getServerLogRoot(), logPath)
-  await writeServerLogFile(relativePath, lines)
+  await Promise.all([
+    writeServerLogFile(relativePath, lines),
+    appendSourceJsonLine(source, `ai-debug-index-${new Date(receivedAt).toISOString().slice(0, 10)}.jsonl`, {
+      timestamp: new Date(receivedAt).toISOString(),
+      sourceIp: source.ip,
+      sourceId: source.sourceId,
+      category,
+      requestId: entry.requestId,
+      logFile: relativePath.replaceAll('\\', '/'),
+    }),
+  ])
 }
 
 // ---- POST: 写入日志 ----
@@ -136,7 +165,7 @@ async function writeLogEntry(category: string, entry: DebugLogEntry): Promise<vo
  * @returns 操作结果
  */
 export async function POST(request: Request): Promise<Response> {
-  if (isDisabled()) {
+  if (isWriteDisabled()) {
     return Response.json({ error: '调试日志已禁用' }, { status: 403 })
   }
 
@@ -144,11 +173,14 @@ export async function POST(request: Request): Promise<Response> {
   if (!bodyText) {
     return Response.json({ error: '请求体为空' }, { status: 400 })
   }
+  if (Buffer.byteLength(bodyText) > MAX_BODY_SIZE) {
+    return Response.json({ error: '请求体超大' }, { status: 413 })
+  }
 
   try {
     const raw = JSON.parse(bodyText)
     const entry = DebugLogSchema.parse(raw)
-    await writeLogEntry(entry.category, entry)
+    await writeLogEntry(entry.category, entry, getServerRequestSource(request))
     return Response.json({ ok: true })
   } catch {
     return Response.json({ error: '请求体格式不正确' }, { status: 400 })
@@ -163,7 +195,7 @@ export async function POST(request: Request): Promise<Response> {
  * @returns 日志条目列表
  */
 export async function GET(request: Request): Promise<Response> {
-  if (isDisabled()) {
+  if (isPublicReadDisabled()) {
     return Response.json({ error: '调试日志已禁用' }, { status: 403 })
   }
 
@@ -206,7 +238,7 @@ export async function GET(request: Request): Promise<Response> {
  * @returns 操作结果
  */
 export async function DELETE(request: Request): Promise<Response> {
-  if (isDisabled()) {
+  if (isPublicReadDisabled()) {
     return Response.json({ error: '调试日志已禁用' }, { status: 403 })
   }
 

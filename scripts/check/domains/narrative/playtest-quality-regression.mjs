@@ -845,6 +845,11 @@ assertOk(orchestratorSrc.includes('reconcilePreviewSnapshotWithEngineStore'), 's
 
 assertOk(timeScaleSrc.includes('年度单场景视角'), 'year step must use one representative annual scene')
 assertOk(
+  timeScaleSrc.includes('首句不要使用“这一年”“这一月”“这一天”等泛指时间套语')
+    && timeScaleSrc.includes('确需时间锚时使用“当前时间”中的具体纪年、季节、月日'),
+  'time guidance must vary openings and use the explicit calendar label when a time anchor is needed',
+)
+assertOk(
   timeScaleSrc.includes('三段不得分别换季、换地点或换任务')
     && timeScaleSrc.includes('同一因果主线')
     && timeScaleSrc.includes('拼接独立生活切片'),
@@ -869,7 +874,7 @@ const monthAfterSeasonStep = (mayIndex + 3) % 12
 assertSame(Math.floor(((monthAfterSeasonStep + 10) % 12) / 3), 1, 'month->season must land in the following solar season')
 assertOk(/candidate\.importance\s*===\s*'HIGH'/.test(branchPolicySrc), 'ordinary branch points must require HIGH importance')
 assertOk(narrativePromptComponentsSrc.includes('身份、核心关系、长期目标、关键资源、阵营、存亡等不可逆轨迹'), 'branch prompt must define fate-changing impact dimensions')
-assertOk(/version:\s*'4\.0\.0'/.test(narrativePromptSrc), 'branch-intent narrative prompt must use version 4.0.0')
+assertOk(/version:\s*'4\.1\.0'/.test(narrativePromptSrc), 'branch-intent narrative prompt must use version 4.1.0')
 assertOk(
   /semanticSignals\?\.irreversible\s*===\s*true/.test(branchPolicySrc)
     && /narrativeRegister\s*===\s*'fate'/.test(branchPolicySrc),
@@ -880,6 +885,11 @@ assertOk(
     && narrativePromptComponentsSrc.includes('至少保留一个可感知现场')
     && narrativePromptComponentsSrc.includes('不写全知旁白、第三人称传记或编年报告'),
   'narrative prompt must preserve second-person viewpoint, scene-level immersion, and anti-biography constraints',
+)
+assertOk(
+  narrativePromptComponentsSrc.includes('不使用“这一年”“这一月”“这一天”等泛指时间套语')
+    && narrativePromptComponentsSrc.includes('不机械复用上一轮起句'),
+  'the fixed narrative Prompt must reject repetitive generic time openings',
 )
 assertOk(narrativePromptComponentsSrc.includes('阳历季节：3—5月春、6—8月夏、9—11月秋、12—2月冬'), 'narrative prompt must define the canonical solar season mapping')
 assertOk(!/narrative:\s*parsed\.narrative\.slice\(/.test(narrativeInterceptorSrc), 'narrative interceptor must never hard-truncate the story')

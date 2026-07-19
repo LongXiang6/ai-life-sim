@@ -377,7 +377,7 @@ assertOk(
   'the old tagged envelope must not enter the successful protocol path',
 )
 
-assertOk(narrativePrompt.version === '4.0.0', 'tiered Chinese protocol behavior must use Prompt 4.0.0')
+assertOk(narrativePrompt.version === '4.1.0', 'tiered Chinese protocol behavior must use Prompt 4.1.0')
 for (const forbiddenProtocolToken of [
   '[NARRATIVE]',
   '[META]',
@@ -476,7 +476,7 @@ assertOk(
 )
 
 console.log(
-  `METRIC: prompt-4.0 system=${narrativePrompt.systemPrompt.length} global=${firstSegments.userSegments?.[0]?.length ?? 0} memory=${firstSegments.userSegments?.[1]?.length ?? 0} round=${firstSegments.userSegments?.[2]?.length ?? 0}`,
+  `METRIC: prompt-4.1 system=${narrativePrompt.systemPrompt.length} global=${firstSegments.userSegments?.[0]?.length ?? 0} memory=${firstSegments.userSegments?.[1]?.length ?? 0} round=${firstSegments.userSegments?.[2]?.length ?? 0}`,
 )
 
 if (failed > 0) process.exit(1)

@@ -8,7 +8,7 @@
 下级组成：活动权威登记、外部 MVP 系统、引擎 MVP 系统、延后剧情系统
 适用范围：MVP 运行子系统、延后但承载剧情事实的系统、状态与写入所有权、AI 参与、持久化和运行存活性
 拥有者：`mod-engine` 运行注册与各 owning MOD
-最后验证：2026-07-18；对照[运行阶段策略](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、子系统实现、Prompt/Schema、持久化路径、[中文协议回归](../scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs)、[托管通道回归](../scripts/check/domains/narrative/managed-ai-default-regression.mjs)和[硬截断审计](../scripts/check/domains/narrative/no-hard-truncation-audit.mjs)
+最后验证：2026-07-19；对照[运行阶段策略](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、子系统实现、Prompt/Schema、生产日志、持久化路径、[中文协议回归](../scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs)、[托管通道回归](../scripts/check/domains/narrative/managed-ai-default-regression.mjs)和[硬截断审计](../scripts/check/domains/narrative/no-hard-truncation-audit.mjs)
 取代关系：none
 运行真源：[mvp-stages-config.default.json](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、manifest、生成注册表和各实现文件
 验收证据：`.agents` 治理检查、引用审计、活动系统覆盖检查、[Prompt 4.0 分级中文协议验收](playtest-2026-07-18-prompt-4-tiered-protocol.md)与[a6api 托管主备通道验收](playtest-2026-07-19-managed-ai-a6api.md)
@@ -76,7 +76,7 @@ Supersession: none
 - Each subsystem owns its private state and `collectState()` representation. The orchestrator owns collection order, application phases, snapshots, and cross-system commit flow.
 - Save aggregation and restoration are owned by `src/mods/mod-engine/helpers/save-restore.ts`, `OrchestratorSystem` snapshots, and `src/core/storage/save-manager.ts`. A system must not invent a second persistence owner.
 - Main narrative AI may write only the internal IDs in `narrativeChange`; current writable systems are `character-base`, `lifespan`, `luck`, and `morality`. AI-visible input uses only their registered Chinese system and field names; `src/mods/mod-engine/helpers/subsystem-field-registry.ts` owns the one-to-one translation.
-- Main narrative Prompt `4.0.0` owns the componentized fixed prefix and the ordered three-message input `全局信息 -> 记忆 -> 本轮引导`. `narrative-prompt-components.ts` compiles low-noise plain text with basic constraints first and one annotated standard example last; `prompt-builder.ts` owns layer order; `narrative-ai-input-view.ts` owns world/character projection; `narrative-ai-protocol.ts` owns the sole successful `⟦正文⟧/⟦摘要⟧/可选⟦数据⟧/⟦结束⟧` protocol and strict translation. Ordinary rounds may commit complete body and digest without structured data; a present data block is accepted or rejected as a whole, while focused intent and forced branch rounds retain conditional data gates. The protocol boundary normalizes model no-op arrays, `命运分支:false`, empty conditional objects, and optional near-synonym enums without inventing semantic state; unknown writable targets and incomplete conditional cores remain rejected. Conditional gates may receive at most two targeted repairs, while the body remains available if the intent result is still pending. RoundCommit preflights every state-change bundle and rolls back unexpected partial writes.
+- Main narrative Prompt `4.1.0` owns the componentized fixed prefix and the ordered three-message input `全局信息 -> 记忆 -> 本轮引导`. `narrative-prompt-components.ts` compiles low-noise plain text with basic constraints first and one annotated standard example last; `prompt-builder.ts` owns layer order; `narrative-ai-input-view.ts` owns world/character projection; `narrative-ai-protocol.ts` owns the sole successful `⟦正文⟧/⟦摘要⟧/可选⟦数据⟧/⟦结束⟧` protocol and strict translation. Ordinary rounds may commit complete body and digest without structured data; a present data block is accepted or rejected as a whole, while focused intent and forced branch rounds retain conditional data gates. The protocol boundary normalizes model no-op arrays, `命运分支:false`, empty conditional objects, and optional near-synonym enums without inventing semantic state; unknown writable targets and incomplete conditional cores remain rejected. Conditional gates may receive at most two targeted repairs, while the body remains available if the intent result is still pending. RoundCommit preflights every state-change bundle and rolls back unexpected partial writes. The time guidance requires varied scene-first openings and uses the explicit current calendar label when a time anchor is needed instead of repeating generic openings such as “这一年”.
 
 ### 3.1 Managed AI default channel
 
@@ -119,30 +119,31 @@ SystemId: ai-call-observability
 SystemPath: project > simulation-runtime > platform-services > ai-call-observability
 ParentGoal: preserve enough secure production evidence to diagnose every AI request and player-visible failure
 PrimaryGovernanceParent: core logger plus app AI proxy
-ChildSystems: proxy access index, full AI traces, raw upstream errors, client event logs
-Authority: A1 current user request; A3 this index; A4 live proxy, client and server log store
+ChildSystems: proxy access index, full AI traces, raw upstream errors, client event logs, per-source indexes, operator inspection
+Authority: A1 PD-019; A3 this index; A4 live proxy, client and server log store
 RootPosition: R1
 Weight: W5
-Sequence: S1 request envelope > S2 upstream lifecycle > S3 client-visible result > S4 retention cleanup
-Responsibility: correlate and securely retain complete AI request, response, error and client failure evidence
+Sequence: S1 trusted source classification > S2 request envelope > S3 upstream lifecycle > S4 client-visible result > S5 retention cleanup and inspection
+Responsibility: correlate and securely retain complete AI request, response, error and client failure evidence, classify it by server-derived IP, and expose a private read-only inspection path
 NonResponsibility: does not own credential values, gameplay state, narrative truth, model choice or public log browsing authorization
-Inputs: sanitized proxy request envelope, upstream lifecycle, client error events, environment retention policy
-OutputsAndWrites: request IDs, access JSONL, full trace JSONL, raw error files and client event files
-PublicStateOrAPI: x-ai-request-id response header and requestId error field; no public filesystem access
+Inputs: trusted proxy headers, sanitized proxy request envelope, upstream lifecycle, client error events, environment retention policy
+OutputsAndWrites: request IDs, access JSONL, full trace JSONL, raw error files, client event files and per-source indexes
+PublicStateOrAPI: x-ai-request-id response header and requestId error field; no public filesystem or log-browsing access
 Dependencies: app proxy, core AI client, core client logger, Node filesystem and deployment environment
 Lifecycle: active for every proxy call; cleanup runs opportunistically after writes at a bounded interval
 RuntimeLivenessSource: app API route registration and active Next.js server process
 AIParticipation: observes Provider traffic only; never authors or applies semantic game state
 PersistenceAuthority: AI_LOG_DIR plus server-log-store retention and capacity policy
-Implementation: src/app/api/proxy/route.ts; src/app/api/log/route.ts; src/core/logger/server-log-store.ts
-AcceptanceEvidence: npm run test:ai-proxy; unreachable-upstream HTTP probe; secret-absence check; delivery gates
-LastVerified: 2026-07-18
+Implementation: src/app/api/proxy/route.ts; src/app/api/log/route.ts; src/app/api/debug-log/route.ts; src/core/logger/server-log-store.ts; src/core/logger/client-logger.ts; src/core/logger/debug-logger.ts; scripts/ops/inspect-ai-logs.mjs
+AcceptanceEvidence: docs/playtest-2026-07-19-production-observability-opening.md; npm run test:ai-proxy; source-classification and secret-redaction regression; operator-inspector smoke; unreachable-upstream HTTP probe; secret-absence check; delivery gates
+LastVerified: 2026-07-19
 Supersession: none
 ```
 
-- `src/app/api/proxy/route.ts` owns one request ID per proxy call and records the complete sanitized request envelope, upstream response or error, status, duration, retry observation and stream terminal state. The request ID is returned to the client for screenshot and server-log correlation.
-- `src/core/logger/server-log-store.ts` owns persistent log-root resolution, secret redaction, `0700` directories, `0600` files, per-file rotation, age retention and total-cap cleanup. Production should set `AI_LOG_DIR` outside `/root/ai-life-sim/` so atomic deployments do not move active evidence into version backups; defaults are 30 days and 5 GiB unless environment policy overrides them.
+- `src/app/api/proxy/route.ts` owns one request ID per proxy call and records the complete sanitized request envelope, upstream response or error, status, duration, retry observation and stream terminal state. The request ID is returned to the client for screenshot and server-log correlation. Every trace event carries the same server-derived source identity.
+- `src/core/logger/server-log-store.ts` owns trusted source extraction, persistent log-root resolution, secret redaction, `0700` directories, `0600` files, per-file rotation, per-source indexes, age retention and total-cap cleanup. Production uses `/var/log/ai-life-sim` through `AI_LOG_DIR`, outside `/root/ai-life-sim/`, so atomic deployments do not move active evidence into version backups; defaults are 30 days and 5 GiB unless environment policy overrides them.
 - API keys, Authorization headers, cookies, passwords, token-like credentials and credential-bearing URL query values must never be written. Prompt and response semantics remain otherwise complete so diagnosis does not depend on lossy previews.
+- `src/app/api/log/route.ts` enriches client diagnostics with the trusted source and optional AI request ID on the server; request-body fields cannot override the source. `src/app/api/debug-log/route.ts` keeps complete AI-call metadata collection enabled independently of the production-disabled public debug viewer, while its production GET/DELETE paths remain closed. `scripts/ops/inspect-ai-logs.mjs` searches recent failures by IP or request ID and omits full Prompt/response content unless explicitly requested by an authorized operator.
 - Diagnostic copies are operational evidence, not the authoritative narrative or save-state store. Retention cleanup may delete old diagnostic copies after the configured policy, but it must never delete or truncate gameplay-owned story data.
 - The proxy observes repeated fingerprints and retry counts but does not enforce a fixed identical-request rejection, because current AI candidate preparation intentionally continues until its product condition is satisfied or the player leaves.
 - Acceptance evidence: `npm run test:ai-proxy`, a local unreachable-upstream HTTP probe confirming the enabled-thinking Schema and request-ID path, secret-absence inspection, TypeScript/lint, structural check and the delivery gate.

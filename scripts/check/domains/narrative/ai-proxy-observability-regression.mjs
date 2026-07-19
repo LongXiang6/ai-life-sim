@@ -20,6 +20,12 @@ function assert(condition, message) {
 const proxy = read('src/app/api/proxy/route.ts')
 const client = read('src/core/ai-service/ai-client.ts')
 const logStore = read('src/core/logger/server-log-store.ts')
+const logSafety = read('src/core/logger/server-log-safety.ts')
+const clientLogRoute = read('src/app/api/log/route.ts')
+const clientLogger = read('src/core/logger/client-logger.ts')
+const debugLogRoute = read('src/app/api/debug-log/route.ts')
+const debugLogger = read('src/core/logger/debug-logger.ts')
+const inspector = read('scripts/ops/inspect-ai-logs.mjs')
 
 assert(
   /type:\s*z\.literal\('enabled'\)[\s\S]{0,160}budget_tokens/.test(proxy),
@@ -54,6 +60,44 @@ assert(
     && /AI_LOG_MAX_TOTAL_BYTES/.test(logStore)
     && /redactSensitiveData/.test(logStore),
   'server log store must support persistent roots, retention, capacity cleanup, and redaction',
+)
+assert(
+  /Buffer\.isBuffer\(content\)[\s\S]{0,180}redactSensitiveData/.test(logStore),
+  'standalone raw text and Buffer log files must pass through secret redaction before writing',
+)
+assert(
+  /x-real-ip/.test(logSafety)
+    && logSafety.indexOf("request.headers.get('x-real-ip')") < logSafety.indexOf("request.headers.get('x-forwarded-for')")
+    && /sourceId:\s*`ip-\$\{safeLogSegment\(ip\)\}`/.test(logSafety)
+    && /sources\/\$\{source\.sourceId\}/.test(logStore),
+  'server-derived IP must prefer the trusted Nginx header and own a per-source index',
+)
+assert(
+  /custom\|managed\|provider/.test(logSafety)
+    && /key\|token\|secret\|password\|authorization\|cookie/.test(logSafety),
+  'secret redaction must cover player custom keys and token-like credential fields',
+)
+assert(
+  /getServerRequestSource\(request\)/.test(clientLogRoute)
+    && /sourceIp:\s*source\.ip/.test(clientLogRoute)
+    && /requestId:\s*z\.string\(\)\.optional\(\)/.test(clientLogRoute)
+    && /requestId/.test(clientLogger),
+  'client diagnostics must receive a trusted source and preserve optional AI request correlation',
+)
+assert(
+  /AI_DIAGNOSTIC_LOGS_ENABLED/.test(debugLogRoute)
+    && /process\.env\.NODE_ENV === 'production'/.test(debugLogRoute)
+    && /getServerRequestSource\(request\)/.test(debugLogRoute)
+    && /ai-debug-index-/.test(debugLogRoute)
+    && /NEXT_PUBLIC_DISABLE_DEBUG_LOG_COLLECTION/.test(debugLogger),
+  'complete AI debug metadata must keep collecting in production while public read/delete stays closed',
+)
+assert(
+  /--ip <address>/.test(inspector)
+    && /--request-id <id>/.test(inspector)
+    && /--include-content/.test(inspector)
+    && /default output excludes full player Prompt/.test(inspector),
+  'the private operator inspector must support IP/request lookup without exposing content by default',
 )
 
 if (!process.exitCode) {

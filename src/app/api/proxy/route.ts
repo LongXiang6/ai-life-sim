@@ -38,8 +38,11 @@ import {
   type ManagedUpstreamAttempt,
 } from '@/core/ai-service/managed-provider-execution'
 import {
+  appendSourceJsonLine,
   appendServerJsonLine,
+  getServerRequestSource,
   safeLogSegment,
+  type ServerRequestSource,
   writeServerLogFile,
 } from '@/core/logger/server-log-store'
 
@@ -129,6 +132,7 @@ interface SmartAccessEntry {
   timestamp: string
   request_id: string
   ip: string
+  source_id: string
   provider: string
   model: string
   fingerprint: string
@@ -153,7 +157,7 @@ async function writeAccessLogAsync(
   isRetry: boolean,
   retryCount: number,
   isStream: boolean,
-  ip: string,
+  source: ServerRequestSource,
   requestBytes: number,
   messageCount: number,
   promptChars: number,
@@ -163,7 +167,8 @@ async function writeAccessLogAsync(
   const entry: SmartAccessEntry = {
     timestamp: now.toISOString(),
     request_id: requestId,
-    ip,
+    ip: source.ip,
+    source_id: source.sourceId,
     provider: providerId,
     model,
     fingerprint,
@@ -177,14 +182,11 @@ async function writeAccessLogAsync(
     prompt_chars: promptChars,
     error: error ?? '',
   }
-  await appendServerJsonLine(`proxy-access/proxy-access-${now.toISOString().slice(0, 10)}.jsonl`, entry)
-}
-
-/** 提取请求 IP */
-function getClientIP(request: Request): string {
-  return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-    ?? request.headers.get('x-real-ip')
-    ?? 'unknown'
+  const date = now.toISOString().slice(0, 10)
+  await Promise.all([
+    appendServerJsonLine(`proxy-access/proxy-access-${date}.jsonl`, entry),
+    appendSourceJsonLine(source, `proxy-access-${date}.jsonl`, entry),
+  ])
 }
 
 // ---- 错误响应保存 ----
@@ -243,17 +245,33 @@ function buildTraceRequest(body: ProxyRequest): Record<string, unknown> {
 }
 
 async function writeProxyTrace(
+  source: ServerRequestSource,
   requestId: string,
   event: 'request' | 'response' | 'rejected' | 'exception',
   details: Record<string, unknown>,
 ): Promise<void> {
   const now = new Date()
-  await appendServerJsonLine(`ai-traces/ai-trace-${now.toISOString().slice(0, 10)}.jsonl`, {
+  const date = now.toISOString().slice(0, 10)
+  const traceFile = `ai-traces/ai-trace-${date}.jsonl`
+  const record = {
     timestamp: now.toISOString(),
     requestId,
     event,
+    sourceIp: source.ip,
+    sourceId: source.sourceId,
     ...details,
-  })
+  }
+  await Promise.all([
+    appendServerJsonLine(traceFile, record),
+    appendSourceJsonLine(source, `trace-index-${date}.jsonl`, {
+      timestamp: record.timestamp,
+      requestId,
+      event,
+      status: typeof details.status === 'number' ? details.status : undefined,
+      error: typeof details.error === 'string' ? details.error : undefined,
+      traceFile,
+    }),
+  ])
 }
 
 interface UpstreamErrorDiagnostic {
@@ -337,7 +355,7 @@ export function GET(request: Request): Response {
 export async function POST(request: Request): Promise<Response> {
   const startTime = Date.now()
   const requestId = randomUUID()
-  const ip = getClientIP(request)
+  const source = getServerRequestSource(request)
   // 上游超时/取消守卫清理函数（try 内接线，catch/各出口调用，避免定时器与监听器泄漏）
   let clearUpstreamGuards: () => void = () => {}
   let providerId = DEFAULT_AI_PROVIDER_ID
@@ -348,6 +366,11 @@ export async function POST(request: Request): Promise<Response> {
   let messageCount = 0
   let promptChars = 0
   let trackResult = { isRetry: false, retryCount: 0 }
+
+  const writeCurrentTrace = (
+    event: 'request' | 'response' | 'rejected' | 'exception',
+    details: Record<string, unknown>,
+  ): Promise<void> => writeProxyTrace(source, requestId, event, details)
 
   const writeCurrentAccessLog = async (status: number, error?: string): Promise<void> => {
     await writeAccessLogAsync(
@@ -360,7 +383,7 @@ export async function POST(request: Request): Promise<Response> {
       trackResult.isRetry,
       trackResult.retryCount,
       isStream,
-      ip,
+      source,
       requestBytes,
       messageCount,
       promptChars,
@@ -374,14 +397,14 @@ export async function POST(request: Request): Promise<Response> {
     requestBytes = bodyText ? Buffer.byteLength(bodyText) : 0
     if (!bodyText) {
       await Promise.all([
-        writeProxyTrace(requestId, 'rejected', { ip, status: 400, reason: '请求体为空', requestBytes }),
+        writeCurrentTrace('rejected', { status: 400, reason: '请求体为空', requestBytes }),
         writeCurrentAccessLog(400, 'Empty request body'),
       ])
       return jsonWithRequestId(requestId, { error: '请求体为空' }, 400)
     }
     if (requestBytes > MAX_BODY_SIZE) {
       await Promise.all([
-        writeProxyTrace(requestId, 'rejected', { ip, status: 413, reason: '请求体超大', requestBytes }),
+        writeCurrentTrace('rejected', { status: 413, reason: '请求体超大', requestBytes }),
         writeCurrentAccessLog(413, 'Request body too large'),
       ])
       return jsonWithRequestId(requestId, { error: '请求体超大' }, 413)
@@ -397,8 +420,7 @@ export async function POST(request: Request): Promise<Response> {
         ? error.issues
         : error instanceof Error ? error.message : String(error)
       await Promise.all([
-        writeProxyTrace(requestId, 'rejected', {
-          ip,
+        writeCurrentTrace('rejected', {
           status: 400,
           reason: '请求体格式不正确',
           requestBytes,
@@ -420,8 +442,7 @@ export async function POST(request: Request): Promise<Response> {
     fingerprint = computeFingerprint(body.messages)
     trackResult = trackFingerprint(fingerprint)
 
-    await writeProxyTrace(requestId, 'request', {
-      ip,
+    await writeCurrentTrace('request', {
       fingerprint,
       isRetry: trackResult.isRetry,
       retryCount: trackResult.retryCount,
@@ -435,7 +456,7 @@ export async function POST(request: Request): Promise<Response> {
 
     if (!isCustom && !providerConfig) {
       await Promise.all([
-        writeProxyTrace(requestId, 'response', { status: 400, error: 'Unknown provider' }),
+        writeCurrentTrace('response', { status: 400, error: 'Unknown provider' }),
         writeCurrentAccessLog(400, 'Unknown provider'),
       ])
       return jsonWithRequestId(requestId, { error: '未知的 AI Provider' }, 400)
@@ -446,7 +467,7 @@ export async function POST(request: Request): Promise<Response> {
       && !providerConfig.models.some((candidate) => candidate.name === body.model)
     ) {
       await Promise.all([
-        writeProxyTrace(requestId, 'response', { status: 400, error: 'Managed model not allowed' }),
+        writeCurrentTrace('response', { status: 400, error: 'Managed model not allowed' }),
         writeCurrentAccessLog(400, 'Managed model not allowed'),
       ])
       return jsonWithRequestId(requestId, { error: '免费体验通道不支持该模型，请使用自定义接口' }, 400)
@@ -462,7 +483,7 @@ export async function POST(request: Request): Promise<Response> {
 
     if (!baseUrl) {
       await Promise.all([
-        writeProxyTrace(requestId, 'response', { status: 500, error: 'Missing baseUrl' }),
+        writeCurrentTrace('response', { status: 500, error: 'Missing baseUrl' }),
         writeCurrentAccessLog(500, 'Missing baseUrl'),
       ])
       return jsonWithRequestId(requestId, { error: 'API Base URL 未配置' }, 500)
@@ -470,7 +491,7 @@ export async function POST(request: Request): Promise<Response> {
 
     if (!apiKey) {
       await Promise.all([
-        writeProxyTrace(requestId, 'response', { status: 500, error: 'Missing API Key' }),
+        writeCurrentTrace('response', { status: 500, error: 'Missing API Key' }),
         writeCurrentAccessLog(500, 'Missing API Key'),
       ])
       return jsonWithRequestId(requestId, { error: 'API Key 未配置' }, 500)
@@ -502,7 +523,7 @@ export async function POST(request: Request): Promise<Response> {
     // 若客户端已断开，直接放弃，避免发起注定被丢弃的上游调用
     if (request.signal.aborted) {
       await Promise.all([
-        writeProxyTrace(requestId, 'response', { status: 499, error: 'Client aborted before upstream' }),
+        writeCurrentTrace('response', { status: 499, error: 'Client aborted before upstream' }),
         writeCurrentAccessLog(499, 'Client aborted before upstream'),
       ])
       return jsonWithRequestId(requestId, { error: '客户端已取消请求' }, 499)
@@ -520,7 +541,7 @@ export async function POST(request: Request): Promise<Response> {
 
       if (managedResult.kind === 'success') {
         await Promise.all([
-          writeProxyTrace(requestId, 'response', {
+          writeCurrentTrace('response', {
             status: 200,
             selectedModel: managedResult.model,
             fallbackUsed: managedResult.model === DEFAULT_AI_FALLBACK_MODEL,
@@ -543,7 +564,7 @@ export async function POST(request: Request): Promise<Response> {
 
       if (managedResult.kind === 'client-abort') {
         await Promise.all([
-          writeProxyTrace(requestId, 'response', {
+          writeCurrentTrace('response', {
             status: 499,
             selectedModel: managedResult.model,
             upstreamAttempts: managedResult.attempts,
@@ -558,7 +579,7 @@ export async function POST(request: Request): Promise<Response> {
         const upstream = parseUpstreamErrorDiagnostic(managedResult.errorText)
         await Promise.all([
           saveRawResponse(requestId, providerId, managedResult.model, managedResult.status, managedResult.errorText),
-          writeProxyTrace(requestId, 'response', {
+          writeCurrentTrace('response', {
             status: managedResult.status,
             selectedModel: managedResult.model,
             upstreamAttempts: managedResult.attempts,
@@ -576,7 +597,7 @@ export async function POST(request: Request): Promise<Response> {
       }
 
       await Promise.all([
-        writeProxyTrace(requestId, 'response', {
+        writeCurrentTrace('response', {
           status: 502,
           selectedModel: managedResult.model,
           upstreamAttempts: managedResult.attempts,
@@ -675,13 +696,13 @@ export async function POST(request: Request): Promise<Response> {
       // 区分「客户端主动取消」与「真正的连接失败」
       if (request.signal.aborted) {
         await Promise.all([
-          writeProxyTrace(requestId, 'response', { status: 499, error: 'Client aborted' }),
+          writeCurrentTrace('response', { status: 499, error: 'Client aborted' }),
           writeCurrentAccessLog(499, 'Client aborted'),
         ])
         return jsonWithRequestId(requestId, { error: '客户端已取消请求' }, 499)
       }
       await Promise.all([
-        writeProxyTrace(requestId, 'response', {
+        writeCurrentTrace('response', {
           status: 502,
           upstreamAttempts,
           error: connectionError || 'Connection failed or timeout',
@@ -698,7 +719,7 @@ export async function POST(request: Request): Promise<Response> {
       const upstream = parseUpstreamErrorDiagnostic(errorText)
       await Promise.all([
         saveRawResponse(requestId, providerId, model, upstreamResp.status, errorText),
-        writeProxyTrace(requestId, 'response', {
+        writeCurrentTrace('response', {
           status: upstreamResp.status,
           upstreamHeaders: getUpstreamHeaderSnapshot(upstreamResp.headers),
           upstreamAttempts,
@@ -739,7 +760,7 @@ export async function POST(request: Request): Promise<Response> {
         logged = true
         const responseBody = Buffer.concat(capturedChunks.map((chunk) => Buffer.from(chunk))).toString('utf8')
         await Promise.all([
-          writeProxyTrace(requestId, 'response', {
+          writeCurrentTrace('response', {
             status,
             upstreamHeaders: getUpstreamHeaderSnapshot(upstreamResp.headers),
             upstreamAttempts,
@@ -797,7 +818,7 @@ export async function POST(request: Request): Promise<Response> {
     clearUpstreamGuards()
     const responseBody = await upstreamResp.text()
     await Promise.all([
-      writeProxyTrace(requestId, 'response', {
+      writeCurrentTrace('response', {
         status: 200,
         upstreamHeaders: getUpstreamHeaderSnapshot(upstreamResp.headers),
         upstreamAttempts,
@@ -818,13 +839,13 @@ export async function POST(request: Request): Promise<Response> {
     // 客户端主动取消不算服务端错误
     if (request.signal.aborted || (err instanceof Error && err.name === 'AbortError')) {
       await Promise.all([
-        writeProxyTrace(requestId, 'exception', { status: 499, error: 'Aborted' }),
+        writeCurrentTrace('exception', { status: 499, error: 'Aborted' }),
         writeCurrentAccessLog(499, 'Aborted'),
       ])
       return jsonWithRequestId(requestId, { error: '请求已取消或超时' }, 499)
     }
     await Promise.all([
-      writeProxyTrace(requestId, 'exception', {
+      writeCurrentTrace('exception', {
         status: 500,
         error: errorMsg,
         stack: err instanceof Error ? err.stack : undefined,

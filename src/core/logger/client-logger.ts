@@ -24,6 +24,7 @@ interface LogEntry {
   error?: string
   errorName?: string
   stack?: string
+  requestId?: string
   eventType?: 'log' | 'exception' | 'user_action'
   action?: string
   context?: Record<string, unknown>
@@ -112,6 +113,10 @@ export const logger = {
     console.error(`[${module}] ${message}`, ...args)
     // 自动上报到服务端
     const errorArg = args.find(a => a instanceof Error)
+    const errorWithRequestId = errorArg as (Error & { requestId?: unknown }) | undefined
+    const requestId = errorWithRequestId && typeof errorWithRequestId.requestId === 'string'
+      ? errorWithRequestId.requestId
+      : undefined
     sendToServer({
       level: 'error',
       module,
@@ -121,6 +126,7 @@ export const logger = {
       error: errorArg ? errorArg.message : undefined,
       errorName: errorArg ? errorArg.name : undefined,
       stack: errorArg ? errorArg.stack : undefined,
+      requestId,
     })
   },
 
@@ -128,7 +134,13 @@ export const logger = {
    * 带原始内容的 warn 日志
    * 用于记录 AI 响应原文等不截断内容
    */
-  warnRaw(module: string, message: string, raw: string, error?: unknown): void {
+  warnRaw(
+    module: string,
+    message: string,
+    raw: string,
+    error?: unknown,
+    context?: Record<string, unknown>,
+  ): void {
     if (!shouldLog('warn')) return
     console.warn(`[${module}] ${message}`, raw.slice(0, 200), error)
     sendToServer({
@@ -138,6 +150,8 @@ export const logger = {
       timestamp: Date.now(),
       raw, // 完整原文，不截断
       error: error instanceof Error ? error.message : undefined,
+      requestId: typeof context?.requestId === 'string' ? context.requestId : undefined,
+      context,
     })
   },
 
@@ -145,7 +159,13 @@ export const logger = {
    * 带原始内容的 error 日志
    * 用于记录 AI 响应原文等不截断内容
    */
-  errorRaw(module: string, message: string, raw: string, error?: unknown): void {
+  errorRaw(
+    module: string,
+    message: string,
+    raw: string,
+    error?: unknown,
+    context?: Record<string, unknown>,
+  ): void {
     if (!shouldLog('error')) return
     console.error(`[${module}] ${message}`, raw.slice(0, 200), error)
     sendToServer({
@@ -157,6 +177,8 @@ export const logger = {
       error: error instanceof Error ? error.message : undefined,
       errorName: error instanceof Error ? error.name : undefined,
       stack: error instanceof Error ? error.stack : undefined,
+      requestId: typeof context?.requestId === 'string' ? context.requestId : undefined,
+      context,
     })
   },
 
