@@ -11,7 +11,7 @@
 最后验证：2026-07-19；本地 focused gates、DeepSeek 官方四轮评测与生产只读检查
 取代关系：none
 运行真源：生产 PM2/Nginx、`AI_LOG_DIR`、服务端日志实现与主叙事 Prompt
-验收证据：本文命令与结果；发布后证据待同任务补齐
+验收证据：本文命令与结果、Linux release gate/build、3001 旁路、3000 生产探测、浏览器控制台
 
 ## 1. 原始反馈与预期
 
@@ -62,4 +62,16 @@
 
 ## 5. 发布后验证
 
-待部署后补充：统一日志目录、旧目录迁移、按来源索引生成、客户端 request ID 关联、运维查询命令、线上秘密扫描、PM2/回环/Nginx/HTTPS/版本与新增错误日志。
+发布时间：2026-07-19，北京时间。
+
+- GitHub `main` 与本地发布提交一致；Linux Node.js 20 环境的 `npm ci`、`npm run gate-check` 和 `npm run build` 通过。
+- 3001 旁路：主页、帮助、更新日志、托管配置均为 200；生产 GET 调试日志为 403；客户端日志、完整 AI 调试日志和拒绝型代理 trace 均成功写入。
+- 旁路秘密测试：结构化字段与 raw 文本中的专用假 Key 均未落盘；来源目录、请求 ID、`0600` 文件与 `0700` 目录通过；伪造 `X-Forwarded-For` 未进入日志。
+- 原子切换后 `/root/ai-life-sim` 指向新的不可变 release；PM2 `ai-life-sim` online，仅监听 `127.0.0.1:3000`，3001 旁路已删除并执行 `pm2 save`。
+- `/var/log/ai-life-sim` 成为唯一活动日志根；旧 `/root/ai-life-sim-logs` 已原样移入 `/var/log/ai-life-sim/legacy/root-ai-life-sim-logs-20260718`，统一权限后继续受保留策略管理。
+- 生产托管最短调用：HTTP 200，`gpt-5.6-luna` 正常完成；同一请求留下 request/response 两个 trace 事件、完整请求消息和完整响应正文，凭据来源只记录为 `server-or-missing`。
+- 当日历史 401 共 17 次，全部 trace 的 `credentialSource` 为 `request`，说明失败来自浏览器提交的玩家 Key；服务器托管 Key 的发布后实测为 200。
+- Nginx 配置通过；HTTP 根路径 301 到 HTTPS；`ai-mnrs.icu`、`www.ai-mnrs.icu`、帮助、`changelog-11.txt` 和版本索引均为 200。
+- 浏览器：欢迎页恢复完成，说明页显示当前版本 `5.0.8`，控制台 warning/error 为 0。
+
+结论：生产项目、日志采集、来源分类、秘密排除、只读运维查询和主叙事起句修复均已上线。后续用户反馈优先收集请求 ID；若用户主动填写过 Key，先检查本地 Key 是否失效，再按来源 IP 与请求 ID 联合定位。
