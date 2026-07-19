@@ -4,14 +4,14 @@
 权威层级：A5
 状态：active
 体系路径：project > acceptance > production-observability-and-narrative-opening
-上级目标：让生产问题可按来源快速定位，并降低年度叙事的模板化起句频率
-下级组成：服务器现状基线、日志安全与关联回归、四轮真实模型起句评测、发布后验证
-适用范围：`ai-call-observability`、客户端诊断日志、主叙事 Prompt `4.1.0`
-拥有者：`src/core/logger/`、`src/app/api/proxy/route.ts`、`src/app/api/log/route.ts`、`src/app/api/debug-log/route.ts`、主叙事 Prompt
-最后验证：2026-07-19；本地 focused gates、DeepSeek 官方四轮评测与生产只读检查
+上级目标：让生产问题可按来源快速定位、确定性配置错误可终止，并降低年度叙事的模板化起句频率
+下级组成：服务器现状基线、日志安全与关联回归、鉴权终止状态机、发布保留策略、四轮真实模型起句评测、发布后验证
+适用范围：`ai-call-observability`、`managed-ai-default-channel`、`production-release-retention`、命格候选生成、主叙事 Prompt `4.1.0`
+拥有者：`src/core/logger/`、AI client/proxy、`DestinyPatternSystem`、命格页、release cleanup 运维脚本、主叙事 Prompt
+最后验证：2026-07-19；本地 focused gates、DeepSeek 官方四轮评测、生产只读检查与 release cleanup 回归
 取代关系：none
-运行真源：生产 PM2/Nginx、`AI_LOG_DIR`、服务端日志实现与主叙事 Prompt
-验收证据：本文命令与结果、Linux release gate/build、3001 旁路、3000 生产探测、浏览器控制台
+运行真源：生产 PM2/Nginx、`AI_LOG_DIR`、活动 release symlink、systemd timer、服务端日志实现、命格状态机与主叙事 Prompt
+验收证据：本文命令与结果、Linux release gate/build、3001 旁路、3000 生产探测、systemd 状态、浏览器控制台
 
 ## 1. 原始反馈与预期
 
@@ -75,3 +75,26 @@
 - 浏览器：欢迎页恢复完成，说明页显示当前版本 `5.0.8`，控制台 warning/error 为 0。
 
 结论：生产项目、日志采集、来源分类、秘密排除、只读运维查询和主叙事起句修复均已上线。后续用户反馈优先收集请求 ID；若用户主动填写过 Key，先检查本地 Key 是否失效，再按来源 IP 与请求 ID 联合定位。
+
+## 6. 生产日志跟进与 401 根因
+
+跟进时间：2026-07-19 12:36 前，北京时间。
+
+- 最近 24 小时日志共记录 569 个代理请求、1138 个 trace 事件、127 个客户端事件和 13 个来源；状态为 462 次 200、66 次 401、36 次 499、2 次 500、2 次 502 与 1 次 400。
+- 最近问题链显示 `/talent-draw` 在同一来源、同一玩家配置下连续产生 401；每个代理请求自身 `retryCount=0`，说明重复不是代理内部重试，而是命格候选循环在三路首屏失败后继续启动后续批次。
+- 已有生产证据和托管通道单独 200 探测表明，这类高频 401 主要由浏览器提交的玩家 Key 无效或权限不足触发；服务器、PM2 与 Nginx 仍在线。
+- 原 `PD-001`/`PD-013` 将所有单次失败都视为可持续等待，导致确定性鉴权失败无法终止。用户已明确授权把 401/403 改为配置终止错误，形成 `PD-020`。
+
+## 7. 跟进实现与发布前证据
+
+| 检查块 | 命令或证据 | 结果 |
+|---|---|---|
+| 鉴权终止状态机 | `npm run test:destiny-credential-terminal` | 通过；只产生已启动的 3 路首屏请求，未进入后续批次，池填充状态退出 |
+| 原命格质量回归 | TypeScript loader 运行 `playtest-quality-regression.mjs` | 通过；三路并发、五条门槛、后台补池和无预设兜底保持不变 |
+| 日志容量与脱敏 | `npm run test:ai-proxy` | 通过；默认总量上限更新为 10 GiB，秘密脱敏、IP 分类和完整 trace 未回退 |
+| 托管通道 | `npm run test:managed-ai-default` | 通过；主备路由和服务器 Key 隔离未受影响 |
+| 旧发布清理 | `npm run test:release-cleanup` | 通过；活动版本未满 72 小时整次跳过，成熟活动版本只删除超过 72 小时的非活动直接子目录，活动与新目录保留 |
+| 剧情完整性 | `node scripts/check/domains/narrative/no-hard-truncation-audit.mjs` | 通过；本次错误终止与运维清理不删除剧情数据 |
+| UI 与结构 | `npm run check:ui`、`npm run check:structural` | 通过；错误复用定版命格页已有提示区域，未改变构图、字段、操作顺序或 MOD 注册 |
+
+日志策略按用户意见从 5 GiB 提升为 10 GiB。旧发布策略形成 `PD-021`：每次原子切换后，活动 symlink 必须先连续保持 72 小时；随后每日 timer 只有在本机 3000 健康时才删除同样超过 72 小时的非活动 release。日志、环境文件、证书/Nginx 备份和玩家数据均不在清理范围内。

@@ -44,7 +44,8 @@ assert(
   'proxy must observe repeated fingerprints without enforcing a fixed request-count rejection',
 )
 assert(
-  /class AIHttpError[\s\S]{0,1200}isRetryableAiError/.test(client)
+  /function isRetryableAiError\(error: unknown\)/.test(client)
+    && /error instanceof AIHttpError/.test(client)
     && /error\.status === 408 \|\| error\.status === 429 \|\| error\.status >= 500/.test(client),
   'deterministic 400 responses must not enter the transient internal retry path',
 )
@@ -58,8 +59,9 @@ assert(
   /AI_LOG_DIR/.test(logStore)
     && /AI_LOG_RETENTION_DAYS/.test(logStore)
     && /AI_LOG_MAX_TOTAL_BYTES/.test(logStore)
+    && /DEFAULT_MAX_TOTAL_BYTES\s*=\s*10\s*\*\s*1024\s*\*\s*1024\s*\*\s*1024/.test(logStore)
     && /redactSensitiveData/.test(logStore),
-  'server log store must support persistent roots, retention, capacity cleanup, and redaction',
+  'server log store must support persistent roots, 10 GiB capacity, retention cleanup, and redaction',
 )
 assert(
   /Buffer\.isBuffer\(content\)[\s\S]{0,180}redactSensitiveData/.test(logStore),

@@ -67,6 +67,16 @@ class AIHttpError extends Error {
   }
 }
 
+/** 401/403 表示凭据或权限配置不会通过同参数重试自行恢复。 */
+export function isAiCredentialError(error: unknown): boolean {
+  if (error instanceof AIHttpError) {
+    return error.status === 401 || error.status === 403
+  }
+  if (!error || typeof error !== 'object' || !('status' in error)) return false
+  const status = (error as { status?: unknown }).status
+  return status === 401 || status === 403
+}
+
 /** 从 429 响应中解析 provider 的 retryAfter（秒），失败则返回 undefined */
 async function parseRetryAfter(resp: Response): Promise<number | undefined> {
   try {

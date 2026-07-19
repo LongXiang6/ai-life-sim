@@ -22,7 +22,7 @@ export {
 } from './server-log-safety'
 
 const DEFAULT_RETENTION_DAYS = 30
-const DEFAULT_MAX_TOTAL_BYTES = 5 * 1024 * 1024 * 1024
+const DEFAULT_MAX_TOTAL_BYTES = 10 * 1024 * 1024 * 1024
 const DEFAULT_MAX_FILE_BYTES = 64 * 1024 * 1024
 const CLEANUP_INTERVAL_MS = 15 * 60 * 1000
 

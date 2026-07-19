@@ -1,6 +1,6 @@
 {
   "name": "ai-life-sim",
-  "version": "5.0.8",
+  "version": "5.0.9",
   "private": true,
   "scripts": {
     "dev": "node scripts/codegen/generate-mod-wiring.mjs && next dev --turbopack",
@@ -22,6 +22,8 @@
     "test:narrative-protocol": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs",
     "test:narrative-opening:live": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-opening-live-eval.mjs",
     "test:ai-proxy": "node scripts/check/domains/narrative/ai-proxy-observability-regression.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/server-log-store-smoke.mjs",
+    "test:destiny-credential-terminal": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/destiny-credential-terminal-smoke.mjs",
+    "test:release-cleanup": "node scripts/check/domains/narrative/release-cleanup-smoke.mjs",
     "test:managed-ai-default": "node scripts/check/domains/narrative/managed-ai-default-regression.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/managed-sse-aggregation-smoke.mjs",
     "test:loader": "node scripts/check/domains/structural/test-mod-loader.mjs",
     "test:calibration": "node scripts/check/domains/calibration/world-calibration-acceptance.mjs",

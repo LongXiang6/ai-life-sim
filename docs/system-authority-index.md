@@ -85,23 +85,23 @@ SystemId: managed-ai-default-channel
 SystemPath: project > simulation-runtime > platform-services > managed-ai-default-channel
 ParentGoal: let players start with a usable free experience while keeping the managed credential server-only and preserving player-owned overrides
 PrimaryGovernanceParent: core AI Provider configuration plus app AI proxy and mod-settings
-ChildSystems: public managed Provider preset, settings defaults and migration, server credential resolution, complete SSE transport aggregation, background world initialization routing
-Authority: A1 PD-018; A3 this index; A4 live Provider, settings and proxy implementation
+ChildSystems: public managed Provider preset, settings defaults and migration, server credential resolution, credential-terminal propagation, complete SSE transport aggregation, background world initialization routing
+Authority: A1 PD-018 and PD-020; A3 this index; A4 live Provider, settings, AI client, candidate generation and proxy implementation
 RootPosition: R1
 Weight: W5
 Sequence: S1 public default selection > S2 server credential resolution > S3 primary request > S4 safe fallback or explicit failure > S5 player override
-Responsibility: own the public default Provider, base URL, primary model and internal fallback model; select the environment credential only inside server AI routes; preserve restore-default and custom-override semantics; adapt long non-stream client calls through complete SSE upstream aggregation and switch models only before any partial result is committed
+Responsibility: own the public default Provider, base URL, primary model and internal fallback model; select the environment credential only inside server AI routes; preserve restore-default and custom-override semantics; classify 401/403 as configuration-terminal for consuming candidate loops; adapt long non-stream client calls through complete SSE upstream aggregation and switch models only before any partial result is committed
 NonResponsibility: does not expose or persist the managed credential, own third-party billing or credential lifecycle, author gameplay state, or silently redirect managed traffic
 Inputs: player settings, optional player API Key, MANAGED_AI_API_KEY environment value, validated proxy request
-OutputsAndWrites: fixed managed primary request, same-interface fallback request or explicit configuration/allowlist error; public settings state contains no managed credential
+OutputsAndWrites: fixed managed primary request, same-interface fallback request or explicit configuration/allowlist/credential-terminal error; public settings state contains no managed credential
 PublicStateOrAPI: managed Provider metadata; GET /api/proxy returns only configured boolean; POST accepts no client Key for the managed path
 Dependencies: deployment environment, src/core/ai-service/provider-config.ts, mod-settings persisted state, app AI proxy
 Lifecycle: active for new-user defaults, restore-default, API availability checks and every managed proxy request
 RuntimeLivenessSource: app route registration, settings Store hydration and active Next.js server process
 AIParticipation: transports model requests only; does not interpret or apply AI semantic output
 PersistenceAuthority: player overrides remain in mod-settings browser persistence; managed credential exists only in private local or server environment files
-Implementation: src/core/ai-service/provider-config.ts; src/core/ai-service/server-provider-credentials.ts; src/core/ai-service/managed-sse-aggregation.ts; src/mods/mod-settings/store.ts; src/mods/mod-settings/components/SettingsTabPresets.tsx; src/mods/mod-world/world-init-bundle.ts; src/app/api/proxy/route.ts; src/app/api/world-init/route.ts
-AcceptanceEvidence: npm run test:managed-ai-default; npm run test:ai-proxy; primary and fallback routing smoke; complete long-narrative proxy and browser round; background world initialization; restore/default/custom tests; secret-absence scan; delivery gates
+Implementation: src/core/ai-service/provider-config.ts; src/core/ai-service/server-provider-credentials.ts; src/core/ai-service/managed-sse-aggregation.ts; src/core/ai-service/ai-client.ts; src/mods/mod-settings/store.ts; src/mods/mod-settings/components/SettingsTabPresets.tsx; src/mods/mod-character/subsystems/destiny-pattern-system.ts; src/mods/mod-pages/pages/talent-draw/page.tsx; src/mods/mod-world/world-init-bundle.ts; src/app/api/proxy/route.ts; src/app/api/world-init/route.ts
+AcceptanceEvidence: npm run test:managed-ai-default; npm run test:ai-proxy; npm run test:destiny-credential-terminal; primary and fallback routing smoke; complete long-narrative proxy and browser round; background world initialization; restore/default/custom tests; secret-absence scan; delivery gates
 LastVerified: 2026-07-19
 Supersession: none
 ```
@@ -111,6 +111,7 @@ Supersession: none
 - `GET /api/proxy` exposes only a boolean configuration state. It must not return the Provider configuration, environment variable value, credential source or any reversible derivative of the Key.
 - Editing the interface or model switches the browser state to `custom`. Restore-default clears the browser Key and reselects the public managed configuration without transferring the managed credential to the client.
 - Managed long-form requests keep the browser's non-stream response contract but use SSE upstream transport. `managed-sse-aggregation.ts` must preserve every content chunk, require `[DONE]`, reject malformed or incomplete streams, and only then rebuild one complete OpenAI-compatible response. The proxy may retry the backup model after a primary aggregation failure because no content has reached the browser; client-visible streaming may switch only before its first successful response begins, and partial story output must never be joined across models or committed as complete.
+- `ai-client.ts` owns status-preserving credential-error classification. `DestinyPatternSystem` keeps the three already-started first-screen calls but aborts remaining work and rejects before any later batch after the first 401/403; the page reuses its selected error region and never clears the player Key automatically.
 
 ### 3.2 AI call observability
 
@@ -141,19 +142,47 @@ Supersession: none
 ```
 
 - `src/app/api/proxy/route.ts` owns one request ID per proxy call and records the complete sanitized request envelope, upstream response or error, status, duration, retry observation and stream terminal state. The request ID is returned to the client for screenshot and server-log correlation. Every trace event carries the same server-derived source identity.
-- `src/core/logger/server-log-store.ts` owns trusted source extraction, persistent log-root resolution, secret redaction, `0700` directories, `0600` files, per-file rotation, per-source indexes, age retention and total-cap cleanup. Production uses `/var/log/ai-life-sim` through `AI_LOG_DIR`, outside `/root/ai-life-sim/`, so atomic deployments do not move active evidence into version backups; defaults are 30 days and 5 GiB unless environment policy overrides them.
+- `src/core/logger/server-log-store.ts` owns trusted source extraction, persistent log-root resolution, secret redaction, `0700` directories, `0600` files, per-file rotation, per-source indexes, age retention and total-cap cleanup. Production uses `/var/log/ai-life-sim` through `AI_LOG_DIR`, outside `/root/ai-life-sim/`, so atomic deployments do not move active evidence into version backups; defaults are 30 days and 10 GiB unless environment policy overrides them.
 - API keys, Authorization headers, cookies, passwords, token-like credentials and credential-bearing URL query values must never be written. Prompt and response semantics remain otherwise complete so diagnosis does not depend on lossy previews.
 - `src/app/api/log/route.ts` enriches client diagnostics with the trusted source and optional AI request ID on the server; request-body fields cannot override the source. `src/app/api/debug-log/route.ts` keeps complete AI-call metadata collection enabled independently of the production-disabled public debug viewer, while its production GET/DELETE paths remain closed. `scripts/ops/inspect-ai-logs.mjs` searches recent failures by IP or request ID and omits full Prompt/response content unless explicitly requested by an authorized operator.
 - Diagnostic copies are operational evidence, not the authoritative narrative or save-state store. Retention cleanup may delete old diagnostic copies after the configured policy, but it must never delete or truncate gameplay-owned story data.
-- The proxy observes repeated fingerprints and retry counts but does not enforce a fixed identical-request rejection, because current AI candidate preparation intentionally continues until its product condition is satisfied or the player leaves.
+- The proxy observes repeated fingerprints and retry counts but does not enforce a fixed identical-request rejection. Candidate preparation normally continues until its product condition is satisfied or the player leaves; 401/403 are the explicit `PD-020` configuration-terminal exception owned by the consuming loop.
 - Acceptance evidence: `npm run test:ai-proxy`, a local unreachable-upstream HTTP probe confirming the enabled-thinking Schema and request-ID path, secret-absence inspection, TypeScript/lint, structural check and the delivery gate.
+
+### 3.3 Production release retention
+
+```text
+SystemId: production-release-retention
+SystemPath: project > delivery-runtime > production-operations > release-retention
+ParentGoal: keep a complete short rollback window without allowing immutable release directories to grow indefinitely
+PrimaryGovernanceParent: formal atomic deployment flow plus PD-021
+ChildSystems: active symlink soak gate, localhost health probe, inactive release selection, systemd daily timer
+Authority: A1 PD-021; A3 this index and root AGENTS.md; A4 cleanup script and installed systemd units
+RootPosition: R1
+Weight: W4
+Sequence: S1 atomic switch > S2 72-hour active soak > S3 localhost health > S4 bounded inactive cleanup
+Responsibility: preserve every rollback directory for the full active-release soak window, then remove only inactive direct-child releases older than the same window after a successful local health probe
+NonResponsibility: does not decide application correctness from player/configuration errors, delete the active release, clean production logs, manage secrets, or replace atomic deployment and manual rollback
+Inputs: /root/ai-life-sim symlink mtime and target, /root/ai-life-sim-releases directory metadata, localhost HTTP status, 72-hour policy
+OutputsAndWrites: structured cleanup plan/skip output and deletion of eligible inactive release directories only
+PublicStateOrAPI: systemd service and timer status; dry-run operator CLI
+Dependencies: Linux Node.js 20, PM2-managed localhost 3000 service, immutable release directory layout, systemd
+Lifecycle: timer runs daily; every atomic symlink switch restarts the full 72-hour protection window
+RuntimeLivenessSource: ai-life-sim-release-cleanup.timer plus its last service result
+AIParticipation: none
+PersistenceAuthority: release directories under /root/ai-life-sim-releases; does not touch AI_LOG_DIR or gameplay persistence
+Implementation: scripts/ops/cleanup-old-releases.mjs; scripts/ops/systemd/ai-life-sim-release-cleanup.service; scripts/ops/systemd/ai-life-sim-release-cleanup.timer
+AcceptanceEvidence: npm run test:release-cleanup; production dry-run and systemd timer/service inspection; active target and directory inventory after installation
+LastVerified: 2026-07-19
+Supersession: none
+```
 
 ## 4. External MVP systems
 
 | SystemId | OwnerMOD | Responsibility | NonResponsibility | Inputs | OutputsAndWrites | AI participation | Implementation |
 |---|---|---|---|---|---|---|---|
 | `character-base` | `mod-character` | Own four base attributes, explicit starting age, and aggregation of destiny, injury, and decay modifiers | Does not own calendar time, maximum lifespan, luck, morality, or narrative phase order | `RoundContext` and provider-owned character modifiers | Character base state and structured attribute changes | Main narrative writable; validates and applies its owned structured changes | `src/mods/mod-character/subsystems/character-base-system.ts` |
-| `destiny-pattern` | `mod-character` | Own selected destiny patterns, candidate pool, and pattern runtime state | Does not directly own base-attribute state application or main narrative changes | Character creation choice, presets, optional AI candidate generation | Selected pattern state and modifiers exposed to consumers | AI may generate candidates; not in the main narrative writable allowlist | `src/mods/mod-character/subsystems/destiny-pattern-system.ts` |
+| `destiny-pattern` | `mod-character` | Own selected destiny patterns, candidate pool, pattern runtime state, and terminal handling of credential failures during candidate generation | Does not directly own base-attribute state application, main narrative changes, or credential values | Character creation choice, presets, optional AI candidate generation and classified AI errors | Selected pattern state, modifiers, progress, or explicit terminal generation failure exposed to consumers | AI may generate candidates; not in the main narrative writable allowlist | `src/mods/mod-character/subsystems/destiny-pattern-system.ts` |
 | `lifespan` | `mod-character` | Own maximum lifespan, breakthroughs, and structured lifespan deltas from explicit world and race configuration | Does not own current age, time advancement, or death prose | `RoundContext`, world/race configuration, owned structured changes | Lifespan state and change application | Main narrative writable | `src/mods/mod-character/subsystems/lifespan-system.ts` |
 | `luck` | `mod-character` | Own luck value and derived disease, death, event-weight, and ageing modifiers | Does not generate events or own other subsystem state | `RoundContext` and owned structured changes | Luck state, derived modifiers, Prompt formatting | Main narrative writable | `src/mods/mod-character/subsystems/luck-system.ts` |
 | `morality` | `mod-character` | Own morality value and apply structured morality deltas | Does not infer morality locally from narrative keywords | `RoundContext` and `morality.delta` | Morality state | Main narrative writable | `src/mods/mod-character/subsystems/morality-system.ts` |

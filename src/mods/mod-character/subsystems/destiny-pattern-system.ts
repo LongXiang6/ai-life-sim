@@ -7,6 +7,7 @@
 import type { RoundContext, SubSystemState, SubSystemChanges } from '@/foundation'
 import type { DestinyPattern, DestinyPatternInput, DestinyPatternRarity, DestinyPatternPolarity, DestinyPatternState } from '../types'
 import { BaseSubsystem } from '@/core'
+import { isAiCredentialError } from '@/core/ai-service'
 import { clamp } from '@/core/shared'
 
 import {
@@ -300,6 +301,19 @@ export class DestinyPatternSystem extends BaseSubsystem {
     const earlyReadyPromise = new Promise<void>((resolve) => {
       resolveEarlyReady = resolve
     })
+    let terminalCredentialError: unknown = null
+    let resolveTerminalCredentialError: (() => void) | null = null
+    const terminalCredentialErrorPromise = new Promise<void>((resolve) => {
+      resolveTerminalCredentialError = resolve
+    })
+
+    const stopForCredentialError = (error: unknown): void => {
+      if (terminalCredentialError) return
+      terminalCredentialError = error
+      abortController.abort()
+      resolveTerminalCredentialError?.()
+      resolveTerminalCredentialError = null
+    }
 
     const fireEarlyReady = (): void => {
       if (earlyReadyFired || allPatterns.length < DEFAULT_DESTINY_PATTERN_COUNT) return
@@ -460,6 +474,10 @@ export class DestinyPatternSystem extends BaseSubsystem {
           console.info(`[destiny-pattern] 批次 ${batch + 1}/${AI_DESTINY_PATTERN_BATCH_COUNT} 完成，当前池 ${allPatterns.length} 条`)
           return
         } catch (err) {
+          if (isAiCredentialError(err)) {
+            stopForCredentialError(err)
+            throw terminalCredentialError
+          }
           // 页面离开或流程取消时，AbortController 触发的是预期的清理路径，
           // 不应把它记录成 API 失败警告或让用户误以为命格生成出错。
           if (abortController.signal.aborted) return
@@ -474,71 +492,86 @@ export class DestinyPatternSystem extends BaseSubsystem {
       }
     }
 
-    // 首屏同时发起三路独立的 10 项流式请求。任一路或任意组合累计出 5 条
-    // 有效去重命格就立即触发页面交接；其余请求不阻塞交接，继续由后台收集。
-    let nextBackgroundBatch = 0
-    const parallelPromises: Promise<void>[] = []
-    fireEarlyReady()
-
-    if (!earlyReadyFired && !abortController.signal.aborted) {
-      const parallelSeeds = [42, 137, 256].slice(0, AI_DESTINY_PATTERN_FIRST_SCREEN_CONCURRENCY)
-      parallelPromises.push(
-        ...parallelSeeds.map((seed, index) => runBatchWithRetry(index, seed, true)),
-      )
-      nextBackgroundBatch = parallelSeeds.length
-
-      const allParallelSettled = Promise.allSettled(parallelPromises).then(() => undefined)
-      await Promise.race([earlyReadyPromise, allParallelSettled])
+    try {
+      // 首屏同时发起三路独立的 10 项流式请求。任一路或任意组合累计出 5 条
+      // 有效去重命格就立即触发页面交接；其余请求不阻塞交接，继续由后台收集。
+      let nextBackgroundBatch = 0
+      const parallelPromises: Promise<void>[] = []
       fireEarlyReady()
-    }
 
-    // 三路都结束但仍未达到 5 条时，继续单路请求；不设置人为批次数上限，
-    // 直到质量合格的 AI 命格足够或用户离开页面触发 AbortController。
-    while (!earlyReadyFired && !abortController.signal.aborted) {
-      await runBatchWithRetry(
-        nextBackgroundBatch,
-      )
-      nextBackgroundBatch += 1
-      fireEarlyReady()
-    }
+      if (!earlyReadyFired && !abortController.signal.aborted) {
+        const parallelSeeds = [42, 137, 256].slice(0, AI_DESTINY_PATTERN_FIRST_SCREEN_CONCURRENCY)
+        parallelPromises.push(
+          ...parallelSeeds.map((seed, index) => runBatchWithRetry(index, seed, true)),
+        )
+        nextBackgroundBatch = parallelSeeds.length
 
-    const fillRemainingBatches = async (): Promise<void> => {
-      try {
-        // 首屏可选后再串行填充后续批次；先等仍在运行的首屏请求写入共享池。
-        if (parallelPromises.length > 0) {
-          await Promise.allSettled(parallelPromises)
+        const allParallelSettled = Promise.allSettled(parallelPromises).then(() => undefined)
+        await Promise.race([earlyReadyPromise, allParallelSettled, terminalCredentialErrorPromise])
+        if (terminalCredentialError) throw terminalCredentialError
+        fireEarlyReady()
+      }
+
+      // 三路都结束但仍未达到 5 条时，继续单路请求；不设置人为批次数上限。
+      // 401/403 是配置终止错误，会中止并退出；其余单次失败仍按原规则继续等待。
+      while (!earlyReadyFired && !abortController.signal.aborted) {
+        await runBatchWithRetry(
+          nextBackgroundBatch,
+        )
+        nextBackgroundBatch += 1
+        fireEarlyReady()
+      }
+
+      const fillRemainingBatches = async (): Promise<void> => {
+        try {
+          // 首屏可选后再串行填充后续批次；先等仍在运行的首屏请求写入共享池。
+          if (parallelPromises.length > 0) {
+            await Promise.allSettled(parallelPromises)
+          }
+          for (let batch = nextBackgroundBatch; batch < AI_DESTINY_PATTERN_BATCH_COUNT; batch++) {
+            if (abortController.signal.aborted) break
+            if (allPatterns.length >= targetCount) break
+            await runBatchWithRetry(batch)
+          }
+
+          // AI 模式下不混入预设，有多少 AI 结果就保留多少
+          this.state.candidates = [...allPatterns]
+          console.info(`[destiny-pattern] 命格池填充完成: ${allPatterns.length}/${this.poolFillStatus.target} 条`)
+        } catch (error) {
+          if (!isAiCredentialError(error)) throw error
+          console.warn('[destiny-pattern] 凭据或权限错误，已停止后台命格池填充')
+        } finally {
+          if (this.poolFillAbortController === abortController) {
+            this.poolFillStatus.inProgress = false
+            this.poolFillStatus.count = allPatterns.length
+            this.poolFillAbortController = null
+            persistPoolToLocal()
+          }
         }
-        for (let batch = nextBackgroundBatch; batch < AI_DESTINY_PATTERN_BATCH_COUNT; batch++) {
-          if (abortController.signal.aborted) break
-          if (allPatterns.length >= targetCount) break
-          await runBatchWithRetry(batch)
-        }
+      }
 
-        // AI 模式下不混入预设，有多少 AI 结果就保留多少
-        this.state.candidates = [...allPatterns]
-        console.info(`[destiny-pattern] 命格池填充完成: ${allPatterns.length}/${this.poolFillStatus.target} 条`)
-      } finally {
+      const backgroundFillPromise = fillRemainingBatches()
+      this.poolFillPromise = backgroundFillPromise
+      void backgroundFillPromise.finally(() => {
+        if (this.poolFillPromise === backgroundFillPromise) {
+          this.poolFillPromise = null
+        }
         if (this.poolFillAbortController === abortController) {
-          this.poolFillStatus.inProgress = false
-          this.poolFillStatus.count = allPatterns.length
           this.poolFillAbortController = null
-          persistPoolToLocal()
         }
-      }
-    }
+      })
 
-    const backgroundFillPromise = fillRemainingBatches()
-    this.poolFillPromise = backgroundFillPromise
-    void backgroundFillPromise.finally(() => {
-      if (this.poolFillPromise === backgroundFillPromise) {
-        this.poolFillPromise = null
-      }
+      return [...allPatterns]
+    } catch (error) {
+      abortController.abort()
+      this.poolFillStatus.inProgress = false
+      this.poolFillStatus.count = allPatterns.length
       if (this.poolFillAbortController === abortController) {
         this.poolFillAbortController = null
       }
-    })
-
-    return [...allPatterns]
+      persistPoolToLocal()
+      throw error
+    }
   }
 
   /**

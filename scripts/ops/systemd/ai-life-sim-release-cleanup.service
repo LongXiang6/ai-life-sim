@@ -1,0 +1,16 @@
+[Unit]
+Description=AI Life Sim inactive release cleanup
+After=network-online.target pm2-root.service
+Wants=network-online.target
+ConditionPathIsSymbolicLink=/root/ai-life-sim
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/bin/node /root/ai-life-sim/scripts/ops/cleanup-old-releases.mjs --root /root/ai-life-sim-releases --active /root/ai-life-sim --min-age-hours 72 --health-url http://127.0.0.1:3000/ --execute
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/root/ai-life-sim-releases

@@ -29,7 +29,7 @@ import { useSettingsStore } from '@/mods/mod-settings'
 import { PageErrorBoundary } from '@/mods/mod-ui'
 import { cn } from '@/foundation/utils'
 import { configStore } from '@/core'
-import { DEFAULT_AI_MODEL } from '@/core/ai-service'
+import { DEFAULT_AI_MODEL, isAiCredentialError } from '@/core/ai-service'
 import { getDestinyPatternSystem, loadDestinyPatternPool, saveDestinyPatternPool } from '@/mods/mod-character/destiny-pattern-access'
 
 import type { AIModelConfig } from '@/foundation'
@@ -627,9 +627,16 @@ function TalentDrawContent() {
         setLocalPoolSize(uniqueResult.length)
         setStreamCount(Math.min(uniqueResult.length, DEFAULT_DESTINY_PATTERN_COUNT))
       }
-    } catch {
+    } catch (error) {
       if (!earlyReady) {
-        setErrorMsg('AI 命格生成失败，请检查网络后重试')
+        if (isAiCredentialError(error)) {
+          const hasPlayerKey = Boolean(useSettingsStore.getState().customKey.trim())
+          setErrorMsg(hasPlayerKey
+            ? '当前自定义 API Key 无效或权限不足。请在设置中清空 Key 并恢复免费默认配置，或更换有效 Key 后重试。'
+            : '服务器免费体验通道鉴权失败，已停止重复请求。请稍后重试；若仍失败，请反馈给维护者。')
+        } else {
+          setErrorMsg('AI 命格生成失败，请检查网络后重试')
+        }
         setPhase('idle')
       }
     }

@@ -663,9 +663,9 @@ assertOk(!constantsSrc.includes('DESTINY_PATTERN_EARLY_READY_TIMEOUT_MS'), 'AI d
 assertOk(
   /const parallelSeeds = \[42, 137, 256\]/.test(destinySystemSrc)
     && /parallelPromises\.push\([\s\S]{0,260}runBatchWithRetry\(index, seed, true\)/.test(destinySystemSrc)
-    && /Promise\.race\(\[earlyReadyPromise, allParallelSettled\]\)/.test(destinySystemSrc)
+    && /Promise\.race\(\[earlyReadyPromise, allParallelSettled, terminalCredentialErrorPromise\]\)/.test(destinySystemSrc)
     && /Promise\.allSettled\(parallelPromises\)/.test(destinySystemSrc),
-  'destiny first screen must race three streamed requests and keep the remaining calls in the background',
+  'destiny first screen must race three streamed requests, credential termination, and background completion',
 )
 assertOk(
   /\.length\(AI_DESTINY_PATTERN_BATCH_SIZE\)/.test(destinyPromptSrc),
@@ -754,7 +754,11 @@ assertOk(
 )
 assertOk(
   /while\s*\(\s*!earlyReadyFired\s*&&\s*!abortController\.signal\.aborted\s*\)/.test(destinySystemSrc),
-  'AI destiny readiness must keep requesting until 5 valid items or cancellation',
+  'AI destiny readiness must keep requesting until 5 valid items, cancellation, or terminal credential failure',
+)
+assertOk(
+  /isAiCredentialError\(err\)[\s\S]{0,160}stopForCredentialError\(err\)[\s\S]{0,120}throw terminalCredentialError/.test(destinySystemSrc),
+  '401/403 must abort the active destiny fill and escape before any later batch can start',
 )
 assertOk(
   /dedupePatterns\(options\?\.initialPatterns \?\? \[\]\)[\s\S]{0,100}filter\(\(pattern\) => this\.isAIGeneratedPattern\(pattern\)\)/.test(destinySystemSrc),
