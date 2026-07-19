@@ -5,10 +5,12 @@ import fs from 'node:fs/promises'
 import http from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 import {
   buildCleanupPlan,
   checkLocalHealth,
+  isExecutedModule,
   parseArgs,
   removePlannedReleases,
 } from '../../../ops/cleanup-old-releases.mjs'
@@ -64,6 +66,17 @@ try {
   assert.equal(parsed.minAgeHours, 72)
   assert.equal(parsed.execute, true)
   await assert.rejects(checkLocalHealth('https://example.com'), /local HTTP/)
+
+  const opsDirectory = path.resolve('scripts/ops')
+  const linkedOpsDirectory = path.join(tempRoot, 'ops-link')
+  await fs.symlink(opsDirectory, linkedOpsDirectory, process.platform === 'win32' ? 'junction' : 'dir')
+  const linkedScript = path.join(linkedOpsDirectory, 'cleanup-old-releases.mjs')
+  const realScriptUrl = pathToFileURL(path.join(opsDirectory, 'cleanup-old-releases.mjs')).href
+  assert.equal(
+    await isExecutedModule(linkedScript, realScriptUrl),
+    true,
+    'the cleanup CLI must recognize execution through the active release symlink',
+  )
 
   const server = http.createServer((_request, response) => {
     response.writeHead(200, { 'content-type': 'text/plain' })

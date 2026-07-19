@@ -3,7 +3,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
 
 const HOUR_MS = 60 * 60 * 1000
 const DEFAULT_RELEASE_ROOT = '/root/ai-life-sim-releases'
@@ -172,6 +172,16 @@ export async function removePlannedReleases(plan) {
   return removed
 }
 
+/** 通过发布 symlink 启动时，argv 路径与 import.meta.url 必须按真实路径比较。 */
+export async function isExecutedModule(argvPath, moduleUrl) {
+  if (!argvPath) return false
+  const [executedPath, modulePath] = await Promise.all([
+    fs.realpath(path.resolve(argvPath)),
+    fs.realpath(fileURLToPath(moduleUrl)),
+  ])
+  return executedPath === modulePath
+}
+
 async function main() {
   const options = parseArgs(process.argv.slice(2))
   if (options.help) {
@@ -203,8 +213,7 @@ async function main() {
   }))
 }
 
-const isMain = process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url
-if (isMain) {
+if (await isExecutedModule(process.argv[1], import.meta.url)) {
   main().catch((error) => {
     console.error(`[release-cleanup] ${error instanceof Error ? error.message : String(error)}`)
     process.exitCode = 1

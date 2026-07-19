@@ -98,3 +98,14 @@
 | UI 与结构 | `npm run check:ui`、`npm run check:structural` | 通过；错误复用定版命格页已有提示区域，未改变构图、字段、操作顺序或 MOD 注册 |
 
 日志策略按用户意见从 5 GiB 提升为 10 GiB。旧发布策略形成 `PD-021`：每次原子切换后，活动 symlink 必须先连续保持 72 小时；随后每日 timer 只有在本机 3000 健康时才删除同样超过 72 小时的非活动 release。日志、环境文件、证书/Nginx 备份和玩家数据均不在清理范围内。
+
+## 8. 5.0.9 首次生产切换与 symlink 入口修复
+
+首次发布提交：`8a4acdb`。
+
+- Linux Node.js 20 的专项回归、完整关闸和生产构建通过；3001 旁路首页、帮助、更新日志为 200，生产调试日志 GET 为 403。
+- 旁路客户端日志写入为 200，伪造 `X-Real-IP` 建立对应来源索引；raw 中的专用假 Bearer 原文在 `/var/log/ai-life-sim` 命中为 0。
+- 旁路托管 AI 请求为 200，返回稳定请求 ID；运维检查器按该 ID 找到 1 个请求、2 个 trace 事件和完整响应长度，默认未展开内容。
+- 原子切换后 3000、PM2、Nginx、HTTP 到 HTTPS、两个 HTTPS 域名、5.0.9 帮助与 `changelog-12.txt` 均通过；日志环境值为 30 天、10 GiB、64 MiB，3001 已关闭。
+- systemd timer 安装后显示 enabled/active，首次 oneshot 也返回 success，但 journal 没有清理计划。继续追踪发现：Node 通过活动 `/root/ai-life-sim` symlink 启动脚本时，`process.argv[1]` 保留 symlink 路径，而 `import.meta.url` 解析到真实 release；旧入口判断直接比较两种路径，因而误判为“不是 CLI 主模块”并空退出。
+- 拥有者修复改为对两边执行 `realpath` 后比较，并在 `release-cleanup-smoke` 增加经目录 symlink 启动的入口回归。修复后本地完整关闸与生产构建再次通过；最终发布必须以 journal 出现结构化 `active-soak-incomplete` 计划作为验收条件，不能只看 systemd exit code。
