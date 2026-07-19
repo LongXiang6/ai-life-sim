@@ -143,6 +143,7 @@ export const DOMAINS = {
       { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/no-hard-truncation-audit.mjs'] },
       { cmd: 'node', args: ['scripts/check/domains/narrative/managed-ai-default-regression.mjs'] },
       { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/managed-sse-aggregation-smoke.mjs'] },
+      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/ai-error-translation-smoke.mjs'] },
       { cmd: 'node', args: ['scripts/check/domains/narrative/narrative-regression-seed.mjs'] },
     ],
   },

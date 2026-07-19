@@ -120,12 +120,12 @@ SystemId: ai-call-observability
 SystemPath: project > simulation-runtime > platform-services > ai-call-observability
 ParentGoal: preserve enough secure production evidence to diagnose every AI request and player-visible failure
 PrimaryGovernanceParent: core logger plus app AI proxy
-ChildSystems: proxy access index, full AI traces, raw upstream errors, client event logs, per-source indexes, operator inspection
-Authority: A1 PD-019; A3 this index; A4 live proxy, client and server log store
+ChildSystems: proxy access index, full AI traces, raw upstream errors, client event logs, safe HTTP error translation, per-source indexes, operator inspection
+Authority: A1 PD-019 and PD-022; A3 this index; A4 live proxy, client and server log store
 RootPosition: R1
 Weight: W5
 Sequence: S1 trusted source classification > S2 request envelope > S3 upstream lifecycle > S4 client-visible result > S5 retention cleanup and inspection
-Responsibility: correlate and securely retain complete AI request, response, error and client failure evidence, classify it by server-derived IP, and expose a private read-only inspection path
+Responsibility: correlate and securely retain complete AI request, response, error and client failure evidence, classify it by server-derived IP, translate player-visible HTTP failures safely, and expose a private read-only inspection path
 NonResponsibility: does not own credential values, gameplay state, narrative truth, model choice or public log browsing authorization
 Inputs: trusted proxy headers, sanitized proxy request envelope, upstream lifecycle, client error events, environment retention policy
 OutputsAndWrites: request IDs, access JSONL, full trace JSONL, raw error files, client event files and per-source indexes
@@ -135,19 +135,21 @@ Lifecycle: active for every proxy call; cleanup runs opportunistically after wri
 RuntimeLivenessSource: app API route registration and active Next.js server process
 AIParticipation: observes Provider traffic only; never authors or applies semantic game state
 PersistenceAuthority: AI_LOG_DIR plus server-log-store retention and capacity policy
-Implementation: src/app/api/proxy/route.ts; src/app/api/log/route.ts; src/app/api/debug-log/route.ts; src/core/logger/server-log-store.ts; src/core/logger/client-logger.ts; src/core/logger/debug-logger.ts; scripts/ops/inspect-ai-logs.mjs
+Implementation: src/app/api/proxy/route.ts; src/app/api/log/route.ts; src/app/api/debug-log/route.ts; src/core/ai-service/api-error.ts; src/core/ai-service/story-seed.ts; src/core/logger/server-log-store.ts; src/core/logger/client-logger.ts; src/core/logger/debug-logger.ts; scripts/ops/inspect-ai-logs.mjs
 AcceptanceEvidence: docs/playtest-2026-07-19-production-observability-opening.md; npm run test:ai-proxy; source-classification and secret-redaction regression; operator-inspector smoke; unreachable-upstream HTTP probe; secret-absence check; delivery gates
 LastVerified: 2026-07-19
 Supersession: none
 ```
 
 - `src/app/api/proxy/route.ts` owns one request ID per proxy call and records the complete sanitized request envelope, upstream response or error, status, duration, retry observation and stream terminal state. The request ID is returned to the client for screenshot and server-log correlation. Every trace event carries the same server-derived source identity.
+- `src/core/ai-service/api-error.ts` is the single player-facing HTTP translation authority. It covers explicit 4xx/5xx causes and resolution steps, preserves request IDs, and never copies raw upstream bodies into UI messages. `ai-client.ts` retains the raw body only for sanitized diagnostic logging while exposing the translated Error message to Toasts and page-owned error regions.
+- Story seed normalization is enforced on both boundaries: the client omits non-finite or non-numeric values, while the proxy treats cached legacy `seed:null` as absent and leaves every other invalid type to Zod rejection. This prevents `NaN -> JSON null -> 400` without weakening request validation.
 - `src/core/logger/server-log-store.ts` owns trusted source extraction, persistent log-root resolution, secret redaction, `0700` directories, `0600` files, per-file rotation, per-source indexes, age retention and total-cap cleanup. Production uses `/var/log/ai-life-sim` through `AI_LOG_DIR`, outside `/root/ai-life-sim/`, so atomic deployments do not move active evidence into version backups; defaults are 30 days and 10 GiB unless environment policy overrides them.
 - API keys, Authorization headers, cookies, passwords, token-like credentials and credential-bearing URL query values must never be written. Prompt and response semantics remain otherwise complete so diagnosis does not depend on lossy previews.
 - `src/app/api/log/route.ts` enriches client diagnostics with the trusted source and optional AI request ID on the server; request-body fields cannot override the source. `src/app/api/debug-log/route.ts` keeps complete AI-call metadata collection enabled independently of the production-disabled public debug viewer, while its production GET/DELETE paths remain closed. `scripts/ops/inspect-ai-logs.mjs` searches recent failures by IP or request ID and omits full Prompt/response content unless explicitly requested by an authorized operator.
 - Diagnostic copies are operational evidence, not the authoritative narrative or save-state store. Retention cleanup may delete old diagnostic copies after the configured policy, but it must never delete or truncate gameplay-owned story data.
 - The proxy observes repeated fingerprints and retry counts but does not enforce a fixed identical-request rejection. Candidate preparation normally continues until its product condition is satisfied or the player leaves; 401/403 are the explicit `PD-020` configuration-terminal exception owned by the consuming loop.
-- Acceptance evidence: `npm run test:ai-proxy`, a local unreachable-upstream HTTP probe confirming the enabled-thinking Schema and request-ID path, secret-absence inspection, TypeScript/lint, structural check and the delivery gate.
+- Acceptance evidence: `npm run test:ai-proxy`, the AI error translation and story-seed smoke, a local unreachable-upstream HTTP probe confirming the enabled-thinking Schema and request-ID path, secret-absence inspection, TypeScript/lint, structural check and the delivery gate.
 
 ### 3.3 Production release retention
 

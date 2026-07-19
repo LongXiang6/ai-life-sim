@@ -37,6 +37,7 @@ import {
   requestManagedAggregatedCompletion,
   type ManagedUpstreamAttempt,
 } from '@/core/ai-service/managed-provider-execution'
+import { normalizeProxyStorySeedInput } from '@/core/ai-service/story-seed'
 import {
   appendSourceJsonLine,
   appendServerJsonLine,
@@ -71,7 +72,12 @@ const ProxyRequestSchema = z.object({
   response_format: z.object({ type: z.string() }).optional(),
   user_id: z.string().optional(),
   top_p: z.number().min(0).max(1).optional(),
-  seed: z.number().optional(),
+  // 兼容仍在浏览器缓存中的旧客户端：JSON.stringify(NaN) 会写成 null。
+  // null 只表示“没有可用种子”，不得让整轮剧情请求因此被 400 拒绝。
+  seed: z.preprocess(
+    normalizeProxyStorySeedInput,
+    z.number().finite().optional(),
+  ),
   thinking: z.union([
     z.object({ budget_tokens: z.number().int().positive() }).strict(),
     z.object({ type: z.literal('disabled') }).strict(),

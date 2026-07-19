@@ -27,7 +27,7 @@ export {
   EXPERIMENTAL_TIME_STEPS_UI,
 } from './prompt-flags'
 export type { KVMessageStrategy } from './prompt-flags'
-export { diagnoseApiError, diagnoseProxyError } from './api-error'
+export { diagnoseApiError, diagnoseProxyError, formatApiErrorForUser } from './api-error'
 export type { ApiDiagnostic } from './api-error'
 export {
   AI_PROVIDERS,

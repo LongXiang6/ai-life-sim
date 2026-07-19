@@ -26,12 +26,13 @@ import {
   type AICallLogContext,
   type AICallUsageSnapshot,
 } from '../logger/ai-call-log'
-import { diagnoseApiError } from './api-error'
+import { formatApiErrorForUser } from './api-error'
 import {
   DEFAULT_AI_MODEL,
   DEFAULT_AI_PROVIDER_ID,
   REASONING_BUDGET_MAP,
 } from './provider-config'
+import { normalizeStorySeed } from './story-seed'
 import { isValidAiContent, mergeStreamTextChunk } from './stream-text-extractor'
 
 // ══════════════ 全局 AI 错误通知器（由 UI 层注入） ══════════════
@@ -46,14 +47,6 @@ export function setOnAiError(cb: (msg: string) => void): void {
   onAiError = cb
 }
 
-/** 429 限流错误：携带 provider 返回的 retryAfter（秒）提示 */
-class RateLimitError extends Error {
-  constructor(public readonly retryAfter?: number) {
-    super('__RETRY_429__')
-    this.name = 'RateLimitError'
-  }
-}
-
 /** 代理或上游返回的 HTTP 错误，保留状态、完整诊断正文和关联请求 ID。 */
 class AIHttpError extends Error {
   constructor(
@@ -61,9 +54,11 @@ class AIHttpError extends Error {
     public readonly responseText: string,
     public readonly requestId?: string,
     stream = false,
+    public readonly retryAfter?: number,
   ) {
-    super(`AI API ${stream ? 'stream ' : ''}error ${status}: ${responseText}`)
+    super(formatApiErrorForUser(status, responseText, requestId))
     this.name = 'AIHttpError'
+    if (stream) this.name = 'AIStreamHttpError'
   }
 }
 
@@ -88,18 +83,8 @@ async function parseRetryAfter(resp: Response): Promise<number | undefined> {
   return undefined
 }
 
-/** 判断是否为可重试的临时错误（429 / AbortError），不触发用户通知 */
-function isRetryError(e: unknown): boolean {
-  if (e instanceof Error) {
-    if (e.message === '__RETRY_429__') return true
-    if (e.name === 'AbortError') return true
-  }
-  return false
-}
-
 /** 400 等确定性参数错误不做无意义的同请求重试；仅临时故障进入内部退避。 */
 function isRetryableAiError(error: unknown): boolean {
-  if (error instanceof RateLimitError) return true
   if (error instanceof AIHttpError) return error.status === 408 || error.status === 429 || error.status >= 500
   if (error instanceof Error && error.name === 'AbortError') return false
   return true
@@ -107,15 +92,11 @@ function isRetryableAiError(error: unknown): boolean {
 
 /** 格式化 AI 错误为简短用户消息，包含 API 诊断信息 */
 function formatAiError(e: unknown, status?: number, errorText?: string): string {
-  // 如果有状态码，使用诊断工具
-  if (status && errorText) {
-    const diag = diagnoseApiError(status, errorText)
-    return `AI API 错误 ${status}：${diag.summary}`
+  if (status !== undefined && errorText !== undefined) {
+    return formatApiErrorForUser(status, errorText)
   }
   if (e instanceof AIHttpError) {
-    const diag = diagnoseApiError(e.status, e.responseText)
-    const requestHint = e.requestId ? `（请求ID：${e.requestId}）` : ''
-    return `AI API 错误 ${e.status}：${diag.summary}${requestHint}`
+    return e.message
   }
   if (e instanceof Error) {
     const msg = e.message
@@ -126,13 +107,12 @@ function formatAiError(e: unknown, status?: number, errorText?: string): string 
       const restText = msg.slice(statusMatch[0].length).trim().slice(0, 2) === ': '
         ? msg.slice(statusMatch[0].length + 2).trim()
         : msg.slice(statusMatch[0].length).trim()
-      const diag = diagnoseApiError(extractedStatus, restText || msg)
-      return `AI API 错误 ${extractedStatus}：${diag.summary}`
+      return formatApiErrorForUser(extractedStatus, restText || msg)
     }
     if (msg.startsWith('AI API error')) return msg
-    if (msg.includes('timeout') || msg.includes('Timeout')) return '请求超时'
-    if (msg.includes('fetch')) return '网络连接失败'
-    if (msg.includes('empty')) return 'AI 返回空响应'
+    if (msg.includes('timeout') || msg.includes('Timeout')) return '请求超时。解决办法：检查网络后重试。'
+    if (msg.includes('fetch')) return '网络连接失败。解决办法：检查网络和接口网址后重试。'
+    if (msg.includes('empty')) return 'AI 返回空响应。解决办法：重新请求或更换模型。'
     return msg.split('\n')[0].slice(0, 100)
   }
   return '未知错误'
@@ -553,8 +533,9 @@ function buildRequestBody(
     body.response_format = config.responseFormat
   }
 
-  if (options?.storySeed) {
-    body.seed = Number(options.storySeed)
+  const normalizedSeed = normalizeStorySeed(options?.storySeed)
+  if (normalizedSeed !== undefined) {
+    body.seed = normalizedSeed
   }
 
   // 推理强度 → thinking 参数
@@ -718,7 +699,7 @@ async function executeAiFetchWithRetry(
         // 重试前清空消费端已 append 的部分流式文本，避免拼接重复
         options.onResetStream?.()
         // 429 限流时取 provider 的 retryAfter 与固定退避中的较大值
-        const retryAfter = err instanceof RateLimitError ? err.retryAfter : undefined
+        const retryAfter = err instanceof AIHttpError ? err.retryAfter : undefined
         const delay = Math.max(
           getBackoffDelay(attempt),
           retryAfter ? retryAfter * 1000 : 0,
@@ -726,7 +707,7 @@ async function executeAiFetchWithRetry(
         await new Promise((r) => setTimeout(r, delay))
         continue
       }
-      if (onAiError && !isRetryError(err)) {
+      if (onAiError && !(err instanceof Error && err.name === 'AbortError')) {
         onAiError(`AI 调用失败：${formatAiError(err)}`)
       }
       if (!(err instanceof Error && err.message === 'AI 返回了空内容')) {
@@ -770,7 +751,13 @@ async function fetchAIResponse(
   const requestId = resp.headers.get('x-ai-request-id') ?? undefined
 
   if (resp.status === 429) {
-    throw new RateLimitError(await parseRetryAfter(resp))
+    const retryAfter = await parseRetryAfter(resp)
+    const errText = await resp.text().catch(() => 'Rate limited')
+    logger.errorRaw('ai-client', 'AI API 返回 429', errText, undefined, {
+      requestId,
+      status: resp.status,
+    })
+    throw new AIHttpError(resp.status, errText, requestId, false, retryAfter)
   }
 
   if (!resp.ok) {
@@ -961,7 +948,13 @@ async function fetchAIStreamResponse(
   const requestId = resp.headers.get('x-ai-request-id') ?? undefined
 
   if (resp.status === 429) {
-    throw new RateLimitError(await parseRetryAfter(resp))
+    const retryAfter = await parseRetryAfter(resp)
+    const errText = await resp.text().catch(() => 'Rate limited')
+    logger.errorRaw('ai-client', 'AI Stream 返回 429', errText, undefined, {
+      requestId,
+      status: resp.status,
+    })
+    throw new AIHttpError(resp.status, errText, requestId, true, retryAfter)
   }
 
   if (!resp.ok) {

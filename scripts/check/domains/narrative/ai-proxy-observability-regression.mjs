@@ -19,6 +19,7 @@ function assert(condition, message) {
 
 const proxy = read('src/app/api/proxy/route.ts')
 const client = read('src/core/ai-service/ai-client.ts')
+const storySeed = read('src/core/ai-service/story-seed.ts')
 const logStore = read('src/core/logger/server-log-store.ts')
 const logSafety = read('src/core/logger/server-log-safety.ts')
 const clientLogRoute = read('src/app/api/log/route.ts')
@@ -34,6 +35,17 @@ assert(
 assert(
   /providerId === 'deepseek'[\s\S]{0,500}\{ type: 'enabled', budget_tokens: budgetTokens \}/.test(client),
   'DeepSeek enabled reasoning must send type=enabled together with budget_tokens',
+)
+assert(
+  /seed:\s*z\.preprocess\([\s\S]{0,120}normalizeProxyStorySeedInput[\s\S]{0,120}z\.number\(\)\.finite\(\)\.optional\(\)/.test(proxy)
+    && /value === null \? undefined : value/.test(storySeed),
+  'proxy must normalize cached legacy seed=null requests to an omitted seed',
+)
+assert(
+  /normalizeStorySeed\(options\?\.storySeed\)/.test(client)
+    && /function normalizeStorySeed\(storySeed: unknown\)/.test(storySeed)
+    && /Number\.isFinite\(parsed\)/.test(storySeed),
+  'client must omit non-finite and non-numeric story seeds before serialization',
 )
 assert(
   /\{ type: 'disabled' \}/.test(client),
@@ -54,6 +66,11 @@ assert(
     && /x-ai-request-id/.test(proxy)
     && /ai-traces\/ai-trace-/.test(proxy),
   'every proxy call must expose a request ID and persist an AI trace',
+)
+assert(
+  /saveRawResponse\(requestId, providerId, model, upstreamResp\.status, errorText\)/.test(proxy)
+    && /formatApiErrorForUser/.test(client),
+  'raw upstream failures must remain in sanitized server logs while the client uses the translation layer',
 )
 assert(
   /AI_LOG_DIR/.test(logStore)
