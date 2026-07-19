@@ -109,3 +109,16 @@
 - 原子切换后 3000、PM2、Nginx、HTTP 到 HTTPS、两个 HTTPS 域名、5.0.9 帮助与 `changelog-12.txt` 均通过；日志环境值为 30 天、10 GiB、64 MiB，3001 已关闭。
 - systemd timer 安装后显示 enabled/active，首次 oneshot 也返回 success，但 journal 没有清理计划。继续追踪发现：Node 通过活动 `/root/ai-life-sim` symlink 启动脚本时，`process.argv[1]` 保留 symlink 路径，而 `import.meta.url` 解析到真实 release；旧入口判断直接比较两种路径，因而误判为“不是 CLI 主模块”并空退出。
 - 拥有者修复改为对两边执行 `realpath` 后比较，并在 `release-cleanup-smoke` 增加经目录 symlink 启动的入口回归。修复后本地完整关闸与生产构建再次通过；最终发布必须以 journal 出现结构化 `active-soak-incomplete` 计划作为验收条件，不能只看 systemd exit code。
+
+## 9. 5.0.9 最终生产验收
+
+最终运行修复提交：`123044a`。
+
+- 独立 release 再次通过 Linux Node.js 20 的 `npm ci`、`npm run test:release-cleanup`、完整 `gate-check` 和生产 `build`；3001 旁路的 5.0.9 帮助与更新日志通过后才执行第二次原子切换。
+- `/root/ai-life-sim` 指向 `123044a` 时，PM2 `ai-life-sim` online，只有 `127.0.0.1:3000` 在监听，3001 旁路已删除并保存 PM2 进程表。
+- 修复后的 systemd oneshot journal 明确输出：`mode=execute`、活动 release 为 `123044a`、`activeAgeHours=0`、`minAgeHours=72`、候选为空、跳过原因为 `active-soak-incomplete`；service 结果 success，timer enabled/active，下一次计划为次日 04:30 加随机延迟。
+- 清理首次运行没有删除任何 release；这证明新版本刚切换时旧回滚点完整保留。72 小时后仍会重新验证本机 3000 健康与每个候选的直接子目录/年龄边界。
+- 回环帮助和公网 HTTPS 帮助均为 200；Nginx 配置、HTTP 301、两个 HTTPS 域名、`changelog-12.txt`、生产调试日志 GET 403 和 10 GiB 日志环境策略保持通过。
+- 浏览器真实欢迎页恢复完成，说明弹层显示当前版本 `5.0.9`；页面 URL 为 `/welcome`，标题为“AI 人生模拟器”，控制台 warning/error 为 0。
+
+最终结论：5.0.9 已修复玩家自定义 Key 无效时的无限后续批次；生产日志保留完整脱敏诊断并按 10 GiB 总量管理；旧 release 在每次新版本切换后的完整三天窗口内保留，三天后才由健康检查保护的 timer 自动清理。
