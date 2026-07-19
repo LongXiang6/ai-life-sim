@@ -133,3 +133,17 @@
 - 根因是客户端对非数字故事种子执行 `Number(storySeed)` 得到 `NaN`，随后 `JSON.stringify` 将 `NaN` 写成 `null`，代理 Schema 因而返回 400。修复在客户端省略非有限或非数字 seed，并让代理仅把缓存旧客户端的 `seed:null` 兼容为空值；其他错误类型仍由 Zod 拒绝。
 - `api-error.ts` 成为唯一玩家错误转译入口，明确覆盖 400、401、402、403、404、408、409、413、415、422、429、499、500、501、502、503、504、507 和未知 4xx/5xx。提示只包含状态、可理解原因、解决办法和请求 ID；原始上游正文继续只进入服务器脱敏日志。
 - 专项 `npm run test:ai-proxy` 通过 20 类状态、秘密不回显、请求 ID、客户端 seed 与代理旧值兼容回归；`npm run test:destiny-credential-terminal` 保持 401/403 终止且只完成已启动三路请求。TypeScript、lint、结构基线和 5.1.0 完整 `gate-check` 均通过。
+
+## 11. 5.1.0 正式生产验收
+
+生产 release：`3e37f6e`。
+
+- 本地 `main` 与 `origin/main` 同步后，以 `git archive` 上传到独立 `/root/ai-life-sim-releases/3e37f6e`。Linux Node.js 20 下的 AI 代理、鉴权终止、旧 release 清理专项、完整 `gate-check` 和生产构建全部通过，未直接修改活动目录。
+- 3001 旁路欢迎页、帮助、`changelog-13.txt` 为 200，生产调试日志 GET 为 403，PM2 error 日志为空。托管通道最短调用返回 200，请求 ID `72bd0f25-56e6-499b-81c3-111f3a8b5ad0` 可回查到完整 request/response 两个 trace 事件，默认运维输出未展开正文。
+- 原子 symlink 切换后 `/root/ai-life-sim` 指向 `3e37f6e`，正式 PM2 online，只有 `127.0.0.1:3000` 监听；3001 旁路已删除并执行 `pm2 save`。原 `7cbec2a` 及其他未满窗口的 release 完整保留。
+- Nginx 配置通过，两个域名的 HTTP 均 301 到 HTTPS；`ai-mnrs.icu` 帮助、`www.ai-mnrs.icu` 欢迎页和公网 `changelog-13.txt` 均为 200。UFW 仍只开放 22/80/443，`pm2-root` 与 release cleanup timer 均 enabled/active。
+- 真实公网浏览器欢迎页标题为“AI 人生模拟器”，说明弹层显示当前版本 5.1.0，更新日志展示错误转译与 seed 修复两条说明，控制台 warning/error 为 0。
+- 正式 3000 使用 `seed:null` 发起无 Key 的未知 Provider 探测后到达 Provider 校验并返回预期 `Unknown provider`，请求 ID `bec2a3ba-c4b5-481b-b652-ba447c773d37`；这证明旧空 seed 不再被请求 Schema 提前拒绝。发布命令首次转义错误留下的两条本机 `Invalid request body` 400 已按 `127.0.0.1` 和请求 ID 明确归类为人工探测，不是玩家故障。
+- 清理 service 在新 symlink 上输出 `activePath=/root/ai-life-sim-releases/3e37f6e`、`activeAgeHours=0.1`、`minAgeHours=72`、`skippedReason=active-soak-incomplete`，本次未删除任何 release，新的完整三天回滚窗口已开始。
+
+最终结论：5.1.0 已上线。生产日志发现的两个真实 `seed:null` 400 已在客户端与代理双层修复；玩家现在会看到可操作的 HTTP 错误说明和请求 ID，原始错误仍只保存在服务器脱敏日志中。
