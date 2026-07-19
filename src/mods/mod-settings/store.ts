@@ -140,7 +140,7 @@ export const useSettingsStore = create<SettingsState>()(
       }),
       {
         name: 'mod-settings:store',
-        version: 5,
+        version: 6,
         migrate: (persistedState: unknown, version: number) => {
           const state = persistedState as Partial<SettingsState>
           const migrated = { ...state }
@@ -163,6 +163,10 @@ export const useSettingsStore = create<SettingsState>()(
               migrated.customUrl = DEFAULT_AI_BASE_URL
               migrated.customModel = DEFAULT_AI_MODEL
             }
+          }
+          if (version < 6 && state.provider === DEFAULT_AI_PROVIDER_ID) {
+            migrated.customUrl = DEFAULT_AI_BASE_URL
+            migrated.customModel = DEFAULT_AI_MODEL
           }
           return migrated as SettingsState
         },

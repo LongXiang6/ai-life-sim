@@ -30,8 +30,28 @@ export interface AIProviderConfig {
 
 /** 默认使用服务器托管通道；公开接口与模型可以进入客户端，凭据绝不能进入。 */
 export const DEFAULT_AI_PROVIDER_ID = 'managed'
-export const DEFAULT_AI_BASE_URL = 'https://dasuapi.com/v1'
-export const DEFAULT_AI_MODEL = 'grok-4.5'
+export const DEFAULT_AI_BASE_URL = 'https://a6.a6api.com/v1'
+export const DEFAULT_AI_MODEL = 'gpt-5.6-luna'
+/** 托管主模型在连接、上游状态或完整响应校验失败时使用的服务端备用模型。 */
+export const DEFAULT_AI_FALLBACK_MODEL = 'gpt-5.6-terra'
+
+/** 浏览器只请求公开主模型；备用模型只由服务端在同一固定接口内选择。 */
+export function getProviderModelCandidates(providerId: string, requestedModel: string): string[] {
+  if (providerId !== DEFAULT_AI_PROVIDER_ID) return [requestedModel]
+  if (requestedModel !== DEFAULT_AI_MODEL) return []
+  return [DEFAULT_AI_MODEL, DEFAULT_AI_FALLBACK_MODEL]
+}
+
+/** 仅对可能由模型可用性或临时上游故障造成的失败切换备用模型。 */
+export function shouldTryManagedFallback(status?: number): boolean {
+  if (status === undefined) return true
+  return status === 404
+    || status === 408
+    || status === 409
+    || status === 425
+    || status === 429
+    || status >= 500
+}
 
 // ---- Provider 预设 ----
 
@@ -44,8 +64,8 @@ export const AI_PROVIDERS: Record<string, AIProviderConfig> = {
     supportsThinking: false,
     models: [{
       name: DEFAULT_AI_MODEL,
-      label: 'Grok 4.5',
-      notes: '由项目服务器安全托管体验凭据；浏览器不会接收或保存服务器密钥。',
+      label: 'GPT 5.6 Luna',
+      notes: '由项目服务器安全托管体验凭据；主模型不可用时自动切换 GPT 5.6 Terra。',
     }],
     notes: '默认体验通道。可直接使用，也可在下方填写自己的 Key、接口与模型覆盖。',
   },

@@ -24,13 +24,19 @@ import { createHash, randomUUID } from 'crypto'
 
 import {
   AI_PROVIDERS,
+  DEFAULT_AI_FALLBACK_MODEL,
   DEFAULT_AI_PROVIDER_ID,
+  getProviderModelCandidates,
+  shouldTryManagedFallback,
 } from '@/core/ai-service/provider-config'
 import {
   hasServerProviderApiKey,
   readServerProviderApiKey,
 } from '@/core/ai-service/server-provider-credentials'
-import { aggregateSseCompletion } from '@/core/ai-service/managed-sse-aggregation'
+import {
+  requestManagedAggregatedCompletion,
+  type ManagedUpstreamAttempt,
+} from '@/core/ai-service/managed-provider-execution'
 import {
   appendServerJsonLine,
   safeLogSegment,
@@ -502,33 +508,167 @@ export async function POST(request: Request): Promise<Response> {
       return jsonWithRequestId(requestId, { error: '客户端已取消请求' }, 499)
     }
 
-    const upstreamController = new AbortController()
-    let upstreamSettled = false
-    // 客户端取消 → 一并取消上游，避免泄漏请求 / 继续消耗 token 配额
-    const onClientAbort = () => upstreamController.abort()
-    request.signal.addEventListener('abort', onClientAbort, { once: true })
-    // 服务端超时上限（连接 + 首字节）
-    const timeoutId = setTimeout(() => upstreamController.abort(), UPSTREAM_TIMEOUT_MS)
-    clearUpstreamGuards = () => {
-      if (upstreamSettled) return
-      upstreamSettled = true
-      clearTimeout(timeoutId)
-      request.signal.removeEventListener('abort', onClientAbort)
+    if (aggregateManagedStream) {
+      const managedResult = await requestManagedAggregatedCompletion({
+        apiUrl,
+        apiKey,
+        forwardBody,
+        clientSignal: request.signal,
+        timeoutMs: UPSTREAM_TIMEOUT_MS,
+      })
+      model = managedResult.model
+
+      if (managedResult.kind === 'success') {
+        await Promise.all([
+          writeProxyTrace(requestId, 'response', {
+            status: 200,
+            selectedModel: managedResult.model,
+            fallbackUsed: managedResult.model === DEFAULT_AI_FALLBACK_MODEL,
+            upstreamAttempts: managedResult.attempts,
+            upstreamHeaders: getUpstreamHeaderSnapshot(managedResult.headers),
+            responseBody: managedResult.responseBody,
+            transport: 'managed-sse-aggregation',
+            contentChars: managedResult.contentChars,
+          }),
+          writeCurrentAccessLog(200),
+        ])
+        return new Response(managedResult.responseBody, {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'x-ai-request-id': requestId,
+          },
+        })
+      }
+
+      if (managedResult.kind === 'client-abort') {
+        await Promise.all([
+          writeProxyTrace(requestId, 'response', {
+            status: 499,
+            selectedModel: managedResult.model,
+            upstreamAttempts: managedResult.attempts,
+            error: managedResult.error,
+          }),
+          writeCurrentAccessLog(499, managedResult.error),
+        ])
+        return jsonWithRequestId(requestId, { error: '客户端已取消请求' }, 499)
+      }
+
+      if (managedResult.kind === 'upstream-error') {
+        const upstream = parseUpstreamErrorDiagnostic(managedResult.errorText)
+        await Promise.all([
+          saveRawResponse(requestId, providerId, managedResult.model, managedResult.status, managedResult.errorText),
+          writeProxyTrace(requestId, 'response', {
+            status: managedResult.status,
+            selectedModel: managedResult.model,
+            upstreamAttempts: managedResult.attempts,
+            upstreamHeaders: getUpstreamHeaderSnapshot(managedResult.headers),
+            upstreamError: upstream,
+            responseBody: managedResult.errorText,
+          }),
+          writeCurrentAccessLog(managedResult.status, upstream?.message || managedResult.errorText),
+        ])
+        return jsonWithRequestId(
+          requestId,
+          { error: `${providerId} API ${managedResult.status}`, upstream },
+          managedResult.status,
+        )
+      }
+
+      await Promise.all([
+        writeProxyTrace(requestId, 'response', {
+          status: 502,
+          selectedModel: managedResult.model,
+          upstreamAttempts: managedResult.attempts,
+          error: managedResult.error,
+        }),
+        writeCurrentAccessLog(502, managedResult.error),
+      ])
+      return jsonWithRequestId(requestId, { error: '托管通道主模型与备用模型均不可用' }, 502)
     }
 
+    let upstreamController = new AbortController()
+    let clearConnectionTimeout: () => void = () => {}
     let connectionError = ''
-    const upstreamResp = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(forwardBody),
-      signal: upstreamController.signal,
-    }).catch((error) => {
-      connectionError = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
-      return null
-    })
+    let upstreamResp: Response | null = null
+    let upstreamErrorText = ''
+    const upstreamAttempts: ManagedUpstreamAttempt[] = []
+    const modelCandidates = getProviderModelCandidates(providerId, body.model)
+
+    for (let index = 0; index < modelCandidates.length; index++) {
+      const candidate = modelCandidates[index]
+      const attemptStartedAt = Date.now()
+      upstreamController = new AbortController()
+      let upstreamSettled = false
+      const onClientAbort = () => upstreamController.abort()
+      request.signal.addEventListener('abort', onClientAbort, { once: true })
+      const candidateTimeoutId = setTimeout(() => upstreamController.abort(), UPSTREAM_TIMEOUT_MS)
+      clearConnectionTimeout = () => clearTimeout(candidateTimeoutId)
+      const clearAttemptGuards = () => {
+        if (upstreamSettled) return
+        upstreamSettled = true
+        clearConnectionTimeout()
+        request.signal.removeEventListener('abort', onClientAbort)
+      }
+      clearUpstreamGuards = clearAttemptGuards
+      connectionError = ''
+      forwardBody.model = candidate
+      model = candidate
+
+      const candidateResponse = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(forwardBody),
+        signal: upstreamController.signal,
+      }).catch((error) => {
+        connectionError = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+        return null
+      })
+
+      if (!candidateResponse) {
+        upstreamAttempts.push({
+          model: candidate,
+          durationMs: Date.now() - attemptStartedAt,
+          error: connectionError || 'Connection failed or timeout',
+        })
+        clearAttemptGuards()
+        if (
+          !request.signal.aborted
+          && index < modelCandidates.length - 1
+          && shouldTryManagedFallback()
+        ) continue
+        break
+      }
+
+      if (!candidateResponse.ok) {
+        upstreamErrorText = await candidateResponse.text().catch(() => '未知错误')
+        upstreamAttempts.push({
+          model: candidate,
+          status: candidateResponse.status,
+          durationMs: Date.now() - attemptStartedAt,
+          error: parseUpstreamErrorDiagnostic(upstreamErrorText)?.message || upstreamErrorText,
+        })
+        if (
+          index < modelCandidates.length - 1
+          && shouldTryManagedFallback(candidateResponse.status)
+        ) {
+          clearAttemptGuards()
+          continue
+        }
+      } else {
+        upstreamAttempts.push({
+          model: candidate,
+          status: candidateResponse.status,
+          durationMs: Date.now() - attemptStartedAt,
+        })
+      }
+
+      upstreamResp = candidateResponse
+      break
+    }
 
     if (!upstreamResp) {
       clearUpstreamGuards()
@@ -541,7 +681,11 @@ export async function POST(request: Request): Promise<Response> {
         return jsonWithRequestId(requestId, { error: '客户端已取消请求' }, 499)
       }
       await Promise.all([
-        writeProxyTrace(requestId, 'response', { status: 502, error: connectionError || 'Connection failed or timeout' }),
+        writeProxyTrace(requestId, 'response', {
+          status: 502,
+          upstreamAttempts,
+          error: connectionError || 'Connection failed or timeout',
+        }),
         writeCurrentAccessLog(502, connectionError || 'Connection failed or timeout'),
       ])
       return jsonWithRequestId(requestId, { error: `${providerId} API 连接失败或超时` }, 502)
@@ -550,13 +694,14 @@ export async function POST(request: Request): Promise<Response> {
     // 6. 处理错误响应
     if (!upstreamResp.ok) {
       clearUpstreamGuards()
-      const errorText = await upstreamResp.text().catch(() => '未知错误')
+      const errorText = upstreamErrorText || await upstreamResp.text().catch(() => '未知错误')
       const upstream = parseUpstreamErrorDiagnostic(errorText)
       await Promise.all([
         saveRawResponse(requestId, providerId, model, upstreamResp.status, errorText),
         writeProxyTrace(requestId, 'response', {
           status: upstreamResp.status,
           upstreamHeaders: getUpstreamHeaderSnapshot(upstreamResp.headers),
+          upstreamAttempts,
           upstreamError: upstream,
           responseBody: errorText,
         }),
@@ -581,57 +726,12 @@ export async function POST(request: Request): Promise<Response> {
       return jsonWithRequestId(requestId, errorBody, upstreamResp.status)
     }
 
-    // 7. 托管通道的非流式客户端请求改用完整 SSE 上游聚合，避免长叙事在上游 60 秒断连。
-    if (aggregateManagedStream && upstreamResp.body) {
-      clearTimeout(timeoutId)
-      try {
-        const aggregated = await aggregateSseCompletion(upstreamResp.body)
-        clearUpstreamGuards()
-        await Promise.all([
-          writeProxyTrace(requestId, 'response', {
-            status: 200,
-            upstreamHeaders: getUpstreamHeaderSnapshot(upstreamResp.headers),
-            responseBody: aggregated.responseBody,
-            transport: 'managed-sse-aggregation',
-            contentChars: aggregated.contentChars,
-          }),
-          writeCurrentAccessLog(200),
-        ])
-        return new Response(aggregated.responseBody, {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'x-ai-request-id': requestId,
-          },
-        })
-      } catch (error) {
-        const aborted = request.signal.aborted
-        const message = error instanceof Error ? error.message : String(error)
-        upstreamController.abort()
-        clearUpstreamGuards()
-        const status = aborted ? 499 : 502
-        await Promise.all([
-          writeProxyTrace(requestId, 'response', {
-            status,
-            upstreamHeaders: getUpstreamHeaderSnapshot(upstreamResp.headers),
-            error: aborted ? 'Client aborted during managed SSE aggregation' : message,
-          }),
-          writeCurrentAccessLog(status, message),
-        ])
-        return jsonWithRequestId(
-          requestId,
-          { error: aborted ? '客户端已取消请求' : '托管通道流式聚合失败' },
-          status,
-        )
-      }
-    }
-
-    // 8. 流式透传
+    // 7. 流式透传；只有在任何正文交给浏览器之前才能安全切换备用模型。
     if (isStream && upstreamResp.body) {
       // 首字节已到，连接超时使命完成；但保留 client-abort 接线直到流结束，
       // 以便流中途客户端断开时仍能取消上游。用显式 reader pump 捕获上游读取错误，
       // 避免中途断流仍只留下成功 200 日志。
-      clearTimeout(timeoutId)
+      clearConnectionTimeout()
       let logged = false
       const capturedChunks: Uint8Array[] = []
       const logStreamEnd = async (status: number, error?: string) => {
@@ -642,6 +742,7 @@ export async function POST(request: Request): Promise<Response> {
           writeProxyTrace(requestId, 'response', {
             status,
             upstreamHeaders: getUpstreamHeaderSnapshot(upstreamResp.headers),
+            upstreamAttempts,
             responseBody,
             error,
           }),
@@ -692,13 +793,14 @@ export async function POST(request: Request): Promise<Response> {
       })
     }
 
-    // 9. 非流式直接返回
+    // 8. 非流式直接返回
     clearUpstreamGuards()
     const responseBody = await upstreamResp.text()
     await Promise.all([
       writeProxyTrace(requestId, 'response', {
         status: 200,
         upstreamHeaders: getUpstreamHeaderSnapshot(upstreamResp.headers),
+        upstreamAttempts,
         responseBody,
       }),
       writeCurrentAccessLog(200),

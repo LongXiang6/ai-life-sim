@@ -610,7 +610,7 @@ assertOk(
   }).success,
   'branch options must already be Chinese string choices; object compatibility must not enter the strict path',
 )
-assertOk(/version:\s*5/.test(settingsStoreSrc), 'settings persistence must include the current managed-provider migration version')
+assertOk(/version:\s*6/.test(settingsStoreSrc), 'settings persistence must include the current managed-provider migration version')
 const migrateSettings = loadPersistMigration(settingsStoreSrc)
 assertSame(
   migrateSettings({ wordCountTarget: 400, theme: 'minimal-white' }, 2).wordCountTarget,
@@ -631,6 +631,15 @@ const migratedManagedDefault = migrateSettings({
 assertSame(migratedManagedDefault.provider, DEFAULT_AI_PROVIDER_ID, 'old empty defaults must migrate to the managed provider')
 assertSame(migratedManagedDefault.customUrl, DEFAULT_AI_BASE_URL, 'managed migration must restore the public default interface')
 assertSame(migratedManagedDefault.customModel, DEFAULT_AI_MODEL, 'managed migration must restore the public default model')
+const migratedPreviousManagedTarget = migrateSettings({
+  provider: DEFAULT_AI_PROVIDER_ID,
+  customKey: 'player-owned-key',
+  customUrl: 'https://dasuapi.com/v1',
+  customModel: 'grok-4.5',
+}, 5)
+assertSame(migratedPreviousManagedTarget.customKey, 'player-owned-key', 'managed target migration must preserve a player-owned key')
+assertSame(migratedPreviousManagedTarget.customUrl, DEFAULT_AI_BASE_URL, 'managed target migration must replace the superseded public interface')
+assertSame(migratedPreviousManagedTarget.customModel, DEFAULT_AI_MODEL, 'managed target migration must replace the superseded public model')
 const preservedCustomConfig = migrateSettings({
   provider: 'custom',
   customKey: 'player-key',

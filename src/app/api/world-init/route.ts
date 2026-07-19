@@ -32,6 +32,8 @@ import {
   AI_PROVIDERS,
   DEFAULT_AI_MODEL,
   DEFAULT_AI_PROVIDER_ID,
+  getProviderModelCandidates,
+  shouldTryManagedFallback,
 } from '@/core/ai-service/provider-config'
 import { readServerProviderApiKey } from '@/core/ai-service/server-provider-credentials'
 import type { WorldConfig } from '@/mods/mod-world'
@@ -182,31 +184,52 @@ async function callProviderDirect(
     body.response_format = { type: 'json_object' }
   }
 
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(AI_TIMEOUT_MS),
-  })
+  const candidates = getProviderModelCandidates(providerId, model)
+  let lastError: Error | undefined
 
-  if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`${providerId} API ${response.status}: ${errorText.slice(0, 500)}`)
+  for (let index = 0; index < candidates.length; index++) {
+    const candidate = candidates[index]
+    body.model = candidate
+    let fallbackAllowed = true
+    try {
+      const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(AI_TIMEOUT_MS),
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        lastError = new Error(`${providerId} API ${response.status}: ${errorText.slice(0, 500)}`)
+        fallbackAllowed = shouldTryManagedFallback(response.status)
+        if (index < candidates.length - 1 && fallbackAllowed) continue
+        throw lastError
+      }
+
+      const data = (await response.json()) as {
+        choices?: Array<{ message?: { content?: string } }>
+      }
+      const content = data.choices?.[0]?.message?.content
+
+      if (!content || content.trim() === '') {
+        lastError = new Error(`${providerId} ${candidate} 返回空内容`)
+        if (index < candidates.length - 1) continue
+        throw lastError
+      }
+
+      return content
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error))
+      if (index < candidates.length - 1 && fallbackAllowed) continue
+      throw lastError
+    }
   }
 
-  const data = (await response.json()) as {
-    choices?: Array<{ message?: { content?: string } }>
-  }
-  const content = data.choices?.[0]?.message?.content
-
-  if (!content || content.trim() === '') {
-    throw new Error(`${providerId} 返回空内容`)
-  }
-
-  return content
+  throw lastError ?? new Error(`${providerId} 没有可用模型`)
 }
 
 // ============================================================

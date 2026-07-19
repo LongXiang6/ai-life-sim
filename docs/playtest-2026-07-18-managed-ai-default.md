@@ -2,14 +2,14 @@
 
 文档角色：acceptance
 权威层级：A5
-状态：active
+状态：superseded
 体系路径：project > simulation-runtime > platform-services > managed-ai-default-channel
 上级目标：让玩家无需先配置自己的 API Key 即可体验游戏，同时保证托管凭据不进入客户端或仓库
 下级组成：公开 Provider 预设、设置默认与迁移、代理凭据选择、玩家自定义覆盖、部署环境
 适用范围：欢迎页开始条件、模型调用设置、恢复默认、`/api/proxy` 与发布前 AI 实测
 拥有者：core AI Provider 配置、mod-settings 与 app AI proxy
 最后验证：2026-07-18；上游直连、完整 SSE 聚合、后台世界初始化、项目代理、浏览器真实首轮、完整门禁、生产构建与服务器发布验证通过
-取代关系：none
+取代关系：当前通道结论已由 `docs/playtest-2026-07-19-managed-ai-a6api.md` 取代；本文只保留首代托管通道历史
 运行真源：`src/core/ai-service/provider-config.ts`、`src/mods/mod-settings/store.ts`、`src/app/api/proxy/route.ts`
 验收证据：`npm run test:managed-ai-default`、`npm run test:ai-proxy`、浏览器玩家路径、密钥缺席扫描、完整 gate/build、3001 旁路、3000 正式服务、HTTPS 与 Certbot 模拟续期
 

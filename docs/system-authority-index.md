@@ -11,7 +11,7 @@
 最后验证：2026-07-18；对照[运行阶段策略](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、子系统实现、Prompt/Schema、持久化路径、[中文协议回归](../scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs)、[托管通道回归](../scripts/check/domains/narrative/managed-ai-default-regression.mjs)和[硬截断审计](../scripts/check/domains/narrative/no-hard-truncation-audit.mjs)
 取代关系：none
 运行真源：[mvp-stages-config.default.json](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、manifest、生成注册表和各实现文件
-验收证据：`.agents` 治理检查、引用审计、活动系统覆盖检查、[Prompt 4.0 分级中文协议验收](playtest-2026-07-18-prompt-4-tiered-protocol.md)与[托管免费体验通道验收](playtest-2026-07-18-managed-ai-default.md)
+验收证据：`.agents` 治理检查、引用审计、活动系统覆盖检查、[Prompt 4.0 分级中文协议验收](playtest-2026-07-18-prompt-4-tiered-protocol.md)与[a6api 托管主备通道验收](playtest-2026-07-19-managed-ai-a6api.md)
 
 ## 1. Reading rules
 
@@ -89,11 +89,11 @@ ChildSystems: public managed Provider preset, settings defaults and migration, s
 Authority: A1 PD-018; A3 this index; A4 live Provider, settings and proxy implementation
 RootPosition: R1
 Weight: W5
-Sequence: S1 public default selection > S2 server credential resolution > S3 upstream request > S4 player override or explicit failure
-Responsibility: own the public default Provider, base URL and model; select the environment credential only inside server AI routes; preserve restore-default and custom-override semantics; adapt long non-stream client calls through complete SSE upstream aggregation
+Sequence: S1 public default selection > S2 server credential resolution > S3 primary request > S4 safe fallback or explicit failure > S5 player override
+Responsibility: own the public default Provider, base URL, primary model and internal fallback model; select the environment credential only inside server AI routes; preserve restore-default and custom-override semantics; adapt long non-stream client calls through complete SSE upstream aggregation and switch models only before any partial result is committed
 NonResponsibility: does not expose or persist the managed credential, own third-party billing or credential lifecycle, author gameplay state, or silently redirect managed traffic
 Inputs: player settings, optional player API Key, MANAGED_AI_API_KEY environment value, validated proxy request
-OutputsAndWrites: fixed managed upstream request or explicit configuration/allowlist error; public settings state contains no managed credential
+OutputsAndWrites: fixed managed primary request, same-interface fallback request or explicit configuration/allowlist error; public settings state contains no managed credential
 PublicStateOrAPI: managed Provider metadata; GET /api/proxy returns only configured boolean; POST accepts no client Key for the managed path
 Dependencies: deployment environment, src/core/ai-service/provider-config.ts, mod-settings persisted state, app AI proxy
 Lifecycle: active for new-user defaults, restore-default, API availability checks and every managed proxy request
@@ -101,16 +101,16 @@ RuntimeLivenessSource: app route registration, settings Store hydration and acti
 AIParticipation: transports model requests only; does not interpret or apply AI semantic output
 PersistenceAuthority: player overrides remain in mod-settings browser persistence; managed credential exists only in private local or server environment files
 Implementation: src/core/ai-service/provider-config.ts; src/core/ai-service/server-provider-credentials.ts; src/core/ai-service/managed-sse-aggregation.ts; src/mods/mod-settings/store.ts; src/mods/mod-settings/components/SettingsTabPresets.tsx; src/mods/mod-world/world-init-bundle.ts; src/app/api/proxy/route.ts; src/app/api/world-init/route.ts
-AcceptanceEvidence: npm run test:managed-ai-default; npm run test:ai-proxy; complete long-narrative proxy and browser round; background world initialization; restore/default/custom tests; secret-absence scan; delivery gates
-LastVerified: 2026-07-18
+AcceptanceEvidence: npm run test:managed-ai-default; npm run test:ai-proxy; primary and fallback routing smoke; complete long-narrative proxy and browser round; background world initialization; restore/default/custom tests; secret-absence scan; delivery gates
+LastVerified: 2026-07-19
 Supersession: none
 ```
 
-- `src/core/ai-service/provider-config.ts` owns the public `managed` ID, fixed interface and allowed request model. These values are not credentials.
+- `src/core/ai-service/provider-config.ts` owns the public `managed` ID, fixed interface, allowed client request model and same-interface server fallback order. These values are not credentials.
 - The deployment environment owns the credential value. `src/app/api/proxy/route.ts` and `src/app/api/world-init/route.ts` may select and use it for the fixed managed target, but must never persist, disclose or log it; a player-supplied Key takes precedence for that request.
 - `GET /api/proxy` exposes only a boolean configuration state. It must not return the Provider configuration, environment variable value, credential source or any reversible derivative of the Key.
 - Editing the interface or model switches the browser state to `custom`. Restore-default clears the browser Key and reselects the public managed configuration without transferring the managed credential to the client.
-- Managed long-form requests keep the browser's non-stream response contract but use SSE upstream transport. `managed-sse-aggregation.ts` must preserve every content chunk, require `[DONE]`, reject malformed or incomplete streams, and only then rebuild one complete OpenAI-compatible response; partial story output must never be committed.
+- Managed long-form requests keep the browser's non-stream response contract but use SSE upstream transport. `managed-sse-aggregation.ts` must preserve every content chunk, require `[DONE]`, reject malformed or incomplete streams, and only then rebuild one complete OpenAI-compatible response. The proxy may retry the backup model after a primary aggregation failure because no content has reached the browser; client-visible streaming may switch only before its first successful response begins, and partial story output must never be joined across models or committed as complete.
 
 ### 3.2 AI call observability
 

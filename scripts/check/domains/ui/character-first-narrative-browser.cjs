@@ -79,7 +79,7 @@ async function main() {
 
     proxyPostCount += 1
     const body = request.postDataJSON()
-    if (body.providerId === 'managed' && body.model === 'grok-4.5' && body.apiKey === undefined) {
+    if (body.providerId === 'managed' && body.model === 'gpt-5.6-luna' && body.apiKey === undefined) {
       managedRequestWithoutClientKey = true
     }
     if (body.stream === true) {
@@ -140,12 +140,12 @@ async function main() {
       },
     }))
     localStorage.setItem('mod-settings:store', JSON.stringify({
-      version: 5,
+      version: 6,
       state: {
         provider: 'managed',
         customKey: '',
-        customUrl: 'https://dasuapi.com/v1',
-        customModel: 'grok-4.5',
+        customUrl: 'https://a6.a6api.com/v1',
+        customModel: 'gpt-5.6-luna',
         temperature: 0.8,
         topP: 0.8,
         maxTokens: 4096,

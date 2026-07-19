@@ -21,6 +21,7 @@ const provider = read('src/core/ai-service/provider-config.ts')
 const proxy = read('src/app/api/proxy/route.ts')
 const serverCredentials = read('src/core/ai-service/server-provider-credentials.ts')
 const managedAggregation = read('src/core/ai-service/managed-sse-aggregation.ts')
+const managedExecution = read('src/core/ai-service/managed-provider-execution.ts')
 const worldInitRoute = read('src/app/api/world-init/route.ts')
 const worldInitBundle = read('src/mods/mod-world/world-init-bundle.ts')
 const store = read('src/mods/mod-settings/store.ts')
@@ -37,11 +38,12 @@ const envExample = read('.env.example')
 
 assertOk(
   provider.includes("DEFAULT_AI_PROVIDER_ID = 'managed'")
-    && provider.includes("DEFAULT_AI_BASE_URL = 'https://dasuapi.com/v1'")
-    && provider.includes("DEFAULT_AI_MODEL = 'grok-4.5'"),
-  'public managed provider, base URL and model must have one authority',
+    && provider.includes("DEFAULT_AI_BASE_URL = 'https://a6.a6api.com/v1'")
+    && provider.includes("DEFAULT_AI_MODEL = 'gpt-5.6-luna'")
+    && provider.includes("DEFAULT_AI_FALLBACK_MODEL = 'gpt-5.6-terra'"),
+  'public managed provider, base URL, primary model and server fallback must have one authority',
 )
-assertOk(!/sk-[A-Za-z0-9_-]{20,}/.test(provider + proxy + serverCredentials + managedAggregation + worldInitRoute + worldInitBundle + store + settings + envExample), 'tracked sources must not contain an API credential')
+assertOk(!/sk-[A-Za-z0-9_-]{20,}/.test(provider + proxy + serverCredentials + managedAggregation + managedExecution + worldInitRoute + worldInitBundle + store + settings + envExample), 'tracked sources must not contain an API credential')
 assertOk(
   serverCredentials.includes("managed: 'MANAGED_AI_API_KEY'")
     && proxy.includes('readServerProviderApiKey(providerId)')
@@ -51,17 +53,21 @@ assertOk(
 )
 assertOk(
   proxy.includes('aggregateManagedStream')
-    && proxy.includes('aggregateSseCompletion(upstreamResp.body)')
+    && proxy.includes('requestManagedAggregatedCompletion(')
+    && proxy.includes('fallbackUsed: managedResult.model === DEFAULT_AI_FALLBACK_MODEL')
+    && managedExecution.includes('aggregateSseCompletion(response.body)')
+    && managedExecution.includes('shouldTryManagedFallback(response.status)')
     && managedAggregation.includes("if (!completed) throw new Error('托管通道 SSE 未返回完整结束标记')")
     && managedAggregation.includes("if (!content) throw new Error('托管通道 SSE 返回空正文')"),
-  'managed non-stream requests must use complete SSE aggregation without partial output',
+  'managed non-stream requests must aggregate completely and safely switch to the fallback before returning output',
 )
 assertOk(
   worldInitRoute.includes('callProviderDirect')
     && worldInitRoute.includes('readServerProviderApiKey(providerId)')
     && worldInitRoute.includes('providerId === DEFAULT_AI_PROVIDER_ID')
+    && worldInitRoute.includes('getProviderModelCandidates(providerId, model)')
     && worldInitBundle.includes('providerId: settings.provider'),
-  'background world initialization must use the same managed server credential authority',
+  'background world initialization must use the same managed credential and model fallback authority',
 )
 assertOk(
   aiClient.includes('options?.providerId ?? DEFAULT_AI_PROVIDER_ID')
@@ -74,13 +80,14 @@ assertOk(
   store.includes('provider: DEFAULT_AI_PROVIDER_ID')
     && store.includes('customUrl: DEFAULT_AI_BASE_URL')
     && store.includes('customModel: DEFAULT_AI_MODEL')
-    && store.includes('version: 5'),
+    && store.includes('version: 6'),
   'new users and restore-default state must select the managed provider without a browser key',
 )
 assertOk(
   store.includes('hasExplicitModelConfig')
-    && store.includes("state.provider === 'custom'"),
-  'migration must preserve explicit player-owned model configuration',
+    && store.includes("state.provider === 'custom'")
+    && store.includes("version < 6 && state.provider === DEFAULT_AI_PROVIDER_ID"),
+  'migration must update the managed public target while preserving player-owned custom configuration',
 )
 assertOk(
   settings.includes('服务器免费体验通道')
