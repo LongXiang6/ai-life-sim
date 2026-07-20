@@ -8,7 +8,7 @@
 下级组成：活动权威登记、平台服务、外部 MVP 系统、引擎 MVP 系统、历史因果内部组件、延后剧情系统
 适用范围：MVP 运行子系统、历史事件与消费者引用、延后但承载剧情事实的系统、状态与写入所有权、AI 参与、持久化和运行存活性
 拥有者：`mod-engine` 运行注册与各 owning MOD
-最后验证：2026-07-19；对照[蓝图二](blueprint-02-multi-world-simulation-foundation.md)、[运行阶段策略](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、P0/P1 focused 回归、历史事件 Store v2/旧迁移、子系统实现、Prompt/Schema、持久化路径、[中文协议回归](../scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs)和[硬截断审计](../scripts/check/domains/narrative/no-hard-truncation-audit.mjs)
+最后验证：2026-07-20；对照[蓝图二](blueprint-02-multi-world-simulation-foundation.md)、[运行阶段策略](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、P0/P1 focused 回归、历史事件 Store v2/旧迁移、子系统实现、Prompt/Schema、缓存统计分桶、持久化路径、[中文协议回归](../scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs)和[硬截断审计](../scripts/check/domains/narrative/no-hard-truncation-audit.mjs)
 取代关系：none
 运行真源：[mvp-stages-config.default.json](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、manifest、生成注册表和各实现文件
 验收证据：`.agents` 治理检查、引用审计、活动系统覆盖检查、`npm run test:world-context-p0`、`npm run test:historical-event-p1`、`npm run test:narrative-protocol`、无硬截断审计、[Prompt 4.0 分级中文协议验收](playtest-2026-07-18-prompt-4-tiered-protocol.md)与[a6api 托管主备通道验收](playtest-2026-07-19-managed-ai-a6api.md)
@@ -83,7 +83,7 @@ Supersession: none
 - `historical-event-ledger` persists its complete Store v2 through `capturePersistenceState()` / `restorePersistenceState()` in the orchestrator snapshot. Its `collectState()` uses a read-only cached index and returns only global or current-including `scheduled/active` facts plus related edges; complete cloning is reserved for explicit save/rollback. Explicit restore and browser/Zustand hydration share strict validation for IDs, chains, evidence-reference arrays, endpoints and world references before replacement or use; invalid current Store state is quarantined from queries, commits and saves without silent reset, and malformed current/future versions reject. v1 Store or old `event-pool` / `causal-simulation` collected states migrate into the current save's original context instead of global or cross-save residue.
 - Accepted ledger IDs flow to consumers instead of duplicating facts: memory and core-memory use `historicalEventIds`, foreshadowing uses `plantedFromEventIds/resolvedByEventIds`, plot structure uses `lastHistoricalEventIds`, and delayed causality uses `originEventId/resolutionEventId`. Compression and repeated relationship merges retain ID unions; old snapshots default missing reference arrays to empty.
 - Main narrative AI may write only the internal IDs in `narrativeChange`; current writable systems remain `character-base`, `lifespan`, `luck`, and `morality`. `historical-event-ledger` is registered separately as `event-input`, so validated local orchestration may submit historical batches without exposing it as a fifth direct state-change target. AI-visible input uses only registered Chinese system and field names; `src/mods/mod-engine/helpers/subsystem-field-registry.ts` owns the one-to-one translation.
-- Main narrative Prompt `4.2.0` owns the componentized fixed prefix and the ordered three-message input `全局信息 -> 记忆 -> 本轮引导`. `narrative-prompt-components.ts` compiles low-noise plain text with basic constraints first and one annotated standard example last; `prompt-builder.ts` owns layer order; `narrative-ai-input-view.ts` owns world/character projection; `historical-event-prompt-projection.ts` deterministically renders only global facts or `scheduled/active` facts whose context, travel or cross-context scope explicitly includes the current context, together with stable IDs, schedules and related causal edges, into `当前状态`; the background worldview adapter is forbidden from rewriting that projection. `narrative-ai-protocol.ts` owns the sole successful `⟦正文⟧/⟦摘要⟧/可选⟦数据⟧/⟦结束⟧` protocol and strict translation. Ordinary rounds may commit complete body and digest without structured data; a present data block is accepted or rejected as a whole, while focused intent and forced branch rounds retain conditional data gates. The protocol boundary normalizes model no-op arrays, `命运分支:false`, empty conditional objects, and optional near-synonym enums without inventing semantic state; unknown writable targets and incomplete conditional cores remain rejected. Conditional gates may receive at most two targeted repairs, while the body remains available if the intent result is still pending. RoundCommit preflights every state-change bundle and rolls back unexpected partial writes. The time guidance requires varied scene-first openings and uses the explicit current calendar label when a time anchor is needed instead of repeating generic openings such as “这一年”.
+- Main narrative Prompt `4.2.1` owns the componentized fixed prefix and the ordered three-message input `全局信息 -> 记忆 -> 本轮引导`. `narrative-prompt-components.ts` compiles low-noise plain text with basic constraints first and one annotated standard example last; `prompt-builder.ts` owns layer order, keeps dynamic local time out of the global cache message, and places changing originality protection at the memory prefix; `narrative-ai-input-view.ts` owns world/character projection; `historical-event-prompt-projection.ts` deterministically renders only global facts or `scheduled/active` facts whose context, travel or cross-context scope explicitly includes the current context, together with stable IDs, schedules and related causal edges, into `当前状态`; the background worldview adapter is forbidden from rewriting that projection. `narrative-ai-protocol.ts` owns the sole successful `⟦正文⟧/⟦摘要⟧/可选⟦数据⟧/⟦结束⟧` protocol and strict translation. Ordinary rounds may commit complete body and digest without structured data; a present data block is accepted or rejected as a whole, while focused intent and forced branch rounds retain conditional data gates. The protocol boundary normalizes model no-op arrays, `命运分支:false`, empty conditional objects, and optional near-synonym enums without inventing semantic state; unknown writable targets and incomplete conditional cores remain rejected. Conditional gates may receive at most two targeted repairs, while the body remains available if the intent result is still pending. RoundCommit preflights every state-change bundle and rolls back unexpected partial writes. The time guidance requires varied scene-first openings and uses the explicit current calendar label when a time anchor is needed instead of repeating generic openings such as “这一年”.
 
 ### 3.1 Managed AI default channel
 
@@ -222,7 +222,38 @@ Supersession: none
 - The code is a diagnostic locator, not a secret or an authentication factor. Server logs accept it only from the issued Cookie; arbitrary request headers and request bodies cannot override it.
 - Reservation files contain no player content or device-derived facts and are excluded from diagnostic age/capacity cleanup. Retained story, request and client-event copies still follow PD-019 cleanup.
 
-### 3.5 Production release retention
+### 3.5 AI cache observability
+
+```text
+SystemId: ai-cache-observability
+SystemPath: project > simulation-runtime > platform-services > ai-cache-observability
+ParentGoal: make the player-visible cache rate describe the selected model's real main-narrative calls instead of an unrelated mixed lifetime total
+PrimaryGovernanceParent: core AI client plus mod-settings
+ChildSystems: upstream usage parser, scoped browser statistics store, main/repair call classification, settings projection and scoped reset
+Authority: A1 PD-017; A3 this index; A4 live AI client, cache statistics module, narrative campaign and settings component
+RootPosition: R1
+Weight: W3
+Sequence: S1 classify requested Provider/model/pool/call kind > S2 record one final usage snapshot > S3 query current main narrative > S4 scoped reset
+Responsibility: persist and aggregate upstream cache hit/miss Tokens by Provider, model, pool and call kind; keep main narrative and format repair separate; project only the current main-narrative bucket to settings; ignore unsplittable legacy totals
+NonResponsibility: does not create Provider cache entries, promise a target hit rate, infer missing usage, measure pre-generation hits, store Prompt/story content, or alter model routing
+Inputs: parsed upstream usage plus requested Provider, model, pool and diagnostic call kind
+OutputsAndWrites: browser-local schema v2 cache-stat buckets and current-model main-narrative hit-rate projection
+PublicStateOrAPI: getCacheStats(filter) and resetCacheStats(filter); no server or cross-player API
+Dependencies: AI response usage fields, narrative call logContext, mod-settings current Provider/model
+Lifecycle: records only successful upstream responses carrying nonzero cache usage; resets or starts empty when legacy data cannot be attributed
+RuntimeLivenessSource: active client AI calls and rendered settings page
+AIParticipation: observes transport metadata only; never reads or changes semantic AI output
+PersistenceAuthority: browser localStorage key ai-cache-stats, schema version 2; not part of save-game or diagnostic identity
+Implementation: src/core/ai-service/cache-stats.ts; src/core/ai-service/ai-client.ts; src/mods/mod-engine/campaigns/default/index.ts; src/mods/mod-settings/components/SettingsTabTheme.tsx
+AcceptanceEvidence: scripts/check/domains/narrative/cache-stats-smoke.mjs; npm run test:ai-proxy; Prompt wiring, TypeScript, lint, UI and delivery gates
+LastVerified: 2026-07-20
+Supersession: replaces the unscoped ai-cache-stats lifetime total
+```
+
+- A format-repair request uses `narrative-format-repair`; it may benefit from the preceding failed response but cannot raise or lower the displayed `narrative-main` rate.
+- Streaming transports retain the last upstream usage snapshot and commit it once after stream aggregation. Providers that omit compatible hit/miss fields leave the selected bucket unchanged, so switching Provider or model cannot display stale statistics from another target.
+
+### 3.6 Production release retention
 
 ```text
 SystemId: production-release-retention

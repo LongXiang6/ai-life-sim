@@ -5,6 +5,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
 import { getProjectRoot } from '../../lib/project-root.mjs'
+import { buildSegmentedPrompt } from '../../../../src/core/ai-service/prompt-builder.ts'
 import { buildMvpSubsystemGuide } from '../../../../src/mods/mod-engine/helpers/mvp-runtime-policy.ts'
 import { narrativePrompt as liveNarrativePrompt } from '../../../../src/mods/mod-engine/prompts/narrative-prompt.ts'
 import { NARRATIVE_SYSTEM_COMPONENTS } from '../../../../src/mods/mod-engine/prompts/narrative-prompt-components.ts'
@@ -240,6 +241,40 @@ assertOk(
   'three-layer assembly must remain global information -> memory -> round guidance',
 )
 
+const cacheLayerBaseContext = {
+  worldNarrativeView: {
+    当前上下文编号: 'ctx-cache',
+    当前上下文类型: '世界',
+    当前模拟范围: '当前完整模拟',
+    当前世界能力: ['生命'],
+    世界名称: '缓存测试世界',
+    世界描述: '稳定不变的世界描述。',
+    当前历法: '测试历',
+  },
+  characterProfileView: { 姓名: '测试角色', 性别: '女', 背景: '稳定背景' },
+  characterStatusView: { 年龄: 18 },
+  subsystemSummaries: ['【基础属性】体魄0'],
+  narrativeHistory: [],
+  currentTime: '测试历 1 年',
+  creationProtectionText: '原创事实甲',
+}
+const cacheLayerChangedContext = {
+  ...cacheLayerBaseContext,
+  currentTime: '测试历 2 年',
+  creationProtectionText: '原创事实甲\n原创事实乙',
+}
+const cacheLayerBefore = buildSegmentedPrompt(liveNarrativePrompt, cacheLayerBaseContext)
+const cacheLayerAfter = buildSegmentedPrompt(liveNarrativePrompt, cacheLayerChangedContext)
+assertOk(
+  cacheLayerBefore.userSegments?.[0] === cacheLayerAfter.userSegments?.[0],
+  'dynamic time and creation protection must not invalidate the stable global cache message',
+)
+assertOk(
+  cacheLayerBefore.userSegments?.[1] !== cacheLayerAfter.userSegments?.[1]
+    && cacheLayerBefore.userSegments?.[2] !== cacheLayerAfter.userSegments?.[2],
+  'creation protection must remain in memory while current time remains in round guidance',
+)
+
 if (!promptBuilder.includes('buildRoundDirectorHint')) {
   console.error('FAIL: round director hint builder missing')
   failed++
@@ -380,7 +415,7 @@ for (const inactiveConnection of [
   )
 }
 assertOk(
-  liveNarrativePrompt.version === '4.2.0'
+  liveNarrativePrompt.version === '4.2.1'
     && !narrativePromptComponents.includes('examples: ['),
   'optimized prompt must be versioned and keep one governed standard example instead of duplicate examples',
 )

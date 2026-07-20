@@ -5,7 +5,7 @@
  */
 
 export { callAI, callAIConversation, callAIStream, callAIStreamConversation, callAIDegraded, callAIStreamDegraded, getCacheStats, resetCacheStats, recordRoundCacheMetrics, getRoundCacheMetrics, setOnAiError, isAiCredentialError } from './ai-client'
-export type { AICallOptions, CachePoolType, CacheHitInfo, RoundCacheMetrics, AICallLogContext, AICallUsageSnapshot } from './ai-client'
+export type { AICallOptions, CachePoolType, CacheHitInfo, CacheStatsFilter, CacheStatsSnapshot, RoundCacheMetrics, AICallLogContext, AICallUsageSnapshot } from './ai-client'
 export { callAIWithPromptTemplate } from './ai-call-wrapper'
 export type { UnifiedCallOptions, PromptTemplateLike } from './ai-call-wrapper'
 export { applyKvPromptOrder } from './kv-prompt-order'

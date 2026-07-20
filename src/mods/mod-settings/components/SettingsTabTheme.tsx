@@ -6,10 +6,10 @@
  * @mod mod-settings
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { clearGameProgressFromLocalStorage, opfsStorage, safeCleanupReload } from '@/core'
-import { getCacheStats, getRoundCacheMetrics, resetCacheStats } from '@/core/ai-service'
+import { DEFAULT_AI_MODEL, getCacheStats, getRoundCacheMetrics, resetCacheStats } from '@/core/ai-service'
 import { clamp } from '@/core/shared'
 import { useFontStore } from '@/core/theme/font-store'
 
@@ -86,7 +86,7 @@ export function SettingsTabTheme() {
   const fontFamily = useFontStore((state) => state.fontFamily)
   const setFontFamily = useFontStore((state) => state.setFontFamily)
 
-  const [cacheStats, setCacheStats] = useState(() => getCacheStats())
+  const [cacheStatsRevision, setCacheStatsRevision] = useState(0)
   const [roundMetrics, setRoundMetrics] = useState(() => getRoundCacheMetrics())
   const [importMode, setImportMode] = useState<'merge' | 'overwrite'>('merge')
   const [showResetConfirm, setShowResetConfirm] = useState(false)
@@ -94,7 +94,7 @@ export function SettingsTabTheme() {
   const resetDialogRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const handleCacheStatsUpdated = () => setCacheStats(getCacheStats())
+    const handleCacheStatsUpdated = () => setCacheStatsRevision((revision) => revision + 1)
     window.addEventListener('cache-stats-updated', handleCacheStatsUpdated)
     return () => window.removeEventListener('cache-stats-updated', handleCacheStatsUpdated)
   }, [])
@@ -105,11 +105,26 @@ export function SettingsTabTheme() {
     return () => window.removeEventListener('round-cache-metrics-updated', handleRoundMetricsUpdated)
   }, [])
 
-  const handleRefreshCache = useCallback(() => setCacheStats(getCacheStats()), [])
-  const handleResetCache = useCallback(() => {
-    resetCacheStats()
-    setCacheStats({ hitTokens: 0, missTokens: 0, hitRate: 0 })
+  const cacheStats = useMemo(() => {
+    void cacheStatsRevision
+    return getCacheStats({
+      providerId: provider,
+      model: customModel || DEFAULT_AI_MODEL,
+      pool: 'narrative',
+      callKind: 'narrative-main',
+    })
+  }, [cacheStatsRevision, customModel, provider])
+  const handleRefreshCache = useCallback(() => {
+    setCacheStatsRevision((revision) => revision + 1)
   }, [])
+  const handleResetCache = useCallback(() => {
+    resetCacheStats({
+      providerId: provider,
+      model: customModel || DEFAULT_AI_MODEL,
+      pool: 'narrative',
+      callKind: 'narrative-main',
+    })
+  }, [customModel, provider])
 
   const handleExport = useCallback(() => {
     const data = {
@@ -424,7 +439,7 @@ export function SettingsTabTheme() {
       <section className={styles.section} aria-labelledby="settings-cache-heading">
         <div className={styles.sectionLabel}>
           <h3 id="settings-cache-heading">AI 缓存</h3>
-          <span>命中率 {cacheStats.hitRate}%</span>
+          <span>主叙事命中率 {cacheStats.hitRate}%</span>
         </div>
         <div className={styles.sectionCard}>
           <div className={styles.cacheBody}>
@@ -443,7 +458,7 @@ export function SettingsTabTheme() {
               </div>
             </div>
             <progress className={styles.progressBar} max={100} value={cacheHitRate} aria-label={`缓存命中率 ${cacheStats.hitRate}%`} />
-            <p className={styles.supportingText}>缓存命中越高，通常响应越快、消耗越低；统计来自实际 API 响应。</p>
+            <p className={styles.supportingText}>这里只统计当前 Provider 与模型的主叙事生成，不混入格式修复、命格或摘要；上游未返回缓存 Token 时显示 0，不沿用其他模型的旧数据。</p>
 
             {roundMetrics.length > 0 && (
               <div className={styles.roundMetrics}>

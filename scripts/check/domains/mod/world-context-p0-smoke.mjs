@@ -755,10 +755,13 @@ assertOk(
 const localWorldView = projectWorldSettingForNarrativeAI(localSetting, localNarrativeTime)
 assertOk(
   localWorldView.当前历法 === '梦境轮转'
-    && localWorldView.当前纪年.includes('101')
-    && localWorldView.当前月份 === '1月'
-    && localWorldView.当前季节 === '第1时节',
-  'AI world view must use local calendar year, month and season instead of the global solar calendar',
+    && !Object.hasOwn(localWorldView, '当前纪年')
+    && !Object.hasOwn(localWorldView, '当前月份')
+    && !Object.hasOwn(localWorldView, '当前季节')
+    && localNarrativeTime.timeLabel.includes('101')
+    && localNarrativeTime.timeLabel.includes('第1时节')
+    && localNarrativeTime.timeLabel.includes('1月1日'),
+  'stable AI world view must retain the local calendar identity while dynamic local time stays in the round layer',
 )
 const localCalendarHint = buildCanonicalCalendarNarrativeHint({
   timeStep: { unit: 'day', value: 1 },

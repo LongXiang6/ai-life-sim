@@ -299,7 +299,7 @@ P0 验收使用 `npm run test:world-context-p0`、叙事协议与压缩回归、
 5. `causal-delay` 新事项按 `createdTotalDays/dueTotalDays` 确定性到期，旧事项保留 `legacy-round`；进入 Prompt 只表示待兑现。完整叙事提交成功并由账本生成结果事件后，延期事项才写入 `resolutionEventId` 并确认兑现；形成承诺时可保存 `originEventId`。其 P1 快照使用 `schemaVersion: 1`：带版本重复 ID 拒绝，无版本旧重复 ID 确定性迁移并保存 `legacyId`。
 6. 消费者只保存账本事件 ID，不复制历史事实：记忆链使用 `TaggedEvent.historicalEventIds` 与 `IndexEntry.historicalEventIds` 并在压缩索引中保留并集；核心记忆的 `NPCInteractionRecord` 和内部 `CoreMemoryEntry` 保存并集合并后的 `historicalEventIds`；伏笔保存 `plantedFromEventIds/resolvedByEventIds`；剧情结构保存 `lastHistoricalEventIds`。旧快照缺少这些字段时初始化为空数组，不从正文猜测补全。
 7. 运行策略只新增 `historical-event-ledger` 一个外部系统；P1 完成后的 MVP 数量为 13 个外部系统加 12 个引擎系统，共 25 个。`EventCandidateProvider` 与 `CausalGraphComponent` 是账本内部组件，不参与数量统计。
-8. 主叙事 Prompt `4.2.0` 通过 `historical-event-prompt-projection.ts` 确定性消费当前相关的待续事实和因果边；`adaptation-manager` 明确绕过账本投影，不能改写事实、ID 或 scope。
+8. 主叙事 Prompt `4.2.1` 通过 `historical-event-prompt-projection.ts` 确定性消费当前相关的待续事实和因果边；`adaptation-manager` 明确绕过账本投影，不能改写事实、ID 或 scope。当前纪年、月份和季节只在本轮层发送，原创保护位于记忆层前缀，避免慢变事实破坏全局缓存消息。
 
 P1 focused smoke 已通过真实 `handleNarrativeResponse()` 证明事件 ID 传给剧情、记忆、伏笔和核心记忆，延期事项按规范日保存来源/结果事件 ID，并在注入下游失败后恢复普通状态、账本、因果和全部消费者 META，同时保留合格正文与摘要。复审新增用例还证明损坏 v2 `applyGameSave()` 保持原游戏、浏览器 Store v2 损坏状态被隔离、畸形版本和不可往返写入被拒绝、v1 历史不串入第二世界、跨界承诺原子解决、候选能力/四状态审计、有界查询、Prompt 确定性消费和大账本非全量克隆。字段键生成器与结构检查现共用 TypeScript AST 解析器，36 个含零字段契约的系统归属一致。完整阶段状态继续以蓝图第 15.6 节验收矩阵为准。
 

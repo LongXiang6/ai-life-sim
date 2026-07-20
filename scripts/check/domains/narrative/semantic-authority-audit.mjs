@@ -130,7 +130,7 @@ for (const register of ['生活', '命运', '传承']) {
   )
 }
 assertIncludes(activeFiles.aiProtocol, 'AI_NARRATIVE_REGISTERS = createEnumTranslator', 'prompt register values must come from the Chinese translation authority')
-assertIncludes(activeFiles.prompt, "version: '4.2.0'", 'tiered Chinese semantic contract must use Prompt version 4.2.0')
+assertIncludes(activeFiles.prompt, "version: '4.2.1'", 'tiered Chinese semantic contract must use Prompt version 4.2.1')
 assertIncludes(
   activeFiles.aiProtocol,
   '无内容、无变化时省略整个字段',

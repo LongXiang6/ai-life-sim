@@ -57,9 +57,6 @@ export interface NarrativeAIWorldView extends Record<string, unknown> {
   世界名称: string
   世界描述: string
   当前历法: string
-  当前纪年: string
-  当前月份: string
-  当前季节: string
 }
 
 export interface NarrativeAICharacterProfileView extends Record<string, unknown> {
@@ -91,13 +88,6 @@ export function projectWorldSettingForNarrativeAI(
     世界名称: worldSetting.name,
     世界描述: worldSetting.description,
     当前历法: narrativeTime?.calendarName ?? '当地历法',
-    当前纪年: narrativeTime?.eraLabel ?? worldSetting.era,
-    当前月份: narrativeTime ? `${narrativeTime.month}月` : '未提供',
-    当前季节: narrativeTime
-      ? (narrativeTime.seasonName.endsWith('时节')
-          ? narrativeTime.seasonName
-          : `${narrativeTime.seasonName}季`)
-      : '未提供',
   }
 }
 

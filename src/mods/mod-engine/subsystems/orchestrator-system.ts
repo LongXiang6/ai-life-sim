@@ -2406,7 +2406,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   /**
-   * 构建原创保护文本（注入 STABLE KV Cache 段）
+   * 构建原创保护文本（作为慢变连续性硬事实注入记忆层前缀）
    * 从 characterCreations 生成硬性约束，禁止 AI 将角色原创改写为遗迹来源
    */
   private buildCreationProtectionText(): string | undefined {

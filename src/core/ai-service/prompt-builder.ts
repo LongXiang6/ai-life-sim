@@ -111,7 +111,6 @@ const GLOBAL_JSON_KEYS = [
   '世界设定',
   '力量体系',
   '玩家自定义',
-  '原创保护',
   '叙事风格',
   '叙事基调',
   '状态变更指南',
@@ -121,6 +120,7 @@ const GLOBAL_JSON_KEYS = [
 ] as const
 
 const MEMORY_JSON_KEYS = [
+  '原创保护',
   '长期记忆',
   '核心记忆',
   '相关往事',

@@ -34,6 +34,10 @@ import {
 } from './provider-config'
 import { normalizeStorySeed } from './story-seed'
 import { isValidAiContent, mergeStreamTextChunk } from './stream-text-extractor'
+import { recordCacheUsage, type CacheUsageContext } from './cache-stats'
+
+export { getCacheStats, resetCacheStats } from './cache-stats'
+export type { CacheStatsFilter, CacheStatsSnapshot } from './cache-stats'
 
 // ══════════════ 全局 AI 错误通知器（由 UI 层注入） ══════════════
 let onAiError: ((msg: string) => void) | null = null
@@ -128,9 +132,6 @@ const MAX_RETRY = 3
 
 /** 重试基础延迟（毫秒） */
 const RETRY_DELAY_MS = 1500
-
-/** 缓存统计 localStorage 键 */
-const CACHE_STATS_KEY = 'ai-cache-stats'
 
 /** 每轮 KV 策略观测 localStorage 键（Phase 7 / 6D-6） */
 const ROUND_CACHE_METRICS_KEY = 'roundCacheMetrics'
@@ -413,53 +414,6 @@ export interface CacheHitInfo {
 
 export type { AICallLogContext, AICallUsageSnapshot }
 
-// ---- 缓存统计 ----
-
-/** 从 usage 字段提取并累加缓存统计 */
-function accumulateCacheStats(usage: Record<string, unknown>): void {
-  const hit = Number(usage.prompt_cache_hit_tokens) || 0
-  const miss = Number(usage.prompt_cache_miss_tokens) || 0
-  if (hit === 0 && miss === 0) return
-  try {
-    const raw = localStorage.getItem(CACHE_STATS_KEY)
-    const stats = raw ? JSON.parse(raw) : { hitTokens: 0, missTokens: 0 }
-    stats.hitTokens = (stats.hitTokens || 0) + hit
-    stats.missTokens = (stats.missTokens || 0) + miss
-    localStorage.setItem(CACHE_STATS_KEY, JSON.stringify(stats))
-    // 通知所有监听组件：缓存统计已更新
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('cache-stats-updated'))
-    }
-  } catch (_error) {
-    // console.warn('ai-client: 缓存统计写入 localStorage 失败', error)
-  }
-}
-
-/** 获取缓存统计 */
-export function getCacheStats(): { hitTokens: number; missTokens: number; hitRate: number } {
-  try {
-    const raw = localStorage.getItem(CACHE_STATS_KEY)
-    const stats = raw ? JSON.parse(raw) : { hitTokens: 0, missTokens: 0 }
-    const total = (stats.hitTokens || 0) + (stats.missTokens || 0)
-    return {
-      hitTokens: stats.hitTokens || 0,
-      missTokens: stats.missTokens || 0,
-      hitRate: total > 0 ? Math.round(((stats.hitTokens || 0) / total) * 10000) / 100 : 0,
-    }
-  } catch {
-    return { hitTokens: 0, missTokens: 0, hitRate: 0 }
-  }
-}
-
-/** 重置缓存统计 */
-export function resetCacheStats(): void {
-  try {
-    localStorage.setItem(CACHE_STATS_KEY, JSON.stringify({ hitTokens: 0, missTokens: 0 }))
-  } catch (_error) {
-    // console.warn('ai-client: 缓存统计重置 localStorage 失败', _error)
-  }
-}
-
 /** 记录单轮 KV 策略观测（保留最近 10 轮） */
 export function recordRoundCacheMetrics(
   metrics: Omit<RoundCacheMetrics, 'timestamp'>,
@@ -609,6 +563,19 @@ function buildProxyBody(
   return proxyBody
 }
 
+function resolveCacheUsageContext(options: AICallOptions, pool: CachePoolType): CacheUsageContext {
+  const providerId = options.providerId ?? DEFAULT_AI_PROVIDER_ID
+  const model = options.providerId === undefined
+    ? DEFAULT_AI_MODEL
+    : (options.customModel?.trim() || options.config.model)
+  return {
+    providerId,
+    model,
+    pool,
+    callKind: options.logContext?.callKind?.trim() || pool,
+  }
+}
+
 /** 合并多个 AbortSignal，任一触发则合并后的 signal 也触发 */
 function mergeSignals(signals: AbortSignal[]): AbortSignal {
   const controller = new AbortController()
@@ -740,6 +707,7 @@ async function executeAiFetchWithRetry(
  */
 async function fetchAIResponse(
   proxyBody: Record<string, unknown>,
+  cacheContext: CacheUsageContext,
   signal?: AbortSignal,
 ): Promise<FetchAIResult> {
   const resp = await fetchWithTimeout('/api/proxy', {
@@ -772,9 +740,7 @@ async function fetchAIResponse(
   const data = (await resp.json()) as AIResponse
   const usage = parseUsage(data.usage)
 
-  if (data.usage) {
-    accumulateCacheStats(data.usage as unknown as Record<string, unknown>)
-  }
+  if (usage) recordCacheUsage(usage, cacheContext)
 
   return {
     content: data.choices?.[0]?.message?.content ?? '',
@@ -894,6 +860,7 @@ export async function callAI(systemPrompt: string, userPrompt: string, options: 
         overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed,
         providerId, apiKey, customBaseUrl, customModel, reasoningEffort,
       }),
+      resolveCacheUsageContext(options, pool),
       signal,
     ),
     signal,
@@ -925,6 +892,7 @@ export async function callAIConversation(
         overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed,
         providerId, apiKey, customBaseUrl, customModel, reasoningEffort,
       }),
+      resolveCacheUsageContext(options, pool),
       signal,
     ),
     signal,
@@ -936,6 +904,7 @@ export async function callAIConversation(
  */
 async function fetchAIStreamResponse(
   proxyBody: Record<string, unknown>,
+  cacheContext: CacheUsageContext,
   onChunk?: (text: string) => void,
   signal?: AbortSignal,
 ): Promise<FetchAIResult> {
@@ -967,6 +936,7 @@ async function fetchAIStreamResponse(
   }
 
   const result = await handleStreamResponse(resp, onChunk)
+  if (result.usage) recordCacheUsage(result.usage, cacheContext)
   return { ...result, requestId }
 }
 
@@ -1012,6 +982,7 @@ export async function callAIStreamConversation(
         customModel,
         reasoningEffort,
       }),
+      resolveCacheUsageContext(options, pool),
       onChunk,
       signal,
     ),
@@ -1044,6 +1015,7 @@ export async function callAIStream(
         overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed,
         providerId, apiKey, customBaseUrl, customModel, reasoningEffort,
       }),
+      resolveCacheUsageContext(options, pool),
       onChunk,
       signal,
     ),
@@ -1195,7 +1167,6 @@ async function handleStreamResponse(
           }
           if (parsed?.usage) {
             usage = parseUsage(parsed.usage)
-            accumulateCacheStats(parsed.usage)
           }
           const chunkFinish = parsed?.choices?.[0]?.finish_reason
           if (typeof chunkFinish === 'string' && chunkFinish) {

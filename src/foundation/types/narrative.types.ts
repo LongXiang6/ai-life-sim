@@ -112,7 +112,7 @@ export interface PromptContext {
   currentTime?: string,
   /** 角色命格/天赋描述（首轮注入，辅助 AI 叙事贴合角色特质） */
   talents?: string,
-  /** 原创保护文本（角色已创造内容的硬约束，注入 STABLE KV Cache 段） */
+  /** 原创保护文本（角色已创造内容的硬约束，作为慢变连续性事实注入记忆层前缀） */
   creationProtectionText?: string,
   /** 子系统变更字段指南（从 System Prompt 移出的 subsystemGuide，动态注入 User Prompt） */
   subsystemGuideText?: string,

@@ -350,6 +350,15 @@ export function loadStages(
                 useEngineStore.setState({ streamingNarrative: '' })
               }
 
+              const repairOptions = {
+                ...streamOpts,
+                onChunk: undefined,
+                logContext: {
+                  ...streamOpts.logContext,
+                  callKind: 'narrative-format-repair',
+                },
+              }
+
               if (segments.strategy === 'S3' && segments.messages?.length) {
                 return callAIDegraded(
                   [
@@ -358,15 +367,14 @@ export function loadStages(
                     { role: 'user', content: repairInstruction },
                   ],
                   fallbackNarrative,
-                  { ...streamOpts, onChunk: undefined },
+                  repairOptions,
                 )
               }
               return callAIWithPromptTemplate(
                 promptTemplate,
                 segments.full,
                 {
-                  ...streamOpts,
-                  onChunk: undefined,
+                  ...repairOptions,
                   userSegments: getNarrativeUserSegments(segments),
                   extraUserMessages: [
                     `${repairInstruction}\n\n【上一版完整输出，仅用于格式纠错】\n${previousContent}`,

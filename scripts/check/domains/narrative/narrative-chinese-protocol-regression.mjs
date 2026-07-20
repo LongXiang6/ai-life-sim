@@ -379,7 +379,7 @@ assertOk(
   'the old tagged envelope must not enter the successful protocol path',
 )
 
-assertOk(narrativePrompt.version === '4.2.0', 'tiered Chinese protocol behavior must use Prompt 4.2.0')
+assertOk(narrativePrompt.version === '4.2.1', 'tiered Chinese protocol behavior must use Prompt 4.2.1')
 for (const forbiddenProtocolToken of [
   '[NARRATIVE]',
   '[META]',
