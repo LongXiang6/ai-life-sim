@@ -1,6 +1,6 @@
 /**
  * @file page.tsx
- * @description 游戏结束页面 —— 四维评分雷达图 + 人生总结 + 神话词条封存
+ * @description 游戏结束页面 —— 四维评分、人生总结、神话词条封存与本机分享卡
  * @mod mod-pages
  */
 
@@ -30,6 +30,11 @@ import type { AIModelConfig } from '@/foundation'
 
 import styles from './GameOver.module.css'
 import { GameOverRadar } from './GameOverRadar'
+import {
+  buildGameOverShareFacts,
+  saveGameOverShareCard,
+  shareGameOverLife,
+} from './game-over-share-card'
 import { resetForNewLife } from '../../helpers/new-life-reset'
 
 // ============================================================
@@ -150,6 +155,8 @@ export default function GameOverPage() {
   const [activeMythicIndex, setActiveMythicIndex] = useState(0)
   const [mythicGenerating, setMythicGenerating] = useState(false)
   const [mythicError, setMythicError] = useState('')
+  const [shareBusy, setShareBusy] = useState<'share' | 'save' | null>(null)
+  const [shareStatus, setShareStatus] = useState('')
   const [startingNewLife, setStartingNewLife] = useState(false)
   const leavingForNewLifeRef = useRef(false)
   const startingNewLifeRef = useRef(false)
@@ -249,6 +256,24 @@ export default function GameOverPage() {
     narrativeHistory[0]?.timestamp ?? 0,
     narrativeHistory[narrativeHistory.length - 1]?.timestamp ?? 0,
   ]), [characterAge, characterName, narrativeHistory, worldCode, worldName])
+  const shareCardData = useMemo(() => ({
+    lifeRunId,
+    characterName: characterName || '无名之辈',
+    worldName,
+    ageLabel,
+    rounds: allNarratives.length,
+    moralityLabel,
+    overallScore,
+    dimensions,
+    mythic: activeMythicCandidate
+      ? {
+          name: activeMythicCandidate.name,
+          concept: activeMythicCandidate.concept,
+          effect: activeMythicCandidate.effect,
+        }
+      : null,
+  }), [activeMythicCandidate, ageLabel, allNarratives.length, characterName, dimensions, lifeRunId, moralityLabel, overallScore, worldName])
+  const shareFacts = useMemo(() => buildGameOverShareFacts(shareCardData), [shareCardData])
 
   const mythicLifeDigests = useMemo(() => (
     compressedSummaries.summaries
@@ -365,6 +390,44 @@ export default function GameOverPage() {
     setSealedMythicPatternId(sealed.id)
     setMythicError('')
   }, [activeMythicCandidate, addMythicPattern, characterAge, characterName, lifeRunId, sealedMythicPatternId, setSealedMythicPatternId, worldName])
+
+  const handleShareLife = useCallback(async () => {
+    if (shareBusy) return
+    setShareBusy('share')
+    setShareStatus('正在生成此生分享卡…')
+    try {
+      const outcome = await shareGameOverLife({
+        ...shareCardData,
+        shareUrl: window.location.origin,
+      })
+      setShareStatus(outcome === 'shared'
+        ? '系统分享已完成。'
+        : outcome === 'downloaded'
+        ? '当前浏览器未提供图片分享，已改为保存 PNG。'
+        : '已取消分享，结算内容没有改变。')
+    } catch (error) {
+      setShareStatus(error instanceof Error ? error.message : '分享卡生成失败，请稍后重试。')
+    } finally {
+      setShareBusy(null)
+    }
+  }, [shareBusy, shareCardData])
+
+  const handleSaveShareCard = useCallback(async () => {
+    if (shareBusy) return
+    setShareBusy('save')
+    setShareStatus('正在生成 PNG…')
+    try {
+      await saveGameOverShareCard({
+        ...shareCardData,
+        shareUrl: window.location.origin,
+      })
+      setShareStatus('人生分享卡已保存为 PNG。')
+    } catch (error) {
+      setShareStatus(error instanceof Error ? error.message : '分享卡保存失败，请稍后重试。')
+    } finally {
+      setShareBusy(null)
+    }
+  }, [shareBusy, shareCardData])
 
   const handleStartNewLife = useCallback(async () => {
     if (preGenStatus.isActive || startingNewLifeRef.current) return
@@ -580,6 +643,75 @@ export default function GameOverPage() {
                 重新生成三项神话词条
               </button>
             ) : null}
+          </section>
+
+          <section className={`${styles.section} ${styles.shareSection}`} aria-labelledby="share-title">
+            <div className={styles.sectionHeading}>
+              <div>
+                <span className={styles.sectionIndex}>04</span>
+                <h2 id="share-title">留下此生</h2>
+              </div>
+              <span className={styles.shareBadge}>仅使用真实结算事实</span>
+            </div>
+            <p className={styles.shareIntro}>把这一生的年岁、轮数、四维与命格余响生成分享卡。图片只在当前设备绘制，不上传故事正文或模型配置。</p>
+
+            <div className={styles.sharePreview} aria-label="人生分享卡预览">
+              <div className={styles.sharePreviewMeta}>
+                <span>AI LIFE SIM · 人生档案</span>
+                <span>终章 · {roundLabel}</span>
+              </div>
+              <div className={styles.sharePreviewHero}>
+                <div>
+                  <small>{worldName}</small>
+                  <h3>{characterName || '无名之辈'}</h3>
+                  <p>{ageLabel} · {allNarratives.length} 轮世事 · {moralityLabel}</p>
+                </div>
+                <div className={styles.sharePreviewScore}>
+                  <strong>{overallScore}</strong>
+                  <span>四维均分</span>
+                </div>
+              </div>
+
+              <div className={styles.shareFactGrid}>
+                {shareFacts.map((fact) => (
+                  <div key={fact.label} className={styles.shareFact}>
+                    <span>{fact.label}</span>
+                    <strong>{fact.value}</strong>
+                  </div>
+                ))}
+              </div>
+
+              <div className={styles.sharePreviewMythic}>
+                <span>{activeMythicCandidate ? `${activeMythicCandidate.concept} · 命格余响` : '人生回声'}</span>
+                <strong>{activeMythicCandidate?.name ?? '此生已经留下回声'}</strong>
+                <p>{activeMythicCandidate?.effect ?? '神话词条尚未凝结时，分享卡仍会忠实记录当前结算事实。'}</p>
+              </div>
+            </div>
+
+            <div className={styles.shareActions}>
+              <button
+                type="button"
+                className={styles.sharePrimary}
+                onClick={() => void handleShareLife()}
+                disabled={shareBusy !== null}
+                aria-busy={shareBusy === 'share'}
+              >
+                <span>{shareBusy === 'share' ? '正在生成分享卡' : '一键分享人生卡'}</span>
+                <small>支持时唤起系统分享，否则自动保存 PNG</small>
+              </button>
+              <button
+                type="button"
+                className={styles.shareSecondary}
+                onClick={() => void handleSaveShareCard()}
+                disabled={shareBusy !== null}
+                aria-busy={shareBusy === 'save'}
+              >
+                {shareBusy === 'save' ? '生成中…' : '保存 PNG'}
+              </button>
+            </div>
+            <p className={styles.shareStatus} role="status" aria-live="polite">
+              {shareStatus || '分享卡内容会随当前神话词条选择即时更新。'}
+            </p>
           </section>
 
           <footer className={styles.footer} aria-live="polite">

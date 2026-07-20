@@ -337,6 +337,34 @@ LastVerified: 2026-07-20
 Supersession: replaces the browser-embedded fixed main-narrative Prompt and public settings Prompt preview
 ```
 
+### 3.9 Game-over sharing
+
+```text
+SystemId: game-over-sharing
+SystemPath: project > player-flow > game-over > sharing
+ParentGoal: let players preserve and voluntarily share a completed life in a compelling form without inventing achievements or exposing private story and model data
+PrimaryGovernanceParent: mod-pages game-over composition
+ChildSystems: structured share-fact projection, visible share preview, local Canvas renderer, Web Share handoff, PNG download fallback and accessible status feedback
+Authority: A1 PD-032, PD-011 and PD-015; A2 selected game-over composition with a runtime-only extension authorized by PD-011; A3 this index; A4 live game-over page and local renderer
+RootPosition: R2
+Weight: W4
+Sequence: S1 read completed-life facts > S2 reflect the current mythic selection when available > S3 render the visible preview > S4 generate the local image on explicit player action > S5 share through the operating system or download PNG > S6 leave simulation state unchanged
+Responsibility: project existing public settlement fields into a faithful share snapshot; render the complete selected fields locally; expose one-click system sharing and an explicit PNG save action; provide pending, success, cancellation, fallback and error feedback
+NonResponsibility: does not infer heroic deeds from narrative prose or numeric thresholds, call AI, alter the mythic Schema, upload images or story content, write gameplay or save state, expose diagnostics, or make sharing mandatory before starting a new life
+Inputs: character and world names, age label, narrative round count, morality label, four public settlement dimensions, overall score, stable technical life-run ID, current generated or sealed mythic candidate and current public origin
+OutputsAndWrites: transient in-memory Canvas, PNG Blob, operating-system share handoff or browser download, and page-local status text; no persistent application write
+PublicStateOrAPI: game-over “留下此生” preview, “一键分享人生卡” and “保存 PNG” controls; no new route, server API or MOD Remote API
+Dependencies: mod-pages game-over page, existing character/world/engine Stores, current mythic candidate, Canvas 2D, File, URL object URLs and optional Web Share API
+Lifecycle: available only after the existing game-over guard allows the settlement page; image generation starts only after explicit player action and object URLs are revoked after download
+RuntimeLivenessSource: mod-pages route registration, game-over guard and browser support for Canvas; PNG fallback remains authoritative when file sharing is unavailable
+AIParticipation: none; consumes an already generated mythic result as read-only display data and never requests or infers new semantics
+PersistenceAuthority: none; the downloaded file is controlled by the player and no share payload enters application persistence or server diagnostics
+Implementation: src/mods/mod-pages/pages/game-over/page.tsx; src/mods/mod-pages/pages/game-over/game-over-share-card.ts; src/mods/mod-pages/pages/game-over/GameOver.module.css
+AcceptanceEvidence: scripts/check/domains/ui/game-over-share-card-smoke.mjs; npm run check:ui; lint and TypeScript; no-hard-truncation audit; 320/360/375/390/430/768/desktop browser layout; PNG download and post-release browser verification; docs/playtest-2026-07-20-game-over-sharing.md
+LastVerified: 2026-07-20
+Supersession: none
+```
+
 ## 4. External MVP systems
 
 当前共有 13 个外部运行系统：P0 多世界基础 6 个、P1 历史事件账本 1 个、角色与世界既有系统 6 个。运行成员以 `mvp-stages-config.default.json` 为准。

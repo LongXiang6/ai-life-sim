@@ -10,7 +10,7 @@
 运行真源：`src/mods/mod-engine/helpers/mvp-stages-config.default.json` 与实际玩家路径
 验收证据：结构、MOD、UI、lint、TypeScript、交付 gate 与玩家路径
 
-版本：v1.5；创建：2026-07-04。本文档约束 MVP 范围，但不替代 `.agents/` 技能体系。
+版本：v1.6；创建：2026-07-04。本文档约束 MVP 范围，但不替代 `.agents/` 技能体系。
 
 ---
 
@@ -142,7 +142,7 @@ Full gate 剩余 FAIL 分流表：
 核心模拟 game-story
     │  底层按「天」推进 · 默认叙事步长「年」 · 玩家可切换日/月/季/年 · AI 生成叙事 · 记忆压缩防 token 爆炸 · 存档 + 自动存档
     ▼
-结算 game-over（空壳 → 返回启动页即可）
+结算 game-over（真实四维 → 人生三记与摘要 → 神话命格三选一封存 → 本机生成分享卡 → 开启新人生）
 ```
 
 对应页面目录（均在 `src/mods/mod-pages/pages/`，大部分已存在；当前核心模拟真实路由为 `/game-story`）：

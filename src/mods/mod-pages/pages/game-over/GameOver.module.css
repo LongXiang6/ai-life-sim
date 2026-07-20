@@ -385,7 +385,9 @@
 
 .metricButton:focus-visible,
 .backButton:focus-visible,
-.newLifeButton:focus-visible {
+.newLifeButton:focus-visible,
+.sharePrimary:focus-visible,
+.shareSecondary:focus-visible {
   outline: 2px solid #6d7f94;
   outline-offset: 3px;
 }
@@ -712,6 +714,258 @@
   line-height: 1.55;
 }
 
+.shareSection {
+  padding-bottom: 26px;
+}
+
+.shareSection .sectionHeading {
+  align-items: flex-start;
+}
+
+.shareBadge {
+  max-width: 50%;
+  padding: 4px 9px;
+  border: 1px solid #cfd7df;
+  border-radius: 999px;
+  color: #8c98a4;
+  font-size: 10px;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.shareIntro {
+  margin: 0 0 14px;
+  color: #606a75;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.sharePreview {
+  position: relative;
+  overflow: hidden;
+  padding: 18px;
+  border: 1px solid #dce3e9;
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 100% 0, rgb(109 127 148 / 10%), transparent 33%),
+    linear-gradient(155deg, #fff 0%, #f8fafb 100%);
+}
+
+.sharePreview::after {
+  position: absolute;
+  top: -54px;
+  right: -54px;
+  width: 132px;
+  height: 132px;
+  border: 1px solid rgb(109 127 148 / 10%);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 18px rgb(109 127 148 / 3%);
+  content: "";
+  pointer-events: none;
+}
+
+.sharePreviewMeta {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e4e8ec;
+  color: #8c98a4;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.sharePreviewHero {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 16px;
+  padding: 18px 0;
+}
+
+.sharePreviewHero small,
+.sharePreviewHero h3,
+.sharePreviewHero p {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.sharePreviewHero small {
+  color: #8c98a4;
+  font-size: 10px;
+}
+
+.sharePreviewHero h3 {
+  margin: 5px 0 0;
+  font-family: var(--font-family-serif, "Songti SC", "Noto Serif SC", serif);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.sharePreviewHero p {
+  margin: 6px 0 0;
+  color: #606a75;
+  font-size: 11px;
+  line-height: 1.55;
+}
+
+.sharePreviewScore {
+  min-width: 58px;
+  text-align: right;
+}
+
+.sharePreviewScore strong,
+.sharePreviewScore span {
+  display: block;
+}
+
+.sharePreviewScore strong {
+  font-family: var(--font-family-serif, "Songti SC", "Noto Serif SC", serif);
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.sharePreviewScore span {
+  margin-top: 4px;
+  color: #8c98a4;
+  font-size: 9px;
+}
+
+.shareFactGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.shareFact {
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid #e4e8ec;
+  border-radius: 11px;
+  background: rgb(255 255 255 / 76%);
+}
+
+.shareFact span,
+.shareFact strong {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.shareFact span {
+  color: #8c98a4;
+  font-size: 9px;
+}
+
+.shareFact strong {
+  margin-top: 5px;
+  color: #303841;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.sharePreviewMythic {
+  margin-top: 10px;
+  padding: 13px 14px;
+  border-radius: 12px;
+  background: #eef2f5;
+}
+
+.sharePreviewMythic span,
+.sharePreviewMythic strong,
+.sharePreviewMythic p {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.sharePreviewMythic span {
+  color: #6d7f94;
+  font-size: 9px;
+}
+
+.sharePreviewMythic strong {
+  margin-top: 4px;
+  font-family: var(--font-family-serif, "Songti SC", "Noto Serif SC", serif);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.sharePreviewMythic p {
+  margin: 6px 0 0;
+  color: #606a75;
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.shareActions {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(104px, 0.8fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.sharePrimary,
+.shareSecondary {
+  min-width: 0;
+  min-height: 50px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.sharePrimary {
+  padding: 8px 14px;
+  border: 1px solid #6d7f94;
+  background: #6d7f94;
+  color: #fff;
+  text-align: left;
+}
+
+.sharePrimary span,
+.sharePrimary small {
+  display: block;
+}
+
+.sharePrimary span {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.sharePrimary small {
+  margin-top: 3px;
+  color: rgb(255 255 255 / 74%);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.shareSecondary {
+  padding: 8px 12px;
+  border: 1px solid #cfd7df;
+  background: #fff;
+  color: #53677e;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sharePrimary:disabled,
+.shareSecondary:disabled {
+  cursor: wait;
+  opacity: 0.62;
+}
+
+.shareStatus {
+  min-height: 17px;
+  margin: 8px 2px 0;
+  color: #8c98a4;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
 .footer {
   position: sticky;
   z-index: 3;
@@ -895,6 +1149,14 @@
     font-size: 14px;
   }
 
+  .sharePreview {
+    padding: 15px;
+  }
+
+  .sharePreviewHero h3 {
+    font-size: 21px;
+  }
+
   .footer {
     margin-right: 12px;
     margin-left: 12px;
@@ -930,6 +1192,42 @@
   .mythicLoadingGlyph {
     width: 42px;
     height: 42px;
+  }
+
+  .shareActions {
+    grid-template-columns: minmax(0, 1fr) 94px;
+  }
+
+  .sharePrimary {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .sharePrimary small {
+    font-size: 8px;
+  }
+}
+
+@media (max-width: 340px) {
+  .sharePreviewMeta {
+    display: grid;
+    gap: 4px;
+  }
+
+  .sharePreviewHero {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sharePreviewScore {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    text-align: left;
+  }
+
+  .shareFactGrid,
+  .shareActions {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

@@ -119,6 +119,7 @@ const saveManagerPageSrc = readRel('src/mods/mod-pages/pages/save-manager/page.t
 const saveManagerCssSrc = readRel('src/mods/mod-pages/pages/save-manager/save-manager.module.css')
 const gameOverPageSrc = readRel('src/mods/mod-pages/pages/game-over/page.tsx')
 const gameOverRadarSrc = readRel('src/mods/mod-pages/pages/game-over/GameOverRadar.tsx')
+const gameOverShareCardSrc = readRel('src/mods/mod-pages/pages/game-over/game-over-share-card.ts')
 const gameOverCssSrc = readRel('src/mods/mod-pages/pages/game-over/GameOver.module.css')
 
 assertOk(
@@ -467,6 +468,18 @@ assertOk(
     && /\.metricBottom\s*\{[^}]*bottom:\s*0;[^}]*left:\s*106px;/s.test(gameOverCssSrc)
     && /\.metricLeft\s*\{[^}]*top:\s*76px;[^}]*left:\s*0;/s.test(gameOverCssSrc),
   'game-over metrics must surround the radar and preserve the approved interactive axis layout',
+)
+assertOk(
+  gameOverPageSrc.includes('一键分享人生卡')
+    && gameOverPageSrc.includes('saveGameOverShareCard')
+    && gameOverPageSrc.includes('shareGameOverLife')
+    && gameOverPageSrc.includes('图片只在当前设备绘制')
+    && gameOverShareCardSrc.includes('await navigator.share({')
+    && gameOverShareCardSrc.includes('downloadShareCard(blob, fileName)')
+    && gameOverShareCardSrc.includes("canvas.toBlob")
+    && /\.shareFactGrid\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s.test(gameOverCssSrc)
+    && /@media\s*\(max-width:\s*340px\)[\s\S]*\.shareFactGrid,[\s\S]*\.shareActions\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s.test(gameOverCssSrc),
+  'game over must expose a local fact-only share card with Web Share, PNG fallback and 320px reflow',
 )
 assertOk(worldCustomizeMobileSrc.includes('<WorldCustomizeDimensionCard') && worldCustomizeMobileSrc.includes('<WorldCustomizeBottomBar'), 'M2 world customization must compose approved dimension cards and bottom bar')
 assertOk(worldCustomizeDimensionSrc.includes("['ai', 'adaptive', 'custom']") && worldCustomizeDimensionSrc.includes('AI') && worldCustomizeDimensionSrc.includes('选择') && worldCustomizeDimensionSrc.includes('自定'), 'M2 dimension card must expose the compact AI / 选择 / 自定 segmented control')

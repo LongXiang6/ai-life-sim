@@ -89,6 +89,15 @@ export const DOMAINS = {
         platforms: ['win32'],
       },
       { cmd: 'node', args: ['scripts/check/domains/ui/mobile-ui-regression.mjs'] },
+      {
+        cmd: 'node',
+        args: [
+          '--no-warnings=ExperimentalWarning',
+          '--loader',
+          './scripts/check/lib/typescript-loader.mjs',
+          'scripts/check/domains/ui/game-over-share-card-smoke.mjs',
+        ],
+      },
     ],
   },
   narrative: {
