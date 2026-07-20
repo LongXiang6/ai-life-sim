@@ -14,6 +14,8 @@ import {
   DEFAULT_AI_BASE_URL,
   DEFAULT_AI_MODEL,
   DEFAULT_AI_PROVIDER_ID,
+  isRegisteredProviderBaseUrl,
+  isServerManagedProvider,
 } from '@/core/ai-service'
 
 import { useSettingsStore } from '../store'
@@ -109,6 +111,8 @@ export function SettingsTabPresets() {
 
   const selectedVendor = selectedVendorIdx === null ? null : PROVIDER_OPTIONS[selectedVendorIdx]
   const selectedModel = selectedVendor?.models.find((model) => model.name === selectedModelName) ?? null
+  const customTargetSupportsProtectedNarrative = provider !== 'custom'
+    || isRegisteredProviderBaseUrl(customUrl)
 
   const markCustomProvider = useCallback(() => {
     setProvider('custom')
@@ -172,7 +176,7 @@ export function SettingsTabPresets() {
         providerId: provider,
         baseUrl: provider === 'custom' ? testUrl : undefined,
         apiKey: customKey || undefined,
-        thinking: provider === 'deepseek' ? { type: 'disabled' } : undefined,
+        thinking: providerConfig?.supportsThinking ? { type: 'disabled' } : undefined,
       }),
       signal: controller.signal,
     })
@@ -330,8 +334,10 @@ export function SettingsTabPresets() {
         <div className={styles.sectionCard}>
           <div className={styles.cardBody}>
             <p className={styles.supportingText}>
-              {selectedModelName
-                ? provider === DEFAULT_AI_PROVIDER_ID
+              {!customTargetSupportsProtectedNarrative
+                ? '该自定义地址可以测试兼容性，但不能接收受保护的主叙事 Prompt。请选用上方官方厂商预设；仍可填写自己的 API Key。'
+                : selectedModelName
+                ? isServerManagedProvider(provider)
                   ? '免费体验地址与模型已填入；API Key 留空时由服务器安全提供，也可填写自己的 Key 覆盖。'
                   : '预设模型的地址与名称已填入；可使用本地服务端密钥测试，也可填写 Key 覆盖。'
                 : '手动填写兼容 OpenAI 协议的 API Key、接口地址与模型名称。'}
@@ -343,7 +349,7 @@ export function SettingsTabPresets() {
                   type="password"
                   autoComplete="off"
                   className={styles.presetInput}
-                  placeholder={provider === DEFAULT_AI_PROVIDER_ID ? '服务器已托管；填写后使用自己的 Key' : '例如 sk-xxx'}
+                  placeholder={isServerManagedProvider(provider) ? '服务器已托管；填写后使用自己的 Key' : '例如 sk-xxx'}
                   value={customKey}
                   onChange={(event) => {
                     setCustomKey(event.target.value)
@@ -383,11 +389,13 @@ export function SettingsTabPresets() {
             <div className={styles.connectionRow} aria-live="polite">
               <div className={styles.configSummary}>
                 <span>配置状态</span>
-                <strong>{customKey
+                <strong>{!customTargetSupportsProtectedNarrative
+                  ? '仅可测试连接 · 主叙事不可用'
+                  : customKey
                   ? `已配置 · ${customModel || '未选模型'}`
                   : provider === 'custom'
                     ? '自定义接口需要 API Key'
-                    : provider === DEFAULT_AI_PROVIDER_ID
+                    : isServerManagedProvider(provider)
                       ? `服务器免费体验 · ${customModel || DEFAULT_AI_MODEL}`
                       : '可使用本地服务端密钥'}</strong>
               </div>
@@ -434,7 +442,7 @@ export function SettingsTabPresets() {
         <div className={styles.sectionCard}>
           <div className={styles.actionBody}>
             <p className={styles.supportingText}>
-              测试会发送一条最短请求；恢复默认会清空本地 Key，并切回服务器免费体验通道。
+              测试只验证最短请求，不代表任意自定义地址可接收受保护主叙事；恢复默认会清空本地 Key，并切回服务器免费体验通道。
             </p>
             <div className={styles.actionRow}>
               <button

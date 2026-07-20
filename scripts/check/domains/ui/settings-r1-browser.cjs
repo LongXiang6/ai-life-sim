@@ -44,6 +44,7 @@ async function main() {
         tabLabels: [...document.querySelectorAll('[role="tab"]')].map((tab) => tab.textContent?.trim()),
         sectionCount: document.querySelectorAll('section').length,
         hasDefaultWordCount: document.body.textContent?.includes('200字') ?? false,
+        hasPromptPreview: document.body.textContent?.includes('提示词预览') ?? false,
         glassModalToken: rootStyle.getPropertyValue('--glass-modal-bg').trim(),
         glassElevatedToken: rootStyle.getPropertyValue('--glass-elevated-bg').trim(),
         modalBackground: modalStyle?.backgroundColor ?? '',
@@ -54,7 +55,8 @@ async function main() {
     const checks = [
       [metrics.scrollWidth <= metrics.viewportWidth, 'horizontal overflow'],
       [metrics.dialog && metrics.dialog.left >= 0 && metrics.dialog.right <= metrics.viewportWidth, 'dialog outside viewport'],
-      [metrics.tabLabels.join('|') === '个性化|模型设置|模型调用|Prompt', 'tab labels changed'],
+      [metrics.tabLabels.join('|') === '个性化|模型设置|模型调用', 'tab labels changed'],
+      [!metrics.hasPromptPreview, 'internal prompt preview is visible'],
       [metrics.activeTabLabel === '模型设置', 'model settings tab did not become active'],
       [metrics.activeTabHeight >= 32 && metrics.activeTabHeight <= 44, 'active tab density outside 32-44px reference'],
       [Math.abs(metrics.closeHeight - 34) < 1, 'settings close control is not the shared 34px size'],

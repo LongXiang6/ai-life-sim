@@ -71,6 +71,11 @@ export interface ModManifest {
    * 例：['world-init-api.ts'] — 须在 architecture-rules.json allowedSecondaryPublicImports 中登记
    */
   secondaryPublicEntries?: string[]
+  /**
+   * 仅允许服务端模块导入的公共入口；不得进入 Remote API、浏览器 wiring 或客户端 bundle。
+   * 入口文件必须使用 `server-only` 硬门禁，并在架构规则中单独登记。
+   */
+  serverOnlyPublicEntries?: string[]
   /** 世界观叙事规则（可选，注入 AI Prompt 的额外规则文本） */
   worldRules?: string
   /** Campaign 叙事阶段声明（mod-engine 专用，codegen 与 campaigns/default 交叉校验） */

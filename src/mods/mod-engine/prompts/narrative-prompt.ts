@@ -1,17 +1,16 @@
 /**
  * @module narrative-prompt.ts
- * @description 主叙事 Prompt —— 组件化固定前缀 + 三层中文上下文 + 分级中文协议
+ * @description 主叙事 Prompt 客户端契约 —— 服务端固定资产 + 浏览器三层动态上下文
  * @mod mod-engine
  *
- * 固定提示词由 narrative-prompt-components.ts 编译；用户消息由 core Prompt Builder
- * 按“全局信息、记忆、本轮引导”排序。AI 可见字段与枚举统一使用中文，
- * 解析后由严格转译层恢复内部稳定契约。
+ * 固定提示词由服务端资产注册表编译和注入；浏览器只按“全局信息、记忆、
+ * 本轮引导”计算动态消息。AI 可见字段与枚举统一使用中文，解析后由严格
+ * 转译层恢复内部稳定契约。
  */
 
 import type { PromptTemplate } from '@/foundation'
 
 import { NarrativeAIResponseSchema } from '../helpers/narrative-ai-protocol'
-import { COMPILED_NARRATIVE_SYSTEM_PROMPT } from './narrative-prompt-components'
 
 /** 世界本质标签的轻量参考；具体世界设定始终优先。 */
 export const WORLD_RULES: Record<string, string> = {
@@ -29,8 +28,8 @@ export const WORLD_RULES: Record<string, string> = {
   darkFantasy: '力量常伴随风险与代价；黑暗氛围不能替代人物选择和可追踪后果。',
 }
 
-/** 固定提示词由组件注册表编译，禁止在调用方追加第二份常驻规则。 */
-export const SYSTEM_PROMPT = COMPILED_NARRATIVE_SYSTEM_PROMPT
+/** 公开 ID 只用于请求服务端资产；不包含任何固定 Prompt 文本。 */
+export const NARRATIVE_SERVER_PROMPT_ASSET_ID = 'mod-engine:narrative:4.4.0'
 
 /**
  * 世界观参考注入函数。
@@ -48,9 +47,10 @@ export function getWorldRules(essenceTag?: string): string {
 
 export const narrativePrompt: PromptTemplate = {
   name: 'narrative',
-  version: '4.3.0',
+  version: '4.4.0',
   mod: 'mod-engine',
-  systemPrompt: SYSTEM_PROMPT,
+  systemPrompt: '',
+  serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID,
   userPromptTemplate: '主叙事用户消息由统一编译器装配为“全局信息、记忆、本轮引导”三层。',
   variables: [],
   outputFormat: 'text',

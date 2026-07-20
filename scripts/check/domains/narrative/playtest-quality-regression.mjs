@@ -26,6 +26,9 @@ import {
   DEFAULT_AI_BASE_URL,
   DEFAULT_AI_MODEL,
   DEFAULT_AI_PROVIDER_ID,
+  LEGACY_MANAGED_AI_BASE_URL,
+  LEGACY_MANAGED_AI_MODEL,
+  LEGACY_MANAGED_AI_PROVIDER_ID,
 } from '../../../../src/core/ai-service/provider-config.ts'
 import {
   NarrativeAIResponseSchema,
@@ -105,6 +108,9 @@ function loadPersistMigration(sourceText) {
     'DEFAULT_AI_PROVIDER_ID',
     'DEFAULT_AI_BASE_URL',
     'DEFAULT_AI_MODEL',
+    'LEGACY_MANAGED_AI_PROVIDER_ID',
+    'LEGACY_MANAGED_AI_BASE_URL',
+    'LEGACY_MANAGED_AI_MODEL',
     transpiled,
   )(
     module,
@@ -113,6 +119,9 @@ function loadPersistMigration(sourceText) {
     DEFAULT_AI_PROVIDER_ID,
     DEFAULT_AI_BASE_URL,
     DEFAULT_AI_MODEL,
+    LEGACY_MANAGED_AI_PROVIDER_ID,
+    LEGACY_MANAGED_AI_BASE_URL,
+    LEGACY_MANAGED_AI_MODEL,
   )
   return module.exports
 }
@@ -515,7 +524,7 @@ const orchestratorSrc = readRel('src/mods/mod-engine/subsystems/orchestrator-sys
 const timeScaleSrc = readRel('src/mods/mod-engine/helpers/time-scale-narrative.ts')
 const narrativeCalendarSrc = readRel('src/mods/mod-engine/helpers/narrative-calendar.ts')
 const narrativePromptSrc = readRel('src/mods/mod-engine/prompts/narrative-prompt.ts')
-const narrativePromptComponentsSrc = readRel('src/mods/mod-engine/prompts/narrative-prompt-components.ts')
+const narrativePromptComponentsSrc = readRel('src/mods/mod-engine/server/narrative-system-prompt.ts')
 const narrativeInterceptorSrc = readRel('src/mods/mod-engine/helpers/narrative-interceptor-pipeline.ts')
 const powerContextSrc = readRel('src/mods/mod-world/utils/world-init-prompt-vars.ts')
 const timelineCssSrc = readRel('src/mods/mod-ui/components/organisms/NarrativeTimeline.module.css')
@@ -614,7 +623,7 @@ assertOk(
   }).success,
   'branch options must already be Chinese string choices; object compatibility must not enter the strict path',
 )
-assertOk(/version:\s*6/.test(settingsStoreSrc), 'settings persistence must include the current managed-provider migration version')
+assertOk(/version:\s*7/.test(settingsStoreSrc), 'settings persistence must include the current managed-provider migration version')
 const migrateSettings = loadPersistMigration(settingsStoreSrc)
 assertSame(
   migrateSettings({ wordCountTarget: 400, theme: 'minimal-white' }, 2).wordCountTarget,
@@ -642,8 +651,19 @@ const migratedPreviousManagedTarget = migrateSettings({
   customModel: 'grok-4.5',
 }, 5)
 assertSame(migratedPreviousManagedTarget.customKey, 'player-owned-key', 'managed target migration must preserve a player-owned key')
-assertSame(migratedPreviousManagedTarget.customUrl, DEFAULT_AI_BASE_URL, 'managed target migration must replace the superseded public interface')
-assertSame(migratedPreviousManagedTarget.customModel, DEFAULT_AI_MODEL, 'managed target migration must replace the superseded public model')
+assertSame(migratedPreviousManagedTarget.provider, 'custom', 'older player-owned managed targets must become explicit custom configuration')
+assertSame(migratedPreviousManagedTarget.customUrl, 'https://dasuapi.com/v1', 'older player-owned interface must survive migration')
+assertSame(migratedPreviousManagedTarget.customModel, 'grok-4.5', 'older player-owned model must survive migration')
+const migratedA6ManagedOverride = migrateSettings({
+  provider: DEFAULT_AI_PROVIDER_ID,
+  customKey: 'player-owned-a6-key',
+  customUrl: 'https://a6.a6api.com/v1',
+  customModel: 'gpt-5.6-luna',
+}, 6)
+assertSame(migratedA6ManagedOverride.customKey, 'player-owned-a6-key', 'a6api override migration must preserve the player-owned key')
+assertSame(migratedA6ManagedOverride.provider, LEGACY_MANAGED_AI_PROVIDER_ID, 'a6api override migration must select the retained old channel')
+assertSame(migratedA6ManagedOverride.customUrl, LEGACY_MANAGED_AI_BASE_URL, 'a6api override migration must retain its public interface')
+assertSame(migratedA6ManagedOverride.customModel, LEGACY_MANAGED_AI_MODEL, 'a6api override migration must retain its public model')
 const preservedCustomConfig = migrateSettings({
   provider: 'custom',
   customKey: 'player-key',
@@ -882,7 +902,7 @@ const monthAfterSeasonStep = (mayIndex + 3) % 12
 assertSame(Math.floor(((monthAfterSeasonStep + 10) % 12) / 3), 1, 'month->season must land in the following solar season')
 assertOk(/candidate\.importance\s*===\s*'HIGH'/.test(branchPolicySrc), 'ordinary branch points must require HIGH importance')
 assertOk(narrativePromptComponentsSrc.includes('身份、核心关系、长期目标、关键资源、阵营、存亡等不可逆轨迹'), 'branch prompt must define fate-changing impact dimensions')
-assertOk(/version:\s*'4\.3\.0'/.test(narrativePromptSrc), 'branch-intent narrative prompt must use version 4.3.0')
+assertOk(/version:\s*'4\.4\.0'/.test(narrativePromptSrc), 'branch-intent narrative prompt must use version 4.4.0')
 assertOk(
   /semanticSignals\?\.irreversible\s*===\s*true/.test(branchPolicySrc)
     && /narrativeRegister\s*===\s*'fate'/.test(branchPolicySrc),

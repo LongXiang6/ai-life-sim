@@ -30,9 +30,9 @@ import { randomUUID } from 'crypto'
 import { z } from 'zod'
 import {
   AI_PROVIDERS,
-  DEFAULT_AI_MODEL,
   DEFAULT_AI_PROVIDER_ID,
   getProviderModelCandidates,
+  isServerManagedProvider,
   shouldTryManagedFallback,
 } from '@/core/ai-service/provider-config'
 import { readServerProviderApiKey } from '@/core/ai-service/server-provider-credentials'
@@ -165,7 +165,10 @@ async function callProviderDirect(
   const baseUrl = isCustom ? opts.baseUrl : provider?.baseUrl
   const model = isCustom ? opts.model : (opts.model || provider?.models[0]?.name)
   if (!baseUrl || !model) throw new Error(`${providerId} 接口或模型未配置`)
-  if (providerId === DEFAULT_AI_PROVIDER_ID && model !== DEFAULT_AI_MODEL) {
+  if (
+    isServerManagedProvider(providerId)
+    && !provider?.models.some((candidate) => candidate.name === model)
+  ) {
     throw new Error('免费体验通道不支持该模型，请使用自定义接口')
   }
 

@@ -97,5 +97,5 @@ export {
 } from './utils'
 
 // Prompts
-export { narrativePrompt, SYSTEM_PROMPT } from './prompts/narrative-prompt'
+export { narrativePrompt, NARRATIVE_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-prompt'
 export { buildSummaryPrompt, buildSummarySystemPrompt, summaryPrompt } from './prompts/summary-prompt'

@@ -21,6 +21,7 @@ export default defineMod({
   },
   subsystems: ['OrchestratorSystem', 'TimeSystem', 'NarrativeParserSystem', 'SummaryCompressorSystem', 'MemoryEngineSystem', 'SubsystemRelevanceSystem', 'MemoryLifecycleSystem', 'MemoryForgettingSystem', 'CausalDelaySystem', 'PlotStructureSystem', 'ForeshadowingSystem', 'CoreMemorySystem'],
   secondaryPublicEntries: ['engine-api.ts'],
+  serverOnlyPublicEntries: ['server-prompt-assets.ts'],
   stores: ['useEngineStore'],
   events: {
     emits: ['mod-engine:round-start', 'mod-engine:round-complete', 'mod-engine:post-narrative-notification', 'mod-engine:narrative-stream', 'mod-engine:narrative-compressed', 'mod-character:died'],

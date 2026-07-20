@@ -28,18 +28,60 @@ export interface AIProviderConfig {
 
 // ---- 默认通道 ----
 
-/** 默认使用服务器托管通道；公开接口与模型可以进入客户端，凭据绝不能进入。 */
+/** 默认使用 LongCat 服务器托管通道；公开接口与模型可以进入客户端，凭据绝不能进入。 */
 export const DEFAULT_AI_PROVIDER_ID = 'managed'
-export const DEFAULT_AI_BASE_URL = 'https://a6.a6api.com/v1'
-export const DEFAULT_AI_MODEL = 'gpt-5.6-luna'
-/** 托管主模型在连接、上游状态或完整响应校验失败时使用的服务端备用模型。 */
-export const DEFAULT_AI_FALLBACK_MODEL = 'gpt-5.6-terra'
+export const DEFAULT_AI_BASE_URL = 'https://api.longcat.chat/openai/v1'
+export const DEFAULT_AI_MODEL = 'LongCat-2.0'
 
-/** 浏览器只请求公开主模型；备用模型只由服务端在同一固定接口内选择。 */
+/** 原免费体验通道继续作为玩家可选项保留。 */
+export const LEGACY_MANAGED_AI_PROVIDER_ID = 'managed-a6'
+export const LEGACY_MANAGED_AI_BASE_URL = 'https://a6.a6api.com/v1'
+export const LEGACY_MANAGED_AI_MODEL = 'gpt-5.6-luna'
+/** 原通道主模型发生可重试失败时使用的同接口服务端备用模型。 */
+export const LEGACY_MANAGED_AI_FALLBACK_MODEL = 'gpt-5.6-terra'
+
+const MANAGED_PROVIDER_FALLBACK_MODELS: Record<string, readonly string[]> = {
+  [DEFAULT_AI_PROVIDER_ID]: [],
+  [LEGACY_MANAGED_AI_PROVIDER_ID]: [LEGACY_MANAGED_AI_FALLBACK_MODEL],
+}
+
+/** 服务器托管 Provider 使用固定接口、模型白名单和服务端环境凭据。 */
+export function isServerManagedProvider(providerId: string): boolean {
+  return MANAGED_PROVIDER_FALLBACK_MODELS[providerId] !== undefined
+}
+
+function normalizeProviderBaseUrl(baseUrl: string): string | undefined {
+  try {
+    const parsed = new URL(baseUrl)
+    if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.search || parsed.hash) {
+      return undefined
+    }
+    return `${parsed.origin}${parsed.pathname.replace(/\/+$/u, '')}`
+  } catch {
+    return undefined
+  }
+}
+
+/** 受保护 Prompt 只允许发送到项目登记的官方接口；公开地址本身不属于秘密。 */
+export function isRegisteredProviderBaseUrl(baseUrl: string): boolean {
+  const normalized = normalizeProviderBaseUrl(baseUrl)
+  if (!normalized) return false
+  return Object.values(AI_PROVIDERS).some(
+    (provider) => normalizeProviderBaseUrl(provider.baseUrl) === normalized,
+  )
+}
+
+/** 仅原 a6api 通道需要把浏览器非流式请求转换为上游 SSE 后完整聚合。 */
+export function shouldAggregateManagedNonStream(providerId: string): boolean {
+  return providerId === LEGACY_MANAGED_AI_PROVIDER_ID
+}
+
+/** 浏览器只请求各托管通道公开模型；内部备用模型只由服务端在同一固定接口内选择。 */
 export function getProviderModelCandidates(providerId: string, requestedModel: string): string[] {
-  if (providerId !== DEFAULT_AI_PROVIDER_ID) return [requestedModel]
-  if (requestedModel !== DEFAULT_AI_MODEL) return []
-  return [DEFAULT_AI_MODEL, DEFAULT_AI_FALLBACK_MODEL]
+  if (!isServerManagedProvider(providerId)) return [requestedModel]
+  const provider = AI_PROVIDERS[providerId]
+  if (!provider?.models.some((candidate) => candidate.name === requestedModel)) return []
+  return [requestedModel, ...(MANAGED_PROVIDER_FALLBACK_MODELS[providerId] ?? [])]
 }
 
 /** 仅对可能由模型可用性或临时上游故障造成的失败切换备用模型。 */
@@ -58,16 +100,29 @@ export function shouldTryManagedFallback(status?: number): boolean {
 export const AI_PROVIDERS: Record<string, AIProviderConfig> = {
   managed: {
     id: DEFAULT_AI_PROVIDER_ID,
-    name: '免费体验通道',
-    icon: '免',
+    name: '免费体验（龙猫）',
+    icon: '猫',
     baseUrl: DEFAULT_AI_BASE_URL,
-    supportsThinking: false,
+    supportsThinking: true,
     models: [{
       name: DEFAULT_AI_MODEL,
-      label: 'GPT 5.6 Luna',
-      notes: '由项目服务器安全托管体验凭据；主模型不可用时自动切换 GPT 5.6 Terra。',
+      label: 'LongCat 2.0（龙猫）',
+      notes: '当前默认免费体验模型。支持 1M 上下文、128K 最大输出与流式响应。',
     }],
-    notes: '默认体验通道。可直接使用，也可在下方填写自己的 Key、接口与模型覆盖。',
+    notes: '由项目服务器安全托管 LongCat 凭据；也可在下方填写自己的 Key 覆盖。',
+  },
+  [LEGACY_MANAGED_AI_PROVIDER_ID]: {
+    id: LEGACY_MANAGED_AI_PROVIDER_ID,
+    name: '免费体验（原通道）',
+    icon: '免',
+    baseUrl: LEGACY_MANAGED_AI_BASE_URL,
+    supportsThinking: false,
+    models: [{
+      name: LEGACY_MANAGED_AI_MODEL,
+      label: 'GPT 5.6 Luna',
+      notes: '保留的原免费体验模型；主模型不可用时服务端自动切换 GPT 5.6 Terra。',
+    }],
+    notes: '原 a6api 免费通道继续保留，玩家可随时切换回来。',
   },
   deepseek: {
     id: 'deepseek',

@@ -136,6 +136,8 @@ export interface PromptTemplate<TOutput = unknown> {
   mod: string
   /** 系统 Prompt（角色设定 + 输出规则） */
   systemPrompt: string
+  /** 服务端固定 Prompt 资产 ID；存在时浏览器不得携带 system 消息。 */
+  serverPromptAssetId?: string
   /** 用户 Prompt 模板（支持 {{variable}} 占位符） */
   userPromptTemplate: string
   /** 模板变量列表（对应 userPromptTemplate 中的占位符） */

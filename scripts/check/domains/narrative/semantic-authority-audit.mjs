@@ -38,7 +38,7 @@ const activeFiles = {
   archetypes: read('src/mods/mod-engine/helpers/life-stage-archetypes.ts'),
   parser: read('src/mods/mod-engine/helpers/parse-strategies.ts'),
   prompt: read('src/mods/mod-engine/prompts/narrative-prompt.ts'),
-  promptComponents: read('src/mods/mod-engine/prompts/narrative-prompt-components.ts'),
+  promptComponents: read('src/mods/mod-engine/server/narrative-system-prompt.ts'),
   aiProtocol: read('src/mods/mod-engine/helpers/narrative-ai-protocol.ts'),
   plot: read('src/mods/mod-engine/subsystems/plot-structure-system.ts'),
   memory: read('src/mods/mod-engine/subsystems/memory-lifecycle-system.ts'),
@@ -130,9 +130,9 @@ for (const register of ['生活', '命运', '传承']) {
   )
 }
 assertIncludes(activeFiles.aiProtocol, 'AI_NARRATIVE_REGISTERS = createEnumTranslator', 'prompt register values must come from the Chinese translation authority')
-assertIncludes(activeFiles.prompt, "version: '4.3.0'", 'balanced Chinese semantic contract must use Prompt version 4.3.0')
+assertIncludes(activeFiles.prompt, "version: '4.4.0'", 'balanced Chinese semantic contract must use Prompt version 4.4.0')
 assertIncludes(
-  activeFiles.aiProtocol,
+  activeFiles.promptComponents,
   '无内容、无变化时省略整个字段',
   'AI-visible optional data must omit empty fields instead of emitting noise',
 )
@@ -140,7 +140,7 @@ if (/关系变化\s*:\s*\{\s*shape\s*:/.test(activeFiles.aiProtocol)) {
   fail('Chinese relationship updates must not be modeled as a shape/types wrapper object')
 }
 assertIncludes(
-  activeFiles.aiProtocol,
+  activeFiles.promptComponents,
   '禁止空数组、空对象、空字符串和 null',
   'prompt must require omission instead of noisy empty fields',
 )

@@ -54,7 +54,7 @@ export default function WelcomePage() {
       return
     }
     if (!await hasAvailableApiConfiguration()) {
-      addToast('warning', '服务器免费体验通道暂不可用：可在“模型调用”中填写自己的 Key、接口和模型', 5000)
+      addToast('warning', '当前主叙事模型不可用：请在“模型调用”选择官方厂商预设，可继续填写自己的 API Key', 5000)
       setSettingsTab('model-call')
       setShowSettings(true)
       return

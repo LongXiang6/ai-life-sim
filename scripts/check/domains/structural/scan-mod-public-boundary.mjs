@@ -10,8 +10,10 @@ import { getProjectRoot } from '../../lib/project-root.mjs'
 
 const ROOT = getProjectRoot(import.meta.url)
 const SRC = path.join(ROOT, 'src')
+const MODS = path.join(SRC, 'mods')
 const rulesPath = path.join(ROOT, 'scripts/check/rules/architecture-rules.json')
 const archRules = JSON.parse(fs.readFileSync(rulesPath, 'utf8'))
+const declaredServerOnlyEntries = new Map()
 
 /** @param {string} rel */
 function normalizeRel(rel) {
@@ -65,7 +67,11 @@ function normalizeSubpath(subpath) {
 /** @param {string} targetMod @param {string} subpath */
 function isAllowedSecondaryEntry(targetMod, subpath) {
   const allowed = archRules.allowedSecondaryPublicImports?.[targetMod] ?? []
-  return allowed.includes(normalizeSubpath(subpath))
+  const serverOnly = archRules.allowedServerOnlyPublicImports?.[targetMod] ?? []
+  const normalized = normalizeSubpath(subpath)
+  if (allowed.includes(normalized)) return true
+  return serverOnly.includes(normalized)
+    && declaredServerOnlyEntries.get(targetMod)?.has(normalized) === true
 }
 
 
@@ -84,6 +90,48 @@ function debtEntry(rel, spec) {
 let failed = 0
 let debt = 0
 const seen = new Set()
+
+for (const entry of fs.readdirSync(MODS, { withFileTypes: true })) {
+  if (!entry.isDirectory() || !entry.name.startsWith('mod-')) continue
+  const manifestPath = path.join(MODS, entry.name, 'manifest.ts')
+  if (!fs.existsSync(manifestPath)) continue
+  const manifest = fs.readFileSync(manifestPath, 'utf8')
+  const match = manifest.match(/serverOnlyPublicEntries:\s*\[([\s\S]*?)\]/)
+  if (!match) continue
+  const declared = new Set(
+    [...match[1].matchAll(/['"]([^'"]+)['"]/g)]
+      .map((item) => normalizeSubpath(item[1])),
+  )
+  declaredServerOnlyEntries.set(entry.name, declared)
+
+  const allowed = new Set(archRules.allowedServerOnlyPublicImports?.[entry.name] ?? [])
+  for (const subpath of declared) {
+    if (!allowed.has(subpath)) {
+      logFail(`[FAIL] [A-02] ${entry.name} serverOnlyPublicEntries 未登记架构规则: ${subpath}`)
+      failed++
+      continue
+    }
+    const sourcePath = path.join(MODS, entry.name, `${subpath}.ts`)
+    if (!fs.existsSync(sourcePath)) {
+      logFail(`[FAIL] [A-02] ${entry.name} serverOnlyPublicEntries 文件不存在: ${subpath}.ts`)
+      failed++
+      continue
+    }
+    const source = fs.readFileSync(sourcePath, 'utf8')
+    if (!/import\s+['"]server-only['"]/.test(source)) {
+      logFail(`[FAIL] [A-02] ${entry.name}/${subpath}.ts 缺少 server-only 硬门禁`)
+      failed++
+    }
+    const generatedSecondaryPath = path.join(SRC, 'core', 'mod-loader', 'mod-secondary-api-importers.generated.ts')
+    if (fs.existsSync(generatedSecondaryPath)) {
+      const generated = fs.readFileSync(generatedSecondaryPath, 'utf8')
+      if (generated.includes(`@/mods/${entry.name}/${subpath}`)) {
+        logFail(`[FAIL] [A-02] ${entry.name}/${subpath} 被错误写入浏览器 Remote API wiring`)
+        failed++
+      }
+    }
+  }
+}
 
 for (const file of walkTsFiles(SRC)) {
   const rel = normalizeRel(path.relative(ROOT, file))
@@ -113,7 +161,7 @@ for (const file of walkTsFiles(SRC)) {
       continue
     }
 
-    logFail(`[FAIL] [A-02] ${rel} — 跨 MOD deep import ${imp.spec}；改走 @/mods/${imp.targetMod}、secondaryPublicEntries、事件或 Store selector`)
+    logFail(`[FAIL] [A-02] ${rel} — 跨 MOD deep import ${imp.spec}；改走 @/mods/${imp.targetMod}、secondaryPublicEntries、serverOnlyPublicEntries、事件或 Store selector`)
     failed++
   }
 }

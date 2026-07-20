@@ -108,7 +108,7 @@ export function useWorldConfirm() {
   ): Promise<boolean> => {
     if (!await hasAvailableApiConfiguration()) {
       alert(
-        '服务器免费体验通道暂不可用：请打开设置 → 模型调用，填写自己的 API Key、接口和模型后继续。',
+        '当前主叙事模型不可用：请打开设置 → 模型调用，选择官方厂商预设；你仍可填写自己的 API Key。',
       )
       return false
     }

@@ -18,6 +18,7 @@ const {
   recordCacheUsage,
   resetCacheStats,
 } = await import('../../../../src/core/ai-service/cache-stats.ts')
+const { normalizeAiUsage } = await import('../../../../src/core/ai-service/normalize-ai-usage.ts')
 
 function assertOk(condition, message) {
   if (!condition) throw new Error(`[cache-stats-smoke] ${message}`)
@@ -32,10 +33,35 @@ const deepseekMain = {
 const deepseekRepair = { ...deepseekMain, callKind: 'narrative-format-repair' }
 const managedMain = {
   providerId: 'managed',
-  model: 'gpt-5.6-luna',
+  model: 'LongCat-2.0',
   pool: 'narrative',
   callKind: 'narrative-main',
 }
+
+const deepseekUsage = normalizeAiUsage({
+  prompt_cache_hit_tokens: 640,
+  prompt_cache_miss_tokens: 160,
+  completion_tokens: 20,
+  total_tokens: 820,
+})
+assertOk(
+  deepseekUsage?.hitTokens === 640 && deepseekUsage.missTokens === 160,
+  'DeepSeek cache usage must keep its explicit hit and miss fields',
+)
+
+const longcatUsage = normalizeAiUsage({
+  prompt_tokens: 4816,
+  cached_tokens: 0,
+  cache_read_tokens: 0,
+  effectiveCachedTokens: 4736,
+  prompt_tokens_details: { cached_tokens: 4736 },
+  completion_tokens: 2,
+  total_tokens: 4818,
+})
+assertOk(
+  longcatUsage?.hitTokens === 4736 && longcatUsage.missTokens === 80,
+  'LongCat cache usage must prefer the effective nested cache count over zero-valued aliases',
+)
 
 localStorage.setItem('ai-cache-stats', JSON.stringify({ hitTokens: 999, missTokens: 1 }))
 assertOk(getCacheStats(deepseekMain).hitRate === 0, 'legacy mixed statistics must not leak into a scoped model view')

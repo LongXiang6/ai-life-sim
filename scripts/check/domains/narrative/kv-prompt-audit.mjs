@@ -8,7 +8,10 @@ import { getProjectRoot } from '../../lib/project-root.mjs'
 import { buildSegmentedPrompt } from '../../../../src/core/ai-service/prompt-builder.ts'
 import { buildMvpSubsystemGuide } from '../../../../src/mods/mod-engine/helpers/mvp-runtime-policy.ts'
 import { narrativePrompt as liveNarrativePrompt } from '../../../../src/mods/mod-engine/prompts/narrative-prompt.ts'
-import { NARRATIVE_SYSTEM_COMPONENTS } from '../../../../src/mods/mod-engine/prompts/narrative-prompt-components.ts'
+import {
+  COMPILED_NARRATIVE_SYSTEM_PROMPT,
+  NARRATIVE_SYSTEM_COMPONENTS,
+} from '../../../../src/mods/mod-engine/server/narrative-system-prompt.ts'
 
 const root = getProjectRoot(import.meta.url)
 
@@ -20,8 +23,8 @@ const narrativePrompt = fs.readFileSync(
   path.join(root, 'src/mods/mod-engine/prompts/narrative-prompt.ts'),
   'utf8',
 )
-const narrativePromptComponents = fs.readFileSync(
-  path.join(root, 'src/mods/mod-engine/prompts/narrative-prompt-components.ts'),
+const narrativeSystemPrompt = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/server/narrative-system-prompt.ts'),
   'utf8',
 )
 const campaign = fs.readFileSync(
@@ -290,14 +293,16 @@ const migratedHistoryHint = buildRoundDirectorHint?.({
   narrativeGuidanceText: '剧情提示',
 }) ?? ''
 assertOk(
-  migratedHistoryHint.endsWith('仅在“正文”中，全程以第二人称“你”指代玩家角色。'),
-  'the final round-guidance layer must restate second-person narration after historical memory',
+  migratedHistoryHint === '时间提示\n\n剧情提示'
+    && !migratedHistoryHint.includes('仅在“正文”中，全程以第二人称“你”指代玩家角色。'),
+  'browser round guidance must keep only dynamic facts and avoid duplicating protected fixed rules',
 )
 assertOk(
-  migratedHistoryHint.includes('不得模仿其人称、措辞或段落结构')
+  narrativeSystemPrompt.includes('历史原文只继承事实，不能成为本轮的人称、措辞或段落样本')
+    && narrativeSystemPrompt.includes('正文全程用第二人称“你”')
     && memoryLifecycle.includes('以下内容是已经发生的完整事实')
     && memoryLifecycle.includes('不得模仿其中的人称、措辞或段落结构'),
-  'legacy narrative text must remain factual memory rather than a style sample',
+  'server fixed authority and memory projection must keep legacy narrative factual rather than stylistic',
 )
 
 const wordCountStart = orchestrator.indexOf('wordCountInstruction:')
@@ -390,7 +395,7 @@ assertOk(
   'ordinary and equipped mythic effects must both be injected every round',
 )
 assertOk(
-  narrativePromptComponents.includes('普通与已装备神话命格效果每轮持续生效'),
+  narrativeSystemPrompt.includes('普通与已装备神话命格效果每轮持续生效'),
   'system prompt must define ordinary and mythic effects as persistent rules while keeping mythic inheritance narrative-only',
 )
 
@@ -415,26 +420,27 @@ for (const inactiveConnection of [
   )
 }
 assertOk(
-  liveNarrativePrompt.version === '4.3.0'
-    && !narrativePromptComponents.includes('examples: ['),
+  liveNarrativePrompt.version === '4.4.0'
+    && liveNarrativePrompt.systemPrompt === ''
+    && !narrativeSystemPrompt.includes('examples: ['),
   'optimized prompt must be versioned and keep one governed standard example instead of duplicate examples',
 )
 assertOk(
-  narrativePromptComponents.includes('正文全程用第二人称“你”')
-    && narrativePromptComponents.includes('不写全知旁白、第三人称传记或编年报告')
-    && narrativePromptComponents.includes('至少保留一个可感知现场')
-    && narrativePromptComponents.includes('娱乐性、代入感和继续游玩的意愿')
+  narrativeSystemPrompt.includes('正文全程用第二人称“你”')
+    && narrativeSystemPrompt.includes('不写全知旁白、第三人称传记或编年报告')
+    && narrativeSystemPrompt.includes('至少保留一个可感知现场')
+    && narrativeSystemPrompt.includes('娱乐性、代入感和继续游玩的意愿')
     && NARRATIVE_SYSTEM_COMPONENTS.some((component) => component.kind === '示例'),
   'main narrative components must lock second-person viewpoint and scene-level immersion',
 )
 assertOk(
-  narrativePromptComponents.includes('连续推进同一因果主线')
-    && narrativePromptComponents.includes('三个独立生活切片')
-    && narrativePromptComponents.includes('时间服务剧情，不逐步记账'),
+  narrativeSystemPrompt.includes('连续推进同一因果主线')
+    && narrativeSystemPrompt.includes('三个独立生活切片')
+    && narrativeSystemPrompt.includes('时间服务剧情，不逐步记账'),
   'main narrative prompt must reject annual disconnected-life-slice output while retaining one causal storyline',
 )
 assertOk(
-  liveNarrativePrompt.systemPrompt.length > 0 && liveNarrativePrompt.systemPrompt.length < 8_000,
+  COMPILED_NARRATIVE_SYSTEM_PROMPT.length > 0 && COMPILED_NARRATIVE_SYSTEM_PROMPT.length < 8_000,
   'compiled fixed SYSTEM_PROMPT must stay compact enough for efficient repeated simulation calls',
 )
 for (const duplicatedStaticContract of [
@@ -444,7 +450,7 @@ for (const duplicatedStaticContract of [
   'resourcesDelta',
 ]) {
   assertOk(
-    !liveNarrativePrompt.systemPrompt.includes(duplicatedStaticContract),
+    !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes(duplicatedStaticContract),
     `fixed prompt must not duplicate runtime-derived field contracts: ${duplicatedStaticContract}`,
   )
 }

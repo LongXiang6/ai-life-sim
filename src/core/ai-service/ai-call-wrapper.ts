@@ -11,6 +11,7 @@ import type { ZodSchema } from 'zod'
 // PromptTemplate 在 foundation 中定义，wrapper 仅需这三个字段以保持低耦合
 export interface PromptTemplateLike {
   systemPrompt: string
+  serverPromptAssetId?: string
   outputFormat?: 'json' | 'text' | 'markdown'
   outputSchema?: ZodSchema
 }
@@ -43,6 +44,7 @@ export async function callAIWithPromptTemplate(
 
   const commonOpts = {
     ...restOptions,
+    serverPromptAssetId: promptTemplate.serverPromptAssetId,
     jsonMode: promptTemplate.outputFormat === 'json' ? true : undefined,
     outputSchema: promptTemplate.outputSchema,
   }

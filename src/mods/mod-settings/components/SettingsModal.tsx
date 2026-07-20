@@ -15,17 +15,15 @@ import { DEFAULT_SETTINGS_VALUES, useSettingsStore } from '../store'
 import { SettingsTabTheme } from './SettingsTabTheme'
 import { SettingsTabModel } from './SettingsTabModel'
 import { SettingsTabPresets } from './SettingsTabPresets'
-import { SettingsTabPrompt } from './SettingsTabPrompt'
 
 import styles from './SettingsModal.module.css'
 
-type TabId = 'appearance' | 'ai' | 'model-call' | 'prompt'
+type TabId = 'appearance' | 'ai' | 'model-call'
 
 const TABS: { id: TabId; label: string; index: string }[] = [
   { id: 'appearance', label: '个性化', index: '01' },
   { id: 'ai', label: '模型设置', index: '02' },
   { id: 'model-call', label: '模型调用', index: '03' },
-  { id: 'prompt', label: 'Prompt', index: '04' },
 ]
 
 function areSettingsDefault(state: ReturnType<typeof useSettingsStore.getState>): boolean {
@@ -218,7 +216,6 @@ export function SettingsModal({ open, onClose, initialTab }: SettingsModalProps)
           {activeTab === 'appearance' && <SettingsTabTheme />}
           {activeTab === 'ai' && <SettingsTabModel />}
           {activeTab === 'model-call' && <SettingsTabPresets key={settingsRevision} />}
-          {activeTab === 'prompt' && <SettingsTabPrompt />}
         </div>
 
         <footer className={styles.footer}>

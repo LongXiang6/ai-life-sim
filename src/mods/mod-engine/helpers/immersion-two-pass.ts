@@ -20,6 +20,7 @@ export interface ImmersionWarmupOptions {
   providerId?: string
   customBaseUrl?: string
   customModel?: string
+  serverPromptAssetId?: string
   /** Phase 7D-1：与 Pass2 共享的稳定 user JSON 前缀（KV 对齐） */
   stableUserPrefix?: string
   /** 调试日志上下文 */
@@ -63,6 +64,7 @@ export async function runImmersionWarmupPass(
       providerId: options.providerId,
       customBaseUrl: options.customBaseUrl,
       customModel: options.customModel,
+      serverPromptAssetId: options.serverPromptAssetId,
       apiKey: options.apiKey,
       overrideMaxTokens: 64,
       overrideTemperature: 0.2,

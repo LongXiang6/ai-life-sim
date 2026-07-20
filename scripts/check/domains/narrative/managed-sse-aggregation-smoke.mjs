@@ -5,9 +5,11 @@ import assert from 'node:assert/strict'
 import { requestManagedAggregatedCompletion } from '../../../../src/core/ai-service/managed-provider-execution.ts'
 import { aggregateSseCompletion } from '../../../../src/core/ai-service/managed-sse-aggregation.ts'
 import {
-  DEFAULT_AI_FALLBACK_MODEL,
   DEFAULT_AI_MODEL,
   DEFAULT_AI_PROVIDER_ID,
+  LEGACY_MANAGED_AI_FALLBACK_MODEL,
+  LEGACY_MANAGED_AI_MODEL,
+  LEGACY_MANAGED_AI_PROVIDER_ID,
   getProviderModelCandidates,
   shouldTryManagedFallback,
 } from '../../../../src/core/ai-service/provider-config.ts'
@@ -16,8 +18,13 @@ const encoder = new TextEncoder()
 
 assert.deepEqual(
   getProviderModelCandidates(DEFAULT_AI_PROVIDER_ID, DEFAULT_AI_MODEL),
-  [DEFAULT_AI_MODEL, DEFAULT_AI_FALLBACK_MODEL],
-  'managed requests must try the public primary model before the internal fallback',
+  [DEFAULT_AI_MODEL],
+  'the LongCat default must stay on its fixed public model without cross-provider fallback',
+)
+assert.deepEqual(
+  getProviderModelCandidates(LEGACY_MANAGED_AI_PROVIDER_ID, LEGACY_MANAGED_AI_MODEL),
+  [LEGACY_MANAGED_AI_MODEL, LEGACY_MANAGED_AI_FALLBACK_MODEL],
+  'the retained a6api channel must try its public primary model before its internal fallback',
 )
 assert.deepEqual(
   getProviderModelCandidates('deepseek', 'deepseek-v4-flash'),
@@ -71,6 +78,8 @@ assert.deepEqual(parsed.usage, { prompt_tokens: 10, completion_tokens: 20 }, 'us
 
 const attemptedModels = []
 const fallbackResult = await requestManagedAggregatedCompletion({
+  providerId: LEGACY_MANAGED_AI_PROVIDER_ID,
+  requestedModel: LEGACY_MANAGED_AI_MODEL,
   apiUrl: 'https://managed.example/v1/chat/completions',
   apiKey: 'test-key',
   forwardBody: { messages: [{ role: 'user', content: 'fallback smoke' }] },
@@ -79,7 +88,7 @@ const fallbackResult = await requestManagedAggregatedCompletion({
   fetchImpl: async (_input, init) => {
     const requestBody = JSON.parse(String(init?.body))
     attemptedModels.push(requestBody.model)
-    if (requestBody.model === DEFAULT_AI_MODEL) {
+    if (requestBody.model === LEGACY_MANAGED_AI_MODEL) {
       return new Response(
         streamFromBytes(encoder.encode('data: {"choices":[{"delta":{"content":"partial"}}]}\n\n')),
         { status: 200, headers: { 'content-type': 'text/event-stream' } },
@@ -92,15 +101,17 @@ const fallbackResult = await requestManagedAggregatedCompletion({
   },
 })
 assert.equal(fallbackResult.kind, 'success', 'an incomplete primary stream must safely retry the managed fallback')
-assert.equal(fallbackResult.model, DEFAULT_AI_FALLBACK_MODEL, 'the successful result must identify the fallback model')
+assert.equal(fallbackResult.model, LEGACY_MANAGED_AI_FALLBACK_MODEL, 'the successful result must identify the fallback model')
 assert.deepEqual(
   attemptedModels,
-  [DEFAULT_AI_MODEL, DEFAULT_AI_FALLBACK_MODEL],
+  [LEGACY_MANAGED_AI_MODEL, LEGACY_MANAGED_AI_FALLBACK_MODEL],
   'fallback execution must preserve the declared model order',
 )
 
 let authAttempts = 0
 const authFailureResult = await requestManagedAggregatedCompletion({
+  providerId: LEGACY_MANAGED_AI_PROVIDER_ID,
+  requestedModel: LEGACY_MANAGED_AI_MODEL,
   apiUrl: 'https://managed.example/v1/chat/completions',
   apiKey: 'invalid-test-key',
   forwardBody: { messages: [{ role: 'user', content: 'auth smoke' }] },

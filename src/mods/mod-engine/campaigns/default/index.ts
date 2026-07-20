@@ -201,6 +201,7 @@ export function loadStages(
             config: { ...aiConfig, model },
             sessionId,
             apiKey: customKey || undefined,
+            serverPromptAssetId: promptTemplate.serverPromptAssetId,
             ...routeOpts,
             stableUserPrefix: baseSegments.stablePrefix,
             logContext: {
@@ -256,6 +257,7 @@ export function loadStages(
           jsonMode: false,
           sessionId,
           apiKey: customKey || undefined,
+          serverPromptAssetId: promptTemplate.serverPromptAssetId,
           logContext,
           ...routeOpts,
           ...(normalizedStorySeed ? { storySeed: normalizedStorySeed } : {}),

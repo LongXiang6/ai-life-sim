@@ -7,7 +7,8 @@ import 'server-only'
  * 返回值只可用于即时上游请求，不得写入响应、日志或持久化状态。
  */
 const SERVER_API_KEY_ENV: Record<string, string> = {
-  managed: 'MANAGED_AI_API_KEY',
+  managed: 'LONGCAT_API_KEY',
+  'managed-a6': 'MANAGED_AI_API_KEY',
   deepseek: 'DEEPSEEK_API_KEY',
   zhipu: 'ZHIPU_API_KEY',
   aliyun: 'ALIBUN_API_KEY',

@@ -15,6 +15,7 @@ import {
   createNarrativeRepairComponent,
 } from '../../../../src/mods/mod-engine/prompts/narrative-prompt-components.ts'
 import { narrativePrompt } from '../../../../src/mods/mod-engine/prompts/narrative-prompt.ts'
+import { COMPILED_NARRATIVE_SYSTEM_PROMPT } from '../../../../src/mods/mod-engine/server/narrative-system-prompt.ts'
 
 const PROVIDER = 'deepseek'
 const MODEL = 'deepseek-v4-flash'
@@ -93,10 +94,15 @@ function buildMessages(testCase) {
     timeGuideText: buildTimeScaleNarrativeHint({ unit: 'year', value: 1 }),
     wordCountInstruction: '篇幅约200字，只作节奏参考；剧情需要时可以自然超出。',
   })
-  if (segments.messages) return segments.messages
+  if (segments.messages) {
+    return [
+      { role: 'system', content: COMPILED_NARRATIVE_SYSTEM_PROMPT },
+      ...segments.messages.filter((message) => message.role !== 'system'),
+    ]
+  }
   const userSegments = segments.userSegments ?? [segments.full]
   return [
-    { role: 'system', content: narrativePrompt.systemPrompt },
+    { role: 'system', content: COMPILED_NARRATIVE_SYSTEM_PROMPT },
     ...userSegments.map((content) => ({ role: 'user', content })),
   ]
 }

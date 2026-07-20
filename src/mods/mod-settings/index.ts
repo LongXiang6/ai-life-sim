@@ -5,6 +5,5 @@
  */
 
 export { SettingsModal } from './components/SettingsModal'
-export { SettingsTabPrompt } from './components/SettingsTabPrompt'
 export { useSettingsStore, isApiConfigured, hasAvailableApiConfiguration } from './store'
 export type { NarrativeStyle, StreamingMode, ReasoningEffort } from './store'

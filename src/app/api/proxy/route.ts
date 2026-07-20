@@ -24,9 +24,11 @@ import { createHash, randomUUID } from 'crypto'
 
 import {
   AI_PROVIDERS,
-  DEFAULT_AI_FALLBACK_MODEL,
   DEFAULT_AI_PROVIDER_ID,
   getProviderModelCandidates,
+  isRegisteredProviderBaseUrl,
+  isServerManagedProvider,
+  shouldAggregateManagedNonStream,
   shouldTryManagedFallback,
 } from '@/core/ai-service/provider-config'
 import {
@@ -46,6 +48,7 @@ import {
   type ServerRequestSource,
   writeServerLogFile,
 } from '@/core/logger/server-log-store'
+import { resolveModEngineServerPromptAsset } from '@/mods/mod-engine/server-prompt-assets'
 
 // ---- 常量 ----
 
@@ -90,6 +93,8 @@ const ProxyRequestSchema = z.object({
   providerId: z.string().default('deepseek'),
   baseUrl: z.string().url().optional(),
   apiKey: z.string().optional(),
+  /** 服务端固定 Prompt 资产；客户端不得同时提交 system 消息。 */
+  prompt_asset: z.string().min(1).max(128).optional(),
 })
 
 type ProxyRequest = z.infer<typeof ProxyRequestSchema>
@@ -130,6 +135,12 @@ function trackFingerprint(fp: string): { isRetry: boolean; retryCount: number } 
   }
   recentFingerprints.set(fp, { firstSeen: Date.now(), retryCount: 0 })
   return { isRetry: false, retryCount: 0 }
+}
+
+/** 隐藏 Prompt 只能发送到项目登记的官方接口；任意自定义地址可记录并窃取完整资产。 */
+function isTrustedPromptAssetTarget(providerId: string, baseUrl: string): boolean {
+  if (providerId !== 'custom') return Boolean(AI_PROVIDERS[providerId])
+  return isRegisteredProviderBaseUrl(baseUrl)
 }
 
 // ---- 智能访问日志（JSONL 格式，含指纹 + IP + 重试追踪） ----
@@ -238,11 +249,15 @@ function sanitizeBaseUrlForLog(baseUrl?: string): string | undefined {
   }
 }
 
-function buildTraceRequest(body: ProxyRequest): Record<string, unknown> {
+function buildTraceRequest(
+  body: ProxyRequest,
+  upstreamMessages: Array<{ role: string; content: string }>,
+): Record<string, unknown> {
   return {
     providerId: body.providerId,
     model: body.model,
-    messages: body.messages,
+    promptAssetId: body.prompt_asset,
+    messages: upstreamMessages,
     temperature: body.temperature,
     max_tokens: body.max_tokens,
     stream: body.stream,
@@ -452,18 +467,6 @@ export async function POST(request: Request): Promise<Response> {
     messageCount = body.messages.length
     promptChars = body.messages.reduce((sum, message) => sum + message.content.length, 0)
 
-    // 计算请求指纹 + 重试追踪
-    fingerprint = computeFingerprint(body.messages)
-    trackResult = trackFingerprint(fingerprint)
-
-    await writeCurrentTrace('request', {
-      fingerprint,
-      isRetry: trackResult.isRetry,
-      retryCount: trackResult.retryCount,
-      requestBytes,
-      request: buildTraceRequest(body),
-    })
-
     // 3. 解析目标 Provider 配置
     const providerConfig = AI_PROVIDERS[providerId]
     const isCustom = providerId === 'custom'
@@ -477,7 +480,7 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     if (
-      providerId === DEFAULT_AI_PROVIDER_ID
+      isServerManagedProvider(providerId)
       && !providerConfig.models.some((candidate) => candidate.name === body.model)
     ) {
       await Promise.all([
@@ -491,6 +494,56 @@ export async function POST(request: Request): Promise<Response> {
     const baseUrl = isCustom
       ? (body.baseUrl || '')
       : (providerConfig?.baseUrl ?? '')
+
+    let upstreamMessages = body.messages
+    if (body.prompt_asset) {
+      if (body.messages.some((message) => message.role === 'system')) {
+        await Promise.all([
+          writeCurrentTrace('rejected', { status: 400, error: 'Client system message rejected for protected prompt asset' }),
+          writeCurrentAccessLog(400, 'Client system message rejected for protected prompt asset'),
+        ])
+        return jsonWithRequestId(requestId, { error: '受保护的提示词请求不能携带客户端 system 消息' }, 400)
+      }
+
+      const promptAsset = resolveModEngineServerPromptAsset(body.prompt_asset)
+      if (!promptAsset) {
+        await Promise.all([
+          writeCurrentTrace('rejected', { status: 400, error: 'Unknown server prompt asset' }),
+          writeCurrentAccessLog(400, 'Unknown server prompt asset'),
+        ])
+        return jsonWithRequestId(requestId, { error: '服务端提示词资产不可用' }, 400)
+      }
+
+      if (!isTrustedPromptAssetTarget(providerId, baseUrl)) {
+        await Promise.all([
+          writeCurrentTrace('rejected', { status: 400, error: 'Untrusted target for protected prompt asset' }),
+          writeCurrentAccessLog(400, 'Untrusted target for protected prompt asset'),
+        ])
+        return jsonWithRequestId(
+          requestId,
+          { error: '受保护的主叙事不能发送到任意自定义接口；请选择官方厂商预设，可继续使用自己的 API Key' },
+          400,
+        )
+      }
+
+      upstreamMessages = [
+        { role: 'system', content: promptAsset.systemPrompt },
+        ...body.messages,
+      ]
+    }
+
+    messageCount = upstreamMessages.length
+    promptChars = upstreamMessages.reduce((sum, message) => sum + message.content.length, 0)
+    fingerprint = computeFingerprint(upstreamMessages)
+    trackResult = trackFingerprint(fingerprint)
+
+    await writeCurrentTrace('request', {
+      fingerprint,
+      isRetry: trackResult.isRetry,
+      retryCount: trackResult.retryCount,
+      requestBytes,
+      request: buildTraceRequest(body, upstreamMessages),
+    })
 
     // 确定 API Key：请求体传入 > 服务端 env
     const apiKey = body.apiKey || readServerProviderApiKey(providerId)
@@ -514,12 +567,12 @@ export async function POST(request: Request): Promise<Response> {
     // 4. 构建转发请求体
     const forwardBody: Record<string, unknown> = {
       model: body.model,
-      messages: body.messages,
+      messages: upstreamMessages,
     }
 
     if (body.temperature !== undefined) forwardBody.temperature = body.temperature
     if (body.max_tokens !== undefined) forwardBody.max_tokens = body.max_tokens
-    const aggregateManagedStream = providerId === DEFAULT_AI_PROVIDER_ID && !isStream
+    const aggregateManagedStream = shouldAggregateManagedNonStream(providerId) && !isStream
     if (body.stream !== undefined) forwardBody.stream = aggregateManagedStream ? true : body.stream
     if (body.response_format !== undefined) forwardBody.response_format = body.response_format
     if (body.user_id !== undefined) forwardBody.user = body.user_id
@@ -545,6 +598,8 @@ export async function POST(request: Request): Promise<Response> {
 
     if (aggregateManagedStream) {
       const managedResult = await requestManagedAggregatedCompletion({
+        providerId,
+        requestedModel: body.model,
         apiUrl,
         apiKey,
         forwardBody,
@@ -558,7 +613,7 @@ export async function POST(request: Request): Promise<Response> {
           writeCurrentTrace('response', {
             status: 200,
             selectedModel: managedResult.model,
-            fallbackUsed: managedResult.model === DEFAULT_AI_FALLBACK_MODEL,
+            fallbackUsed: managedResult.model !== body.model,
             upstreamAttempts: managedResult.attempts,
             upstreamHeaders: getUpstreamHeaderSnapshot(managedResult.headers),
             responseBody: managedResult.responseBody,

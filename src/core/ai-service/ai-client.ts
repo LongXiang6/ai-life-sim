@@ -30,8 +30,10 @@ import { formatApiErrorForUser } from './api-error'
 import {
   DEFAULT_AI_MODEL,
   DEFAULT_AI_PROVIDER_ID,
+  isServerManagedProvider,
   REASONING_BUDGET_MAP,
 } from './provider-config'
+import { normalizeAiUsage } from './normalize-ai-usage'
 import { normalizeStorySeed } from './story-seed'
 import { isValidAiContent, mergeStreamTextChunk } from './stream-text-extractor'
 import { recordCacheUsage, type CacheUsageContext } from './cache-stats'
@@ -212,6 +214,8 @@ export interface AICallOptions {
   customBaseUrl?: string
   /** 自定义模型名 */
   customModel?: string
+  /** 由服务端白名单解析并注入的固定 Prompt 资产。 */
+  serverPromptAssetId?: string
   /** KV Cache 分段：多个 user 消息（首段稳定可缓存，末段变化） */
   userSegments?: string[]
   /** 追加在 userSegments 之后的额外 user 消息（如重试修正提示，不破坏 JSON 前缀） */
@@ -240,12 +244,7 @@ interface AIResponse {
     message: { content: string },
     finish_reason: string,
   }>,
-  usage?: {
-    prompt_cache_hit_tokens: number,
-    prompt_cache_miss_tokens: number,
-    completion_tokens: number,
-    total_tokens: number,
-  },
+  usage?: Record<string, unknown>,
 }
 
 /** 单次 fetch 结果（内容 + usage + finish_reason） */
@@ -271,13 +270,7 @@ function isTruncatedResponse(
 }
 
 function parseUsage(usage?: AIResponse['usage']): AICallUsageSnapshot | undefined {
-  if (!usage) return undefined
-  return {
-    hitTokens: Number(usage.prompt_cache_hit_tokens) || 0,
-    missTokens: Number(usage.prompt_cache_miss_tokens) || 0,
-    completionTokens: Number(usage.completion_tokens) || 0,
-    totalTokens: Number(usage.total_tokens) || 0,
-  }
+  return normalizeAiUsage(usage)
 }
 
 /** 记录一次成功 AI 调用（异步，等待发送完成） */
@@ -399,7 +392,7 @@ function buildMessagesFromPrompt(
   const userMessages = userSegments?.length ? userSegments : [userPrompt]
   const trailing = extraUserMessages?.filter((m) => m.trim().length > 0) ?? []
   return [
-    { role: 'system', content: systemPrompt },
+    ...(systemPrompt.trim() ? [{ role: 'system', content: systemPrompt }] : []),
     ...userMessages.map((content) => ({ role: 'user', content })),
     ...trailing.map((content) => ({ role: 'user', content })),
   ]
@@ -511,14 +504,17 @@ function buildProxyBody(
   stream: boolean,
   pool: CachePoolType,
   sessionId?: string,
-  options?: Pick<AICallOptions, 'overrideMaxTokens' | 'overrideTemperature' | 'overrideTopP' | 'jsonMode' | 'storySeed' | 'reasoningEffort' | 'providerId' | 'apiKey' | 'customBaseUrl' | 'customModel'>,
+  options?: Pick<AICallOptions, 'overrideMaxTokens' | 'overrideTemperature' | 'overrideTopP' | 'jsonMode' | 'storySeed' | 'reasoningEffort' | 'providerId' | 'apiKey' | 'customBaseUrl' | 'customModel' | 'serverPromptAssetId'>,
 ): Record<string, unknown> {
   const aiBody = buildRequestBody(config, messages, stream, pool, sessionId, options)
+  const proxyMessages = options?.serverPromptAssetId
+    ? messages.filter((message) => message.role !== 'system')
+    : messages
 
   // 提取 AI 请求的核心字段
   const proxyBody: Record<string, unknown> = {
     model: aiBody.model,
-    messages: aiBody.messages,
+    messages: proxyMessages,
     temperature: aiBody.temperature,
     max_tokens: aiBody.max_tokens,
     stream: aiBody.stream,
@@ -529,6 +525,7 @@ function buildProxyBody(
   if (aiBody.response_format !== undefined) proxyBody.response_format = aiBody.response_format
   if (aiBody.seed !== undefined) proxyBody.seed = aiBody.seed
   if (aiBody.thinking !== undefined) proxyBody.thinking = aiBody.thinking
+  if (options?.serverPromptAssetId) proxyBody.prompt_asset = options.serverPromptAssetId
 
   // Provider 路由信息
   const providerId = options?.providerId ?? DEFAULT_AI_PROVIDER_ID
@@ -548,6 +545,14 @@ function buildProxyBody(
         ? { type: 'enabled', budget_tokens: budgetTokens }
         : { type: 'enabled' }
     }
+  } else if (providerId === DEFAULT_AI_PROVIDER_ID) {
+    // LongCat 官方只声明 enabled / disabled，不接收项目内部的预算档位。
+    proxyBody.thinking = reasoningEffort === 'disabled'
+      ? { type: 'disabled' }
+      : { type: 'enabled' }
+  } else if (isServerManagedProvider(providerId)) {
+    // 原托管通道未声明 thinking 契约，不能转发 DeepSeek 风格预算字段。
+    delete proxyBody.thinking
   }
 
   // 自定义配置
@@ -847,7 +852,7 @@ async function validateWithRetry(
  * @returns AI 生成的文本内容
  */
 export async function callAI(systemPrompt: string, userPrompt: string, options: AICallOptions): Promise<string> {
-  const { config, pool = 'narrative', sessionId, signal, overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed, providerId, apiKey, customBaseUrl, customModel, reasoningEffort, userSegments, extraUserMessages, outputSchema } = options
+  const { config, pool = 'narrative', sessionId, signal, overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed, providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, reasoningEffort, userSegments, extraUserMessages, outputSchema } = options
 
   const messages = buildMessagesFromPrompt(systemPrompt, userPrompt, userSegments, extraUserMessages)
 
@@ -858,7 +863,7 @@ export async function callAI(systemPrompt: string, userPrompt: string, options: 
     () => fetchAIResponse(
       buildProxyBody(config, messages, false, pool, sessionId, {
         overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed,
-        providerId, apiKey, customBaseUrl, customModel, reasoningEffort,
+        providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, reasoningEffort,
       }),
       resolveCacheUsageContext(options, pool),
       signal,
@@ -881,7 +886,7 @@ export async function callAIConversation(
   messages: Array<{ role: string; content: string }>,
   options: AICallOptions,
 ): Promise<string> {
-  const { config, pool = 'narrative', sessionId, signal, overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed, providerId, apiKey, customBaseUrl, customModel, reasoningEffort } = options
+  const { config, pool = 'narrative', sessionId, signal, overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed, providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, reasoningEffort } = options
 
   return executeAiFetchWithRetry(
     messages,
@@ -890,7 +895,7 @@ export async function callAIConversation(
     () => fetchAIResponse(
       buildProxyBody(config, messages, false, pool, sessionId, {
         overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed,
-        providerId, apiKey, customBaseUrl, customModel, reasoningEffort,
+        providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, reasoningEffort,
       }),
       resolveCacheUsageContext(options, pool),
       signal,
@@ -962,6 +967,7 @@ export async function callAIStreamConversation(
     apiKey,
     customBaseUrl,
     customModel,
+    serverPromptAssetId,
     reasoningEffort,
   } = options
 
@@ -980,6 +986,7 @@ export async function callAIStreamConversation(
         apiKey,
         customBaseUrl,
         customModel,
+        serverPromptAssetId,
         reasoningEffort,
       }),
       resolveCacheUsageContext(options, pool),
@@ -1002,7 +1009,7 @@ export async function callAIStream(
   userPrompt: string,
   options: AICallOptions,
 ): Promise<string> {
-  const { config, pool = 'narrative', sessionId, onChunk, signal, overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed, providerId, apiKey, customBaseUrl, customModel, reasoningEffort, userSegments, extraUserMessages } = options
+  const { config, pool = 'narrative', sessionId, onChunk, signal, overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed, providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, reasoningEffort, userSegments, extraUserMessages } = options
 
   const messages = buildMessagesFromPrompt(systemPrompt, userPrompt, userSegments, extraUserMessages)
 
@@ -1013,7 +1020,7 @@ export async function callAIStream(
     () => fetchAIStreamResponse(
       buildProxyBody(config, messages, true, pool, sessionId, {
         overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed,
-        providerId, apiKey, customBaseUrl, customModel, reasoningEffort,
+        providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, reasoningEffort,
       }),
       resolveCacheUsageContext(options, pool),
       onChunk,

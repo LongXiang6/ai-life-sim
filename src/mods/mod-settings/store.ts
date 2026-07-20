@@ -14,6 +14,10 @@ import {
   DEFAULT_AI_BASE_URL,
   DEFAULT_AI_MODEL,
   DEFAULT_AI_PROVIDER_ID,
+  LEGACY_MANAGED_AI_BASE_URL,
+  LEGACY_MANAGED_AI_MODEL,
+  LEGACY_MANAGED_AI_PROVIDER_ID,
+  isRegisteredProviderBaseUrl,
 } from '@/core/ai-service'
 import { DEFAULT_WORD_COUNT_TARGET } from '@/mods/mod-engine'
 
@@ -140,7 +144,7 @@ export const useSettingsStore = create<SettingsState>()(
       }),
       {
         name: 'mod-settings:store',
-        version: 6,
+        version: 7,
         migrate: (persistedState: unknown, version: number) => {
           const state = persistedState as Partial<SettingsState>
           const migrated = { ...state }
@@ -168,6 +172,26 @@ export const useSettingsStore = create<SettingsState>()(
             migrated.customUrl = DEFAULT_AI_BASE_URL
             migrated.customModel = DEFAULT_AI_MODEL
           }
+          if (version < 7 && state.provider === DEFAULT_AI_PROVIDER_ID) {
+            if (state.customKey?.trim()) {
+              if (version < 6 && state.customUrl?.trim() && state.customModel?.trim()) {
+                // 更早版本的托管目标不同；玩家 Key 与当时的明确接口、模型一起转为自定义配置。
+                migrated.provider = 'custom'
+                migrated.customUrl = state.customUrl
+                migrated.customModel = state.customModel
+              } else {
+                // v6 玩家曾用自己的 Key 覆盖 a6api：保留该通道及其接口语义。
+                migrated.provider = LEGACY_MANAGED_AI_PROVIDER_ID
+                migrated.customUrl = LEGACY_MANAGED_AI_BASE_URL
+                migrated.customModel = LEGACY_MANAGED_AI_MODEL
+              }
+            } else {
+              // 服务器托管的旧默认统一迁移到新的 LongCat 默认通道。
+              migrated.provider = DEFAULT_AI_PROVIDER_ID
+              migrated.customUrl = DEFAULT_AI_BASE_URL
+              migrated.customModel = DEFAULT_AI_MODEL
+            }
+          }
           return migrated as SettingsState
         },
         // 不持久化 set 函数
@@ -185,7 +209,9 @@ export const useSettingsStore = create<SettingsState>()(
 export function isApiConfigured(): boolean {
   const { provider, customKey, customUrl, customModel } = useSettingsStore.getState()
   if (!customKey) return false
-  if (provider === 'custom') return Boolean(customUrl && customModel)
+  if (provider === 'custom') {
+    return Boolean(customUrl && customModel && isRegisteredProviderBaseUrl(customUrl))
+  }
   return true
 }
 

@@ -32,29 +32,38 @@ const runtimeCallers = [
   read('src/mods/mod-engine/helpers/pre-gen-queue.ts'),
   read('src/mods/mod-pages/pages/game-over/page.tsx'),
   read('src/mods/mod-pages/pages/talent-draw/page.tsx'),
-  read('src/mods/mod-settings/components/SettingsTabPrompt.tsx'),
+  read('src/mods/mod-settings/components/SettingsTabTheme.tsx'),
 ].join('\n')
 const envExample = read('.env.example')
 
 assertOk(
   provider.includes("DEFAULT_AI_PROVIDER_ID = 'managed'")
-    && provider.includes("DEFAULT_AI_BASE_URL = 'https://a6.a6api.com/v1'")
-    && provider.includes("DEFAULT_AI_MODEL = 'gpt-5.6-luna'")
-    && provider.includes("DEFAULT_AI_FALLBACK_MODEL = 'gpt-5.6-terra'"),
-  'public managed provider, base URL, primary model and server fallback must have one authority',
+    && provider.includes("DEFAULT_AI_BASE_URL = 'https://api.longcat.chat/openai/v1'")
+    && provider.includes("DEFAULT_AI_MODEL = 'LongCat-2.0'")
+    && provider.includes("LEGACY_MANAGED_AI_PROVIDER_ID = 'managed-a6'")
+    && provider.includes("LEGACY_MANAGED_AI_MODEL = 'gpt-5.6-luna'")
+    && provider.includes("LEGACY_MANAGED_AI_FALLBACK_MODEL = 'gpt-5.6-terra'"),
+  'LongCat default and retained a6api managed targets must have one public authority',
 )
-assertOk(!/sk-[A-Za-z0-9_-]{20,}/.test(provider + proxy + serverCredentials + managedAggregation + managedExecution + worldInitRoute + worldInitBundle + store + settings + envExample), 'tracked sources must not contain an API credential')
 assertOk(
-  serverCredentials.includes("managed: 'MANAGED_AI_API_KEY'")
+  !/(?:sk-|ak_)[A-Za-z0-9_-]{20,}/.test(provider + proxy + serverCredentials + managedAggregation + managedExecution + worldInitRoute + worldInitBundle + store + settings + envExample),
+  'tracked sources must not contain an API credential',
+)
+assertOk(
+  serverCredentials.includes("managed: 'LONGCAT_API_KEY'")
+    && serverCredentials.includes("'managed-a6': 'MANAGED_AI_API_KEY'")
     && proxy.includes('readServerProviderApiKey(providerId)')
-    && proxy.includes('providerId === DEFAULT_AI_PROVIDER_ID')
+    && proxy.includes('isServerManagedProvider(providerId)')
     && proxy.includes('Managed model not allowed'),
-  'proxy must read the managed credential only from server env and fix its model allowlist',
+  'proxy must resolve each managed credential only from server env and fix both model allowlists',
 )
 assertOk(
   proxy.includes('aggregateManagedStream')
+    && proxy.includes('shouldAggregateManagedNonStream(providerId)')
     && proxy.includes('requestManagedAggregatedCompletion(')
-    && proxy.includes('fallbackUsed: managedResult.model === DEFAULT_AI_FALLBACK_MODEL')
+    && proxy.includes('fallbackUsed: managedResult.model !== body.model')
+    && managedExecution.includes('providerId,')
+    && managedExecution.includes('requestedModel,')
     && managedExecution.includes('aggregateSseCompletion(response.body)')
     && managedExecution.includes('shouldTryManagedFallback(response.status)')
     && managedAggregation.includes("if (!completed) throw new Error('托管通道 SSE 未返回完整结束标记')")
@@ -64,7 +73,7 @@ assertOk(
 assertOk(
   worldInitRoute.includes('callProviderDirect')
     && worldInitRoute.includes('readServerProviderApiKey(providerId)')
-    && worldInitRoute.includes('providerId === DEFAULT_AI_PROVIDER_ID')
+    && worldInitRoute.includes('isServerManagedProvider(providerId)')
     && worldInitRoute.includes('getProviderModelCandidates(providerId, model)')
     && worldInitBundle.includes('providerId: settings.provider'),
   'background world initialization must use the same managed credential and model fallback authority',
@@ -72,6 +81,8 @@ assertOk(
 assertOk(
   aiClient.includes('options?.providerId ?? DEFAULT_AI_PROVIDER_ID')
     && aiClient.includes('proxyBody.model = DEFAULT_AI_MODEL')
+    && aiClient.includes('providerId === DEFAULT_AI_PROVIDER_ID')
+    && aiClient.includes("{ type: 'enabled' }")
     && runtimeCallers.includes('customModel || DEFAULT_AI_MODEL')
     && !runtimeCallers.includes("customModel || 'deepseek-v4-flash'"),
   'AI client and runtime fallback callers must use the managed default authority',
@@ -80,23 +91,29 @@ assertOk(
   store.includes('provider: DEFAULT_AI_PROVIDER_ID')
     && store.includes('customUrl: DEFAULT_AI_BASE_URL')
     && store.includes('customModel: DEFAULT_AI_MODEL')
-    && store.includes('version: 6'),
+    && store.includes('version: 7'),
   'new users and restore-default state must select the managed provider without a browser key',
 )
 assertOk(
   store.includes('hasExplicitModelConfig')
     && store.includes("state.provider === 'custom'")
-    && store.includes("version < 6 && state.provider === DEFAULT_AI_PROVIDER_ID"),
-  'migration must update the managed public target while preserving player-owned custom configuration',
+    && store.includes("version < 7 && state.provider === DEFAULT_AI_PROVIDER_ID")
+    && store.includes('LEGACY_MANAGED_AI_PROVIDER_ID'),
+  'migration must move empty managed defaults to LongCat while preserving player-owned old-channel keys',
 )
 assertOk(
-  settings.includes('服务器免费体验通道')
+  provider.includes('免费体验（龙猫）')
+    && provider.includes('免费体验（原通道）')
+    && settings.includes('服务器免费体验通道')
     && settings.includes('setCustomKey(\'\')')
     && settings.includes('setProvider(DEFAULT_AI_PROVIDER_ID)')
     && settings.includes('markConnectionUntested(DEFAULT_AI_BASE_URL, DEFAULT_AI_MODEL)'),
   'settings reset must clear only the browser key and restore the managed public configuration',
 )
-assertOk(/MANAGED_AI_API_KEY=\r?\n/.test(envExample), 'environment example must declare an empty managed credential slot')
+assertOk(
+  /LONGCAT_API_KEY=\r?\n/.test(envExample) && /MANAGED_AI_API_KEY=\r?\n/.test(envExample),
+  'environment example must declare empty slots for both managed credentials',
+)
 
 if (failed > 0) process.exit(1)
 console.log('PASS: managed-ai-default-regression')

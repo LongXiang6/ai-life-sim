@@ -14,9 +14,9 @@
 <body data-screen="settings">
   <main class="end-shell">
     <header class="end-review">
-      <p class="end-review-label">PREFERENCES · FOUR CHAPTERS</p>
+      <p class="end-review-label">PREFERENCES · THREE CHAPTERS</p>
       <h1>设置</h1>
-      <p class="end-review-copy">四类设置使用同一套标题、分区、控件和状态层级，调整即时生效，恢复默认始终可见但不抢占主任务。</p>
+      <p class="end-review-copy">三类设置使用同一套标题、分区、控件和状态层级，调整即时生效，恢复默认始终可见但不抢占主任务。</p>
     </header>
 
     <section class="end-stage" aria-label="设置移动端界面">
@@ -32,11 +32,10 @@
             <div class="end-divider" aria-hidden="true"><span></span></div>
           </header>
 
-          <nav class="end-tabs four settings-tabs" role="tablist" aria-label="设置章节">
+          <nav class="end-tabs three settings-tabs" role="tablist" aria-label="设置章节">
             <button type="button" role="tab" aria-controls="panel-personal" data-view-target="personal" aria-selected="true"><small>01</small><span>个性化</span></button>
             <button type="button" role="tab" aria-controls="panel-model" data-view-target="model" aria-selected="false"><small>02</small><span>模型设置</span></button>
             <button type="button" role="tab" aria-controls="panel-calls" data-view-target="calls" aria-selected="false"><small>03</small><span>模型调用</span></button>
-            <button type="button" role="tab" aria-controls="panel-prompt" data-view-target="prompt" aria-selected="false"><small>04</small><span>Prompt</span></button>
           </nav>
 
           <div class="settings-tools"><small data-dirty-label>当前为默认设置</small><button class="restore-action" type="button" data-restore disabled>恢复默认</button></div>
@@ -87,14 +86,6 @@
               </div>
             </section>
 
-            <section class="settings-view" id="panel-prompt" role="tabpanel" data-view="prompt">
-              <p class="view-intro">补充叙事偏好，不覆盖世界事实与结构化契约。</p>
-              <div class="function-group">
-                <div class="section-cap"><b>叙事偏好</b><span>可选</span></div>
-                <textarea class="prompt" data-prompt aria-label="叙事偏好"></textarea>
-                <p class="note">仅作为玩家偏好附加到叙事上下文。</p>
-              </div>
-            </section>
           </div>
         </div>
 
@@ -110,9 +101,8 @@
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       const phone = document.querySelector('[data-prototype]')
-      const promptDefault = '更关注人物关系的渐变与选择带来的长期回声；保持叙事克制，不提前替角色总结一生。'
-      const defaults = { paragraph: true, motion: false, fate: true, globalReason: '关闭', fateReason: '关闭', words: 200, pregen: '关闭', primary: '默认模型', background: '跟随默认', prompt: promptDefault }
-      const pageNumbers = { personal: '01', model: '02', calls: '03', prompt: '04' }
+      const defaults = { paragraph: true, motion: false, fate: true, globalReason: '关闭', fateReason: '关闭', words: 200, pregen: '关闭', primary: '默认模型', background: '跟随默认' }
+      const pageNumbers = { personal: '01', model: '02', calls: '03' }
 
       function freshState() { return Object.assign({}, defaults) }
       function isDirty(state) { return Object.keys(defaults).some(function (key) { return state[key] !== defaults[key] }) }
@@ -139,8 +129,6 @@
         phone.querySelectorAll('[data-option-group]').forEach(function (group) {
           group.querySelectorAll('[data-option]').forEach(function (button) { button.classList.toggle('active', state[group.dataset.optionGroup] === button.dataset.option) })
         })
-        const prompt = phone.querySelector('[data-prompt]')
-        if (document.activeElement !== prompt) prompt.value = state.prompt
         const dirty = isDirty(state)
         phone.querySelector('[data-restore]').disabled = !dirty
         phone.querySelector('[data-dirty-label]').textContent = dirty ? '已有调整 · 即时生效' : '当前为默认设置'
@@ -170,11 +158,6 @@
           phone._state = freshState()
           toast('已恢复默认设置')
         }
-        render()
-      })
-
-      phone.querySelector('[data-prompt]').addEventListener('input', function (event) {
-        phone._state.prompt = event.target.value
         render()
       })
 

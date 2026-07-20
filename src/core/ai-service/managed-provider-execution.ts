@@ -1,7 +1,4 @@
 import {
-  DEFAULT_AI_FALLBACK_MODEL,
-  DEFAULT_AI_MODEL,
-  DEFAULT_AI_PROVIDER_ID,
   getProviderModelCandidates,
   shouldTryManagedFallback,
 } from './provider-config'
@@ -39,6 +36,8 @@ export type ManagedAggregatedResult =
     }
 
 interface ManagedAggregatedRequest {
+  providerId: string
+  requestedModel: string
   apiUrl: string
   apiKey: string
   forwardBody: Record<string, unknown>
@@ -52,6 +51,8 @@ interface ManagedAggregatedRequest {
  * 不会把两次尝试的部分正文拼接到同一轮叙事中。
  */
 export async function requestManagedAggregatedCompletion({
+  providerId,
+  requestedModel,
   apiUrl,
   apiKey,
   forwardBody,
@@ -59,7 +60,7 @@ export async function requestManagedAggregatedCompletion({
   timeoutMs,
   fetchImpl = fetch,
 }: ManagedAggregatedRequest): Promise<ManagedAggregatedResult> {
-  const candidates = getProviderModelCandidates(DEFAULT_AI_PROVIDER_ID, DEFAULT_AI_MODEL)
+  const candidates = getProviderModelCandidates(providerId, requestedModel)
   const attempts: ManagedUpstreamAttempt[] = []
 
   for (let index = 0; index < candidates.length; index++) {
@@ -151,7 +152,7 @@ export async function requestManagedAggregatedCompletion({
 
   return {
     kind: 'failure',
-    model: DEFAULT_AI_FALLBACK_MODEL,
+    model: attempts.at(-1)?.model ?? requestedModel,
     error: '托管通道没有可用模型',
     attempts,
   }

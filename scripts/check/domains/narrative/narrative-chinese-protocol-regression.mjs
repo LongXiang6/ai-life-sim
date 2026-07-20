@@ -12,7 +12,6 @@ import {
 } from '../../../../src/core/ai-service/prompt-builder.ts'
 import {
   NarrativeAIResponseSchema,
-  buildNarrativeAIProtocolStandardExample,
   fromNarrativeAIIntentId,
   parseNarrativeAIDataJson,
   toNarrativeAIIntentId,
@@ -30,10 +29,13 @@ import {
 } from '../../../../src/mods/mod-engine/helpers/narrative-response-quality.ts'
 import { buildTimeScaleNarrativeHint } from '../../../../src/mods/mod-engine/helpers/time-scale-narrative.ts'
 import {
+  COMPILED_NARRATIVE_SYSTEM_PROMPT,
   NARRATIVE_SYSTEM_COMPONENTS,
-} from '../../../../src/mods/mod-engine/prompts/narrative-prompt-components.ts'
+  buildNarrativeAIProtocolStandardExample,
+} from '../../../../src/mods/mod-engine/server/narrative-system-prompt.ts'
 import {
   FALLBACK_NARRATIVE_PROMPT,
+  NARRATIVE_SERVER_PROMPT_ASSET_ID,
   narrativePrompt,
 } from '../../../../src/mods/mod-engine/prompts/narrative-prompt.ts'
 
@@ -394,7 +396,12 @@ assertOk(
   'the old tagged envelope must not enter the successful protocol path',
 )
 
-assertOk(narrativePrompt.version === '4.3.0', 'balanced Chinese narrative behavior must use Prompt 4.3.0')
+assertOk(narrativePrompt.version === '4.4.0', 'balanced Chinese narrative behavior must use Prompt 4.4.0')
+assertOk(
+  narrativePrompt.systemPrompt === ''
+    && narrativePrompt.serverPromptAssetId === NARRATIVE_SERVER_PROMPT_ASSET_ID,
+  'browser narrative contract must reference the server asset without carrying fixed Prompt text',
+)
 for (const forbiddenProtocolToken of [
   '[NARRATIVE]',
   '[META]',
@@ -404,25 +411,25 @@ for (const forbiddenProtocolToken of [
   'keyEvents',
 ]) {
   assertOk(
-    !narrativePrompt.systemPrompt.includes(forbiddenProtocolToken),
+    !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes(forbiddenProtocolToken),
     `System Prompt must not expose legacy English protocol token ${forbiddenProtocolToken}`,
   )
 }
 assertOk(
-  narrativePrompt.systemPrompt.includes('⟦正文⟧')
-    && narrativePrompt.systemPrompt.includes('⟦摘要⟧')
-    && narrativePrompt.systemPrompt.includes('⟦数据⟧')
-    && narrativePrompt.systemPrompt.includes('⟦结束⟧')
-    && narrativePrompt.systemPrompt.includes('第二人称“你”')
-    && narrativePrompt.systemPrompt.includes('不得填写“任务”等情节类型')
-    && narrativePrompt.systemPrompt.includes('不得填写“冲突”等事件类型')
-    && narrativePrompt.systemPrompt.includes('数据区不是字段清单')
-    && narrativePrompt.systemPrompt.includes('禁止输出 false'),
+  COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('⟦正文⟧')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('⟦摘要⟧')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('⟦数据⟧')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('⟦结束⟧')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('第二人称“你”')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得填写“任务”等情节类型')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得填写“冲突”等事件类型')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('数据区不是字段清单')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('禁止输出 false'),
   'System Prompt must expose the tiered Chinese protocol and second-person contract',
 )
 assertOk(
-  !narrativePrompt.systemPrompt.trimStart().startsWith('{')
-    && narrativePrompt.systemPrompt.trimEnd().endsWith('⟦结束⟧'),
+  !COMPILED_NARRATIVE_SYSTEM_PROMPT.trimStart().startsWith('{')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.trimEnd().endsWith('⟦结束⟧'),
   'System Prompt must use low-noise plain constraints first and the single standard example last',
 )
 assertOk(
@@ -448,16 +455,16 @@ const drivingForceComponent = NARRATIVE_SYSTEM_COMPONENTS.find(
 assertOk(
   drivingForceComponent?.lifecycle === '全局常驻'
     && drivingForceComponent?.authority === '剧情引导'
-    && narrativePrompt.systemPrompt.includes('压力、阻力和受挫不是每轮必选项')
-    && narrativePrompt.systemPrompt.includes('不会自动触发官方或机构审查、鉴定、登记、封存或针对')
-    && narrativePrompt.systemPrompt.includes('已解决后不得换名复用')
-    && narrativePrompt.systemPrompt.includes('不默认贫困、羞辱、资格审查或被针对')
-    && narrativePrompt.systemPrompt.includes('不得用陌生观察者、神秘来客、突然通知或新机构凭空补压力与悬念'),
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('压力、阻力和受挫不是每轮必选项')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不会自动触发官方或机构审查、鉴定、登记、封存或针对')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('已解决后不得换名复用')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不默认贫困、羞辱、资格审查或被针对')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得用陌生观察者、神秘来客、突然通知或新机构凭空补压力与悬念'),
   'fixed Prompt must allow positive change drivers and require causality for institutional intervention',
 )
 assertOk(
-  !narrativePrompt.systemPrompt.includes('依次写触发与压力、行动与阻力')
-    && !narrativePrompt.systemPrompt.includes('平静轮也要有欲望、关系回声、意外、压力或悬念'),
+  !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('依次写触发与压力、行动与阻力')
+    && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('平静轮也要有欲望、关系回声、意外、压力或悬念'),
   'fixed Prompt must not require pressure or resistance in every three-paragraph round',
 )
 assertOk(
@@ -761,7 +768,7 @@ assertOk(
 )
 
 console.log(
-  `METRIC: prompt-${narrativePrompt.version} system=${narrativePrompt.systemPrompt.length} global=${firstSegments.userSegments?.[0]?.length ?? 0} memory=${firstSegments.userSegments?.[1]?.length ?? 0} round=${firstSegments.userSegments?.[2]?.length ?? 0}`,
+  `METRIC: prompt-${narrativePrompt.version} server-system=${COMPILED_NARRATIVE_SYSTEM_PROMPT.length} global=${firstSegments.userSegments?.[0]?.length ?? 0} memory=${firstSegments.userSegments?.[1]?.length ?? 0} round=${firstSegments.userSegments?.[2]?.length ?? 0}`,
 )
 
 if (failed > 0) process.exit(1)

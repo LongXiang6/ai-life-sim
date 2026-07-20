@@ -7,6 +7,7 @@ import process from 'node:process'
 import { buildSegmentedPrompt } from '../../../../src/core/ai-service/prompt-builder.ts'
 import { buildTimeScaleNarrativeHint } from '../../../../src/mods/mod-engine/helpers/time-scale-narrative.ts'
 import { narrativePrompt } from '../../../../src/mods/mod-engine/prompts/narrative-prompt.ts'
+import { COMPILED_NARRATIVE_SYSTEM_PROMPT } from '../../../../src/mods/mod-engine/server/narrative-system-prompt.ts'
 
 const PROVIDER = 'deepseek'
 const MODEL = 'deepseek-v4-flash'
@@ -52,10 +53,15 @@ function buildMessages(round, history) {
     wordCountInstruction: '篇幅约200字，只作节奏参考；剧情需要时可以自然超出。',
   }
   const segments = buildSegmentedPrompt(narrativePrompt, context)
-  if (segments.messages) return segments.messages
+  if (segments.messages) {
+    return [
+      { role: 'system', content: COMPILED_NARRATIVE_SYSTEM_PROMPT },
+      ...segments.messages.filter((message) => message.role !== 'system'),
+    ]
+  }
   const userSegments = segments.userSegments ?? [segments.full]
   return [
-    { role: 'system', content: narrativePrompt.systemPrompt },
+    { role: 'system', content: COMPILED_NARRATIVE_SYSTEM_PROMPT },
     ...userSegments.map((content) => ({ role: 'user', content })),
   ]
 }

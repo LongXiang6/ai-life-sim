@@ -7,10 +7,16 @@
       "mythic-pattern-access"
     ],
     "mod-engine": [
-      "engine-api"
+      "engine-api",
+      "server-prompt-assets"
     ],
     "mod-world": [
       "world-init-api"
+    ]
+  },
+  "allowedServerOnlyPublicImports": {
+    "mod-engine": [
+      "server-prompt-assets"
     ]
   },
   "forbiddenStaticOrchestratorImportMods": [
