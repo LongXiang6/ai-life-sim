@@ -309,6 +309,7 @@ async function main() {
   const filteredFeedback = feedback.filter((record) =>
     (!options.ip || sourceIp(record) === options.ip)
     && (!options.playerCode || diagnosticCode(record) === options.playerCode)
+    && (!options.requestId || record.requestId === options.requestId)
     && (!options.feedbackId || record.feedbackId === options.feedbackId))
   const feedbackSources = new Set(filteredFeedback.map(sourceIp).filter((ip) => ip !== 'unknown'))
 

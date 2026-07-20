@@ -92,6 +92,7 @@ try {
   const v2Event = {
     schemaVersion: 2,
     eventId: 'diagnostic-code-v2-event',
+    requestId: 'diagnostic-code-request',
     timestamp: new Date().toISOString(),
     receivedAt: Date.now(),
     level: 'info',
@@ -107,6 +108,16 @@ try {
   await Promise.all([
     store.appendServerJsonLine('client-events/client-events-2026-07-20.jsonl', v2Event),
     store.appendSourceJsonLine(source, 'client-events-2026-07-20.jsonl', v2Event),
+    store.appendServerJsonLine('feedback/feedback-2026-07-20.jsonl', {
+      schemaVersion: 2,
+      feedbackId: 'FB-20260720-UNRELATED',
+      receivedAt: Date.now(),
+      sourceIp: source.ip,
+      sourceId: source.sourceId,
+      diagnosticCode: source.diagnosticCode,
+      category: 'bug',
+      subject: 'unrelated feedback',
+    }),
   ])
 
   const inspectorPath = path.resolve('scripts/ops/inspect-ai-logs.mjs')
@@ -131,6 +142,17 @@ try {
   const environmentEvent = contentReport.clientEvents?.find((item) => item.eventId === 'diagnostic-code-v2-event')
   assert(environmentEvent?.context?.path === '/game-story', 'operator inspector must hydrate v2 content references')
   assert(environmentEvent?.context?.environmentSnapshot?.viewportWidth === 390, 'hydrated environment snapshot must remain complete')
+
+  const inspectedRequest = await execFile(process.execPath, [
+    inspectorPath,
+    '--root', tempRoot,
+    '--all',
+    '--request-id', 'diagnostic-code-request',
+  ], { encoding: 'utf8' })
+  const requestReport = JSON.parse(inspectedRequest.stdout)
+  assert(requestReport.totals.clientEvents === 1, 'request-id lookup must retain the matching client event')
+  assert(requestReport.totals.feedbackSubmissions === 0, 'request-id lookup must exclude unrelated feedback metadata')
+  assert(requestReport.recentFeedback.length === 0, 'request-id output must not attach unrelated feedback rows')
 
   console.log(`[diagnostic-player-code-smoke] PASS code=${firstCode}`)
 } finally {
