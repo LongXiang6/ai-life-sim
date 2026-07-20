@@ -415,7 +415,7 @@ for (const inactiveConnection of [
   )
 }
 assertOk(
-  liveNarrativePrompt.version === '4.2.1'
+  liveNarrativePrompt.version === '4.3.0'
     && !narrativePromptComponents.includes('examples: ['),
   'optimized prompt must be versioned and keep one governed standard example instead of duplicate examples',
 )

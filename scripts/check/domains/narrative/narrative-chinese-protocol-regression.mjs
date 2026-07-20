@@ -23,11 +23,19 @@ import {
   projectCharacterForNarrativeAI,
   projectWorldSettingForNarrativeAI,
 } from '../../../../src/mods/mod-engine/helpers/narrative-ai-input-view.ts'
-import { inspectNarrativeResponseQuality } from '../../../../src/mods/mod-engine/helpers/narrative-response-quality.ts'
+import { buildNarrativeHints } from '../../../../src/mods/mod-engine/helpers/narrative-hints.ts'
+import {
+  buildNarrativeRepairInstruction,
+  inspectNarrativeResponseQuality,
+} from '../../../../src/mods/mod-engine/helpers/narrative-response-quality.ts'
+import { buildTimeScaleNarrativeHint } from '../../../../src/mods/mod-engine/helpers/time-scale-narrative.ts'
 import {
   NARRATIVE_SYSTEM_COMPONENTS,
 } from '../../../../src/mods/mod-engine/prompts/narrative-prompt-components.ts'
-import { narrativePrompt } from '../../../../src/mods/mod-engine/prompts/narrative-prompt.ts'
+import {
+  FALLBACK_NARRATIVE_PROMPT,
+  narrativePrompt,
+} from '../../../../src/mods/mod-engine/prompts/narrative-prompt.ts'
 
 let failed = 0
 const root = getProjectRoot(import.meta.url)
@@ -373,13 +381,20 @@ assertOk(
     && invalidOptionalDataQuality.structuredDataStatus === 'rejected',
   'invalid optional data must preserve body and summary without triggering a rewrite',
 )
+const balancedRepairInstruction = buildNarrativeRepairInstruction(invalidOptionalDataQuality, 200)
+assertOk(
+  balancedRepairInstruction.includes('行动发展')
+    && balancedRepairInstruction.includes('不要为修复格式新增压力或障碍')
+    && !balancedRepairInstruction.includes('行动阻力'),
+  'format repair must preserve narrative progress without reintroducing mandatory resistance',
+)
 const legacyEnvelope = `[正文]第一段。\n\n第二段。\n\n第三段。[/正文]\n[回合数据]${JSON.stringify(legacyEnglishData)}[/回合数据]`
 assertOk(
   !inspectNarrativeResponseQuality(legacyEnvelope, 200, null).valid,
   'the old tagged envelope must not enter the successful protocol path',
 )
 
-assertOk(narrativePrompt.version === '4.2.1', 'tiered Chinese protocol behavior must use Prompt 4.2.1')
+assertOk(narrativePrompt.version === '4.3.0', 'balanced Chinese narrative behavior must use Prompt 4.3.0')
 for (const forbiddenProtocolToken of [
   '[NARRATIVE]',
   '[META]',
@@ -425,6 +440,77 @@ assertOk(
       && component.acceptanceEvidence
     )),
   'every Prompt component must have unique identity and complete governance metadata',
+)
+
+const drivingForceComponent = NARRATIVE_SYSTEM_COMPONENTS.find(
+  (component) => component.id === 'narrative-driving-force',
+)
+assertOk(
+  drivingForceComponent?.lifecycle === '全局常驻'
+    && drivingForceComponent?.authority === '剧情引导'
+    && narrativePrompt.systemPrompt.includes('压力、阻力和受挫不是每轮必选项')
+    && narrativePrompt.systemPrompt.includes('不会自动触发官方或机构审查、鉴定、登记、封存或针对')
+    && narrativePrompt.systemPrompt.includes('已解决后不得换名复用')
+    && narrativePrompt.systemPrompt.includes('不默认贫困、羞辱、资格审查或被针对')
+    && narrativePrompt.systemPrompt.includes('不得用陌生观察者、神秘来客、突然通知或新机构凭空补压力与悬念'),
+  'fixed Prompt must allow positive change drivers and require causality for institutional intervention',
+)
+assertOk(
+  !narrativePrompt.systemPrompt.includes('依次写触发与压力、行动与阻力')
+    && !narrativePrompt.systemPrompt.includes('平静轮也要有欲望、关系回声、意外、压力或悬念'),
+  'fixed Prompt must not require pressure or resistance in every three-paragraph round',
+)
+assertOk(
+  FALLBACK_NARRATIVE_PROMPT.includes('变化可以是机会、发现、掌握、认可、关系变化、休整、成功或合理冲突')
+    && FALLBACK_NARRATIVE_PROMPT.includes('不要求制造阻力')
+    && FALLBACK_NARRATIVE_PROMPT.includes('不默认机构审查、被针对或贫困羞辱模板')
+    && !FALLBACK_NARRATIVE_PROMPT.includes('一个阻力或意外及其直接后果'),
+  'degraded narrative Prompt must preserve the same balanced change-driver policy',
+)
+
+const balancedHints = buildNarrativeHints({
+  currentAge: 18,
+  maxAge: 80,
+  startingAge: 0,
+  round: 8,
+  recentEvents: [{ age: 17 }],
+  lastPlayerChoice: '继续学习潮汐术',
+  forceBranch: false,
+  branchJustResolved: false,
+  consecutiveSameGoalRounds: 2,
+  timeStep: { unit: 'year', value: 1 },
+  lifeStage: 'young_adult',
+}).optional.join('\n')
+assertOk(
+  balancedHints.includes('机会、关系、能力、处境或合理压力')
+    && balancedHints.includes('不要为延长目标重复制造同类阻碍')
+    && balancedHints.includes('只有既有因果需要时才写阻力')
+    && !balancedHints.includes('优先体现新阶段的社会压力')
+    && !balancedHints.includes('先确定年度主要压力'),
+  'dynamic narrative hints must treat pressure as one causal option and reject repeated filler obstacles',
+)
+
+const crossMonthBalanceHint = buildTimeScaleNarrativeHint({ unit: 'month', value: 3 })
+const multiYearBalanceHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 3 })
+assertOk(
+  crossMonthBalanceHint.includes('起点状态或变化契机')
+    && !crossMonthBalanceHint.includes('第一段交代起点压力')
+    && multiYearBalanceHint.includes('主要变化驱动力')
+    && !multiYearBalanceHint.includes('起点阶段与主要压力'),
+  'time-scale guidance must preserve causal coverage without forcing a pressure-led opening',
+)
+
+const plotBalanceGuidance = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/subsystems/plot-structure-system.ts'),
+  'utf8',
+)
+assertOk(
+  plotBalanceGuidance.includes('目标、机会或矛盾逐步加深')
+    && plotBalanceGuidance.includes('不得为增加张力机械制造威胁、审查或针对')
+    && plotBalanceGuidance.includes('不要求制造冲突')
+    && !plotBalanceGuidance.includes('越来越大的压力')
+    && !plotBalanceGuidance.includes('可以引入新的矛盾、欲望或关系压力'),
+  'plot guidance must raise engagement through causal development rather than mandatory conflict',
 )
 
 const CausalDelaySystem = compileCausalDelaySystem()
@@ -675,7 +761,7 @@ assertOk(
 )
 
 console.log(
-  `METRIC: prompt-4.2 system=${narrativePrompt.systemPrompt.length} global=${firstSegments.userSegments?.[0]?.length ?? 0} memory=${firstSegments.userSegments?.[1]?.length ?? 0} round=${firstSegments.userSegments?.[2]?.length ?? 0}`,
+  `METRIC: prompt-${narrativePrompt.version} system=${narrativePrompt.systemPrompt.length} global=${firstSegments.userSegments?.[0]?.length ?? 0} memory=${firstSegments.userSegments?.[1]?.length ?? 0} round=${firstSegments.userSegments?.[2]?.length ?? 0}`,
 )
 
 if (failed > 0) process.exit(1)

@@ -147,7 +147,7 @@ export function buildNarrativeRepairInstruction(
     '上一版未达到最低协议或条件任务门禁，请按系统提示词末尾的标准示例重新输出完整结果，不要解释或点评。',
     `失败原因：${quality.reason}。`,
     `玩家偏好约 ${target} 字仅作节奏参考；不要因为字数偏离删句、压扁行动或重复内容。`,
-    '保留上一版中有吸引力的现场、人物声音、行动阻力、可见后果与下一步悬念。',
+    '保留上一版中有吸引力的现场、人物声音、行动发展、可见后果与下一步牵引；不要为修复格式新增压力或障碍。',
     ...buildNarrativeAIProtocolRepairReminder(),
   ]
   if (typeof expectedIntentId === 'string') {

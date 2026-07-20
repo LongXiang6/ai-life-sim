@@ -50,7 +50,7 @@ export const INFORMATION_PRIORITY_RULE = [
   '3 生命状态（年龄 + 健康值 + 寿命上限）',
   '4 角色身份/背景',
   '5[最低] 隐藏命格',
-  '世界观与剧情合理性同优先级——冲突时优先保证故事张力，但不得违背世界设定的核心规则。',
+  '世界观与剧情合理性同优先级——世界设定的核心规则不可突破，剧情在其边界内追求因果、变化和可玩性。',
 ].join(' > ')
 
 // ═══════════════════ hint 子函数 ═══════════════════
@@ -80,7 +80,7 @@ function hintBranchResolved(input: NarrativeHintInput): string[] {
   const hints: string[] = []
   if (input.branchJustResolved) {
     hints.push(
-      '上轮玩家做出重要选择。叙事不应违背该方向。但成功与否由角色实力/环境/运气决定——允许失败/意外转折/付出代价',
+      '上轮玩家做出重要选择。叙事不应违背该方向。结果由角色实力、环境和运气决定，可以成功或取得阶段进展，也可以因真实条件失败、转折或付出代价；不得为了制造阻力压低已满足条件的行动',
     )
   }
   if (input.lastPlayerChoice) {
@@ -90,7 +90,7 @@ function hintBranchResolved(input: NarrativeHintInput): string[] {
         : `玩家选择了"${input.lastPlayerChoice}"`
     if (input.branchJustResolved) {
       hints.push(
-        `${choiceLabel}。请结合世界规则、角色能力、资源和本轮时间跨度判断行动规模：小型行动可在本轮完成；中大型目标只呈现当前阶段的阻力、行动与后果，并在“语义信号”的“行动规模”中同步记录。`,
+        `${choiceLabel}。请结合世界规则、角色能力、资源和本轮时间跨度判断行动规模：小型行动可在本轮完成；中大型目标只呈现当前阶段的行动、进展、必要阻碍与后果，并在“语义信号”的“行动规模”中同步记录。`,
       )
     } else if (!input.branchJustResolved) {
       const progressLabel =
@@ -98,7 +98,7 @@ function hintBranchResolved(input: NarrativeHintInput): string[] {
           ? `家庭持续推进：${input.lastPlayerChoice}`
           : `持续推进：${input.lastPlayerChoice}`
       hints.push(
-        `${progressLabel}。进展不必一帆风顺，可描写遇到的具体问题/意外收获/人际关系变化`,
+        `${progressLabel}。根据前序因果写出进展、具体问题、意外收获或人际关系变化；不要为延长目标重复制造同类阻碍`,
       )
     }
   }
@@ -114,7 +114,7 @@ function hintSceneJump(input: NarrativeHintInput): string[] {
     input.currentAge > prevEvent.age
   ) {
     hints.push(
-      `距上次事件已过${input.currentAge - prevEvent.age}年，优先体现新阶段的社会压力或关系变化，再选择一个新的剧情节点，避免延续上次事件的同一场景`,
+      `距上次事件已过${input.currentAge - prevEvent.age}年，优先体现新阶段最有因果价值的变化，例如机会、关系、能力、处境或合理压力，再选择一个新的剧情节点，避免延续上次事件的同一场景`,
     )
   }
 
@@ -133,7 +133,7 @@ function hintSceneJump(input: NarrativeHintInput): string[] {
     case 'month':
       hints.push(
         amount === 1
-          ? '推进1个月。中近景视角：先点出本月压力、机会或关系变化，再落到一件代表性小事件；这件事尽量包含角色行动、具体阻力、可见后果或新线索，少写月度清单和纯心理余味'
+          ? '推进1个月。中近景视角：先点出本月最重要的变化、机会、目标推进或关系变化，再落到一件代表性小事件；这件事包含角色行动、发展和可见后果，只有因果需要时才写阻力，少写月度清单和纯心理余味'
           : `推进${amount}个月。跨月阶段视角：体现数月内的积累、转折与当前月后果，不要只写最后一个月`,
       )
       break
@@ -148,7 +148,7 @@ function hintSceneJump(input: NarrativeHintInput): string[] {
     default:
       hints.push(
         amount === 1
-          ? '时间推进1年。先确定年度主要压力或你要推进的目标，随后只写一个代表性现场中的行动、阻力与可见后果；年度背景最多一句，禁止再写第二个季节、地点或独立日常'
+          ? '时间推进1年。先确定年度主要变化或你要推进的目标，随后只写一个代表性现场中的行动、发展与可见后果；只有既有因果需要时才写阻力，年度背景最多一句，禁止再写第二个季节、地点或独立日常'
           : `时间跳过${amount}年。完整覆盖起点、期间阶段变化与当前节点；围绕同一条主要因果写出长期改变，代表性节点必须前后承接，不要只写目标年份、逐年记流水账或拼接独立生活切片`,
       )
       break

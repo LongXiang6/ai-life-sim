@@ -4,7 +4,7 @@
  * @mod mod-engine
  *
  * 设计理念：
- *   网文创作需要清晰的情节结构（铺垫→冲突升级→转折→高潮→收尾）。
+ *   连续叙事需要清晰的情节结构（铺垫→推进升温→转折→高潮→收尾）。
  *   本系统通过本地状态机判定当前情节阶段，在 Prompt 中注入阶段引导，
  *   让 AI 叙事在宏观结构约束下自由发挥。
  *
@@ -31,7 +31,7 @@ import { clampNumber } from '../helpers/system-safety'
 /** 情节阶段 */
 export type PlotPhase =
   | 'setup'           // 铺垫期 — 建立场景和人物关系
-  | 'rising_action'   // 冲突升级 — 矛盾不断激化
+  | 'rising_action'   // 推进升温 — 目标、机会或矛盾逐步加深
   | 'climax_approach' // 转折前 — 张力逼近顶点
   | 'climax'          // 高潮 — 关键事件爆发
   | 'falling_action'  // 高潮回落 — 处理后果
@@ -41,7 +41,7 @@ export type PlotPhase =
 /** 情节阶段标签 */
 const PHASE_LABELS: Record<PlotPhase, string> = {
   setup: '铺垫期',
-  rising_action: '冲突升级',
+  rising_action: '推进升温',
   climax_approach: '转折前夕',
   climax: '高潮',
   falling_action: '回落',
@@ -86,10 +86,10 @@ function normalizeHistoricalEventIds(ids?: readonly string[]): string[] {
 
 const PHASE_GUIDANCE: Record<PlotPhase, string> = {
   setup: '建立场景氛围和人物关系，展现角色的日常生活和初始状态，为后续发展做铺垫。避免过早引入重大冲突。',
-  rising_action: '矛盾正在激化，冲突逐步升级。为即将到来的转折点积累张力。引入新的威胁或挑战，让角色面临越来越大的压力。',
-  climax_approach: '张力逼近顶点，关键时刻即将到来。所有线索汇聚，角色面临最严峻的考验。营造紧张感和期待感。',
-  climax: '这是剧情的高潮时刻！关键冲突爆发，角色做出决定性行动。场面要宏大、紧张、有冲击力。这是本轮叙事的核心。',
-  falling_action: '高潮已经过去，展现冲突的后果和影响。角色在经历重大事件后的反应和调整。开始收束叙事线索。',
+  rising_action: '主线正在推进，既有目标、机会或矛盾逐步加深。通过新信息、能力运用、关系变化或因果挑战提高投入感；不得为增加张力机械制造威胁、审查或针对。',
+  climax_approach: '关键转折正在逼近，既有条件、线索和关系开始汇聚。营造期待感，但不得临时添加与前序无关的障碍。',
+  climax: '关键转折发生，角色采取决定性行动，既可突破、兑现或获得成果，也可承受由既有因果带来的冲突与代价。让本轮成为当前主线的核心。',
+  falling_action: '关键转折已经发生，展现成果、代价和后续影响。角色作出反应与调整，开始收束既有叙事线索。',
   resolution: '恢复平静，总结这一阶段的变化。展现角色从中获得的成长。为下一段剧情留下自然的过渡。',
   new_chapter: '开启新的篇章。引入新的场景、人物或目标。从之前的剧情自然过渡到新的起点。',
 }
@@ -268,8 +268,8 @@ export class PlotStructureSystem extends BaseSubsystem {
       `【当前情节阶段】${label}（第${round}轮）`,
       `张力：${tension}/100`,
       `引导：${guidance}`,
-      tension >= 70 ? '高张力：为高潮或转折做铺垫。' : '',
-      tension <= 20 ? '低张力：可以引入新的矛盾、欲望或关系压力。' : '',
+      tension >= 70 ? '高张力：为关键转折做铺垫，沿用既有因果，不新增无关障碍。' : '',
+      tension <= 20 ? '低张力：可以引入新目标、机会、发现、欲望或关系变化；不要求制造冲突。' : '',
     ].filter(Boolean).join('\n')
   }
 

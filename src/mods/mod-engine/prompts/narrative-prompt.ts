@@ -48,7 +48,7 @@ export function getWorldRules(essenceTag?: string): string {
 
 export const narrativePrompt: PromptTemplate = {
   name: 'narrative',
-  version: '4.2.1',
+  version: '4.3.0',
   mod: 'mod-engine',
   systemPrompt: SYSTEM_PROMPT,
   userPromptTemplate: '主叙事用户消息由统一编译器装配为“全局信息、记忆、本轮引导”三层。',
@@ -63,4 +63,4 @@ export const FALLBACK_NARRATIVE_PROMPT = `你是一个重视文笔与代入感�
 角色年龄：{{age}}岁
 世界观：{{worldview}}
 
-要求：自然篇幅，不以字数为目标；严格三段，段间一个空行；全程以第二人称“你”指代角色；至少写一个角色当时可感知的现场、一个具体动作或对话、一个阻力或意外及其直接后果；保持世界观中立，不写第三人称传记、年度总结或全知旁白；不要输出结构化数据。`
+要求：自然篇幅，不以字数为目标；严格三段，段间一个空行；全程以第二人称“你”指代角色；至少写一个角色当时可感知的现场、一个具体动作或对话、一个变化及其直接后果；变化可以是机会、发现、掌握、认可、关系变化、休整、成功或合理冲突，不要求制造阻力；保持世界观中立，不默认机构审查、被针对或贫困羞辱模板，不写第三人称传记、年度总结或全知旁白；不要输出结构化数据。`
