@@ -49,6 +49,7 @@
 | `PD-029` | P0 复审收口与 P1 历史因果实施授权 | 生效 | 2026-07-19 |
 | `PD-030` | 主叙事关键资产服务端组装与客户端计算分工 | 生效 | 2026-07-20 |
 | `PD-031` | 玩家专属设定归属与首轮来历 | 生效 | 2026-07-20 |
+| `PD-032` | 结算分享卡、事实忠实与本机生成 | 生效 | 2026-07-20 |
 
 ## PD-001 AI 命格抽取等待与兜底
 
@@ -65,10 +66,7 @@
 7. 首屏满足 5 条后，可以在后台按独立的有限策略补充命格池；后台补池不阻塞玩家选择。
 8. 改变上述行为属于产品语义变更，必须先列出冲突、影响和选项并由用户确认。
 
-取代：
-
-- `docs/superpowers/specs/2026-07-10-playtest-quality-fixes-design.md` 中的 60 秒兜底条款。
-- `docs/superpowers/plans/2026-07-10-playtest-quality-fixes-plan.md` 中的 60 秒兜底实施条款。
+取代：历史方案中的 60 秒页面级超时和预设兜底条款。
 
 ## PD-013 AI 命格首屏三路并发与十条批量
 
@@ -94,7 +92,7 @@
 4. L2—L6 摘要在生成后继续进入可检索索引；L1 清理原始事件时不得同时丢失高层摘要的实体标签与重要性。
 5. 压缩调用按上述固定延迟/层级节奏运行。记忆生命周期的闭环/容量判定只用于记录触发原因与预算观测，不得绕过延迟窗口提前清理近期完整叙事。
 
-取代：旧计划中“只把 digest 平均重要性用于预算、L1 输入只含 narrative、生产 Prompt 只保留最近 5 轮原文”的实现口径。详见 `docs/playtest-2026-07-18-compression-runtime.md`。
+取代：旧计划中“只把 digest 平均重要性用于预算、L1 输入只含 narrative、生产 Prompt 只保留最近 5 轮原文”的实现口径。当前验收见 `docs/acceptance-ledger.md#narrative-compression`。
 
 ## PD-015 剧情质量破坏性硬截断绝对禁止
 
@@ -391,6 +389,8 @@
 
 ## PD-005 命格稀有度的影响层级
 
+> 更新说明（2026-07-20）：玩家反馈 AI 候选几乎全部被写成收益与代价绑定的“双刃剑”。普通候选继续禁止纯负面，但批次构成改为正向命格占明确多数，混合机制只保留少数真正需要张力的词条。
+
 1. 稀有度不仅表示属性加成或模拟系数的数值大小，也表示命格能影响的叙事层级。
 2. `common` / `fine` 主要表现为日常天赋、体质、习惯和局部倾向；`rare` 可稳定影响一个个人领域；`epic` 可跨多个个人领域或轻度影响周边环境。
 3. `legendary` 允许轻度、受约束的概念级叙事规则，例如“致命偶然更容易留下转机”或“真诚立下的承诺更难被世界轻易抹去”。
@@ -398,6 +398,8 @@
 5. `effect` 表达需要叙事引擎持续遵守的语义规则；`attrBonus` 与 `systemModifiers` 是该规则在数值模拟中的有限映射。三者共同生效，不能用数值字段取代叙事效果。
 6. AI 生成的 `systemModifiers` 必须经过已知字段白名单、稀有度数量上限和幅度钳制；普通与精良命格不生成模拟系数。
 7. AI 不生成纯负面命格。候选只能是正向或兼具收益与代价的混合机制；混合机制的代价必须与明确收益、触发条件或可操作的应对空间同时存在。
+8. 每批 10 条 AI 命格以 7 条 `positive`、3 条 `mixed` 为生成目标，本地质量门禁至少要求 6 条 `positive`。正向命格不得为了形式上的“平衡”硬塞副作用、人格缺陷或负属性；传奇命格用于防止万能化的触发条件、概率边界和可被对抗性，不自动等同于负面代价。
+9. 命格候选池缓存必须跟随当前 Prompt 契约版本隔离。生成规则升级后，旧版本缓存不得继续参与新抽取；已经确认并进入角色状态的命格不因候选池升级而删除或改写。
 
 ## PD-006 神话命格跨局继承
 
@@ -463,6 +465,7 @@
 3. 运行时不得照搬原型测试台的固定 `390×844` 观察框或 `330×674` phone 外壳。页面主体使用百分比、`min()`、`max()`、`clamp()`、动态视口单位与安全区适配，保证 320—768px 及桌面宽度连续变化时不出现横向溢出、大片空白或局部异常拥挤。
 4. 同一页面只保留一套当前样式来源。迁移到定版方案时必须删除或隔离已废弃的前置样式、重复选择器和后置覆盖，不允许依赖源码顺序把多套主题叠在一起。
 5. 交付至少验证 320、360、375、390、430、768px 与一个桌面宽度，检查动态高度、安全区、底栏遮挡、字体放大和 767→768 连续性。
+6. 桌面端的欢迎、创建、命格、最终预览、存档与反馈等非核心模拟页面应在不改变移动端定版构图的前提下适度放大阅读尺度与内容宽度；`game-story` 核心模拟界面保持当前信息密度，不随该放大规则改变。
 
 ## PD-012 五候选命格与零起步四项基础属性
 
@@ -472,114 +475,3 @@
 4. 读取旧存档时可以忽略遗留 `resources` 字段以保证兼容，但任何新状态、Prompt、Schema、保存结果或叙事变更都不得继续写入该字段。
 5. 气运、善恶等隐藏系统不因移除“出身”而变为第五项可分配属性，也不得借用“资源”名称重新引入同义字段。
 6. 主叙事 AI 只能通过 `PD-025` 派生的四项结构化增量字段影响基础值；页面、创建草稿、自由正文、命格展示或其他系统不得绕过 `character-base` 直接写入基础值。
-
----
-
-## 实现参考：新旧项目机制对比
-
-> 本节为实现层参考，不更改上方 PD-xxx 的产品语义约束。记录同一机制在废弃实现与当前实现之间的核心差异，帮助理解当前约束的来源和边界。发现冲突时，以上方生效 PD 条目为准。
-
-### 1. 时间引擎
-
-| 维度 | 旧实现（废弃） | 新实现（当前） |
-|---|---|---|
-| 最小时间粒度 | 以"年"为最小单位，浮点数 `1/365 ≈ 0.00274` | 以"日"为最小整数单位，`1 day = 1` |
-| RoundContext 时间字段 | `ageYearsDelta`（浮点年增量）、`simulationTicks`（年累加器）、`calendarDaysDelta` | `daysPassed`（本轮整数天数）、`totalDays`（累计整数天数）；旧三字段已从类型删除 |
-| 子系统读时间 | `getAgeYearsDelta(context)` 或直接读 `context.ageYearsDelta`，各自维护年/月/日缩放 | `this.getDaysPassed(context)` 统一入口，不再各自换算 |
-| 零循环风险 | `for (let y = 0; y < years; y++)` 跨年循环，步长切换时可能死循环冻结 | 不再有年循环，基于整数天直接推进，子系统用 `while (accumulator >= period)` 模式 |
-| 叙事步长 | 硬编码每轮 1 年，无法切换 | 可切换日/月/季/年；`timeStep` 仅影响 `daysPassed` 换算结果，不改变底层日粒度 |
-| 单一权威 | TimeSystem 与各子系统各自维护时间状态 | TimeSystem 是唯一写入者；页面/Hook/子系统只读 `daysPassed`/`totalDays` |
-
-**关联约束**：子系统中出现 `ageYearsDelta`、`simulationTicks`、`calendarDaysDelta`、`getAgeYearsDelta`、`consumeSimulationYears` 是红线（B-11 迁移范围），触碰即修。
-
----
-
-### 2. 子系统架构
-
-| 维度 | 旧实现（废弃） | 新实现（当前） |
-|---|---|---|
-| 基类/接口 | `class XxxSystem implements ISubSystem`，各自猜测需实现哪些方法 | `class XxxSystem extends BaseSubsystem`，`abstract` 方法明确标出必做项 |
-| 方法签名约束 | 无统一约束，方法名和参数各自为政 | 基类定义统一签名：`collectState` / `applyChanges` / `reset`（必须）+ `advance` / `collectStateUpdate` / `collectStateFinalFix` / `formatForPrompt`（按需覆盖）|
-| 共享工具 | `clamp`、`limit` 等每个子系统各写一份 | 基类提供 `clamp` / `getDaysPassed(context)` / `readSubsystem<T>(context, id)` |
-| 跨系统数据读取 | `(base?.data as Record<string, unknown>)?.physique`，路径写错只在运行时得到 `undefined` | `this.readSubsystem<CharacterBaseContract>(context, 'character-base')`，路径和类型编译期检查 |
-| 迁移状态 | 仍有大量 `implements ISubSystem` 旧文件（2026-07-11 扫描：71 个含旧接口） | 规则：每轮新建/触碰/恢复的子系统必须迁移；未触碰旧文件不强制批量迁移 |
-
-**关联约束**：新建或本轮触碰的子系统必须 `extends BaseSubsystem`（B-11）；`subsystems/` 顶层禁止 `new`（B-27，A-14）。
-
----
-
-### 3. 字段契约
-
-| 维度 | 旧实现（废弃） | 新实现（当前） |
-|---|---|---|
-| 声明来源 | 三处手写：① `applyChanges` 实际读取的字段名 ② `subsystem-field-registry.ts` Zod schema ③ `mvp-stages-config.default.json` subsystemGuide | 单一真源：`SUBSYSTEM_FIELD_CONTRACTS` 常量声明字段语义、类型、增量/绝对值和钳制范围 |
-| 漂移后果 | AI 按 (3) 输出 `{morality: 1}`，(2) 宽松放行，(1) 只认 `delta` → 数值被静默丢弃；善恶/气运/寿命长期无法真正变动 | registry schema 和 AI subsystemGuide 均从 `SUBSYSTEM_FIELD_CONTRACTS` 派生，三方不可独立漂移 |
-| 字段语义确认 | 无显式文档，增量/绝对值/内部字段混淆 | 每字段在契约中注明 `kind: 'delta'` 或 `'absolute'`，`applyChanges` 按语义落地 |
-| 典型历史错误 | `morality` impl 读 `delta`，AI 指南说用 `morality`；`luck` impl 读绝对值，registry 声明 `bonus/delta`；`lifespan.lifespanDelta` 不落地 | 修复后：`morality` 只暴露 `delta`；`luck` 确定为绝对值字段；`lifespan` 支持 `lifespanDelta` 增量落地 |
-
-**关联约束**：B-49（字段契约单一真源）；新增 AI 可写字段必须先在 `SUBSYSTEM_FIELD_CONTRACTS` 声明，再派生 registry 和 guide。
-
----
-
-### 4. AI 语义判断方式
-
-| 维度 | 旧实现（废弃） | 新实现（当前，PD-007） |
-|---|---|---|
-| 善恶判断 | `morality-system.ts` 纯关键词表 + `includes('你')` 判主语，是全项目最脆弱的判定 | AI 在 `changes` 提交 `morality.delta` + 可选 `reason`；字段契约保证落地 |
-| 减寿判断 | `lifespan-system.ts` 6 组关键词正则 | AI 提交 `lifespan.lifespanDelta` + `reason`；`LifespanSystem.applyChanges` 落地 |
-| 重要性评分 | `memory-lifecycle-system.ts` 三档关键词表（含"死亡"等硬编码词） | `digest-ledger` AI 自评 `importance` 字段；关键词降为兜底 |
-| 遗忘分类 | `memory-forgetting-system.ts` 4 张关键词表决定删哪条记忆 | `digest-ledger.effectiveImportance` + 实体重叠替代关键词 |
-| 事件闭环检测 | `CLOSURE_PATTERNS` 6 类正则 | AI 输出 `arcStatus: 'start'/'ongoing'/'end'` 字段 |
-| 正则合法范围 | 无边界，语义/结构混用 | 仅：字符转义、Unicode/引号规范、JSON/标签提取、流式恢复、格式校验、安全清洗 |
-
-**关联约束**：B-39（禁止正则做关键路径判定）；PM-01/PM-09；PD-007 全文。
-
----
-
-### 5. 业务逻辑归属
-
-| 维度 | 旧实现（废弃） | 新实现（当前） |
-|---|---|---|
-| 寿命突破/减寿 | `LifespanSystem` 判一次 + `post-narrative-processor.ts` 用**不同公式**又判一次写回 `maxAge`（双算） | AI 通过结构化 `lifespanDelta` 表达叙事寿命变化，`LifespanSystem` 独占落地；正文扫描式 post-narrative 连锁反应已退出活跃链 |
-| 属性写入路径 | AI `*Delta` + `character-base-system.ts` 叙事正则兜底（两条并行写路径） | 唯一写入路径是 AI `*Delta`；叙事正则兜底已删除（B1） |
-| Orchestrator 职责 | 自己算寿命/属性业务数值再写回子系统 | 只做管线顺序编排 + 通过 `RoundCommitBus` 分发；禁止自算业务写回 |
-| 跨系统通信 | 任意读写，路径不透明 | 读：`context.subsystemStates`（只读）；写：`RoundCommitBus`（统一出口） |
-
-**关联约束**：B-50（判定落地同系统内闭环）；E-10（orchestrator 不自算业务）。
-
----
-
-### 6. 平衡参数管理
-
-| 维度 | 旧实现（废弃） | 新实现（当前） |
-|---|---|---|
-| 属性增量上限 | 全局固定 `ATTR_DELTA_CLAMP = [-8, 8]`，与时间粒度脱钩，旧 resources（出身）单轮最多 ±8 | `CHARACTER_ATTRIBUTE_DELTA_LIMITS_PER_YEAR`：四项基础属性分别按 `daysPassed / 365` 缩放；resources 已退出当前契约，旧档只读时忽略 |
-| 难度系数入口 | 各子系统各自读取 `worldConfig.difficulty.multiplier` 并各自解释；`luck-system.ts` 注释掉的残留；`lifespan-system.ts` 读了但未生效 | `core/shared/balance-config.ts` 单一入口；各系统复活时主动调用 `getWorldDifficultyMultiplier()` |
-| 难度语义 | 不明确，各系统自行理解 | 数值越高越难：`>1` 更难，`=1` 标准，`<1` 更简单（D13） |
-| 调参代价 | 改一个平衡参数需在多个子系统文件中逐一查找 | 修改 `balance-config.ts` 一处，所有接入系统自动生效 |
-
-**关联约束**：D5/D12/D13；subsystem `applyChanges` 中的属性增量钳制必须走 `clampCharacterAttributeDelta()`。
-
----
-
-### 7. AI 输出格式
-
-| 维度 | 旧实现（废弃） | 新实现（当前） |
-|---|---|---|
-| 叙事文本格式 | 纯 JSON，`narrative` 字段内嵌大段中文（含书名号/引号），频繁触发转义错误和括号配平错误 | `⟦正文⟧` 三段纯文本 + `⟦摘要⟧` 独立事实摘要 + 可选 `⟦数据⟧` 中文对象 + `⟦结束⟧` 完成标记 |
-| 解析链路复杂度 | 5 层降级（直接 parse → 抠 ```json``` → jsonrepair → 逐字段正则 → 纯文本兜底）+ `fixCommonJsonErrors` | 状态机提取正文/摘要/可选数据；普通轮数据非法只整包拒绝数据，条件任务才修复；旧协议不得进入成功路径 |
-| JSON Mode | 主叙事路径启用 `response_format: {type: "json_object"}`（DeepSeek） | 主叙事关闭 JSON Mode；只有可选数据区是受 Zod 与整包提交校验的对象 |
-| 叙事结构 | 段落数量随意，few-shot 示例暗示"段落灵活" | 正文必须三段并保持单一因果主线；摘要始终独立返回；数据字段无内容时省略，不输出噪声空值 |
-
-**关联约束**：D1/D2/D11/G1；修改 `narrative-prompt.ts` SYSTEM_PROMPT 会令 KV 前缀缓存失效一次；开发阶段不作约束，但同批改动应合并为一次提交。
-
----
-
-### 8. 超凡与属性成长体系
-
-| 维度 | 旧实现（废弃） | 新实现（当前） |
-|---|---|---|
-| 成长速率设计锚点 | 以"几轮达成"为锚点（如"10 轮达神性"） | 以游戏内时间跨度（年/生命阶段）为锚点；时间引擎是数值中枢 |
-| 单轮增量上限 | 固定值，与叙事步长无关（跨 1 天和跨 10 年相同上限） | 按 `daysPassed / 365` 缩放：跨 10 年的一轮允许的变化幅度远大于跨 1 天的 |
-| 开局超凡 | 种族基准线因 `RACE_LIFESPAN[中文名] = undefined` 的 key bug 实际没有生效 | 修复 key 统一后，种族基准线 + 命格 attrBonus 允许直接叠加，开局即可达到/超过超凡阈值（D14） |
-| 超凡属性刻度 | 凡人 [−10, 10]，超凡到 100000，各档之间成长速率无时间锚 | 档位语义保持，但"从凡人到超凡需要多少游戏内时间"由设计者在 `balance-config` 中以年为单位定义 |

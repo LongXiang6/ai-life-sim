@@ -7,6 +7,7 @@
 import { cacheStore } from '@/core'
 
 import type { DestinyPattern } from '../types'
+import { DESTINY_PATTERN_PROMPT_VERSION } from '../prompts/destiny-pattern-prompt'
 import {
   rejectsBirthStateDestinyPatternContent,
   rejectsFutureDestinyPatternContent,
@@ -14,7 +15,7 @@ import {
 import { sanitizeDestinyPattern } from './character-state-migration'
 
 export function getDestinyPatternPoolCacheKey(worldCode: number): string {
-  return `destiny-pool:${worldCode || 'default'}`
+  return `destiny-pool:${DESTINY_PATTERN_PROMPT_VERSION}:${worldCode || 'default'}`
 }
 
 export function loadDestinyPatternPool(worldCode: number): DestinyPattern[] {

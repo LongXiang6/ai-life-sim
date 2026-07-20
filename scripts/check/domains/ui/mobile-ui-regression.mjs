@@ -353,7 +353,7 @@ assertOk(
 )
 assertOk(
   talentAstrolabeSrc.includes('aria-label="五星位命格星盘"')
-    && talentAstrolabeSrc.includes('<span>命</span>'),
+    && talentAstrolabeSrc.includes('<span aria-hidden="true">命</span>'),
   'the shared talent astrolabe must preserve the approved five-position identity and center glyph',
 )
 assertOk(
@@ -364,10 +364,15 @@ assertOk(
   'TD-RF17-1 must use only the phase/count readout without an added progress bar',
 )
 assertOk(
-  /phase\s*!==\s*['"]ready['"]\s*&&\s*phase\s*!==\s*['"]selecting['"]/.test(talentDrawPageSrc)
-    && /window\.setInterval\([\s\S]*?4000\s*\)/.test(talentDrawPageSrc)
-    && /const\s+handleFocusSlot[\s\S]{0,260}setCycleRevision/.test(talentDrawPageSrc),
-  'the shared astrolabe must continue its four-second rotation in both ready and selecting phases',
+  !/window\.setInterval\([\s\S]*?4000\s*\)/.test(talentDrawPageSrc)
+    && /const\s+handleTurnAstrolabe[\s\S]{0,360}handleFocusSlot\(next\)/.test(talentDrawPageSrc)
+    && talentDrawPageSrc.includes('onTurn={handleTurnAstrolabe}')
+    && talentDrawPageSrc.includes('五条命格已就绪 · 由你手动转动命盘')
+    && !talentDrawPageSrc.includes('持续轮转')
+    && talentAstrolabeSrc.includes('aria-label="转动命格星盘"')
+    && talentAstrolabeSrc.includes('eventRippleMain')
+    && !talentAstrolabeSrc.includes('eventRippleTail'),
+  'the shared astrolabe must rotate only from player input and emit one large ripple per turn',
 )
 assertOk(
   /const\s+\[selectedUiSlots,\s*setSelectedUiSlots\]\s*=\s*useState<\(number\s*\|\s*null\)\[\]>/.test(talentDrawPageSrc)
@@ -415,9 +420,23 @@ assertOk(
 assertOk(!fatePreviewPageSrc.includes('maxWidth='), 'fate preview bottom bar must inherit the shared content-width token')
 assertOk(
   layoutCssSrc.includes('--content-max-width: 42rem;')
+    && layoutCssSrc.includes('--non-simulation-ui-desktop-scale: 1.1;')
     && /@media \(max-width: 767px\)[\s\S]*--content-max-width:\s*42rem;/.test(layoutCssSrc)
     && /@media \(max-width: 767px\)[\s\S]*--content-max-width:\s*42rem;/.test(mobileBaseCssSrc),
   'book surfaces must keep one 42rem cap across 767→768 while min(100%, token) keeps narrow mobile fluid',
+)
+assertOk(
+  [worldSelectCssSrc, worldCustomizeCssSrc, characterCreateCssSrc].every((source) => (
+    /@media \(min-width: 64rem\)/.test(source)
+      && source.includes('--content-max-width: 48rem;')
+      && source.includes('--font-size-base: 1.0625rem;')
+  ))
+    && [welcomeCssSrc, talentDrawCssSrc, fatePreviewCssSrc, saveManagerCssSrc].every((source) => (
+      source.includes('zoom: var(--non-simulation-ui-desktop-scale);')
+    ))
+    && /@media \(min-width: 64rem\)[\s\S]*\.drawCopy > p,[\s\S]*font-size: 10px;/.test(talentDrawCssSrc)
+    && !gameStoryCssSrc.includes('--non-simulation-ui-desktop-scale'),
+  'non-simulation pages must gain a modest desktop reading scale while game-story keeps its current density',
 )
 const sharedDesktopWidthRules = [
   [welcomeCssSrc, 'container', 'width', 'min(100%, var(--content-max-width))'],

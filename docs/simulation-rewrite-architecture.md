@@ -1,4 +1,4 @@
-# MOD 架构优化设计 —— 降低 AI 认知负担的自动化模板体系
+# 模拟子系统架构契约
 
 文档角色：architecture
 权威层级：A3
@@ -8,13 +8,12 @@
 下级组成：BaseSubsystem、世界上下文与历史事件 Foundation 契约、RoundContext、Store 投影、模板与生成接线
 适用范围：MOD 目录、BaseSubsystem、Foundation 跨域契约、追加式事实 Store、生成接线与子系统模板
 拥有者：`ai-life-sim-mod-development` 与 live architecture sources
-最后验证：2026-07-19；对照 P0 世界上下文契约、P1 历史事件契约、RoundContext、owning Store、save/restore、当前 Skill 与生成接线
-取代关系：none
+最后验证：2026-07-20；对照 P0 世界上下文契约、P1 历史事件契约、RoundContext、字段契约、提交回滚、owning Store、save/restore、当前 Skill 与生成接线
+取代关系：合并原日期型核心架构执行文档中的字段、平衡和提交规则
 运行真源：`src/core/subsystem-base.ts`、`src/foundation/types/mod.types.ts`、`src/foundation/subsystem-contracts/`、生成接线脚本
 验收证据：治理检查、活动引用审计、结构检查、P0 世界上下文回归；P1 运行验收以蓝图第 15.6 节登记为准
 
-用途：定义各 MOD 内文件的职责边界、填写规范和占位符格式。
-前置：`simulation-rewrite-discussion-plan.md`
+用途：定义各 MOD 内文件的职责边界、跨域数据、AI 可写字段、提交所有权和生成接线。
 
 ---
 
@@ -29,9 +28,9 @@
 | **填空而非解题** | AI 打开一个子系统文件，看到的是带有占位符的模板，知道"这里填什么类型、输出什么结构"，不需要翻其他文件去猜 |
 | **编译期安全** | foundation 层定义跨域数据契约，跨系统读数据走类型安全的读取器，路径写错编译报错而非运行时静默 undefined |
 | **统一时间源** | TimeSystem 以"天"为唯一最小单位；所有子系统从 `daysPassed` / `context.totalDays` 读取时间，不再各自维护年/月/日缩放 |
-| **自检自动化** | 每个 MOD 完成填空后可跑 `npm run gate-check` 自动校验是否缺文件、缺导出、manifest 字段不匹配 风险提示：**待建设**（见下方现状说明） |
+| **自检自动化** | manifest、生成接线、结构和领域检查由项目脚本验证；无法静态证明的业务责任仍按 owning system 与专项回归人工核对 |
 
-**现状说明**：`scripts/check/domains/` 目前的 scanner（wiring / loader / mod / ui / narrative / calibration）**不校验**本文档新增的约定——子系统是否 `extends BaseSubsystem`、契约文件是否存在、§一文件存在性约束表是否满足。这些校验能力尚未落地，属于后续待建设的 checker 任务，本文档描述的是目标状态而非当前 `gate-check` 已有能力，恢复子系统时不能仅凭 `gate-check` 通过就认为符合本文档规范，仍需人工核对。反过来，迁移期 `gate-check` 的旧规则 FAIL 也不能直接逐行硬修，必须先按 MVP 蓝图建立“真实阻断 / 检测器误报 / 迁移期应降级 / MVP 后处理”分流表。
+`gate-check` 只能证明已登记的自动关闸通过，不能单独证明系统责任、运行存活性或真实玩家路径成立。恢复子系统时同时核对 `BaseSubsystem`、Foundation 契约、manifest、运行策略、owning Store、AI 字段和专项验收；迁移期旧扫描失败按“真实阻断 / 检测器误报 / 延后债务”分流，不为迎合扫描器反向改变活动契约。
 
 ---
 
@@ -51,7 +50,7 @@
 
 ### 为什么需要它
 
-| 没有基类时（当前） | 有基类后 |
+| 没有基类时 | 使用基类后 |
 |---|---|
 | AI 需要翻阅多个子系统文件来"猜测"应该实现哪些方法 | AI 只需看基类，`abstract` 标记的方法就是必做项 |
 | 有的子系统用 `getAgeYearsDelta`、有的用 `context.ageYearsDelta`、有的硬编码 | 统一走 `this.getDaysPassed(context)` |
@@ -64,7 +63,7 @@
 
 ### 迁移范围（强制，非可选）
 
-当前代码仍处于迁移中间态：2026-07-04 扫描为 74 个 `*-system.ts`，73 个仍是 `class XxxSystem implements ISubSystem`，1 个已继承 BaseSubsystem。引入基类后，**每个本轮新建、触碰、清空或恢复的子系统文件必须完成以下机械改动**，不得只新建基类而不迁移本轮调用方；未触碰旧文件不要无关批量迁移：
+项目仍允许未触碰的延后系统保留历史实现，但**每个本轮新建、触碰、清空或恢复的子系统文件必须完成以下机械改动**；不得只修改抽象层而不迁移本轮调用方，也不得为统一形式无关批量迁移全部旧文件：
 
 1. import 行：`import type { ISubSystem, ... } from '@/foundation'` → 改为额外 `import { BaseSubsystem } from '@/core/subsystem-base'`，`ISubSystem` 仅在需要显式标注类型时保留。
 2. 类声明行：`class XxxSystem implements ISubSystem` → `class XxxSystem extends BaseSubsystem`。
@@ -119,6 +118,40 @@ P1 的运行组成固定为：
 跨域消费者只保存账本事件 ID：记忆与核心记忆使用 `historicalEventIds`，伏笔使用 `plantedFromEventIds/resolvedByEventIds`，剧情结构使用 `lastHistoricalEventIds`，延期因果使用 `originEventId/resolutionEventId`。这些引用随 owning system 快照持久化；消费者不得复制事件正文成为第二份历史真源。
 
 P1 运行登记完成后，MVP 为 13 个外部系统加 12 个引擎系统，共 25 个；旧 `event-pool` 和 `causal-simulation` 系统 ID 与文件已退出，新的两个内部组件不计入运行系统数量。
+
+### 3.4 AI 可写字段单一真源
+
+`src/mods/mod-engine/helpers/subsystem-field-registry.ts` 的 `SUBSYSTEM_FIELD_CONTRACTS` 是 AI 可写系统、字段名、类型、增量或绝对值语义、说明和校验边界的单一真源：
+
+1. Prompt 字段指南、Zod 变更 Schema、字段映射和 generated 字段键必须从该声明派生，不得各自手写第二份字段列表。
+2. owning subsystem 的 `applyChanges()` 必须只读取契约声明的字段，并负责业务校验、钳制和状态写入；契约存在不代表其他系统获得写权限。
+3. 新增或修改字段时，同任务核对契约、owning implementation、运行阶段白名单、Prompt 投影、生成文件和回归；只读系统也保留显式零字段契约。
+4. 字段契约负责结构与权限，具体状态类型和持久化结构仍以 owning live source 为准。
+
+### 3.5 平衡系数与时间缩放
+
+`src/core/shared/balance-config.ts` 是跨 MOD 平衡系数入口。时间相关增量以 `daysPassed / 365` 为统一缩放基础；难度倍数语义固定为数值越高越难。消费系统通过公开函数读取，不直接各自解释 `worldConfig.difficulty` 或复制常量。
+
+平衡配置不拥有业务状态，也不能绕过字段契约或 owning subsystem。新增系数只在两个以上系统确需共享或属于全局语义时进入 core；局部参数继续留在 owning MOD，避免把所有数值堆入全局文件。
+
+### 3.6 编排、预检与原子提交
+
+Orchestrator 只拥有调用顺序、上下文组装、快照和提交协调，不计算善恶、属性、寿命、历史事件等 owning system 的业务结果。跨系统读取使用只读状态或公开查询；写入通过 `RoundCommitBus` 和 owning subsystem：
+
+```text
+AI 响应
+  -> 协议解析与严格 Schema
+  -> 完整变更包预检
+  -> 捕获 owning subsystem 快照
+  -> RoundCommitBus 分发
+  -> owning subsystem 校验并写入
+  -> 全部成功后确认；任一失败恢复全部快照
+```
+
+- 未知字段、契约外字段、不可写系统、非法引用或任一提交失败，整包结构化数据拒绝；不得删除非法项后部分提交。
+- 合格正文与独立摘要不因可选数据包失败而丢失。
+- 快照、恢复和持久化往返由 owning system 提供；Orchestrator 不复制业务 Store 成为第二份真源。
+- P0 世界切换和 P1 历史事件批次同样遵循预检后原子写入，不能进入半切换或半追加状态。
 
 ---
 
@@ -361,7 +394,3 @@ collectState(context: RoundContext): SubSystemState { ... }
 - 自解释代码（如 `this._dayAccumulator += days`）
 - 简单的 getter/setter
 - 重复基类的接口定义
-
----
-
-*关联文件：`simulation-rewrite-discussion-plan.md`（讨论计划书，已确认全部决策）*

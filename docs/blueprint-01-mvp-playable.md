@@ -44,8 +44,8 @@
 | 项目架构 / 为什么叙事是根 | `.agents/skills/ai-life-sim/SKILL.md` + `docs/system-authority-index.md` | foundation→core→mods→app；mod-engine 是叙事根 |
 | 子系统写法（BaseSubsystem） | `.agents/skills/ai-life-sim-mod-development/SKILL.md` + `src/core/subsystem-base.ts` | 新建或恢复子系统遵循 live BaseSubsystem；时间只读 canonical RoundContext |
 | 子系统模板 / 清空桩模板 | `.agents/skills/ai-life-sim-mod-development/assets/templates/subsystem.template.ts` | 恢复子系统使用当前模板；延后系统优先从执行路径隔离 |
-| 分段恢复优先级 | 本蓝图 + `docs/simulation-rewrite-discussion-plan.md` | 当前 A2 目标与历史恢复决策；冲突时以活动产品决策和本蓝图为准 |
-| 决策背景 | `docs/simulation-rewrite-discussion-plan.md` | 清空范围、时间引擎方案已确认 |
+| 分段恢复优先级 | 本蓝图 + `docs/blueprint-02-multi-world-simulation-foundation.md` | 当前 MVP 边界与 P0—P8 恢复顺序；冲突时以活动产品决策为准 |
+| 架构边界 | `docs/simulation-rewrite-architecture.md` | BaseSubsystem、时间、字段契约、原子提交与跨域数据规则 |
 | MOD 清单 / 依赖 | live manifests + `src/foundation/types/mod.types.ts` + MVP runtime policy | 当前依赖、公开边界与运行成员 |
 | 关闸命令 | `../../AGENTS.md` §5 | 使用 structural、MOD、lint、tsc 和相应 gate |
 
@@ -298,4 +298,4 @@ MVP 继续要求世界配置由玩家手动确认；P0 只恢复本地结构化�
 
 ---
 
-配套：`docs/blueprint-02-multi-world-simulation-foundation.md`（P0—P8 多世界重写目标）、`docs/simulation-rewrite-discussion-plan.md`（历史决策背景）、`docs/simulation-rewrite-architecture.md`（架构）、`docs/system-authority-index.md`（活动系统职责）。
+配套：`docs/blueprint-02-multi-world-simulation-foundation.md`（P0—P8 多世界重写目标）、`docs/simulation-rewrite-architecture.md`（架构）、`docs/system-authority-index.md`（活动系统职责）和 `docs/acceptance-ledger.md`（当前验收）。

@@ -15,6 +15,7 @@
 :root {
   /* === 布局 === */
   --content-max-width: 42rem;
+  --non-simulation-ui-desktop-scale: 1.1;
   --page-padding-x: var(--spacing-px-24);
   --card-gap: var(--spacing-px-24);
 }

@@ -13,16 +13,17 @@ interface TalentAstrolabeProps {
   activeIndex: number
   phase: TalentPhase
   selectedIndices: number[]
+  rotationSteps: number
   waveRevision: number
   onFocus: (index: number) => void
+  onTurn: () => void
 }
 
 const RIPPLE_DELAYS = ['.68s', '1.085s', '2.3s', '2.705s']
 const NODE_RADIUS = 112
 
-function nodePosition(index: number, activeIndex: number, count: number): CSSProperties {
-  const position = (index - activeIndex + count) % count
-  const angle = (-90 + position * 360 / count) * Math.PI / 180
+function nodePosition(index: number, count: number): CSSProperties {
+  const angle = (-90 + index * 360 / count) * Math.PI / 180
 
   return {
     '--spacing-node-x': `${Math.cos(angle) * NODE_RADIUS}px`,
@@ -35,10 +36,14 @@ export function TalentAstrolabe({
   activeIndex,
   phase,
   selectedIndices,
+  rotationSteps,
   waveRevision,
   onFocus,
+  onTurn,
 }: TalentAstrolabeProps) {
   const interactive = phase === 'selecting'
+  const canTurn = (phase === 'ready' || interactive) && patterns.filter(Boolean).length > 1
+  const turnAngle = rotationSteps * (360 / patterns.length)
 
   return (
     <div className={styles.astrolabe} aria-label="五星位命格星盘">
@@ -51,12 +56,16 @@ export function TalentAstrolabe({
           <i key={delay} style={{ '--duration-ripple-delay': delay } as CSSProperties} />
         ))}
       </div>
-      <div key={`${waveRevision}-${patterns.filter(Boolean).length}`} className={styles.eventRipples} aria-hidden="true">
-        <i className={styles.eventRippleMain} />
-        <i className={styles.eventRippleTail} />
-      </div>
+      {waveRevision > 0 ? (
+        <div key={`${waveRevision}-${patterns.filter(Boolean).length}`} className={styles.eventRipples} aria-hidden="true">
+          <i className={styles.eventRippleMain} />
+        </div>
+      ) : null}
       <div className={styles.zenith} aria-hidden="true" />
-      <div className={styles.nodeOrbit}>
+      <div
+        className={styles.nodeOrbit}
+        style={{ transform: `rotate(${turnAngle}deg)` }}
+      >
         {patterns.map((pattern, index) => {
           const revealed = Boolean(pattern)
           const focused = revealed && (phase === 'ready' || interactive) && index === activeIndex
@@ -72,19 +81,28 @@ export function TalentAstrolabe({
                 focused ? styles.fateNodeFocused : '',
                 selected ? styles.fateNodeSelected : '',
               ].filter(Boolean).join(' ')}
-              style={nodePosition(index, activeIndex, patterns.length)}
+              style={nodePosition(index, patterns.length)}
               data-rarity={pattern?.rarity}
               aria-label={pattern ? `查看命格：${pattern.name}${selected ? '，已选择' : ''}` : `尚未显现的星位 ${index + 1}`}
               aria-hidden={!revealed}
               disabled={!interactive || !revealed}
               onClick={() => onFocus(index)}
             >
-              <span>{pattern?.name ?? ''}</span>
+              <span style={{ transform: `rotate(${-turnAngle}deg)` }}>{pattern?.name ?? ''}</span>
             </button>
           )
         })}
       </div>
-      <div className={styles.astrolabeCore} aria-hidden="true"><span>命</span></div>
+      <button
+        type="button"
+        className={styles.astrolabeCore}
+        onClick={onTurn}
+        disabled={!canTurn}
+        aria-label="转动命格星盘"
+        title="转动命格星盘"
+      >
+        <span aria-hidden="true">命</span>
+      </button>
     </div>
   )
 }

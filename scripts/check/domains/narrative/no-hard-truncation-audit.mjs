@@ -87,7 +87,7 @@ const characterBackground = read('src/mods/mod-pages/pages/character-create/Char
 const worldPrototype = read('docs/ui-prototypes/mobile/world-customize/final-wc-rf2-1.html')
 const characterPrototype = read('docs/ui-prototypes/mobile/character-create/final-cc-rf9-1.html')
 const decisions = read('docs/product-decisions.md')
-const historicalNarrativePlaytest = read('docs/playtest-2026-07-09-narrative-ui-polish.md')
+const acceptanceLedger = read('docs/acceptance-ledger.md')
 const runtimePolicy = JSON.parse(read('src/mods/mod-engine/helpers/mvp-stages-config.default.json'))
 
 reject(constants, /MAX_NARRATIVE_HISTORY|MAX_CHARACTER_CREATIONS/, 'engine constants must not define destructive narrative or creation caps')
@@ -233,8 +233,8 @@ reject(worldPrototype, /maxlength=["']5000["']|\/\s*5000/, 'selected world-custo
 reject(characterPrototype, /maxlength=["']120["']|\/\s*120/, 'selected character-create prototype must reflect unlimited semantic input')
 assertOk(decisions.includes('PD-015') && decisions.includes('破坏性硬截断'), 'product authority must define the no-hard-truncation red line')
 assertOk(
-  historicalNarrativePlaytest.includes('已由 PD-015 取代')
-    && !historicalNarrativePlaytest.includes('让拦截器裁掉未来输出中的未完成尾句'),
+  acceptanceLedger.includes('已由 PD-015 取代')
+    && !acceptanceLedger.includes('让拦截器裁掉未来输出中的未完成尾句'),
   'historical acceptance records must mark tail-cutting guidance as superseded by PD-015',
 )
 

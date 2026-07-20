@@ -8,10 +8,10 @@
 下级组成：活动权威登记、平台服务、新人生生命周期、外部 MVP 系统、引擎 MVP 系统、历史因果内部组件、延后剧情系统
 适用范围：平台服务、MVP 运行子系统、历史事件与消费者引用、延后但承载剧情事实的系统、状态与写入所有权、AI 参与、持久化和运行存活性
 拥有者：`mod-engine` 运行注册与各 owning MOD
-最后验证：2026-07-20；对照[蓝图二](blueprint-02-multi-world-simulation-foundation.md)、[运行阶段策略](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、P0/P1 focused 回归、零基础值新人生、历史事件 Store v2/旧迁移、子系统实现、Prompt/Schema、缓存统计分桶、结构化诊断日志 v2、[LongCat 与服务端 Prompt 验收](playtest-2026-07-20-managed-ai-longcat-server-prompt.md)、[叙事变化驱动力验收](playtest-2026-07-20-narrative-pressure-balance.md)、[中文协议回归](../scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs)和[硬截断审计](../scripts/check/domains/narrative/no-hard-truncation-audit.mjs)
+最后验证：2026-07-20；对照[蓝图二](blueprint-02-multi-world-simulation-foundation.md)、[运行阶段策略](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、P0/P1 focused 回归、零基础值新人生、历史事件 Store v2/旧迁移、子系统实现、Prompt/Schema、缓存统计分桶、[统一验收账本](acceptance-ledger.md)、[中文协议回归](../scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs)和[硬截断审计](../scripts/check/domains/narrative/no-hard-truncation-audit.mjs)
 取代关系：none
 运行真源：[mvp-stages-config.default.json](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、manifest、生成注册表和各实现文件
-验收证据：`.agents` 治理检查、引用审计、活动系统覆盖检查、`npm run test:world-context-p0`、`npm run test:historical-event-p1`、`npm run test:narrative-protocol`、`npm run test:player-feedback`、`npm run test:creation-first-narrative`、无硬截断审计、[Prompt 4.0 分级中文协议验收](playtest-2026-07-18-prompt-4-tiered-protocol.md)、[叙事变化驱动力验收](playtest-2026-07-20-narrative-pressure-balance.md)、[结构化诊断日志 v2 验收](playtest-2026-07-20-structured-diagnostic-logs-v2.md)、[零基础值创建链验收](playtest-2026-07-20-zero-base-creation.md)、[玩家专属设定与首轮来历验收](playtest-2026-07-20-player-exclusive-opening.md)与[LongCat 与服务端 Prompt 验收](playtest-2026-07-20-managed-ai-longcat-server-prompt.md)
+验收证据：`.agents` 治理检查、引用审计、活动系统覆盖检查、`npm run test:world-context-p0`、`npm run test:historical-event-p1`、`npm run test:narrative-protocol`、`npm run test:player-feedback`、`npm run test:creation-first-narrative`、无硬截断审计与[统一验收账本](acceptance-ledger.md)
 
 ## 1. Reading rules
 
@@ -28,11 +28,12 @@
 | `../../AGENTS.md` | A0 | Project entry, authorization boundary, commands, secret handling | Project workflow, permissions, gates, infrastructure, or Skill routing changes |
 | `docs/product-decisions.md` | A1 | Active product semantics | User-visible meaning, product red line, or selected behavior changes |
 | `docs/blueprint-02-multi-world-simulation-foundation.md` | A2 | Multi-world simulation target, P0-P8 order, and active P0/P1 execution contracts | P0/P1 target, phase order, composition, or acceptance changes |
+| `docs/README.md` | A3 | Active documentation map and reading routes | Document authority, consolidation or task-reading routes change |
 | `docs/system-authority-index.md` | A3 | System responsibility and ownership map | System lifecycle, ownership, writes, AI role, persistence, or liveness changes |
 | `docs/simulation-rewrite-architecture.md` | A3 | BaseSubsystem and Foundation architecture | Subsystem base contract or cross-domain contract rules change |
-| `docs/design-2026-07-07-core-architecture.md` | A3 | Engine and field-contract design supplement | Core/foundation or field ownership changes |
 | `src/mods/mod-engine/helpers/mvp-stages-config.default.json` | A4 | Runtime subsystem policy | Active stage or runtime membership changes |
 | Manifests, generated registration, public entries, live implementations | A4 | Current executable truth | Code, registration, API, state, or generated wiring changes |
+| `docs/acceptance-ledger.md` | A5 | Consolidated current acceptance and supersession record | Expected behavior, reproduction, browser, production or validation result changes |
 | Regression, gate, browser, playtest, and runtime records | A5 | Acceptance evidence | Expected behavior, reproduction, or validation result changes |
 | Superseded plans, proposals, archived snapshots, unselected candidates | A6 | History and alternatives | Preserve explanation only; never present as active instruction |
 
@@ -108,7 +109,7 @@ RuntimeLivenessSource: app route registration, settings Store hydration and acti
 AIParticipation: transports model requests only; does not interpret or apply AI semantic output
 PersistenceAuthority: player overrides remain in mod-settings browser persistence; each managed credential exists only in private local or server environment files
 Implementation: src/core/ai-service/provider-config.ts; src/core/ai-service/server-provider-targets.ts; src/core/ai-service/server-provider-credentials.ts; src/core/ai-service/managed-sse-aggregation.ts; src/core/ai-service/ai-client.ts; src/mods/mod-settings/store.ts; src/mods/mod-settings/components/SettingsTabPresets.tsx; src/mods/mod-character/subsystems/destiny-pattern-system.ts; src/mods/mod-pages/pages/talent-draw/page.tsx; src/mods/mod-world/world-init-bundle.ts; src/app/api/proxy/route.ts; src/app/api/world-init/route.ts
-AcceptanceEvidence: npm run test:managed-ai-default; npm run test:ai-proxy; npm run test:destiny-credential-terminal; LongCat direct and SSE contract smoke; retained a6api primary/fallback routing smoke; complete long-narrative proxy and browser round; background world initialization; restore/default/old-channel/custom tests; secret-absence scan; docs/playtest-2026-07-20-managed-ai-longcat-server-prompt.md; delivery gates
+AcceptanceEvidence: npm run test:managed-ai-default; npm run test:ai-proxy; npm run test:destiny-credential-terminal; LongCat direct and SSE contract smoke; retained a6api primary/fallback routing smoke; complete long-narrative proxy and browser round; background world initialization; restore/default/old-channel/custom tests; secret-absence scan; docs/acceptance-ledger.md#managed-ai-longcat; delivery gates
 LastVerified: 2026-07-20
 Supersession: none
 ```
@@ -143,7 +144,7 @@ RuntimeLivenessSource: app API route registration and active Next.js server proc
 AIParticipation: observes Provider traffic only; never authors or applies semantic game state
 PersistenceAuthority: AI_LOG_DIR plus server-log-store retention and capacity policy
 Implementation: src/app/api/proxy/route.ts; src/app/api/log/route.ts; src/app/api/debug-log/route.ts; src/core/ai-service/api-error.ts; src/core/ai-service/story-seed.ts; src/core/logger/server-log-store.ts; src/core/logger/server-log-safety.ts; src/core/logger/client-logger.ts; src/core/logger/diagnostic-consent.ts; src/core/logger/debug-logger.ts; scripts/ops/inspect-ai-logs.mjs
-AcceptanceEvidence: docs/playtest-2026-07-19-production-observability-opening.md; docs/playtest-2026-07-20-structured-diagnostic-logs-v2.md; npm run test:ai-proxy; source-classification, content-deduplication and secret-redaction regression; operator-inspector reconstruction smoke; unreachable-upstream HTTP probe; secret-absence check; delivery gates
+AcceptanceEvidence: docs/acceptance-ledger.md#production-observability; npm run test:ai-proxy; source-classification, content-deduplication and secret-redaction regression; operator-inspector reconstruction smoke; unreachable-upstream HTTP probe; secret-absence check; delivery gates
 LastVerified: 2026-07-20
 Supersession: none
 ```
@@ -181,7 +182,7 @@ RuntimeLivenessSource: mod-pages route registration, app API route registration 
 AIParticipation: none; preserves existing AI and narrative evidence only
 PersistenceAuthority: AI_LOG_DIR/feedback under the PD-019 retention, capacity, permission and cleanup policy; gameplay stores remain authoritative
 Implementation: src/mods/mod-pages/pages/feedback/page.tsx; src/mods/mod-pages/pages/feedback/build-feedback-diagnostics.ts; src/app/api/feedback/route.ts; src/core/logger/feedback-contract.ts; src/core/logger/player-feedback-store.ts; src/core/logger/server-log-store.ts; src/core/logger/redact-sensitive-data.ts; scripts/ops/inspect-ai-logs.mjs
-AcceptanceEvidence: npm run test:player-feedback; docs/playtest-2026-07-20-structured-diagnostic-logs-v2.md; browser submit and feedback-ID path; content-reference reconstruction, secret absence and complete-recent-story inspection; UI, TypeScript, lint, structural and delivery gates
+AcceptanceEvidence: npm run test:player-feedback; docs/acceptance-ledger.md#production-observability; browser submit and feedback-ID path; content-reference reconstruction, secret absence and complete-recent-story inspection; UI, TypeScript, lint, structural and delivery gates
 LastVerified: 2026-07-20
 Supersession: none
 ```
@@ -304,7 +305,7 @@ RuntimeLivenessSource: mod-pages route registration, InitMods allModsLoaded stat
 AIParticipation: none
 PersistenceAuthority: owning Stores remain authoritative; the lifecycle invokes their reset APIs and flushes queued browser deletions but never owns save slots
 Implementation: src/mods/mod-pages/helpers/new-life-reset.ts; src/mods/mod-pages/helpers/creation-draft-storage.ts; src/mods/mod-pages/pages/new-game/page.tsx; src/mods/mod-pages/pages/world-select/useWorldConfirm.ts; src/mods/mod-pages/pages/talent-draw/page.tsx; src/mods/mod-pages/pages/attribute-alloc/page.tsx; src/mods/mod-pages/pages/fate-preview/page.tsx; src/mods/mod-pages/pages/game-over/page.tsx
-AcceptanceEvidence: npm run test:new-life-isolation; npm run test:world-context-p0; npm run test:creation-first-narrative; docs/playtest-2026-07-20-zero-base-creation.md; npm run check:ui; browser direct-entry isolation and zero-base opening path; delivery gates
+AcceptanceEvidence: npm run test:new-life-isolation; npm run test:world-context-p0; npm run test:creation-first-narrative; docs/acceptance-ledger.md#zero-base-creation; npm run check:ui; browser direct-entry isolation and zero-base opening path; delivery gates
 LastVerified: 2026-07-20
 Supersession: replaces the game-over-private reset helper and the redirect-only /new-game entry
 ```
@@ -332,7 +333,7 @@ RuntimeLivenessSource: mod-engine manifest, Next.js app proxy route and active s
 AIParticipation: provides the fixed system instruction to the selected upstream model; does not interpret model output
 PersistenceAuthority: none; private sanitized request traces remain operational evidence under PD-019 and are not an asset distribution surface
 Implementation: src/foundation/types/mod.types.ts; src/mods/mod-engine/manifest.ts; src/mods/mod-engine/server-prompt-assets.ts; src/mods/mod-engine/server/narrative-system-prompt.ts; src/mods/mod-engine/prompts/narrative-prompt.ts; src/core/ai-service/ai-client.ts; src/core/ai-service/server-provider-targets.ts; src/app/api/proxy/route.ts; scripts/check/domains/structural/scan-mod-public-boundary.mjs
-AcceptanceEvidence: node scripts/check/domains/narrative/protected-prompt-assets-regression.mjs; npm run test:protected-prompt-bundle; npm run test:narrative-protocol; npm run test:ai-proxy; production build bundle scan; settings browser path; docs/playtest-2026-07-20-player-exclusive-opening.md; docs/playtest-2026-07-20-managed-ai-longcat-server-prompt.md
+AcceptanceEvidence: node scripts/check/domains/narrative/protected-prompt-assets-regression.mjs; npm run test:protected-prompt-bundle; npm run test:narrative-protocol; npm run test:ai-proxy; production build bundle scan; settings browser path; docs/acceptance-ledger.md#player-exclusive-opening; docs/acceptance-ledger.md#managed-ai-longcat
 LastVerified: 2026-07-20
 Supersession: replaces the browser-embedded fixed main-narrative Prompt and public settings Prompt preview
 ```
@@ -360,7 +361,7 @@ RuntimeLivenessSource: mod-pages route registration, game-over guard and browser
 AIParticipation: none; consumes an already generated mythic result as read-only display data and never requests or infers new semantics
 PersistenceAuthority: none; the downloaded file is controlled by the player and no share payload enters application persistence or server diagnostics
 Implementation: src/mods/mod-pages/pages/game-over/page.tsx; src/mods/mod-pages/pages/game-over/game-over-share-card.ts; src/mods/mod-pages/pages/game-over/GameOver.module.css
-AcceptanceEvidence: scripts/check/domains/ui/game-over-share-card-smoke.mjs; npm run check:ui; lint and TypeScript; no-hard-truncation audit; 320/360/375/390/430/768/desktop browser layout; PNG download and post-release browser verification; docs/playtest-2026-07-20-game-over-sharing.md
+AcceptanceEvidence: scripts/check/domains/ui/game-over-share-card-smoke.mjs; npm run check:ui; lint and TypeScript; no-hard-truncation audit; 320/360/375/390/430/768/desktop browser layout; PNG download and post-release browser verification; docs/acceptance-ledger.md#game-over-sharing
 LastVerified: 2026-07-20
 Supersession: none
 ```
@@ -379,7 +380,7 @@ Supersession: none
 | `world-init` | `mod-world` | Create one validated world-context instance per call with capability profile, spatial root, local calendar, initialization facts and optional connection to the current context | Does not replace the whole save, create a second time/orchestrator authority, or restore old world-map simulation | User world configuration, world generation cache code and explicit context options | New or intentionally reinitialized `WorldContextInstance` | Proposal; IDs, structure and validation remain local | `src/mods/mod-world/subsystems/world-init-system.ts`, `src/mods/mod-world/world-init-bundle.ts` |
 | `historical-event-ledger` | `mod-history-dynamics` | Own the only append-only record of historical events, transitions, evidence, four-state capability-checked candidate audits, explicit causal edges, bounded queries and legacy migration across global, context, travel and cross-context scopes | Does not author narrative prose, infer facts from body text, own delayed-promise scheduling, run topic presets, or expose candidates as occurred facts | Locally validated historical batches, stable context/entity/location references, explicit candidates with optional generic capabilities, causal edges, v1/v2 snapshots | Store v2 full ledger, cached current-relevant collected view, stable event IDs, paginated event/evidence/transition/migration/detail queries and atomic commit results | `event-input`; not in `narrativeChange`, IDs and commit results remain local | `src/foundation/subsystem-contracts/historical-event.contract.ts`, `src/mods/mod-history-dynamics/subsystems/historical-event-ledger-system.ts`, `src/mods/mod-history-dynamics/components/event-candidate-provider.ts`, `src/mods/mod-history-dynamics/components/causal-graph-component.ts`, `src/mods/mod-history-dynamics/historical-event-api.ts`, `src/mods/mod-history-dynamics/store.ts` |
 | `character-base` | `mod-character` | Own four base attributes that start at zero for every new life, explicit starting age, narrative structured deltas, and aggregation of race, destiny, injury, decay and context modifiers | Does not provide a player allocation budget, own calendar time, maximum lifespan, luck, morality, or narrative phase order | `RoundContext`, zero-base creation handoff and provider-owned character modifiers | Character base state and validated structured attribute changes | Main narrative writable through the derived four delta fields; validates, clamps and applies its owned changes | `src/mods/mod-character/subsystems/character-base-system.ts` |
-| `destiny-pattern` | `mod-character` | Own selected destiny patterns, candidate pool, pattern runtime state, and terminal handling of credential failures during candidate generation | Does not directly own base-attribute state application, main narrative changes, or credential values | Character creation choice, presets, optional AI candidate generation and classified AI errors | Selected pattern state, modifiers, progress, or explicit terminal generation failure exposed to consumers | AI may generate candidates; not in the main narrative writable allowlist | `src/mods/mod-character/subsystems/destiny-pattern-system.ts` |
+| `destiny-pattern` | `mod-character` | Own selected destiny patterns, prompt-versioned candidate pool cache, pattern runtime state, and terminal handling of credential failures during candidate generation | Does not directly own base-attribute state application, main narrative changes, credential values, or rewrite already selected patterns when a candidate contract changes | Character creation choice, presets, optional AI candidate generation and classified AI errors | Selected pattern state, modifiers, generation progress, prompt-versioned candidate cache, or explicit terminal generation failure exposed to consumers | AI may generate candidates; not in the main narrative writable allowlist | `src/mods/mod-character/subsystems/destiny-pattern-system.ts`, `src/mods/mod-character/utils/destiny-pattern-pool-cache.ts` |
 | `lifespan` | `mod-character` | Own maximum lifespan, breakthroughs, and structured lifespan deltas from explicit world and race configuration | Does not own current age, time advancement, or death prose | `RoundContext`, world/race configuration, owned structured changes | Lifespan state and change application | Main narrative writable | `src/mods/mod-character/subsystems/lifespan-system.ts` |
 | `luck` | `mod-character` | Own luck value and derived disease, death, event-weight, and ageing modifiers | Does not generate events or own other subsystem state | `RoundContext` and owned structured changes | Luck state, derived modifiers, Prompt formatting | Main narrative writable | `src/mods/mod-character/subsystems/luck-system.ts` |
 | `morality` | `mod-character` | Own morality value and apply structured morality deltas | Does not infer morality locally from narrative keywords | `RoundContext` and `morality.delta` | Morality state | Main narrative writable | `src/mods/mod-character/subsystems/morality-system.ts` |
@@ -422,7 +423,7 @@ Their default `SystemPath` is `project > deferred-story-state > <owning domain o
 | Culture values, art styles and works | `mod-culture` | Owning subsystem state stores all cultural values, current styles, and notable works | Supplies deferred culture context | Prompt formatting includes all values and works; styles may emerge until the declared world style pool is exhausted, but no fixed count or random array deletion may erase an established style |
 | World and character generation Prompts | `mod-world`, `mod-character` | Live PromptTemplate and Zod Schema own generated world tags, entity descriptions, destiny patterns, mythic effects, and race origins | Low-frequency or initialization AI | No semantic character-count or array-count caps; candidate counts, enums, numeric domains, and entity quantity mechanics remain explicit product contracts |
 
-Acceptance authority: `docs/playtest-2026-07-18-compression-runtime.md`, `scripts/check/domains/mod/historical-event-p1-smoke.mjs` and `scripts/check/domains/narrative/no-hard-truncation-audit.mjs`.
+Acceptance authority: `docs/acceptance-ledger.md#narrative-compression`, `scripts/check/domains/mod/historical-event-p1-smoke.mjs` and `scripts/check/domains/narrative/no-hard-truncation-audit.mjs`.
 
 ## 7. Retired and internal-only nodes
 

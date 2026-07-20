@@ -36,6 +36,7 @@ import {
 } from '../../../../src/mods/mod-character/utils/destiny-pattern-content-quality.ts'
 import { sanitizeCharacterStateSnapshot } from '../../../../src/mods/mod-character/utils/character-state-migration.ts'
 import { mythicPatternOutputSchema } from '../../../../src/mods/mod-character/prompts/mythic-pattern-prompt.ts'
+import { destinyPatternOutputSchema } from '../../../../src/mods/mod-character/prompts/destiny-pattern-prompt.ts'
 import { findFestivalsOnDate } from '../../../../src/mods/mod-culture/utils/festival-calendar.ts'
 import {
   formatWorldTagsText,
@@ -501,6 +502,7 @@ assertOk(!isEligibleNarrativeBranch({
 const constantsSrc = readRel('src/mods/mod-character/constants.ts')
 const destinySystemSrc = readRel('src/mods/mod-character/subsystems/destiny-pattern-system.ts')
 const destinyPromptSrc = readRel('src/mods/mod-character/prompts/destiny-pattern-prompt.ts')
+const destinyPoolCacheSrc = readRel('src/mods/mod-character/utils/destiny-pattern-pool-cache.ts')
 const characterStoreSrc = readRel('src/mods/mod-character/store.ts')
 const characterMigrationSrc = readRel('src/mods/mod-character/utils/character-state-migration.ts')
 const mythicPromptSrc = readRel('src/mods/mod-character/prompts/mythic-pattern-prompt.ts')
@@ -690,11 +692,41 @@ assertOk(
 assertOk(!destinyPromptSrc.includes('第一次踩上'), 'destiny prompt must not teach biographical event openings')
 assertOk(/稳定|先天|固有/.test(destinyPromptSrc) && /禁止.*年份|严禁.*年份/.test(destinyPromptSrc), 'destiny prompt must require timeless traits')
 assertOk(destinyPromptSrc.includes('JSON顶层数组') && !destinyPromptSrc.includes('{"patterns"'), 'destiny prompt must match the top-level array Zod contract')
-assertOk(/version:\s*'3\.3\.0'/.test(destinyPromptSrc), 'destiny prompt contract change must bump its version')
+assertOk(
+  /DESTINY_PATTERN_PROMPT_VERSION\s*=\s*'3\.4\.0'/.test(destinyPromptSrc)
+    && /version:\s*DESTINY_PATTERN_PROMPT_VERSION/.test(destinyPromptSrc),
+  'destiny prompt contract change must bump its version',
+)
 assertOk(
   /polarity：positive\/mixed/.test(destinyPromptSrc)
     && !/z\.enum\(\['positive', 'negative', 'mixed'\]\)/.test(destinyPromptSrc),
   'destiny prompt and schema must reject purely negative candidates',
+)
+assertOk(
+  /正好\$\{DESTINY_PATTERN_TARGET_POSITIVE_COUNT\}条 positive/.test(destinyPromptSrc)
+    && /不得为了“平衡”统一补写副作用/.test(destinyPromptSrc)
+    && /positiveCount < DESTINY_PATTERN_MIN_POSITIVE_COUNT/.test(destinyPromptSrc),
+  'destiny batches must be positive-majority instead of turning every candidate into a tradeoff',
+)
+const makeDestinyPattern = (index, polarity) => ({
+  name: `命格${index}`,
+  description: `稳定成立的命格特质${index}`,
+  rarity: 'common',
+  polarity,
+  effect: `持续提供清楚可用的正向影响${index}`,
+})
+assertOk(
+  destinyPatternOutputSchema.safeParse([
+    ...Array.from({ length: 6 }, (_, index) => makeDestinyPattern(index, 'positive')),
+    ...Array.from({ length: 4 }, (_, index) => makeDestinyPattern(index + 6, 'mixed')),
+  ]).success,
+  'destiny schema must accept a batch with the minimum positive majority',
+)
+assertOk(
+  !destinyPatternOutputSchema.safeParse(
+    Array.from({ length: 10 }, (_, index) => makeDestinyPattern(index, 'mixed')),
+  ).success,
+  'destiny schema must reject an all-mixed double-edged batch',
 )
 assertOk(
   /const polarity = this\.validatePolarity\(item\.polarity\)[\s\S]{0,100}if \(!rarity \|\| !polarity\) return/.test(destinySystemSrc)
@@ -708,7 +740,12 @@ assertOk(
 )
 assertOk(destinyPromptSrc.includes('systemModifiers: destinyPatternSystemModifiersSchema.optional()'), 'destiny schema must accept validated system modifiers')
 assertOk(/legendary允许轻度概念规则/.test(destinyPromptSrc), 'legendary destiny patterns must support bounded conceptual rules')
-assertOk(/不得自动获胜/.test(destinyPromptSrc) && /条件、概率、代价、有限触发/.test(destinyPromptSrc), 'legendary conceptual rules must preserve cost and agency')
+assertOk(
+  /不得自动获胜/.test(destinyPromptSrc)
+    && /条件、概率、有限触发或可被对抗/.test(destinyPromptSrc)
+    && /positive 的边界用于防止万能化，不得被写成强制负面回报/.test(destinyPromptSrc),
+  'legendary conceptual rules must preserve agency without forcing every positive rule to carry a drawback',
+)
 assertOk(/effect写成叙事引擎可持续遵守的规则/.test(destinyPromptSrc), 'destiny effect must remain a narrative rule instead of only numeric modifiers')
 assertOk(/validatePatternSystemModifiers\(input\.systemModifiers, rarity\)/.test(destinySystemSrc), 'external AI destiny injection must validate system modifiers')
 assertOk(/version:\s*3/.test(characterStoreSrc), 'character persistence must include the stable character ID and context-modifier migration')
@@ -798,6 +835,10 @@ assertOk(
 assertOk(
   /function loadCachedPool[\s\S]{0,260}loadDestinyPatternPool[\s\S]{0,160}filter\(isAIGeneratedPattern\)/.test(talentDrawPageSrc),
   'AI cache restoration must exclude preset patterns',
+)
+assertOk(
+  /getDestinyPatternPoolCacheKey[\s\S]{0,180}DESTINY_PATTERN_PROMPT_VERSION/.test(destinyPoolCacheSrc),
+  'destiny cache keys must follow the prompt contract version so old double-edged pools are not reused',
 )
 assertOk(
   /const usableSaved = savedSlotsMatchMode \? saved : null/.test(talentDrawPageSrc),

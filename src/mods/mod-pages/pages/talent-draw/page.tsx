@@ -329,8 +329,9 @@ function TalentDrawContent() {
   const [localPoolSize, setLocalPoolSize] = useState(initialDraw.localPoolSize)
   const [errorMsg, setErrorMsg] = useState('')
   const [activeSlotIndex, setActiveSlotIndex] = useState(0)
+  const [rotationSteps, setRotationSteps] = useState(0)
   const [libraryOpen, setLibraryOpen] = useState(false)
-  const [cycleRevision, setCycleRevision] = useState(0)
+  const [waveRevision, setWaveRevision] = useState(0)
   const [toastMessage, setToastMessage] = useState('')
 
   const fullPoolRef = useRef<DestinyPattern[]>(initialDraw.pool)
@@ -390,25 +391,23 @@ function TalentDrawContent() {
     ? selectedSlotIndices.some((index) => slots[index]?.id === activePattern.id)
     : false
 
-  useEffect(() => {
-    if ((phase !== 'ready' && phase !== 'selecting') || libraryOpen || slots.filter(Boolean).length < 2) return
-    const interval = window.setInterval(() => {
-      setActiveSlotIndex((current) => {
-        for (let offset = 1; offset <= slots.length; offset++) {
-          const next = (current - offset + slots.length) % slots.length
-          if (slots[next]) return next
-        }
-        return current
-      })
-      setCycleRevision((revision) => revision + 1)
-    }, 4000)
-    return () => window.clearInterval(interval)
-  }, [cycleRevision, libraryOpen, phase, slots])
-
   const handleFocusSlot = useCallback((index: number) => {
+    if (index === activeSlotIndex || !slots[index]) return
+    const forwardDelta = (index - activeSlotIndex + slots.length) % slots.length
+    const signedDelta = forwardDelta > slots.length / 2 ? forwardDelta - slots.length : forwardDelta
     setActiveSlotIndex(index)
-    setCycleRevision((revision) => revision + 1)
-  }, [])
+    setRotationSteps((steps) => steps - signedDelta)
+    setWaveRevision((revision) => revision + 1)
+  }, [activeSlotIndex, slots])
+
+  const handleTurnAstrolabe = useCallback(() => {
+    for (let offset = 1; offset <= slots.length; offset++) {
+      const next = (activeSlotIndex - offset + slots.length) % slots.length
+      if (!slots[next]) continue
+      handleFocusSlot(next)
+      return
+    }
+  }, [activeSlotIndex, handleFocusSlot, slots])
 
   useEffect(() => {
     if (!libraryOpen) return
@@ -544,11 +543,12 @@ function TalentDrawContent() {
       useCharacterStore.getState().setDestinyPatterns({ candidates: patterns })
       setSlots(drawSlotsFromPool(patterns))
       setActiveSlotIndex(0)
+      setRotationSteps(0)
       setSelectedUiSlots(createSelectedUiSlots([]))
       setLocalPoolSize(patterns.length)
       setStreamCount(DEFAULT_DESTINY_PATTERN_COUNT)
       setPhase('ready')
-      setCycleRevision((revision) => revision + 1)
+      setWaveRevision((revision) => revision + 1)
       notify('五条命格已生成')
       return
     }
@@ -559,6 +559,7 @@ function TalentDrawContent() {
     setStreamCount(Math.min(initialPatterns.length, DEFAULT_DESTINY_PATTERN_COUNT))
     setSlots(revealSlotsInOrder(initialPatterns))
     setActiveSlotIndex(0)
+    setRotationSteps(0)
     setErrorMsg('')
     setSelectedUiSlots(createSelectedUiSlots([]))
     abortRef.current = false
@@ -585,9 +586,10 @@ function TalentDrawContent() {
       setLocalPoolSize(visiblePatterns.length)
       setSlots(revealSlotsInOrder(visiblePatterns))
       setActiveSlotIndex(0)
+      setRotationSteps(0)
       setSelectedUiSlots(createSelectedUiSlots([]))
       setPhase('ready')
-      setCycleRevision((revision) => revision + 1)
+      setWaveRevision((revision) => revision + 1)
       notify('五条命格已生成')
       return true
     }
@@ -661,9 +663,6 @@ function TalentDrawContent() {
       return
     }
     setSelectedUiSlots((current) => current.map((value, index) => index === targetSlot ? idx : value))
-    const nextIndex = slots.findIndex((pattern, index) => pattern && index !== idx && !selectedSlotIndices.includes(index))
-    if (nextIndex >= 0) setActiveSlotIndex(nextIndex)
-    setCycleRevision((revision) => revision + 1)
   }, [notify, selectedSlotIndices, selectedUiSlots, slots])
 
   const handleAddActivePattern = useCallback(() => {
@@ -771,7 +770,7 @@ function TalentDrawContent() {
 
     setSlots(newSlots)
     setActiveSlotIndex((current) => newSlots[current] ? current : 0)
-    setCycleRevision((revision) => revision + 1)
+    setWaveRevision((revision) => revision + 1)
     notify(currentSelected.length > 0
       ? `已保留${currentSelected.length}条星契，重新抽取其余命格`
       : '五条普通命格已重新抽取')
@@ -809,7 +808,7 @@ function TalentDrawContent() {
         ? `已完成 ${displayStreamCount} / ${DEFAULT_DESTINY_PATTERN_COUNT} · ${latestStreamPattern.name}`
         : `已完成 0 / ${DEFAULT_DESTINY_PATTERN_COUNT} · 正在连接命盘`
       : phase === 'ready'
-        ? '五条命格已就绪 · 双搏水波持续轮转'
+        ? '五条命格已就绪 · 由你手动转动命盘'
         : selectedData.length === DESTINY_PATTERN_SELECT_COUNT
           ? '三条普通命格已签订 · 继续命运预览'
           : `还需选择 ${DESTINY_PATTERN_SELECT_COUNT - selectedData.length} 条普通命格`
@@ -882,8 +881,10 @@ function TalentDrawContent() {
                 activeIndex={activeSlotIndex}
                 phase={phase}
                 selectedIndices={selectedSlotIndices}
-                waveRevision={cycleRevision}
+                rotationSteps={rotationSteps}
+                waveRevision={waveRevision}
                 onFocus={handleFocusSlot}
+                onTurn={handleTurnAstrolabe}
               />
 
               {phase !== 'selecting' ? (
@@ -897,7 +898,7 @@ function TalentDrawContent() {
                     ? '准备就绪后开始抽取，五条命格会依次归位。'
                     : phase === 'generating'
                       ? generationMessage
-                      : '星盘每四秒转至下一星位；点击下一步将在同一位置展开选择。'}</p>
+                      : '五枚命格已安静归位，命盘只随你的选择转动。'}</p>
                   <div className={styles.drawReadout} role="status" aria-live="polite">
                     <span>{phase === 'generating' ? progressText : phase === 'ready' ? '解析完成' : '等待解析'}</span>
                     <b>{phase === 'ready' ? DEFAULT_DESTINY_PATTERN_COUNT : displayStreamCount} / {DEFAULT_DESTINY_PATTERN_COUNT}</b>

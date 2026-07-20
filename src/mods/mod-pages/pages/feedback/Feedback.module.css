@@ -308,6 +308,14 @@
   .form { margin-left: 1.7rem; }
 }
 
+@media (min-width: 64rem) {
+  .page {
+    width: min(90.9091%, var(--content-max-width));
+    height: 90.9091dvh;
+    zoom: var(--non-simulation-ui-desktop-scale);
+  }
+}
+
 @media (max-width: 23rem) {
   .page { padding-inline: 0.75rem; }
   .spine { left: 1.3rem; }

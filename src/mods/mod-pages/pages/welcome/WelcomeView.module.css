@@ -646,6 +646,14 @@
   }
 }
 
+@media (min-width: 64rem) {
+  .container {
+    width: min(90.9091%, var(--content-max-width));
+    height: 90.9091dvh;
+    zoom: var(--non-simulation-ui-desktop-scale);
+  }
+}
+
 @media (max-width: 23rem) {
   .container {
     padding-inline: 0.75rem;

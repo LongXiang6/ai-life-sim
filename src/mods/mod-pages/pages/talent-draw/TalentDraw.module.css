@@ -283,28 +283,20 @@
   pointer-events: none;
 }
 
-.eventRippleMain,
-.eventRippleTail {
+.eventRippleMain {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 92px;
-  height: 92px;
-  border: 1.8px solid rgb(84 132 153 / 23%);
+  width: 84px;
+  height: 84px;
+  border: 1px solid rgb(84 132 153 / 28%);
   border-radius: 50%;
   opacity: 0;
   pointer-events: none;
-  transform: translate(-50%, -50%) scale(.58);
+  transform: translate(-50%, -50%) scale(.72);
 }
 
-.eventRippleMain { animation: talent-water-large-main 2.72s cubic-bezier(.12, .62, .2, 1) both; }
-
-.eventRippleTail {
-  border-color: rgb(84 132 153 / 6.5%);
-  border-width: .8px;
-  transform: translate(-50%, -50%) scale(.64);
-  animation: talent-water-large-tail 2.78s cubic-bezier(.12, .62, .2, 1) .24s both;
-}
+.eventRippleMain { animation: talent-water-large-main 1.9s cubic-bezier(.36, .28, .46, 1) both; }
 
 .astrolabeCore {
   top: 50%;
@@ -313,14 +305,18 @@
   width: 96px;
   height: 96px;
   place-items: center;
+  padding: 0;
+  border: 0;
   border-radius: 50%;
   background: transparent;
   color: var(--color-flow-ink);
   font-family: "Songti SC", STSong, SimSun, serif;
   font-size: 30px;
-  pointer-events: none;
+  cursor: pointer;
   transform: translate(-50%, -50%);
 }
+
+.astrolabeCore:disabled { cursor: default; }
 
 .astrolabeCore::before,
 .astrolabeCore::after {
@@ -362,6 +358,7 @@
   inset: 0;
   border-radius: 50%;
   transform-origin: 50% 50%;
+  transition: transform .82s cubic-bezier(.2, .75, .2, 1);
 }
 
 .fateNode {
@@ -406,6 +403,7 @@
   line-height: 1.15;
   text-align: center;
   text-shadow: 0 1px 5px #fff, 0 -1px 5px #fff;
+  transition: transform .82s cubic-bezier(.2, .75, .2, 1);
 }
 
 .fateNodeRevealed { opacity: .9; pointer-events: auto; }
@@ -774,6 +772,7 @@
 
 .backButton:focus-visible,
 .nextButton:focus-visible,
+.astrolabeCore:focus-visible,
 .fateNode:focus-visible,
 .selectedSlot:focus-visible,
 .focusAdd:focus-visible,
@@ -808,17 +807,10 @@
 }
 
 @keyframes talent-water-large-main {
-  0% { border-width: 1.8px; opacity: 0; transform: translate(-50%, -50%) scale(.58); }
-  9% { opacity: .23; }
-  68% { border-width: .55px; opacity: .06; }
-  100% { border-width: .25px; opacity: 0; transform: translate(-50%, -50%) scale(3.9); }
-}
-
-@keyframes talent-water-large-tail {
-  0% { border-width: .8px; opacity: 0; transform: translate(-50%, -50%) scale(.64); }
-  12% { opacity: .065; }
-  75% { border-width: .32px; opacity: .018; }
-  100% { border-width: .25px; opacity: 0; transform: translate(-50%, -50%) scale(4.05); }
+  0%, 10% { border-width: 1px; opacity: 0; transform: translate(-50%, -50%) scale(.72); }
+  17% { opacity: .34; }
+  72% { border-width: .4px; opacity: .07; }
+  100% { border-width: .2px; opacity: 0; transform: translate(-50%, -50%) scale(8.2); }
 }
 
 @keyframes talent-library-enter {
@@ -831,16 +823,49 @@
   .footer { width: calc(100% - 20px); }
 }
 
+@media (min-width: 64rem) {
+  .book {
+    width: min(90.9091%, var(--content-max-width));
+    height: 90.9091dvh;
+    min-height: 90.9091dvh;
+    zoom: var(--non-simulation-ui-desktop-scale);
+  }
+
+  .meta { font-size: 9px; }
+  .titleRow p { font-size: 10px; }
+  .fateNode span { font-size: 8px; }
+  .drawCopy > p,
+  .drawReadout,
+  .drawReadout b,
+  .reroll,
+  .focusCopy > p,
+  .focusEmpty,
+  .libraryTrigger,
+  .validationMsg,
+  .libraryItem span,
+  .libraryEmpty,
+  .nextNumber,
+  .nextCopy small,
+  .toast { font-size: 10px; }
+  .selectedSlot small,
+  .focusCopy > small { font-size: 9px; }
+  .selectedSlot strong { font-size: 10px; }
+  .focusCopy > strong,
+  .libraryTrigger strong,
+  .libraryItem strong { font-size: 12px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .astrolabe,
+  .astrolabeCore span,
+  .nodeOrbit,
   .fateNode,
+  .fateNode span,
   .fateNode::before,
   .toast { transition: none; }
 
   .waterRipples i::before,
   .waterRipples i::after,
   .eventRippleMain,
-  .eventRippleTail,
-  .astrolabeCore span,
   .librarySheet { animation: none; }
 }
