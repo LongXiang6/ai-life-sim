@@ -30,7 +30,7 @@ import type { AIModelConfig } from '@/foundation'
 
 import styles from './GameOver.module.css'
 import { GameOverRadar } from './GameOverRadar'
-import { resetForNewLife } from './reset-new-life'
+import { resetForNewLife } from '../../helpers/new-life-reset'
 
 // ============================================================
 // 人生总结生成

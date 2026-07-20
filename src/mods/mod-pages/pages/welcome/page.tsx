@@ -22,8 +22,6 @@ import {
 } from '@/mods/mod-ui'
 
 import WelcomeView from './WelcomeView'
-import { resetForNewLife } from '../game-over/reset-new-life'
-
 import type { SaveMetadata } from '@/core/storage/save-manager'
 
 const WelcomeModals = dynamic(() => import('./WelcomeModals'), { ssr: false })
@@ -59,12 +57,6 @@ export default function WelcomePage() {
       addToast('warning', '服务器免费体验通道暂不可用：可在“模型调用”中填写自己的 Key、接口和模型', 5000)
       setSettingsTab('model-call')
       setShowSettings(true)
-      return
-    }
-    try {
-      await resetForNewLife()
-    } catch (error) {
-      addToast('warning', error instanceof Error ? error.message : '当前后台任务尚未结束，请稍候重试')
       return
     }
     pendingActionRef.current = null

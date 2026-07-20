@@ -438,11 +438,13 @@ for (const setting of [
   assertIncludes(preGen, setting, `pre-generation signature must invalidate on setting change: ${setting}`)
 }
 
-const resetNewLife = read('src/mods/mod-pages/pages/game-over/reset-new-life.ts')
+const resetNewLife = read('src/mods/mod-pages/helpers/new-life-reset.ts')
 assertIncludes(resetNewLife, 'clearPreGenQueue()', 'new life reset must invalidate cached preview output')
 assertIncludes(resetNewLife, 'orchestrator.reset()', 'new life reset must clear the shared runtime singleton')
-assertIncludes(resetNewLife, 'clearWorldCustomizeDraft()', 'new life reset must not carry the previous timeline world draft')
-for (const inactiveMod of ['mod-base-universe', 'mod-history-dynamics', 'mod-npc', 'mod-tech-level']) {
+assertIncludes(resetNewLife, 'clearNewLifeCreationDrafts()', 'new life reset must not carry the previous timeline creation drafts')
+assertIncludes(resetNewLife, 'await waitForModRuntimeReady()', 'new life reset must wait until every active runtime subsystem is registered')
+assertIncludes(resetNewLife, 'await flushOpfsQueueNow()', 'new life reset must durably flush deleted creation drafts before navigation')
+for (const inactiveMod of ['mod-base-universe', 'mod-npc', 'mod-tech-level']) {
   assertOk(
     !resetNewLife.includes(`@/mods/${inactiveMod}`),
     `new-life page reset must not introduce undeclared dependencies on inactive MOD ${inactiveMod}`,

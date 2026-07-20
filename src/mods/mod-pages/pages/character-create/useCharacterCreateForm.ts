@@ -11,6 +11,8 @@ import { useState, useMemo, useCallback } from 'react'
 import { configStore } from '@/core'
 import { useWorldStore } from '@/mods/mod-world'
 
+import { getCharacterCreateDraftKey } from '../../helpers/creation-draft-storage'
+
 const MAX_ATTRIBUTE_POINTS = 30
 const ATTR_MIN = 0
 const ATTR_MAX = 10
@@ -68,7 +70,7 @@ export interface UseCharacterCreateFormReturn {
 /** 获取按世界编码隔离的存储键 */
 function getStorageKey(): string {
   const worldCode = useWorldStore.getState().worldCode
-  return `character-create-form:${worldCode || 0}`
+  return getCharacterCreateDraftKey(worldCode)
 }
 
 /** 从 localStorage 加载已保存的表单状态 */
@@ -79,14 +81,6 @@ function loadSavedState(): SavedFormState | null {
 /** 持久化表单状态到 localStorage */
 function persistState(state: SavedFormState): void {
   configStore.set('mod-pages', getStorageKey(), state)
-}
-
-export function clearCharacterCreateDrafts(): void {
-  for (const key of configStore.keys('mod-pages')) {
-    if (key.startsWith('character-create-form:')) {
-      configStore.remove('mod-pages', key)
-    }
-  }
 }
 
 const DEFAULT_ATTRIBUTES: Record<string, number> = {

@@ -26,6 +26,7 @@ import { commitWorldInitialization, resolvePresetWorldCode } from '@/mods/mod-wo
 import { hasAvailableApiConfiguration, isApiConfigured } from '@/mods/mod-settings'
 
 import { useWorldCoherenceConfirm } from '../../hooks/useWorldCoherenceConfirm'
+import { prepareNewLifeWorldCommit } from '../../helpers/new-life-reset'
 
 import type { Difficulty } from './useWorldSelectForm'
 
@@ -50,8 +51,6 @@ export function useWorldConfirm() {
   ): Promise<boolean> => {
     const isCustom = selectedWorld.id.startsWith('custom-')
     const mappedWv = WORLDVIEW_ROUTE_MAP[selectedWorld.worldviewId] ?? 'modern'
-    setWorldviewId(mappedWv)
-    setWorldName(config.name)
 
     const eraStartYear = typeof selectedWorld.config.eraStartYear === 'number'
       ? selectedWorld.config.eraStartYear
@@ -60,6 +59,9 @@ export function useWorldConfirm() {
     const worldCode = isCustom
       ? options?.worldCode
       : (options?.worldCode ?? resolvePresetWorldCode(selectedWorld))
+    await prepareNewLifeWorldCommit(worldCode)
+    setWorldviewId(mappedWv)
+    setWorldName(config.name)
     const hasExistingContext = Object.keys(useWorldStore.getState().contexts).length > 0
 
     const result = await commitWorldInitialization(

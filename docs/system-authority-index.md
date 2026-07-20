@@ -5,10 +5,10 @@
 状态：active
 体系路径：project > governance > system-index
 上级目标：让项目中的运行与延后系统拥有唯一责任、接口、生命周期和验收路由
-下级组成：活动权威登记、平台服务、外部 MVP 系统、引擎 MVP 系统、历史因果内部组件、延后剧情系统
-适用范围：MVP 运行子系统、历史事件与消费者引用、延后但承载剧情事实的系统、状态与写入所有权、AI 参与、持久化和运行存活性
+下级组成：活动权威登记、平台服务、新人生生命周期、外部 MVP 系统、引擎 MVP 系统、历史因果内部组件、延后剧情系统
+适用范围：平台服务、MVP 运行子系统、历史事件与消费者引用、延后但承载剧情事实的系统、状态与写入所有权、AI 参与、持久化和运行存活性
 拥有者：`mod-engine` 运行注册与各 owning MOD
-最后验证：2026-07-20；对照[蓝图二](blueprint-02-multi-world-simulation-foundation.md)、[运行阶段策略](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、P0/P1 focused 回归、历史事件 Store v2/旧迁移、子系统实现、Prompt/Schema、缓存统计分桶、持久化路径、[中文协议回归](../scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs)和[硬截断审计](../scripts/check/domains/narrative/no-hard-truncation-audit.mjs)
+最后验证：2026-07-20；对照[蓝图二](blueprint-02-multi-world-simulation-foundation.md)、[运行阶段策略](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、P0/P1 focused 回归、新人生隔离、历史事件 Store v2/旧迁移、子系统实现、Prompt/Schema、缓存统计分桶、持久化路径、[中文协议回归](../scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs)和[硬截断审计](../scripts/check/domains/narrative/no-hard-truncation-audit.mjs)
 取代关系：none
 运行真源：[mvp-stages-config.default.json](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、manifest、生成注册表和各实现文件
 验收证据：`.agents` 治理检查、引用审计、活动系统覆盖检查、`npm run test:world-context-p0`、`npm run test:historical-event-p1`、`npm run test:narrative-protocol`、无硬截断审计、[Prompt 4.0 分级中文协议验收](playtest-2026-07-18-prompt-4-tiered-protocol.md)与[a6api 托管主备通道验收](playtest-2026-07-19-managed-ai-a6api.md)
@@ -279,6 +279,34 @@ Implementation: scripts/ops/cleanup-old-releases.mjs; scripts/ops/systemd/ai-lif
 AcceptanceEvidence: npm run test:release-cleanup; production dry-run and systemd timer/service inspection; active target and directory inventory after installation
 LastVerified: 2026-07-19
 Supersession: none
+```
+
+### 3.7 New-life lifecycle
+
+```text
+SystemId: new-life-lifecycle
+SystemPath: project > player-flow > new-life-lifecycle > cross-store-reset
+ParentGoal: ensure every explicit new-life request starts from an isolated empty life without deleting independent saves, settings or cross-life progression
+PrimaryGovernanceParent: mod-pages creation-flow composition
+ChildSystems: canonical /new-game entry, direct world-confirm guard, MOD-runtime readiness wait, cross-store reset, per-life draft cleanup and OPFS flush
+Authority: A1 PD-002 and PD-006; A2 blueprint-02 section 14; A3 this index; A4 live mod-pages helper and entry pages
+RootPosition: R1
+Weight: W5
+Sequence: S1 reject active pre-generation > S2 wait for compression and MOD registration > S3 reset every active subsystem and owning Store > S4 clear per-life drafts and flow projections > S5 flush persistence > S6 allow world initialization
+Responsibility: distinguish a new life from adding a context to an existing save; clear the previous life narrative, character, world registry, active subsystem state and creation drafts before the next world is committed; preserve a same-world unfinished creation draft; invalidate the old world and downstream drafts when creation changes world identity
+NonResponsibility: does not delete independent save slots, model settings, diagnostic identity or the cross-life mythic library; does not create a world context, implement travel, or decide multi-world connection semantics
+Inputs: explicit new-life route or game-over action, next worldCode, current game phase, engine/orchestrator progress, MOD readiness and background-task status
+OutputsAndWrites: empty current-life world, character, engine, subsystem and flow state; removed per-life creation drafts; durable browser persistence before navigation
+PublicStateOrAPI: resetForNewLife() and prepareNewLifeWorldCommit(worldCode); /new-game is the canonical resetting route while world confirmation remains the direct-entry guard
+Dependencies: mod-pages routes, global Store, orchestrator and active P0/P1 subsystem registration, owning world/character/engine/product Stores, configStore and OPFS persistence queue
+Lifecycle: runs only for an explicit new-life request or when world confirmation detects previous-life progress or a changed creation world; same-world unfinished creation return is preserved
+RuntimeLivenessSource: mod-pages route registration, InitMods allModsLoaded state and active browser persistence
+AIParticipation: none
+PersistenceAuthority: owning Stores remain authoritative; the lifecycle invokes their reset APIs and flushes queued browser deletions but never owns save slots
+Implementation: src/mods/mod-pages/helpers/new-life-reset.ts; src/mods/mod-pages/helpers/creation-draft-storage.ts; src/mods/mod-pages/pages/new-game/page.tsx; src/mods/mod-pages/pages/world-select/useWorldConfirm.ts; src/mods/mod-pages/pages/game-over/page.tsx
+AcceptanceEvidence: npm run test:new-life-isolation; npm run test:world-context-p0; npm run test:creation-first-narrative; npm run check:ui; browser direct-entry isolation path; delivery gates
+LastVerified: 2026-07-20
+Supersession: replaces the game-over-private reset helper and the redirect-only /new-game entry
 ```
 
 ## 4. External MVP systems

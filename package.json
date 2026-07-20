@@ -1,6 +1,6 @@
 {
   "name": "ai-life-sim",
-  "version": "5.1.5",
+  "version": "5.1.6",
   "private": true,
   "scripts": {
     "dev": "node scripts/codegen/generate-mod-wiring.mjs && next dev --turbopack",
@@ -18,6 +18,7 @@
     "validate:regression": "node scripts/check/domains/narrative/narrative-regression-seed.mjs",
     "test:creation-first-narrative": "node scripts/check/domains/narrative/character-first-narrative-slice.mjs",
     "test:creation-first-narrative:browser": "node scripts/check/domains/ui/character-first-narrative-browser.cjs",
+    "test:new-life-isolation": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/ui/new-life-isolation-smoke.mjs",
     "test:compression-runtime": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/compression-runtime-smoke.mjs",
     "test:narrative-protocol": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs",
     "test:narrative-opening:live": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-opening-live-eval.mjs",

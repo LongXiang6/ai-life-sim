@@ -25,18 +25,8 @@ import { commitWorldInitialization } from '@/mods/mod-world/world-init-api'
 import type { WorldConfig } from '@/mods/mod-world'
 
 import { useWorldCoherenceConfirm } from '../../hooks/useWorldCoherenceConfirm'
+import { WORLD_CUSTOMIZE_DRAFT_KEY } from '../../helpers/creation-draft-storage'
 import { buildFieldDefs, type EditableField, type FieldMode } from './world-customize.types'
-
-const STORAGE_KEY = 'mod-pages:world-customize-fields'
-
-/** 开启全新人生时清理上一条时间线的世界配置草稿。 */
-export function clearWorldCustomizeDraft(): void {
-  try {
-    configStore.remove('mod-pages', STORAGE_KEY)
-  } catch {
-    // 存储不可用时不阻断新人生重置。
-  }
-}
 
 const DIMENSION_FIELD_KEYS = [
   'universeScale',
@@ -207,7 +197,7 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
 
   const loadSavedState = (): SavedFieldsState => {
     try {
-      const raw = configStore.get<SavedFieldsState>('mod-pages', STORAGE_KEY)
+      const raw = configStore.get<SavedFieldsState>('mod-pages', WORLD_CUSTOMIZE_DRAFT_KEY)
       const currentWorldCode = useWorldStore.getState().worldCode
       const currentWorldName = useWorldStore.getState().worldConfig?.name ?? ''
       if (
@@ -242,7 +232,7 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
     locks: Record<string, boolean>,
   ) => {
     try {
-      configStore.set('mod-pages', STORAGE_KEY, {
+      configStore.set('mod-pages', WORLD_CUSTOMIZE_DRAFT_KEY, {
         worldCode: useWorldStore.getState().worldCode,
         worldName: useWorldStore.getState().worldConfig?.name ?? '',
         fieldModes: modes,

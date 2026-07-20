@@ -570,6 +570,13 @@ assertOk(
     && gameOverPageSrc.includes('!canViewGameOver && !leavingForNewLifeRef.current'),
   'game-over new-life action must bypass the empty-state redirect race and return directly to world selection',
 )
+const newGamePageSrc = readRel('src/mods/mod-pages/pages/new-game/page.tsx')
+const worldConfirmSrc = readRel('src/mods/mod-pages/pages/world-select/useWorldConfirm.ts')
+assertOk(
+  newGamePageSrc.includes('void resetForNewLife()')
+    && worldConfirmSrc.includes('await prepareNewLifeWorldCommit(worldCode)'),
+  'canonical and direct world-selection entry paths must both prevent previous-life state from reaching a new world',
+)
 
 if (failed === 0) {
   console.log('PASS: mobile-ui-regression')
