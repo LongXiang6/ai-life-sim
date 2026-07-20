@@ -8,10 +8,10 @@
 下级组成：结算事实投影、页面预览、Canvas 成图、Web Share、PNG 降级与状态反馈
 适用范围：`/game-over` 的“留下此生”区域及本机分享输出
 拥有者：`mod-pages` game-over composition
-最后验证：2026-07-20；本地真实浏览器、Canvas 成图、UI 门禁、lint 与 TypeScript
+最后验证：2026-07-20；本地真实浏览器与 Canvas、完整门禁、生产 `5.2.0` 发布后浏览器与运维检查
 取代关系：none
 运行真源：`src/mods/mod-pages/pages/game-over/page.tsx` 与 `game-over-share-card.ts`
-验收证据：本文第 4 节、`game-over-share-card-smoke.mjs`、`npm run check:ui`
+验收证据：本文第 4、6 节、`game-over-share-card-smoke.mjs`、`npm run gate-check`
 
 ## 1. 结果
 
@@ -51,6 +51,9 @@ Canvas 对选中的文本逐字测量并完整换行；高度按真实行数增�
 | PNG 降级 | 通过 | 本地生成 `ai-life-sim-life-browser-preview.png`，文件 178322 字节；页面状态返回已保存 |
 | 控制台 | 通过 | 本地预览路径无 error 或 warn；临时验证路由已从源码和 manifest 删除 |
 | 自动检查 | 通过 | `game-over-share-card-smoke.mjs`、`npm run check:ui`、`npm run lint`、`npx tsc --noEmit` |
+| 生产旁路 | 通过 | 独立 release 在 `127.0.0.1:3001` 返回关键页面、`5.2.0` 版本和新增分享代码块；静态资源为 200，旁路错误日志为空 |
+| 生产浏览器 | 通过 | 欢迎页、说明弹窗、反馈页和无存档结算守卫均正常；控制台只有 MOD 初始化 info，无 error 或 warn |
+| 生产运维 | 通过 | PM2 online，3000 仅监听回环；Nginx、HTTPS、两个域名、360 秒代理超时、UFW 和 release cleanup timer 均符合部署契约 |
 
 ## 5. 执行顺序
 
@@ -61,3 +64,19 @@ Canvas 对选中的文本逐字测量并完整换行；高度按真实行数增�
 | `game-over-sharing` 系统登记 | A3 | R1 | W4 | S3 |
 | 页面、Canvas 与降级实现 | A4 | R2 | W4 | S4 |
 | 响应式、图片和发布证据 | A5 | R3 | W4 | S5 |
+
+## 6. 正式发布记录
+
+```text
+Version: 5.2.0
+ReleaseTimestamp: 2026-07-20 17:28:27 Asia/Shanghai
+FunctionalCommit: 7c65099cd18f384352d1ea2b5d1efb5da6c11b77
+ActiveRelease: /root/ai-life-sim-releases/7c65099cd18f384352d1ea2b5d1efb5da6c11b77
+PublicOrigin: https://ai-mnrs.icu
+Result: deployed and healthy
+RollbackPoint: /root/ai-life-sim-releases/0b078ac8d066a4fd900487d41d91cc65474f34d5
+```
+
+验收纠偏：`/help` 与 `/settings` 不是注册页面，而是欢迎页内的应用弹窗；通配路由返回 HTTP 200 不能作为这两个功能可用的证据。生产浏览器验收通过欢迎页真实按钮打开设置和说明，其中说明显示版本 `5.2.0`，预设模型区只显示模型名称与“不显示 API 网址和 Key”的说明。
+
+PM2 error 文件中仅有发布时间之前的两条旧 Server Action 请求记录，文件时间早于本轮切换；切换后的 PM2、浏览器控制台和统一生产诊断检查没有发现新增问题。
