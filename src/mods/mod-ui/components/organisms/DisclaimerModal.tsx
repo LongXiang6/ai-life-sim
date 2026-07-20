@@ -16,6 +16,7 @@ import { createPortal } from 'react-dom'
 import styles from './DisclaimerModal.module.css'
 
 const DISCLAIMER_KEY = 'ai-life-sim:disclaimer-accepted'
+const DISCLAIMER_VERSION = '2.2.0'
 
 /**
  * 检查是否已接受免责声明
@@ -23,7 +24,7 @@ const DISCLAIMER_KEY = 'ai-life-sim:disclaimer-accepted'
  */
 export function isDisclaimerAccepted(): boolean {
   try {
-    return localStorage.getItem(DISCLAIMER_KEY) === 'true'
+    return localStorage.getItem(DISCLAIMER_KEY) === DISCLAIMER_VERSION
   } catch {
     return false
   }
@@ -31,7 +32,7 @@ export function isDisclaimerAccepted(): boolean {
 
 export function acceptDisclaimer(): void {
   try {
-    localStorage.setItem(DISCLAIMER_KEY, 'true')
+    localStorage.setItem(DISCLAIMER_KEY, DISCLAIMER_VERSION)
   } catch {
     // localStorage 不可用时静默忽略
   }

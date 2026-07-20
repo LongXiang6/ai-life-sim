@@ -5,13 +5,13 @@
 状态：active
 体系路径：project > governance > system-index
 上级目标：让项目中的运行与延后系统拥有唯一责任、接口、生命周期和验收路由
-下级组成：活动权威登记、外部 MVP 系统、引擎 MVP 系统、延后剧情系统
-适用范围：MVP 运行子系统、延后但承载剧情事实的系统、状态与写入所有权、AI 参与、持久化和运行存活性
+下级组成：活动权威登记、平台服务、外部 MVP 系统、引擎 MVP 系统、历史因果内部组件、延后剧情系统
+适用范围：MVP 运行子系统、历史事件与消费者引用、延后但承载剧情事实的系统、状态与写入所有权、AI 参与、持久化和运行存活性
 拥有者：`mod-engine` 运行注册与各 owning MOD
-最后验证：2026-07-19；对照[运行阶段策略](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、子系统实现、Prompt/Schema、生产日志、持久化路径、[中文协议回归](../scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs)、[托管通道回归](../scripts/check/domains/narrative/managed-ai-default-regression.mjs)和[硬截断审计](../scripts/check/domains/narrative/no-hard-truncation-audit.mjs)
+最后验证：2026-07-19；对照[蓝图二](blueprint-02-multi-world-simulation-foundation.md)、[运行阶段策略](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、P0/P1 focused 回归、历史事件 Store v2/旧迁移、子系统实现、Prompt/Schema、持久化路径、[中文协议回归](../scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs)和[硬截断审计](../scripts/check/domains/narrative/no-hard-truncation-audit.mjs)
 取代关系：none
 运行真源：[mvp-stages-config.default.json](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、manifest、生成注册表和各实现文件
-验收证据：`.agents` 治理检查、引用审计、活动系统覆盖检查、[Prompt 4.0 分级中文协议验收](playtest-2026-07-18-prompt-4-tiered-protocol.md)与[a6api 托管主备通道验收](playtest-2026-07-19-managed-ai-a6api.md)
+验收证据：`.agents` 治理检查、引用审计、活动系统覆盖检查、`npm run test:world-context-p0`、`npm run test:historical-event-p1`、`npm run test:narrative-protocol`、无硬截断审计、[Prompt 4.0 分级中文协议验收](playtest-2026-07-18-prompt-4-tiered-protocol.md)与[a6api 托管主备通道验收](playtest-2026-07-19-managed-ai-a6api.md)
 
 ## 1. Reading rules
 
@@ -27,7 +27,7 @@
 |---|---|---|---|
 | `../../AGENTS.md` | A0 | Project entry, authorization boundary, commands, secret handling | Project workflow, permissions, gates, infrastructure, or Skill routing changes |
 | `docs/product-decisions.md` | A1 | Active product semantics | User-visible meaning, product red line, or selected behavior changes |
-| Selected plan, handoff, or prototype recorded by the owning index | A2 | Intended result | Selection, composition, acceptance target, or supersession changes |
+| `docs/blueprint-02-multi-world-simulation-foundation.md` | A2 | Multi-world simulation target, P0-P8 order, and active P0/P1 execution contracts | P0/P1 target, phase order, composition, or acceptance changes |
 | `docs/system-authority-index.md` | A3 | System responsibility and ownership map | System lifecycle, ownership, writes, AI role, persistence, or liveness changes |
 | `docs/simulation-rewrite-architecture.md` | A3 | BaseSubsystem and Foundation architecture | Subsystem base contract or cross-domain contract rules change |
 | `docs/design-2026-07-07-core-architecture.md` | A3 | Engine and field-contract design supplement | Core/foundation or field ownership changes |
@@ -38,13 +38,14 @@
 
 ## 3. Runtime and persistence contract
 
-The current stage is `mvp`.
+The current runtime stage key remains `mvp`; its active policy includes the completed P0 multi-world foundation and the P1 historical-event ledger. P2-P8 simulation packages remain deferred.
 
 ```text
 project
 ├─ simulation-runtime
 │  ├─ platform-services
 │  ├─ external-product-systems
+│  │  └─ history-causality: historical-event-ledger
 │  └─ engine-orchestration-systems
 └─ deferred-story-state
 ```
@@ -66,7 +67,7 @@ Unless a row states otherwise, every active card uses these shared fields:
 RuntimeStageAndLivenessSource: mvp; src/mods/mod-engine/helpers/mvp-stages-config.default.json
 PersistenceAuthority: owning collectState/restore path plus orchestrator snapshot and save-restore aggregator
 AcceptanceEvidence: governance system-coverage check plus the owning behavior's focused and delivery gates
-LastVerified: 2026-07-18
+LastVerified: 2026-07-19
 Supersession: none
 ```
 
@@ -75,8 +76,14 @@ Supersession: none
 - Runtime membership is owned by `src/mods/mod-engine/helpers/mvp-stages-config.default.json` and its runtime policy.
 - Each subsystem owns its private state and `collectState()` representation. The orchestrator owns collection order, application phases, snapshots, and cross-system commit flow.
 - Save aggregation and restoration are owned by `src/mods/mod-engine/helpers/save-restore.ts`, `OrchestratorSystem` snapshots, and `src/core/storage/save-manager.ts`. A system must not invent a second persistence owner.
-- Main narrative AI may write only the internal IDs in `narrativeChange`; current writable systems are `character-base`, `lifespan`, `luck`, and `morality`. AI-visible input uses only their registered Chinese system and field names; `src/mods/mod-engine/helpers/subsystem-field-registry.ts` owns the one-to-one translation.
-- Main narrative Prompt `4.1.0` owns the componentized fixed prefix and the ordered three-message input `全局信息 -> 记忆 -> 本轮引导`. `narrative-prompt-components.ts` compiles low-noise plain text with basic constraints first and one annotated standard example last; `prompt-builder.ts` owns layer order; `narrative-ai-input-view.ts` owns world/character projection; `narrative-ai-protocol.ts` owns the sole successful `⟦正文⟧/⟦摘要⟧/可选⟦数据⟧/⟦结束⟧` protocol and strict translation. Ordinary rounds may commit complete body and digest without structured data; a present data block is accepted or rejected as a whole, while focused intent and forced branch rounds retain conditional data gates. The protocol boundary normalizes model no-op arrays, `命运分支:false`, empty conditional objects, and optional near-synonym enums without inventing semantic state; unknown writable targets and incomplete conditional cores remain rejected. Conditional gates may receive at most two targeted repairs, while the body remains available if the intent result is still pending. RoundCommit preflights every state-change bundle and rolls back unexpected partial writes. The time guidance requires varied scene-first openings and uses the explicit current calendar label when a time anchor is needed instead of repeating generic openings such as “这一年”.
+- `mod-world` persists the complete `contexts` registry, `currentContextId`, cross-context exits and transition history. Legacy `worldConfig/entities/worldCode/...` fields are only the current-context compatibility projection and must be synchronized back to the owning context instance.
+- `RoundContext.contextId` and `characterId` are stable business IDs. `worldId` is a deprecated compatibility alias of `contextId`; world names, `worldCode`, character names and six-character diagnostic codes are not business keys.
+- One global `TimeSystem` remains the canonical owner of `daysPassed` and `totalDays`. Context local clocks read that authority and apply their own scale or inactive policy; they never create another round commit timeline.
+- Orchestrator save snapshots persist scoped internal narrative state for memory lifecycle, relevance, forgetting, delayed causality, plot structure, foreshadowing and core memory in addition to external collected states. A present P0 snapshot whose `worldContextId` disagrees with the world Store is a core restore failure and rolls back the load.
+- `historical-event-ledger` persists its complete Store v2 through `capturePersistenceState()` / `restorePersistenceState()` in the orchestrator snapshot. Its `collectState()` uses a read-only cached index and returns only global or current-including `scheduled/active` facts plus related edges; complete cloning is reserved for explicit save/rollback. Explicit restore and browser/Zustand hydration share strict validation for IDs, chains, evidence-reference arrays, endpoints and world references before replacement or use; invalid current Store state is quarantined from queries, commits and saves without silent reset, and malformed current/future versions reject. v1 Store or old `event-pool` / `causal-simulation` collected states migrate into the current save's original context instead of global or cross-save residue.
+- Accepted ledger IDs flow to consumers instead of duplicating facts: memory and core-memory use `historicalEventIds`, foreshadowing uses `plantedFromEventIds/resolvedByEventIds`, plot structure uses `lastHistoricalEventIds`, and delayed causality uses `originEventId/resolutionEventId`. Compression and repeated relationship merges retain ID unions; old snapshots default missing reference arrays to empty.
+- Main narrative AI may write only the internal IDs in `narrativeChange`; current writable systems remain `character-base`, `lifespan`, `luck`, and `morality`. `historical-event-ledger` is registered separately as `event-input`, so validated local orchestration may submit historical batches without exposing it as a fifth direct state-change target. AI-visible input uses only registered Chinese system and field names; `src/mods/mod-engine/helpers/subsystem-field-registry.ts` owns the one-to-one translation.
+- Main narrative Prompt `4.2.0` owns the componentized fixed prefix and the ordered three-message input `全局信息 -> 记忆 -> 本轮引导`. `narrative-prompt-components.ts` compiles low-noise plain text with basic constraints first and one annotated standard example last; `prompt-builder.ts` owns layer order; `narrative-ai-input-view.ts` owns world/character projection; `historical-event-prompt-projection.ts` deterministically renders only global facts or `scheduled/active` facts whose context, travel or cross-context scope explicitly includes the current context, together with stable IDs, schedules and related causal edges, into `当前状态`; the background worldview adapter is forbidden from rewriting that projection. `narrative-ai-protocol.ts` owns the sole successful `⟦正文⟧/⟦摘要⟧/可选⟦数据⟧/⟦结束⟧` protocol and strict translation. Ordinary rounds may commit complete body and digest without structured data; a present data block is accepted or rejected as a whole, while focused intent and forced branch rounds retain conditional data gates. The protocol boundary normalizes model no-op arrays, `命运分支:false`, empty conditional objects, and optional near-synonym enums without inventing semantic state; unknown writable targets and incomplete conditional cores remain rejected. Conditional gates may receive at most two targeted repairs, while the body remains available if the intent result is still pending. RoundCommit preflights every state-change bundle and rolls back unexpected partial writes. The time guidance requires varied scene-first openings and uses the explicit current calendar label when a time anchor is needed instead of repeating generic openings such as “这一年”.
 
 ### 3.1 Managed AI default channel
 
@@ -120,22 +127,22 @@ SystemId: ai-call-observability
 SystemPath: project > simulation-runtime > platform-services > ai-call-observability
 ParentGoal: preserve enough secure production evidence to diagnose every AI request and player-visible failure
 PrimaryGovernanceParent: core logger plus app AI proxy
-ChildSystems: proxy access index, full AI traces, raw upstream errors, client event logs, safe HTTP error translation, per-source indexes, operator inspection
-Authority: A1 PD-019 and PD-022; A3 this index; A4 live proxy, client and server log store
+ChildSystems: proxy access index, full AI traces, raw upstream errors, client event logs, safe HTTP error translation, per-IP and per-player indexes, operator inspection
+Authority: A1 PD-019, PD-022 and PD-024; A3 this index; A4 live proxy, client and server log store
 RootPosition: R1
 Weight: W5
 Sequence: S1 trusted source classification > S2 request envelope > S3 upstream lifecycle > S4 client-visible result > S5 retention cleanup and inspection
-Responsibility: correlate and securely retain complete AI request, response, error and client failure evidence, classify it by server-derived IP, translate player-visible HTTP failures safely, and expose a private read-only inspection path
+Responsibility: correlate and securely retain complete AI request, response, error and client failure evidence, classify it by server-derived IP and server-issued player diagnostic code, translate player-visible HTTP failures safely, and expose a private read-only inspection path
 NonResponsibility: does not own credential values, gameplay state, narrative truth, model choice or public log browsing authorization
-Inputs: trusted proxy headers, sanitized proxy request envelope, upstream lifecycle, client error events, environment retention policy
-OutputsAndWrites: request IDs, access JSONL, full trace JSONL, raw error files, client event files and per-source indexes
+Inputs: trusted proxy headers, server-issued diagnostic Cookie, sanitized proxy request envelope, upstream lifecycle, client error events, environment retention policy
+OutputsAndWrites: request IDs, diagnostic codes, access JSONL, full trace JSONL, raw error files, client event files, per-IP indexes and per-player indexes
 PublicStateOrAPI: x-ai-request-id response header and requestId error field; no public filesystem or log-browsing access
-Dependencies: app proxy, core AI client, core client logger, Node filesystem and deployment environment
+Dependencies: diagnostic-player-identity, app proxy, core AI client, core client logger, Node filesystem and deployment environment
 Lifecycle: active for every proxy call; cleanup runs opportunistically after writes at a bounded interval
 RuntimeLivenessSource: app API route registration and active Next.js server process
 AIParticipation: observes Provider traffic only; never authors or applies semantic game state
 PersistenceAuthority: AI_LOG_DIR plus server-log-store retention and capacity policy
-Implementation: src/app/api/proxy/route.ts; src/app/api/log/route.ts; src/app/api/debug-log/route.ts; src/core/ai-service/api-error.ts; src/core/ai-service/story-seed.ts; src/core/logger/server-log-store.ts; src/core/logger/client-logger.ts; src/core/logger/debug-logger.ts; scripts/ops/inspect-ai-logs.mjs
+Implementation: src/app/api/proxy/route.ts; src/app/api/log/route.ts; src/app/api/debug-log/route.ts; src/core/ai-service/api-error.ts; src/core/ai-service/story-seed.ts; src/core/logger/server-log-store.ts; src/core/logger/server-log-safety.ts; src/core/logger/client-logger.ts; src/core/logger/debug-logger.ts; scripts/ops/inspect-ai-logs.mjs
 AcceptanceEvidence: docs/playtest-2026-07-19-production-observability-opening.md; npm run test:ai-proxy; source-classification and secret-redaction regression; operator-inspector smoke; unreachable-upstream HTTP probe; secret-absence check; delivery gates
 LastVerified: 2026-07-19
 Supersession: none
@@ -144,14 +151,78 @@ Supersession: none
 - `src/app/api/proxy/route.ts` owns one request ID per proxy call and records the complete sanitized request envelope, upstream response or error, status, duration, retry observation and stream terminal state. The request ID is returned to the client for screenshot and server-log correlation. Every trace event carries the same server-derived source identity.
 - `src/core/ai-service/api-error.ts` is the single player-facing HTTP translation authority. It covers explicit 4xx/5xx causes and resolution steps, preserves request IDs, and never copies raw upstream bodies into UI messages. `ai-client.ts` retains the raw body only for sanitized diagnostic logging while exposing the translated Error message to Toasts and page-owned error regions.
 - Story seed normalization is enforced on both boundaries: the client omits non-finite or non-numeric values, while the proxy treats cached legacy `seed:null` as absent and leaves every other invalid type to Zod rejection. This prevents `NaN -> JSON null -> 400` without weakening request validation.
-- `src/core/logger/server-log-store.ts` owns trusted source extraction, persistent log-root resolution, secret redaction, `0700` directories, `0600` files, per-file rotation, per-source indexes, age retention and total-cap cleanup. Production uses `/var/log/ai-life-sim` through `AI_LOG_DIR`, outside `/root/ai-life-sim/`, so atomic deployments do not move active evidence into version backups; defaults are 30 days and 10 GiB unless environment policy overrides them.
+- `src/core/logger/server-log-store.ts` owns trusted source extraction, persistent log-root resolution, secret redaction, `0700` directories, `0600` files, per-file rotation, per-IP and per-player indexes, age retention and total-cap cleanup. Production uses `/var/log/ai-life-sim` through `AI_LOG_DIR`, outside `/root/ai-life-sim/`, so atomic deployments do not move active evidence into version backups; defaults are 30 days and 10 GiB unless environment policy overrides them. Diagnostic identity reservations are retention-exempt because reusing an old six-character code would break correlation.
 - API keys, Authorization headers, cookies, passwords, token-like credentials and credential-bearing URL query values must never be written. Prompt and response semantics remain otherwise complete so diagnosis does not depend on lossy previews.
-- `src/app/api/log/route.ts` enriches client diagnostics with the trusted source and optional AI request ID on the server; request-body fields cannot override the source. `src/app/api/debug-log/route.ts` keeps complete AI-call metadata collection enabled independently of the production-disabled public debug viewer, while its production GET/DELETE paths remain closed. `scripts/ops/inspect-ai-logs.mjs` searches recent failures by IP or request ID and omits full Prompt/response content unless explicitly requested by an authorized operator.
+- `src/app/api/log/route.ts` enriches client diagnostics with the trusted source, server-issued diagnostic code and optional AI request ID; request-body fields cannot override the source or code. `src/app/api/debug-log/route.ts` keeps complete AI-call metadata collection enabled independently of the production-disabled public debug viewer, while its production GET/DELETE paths remain closed. `scripts/ops/inspect-ai-logs.mjs` searches by IP, player code, request ID or feedback ID and omits full Prompt/response content unless explicitly requested by an authorized operator.
 - Diagnostic copies are operational evidence, not the authoritative narrative or save-state store. Retention cleanup may delete old diagnostic copies after the configured policy, but it must never delete or truncate gameplay-owned story data.
 - The proxy observes repeated fingerprints and retry counts but does not enforce a fixed identical-request rejection. Candidate preparation normally continues until its product condition is satisfied or the player leaves; 401/403 are the explicit `PD-020` configuration-terminal exception owned by the consuming loop.
 - Acceptance evidence: `npm run test:ai-proxy`, the AI error translation and story-seed smoke, a local unreachable-upstream HTTP probe confirming the enabled-thinking Schema and request-ID path, secret-absence inspection, TypeScript/lint, structural check and the delivery gate.
 
-### 3.3 Production release retention
+### 3.3 Player feedback diagnostics
+
+```text
+SystemId: player-feedback
+SystemPath: project > simulation-runtime > platform-services > player-feedback
+ParentGoal: let players submit actionable feedback with enough non-secret runtime evidence to reproduce and diagnose the reported problem
+PrimaryGovernanceParent: mod-pages feedback composition plus core logger persistence
+ChildSystems: feedback page, diagnostic-code display, diagnostic package collector, POST API, full submission store, global, per-IP and per-player indexes
+Authority: A1 PD-023, PD-024, PD-019 and PD-015; A3 this index; A4 live page, route, contract, collector and server store
+RootPosition: R1
+Weight: W5
+Sequence: S1 player consent > S2 client collection and redaction > S3 whole-package validation > S4 trusted source classification > S5 private persistence and feedback ID
+Responsibility: collect player-authored feedback together with complete recent narrative entries, non-secret configuration, current game state, recent client diagnostics and browser/device environment; reject secrets and stable hardware identifiers; persist the complete sanitized package and return a stable feedback ID
+NonResponsibility: does not expose stored feedback publicly, replace the authoritative save or narrative stores, collect credentials, infer device identity, send feedback to third parties, or partially save an invalid package
+Inputs: feedback category, subject, message, explicit consent, player diagnostic code, client diagnostic package and trusted request headers
+OutputsAndWrites: feedback ID, player diagnostic code, private full JSON submission, global feedback index, per-IP index and per-player index
+PublicStateOrAPI: POST /api/feedback returns ok, feedbackId and receivedAt; no public GET, list or delete surface
+Dependencies: diagnostic-player-identity, mod-pages route registration, core client logger, world/character/engine/global stores, server-log-store, AI_LOG_DIR
+Lifecycle: available from welcome and active simulation pages; collection occurs only after explicit submission and consent
+RuntimeLivenessSource: mod-pages route registration, app API route registration and active Next.js server process
+AIParticipation: none; preserves existing AI and narrative evidence only
+PersistenceAuthority: AI_LOG_DIR/feedback under the PD-019 retention, capacity, permission and cleanup policy; gameplay stores remain authoritative
+Implementation: src/mods/mod-pages/pages/feedback/page.tsx; src/mods/mod-pages/pages/feedback/build-feedback-diagnostics.ts; src/app/api/feedback/route.ts; src/core/logger/feedback-contract.ts; src/core/logger/player-feedback-store.ts; src/core/logger/redact-sensitive-data.ts; scripts/ops/inspect-ai-logs.mjs
+AcceptanceEvidence: npm run test:player-feedback; browser submit and feedback-ID path; secret absence and complete-recent-story inspection; UI, TypeScript, lint, structural and delivery gates
+LastVerified: 2026-07-19
+Supersession: none
+```
+
+- The collector selects the canonical recent narrative window while preserving every selected entry intact. It excludes API routing and credential fields before serialization and applies the shared redaction authority again on the server.
+- The API rejects an oversized, invalid or incompletely stored package as a whole. The player receives a feedback ID only after the full submission and both indexes report successful persistence.
+- Stored submissions are private operational evidence. They may be cleaned by the diagnostic retention policy but never mutate or replace local narrative history, save payloads, settings or subsystem state.
+
+### 3.4 Player diagnostic identity
+
+```text
+SystemId: diagnostic-player-identity
+SystemPath: project > simulation-runtime > platform-services > diagnostic-player-identity
+ParentGoal: let a player report a short stable locator so operators can retrieve the correct retained diagnostic timeline without requiring a precise technical description
+PrimaryGovernanceParent: core logger identity allocation and app diagnostic identity route
+ChildSystems: six-character contract, atomic reservation store, HttpOnly Cookie issuance, client initialization, player-code log indexes, feedback-page display
+Authority: A1 PD-024 and PD-019; A3 this index; A4 live contract, allocator, API route, client initializer and log store
+RootPosition: R1
+Weight: W5
+Sequence: S1 server allocation > S2 atomic collision reservation > S3 HttpOnly Cookie > S4 log enrichment and player index > S5 player display and operator lookup
+Responsibility: issue a collision-safe six-character diagnostic alias for each browser profile, retain it across sessions and IP changes, attach it to every supported diagnostic record, and expose it to the same browser for copy and reporting
+NonResponsibility: does not identify a legal person, authenticate a user, authorize log access, derive a device fingerprint, replace trusted IP classification, or expose logs publicly
+Inputs: existing valid diagnostic Cookie or a new same-origin allocation request; cryptographic randomness; AI_LOG_DIR reservation root
+OutputsAndWrites: diagnostic code, HttpOnly Cookie, retention-exempt reservation record, per-player diagnostic indexes and feedback-page copy surface
+PublicStateOrAPI: GET /api/diagnostic-identity returns only the current browser's diagnosticCode and scope; no list, reverse lookup, log read or delete API
+Dependencies: core server-log-store, app InitMods startup, client logger, AI proxy, client/debug log routes, player feedback and operator inspector
+Lifecycle: allocated on first application startup, refreshed on later visits, stable until site Cookie removal; reservations remain to prevent code reuse
+RuntimeLivenessSource: root InitMods initialization, app API route registration and active Next.js process
+AIParticipation: none
+PersistenceAuthority: AI_LOG_DIR/diagnostic-identities for collision reservations; HttpOnly browser Cookie for the current profile; gameplay stores remain unrelated
+Implementation: src/core/logger/diagnostic-player-code.ts; src/core/logger/diagnostic-player-identity.ts; src/core/logger/diagnostic-player-code-client.ts; src/app/api/diagnostic-identity/route.ts; src/core/logger/server-log-safety.ts; src/core/logger/server-log-store.ts; src/app/_components/init-mods.tsx; scripts/ops/inspect-ai-logs.mjs
+AcceptanceEvidence: npm run test:ai-proxy including diagnostic-player-code-smoke; browser code persistence and IP-change case; per-player index inspection; UI, TypeScript, lint, structural and delivery gates
+LastVerified: 2026-07-19
+Supersession: none
+```
+
+- The server-generated code uses six uppercase letters and digits while excluding ambiguous characters. Atomic `wx` reservation, rather than probability alone, prevents two issued profiles from receiving the same code.
+- The code is a diagnostic locator, not a secret or an authentication factor. Server logs accept it only from the issued Cookie; arbitrary request headers and request bodies cannot override it.
+- Reservation files contain no player content or device-derived facts and are excluded from diagnostic age/capacity cleanup. Retained story, request and client-event copies still follow PD-019 cleanup.
+
+### 3.5 Production release retention
 
 ```text
 SystemId: production-release-retention
@@ -181,30 +252,41 @@ Supersession: none
 
 ## 4. External MVP systems
 
+当前共有 13 个外部运行系统：P0 多世界基础 6 个、P1 历史事件账本 1 个、角色与世界既有系统 6 个。运行成员以 `mvp-stages-config.default.json` 为准。
+
 | SystemId | OwnerMOD | Responsibility | NonResponsibility | Inputs | OutputsAndWrites | AI participation | Implementation |
 |---|---|---|---|---|---|---|---|
+| `world-context-registry` | `mod-world` | Own the save-level directory of world, universe, plane, planet, region and scene contexts, stable context IDs, hierarchy, lifecycle and current context reference | Does not own space edges, canonical time, transition atomicity or narrative commits | World-context factory output and lifecycle requests | `useWorldStore.contexts`, `currentContextId`, read-only registry state | Read-only | `src/mods/mod-world/subsystems/world-context-registry-system.ts`, `src/foundation/subsystem-contracts/world-context.contract.ts` |
+| `contextual-capability-profile` | `mod-world` | Own each context's explicit life, space, NPC, economy, politics, technology and supernatural capabilities plus the allowed system combination | Does not register systems, wake dormant contexts or execute deferred simulation packages | Structured `WorldConfig` and confirmed facts | Per-context capability profiles and active/background subsystem ID sets | Read-only; semantic candidates require local confirmation | `src/mods/mod-world/subsystems/contextual-capability-profile-system.ts` |
+| `spatial-graph` | `mod-world` | Own context roots, spatial nodes, containment/adjacency edges, cross-context exits and global-entity locations | Does not own map UI, geography, resources or transition commits | Validated spatial events and context initialization | Per-context graphs, global exits and entity locations | Event input only | `src/mods/mod-world/subsystems/spatial-graph-system.ts` |
+| `context-transition` | `mod-world` | Preflight and atomically migrate the active context, actor/carried/companion locations, local clocks and source/target scopes; roll back on runtime-context injection failure | Does not author arrival prose, advance global time, or own item/companion business state | Stable actor ID, target context, validated exit and qualifications, canonical total days | Current-context projection, scoped entity locations and append-only transition records | Proposal only; local preflight owns commit | `src/mods/mod-world/subsystems/context-transition-system.ts`, `src/mods/mod-world/world-context-api.ts` |
+| `simulation-scope-policy` | `mod-world` | Own `active/background/dormant/closed` scope and synchronize local clocks from canonical time | Does not run P2-P8 background simulation or write canonical time | `RoundContext.totalDays` and explicit local scope requests | Per-context scope and local clock state | Read-only | `src/mods/mod-world/subsystems/simulation-scope-policy-system.ts` |
+| `world-init` | `mod-world` | Create one validated world-context instance per call with capability profile, spatial root, local calendar, initialization facts and optional connection to the current context | Does not replace the whole save, create a second time/orchestrator authority, or restore old world-map simulation | User world configuration, world generation cache code and explicit context options | New or intentionally reinitialized `WorldContextInstance` | Proposal; IDs, structure and validation remain local | `src/mods/mod-world/subsystems/world-init-system.ts`, `src/mods/mod-world/world-init-bundle.ts` |
+| `historical-event-ledger` | `mod-history-dynamics` | Own the only append-only record of historical events, transitions, evidence, four-state capability-checked candidate audits, explicit causal edges, bounded queries and legacy migration across global, context, travel and cross-context scopes | Does not author narrative prose, infer facts from body text, own delayed-promise scheduling, run topic presets, or expose candidates as occurred facts | Locally validated historical batches, stable context/entity/location references, explicit candidates with optional generic capabilities, causal edges, v1/v2 snapshots | Store v2 full ledger, cached current-relevant collected view, stable event IDs, paginated event/evidence/transition/migration/detail queries and atomic commit results | `event-input`; not in `narrativeChange`, IDs and commit results remain local | `src/foundation/subsystem-contracts/historical-event.contract.ts`, `src/mods/mod-history-dynamics/subsystems/historical-event-ledger-system.ts`, `src/mods/mod-history-dynamics/components/event-candidate-provider.ts`, `src/mods/mod-history-dynamics/components/causal-graph-component.ts`, `src/mods/mod-history-dynamics/historical-event-api.ts`, `src/mods/mod-history-dynamics/store.ts` |
 | `character-base` | `mod-character` | Own four base attributes, explicit starting age, and aggregation of destiny, injury, and decay modifiers | Does not own calendar time, maximum lifespan, luck, morality, or narrative phase order | `RoundContext` and provider-owned character modifiers | Character base state and structured attribute changes | Main narrative writable; validates and applies its owned structured changes | `src/mods/mod-character/subsystems/character-base-system.ts` |
 | `destiny-pattern` | `mod-character` | Own selected destiny patterns, candidate pool, pattern runtime state, and terminal handling of credential failures during candidate generation | Does not directly own base-attribute state application, main narrative changes, or credential values | Character creation choice, presets, optional AI candidate generation and classified AI errors | Selected pattern state, modifiers, progress, or explicit terminal generation failure exposed to consumers | AI may generate candidates; not in the main narrative writable allowlist | `src/mods/mod-character/subsystems/destiny-pattern-system.ts` |
 | `lifespan` | `mod-character` | Own maximum lifespan, breakthroughs, and structured lifespan deltas from explicit world and race configuration | Does not own current age, time advancement, or death prose | `RoundContext`, world/race configuration, owned structured changes | Lifespan state and change application | Main narrative writable | `src/mods/mod-character/subsystems/lifespan-system.ts` |
 | `luck` | `mod-character` | Own luck value and derived disease, death, event-weight, and ageing modifiers | Does not generate events or own other subsystem state | `RoundContext` and owned structured changes | Luck state, derived modifiers, Prompt formatting | Main narrative writable | `src/mods/mod-character/subsystems/luck-system.ts` |
 | `morality` | `mod-character` | Own morality value and apply structured morality deltas | Does not infer morality locally from narrative keywords | `RoundContext` and `morality.delta` | Morality state | Main narrative writable | `src/mods/mod-character/subsystems/morality-system.ts` |
-| `world-entity` | `mod-world` | Own generated named countries, factions, noble houses, settlements, and trade routes | Does not own geography, calendar time, or narrative orchestration | World configuration and entity-generation inputs | World entity collections and their collected state | May participate in world initialization; not in the main narrative writable allowlist | `src/mods/mod-world/subsystems/world-entity-system.ts` |
+| `world-entity` | `mod-world` | Own generated named countries, factions, noble houses, settlements, and trade routes partitioned by `contextId` with namespaced global entity IDs | Does not own geography, calendar time, spatial graph truth, or narrative orchestration | Current context, world configuration and entity-generation inputs | Per-context entity collections and validated location references | Event input; not in the main narrative writable allowlist | `src/mods/mod-world/subsystems/world-entity-system.ts` |
 
-All six external systems persist through their collected state when included in the orchestrator snapshot. Exact restoration support remains owned by each implementation and the save/restore aggregator.
+All thirteen external systems expose collected state to the orchestrator. The world Store additionally owns the full multi-context registry and compatibility projection; the history Store owns the complete ledger behind a bounded collected projection. Exact restoration support remains owned by each implementation and the save/restore aggregator.
 
 ## 5. Engine MVP systems
+
+当前共有 12 个引擎运行系统；与 13 个外部运行系统合计为 25 个 MVP 运行系统。
 
 | SystemId | Responsibility | NonResponsibility | Inputs | OutputsAndWrites | AI participation | Implementation |
 |---|---|---|---|---|---|---|
 | `time` | Own calendar advancement and canonical `daysPassed` and `totalDays` derivation | Does not own narrative pacing decisions, age business rules, or subsystem formulas | Selected time step and current time state | Canonical round time state | Deterministic local only | `src/mods/mod-engine/subsystems/time-system.ts` |
-| `orchestrator` | Own ordered simulation phases, subsystem collection, three-layer main narrative assembly, AI calls, visible-body stream projection, tiered commit, branch flow, focused intent lifecycle, delayed-causality commit, snapshots, and autosave coordination | Does not calculate owning subsystem business rules, promise that a player choice succeeds, infer missing structured state from prose, or expose protocol/data chunks in the narrative UI | Registered live systems, `RoundContext`, AI configuration, projected Chinese world/character views, layered memory, branch choice, unresolved branch intents, due causal events, raw AI stream, stores | Engine state, body-only visible stream, phase transitions, narrative history, digest ledger, accepted structured writes and intent results, unresolved intent snapshots, confirmed delayed causality, subsystem snapshots | Owns the single main narrative call lifecycle; ordinary minimum success commits body and digest, while focused intent and forced branch require complete conditional data without an extra preflight call | `src/mods/mod-engine/subsystems/orchestrator-system.ts`, `src/mods/mod-engine/helpers/branch-intent-resolution.ts`, `src/mods/mod-engine/helpers/narrative-ai-input-view.ts` |
+| `orchestrator` | Own ordered simulation phases, current-context filtering, three-layer main narrative assembly, AI calls, visible-body stream projection, tiered commit, branch flow, historical-event preflight/commit, scoped delayed-causality commit, rollback snapshots, and autosave coordination | Does not calculate owning subsystem business rules, switch contexts directly, invent historical IDs or facts, promise that a player choice succeeds, infer missing structured state from prose, or expose protocol/data chunks in the narrative UI | Registered live systems, scoped `RoundContext`, AI configuration, projected Chinese world/character/history views, layered memory, branch choice, unresolved intents, due in-scope causal events, validated structured data, raw AI stream, stores | Engine state, context-tagged narrative history and digest ledger, body-only visible stream, accepted state changes and historical batches, consumer event-ID references, internal narrative-system snapshots and subsystem snapshots | Owns the single main narrative call lifecycle; history is locally translated to `event-input`, while accepted pending facts and related edges enter Prompt through a deterministic read-only projection rather than a new AI write protocol | `src/mods/mod-engine/subsystems/orchestrator-system.ts`, `src/mods/mod-engine/helpers/save-restore.ts`, `src/mods/mod-engine/helpers/narrative-ai-input-view.ts`, `src/mods/mod-engine/helpers/historical-event-prompt-projection.ts` |
 | `narrative-parser` | Parse the `正文 -> 摘要 -> 可选数据 -> 结束` Chinese protocol, preserve the independent digest, strictly translate valid data, and expose omitted versus rejected structured data | Does not accept old tagged or English protocols as valid state, infer omitted fields, repair semantic content, decide product meaning, or directly write subsystem state | Raw AI response text and the Chinese response contract | Complete narrative body, digest, explicit data-presence/rejection status, and any fully translated structured bundle | Consumes AI output; whole-line state-machine extraction, string-aware annotation removal, strict Schema validation and translation | `src/mods/mod-engine/subsystems/narrative-parser-system.ts`, `src/mods/mod-engine/helpers/tagged-meta-envelope.ts`, `src/mods/mod-engine/helpers/narrative-ai-protocol.ts` |
 | `summary-compressor` | Own the hierarchical summary set, complete-coverage marker and traceable multi-level compression pipeline | Does not silently delete story facts, convert token budgets into semantic character caps, or create placeholder coverage after AI failure | Narrative history, existing summaries, coverage-safe output headroom, AI service when required | Only completed summaries and successful compression statistics; lower leaves remain on failure | Uses AI for semantic summary levels; `[SUMMARY_COMPLETE]` is required before a coverage node may be committed | `src/mods/mod-engine/subsystems/summary-compressor-system.ts`, `src/mods/mod-engine/prompts/summary-prompt.ts` |
 | `memory-engine` | Extract and own structured long-term memory from narrative and numeric subsystem state | Does not own never-forget policy or general narrative compression | Narrative text and collected subsystem states | Relationships, status, wealth, locations, and event memory | Consumes AI narrative result; extraction/application is locally owned | `src/mods/mod-engine/subsystems/memory-engine-system.ts` |
 | `subsystem-relevance` | Own subsystem relevance scoring, state/change tracking, and Prompt inclusion decisions | Does not delete subsystem state or change system ownership | Collected subsystem states, change history, current round context | Relevance decisions and non-destructive Prompt selection | Supplies context selection to AI; no semantic state write | `src/mods/mod-engine/subsystems/subsystem-relevance-system.ts` |
 | `memory-lifecycle` | Own memory tiers, importance, event closure, and coverage-aware Prompt injection | Does not use hard truncation as forgetting or persistence | Memory records, compressed summaries, event lifecycle signals | Layered memory state and Prompt memory context | Prepares context for AI; lifecycle rules remain local and explainable | `src/mods/mod-engine/subsystems/memory-lifecycle-system.ts` |
 | `memory-forgetting` | Own explainable forgetting decisions and causal or foreshadowing protection marks | Does not silently destroy uncovered story facts | Memory records, importance, causal marks, current round | Forgetting decisions, protection and resolution state | Local policy; any semantic compression must remain traceable | `src/mods/mod-engine/subsystems/memory-forgetting-system.ts` |
-| `causal-delay` | Own delayed causal-event registration, deterministic due eligibility, pending/triggered state, and save/preview restoration | Does not pre-author the outcome, mark an event resolved merely because it entered a Prompt, write prose, or bypass the orchestrator | Validated AI delayed matters, round and age context, accepted narrative commit | Pending events, due-event facts, and confirmed triggered events with traceable result | AI may register Chinese structured delayed matters; local code waits until due, renders compact established facts, and confirms them only after the complete narrative round is accepted | `src/mods/mod-engine/subsystems/causal-delay-system.ts`, `src/mods/mod-engine/subsystems/orchestrator-system.ts` |
+| `causal-delay` | Own delayed narrative-commitment registration, deterministic canonical-day due eligibility, explicit `legacy-round` compatibility, pending/triggered state, and versioned save/preview restoration | Does not pre-author the outcome, convert old round schedules into guessed days, mark an event resolved merely because it entered a Prompt, own world-event causality, write prose, or bypass the orchestrator | Validated AI delayed matters, scope, `createdTotalDays`, optional origin event ID, accepted narrative commit and resolution event ID | Pending events, due-event facts, confirmed triggered events with `originEventId/resolutionEventId`, plus snapshot `schemaVersion: 1`; versioned duplicate IDs reject and unversioned duplicates retain `legacyId` after deterministic migration | AI may register Chinese structured delayed matters; local code schedules by severity days, renders established facts, and confirms only after the complete narrative round and history batch are accepted | `src/mods/mod-engine/subsystems/causal-delay-system.ts`, `src/mods/mod-engine/subsystems/orchestrator-system.ts` |
 | `plot-structure` | Own plot stage, tension progression, and deterministic narrative-structure signals | Does not choose player actions or author prose | Round context and narrative semantic signals | Plot-stage state and Prompt constraints | Constrains AI narrative structure | `src/mods/mod-engine/subsystems/plot-structure-system.ts` |
 | `foreshadowing` | Own active and resolved foreshadowing records, trigger scoring, and resolution hints | Does not rewrite narrative history or own general memory compression | Structured foreshadowing signals, round context, narrative resolution | Foreshadowing state and Prompt hints | Consumes and supplies structured AI narrative signals | `src/mods/mod-engine/subsystems/foreshadowing-system.ts` |
 | `core-memory` | Own never-forget key events, foreshadowing context, and NPC relationship history | Does not replace the general long-term memory engine or summary hierarchy | Narrative events, relationship updates, protected context | Core memory state and Prompt context | Supplies protected context to AI | `src/mods/mod-engine/subsystems/core-memory-system.ts` |
@@ -222,13 +304,23 @@ Their default `SystemPath` is `project > deferred-story-state > <owning domain o
 | NPC store, behavior, and memory | `mod-npc` | Zustand `mod-npc:persist:npc-state` owns NPC roster, behavior, global events, relations, and memories; persisted version 2 removes the legacy `maxNPCs` field | Key-NPC behavior Prompt may generate structured behavior | Preserve every NPC, behavior, event, trait and memory; age only lowers importance, while same-year merging embeds every source ID, summary, detail, keyword, relation and emotion instead of keeping a fixed tail |
 | Celestial and era history; world map context | `mod-base-universe` | Owning subsystem state stores all phase transitions, era transitions, regions, resources, neighbors, factions, and notable relations | Supplies or may supply world context to narrative AI | No fixed history capacity or top-N Prompt omission; explicit in-world removal remains a state transition, not capacity eviction |
 | Geography and diplomacy | `mod-environment-ecology`, `mod-politics` | Owning subsystem state stores tectonic changes, changed regions, and diplomatic events | Supplies deferred world-state context | Preserve complete event histories and expose all recorded diplomatic events |
-| History event pool and causal anchors | `mod-history-dynamics` | Owning subsystem state stores pending, triggered and expired event-pool entries plus pending and resolved causal events; frequency rules control capture cadence, not storage capacity | Deferred systems may derive anchors from narrative text or preset event candidates | Triggered and expired entries remain as auditable state instead of being filtered from the sole history array; pending causal anchors have no fixed queue capacity, while cadence rules may still govern new-event creation |
 | Culture values, art styles and works | `mod-culture` | Owning subsystem state stores all cultural values, current styles, and notable works | Supplies deferred culture context | Prompt formatting includes all values and works; styles may emerge until the declared world style pool is exhausted, but no fixed count or random array deletion may erase an established style |
 | World and character generation Prompts | `mod-world`, `mod-character` | Live PromptTemplate and Zod Schema own generated world tags, entity descriptions, destiny patterns, mythic effects, and race origins | Low-frequency or initialization AI | No semantic character-count or array-count caps; candidate counts, enums, numeric domains, and entity quantity mechanics remain explicit product contracts |
 
-Acceptance authority: `docs/playtest-2026-07-18-compression-runtime.md` plus `scripts/check/domains/narrative/no-hard-truncation-audit.mjs`.
+Acceptance authority: `docs/playtest-2026-07-18-compression-runtime.md`, `scripts/check/domains/mod/historical-event-p1-smoke.mjs` and `scripts/check/domains/narrative/no-hard-truncation-audit.mjs`.
 
-## 7. Change checklist
+## 7. Retired and internal-only nodes
+
+| Node | Classification | Current consumer or replacement | Runtime and persistence status | Authority |
+|---|---|---|---|---|
+| `golden-finger` / `mod-golden-finger` | Retired and deleted | No replacement; fortune encounters now use only luck, difficulty and their owning rules | Not in MVP runtime before deletion; manifest, source, Store, events, prompt gate and dependencies removed; legacy browser key is ignored | `PD-027` |
+| `adaptation-manager-system.ts` | Internal engine service, not a formal subsystem | `orchestrator` consumes cached worldview-adapted summaries during Prompt assembly and starts background adaptation; deterministic fact projections such as `historical-event-ledger` are explicitly bypassed | No independent subsystem ID, runtime membership or persistence payload; cache is session-local and cleared by orchestrator reset; it may not rewrite, summarize or replace ledger fact cards | `PD-027`; live orchestrator call sites |
+| `event-pool` → `src/mods/mod-history-dynamics/components/event-candidate-provider.ts` / `EventCandidateProvider` | P1 internal candidate provider; old subsystem and file retired | `historical-event-ledger` consumes explicit candidate submissions, audit decisions and promotions | No manifest subsystem, runtime ID, independent Store, topic presets or fact ownership; v1 payload migrates into Store v2 | `PD-029`; blueprint §15; live provider and migration |
+| `causal-simulation` → `src/mods/mod-history-dynamics/components/causal-graph-component.ts` / `CausalGraphComponent` | P1 internal causal-graph component; old subsystem and file retired | `historical-event-ledger` consumes validated explicit edges | No manifest subsystem, runtime ID, independent queue, prose regex, random delay or auto-resolution; v1 payload migrates into Store v2 | `PD-029`; blueprint §15; live component and migration |
+
+Internal services remain governed by their parent system. They must not be counted as player-selectable simulation systems merely because their implementation file ends in `-system.ts`.
+
+## 8. Change checklist
 
 For every system change, record:
 

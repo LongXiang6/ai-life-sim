@@ -6,7 +6,6 @@ import { useEconomyStore } from '@/mods/mod-economy'
 import { getPreGenQueueStatus, useEngineStore } from '@/mods/mod-engine'
 import { clearPreGenQueue, orchestrator } from '@/mods/mod-engine/engine-api'
 import { useEnvironmentEcologyStore } from '@/mods/mod-environment-ecology'
-import { useGoldenFingerStore } from '@/mods/mod-golden-finger'
 import { usePoliticsStore } from '@/mods/mod-politics'
 import { usePowerSystemStore } from '@/mods/mod-power-system'
 import { useWorldStore } from '@/mods/mod-world'
@@ -48,6 +47,5 @@ export async function resetForNewLife(): Promise<void> {
   usePowerSystemStore.getState().reset()
   useCultureStore.getState().reset()
   useEnvironmentEcologyStore.getState().reset()
-  useGoldenFingerStore.getState().reset()
   useGlobalStore.getState().setGamePhase('world_build')
 }

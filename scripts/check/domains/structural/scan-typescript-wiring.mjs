@@ -8,6 +8,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { logOk, logFail, logRefactorHint, logDomainSummary } from '../../lib/quiet.mjs'
 import { getProjectRoot } from '../../lib/project-root.mjs'
+import { parseSubsystemFieldContracts } from '../../../codegen/subsystem-field-contract-parser.mjs'
 
 const ROOT = getProjectRoot(import.meta.url)
 
@@ -60,47 +61,6 @@ function parseJsonObjectConst(content, constName) {
   }
 }
 
-/** @param {string} content */
-function parseSubsystemFieldContracts(content) {
-  const start = content.indexOf('export const SUBSYSTEM_FIELD_CONTRACTS')
-  // 生成器以派生导出为边界，不能依赖已被重写删除的注释标题。
-  const end = content.indexOf('export const SUBSYSTEM_FIELD_MAP', start)
-  /** @type {Record<string, string[]>} */
-  const contracts = {}
-  if (start < 0 || end < 0) return contracts
-
-  const lines = content.slice(start, end).split(/\r?\n/)
-  let currentId = ''
-  let inFields = false
-
-  for (const line of lines) {
-    const subsystemMatch = line.match(/^\s{2}'([^']+)':\s*\{/)
-    if (subsystemMatch && !inFields) {
-      currentId = subsystemMatch[1]
-      contracts[currentId] = []
-      continue
-    }
-
-    if (currentId && /^\s{4}fields:\s*\{/.test(line)) {
-      inFields = true
-      continue
-    }
-
-    if (inFields && /^\s{4}\},/.test(line)) {
-      inFields = false
-      currentId = ''
-      continue
-    }
-
-    if (inFields && currentId) {
-      const fieldMatch = line.match(/^\s{6}([A-Za-z]\w*):\s*\{/)
-      if (fieldMatch) contracts[currentId].push(fieldMatch[1])
-    }
-  }
-
-  return contracts
-}
-
 let failed = 0
 let hintCount = 0
 
@@ -118,7 +78,27 @@ const fieldKeysGen = readRel('src/mods/mod-engine/helpers/subsystem-field-keys.g
 const fieldRegistry = readRel('src/mods/mod-engine/helpers/subsystem-field-registry.ts')
 const genKeys = parseJsonStringArray(fieldKeysGen, 'SUBSYSTEM_FIELD_REGISTRY_KEYS')
 const genZodFields = parseJsonObjectConst(fieldKeysGen, 'SUBSYSTEM_ZOD_FIELD_KEYS')
-const sourceFieldContracts = parseSubsystemFieldContracts(fieldRegistry)
+let sourceFieldContracts = {}
+try {
+  sourceFieldContracts = parseSubsystemFieldContracts(fieldRegistry)
+  const inlineEmptyFieldsFixture = parseSubsystemFieldContracts(`
+    export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, unknown> = {
+      'read-only': { fields: {} },
+      writable: {
+        fields: {
+          delta: { schema: z.number() },
+        },
+      },
+    }
+  `, 'subsystem-field-contract-parser.fixture.ts')
+  if (JSON.stringify(inlineEmptyFieldsFixture) !== JSON.stringify({ 'read-only': [], writable: ['delta'] })) {
+    throw new Error('inline fields 解析回归：空字段契约吞并了后续子系统字段')
+  }
+  logOk('[OK] subsystem field contract AST parser 覆盖 inline 空 fields')
+} catch (error) {
+  logFail(`[FAIL] SUBSYSTEM_FIELD_CONTRACTS 无法可靠解析: ${error instanceof Error ? error.message : String(error)}`)
+  failed++
+}
 const sourceKeys = Object.keys(sourceFieldContracts)
 
 if (!genKeys || sourceKeys.length === 0 || genKeys.join('|') !== sourceKeys.join('|')) {

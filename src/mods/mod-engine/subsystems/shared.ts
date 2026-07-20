@@ -84,6 +84,7 @@ export {
 
 export {
   buildNarrativeTimeContext,
+  resolveNarrativeCalendarNode,
   readEraStartYearFromConfig,
   readBirthEraYearFromConfig,
   formatNarrativeTimeLabel,

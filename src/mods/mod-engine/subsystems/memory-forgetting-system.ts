@@ -68,6 +68,8 @@ export interface ForgettingConfig {
 export interface CausalMarkedEvent {
   /** 事件轮次 */
   round: number
+  /** 当地事项所属上下文；缺失表示旧全局事项 */
+  contextId?: string
   /** 事件类型 */
   type: 'kindness' | 'grudge' | 'promise' | 'debt' | 'foreshadow'
   /** 事件描述 */
@@ -176,7 +178,7 @@ export class MemoryForgettingSystem implements ISubSystem {
   addCausalMark(event: CausalMarkedEvent): void {
     // 去重检查
     const existing = this.causalEvents.find(
-      (e) => e.round === event.round && e.type === event.type,
+      (e) => e.round === event.round && e.type === event.type && e.contextId === event.contextId,
     )
     if (!existing) {
       this.causalEvents.push(event)
@@ -184,9 +186,9 @@ export class MemoryForgettingSystem implements ISubSystem {
   }
 
   /** 标记因果已解决 */
-  resolveCausalMark(round: number, type: CausalMarkedEvent['type']): void {
+  resolveCausalMark(round: number, type: CausalMarkedEvent['type'], contextId?: string): void {
     const event = this.causalEvents.find(
-      (e) => e.round === round && e.type === type,
+      (e) => e.round === round && e.type === type && e.contextId === contextId,
     )
     if (event) {
       event.resolved = true
@@ -194,19 +196,20 @@ export class MemoryForgettingSystem implements ISubSystem {
   }
 
   /** 标记伏笔事件（永不遗忘，直到回收） */
-  markForeshadowEvent(round: number, description: string): void {
+  markForeshadowEvent(round: number, description: string, contextId?: string): void {
     this.addCausalMark({
       round,
       type: 'foreshadow',
       description: description,
       severity: 'major',
       resolved: false,
+      contextId,
     })
   }
 
   /** 标记伏笔已回收 */
-  resolveForeshadowMark(round: number): void {
-    this.resolveCausalMark(round, 'foreshadow')
+  resolveForeshadowMark(round: number, contextId?: string): void {
+    this.resolveCausalMark(round, 'foreshadow', contextId)
   }
 
   /** 获取统计 */

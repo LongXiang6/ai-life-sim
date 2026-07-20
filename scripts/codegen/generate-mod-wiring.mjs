@@ -10,6 +10,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { parseSubsystemFieldContracts } from './subsystem-field-contract-parser.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.join(__dirname, '..', '..')
@@ -606,56 +607,17 @@ function parseNarrativePromptVars() {
 
 /**
  * @param {string} content
- * @returns {Record<string, string[]>}
- */
-function parseSubsystemFieldContracts(content) {
-  const start = content.indexOf('export const SUBSYSTEM_FIELD_CONTRACTS')
-  // 派生表标题在重写后可能被删除；以第一个派生导出作为稳定边界。
-  const end = content.indexOf('export const SUBSYSTEM_FIELD_MAP', start)
-  /** @type {Record<string, string[]>} */
-  const contracts = {}
-  if (start < 0 || end < 0) return contracts
-
-  const lines = content.slice(start, end).split(/\r?\n/)
-  let currentId = ''
-  let inFields = false
-
-  for (const line of lines) {
-    const subsystemMatch = line.match(/^\s{2}'([^']+)':\s*\{/)
-    if (subsystemMatch && !inFields) {
-      currentId = subsystemMatch[1]
-      contracts[currentId] = []
-      continue
-    }
-
-    if (currentId && /^\s{4}fields:\s*\{/.test(line)) {
-      inFields = true
-      continue
-    }
-
-    if (inFields && /^\s{4}\},/.test(line)) {
-      inFields = false
-      currentId = ''
-      continue
-    }
-
-    if (inFields && currentId) {
-      const fieldMatch = line.match(/^\s{6}([A-Za-z]\w*):\s*\{/)
-      if (fieldMatch) {
-        contracts[currentId].push(fieldMatch[1])
-      }
-    }
-  }
-
-  return contracts
-}
-
-/**
- * @param {string} content
  * @returns {{ mapKeys: string[], zodSchemas: Record<string, string[]> }}
  */
 function parseSubsystemFieldRegistry(content) {
-  const zodSchemas = parseSubsystemFieldContracts(content)
+  let zodSchemas
+  try {
+    zodSchemas = parseSubsystemFieldContracts(content)
+  } catch (error) {
+    console.error(`[generate-mod-wiring] SUBSYSTEM_FIELD_CONTRACTS 解析失败: ${error instanceof Error ? error.message : String(error)}`)
+    if (CHECK_ONLY) process.exit(1)
+    throw error
+  }
   const mapKeys = Object.keys(zodSchemas)
   if (mapKeys.length === 0) {
     console.error('[generate-mod-wiring] 未解析到 SUBSYSTEM_FIELD_CONTRACTS')

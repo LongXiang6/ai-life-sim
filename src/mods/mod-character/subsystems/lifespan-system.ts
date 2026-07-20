@@ -54,6 +54,7 @@ export class LifespanSystem extends BaseSubsystem {
       id: this.id,
       summary: `【${this.label}】${s.race.name} | 当前年龄 ${age} / 最大寿命 ${s.maxAge} | 突破次数：${s.breakthroughs.length} | 突破概率：${Math.round(s.breakthroughChance * 100)}%`,
       data: structuredClone({
+        contextId: context.contextId,
         maxAge: s.maxAge,
         baseMaxAge: s.baseMaxAge,
         race: s.race,
@@ -78,6 +79,7 @@ export class LifespanSystem extends BaseSubsystem {
       id: this.id,
       summary: `【${this.label}】${s.race.name} | 当前年龄 ${age} / 最大寿命 ${s.maxAge} | 突破次数：${s.breakthroughs.length} | 突破概率：${Math.round(s.breakthroughChance * 100)}%${reductionHint}`,
       data: structuredClone({
+        contextId: context.contextId,
         maxAge: s.maxAge,
         baseMaxAge: s.baseMaxAge,
         race: s.race,

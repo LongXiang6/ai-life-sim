@@ -40,6 +40,10 @@ async function resolveCandidate(basePath) {
 }
 
 export async function resolve(specifier, context, nextResolve) {
+  if (specifier === 'server-only') {
+    return { url: 'data:text/javascript,export%20default%20undefined', shortCircuit: true }
+  }
+
   if (path.isAbsolute(specifier)) {
     const target = await resolveCandidate(specifier)
     if (target) return { url: pathToFileURL(target).href, shortCircuit: true }

@@ -31,6 +31,7 @@ export class CharacterBaseSystem extends BaseSubsystem {
     base: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
     current: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
     modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
+    contextModifiers: {},
     startingAge: 0,
   }
 
@@ -61,9 +62,11 @@ export class CharacterBaseSystem extends BaseSubsystem {
       id: this.id,
       summary: `【${this.label}】${lines.join(' | ')} | 起始年龄 ${s.startingAge}`,
       data: structuredClone({
+        contextId: context.contextId,
         base: s.base,
         current: s.current,
         modifiers: s.modifiers,
+        contextModifiers: s.contextModifiers,
         startingAge: s.startingAge,
       }),
     }
@@ -116,6 +119,7 @@ export class CharacterBaseSystem extends BaseSubsystem {
       base: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
       current: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
       modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
+      contextModifiers: {},
       startingAge: 0,
     }
   }
@@ -142,6 +146,27 @@ export class CharacterBaseSystem extends BaseSubsystem {
   /** 获取当前基础属性（供其他子系统读取，如 HealthSystem 需要体魄） */
   getCurrent(): BaseAttributes {
     return { ...this.state.current }
+  }
+
+  setContextModifier(
+    contextId: string,
+    sourceId: string,
+    modifiers: Partial<AttributeModifiers>,
+  ): void {
+    if (!contextId.trim() || !sourceId.trim()) throw new Error('上下文修正必须提供 contextId 和 sourceId')
+    this.state.contextModifiers = {
+      ...this.state.contextModifiers,
+      [contextId]: {
+        ...(this.state.contextModifiers[contextId] ?? {}),
+        [sourceId]: structuredClone(modifiers),
+      },
+    }
+  }
+
+  clearContextModifier(contextId: string, sourceId: string): void {
+    const sources = { ...(this.state.contextModifiers[contextId] ?? {}) }
+    delete sources[sourceId]
+    this.state.contextModifiers = { ...this.state.contextModifiers, [contextId]: sources }
   }
 
   // -------- 内部方法 --------
@@ -209,6 +234,14 @@ export class CharacterBaseSystem extends BaseSubsystem {
             modifiers[key] += dm[key]!
           }
         }
+      }
+    }
+
+    // 当前上下文修正只在对应世界生效；切换后从零重新聚合，不会污染其他世界。
+    for (const sourceModifiers of Object.values(this.state.contextModifiers[context.contextId] ?? {})) {
+      for (const key of ATTR_KEYS) {
+        const amount = sourceModifiers[key]
+        if (typeof amount === 'number' && Number.isFinite(amount)) modifiers[key] += amount
       }
     }
 

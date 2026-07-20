@@ -182,7 +182,8 @@ export class MemoryEngineSystem implements ISubSystem {
   // ISubSystem 实现
   // ============================================================
 
-  collectState(_context: RoundContext): SubSystemState {
+  collectState(context: RoundContext): SubSystemState {
+    this.memory.currentContextId = context.contextId
     const eventCount = this.memory.majorEvents.length
     const relationCount = this.memory.relationships.length
     return {
@@ -216,6 +217,20 @@ export class MemoryEngineSystem implements ISubSystem {
       relationships: [],
     }
     this.lastExtractedRound = 0
+  }
+
+  capturePreviewState(): unknown {
+    return structuredClone({
+      memory: this.memory,
+      lastExtractedRound: this.lastExtractedRound,
+    })
+  }
+
+  restorePreviewState(snapshot: unknown): void {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
+    const value = snapshot as { memory?: LongTermMemory; lastExtractedRound?: number }
+    if (value.memory) this.memory = structuredClone(value.memory)
+    if (typeof value.lastExtractedRound === 'number') this.lastExtractedRound = value.lastExtractedRound
   }
 
   // ============================================================

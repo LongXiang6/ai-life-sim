@@ -2,7 +2,7 @@
 
 /**
  * @module useWorldSelectForm.ts
- * @description 世界选择页共享常量与难度/金手指状态
+ * @description 世界选择页共享常量与难度状态
  * @mod mod-pages
  */
 

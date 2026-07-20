@@ -14,7 +14,6 @@ export const MOD_API_IMPORTERS: Record<string, () => Promise<Record<string, unkn
   'mod-economy': () => import('@/mods/mod-economy') as Promise<Record<string, unknown>>,
   'mod-engine': () => import('@/mods/mod-engine') as Promise<Record<string, unknown>>,
   'mod-environment-ecology': () => import('@/mods/mod-environment-ecology') as Promise<Record<string, unknown>>,
-  'mod-golden-finger': () => import('@/mods/mod-golden-finger') as Promise<Record<string, unknown>>,
   'mod-history-dynamics': () => import('@/mods/mod-history-dynamics') as Promise<Record<string, unknown>>,
   'mod-npc': () => import('@/mods/mod-npc') as Promise<Record<string, unknown>>,
   'mod-pages': () => import('@/mods/mod-pages') as Promise<Record<string, unknown>>,

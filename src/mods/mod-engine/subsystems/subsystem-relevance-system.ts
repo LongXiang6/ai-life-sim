@@ -70,6 +70,7 @@ const ALWAYS_RELEVANT = [
   'lifespan',
   'morality',
   'luck',
+  'historical-event-ledger',
 ]
 
 // ============================================================
@@ -107,7 +108,7 @@ const INFLUENCE_SCOPE_SYSTEMS: Record<InfluenceScope, string[]> = {
   ],
   // 至强者：大陆级别（+ 文明、历史、科技）
   continent: [
-    'culture-tech', 'history-dynamics', 'social-stratification',
+    'culture-tech', 'social-stratification',
     'trade-route', 'disaster',
   ],
   // 超凡入圣：世界/宇宙级别
@@ -201,6 +202,26 @@ export class SubsystemRelevanceSystem implements ISubSystem {
     this.stateHistory = {}
     this.changeRecords = []
     this.currentRound = 0
+  }
+
+  capturePreviewState(): unknown {
+    return structuredClone({
+      stateHistory: this.stateHistory,
+      changeRecords: this.changeRecords,
+      currentRound: this.currentRound,
+    })
+  }
+
+  restorePreviewState(snapshot: unknown): void {
+    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
+    const value = snapshot as {
+      stateHistory?: Record<string, SystemStateSnapshot[]>
+      changeRecords?: SystemChangeRecord[]
+      currentRound?: number
+    }
+    if (value.stateHistory) this.stateHistory = structuredClone(value.stateHistory)
+    if (value.changeRecords) this.changeRecords = structuredClone(value.changeRecords)
+    if (typeof value.currentRound === 'number') this.currentRound = value.currentRound
   }
 
   // ============================================================

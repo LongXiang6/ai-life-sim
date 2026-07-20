@@ -60,7 +60,7 @@ const FORMULA_WIRED: Partial<Record<string, string>> = {
   incomeModifier: 'work-system',
   conflictEscalationModifier: 'conflict-cycle-system',
   devotionGainModifier: 'faith-system',
-  causalCaptureRate: 'causal-simulation-system',
+  causalCaptureRate: 'P1 历史事件账本不使用概率捕获',
 }
 
 const SPECIAL_PATTERNS: Record<string, string[]> = {
@@ -97,13 +97,14 @@ const MVP_DEFERRED_FORMULA_KEYS: Record<string, string> = {
   literacyGrowthModifier: 'education-system 延后',
   incomeModifier: 'work-system 延后',
   conflictEscalationModifier: 'conflict-cycle-system 延后',
+  causalCaptureRate: 'P1 已移除正文概率捕获；账本只消费完整校验的结构化事实',
 }
 
 /** 已知 backlog / defer（非漏接线） */
 const BACKLOG: Record<string, string> = {
   'styleGuide.narrativeTone': 'orchestrator narrativeToneHint',
   'entities.*': 'world-entity-system L1',
-  'causal-simulation tokens': 'IT-6 排除 narrative token 结构校准',
+  'historical-event-ledger event-input': 'P1 复用主叙事结构化数据，不新增独立 AI token 配额',
 }
 
 function collectSourceFiles(dir: string, acc: string[] = []): string[] {

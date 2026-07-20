@@ -2,9 +2,16 @@
   "currentStage": "mvp",
   "stages": {
     "mvp": {
-      "description": "MVP 可玩路径的子系统运行策略：延后的模拟系统保持可加载、可恢复，但不进入正常叙事回合。核心循环只接触角色三件套、世界实体纯数据，以及 mod-engine 自身叙事/记忆系统。",
+      "description": "MVP 可玩路径加 P0 多世界基础与 P1 历史事件账本：当前上下文运行角色与叙事核心，世界上下文、能力、空间、切换、范围、初始化和历史事实常驻；P2 以后的模拟系统仍延后。",
       "runtime": {
         "external": [
+          "world-context-registry",
+          "contextual-capability-profile",
+          "spatial-graph",
+          "context-transition",
+          "simulation-scope-policy",
+          "world-init",
+          "historical-event-ledger",
           "character-base",
           "destiny-pattern",
           "lifespan",

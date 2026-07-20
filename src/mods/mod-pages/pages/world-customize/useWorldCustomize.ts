@@ -10,7 +10,8 @@ import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 
 import { useGlobalStore, configStore } from '@/core'
-import { orchestrator } from '@/mods/mod-engine/engine-api'
+import { buildOrchestratorWorldSetting, orchestrator } from '@/mods/mod-engine/engine-api'
+import { useCharacterStore } from '@/mods/mod-character'
 import {
   useWorldStore,
   buildCoherenceLocksFromUi,
@@ -347,8 +348,16 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
 
     const worldCode = useWorldStore.getState().worldCode
       || useWorldStore.getState().generateAndSetWorldCode()
+    const hasExistingContext = Object.keys(useWorldStore.getState().contexts).length > 0
 
-    const result = await commitWorldInitialization(configWithModes, worldCode)
+    const result = await commitWorldInitialization(
+      configWithModes,
+      worldCode,
+      undefined,
+      hasExistingContext
+        ? { globalTotalDays: orchestrator.getState().round.totalDays }
+        : undefined,
+    )
     const activeConfig = result.config
 
     setWorldConfig(activeConfig)
@@ -360,23 +369,18 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
     const { calibration } = useWorldStore.getState()
 
     orchestrator.setContext(
-      {
-        name: activeConfig.name,
-        description: activeConfig.description,
-        era: activeConfig.civilizationStage,
-        config: {
-          spatialForm: activeConfig.spatialForm,
-          essenceTag: activeConfig.essenceTag,
-          powerSystemTag: activeConfig.powerSystemTag,
-          powerCeiling: activeConfig.powerCeiling,
-          civilizationStage: activeConfig.civilizationStage,
+      buildOrchestratorWorldSetting(activeConfig, {
+        extraConfig: {
           _worldTagsText: result.formattedTags,
           _calibration: calibration,
           _calibrationSummary: calibration ? formatCalibrationSummary(calibration) : '',
           _economyModifier: calibration?.formulas?.economyModifier ?? 1.0,
         },
+      }),
+      {
+        characterId: useCharacterStore.getState().ensureCharacterId(),
+        name: '', age: 0, gender: '未设定', background: '', attributes: {},
       },
-      { name: '', age: 0, gender: '未设定', background: '', attributes: {} },
     )
 
     router.push('/new-game/character-create')

@@ -459,7 +459,12 @@ export function loadStages(
         // 记忆生命周期：消费 handleNarrativeResponse 已登记的结构化语义
         if (result.narrative) {
           const state = orchestrator.getState()
-          memoryLifecycle.scoreImportance(result.narrative, state.totalRounds, state.round.year)
+          memoryLifecycle.scoreImportance(
+            result.narrative,
+            state.totalRounds,
+            state.round.year,
+            _ctx.contextId,
+          )
         }
 
         // 世界方向修正

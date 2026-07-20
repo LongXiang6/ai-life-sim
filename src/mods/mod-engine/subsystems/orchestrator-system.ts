@@ -22,7 +22,6 @@
 import { BaseSubsystem, eventBus, callAIWithPromptTemplate, buildSegmentedPrompt, getNarrativeUserSegments } from '@/core'
 import { isInstrumentEnabled, getInstrumentHooks } from '@/core/instrument/instrument-mode'
 import type { NarrativeStage, YearEvent } from '@/foundation'
-import { formatEraYear } from '@/foundation/utils/format-time'
 import { saveManager } from '@/core/storage/save-manager'
 import {
   adaptationManager,
@@ -57,9 +56,9 @@ import {
   RoundCommitBus,
   runNarrativeInterceptors,
   buildNarrativeTimeContext,
+  resolveNarrativeCalendarNode,
   readEraStartYearFromConfig,
   readBirthEraYearFromConfig,
-  formatNarrativeTimeLabel,
   resolveCalendarEraYear,
   buildTimeScaleNarrativeHint,
   generateArchetypeHint,
@@ -104,14 +103,13 @@ import { useSettingsStore } from '@/mods/mod-settings'
 import { getDestinyPatternSystem } from '@/mods/mod-character/destiny-pattern-access'
 import { useCharacterStore } from '@/mods/mod-character'
 
-import { buildPowerCeilingPresetsForNarrative } from '@/mods/mod-world'
+import { buildPowerCeilingPresetsForNarrative, useWorldStore } from '@/mods/mod-world'
 import { buildCalendarNarrativeContext } from '../helpers/calendar-narrative-context'
 import {
   isEligibleNarrativeBranch,
   normalizeNarrativeBranchOptions,
 } from '../helpers/narrative-branch-policy'
 import {
-  createNeutralNarrativeSemanticSignals,
   type NarrativeIntentResolution,
 } from '../helpers/narrative-semantic-signals'
 import {
@@ -128,6 +126,14 @@ import {
   projectCharacterForNarrativeAI,
   projectWorldSettingForNarrativeAI,
 } from '../helpers/narrative-ai-input-view'
+import {
+  filterNarrativeRecordsForPrompt,
+  type NarrativeScopeView,
+} from '../helpers/narrative-context-scope'
+import {
+  buildHistoricalEventPromptProjection,
+  HISTORICAL_EVENT_LEDGER_ID,
+} from '../helpers/historical-event-prompt-projection'
 import { AI_CREATION_CATEGORIES } from '../helpers/narrative-ai-protocol'
 import {
   compileNarrativeDynamicComponents,
@@ -135,6 +141,16 @@ import {
 import type { NarrativePromptComponent } from '../helpers/narrative-prompt-component-types'
 
 import type {
+  HistoricalEventCommitBatch,
+  HistoricalEventCommitResult,
+  HistoricalCausalEdgeInput,
+  HistoricalEventCreateInput,
+  HistoricalEventEvidenceInput,
+  HistoricalEventPreflightResult,
+  HistoricalEventScope,
+  HistoricalEventTransitionInput,
+  HistoricalEventValidationContext,
+  HistoricalEventView,
   ISubSystem,
   SubSystemState,
   SubSystemChanges,
@@ -152,6 +168,13 @@ import type {
 /** 兜底叙事 maxAge 后备值（lifespan 子系统未注册时） */
 /** 普通命运分支最小间隔。强制分支不受此限制。 */
 const MIN_BRANCH_GAP_ROUNDS = 4
+
+function createHistoricalTransactionId(kind: string): string {
+  const suffix = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+  return `history-${kind}-${suffix}`
+}
 
 function formatEquippedMythicPatternForPrompt(pattern: {
   name: string
@@ -210,6 +233,8 @@ function resolveRestoredAutoSaveRound(
 
 /** 预生成/快照：编排器可恢复状态 */
 export interface OrchestratorSnapshot {
+  /** 保存时当前世界上下文，用于与 world Store 交叉校验 */
+  worldContextId?: string
   state: EngineState
   lastSubsystemStates: Record<string, SubSystemState>
   eventLifecycle: EventLifecycleTracker
@@ -240,6 +265,10 @@ export interface OrchestratorSnapshot {
   focusedBranchIntentId?: string
   prefetchedNarrativeContent?: string | null
   digestLedgerSnapshot?: DigestLedgerSnapshot
+  /** 不由 EngineState 或外部 Store 单独拥有的内部叙事系统状态 */
+  engineSubsystemStates?: Record<string, unknown>
+  /** 外部系统的完整存档状态；与每轮 collectState 相关视图分离。 */
+  persistentSubsystemStates?: Record<string, unknown>
 }
 
 /** 预生成专用快照；补充不进入存档契约的步长对齐运行态。 */
@@ -264,6 +293,28 @@ type RuntimeManagedSubsystem = ISubSystem & {
   restoreCollectedState?: (snapshot: unknown) => void
   capturePreviewState?: () => unknown
   restorePreviewState?: (snapshot: unknown) => void
+  capturePersistenceState?: () => unknown
+  restorePersistenceState?: (snapshot: unknown) => void
+  importLegacyCollectedStates?: (states: Record<string, SubSystemState>) => boolean
+}
+
+type HistoricalEventLedgerRuntime = ISubSystem & {
+  preflightBatch: (
+    batch: HistoricalEventCommitBatch,
+    context: RoundContext | HistoricalEventValidationContext,
+  ) => HistoricalEventPreflightResult
+  commitBatch: (
+    batch: HistoricalEventCommitBatch,
+    context: RoundContext | HistoricalEventValidationContext,
+  ) => HistoricalEventCommitResult
+  getEvent: (eventId: string) => HistoricalEventView | undefined
+}
+
+interface HistoricalNarrativeTransactionPlan {
+  batch: HistoricalEventCommitBatch
+  eventIds: string[]
+  deferredEventIds: string[]
+  causalResolutionEventIds: Record<string, string>
 }
 
 // ============================================================
@@ -406,6 +457,72 @@ export class OrchestratorSystem extends BaseSubsystem {
     return subsystem as RuntimeManagedSubsystem
   }
 
+  private getInternalStatefulSubsystems(): ISubSystem[] {
+    return [
+      memoryEngine,
+      subsystemRelevance,
+      memoryLifecycle,
+      memoryForgetting,
+      causalDelay,
+      plotStructure,
+      foreshadowing,
+      coreMemory,
+    ]
+  }
+
+  private captureInternalSubsystemStates(): Record<string, unknown> {
+    const snapshots: Record<string, unknown> = {}
+    for (const subsystem of this.getInternalStatefulSubsystems()) {
+      const capture = this.asRuntimeManaged(subsystem).capturePreviewState
+      if (capture) snapshots[subsystem.id] = capture.call(subsystem)
+    }
+    return structuredClone(snapshots)
+  }
+
+  private restoreInternalSubsystemStates(snapshots: Record<string, unknown> | undefined): void {
+    if (!snapshots) return
+    for (const subsystem of this.getInternalStatefulSubsystems()) {
+      if (!(subsystem.id in snapshots)) continue
+      this.asRuntimeManaged(subsystem).restorePreviewState?.(structuredClone(snapshots[subsystem.id]))
+    }
+  }
+
+  /**
+   * 完整外部存档状态与每轮 Prompt 视图分离。
+   * 没有对应快照的旧存档先给 owning system 迁移旧 collected state；仍无数据时显式恢复空态，
+   * 避免把另一个存档残留在浏览器 Store 中的状态串入当前存档。
+   */
+  private restorePersistentSubsystemStates(
+    snapshots: Record<string, unknown> | undefined,
+    legacyCollectedStates: Record<string, SubSystemState>,
+  ): void {
+    for (const subsystem of this.subsystems) {
+      const managed = this.asRuntimeManaged(subsystem)
+      if (!managed.restorePersistenceState) continue
+      if (snapshots && Object.hasOwn(snapshots, subsystem.id)) {
+        managed.restorePersistenceState(structuredClone(snapshots[subsystem.id]))
+        continue
+      }
+
+      // 先清空 owning Store，再迁移该存档自己的旧 collected state。否则浏览器中
+      // 上一个存档留下的完整 Store 可能被 importLegacyCollectedStates 误当成本存档状态。
+      managed.restorePersistenceState(undefined)
+      managed.importLegacyCollectedStates?.(
+        structuredClone(legacyCollectedStates),
+      )
+    }
+  }
+
+  private capturePersistentSubsystemStates(): Record<string, unknown> {
+    const snapshots: Record<string, unknown> = {}
+    for (const subsystem of this.subsystems) {
+      const capture = this.asRuntimeManaged(subsystem).capturePersistenceState
+      if (!capture) continue
+      snapshots[subsystem.id] = capture.call(subsystem)
+    }
+    return structuredClone(snapshots)
+  }
+
   /** 从各 MOD Store 水合当前已注册的 MVP 子系统，不改变公开 ISubSystem 契约。 */
   hydrateSubsystemsFromStores(): void {
     for (const subsystem of this.subsystems) {
@@ -434,11 +551,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     const snapshots: Record<string, unknown> = {}
     const previewSubsystems = new Map<string, ISubSystem>([
       ...this.subsystems.map((subsystem) => [subsystem.id, subsystem] as const),
-      [memoryLifecycle.id, memoryLifecycle],
-      [memoryForgetting.id, memoryForgetting],
-      [plotStructure.id, plotStructure],
-      [foreshadowing.id, foreshadowing],
-      [coreMemory.id, coreMemory],
+      ...this.getInternalStatefulSubsystems().map((subsystem) => [subsystem.id, subsystem] as const),
     ])
     for (const subsystem of previewSubsystems.values()) {
       const capture = this.asRuntimeManaged(subsystem).capturePreviewState
@@ -452,11 +565,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     if (!snapshots) return
     const previewSubsystems = new Map<string, ISubSystem>([
       ...this.subsystems.map((subsystem) => [subsystem.id, subsystem] as const),
-      [memoryLifecycle.id, memoryLifecycle],
-      [memoryForgetting.id, memoryForgetting],
-      [plotStructure.id, plotStructure],
-      [foreshadowing.id, foreshadowing],
-      [coreMemory.id, coreMemory],
+      ...this.getInternalStatefulSubsystems().map((subsystem) => [subsystem.id, subsystem] as const),
     ])
     for (const subsystem of previewSubsystems.values()) {
       if (!(subsystem.id in snapshots)) continue
@@ -743,6 +852,7 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   captureSnapshot(): OrchestratorSnapshot {
     return structuredClone({
+      worldContextId: this.worldSetting?.contextId,
       state: this.state,
       lastSubsystemStates: this.lastSubsystemStates,
       eventLifecycle: this.eventLifecycle,
@@ -768,6 +878,8 @@ export class OrchestratorSystem extends BaseSubsystem {
       focusedBranchIntentId: this.focusedBranchIntentId,
       prefetchedNarrativeContent: this.prefetchedNarrativeContent,
       digestLedgerSnapshot: digestLedger.toSnapshot(),
+      engineSubsystemStates: this.captureInternalSubsystemStates(),
+      persistentSubsystemStates: this.capturePersistentSubsystemStates(),
     })
   }
 
@@ -803,6 +915,10 @@ export class OrchestratorSystem extends BaseSubsystem {
   /** 恢复预览会改写、但 EngineStore 不保存的 orchestrator 运行态。 */
   private restoreSnapshotRuntimeState(snap: OrchestratorSnapshot): void {
     this.lastSubsystemStates = structuredClone(snap.lastSubsystemStates ?? {})
+    this.restorePersistentSubsystemStates(
+      snap.persistentSubsystemStates,
+      this.lastSubsystemStates,
+    )
     this.restoreSubsystemsFromCollectedStates(this.lastSubsystemStates)
     this.eventLifecycle = structuredClone(snap.eventLifecycle ?? {})
     this.lastNotableEvents = [...(snap.lastNotableEvents ?? [])]
@@ -836,6 +952,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
     this.prefetchedNarrativeContent = snap.prefetchedNarrativeContent ?? null
     digestLedger.loadSnapshot(snap.digestLedgerSnapshot)
+    this.restoreInternalSubsystemStates(snap.engineSubsystemStates)
   }
 
   restoreSnapshot(snap: OrchestratorSnapshot): void {
@@ -941,6 +1058,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     for (const sub of this.subsystems) {
       if (sub.id === this.id) continue
       if (!isMvpRuntimeSubsystem(sub.id)) continue
+      if (!this.isSubsystemEnabledForCurrentContext(sub.id)) continue
       if (!sub.advance) continue
       try {
         sub.advance(context)
@@ -980,7 +1098,11 @@ export class OrchestratorSystem extends BaseSubsystem {
       }
     }
 
-    const allSubs = this.subsystems.filter((s) => s.id !== this.id && isMvpRuntimeSubsystem(s.id))
+    const allSubs = this.subsystems.filter((s) =>
+      s.id !== this.id
+      && isMvpRuntimeSubsystem(s.id)
+      && this.isSubsystemEnabledForCurrentContext(s.id),
+    )
 
     // === Round 1: 标准收集 (data.lua) ===
     for (const sub of allSubs) {
@@ -1074,8 +1196,10 @@ export class OrchestratorSystem extends BaseSubsystem {
     const birthEraYear = readBirthEraYearFromConfig(config)
     const essenceTag = typeof config.essenceTag === 'string' ? config.essenceTag : undefined
     return {
-      worldId: this.worldSetting?.name ?? '',
-      characterId: this.characterState?.name ?? '',
+      contextId: this.worldSetting?.contextId ?? '',
+      contextScope: this.worldSetting?.simulationScope ?? 'active',
+      worldId: this.worldSetting?.contextId ?? '',
+      characterId: this.characterState?.characterId ?? '',
       round: this.state.round,
       timeStep: resolved.calendarAdvance,
       difficulty: (this.worldSetting?.config?.difficulty as RoundContext['difficulty']) ?? 'normal',
@@ -1088,6 +1212,11 @@ export class OrchestratorSystem extends BaseSubsystem {
       birthEraYear: birthEraYear || undefined,
       essenceTag,
     }
+  }
+
+  private isSubsystemEnabledForCurrentContext(subsystemId: string): boolean {
+    const enabled = this.worldSetting?.capabilityProfile.enabledSubsystemIds
+    return !enabled || enabled.length === 0 || enabled.includes(subsystemId)
   }
 
   /** 叙事前同步角色年龄（与 lifespan 子系统公式一致） */
@@ -1282,6 +1411,7 @@ export class OrchestratorSystem extends BaseSubsystem {
         result.narrative,
         this.state.totalRounds,
         this.state.round.year,
+        this.worldSetting?.contextId,
       )
       if (importanceResult.importance === 'HIGH' || importanceResult.isClosure) {
         // console.log(
@@ -1346,7 +1476,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       if (epilogueSub.hasEpilogue()) return
 
       const freshContext = this.buildRoundContext()
-      const narrativeHistory = this.state.narrativeHistory.map((n) => n.text)
+      const narrativeHistory = this.state.narrativeHistory.map((n) => this.formatNarrativeHistoryEntry(n))
 
       await epilogueSub.generateEpilogue(freshContext, aiConfig, narrativeHistory, sessionId)
         .then((epilogueText) => {
@@ -1413,6 +1543,8 @@ export class OrchestratorSystem extends BaseSubsystem {
 
       return {
         id: round,
+        contextId: n.contextId ?? this.worldSetting?.contextId,
+        totalDays: n.totalDays,
         age,
         totalMonths: Math.max(0, Math.round(age * 12)),
         eraYear: fallbackRound.eraYear,
@@ -1537,6 +1669,30 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.runCompressionPipeline()
   }
 
+  /** Prompt 只读取当前、全局或明确可跨界携带的故事；源记录始终完整保留。 */
+  private getNarrativeScopeView(): NarrativeScopeView {
+    const worldState = useWorldStore.getState()
+    const closedContextIds = new Set(
+      Object.values(worldState.contexts)
+        .filter((instance) => (
+          instance.scope.scope === 'closed' || instance.record.lifecycle === 'closed'
+        ))
+        .map((instance) => instance.record.id),
+    )
+    return {
+      currentContextId: this.worldSetting?.contextId,
+      closedContextIds,
+    }
+  }
+
+  private selectNarrativeHistoryForPrompt(limit: number): NarrativeChunk[] {
+    const visible = filterNarrativeRecordsForPrompt(
+      this.state.narrativeHistory,
+      this.getNarrativeScopeView(),
+    )
+    return visible.slice(-limit)
+  }
+
   /**
    * 组装主叙事三层消息中的“记忆”层。
    * 长期覆盖摘要在前，只在成功压缩时变化；相关往事与近期完整原文在后，
@@ -1547,15 +1703,22 @@ export class OrchestratorSystem extends BaseSubsystem {
     relevantMemory?: string
     recentNarrativeMemory?: string
   } {
+    const scopeView = this.getNarrativeScopeView()
     const richContext = memoryLifecycle.buildRichPrompt(
       '',
-      this.state.narrativeHistory.slice(-RECENT_NARRATIVE_WINDOW).map((n) => n.text),
+      this.selectNarrativeHistoryForPrompt(RECENT_NARRATIVE_WINDOW).map((n) => this.formatNarrativeHistoryEntry(n)),
       summaryCompressor.getSummaries(),
+      scopeView.currentContextId,
+      scopeView.closedContextIds,
     )
 
     const longTermMemory = memoryLifecycle.formatLongTermMemoryForInjection(richContext)
     const retrievedMemory = memoryLifecycle.formatRetrievedMemoryForInjection(richContext)
-    const ledgerLines = digestLedger.selectForPrompt(this.state.totalRounds)
+    const ledgerLines = digestLedger.selectForPrompt(
+      this.state.totalRounds,
+      scopeView.currentContextId,
+      scopeView.closedContextIds,
+    )
     const ledgerMemory = ledgerLines.length > 0
       ? ['【往事回响】', ...ledgerLines].join('\n')
       : ''
@@ -1574,9 +1737,9 @@ export class OrchestratorSystem extends BaseSubsystem {
     // DS V4 1M上下文：5个压缩层级 + L0原文 + 状态卡 + 检索命中
 
     const summaries = summaryCompressor.getSummaries()
-    const recentTexts = this.state.narrativeHistory
-      .slice(-RECENT_NARRATIVE_WINDOW)
-      .map((n) => n.text)
+    const scopeView = this.getNarrativeScopeView()
+    const recentTexts = this.selectNarrativeHistoryForPrompt(RECENT_NARRATIVE_WINDOW)
+      .map((n) => this.formatNarrativeHistoryEntry(n))
 
     // 构建状态卡
     const stateCardLines: string[] = Object.values(this.lastSubsystemStates)
@@ -1590,9 +1753,16 @@ export class OrchestratorSystem extends BaseSubsystem {
       stateCard,
       recentTexts,
       summaries,
+      scopeView.currentContextId,
+      scopeView.closedContextIds,
     )
 
     return memoryLifecycle.formatRichPromptForInjection(richContext)
+  }
+
+  private formatNarrativeHistoryEntry(entry: NarrativeChunk): string {
+    const contextLabel = entry.contextName || entry.contextId
+    return contextLabel ? `【发生上下文：${contextLabel}】${entry.text}` : entry.text
   }
 
   // === 控制 ===
@@ -1918,6 +2088,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     const context = this.buildRoundContext()
     const syncedCharacter = this.syncCharacterStateForPrompt(context)
     const narrativeTime = buildNarrativeTimeContext(context, this.worldSetting)
+    const promptScopeView = this.getNarrativeScopeView()
     const relevantStates = subsystemRelevance.getRelevantStates(
       this.lastSubsystemStates,
       context,
@@ -1932,7 +2103,12 @@ export class OrchestratorSystem extends BaseSubsystem {
     // 获取适配后的 summaries（adaptation 管线：缓存命中用适配文本，未命中用原始文本）
     const rawStateSummaries = Object.values(relevantStates)
       .filter((s) => s.id !== this.id && isSubsystemOpenForPrompt(s, s.id))
-      .map((s) => ({ id: s.id, summary: s.summary }))
+      .map((s) => ({
+        id: s.id,
+        summary: s.id === HISTORICAL_EVENT_LEDGER_ID
+          ? buildHistoricalEventPromptProjection(s, context.contextId) ?? ''
+          : s.summary,
+      }))
       .filter((s) => s.summary)
     const adaptedMap = adaptationManager.getAdaptedSummaries(rawStateSummaries)
 
@@ -1991,7 +2167,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       { id: 'lifespan-reminder', content: lifespanReminder, order: 40, kind: '硬限制', authority: '当前事实' },
       { id: 'influence-boundary', content: influenceText, order: 50, kind: '硬限制', authority: '当前事实' },
       { id: 'recent-system-changes', content: slidingWindowText, order: 60, kind: '流程指令', authority: '当前事实' },
-      { id: 'npc-network', content: coreMemory.buildNPCNetworkText(), order: 70, kind: '流程指令', authority: '当前事实' },
+      { id: 'npc-network', content: coreMemory.buildNPCNetworkText(promptScopeView), order: 70, kind: '流程指令', authority: '当前事实' },
     ]
     const narrativeGuidanceText = compileNarrativeDynamicComponents(
       dynamicGuidanceSources
@@ -2031,7 +2207,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     // 构建轻量 worldSetting（剥离每轮不变的静态参数，减少 Token 浪费）
     // aiDetailedParameters（43字段，~2000字符）在世界初始化后不再变化，每轮重复发送无意义
     const lightWorldSetting = this.buildLightWorldSetting(narrativeTime.eraLabel)
-    const worldNarrativeView = projectWorldSettingForNarrativeAI(lightWorldSetting)
+    const worldNarrativeView = projectWorldSettingForNarrativeAI(lightWorldSetting, narrativeTime)
     const characterNarrativeView = projectCharacterForNarrativeAI(syncedCharacter)
     const promptMemory = this.buildPromptMemoryLayers()
 
@@ -2041,8 +2217,15 @@ export class OrchestratorSystem extends BaseSubsystem {
     const powerCeilingPresets = powerSystemTag === 'none' || !Number.isFinite(powerCeiling) || powerCeiling <= 1
       ? undefined
       : buildPowerCeilingPresetsForNarrative(powerCeiling)
-    const timeScaleHint = buildTimeScaleNarrativeHint(this.state.timeStep)
-    const previousCalendarYear = resolveCalendarEraYear(
+    const timeScaleHint = buildTimeScaleNarrativeHint(this.state.timeStep, {
+      usesCanonicalSolarSeasons: narrativeTime.usesCanonicalSolarSeasons,
+      calendarName: narrativeTime.calendarName,
+    })
+    const previousLocalCalendar = resolveNarrativeCalendarNode(
+      this.previousNarrativeRound.totalDays,
+      this.worldSetting,
+    )
+    const previousCalendarYear = previousLocalCalendar?.calendarYear ?? resolveCalendarEraYear(
       this.previousNarrativeRound.year,
       readEraStartYearFromConfig(config),
       readBirthEraYearFromConfig(config),
@@ -2050,17 +2233,31 @@ export class OrchestratorSystem extends BaseSubsystem {
     const calendarNarrativeContext = buildCalendarNarrativeContext({
       timeStep: this.state.timeStep,
       calendarYear: narrativeTime.calendarYear,
-      month: this.state.round.month + 1,
-      day: this.state.round.day + 1,
+      calendarName: narrativeTime.calendarName,
+      daysPerYear: narrativeTime.daysPerYear,
+      monthsPerYear: narrativeTime.monthsPerYear,
+      seasonName: narrativeTime.seasonName,
+      usesCanonicalSolarSeasons: narrativeTime.usesCanonicalSolarSeasons,
+      month: narrativeTime.month,
+      day: narrativeTime.day,
       previousNode: {
         calendarYear: previousCalendarYear,
-        month: this.previousNarrativeRound.month + 1,
-        day: this.previousNarrativeRound.day + 1,
+        month: previousLocalCalendar?.month ?? this.previousNarrativeRound.month + 1,
+        day: previousLocalCalendar?.day ?? this.previousNarrativeRound.day + 1,
       },
-      daysPassed: timeSystem.getDaysPassed(),
+      daysPassed: previousLocalCalendar
+        ? Math.max(0, narrativeTime.localTotalDays - previousLocalCalendar.localTotalDays)
+        : timeSystem.getDaysPassed(),
       timeStepAlignment: this.lastTimeStepAlignment,
     })
-    const triggeredCausality = causalDelay.checkCausalTrigger(this.state.totalRounds)
+    const triggeredCausality = causalDelay.checkCausalTrigger(
+      this.state.totalRounds,
+      {
+        currentTotalDays: this.state.round.totalDays,
+        scope: this.worldSetting?.contextId ? 'context' : 'global',
+        contextId: this.worldSetting?.contextId,
+      },
+    )
     this.pendingNarrativeCausalEventIds = triggeredCausality.triggeredEvents.map((event) => event.id)
 
     const assembled: PromptContext = {
@@ -2069,14 +2266,15 @@ export class OrchestratorSystem extends BaseSubsystem {
       characterStatusView: characterNarrativeView.status,
       currentTime: narrativeTime.timeLabel,
       subsystemSummaries: summaries,
-      narrativeHistory: this.state.narrativeHistory.slice(-20).map((n) => n.text),
+      narrativeHistory: this.selectNarrativeHistoryForPrompt(RECENT_NARRATIVE_WINDOW)
+        .map((n) => this.formatNarrativeHistoryEntry(n)),
       eventInjectionText: eventInjectionText || undefined,
       causalChainHint: triggeredCausality.narrativeText || undefined,
       timeBridgeSummary: buildTimeBridgeSummary(this.buildTimeBridgeInput()) || undefined,
       systemChangeSummary: systemChangeSummary || undefined,
       narrativeGuidanceText: narrativeGuidanceText || undefined,
       plotStructureText: plotStructure.buildPhaseGuidance() || undefined,
-      foreshadowingText: foreshadowing.buildForeshadowingText() || undefined,
+      foreshadowingText: foreshadowing.buildForeshadowingText(this.worldSetting?.contextId) || undefined,
       worldTagsText: (this.worldSetting?.config?._worldTagsText as string) || undefined,
       worldRules: buildNarrativeWorldRules(
         getWorldRules(config.essenceTag as string | undefined),
@@ -2091,7 +2289,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       longTermMemory: promptMemory.longTermMemory,
       relevantMemory: promptMemory.relevantMemory,
       recentNarrativeMemory: promptMemory.recentNarrativeMemory,
-      coreMemory: coreMemory.buildCoreMemory() || undefined,
+      coreMemory: coreMemory.buildCoreMemory(promptScopeView) || undefined,
       // 从单一来源常量取默认字数，避免散落硬编码回退
       wordCountInstruction: buildWordCountInstruction(useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET),
       calibrationSummary: (this.worldSetting?.config?._calibrationSummary as string) || undefined,
@@ -2510,6 +2708,252 @@ export class OrchestratorSystem extends BaseSubsystem {
     return result.committed
   }
 
+  private getHistoricalEventLedgerRuntime(): HistoricalEventLedgerRuntime | undefined {
+    const subsystem = this.subsystems.find((item) => item.id === 'historical-event-ledger')
+    if (!subsystem) return undefined
+    const candidate = subsystem as Partial<HistoricalEventLedgerRuntime>
+    if (
+      typeof candidate.preflightBatch !== 'function'
+      || typeof candidate.commitBatch !== 'function'
+      || typeof candidate.getEvent !== 'function'
+    ) {
+      return undefined
+    }
+    return subsystem as HistoricalEventLedgerRuntime
+  }
+
+  private getCurrentHistoricalScope(): HistoricalEventScope {
+    const contextId = this.worldSetting?.contextId?.trim()
+    return contextId
+      ? { kind: 'context', contextIds: [contextId] }
+      : { kind: 'global', contextIds: [] }
+  }
+
+  private buildHistoricalCausalScope(
+    from: HistoricalEventScope,
+    to: HistoricalEventScope,
+  ): HistoricalEventScope {
+    const contextIds = [...new Set([...from.contextIds, ...to.contextIds])]
+    if (contextIds.length > 1) return { kind: 'cross-context', contextIds }
+    if (contextIds.length === 1) return { kind: 'context', contextIds }
+    return { kind: 'global', contextIds: [] }
+  }
+
+  private buildHistoricalNarrativeTransactionPlan(
+    ledger: HistoricalEventLedgerRuntime,
+    parsed: ParsedNarrative,
+    keyEvents: Array<{ text: string; importance: number; entities?: string[] }>,
+  ): HistoricalNarrativeTransactionPlan | undefined {
+    const context = this.buildRoundContext()
+    const scope = this.getCurrentHistoricalScope()
+    const sourceId = `narrative-round:${context.contextId}:${context.roundSequence}:${context.totalDays}`
+    const source = {
+      kind: 'narrative' as const,
+      sourceId,
+      description: '主叙事完整结构化数据通过本地校验后的历史事实提交',
+    }
+    const events: HistoricalEventCreateInput[] = []
+    const evidence: HistoricalEventEvidenceInput[] = []
+    const transitions: HistoricalEventTransitionInput[] = []
+    const causalEdges: HistoricalCausalEdgeInput[] = []
+    const eventIds: string[] = []
+    const narrativeFactEventIds: string[] = []
+    const deferredEventIds: string[] = []
+    const causalResolutionEventIds: Record<string, string> = {}
+
+    const appendEvent = (
+      input: Omit<HistoricalEventCreateInput, 'eventId'>,
+      evidenceDescription: string,
+      payload: unknown,
+    ): { eventId: string; evidenceId: string } => {
+      const eventId = createHistoricalTransactionId('event')
+      const evidenceId = createHistoricalTransactionId('evidence')
+      events.push({ ...input, eventId })
+      evidence.push({
+        evidenceId,
+        eventId,
+        kind: 'narrative',
+        description: evidenceDescription,
+        sourceId,
+        contextId: context.contextId || undefined,
+        payload,
+      })
+      eventIds.push(eventId)
+      return { eventId, evidenceId }
+    }
+
+    for (const keyEvent of keyEvents) {
+      const appended = appendEvent({
+        eventType: parsed.semanticSignals?.eventType ?? 'narrative-key-event',
+        title: keyEvent.text,
+        description: keyEvent.text,
+        scope,
+        status: 'occurred',
+        participants: (keyEvent.entities ?? []).map((label) => ({ label })),
+        tags: ['narrative-key-event'],
+        metadata: {
+          importance: keyEvent.importance,
+          narrativeImportance: parsed.importance,
+          arcStatus: parsed.arcStatus,
+        },
+      }, '主叙事关键事件通过完整协议、Schema 与回合提交校验', {
+        digest: parsed.digest,
+        keyEvent,
+      })
+      narrativeFactEventIds.push(appended.eventId)
+    }
+
+    if (keyEvents.length === 0 && parsed.semanticSignals) {
+      const appended = appendEvent({
+        eventType: parsed.semanticSignals.eventType,
+        title: parsed.digest || '本轮叙事事实',
+        description: parsed.digest || '本轮叙事事实',
+        scope,
+        status: 'occurred',
+        tags: ['narrative-digest-fact'],
+        metadata: {
+          importance: parsed.importance,
+          arcStatus: parsed.arcStatus,
+          semanticSignals: parsed.semanticSignals,
+        },
+      }, '本轮没有独立关键事件，使用已验证摘要与完整语义记录事实', {
+        digest: parsed.digest,
+        semanticSignals: parsed.semanticSignals,
+      })
+      narrativeFactEventIds.push(appended.eventId)
+    }
+
+    const primaryNarrativeEventId = narrativeFactEventIds[0]
+    const causalConfig = causalDelay.getConfig()
+    for (const item of parsed.deferredCausality ?? []) {
+      const dueTotalDays = context.totalDays + causalConfig.delayDaysBySeverity[item.severity]
+      const appended = appendEvent({
+        eventType: `deferred-${item.type}`,
+        title: item.description,
+        description: item.description,
+        scope,
+        status: 'scheduled',
+        participants: [
+          ...(item.relatedPerson ? [{ label: item.relatedPerson, role: 'related-person' }] : []),
+          ...(item.relatedFaction ? [{ label: item.relatedFaction, role: 'related-faction' }] : []),
+        ],
+        schedule: { dueTotalDays },
+        tags: ['deferred-causality', item.type, item.severity],
+        metadata: {
+          causalType: item.type,
+          severity: item.severity,
+        },
+      }, '延期因果事项来自本轮已通过完整校验的结构化数据', {
+        digest: parsed.digest,
+        deferredCausality: item,
+      })
+      deferredEventIds.push(appended.eventId)
+      if (primaryNarrativeEventId) {
+        causalEdges.push({
+          edgeId: createHistoricalTransactionId('causal-edge'),
+          fromEventId: primaryNarrativeEventId,
+          toEventId: appended.eventId,
+          relation: 'causes',
+          scope,
+          evidenceIds: [appended.evidenceId],
+        })
+      }
+    }
+
+    const dueCausalEvents = parsed.semanticSignals
+      ? causalDelay.getCausalEvents().filter((item) => (
+          this.pendingNarrativeCausalEventIds.includes(item.id)
+        ))
+      : []
+    for (const due of dueCausalEvents) {
+      const appended = appendEvent({
+        eventType: 'causal-resolution',
+        title: `延期事项兑现：${due.description}`,
+        description: parsed.digest || due.description,
+        scope,
+        status: 'occurred',
+        participants: [
+          ...(due.relatedPerson ? [{ label: due.relatedPerson, role: 'related-person' }] : []),
+          ...(due.relatedFaction ? [{ label: due.relatedFaction, role: 'related-faction' }] : []),
+        ],
+        tags: ['causal-resolution', due.type, due.severity],
+        metadata: {
+          causalDelayId: due.id,
+          originEventId: due.originEventId,
+        },
+      }, `本轮完整叙事提交成功后兑现延期事项：${due.description}`, {
+        digest: parsed.digest,
+        causalDelayId: due.id,
+        originEventId: due.originEventId,
+      })
+      causalResolutionEventIds[due.id] = appended.eventId
+      narrativeFactEventIds.push(appended.eventId)
+
+      if (!due.originEventId) continue
+      const origin = ledger.getEvent(due.originEventId)
+      if (!origin) continue
+      if (origin.status === 'scheduled') {
+        transitions.push({
+          transitionId: createHistoricalTransactionId('transition'),
+          eventId: origin.eventId,
+          toStatus: 'active',
+          reason: '延期事项已经到达规范处理时间并进入本轮叙事',
+          evidenceIds: [appended.evidenceId],
+        })
+        transitions.push({
+          transitionId: createHistoricalTransactionId('transition'),
+          eventId: origin.eventId,
+          toStatus: 'resolved',
+          reason: '完整叙事与依赖状态已成功提交，延期事项完成兑现',
+          evidenceIds: [appended.evidenceId],
+        })
+      } else if (
+        origin.status === 'active'
+        || origin.status === 'occurred'
+        || origin.status === 'prevented'
+      ) {
+        transitions.push({
+          transitionId: createHistoricalTransactionId('transition'),
+          eventId: origin.eventId,
+          toStatus: 'resolved',
+          reason: '完整叙事与依赖状态已成功提交，延期事项完成兑现',
+          evidenceIds: [appended.evidenceId],
+        })
+      }
+      causalEdges.push({
+        edgeId: createHistoricalTransactionId('causal-edge'),
+        fromEventId: origin.eventId,
+        toEventId: appended.eventId,
+        relation: 'resolves',
+        scope: this.buildHistoricalCausalScope(origin.scope, scope),
+        evidenceIds: [appended.evidenceId],
+      })
+    }
+
+    if (
+      events.length === 0
+      && evidence.length === 0
+      && transitions.length === 0
+      && causalEdges.length === 0
+    ) {
+      return undefined
+    }
+
+    return {
+      batch: {
+        batchId: createHistoricalTransactionId('batch'),
+        source,
+        events,
+        transitions,
+        evidence,
+        causalEdges,
+      },
+      eventIds,
+      deferredEventIds,
+      causalResolutionEventIds,
+    }
+  }
+
   handleNarrativeResponse(content: string): RoundResult {
     const parsed = narrativeParser.parse(content)
 
@@ -2527,12 +2971,10 @@ export class OrchestratorSystem extends BaseSubsystem {
     const effectiveParsed = interceptorOutcome.parsed
 
     const ageAtRound = this.computeNarrativeAge(this.buildRoundContext())
-    const worldConfig = (this.worldSetting?.config ?? {}) as Record<string, unknown>
-    const eraStartYear = readEraStartYearFromConfig(worldConfig)
-    const birthEraYear = readBirthEraYearFromConfig(worldConfig)
-    const calendarYear = resolveCalendarEraYear(this.state.round.year, eraStartYear, birthEraYear)
-    const eraLabel = formatEraYear(calendarYear, eraStartYear !== 0 ? '' : this.state.round.eraName)
-    const displayTimeLabel = formatNarrativeTimeLabel(this.state.timeStep, eraLabel, this.state.round)
+    const displayTimeLabel = buildNarrativeTimeContext(
+      this.buildRoundContext(),
+      this.worldSetting,
+    ).timeLabel
 
     // P1: 兜底叙事
     let narrative = effectiveParsed.narrative
@@ -2567,33 +3009,36 @@ export class OrchestratorSystem extends BaseSubsystem {
       console.warn('[BranchIntent] 本轮 META 未通过命运意图契约:', intentResolutionError)
     }
 
-    // 状态变更先做整包预检与提交。命运意图契约也是完整 META 的一部分；
-    // 任一失败都不得先写入子系统。若意外出现部分写入失败，立即恢复提交前快照。
+    // 普通状态、历史事实、延期因果、伏笔、剧情、记忆与原创保护共享同一快照。
+    // 摘要账本独立保存合格摘要；其余任一副作用失败都整包回滚并拒绝依赖 META。
     const narrativeCommitSnapshot = this.captureSubsystemPreviewStates()
+    const characterCreationsSnapshot = structuredClone(this.state.characterCreations)
+    const pendingCausalIdsSnapshot = [...this.pendingNarrativeCausalEventIds]
     let commitResult = interceptorOutcome.blocked || intentResolutionError
       ? { committed: [], rejected: [] }
       : this.applyRoundChanges(effectiveParsed.changes, 'narrative')
     if (commitResult.rejected.length > 0) {
       this.restoreSubsystemPreviewStates(narrativeCommitSnapshot)
+      this.state.characterCreations = characterCreationsSnapshot
+      this.pendingNarrativeCausalEventIds = pendingCausalIdsSnapshot
       console.warn('[RoundCommit] 本轮叙事变更未能完整提交，已回滚并整包拒绝 META')
       commitResult = { committed: [], rejected: commitResult.rejected }
     }
-    const committedChanges = commitResult.committed
+    let committedChanges = commitResult.committed
     const stateChangeBundleAccepted = commitResult.rejected.length === 0
       && committedChanges.length === effectiveParsed.changes.length
 
-    // 数据区只有在完整 Schema、命运意图和状态变更整包都通过时才可消费。
-    const structuredDataAccepted = !interceptorOutcome.blocked
+    // 数据区只有在完整 Schema、命运意图和普通状态变更整包都通过时才可消费。
+    let structuredDataAccepted = !interceptorOutcome.blocked
       && stateChangeBundleAccepted
       && intentResolutionError === undefined
       && effectiveParsed.metadataRejected !== true
       && effectiveParsed.structuredDataPresent === true
-    const hasValidatedSemanticMetadata = structuredDataAccepted
+    let hasValidatedSemanticMetadata = structuredDataAccepted
       && effectiveParsed.semanticSignals !== undefined
+    let acceptedHistoricalEventIds: string[] = []
+
     if (narrative) {
-      const semanticSignals = hasValidatedSemanticMetadata
-        ? effectiveParsed.semanticSignals!
-        : createNeutralNarrativeSemanticSignals()
       const roundSequence = this.state.totalRounds
       const structuredKeyEvents = structuredDataAccepted && Array.isArray(effectiveParsed.keyEvents)
         ? effectiveParsed.keyEvents.filter((event): event is {
@@ -2602,86 +3047,155 @@ export class OrchestratorSystem extends BaseSubsystem {
             entities?: string[]
           } => typeof event === 'object' && event !== null && typeof event.text === 'string')
         : []
+      const ledger = this.getHistoricalEventLedgerRuntime()
+      const historicalPlan = structuredDataAccepted && ledger
+        ? this.buildHistoricalNarrativeTransactionPlan(ledger, effectiveParsed, structuredKeyEvents)
+        : undefined
+      const historicalInputRequired = structuredDataAccepted && (
+        structuredKeyEvents.length > 0
+        || effectiveParsed.semanticSignals !== undefined
+        || (effectiveParsed.deferredCausality?.length ?? 0) > 0
+      )
+      const rollbackDependentMeta = (reason: string): void => {
+        this.restoreSubsystemPreviewStates(narrativeCommitSnapshot)
+        this.state.characterCreations = structuredClone(characterCreationsSnapshot)
+        this.pendingNarrativeCausalEventIds = [...pendingCausalIdsSnapshot]
+        committedChanges = []
+        acceptedHistoricalEventIds = []
+        structuredDataAccepted = false
+        hasValidatedSemanticMetadata = false
+        console.warn(`[HistoricalEventTransaction] ${reason}；已回滚全部依赖 META`)
+      }
 
-      plotStructure.recordNarrativeSignals(semanticSignals)
-      digestLedger.record({
-        round: roundSequence,
-        importance: structuredDataAccepted ? effectiveParsed.importance : undefined,
-        digest: effectiveParsed.digest,
-        keyEvents: structuredKeyEvents,
-      })
+      if (historicalInputRequired && !ledger) {
+        rollbackDependentMeta('historical-event-ledger 未注册或公开契约不完整')
+      } else if (structuredDataAccepted && historicalPlan && ledger) {
+        const preflight = ledger.preflightBatch(historicalPlan.batch, this.buildRoundContext())
+        if (!preflight.ok) {
+          rollbackDependentMeta(`历史批次预检失败：${preflight.errors.join('；')}`)
+        }
+      }
 
       if (structuredDataAccepted) {
-        foreshadowing.detectForeshadowing(
-          roundSequence,
-          this.characterState?.age ?? 0,
-          effectiveParsed.foreshadowing,
-        )
+        try {
+          if (historicalPlan && ledger) {
+            const historicalCommit = ledger.commitBatch(
+              historicalPlan.batch,
+              this.buildRoundContext(),
+            )
+            if (
+              !historicalCommit.ok
+              || historicalCommit.eventIds.length !== historicalPlan.eventIds.length
+              || historicalPlan.eventIds.some((eventId) => !historicalCommit.eventIds.includes(eventId))
+            ) {
+              throw new Error(historicalCommit.errors.join('；') || '历史批次提交结果不完整')
+            }
+            acceptedHistoricalEventIds = [...historicalCommit.eventIds]
+          }
 
-        const causalKeys = new Set(
-          causalDelay.getCausalEvents().map((existing) =>
-            `${existing.type}\u0000${existing.round}\u0000${existing.description}`,
-          ),
-        )
-        for (const item of effectiveParsed.deferredCausality ?? []) {
-          const key = `${item.type}\u0000${roundSequence}\u0000${item.description}`
-          if (causalKeys.has(key)) continue
-          causalDelay.recordCausalEvent(
-            item.type,
-            item.severity,
+          if (hasValidatedSemanticMetadata) {
+            plotStructure.recordNarrativeSignals(
+              effectiveParsed.semanticSignals!,
+              acceptedHistoricalEventIds,
+            )
+          }
+
+          foreshadowing.detectForeshadowing(
             roundSequence,
-            ageAtRound,
-            item.description,
-            item.relatedPerson,
-            item.relatedFaction,
+            this.characterState?.age ?? 0,
+            effectiveParsed.foreshadowing,
+            this.worldSetting?.contextId,
+            acceptedHistoricalEventIds,
           )
-          causalKeys.add(key)
-        }
 
-        // 原创保护：只累积完整数据区中经校验的 creations。
-        const roundCreations = effectiveParsed.creations
-        if (roundCreations?.length) {
-          for (const c of roundCreations) {
-            if (!this.state.characterCreations.some((existing) => existing.name === c.name)) {
-              this.state.characterCreations.push({
-                name: c.name,
-                description: c.description,
-                category: c.category as CharacterCreation['category'],
-                confirmedRound: this.state.totalRounds,
-              })
+          for (const [index, item] of (effectiveParsed.deferredCausality ?? []).entries()) {
+            causalDelay.recordCausalEvent(
+              item.type,
+              item.severity,
+              roundSequence,
+              ageAtRound,
+              item.description,
+              item.relatedPerson,
+              item.relatedFaction,
+              {
+                scope: this.worldSetting?.contextId ? 'context' : 'global',
+                contextId: this.worldSetting?.contextId,
+                createdTotalDays: this.state.round.totalDays,
+                originEventId: historicalPlan?.deferredEventIds[index],
+              },
+            )
+          }
+
+          // 原创保护：只累积完整数据区中经校验且与其余 META 同批成功的 creations。
+          const roundCreations = effectiveParsed.creations
+          if (roundCreations?.length) {
+            for (const creation of roundCreations) {
+              if (!this.state.characterCreations.some((existing) => existing.name === creation.name)) {
+                this.state.characterCreations.push({
+                  name: creation.name,
+                  description: creation.description,
+                  category: creation.category as CharacterCreation['category'],
+                  confirmedRound: this.state.totalRounds,
+                })
+              }
             }
           }
+
+          if (hasValidatedSemanticMetadata) {
+            const semanticSignals = effectiveParsed.semanticSignals!
+            const entities = structuredKeyEvents.flatMap((event) => event.entities ?? [])
+            memoryLifecycle.setAISemanticAnalysis(
+              roundSequence,
+              effectiveParsed.importance!,
+              effectiveParsed.arcStatus!,
+              semanticSignals,
+              entities,
+              acceptedHistoricalEventIds,
+            )
+            coreMemory.recordRelationshipUpdates(
+              semanticSignals.relationshipUpdates,
+              roundSequence,
+              this.worldSetting?.contextId,
+              acceptedHistoricalEventIds,
+            )
+            foreshadowing.resolveForeshadowing(
+              semanticSignals.resolvedForeshadowingIds,
+              narrative,
+              roundSequence,
+              this.worldSetting?.contextId,
+              acceptedHistoricalEventIds,
+            )
+
+            for (const causalId of this.pendingNarrativeCausalEventIds) {
+              const resolutionEventId = historicalPlan?.causalResolutionEventIds[causalId]
+              if (!resolutionEventId) {
+                throw new Error(`到期因果 ${causalId} 缺少已提交的历史结果事件`)
+              }
+              causalDelay.commitCausalTriggers(
+                [causalId],
+                roundSequence,
+                effectiveParsed.digest,
+                {
+                  currentTotalDays: this.state.round.totalDays,
+                  resolutionEventId,
+                },
+              )
+            }
+            this.pendingNarrativeCausalEventIds = []
+          }
+        } catch (error) {
+          rollbackDependentMeta(error instanceof Error ? error.message : String(error))
         }
       }
 
-      if (hasValidatedSemanticMetadata) {
-        const entities = structuredKeyEvents.flatMap((event) => event.entities ?? [])
-
-        memoryLifecycle.setAISemanticAnalysis(
-          roundSequence,
-          effectiveParsed.importance!,
-          effectiveParsed.arcStatus!,
-          semanticSignals,
-          entities,
-        )
-        coreMemory.recordRelationshipUpdates(
-          semanticSignals.relationshipUpdates,
-          roundSequence,
-        )
-        foreshadowing.resolveForeshadowing(
-          semanticSignals.resolvedForeshadowingIds,
-          narrative,
-          roundSequence,
-        )
-
-        causalDelay.commitCausalTriggers(
-          this.pendingNarrativeCausalEventIds,
-          roundSequence,
-          effectiveParsed.digest,
-        )
-        this.pendingNarrativeCausalEventIds = []
-
-      }
+      digestLedger.record({
+        round: roundSequence,
+        contextId: this.worldSetting?.contextId,
+        memoryScope: this.worldSetting?.contextId ? 'context' : 'global',
+        importance: structuredDataAccepted ? effectiveParsed.importance : undefined,
+        digest: effectiveParsed.digest,
+        keyEvents: structuredDataAccepted ? structuredKeyEvents : [],
+      })
     }
 
     const committedIntentResolution = hasValidatedSemanticMetadata
@@ -2705,6 +3219,10 @@ export class OrchestratorSystem extends BaseSubsystem {
         text: narrative,
         isComplete: true,
         timestamp: Date.now(),
+        contextId: this.worldSetting?.contextId,
+        memoryScope: this.worldSetting?.contextId ? 'context' : 'global',
+        contextName: this.worldSetting?.name,
+        totalDays: this.state.round.totalDays,
         displayAge: ageAtRound,
         displayTimeLabel,
         ...(committedIntentResolution
@@ -2722,7 +3240,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
 
     // commit 已修改子系统私有状态；立即刷新快照，确保 UI 同步与本轮自动存档不是上一轮数据。
-    if (committedChanges.length > 0) {
+    if (committedChanges.length > 0 || structuredDataAccepted || acceptedHistoricalEventIds.length > 0) {
       this.collectSubsystemStates(false, false)
     }
 

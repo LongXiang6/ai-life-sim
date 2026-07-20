@@ -4,7 +4,14 @@
  * @mod mod-world
  */
 
-import type { WorldConfig } from '../types'
+import type { AnyWorldEntity, WorldConfig, WorldContextInstance, WorldTagsV2 } from '../types'
+import { WORLDVIEW_TAG_DEFAULTS } from '../constants/world-tag-defaults'
+import {
+  assertValidWorldContextHierarchy,
+  buildWorldContextInstance,
+  createWorldContextId,
+  REQUIRED_CONTEXT_SUBSYSTEM_IDS,
+} from './world-context-runtime'
 
 const SCP_PRESET_NAME = 'SCP基金会'
 const SCP_PRESET_DESCRIPTION_FINGERPRINT = ['SCP编号', '休谟指数', '现实扭曲者'] as const
@@ -76,31 +83,160 @@ function migrateLegacyScpWorldTags(value: unknown): string[] {
  * 年代、空间、难度、描述、实体、公式和有效 AI 氛围标签均保持原样。
  */
 export function sanitizeWorldStateSnapshot(value: unknown): Record<string, unknown> {
-  const record = isRecord(value) ? value : {}
-  if (!isLegacyScpPresetConfig(record.worldConfig)) return { ...record }
+  const source = isRecord(value) ? structuredClone(value) : {}
+  let record = source
+  if (isLegacyScpPresetConfig(record.worldConfig)) {
+    const dimensionValues = isRecord(record.worldConfig._dimensionValues)
+      ? { ...record.worldConfig._dimensionValues }
+      : record.worldConfig._dimensionValues
+    if (isRecord(dimensionValues)) {
+      delete dimensionValues.worldviewEssence
+      delete dimensionValues.powerSystem
+    }
 
-  const dimensionValues = isRecord(record.worldConfig._dimensionValues)
-    ? { ...record.worldConfig._dimensionValues }
-    : record.worldConfig._dimensionValues
-  if (isRecord(dimensionValues)) {
-    delete dimensionValues.worldviewEssence
-    delete dimensionValues.powerSystem
+    const worldConfig = {
+      ...record.worldConfig,
+      essenceTag: 'mixed',
+      powerSystemTag: 'mixed',
+      worldType: 'mixed',
+      _dimensionValues: dimensionValues,
+    } as WorldConfig
+
+    record = {
+      ...record,
+      worldConfig,
+      calibration: migrateLegacyScpCalibration(record.calibration, worldConfig),
+      worldTags: migrateLegacyScpWorldTags(record.worldTags),
+    }
   }
 
-  const worldConfig = {
-    ...record.worldConfig,
-    essenceTag: 'mixed',
-    powerSystemTag: 'mixed',
-    worldType: 'mixed',
-    _dimensionValues: dimensionValues,
-  } as WorldConfig
+  const currentContextId = typeof record.currentContextId === 'string'
+    ? record.currentContextId
+    : null
+  const existingContexts = isRecord(record.contexts)
+    ? record.contexts as Record<string, unknown>
+    : {}
+
+  if (currentContextId && isRecord(existingContexts[currentContextId])) {
+    const contexts = structuredClone(existingContexts) as Record<string, WorldContextInstance>
+    for (const [contextId, instance] of Object.entries(contexts)) {
+      if (!instance?.record || !instance.scope) continue
+      instance.capabilityProfile = {
+        ...instance.capabilityProfile,
+        enabledSubsystemIds: [...new Set([
+          ...REQUIRED_CONTEXT_SUBSYSTEM_IDS,
+          ...(instance.capabilityProfile?.enabledSubsystemIds ?? []),
+        ])],
+      }
+      if (contextId === currentContextId) {
+        instance.scope.scope = 'active'
+        instance.record.lifecycle = 'open'
+      } else if (instance.scope.scope === 'active') {
+        instance.scope.scope = 'dormant'
+        instance.scope.reason = '存档迁移：非当前上下文降为休眠'
+        instance.record.lifecycle = 'dormant'
+      } else if (instance.scope.scope === 'background') {
+        instance.record.lifecycle = 'open'
+      } else if (instance.scope.scope === 'closed') {
+        instance.record.lifecycle = 'closed'
+      } else {
+        instance.record.lifecycle = 'dormant'
+      }
+    }
+    assertValidWorldContextHierarchy(Object.fromEntries(
+      Object.entries(contexts).map(([contextId, instance]) => {
+        if (!instance?.record) throw new Error(`上下文记录缺失：${contextId}`)
+        return [contextId, instance.record]
+      }),
+    ))
+    const current = contexts[currentContextId]
+    return {
+      ...record,
+      contexts,
+      currentContextId,
+      crossContextEdges: isRecord(record.crossContextEdges)
+        ? structuredClone(record.crossContextEdges)
+        : {},
+      transitionHistory: Array.isArray(record.transitionHistory)
+        ? structuredClone(record.transitionHistory)
+        : [],
+      ...(current ? {
+        worldConfig: structuredClone(current.worldConfig),
+        entities: structuredClone(current.entities),
+        initialized: current.initialized,
+        worldCode: current.worldCode,
+        currentYear: current.currentYear,
+        worldTags: [...current.worldTags],
+        eraStartYear: current.eraStartYear,
+        eraName: current.eraName,
+        calibration: structuredClone(current.calibration),
+        destinyPatternModifiers: { ...current.destinyPatternModifiers },
+        worldInitAIStatus: structuredClone(current.worldInitAIStatus),
+      } : {}),
+    }
+  }
+
+  if (!isRecord(record.worldConfig)) {
+    return {
+      ...record,
+      contexts: {},
+      currentContextId: null,
+      crossContextEdges: {},
+      transitionHistory: [],
+    }
+  }
+
+  const worldConfig = record.worldConfig as unknown as WorldConfig
+  const worldCode = typeof record.worldCode === 'number' && Number.isFinite(record.worldCode)
+    ? record.worldCode
+    : 0
+  const contextId = createWorldContextId({ legacyWorldCode: worldCode })
+  const tags = (WORLDVIEW_TAG_DEFAULTS[worldConfig.essenceTag]
+    ?? WORLDVIEW_TAG_DEFAULTS.mixed) as WorldTagsV2
+  const instance = buildWorldContextInstance({
+    contextId,
+    config: worldConfig,
+    snapshot: {
+      contextId,
+      rootSpatialNodeId: `${contextId}:space:root`,
+      worldConfig,
+      entities: Array.isArray(record.entities) ? record.entities as AnyWorldEntity[] : [],
+      regions: [],
+      tags,
+    },
+    worldCode,
+    calibration: isRecord(record.calibration) ? record.calibration as never : null,
+    worldTags: Array.isArray(record.worldTags)
+      ? record.worldTags.filter((tag): tag is string => typeof tag === 'string')
+      : [],
+    eraStartYear: typeof record.eraStartYear === 'number' ? record.eraStartYear : 0,
+    eraName: typeof record.eraName === 'string' ? record.eraName : '',
+    worldInitAIStatus: isRecord(record.worldInitAIStatus) ? record.worldInitAIStatus as never : null,
+    scope: 'active',
+    derivedFrom: 'migration',
+  })
+  instance.currentYear = typeof record.currentYear === 'number' ? record.currentYear : 0
+  instance.initialized = record.initialized === true
+  instance.destinyPatternModifiers = isRecord(record.destinyPatternModifiers)
+    ? record.destinyPatternModifiers as WorldContextInstance['destinyPatternModifiers']
+    : {}
 
   return {
     ...record,
-    worldConfig,
-    calibration: migrateLegacyScpCalibration(record.calibration, worldConfig),
-    // worldTags 是 AI 派生氛围信息；仅移除与 SCP 预设直接冲突的旧标签，
-    // 其余异常收容、休谟指数等有效事实继续保留并进入 Prompt。
-    worldTags: migrateLegacyScpWorldTags(record.worldTags),
+    contexts: { [contextId]: instance },
+    currentContextId: contextId,
+    crossContextEdges: {},
+    transitionHistory: [],
+    worldConfig: structuredClone(instance.worldConfig),
+    entities: structuredClone(instance.entities),
+    initialized: instance.initialized,
+    worldCode: instance.worldCode,
+    currentYear: instance.currentYear,
+    worldTags: [...instance.worldTags],
+    eraStartYear: instance.eraStartYear,
+    eraName: instance.eraName,
+    calibration: structuredClone(instance.calibration),
+    destinyPatternModifiers: { ...instance.destinyPatternModifiers },
+    worldInitAIStatus: structuredClone(instance.worldInitAIStatus),
   }
 }

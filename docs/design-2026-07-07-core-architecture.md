@@ -3,12 +3,15 @@
 文档角色：architecture
 权威层级：A3
 状态：active
-适用范围：字段契约单一真源、判定与落地所有权、时间和难度系数输入
+体系路径：project > simulation-runtime > core-contracts-and-write-ownership
+上级目标：保持跨域契约、结构化写入、时间输入和业务状态所有权单一
+下级组成：字段契约、平衡系数、RoundContext、历史事件批次、编排器快照与 owning subsystem 写入闭环
+适用范围：字段契约单一真源、判定与落地所有权、时间和难度系数输入、历史事件与消费者引用
 拥有者：`core`、`foundation` 与 owning subsystem contracts
-最后验证：2026-07-18；引用与当前治理入口同步
+最后验证：2026-07-19；对照 PD-025、PD-028、PD-029、P0/P1 Foundation 契约、RoundContext、编排器快照和存档回滚
 取代关系：none
 运行真源：live contracts、owning subsystem implementations、generated wiring
-验收证据：结构检查、MOD 检查、lint、TypeScript 与相关回归
+验收证据：结构检查、MOD 检查、lint、TypeScript 与相关回归；P1 最终证据以蓝图第 15.6 节为准
 
 日期：2026-07-07。本文档细化 [plan-2026-07-07-narrative-deregex-ui-eval.md](plan-2026-07-07-narrative-deregex-ui-eval.md) 中 D7 / D9 / D5+D12+D13 的数据结构、改动清单和验证关卡。
 
@@ -267,6 +270,38 @@ C-0 已确认 `RoundContext.daysPassed` 是本轮实际推进天数，`context.t
 - 本阶段未改 `RoundContext` / `SubSystemChanges` / `OrchestratorSnapshot` 结构；接口强约束降级为规则与扫描约束，避免为架构纯度扩大存档风险。
 
 验证结果见 plan 文档实施记录：lint / tsc / structural / ui 均通过；full gate 剩余 `check:mod` 历史扫描阻塞。
+
+---
+
+## P0 多世界公共契约实施记录（2026-07-19）
+
+`PD-028` 已针对蓝图二 P0 明确授权修改公开跨 MOD 类型、运行态与持久化结构，因此本节是对 2026-07-07 C-3“当时未改接口”的后续实施记录，不改变 C-3 的历史事实。
+
+1. `src/foundation/subsystem-contracts/world-context.contract.ts` 成为世界上下文、能力画像、空间、模拟范围、当地时间和切换结果的跨域纯类型权威。
+2. `RoundContext` 新增必填 `contextId` 与 `contextScope`；`characterId` 明确为全局稳定角色实体 ID；`worldId` 只保留为等同 `contextId` 的兼容别名。
+3. `WorldSetting` 新增当前上下文类型、范围和能力画像；AI 只接收中文投影，不接收内部英文枚举作为可写协议。
+4. `mod-world` Store 保存完整上下文注册表、当前上下文、跨界出口和完整切换记录，并将旧 `worldConfig/entities/worldCode/...` 降为当前上下文兼容投影。
+5. 编排器快照保存当前世界上下文和内部叙事系统状态。恢复时若快照上下文与 world Store 不一致，核心加载整包失败并回滚，不进入半恢复模拟态。
+6. `SUBSYSTEM_FIELD_CONTRACTS` 继续是结构化 AI 权限与字段单一真源。P0 只新增只读、提议和事件输入声明，没有扩大 `character-base/lifespan/luck/morality` 四个主叙事写入目标。
+
+P0 验收使用 `npm run test:world-context-p0`、叙事协议与压缩回归、结构检查、lint、TypeScript、无硬截断审计和交付 gate；`check:mod` 的历史扫描债单独按基线报告，不反向修改运行契约迎合旧扫描器。
+
+---
+
+## P1 历史事件与事件输入契约实施记录（2026-07-19）
+
+`PD-029` 授权 P1 建立历史事件唯一事实源，但不批准扩展旧主叙事 `状态变更` 白名单或新增第二套 AI 成功协议。本阶段按以下单一真源和提交边界实施：
+
+1. `src/foundation/subsystem-contracts/historical-event.contract.ts` 统一声明事件、状态迁移、证据、带 `requiredCapabilities` 的候选审计、显式因果边、原子批次、有界查询、消费者引用和 `schemaVersion: 2` 持久化类型；具体业务验证与状态写入仍归 `mod-history-dynamics`。
+2. `historical-event-ledger` 在 `SUBSYSTEM_FIELD_CONTRACTS` 中登记为 `event-input`，但不进入 `mvp-stages-config.default.json.narrativeChange`；四个旧主叙事可写系统保持 `character-base/lifespan/luck/morality`。主叙事 AI 不自造事件 ID、证据 ID、提交结果或跨界边。
+3. 历史批次先完成事件 ID、状态迁移、证据引用、实体与空间引用、上下文作用域、因果端点、能力要求和重复 ID 预检，再一次性追加到 owning Store；任一非法项使整批不写。候选提供器只规范化输入和构造四状态审计，因果图组件只构造显式边，二者都不拥有第二套 Store 或运行 ID。
+4. `useHistoryDynamicsStore` v2 完整保存六类追加式数组；编排器通过外部系统的 `capturePersistenceState()` / `restorePersistenceState()` 保存和恢复完整账本。`collectState()` 使用缓存索引，只提供全局或作用域包含当前上下文的待续视图；公开查询默认 100、最大 500 条并以 offset 分页。显式恢复和浏览器/Zustand v2 水合在替换或使用 Store 前共用严格校验，损坏当前 Store 隔离于查询、提交和存档且不静默清空；当前/未来畸形版本拒绝。运行预检同时保证每个接受写入可严格 capture/restore。旧 v1 事件池、过期候选和 pending/resolved 因果状态迁移为事件、候选审计和迁移证据，原 payload 进入 `migrationMetadata.legacyPayload`，并在 world 水合后绑定该存档原当前上下文。
+5. `causal-delay` 新事项按 `createdTotalDays/dueTotalDays` 确定性到期，旧事项保留 `legacy-round`；进入 Prompt 只表示待兑现。完整叙事提交成功并由账本生成结果事件后，延期事项才写入 `resolutionEventId` 并确认兑现；形成承诺时可保存 `originEventId`。其 P1 快照使用 `schemaVersion: 1`：带版本重复 ID 拒绝，无版本旧重复 ID 确定性迁移并保存 `legacyId`。
+6. 消费者只保存账本事件 ID，不复制历史事实：记忆链使用 `TaggedEvent.historicalEventIds` 与 `IndexEntry.historicalEventIds` 并在压缩索引中保留并集；核心记忆的 `NPCInteractionRecord` 和内部 `CoreMemoryEntry` 保存并集合并后的 `historicalEventIds`；伏笔保存 `plantedFromEventIds/resolvedByEventIds`；剧情结构保存 `lastHistoricalEventIds`。旧快照缺少这些字段时初始化为空数组，不从正文猜测补全。
+7. 运行策略只新增 `historical-event-ledger` 一个外部系统；P1 完成后的 MVP 数量为 13 个外部系统加 12 个引擎系统，共 25 个。`EventCandidateProvider` 与 `CausalGraphComponent` 是账本内部组件，不参与数量统计。
+8. 主叙事 Prompt `4.2.0` 通过 `historical-event-prompt-projection.ts` 确定性消费当前相关的待续事实和因果边；`adaptation-manager` 明确绕过账本投影，不能改写事实、ID 或 scope。
+
+P1 focused smoke 已通过真实 `handleNarrativeResponse()` 证明事件 ID 传给剧情、记忆、伏笔和核心记忆，延期事项按规范日保存来源/结果事件 ID，并在注入下游失败后恢复普通状态、账本、因果和全部消费者 META，同时保留合格正文与摘要。复审新增用例还证明损坏 v2 `applyGameSave()` 保持原游戏、浏览器 Store v2 损坏状态被隔离、畸形版本和不可往返写入被拒绝、v1 历史不串入第二世界、跨界承诺原子解决、候选能力/四状态审计、有界查询、Prompt 确定性消费和大账本非全量克隆。字段键生成器与结构检查现共用 TypeScript AST 解析器，36 个含零字段契约的系统归属一致。完整阶段状态继续以蓝图第 15.6 节验收矩阵为准。
 
 ---
 

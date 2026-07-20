@@ -3,12 +3,15 @@
 文档角色：architecture
 权威层级：A3
 状态：active
-适用范围：MOD 目录、BaseSubsystem、Foundation 跨域契约、生成接线与子系统模板
+体系路径：project > simulation-runtime > subsystem-architecture
+上级目标：为运行子系统、跨域契约、持久化和生成接线提供唯一架构边界
+下级组成：BaseSubsystem、世界上下文与历史事件 Foundation 契约、RoundContext、Store 投影、模板与生成接线
+适用范围：MOD 目录、BaseSubsystem、Foundation 跨域契约、追加式事实 Store、生成接线与子系统模板
 拥有者：`ai-life-sim-mod-development` 与 live architecture sources
-最后验证：2026-07-18；对照当前 Skill、BaseSubsystem、manifest 类型和子系统模板
+最后验证：2026-07-19；对照 P0 世界上下文契约、P1 历史事件契约、RoundContext、owning Store、save/restore、当前 Skill 与生成接线
 取代关系：none
 运行真源：`src/core/subsystem-base.ts`、`src/foundation/types/mod.types.ts`、`src/foundation/subsystem-contracts/`、生成接线脚本
-验收证据：治理检查、活动引用审计、结构检查
+验收证据：治理检查、活动引用审计、结构检查、P0 世界上下文回归；P1 运行验收以蓝图第 15.6 节登记为准
 
 用途：定义各 MOD 内文件的职责边界、填写规范和占位符格式。
 前置：`simulation-rewrite-discussion-plan.md`
@@ -77,6 +80,46 @@
 
 `src/foundation/subsystem-contracts/` 是 provider-owned 跨域类型契约入口。目录结构、当前契约和使用方式以 live source 与 `.agents/skills/ai-life-sim-mod-development/SKILL.md` 为准；`readSubsystem<T>()` 提供编译期类型，不替代运行时验证。
 
+### 3.1 P0 世界上下文契约
+
+`src/foundation/subsystem-contracts/world-context.contract.ts` 是多世界 P0 的跨域纯类型权威，统一声明：
+
+- 稳定 `WorldContextId`、`GlobalEntityId`、空间节点和空间边 ID。
+- 世界、宇宙、位面、星球、区域、场景等显式 `WorldContextKind`。
+- `active/background/dormant/closed` 模拟范围与 `open/dormant/closed` 生命周期。
+- 能力画像、空间图、实体位置、当地历法、当地时钟和上下文切换请求/结果。
+
+业务实现归 `mod-world`，Foundation 只拥有纯数据边界。上下文注册、空间写入、范围变化和切换原子性必须通过 owning system；其他 MOD 不得直接修改 world Store 的完整注册表。
+
+### 3.2 当前上下文兼容投影
+
+`mod-world` Store 保存完整 `contexts`、`currentContextId`、跨上下文出口和不截断的切换记录，同时继续向旧页面和调用方投影 `worldConfig/entities/worldCode/...`。这些旧字段只表示当前上下文，不是第二份业务真源：
+
+1. 当前投影的合法写入同步回当前 `WorldContextInstance`。
+2. 切换前保存来源投影，切换后一次性投影目标实例。
+3. 旧单世界数据迁移为首个 active 上下文，不要求玩家重开。
+4. `worldCode` 只保留生成缓存和兼容用途，不作为上下文或实体主键。
+
+### 3.3 P1 历史事件契约与内部组件边界
+
+`src/foundation/subsystem-contracts/historical-event.contract.ts` 是 P1 历史事实的 provider-owned 纯类型权威，统一声明稳定事件 ID、`global/context/travel/cross-context` 作用域、事件状态、状态迁移、证据、带通用能力要求的候选审计、显式因果边、原子批次、有界查询和 Store v2 持久化快照。Foundation 不拥有业务状态，也不允许调用方绕过 owning MOD 直接写 Store。
+
+P1 的运行组成固定为：
+
+| 节点 | 形态 | 责任 | 非责任 |
+|---|---|---|---|
+| `historical-event-ledger` | `HistoricalEventLedgerSystem extends BaseSubsystem` | 唯一拥有事件事实、迁移、证据、候选审计、因果边、查询、预检和原子追加 | 不创作正文、不随机生成题材事件、不替代延期叙事承诺 |
+| `candidate-provider` | `src/mods/mod-history-dynamics/components/event-candidate-provider.ts` 中的 `EventCandidateProvider` 内部组件 | 把显式候选和 `available/accepted/rejected/expired` 决定写成追加式审计，规范化 `requiredCapabilities`，候选接受后才由账本建立事实 | 不实现 `ISubSystem`、不拥有 Store、不把候选当成已发生事实 |
+| `causal-graph` | `src/mods/mod-history-dynamics/components/causal-graph-component.ts` 中的 `CausalGraphComponent` 内部组件 | 校验既有事件端点、跨上下文覆盖和显式因果关系并构造边 | 不实现 `ISubSystem`、不从正文猜语义、不拥有 pending/resolved 队列 |
+
+`useHistoryDynamicsStore` 的 `schemaVersion: 2` 保存 `events`、`transitions`、`evidence`、`causalEdges`、`candidateAudits` 和 `migrationMetadata` 六类追加式状态。`collectState()` 通过零完整克隆的只读 Store 选择器和缓存索引，只投影全局或显式包含当前上下文的 `scheduled/active` 事件、相关因果边与统计；完整 Store 仅通过 `capturePersistenceState()`、`restorePersistenceState()` 和编排器持久化快照保存。公开查询默认 100、最大 500 条并支持 offset；事件详情分别分页返回迁移、证据和因果关系总数。显式读档和浏览器/Zustand v2 水合在替换或使用 Store 前共用严格校验，覆盖重复 ID、状态/候选链、证据引用数组、端点和世界引用；损坏当前 Store 被隔离而不静默清空，未知未来版本拒绝。v1 事件池和因果队列迁移保留旧 payload，并在 world Store 水合后绑定该存档原当前上下文。
+
+主叙事 Prompt `4.2.0` 不读取可被适配器改写的账本 summary，而由 `historical-event-prompt-projection.ts` 从上述公开投影确定性格式化事实 ID、状态、scope、调度和因果边；后台世界观适配器必须显式绕过该投影。`causal-delay` 快照使用 `schemaVersion: 1`，带版本重复 ID 整包拒绝，无版本旧重复 ID 确定性重编号并保留 `legacyId`。
+
+跨域消费者只保存账本事件 ID：记忆与核心记忆使用 `historicalEventIds`，伏笔使用 `plantedFromEventIds/resolvedByEventIds`，剧情结构使用 `lastHistoricalEventIds`，延期因果使用 `originEventId/resolutionEventId`。这些引用随 owning system 快照持久化；消费者不得复制事件正文成为第二份历史真源。
+
+P1 运行登记完成后，MVP 为 13 个外部系统加 12 个引擎系统，共 25 个；旧 `event-pool` 和 `causal-simulation` 系统 ID 与文件已退出，新的两个内部组件不计入运行系统数量。
+
 ---
 
 ## 四、标准子系统文件模板 —— AI 填空骨架
@@ -129,6 +172,7 @@ Store 或存档结构变更时，必须按当前产品阶段和用户决定明�
 - **底层时间粒度**：唯一最小单位是"天"。`TimeSystem` 只向外提供整数 `daysPassed` 与 `totalDays`。
 - **叙事推进步长**：玩家每次点击推进就是一个叙事轮次；默认步长是 1 年，但玩家可切换为日 / 月 / 季 / 年。步长只决定本轮换算出多少 `daysPassed`，不改变底层日粒度。
 - **步长切换不等于时间推进**：切换 `timeStep` 不能修改 `round` / `totalDays` / `daysPassed`，只能影响下一次 `TimeSystem.advance()` 的换算结果。开局默认年推进时，玩家切换到日 / 月 / 季不能被动跳过一年。
+- **延期承诺使用规范日**：P1 新建的 `causal-delay` 事项保存 `createdTotalDays` 与 `dueTotalDays`，只按唯一全局累计天数判定到期；旧存档缺少这些字段时显式保留 `legacy-round` 和原始 `triggerDelay`，禁止粗略换算。
 
 所有子系统读取时间的唯一方式是：
 
@@ -177,11 +221,13 @@ while (this._dayAccumulator >= 30) {
 
 ### 附：RoundContext 扩展说明
 
-`RoundContext`（`foundation/types/subsystem.types.ts`）字段处理方式分三组，**不是笼统的"现有字段保留"**：
+`RoundContext`（`foundation/types/subsystem.types.ts`）字段处理方式分四组，**不是笼统的"现有字段保留"**：
 
 | 分组 | 字段 | 处理 |
 |------|------|------|
-| 保留不动 | `worldId` `characterId` `round` `timeStep` `difficulty` `subsystemStates` `lastNarrativeText` `eraStartYear` `birthEraYear` `essenceTag` | 与本次时间引擎重写无关，原样保留 |
+| P0 当前身份 | `contextId` `contextScope` `characterId` | `contextId` 是当前稳定上下文 ID；`contextScope` 是运行范围；`characterId` 是全局稳定角色实体 ID |
+| 兼容别名 | `worldId` | 仅等同 `contextId` 供旧子系统字段名兼容，不得继续作为独立世界主键 |
+| 保留不动 | `round` `timeStep` `difficulty` `subsystemStates` `lastNarrativeText` `eraStartYear` `birthEraYear` `essenceTag` | 继续按 owning implementation 使用 |
 | **彻底删除**（风险提示： 实际影响面已核实，见下方修正） | `ageYearsDelta` `calendarDaysDelta` `simulationTicks` | 连同 `foundation/utils/round-advance.ts` 中的 `getAgeYearsDelta`/`consumeSimulationYears` 一并删除。不做兼容层、不标记 `@deprecated` 过渡——讨论计划书 §二已明确"消除年累加器" |
 | 新增 | `daysPassed` `totalDays` | 见下 |
 
@@ -189,7 +235,14 @@ while (this._dayAccumulator >= 30) {
 
 ```typescript
 export interface RoundContext {
-  // ... 保留不动的字段（worldId / round / timeStep / difficulty / subsystemStates 等，见上表）...
+  /** 当前稳定上下文 ID */
+  contextId: string
+  /** 当前上下文运行范围 */
+  contextScope: 'active' | 'background' | 'dormant' | 'closed'
+  /** 兼容别名，当前必须等于 contextId */
+  worldId: string
+  /** 全局稳定角色实体 ID */
+  characterId: string
 
   /** 本轮推进天数（自上次收集以来的天数增量，整数） */
   daysPassed: number
@@ -207,9 +260,11 @@ TimeSystem.advance(nDays)
   │  产出：totalDays（累加后）、daysPassed（本轮增量）
   ▼
 OrchestratorSystem 组装 RoundContext
+  │  注入当前 contextId/contextScope/characterId
   │  将 TimeSystem.totalDays 和 daysPassed 注入 context
   ▼
 所有子系统 collectState(context)
+  │  先按当前上下文能力画像与模拟范围过滤运行成员
   │  通过 this.getDaysPassed(context) 读取天数增量
   │  通过 context.totalDays 读取总天数（如需要年/月/季计算）
   ▼
@@ -220,6 +275,8 @@ OrchestratorSystem 组装 RoundContext
 - `daysPassed` 是本轮增量，`totalDays` 是累计总量——不要混淆
 - 所有时间判断必须基于这两个字段，禁止使用 `ageYearsDelta`、`simulationTicks` 等旧字段
 - TimeSystem 是这两个字段的唯一写入者，子系统只读
+- `contextId` 是当前世界/场景身份真源，`worldId` 只做兼容别名
+- `active` 才运行完整叙事回合；`background` 只运行明确登记的聚合系统，`dormant/closed` 不进入完整回合或 Prompt
 
 ## 九、Summary 文本格式规范
 
@@ -266,6 +323,8 @@ OrchestratorSystem 组装 RoundContext
 | `adaptation-prompt-registry.generated.ts` | `src/mods/mod-engine/helpers/` | 适配 Prompt 注册表 |
 
 AI 在新增或删除子系统时**不需要手改这些生成文件**——只需确保 manifest 声明正确，然后运行代码生成命令。
+
+`subsystem-field-keys.generated.ts` 例外地还依赖 `SUBSYSTEM_FIELD_CONTRACTS` 的字段声明；生成器与结构检查共用 `scripts/codegen/subsystem-field-contract-parser.mjs` 的 TypeScript AST 结果。只读系统的 inline `fields: {}` 也必须保留为零字段契约，不能吞并或改写后续可写系统字段。
 
 **注意**：以上 codegen 管线校验的是 manifest/import 接线的一致性（wiring 层面），**不会**校验本文档 §二~§五 提出的 BaseSubsystem 继承、契约文件存在性、文件存在性约束表等更细粒度约定——这部分仍需人工核对（同 §〇「自检自动化」现状说明）。
 

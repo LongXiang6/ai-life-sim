@@ -20,6 +20,7 @@ interface WelcomeViewProps {
   onDeleteSave: (slot: number) => Promise<boolean>
   onOpenSettings: () => void
   onOpenHelp: () => void
+  onOpenFeedback: () => void
 }
 
 export default function WelcomeView({
@@ -31,6 +32,7 @@ export default function WelcomeView({
   onDeleteSave,
   onOpenSettings,
   onOpenHelp,
+  onOpenFeedback,
 }: WelcomeViewProps) {
   const latestSave = saves[0] ?? null
 
@@ -103,6 +105,11 @@ export default function WelcomeView({
           <button type="button" className={`${styles.routeAction} ${styles.secondaryBtn}`} onClick={onOpenHelp}>
             <span className={styles.routeIndex}>04</span>
             <span className={styles.routeCopy}><strong>游戏说明</strong><small>规则、版本与操作说明</small></span>
+            <span className={styles.routeArrow} aria-hidden="true">→</span>
+          </button>
+          <button type="button" className={`${styles.routeAction} ${styles.secondaryBtn} ${styles.feedbackAction}`} onClick={onOpenFeedback}>
+            <span className={styles.routeIndex}>05</span>
+            <span className={styles.routeCopy}><strong>反馈与建议</strong><small>提交问题并打包上传诊断日志</small></span>
             <span className={styles.routeArrow} aria-hidden="true">→</span>
           </button>
         </div>

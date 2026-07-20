@@ -10,6 +10,7 @@ import { useEffect } from 'react'
 
 import { useGlobalStore } from '@/core/global-store'
 import { installGlobalLogHandlers } from '@/core/logger/client-logger'
+import { ensureDiagnosticPlayerCode } from '@/core/logger/diagnostic-player-code-client'
 
 /**
  * InitMods —— 挂载后异步加载 init-mods-bootstrap，避免 18 MOD 进入根布局首屏编译图
@@ -23,6 +24,9 @@ export function InitMods({ children }: { children: React.ReactNode }) {
     let cancelled = false
 
     void (async () => {
+      await ensureDiagnosticPlayerCode()
+      if (cancelled) return
+
       const { registerModRoutes } = await import('./init-mods-routes')
       const result = await registerModRoutes()
       if (cancelled) return

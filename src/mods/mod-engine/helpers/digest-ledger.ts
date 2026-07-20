@@ -24,6 +24,11 @@
  *      低分连续段折叠为一行；不按固定条目数删除账本事实。
  */
 
+import {
+  isNarrativeRecordVisible,
+  type NarrativeMemoryScope,
+} from './narrative-context-scope'
+
 // ============================================================
 // 常量（集中可调）
 // ============================================================
@@ -69,6 +74,10 @@ export interface LedgerEvent {
 export interface DigestEntry {
   /** 叙事回合序号（对齐 orchestrator.totalRounds，与日历年无关） */
   round: number
+  /** 事件发生上下文 */
+  contextId?: string
+  /** Prompt 读取作用域。 */
+  memoryScope?: NarrativeMemoryScope
   /** AI 对整轮叙事的粗粒度重要性 */
   importance?: DigestImportance
   /** 本轮一句话精简（AI 输出） */
@@ -80,6 +89,8 @@ export interface DigestEntry {
 /** AI 单轮输出的账本原料 */
 export interface RoundDigestInput {
   round: number
+  contextId?: string
+  memoryScope?: NarrativeMemoryScope
   importance?: DigestImportance
   digest?: string
   keyEvents?: Array<{ text: string; importance: number; entities?: string[] }>
@@ -163,6 +174,8 @@ export class DigestLedger {
     const existingIdx = this.entries.findIndex((en) => en.round === input.round)
     const entry: DigestEntry = {
       round: input.round,
+      contextId: input.contextId,
+      memoryScope: input.memoryScope ?? (input.contextId ? 'context' : 'global'),
       importance: input.importance,
       digest,
       events,
@@ -268,19 +281,29 @@ export class DigestLedger {
    *   3. 低于阈值的连续事件按轮次段折叠为一行概略。
    *   4. 不设置固定条目上限；容量压力交给摘要层处理。
    */
-  selectForPrompt(currentRound: number): string[] {
+  selectForPrompt(
+    currentRound: number,
+    currentContextId?: string,
+    closedContextIds?: ReadonlySet<string>,
+  ): string[] {
     if (this.entries.length === 0) return []
 
     interface Scored {
       round: number
+      contextId?: string
       text: string
       effective: number
     }
     const scored: Scored[] = []
     for (const entry of this.entries) {
+      if (!isNarrativeRecordVisible(
+        { contextId: entry.contextId, memoryScope: entry.memoryScope },
+        { currentContextId, closedContextIds },
+      )) continue
       for (const ev of entry.events) {
         scored.push({
           round: entry.round,
+          contextId: entry.contextId,
           text: ev.text,
           effective: this.effectiveImportance(ev, currentRound, entry.round),
         })
@@ -293,7 +316,7 @@ export class DigestLedger {
     // 高分逐条完整保留，并按时间顺序注入。
     const keptLines = kept
       .sort((a, b) => a.round - b.round)
-      .map((s) => `[${s.round}轮·${s.effective}] ${s.text}`)
+      .map((s) => `[${s.round}轮${s.contextId ? `·上下文=${s.contextId}` : ''}·${s.effective}] ${s.text}`)
 
     const lines = [...keptLines]
 
@@ -304,7 +327,11 @@ export class DigestLedger {
       const first = folded[0].round
       const last = folded[folded.length - 1].round
       const rangeLabel = first === last ? `${first}轮` : `${first}~${last}轮`
-      lines.push(`[${rangeLabel}·概略] ${foldedText}`)
+      const contexts = [...new Set(folded.map((item) => item.contextId).filter(Boolean))]
+      const contextLabel = currentContextId && contexts.length === 1 && contexts[0] === currentContextId
+        ? `·上下文=${currentContextId}`
+        : contexts.length > 0 ? `·上下文=${contexts.join('、')}` : ''
+      lines.push(`[${rangeLabel}${contextLabel}·概略] ${foldedText}`)
     }
 
     return lines
@@ -316,7 +343,7 @@ export class DigestLedger {
       .sort((a, b) => a.round - b.round)
       .slice(-count)
       .filter((e) => e.digest)
-      .map((e) => `${e.round}轮：${e.digest}`)
+      .map((e) => `${e.round}轮${e.contextId ? `·上下文=${e.contextId}` : ''}：${e.digest}`)
   }
 
   // ---- 存取 ----

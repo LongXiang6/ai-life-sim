@@ -11,6 +11,11 @@ import { buildCanonicalCalendarNarrativeHint } from './time-scale-narrative'
 export interface CalendarNarrativeContextInput {
   timeStep: TimeStep
   calendarYear: number
+  calendarName?: string
+  daysPerYear?: number
+  monthsPerYear?: number
+  seasonName?: string
+  usesCanonicalSolarSeasons?: boolean
   month: number
   day: number
   previousNode?: {

@@ -18,6 +18,11 @@ import { memoryLifecycle } from './memory-lifecycle-system'
 import { summaryCompressor } from './summary-compressor-system'
 import { useEngineStore } from '../store'
 import type { NarrativeRelationshipUpdate } from '../helpers/narrative-semantic-signals'
+import {
+  isNarrativeRecordVisible,
+  type NarrativeMemoryScope,
+  type NarrativeScopeView,
+} from '../helpers/narrative-context-scope'
 
 // ============================================================
 // 类型定义
@@ -26,9 +31,14 @@ import type { NarrativeRelationshipUpdate } from '../helpers/narrative-semantic-
 /** NPC 互动记录 */
 export interface NPCInteractionRecord {
   npcName: string
+  npcEntityId?: string
+  contextId?: string
+  memoryScope?: NarrativeMemoryScope
   round: number
   type: 'first_meeting' | 'conflict' | 'alliance' | 'betrayal' | 'marriage' | 'death' | 'other'
   summary: string
+  /** 促成该互动事实的历史事件账本条目。 */
+  historicalEventIds?: string[]
 }
 
 /** 关键事件记忆条目 */
@@ -36,6 +46,13 @@ interface CoreMemoryEntry {
   rounds: string
   importance: 'HIGH'
   content: string
+  contextIds?: string[]
+  memoryScopes?: NarrativeMemoryScope[]
+  historicalEventIds?: string[]
+}
+
+function normalizeHistoricalEventIds(ids?: readonly string[]): string[] {
+  return [...new Set((ids ?? []).map((id) => id.trim()).filter(Boolean))]
 }
 
 /** 互动类型标签映射 */
@@ -143,22 +160,43 @@ export class CoreMemorySystem extends BaseSubsystem {
   }
 
   /** 由主叙事 AI 的结构化 relationshipUpdates 更新关系网。 */
-  recordRelationshipUpdates(updates: NarrativeRelationshipUpdate[], round: number): void {
+  recordRelationshipUpdates(
+    updates: NarrativeRelationshipUpdate[],
+    round: number,
+    contextId?: string,
+    historicalEventIds?: readonly string[],
+  ): void {
+    const normalizedHistoricalEventIds = normalizeHistoricalEventIds(historicalEventIds)
     for (const update of updates) {
       const npcName = update.name.trim()
       if (!npcName) continue
       const records = this.npcMap.get(npcName) ?? []
-      const duplicate = records.some((record) =>
+      const duplicate = records.find((record) =>
         record.round === round
+        && record.contextId === contextId
         && record.type === update.type
         && record.summary === update.summary,
       )
-      if (duplicate) continue
+      if (duplicate) {
+        const mergedHistoricalEventIds = normalizeHistoricalEventIds([
+          ...(duplicate.historicalEventIds ?? []),
+          ...normalizedHistoricalEventIds,
+        ])
+        duplicate.historicalEventIds = mergedHistoricalEventIds.length > 0
+          ? mergedHistoricalEventIds
+          : undefined
+        continue
+      }
       records.push({
         npcName,
+        contextId,
+        memoryScope: contextId ? 'context' : 'global',
         round,
         type: update.type,
         summary: update.summary,
+        historicalEventIds: normalizedHistoricalEventIds.length > 0
+          ? [...normalizedHistoricalEventIds]
+          : undefined,
       })
       this.npcMap.set(npcName, records)
     }
@@ -166,8 +204,8 @@ export class CoreMemorySystem extends BaseSubsystem {
   }
 
   /** 构建核心记忆文本（关键事件摘要） */
-  buildCoreMemory(): string {
-    const entries = this.collectHighImportanceEntries()
+  buildCoreMemory(view: NarrativeScopeView = {}): string {
+    const entries = this.collectHighImportanceEntries(view)
     if (entries.length === 0) return ''
 
     const lines: string[] = ['【关键事件记忆】以下事件对角色至关重要，请在叙事中保持一致性。']
@@ -175,43 +213,53 @@ export class CoreMemorySystem extends BaseSubsystem {
       lines.push(`- [第${entry.rounds}轮] ${entry.content}`)
     }
 
-    return lines.join('\n')
+    return lines.length > 1 ? lines.join('\n') : ''
   }
 
   /** 构建 NPC 关系网文本 */
-  buildNPCNetworkText(): string {
+  buildNPCNetworkText(view: NarrativeScopeView = {}): string {
     if (this.npcMap.size === 0) return ''
 
     const lines: string[] = ['【关键人物关系】']
 
     for (const [name, records] of this.npcMap) {
-      const first = records[0]
+      const visibleRecords = records.filter((record) => isNarrativeRecordVisible(record, view))
+      const first = visibleRecords[0]
       if (!first) continue
-      const keyInteractions = records.filter((r) => r.type !== 'first_meeting')
+      const keyInteractions = visibleRecords.filter((r) => r.type !== 'first_meeting')
 
       lines.push(`\n▸ ${name}`)
       const firstLabel = INTERACTION_LABELS[first.type] ?? first.type
-      lines.push(`  ${firstLabel}（第${first.round}轮）：${first.summary}`)
+      lines.push(`  ${firstLabel}（第${first.round}轮${first.contextId ? `·上下文=${first.contextId}` : ''}）：${first.summary}`)
 
       for (const interaction of keyInteractions) {
         const typeLabel = INTERACTION_LABELS[interaction.type] ?? interaction.type
-        lines.push(`  ${typeLabel}（第${interaction.round}轮）：${interaction.summary}`)
+        lines.push(`  ${typeLabel}（第${interaction.round}轮${interaction.contextId ? `·上下文=${interaction.contextId}` : ''}）：${interaction.summary}`)
       }
     }
 
-    return lines.join('\n')
+    return lines.length > 1 ? lines.join('\n') : ''
   }
 
   // === 私有方法 ===
 
   /** 从 searchIndex 中收集所有 HIGH 重要性条目 */
-  private collectHighImportanceEntries(): CoreMemoryEntry[] {
+  private collectHighImportanceEntries(view: NarrativeScopeView): CoreMemoryEntry[] {
     const index = memoryLifecycle.getSearchIndex()
     if (index.length === 0) return []
 
     // 按 startRound 升序排列（最早事件在前）
     const sorted = index
       .filter((e) => e.maxImportance === 'HIGH')
+      .filter((entry) => {
+        const scopes = entry.memoryScopes ?? []
+        return scopes.length > 0
+          ? scopes.some((scope) => isNarrativeRecordVisible(
+              { contextIds: entry.contextIds, scope },
+              view,
+            ))
+          : isNarrativeRecordVisible({ contextIds: entry.contextIds }, view)
+      })
       .sort((a, b) => a.startRound - b.startRound)
 
     if (sorted.length === 0) return []
@@ -222,6 +270,9 @@ export class CoreMemorySystem extends BaseSubsystem {
         rounds: `${entry.startRound}-${entry.endRound}`,
         importance: 'HIGH' as const,
         content: entry.content,
+        contextIds: entry.contextIds,
+        memoryScopes: entry.memoryScopes,
+        historicalEventIds: entry.historicalEventIds,
       }))
     }
 
@@ -232,25 +283,37 @@ export class CoreMemorySystem extends BaseSubsystem {
     // 用 summaryCompressor 的 AI 压缩摘要替代硬截断
     const overflowStart = overflow[0].startRound
     const overflowEnd = overflow[overflow.length - 1].endRound
-    const mergedContent = this.buildMergedSummary(overflow)
+    const mergedContent = this.buildMergedSummary(overflow, view)
     if (!mergedContent) {
       return sorted.map((entry) => ({
         rounds: `${entry.startRound}-${entry.endRound}`,
         importance: 'HIGH' as const,
         content: entry.content,
+        contextIds: entry.contextIds,
+        memoryScopes: entry.memoryScopes,
+        historicalEventIds: entry.historicalEventIds,
       }))
     }
 
+    const overflowHistoricalEventIds = normalizeHistoricalEventIds(
+      overflow.flatMap((entry) => entry.historicalEventIds ?? []),
+    )
     const mergedEntry: CoreMemoryEntry = {
       rounds: `${overflowStart}-${overflowEnd}`,
       importance: 'HIGH',
       content: mergedContent,
+      historicalEventIds: overflowHistoricalEventIds.length > 0
+        ? overflowHistoricalEventIds
+        : undefined,
     }
 
     const recentEntries: CoreMemoryEntry[] = recent.map((entry) => ({
       rounds: `${entry.startRound}-${entry.endRound}`,
       importance: 'HIGH' as const,
       content: entry.content,
+      contextIds: entry.contextIds,
+      memoryScopes: entry.memoryScopes,
+      historicalEventIds: entry.historicalEventIds,
     }))
 
     return [mergedEntry, ...recentEntries]
@@ -259,6 +322,7 @@ export class CoreMemorySystem extends BaseSubsystem {
   /** 用已有 AI 压缩摘要构建合并文本（禁止硬截断） */
   private buildMergedSummary(
     entries: Array<{ startRound: number; endRound: number }>,
+    view: NarrativeScopeView,
   ): string | null {
     if (entries.length === 0) return null
     const startRound = entries[0].startRound
@@ -273,7 +337,9 @@ export class CoreMemorySystem extends BaseSubsystem {
     const relevant = summaries
       .filter((s) => {
         // 与 [startRound, endRound] 有交集
-        return s.endRound >= startRound && s.startRound <= endRound
+        return s.endRound >= startRound
+          && s.startRound <= endRound
+          && isNarrativeRecordVisible({ contextIds: s.contextIds }, view)
       })
       .sort((a, b) => {
         // 层级优先：低层级（更详细）在前
@@ -284,7 +350,9 @@ export class CoreMemorySystem extends BaseSubsystem {
 
     if (relevant.length === 0) {
       // L2/L3 均不可用：尝试 L1 摘要兜底（每 5 轮生成，最早可用）
-      const l1Summaries = summaries.filter((s) => s.level === 1)
+      const l1Summaries = summaries.filter((s) => (
+        s.level === 1 && isNarrativeRecordVisible({ contextIds: s.contextIds }, view)
+      ))
       if (l1Summaries.length > 0) {
         // 使用所有覆盖溢出区间的 L1 摘要拼接
         const l1Relevant = l1Summaries

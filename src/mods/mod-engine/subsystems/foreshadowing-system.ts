@@ -62,6 +62,11 @@ export interface ForeshadowingTriggerConditions {
 /** 伏笔记录 */
 export interface ForeshadowingRecord {
   id: string
+  scope: 'global' | 'context' | 'travel'
+  contextId?: string
+  relatedEntityIds?: string[]
+  /** 种植该伏笔时已经成立的历史事件。 */
+  plantedFromEventIds?: string[]
   type: ForeshadowingType
   /** 描述摘要（≤ 50 字） */
   description: string
@@ -79,6 +84,12 @@ export interface ForeshadowingRecord {
   resolvedRound?: number
   /** 回收叙事摘要 */
   resolvedNarrative?: string
+  /** 完成回收时形成或确认的历史事件。 */
+  resolvedByEventIds?: string[]
+}
+
+function normalizeHistoricalEventIds(ids?: readonly string[]): string[] {
+  return [...new Set((ids ?? []).map((id) => id.trim()).filter(Boolean))]
 }
 
 /** 伏笔系统状态 */
@@ -127,7 +138,7 @@ export class ForeshadowingSystem extends BaseSubsystem {
     if (getRoundSequence(context) === this._lastProcessedRound) {
       return {
         id: this.id,
-        summary: this.buildForeshadowingText(),
+        summary: this.buildForeshadowingText(context.contextId),
         data: structuredClone(this.state as unknown as Record<string, unknown>),
       }
     }
@@ -142,7 +153,7 @@ export class ForeshadowingSystem extends BaseSubsystem {
 
     return {
       id: this.id,
-      summary: this.buildForeshadowingText(),
+      summary: this.buildForeshadowingText(context.contextId),
       data: structuredClone(this.state as unknown as Record<string, unknown>),
     }
   }
@@ -188,7 +199,12 @@ export class ForeshadowingSystem extends BaseSubsystem {
       state?: ForeshadowingState
       lastProcessedRound?: number
     }
-    if (value.state) this.state = structuredClone(value.state)
+    if (value.state) {
+      this.state = structuredClone(value.state)
+      this.state.active = this.state.active.map((record) => ({ ...record, scope: record.scope ?? 'global' }))
+      this.state.resolved = this.state.resolved.map((record) => ({ ...record, scope: record.scope ?? 'global' }))
+      this.state.unresolved = this.state.unresolved.map((record) => ({ ...record, scope: record.scope ?? 'global' }))
+    }
     if (typeof value.lastProcessedRound === 'number') {
       this._lastProcessedRound = value.lastProcessedRound
     }
@@ -230,6 +246,8 @@ export class ForeshadowingSystem extends BaseSubsystem {
     round: number,
     age: number,
     aiMarked?: Array<{ type: string; description: string; priority?: number }>,
+    contextId?: string,
+    plantedFromEventIds?: readonly string[],
   ): ForeshadowingRecord[] {
     if (!this.state.enabled) return []
 
@@ -242,6 +260,8 @@ export class ForeshadowingSystem extends BaseSubsystem {
           round,
           age,
           mark.priority ?? 5,
+          contextId,
+          plantedFromEventIds,
         )
         if (record) {
           this.addActive(record)
@@ -254,7 +274,13 @@ export class ForeshadowingSystem extends BaseSubsystem {
   }
 
   /** 按 AI 返回的稳定 ID 回收伏笔。 */
-  resolveForeshadowing(ids: string[], narrative: string, round: number): ForeshadowingRecord[] {
+  resolveForeshadowing(
+    ids: string[],
+    narrative: string,
+    round: number,
+    currentContextId?: string,
+    resolvedByEventIds?: readonly string[],
+  ): ForeshadowingRecord[] {
     if (!this.state.enabled) return []
 
     const resolved: ForeshadowingRecord[] = []
@@ -262,13 +288,18 @@ export class ForeshadowingSystem extends BaseSubsystem {
     const requested = new Set(ids)
     for (const record of [...this.state.active]) {
       if (!requested.has(record.id)) continue
+      if (record.scope === 'context' && record.contextId !== currentContextId) continue
       record.resolved = true
       record.resolvedRound = round
       record.resolvedNarrative = narrative
+      const normalizedResolvedByEventIds = normalizeHistoricalEventIds(resolvedByEventIds)
+      record.resolvedByEventIds = normalizedResolvedByEventIds.length > 0
+        ? normalizedResolvedByEventIds
+        : undefined
       this.state.active = this.state.active.filter((item) => item.id !== record.id)
       this.state.resolved.push(record)
       this.state.stats.totalResolved++
-      memoryForgetting.resolveForeshadowMark(record.plantedRound)
+      memoryForgetting.resolveForeshadowMark(record.plantedRound, record.contextId)
       resolved.push(record)
     }
 
@@ -278,11 +309,12 @@ export class ForeshadowingSystem extends BaseSubsystem {
   // ---- 核心方法：生成 Prompt 注入文本 ----
 
   /** 生成伏笔注入文本（含种植时的叙事上下文） */
-  buildForeshadowingText(): string {
+  buildForeshadowingText(currentContextId?: string): string {
     if (!this.state.enabled || this.state.active.length === 0) return ''
 
     // 计算每条伏笔的"接近触发"分数
     const scored = this.state.active
+      .filter((record) => record.scope !== 'context' || record.contextId === currentContextId)
       .map((r) => ({
         record: r,
         score: this.calculateTriggerScore(r),
@@ -298,7 +330,7 @@ export class ForeshadowingSystem extends BaseSubsystem {
       const hint = this.buildResolutionHint(record, score)
       lines.push(`\n▪ [编号=${toNarrativeAIForeshadowingId(record.id)}·${record.priority}级·${typeLabel}] 第${record.plantedRound}轮：${record.description}`)
 
-      const context = this.getPlantedContext(record.plantedRound)
+      const context = this.getPlantedContext(record.plantedRound, record.contextId)
       if (context) {
         lines.push(`  种植背景：${context}`)
       }
@@ -313,11 +345,14 @@ export class ForeshadowingSystem extends BaseSubsystem {
   // ---- 私有方法 ----
 
   /** 从压缩摘要中获取指定轮次的上下文（用于伏笔注入时附带种植背景） */
-  private getPlantedContext(round: number): string | null {
+  private getPlantedContext(round: number, contextId?: string): string | null {
     const summaries = summaryCompressor.getSummaries()
     // 查找覆盖该轮次的 L1 摘要（最详细）
     const l1 = summaries.summaries.find(
-      (s) => s.level === 1 && s.startRound <= round && s.endRound >= round,
+      (s) => s.level === 1
+        && s.startRound <= round
+        && s.endRound >= round
+        && (!contextId || !s.contextIds || s.contextIds.includes(contextId)),
     )
     if (l1) return l1.content
     return null
@@ -330,11 +365,19 @@ export class ForeshadowingSystem extends BaseSubsystem {
     round: number,
     age: number,
     priority: number,
+    contextId?: string,
+    plantedFromEventIds?: readonly string[],
   ): ForeshadowingRecord | null {
     const id = `fs_${round}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`
+    const normalizedPlantedFromEventIds = normalizeHistoricalEventIds(plantedFromEventIds)
 
     return {
       id,
+      scope: contextId ? 'context' : 'global',
+      contextId,
+      plantedFromEventIds: normalizedPlantedFromEventIds.length > 0
+        ? normalizedPlantedFromEventIds
+        : undefined,
       type,
       description: description,
       plantedRound: round,
@@ -378,7 +421,7 @@ export class ForeshadowingSystem extends BaseSubsystem {
     this.state.stats.totalPlanted++
 
     // 标记为不可遗忘事件
-    memoryForgetting.markForeshadowEvent(record.plantedRound, record.description)
+    memoryForgetting.markForeshadowEvent(record.plantedRound, record.description, record.contextId)
   }
 
   /** 计算伏笔的"接近触发"分数 (0-10) */

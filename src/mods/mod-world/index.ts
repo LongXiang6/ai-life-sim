@@ -7,6 +7,9 @@
 // 类型
 export type {
   WorldConfig,
+  WorldInitAIStatus,
+  WorldContextInstance,
+  WorldContextCollection,
   WorldEntity,
   Nation,
   Faction,
@@ -75,7 +78,6 @@ export type { CustomWorldInput } from './utils/preset-to-config'
 
 // Store
 export { useWorldStore } from './store'
-export type { WorldInitAIStatus } from './store'
 export { sanitizeWorldStateSnapshot } from './utils/world-state-migration'
 
 // Hooks

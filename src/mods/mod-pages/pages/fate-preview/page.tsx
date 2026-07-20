@@ -220,15 +220,14 @@ function FatePreviewContent() {
   /** 开始人生 */
   const handleStartLife = useCallback(() => {
     if (!characterConfirmed || !destinyPatternsConfirmed || !aiComplete) return
+    if (!worldConfig) return
 
     const displayName = resolveDisplayName(name, gender)
     if (displayName !== name.trim()) {
       useCharacterStore.getState().setName(displayName)
     }
     const eraStartYear = useWorldStore.getState().eraStartYear
-    const worldSetting = worldConfig
-      ? buildOrchestratorWorldSetting(worldConfig, { eraStartYear: eraStartYear || undefined })
-      : { name: '', description: '', era: '', config: {} }
+    const worldSetting = buildOrchestratorWorldSetting(worldConfig, { eraStartYear: eraStartYear || undefined })
 
     const patternSummaries = selectedPatterns.map((p) => ({
       name: p.name,
@@ -241,6 +240,7 @@ function FatePreviewContent() {
     orchestrator.setContext(
       worldSetting,
       {
+        characterId: useCharacterStore.getState().ensureCharacterId(),
         name: displayName,
         age: startingAge,
         gender,

@@ -74,7 +74,7 @@ export class LuckSystem implements ISubSystem {
     return {
       id: this.id,
       summary: `【${this.label}】${this.state.luck} 点（${MIN_LUCK}~${MAX_LUCK}）${this.getModifierSummary()}`,
-      data: structuredClone(this.state as unknown as Record<string, unknown>),
+      data: structuredClone({ ...this.state, contextId: context.contextId }),
     }
   }
 

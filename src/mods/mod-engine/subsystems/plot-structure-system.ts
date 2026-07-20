@@ -71,7 +71,13 @@ export interface PlotStructureState {
   lastConflictIntensity: number
   consecutiveConflictRounds: number
   lastNarrativeRegister: NarrativeSemanticSignals['narrativeRegister']
-  phaseHistory: Array<{ phase: PlotPhase; round: number }>,
+  /** 最近一次已接受叙事所关联的历史事件账本条目。 */
+  lastHistoricalEventIds: string[]
+  phaseHistory: Array<{ phase: PlotPhase; round: number; contextId?: string }>,
+}
+
+function normalizeHistoricalEventIds(ids?: readonly string[]): string[] {
+  return [...new Set((ids ?? []).map((id) => id.trim()).filter(Boolean))]
 }
 
 // ============================================================
@@ -108,6 +114,7 @@ export class PlotStructureSystem extends BaseSubsystem {
     lastConflictIntensity: 0,
     consecutiveConflictRounds: 0,
     lastNarrativeRegister: 'life',
+    lastHistoricalEventIds: [],
     phaseHistory: [],
   }
 
@@ -170,6 +177,7 @@ export class PlotStructureSystem extends BaseSubsystem {
       lastConflictIntensity: 0,
       consecutiveConflictRounds: 0,
       lastNarrativeRegister: 'life',
+      lastHistoricalEventIds: [],
       phaseHistory: [],
     }
     this._lastProcessedRound = -1
@@ -189,7 +197,12 @@ export class PlotStructureSystem extends BaseSubsystem {
       state?: PlotStructureState
       lastProcessedRound?: number
     }
-    if (value.state) this.state = structuredClone(value.state)
+    if (value.state) {
+      this.state = {
+        ...structuredClone(value.state),
+        lastHistoricalEventIds: normalizeHistoricalEventIds(value.state.lastHistoricalEventIds),
+      }
+    }
     if (typeof value.lastProcessedRound === 'number') {
       this._lastProcessedRound = value.lastProcessedRound
     }
@@ -212,9 +225,13 @@ export class PlotStructureSystem extends BaseSubsystem {
   }
 
   /** 消费主叙事 AI 的结构化语义，不读取正文。 */
-  recordNarrativeSignals(signals: NarrativeSemanticSignals): void {
+  recordNarrativeSignals(
+    signals: NarrativeSemanticSignals,
+    historicalEventIds?: readonly string[],
+  ): void {
     this.state.lastConflictIntensity = signals.conflictIntensity
     this.state.lastNarrativeRegister = signals.narrativeRegister
+    this.state.lastHistoricalEventIds = normalizeHistoricalEventIds(historicalEventIds)
     this.state.consecutiveConflictRounds = signals.conflictIntensity >= 40
       ? this.state.consecutiveConflictRounds + 1
       : 0
@@ -267,15 +284,16 @@ export class PlotStructureSystem extends BaseSubsystem {
     // 检查是否需要转移阶段
     const nextPhase = this.shouldTransition()
     if (nextPhase) {
-      this.performTransition(nextPhase, getRoundSequence(context))
+      this.performTransition(nextPhase, getRoundSequence(context), context.contextId)
     }
   }
 
   /** 转移阶段 */
-  private performTransition(nextPhase: PlotPhase, round: number): void {
+  private performTransition(nextPhase: PlotPhase, round: number, contextId?: string): void {
     this.state.phaseHistory.push({
       phase: this.state.currentPhase,
       round,
+      contextId,
     })
 
     this.state.currentPhase = nextPhase

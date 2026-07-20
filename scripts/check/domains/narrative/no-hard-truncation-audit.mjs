@@ -40,6 +40,7 @@ const fieldRegistry = read('src/mods/mod-engine/helpers/subsystem-field-registry
 const roundCommitBus = read('src/mods/mod-engine/helpers/round-commit-bus.ts')
 const timeBridge = read('src/mods/mod-engine/helpers/time-bridge-summary.ts')
 const adaptation = read('src/mods/mod-engine/subsystems/adaptation-manager-system.ts')
+const historicalPromptProjection = read('src/mods/mod-engine/helpers/historical-event-prompt-projection.ts')
 const calibration = read('src/mods/mod-world/utils/calibration-clamp.ts')
 const powerContext = read('src/mods/mod-world/utils/world-init-prompt-vars.ts')
 const crossDomain = read('src/mods/mod-engine/helpers/cross-domain-rules.ts')
@@ -64,8 +65,9 @@ const worldMap = read('src/mods/mod-base-universe/subsystems/world-map-system.ts
 const culture = read('src/mods/mod-culture/subsystems/culture-system.ts')
 const art = read('src/mods/mod-culture/subsystems/art-system.ts')
 const causalConstants = read('src/mods/mod-history-dynamics/constants.ts')
-const causalSimulation = read('src/mods/mod-history-dynamics/subsystems/causal-simulation-system.ts')
-const eventPool = read('src/mods/mod-history-dynamics/subsystems/event-pool-system.ts')
+const causalSimulation = read('src/mods/mod-history-dynamics/components/causal-graph-component.ts')
+const eventPool = read('src/mods/mod-history-dynamics/components/event-candidate-provider.ts')
+const historicalLedgerStore = read('src/mods/mod-history-dynamics/store.ts')
 const characterConstants = read('src/mods/mod-character/constants.ts')
 const mythicPattern = read('src/mods/mod-character/prompts/mythic-pattern-prompt.ts')
 const destinyPattern = read('src/mods/mod-character/prompts/destiny-pattern-prompt.ts')
@@ -159,6 +161,12 @@ for (const subsystemId of runtimePolicy.stages[runtimePolicy.currentStage].narra
 }
 reject(timeBridge, /truncateBullet|MAX_BULLET|bullets\.slice\(|bullets\.length\s*>=/, 'time bridge must preserve all semantic bullets without character or count truncation')
 reject(adaptation, /content\.slice\(|narrativeHints\[0\]/, 'adaptation fallback must retain the complete semantic result')
+reject(historicalPromptProjection, /\.slice\(|\.shift\(|\.splice\(|MAX_(?:EVENT|EDGE)|LIMIT_(?:EVENT|EDGE)/, 'historical Prompt projection must use semantic status/scope bounds instead of fixed-count truncation')
+assertOk(
+  historicalPromptProjection.includes("CONTINUATION_STATUSES = new Set<HistoricalEventStatus>(['scheduled', 'active'])")
+    && historicalPromptProjection.includes("scope.kind === 'global' || scope.contextIds.includes(currentContextId)"),
+  'historical Prompt projection must be bounded by unresolved status and current scope without dropping source facts',
+)
 reject(calibration, /SUMMARY_MAX_LEN|joined\.slice\(/, 'calibration summary must not be cut by character count')
 reject(powerContext, /split\(['"]。['"]\)\[0\]/, 'power context must not shorten higher tiers to the first phrase')
 reject(crossDomain, /eventHistory\s*=\s*this\.eventHistory\.slice\(-500\)/, 'cross-domain event history must not discard old events by capacity')
@@ -169,7 +177,7 @@ reject(forgetting, /causalEvents\.shift\(/, 'causal protection marks must not be
 reject(eventLifecycle, /activeDisasters\.slice\(/, 'event lifecycle must not ignore disasters after a fixed count')
 reject(branchPolicy, /\.slice\(0,\s*4\)/, 'branch option normalization must not silently remove valid options')
 reject(narrativePrompt, /digest:[^\n]*(?:不超过|最多)\d+|keyEvents:[^\n]*最多\d+|entities[^\n]*最多\d+|relationshipUpdates:[^\n]*最多\d+|resolvedForeshadowingIds:[^\n]*最多\d+|notableEvents:[^\n]*最多\d+|creations:[^\n]*最多\d+|foreshadowing:[^\n]*最多\d+/, 'narrative Prompt must not induce fixed character or item limits on semantic META')
-assertOk(narrativePrompt.includes("version: '4.1.0'"), 'no-truncation narrative contract must use Prompt version 4.1.0')
+assertOk(narrativePrompt.includes("version: '4.2.0'"), 'no-truncation narrative contract must use Prompt version 4.2.0')
 assertOk(
   branchIntent.includes('其他未完成命运意图；保持事实连续，不得静默删除')
     && orchestrator.includes('branchIntents: this.branchIntents')
@@ -192,8 +200,19 @@ reject(culture, /\.slice\(0,\s*3\)/, 'culture Prompt context must not reduce val
 reject(art, /getTopWorks|\.slice\(0,\s*limit\)|getTopWorks\(3\)|currentStyles\.length\s*<\s*\d+|currentStyles\.splice\(/, 'art state and Prompt context must preserve all styles and notable works')
 reject(causalConstants, /MAX_CAUSAL_QUEUE_SIZE/, 'causal history must not define a fixed pending-queue capacity')
 reject(causalSimulation, /pending\.length[\s\S]{0,100}(?:return null|shift\(|splice\()/, 'causal capture must not silently discard anchors because the queue is full')
-reject(eventPool, /this\.state\.entries\s*=\s*this\.state\.entries\.filter/, 'expired or triggered history events must remain in the owning event-pool state')
-assertOk(eventPool.includes('禁止把已触发/过期事件从唯一历史数组删除'), 'event-pool expiry must be an auditable state transition rather than deletion')
+reject(eventPool, /candidateAudits\.(?:shift|splice)\(|candidateAudits\s*=\s*candidateAudits\.(?:filter|slice)\(/, 'candidate audit history must not be deleted by the internal provider')
+assertOk(
+  eventPool.includes('不能把候选直接当成已经发生的历史事实')
+    && eventPool.includes("status: 'available'"),
+  'event candidates must remain non-factual append-only audit inputs until the ledger accepts them',
+)
+reject(historicalLedgerStore, /(?:events|transitions|evidence|causalEdges|candidateAudits|migrationMetadata)\.(?:shift|splice)\(|(?:events|transitions|evidence|causalEdges|candidateAudits|migrationMetadata)\s*=\s*[^\n]*\.(?:filter|slice)\(/, 'historical ledger truth must not use FIFO, fixed-window, or filtering deletion')
+assertOk(
+  historicalLedgerStore.includes('events: [...state.events, ...cloneValue(append.events)]')
+    && historicalLedgerStore.includes('candidateAudits: [...state.candidateAudits, ...cloneValue(append.candidateAudits)]')
+    && historicalLedgerStore.includes('migrationMetadata: [...state.migrationMetadata, ...cloneValue(append.migrationMetadata)]'),
+  'historical facts, candidate decisions, and migration evidence must be appended to the owning Store',
+)
 reject(characterConstants, /DESTINY_PATTERN_(?:MAX_WORLD_SIZE|TOTAL_MAX)_MB/, 'destiny-pattern story data must not retain obsolete storage-cap constants')
 reject(mythicPattern, /z\.string\(\)[^\n]*\.max\(|\d+\s*[-—]\s*\d+\s*(?:字|汉字)/, 'mythic narrative rules must not be rejected or shortened by character limits')
 reject(destinyPattern, /\d+\s*[-—]\s*\d+\s*(?:字|汉字)|命格描述（\d+/, 'destiny-pattern semantics must not be shortened by character-count guidance')

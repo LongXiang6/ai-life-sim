@@ -5,6 +5,27 @@
  */
 
 import type { WorldAIDetailedParameters } from './prompts/world-config-prompt'
+import type {
+  ContextCapabilityProfile,
+  SimulationScopeRecord,
+  SpatialEdge,
+  SpatialGraphContract,
+  WorldContextRecord,
+} from '@/foundation'
+
+/** AI 世界初始化状态 */
+export interface WorldInitAIStatus {
+  status: 'idle' | 'running' | 'complete' | 'failed'
+  currentStep?: string
+  stepTimers?: Record<string, { start: number; end?: number }>
+  calibrationGenerated: boolean
+  tagsGenerated: boolean
+  configGenerated: boolean
+  entitiesGenerated: boolean
+  retryCount: number
+  maxRetries: number
+  errors: string[]
+}
 
 // ==================== 世界校准（AI Step 0） ====================
 
@@ -160,7 +181,12 @@ export interface WorldConfig {
 
 /** 世界实体基类 */
 export interface WorldEntity {
+  /** 存档内全局唯一业务 ID；P0 后 id 即为该值 */
   id: string
+  /** 迁移前或上下文内的本地 ID，仅用于兼容和审计 */
+  localId?: string
+  /** 实体所属上下文 */
+  contextId?: string
   name: string
   type: 'nation' | 'faction' | 'nobleHouse' | 'settlement' | 'tradeRoute'
   regionId?: string
@@ -221,7 +247,12 @@ export type AnyWorldEntity = Nation | Faction | NobleHouse | Settlement | TradeR
 
 /** 区域数据 */
 export interface RegionData {
+  /** 存档内全局唯一空间节点 ID；P0 后 id 即为该值 */
   id: string
+  /** 迁移前或上下文内的本地 ID */
+  localId?: string
+  /** 所属上下文 */
+  contextId?: string
   name: string
   /** 所属地图模板类型 */
   templateType: string
@@ -243,11 +274,42 @@ export interface RegionData {
 
 /** 世界初始化快照（引擎编排器注入 RoundContext 用） */
 export interface WorldSnapshot {
+  /** 本快照所属上下文 */
+  contextId: string
+  /** 本上下文空间根节点 */
+  rootSpatialNodeId: string
   worldConfig: WorldConfig
   entities: AnyWorldEntity[]
   regions: RegionData[]
   /** 世界标签（6×39 层次标签体系，来源废案 WorldTagsV2） */
   tags: WorldTagsV2,
+}
+
+/** 一个可独立保存、休眠和恢复的世界上下文实例。 */
+export interface WorldContextInstance {
+  record: WorldContextRecord
+  capabilityProfile: ContextCapabilityProfile
+  scope: SimulationScopeRecord
+  spatialGraph: SpatialGraphContract
+  worldConfig: WorldConfig
+  worldCode: number
+  initialized: boolean
+  entities: AnyWorldEntity[]
+  regions: RegionData[]
+  tags: WorldTagsV2
+  worldTags: string[]
+  currentYear: number
+  eraStartYear: number
+  eraName: string
+  calibration: WorldCalibration | null
+  destinyPatternModifiers: Partial<Record<FormulaModifierKey, number>>
+  worldInitAIStatus: WorldInitAIStatus | null
+}
+
+export interface WorldContextCollection {
+  contexts: Record<string, WorldContextInstance>
+  currentContextId: string | null
+  crossContextEdges: Record<string, SpatialEdge>
 }
 
 // ==================== 地图模板 ====================

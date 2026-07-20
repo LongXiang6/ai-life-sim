@@ -4,10 +4,16 @@
  * @mod mod-world
  */
 
-import type { AIModelConfig } from '@/foundation'
+import type {
+  AIModelConfig,
+  ContextCapability,
+  LocalCalendarProfile,
+  SimulationScope,
+  WorldContextKind,
+} from '@/foundation'
 
 import { useSettingsStore } from '@/mods/mod-settings'
-import { useWorldStore } from './store'
+import { generateWorldCode, useWorldStore } from './store'
 import {
   formatWorldTagsText,
   buildDefaultCalibration,
@@ -17,7 +23,7 @@ import {
   WorldInitSystem,
   getWorldEntitySystem,
 } from './world-init-bundle-deps'
-import type { WorldConfig, WorldSnapshot } from './types'
+import type { WorldConfig, WorldInitAIStatus, WorldSnapshot } from './types'
 import {
   createWorldInitPipelineContext,
   injectWorldInitOrchestratorContext,
@@ -27,6 +33,16 @@ import {
 import { buildWorldInitPipelineBudgets } from './utils/world-init-budgets'
 import { isWorldInitAIAvailable } from './utils/world-init-fallback'
 import { resolvePipelineAnchorYear } from './utils/world-init-anchor-year'
+import {
+  buildWorldContextInstance,
+  contextKindUsesRegionMap,
+  createCrossContextExit,
+  createWorldContextId,
+  inferContextKind,
+  normalizeConfirmedCapabilities,
+} from './utils/world-context-runtime'
+import { getWorldContextRegistrySystem } from './subsystems/world-context-registry-system'
+import { getSpatialGraphSystem } from './subsystems/spatial-graph-system'
 
 const DEFAULT_WORLD_AI_BUDGETS = buildWorldInitPipelineBudgets(0)
 
@@ -40,6 +56,7 @@ const WORLD_AI_CONFIG: AIModelConfig = {
 }
 
 export interface WorldCommitResult {
+  contextId: string
   config: WorldConfig
   snapshot: WorldSnapshot
   worldCode: number
@@ -55,6 +72,38 @@ export interface WorldInitBundleResult {
   rawTags?: string[]
 }
 
+export interface WorldContextCreationOptions {
+  contextId?: string
+  parentContextId?: string
+  contextKind?: WorldContextKind
+  localCalendar?: LocalCalendarProfile
+  capabilities?: ContextCapability[]
+  makeActive?: boolean
+  connectFromCurrent?: boolean
+  initialScope?: Exclude<SimulationScope, 'closed'>
+  globalTotalDays?: number
+}
+
+export interface AdditionalWorldContextOptions extends WorldContextCreationOptions {
+  worldCode?: number
+  startingYear?: number
+}
+
+function resolveCreationGlobalTotalDays(
+  requestedGlobalTotalDays: number | undefined,
+  contexts: ReturnType<typeof useWorldStore.getState>['contexts'],
+): number {
+  if (requestedGlobalTotalDays !== undefined) {
+    if (!Number.isFinite(requestedGlobalTotalDays) || requestedGlobalTotalDays < 0) {
+      throw new Error('创建上下文的 globalTotalDays 必须为非负有限数')
+    }
+    return requestedGlobalTotalDays
+  }
+
+  if (Object.keys(contexts).length === 0) return 0
+  throw new Error('已有上下文时必须由唯一 TimeSystem 显式提供 globalTotalDays')
+}
+
 /**
  * 同步提交世界初始化（本地数学地图 + 降级实体 + 时间线骨架）
  * 实体 AI 生成由后台 Pipeline 负责，此处仅本地降级集（不调用 API）
@@ -63,23 +112,47 @@ export async function commitWorldInitialization(
   config: WorldConfig,
   existingWorldCode?: number,
   startingYear?: number,
+  options?: WorldContextCreationOptions,
 ): Promise<WorldCommitResult> {
   const store = useWorldStore.getState()
-  const worldCode = existingWorldCode ?? store.generateAndSetWorldCode()
-  if (existingWorldCode) {
-    store.setWorldCode(existingWorldCode)
+  const worldCode = existingWorldCode ?? generateWorldCode()
+  const makeActive = options?.makeActive ?? true
+  const reusableCurrentContextId = makeActive
+    && store.currentContextId
+    && store.contexts[store.currentContextId]?.worldCode === worldCode
+    ? store.currentContextId
+    : undefined
+  const contextId = createWorldContextId({
+    contextId: options?.contextId ?? reusableCurrentContextId ?? undefined,
+  })
+  const previousContextId = store.currentContextId
+  const previousInstance = store.contexts[contextId]
+  const resolvedConfig = applyCoherenceToWorldConfig(config)
+  const parentContextId = options?.parentContextId ?? previousInstance?.record.parentContextId
+  const contextKind = options?.contextKind ?? previousInstance?.record.kind ?? inferContextKind(resolvedConfig)
+  const localCalendar = options?.localCalendar ?? previousInstance?.record.localCalendar
+  let capabilities: ContextCapability[] | undefined
+  if (options?.capabilities !== undefined) {
+    capabilities = normalizeConfirmedCapabilities(options.capabilities)
+  } else if (previousInstance?.capabilityProfile.derivedFrom === 'confirmed-facts') {
+    capabilities = normalizeConfirmedCapabilities(previousInstance.capabilityProfile.capabilities)
   }
 
-  const resolvedConfig = applyCoherenceToWorldConfig(config)
-  store.setCalibration(buildDefaultCalibration(resolvedConfig))
-  store.setWorldTags([])
+  const registry = getWorldContextRegistrySystem()
+  registry.validateContextParent(contextId, parentContextId)
+  const globalTotalDays = resolveCreationGlobalTotalDays(options?.globalTotalDays, store.contexts)
+
+  const defaultCalibration = buildDefaultCalibration(resolvedConfig)
 
   const worldInit = new WorldInitSystem()
-  const snapshot = worldInit.initialize(resolvedConfig)
-
-  store.setWorldConfig(resolvedConfig)
-  store.setInitialized(true)
-  store.setWorldInitAIStatus({
+  const snapshot = worldInit.initialize(resolvedConfig, {
+    contextId,
+    contextKind,
+    worldCode,
+    calibration: defaultCalibration,
+  })
+  const anchorYear = resolvePipelineAnchorYear(resolvedConfig, startingYear)
+  const initStatus: WorldInitAIStatus = {
     status: 'complete',
     currentStep: '本地初始化完成',
     calibrationGenerated: true,
@@ -89,32 +162,57 @@ export async function commitWorldInitialization(
     retryCount: 0,
     maxRetries: 0,
     errors: [],
+  }
+  const instance = buildWorldContextInstance({
+    contextId,
+    config: resolvedConfig,
+    snapshot,
+    worldCode,
+    calibration: defaultCalibration,
+    eraStartYear: anchorYear,
+    eraName: resolvedConfig.eraName,
+    worldInitAIStatus: initStatus,
+    parentContextId,
+    contextKind,
+    localCalendar,
+    capabilities,
+    scope: makeActive ? 'active' : (options?.initialScope ?? 'dormant'),
+    globalTotalDays,
   })
+  registry.registerContext(instance, makeActive)
 
-  const anchorYear = resolvePipelineAnchorYear(resolvedConfig, startingYear)
-  store.setEraStartYear(anchorYear)
-  // 纪元名称同步到 world store
-  if (resolvedConfig.eraName) store.setEraName(resolvedConfig.eraName)
+  if (options?.connectFromCurrent && previousContextId && previousContextId !== contextId) {
+    const state = useWorldStore.getState()
+    const source = state.contexts[previousContextId]
+    const target = state.contexts[contextId]
+    if (source && target) {
+      getSpatialGraphSystem().addCrossContextExit(createCrossContextExit(source, target))
+    }
+  }
 
   const entitySystem = getWorldEntitySystem()
-  entitySystem.reset()
-  entitySystem.setRegions(snapshot.regions)
-  const syncCoherence = buildWorldCoherenceHint(resolvedConfig.civilizationStage, resolvedConfig.description)
-  entitySystem.setWorldContext(
-    resolvedConfig.name,
-    resolvedConfig.description,
-    resolvedConfig.civilizationStage,
-    syncCoherence,
-    '',
-    resolvedConfig.worldType ?? 'idealist',
-  )
-  const defaultCal = buildDefaultCalibration(resolvedConfig)
-  const entities = shouldSkipEntityAIGeneration(defaultCal) || isWorldInitAIAvailable()
-    ? []
-    : await entitySystem.generateEntities(resolvedConfig)
-  store.setEntities(entities)
-  // 同步定居点为地图标记
-  syncEntitiesToMapMarkers(entities)
+  let entities = instance.entities
+  if (makeActive) {
+    entitySystem.reset()
+    entitySystem.setRegions(instance.regions)
+    const syncCoherence = buildWorldCoherenceHint(resolvedConfig.civilizationStage, resolvedConfig.description)
+    entitySystem.setWorldContext(
+      resolvedConfig.name,
+      resolvedConfig.description,
+      resolvedConfig.civilizationStage,
+      syncCoherence,
+      '',
+      resolvedConfig.worldType ?? 'idealist',
+    )
+    entities = !contextKindUsesRegionMap(contextKind)
+      || shouldSkipEntityAIGeneration(defaultCalibration)
+      || isWorldInitAIAvailable()
+      ? []
+      : await entitySystem.generateEntities(resolvedConfig)
+    store.setEntities(entities)
+    entities = useWorldStore.getState().entities
+    syncEntitiesToMapMarkers(entities)
+  }
 
   const formattedTags = formatWorldTagsText(snapshot.tags)
 
@@ -122,7 +220,41 @@ export async function commitWorldInitialization(
     `[mod-world] 世界 "${config.name}" 本地初始化完成（编码 ${worldCode}，区域 ${snapshot.regions.length}，实体 ${entities.length}）`,
   )
 
-  return { config: resolvedConfig, snapshot, worldCode, formattedTags }
+  const stored = useWorldStore.getState().contexts[contextId]
+  const storedSnapshot: WorldSnapshot = stored
+    ? {
+        contextId,
+        rootSpatialNodeId: stored.record.rootSpatialNodeId,
+        worldConfig: structuredClone(stored.worldConfig),
+        entities: structuredClone(stored.entities),
+        regions: structuredClone(stored.regions),
+        tags: structuredClone(stored.tags),
+      }
+    : { ...snapshot, entities }
+  return { contextId, config: resolvedConfig, snapshot: storedSnapshot, worldCode, formattedTags }
+}
+
+/** 在当前存档中创建一个不覆盖现有世界的额外上下文。 */
+export async function createAdditionalWorldContext(
+  config: WorldConfig,
+  options?: AdditionalWorldContextOptions,
+): Promise<WorldCommitResult> {
+  return commitWorldInitialization(
+    config,
+    options?.worldCode,
+    options?.startingYear,
+    {
+      contextId: options?.contextId,
+      parentContextId: options?.parentContextId,
+      contextKind: options?.contextKind,
+      localCalendar: options?.localCalendar,
+      capabilities: options?.capabilities,
+      connectFromCurrent: options?.connectFromCurrent ?? true,
+      makeActive: options?.makeActive ?? false,
+      initialScope: options?.initialScope ?? 'dormant',
+      globalTotalDays: options?.globalTotalDays,
+    },
+  )
 }
 
 /**

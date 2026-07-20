@@ -277,6 +277,10 @@
   min-height: 3rem;
 }
 
+.feedbackAction {
+  grid-column: 1 / -1;
+}
+
 .footerLink {
   display: block;
   width: fit-content;
@@ -664,6 +668,10 @@
 
   .secondaryActions {
     grid-template-columns: 1fr;
+  }
+
+  .feedbackAction {
+    grid-column: auto;
   }
 
   .saveSheet {

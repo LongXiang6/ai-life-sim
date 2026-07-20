@@ -28,6 +28,12 @@ export interface SubsystemFieldMeta {
 export interface SubsystemFieldContract {
   /** 子系统中文名 */
   label: string
+  /** PD-025：叙事 AI 对该系统的显式权限模式 */
+  aiAuthority?: 'read-only' | 'proposal' | 'validated-write' | 'event-input'
+  /** 合法作用域；缺省表示仅沿用当前旧契约，不代表跨上下文授权 */
+  allowedScopes?: Array<'global' | 'active-context' | 'explicit-context'>
+  /** 该系统登记的标准操作族 */
+  operations?: string[]
   /** 主叙事 AI 协议中的唯一中文系统名；未声明时禁止向 AI 开放 */
   aiName?: string
   /** 字段契约：key=字段名，description 用于 Prompt，schema 用于运行时校验 */
@@ -59,10 +65,91 @@ const relationEntry = z.object({
 })
 
 export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> = {
+  // ── P0 多世界基础（不扩大 narrativeChange 白名单）────────────
+  'world-context-registry': {
+    label: '世界上下文注册表',
+    aiName: '世界上下文',
+    aiAuthority: 'read-only',
+    allowedScopes: ['explicit-context'],
+    operations: [],
+    fields: {},
+  },
+  'contextual-capability-profile': {
+    label: '上下文能力画像',
+    aiName: '世界能力',
+    aiAuthority: 'read-only',
+    allowedScopes: ['explicit-context'],
+    operations: [],
+    fields: {},
+  },
+  'spatial-graph': {
+    label: '空间关系图',
+    aiName: '空间关系',
+    aiAuthority: 'event-input',
+    allowedScopes: ['active-context', 'explicit-context'],
+    operations: ['移动', '到达', '离开'],
+    fields: {},
+  },
+  'context-transition': {
+    label: '上下文切换',
+    aiName: '世界切换',
+    aiAuthority: 'proposal',
+    allowedScopes: ['active-context', 'explicit-context'],
+    operations: ['跨界'],
+    fields: {},
+  },
+  'simulation-scope-policy': {
+    label: '模拟范围策略',
+    aiName: '模拟范围',
+    aiAuthority: 'read-only',
+    allowedScopes: ['global'],
+    operations: [],
+    fields: {},
+  },
+  'world-init': {
+    label: '世界初始化',
+    aiName: '世界初始化',
+    aiAuthority: 'proposal',
+    allowedScopes: ['explicit-context'],
+    operations: ['创建'],
+    fields: {},
+  },
+  'world-entity': {
+    label: '世界实体',
+    aiName: '世界实体',
+    aiAuthority: 'event-input',
+    allowedScopes: ['active-context', 'explicit-context'],
+    operations: ['创建', '更新'],
+    fields: {},
+  },
+  'historical-event-ledger': {
+    label: '历史事件账本',
+    aiName: '历史事件',
+    aiAuthority: 'event-input',
+    allowedScopes: ['global', 'active-context', 'explicit-context'],
+    operations: ['记录', '迁移', '关联'],
+    fields: {},
+  },
+  'time': { label: '时间', aiAuthority: 'read-only', allowedScopes: ['global'], operations: [], fields: {} },
+  'orchestrator': { label: '叙事编排', aiAuthority: 'read-only', allowedScopes: ['global'], operations: [], fields: {} },
+  'narrative-parser': { label: '叙事协议解析', aiAuthority: 'read-only', allowedScopes: ['global'], operations: [], fields: {} },
+  'summary-compressor': { label: '摘要压缩', aiAuthority: 'read-only', allowedScopes: ['global', 'explicit-context'], operations: [], fields: {} },
+  'memory-engine': { label: '长期记忆', aiAuthority: 'read-only', allowedScopes: ['global', 'explicit-context'], operations: [], fields: {} },
+  'subsystem-relevance': { label: '子系统相关性', aiAuthority: 'read-only', allowedScopes: ['active-context'], operations: [], fields: {} },
+  'memory-lifecycle': { label: '记忆生命周期', aiAuthority: 'read-only', allowedScopes: ['global', 'explicit-context'], operations: [], fields: {} },
+  'memory-forgetting': { label: '可解释遗忘', aiAuthority: 'read-only', allowedScopes: ['global', 'explicit-context'], operations: [], fields: {} },
+  'causal-delay': { label: '延迟因果', aiAuthority: 'event-input', allowedScopes: ['global', 'active-context', 'explicit-context'], operations: ['登记', '解决'], fields: {} },
+  'plot-structure': { label: '剧情结构', aiAuthority: 'read-only', allowedScopes: ['global', 'active-context'], operations: [], fields: {} },
+  'foreshadowing': { label: '伏笔', aiAuthority: 'event-input', allowedScopes: ['global', 'active-context', 'explicit-context'], operations: ['登记', '解决'], fields: {} },
+  'core-memory': { label: '核心记忆', aiAuthority: 'read-only', allowedScopes: ['global', 'explicit-context'], operations: [], fields: {} },
+
   // ── personal 级（凡人可见）────────────────────────────
   'character-base': {
     label: '基础属性',
     aiName: '基础属性',
+    aiAuthority: 'validated-write',
+    allowedScopes: ['global'],
+    operations: ['增量'],
     fields: {
       physiqueDelta: {
         aiName: '体魄变化',
@@ -114,6 +201,9 @@ export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> =
   'lifespan': {
     label: '寿命',
     aiName: '寿命',
+    aiAuthority: 'validated-write',
+    allowedScopes: ['global', 'active-context'],
+    operations: ['增量', '设值'],
     fields: {
       maxAge: {
         aiName: '最大寿命',
@@ -130,6 +220,9 @@ export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> =
   'morality': {
     label: '道德',
     aiName: '道德',
+    aiAuthority: 'validated-write',
+    allowedScopes: ['global'],
+    operations: ['增量'],
     fields: {
       delta: {
         aiName: '道德变化',
@@ -141,6 +234,9 @@ export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> =
   'luck': {
     label: '气运',
     aiName: '气运',
+    aiAuthority: 'validated-write',
+    allowedScopes: ['global', 'active-context'],
+    operations: ['设值'],
     fields: {
       luck: {
         aiName: '气运绝对值',
@@ -398,7 +494,10 @@ export interface NarrativeAISubsystemContract {
  */
 export function getNarrativeAISubsystemContract(internalId: string): NarrativeAISubsystemContract {
   const contract = SUBSYSTEM_FIELD_CONTRACTS[internalId]
-  if (!contract?.aiName) {
+  if (contract?.aiAuthority !== 'validated-write') {
+    throw new Error(`子系统 ${internalId} 未声明为主叙事受校验写入`)
+  }
+  if (!contract.aiName) {
     throw new Error(`子系统 ${internalId} 缺少主叙事 AI 中文名称`)
   }
 

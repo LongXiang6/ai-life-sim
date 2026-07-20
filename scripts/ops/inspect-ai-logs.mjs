@@ -14,12 +14,14 @@ Options:
   --since-hours <n>      Inspect the latest n hours (default: 24)
   --all                  Inspect all retained files
   --ip <address>         Filter by exact server-derived source IP
+  --player-code <code>   Filter by six-character player diagnostic code
   --request-id <id>      Filter by AI request ID
+  --feedback-id <id>     Filter by player feedback ID and correlate its source
   --limit <n>            Maximum recent issue rows (default: 20)
   --include-content      Include full sanitized Prompt/response trace records
   --help                 Show this help
 
-The default output excludes full player Prompt and response content.`)
+The default output excludes full player Prompt, response, story, and feedback content.`)
 }
 
 function defaultRoot() {
@@ -37,7 +39,9 @@ function parseArgs(argv) {
     sinceHours: 24,
     all: false,
     ip: undefined,
+    playerCode: undefined,
     requestId: undefined,
+    feedbackId: undefined,
     limit: 20,
     includeContent: false,
   }
@@ -53,7 +57,9 @@ function parseArgs(argv) {
     else if (arg === '--since-hours') options.sinceHours = Number(next())
     else if (arg === '--all') options.all = true
     else if (arg === '--ip') options.ip = next()
+    else if (arg === '--player-code') options.playerCode = next().trim().toUpperCase()
     else if (arg === '--request-id') options.requestId = next()
+    else if (arg === '--feedback-id') options.feedbackId = next()
     else if (arg === '--limit') options.limit = Number(next())
     else if (arg === '--include-content') options.includeContent = true
     else if (arg === '--help' || arg === '-h') {
@@ -70,6 +76,9 @@ function parseArgs(argv) {
   if (!Number.isSafeInteger(options.limit) || options.limit <= 0) {
     throw new Error('--limit 必须为正整数')
   }
+  if (options.playerCode && !/^(?=.*[A-HJ-NP-Z])(?=.*[2-9])[A-HJ-NP-Z2-9]{6}$/.test(options.playerCode)) {
+    throw new Error('--player-code 必须为六位大写字母与数字')
+  }
   return options
 }
 
@@ -85,7 +94,7 @@ async function collectJsonlFiles(root, cutoffMs) {
     for (const entry of entries) {
       const target = path.join(dir, entry.name)
       if (entry.isDirectory()) {
-        if (entry.name === 'sources') continue
+        if (entry.name === 'sources' || entry.name === 'players' || entry.name === 'diagnostic-identities') continue
         await visit(target)
       } else if (entry.isFile() && entry.name.endsWith('.jsonl')) {
         const kind = entry.name.startsWith('proxy-access-')
@@ -94,6 +103,8 @@ async function collectJsonlFiles(root, cutoffMs) {
             ? 'trace'
             : entry.name.startsWith('client-events-')
               ? 'client'
+              : entry.name.startsWith('feedback-')
+                ? 'feedback'
               : undefined
         if (!kind) continue
         const stat = await fsp.stat(target)
@@ -126,12 +137,36 @@ async function readJsonLines(file, cutoffMs, output) {
   }
 }
 
+async function readFeedbackSubmission(root, feedbackId) {
+  const submissionsRoot = path.join(root, 'feedback', 'submissions')
+  let dates
+  try {
+    dates = await fsp.readdir(submissionsRoot, { withFileTypes: true })
+  } catch {
+    return undefined
+  }
+  for (const entry of dates) {
+    if (!entry.isDirectory()) continue
+    const target = path.join(submissionsRoot, entry.name, `${feedbackId}.json`)
+    try {
+      return JSON.parse(await fsp.readFile(target, 'utf8'))
+    } catch {
+      // Continue searching retained date directories.
+    }
+  }
+  return undefined
+}
+
 function sourceIp(record) {
   return record.sourceIp ?? record.ip ?? 'unknown'
 }
 
 function sourceId(record) {
   return record.sourceId ?? record.source_id ?? 'unknown'
+}
+
+function diagnosticCode(record) {
+  return record.diagnosticCode ?? record.diagnostic_code
 }
 
 function summarizeTrace(record, includeContent) {
@@ -144,6 +179,7 @@ function summarizeTrace(record, includeContent) {
     event: record.event,
     sourceIp: sourceIp(record),
     sourceId: sourceId(record),
+    diagnosticCode: diagnosticCode(record),
     status: record.status,
     provider: request?.providerId,
     model: record.selectedModel ?? request?.model,
@@ -172,32 +208,67 @@ async function main() {
   const access = []
   const traces = []
   const clients = []
+  const feedback = []
   for (const file of files) {
-    const target = file.kind === 'access' ? access : file.kind === 'trace' ? traces : clients
+    const target = file.kind === 'access'
+      ? access
+      : file.kind === 'trace'
+        ? traces
+        : file.kind === 'feedback'
+          ? feedback
+          : clients
     await readJsonLines(file.path, cutoffMs, target)
   }
 
+  const filteredFeedback = feedback.filter((record) =>
+    (!options.ip || sourceIp(record) === options.ip)
+    && (!options.playerCode || diagnosticCode(record) === options.playerCode)
+    && (!options.feedbackId || record.feedbackId === options.feedbackId))
+  const feedbackSources = new Set(filteredFeedback.map(sourceIp).filter((ip) => ip !== 'unknown'))
+
   const requestSources = new Map()
+  const requestPlayers = new Map()
   for (const record of access) requestSources.set(record.request_id, sourceIp(record))
+  for (const record of access) {
+    const code = diagnosticCode(record)
+    if (code) requestPlayers.set(record.request_id, code)
+  }
   for (const record of traces) {
     const ip = sourceIp(record)
     if (ip !== 'unknown') requestSources.set(record.requestId, ip)
+    const code = diagnosticCode(record)
+    if (code) requestPlayers.set(record.requestId, code)
   }
 
   const matchesSource = (record, requestIdField) => {
-    if (!options.ip) return true
+    if (!options.ip && !options.feedbackId) return true
     const direct = sourceIp(record)
     const requestId = record[requestIdField]
-    return direct === options.ip || requestSources.get(requestId) === options.ip
+    return direct === options.ip
+      || requestSources.get(requestId) === options.ip
+      || feedbackSources.has(direct)
+      || feedbackSources.has(requestSources.get(requestId))
+  }
+  const matchesPlayer = (record, requestIdField) => {
+    if (!options.playerCode) return true
+    const requestId = record[requestIdField]
+    return diagnosticCode(record) === options.playerCode
+      || requestPlayers.get(requestId) === options.playerCode
   }
   const matchesRequest = (record, field) => !options.requestId || record[field] === options.requestId
 
   const filteredAccess = access.filter((record) =>
-    matchesSource(record, 'request_id') && matchesRequest(record, 'request_id'))
+    matchesSource(record, 'request_id')
+      && matchesPlayer(record, 'request_id')
+      && matchesRequest(record, 'request_id'))
   const filteredTraces = traces.filter((record) =>
-    matchesSource(record, 'requestId') && matchesRequest(record, 'requestId'))
+    matchesSource(record, 'requestId')
+      && matchesPlayer(record, 'requestId')
+      && matchesRequest(record, 'requestId'))
   const filteredClients = clients.filter((record) =>
-    matchesSource(record, 'requestId') && matchesRequest(record, 'requestId'))
+    matchesSource(record, 'requestId')
+      && matchesPlayer(record, 'requestId')
+      && matchesRequest(record, 'requestId'))
 
   const statusCounts = {}
   for (const record of filteredAccess) {
@@ -214,13 +285,16 @@ async function main() {
     window: options.all ? 'all retained logs' : `${options.sinceHours} hours`,
     filters: {
       ip: options.ip,
+      playerCode: options.playerCode,
       requestId: options.requestId,
+      feedbackId: options.feedbackId,
       includeContent: options.includeContent,
     },
     totals: {
       requests: filteredAccess.length,
       traceEvents: filteredTraces.length,
       clientEvents: filteredClients.length,
+      feedbackSubmissions: filteredFeedback.length,
       distinctSources: sources.size,
       statusCounts,
     },
@@ -229,6 +303,7 @@ async function main() {
       requestId: record.request_id,
       sourceIp: sourceIp(record),
       sourceId: sourceId(record),
+      diagnosticCode: diagnosticCode(record),
       provider: record.provider,
       model: record.model,
       status: record.status,
@@ -242,6 +317,7 @@ async function main() {
       requestId: record.requestId,
       sourceIp: sourceIp(record),
       sourceId: sourceId(record),
+      diagnosticCode: diagnosticCode(record),
       level: record.level,
       module: record.module,
       eventType: record.eventType,
@@ -250,7 +326,52 @@ async function main() {
       error: record.error,
       rawChars: typeof record.raw === 'string' ? record.raw.length : undefined,
     })),
-    traces: (options.requestId || options.includeContent)
+    recentFeedback: takeRecent(filteredFeedback, options.limit).map((record) => ({
+      feedbackId: record.feedbackId,
+      receivedAt: record.receivedAt,
+      sourceIp: sourceIp(record),
+      sourceId: sourceId(record),
+      diagnosticCode: diagnosticCode(record),
+      category: record.category,
+      subject: record.subject,
+      page: record.page,
+      appVersion: record.appVersion,
+      diagnosticSessionId: record.diagnosticSessionId,
+      recentStoryEntries: record.recentStoryEntries,
+      recentStoryChars: record.recentStoryChars,
+      recentClientLogEntries: record.recentClientLogEntries,
+    })),
+    recentRequests: options.playerCode
+      ? takeRecent(filteredAccess, options.limit).map((record) => ({
+        timestamp: record.timestamp,
+        requestId: record.request_id,
+        diagnosticCode: diagnosticCode(record),
+        provider: record.provider,
+        model: record.model,
+        status: record.status,
+        durationMs: record.duration_ms,
+        retryCount: record.retry_count,
+      }))
+      : undefined,
+    recentClientEvents: options.playerCode
+      ? takeRecent(filteredClients, options.limit).map((record) => ({
+        timestamp: record.timestamp,
+        receivedAt: record.receivedAt,
+        requestId: record.requestId,
+        diagnosticCode: diagnosticCode(record),
+        level: record.level,
+        module: record.module,
+        eventType: record.eventType,
+        action: record.action,
+        path: record.context?.path,
+        message: record.message,
+        error: record.error,
+      }))
+      : undefined,
+    feedbackContent: options.feedbackId && options.includeContent
+      ? await readFeedbackSubmission(options.root, options.feedbackId)
+      : undefined,
+    traces: (options.requestId || options.playerCode || options.includeContent)
       ? takeRecent(filteredTraces, options.limit).map((record) => summarizeTrace(record, options.includeContent))
       : undefined,
   }

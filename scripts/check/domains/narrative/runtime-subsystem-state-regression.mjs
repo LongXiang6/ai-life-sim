@@ -80,11 +80,22 @@ const activeSubsystems = [
   },
 ]
 
+const expectedExternalRuntime = [
+  'world-context-registry',
+  'contextual-capability-profile',
+  'spatial-graph',
+  'context-transition',
+  'simulation-scope-policy',
+  'world-init',
+  'historical-event-ledger',
+  ...activeSubsystems.map(({ id }) => id),
+]
+
 const mvpConfig = JSON.parse(read('src/mods/mod-engine/helpers/mvp-stages-config.default.json'))
 const externalRuntime = mvpConfig?.stages?.mvp?.runtime?.external ?? []
 assertOk(
-  JSON.stringify(externalRuntime) === JSON.stringify(activeSubsystems.map(({ id }) => id)),
-  'MVP external runtime whitelist must remain the six approved active subsystems in canonical order',
+  JSON.stringify(externalRuntime) === JSON.stringify(expectedExternalRuntime),
+  'MVP external runtime whitelist must keep the six P0 systems, P1 ledger, and six existing systems in canonical order',
 )
 assertOk(!externalRuntime.includes('health'), 'health must remain inactive in the MVP runtime whitelist')
 assertOk(
@@ -180,7 +191,7 @@ assertOk(
   'both normal preview restore and invalidated-preview reconcile must restore external private state',
 )
 assertOk(
-  /if \(committedChanges\.length > 0\) \{\s*this\.collectSubsystemStates\(false, false\)/s.test(orchestrator),
+  /if \(committedChanges\.length > 0 \|\| structuredDataAccepted \|\| acceptedHistoricalEventIds\.length > 0\) \{\s*this\.collectSubsystemStates\(false, false\)/s.test(orchestrator),
   'narrative commit must refresh lastSubsystemStates in the same round without duplicating relevance',
 )
 assertOk(
@@ -196,14 +207,14 @@ assertIncludes(
   'read/refresh restore must hydrate summary-compressor private state',
 )
 assertIncludes(orchestrator, 'coreMemory.hydrateFromStore()', 'read/refresh restore must hydrate core-memory private state')
-for (const expected of [
-  'memoryLifecycle.setAISemanticAnalysis(\n          roundSequence,',
-  'coreMemory.recordRelationshipUpdates(\n          semanticSignals.relationshipUpdates,\n          roundSequence,',
-  'foreshadowing.detectForeshadowing(\n          roundSequence,',
-  'round: roundSequence,',
-  'const roundSequence = this.state.totalRounds',
+for (const [pattern, label] of [
+  [/memoryLifecycle\.setAISemanticAnalysis\(\s*roundSequence,/, 'memoryLifecycle.setAISemanticAnalysis'],
+  [/coreMemory\.recordRelationshipUpdates\(\s*semanticSignals\.relationshipUpdates,\s*roundSequence,/, 'coreMemory.recordRelationshipUpdates'],
+  [/foreshadowing\.detectForeshadowing\(\s*roundSequence,/, 'foreshadowing.detectForeshadowing'],
+  [/round:\s*roundSequence,/, 'round: roundSequence'],
+  [/const roundSequence = this\.state\.totalRounds/, 'const roundSequence = this.state.totalRounds'],
 ]) {
-  assertIncludes(orchestrator, expected, `round-indexed narrative state must use totalRounds: ${expected}`)
+  assertOk(pattern.test(orchestrator), `round-indexed narrative state must use totalRounds: ${label}`)
 }
 assertOk(
   !/memoryLifecycle\.setAISemanticAnalysis\(\s*this\.state\.round\.year/.test(orchestrator),
@@ -214,11 +225,11 @@ assertOk(
   'plot structure and foreshadowing clocks must advance inside every real/preview round collection',
 )
 assertOk(
-  orchestrator.includes('[plotStructure.id, plotStructure]')
-    && orchestrator.includes('[foreshadowing.id, foreshadowing]')
-    && orchestrator.includes('[memoryLifecycle.id, memoryLifecycle]')
-    && orchestrator.includes('[memoryForgetting.id, memoryForgetting]')
-    && orchestrator.includes('[coreMemory.id, coreMemory]'),
+  orchestrator.includes('private getInternalStatefulSubsystems(): ISubSystem[]')
+    && ['memoryEngine', 'subsystemRelevance', 'memoryLifecycle', 'memoryForgetting', 'causalDelay', 'plotStructure', 'foreshadowing', 'coreMemory']
+      .every((subsystem) => orchestrator.includes(`      ${subsystem},`))
+    && orchestrator.includes('engineSubsystemStates: this.captureInternalSubsystemStates()')
+    && orchestrator.includes('subsystemPreviewStates: this.captureSubsystemPreviewStates()'),
   'preview snapshots must include mutable internal narrative state and retrieval statistics',
 )
 assertIncludes(orchestrator, 'engineStoreRuntime: Pick<', 'preview snapshots must preserve Store-only runtime fields')
@@ -309,6 +320,8 @@ assertIncludes(saveRestore, 'useCharacterStore.setState(previous.character, true
 assertIncludes(saveRestore, 'useWorldStore.setState(previous.world, true)', 'failed core restore must roll world Store back atomically')
 assertIncludes(saveRestore, 'useEngineStore.setState(previous.engine, true)', 'failed core restore must roll engine Store back atomically')
 assertIncludes(saveRestore, 'orchestrator.restoreSnapshot(previous.orchestrator)', 'failed core restore must roll the runtime singleton back atomically')
+assertIncludes(saveRestore, "const savedContextId = (data.orchestrator as { worldContextId?: unknown }).worldContextId", 'save restore must read the orchestrator world-context identity')
+assertIncludes(saveRestore, "savedContextId !== restoredWorld.currentContextId", 'save restore must reject a world/orchestrator context mismatch before entering simulation')
 const worldMigrationIndex = saveRestore.indexOf('const migratedWorld = sanitizeWorldStateSnapshot(core.world)')
 const worldStoreWriteIndex = saveRestore.indexOf('useWorldStore.setState(migratedWorld', worldMigrationIndex)
 assertOk(
@@ -317,7 +330,7 @@ assertOk(
 )
 
 const worldStore = read('src/mods/mod-world/store.ts')
-assertOk(/version:\s*4/.test(worldStore), 'world persistence must bump to version 4 for the legacy SCP migration')
+assertOk(/version:\s*6/.test(worldStore), 'world persistence must retain the current multi-context registry migration version')
 assertIncludes(
   worldStore,
   'return sanitizeWorldStateSnapshot(state) as unknown as WorldStore',
@@ -362,7 +375,7 @@ assertOk(
   'pre-generation failure paths must not recursively retry without a budget or backoff',
 )
 const causalDelaySource = read('src/mods/mod-engine/subsystems/causal-delay-system.ts')
-const causalCheckStart = causalDelaySource.indexOf('checkCausalTrigger(currentRound: number)')
+const causalCheckStart = causalDelaySource.indexOf('checkCausalTrigger(')
 const causalCommitStart = causalDelaySource.indexOf('commitCausalTriggers(', causalCheckStart)
 const causalCheckBlock = causalDelaySource.slice(causalCheckStart, causalCommitStart)
 assertOk(
@@ -373,7 +386,7 @@ assertOk(
   'due causal events must be previewed without consumption and committed only after narrative acceptance',
 )
 assertOk(
-  causalDelaySource.includes('capturePreviewState(): unknown')
+  causalDelaySource.includes('capturePreviewState(): CausalDelaySnapshotV1')
     && causalDelaySource.includes('restoreCollectedState(snapshot: unknown)')
     && causalDelaySource.includes('causalEvents: this.causalEvents'),
   'causal pending and terminal states must participate in preview and save restoration',
@@ -495,17 +508,16 @@ assertIncludes(
   "const useStream = !orchestrator.isPreviewExecution()",
   'pre-generation must be forced non-streaming even when the player enables streaming mode',
 )
-assertIncludes(
-  campaign,
-  'memoryLifecycle.scoreImportance(result.narrative, state.totalRounds, state.round.year)',
-  'campaign memory scoring must keep roundSequence distinct from calendar year',
+assertOk(
+  /memoryLifecycle\.scoreImportance\(\s*result\.narrative,\s*state\.totalRounds,\s*state\.round\.year,\s*_ctx\.contextId/.test(campaign),
+  'campaign memory scoring must keep roundSequence distinct from calendar year and attach the current context',
 )
 
 const plotStructure = read('src/mods/mod-engine/subsystems/plot-structure-system.ts')
 assertIncludes(
   plotStructure,
-  'this.performTransition(nextPhase, getRoundSequence(context))',
-  'plot phase history must use roundSequence under day/month/season steps',
+  'this.performTransition(nextPhase, getRoundSequence(context), context.contextId)',
+  'plot phase history must use roundSequence under day/month/season steps and preserve context scope',
 )
 
 const adaptationManager = read('src/mods/mod-engine/subsystems/adaptation-manager-system.ts')

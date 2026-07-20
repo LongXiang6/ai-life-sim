@@ -121,6 +121,7 @@ export default function WelcomePage() {
         onDeleteSave={handleDeleteSave}
         onOpenSettings={() => { setSettingsTab('appearance'); setShowSettings(true) }}
         onOpenHelp={() => setShowHelp(true)}
+        onOpenFeedback={() => router.push('/feedback')}
       />
 
       <WelcomeModals

@@ -14,7 +14,6 @@ import modCultureManifest from './mod-culture/manifest'
 import modDifficultyManifest from './mod-difficulty/manifest'
 import modEconomyManifest from './mod-economy/manifest'
 import modEnvironmentEcologyManifest from './mod-environment-ecology/manifest'
-import modGoldenFingerManifest from './mod-golden-finger/manifest'
 import modHistoryDynamicsManifest from './mod-history-dynamics/manifest'
 import modNPCManifest from './mod-npc/manifest'
 import modPagesManifest from './mod-pages/manifest'
@@ -35,7 +34,6 @@ export const MOD_REGISTRY: ModManifest[] = [
   modDifficultyManifest,
   modEconomyManifest,
   modEnvironmentEcologyManifest,
-  modGoldenFingerManifest,
   modHistoryDynamicsManifest,
   modNPCManifest,
   modPagesManifest,

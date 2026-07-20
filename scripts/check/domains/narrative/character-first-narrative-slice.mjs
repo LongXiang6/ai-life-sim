@@ -181,9 +181,9 @@ check(
   'Are the four persistent stores explicitly versioned for repeatable browser setup?',
   () => {
     const stores = [
-      ['src/mods/mod-world/store.ts', "name: 'mod-world:persist:world-state'", 'version: 4'],
+      ['src/mods/mod-world/store.ts', "name: 'mod-world:persist:world-state'", 'version: 6'],
       ['src/mods/mod-settings/store.ts', "name: 'mod-settings:store'", 'version: 6'],
-      ['src/mods/mod-character/store.ts', "name: 'mod-character:persist:character-state'", 'version: 2'],
+      ['src/mods/mod-character/store.ts', "name: 'mod-character:persist:character-state'", 'version: 3'],
       ['src/mods/mod-engine/store.ts', "name: 'mod-engine:persist:engine-state'", 'version: 2'],
     ]
     for (const [relativePath, name, version] of stores) requireFragments(relativePath, [name, version])

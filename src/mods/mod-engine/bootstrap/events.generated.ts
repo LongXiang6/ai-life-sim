@@ -51,14 +51,6 @@ export const EVENTS = {
   MOD_ENVIRONMENT_ECOLOGY_RESOURCE_DEPLETED: 'mod-environment-ecology:resource-depleted',
   MOD_ENVIRONMENT_ECOLOGY_SPECIES_EXTINCT: 'mod-environment-ecology:species-extinct',
   MOD_ENVIRONMENT_ECOLOGY_POLLUTION_CRITICAL: 'mod-environment-ecology:pollution-critical',
-  // mod-golden-finger
-  MOD_GOLDEN_FINGER_ASSIGNED: 'mod-golden-finger:assigned',
-  MOD_GOLDEN_FINGER_LEVELED_UP: 'mod-golden-finger:leveled-up',
-  MOD_GOLDEN_FINGER_FEATURE_UNLOCKED: 'mod-golden-finger:feature-unlocked',
-  MOD_GOLDEN_FINGER_PANEL_ACTION_TRIGGERED: 'mod-golden-finger:panel-action-triggered',
-  // mod-history-dynamics
-  MOD_HISTORY_DYNAMICS_EVENT_TRIGGERED: 'mod-history-dynamics:event-triggered',
-  MOD_HISTORY_DYNAMICS_CAUSAL_CHAIN_RESOLVED: 'mod-history-dynamics:causal-chain-resolved',
   // mod-npc
   MOD_NPC_NPC_CREATED: 'mod-npc:npc-created',
   MOD_NPC_NPC_DIED: 'mod-npc:npc-died',
@@ -94,6 +86,9 @@ export const EVENTS = {
   // mod-world
   MOD_WORLD_INITIALIZED: 'mod-world:initialized',
   MOD_WORLD_ENTITIES_GENERATED: 'mod-world:entities-generated',
+  MOD_WORLD_CONTEXT_LEFT: 'mod-world:context-left',
+  MOD_WORLD_CONTEXT_ARRIVED: 'mod-world:context-arrived',
+  MOD_WORLD_CONTEXT_TRANSITION_ROLLED_BACK: 'mod-world:context-transition-rolled-back',
   // mod-world-map
   MOD_WORLD_MAP_REGION_SELECTED: 'mod-world-map:region-selected',
   MOD_WORLD_MAP_VIEW_CHANGED: 'mod-world-map:view-changed',

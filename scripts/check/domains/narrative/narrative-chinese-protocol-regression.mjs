@@ -62,6 +62,8 @@ function compileCausalDelaySystem() {
   )
   const requiredVariables = new Set([
     'DEFAULT_CAUSAL_CONFIG',
+    'LEGACY_COMPAT_TRIGGER_DELAY_ROUNDS',
+    'CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION',
     'CAUSAL_TYPE_DESCRIPTIONS',
     'CAUSAL_SEVERITY_DESCRIPTIONS',
   ])
@@ -377,7 +379,7 @@ assertOk(
   'the old tagged envelope must not enter the successful protocol path',
 )
 
-assertOk(narrativePrompt.version === '4.1.0', 'tiered Chinese protocol behavior must use Prompt 4.1.0')
+assertOk(narrativePrompt.version === '4.2.0', 'tiered Chinese protocol behavior must use Prompt 4.2.0')
 for (const forbiddenProtocolToken of [
   '[NARRATIVE]',
   '[META]',
@@ -426,11 +428,26 @@ assertOk(
 )
 
 const CausalDelaySystem = compileCausalDelaySystem()
+const collisionGuard = new CausalDelaySystem()
+const originalDateNow = Date.now
+let sameMillisecondIds = []
+try {
+  Date.now = () => 1234567890
+  sameMillisecondIds = [
+    collisionGuard.recordCausalEvent('promise', 'normal', 7, 20, '同毫秒承诺一'),
+    collisionGuard.recordCausalEvent('promise', 'normal', 7, 20, '同毫秒承诺二'),
+  ]
+} finally {
+  Date.now = originalDateNow
+}
+assertOk(
+  new Set(sameMillisecondIds).size === sameMillisecondIds.length,
+  'same-round same-type causal matters created in one millisecond must receive distinct local IDs',
+)
+
 const causal = new CausalDelaySystem()
 causal.setConfig({
-  minTriggerDelay: 1,
-  maxTriggerDelay: 2,
-  severityDelayMultipliers: { minor: 1, normal: 1, major: 1, critical: 1 },
+  delayDaysBySeverity: { minor: 10, normal: 10, major: 10, critical: 10 },
   maxTriggerPerRound: 2,
 })
 const causalId = causal.recordCausalEvent(
@@ -440,26 +457,77 @@ const causalId = causal.recordCausalEvent(
   18,
   '你答应在林舟被围困时带他的家人离开。',
   '林舟',
+  undefined,
+  {
+    scope: 'context',
+    contextId: 'ctx-river',
+    createdTotalDays: 100,
+    originEventId: 'history-origin-1',
+  },
 )
 const pendingSnapshot = causal.capturePreviewState()
-const due = causal.checkCausalTrigger(2)
+const wrongContextDue = causal.checkCausalTrigger(999, {
+  currentTotalDays: 110,
+  scope: 'context',
+  contextId: 'ctx-mountain',
+})
+assertOk(!wrongContextDue.hasTriggered, 'context-scoped causality must not trigger in another world')
+const notDue = causal.checkCausalTrigger(999, {
+  currentTotalDays: 109,
+  scope: 'context',
+  contextId: 'ctx-river',
+})
 assertOk(
-  due.triggeredEvents.some((event) => event.id === causalId)
+  !notDue.hasTriggered,
+  'canonical causal event must remain pending before dueTotalDays even when many rounds elapsed',
+)
+const due = causal.checkCausalTrigger(2, {
+  currentTotalDays: 110,
+  scope: 'context',
+  contextId: 'ctx-river',
+})
+assertOk(
+  due.triggeredEvents[0]?.id === causalId
+    && due.triggeredEvents[0]?.schedule === 'canonical-days'
+    && due.triggeredEvents[0]?.createdTotalDays === 100
+    && due.triggeredEvents[0]?.dueTotalDays === 110
+    && due.triggeredEvents[0]?.originEventId === 'history-origin-1'
     && causal.getPendingEvents().some((event) => event.id === causalId)
     && causal.getTriggeredEvents().length === 0,
-  'a due causal event must remain pending until a valid narrative commit',
+  'a canonical due event must expose timing and origin evidence without being consumed before commit',
+)
+const retryAfterFailedNarrative = causal.checkCausalTrigger(3, {
+  currentTotalDays: 111,
+  scope: 'context',
+  contextId: 'ctx-river',
+})
+assertOk(
+  retryAfterFailedNarrative.triggeredEvents[0]?.id === causalId
+    && causal.getPendingEvents().length === 1
+    && causal.getTriggeredEvents().length === 0,
+  'a rejected or failed narrative attempt must leave the due event pending for retry',
 )
 assertOk(
-  due.narrativeText.includes('已成立事实')
+  due.narrativeText.includes('已成立事实：你答应在林舟被围困时带他的家人离开。')
     && due.narrativeText.includes('不预设必然成功')
     && !due.narrativeText.includes('善有善报'),
   'causal injection must send compact facts and leave the outcome to the narrative AI',
 )
-const committed = causal.commitCausalTriggers([causalId], 2, '你兑现旧诺并带船队离港。')
+const committed = causal.commitCausalTriggers(
+  [causalId],
+  3,
+  '你兑现旧诺并带船队离港。',
+  {
+    currentTotalDays: 111,
+    resolutionEventId: 'history-resolution-1',
+  },
+)
 assertOk(
   committed.length === 1
     && causal.getPendingEvents().length === 0
-    && causal.getTriggeredEvents()[0]?.triggerResult === '你兑现旧诺并带船队离港。',
+    && causal.getTriggeredEvents()[0]?.triggerResult === '你兑现旧诺并带船队离港。'
+    && causal.getTriggeredEvents()[0]?.triggeredTotalDays === 111
+    && causal.getTriggeredEvents()[0]?.resolutionEventId === 'history-resolution-1',
   'a valid narrative commit must atomically confirm and persist the due causal event',
 )
 const restoredPending = new CausalDelaySystem()
@@ -475,8 +543,139 @@ assertOk(
   'causal save restoration must preserve the committed terminal state',
 )
 
+const restoredLegacy = new CausalDelaySystem()
+restoredLegacy.restoreCollectedState({
+  config: {
+    minTriggerDelay: 1,
+    maxTriggerDelay: 2,
+    severityDelayMultipliers: { minor: 1, normal: 1, major: 1, critical: 1 },
+    maxTriggerPerRound: 2,
+  },
+  causalEvents: [{
+    id: 'legacy-promise-4',
+    type: 'promise',
+    severity: 'major',
+    round: 4,
+    age: 20,
+    description: '旧存档中的承诺仍等待原始回合节点。',
+    triggerDelay: 2,
+    triggered: false,
+  }],
+  stats: { totalRecorded: 1, totalTriggered: 0, pendingEvents: 1, lastTriggerAt: 0 },
+})
+const legacyEvent = restoredLegacy.getPendingEvents()[0]
+assertOk(
+  legacyEvent?.schedule === 'legacy-round'
+    && legacyEvent.scope === 'global'
+    && legacyEvent.createdTotalDays === undefined
+    && legacyEvent.dueTotalDays === undefined,
+  'old saves must retain an explicit legacy-round schedule without guessed day conversion',
+)
+assertOk(
+  !restoredLegacy.checkCausalTrigger(5, { currentTotalDays: 99999, scope: 'global' }).hasTriggered
+    && restoredLegacy.checkCausalTrigger(6, { currentTotalDays: 0, scope: 'global' }).hasTriggered,
+  'legacy-round items must keep using their stored round delay regardless of canonical total days',
+)
+
+const duplicateLegacySnapshot = {
+  config: {
+    maxTriggerPerRound: 2,
+    delayDaysBySeverity: { minor: 30, normal: 90, major: 180, critical: 365 },
+  },
+  causalEvents: [
+    {
+      id: 'legacy-duplicate',
+      type: 'promise',
+      severity: 'normal',
+      round: 2,
+      age: 18,
+      description: '旧事项一',
+      triggerDelay: 2,
+      triggered: false,
+    },
+    {
+      id: 'legacy-duplicate',
+      type: 'debt',
+      severity: 'major',
+      round: 3,
+      age: 19,
+      description: '旧事项二',
+      triggerDelay: 3,
+      triggered: false,
+    },
+  ],
+  stats: { totalRecorded: 2, totalTriggered: 0, pendingEvents: 2, lastTriggerAt: 0 },
+}
+const duplicateLegacyA = new CausalDelaySystem()
+const duplicateLegacyB = new CausalDelaySystem()
+duplicateLegacyA.restoreCollectedState(duplicateLegacySnapshot)
+duplicateLegacyB.restoreCollectedState(duplicateLegacySnapshot)
+const migratedLegacyIds = duplicateLegacyA.getCausalEvents().map((event) => event.id)
+assertOk(
+  new Set(migratedLegacyIds).size === 2
+    && duplicateLegacyA.getCausalEvents()[1]?.legacyId === 'legacy-duplicate'
+    && JSON.stringify(duplicateLegacyA.getCausalEvents()) === JSON.stringify(duplicateLegacyB.getCausalEvents()),
+  'unversioned legacy snapshots must deterministically renumber duplicate IDs and retain legacyId audit evidence',
+)
+
+const versionedDuplicateGuard = new CausalDelaySystem()
+versionedDuplicateGuard.recordCausalEvent('kindness', 'minor', 1, 18, '当前游戏原状态')
+const versionedDuplicateBaseline = JSON.stringify(versionedDuplicateGuard.capturePreviewState())
+let rejectedVersionedDuplicate = false
+try {
+  versionedDuplicateGuard.restoreCollectedState({
+    schemaVersion: 1,
+    ...duplicateLegacySnapshot,
+  })
+} catch {
+  rejectedVersionedDuplicate = true
+}
+assertOk(
+  rejectedVersionedDuplicate
+    && JSON.stringify(versionedDuplicateGuard.capturePreviewState()) === versionedDuplicateBaseline,
+  'versioned P1 snapshots with duplicate causal IDs must fail atomically and preserve the current game state',
+)
+
+const batchedCausality = new CausalDelaySystem()
+batchedCausality.setConfig({
+  delayDaysBySeverity: { minor: 0, normal: 0, major: 0, critical: 0 },
+  maxTriggerPerRound: 2,
+})
+for (const [index, severity] of ['minor', 'normal', 'major'].entries()) {
+  batchedCausality.recordCausalEvent(
+    'debt',
+    severity,
+    index + 1,
+    20,
+    `批处理保留事项${index + 1}`,
+    undefined,
+    undefined,
+    { scope: 'global', createdTotalDays: 200 },
+  )
+}
+const firstBatch = batchedCausality.checkCausalTrigger(3, {
+  currentTotalDays: 200,
+  scope: 'global',
+})
+assertOk(
+  firstBatch.triggeredEvents.length === 2
+    && batchedCausality.getPendingEvents().length === 3,
+  'maxTriggerPerRound must limit only the returned batch and retain every due event',
+)
+batchedCausality.commitCausalTriggers(
+  firstBatch.triggeredEvents.map((event) => event.id),
+  3,
+  '首批已在完整叙事提交后兑现。',
+  { currentTotalDays: 200 },
+)
+assertOk(
+  batchedCausality.checkCausalTrigger(4, { currentTotalDays: 200, scope: 'global' })
+    .triggeredEvents.length === 1,
+  'an event deferred by batching must remain eligible in the next accepted narrative round',
+)
+
 console.log(
-  `METRIC: prompt-4.1 system=${narrativePrompt.systemPrompt.length} global=${firstSegments.userSegments?.[0]?.length ?? 0} memory=${firstSegments.userSegments?.[1]?.length ?? 0} round=${firstSegments.userSegments?.[2]?.length ?? 0}`,
+  `METRIC: prompt-4.2 system=${narrativePrompt.systemPrompt.length} global=${firstSegments.userSegments?.[0]?.length ?? 0} memory=${firstSegments.userSegments?.[1]?.length ?? 0} round=${firstSegments.userSegments?.[2]?.length ?? 0}`,
 )
 
 if (failed > 0) process.exit(1)

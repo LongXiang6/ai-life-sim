@@ -255,6 +255,27 @@ export class SummaryCompressorSystem extends BaseSubsystem {
       summaries = [...summaries, summary]
       didCompress = true
     }
+    const scopeFromEvents = (items: YearEvent[]): Pick<CompressedSummaryItem, 'contextIds' | 'startTotalDays' | 'endTotalDays'> => {
+      const contextIds = [...new Set(items.map((item) => item.contextId).filter((id): id is string => Boolean(id)))]
+      const totalDays = items.map((item) => item.totalDays).filter((value): value is number => typeof value === 'number')
+      return {
+        ...(contextIds.length > 0 ? { contextIds } : {}),
+        ...(totalDays.length > 0 ? {
+          startTotalDays: Math.min(...totalDays),
+          endTotalDays: Math.max(...totalDays),
+        } : {}),
+      }
+    }
+    const scopeFromSummaries = (items: CompressedSummaryItem[]): Pick<CompressedSummaryItem, 'contextIds' | 'startTotalDays' | 'endTotalDays'> => {
+      const contextIds = [...new Set(items.flatMap((item) => item.contextIds ?? []))]
+      const startDays = items.map((item) => item.startTotalDays).filter((value): value is number => typeof value === 'number')
+      const endDays = items.map((item) => item.endTotalDays).filter((value): value is number => typeof value === 'number')
+      return {
+        ...(contextIds.length > 0 ? { contextIds } : {}),
+        ...(startDays.length > 0 ? { startTotalDays: Math.min(...startDays) } : {}),
+        ...(endDays.length > 0 ? { endTotalDays: Math.max(...endDays) } : {}),
+      }
+    }
 
     // ============================================================
     // Step 2: L1 块总结
@@ -310,7 +331,13 @@ export class SummaryCompressorSystem extends BaseSubsystem {
           })
 
           const trimmed = this.sanitizeContent(raw)
-          appendSummary({ level: 1 as const, startRound, endRound, content: trimmed })
+          appendSummary({
+            level: 1 as const,
+            startRound,
+            endRound,
+            content: trimmed,
+            ...scopeFromEvents(blockEvents),
+          })
           newLatestSummary = trimmed
           shouldShowSummary = true
           this.stats.totalL1++
@@ -367,7 +394,13 @@ export class SummaryCompressorSystem extends BaseSubsystem {
               logMeta: { userId: `summ-${summarySessionId}` },
             })
 
-            appendSummary({ level: 2 as const, startRound, endRound, content: this.sanitizeContent(raw) })
+            appendSummary({
+              level: 2 as const,
+              startRound,
+              endRound,
+              content: this.sanitizeContent(raw),
+              ...scopeFromSummaries(mergeTargets),
+            })
             this.stats.totalL2++
           } catch {
             // 保留全部 L1 叶子等待后续重试；失败不得伪造覆盖节点。
@@ -424,7 +457,13 @@ export class SummaryCompressorSystem extends BaseSubsystem {
               logMeta: { userId: `summ-${summarySessionId}` },
             })
 
-            appendSummary({ level: 3 as const, startRound, endRound, content: this.sanitizeContent(raw) })
+            appendSummary({
+              level: 3 as const,
+              startRound,
+              endRound,
+              content: this.sanitizeContent(raw),
+              ...scopeFromSummaries(mergeTargets),
+            })
             this.stats.totalL3++
           } catch {
             // 保留全部 L2 叶子等待后续重试；失败不得伪造覆盖节点。
@@ -480,7 +519,13 @@ export class SummaryCompressorSystem extends BaseSubsystem {
               logMeta: { userId: `summ-${summarySessionId}` },
             })
 
-            appendSummary({ level: 4 as const, startRound, endRound, content: this.sanitizeContent(raw) })
+            appendSummary({
+              level: 4 as const,
+              startRound,
+              endRound,
+              content: this.sanitizeContent(raw),
+              ...scopeFromSummaries(mergeTargets),
+            })
             this.stats.totalL4++
           } catch {
             // 保留全部 L3 叶子等待后续重试；失败不得伪造覆盖节点。
@@ -541,6 +586,7 @@ export class SummaryCompressorSystem extends BaseSubsystem {
               startRound,
               endRound,
               content: this.sanitizeContent(raw),
+              ...scopeFromSummaries(mergeTargets),
             })
             this.stats.totalL5++
           } catch {
@@ -602,6 +648,7 @@ export class SummaryCompressorSystem extends BaseSubsystem {
               startRound,
               endRound,
               content: this.sanitizeContent(raw),
+              ...scopeFromSummaries(mergeTargets),
             })
             this.stats.totalL6++
           } catch {

@@ -26,7 +26,7 @@ import type { TalentPreset, } from './prompts/talent-presets'
 import { DEFAULT_LIFE_STAGES, DEFAULT_STAGE_DISPLAY_NAMES, } from './constants'
 
 import type { LifeStageId, LifeStageConfig, } from './types'
-import { sanitizeCharacterStateSnapshot } from './utils/character-state-migration'
+import { createGlobalCharacterId, sanitizeCharacterStateSnapshot } from './utils/character-state-migration'
 
 /** 天赋池缓存键（按世界编码隔离） */
 function destinyPoolCacheKey(worldCode: number,): string {
@@ -53,6 +53,8 @@ function buildDefaultStages(): Record<LifeStageId, LifeStageConfig> {
 }
 
 interface CharacterStore {
+  /** 存档内稳定的全局角色实体 ID */
+  characterId: string
   name: string
   gender: 'male' | 'female'
   /** 种族 key（对应 RACE_LIFESPAN 的 key） */
@@ -88,6 +90,7 @@ interface CharacterStore {
   talentPoolCacheKey: string
 
   getSummary: () => CharacterSummary
+  ensureCharacterId: () => string
 
   setName: (name: string) => void
   setGender: (gender: 'male' | 'female') => void
@@ -115,6 +118,7 @@ const initialCharacterBase: CharacterBaseState = {
   base: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0, },
   current: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0, },
   modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0, },
+  contextModifiers: {},
   startingAge: 0,
 }
 
@@ -151,6 +155,7 @@ const initialMorality: MoralityState = { value: 0, level: 'balanced', roundDelta
 export const useCharacterStore = create<CharacterStore>()(
   persist(
     (set, get,) => ({
+      characterId: '',
       name: '', gender: 'male', race: 'human', background: 'commoner', raceOrigin: '', age: 0,
       characterBase: initialCharacterBase,
       destinyPatterns: initialDestinyPatterns,
@@ -184,7 +189,18 @@ export const useCharacterStore = create<CharacterStore>()(
         }
       },
 
-      setName: (name,) => set({ name, },),
+      ensureCharacterId: () => {
+        const existing = get().characterId
+        if (existing) return existing
+        const characterId = createGlobalCharacterId()
+        set({ characterId })
+        return characterId
+      },
+
+      setName: (name,) => set((state) => ({
+        name,
+        characterId: state.characterId || createGlobalCharacterId(),
+      }),),
       setGender: (gender,) => set({ gender, },),
       setAge: (age,) => set({ age, },),
       setRace: (race,) => set({ race, },),
@@ -208,6 +224,7 @@ export const useCharacterStore = create<CharacterStore>()(
       },),
 
       reset: () => set({
+        characterId: '',
         name: '', gender: 'male', race: 'human', background: 'commoner', raceOrigin: '', age: 0,
         characterBase: { ...initialCharacterBase, },
         destinyPatterns: initialDestinyPatterns,
@@ -224,7 +241,7 @@ export const useCharacterStore = create<CharacterStore>()(
     }),
     {
       name: 'mod-character:persist:character-state',
-      version: 2,
+      version: 3,
       migrate: (persistedState: unknown, _version: number) => {
         // 结构完整性校验：防止损坏数据导致白屏
         if (typeof persistedState !== 'object' || persistedState === null || Array.isArray(persistedState)) {
@@ -234,7 +251,7 @@ export const useCharacterStore = create<CharacterStore>()(
         return sanitizeCharacterStateSnapshot(persistedState) as unknown as CharacterStore
       },
       partialize: (state,) => {
-        const { getSummary: _a, setName: _b, setGender: _c, setAge: _d, setRace: _e, setBackground: _f, setRaceOrigin: _g, setCharacterBase: _h, setDestinyPatterns: _i, setHealth: _j, setLifespan: _k, setLifeStage: _l, setDecay: _m, setMorality: _n, setTalents: _o, setMythicCandidates: _p, setEquippedMythicPattern: _q, setSealedMythicPatternId: _r, setWorldCode: _s, reset: _t, ...rest } = state
+        const { getSummary: _a, ensureCharacterId: _a2, setName: _b, setGender: _c, setAge: _d, setRace: _e, setBackground: _f, setRaceOrigin: _g, setCharacterBase: _h, setDestinyPatterns: _i, setHealth: _j, setLifespan: _k, setLifeStage: _l, setDecay: _m, setMorality: _n, setTalents: _o, setMythicCandidates: _p, setEquippedMythicPattern: _q, setSealedMythicPatternId: _r, setWorldCode: _s, reset: _t, ...rest } = state
         return rest
       },
     },

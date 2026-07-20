@@ -51,6 +51,14 @@ export interface NarrativeChunk {
   text: string
   isComplete: boolean
   timestamp: number,
+  /** 本条叙事发生的稳定世界上下文 */
+  contextId?: string,
+  /** Prompt 读取作用域：当地事实、全局事实或随角色跨界携带的旅行记忆。 */
+  memoryScope?: 'global' | 'context' | 'travel',
+  /** 写入时的世界名称投影，便于旧记录阅读 */
+  contextName?: string,
+  /** 写入时规范全局累计天数 */
+  totalDays?: number,
   /** 重置信号：AI 重试/降级时通知 UI 丢弃上一次尝试已累积的流式文本，避免拼接重复 */
   isReset?: boolean,
   /** 命运分叉点 */

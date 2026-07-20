@@ -36,9 +36,13 @@ export interface TimeStep {
 
 /** 回合上下文 */
 export interface RoundContext {
-  /** 当前世界 ID */
+  /** 当前上下文稳定 ID；世界名称和 worldCode 不得替代它 */
+  contextId: string,
+  /** 当前上下文模拟范围 */
+  contextScope: 'active' | 'background' | 'dormant' | 'closed',
+  /** @deprecated 当前等同 contextId，仅保留旧子系统字段名兼容 */
   worldId: string,
-  /** 当前角色 ID */
+  /** 当前角色全局稳定实体 ID */
   characterId: string,
   /** 当前回合信息 */
   round: {
@@ -192,6 +196,8 @@ export interface ISubSystemV2 extends ISubSystem {
  * 吸收 Factorio data 阶段和 runtime 阶段的 API 隔离设计。
  */
 export interface ReadonlyRoundContext {
+  readonly contextId: string
+  readonly contextScope: 'active' | 'background' | 'dormant' | 'closed'
   readonly worldId: string
   readonly characterId: string
   readonly round: {

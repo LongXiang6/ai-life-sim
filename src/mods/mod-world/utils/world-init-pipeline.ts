@@ -18,8 +18,8 @@ import type { AIModelConfig } from '@/foundation'
 import type { ZodSchema } from 'zod'
 
 import { useSettingsStore } from '@/mods/mod-settings'
-import { useWorldStore, type WorldInitAIStatus } from '../store'
-import type { WorldConfig, AnyWorldEntity, Settlement } from '../types'
+import { useWorldStore } from '../store'
+import type { WorldConfig, AnyWorldEntity, Settlement, WorldInitAIStatus } from '../types'
 import { useWorldMapStore, type MarkerLayer } from '@/mods/mod-world-map'
 import {
   worldTagsPrompt,
@@ -870,7 +870,8 @@ export async function injectWorldInitOrchestratorContext(
   rawTags?: string[],
 ): Promise<void> {
   try {
-    const { orchestrator } = await import('@/mods/mod-engine/engine-api')
+    const { buildOrchestratorWorldSetting, orchestrator } = await import('@/mods/mod-engine/engine-api')
+    const { useCharacterStore } = await import('@/mods/mod-character')
     const { WorldInitSystem } = await import('../subsystems/world-init-system')
     const { formatWorldTagsText } = await import('../constants/world-tag-defaults')
     const store = useWorldStore.getState()
@@ -878,14 +879,15 @@ export async function injectWorldInitOrchestratorContext(
     const calibrationSummary = formatCalibrationSummary(
       calibration ?? buildDefaultCalibration(config),
     )
-    const snapshot = new WorldInitSystem().initialize(config)
+    const snapshot = new WorldInitSystem().initialize(config, {
+      contextId: store.currentContextId ?? undefined,
+      worldCode: store.worldCode,
+      calibration,
+    })
     const formattedTags = formatWorldTagsText(snapshot.tags)
     orchestrator.setContext(
-      {
-        name: config.name,
-        description: config.description,
-        era: config.civilizationStage,
-        config: {
+      buildOrchestratorWorldSetting(config, {
+        extraConfig: {
           ...(config as unknown as Record<string, unknown>),
           _worldTagsText: formattedTags,
           _calibration: calibration,
@@ -895,8 +897,11 @@ export async function injectWorldInitOrchestratorContext(
             ? { _aiDetailedParameters: store.worldConfig.aiDetailedParameters }
             : {}),
         },
+      }),
+      {
+        characterId: useCharacterStore.getState().ensureCharacterId(),
+        name: '', age: 0, gender: '未设定', background: '', attributes: {},
       },
-      { name: '', age: 0, gender: '未设定', background: '', attributes: {} },
     )
     if (rawTags && rawTags.length > 0) {
       console.info(`[mod-world] AI 氛围标签 ${rawTags.length} 条已写入 store（orchestrator 使用结构化标签）`)

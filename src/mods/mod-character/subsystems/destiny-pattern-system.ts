@@ -97,7 +97,7 @@ export class DestinyPatternSystem extends BaseSubsystem {
     rarityCount: { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0 },
   }
 
-  collectState(_context: RoundContext): SubSystemState {
+  collectState(context: RoundContext): SubSystemState {
     const s = this.state
     const rarityLines = Object.entries(s.rarityCount)
       .filter(([, count]) => count > 0)
@@ -108,6 +108,7 @@ export class DestinyPatternSystem extends BaseSubsystem {
       id: this.id,
       summary: `【${this.label}】已持有 ${s.patterns.length} 条命格（${rarityLines.join(' ')}）${bonusSummary ? ' | 属性加成：' + bonusSummary : ''}`,
       data: structuredClone({
+        contextId: context.contextId,
         candidates: s.candidates,
         patterns: s.patterns,
         rarityCount: s.rarityCount,

@@ -42,6 +42,7 @@ export class MoralitySystem implements ISubSystem {
       id: this.id,
       summary: `【${this.label}】当前值 ${s.value} | 档位：${levelLabel}${descPart} | 本轮变化：${this.formatDelta(s.roundDelta)}`,
       data: structuredClone({
+        contextId: context.contextId,
         value: s.value,
         level: s.level,
         roundDelta: s.roundDelta,

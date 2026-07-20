@@ -8,12 +8,18 @@
 
 export {
   commitWorldInitialization,
+  createAdditionalWorldContext,
   generateWorldInitBundle,
   startBackgroundWorldInit,
   startBackgroundWorldInitForCustom,
 } from './world-init-bundle'
 
-export type { WorldCommitResult, WorldInitBundleResult } from './world-init-bundle'
+export type {
+  AdditionalWorldContextOptions,
+  WorldCommitResult,
+  WorldContextCreationOptions,
+  WorldInitBundleResult,
+} from './world-init-bundle'
 
 export { WorldInitSystem } from './subsystems/world-init-system'
 export { filterCoherentWorldTags } from './utils/world-coherence-output-guard'

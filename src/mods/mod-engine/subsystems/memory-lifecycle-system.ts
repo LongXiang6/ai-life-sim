@@ -35,6 +35,10 @@
 import type { SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
 import { BaseSubsystem } from '@/core'
 import type { NarrativeSemanticSignals } from '../helpers/narrative-semantic-signals'
+import {
+  isNarrativeRecordVisible,
+  type NarrativeMemoryScope,
+} from '../helpers/narrative-context-scope'
 
 // ============================================================
 // 类型定义
@@ -66,6 +70,10 @@ export interface ImportanceResult {
 export interface TaggedEvent {
   /** 轮次 */
   round: number
+  /** 事件发生上下文 */
+  contextId?: string
+  /** 当地、全局或旅行携带记忆。 */
+  memoryScope?: NarrativeMemoryScope
   /** 事件发生的日历年，仅供时间跨度展示；唯一键仍为 roundSequence。 */
   calendarYear?: number
   /** 叙事文本 */
@@ -78,6 +86,8 @@ export interface TaggedEvent {
   closureType: ClosureType
   /** AI 标注的检索实体 */
   tags: string[],
+  /** 该记忆事实关联的历史事件账本条目。 */
+  historicalEventIds?: string[]
 }
 
 /** 检索索引条目 */
@@ -94,6 +104,12 @@ export interface IndexEntry {
   tags: string[]
   /** 最高重要度 */
   maxImportance: EventImportance,
+  /** 该索引覆盖的上下文集合 */
+  contextIds?: string[]
+  /** 该索引覆盖的记忆作用域集合。 */
+  memoryScopes?: NarrativeMemoryScope[]
+  /** 该索引覆盖的历史事件账本条目。 */
+  historicalEventIds?: string[]
 }
 
 // ============================================================
@@ -240,6 +256,8 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
   /** AI 结构化事件弧类型与实体标签。 */
   private aiArcTypeMap = new Map<number, ClosureType>()
   private aiEntityMap = new Map<number, string[]>()
+  /** 已提交历史事件账本编号（轮次 → 事件编号）。 */
+  private aiHistoricalEventIdsMap = new Map<number, string[]>()
 
   // ---- 公共方法 ----
 
@@ -262,32 +280,51 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
     arcStatus: 'start' | 'ongoing' | 'end',
     signals: NarrativeSemanticSignals,
     entities: string[],
+    historicalEventIds?: readonly string[],
   ): void {
     this.aiImportanceMap.set(round, importance)
     this.aiArcStatusMap.set(round, arcStatus)
     this.aiArcTypeMap.set(round, signals.arcType)
     this.aiEntityMap.set(round, [...new Set(entities.filter(Boolean))])
+    const normalizedHistoricalEventIds = [...new Set(
+      (historicalEventIds ?? []).map((id) => id.trim()).filter(Boolean),
+    )]
+    if (normalizedHistoricalEventIds.length > 0) {
+      this.aiHistoricalEventIdsMap.set(round, normalizedHistoricalEventIds)
+    } else {
+      this.aiHistoricalEventIdsMap.delete(round)
+    }
   }
 
   /**
    * 只消费结构化 AI 语义。缺失时使用可识别的 LOW 中立降级，不扫描正文。
    */
-  scoreImportance(narrative: string, round: number, calendarYear?: number): ImportanceResult {
+  scoreImportance(
+    narrative: string,
+    round: number,
+    calendarYear?: number,
+    contextId?: string,
+    memoryScope: NarrativeMemoryScope = contextId ? 'context' : 'global',
+  ): ImportanceResult {
     const importance = this.aiImportanceMap.get(round) ?? 'LOW'
     const source: ImportanceResult['source'] = this.aiImportanceMap.has(round) ? 'ai' : 'fallback'
     const semanticTags = this.aiEntityMap.get(round) ?? []
+    const historicalEventIds = this.aiHistoricalEventIdsMap.get(round) ?? []
     const closureInfo = this.resolveClosure(round)
     const score = importance === 'HIGH' ? 9 : importance === 'NORMAL' ? 5 : 1
 
     const existingIndex = this.taggedEvents.findIndex((event) => event.round === round)
     const tagged: TaggedEvent = {
       round,
+      contextId,
+      memoryScope,
       calendarYear,
       narrative,
       importance,
       isClosure: closureInfo.detected,
       closureType: closureInfo.type,
       tags: semanticTags,
+      historicalEventIds: historicalEventIds.length > 0 ? [...historicalEventIds] : undefined,
     }
     if (existingIndex >= 0) this.taggedEvents[existingIndex] = tagged
     else this.taggedEvents.push(tagged)
@@ -464,6 +501,9 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
     for (const key of this.aiEntityMap.keys()) {
       if (key <= endRound) this.aiEntityMap.delete(key)
     }
+    for (const key of this.aiHistoricalEventIdsMap.keys()) {
+      if (key <= endRound) this.aiHistoricalEventIdsMap.delete(key)
+    }
 
     return removed
   }
@@ -612,6 +652,9 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
       content,
       tags: [...allTags,],
       maxImportance,
+      contextIds: [...new Set(events.map((event) => event.contextId).filter((id): id is string => Boolean(id)))],
+      memoryScopes: [...new Set(events.map((event) => event.memoryScope ?? (event.contextId ? 'context' : 'global')))],
+      historicalEventIds: [...new Set(events.flatMap((event) => event.historicalEventIds ?? []))],
     }
 
     this.upsertIndexEntry(entry)
@@ -633,6 +676,9 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
       (entry) => entry.startRound <= endRound && entry.endRound >= startRound,
     )
     const tags = new Set(overlapping.flatMap((entry) => entry.tags))
+    const contextIds = [...new Set(overlapping.flatMap((entry) => entry.contextIds ?? []))]
+    const memoryScopes = [...new Set(overlapping.flatMap((entry) => entry.memoryScopes ?? []))]
+    const historicalEventIds = [...new Set(overlapping.flatMap((entry) => entry.historicalEventIds ?? []))]
     let maxImportance: EventImportance = 'LOW'
     for (const entry of overlapping) {
       if (entry.maxImportance === 'HIGH') maxImportance = 'HIGH'
@@ -648,6 +694,9 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
       content,
       tags: [...tags],
       maxImportance,
+      contextIds,
+      memoryScopes,
+      historicalEventIds,
     })
   }
 
@@ -681,7 +730,11 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
    * @param _queryText 兼容旧调用；不再读取正文做语义检索
    * @returns 匹配的摘要内容列表
    */
-  retrieveFromIndex(_queryText: string,): string[] {
+  retrieveFromIndex(
+    _queryText: string,
+    currentContextId?: string,
+    closedContextIds?: ReadonlySet<string>,
+  ): string[] {
     if (this.searchIndex.length === 0) return []
     const latestRound = this.aiEntityMap.size > 0
       ? Math.max(...this.aiEntityMap.keys())
@@ -691,6 +744,18 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
     const results: Array<{ entry: IndexEntry; score: number }> = []
 
     for (const entry of this.searchIndex) {
+      const entryScopes = entry.memoryScopes ?? []
+      const visible = entryScopes.length > 0
+        ? entryScopes.some((scope) => isNarrativeRecordVisible(
+            { contextIds: entry.contextIds, scope },
+            { currentContextId, closedContextIds },
+          ))
+        : isNarrativeRecordVisible(
+            { contextIds: entry.contextIds },
+            { currentContextId, closedContextIds },
+          )
+      if (!visible) continue
+
       let score = 0
       let entityMatches = 0
 
@@ -774,19 +839,22 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
         startRound: number
         endRound: number
         content: string
+        contextIds?: string[]
       }>,
     },
+    currentContextId?: string,
+    closedContextIds?: ReadonlySet<string>,
   ): RichPromptContext {
     // 检索命中
     const queryText = recentNarratives.length > 0
       ? recentNarratives[recentNarratives.length - 1]
       : ''
-    const retrievalHits = this.retrieveFromIndex(queryText,)
+    const retrievalHits = this.retrieveFromIndex(queryText, currentContextId, closedContextIds)
 
     // 只注入没有被更高层摘要覆盖的叶子摘要。所有摘要仍完整保存在存储和
     // 检索索引中，这里是语义压缩后的无损覆盖选择，不是固定条数截断。
     const summaries = compressedSummaries.summaries
-    const visibleByLevel = this.selectLeafSummaries(summaries)
+    const visibleByLevel = this.selectLeafSummaries(summaries, currentContextId, closedContextIds)
 
     return {
       stateCard: subsystemSummaries,
@@ -808,9 +876,14 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
     startRound: number
     endRound: number
     content: string
-  }>): Map<number, string[]> {
+    contextIds?: string[]
+  }>, currentContextId?: string, closedContextIds?: ReadonlySet<string>): Map<number, string[]> {
     const byLevel = new Map<number, typeof summaries>()
     for (const summary of summaries) {
+      if (!isNarrativeRecordVisible(
+        { contextIds: summary.contextIds },
+        { currentContextId, closedContextIds },
+      )) continue
       const items = byLevel.get(summary.level) ?? []
       items.push(summary)
       byLevel.set(summary.level, items)
@@ -830,7 +903,12 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
       for (const summary of visible) {
         coveredRanges.push({ start: summary.startRound, end: summary.endRound })
       }
-      visibleByLevel.set(level, visible.map((summary) => summary.content))
+      visibleByLevel.set(level, visible.map((summary) => {
+        const contextIds = summary.contextIds ?? []
+        if (contextIds.length === 0) return summary.content
+        const currentMark = currentContextId && contextIds.includes(currentContextId) ? '·含当前' : ''
+        return `【上下文=${contextIds.join('、')}${currentMark}】${summary.content}`
+      }))
     }
 
     return visibleByLevel
@@ -988,10 +1066,11 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
       rawEvents: this.rawEvents,
       aggregatedEvents: this.aggregatedEvents,
       stats: this.stats,
-      aiImportanceMap: this.aiImportanceMap,
-      aiArcStatusMap: this.aiArcStatusMap,
-      aiArcTypeMap: this.aiArcTypeMap,
-      aiEntityMap: this.aiEntityMap,
+      aiImportanceMap: [...this.aiImportanceMap.entries()],
+      aiArcStatusMap: [...this.aiArcStatusMap.entries()],
+      aiArcTypeMap: [...this.aiArcTypeMap.entries()],
+      aiEntityMap: [...this.aiEntityMap.entries()],
+      aiHistoricalEventIdsMap: [...this.aiHistoricalEventIdsMap.entries()],
     })
   }
 
@@ -1004,10 +1083,11 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
       rawEvents?: RawEvent[]
       aggregatedEvents?: AggregatedEvent[]
       stats?: ReturnType<MemoryLifecycleSystem['getStats']>
-      aiImportanceMap?: Map<number, EventImportance>
-      aiArcStatusMap?: Map<number, 'start' | 'ongoing' | 'end'>
-      aiArcTypeMap?: Map<number, ClosureType>
-      aiEntityMap?: Map<number, string[]>
+      aiImportanceMap?: Map<number, EventImportance> | Array<[number, EventImportance]>
+      aiArcStatusMap?: Map<number, 'start' | 'ongoing' | 'end'> | Array<[number, 'start' | 'ongoing' | 'end']>
+      aiArcTypeMap?: Map<number, ClosureType> | Array<[number, ClosureType]>
+      aiEntityMap?: Map<number, string[]> | Array<[number, string[]]>
+      aiHistoricalEventIdsMap?: Map<number, string[]> | Array<[number, string[]]>
     }
     if (value.taggedEvents) this.taggedEvents = structuredClone(value.taggedEvents)
     if (value.searchIndex) this.searchIndex = structuredClone(value.searchIndex)
@@ -1015,10 +1095,13 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
     if (value.rawEvents) this.rawEvents = structuredClone(value.rawEvents)
     if (value.aggregatedEvents) this.aggregatedEvents = structuredClone(value.aggregatedEvents)
     if (value.stats) this.stats = structuredClone(value.stats)
-    if (value.aiImportanceMap) this.aiImportanceMap = structuredClone(value.aiImportanceMap)
-    if (value.aiArcStatusMap) this.aiArcStatusMap = structuredClone(value.aiArcStatusMap)
-    if (value.aiArcTypeMap) this.aiArcTypeMap = structuredClone(value.aiArcTypeMap)
-    if (value.aiEntityMap) this.aiEntityMap = structuredClone(value.aiEntityMap)
+    if (value.aiImportanceMap) this.aiImportanceMap = new Map(value.aiImportanceMap)
+    if (value.aiArcStatusMap) this.aiArcStatusMap = new Map(value.aiArcStatusMap)
+    if (value.aiArcTypeMap) this.aiArcTypeMap = new Map(value.aiArcTypeMap)
+    if (value.aiEntityMap) this.aiEntityMap = new Map(value.aiEntityMap)
+    this.aiHistoricalEventIdsMap = value.aiHistoricalEventIdsMap
+      ? new Map(value.aiHistoricalEventIdsMap)
+      : new Map()
   }
 
   reset(): void {
@@ -1027,6 +1110,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
     this.activeClosure = 'none'
     this.rawEvents = []
     this.aggregatedEvents = []
+    this.aiHistoricalEventIdsMap.clear()
     this.stats = {
       totalScored: 0,
       totalHigh: 0,

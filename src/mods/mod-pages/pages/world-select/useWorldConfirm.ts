@@ -12,7 +12,8 @@ import { useRouter } from 'next/navigation'
 
 import { useGlobalStore, configStore } from '@/core'
 
-import { orchestrator } from '@/mods/mod-engine/engine-api'
+import { buildOrchestratorWorldSetting, orchestrator } from '@/mods/mod-engine/engine-api'
+import { useCharacterStore } from '@/mods/mod-character'
 import {
   buildWorldConfigFromPreset,
   buildWorldConfigFromCustom,
@@ -59,29 +60,33 @@ export function useWorldConfirm() {
     const worldCode = isCustom
       ? options?.worldCode
       : (options?.worldCode ?? resolvePresetWorldCode(selectedWorld))
+    const hasExistingContext = Object.keys(useWorldStore.getState().contexts).length > 0
 
     const result = await commitWorldInitialization(
       config,
       worldCode,
       eraStartYear,
+      hasExistingContext
+        ? { globalTotalDays: orchestrator.getState().round.totalDays }
+        : undefined,
     )
 
     const { calibration } = useWorldStore.getState()
 
     orchestrator.setContext(
-      {
-        name: config.name,
-        description: config.description,
-        era: selectedWorld.era,
-        config: {
-          ...(config as unknown as Record<string, unknown>),
+      buildOrchestratorWorldSetting(result.config, {
+        eraStartYear,
+        extraConfig: {
           _worldTagsText: result.formattedTags,
           _calibration: calibration,
           _calibrationSummary: calibration ? formatCalibrationSummary(calibration) : '',
           _economyModifier: calibration?.formulas?.economyModifier ?? 1.0,
         },
+      }),
+      {
+        characterId: useCharacterStore.getState().ensureCharacterId(),
+        name: '', age: 0, gender: '未设定', background: '', attributes: {},
       },
-      { name: '', age: 0, gender: '未设定', background: '', attributes: {} },
     )
 
     if (typeof window !== 'undefined') {

@@ -33,6 +33,18 @@ interface PendingAdaptation {
   cacheKey: string
 }
 
+/**
+ * 这些 summary 是 owning system 已确认事实的确定性投影，禁止由后台世界观适配器
+ * 改写、概括或替换。即使未来误登记了 adaptation Prompt，也必须保持原文。
+ */
+const DETERMINISTIC_PROMPT_SUMMARY_IDS = new Set([
+  'historical-event-ledger',
+])
+
+export function bypassWorldviewAdaptation(subsystemId: string): boolean {
+  return DETERMINISTIC_PROMPT_SUMMARY_IDS.has(subsystemId)
+}
+
 // ---------------------------------------------------------------------------
 // 工具函数
 // ---------------------------------------------------------------------------
@@ -146,6 +158,10 @@ export class AdaptationManager {
 
     for (const s of states) {
       if (!s.summary) continue
+      if (bypassWorldviewAdaptation(s.id)) {
+        result.set(s.id, s.summary)
+        continue
+      }
       const cacheKey = this.buildCacheKey(s.id, s.summary)
 
       if (this.cache.has(cacheKey)) {
@@ -170,6 +186,7 @@ export class AdaptationManager {
 
     for (const s of states) {
       if (!s.summary) continue
+      if (bypassWorldviewAdaptation(s.id)) continue
       const cacheKey = this.buildCacheKey(s.id, s.summary)
       if (this.cache.has(cacheKey)) continue // 已缓存
       if (this.inFlight.has(cacheKey)) continue // 已在后台适配
@@ -269,6 +286,9 @@ export class AdaptationManager {
 
   /** 适配单个子系统的 summary */
   private async adaptOne(pending: PendingAdaptation): Promise<string> {
+    if (bypassWorldviewAdaptation(pending.subsystemId)) {
+      throw new Error(`确定性 Prompt 投影禁止世界观适配: ${pending.subsystemId}`)
+    }
     const prompt = ADAPTATION_PROMPT_MAP[pending.subsystemId]
     if (!prompt) throw new Error(`无 adaptation prompt: ${pending.subsystemId}`)
     if (!this.aiConfig) throw new Error('AI 配置未注入')

@@ -6,13 +6,18 @@
  * 废弃项目参考：src/lib/utils/logger.ts
  */
 
+import { redactSensitiveData } from './redact-sensitive-data'
+import { getCachedDiagnosticPlayerCode } from './diagnostic-player-code-client'
+
 const LOG_API = '/api/log'
+const RECENT_DIAGNOSTIC_LIMIT = 80
+const DIAGNOSTIC_SESSION_KEY = 'ai-life-sim:diagnostic-session-id'
 
 /** 日志级别 */
 type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 
 /** 日志条目 */
-interface LogEntry {
+export interface ClientDiagnosticEntry {
   level: LogLevel
   module: string
   message: string
@@ -28,6 +33,35 @@ interface LogEntry {
   eventType?: 'log' | 'exception' | 'user_action'
   action?: string
   context?: Record<string, unknown>
+}
+
+const recentDiagnosticEntries: ClientDiagnosticEntry[] = []
+
+export function getDiagnosticSessionId(): string {
+  if (typeof window === 'undefined') return 'server'
+  try {
+    const existing = sessionStorage.getItem(DIAGNOSTIC_SESSION_KEY)
+    if (existing) return existing
+    const created = typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `session-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+    sessionStorage.setItem(DIAGNOSTIC_SESSION_KEY, created)
+    return created
+  } catch {
+    return `session-${Date.now().toString(36)}`
+  }
+}
+
+function rememberDiagnosticEntry(entry: ClientDiagnosticEntry): void {
+  const redacted = redactSensitiveData(entry) as ClientDiagnosticEntry
+  recentDiagnosticEntries.push(redacted)
+  if (recentDiagnosticEntries.length > RECENT_DIAGNOSTIC_LIMIT) {
+    recentDiagnosticEntries.splice(0, recentDiagnosticEntries.length - RECENT_DIAGNOSTIC_LIMIT)
+  }
+}
+
+export function getRecentClientDiagnostics(): ClientDiagnosticEntry[] {
+  return recentDiagnosticEntries.map((entry) => structuredClone(entry))
 }
 
 /** 日志级别控制 key */
@@ -59,16 +93,19 @@ function shouldLog(level: LogLevel): boolean {
 }
 
 /** 发送日志到服务端 */
-function sendToServer(entry: LogEntry): void {
-  const enriched: LogEntry = {
+function sendToServer(entry: ClientDiagnosticEntry): void {
+  const enriched: ClientDiagnosticEntry = {
     eventType: 'log',
     ...entry,
     context: {
       ...(typeof location !== 'undefined' ? { path: location.pathname, url: location.href } : {}),
       ...(typeof navigator !== 'undefined' ? { userAgent: navigator.userAgent } : {}),
+      diagnosticSessionId: getDiagnosticSessionId(),
+      diagnosticCode: getCachedDiagnosticPlayerCode(),
       ...entry.context,
     },
   }
+  rememberDiagnosticEntry(enriched)
   if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
     const blob = new Blob([JSON.stringify(enriched)], { type: 'application/json' })
     navigator.sendBeacon(LOG_API, blob)

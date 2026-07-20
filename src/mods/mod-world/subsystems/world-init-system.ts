@@ -11,9 +11,9 @@
  *   abstract        — 虚空抽象空间（无物理区域，仅原点）
  */
 
-import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
+import type { SubSystemState, SubSystemChanges, RoundContext, WorldContextKind } from '@/foundation'
 
-import { eventBus } from '@/core'
+import { BaseSubsystem, eventBus } from '@/core'
 import { clamp } from '@/core/shared'
 
 import {
@@ -31,6 +31,12 @@ import {
 import { shouldUseGenericSimulationPools } from '../utils/world-pool-selectors'
 
 import { useWorldStore } from '../store'
+import {
+  contextKindUsesRegionMap,
+  createGlobalEntityId,
+  createWorldContextId,
+  inferContextKind,
+} from '../utils/world-context-runtime'
 
 /** 内部状态 */
 interface InternalState {
@@ -88,7 +94,7 @@ const PLANE_LAYER_NAMES = ['上层界', '中层界', '下层界', '深渊界']
 /** 星际区域名称 */
 const STAR_SYSTEM_NAMES = ['恒星核心区', '亚空间航道', '殖民星域', '外星边域', '虚空缓冲区']
 
-export class WorldInitSystem implements ISubSystem {
+export class WorldInitSystem extends BaseSubsystem {
   readonly id = 'world-init' as const
   readonly mod = 'mod-world' as const
   readonly label = '世界初始化' as const
@@ -106,19 +112,36 @@ export class WorldInitSystem implements ISubSystem {
    * 3. 生成标签映射
    * 4. 输出 WorldSnapshot
    */
-  initialize(config: WorldConfig): WorldSnapshot {
-    const calibration = useWorldStore.getState().calibration
+  initialize(
+    config: WorldConfig,
+    options?: {
+      contextId?: string
+      contextKind?: WorldContextKind
+      worldCode?: number
+      calibration?: ReturnType<typeof useWorldStore.getState>['calibration']
+    },
+  ): WorldSnapshot {
+    const contextId = createWorldContextId({
+      contextId: options?.contextId,
+      legacyWorldCode: options?.worldCode,
+    })
+    const calibration = options?.calibration ?? useWorldStore.getState().calibration
+    const contextKind = options?.contextKind ?? inferContextKind(config)
     const mapTemplateId = calibration?.world?.mapTemplate ?? inferMapTemplate(config)
     let template = MAP_TEMPLATES[mapTemplateId] ?? MAP_TEMPLATES.continent
     if (calibration?.world?.regionCount) {
       template = { ...template, regionCount: calibration.world.regionCount }
     }
-    const regions = this.generateRegionsByStrategy(config, template, calibration)
+    const regions = contextKindUsesRegionMap(contextKind)
+      ? this.generateRegionsByStrategy(config, template, calibration)
+      : []
 
     // 从 6×39 默认标签表匹配，未匹配则兜底 MIXED
     const tags: WorldTagsV2 = this.resolveTags(config)
 
     const snapshot: WorldSnapshot = {
+      contextId,
+      rootSpatialNodeId: createGlobalEntityId(contextId, 'space', 'root'),
       worldConfig: config,
       entities: [],
       regions,
@@ -248,7 +271,7 @@ export class WorldInitSystem implements ISubSystem {
     return (Math.random() - 0.5) * 2 * range
   }
 
-  private clamp(value: number, min: number, max: number): number {
+  private clampRounded(value: number, min: number, max: number): number {
     return Math.max(min, Math.min(max, Math.round(value)))
   }
 
@@ -278,12 +301,12 @@ export class WorldInitSystem implements ISubSystem {
         ? (i / (template.regionCount - 1)) * 2 - 1
         : 0
 
-      const temperature = this.clamp(
+      const temperature = this.clampRounded(
         this.baseTemperature(yRatio) + this.jitter(3),
         -10,
         40,
       )
-      const humidity = this.clamp(
+      const humidity = this.clampRounded(
         this.baseHumidity(Math.abs(yRatio)) + this.jitter(10),
         0,
         100,
@@ -452,14 +475,26 @@ export class WorldInitSystem implements ISubSystem {
 
   // ========== ISubSystem 实现 ==========
 
-  collectState(_context: RoundContext): SubSystemState {
-    const summaryText = this.state.snapshot
-      ? `【${this.label}】已初始化 | 世界：${this.state.config?.name ?? '-'} | ${this.state.snapshot.regions.length} 区域`
-      : ''
+  collectState(context: RoundContext): SubSystemState {
+    const instance = useWorldStore.getState().contexts[context.contextId]
+    const snapshot = instance
+      ? {
+          contextId: instance.record.id,
+          rootSpatialNodeId: instance.record.rootSpatialNodeId,
+          worldConfig: instance.worldConfig,
+          entities: instance.entities,
+          regions: instance.regions,
+          tags: instance.tags,
+        }
+      : this.state.snapshot
+    const status = snapshot ? '已初始化' : '未初始化'
+    const contextId = snapshot?.contextId ?? '无'
+    const worldName = snapshot?.worldConfig.name ?? '无'
+    const regionCount = snapshot?.regions.length ?? 0
     return {
       id: this.id,
-      summary: summaryText,
-      data: structuredClone(this.state.snapshot ?? {}),
+      summary: `【${this.label}：${status} | 上下文：${contextId} | 世界：${worldName} | ${regionCount} 区域】`,
+      data: structuredClone(snapshot ?? {}),
     }
   }
 
@@ -483,5 +518,22 @@ export class WorldInitSystem implements ISubSystem {
 
   reset(): void {
     this.state = { config: null, snapshot: null, }
+  }
+
+  hydrateFromStore(): void {
+    const state = useWorldStore.getState()
+    const instance = state.currentContextId ? state.contexts[state.currentContextId] : undefined
+    if (!instance) return
+    this.state = {
+      config: structuredClone(instance.worldConfig),
+      snapshot: {
+        contextId: instance.record.id,
+        rootSpatialNodeId: instance.record.rootSpatialNodeId,
+        worldConfig: structuredClone(instance.worldConfig),
+        entities: structuredClone(instance.entities),
+        regions: structuredClone(instance.regions),
+        tags: structuredClone(instance.tags),
+      },
+    }
   }
 }

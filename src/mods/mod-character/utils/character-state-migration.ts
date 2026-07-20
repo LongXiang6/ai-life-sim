@@ -20,6 +20,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+export function createGlobalCharacterId(): string {
+  const randomId = globalThis.crypto?.randomUUID?.()
+    ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+  return `character_${randomId}`
+}
+
 function finiteNumber(value: unknown, fallback = 0): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback
 }
@@ -40,10 +46,23 @@ function sanitizeAttributeModifiers(value: unknown): AttributeModifiers {
 
 export function sanitizeCharacterBaseState(value: unknown): CharacterBaseState {
   const record = isRecord(value) ? value : {}
+  const contextModifiers = isRecord(record.contextModifiers)
+    ? Object.fromEntries(
+        Object.entries(record.contextModifiers).flatMap(([contextId, sources]) => {
+          if (!isRecord(sources)) return []
+          return [[contextId, Object.fromEntries(
+            Object.entries(sources).flatMap(([sourceId, modifiers]) => (
+              isRecord(modifiers) ? [[sourceId, sanitizeAttrBonus(modifiers)]] : []
+            )),
+          )]]
+        }),
+      )
+    : {}
   return {
     base: sanitizeBaseAttributes(record.base),
     current: sanitizeBaseAttributes(record.current),
     modifiers: sanitizeAttributeModifiers(record.modifiers),
+    contextModifiers,
     startingAge: finiteNumber(record.startingAge),
   }
 }
@@ -158,6 +177,9 @@ export function sanitizeCharacterStateSnapshot(value: unknown): Record<string, u
 
   return {
     ...record,
+    characterId: typeof record.characterId === 'string' && record.characterId.trim()
+      ? record.characterId.trim()
+      : createGlobalCharacterId(),
     characterBase: sanitizeCharacterBaseState(record.characterBase),
     destinyPatterns: sanitizeDestinyPatternState(record.destinyPatterns),
     talents,

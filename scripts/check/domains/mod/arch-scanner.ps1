@@ -50,7 +50,6 @@ function Get-ModTier($modName) {
     'mod-politics' = 'Social'
     'mod-culture' = 'Social'
     'mod-social-civilization' = 'Social'
-    'mod-golden-finger' = 'Social'
     'mod-ui' = 'UI'
     'mod-settings' = 'UI'
     'mod-world-map' = 'UI'

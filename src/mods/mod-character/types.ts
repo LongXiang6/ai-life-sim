@@ -36,6 +36,8 @@ export interface CharacterBaseState {
   current: BaseAttributes
   /** 聚合修正值（命格 bonus + 伤病 effects + 衰减 modifiers） */
   modifiers: AttributeModifiers
+  /** 当地世界、种族或状态规则按 contextId/sourceId 分区，不污染其他世界 */
+  contextModifiers: Record<string, Record<string, Partial<AttributeModifiers>>>
   /** 起始年龄（由角色创建或结构化变更显式提供） */
   startingAge: number,
 }

@@ -1,28 +1,28 @@
 'use client'
 
-/**
- * @module useHistoryDynamicsHooks
- * @description mod-history-dynamics 自定义 Hook
- * @mod mod-history-dynamics
- */
+/** @module hooks.ts @mod mod-history-dynamics */
 
 import { useHistoryDynamicsStore } from './store'
 
-export function useEventPool() {
-  return useHistoryDynamicsStore((s) => s.eventPool)
+export function useHistoricalEvents() {
+  return useHistoryDynamicsStore((state) => state.events)
 }
 
-export function useCausalSimulation() {
-  return useHistoryDynamicsStore((s) => s.causalSimulation)
+export function useHistoricalCausalEdges() {
+  return useHistoryDynamicsStore((state) => state.causalEdges)
+}
+
+export function useHistoricalEventCandidates() {
+  return useHistoryDynamicsStore((state) => state.candidateAudits)
 }
 
 export function useHistoryDynamics() {
-  return useHistoryDynamicsStore((s) => ({
-    eventPool: s.eventPool,
-    causalSimulation: s.causalSimulation,
-    getSummary: s.getSummary,
-    setEventPool: s.setEventPool,
-    setCausalSimulation: s.setCausalSimulation,
-    reset: s.reset,
+  return useHistoryDynamicsStore((state) => ({
+    events: state.events,
+    transitions: state.transitions,
+    evidence: state.evidence,
+    causalEdges: state.causalEdges,
+    candidateAudits: state.candidateAudits,
+    migrationMetadata: state.migrationMetadata,
   }))
 }

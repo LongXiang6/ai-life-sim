@@ -107,9 +107,10 @@ function buildEngineSaveSnapshot(): Record<string, unknown> {
  * 从存档数据恢复游戏状态（engine / character / world / core MOD stores / orchestrator）。
  *
  * 原子性保证：
- *   - 核心 store（engine / character / world）任一恢复失败即抛出，且**不切换 gamePhase**，
- *     避免进入「半恢复 + 停留在错误界面」的损坏态；调用方应 catch 并提示用户、留在安全页。
- *   - 可选 store（orchestrator）坏数据仅记录告警并跳过，不阻断整体加载。
+ *   - 核心 store（engine / character / world）或存在的 orchestrator/owning persistence
+ *     快照任一恢复失败即抛出，且**不切换 gamePhase**；失败会恢复进入本函数前的完整游戏状态。
+ *   - 旧存档可以缺少 orchestrator/P1 快照，此时从已经恢复的核心 Store 重建；
+ *     但只要快照存在，就必须完整通过上下文与 owning system 校验，不能静默跳过坏数据。
  */
 export function applyGameSave(data: Record<string, unknown>): void {
   assertRuntimeReady('加载存档')
@@ -140,23 +141,23 @@ export function applyGameSave(data: Record<string, unknown>): void {
     }))
     useCharacterStore.setState(migratedCharacter as unknown as ReturnType<typeof useCharacterStore.getState>)
     useWorldStore.setState(migratedWorld as unknown as ReturnType<typeof useWorldStore.getState>)
+    const restoredWorld = useWorldStore.getState()
+    if (!restoredWorld.currentContextId || !restoredWorld.contexts[restoredWorld.currentContextId]) {
+      throw new Error('存档中的世界上下文注册表无效，已中止恢复。')
+    }
     orchestrator.hydrateFromEngineStore()
 
-    // —— 可选 store：单个失败隔离，不阻断加载 ——
-    const restoreOptional = (label: string, fn: () => void): void => {
-      try {
-        fn()
-      } catch (err) {
-        console.error(`[applyGameSave] 可选状态「${label}」恢复失败，已跳过:`, err)
-      }
-    }
-
     if (data.orchestrator && typeof data.orchestrator === 'object') {
-      restoreOptional('orchestrator', () => {
-        orchestrator.restoreSnapshot(data.orchestrator as Parameters<typeof orchestrator.restoreSnapshot>[0])
-        restoredOrchestratorSnapshot = true
-        syncSubsystemStoresFromStates(orchestrator.getSubsystemStateSnapshot())
-      })
+      const savedContextId = (data.orchestrator as { worldContextId?: unknown }).worldContextId
+      if (
+        typeof savedContextId === 'string'
+        && savedContextId !== restoredWorld.currentContextId
+      ) {
+        throw new Error('存档中的世界上下文与编排器快照不一致，已中止恢复。')
+      }
+      orchestrator.restoreSnapshot(data.orchestrator as Parameters<typeof orchestrator.restoreSnapshot>[0])
+      restoredOrchestratorSnapshot = true
+      syncSubsystemStoresFromStates(orchestrator.getSubsystemStateSnapshot())
     }
 
     if (!restoredOrchestratorSnapshot) {
@@ -231,9 +232,31 @@ export function ensureOrchestratorContextFromStores(): boolean {
   const worldConfig = worldState.worldConfig
   const character = useCharacterStore.getState()
 
-  if (!worldConfig) return false
+  if (!worldConfig || !worldState.currentContextId || !worldState.contexts[worldState.currentContextId]) return false
+  if (character.worldCode !== worldState.worldCode) {
+    character.setWorldCode(worldState.worldCode)
+  }
 
   const calibration = worldState.calibration ?? buildDefaultCalibration(worldConfig)
+  const characterId = character.characterId || character.ensureCharacterId()
+  const currentInstance = worldState.contexts[worldState.currentContextId]
+  if (!currentInstance.spatialGraph.entityLocations[characterId]) {
+    worldState.replaceContext({
+      ...currentInstance,
+      spatialGraph: {
+        ...currentInstance.spatialGraph,
+        entityLocations: {
+          ...currentInstance.spatialGraph.entityLocations,
+          [characterId]: {
+            entityId: characterId,
+            contextId: currentInstance.record.id,
+            nodeId: currentInstance.record.rootSpatialNodeId,
+            updatedAtGlobalDay: useEngineStore.getState().round.totalDays,
+          },
+        },
+      },
+    })
+  }
   const worldTagsText = worldState.worldTags.length > 0
     ? worldState.worldTags.join('、')
     : undefined
@@ -255,6 +278,7 @@ export function ensureOrchestratorContextFromStores(): boolean {
   const patterns = character.destinyPatterns.patterns ?? []
 
   orchestrator.setContext(worldSetting, {
+    characterId,
     name: character.name || '未命名',
     age: character.age,
     gender: character.gender,

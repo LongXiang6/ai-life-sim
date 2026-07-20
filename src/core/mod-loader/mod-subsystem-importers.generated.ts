@@ -66,18 +66,11 @@ export const MOD_SUBSYSTEM_IMPORTERS: Record<string, () => Promise<Record<string
     ])
     return { ...m0, ...m1, ...m2, ...m3, ...m4 }
   },
-  'mod-golden-finger': async () => {
+  'mod-history-dynamics': async () => {
     const [m0] = await Promise.all([
-    import('@/mods/mod-golden-finger/subsystems/golden-finger-system'),
+    import('@/mods/mod-history-dynamics/subsystems/historical-event-ledger-system'),
     ])
     return { ...m0 }
-  },
-  'mod-history-dynamics': async () => {
-    const [m0, m1] = await Promise.all([
-    import('@/mods/mod-history-dynamics/subsystems/event-pool-system'),
-    import('@/mods/mod-history-dynamics/subsystems/causal-simulation-system'),
-    ])
-    return { ...m0, ...m1 }
   },
   'mod-npc': async () => {
     const [m0, m1, m2] = await Promise.all([
@@ -122,10 +115,15 @@ export const MOD_SUBSYSTEM_IMPORTERS: Record<string, () => Promise<Record<string
     return { ...m0, ...m1 }
   },
   'mod-world': async () => {
-    const [m0, m1] = await Promise.all([
+    const [m0, m1, m2, m3, m4, m5, m6] = await Promise.all([
+    import('@/mods/mod-world/subsystems/world-context-registry-system'),
+    import('@/mods/mod-world/subsystems/contextual-capability-profile-system'),
+    import('@/mods/mod-world/subsystems/spatial-graph-system'),
+    import('@/mods/mod-world/subsystems/context-transition-system'),
+    import('@/mods/mod-world/subsystems/simulation-scope-policy-system'),
     import('@/mods/mod-world/subsystems/world-init-system'),
     import('@/mods/mod-world/subsystems/world-entity-system'),
     ])
-    return { ...m0, ...m1 }
+    return { ...m0, ...m1, ...m2, ...m3, ...m4, ...m5, ...m6 }
   },
 }

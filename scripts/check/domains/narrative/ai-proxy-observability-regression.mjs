@@ -22,11 +22,16 @@ const client = read('src/core/ai-service/ai-client.ts')
 const storySeed = read('src/core/ai-service/story-seed.ts')
 const logStore = read('src/core/logger/server-log-store.ts')
 const logSafety = read('src/core/logger/server-log-safety.ts')
+const redactionSafety = read('src/core/logger/redact-sensitive-data.ts')
 const clientLogRoute = read('src/app/api/log/route.ts')
 const clientLogger = read('src/core/logger/client-logger.ts')
 const debugLogRoute = read('src/app/api/debug-log/route.ts')
 const debugLogger = read('src/core/logger/debug-logger.ts')
 const inspector = read('scripts/ops/inspect-ai-logs.mjs')
+const diagnosticIdentityRoute = read('src/app/api/diagnostic-identity/route.ts')
+const diagnosticIdentityStore = read('src/core/logger/diagnostic-player-identity.ts')
+const diagnosticCodeContract = read('src/core/logger/diagnostic-player-code.ts')
+const feedbackPage = read('src/mods/mod-pages/pages/feedback/page.tsx')
 
 assert(
   /type:\s*z\.literal\('enabled'\)[\s\S]{0,160}budget_tokens/.test(proxy),
@@ -68,7 +73,7 @@ assert(
   'every proxy call must expose a request ID and persist an AI trace',
 )
 assert(
-  /saveRawResponse\(requestId, providerId, model, upstreamResp\.status, errorText\)/.test(proxy)
+  /saveRawResponse\(source, requestId, providerId, model, upstreamResp\.status, errorText\)/.test(proxy)
     && /formatApiErrorForUser/.test(client),
   'raw upstream failures must remain in sanitized server logs while the client uses the translation layer',
 )
@@ -92,8 +97,23 @@ assert(
   'server-derived IP must prefer the trusted Nginx header and own a per-source index',
 )
 assert(
-  /custom\|managed\|provider/.test(logSafety)
-    && /key\|token\|secret\|password\|authorization\|cookie/.test(logSafety),
+  /DIAGNOSTIC_PLAYER_CODE_COOKIE/.test(logSafety)
+    && /diagnosticCode/.test(proxy)
+    && /players\/\$\{source\.diagnosticCode\}/.test(logStore)
+    && /reserveServerLogFile/.test(diagnosticIdentityStore),
+  'issued player diagnostic codes must join every log record and own an atomic per-player index',
+)
+assert(
+  /HttpOnly/i.test(diagnosticIdentityRoute)
+    && /sameSite:\s*'lax'/.test(diagnosticIdentityRoute)
+    && /browser-profile/.test(diagnosticIdentityRoute)
+    && /A-HJ-NP-Z2-9/.test(diagnosticCodeContract)
+    && /此浏览器的诊断编号/.test(feedbackPage),
+  'the six-character code must be server-issued, persistent, non-fingerprint identity visible to the player',
+)
+assert(
+  /custom\|managed\|provider/.test(redactionSafety)
+    && /key\|token\|secret\|password\|authorization\|cookie/.test(redactionSafety),
   'secret redaction must cover player custom keys and token-like credential fields',
 )
 assert(
@@ -113,7 +133,9 @@ assert(
 )
 assert(
   /--ip <address>/.test(inspector)
+    && /--player-code <code>/.test(inspector)
     && /--request-id <id>/.test(inspector)
+    && /--feedback-id <id>/.test(inspector)
     && /--include-content/.test(inspector)
     && /default output excludes full player Prompt/.test(inspector),
   'the private operator inspector must support IP/request lookup without exposing content by default',

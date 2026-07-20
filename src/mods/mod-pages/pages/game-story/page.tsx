@@ -507,6 +507,7 @@ export default function GamePage() {
                     >
                       手动存档
                     </button>
+                    <button type="button" onClick={() => router.push('/feedback')}>反馈与建议</button>
                     <button type="button" onClick={() => router.push('/welcome')}>返回主界面</button>
                   </div>
                 </section>

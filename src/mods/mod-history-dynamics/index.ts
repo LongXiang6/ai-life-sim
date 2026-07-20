@@ -1,39 +1,68 @@
 /**
- * @module index
- * @description mod-history-dynamics 公共 API 导出
+ * @module index.ts
+ * @description 历史事件账本轻量公共入口；重 API 位于 historical-event-api.ts
  * @mod mod-history-dynamics
  */
 
-// === 类型 ===
 export type {
-  EventSource,
-  EventPoolEntry,
-  EventPoolState,
-  CausalActionType,
-  CausalEvent,
-  CausalQueue,
-  CausalSimulationState,
-  HistoryDynamicsSummary,
+  HistoricalEventId,
+  HistoricalEventEvidenceId,
+  HistoricalCausalEdgeId,
+  HistoricalEventCandidateId,
+  HistoricalEventStatus,
+  HistoricalEventScopeKind,
+  HistoricalEventScope,
+  HistoricalEntityReference,
+  HistoricalLocationReference,
+  HistoricalEventSchedule,
+  HistoricalEventSourceKind,
+  HistoricalEventSource,
+  HistoricalEventRecord,
+  HistoricalEventTransition,
+  HistoricalEventEvidenceKind,
+  HistoricalEventEvidence,
+  HistoricalCausalRelation,
+  HistoricalCausalEdge,
+  HistoricalEventCandidate,
+  HistoricalEventCandidateAuditStatus,
+  HistoricalEventCandidateAudit,
+  HistoricalEventMigrationMetadata,
+  HistoricalEventLedgerPersistenceState,
+  HistoricalEventView,
+  HistoricalEventLedgerContract,
+  HistoricalEventCreateInput,
+  HistoricalEventTransitionInput,
+  HistoricalEventEvidenceInput,
+  HistoricalCausalEdgeInput,
+  HistoricalEventCommitBatch,
+  HistoricalEventValidationContext,
+  HistoricalEventPreparedAppend,
+  HistoricalEventPreflightResult,
+  HistoricalEventCommitResult,
+  HistoricalQueryWindow,
+  HistoricalEventQuery,
+  HistoricalCausalEdgeQuery,
+  HistoricalEventEvidenceQuery,
+  HistoricalEventTransitionQuery,
+  HistoricalEventMigrationQuery,
+  HistoricalEventDetailsQuery,
+  HistoricalEventDetails,
+  HistoricalEventCandidateInput,
+  HistoricalEventCandidateSubmission,
+  HistoricalEventCandidateQuery,
+  HistoricalCausalCommitmentInput,
 } from './types'
 
-// === 常量 ===
+export { HISTORICAL_EVENT_STATUSES, HISTORICAL_EVENT_TRANSITIONS } from './constants'
 export {
-  ROUND_DECIMALS,
-  PRESET_EVENT_POOL,
-  EVENT_POOL_REFRESH_INTERVAL,
-  MAX_EVENT_POOL_SIZE,
-  CAUSAL_ACTION_LABELS,
-  CAUSAL_REGEX_RULES,
-  MAX_CAUSAL_PER_DECADE,
-  MAX_CAUSAL_PER_30_YEARS,
-  CAUSAL_DELAY_RANGE,
-} from './constants'
-
-// === 工具函数 ===
-export { round, clamp, pickRandom } from './utils'
-
-// === Store ===
-export { useHistoryDynamicsStore } from './store'
-
-// === Hook ===
-export { useEventPool, useCausalSimulation, useHistoryDynamics } from './hooks'
+  createEmptyHistoryLedgerState,
+  isHistoryLedgerPersistenceState,
+  migrateHistoryDynamicsState,
+  useHistoryDynamicsStore,
+} from './store'
+export {
+  useHistoricalEvents,
+  useHistoricalCausalEdges,
+  useHistoricalEventCandidates,
+  useHistoryDynamics,
+} from './hooks'

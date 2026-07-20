@@ -15,10 +15,51 @@ const GENDER_LABELS: Record<string, string> = {
   unknown: '未设定',
 }
 
+const CONTEXT_KIND_LABELS: Record<string, string> = {
+  'campaign-root': '存档根',
+  world: '世界',
+  universe: '宇宙',
+  plane: '位面',
+  galaxy: '星系',
+  planet: '星球',
+  continent: '大陆',
+  region: '区域',
+  settlement: '聚落',
+  scene: '场景',
+  vehicle: '载具',
+  dream: '梦境',
+  digital: '数字空间',
+  abstract: '抽象空间',
+}
+
+const SCOPE_LABELS: Record<string, string> = {
+  active: '当前完整模拟',
+  background: '后台聚合',
+  dormant: '休眠冻结',
+  closed: '关闭',
+}
+
+const CAPABILITY_LABELS: Record<string, string> = {
+  life: '生命',
+  space: '空间',
+  npc: '个体角色',
+  economy: '经济',
+  politics: '政治',
+  technology: '科技',
+  supernatural: '超凡',
+}
+
 export interface NarrativeAIWorldView extends Record<string, unknown> {
+  当前上下文编号: string
+  当前上下文类型: string
+  当前模拟范围: string
+  当前世界能力: string[]
   世界名称: string
   世界描述: string
+  当前历法: string
   当前纪年: string
+  当前月份: string
+  当前季节: string
 }
 
 export interface NarrativeAICharacterProfileView extends Record<string, unknown> {
@@ -33,11 +74,30 @@ export interface NarrativeAICharacterStatusView extends Record<string, unknown> 
 
 export function projectWorldSettingForNarrativeAI(
   worldSetting: WorldSetting,
+  narrativeTime?: {
+    calendarName: string
+    eraLabel: string
+    month: number
+    seasonName: string
+  },
 ): NarrativeAIWorldView {
   return {
+    当前上下文编号: worldSetting.contextId || '旧存档当前上下文',
+    当前上下文类型: CONTEXT_KIND_LABELS[worldSetting.contextKind] ?? '世界',
+    当前模拟范围: SCOPE_LABELS[worldSetting.simulationScope] ?? '当前完整模拟',
+    当前世界能力: (worldSetting.capabilityProfile?.capabilities ?? []).map(
+      (capability) => CAPABILITY_LABELS[capability] ?? '其他',
+    ),
     世界名称: worldSetting.name,
     世界描述: worldSetting.description,
-    当前纪年: worldSetting.era,
+    当前历法: narrativeTime?.calendarName ?? '当地历法',
+    当前纪年: narrativeTime?.eraLabel ?? worldSetting.era,
+    当前月份: narrativeTime ? `${narrativeTime.month}月` : '未提供',
+    当前季节: narrativeTime
+      ? (narrativeTime.seasonName.endsWith('时节')
+          ? narrativeTime.seasonName
+          : `${narrativeTime.seasonName}季`)
+      : '未提供',
   }
 }
 

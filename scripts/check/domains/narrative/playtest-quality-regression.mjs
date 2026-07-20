@@ -404,7 +404,11 @@ for (const legacyPowerSystemTag of ['none', 'technology']) {
   assertSame(migratedScpWorld.calibration.metadata.essenceTag, 'mixed', 'old SCP calibration metadata must match migrated essence')
   assertSame(migratedScpWorld.calibration.metadata.powerSystemTag, 'mixed', 'old SCP calibration metadata must match migrated power system')
   assertSame(migratedScpWorld.calibration.formulas.techProgressModifier, 1.4, 'old SCP numeric calibration must be preserved')
-  assertSame(migratedScpWorld.entities[0].id, 'site-19', 'old SCP entities must be preserved')
+  assertOk(
+    migratedScpWorld.entities[0].id.endsWith(':entity:site-19'),
+    'old SCP entities must receive the P0 global context namespace',
+  )
+  assertSame(migratedScpWorld.entities[0].localId, 'site-19', 'old SCP local entity IDs must remain available as migration metadata')
   assertSame(migratedScpWorld.worldTags.length, 2, 'only contradictory old SCP atmosphere tags must be invalidated')
   assertSame(migratedScpWorld.worldTags[0], '异常收容', 'valid old SCP atmosphere tags must be preserved')
   assertSame(migratedScpWorld.worldTags[1], '休谟指数', 'valid old SCP setting facts must remain available to the Prompt')
@@ -695,7 +699,7 @@ assertOk(/legendary允许轻度概念规则/.test(destinyPromptSrc), 'legendary 
 assertOk(/不得自动获胜/.test(destinyPromptSrc) && /条件、概率、代价、有限触发/.test(destinyPromptSrc), 'legendary conceptual rules must preserve cost and agency')
 assertOk(/effect写成叙事引擎可持续遵守的规则/.test(destinyPromptSrc), 'destiny effect must remain a narrative rule instead of only numeric modifiers')
 assertOk(/validatePatternSystemModifiers\(input\.systemModifiers, rarity\)/.test(destinySystemSrc), 'external AI destiny injection must validate system modifiers')
-assertOk(/version:\s*2/.test(characterStoreSrc), 'character persistence must bump for the four-attribute and mythic-state migration')
+assertOk(/version:\s*3/.test(characterStoreSrc), 'character persistence must include the stable character ID and context-modifier migration')
 assertOk(
   ['mythicCandidates', 'equippedMythicPattern', 'sealedMythicPatternId'].every((field) => characterStoreSrc.includes(field)),
   'character store must persist current-life mythic candidates, equipment, and sealed identity',
@@ -878,7 +882,7 @@ const monthAfterSeasonStep = (mayIndex + 3) % 12
 assertSame(Math.floor(((monthAfterSeasonStep + 10) % 12) / 3), 1, 'month->season must land in the following solar season')
 assertOk(/candidate\.importance\s*===\s*'HIGH'/.test(branchPolicySrc), 'ordinary branch points must require HIGH importance')
 assertOk(narrativePromptComponentsSrc.includes('身份、核心关系、长期目标、关键资源、阵营、存亡等不可逆轨迹'), 'branch prompt must define fate-changing impact dimensions')
-assertOk(/version:\s*'4\.1\.0'/.test(narrativePromptSrc), 'branch-intent narrative prompt must use version 4.1.0')
+assertOk(/version:\s*'4\.2\.0'/.test(narrativePromptSrc), 'branch-intent narrative prompt must use version 4.2.0')
 assertOk(
   /semanticSignals\?\.irreversible\s*===\s*true/.test(branchPolicySrc)
     && /narrativeRegister\s*===\s*'fate'/.test(branchPolicySrc),

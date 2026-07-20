@@ -18,6 +18,7 @@ import {
   getServerRequestSource,
   safeLogSegment,
   type ServerRequestSource,
+  writeSourceLogFile,
   writeServerLogFile,
 } from '@/core/logger/server-log-store'
 
@@ -55,6 +56,7 @@ async function writeLogAsync(entry: ClientLogEntry, source: ServerRequestSource)
     ...entry,
     sourceIp: source.ip,
     sourceId: source.sourceId,
+    diagnosticCode: source.diagnosticCode,
     receivedAt,
   }
 
@@ -65,7 +67,8 @@ async function writeLogAsync(entry: ClientLogEntry, source: ServerRequestSource)
   const stackStr = entry.stack ? ` | stack: ${entry.stack}` : ''
   const actionStr = entry.action ? ` | action: ${entry.action}` : ''
   const requestIdStr = entry.requestId ? ` | requestId: ${entry.requestId}` : ''
-  const line = `[${time}] [${entry.level.toUpperCase()}] [${entry.module}] [${source.ip}] ${entry.message}${requestIdStr}${actionStr}${argsStr}${errorStr}${stackStr}\n`
+  const diagnosticCodeStr = source.diagnosticCode ? ` [${source.diagnosticCode}]` : ''
+  const line = `[${time}] [${entry.level.toUpperCase()}] [${entry.module}] [${source.ip}]${diagnosticCodeStr} ${entry.message}${requestIdStr}${actionStr}${argsStr}${errorStr}${stackStr}\n`
 
   await Promise.all([
     appendServerText(`client-events/client-errors-${dateStr}.log`, line),
@@ -82,6 +85,7 @@ async function writeLogAsync(entry: ClientLogEntry, source: ServerRequestSource)
       `Module: ${entry.module}`,
       `Level: ${entry.level}`,
       `Source IP: ${source.ip}`,
+      ...(source.diagnosticCode ? [`Diagnostic Code: ${source.diagnosticCode}`] : []),
       ...(entry.requestId ? [`Request ID: ${entry.requestId}`] : []),
       `Message: ${entry.message}`,
       '',
@@ -90,7 +94,7 @@ async function writeLogAsync(entry: ClientLogEntry, source: ServerRequestSource)
     ].join('\n')
     await Promise.all([
       writeServerLogFile(`client-raw/${rawFile}`, rawContent),
-      writeServerLogFile(`sources/${source.sourceId}/client-raw/${rawFile}`, rawContent),
+      writeSourceLogFile(source, `client-raw/${rawFile}`, rawContent),
     ])
   }
 }

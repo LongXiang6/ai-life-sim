@@ -76,15 +76,13 @@ export class FortuneEncounterSystem implements ISubSystem {
     if (this._state.cooldownRounds > 0) { this._state.cooldownRounds--; this._state.activeEncounter = null; return }
     const luckData = context.subsystemStates['luck']?.data as Record<string, unknown> | undefined
     const luckBonus = (luckData?.luck as number) ?? 0
-    const goldenActive = (context.subsystemStates['golden-finger']?.data as Record<string, unknown> | undefined)?.assigned as boolean ?? false
     const diffMult = DIFFICULTY_MULTIPLIERS_FORTUNE[context.difficulty] ?? 1
     const luckPointMod = getFormulaModifier('luckPointModifier')
     const luckMult = 1 + luckBonus * LUCK_MULTIPLIER_PER_POINT * luckPointMod
-    const goldenBoost = goldenActive ? 1.5 : 1.0
 
     const tiers = ['legendary', 'major', 'minor'] as const
     for (const tier of tiers) {
-      const chance = Math.min(BASE_ENCOUNTER_CHANCE[tier] * luckMult * diffMult * goldenBoost, tier === 'legendary' ? 0.08 : tier === 'major' ? 0.20 : 0.40)
+      const chance = Math.min(BASE_ENCOUNTER_CHANCE[tier] * luckMult * diffMult, tier === 'legendary' ? 0.08 : tier === 'major' ? 0.20 : 0.40)
       if (Math.random() < chance) {
         const pool = ENCOUNTER_POOL.filter(e => e.tier === tier && e.id !== this._state.lastEncounterId)
         const selected = pool.length > 0 ? pool[Math.floor(Math.random() * pool.length)] : ENCOUNTER_POOL.filter(e => e.tier === tier)[Math.floor(Math.random() * ENCOUNTER_POOL.filter(e => e.tier === tier).length)]

@@ -12,6 +12,11 @@ const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const
 export interface CanonicalCalendarNarrativeInput {
   timeStep: TimeStep
   calendarYear: number
+  calendarName?: string
+  daysPerYear?: number
+  monthsPerYear?: number
+  seasonName?: string
+  usesCanonicalSolarSeasons?: boolean
   month: number
   day: number
   /** 上一条已完成叙事的时间节点（显示纪年，月份/日期从1开始）。 */
@@ -83,7 +88,11 @@ function buildActualNarrativeWindow(
 
   const previous = formatCalendarNode(input.previousNode)
   const current = formatCalendarNode(input)
-  const days = Math.floor(daysPassed)
+  const usesLocalCalendar = input.usesCanonicalSolarSeasons === false
+  const days = usesLocalCalendar
+    ? Math.round(daysPassed * 100) / 100
+    : Math.floor(daysPassed)
+  const dayUnit = usesLocalCalendar ? '当地日' : '天'
   const unitLabel: Record<TimeStep['unit'], string> = {
     day: '日',
     month: '月',
@@ -96,7 +105,7 @@ function buildActualNarrativeWindow(
     ? `这是从${normalizeAmount(input.timeStepAlignment.fromValue)}${unitLabel[input.timeStepAlignment.fromUnit]}切换到当前${amount}${unit}后的边界对齐桥接；前一粗粒度窗口已经完成，不能把被跳过的跨度重新写成当前${unit}的流水账。正文直接从当前合法节点建立一个代表性现场、后果或新线索，必要时只用一句过渡。`
     : ''
 
-  return `本轮实际时间窗口：上一叙事节点为${previous}，当前结束节点为${current}；已推进${days}天（${amount}${unit}）。正文只叙述上一节点之后至当前节点之间发生的事，不得重复上一节点之前已经完成的周期，也不得把当前结束节点之后的时间提前写入。${alignment}`
+  return `本轮实际时间窗口：上一叙事节点为${previous}，当前结束节点为${current}；已推进${days}${dayUnit}（${amount}${unit}）。正文只叙述上一节点之后至当前节点之间发生的事，不得重复上一节点之前已经完成的周期，也不得把当前结束节点之后的时间提前写入。${alignment}`
 }
 
 /** 构建可独立回归的历法跨度说明；季节只由月份推导。 */
@@ -104,9 +113,32 @@ export function buildCanonicalCalendarNarrativeHint(
   input: CanonicalCalendarNarrativeInput,
 ): string {
   const amount = normalizeAmount(input.timeStep.value)
+  const actualWindow = buildActualNarrativeWindow(input)
+  const usesCanonicalSolarSeasons = input.usesCanonicalSolarSeasons !== false
+  if (!usesCanonicalSolarSeasons) {
+    const calendarName = input.calendarName?.trim() || '当地历法'
+    const daysPerYear = input.daysPerYear && input.daysPerYear > 0
+      ? `每年${Math.floor(input.daysPerYear)}日`
+      : '年长由当地规则定义'
+    const monthsPerYear = input.monthsPerYear && input.monthsPerYear > 0
+      ? `每年${Math.floor(input.monthsPerYear)}月`
+      : '月份数量由当地规则定义'
+    const seasonName = input.seasonName?.trim() || '当前当地时节'
+    const calendarRule = `当前使用${calendarName}（${daysPerYear}、${monthsPerYear}）；当前为${input.calendarYear}年${input.month}月、${seasonName}。天气、衣着、生产和社会节律必须服从当地历法与世界设定，不得套用现实阳历的固定月份与四季关系。`
+    const granularityRule = input.timeStep.unit === 'year'
+      ? '长时段只作为同一因果主线的过渡，正文仍须落到代表性现场。'
+      : input.timeStep.unit === 'season'
+        ? '当地时节变化须服从两端节点和实际经过天数，不得擅自换算成现实季度。'
+        : input.timeStep.unit === 'month'
+          ? '月份变化须服务于同一段因果推进，不得套用现实月份长度或节气。'
+          : '日内变化须符合两端当地日期之间实际经过的天数。'
+    const fallbackWindow = actualWindow
+      ?? `本轮结束节点为${formatCalendarNode(input)}，按${amount}${input.timeStep.unit === 'day' ? '日' : input.timeStep.unit === 'month' ? '月' : input.timeStep.unit === 'season' ? '时节' : '年'}粒度推进。`
+    return `${calendarRule}${fallbackWindow}${granularityRule}`
+  }
+
   const endSeason = SEASON_NAMES[getSeasonForMonth(input.month - 1)] ?? '未知'
   const calendarRule = `项目历法固定为3—5月春季、6—8月夏季、9—11月秋季、12—2月冬季；天气、衣着、农事与正文季节必须服从阳历月份，不得自行套用其他季节划分。其中${input.month}月必须称${endSeason}季；气温可以异常寒冷或炎热，但不得把该月改称其他季节。`
-  const actualWindow = buildActualNarrativeWindow(input)
 
   if (actualWindow) {
     const granularityRule = input.timeStep.unit === 'season'
@@ -161,14 +193,18 @@ export function buildCanonicalCalendarNarrativeHint(
 }
 
 /** 根据当前时间步进生成叙事视角指示（注入 Prompt） */
-export function buildTimeScaleNarrativeHint(timeStep: TimeStep): string {
+export function buildTimeScaleNarrativeHint(
+  timeStep: TimeStep,
+  calendar?: { usesCanonicalSolarSeasons?: boolean; calendarName?: string },
+): string {
   const amount = normalizeAmount(timeStep.value)
   const unit = timeStep.unit
+  const usesLocalSeason = calendar?.usesCanonicalSolarSeasons === false
 
   const unitLabel: Record<string, string> = {
     day: '日',
     month: '月',
-    season: '季',
+    season: usesLocalSeason ? '当地时节' : '季',
     year: '年',
     decade: '十年',
     century: '百年',
@@ -189,9 +225,13 @@ export function buildTimeScaleNarrativeHint(timeStep: TimeStep): string {
         : `【跨月阶段视角】完整覆盖连续${amount}个月：第一段交代起点压力，第二段呈现期间的积累或转折，第三段落到当前月的阶段性后果；不得只写最后一个月。`
       break
     case 'season':
-      hint += amount === 1
-        ? '【季度中景视角】体现三个月内的阶段性进展、环境与制度变化，再选择一件改变关系、目标或处境的关键节点；结尾落到季度后果，不逐日罗列。'
-        : `【跨季度中景视角】完整覆盖连续${amount}个季度：明确季节、制度或关系如何分阶段变化，再用代表性节点串起因果；不得把多个季度写成同一季节的一幕。`
+      hint += usesLocalSeason
+        ? amount === 1
+          ? `【当地时节中景视角】遵循${calendar?.calendarName || '当地历法'}的实际时间窗口，体现本时节的环境、制度或关系变化，再选择一个改变处境的关键节点；不得换算成现实三个月季度。`
+          : `【跨当地时节中景视角】完整覆盖连续${amount}个当地时节：依据实际时间窗口分阶段表现环境、制度或关系变化，再用代表性节点串起因果；不得套用现实季度。`
+        : amount === 1
+          ? '【季度中景视角】体现三个月内的阶段性进展、环境与制度变化，再选择一件改变关系、目标或处境的关键节点；结尾落到季度后果，不逐日罗列。'
+          : `【跨季度中景视角】完整覆盖连续${amount}个季度：明确季节、制度或关系如何分阶段变化，再用代表性节点串起因果；不得把多个季度写成同一季节的一幕。`
       break
     case 'year':
       if (amount === 1) {

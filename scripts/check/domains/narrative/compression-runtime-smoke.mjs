@@ -181,7 +181,9 @@ const memorySource = fs.readFileSync(
   'utf8',
 )
 assertOk(
-  orchestratorSource.includes('slice(-RECENT_NARRATIVE_WINDOW)')
+  orchestratorSource.includes('selectNarrativeHistoryForPrompt(RECENT_NARRATIVE_WINDOW)')
+    && orchestratorSource.includes('filterNarrativeRecordsForPrompt(')
+    && orchestratorSource.includes('return visible.slice(-limit)')
     && memorySource.includes('recentNarratives: [...recentNarratives]')
     && memorySource.includes('selectLeafSummaries'),
   'production memory assembly must preserve the caller-provided raw window and use hierarchical leaf summaries',

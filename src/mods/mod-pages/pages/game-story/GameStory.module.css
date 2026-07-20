@@ -450,7 +450,7 @@
 .moreActionRow {
   display: grid;
   margin-top: 0.45rem;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   border-top: 1px solid var(--rule-light);
 }
 

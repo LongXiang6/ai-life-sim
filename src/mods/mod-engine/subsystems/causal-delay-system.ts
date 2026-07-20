@@ -1,16 +1,16 @@
 /**
  * @module causal-delay-system.ts
- * @description 因果触发系统 —— 记录重大事件，若干年后触发因果回报
+ * @description 延迟因果系统 —— 保存叙事承诺并按规范时间确定性进入待兑现状态
  * @mod mod-engine
  *
  * 设计理念：
- *   因果系统记录角色一生中的重大事件（恩情、仇恨、承诺、债务），
- *   在若干年后触发因果回报。与长期记忆引擎和记忆遗忘系统联动。
+ *   因果系统记录角色一生中的叙事承诺（恩情、仇恨、承诺、债务），
+ *   按规范全局天数确定性进入待兑现状态。与长期记忆引擎和记忆遗忘系统联动。
  *
  * 核心机制：
  *   - 记录重大事件类型：恩情(kindness)、仇恨(grudge)、承诺(promise)、债务(debt)
- *   - 每轮检查是否有因果事件需要触发
- *   - 触发条件：时间延迟 + 事件严重程度
+ *   - 每轮按作用域检查是否有因果事项到期
+ *   - 新事项使用全局累计天数；旧存档保留原始回合调度
  *   - 与记忆遗忘系统联动：因果标记的事件永不遗忘
  *   - 与长期记忆引擎联动：共享事件数据
  */
@@ -34,10 +34,46 @@ export type CausalEventType = 'kindness' | 'grudge' | 'promise' | 'debt'
 /** 因果事件严重程度 */
 export type CausalSeverity = 'minor' | 'normal' | 'major' | 'critical'
 
+/** 因果事项的叙事可见作用域 */
+export type CausalEventScope = 'global' | 'context' | 'travel'
+
+/**
+ * canonical-days 使用 TimeSystem 的全局累计天数；legacy-round 只用于旧存档和
+ * 尚未传入规范天数的兼容调用。两者不得互相粗略换算。
+ */
+export type CausalSchedule = 'canonical-days' | 'legacy-round'
+
+/** 新事项的登记上下文；拥有系统可把历史事件账本编号作为来源证据传入。 */
+export interface CausalEventRegistration {
+  scope: CausalEventScope
+  contextId?: string
+  createdTotalDays?: number
+  originEventId?: string
+}
+
+/** 到期检查上下文。显式 scope 用于区分全局、当地和旅行叙事。 */
+export interface CausalTriggerCheckOptions {
+  currentTotalDays?: number
+  scope?: CausalEventScope
+  contextId?: string
+}
+
+/** 完整叙事提交成功后附加的兑现证据。 */
+export interface CausalTriggerCommitOptions {
+  currentTotalDays?: number
+  resolutionEventId?: string
+}
+
 /** 因果事件记录 */
 export interface CausalEvent {
   /** 事件唯一ID */
   id: string
+  /** 旧无版本快照出现重复 ID 时保留的原始编号，仅用于迁移审计。 */
+  legacyId?: string
+  /** 作用域：全局、当地上下文或旅行中 */
+  scope: CausalEventScope
+  /** 当地作用域绑定的上下文 */
+  contextId?: string
   /** 事件类型 */
   type: CausalEventType
   /** 严重程度 */
@@ -52,12 +88,24 @@ export interface CausalEvent {
   relatedPerson?: string
   /** 相关势力 */
   relatedFaction?: string
-  /** 触发延迟（轮次） */
-  triggerDelay: number
+  /** 调度权威；旧存档缺少规范天数字段时明确保留 legacy-round */
+  schedule: CausalSchedule
+  /** 规范全局创建天数（仅 canonical-days） */
+  createdTotalDays?: number
+  /** 规范全局到期天数（仅 canonical-days） */
+  dueTotalDays?: number
+  /** 旧回合调度的原始延迟（仅 legacy-round，不换算为天数） */
+  triggerDelay?: number
+  /** 形成该延期承诺的历史事件编号 */
+  originEventId?: string
   /** 是否已触发 */
   triggered: boolean
   /** 触发轮次 */
   triggeredRound?: number
+  /** 兑现时的规范全局天数 */
+  triggeredTotalDays?: number
+  /** 兑现该延期承诺的历史事件编号 */
+  resolutionEventId?: string
   /** 触发结果描述 */
   triggerResult?: string
 }
@@ -74,13 +122,9 @@ export interface CausalTriggerResult {
 
 /** 因果系统配置 */
 export interface CausalConfig {
-  /** 最小触发延迟（轮次） */
-  minTriggerDelay: number
-  /** 最大触发延迟（轮次） */
-  maxTriggerDelay: number
-  /** 严重程度对应的延迟倍数 */
-  severityDelayMultipliers: Record<CausalSeverity, number>
-  /** 每轮最大触发事件数 */
+  /** 本地确定性调度策略；拥有系统可配置，不进入 AI 协议。 */
+  delayDaysBySeverity: Record<CausalSeverity, number>
+  /** 每轮最多送入叙事的到期事项数；只分批，不删除或消费其余事项。 */
   maxTriggerPerRound: number,
 }
 
@@ -90,15 +134,43 @@ export interface CausalConfig {
 
 /** 默认因果配置 */
 const DEFAULT_CAUSAL_CONFIG: CausalConfig = {
-  minTriggerDelay: 5, // 最少5轮后触发
-  maxTriggerDelay: 100, // 最多100轮后触发
-  severityDelayMultipliers: {
-    minor: 1,
-    normal: 2,
-    major: 3,
-    critical: 5,
+  delayDaysBySeverity: {
+    minor: 30,
+    normal: 90,
+    major: 180,
+    critical: 365,
   },
-  maxTriggerPerRound: 2, // 每轮最多触发2个因果事件,
+  maxTriggerPerRound: 2,
+}
+
+/**
+ * 仅供未传 createdTotalDays 的旧调用继续工作。它不是天数换算，也不会用于迁移
+ * 旧存档；旧存档始终保留自身原始 triggerDelay。
+ */
+const LEGACY_COMPAT_TRIGGER_DELAY_ROUNDS: Record<CausalSeverity, number> = {
+  minor: 5,
+  normal: 10,
+  major: 15,
+  critical: 25,
+}
+
+/**
+ * P1 起因果延期快照显式版本化。带版本的快照必须满足当前唯一 ID 契约；
+ * 只有无版本旧快照允许执行确定性重复 ID 迁移。
+ */
+const CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION = 1 as const
+
+interface CausalDelaySnapshotV1 {
+  schemaVersion: typeof CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION
+  config: CausalConfig
+  causalEvents: CausalEvent[]
+  stats: {
+    totalRecorded: number
+    totalTriggered: number
+    pendingEvents: number
+    lastTriggerAt: number
+  }
+  idSequence: number
 }
 
 /** 因果事件类型描述 */
@@ -123,14 +195,17 @@ const CAUSAL_SEVERITY_DESCRIPTIONS: Record<CausalSeverity, string> = {
 export class CausalDelaySystem implements ISubSystem {
   readonly id = 'causal-delay' as const
   readonly mod = 'mod-engine' as const
-  readonly label = '因果触发' as const
-  readonly description = '记录重大事件，若干年后触发因果回报，与长期记忆引擎联动' as const
+  readonly label = '延迟因果' as const
+  readonly description = '保存叙事承诺，按规范时间确定性到期，并在完整叙事提交后确认兑现' as const
 
   /** 因果配置 */
   private config: CausalConfig = DEFAULT_CAUSAL_CONFIG
 
   /** 因果事件列表 */
   private causalEvents: CausalEvent[] = []
+
+  /** 实例内单调序列；与随机 nonce 共同保证同轮同类型批量事项不碰撞。 */
+  private idSequence = 0
 
   /** 统计 */
   private stats = {
@@ -144,27 +219,46 @@ export class CausalDelaySystem implements ISubSystem {
 
   /** 获取配置 */
   getConfig(): CausalConfig {
-    return { ...this.config }
+    return structuredClone(this.config)
   }
 
   /** 设置配置 */
   setConfig(newConfig: Partial<CausalConfig>): void {
-    this.config = { ...this.config, ...newConfig }
+    const delayDaysBySeverity = {
+      ...this.config.delayDaysBySeverity,
+      ...(newConfig.delayDaysBySeverity ?? {}),
+    }
+    for (const severity of ['minor', 'normal', 'major', 'critical'] as const) {
+      const delayDays = delayDaysBySeverity[severity]
+      if (!Number.isSafeInteger(delayDays) || delayDays < 0) {
+        throw new Error(`[${this.id}] Invalid delayDaysBySeverity.${severity}`)
+      }
+    }
+
+    const maxTriggerPerRound = newConfig.maxTriggerPerRound ?? this.config.maxTriggerPerRound
+    if (!Number.isSafeInteger(maxTriggerPerRound) || maxTriggerPerRound <= 0) {
+      throw new Error(`[${this.id}] Invalid maxTriggerPerRound`)
+    }
+
+    this.config = {
+      delayDaysBySeverity,
+      maxTriggerPerRound,
+    }
   }
 
   /** 获取所有因果事件 */
   getCausalEvents(): CausalEvent[] {
-    return [...this.causalEvents]
+    return structuredClone(this.causalEvents)
   }
 
   /** 获取待触发事件 */
   getPendingEvents(): CausalEvent[] {
-    return this.causalEvents.filter((e) => !e.triggered)
+    return structuredClone(this.causalEvents.filter((e) => !e.triggered))
   }
 
   /** 获取已触发事件 */
   getTriggeredEvents(): CausalEvent[] {
-    return this.causalEvents.filter((e) => e.triggered)
+    return structuredClone(this.causalEvents.filter((e) => e.triggered))
   }
 
   /** 获取统计 */
@@ -186,6 +280,7 @@ export class CausalDelaySystem implements ISubSystem {
    * @param description 事件描述
    * @param relatedPerson 相关人物
    * @param relatedFaction 相关势力
+   * @param registration 作用域、规范创建天数和可选来源事件编号
    * @returns 因果事件ID
    */
   recordCausalEvent(
@@ -196,20 +291,41 @@ export class CausalDelaySystem implements ISubSystem {
     description: string,
     relatedPerson?: string,
     relatedFaction?: string,
+    registration: CausalEventRegistration = { scope: 'global' },
   ): string {
-    // 计算触发延迟
-    const baseDelay = this.config.minTriggerDelay + Math.floor(
-      Math.random() * (this.config.maxTriggerDelay - this.config.minTriggerDelay),
-    )
-    const multiplier = this.config.severityDelayMultipliers[severity]
-    const triggerDelay = Math.round(baseDelay * multiplier)
+    if (registration.scope === 'context' && !registration.contextId?.trim()) {
+      throw new Error(`[${this.id}] Context-scoped causal event requires contextId`)
+    }
+    if (registration.createdTotalDays !== undefined
+      && (!Number.isSafeInteger(registration.createdTotalDays) || registration.createdTotalDays < 0)) {
+      throw new Error(`[${this.id}] Invalid createdTotalDays`)
+    }
 
-    // 生成唯一ID
-    const id = `causal-${type}-${round}-${Date.now()}`
+    const createdTotalDays = registration.createdTotalDays
+    const delayDays = this.config.delayDaysBySeverity[severity]
+    const dueTotalDays = createdTotalDays === undefined
+      ? undefined
+      : createdTotalDays + delayDays
+    if (dueTotalDays !== undefined && !Number.isSafeInteger(dueTotalDays)) {
+      throw new Error(`[${this.id}] dueTotalDays exceeds the canonical time range`)
+    }
+
+    // 本地系统分配稳定唯一 ID。仅使用 Date.now 会让同毫秒的同轮同类型事项碰撞，
+    // 因而同时加入实例单调序列，并在可用时使用 randomUUID 作为跨会话 nonce。
+    const nonce = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`
+    let id: string
+    do {
+      this.idSequence++
+      id = `causal-${type}-${round}-${nonce}-${this.idSequence.toString(36)}`
+    } while (this.causalEvents.some((existing) => existing.id === id))
 
     // 创建因果事件
     const event: CausalEvent = {
       id,
+      scope: registration.scope,
+      contextId: registration.contextId?.trim() || undefined,
       type,
       severity,
       round,
@@ -217,7 +333,13 @@ export class CausalDelaySystem implements ISubSystem {
       description,
       relatedPerson,
       relatedFaction,
-      triggerDelay,
+      schedule: createdTotalDays === undefined ? 'legacy-round' : 'canonical-days',
+      createdTotalDays,
+      dueTotalDays,
+      triggerDelay: createdTotalDays === undefined
+        ? LEGACY_COMPAT_TRIGGER_DELAY_ROUNDS[severity]
+        : undefined,
+      originEventId: registration.originEventId?.trim() || undefined,
       triggered: false,
     }
 
@@ -233,9 +355,13 @@ export class CausalDelaySystem implements ISubSystem {
       description,
       severity,
       resolved: false,
+      contextId: registration.contextId,
     })
 
-    console.debug(`[CausalDelay] 记录因果事件：${CAUSAL_TYPE_DESCRIPTIONS[type]}（${severity}），延迟${triggerDelay}轮触发`)
+    const scheduleDescription = event.schedule === 'canonical-days'
+      ? `全局第${event.dueTotalDays}天到期`
+      : `兼容旧调用，延迟${event.triggerDelay}轮`
+    console.debug(`[CausalDelay] 记录因果事件：${CAUSAL_TYPE_DESCRIPTIONS[type]}（${severity}），${scheduleDescription}`)
 
     return id
   }
@@ -248,16 +374,54 @@ export class CausalDelaySystem implements ISubSystem {
    * 检查因果触发
    *
    * @param currentRound 当前轮次
-   * @returns 因果触发结果
+   * @param currentContextOrOptions 旧调用可继续传 contextId；新调用传规范天数与作用域
+   * @param legacyCurrentTotalDays 兼容旧的 (round, contextId, totalDays) 形态
+   * @returns 本批到期事项；此方法不改变事项状态
    */
-  checkCausalTrigger(currentRound: number): CausalTriggerResult {
-    // 找出待触发的事件
-    const pendingEvents = this.causalEvents.filter((e) => !e.triggered)
+  checkCausalTrigger(
+    currentRound: number,
+    currentContextId?: string,
+    legacyCurrentTotalDays?: number,
+  ): CausalTriggerResult
+  checkCausalTrigger(
+    currentRound: number,
+    options: CausalTriggerCheckOptions,
+  ): CausalTriggerResult
+  checkCausalTrigger(
+    currentRound: number,
+    currentContextOrOptions?: string | CausalTriggerCheckOptions,
+    legacyCurrentTotalDays?: number,
+  ): CausalTriggerResult {
+    const options: CausalTriggerCheckOptions = typeof currentContextOrOptions === 'string'
+      ? {
+          contextId: currentContextOrOptions,
+          scope: 'context',
+          currentTotalDays: legacyCurrentTotalDays,
+        }
+      : (currentContextOrOptions ?? {})
 
-    // 检查每个事件是否达到触发条件
-    const readyEvents = pendingEvents.filter((e) => {
-      const elapsedRounds = currentRound - e.round
-      return elapsedRounds >= e.triggerDelay
+    if (options.currentTotalDays !== undefined
+      && (!Number.isSafeInteger(options.currentTotalDays) || options.currentTotalDays < 0)) {
+      throw new Error(`[${this.id}] Invalid currentTotalDays`)
+    }
+
+    // 找出待触发的事件
+    const pendingEvents = this.causalEvents.filter((event) => {
+      if (event.triggered) return false
+      if (event.scope === 'global') return true
+      if (event.scope === 'travel') return options.scope !== 'global'
+      return Boolean(options.contextId && event.contextId === options.contextId)
+    })
+
+    // canonical-days 只读规范全局天数；legacy-round 只读原始回合延迟。
+    const readyEvents = pendingEvents.filter((event) => {
+      if (event.schedule === 'canonical-days') {
+        return options.currentTotalDays !== undefined
+          && event.dueTotalDays !== undefined
+          && options.currentTotalDays >= event.dueTotalDays
+      }
+      return event.triggerDelay !== undefined
+        && currentRound - event.round >= event.triggerDelay
     })
 
     // 按严重程度排序（critical > major > normal > minor）
@@ -267,9 +431,19 @@ export class CausalDelaySystem implements ISubSystem {
       normal: 2,
       minor: 1,
     }
-    readyEvents.sort((a, b) => severityOrder[b.severity] - severityOrder[a.severity])
+    readyEvents.sort((a, b) => {
+      const severityDifference = severityOrder[b.severity] - severityOrder[a.severity]
+      if (severityDifference !== 0) return severityDifference
+      const aDue = a.schedule === 'canonical-days'
+        ? (a.dueTotalDays ?? Number.POSITIVE_INFINITY)
+        : a.round + (a.triggerDelay ?? Number.POSITIVE_INFINITY)
+      const bDue = b.schedule === 'canonical-days'
+        ? (b.dueTotalDays ?? Number.POSITIVE_INFINITY)
+        : b.round + (b.triggerDelay ?? Number.POSITIVE_INFINITY)
+      return aDue - bDue || a.id.localeCompare(b.id)
+    })
 
-    // 限制每轮触发数量
+    // 这里只做非破坏性批处理：未进入本批的到期事项仍完整保留为 pending。
     const toTrigger = readyEvents.slice(0, this.config.maxTriggerPerRound)
 
     if (toTrigger.length === 0) {
@@ -296,7 +470,12 @@ export class CausalDelaySystem implements ISubSystem {
     eventIds: readonly string[],
     currentRound: number,
     triggerResult?: string,
+    options: CausalTriggerCommitOptions = {},
   ): CausalEvent[] {
+    if (options.currentTotalDays !== undefined
+      && (!Number.isSafeInteger(options.currentTotalDays) || options.currentTotalDays < 0)) {
+      throw new Error(`[${this.id}] Invalid currentTotalDays`)
+    }
     const idSet = new Set(eventIds)
     if (idSet.size === 0) return []
 
@@ -305,10 +484,12 @@ export class CausalDelaySystem implements ISubSystem {
       if (event.triggered || !idSet.has(event.id)) continue
       event.triggered = true
       event.triggeredRound = currentRound
+      event.triggeredTotalDays = options.currentTotalDays
+      event.resolutionEventId = options.resolutionEventId?.trim() || undefined
       event.triggerResult = triggerResult?.trim() || undefined
       this.stats.totalTriggered++
       this.stats.pendingEvents = Math.max(0, this.stats.pendingEvents - 1)
-      memoryForgetting.resolveCausalMark(event.round, event.type)
+      memoryForgetting.resolveCausalMark(event.round, event.type, event.contextId)
       committed.push(structuredClone(event))
     }
 
@@ -335,9 +516,13 @@ export class CausalDelaySystem implements ISubSystem {
         `类型：${CAUSAL_TYPE_DESCRIPTIONS[event.type]}`,
         `严重程度：${CAUSAL_SEVERITY_DESCRIPTIONS[event.severity]}`,
         `成立于第${event.round}轮、${event.age}岁时`,
+        event.schedule === 'canonical-days'
+          ? `规范时间：全局第${event.createdTotalDays}天成立，第${event.dueTotalDays}天到期`
+          : `调度：旧存档回合制（延迟${event.triggerDelay ?? '未知'}轮）`,
         `已成立事实：${event.description}`,
         event.relatedPerson ? `相关人物：${event.relatedPerson}` : undefined,
         event.relatedFaction ? `相关势力：${event.relatedFaction}` : undefined,
+        event.originEventId ? `来源事件：${event.originEventId}` : undefined,
       ].filter((field): field is string => Boolean(field))
       parts.push(fields.join('；'))
     }
@@ -388,7 +573,7 @@ export class CausalDelaySystem implements ISubSystem {
   collectState(_context: RoundContext): SubSystemState {
     return {
       id: this.id,
-      summary: `【${this.label}】记录:${this.stats.totalRecorded} 触发:${this.stats.totalTriggered} 待报:${this.stats.pendingEvents}`,
+      summary: `【${this.label}：记录 ${this.stats.totalRecorded} | 触发 ${this.stats.totalTriggered} | 待报 ${this.stats.pendingEvents}】`,
       data: structuredClone({
         config: this.config,
         causalEvents: this.causalEvents,
@@ -397,7 +582,7 @@ export class CausalDelaySystem implements ISubSystem {
     }
   }
 
-  applyChanges(changes: SubSystemChanges, _context: RoundContext): void {
+  applyChanges(changes: SubSystemChanges, context: RoundContext): void {
     if (!changes || typeof changes !== 'object') {
       throw new Error(`[${this.id}] Invalid changes: expected object`)
     }
@@ -410,17 +595,29 @@ export class CausalDelaySystem implements ISubSystem {
     if (!changes.description || changes.description.trim() === '') {
       throw new Error(`[${this.id}] Missing changes.description`)
     }
-    void changes.changes;
+    const data = changes.changes
 
     // 应用配置变更
-    if (changes.changes.config) {
-      this.setConfig(changes.changes.config as Partial<CausalConfig>)
+    if (data.config) {
+      this.setConfig(data.config as Partial<CausalConfig>)
     }
 
     // 应用新增因果事件
-    if (changes.changes.recordCausalEvent) {
-      const { type, severity, round, age, description, relatedPerson, relatedFaction } =
-        changes.changes.recordCausalEvent as {
+    if (data.recordCausalEvent) {
+      const {
+        type,
+        severity,
+        round,
+        age,
+        description,
+        relatedPerson,
+        relatedFaction,
+        scope,
+        contextId,
+        createdTotalDays,
+        originEventId,
+      } =
+        data.recordCausalEvent as {
           type: CausalEventType
           severity: CausalSeverity
           round: number
@@ -428,16 +625,36 @@ export class CausalDelaySystem implements ISubSystem {
           description: string
           relatedPerson?: string
           relatedFaction?: string
+          scope?: CausalEventScope
+          contextId?: string
+          createdTotalDays?: number
+          originEventId?: string
         }
-      this.recordCausalEvent(type, severity, round, age, description, relatedPerson, relatedFaction)
+      this.recordCausalEvent(
+        type,
+        severity,
+        round,
+        age,
+        description,
+        relatedPerson,
+        relatedFaction,
+        {
+          scope: scope ?? (contextId ? 'context' : 'global'),
+          contextId,
+          createdTotalDays: createdTotalDays ?? context.totalDays,
+          originEventId,
+        },
+      )
     }
   }
 
-  capturePreviewState(): unknown {
+  capturePreviewState(): CausalDelaySnapshotV1 {
     return structuredClone({
+      schemaVersion: CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION,
       config: this.config,
       causalEvents: this.causalEvents,
       stats: this.stats,
+      idSequence: this.idSequence,
     })
   }
 
@@ -448,35 +665,123 @@ export class CausalDelaySystem implements ISubSystem {
   restoreCollectedState(snapshot: unknown): void {
     if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
     const record = snapshot as Record<string, unknown>
+    const schemaVersion = record.schemaVersion
     const config = record.config
     const events = record.causalEvents
     const stats = record.stats
+    const idSequence = record.idSequence
 
+    if (schemaVersion !== undefined && schemaVersion !== CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION) {
+      throw new Error(`[${this.id}] Unsupported causal snapshot schemaVersion: ${String(schemaVersion)}`)
+    }
+
+    let nextConfig = structuredClone(this.config)
     if (config && typeof config === 'object' && !Array.isArray(config)) {
-      const next = config as Partial<CausalConfig>
-      this.config = {
-        ...DEFAULT_CAUSAL_CONFIG,
-        ...next,
-        severityDelayMultipliers: {
-          ...DEFAULT_CAUSAL_CONFIG.severityDelayMultipliers,
-          ...(next.severityDelayMultipliers ?? {}),
-        },
+      const next = config as Record<string, unknown>
+      const restoredDelayDays = next.delayDaysBySeverity
+      const delayDaysBySeverity = structuredClone(DEFAULT_CAUSAL_CONFIG.delayDaysBySeverity)
+      if (restoredDelayDays && typeof restoredDelayDays === 'object' && !Array.isArray(restoredDelayDays)) {
+        for (const severity of ['minor', 'normal', 'major', 'critical'] as const) {
+          const value = (restoredDelayDays as Record<string, unknown>)[severity]
+          if (Number.isSafeInteger(value) && (value as number) >= 0) {
+            delayDaysBySeverity[severity] = value as number
+          }
+        }
+      }
+      nextConfig = {
+        delayDaysBySeverity,
+        maxTriggerPerRound: Number.isSafeInteger(next.maxTriggerPerRound)
+          && (next.maxTriggerPerRound as number) > 0
+          ? next.maxTriggerPerRound as number
+          : DEFAULT_CAUSAL_CONFIG.maxTriggerPerRound,
       }
     }
+
+    let nextEvents = structuredClone(this.causalEvents)
     if (Array.isArray(events)) {
-      this.causalEvents = structuredClone(events) as CausalEvent[]
+      const restoredEvents = structuredClone(events) as CausalEvent[]
+      if (restoredEvents.some((event) => !event || typeof event !== 'object' || Array.isArray(event))) {
+        throw new Error(`[${this.id}] Invalid causalEvents snapshot`)
+      }
+
+      const originalIds = new Set<string>()
+      for (const [index, event] of restoredEvents.entries()) {
+        if (typeof event.id !== 'string' || event.id.trim() === '') {
+          throw new Error(`[${this.id}] Invalid causal event id at index ${index}`)
+        }
+        originalIds.add(event.id)
+      }
+
+      if (schemaVersion === CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION) {
+        const seenIds = new Set<string>()
+        for (const event of restoredEvents) {
+          if (seenIds.has(event.id)) {
+            throw new Error(`[${this.id}] Duplicate causal event id in versioned snapshot: ${event.id}`)
+          }
+          seenIds.add(event.id)
+        }
+      } else {
+        // 无版本旧快照可能已经持有碰撞 ID。保留首个原 ID，其余按原数组顺序
+        // 确定性重编号；避开所有旧原 ID，防止迁移编号占用后续合法编号。
+        const usedIds = new Set<string>()
+        const duplicateOrdinals = new Map<string, number>()
+        for (const event of restoredEvents) {
+          const legacyId = event.id
+          if (!usedIds.has(legacyId)) {
+            usedIds.add(legacyId)
+            continue
+          }
+
+          let ordinal = (duplicateOrdinals.get(legacyId) ?? 1) + 1
+          let migratedId = `${legacyId}~migrated-${ordinal}`
+          while (usedIds.has(migratedId) || originalIds.has(migratedId)) {
+            ordinal++
+            migratedId = `${legacyId}~migrated-${ordinal}`
+          }
+          duplicateOrdinals.set(legacyId, ordinal)
+          event.legacyId = legacyId
+          event.id = migratedId
+          usedIds.add(migratedId)
+        }
+      }
+
+      nextEvents = restoredEvents.map((event) => {
+        const hasCanonicalSchedule = Number.isSafeInteger(event.createdTotalDays)
+          && Number.isSafeInteger(event.dueTotalDays)
+        return {
+          ...event,
+          scope: event.scope ?? 'global',
+          // 旧存档没有规范天数字段时，保留原始 round + triggerDelay，不猜测天数。
+          schedule: event.schedule === 'canonical-days' && hasCanonicalSchedule
+            ? 'canonical-days'
+            : 'legacy-round',
+        }
+      })
     }
+
+    let nextStats = { ...this.stats }
     if (stats && typeof stats === 'object' && !Array.isArray(stats)) {
-      this.stats = {
+      nextStats = {
         ...this.stats,
         ...(stats as Partial<typeof this.stats>),
       }
     }
+
+    const nextIdSequence = Number.isSafeInteger(idSequence) && (idSequence as number) >= 0
+      ? idSequence as number
+      : nextEvents.length
+
+    // 全部预检完成后一次性替换，保证损坏快照不会留下部分恢复状态。
+    this.config = nextConfig
+    this.causalEvents = nextEvents
+    this.stats = nextStats
+    this.idSequence = nextIdSequence
   }
 
   reset(): void {
-    this.config = DEFAULT_CAUSAL_CONFIG
+    this.config = structuredClone(DEFAULT_CAUSAL_CONFIG)
     this.causalEvents = []
+    this.idSequence = 0
     this.stats = {
       totalRecorded: 0,
       totalTriggered: 0,

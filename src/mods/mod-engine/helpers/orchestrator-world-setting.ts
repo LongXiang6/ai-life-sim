@@ -8,16 +8,21 @@ import type { WorldSetting } from '@/foundation'
 import { formatEraYear } from '@/foundation/utils/format-time'
 
 import type { WorldConfig } from '@/mods/mod-world'
+import { useWorldStore } from '@/mods/mod-world'
 import { inferAnchorYearFromDescription } from '@/mods/mod-world/world-init-api'
 
 export function buildOrchestratorWorldSetting(
   worldConfig: WorldConfig,
   options?: {
+    contextId?: string
     eraStartYear?: number
     eraName?: string
     extraConfig?: Record<string, unknown>
   },
 ): WorldSetting {
+  const worldState = useWorldStore.getState()
+  const contextId = options?.contextId ?? worldState.currentContextId
+  const instance = contextId ? worldState.contexts[contextId] : undefined
   const eraStartYear = options?.eraStartYear
     ?? worldConfig.eraStartYear
     ?? inferAnchorYearFromDescription(worldConfig.description)
@@ -30,6 +35,16 @@ export function buildOrchestratorWorldSetting(
   const eraLabel = formatEraYear(calendarYear, eraName)
 
   return {
+    contextId: instance?.record.id ?? contextId ?? `legacy-context:${worldConfig.name}`,
+    contextKind: instance?.record.kind ?? 'world',
+    simulationScope: instance?.scope.scope ?? 'active',
+    capabilityProfile: instance?.capabilityProfile ?? {
+      contextId: contextId ?? `legacy-context:${worldConfig.name}`,
+      capabilities: ['space'],
+      enabledSubsystemIds: [],
+      backgroundSubsystemIds: [],
+      derivedFrom: 'migration',
+    },
     name: worldConfig.name,
     description: worldConfig.description,
     era: eraLabel,
@@ -38,6 +53,12 @@ export function buildOrchestratorWorldSetting(
       _eraStartYear: eraStartYear,
       _eraName: eraName,
       _birthEraYear: eraStartYear,
+      _contextId: instance?.record.id ?? contextId,
+      _contextKind: instance?.record.kind,
+      _simulationScope: instance?.scope.scope ?? 'active',
+      _enabledSubsystemIds: instance?.capabilityProfile.enabledSubsystemIds ?? [],
+      _localCalendar: instance ? structuredClone(instance.record.localCalendar) : undefined,
+      _localClock: instance ? structuredClone(instance.record.localClock) : undefined,
       ...options?.extraConfig,
     },
   }

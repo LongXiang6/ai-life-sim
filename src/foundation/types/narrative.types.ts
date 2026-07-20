@@ -7,9 +7,18 @@
  */
 
 import type { ZodSchema } from 'zod'
+import type { ContextCapabilityProfile, SimulationScope, WorldContextKind } from '../subsystem-contracts'
 
 /** 世界设定 */
 export interface WorldSetting {
+  /** 当前上下文稳定 ID */
+  contextId: string
+  /** 当前上下文类型 */
+  contextKind: WorldContextKind
+  /** 当前上下文模拟范围 */
+  simulationScope: SimulationScope
+  /** 当前上下文能力画像 */
+  capabilityProfile: ContextCapabilityProfile
   /** 世界名称 */
   name: string
   /** 世界描述 */
@@ -31,6 +40,8 @@ export interface CharacterDestinyPatternSummary {
 
 /** 角色状态 */
 export interface CharacterState {
+  /** 存档内稳定的全局角色实体 ID */
+  characterId: string
   /** 角色名称 */
   name: string
   /** 年龄 */
@@ -192,6 +203,11 @@ export interface CompressedSummaryItem {
   endRound: number
   /** 压缩后的文本内容 */
   content: string,
+  /** 摘要覆盖的上下文集合；旧存档缺失时按当前上下文兼容 */
+  contextIds?: string[]
+  /** 摘要覆盖的规范全局时间范围 */
+  startTotalDays?: number
+  endTotalDays?: number
 }
 
 /** 压缩摘要集合 */
@@ -237,6 +253,10 @@ export interface YearEventKeyEvent {
 
 export interface YearEvent {
   id: number,
+  /** 事件发生上下文 */
+  contextId?: string,
+  /** 事件对应的规范全局累计天数 */
+  totalDays?: number,
   age: number,
   totalMonths: number,
   eraYear: number,
@@ -265,17 +285,19 @@ export interface YearEvent {
 
 /** 长期记忆 */
 export interface LongTermMemory {
-  spouse?: { name: string; sinceRound: number; relationQuality: number }
-  children?: Array<{ name: string; age: number; gender: string }>
+  spouse?: { name: string; sinceRound: number; relationQuality: number; entityId?: string; contextId?: string }
+  children?: Array<{ name: string; age: number; gender: string; entityId?: string; contextId?: string }>
   parents?: {
     father?: { name: string; age: number; isAlive: boolean }
     mother?: { name: string; age: number; isAlive: boolean }
   }
   faction?: { name: string; role: string; rank: number }
   titles?: string[]
-  majorEvents: Array<{ round: number; description: string; category: string }>
-  relationships: Array<{ name: string; relation: string; quality: number }>
+  majorEvents: Array<{ round: number; description: string; category: string; contextId?: string }>
+  relationships: Array<{ name: string; relation: string; quality: number; entityId?: string; contextId?: string }>
   locations?: string[]
+  locationContexts?: Record<string, string>
+  currentContextId?: string
   wealth?: { description: string; level: number }
   reputation?: Record<string, number>
   lastUpdated?: number

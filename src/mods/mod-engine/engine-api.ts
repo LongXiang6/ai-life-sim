@@ -20,7 +20,12 @@ export type {
   CompressionResult,
 } from './subsystems/summary-compressor-system'
 
-export { applyGameSave, collectGameSavePayload, saveCurrentGameToSlot } from './helpers/save-restore'
+export {
+  applyGameSave,
+  collectGameSavePayload,
+  ensureOrchestratorContextFromStores,
+  saveCurrentGameToSlot,
+} from './helpers/save-restore'
 export { checkAndClearPreGenOnTimeStepChange, clearPreGenQueue, getPreGenQueueLength } from './helpers/pre-gen-queue'
 export { formatCurrentNarrativeTimeLabel, formatNarrativeTimeLabel } from './helpers/narrative-calendar'
 export {

@@ -251,7 +251,7 @@ assertOk(
 )
 assertOk(
   /previousNarrativeRound/.test(orchestratorCode)
-    && /previousNode:[\s\S]{0,260}daysPassed:\s*timeSystem\.getDaysPassed\(\)/.test(orchestratorCode),
+    && /previousNode:\s*\{[\s\S]{0,420}this\.previousNarrativeRound[\s\S]{0,220}\},\s*daysPassed:\s*previousLocalCalendar[\s\S]{0,260}timeSystem\.getDaysPassed\(\)/.test(orchestratorCode),
   'narrative Prompt must receive the real previous node and elapsed-day window instead of inferring it from the new granularity',
 )
 assertOk(

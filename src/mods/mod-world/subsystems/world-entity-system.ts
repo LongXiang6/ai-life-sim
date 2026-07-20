@@ -7,8 +7,8 @@
  * B2.3+：如果已注入 AI 服务，调用 AI 生成，解析 JSON + 拼写容错。
  */
 
-import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
-import { eventBus, saveStore } from '@/core'
+import type { SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
+import { BaseSubsystem, eventBus, saveStore } from '@/core'
 
 import type { WorldConfig, AnyWorldEntity, RegionData, EntityCountRange } from '../types'
 
@@ -169,7 +169,7 @@ const ENTITY_SETS: Record<string, EntitySet> = {
   steampunk: FANTASY_ENTITIES,
 }
 
-export class WorldEntitySystem implements ISubSystem {
+export class WorldEntitySystem extends BaseSubsystem {
   readonly id = 'world-entity' as const
   readonly mod = 'mod-world' as const
   readonly label = '具名实体生成' as const
@@ -280,7 +280,8 @@ export class WorldEntitySystem implements ISubSystem {
           this.state.entities = aiEntities
           eventBus.emit('mod-world:entities-generated', aiEntities)
           useWorldStore.getState().setEntities(aiEntities)
-          return aiEntities
+          this.state.entities = structuredClone(useWorldStore.getState().entities)
+          return this.state.entities
         }
       } catch {
         // AI 调用失败
@@ -368,7 +369,8 @@ export class WorldEntitySystem implements ISubSystem {
     this.state.entities = entities
     eventBus.emit('mod-world:entities-generated', entities)
     useWorldStore.getState().setEntities(entities)
-    return entities
+    this.state.entities = structuredClone(useWorldStore.getState().entities)
+    return this.state.entities
   }
 
   /**
@@ -555,12 +557,14 @@ export class WorldEntitySystem implements ISubSystem {
 
   /** 获取所有实体 */
   getEntities(): AnyWorldEntity[] {
-    return this.state.entities
+    const state = useWorldStore.getState()
+    const instance = state.currentContextId ? state.contexts[state.currentContextId] : undefined
+    return structuredClone(instance?.entities ?? this.state.entities)
   }
 
   /** 按类型筛选实体 */
   getEntitiesByType<T extends AnyWorldEntity>(type: T['type']): T[] {
-    return this.state.entities.filter((e) => e.type === type) as T[]
+    return this.getEntities().filter((e) => e.type === type) as T[]
   }
 
   // ========== 持久化 ==========
@@ -586,15 +590,17 @@ export class WorldEntitySystem implements ISubSystem {
 
   // ========== ISubSystem 接口 ==========
 
-  collectState(_context: RoundContext): SubSystemState {
-    const count = this.state.entities.length
+  collectState(context: RoundContext): SubSystemState {
+    const instance = useWorldStore.getState().contexts[context.contextId]
+    const entities = instance?.entities ?? this.state.entities
+    const count = entities.length
     const summary = count > 0
-      ? `实体：${count} 个（${this.getEntitiesByType('nation').length} 国家，${this.getEntitiesByType('faction').length} 势力，${this.getEntitiesByType('settlement').length} 定居点）`
+      ? `实体：${count} 个（${entities.filter((e) => e.type === 'nation').length} 国家，${entities.filter((e) => e.type === 'faction').length} 势力，${entities.filter((e) => e.type === 'settlement').length} 定居点）`
       : ''
     return {
       id: this.id,
       summary,
-      data: structuredClone(this.state) as unknown as Record<string, unknown>,
+      data: { contextId: context.contextId, entities: structuredClone(entities) },
     }
   }
 
@@ -634,6 +640,7 @@ export class WorldEntitySystem implements ISubSystem {
     const entities = (snapshot as { entities?: unknown }).entities
     if (!Array.isArray(entities)) return
     this.state = { entities: structuredClone(entities) as AnyWorldEntity[] }
+    useWorldStore.getState().setEntities(this.state.entities)
   }
 }
 

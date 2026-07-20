@@ -139,6 +139,7 @@ interface SmartAccessEntry {
   request_id: string
   ip: string
   source_id: string
+  diagnostic_code?: string
   provider: string
   model: string
   fingerprint: string
@@ -175,6 +176,7 @@ async function writeAccessLogAsync(
     request_id: requestId,
     ip: source.ip,
     source_id: source.sourceId,
+    diagnostic_code: source.diagnosticCode,
     provider: providerId,
     model,
     fingerprint,
@@ -198,6 +200,7 @@ async function writeAccessLogAsync(
 // ---- 错误响应保存 ----
 
 async function saveRawResponse(
+  source: ServerRequestSource,
   requestId: string,
   providerId: string,
   model: string,
@@ -215,6 +218,9 @@ async function saveRawResponse(
   await writeServerLogFile(`raw-responses/${filename}`, {
     timestamp,
     requestId,
+    sourceIp: source.ip,
+    sourceId: source.sourceId,
+    diagnosticCode: source.diagnosticCode,
     provider: providerId,
     model,
     status,
@@ -265,6 +271,7 @@ async function writeProxyTrace(
     event,
     sourceIp: source.ip,
     sourceId: source.sourceId,
+    diagnosticCode: source.diagnosticCode,
     ...details,
   }
   await Promise.all([
@@ -273,6 +280,7 @@ async function writeProxyTrace(
       timestamp: record.timestamp,
       requestId,
       event,
+      diagnosticCode: source.diagnosticCode,
       status: typeof details.status === 'number' ? details.status : undefined,
       error: typeof details.error === 'string' ? details.error : undefined,
       traceFile,
@@ -584,7 +592,7 @@ export async function POST(request: Request): Promise<Response> {
       if (managedResult.kind === 'upstream-error') {
         const upstream = parseUpstreamErrorDiagnostic(managedResult.errorText)
         await Promise.all([
-          saveRawResponse(requestId, providerId, managedResult.model, managedResult.status, managedResult.errorText),
+          saveRawResponse(source, requestId, providerId, managedResult.model, managedResult.status, managedResult.errorText),
           writeCurrentTrace('response', {
             status: managedResult.status,
             selectedModel: managedResult.model,
@@ -724,7 +732,7 @@ export async function POST(request: Request): Promise<Response> {
       const errorText = upstreamErrorText || await upstreamResp.text().catch(() => '未知错误')
       const upstream = parseUpstreamErrorDiagnostic(errorText)
       await Promise.all([
-        saveRawResponse(requestId, providerId, model, upstreamResp.status, errorText),
+        saveRawResponse(source, requestId, providerId, model, upstreamResp.status, errorText),
         writeCurrentTrace('response', {
           status: upstreamResp.status,
           upstreamHeaders: getUpstreamHeaderSnapshot(upstreamResp.headers),

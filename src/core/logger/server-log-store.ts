@@ -25,6 +25,7 @@ const DEFAULT_RETENTION_DAYS = 30
 const DEFAULT_MAX_TOTAL_BYTES = 10 * 1024 * 1024 * 1024
 const DEFAULT_MAX_FILE_BYTES = 64 * 1024 * 1024
 const CLEANUP_INTERVAL_MS = 15 * 60 * 1000
+const RETENTION_EXEMPT_ROOT_DIRECTORIES = new Set(['diagnostic-identities'])
 
 let lastCleanupAt = 0
 let cleanupPromise: Promise<void> | null = null
@@ -64,13 +65,18 @@ function resolveLogPath(relativePath: string): string {
   return target
 }
 
-/** 在同一安全根目录下写入按来源分类的 JSONL。 */
+/** 在同一安全根目录下同时写入按 IP 与玩家诊断编号分类的 JSONL。 */
 export async function appendSourceJsonLine(
   source: ServerRequestSource,
   relativePath: string,
   value: unknown,
 ): Promise<boolean> {
-  return appendServerJsonLine(`sources/${source.sourceId}/${relativePath}`, value)
+  const writes = [appendServerJsonLine(`sources/${source.sourceId}/${relativePath}`, value)]
+  if (source.diagnosticCode) {
+    writes.push(appendServerJsonLine(`players/${source.diagnosticCode}/${relativePath}`, value))
+  }
+  const results = await Promise.all(writes)
+  return results.every(Boolean)
 }
 
 async function ensureSecureDirectory(dir: string): Promise<void> {
@@ -107,6 +113,13 @@ async function collectStoredFiles(dir: string, output: StoredFile[]): Promise<vo
     return
   }
   for (const entry of entries) {
+    if (
+      dir === getServerLogRoot()
+      && entry.isDirectory()
+      && RETENTION_EXEMPT_ROOT_DIRECTORIES.has(entry.name)
+    ) {
+      continue
+    }
     const target = path.join(dir, entry.name)
     if (entry.isDirectory()) {
       await collectStoredFiles(target, output)
@@ -115,6 +128,44 @@ async function collectStoredFiles(dir: string, output: StoredFile[]): Promise<vo
       if (stat) output.push({ path: target, size: stat.size, mtimeMs: stat.mtimeMs })
     }
   }
+}
+
+export type ServerLogReservationResult = 'created' | 'exists' | 'failed'
+
+/** 原子创建不可覆盖的服务端文件，用于占用短诊断编号。 */
+export async function reserveServerLogFile(
+  relativePath: string,
+  value: unknown,
+): Promise<ServerLogReservationResult> {
+  try {
+    const target = resolveLogPath(relativePath)
+    const serialized = JSON.stringify(redactSensitiveData(value), null, 2)
+    await ensureSecureDirectory(path.dirname(target))
+    await fs.writeFile(target, serialized, { encoding: 'utf8', mode: 0o600, flag: 'wx' })
+    await fs.chmod(target, 0o600).catch(() => undefined)
+    return 'created'
+  } catch (error) {
+    const code = error && typeof error === 'object' && 'code' in error
+      ? String((error as { code?: unknown }).code)
+      : ''
+    if (code === 'EEXIST') return 'exists'
+    console.error('[server-log-store] 原子保留文件失败', error)
+    return 'failed'
+  }
+}
+
+/** 将完整文件同时写入按 IP 与玩家诊断编号分类的目录。 */
+export async function writeSourceLogFile(
+  source: ServerRequestSource,
+  relativePath: string,
+  content: string | Buffer | unknown,
+): Promise<boolean> {
+  const writes = [writeServerLogFile(`sources/${source.sourceId}/${relativePath}`, content)]
+  if (source.diagnosticCode) {
+    writes.push(writeServerLogFile(`players/${source.diagnosticCode}/${relativePath}`, content))
+  }
+  const results = await Promise.all(writes)
+  return results.every(Boolean)
 }
 
 async function cleanupServerLogs(): Promise<void> {
