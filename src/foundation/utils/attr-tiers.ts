@@ -9,7 +9,7 @@
 
 // ──── 类型 ────
 
-/** 属性语义映射键（与 AttributeId 中可分配属性对应） */
+/** 属性语义映射键（与四项玩家可见基础属性对应） */
 export type AttrKey = 'physique' | 'mind' | 'comprehension' | 'charisma'
 
 /** 属性档位描述 */

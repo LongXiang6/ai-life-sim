@@ -10,7 +10,7 @@
  *
  * 计算逻辑归属：
  *   getAttributeTier / formatAttributesForPrompt → mod-character 的 AttributeSystem 子系统
- *   属性分配界面注册 → mod-character 的 Store + Hooks
+ *   基础属性写入与修正聚合 → mod-character 的 owning subsystem 与 Store
  */
 
 // ──── 属性键 ────
@@ -18,7 +18,7 @@
 /** 属性标识键 */
 export type AttributeId = 'physique' | 'mind' | 'comprehension' | 'charisma' | 'fortune'
 
-/** 玩家可分配属性键（4项，允许加点分配） */
+/** 玩家可见基础属性键（旧常量名保留兼容，不代表玩家可手动加点） */
 export const ASSIGNABLE_ATTRIBUTE_IDS: readonly AttributeId[] = [
   'physique', 'mind', 'comprehension', 'charisma',
 ] as const

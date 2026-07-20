@@ -13,7 +13,11 @@ import { DEFAULT_AI_MODEL, getCacheStats, getRoundCacheMetrics, resetCacheStats 
 import { clamp } from '@/core/shared'
 import { useFontStore } from '@/core/theme/font-store'
 
-import { DEFAULT_SETTINGS_VALUES, useSettingsStore } from '../store'
+import {
+  DEFAULT_SETTINGS_VALUES,
+  normalizeImportedModelSettings,
+  useSettingsStore,
+} from '../store'
 import type { NarrativeStyle } from '../store'
 
 import styles from './SettingsTabTheme.module.css'
@@ -220,10 +224,11 @@ export function SettingsTabTheme() {
             setFontFamily('default')
           }
 
-          if (typeof settings.provider === 'string') setProvider(settings.provider)
-          if (typeof settings.customKey === 'string') setCustomKey(settings.customKey)
-          if (typeof settings.customUrl === 'string') setCustomUrl(settings.customUrl)
-          if (typeof settings.customModel === 'string') setCustomModel(settings.customModel)
+          const importedModel = normalizeImportedModelSettings(settings)
+          setProvider(importedModel.provider)
+          setCustomKey(importedModel.customKey)
+          setCustomUrl(importedModel.customUrl)
+          setCustomModel(importedModel.customModel)
           if (typeof settings.temperature === 'number') setTemperature(clamp(settings.temperature, 0, 2))
           if (typeof settings.topP === 'number') setTopP(clamp(settings.topP, 0, 1))
           if (typeof settings.maxTokens === 'number') setMaxTokens(Math.max(256, settings.maxTokens))

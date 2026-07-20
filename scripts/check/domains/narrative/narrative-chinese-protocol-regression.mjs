@@ -396,7 +396,7 @@ assertOk(
   'the old tagged envelope must not enter the successful protocol path',
 )
 
-assertOk(narrativePrompt.version === '4.4.0', 'balanced Chinese narrative behavior must use Prompt 4.4.0')
+assertOk(narrativePrompt.version === '4.5.0', 'ownership and origin narrative behavior must use Prompt 4.5.0')
 assertOk(
   narrativePrompt.systemPrompt === ''
     && narrativePrompt.serverPromptAssetId === NARRATIVE_SERVER_PROMPT_ASSET_ID,
@@ -451,6 +451,25 @@ assertOk(
 
 const drivingForceComponent = NARRATIVE_SYSTEM_COMPONENTS.find(
   (component) => component.id === 'narrative-driving-force',
+)
+const ownershipComponent = NARRATIVE_SYSTEM_COMPONENTS.find(
+  (component) => component.id === 'player-setting-ownership',
+)
+const firstRoundOriginComponent = NARRATIVE_SYSTEM_COMPONENTS.find(
+  (component) => component.id === 'first-round-origin',
+)
+assertOk(
+  ownershipComponent?.authority === '世界与协议'
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('专属、独有、唯一、血脉限定、异界来源或角色自创')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得改写为当地常见能力、制式技术、药剂激活、机构授予或他人同源能力'),
+  'fixed Prompt must preserve the ownership and origin of player-exclusive settings',
+)
+assertOk(
+  firstRoundOriginComponent?.authority === '剧情引导'
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('穿越、召唤、转生、觉醒、坠入异地或初到另一世界、星球、地区')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得无依据直接跳到已经训练、工作、加入组织或熟悉当地数周数月')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('只有玩家明确要求从中途、若干月后或既定关系开始时才可跳时'),
+  'fixed Prompt must establish first-round arrival while preserving explicit mid-story openings',
 )
 assertOk(
   drivingForceComponent?.lifecycle === '全局常驻'

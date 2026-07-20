@@ -11,13 +11,9 @@ import { devtools, persist, } from 'zustand/middleware'
 
 import type { ThemeType, } from '@/core/theme/theme-store'
 import {
-  DEFAULT_AI_BASE_URL,
+  AI_PROVIDERS,
   DEFAULT_AI_MODEL,
   DEFAULT_AI_PROVIDER_ID,
-  LEGACY_MANAGED_AI_BASE_URL,
-  LEGACY_MANAGED_AI_MODEL,
-  LEGACY_MANAGED_AI_PROVIDER_ID,
-  isRegisteredProviderBaseUrl,
 } from '@/core/ai-service'
 import { DEFAULT_WORD_COUNT_TARGET } from '@/mods/mod-engine'
 
@@ -34,7 +30,7 @@ export type ReasoningEffort = 'disabled' | 'level-1' | 'level-2' | 'level-3' | '
 export const DEFAULT_SETTINGS_VALUES = {
   provider: DEFAULT_AI_PROVIDER_ID,
   customKey: '',
-  customUrl: DEFAULT_AI_BASE_URL,
+  customUrl: '',
   customModel: DEFAULT_AI_MODEL,
   temperature: 0.8,
   topP: 0.8,
@@ -51,6 +47,40 @@ export const DEFAULT_SETTINGS_VALUES = {
   reduceMotion: false,
   theme: 'minimal-white' as ThemeType,
 } as const
+
+export interface ImportedModelSettings {
+  provider: string
+  customKey: string
+  customUrl: string
+  customModel: string
+}
+
+/** 导入文件不能把旧托管目标重新写回浏览器；玩家自有的完整配置转为 custom 保留。 */
+export function normalizeImportedModelSettings(value: Record<string, unknown>): ImportedModelSettings {
+  const provider = typeof value.provider === 'string' ? value.provider : DEFAULT_AI_PROVIDER_ID
+  const customKey = typeof value.customKey === 'string' ? value.customKey.trim() : ''
+  const customUrl = typeof value.customUrl === 'string' ? value.customUrl.trim() : ''
+  const customModel = typeof value.customModel === 'string' ? value.customModel.trim() : ''
+
+  if (provider === 'custom' || (!AI_PROVIDERS[provider] && customKey && customUrl && customModel)) {
+    return { provider: 'custom', customKey, customUrl, customModel }
+  }
+
+  if (provider !== 'custom' && customKey && customUrl && customModel) {
+    return { provider: 'custom', customKey, customUrl, customModel }
+  }
+
+  const preset = AI_PROVIDERS[provider] ?? AI_PROVIDERS[DEFAULT_AI_PROVIDER_ID]
+  const allowedModel = preset.models.some((model) => model.name === customModel)
+    ? customModel
+    : preset.models[0]?.name ?? DEFAULT_AI_MODEL
+  return {
+    provider: preset.id,
+    customKey: '',
+    customUrl: '',
+    customModel: allowedModel,
+  }
+}
 
 interface SettingsState {
   // ---- AI 模型配置 ----
@@ -144,7 +174,7 @@ export const useSettingsStore = create<SettingsState>()(
       }),
       {
         name: 'mod-settings:store',
-        version: 7,
+        version: 8,
         migrate: (persistedState: unknown, version: number) => {
           const state = persistedState as Partial<SettingsState>
           const migrated = { ...state }
@@ -164,32 +194,28 @@ export const useSettingsStore = create<SettingsState>()(
             if (!hasExplicitModelConfig) {
               migrated.provider = DEFAULT_AI_PROVIDER_ID
               migrated.customKey = ''
-              migrated.customUrl = DEFAULT_AI_BASE_URL
+              migrated.customUrl = ''
               migrated.customModel = DEFAULT_AI_MODEL
             }
           }
-          if (version < 6 && state.provider === DEFAULT_AI_PROVIDER_ID) {
-            migrated.customUrl = DEFAULT_AI_BASE_URL
-            migrated.customModel = DEFAULT_AI_MODEL
-          }
-          if (version < 7 && state.provider === DEFAULT_AI_PROVIDER_ID) {
-            if (state.customKey?.trim()) {
-              if (version < 6 && state.customUrl?.trim() && state.customModel?.trim()) {
-                // 更早版本的托管目标不同；玩家 Key 与当时的明确接口、模型一起转为自定义配置。
-                migrated.provider = 'custom'
-                migrated.customUrl = state.customUrl
-                migrated.customModel = state.customModel
-              } else {
-                // v6 玩家曾用自己的 Key 覆盖 a6api：保留该通道及其接口语义。
-                migrated.provider = LEGACY_MANAGED_AI_PROVIDER_ID
-                migrated.customUrl = LEGACY_MANAGED_AI_BASE_URL
-                migrated.customModel = LEGACY_MANAGED_AI_MODEL
-              }
-            } else {
-              // 服务器托管的旧默认统一迁移到新的 LongCat 默认通道。
-              migrated.provider = DEFAULT_AI_PROVIDER_ID
-              migrated.customUrl = DEFAULT_AI_BASE_URL
-              migrated.customModel = DEFAULT_AI_MODEL
+          if (version < 8) {
+            const selectedProvider = migrated.provider ?? DEFAULT_AI_PROVIDER_ID
+            const playerKey = migrated.customKey?.trim() ?? ''
+            if (selectedProvider !== 'custom' && playerKey) {
+              // 旧版允许在预设通道填写玩家 Key；升级后统一转为自定义配置并保留玩家数据。
+              migrated.provider = 'custom'
+              migrated.customKey = playerKey
+              migrated.customUrl = migrated.customUrl?.trim() ?? ''
+              migrated.customModel = migrated.customModel?.trim() ?? ''
+            } else if (selectedProvider !== 'custom') {
+              const providerConfig = AI_PROVIDERS[selectedProvider]
+              const existingModel = migrated.customModel?.trim() ?? ''
+              migrated.provider = providerConfig ? selectedProvider : DEFAULT_AI_PROVIDER_ID
+              migrated.customKey = ''
+              migrated.customUrl = ''
+              migrated.customModel = providerConfig?.models.some((model) => model.name === existingModel)
+                ? existingModel
+                : providerConfig?.models[0]?.name ?? DEFAULT_AI_MODEL
             }
           }
           return migrated as SettingsState
@@ -208,21 +234,18 @@ export const useSettingsStore = create<SettingsState>()(
 /** 是否已配置可用的 API Key（欢迎页 / 世界选择等轻量校验） */
 export function isApiConfigured(): boolean {
   const { provider, customKey, customUrl, customModel } = useSettingsStore.getState()
-  if (!customKey) return false
-  if (provider === 'custom') {
-    return Boolean(customUrl && customModel && isRegisteredProviderBaseUrl(customUrl))
-  }
-  return true
+  return provider === 'custom' && Boolean(customKey && customUrl && customModel)
 }
 
 /** 客户端设置或本地服务端环境任一可用即可开始游戏；不会把服务端密钥暴露到浏览器。 */
 export async function hasAvailableApiConfiguration(): Promise<boolean> {
-  if (isApiConfigured()) return true
   if (typeof window === 'undefined') return false
-  const { provider } = useSettingsStore.getState()
-  if (provider === 'custom') return false
+  const { provider, customUrl } = useSettingsStore.getState()
+  if (provider === 'custom' && !isApiConfigured()) return false
   try {
-    const response = await fetch(`/api/proxy?providerId=${encodeURIComponent(provider)}`, {
+    const params = new URLSearchParams({ providerId: provider })
+    if (provider === 'custom') params.set('baseUrl', customUrl)
+    const response = await fetch(`/api/proxy?${params.toString()}`, {
       method: 'GET',
       cache: 'no-store',
     })

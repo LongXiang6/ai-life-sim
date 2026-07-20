@@ -36,6 +36,7 @@ import {
   shouldTryManagedFallback,
 } from '@/core/ai-service/provider-config'
 import { readServerProviderApiKey } from '@/core/ai-service/server-provider-credentials'
+import { readServerProviderBaseUrl } from '@/core/ai-service/server-provider-targets'
 import type { WorldConfig } from '@/mods/mod-world'
 import {
   buildWorldInitPromptVars,
@@ -162,7 +163,7 @@ async function callProviderDirect(
   const apiKey = opts.apiKey || readServerProviderApiKey(providerId)
   if (!apiKey) throw new Error(`${providerId} API Key 未配置`)
 
-  const baseUrl = isCustom ? opts.baseUrl : provider?.baseUrl
+  const baseUrl = isCustom ? opts.baseUrl : readServerProviderBaseUrl(providerId)
   const model = isCustom ? opts.model : (opts.model || provider?.models[0]?.name)
   if (!baseUrl || !model) throw new Error(`${providerId} 接口或模型未配置`)
   if (

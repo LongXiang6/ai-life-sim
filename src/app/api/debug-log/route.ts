@@ -11,24 +11,26 @@
  *   - background-events  背景事件
  *
  * 存储策略：
- *   - 每次 AI 调用生成独立文件，文件名带时间戳
- *   - 路径：AI_LOG_DIR/ai-debug/{category}/{category}-{timestamp}-{uniqueId}.log
+ *   - 每类每天一个固定字段 JSONL 行表
+ *   - 完整 Prompt、响应与 meta 按内容哈希去重并 gzip 保存
  *   - 与服务端代理日志共享按天数、总容量和单文件大小的轮转清理
  *   - 受 NEXT_PUBLIC_DISABLE_DEBUG_LOGS 环境变量控制
  *   - 完整保留 AI 输入/输出（不截断）
  */
 
 import { z } from 'zod'
-import { randomUUID } from 'crypto'
 import path from 'path'
+import { randomUUID } from 'crypto'
 
 import {
   appendSourceJsonLine,
+  appendServerJsonLine,
   getServerRequestSource,
   getServerLogRoot,
-  safeLogSegment,
+  readServerLogContent,
+  storeServerLogContent,
+  type ServerLogContentRef,
   type ServerRequestSource,
-  writeServerLogFile,
 } from '@/core/logger/server-log-store'
 
 const MAX_BODY_SIZE = 8 * 1024 * 1024
@@ -48,13 +50,6 @@ const DebugLogSchema = z.object({
 
 type DebugLogEntry = z.infer<typeof DebugLogSchema>
 
-/** 格式化为北京时间（UTC+8），用于日志正文与文件名 */
-function formatBeijingTimestamp(ts: number): string {
-  const d = new Date(ts + 8 * 60 * 60 * 1000)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}_${pad(d.getUTCHours())}-${pad(d.getUTCMinutes())}-${pad(d.getUTCSeconds())}`
-}
-
 /** 日志正文用：带时区说明的北京时间 */
 function formatBeijingLogTime(ts: number): string {
   const d = new Date(ts + 8 * 60 * 60 * 1000)
@@ -63,20 +58,9 @@ function formatBeijingLogTime(ts: number): string {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}.${ms} (北京时间)`
 }
 
-/** 格式化时间戳为文件名（北京时间） */
-function formatTimestamp(ts: number): string {
-  return formatBeijingTimestamp(ts)
-}
-
 /** 获取分类目录路径 */
 function getCategoryDir(category: string): string {
-  return path.join(getServerLogRoot(), 'ai-debug', safeLogSegment(category))
-}
-
-/** 获取日志文件路径（独立文件，带时间戳） */
-function getLogFilePath(category: string, timestamp: number): string {
-  const dir = getCategoryDir(category)
-  return path.join(dir, `${safeLogSegment(category)}-${formatTimestamp(timestamp)}-${randomUUID()}.log`)
+  return path.join(getServerLogRoot(), 'ai-debug', category)
 }
 
 /** 检查是否禁用 */
@@ -96,67 +80,112 @@ async function writeLogEntry(
   source: ServerRequestSource,
 ): Promise<void> {
   const receivedAt = Date.now()
-  const logPath = getLogFilePath(category, receivedAt)
-
-  // 格式化日志内容
-  const time = formatBeijingLogTime(entry.timestamp)
-  const metaLines: string[] = []
-  if (entry.meta) {
-    const m = entry.meta
-    if (m.trigger) metaLines.push(`触发位置: ${m.trigger}`)
-    if (m.callKind) metaLines.push(`调用类型: ${m.callKind}`)
-    if (m.strategy) metaLines.push(`KV策略: ${m.strategy}`)
-    if (m.pool) metaLines.push(`缓存池: ${m.pool}`)
-    if (m.model) metaLines.push(`模型: ${m.model}`)
-    if (m.cacheHitTokens !== undefined) metaLines.push(`缓存命中 tokens: ${m.cacheHitTokens}`)
-    if (m.cacheMissTokens !== undefined) metaLines.push(`缓存未命中 tokens: ${m.cacheMissTokens}`)
-    if (m.cacheHitRate !== undefined) metaLines.push(`命中率: ${m.cacheHitRate}%`)
-    if (m.completionTokens !== undefined) metaLines.push(`输出 tokens: ${m.completionTokens}`)
-    if (m.maxTokens !== undefined) metaLines.push(`maxTokens 预算: ${m.maxTokens}`)
-    if (m.truncated === true) metaLines.push(`截断: 是（可能触顶 maxTokens）`)
-    if (m.finishReason) metaLines.push(`finish_reason: ${m.finishReason}`)
-    if (m.failed) metaLines.push(`状态: 调用失败`)
-    if (m.failureReason) metaLines.push(`失败原因: ${m.failureReason}`)
-    if (m.resilientAttempt !== undefined) {
-      const max = m.resilientMaxAttempts ?? '?'
-      metaLines.push(`resilient 尝试: ${m.resilientAttempt}/${max}`)
-    }
-    if (m.validationPassed === false) metaLines.push(`校验: 失败`)
-    if (m.validationError) metaLines.push(`校验错误: ${m.validationError}`)
-    if (m.validationDetails) metaLines.push(`校验详情: ${m.validationDetails}`)
-    if (m.truncatedDetected === true) metaLines.push(`截断检测: 是`)
-    if (m.w02Parsed === false) metaLines.push(`W02 解析: 失败`)
-    if (m.w02Parsed === true) metaLines.push(`W02 解析: 成功`)
-    if (m.worldTagsCount !== undefined) metaLines.push(`worldTags 数量: ${m.worldTagsCount}`)
-    if (m.fallback) metaLines.push(`兜底: ${m.fallbackReason ?? 'local-fallback'}`)
-    if (m.messageCount !== undefined) metaLines.push(`messages 条数: ${m.messageCount}`)
-  }
-
-  const lines = [
-    `时间: ${time}`,
-    `服务端接收: ${new Date(receivedAt).toISOString()}`,
-    `来源 IP: ${source.ip}`,
-    source.diagnosticCode ? `诊断编号: ${source.diagnosticCode}` : '',
-    entry.requestId ? `请求 ID: ${entry.requestId}` : '',
-    entry.round !== undefined ? `轮次: ${entry.round} | 年龄: ${entry.age ?? '?'} | 纪元: ${entry.era ?? '?'}` : '',
-    metaLines.length > 0 ? `【元信息】\n${metaLines.join('\n')}` : entry.meta ? `【元信息】${JSON.stringify(entry.meta)}` : '',
-    entry.prompt ? `【发送给 AI】(${entry.prompt.length} 字符)\n${entry.prompt}` : '',
-    entry.response ? `【AI 返回】(${entry.response.length} 字符)\n${entry.response}` : '',
-  ].filter(Boolean).join('\n\n') + '\n'
-
-  const relativePath = path.relative(getServerLogRoot(), logPath)
-  await Promise.all([
-    writeServerLogFile(relativePath, lines),
-    appendSourceJsonLine(source, `ai-debug-index-${new Date(receivedAt).toISOString().slice(0, 10)}.jsonl`, {
-      timestamp: new Date(receivedAt).toISOString(),
-      sourceIp: source.ip,
-      sourceId: source.sourceId,
-      diagnosticCode: source.diagnosticCode,
-      category,
-      requestId: entry.requestId,
-      logFile: relativePath.replaceAll('\\', '/'),
-    }),
+  const [promptRef, responseRef, metaRef] = await Promise.all([
+    entry.prompt === undefined ? null : storeServerLogContent(entry.prompt, 'text'),
+    entry.response === undefined ? null : storeServerLogContent(entry.response, 'text'),
+    entry.meta === undefined ? null : storeServerLogContent(entry.meta, 'json'),
   ])
+  const date = new Date(receivedAt).toISOString().slice(0, 10)
+  const relativePath = `ai-debug/${category}/${category}-${date}.jsonl`
+  const meta = entry.meta ?? {}
+  const record = {
+    schemaVersion: 2,
+    eventId: randomUUID(),
+    timestamp: new Date(entry.timestamp).toISOString(),
+    clientTimestamp: entry.timestamp,
+    receivedAt,
+    sourceIp: source.ip,
+    sourceId: source.sourceId,
+    diagnosticCode: source.diagnosticCode,
+    category,
+    requestId: entry.requestId,
+    round: entry.round,
+    age: entry.age,
+    era: entry.era,
+    model: meta.model,
+    callKind: meta.callKind,
+    strategy: meta.strategy,
+    pool: meta.pool,
+    cacheHitTokens: meta.cacheHitTokens,
+    cacheMissTokens: meta.cacheMissTokens,
+    cacheHitRate: meta.cacheHitRate,
+    completionTokens: meta.completionTokens,
+    maxTokens: meta.maxTokens,
+    finishReason: meta.finishReason,
+    failed: meta.failed,
+    failureReason: meta.failureReason,
+    validationPassed: meta.validationPassed,
+    validationError: meta.validationError,
+    promptChars: entry.prompt?.length,
+    responseChars: entry.response?.length,
+    promptRef: promptRef ?? undefined,
+    responseRef: responseRef ?? undefined,
+    metaRef: metaRef ?? undefined,
+    contentWriteFailed: (
+      (entry.prompt !== undefined && !promptRef)
+      || (entry.response !== undefined && !responseRef)
+      || (entry.meta !== undefined && !metaRef)
+    ) || undefined,
+  }
+  await Promise.all([
+    appendServerJsonLine(relativePath, record),
+    appendSourceJsonLine(source, `ai-debug-index-${date}.jsonl`, record),
+  ])
+}
+
+function isContentRef(value: unknown): value is ServerLogContentRef {
+  return Boolean(
+    value
+    && typeof value === 'object'
+    && (value as ServerLogContentRef).storage === 'sha256-gzip'
+    && typeof (value as ServerLogContentRef).path === 'string',
+  )
+}
+
+function buildMetaLines(meta: Record<string, unknown>): string[] {
+  const lines: string[] = []
+  if (meta.trigger) lines.push(`触发位置: ${meta.trigger}`)
+  if (meta.callKind) lines.push(`调用类型: ${meta.callKind}`)
+  if (meta.strategy) lines.push(`KV策略: ${meta.strategy}`)
+  if (meta.pool) lines.push(`缓存池: ${meta.pool}`)
+  if (meta.model) lines.push(`模型: ${meta.model}`)
+  if (meta.cacheHitTokens !== undefined) lines.push(`缓存命中 tokens: ${meta.cacheHitTokens}`)
+  if (meta.cacheMissTokens !== undefined) lines.push(`缓存未命中 tokens: ${meta.cacheMissTokens}`)
+  if (meta.cacheHitRate !== undefined) lines.push(`命中率: ${meta.cacheHitRate}%`)
+  if (meta.completionTokens !== undefined) lines.push(`输出 tokens: ${meta.completionTokens}`)
+  if (meta.maxTokens !== undefined) lines.push(`maxTokens 预算: ${meta.maxTokens}`)
+  if (meta.truncated === true) lines.push('截断: 是（可能触顶 maxTokens）')
+  if (meta.finishReason) lines.push(`finish_reason: ${meta.finishReason}`)
+  if (meta.failed) lines.push('状态: 调用失败')
+  if (meta.failureReason) lines.push(`失败原因: ${meta.failureReason}`)
+  if (meta.validationPassed === false) lines.push('校验: 失败')
+  if (meta.validationError) lines.push(`校验错误: ${meta.validationError}`)
+  return lines
+}
+
+async function formatStoredDebugEntry(record: Record<string, unknown>): Promise<string> {
+  const [prompt, response, restoredMeta] = await Promise.all([
+    isContentRef(record.promptRef) ? readServerLogContent(record.promptRef) : undefined,
+    isContentRef(record.responseRef) ? readServerLogContent(record.responseRef) : undefined,
+    isContentRef(record.metaRef) ? readServerLogContent(record.metaRef) : undefined,
+  ])
+  const meta = restoredMeta && typeof restoredMeta === 'object' && !Array.isArray(restoredMeta)
+    ? restoredMeta as Record<string, unknown>
+    : {}
+  const clientTimestamp = typeof record.clientTimestamp === 'number'
+    ? record.clientTimestamp
+    : Date.parse(String(record.timestamp ?? ''))
+  return [
+    `时间: ${formatBeijingLogTime(clientTimestamp)}`,
+    `服务端接收: ${new Date(Number(record.receivedAt)).toISOString()}`,
+    `来源 IP: ${String(record.sourceIp ?? 'unknown')}`,
+    record.diagnosticCode ? `诊断编号: ${record.diagnosticCode}` : '',
+    record.requestId ? `请求 ID: ${record.requestId}` : '',
+    record.round !== undefined ? `轮次: ${record.round} | 年龄: ${record.age ?? '?'} | 纪元: ${record.era ?? '?'}` : '',
+    Object.keys(meta).length > 0 ? `【元信息】\n${buildMetaLines(meta).join('\n') || JSON.stringify(meta)}` : '',
+    typeof prompt === 'string' ? `【发送给 AI】(${prompt.length} 字符)\n${prompt}` : '',
+    typeof response === 'string' ? `【AI 返回】(${response.length} 字符)\n${response}` : '',
+  ].filter(Boolean).join('\n\n') + '\n'
 }
 
 // ---- POST: 写入日志 ----
@@ -214,20 +243,25 @@ export async function GET(request: Request): Promise<Response> {
     return Response.json({ entries: [], category })
   }
 
-  // 读取最近 N 个日志文件
+  // 读取最近的固定字段行表，再按内容引用还原开发视图。
   const files = readdirSync(dir)
-    .filter(f => f.endsWith('.log'))
+    .filter(f => f.endsWith('.jsonl'))
     .sort()
-    .reverse() // 最新的在前
-    .slice(0, limit)
-
-  const entries = files.map(f => {
-    try {
-      return readFileSync(path.join(dir, f), 'utf-8')
-    } catch {
-      return `[读取失败] ${f}`
+    .reverse()
+  const records: Record<string, unknown>[] = []
+  for (const file of files) {
+    const lines = readFileSync(path.join(dir, file), 'utf8').split(/\r?\n/u).filter(Boolean).reverse()
+    for (const line of lines) {
+      try {
+        records.push(JSON.parse(line) as Record<string, unknown>)
+      } catch {
+        // 忽略未完整写入的末行。
+      }
+      if (records.length >= limit) break
     }
-  })
+    if (records.length >= limit) break
+  }
+  const entries = await Promise.all(records.map(formatStoredDebugEntry))
 
   return Response.json({ entries, category, total: entries.length })
 }

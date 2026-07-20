@@ -19,7 +19,8 @@ export interface AIProviderConfig {
   id: string
   name: string
   icon: string
-  baseUrl: string
+  /** 仅公开厂商可在浏览器暴露地址；服务器托管通道必须留空。 */
+  baseUrl?: string
   models: ProviderModel[]
   notes?: string
   /** 是否支持 thinking/reasoning 参数 */
@@ -28,14 +29,12 @@ export interface AIProviderConfig {
 
 // ---- 默认通道 ----
 
-/** 默认使用 LongCat 服务器托管通道；公开接口与模型可以进入客户端，凭据绝不能进入。 */
+/** 默认使用 LongCat 服务器托管通道；浏览器只持有 Provider ID 与模型名。 */
 export const DEFAULT_AI_PROVIDER_ID = 'managed'
-export const DEFAULT_AI_BASE_URL = 'https://api.longcat.chat/openai/v1'
 export const DEFAULT_AI_MODEL = 'LongCat-2.0'
 
 /** 原免费体验通道继续作为玩家可选项保留。 */
 export const LEGACY_MANAGED_AI_PROVIDER_ID = 'managed-a6'
-export const LEGACY_MANAGED_AI_BASE_URL = 'https://a6.a6api.com/v1'
 export const LEGACY_MANAGED_AI_MODEL = 'gpt-5.6-luna'
 /** 原通道主模型发生可重试失败时使用的同接口服务端备用模型。 */
 export const LEGACY_MANAGED_AI_FALLBACK_MODEL = 'gpt-5.6-terra'
@@ -62,12 +61,14 @@ function normalizeProviderBaseUrl(baseUrl: string): string | undefined {
   }
 }
 
-/** 受保护 Prompt 只允许发送到项目登记的官方接口；公开地址本身不属于秘密。 */
+/** 浏览器只认识公开厂商地址；托管私有目标由服务端单独校验。 */
 export function isRegisteredProviderBaseUrl(baseUrl: string): boolean {
   const normalized = normalizeProviderBaseUrl(baseUrl)
   if (!normalized) return false
   return Object.values(AI_PROVIDERS).some(
-    (provider) => normalizeProviderBaseUrl(provider.baseUrl) === normalized,
+    (provider) => provider.baseUrl
+      ? normalizeProviderBaseUrl(provider.baseUrl) === normalized
+      : false,
   )
 }
 
@@ -102,20 +103,18 @@ export const AI_PROVIDERS: Record<string, AIProviderConfig> = {
     id: DEFAULT_AI_PROVIDER_ID,
     name: '免费体验（龙猫）',
     icon: '猫',
-    baseUrl: DEFAULT_AI_BASE_URL,
     supportsThinking: true,
     models: [{
       name: DEFAULT_AI_MODEL,
       label: 'LongCat 2.0（龙猫）',
       notes: '当前默认免费体验模型。支持 1M 上下文、128K 最大输出与流式响应。',
     }],
-    notes: '由项目服务器安全托管 LongCat 凭据；也可在下方填写自己的 Key 覆盖。',
+    notes: '由项目服务器安全托管目标与凭据；使用自己的 API 时请切换到自定义配置。',
   },
   [LEGACY_MANAGED_AI_PROVIDER_ID]: {
     id: LEGACY_MANAGED_AI_PROVIDER_ID,
     name: '免费体验（原通道）',
     icon: '免',
-    baseUrl: LEGACY_MANAGED_AI_BASE_URL,
     supportsThinking: false,
     models: [{
       name: LEGACY_MANAGED_AI_MODEL,
@@ -225,7 +224,7 @@ export function resolveProvider(
   }
 
   return {
-    baseUrl: provider.baseUrl,
+    baseUrl: provider.baseUrl ?? '',
     model: options?.modelOverride ?? provider.models[0]?.name ?? '',
     apiKey: options?.apiKeyOverride ?? '',
     supportsThinking: provider.supportsThinking,

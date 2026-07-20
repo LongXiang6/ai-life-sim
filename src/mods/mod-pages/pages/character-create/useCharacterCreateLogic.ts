@@ -185,10 +185,6 @@ export const LABELS = {
   cancelBtn: '取消' as const,
   savePresetBtn: '+ 保存预设' as const,
 
-  // 属性分配
-  attrLabel: '属性分配' as const,
-  remainingPointsHint: '剩余点数：' as const,
-
   // 底部操作栏
   backTitle: '返回世界选择' as const,
   backTitleMobile: '返回' as const,

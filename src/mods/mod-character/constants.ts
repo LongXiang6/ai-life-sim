@@ -4,7 +4,7 @@
  * @mod mod-character
  */
 
-import type { DestinyPattern, DestinyPatternRarity, DestinyPatternPolarity, RaceLifespanConfig, LifeStageId, LifeStageConfig, MoralityLevel, BreakthroughPathway, DeathCause, } from './types'
+import type { BaseAttributes, DestinyPattern, DestinyPatternRarity, DestinyPatternPolarity, RaceLifespanConfig, LifeStageId, LifeStageConfig, MoralityLevel, BreakthroughPathway, DeathCause, } from './types'
 
 export { TRANSMIGRATOR_KEYWORDS } from '@/core/shared'
 
@@ -12,12 +12,16 @@ export { TRANSMIGRATOR_KEYWORDS } from '@/core/shared'
 // 基础属性
 // ============================================================
 
-/** 总属性分配点数 */
-export const TOTAL_ATTRIBUTE_POINTS = 30
-
 /** 默认属性值 */
 export const DEFAULT_ATTRIBUTE_VALUE = 0
-/** 凡人领域下限（分配 UI 沿用） */
+/** 新人生的四项基础值；种族、命格和其他随机来源通过 modifiers 独立叠加。 */
+export const ZERO_BASE_ATTRIBUTES: Readonly<BaseAttributes> = Object.freeze({
+  physique: DEFAULT_ATTRIBUTE_VALUE,
+  mind: DEFAULT_ATTRIBUTE_VALUE,
+  talentAptitude: DEFAULT_ATTRIBUTE_VALUE,
+  charisma: DEFAULT_ATTRIBUTE_VALUE,
+})
+/** 凡人领域下限 */
 export const MIN_ATTRIBUTE_VALUE = -10
 /** 凡人领域上限（人类物种极限；超出即踏入超凡领域） */
 export const MAX_ATTRIBUTE_VALUE = 10
@@ -35,7 +39,7 @@ export const MAX_ATTRIBUTE_VALUE = 10
 /** 可超凡属性：突破 ±10 后无上限堆叠 */
 export const TRANSCENDENT_ATTR_KEYS = ['physique', 'mind', 'talentAptitude', 'charisma'] as const
 
-/** 当前没有玩家可分配的凡人锁定属性；气运/善恶由独立隐藏子系统锁定。 */
+/** 当前没有凡人锁定属性；气运/善恶由独立隐藏子系统锁定。 */
 export const MORTAL_LOCKED_ATTR_KEYS = [] as const
 
 /**

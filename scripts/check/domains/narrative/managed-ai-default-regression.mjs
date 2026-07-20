@@ -20,12 +20,15 @@ function assertOk(condition, message) {
 const provider = read('src/core/ai-service/provider-config.ts')
 const proxy = read('src/app/api/proxy/route.ts')
 const serverCredentials = read('src/core/ai-service/server-provider-credentials.ts')
+const serverTargets = read('src/core/ai-service/server-provider-targets.ts')
+const aiServiceIndex = read('src/core/ai-service/index.ts')
 const managedAggregation = read('src/core/ai-service/managed-sse-aggregation.ts')
 const managedExecution = read('src/core/ai-service/managed-provider-execution.ts')
 const worldInitRoute = read('src/app/api/world-init/route.ts')
 const worldInitBundle = read('src/mods/mod-world/world-init-bundle.ts')
 const store = read('src/mods/mod-settings/store.ts')
 const settings = read('src/mods/mod-settings/components/SettingsTabPresets.tsx')
+const settingsTheme = read('src/mods/mod-settings/components/SettingsTabTheme.tsx')
 const aiClient = read('src/core/ai-service/ai-client.ts')
 const runtimeCallers = [
   read('src/mods/mod-engine/hooks.ts'),
@@ -38,21 +41,29 @@ const envExample = read('.env.example')
 
 assertOk(
   provider.includes("DEFAULT_AI_PROVIDER_ID = 'managed'")
-    && provider.includes("DEFAULT_AI_BASE_URL = 'https://api.longcat.chat/openai/v1'")
     && provider.includes("DEFAULT_AI_MODEL = 'LongCat-2.0'")
     && provider.includes("LEGACY_MANAGED_AI_PROVIDER_ID = 'managed-a6'")
     && provider.includes("LEGACY_MANAGED_AI_MODEL = 'gpt-5.6-luna'")
-    && provider.includes("LEGACY_MANAGED_AI_FALLBACK_MODEL = 'gpt-5.6-terra'"),
-  'LongCat default and retained a6api managed targets must have one public authority',
+    && provider.includes("LEGACY_MANAGED_AI_FALLBACK_MODEL = 'gpt-5.6-terra'")
+    && !provider.includes('DEFAULT_AI_BASE_URL')
+    && !provider.includes('LEGACY_MANAGED_AI_BASE_URL')
+    && !/managed:\s*\{[\s\S]{0,220}baseUrl:/.test(provider)
+    && !/\[LEGACY_MANAGED_AI_PROVIDER_ID\]:\s*\{[\s\S]{0,220}baseUrl:/.test(provider),
+  'browser Provider metadata must expose managed IDs and models without either managed target URL',
 )
 assertOk(
-  !/(?:sk-|ak_)[A-Za-z0-9_-]{20,}/.test(provider + proxy + serverCredentials + managedAggregation + managedExecution + worldInitRoute + worldInitBundle + store + settings + envExample),
+  !/(?:sk-|ak_)[A-Za-z0-9_-]{20,}/.test(provider + proxy + serverCredentials + serverTargets + managedAggregation + managedExecution + worldInitRoute + worldInitBundle + store + settings + envExample),
   'tracked sources must not contain an API credential',
 )
 assertOk(
   serverCredentials.includes("managed: 'LONGCAT_API_KEY'")
     && serverCredentials.includes("'managed-a6': 'MANAGED_AI_API_KEY'")
+    && serverTargets.includes("managed: 'LONGCAT_BASE_URL'")
+    && serverTargets.includes("'managed-a6': 'MANAGED_A6_BASE_URL'")
+    && serverTargets.includes("import 'server-only'")
+    && !aiServiceIndex.includes('server-provider-targets')
     && proxy.includes('readServerProviderApiKey(providerId)')
+    && proxy.includes('readServerProviderBaseUrl(providerId)')
     && proxy.includes('isServerManagedProvider(providerId)')
     && proxy.includes('Managed model not allowed'),
   'proxy must resolve each managed credential only from server env and fix both model allowlists',
@@ -73,6 +84,7 @@ assertOk(
 assertOk(
   worldInitRoute.includes('callProviderDirect')
     && worldInitRoute.includes('readServerProviderApiKey(providerId)')
+    && worldInitRoute.includes('readServerProviderBaseUrl(providerId)')
     && worldInitRoute.includes('isServerManagedProvider(providerId)')
     && worldInitRoute.includes('getProviderModelCandidates(providerId, model)')
     && worldInitBundle.includes('providerId: settings.provider'),
@@ -89,30 +101,45 @@ assertOk(
 )
 assertOk(
   store.includes('provider: DEFAULT_AI_PROVIDER_ID')
-    && store.includes('customUrl: DEFAULT_AI_BASE_URL')
+    && store.includes("customUrl: ''")
     && store.includes('customModel: DEFAULT_AI_MODEL')
-    && store.includes('version: 7'),
-  'new users and restore-default state must select the managed provider without a browser key',
+    && store.includes('version: 8'),
+  'new users and restore-default state must select the managed provider without browser Key or URL',
 )
 assertOk(
   store.includes('hasExplicitModelConfig')
     && store.includes("state.provider === 'custom'")
-    && store.includes("version < 7 && state.provider === DEFAULT_AI_PROVIDER_ID")
-    && store.includes('LEGACY_MANAGED_AI_PROVIDER_ID'),
-  'migration must move empty managed defaults to LongCat while preserving player-owned old-channel keys',
+    && store.includes('version < 8')
+    && store.includes("migrated.provider = 'custom'")
+    && store.includes("migrated.customUrl = ''"),
+  'migration must clear preset URLs while converting player-owned preset overrides to custom configuration',
+)
+assertOk(
+  store.includes('normalizeImportedModelSettings')
+    && store.includes("return { provider: 'custom', customKey, customUrl, customModel }")
+    && store.includes("customUrl: ''")
+    && settingsTheme.includes('normalizeImportedModelSettings(settings)')
+    && !settingsTheme.includes("if (typeof settings.customUrl === 'string') setCustomUrl(settings.customUrl)"),
+  'settings import must not restore a managed target URL into browser state while preserving complete player-owned custom data',
 )
 assertOk(
   provider.includes('免费体验（龙猫）')
     && provider.includes('免费体验（原通道）')
-    && settings.includes('服务器免费体验通道')
+    && settings.includes('服务器预设模式不显示或保存 API 网址与 Key')
+    && settings.includes("provider === 'custom'")
+    && settings.includes('使用自己的 API')
     && settings.includes('setCustomKey(\'\')')
+    && settings.includes('setCustomUrl(\'\')')
     && settings.includes('setProvider(DEFAULT_AI_PROVIDER_ID)')
-    && settings.includes('markConnectionUntested(DEFAULT_AI_BASE_URL, DEFAULT_AI_MODEL)'),
-  'settings reset must clear only the browser key and restore the managed public configuration',
+    && settings.includes("connectionTargetKey(DEFAULT_AI_PROVIDER_ID, '')"),
+  'preset UI and reset must hide managed URL fields and keep a separate custom-API path',
 )
 assertOk(
-  /LONGCAT_API_KEY=\r?\n/.test(envExample) && /MANAGED_AI_API_KEY=\r?\n/.test(envExample),
-  'environment example must declare empty slots for both managed credentials',
+  /LONGCAT_API_KEY=\r?\n/.test(envExample)
+    && /LONGCAT_BASE_URL=\r?\n/.test(envExample)
+    && /MANAGED_AI_API_KEY=\r?\n/.test(envExample)
+    && /MANAGED_A6_BASE_URL=\r?\n/.test(envExample),
+  'environment example must declare empty private slots for both managed credentials and targets',
 )
 
 if (failed > 0) process.exit(1)

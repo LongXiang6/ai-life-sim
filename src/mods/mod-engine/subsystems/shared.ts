@@ -59,7 +59,6 @@ export {
   resolveLifeStageFromAge,
   normalizeNarrativeParagraphs,
   buildNarrativeHints,
-  INFORMATION_PRIORITY_RULE,
   type BridgeSnapshot,
   type EventLifecycleTracker,
   type DomainEvent,

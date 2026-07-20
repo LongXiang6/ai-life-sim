@@ -16,7 +16,7 @@
 <body data-screen="mythic-inheritance" data-creation-step="6">
   <main class="creation-shell">
     <header class="creation-review">
-      <p class="creation-review-label">CREATION FLOW · 06 / 08</p>
+      <p class="creation-review-label">CREATION FLOW · 06 / 07</p>
       <h1>命格选取</h1>
       <p class="creation-review-copy">从同一座星盘中选满三个普通命格；神话传承独立可选，不占普通命格槽。</p>
     </header>
@@ -64,7 +64,7 @@
 
         <footer class="cf-footer">
           <button class="cf-back" type="button" data-flow-to="talent-draw" aria-label="返回命格抽取" title="返回命格抽取"><span data-icon="back"></span></button>
-          <button class="cf-next" type="button" data-flow-to="attribute-alloc" disabled aria-label="还需选择三条普通命格">
+          <button class="cf-next" type="button" data-flow-to="fate-preview" disabled aria-label="还需选择三条普通命格">
             <span class="cf-next-number">07</span>
             <span class="cf-next-copy"><strong>确认命格</strong><small data-selection-status>还需选择 3 条普通命格</small></span>
             <span class="cf-next-arrow" data-icon="arrow"></span>
@@ -150,8 +150,8 @@
           const amount = slots.filter(function (slot) { return slot.dataset.name }).length
           const remaining = ordinary.length ? 3 - amount : 3
           next.disabled = remaining !== 0
-          next.setAttribute('aria-label', remaining === 0 ? '确认命格并进入属性分配' : `还需选择${remaining}条普通命格`)
-          status.textContent = remaining === 0 ? '三条普通命格已签订 · 继续分配属性' : `还需选择 ${remaining} 条普通命格`
+          next.setAttribute('aria-label', remaining === 0 ? '确认命格并进入命运预览' : `还需选择${remaining}条普通命格`)
+          status.textContent = remaining === 0 ? '三条普通命格已签订 · 进入命运预览' : `还需选择 ${remaining} 条普通命格`
         }
 
         function renderSlot(slot, item) {

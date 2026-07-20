@@ -6,8 +6,11 @@
 
 import 'server-only'
 
+import { createHash } from 'crypto'
 import { promises as fs } from 'fs'
 import path from 'path'
+import { promisify } from 'util'
+import { gzip, gunzip } from 'zlib'
 
 import {
   redactSensitiveData,
@@ -26,6 +29,8 @@ const DEFAULT_MAX_TOTAL_BYTES = 10 * 1024 * 1024 * 1024
 const DEFAULT_MAX_FILE_BYTES = 64 * 1024 * 1024
 const CLEANUP_INTERVAL_MS = 15 * 60 * 1000
 const RETENTION_EXEMPT_ROOT_DIRECTORIES = new Set(['diagnostic-identities'])
+const gzipAsync = promisify(gzip)
+const gunzipAsync = promisify(gunzip)
 
 let lastCleanupAt = 0
 let cleanupPromise: Promise<void> | null = null
@@ -63,6 +68,98 @@ function resolveLogPath(relativePath: string): string {
     throw new Error(`日志路径越界: ${relativePath}`)
   }
   return target
+}
+
+export type ServerLogContentFormat = 'text' | 'json'
+
+export interface ServerLogContentRef {
+  schemaVersion: 2
+  storage: 'sha256-gzip'
+  algorithm: 'sha256'
+  hash: string
+  path: string
+  format: ServerLogContentFormat
+  originalBytes: number
+  compressedBytes: number
+}
+
+function serializeLogContent(
+  value: unknown,
+  format: ServerLogContentFormat,
+): Buffer {
+  const redacted = redactSensitiveData(value)
+  if (format === 'json') return Buffer.from(JSON.stringify(redacted), 'utf8')
+  return Buffer.from(String(redacted ?? ''), 'utf8')
+}
+
+/**
+ * 将大段诊断内容按 SHA-256 寻址并 gzip 保存；相同内容只保留一份。
+ * 重复命中会刷新 mtime，保证仍被近期事件引用的内容不会按保留期提前清理。
+ */
+export async function storeServerLogContent(
+  value: unknown,
+  format: ServerLogContentFormat,
+): Promise<ServerLogContentRef | null> {
+  try {
+    const serialized = serializeLogContent(value, format)
+    const hash = createHash('sha256')
+      .update(format)
+      .update('\0')
+      .update(serialized)
+      .digest('hex')
+    const extension = format === 'json' ? 'json.gz' : 'txt.gz'
+    const relativePath = `content/sha256/${hash.slice(0, 2)}/${hash}.${extension}`
+    const target = resolveLogPath(relativePath)
+    await ensureSecureDirectory(path.dirname(target))
+
+    let compressedBytes = 0
+    try {
+      const compressed = await gzipAsync(serialized, { level: 9 })
+      compressedBytes = compressed.length
+      await fs.writeFile(target, compressed, { mode: 0o600, flag: 'wx' })
+      await fs.chmod(target, 0o600).catch(() => undefined)
+    } catch (error) {
+      const code = error && typeof error === 'object' && 'code' in error
+        ? String((error as { code?: unknown }).code)
+        : ''
+      if (code !== 'EEXIST') throw error
+      const now = new Date()
+      await fs.utimes(target, now, now).catch(() => undefined)
+      compressedBytes = (await fs.stat(target)).size
+    }
+
+    scheduleCleanup()
+    return {
+      schemaVersion: 2,
+      storage: 'sha256-gzip',
+      algorithm: 'sha256',
+      hash,
+      path: relativePath,
+      format,
+      originalBytes: serialized.length,
+      compressedBytes,
+    }
+  } catch (error) {
+    console.error('[server-log-store] 内容寻址写入失败', error)
+    return null
+  }
+}
+
+/** 供私有运维与回归测试还原内容；公开 API 不得调用。 */
+export async function readServerLogContent(reference: ServerLogContentRef): Promise<unknown> {
+  if (reference.storage !== 'sha256-gzip' || reference.algorithm !== 'sha256') {
+    throw new Error('不支持的日志内容引用')
+  }
+  const target = resolveLogPath(reference.path)
+  const serialized = await gunzipAsync(await fs.readFile(target))
+  const digest = createHash('sha256')
+    .update(reference.format)
+    .update('\0')
+    .update(serialized)
+    .digest('hex')
+  if (digest !== reference.hash) throw new Error('日志内容哈希校验失败')
+  const text = serialized.toString('utf8')
+  return reference.format === 'json' ? JSON.parse(text) : text
 }
 
 /** 在同一安全根目录下同时写入按 IP 与玩家诊断编号分类的 JSONL。 */

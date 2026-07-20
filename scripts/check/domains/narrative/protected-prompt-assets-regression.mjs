@@ -31,7 +31,7 @@ const settingsModal = read('src/mods/mod-settings/components/SettingsModal.tsx')
 const settingsIndex = read('src/mods/mod-settings/index.ts')
 
 assertOk(
-  promptContract.includes("version: '4.4.0'")
+  promptContract.includes("version: '4.5.0'")
     && promptContract.includes("systemPrompt: ''")
     && promptContract.includes('serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID'),
   'browser PromptTemplate must carry only the server asset ID',
@@ -39,6 +39,8 @@ assertOk(
 assertOk(
   serverPrompt.includes('你是人生模拟器的主叙事引擎')
     && serverPrompt.includes('buildNarrativeAIProtocolStandardExample')
+    && serverPrompt.includes('player-setting-ownership')
+    && serverPrompt.includes('first-round-origin')
     && serverPrompt.includes('COMPILED_NARRATIVE_SYSTEM_PROMPT'),
   'server Prompt owner must retain the fixed narrative asset and standard example',
 )
@@ -77,7 +79,7 @@ assertOk(
 assertOk(
   proxyRoute.includes('resolveModEngineServerPromptAsset(body.prompt_asset)')
     && proxyRoute.includes("message.role === 'system'")
-    && proxyRoute.includes('isTrustedPromptAssetTarget(providerId, baseUrl)')
+    && proxyRoute.includes('isTrustedServerPromptTarget(providerId, baseUrl)')
     && proxyRoute.includes("{ role: 'system', content: promptAsset.systemPrompt }")
     && proxyRoute.includes('messages: upstreamMessages'),
   'proxy must validate, inject and forward the protected server asset',

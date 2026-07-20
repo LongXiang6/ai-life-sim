@@ -25,7 +25,7 @@ export class CharacterBaseSystem extends BaseSubsystem {
   readonly id = 'character-base' as const
   readonly mod = 'mod-character' as const
   readonly label = '基础属性' as const
-  readonly description = '管理 4 项基础属性（体魄 / 心智 / 悟性 / 魅力），聚合命格 / 伤病 / 衰减修正与显式起始年龄' as const
+  readonly description = '管理从零起步、由叙事结构化修改的 4 项基础属性，并聚合种族 / 命格 / 伤病 / 衰减修正与显式起始年龄' as const
 
   private state: CharacterBaseState = {
     base: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
@@ -176,7 +176,7 @@ export class CharacterBaseSystem extends BaseSubsystem {
       physique: 0, mind: 0, talentAptitude: 0, charisma: 0,
     }
 
-    // 物种基准线（想法2：超凡领域，current = speciesBaseline + 玩家分配 + modifiers）
+    // 物种基准线（current = 叙事基础值 + speciesBaseline + 其他 modifiers）
     const lifespan = context.subsystemStates['lifespan']
     if (lifespan?.data) {
       const race = (lifespan.data as Record<string, unknown>).race as RaceLifespanConfig | undefined

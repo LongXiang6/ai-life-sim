@@ -15,6 +15,7 @@ import { useEngineStore } from '@/mods/mod-engine'
 import { saveManager } from '@/core/storage/save-manager'
 import { applyGameSave, orchestrator } from '@/mods/mod-engine/engine-api'
 import { hasAvailableApiConfiguration } from '@/mods/mod-settings'
+import { reportDiagnosticSessionEnvironment } from '@/core/logger/client-logger'
 import {
   isDisclaimerAccepted,
   acceptDisclaimer,
@@ -95,6 +96,7 @@ export default function WelcomePage() {
 
   const handleDisclaimerAccept = useCallback(() => {
     acceptDisclaimer()
+    void reportDiagnosticSessionEnvironment()
     setShowDisclaimer(false)
     if (pendingActionRef.current === 'start-new-game') {
       pendingActionRef.current = null

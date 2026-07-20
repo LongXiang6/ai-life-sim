@@ -52,7 +52,6 @@ import {
   resolveLifeStageFromAge,
   normalizeNarrativeParagraphs,
   buildNarrativeHints,
-  INFORMATION_PRIORITY_RULE,
   RoundCommitBus,
   runNarrativeInterceptors,
   buildNarrativeTimeContext,
@@ -2522,11 +2521,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.branchJustResolved = hasFreshPlayerChoice
     if (hasFreshPlayerChoice) {
       this.lastBranchTotalRound = Math.max(this.lastBranchTotalRound, this.state.totalRounds)
-    }
-
-    // 信息优先级：开场叙事注入
-    if (this.state.narrativeHistory.length === 0) {
-      addComponent('opening-information-priority', INFORMATION_PRIORITY_RULE, '硬限制', '世界与协议')
     }
 
     // 动态 hints（移植自废弃项目 buildNarrativeRoundPrompt）

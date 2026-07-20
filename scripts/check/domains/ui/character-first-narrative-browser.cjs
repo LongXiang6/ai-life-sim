@@ -144,7 +144,7 @@ async function main() {
       state: {
         provider: 'managed',
         customKey: '',
-        customUrl: 'https://api.longcat.chat/openai/v1',
+        customUrl: '',
         customModel: 'LongCat-2.0',
         temperature: 0.8,
         topP: 0.8,
@@ -182,10 +182,6 @@ async function main() {
   }
   await waitForEnabled(page, '确认命格')
   await page.getByRole('button', { name: /确认命格/ }).click()
-  await page.waitForURL('**/attribute-alloc')
-
-  await page.getByRole('button', { name: '平均分配' }).click()
-  await page.getByRole('button', { name: /确认属性/ }).click()
   await page.waitForURL('**/fate-preview')
 
   await waitForEnabled(page, '开始人生')
@@ -209,7 +205,7 @@ async function main() {
   })
 
   const failures = []
-  const expectedRouteOrder = ['/new-game/character-create', '/talent-draw', '/attribute-alloc', '/fate-preview', '/game-story']
+  const expectedRouteOrder = ['/new-game/character-create', '/talent-draw', '/fate-preview', '/game-story']
   let routeCursor = -1
   for (const expected of expectedRouteOrder) {
     const index = visitedPaths.indexOf(expected, routeCursor + 1)
@@ -220,8 +216,8 @@ async function main() {
   if (!managedRequestWithoutClientKey) failures.push('managed provider request without a browser API key was not observed')
   if (persistedState.character.destinyPatterns?.patterns?.length !== 3) failures.push('three destiny patterns were not persisted')
   const base = persistedState.character.characterBase?.base ?? {}
-  if ([base.physique, base.mind, base.talentAptitude, base.charisma].join(',') !== '8,8,7,7') {
-    failures.push(`average attributes drifted: ${JSON.stringify(base)}`)
+  if ([base.physique, base.mind, base.talentAptitude, base.charisma].join(',') !== '0,0,0,0') {
+    failures.push(`new-life base attributes were not zeroed: ${JSON.stringify(base)}`)
   }
   if ((persistedState.engine.narrativeHistory?.length ?? 0) < 1) failures.push('first narrative was not committed to engine history')
   if (proxyPostCount !== 1) failures.push(`expected one main proxy POST, observed ${proxyPostCount}`)

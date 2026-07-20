@@ -12,8 +12,8 @@ import type { PlayerFeedbackEnvelope } from './feedback-contract'
 import {
   appendSourceJsonLine,
   appendServerJsonLine,
+  storeServerLogContent,
   type ServerRequestSource,
-  writeServerLogFile,
 } from './server-log-store'
 import { redactSensitiveData } from './redact-sensitive-data'
 
@@ -47,7 +47,11 @@ export async function storePlayerFeedback(
     diagnosticCode: source.diagnosticCode,
     ...redactedEnvelope,
   }
+  const submissionRef = await storeServerLogContent(storedRecord, 'json')
+  if (!submissionRef) return null
   const indexRecord = {
+    schemaVersion: 2,
+    eventId: randomUUID(),
     feedbackId,
     receivedAt,
     sourceIp: source.ip,
@@ -61,14 +65,14 @@ export async function storePlayerFeedback(
     recentStoryEntries: redactedEnvelope.diagnostics.recentStory.length,
     recentStoryChars: storyChars,
     recentClientLogEntries: redactedEnvelope.diagnostics.recentClientLogs.length,
+    submissionRef,
   }
 
-  const [submissionWritten, indexWritten, sourceIndexWritten] = await Promise.all([
-    writeServerLogFile(`feedback/submissions/${date}/${feedbackId}.json`, storedRecord),
+  const [indexWritten, sourceIndexWritten] = await Promise.all([
     appendServerJsonLine(`feedback/feedback-${date}.jsonl`, indexRecord),
     appendSourceJsonLine(source, `feedback-${date}.jsonl`, indexRecord),
   ])
 
-  if (!submissionWritten || !indexWritten || !sourceIndexWritten) return null
+  if (!indexWritten || !sourceIndexWritten) return null
   return { feedbackId, receivedAt }
 }

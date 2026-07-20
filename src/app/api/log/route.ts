@@ -4,22 +4,20 @@
  * @mod app
  *
  * 功能：
- *   - 按日期写入 AI_LOG_DIR/client-events/
- *   - 如有 raw 字段，额外保存完整原文到 AI_LOG_DIR/client-raw/
+ *   - 按日期写入固定字段 JSONL 行表
+ *   - 大段 args/context/raw 以 SHA-256 内容引用单份 gzip 保存
  *   - 与 AI 代理日志共享脱敏、轮转与过期清理策略
  */
 
+import { randomUUID } from 'crypto'
 import { z } from 'zod'
 
 import {
   appendSourceJsonLine,
   appendServerJsonLine,
-  appendServerText,
   getServerRequestSource,
-  safeLogSegment,
+  storeServerLogContent,
   type ServerRequestSource,
-  writeSourceLogFile,
-  writeServerLogFile,
 } from '@/core/logger/server-log-store'
 
 const MAX_BODY_SIZE = 4 * 1024 * 1024
@@ -52,51 +50,41 @@ function isDisabled(): boolean {
 async function writeLogAsync(entry: ClientLogEntry, source: ServerRequestSource): Promise<void> {
   const receivedAt = Date.now()
   const dateStr = new Date(receivedAt).toISOString().slice(0, 10)
+  const { args, context, raw, ...inlineEntry } = entry
+  const [argsRef, contextRef, rawRef] = await Promise.all([
+    args === undefined ? null : storeServerLogContent(args, 'json'),
+    context === undefined ? null : storeServerLogContent(context, 'json'),
+    raw === undefined ? null : storeServerLogContent(raw, 'text'),
+  ])
   const storedEntry = {
-    ...entry,
+    schemaVersion: 2,
+    eventId: randomUUID(),
+    ...inlineEntry,
     sourceIp: source.ip,
     sourceId: source.sourceId,
     diagnosticCode: source.diagnosticCode,
     receivedAt,
+    path: typeof context?.path === 'string' ? context.path : undefined,
+    diagnosticSessionId: typeof context?.diagnosticSessionId === 'string'
+      ? context.diagnosticSessionId
+      : undefined,
+    hasEnvironmentSnapshot: Boolean(context?.environmentSnapshot) || undefined,
+    argsCount: args?.length,
+    argsRef: argsRef ?? undefined,
+    contextRef: contextRef ?? undefined,
+    rawChars: raw?.length,
+    rawRef: rawRef ?? undefined,
+    contentWriteFailed: (
+      (args !== undefined && !argsRef)
+      || (context !== undefined && !contextRef)
+      || (raw !== undefined && !rawRef)
+    ) || undefined,
   }
 
-  // 格式化日志行
-  const time = new Date(entry.timestamp).toISOString()
-  const argsStr = entry.args ? ` | args: ${JSON.stringify(entry.args)}` : ''
-  const errorStr = entry.error ? ` | error: ${entry.error}` : ''
-  const stackStr = entry.stack ? ` | stack: ${entry.stack}` : ''
-  const actionStr = entry.action ? ` | action: ${entry.action}` : ''
-  const requestIdStr = entry.requestId ? ` | requestId: ${entry.requestId}` : ''
-  const diagnosticCodeStr = source.diagnosticCode ? ` [${source.diagnosticCode}]` : ''
-  const line = `[${time}] [${entry.level.toUpperCase()}] [${entry.module}] [${source.ip}]${diagnosticCodeStr} ${entry.message}${requestIdStr}${actionStr}${argsStr}${errorStr}${stackStr}\n`
-
   await Promise.all([
-    appendServerText(`client-events/client-errors-${dateStr}.log`, line),
     appendServerJsonLine(`client-events/client-events-${dateStr}.jsonl`, storedEntry),
     appendSourceJsonLine(source, `client-events-${dateStr}.jsonl`, storedEntry),
   ])
-
-  // 如果有 raw 字段，额外保存完整原文
-  if (entry.raw) {
-    const timestamp = new Date(entry.timestamp).toISOString().replace(/[:.]/g, '-')
-    const rawFile = `${safeLogSegment(entry.module)}-${entry.level}-${timestamp}.txt`
-    const rawContent = [
-      `Timestamp: ${time}`,
-      `Module: ${entry.module}`,
-      `Level: ${entry.level}`,
-      `Source IP: ${source.ip}`,
-      ...(source.diagnosticCode ? [`Diagnostic Code: ${source.diagnosticCode}`] : []),
-      ...(entry.requestId ? [`Request ID: ${entry.requestId}`] : []),
-      `Message: ${entry.message}`,
-      '',
-      '--- Raw Content ---',
-      entry.raw,
-    ].join('\n')
-    await Promise.all([
-      writeServerLogFile(`client-raw/${rawFile}`, rawContent),
-      writeSourceLogFile(source, `client-raw/${rawFile}`, rawContent),
-    ])
-  }
 }
 
 /**

@@ -30,7 +30,7 @@ export function WorldSelectMobile() {
           <div className={styles.paper}>
             <span className={styles.spine} aria-hidden="true" />
             <header className={styles.header}>
-              <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>02 / 08</span></div>
+              <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>02 / 07</span></div>
               <div className={styles.titleRow}>
                 <div>
                   <h1 className={styles.headerTitle}>选择世界</h1>

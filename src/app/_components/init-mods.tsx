@@ -9,7 +9,10 @@
 import { useEffect } from 'react'
 
 import { useGlobalStore } from '@/core/global-store'
-import { installGlobalLogHandlers } from '@/core/logger/client-logger'
+import {
+  installGlobalLogHandlers,
+  reportDiagnosticSessionEnvironment,
+} from '@/core/logger/client-logger'
 import { ensureDiagnosticPlayerCode } from '@/core/logger/diagnostic-player-code-client'
 
 /**
@@ -26,6 +29,7 @@ export function InitMods({ children }: { children: React.ReactNode }) {
     void (async () => {
       await ensureDiagnosticPlayerCode()
       if (cancelled) return
+      void reportDiagnosticSessionEnvironment()
 
       const { registerModRoutes } = await import('./init-mods-routes')
       const result = await registerModRoutes()

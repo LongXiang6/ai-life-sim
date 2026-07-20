@@ -43,7 +43,7 @@ export function CharacterCreateMobile() {
           <div className={styles.paper}>
             <span className={styles.spine} aria-hidden="true" />
             <header className={styles.header}>
-              <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>04 / 08</span></div>
+              <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>04 / 07</span></div>
               <div className={styles.titleRow}>
                 <div>
                   <h1>塑造角色</h1>

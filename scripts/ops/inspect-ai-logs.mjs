@@ -2,9 +2,14 @@
 
 import fs from 'node:fs'
 import { promises as fsp } from 'node:fs'
+import { createHash } from 'node:crypto'
 import path from 'node:path'
 import process from 'node:process'
 import readline from 'node:readline'
+import { promisify } from 'node:util'
+import { gunzip } from 'node:zlib'
+
+const gunzipAsync = promisify(gunzip)
 
 function printHelp() {
   console.log(`Usage: node scripts/ops/inspect-ai-logs.mjs [options]
@@ -82,8 +87,36 @@ function parseArgs(argv) {
   return options
 }
 
-async function collectJsonlFiles(root, cutoffMs) {
+function safeLogSegment(value) {
+  const normalized = String(value).trim().replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/^\.+/, '')
+  return normalized.slice(0, 96) || 'unknown'
+}
+
+function classifyJsonlFile(name) {
+  if (name.startsWith('proxy-access-')) return 'access'
+  if (name.startsWith('ai-trace-') || name.startsWith('trace-index-')) return 'trace'
+  if (name.startsWith('client-events-')) return 'client'
+  if (name.startsWith('feedback-')) return 'feedback'
+  if (name.startsWith('ai-debug-') || name.startsWith('ai-debug-index-')) return 'debug'
+  if (name.startsWith('raw-responses-')) return 'raw'
+  return undefined
+}
+
+function resolveScanRoot(root, options) {
+  if (options.playerCode) {
+    const playerRoot = path.join(root, 'players', options.playerCode)
+    if (fs.existsSync(playerRoot)) return { path: playerRoot, indexesOnly: true }
+  }
+  if (options.ip) {
+    const sourceRoot = path.join(root, 'sources', `ip-${safeLogSegment(options.ip)}`)
+    if (fs.existsSync(sourceRoot)) return { path: sourceRoot, indexesOnly: true }
+  }
+  return { path: root, indexesOnly: false }
+}
+
+async function collectJsonlFiles(root, cutoffMs, options) {
   const files = []
+  const scan = resolveScanRoot(root, options)
   async function visit(dir) {
     let entries
     try {
@@ -94,18 +127,13 @@ async function collectJsonlFiles(root, cutoffMs) {
     for (const entry of entries) {
       const target = path.join(dir, entry.name)
       if (entry.isDirectory()) {
-        if (entry.name === 'sources' || entry.name === 'players' || entry.name === 'diagnostic-identities') continue
+        if (
+          !scan.indexesOnly
+          && ['sources', 'players', 'diagnostic-identities', 'content'].includes(entry.name)
+        ) continue
         await visit(target)
       } else if (entry.isFile() && entry.name.endsWith('.jsonl')) {
-        const kind = entry.name.startsWith('proxy-access-')
-          ? 'access'
-          : entry.name.startsWith('ai-trace-')
-            ? 'trace'
-            : entry.name.startsWith('client-events-')
-              ? 'client'
-              : entry.name.startsWith('feedback-')
-                ? 'feedback'
-              : undefined
+        const kind = classifyJsonlFile(entry.name)
         if (!kind) continue
         const stat = await fsp.stat(target)
         if (cutoffMs && stat.mtimeMs < cutoffMs - (48 * 60 * 60 * 1000)) continue
@@ -113,8 +141,58 @@ async function collectJsonlFiles(root, cutoffMs) {
       }
     }
   }
-  await visit(root)
+  await visit(scan.path)
   return files
+}
+
+function isContentRef(value) {
+  return Boolean(
+    value
+    && typeof value === 'object'
+    && value.storage === 'sha256-gzip'
+    && value.algorithm === 'sha256'
+    && typeof value.path === 'string'
+    && (value.format === 'json' || value.format === 'text'),
+  )
+}
+
+async function readContentRef(root, reference) {
+  if (!isContentRef(reference)) return undefined
+  const target = path.resolve(root, reference.path)
+  const resolvedRoot = path.resolve(root)
+  if (target !== resolvedRoot && !target.startsWith(`${resolvedRoot}${path.sep}`)) {
+    throw new Error(`内容引用越界：${reference.path}`)
+  }
+  const serialized = await gunzipAsync(await fsp.readFile(target))
+  const digest = createHash('sha256')
+    .update(reference.format)
+    .update('\0')
+    .update(serialized)
+    .digest('hex')
+  if (digest !== reference.hash) throw new Error(`内容哈希校验失败：${reference.path}`)
+  const text = serialized.toString('utf8')
+  return reference.format === 'json' ? JSON.parse(text) : text
+}
+
+const CONTENT_REF_FIELDS = {
+  requestRef: 'request',
+  responseRef: 'responseBody',
+  rawRequestRef: 'rawRequestBody',
+  argsRef: 'args',
+  contextRef: 'context',
+  rawRef: 'raw',
+  promptRef: 'prompt',
+  metaRef: 'meta',
+  submissionRef: 'submission',
+}
+
+async function hydrateRecordContent(root, record) {
+  const hydrated = { ...record }
+  await Promise.all(Object.entries(CONTENT_REF_FIELDS).map(async ([refField, contentField]) => {
+    if (!isContentRef(record[refField])) return
+    hydrated[contentField] = await readContentRef(root, record[refField])
+  }))
+  return hydrated
 }
 
 function timestampMs(record) {
@@ -181,15 +259,17 @@ function summarizeTrace(record, includeContent) {
     sourceId: sourceId(record),
     diagnosticCode: diagnosticCode(record),
     status: record.status,
-    provider: request?.providerId,
-    model: record.selectedModel ?? request?.model,
-    messageCount: messages.length || undefined,
-    promptChars: messages.length > 0
+    provider: record.provider ?? request?.providerId,
+    model: record.selectedModel ?? record.requestedModel ?? request?.model,
+    messageCount: (record.requestMessageCount ?? messages.length) || undefined,
+    promptChars: record.requestPromptChars ?? (messages.length > 0
       ? messages.reduce((sum, message) => sum + String(message?.content ?? '').length, 0)
-      : undefined,
-    responseBodyChars: typeof record.responseBody === 'string' ? record.responseBody.length : undefined,
+      : undefined),
+    responseBodyChars: record.responseBodyChars
+      ?? (typeof record.responseBody === 'string' ? record.responseBody.length : undefined),
     error: record.error,
     upstreamError: record.upstreamError,
+    contentWriteFailed: record.contentWriteFailed,
   }
 }
 
@@ -204,11 +284,13 @@ async function main() {
     throw new Error(`日志目录不存在：${options.root}`)
   }
 
-  const files = await collectJsonlFiles(options.root, cutoffMs)
+  const files = await collectJsonlFiles(options.root, cutoffMs, options)
   const access = []
   const traces = []
   const clients = []
   const feedback = []
+  const debug = []
+  const rawResponses = []
   for (const file of files) {
     const target = file.kind === 'access'
       ? access
@@ -216,7 +298,11 @@ async function main() {
         ? traces
         : file.kind === 'feedback'
           ? feedback
-          : clients
+          : file.kind === 'debug'
+            ? debug
+            : file.kind === 'raw'
+              ? rawResponses
+              : clients
     await readJsonLines(file.path, cutoffMs, target)
   }
 
@@ -269,6 +355,14 @@ async function main() {
     matchesSource(record, 'requestId')
       && matchesPlayer(record, 'requestId')
       && matchesRequest(record, 'requestId'))
+  const filteredDebug = debug.filter((record) =>
+    matchesSource(record, 'requestId')
+      && matchesPlayer(record, 'requestId')
+      && matchesRequest(record, 'requestId'))
+  const filteredRawResponses = rawResponses.filter((record) =>
+    matchesSource(record, 'requestId')
+      && matchesPlayer(record, 'requestId')
+      && matchesRequest(record, 'requestId'))
 
   const statusCounts = {}
   for (const record of filteredAccess) {
@@ -279,6 +373,45 @@ async function main() {
   const sources = new Set(filteredAccess.map(sourceIp).filter((ip) => ip !== 'unknown'))
   const proxyIssues = filteredAccess.filter((record) => Number(record.status) !== 200)
   const clientIssues = filteredClients.filter((record) => record.level === 'warn' || record.level === 'error')
+  const debugIssues = filteredDebug.filter((record) => (
+    record.failed === true
+    || record.validationPassed === false
+    || Boolean(record.failureReason)
+    || Boolean(record.validationError)
+  ))
+
+  const selectedFeedbackRecord = options.feedbackId
+    ? filteredFeedback.find((record) => record.feedbackId === options.feedbackId)
+    : undefined
+  let feedbackContent
+  if (options.feedbackId && options.includeContent) {
+    if (selectedFeedbackRecord?.submissionRef) {
+      feedbackContent = (await hydrateRecordContent(options.root, selectedFeedbackRecord)).submission
+    } else {
+      feedbackContent = await readFeedbackSubmission(options.root, options.feedbackId)
+    }
+  }
+
+  const hydratedTraces = options.includeContent
+    ? await Promise.all(takeRecent(filteredTraces, options.limit).map((record) => (
+      hydrateRecordContent(options.root, record)
+    )))
+    : undefined
+  const hydratedClients = options.includeContent
+    ? await Promise.all(takeRecent(filteredClients, options.limit).map((record) => (
+      hydrateRecordContent(options.root, record)
+    )))
+    : undefined
+  const hydratedDebug = options.includeContent
+    ? await Promise.all(takeRecent(filteredDebug, options.limit).map((record) => (
+      hydrateRecordContent(options.root, record)
+    )))
+    : undefined
+  const hydratedRawResponses = options.includeContent
+    ? await Promise.all(takeRecent(filteredRawResponses, options.limit).map((record) => (
+      hydrateRecordContent(options.root, record)
+    )))
+    : undefined
 
   const result = {
     root: options.root,
@@ -294,6 +427,8 @@ async function main() {
       requests: filteredAccess.length,
       traceEvents: filteredTraces.length,
       clientEvents: filteredClients.length,
+      debugEvents: filteredDebug.length,
+      rawResponses: filteredRawResponses.length,
       feedbackSubmissions: filteredFeedback.length,
       distinctSources: sources.size,
       statusCounts,
@@ -321,10 +456,39 @@ async function main() {
       level: record.level,
       module: record.module,
       eventType: record.eventType,
-      path: record.context?.path,
+      path: record.path ?? record.context?.path,
       message: record.message,
       error: record.error,
-      rawChars: typeof record.raw === 'string' ? record.raw.length : undefined,
+      rawChars: record.rawChars ?? (typeof record.raw === 'string' ? record.raw.length : undefined),
+    })),
+    recentDebugIssues: takeRecent(debugIssues, options.limit).map((record) => ({
+      timestamp: record.timestamp,
+      requestId: record.requestId,
+      sourceIp: sourceIp(record),
+      sourceId: sourceId(record),
+      diagnosticCode: diagnosticCode(record),
+      category: record.category,
+      round: record.round,
+      age: record.age,
+      model: record.model,
+      callKind: record.callKind,
+      failed: record.failed,
+      failureReason: record.failureReason,
+      validationPassed: record.validationPassed,
+      validationError: record.validationError,
+      promptChars: record.promptChars,
+      responseChars: record.responseChars,
+    })),
+    recentRawResponses: takeRecent(filteredRawResponses, options.limit).map((record) => ({
+      timestamp: record.timestamp,
+      requestId: record.requestId,
+      sourceIp: sourceIp(record),
+      sourceId: sourceId(record),
+      diagnosticCode: diagnosticCode(record),
+      provider: record.provider,
+      model: record.model,
+      status: record.status,
+      responseChars: record.responseChars,
     })),
     recentFeedback: takeRecent(filteredFeedback, options.limit).map((record) => ({
       feedbackId: record.feedbackId,
@@ -363,17 +527,35 @@ async function main() {
         module: record.module,
         eventType: record.eventType,
         action: record.action,
-        path: record.context?.path,
+        path: record.path ?? record.context?.path,
         message: record.message,
         error: record.error,
       }))
       : undefined,
-    feedbackContent: options.feedbackId && options.includeContent
-      ? await readFeedbackSubmission(options.root, options.feedbackId)
+    recentDebugEvents: options.playerCode
+      ? takeRecent(filteredDebug, options.limit).map((record) => ({
+        timestamp: record.timestamp,
+        requestId: record.requestId,
+        diagnosticCode: diagnosticCode(record),
+        category: record.category,
+        round: record.round,
+        age: record.age,
+        model: record.model,
+        callKind: record.callKind,
+        failed: record.failed,
+        validationPassed: record.validationPassed,
+        promptChars: record.promptChars,
+        responseChars: record.responseChars,
+      }))
       : undefined,
+    feedbackContent,
     traces: (options.requestId || options.playerCode || options.includeContent)
-      ? takeRecent(filteredTraces, options.limit).map((record) => summarizeTrace(record, options.includeContent))
+      ? (hydratedTraces ?? takeRecent(filteredTraces, options.limit))
+        .map((record) => summarizeTrace(record, options.includeContent))
       : undefined,
+    clientEvents: options.includeContent ? hydratedClients : undefined,
+    debugEvents: options.includeContent ? hydratedDebug : undefined,
+    rawResponseContent: options.includeContent ? hydratedRawResponses : undefined,
   }
 
   console.log(JSON.stringify(result, null, 2))

@@ -51,11 +51,10 @@ function requireOrderedFragments(relativePath, fragments) {
 check(
   'V1',
   'Product/OpeningFlow/RouteComposition',
-  'Are all five opening routes registered in user order?',
+  'Are the active opening routes registered in user order?',
   () => requireOrderedFragments('src/mods/mod-pages/manifest.ts', [
     "{ path: '/new-game/character-create', page: 'character-create' }",
     "{ path: '/talent-draw', page: 'talent-draw' }",
-    "{ path: '/attribute-alloc', page: 'attribute-alloc' }",
     "{ path: '/fate-preview', page: 'fate-preview' }",
     "{ path: '/game-story', page: 'game-story' }",
   ]),
@@ -86,23 +85,18 @@ check(
     'getDestinyPatternSystem().selectPatterns',
     'store.setDestinyPatterns({',
     'patterns: selectedPatterns,',
-    "router.push('/attribute-alloc')",
+    'ZERO_BASE_ATTRIBUTES',
+    "router.push('/fate-preview')",
   ]),
 )
 
 check(
   'V4',
-  'Product/OpeningFlow/AttributeAllocation',
-  'Does attribute confirmation preserve the four-field authority and enter fate preview?',
+  'Product/OpeningFlow/ZeroBaseCreation',
+  'Is manual allocation removed while the legacy address safely enters fate preview?',
   () => requireFragments('src/mods/mod-pages/pages/attribute-alloc/page.tsx', [
-    "const TOTAL_POINTS = 30",
-    "{ key: 'physique'",
-    "{ key: 'mind'",
-    "{ key: 'talentAptitude'",
-    "{ key: 'charisma'",
-    'setCharacterBase({',
-    'base: confirmedBase,',
-    "router.push('/fate-preview')",
+    'AttributeAllocCompatibilityRedirect',
+    "router.replace('/fate-preview')",
   ]),
 )
 
@@ -116,6 +110,7 @@ check(
     "worldInitAIStatus?.status === 'complete'",
     'orchestrator.setContext(',
     'orchestrator.applyRoundChanges([',
+    'ZERO_BASE_ATTRIBUTES',
     "id: 'character-base'",
     "id: 'destiny-pattern'",
     "id: 'lifespan'",
@@ -182,7 +177,7 @@ check(
   () => {
     const stores = [
       ['src/mods/mod-world/store.ts', "name: 'mod-world:persist:world-state'", 'version: 6'],
-      ['src/mods/mod-settings/store.ts', "name: 'mod-settings:store'", 'version: 7'],
+      ['src/mods/mod-settings/store.ts', "name: 'mod-settings:store'", 'version: 8'],
       ['src/mods/mod-character/store.ts', "name: 'mod-character:persist:character-state'", 'version: 3'],
       ['src/mods/mod-engine/store.ts', "name: 'mod-engine:persist:engine-state'", 'version: 2'],
     ]

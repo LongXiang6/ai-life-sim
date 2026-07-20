@@ -1,14 +1,5 @@
 .page {
   color-scheme: light;
-  --flow-canvas: #f2f4f3;
-  --flow-paper: #fff;
-  --flow-ink: #17191d;
-  --flow-muted: #626870;
-  --flow-faint: #969ba2;
-  --flow-line: #e5e7ea;
-  --flow-line-strong: #dce2e8;
-  --flow-accent: #6d7f94;
-  --flow-accent-soft: #f0f3f6;
   height: 100dvh;
   min-height: 0;
   overflow-y: auto;

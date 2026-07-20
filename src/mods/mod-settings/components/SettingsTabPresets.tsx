@@ -11,10 +11,8 @@ import { useCallback, useState } from 'react'
 import { configStore } from '@/core'
 import {
   AI_PROVIDERS,
-  DEFAULT_AI_BASE_URL,
   DEFAULT_AI_MODEL,
   DEFAULT_AI_PROVIDER_ID,
-  isRegisteredProviderBaseUrl,
   isServerManagedProvider,
 } from '@/core/ai-service'
 
@@ -31,7 +29,7 @@ const PROVIDER_OPTIONS = Object.values(AI_PROVIDERS)
 interface ConnPersistState {
   state: 'idle' | 'connected' | 'failed'
   duration: number | null
-  testedUrl: string
+  testedTarget: string
   testedModel: string
   testedAt: number
 }
@@ -60,8 +58,12 @@ function saveConnState(state: ConnPersistState): void {
 }
 
 const HELP_DATA: Record<string, string> = {
-  'preset-model': '从预设列表选择厂商和模型后，系统会自动填入对应的 API 地址与模型名称。',
+  'preset-model': '服务器预设只展示可选模型；目标地址与托管凭据不会进入浏览器配置。',
   'custom-model': '使用自定义 AI 模型时，需要填入 API Key、兼容 OpenAI 协议的接口地址和模型名称。',
+}
+
+function connectionTargetKey(provider: string, customUrl: string): string {
+  return provider === 'custom' ? `custom:${customUrl.trim()}` : `provider:${provider}`
 }
 
 export function SettingsTabPresets() {
@@ -96,9 +98,9 @@ export function SettingsTabPresets() {
     if (!saved) return { state: 'idle', duration: null, tokens: '', testedAt: null }
 
     const store = useSettingsStore.getState()
-    const activeUrl = store.customUrl || DEFAULT_AI_BASE_URL
+    const activeTarget = connectionTargetKey(store.provider, store.customUrl)
     const activeModel = store.customModel || DEFAULT_AI_MODEL
-    if (saved.testedUrl === activeUrl && saved.testedModel === activeModel) {
+    if (saved.testedTarget === activeTarget && saved.testedModel === activeModel) {
       return {
         state: saved.state,
         duration: saved.duration,
@@ -111,21 +113,23 @@ export function SettingsTabPresets() {
 
   const selectedVendor = selectedVendorIdx === null ? null : PROVIDER_OPTIONS[selectedVendorIdx]
   const selectedModel = selectedVendor?.models.find((model) => model.name === selectedModelName) ?? null
-  const customTargetSupportsProtectedNarrative = provider !== 'custom'
-    || isRegisteredProviderBaseUrl(customUrl)
 
-  const markCustomProvider = useCallback(() => {
+  const handleUseCustomApi = useCallback(() => {
     setProvider('custom')
+    setCustomKey('')
+    setCustomUrl('')
+    setCustomModel('')
     setSelectedVendorIdx(null)
     setSelectedModelName(null)
-  }, [setProvider])
+    setConnTest({ state: 'idle', duration: null, tokens: '', testedAt: null })
+  }, [setCustomKey, setCustomModel, setCustomUrl, setProvider])
 
-  const markConnectionUntested = useCallback((testedUrl: string, testedModel: string) => {
+  const markConnectionUntested = useCallback((testedTarget: string, testedModel: string) => {
     setConnTest({ state: 'idle', duration: null, tokens: '', testedAt: null })
     saveConnState({
       state: 'idle',
       duration: null,
-      testedUrl: testedUrl || DEFAULT_AI_BASE_URL,
+      testedTarget,
       testedModel: testedModel || DEFAULT_AI_MODEL,
       testedAt: Date.now(),
     })
@@ -140,21 +144,23 @@ export function SettingsTabPresets() {
     const vendor = PROVIDER_OPTIONS[index]
     setSelectedModelName(modelName)
     setProvider(vendor.id)
+    setCustomKey('')
     setCustomModel(modelName)
-    setCustomUrl(vendor.baseUrl)
-    markConnectionUntested(vendor.baseUrl, modelName)
-  }, [markConnectionUntested, setCustomModel, setCustomUrl, setProvider])
+    setCustomUrl('')
+    markConnectionUntested(connectionTargetKey(vendor.id, ''), modelName)
+  }, [markConnectionUntested, setCustomKey, setCustomModel, setCustomUrl, setProvider])
 
   const runConnTest = useCallback(() => {
     setConnTest({ state: 'testing', duration: null, tokens: '', testedAt: null })
     const providerConfig = AI_PROVIDERS[provider]
-    const testUrl = customUrl || providerConfig?.baseUrl || DEFAULT_AI_BASE_URL
+    const testUrl = provider === 'custom' ? customUrl : ''
+    const testTarget = connectionTargetKey(provider, testUrl)
     const testModel = customModel || providerConfig?.models[0]?.name || DEFAULT_AI_MODEL
 
     if (provider === 'custom' && (!customKey || !customUrl || !customModel)) {
       const testedAt = Date.now()
       setConnTest({ state: 'failed', duration: null, tokens: '', testedAt })
-      saveConnState({ state: 'failed', duration: null, testedUrl: testUrl, testedModel: testModel, testedAt })
+      saveConnState({ state: 'failed', duration: null, testedTarget: testTarget, testedModel: testModel, testedAt })
       return
     }
 
@@ -187,7 +193,7 @@ export function SettingsTabPresets() {
 
         if (!response.ok) {
           setConnTest({ state: 'failed', duration: elapsed, tokens: '0', testedAt })
-          saveConnState({ state: 'failed', duration: elapsed, testedUrl: testUrl, testedModel: testModel, testedAt })
+          saveConnState({ state: 'failed', duration: elapsed, testedTarget: testTarget, testedModel: testModel, testedAt })
           return
         }
 
@@ -201,16 +207,16 @@ export function SettingsTabPresets() {
 
           if (isValidResponse) {
             setConnTest({ state: 'connected', duration: elapsed, tokens: actualTokens, testedAt })
-            saveConnState({ state: 'connected', duration: elapsed, testedUrl: testUrl, testedModel: testModel, testedAt })
+            saveConnState({ state: 'connected', duration: elapsed, testedTarget: testTarget, testedModel: testModel, testedAt })
           } else {
             setConnTest({ state: 'failed', duration: elapsed, tokens: actualTokens, testedAt })
-            saveConnState({ state: 'failed', duration: elapsed, testedUrl: testUrl, testedModel: testModel, testedAt })
+            saveConnState({ state: 'failed', duration: elapsed, testedTarget: testTarget, testedModel: testModel, testedAt })
           }
         } catch {
           const parseElapsed = Math.round(performance.now() - startTime)
           const parseTestedAt = Date.now()
           setConnTest({ state: 'failed', duration: parseElapsed, tokens: '0', testedAt: parseTestedAt })
-          saveConnState({ state: 'failed', duration: parseElapsed, testedUrl: testUrl, testedModel: testModel, testedAt: parseTestedAt })
+          saveConnState({ state: 'failed', duration: parseElapsed, testedTarget: testTarget, testedModel: testModel, testedAt: parseTestedAt })
         }
       })
       .catch(() => {
@@ -218,18 +224,18 @@ export function SettingsTabPresets() {
         const elapsed = Math.round(performance.now() - startTime)
         const testedAt = Date.now()
         setConnTest({ state: 'failed', duration: elapsed, tokens: '0', testedAt })
-        saveConnState({ state: 'failed', duration: elapsed, testedUrl: testUrl, testedModel: testModel, testedAt })
+        saveConnState({ state: 'failed', duration: elapsed, testedTarget: testTarget, testedModel: testModel, testedAt })
       })
   }, [customKey, customModel, customUrl, provider])
 
   const handleClearAPIConfig = useCallback(() => {
     setProvider(DEFAULT_AI_PROVIDER_ID)
     setCustomKey('')
-    setCustomUrl(DEFAULT_AI_BASE_URL)
+    setCustomUrl('')
     setCustomModel(DEFAULT_AI_MODEL)
     setSelectedVendorIdx(PROVIDER_OPTIONS.findIndex((vendor) => vendor.id === DEFAULT_AI_PROVIDER_ID))
     setSelectedModelName(DEFAULT_AI_MODEL)
-    markConnectionUntested(DEFAULT_AI_BASE_URL, DEFAULT_AI_MODEL)
+    markConnectionUntested(connectionTargetKey(DEFAULT_AI_PROVIDER_ID, ''), DEFAULT_AI_MODEL)
   }, [markConnectionUntested, setCustomKey, setCustomModel, setCustomUrl, setProvider])
 
   const connectionLabel = connTest.state === 'connected'
@@ -259,7 +265,7 @@ export function SettingsTabPresets() {
         <div className={styles.sectionCard}>
           <div className={styles.cardBody}>
             <p className={styles.supportingText}>
-              选中模型后会自动填写 API 地址与模型名称；预设厂商可使用本地服务端密钥，也可填写自己的 Key 覆盖。
+              预设通道只保存 Provider 与模型名称；目标地址和托管凭据由服务器私有解析，不进入浏览器配置。
             </p>
             <div className={styles.vendorGrid} role="group" aria-label="模型厂商">
               {PROVIDER_OPTIONS.map((vendor, index) => (
@@ -320,7 +326,7 @@ export function SettingsTabPresets() {
       <section className={styles.section} aria-labelledby="settings-custom-model-heading">
         <div className={styles.sectionLabel}>
           <h3 id="settings-custom-model-heading">
-            API 配置
+            {provider === 'custom' ? '自己的 API' : '当前预设'}
             <SettingsHelpTooltip
               helpKey="custom-model"
               helpOpen={helpOpen}
@@ -333,71 +339,74 @@ export function SettingsTabPresets() {
         </div>
         <div className={styles.sectionCard}>
           <div className={styles.cardBody}>
-            <p className={styles.supportingText}>
-              {!customTargetSupportsProtectedNarrative
-                ? '该自定义地址可以测试兼容性，但不能接收受保护的主叙事 Prompt。请选用上方官方厂商预设；仍可填写自己的 API Key。'
-                : selectedModelName
-                ? isServerManagedProvider(provider)
-                  ? '免费体验地址与模型已填入；API Key 留空时由服务器安全提供，也可填写自己的 Key 覆盖。'
-                  : '预设模型的地址与名称已填入；可使用本地服务端密钥测试，也可填写 Key 覆盖。'
-                : '手动填写兼容 OpenAI 协议的 API Key、接口地址与模型名称。'}
-            </p>
-            <div className={styles.fieldGrid}>
-              <label className={styles.field}>
-                <span>API Key</span>
-                <input
-                  type="password"
-                  autoComplete="off"
-                  className={styles.presetInput}
-                  placeholder={isServerManagedProvider(provider) ? '服务器已托管；填写后使用自己的 Key' : '例如 sk-xxx'}
-                  value={customKey}
-                  onChange={(event) => {
-                    setCustomKey(event.target.value)
-                    markConnectionUntested(customUrl, customModel)
-                  }}
-                />
-              </label>
-              <label className={styles.field}>
-                <span>API 网址</span>
-                <input
-                  inputMode="url"
-                  className={styles.presetInput}
-                  placeholder={DEFAULT_AI_BASE_URL}
-                  value={customUrl}
-                  onChange={(event) => {
-                    markCustomProvider()
-                    setCustomUrl(event.target.value)
-                    markConnectionUntested(event.target.value, customModel)
-                  }}
-                />
-              </label>
-              <label className={styles.field}>
-                <span>模型名称</span>
-                <input
-                  className={styles.presetInput}
-                  placeholder={`例如 ${DEFAULT_AI_MODEL}`}
-                  value={customModel}
-                  onChange={(event) => {
-                    markCustomProvider()
-                    setCustomModel(event.target.value)
-                    markConnectionUntested(customUrl, event.target.value)
-                  }}
-                />
-              </label>
-            </div>
+            {provider === 'custom' ? (
+              <>
+                <p className={styles.supportingText}>
+                  手动填写自己的 API Key、兼容 OpenAI 协议的网址和模型名称。任意地址都可测试连接；只有服务器登记的官方目标可运行受保护主叙事。
+                </p>
+                <div className={styles.fieldGrid}>
+                  <label className={styles.field}>
+                    <span>API Key</span>
+                    <input
+                      type="password"
+                      autoComplete="off"
+                      className={styles.presetInput}
+                      placeholder="例如 sk-xxx"
+                      value={customKey}
+                      onChange={(event) => {
+                        setCustomKey(event.target.value)
+                        markConnectionUntested(connectionTargetKey('custom', customUrl), customModel)
+                      }}
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    <span>API 网址</span>
+                    <input
+                      inputMode="url"
+                      className={styles.presetInput}
+                      placeholder="https://example.com/v1"
+                      value={customUrl}
+                      onChange={(event) => {
+                        setCustomUrl(event.target.value)
+                        markConnectionUntested(connectionTargetKey('custom', event.target.value), customModel)
+                      }}
+                    />
+                  </label>
+                  <label className={styles.field}>
+                    <span>模型名称</span>
+                    <input
+                      className={styles.presetInput}
+                      placeholder="例如 deepseek-chat"
+                      value={customModel}
+                      onChange={(event) => {
+                        setCustomModel(event.target.value)
+                        markConnectionUntested(connectionTargetKey('custom', customUrl), event.target.value)
+                      }}
+                    />
+                  </label>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className={styles.supportingText}>
+                  服务器预设模式不显示或保存 API 网址与 Key，只使用当前选中的模型名称。
+                </p>
+                <div className={styles.actionRow}>
+                  <button type="button" className={styles.secondaryButton} onClick={handleUseCustomApi}>
+                    使用自己的 API
+                  </button>
+                </div>
+              </>
+            )}
 
             <div className={styles.connectionRow} aria-live="polite">
               <div className={styles.configSummary}>
                 <span>配置状态</span>
-                <strong>{!customTargetSupportsProtectedNarrative
-                  ? '仅可测试连接 · 主叙事不可用'
-                  : customKey
-                  ? `已配置 · ${customModel || '未选模型'}`
-                  : provider === 'custom'
-                    ? '自定义接口需要 API Key'
-                    : isServerManagedProvider(provider)
-                      ? `服务器免费体验 · ${customModel || DEFAULT_AI_MODEL}`
-                      : '可使用本地服务端密钥'}</strong>
+                <strong>{provider === 'custom'
+                  ? customKey && customUrl && customModel
+                    ? `自己的 API · ${customModel}`
+                    : '请完整填写 Key、网址和模型'
+                  : `${isServerManagedProvider(provider) ? '服务器免费体验' : '服务器预设'} · ${customModel || DEFAULT_AI_MODEL}`}</strong>
               </div>
               <div className={styles.connectionStatus} data-state={connTest.state}>
                 <span className={styles.statusDot} aria-hidden="true" />

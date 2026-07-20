@@ -6,16 +6,16 @@
 体系路径：project > AI semantic capability > managed provider and protected prompt assembly
 上级目标：默认提供可用的免费主叙事模型，同时避免向浏览器公开核心 Prompt，并把非秘密计算留在玩家设备
 下级组成：LongCat 默认 Provider、原 a6api 可选 Provider、服务端资产白名单、浏览器动态投影、设置页与代理拒绝路径
-适用范围：主叙事 Prompt `4.4.0`、`/api/proxy`、Provider 设置、客户端生产构建与生产发布
+适用范围：主叙事 Prompt `4.5.0`、`/api/proxy`、Provider 设置、客户端生产构建与生产发布
 拥有者：`mod-engine` 服务端 Prompt 资产、core AI Provider、app proxy route、mod-settings
 最后验证：2026-07-20；本地确定性回归、真实 LongCat 主叙事请求和浏览器设置路径
-取代关系：补充 `docs/playtest-2026-07-19-managed-ai-a6api.md`；LongCat 成为当前默认，原 a6api 只作为保留选项
-运行真源：`src/mods/mod-engine/server-prompt-assets.ts`、`src/mods/mod-engine/server/narrative-system-prompt.ts`、`src/core/ai-service/provider-config.ts`、`src/app/api/proxy/route.ts`
+取代关系：取代 `docs/playtest-2026-07-19-managed-ai-a6api.md` 的当前默认结论；原 a6api 只作为保留选项
+运行真源：`src/mods/mod-engine/server-prompt-assets.ts`、`src/mods/mod-engine/server/narrative-system-prompt.ts`、`src/core/ai-service/provider-config.ts`、`src/core/ai-service/server-provider-targets.ts`、`src/app/api/proxy/route.ts`
 验收证据：`npm run test:managed-ai-default`、`npm run test:ai-proxy`、`npm run test:protected-prompt-bundle`、`npm run test:narrative-protocol`、真实 Provider 请求、浏览器手工路径与交付闸门
 
 ## 1. 验收目标
 
-1. 新玩家、旧默认空配置和“恢复默认”统一选择 `managed / LongCat-2.0`。
+1. 新玩家、旧默认空配置和“恢复默认”统一选择 `managed / LongCat-2.0`；浏览器只收到预设名称和模型，不收到托管目标地址。
 2. 原免费体验通道保留为 `managed-a6 / gpt-5.6-luna`，玩家也可使用自己的 API Key。
 3. 固定身份、长期写作规则、完整协议示例和等价核心文本只在服务端白名单资产中存在。
 4. 浏览器负责动态世界、角色和历史投影、缓存分层、序列化、响应解析、Schema 校验、模拟预检与状态提交；服务端不重复这些非秘密计算。
@@ -35,7 +35,7 @@
 
 | Case | 结果 | 证明内容 |
 |---|---|---|
-| 默认 Provider 与迁移 | 通过 | 默认、空旧配置与恢复默认均选择 LongCat；原 a6api 和玩家自有 Key 路径保留 |
+| 默认 Provider、目标保密与迁移 | 通过 | 默认、空旧配置与恢复默认均选择 LongCat；两套托管目标只由服务端环境解析；原 a6api 和玩家自有 Key 路径保留 |
 | 未知资产编号 | HTTP 400 | 不回退到客户端 Prompt 或其他服务端副本 |
 | 客户端同时提交 system 消息 | HTTP 400 | 玩家不能覆盖或拼接受保护 system Prompt |
 | 未登记自定义 URL | HTTP 400 | 受保护资产不会发往玩家可控制的目标 |
@@ -55,7 +55,7 @@
 ## 5. 浏览器设置路径
 
 - 打开设置后仅有三个用户页签，没有详细 Prompt 文本或内部组件列表。
-- 恢复默认后选中 LongCat 2.0，浏览器 Key 输入为空。
+- 恢复默认后选中 LongCat 2.0；托管模式不显示 Key 或 API 地址。
 - 玩家可以切换到保留的 a6api 选项，也可选择官方 Provider 并填写自己的 Key。
 - 编辑为未登记地址后，界面明确显示“仅可测试连接，主叙事不可用”。
 

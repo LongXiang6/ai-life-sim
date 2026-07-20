@@ -2,21 +2,21 @@
 
 文档角色：acceptance
 权威层级：A5
-状态：active
+状态：superseded
 体系路径：project > simulation-runtime > platform-services > managed-ai-default-channel > a6api-primary-fallback
 上级目标：让玩家无浏览器 Key 使用稳定的免费体验通道，并在主模型故障时安全切换备用模型
 下级组成：公开主模型、服务端备用顺序、设置迁移、代理聚合、世界初始化、生产发布
 适用范围：`managed` Provider、恢复默认、`/api/proxy`、后台世界初始化与服务器运行环境
 拥有者：core AI Provider 配置、app AI routes、mod-settings
 最后验证：2026-07-19；本地与 Linux 闸门、主备执行烟测、3001 旁路、正式 HTTPS、浏览器控制台、135 秒长叙事和服务器清理通过
-取代关系：取代 `docs/playtest-2026-07-18-managed-ai-default.md` 的当前通道结论；旧文档保留首代通道历史
+取代关系：当前默认结论已由 `docs/playtest-2026-07-20-managed-ai-longcat-server-prompt.md` 取代；本文仅证明保留通道的历史主备与传输能力
 运行真源：`src/core/ai-service/provider-config.ts`、`src/core/ai-service/managed-provider-execution.ts`、`src/app/api/proxy/route.ts`、`src/app/api/world-init/route.ts`
 验收证据：`npm run test:managed-ai-default`、`npm run test:ai-proxy`、真实模型请求、完整交付闸门、3001 旁路与正式 HTTPS 验证
 
 ## 1. 当前目标
 
 - 生产免费体验 Provider：`managed`。
-- 固定接口：`https://a6.a6api.com/v1`。
+- 固定目标：由服务器私有环境配置持有，不在浏览器、跟踪文档或日志中公开。
 - 浏览器公开主模型：`gpt-5.6-luna`。
 - 服务端内部备用模型：`gpt-5.6-terra`。
 - 本地开发、浏览器调试和发布前通用真实模型测试：DeepSeek 官方 `deepseek-v4-flash`。
@@ -69,7 +69,7 @@
 - `/root/ai-life-sim-releases/2c4cc82` 的 3001 旁路通过欢迎页、静态资源、版本、配置探测和真实 Luna 请求；生产 3000 未在旁路阶段停止。
 - `/root/ai-life-sim` 原子切换到 `2c4cc82`；上一版 `fd87cdf` 保留为唯一应用回滚点，PM2 `ai-life-sim` online 并已保存进程清单。
 - 两个域名的 HTTP 均 301 跳转 HTTPS，HTTPS 欢迎页与静态资源均为 200；浏览器完整渲染欢迎页与设置弹窗，控制台无 warning/error。
-- 设置页显示空浏览器 Key、`https://a6.a6api.com/v1`、`gpt-5.6-luna`，并明确主模型失败时自动切换 `gpt-5.6-terra`。
+- 设置页显示空浏览器 Key、原免费预设名称和 `gpt-5.6-luna`，不显示目标地址，并明确主模型失败时自动切换 `gpt-5.6-terra`。
 - 生产短请求返回 `PROD_OK`；接近真实叙事长度的公网非流式请求持续 135 秒后返回 HTTP 200、Luna、1332 字与 4 个段落。
 - 真实长请求暴露 Nginx 原默认 60 秒读取超时；配置现将连接超时设为 10 秒、读写和发送超时设为 360 秒，与应用 5 分钟上游上限对齐。修复后没有新增 upstream/HTTP 代理错误。
 - Nginx 配置校验、Certbot 证书清单与模拟续期通过；证书同时覆盖两个域名，有效期至 2026-10-16。

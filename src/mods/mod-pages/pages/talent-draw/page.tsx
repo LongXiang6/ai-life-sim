@@ -4,7 +4,7 @@
  *   - 单按钮 + 设置控制 AI/预设
  *   - 缓存池 >= 5 条进入完成交接态，玩家确认后展开选取，后台可继续补池
  *   - 真实进度追踪（onProgress 回调）
- *   - 抽5选3 + 可选神话传承 → 确认 → /attribute-alloc
+ *   - 抽5选3 + 可选神话传承 → 确认 → /fate-preview
  * @mod mod-pages
  */
 
@@ -22,6 +22,7 @@ import {
   aggregatePatternSystemModifiers,
   formatPatternSystemModifiersForDisplay,
   ATTRIBUTE_NAMES,
+  ZERO_BASE_ATTRIBUTES,
   useMythicLibraryStore,
 } from '@/mods/mod-character'
 import { useWorldStore } from '@/mods/mod-world'
@@ -714,14 +715,20 @@ function TalentDrawContent() {
         rarityCount: getDestinyPatternSystem().getRarityCount(),
       })
 
-      // 保留 selecting 持久化，以便从属性分配页返回时恢复选取界面
+      // 保留 selecting 持久化，以便从命运预览返回时恢复选取界面。
       persistTdState({
         phase: 'selecting',
         slots,
         selectedSlotIndices,
         aiTalentGeneration: useSettingsStore.getState().aiTalentGeneration,
       })
-      router.push('/attribute-alloc')
+      useCharacterStore.getState().setCharacterBase({
+        base: { ...ZERO_BASE_ATTRIBUTES },
+        current: { ...ZERO_BASE_ATTRIBUTES },
+        modifiers: { ...ZERO_BASE_ATTRIBUTES },
+        contextModifiers: {},
+      })
+      router.push('/fate-preview')
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : '选择无效，请重试')
     }
@@ -804,7 +811,7 @@ function TalentDrawContent() {
       : phase === 'ready'
         ? '五条命格已就绪 · 双搏水波持续轮转'
         : selectedData.length === DESTINY_PATTERN_SELECT_COUNT
-          ? '三条普通命格已签订 · 继续分配属性'
+          ? '三条普通命格已签订 · 继续命运预览'
           : `还需选择 ${DESTINY_PATTERN_SELECT_COUNT - selectedData.length} 条普通命格`
 
   const handleFooterAction = () => {
@@ -827,7 +834,7 @@ function TalentDrawContent() {
             <header className={styles.header}>
               <div className={styles.meta} aria-hidden="true">
                 <span>AI LIFE SIM · 命书</span>
-                <span>{phase === 'selecting' ? '06' : '05'} / 08</span>
+                <span>{phase === 'selecting' ? '06' : '05'} / 07</span>
               </div>
               <div className={styles.titleRow}>
                 <div className={styles.titleCopy}>

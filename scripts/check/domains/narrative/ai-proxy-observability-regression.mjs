@@ -25,6 +25,7 @@ const logSafety = read('src/core/logger/server-log-safety.ts')
 const redactionSafety = read('src/core/logger/redact-sensitive-data.ts')
 const clientLogRoute = read('src/app/api/log/route.ts')
 const clientLogger = read('src/core/logger/client-logger.ts')
+const diagnosticConsent = read('src/core/logger/diagnostic-consent.ts')
 const debugLogRoute = read('src/app/api/debug-log/route.ts')
 const debugLogger = read('src/core/logger/debug-logger.ts')
 const inspector = read('scripts/ops/inspect-ai-logs.mjs')
@@ -86,6 +87,16 @@ assert(
   'server log store must support persistent roots, 10 GiB capacity, retention cleanup, and redaction',
 )
 assert(
+  /storeServerLogContent/.test(logStore)
+    && /sha256-gzip/.test(logStore)
+    && /gzipAsync/.test(logStore)
+    && /content\/sha256/.test(logStore)
+    && /fs\.utimes/.test(logStore)
+    && /requestRef/.test(proxy)
+    && /responseRef/.test(proxy),
+  'large Prompt and response content must use one content-addressed gzip object with compact row references',
+)
+assert(
   /Buffer\.isBuffer\(content\)[\s\S]{0,180}redactSensitiveData/.test(logStore),
   'standalone raw text and Buffer log files must pass through secret redaction before writing',
 )
@@ -124,10 +135,19 @@ assert(
   'client diagnostics must receive a trusted source and preserve optional AI request correlation',
 )
 assert(
+  /DIAGNOSTIC_DISCLOSURE_VERSION = '2\.3\.0'/.test(diagnosticConsent)
+    && /reportDiagnosticSessionEnvironment/.test(clientLogger)
+    && /environment-snapshot/.test(clientLogger)
+    && /storeServerLogContent\(context, 'json'\)/.test(clientLogRoute),
+  'accepted players must produce one non-sensitive session environment snapshot stored by content reference',
+)
+assert(
   /AI_DIAGNOSTIC_LOGS_ENABLED/.test(debugLogRoute)
     && /process\.env\.NODE_ENV === 'production'/.test(debugLogRoute)
     && /getServerRequestSource\(request\)/.test(debugLogRoute)
     && /ai-debug-index-/.test(debugLogRoute)
+    && /storeServerLogContent\(entry\.prompt, 'text'\)/.test(debugLogRoute)
+    && /appendServerJsonLine\(relativePath, record\)/.test(debugLogRoute)
     && /NEXT_PUBLIC_DISABLE_DEBUG_LOG_COLLECTION/.test(debugLogger),
   'complete AI debug metadata must keep collecting in production while public read/delete stays closed',
 )

@@ -67,6 +67,5 @@ export {
 export { normalizeNarrativeParagraphs } from './normalize-narrative-paragraphs'
 export {
   buildNarrativeHints,
-  INFORMATION_PRIORITY_RULE,
 } from './narrative-hints'
 export type { NarrativeHintInput, NarrativeHints } from './narrative-hints'

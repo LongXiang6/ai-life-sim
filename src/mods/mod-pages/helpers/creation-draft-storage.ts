@@ -1,7 +1,8 @@
 import { configStore } from '@/core/storage'
 
 const CHARACTER_CREATE_DRAFT_PREFIX = 'character-create-form:'
-const PER_LIFE_DRAFT_PREFIXES = ['talent-draw:', 'attribute-alloc:', 'fate-preview:'] as const
+const PER_LIFE_DRAFT_PREFIXES = ['talent-draw:', 'fate-preview:'] as const
+const LEGACY_PER_LIFE_DRAFT_PREFIXES = ['attribute-alloc:'] as const
 
 export const WORLD_CUSTOMIZE_DRAFT_KEY = 'mod-pages:world-customize-fields'
 
@@ -30,7 +31,10 @@ export function clearNewLifeCreationDrafts(): void {
   clearCharacterCreateDrafts()
   clearWorldCustomizeDraft()
   for (const key of configStore.keys('mod-pages')) {
-    if (PER_LIFE_DRAFT_PREFIXES.some((prefix) => key.startsWith(prefix))) {
+    if (
+      PER_LIFE_DRAFT_PREFIXES.some((prefix) => key.startsWith(prefix))
+      || LEGACY_PER_LIFE_DRAFT_PREFIXES.some((prefix) => key.startsWith(prefix))
+    ) {
       configStore.remove('mod-pages', key)
     }
   }

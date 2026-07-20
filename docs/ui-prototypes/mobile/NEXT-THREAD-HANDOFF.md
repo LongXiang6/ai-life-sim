@@ -8,6 +8,8 @@
 
 ## 0. 2026-07-15 最新覆盖状态
 
+2026-07-20 产品语义再次覆盖本节中的属性分配结论：`PD-002` 与 `PD-012` 已删除玩家加点，四项基础值开局为零，`attribute-alloc/` 只保留 A6 历史原型；活动 `flow.html` 由神话传承直接进入命运预览。其余页面的已选视觉稿不因此失效。
+
 本节高于下方旧竞赛顺序。用户后续已经完成欢迎、世界选择、世界配置与角色创建的连续定版，并明确要求以 `CC-RF9-1` 的纯白承托、灰蓝状态、淡墨与规则圆纹为当前共同视觉真源，直接为方案库入口 05–12 产出新一轮三选一。旧 B10 → B11–B20 的启动限制不再阻止这次用户明确授权的批量迭代。
 
 用户随后进一步收窄入口 05–10 的授权：只能在各页现有 `final.html` 基础上做风格适配，不得修改 DOM、JavaScript、状态、操作顺序或任何原有机制，尤其不得改写命格抽取与神话传承的抽取/选取逻辑。用户已选择入口 05–10 的第 1 版，并要求通用底部返回/主操作栏保持同一视觉族；核心模拟没有导航底栏，继续保留正文末尾推进语义。随后用户把相同的 CSS-only 边界扩展到入口 11 设置和入口 12 说明，旧结构重写候选不再作为当前轮。
@@ -20,12 +22,12 @@
 |---|---|---|
 | 05 命格抽取 | `talent-draw/round-refactor-17.html` | `TD-RF17-1` 已选择；2 / 3 保留 |
 | 06 神话传承 | `mythic-inheritance/round-refactor-01.html` | `MI-RF1-1` 已选择；2 / 3 保留 |
-| 07 属性分配 | `attribute-alloc/round-refactor-01.html` | `AA-RF1-1` 已选择；2 / 3 保留 |
-| 08 命运预览 | `fate-preview/round-refactor-01.html` | `FP-RF1-1` 已选择；2 / 3 保留 |
-| 09 核心模拟 | `game-story/round-refactor-20.html` | `GS-RF20-1` 已选择；2 / 3 保留 |
-| 10 人生结算 | `game-over/round-refactor-01.html` | `GO-RF1-1` 已选择；2 / 3 保留 |
-| 11 设置 | `settings/round-refactor-17.html` | `ST-RF17-1 / 2 / 3` 待选择 |
-| 12 说明 | `help/round-refactor-01.html` | `HP-RF1-1 / 2 / 3` 待选择 |
+| 历史 属性分配 | `attribute-alloc/round-refactor-01.html` | 已移除；仅保留历史候选 |
+| 07 命运预览 | `fate-preview/round-refactor-01.html` | `FP-RF1-1` 已选择；2 / 3 保留 |
+| 08 核心模拟 | `game-story/round-refactor-20.html` | `GS-RF20-1` 已选择；2 / 3 保留 |
+| 09 人生结算 | `game-over/round-refactor-01.html` | `GO-RF1-1` 已选择；2 / 3 保留 |
+| 10 设置 | `settings/round-refactor-17.html` | `ST-RF17-1 / 2 / 3` 待选择 |
+| 11 说明 | `help/round-refactor-01.html` | `HP-RF1-1 / 2 / 3` 待选择 |
 
 入口 05–12 均不再采用结构梯度，三版依次为“1 极简白纸、2 淡墨承托、3 书页精修”，差异仅来自 CSS 视觉层；每版原 DOM、内联 JavaScript、状态和运行顺序均与同目录 `final.html` 一致。入口 05–10 的第 1 版已由用户选择，入口 11–12 仍待选择。所有既有 `final.html`、`flow.html` 与共享 CSS/JS 保持不变；未经进一步明确指令，不覆盖任何 `final.html`。
 
@@ -110,7 +112,7 @@
 | 角色创建 | `character-create/final.html` | `character-create/index.html` | 8 |
 | 命格抽取与旧选取 | `talent-draw/final.html` | `talent-draw/index.html` | 25 |
 | 命格选取 / 神话传承 | `mythic-inheritance/final.html` | `mythic-inheritance/index.html` | 17 |
-| 属性分配 | `attribute-alloc/final.html` | `attribute-alloc/index.html` | 11 |
+| 属性分配（历史） | `attribute-alloc/final.html` | `attribute-alloc/index.html` | 11 |
 | 命运预览 | `fate-preview/final.html` | `fate-preview/index.html` | 12 |
 | 核心模拟 | `game-story/final.html` | `game-story/index.html` | 26 |
 | 人生结算 | `game-over/final.html` | `game-over/index.html` | 20 |

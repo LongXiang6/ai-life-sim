@@ -2,7 +2,7 @@
 
 /**
  * @module ProgressBar.tsx
- * @description 进度条原子组件 —— 回合进度、属性分配、修炼进度等
+ * @description 进度条原子组件 —— 回合进度、任务进度、修炼进度等
  * @mod mod-ui
  */
 

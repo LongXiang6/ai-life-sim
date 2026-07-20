@@ -47,6 +47,8 @@ try {
   assert(secondCode !== firstCode, 'atomic allocation must not reuse an occupied code')
 
   const event = {
+    schemaVersion: 2,
+    eventId: 'diagnostic-code-smoke-event',
     timestamp: new Date().toISOString(),
     level: 'info',
     module: 'diagnostic-code-smoke',
@@ -66,6 +68,47 @@ try {
   assert((await fs.readFile(playerIndex, 'utf8')).includes(firstCode), 'per-player log index must carry the diagnostic code')
   await fs.access(path.join(tempRoot, 'diagnostic-identities', 'codes', `${firstCode}.json`))
 
+  const repeatedPrompt = '固定提示词与完整上下文。'.repeat(500)
+  const firstRef = await store.storeServerLogContent(repeatedPrompt, 'text')
+  const secondRef = await store.storeServerLogContent(repeatedPrompt, 'text')
+  assert(firstRef?.hash === secondRef?.hash, 'identical large content must reuse one SHA-256 reference')
+  assert(firstRef?.path === secondRef?.path, 'identical large content must reuse one gzip object path')
+  assert(await store.readServerLogContent(firstRef) === repeatedPrompt, 'content reference must restore the complete text')
+
+  const protectedRef = await store.storeServerLogContent({
+    apiKey: 'player-secret-key',
+    serialNumber: 'SERIAL-001',
+    story: repeatedPrompt,
+  }, 'json')
+  const restoredProtected = await store.readServerLogContent(protectedRef)
+  assert(restoredProtected.apiKey === '[REDACTED]', 'content store must redact API keys before hashing and writing')
+  assert(restoredProtected.serialNumber === '[REDACTED]', 'content store must redact device serials before hashing and writing')
+  assert(restoredProtected.story === repeatedPrompt, 'content store must preserve complete non-secret story text')
+
+  const contextRef = await store.storeServerLogContent({
+    path: '/game-story',
+    environmentSnapshot: { viewportWidth: 390, deviceMemoryGiB: 8 },
+  }, 'json')
+  const v2Event = {
+    schemaVersion: 2,
+    eventId: 'diagnostic-code-v2-event',
+    timestamp: new Date().toISOString(),
+    receivedAt: Date.now(),
+    level: 'info',
+    module: 'diagnostic-session',
+    message: 'environment-snapshot',
+    eventType: 'log',
+    path: '/game-story',
+    sourceIp: source.ip,
+    sourceId: source.sourceId,
+    diagnosticCode: source.diagnosticCode,
+    contextRef,
+  }
+  await Promise.all([
+    store.appendServerJsonLine('client-events/client-events-2026-07-20.jsonl', v2Event),
+    store.appendSourceJsonLine(source, 'client-events-2026-07-20.jsonl', v2Event),
+  ])
+
   const inspectorPath = path.resolve('scripts/ops/inspect-ai-logs.mjs')
   const inspected = await execFile(process.execPath, [
     inspectorPath,
@@ -76,6 +119,18 @@ try {
   const report = JSON.parse(inspected.stdout)
   assert(report.filters.playerCode === firstCode, 'operator inspector must expose the active player-code filter')
   assert(report.recentClientEvents?.[0]?.diagnosticCode === firstCode, 'player-code lookup must return correlated client actions')
+
+  const inspectedContent = await execFile(process.execPath, [
+    inspectorPath,
+    '--root', tempRoot,
+    '--all',
+    '--player-code', firstCode,
+    '--include-content',
+  ], { encoding: 'utf8' })
+  const contentReport = JSON.parse(inspectedContent.stdout)
+  const environmentEvent = contentReport.clientEvents?.find((item) => item.eventId === 'diagnostic-code-v2-event')
+  assert(environmentEvent?.context?.path === '/game-story', 'operator inspector must hydrate v2 content references')
+  assert(environmentEvent?.context?.environmentSnapshot?.viewportWidth === 390, 'hydrated environment snapshot must remain complete')
 
   console.log(`[diagnostic-player-code-smoke] PASS code=${firstCode}`)
 } finally {

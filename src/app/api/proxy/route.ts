@@ -26,7 +26,6 @@ import {
   AI_PROVIDERS,
   DEFAULT_AI_PROVIDER_ID,
   getProviderModelCandidates,
-  isRegisteredProviderBaseUrl,
   isServerManagedProvider,
   shouldAggregateManagedNonStream,
   shouldTryManagedFallback,
@@ -36,6 +35,12 @@ import {
   readServerProviderApiKey,
 } from '@/core/ai-service/server-provider-credentials'
 import {
+  hasServerProviderTarget,
+  isRegisteredServerProviderBaseUrl,
+  isTrustedServerPromptTarget,
+  readServerProviderBaseUrl,
+} from '@/core/ai-service/server-provider-targets'
+import {
   requestManagedAggregatedCompletion,
   type ManagedUpstreamAttempt,
 } from '@/core/ai-service/managed-provider-execution'
@@ -44,9 +49,8 @@ import {
   appendSourceJsonLine,
   appendServerJsonLine,
   getServerRequestSource,
-  safeLogSegment,
+  storeServerLogContent,
   type ServerRequestSource,
-  writeServerLogFile,
 } from '@/core/logger/server-log-store'
 import { resolveModEngineServerPromptAsset } from '@/mods/mod-engine/server-prompt-assets'
 
@@ -137,12 +141,6 @@ function trackFingerprint(fp: string): { isRetry: boolean; retryCount: number } 
   return { isRetry: false, retryCount: 0 }
 }
 
-/** 隐藏 Prompt 只能发送到项目登记的官方接口；任意自定义地址可记录并窃取完整资产。 */
-function isTrustedPromptAssetTarget(providerId: string, baseUrl: string): boolean {
-  if (providerId !== 'custom') return Boolean(AI_PROVIDERS[providerId])
-  return isRegisteredProviderBaseUrl(baseUrl)
-}
-
 // ---- 智能访问日志（JSONL 格式，含指纹 + IP + 重试追踪） ----
 
 interface SmartAccessEntry {
@@ -218,15 +216,12 @@ async function saveRawResponse(
   status: number,
   body: string,
 ): Promise<void> {
-  const timestamp = new Date().toISOString()
-  const filename = [
-    safeLogSegment(providerId),
-    safeLogSegment(model),
-    status,
-    safeLogSegment(requestId),
-    timestamp.replace(/[:.]/g, '-'),
-  ].join('-') + '.json'
-  await writeServerLogFile(`raw-responses/${filename}`, {
+  const now = new Date()
+  const timestamp = now.toISOString()
+  const responseRef = await storeServerLogContent(body, 'text')
+  const record = {
+    schemaVersion: 2,
+    eventId: randomUUID(),
     timestamp,
     requestId,
     sourceIp: source.ip,
@@ -235,8 +230,15 @@ async function saveRawResponse(
     provider: providerId,
     model,
     status,
-    responseBody: body,
-  })
+    responseChars: body.length,
+    responseRef,
+    contentWriteFailed: !responseRef,
+  }
+  const date = timestamp.slice(0, 10)
+  await Promise.all([
+    appendServerJsonLine(`raw-responses/raw-responses-${date}.jsonl`, record),
+    appendSourceJsonLine(source, `raw-responses-${date}.jsonl`, record),
+  ])
 }
 
 function sanitizeBaseUrlForLog(baseUrl?: string): string | undefined {
@@ -280,26 +282,53 @@ async function writeProxyTrace(
   const now = new Date()
   const date = now.toISOString().slice(0, 10)
   const traceFile = `ai-traces/ai-trace-${date}.jsonl`
+  const {
+    request: requestContent,
+    responseBody: responseContent,
+    rawRequestBody,
+    ...inlineDetails
+  } = details
+  const [requestRef, responseRef, rawRequestRef] = await Promise.all([
+    requestContent === undefined ? null : storeServerLogContent(requestContent, 'json'),
+    responseContent === undefined ? null : storeServerLogContent(responseContent, 'text'),
+    rawRequestBody === undefined ? null : storeServerLogContent(rawRequestBody, 'text'),
+  ])
+  const request = requestContent && typeof requestContent === 'object'
+    ? requestContent as Record<string, unknown>
+    : undefined
+  const requestMessages = Array.isArray(request?.messages) ? request.messages : []
   const record = {
+    schemaVersion: 2,
+    eventId: randomUUID(),
     timestamp: now.toISOString(),
     requestId,
     event,
     sourceIp: source.ip,
     sourceId: source.sourceId,
     diagnosticCode: source.diagnosticCode,
-    ...details,
+    ...inlineDetails,
+    requestRef: requestRef ?? undefined,
+    responseRef: responseRef ?? undefined,
+    rawRequestRef: rawRequestRef ?? undefined,
+    provider: typeof request?.providerId === 'string' ? request.providerId : undefined,
+    requestedModel: typeof request?.model === 'string' ? request.model : undefined,
+    promptAssetId: typeof request?.promptAssetId === 'string' ? request.promptAssetId : undefined,
+    requestMessageCount: requestMessages.length || undefined,
+    requestPromptChars: requestMessages.length > 0
+      ? requestMessages.reduce((sum, message) => (
+        sum + String((message as { content?: unknown })?.content ?? '').length
+      ), 0)
+      : undefined,
+    responseBodyChars: typeof responseContent === 'string' ? responseContent.length : undefined,
+    contentWriteFailed: (
+      (requestContent !== undefined && !requestRef)
+      || (responseContent !== undefined && !responseRef)
+      || (rawRequestBody !== undefined && !rawRequestRef)
+    ) || undefined,
   }
   await Promise.all([
     appendServerJsonLine(traceFile, record),
-    appendSourceJsonLine(source, `trace-index-${date}.jsonl`, {
-      timestamp: record.timestamp,
-      requestId,
-      event,
-      diagnosticCode: source.diagnosticCode,
-      status: typeof details.status === 'number' ? details.status : undefined,
-      error: typeof details.error === 'string' ? details.error : undefined,
-      traceFile,
-    }),
+    appendSourceJsonLine(source, `trace-index-${date}.jsonl`, record),
   ])
 }
 
@@ -368,8 +397,13 @@ function getUpstreamHeaderSnapshot(headers: Headers): Record<string, string> {
 
 /** 仅暴露服务端是否已有可用密钥，不返回 Provider、密钥或其他配置细节。 */
 export function GET(request: Request): Response {
-  const providerId = new URL(request.url).searchParams.get('providerId') || DEFAULT_AI_PROVIDER_ID
-  const configured = Boolean(AI_PROVIDERS[providerId]) && hasServerProviderApiKey(providerId)
+  const searchParams = new URL(request.url).searchParams
+  const providerId = searchParams.get('providerId') || DEFAULT_AI_PROVIDER_ID
+  const configured = providerId === 'custom'
+    ? isRegisteredServerProviderBaseUrl(searchParams.get('baseUrl') ?? '')
+    : Boolean(AI_PROVIDERS[providerId])
+      && hasServerProviderTarget(providerId)
+      && hasServerProviderApiKey(providerId)
   return Response.json(
     { configured },
     { headers: { 'Cache-Control': 'no-store' } },
@@ -455,6 +489,7 @@ export async function POST(request: Request): Promise<Response> {
           requestBytes,
           validation,
           requestHash: createHash('sha256').update(bodyText).digest('hex'),
+          rawRequestBody: bodyText,
         }),
         writeCurrentAccessLog(400, 'Invalid request body'),
       ])
@@ -493,7 +528,7 @@ export async function POST(request: Request): Promise<Response> {
     // 确定 baseUrl
     const baseUrl = isCustom
       ? (body.baseUrl || '')
-      : (providerConfig?.baseUrl ?? '')
+      : readServerProviderBaseUrl(providerId)
 
     let upstreamMessages = body.messages
     if (body.prompt_asset) {
@@ -514,7 +549,7 @@ export async function POST(request: Request): Promise<Response> {
         return jsonWithRequestId(requestId, { error: '服务端提示词资产不可用' }, 400)
       }
 
-      if (!isTrustedPromptAssetTarget(providerId, baseUrl)) {
+      if (!isTrustedServerPromptTarget(providerId, baseUrl)) {
         await Promise.all([
           writeCurrentTrace('rejected', { status: 400, error: 'Untrusted target for protected prompt asset' }),
           writeCurrentAccessLog(400, 'Untrusted target for protected prompt asset'),

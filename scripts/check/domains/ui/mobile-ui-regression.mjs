@@ -100,7 +100,6 @@ const talentDrawPageSrc = readRel('src/mods/mod-pages/pages/talent-draw/page.tsx
 const talentAstrolabeSrc = readRel('src/mods/mod-pages/pages/talent-draw/TalentAstrolabe.tsx')
 const talentDrawCssSrc = readRel('src/mods/mod-pages/pages/talent-draw/TalentDraw.module.css')
 const attributeAllocPageSrc = readRel('src/mods/mod-pages/pages/attribute-alloc/page.tsx')
-const attributeAllocCssSrc = readRel('src/mods/mod-pages/pages/attribute-alloc/AttributeAlloc.module.css')
 const productDecisionsSrc = readRel('docs/product-decisions.md')
 const worldCustomizeMobileSrc = readRel('src/mods/mod-pages/pages/world-customize/WorldCustomizeMobile.tsx')
 const worldCustomizePageSrc = readRel('src/mods/mod-pages/pages/world-customize/page.tsx')
@@ -131,9 +130,14 @@ assertOk(
   worldCustomizePageSrc.includes("router.replace('/new-game/world-select')")
     && characterCreatePageSrc.includes("router.replace('/new-game/world-select')")
     && talentDrawPageSrc.includes("router.replace('/new-game/character-create')")
-    && attributeAllocPageSrc.includes("router.replace('/talent-draw')")
     && talentDrawPageSrc.includes('useCreationStoresHydrated()'),
   'creation routes must redirect to the nearest missing prerequisite after persisted stores hydrate',
+)
+assertOk(
+  attributeAllocPageSrc.includes("router.replace('/fate-preview')")
+    && !attributeAllocPageSrc.includes('TOTAL_POINTS')
+    && !attributeAllocPageSrc.includes('setCharacterBase'),
+  'the retired attribute-allocation address must be a compatibility redirect with no allocation behavior',
 )
 assertOk(welcomePageSrc.includes("import WelcomeView from './WelcomeView'"), 'welcome page must use the single responsive WelcomeView')
 assertOk(!welcomePageSrc.includes('useIsMobile'), 'welcome page must not switch desktop/mobile DOM after hydration')
@@ -172,9 +176,8 @@ assertOk(settingsModalSrc.includes('aria-label="关闭设置"') && settingsModal
 assertOk(
   disclaimerModalSrc.includes('role="dialog"')
     && disclaimerModalSrc.includes('aria-modal="true"')
-    && disclaimerModalSrc.includes("event.key !== 'Tab'")
-    && attributeAllocPageSrc.includes('confirmDialogRef.current?.querySelector<HTMLButtonElement>'),
-  'blocking disclaimer and unused-attribute dialogs must move and contain keyboard focus',
+    && disclaimerModalSrc.includes("event.key !== 'Tab'"),
+  'the blocking disclaimer dialog must move and contain keyboard focus',
 )
 assertOk(
   !settingsThemeSrc.includes('THEME_OPTIONS')
@@ -231,7 +234,7 @@ assertOk(
 )
 assertOk(
   settingsPresetsSrc.includes("setProvider('custom')")
-    && settingsPresetsSrc.includes('markCustomProvider()')
+    && settingsPresetsSrc.includes("provider === 'custom' ? (")
     && settingsPresetsSrc.includes('setCustomUrl(event.target.value)')
     && settingsPresetsSrc.includes('setCustomModel(event.target.value)'),
   'custom API URL or model edits must route real narrative calls through the custom provider',
@@ -332,10 +335,10 @@ assertOk(
 )
 assertOk(characterCreateMobileSrc.trimEnd().split('\n').length <= 200, 'character create mobile composer must stay at or below the 200-line UI limit')
 assertOk(productDecisionsSrc.includes('欢迎 → 世界选择 → 世界配置 → 角色创建'), 'PD-002 must preserve the live world-customize step before character creation')
-assertOk(worldSelectMobileSrc.includes('<span>02 / 08</span>') && !worldSelectMobileSrc.includes('WORLD · ORIGIN') && worldSelectBottomBarSrc.includes('nextNumber}>03'), 'world selection must use the unified step-02 header and advance to step 03')
-assertOk(worldCustomizeMobileSrc.includes('<span>03 / 08</span>') && !worldCustomizeMobileSrc.includes('WORLD · CHARTER') && worldCustomizeBottomBarSrc.includes('nextNumber}>04'), 'world customization must use the unified step-03 header and advance to step 04')
-assertOk(characterCreateMobileSrc.includes('<span>04 / 08</span>') && !characterCreateMobileSrc.includes('CHARACTER · ORIGIN') && characterBottomBarSrc.includes('nextNumber}>05'), 'character creation must use the unified step-04 header and advance to step 05')
-assertOk(talentDrawPageSrc.includes("phase === 'selecting' ? '06' : '05'") && talentDrawPageSrc.includes("phase === 'selecting' ? '07' : '06'"), 'talent draw and selection must occupy creation steps 05 and 06')
+assertOk(worldSelectMobileSrc.includes('<span>02 / 07</span>') && !worldSelectMobileSrc.includes('WORLD · ORIGIN') && worldSelectBottomBarSrc.includes('nextNumber}>03'), 'world selection must use the unified step-02 header and advance to step 03')
+assertOk(worldCustomizeMobileSrc.includes('<span>03 / 07</span>') && !worldCustomizeMobileSrc.includes('WORLD · CHARTER') && worldCustomizeBottomBarSrc.includes('nextNumber}>04'), 'world customization must use the unified step-03 header and advance to step 04')
+assertOk(characterCreateMobileSrc.includes('<span>04 / 07</span>') && !characterCreateMobileSrc.includes('CHARACTER · ORIGIN') && characterBottomBarSrc.includes('nextNumber}>05'), 'character creation must use the unified step-04 header and advance to step 05')
+assertOk(talentDrawPageSrc.includes("phase === 'selecting' ? '06' : '05'") && talentDrawPageSrc.includes("phase === 'selecting' ? '07' : '06'") && talentDrawPageSrc.includes("/ 07</span>"), 'talent draw and selection must occupy creation steps 05 and 06 before final review')
 assertOk(
   !talentDrawPageSrc.includes('CREATION FLOW ·')
     && talentDrawCssSrc.includes('.titleMark::after')
@@ -394,8 +397,7 @@ assertOk(
     && fateNodeHeights.every((value) => value === '48px'),
   'all TalentAstrolabe fate nodes must preserve the approved 48px size',
 )
-assertOk(attributeAllocPageSrc.includes('<span>07 / 08</span>') && !attributeAllocPageSrc.includes('ATTRIBUTE · ORIGIN') && attributeAllocPageSrc.includes('confirmNumber="08"'), 'attribute allocation must use the unified step-07 header and advance to step 08')
-assertOk(fatePreviewPageSrc.includes('<span>08 / 08</span>') && !fatePreviewPageSrc.includes('FATE · PREVIEW') && fatePreviewPageSrc.includes('confirmNumber="完成"'), 'fate preview must use the unified step-08 header and close the creation flow')
+assertOk(fatePreviewPageSrc.includes('<span>07 / 07</span>') && !fatePreviewPageSrc.includes('FATE · PREVIEW') && fatePreviewPageSrc.includes('confirmNumber="完成"'), 'fate preview must use the unified final step and close the creation flow')
 assertOk(
   fatePreviewPageSrc.includes('useCreationStoresHydrated()')
     && fatePreviewPageSrc.includes("router.replace('/new-game/world-select')")
@@ -409,7 +411,7 @@ assertOk(
     && fatePreviewPageSrc.includes('!aiComplete'),
   'fate preview must not unlock start from initialized=true when the explicit four-step status failed or is incomplete',
 )
-assertOk(!attributeAllocPageSrc.includes('maxWidth=') && !fatePreviewPageSrc.includes('maxWidth='), 'attribute allocation and fate preview bottom bars must inherit the shared content-width token')
+assertOk(!fatePreviewPageSrc.includes('maxWidth='), 'fate preview bottom bar must inherit the shared content-width token')
 assertOk(
   layoutCssSrc.includes('--content-max-width: 42rem;')
     && /@media \(max-width: 767px\)[\s\S]*--content-max-width:\s*42rem;/.test(layoutCssSrc)
@@ -422,7 +424,6 @@ const sharedDesktopWidthRules = [
   [worldCustomizeCssSrc, 'container', 'max-width', 'var(--content-max-width)'],
   [characterCreateCssSrc, 'container', 'max-width', 'var(--content-max-width)'],
   [talentDrawCssSrc, 'book', 'width', 'min(100%, var(--content-max-width))'],
-  [attributeAllocCssSrc, 'paper', 'width', 'min(100%, var(--content-max-width))'],
   [fatePreviewCssSrc, 'paper', 'width', 'min(100%, var(--content-max-width))'],
   [gameStoryCssSrc, 'bookShell', 'width', 'min(100%, var(--content-max-width))'],
   [gameOverCssSrc, 'book', 'width', 'min(100%, var(--content-max-width))'],
@@ -438,7 +439,7 @@ assertOk(
   'all primary pages and full-screen sheets must use one shared desktop book width',
 )
 assertOk(
-  [worldSelectCssSrc, worldCustomizeCssSrc, characterCreateCssSrc, talentDrawCssSrc, attributeAllocCssSrc, fatePreviewCssSrc, settingsModalCssSrc, helpModalCssSrc, gameOverCssSrc]
+  [worldSelectCssSrc, worldCustomizeCssSrc, characterCreateCssSrc, talentDrawCssSrc, fatePreviewCssSrc, settingsModalCssSrc, helpModalCssSrc, gameOverCssSrc]
     .every((source) => source.includes('titleMark::after') || source.includes('titleSeal::after')),
   'all flow title marks must preserve the approved outer diamond and inner circle',
 )

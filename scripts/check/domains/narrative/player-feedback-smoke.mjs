@@ -77,10 +77,11 @@ assert(
   'oversized or failed feedback must reject the whole diagnostic package',
 )
 assert(
-  store.includes('feedback/submissions/${date}/${feedbackId}.json')
+  store.includes("storeServerLogContent(storedRecord, 'json')")
+    && store.includes('submissionRef')
     && store.includes('appendSourceJsonLine')
     && store.includes('diagnosticCode: source.diagnosticCode'),
-  'feedback must persist a full private submission with IP and player-code indexes',
+  'feedback must persist one compressed private submission reference with IP and player-code indexes',
 )
 assert(
   page.includes('近期完整故事')
@@ -89,10 +90,12 @@ assert(
   'feedback page must give a concise truthful diagnostic-package disclosure',
 )
 assert(
-  disclaimer.includes('版本：2.2.0')
+  disclaimer.includes('版本：2.3.0')
     && disclaimer.includes('反馈诊断包只在玩家明确确认并提交时上传')
+    && disclaimer.includes('每个浏览器会话还会保存一次非敏感运行环境快照')
+    && disclaimer.includes('按哈希去重压缩保存')
     && disclaimer.includes('六位诊断编号')
-    && disclaimerModal.includes("const DISCLAIMER_VERSION = '2.2.0'"),
+    && disclaimerModal.includes('DIAGNOSTIC_DISCLOSURE_VERSION'),
   'the versioned disclaimer must replace the obsolete no-server-storage claim',
 )
 
