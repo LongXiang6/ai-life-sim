@@ -17,7 +17,7 @@ export function createNarrativeRepairComponent(content: string): NarrativePrompt
     order: 10,
     dependsOn: ['失败原因', '上一版完整输出', '中文输出协议'],
     assemblyPosition: '格式修复',
-    loadWhen: '首轮输出未通过协议信封、中文 Schema、命运意图或三段结构门禁',
+    loadWhen: '首轮输出未通过协议信封、中文 Schema、命运意图或强制分支门禁',
     exitWhen: '一次完整格式修复调用结束',
     acceptanceEvidence: 'npm run test:narrative-protocol && npm run validate:narrative',
     content,

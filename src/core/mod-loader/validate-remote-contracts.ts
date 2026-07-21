@@ -28,7 +28,7 @@ export function validateRemoteContracts(manifests: ModManifest[]): RemoteContrac
 
   for (const manifest of manifests) {
     const expected = manifest.remoteApi ?? REMOTE_API_CONTRACTS[manifest.name]
-    if (!expected || expected.length === 0) continue
+    if (!expected) continue
 
     const actual = new Set(remote.listFunctions(manifest.name))
     const expectedSet = new Set(expected)

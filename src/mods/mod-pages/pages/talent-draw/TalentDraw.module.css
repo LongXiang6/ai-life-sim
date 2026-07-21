@@ -531,15 +531,12 @@
 .focusCopy > small { color: var(--color-flow-faint); font-size: 6px; }
 .focusCopy > strong { margin-top: 3px; color: var(--color-flow-accent); font-size: 9px; }
 .focusCopy > p {
-  display: -webkit-box;
   min-height: 22px;
   margin: 4px 0 0;
-  overflow: hidden;
+  overflow-wrap: anywhere;
   color: var(--color-flow-muted);
   font-size: 6.5px;
   line-height: 1.45;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
 }
 .focusCard[data-rarity="普通"] .focusCopy > strong { color: #7b8792; }
 .focusCard[data-rarity="精良"] .focusCopy > strong { color: #5b8877; }

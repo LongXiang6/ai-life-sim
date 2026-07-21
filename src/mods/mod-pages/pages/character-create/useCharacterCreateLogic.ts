@@ -91,28 +91,6 @@ function toBaseAttributes(attributes: Record<string, number>): BaseAttributes {
   }
 }
 
-function readStoredAgeSetup(race: string): { maxAge: number; startingAge: number } | null {
-  const character = useCharacterStore.getState()
-  const expectedRaceName = RACE_LIFESPAN[race]?.name ?? race.trim()
-  const { lifespan, characterBase } = character
-
-  if (
-    !character.name.trim()
-    || character.race !== race
-    || !expectedRaceName
-    || lifespan.race.name !== expectedRaceName
-    || !Number.isFinite(lifespan.maxAge)
-    || lifespan.maxAge <= 0
-    || !Number.isFinite(characterBase.startingAge)
-    || characterBase.startingAge < 0
-    || characterBase.startingAge >= lifespan.maxAge
-  ) {
-    return null
-  }
-
-  return { maxAge: lifespan.maxAge, startingAge: characterBase.startingAge }
-}
-
 function isGenderOptionActive(option: string, current: string): boolean {
   if (option === '男') return current === 'male'
   if (option === '女') return current === 'female'
@@ -321,47 +299,60 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
 
   const {
     name, nameError, gender, race, background, attributes,
+    customGenders: storedCustomGenders,
+    customRaces: storedCustomRaces,
+    backgroundPresets: bgPresets,
+    manualLifespan: storedManualLifespan,
+    manualStartingAge: storedManualStartingAge,
     usedPoints, remainingPoints, maxPoints, attrMin, attrMax,
     setName: setFormName, setNameError, setGender: setFormGender, setRace, setBackground,
+    setCustomGenders: setStoredCustomGenders,
+    setCustomRaces: setStoredCustomRaces,
+    setBackgroundPresets,
+    setManualLifespan: setStoredManualLifespan,
+    setManualStartingAge: setStoredManualStartingAge,
     handleAttrChange,
   } = useCharacterCreateForm()
 
   // ---- 自定义性别 ----
-  const [customGenders, setCustomGenders] = useState<string[]>(() => {
-    const selectedGender = gender as string
-    return selectedGender !== 'male' && selectedGender !== 'female' ? [selectedGender] : []
-  })
   const [showCustomGender, setShowCustomGender] = useState(false)
   const [customGenderInput, setCustomGenderInput] = useState('')
+  const customGenders = useMemo(() => {
+    const selected = gender !== 'male' && gender !== 'female' ? [gender] : []
+    return [...new Set([...selected, ...storedCustomGenders])]
+  }, [gender, storedCustomGenders])
 
   // ---- 自定义种族 ----
-  const [customRaces, setCustomRaces] = useState<string[]>(() =>
-    race && !RACE_LIFESPAN[race] ? [race] : [],
-  )
   const [showCustomRace, setShowCustomRace] = useState(false)
   const [showRaceCatalog, setShowRaceCatalog] = useState(false)
   const [raceSearch, setRaceSearch] = useState('')
   const [customRaceInput, setCustomRaceInput] = useState('')
+  const customRaces = useMemo(() => {
+    const selected = race && !RACE_LIFESPAN[race] ? [race] : []
+    return [...new Set([...selected, ...storedCustomRaces])]
+  }, [race, storedCustomRaces])
 
   // ---- 背景 ----
-  const [bgPresets, setBgPresets] = useState<Record<string, string>>({})
   const [showBgPresetInput, setShowBgPresetInput] = useState(false)
   const [bgPresetNameInput, setBgPresetNameInput] = useState('')
 
   // ---- 寿命 ----
-  const [storedAgeSetup] = useState(() => readStoredAgeSetup(race))
-  const [_manualLifespan, _setManualLifespan] = useState(() => storedAgeSetup ? String(storedAgeSetup.maxAge) : '')
-  const [_manualStartingAge, _setManualStartingAge] = useState(() => (
-    storedAgeSetup && storedAgeSetup.startingAge > 0 ? String(storedAgeSetup.startingAge) : ''
+  const [computedLifespan, setComputedLifespan] = useState<number | null>(() => (
+    storedManualLifespan ? computeMaxAge(race, Number.parseInt(storedManualLifespan, 10)) : null
   ))
-  const [computedLifespan, setComputedLifespan] = useState<number | null>(() => storedAgeSetup?.maxAge ?? null)
-  const [computedStartingAge, setComputedStartingAge] = useState<number | null>(() => storedAgeSetup?.startingAge ?? null)
+  const [computedStartingAge, setComputedStartingAge] = useState<number | null>(() => (
+    storedManualStartingAge ? Number.parseInt(storedManualStartingAge, 10) : null
+  ))
 
-  const setManualLifespan = useCallback((v: string) => _setManualLifespan(filterDigitsOnly(v)), [])
-  const setManualStartingAge = useCallback((v: string) => _setManualStartingAge(filterDigitsOnly(v)), [])
+  const setManualLifespan = useCallback((v: string) => {
+    setStoredManualLifespan(filterDigitsOnly(v))
+  }, [setStoredManualLifespan])
+  const setManualStartingAge = useCallback((v: string) => {
+    setStoredManualStartingAge(filterDigitsOnly(v))
+  }, [setStoredManualStartingAge])
 
-  const manualLifespan = _manualLifespan
-  const manualStartingAge = _manualStartingAge
+  const manualLifespan = storedManualLifespan
+  const manualStartingAge = storedManualStartingAge
 
   // 输入框保留“出生”的空值语义；预览值单独推导，避免把 0 写回受控输入造成 090、09018 等前缀累积。
   const ageSetupPreview = useMemo(() => {
@@ -416,13 +407,13 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
   const handleAddCustomGender = useCallback(() => {
     const v = customGenderInput.trim()
     if (v && !allGenders.includes(v)) {
-      setCustomGenders((prev) => [...prev, v])
+      setStoredCustomGenders([...customGenders, v])
       setCustomGenderInput('')
     }
-  }, [customGenderInput, allGenders])
+  }, [customGenderInput, allGenders, customGenders, setStoredCustomGenders])
 
   const removeCustomGender = (g: string) => {
-    setCustomGenders((prev) => prev.filter((x) => x !== g))
+    setStoredCustomGenders(customGenders.filter((x) => x !== g))
     if (gender === g) setFormGender('male')
   }
 
@@ -430,17 +421,17 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
   const handleAddCustomRace = useCallback(() => {
     const v = customRaceInput.trim()
     if (v && !allRaces.includes(v)) {
-      setCustomRaces((prev) => [...prev, v])
+      setStoredCustomRaces([...customRaces, v])
       setRace(v)
       setRaceSearch('')
       setCustomRaceInput('')
       setShowCustomRace(false)
       setShowRaceCatalog(false)
     }
-  }, [customRaceInput, allRaces, setRace])
+  }, [customRaceInput, allRaces, customRaces, setStoredCustomRaces, setRace])
 
   const removeCustomRace = (r: string) => {
-    setCustomRaces((prev) => prev.filter((x) => x !== r))
+    setStoredCustomRaces(customRaces.filter((x) => x !== r))
     if (race === r) setRace('human')
   }
 
@@ -459,22 +450,20 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
     }
 
     if (n) {
-      setBgPresets((prev) => ({ ...prev, [n]: content }))
+      setBackgroundPresets({ ...bgPresets, [n]: content })
       setBgPresetNameInput('')
       setShowBgPresetInput(false)
     }
-  }, [bgPresetNameInput, background, bgPresets])
+  }, [bgPresetNameInput, background, bgPresets, setBackgroundPresets])
 
   const selectBgPreset = (name: string) => {
     if (bgPresets[name]) setBackground(bgPresets[name])
   }
 
   const removeBgPreset = (name: string) => {
-    setBgPresets((prev) => {
-      const next = { ...prev }
-      delete next[name]
-      return next
-    })
+    const next = { ...bgPresets }
+    delete next[name]
+    setBackgroundPresets(next)
   }
 
   // ============================================================

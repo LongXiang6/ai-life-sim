@@ -11,6 +11,15 @@ import { gunzip } from 'node:zlib'
 
 const gunzipAsync = promisify(gunzip)
 
+const FEEDBACK_STATUS_LABELS = {
+  new: '待处理',
+  in_progress: '处理中',
+  resolved: '已完成',
+  rejected: '已拒绝',
+  duplicate: '重复反馈',
+  reopened: '已重新打开',
+}
+
 function printHelp() {
   console.log(`Usage: node scripts/ops/inspect-ai-logs.mjs [options]
 
@@ -96,6 +105,7 @@ function classifyJsonlFile(name) {
   if (name.startsWith('proxy-access-')) return 'access'
   if (name.startsWith('ai-trace-') || name.startsWith('trace-index-')) return 'trace'
   if (name.startsWith('client-events-')) return 'client'
+  if (name.startsWith('feedback-status-')) return 'feedback-status'
   if (name.startsWith('feedback-')) return 'feedback'
   if (name.startsWith('ai-debug-') || name.startsWith('ai-debug-index-')) return 'debug'
   if (name.startsWith('raw-responses-')) return 'raw'
@@ -142,6 +152,8 @@ async function collectJsonlFiles(root, cutoffMs, options) {
     }
   }
   await visit(scan.path)
+  // 玩家/IP 索引只保存关联记录；反馈状态由根目录唯一账本持有。
+  if (scan.indexesOnly) await visit(path.join(root, 'feedback-status'))
   return files
 }
 
@@ -289,6 +301,7 @@ async function main() {
   const traces = []
   const clients = []
   const feedback = []
+  const feedbackStatus = []
   const debug = []
   const rawResponses = []
   for (const file of files) {
@@ -298,6 +311,8 @@ async function main() {
         ? traces
         : file.kind === 'feedback'
           ? feedback
+          : file.kind === 'feedback-status'
+            ? feedbackStatus
           : file.kind === 'debug'
             ? debug
             : file.kind === 'raw'
@@ -311,6 +326,12 @@ async function main() {
     && (!options.playerCode || diagnosticCode(record) === options.playerCode)
     && (!options.requestId || record.requestId === options.requestId)
     && (!options.feedbackId || record.feedbackId === options.feedbackId))
+  const feedbackIds = new Set(filteredFeedback.map((record) => record.feedbackId))
+  const filteredFeedbackStatus = feedbackStatus.filter((record) => feedbackIds.has(record.feedbackId))
+  const latestFeedbackStatus = new Map()
+  for (const record of filteredFeedbackStatus.sort((a, b) => timestampMs(a) - timestampMs(b))) {
+    latestFeedbackStatus.set(record.feedbackId, record)
+  }
   const feedbackSources = new Set(filteredFeedback.map(sourceIp).filter((ip) => ip !== 'unknown'))
 
   const requestSources = new Map()
@@ -369,6 +390,12 @@ async function main() {
   for (const record of filteredAccess) {
     const status = String(record.status ?? 'unknown')
     statusCounts[status] = (statusCounts[status] ?? 0) + 1
+  }
+  const feedbackStatusCounts = {
+    new: filteredFeedback.filter((record) => !latestFeedbackStatus.has(record.feedbackId)).length,
+  }
+  for (const record of latestFeedbackStatus.values()) {
+    feedbackStatusCounts[record.status] = (feedbackStatusCounts[record.status] ?? 0) + 1
   }
 
   const sources = new Set(filteredAccess.map(sourceIp).filter((ip) => ip !== 'unknown'))
@@ -431,6 +458,8 @@ async function main() {
       debugEvents: filteredDebug.length,
       rawResponses: filteredRawResponses.length,
       feedbackSubmissions: filteredFeedback.length,
+      feedbackStatusEvents: filteredFeedbackStatus.length,
+      feedbackStatusCounts,
       distinctSources: sources.size,
       statusCounts,
     },
@@ -505,6 +534,20 @@ async function main() {
       recentStoryEntries: record.recentStoryEntries,
       recentStoryChars: record.recentStoryChars,
       recentClientLogEntries: record.recentClientLogEntries,
+      status: latestFeedbackStatus.get(record.feedbackId)?.status ?? 'new',
+      statusLabel: FEEDBACK_STATUS_LABELS[latestFeedbackStatus.get(record.feedbackId)?.status ?? 'new'],
+      statusUpdatedAt: latestFeedbackStatus.get(record.feedbackId)?.timestamp ?? null,
+    })),
+    recentFeedbackStatusEvents: takeRecent(filteredFeedbackStatus, options.limit).map((record) => ({
+      eventId: record.eventId,
+      timestamp: record.timestamp,
+      feedbackId: record.feedbackId,
+      previousStatus: record.previousStatus,
+      status: record.status,
+      operator: record.operator,
+      note: record.note,
+      evidence: record.evidence,
+      duplicateOf: record.duplicateOf,
     })),
     recentRequests: options.playerCode
       ? takeRecent(filteredAccess, options.limit).map((record) => ({

@@ -4,7 +4,7 @@
  *   - 单按钮 + 设置控制 AI/预设
  *   - 缓存池 >= 5 条进入完成交接态，玩家确认后展开选取，后台可继续补池
  *   - 真实进度追踪（onProgress 回调）
- *   - 抽5选3 + 可选神话传承 → 确认 → /fate-preview
+ *   - 抽5选3 + 可选转世天赋 → 确认 → /fate-preview
  * @mod mod-pages
  */
 
@@ -682,7 +682,7 @@ function TalentDrawContent() {
   const handleEquipMythic = useCallback((pattern: MythicPattern | null) => {
     setEquippedMythicPattern(pattern)
     setLibraryOpen(false)
-    notify(`神话传承 · ${pattern?.name ?? '本局不携带'}`)
+    notify(`转世天赋 · ${pattern?.name ?? '本局不携带'}`)
   }, [notify, setEquippedMythicPattern])
 
   // ══════════ 确认选择 → 跳转 ══════════
@@ -839,7 +839,7 @@ function TalentDrawContent() {
                 <div className={styles.titleCopy}>
                   <h1 id="talent-page-title">{phase === 'selecting' ? '选择命格' : '抽取命格'}</h1>
                   <p>{phase === 'selecting'
-                    ? '从五星位中选满三条，可另选一项神话传承。'
+                    ? '从五星位中选满三条，可另选一项转世天赋。'
                     : '持续生成五条有效命格，完成后进入选择。'}</p>
                 </div>
                 <div className={styles.titleMark} aria-hidden="true"><span>{phase === 'selecting' ? '06' : '05'}</span></div>
@@ -962,7 +962,7 @@ function TalentDrawContent() {
                     aria-expanded={libraryOpen}
                     aria-controls="mythic-library-sheet"
                   >
-                    <span>神话传承库</span>
+                    <span>转世天赋库</span>
                     <strong>{equippedMythicPattern?.name ?? '本局不携带'}</strong>
                   </button>
                 </div>
@@ -981,8 +981,8 @@ function TalentDrawContent() {
               aria-labelledby="mythic-library-title"
             >
               <header className={styles.libraryHead}>
-                <strong id="mythic-library-title">神话传承库</strong>
-                <button ref={libraryCloseRef} type="button" onClick={() => setLibraryOpen(false)} aria-label="关闭神话传承库">
+                <strong id="mythic-library-title">转世天赋库</strong>
+                <button ref={libraryCloseRef} type="button" onClick={() => setLibraryOpen(false)} aria-label="关闭转世天赋库">
                   <FlowIcon name="close" />
                 </button>
               </header>
@@ -994,7 +994,7 @@ function TalentDrawContent() {
                   aria-pressed={equippedMythicPattern === null}
                 >
                   <strong>本局不携带</strong>
-                  <span>保留独立神话槽，不影响三个普通命格。</span>
+                  <span>保留独立转世槽，不影响三个普通命格。</span>
                 </button>
                 {mythicLibrary.map((pattern) => (
                   <button
@@ -1008,7 +1008,7 @@ function TalentDrawContent() {
                     <span>{pattern.effect || pattern.concept}</span>
                   </button>
                 ))}
-                {mythicLibrary.length === 0 ? <p className={styles.libraryEmpty}>尚未在人生结算中封存神话词条。</p> : null}
+                {mythicLibrary.length === 0 ? <p className={styles.libraryEmpty}>尚未在人生结算中封存转世天赋。</p> : null}
               </div>
             </section>
           ) : null}

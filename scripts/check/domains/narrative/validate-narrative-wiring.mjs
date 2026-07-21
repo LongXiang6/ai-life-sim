@@ -45,16 +45,26 @@ const narrativeServerAsset = fs.readFileSync(
   path.join(ROOT, 'src/mods/mod-engine/server/narrative-system-prompt.ts'),
   'utf8',
 )
+const narrativeRepairAsset = fs.readFileSync(
+  path.join(ROOT, 'src/mods/mod-engine/server/narrative-repair-system-prompt.ts'),
+  'utf8',
+)
 for (const field of ['长期记忆', '核心记忆', '相关往事', '近期完整经历', '本轮可回收伏笔']) {
   if (!promptBuilder.includes(field)) {
     console.error(`[FAIL] prompt-builder 缺少三层中文字段 ${field}`)
     failed++
   }
 }
-if (!narrativePrompt.includes("version: '4.5.0'")
+if (!narrativePrompt.includes("version: '4.5.2'")
   || !narrativePrompt.includes('NarrativeAIResponseSchema')
-  || !narrativePrompt.includes('serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID')) {
-  console.error('[FAIL] narrative-prompt 未接入 4.5.0 服务端固定资产与中文协议 Schema')
+  || !narrativePrompt.includes('serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID')
+  || !narrativePrompt.includes('NARRATIVE_REPAIR_SERVER_PROMPT_ASSET_ID')) {
+  console.error('[FAIL] narrative-prompt 未接入 4.5.2 主资产、精简修复资产与中文协议 Schema')
+  failed++
+}
+if (!narrativeRepairAsset.includes('COMPILED_NARRATIVE_REPAIR_SYSTEM_PROMPT')
+  || !narrativeRepairAsset.includes('buildNarrativeAIProtocolStandardExample')) {
+  console.error('[FAIL] narrative-repair-system-prompt 未复用唯一协议示例')
   failed++
 }
 if (!narrativeServerAsset.includes('COMPILED_NARRATIVE_SYSTEM_PROMPT')

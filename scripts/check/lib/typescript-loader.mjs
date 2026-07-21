@@ -44,6 +44,10 @@ export async function resolve(specifier, context, nextResolve) {
     return { url: 'data:text/javascript,export%20default%20undefined', shortCircuit: true }
   }
 
+  if (specifier === 'next/server') {
+    return nextResolve('next/server.js', context)
+  }
+
   if (path.isAbsolute(specifier)) {
     const target = await resolveCandidate(specifier)
     if (target) return { url: pathToFileURL(target).href, shortCircuit: true }

@@ -6,7 +6,11 @@
 
 import 'server-only'
 
-import { NARRATIVE_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-prompt'
+import {
+  NARRATIVE_REPAIR_SERVER_PROMPT_ASSET_ID,
+  NARRATIVE_SERVER_PROMPT_ASSET_ID,
+} from './prompts/narrative-prompt'
+import { COMPILED_NARRATIVE_REPAIR_SYSTEM_PROMPT } from './server/narrative-repair-system-prompt'
 import { COMPILED_NARRATIVE_SYSTEM_PROMPT } from './server/narrative-system-prompt'
 
 export interface ServerPromptAsset {
@@ -18,6 +22,10 @@ const SERVER_PROMPT_ASSETS: Readonly<Record<string, ServerPromptAsset>> = {
   [NARRATIVE_SERVER_PROMPT_ASSET_ID]: {
     id: NARRATIVE_SERVER_PROMPT_ASSET_ID,
     systemPrompt: COMPILED_NARRATIVE_SYSTEM_PROMPT,
+  },
+  [NARRATIVE_REPAIR_SERVER_PROMPT_ASSET_ID]: {
+    id: NARRATIVE_REPAIR_SERVER_PROMPT_ASSET_ID,
+    systemPrompt: COMPILED_NARRATIVE_REPAIR_SYSTEM_PROMPT,
   },
 }
 

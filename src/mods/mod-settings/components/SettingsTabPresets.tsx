@@ -113,16 +113,28 @@ export function SettingsTabPresets() {
 
   const selectedVendor = selectedVendorIdx === null ? null : PROVIDER_OPTIONS[selectedVendorIdx]
   const selectedModel = selectedVendor?.models.find((model) => model.name === selectedModelName) ?? null
+  const ownApiSourceVendor = selectedVendor?.baseUrl
+    ? selectedVendor
+    : AI_PROVIDERS[provider]?.baseUrl
+      ? AI_PROVIDERS[provider]
+      : null
+  const ownApiSourceModel = ownApiSourceVendor
+    ? ownApiSourceVendor.models.some((model) => model.name === selectedModelName)
+      ? selectedModelName ?? ownApiSourceVendor.models[0]?.name ?? ''
+      : ownApiSourceVendor.models.some((model) => model.name === customModel)
+        ? customModel
+        : ownApiSourceVendor.models[0]?.name ?? ''
+    : ''
 
   const handleUseCustomApi = useCallback(() => {
     setProvider('custom')
     setCustomKey('')
-    setCustomUrl('')
-    setCustomModel('')
+    setCustomUrl(ownApiSourceVendor?.baseUrl ?? '')
+    setCustomModel(ownApiSourceModel)
     setSelectedVendorIdx(null)
     setSelectedModelName(null)
     setConnTest({ state: 'idle', duration: null, tokens: '', testedAt: null })
-  }, [setCustomKey, setCustomModel, setCustomUrl, setProvider])
+  }, [ownApiSourceModel, ownApiSourceVendor, setCustomKey, setCustomModel, setCustomUrl, setProvider])
 
   const markConnectionUntested = useCallback((testedTarget: string, testedModel: string) => {
     setConnTest({ state: 'idle', duration: null, tokens: '', testedAt: null })
@@ -182,7 +194,11 @@ export function SettingsTabPresets() {
         providerId: provider,
         baseUrl: provider === 'custom' ? testUrl : undefined,
         apiKey: customKey || undefined,
-        thinking: providerConfig?.supportsThinking ? { type: 'disabled' } : undefined,
+        thinking: providerConfig?.supportsThinking
+          ? { type: 'disabled' }
+          : (provider === 'custom' && testModel.toLowerCase().includes('deepseek'))
+            ? { type: 'disabled' }
+            : undefined,
       }),
       signal: controller.signal,
     })
@@ -342,7 +358,7 @@ export function SettingsTabPresets() {
             {provider === 'custom' ? (
               <>
                 <p className={styles.supportingText}>
-                  手动填写自己的 API Key、兼容 OpenAI 协议的网址和模型名称。任意地址都可测试连接；只有服务器登记的官方目标可运行受保护主叙事。
+                  从官方厂商切换时会自动填入接口网址和模型名称；填写自己的 API Key 后即可测试。只有服务器登记的官方目标可运行受保护主叙事。
                 </p>
                 <div className={styles.fieldGrid}>
                   <label className={styles.field}>
@@ -392,8 +408,15 @@ export function SettingsTabPresets() {
                   服务器预设模式不显示或保存 API 网址与 Key，只使用当前选中的模型名称。
                 </p>
                 <div className={styles.actionRow}>
-                  <button type="button" className={styles.secondaryButton} onClick={handleUseCustomApi}>
-                    使用自己的 API
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={handleUseCustomApi}
+                    title={ownApiSourceVendor
+                      ? `自动填入 ${ownApiSourceVendor.name} 的接口网址和模型名称`
+                      : '打开自定义 API 配置'}
+                  >
+                    使用自己的 API Key
                   </button>
                 </div>
               </>

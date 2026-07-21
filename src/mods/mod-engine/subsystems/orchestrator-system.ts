@@ -134,6 +134,7 @@ import {
   HISTORICAL_EVENT_LEDGER_ID,
 } from '../helpers/historical-event-prompt-projection'
 import { AI_CREATION_CATEGORIES } from '../helpers/narrative-ai-protocol'
+import { buildNarrativeRoundOutputContract } from '../helpers/narrative-response-quality'
 import {
   compileNarrativeDynamicComponents,
 } from '../prompts/narrative-prompt-components'
@@ -184,9 +185,9 @@ function formatEquippedMythicPatternForPrompt(pattern: {
   const effect = pattern.effect.trim()
   if (!effect) return undefined
 
-  const name = pattern.name.trim() || '未命名神话命格'
+  const name = pattern.name.trim() || '未命名转世天赋'
   const concept = pattern.concept.trim()
-  return `【已装备神话命格·每轮遵守】${name}${concept ? `（${concept}）` : ''}：${effect}`
+  return `【已装备转世天赋·每轮遵守】${name}${concept ? `（${concept}）` : ''}：${effect}`
 }
 
 function formatDestinyPatternsForPrompt(
@@ -338,6 +339,9 @@ export class OrchestratorSystem extends BaseSubsystem {
     lastAutoSaveRound: 0,
     characterCreations: [],
   }
+
+  /** 递增即表示人生时间线已经切换；旧异步写入只能取消，不能提交。 */
+  private lifeGeneration = 0
 
   private subsystems: ISubSystem[] = []
   private onNarrativeChunk: ((chunk: NarrativeChunk) => void) | null = null
@@ -1503,12 +1507,21 @@ export class OrchestratorSystem extends BaseSubsystem {
     const worldName = this.worldSetting?.name ?? ''
     const characterName = this.characterState?.name ?? ''
     const saveRound = this.state.totalRounds
+    const saveGeneration = this.lifeGeneration
     const payload = collectGameSavePayload()
 
-    void saveManager.autoSave(worldName, characterName, payload).then(() => {
+    void saveManager.autoSave(
+      worldName,
+      characterName,
+      payload,
+      () => this.lifeGeneration === saveGeneration,
+    ).then((metadata) => {
+      if (!metadata || this.lifeGeneration !== saveGeneration) return
       const store = useEngineStore.getState()
       const currentSavedRound = store.lastAutoSaveRound ?? 0
-      const currentTotalRounds = store.totalRounds ?? saveRound
+      const currentTotalRounds = store.totalRounds ?? 0
+      // 旧人生的回调不得改写已 reset 的新世界状态
+      if (saveRound > 0 && currentTotalRounds === 0) return
       const savedRoundIsFromAnotherTimeline = currentSavedRound > currentTotalRounds
       if (savedRoundIsFromAnotherTimeline || saveRound >= currentSavedRound) {
         this.state.lastAutoSaveRound = saveRound
@@ -1813,7 +1826,13 @@ export class OrchestratorSystem extends BaseSubsystem {
     void changes.changes;
   }
 
+  /** 取消尚未提交的旧人生异步操作；预览快照恢复不调用此入口。 */
+  invalidatePendingLifeOperations(): void {
+    this.lifeGeneration += 1
+  }
+
   reset(): void {
+    this.invalidatePendingLifeOperations()
     for (const subsystem of this.subsystems) {
       try {
         subsystem.reset()
@@ -2167,6 +2186,17 @@ export class OrchestratorSystem extends BaseSubsystem {
       { id: 'influence-boundary', content: influenceText, order: 50, kind: '硬限制', authority: '当前事实' },
       { id: 'recent-system-changes', content: slidingWindowText, order: 60, kind: '流程指令', authority: '当前事实' },
       { id: 'npc-network', content: coreMemory.buildNPCNetworkText(promptScopeView), order: 70, kind: '流程指令', authority: '当前事实' },
+      {
+        id: 'round-output-contract',
+        content: buildNarrativeRoundOutputContract(
+          this.getFocusedBranchIntentRuntime()?.intentId,
+          useEngineStore.getState().forceBranchNext,
+          isOpeningNarrativeRound,
+        ),
+        order: 10_000,
+        kind: '硬限制',
+        authority: '世界与协议',
+      },
     ]
     const narrativeGuidanceText = compileNarrativeDynamicComponents(
       dynamicGuidanceSources

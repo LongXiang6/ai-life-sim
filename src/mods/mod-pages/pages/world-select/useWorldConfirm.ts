@@ -6,7 +6,7 @@
 
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 
 import { useRouter } from 'next/navigation'
 
@@ -43,6 +43,7 @@ export function useWorldConfirm() {
   const setWorldviewId = useGlobalStore((s) => s.setWorldviewId)
   const setWorldName = useGlobalStore((s) => s.setWorldName)
   const { requestCoherenceResolve, conflictModal } = useWorldCoherenceConfirm()
+  const confirmingRef = useRef(false)
 
   const proceedWithConfig = useCallback(async (
     config: WorldConfig,
@@ -106,36 +107,42 @@ export function useWorldConfirm() {
     difficulty: Difficulty,
     options?: { worldCode?: number; customWorldview?: string },
   ): Promise<boolean> => {
-    if (!await hasAvailableApiConfiguration()) {
-      alert(
-        '当前主叙事模型不可用：请打开设置 → 模型调用，选择官方厂商预设；你仍可填写自己的 API Key。',
-      )
-      return false
-    }
-
-    const isCustom = selectedWorld.id.startsWith('custom-')
-    const draft = isCustom
-      ? buildWorldConfigFromCustom(
-          {
-            name: selectedWorld.name,
-            description: selectedWorld.description,
-            worldview: options?.customWorldview ?? 'auto',
-          },
-          difficulty,
+    if (confirmingRef.current) return false
+    confirmingRef.current = true
+    try {
+      if (!await hasAvailableApiConfiguration()) {
+        alert(
+          '当前主叙事模型不可用：请打开设置 → 模型调用，选择官方厂商预设；你仍可填写自己的 API Key。',
         )
-      : buildWorldConfigFromPreset(selectedWorld, difficulty)
+        return false
+      }
 
-    return new Promise<boolean>((resolve, reject) => {
-      requestCoherenceResolve(
-        draft,
-        (config) => {
-          void proceedWithConfig(config, selectedWorld, { worldCode: options?.worldCode })
-            .then(resolve)
-            .catch(reject)
-        },
-        () => resolve(false),
-      )
-    })
+      const isCustom = selectedWorld.id.startsWith('custom-')
+      const draft = isCustom
+        ? buildWorldConfigFromCustom(
+            {
+              name: selectedWorld.name,
+              description: selectedWorld.description,
+              worldview: options?.customWorldview ?? 'auto',
+            },
+            difficulty,
+          )
+        : buildWorldConfigFromPreset(selectedWorld, difficulty)
+
+      return await new Promise<boolean>((resolve, reject) => {
+        requestCoherenceResolve(
+          draft,
+          (config) => {
+            void proceedWithConfig(config, selectedWorld, { worldCode: options?.worldCode })
+              .then(resolve)
+              .catch(reject)
+          },
+          () => resolve(false),
+        )
+      })
+    } finally {
+      confirmingRef.current = false
+    }
   }, [proceedWithConfig, requestCoherenceResolve])
 
   return { handleConfirm, isApiConfigured, hasAvailableApiConfiguration, conflictModal }

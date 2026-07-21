@@ -13,6 +13,8 @@ export default defineMod({
   dependencies: ['mod-engine', 'mod-ui', 'mod-world', 'mod-character', 'mod-power-system', 'mod-environment-ecology', 'mod-settings', 'mod-economy', 'mod-politics', 'mod-culture'],
   provides: ['pages'],
   consumes: ['engine', 'ui', 'world', 'character', 'economy', 'politics', 'culture', 'power-system', 'environment-ecology', 'settings'],
+  secondaryPublicEntries: ['account-cloud-api.ts'],
+  remoteApi: [],
   routes: [
     { path: '/', page: 'welcome' },
     { path: '/welcome', page: 'welcome' },
@@ -27,6 +29,7 @@ export default defineMod({
     { path: '/fate-preview', page: 'fate-preview' },
     { path: '/game-story', page: 'game-story' },
     { path: '/save-manager', page: 'save-manager' },
+    { path: '/account', page: 'account' },
     { path: '/feedback', page: 'feedback' },
     { path: '/debug-log', page: 'debug-log' },
     { path: '/game-over', page: 'game-over' },

@@ -51,7 +51,7 @@ export function safetyInterceptor(ctx: NarrativeInterceptorContext): NarrativeIn
   }
 
   if (parsed.narrative && !hasCompleteNarrativeEnd(parsed.narrative)) {
-    warnings.push('叙事疑似未完整收束，已保留全文并交由三段归一化处理')
+    warnings.push('叙事疑似未完整收束，已保留全文并记录完整性警告')
   }
 
   const cleaned = parsed.narrative.replace(

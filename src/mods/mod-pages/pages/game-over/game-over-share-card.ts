@@ -18,6 +18,8 @@ export interface GameOverShareCardData {
   rounds: number
   moralityLabel: string
   overallScore: number
+  achievementCount: number
+  featuredAchievement?: { title: string; detail: string } | null
   dimensions: readonly GameOverShareDimension[]
   mythic?: GameOverShareMythic | null
   shareUrl?: string
@@ -77,6 +79,13 @@ export function buildGameOverShareFacts(data: GameOverShareCardData): GameOverSh
     { label: '此生行程', value: `${data.rounds} 轮世事` },
     { label: '此生年岁', value: data.ageLabel },
     { label: '此生品性', value: data.moralityLabel },
+    { label: '此生里程碑', value: `${data.achievementCount} 项已确认大事` },
+    ...(data.featuredAchievement
+      ? [{
+          label: '代表大事',
+          value: `${data.featuredAchievement.title} · ${data.featuredAchievement.detail}`,
+        }]
+      : []),
     {
       label: '最鲜明力量',
       value: strongest
@@ -90,11 +99,15 @@ export function buildGameOverShareText(data: GameOverShareCardData): string {
   const strongest = getStrongestShareDimension(data.dimensions)
   const lines = [
     `${data.characterName || '无名之辈'}在「${data.worldName}」走完了一生。`,
-    `${data.rounds} 轮世事 · ${data.ageLabel} · 四维均分 ${data.overallScore} · ${data.moralityLabel}`,
+    `${data.rounds} 轮世事 · ${data.ageLabel} · 人生评分 ${data.overallScore} · ${data.moralityLabel}`,
+    `${data.achievementCount} 项已确认大事`,
+    data.featuredAchievement
+      ? `代表大事：${data.featuredAchievement.title} · ${data.featuredAchievement.detail}`
+      : '',
     strongest
       ? `最鲜明的力量：${strongest.label} ${strongest.value}（${getDimensionComment(strongest)}）`
       : '',
-    data.mythic ? `此生留下的命格余响：${data.mythic.name} · ${data.mythic.concept}` : '',
+    data.mythic ? `此生留下的转世天赋：${data.mythic.name} · ${data.mythic.concept}` : '',
     '#AI人生模拟器',
     data.shareUrl?.trim() ?? '',
   ]
@@ -160,7 +173,7 @@ function prepareCardLayout(
   context.font = `400 30px ${FONT_SANS}`
   const mythicEffectLines = wrapCanvasText(
     context,
-    data.mythic?.effect ?? '分享卡只记录当前结算事实，不从故事正文推断未发生的成就。',
+    data.mythic?.effect ?? '转世天赋尚未凝结；分享卡仍只记录当前结算事实。',
     CARD_CONTENT_WIDTH - 160,
   )
 
@@ -322,7 +335,7 @@ function drawShareCard(
   context.fillText(String(data.overallScore), CARD_PADDING + 34, y + 70)
   context.fillStyle = COLORS.secondary
   context.font = `600 28px ${FONT_SANS}`
-  context.fillText('四维均分', CARD_PADDING + 132, y + 52)
+  context.fillText('人生评分', CARD_PADDING + 132, y + 52)
   context.fillStyle = COLORS.tertiary
   context.font = `400 24px ${FONT_SANS}`
   context.fillText(
@@ -392,7 +405,7 @@ function drawShareCard(
   fillRoundedRect(context, CARD_PADDING, y, CARD_CONTENT_WIDTH, mythicBoxHeight, 28, COLORS.accentSoft, COLORS.border)
   context.fillStyle = COLORS.accent
   context.font = `700 22px ${FONT_SANS}`
-  context.fillText(data.mythic ? `命格余响 · ${data.mythic.concept}` : '命格余响', CARD_PADDING + 34, y + 42)
+  context.fillText(data.mythic ? `转世天赋 · ${data.mythic.concept}` : '转世天赋', CARD_PADDING + 34, y + 42)
   context.fillStyle = COLORS.text
   context.font = `600 50px ${FONT_SERIF}`
   let mythicY = drawLines(context, layout.mythicTitleLines, CARD_PADDING + 34, y + 102, 62)

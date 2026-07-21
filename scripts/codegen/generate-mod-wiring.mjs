@@ -85,6 +85,32 @@ function parseManifestStores(manifestContent) {
 }
 
 /**
+ * @param {string} manifestContent
+ * @param {string} fieldName
+ * @returns {{ declared: boolean, values: string[] }}
+ */
+function parseManifestStringArray(manifestContent, fieldName) {
+  const match = manifestContent.match(new RegExp(`\\b${fieldName}:\\s*\\[([\\s\\S]*?)\\]`))
+  if (!match) return { declared: false, values: [] }
+  return {
+    declared: true,
+    values: [...match[1].matchAll(/['"]([^'"]+)['"]/g)].map((item) => item[1]),
+  }
+}
+
+/**
+ * @param {string} manifestContent
+ * @param {string[]} inferred
+ * @returns {{ declared: boolean, values: string[] }}
+ */
+function resolveRemoteApiContract(manifestContent, inferred) {
+  const explicit = parseManifestStringArray(manifestContent, 'remoteApi')
+  return explicit.declared
+    ? { declared: true, values: [...new Set(explicit.values)].sort() }
+    : { declared: false, values: [...new Set(inferred)].sort() }
+}
+
+/**
  * @param {string} modDir
  * @returns {Map<string, string>} className → singletonExportName
  */
@@ -220,6 +246,24 @@ function assertRemoteApiExtractionIsLineEndingAgnostic() {
     const actual = extractRemoteApiExports(source)
     if (actual.length !== expected.length || actual.some((name, index) => name !== expected[index])) {
       throw new Error(`[generate-mod-wiring] Remote API 导出解析不支持当前换行格式: ${JSON.stringify(actual)}`)
+    }
+  }
+}
+
+/** manifest.remoteApi 是显式 allowlist；空数组必须关闭自动推导。 */
+function assertExplicitRemoteApiPrecedence() {
+  const inferred = ['autoDiscovered', 'secondaryExport']
+  const cases = [
+    { manifest: 'export default defineMod({})', expected: inferred },
+    { manifest: 'export default defineMod({ remoteApi: [] })', expected: [] },
+    { manifest: "export default defineMod({ remoteApi: ['declaredOnly'] })", expected: ['declaredOnly'] },
+  ]
+
+  for (const testCase of cases) {
+    const actual = resolveRemoteApiContract(testCase.manifest, inferred).values
+    if (actual.length !== testCase.expected.length
+      || actual.some((name, index) => name !== testCase.expected[index])) {
+      throw new Error(`[generate-mod-wiring] manifest.remoteApi 优先级回归: ${JSON.stringify(actual)}`)
     }
   }
 }
@@ -862,6 +906,7 @@ function writeOrCheck(filePath, content) {
 
 function main() {
   assertRemoteApiExtractionIsLineEndingAgnostic()
+  assertExplicitRemoteApiPrecedence()
   const modDirs = listModDirs()
   /** @type {Record<string, string>} */
   const allAliases = {}
@@ -900,12 +945,9 @@ function main() {
 
     const indexPath = path.join(modPath, 'index.ts')
     const remoteFnSet = new Set(extractRemoteApiExports(readFile(indexPath)))
-    const secondaryMatch = manifestContent.match(/secondaryPublicEntries:\s*\[([\s\S]*?)\]/)
-    if (secondaryMatch) {
-      const entries = [...secondaryMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((m) => m[1])
-      if (entries.length > 0) {
-        secondaryApiImporters[modName] = entries
-      }
+    const secondaryEntries = parseManifestStringArray(manifestContent, 'secondaryPublicEntries').values
+    if (secondaryEntries.length > 0) {
+      const entries = secondaryEntries
       for (const entry of entries) {
         const entryPath = path.join(modPath, entry)
         const entryContent = readFile(entryPath)
@@ -916,9 +958,12 @@ function main() {
         }
       }
     }
-    const remoteFns = [...remoteFnSet].sort()
-    if (remoteFns.length > 0) {
-      remoteContracts[modName] = remoteFns
+    const remoteContract = resolveRemoteApiContract(manifestContent, [...remoteFnSet])
+    if (remoteContract.declared || remoteContract.values.length > 0) {
+      remoteContracts[modName] = remoteContract.values
+    }
+    if (secondaryEntries.length > 0 && remoteContract.values.length > 0) {
+      secondaryApiImporters[modName] = secondaryEntries
     }
 
     if (modName === 'mod-engine') {

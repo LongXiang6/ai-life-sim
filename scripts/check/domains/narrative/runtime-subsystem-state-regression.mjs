@@ -358,7 +358,7 @@ for (const expected of [
   'return enqueueSaveOperation(() => saveToSlotUnlocked(',
   'return enqueueSaveOperation(() => loadSaveUnlocked(slot))',
   'return enqueueSaveOperation(() => deleteSaveUnlocked(slot))',
-  'return enqueueSaveOperation(() => autoSaveUnlocked(worldName, characterName, data))',
+  'return enqueueSaveOperation(() => autoSaveUnlocked(',
 ]) {
   assertIncludes(saveManager, expected, `save manager operation is not serialized: ${expected}`)
 }
@@ -399,8 +399,21 @@ assertOk(
 )
 const campaignQuality = read('src/mods/mod-engine/campaigns/default/index.ts')
 assertIncludes(campaignQuality, 'inspectNarrativeResponseQuality(', 'main and preview generation must inspect the full response before commit')
-assertIncludes(campaignQuality, 'buildNarrativeRepairInstruction(', 'an invalid protocol or paragraph response must receive one format-repair attempt')
-assertIncludes(campaignQuality, '【上一版完整输出，仅用于格式纠错】', 'the rewrite must include the rejected draft without mutating the stable prompt prefix')
+assertIncludes(campaignQuality, 'buildNarrativeRepairInstruction(', 'an invalid protocol or conditional response must receive one targeted repair attempt')
+assertIncludes(campaignQuality, '【上一版完整输出；唯一剧情事实来源】', 'the repair must include the rejected draft')
+const formatRepairStart = campaignQuality.indexOf('const runTargetedRepair')
+const formatRepairEnd = campaignQuality.indexOf('const previousContent = ctx._fullContent', formatRepairStart)
+const formatRepairBlock = campaignQuality.slice(formatRepairStart, formatRepairEnd)
+assertOk(
+  formatRepairStart >= 0
+    && formatRepairEnd > formatRepairStart
+    && formatRepairBlock.includes('NARRATIVE_REPAIR_SERVER_PROMPT_ASSET_ID') === false
+    && !formatRepairBlock.includes('segments.full')
+    && !formatRepairBlock.includes('segments.messages')
+    && !formatRepairBlock.includes('getNarrativeUserSegments(segments)'),
+  'format repair must not resend the full global, memory and round Prompt layers',
+)
+assertIncludes(campaignQuality, 'serverPromptAssetId: NARRATIVE_REPAIR_SERVER_PROMPT_ASSET_ID', 'format repair must use the dedicated compact server asset')
 assertIncludes(campaignQuality, 'prefetched,\n            wordCountTarget,\n            expectedIntentId,\n            requireBranch,', 'cached narrative must pass the same conditional gate again at the main-round consumption boundary')
 assertIncludes(campaignQuality, 'ctx._fullContent = undefined', 'a twice-rejected response must not reach post-processing')
 const roundHooks = read('src/mods/mod-engine/hooks.ts')

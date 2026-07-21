@@ -1,0 +1,11 @@
+[Unit]
+Description=Run AI Life Sim inactive account cleanup daily
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=15m
+Unit=ai-life-sim-account-cleanup.service
+
+[Install]
+WantedBy=timers.target

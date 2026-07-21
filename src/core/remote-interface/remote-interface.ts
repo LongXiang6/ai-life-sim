@@ -46,6 +46,8 @@ class RemoteInterface {
     }
     if (iface.size > 0) {
       this.interfaces.set(modName, iface)
+    } else {
+      this.interfaces.delete(modName)
     }
   }
 

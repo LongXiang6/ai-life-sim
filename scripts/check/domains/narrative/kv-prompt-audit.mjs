@@ -243,6 +243,10 @@ assertOk(
       < promptBuilder.indexOf('本轮引导: pickJsonKeys'),
   'three-layer assembly must remain global information -> memory -> round guidance',
 )
+const timeScaleNarrative = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/helpers/time-scale-narrative.ts'),
+  'utf8',
+)
 
 const cacheLayerBaseContext = {
   worldNarrativeView: {
@@ -375,7 +379,7 @@ assertOk(
     name: '未熄之诺',
     concept: '承诺',
     effect: '真诚许下的承诺更难被世界轻易抹去。',
-  }) === '【已装备神话命格·每轮遵守】未熄之诺（承诺）：真诚许下的承诺更难被世界轻易抹去。',
+  }) === '【已装备转世天赋·每轮遵守】未熄之诺（承诺）：真诚许下的承诺更难被世界轻易抹去。',
   'equipped mythic effects must be formatted as an explicit per-round narrative rule',
 )
 assertOk(
@@ -395,7 +399,7 @@ assertOk(
   'ordinary and equipped mythic effects must both be injected every round',
 )
 assertOk(
-  narrativeSystemPrompt.includes('普通与已装备神话命格效果每轮持续生效'),
+  narrativeSystemPrompt.includes('普通命格与已装备转世天赋效果每轮持续生效'),
   'system prompt must define ordinary and mythic effects as persistent rules while keeping mythic inheritance narrative-only',
 )
 
@@ -420,7 +424,7 @@ for (const inactiveConnection of [
   )
 }
 assertOk(
-  liveNarrativePrompt.version === '4.5.0'
+  liveNarrativePrompt.version === '4.5.2'
     && liveNarrativePrompt.systemPrompt === ''
     && !narrativeSystemPrompt.includes('examples: ['),
   'optimized prompt must be versioned and keep one governed standard example instead of duplicate examples',
@@ -435,13 +439,20 @@ assertOk(
 )
 assertOk(
   narrativeSystemPrompt.includes('连续推进同一因果主线')
-    && narrativeSystemPrompt.includes('三个独立生活切片')
-    && narrativeSystemPrompt.includes('时间服务剧情，不逐步记账'),
+    && narrativeSystemPrompt.includes('互不相干的生活切片')
+    && timeScaleNarrative.includes('正文段落数量自由')
+    && timeScaleNarrative.includes('拼接互不相干的事件或生活切片'),
   'main narrative prompt must reject annual disconnected-life-slice output while retaining one causal storyline',
 )
 assertOk(
   COMPILED_NARRATIVE_SYSTEM_PROMPT.length > 0 && COMPILED_NARRATIVE_SYSTEM_PROMPT.length < 8_000,
   'compiled fixed SYSTEM_PROMPT must stay compact enough for efficient repeated simulation calls',
+)
+assertOk(
+  orchestrator.includes("id: 'round-output-contract'")
+    && orchestrator.includes('order: 10_000')
+    && orchestrator.includes('buildNarrativeRoundOutputContract('),
+  'the compact output contract must be the final dynamic guidance component',
 )
 for (const duplicatedStaticContract of [
   'allowedSubSystems:',

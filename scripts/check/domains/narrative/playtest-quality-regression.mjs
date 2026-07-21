@@ -138,10 +138,10 @@ function loadTalentPoolHelpers(sourceText) {
   return module.exports
 }
 
-function assertThreeParagraphsPreservingContent(input, message) {
+function assertParagraphsPreservingContent(input, expectedParagraphs, message) {
   const normalized = normalizeNarrativeParagraphs(input)
   const paragraphs = normalized.split(/\n\s*\n/).filter(Boolean)
-  assertSame(paragraphs.length, 3, `${message}: must render exactly three paragraphs`)
+  assertSame(paragraphs.length, expectedParagraphs, `${message}: must preserve natural paragraph count`)
   assertSame(
     compactNarrative(normalized),
     compactNarrative(input).replaceAll('晩', '晚'),
@@ -149,17 +149,19 @@ function assertThreeParagraphsPreservingContent(input, message) {
   )
 }
 
-assertThreeParagraphsPreservingContent(
+assertParagraphsPreservingContent(
   '第一句交代起点。第二句出现压力。第三句采取行动。第四句遇到阻力。第五句形成后果。第六句留下线索但没有句号',
+  1,
   'single-paragraph narrative',
 )
-assertThreeParagraphsPreservingContent(
+assertParagraphsPreservingContent(
   `第一段完整保留。
 
 第二段也要保留未完成的尾句`,
+  2,
   'two-paragraph narrative',
 )
-assertThreeParagraphsPreservingContent(
+assertParagraphsPreservingContent(
   `第一段。
 
 第二段。
@@ -169,6 +171,7 @@ assertThreeParagraphsPreservingContent(
 第四段。
 
 第五段。`,
+  5,
   'five-paragraph narrative',
 )
 
@@ -185,7 +188,7 @@ assertIncludes(tenYearHint, '期间决定性转折', 'ten-year hint must include
 
 const oneYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 1 })
 assertIncludes(oneYearHint, '年度单场景视角', 'one-year hint must prioritize one representative scene')
-assertIncludes(oneYearHint, '三段不得分别换季、换地点或换任务', 'one-year hint must reject season-by-season vignettes')
+assertIncludes(oneYearHint, '不得不断换季、换地点或换任务', 'one-year hint must reject season-by-season vignettes')
 
 const januaryCalendar = buildCanonicalCalendarNarrativeHint({
   timeStep: { unit: 'day', value: 1 },
@@ -515,6 +518,7 @@ const branchPolicySrc = readRel('src/mods/mod-engine/helpers/narrative-branch-po
 const hooksSrc = readRel('src/mods/mod-engine/hooks.ts')
 const orchestratorSrc = readRel('src/mods/mod-engine/subsystems/orchestrator-system.ts')
 const timeScaleSrc = readRel('src/mods/mod-engine/helpers/time-scale-narrative.ts')
+const narrativeResponseQualitySrc = readRel('src/mods/mod-engine/helpers/narrative-response-quality.ts')
 const narrativeHintsSrc = readRel('src/mods/mod-engine/helpers/narrative-hints.ts')
 const narrativeCalendarSrc = readRel('src/mods/mod-engine/helpers/narrative-calendar.ts')
 const narrativePromptSrc = readRel('src/mods/mod-engine/prompts/narrative-prompt.ts')
@@ -911,7 +915,7 @@ assertOk(
   'time guidance must vary openings and use the explicit calendar label when a time anchor is needed',
 )
 assertOk(
-  timeScaleSrc.includes('三段不得分别换季、换地点或换任务')
+  timeScaleSrc.includes('不得不断换季、换地点或换任务')
     && timeScaleSrc.includes('同一因果主线')
     && timeScaleSrc.includes('拼接独立生活切片'),
   'year-scale guidance must prohibit disconnected vignettes and retain one causal arc',
@@ -935,7 +939,7 @@ const monthAfterSeasonStep = (mayIndex + 3) % 12
 assertSame(Math.floor(((monthAfterSeasonStep + 10) % 12) / 3), 1, 'month->season must land in the following solar season')
 assertOk(/candidate\.importance\s*===\s*'HIGH'/.test(branchPolicySrc), 'ordinary branch points must require HIGH importance')
 assertOk(narrativePromptComponentsSrc.includes('身份、核心关系、长期目标、关键资源、阵营、存亡等不可逆轨迹'), 'branch prompt must define fate-changing impact dimensions')
-assertOk(/version:\s*'4\.5\.0'/.test(narrativePromptSrc), 'ownership and origin narrative prompt must use version 4.5.0')
+assertOk(/version:\s*'4\.5\.2'/.test(narrativePromptSrc), 'latest narrative attention and repair contract must use version 4.5.2')
 assertOk(
   /semanticSignals\?\.irreversible\s*===\s*true/.test(branchPolicySrc)
     && /narrativeRegister\s*===\s*'fate'/.test(branchPolicySrc),
@@ -948,25 +952,26 @@ assertOk(
   'narrative prompt must preserve second-person viewpoint, scene-level immersion, and anti-biography constraints',
 )
 assertOk(
-  narrativePromptComponentsSrc.includes('不使用“这一年”“这一月”“这一天”等泛指时间套语')
-    && narrativePromptComponentsSrc.includes('不机械复用上一轮起句'),
-  'the fixed narrative Prompt must reject repetitive generic time openings',
+  timeScaleSrc.includes('首句不要使用“这一年”“这一月”“这一天”等泛指时间套语')
+    && timeScaleSrc.includes('不要复用上一轮起句结构'),
+  'the dynamic time-scale component must reject repetitive generic time openings',
 )
 assertOk(
   narrativePromptComponentsSrc.includes('专属、独有、唯一、血脉限定、异界来源或角色自创')
     && narrativePromptComponentsSrc.includes('不得改写为当地常见能力、制式技术、药剂激活、机构授予或他人同源能力')
-    && narrativePromptComponentsSrc.includes('不得无依据直接跳到已经训练、工作、加入组织或熟悉当地数周数月'),
-  'narrative Prompt must preserve player-exclusive ownership and establish first-round origin',
+    && narrativeResponseQualitySrc.includes('不得无因果直接跳过数周或数月')
+    && narrativeResponseQualitySrc.includes('isOpeningRound'),
+  'fixed ownership and dynamic first-round origin rules must remain independently live',
 )
 assertOk(
   !narrativeHintsSrc.includes('INFORMATION_PRIORITY_RULE')
     && !orchestratorSrc.includes('opening-information-priority'),
   'the retired attribute-over-background opening priority must not be injected',
 )
-assertOk(narrativePromptComponentsSrc.includes('阳历季节：3—5月春、6—8月夏、9—11月秋、12—2月冬'), 'narrative prompt must define the canonical solar season mapping')
+assertOk(timeScaleSrc.includes('3—5月春季、6—8月夏季、9—11月秋季、12—2月冬季'), 'dynamic time guidance must define the canonical solar season mapping')
 assertOk(!/narrative:\s*parsed\.narrative\.slice\(/.test(narrativeInterceptorSrc), 'narrative interceptor must never hard-truncate the story')
 assertOk(!narrativeInterceptorSrc.includes('trimIncompleteNarrativeTail'), 'incomplete narrative tails must be preserved instead of deleted')
-assertOk(timelineTsxSrc.includes('splitNarrativeParagraphs(entry.text)'), 'timeline must render the normalized three-paragraph contract')
+assertOk(timelineTsxSrc.includes('splitNarrativeParagraphs(entry.text)'), 'timeline must render every natural narrative paragraph')
 assertOk(timelineTsxSrc.includes('splitNarrativeParagraphs(streamingText)'), 'streaming timeline must use the same paragraph contract')
 assertOk(orchestratorSrc.includes('buildPowerCeilingPresetsForNarrative'), 'narrative prompt must use the power context helper')
 assertOk(!powerContextSrc.includes("split('。')[0]"), 'power context must preserve complete descriptions above the current ceiling')

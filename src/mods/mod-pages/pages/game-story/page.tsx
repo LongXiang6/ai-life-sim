@@ -464,13 +464,13 @@ export default function GamePage() {
                       <span className={styles.mutedText}>暂无角色词条</span>
                     )}
 
-                    <p className={styles.ledgerLabel}>神话传承 · 独立槽</p>
+                    <p className={styles.ledgerLabel}>转世天赋 · 独立槽</p>
                     {equippedMythicPattern ? (
                       <div className={styles.mythicRule}>
                         <strong>{equippedMythicPattern.name} · {equippedMythicPattern.concept}</strong>
                         <span>{equippedMythicPattern.effect}</span>
                       </div>
-                    ) : <span className={styles.mutedText}>本局未携带神话传承</span>}
+                    ) : <span className={styles.mutedText}>本局未携带转世天赋</span>}
 
                     <p className={styles.ledgerLabel}>世界与当前状态</p>
                     <div className={styles.stateList}>

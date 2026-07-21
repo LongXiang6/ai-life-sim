@@ -62,8 +62,8 @@ export interface ModManifest {
   /** Prompt 模板名称列表（AI 类 MOD 专用） */
   prompts?: string[]
   /**
-   * Remote API 函数名列表（可选，显式声明 index.ts 中应注册到 remote 的函数）
-   * 未声明时由 codegen `remote-contracts.generated.ts` 自动推导并校验
+   * Remote API 函数名 allowlist（可选，覆盖 index.ts 与 secondary 入口的自动推导）
+   * 未声明时由 codegen `remote-contracts.generated.ts` 自动推导；空数组显式禁用 Remote API
    */
   remoteApi?: string[]
   /**

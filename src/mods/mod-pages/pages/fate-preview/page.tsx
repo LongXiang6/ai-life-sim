@@ -383,9 +383,9 @@ function FatePreviewContent() {
                 )
               }) : <p className={styles.emptyText}>尚未确认命格。</p>}
             </div>
-            <div className={styles.mythicSlot} aria-label="本局神话传承">
+            <div className={styles.mythicSlot} aria-label="本局转世天赋">
               <div>
-                <small>神话传承 · 独立槽</small>
+                <small>转世天赋 · 独立槽</small>
                 <strong>{equippedMythicPattern?.name ?? '本局不携带'}</strong>
               </div>
               <p>{equippedMythicPattern

@@ -1,0 +1,16 @@
+[Unit]
+Description=Delete inactive AI Life Sim accounts
+After=network.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/root/ai-life-sim
+Environment=ACCOUNT_DB_PATH=/var/lib/ai-life-sim/accounts.sqlite
+ExecStart=/usr/bin/node /root/ai-life-sim/scripts/ops/cleanup-inactive-accounts.mjs
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/ai-life-sim

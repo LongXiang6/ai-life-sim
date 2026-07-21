@@ -1,6 +1,6 @@
 /**
  * @file page.tsx
- * @description 游戏结束页面 —— 四维评分、人生总结、神话词条封存与本机分享卡
+ * @description 游戏结束页面 —— 人生评分、人生总结、转世天赋封存与本机分享卡
  * @mod mod-pages
  */
 
@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation'
 
 import {
   useCharacterStore,
+  useLifeRecordStore,
   useMythicLibraryStore,
 } from '@/mods/mod-character'
 import { generateMythicPatternCandidates } from '@/mods/mod-character/mythic-pattern-access'
@@ -20,6 +21,7 @@ import { useSettingsStore } from '@/mods/mod-settings'
 
 import { callAI, useGlobalStore } from '@/core'
 import { DEFAULT_AI_MODEL } from '@/core/ai-service'
+import { ENGINE_VERSION } from '@/core/version'
 // 统一使用 shared/ 的 clamp 替代内联 Math.max/Math.min
 import { clamp } from '@/core/shared'
 
@@ -35,6 +37,12 @@ import {
   saveGameOverShareCard,
   shareGameOverLife,
 } from './game-over-share-card'
+import {
+  buildGameOverAchievements,
+  calculateGameOverScore,
+  getReincarnationStrengthTier,
+  selectFeaturedAchievement,
+} from './game-over-scoring'
 import { resetForNewLife } from '../../helpers/new-life-reset'
 
 // ============================================================
@@ -135,6 +143,7 @@ export default function GameOverPage() {
   const talentAptitude = useCharacterStore((s) => s.characterBase.current.talentAptitude)
   const charisma = useCharacterStore((s) => s.characterBase.current.charisma)
   const morality = useCharacterStore((s) => s.morality)
+  const lifespanBreakthroughs = useCharacterStore((s) => s.lifespan.breakthroughs)
   const regularPatterns = useCharacterStore((s) => s.destinyPatterns.patterns)
   const mythicCandidates = useCharacterStore((s) => s.mythicCandidates)
   const sealedMythicPatternId = useCharacterStore((s) => s.sealedMythicPatternId)
@@ -142,6 +151,7 @@ export default function GameOverPage() {
   const setSealedMythicPatternId = useCharacterStore((s) => s.setSealedMythicPatternId)
   const mythicLibrary = useMythicLibraryStore((s) => s.patterns)
   const addMythicPattern = useMythicLibraryStore((s) => s.addPattern)
+  const upsertLifeRecord = useLifeRecordStore((s) => s.upsertRecord)
   const worldConfig = useWorldStore((s) => s.worldConfig)
   const worldCode = useWorldStore((s) => s.worldCode)
   const worldviewId = useGlobalStore((s) => s.worldviewId)
@@ -206,9 +216,25 @@ export default function GameOverPage() {
     talentAptitude,
   ])
 
-  const overallScore = useMemo(
-    () => Math.round(dimensions.reduce((sum, dimension) => sum + dimension.value, 0) / dimensions.length),
-    [dimensions],
+  const achievements = useMemo(
+    () => buildGameOverAchievements(narrativeHistory, lifespanBreakthroughs),
+    [lifespanBreakthroughs, narrativeHistory],
+  )
+  const scoreResult = useMemo(() => calculateGameOverScore({
+    dimensionValues: dimensions.map((dimension) => dimension.value),
+    rounds: narrativeHistory.length,
+    resolvedChoiceCount: achievements.filter((item) => item.kind === 'choice').length,
+    breakthroughCount: lifespanBreakthroughs.length,
+    completed: canViewGameOver,
+  }), [achievements, canViewGameOver, dimensions, lifespanBreakthroughs.length, narrativeHistory.length])
+  const overallScore = scoreResult.score
+  const reincarnationStrength = useMemo(
+    () => getReincarnationStrengthTier(overallScore),
+    [overallScore],
+  )
+  const featuredAchievement = useMemo(
+    () => selectFeaturedAchievement(achievements),
+    [achievements],
   )
   const lifeSummary = useMemo(
     () => generateLifeSummary(
@@ -264,6 +290,10 @@ export default function GameOverPage() {
     rounds: allNarratives.length,
     moralityLabel,
     overallScore,
+    achievementCount: achievements.length,
+    featuredAchievement: featuredAchievement
+      ? { title: featuredAchievement.title, detail: featuredAchievement.detail }
+      : null,
     dimensions,
     mythic: activeMythicCandidate
       ? {
@@ -272,8 +302,34 @@ export default function GameOverPage() {
           effect: activeMythicCandidate.effect,
         }
       : null,
-  }), [activeMythicCandidate, ageLabel, allNarratives.length, characterName, dimensions, lifeRunId, moralityLabel, overallScore, worldName])
+  }), [achievements.length, activeMythicCandidate, ageLabel, allNarratives.length, characterName, dimensions, featuredAchievement, lifeRunId, moralityLabel, overallScore, worldName])
   const shareFacts = useMemo(() => buildGameOverShareFacts(shareCardData), [shareCardData])
+  const cloudLifeRecord = useMemo(() => ({
+    recordId: lifeRunId,
+    completedAt: narrativeHistory[narrativeHistory.length - 1]?.timestamp ?? 0,
+    characterName: characterName || '无名之辈',
+    worldName,
+    finalAge: characterAge,
+    rounds: narrativeHistory.length,
+    died: isDead,
+    moralityLabel,
+    overallScore,
+    achievements: achievements.map(({ id, kind, title, detail, timeLabel }) => ({
+      id,
+      kind,
+      title,
+      detail,
+      timeLabel,
+    })),
+    dimensions: dimensions.map((dimension) => ({
+      label: dimension.label,
+      value: dimension.value,
+      ...(dimension.comment ? { comment: dimension.comment } : {}),
+    })),
+    destinyNames: regularPatterns.map((pattern) => pattern.name),
+    ...(sealedMythicPattern ? { mythicName: sealedMythicPattern.name } : {}),
+    gameVersion: ENGINE_VERSION,
+  }), [achievements, characterAge, characterName, dimensions, isDead, lifeRunId, moralityLabel, narrativeHistory, overallScore, regularPatterns, sealedMythicPattern, worldName])
 
   const mythicLifeDigests = useMemo(() => (
     compressedSummaries.summaries
@@ -282,21 +338,9 @@ export default function GameOverPage() {
       .map((item) => ({ startRound: item.startRound, endRound: item.endRound, summary: item.content }))
   ), [compressedSummaries.summaries])
 
-  const mythicLifeRecords = useMemo(() => {
-    if (narrativeHistory.length <= 18) {
-      return narrativeHistory.map((entry, index) => (
-        `${entry.displayTimeLabel ?? `第${index + 1}轮`}：${entry.text}`
-      ))
-    }
-    const sampleIndexes = Array.from({ length: 12 }, (_, index) => (
-      Math.round(index * (narrativeHistory.length - 1) / 11)
-    ))
-    const sampled = Array.from(new Set(sampleIndexes)).map((index) => {
-      const entry = narrativeHistory[index]
-      return `${entry.displayTimeLabel ?? `第${index + 1}轮`}：${entry.text}`
-    })
-    return sampled
-  }, [narrativeHistory])
+  const mythicLifeRecords = useMemo(() => narrativeHistory.map((entry, index) => (
+    `${entry.displayTimeLabel ?? `第${index + 1}轮`}：${entry.text}`
+  )), [narrativeHistory])
 
   const mythicFinalState = useMemo(() => ({
     outcome: {
@@ -310,8 +354,10 @@ export default function GameOverPage() {
       level: morality.level,
       label: moralityLabel,
     },
+    endingScore: scoreResult,
+    achievements,
     regularPatterns: regularPatterns.map((pattern) => ({ name: pattern.name, effect: pattern.effect })),
-  }), [characterAge, charisma, isDead, mind, morality.level, morality.value, moralityLabel, narrativeHistory.length, physique, regularPatterns, talentAptitude])
+  }), [achievements, characterAge, charisma, isDead, mind, morality.level, morality.value, moralityLabel, narrativeHistory.length, physique, regularPatterns, scoreResult, talentAptitude])
 
   const handleGenerateMythics = useCallback(async () => {
     if (mythicCandidates.length === 3 || mythicAbortRef.current) return
@@ -333,6 +379,8 @@ export default function GameOverPage() {
         lifeDigests: mythicLifeDigests,
         lifeRecords: mythicLifeRecords,
         existingPatterns: mythicLibrary,
+        endingScore: overallScore,
+        strengthTier: reincarnationStrength,
       }, {
         signal: controller.signal,
         callAI: async (systemPrompt, userPrompt, rawOptions) => {
@@ -371,24 +419,28 @@ export default function GameOverPage() {
       setActiveMythicIndex(0)
     } catch (error) {
       if (!controller.signal.aborted) {
-        setMythicError(error instanceof Error ? error.message : '神话词条生成失败，请重试')
+        setMythicError(error instanceof Error ? error.message : '转世天赋生成失败，请重试')
       }
     } finally {
       if (mythicAbortRef.current === controller) mythicAbortRef.current = null
       if (!controller.signal.aborted) setMythicGenerating(false)
     }
-  }, [characterAge, characterName, lifeSummary, mythicCandidates.length, mythicFinalState, mythicLibrary, mythicLifeDigests, mythicLifeRecords, regularPatterns, setMythicCandidates, worldConfig, worldName])
+  }, [characterAge, characterName, lifeSummary, mythicCandidates.length, mythicFinalState, mythicLibrary, mythicLifeDigests, mythicLifeRecords, overallScore, reincarnationStrength, regularPatterns, setMythicCandidates, worldConfig, worldName])
 
   const handleSealMythic = useCallback(() => {
     if (!activeMythicCandidate || sealedMythicPatternId) return
-    const sealed = addMythicPattern(activeMythicCandidate, {
-      worldName,
-      characterName: characterName || '无名之辈',
-      finalAge: characterAge,
-      runId: lifeRunId,
-    })
-    setSealedMythicPatternId(sealed.id)
-    setMythicError('')
+    try {
+      const sealed = addMythicPattern(activeMythicCandidate, {
+        worldName,
+        characterName: characterName || '无名之辈',
+        finalAge: characterAge,
+        runId: lifeRunId,
+      })
+      setSealedMythicPatternId(sealed.id)
+      setMythicError('')
+    } catch (error) {
+      setMythicError(error instanceof Error ? error.message : '转世天赋封存失败')
+    }
   }, [activeMythicCandidate, addMythicPattern, characterAge, characterName, lifeRunId, sealedMythicPatternId, setSealedMythicPatternId, worldName])
 
   const handleShareLife = useCallback(async () => {
@@ -433,8 +485,8 @@ export default function GameOverPage() {
     if (preGenStatus.isActive || startingNewLifeRef.current) return
     if (!sealedMythicPatternId) {
       setMythicError(mythicCandidates.length === 3
-        ? '请先从三个神话词条中选择一项并封存。'
-        : '请先完成人生神话词条的生成与封存。')
+        ? '请先从三个转世天赋中选择一项并封存。'
+        : '请先完成转世天赋的生成与封存。')
       return
     }
     if (!confirmingNewLife) {
@@ -479,6 +531,22 @@ export default function GameOverPage() {
     }
   }, [canViewGameOver, handleGenerateMythics, mythicCandidates.length, sealedMythicPatternId])
 
+  useEffect(() => {
+    if (!canViewGameOver) return
+    let active = true
+    queueMicrotask(() => {
+      if (!active) return
+      try {
+        upsertLifeRecord(cloudLifeRecord)
+      } catch (error) {
+        if (active) setShareStatus(error instanceof Error ? error.message : '战绩保存失败')
+      }
+    })
+    return () => {
+      active = false
+    }
+  }, [canViewGameOver, cloudLifeRecord, upsertLifeRecord])
+
   if (!canViewGameOver) {
     return null
   }
@@ -512,7 +580,7 @@ export default function GameOverPage() {
             </div>
             <div className={styles.score}>
               <strong>{overallScore}</strong>
-              <span>四维均分</span>
+              <span>人生评分</span>
             </div>
           </section>
 
@@ -574,19 +642,46 @@ export default function GameOverPage() {
             </div>
           </section>
 
-          <section className={`${styles.section} ${styles.mythicSection}`} aria-labelledby="mythic-title">
+          <section className={styles.section} aria-labelledby="achievements-title">
             <div className={styles.sectionHeading}>
               <div>
                 <span className={styles.sectionIndex}>03</span>
-                <h2 id="mythic-title">命格余响</h2>
+                <h2 id="achievements-title">此生大事</h2>
               </div>
-              <span className={styles.mythicBadge}>三选一 · 此生唯一封印</span>
+              <p>{achievements.length} 项真实里程碑</p>
             </div>
-            <p className={styles.mythicIntro}>AI 从完整人生档案中凝结三项纯概念规则。选择一项封存到跨局总库，供后来的人生携带。</p>
+            {achievements.length > 0 ? (
+              <div className={styles.achievementList}>
+                {achievements.map((achievement) => (
+                  <article key={achievement.id} className={styles.achievement}>
+                    <span aria-hidden="true">{achievement.kind === 'breakthrough' ? '破' : '择'}</span>
+                    <div>
+                      <div className={styles.achievementMeta}>
+                        <small>{achievement.timeLabel}</small>
+                        <small>{achievement.kind === 'breakthrough' ? '生命突破' : '命运抉择'}</small>
+                      </div>
+                      <h3>{achievement.title}</h3>
+                      <p>{achievement.detail}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : <p className={styles.emptyState}>此生没有已确认的分支选择或生命突破记录。</p>}
+          </section>
+
+          <section className={`${styles.section} ${styles.mythicSection}`} aria-labelledby="mythic-title">
+            <div className={styles.sectionHeading}>
+              <div>
+                <span className={styles.sectionIndex}>04</span>
+                <h2 id="mythic-title">转世天赋</h2>
+              </div>
+              <span className={styles.mythicBadge}>{overallScore} 分 · {reincarnationStrength.label}</span>
+            </div>
+            <p className={styles.mythicIntro}>系统先按完整人生评分，再由 AI 凝结三项匹配强度的跨世界概念规则。选择一项封存，供后来的人生携带。</p>
 
             {mythicCandidates.length === 3 ? (
               <>
-                <div className={styles.mythicSelectors} role="list" aria-label="神话词条候选">
+                <div className={styles.mythicSelectors} role="list" aria-label="转世天赋候选">
                   {mythicCandidates.map((candidate, index) => (
                     <button
                       type="button"
@@ -623,15 +718,15 @@ export default function GameOverPage() {
                   onClick={handleSealMythic}
                   disabled={!activeMythicCandidate || Boolean(sealedMythicPatternId)}
                 >
-                  <span>{sealedMythicPattern ? '已封存至神话总库' : '封存至神话总库'}</span>
-                  <small>{sealedMythicPattern ? '下一局可在独立神话槽携带' : '封存后不可在本局改选'}</small>
+                  <span>{sealedMythicPattern ? '已封存至转世天赋库' : '封存至转世天赋库'}</span>
+                  <small>{sealedMythicPattern ? '下一局可在独立转世槽携带' : '封存后不可在本局改选'}</small>
                 </button>
               </>
             ) : (
               <div className={styles.mythicLoadingCard} aria-live="polite">
-                <span className={styles.mythicLoadingGlyph} aria-hidden="true">神</span>
+                <span className={styles.mythicLoadingGlyph} aria-hidden="true">转</span>
                 <div>
-                  <h3>{mythicGenerating ? '正在凝结此生神话' : '尚未生成神话词条'}</h3>
+                  <h3>{mythicGenerating ? '正在凝结转世天赋' : '尚未生成转世天赋'}</h3>
                   <p>{mythicGenerating ? '正在读取整局摘要与关键人生记录，请稍候。' : '生成失败时不会使用本地词条冒充 AI 结果。'}</p>
                 </div>
               </div>
@@ -640,7 +735,7 @@ export default function GameOverPage() {
             {mythicError ? <p className={styles.mythicError} role="alert">{mythicError}</p> : null}
             {mythicCandidates.length !== 3 && !mythicGenerating ? (
               <button type="button" className={styles.mythicRetry} onClick={() => void handleGenerateMythics()}>
-                重新生成三项神话词条
+                重新生成三项转世天赋
               </button>
             ) : null}
           </section>
@@ -648,12 +743,12 @@ export default function GameOverPage() {
           <section className={`${styles.section} ${styles.shareSection}`} aria-labelledby="share-title">
             <div className={styles.sectionHeading}>
               <div>
-                <span className={styles.sectionIndex}>04</span>
+                <span className={styles.sectionIndex}>05</span>
                 <h2 id="share-title">留下此生</h2>
               </div>
               <span className={styles.shareBadge}>仅使用真实结算事实</span>
             </div>
-            <p className={styles.shareIntro}>把这一生的年岁、轮数、四维与命格余响生成分享卡。图片只在当前设备绘制，不上传故事正文或模型配置。</p>
+            <p className={styles.shareIntro}>把这一生的年岁、轮数、大事、四维与转世天赋生成分享卡。图片只在当前设备绘制，不上传故事正文或模型配置。</p>
 
             <div className={styles.sharePreview} aria-label="人生分享卡预览">
               <div className={styles.sharePreviewMeta}>
@@ -668,7 +763,7 @@ export default function GameOverPage() {
                 </div>
                 <div className={styles.sharePreviewScore}>
                   <strong>{overallScore}</strong>
-                  <span>四维均分</span>
+                  <span>人生评分</span>
                 </div>
               </div>
 
@@ -682,9 +777,9 @@ export default function GameOverPage() {
               </div>
 
               <div className={styles.sharePreviewMythic}>
-                <span>{activeMythicCandidate ? `${activeMythicCandidate.concept} · 命格余响` : '人生回声'}</span>
+                <span>{activeMythicCandidate ? `${activeMythicCandidate.concept} · 转世天赋` : '人生回声'}</span>
                 <strong>{activeMythicCandidate?.name ?? '此生已经留下回声'}</strong>
-                <p>{activeMythicCandidate?.effect ?? '神话词条尚未凝结时，分享卡仍会忠实记录当前结算事实。'}</p>
+                <p>{activeMythicCandidate?.effect ?? '转世天赋尚未凝结时，分享卡仍会忠实记录当前结算事实。'}</p>
               </div>
             </div>
 
@@ -710,7 +805,7 @@ export default function GameOverPage() {
               </button>
             </div>
             <p className={styles.shareStatus} role="status" aria-live="polite">
-              {shareStatus || '分享卡内容会随当前神话词条选择即时更新。'}
+              {shareStatus || '分享卡内容会随当前转世天赋选择即时更新。'}
             </p>
           </section>
 
@@ -740,7 +835,7 @@ export default function GameOverPage() {
                     : startingNewLife
                     ? '正在清理当前人生并返回世界选择'
                     : !sealedMythicPatternId
-                    ? '先在命格余响中封存一项神话词条'
+                    ? '先封存一项转世天赋'
                     : confirmingNewLife
                     ? '将清理当前人生状态，此操作不可撤销'
                     : '清理当前人生状态 · 返回世界选择'}

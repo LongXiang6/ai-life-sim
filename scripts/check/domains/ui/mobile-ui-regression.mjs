@@ -327,7 +327,8 @@ assertOk(characterCreateCssSrc.includes('.backButton') && characterCreateCssSrc.
 assertOk(characterCreateCssSrc.includes('justify-content: space-between'), 'N2A bottom actions must align to opposite page edges')
 assertOk(!characterCreateCssSrc.includes('48px'), 'N2A mobile CSS must not reintroduce mechanical 48px controls')
 assertOk(
-  characterCreateLogicSrc.includes('storedAgeSetup && storedAgeSetup.startingAge > 0')
+  characterCreateLogicSrc.includes('const manualStartingAge = storedManualStartingAge')
+    && characterCreateLogicSrc.includes('const parsedStartingAge = manualStartingAge ? Number.parseInt(manualStartingAge, 10) : 0')
     && characterCreateLogicSrc.includes('previewStartingAge: ageSetupPreview.startingAge')
     && characterCreateLogicSrc.includes('起始年龄必须小于预期寿命')
     && characterLifespanSrc.includes('logic.previewStartingAge === 0 ? \'出生\'')

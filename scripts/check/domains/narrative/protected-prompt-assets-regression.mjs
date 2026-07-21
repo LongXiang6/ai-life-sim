@@ -21,6 +21,7 @@ const promptContract = read('src/mods/mod-engine/prompts/narrative-prompt.ts')
 const clientComponents = read('src/mods/mod-engine/prompts/narrative-prompt-components.ts')
 const clientProtocol = read('src/mods/mod-engine/helpers/narrative-ai-protocol.ts')
 const serverPrompt = read('src/mods/mod-engine/server/narrative-system-prompt.ts')
+const repairServerPrompt = read('src/mods/mod-engine/server/narrative-repair-system-prompt.ts')
 const serverEntry = read('src/mods/mod-engine/server-prompt-assets.ts')
 const manifest = read('src/mods/mod-engine/manifest.ts')
 const generatedSecondary = read('src/core/mod-loader/mod-secondary-api-importers.generated.ts')
@@ -31,18 +32,28 @@ const settingsModal = read('src/mods/mod-settings/components/SettingsModal.tsx')
 const settingsIndex = read('src/mods/mod-settings/index.ts')
 
 assertOk(
-  promptContract.includes("version: '4.5.0'")
+  promptContract.includes("version: '4.5.2'")
     && promptContract.includes("systemPrompt: ''")
     && promptContract.includes('serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID'),
   'browser PromptTemplate must carry only the server asset ID',
 )
 assertOk(
+  repairServerPrompt.includes('COMPILED_NARRATIVE_REPAIR_SYSTEM_PROMPT')
+    && repairServerPrompt.includes('buildNarrativeAIProtocolStandardExample')
+    && serverEntry.includes('NARRATIVE_REPAIR_SERVER_PROMPT_ASSET_ID'),
+  'the compact repair asset must remain server-owned and reuse the single protocol source',
+)
+assertOk(
   serverPrompt.includes('你是人生模拟器的主叙事引擎')
     && serverPrompt.includes('buildNarrativeAIProtocolStandardExample')
     && serverPrompt.includes('player-setting-ownership')
-    && serverPrompt.includes('first-round-origin')
     && serverPrompt.includes('COMPILED_NARRATIVE_SYSTEM_PROMPT'),
   'server Prompt owner must retain the fixed narrative asset and standard example',
+)
+assertOk(
+  !serverPrompt.includes("id: 'first-round-origin'")
+    && !serverPrompt.includes("id: 'time-serves-story'"),
+  'opening-origin and time-scale rules must be dynamically loaded instead of remaining in every fixed request',
 )
 for (const secretMarker of [
   '你是人生模拟器的主叙事引擎',

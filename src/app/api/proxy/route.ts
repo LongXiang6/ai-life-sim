@@ -614,9 +614,14 @@ export async function POST(request: Request): Promise<Response> {
     if (body.top_p !== undefined) forwardBody.top_p = body.top_p
     if (body.seed !== undefined) forwardBody.seed = body.seed
 
-    // thinking 参数透传
+    // thinking 参数透传；自定义 DeepSeek 模型需要确保 thinking 格式正确。
     if (body.thinking !== undefined) {
-      forwardBody.thinking = body.thinking
+      const normalizedModel = body.model.toLowerCase()
+      if (providerId === 'custom' && normalizedModel.includes('deepseek') && body.thinking && 'budget_tokens' in body.thinking && !('type' in body.thinking)) {
+        forwardBody.thinking = { type: 'enabled', budget_tokens: (body.thinking as { budget_tokens: number }).budget_tokens }
+      } else {
+        forwardBody.thinking = body.thinking
+      }
     }
 
     // 5. 转发请求（带超时 + 客户端取消接线）

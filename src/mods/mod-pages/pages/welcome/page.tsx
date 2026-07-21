@@ -114,6 +114,7 @@ export default function WelcomePage() {
         onContinueSave={handleContinue}
         onDeleteSave={handleDeleteSave}
         onOpenSettings={() => { setSettingsTab('appearance'); setShowSettings(true) }}
+        onOpenAccount={() => router.push('/account')}
         onOpenHelp={() => setShowHelp(true)}
         onOpenFeedback={() => router.push('/feedback')}
       />

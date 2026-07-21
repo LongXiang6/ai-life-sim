@@ -2,12 +2,14 @@
 
 /**
  * @module mythic-library-store
- * @description 跨世界、跨局共享的神话词条总库
+ * @description 跨世界、跨局共享的转世天赋总库
  * @mod mod-character
  */
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+
+import { ACCOUNT_MAX_SLOTS } from '@/core/account/account-contract'
 
 import type { MythicPattern, MythicPatternCandidate, MythicPatternSource } from './types'
 import { sanitizeMythicPattern, sanitizeMythicPatternCandidate } from './utils/character-state-migration'
@@ -36,7 +38,7 @@ export function sealMythicPatternCandidate(
   acquiredAt = Date.now(),
 ): MythicPattern {
   const candidate = sanitizeMythicPatternCandidate(candidateInput)
-  if (!candidate) throw new Error('神话词条候选结构无效')
+  if (!candidate) throw new Error('转世天赋候选结构无效')
   return {
     ...candidate,
     id: `mythic-${hashIdentity(mythicIdentity(candidate))}`,
@@ -61,6 +63,7 @@ interface MythicLibraryStore {
     source?: MythicPatternSource,
   ) => MythicPattern
   removePattern: (id: string) => void
+  replacePatterns: (patterns: MythicPattern[]) => void
 }
 
 export const useMythicLibraryStore = create<MythicLibraryStore>()(
@@ -80,17 +83,29 @@ export const useMythicLibraryStore = create<MythicLibraryStore>()(
           || (pattern.source.runId && item.source.runId === pattern.source.runId)
         ))
         if (existing) return existing
+        if (get().patterns.length >= ACCOUNT_MAX_SLOTS) {
+          throw new Error('转世天赋栏位已满，请先删除一项旧天赋')
+        }
         set((state) => ({ patterns: [...state.patterns, pattern] }))
         return pattern
       },
       removePattern: (id) => set((state) => ({
         patterns: state.patterns.filter((pattern) => pattern.id !== id),
       })),
+      replacePatterns: (patterns) => {
+        if (patterns.length > ACCOUNT_MAX_SLOTS) throw new Error('转世天赋不能超过 10 项')
+        const sanitized = patterns
+          .map(sanitizeMythicPattern)
+          .filter((item): item is MythicPattern => item !== null)
+        if (sanitized.length !== patterns.length) throw new Error('转世天赋数据无效')
+        set({ patterns: sanitized })
+      },
     }),
     {
       name: 'mod-character:persist:mythic-library',
-      version: 1,
-      migrate: (persistedState: unknown) => {
+      version: 2,
+      migrate: (persistedState: unknown, version: number) => {
+        if (version < 2) return { patterns: [] }
         const raw = persistedState && typeof persistedState === 'object' && !Array.isArray(persistedState)
           ? persistedState as { patterns?: unknown }
           : {}

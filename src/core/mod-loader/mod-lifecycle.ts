@@ -53,12 +53,32 @@ export function getModImporter(name: string): () => Promise<Record<string, unkno
   return getModControlImporter(name)
 }
 
+/** 根据 manifest.remoteApi 显式 allowlist 过滤可注册导出；未声明时保留自动推导。 */
+export function selectRemoteApiExports(
+  api: Record<string, unknown>,
+  declaredRemoteApi: readonly string[] | undefined,
+): Record<string, unknown> {
+  if (declaredRemoteApi === undefined) return api
+
+  return Object.fromEntries(
+    declaredRemoteApi
+      .filter((name) => typeof api[name] === 'function')
+      .map((name) => [name, api[name]]),
+  )
+}
+
 /**
- * 批量注册 Remote API（index.ts + secondaryPublicEntries，与 lifecycle 加载分离）
+ * 批量注册 Remote API（index.ts + 启用的 secondaryPublicEntries，与 lifecycle 加载分离）
  */
 async function registerModRemoteApis(order: string[]): Promise<void> {
   for (const name of order) {
     try {
+      const declaredRemoteApi = modRegistry.get(name)?.manifest.remoteApi
+      if (declaredRemoteApi?.length === 0) {
+        remote.autoRegister(name, {})
+        continue
+      }
+
       const merged: Record<string, unknown> = { ...(await getModApiImporter(name)()) }
 
       const secondaryImporters = MOD_SECONDARY_API_IMPORTERS[name]
@@ -68,7 +88,7 @@ async function registerModRemoteApis(order: string[]): Promise<void> {
         }
       }
 
-      remote.autoRegister(name, merged)
+      remote.autoRegister(name, selectRemoteApiExports(merged, declaredRemoteApi))
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e)
       console.warn(`[mod-lifecycle] ${name} Remote 注册跳过: ${msg}`)

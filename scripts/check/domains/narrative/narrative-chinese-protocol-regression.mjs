@@ -25,6 +25,7 @@ import {
 import { buildNarrativeHints } from '../../../../src/mods/mod-engine/helpers/narrative-hints.ts'
 import {
   buildNarrativeRepairInstruction,
+  buildNarrativeRoundOutputContract,
   inspectNarrativeResponseQuality,
 } from '../../../../src/mods/mod-engine/helpers/narrative-response-quality.ts'
 import { buildTimeScaleNarrativeHint } from '../../../../src/mods/mod-engine/helpers/time-scale-narrative.ts'
@@ -35,9 +36,11 @@ import {
 } from '../../../../src/mods/mod-engine/server/narrative-system-prompt.ts'
 import {
   FALLBACK_NARRATIVE_PROMPT,
+  NARRATIVE_REPAIR_SERVER_PROMPT_ASSET_ID,
   NARRATIVE_SERVER_PROMPT_ASSET_ID,
   narrativePrompt,
 } from '../../../../src/mods/mod-engine/prompts/narrative-prompt.ts'
+import { COMPILED_NARRATIVE_REPAIR_SYSTEM_PROMPT } from '../../../../src/mods/mod-engine/server/narrative-repair-system-prompt.ts'
 
 let failed = 0
 const root = getProjectRoot(import.meta.url)
@@ -363,10 +366,16 @@ assertOk(
   ).valid,
   'optional near-synonym enums must not turn an otherwise valid conditional narrative into a hard reasoning error',
 )
-const minimumEnvelope = `⟦正文⟧\n第一段。\n\n第二段。\n\n第三段。\n⟦摘要⟧\n本轮发生了一个完整的小事件。\n⟦结束⟧`
+const minimumEnvelope = `⟦正文⟧\n一个自然段也能完整讲清本轮事件。\n⟦摘要⟧\n本轮发生了一个完整的小事件。\n⟦结束⟧`
 assertOk(
   inspectNarrativeResponseQuality(minimumEnvelope, 200, null).valid,
   'ordinary rounds must accept the minimum body-summary protocol without structured data',
+)
+const fiveParagraphEnvelope = `⟦正文⟧\n第一段。\n\n第二段。\n\n第三段。\n\n第四段。\n\n第五段。\n⟦摘要⟧\n本轮事件按自然节奏写成五段。\n⟦结束⟧`
+const fiveParagraphQuality = inspectNarrativeResponseQuality(fiveParagraphEnvelope, 200, null)
+assertOk(
+  fiveParagraphQuality.valid && fiveParagraphQuality.paragraphCount === 5,
+  'five coherent paragraphs must be accepted without a format-repair request',
 )
 assertOk(
   !inspectNarrativeResponseQuality(minimumEnvelope, 200, 'branch:夺回家园').valid,
@@ -396,10 +405,23 @@ assertOk(
   'the old tagged envelope must not enter the successful protocol path',
 )
 
-assertOk(narrativePrompt.version === '4.5.0', 'ownership and origin narrative behavior must use Prompt 4.5.0')
+const finalRoundContract = buildNarrativeRoundOutputContract('branch:夺回家园', true, true)
+assertOk(
+  finalRoundContract.includes('本轮输出契约')
+    && finalRoundContract.includes('安心发育')
+    && finalRoundContract.includes('不得无因果直接跳过数周或数月')
+    && finalRoundContract.includes('命运分支:夺回家园'),
+  'the nearest dynamic contract must retain protocol, calm progression, opening origin and focused intent checks',
+)
+assertOk(
+  COMPILED_NARRATIVE_REPAIR_SYSTEM_PROMPT.length < 5_000,
+  'the dedicated repair system asset must remain compact',
+)
+assertOk(narrativePrompt.version === '4.5.2', 'latest narrative attention and repair behavior must use Prompt 4.5.2')
 assertOk(
   narrativePrompt.systemPrompt === ''
-    && narrativePrompt.serverPromptAssetId === NARRATIVE_SERVER_PROMPT_ASSET_ID,
+    && narrativePrompt.serverPromptAssetId === NARRATIVE_SERVER_PROMPT_ASSET_ID
+    && NARRATIVE_REPAIR_SERVER_PROMPT_ASSET_ID === 'mod-engine:narrative-repair:1.0.0',
   'browser narrative contract must reference the server asset without carrying fixed Prompt text',
 )
 for (const forbiddenProtocolToken of [
@@ -465,11 +487,11 @@ assertOk(
   'fixed Prompt must preserve the ownership and origin of player-exclusive settings',
 )
 assertOk(
-  firstRoundOriginComponent?.authority === '剧情引导'
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('穿越、召唤、转生、觉醒、坠入异地或初到另一世界、星球、地区')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得无依据直接跳到已经训练、工作、加入组织或熟悉当地数周数月')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('只有玩家明确要求从中途、若干月后或既定关系开始时才可跳时'),
-  'fixed Prompt must establish first-round arrival while preserving explicit mid-story openings',
+  firstRoundOriginComponent === undefined
+    && finalRoundContract.includes('不得无因果直接跳过数周或数月')
+    && finalRoundContract.includes('原生本地角色则用现场、家庭、职责或关键关系建立起点')
+    && finalRoundContract.includes('只有玩家明确要求从中途或既定关系开始时才可跳时'),
+  'first-round origin must load only in the final dynamic contract and preserve explicit mid-story openings',
 )
 assertOk(
   drivingForceComponent?.lifecycle === '全局常驻'

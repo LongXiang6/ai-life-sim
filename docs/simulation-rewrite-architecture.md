@@ -113,7 +113,7 @@ P1 的运行组成固定为：
 
 `useHistoryDynamicsStore` 的 `schemaVersion: 2` 保存 `events`、`transitions`、`evidence`、`causalEdges`、`candidateAudits` 和 `migrationMetadata` 六类追加式状态。`collectState()` 通过零完整克隆的只读 Store 选择器和缓存索引，只投影全局或显式包含当前上下文的 `scheduled/active` 事件、相关因果边与统计；完整 Store 仅通过 `capturePersistenceState()`、`restorePersistenceState()` 和编排器持久化快照保存。公开查询默认 100、最大 500 条并支持 offset；事件详情分别分页返回迁移、证据和因果关系总数。显式读档和浏览器/Zustand v2 水合在替换或使用 Store 前共用严格校验，覆盖重复 ID、状态/候选链、证据引用数组、端点和世界引用；损坏当前 Store 被隔离而不静默清空，未知未来版本拒绝。v1 事件池和因果队列迁移保留旧 payload，并在 world Store 水合后绑定该存档原当前上下文。
 
-主叙事 Prompt `4.5.0` 不读取可被适配器改写的账本 summary，而由 `historical-event-prompt-projection.ts` 从上述公开投影确定性格式化事实 ID、状态、scope、调度和因果边；后台世界观适配器必须显式绕过该投影。浏览器负责动态投影、三层消息、缓存、解析、校验与提交，固定身份、长期写作规则和完整协议示例通过稳定资产编号由服务端白名单组装；服务端不得重复模拟计算，也不得向任意自定义 URL 下发受保护资产。当前纪年、月份和季节只在本轮层发送，原创保护位于记忆层前缀；变化驱动力可由机会、掌握、认可、休整、成功或合理冲突承担，机构介入必须来自世界规则或已建立因果。玩家专属设定保持角色归属，第一轮建立跨世界抵达或原生社会落点，不得无依据跳过数周数月。`causal-delay` 快照使用 `schemaVersion: 1`，带版本重复 ID 整包拒绝，无版本旧重复 ID 确定性重编号并保留 `legacyId`。
+主叙事 Prompt `4.5.2` 不读取可被适配器改写的账本 summary，而由 `historical-event-prompt-projection.ts` 从上述公开投影确定性格式化事实 ID、状态、scope、调度和因果边；后台世界观适配器必须显式绕过该投影。浏览器负责动态投影、三层消息、缓存、解析、校验与提交，固定身份、长期写作规则和完整协议示例通过稳定资产编号由服务端白名单组装；服务端不得重复模拟计算，也不得向任意自定义 URL 下发受保护资产。主生成使用完整固定资产，格式与条件修复使用独立精简资产，只发送失败原因、必要条件和上一版完整输出；每轮末尾动态契约重申当轮分区、意图、分支、平稳推进和首轮来历约束。当前纪年、月份和季节只在本轮层发送，原创保护位于记忆层前缀；变化驱动力可由机会、掌握、认可、安心发育、休整、成功或合理冲突承担，机构介入必须来自世界规则或已建立因果。玩家专属设定保持角色归属，第一轮建立跨世界抵达或原生社会落点，不得无依据跳过数周数月；正文段落数量自由且不触发修复。玩家与 AI 可见的跨局概念规则统一称为“转世天赋”。`causal-delay` 快照使用 `schemaVersion: 1`，带版本重复 ID 整包拒绝，无版本旧重复 ID 确定性重编号并保留 `legacyId`。
 
 跨域消费者只保存账本事件 ID：记忆与核心记忆使用 `historicalEventIds`，伏笔使用 `plantedFromEventIds/resolvedByEventIds`，剧情结构使用 `lastHistoricalEventIds`，延期因果使用 `originEventId/resolutionEventId`。这些引用随 owning system 快照持久化；消费者不得复制事件正文成为第二份历史真源。
 

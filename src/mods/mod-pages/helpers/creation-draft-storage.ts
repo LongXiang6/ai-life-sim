@@ -1,22 +1,9 @@
 import { configStore } from '@/core/storage'
 
-const CHARACTER_CREATE_DRAFT_PREFIX = 'character-create-form:'
 const PER_LIFE_DRAFT_PREFIXES = ['talent-draw:', 'fate-preview:'] as const
-const LEGACY_PER_LIFE_DRAFT_PREFIXES = ['attribute-alloc:'] as const
+const LEGACY_PER_LIFE_DRAFT_PREFIXES = ['attribute-alloc:', 'character-create-form:'] as const
 
 export const WORLD_CUSTOMIZE_DRAFT_KEY = 'mod-pages:world-customize-fields'
-
-export function getCharacterCreateDraftKey(worldCode: number): string {
-  return `${CHARACTER_CREATE_DRAFT_PREFIX}${worldCode || 0}`
-}
-
-export function clearCharacterCreateDrafts(): void {
-  for (const key of configStore.keys('mod-pages')) {
-    if (key.startsWith(CHARACTER_CREATE_DRAFT_PREFIX)) {
-      configStore.remove('mod-pages', key)
-    }
-  }
-}
 
 export function clearWorldCustomizeDraft(): void {
   try {
@@ -26,9 +13,8 @@ export function clearWorldCustomizeDraft(): void {
   }
 }
 
-/** 清理只属于当前人生的创建流程草稿，不触碰设置或跨局神话库。 */
+/** 清理只属于当前人生的草稿，不触碰长期角色设定、设置或跨局神话库。 */
 export function clearNewLifeCreationDrafts(): void {
-  clearCharacterCreateDrafts()
   clearWorldCustomizeDraft()
   for (const key of configStore.keys('mod-pages')) {
     if (

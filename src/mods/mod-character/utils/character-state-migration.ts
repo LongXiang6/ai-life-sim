@@ -131,7 +131,20 @@ export function sanitizeMythicPatternCandidate(value: unknown): MythicPatternCan
   const concept = value.concept.trim()
   const effect = value.effect.trim()
   if (!name || !concept || !effect) return null
-  return { name, concept, effect }
+  const strengthTier = typeof value.strengthTier === 'string'
+    && ['echo', 'deep', 'legacy', 'immortal'].includes(value.strengthTier)
+    ? value.strengthTier as MythicPatternCandidate['strengthTier']
+    : undefined
+  const sourceScore = typeof value.sourceScore === 'number' && Number.isFinite(value.sourceScore)
+    ? Math.max(0, Math.min(100, Math.round(value.sourceScore)))
+    : undefined
+  return {
+    name,
+    concept,
+    effect,
+    ...(strengthTier ? { strengthTier } : {}),
+    ...(sourceScore === undefined ? {} : { sourceScore }),
+  }
 }
 
 export function sanitizeMythicPattern(value: unknown): MythicPattern | null {

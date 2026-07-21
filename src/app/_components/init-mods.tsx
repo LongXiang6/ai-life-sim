@@ -14,6 +14,7 @@ import {
   reportDiagnosticSessionEnvironment,
 } from '@/core/logger/client-logger'
 import { ensureDiagnosticPlayerCode } from '@/core/logger/diagnostic-player-code-client'
+import { initializeAccountCloudSync } from '@/mods/mod-pages/account-cloud-api'
 
 /**
  * InitMods —— 挂载后异步加载 init-mods-bootstrap，避免 18 MOD 进入根布局首屏编译图
@@ -27,6 +28,8 @@ export function InitMods({ children }: { children: React.ReactNode }) {
     let cancelled = false
 
     void (async () => {
+      await initializeAccountCloudSync()
+      if (cancelled) return
       await ensureDiagnosticPlayerCode()
       if (cancelled) return
       void reportDiagnosticSessionEnvironment()

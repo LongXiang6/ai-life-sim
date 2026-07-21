@@ -2,16 +2,13 @@
 
 /**
  * @file useCharacterCreateForm.ts
- * @description 角色创建表单共享状态逻辑（含 localStorage 持久化，按世界编码隔离）
+ * @description 角色创建表单共享状态逻辑（跨世界、跨新人生持久化）
  * @mod mod-pages
  */
 
 import { useState, useMemo, useCallback } from 'react'
 
-import { configStore } from '@/core'
-import { useWorldStore } from '@/mods/mod-world'
-
-import { getCharacterCreateDraftKey } from '../../helpers/creation-draft-storage'
+import { useCharacterCreationDraftStore } from '../../helpers/character-creation-draft-store'
 
 const MAX_ATTRIBUTE_POINTS = 30
 const ATTR_MIN = 0
@@ -30,21 +27,17 @@ export const ATTRIBUTES: AttrDef[] = [
   { key: 'charisma', label: '魅力', desc: '影响社交关系、人际品质' },
 ]
 
-/** 表单持久化数据结构 */
-interface SavedFormState {
-  name: string
-  gender: string
-  race: string
-  background: string
-  attributes: Record<string, number>
-}
-
 export interface CharacterFormData {
   name: string
   gender: 'male' | 'female'
   race: string
   background: string
   attributes: Record<string, number>
+  customGenders: string[]
+  customRaces: string[]
+  backgroundPresets: Record<string, string>
+  manualLifespan: string
+  manualStartingAge: string
 }
 
 export interface UseCharacterCreateFormReturn {
@@ -54,6 +47,11 @@ export interface UseCharacterCreateFormReturn {
   race: string
   background: string
   attributes: Record<string, number>
+  customGenders: string[]
+  customRaces: string[]
+  backgroundPresets: Record<string, string>
+  manualLifespan: string
+  manualStartingAge: string
   usedPoints: number
   remainingPoints: number
   setName: (v: string) => void
@@ -61,57 +59,33 @@ export interface UseCharacterCreateFormReturn {
   setGender: (v: 'male' | 'female') => void
   setRace: (v: string) => void
   setBackground: (v: string) => void
+  setCustomGenders: (v: string[]) => void
+  setCustomRaces: (v: string[]) => void
+  setBackgroundPresets: (v: Record<string, string>) => void
+  setManualLifespan: (v: string) => void
+  setManualStartingAge: (v: string) => void
   handleAttrChange: (key: string, value: number) => void
   maxPoints: number
   attrMin: number
   attrMax: number
 }
 
-/** 获取按世界编码隔离的存储键 */
-function getStorageKey(): string {
-  const worldCode = useWorldStore.getState().worldCode
-  return getCharacterCreateDraftKey(worldCode)
-}
-
-/** 从 localStorage 加载已保存的表单状态 */
-function loadSavedState(): SavedFormState | null {
-  return configStore.get<SavedFormState>('mod-pages', getStorageKey())
-}
-
-/** 持久化表单状态到 localStorage */
-function persistState(state: SavedFormState): void {
-  configStore.set('mod-pages', getStorageKey(), state)
-}
-
-const DEFAULT_ATTRIBUTES: Record<string, number> = {
-  physique: 0,
-  mind: 0,
-  talentAptitude: 0,
-  charisma: 0,
-}
-
-function sanitizeAttributes(input: Record<string, number> | undefined): Record<string, number> {
-  return Object.fromEntries(ATTRIBUTES.map(({ key }) => {
-    const value = input?.[key]
-    return [key, typeof value === 'number' && Number.isFinite(value) ? value : 0]
-  }))
-}
-
 export function useCharacterCreateForm(): UseCharacterCreateFormReturn {
-  const saved = loadSavedState()
-
-  const [name, _setName] = useState(saved?.name ?? '')
+  const draft = useCharacterCreationDraftStore((state) => state.draft)
+  const updateDraft = useCharacterCreationDraftStore((state) => state.updateDraft)
   const [nameError, setNameError] = useState('')
-  const [gender, _setGender] = useState<'male' | 'female'>(
-    (saved?.gender === 'male' || saved?.gender === 'female') ? saved.gender : 'male',
-  )
-  const [race, _setRace] = useState(saved?.race ?? 'human')
-  const [background, _setBackground] = useState(saved?.background ?? '')
-  const [attributes, setAttributes] = useState<Record<string, number>>(
-    saved?.attributes && Object.keys(saved.attributes).length > 0
-      ? sanitizeAttributes(saved.attributes)
-      : { ...DEFAULT_ATTRIBUTES },
-  )
+  const {
+    name,
+    gender,
+    race,
+    background,
+    attributes,
+    customGenders,
+    customRaces,
+    backgroundPresets,
+    manualLifespan,
+    manualStartingAge,
+  } = draft
 
   const usedPoints = useMemo(() => {
     return Object.values(attributes).reduce((sum, v) => sum + v, 0)
@@ -119,54 +93,35 @@ export function useCharacterCreateForm(): UseCharacterCreateFormReturn {
 
   const remainingPoints = MAX_ATTRIBUTE_POINTS - usedPoints
 
-  /** 构建当前快照 */
-  const buildSnapshot = useCallback((): SavedFormState => ({
-    name,
-    gender,
-    race,
-    background,
-    attributes,
-  }), [name, gender, race, background, attributes])
-
-  const setName = useCallback((v: string) => {
-    _setName(v)
-    configStore.set('mod-pages', getStorageKey(), { name: v, gender, race, background, attributes })
-  }, [_setName, gender, race, background, attributes])
-
-  const setGender = useCallback((v: 'male' | 'female') => {
-    _setGender(v)
-    persistState({ name, gender: v, race, background, attributes })
-  }, [_setGender, name, race, background, attributes])
-
-  const setRace = useCallback((v: string) => {
-    _setRace(v)
-    persistState({ name, gender, race: v, background, attributes })
-  }, [_setRace, name, gender, background, attributes])
-
-  const setBackground = useCallback((v: string) => {
-    _setBackground(v)
-    persistState({ name, gender, race, background: v, attributes })
-  }, [_setBackground, name, gender, race, attributes])
+  const setName = useCallback((v: string) => updateDraft({ name: v }), [updateDraft])
+  const setGender = useCallback((v: 'male' | 'female') => updateDraft({ gender: v }), [updateDraft])
+  const setRace = useCallback((v: string) => updateDraft({ race: v }), [updateDraft])
+  const setBackground = useCallback((v: string) => updateDraft({ background: v }), [updateDraft])
+  const setCustomGenders = useCallback((v: string[]) => updateDraft({ customGenders: v }), [updateDraft])
+  const setCustomRaces = useCallback((v: string[]) => updateDraft({ customRaces: v }), [updateDraft])
+  const setBackgroundPresets = useCallback((v: Record<string, string>) => {
+    updateDraft({ backgroundPresets: v })
+  }, [updateDraft])
+  const setManualLifespan = useCallback((v: string) => updateDraft({ manualLifespan: v }), [updateDraft])
+  const setManualStartingAge = useCallback((v: string) => {
+    updateDraft({ manualStartingAge: v })
+  }, [updateDraft])
 
   const handleAttrChange = useCallback((key: string, value: number) => {
-    const current = attributes[key]
+    const current = attributes[key as keyof typeof attributes]
     const delta = value - current
     if (usedPoints + delta > MAX_ATTRIBUTE_POINTS && delta > 0) return
     if (value < ATTR_MIN || value > ATTR_MAX) return
-    setAttributes((prev) => {
-      const next = { ...prev, [key]: value }
-      persistState({ name, gender, race, background, attributes: next })
-      return next
-    })
-  }, [attributes, usedPoints, name, gender, race, background])
-
-  // 标记 buildSnapshot 为已使用（导出供外部读取当前快照）
-  void buildSnapshot
+    updateDraft({ attributes: { ...attributes, [key]: value } })
+  }, [attributes, usedPoints, updateDraft])
 
   return {
-    name, nameError, gender, race, background, attributes,
+    name, nameError, gender: gender as 'male' | 'female', race, background, attributes,
+    customGenders, customRaces, backgroundPresets, manualLifespan, manualStartingAge,
     usedPoints, remainingPoints,
     setName, setNameError, setGender, setRace, setBackground,
+    setCustomGenders, setCustomRaces, setBackgroundPresets,
+    setManualLifespan, setManualStartingAge,
     handleAttrChange,
     maxPoints: MAX_ATTRIBUTE_POINTS,
     attrMin: ATTR_MIN,

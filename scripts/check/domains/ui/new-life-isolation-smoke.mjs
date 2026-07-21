@@ -22,6 +22,7 @@ Object.defineProperty(globalThis, 'navigator', { value: {}, configurable: true }
 
 const [
   { configStore },
+  { useCharacterCreationDraftStore },
   { useGlobalStore },
   { useEngineStore },
   { orchestrator },
@@ -30,6 +31,7 @@ const [
   { prepareNewLifeWorldCommit },
 ] = await Promise.all([
   import('../../../../src/core/storage/local-storage.ts'),
+  import('../../../../src/mods/mod-pages/helpers/character-creation-draft-store.ts'),
   import('../../../../src/core/global-store/global-store.ts'),
   import('../../../../src/mods/mod-engine/store.ts'),
   import('../../../../src/mods/mod-engine/subsystems/orchestrator-system.ts'),
@@ -83,6 +85,18 @@ configStore.set('mod-pages', 'fate-preview:101', { storySeed: '123' })
 configStore.set('mod-pages', 'character-create-form:101', { name: '旧角色' })
 configStore.set('mod-pages', 'mod-pages:world-customize-fields', { worldCode: 101 })
 configStore.set('mod-settings', 'theme', 'dark')
+useCharacterCreationDraftStore.getState().updateDraft({
+  name: '长期角色',
+  gender: '无性别',
+  race: '自定义种族',
+  background: '这段玩家设定必须跨新人生完整保留。',
+  manualLifespan: '360',
+  manualStartingAge: '18',
+  customGenders: ['无性别'],
+  customRaces: ['自定义种族'],
+  backgroundPresets: { 常用设定: '这段玩家设定必须跨新人生完整保留。' },
+})
+const durableCharacterDraft = structuredClone(useCharacterCreationDraftStore.getState().draft)
 
 const directEntryResult = await prepareNewLifeWorldCommit(202)
 assertOk(directEntryResult === 'reset', 'direct world-selection entry with old narrative progress must force a reset')
@@ -100,6 +114,10 @@ assertOk(
   'new-life reset must remove every per-life creation draft',
 )
 assertOk(configStore.get('mod-settings', 'theme') === 'dark', 'new-life reset must preserve player settings')
+assertOk(
+  JSON.stringify(useCharacterCreationDraftStore.getState().draft) === JSON.stringify(durableCharacterDraft),
+  'new-life reset must preserve the complete long-lived character creation draft',
+)
 assertOk(useGlobalStore.getState().gamePhase === 'world_build', 'new-life reset must enter the world-build phase')
 assertOk(
   useGlobalStore.getState().worldviewId === null

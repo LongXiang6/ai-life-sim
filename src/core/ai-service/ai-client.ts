@@ -498,7 +498,7 @@ function buildRequestBody(
 }
 
 /** 构建代理请求体（含 Provider 路由信息） */
-function buildProxyBody(
+export function buildProxyBody(
   config: AIModelConfig,
   messages: Array<{ role: string; content: string }>,
   stream: boolean,
@@ -535,8 +535,12 @@ function buildProxyBody(
   }
 
   // DeepSeek V4 的 thinking 对象必须显式携带 type；启用时同时保留用户选择的预算。
+  // 自定义 Provider 使用 DeepSeek 模型时也需要正确的 thinking 格式。
   const reasoningEffort = options?.reasoningEffort ?? config.reasoningEffort ?? 'disabled'
-  if (providerId === 'deepseek') {
+  const modelForThinking = (options?.customModel?.trim() || config.model).toLowerCase()
+  const isDeepSeekModel = modelForThinking.includes('deepseek')
+
+  if (providerId === 'deepseek' || (providerId === 'custom' && isDeepSeekModel)) {
     if (reasoningEffort === 'disabled') {
       proxyBody.thinking = { type: 'disabled' }
     } else {
@@ -552,6 +556,9 @@ function buildProxyBody(
       : { type: 'enabled' }
   } else if (isServerManagedProvider(providerId)) {
     // 原托管通道未声明 thinking 契约，不能转发 DeepSeek 风格预算字段。
+    delete proxyBody.thinking
+  } else if (providerId === 'custom') {
+    // 未声明能力的自定义模型不能继承项目内部 DeepSeek 预算格式。
     delete proxyBody.thinking
   }
 

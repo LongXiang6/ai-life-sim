@@ -46,7 +46,7 @@ export function GameOverRadar({
   const axisPoints = dimensions.map((_, index) => pointAt(index, axisCount, 100))
   const dataPoints = dimensions.map((dimension, index) => pointAt(index, axisCount, dimension.value))
   const dataPolygon = dataPoints.map((point) => `${point.x},${point.y}`).join(' ')
-  const chartLabel = `真实四维：${dimensions.map((dimension) => `${dimension.label}${dimension.value}`).join('、')}，四维均分${overallScore}`
+  const chartLabel = `真实四维：${dimensions.map((dimension) => `${dimension.label}${dimension.value}`).join('、')}，人生评分${overallScore}`
 
   return (
     <div className={styles.radarGraph}>
@@ -94,7 +94,7 @@ export function GameOverRadar({
           {overallScore}
         </text>
         <text className={styles.radarScoreLabel} x={CENTER_X} y={CENTER_Y + 9}>
-          四维均分
+          人生评分
         </text>
       </svg>
 

@@ -81,26 +81,32 @@ export interface DestinyPatternInput {
   systemModifiers?: Partial<Record<string, number>>,
 }
 
-/** 一生结算时由 AI 生成的神话词条候选。纯概念规则，不携带属性或模拟系数。 */
+export type ReincarnationTalentStrengthTier = 'echo' | 'deep' | 'legacy' | 'immortal'
+
+/** 一生结算时由 AI 生成的转世天赋候选。纯概念规则，不携带属性或模拟系数。 */
 export interface MythicPatternCandidate {
-  /** 神话词条名称，如“未熄之诺” */
+  /** 转世天赋名称，如“未熄之诺” */
   name: string
   /** 概念标签，如“承诺” */
   concept: string
   /** 下一局叙事持续遵守的非数值概念规则 */
   effect: string
+  /** 由本地结算评分确定，AI 只按档位塑造效果。 */
+  strengthTier?: ReincarnationTalentStrengthTier
+  /** 生成本候选时使用的人生评分。 */
+  sourceScore?: number
 }
 
-/** 神话词条的来源元数据；只用于总库追溯，不参与效果判定。 */
+/** 转世天赋的来源元数据；只用于总库追溯，不参与效果判定。 */
 export interface MythicPatternSource {
   worldName: string
   characterName: string
   finalAge?: number
-  /** 当前人生的稳定标识，用于保证同一人生最多封存一个神话词条。 */
+  /** 当前人生的稳定标识，用于保证同一人生最多封存一个转世天赋。 */
   runId?: string
 }
 
-/** 已封存到跨局总库的神话词条。 */
+/** 已封存到跨局总库的转世天赋。 */
 export interface MythicPattern extends MythicPatternCandidate {
   /** 由本地内容身份生成的稳定 ID，AI 不负责生成。 */
   id: string

@@ -2,6 +2,9 @@
   "version": 2,
   "registryPath": "scripts/check/rules/registry.json",
   "allowedSecondaryPublicImports": {
+    "mod-pages": [
+      "account-cloud-api"
+    ],
     "mod-character": [
       "destiny-pattern-access",
       "mythic-pattern-access"

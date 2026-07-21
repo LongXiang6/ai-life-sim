@@ -179,14 +179,16 @@ assertOk(
   'a stale or mismatched structured race must fail the character confirmation gate',
 )
 assertOk(
-  characterCreateSourceText.includes('race && !RACE_LIFESPAN[race] ? [race] : []'),
+  characterCreateSourceText.includes('const selected = race && !RACE_LIFESPAN[race] ? [race] : []')
+    && characterCreateSourceText.includes('[...new Set([...selected, ...storedCustomRaces])]'),
   're-entering character creation must restore the selected custom race into the local option list',
 )
 assertOk(
-  characterCreateSourceText.includes('readStoredAgeSetup(race)')
-    && characterCreateSourceText.includes('storedAgeSetup?.maxAge')
-    && characterCreateSourceText.includes('storedAgeSetup?.startingAge'),
-  're-entering character creation must restore confirmed maxAge and startingAge from existing Store fields',
+  characterCreateSourceText.includes('manualLifespan: storedManualLifespan')
+    && characterCreateSourceText.includes('manualStartingAge: storedManualStartingAge')
+    && characterCreateSourceText.includes('const manualLifespan = storedManualLifespan')
+    && characterCreateSourceText.includes('const manualStartingAge = storedManualStartingAge'),
+  're-entering character creation must restore lifespan and starting age from the long-lived draft owner',
 )
 assertOk(
   characterCreateSourceText.includes('confirmedManualMaxAge !== undefined')

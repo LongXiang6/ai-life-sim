@@ -122,6 +122,7 @@ export {
 
 export { useCharacterStore } from './store'
 export { useMythicLibraryStore, sealMythicPatternCandidate } from './mythic-library-store'
+export { useLifeRecordStore } from './life-record-store'
 export { useCharacter, useHealth, useDestinyPatterns } from './hooks'
 export { useRaceOrigin } from './prompts/use-race-origin'
 

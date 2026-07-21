@@ -8,7 +8,7 @@
 
 import { useMemo, useState, useCallback } from 'react'
 
-import { saveManager } from '@/core/storage/save-manager'
+import { MAX_MANUAL_SAVE_SLOTS, saveManager } from '@/core/storage/save-manager'
 
 import styles from './SaveDialog.module.css'
 
@@ -48,9 +48,9 @@ function SaveDialogContent({ onClose, onSave, defaultWorldName, defaultCharacter
 
   const nextSlotRaw = saveManager.getNextSlot()
   // 存在空闲槽位时推荐该槽位；所有槽位都已占用时不做推荐（0 = 无）
-  const nextSlot = nextSlotRaw > 5 ? 0 : nextSlotRaw
+  const nextSlot = nextSlotRaw > MAX_MANUAL_SAVE_SLOTS ? 0 : nextSlotRaw
   // 用户未显式选择时（slot 为 0），仅在有空闲槽位时自动选中推荐槽位
-  const activeSlot = slot >= 1 && slot <= 5 ? slot : nextSlot
+  const activeSlot = slot >= 1 && slot <= MAX_MANUAL_SAVE_SLOTS ? slot : nextSlot
   const occupied = activeSlot >= 1 && saveManager.slotExists(activeSlot)
   const awaitingOverwriteConfirmation = occupied && confirmOverwriteSlot === activeSlot
 
@@ -115,7 +115,7 @@ function SaveDialogContent({ onClose, onSave, defaultWorldName, defaultCharacter
         <div className={styles.section}>
           <p className={styles.label}>存档槽位</p>
           <div className={styles.slotGrid}>
-            {[1, 2, 3, 4, 5].map((s) => {
+            {Array.from({ length: MAX_MANUAL_SAVE_SLOTS }, (_, index) => index + 1).map((s) => {
               const occupied = saveManager.slotExists(s)
               return (
                 <button

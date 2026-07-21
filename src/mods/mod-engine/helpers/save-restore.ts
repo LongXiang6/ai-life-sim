@@ -126,6 +126,7 @@ export function applyGameSave(data: Record<string, unknown>): void {
     world: useWorldStore.getState(),
     orchestrator: orchestrator.captureSnapshot(),
   }
+  orchestrator.invalidatePendingLifeOperations()
   let restoredOrchestratorSnapshot = false
   try {
     // —— 核心 store：失败即回滚，gamePhase 保持不变 ——

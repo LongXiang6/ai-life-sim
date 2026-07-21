@@ -48,6 +48,7 @@ export interface SaveMetadata {
 const MOD_KEY = 'save-manager'
 const KEY_INDEX = 'index'
 const REQUIRED_CORE_SAVE_FILES = ['engine', 'character', 'world'] as const
+export const MAX_MANUAL_SAVE_SLOTS = 10
 
 /**
  * OPFS 目录替换与 localStorage 索引必须作为一个串行事务执行。
@@ -84,6 +85,12 @@ function findFirstAvailableManualSlot(metaList: SaveMetadata[]): number {
   let slot = 1
   while (occupied.has(slot)) slot++
   return slot
+}
+
+function assertManualSlot(slot: number): void {
+  if (!Number.isInteger(slot) || slot < 1 || slot > MAX_MANUAL_SAVE_SLOTS) {
+    throw new Error(`手动存档槽位必须在 1-${MAX_MANUAL_SAVE_SLOTS} 之间`)
+  }
 }
 
 function saveDir(slot: number): string {
@@ -183,6 +190,7 @@ async function saveToSlotUnlocked(
   characterName: string,
   data: Record<string, unknown>,
 ): Promise<SaveMetadata> {
+  assertManualSlot(slot)
   const metaList = loadIndex()
   const totalRounds = (data.engine as { totalRounds?: number } | undefined)?.totalRounds ?? 0
   const existingIdx = metaList.findIndex((m) => m.slot === slot)
@@ -296,8 +304,11 @@ async function autoSaveUnlocked(
   worldName: string,
   characterName: string,
   data: Record<string, unknown>,
-): Promise<SaveMetadata> {
+  shouldCommit: () => boolean,
+): Promise<SaveMetadata | null> {
   const AUTO_SLOT = 0
+  if (!shouldCommit()) return null
+
   const metaList = loadIndex()
   let existing = metaList.find((m) => m.slot === AUTO_SLOT)
 
@@ -318,7 +329,24 @@ async function autoSaveUnlocked(
   let transaction: SaveDirTransaction | null = null
   try {
     await writePayloadToDir(tmpDir, data)
+    if (!shouldCommit()) {
+      await opfsStorage.deleteDirectory(tmpDir)
+      return null
+    }
+
     transaction = await replaceSaveDir(AUTO_SLOT, tmpDir)
+    if (!shouldCommit()) {
+      const staleTransaction = transaction
+      transaction = null
+      try {
+        await staleTransaction.rollback()
+      } catch (rollbackError) {
+        throw new Error('过期自动存档已取消，但旧自动存档回滚未完成。', {
+          cause: rollbackError,
+        })
+      }
+      return null
+    }
 
     if (existingIdx >= 0) metaList[existingIdx] = existing
     else metaList.push(existing)
@@ -360,6 +388,9 @@ export const saveManager = {
   ): Promise<SaveMetadata> {
     return enqueueSaveOperation(() => {
       const slot = findFirstAvailableManualSlot(loadIndex())
+      if (slot > MAX_MANUAL_SAVE_SLOTS) {
+        throw new Error('10 个手动存档槽位均已占用，请先覆盖或删除一个存档')
+      }
       return saveToSlotUnlocked(slot, name, worldName, characterName, data)
     })
   },
@@ -420,14 +451,21 @@ export const saveManager = {
    * @param worldName 世界名称
    * @param characterName 角色名称
    * @param data 游戏状态数据（{ engine, world, character }）
-   * @returns 自动存档元数据
+   * @param shouldCommit 内部生命周期守卫；失效时回滚当前写入并正常取消
+   * @returns 自动存档元数据；生命周期失效时返回 null
    */
   async autoSave(
     worldName: string,
     characterName: string,
     data: Record<string, unknown>,
-  ): Promise<SaveMetadata> {
-    return enqueueSaveOperation(() => autoSaveUnlocked(worldName, characterName, data))
+    shouldCommit: () => boolean = () => true,
+  ): Promise<SaveMetadata | null> {
+    return enqueueSaveOperation(() => autoSaveUnlocked(
+      worldName,
+      characterName,
+      data,
+      shouldCommit,
+    ))
   },
 
   /**

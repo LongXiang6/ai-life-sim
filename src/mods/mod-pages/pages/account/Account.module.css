@@ -1,0 +1,574 @@
+.page {
+  min-height: 100dvh;
+  background: #fff;
+  color: #17191d;
+  font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+}
+
+.shell {
+  position: relative;
+  isolation: isolate;
+  width: 100%;
+  min-height: 100dvh;
+  padding: max(1rem, env(safe-area-inset-top)) clamp(1rem, 5vw, 4.5rem)
+    max(3rem, env(safe-area-inset-bottom));
+  overflow: hidden;
+}
+
+.shell::after {
+  position: absolute;
+  z-index: -1;
+  top: -5rem;
+  right: -5rem;
+  width: 15rem;
+  aspect-ratio: 1;
+  border: 1px solid rgb(154 121 102 / 9%);
+  border-radius: 50%;
+  box-shadow:
+    inset 0 0 0 1.2rem rgb(154 121 102 / 2.5%),
+    inset 0 0 0 2.5rem rgb(154 121 102 / 2%);
+  content: "";
+}
+
+.spine {
+  position: absolute;
+  top: 3.2rem;
+  bottom: 2.2rem;
+  left: clamp(1.5rem, 5vw, 3.2rem);
+  width: 1px;
+  background: #e5e7ea;
+}
+
+.verticalBrand {
+  position: absolute;
+  top: 8.5rem;
+  left: calc(clamp(1.5rem, 5vw, 3.2rem) - 0.72rem);
+  color: #969ba2;
+  font-size: 0.5rem;
+  font-weight: 700;
+  white-space: nowrap;
+  transform: rotate(-90deg);
+  transform-origin: left top;
+}
+
+.header {
+  display: grid;
+  width: min(100%, 62rem);
+  grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  margin: 0 auto;
+  padding: 0 0 1.15rem clamp(1.7rem, 5vw, 3.2rem);
+  border-bottom: 1px solid #e5e7ea;
+}
+
+.headerCopy {
+  min-width: 0;
+}
+
+.headerCopy > span,
+.formHead > span,
+.bindingHead > div > span {
+  color: #969ba2;
+  font-family: "Songti SC", STSong, SimSun, serif;
+  font-size: 0.68rem;
+  font-weight: 650;
+}
+
+.header h1 {
+  margin: 0.18rem 0 0;
+  font-family: "Songti SC", STSong, SimSun, serif;
+  font-size: 1.55rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.header p {
+  margin: 0.25rem 0 0;
+  color: #626870;
+  font-size: 0.75rem;
+  line-height: 1.55;
+}
+
+.back {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border: 1px solid #e1e4e7;
+  border-radius: 50%;
+  background: #fff;
+  color: #626870;
+  cursor: pointer;
+  font-size: 1.05rem;
+}
+
+.back:hover,
+.back:focus-visible {
+  border-color: #9a7966;
+  color: #7d5f50;
+}
+
+.syncBadge {
+  width: fit-content;
+  padding: 0.3rem 0.52rem;
+  border: 1px solid #bfd2c5;
+  border-radius: 4px;
+  background: #edf6ef;
+  color: #376645;
+  font-size: 0.7rem;
+}
+
+.syncBadge[data-state='error'] {
+  border-color: #e0c0bd;
+  background: #fff0ee;
+  color: #8a3f39;
+}
+
+.loading {
+  padding: 5rem 0;
+  color: #727980;
+  text-align: center;
+}
+
+.guestLayout {
+  width: min(100%, 25rem);
+  margin: clamp(2.5rem, 9vh, 6rem) auto 0;
+  padding-left: clamp(1.7rem, 5vw, 3.2rem);
+}
+
+.authTool {
+  border: 1px solid #dde1e4;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 1.2rem 3rem rgb(31 36 42 / 7%);
+  overflow: hidden;
+}
+
+.form {
+  display: grid;
+  gap: 0.95rem;
+  padding: 1.35rem;
+}
+
+.formHead h2,
+.accountLayout h2,
+.localData h2 {
+  margin: 0.18rem 0 0;
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+
+.formHead h2 {
+  margin-top: 0.45rem;
+  font-family: "Songti SC", STSong, SimSun, serif;
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+
+.formHead p {
+  margin: 0.35rem 0 0;
+  color: #747b82;
+  font-size: 0.72rem;
+  line-height: 1.6;
+}
+
+.form label:not(.checkbox) {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.form label > span {
+  color: #4c535a;
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+.form small,
+.linkCode small {
+  color: #8b9299;
+  font-size: 0.66rem;
+  line-height: 1.5;
+}
+
+.form input,
+.deleteConfirm input {
+  width: 100%;
+  height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 1px solid #d1d6da;
+  border-radius: 4px;
+  background: #fff;
+  color: #17191d;
+  font: inherit;
+}
+
+.form input:focus,
+.deleteConfirm input:focus {
+  border-color: #9a7966;
+  outline: 2px solid rgb(154 121 102 / 12%);
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: #4c535a;
+  font-size: 0.76rem;
+}
+
+.checkbox input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #7d6658;
+}
+
+.primary,
+.profileActions button,
+.bindingActions button,
+.danger button,
+.deleteConfirm button {
+  min-height: 2.55rem;
+  padding: 0.5rem 0.85rem;
+  border: 1px solid #6d7f94;
+  border-radius: 4px;
+  background: #6d7f94;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+}
+
+.primary:disabled,
+.profileActions button:disabled,
+.bindingActions button:disabled,
+.danger button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.formSwitch {
+  margin: -0.2rem 0 0;
+  color: #7a8188;
+  font-size: 0.72rem;
+  text-align: center;
+}
+
+.formSwitch button {
+  margin-left: 0.3rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #7d5f50;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+.authNotice {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35rem 0.9rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #eceef0;
+  color: #969ba2;
+  font-size: 0.62rem;
+}
+
+.error {
+  padding: 0.65rem 0.75rem;
+  border-left: 3px solid #a04d45;
+  background: #fff0ee;
+  color: #7b3530;
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+.accountLayout,
+.localData {
+  display: grid;
+  width: min(100%, 56rem);
+  gap: 0;
+  margin: 1.25rem auto 0;
+  padding-left: clamp(1.7rem, 5vw, 3.2rem);
+}
+
+.localData {
+  margin-top: 2.5rem;
+}
+
+.profile,
+.preference,
+.qqBinding,
+.slots,
+.danger {
+  padding: 1.25rem 0;
+  border-top: 1px solid #e7e9eb;
+}
+
+.profile,
+.preference,
+.danger,
+.sectionHead,
+.slotRow,
+.bindingHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.profile {
+  border-top: 0;
+  padding-top: 0.75rem;
+}
+
+.profile > div > span,
+.profile p,
+.preference p,
+.danger p,
+.bindingHead p,
+.bindingActions > p {
+  color: #747b82;
+  font-size: 0.72rem;
+  line-height: 1.6;
+}
+
+.profile h2 {
+  margin: 0.18rem 0;
+  font-family: "Songti SC", STSong, SimSun, serif;
+  font-size: 1.45rem;
+  font-weight: 600;
+}
+
+.profileActions,
+.bindingActions > div:last-child {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.profileActions button:last-child,
+.bindingActions button:last-child {
+  border-color: #d1d6da;
+  background: #fff;
+  color: #535b63;
+}
+
+.switch input {
+  position: absolute;
+  opacity: 0;
+}
+
+.switch span {
+  position: relative;
+  display: block;
+  width: 2.8rem;
+  height: 1.55rem;
+  border-radius: 1rem;
+  background: #cbd1d6;
+  cursor: pointer;
+}
+
+.switch span::after {
+  position: absolute;
+  top: 0.2rem;
+  left: 0.2rem;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  background: #fff;
+  content: '';
+  transition: transform 150ms ease;
+}
+
+.switch input:checked + span {
+  background: #557562;
+}
+
+.switch input:checked + span::after {
+  transform: translateX(1.25rem);
+}
+
+.bindingHead {
+  align-items: flex-start;
+}
+
+.bindingHead strong {
+  flex: 0 0 auto;
+  color: #7d5f50;
+  font-family: "Songti SC", STSong, SimSun, serif;
+  font-size: 1rem;
+}
+
+.bindingActions {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  border-left: 2px solid #9a7966;
+  background: #faf9f8;
+}
+
+.linkCode {
+  display: grid;
+  min-width: 0;
+  gap: 0.2rem;
+}
+
+.linkCode > span {
+  color: #7b8187;
+  font-size: 0.68rem;
+}
+
+.linkCode strong {
+  overflow-wrap: anywhere;
+  color: #312d2a;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 0.88rem;
+}
+
+.sectionHead {
+  padding-bottom: 0.7rem;
+}
+
+.sectionHead span {
+  color: #7d5f50;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.slotList {
+  display: grid;
+  border-top: 1px solid #eef0f1;
+}
+
+.slotRow {
+  min-height: 3.6rem;
+  border-bottom: 1px solid #eef0f1;
+}
+
+.slotRow div {
+  min-width: 0;
+}
+
+.slotRow strong,
+.slotRow small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.slotRow strong {
+  font-size: 0.8rem;
+}
+
+.slotRow small {
+  margin-top: 0.15rem;
+  color: #7a8188;
+  font-size: 0.68rem;
+}
+
+.slotRow button {
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  color: #98524b;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+}
+
+.empty {
+  padding: 1.25rem 0;
+  color: #8a9198;
+  font-size: 0.76rem;
+  text-align: center;
+}
+
+.danger {
+  border-top-color: #e3c9c6;
+}
+
+.danger > button,
+.deleteConfirm button:first-of-type {
+  border-color: #9b4f48;
+  background: #9b4f48;
+}
+
+.deleteConfirm {
+  display: grid;
+  width: min(100%, 22rem);
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.4rem;
+}
+
+.deleteConfirm input {
+  min-width: 0;
+}
+
+.deleteConfirm button:last-child {
+  border-color: #d1d6da;
+  background: #fff;
+  color: #535b63;
+}
+
+@media (max-width: 46rem) {
+  .guestLayout {
+    margin-top: 2.5rem;
+  }
+
+  .authTool {
+    width: 100%;
+  }
+}
+
+@media (max-width: 35rem) {
+  .shell {
+    padding-right: 1rem;
+    padding-left: 1rem;
+  }
+
+  .header {
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+    padding-left: 1.65rem;
+  }
+
+  .header > .syncBadge {
+    grid-column: 2;
+  }
+
+  .header p {
+    font-size: 0.7rem;
+  }
+
+  .guestLayout,
+  .accountLayout,
+  .localData {
+    padding-left: 1.65rem;
+  }
+
+  .profile,
+  .preference,
+  .danger,
+  .bindingActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .profileActions,
+  .bindingActions > div:last-child {
+    width: 100%;
+  }
+
+  .profileActions button,
+  .bindingActions button {
+    flex: 1;
+  }
+
+  .deleteConfirm {
+    width: 100%;
+    grid-template-columns: 1fr;
+  }
+}

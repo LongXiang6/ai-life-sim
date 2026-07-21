@@ -9,6 +9,9 @@ import type { ModManifest } from '@/foundation'
 
 import { parseDependency, resolveDependenciesV2 } from '@/core/mod-loader/dependency-resolver'
 import { loadMods } from '@/core/mod-loader/mod-loader'
+import { selectRemoteApiExports } from '@/core/mod-loader/mod-lifecycle'
+import { validateRemoteContracts } from '@/core/mod-loader/validate-remote-contracts'
+import { remote } from '@/core/remote-interface/remote-interface'
 
 function testParseDependency() {
   const softCompact = parseDependency('~mod-politics')
@@ -67,9 +70,41 @@ function testMutualSoftDependencies() {
   assert.ok(result.loaded.includes('mod-politics'))
 }
 
+function testExplicitRemoteApiAllowlist() {
+  const api = {
+    declared: () => 'declared',
+    inferredOnly: () => 'inferred',
+  }
+
+  assert.deepEqual(Object.keys(selectRemoteApiExports(api, undefined)).sort(), ['declared', 'inferredOnly'])
+  assert.deepEqual(Object.keys(selectRemoteApiExports(api, [])), [])
+  assert.deepEqual(Object.keys(selectRemoteApiExports(api, ['declared'])), ['declared'])
+
+  const manifest: ModManifest = {
+    name: 'mod-remote-regression',
+    version: '1.0.0',
+    description: 'remote regression fixture',
+    dependencies: [],
+    provides: [],
+    consumes: [],
+    remoteApi: [],
+  }
+
+  remote.autoRegister(manifest.name, api)
+  assert.deepEqual(validateRemoteContracts([manifest]), [
+    { mod: manifest.name, kind: 'extra', functionName: 'declared' },
+    { mod: manifest.name, kind: 'extra', functionName: 'inferredOnly' },
+  ])
+
+  remote.autoRegister(manifest.name, {})
+  assert.equal(remote.has(manifest.name), false)
+  assert.deepEqual(validateRemoteContracts([manifest]), [])
+}
+
 function main() {
   testParseDependency()
   testMutualSoftDependencies()
+  testExplicitRemoteApiAllowlist()
   console.log('[OK] mod-loader regression tests passed')
 }
 

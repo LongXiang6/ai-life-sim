@@ -29,6 +29,14 @@ import {
   inspectNarrativeResponseQuality,
 } from '../../helpers/narrative-response-quality'
 import {
+  checkNarrativeRepetition,
+  buildRepetitionRepairInstruction,
+  chooseNarrativeRepetitionRepair,
+} from '../../helpers/narrative-repetition-detection'
+import { extractTaggedMetaEnvelope } from '../../helpers/tagged-meta-envelope'
+import { buildBranchIntentInstruction } from '../../helpers/branch-intent-resolution'
+import { NARRATIVE_REPAIR_SERVER_PROMPT_ASSET_ID } from '../../prompts/narrative-prompt'
+import {
   compileNarrativeDynamicComponents,
   createNarrativeRepairComponent,
 } from '../../prompts/narrative-prompt-components'
@@ -161,8 +169,17 @@ export function loadStages(
 
         const wordCountTarget = useSettingsStore.getState().wordCountTarget
           ?? DEFAULT_WORD_COUNT_TARGET
-        const expectedIntentId = orchestrator.getFocusedBranchIntent()?.intentId ?? null
+        const focusedIntent = orchestrator.getFocusedBranchIntent()
+        const expectedIntentId = focusedIntent?.intentId ?? null
         const requireBranch = useEngineStore.getState().forceBranchNext
+        const focusedIntentRepairInstruction = focusedIntent
+          ? buildBranchIntentInstruction(
+              focusedIntent,
+              orchestrator.getActiveBranchIntents().filter(
+                (intent) => intent.intentId !== focusedIntent.intentId,
+              ),
+            )
+          : undefined
 
         const prefetched = orchestrator.consumePrefetchedNarrative()
         if (prefetched) {
@@ -190,6 +207,10 @@ export function loadStages(
         const model = customModel || aiConfig.model
         const normalizedStorySeed = storySeed.trim() || undefined
         const routeOpts = { providerId: provider, customBaseUrl: customUrl || undefined, customModel: model }
+        const repairPromptTemplate = {
+          ...promptTemplate,
+          serverPromptAssetId: NARRATIVE_REPAIR_SERVER_PROMPT_ASSET_ID,
+        }
 
         const baseSegments = buildSegmentedPrompt(promptTemplate, ctx._promptContext)
 
@@ -341,8 +362,9 @@ export function loadStages(
                       expectedIntentId,
                       requireBranch,
                     ),
+                    ...(focusedIntentRepairInstruction ? [focusedIntentRepairInstruction] : []),
                     ...(finalAttempt
-                      ? ['这是最后一次协议修复机会：只修复信封、三段结构和条件数据，保留上一版已成立的剧情事实，不要解释。']
+                      ? ['这是最后一次协议修复机会：只修复信封和条件数据，保留上一版全部已成立剧情事实，不要解释。']
                       : []),
                   ].join('\n'),
                 ),
@@ -361,27 +383,10 @@ export function loadStages(
                 },
               }
 
-              if (segments.strategy === 'S3' && segments.messages?.length) {
-                return callAIDegraded(
-                  [
-                    ...segments.messages,
-                    { role: 'assistant', content: previousContent },
-                    { role: 'user', content: repairInstruction },
-                  ],
-                  fallbackNarrative,
-                  repairOptions,
-                )
-              }
               return callAIWithPromptTemplate(
-                promptTemplate,
-                segments.full,
-                {
-                  ...repairOptions,
-                  userSegments: getNarrativeUserSegments(segments),
-                  extraUserMessages: [
-                    `${repairInstruction}\n\n【上一版完整输出，仅用于格式纠错】\n${previousContent}`,
-                  ],
-                },
+                repairPromptTemplate,
+                `${repairInstruction}\n\n【上一版完整输出；唯一剧情事实来源】\n${previousContent}`,
+                repairOptions,
               )
             }
 
@@ -417,6 +422,88 @@ export function loadStages(
                 useEngineStore.setState({ streamingNarrative: '' })
               }
               ctx._fullContent = undefined
+            }
+          }
+
+          // 重复检测：格式门禁通过后，检查正文是否与近期历史高度重复
+          if (ctx._fullContent?.trim()) {
+            const envelope = extractTaggedMetaEnvelope(ctx._fullContent)
+            if (envelope) {
+              const recentHistory = orchestrator.getState().narrativeHistory
+                .slice(-6)
+                .map((entry) => entry.text)
+              const repetitionResult = checkNarrativeRepetition(envelope.narrative, recentHistory)
+              if (repetitionResult.isRepetitive) {
+                const percent = Math.round(repetitionResult.maxSimilarity * 100)
+                console.warn(
+                  `[Orchestrator] 叙事重复检测：相似度 ${percent}%，触发重试`,
+                )
+                const repairMsg = buildRepetitionRepairInstruction(repetitionResult)
+                const repetitionRepairComponent = compileNarrativeDynamicComponents([
+                  createNarrativeRepairComponent(repairMsg),
+                ]) ?? ''
+                const previousContent = ctx._fullContent
+                const repetitionNecessaryFacts = {
+                  当前时间: ctx._promptContext.currentTime,
+                  世界设定: ctx._promptContext.worldNarrativeView,
+                  角色档案: ctx._promptContext.characterProfileView,
+                  角色现状: ctx._promptContext.characterStatusView,
+                  玩家与系统指令: ctx._promptContext.userInstruction,
+                  本轮导演提示: ctx._promptContext.narrativeGuidanceText,
+                }
+                const repetitionRepairPrompt = [
+                  repetitionRepairComponent,
+                  focusedIntentRepairInstruction,
+                  `【本轮必要事实】\n${JSON.stringify(repetitionNecessaryFacts)}`,
+                  `【近期已提交正文；只用于避开重复】\n${JSON.stringify(recentHistory)}`,
+                  `【上一版完整输出；在保留已成立事实的前提下重写】\n${previousContent}`,
+                ].filter(Boolean).join('\n\n')
+                try {
+                  orchestrator.resetCurrentNarrative()
+                  if (!orchestrator.isPreviewExecution()) {
+                    useEngineStore.setState({ streamingNarrative: '' })
+                  }
+                  const retryOptions = {
+                    ...streamOpts,
+                    onChunk: undefined,
+                    logContext: { ...streamOpts.logContext, callKind: 'narrative-repetition-repair' },
+                  }
+                  const candidateContent = await callAIWithPromptTemplate(
+                    repairPromptTemplate,
+                    repetitionRepairPrompt,
+                    retryOptions,
+                  )
+                  const candidateQuality = inspectNarrativeResponseQuality(
+                    candidateContent,
+                    wordCountTarget,
+                    expectedIntentId,
+                    requireBranch,
+                  )
+                  if (candidateQuality.dataAdvisory) {
+                    console.info('[Orchestrator]', candidateQuality.dataAdvisory)
+                  }
+                  const candidateEnvelope = candidateQuality.valid
+                    ? extractTaggedMetaEnvelope(candidateContent)
+                    : null
+                  const decision = chooseNarrativeRepetitionRepair({
+                    previousContent,
+                    candidateContent,
+                    candidateBody: candidateEnvelope?.narrative ?? null,
+                    candidateProtocolValid: candidateQuality.valid,
+                    recentHistory,
+                  })
+                  ctx._fullContent = decision.content
+                  if (!decision.accepted) {
+                    const reason = decision.reason === 'invalid-protocol'
+                      ? candidateQuality.reason ?? '协议无效'
+                      : decision.repetition?.kind ?? '仍然重复'
+                    console.warn(`[Orchestrator] 重复修复候选未通过二次门禁，保留上一版: ${reason}`)
+                  }
+                } catch (retryErr) {
+                  ctx._fullContent = previousContent
+                  console.warn('[Orchestrator] 重复修复重试失败，保留上一版:', retryErr)
+                }
+              }
             }
           }
 

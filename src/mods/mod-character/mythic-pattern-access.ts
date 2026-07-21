@@ -1,12 +1,16 @@
 /**
  * @module mythic-pattern-access
- * @description 神话词条生成与跨局总库的公共入口
+ * @description 转世天赋生成与跨局总库的公共入口
  * @mod mod-character
  */
 
 import { scaleTokenBudgetByInputLength, stringifyPrompt } from '@/foundation'
 
-import type { MythicPattern, MythicPatternCandidate } from './types'
+import type {
+  MythicPattern,
+  MythicPatternCandidate,
+  ReincarnationTalentStrengthTier,
+} from './types'
 import { mythicPatternOutputSchema, mythicPatternPrompt } from './prompts/mythic-pattern-prompt'
 
 export interface GenerateMythicPatternCandidatesInput {
@@ -24,6 +28,14 @@ export interface GenerateMythicPatternCandidatesInput {
   lifeDigests?: readonly { startRound: number; endRound: number; summary: string }[]
   /** 已有总库词条，用于要求 AI 避免同名/同概念候选。 */
   existingPatterns?: readonly Pick<MythicPattern, 'name' | 'concept' | 'effect'>[]
+  /** 本地通用结算评分；AI 不得重算或改写。 */
+  endingScore: number
+  /** 由评分纯函数确定的转世天赋强度档位。 */
+  strengthTier: {
+    id: ReincarnationTalentStrengthTier
+    label: string
+    guidance: string
+  }
 }
 
 export type MythicPatternAICaller = (
@@ -59,6 +71,8 @@ export function buildMythicPatternUserPrompt(input: GenerateMythicPatternCandida
     finalState: input.finalState,
     lifeDigests: input.lifeDigests,
     lifeRecords: input.lifeRecords,
+    endingScore: input.endingScore,
+    reincarnationStrengthTier: input.strengthTier,
     existingMythicPatterns: input.existingPatterns?.map((pattern) => ({
       name: pattern.name,
       concept: pattern.concept,
@@ -87,7 +101,10 @@ export async function generateMythicPatternCandidates(
   const callAI = options.callAI ?? configuredCallAI
   if (!callAI) throw new Error('[mythic-pattern] AI 服务未配置')
   if (!input.lifeSummary.trim() && input.lifeRecords.length === 0) {
-    throw new Error('[mythic-pattern] 缺少可用于凝结神话词条的人生记录')
+    throw new Error('[mythic-pattern] 缺少可用于凝结转世天赋的人生记录')
+  }
+  if (!Number.isFinite(input.endingScore) || input.endingScore < 0 || input.endingScore > 100) {
+    throw new Error('[mythic-pattern] 人生评分无效')
   }
 
   const userPrompt = buildMythicPatternUserPrompt(input)
@@ -129,7 +146,11 @@ export async function generateMythicPatternCandidates(
   if (result.data.some((candidate) => existingNames.has(normalizeIdentityPart(candidate.name)))) {
     throw new Error('[mythic-pattern] AI 返回了总库中已有的同名词条')
   }
-  return result.data
+  return result.data.map((candidate) => ({
+    ...candidate,
+    strengthTier: input.strengthTier.id,
+    sourceScore: Math.round(input.endingScore),
+  }))
 }
 
 export { mythicPatternCandidateSchema, mythicPatternOutputSchema, mythicPatternPrompt } from './prompts/mythic-pattern-prompt'

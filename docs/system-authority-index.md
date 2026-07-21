@@ -8,7 +8,7 @@
 下级组成：活动权威登记、平台服务、新人生生命周期、外部 MVP 系统、引擎 MVP 系统、历史因果内部组件、延后剧情系统
 适用范围：平台服务、MVP 运行子系统、历史事件与消费者引用、延后但承载剧情事实的系统、状态与写入所有权、AI 参与、持久化和运行存活性
 拥有者：`mod-engine` 运行注册与各 owning MOD
-最后验证：2026-07-20；对照[蓝图二](blueprint-02-multi-world-simulation-foundation.md)、[运行阶段策略](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、P0/P1 focused 回归、零基础值新人生、历史事件 Store v2/旧迁移、子系统实现、Prompt/Schema、缓存统计分桶、[统一验收账本](acceptance-ledger.md)、[中文协议回归](../scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs)和[硬截断审计](../scripts/check/domains/narrative/no-hard-truncation-audit.mjs)
+最后验证：2026-07-21；对照[蓝图二](blueprint-02-multi-world-simulation-foundation.md)、[运行阶段策略](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、P0/P1 focused 回归、零基础值新人生、历史事件 Store v2/旧迁移、子系统实现、Prompt/Schema、缓存统计分桶、[统一验收账本](acceptance-ledger.md)、[数据生命周期拓扑](../../.agents/skills/ai-life-sim/references/system-topology.md)、[中文协议回归](../scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs)和[硬截断审计](../scripts/check/domains/narrative/no-hard-truncation-audit.mjs)
 取代关系：none
 运行真源：[mvp-stages-config.default.json](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、manifest、生成注册表和各实现文件
 验收证据：`.agents` 治理检查、引用审计、活动系统覆盖检查、`npm run test:world-context-p0`、`npm run test:historical-event-p1`、`npm run test:narrative-protocol`、`npm run test:player-feedback`、`npm run test:creation-first-narrative`、无硬截断审计与[统一验收账本](acceptance-ledger.md)
@@ -18,6 +18,7 @@
 - This index owns responsibility routing, not detailed field schemas or runtime implementation.
 - Use the authority ladder in `.agents/skills/ai-life-sim/references/authority-hierarchy.md` when sources conflict.
 - Treat `SystemPath` as a conceptual ownership path rather than a filesystem path. Each responsibility has one primary governance parent and one runtime owner; model other relationships as dependencies, producers, adapters, or consumers.
+- Use [system topology](../../.agents/skills/ai-life-sim/references/system-topology.md) for the six root pyramids and cross-tree roles. Persistence belongs to the `DATA` tree without taking state ownership from the runtime system that produces the data.
 - Use live code and types for exact data shape. Use [mvp-stages-config.default.json](../src/mods/mod-engine/helpers/mvp-stages-config.default.json) for runtime liveness; a source file or manifest entry alone is insufficient.
 - Update this index in the same task when a system is added, removed, renamed, activated, deactivated, changes owner or responsibility, changes public state or API authority, changes AI participation, or changes persistence behavior.
 
@@ -54,21 +55,33 @@ project
 For active runtime rows, apply these composition defaults unless a row or linked authority overrides them:
 
 ```text
+TreeId: RUN
+NodeId: <SystemId>
+ParentNodeId: external-product-systems | engine-orchestration-systems
 SystemPath: project > simulation-runtime > external-product-systems|engine-orchestration-systems > <SystemId>
 ParentGoal: contribute owned state or orchestration to the playable narrative simulation
 PrimaryGovernanceParent: owning MOD for external systems; mod-engine for engine systems
 ChildSystems: implementation-owned composed units or none
 Dependencies: Inputs plus linked public contracts, registration, and consumers
 Lifecycle: registration and liveness policy plus owned collectState/restore path
+CrossTreeRelations: persists DATA; verified-by QUAL; add supplies SEM or projects-to UX only when applicable
 ```
+
+Persistence selection follows `PD-033`:
+
+- Durable mutable, queryable or related data defaults to a database, IndexedDB or an existing Schema-versioned structured Store with one owning API, migration, indexed queries, atomic writes and strict restore.
+- OPFS, object storage and ordinary files are typed exceptions for large snapshots/blobs, immutable config/assets, import/export, release artifacts or append-only operational logs. Each exception declares its structured manifest/index, root, permissions, capacity, retention, cleanup and recovery.
+- No system may create an unbounded per-player, per-record or per-round file layout, duplicate large content into several indexes, use directory scans as its query model, or add a second persistence truth for convenience.
+- Existing stable storage is reviewed when touched and migrates only when product need, integrity, query cost, concurrency, recovery, capacity or file proliferation justifies the change.
 
 Unless a row states otherwise, every active card uses these shared fields:
 
 ```text
 RuntimeStageAndLivenessSource: mvp; src/mods/mod-engine/helpers/mvp-stages-config.default.json
+StorageClass: database | structured-store | versioned-snapshot | operational-log | immutable-file | none
 PersistenceAuthority: owning collectState/restore path plus orchestrator snapshot and save-restore aggregator
 AcceptanceEvidence: governance system-coverage check plus the owning behavior's focused and delivery gates
-LastVerified: 2026-07-19
+LastVerified: 2026-07-21
 Supersession: none
 ```
 
@@ -84,7 +97,7 @@ Supersession: none
 - `historical-event-ledger` persists its complete Store v2 through `capturePersistenceState()` / `restorePersistenceState()` in the orchestrator snapshot. Its `collectState()` uses a read-only cached index and returns only global or current-including `scheduled/active` facts plus related edges; complete cloning is reserved for explicit save/rollback. Explicit restore and browser/Zustand hydration share strict validation for IDs, chains, evidence-reference arrays, endpoints and world references before replacement or use; invalid current Store state is quarantined from queries, commits and saves without silent reset, and malformed current/future versions reject. v1 Store or old `event-pool` / `causal-simulation` collected states migrate into the current save's original context instead of global or cross-save residue.
 - Accepted ledger IDs flow to consumers instead of duplicating facts: memory and core-memory use `historicalEventIds`, foreshadowing uses `plantedFromEventIds/resolvedByEventIds`, plot structure uses `lastHistoricalEventIds`, and delayed causality uses `originEventId/resolutionEventId`. Compression and repeated relationship merges retain ID unions; old snapshots default missing reference arrays to empty.
 - Main narrative AI may write only the internal IDs in `narrativeChange`; current writable systems remain `character-base`, `lifespan`, `luck`, and `morality`. `historical-event-ledger` is registered separately as `event-input`, so validated local orchestration may submit historical batches without exposing it as a fifth direct state-change target. AI-visible input uses only registered Chinese system and field names; `src/mods/mod-engine/helpers/subsystem-field-registry.ts` owns the one-to-one translation.
-- Main narrative Prompt `4.5.0` splits fixed private assets from browser-owned dynamic work. `src/mods/mod-engine/server/narrative-system-prompt.ts` is the sole fixed-prefix compiler with basic constraints first and one annotated standard example last; `src/mods/mod-engine/server-prompt-assets.ts` is the `server-only` whitelist entry resolved by `/api/proxy`. The browser `narrativePrompt.systemPrompt` remains empty and carries only `serverPromptAssetId`; `narrative-prompt-components.ts` owns dynamic repair-component composition, while `prompt-builder.ts` owns the ordered `全局信息 -> 记忆 -> 本轮引导` user messages, keeps dynamic local time out of the global cache message, and places changing originality protection at the memory prefix. The fixed变化驱动力 contract accepts opportunities, discovery, mastery, recognition, recovery, success or causally grounded conflict instead of requiring pressure every round, forbids automatic institutional review without established world or story causality, prevents resolved obstacle classes from being mechanically reused, and rejects unrelated negative ending hooks. It also preserves player-exclusive abilities, items, identities and rules unless explicit sharing or established causal transfer exists, and requires the first narrative round to establish arrival or native social position instead of silently skipping weeks or months. `narrative-ai-input-view.ts` owns world/character projection; `historical-event-prompt-projection.ts` deterministically renders only current-relevant scoped facts and edges; the background worldview adapter cannot rewrite that projection. `narrative-ai-protocol.ts` retains the browser-required Schema, sole successful `⟦正文⟧/⟦摘要⟧/可选⟦数据⟧/⟦结束⟧` parser, translation and repair reminder, but no longer contains the fixed rules or standard example. Ordinary rounds may commit complete body and digest without structured data; a present data block remains whole-bundle accepted or rejected, focused intent and forced branch rounds retain conditional gates, and RoundCommit preflights and rolls back dependent state. The time guidance requires varied scene-first openings and the explicit current calendar label when a time anchor is needed.
+- Main narrative Prompt `4.5.2` splits fixed private assets from browser-owned dynamic work. `src/mods/mod-engine/server/narrative-system-prompt.ts` is the sole main fixed-prefix compiler with basic constraints first and one annotated standard example last; `narrative-repair-system-prompt.ts` reuses that protocol source for a compact repair-only asset, and `src/mods/mod-engine/server-prompt-assets.ts` is the `server-only` whitelist entry resolved by `/api/proxy`. The browser `narrativePrompt.systemPrompt` remains empty and carries only asset IDs; `narrative-prompt-components.ts` owns dynamic repair-component composition, while `prompt-builder.ts` owns the ordered `全局信息 -> 记忆 -> 本轮引导` user messages, keeps dynamic local time out of the global cache message, and places changing originality protection at the memory prefix. The final per-round dynamic output contract is closest to generation and repeats only current protocol, intent, branch, calm-progression and opening-origin conditions. Format repair sends only its failure, required condition and previous complete output instead of resending all three Prompt layers. Paragraph count remains observable but never rejects or reshapes a complete body. The fixed变化驱动力 contract accepts opportunities, discovery, mastery, recognition, recovery, calm development, success or causally grounded conflict instead of requiring pressure every round, forbids automatic institutional review without established world or story causality, prevents resolved obstacle classes from being mechanically reused, and rejects unrelated negative ending hooks. It also preserves player-exclusive abilities, items, identities and rules unless explicit sharing or established causal transfer exists, requires the first narrative round to establish arrival or native social position instead of silently skipping weeks or months, and names cross-life concept rules “转世天赋” in AI-visible context. `narrative-ai-input-view.ts` owns world/character projection; `historical-event-prompt-projection.ts` deterministically renders only current-relevant scoped facts and edges; the background worldview adapter cannot rewrite that projection. `narrative-ai-protocol.ts` retains the browser-required Schema, sole successful `⟦正文⟧/⟦摘要⟧/可选⟦数据⟧/⟦结束⟧` parser, translation and repair reminder, but no longer contains the fixed rules or standard example. Ordinary rounds may commit complete body and digest without structured data; a present data block remains whole-bundle accepted or rejected, focused intent and forced branch rounds retain conditional gates, and RoundCommit preflights and rolls back dependent state. The time guidance requires varied scene-first openings and the explicit current calendar label when a time anchor is needed.
 
 ### 3.1 Managed AI default channel
 
@@ -110,7 +123,7 @@ AIParticipation: transports model requests only; does not interpret or apply AI 
 PersistenceAuthority: player overrides remain in mod-settings browser persistence; each managed credential exists only in private local or server environment files
 Implementation: src/core/ai-service/provider-config.ts; src/core/ai-service/server-provider-targets.ts; src/core/ai-service/server-provider-credentials.ts; src/core/ai-service/managed-sse-aggregation.ts; src/core/ai-service/ai-client.ts; src/mods/mod-settings/store.ts; src/mods/mod-settings/components/SettingsTabPresets.tsx; src/mods/mod-character/subsystems/destiny-pattern-system.ts; src/mods/mod-pages/pages/talent-draw/page.tsx; src/mods/mod-world/world-init-bundle.ts; src/app/api/proxy/route.ts; src/app/api/world-init/route.ts
 AcceptanceEvidence: npm run test:managed-ai-default; npm run test:ai-proxy; npm run test:destiny-credential-terminal; LongCat direct and SSE contract smoke; retained a6api primary/fallback routing smoke; complete long-narrative proxy and browser round; background world initialization; restore/default/old-channel/custom tests; secret-absence scan; docs/acceptance-ledger.md#managed-ai-longcat; delivery gates
-LastVerified: 2026-07-20
+LastVerified: 2026-07-21
 Supersession: none
 ```
 
@@ -145,7 +158,7 @@ AIParticipation: observes Provider traffic only; never authors or applies semant
 PersistenceAuthority: AI_LOG_DIR plus server-log-store retention and capacity policy
 Implementation: src/app/api/proxy/route.ts; src/app/api/log/route.ts; src/app/api/debug-log/route.ts; src/core/ai-service/api-error.ts; src/core/ai-service/story-seed.ts; src/core/logger/server-log-store.ts; src/core/logger/server-log-safety.ts; src/core/logger/client-logger.ts; src/core/logger/diagnostic-consent.ts; src/core/logger/debug-logger.ts; scripts/ops/inspect-ai-logs.mjs
 AcceptanceEvidence: docs/acceptance-ledger.md#production-observability; npm run test:ai-proxy; source-classification, content-deduplication and secret-redaction regression; operator-inspector reconstruction smoke; unreachable-upstream HTTP probe; secret-absence check; delivery gates
-LastVerified: 2026-07-20
+LastVerified: 2026-07-21
 Supersession: none
 ```
 
@@ -166,30 +179,31 @@ SystemId: player-feedback
 SystemPath: project > simulation-runtime > platform-services > player-feedback
 ParentGoal: let players submit actionable feedback with enough non-secret runtime evidence to reproduce and diagnose the reported problem
 PrimaryGovernanceParent: mod-pages feedback composition plus core logger persistence
-ChildSystems: feedback page, diagnostic-code display, diagnostic package collector, POST API, full submission store, global, per-IP and per-player indexes
+ChildSystems: feedback page, diagnostic-code display, diagnostic package collector, POST API, full submission store, global, per-IP and per-player indexes, append-only status events, private operator status CLI
 Authority: A1 PD-023, PD-024, PD-019 and PD-015; A3 this index; A4 live page, route, contract, collector and server store
 RootPosition: R1
 Weight: W5
 Sequence: S1 player consent > S2 client collection and redaction > S3 whole-package validation > S4 trusted source classification > S5 private persistence and feedback ID
-Responsibility: collect player-authored feedback together with complete recent narrative entries, non-secret configuration, current game state, recent client diagnostics and browser/device environment; reject secrets and stable hardware identifiers; persist the complete sanitized package and return a stable feedback ID
+Responsibility: collect player-authored feedback together with complete recent narrative entries, non-secret configuration, current game state, recent client diagnostics and browser/device environment; reject secrets and stable hardware identifiers; persist the complete sanitized package and return a stable feedback ID; derive and record an auditable operator lifecycle without mutating the original submission
 NonResponsibility: does not expose stored feedback publicly, replace the authoritative save or narrative stores, collect credentials, infer device identity, send feedback to third parties, or partially save an invalid package
 Inputs: feedback category, subject, message, explicit consent, player diagnostic code, client diagnostic package and trusted request headers
-OutputsAndWrites: feedback ID, player diagnostic code, content-addressed `submissionRef`, global feedback row, per-IP row and per-player row
+OutputsAndWrites: feedback ID, player diagnostic code, content-addressed `submissionRef`, global feedback row, per-IP row, per-player row, append-only status event and derived latest status
 PublicStateOrAPI: POST /api/feedback returns ok, feedbackId and receivedAt; no public GET, list or delete surface
 Dependencies: diagnostic-player-identity, mod-pages route registration, core client logger, world/character/engine/global stores, server-log-store, AI_LOG_DIR
 Lifecycle: available from welcome and active simulation pages; collection occurs only after explicit submission and consent
 RuntimeLivenessSource: mod-pages route registration, app API route registration and active Next.js server process
 AIParticipation: none; preserves existing AI and narrative evidence only
-PersistenceAuthority: AI_LOG_DIR/feedback under the PD-019 retention, capacity, permission and cleanup policy; gameplay stores remain authoritative
-Implementation: src/mods/mod-pages/pages/feedback/page.tsx; src/mods/mod-pages/pages/feedback/build-feedback-diagnostics.ts; src/app/api/feedback/route.ts; src/core/logger/feedback-contract.ts; src/core/logger/player-feedback-store.ts; src/core/logger/server-log-store.ts; src/core/logger/redact-sensitive-data.ts; scripts/ops/inspect-ai-logs.mjs
-AcceptanceEvidence: npm run test:player-feedback; docs/acceptance-ledger.md#production-observability; browser submit and feedback-ID path; content-reference reconstruction, secret absence and complete-recent-story inspection; UI, TypeScript, lint, structural and delivery gates
-LastVerified: 2026-07-20
+PersistenceAuthority: AI_LOG_DIR/feedback and AI_LOG_DIR/feedback-status under the PD-019 retention, capacity, permission and cleanup policy; gameplay stores remain authoritative
+Implementation: src/mods/mod-pages/pages/feedback/page.tsx; src/mods/mod-pages/pages/feedback/build-feedback-diagnostics.ts; src/app/api/feedback/route.ts; src/core/logger/feedback-contract.ts; src/core/logger/player-feedback-store.ts; src/core/logger/server-log-store.ts; src/core/logger/redact-sensitive-data.ts; scripts/ops/inspect-ai-logs.mjs; scripts/ops/feedback-status.mjs
+AcceptanceEvidence: npm run test:player-feedback; docs/acceptance-ledger.md#production-observability; browser submit and feedback-ID path; content-reference reconstruction, secret absence and complete-recent-story inspection; status transition, resolution-evidence and derived-inspector smoke; UI, TypeScript, lint, structural and delivery gates
+LastVerified: 2026-07-21
 Supersession: none
 ```
 
 - The collector selects the canonical recent narrative window while preserving every selected entry intact. It excludes API routing and credential fields before serialization and applies the shared redaction authority again on the server.
 - The API rejects an oversized, invalid or incompletely stored package as a whole. The player receives a feedback ID only after the complete sanitized package has a durable `submissionRef` and all compact indexes report successful persistence.
 - Stored submissions are private operational evidence. They may be cleaned by the diagnostic retention policy but never mutate or replace local narrative history, save payloads, settings or subsystem state.
+- A submission starts as `new` and remains separate from its immutable feedback content. The private operator CLI appends `in_progress`, `resolved`, `rejected`, `duplicate` or `reopened` events; `resolved` requires explicit resolution evidence, and `inspect-ai-logs.mjs` derives the latest status while default output still omits story and feedback正文.
 
 ### 3.4 Player diagnostic identity
 
@@ -289,24 +303,24 @@ SystemId: new-life-lifecycle
 SystemPath: project > player-flow > new-life-lifecycle > cross-store-reset
 ParentGoal: ensure every explicit new-life request starts from an isolated empty life without deleting independent saves, settings or cross-life progression
 PrimaryGovernanceParent: mod-pages creation-flow composition
-ChildSystems: canonical /new-game entry, direct world-confirm guard, MOD-runtime readiness wait, cross-store reset, per-life and legacy draft cleanup, zero-base creation handoff, retired attribute-route redirect and OPFS flush
+ChildSystems: canonical /new-game entry, direct world-confirm guard, MOD-runtime readiness wait, life-generation invalidation, rollback-capable auto-save transaction, cross-store reset, per-life and legacy draft cleanup, long-lived character-draft preservation, zero-base creation handoff, retired attribute-route redirect and OPFS flush
 Authority: A1 PD-002 and PD-006; A2 blueprint-02 section 14; A3 this index; A4 live mod-pages helper and entry pages
 RootPosition: R1
 Weight: W5
-Sequence: S1 reject active pre-generation > S2 wait for compression and MOD registration > S3 reset every active subsystem and owning Store > S4 clear per-life drafts and flow projections > S5 flush persistence > S6 allow world initialization
-Responsibility: distinguish a new life from adding a context to an existing save; clear the previous life narrative, character, world registry, active subsystem state and creation drafts before the next world is committed; preserve a same-world unfinished creation draft; invalidate the old world and downstream drafts when creation changes world identity; route active creation directly from confirmed destiny patterns to fate preview and force the four new-life base attributes to zero before orchestration
-NonResponsibility: does not delete independent save slots, model settings, diagnostic identity or the cross-life mythic library; does not create a world context, implement travel, or decide multi-world connection semantics
+Sequence: S1 reject active pre-generation > S2 wait for compression and MOD registration > S3 invalidate previous-life asynchronous writes > S4 reset every active subsystem and owning Store > S5 clear per-life drafts and flow projections > S6 flush persistence > S7 allow world initialization
+Responsibility: distinguish a new life from adding a context to an existing save; cancel and roll back an old-life auto-save before it can replace slot 0 or its index; clear the previous life narrative, runtime character, world registry, active subsystem state and per-life downstream drafts before the next world is committed; preserve the long-lived character creation draft across every new life and world; invalidate the old world and downstream drafts when creation changes world identity; route active creation directly from confirmed destiny patterns to fate preview and force the four new-life base attributes to zero before orchestration
+NonResponsibility: does not delete independent save slots, model settings, diagnostic identity, the cross-life mythic library or the long-lived character creation draft; does not create a world context, implement travel, or decide multi-world connection semantics
 Inputs: explicit new-life route or game-over action, next worldCode, current game phase, engine/orchestrator progress, MOD readiness and background-task status
-OutputsAndWrites: empty current-life world, character, engine, subsystem and flow state; removed current and legacy per-life creation drafts; four zero base attributes plus independent source modifiers; durable browser persistence before navigation
-PublicStateOrAPI: resetForNewLife() and prepareNewLifeWorldCommit(worldCode); /new-game is the canonical resetting route while world confirmation remains the direct-entry guard; `/attribute-alloc` is a compatibility redirect only
-Dependencies: mod-pages routes, global Store, orchestrator and active P0/P1 subsystem registration, owning world/character/engine/product Stores, configStore and OPFS persistence queue
+OutputsAndWrites: empty current-life world, runtime character, engine, subsystem and flow state; cancelled stale auto-save with the previous slot 0 payload and index restored; removed current and legacy per-life downstream drafts; unchanged versioned long-lived character draft; four zero base attributes plus independent source modifiers; durable browser persistence before navigation
+PublicStateOrAPI: resetForNewLife() and prepareNewLifeWorldCommit(worldCode); orchestrator life invalidation is internal to reset and save restore; /new-game is the canonical resetting route while world confirmation remains the direct-entry guard; `/attribute-alloc` is a compatibility redirect only
+Dependencies: mod-pages routes, global Store, orchestrator and active P0/P1 subsystem registration, save manager directory transaction, owning world/character/engine/product Stores, long-lived character draft Store, configStore and OPFS persistence queue
 Lifecycle: runs only for an explicit new-life request or when world confirmation detects previous-life progress or a changed creation world; same-world unfinished creation return is preserved
 RuntimeLivenessSource: mod-pages route registration, InitMods allModsLoaded state and active browser persistence
 AIParticipation: none
-PersistenceAuthority: owning Stores remain authoritative; the lifecycle invokes their reset APIs and flushes queued browser deletions but never owns save slots
-Implementation: src/mods/mod-pages/helpers/new-life-reset.ts; src/mods/mod-pages/helpers/creation-draft-storage.ts; src/mods/mod-pages/pages/new-game/page.tsx; src/mods/mod-pages/pages/world-select/useWorldConfirm.ts; src/mods/mod-pages/pages/talent-draw/page.tsx; src/mods/mod-pages/pages/attribute-alloc/page.tsx; src/mods/mod-pages/pages/fate-preview/page.tsx; src/mods/mod-pages/pages/game-over/page.tsx
-AcceptanceEvidence: npm run test:new-life-isolation; npm run test:world-context-p0; npm run test:creation-first-narrative; docs/acceptance-ledger.md#zero-base-creation; npm run check:ui; browser direct-entry isolation and zero-base opening path; delivery gates
-LastVerified: 2026-07-20
+PersistenceAuthority: owning Stores and save-manager index/OPFS transaction remain authoritative; the lifecycle supplies a synchronous generation guard, invokes reset APIs and flushes queued browser deletions but never owns save slots
+Implementation: src/mods/mod-pages/helpers/new-life-reset.ts; src/mods/mod-pages/helpers/creation-draft-storage.ts; src/mods/mod-pages/pages/new-game/page.tsx; src/mods/mod-pages/pages/world-select/useWorldConfirm.ts; src/mods/mod-pages/pages/talent-draw/page.tsx; src/mods/mod-pages/pages/attribute-alloc/page.tsx; src/mods/mod-pages/pages/fate-preview/page.tsx; src/mods/mod-pages/pages/game-over/page.tsx; src/mods/mod-engine/subsystems/orchestrator-system.ts; src/mods/mod-engine/helpers/save-restore.ts; src/core/storage/save-manager.ts
+AcceptanceEvidence: npm run test:new-life-isolation including autosave-lifecycle-smoke; npm run test:world-context-p0; npm run test:creation-first-narrative; docs/acceptance-ledger.md#zero-base-creation; npm run check:ui; browser direct-entry isolation and zero-base opening path; delivery gates
+LastVerified: 2026-07-21
 Supersession: replaces the game-over-private reset helper and the redirect-only /new-game entry
 ```
 
@@ -343,16 +357,16 @@ Supersession: replaces the browser-embedded fixed main-narrative Prompt and publ
 ```text
 SystemId: game-over-sharing
 SystemPath: project > player-flow > game-over > sharing
-ParentGoal: let players preserve and voluntarily share a completed life in a compelling form without inventing achievements or exposing private story and model data
+ParentGoal: let players preserve and voluntarily share a completed life with verified accomplishments without inventing facts or exposing private story and model data
 PrimaryGovernanceParent: mod-pages game-over composition
-ChildSystems: structured share-fact projection, visible share preview, local Canvas renderer, Web Share handoff, PNG download fallback and accessible status feedback
+ChildSystems: structured share-fact and achievement projection, visible share preview, local Canvas renderer, Web Share handoff, PNG download fallback and accessible status feedback
 Authority: A1 PD-032, PD-011 and PD-015; A2 selected game-over composition with a runtime-only extension authorized by PD-011; A3 this index; A4 live game-over page and local renderer
 RootPosition: R2
 Weight: W4
-Sequence: S1 read completed-life facts > S2 reflect the current mythic selection when available > S3 render the visible preview > S4 generate the local image on explicit player action > S5 share through the operating system or download PNG > S6 leave simulation state unchanged
-Responsibility: project existing public settlement fields into a faithful share snapshot; render the complete selected fields locally; expose one-click system sharing and an explicit PNG save action; provide pending, success, cancellation, fallback and error feedback
-NonResponsibility: does not infer heroic deeds from narrative prose or numeric thresholds, call AI, alter the mythic Schema, upload images or story content, write gameplay or save state, expose diagnostics, or make sharing mandatory before starting a new life
-Inputs: character and world names, age label, narrative round count, morality label, four public settlement dimensions, overall score, stable technical life-run ID, current generated or sealed mythic candidate and current public origin
+Sequence: S1 read completed-life facts and structured achievements > S2 reflect the current reincarnation selection when available > S3 render the visible preview > S4 generate the local image on explicit player action > S5 share through the operating system or download PNG > S6 leave simulation state unchanged
+Responsibility: project existing public settlement fields, structured achievement count and one representative event into a faithful share snapshot; render the complete selected fields locally; expose one-click system sharing and an explicit PNG save action; provide pending, success, cancellation, fallback and error feedback
+NonResponsibility: does not infer achievements from narrative prose or numeric thresholds, call AI, alter generation output Schema, upload images or story content, write gameplay or save state, expose diagnostics, or make sharing mandatory before starting a new life
+Inputs: character and world names, age label, narrative round count, morality label, deterministic life score, four public settlement dimensions, structured resolved-choice and breakthrough achievements, stable technical life-run ID, current generated or sealed reincarnation candidate and current public origin
 OutputsAndWrites: transient in-memory Canvas, PNG Blob, operating-system share handoff or browser download, and page-local status text; no persistent application write
 PublicStateOrAPI: game-over “留下此生” preview, “一键分享人生卡” and “保存 PNG” controls; no new route, server API or MOD Remote API
 Dependencies: mod-pages game-over page, existing character/world/engine Stores, current mythic candidate, Canvas 2D, File, URL object URLs and optional Web Share API
@@ -364,6 +378,105 @@ Implementation: src/mods/mod-pages/pages/game-over/page.tsx; src/mods/mod-pages/
 AcceptanceEvidence: scripts/check/domains/ui/game-over-share-card-smoke.mjs; npm run check:ui; lint and TypeScript; no-hard-truncation audit; 320/360/375/390/430/768/desktop browser layout; PNG download and post-release browser verification; docs/acceptance-ledger.md#game-over-sharing
 LastVerified: 2026-07-20
 Supersession: none
+```
+
+### 3.10 Optional account cloud and long-lived character draft
+
+```text
+TreeId: DATA
+NodeId: account-cloud
+ParentNodeId: data-lifecycle
+SystemId: account-cloud
+SystemPath: project > data-lifecycle > account-cloud > authenticated-snapshot
+ParentGoal: let optional player identities restore bounded non-story preferences and progression across browsers without weakening guest play or secret handling
+PrimaryGovernanceParent: core account service, with mod-pages account and character-creation projections
+ChildSystems: username policy, password and session cryptography, SQLite repository, account HTTP routes, client revision sync, long-lived character draft Store, 10-slot reincarnation-talent and game-record Stores, verified QQ link projection, inactive-account cleanup timer
+Authority: A0 secret and authentication boundaries; A1 PD-034, PD-033, PD-015 and PD-006; A3 this index; A4 account contracts, services, routes and owning client Stores
+RootPosition: R1
+Weight: W5
+Sequence: S1 validate and normalize identity > S2 authenticate with rate limits > S3 read one revisioned snapshot > S4 cloud snapshot overwrites local synchronized fields > S5 debounce local writes into one atomic revision update > S6 delete after explicit account deletion or 30 days without authenticated activity
+Responsibility: own optional registration, login, logout, account deletion, session recovery, bounded revisioned cloud persistence, encrypted optional API Key storage, local/cloud character-draft persistence, 10-slot mythic and structured record persistence, and inactive-account cleanup
+NonResponsibility: does not store saves, auto-save payloads, story body, summaries, Prompt, model responses, diagnostic content, world runtime, player diagnostic identity, or determine gameplay facts
+Inputs: normalized username, optional QQ, password, HttpOnly session token, whitelisted settings, optional API Key preference, versioned character draft, mythic talents, structured game records and base revision
+OutputsAndWrites: account/session/rate-limit rows, encrypted API Key, settings and character JSON, normalized 1-10 slot rows, revision, authenticated profile and cloud snapshot; browser replica writes only through owning structured Stores
+PublicStateOrAPI: POST /api/account/register, POST /api/account/login, POST /api/account/logout, GET/DELETE /api/account, PUT /api/account/sync, POST/DELETE /api/account/qq-link, /account page, mod-pages account-cloud-api secondary public entry
+Dependencies: better-sqlite3, Node crypto, Zod, HttpOnly cookies, mod-settings, mod-character mythic and life-record Stores, mod-pages character draft Store and systemd timer
+Lifecycle: optional for guests; restored after client mount when a valid cookie exists; local writes debounce for 800 ms; sessions expire after 30 days without sliding extension; account activity is refreshed at most every five minutes; daily cleanup removes inactive accounts and expired sessions
+RuntimeLivenessSource: Next.js account route registration, InitMods account sync initialization, active Node server and ai-life-sim-account-cleanup.timer
+AIParticipation: none
+StorageClass: database on the server; schema-versioned structured Store for the browser character draft and bounded progression replicas
+PersistenceAuthority: /var/lib/ai-life-sim/accounts.sqlite is the authenticated cloud truth; each guest owning Store is local truth until login, after which the cloud snapshot overwrites synchronized local fields; no account data is persisted in operational log files
+CrossTreeRelations: persists RUN and UX-owned non-story preferences; supplies verified account projection to shared-qq-community without exposing private snapshot fields; projects-to UX account and character pages; verified-by QUAL account-cloud and new-life isolation tests
+Implementation: src/core/account; src/app/api/account; src/mods/mod-pages/account-cloud-api.ts; src/mods/mod-pages/helpers/account-cloud-sync.ts; src/mods/mod-pages/helpers/character-creation-draft-store.ts; src/mods/mod-pages/pages/account; src/mods/mod-pages/pages/character-create; src/mods/mod-character/mythic-library-store.ts; src/mods/mod-character/life-record-store.ts; scripts/ops/cleanup-inactive-accounts.mjs; scripts/ops/systemd/ai-life-sim-account-cleanup.*
+AcceptanceEvidence: npm run test:account-cloud; npm run test:new-life-isolation; account register/login/logout/delete and cloud-overwrite browser paths; TypeScript, lint, structural, UI, no-hard-truncation and delivery gates; explicit MOD historical-baseline comparison with no account-specific addition
+LastVerified: 2026-07-21
+Supersession: replaces world-scoped character-create-form localStorage keys and the old rule that new-life reset clears role inputs
+```
+
+### 3.11 Shared QQ identity and points
+
+```text
+TreeId: DATA
+NodeId: shared-qq-community
+ParentNodeId: data-lifecycle
+SystemId: shared-qq-community
+SystemPath: project > data-lifecycle > shared-qq-community > signed-bot-api
+ParentGoal: let the main game and QQ community share verified identity and one points economy without granting the Bot access to private account data
+PrimaryGovernanceParent: core account database and signed integration service
+ChildSystems: one-time QQ link codes, verified one-to-one links, HMAC request verifier, nonce replay store, project/account public projections, global QQ point accounts, append-only point ledger, Shanghai-date check-ins, group membership projections, persistent business idempotency results
+Authority: A0 secret, authorization and private-data boundaries; A1 PD-035, PD-034 and PD-033; A3 this index and qq-bot-integration-contract.md; A4 core account integration services and thin routes
+RootPosition: R1
+Weight: W5
+Sequence: S1 derive QQ and group from trusted Bot event > S2 sign exact raw request over loopback > S3 verify timestamp, nonce, signature and no-forwarding boundary > S4 strictly parse an allowlisted DTO > S5 execute one database transaction > S6 return only the public projection
+Responsibility: own verified QQ linkage, signed Bot authentication, public project/account projections, global points balances, check-ins, group leaderboards, transfers, privileged adjustments, append-only ledger rows and idempotent retries
+NonResponsibility: does not expose or let the Bot directly query password hashes, sessions, API Keys, settings, character drafts, talent or record content, saves, story, Prompt, logs or diagnostics; does not own OneBot identity extraction, group membership verification, command confirmation or Bot administrator policy
+Inputs: server-generated link code, trusted event QQ/group, exact signed request bytes, point operation DTO and business idempotency key
+OutputsAndWrites: verified link rows, nonce hashes, point account balances, ledger rows, Shanghai-date check-ins, group membership timestamps, idempotent result rows and allowlisted response DTOs
+PublicStateOrAPI: GET /api/integrations/qq-bot/project-status; POST /api/integrations/qq-bot/account-status, /bind, /unbind and /points; exact caller contract in docs/qq-bot-integration-contract.md
+Dependencies: account-cloud identity, better-sqlite3 WAL repository, Node crypto, Zod, loopback network and shared QQ_BOT_INTEGRATION_SECRET
+Lifecycle: link codes expire after ten minutes; request signatures after five minutes; nonce hashes after ten minutes; point idempotency results after 90 days; QQ point balances outlive optional game-account deletion and remain keyed by QQ
+RuntimeLivenessSource: Next.js integration route registration, active main service on loopback and configured integration secret; the QQ Bot consumer is integrated by a separate task
+AIParticipation: none
+StorageClass: database
+PersistenceAuthority: the main account SQLite database owns all shared QQ identity and point tables; only the main service and its cleanup process open the file, while the Bot consumes signed DTOs
+CrossTreeRelations: consumes account-cloud verified identity; projects-to UX account points and external Bot commands; verified-by QUAL account-cloud transaction, replay and privacy tests
+Implementation: src/core/account/account-database.ts; src/core/account/qq-bot-integration.ts; src/core/account/qq-points-service.ts; src/app/api/integrations/qq-bot; src/app/api/account/qq-link; scripts/ops/cleanup-inactive-accounts.mjs
+AcceptanceEvidence: npm run test:account-cloud; signature mismatch, stale timestamp, replay, forwarded request, link-code, cross-day check-in, transfer conservation, request-bound idempotency and negative-balance cases; TypeScript, lint and delivery gates
+LastVerified: 2026-07-21
+Supersession: the Bot's former independent shared-point balance must be retired when its separate integration task adopts this API
+```
+
+### 3.12 Game-over score, achievements and reincarnation generation
+
+```text
+TreeId: SEM
+NodeId: game-over-reincarnation
+ParentNodeId: semantic-capabilities
+SystemId: game-over-reincarnation
+SystemPath: project > player-flow > game-over > score-achievements-reincarnation
+ParentGoal: give completed lives a broadly rewarding but honest score, visible verified accomplishments and a score-scaled cross-world legacy
+PrimaryGovernanceParent: mod-pages deterministic game-over scorer and mod-character reincarnation Prompt chain
+ChildSystems: raw score components, sub-95 generous mapping, structured achievement extractor, featured-achievement selector, deterministic strength tiers, Prompt input projection, strict three-candidate parser, local/cloud structured record projection
+Authority: A1 PD-036, PD-006, PD-032 and PD-015; A3 this index; A4 live scorer, game-over page, Prompt access chain and owning Stores
+RootPosition: R2
+Weight: W5
+Sequence: S1 read complete structured end state > S2 calculate raw and display score locally > S3 extract only resolved choices and breakthroughs > S4 choose strength tier locally > S5 send complete allowed life evidence plus fixed score/tier to AI > S6 validate three candidates > S7 let the player seal one > S8 persist bounded structured record and talent
+Responsibility: own deterministic score mapping, structured major-event projection, score-to-strength classification, score/tier Prompt input, strict generated-candidate validation, complete long-description display and structured persistence fields
+NonResponsibility: does not infer achievements from prose, let AI calculate the score or tier, truncate story evidence, guarantee high-tier victory, create a second mythic/reincarnation Store, or persist story正文 in account records
+Inputs: four public dimensions, narrative round count, structured resolved choices, lifespan breakthroughs, completed/dead state, complete ordered life records and digests, existing reincarnation library
+OutputsAndWrites: score and components, structured achievements, representative achievement, strength tier, three validated candidates with source score/tier, one sealed reincarnation talent, bounded structured game record and local share projection
+PublicStateOrAPI: game-over sections 01-05, share-card facts, mod-character generateMythicPatternCandidates input/output and existing 10-slot reincarnation library
+Dependencies: engine narrative metadata, character lifespan/destiny state, mod-character Prompt 1.2.0, account-cloud structured schemas and game-over-sharing
+Lifecycle: score and achievements are derived when game over is viewable; candidate generation runs once per unsealed ending and is abortable on leave; persistence occurs only after a valid candidate is sealed or a completed record is upserted
+RuntimeLivenessSource: mod-pages game-over route guard and live mod-character AI caller
+AIParticipation: validated proposal; AI generates exactly three candidates under the deterministic score tier, while local code owns score, tier, validation, sealing and persistence
+StorageClass: schema-versioned structured Store locally and database projection when authenticated
+PersistenceAuthority: mod-character reincarnation library and life-record Stores own browser state; account-cloud owns authenticated bounded replicas; no independent score files
+CrossTreeRelations: consumes RUN completed-life facts; supplies SEM Prompt evidence; persists-to DATA account-cloud; projects-to UX game-over and talent draw; verified-by QUAL game-over and account regression tests
+Implementation: src/mods/mod-pages/pages/game-over/game-over-scoring.ts; src/mods/mod-pages/pages/game-over/page.tsx; src/mods/mod-pages/pages/game-over/game-over-share-card.ts; src/mods/mod-character/mythic-pattern-access.ts; src/mods/mod-character/prompts/mythic-pattern-prompt.ts; src/mods/mod-character/mythic-library-store.ts; src/mods/mod-pages/pages/talent-draw
+AcceptanceEvidence: game-over-share-card-smoke scoring thresholds, structured achievement extraction, share projection, Prompt version/tier and no-line-clamp assertions; npm run check:ui; no-hard-truncation audit; browser game-over and long-description layouts; lint and TypeScript
+LastVerified: 2026-07-21
+Supersession: replaces the old visible four-dimension average as the overall ending score and the player-facing “神话天赋” naming
 ```
 
 ## 4. External MVP systems
