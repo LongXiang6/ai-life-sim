@@ -19,6 +19,17 @@ function resolveDatabasePath(): string {
     : path.join(process.cwd(), '.data', 'accounts.sqlite')
 }
 
+function enforceDatabaseFilePermissions(databasePath: string): void {
+  if (process.platform === 'win32') return
+  for (const target of [databasePath, `${databasePath}-wal`, `${databasePath}-shm`]) {
+    try {
+      fs.chmodSync(target, 0o600)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    }
+  }
+}
+
 function initializeSchema(database: Database.Database): void {
   database.exec(`
     CREATE TABLE IF NOT EXISTS account_meta (
@@ -208,7 +219,7 @@ export function getAccountDatabase(): Database.Database {
     database.pragma('synchronous = NORMAL')
     database.pragma('journal_size_limit = 67108864')
     database.transaction(() => initializeSchema(database))()
-    try { fs.chmodSync(databasePath, 0o600) } catch { /* Windows or restricted runtime. */ }
+    enforceDatabaseFilePermissions(databasePath)
 
     globalThis.__aiLifeAccountDatabase = database
     return database

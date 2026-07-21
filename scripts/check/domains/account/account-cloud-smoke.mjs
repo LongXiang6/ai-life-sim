@@ -246,6 +246,15 @@ try {
 
   const database = databaseModule.getAccountDatabase()
   assert.equal(database.prepare("SELECT value FROM account_meta WHERE key = 'schema_version'").get().value, '5')
+  if (process.platform !== 'win32') {
+    for (const target of [
+      process.env.ACCOUNT_DB_PATH,
+      `${process.env.ACCOUNT_DB_PATH}-wal`,
+      `${process.env.ACCOUNT_DB_PATH}-shm`,
+    ]) {
+      assert.equal((await fs.stat(target)).mode & 0o777, 0o600, `${target} must use mode 0600`)
+    }
+  }
   const accountRow = database.prepare('SELECT * FROM accounts').get()
   assert.notEqual(accountRow.password_hash, '正确密码 password')
   assert.equal(await crypto.verifyPassword('正确密码 password', accountRow.password_hash), true)
