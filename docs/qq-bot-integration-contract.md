@@ -22,7 +22,7 @@ ParentNodeId：data-lifecycle
 
 1. 主项目与 QQ Bot 共享同一个 SQLite 业务真源；默认生产路径为 `/var/lib/ai-life-sim/accounts.sqlite`。
 2. 只有主项目 Next.js 进程和主项目清理器可以直接打开数据库。QQ Bot 不得导入 SQLite 文件、复制数据库、执行 SQL 或读取主项目表。
-3. QQ Bot 只调用 `http://127.0.0.1:3000/api/integrations/qq-bot/*`。接口拒绝带 `x-forwarded-for` 或 `x-real-ip` 的请求，因此不得通过公网域名或 Nginx 转发调用。
+3. QQ Bot 只调用 `http://127.0.0.1:3000/api/integrations/qq-bot/*`。Next.js 直连时可能自动补充转发头，因此接口允许 `x-forwarded-for` 与 `x-real-ip` 中仅包含 `127.0.0.0/8`、`::1` 或 IPv4-mapped 回环地址；任一转发链成员不是回环地址即拒绝。公网域名或 Nginx 请求会包含真实公网来源，不能调用这些接口。
 4. Bot 可读取项目版本、自己的已绑定账号公开状态、天赋/战绩数量与积分；不可读取密码、会话、API Key、设置、角色设定、天赋内容、战绩内容、存档、故事、Prompt、日志或诊断内容。
 5. Bot 必须从可信 OneBot 事件取得请求者 QQ 和群号。普通命令不得接受玩家在文本中伪造另一个 QQ；积分调整只能由 Bot 已有管理员/系统事件权限触发。
 6. `QQ_BOT_INTEGRATION_SECRET` 在主项目和 Bot 运行环境中配置为同一个独立的 32 字符以上随机秘密。不得与账号加密密钥、OneBot Token 或管理员 Token 复用或写入日志。
@@ -78,7 +78,7 @@ signature = hmacSha256Hex(QQ_BOT_INTEGRATION_SECRET, canonical)
 }
 ```
 
-调用方按 HTTP 状态和 `code` 分支，不解析中文文案。401 通常表示签名、时钟或 nonce 重放；403 表示请求经过转发；409 表示业务冲突；429 表示频率限制；503 表示主项目或联动秘密未就绪。
+调用方按 HTTP 状态和 `code` 分支，不解析中文文案。401 通常表示签名、时钟或 nonce 重放；403 表示转发链包含非回环来源；409 表示业务冲突；429 表示频率限制；503 表示主项目或联动秘密未就绪。
 
 ## 4. 项目状态
 
@@ -89,7 +89,7 @@ signature = hmacSha256Hex(QQ_BOT_INTEGRATION_SECRET, canonical)
 ```json
 {
   "project": "AI Life Sim",
-  "version": "5.2.3",
+  "version": "5.2.4",
   "latestUpdates": ["最近一条玩家更新"],
   "capabilities": {
     "optionalAccount": true,

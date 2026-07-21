@@ -220,12 +220,32 @@ export function buildQqBotSignature(
     .digest('hex')
 }
 
+function isLoopbackAddress(value: string): boolean {
+  const normalized = value.trim().toLowerCase()
+  if (normalized === '::1') return true
+
+  const ipv4 = normalized.startsWith('::ffff:')
+    ? normalized.slice('::ffff:'.length)
+    : normalized
+  const octets = ipv4.split('.')
+  if (octets.length !== 4 || octets.some((octet) => !/^\d{1,3}$/u.test(octet))) return false
+  const values = octets.map(Number)
+  return values.every((octet) => octet >= 0 && octet <= 255) && values[0] === 127
+}
+
+function hasOnlyLoopbackForwardingAddresses(headers: Headers): boolean {
+  return ['x-forwarded-for', 'x-real-ip'].every((headerName) => {
+    const value = headers.get(headerName)
+    return value === null || value.split(',').every(isLoopbackAddress)
+  })
+}
+
 export function verifyQqBotRequest(
   request: Request,
   rawBody: string,
   now = Date.now(),
 ): void {
-  if (request.headers.has('x-forwarded-for') || request.headers.has('x-real-ip')) {
+  if (!hasOnlyLoopbackForwardingAddresses(request.headers)) {
     throw new AccountServiceError('联动接口仅允许回环调用', 403, 'integration_loopback_required')
   }
   const timestamp = request.headers.get('x-ai-life-bot-timestamp') ?? ''

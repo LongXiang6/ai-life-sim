@@ -139,33 +139,53 @@ try {
 
   const signedBody = JSON.stringify({ qq: '123456789' })
   const signedTimestamp = String(Math.floor(linkNow / 1000))
-  const signedNonce = 'account-link-test-nonce'
   const signedPath = '/api/integrations/qq-bot/account-status'
-  const signedValue = qqBot.buildQqBotSignature(
-    'POST',
-    signedPath,
-    signedBody,
-    signedTimestamp,
-    signedNonce,
-    process.env.QQ_BOT_INTEGRATION_SECRET,
-  )
-  const signedRequest = new Request(`http://127.0.0.1:3000${signedPath}`, {
-    method: 'POST',
-    headers: {
-      'x-ai-life-bot-timestamp': signedTimestamp,
-      'x-ai-life-bot-nonce': signedNonce,
-      'x-ai-life-bot-signature': signedValue,
+  const createSignedRequest = (nonce, forwardingHeaders = {}) => new Request(
+    `http://127.0.0.1:3000${signedPath}`,
+    {
+      method: 'POST',
+      headers: {
+        'x-ai-life-bot-timestamp': signedTimestamp,
+        'x-ai-life-bot-nonce': nonce,
+        'x-ai-life-bot-signature': qqBot.buildQqBotSignature(
+          'POST',
+          signedPath,
+          signedBody,
+          signedTimestamp,
+          nonce,
+          process.env.QQ_BOT_INTEGRATION_SECRET,
+        ),
+        ...forwardingHeaders,
+      },
     },
-  })
+  )
+  const signedRequest = createSignedRequest('account-link-test-nonce')
   qqBot.verifyQqBotRequest(signedRequest, signedBody, linkNow)
   assert.throws(
     () => qqBot.verifyQqBotRequest(signedRequest, signedBody, linkNow),
     (error) => error?.code === 'integration_auth_failed',
   )
+  assert.doesNotThrow(() => qqBot.verifyQqBotRequest(
+    createSignedRequest('loopback-forwarded-test', { 'x-forwarded-for': '127.0.0.2, 127.255.255.254' }),
+    signedBody,
+    linkNow,
+  ))
+  assert.doesNotThrow(() => qqBot.verifyQqBotRequest(
+    createSignedRequest('mapped-loopback-test', {
+      'x-forwarded-for': '::ffff:127.0.0.1',
+      'x-real-ip': '::1',
+    }),
+    signedBody,
+    linkNow,
+  ))
   assert.throws(
-    () => qqBot.verifyQqBotRequest(new Request(signedRequest, {
-      headers: { ...Object.fromEntries(signedRequest.headers), 'x-forwarded-for': '203.0.113.1' },
-    }), signedBody, linkNow),
+    () => qqBot.verifyQqBotRequest(
+      createSignedRequest('public-forwarded-test', {
+        'x-forwarded-for': '127.0.0.1, 203.0.113.1',
+      }),
+      signedBody,
+      linkNow,
+    ),
     (error) => error?.code === 'integration_loopback_required',
   )
 

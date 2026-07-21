@@ -427,7 +427,7 @@ ChildSystems: one-time QQ link codes, verified one-to-one links, HMAC request ve
 Authority: A0 secret, authorization and private-data boundaries; A1 PD-035, PD-034 and PD-033; A3 this index and qq-bot-integration-contract.md; A4 core account integration services and thin routes
 RootPosition: R1
 Weight: W5
-Sequence: S1 derive QQ and group from trusted Bot event > S2 sign exact raw request over loopback > S3 verify timestamp, nonce, signature and no-forwarding boundary > S4 strictly parse an allowlisted DTO > S5 execute one database transaction > S6 return only the public projection
+Sequence: S1 derive QQ and group from trusted Bot event > S2 sign exact raw request over loopback > S3 verify timestamp, nonce, signature and a loopback-only forwarding chain > S4 strictly parse an allowlisted DTO > S5 execute one database transaction > S6 return only the public projection
 Responsibility: own verified QQ linkage, signed Bot authentication, public project/account projections, global points balances, check-ins, group leaderboards, transfers, privileged adjustments, append-only ledger rows and idempotent retries
 NonResponsibility: does not expose or let the Bot directly query password hashes, sessions, API Keys, settings, character drafts, talent or record content, saves, story, Prompt, logs or diagnostics; does not own OneBot identity extraction, group membership verification, command confirmation or Bot administrator policy
 Inputs: server-generated link code, trusted event QQ/group, exact signed request bytes, point operation DTO and business idempotency key
@@ -441,7 +441,7 @@ StorageClass: database
 PersistenceAuthority: the main account SQLite database owns all shared QQ identity and point tables; only the main service and its cleanup process open the file, while the Bot consumes signed DTOs
 CrossTreeRelations: consumes account-cloud verified identity; projects-to UX account points and external Bot commands; verified-by QUAL account-cloud transaction, replay and privacy tests
 Implementation: src/core/account/account-database.ts; src/core/account/qq-bot-integration.ts; src/core/account/qq-points-service.ts; src/app/api/integrations/qq-bot; src/app/api/account/qq-link; scripts/ops/cleanup-inactive-accounts.mjs
-AcceptanceEvidence: npm run test:account-cloud; signature mismatch, stale timestamp, replay, forwarded request, link-code, cross-day check-in, transfer conservation, request-bound idempotency and negative-balance cases; TypeScript, lint and delivery gates
+AcceptanceEvidence: npm run test:account-cloud; signature mismatch, stale timestamp, replay, loopback-only and mixed/public forwarding chains, link-code, cross-day check-in, transfer conservation, request-bound idempotency and negative-balance cases; TypeScript, lint and delivery gates
 LastVerified: 2026-07-21
 Supersession: the Bot's former independent shared-point balance must be retired when its separate integration task adopts this API
 ```
