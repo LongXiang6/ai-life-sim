@@ -72,8 +72,16 @@ assertOk(
 )
 assertOk(
   serverEntry.includes("import 'server-only'")
-    && serverEntry.includes('resolveModEngineServerPromptAsset'),
-  'server Prompt public entry must carry the server-only hard gate and resolver',
+    && serverEntry.includes('resolveModEngineServerPromptAsset')
+    && serverEntry.includes("'mod-engine:narrative:4.5.2'")
+    && serverEntry.includes('LEGACY_SERVER_PROMPT_ASSET_ALIASES')
+    && serverEntry.includes('canonicalAssetId'),
+  'server Prompt public entry must carry the server-only hard gate and exact release migration',
+)
+assertOk(
+  !serverEntry.includes('startsWith(')
+    && !serverEntry.includes('includes(assetId'),
+  'server Prompt migration must not widen the protected asset whitelist by prefix or substring',
 )
 assertOk(
   manifest.includes("serverOnlyPublicEntries: ['server-prompt-assets.ts']")

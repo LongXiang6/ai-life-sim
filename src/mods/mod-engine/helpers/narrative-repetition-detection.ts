@@ -68,13 +68,21 @@ function matchesAny(text: string, patterns: RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(text))
 }
 
-/** 检测已经启程后无返回/中断因果又回到出发准备阶段的连续性回退。 */
-function hasUnexplainedStageRegression(newBody: string, recentHistory: string[]): boolean {
+/** 检测连续性回退，并返回最近一条已成立阶段事实的窗口索引。 */
+function findStageRegressionReference(newBody: string, recentHistory: string[]): number {
   const recent = recentHistory.slice(-3)
-  const departed = recent.some((text) => matchesAny(text, DEPARTURE_PATTERNS))
-  if (!departed || !matchesAny(newBody, PREPARATION_PATTERNS)) return false
-  return !matchesAny(newBody, CONTINUITY_PATTERNS)
-    && !matchesAny(newBody, RETROSPECTIVE_PATTERNS)
+  let departureIndex = -1
+  for (let index = recent.length - 1; index >= 0; index--) {
+    if (matchesAny(recent[index], DEPARTURE_PATTERNS)) {
+      departureIndex = recentHistory.length - recent.length + index
+      break
+    }
+  }
+  if (departureIndex < 0 || !matchesAny(newBody, PREPARATION_PATTERNS)) return -1
+  if (matchesAny(newBody, CONTINUITY_PATTERNS) || matchesAny(newBody, RETROSPECTIVE_PATTERNS)) {
+    return -1
+  }
+  return departureIndex
 }
 
 /**
@@ -110,8 +118,10 @@ export function checkNarrativeRepetition(
   }
 
   const hasTextOverlap = maxSimilarity >= REPETITION_THRESHOLD
-  const hasStageRegression = !hasTextOverlap
-    && hasUnexplainedStageRegression(newBody, window)
+  const stageRegressionReference = hasTextOverlap
+    ? -1
+    : findStageRegressionReference(newBody, window)
+  const hasStageRegression = stageRegressionReference >= 0
   const isRepetitive = hasTextOverlap || hasStageRegression
   const severity = maxSimilarity >= REPETITION_HIGH_THRESHOLD ? 'high' : 'normal'
   const kind = hasTextOverlap
@@ -120,7 +130,13 @@ export function checkNarrativeRepetition(
       ? 'stage-regression'
       : 'none'
 
-  return { isRepetitive, maxSimilarity, matchedIndex, severity, kind }
+  return {
+    isRepetitive,
+    maxSimilarity,
+    matchedIndex: hasStageRegression ? stageRegressionReference : matchedIndex,
+    severity,
+    kind,
+  }
 }
 
 export interface RepetitionRepairDecision {

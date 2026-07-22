@@ -443,6 +443,9 @@ export function loadStages(
                   createNarrativeRepairComponent(repairMsg),
                 ]) ?? ''
                 const previousContent = ctx._fullContent
+                const matchedHistory = repetitionResult.matchedIndex >= 0
+                  ? recentHistory[repetitionResult.matchedIndex]
+                  : recentHistory.at(-1)
                 const repetitionNecessaryFacts = {
                   当前时间: ctx._promptContext.currentTime,
                   世界设定: ctx._promptContext.worldNarrativeView,
@@ -455,7 +458,9 @@ export function loadStages(
                   repetitionRepairComponent,
                   focusedIntentRepairInstruction,
                   `【本轮必要事实】\n${JSON.stringify(repetitionNecessaryFacts)}`,
-                  `【近期已提交正文；只用于避开重复】\n${JSON.stringify(recentHistory)}`,
+                  matchedHistory
+                    ? `【本地检测命中的已提交正文；只用于避开重复】\n${matchedHistory}`
+                    : '',
                   `【上一版完整输出；在保留已成立事实的前提下重写】\n${previousContent}`,
                 ].filter(Boolean).join('\n\n')
                 try {

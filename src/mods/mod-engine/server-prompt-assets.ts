@@ -29,7 +29,16 @@ const SERVER_PROMPT_ASSETS: Readonly<Record<string, ServerPromptAsset>> = {
   },
 }
 
-/** 只按公开白名单 ID 返回服务端固定资产；未知 ID 不降级到其他 Prompt。 */
+/**
+ * 发布切换期间，已打开页面仍可能发送上一版公开 ID。这里只迁移已知、
+ * 相邻且协议兼容的 ID；任意其他未知值仍须拒绝，不能按前缀宽松匹配。
+ */
+const LEGACY_SERVER_PROMPT_ASSET_ALIASES: Readonly<Record<string, string>> = {
+  'mod-engine:narrative:4.5.2': NARRATIVE_SERVER_PROMPT_ASSET_ID,
+}
+
+/** 只按公开白名单 ID 或精确迁移表返回服务端固定资产。 */
 export function resolveModEngineServerPromptAsset(assetId: string): ServerPromptAsset | undefined {
-  return SERVER_PROMPT_ASSETS[assetId]
+  const canonicalAssetId = LEGACY_SERVER_PROMPT_ASSET_ALIASES[assetId] ?? assetId
+  return SERVER_PROMPT_ASSETS[canonicalAssetId]
 }

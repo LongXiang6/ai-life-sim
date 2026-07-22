@@ -8,14 +8,14 @@
  * 为什么需要压缩：
  *   每轮生成叙事文本后追加到历史，连续数百轮后 Prompt 将超出 AI token 限制。
  *   压缩器通过六级渐进压缩解决此问题：
- *   - L1 块总结：将连续 5 轮叙事压缩为一段摘要（落后 1 个完整块延迟执行）
+ *   - L1 块总结：每 5 轮完成后立即将该块压缩为一段摘要
  *   - L2 深度压缩：将 5 条 L1 摘要再压缩为一条（25轮）
  *   - L3 骨架压缩：将 5 条 L2 摘要压缩为时代骨架（250轮）
  *   - L4 纪元压缩：将 5 条 L3 骨架压缩为纪元概览（1250轮）
  *   - L5 时代压缩：将 5 条 L4 纪元压缩为时代概略（6250轮）
  *   - L6 历史压缩：将 5 条 L5 时代压缩为历史概略（31250轮）
  *
- * 这确保 AI 始终有覆盖延迟区间的最近 10 轮原始上下文，同时距离越远的历史被压缩得越紧凑。
+ * 这确保 AI 固定保留最近 5 轮原始上下文，同时距离越远的历史被压缩得越紧凑。
  * L6 层级覆盖 31250 轮，日步进玩家可体验约 85 年人生。
  */
 
@@ -243,9 +243,8 @@ export class SummaryCompressorSystem extends BaseSubsystem {
     }
 
     // Step 1: 计算块索引
-    const blockIndex = Math.floor((turnCount + 1) / SUMMARY_INTERVAL)
-    const blockRound = (turnCount + 1) % SUMMARY_INTERVAL
-    const isBlockBoundary = blockRound === 0
+    const completedRounds = turnCount + 1
+    const blockRound = completedRounds % SUMMARY_INTERVAL
 
     let summaries = [...this.compressedSummaries.summaries]
     let newLatestSummary = ''
@@ -280,9 +279,21 @@ export class SummaryCompressorSystem extends BaseSubsystem {
     // ============================================================
     // Step 2: L1 块总结
     // ============================================================
-    // Phase 7A-4：L1 延迟一个完整短块触发（第 11 轮开始生成第 1—5 轮）
-    if (!isBlockBoundary && blockRound === COMPRESS_L1_DELAY_ROUNDS && blockIndex >= 2) {
-      const targetBlock = blockIndex - 2
+    // L1 在每个完整短块结束后立即后台生成；下一轮开始前会等待提交完成。
+    // 若调用失败，后续回合会继续尝试最早的未覆盖完整块，不扩大主 Prompt 窗口。
+    const latestEligibleBlock = Math.floor(completedRounds / SUMMARY_INTERVAL)
+      - 1
+      - COMPRESS_L1_DELAY_ROUNDS
+    let targetBlock = -1
+    for (let block = 0; block <= latestEligibleBlock; block++) {
+      const startRound = block * SUMMARY_INTERVAL + 1
+      if (!summaries.some((summary) => summary.level === 1 && summary.startRound === startRound)) {
+        targetBlock = block
+        break
+      }
+    }
+
+    if (targetBlock >= 0) {
       const startRound = targetBlock * SUMMARY_INTERVAL + 1
       const endRound = (targetBlock + 1) * SUMMARY_INTERVAL
 

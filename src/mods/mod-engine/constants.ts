@@ -130,16 +130,16 @@ export const STORAGE_KEYS = {
 /** 每个 L1 摘要块包含的轮次数；短块减少远期压缩一次吞入的正文。 */
 export const SUMMARY_INTERVAL = 5
 
-/** L1 在目标块之后再延迟一个完整短块，避免与当前叙事争用同一轮数据。 */
-export const COMPRESS_L1_DELAY_ROUNDS = 1
+/** L1 在完整短块结束后立即后台生成，不额外滞留完整正文块。 */
+export const COMPRESS_L1_DELAY_ROUNDS = 0
 
 /**
  * 主叙事 Prompt 保留的最近完整原文轮数。
  *
- * L1 延迟一个完整短块后才生成摘要，因此窗口覆盖当前块与延迟块，
- * 但不再按历史长度自适应扩大；当前固定上限为 10 轮，摘要失败也不扩大。
+ * L1 在每个短块完成后立即生成；常驻 Prompt 只保留最近 5 轮完整正文，
+ * 不再按历史长度或摘要失败自适应扩大。
  */
-export const RECENT_NARRATIVE_WINDOW = SUMMARY_INTERVAL * (COMPRESS_L1_DELAY_ROUNDS + 1)
+export const RECENT_NARRATIVE_WINDOW = SUMMARY_INTERVAL
 
 /** 合并 N 个 L1 摘要为一个 L2 摘要 */
 export const COMPRESS_L2_MERGE_COUNT = 5

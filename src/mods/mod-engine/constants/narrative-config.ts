@@ -51,7 +51,7 @@ export const WORD_COUNT_RANGES: WordCountRange[] = [
 /**
  * @deprecated 压缩调度的唯一来源是 `../constants.ts`；此兼容导出保持同一数值。
  */
-export const SUMMARY_INTERVAL = 10
+export const SUMMARY_INTERVAL = 5
 
 // ============================================================
 // 紧凑 JSON 键名映射（用于压缩 Prompt 中的 JSON 字段名）

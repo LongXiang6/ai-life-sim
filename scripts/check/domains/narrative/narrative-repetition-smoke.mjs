@@ -25,7 +25,7 @@ const regressed = checkNarrativeRepetition(
   departedHistory,
 )
 assert(
-  regressed.isRepetitive && regressed.kind === 'stage-regression',
+  regressed.isRepetitive && regressed.kind === 'stage-regression' && regressed.matchedIndex === 1,
   'departure followed by unexplained preparation reset must be rejected',
 )
 

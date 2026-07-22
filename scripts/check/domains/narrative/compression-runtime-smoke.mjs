@@ -34,10 +34,10 @@ const readNumericConstant = (name) => {
 const SUMMARY_INTERVAL = readNumericConstant('SUMMARY_INTERVAL')
 const COMPRESS_L1_DELAY_ROUNDS = readNumericConstant('COMPRESS_L1_DELAY_ROUNDS')
 const recentWindowExpression = constantsSource.match(
-  /export const RECENT_NARRATIVE_WINDOW = SUMMARY_INTERVAL \* \(COMPRESS_L1_DELAY_ROUNDS \+ 1\)/,
+  /export const RECENT_NARRATIVE_WINDOW = SUMMARY_INTERVAL/,
 )
-if (!recentWindowExpression) throw new Error('RECENT_NARRATIVE_WINDOW must derive from the L1 delay contract')
-const RECENT_NARRATIVE_WINDOW = SUMMARY_INTERVAL * (COMPRESS_L1_DELAY_ROUNDS + 1)
+if (!recentWindowExpression) throw new Error('RECENT_NARRATIVE_WINDOW must stay fixed at one L1 block')
+const RECENT_NARRATIVE_WINDOW = SUMMARY_INTERVAL
 
 function assertOk(condition, message) {
   if (!condition) {
@@ -146,23 +146,23 @@ assertOk(
 function expectedL1Range(totalRounds) {
   const blockIndex = Math.floor(totalRounds / SUMMARY_INTERVAL)
   const blockRound = totalRounds % SUMMARY_INTERVAL
-  if (blockRound !== COMPRESS_L1_DELAY_ROUNDS || blockIndex < 2) return null
-  const targetBlock = blockIndex - 2
+  if (blockRound !== 0 || blockIndex < 1) return null
+  const targetBlock = blockIndex - 1
   return [targetBlock * SUMMARY_INTERVAL + 1, (targetBlock + 1) * SUMMARY_INTERVAL]
 }
 
-assertOk(expectedL1Range(10) === null, 'L1 must remain delayed before the first complete delay window')
+assertOk(expectedL1Range(4) === null, 'L1 must wait for one complete five-round block')
 assertOk(
-  JSON.stringify(expectedL1Range(11)) === JSON.stringify([1, 5]),
-  'the first delayed L1 must cover rounds 1-5 at round 11',
+  JSON.stringify(expectedL1Range(5)) === JSON.stringify([1, 5]),
+  'the first L1 must cover rounds 1-5 immediately after round 5',
 )
 assertOk(
-  JSON.stringify(expectedL1Range(16)) === JSON.stringify([6, 10]),
-  'the second delayed L1 must cover rounds 6-10 at round 16',
+  JSON.stringify(expectedL1Range(10)) === JSON.stringify([6, 10]),
+  'the second L1 must cover rounds 6-10 immediately after round 10',
 )
 assertOk(
-  RECENT_NARRATIVE_WINDOW >= SUMMARY_INTERVAL * (COMPRESS_L1_DELAY_ROUNDS + 1),
-  'the raw prompt window must cover all rounds waiting for delayed L1 compression',
+  RECENT_NARRATIVE_WINDOW === SUMMARY_INTERVAL,
+  'the raw prompt window must stay at one five-round L1 block',
 )
 
 const orchestratorSource = fs.readFileSync(
