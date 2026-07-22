@@ -43,6 +43,7 @@ try {
     releaseRoot: releases,
     activeLink,
     minAgeHours: 72,
+    maxReleases: 2,
     nowMs,
     activeActivatedAtMs: nowMs - 24 * HOUR_MS,
   })
@@ -53,6 +54,7 @@ try {
     releaseRoot: releases,
     activeLink,
     minAgeHours: 72,
+    maxReleases: 2,
     nowMs,
     activeActivatedAtMs: nowMs - 96 * HOUR_MS,
   })
@@ -62,9 +64,11 @@ try {
   assert.equal((await fs.stat(activeRelease)).isDirectory(), true, 'the active release must never be removed')
   assert.equal((await fs.stat(freshRelease)).isDirectory(), true, 'releases younger than 72 hours must remain')
 
-  const parsed = parseArgs(['--min-age-hours', '72', '--execute'])
+  const parsed = parseArgs(['--min-age-hours', '72', '--max-releases', '5', '--execute'])
   assert.equal(parsed.minAgeHours, 72)
+  assert.equal(parsed.maxReleases, 5)
   assert.equal(parsed.execute, true)
+  assert.throws(() => parseArgs(['--max-releases', '1']), /integer >= 2/)
   await assert.rejects(checkLocalHealth('https://example.com'), /local HTTP/)
 
   const opsDirectory = path.resolve('scripts/ops')

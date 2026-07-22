@@ -22,6 +22,31 @@ import {
 
 const MAX_BODY_SIZE = 4 * 1024 * 1024
 
+const AggregateUsageMetricSchema = z.discriminatedUnion('kind', [
+  z.object({
+    schemaVersion: z.literal(1),
+    kind: z.literal('page_view'),
+    page: z.string().startsWith('/').max(160),
+  }).strict(),
+  z.object({
+    schemaVersion: z.literal(1),
+    kind: z.literal('narrative_advance'),
+    timeStepKey: z.string().min(1).max(32),
+  }).strict(),
+  z.object({
+    schemaVersion: z.literal(1),
+    kind: z.literal('time_step_selected'),
+    timeStepKey: z.string().min(1).max(32),
+  }).strict(),
+  z.object({
+    schemaVersion: z.literal(1),
+    kind: z.literal('branch_choice'),
+    branchChoiceType: z.enum(['custom', 'preset']),
+    branchTerms: z.array(z.string().min(2).max(16)).max(12).optional(),
+    branchChars: z.number().int().min(0).max(2000).optional(),
+  }).strict(),
+])
+
 /** 请求体 Zod 校验 */
 const ClientLogSchema = z.object({
   level: z.enum(['debug', 'info', 'warn', 'error']),
@@ -37,6 +62,7 @@ const ClientLogSchema = z.object({
   eventType: z.enum(['log', 'exception', 'user_action']).optional(),
   action: z.string().optional(),
   context: z.record(z.string(), z.unknown()).optional(),
+  metric: AggregateUsageMetricSchema.optional(),
 })
 
 type ClientLogEntry = z.infer<typeof ClientLogSchema>
@@ -68,6 +94,7 @@ async function writeLogAsync(entry: ClientLogEntry, source: ServerRequestSource)
     diagnosticSessionId: typeof context?.diagnosticSessionId === 'string'
       ? context.diagnosticSessionId
       : undefined,
+    metric: entry.metric,
     hasEnvironmentSnapshot: Boolean(context?.environmentSnapshot) || undefined,
     argsCount: args?.length,
     argsRef: argsRef ?? undefined,

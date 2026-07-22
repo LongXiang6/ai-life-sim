@@ -10,6 +10,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 
 import { useRouter } from 'next/navigation'
 import { clamp } from '@/core/shared'
+import { reportUsageMetric } from '@/core/logger/client-logger'
 
 import { useEngine, useNarrative, usePreGenQueueStatus, useSimulationAdvance } from '@/mods/mod-engine'
 import {
@@ -114,6 +115,7 @@ export default function GamePage() {
   const activeTimeStepKey = encodeTimeStepKey(timeStep)
   const handleTimeStepChange = useCallback((key: string) => {
     setSimulationTimeStepByKey(key)
+    reportUsageMetric({ schemaVersion: 1, kind: 'time_step_selected', timeStepKey: key })
   }, [])
   const timeStepOptions = useMemo(
     () => AVAILABLE_TIME_STEPS.map((s) => ({
@@ -226,13 +228,15 @@ export default function GamePage() {
 
   const handleNarrativeAdvance = useCallback(async () => {
     if (narrativeError || !isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch) return
+    reportUsageMetric({ schemaVersion: 1, kind: 'narrative_advance', timeStepKey: activeTimeStepKey })
     await advanceRound()
-  }, [narrativeError, isRuntimeReady, isDead, isComplete, isAdvancing, hasUnresolvedBranch, advanceRound])
+  }, [narrativeError, isRuntimeReady, isDead, isComplete, isAdvancing, hasUnresolvedBranch, activeTimeStepKey, advanceRound])
 
   const handleNarrativeRetry = useCallback(async () => {
     if (!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch) return
+    reportUsageMetric({ schemaVersion: 1, kind: 'narrative_advance', timeStepKey: activeTimeStepKey })
     await advanceRound()
-  }, [isRuntimeReady, isDead, isComplete, isAdvancing, hasUnresolvedBranch, advanceRound])
+  }, [isRuntimeReady, isDead, isComplete, isAdvancing, hasUnresolvedBranch, activeTimeStepKey, advanceRound])
 
   const narrativeAdvanceBlockedText = !isRuntimeReady
     ? runtimeBlockedText

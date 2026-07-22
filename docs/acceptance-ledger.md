@@ -80,6 +80,8 @@
 | 反馈边界 | 明确同意后上传完整脱敏诊断包、非秘密配置、近期完整故事、游戏状态与环境快照；任一校验或持久化失败整包拒绝 |
 | 查询边界 | 默认查询不展开 Prompt、响应、故事或反馈正文；授权运维明确加 `--include-content` 才还原脱敏内容 |
 | 保留策略 | `AI_LOG_DIR=/var/log/ai-life-sim`；默认 30 天、10 GiB、单文件 64 MiB；目录 `0700`、文件 `0600` |
+| 宏观统计 | `npm run logs:analyze` 按窗口输出聚合流量、状态/错误、延迟、页面访问、时间步长、分支类型与达到 3 次以上的高频词；不输出 IP、诊断编号、账号、Prompt 或故事正文 |
+| release 空间 | release 根目录默认最多 5 个；72 小时浸泡/健康门禁后按最旧优先清理，并每日对不可变依赖与静态产物做内容级硬链接去重 |
 | 错误处理 | 401/403 终止不会自行恢复的候选生成循环；玩家错误只显示可操作说明与请求 ID，原始上游错误留在私有日志 |
 | 自动证据 | `npm run test:ai-proxy`、`npm run test:player-feedback`、`feedback-status-smoke.mjs`、`diagnostic-player-code-smoke.mjs`、operator reconstruction smoke |
 

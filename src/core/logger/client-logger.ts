@@ -11,6 +11,7 @@ import { getCachedDiagnosticPlayerCode } from './diagnostic-player-code-client'
 import { isDiagnosticDisclosureAccepted } from './diagnostic-consent'
 
 import { ENGINE_VERSION } from '@/core/version'
+import type { AggregateUsageMetric } from './usage-metrics'
 
 const LOG_API = '/api/log'
 const RECENT_DIAGNOSTIC_LIMIT = 80
@@ -37,7 +38,10 @@ export interface ClientDiagnosticEntry {
   eventType?: 'log' | 'exception' | 'user_action'
   action?: string
   context?: Record<string, unknown>
+  metric?: AggregateUsageMetric
 }
+
+export type { AggregateUsageMetric } from './usage-metrics'
 
 const recentDiagnosticEntries: ClientDiagnosticEntry[] = []
 
@@ -122,6 +126,22 @@ function sendToServer(entry: ClientDiagnosticEntry): void {
       // 上报失败静默丢弃
     })
   }
+}
+
+/**
+ * 仅在当前版本诊断声明已接受后上报聚合使用指标；指标不包含原始用户输入。
+ */
+export function reportUsageMetric(metric: AggregateUsageMetric): void {
+  if (typeof window === 'undefined' || !isDiagnosticDisclosureAccepted()) return
+  sendToServer({
+    level: 'info',
+    module: 'usage-metric',
+    message: metric.kind,
+    timestamp: Date.now(),
+    eventType: 'user_action',
+    action: metric.kind,
+    metric,
+  })
 }
 
 async function collectDiagnosticSessionEnvironment(): Promise<Record<string, unknown>> {

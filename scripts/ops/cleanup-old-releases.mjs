@@ -9,6 +9,7 @@ const HOUR_MS = 60 * 60 * 1000
 const DEFAULT_RELEASE_ROOT = '/root/ai-life-sim-releases'
 const DEFAULT_ACTIVE_LINK = '/root/ai-life-sim'
 const DEFAULT_MIN_AGE_HOURS = 72
+const DEFAULT_MAX_RELEASES = 5
 const DEFAULT_HEALTH_URL = 'http://127.0.0.1:3000/'
 const HEALTH_TIMEOUT_MS = 10_000
 
@@ -19,6 +20,7 @@ Options:
   --root <path>             Immutable release root (default: ${DEFAULT_RELEASE_ROOT})
   --active <path>           Active release symlink (default: ${DEFAULT_ACTIVE_LINK})
   --min-age-hours <hours>   Active soak and inactive release age (default: ${DEFAULT_MIN_AGE_HOURS})
+  --max-releases <count>    Maximum release directories to retain (default: ${DEFAULT_MAX_RELEASES})
   --health-url <url>        Local health probe (default: ${DEFAULT_HEALTH_URL})
   --execute                 Delete eligible inactive releases; otherwise dry-run
   --help                    Show this help
@@ -35,11 +37,20 @@ function parsePositiveNumber(raw, label) {
   return value
 }
 
+function parseReleaseCount(raw) {
+  const value = Number(raw)
+  if (!Number.isSafeInteger(value) || value < 2) {
+    throw new Error('--max-releases must be an integer >= 2')
+  }
+  return value
+}
+
 export function parseArgs(argv) {
   const options = {
     releaseRoot: DEFAULT_RELEASE_ROOT,
     activeLink: DEFAULT_ACTIVE_LINK,
     minAgeHours: DEFAULT_MIN_AGE_HOURS,
+    maxReleases: DEFAULT_MAX_RELEASES,
     healthUrl: DEFAULT_HEALTH_URL,
     execute: false,
   }
@@ -56,6 +67,7 @@ export function parseArgs(argv) {
     if (arg === '--root') options.releaseRoot = value
     else if (arg === '--active') options.activeLink = value
     else if (arg === '--min-age-hours') options.minAgeHours = parsePositiveNumber(value, arg)
+    else if (arg === '--max-releases') options.maxReleases = parseReleaseCount(value)
     else if (arg === '--health-url') options.healthUrl = value
     else throw new Error(`Unknown option: ${arg}`)
     index += 1
@@ -72,9 +84,13 @@ export async function buildCleanupPlan({
   releaseRoot,
   activeLink,
   minAgeHours,
+  maxReleases = DEFAULT_MAX_RELEASES,
   nowMs = Date.now(),
   activeActivatedAtMs,
 }) {
+  if (!Number.isSafeInteger(maxReleases) || maxReleases < 2) {
+    throw new Error('maxReleases must be an integer >= 2')
+  }
   const rootPath = await fs.realpath(path.resolve(releaseRoot))
   const linkPath = path.resolve(activeLink)
   const linkStat = await fs.lstat(linkPath)
@@ -87,6 +103,10 @@ export async function buildCleanupPlan({
     throw new Error(`Active release must be a direct child of ${rootPath}: ${activePath}`)
   }
 
+  const entries = await fs.readdir(rootPath, { withFileTypes: true })
+  const releaseDirectories = entries.filter((entry) => entry.isDirectory())
+  const excessCount = Math.max(0, releaseDirectories.length - maxReleases)
+
   const minAgeMs = minAgeHours * HOUR_MS
   const activatedAtMs = activeActivatedAtMs ?? linkStat.mtimeMs
   const activeAgeMs = Math.max(0, nowMs - activatedAtMs)
@@ -96,12 +116,13 @@ export async function buildCleanupPlan({
       activePath,
       activeAgeHours: activeAgeMs / HOUR_MS,
       minAgeHours,
+      maxReleases,
+      releaseCount: releaseDirectories.length,
       candidates: [],
       skippedReason: 'active-soak-incomplete',
     }
   }
 
-  const entries = await fs.readdir(rootPath, { withFileTypes: true })
   const candidates = []
   for (const entry of entries) {
     if (!entry.isDirectory()) continue
@@ -119,13 +140,18 @@ export async function buildCleanupPlan({
   }
 
   candidates.sort((left, right) => right.ageHours - left.ageHours || left.name.localeCompare(right.name))
+  const selectedCandidates = candidates.slice(0, excessCount)
   return {
     rootPath,
     activePath,
     activeAgeHours: activeAgeMs / HOUR_MS,
     minAgeHours,
-    candidates,
-    skippedReason: candidates.length === 0 ? 'no-eligible-releases' : null,
+    maxReleases,
+    releaseCount: releaseDirectories.length,
+    candidates: selectedCandidates,
+    skippedReason: selectedCandidates.length === 0
+      ? excessCount === 0 ? 'within-max-releases' : 'no-eligible-releases'
+      : null,
   }
 }
 
@@ -196,6 +222,8 @@ async function main() {
     activePath: plan.activePath,
     activeAgeHours: Number(plan.activeAgeHours.toFixed(1)),
     minAgeHours: plan.minAgeHours,
+    maxReleases: plan.maxReleases,
+    releaseCount: plan.releaseCount,
     candidates: plan.candidates.map((candidate) => ({
       path: candidate.path,
       ageHours: Number(candidate.ageHours.toFixed(1)),
