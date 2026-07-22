@@ -47,9 +47,9 @@
     .candidate-label h2 { margin: 7px 0 0; font-family: var(--serif); font-size: 20px; font-weight: 600; line-height: 1.4; }
     .candidate-label p { margin: 6px 0 0; color: var(--soft); font-size: 11px; line-height: 1.65; }
     .candidate-stage { width: 390px; padding: 0; background: #e4e2dc; }
-    .mobile-viewport { container-type: inline-size; position: relative; width: 390px; height: 844px; overflow-x: clip; overflow-y: auto; overscroll-behavior: contain; background: var(--paper); box-shadow: var(--shadow); scrollbar-width: thin; scrollbar-color: #c9c5bd transparent; --header-height: 60px; }
-    .mobile-viewport::-webkit-scrollbar { width: 4px; }
-    .mobile-viewport::-webkit-scrollbar-thumb { background: #c9c5bd; }
+    .mobile-viewport { container-type: inline-size; position: relative; width: 390px; height: 844px; overflow-x: clip; overflow-y: auto; overscroll-behavior: contain; background: var(--paper); box-shadow: var(--shadow); scrollbar-width: none; scrollbar-color: transparent transparent; --header-height: 60px; }
+    .mobile-viewport::-webkit-scrollbar { display: none; width: 0; height: 0; }
+    .mobile-viewport::-webkit-scrollbar-thumb { background: transparent; }
 
     .sticky-shell { position: sticky; top: 0; z-index: 40; background: rgba(255,255,255,.98); }
     .reader-bar { position: relative; z-index: 2; min-height: var(--header-height); border-bottom: 1px solid var(--rule); background: rgba(255,255,255,.98); backdrop-filter: blur(10px); }

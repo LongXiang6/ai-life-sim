@@ -99,12 +99,12 @@
   overflow-x: hidden;
   overflow-y: auto;
   padding: max(14px, env(safe-area-inset-top)) 15px 18px;
-  scrollbar-color: rgb(109 127 148 / 26%) transparent;
-  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  scrollbar-width: none;
 }
 
-.screen::-webkit-scrollbar { width: 4px; }
-.screen::-webkit-scrollbar-thumb { border-radius: 999px; background: rgb(109 127 148 / 24%); }
+.screen::-webkit-scrollbar { display: none; width: 0; height: 0; }
+.screen::-webkit-scrollbar-thumb { background: transparent; }
 
 .header,
 .selectedSlots,

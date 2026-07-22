@@ -2,16 +2,16 @@
   'use strict'
 
   const routes = {
-    welcome: 'welcome/final-wa-rf3-1.html',
-    'world-select': 'world-select/final-ws-rf23-1.html',
-    'world-customize': 'world-customize/final-wc-rf2-1.html',
-    'character-create': 'character-create/final-cc-rf9-1.html',
-    'talent-draw': 'talent-draw/round-refactor-17-style-1.html',
+    welcome: 'welcome/round-19-rf4-b-refinement.html',
+    'world-select': 'world-select/round-20-ws-rf23-b1-adaptation.html',
+    'world-customize': 'world-customize/round-07-ws-b1-adaptation.html',
+    'character-create': 'character-create/round-15-ws-b1-adaptation.html',
+    'talent-draw': 'talent-draw/round-refactor-18-rf17-2-b1-adaptation.html',
     'attribute-alloc': 'attribute-alloc/round-refactor-01-style-1.html',
     'fate-preview': 'fate-preview/round-refactor-01-style-1.html',
     'game-story': 'game-story/round-refactor-20-style-1.html',
     'game-over': 'game-over/round-refactor-01-style-1.html',
-    'mythic-inheritance': 'mythic-inheritance/round-refactor-01-style-1.html',
+    'mythic-inheritance': 'mythic-inheritance/round-14-legacy-layout-b1-rebirth.html',
     settings: 'settings/final.html',
     help: 'help/final.html',
   }

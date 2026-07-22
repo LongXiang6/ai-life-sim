@@ -21,6 +21,8 @@
   html, body {
     height: 100%;
     overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
     -webkit-overflow-scrolling: touch;
     -webkit-tap-highlight-color: transparent;
   }
@@ -32,6 +34,10 @@
   }
 
   /* 方案库统一隐藏滚动条，但不改变容器的 overflow 与触摸滚动能力。 */
+  *, *::before, *::after {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
   ::-webkit-scrollbar {
     display: none;
     width: 0;

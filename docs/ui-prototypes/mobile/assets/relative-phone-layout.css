@@ -1,0 +1,15 @@
+/* Render a fixed design canvas at a percentage-derived phone size. */
+[data-relative-phone] {
+  width: min(100%, var(--relative-phone-max-width, 430px)) !important;
+  height: auto !important;
+  min-height: 0 !important;
+  aspect-ratio: var(--relative-phone-base-width) / var(--relative-phone-base-height);
+  container-type: size;
+}
+
+.relative-phone-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+}

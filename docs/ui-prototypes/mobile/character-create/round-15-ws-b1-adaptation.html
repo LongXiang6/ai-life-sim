@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>角色创建 · B1 风格适配</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../assets/library.css">
+  <link rel="stylesheet" href="../assets/creation-flow-unified.css">
+  <link rel="stylesheet" href="../assets/relative-phone-layout.css">
+  <script src="../assets/prototype.js" defer></script>
+  <script src="../assets/creation-flow-unified.js" defer></script>
+  <script src="../assets/relative-phone-layout.js" defer></script>
+  <style>
+    html, body, *, *::before, *::after { scrollbar-width: none; -ms-overflow-style: none; }
+    *::-webkit-scrollbar { display: none; width: 0; height: 0; }
+    body.character-create-b1 { background: #eef1f7; }
+    .character-create-b1 .creation-shell { width: min(100% - 24px, 900px); padding: 18px 0 42px; }
+    .character-create-b1 .creation-review { margin-bottom: 18px; }
+    .character-create-b1 .creation-review-label { color: #929bb0; }
+    .character-create-b1 .creation-review h1 { color: #28324b; }
+    .character-create-b1 .creation-review-copy { color: #707b92; }
+    .character-create-b1 .creation-phone {
+      --cf-paper: #fafbff;
+      --cf-surface: #fff;
+      --cf-soft: #f1f3fa;
+      --cf-ink: #28324b;
+      --cf-muted: #707b92;
+      --cf-faint: #929bb0;
+      --cf-line: #d8deea;
+      --cf-line-strong: #d8deea;
+      --cf-accent: #7382bb;
+      --cf-accent-soft: #edf0fb;
+      --cf-ornament: #7787c0;
+      width: min(100%, 320px);
+      height: 674px;
+      container-type: size;
+      border-color: #d8deea;
+      border-radius: 34px;
+      background: linear-gradient(135deg, rgba(255, 215, 95, .11) 0%, rgba(255, 215, 95, 0) 34%), linear-gradient(#fafbff, #f2f4f9);
+      box-shadow: 0 20px 48px rgba(62, 70, 100, .09);
+    }
+    .character-create-b1 .cf-art .cf-medallion { width: 132px; height: 132px; color: #7787c0; opacity: .04; }
+    .character-create-b1 .cf-art .cf-medallion-tl { top: 0; left: 0; transform: translate(-50%, -50%); }
+    .character-create-b1 .cf-art .cf-medallion-tr { top: 0; right: 0; transform: translate(50%, -50%); }
+    .character-create-b1 .cf-art .cf-medallion-bl { bottom: 0; left: 0; transform: translate(-50%, 50%); }
+    .character-create-b1 .cf-art .cf-medallion-br { right: 0; bottom: 0; transform: translate(50%, 50%); }
+    .character-create-b1 .cf-art .cf-ink { right: -7px; bottom: -16px; width: 338px; height: 214px; opacity: .6; }
+    .character-create-b1 .cf-art .cf-ink-far { fill: #69759a; }
+    .character-create-b1 .cf-art .cf-ink-mist { fill: #7f8bb0; }
+    .character-create-b1 .cf-art .cf-ink-mid { fill: #647097; }
+    .character-create-b1 .cf-art .cf-ink-near { fill: #7a86aa; }
+    .character-create-b1 .cf-art .cf-ink-line,
+    .character-create-b1 .cf-art .cf-ink-ripple { stroke: #7787c0; }
+    .character-create-b1 .cf-screen { inset: 0; z-index: 2; padding: 15px 16px 78px; overscroll-behavior: contain; }
+    .character-create-b1 .cf-meta { margin-bottom: 6px; color: #929bb0; font-size: 7px; }
+    .character-create-b1 .cf-title-row { margin-top: 0; }
+    .character-create-b1 .cf-title-row h2 { color: #28324b; font-family: var(--cf-serif); font-size: 22px; font-weight: 600; }
+    .character-create-b1 .cf-title-row p,
+    .character-create-b1 .cf-title-mark { display: none; }
+    .character-create-b1 .cf-summary { min-height: 19cqh; margin-top: 10px; padding: 10px 12px; border-color: #d8deea; border-radius: 15px; background: rgba(255, 255, 255, .94); box-shadow: 0 10px 28px rgba(62, 70, 100, .055); }
+    .character-create-b1 .cf-summary-symbol { width: 30px; height: 30px; border: 1px solid #d8deea; border-radius: 9px; background: #edf0fb; color: #7382bb; font-size: 12px; }
+    .character-create-b1 .cf-summary-copy strong { color: #28324b; font-size: 12px; font-weight: 680; }
+    .character-create-b1 .cf-summary-copy span { margin-top: 3px; color: #707b92; font-size: 7px; }
+    .character-create-b1 .cf-summary-facts { gap: 5px; margin-top: 7px; }
+    .character-create-b1 .cf-summary-facts div { padding: 6px 7px; border-radius: 9px; background: #f1f3fa; }
+    .character-create-b1 .cf-summary-facts span { color: #929bb0; font-size: 6.5px; }
+    .character-create-b1 .cf-summary-facts strong { margin-top: 3px; color: #707b92; font-size: 8px; font-weight: 650; }
+    .character-create-b1 .cf-section { margin-top: 8px; padding: 10px; scroll-margin-top: 8px; border-color: #d8deea; border-radius: 14px; background: rgba(255, 255, 255, .94); box-shadow: none; }
+    .character-create-b1 .cf-section-head { margin-bottom: 8px; }
+    .character-create-b1 .cf-section-head strong { color: #28324b; font-family: var(--cf-sans); font-size: 11.4px; font-weight: 650; }
+    .character-create-b1 .cf-section-head small { color: #929bb0; font-size: 7px; }
+    .character-create-b1 .cf-field,
+    .character-create-b1 .cf-select,
+    .character-create-b1 .cf-textarea { border-color: #d8deea; border-radius: 8px; background: #fbfcff; color: #28324b; font-size: 8.6px; }
+    .character-create-b1 .cf-field,
+    .character-create-b1 .cf-select { min-height: 31px; }
+    .character-create-b1 .cf-icon-button { min-height: 31px; border-color: #d8deea; border-radius: 8px; background: #edf0fb; color: #7382bb; font-size: 7.5px; }
+    .character-create-b1 .cf-choice-label { color: #929bb0; font-size: 7px; }
+    .character-create-b1 .cf-segmented { gap: 3px; }
+    .character-create-b1 .cf-segmented button { min-height: 28px; border-color: transparent; border-radius: 7px; background: #f1f3fa; color: #707b92; font-size: 7.4px; }
+    .character-create-b1 .cf-segmented button.is-active { border-color: #cfd7ee; background: #edf0fb; color: #7382bb; }
+    .character-create-b1 .cf-caption { color: #929bb0; font-size: 7px; }
+    .character-create-b1 .cf-textarea { min-height: 82px; padding: 9px 10px; line-height: 1.5; resize: vertical; }
+    .character-create-b1 .cf-life-action,
+    .character-create-b1 .cf-preset-form button { min-height: 28px; padding: 0 8px; border: 1px solid #d8deea; border-radius: 7px; background: #edf0fb; color: #7382bb; cursor: pointer; font-size: 7.3px; }
+    .character-create-b1 .cf-life-action { width: 100%; margin-top: 7px; background: #fbfcff; }
+    .character-create-b1 .cf-background-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 7px; color: #929bb0; font-size: 7px; }
+    .character-create-b1 .cf-preset-area { margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e9f2; }
+    .character-create-b1 .cf-preset-area > span { display: block; color: #929bb0; font-size: 7px; }
+    .character-create-b1 .cf-preset-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px; margin-top: 5px; }
+    .character-create-b1 .cf-saved-presets { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; }
+    .character-create-b1 .cf-saved-presets[hidden] { display: none; }
+    .character-create-b1 .cf-saved-preset { display: inline-flex; min-width: 0; align-items: center; border: 1px solid #d8deea; border-radius: 7px; background: #fbfcff; overflow: hidden; }
+    .character-create-b1 .cf-saved-preset > button:first-child { min-width: 0; min-height: 25px; padding: 0 7px; border: 0; background: transparent; color: #707b92; cursor: pointer; font-size: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .character-create-b1 .cf-saved-preset > button:last-child { width: 20px; min-height: 25px; padding: 0; border: 0; border-left: 1px solid #e5e9f2; background: transparent; color: #929bb0; cursor: pointer; font-size: 9px; }
+    .character-create-b1 .cf-footer { z-index: 4; border-color: rgba(207, 215, 238, .84); background: rgba(255, 255, 255, .76); box-shadow: 0 12px 30px rgba(62, 70, 100, .13), 0 2px 7px rgba(62, 70, 100, .06); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+    .character-create-b1 .cf-back { border-color: #d8deea; background: rgba(255, 255, 255, .8); color: #707b92; }
+    .character-create-b1 .cf-next { color: #28324b; }
+    .character-create-b1 .cf-next-number,
+    .character-create-b1 .cf-next-copy small { color: #929bb0; }
+    .character-create-b1 .cf-next-copy strong { font-size: 12.2px; font-weight: 680; }
+    .character-create-b1 .cf-next-arrow { background: #7382bb; color: #fff; }
+    .character-create-b1 button:focus-visible,
+    .character-create-b1 input:focus-visible,
+    .character-create-b1 textarea:focus-visible,
+    .character-create-b1 select:focus-visible { outline-color: rgba(115, 130, 187, .48); }
+  </style>
+</head>
+<body class="character-create-b1" data-screen="character-create" data-creation-step="4">
+  <main class="creation-shell">
+    <header class="creation-review">
+      <p class="creation-review-label">CREATION FLOW · 04 / 07</p>
+      <h1>角色创建</h1>
+      <p class="creation-review-copy">沿用世界选择 B1 的冷白层次与悬浮操作语法，依次确认身份、寿命与人生背景。</p>
+    </header>
+
+    <section class="creation-stage" aria-label="角色创建移动端界面">
+      <div class="creation-phone" data-relative-phone data-relative-phone-width="320" data-relative-phone-height="674">
+        <div data-flow-art></div>
+        <div class="cf-screen">
+          <header class="cf-header" data-creation-header data-title="塑造角色" data-subtitle="写下这段人生的起点。"></header>
+
+          <section class="cf-summary" aria-live="polite">
+            <div class="cf-summary-symbol">人</div>
+            <div class="cf-summary-copy"><strong data-summary-name>未命名角色</strong><span data-summary-line>男性 · 人类 · 尚未填写背景</span></div>
+            <div class="cf-summary-facts"><div><span>寿命</span><strong data-summary-life>80 年</strong></div><div><span>起始</span><strong data-summary-age>出生</strong></div><div><span>世界</span><strong>潮汐城邦</strong></div></div>
+          </section>
+
+          <section class="cf-section" data-section="identity">
+            <div class="cf-section-head"><strong>核心身份</strong><small>01 / 03 · 姓名、性别与种族</small></div>
+            <div class="cf-field-row">
+              <input class="cf-field" data-name aria-label="角色姓名" autocomplete="off" placeholder="输入角色姓名...">
+              <button class="cf-icon-button" type="button" data-random aria-label="随机生成姓名">随机</button>
+            </div>
+            <div class="cf-choice-grid">
+              <div>
+                <span class="cf-choice-label">性别</span>
+                <div class="cf-segmented" data-choice="gender">
+                  <button class="is-active" type="button" data-value="男性" aria-pressed="true">男</button>
+                  <button type="button" data-value="女性" aria-pressed="false">女</button>
+                  <button type="button" data-value="自定义性别" aria-pressed="false">自定</button>
+                </div>
+              </div>
+              <div>
+                <span class="cf-choice-label">种族</span>
+                <div class="cf-segmented two" data-choice="race">
+                  <button class="is-active" type="button" data-value="人类" aria-pressed="true">人类</button>
+                  <button type="button" data-value="自定义种族" aria-pressed="false">自定</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="cf-section" data-section="life">
+            <div class="cf-section-head"><strong>寿命与起始</strong><small>02 / 03 · 人生跨度与开篇时点</small></div>
+            <div class="cf-choice-grid">
+              <label><span class="cf-choice-label">寿命上限</span><input class="cf-field" data-life type="number" min="1" step="1" value="80" inputmode="numeric" aria-label="寿命上限"></label>
+              <label><span class="cf-choice-label">起始年龄</span><input class="cf-field" data-age type="number" min="0" step="1" inputmode="numeric" placeholder="出生" aria-label="起始年龄"></label>
+            </div>
+            <button class="cf-life-action" type="button" data-detect>重新检测寿命</button>
+            <p class="cf-caption">留空按种族自动计算；起始年龄决定故事从哪一页展开。</p>
+          </section>
+
+          <section class="cf-section" data-section="background">
+            <div class="cf-section-head"><strong>人生背景</strong><small data-background-count>0 字</small></div>
+            <textarea class="cf-textarea" data-background aria-label="人生背景" placeholder="写下家庭、成长环境或人生起点..."></textarea>
+            <div class="cf-background-actions"><span>留空也可以继续</span></div>
+            <div class="cf-preset-area"><span>保存背景预设</span><div class="cf-preset-form"><input class="cf-field" data-preset-name aria-label="背景预设名称" placeholder="预设名称..."><button type="button" data-preset-save>保存</button></div><div class="cf-saved-presets" data-saved-presets aria-label="已保存背景预设" hidden></div></div>
+          </section>
+        </div>
+
+        <footer class="cf-footer">
+          <button class="cf-back" type="button" data-flow-to="world-customize" data-flow-back aria-label="返回世界配置" title="返回世界配置"><span data-icon="back"></span></button>
+          <button class="cf-next" type="button" data-action="confirm" data-next-screen="talent-draw"><span class="cf-next-number">05</span><span class="cf-next-copy"><strong>确认角色</strong><small data-action-hint>填写姓名后 · 进入命格抽取</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button>
+        </footer>
+        <div class="cf-toast" role="status" aria-live="polite"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      const names = ['林晚舟', '沈清衡', '顾星河', '叶知秋', '苏明远', '陈予安']
+      const state = { nameIndex: 0, gender: '男性', race: '人类' }
+      const name = document.querySelector('[data-name]')
+      const life = document.querySelector('[data-life]')
+      const age = document.querySelector('[data-age]')
+      const background = document.querySelector('[data-background]')
+      const confirm = document.querySelector('[data-action="confirm"]')
+
+      function notify(message) {
+        if (window.CreationFlow) window.CreationFlow.notify(message)
+      }
+
+      function update() {
+        const characterName = name.value.trim()
+        const lifeValue = Number(life.value)
+        document.querySelector('[data-summary-name]').textContent = characterName || '未命名角色'
+        document.querySelector('[data-summary-line]').textContent = `${state.gender} · ${state.race} · ${background.value.trim() ? '已填写背景' : '尚未填写背景'}`
+        document.querySelector('[data-summary-life]').textContent = Number.isFinite(lifeValue) && lifeValue >= 1 ? `${Math.floor(lifeValue)} 年` : '待设定'
+        document.querySelector('[data-summary-age]').textContent = age.value ? `${age.value} 岁` : '出生'
+        document.querySelector('[data-background-count]').textContent = `${background.value.length} 字`
+        document.querySelector('[data-action-hint]').textContent = characterName ? `${characterName} · 进入命格抽取` : '填写姓名后 · 进入命格抽取'
+        if (characterName && Number.isFinite(lifeValue) && lifeValue >= 1) confirm.setAttribute('data-flow-to', confirm.dataset.nextScreen)
+        else confirm.removeAttribute('data-flow-to')
+      }
+
+      document.querySelector('[data-random]').addEventListener('click', function () {
+        name.value = names[state.nameIndex++ % names.length]
+        update()
+        notify(`已随机姓名 · ${name.value}`)
+      })
+
+      ;[name, life, age, background].forEach(function (field) {
+        field.addEventListener('input', update)
+        field.addEventListener('change', update)
+      })
+
+      document.querySelector('[data-detect]').addEventListener('click', function () {
+        update()
+        notify('已按当前种族重新检测寿命')
+      })
+
+      const presetName = document.querySelector('[data-preset-name]')
+      const savedPresets = document.querySelector('[data-saved-presets]')
+      const presetValues = new Map()
+
+      function renderPresets() {
+        savedPresets.replaceChildren(...Array.from(presetValues.keys()).map(function (label) {
+          const item = document.createElement('span')
+          item.className = 'cf-saved-preset'
+          const apply = document.createElement('button')
+          apply.type = 'button'
+          apply.dataset.presetApply = label
+          apply.textContent = label
+          apply.setAttribute('aria-label', `使用背景预设 ${label}`)
+          const remove = document.createElement('button')
+          remove.type = 'button'
+          remove.dataset.presetRemove = label
+          remove.textContent = '×'
+          remove.setAttribute('aria-label', `删除背景预设 ${label}`)
+          item.append(apply, remove)
+          return item
+        }))
+        savedPresets.hidden = presetValues.size === 0
+      }
+
+      document.querySelector('[data-preset-save]').addEventListener('click', function () {
+        if (!background.value.trim()) { notify('请先填写人生背景'); return }
+        const baseName = presetName.value.trim() || '未命名预设'
+        let label = baseName
+        let suffix = 2
+        while (presetValues.has(label)) { label = `${baseName}-${suffix++}` }
+        presetValues.set(label, background.value)
+        renderPresets()
+        notify(`已保存背景预设 · ${label}`)
+        presetName.value = ''
+      })
+
+      savedPresets.addEventListener('click', function (event) {
+        const apply = event.target.closest('[data-preset-apply]')
+        const remove = event.target.closest('[data-preset-remove]')
+        if (apply) {
+          background.value = presetValues.get(apply.dataset.presetApply) || ''
+          update()
+          notify(`已使用背景预设 · ${apply.dataset.presetApply}`)
+        }
+        if (remove) {
+          presetValues.delete(remove.dataset.presetRemove)
+          renderPresets()
+          notify(`已删除背景预设 · ${remove.dataset.presetRemove}`)
+        }
+      })
+
+      document.querySelectorAll('[data-choice]').forEach(function (group) {
+        group.querySelectorAll('[data-value]').forEach(function (button) {
+          button.addEventListener('click', function () {
+            group.querySelectorAll('[data-value]').forEach(function (item) {
+              const active = item === button
+              item.classList.toggle('is-active', active)
+              item.setAttribute('aria-pressed', String(active))
+            })
+            state[group.dataset.choice] = button.dataset.value
+            update()
+          })
+        })
+      })
+
+      confirm.addEventListener('click', function (event) {
+        if (!name.value.trim()) {
+          event.preventDefault()
+          event.stopPropagation()
+          document.querySelector('[data-section="identity"]').scrollIntoView({ block: 'start', behavior: 'smooth' })
+          name.focus()
+          notify('请先填写角色姓名')
+          return
+        }
+        if (!Number.isFinite(Number(life.value)) || Number(life.value) < 1) {
+          event.preventDefault()
+          event.stopPropagation()
+          document.querySelector('[data-section="life"]').scrollIntoView({ block: 'start', behavior: 'smooth' })
+          life.focus()
+          notify('预期寿命需为大于 0 的数字')
+        }
+      })
+
+      update()
+    })()
+  </script>
+</body>
+</html>

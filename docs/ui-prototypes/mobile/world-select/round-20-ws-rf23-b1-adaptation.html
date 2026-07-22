@@ -1,0 +1,837 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>世界选择 · B1 配色适配</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="../assets/relative-phone-layout.css">
+  <script src="../assets/prototype.js" defer></script>
+  <script src="../assets/relative-phone-layout.js" defer></script>
+  <style>
+    :root {
+      color-scheme: light;
+      --review-bg: #f6f3ee;
+      --review-surface: #ffffff;
+      --review-ink: #15181d;
+      --review-muted: #69707a;
+      --review-line: #e1e4e8;
+      --ornament: #9a7966;
+      --serif: "Songti SC", "STSong", "SimSun", serif;
+      --sans: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { min-width: 0; background: var(--review-bg); }
+    body { min-width: 0; margin: 0; background: var(--review-bg); color: var(--review-ink); font-family: var(--sans); font-size: 14px; letter-spacing: 0; }
+    button, input, textarea { color: inherit; font: inherit; letter-spacing: 0; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid rgba(70, 101, 91, .48); outline-offset: 2px; }
+    a { color: inherit; text-decoration: none; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .topbar a { color: var(--review-muted); }
+    .status { display: inline-flex; padding: 5px 9px; border: 1px solid #dfe3e8; border-radius: 999px; background: #fff; color: #667281; font-size: 10px; }
+    .prototype-transition-layer { position: fixed; z-index: 99999; inset: 0; background: var(--review-bg); opacity: 0; pointer-events: none; transition: opacity .22s cubic-bezier(.4, 0, .2, 1); }
+    html.flow-entering .prototype-transition-layer { opacity: 1; transition: none; }
+    html.flow-leaving .prototype-transition-layer { opacity: 1; }
+    .review-shell { width: min(100%, 1440px); margin: 0 auto; padding: 22px 12px 36px; }
+    .review-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 22px; padding: 0 5px 19px; }
+    .review-back { display: inline-flex; min-height: 34px; align-items: center; margin-bottom: 7px; color: var(--review-muted); font-size: 11px; }
+    .review-back:hover { color: var(--review-ink); }
+    .review-head h1 { margin: 0; font-family: var(--serif); font-size: 28px; font-weight: 600; line-height: 1.24; }
+    .review-intro { max-width: 76em; margin: 8px 0 0; color: var(--review-muted); font-size: 11.5px; line-height: 1.72; }
+    .review-status { padding-bottom: 2px; color: #78807b; font-size: 10px; line-height: 1.5; text-align: right; }
+    .review-status strong { display: block; color: var(--review-ink); font-family: var(--serif); font-size: 13.5px; font-weight: 600; }
+    .candidate-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; }
+    .candidate { min-width: 0; padding: 11px 9px 15px; border: 1px solid #e8eaed; border-radius: 18px; background: #fff; box-shadow: 0 10px 30px rgba(17, 24, 39, .035); transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease; }
+    .candidate:hover { transform: translateY(-2px); }
+    .candidate.selected { border-color: #8e9dad; box-shadow: 0 0 0 3px rgba(113, 130, 153, .12), 0 13px 34px rgba(17, 24, 39, .065); }
+    .candidate-meta { display: grid; min-height: 91px; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: start; padding: 2px 4px 11px; }
+    .candidate-code { color: #6f7884; font-size: 9px; font-weight: 700; line-height: 1.35; }
+    .candidate-title { margin: 5px 0 0; font-family: var(--serif); font-size: 16px; font-weight: 600; line-height: 1.3; }
+    .candidate-note { margin: 4px 0 0; color: #7b838e; font-size: 9px; line-height: 1.45; }
+    .candidate-pick { min-height: 34px; padding: 5px 0 5px 8px; border: 0; background: transparent; color: #6c7580; cursor: pointer; font-size: 9px; }
+    .candidate-pick[aria-pressed="true"] { color: #52677f; font-weight: 700; }
+
+    .phone {
+      --page: #ffffff;
+      --surface: #ffffff;
+      --surface-soft: #f1f3f5;
+      --surface-faint: #f7f8fa;
+      --ink: #15181d;
+      --ink-soft: #606874;
+      --ink-faint: #9299a3;
+      --accent: #718299;
+      --accent-rgb: 113, 130, 153;
+      --accent-soft: #edf1f5;
+      --danger: #985f5a;
+      position: relative;
+      width: min(100%, 320px);
+      height: 674px;
+      margin: 0 auto;
+      overflow: hidden;
+      border: 1px solid #dfe3e8;
+      border-radius: 34px;
+      background: var(--page);
+      box-shadow: 0 20px 48px rgba(17, 24, 39, .105);
+      color: var(--ink);
+      isolation: isolate;
+    }
+    .phone-page { position: absolute; z-index: 1; inset: 0 0 66px; overflow: hidden; padding: 15px 16px 8px; }
+    .screen-head { position: relative; z-index: 1; }
+    .running-head { display: flex; min-height: 12px; align-items: flex-start; justify-content: space-between; gap: 8px; color: var(--ink-faint); font-size: 7px; font-weight: 650; line-height: 1.3; }
+    .title-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-top: 5px; }
+    .chapter-label { display: none; }
+    .title-row h2 { margin: 0; font-size: 24px; font-weight: 700; line-height: 1.15; }
+    .difficulty-control { display: grid; min-width: 64px; min-height: 34px; grid-template-columns: 1fr auto; align-items: center; gap: 5px; padding: 4px 8px; border: 1px solid #e9ebee; border-radius: 11px; background: #f8f9fa; cursor: pointer; text-align: right; }
+    .difficulty-control span { color: var(--ink-faint); font-size: 7px; }
+    .difficulty-control strong { font-size: 10px; font-weight: 680; }
+
+    .world-focus { position: relative; z-index: 1; min-height: 112px; margin-top: 9px; padding: 11px 12px; border: 1px solid #e8eaee; border-radius: 16px; background: var(--surface); box-shadow: 0 8px 24px rgba(17, 24, 39, .04); }
+    .focus-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .focus-source { color: var(--accent); font-size: 7px; font-weight: 700; line-height: 1.3; }
+    .focus-index { color: var(--ink-faint); font-size: 7px; font-variant-numeric: tabular-nums; }
+    .world-focus h3 { max-width: 230px; margin: 5px 0 0; overflow: hidden; font-size: 17px; font-weight: 700; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+    .focus-era { margin-top: 3px; color: var(--ink-soft); font-size: 8px; line-height: 1.3; }
+    .world-rule { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 7px; margin-top: 7px; padding: 7px 8px; border-radius: 9px; background: #f7f8fa; }
+    .world-rule span { color: var(--ink-faint); font-size: 7px; line-height: 1.45; }
+    .world-rule p { display: -webkit-box; margin: 0; overflow: hidden; color: var(--ink-soft); font-size: 8px; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+
+    .source-tabs { display: none; }
+    .source-area { position: relative; z-index: 1; margin-top: 7px; }
+    .source-section { margin-top: 8px; padding: 7px 8px 8px; border: 1px solid #eceef1; border-radius: 14px; background: var(--surface); box-shadow: 0 4px 14px rgba(17, 24, 39, .025); }
+    .source-section:first-child { margin-top: 0; }
+    .section-head { display: flex; min-height: 21px; align-items: center; justify-content: space-between; gap: 8px; }
+    .section-toggle { display: flex; min-width: 0; min-height: 21px; flex: 1; align-items: center; gap: 6px; padding: 0; border: 0; background: transparent; cursor: default; text-align: left; }
+    .section-order { display: none; color: var(--ink-faint); font-size: 7px; font-variant-numeric: tabular-nums; }
+    .section-toggle strong { overflow: hidden; font-size: 12px; font-weight: 700; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+    .section-meta { display: flex; flex: 0 0 auto; align-items: center; gap: 5px; color: var(--ink-faint); font-size: 7px; line-height: 1.3; }
+    .section-caret { display: none; width: 14px; height: 14px; transition: transform 180ms ease; }
+    .section-body { margin-top: 5px; }
+    .saved-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+    .saved-choice { position: relative; display: grid; min-width: 0; min-height: 47px; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 4px; padding: 7px 7px 6px; border: 1px solid transparent; border-radius: 10px; background: var(--surface-faint); color: var(--ink); cursor: pointer; text-align: left; }
+    .saved-choice strong, .saved-choice small { display: block; }
+    .saved-choice strong { overflow: hidden; font-size: 10px; font-weight: 680; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+    .saved-choice small { margin-top: 4px; overflow: hidden; color: var(--ink-faint); font-size: 6.5px; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+    .saved-description { display: none; margin: 4px 0 0; overflow: hidden; color: var(--ink-soft); font-size: 7px; line-height: 1.35; }
+    .saved-choice > span:last-child { width: 5px; height: 5px; margin-top: 2px; overflow: hidden; border-radius: 50%; background: transparent; color: transparent; font-size: 0; }
+    .saved-choice[aria-pressed="true"] { border-color: #d9e0e8; background: var(--accent-soft); }
+    .saved-choice[aria-pressed="true"] > span:last-child { background: var(--accent); }
+    .manage-row { display: flex; min-height: 25px; align-items: center; gap: 17px; padding: 1px 4px 0; }
+    .manage-row[hidden] { display: none; }
+    .manage-row button { min-height: 25px; padding: 4px 0; border: 0; background: transparent; color: var(--ink-soft); cursor: pointer; font-size: 8px; }
+    .manage-row [data-manage="delete"] { color: var(--danger); }
+    .custom-form { display: grid; gap: 5px; }
+    .field-pair { display: grid; grid-template-columns: 1.06fr .94fr; gap: 5px; }
+    .field { display: block; min-width: 0; padding: 5px 7px 4px; border: 1px solid #eef0f2; border-radius: 9px; background: var(--surface-faint); }
+    .field > span { display: block; color: var(--ink-faint); font-size: 6.5px; line-height: 1.2; }
+    .field input, .field textarea { display: block; width: 100%; min-width: 0; padding: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: 9px; }
+    .field input { min-height: 19px; }
+    .field textarea { min-height: 32px; line-height: 1.35; resize: none; }
+    input::placeholder, textarea::placeholder { color: #a2aaa5; opacity: 1; }
+    .preset-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+    .preset-grid button { min-width: 0; min-height: 30px; padding: 4px 3px; border: 1px solid transparent; border-radius: 9px; background: var(--surface-faint); color: var(--ink-soft); cursor: pointer; font-size: 8px; font-weight: 600; line-height: 1.2; }
+    .preset-grid button[aria-selected="true"] { border-color: #d9e0e8; background: var(--accent-soft); color: var(--ink); font-weight: 700; }
+    .more-worlds { min-height: 28px; padding: 3px 0; border: 0; background: transparent; color: var(--accent); cursor: pointer; font-size: 7px; font-weight: 700; }
+
+    .chapter-end { position: absolute; z-index: 15; right: 12px; bottom: 9px; left: 12px; border: 1px solid #e7e9ec; border-radius: 18px; background: rgba(255, 255, 255, .9); box-shadow: 0 8px 24px rgba(17, 24, 39, .07); backdrop-filter: blur(14px); }
+    .chapter-nav { display: flex; min-height: 52px; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 7px; }
+    .back-button { display: grid; flex: 0 0 36px; width: 36px; height: 36px; place-items: center; padding: 0; border: 1px solid #e6e9ec; border-radius: 50%; background: #f8f9fa; color: var(--ink-soft); cursor: pointer; }
+    .back-button svg { width: 17px; height: 17px; }
+    .chapter-action { display: flex; min-width: 0; min-height: 48px; flex: 1; align-items: center; justify-content: space-between; gap: 8px; padding: 3px 1px; border: 0; background: transparent; color: var(--ink); cursor: pointer; text-align: left; }
+    .chapter-action:disabled { color: var(--ink-faint); cursor: not-allowed; }
+    .action-number { width: 20px; color: var(--ink-faint); font-size: 7px; font-variant-numeric: tabular-nums; }
+    .action-copy { min-width: 0; flex: 1; }
+    .action-copy strong, .action-copy small { display: block; }
+    .action-copy strong { font-size: 13px; font-weight: 680; line-height: 1.2; }
+    .action-copy small { margin-top: 3px; overflow: hidden; color: var(--ink-faint); font-size: 7px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+    .action-arrow { width: 15px; height: 15px; padding: 5px; border-radius: 50%; background: var(--accent); box-sizing: content-box; color: #fff; }
+
+    .sheet { position: absolute; z-index: 25; inset: 58px 8px 67px; overflow: hidden; padding: 16px 14px; border-radius: 25px 25px 16px 16px; background: var(--surface); box-shadow: 0 20px 50px rgba(31, 39, 34, .18); clip-path: inset(100% 0 0 0 round 25px); opacity: 0; pointer-events: none; transition: clip-path 240ms cubic-bezier(.22, .74, .24, 1), opacity 180ms ease; }
+    .sheet.open { clip-path: inset(0 round 25px); opacity: 1; pointer-events: auto; }
+    .sheet-head { display: grid; min-height: 44px; grid-template-columns: minmax(0, 1fr) 34px; align-items: start; gap: 9px; }
+    .sheet-head h3 { margin: 0; font-family: var(--serif); font-size: 18px; font-weight: 600; line-height: 1.25; }
+    .sheet-head p { margin: 4px 0 0; color: var(--ink-faint); font-size: 8px; line-height: 1.45; }
+    .sheet-close { display: grid; width: 34px; height: 34px; place-items: center; padding: 0; border: 0; border-radius: 50%; background: var(--surface-soft); color: var(--ink-soft); cursor: pointer; font-size: 18px; line-height: 1; }
+    .edit-form { display: grid; gap: 7px; margin-top: 12px; }
+    .edit-form .field { padding: 7px 8px 5px; background: var(--surface-faint); }
+    .edit-form .field input { min-height: 28px; font-size: 10px; }
+    .edit-form .field textarea { min-height: 75px; font-size: 10px; }
+    .sheet-actions { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 8px; margin-top: 9px; }
+    .sheet-actions button { min-height: 38px; border: 0; border-radius: 11px; background: var(--surface-soft); color: var(--ink-soft); cursor: pointer; font-size: 9px; }
+    .sheet-actions .save-edit { background: var(--ink); color: var(--surface); font-weight: 700; }
+    .edit-status { min-height: 14px; margin: 5px 0 0; color: var(--danger); font-size: 8px; }
+    .more-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 13px; }
+    .more-grid button { min-height: 48px; padding: 7px 8px; border: 0; border-radius: 12px; background: var(--surface-faint); color: var(--ink); cursor: pointer; font-size: 10px; font-weight: 650; text-align: left; }
+    .more-grid button small { display: block; margin-top: 4px; color: var(--ink-faint); font-size: 7px; font-weight: 500; }
+    .dialog-layer { position: absolute; z-index: 32; inset: 0; display: grid; place-items: center; padding: 22px; background: rgba(28, 32, 29, .2); opacity: 0; pointer-events: none; transition: opacity 160ms ease; }
+    .dialog-layer.open { opacity: 1; pointer-events: auto; }
+    .dialog { width: 100%; padding: 17px; border-radius: 18px; background: var(--surface); box-shadow: 0 18px 44px rgba(31, 39, 34, .19); }
+    .dialog h3 { margin: 0; font-size: 15px; font-weight: 700; }
+    .dialog p { margin: 7px 0 0; color: var(--ink-soft); font-size: 9px; line-height: 1.55; }
+    .dialog-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+    .dialog-actions button { min-height: 38px; border: 0; border-radius: 11px; background: var(--surface-soft); color: var(--ink-soft); cursor: pointer; font-size: 9px; }
+    .dialog-actions .danger-confirm { background: #f2e5e2; color: #84564f; }
+    .phone-toast { position: absolute; z-index: 45; right: 22px; bottom: 76px; left: 22px; padding: 7px 9px; border-radius: 999px; background: var(--ink); color: var(--surface); font-size: 8px; line-height: 1.4; text-align: center; opacity: 0; pointer-events: none; transform: translateY(5px); transition: opacity 160ms ease, transform 160ms ease; }
+    .phone-toast.show { opacity: 1; transform: none; }
+
+    .rule-facts { display: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin-top: 7px; }
+    .rule-fact { min-width: 0; padding: 6px 7px; border-radius: 9px; background: #f7f8fa; }
+    .rule-fact span, .rule-fact strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .rule-fact span { color: var(--ink-faint); font-size: 6.5px; }
+    .rule-fact strong { margin-top: 3px; color: var(--ink-soft); font-size: 8px; font-weight: 650; }
+
+    .theme-space-balanced, .theme-space-sections, .theme-space-fold, .theme-space-workbench { --accent: #697e99; --accent-rgb: 105, 126, 153; --accent-soft: #eaf0f6; }
+    .theme-space-balanced .phone-page, .theme-space-sections .phone-page, .theme-space-fold .phone-page, .theme-space-workbench .phone-page { padding-bottom: 0; }
+    .theme-space-balanced .rule-facts, .theme-space-sections .rule-facts, .theme-space-fold .rule-facts, .theme-space-workbench .rule-facts { display: grid; }
+    .theme-space-balanced .saved-choice > span:last-child, .theme-space-sections .saved-choice > span:last-child, .theme-space-fold .saved-choice > span:last-child, .theme-space-workbench .saved-choice > span:last-child { position: relative; width: 14px; height: 14px; margin: 0; background: transparent; }
+    .theme-space-balanced .saved-choice[aria-pressed="true"] > span:last-child, .theme-space-sections .saved-choice[aria-pressed="true"] > span:last-child, .theme-space-fold .saved-choice[aria-pressed="true"] > span:last-child, .theme-space-workbench .saved-choice[aria-pressed="true"] > span:last-child { background: var(--accent); }
+    .theme-space-balanced .saved-choice[aria-pressed="true"] > span:last-child::after, .theme-space-sections .saved-choice[aria-pressed="true"] > span:last-child::after, .theme-space-fold .saved-choice[aria-pressed="true"] > span:last-child::after, .theme-space-workbench .saved-choice[aria-pressed="true"] > span:last-child::after { position: absolute; top: 3px; left: 3px; width: 6px; height: 3px; border-bottom: 1px solid #fff; border-left: 1px solid #fff; content: ""; transform: rotate(-45deg); }
+    .theme-space-balanced .running-head, .theme-space-sections .running-head, .theme-space-fold .running-head, .theme-space-workbench .running-head, .theme-space-balanced .difficulty-control span, .theme-space-sections .difficulty-control span, .theme-space-fold .difficulty-control span, .theme-space-workbench .difficulty-control span, .theme-space-balanced .focus-source, .theme-space-sections .focus-source, .theme-space-fold .focus-source, .theme-space-workbench .focus-source, .theme-space-balanced .focus-index, .theme-space-sections .focus-index, .theme-space-fold .focus-index, .theme-space-workbench .focus-index, .theme-space-balanced .section-meta, .theme-space-sections .section-meta, .theme-space-fold .section-meta, .theme-space-workbench .section-meta, .theme-space-balanced .action-number, .theme-space-sections .action-number, .theme-space-fold .action-number, .theme-space-workbench .action-number, .theme-space-balanced .action-copy small, .theme-space-sections .action-copy small, .theme-space-fold .action-copy small, .theme-space-workbench .action-copy small { font-size: 6.2px; }
+    .theme-space-balanced .title-row h2, .theme-space-sections .title-row h2, .theme-space-fold .title-row h2, .theme-space-workbench .title-row h2 { font-size: 22px; }
+    .theme-space-balanced .world-focus h3, .theme-space-sections .world-focus h3, .theme-space-fold .world-focus h3, .theme-space-workbench .world-focus h3 { margin-top: 7px; font-size: 16.5px; }
+    .theme-space-balanced .difficulty-control strong, .theme-space-sections .difficulty-control strong, .theme-space-fold .difficulty-control strong, .theme-space-workbench .difficulty-control strong { font-size: 9.3px; }
+    .theme-space-balanced .focus-era, .theme-space-sections .focus-era, .theme-space-fold .focus-era, .theme-space-workbench .focus-era, .theme-space-balanced .world-rule p, .theme-space-sections .world-rule p, .theme-space-fold .world-rule p, .theme-space-workbench .world-rule p, .theme-space-balanced .rule-fact strong, .theme-space-sections .rule-fact strong, .theme-space-fold .rule-fact strong, .theme-space-workbench .rule-fact strong { font-size: 7.1px; }
+    .theme-space-balanced .world-rule span, .theme-space-sections .world-rule span, .theme-space-fold .world-rule span, .theme-space-workbench .world-rule span, .theme-space-balanced .rule-fact span, .theme-space-sections .rule-fact span, .theme-space-fold .rule-fact span, .theme-space-workbench .rule-fact span, .theme-space-balanced .saved-choice small, .theme-space-sections .saved-choice small, .theme-space-fold .saved-choice small, .theme-space-workbench .saved-choice small, .theme-space-balanced .field > span, .theme-space-sections .field > span, .theme-space-fold .field > span, .theme-space-workbench .field > span { font-size: 6px; }
+    .theme-space-balanced .section-toggle strong, .theme-space-sections .section-toggle strong, .theme-space-fold .section-toggle strong, .theme-space-workbench .section-toggle strong { font-size: 11.3px; }
+    .theme-space-balanced .saved-choice strong, .theme-space-sections .saved-choice strong, .theme-space-fold .saved-choice strong, .theme-space-workbench .saved-choice strong { font-size: 9.2px; }
+    .theme-space-balanced .manage-row button, .theme-space-sections .manage-row button, .theme-space-fold .manage-row button, .theme-space-workbench .manage-row button, .theme-space-balanced .preset-grid button, .theme-space-sections .preset-grid button, .theme-space-fold .preset-grid button, .theme-space-workbench .preset-grid button { font-size: 7.2px; }
+    .theme-space-balanced .field input, .theme-space-sections .field input, .theme-space-fold .field input, .theme-space-workbench .field input, .theme-space-balanced .field textarea, .theme-space-sections .field textarea, .theme-space-fold .field textarea, .theme-space-workbench .field textarea { font-size: 8.2px; }
+    .theme-space-balanced .action-copy strong, .theme-space-sections .action-copy strong, .theme-space-fold .action-copy strong, .theme-space-workbench .action-copy strong { font-size: 12.2px; }
+
+    /* 01 · 舒展同屏：保留三段同屏，只扩大板块的内外呼吸。 */
+    .theme-space-balanced .title-row { margin-top: 6px; }
+    .theme-space-balanced .world-focus { min-height: 134px; margin-top: 10px; padding: 11px 13px; border-color: #dce3ea; border-radius: 15px; box-shadow: 0 12px 30px rgba(17, 24, 39, .045); }
+    .theme-space-balanced .world-rule { margin-top: 7px; padding: 6px 8px; }
+    .theme-space-balanced .rule-facts { margin-top: 6px; }
+    .theme-space-balanced .rule-fact { padding-top: 6px; padding-bottom: 6px; }
+    .theme-space-balanced .source-area { margin-top: 9px; }
+    .theme-space-balanced .source-section { margin-top: 7px; padding: 6px 8px 5px; border-color: #e9edf1; box-shadow: none; }
+    .theme-space-balanced .source-section:first-child { margin-top: 0; }
+    .theme-space-balanced .section-head { min-height: 21px; }
+    .theme-space-balanced .section-body { margin-top: 5px; }
+    .theme-space-balanced .field { padding: 6px 8px 5px; }
+    .theme-space-balanced .manage-row { min-height: 23px; }
+    .theme-space-balanced .preset-grid button { min-height: 28px; }
+
+    /* 02 · 留白分节：取消分节外壳，让标题与浅底内容区各自呼吸。 */
+    .theme-space-sections .title-row { margin-top: 6px; }
+    .theme-space-sections .world-focus { min-height: 142px; margin-top: 11px; padding: 12px 13px; border-color: #dce3ea; border-radius: 16px; box-shadow: 0 13px 32px rgba(17, 24, 39, .045); }
+    .theme-space-sections .world-rule { margin-top: 8px; padding: 6px 8px; }
+    .theme-space-sections .rule-facts { margin-top: 7px; }
+    .theme-space-sections .rule-fact { padding-top: 6px; padding-bottom: 6px; }
+    .theme-space-sections .source-area { margin-top: 10px; }
+    .theme-space-sections .source-section { margin-top: 10px; padding: 0 2px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+    .theme-space-sections .source-section:first-child { margin-top: 0; }
+    .theme-space-sections .section-head { min-height: 22px; }
+    .theme-space-sections .section-body { margin-top: 6px; padding: 5px 6px 6px; border-radius: 12px; background: #f7f8fa; }
+    .theme-space-sections .saved-choice, .theme-space-sections .field, .theme-space-sections .preset-grid button { background: #fff; }
+    .theme-space-sections .manage-row { min-height: 24px; }
+    .theme-space-sections .preset-grid button { min-height: 28px; }
+
+    /* 03 · 独立目录：参考 WC 融合版，一次只展开一个宽松来源板块。 */
+    .theme-space-fold .title-row { margin-top: 7px; }
+    .theme-space-fold .world-focus { min-height: 145px; margin-top: 11px; padding: 12px 13px; border-color: #d9e1ea; border-radius: 16px; box-shadow: 0 13px 34px rgba(17, 24, 39, .05); }
+    .theme-space-fold .world-rule { margin-top: 8px; padding: 7px 8px; }
+    .theme-space-fold .rule-facts { margin-top: 7px; }
+    .theme-space-fold .rule-fact { padding-top: 6px; padding-bottom: 6px; }
+    .theme-space-fold .source-area { display: flex; min-height: 250px; flex-direction: column; justify-content: space-between; margin-top: 11px; }
+    .theme-space-fold .source-section { margin-top: 0; padding: 8px 9px 7px; border-color: #e5eaf0; border-radius: 15px; background: #fff; box-shadow: 0 8px 22px rgba(17, 24, 39, .025); }
+    .theme-space-fold .source-section:first-child { margin-top: 0; }
+    .theme-space-fold .section-head { min-height: 24px; }
+    .theme-space-fold .section-toggle { cursor: pointer; }
+    .theme-space-fold .section-caret { display: block; }
+    .theme-space-fold .source-section.is-open .section-caret { transform: rotate(180deg); }
+    .theme-space-fold .section-body { display: none; }
+    .theme-space-fold .source-section.is-open .section-body { display: block; margin-top: 7px; animation: reveal 160ms ease both; }
+    .theme-space-fold .saved-choice { min-height: 49px; padding: 8px 8px 7px; }
+    .theme-space-fold .field { padding: 7px 8px 6px; }
+    .theme-space-fold .manage-row { min-height: 25px; }
+    .theme-space-fold .preset-grid button { min-height: 30px; }
+
+    /* 04 · 来源工作台：三个来源切入同一块宽松内容区，结构变化最大。 */
+    .theme-space-workbench .title-row { margin-top: 7px; }
+    .theme-space-workbench .world-focus { min-height: 148px; margin-top: 12px; padding: 13px 14px; border-color: #d9e1ea; border-radius: 17px; box-shadow: 0 14px 36px rgba(17, 24, 39, .05); }
+    .theme-space-workbench .world-rule { margin-top: 8px; padding: 7px 9px; }
+    .theme-space-workbench .rule-facts { margin-top: 8px; }
+    .theme-space-workbench .rule-fact { padding-top: 6px; padding-bottom: 6px; }
+    .theme-space-workbench .source-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 12px; }
+    .theme-space-workbench .source-tabs button { min-width: 0; min-height: 34px; padding: 5px 3px; border: 0; border-radius: 10px; background: #f2f4f7; color: var(--ink-soft); cursor: pointer; font-size: 7.2px; }
+    .theme-space-workbench .source-tabs button[aria-selected="true"] { background: var(--accent-soft); color: var(--ink); font-weight: 700; }
+    .theme-space-workbench .source-area { margin-top: 7px; }
+    .theme-space-workbench .source-section { display: none; margin: 0; padding: 10px 10px 9px; border-color: #e4e9ef; border-radius: 15px; background: #fff; box-shadow: 0 9px 24px rgba(17, 24, 39, .03); }
+    .theme-space-workbench .source-section.is-tab-active { display: block; min-height: 220px; animation: reveal 160ms ease both; }
+    .theme-space-workbench .section-head { min-height: 24px; }
+    .theme-space-workbench .section-body { margin-top: 8px; }
+    .theme-space-workbench .saved-choice { min-height: 50px; padding: 8px 8px 7px; }
+    .theme-space-workbench .field { padding: 7px 8px 6px; }
+    .theme-space-workbench .manage-row { min-height: 25px; }
+    .theme-space-workbench .preset-grid button { min-height: 30px; }
+
+    /* WS-RF23-1: inherit CC-RF9-1's white paper, restrained ink, and solid footer. */
+    .geometry-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+    .white-world-page {
+      --page: #fff;
+      --surface: #fff;
+      --surface-soft: #f7f8f9;
+      --surface-faint: #fff;
+      --ink: #17191d;
+      --ink-soft: #626870;
+      --ink-faint: #969ba2;
+      --accent: #6d7f94;
+      --accent-rgb: 109, 127, 148;
+      --accent-soft: #f0f3f6;
+      border-color: #e3e5e8;
+      background: #fff;
+      box-shadow: 0 20px 48px rgba(24, 28, 34, .09);
+    }
+    .white-world-page .scenery-art { position: absolute; z-index: 0; inset: 0; overflow: hidden; pointer-events: none; }
+    .white-world-page .corner-medallion { position: absolute; width: 132px; height: 132px; color: var(--ornament); opacity: .068; }
+    .white-world-page .corner-medallion use { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; }
+    .white-world-page .medallion-tl { top: 0; left: 0; transform: translate(-50%, -50%); }
+    .white-world-page .medallion-tr { top: 0; right: 0; transform: translate(50%, -50%); }
+    .white-world-page .medallion-bl { bottom: 0; left: 0; transform: translate(-50%, 50%); }
+    .white-world-page .medallion-br { right: 0; bottom: 0; transform: translate(50%, 50%); }
+    .white-world-page .ink-wash { position: absolute; right: -7px; bottom: -16px; width: 338px; height: 214px; opacity: .78; }
+    .white-world-page .ink-wash .wash-far { fill: #555b60; opacity: .026; }
+    .white-world-page .ink-wash .wash-mist { fill: #72777c; opacity: .023; }
+    .white-world-page .ink-wash .wash-mid { fill: #4f555a; opacity: .032; }
+    .white-world-page .ink-wash .wash-near { fill: #686e73; opacity: .025; }
+    .white-world-page .ink-wash .wash-line,
+    .white-world-page .ink-wash .wash-ripple { fill: none; stroke: #5d6368; stroke-linecap: round; }
+    .white-world-page .ink-wash .wash-line { stroke-width: .85; opacity: .044; }
+    .white-world-page .ink-wash .wash-ripple { stroke-width: .65; opacity: .032; }
+    .white-world-page .phone-page { z-index: 2; }
+    .white-world-page .difficulty-control { border-color: #e5e7ea; background: #fff; }
+    .white-world-page .world-focus { border-color: #e3e5e8; background: #fff; box-shadow: 0 10px 28px rgba(24, 28, 34, .055); }
+    .white-world-page .world-rule,
+    .white-world-page .rule-fact { background: #f7f8f9; }
+    .white-world-page .source-section { border-color: #e7e9ec; background: #fff; }
+    .white-world-page .saved-choice,
+    .white-world-page .field,
+    .white-world-page .preset-grid button { border-color: #eceef0; background: #fff; }
+    .white-world-page .saved-choice[aria-pressed="true"],
+    .white-world-page .preset-grid button[aria-selected="true"] { border-color: #dce2e8; background: #f0f3f6; }
+    .white-world-page .section-meta,
+    .white-world-page .focus-index { color: #969ba2; }
+    .white-world-page .chapter-end {
+      right: 14px;
+      bottom: 12px;
+      left: 14px;
+      border-color: #e3e5e8;
+      border-radius: 18px;
+      background: #fff;
+      box-shadow: 0 9px 26px rgba(24, 28, 34, .08);
+      backdrop-filter: none;
+    }
+    .white-world-page .chapter-nav { padding-right: 7px; padding-left: 7px; }
+    .white-world-page .back-button { border-color: #e5e7ea; background: #fff; }
+    .white-world-page .sheet,
+    .white-world-page .dialog { border: 1px solid #e3e5e8; background: #fff; }
+    .white-world-page .sheet-close,
+    .white-world-page .sheet-actions button,
+    .white-world-page .dialog-actions button { background: #f7f8f9; }
+    .white-world-page .sheet-actions .save-edit { background: #17191d; color: #fff; }
+    .white-world-page .dialog-actions .danger-confirm { background: #f3e8e6; color: #84564f; }
+
+    /* B1 only changes color treatment. All layout and component geometry above stay WS-RF23-1. */
+    html, body, *, *::before, *::after { scrollbar-width: none; -ms-overflow-style: none; }
+    *::-webkit-scrollbar { display: none; width: 0; height: 0; }
+    :root {
+      --review-bg: #eef1f7;
+      --review-surface: #fafbff;
+      --review-ink: #28324b;
+      --review-muted: #707b92;
+      --review-line: #d8deea;
+      --ornament: #7787c0;
+    }
+    button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible { outline-color: rgba(115, 130, 187, .48); }
+    .b1-colorway {
+      --page: #fafbff;
+      --surface: #ffffff;
+      --surface-soft: #f1f3fa;
+      --surface-faint: #fbfcff;
+      --ink: #28324b;
+      --ink-soft: #707b92;
+      --ink-faint: #929bb0;
+      --accent: #7382bb;
+      --accent-rgb: 115, 130, 187;
+      --accent-soft: #edf0fb;
+      --danger: #9c7d86;
+      border-color: #d8deea;
+      background: linear-gradient(135deg, rgba(255, 215, 95, .11) 0%, rgba(255, 215, 95, 0) 34%), linear-gradient(#fafbff, #f2f4f9);
+      box-shadow: 0 20px 48px rgba(62, 70, 100, .09);
+    }
+    .b1-colorway .corner-medallion { color: #7787c0; opacity: .04; }
+    .b1-colorway .ink-wash { opacity: .6; }
+    .b1-colorway .ink-wash .wash-far { fill: #69759a; }
+    .b1-colorway .ink-wash .wash-mist { fill: #7f8bb0; }
+    .b1-colorway .ink-wash .wash-mid { fill: #647097; }
+    .b1-colorway .ink-wash .wash-near { fill: #7a86aa; }
+    .b1-colorway .ink-wash .wash-line,
+    .b1-colorway .ink-wash .wash-ripple { stroke: #7787c0; }
+    .b1-colorway .difficulty-control,
+    .b1-colorway .world-focus,
+    .b1-colorway .source-section,
+    .b1-colorway .saved-choice,
+    .b1-colorway .field,
+    .b1-colorway .preset-grid button,
+    .b1-colorway .chapter-end,
+    .b1-colorway .back-button,
+    .b1-colorway .sheet,
+    .b1-colorway .dialog { border-color: #d8deea; }
+    .b1-colorway .world-rule,
+    .b1-colorway .rule-fact,
+    .b1-colorway .sheet-close,
+    .b1-colorway .sheet-actions button,
+    .b1-colorway .dialog-actions button { background: #f1f3fa; }
+    .b1-colorway .saved-choice,
+    .b1-colorway .field,
+    .b1-colorway .preset-grid button,
+    .b1-colorway .difficulty-control,
+    .b1-colorway .chapter-end,
+    .b1-colorway .back-button,
+    .b1-colorway .sheet,
+    .b1-colorway .dialog { background-color: rgba(255, 255, 255, .94); }
+    .b1-colorway .saved-choice[aria-pressed="true"],
+    .b1-colorway .preset-grid button[aria-selected="true"] { border-color: #cfd7ee; background: #edf0fb; }
+    .b1-colorway .sheet-actions .save-edit { background: #7382bb; color: #fff; }
+    .b1-colorway .dialog-actions .danger-confirm { background: #f3e8ed; color: #8e6571; }
+
+    /* B1 keeps the WS-RF23-1 structure while matching the welcome page's text hierarchy. */
+    .b1-colorway { container-type: size; }
+    .b1-colorway .section-order { display: none; }
+    .b1-colorway .section-toggle strong { font-size: 11.6px; font-weight: 650; }
+    .b1-colorway .section-meta { font-size: 7.5px; }
+    .b1-colorway .saved-choice strong { font-size: 9.6px; }
+    .b1-colorway .saved-choice small,
+    .b1-colorway .manage-row button,
+    .b1-colorway .preset-grid button { font-size: 8.5px; }
+    .b1-colorway .field > span { font-size: 7.2px; }
+    .b1-colorway .field input,
+    .b1-colorway .field textarea { font-size: 9.4px; }
+    .b1-colorway .custom-form { gap: 7px; }
+    .b1-colorway .custom-form .field textarea { min-height: 52px; max-height: 21cqh; overflow-y: auto; line-height: 1.48; overflow-wrap: anywhere; resize: none; white-space: pre-wrap; }
+    .b1-colorway .phone-page,
+    .b1-colorway .sheet { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .b1-colorway .phone-page { bottom: 0; padding-bottom: 78px; touch-action: pan-y; }
+    .b1-colorway .chapter-end { border-color: rgba(207, 215, 238, .84); background: rgba(255, 255, 255, .76); box-shadow: 0 12px 30px rgba(62, 70, 100, .13), 0 2px 7px rgba(62, 70, 100, .06); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+    .b1-colorway .world-focus { height: 23cqh; min-height: 0; overflow: hidden; padding-right: 15px; padding-left: 15px; }
+    .b1-colorway .world-focus .difficulty-control { position: absolute; z-index: 2; top: 24px; right: 15px; }
+    .b1-colorway .world-focus h3,
+    .b1-colorway .world-focus .focus-era { max-width: calc(100% - 100px); }
+    .b1-colorway .world-focus .focus-era { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .b1-colorway .world-rule { height: 32px; min-height: 0; align-items: center; }
+    .b1-colorway .world-focus .world-rule { margin-top: 15px; }
+    .b1-colorway .world-rule p { display: block; min-width: 0; overflow: hidden; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; -webkit-line-clamp: unset; }
+    .b1-colorway .source-tabs { display: grid; height: 38px; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; margin-top: 9px; }
+    .b1-colorway .source-tabs button { min-width: 0; padding: 0 3px; border: 0; border-radius: 7px; background: transparent; color: var(--ink-soft); cursor: pointer; font-size: 8.8px; font-weight: 600; line-height: 1.15; }
+    .b1-colorway .source-tabs button[aria-selected="true"] { background: var(--accent-soft); color: var(--accent); }
+    .b1-colorway .source-area { margin-top: 7px; }
+    .b1-colorway .source-section { display: none; margin-top: 0; padding-top: 9px; }
+    .b1-colorway .source-section.is-tab-active { display: block; animation: reveal 160ms ease both; }
+    .b1-colorway .source-section .section-head { display: none; }
+    .b1-colorway .source-section .section-body { margin-top: 0; }
+    .b1-colorway .more-worlds { display: flex; width: 100%; min-height: 26px; align-items: center; justify-content: center; margin-top: 6px; color: var(--accent); font-size: 8.5px; }
+    .b1-colorway .source-section { padding-right: 10px; padding-left: 10px; }
+    .b1-colorway .saved-choice { padding-right: 9px; padding-left: 9px; }
+    .b1-colorway .field { padding-right: 10px; padding-left: 10px; }
+    .b1-colorway .preset-grid button { padding-right: 5px; padding-left: 5px; }
+    .b1-colorway .chapter-nav { padding-right: 10px; padding-left: 10px; }
+    .b1-colorway .difficulty-control { display: grid; min-width: 88px; min-height: 42px; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: center; column-gap: 6px; row-gap: 1px; padding: 6px 7px 6px 10px; border-color: #d8deea; border-radius: 13px; background: rgba(255, 255, 255, .8); box-shadow: inset 0 1px rgba(255, 255, 255, .96), 0 4px 11px rgba(62, 70, 100, .045); text-align: left; }
+    .b1-colorway .difficulty-control span { grid-column: 1; grid-row: 1; color: var(--ink-faint); font-size: 7.2px; font-weight: 650; line-height: 1.15; }
+    .b1-colorway .difficulty-control strong { grid-column: 1; grid-row: 2; color: var(--ink); font-size: 10.5px; font-weight: 680; line-height: 1.2; }
+    .b1-colorway .difficulty-arrow { display: grid; grid-column: 2; grid-row: 1 / span 2; width: 9px; height: 9px; place-items: center; padding: 3px; border-radius: 50%; background: var(--accent); box-sizing: content-box; color: #fff; }
+    .b1-colorway .difficulty-arrow path { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .b1-colorway .difficulty-control:hover { border-color: #c5cee6; background: rgba(255, 255, 255, .94); }
+    .b1-colorway .difficulty-control:active { box-shadow: inset 0 1px 3px rgba(62, 70, 100, .11); transform: translateY(1px); }
+
+    .final-shell { width: min(900px, calc(100% - 24px)); margin: 0 auto; padding: 18px 0 42px; }
+    .final-shell > .topbar { margin-bottom: 18px; color: var(--review-muted); font-size: 12px; }
+    .final-shell > .eyebrow { margin: 0; color: var(--review-muted); font-size: 10px; font-weight: 700; letter-spacing: .08em; }
+    .final-shell > h1 { margin: 7px 0 0; font-family: var(--serif); font-size: 28px; font-weight: 600; line-height: 1.25; }
+    .final-shell > .subtitle { max-width: 720px; margin: 8px 0 0; color: var(--review-muted); font-size: 12px; line-height: 1.7; }
+    .final-stage { display: grid; justify-items: center; margin-top: 18px; }
+    .final-stage .phone { margin: 0; }
+    html.embedded-preview body[data-screen] { min-height: 100vh; background: var(--review-bg); }
+    html.embedded-preview body[data-screen] > .shell { width: 100%; min-height: 100vh; padding: 12px 0 28px; }
+    html.embedded-preview body[data-screen] > .shell > .topbar,
+    html.embedded-preview body[data-screen] > .shell > .eyebrow,
+    html.embedded-preview body[data-screen] > .shell > h1,
+    html.embedded-preview body[data-screen] > .shell > .subtitle { display: none !important; }
+    html.embedded-preview .final-stage { margin-top: 0; }
+
+    @keyframes reveal { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+    @media (max-width: 1099px) { .candidate-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .candidate-meta { min-height: 86px; } }
+    @media (max-width: 559px) { .review-shell { padding: 15px 11px 28px; } .review-head { grid-template-columns: 1fr; gap: 9px; padding-right: 3px; padding-left: 3px; } .review-head h1 { font-size: 24px; } .review-status { text-align: left; } .candidate-grid { grid-template-columns: 1fr; } .candidate { padding-right: 8px; padding-left: 8px; } .candidate-meta { min-height: 0; padding: 3px 4px 12px; } .phone { width: min(100%, 330px); } }
+    @media (max-width: 559px) { .final-shell { width: min(100% - 22px, 900px); padding-top: 18px; } .final-shell > h1 { font-size: 24px; } }
+    @media (max-width: 389px) { .review-shell { padding-right: 9px; padding-left: 9px; } .phone { width: min(100%, 326px); } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+  </style>
+</head>
+<body data-screen="world-select">
+  <main class="shell final-shell">
+    <div class="topbar"><a href="index.html">← 返回世界选择历史</a><span class="status done">B1 配色适配</span></div>
+    <p class="eyebrow">WORLD SELECT · FINAL</p>
+    <h1>世界选择 · B1 配色适配</h1>
+    <p class="subtitle">完整继承 WS-RF23-1 的布局、圆角、板块和交互，仅调整为 B1 冷白蓝灰配色。</p>
+    <section class="final-stage" aria-label="WS-RF23-1 世界选择最终界面">
+      <div class="phone theme-space-balanced white-world-page b1-colorway" data-relative-phone data-relative-phone-width="320" data-relative-phone-height="674" data-app="world-select-ws-rf23-1" data-selected-world="潮汐城邦" data-source="saved" data-difficulty-value="普通"></div>
+    </section>
+  </main>
+
+  <svg class="geometry-defs" aria-hidden="true" focusable="false">
+    <symbol id="ws-radial-medallion" viewBox="0 0 160 160" fill="none" stroke="currentColor" stroke-width=".72">
+      <g transform="translate(80 80)">
+        <circle r="75"/><circle r="70"/><circle r="64" stroke-dasharray="1 5" stroke-width="1.15"/><circle r="57"/><circle r="45"/><circle r="31"/><circle r="17"/>
+        <path d="M0-70 5-60 0-49-5-60Z"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(22.5)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(45)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(67.5)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(90)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(112.5)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(135)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(157.5)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(180)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(202.5)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(225)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(247.5)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(270)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(292.5)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(315)"/><path d="M0-70 5-60 0-49-5-60Z" transform="rotate(337.5)"/>
+        <path d="M0-55V-32M0 55V32M-55 0h23M55 0H32M-39-39l16 16M39-39 23-23M39 39 23 23M-39 39l16-16" opacity=".72"/>
+        <path d="M0-45 9-35 0-25-9-35Z"/><path d="M0-45 9-35 0-25-9-35Z" transform="rotate(45)"/><path d="M0-45 9-35 0-25-9-35Z" transform="rotate(90)"/><path d="M0-45 9-35 0-25-9-35Z" transform="rotate(135)"/><path d="M0-45 9-35 0-25-9-35Z" transform="rotate(180)"/><path d="M0-45 9-35 0-25-9-35Z" transform="rotate(225)"/><path d="M0-45 9-35 0-25-9-35Z" transform="rotate(270)"/><path d="M0-45 9-35 0-25-9-35Z" transform="rotate(315)"/>
+        <ellipse cy="-18" rx="6" ry="16"/><ellipse cy="-18" rx="6" ry="16" transform="rotate(45)"/><ellipse cy="-18" rx="6" ry="16" transform="rotate(90)"/><ellipse cy="-18" rx="6" ry="16" transform="rotate(135)"/><ellipse cy="-18" rx="6" ry="16" transform="rotate(180)"/><ellipse cy="-18" rx="6" ry="16" transform="rotate(225)"/><ellipse cy="-18" rx="6" ry="16" transform="rotate(270)"/><ellipse cy="-18" rx="6" ry="16" transform="rotate(315)"/>
+        <rect x="-12" y="-12" width="24" height="24" transform="rotate(45)"/><circle r="5"/><circle r="1.8" fill="currentColor" stroke="none"/>
+      </g>
+    </symbol>
+  </svg>
+
+  <template id="page-template">
+    <div class="scenery-art" aria-hidden="true">
+      <svg class="corner-medallion medallion-tl" viewBox="0 0 160 160"><use href="#ws-radial-medallion"/></svg>
+      <svg class="corner-medallion medallion-tr" viewBox="0 0 160 160"><use href="#ws-radial-medallion"/></svg>
+      <svg class="corner-medallion medallion-bl" viewBox="0 0 160 160"><use href="#ws-radial-medallion"/></svg>
+      <svg class="corner-medallion medallion-br" viewBox="0 0 160 160"><use href="#ws-radial-medallion"/></svg>
+      <svg class="ink-wash" viewBox="0 0 340 220" preserveAspectRatio="xMidYMax meet">
+        <path class="wash-far" d="M0 170c25-16 48-21 72-14 18-26 39-39 62-35 19-39 47-61 77-54 18-26 40-35 63-25 22-16 44-18 66-9v187H0Z"/>
+        <path class="wash-mist" d="M0 181c34-12 63-13 89-4 24-25 50-34 78-25 28-25 59-31 92-16 27-18 54-20 81-11v95H0Z"/>
+        <path class="wash-mid" d="M0 190c31-18 62-20 92-8 24-22 51-29 79-19 28-23 59-28 92-14 26-16 52-18 77-9v80H0Z"/>
+        <path class="wash-near" d="M0 204c36-10 68-9 98 2 33-13 66-14 99-2 32-12 64-13 96-2 18-6 34-6 47-2v20H0Z"/>
+        <path class="wash-line" d="M7 177c38-25 74-27 109-9 37-27 76-33 116-14 35-22 70-24 103-7"/>
+        <path class="wash-ripple" d="M22 201c25-5 49-5 73 0m35 8c32-5 64-5 95 0m31-9c23-4 45-4 66 0"/>
+      </svg>
+    </div>
+    <div class="phone-page">
+      <header class="screen-head"><div class="running-head"><span>AI LIFE SIM · 命书</span><span>01 / 世界</span></div><div class="title-row"><div><span class="chapter-label">第一章 · 世界选择</span><h2>选择世界</h2></div></div></header>
+      <section class="world-focus" aria-label="当前世界规则摘要"><div class="focus-top"><span class="focus-source" data-source-label>保存世界</span><span class="focus-index">当前选择</span></div><button class="difficulty-control" type="button" data-difficulty-cycle aria-label="切换人生难度"><span>难度</span><strong data-difficulty-label>普通</strong><svg class="difficulty-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button><h3 data-current-label>潮汐城邦</h3><div class="focus-era" data-current-era>群岛历 218 年</div><div class="world-rule"><span>规则摘要</span><p data-current-rule>潮汐决定城市的贸易节律、迁徙方向与每个人回家的时间。</p></div><div class="rule-facts" aria-label="世界概览"><div class="rule-fact"><span>来源</span><strong data-fact-source>已保存</strong></div><div class="rule-fact"><span>年代</span><strong data-fact-era>群岛历</strong></div><div class="rule-fact"><span>难度</span><strong data-fact-level>普通</strong></div></div></section>
+      <nav class="source-tabs" aria-label="世界来源"><button type="button" data-source-tab="saved" aria-selected="true">已保存</button><button type="button" data-source-tab="custom" aria-selected="false">自定义</button><button type="button" data-source-tab="preset" aria-selected="false">预设世界</button></nav>
+      <div class="source-area">
+        <section class="source-section saved-section is-open is-tab-active" data-source-panel="saved"><header class="section-head"><button class="section-toggle" type="button" data-section-toggle="saved" aria-expanded="true"><span class="section-order">01</span><strong>已保存世界</strong></button><span class="section-meta"><span data-saved-count>2 个</span><svg class="section-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></header><div class="section-body"><div class="saved-list" data-saved-list></div><div class="manage-row" data-manage-row><button type="button" data-manage="edit">修改</button><button type="button" data-manage="reset">重置</button><button type="button" data-manage="delete">删除</button></div></div></section>
+        <section class="source-section custom-section" data-source-panel="custom"><header class="section-head"><button class="section-toggle" type="button" data-section-toggle="custom" aria-expanded="false"><span class="section-order">02</span><strong>新建自定义世界</strong></button><span class="section-meta"><span>填写即选择</span><svg class="section-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></header><div class="section-body"><form class="custom-form" data-custom-form><div class="field-pair"><label class="field"><span>世界名称</span><input data-custom-field="name" autocomplete="off" placeholder="为世界命名"></label><label class="field"><span>起始年代</span><input data-custom-field="era" autocomplete="off" placeholder="写下年代"></label></div><label class="field"><span>世界描述</span><textarea data-custom-field="description" placeholder="写下世界的样子与一条核心规则"></textarea></label></form></div></section>
+        <section class="source-section preset-section" data-source-panel="preset"><header class="section-head"><button class="section-toggle" type="button" data-section-toggle="preset" aria-expanded="false"><span class="section-order">03</span><strong>预设世界</strong></button><span class="section-meta"><button class="more-worlds" type="button" data-open-more>更多世界</button><svg class="section-caret" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span></header><div class="section-body"><div class="preset-grid" aria-label="预设世界"><button type="button" data-preset="现代地球" aria-selected="false">现代地球</button><button type="button" data-preset="武道割据" aria-selected="false">武道割据</button><button type="button" data-preset="SCP基金会" aria-selected="false">SCP 基金会</button><button type="button" data-preset="战锤40K" aria-selected="false">战锤 40K</button><button type="button" data-preset="赛博2077" aria-selected="false">赛博 2077</button><button type="button" data-preset="修真世界" aria-selected="false">修真世界</button></div></div></section>
+      </div>
+    </div>
+    <footer class="chapter-end"><div class="chapter-nav"><button class="back-button" type="button" data-back data-flow-back="welcome" aria-label="返回欢迎页" title="返回欢迎页"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button><button class="chapter-action" type="button" data-confirm data-flow-to="world-customize"><span class="action-number">02</span><span class="action-copy"><strong data-confirm-label>确认世界</strong><small data-confirm-hint>潮汐城邦 · 下一步世界配置</small></span><svg class="action-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div></footer>
+  </template>
+
+  <template id="overlay-template">
+    <section class="sheet" data-sheet="edit" aria-hidden="true"><header class="sheet-head"><div><h3>修改保存世界</h3><p>保存后会更新这份自定义世界。</p></div><button class="sheet-close" type="button" data-close-overlay aria-label="关闭修改面板" title="关闭">×</button></header><form class="edit-form" data-edit-form><label class="field"><span>世界名称</span><input name="name" autocomplete="off"></label><label class="field"><span>起始年代</span><input name="era" autocomplete="off"></label><label class="field"><span>世界描述</span><textarea name="description"></textarea></label><div class="sheet-actions"><button type="button" data-close-overlay>取消</button><button class="save-edit" type="submit">保存修改</button></div><p class="edit-status" data-edit-status role="status"></p></form></section>
+    <section class="sheet" data-sheet="more" aria-hidden="true"><header class="sheet-head"><div><h3>更多预设世界</h3><p>选择后会立即成为当前世界。</p></div><button class="sheet-close" type="button" data-close-overlay aria-label="关闭更多世界" title="关闭">×</button></header><div class="more-grid"><button type="button" data-more-preset="蒸汽纪元">蒸汽纪元<small>齿轮与远航</small></button><button type="button" data-more-preset="末日废土">末日废土<small>灾后重建</small></button><button type="button" data-more-preset="星海联邦">星海联邦<small>星际文明</small></button><button type="button" data-more-preset="魔法学院">魔法学院<small>秘术与成长</small></button><button type="button" data-more-preset="神话洪荒">神话洪荒<small>诸神纪元</small></button><button type="button" data-more-preset="寂静极地">寂静极地<small>生存远征</small></button></div></section>
+    <div class="dialog-layer" data-dialog-layer aria-hidden="true"><section class="dialog" role="alertdialog" aria-modal="true"><h3 data-dialog-title>确认操作</h3><p data-dialog-copy></p><div class="dialog-actions"><button type="button" data-dialog-cancel>取消</button><button class="danger-confirm" type="button" data-dialog-confirm>确认</button></div></section></div><div class="phone-toast" role="status" aria-live="polite"></div>
+  </template>
+
+  <script>
+    (() => {
+      const presetWorlds = {
+        '现代地球': { name: '现代地球', era: '公元 2000 年', description: '互联网正在改变生活，平凡人生也会被时代推动。' },
+        '武道割据': { name: '武道割据', era: '乱世江湖', description: '门派林立、恩怨纠葛，一技之长即可改写命运。' },
+        'SCP基金会': { name: 'SCP 基金会', era: '当代异常收容', description: '日常表象之下，异常项目被严密收容与研究。' },
+        '战锤40K': { name: '战锤 40K', era: '遥远的未来', description: '帝国与异族永世征战，个体在星海中微不足道。' },
+        '赛博2077': { name: '赛博 2077', era: '公元 2077 年', description: '义体改造与企业统治交织，街头是普通人争取自由的地方。' },
+        '修真世界': { name: '修真世界', era: '仙道纪元', description: '灵根与功法决定起点，长生之路布满试炼。' },
+        '蒸汽纪元': { name: '蒸汽纪元', era: '工业历 77 年', description: '浮空舰与蒸汽机关连接群岛，远航者重新绘制世界边界。' },
+        '末日废土': { name: '末日废土', era: '灾变后 19 年', description: '旧秩序崩塌之后，聚落在匮乏与互助之间艰难重建。' },
+        '星海联邦': { name: '星海联邦', era: '联邦历 406 年', description: '人类跨越星门建立联邦，身份与故乡都有了新的尺度。' },
+        '魔法学院': { name: '魔法学院', era: '银塔历 312 年', description: '年轻施法者在古老学院学习秘术，也承担知识带来的代价。' },
+        '神话洪荒': { name: '神话洪荒', era: '诸神纪元', description: '天地初定、神祇行世，凡人的选择也会卷入宏大因果。' },
+        '寂静极地': { name: '寂静极地', era: '远征第 8 年', description: '长夜笼罩极地城站，补给、信任与归途同样珍贵。' }
+      };
+      const initialSaved = [
+        { id: 'tide', original: { name: '潮汐城邦', era: '群岛历 218 年', description: '潮汐决定城市的贸易节律、迁徙方向与每个人回家的时间。' }, updated: '最近修改' },
+        { id: 'ember', original: { name: '余烬花园', era: '灾后 31 年', description: '人们在旧城废墟的温室里重建共同体，水与种子比货币更珍贵。' }, updated: '昨日保存' }
+      ];
+      const levels = ['轻松', '普通', '艰难'];
+      const clone = value => JSON.parse(JSON.stringify(value));
+      const sourceNames = { saved: '保存世界', custom: '自定义世界', preset: '预设世界' };
+
+      document.querySelectorAll('[data-app]').forEach((app, index) => {
+        app.append(document.querySelector('#page-template').content.cloneNode(true));
+        app.append(document.querySelector('#overlay-template').content.cloneNode(true));
+        const sourceArea = app.querySelector('.source-area');
+        const presetSection = sourceArea.querySelector('[data-source-panel="preset"]');
+        sourceArea.prepend(presetSection);
+        presetSection.querySelector('.section-body').append(presetSection.querySelector('[data-open-more]'));
+        const sourceTabs = app.querySelector('.source-tabs');
+        sourceTabs.prepend(sourceTabs.querySelector('[data-source-tab="preset"]'));
+        sourceTabs.setAttribute('role', 'tablist');
+        sourceTabs.querySelectorAll('[data-source-tab]').forEach(button => {
+          const source = button.dataset.sourceTab;
+          const panel = app.querySelector(`[data-source-panel="${source}"]`);
+          button.id = `world-source-tab-${index + 1}-${source}`;
+          button.setAttribute('role', 'tab');
+          button.setAttribute('aria-controls', `world-source-panel-${index + 1}-${source}`);
+          panel.id = `world-source-panel-${index + 1}-${source}`;
+          panel.setAttribute('role', 'tabpanel');
+          panel.setAttribute('aria-labelledby', button.id);
+        });
+        const title = app.querySelector('[data-dialog-title]');
+        title.id = `world-select-final-dialog-title-${index + 1}`;
+        app.querySelector('.dialog').setAttribute('aria-labelledby', title.id);
+      });
+
+      const showToast = (app, message) => {
+        const toast = app.querySelector('.phone-toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(toast._timer);
+        toast._timer = setTimeout(() => toast.classList.remove('show'), 1500);
+      };
+      const hideToast = app => {
+        const toast = app.querySelector('.phone-toast');
+        clearTimeout(toast._timer);
+        toast.classList.remove('show');
+      };
+      const closeOverlays = app => {
+        const active = document.activeElement;
+        const activeOverlay = active instanceof HTMLElement && app.contains(active) && (active.closest('.sheet.open') || active.closest('[data-dialog-layer].open'));
+        if (activeOverlay) {
+          const fallback = app._overlayTrigger?.isConnected ? app._overlayTrigger : app.querySelector('[data-confirm]');
+          fallback?.focus({ preventScroll: true });
+        }
+        app.querySelectorAll('.sheet.open').forEach(sheet => {
+          sheet.classList.remove('open');
+          sheet.setAttribute('aria-hidden', 'true');
+        });
+        const layer = app.querySelector('[data-dialog-layer]');
+        layer.classList.remove('open');
+        layer.setAttribute('aria-hidden', 'true');
+        app._overlayTrigger = null;
+      };
+      const openSheet = (app, name) => {
+        const trigger = document.activeElement;
+        hideToast(app);
+        closeOverlays(app);
+        app._overlayTrigger = trigger instanceof HTMLElement && app.contains(trigger) ? trigger : null;
+        const sheet = app.querySelector(`[data-sheet="${name}"]`);
+        sheet.classList.add('open');
+        sheet.setAttribute('aria-hidden', 'false');
+      };
+
+      const activatePanel = (app, state, panel) => {
+        state.activePanel = panel;
+        app.querySelectorAll('[data-source-tab]').forEach(button => {
+          const selected = button.dataset.sourceTab === panel;
+          button.setAttribute('aria-selected', String(selected));
+          button.tabIndex = selected ? 0 : -1;
+        });
+        app.querySelectorAll('[data-source-panel]').forEach(section => section.classList.toggle('is-tab-active', section.dataset.sourcePanel === panel));
+      };
+      const openAccordion = (app, state, panel) => {
+        state.openPanel = panel;
+        app.querySelectorAll('[data-source-panel]').forEach(section => {
+          const open = section.dataset.sourcePanel === panel;
+          section.classList.toggle('is-open', open);
+          section.querySelector('[data-section-toggle]').setAttribute('aria-expanded', String(open));
+        });
+      };
+      const updateSelection = (app, state) => {
+        const draft = state.draft || { name: '', era: '', description: '' };
+        const world = state.selectedWorld;
+        const display = world || (state.source === 'custom' ? {
+          name: draft.name || '未命名世界',
+          era: draft.era || '年代未定',
+          description: draft.description || '继续写下这个世界的样子与一条核心规则。'
+        } : { name: '尚未选择', era: '等待选择', description: '选择或写下一方世界，作为这段人生的开端。' });
+        app.dataset.selectedWorld = world?.name || '';
+        app.dataset.source = state.source;
+        app.querySelector('[data-source-label]').textContent = sourceNames[state.source] || '当前世界';
+        app.querySelector('[data-current-label]').textContent = display.name;
+        app.querySelector('[data-current-era]').textContent = display.era;
+        app.querySelector('[data-current-rule]').textContent = display.description;
+        app.querySelector('[data-fact-source]').textContent = { saved: '已保存', custom: '自定义', preset: '预设' }[state.source] || '待选择';
+        app.querySelector('[data-fact-era]').textContent = display.era;
+        app.querySelector('[data-fact-level]').textContent = levels[state.difficultyIndex];
+        app.querySelector('[data-confirm-label]').textContent = world ? '确认世界' : '补全自定义世界';
+        app.querySelector('[data-confirm-hint]').textContent = world ? `${world.name} · 下一步世界配置` : '名称、年代与描述缺一不可';
+        app.querySelector('[data-confirm]').disabled = !world;
+      };
+      const setPresetState = (app, state) => app.querySelectorAll('[data-preset]').forEach(button => button.setAttribute('aria-selected', String(state.source === 'preset' && button.dataset.preset === state.selectedPreset)));
+      const renderSaved = (app, state) => {
+        const list = app.querySelector('[data-saved-list]');
+        list.replaceChildren();
+        state.saved.forEach(entry => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'saved-choice';
+          button.dataset.savedId = entry.id;
+          button.setAttribute('aria-pressed', String(state.source === 'saved' && state.selectedSavedId === entry.id));
+          const copy = document.createElement('span');
+          const name = document.createElement('strong');
+          const summary = document.createElement('small');
+          const description = document.createElement('p');
+          const status = document.createElement('span');
+          name.textContent = entry.current.name;
+          summary.textContent = `${entry.current.era} · ${entry.updated}`;
+          description.className = 'saved-description';
+          description.textContent = entry.current.description;
+          status.textContent = '已选';
+          copy.append(name, summary, description);
+          button.append(copy, status);
+          button.addEventListener('click', () => selectSaved(app, state, entry.id));
+          list.append(button);
+        });
+        app.querySelector('[data-saved-count]').textContent = `${state.saved.length} 个`;
+        app.querySelector('[data-manage-row]').hidden = !(state.source === 'saved' && state.selectedSavedId);
+      };
+      const selectSaved = (app, state, id) => {
+        const entry = state.saved.find(item => item.id === id);
+        if (!entry) return;
+        state.source = 'saved';
+        state.selectedSavedId = id;
+        state.selectedPreset = '';
+        state.selectedWorld = clone(entry.current);
+        activatePanel(app, state, 'saved');
+        openAccordion(app, state, 'saved');
+        renderSaved(app, state);
+        setPresetState(app, state);
+        updateSelection(app, state);
+        showToast(app, `已选择保存世界 · ${entry.current.name}`);
+      };
+      const selectPreset = (app, state, key) => {
+        const world = presetWorlds[key];
+        if (!world) return;
+        state.source = 'preset';
+        state.selectedSavedId = '';
+        state.selectedPreset = key;
+        state.selectedWorld = clone(world);
+        activatePanel(app, state, 'preset');
+        openAccordion(app, state, 'preset');
+        renderSaved(app, state);
+        setPresetState(app, state);
+        updateSelection(app, state);
+        closeOverlays(app);
+        showToast(app, `已选择预设世界 · ${world.name}`);
+      };
+      const syncCustom = (app, state) => {
+        const fields = Object.fromEntries([...app.querySelectorAll('[data-custom-field]')].map(field => [field.dataset.customField, field.value.trim()]));
+        if (!Object.values(fields).some(Boolean) && state.source !== 'custom') return;
+        state.source = 'custom';
+        state.draft = fields;
+        state.selectedSavedId = '';
+        state.selectedPreset = '';
+        state.selectedWorld = Object.values(fields).every(Boolean) ? fields : null;
+        activatePanel(app, state, 'custom');
+        openAccordion(app, state, 'custom');
+        renderSaved(app, state);
+        setPresetState(app, state);
+        updateSelection(app, state);
+      };
+      const openEdit = (app, state) => {
+        const entry = state.saved.find(item => item.id === state.selectedSavedId);
+        if (!entry) return;
+        state.editingId = entry.id;
+        const form = app.querySelector('[data-edit-form]');
+        form.elements.name.value = entry.current.name;
+        form.elements.era.value = entry.current.era;
+        form.elements.description.value = entry.current.description;
+        form.querySelector('[data-edit-status]').textContent = '';
+        openSheet(app, 'edit');
+        form.elements.name.focus({ preventScroll: true });
+      };
+      const openDialog = (app, state, action) => {
+        const entry = state.saved.find(item => item.id === state.selectedSavedId);
+        if (!entry) return;
+        hideToast(app);
+        app._overlayTrigger = document.activeElement instanceof HTMLElement && app.contains(document.activeElement) ? document.activeElement : null;
+        state.pendingAction = action;
+        const deleting = action === 'delete';
+        app.querySelector('[data-dialog-title]').textContent = deleting ? '删除保存世界？' : '重置保存世界？';
+        app.querySelector('[data-dialog-copy]').textContent = deleting ? `“${entry.current.name}”将从保存列表移除，此操作无法撤销。` : `“${entry.current.name}”将恢复为首次保存时的名称、年代与描述。`;
+        app.querySelector('[data-dialog-confirm]').textContent = deleting ? '确认删除' : '确认重置';
+        const layer = app.querySelector('[data-dialog-layer]');
+        layer.classList.add('open');
+        layer.setAttribute('aria-hidden', 'false');
+        app.querySelector('[data-dialog-confirm]').focus({ preventScroll: true });
+      };
+
+      document.querySelectorAll('[data-app]').forEach(app => {
+        const state = {
+          saved: initialSaved.map(entry => ({ ...clone(entry), current: clone(entry.original) })),
+          source: 'saved', selectedSavedId: 'tide', selectedPreset: '', selectedWorld: clone(initialSaved[0].original),
+          draft: { name: '', era: '', description: '' }, difficultyIndex: 1, editingId: '', pendingAction: '', activePanel: 'saved', openPanel: 'saved'
+        };
+        app._state = state;
+        renderSaved(app, state);
+        setPresetState(app, state);
+        updateSelection(app, state);
+        activatePanel(app, state, 'saved');
+        openAccordion(app, state, 'saved');
+        app.querySelectorAll('[data-source-tab]').forEach(button => button.addEventListener('click', () => activatePanel(app, state, button.dataset.sourceTab)));
+        app.querySelectorAll('[data-section-toggle]').forEach(button => button.addEventListener('click', () => {
+          const panel = button.closest('[data-source-panel]').dataset.sourcePanel;
+          activatePanel(app, state, panel);
+          openAccordion(app, state, panel);
+        }));
+        app.querySelectorAll('[data-preset]').forEach(button => button.addEventListener('click', () => selectPreset(app, state, button.dataset.preset)));
+        app.querySelectorAll('[data-more-preset]').forEach(button => button.addEventListener('click', () => selectPreset(app, state, button.dataset.morePreset)));
+        const autosizeDescription = textarea => {
+          textarea.style.height = 'auto';
+          const maxHeight = Math.round(app.closest('.phone').clientHeight * .21);
+          textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
+        };
+        app.querySelectorAll('textarea[data-custom-field="description"]').forEach(autosizeDescription);
+        app.querySelectorAll('[data-custom-field]').forEach(field => field.addEventListener('input', () => {
+          if (field instanceof HTMLTextAreaElement) autosizeDescription(field);
+          syncCustom(app, state);
+        }));
+        app.querySelectorAll('[data-manage]').forEach(button => button.addEventListener('click', () => button.dataset.manage === 'edit' ? openEdit(app, state) : openDialog(app, state, button.dataset.manage)));
+        app.querySelectorAll('[data-close-overlay], [data-dialog-cancel]').forEach(button => button.addEventListener('click', () => closeOverlays(app)));
+        app.querySelector('[data-open-more]').addEventListener('click', event => { event.stopPropagation(); openSheet(app, 'more'); });
+        app.querySelector('[data-difficulty-cycle]').addEventListener('click', () => {
+          state.difficultyIndex = (state.difficultyIndex + 1) % levels.length;
+          const value = levels[state.difficultyIndex];
+          app.dataset.difficultyValue = value;
+          app.querySelector('[data-difficulty-label]').textContent = value;
+          app.querySelector('[data-fact-level]').textContent = value;
+          showToast(app, `人生难度 · ${value}`);
+        });
+        app.querySelector('[data-edit-form]').addEventListener('submit', event => {
+          event.preventDefault();
+          const form = event.currentTarget;
+          const values = { name: form.elements.name.value.trim(), era: form.elements.era.value.trim(), description: form.elements.description.value.trim() };
+          if (!Object.values(values).every(Boolean)) { form.querySelector('[data-edit-status]').textContent = '请补全名称、年代与描述。'; return; }
+          const entry = state.saved.find(item => item.id === state.editingId);
+          if (!entry) return;
+          entry.current = values;
+          entry.updated = '刚刚修改';
+          if (state.source === 'saved' && state.selectedSavedId === entry.id) state.selectedWorld = clone(values);
+          closeOverlays(app);
+          renderSaved(app, state);
+          updateSelection(app, state);
+          showToast(app, `已保存修改 · ${values.name}`);
+        });
+        app.querySelector('[data-dialog-confirm]').addEventListener('click', () => {
+          const entry = state.saved.find(item => item.id === state.selectedSavedId);
+          if (!entry) return;
+          if (state.pendingAction === 'reset') {
+            entry.current = clone(entry.original);
+            entry.updated = '已重置';
+            state.selectedWorld = clone(entry.current);
+            closeOverlays(app);
+            renderSaved(app, state);
+            updateSelection(app, state);
+            showToast(app, `已重置 · ${entry.current.name}`);
+            return;
+          }
+          if (state.pendingAction === 'delete') {
+            const deletedName = entry.current.name;
+            state.saved = state.saved.filter(item => item.id !== entry.id);
+            closeOverlays(app);
+            if (state.saved.length) selectSaved(app, state, state.saved[0].id); else selectPreset(app, state, '现代地球');
+            showToast(app, `已删除 · ${deletedName}`);
+          }
+        });
+        app.querySelector('[data-back]').addEventListener('click', () => showToast(app, '返回欢迎页 · 当前选择将保留'));
+        app.querySelector('[data-confirm]').addEventListener('click', () => { if (state.selectedWorld) showToast(app, `已确认“${state.selectedWorld.name}” · 下一步：世界配置`); });
+      });
+      document.addEventListener('keydown', event => { if (event.key === 'Escape') document.querySelectorAll('[data-app]').forEach(closeOverlays); });
+    })();
+  </script>
+</body>
+</html>

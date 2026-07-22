@@ -131,8 +131,8 @@ html.embedded-preview body[data-preserve-variants] .option-card + .option-card {
 .hub-control:hover { border-color: var(--ew-mist); color: var(--ew-ink); }
 
 /* Prototype library scrolls remain functional while visual scrollbars stay hidden. */
-html, body, * { scrollbar-width: none; -ms-overflow-style: none; }
-*::-webkit-scrollbar { display: none; width: 0; height: 0; }
+html, body, * { scrollbar-width: none !important; -ms-overflow-style: none !important; }
+*::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; background: transparent !important; }
 
 /* WF2 remains the mobile prototype bottom-action width baseline. */
 .phone .bottom > .bar { width: 100%; max-width: 258px; margin-right: auto; margin-left: auto; }
