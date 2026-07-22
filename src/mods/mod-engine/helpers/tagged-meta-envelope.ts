@@ -13,7 +13,7 @@ import {
 
 export interface TaggedMetaEnvelope {
   narrative: string
-  summary: string
+  summary?: string
   dataPresent: boolean
   dataSection?: string
 }
@@ -49,9 +49,9 @@ function findLineMarker(content: string, marker: string, fromIndex = 0): LineMar
 }
 
 /**
- * 提取 `正文 -> 摘要 -> 可选数据 -> 结束`。
+ * 提取 `正文 -> 可选摘要 -> 可选数据 -> 结束`。
  *
- * 正文、摘要和结束标记始终必填；数据区可省略。数据区即使畸形也原样返回，
+ * 正文和结束标记必填；摘要、数据区都可省略。数据区即使畸形也原样返回，
  * 由唯一 JSON/Schema 权威做整包判定，提取器不补括号、不删字段、不猜语义。
  */
 export function extractTaggedMetaEnvelope(content: string): TaggedMetaEnvelope | null {
@@ -60,26 +60,35 @@ export function extractTaggedMetaEnvelope(content: string): TaggedMetaEnvelope |
   if (!bodyMarker || normalized.slice(0, bodyMarker.lineStart).trim()) return null
 
   const summaryMarker = findLineMarker(normalized, NARRATIVE_SUMMARY_TAG, bodyMarker.contentStart)
-  if (!summaryMarker) return null
-
-  const endMarker = findLineMarker(normalized, NARRATIVE_END_TAG, summaryMarker.contentStart)
+  const dataMarker = findLineMarker(normalized, NARRATIVE_DATA_TAG, bodyMarker.contentStart)
+  const endMarker = findLineMarker(normalized, NARRATIVE_END_TAG, bodyMarker.contentStart)
   if (!endMarker || normalized.slice(endMarker.lineEnd).trim()) return null
 
-  const dataMarker = findLineMarker(normalized, NARRATIVE_DATA_TAG, summaryMarker.contentStart)
+  if (summaryMarker && summaryMarker.lineStart >= endMarker.lineStart) return null
   if (dataMarker && dataMarker.lineStart >= endMarker.lineStart) return null
+  if (summaryMarker && dataMarker && summaryMarker.lineStart >= dataMarker.lineStart) return null
 
-  const narrative = normalized.slice(bodyMarker.contentStart, summaryMarker.lineStart).trim()
+  const sectionStarts = [summaryMarker?.lineStart, dataMarker?.lineStart, endMarker.lineStart]
+    .filter((index): index is number => index !== undefined)
+  const narrative = normalized.slice(bodyMarker.contentStart, Math.min(...sectionStarts)).trim()
+  if (!narrative) return null
+
   const summaryEnd = dataMarker?.lineStart ?? endMarker.lineStart
-  const summary = normalized.slice(summaryMarker.contentStart, summaryEnd).trim()
-  if (!narrative || !summary) return null
+  const summary = summaryMarker
+    ? normalized.slice(summaryMarker.contentStart, summaryEnd).trim()
+    : undefined
 
   if (!dataMarker) {
-    return { narrative, summary, dataPresent: false }
+    return {
+      narrative,
+      ...(summary ? { summary } : {}),
+      dataPresent: false,
+    }
   }
 
   return {
     narrative,
-    summary,
+    ...(summary ? { summary } : {}),
     dataPresent: true,
     dataSection: normalized.slice(dataMarker.contentStart, endMarker.lineStart).trim(),
   }

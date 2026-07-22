@@ -44,6 +44,10 @@ import {
   requestManagedAggregatedCompletion,
   type ManagedUpstreamAttempt,
 } from '@/core/ai-service/managed-provider-execution'
+import {
+  AI_STREAM_IDLE_TIMEOUT_MS,
+  readStreamWithIdleTimeout,
+} from '@/core/ai-service/stream-timeout'
 import { normalizeProxyStorySeedInput } from '@/core/ai-service/story-seed'
 import {
   appendSourceJsonLine,
@@ -884,7 +888,10 @@ export async function POST(request: Request): Promise<Response> {
       const passthrough = new ReadableStream<Uint8Array>({
         async pull(controller) {
           try {
-            const { done, value } = await reader.read()
+            const { done, value } = await readStreamWithIdleTimeout(
+              reader,
+              AI_STREAM_IDLE_TIMEOUT_MS,
+            )
             if (done) {
               await logStreamEnd(200)
               clearUpstreamGuards()

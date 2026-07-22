@@ -127,17 +127,17 @@ export const STORAGE_KEYS = {
 // 来源: summary-compressor-spec.md §6 依赖的配置常量
 // ============================================================
 
-/** 每个摘要块包含的轮次数 */
-export const SUMMARY_INTERVAL = 10
+/** 每个 L1 摘要块包含的轮次数；短块减少远期压缩一次吞入的正文。 */
+export const SUMMARY_INTERVAL = 5
 
-/** L1 在目标块的第 1 轮触发（落后 2 块 = 保留最近约 20 轮原文） */
+/** L1 在目标块之后再延迟一个完整短块，避免与当前叙事争用同一轮数据。 */
 export const COMPRESS_L1_DELAY_ROUNDS = 1
 
 /**
  * 主叙事 Prompt 保留的最近完整原文轮数。
  *
- * L1 延迟一个完整块后才生成摘要，因此窗口必须覆盖“当前块 + 延迟块”
- * 的未压缩区间；否则会在新 L1 形成前把中间几轮从 Prompt 中漏掉。
+ * L1 延迟一个完整短块后才生成摘要，因此窗口覆盖当前块与延迟块，
+ * 但不再按历史长度自适应扩大；当前固定上限为 10 轮，摘要失败也不扩大。
  */
 export const RECENT_NARRATIVE_WINDOW = SUMMARY_INTERVAL * (COMPRESS_L1_DELAY_ROUNDS + 1)
 
@@ -157,13 +157,13 @@ export const COMPRESS_L3_DELAY_ROUNDS = 2
 export const COMPRESS_L4_MERGE_COUNT = 5
 
 /** L2 合并区间 = SUMMARY_INTERVAL × COMPRESS_L2_MERGE_COUNT */
-export const COMPRESS_L2_MERGE_INTERVAL = 50
+export const COMPRESS_L2_MERGE_INTERVAL = SUMMARY_INTERVAL * COMPRESS_L2_MERGE_COUNT
 
 /** L3 合并区间 = COMPRESS_L2_MERGE_INTERVAL × COMPRESS_L3_MERGE_COUNT */
-export const COMPRESS_L3_MERGE_INTERVAL = 250
+export const COMPRESS_L3_MERGE_INTERVAL = COMPRESS_L2_MERGE_INTERVAL * COMPRESS_L3_MERGE_COUNT
 
 /** L4 合并区间 = COMPRESS_L3_MERGE_INTERVAL × COMPRESS_L4_MERGE_COUNT */
-export const COMPRESS_L4_MERGE_INTERVAL = 1250
+export const COMPRESS_L4_MERGE_INTERVAL = COMPRESS_L3_MERGE_INTERVAL * COMPRESS_L4_MERGE_COUNT
 
 /** 合并 N 个 L4 纪元为一个 L5 时代 */
 export const COMPRESS_L5_MERGE_COUNT = 5
@@ -172,7 +172,7 @@ export const COMPRESS_L5_MERGE_COUNT = 5
 export const COMPRESS_L5_DELAY_ROUNDS = 2
 
 /** L5 合并区间 = COMPRESS_L4_MERGE_INTERVAL × COMPRESS_L5_MERGE_COUNT */
-export const COMPRESS_L5_MERGE_INTERVAL = 6250
+export const COMPRESS_L5_MERGE_INTERVAL = COMPRESS_L4_MERGE_INTERVAL * COMPRESS_L5_MERGE_COUNT
 
 /** 合并 N 个 L5 时代为一个 L6 历史 */
 export const COMPRESS_L6_MERGE_COUNT = 5
@@ -180,8 +180,8 @@ export const COMPRESS_L6_MERGE_COUNT = 5
 /** L6 压缩在 blockRound >= 2 时触发 */
 export const COMPRESS_L6_DELAY_ROUNDS = 2
 
-/** L6 合并区间 = COMPRESS_L5_MERGE_INTERVAL × COMPRESS_L6_MERGE_COUNT = 31250轮 */
-export const COMPRESS_L6_MERGE_INTERVAL = 31250
+/** L6 合并区间 = COMPRESS_L5_MERGE_INTERVAL × COMPRESS_L6_MERGE_COUNT */
+export const COMPRESS_L6_MERGE_INTERVAL = COMPRESS_L5_MERGE_INTERVAL * COMPRESS_L6_MERGE_COUNT
 
 // ---- Token / 字数计算常量 ----
 

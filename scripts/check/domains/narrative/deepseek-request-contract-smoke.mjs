@@ -45,9 +45,11 @@ assert(genericCustom.thinking === undefined, 'generic custom models must not inh
 
 const originalFetch = globalThis.fetch
 let proxyRequestCount = 0
-globalThis.fetch = async (input) => {
+let actualNarrativeBody
+globalThis.fetch = async (input, init) => {
   if (String(input) === '/api/proxy') {
     proxyRequestCount += 1
+    actualNarrativeBody = JSON.parse(String(init?.body))
     return new Response(JSON.stringify({ error: 'invalid thinking payload' }), {
       status: 400,
       headers: { 'x-ai-request-id': 'request-contract-400' },
@@ -71,6 +73,11 @@ try {
   globalThis.fetch = originalFetch
 }
 assert(proxyRequestCount === 1, 'deterministic 400 must issue exactly one proxy request')
+assert(
+  actualNarrativeBody?.thinking?.type === 'enabled'
+    && actualNarrativeBody.thinking.budget_tokens < official.thinking.budget_tokens,
+  'ordinary narrative calls must cap enabled DeepSeek reasoning at the lightest level',
+)
 
 const [clientSource, proxySource, settingsSource] = await Promise.all([
   fs.readFile(new URL('../../../../src/core/ai-service/ai-client.ts', import.meta.url), 'utf8'),

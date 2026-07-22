@@ -20,8 +20,8 @@
  *      低分事件，按 chainFactor 提升其 adjustedImportance（前置事件被"追认"重要）。
  *   2. 时间衰减（effectiveImportance）：查询时按 age 衰减，越低分衰减越快；
  *      ≥ LOCK_THRESHOLD 的事件永不衰减（刻骨铭心）。
- *   3. 语义折叠（selectForPrompt）：注入 prompt 时保留全部高权事件，
- *      低分连续段折叠为一行；不按固定条目数删除账本事实。
+ *   3. 语义卸载（selectForPrompt）：注入 prompt 时保留全部高权事件；低分旧事
+ *      退出常驻投影，仍完整保存在账本、原始历史和摘要检索中。
  */
 
 import {
@@ -48,7 +48,7 @@ export const CHAIN_FACTOR = 0.8
 /** 时间衰减基础速率（每"轮龄"单位的衰减量，再乘以低分放大项） */
 export const DECAY_RATE_PER_AGE = 0.15
 
-/** 低于此有效重要性的事件在注入 prompt 时会被折叠合并 */
+/** 低于此有效重要性的事件不进入常驻 Prompt，等待摘要或相关检索召回。 */
 export const FOLD_THRESHOLD = 40
 
 /** AI 对整轮叙事的粗粒度重要性。 */
@@ -278,13 +278,15 @@ export class DigestLedger {
    * 为 prompt 注入挑选记忆：
    *   1. 计算每条事件的有效重要性。
    *   2. 有效重要性 ≥ FOLD_THRESHOLD 的事件逐条保留（附轮次）。
-   *   3. 低于阈值的连续事件按轮次段折叠为一行概略。
-   *   4. 不设置固定条目上限；容量压力交给摘要层处理。
+   *   3. 低于阈值的事件退出常驻投影；源记录不删除，由近期原文、摘要或检索承接。
+   *   4. 可排除近期完整原文已覆盖的轮次，避免同一事实重复发送。
+   *   5. 不设置固定条目上限；高价值事件始终按语义权重保留。
    */
   selectForPrompt(
     currentRound: number,
     currentContextId?: string,
     closedContextIds?: ReadonlySet<string>,
+    options?: { excludeRoundsAtOrAfter?: number },
   ): string[] {
     if (this.entries.length === 0) return []
 
@@ -296,6 +298,8 @@ export class DigestLedger {
     }
     const scored: Scored[] = []
     for (const entry of this.entries) {
+      if (options?.excludeRoundsAtOrAfter !== undefined
+        && entry.round >= options.excludeRoundsAtOrAfter) continue
       if (!isNarrativeRecordVisible(
         { contextId: entry.contextId, memoryScope: entry.memoryScope },
         { currentContextId, closedContextIds },
@@ -311,30 +315,13 @@ export class DigestLedger {
     }
 
     const kept = scored.filter((s) => s.effective >= FOLD_THRESHOLD)
-    const folded = scored.filter((s) => s.effective < FOLD_THRESHOLD)
 
     // 高分逐条完整保留，并按时间顺序注入。
     const keptLines = kept
       .sort((a, b) => a.round - b.round)
       .map((s) => `[${s.round}轮${s.contextId ? `·上下文=${s.contextId}` : ''}·${s.effective}] ${s.text}`)
 
-    const lines = [...keptLines]
-
-    // 低分折叠：合并为一行概略（只保留文本，丢弃精确分值）
-    if (folded.length > 0) {
-      folded.sort((a, b) => a.round - b.round)
-      const foldedText = folded.map((s) => s.text).join('；')
-      const first = folded[0].round
-      const last = folded[folded.length - 1].round
-      const rangeLabel = first === last ? `${first}轮` : `${first}~${last}轮`
-      const contexts = [...new Set(folded.map((item) => item.contextId).filter(Boolean))]
-      const contextLabel = currentContextId && contexts.length === 1 && contexts[0] === currentContextId
-        ? `·上下文=${currentContextId}`
-        : contexts.length > 0 ? `·上下文=${contexts.join('、')}` : ''
-      lines.push(`[${rangeLabel}${contextLabel}·概略] ${foldedText}`)
-    }
-
-    return lines
+    return keptLines
   }
 
   /** 拼合近 N 轮 digest 为一段（供"近期精简"注入） */

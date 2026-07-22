@@ -133,13 +133,13 @@ check(
 check(
   'V7',
   'Product/Simulation/AIEnvelope',
-  'Does the live narrative path use the proxy and tiered three-paragraph body-summary protocol?',
+  'Does the live narrative path use the proxy and a flexible body-plus-optional-summary protocol?',
   () => {
     requireFragments('src/core/ai-service/ai-client.ts', ["fetchWithTimeout('/api/proxy'", 'fetchAIStreamResponse'])
     requireFragments('src/mods/mod-engine/helpers/narrative-response-quality.ts', [
       'parseNarrativeAIDataJson(envelope.dataSection ?? \'\')',
       'envelope.summary',
-      'if (paragraphs.length !== 3)',
+      'paragraphCount: paragraphs.length',
     ])
     return requireFragments('src/mods/mod-engine/helpers/narrative-ai-protocol.ts', [
       'export const NarrativeAIResponseSchema',

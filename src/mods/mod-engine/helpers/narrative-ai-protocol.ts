@@ -288,7 +288,7 @@ const NarrativeAIDeferredCausalitySchema = z.object({
   相关势力: z.string().min(1).optional(),
 }).strict()
 
-/** 主叙事 AI 唯一可接受的中文数据区协议；摘要由独立必填区承载。 */
+/** 主叙事 AI 唯一可接受的中文数据区协议；摘要由独立可选区承载。 */
 export const NarrativeAIResponseSchema = z.object({
   状态变更: z.array(NarrativeAIChangeSchema).min(1).optional(),
   长期事件: z.array(z.string().min(1)).min(1).optional(),
@@ -555,7 +555,7 @@ function omitEmptyNarrativeAIOptionals(raw: unknown): unknown {
  * 中文协议整包转译为内部运行契约。任何未知系统/字段/枚举都会抛错，
  * 调用方必须保留原始数据区并让全部结构化状态失效。
  */
-export function translateNarrativeAIResponse(raw: unknown, digest: string): NarrativeRoundMetadata & {
+export function translateNarrativeAIResponse(raw: unknown, digest?: string): NarrativeRoundMetadata & {
   changes: Array<{ id: string; description: string; changes: Record<string, unknown> }>
 } {
   const ai = NarrativeAIResponseSchema.parse(omitEmptyNarrativeAIOptionals(raw))
@@ -577,7 +577,7 @@ export function translateNarrativeAIResponse(raw: unknown, digest: string): Narr
       priority: item.优先级,
     })),
     importance: ai.重要程度 ? AI_IMPORTANCE_LEVELS.toInternal(ai.重要程度) : undefined,
-    digest,
+    ...(digest?.trim() ? { digest: digest.trim() } : {}),
     keyEvents: ai.关键事件?.map((event) => ({
       text: event.内容,
       importance: event.重要度,
@@ -640,6 +640,6 @@ export function buildNarrativeAIProtocolRepairReminder(): string[] {
   return [
     '按系统提示词末尾的唯一标准示例重写；正式输出不要复制示例说明。',
     '没有内容的结构化字段直接省略，不输出空数组、空对象、空字符串或 null。',
-    `至少完整返回 ${NARRATIVE_BODY_TAG}、${NARRATIVE_SUMMARY_TAG} 与 ${NARRATIVE_END_TAG}。`,
+    `至少完整返回 ${NARRATIVE_BODY_TAG} 与 ${NARRATIVE_END_TAG}；${NARRATIVE_SUMMARY_TAG} 只在有高价值事实索引时输出。`,
   ]
 }

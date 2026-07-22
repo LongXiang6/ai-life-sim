@@ -37,6 +37,7 @@ import { normalizeAiUsage } from './normalize-ai-usage'
 import { normalizeStorySeed } from './story-seed'
 import { isValidAiContent, mergeStreamTextChunk } from './stream-text-extractor'
 import { recordCacheUsage, type CacheUsageContext } from './cache-stats'
+import { AI_STREAM_IDLE_TIMEOUT_MS, readStreamWithIdleTimeout } from './stream-timeout'
 
 export { getCacheStats, resetCacheStats } from './cache-stats'
 export type { CacheStatsFilter, CacheStatsSnapshot } from './cache-stats'
@@ -450,6 +451,13 @@ function buildUserId(pool: CachePoolType, sessionId?: string): string {
   return `${prefix}-${sid}`
 }
 
+/** 普通叙事只允许轻量推理；高档推理留给命格、世界初始化等低频任务。 */
+function resolveCallReasoningEffort(options: AICallOptions, pool: CachePoolType): string {
+  const selected = options.reasoningEffort ?? options.config.reasoningEffort ?? 'disabled'
+  if (pool !== 'narrative' || selected === 'disabled') return selected
+  return 'level-1'
+}
+
 /** 构建请求体公共逻辑 */
 function buildRequestBody(
   config: AIModelConfig,
@@ -859,7 +867,8 @@ async function validateWithRetry(
  * @returns AI 生成的文本内容
  */
 export async function callAI(systemPrompt: string, userPrompt: string, options: AICallOptions): Promise<string> {
-  const { config, pool = 'narrative', sessionId, signal, overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed, providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, reasoningEffort, userSegments, extraUserMessages, outputSchema } = options
+  const { config, pool = 'narrative', sessionId, signal, overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed, providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, userSegments, extraUserMessages, outputSchema } = options
+  const effectiveReasoningEffort = resolveCallReasoningEffort(options, pool)
 
   const messages = buildMessagesFromPrompt(systemPrompt, userPrompt, userSegments, extraUserMessages)
 
@@ -870,7 +879,7 @@ export async function callAI(systemPrompt: string, userPrompt: string, options: 
     () => fetchAIResponse(
       buildProxyBody(config, messages, false, pool, sessionId, {
         overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed,
-        providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, reasoningEffort,
+        providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, reasoningEffort: effectiveReasoningEffort,
       }),
       resolveCacheUsageContext(options, pool),
       signal,
@@ -893,7 +902,8 @@ export async function callAIConversation(
   messages: Array<{ role: string; content: string }>,
   options: AICallOptions,
 ): Promise<string> {
-  const { config, pool = 'narrative', sessionId, signal, overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed, providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, reasoningEffort } = options
+  const { config, pool = 'narrative', sessionId, signal, overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed, providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId } = options
+  const effectiveReasoningEffort = resolveCallReasoningEffort(options, pool)
 
   return executeAiFetchWithRetry(
     messages,
@@ -902,7 +912,7 @@ export async function callAIConversation(
     () => fetchAIResponse(
       buildProxyBody(config, messages, false, pool, sessionId, {
         overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed,
-        providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, reasoningEffort,
+        providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, reasoningEffort: effectiveReasoningEffort,
       }),
       resolveCacheUsageContext(options, pool),
       signal,
@@ -975,8 +985,8 @@ export async function callAIStreamConversation(
     customBaseUrl,
     customModel,
     serverPromptAssetId,
-    reasoningEffort,
   } = options
+  const effectiveReasoningEffort = resolveCallReasoningEffort(options, pool)
 
   return executeAiFetchWithRetry(
     messages,
@@ -994,7 +1004,7 @@ export async function callAIStreamConversation(
         customBaseUrl,
         customModel,
         serverPromptAssetId,
-        reasoningEffort,
+        reasoningEffort: effectiveReasoningEffort,
       }),
       resolveCacheUsageContext(options, pool),
       onChunk,
@@ -1016,7 +1026,8 @@ export async function callAIStream(
   userPrompt: string,
   options: AICallOptions,
 ): Promise<string> {
-  const { config, pool = 'narrative', sessionId, onChunk, signal, overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed, providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, reasoningEffort, userSegments, extraUserMessages } = options
+  const { config, pool = 'narrative', sessionId, onChunk, signal, overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed, providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, userSegments, extraUserMessages } = options
+  const effectiveReasoningEffort = resolveCallReasoningEffort(options, pool)
 
   const messages = buildMessagesFromPrompt(systemPrompt, userPrompt, userSegments, extraUserMessages)
 
@@ -1027,7 +1038,7 @@ export async function callAIStream(
     () => fetchAIStreamResponse(
       buildProxyBody(config, messages, true, pool, sessionId, {
         overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed,
-        providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, reasoningEffort,
+        providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, reasoningEffort: effectiveReasoningEffort,
       }),
       resolveCacheUsageContext(options, pool),
       onChunk,
@@ -1125,7 +1136,8 @@ export async function callAIStreamDegraded(
       return result
     }
     throw new Error('Stream returned empty response')
-  } catch {
+  } catch (error) {
+    if (options.signal?.aborted) throw error
     // 流式失败，降级为兜底文本
   }
 
@@ -1142,9 +1154,10 @@ export async function callAIStreamDegraded(
  * 解析 SSE 流式响应
  * SSE 格式：data: {"choices":[{"delta":{"content":"..."}}]}
  */
-async function handleStreamResponse(
+export async function handleStreamResponse(
   response: Response,
   onChunk?: (text: string) => void,
+  idleTimeoutMs = AI_STREAM_IDLE_TIMEOUT_MS,
 ): Promise<FetchAIResult> {
   const reader = response.body?.getReader()
   if (!reader) return { content: '' }
@@ -1154,10 +1167,44 @@ async function handleStreamResponse(
   let buffer = ''
   let usage: AICallUsageSnapshot | undefined
   let finishReason: string | undefined
+  let sawDoneMarker = false
+  let malformedEventCount = 0
 
   try {
+    const consumeLine = (line: string): void => {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith(':') || !trimmed.startsWith('data:')) return
+
+      const jsonStr = trimmed.slice(5).trim()
+      if (!jsonStr) return
+      if (jsonStr === '[DONE]') {
+        sawDoneMarker = true
+        return
+      }
+
+      let parsed: unknown
+      try {
+        parsed = JSON.parse(jsonStr)
+      } catch {
+        malformedEventCount += 1
+        return
+      }
+
+      const prevLen = fullText.length
+      fullText = mergeStreamTextChunk(fullText, parsed)
+      const emitted = fullText.slice(prevLen)
+      if (emitted) onChunk?.(emitted)
+      const parsedRecord = parsed as {
+        usage?: AIResponse['usage']
+        choices?: Array<{ finish_reason?: unknown }>
+      }
+      if (parsedRecord.usage) usage = parseUsage(parsedRecord.usage)
+      const chunkFinish = parsedRecord.choices?.[0]?.finish_reason
+      if (typeof chunkFinish === 'string' && chunkFinish) finishReason = chunkFinish
+    }
+
     while (true) {
-      const { done, value } = await reader.read()
+      const { done, value } = await readStreamWithIdleTimeout(reader, idleTimeoutMs)
       if (done) break
 
       buffer += decoder.decode(value, { stream: true })
@@ -1165,39 +1212,29 @@ async function handleStreamResponse(
       buffer = lines.pop() ?? ''
 
       for (const line of lines) {
-        const trimmed = line.trim()
-        if (!trimmed || trimmed.startsWith(':') || !trimmed.startsWith('data: ')) continue
-
-        const jsonStr = trimmed.slice(6)
-        if (jsonStr === '[DONE]') continue
-
-        try {
-          const parsed = JSON.parse(jsonStr)
-          const prevLen = fullText.length
-          fullText = mergeStreamTextChunk(fullText, parsed)
-          const emitted = fullText.slice(prevLen)
-          if (emitted) {
-            onChunk?.(emitted)
-          }
-          if (parsed?.usage) {
-            usage = parseUsage(parsed.usage)
-          }
-          const chunkFinish = parsed?.choices?.[0]?.finish_reason
-          if (typeof chunkFinish === 'string' && chunkFinish) {
-            finishReason = chunkFinish
-          }
-        } catch (_error) {
-          // 跳过无法解析的行
-        }
+        consumeLine(line)
       }
     }
-  } catch (err) {
-    if (err instanceof DOMException && err.name === 'AbortError') {
-      return { content: fullText, usage, finishReason }
-    }
-    throw err
+
+    buffer += decoder.decode()
+    if (buffer.trim()) consumeLine(buffer)
+  } catch (error) {
+    await reader.cancel(error).catch(() => undefined)
+    throw error
   } finally {
     reader.releaseLock()
+  }
+
+  if (!sawDoneMarker && !finishReason) {
+    throw new Error(
+      `AI 流式响应未返回完整结束标记${malformedEventCount > 0 ? `（另有 ${malformedEventCount} 个无法解析事件）` : ''}`,
+    )
+  }
+  if (finishReason === 'length') {
+    throw new Error('AI 流式响应达到 max_tokens，正文可能不完整')
+  }
+  if (!isValidAiContent(fullText)) {
+    throw new Error('AI 流式响应为空')
   }
 
   return { content: fullText, usage, finishReason }

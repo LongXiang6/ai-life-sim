@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>欢迎界面 RF4 冷白珍珠三选一</title>
+  <link rel="icon" href="data:,">
+  <style>
+    /* ── 评审外壳 ── */
+    :root{color-scheme:light;--review-bg:#eef1f4;--ink:#17191d;--ink-soft:#626870;--ink-faint:#969ba2;--line:#e0e3e8;--sans:"SF Pro Text","PingFang SC","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;--serif:"Songti SC","STSong","SimSun",serif}
+    *{box-sizing:border-box}
+    html{min-width:0;background:var(--review-bg)}
+    body{min-width:0;margin:0;background:var(--review-bg);color:var(--ink);font-family:var(--sans)}
+    button,a{-webkit-tap-highlight-color:transparent}
+    button{color:inherit;font:inherit}
+    button:focus-visible,a:focus-visible{outline:2px solid rgba(109,127,148,.48);outline-offset:2px}
+    a{color:inherit;text-decoration:none}
+    svg{display:block}
+
+    .shell{width:min(1260px,calc(100% - 32px));margin:0 auto;padding:28px 0 52px}
+    .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:26px}
+    .topbar a{color:var(--ink-soft);font-size:11px}
+    .eyebrow{margin:0 0 8px;color:var(--ink-soft);font-size:9px;font-weight:700;letter-spacing:.14em}
+    .shell>h1{margin:0;font-family:var(--serif);font-size:28px;font-weight:600;line-height:1.25}
+    .subtitle{max-width:800px;margin:8px 0 0;color:var(--ink-soft);font-size:12px;line-height:1.7}
+    .stage-note{max-width:800px;margin:14px 0 0;color:var(--ink-faint);font-size:11px;line-height:1.65}
+    .stage-note b{color:var(--ink-soft);font-weight:620}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:28px}
+    @media(max-width:980px){.grid{grid-template-columns:1fr}}
+
+    .variant{display:flex;flex-direction:column}
+    .variant-label{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line)}
+    .variant-label strong{font-size:13px;font-weight:700}
+    .variant-label span{font-size:10px;color:var(--ink-faint);font-weight:600}
+    .variant-desc{padding:12px 0;color:var(--ink-soft);font-size:11px;line-height:1.65}
+    .variant-desc b{color:var(--ink);font-weight:620}
+
+    /* ── 手机容器 ── */
+    .phone{
+      position:relative;width:100%;max-width:360px;aspect-ratio:390/844;
+      margin:0 auto;overflow:hidden;
+      border:1px solid #dce2e8;border-radius:34px;
+      box-shadow:0 20px 48px rgba(17,24,39,.105);
+      color:#17191d;
+    }
+
+    /* ── 冷白珍珠基底 ── */
+    .cold-pearl{
+      background:
+        radial-gradient(ellipse at 79% 7%,rgba(191,204,235,.22),transparent 29%),
+        radial-gradient(ellipse at 9% 91%,rgba(222,226,237,.25),transparent 32%),
+        linear-gradient(148deg,#fff 0%,#f9fafc 47%,#f3f5f9 100%);
+    }
+    .cold-pearl::before{
+      position:absolute;inset:0;
+      background-image:radial-gradient(rgba(89,101,132,.095) .42px,transparent .53px);
+      background-size:5px 5px;opacity:.16;
+      content:"";pointer-events:none;z-index:0;
+    }
+    /* 装饰圆（右上角光晕，无书脊） */
+    .cold-pearl::after{
+      position:absolute;top:-5rem;right:-5rem;
+      width:clamp(10rem,26vw,16rem);aspect-ratio:1;
+      border:1px solid rgba(191,204,235,.12);border-radius:50%;
+      box-shadow:inset 0 0 0 1.2rem rgba(191,204,235,.04),inset 0 0 0 2.5rem rgba(191,204,235,.03);
+      content:"";pointer-events:none;z-index:0;
+    }
+
+    /* ── 跑马灯 ── */
+    .running-head{position:relative;z-index:2;display:flex;justify-content:space-between;padding:clamp(.58rem,1.7vw,.72rem) 0 0 clamp(1.6rem,5vw,2.4rem);color:#a1a9b9;font-size:clamp(.52rem,1.5vw,.62rem);font-weight:650;letter-spacing:.04em}
+
+    /* ── 人生曲线 ── */
+    .trajectory{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+    .trajectory-path{fill:none;stroke:#b8c2d5;stroke-width:1}
+    .trajectory-node{fill:#929bab;opacity:.62}
+
+    /* ── 标题区 ── */
+    .intro{
+      position:relative;z-index:2;
+      align-self:center;width:min(100%,36rem);
+      padding:clamp(2rem,8dvh,5rem) 0 clamp(1.5rem,5dvh,3rem) clamp(1.7rem,5vw,2.4rem);
+    }
+    .brand-label{display:flex;align-items:center;gap:.7rem;margin:0;color:#a1a9b9;font-family:var(--serif);font-size:clamp(.62rem,1.6vw,.72rem)}
+    .brand-label::after{width:3rem;height:1px;background:rgba(184,194,213,.4);content:""}
+    .title{display:flex;flex-direction:column;gap:.15em;margin:clamp(.9rem,3vw,1.5rem) 0 0;color:#171e35;font-family:var(--serif);font-size:clamp(1.75rem,6.7vw,2.8rem);font-weight:600;line-height:1.34;text-shadow:0 1px rgba(255,255,255,.85)}
+    .subtitle-text{max-width:30rem;margin:.85rem 0 0;color:#777f92;font-size:clamp(.72rem,2.2vw,.88rem);line-height:1.75}
+
+    /* ── 入口区 ── */
+    .actions{position:relative;z-index:2;width:min(100%,var(--content-max-width,100%));margin-left:clamp(1.7rem,5vw,2.4rem)}
+    .route-heading,.utility-heading{display:flex;align-items:center;gap:.7rem;margin:0 0 .35rem;color:#a1a9b9;font-family:var(--serif);font-size:.62rem}
+    .route-heading::after{height:1px;flex:1;background:rgba(184,194,213,.35);content:""}
+    .utility-heading{margin-top:.55rem}
+
+    .route-action{
+      display:grid;width:100%;min-width:0;
+      min-height:clamp(3rem,7.5dvh,3.8rem);
+      grid-template-columns:2.2rem minmax(0,1fr) auto;
+      align-items:center;gap:.75rem;
+      padding:.45rem 0;border:0;border-top:1px solid rgba(184,194,213,.18);
+      background:transparent;cursor:pointer;text-align:left;
+      transition:background-color 150ms ease,transform 150ms ease;
+    }
+    .route-action:hover{background:rgba(191,204,235,.12)}
+    .route-action:active{transform:translateY(1px)}
+    .route-action.primary{border-top-color:rgba(184,194,213,.35)}
+
+    .route-index{position:relative;align-self:stretch;display:grid;place-items:center;color:#a1a9b9;font-size:.58rem;font-weight:700;letter-spacing:.3px}
+    .route-index::after{position:absolute;top:20%;right:0;bottom:20%;width:1px;background:rgba(184,194,213,.22);content:""}
+
+    .route-copy{min-width:0}
+    .route-copy strong,.route-copy small{display:block}
+    .route-copy strong{font-family:var(--serif);font-size:clamp(.88rem,2.5vw,1rem);font-weight:600}
+    .route-action.saved .route-copy strong{font-size:clamp(.8rem,2.2vw,.92rem)}
+    .route-copy small{margin-top:.24rem;overflow:hidden;color:#a1a9b9;font-size:clamp(.58rem,1.8vw,.68rem);text-overflow:ellipsis;white-space:nowrap}
+
+    .route-arrow{display:grid;width:2rem;height:2rem;place-items:center;border:1px solid rgba(184,194,213,.3);border-radius:50%;background:rgba(255,255,255,.6);color:#8992a7}
+    .route-arrow svg{width:.88rem;height:.88rem}
+    .route-arrow path{fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.5}
+    .route-action.primary .route-arrow{border-color:#6d7f94;background:#6d7f94;color:#fff}
+
+    .secondary-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:clamp(.8rem,4vw,2rem)}
+    .route-action.secondary{min-height:2.8rem}
+    .feedback-action{grid-column:1/-1}
+
+    .footer-link{display:block;width:fit-content;margin:.55rem 0 0 auto;padding:.2rem 0;color:#a1a9b9;font-size:.58rem;text-decoration:none}
+
+    /* ── 抽屉 ── */
+    .save-sheet{position:absolute;z-index:30;right:clamp(.75rem,3vw,1rem);bottom:max(.75rem,env(safe-area-inset-bottom));left:clamp(.75rem,3vw,1rem);max-height:min(74dvh,38rem);padding:clamp(.85rem,3.5vw,1.1rem);overflow-y:auto;border:1px solid rgba(184,194,213,.2);border-radius:clamp(1rem,5vw,1.5rem);background:rgba(255,255,255,.995);box-shadow:0 1.25rem 3rem rgba(17,24,39,.16);opacity:0;pointer-events:none;transform:translateY(1rem);transition:opacity 170ms ease,transform 190ms ease}
+    .save-sheet.open{opacity:1;pointer-events:auto;transform:none}
+    .save-sheet-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem;margin-bottom:.65rem}
+    .save-sheet-head strong,.save-sheet-head small{display:block}
+    .save-sheet-head strong{font-family:var(--serif);font-size:.88rem;font-weight:600}
+    .save-sheet-head small{margin-top:.2rem;color:#a1a9b9;font-size:.62rem}
+    .save-close{display:grid;width:2.1rem;height:2.1rem;place-items:center;padding:0;border:1px solid rgba(184,194,213,.25);border-radius:50%;background:#fff;color:#68738a;cursor:pointer}
+    .save-close svg{width:.85rem;height:.85rem}
+    .save-close path{fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}
+    .save-list{display:grid;gap:.4rem}
+    .save-item{display:grid;width:100%;min-height:2.8rem;padding:.5rem .65rem;grid-template-columns:minmax(0,1fr) 1rem;align-items:center;gap:.55rem;border:1px solid transparent;border-radius:.75rem;background:#f4f6f9;cursor:pointer;text-align:left}
+    .save-item strong,.save-item small{display:block}
+    .save-item strong{overflow:hidden;font-size:.72rem;font-weight:680;text-overflow:ellipsis;white-space:nowrap}
+    .save-item small{margin-top:.2rem;overflow:hidden;color:#a1a9b9;font-size:.58rem;text-overflow:ellipsis;white-space:nowrap}
+    .save-check{position:relative;width:.85rem;height:.85rem;border:1px solid #dce2e8;border-radius:50%;background:#fff}
+    .save-item[aria-pressed="true"]{border-color:#d0d8e4;background:rgba(191,204,235,.18)}
+    .save-item[aria-pressed="true"] .save-check{border-color:#6d7f94;background:#6d7f94}
+    .save-item[aria-pressed="true"] .save-check::after{position:absolute;top:.18rem;left:.16rem;width:.35rem;height:.18rem;border-bottom:1px solid #fff;border-left:1px solid #fff;content:"";transform:rotate(-45deg)}
+    .save-status{min-height:1.1rem;margin:.5rem .15rem 0;color:#626870;font-size:.62rem}
+    .delete-selected{display:block;width:100%;min-height:2.1rem;margin-top:.35rem;padding:.35rem .65rem;border:1px solid rgba(184,194,213,.3);border-radius:.75rem;background:#fff;color:#8d6d73;cursor:pointer;font-size:.64rem}
+    .delete-selected:disabled{cursor:not-allowed;opacity:.45}
+    .continue-save{display:flex;width:100%;min-height:2.6rem;margin-top:.4rem;padding:0 .65rem 0 .8rem;align-items:center;justify-content:space-between;gap:.65rem;border:0;border-radius:.75rem;background:#17191d;color:#fff;cursor:pointer;text-align:left}
+    .continue-save strong,.continue-save small{display:block}
+    .continue-save strong{font-size:.72rem}
+    .continue-save small{margin-top:.12rem;color:#d9dfe5;font-size:.58rem}
+    .continue-save svg{width:.88rem;height:.88rem}
+    .continue-save path{fill:none;stroke:currentColor;stroke-linecap:round;stroke-linejoin:round;stroke-width:1.5}
+
+    /* ── 共享基底：无书脊、无品牌竖标 ── */
+    .phone{isolation:flatten}
+
+    /* ── 响应式 ── */
+    @media(max-width:559px){.shell{width:min(100% - 22px,1260px);padding-top:18px}.topbar{margin-bottom:22px}.shell>h1{font-size:24px}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="topbar">
+      <a href="index.html">← 返回欢迎界面历史</a>
+      <span style="display:inline-flex;padding:6px 9px;border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.78);color:var(--ink-soft);font-size:9px;font-weight:650">RF4 · 冷白珍珠三选一</span>
+    </div>
+    <p class="eyebrow">WELCOME · RF4 COLD PEARL</p>
+    <h1>欢迎界面 · 冷白珍珠三选一</h1>
+    <p class="subtitle">基于实际运行界面（6 行路径、存档抽屉含删除、账号与反馈入口），将视觉基底从纯白切换为冷白珍珠渐变。去掉书脊线与品牌竖标，保留完整结构与交互。三个变体仅在排印与分隔方式上有所不同。</p>
+    <p class="stage-note"><b>共同变更</b> 冷白珍珠渐变底 · 点阵微纹 · 去掉书脊线与品牌竖标 · 保留人生曲线 · 6 行式路径 · 存档抽屉含删除 · 2×2 二级操作</p>
+
+    <section class="grid">
+
+      <!-- ═══ A：凝练文字 ═══ -->
+      <div class="variant">
+        <div class="variant-label"><strong>A · 凝练文字</strong><span>纯文字 · 无装饰</span></div>
+        <p class="variant-desc">路径文字直接呈现，<b>去掉编号和箭头</b>，深浅字重区分主次；命中区保持完整高度，完全透明。</p>
+        <div class="phone cold-pearl">
+          <svg class="trajectory" viewBox="0 0 390 844" aria-hidden="true"><path class="trajectory-path" d="M338 22 C218 122 374 230 272 338 S125 518 244 614 S354 728 290 850"/><circle class="trajectory-node" cx="338" cy="22" r="5"/><circle class="trajectory-node" cx="272" cy="338" r="4"/><circle class="trajectory-node" cx="244" cy="614" r="4"/><circle class="trajectory-node" cx="290" cy="850" r="4"/></svg>
+          <div class="running-head"><span>AI LIFE SIM · 命书</span><span>00 / 欢迎</span></div>
+          <header class="intro">
+            <p class="brand-label">人生序章</p>
+            <h1 class="title">一生很长，<br><span style="font-size:.88em">也只由几次选择组成。</span></h1>
+            <p class="subtitle-text">选择世界与角色，走过关系、机会、代价和告别。</p>
+          </header>
+          <section class="actions">
+            <p class="route-heading">从这里开始</p>
+            <button class="route-action primary" type="button">
+              <span class="route-copy"><strong>开始新人生</strong><small>创建世界与角色，写下新的命书</small></span>
+            </button>
+            <button class="route-action saved" type="button" data-action="load" aria-expanded="false">
+              <span class="route-copy"><strong>继续已有的人生</strong><small id="save-hint-a">3 个存档 · 最近：潮汐城邦</small></span>
+            </button>
+            <p class="utility-heading">辅助入口</p>
+            <div class="secondary-actions">
+              <button class="route-action secondary" type="button"><span class="route-copy"><strong>账号与云端</strong><small>登录、同步与栏位管理</small></span></button>
+              <button class="route-action secondary" type="button"><span class="route-copy"><strong>设置</strong><small>模型、叙事与界面偏好</small></span></button>
+              <button class="route-action secondary" type="button"><span class="route-copy"><strong>游戏说明</strong><small>规则、版本与操作说明</small></span></button>
+              <button class="route-action secondary feedback-action" type="button"><span class="route-copy"><strong>反馈与建议</strong><small>提交问题并打包上传诊断日志</small></span></button>
+            </div>
+            <a href="#" class="footer-link">故事小分队 · 1097782298</a>
+          </section>
+          <section class="save-sheet" data-sheet role="dialog" aria-modal="true" aria-hidden="true">
+            <div class="save-sheet-head"><div><strong>选择存档</strong><small>继续一段尚未写完的人生</small></div><button class="save-close" type="button" data-action="close" aria-label="关闭存档"><svg viewBox="0 0 14 14"><path d="m3 3 8 8M11 3l-8 8"/></svg></button></div>
+            <div class="save-list">
+              <button class="save-item" type="button" data-save="潮汐城邦" aria-pressed="true"><span><strong>潮汐城邦</strong><small>潮汐城邦 · 第 12 轮 · 槽位 1 · 7/22 14:30</small></span><span class="save-check" aria-hidden="true"></span></button>
+              <button class="save-item" type="button" data-save="余烬花园" aria-pressed="false"><span><strong>余烬花园</strong><small>余烬花园 · 第 5 轮 · 槽位 2 · 7/21 09:15</small></span><span class="save-check" aria-hidden="true"></span></button>
+              <button class="save-item" type="button" data-save="雾港来信" aria-pressed="false"><span><strong>雾港来信</strong><small>雾港来信 · 第 8 轮 · 自动存档 · 7/20 22:41</small></span><span class="save-check" aria-hidden="true"></span></button>
+            </div>
+            <p class="save-status">已选择：潮汐城邦</p>
+            <button class="delete-selected" type="button">删除已选择的存档</button>
+            <button class="continue-save" type="button"><span><strong>继续此人生</strong><small>潮汐城邦</small></span><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+          </section>
+        </div>
+      </div>
+
+      <!-- ═══ B：章节序号（当前选择） ═══ -->
+      <div class="variant">
+        <div class="variant-label"><strong>B · 章节序号</strong><span>编号引导 · 当前选择</span></div>
+        <p class="variant-desc">每条入口前加<b>极小编号</b>，右侧竖线分隔；像书页目录序号，阅读顺序清晰。与实际运行界面的编号风格一致。</p>
+        <div class="phone cold-pearl">
+          <svg class="trajectory" viewBox="0 0 390 844" aria-hidden="true"><path class="trajectory-path" d="M338 22 C218 122 374 230 272 338 S125 518 244 614 S354 728 290 850"/><circle class="trajectory-node" cx="338" cy="22" r="5"/><circle class="trajectory-node" cx="272" cy="338" r="4"/><circle class="trajectory-node" cx="244" cy="614" r="4"/><circle class="trajectory-node" cx="290" cy="850" r="4"/></svg>
+          <div class="running-head"><span>AI LIFE SIM · 命书</span><span>00 / 欢迎</span></div>
+          <header class="intro">
+            <p class="brand-label">人生序章</p>
+            <h1 class="title">一生很长，<br><span style="font-size:.88em">也只由几次选择组成。</span></h1>
+            <p class="subtitle-text">选择世界与角色，走过关系、机会、代价和告别。</p>
+          </header>
+          <section class="actions">
+            <p class="route-heading">从这里开始</p>
+            <button class="route-action primary" type="button">
+              <span class="route-index">01</span>
+              <span class="route-copy"><strong>开始新人生</strong><small>创建世界与角色，写下新的命书</small></span>
+              <span class="route-arrow"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+            </button>
+            <button class="route-action saved" type="button" data-action="load" aria-expanded="false">
+              <span class="route-index">02</span>
+              <span class="route-copy"><strong>继续已有的人生</strong><small id="save-hint-b">3 个存档 · 最近：潮汐城邦</small></span>
+              <span class="route-arrow"><svg viewBox="0 0 24 24"><path d="m7 10 5 5 5-5"/></svg></span>
+            </button>
+            <p class="utility-heading">辅助入口</p>
+            <div class="secondary-actions">
+              <button class="route-action secondary" type="button">
+                <span class="route-index">03</span>
+                <span class="route-copy"><strong>账号与云端</strong><small>登录、同步与栏位管理</small></span>
+              </button>
+              <button class="route-action secondary" type="button">
+                <span class="route-index">04</span>
+                <span class="route-copy"><strong>设置</strong><small>模型、叙事与界面偏好</small></span>
+              </button>
+              <button class="route-action secondary" type="button">
+                <span class="route-index">05</span>
+                <span class="route-copy"><strong>游戏说明</strong><small>规则、版本与操作说明</small></span>
+              </button>
+              <button class="route-action secondary feedback-action" type="button">
+                <span class="route-index">06</span>
+                <span class="route-copy"><strong>反馈与建议</strong><small>提交问题并打包上传诊断日志</small></span>
+              </button>
+            </div>
+            <a href="#" class="footer-link">故事小分队 · 1097782298</a>
+          </section>
+          <section class="save-sheet" data-sheet role="dialog" aria-modal="true" aria-hidden="true">
+            <div class="save-sheet-head"><div><strong>选择存档</strong><small>继续一段尚未写完的人生</small></div><button class="save-close" type="button" data-action="close" aria-label="关闭存档"><svg viewBox="0 0 14 14"><path d="m3 3 8 8M11 3l-8 8"/></svg></button></div>
+            <div class="save-list">
+              <button class="save-item" type="button" data-save="潮汐城邦" aria-pressed="true"><span><strong>潮汐城邦</strong><small>潮汐城邦 · 第 12 轮 · 槽位 1 · 7/22 14:30</small></span><span class="save-check" aria-hidden="true"></span></button>
+              <button class="save-item" type="button" data-save="余烬花园" aria-pressed="false"><span><strong>余烬花园</strong><small>余烬花园 · 第 5 轮 · 槽位 2 · 7/21 09:15</small></span><span class="save-check" aria-hidden="true"></span></button>
+              <button class="save-item" type="button" data-save="雾港来信" aria-pressed="false"><span><strong>雾港来信</strong><small>雾港来信 · 第 8 轮 · 自动存档 · 7/20 22:41</small></span><span class="save-check" aria-hidden="true"></span></button>
+            </div>
+            <p class="save-status">已选择：潮汐城邦</p>
+            <button class="delete-selected" type="button">删除已选择的存档</button>
+            <button class="continue-save" type="button"><span><strong>继续此人生</strong><small>潮汐城邦</small></span><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+          </section>
+        </div>
+      </div>
+
+      <!-- ═══ C：书页落款 ═══ -->
+      <div class="variant">
+        <div class="variant-label"><strong>C · 书页落款</strong><span>宋体舒展</span></div>
+        <p class="variant-desc">主入口采用克制<b>宋体</b>与舒展字距，前置短线作排印标点；操作区像书页末尾的落款，安静而有书卷气。</p>
+        <div class="phone cold-pearl">
+          <svg class="trajectory" viewBox="0 0 390 844" aria-hidden="true"><path class="trajectory-path" d="M338 22 C218 122 374 230 272 338 S125 518 244 614 S354 728 290 850"/><circle class="trajectory-node" cx="338" cy="22" r="5"/><circle class="trajectory-node" cx="272" cy="338" r="4"/><circle class="trajectory-node" cx="244" cy="614" r="4"/><circle class="trajectory-node" cx="290" cy="850" r="4"/></svg>
+          <div class="running-head"><span>AI LIFE SIM · 命书</span><span>00 / 欢迎</span></div>
+          <header class="intro">
+            <p class="brand-label">人生序章</p>
+            <h1 class="title">一生很长，<br><span style="font-size:.88em">也只由几次选择组成。</span></h1>
+            <p class="subtitle-text">选择世界与角色，走过关系、机会、代价和告别。</p>
+          </header>
+          <section class="actions">
+            <p class="route-heading">从这里开始</p>
+            <button class="route-action primary" type="button">
+              <span class="route-copy"><strong>开始新人生</strong><small>创建世界与角色，写下新的命书</small></span>
+            </button>
+            <button class="route-action saved" type="button" data-action="load" aria-expanded="false">
+              <span class="route-copy"><strong>继续已有的人生</strong><small id="save-hint-c">3 个存档 · 最近：潮汐城邦</small></span>
+            </button>
+            <p class="utility-heading">辅助入口</p>
+            <div class="secondary-actions">
+              <button class="route-action secondary" type="button"><span class="route-copy"><strong>账号与云端</strong><small>登录、同步与栏位管理</small></span></button>
+              <button class="route-action secondary" type="button"><span class="route-copy"><strong>设置</strong><small>模型、叙事与界面偏好</small></span></button>
+              <button class="route-action secondary" type="button"><span class="route-copy"><strong>游戏说明</strong><small>规则、版本与操作说明</small></span></button>
+              <button class="route-action secondary feedback-action" type="button"><span class="route-copy"><strong>反馈与建议</strong><small>提交问题并打包上传诊断日志</small></span></button>
+            </div>
+            <a href="#" class="footer-link">故事小分队 · 1097782298</a>
+          </section>
+          <section class="save-sheet" data-sheet role="dialog" aria-modal="true" aria-hidden="true">
+            <div class="save-sheet-head"><div><strong>选择存档</strong><small>继续一段尚未写完的人生</small></div><button class="save-close" type="button" data-action="close" aria-label="关闭存档"><svg viewBox="0 0 14 14"><path d="m3 3 8 8M11 3l-8 8"/></svg></button></div>
+            <div class="save-list">
+              <button class="save-item" type="button" data-save="潮汐城邦" aria-pressed="true"><span><strong>潮汐城邦</strong><small>潮汐城邦 · 第 12 轮 · 槽位 1 · 7/22 14:30</small></span><span class="save-check" aria-hidden="true"></span></button>
+              <button class="save-item" type="button" data-save="余烬花园" aria-pressed="false"><span><strong>余烬花园</strong><small>余烬花园 · 第 5 轮 · 槽位 2 · 7/21 09:15</small></span><span class="save-check" aria-hidden="true"></span></button>
+              <button class="save-item" type="button" data-save="雾港来信" aria-pressed="false"><span><strong>雾港来信</strong><small>雾港来信 · 第 8 轮 · 自动存档 · 7/20 22:41</small></span><span class="save-check" aria-hidden="true"></span></button>
+            </div>
+            <p class="save-status">已选择：潮汐城邦</p>
+            <button class="delete-selected" type="button">删除已选择的存档</button>
+            <button class="continue-save" type="button"><span><strong>继续此人生</strong><small>潮汐城邦</small></span><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+          </section>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <script>
+    document.querySelectorAll('.phone').forEach(function(phone){
+      var sheet=phone.querySelector('[data-sheet]');
+      var loadBtn=phone.querySelector('[data-action="load"]');
+      var closeBtn=phone.querySelector('[data-action="close"]');
+      var returnFocus=loadBtn;
+
+      loadBtn.addEventListener('click',function(){
+        returnFocus=document.activeElement;
+        sheet.classList.add('open');
+        sheet.setAttribute('aria-hidden','false');
+        loadBtn.setAttribute('aria-expanded','true');
+        closeBtn.focus();
+      });
+      closeBtn.addEventListener('click',function(){
+        sheet.classList.remove('open');
+        sheet.setAttribute('aria-hidden','true');
+        loadBtn.setAttribute('aria-expanded','false');
+        if(returnFocus&&returnFocus.focus)returnFocus.focus();
+      });
+      phone.addEventListener('click',function(e){
+        var save=e.target.closest('[data-save]');
+        if(save){
+          phone.querySelectorAll('[data-save]').forEach(function(s){s.setAttribute('aria-pressed',String(s===save))});
+          phone.querySelectorAll('[data-save-hint]').forEach(function(el){el.textContent='3 个存档 · 最近：'+save.dataset.save});
+        }
+      });
+      phone.addEventListener('keydown',function(e){
+        if(!sheet.classList.contains('open'))return;
+        if(e.key==='Escape'){e.preventDefault();closeBtn.click();return}
+        if(e.key!=='Tab')return;
+        var btns=[].concat(Array.from(sheet.querySelectorAll('button:not([disabled])')));
+        var first=btns[0],last=btns[btns.length-1];
+        if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus()}
+        if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus()}
+      });
+    });
+  </script>
+</body>
+</html>

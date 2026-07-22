@@ -2,7 +2,7 @@
  * 叙事压缩运行时冒烟检查。
  *
  * 覆盖：
- *   1. 主叙事最低成功必须带 digest；可选 keyEvents 一旦出现仍必须带 importance；
+ *   1. 主叙事最低成功允许省略 digest；可选 keyEvents 一旦出现仍必须带 importance；
  *   2. 摘要账本实际按权重保留高分事件、折叠低分事件；
  *   3. L1 延迟窗口的首个覆盖区间与最近完整原文窗口不能产生空洞；
  *   4. 摘要必须带完整覆盖标记，任何层级失败时不得伪造覆盖节点或成功统计。
@@ -84,8 +84,8 @@ assertOk(
 const missingDigest = structuredClone(validMetadata)
 delete missingDigest.digest
 assertOk(
-  !NarrativeResponseSchema.safeParse(missingDigest).success,
-  'the independently extracted round digest must remain required internally',
+  NarrativeResponseSchema.safeParse(missingDigest).success,
+  'the independently extracted round digest is optional when the body is complete',
 )
 
 const missingWeight = structuredClone(validMetadata)
@@ -114,6 +114,14 @@ assertOk(
   'high-importance events must remain individually visible to the narrative prompt',
 )
 assertOk(
+  !weightedLines.some((line) => line.includes('你整理了屋舍')),
+  'low-value events must leave the always-on prompt while remaining in the ledger',
+)
+assertOk(
+  digestLedger.selectForPrompt(2, undefined, undefined, { excludeRoundsAtOrAfter: 1 }).length === 0,
+  'events already covered by the recent full-text window must not be sent twice',
+)
+assertOk(
   digestLedger.averageAdjustedImportance(1, 2) !== null,
   'summary budgeting must be able to read the ledger importance average',
 )
@@ -128,6 +136,12 @@ assertOk(
   digestLedger.getEntries().length === 522,
   'long-session digest ledger must retain every recorded round instead of applying a capacity cut',
 )
+const longSessionProjection = digestLedger.selectForPrompt(522)
+assertOk(
+  longSessionProjection.some((line) => line.includes('你救下失散的孩子'))
+    && !longSessionProjection.some((line) => line.includes('第522轮事件')),
+  'long-session prompt projection must retain locked events without accumulating low-value daily details',
+)
 
 function expectedL1Range(totalRounds) {
   const blockIndex = Math.floor(totalRounds / SUMMARY_INTERVAL)
@@ -137,14 +151,14 @@ function expectedL1Range(totalRounds) {
   return [targetBlock * SUMMARY_INTERVAL + 1, (targetBlock + 1) * SUMMARY_INTERVAL]
 }
 
-assertOk(expectedL1Range(20) === null, 'L1 must remain delayed before the first complete delay window')
+assertOk(expectedL1Range(10) === null, 'L1 must remain delayed before the first complete delay window')
 assertOk(
-  JSON.stringify(expectedL1Range(21)) === JSON.stringify([1, 10]),
-  'the first delayed L1 must cover rounds 1-10 at round 21',
+  JSON.stringify(expectedL1Range(11)) === JSON.stringify([1, 5]),
+  'the first delayed L1 must cover rounds 1-5 at round 11',
 )
 assertOk(
-  JSON.stringify(expectedL1Range(31)) === JSON.stringify([11, 20]),
-  'the second delayed L1 must cover rounds 11-20 at round 31',
+  JSON.stringify(expectedL1Range(16)) === JSON.stringify([6, 10]),
+  'the second delayed L1 must cover rounds 6-10 at round 16',
 )
 assertOk(
   RECENT_NARRATIVE_WINDOW >= SUMMARY_INTERVAL * (COMPRESS_L1_DELAY_ROUNDS + 1),

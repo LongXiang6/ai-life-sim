@@ -32,7 +32,7 @@ const settingsModal = read('src/mods/mod-settings/components/SettingsModal.tsx')
 const settingsIndex = read('src/mods/mod-settings/index.ts')
 
 assertOk(
-  promptContract.includes("version: '4.5.2'")
+  promptContract.includes("version: '4.6.0'")
     && promptContract.includes("systemPrompt: ''")
     && promptContract.includes('serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID'),
   'browser PromptTemplate must carry only the server asset ID',

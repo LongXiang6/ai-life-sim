@@ -1730,6 +1730,12 @@ export class OrchestratorSystem extends BaseSubsystem {
       this.state.totalRounds,
       scopeView.currentContextId,
       scopeView.closedContextIds,
+      {
+        excludeRoundsAtOrAfter: Math.max(
+          1,
+          this.state.totalRounds - RECENT_NARRATIVE_WINDOW + 1,
+        ),
+      },
     )
     const ledgerMemory = ledgerLines.length > 0
       ? ['【往事回响】', ...ledgerLines].join('\n')
@@ -2192,6 +2198,7 @@ export class OrchestratorSystem extends BaseSubsystem {
           this.getFocusedBranchIntentRuntime()?.intentId,
           useEngineStore.getState().forceBranchNext,
           isOpeningNarrativeRound,
+          this.getFocusedBranchIntentRuntime()?.choice,
         ),
         order: 10_000,
         kind: '硬限制',
@@ -2563,33 +2570,28 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
 
     const focusedIntent = this.getFocusedBranchIntentRuntime()
+    const forceBranch = useEngineStore.getState().forceBranchNext
+    const freshPlayerChoice = this.lastPlayerChoice?.trim()
+    const branchFocusLines: string[] = []
     if (focusedIntent) {
       const otherActiveIntents = this.branchIntents.filter(
         (intent) => intent.intentId !== focusedIntent.intentId,
       )
-      addComponent(
-        'focused-branch-intent',
-        buildBranchIntentInstruction(focusedIntent, otherActiveIntents),
-        '流程指令',
-        '玩家意图',
-      )
+      branchFocusLines.push(buildBranchIntentInstruction(focusedIntent, otherActiveIntents))
     } else {
-      addComponent(
-        'no-focused-branch-intent',
-        '【命运意图条件】本轮没有玩家命运意图，禁止输出“命运意图判定”字段；不要从标准示例复制条件字段。',
-        '流程指令',
-        '玩家意图',
+      branchFocusLines.push('【命运意图条件】本轮没有玩家命运意图，禁止输出“命运意图判定”字段；不要从标准示例复制条件字段。')
+    }
+    if (freshPlayerChoice) {
+      branchFocusLines.push(
+        `【刚确认的玩家选择；必须立即进入正文主线】${freshPlayerChoice}`,
       )
-    }
-
-    // 原有逻辑
-    if (useEngineStore.getState().forceBranchNext) {
-      addComponent('forced-branch', '【强制分支】本轮必须将“命运分支”设为真，并提供“分支标题”与二至四个字符串“分支选项”；正文在抉择前结束，不要替玩家做决定。')
-    }
-    if (this.lastPlayerChoice) {
-      addComponent('fresh-player-choice', `【玩家选择】${this.lastPlayerChoice}`)
-      this.lastCommittedPlayerChoice = this.lastPlayerChoice
+      this.lastCommittedPlayerChoice = freshPlayerChoice
       this.lastPlayerChoice = undefined
+    }
+    if (forceBranch) {
+      branchFocusLines.push(
+        '【强制分支】本轮必须输出“命运分支”:true、“分支标题”和二至四个“分支选项”；正文停在玩家选择现场，不能替玩家选结果。',
+      )
     }
     const resolved = useEngineStore.getState().resolvedBranches
     const resolvedLines: string[] = []
@@ -2603,16 +2605,17 @@ export class OrchestratorSystem extends BaseSubsystem {
       }
     }
     if (resolvedLines.length > 0) {
-      addComponent('resolved-branch-history', `【历史分支选择】${resolvedLines.join('；')}`, '流程指令', '当前事实')
+      branchFocusLines.push(`【最近已确认的分支结果】${resolvedLines.slice(-3).join('；')}`)
     }
 
     // 连续分叉抑制：上轮已解决分支，本轮禁止再生成新分支
     const lastEntry = this.state.narrativeHistory[this.state.narrativeHistory.length - 1]
     if (lastEntry?.resolvedChoice) {
-      addComponent('branch-cooldown-after-choice', '上轮已完成命运抉择，本轮禁止生成新的命运分支，给玩家至少一轮消化时间。', '硬限制', '当前事实')
+      branchFocusLines.push('上轮已完成命运抉择，本轮禁止生成新的命运分支，给玩家至少一轮消化时间。')
     } else if (this.shouldSuppressBranchPoint(false)) {
-      addComponent('branch-cooldown', `普通命运分支冷却中：距离上一次分支不足 ${MIN_BRANCH_GAP_ROUNDS} 轮，本轮禁止生成命运分支。`, '硬限制', '当前事实')
+      branchFocusLines.push(`普通命运分支冷却中：距离上一次分支不足 ${MIN_BRANCH_GAP_ROUNDS} 轮，本轮禁止生成命运分支。`)
     }
+    addComponent('branch-execution-focus', branchFocusLines.join('\n'), '硬限制', '玩家意图')
     return compileNarrativeDynamicComponents(components)
   }
 

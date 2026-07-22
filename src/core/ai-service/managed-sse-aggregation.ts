@@ -68,6 +68,7 @@ export async function aggregateSseCompletion(
   buffer += decoder.decode()
   if (buffer) consumeLine(buffer)
   if (!completed) throw new Error('托管通道 SSE 未返回完整结束标记')
+  if (finishReason === 'length') throw new Error('托管通道 SSE 达到 max_tokens，正文可能不完整')
   if (!content) throw new Error('托管通道 SSE 返回空正文')
 
   const completion: Record<string, unknown> = {

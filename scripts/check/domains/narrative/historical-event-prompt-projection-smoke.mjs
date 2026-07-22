@@ -241,8 +241,8 @@ assertOk(
   'deterministic historical projection must remain byte-for-byte unchanged through adaptation manager',
 )
 assertOk(
-  narrativePrompt.version === '4.5.2',
-  'historical Prompt input semantics must use narrative Prompt 4.5.2',
+  narrativePrompt.version === '4.6.0',
+  'historical Prompt input semantics must use narrative Prompt 4.6.0',
 )
 assertOk(
   Boolean(historicalProjection)

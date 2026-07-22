@@ -27,7 +27,6 @@
 
 
 import type { PromptTemplate, PromptContext } from '@/foundation'
-import { stringifyPrompt } from '@/foundation'
 
 import {
 
@@ -370,9 +369,8 @@ export function buildNarrativeUserJson(
 
 
 function jsonToPromptString(obj: Record<string, unknown>): string {
-
-  return stringifyPrompt(obj)
-
+  // 主叙事采用紧凑 JSON + 动态 Markdown 文本；固定键序保留，空白不再占用注意力。
+  return JSON.stringify(obj)
 }
 
 

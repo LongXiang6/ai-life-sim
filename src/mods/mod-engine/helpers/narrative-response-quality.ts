@@ -58,8 +58,8 @@ function failureWithEnvelope(
 }
 
 /**
- * 最低门禁只要求非空完整正文、独立摘要和结束标记，段落数量不参与判定。
- * 普通轮的可选数据区畸形时保留正文与摘要并整包拒绝数据；当前命运意图或
+ * 最低门禁只要求非空完整正文和结束标记，摘要与普通数据均可省略，段落数量不参与判定。
+ * 普通轮的可选数据区畸形时保留正文并整包拒绝数据；当前命运意图或
  * 强制命运分支属于条件契约，缺少相应完整数据时才触发一次格式修复。
  */
 export function inspectNarrativeResponseQuality(
@@ -70,7 +70,7 @@ export function inspectNarrativeResponseQuality(
 ): NarrativeResponseQuality {
   const envelope = extractTaggedMetaEnvelope(content)
   if (!envelope) {
-    return failure('缺少完整的正文、摘要或结束分区')
+    return failure('缺少完整的正文或结束分区')
   }
 
   let metadata: ReturnType<typeof translateNarrativeAIResponse> | undefined
@@ -131,12 +131,14 @@ export function buildNarrativeRoundOutputContract(
   expectedIntentId?: string | null,
   requireBranch = false,
   isOpeningRound = false,
+  focusedChoice?: string,
 ): string {
   const instructions = [
     '【本轮输出契约；生成前最后自检】',
     ...buildNarrativeAIProtocolRepairReminder(),
-    '正文段落数量自由；只要正文非空、剧情完整且分区协议可解析，就不得因段数重写。',
+    '正文段落数量自由；只要正文非空、剧情完整且分区协议可解析，就不得因段数重写。摘要没有高价值事实时直接省略，不触发修复。',
     '压力、受阻和拖延不是默认推进方式；没有既有直接因果时，允许并优先考虑学习掌握、安心发育、休整、成果兑现、认可或关系回暖，不得凭空新增机构、观察者或门槛拖延进展。',
+    '生成前只做短检查：先锁定本轮唯一主线，再检查已成立事实和结束标记；不要输出思考过程。',
   ]
   if (isOpeningRound) {
     instructions.push(
@@ -146,6 +148,11 @@ export function buildNarrativeRoundOutputContract(
   if (typeof expectedIntentId === 'string') {
     instructions.push(
       `当前命运意图必须返回完整语义核心与“命运意图判定”，意图编号严格等于 ${toNarrativeAIIntentId(expectedIntentId)}。`,
+    )
+  }
+  if (focusedChoice?.trim()) {
+    instructions.push(
+      `【当前唯一主线】玩家已选择“${focusedChoice.trim()}”；正文必须立即推进该行动并给出可见回应，不得换题、拖延或替玩家决定未选结果。`,
     )
   }
   if (requireBranch) {

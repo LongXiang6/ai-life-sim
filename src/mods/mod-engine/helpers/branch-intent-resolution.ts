@@ -193,19 +193,20 @@ export function buildBranchIntentInstruction(
   otherActive: readonly BranchIntentState[],
 ): string {
   const lines = [
-    '【当前命运意图；本轮必须评估并推进】',
+    '【当前唯一主线；本轮必须按玩家选择推进】',
     JSON.stringify(serializeIntent(focused)),
-    '玩家选择表达行动、立场或长期方向，不保证结果。请先结合世界规则、角色能力、资源、关系、阻力、运气与本轮时间跨度评估，再据此写正文。',
+    '玩家选择是本轮唯一主线。正文必须让该选择发生具体行动、可见回应和阶段性后果；不得改写成其他目标，不得只写等待或把选择留到未来。',
+    '玩家选择表达行动、立场或长期方向，不保证结果。结合世界规则、角色能力、资源、关系、阻力、运气与本轮时间跨度评估结果，再写正文。',
     `“命运意图判定”必须存在，意图编号必须严格等于 ${toNarrativeAIIntentId(focused.intentId)}；完整返回可行性、执行方式、状态、风险等级、进度、阻碍、前置条件、代价、预计耗时、判定理由与下一步。`,
     `可行性只能为${AI_INTENT_FEASIBILITIES.aiValues.join('、')}；执行方式只能为${AI_INTENT_EXECUTION_MODES.aiValues.join('、')}；状态只能为${AI_INTENT_STATUSES.aiValues.join('、')}；风险等级只能为${AI_INTENT_RISK_LEVELS.aiValues.join('、')}。`,
-    '小型行动可以在本轮完成；中大型目标应持续推进，明确当前阶段、具体阻碍、代价和下一步。失败必须产生可信后果，受阻必须说明解除条件，不得因为玩家点击选项就直接保证成功。',
+    '小型行动本轮完成；中大型目标本轮必须推进一个明确阶段，并给出当前阻碍、代价和下一步。失败必须产生可信后果，受阻必须说明解除条件，不得因为玩家点击选项就直接保证成功。',
   ]
 
   if (otherActive.length > 0) {
     lines.push(
       '【其他未完成命运意图；保持事实连续，不得静默删除】',
       JSON.stringify(otherActive.map(serializeIntent)),
-      '本轮只强制更新当前聚焦意图；其他意图作为人物处境与长期牵引保留，除非正文确实触及，不得擅自宣告其成功、失败或放弃。',
+      '其他意图只作背景牵引，不能抢走本轮主线；除非正文确实触及，不得擅自宣告其成功、失败或放弃。',
     )
   }
 

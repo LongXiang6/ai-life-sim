@@ -128,5 +128,9 @@ assert.equal(authAttempts, 1, 'authentication failure must not spend a second re
 await expectRejects('data: {"choices":[{"delta":{"content":"未完成"}}]}\n\n', '完整结束标记')
 await expectRejects('data: {not-json}\n\ndata: [DONE]\n\n', '无法解析')
 await expectRejects('data: [DONE]\n\n', '空正文')
+await expectRejects(
+  'data: {"choices":[{"delta":{"content":"被截断正文"},"finish_reason":"length"}]}\n\ndata: [DONE]\n\n',
+  '达到 max_tokens',
+)
 
 console.log('PASS: managed-sse-aggregation-smoke')

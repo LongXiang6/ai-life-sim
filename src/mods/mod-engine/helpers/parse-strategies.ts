@@ -96,7 +96,8 @@ function parseRawAIResponse(
     direction: _legacyDirection,
     ...metadataCandidate
   } = raw
-  const hasMetadata = Object.keys(metadataCandidate).length > 0
+  // 没有数据区时，摘要只属于独立索引，不应被当成不完整 META 触发拒绝。
+  const hasMetadata = structuredDataPresent && Object.keys(metadataCandidate).length > 0
   const metadataResult = hasMetadata
     ? NarrativeResponseSchema.safeParse(metadataCandidate)
     : undefined

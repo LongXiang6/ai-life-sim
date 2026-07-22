@@ -371,6 +371,11 @@ assertOk(
   inspectNarrativeResponseQuality(minimumEnvelope, 200, null).valid,
   'ordinary rounds must accept the minimum body-summary protocol without structured data',
 )
+const bodyOnlyEnvelope = `⟦正文⟧\n这一轮只返回完整正文；没有额外高价值事实需要建立摘要索引。\n⟦结束⟧`
+assertOk(
+  inspectNarrativeResponseQuality(bodyOnlyEnvelope, 200, null).valid,
+  'ordinary rounds must accept a complete body without an optional summary',
+)
 const fiveParagraphEnvelope = `⟦正文⟧\n第一段。\n\n第二段。\n\n第三段。\n\n第四段。\n\n第五段。\n⟦摘要⟧\n本轮事件按自然节奏写成五段。\n⟦结束⟧`
 const fiveParagraphQuality = inspectNarrativeResponseQuality(fiveParagraphEnvelope, 200, null)
 assertOk(
@@ -417,7 +422,7 @@ assertOk(
   COMPILED_NARRATIVE_REPAIR_SYSTEM_PROMPT.length < 5_000,
   'the dedicated repair system asset must remain compact',
 )
-assertOk(narrativePrompt.version === '4.5.2', 'latest narrative attention and repair behavior must use Prompt 4.5.2')
+assertOk(narrativePrompt.version === '4.6.0', 'latest narrative attention and repair behavior must use Prompt 4.6.0')
 assertOk(
   narrativePrompt.systemPrompt === ''
     && narrativePrompt.serverPromptAssetId === NARRATIVE_SERVER_PROMPT_ASSET_ID
@@ -443,10 +448,10 @@ assertOk(
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('⟦数据⟧')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('⟦结束⟧')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('第二人称“你”')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得填写“任务”等情节类型')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('不得填写“冲突”等事件类型')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('摘要只在能提供高价值事实索引时输出')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('省略字段表示本轮未提交该类结构化信息')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('数据区不是字段清单')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('禁止输出 false'),
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('而不是输出 false'),
   'System Prompt must expose the tiered Chinese protocol and second-person contract',
 )
 assertOk(

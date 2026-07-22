@@ -939,7 +939,7 @@ const monthAfterSeasonStep = (mayIndex + 3) % 12
 assertSame(Math.floor(((monthAfterSeasonStep + 10) % 12) / 3), 1, 'month->season must land in the following solar season')
 assertOk(/candidate\.importance\s*===\s*'HIGH'/.test(branchPolicySrc), 'ordinary branch points must require HIGH importance')
 assertOk(narrativePromptComponentsSrc.includes('身份、核心关系、长期目标、关键资源、阵营、存亡等不可逆轨迹'), 'branch prompt must define fate-changing impact dimensions')
-assertOk(/version:\s*'4\.5\.2'/.test(narrativePromptSrc), 'latest narrative attention and repair contract must use version 4.5.2')
+assertOk(/version:\s*'4\.6\.0'/.test(narrativePromptSrc), 'latest narrative attention and repair contract must use version 4.6.0')
 assertOk(
   /semanticSignals\?\.irreversible\s*===\s*true/.test(branchPolicySrc)
     && /narrativeRegister\s*===\s*'fate'/.test(branchPolicySrc),

@@ -14,7 +14,7 @@
  *
  * 每轮Prompt注入内容（精简到极致）：
  *   1. 状态卡（subsystem summaries，结构化当前状态）
- *   2. 最近20轮L0原文（覆盖延迟压缩区间的细节完整短期记忆）
+ *   2. 固定最近10轮L0原文（覆盖5轮摘要块及一个延迟块）
  *   3. L6历史纲要（一生纵览，长期记忆框架）
  *   4. 检索命中摘要（L2-L6 中按 AI 标注实体匹配，"突然想起来的往事"）
  *   5. 聚合事件（严重事件优先，因果链合并，不做固定条数淘汰）
@@ -953,7 +953,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
     return [
       '【近期完整经历】',
       '以下内容是已经发生的完整事实，只继承人物、关系、因果和线索；不得模仿其中的人称、措辞或段落结构。',
-      context.recentNarratives.join('\n---\n'),
+      ...context.recentNarratives.map((narrative, index) => `${index + 1}. ${narrative}`),
     ].join('\n')
   }
 

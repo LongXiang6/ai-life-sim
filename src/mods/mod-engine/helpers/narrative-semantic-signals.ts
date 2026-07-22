@@ -119,7 +119,7 @@ export const NarrativeDeferredCausalitySchema = z.object({
 }).strict()
 
 /**
- * 主叙事摘要始终独立提交；其余结构化数据按需出现。
+ * 主叙事摘要是可选的轻量索引；其余结构化数据按需出现。
  * 语义核心、命运分支和命运意图仍分别作为不可拆散的条件契约。
  */
 export const NarrativeRoundMetadataSchema = z.object({
@@ -127,7 +127,7 @@ export const NarrativeRoundMetadataSchema = z.object({
   creations: z.array(NarrativeCreationSchema).optional(),
   foreshadowing: z.array(NarrativeForeshadowingMarkSchema).optional(),
   importance: z.enum(['HIGH', 'NORMAL', 'LOW']).optional(),
-  digest: z.string().min(1),
+  digest: z.string().min(1).optional(),
   keyEvents: z.array(NarrativeKeyEventSchema).optional(),
   arcStatus: z.enum(['start', 'ongoing', 'end']).optional(),
   semanticSignals: NarrativeSemanticSignalsSchema.optional(),
