@@ -92,15 +92,7 @@ async function parseRetryAfter(resp: Response): Promise<number | undefined> {
 
 /** 400 等确定性参数错误不做无意义的同请求重试；仅临时故障进入内部退避。 */
 function isRetryableAiError(error: unknown): boolean {
-  if (error instanceof AIHttpError) {
-    // 400系列客户端错误（参数错误、内容审核、凭据问题等）不应重试
-    if (error.status >= 400 && error.status < 500) {
-      // 例外：408超时、429限流可以重试
-      return error.status === 408 || error.status === 429
-    }
-    // 500系列服务端错误可以重试
-    return error.status >= 500
-  }
+  if (error instanceof AIHttpError) return error.status === 408 || error.status === 429 || error.status >= 500
   if (error instanceof Error && error.name === 'AbortError') return false
   return true
 }
@@ -691,15 +683,10 @@ async function executeAiFetchWithRetry(
       }
       if (err instanceof AIHttpError) lastRequestId = err.requestId
       if (attempt < MAX_RETRY - 1 && isRetryableAiError(err)) {
-        // 记录重试诊断信息
-        const retryReason = err instanceof AIHttpError
-          ? `HTTP ${err.status}: ${err.responseText.slice(0, 100)}`
-          : err instanceof Error ? err.message : String(err)
-        logger.warnRaw(
+        const retryKind = err instanceof AIHttpError ? `HTTP ${err.status}` : '临时网络错误'
+        logger.warn(
           'ai-client',
-          `AI调用失败，正在重试 (${attempt + 1}/${MAX_RETRY})`,
-          retryReason,
-          undefined,
+          `AI 调用暂时失败，正在重试 (${attempt + 1}/${MAX_RETRY}) · ${retryKind}`,
           { requestId: lastRequestId, attempt: attempt + 1 },
         )
         // 重试前清空消费端已 append 的部分流式文本，避免拼接重复

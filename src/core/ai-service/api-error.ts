@@ -54,7 +54,7 @@ export function diagnoseApiError(status: number, errorText: string): ApiDiagnost
         level: 'error',
         summary: 'API Key 尚未配置',
         detail: '当前模型通道没有可用的访问凭据。',
-        suggestion: '打开”设置 → 模型调用”填写 Key、接口网址和模型名称\n或恢复服务器免费体验通道',
+        suggestion: '打开“设置 → 模型调用”填写 Key、接口网址和模型名称\n或恢复服务器免费体验通道',
       }
     }
     if (matchKeyword(errorText, ['model'])) {

@@ -48,6 +48,11 @@ for (const [status, expected] of cases) {
   assert.ok(!diagnostic.detail.includes('player-secret'), `${status} detail must remain UI-safe`)
 }
 
+const moderationDiagnostic = diagnoseApiError(400, '抱歉，您所输入的内容含有违规信息，请重新编辑后再发送')
+assert.equal(moderationDiagnostic.summary, '输入内容触发了安全审核')
+assert.ok(moderationDiagnostic.suggestion.includes('调整输入内容'))
+assert.ok(moderationDiagnostic.suggestion.includes('重试不会解决审核问题'))
+
 assert.equal(normalizeStorySeed(0), 0, 'numeric zero remains a valid story seed')
 assert.equal(normalizeStorySeed(' 42 '), 42, 'numeric strings are normalized')
 assert.equal(normalizeStorySeed(''), undefined, 'empty story seeds are omitted')

@@ -68,6 +68,12 @@ assert(
   'deterministic 400 responses must not enter the transient internal retry path',
 )
 assert(
+  /AI 调用暂时失败，正在重试/.test(client)
+    && /const retryKind = err instanceof AIHttpError \? `HTTP \$\{err\.status\}` : '临时网络错误'/.test(client)
+    && !/err\.responseText\.slice\(0, 100\)/.test(client),
+  'retry diagnostics must retain status and attempt context without duplicating upstream response content',
+)
+assert(
   /randomUUID\(\)/.test(proxy)
     && /x-ai-request-id/.test(proxy)
     && /ai-traces\/ai-trace-/.test(proxy),
