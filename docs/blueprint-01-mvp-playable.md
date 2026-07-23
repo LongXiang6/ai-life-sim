@@ -136,7 +136,7 @@ Full gate 剩余 FAIL 分流表：
     │  （mod-character/subsystems/destiny-pattern-system.ts 全保留）
     ▼
 属性分配 attribute-alloc
-    │  四项基础值共 30 点、每项 0—10；种族、命格和其他来源作为 modifiers 单独展示
+    │  四项基础值共 15 点、每项 0—10；种族、命格和其他来源作为 modifiers 单独展示
     ▼
 身世预览 fate-preview
     │  汇总基础值与独立 modifiers，无额外 AI
@@ -269,7 +269,7 @@ MVP 继续要求世界配置由玩家手动确认；P0 只恢复本地结构化�
 - **阶段 A｜引擎地基对齐**：确认 `TimeSystem` 以"天"为唯一最小单位，默认叙事步长为年，且日/月/季/年切换都会换算成正确 `daysPassed`；确认 orchestrator 用 `daysPassed`/`totalDays` 正常组装 context。
 - **阶段 B｜MVP 执行路径收敛**：先把 §五所有非 MVP 子系统从 Prompt、AI changes、核心循环验证路径中隔离；必须保留的清空桩不得在正常玩法路径持续 `console.error`。这一步放在核心模拟验证前，避免旧活代码或抛错桩干扰阶段 D。
 - **阶段 C｜世界配置去 AI**：world-select 预设/自定义 + world-customize 手动四字段，绕过 world-init AI 管线；world/base-universe 的 sim 子系统只保留 MVP 所需纯数据入口；确认阶段 0 的 structural 基线不回归。
-- **阶段 D｜角色链路**：character-create（姓名/性别/种族/背景/寿命）→ talent-draw（AI 命格）→ attribute-alloc（30 点四项属性）→ fate-preview（基础值与独立修正核对）串通。隔离 mod-character 的 health/life-stage/attribute-decay/post-death-epilogue，保留 destiny/base/lifespan/luck/morality。
+- **阶段 D｜角色链路**：character-create（姓名/性别/种族/背景/寿命）→ talent-draw（AI 命格）→ attribute-alloc（15 点四项属性）→ fate-preview（基础值与独立修正核对）串通。隔离 mod-character 的 health/life-stage/attribute-decay/post-death-epilogue，保留 destiny/base/lifespan/luck/morality。旧存档的已确认基础值只读兼容，不在进入新页面时静默重算。
 - **阶段 E｜核心模拟循环 + 存档**：game-story 默认按年推进，也能切换为日/月/季推进；AI 出叙事，character-base/lifespan 随 `daysPassed` 更新，记忆压缩生效；手动存档 + 自动存档 + 读档恢复。
 - **阶段 F｜最终清尾与验收**：确认启动→建世界→建角色→进模拟→推进→存读档全程零红错；所有 gate FAIL 均已修复或进入有 owner/阶段/原因的分流表，不能以"迁移期"笼统忽略。
 

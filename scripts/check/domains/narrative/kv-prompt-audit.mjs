@@ -371,16 +371,15 @@ const formatDestinyPatternsForPrompt = compileStandaloneFunction(
 )
 assertOk(
   formatEquippedMythicPatternForPrompt?.(null) === undefined
-    && formatEquippedMythicPatternForPrompt?.({ name: '空壳', concept: '空', effect: '   ' }) === undefined,
+    && formatEquippedMythicPatternForPrompt?.([{ name: '空壳', concept: '空', effect: '   ' }]) === undefined,
   'empty mythic slots or empty effects must not enter the prompt',
 )
 assertOk(
-  formatEquippedMythicPatternForPrompt?.({
-    name: '未熄之诺',
-    concept: '承诺',
-    effect: '真诚许下的承诺更难被世界轻易抹去。',
-  }) === '【已装备转世天赋·每轮遵守】未熄之诺（承诺）：真诚许下的承诺更难被世界轻易抹去。',
-  'equipped mythic effects must be formatted as an explicit per-round narrative rule',
+  formatEquippedMythicPatternForPrompt?.([
+    { name: '未熄之诺', concept: '承诺', effect: '真诚许下的承诺更难被世界轻易抹去。' },
+    { name: '回声', concept: '记忆', effect: '重要关系会留下可追溯的回声。' },
+  ]) === '【已装备转世天赋·每轮遵守】未熄之诺（承诺）：真诚许下的承诺更难被世界轻易抹去。\n回声（记忆）：重要关系会留下可追溯的回声。',
+  'multiple equipped mythic effects must be formatted as explicit per-round narrative rules',
 )
 assertOk(
   formatDestinyPatternsForPrompt?.([], false) === undefined
@@ -393,7 +392,7 @@ assertOk(
   'ordinary destiny effects must stay compact but remain explicit per-round rules, with descriptions added only at opening',
 )
 assertOk(
-  orchestrator.includes('useCharacterStore.getState().equippedMythicPattern')
+  orchestrator.includes('useCharacterStore.getState().equippedMythicPatterns')
     && orchestrator.includes('const destinyPatternText = formatDestinyPatternsForPrompt(')
     && orchestrator.includes("talents: [destinyPatternText, mythicPatternText].filter(Boolean).join('\\n') || undefined"),
   'ordinary and equipped mythic effects must both be injected every round',

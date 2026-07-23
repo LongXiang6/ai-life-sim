@@ -1,10 +1,10 @@
 /**
  * @module talent-draw-page
- * @description 命格抽取与选择 —— 对齐移动端方案库的五位星盘与独立神话槽
+ * @description 命格抽取与选择 —— 对齐移动端方案库的十二位命盘与双转世槽
  *   - 单按钮 + 设置控制 AI/预设
  *   - 缓存池 >= 5 条进入完成交接态，玩家确认后展开选取，后台可继续补池
  *   - 真实进度追踪（onProgress 回调）
- *   - 抽5选3 + 可选转世天赋 → 确认 → /attribute-alloc
+ *   - 抽12选3 + 可选两项转世天赋 → 确认 → /attribute-alloc
  * @mod mod-pages
  */
 
@@ -18,6 +18,9 @@ import {
   DESTINY_PATTERN_RARITY_CONFIG,
   DESTINY_PATTERN_SELECT_COUNT,
   DEFAULT_DESTINY_PATTERN_COUNT,
+  DESTINY_PATTERN_EARLY_READY_COUNT,
+  DESTINY_PATTERN_DISPLAY_COUNT,
+  MYTHIC_PATTERN_SELECT_COUNT,
   DESTINY_PATTERN_FAST_DRAW_THRESHOLD,
   aggregatePatternSystemModifiers,
   formatPatternSystemModifiersForDisplay,
@@ -133,16 +136,36 @@ function persistTdState(state: SavedTdState): void {
 function drawSlotsFromPool(pool: DestinyPattern[]): (DestinyPattern | null)[] {
   const uniquePool = uniquePatternsByIdentity(pool)
   const shuffled = uniquePool.sort(() => Math.random() - 0.5)
-  const drawn = shuffled.slice(0, DEFAULT_DESTINY_PATTERN_COUNT)
-  const newSlots: (DestinyPattern | null)[] = Array(DEFAULT_DESTINY_PATTERN_COUNT).fill(null)
+  const drawn = shuffled.slice(0, DESTINY_PATTERN_DISPLAY_COUNT)
+  const newSlots: (DestinyPattern | null)[] = Array(DESTINY_PATTERN_DISPLAY_COUNT).fill(null)
   drawn.forEach((p, i) => { newSlots[i] = p })
   return newSlots
 }
 
 function revealSlotsInOrder(patterns: DestinyPattern[]): (DestinyPattern | null)[] {
-  const revealed = uniquePatternsByIdentity(patterns).slice(0, DEFAULT_DESTINY_PATTERN_COUNT)
-  const nextSlots: (DestinyPattern | null)[] = Array(DEFAULT_DESTINY_PATTERN_COUNT).fill(null)
+  const revealed = uniquePatternsByIdentity(patterns).slice(0, DESTINY_PATTERN_DISPLAY_COUNT)
+  const nextSlots: (DestinyPattern | null)[] = Array(DESTINY_PATTERN_DISPLAY_COUNT).fill(null)
   revealed.forEach((pattern, index) => { nextSlots[index] = pattern })
+  return nextSlots
+}
+
+function mergeSlotsWithPatterns(
+  currentSlots: (DestinyPattern | null)[],
+  patterns: DestinyPattern[],
+): (DestinyPattern | null)[] {
+  const nextSlots = currentSlots.length === DESTINY_PATTERN_DISPLAY_COUNT
+    ? [...currentSlots]
+    : Array(DESTINY_PATTERN_DISPLAY_COUNT).fill(null) as (DestinyPattern | null)[]
+  const visibleIds = new Set(nextSlots.flatMap((pattern) => pattern ? [pattern.id] : []))
+  const visibleNames = new Set(nextSlots.flatMap((pattern) => pattern ? [patternNameKey(pattern)] : []))
+  for (const pattern of uniquePatternsByIdentity(patterns)) {
+    if (visibleIds.has(pattern.id) || visibleNames.has(patternNameKey(pattern))) continue
+    const emptyIndex = nextSlots.findIndex((slot) => slot === null)
+    if (emptyIndex < 0) break
+    nextSlots[emptyIndex] = pattern
+    visibleIds.add(pattern.id)
+    visibleNames.add(patternNameKey(pattern))
+  }
   return nextSlots
 }
 
@@ -260,9 +283,15 @@ function resolveInitialTalentDrawState(): InitialTalentDrawState {
   const { aiTalentGeneration } = useSettingsStore.getState()
   const savedPatterns = saved?.slots?.filter((pattern): pattern is DestinyPattern => pattern !== null) ?? []
 
-  const savedSlotsMatchMode = saved?.slots?.length === DEFAULT_DESTINY_PATTERN_COUNT
-    && savedPatterns.length === DEFAULT_DESTINY_PATTERN_COUNT
-    && uniquePatternsByIdentity(savedPatterns).length === DEFAULT_DESTINY_PATTERN_COUNT
+  const savedSlotsMatchMode = saved?.slots?.length === DESTINY_PATTERN_DISPLAY_COUNT
+    && savedPatterns.length >= DESTINY_PATTERN_EARLY_READY_COUNT
+    && (
+      uniquePatternsByIdentity(savedPatterns).length === savedPatterns.length
+      || (
+        uniquePatternsByIdentity(savedPatterns).length === DEFAULT_DESTINY_PATTERN_COUNT
+        && savedPatterns.length === DEFAULT_DESTINY_PATTERN_COUNT
+      )
+    )
     && (!aiTalentGeneration || savedPatterns.every(isAIGeneratedPattern))
   const usableSaved = savedSlotsMatchMode ? saved : null
 
@@ -272,7 +301,7 @@ function resolveInitialTalentDrawState(): InitialTalentDrawState {
       // 回退到 idle，由用户重新点击按钮触发对应模式
       return {
         phase: 'idle',
-        slots: Array(DEFAULT_DESTINY_PATTERN_COUNT).fill(null),
+        slots: Array(DESTINY_PATTERN_DISPLAY_COUNT).fill(null),
         selectedSlotIndices: [],
         localPoolSize: cached.length,
         pool: cached,
@@ -287,7 +316,7 @@ function resolveInitialTalentDrawState(): InitialTalentDrawState {
     }
   }
 
-  if (aiTalentGeneration && cached.length >= DEFAULT_DESTINY_PATTERN_COUNT) {
+  if (aiTalentGeneration && cached.length >= DESTINY_PATTERN_EARLY_READY_COUNT) {
     const newSlots = drawSlotsFromPool(cached)
     useCharacterStore.getState().setDestinyPatterns({ candidates: cached })
     return {
@@ -301,9 +330,9 @@ function resolveInitialTalentDrawState(): InitialTalentDrawState {
 
   return {
     phase: normalizeSavedPhase(usableSaved?.phase),
-    slots: usableSaved?.slots?.length === DEFAULT_DESTINY_PATTERN_COUNT
+    slots: usableSaved?.slots?.length === DESTINY_PATTERN_DISPLAY_COUNT
       ? usableSaved.slots
-      : Array(DEFAULT_DESTINY_PATTERN_COUNT).fill(null),
+      : Array(DESTINY_PATTERN_DISPLAY_COUNT).fill(null),
     selectedSlotIndices: usableSaved?.selectedSlotIndices ?? [],
     localPoolSize: cached.length,
     pool: cached,
@@ -313,8 +342,8 @@ function resolveInitialTalentDrawState(): InitialTalentDrawState {
 function TalentDrawContent() {
   const router = useRouter()
   const mythicLibrary = useMythicLibraryStore((state) => state.patterns)
-  const equippedMythicPattern = useCharacterStore((state) => state.equippedMythicPattern)
-  const setEquippedMythicPattern = useCharacterStore((state) => state.setEquippedMythicPattern)
+  const equippedMythicPatterns = useCharacterStore((state) => state.equippedMythicPatterns)
+  const setEquippedMythicPatterns = useCharacterStore((state) => state.setEquippedMythicPatterns)
 
   const [initialDraw] = useState(() => resolveInitialTalentDrawState())
 
@@ -330,6 +359,7 @@ function TalentDrawContent() {
   const [activeSlotIndex, setActiveSlotIndex] = useState(0)
   const [rotationSteps, setRotationSteps] = useState(0)
   const [libraryOpen, setLibraryOpen] = useState(false)
+  const [activeMythicSlot, setActiveMythicSlot] = useState(0)
   const [waveRevision, setWaveRevision] = useState(0)
   const [toastMessage, setToastMessage] = useState('')
 
@@ -442,17 +472,17 @@ function TalentDrawContent() {
     }
   }, [libraryOpen])
 
-  // ══════════ 进度文案（首满 5 条进入完成交接态） ══════════
-  const progressTarget = DEFAULT_DESTINY_PATTERN_COUNT
-  const displayStreamCount = Math.min(streamCount, progressTarget)
+  // ══════════ 进度文案（首满 5 条进入交接态，12 个槽位后台补齐） ══════════
+  const progressTarget = DESTINY_PATTERN_EARLY_READY_COUNT
+  const displayStreamCount = Math.min(streamCount, DESTINY_PATTERN_DISPLAY_COUNT)
   const latestStreamPattern = displayStreamCount > 0 ? slots[displayStreamCount - 1] : null
   const progressText = latestStreamPattern
     ? `${DESTINY_PATTERN_RARITY_CONFIG[latestStreamPattern.rarity].label} · ${latestStreamPattern.name}`
     : '连接命盘'
   const generationMessage = latestStreamPattern
-    ? displayStreamCount < progressTarget
-      ? `${latestStreamPattern.name}已显现，正在生成第 ${displayStreamCount + 1} 条有效命格。`
-      : `${latestStreamPattern.name}已显现，五条命格已就绪。`
+      ? displayStreamCount < progressTarget
+        ? `${latestStreamPattern.name}已显现，正在生成第 ${displayStreamCount + 1} 条有效命格。`
+        : `${latestStreamPattern.name}已显现，已可先进入选择，剩余候选后台补齐。`
     : '正在生成第 1 条有效命格。'
 
   // ══════════ 挂载时恢复命格库 + 定时同步池大小 ══════════
@@ -469,6 +499,7 @@ function TalentDrawContent() {
       if (best.length > 0) {
         fullPoolRef.current = best
         setLocalPoolSize(best.length)
+        if (phase !== 'idle') setSlots((current) => mergeSlotsWithPatterns(current, best))
       }
     }
     syncPoolSize()
@@ -486,7 +517,7 @@ function TalentDrawContent() {
 
     const cached = loadCachedPool()
     if (
-      cached.length < DEFAULT_DESTINY_PATTERN_COUNT
+      cached.length < DESTINY_PATTERN_EARLY_READY_COUNT
       || cached.length >= DESTINY_PATTERN_FAST_DRAW_THRESHOLD
       || destinySystem.getPoolFillStatus().inProgress
     ) {
@@ -545,17 +576,17 @@ function TalentDrawContent() {
       setRotationSteps(0)
       setSelectedUiSlots(createSelectedUiSlots([]))
       setLocalPoolSize(patterns.length)
-      setStreamCount(DEFAULT_DESTINY_PATTERN_COUNT)
+      setStreamCount(DESTINY_PATTERN_DISPLAY_COUNT)
       setPhase('ready')
       setWaveRevision((revision) => revision + 1)
-      notify('五条命格已生成')
+      notify('十二条普通命格已生成')
       return
     }
 
     // AI 模式
     const initialPatterns = loadCachedPool()
     setPhase('generating')
-    setStreamCount(Math.min(initialPatterns.length, DEFAULT_DESTINY_PATTERN_COUNT))
+    setStreamCount(Math.min(initialPatterns.length, DESTINY_PATTERN_DISPLAY_COUNT))
     setSlots(revealSlotsInOrder(initialPatterns))
     setActiveSlotIndex(0)
     setRotationSteps(0)
@@ -581,7 +612,7 @@ function TalentDrawContent() {
       fullPoolRef.current = visiblePatterns
       if (persist) saveCachedPool(visiblePatterns)
       useCharacterStore.getState().setDestinyPatterns({ candidates: visiblePatterns })
-      setStreamCount(Math.min(visiblePatterns.length, DEFAULT_DESTINY_PATTERN_COUNT))
+      setStreamCount(Math.min(visiblePatterns.length, DESTINY_PATTERN_DISPLAY_COUNT))
       setLocalPoolSize(visiblePatterns.length)
       setSlots(revealSlotsInOrder(visiblePatterns))
       setActiveSlotIndex(0)
@@ -589,7 +620,7 @@ function TalentDrawContent() {
       setSelectedUiSlots(createSelectedUiSlots([]))
       setPhase('ready')
       setWaveRevision((revision) => revision + 1)
-      notify('五条命格已生成')
+      notify(`${DESTINY_PATTERN_EARLY_READY_COUNT} 条命格已就绪，可先进入选择`)
       return true
     }
 
@@ -600,8 +631,10 @@ function TalentDrawContent() {
           if (abortRef.current) return
           const uniquePatterns = uniquePatternsByIdentity(patterns)
           if (!earlyReady) {
-            setStreamCount(Math.min(uniquePatterns.length, DEFAULT_DESTINY_PATTERN_COUNT))
+            setStreamCount(Math.min(uniquePatterns.length, DESTINY_PATTERN_DISPLAY_COUNT))
             setSlots(revealSlotsInOrder(uniquePatterns))
+          } else {
+            setSlots((current) => mergeSlotsWithPatterns(current, uniquePatterns))
           }
           fullPoolRef.current = uniquePatterns
           setLocalPoolSize(uniquePatterns.length)
@@ -627,7 +660,7 @@ function TalentDrawContent() {
         const uniqueResult = uniquePatternsByIdentity(result)
         saveCachedPool(uniqueResult)
         setLocalPoolSize(uniqueResult.length)
-        setStreamCount(Math.min(uniqueResult.length, DEFAULT_DESTINY_PATTERN_COUNT))
+        setStreamCount(Math.min(uniqueResult.length, DESTINY_PATTERN_DISPLAY_COUNT))
       }
     } catch (error) {
       if (!earlyReady) {
@@ -645,7 +678,7 @@ function TalentDrawContent() {
   }, [notify])
 
   const handleEnterSelection = useCallback(() => {
-    if (slots.filter(Boolean).length < DEFAULT_DESTINY_PATTERN_COUNT) return
+    if (slots.filter(Boolean).length < DESTINY_PATTERN_EARLY_READY_COUNT) return
     setPhase('selecting')
   }, [slots])
 
@@ -670,6 +703,13 @@ function TalentDrawContent() {
     if (index >= 0) handleSlotClick(index)
   }, [activePattern, handleSlotClick, slots])
 
+  const handleCandidateClick = useCallback((index: number) => {
+    const pattern = slots[index]
+    if (!pattern) return
+    handleFocusSlot(index)
+    if (!selectedSlotIndices.includes(index)) handleSlotClick(index)
+  }, [handleFocusSlot, handleSlotClick, selectedSlotIndices, slots])
+
   const handleDeselect = useCallback((uiSlotIndex: number) => {
     const patternIndex = selectedUiSlots[uiSlotIndex]
     const pattern = patternIndex === null ? null : slots[patternIndex]
@@ -678,11 +718,33 @@ function TalentDrawContent() {
     notify(`已移除${pattern.name}`)
   }, [notify, selectedUiSlots, slots])
 
-  const handleEquipMythic = useCallback((pattern: MythicPattern | null) => {
-    setEquippedMythicPattern(pattern)
-    setLibraryOpen(false)
-    notify(`转世天赋 · ${pattern?.name ?? '本局不携带'}`)
-  }, [notify, setEquippedMythicPattern])
+  const handleToggleMythic = useCallback((pattern: MythicPattern | null) => {
+    if (!pattern) {
+      setEquippedMythicPatterns([])
+      setLibraryOpen(false)
+      notify('已清空转世天赋槽')
+      return
+    }
+
+    const current = equippedMythicPatterns
+    const existingIndex = current.findIndex((item) => item.id === pattern.id)
+    if (existingIndex >= 0) {
+      setEquippedMythicPatterns(current.filter((_, index) => index !== existingIndex))
+      notify(`已移除${pattern.name}`)
+      return
+    }
+    if (current.length >= MYTHIC_PATTERN_SELECT_COUNT) {
+      notify(`最多携带 ${MYTHIC_PATTERN_SELECT_COUNT} 项转世天赋`)
+      return
+    }
+    setEquippedMythicPatterns([...current, pattern])
+    notify(`转世天赋 · ${pattern.name}`)
+  }, [equippedMythicPatterns, notify, setEquippedMythicPatterns])
+
+  const handleOpenMythicSlot = useCallback((slotIndex: number) => {
+    setActiveMythicSlot(slotIndex)
+    setLibraryOpen(true)
+  }, [])
 
   // ══════════ 确认选择 → 跳转 ══════════
   const handleConfirm = useCallback(() => {
@@ -731,7 +793,7 @@ function TalentDrawContent() {
     const { aiTalentGeneration } = useSettingsStore.getState()
     const cached = aiTalentGeneration ? loadCachedPool() : []
     const pool = cached.length > 0 ? cached : fullPoolRef.current
-    if (pool.length < 5) return
+    if (pool.length < DESTINY_PATTERN_EARLY_READY_COUNT) return
 
     setIsRegenerating(true)
     const newSlots = [...slots]
@@ -747,7 +809,7 @@ function TalentDrawContent() {
       usedNames.add(patternNameKey(s))
     }
 
-    for (let i = 0; i < DEFAULT_DESTINY_PATTERN_COUNT; i++) {
+    for (let i = 0; i < DESTINY_PATTERN_DISPLAY_COUNT; i++) {
       if (!currentSelected.includes(i)) {
         newSlots[i] = null
         const available = pool.filter((p) => (
@@ -766,11 +828,11 @@ function TalentDrawContent() {
     setWaveRevision((revision) => revision + 1)
     notify(currentSelected.length > 0
       ? `已保留${currentSelected.length}条星契，重新抽取其余命格`
-      : '五条普通命格已重新抽取')
+      : '十二条普通命格已重新抽取')
     window.requestAnimationFrame(() => setIsRegenerating(false))
   }, [notify, slots, selectedSlotIndices])
 
-  const reDrawDisabled = isRegenerating || localPoolSize <= DEFAULT_DESTINY_PATTERN_COUNT
+  const reDrawDisabled = isRegenerating || localPoolSize <= DESTINY_PATTERN_DISPLAY_COUNT
 
   // ══════════ 返回阶段 ══════════
   const handleBack = useCallback(() => {
@@ -785,7 +847,7 @@ function TalentDrawContent() {
 
   const astrolabePatterns = slots
   const footerDisabled = phase === 'generating'
-    || (phase === 'ready' && slots.filter(Boolean).length < DEFAULT_DESTINY_PATTERN_COUNT)
+    || (phase === 'ready' && slots.filter(Boolean).length < DESTINY_PATTERN_EARLY_READY_COUNT)
     || (phase === 'selecting' && selectedData.length !== DESTINY_PATTERN_SELECT_COUNT)
   const footerTitle = phase === 'idle'
     ? '开始抽取'
@@ -795,15 +857,15 @@ function TalentDrawContent() {
         ? '进入命格选择'
         : '确认命格'
   const footerCopy = phase === 'idle'
-    ? `持续生成，直至 ${DEFAULT_DESTINY_PATTERN_COUNT} 条有效命格就绪`
+    ? `先生成 ${DESTINY_PATTERN_EARLY_READY_COUNT} 条，剩余候选后台补齐`
     : phase === 'generating'
       ? latestStreamPattern
-        ? `已完成 ${displayStreamCount} / ${DEFAULT_DESTINY_PATTERN_COUNT} · ${latestStreamPattern.name}`
-        : `已完成 0 / ${DEFAULT_DESTINY_PATTERN_COUNT} · 正在连接命盘`
+        ? `已完成 ${displayStreamCount} / ${DESTINY_PATTERN_DISPLAY_COUNT} · ${latestStreamPattern.name}`
+        : `已完成 0 / ${DESTINY_PATTERN_DISPLAY_COUNT} · 正在连接命盘`
       : phase === 'ready'
-        ? '五条命格已就绪 · 由你手动转动命盘'
+        ? `${slots.filter(Boolean).length} / ${DESTINY_PATTERN_DISPLAY_COUNT} 条已显现 · 可先进入选择`
         : selectedData.length === DESTINY_PATTERN_SELECT_COUNT
-          ? '三条普通命格已签订 · 继续命运预览'
+          ? `三条普通命格已签订 · 转世天赋 ${equippedMythicPatterns.length} / ${MYTHIC_PATTERN_SELECT_COUNT}`
           : `还需选择 ${DESTINY_PATTERN_SELECT_COUNT - selectedData.length} 条普通命格`
 
   const handleFooterAction = () => {
@@ -826,21 +888,41 @@ function TalentDrawContent() {
             <header className={styles.header}>
               <div className={styles.meta} aria-hidden="true">
                 <span>AI LIFE SIM · 命书</span>
-                <span>{phase === 'selecting' ? '06' : '05'} / 07</span>
+                <span>{phase === 'selecting' ? '06' : '05'} / 08</span>
               </div>
               <div className={styles.titleRow}>
                 <div className={styles.titleCopy}>
                   <h1 id="talent-page-title">{phase === 'selecting' ? '选择命格' : '抽取命格'}</h1>
                   <p>{phase === 'selecting'
-                    ? '从五星位中选满三条，可另选一项转世天赋。'
-                    : '持续生成五条有效命格，完成后进入选择。'}</p>
+                    ? `从十二个候选中选满三条，可携带 ${MYTHIC_PATTERN_SELECT_COUNT} 项转世天赋。`
+                    : `先生成 ${DESTINY_PATTERN_EARLY_READY_COUNT} 条，十二个候选在后台补齐。`}</p>
                 </div>
                 <div className={styles.titleMark} aria-hidden="true"><span>{phase === 'selecting' ? '06' : '05'}</span></div>
               </div>
             </header>
 
             {phase === 'selecting' ? (
-              <div className={styles.selectedSlots} aria-label="已选普通命格">
+              <>
+                <div className={styles.rebirthSlots} aria-label="已选转世天赋">
+                  {Array.from({ length: MYTHIC_PATTERN_SELECT_COUNT }, (_, slotIndex) => {
+                    const pattern = equippedMythicPatterns[slotIndex]
+                    return (
+                      <button
+                        type="button"
+                        key={`rebirth-slot-${slotIndex}`}
+                        className={cn(styles.rebirthSlot, pattern && styles.rebirthSlotFilled)}
+                        onClick={() => pattern
+                          ? handleToggleMythic(pattern)
+                          : handleOpenMythicSlot(slotIndex)}
+                        aria-label={pattern ? `移除转世天赋：${pattern.name}` : `转世天赋槽${slotIndex + 1}，打开天赋库`}
+                      >
+                        <small>{pattern ? '转世天赋' : `转世 ${String(slotIndex + 1).padStart(2, '0')}`}</small>
+                        <strong>{pattern?.name ?? '待选择'}</strong>
+                      </button>
+                    )
+                  })}
+                </div>
+                <div className={styles.selectedSlots} aria-label="已选普通命格">
                 {selectedUiSlots.map((patternIndex, uiSlotIndex) => {
                   const pattern = patternIndex === null ? null : slots[patternIndex]
                   const rarityLabel = pattern ? DESTINY_PATTERN_RARITY_CONFIG[pattern.rarity].label : undefined
@@ -858,7 +940,8 @@ function TalentDrawContent() {
                     </button>
                   )
                 })}
-              </div>
+                </div>
+              </>
             ) : null}
 
             <section
@@ -886,15 +969,15 @@ function TalentDrawContent() {
                     ? '让命运揭示你的命格'
                     : phase === 'generating'
                       ? '命格正在归位'
-                      : '五命格已归位'}</strong>
+                      : '十二道命印已归位'}</strong>
                   <p>{phase === 'idle'
-                    ? '准备就绪后开始抽取，五条命格会依次归位。'
+                    ? '准备就绪后开始抽取，十二条命格会依次归位。'
                     : phase === 'generating'
                       ? generationMessage
-                      : '五枚命格已安静归位，命盘只随你的选择转动。'}</p>
+                      : '已显现的命格安静归位，剩余候选会在后台补齐。'}</p>
                   <div className={styles.drawReadout} role="status" aria-live="polite">
                     <span>{phase === 'generating' ? progressText : phase === 'ready' ? '解析完成' : '等待解析'}</span>
-                    <b>{phase === 'ready' ? DEFAULT_DESTINY_PATTERN_COUNT : displayStreamCount} / {DEFAULT_DESTINY_PATTERN_COUNT}</b>
+                    <b>{phase === 'ready' ? slots.filter(Boolean).length : displayStreamCount} / {DESTINY_PATTERN_DISPLAY_COUNT}</b>
                   </div>
                   {phase === 'ready' ? (
                     <button type="button" className={styles.reroll} onClick={handleRedraw} disabled={reDrawDisabled}>
@@ -942,7 +1025,7 @@ function TalentDrawContent() {
                     onClick={handleRedraw}
                     disabled={reDrawDisabled}
                     aria-label="重新抽取未选择的普通命格"
-                    title={reDrawDisabled ? `本地库需多于 ${DEFAULT_DESTINY_PATTERN_COUNT} 条才能重抽` : '保留已选命格，替换其余星位'}
+                    title={reDrawDisabled ? `本地库需多于 ${DESTINY_PATTERN_DISPLAY_COUNT} 条才能重抽` : '保留已选命格，替换其余候选'}
                   >
                     <FlowIcon name="shuffle" />
                     <span>{isRegenerating ? '刷新中…' : '重新抽取'}</span>
@@ -951,13 +1034,50 @@ function TalentDrawContent() {
                     type="button"
                     className={styles.libraryTrigger}
                     ref={libraryTriggerRef}
-                    onClick={() => setLibraryOpen(true)}
+                    onClick={() => handleOpenMythicSlot(activeMythicSlot)}
                     aria-expanded={libraryOpen}
                     aria-controls="mythic-library-sheet"
                   >
                     <span>转世天赋库</span>
-                    <strong>{equippedMythicPattern?.name ?? '本局不携带'}</strong>
+                    <strong>{equippedMythicPatterns.length > 0
+                      ? `${equippedMythicPatterns.length} / ${MYTHIC_PATTERN_SELECT_COUNT} 已携带`
+                      : '本局不携带'}</strong>
                   </button>
+                </div>
+                <div className={styles.candidateHead}>
+                  <strong>普通命格候选 <small>{slots.filter(Boolean).length} / {DESTINY_PATTERN_DISPLAY_COUNT} 条</small></strong>
+                  <span>点击候选加入槽位</span>
+                </div>
+                <div className={styles.candidateList} aria-label="普通命格候选">
+                  {slots.map((pattern, index) => {
+                    const selected = selectedSlotIndices.includes(index)
+                    return (
+                      <button
+                        type="button"
+                        key={pattern?.id ?? `candidate-pending-${index}`}
+                        className={cn(styles.candidateCard, selected && styles.candidateCardSelected, !pattern && styles.candidateCardPending)}
+                        disabled={!pattern}
+                        onClick={() => handleCandidateClick(index)}
+                        aria-pressed={selected}
+                        aria-label={pattern
+                          ? `${pattern.name}${selected ? '，已选择' : '，选择普通命格'}`
+                          : `普通命格候选 ${index + 1} 正在生成`}
+                      >
+                        {pattern ? (
+                          <>
+                            <span className={styles.candidateCopy}>
+                              <strong>{pattern.name}</strong>
+                              <span>{pattern.description}</span>
+                            </span>
+                            <small className={styles.candidateRarity}>{DESTINY_PATTERN_RARITY_CONFIG[pattern.rarity].label}</small>
+                            <span className={styles.candidateEffects}>{formatPatternAttrSummary(pattern)}{pattern.effect ? ` · ${pattern.effect}` : ''}</span>
+                          </>
+                        ) : (
+                          <span className={styles.candidatePendingCopy}>候选 {String(index + 1).padStart(2, '0')} · 后台生成中</span>
+                        )}
+                      </button>
+                    )
+                  })}
                 </div>
                 {errorMsg ? <p className={styles.validationMsg} role="alert">{errorMsg}</p> : null}
               </>
@@ -974,7 +1094,7 @@ function TalentDrawContent() {
               aria-labelledby="mythic-library-title"
             >
               <header className={styles.libraryHead}>
-                <strong id="mythic-library-title">转世天赋库</strong>
+                <strong id="mythic-library-title">选择转世 {String(activeMythicSlot + 1).padStart(2, '0')}</strong>
                 <button ref={libraryCloseRef} type="button" onClick={() => setLibraryOpen(false)} aria-label="关闭转世天赋库">
                   <FlowIcon name="close" />
                 </button>
@@ -982,20 +1102,20 @@ function TalentDrawContent() {
               <div className={styles.libraryList}>
                 <button
                   type="button"
-                  className={`${styles.libraryItem} ${equippedMythicPattern === null ? styles.libraryItemActive : ''}`}
-                  onClick={() => handleEquipMythic(null)}
-                  aria-pressed={equippedMythicPattern === null}
+                  className={`${styles.libraryItem} ${equippedMythicPatterns.length === 0 ? styles.libraryItemActive : ''}`}
+                  onClick={() => handleToggleMythic(null)}
+                  aria-pressed={equippedMythicPatterns.length === 0}
                 >
-                  <strong>本局不携带</strong>
-                  <span>保留独立转世槽，不影响三个普通命格。</span>
+                  <strong>清空转世槽</strong>
+                  <span>转世天赋独立于三个普通命格，可留空。</span>
                 </button>
                 {mythicLibrary.map((pattern) => (
                   <button
                     type="button"
                     key={pattern.id}
-                    className={`${styles.libraryItem} ${equippedMythicPattern?.id === pattern.id ? styles.libraryItemActive : ''}`}
-                    onClick={() => handleEquipMythic(pattern)}
-                    aria-pressed={equippedMythicPattern?.id === pattern.id}
+                    className={`${styles.libraryItem} ${equippedMythicPatterns.some((item) => item.id === pattern.id) ? styles.libraryItemActive : ''}`}
+                    onClick={() => handleToggleMythic(pattern)}
+                    aria-pressed={equippedMythicPatterns.some((item) => item.id === pattern.id)}
                   >
                     <strong>{pattern.name}</strong>
                     <span>{pattern.effect || pattern.concept}</span>

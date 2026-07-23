@@ -116,7 +116,7 @@ export interface MythicPattern extends MythicPatternCandidate {
 
 /** 命格子系统状态 */
 export interface DestinyPatternState {
-  /** 候选命格列表（抽5后暂存，待玩家选3） */
+  /** 候选命格列表（定版展示 12 个，首屏达到 5 个即可先交接） */
   candidates: DestinyPattern[]
   /** 角色持有的命格列表（选3后确认） */
   patterns: DestinyPattern[]

@@ -141,7 +141,7 @@ export default function GamePage() {
   const race = useCharacterStore((s) => s.race)
   const characterBase = useCharacterStore((s) => s.characterBase)
   const destinyPatterns = useCharacterStore((s) => s.destinyPatterns.patterns)
-  const equippedMythicPattern = useCharacterStore((s) => s.equippedMythicPattern)
+  const equippedMythicPatterns = useCharacterStore((s) => s.equippedMythicPatterns)
   const talents = useCharacterStore((s) => s.talents)
   const worldConfig = useWorldStore((s) => s.worldConfig)
   const worldCode = useWorldStore((s) => s.worldCode)
@@ -573,11 +573,13 @@ export default function GamePage() {
                     )}
 
                     <p className={styles.ledgerLabel}>转世天赋 · 独立槽</p>
-                    {equippedMythicPattern ? (
-                      <div className={styles.mythicRule}>
-                        <strong>{equippedMythicPattern.name} · {equippedMythicPattern.concept}</strong>
-                        <span>{equippedMythicPattern.effect}</span>
-                      </div>
+                    {equippedMythicPatterns.length > 0 ? (
+                      equippedMythicPatterns.map((pattern) => (
+                        <div key={pattern.id} className={styles.mythicRule}>
+                          <strong>{pattern.name} · {pattern.concept}</strong>
+                          <span>{pattern.effect}</span>
+                        </div>
+                      ))
                     ) : <span className={styles.mutedText}>本局未携带转世天赋</span>}
 
                     <p className={styles.ledgerLabel}>世界与当前状态</p>

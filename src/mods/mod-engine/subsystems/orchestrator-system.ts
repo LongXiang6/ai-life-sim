@@ -176,18 +176,21 @@ function createHistoricalTransactionId(kind: string): string {
   return `history-${kind}-${suffix}`
 }
 
-function formatEquippedMythicPatternForPrompt(pattern: {
+function formatEquippedMythicPatternForPrompt(patterns: readonly {
   name: string
   concept: string
   effect: string
-} | null | undefined): string | undefined {
-  if (!pattern) return undefined
-  const effect = pattern.effect.trim()
-  if (!effect) return undefined
-
-  const name = pattern.name.trim() || '未命名转世天赋'
-  const concept = pattern.concept.trim()
-  return `【已装备转世天赋·每轮遵守】${name}${concept ? `（${concept}）` : ''}：${effect}`
+}[] | null | undefined): string | undefined {
+  const rules = (patterns ?? []).flatMap((pattern) => {
+    const effect = pattern.effect.trim()
+    if (!effect) return []
+    const name = pattern.name.trim() || '未命名转世天赋'
+    const concept = pattern.concept.trim()
+    return [`${name}${concept ? `（${concept}）` : ''}：${effect}`]
+  })
+  return rules.length > 0
+    ? `【已装备转世天赋·每轮遵守】${rules.join('\n')}`
+    : undefined
 }
 
 function formatDestinyPatternsForPrompt(
@@ -443,6 +446,12 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   /** 预生成/预览执行深度：只允许临时推进到 AI 输出，不提交真实副作用 */
   private previewExecutionDepth = 0
+
+  /** 当前预览任务的取消信号；失效预生成必须停止请求后才能释放单写者。 */
+  private previewAbortSignal?: AbortSignal
+
+  /** 预览任务（含快照恢复）的清理完成门；真实回合接管前等待它结束。 */
+  private previewCompletion: Promise<void> | null = null
 
   /** 真实回合异步摘要压缩；下一次推进/预生成/读档前必须等待其提交完成。 */
   private pendingCompression: Promise<void> | null = null
@@ -840,16 +849,38 @@ export class OrchestratorSystem extends BaseSubsystem {
     return this.previewExecutionDepth > 0
   }
 
+  getPreviewAbortSignal(): AbortSignal | undefined {
+    return this.previewAbortSignal
+  }
+
+  private async waitForPreviewCompletion(): Promise<void> {
+    if (this.isPreviewExecution()) return
+    const completion = this.previewCompletion
+    if (completion) await completion
+  }
+
   isBranchCoolingDownForNextRound(): boolean {
     return this.shouldSuppressBranchPoint(false, this.state.totalRounds + 1)
   }
 
-  async runPreviewRound<T>(runner: () => Promise<T>): Promise<T> {
+  async runPreviewRound<T>(runner: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+    if (this.previewExecutionDepth > 0) return runner()
+
+    let releaseCompletion: (() => void) | undefined
+    this.previewCompletion = new Promise<void>((resolve) => {
+      releaseCompletion = resolve
+    })
     this.previewExecutionDepth++
+    this.previewAbortSignal = signal
     try {
       return await runner()
     } finally {
       this.previewExecutionDepth--
+      if (this.previewExecutionDepth === 0) {
+        this.previewAbortSignal = undefined
+        releaseCompletion?.()
+        this.previewCompletion = null
+      }
     }
   }
 
@@ -2233,7 +2264,7 @@ export class OrchestratorSystem extends BaseSubsystem {
 
     const userInstruction = this.buildUserInstruction()
     const mythicPatternText = formatEquippedMythicPatternForPrompt(
-      useCharacterStore.getState().equippedMythicPattern,
+      useCharacterStore.getState().equippedMythicPatterns,
     )
     const destinyPatternText = formatDestinyPatternsForPrompt(
       getDestinyPatternSystem().getPatterns(),
@@ -3468,6 +3499,10 @@ export class OrchestratorSystem extends BaseSubsystem {
     aiConfig: AIModelConfig,
     sessionId?: string,
   ): Promise<RoundResult> {
+    // 预生成与真实回合共享 orchestrator 单写者。失效预生成会先取消 AI，
+    // 但必须连同快照恢复一起完成，真实回合才可以接管，避免状态交错回滚。
+    await this.waitForPreviewCompletion()
+
     // 从单一来源常量取默认字数，与 Prompt 组装、pre-gen、hooks 共享同一常量
     const wordCountTarget = useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET
     const effectiveAiConfig: AIModelConfig = {

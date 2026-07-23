@@ -20,6 +20,13 @@ export function resolveNarrativeBranchChoice(branchId: string, choice: string): 
   if (!branchId || !trimmed) return false
 
   const store = useEngineStore.getState()
+  const branchEntry = store.narrativeHistory.find((entry) => (
+    entry.id === branchId
+      && entry.isBranchPoint === true
+      && entry.resolvedChoice === undefined
+  ))
+  if (!branchEntry) return false
+
   store.resolveBranch(branchId, trimmed)
   orchestrator.resolveBranchChoice(branchId, trimmed)
   orchestrator.setLastPlayerChoice(trimmed)

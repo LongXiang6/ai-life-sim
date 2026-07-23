@@ -23,7 +23,11 @@ import type {
 } from './types'
 import type { TalentPreset, } from './prompts/talent-presets'
 
-import { DEFAULT_LIFE_STAGES, DEFAULT_STAGE_DISPLAY_NAMES, } from './constants'
+import {
+  DEFAULT_LIFE_STAGES,
+  DEFAULT_STAGE_DISPLAY_NAMES,
+  MYTHIC_PATTERN_SELECT_COUNT,
+} from './constants'
 
 import type { LifeStageId, LifeStageConfig, } from './types'
 import { createGlobalCharacterId, sanitizeCharacterStateSnapshot } from './utils/character-state-migration'
@@ -35,6 +39,15 @@ function destinyPoolCacheKey(worldCode: number,): string {
 
 function talentPoolCacheKey(worldCode: number,): string {
   return `mod-character:talent-pool:${worldCode}`
+}
+
+function normalizeEquippedMythicPatterns(patterns: readonly MythicPattern[]): MythicPattern[] {
+  const seen = new Set<string>()
+  return patterns.filter((pattern) => {
+    if (!pattern || seen.has(pattern.id)) return false
+    seen.add(pattern.id)
+    return true
+  }).slice(0, MYTHIC_PATTERN_SELECT_COUNT)
 }
 
 function buildDefaultStages(): Record<LifeStageId, LifeStageConfig> {
@@ -77,8 +90,8 @@ interface CharacterStore {
 
   /** 本局结算生成的三个转世天赋候选。 */
   mythicCandidates: MythicPatternCandidate[]
-  /** 本局从跨局总库选择携带的独立转世天赋；可留空。 */
-  equippedMythicPattern: MythicPattern | null
+  /** 本局从跨局总库选择携带的独立转世天赋；最多两个，数组是唯一状态真源。 */
+  equippedMythicPatterns: MythicPattern[]
   /** 本局结算已封存到总库的转世天赋 ID；用于防止重复入库。 */
   sealedMythicPatternId: string | null
 
@@ -107,6 +120,8 @@ interface CharacterStore {
   setMorality: (state: Partial<MoralityState>) => void
   setTalents: (talents: TalentPreset[]) => void
   setMythicCandidates: (patterns: MythicPatternCandidate[]) => void
+  setEquippedMythicPatterns: (patterns: MythicPattern[]) => void
+  /** 兼容旧调用方：单槽写入会被规范化为最多一个数组元素。 */
   setEquippedMythicPattern: (pattern: MythicPattern | null) => void
   setSealedMythicPatternId: (id: string | null) => void
   setWorldCode: (code: number) => void
@@ -166,7 +181,7 @@ export const useCharacterStore = create<CharacterStore>()(
       morality: initialMorality,
       talents: [],
       mythicCandidates: [],
-      equippedMythicPattern: null,
+      equippedMythicPatterns: [],
       sealedMythicPatternId: null,
       worldCode: 0,
       destinyPoolCacheKey: destinyPoolCacheKey(0,),
@@ -215,7 +230,8 @@ export const useCharacterStore = create<CharacterStore>()(
       setMorality: (partial,) => set((s,) => ({ morality: { ...s.morality, ...partial, }, }),),
       setTalents: (talents,) => set({ talents, },),
       setMythicCandidates: (mythicCandidates,) => set({ mythicCandidates, sealedMythicPatternId: null, },),
-      setEquippedMythicPattern: (equippedMythicPattern,) => set({ equippedMythicPattern, },),
+      setEquippedMythicPatterns: (equippedMythicPatterns,) => set({ equippedMythicPatterns: normalizeEquippedMythicPatterns(equippedMythicPatterns), },),
+      setEquippedMythicPattern: (pattern,) => set({ equippedMythicPatterns: pattern ? [pattern] : [], },),
       setSealedMythicPatternId: (sealedMythicPatternId,) => set({ sealedMythicPatternId, },),
       setWorldCode: (code,) => set({
         worldCode: code,
@@ -235,13 +251,13 @@ export const useCharacterStore = create<CharacterStore>()(
         morality: initialMorality,
         talents: [],
         mythicCandidates: [],
-        equippedMythicPattern: null,
+        equippedMythicPatterns: [],
         sealedMythicPatternId: null,
       },),
     }),
     {
       name: 'mod-character:persist:character-state',
-      version: 3,
+      version: 4,
       migrate: (persistedState: unknown, _version: number) => {
         // 结构完整性校验：防止损坏数据导致白屏
         if (typeof persistedState !== 'object' || persistedState === null || Array.isArray(persistedState)) {
@@ -251,7 +267,7 @@ export const useCharacterStore = create<CharacterStore>()(
         return sanitizeCharacterStateSnapshot(persistedState) as unknown as CharacterStore
       },
       partialize: (state,) => {
-        const { getSummary: _a, ensureCharacterId: _a2, setName: _b, setGender: _c, setAge: _d, setRace: _e, setBackground: _f, setRaceOrigin: _g, setCharacterBase: _h, setDestinyPatterns: _i, setHealth: _j, setLifespan: _k, setLifeStage: _l, setDecay: _m, setMorality: _n, setTalents: _o, setMythicCandidates: _p, setEquippedMythicPattern: _q, setSealedMythicPatternId: _r, setWorldCode: _s, reset: _t, ...rest } = state
+        const { getSummary: _a, ensureCharacterId: _a2, setName: _b, setGender: _c, setAge: _d, setRace: _e, setBackground: _f, setRaceOrigin: _g, setCharacterBase: _h, setDestinyPatterns: _i, setHealth: _j, setLifespan: _k, setLifeStage: _l, setDecay: _m, setMorality: _n, setTalents: _o, setMythicCandidates: _p, setEquippedMythicPatterns: _q, setEquippedMythicPattern: _q2, setSealedMythicPatternId: _r, setWorldCode: _s, reset: _t, ...rest } = state
         return rest
       },
     },

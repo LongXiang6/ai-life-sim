@@ -232,6 +232,7 @@ export function loadStages(
           {
             config: { ...aiConfig, model },
             sessionId,
+            signal: orchestrator.getPreviewAbortSignal(),
             apiKey: customKey || undefined,
             serverPromptAssetId: promptTemplate.serverPromptAssetId,
             ...routeOpts,
@@ -288,6 +289,7 @@ export function loadStages(
           strictSchema: true,
           jsonMode: false,
           sessionId,
+          signal: orchestrator.getPreviewAbortSignal(),
           apiKey: customKey || undefined,
           serverPromptAssetId: promptTemplate.serverPromptAssetId,
           logContext,

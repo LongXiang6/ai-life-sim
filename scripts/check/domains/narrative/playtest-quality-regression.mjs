@@ -134,7 +134,7 @@ function loadTalentPoolHelpers(sourceText) {
     { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
   ).outputText
   const module = { exports: undefined }
-  new Function('module', 'exports', 'DEFAULT_DESTINY_PATTERN_COUNT', transpiled)(module, module.exports, 5)
+  new Function('module', 'exports', 'DESTINY_PATTERN_DISPLAY_COUNT', transpiled)(module, module.exports, 12)
   return module.exports
 }
 
@@ -271,15 +271,18 @@ const alignedBridgeWindow = buildCanonicalCalendarNarrativeHint({
 assertIncludes(alignedBridgeWindow, '边界对齐桥接', 'coarse-to-fine bridge must be explicit in the calendar prompt')
 assertIncludes(alignedBridgeWindow, '不能把被跳过的跨度重新写成当前月的流水账', 'bridge prompt must prevent replaying the skipped coarse window')
 
-// 预生成：失效只代表结果不可用，后台执行结束前仍必须保持 active，阻止主推进并发写单例。
+// 预生成：失效只代表结果不可用，后台执行结束前仍占用单写者，
+// 但主推进不能继续等待已经失效的结果。
 const activity = new PreGenActivityState()
 const generation = activity.begin()
 assertOk(activity.isActive(), 'pre-gen begin must mark execution active')
 activity.invalidate()
-assertOk(activity.isActive(), 'invalidating pre-gen result must not pretend execution already stopped')
+assertOk(!activity.isActive(), 'invalidating pre-gen result must release player-facing wait state')
+assertOk(activity.isRunning(), 'invalidating pre-gen result must retain the background single-writer gate')
 assertOk(!activity.isCurrent(generation), 'invalidated generation must be stale')
 activity.finish(generation)
 assertOk(!activity.isActive(), 'pre-gen finish must release the single-writer gate')
+assertOk(!activity.isRunning(), 'pre-gen finish must release the background execution state')
 
 const validEnvelope = extractTaggedMetaEnvelope(
   '⟦正文⟧\n第一段。\n\n第二段。\n⟦摘要⟧\n本轮完成了一件事。\n⟦数据⟧\n{"重要程度":"普通","情节状态":"进行中","语义信号":{"事件类型":"日常","冲突强度":10,"张力变化":0,"行动规模":"小","不可逆":false,"影响范围":"个人","叙事语域":"生活","语域理由":"日常事件。","情节类型":"无"}}\n⟦结束⟧',
@@ -360,7 +363,7 @@ const migratedCharacter = sanitizeCharacterStateSnapshot({
 })
 assertOk(!('resources' in migratedCharacter.characterBase.base), 'old character saves must remove resources from base attributes')
 assertOk(!('resources' in migratedCharacter.destinyPatterns.patterns[0].attrBonus), 'old character saves must remove resources from destiny bonuses')
-assertSame(migratedCharacter.equippedMythicPattern, null, 'old character saves must default the equipped mythic slot to empty')
+assertSame(migratedCharacter.equippedMythicPatterns.length, 0, 'old character saves must default equipped mythic slots to empty')
 
 const legacyScpDescription = '基金会为收容物赋予SCP编号。休谟指数用于衡量现实强度，现实扭曲者能够改变规则。玩家追加：故事从2000年开始。'
 let migratedScpWorld
@@ -752,10 +755,10 @@ assertOk(
 )
 assertOk(/effect写成叙事引擎可持续遵守的规则/.test(destinyPromptSrc), 'destiny effect must remain a narrative rule instead of only numeric modifiers')
 assertOk(/validatePatternSystemModifiers\(input\.systemModifiers, rarity\)/.test(destinySystemSrc), 'external AI destiny injection must validate system modifiers')
-assertOk(/version:\s*3/.test(characterStoreSrc), 'character persistence must include the stable character ID and context-modifier migration')
+assertOk(/version:\s*4/.test(characterStoreSrc), 'character persistence must include the stable character ID and dual mythic-slot migration')
 assertOk(
-  ['mythicCandidates', 'equippedMythicPattern', 'sealedMythicPatternId'].every((field) => characterStoreSrc.includes(field)),
-  'character store must persist current-life mythic candidates, equipment, and sealed identity',
+  ['mythicCandidates', 'equippedMythicPatterns', 'setEquippedMythicPatterns', 'sealedMythicPatternId'].every((field) => characterStoreSrc.includes(field)),
+  'character store must persist current-life mythic candidates, two equipped slots, and sealed identity',
 )
 assertOk(
   /BASE_ATTRIBUTE_KEYS\s*=\s*\['physique', 'mind', 'talentAptitude', 'charisma'\]/.test(characterMigrationSrc)

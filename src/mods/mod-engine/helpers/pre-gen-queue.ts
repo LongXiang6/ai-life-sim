@@ -133,6 +133,8 @@ export function getPreGenQueueStatus(): PreGenQueueStatus {
   enforceEffectivePreGenQueueLimit(maxRounds)
 
   return {
+    // An invalidated request is still running in the background, but it must
+    // not keep the player's current round waiting for an obsolete result.
     isActive: preGenActivity.isActive(),
 
     queueLength: preGenQueue.length,
@@ -148,7 +150,7 @@ export function getPreGenQueueStatus(): PreGenQueueStatus {
 export function clearPreGenQueue(): void {
   preGenQueue.length = 0
   preGenActivity.invalidate()
-  // 只让在途结果失效，不提前宣告后台执行结束；主推进必须等共享 orchestrator 释放。
+  // 只让在途结果失效，不提前宣告后台执行结束；后台单写者仍由 isRunning 保持。
   // 不重置 lastPreGenTimeStepKey（保留当前 key，防止并发 fillPreGenQueue 绕过 gen 失效机制）
   notifyPreGenListeners()
 }
@@ -273,7 +275,7 @@ export async function fillPreGenQueue(
 
   if (useEngineStore.getState().status === 'complete') return
 
-  if (preGenActivity.isActive()) return
+  if (preGenActivity.isRunning()) return
 
   if (preGenQueue.length >= maxRounds) return
 
@@ -316,48 +318,54 @@ export async function fillPreGenQueue(
     const expectedIntentId = snapshot.orchestrator.focusedBranchIntentId ?? null
 
     try {
-      await orchestrator.runPreviewRound(() =>
-        orchestrator.executeRoundV2(promptTemplate, aiConfig, sessionId),
-      )
+      // 快照恢复必须包含在预览单写者门内。否则取消后真实回合可能已经开始，
+      // 旧预览再恢复快照会覆盖主回合的时间线与子系统状态。
+      await orchestrator.runPreviewRound(async () => {
+        try {
+          await orchestrator.executeRoundV2(promptTemplate, aiConfig, sessionId)
 
-      if (!preGenActivity.isCurrent(gen)) return
+          if (!preGenActivity.isCurrent(gen)) return
 
-      const fullContent = orchestrator.getLastExecutedFullContent()
-      if (!fullContent?.trim()) return
+          const fullContent = orchestrator.getLastExecutedFullContent()
+          if (!fullContent?.trim()) return
 
-      const wordCountTarget = useSettingsStore.getState().wordCountTarget
-        ?? DEFAULT_WORD_COUNT_TARGET
-      const responseQuality = inspectNarrativeResponseQuality(fullContent, wordCountTarget, expectedIntentId)
-      if (
-        !responseQuality.valid
-        && !canContinueWithNarrativeBody(responseQuality, expectedIntentId)
-      ) {
-        console.info('[PreGen] 预生成响应未通过协议或段落结构门禁，已放弃缓存:', responseQuality.reason)
-        return
-      }
+          const wordCountTarget = useSettingsStore.getState().wordCountTarget
+            ?? DEFAULT_WORD_COUNT_TARGET
+          const responseQuality = inspectNarrativeResponseQuality(fullContent, wordCountTarget, expectedIntentId)
+          if (
+            !responseQuality.valid
+            && !canContinueWithNarrativeBody(responseQuality, expectedIntentId)
+          ) {
+            console.info('[PreGen] 预生成响应未通过协议或段落结构门禁，已放弃缓存:', responseQuality.reason)
+            return
+          }
 
-      // 普通轮允许正文+摘要作为最低成功；有效数据区仍用于预判命运分支。
-      // 当前命运意图缺失条件 META 时仍可缓存完整正文；主推进会保持意图待处理，
-      // 不把未验证的判定写入状态。
-      const metadata = parsePreGenMetadata(fullContent)
-      const isBranchPoint = metadata ? isEligibleNarrativeBranch(metadata) : false
-      if (isBranchPoint && orchestrator.isBranchCoolingDownForNextRound()) {
-        // 分支是强交互事件。冷却期内丢弃预生成分支，改由主推进用最新玩家选择现场生成。
-        return
-      }
+          // 普通轮允许正文+摘要作为最低成功；有效数据区仍用于预判命运分支。
+          // 当前命运意图缺失条件 META 时仍可缓存完整正文；主推进会保持意图待处理，
+          // 不把未验证的判定写入状态。
+          const metadata = parsePreGenMetadata(fullContent)
+          const isBranchPoint = metadata ? isEligibleNarrativeBranch(metadata) : false
+          if (isBranchPoint && orchestrator.isBranchCoolingDownForNextRound()) {
+            // 分支是强交互事件。冷却期内丢弃预生成分支，改由主推进用最新玩家选择现场生成。
+            return
+          }
 
-      preGenQueue.push({
-        fullContent,
-        isBranchPoint,
-        signature,
-      })
+          preGenQueue.push({
+            fullContent,
+            isBranchPoint,
+            signature,
+          })
+        } finally {
+          if (preGenActivity.isCurrent(gen)) {
+            orchestrator.restorePreviewSnapshot(snapshot)
+          } else {
+            orchestrator.reconcilePreviewSnapshotWithEngineStore(snapshot)
+          }
+        }
+      }, preGenActivity.getSignal(gen))
     } catch (err) {
-      console.warn('[PreGen] 预生成失败:', err)
-    } finally {
-      if (preGenActivity.isCurrent(gen)) {
-        orchestrator.restorePreviewSnapshot(snapshot)
-      } else {
-        orchestrator.reconcilePreviewSnapshotWithEngineStore(snapshot)
+      if (preGenActivity.isCurrent(gen) && !(err instanceof Error && err.name === 'AbortError')) {
+        console.warn('[PreGen] 预生成失败:', err)
       }
     }
   } finally {

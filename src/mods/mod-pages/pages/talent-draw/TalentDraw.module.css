@@ -182,9 +182,11 @@
 }
 
 .selectionStage {
-  min-height: 312px;
+  min-height: 0;
   margin-top: 8px;
 }
+
+.selectionStage .astrolabe { display: none; }
 
 .astrolabe {
   position: absolute;
@@ -538,6 +540,33 @@
   font-size: 6.5px;
   line-height: 1.45;
 }
+
+.rebirthSlots {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+  width: min(100%, 300px);
+  margin: 6px auto 0;
+}
+
+.rebirthSlot {
+  min-width: 0;
+  min-height: 38px;
+  padding: 5px 7px;
+  border: 1px dashed rgb(167 146 224 / 48%);
+  border-radius: 10px;
+  background: rgb(247 244 253 / 72%);
+  color: var(--color-flow-faint);
+  cursor: pointer;
+  text-align: left;
+}
+
+.rebirthSlot small,
+.rebirthSlot strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rebirthSlot small { font-size: 5.5px; }
+.rebirthSlot strong { margin-top: 3px; color: var(--color-flow-muted); font-size: 7px; }
+.rebirthSlotFilled { border-style: solid; border-color: rgb(167 146 224 / 55%); background: rgb(239 234 250 / 92%); }
+.rebirthSlotFilled strong { color: var(--color-flow-accent); }
 .focusCard[data-rarity="普通"] .focusCopy > strong { color: #7b8792; }
 .focusCard[data-rarity="精良"] .focusCopy > strong { color: #5b8877; }
 .focusCard[data-rarity="稀有"] .focusCopy > strong { color: #4f7898; }
@@ -809,6 +838,56 @@
   72% { border-width: .4px; opacity: .07; }
   100% { border-width: .2px; opacity: 0; transform: translate(-50%, -50%) scale(8.2); }
 }
+
+.candidateHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  width: min(100%, 300px);
+  margin: 10px auto 0;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--color-flow-line);
+}
+
+.candidateHead strong { color: var(--color-flow-ink); font-size: 8px; }
+.candidateHead strong small { margin-left: 4px; color: var(--color-flow-faint); font-size: 6px; font-weight: 500; }
+.candidateHead > span { color: var(--color-flow-faint); font-size: 6px; }
+
+.candidateList {
+  display: grid;
+  gap: 7px;
+  width: min(100%, 300px);
+  margin: 6px auto 0;
+  padding-bottom: 16px;
+}
+
+.candidateCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 7px;
+  min-width: 0;
+  min-height: 70px;
+  padding: 8px 9px;
+  border: 1px solid rgb(109 127 148 / 28%);
+  border-radius: 9px;
+  background: rgb(255 255 255 / 94%);
+  color: var(--color-flow-ink);
+  cursor: pointer;
+  text-align: left;
+}
+
+.candidateCard:hover,
+.candidateCard:focus-visible { border-color: rgb(109 127 148 / 58%); background: var(--color-flow-accent-soft); }
+.candidateCardSelected { border-color: rgb(109 127 148 / 55%); background: rgb(239 243 247 / 90%); opacity: .56; }
+.candidateCardPending { align-items: center; border-style: dashed; color: var(--color-flow-faint); cursor: wait; }
+.candidateCard:disabled { opacity: .62; }
+.candidateCopy { display: flex; min-width: 0; flex-direction: column; }
+.candidateCopy strong { overflow: hidden; color: var(--color-flow-ink); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.candidateCopy span { margin-top: 4px; overflow-wrap: anywhere; color: var(--color-flow-muted); font-size: 6.5px; line-height: 1.42; }
+.candidateRarity { align-self: start; padding: 3px 4px; border-radius: 5px; background: var(--color-flow-accent-soft); color: var(--color-flow-accent); font-size: 5.5px; font-weight: 700; }
+.candidateEffects { grid-column: 1 / -1; overflow-wrap: anywhere; color: var(--color-flow-faint); font-size: 5.7px; line-height: 1.35; }
+.candidatePendingCopy { font-size: 6.5px; }
 
 @keyframes talent-library-enter {
   from { opacity: 0; transform: translate(-50%, 16px); }

@@ -16,6 +16,7 @@ import { IMMERSION_TWO_PASS_ENABLED } from '../constants'
 export interface ImmersionWarmupOptions {
   config: AIModelConfig
   sessionId?: string
+  signal?: AbortSignal
   apiKey?: string
   providerId?: string
   customBaseUrl?: string
@@ -61,6 +62,7 @@ export async function runImmersionWarmupPass(
       config: options.config,
       pool: 'narrative',
       sessionId: options.sessionId,
+      signal: options.signal,
       providerId: options.providerId,
       customBaseUrl: options.customBaseUrl,
       customModel: options.customModel,

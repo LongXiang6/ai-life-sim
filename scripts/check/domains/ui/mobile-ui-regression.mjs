@@ -147,11 +147,11 @@ assertOk(
   'creation routes must redirect to the nearest missing prerequisite after persisted stores hydrate',
 )
 assertOk(
-  attributeAllocPageSrc.includes('const TOTAL_POINTS = 30')
+  attributeAllocPageSrc.includes('const TOTAL_POINTS = 15')
     && attributeAllocPageSrc.includes('const MAX_VALUE = 10')
     && attributeAllocPageSrc.includes('setCharacterBase({')
     && attributeAllocPageSrc.includes("router.push('/fate-preview')"),
-  'the creation flow must expose the confirmed 30-point four-attribute allocation step',
+  'the creation flow must expose the confirmed 15-point four-attribute allocation step',
 )
 assertOk(welcomePageSrc.includes("import WelcomeView from './WelcomeView'"), 'welcome page must use the single responsive WelcomeView')
 assertOk(!welcomePageSrc.includes('useIsMobile'), 'welcome page must not switch desktop/mobile DOM after hydration')
@@ -355,7 +355,7 @@ assertOk(productDecisionsSrc.includes('欢迎 → 世界选择 → 世界配置 
 assertOk(worldSelectMobileSrc.includes('<span>02 / 07</span>') && !worldSelectMobileSrc.includes('WORLD · ORIGIN') && worldSelectBottomBarSrc.includes('nextNumber}>03'), 'world selection must use the unified step-02 header and advance to step 03')
 assertOk(worldCustomizeMobileSrc.includes('<span>03 / 07</span>') && !worldCustomizeMobileSrc.includes('WORLD · CHARTER') && worldCustomizeBottomBarSrc.includes('nextNumber}>04'), 'world customization must use the unified step-03 header and advance to step 04')
 assertOk(characterCreateMobileSrc.includes('<span>04 / 07</span>') && !characterCreateMobileSrc.includes('CHARACTER · ORIGIN') && characterBottomBarSrc.includes('nextNumber}>05'), 'character creation must use the unified step-04 header and advance to step 05')
-assertOk(talentDrawPageSrc.includes("phase === 'selecting' ? '06' : '05'") && talentDrawPageSrc.includes("phase === 'selecting' ? '07' : '06'") && talentDrawPageSrc.includes("/ 07</span>"), 'talent draw and selection must occupy creation steps 05 and 06 before final review')
+assertOk(talentDrawPageSrc.includes("phase === 'selecting' ? '06' : '05'") && talentDrawPageSrc.includes("phase === 'selecting' ? '07' : '06'") && talentDrawPageSrc.includes("/ 08</span>"), 'talent draw and selection must occupy creation steps 05 and 06 before final review')
 assertOk(
   !talentDrawPageSrc.includes('CREATION FLOW ·')
     && talentDrawCssSrc.includes('.titleMark::after')
@@ -368,7 +368,7 @@ assertOk(
   'TD-RF17-1 and MI-RF1-1 must share exactly one runtime TalentAstrolabe instance',
 )
 assertOk(
-  talentAstrolabeSrc.includes('aria-label="五星位命格星盘"')
+  talentAstrolabeSrc.includes('aria-label="十二位命格星盘"')
     && talentAstrolabeSrc.includes('<span aria-hidden="true">命</span>'),
   'the shared talent astrolabe must preserve the approved five-position identity and center glyph',
 )
@@ -383,7 +383,7 @@ assertOk(
   !/window\.setInterval\([\s\S]*?4000\s*\)/.test(talentDrawPageSrc)
     && /const\s+handleTurnAstrolabe[\s\S]{0,360}handleFocusSlot\(next\)/.test(talentDrawPageSrc)
     && talentDrawPageSrc.includes('onTurn={handleTurnAstrolabe}')
-    && talentDrawPageSrc.includes('五条命格已就绪 · 由你手动转动命盘')
+    && talentDrawPageSrc.includes('onTurn={handleTurnAstrolabe}')
     && !talentDrawPageSrc.includes('持续轮转')
     && talentAstrolabeSrc.includes('aria-label="转动命格星盘"')
     && talentAstrolabeSrc.includes('eventRippleMain')
@@ -419,7 +419,7 @@ assertOk(
     && fateNodeHeights.every((value) => value === '48px'),
   'all TalentAstrolabe fate nodes must preserve the approved 48px size',
 )
-assertOk(fatePreviewPageSrc.includes('<span>07 / 07</span>') && !fatePreviewPageSrc.includes('FATE · PREVIEW') && fatePreviewPageSrc.includes('confirmNumber="完成"'), 'fate preview must use the unified final step and close the creation flow')
+assertOk(fatePreviewPageSrc.includes('<span>08 / 08</span>') && !fatePreviewPageSrc.includes('FATE · PREVIEW') && fatePreviewPageSrc.includes('confirmNumber="完成"'), 'fate preview must use the unified final step and close the creation flow')
 assertOk(
   fatePreviewPageSrc.includes('useCreationStoresHydrated()')
     && fatePreviewPageSrc.includes("router.replace('/new-game/world-select')")
@@ -642,8 +642,8 @@ assertOk(
     && prototypeFlowPageSrc.includes('aspect-ratio: 430 / 932')
     && prototypeFlowPageSrc.includes('.preview-stage { justify-content: start; padding: 0; }')
     && prototypeFlowPageSrc.includes('.preview-frame-wrap { width: 100vw; }')
-    && prototypeFlowPageSrc.includes('welcome/round-19-rf4-b-refinement.html?preview=20260723-ui-sync-5')
-    && prototypeFlowPageSrc.includes("const previewRevision = '20260723-ui-sync-5'"),
+    && prototypeFlowPageSrc.includes('welcome/round-19-rf4-b-refinement.html?preview=20260723-ui-sync-16')
+    && prototypeFlowPageSrc.includes("const previewRevision = '20260723-ui-sync-16'"),
   'the solution-library preview must retain the Pro Max 430x932 canvas, scale down proportionally and use the current cache revision',
 )
 assertOk(
@@ -678,25 +678,37 @@ assertOk(
   'talent draw must expose the unified creation title structure above the draw effects',
 )
 assertOk(
-  prototypeFateSelectSrc.includes('.mi-b1 .rebirth-slot { position: relative; display: flex; height: 64px; min-height: 64px; max-height: 64px;')
-    && prototypeFateSelectSrc.includes('.mi-b1 .ordinary-slot { position: relative; display: flex; height: 72px; min-height: 72px; max-height: 72px;')
-    && /\.slot-description\s*\{[\s\S]{0,220}overflow-y:\s*auto;/.test(prototypeFateSelectSrc)
-    && prototypeFateSelectSrc.includes('margin: 5px -6px 0')
-    && prototypeFateSelectSrc.includes('padding: 12px 18px 96px')
+  prototypeFateSelectSrc.includes('.mi-b1 .rebirth-slot,')
+    && prototypeFateSelectSrc.includes('.mi-b1 .ordinary-slot {')
+    && prototypeFateSelectSrc.includes('height: 32px;')
+    && prototypeFateSelectSrc.includes('border-radius: 999px;')
+    && prototypeFateSelectSrc.includes('seal-breathe')
+    && prototypeFateSelectSrc.includes('rebirth-seal-halo')
+    && prototypeFateSelectSrc.includes('--halo-delay')
+    && prototypeFateSelectSrc.includes("slot.innerHTML = '<strong>＋</strong>'")
+    && prototypeFateSelectSrc.includes('slot.innerHTML = `<strong>${item.name}</strong>`')
+    && !prototypeFateSelectSrc.includes('slot-description')
+    && !prototypeFateSelectSrc.includes('renderSlotBonuses')
+    && !prototypeFateSelectSrc.includes('height: 88px; min-height: 88px; max-height: 88px;')
+    && !prototypeFateSelectSrc.includes('height: 96px; min-height: 96px; max-height: 96px;')
+    && prototypeFateSelectSrc.includes('margin: 5px -12px 0')
+    && prototypeFateSelectSrc.includes('padding: 14px 16px 96px')
     && prototypeFateSelectSrc.includes('flex: 1 1 0')
     && prototypeFateSelectSrc.includes('min-height: 76px')
     && prototypeFateSelectSrc.includes('-webkit-line-clamp: 2')
-    && prototypeFateSelectSrc.includes("return `${attrLabels[key] || key} ${value > 0 ? '+' : '−'}`")
-    && prototypeFateSelectSrc.includes("return `${modifierLabels[key] || key} ${delta >= 0 ? '+' : '−'}`")
-    && prototypeFateSelectSrc.includes('.slot-bonus,')
-    && prototypeFateSelectSrc.includes('font-size: 7px; line-height: 1.1;'),
-  'selected fate slots must keep fixed card sizes, preserve glow gutters and scrollable full descriptions, and keep compact sign-only bonus labels',
+    && prototypeFateSelectSrc.includes('grid-column: 1 / -1')
+    && prototypeFateSelectSrc.includes('<span class="candidate-effects">${renderCandidateEffects(item)}</span></button>')
+    && prototypeFateSelectSrc.includes("return `${attrLabels[key] || key} ${sign}${Math.abs(value)}`")
+    && prototypeFateSelectSrc.includes("return `${modifierLabels[key] || key} ${sign}${Math.abs(delta)}%`")
+    && prototypeFateSelectSrc.includes('.candidate-effect { padding: 1px 3px; font-size: 7px; line-height: 1.1; }'),
+  'selected fate upper slots must use compact seal chips for names only while candidate cards keep glow gutters and numeric bonus labels',
 )
 assertOk(
   prototypeFateSelectSrc.includes("if (slot.dataset.name) {")
     && prototypeFateSelectSrc.includes('renderRebirthSlot(slot, null)')
-    && prototypeFateSelectSrc.includes("CreationFlow.notify(`已移除${name}`)"),
-  'selected rebirth slots must support click-to-remove without reopening the picker',
+    && !/renderRebirthSlot\(slot, null\)[\s\S]{0,120}CreationFlow\.notify\(`已移除\$\{name\}`\)/.test(prototypeFateSelectSrc)
+    && !/renderSlot\(slot, null\);\s*update\(\);\s*CreationFlow\.notify\(`已移除\$\{name\}`\)/.test(prototypeFateSelectSrc),
+  'selected rebirth and ordinary slots must support click-to-remove without a bottom toast',
 )
 assertOk(
   prototypeAttributeSrc.includes('<title>属性分配 · AA-RF1-1 布局</title>')
@@ -725,6 +737,34 @@ assertOk(
     && prototypeGameStorySrc.includes('applyFlowState(root)')
     && prototypeGameStorySrc.includes('item.textContent = talent.name')
     && prototypeGameStorySrc.includes('Array.isArray(flow.rebirths)')
+    && prototypeGameStorySrc.includes('mode-jade-flow mode-branch-bare')
+    && !prototypeGameStorySrc.includes('mode-ink-celadon mode-jade-flow')
+    && prototypeGameStorySrc.includes('--accent: #7382bb;')
+    && prototypeGameStorySrc.includes('body[data-screen="game-story"] .story-prose { color: var(--ink); }')
+    && prototypeGameStorySrc.includes('body[data-screen="game-story"] .state-change { color: var(--accent-deep); }')
+    && prototypeGameStorySrc.includes('class="reader-bar bar-status"')
+    && prototypeGameStorySrc.includes('class="bar-attrs"')
+    && prototypeGameStorySrc.includes('class="bar-talents"')
+    && prototypeGameStorySrc.includes('data-flow-bar-talents')
+    && prototypeGameStorySrc.includes('data-flow-bar-rebirths')
+    && prototypeGameStorySrc.includes('.bar-talents { display: flex; flex-wrap: wrap;')
+    && prototypeGameStorySrc.includes('.bar-vitals { display: grid; grid-template-columns: minmax(0,1fr) auto;')
+    && prototypeGameStorySrc.includes('bar-rebirth-flow')
+    && prototypeGameStorySrc.includes('class="step-menu"')
+    && prototypeGameStorySrc.includes('class="step-button"')
+    && prototypeGameStorySrc.includes('class="step-menu-panel"')
+    && prototypeGameStorySrc.includes('bar-actions')
+    && /stepMenuMarkup\(\) \+ forceMarkup\(\)/.test(prototypeGameStorySrc)
+    && !prototypeGameStorySrc.includes('<section class="info-block info-progress">')
+    && !prototypeGameStorySrc.includes('class="step-grid"')
+    && !prototypeGameStorySrc.includes('<strong>推进步长</strong>')
+    && prototypeGameStorySrc.includes('data-flow-attribute="physique"')
+    && prototypeGameStorySrc.includes('data-flow-attribute="mind"')
+    && prototypeGameStorySrc.includes('data-flow-attribute="talentAptitude"')
+    && prototypeGameStorySrc.includes('data-flow-attribute="charisma"')
+    && !prototypeGameStorySrc.includes('story-back')
+    && !prototypeGameStorySrc.includes('data-flow-back="fate-preview"')
+    && !/infoPanelMarkup[\s\S]*data-flow-attribute="physique"/.test(prototypeGameStorySrc)
     && prototypeGameOverSrc.includes('data-life-name')
     && prototypeGameOverSrc.includes('data-radar-area')
     && prototypeGameOverSrc.includes('GAME OVER · A1-2D4A1A')
@@ -739,7 +779,7 @@ assertOk(
     && prototypeGameOverSrc.includes('.bottom { position: absolute; z-index: 8; right: 14px; bottom: 12px; left: 14px;')
     && !prototypeGameOverSrc.includes('mobile-action-bar-unified.css')
     && !prototypeGameOverSrc.includes('cc-rf9-adapt-base.css'),
-  'core simulation and A1-2D4A1A settlement must consume the same session identity with the adapted floating action bar',
+  'core simulation must use a two-row status bar with attributes, talent chips and a step dropdown beside force-branch, drop the top-bar back button, keep gray-blue paper, and settlement must consume the same session identity',
 )
 
 if (failed === 0) {

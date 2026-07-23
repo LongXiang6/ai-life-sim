@@ -206,7 +206,11 @@ export function NarrativeTimeline({
               {branchOptions.length > 0 && (
                 <div className={styles.branchOptionsList}>
                   {branchOptions.map((option, optIdx) => (
-                    <label key={optIdx} className={styles.branchOption}>
+                    <label
+                      key={optIdx}
+                      className={styles.branchOption}
+                      onClick={() => onBranchSelect?.(String(optIdx))}
+                    >
                       <input
                         type="radio"
                         name={`branch-${i}`}

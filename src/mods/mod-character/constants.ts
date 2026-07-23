@@ -118,11 +118,23 @@ export const DESTINY_PATTERN_RARITY_LIMITS: Partial<Record<DestinyPatternRarity,
   epic: 6,
 }
 
-/** 默认生成候选命格数（抽5） */
-export const DEFAULT_DESTINY_PATTERN_COUNT = 5
+/** 首屏交接所需的有效命格数；达到后剩余候选在后台静默补齐。 */
+export const DESTINY_PATTERN_EARLY_READY_COUNT = 5
+
+/** 定版命格选择页展示的普通候选数。 */
+export const DESTINY_PATTERN_DISPLAY_COUNT = 12
+
+/** 旧调用方兼容别名：默认值仍表示首屏交接门槛，不代表展示槽位数。 */
+export const DEFAULT_DESTINY_PATTERN_COUNT = DESTINY_PATTERN_EARLY_READY_COUNT
 
 /** 玩家选择数量（选3，对齐废弃项目 TALENT_SELECT_COUNT） */
 export const DESTINY_PATTERN_SELECT_COUNT = 3
+
+/** 每局最多携带的转世天赋数量。 */
+export const MYTHIC_PATTERN_SELECT_COUNT = 2
+
+/** 结算页一次生成的转世天赋候选数。 */
+export const MYTHIC_PATTERN_CANDIDATE_COUNT = 3
 
 /** AI 批量生成：每路请求正好 10 条，后台最多 10 批填满约 100 条本地池。 */
 export const AI_DESTINY_PATTERN_BATCH_SIZE = 10

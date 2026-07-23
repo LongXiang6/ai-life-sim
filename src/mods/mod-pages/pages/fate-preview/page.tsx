@@ -151,7 +151,7 @@ function FatePreviewContent() {
   const background = useCharacterStore((s) => s.background)
   const characterBase = useCharacterStore((s) => s.characterBase)
   const destinyPatterns = useCharacterStore((s) => s.destinyPatterns)
-  const equippedMythicPattern = useCharacterStore((s) => s.equippedMythicPattern)
+  const equippedMythicPatterns = useCharacterStore((s) => s.equippedMythicPatterns)
   const lifespan = useCharacterStore((s) => s.lifespan)
   const talents = useCharacterStore((s) => s.talents)
 
@@ -317,7 +317,7 @@ function FatePreviewContent() {
         <div className={styles.paper}>
           <span className={styles.spine} aria-hidden="true" />
           <header className={styles.header}>
-            <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>07 / 07</span></div>
+            <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>08 / 08</span></div>
             <div className={styles.titleRow}>
               <div>
                 <h1 className={styles.headerTitle}>核对命书</h1>
@@ -385,12 +385,16 @@ function FatePreviewContent() {
             </div>
             <div className={styles.mythicSlot} aria-label="本局转世天赋">
               <div>
-                <small>转世天赋 · 独立槽</small>
-                <strong>{equippedMythicPattern?.name ?? '本局不携带'}</strong>
+                <small>转世天赋 · 最多 2 项</small>
+                {equippedMythicPatterns.length > 0
+                  ? equippedMythicPatterns.map((pattern) => <strong key={pattern.id}>{pattern.name}</strong>)
+                  : <strong>本局不携带</strong>}
               </div>
-              <p>{equippedMythicPattern
-                ? `${equippedMythicPattern.concept}：${equippedMythicPattern.effect}`
-                : '不占三个普通命格；可返回命格选择页从跨局总库装备。'}</p>
+              <div>
+                {equippedMythicPatterns.length > 0
+                  ? equippedMythicPatterns.map((pattern) => <p key={pattern.id}>{pattern.concept}：{pattern.effect}</p>)
+                  : <p>不占三个普通命格；可返回命格选择页从跨局总库装备。</p>}
+              </div>
             </div>
             {talents.length > 0 && (
               <div className={styles.talentPills} aria-label="角色天赋">

@@ -94,7 +94,7 @@ check(
   'Product/OpeningFlow/AttributeAllocation',
   'Does the player allocate the four owned base attributes before fate preview?',
   () => requireFragments('src/mods/mod-pages/pages/attribute-alloc/page.tsx', [
-    'const TOTAL_POINTS = 30',
+    'const TOTAL_POINTS = 15',
     'const MAX_VALUE = 10',
     'setCharacterBase({',
     "router.push('/fate-preview')",
@@ -180,7 +180,7 @@ check(
     const stores = [
       ['src/mods/mod-world/store.ts', "name: 'mod-world:persist:world-state'", 'version: 6'],
       ['src/mods/mod-settings/store.ts', "name: 'mod-settings:store'", 'version: 8'],
-      ['src/mods/mod-character/store.ts', "name: 'mod-character:persist:character-state'", 'version: 3'],
+      ['src/mods/mod-character/store.ts', "name: 'mod-character:persist:character-state'", 'version: 4'],
       ['src/mods/mod-engine/store.ts', "name: 'mod-engine:persist:engine-state'", 'version: 2'],
     ]
     for (const [relativePath, name, version] of stores) requireFragments(relativePath, [name, version])

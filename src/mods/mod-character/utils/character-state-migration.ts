@@ -13,6 +13,7 @@ import type {
   MythicPattern,
   MythicPatternCandidate,
 } from '../types'
+import { MYTHIC_PATTERN_SELECT_COUNT } from '../constants'
 
 const BASE_ATTRIBUTE_KEYS = ['physique', 'mind', 'talentAptitude', 'charisma'] as const
 
@@ -186,10 +187,21 @@ export function sanitizeCharacterStateSnapshot(value: unknown): Record<string, u
         .map(sanitizeMythicPatternCandidate)
         .filter((item): item is MythicPatternCandidate => item !== null)
     : []
-  const equippedMythicPattern = sanitizeMythicPattern(record.equippedMythicPattern)
+  const legacyEquipped = sanitizeMythicPattern(record.equippedMythicPattern)
+  const equippedMythicPatterns = (Array.isArray(record.equippedMythicPatterns)
+    ? record.equippedMythicPatterns.map(sanitizeMythicPattern).filter((item): item is MythicPattern => item !== null)
+    : legacyEquipped
+      ? [legacyEquipped]
+      : [])
+    .filter((pattern, index, patterns) => patterns.findIndex((candidate) => candidate.id === pattern.id) === index)
+    .slice(0, MYTHIC_PATTERN_SELECT_COUNT)
+
+  // The singular field was the old persistence shape. Remove it after migration
+  // so the array remains the only durable source of equipped reincarnation rules.
+  const { equippedMythicPattern: _legacyEquipped, ...recordWithoutLegacyMythic } = record
 
   return {
-    ...record,
+    ...recordWithoutLegacyMythic,
     characterId: typeof record.characterId === 'string' && record.characterId.trim()
       ? record.characterId.trim()
       : createGlobalCharacterId(),
@@ -197,7 +209,7 @@ export function sanitizeCharacterStateSnapshot(value: unknown): Record<string, u
     destinyPatterns: sanitizeDestinyPatternState(record.destinyPatterns),
     talents,
     mythicCandidates,
-    equippedMythicPattern,
+    equippedMythicPatterns,
     sealedMythicPatternId: typeof record.sealedMythicPatternId === 'string'
       ? record.sealedMythicPatternId
       : null,

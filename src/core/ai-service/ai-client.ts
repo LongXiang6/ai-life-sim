@@ -1067,6 +1067,13 @@ export async function callAIDegraded(
   fallbackText: string,
   options: AICallOptions,
 ): Promise<string> {
+  const throwIfAborted = () => {
+    if (!options.signal?.aborted) return
+    const error = new Error('AI request aborted')
+    error.name = 'AbortError'
+    throw error
+  }
+
   // L0: 尝试对话式调用
   try {
     const result = await callAIConversation(messages, options)
@@ -1076,6 +1083,7 @@ export async function callAIDegraded(
     // 空响应也视为失败
     throw new Error('AI returned empty response')
   } catch {
+    throwIfAborted()
     // 对话式失败，降级到单轮（Toast 已在 executeAiFetchWithRetry 层触发）
   }
 
@@ -1098,10 +1106,12 @@ export async function callAIDegraded(
       throw new Error('AI returned empty response at L1')
     }
   } catch {
+    throwIfAborted()
     // 单轮也失败，降级为兜底文本（Toast 已在 executeAiFetchWithRetry 层触发）
   }
 
   // L2: 兜底文本
+  throwIfAborted()
   logFallbackAICall(messages, fallbackText, options, options.pool ?? 'narrative', 'degraded-L2')
   return fallbackText
 }

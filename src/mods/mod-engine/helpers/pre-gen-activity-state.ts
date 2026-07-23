@@ -6,11 +6,13 @@
 
 /**
  * 预生成队列会被步长切换、分支选择等动作失效，但在途 AI 请求不会同步结束。
- * 该状态对象保证失效只废弃结果，不会提前释放 orchestrator 单写者。
+ * 该状态对象同时管理结果代次、在途请求取消和后台任务生命周期。
+ * 失效会立即取消 AI 请求；主推进仍需等预览清理完成后再接管单写者。
  */
 export class PreGenActivityState {
   private generation = 0
   private activeGeneration: number | null = null
+  private activeController: AbortController | null = null
 
   begin(): number {
     if (this.activeGeneration !== null) {
@@ -18,11 +20,13 @@ export class PreGenActivityState {
     }
     const generation = ++this.generation
     this.activeGeneration = generation
+    this.activeController = new AbortController()
     return generation
   }
 
   invalidate(): void {
     this.generation += 1
+    this.activeController?.abort()
   }
 
   isCurrent(generation: number): boolean {
@@ -30,12 +34,23 @@ export class PreGenActivityState {
   }
 
   isActive(): boolean {
+    return this.activeGeneration !== null && this.activeGeneration === this.generation
+  }
+
+  /** 后台请求仍在执行；用于防止失效任务与新补池任务并发写 orchestrator。 */
+  isRunning(): boolean {
     return this.activeGeneration !== null
+  }
+
+  getSignal(generation: number): AbortSignal | undefined {
+    if (this.activeGeneration !== generation) return undefined
+    return this.activeController?.signal
   }
 
   finish(generation: number): void {
     if (this.activeGeneration === generation) {
       this.activeGeneration = null
+      this.activeController = null
     }
   }
 }

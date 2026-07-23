@@ -107,11 +107,11 @@
 
 ### 2.7 四项属性分配创建链
 
-活动创建流程在命格确认后进入 `/attribute-alloc`：玩家拥有 30 点预算，在体魄、心智、悟性、魅力四项间以每项 `0—10` 分配；未用完点数只在明确确认后保留。确认值由 `character-base` Store 持有，并在命运预览、orchestrator 上下文和首轮提交中保持一致。命格、种族、伤病和其他合法来源继续以独立 modifier 聚合，不占自由预算；后续变化只能由主叙事合法增量经 `character-base` 校验、钳制、提交和持久化。
+活动创建流程在命格确认后进入 `/attribute-alloc`：新人生拥有 15 点预算，在体魄、心智、悟性、魅力四项间以每项 `0—10` 分配；未用完点数只在明确确认后保留。确认值由 `character-base` Store 持有，并在命运预览、orchestrator 上下文和首轮提交中保持一致。命格、种族、伤病和其他合法来源继续以独立 modifier 聚合，不占自由预算；后续变化只能由主叙事合法增量经 `character-base` 校验、钳制、提交和持久化。旧存档的既有值不被静默压缩。
 
 `test:creation-first-narrative`、UI、TypeScript、浏览器 430×932 全流程和 320—1180px 响应式切片通过；旧存档不被批量重写。
 
-移动端方案库现串联欢迎、账号、世界、角色、命格、转世天赋、属性、预览、模拟、结算、设置、说明和反馈共 14 个页面，并以 Pro Max `430×932` 观察框展示。方案库以单一可重置 session state 传递世界、角色、十二项命格候选、两项转世天赋与属性预览数据；既有页面保留原定版背景、主题、配色、纹样、光效、布局和控件比例。方案库的 15 点属性原型是后续 UI 目标，不改变运行时 `character-base` 的 30 点预算。欢迎、世界选择、世界配置的真实点击串联与 430×932 布局通过浏览器验证。
+移动端方案库现串联欢迎、账号、世界、角色、命格、转世天赋、属性、预览、模拟、结算、设置、说明和反馈共 14 个页面，并以 Pro Max `430×932` 观察框展示。方案库以单一可重置 session state 传递世界、角色、十二项命格候选、两项转世天赋与属性预览数据；运行时已按当前定版落地 15 点四项基础属性分配，旧存档值保持兼容。既有页面保留原定版背景、主题、配色、纹样、光效、布局和控件比例。欢迎、世界选择、世界配置的真实点击串联与 430×932 布局通过浏览器验证。
 
 2026-07-23 `ui-sync-5` 原型收束验收：`flow.html` 使用统一 `20260723-ui-sync-5` revision 串联 10 个主流程页面与 4 个辅助页面；欢迎 → 世界选择 → 世界配置真实点击链在 430×932 通过，`scrollWidth = 430` 无横向溢出。命格选取页的固定卡槽、完整描述滚动和已选转世天赋点击移除均有回归断言；`npm run check:ui` 与 `npm run gate-check:quick` 通过。
 
@@ -179,11 +179,27 @@
 
 `Result: pass`
 
-`Evidence: branch-intent-resolution-smoke.mjs 运行级玩家路径（含标准信封、非法条件数据、强制分支和 body-only 降级）；runtime-subsystem-state-regression.mjs；narrative-chinese-protocol-regression.mjs；no-hard-truncation-audit.mjs；ESLint；TypeScript`
+`Evidence: branch-intent-resolution-smoke.mjs 运行级玩家路径（含标准信封、非法条件数据、强制分支和 body-only 降级）；test:branch-flow:browser（真实 Puppeteer 选项点击、确认、历史 resolvedChoice 与下一次请求）；runtime-subsystem-state-regression.mjs；narrative-chinese-protocol-regression.mjs；no-hard-truncation-audit.mjs；DeepSeek deepseek-v4-flash 全流程浏览器切片；ESLint；TypeScript`
 
 `KnownLimitations: 若模型持续不返回合法命运意图或强制分支 META，相关状态保持 pending 并由预生成或后续轮次继续请求；本轮不会伪造成功、失败、进度或分支结果。只有正文/结束标记不完整时仍会同步进行一次最小协议修复。`
 
 `Supersession: 取代此前“条件 META 失败后整轮回滚并抛出生成失败”的运行实现；产品语义仍以 PD-016/PD-017 为准。`
+
+<a id="deepseek-legacy-comparison"></a>
+
+### 2.15 DeepSeek 全流程与废弃版本基线对比
+
+`LastVerified: 2026-07-23`
+
+`Authority: PD-016, PD-017, blueprint-02 P0-P8`
+
+`Result: pass with known capability gap`
+
+`Evidence: 官方 Provider=deepseek、Model=deepseek-v4-flash；真实浏览器创建→十二候选命格→两项转世天赋→15点四维属性→命运预览→4轮主叙事，4次代理请求均无客户端 Key、4条正文写入、零控制台错误；BAL-01—04 压力切片全部通过。废弃项目 orchestrator-v2 真实本地100轮为0异常但 priceIndex 110.94→8.94e22、population 5038→50、health 100→8.5；新版纯规则100轮为0异常、totalDays 365→36500、13个外部系统+12个引擎系统稳定。`
+
+`Comparison: 旧版同步重建约55个世界/社会/角色系统并返回49字段文本上下文，缺少 contextId/scope/能力画像/原子历史账本，宏观公式存在 runaway；新版以唯一 TimeSystem、Orchestrator 阶段机、作用域能力画像和 P1 历史事件账本为运行权威，但当前仅启用 MVP 四个主叙事可写角色系统，P2-P8 的 NPC/关系、空间资源、成长评价、健康衰老、人口经济、社会文明和世界观插件仍按蓝图延后。`
+
+`Required follow-up: 恢复 P5-P7 时必须沿用 core/shared 平衡入口，为人口、价格、资源和健康等宏观指标登记范围、单调性与速率上限，使用确定性/均值回归并把变更作为历史账本原子批次提交；不得直接迁回旧版三大域或其无上限公式。`
 
 ## 3. 阶段与发布验收摘要
 

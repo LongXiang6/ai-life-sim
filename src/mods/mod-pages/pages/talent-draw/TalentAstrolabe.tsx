@@ -46,7 +46,7 @@ export function TalentAstrolabe({
   const turnAngle = rotationSteps * (360 / patterns.length)
 
   return (
-    <div className={styles.astrolabe} aria-label="五星位命格星盘">
+    <div className={styles.astrolabe} aria-label="十二位命格星盘">
       <div className={styles.aura} aria-hidden="true" />
       <div className={styles.orbit} aria-hidden="true" />
       <div className={styles.orbitInner} aria-hidden="true" />

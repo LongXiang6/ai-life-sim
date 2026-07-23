@@ -14,7 +14,8 @@ import {
   PRESET_DESTINY_PATTERNS,
   DESTINY_PATTERN_RARITY_WEIGHTS,
   DESTINY_PATTERN_RARITY_LIMITS,
-  DEFAULT_DESTINY_PATTERN_COUNT,
+  DESTINY_PATTERN_EARLY_READY_COUNT,
+  DESTINY_PATTERN_DISPLAY_COUNT,
   DESTINY_PATTERN_SELECT_COUNT,
   DESTINY_PATTERN_ID_PREFIX,
   AI_DESTINY_PATTERN_BATCH_SIZE,
@@ -77,7 +78,7 @@ export class DestinyPatternSystem extends BaseSubsystem {
   readonly id = 'destiny-pattern' as const
   readonly mod = 'mod-character' as const
   readonly label = '命格' as const
-  readonly description = '管理角色命格池，支持抽5选3 + AI 流式生成 + 内置预设双模式' as const
+  readonly description = '管理角色命格池，支持抽12选3、首屏五条早交接 + AI 流式生成 + 内置预设双模式' as const
 
   private idCounter = 0
   private callAI: ((systemPrompt: string, userPrompt: string, options?: unknown) => Promise<string>) | null = null
@@ -163,8 +164,8 @@ export class DestinyPatternSystem extends BaseSubsystem {
 
   // -------- 公共方法 --------
 
-  /** 内置模式：从预设池随机生成候选命格（抽5，暂存 candidates，不直接写入 patterns） */
-  generateFromPresets(count = DEFAULT_DESTINY_PATTERN_COUNT): DestinyPattern[] {
+  /** 内置模式：从预设池随机生成候选命格（展示 12 条，暂存 candidates，不直接写入 patterns） */
+  generateFromPresets(count = DESTINY_PATTERN_DISPLAY_COUNT): DestinyPattern[] {
     const pool = PRESET_DESTINY_PATTERNS.filter((pattern) => pattern.polarity !== 'negative')
     const result: DestinyPattern[] = []
 
@@ -267,7 +268,7 @@ export class DestinyPatternSystem extends BaseSubsystem {
     this.abortPoolFill()
 
     const targetCount = Math.max(
-      DEFAULT_DESTINY_PATTERN_COUNT,
+      DESTINY_PATTERN_EARLY_READY_COUNT,
       options?.targetCount ?? AI_DESTINY_PATTERN_BATCH_SIZE * AI_DESTINY_PATTERN_BATCH_COUNT,
     )
     const seededPatterns = this.dedupePatterns(options?.initialPatterns ?? [])
@@ -317,7 +318,7 @@ export class DestinyPatternSystem extends BaseSubsystem {
     }
 
     const fireEarlyReady = (): void => {
-      if (earlyReadyFired || allPatterns.length < DEFAULT_DESTINY_PATTERN_COUNT) return
+      if (earlyReadyFired || allPatterns.length < DESTINY_PATTERN_EARLY_READY_COUNT) return
       earlyReadyFired = true
       onEarlyReady?.([...allPatterns])
       resolveEarlyReady?.()

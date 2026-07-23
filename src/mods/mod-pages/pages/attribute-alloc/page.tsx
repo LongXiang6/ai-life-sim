@@ -20,7 +20,10 @@ import { BottomActionBar } from '@/mods/mod-ui'
 import { useCreationStoresHydrated } from '../../hooks/useCreationStoresHydrated'
 import styles from './AttributeAlloc.module.css'
 
-const TOTAL_POINTS = 30
+// The selected mobile flow is the product authority for new-life creation.
+// Existing saves may still contain a legacy allocation above this budget; those
+// values are preserved and can only be confirmed, never silently rewritten.
+const TOTAL_POINTS = 15
 const MIN_VALUE = 0
 const MAX_VALUE = 10
 
@@ -57,7 +60,7 @@ function AttributeAllocContent() {
     () => ATTRIBUTES.reduce((total, attribute) => total + attributes[attribute.key], 0),
     [attributes],
   )
-  const remainingPoints = TOTAL_POINTS - usedPoints
+  const remainingPoints = Math.max(0, TOTAL_POINTS - usedPoints)
 
   useEffect(() => {
     if (!showUnusedDialog) return
@@ -104,7 +107,7 @@ function AttributeAllocContent() {
       <main className={styles.page}>
         <div className={styles.paper}>
           <header className={styles.header}>
-            <span>07 / 08</span>
+            <span>06 / 08</span>
             <h1>分配属性</h1>
           </header>
 
@@ -114,7 +117,7 @@ function AttributeAllocContent() {
               <strong>{remainingPoints}</strong>
             </div>
             <div className={styles.meter} role="progressbar" aria-valuemin={0} aria-valuemax={TOTAL_POINTS} aria-valuenow={usedPoints}>
-              {Array.from({ length: 15 }, (_, index) => (
+              {Array.from({ length: TOTAL_POINTS }, (_, index) => (
                 <i key={index} className={index < Math.ceil(usedPoints / 2) ? styles.activeSegment : ''} />
               ))}
             </div>
@@ -155,7 +158,7 @@ function AttributeAllocContent() {
         backTitle="返回命格选择"
         onConfirm={handleConfirm}
         confirmText="确认属性"
-        confirmNumber="08"
+        confirmNumber="07"
         confirmDescription={remainingPoints > 0 ? `保留 ${remainingPoints} 点` : '进入命运预览'}
       />
 

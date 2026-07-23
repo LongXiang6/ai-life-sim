@@ -27,7 +27,9 @@ function readLocalEnv(name) {
 
 function extractBody(content) {
   const start = content.indexOf('⟦正文⟧')
-  const end = content.indexOf('⟦摘要⟧', start + 1)
+  const summary = content.indexOf('⟦摘要⟧', start + 1)
+  const terminal = content.indexOf('⟦结束⟧', start + 1)
+  const end = summary >= 0 && (terminal < 0 || summary < terminal) ? summary : terminal
   if (start < 0 || end < 0) return undefined
   return content.slice(start + '⟦正文⟧'.length, end).trim()
 }

@@ -6,7 +6,7 @@
 
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 
 import { resolveNarrativeBranchChoice, setForceBranchNextRound } from '@/mods/mod-engine/engine-api'
 import { useEngineStore } from '@/mods/mod-engine'
@@ -23,6 +23,7 @@ export function useSimulationBranch({ advanceRound }: UseSimulationBranchDeps) {
 
   const [branchCustomText, setBranchCustomText] = useState('')
   const [selectedBranchOptionId, setSelectedBranchOptionId] = useState<string | null>(null)
+  const confirmingBranchRef = useRef(false)
 
   const unresolvedBranchIndex = useMemo(() => {
     // 直接读 chunk 自带的 resolvedChoice 判断是否已解决：该字段随条目移动，
@@ -51,7 +52,7 @@ export function useSimulationBranch({ advanceRound }: UseSimulationBranchDeps) {
   }, [forceBranchNext])
 
   const handleBranchConfirm = useCallback(async () => {
-    if (unresolvedBranchIndex === null) return
+    if (unresolvedBranchIndex === null || confirmingBranchRef.current) return
 
     const selectedLabel = selectedBranchOptionId !== null
       ? branchOptions[Number(selectedBranchOptionId)]
@@ -79,11 +80,21 @@ export function useSimulationBranch({ advanceRound }: UseSimulationBranchDeps) {
       branchChars: isCustomChoice ? choice.length : undefined,
     })
 
-    resolveNarrativeBranchChoice(branchId, choice)
+    confirmingBranchRef.current = true
+    const resolved = resolveNarrativeBranchChoice(branchId, choice)
+    if (!resolved) {
+      confirmingBranchRef.current = false
+      console.warn('[useSimulationBranch] handleBranchConfirm: 当前分支已失效，请重新选择')
+      return
+    }
     setBranchCustomText('')
     setSelectedBranchOptionId(null)
 
-    await advanceRound()
+    try {
+      await advanceRound()
+    } finally {
+      confirmingBranchRef.current = false
+    }
   }, [
     unresolvedBranchIndex,
     narrativeHistory,

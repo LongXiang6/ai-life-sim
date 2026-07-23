@@ -47,9 +47,10 @@
     .candidate-label h2 { margin: 7px 0 0; font-family: var(--serif); font-size: 20px; font-weight: 600; line-height: 1.4; }
     .candidate-label p { margin: 6px 0 0; color: var(--soft); font-size: 11px; line-height: 1.65; }
     .candidate-stage { width: 390px; padding: 0; background: #e4e2dc; }
-    .mobile-viewport { container-type: inline-size; position: relative; width: 390px; height: 844px; overflow-x: clip; overflow-y: auto; overscroll-behavior: contain; background: var(--paper); box-shadow: var(--shadow); scrollbar-width: none; scrollbar-color: transparent transparent; --header-height: 60px; --reader-divider-height: 11px; }
+    .mobile-viewport { container-type: inline-size; position: relative; width: 390px; height: 844px; overflow-x: clip; overflow-y: auto; overscroll-behavior: contain; background: var(--paper); box-shadow: var(--shadow); scrollbar-width: none; scrollbar-color: transparent transparent; --header-height: 108px; --reader-divider-height: 11px; }
     .mobile-viewport::-webkit-scrollbar { display: none; width: 0; height: 0; }
     .mobile-viewport::-webkit-scrollbar-thumb { background: transparent; }
+    .mobile-viewport:has(.reader-bar.bar-status) { --header-height: 108px; }
 
     .sticky-shell { position: sticky; top: 0; z-index: 40; background: rgba(255,255,255,.98); }
     .reader-bar { position: relative; z-index: 2; min-height: var(--header-height); border-bottom: 1px solid var(--rule); background: rgba(255,255,255,.98); backdrop-filter: blur(10px); }
@@ -61,6 +62,42 @@
     .reader-divider span::before { right: 10px; }
     .reader-divider span::after { left: 10px; }
     .bar-compact { display: grid; grid-template-columns: 40px minmax(0,1fr) auto 40px; gap: 8px; align-items: center; padding: 0 12px 0 8px; }
+    .bar-status { display: grid; grid-template-rows: 46px auto; padding: 0; }
+    .bar-status .bar-top { display: grid; grid-template-columns: minmax(0,1fr) auto 40px; gap: 6px; align-items: center; padding: 0 12px 0 16px; }
+    .bar-actions { display: inline-flex; align-items: center; gap: 2px; }
+    .step-menu { position: relative; z-index: 3; }
+    .step-button { display: inline-grid; grid-auto-flow: column; align-items: center; gap: 2px; min-width: 40px; min-height: 40px; padding: 4px 8px; border: 0; border-radius: 999px; background: transparent; color: var(--ink); font-family: var(--serif); font-size: 12px; font-weight: 650; line-height: 1; white-space: nowrap; }
+    .step-button svg { width: 10px; height: 10px; color: var(--faint); transition: transform .16s ease; }
+    .step-button[aria-expanded="true"] { background: var(--wash); color: var(--accent-deep); }
+    .step-button[aria-expanded="true"] svg { color: var(--accent-deep); transform: rotate(180deg); }
+    .step-button:hover, .step-button:focus-visible { background: var(--wash); }
+    .step-menu-panel { position: absolute; top: calc(100% + 4px); right: 0; z-index: 50; display: none; width: min(220px, calc(100vw - 48px)); padding: 6px; border: 1px solid var(--rule); border-radius: 10px; background: rgba(255,255,255,.98); box-shadow: 0 14px 28px rgba(40,50,75,.14); backdrop-filter: blur(10px); }
+    .step-menu-panel.open { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 4px; }
+    .step-menu-panel button { min-height: 34px; padding: 4px 2px; border: 0; border-radius: 7px; background: transparent; color: var(--faint); font-size: 11px; font-weight: 600; }
+    .step-menu-panel button:hover, .step-menu-panel button:focus-visible { background: var(--wash); color: var(--ink); }
+    .step-menu-panel button.active { background: var(--wash-strong); color: var(--accent-deep); box-shadow: inset 0 0 0 1px rgba(115,130,187,.28); }
+    .bar-vitals { display: grid; grid-template-columns: minmax(0,1fr) auto; grid-template-rows: auto auto; gap: 5px 8px; align-items: center; padding: 6px 12px 8px 16px; border-top: 1px solid var(--rule-light); }
+    .bar-attrs { display: flex; flex-wrap: wrap; min-width: 0; align-items: center; gap: 6px 10px; grid-column: 1; grid-row: 1; color: var(--faint); font-size: 9px; font-variant-numeric: tabular-nums; }
+    .bar-attrs span { display: inline-flex; align-items: baseline; gap: 3px; white-space: nowrap; }
+    .bar-attrs em { display: inline-block; font-style: normal; font-size: 10px; line-height: 1; transform: translateY(0.5px); }
+    .bar-attrs i { font-style: normal; color: var(--faint); }
+    .bar-attrs b { color: var(--ink); font-family: var(--serif); font-size: 12px; font-weight: 650; }
+    .bar-attrs b.rise { color: var(--accent-deep); }
+    .bar-talents { display: flex; flex-wrap: wrap; min-width: 0; align-items: center; gap: 5px; grid-column: 1; grid-row: 2; overflow: visible; }
+    .bar-rebirths { display: flex; flex-direction: column; flex-wrap: nowrap; align-items: flex-end; justify-content: center; gap: 5px; grid-column: 2; grid-row: 1 / -1; }
+    .bar-talent { --glow: 128, 143, 162; flex: 0 0 auto; padding: 3px 9px; border: 1px solid rgba(var(--glow), .42); border-radius: 999px; background: rgba(var(--glow), .12); color: rgb(var(--glow)); font-size: 11px; font-weight: 650; line-height: 1.35; white-space: nowrap; }
+    .bar-talent[data-rarity="普通"], .bar-talent[data-rarity="common"] { --glow: 128, 143, 162; }
+    .bar-talent[data-rarity="精良"], .bar-talent[data-rarity="fine"] { --glow: 78, 143, 116; }
+    .bar-talent[data-rarity="稀有"], .bar-talent[data-rarity="rare"] { --glow: 80, 120, 196; }
+    .bar-talent[data-rarity="史诗"], .bar-talent[data-rarity="epic"] { --glow: 144, 104, 184; }
+    .bar-talent[data-rarity="传世"], .bar-talent[data-rarity="传说"], .bar-talent[data-rarity="legendary"] { --glow: 170, 132, 54; }
+    .bar-talent.is-empty { border-style: dashed; border-color: var(--rule-light); background: transparent; color: var(--faint); font-weight: 500; }
+    .bar-talent.is-rebirth { --rebirth-flow: linear-gradient(110deg, rgba(167, 146, 224, .34), rgba(143, 185, 236, .3), rgba(130, 207, 187, .28), rgba(236, 193, 140, .32), rgba(227, 157, 189, .3), rgba(167, 146, 224, .34)); border-color: rgba(167, 146, 224, .28); background: var(--rebirth-flow); background-size: 420% 420%; color: #28324b; font-weight: 650; animation: bar-rebirth-flow 13s ease-in-out infinite; }
+    .bar-rebirths .bar-talent.is-rebirth:nth-child(2) { animation-delay: -3.1s; }
+    @keyframes bar-rebirth-flow { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+    @media (prefers-reduced-motion: reduce) {
+      .bar-talent.is-rebirth { animation: none; background-position: 40% 50%; }
+    }
     .bar-split { display: grid; grid-template-rows: 46px 36px; padding: 0; }
     .mode-split { --header-height: 82px; }
     .bar-top { display: grid; grid-template-columns: minmax(0,1fr) auto 40px; gap: 8px; align-items: center; padding: 0 12px 0 16px; }
@@ -82,8 +119,6 @@
     .bar-time { color: var(--faint); font-size: 8px; line-height: 1.25; text-align: right; white-space: nowrap; }
     .bar-time b { display: block; color: var(--ink); font-family: var(--serif); font-size: 13px; font-weight: 600; }
     .icon-button { display: grid; width: 40px; height: 40px; place-items: center; padding: 0; border: 0; background: transparent; color: var(--soft); }
-    .story-back { border-radius: 50%; }
-    .story-back:hover,.story-back:focus-visible { background: var(--wash); color: var(--ink); }
     .info-toggle[aria-expanded="true"] { color: var(--accent-deep); }
     .force-button { position: relative; min-height: 40px; padding: 4px 5px; border: 0; background: transparent; color: var(--ink); font-size: 10px; font-weight: 650; white-space: nowrap; }
     .force-button::after { position: absolute; right: 5px; bottom: 3px; left: 5px; height: 1px; background: var(--accent); content: ""; transform: scaleX(.34); transition: transform .16s ease; }
@@ -149,7 +184,7 @@
     .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
     .panel-head strong { font-family: var(--serif); font-size: 15px; font-weight: 600; }
     .identity-index { display: flex; justify-content: space-between; gap: 14px; padding: 10px 0; border-top: 1px solid var(--rule-light); border-bottom: 1px solid var(--rule-light); color: var(--soft); font-size: 9px; }
-    .attributes { display: flex; min-height: 36px; align-items: center; justify-content: space-between; gap: 12px; overflow-x: auto; color: var(--faint); font-size: 9px; font-variant-numeric: tabular-nums; white-space: nowrap; scrollbar-width: none; }
+    .attributes { display: flex; min-height: 36px; align-items: center; justify-content: flex-start; gap: 12px; overflow-x: auto; color: var(--faint); font-size: 9px; font-variant-numeric: tabular-nums; white-space: nowrap; scrollbar-width: none; }
     .attributes::-webkit-scrollbar { display: none; }
     .attributes b { color: var(--soft); font-weight: 650; }
     .attributes .rise { color: var(--accent-deep); }
@@ -645,6 +680,9 @@
     .mode-branch-bare .force-button:hover,
     .mode-branch-bare .force-button:focus-visible { background: var(--wash); box-shadow: inset 0 0 0 1px var(--rule-light); }
     .mode-branch-bare .force-button[aria-pressed="true"] { background: var(--wash-strong); }
+    .mode-branch-bare .step-button:hover,
+    .mode-branch-bare .step-button:focus-visible { box-shadow: inset 0 0 0 1px var(--rule-light); }
+    .mode-branch-bare .step-button[aria-expanded="true"] { background: var(--wash-strong); box-shadow: inset 0 0 0 1px var(--rule-light); }
     .mode-branch-bare .story-separator { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; align-items: center; }
     .mode-branch-bare .story-separator::before,
     .mode-branch-bare .story-separator::after { opacity: .2; }
@@ -1096,7 +1134,7 @@
     .mode-info-dual .info-progress,
     .mode-info-dual .info-ledger { min-width: 0; margin-top: 10px; border-top: 1px solid var(--rule); }
     .mode-info-dual .info-progress { grid-column: 1; }
-    .mode-info-dual .info-ledger { grid-column: 2; }
+    .mode-info-dual .info-ledger { grid-column: 1 / -1; }
     .mode-info-dual .info-progress .section-line { display: block; margin-top: 0; padding: 9px 0 7px; }
     .mode-info-dual .info-progress .section-line strong,
     .mode-info-dual .ledger-disclosure > summary strong { font-size: 11px; }
@@ -1107,7 +1145,7 @@
     .mode-info-dual .ledger-disclosure > summary small { display: none; }
     .mode-info-dual .ledger-label { margin-top: 9px; }
     .mode-info-dual .talent { grid-template-columns: 20px minmax(0,1fr); padding: 6px 0; font-size: 9px; line-height: 1.45; }
-    .mode-info-dual .state-list { display: grid; grid-template-columns: 1fr; gap: 5px; font-size: 8px; }
+    .mode-info-dual .state-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 5px; font-size: 8px; }
     .mode-info-dual .more-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); margin-top: 10px; }
     .mode-info-dual .more-actions .section-line { grid-column: 1 / -1; margin-top: 0; }
     .mode-info-dual .menu-action { justify-content: center; text-align: center; }
@@ -1189,7 +1227,7 @@
     :is(.mode-tree-steady,.mode-tree-balanced,.mode-tree-task,.mode-tree-banded) .info-progress,
     :is(.mode-tree-steady,.mode-tree-balanced,.mode-tree-task,.mode-tree-banded) .info-ledger { min-width: 0; margin-top: 0; border-top: 1px solid var(--rule); }
     :is(.mode-tree-steady,.mode-tree-balanced,.mode-tree-task,.mode-tree-banded) .info-progress { grid-column: 1; }
-    :is(.mode-tree-steady,.mode-tree-balanced,.mode-tree-task,.mode-tree-banded) .info-ledger { grid-column: 2; }
+    :is(.mode-tree-steady,.mode-tree-balanced,.mode-tree-task,.mode-tree-banded) .info-ledger { grid-column: 1 / -1; }
     :is(.mode-tree-steady,.mode-tree-balanced,.mode-tree-task,.mode-tree-banded) .info-progress .section-line {
       display: block;
       margin-top: 0;
@@ -1369,7 +1407,8 @@
       .info-panel { max-height: calc(100dvh - var(--header-height)); }
     }
     @container (max-width:380px) {
-      .bar-compact, .bar-top, .bar-quiet { padding-right: 9px; padding-left: 14px; }
+      .bar-compact, .bar-top, .bar-quiet, .bar-status .bar-top, .bar-vitals { padding-right: 9px; padding-left: 14px; }
+      .bar-attrs { gap: 8px; }
       .bar-chapter { grid-template-columns: minmax(0,1fr) 70px auto 38px; padding-right: 8px; padding-left: 14px; }
       .icon-button { width: 38px; }
       .reading { padding-right: 19px; padding-left: 19px; }
@@ -1393,16 +1432,48 @@
   <link rel="stylesheet" href="../assets/mobile-action-bar-unified.css">
   <style>
     body[data-screen="game-story"] { background: #eef1f7; color: #28324b; }
-    body[data-screen="game-story"] .mobile-viewport { background: var(--paper); }
+    body[data-screen="game-story"] .mobile-viewport {
+      --paper: #fafbff;
+      --ink: #28324b;
+      --soft: #707b92;
+      --faint: #929bb0;
+      --rule: #d8deea;
+      --rule-light: #e5e9f2;
+      --accent: #7382bb;
+      --accent-deep: #52639c;
+      --green: #6576b2;
+      --wash: #f1f3fa;
+      --wash-strong: #e7ebf6;
+      --ink-stroke: #7787c0;
+      --seal: #7382bb;
+      background: var(--paper);
+      color: var(--ink);
+    }
     body[data-screen="game-story"] :is(.sticky-shell, .reader-bar, .reader-divider) { background: rgba(250, 251, 255, .98); }
     body[data-screen="game-story"] :is(h1, h2, h3, h4, .chapter-head) { color: var(--ink); }
+    body[data-screen="game-story"] .reading,
+    body[data-screen="game-story"] .story-entry,
+    body[data-screen="game-story"] .story-prose { color: var(--ink); }
+    body[data-screen="game-story"] .entry-meta,
+    body[data-screen="game-story"] .look-back,
+    body[data-screen="game-story"] .timeline-heading,
+    body[data-screen="game-story"] .chapter-head small { color: var(--faint); }
+    body[data-screen="game-story"] .state-change { color: var(--accent-deep); }
+    body[data-screen="game-story"] .story-entry::before { background: var(--accent); }
+    body[data-screen="game-story"] .story-separator::before,
+    body[data-screen="game-story"] .story-separator::after,
+    body[data-screen="game-story"] .story-separator[data-kind="branch"]::before,
+    body[data-screen="game-story"] .story-separator[data-kind="branch"]::after {
+      background: var(--ink-stroke);
+      opacity: .22;
+    }
     body[data-screen="game-story"] :is(.bar-time, .section-line small, .ledger-label, .talent::before, .state-list, .advance small, .identity-context) { font-size: 9px; }
   </style>
 <!-- CC-RF9 VISUAL ADAPTATION ONLY: END -->
 </head>
 <body data-screen="game-story">
   <main class="final-stage" aria-label="故事进行中">
-    <section class="mobile-viewport mode-ink-celadon mode-jade-flow mode-branch-bare mode-copy-editorial mode-rhythm-balanced mode-hierarchy-current mode-density-continuous mode-spacing-gentle mode-info-dual mode-tree-steady mode-more-safe mode-cluster-balanced" data-mode="hierarchy-current" aria-label="故事进行中"></section>
+    <section class="mobile-viewport mode-jade-flow mode-branch-bare mode-copy-editorial mode-rhythm-balanced mode-hierarchy-current mode-density-continuous mode-spacing-gentle mode-info-dual mode-tree-steady mode-more-safe mode-cluster-balanced" data-mode="hierarchy-current" aria-label="故事进行中"></section>
   </main>
 
   <template id="save-template"><div class="save-overlay"><section class="save-dialog" role="dialog" aria-modal="true" aria-label="手动存档"><h4>手动存档</h4><div class="save-slot" data-flow-save-slot>槽位 1 · 林清和 · 第 12 轮</div><div class="save-slot">槽位 2 · 空</div><div class="save-slot">槽位 3 · 空</div><div class="save-actions"><button type="button" data-save-close>取消</button><button type="button" data-save-confirm>保存</button></div></section></div></template>
@@ -1415,7 +1486,7 @@
 
       function identityMarkup(includeTime) {
         const detail = includeTime ? '<span data-flow-world-name>现代地球</span> · <span class="age-label">6岁</span> · <span class="era-label">2006 桃月</span>' : '<span data-flow-world-name>现代地球</span>';
-        return '<span class="identity"><strong data-flow-character-name>林清和</strong><small>' + detail + '</small></span>';
+        return '<span class="identity"><strong data-flow-character-name>林清和 · 女</strong><small>' + detail + '</small></span>';
       }
 
       function timeMarkup() {
@@ -1426,13 +1497,20 @@
         return '<button class="force-button" type="button" aria-pressed="false" aria-label="强制下一轮分支" data-tooltip="强制下一轮分支"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v12M18 9a9 9 0 0 1-9 9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="18" cy="6" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="6" cy="18" r="3" fill="none" stroke="currentColor" stroke-width="1.6"/></svg><span class="sr-only">强制下一轮分支</span></button>';
       }
 
+      function stepMenuMarkup() {
+        return '<div class="step-menu"><button class="step-button" type="button" aria-expanded="false" aria-haspopup="listbox" aria-label="推进步长 月" data-tooltip="推进步长"><span class="bar-step-label">月</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 4.5 6 8l3-3.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button><div class="step-menu-panel" role="listbox" aria-label="选择推进步长"></div></div>';
+      }
+
       function infoMarkupButton() {
         return '<button class="icon-button info-toggle" type="button" aria-expanded="false" aria-label="展开当前信息">' + infoIcon + '</button>';
       }
 
       function shellMarkup(mode) {
-        const back = '<button class="icon-button story-back" type="button" data-flow-back="fate-preview" aria-label="返回命运预览"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>';
-        const bar = '<header class="reader-bar bar-compact">' + back + identityMarkup(true) + forceMarkup() + infoMarkupButton() + '</header>';
+        const attrs = '<div class="bar-attrs" aria-label="四维属性"><span data-flow-attribute="physique"><em aria-hidden="true">💪</em><i>体魄</i><b>0</b></span><span data-flow-attribute="mind"><em aria-hidden="true">🧠</em><i>心智</i><b>0</b></span><span data-flow-attribute="talentAptitude"><em aria-hidden="true">✨</em><i>悟性</i><b>0</b></span><span data-flow-attribute="charisma"><em aria-hidden="true">💫</em><i>魅力</i><b>0</b></span></div>';
+        const talents = '<div class="bar-talents" data-flow-bar-talents aria-label="已选命格"></div>';
+        const rebirths = '<div class="bar-rebirths" data-flow-bar-rebirths aria-label="转世天赋"></div>';
+        const actions = '<div class="bar-actions">' + stepMenuMarkup() + forceMarkup() + '</div>';
+        const bar = '<header class="reader-bar bar-status"><div class="bar-top">' + identityMarkup(true) + actions + infoMarkupButton() + '</div><div class="bar-vitals">' + attrs + talents + rebirths + '</div></header>';
         const divider = '<div class="reader-divider" aria-hidden="true"><span></span></div>';
         const panel = '<section class="info-panel" aria-label="当前信息">' + infoPanelMarkup() + '</section>';
         if (mode === 'soft-sheet') return '<div class="sticky-shell">' + bar + divider + '</div><div class="sheet-anchor">' + panel + '</div>';
@@ -1440,7 +1518,7 @@
       }
 
       function infoPanelMarkup() {
-        return '<div class="info-inner"><div class="panel-head"><strong>当前信息</strong><button class="icon-button info-close" type="button" aria-label="关闭当前信息"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></div><section class="info-block info-current"><div class="identity-index"><span class="identity-primary" data-flow-identity-primary>林清和 · 女 · 人类</span><span class="identity-context" data-flow-identity-context>现代地球 · 滨海旧城</span></div><div class="attributes"><span data-flow-attribute="physique">体魄 <b>−1</b></span><span data-flow-attribute="mind">心智 <b class="rise">+4</b></span><span data-flow-attribute="talentAptitude">悟性 <b class="rise">+3</b></span><span data-flow-attribute="charisma">魅力 <b>−1</b></span><span data-flow-life>生命 <b>100</b></span></div></section><div class="info-dual-body"><section class="info-block info-progress"><div class="section-line"><strong>推进步长</strong><small class="step-label">月</small></div><div class="step-grid"></div></section><section class="info-block info-ledger"><details class="ledger-disclosure" open><summary><strong>世界与角色账簿</strong><small>第 12 轮</small></summary><div class="ledger-content"><p class="ledger-label">角色词条</p><div data-flow-talents></div><p class="ledger-label">世界与当前状态</p><div class="state-list" data-flow-world-state></div></div></details></section></div><section class="info-block more-actions"><div class="section-line"><strong>更多</strong><small>当前章节</small></div><div class="more-action-row"><button class="menu-action" type="button" data-save>手动存档</button><a class="menu-action" href="../fate-preview/round-refactor-01-style-1.html" data-flow-to="fate-preview">返回命运预览</a></div></section></div>';
+        return '<div class="info-inner"><div class="panel-head"><strong>当前信息</strong><button class="icon-button info-close" type="button" aria-label="关闭当前信息"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></div><section class="info-block info-current"><div class="identity-index"><span class="identity-primary" data-flow-identity-primary>林清和 · 女 · 人类</span><span class="identity-context" data-flow-identity-context>现代地球 · 滨海旧城</span></div><div class="attributes"><span data-flow-life>生命 <b>100</b></span></div></section><div class="info-dual-body"><section class="info-block info-ledger"><details class="ledger-disclosure" open><summary><strong>世界与角色账簿</strong><small>第 12 轮</small></summary><div class="ledger-content"><p class="ledger-label">角色词条</p><div data-flow-talents></div><p class="ledger-label">世界与当前状态</p><div class="state-list" data-flow-world-state></div></div></details></section></div><section class="info-block more-actions"><div class="section-line"><strong>更多</strong><small>当前章节</small></div><div class="more-action-row"><button class="menu-action" type="button" data-save>手动存档</button><a class="menu-action" href="../fate-preview/round-refactor-01-style-1.html" data-flow-to="fate-preview">返回命运预览</a></div></section></div>';
       }
 
       function applyFlowState(root) {
@@ -1449,10 +1527,21 @@
         const world = flow.world || {};
         const config = flow.worldConfig || {};
         const base = flow.attributes?.base || {};
-        const talents = Array.isArray(flow.talents) ? flow.talents : [];
+        const demoTalents = [
+          { name: '冷静', rarity: '普通', attrBonus: { mind: 1 } },
+          { name: '坚韧体魄', rarity: '精良', attrBonus: { physique: 1 } },
+          { name: '察言观色', rarity: '精良', attrBonus: { charisma: 1 } },
+        ];
+        const demoRebirths = [
+          { name: '长夜见灯' },
+          { name: '未竟之愿' },
+        ];
+        const talents = Array.isArray(flow.talents) && flow.talents.length ? flow.talents : demoTalents;
         const name = character.name || '林清和';
+        const genderRaw = String(character.gender || '女').trim();
+        const gender = /性$/.test(genderRaw) ? genderRaw.slice(0, -1) : genderRaw || '女';
         const startAge = Number(character.age) > 0 ? Number(character.age) : 6;
-        root.querySelectorAll('[data-flow-character-name]').forEach((node) => { node.textContent = name; });
+        root.querySelectorAll('[data-flow-character-name]').forEach((node) => { node.textContent = `${name} · ${gender}`; });
         root.querySelectorAll('[data-flow-world-name]').forEach((node) => { node.textContent = world.name || '现代地球'; });
         root.querySelectorAll('.age-label').forEach((node) => { node.textContent = `${startAge}岁`; });
         root.querySelector('[data-flow-identity-primary]').textContent = `${name} · ${character.gender || '女性'} · ${character.race || '人类'}`;
@@ -1460,26 +1549,45 @@
         ['physique', 'mind', 'talentAptitude', 'charisma'].forEach((key) => {
           const bonus = talents.reduce((sum, talent) => sum + Number(talent?.attrBonus?.[key] || 0), 0);
           const value = Number(base[key] || 0) + bonus;
-          const target = root.querySelector(`[data-flow-attribute="${key}"] b`);
-          target.textContent = String(value);
-          target.classList.toggle('rise', value > 0);
+          root.querySelectorAll(`[data-flow-attribute="${key}"] b`).forEach((target) => {
+            target.textContent = String(value);
+            target.classList.toggle('rise', value > 0);
+          });
         });
         root.querySelector('[data-flow-life] b').textContent = String(character.life || 80);
         const talentHost = root.querySelector('[data-flow-talents]');
+        const barTalentHost = root.querySelector('[data-flow-bar-talents]');
+        const barRebirthHost = root.querySelector('[data-flow-bar-rebirths]');
+        talentHost.replaceChildren();
+        barTalentHost.replaceChildren();
+        barRebirthHost.replaceChildren();
         talents.forEach((talent, index) => {
           const item = document.createElement('span');
           item.className = 'talent';
           item.dataset.index = String(index + 1).padStart(2, '0');
           item.textContent = talent.name;
           talentHost.append(item);
+          const chip = document.createElement('span');
+          chip.className = 'bar-talent';
+          if (talent.rarity) chip.dataset.rarity = talent.rarity;
+          chip.textContent = talent.name;
+          barTalentHost.append(chip);
         });
-        const rebirths = Array.isArray(flow.rebirths) ? flow.rebirths : flow.rebirth ? [flow.rebirth] : [];
+        const rebirths = Array.isArray(flow.rebirths) && flow.rebirths.length
+          ? flow.rebirths
+          : flow.rebirth
+            ? [flow.rebirth]
+            : demoRebirths;
         rebirths.forEach((rebirth) => {
           const item = document.createElement('span');
           item.className = 'talent';
           item.dataset.index = '转';
           item.textContent = rebirth.name;
           talentHost.append(item);
+          const chip = document.createElement('span');
+          chip.className = 'bar-talent is-rebirth';
+          chip.textContent = rebirth.name;
+          barRebirthHost.append(chip);
         });
         if (!talentHost.children.length) {
           const item = document.createElement('span');
@@ -1488,7 +1596,14 @@
           item.textContent = '尚未选择命格';
           talentHost.append(item);
         }
+        if (!barTalentHost.children.length) {
+          const chip = document.createElement('span');
+          chip.className = 'bar-talent is-empty';
+          chip.textContent = '尚未选择命格';
+          barTalentHost.append(chip);
+        }
         const stateHost = root.querySelector('[data-flow-world-state]');
+        stateHost.replaceChildren();
         [config.space?.value, config.essence?.value, config.power?.value, config.limit?.value, '体力 100', '精神 100'].filter(Boolean).forEach((label) => {
           const item = document.createElement('span');
           item.textContent = label;
@@ -1514,23 +1629,37 @@
         if (root.classList.contains('mode-info-focus')) root.querySelector('.ledger-disclosure').removeAttribute('open');
         root.querySelector('.save-mount').append(document.querySelector('#save-template').content.cloneNode(true));
         applyFlowState(root);
-        root.querySelectorAll('.step-grid').forEach((grid) => steps.forEach((name) => {
+        const stepMenu = root.querySelector('.step-menu');
+        const stepButton = root.querySelector('.step-button');
+        const stepPanel = root.querySelector('.step-menu-panel');
+        steps.forEach((name) => {
           const button = document.createElement('button');
           button.type = 'button';
+          button.setAttribute('role', 'option');
           button.dataset.step = name;
           button.textContent = name;
-          if (name === '月') button.classList.add('active');
-          grid.append(button);
-        }));
+          if (name === '月') {
+            button.classList.add('active');
+            button.setAttribute('aria-selected', 'true');
+          } else {
+            button.setAttribute('aria-selected', 'false');
+          }
+          stepPanel.append(button);
+        });
 
         const info = root.querySelector('.info-panel');
         const infoToggle = root.querySelector('.info-toggle');
+        const closeStepMenu = () => {
+          stepPanel.classList.remove('open');
+          stepButton.setAttribute('aria-expanded', 'false');
+        };
         const closeInfo = () => {
           info.classList.remove('open');
           infoToggle.setAttribute('aria-expanded','false');
         };
         infoToggle.addEventListener('click',() => {
           const open = !info.classList.contains('open');
+          closeStepMenu();
           closeInfo();
           if (open) {
             info.classList.add('open');
@@ -1565,19 +1694,48 @@
           force.querySelector('.sr-only').textContent = label;
           force.classList.toggle('is-busy',force.disabled);
         };
+        const syncStepUI = () => {
+          stepButton.setAttribute('aria-label', '推进步长 ' + step);
+          stepButton.dataset.tooltip = '推进步长 · ' + step;
+          root.querySelectorAll('.bar-step-label').forEach((node) => { node.textContent = step; });
+          root.querySelectorAll('[data-step]').forEach((item) => {
+            const active = item.dataset.step === step;
+            item.classList.toggle('active', active);
+            item.setAttribute('aria-selected', String(active));
+          });
+        };
         force.addEventListener('click',() => {
           if (force.disabled) return;
+          closeStepMenu();
           forceNext = !forceNext;
           updateForce();
           showToast(forceNext ? '下一轮将强制生成命运分支' : '已取消下一轮强制分支');
         });
-        root.querySelectorAll('[data-step]').forEach((button) => button.addEventListener('click',() => {
-          root.querySelectorAll('[data-step]').forEach((item) => item.classList.toggle('active',item.dataset.step === button.dataset.step));
+        stepButton.addEventListener('click', (event) => {
+          event.stopPropagation();
+          const open = !stepPanel.classList.contains('open');
+          closeInfo();
+          if (open) {
+            stepPanel.classList.add('open');
+            stepButton.setAttribute('aria-expanded', 'true');
+          } else {
+            closeStepMenu();
+          }
+        });
+        stepPanel.addEventListener('click', (event) => {
+          const button = event.target.closest('[data-step]');
+          if (!button) return;
           step = button.dataset.step;
-          root.querySelector('.step-label').textContent = step;
-          root.querySelectorAll('.bar-step-label').forEach((node) => node.textContent = step);
+          syncStepUI();
+          closeStepMenu();
           showToast('下一轮按' + step + '推进 · 当前时间未改变');
-        }));
+        });
+        root.addEventListener('click', (event) => {
+          if (!stepMenu.contains(event.target)) closeStepMenu();
+        });
+        root.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') closeStepMenu();
+        });
 
         const save = root.querySelector('.save-overlay');
         root.querySelector('[data-save]').addEventListener('click',() => {

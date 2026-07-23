@@ -6,7 +6,7 @@
  * @mod mod-engine
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { AIModelConfig } from '@/foundation'
 
@@ -145,6 +145,10 @@ export function useEngine() {
  */
 export function useSimulationAdvance() {
   const [isAdvancing, setIsAdvancing] = useState(false)
+  // Branch confirmation can invoke the callback during the render that closes
+  // out the previous round. Keep the mutex outside React's render snapshots so
+  // that a stale callback cannot silently skip the next request.
+  const isAdvancingRef = useRef(false)
   const allModsLoaded = useGlobalStore((s) => s.allModsLoaded)
   const [runtimeReadiness, setRuntimeReadiness] = useState(getSimulationRuntimeReadiness)
   const worldCode = useWorldStore((s) => s.worldCode)
@@ -176,7 +180,7 @@ export function useSimulationAdvance() {
   }, [])
 
   const advanceRound = useCallback(async () => {
-    if (isAdvancing) return
+    if (isAdvancingRef.current) return
     const runtimeReadiness = getSimulationRuntimeReadiness()
     if (!runtimeReadiness.loaderReady) {
       useEngineStore.getState().setNarrativeError('核心模拟系统仍在初始化，请稍候重试。')
@@ -191,6 +195,7 @@ export function useSimulationAdvance() {
       return
     }
 
+    isAdvancingRef.current = true
     setIsAdvancing(true)
     useEngineStore.setState({ streamingNarrative: '', narrativeError: null })
 
@@ -271,12 +276,13 @@ export function useSimulationAdvance() {
       syncOrchestratorToEngineStore()
       const runtimeStatus = orchestrator.getState().status
       useEngineStore.getState().setStatus(runtimeStatus === 'complete' ? 'complete' : 'idle')
+      isAdvancingRef.current = false
       setIsAdvancing(false)
       if (roundSucceeded) {
         void fillPreGenQueue(narrativePrompt, worldCode ? `sim-pregen-${worldCode}` : undefined)
       }
     }
-  }, [isAdvancing, worldCode])
+  }, [worldCode])
 
   return {
     advanceRound,

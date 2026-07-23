@@ -162,6 +162,29 @@ async function main() {
         theme: 'minimal-white',
       },
     }))
+    localStorage.setItem('mod-character:persist:mythic-library', JSON.stringify({
+      version: 2,
+      state: {
+        patterns: [
+          {
+            id: 'fixture-mythic-1',
+            name: '未熄之诺',
+            concept: '承诺',
+            effect: '重要承诺会留下可追溯的行动方向。',
+            acquiredAt: 1,
+            source: { worldName: '夹具世界', characterName: '旧角色' },
+          },
+          {
+            id: 'fixture-mythic-2',
+            name: '回声拾光',
+            concept: '记忆',
+            effect: '重要关系会保留可回到现场的线索。',
+            acquiredAt: 2,
+            source: { worldName: '夹具世界', characterName: '旧角色' },
+          },
+        ],
+      },
+    }))
   }, { fixtureWorldCode: worldCode })
 
   await page.goto(`${baseUrl}/new-game/character-create`, { waitUntil: 'domcontentloaded' })
@@ -175,6 +198,13 @@ async function main() {
   await page.getByRole('button', { name: /进入命格选择/ }).click()
   await page.getByRole('heading', { name: '选择命格' }).waitFor()
 
+  await page.getByRole('button', { name: /转世天赋槽1/ }).click()
+  await page.getByRole('button', { name: '未熄之诺' }).click()
+  await page.getByRole('button', { name: /关闭转世天赋库/ }).click()
+  await page.getByRole('button', { name: /转世天赋槽2/ }).click()
+  await page.getByRole('button', { name: '回声拾光' }).click()
+  await page.getByRole('button', { name: /关闭转世天赋库/ }).click()
+
   for (let index = 0; index < 3; index += 1) {
     const node = page.getByRole('button', { name: /^查看命格：/ }).nth(index)
     await node.click()
@@ -182,6 +212,16 @@ async function main() {
   }
   await waitForEnabled(page, '确认命格')
   await page.getByRole('button', { name: /确认命格/ }).click()
+  await page.waitForURL('**/attribute-alloc')
+  await page.getByRole('heading', { name: '分配属性' }).waitFor()
+
+  for (let index = 0; index < 10; index += 1) {
+    await page.getByRole('button', { name: '增加体魄' }).click()
+  }
+  for (let index = 0; index < 5; index += 1) {
+    await page.getByRole('button', { name: '增加心智' }).click()
+  }
+  await page.getByRole('button', { name: /确认属性/ }).click()
   await page.waitForURL('**/fate-preview')
 
   await waitForEnabled(page, '开始人生')
@@ -205,7 +245,7 @@ async function main() {
   })
 
   const failures = []
-  const expectedRouteOrder = ['/new-game/character-create', '/talent-draw', '/fate-preview', '/game-story']
+  const expectedRouteOrder = ['/new-game/character-create', '/talent-draw', '/attribute-alloc', '/fate-preview', '/game-story']
   let routeCursor = -1
   for (const expected of expectedRouteOrder) {
     const index = visitedPaths.indexOf(expected, routeCursor + 1)
@@ -215,9 +255,10 @@ async function main() {
   if (persistedState.character.name !== '林序') failures.push('character name was not persisted')
   if (!managedRequestWithoutClientKey) failures.push('managed provider request without a browser API key was not observed')
   if (persistedState.character.destinyPatterns?.patterns?.length !== 3) failures.push('three destiny patterns were not persisted')
+  if (persistedState.character.equippedMythicPatterns?.length !== 2) failures.push('two equipped mythic patterns were not persisted')
   const base = persistedState.character.characterBase?.base ?? {}
-  if ([base.physique, base.mind, base.talentAptitude, base.charisma].join(',') !== '0,0,0,0') {
-    failures.push(`new-life base attributes were not zeroed: ${JSON.stringify(base)}`)
+  if ([base.physique, base.mind, base.talentAptitude, base.charisma].join(',') !== '10,5,0,0') {
+    failures.push(`15-point base attributes were not persisted: ${JSON.stringify(base)}`)
   }
   if ((persistedState.engine.narrativeHistory?.length ?? 0) < 1) failures.push('first narrative was not committed to engine history')
   if (proxyPostCount !== 1) failures.push(`expected one main proxy POST, observed ${proxyPostCount}`)

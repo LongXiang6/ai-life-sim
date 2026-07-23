@@ -357,7 +357,7 @@ assertOk(
 )
 
 assertOk(
-  /runPreviewRound\(\s*\(\)\s*=>\s*orchestrator\.executeRoundV2/.test(preGenCode),
+  /runPreviewRound\([\s\S]{0,260}orchestrator\.executeRoundV2/.test(preGenCode),
   'pre-gen must execute through orchestrator preview mode',
 )
 assertOk(
