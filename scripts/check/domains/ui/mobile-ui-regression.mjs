@@ -678,14 +678,25 @@ assertOk(
   'talent draw must expose the unified creation title structure above the draw effects',
 )
 assertOk(
-  prototypeFateSelectSrc.includes('.mi-b1 .rebirth-slot.is-filled { height: auto; min-height: 104px; max-height: none; }')
-    && prototypeFateSelectSrc.includes('.mi-b1 .ordinary-slot.is-filled { height: auto; min-height: 112px; max-height: none; }')
-    && /\.slot-description\s*\{[\s\S]{0,180}overflow:\s*visible;/.test(prototypeFateSelectSrc)
+  prototypeFateSelectSrc.includes('.mi-b1 .rebirth-slot { position: relative; display: flex; height: 64px; min-height: 64px; max-height: 64px;')
+    && prototypeFateSelectSrc.includes('.mi-b1 .ordinary-slot { position: relative; display: flex; height: 72px; min-height: 72px; max-height: 72px;')
+    && /\.slot-description\s*\{[\s\S]{0,220}overflow-y:\s*auto;/.test(prototypeFateSelectSrc)
+    && prototypeFateSelectSrc.includes('margin: 5px -6px 0')
+    && prototypeFateSelectSrc.includes('padding: 12px 18px 96px')
+    && prototypeFateSelectSrc.includes('flex: 1 1 0')
+    && prototypeFateSelectSrc.includes('min-height: 76px')
+    && prototypeFateSelectSrc.includes('-webkit-line-clamp: 2')
     && prototypeFateSelectSrc.includes("return `${attrLabels[key] || key} ${value > 0 ? '+' : '−'}`")
     && prototypeFateSelectSrc.includes("return `${modifierLabels[key] || key} ${delta >= 0 ? '+' : '−'}`")
     && prototypeFateSelectSrc.includes('.slot-bonus,')
     && prototypeFateSelectSrc.includes('font-size: 7px; line-height: 1.1;'),
-  'selected fate slots must show complete descriptions and compact sign-only bonus labels',
+  'selected fate slots must keep fixed card sizes, preserve glow gutters and scrollable full descriptions, and keep compact sign-only bonus labels',
+)
+assertOk(
+  prototypeFateSelectSrc.includes("if (slot.dataset.name) {")
+    && prototypeFateSelectSrc.includes('renderRebirthSlot(slot, null)')
+    && prototypeFateSelectSrc.includes("CreationFlow.notify(`已移除${name}`)"),
+  'selected rebirth slots must support click-to-remove without reopening the picker',
 )
 assertOk(
   prototypeAttributeSrc.includes('<title>属性分配 · AA-RF1-1 布局</title>')

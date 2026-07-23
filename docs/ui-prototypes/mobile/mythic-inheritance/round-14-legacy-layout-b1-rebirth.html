@@ -33,29 +33,37 @@
     .mi-b1 .creation-phone::before,
     .mi-b1 .creation-phone::after,
     .mi-b1 .cf-art { content: none !important; display: none !important; }
-    .mi-b1 .cf-screen { inset: 0; z-index: 2; display: flex; min-height: 0; flex-direction: column; overflow: hidden; padding: 15px 16px 14px; overscroll-behavior: contain; }
-    .mi-b1 .cf-meta { margin-bottom: 6px; color: #929bb0; font-size: 7px; }
-    .mi-b1 .cf-title-row h2 { color: #28324b; font-size: 22px; }
+    .mi-b1 .cf-screen { inset: 0; z-index: 2; display: flex; min-height: 0; flex-direction: column; overflow: hidden; padding: 13px 10px 0; overscroll-behavior: contain; }
+    .mi-b1 .rebirth-slots,
+    .mi-b1 .ordinary-slots { overflow: visible; }
+    .mi-b1 .cf-header,
+    .mi-b1 .rebirth-heading,
+    .mi-b1 .rebirth-slots,
+    .mi-b1 .slot-heading,
+    .mi-b1 .ordinary-slots,
+    .mi-b1 .candidate-head { flex: 0 0 auto; }
+    .mi-b1 .cf-meta { margin-bottom: 4px; color: #929bb0; font-size: 7px; }
+    .mi-b1 .cf-title-row h2 { color: #28324b; font-size: 20px; }
     .mi-b1 .cf-title-row p, .mi-b1 .cf-title-mark { display: none; }
-    .mi-b1 .rebirth-heading { display: flex; justify-content: space-between; margin-top: 10px; color: #929bb0; font-size: 7px; }
-    .mi-b1 .rebirth-slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; margin-top: 5px; }
-    .mi-b1 .rebirth-slot { position: relative; display: flex; height: 68px; min-height: 68px; max-height: 68px; flex-direction: column; padding: 8px 10px; border: 1px solid #cbd4e3; border-radius: 9px; background: rgba(237, 240, 251, .64); color: #929bb0; cursor: pointer; text-align: left; }
+    .mi-b1 .rebirth-heading { display: flex; justify-content: space-between; margin-top: 8px; color: #929bb0; font-size: 7px; }
+    .mi-b1 .rebirth-slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; margin-top: 4px; }
+    .mi-b1 .rebirth-slot { position: relative; display: flex; height: 64px; min-height: 64px; max-height: 64px; flex-direction: column; padding: 7px 9px; border: 1px solid #cbd4e3; border-radius: 9px; background: rgba(237, 240, 251, .64); color: #929bb0; cursor: pointer; text-align: left; }
     .mi-b1 .rebirth-slot small, .mi-b1 .rebirth-slot strong { display: block; }
     .mi-b1 .rebirth-slot small { font-size: 6px; }
     .mi-b1 .rebirth-slot strong { margin-top: 5px; overflow: visible; font-size: 8px; font-weight: 650; line-height: 1.2; overflow-wrap: anywhere; white-space: normal; }
     .mi-b1 .rebirth-slot:not(.is-filled) strong, .mi-b1 .ordinary-slot:not(.is-filled) strong { margin-top: 0; }
     .mi-b1 .rebirth-slot span { display: -webkit-box; margin-top: 3px; overflow: hidden; font-size: 5.8px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-    .mi-b1 .rebirth-slot.is-filled { --rebirth-flow: linear-gradient(110deg, rgba(167, 146, 224, .24), rgba(143, 185, 236, .2), rgba(130, 207, 187, .18), rgba(236, 193, 140, .22), rgba(227, 157, 189, .2), rgba(167, 146, 224, .24)); --rebirth-border-flow: linear-gradient(110deg, #a792e0, #8fb9ec, #82cfbb, #ecc18c, #e39dbd, #a792e0); position: relative; z-index: 0; isolation: isolate; overflow: hidden; border: 1px solid transparent; background: var(--rebirth-flow) padding-box, linear-gradient(rgba(255, 255, 255, .92), rgba(255, 255, 255, .92)) padding-box, var(--rebirth-border-flow) border-box; background-size: 420% 420%, 100% 100%, 320% 320%; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .82), 0 0 11px rgba(192, 68, 48, .18), 0 0 22px rgba(221, 156, 44, .18), 0 0 32px rgba(190, 66, 39, .1); color: #28324b; animation: rebirth-flow 13s ease-in-out var(--rebirth-delay, 0s) infinite, rebirth-halo 5.6s ease-in-out var(--rebirth-delay, 0s) infinite; }
+    .mi-b1 .rebirth-slot.is-filled { --rebirth-flow: linear-gradient(110deg, rgba(167, 146, 224, .24), rgba(143, 185, 236, .2), rgba(130, 207, 187, .18), rgba(236, 193, 140, .22), rgba(227, 157, 189, .2), rgba(167, 146, 224, .24)); --rebirth-border-flow: linear-gradient(110deg, #a792e0, #8fb9ec, #82cfbb, #ecc18c, #e39dbd, #a792e0); position: relative; z-index: 0; isolation: isolate; border: 1px solid transparent; background: var(--rebirth-flow) padding-box, linear-gradient(rgba(255, 255, 255, .92), rgba(255, 255, 255, .92)) padding-box, var(--rebirth-border-flow) border-box; background-size: 420% 420%, 100% 100%, 320% 320%; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .82), 0 0 11px rgba(192, 68, 48, .18), 0 0 22px rgba(221, 156, 44, .18), 0 0 32px rgba(190, 66, 39, .1); color: #28324b; animation: rebirth-flow 13s ease-in-out var(--rebirth-delay, 0s) infinite, rebirth-halo 5.6s ease-in-out var(--rebirth-delay, 0s) infinite; }
     .mi-b1 .rebirth-slot.is-filled span { color: #596277; }
     .mi-b1 .rebirth-slot.is-filled::before { display: none; }
     .mi-b1 .rebirth-slot.is-filled[data-rebirth-slot="0"] { --rebirth-delay: -.4s; }
     .mi-b1 .rebirth-slot.is-filled[data-rebirth-slot="1"] { --rebirth-delay: -1.4s; }
     .mi-b1 .rebirth-slot.is-filled[data-rebirth-slot="2"] { --rebirth-delay: -2.4s; }
     .mi-b1 .rebirth-slot.is-filled strong, .mi-b1 .ordinary-slot.is-filled strong { align-self: flex-start; margin-top: 0; }
-    .mi-b1 .rebirth-slot.is-filled .slot-description, .mi-b1 .ordinary-slot.is-filled .slot-description { display: block; min-height: 0; flex: 1 1 auto; margin: 4px 0 31px 5px; overflow-x: hidden; overflow-y: auto; color: #596277; font-size: 5.8px; line-height: 1.32; overscroll-behavior: contain; }
-    .mi-b1 .slot-placeholder { display: flex; min-height: 0; flex: 1 1 auto; align-items: center; margin: 4px 0 31px 5px; color: #a4adbf; font-size: 5.8px; line-height: 1.32; }
+    .mi-b1 .rebirth-slot.is-filled .slot-description, .mi-b1 .ordinary-slot.is-filled .slot-description { display: block; min-height: 0; flex: 1 1 auto; margin: 4px 0 27px; overflow-x: hidden; overflow-y: auto; color: #596277; font-size: 5.8px; line-height: 1.28; overscroll-behavior: contain; }
+    .mi-b1 .slot-placeholder { display: flex; min-height: 0; flex: 1 1 auto; align-items: center; margin: 4px 0 27px; color: #a4adbf; font-size: 5.8px; line-height: 1.28; }
     .mi-b1 .rebirth-slot:not(.is-filled) .slot-placeholder, .mi-b1 .ordinary-slot:not(.is-filled) .slot-placeholder { margin-bottom: 0; }
-    .mi-b1 .rebirth-slot > .slot-bonuses, .mi-b1 .ordinary-slot > .slot-bonuses { position: absolute; right: 9px; bottom: 3px; left: 9px; display: flex; max-height: 26px; flex-wrap: wrap; align-content: end; gap: 2px; overflow: hidden; }
+    .mi-b1 .rebirth-slot > .slot-bonuses, .mi-b1 .ordinary-slot > .slot-bonuses { position: absolute; right: 8px; bottom: 4px; left: 8px; display: flex; max-height: 22px; flex-wrap: wrap; align-content: end; gap: 2px; overflow: hidden; }
     .mi-b1 .rebirth-slot .slot-bonus, .mi-b1 .ordinary-slot .slot-bonus { display: block; max-width: 100%; padding: 2px 3px; overflow: hidden; border: 1px solid rgba(146, 155, 176, .22); border-radius: 4px; background: rgba(255, 255, 255, .5); color: #7b859a; font-size: 5.4px; font-weight: 650; line-height: 1.18; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
     .mi-b1 .rebirth-sheet { position: absolute; z-index: 8; inset: 0; display: flex; align-items: end; padding: 0 10px 10px; opacity: 0; pointer-events: none; transition: opacity 180ms ease; }
     .mi-b1 .rebirth-sheet.is-open { opacity: 1; pointer-events: auto; }
@@ -78,9 +86,9 @@
     .mi-b1 .rebirth-option strong { margin-top: 2px; color: #28324b; font-size: 8.5px; font-weight: 680; }
     .mi-b1 .rebirth-option span { margin-top: 3px; color: #707b92; font-size: 6.4px; line-height: 1.35; }
     .mi-b1 .rebirth-option:disabled { opacity: .42; cursor: not-allowed; }
-    .mi-b1 .slot-heading { display: flex; justify-content: space-between; margin-top: 10px; color: #929bb0; font-size: 7px; }
-    .mi-b1 .ordinary-slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin-top: 5px; }
-    .mi-b1 .ordinary-slot { position: relative; display: flex; height: 78px; min-height: 78px; max-height: 78px; flex-direction: column; padding: 7px 9px; border: 1px solid #d8deea; border-radius: 9px; background: rgba(255, 255, 255, .7); color: #929bb0; cursor: pointer; text-align: left; }
+    .mi-b1 .slot-heading { display: flex; justify-content: space-between; margin-top: 8px; color: #929bb0; font-size: 7px; }
+    .mi-b1 .ordinary-slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin-top: 4px; }
+    .mi-b1 .ordinary-slot { position: relative; display: flex; height: 72px; min-height: 72px; max-height: 72px; flex-direction: column; padding: 7px 8px; border: 1px solid #d8deea; border-radius: 9px; background: rgba(255, 255, 255, .7); color: #929bb0; cursor: pointer; text-align: left; }
     .mi-b1 .ordinary-slot small, .mi-b1 .ordinary-slot strong { display: block; }
     .mi-b1 .ordinary-slot small { font-size: 6px; }
     .mi-b1 .ordinary-slot strong { margin-top: 5px; overflow: visible; font-size: 8px; font-weight: 650; line-height: 1.2; overflow-wrap: anywhere; white-space: normal; }
@@ -91,13 +99,13 @@
     .mi-b1 .ordinary-slot.is-filled[data-rarity="稀有"] { --glow: 80, 120, 196; --breath-delay: -1.8s; }
     .mi-b1 .ordinary-slot.is-filled[data-rarity="史诗"] { --glow: 144, 104, 184; --breath-delay: -2.5s; }
     .mi-b1 .ordinary-slot.is-filled[data-rarity="传世"] { --glow: 170, 132, 54; --breath-delay: -3.2s; }
-    .mi-b1 .candidate-head { position: relative; display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding-bottom: 7px; }
+    .mi-b1 .candidate-head { position: relative; display: flex; align-items: center; justify-content: space-between; margin-top: 8px; padding-bottom: 6px; }
     .mi-b1 .candidate-head::after { position: absolute; right: 0; bottom: 0; left: 0; height: 1px; content: ""; background: linear-gradient(90deg, transparent, rgba(146, 155, 176, .4) 11%, rgba(146, 155, 176, .4) 89%, transparent); }
     .mi-b1 .candidate-head strong { color: #28324b; font-size: 10px; font-weight: 680; }
     .mi-b1 .candidate-head strong small { margin-left: 4px; color: #929bb0; font-size: 6px; font-weight: 500; }
     .mi-b1 .reroll { min-height: 22px; padding: 0 7px; border: 1px solid #d8deea; border-radius: 7px; background: rgba(255, 255, 255, .8); color: #7382bb; cursor: pointer; font-size: 6.5px; }
-    .mi-b1 .candidate-list { display: grid; min-height: 0; flex: 1 1 auto; gap: 10px; margin: 6px -42px 0; padding: 14px 42px 90px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
-    .mi-b1 .candidate { --glow: 115, 130, 187; display: grid; width: 100%; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; gap: 7px; min-height: 56px; padding: 7px 10px 5px; border: 1px solid rgba(var(--glow), .58); border-radius: 9px; background: linear-gradient(90deg, rgba(var(--glow), .15), rgba(255, 255, 255, .9) 42%); box-shadow: 0 0 0 1px rgba(255, 255, 255, .68), 0 3px 12px rgba(var(--glow), .2), 0 0 25px rgba(var(--glow), .28); color: #28324b; cursor: pointer; text-align: left; animation: candidate-breathe 3.6s ease-in-out var(--breath-delay, 0s) infinite; }
+    .mi-b1 .candidate-list { display: grid; align-content: start; min-height: 0; flex: 1 1 0; gap: 10px; margin: 5px -6px 0; padding: 12px 18px 96px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
+    .mi-b1 .candidate { --glow: 115, 130, 187; display: grid; width: 100%; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; gap: 7px; min-height: 76px; padding: 9px 10px 8px; border: 1px solid rgba(var(--glow), .58); border-radius: 9px; background: linear-gradient(90deg, rgba(var(--glow), .15), rgba(255, 255, 255, .9) 42%); box-shadow: 0 0 0 1px rgba(255, 255, 255, .68), 0 3px 10px rgba(var(--glow), .18), 0 0 18px rgba(var(--glow), .22); color: #28324b; cursor: pointer; text-align: left; animation: candidate-breathe 3.6s ease-in-out var(--breath-delay, 0s) infinite; }
     .mi-b1 .candidate:hover { border-color: rgba(var(--glow), .58); background: linear-gradient(90deg, rgba(var(--glow), .12), rgba(255, 255, 255, .94) 42%); }
     .mi-b1 .candidate.is-selected { animation: none; opacity: .42; cursor: default; box-shadow: none; }
     .mi-b1 .candidate[data-rarity="普通"] { --glow: 128, 143, 162; --breath-delay: -.4s; }
@@ -106,14 +114,13 @@
     .mi-b1 .candidate[data-rarity="史诗"] { --glow: 144, 104, 184; --breath-delay: -2.5s; }
     .mi-b1 .candidate[data-rarity="传世"] { --glow: 170, 132, 54; --breath-delay: -3.2s; }
     .mi-b1 .candidate-copy { display: flex; min-width: 0; flex-direction: column; padding-left: 5px; }
-    .mi-b1 .candidate-copy > strong, .mi-b1 .candidate-copy > .candidate-description { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .mi-b1 .candidate-copy > strong { color: #28324b; font-size: 8.8px; font-weight: 680; }
-    .mi-b1 .candidate-copy > .candidate-description { margin-top: 2px; margin-left: 6px; color: #707b92; font-size: 6.5px; }
-    .mi-b1 .candidate-effects { display: flex; flex-wrap: wrap; gap: 3px; margin-top: auto; padding-top: 4px; }
+    .mi-b1 .candidate-copy > strong { display: block; overflow: hidden; color: #28324b; font-size: 8.8px; font-weight: 680; text-overflow: ellipsis; white-space: nowrap; }
+    .mi-b1 .candidate-copy > .candidate-description { display: -webkit-box; margin-top: 4px; margin-left: 6px; min-height: 2.8em; overflow: hidden; color: #707b92; font-size: 6.5px; line-height: 1.4; white-space: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+    .mi-b1 .candidate-effects { display: flex; flex-wrap: wrap; gap: 3px; margin-top: auto; padding-top: 6px; }
     .mi-b1 .candidate-effect { padding: 2px 4px; border-radius: 4px; background: rgba(var(--glow), .1); color: rgb(var(--glow)); font-size: 5.8px; line-height: 1.15; }
     .mi-b1 .candidate-effect.system { background: rgba(40, 50, 75, .06); color: #596277; }
     .mi-b1 .candidate-rarity { align-self: start; padding: 3px 5px; border-radius: 5px; background: rgba(var(--glow), .12); color: rgb(var(--glow)); font-size: 6px; font-weight: 700; }
-    @keyframes candidate-breathe { 0%, 100% { box-shadow: 0 0 0 1px rgba(255, 255, 255, .68), 0 3px 12px rgba(var(--glow), .2), 0 0 25px rgba(var(--glow), .28); } 50% { box-shadow: 0 0 0 1px rgba(255, 255, 255, .84), 0 4px 17px rgba(var(--glow), .34), 0 0 44px rgba(var(--glow), .48); } }
+    @keyframes candidate-breathe { 0%, 100% { box-shadow: 0 0 0 1px rgba(255, 255, 255, .68), 0 3px 10px rgba(var(--glow), .18), 0 0 18px rgba(var(--glow), .22); } 50% { box-shadow: 0 0 0 1px rgba(255, 255, 255, .84), 0 4px 14px rgba(var(--glow), .28), 0 0 28px rgba(var(--glow), .36); } }
     @keyframes selected-slot-breathe { 0%, 100% { box-shadow: 0 2px 8px rgba(var(--glow), .18), 0 0 13px rgba(var(--glow), .24); } 50% { box-shadow: 0 4px 12px rgba(var(--glow), .24), 0 0 25px rgba(var(--glow), .48); } }
     @keyframes rebirth-flow { 0%, 100% { background-position: 0% 50%, 0 0, 0% 50%; } 50% { background-position: 100% 50%, 0 0, 100% 50%; } }
     @keyframes rebirth-halo { 0%, 100% { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .82), 0 0 11px rgba(192, 68, 48, .18), 0 0 22px rgba(221, 156, 44, .18), 0 0 32px rgba(190, 66, 39, .1); } 50% { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .82), 0 0 17px rgba(192, 68, 48, .3), 0 0 34px rgba(221, 156, 44, .28), 0 0 50px rgba(190, 66, 39, .18); } }
@@ -147,16 +154,6 @@
     .mi-b1 .rebirth-slot strong,
     .mi-b1 .ordinary-slot strong,
     .mi-b1 .candidate-copy > strong { font-size: 10px; }
-    .mi-b1 .rebirth-slot.is-filled { height: auto; min-height: 104px; max-height: none; }
-    .mi-b1 .ordinary-slot.is-filled { height: auto; min-height: 112px; max-height: none; }
-    .mi-b1 .rebirth-slot.is-filled .slot-description,
-    .mi-b1 .ordinary-slot.is-filled .slot-description {
-      flex: 0 0 auto;
-      margin: 4px 0 31px;
-      overflow: visible;
-    }
-    .mi-b1 .rebirth-slot > .slot-bonuses,
-    .mi-b1 .ordinary-slot > .slot-bonuses { max-height: none; }
     .mi-b1 .rebirth-slot .slot-bonus,
     .mi-b1 .ordinary-slot .slot-bonus,
     .mi-b1 .candidate-effect { padding: 1px 3px; font-size: 7px; line-height: 1.1; }
@@ -302,7 +299,24 @@
         update(); CreationFlow.notify('已重抽未选择的命格')
       })
       function closeRebirthSheet() { rebirthSheet.classList.remove('is-open'); rebirthSheet.setAttribute('aria-hidden', 'true') }
-      rebirthSlots.forEach(function (slot) { slot.addEventListener('click', function () { rebirthTarget = Number(slot.dataset.rebirthSlot); rebirthSheetTitle.textContent = `选择转世 ${String(rebirthTarget + 1).padStart(2, '0')}`; renderRebirths(); rebirthSheet.classList.add('is-open'); rebirthSheet.setAttribute('aria-hidden', 'false') }) })
+      rebirthSlots.forEach(function (slot) {
+        slot.addEventListener('click', function () {
+          if (slot.dataset.name) {
+            const name = slot.dataset.name
+            renderRebirthSlot(slot, null)
+            closeRebirthSheet()
+            renderRebirths()
+            update()
+            CreationFlow.notify(`已移除${name}`)
+            return
+          }
+          rebirthTarget = Number(slot.dataset.rebirthSlot)
+          rebirthSheetTitle.textContent = `选择转世 ${String(rebirthTarget + 1).padStart(2, '0')}`
+          renderRebirths()
+          rebirthSheet.classList.add('is-open')
+          rebirthSheet.setAttribute('aria-hidden', 'false')
+        })
+      })
       rebirthOptions.addEventListener('click', function (event) {
         const button = event.target.closest('[data-rebirth]'); if (!button) return
         const item = rebirths[Number(button.dataset.rebirth)]; renderRebirthSlot(rebirthSlots[rebirthTarget], item); closeRebirthSheet(); renderRebirths(); update(); CreationFlow.notify(`转世天赋 · ${item.name}`)
