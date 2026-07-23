@@ -165,6 +165,14 @@ async function main() {
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('确认选择') && !button.disabled), { timeout: 60000 })
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('确认选择'))?.click())
   await page.waitForFunction(() => !document.body.textContent?.includes('确认选择') || document.body.textContent?.includes('你的选择：'), { timeout: 60000 })
+  await page.waitForFunction(() => {
+    try {
+      const state = JSON.parse(localStorage.getItem('mod-engine:persist:engine-state') || '{}').state || {}
+      return (state.narrativeHistory?.length || 0) >= 2
+    } catch {
+      return false
+    }
+  }, { timeout: 60000 })
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('mod-engine:persist:engine-state') || '{}').state || {})
   const result = {
     selectedAfterClick,
