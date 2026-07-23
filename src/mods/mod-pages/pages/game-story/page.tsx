@@ -39,6 +39,7 @@ import {
 
 import styles from './GameStory.module.css'
 import { resolveWorldDimensionLabels } from '../../helpers/world-dimension-labels'
+import { getAutoNarrativeRetryDelay } from './narrative-retry-policy'
 
 const GENDER_LABELS: Record<string, string> = { male: '男', female: '女' }
 
@@ -113,6 +114,8 @@ export default function GamePage() {
   const timeStep = useEngineStore((s) => s.timeStep)
   const preGenStatus = usePreGenQueueStatus()
   const activeTimeStepKey = encodeTimeStepKey(timeStep)
+  const [autoRetryAttempt, setAutoRetryAttempt] = useState(0)
+  const autoRetryGenerationRef = useRef(0)
   const handleTimeStepChange = useCallback((key: string) => {
     setSimulationTimeStepByKey(key)
     reportUsageMetric({ schemaVersion: 1, kind: 'time_step_selected', timeStepKey: key })
@@ -226,25 +229,71 @@ export default function GamePage() {
     router.push('/game-over')
   }, [router, stop])
 
-  const handleNarrativeAdvance = useCallback(async () => {
-    if (narrativeError || !isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch) return
-    reportUsageMetric({ schemaVersion: 1, kind: 'narrative_advance', timeStepKey: activeTimeStepKey })
-    await advanceRound()
-  }, [narrativeError, isRuntimeReady, isDead, isComplete, isAdvancing, hasUnresolvedBranch, activeTimeStepKey, advanceRound])
-
-  const handleNarrativeRetry = useCallback(async () => {
+  const runNarrativeAttempt = useCallback(async () => {
     if (!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch) return
     reportUsageMetric({ schemaVersion: 1, kind: 'narrative_advance', timeStepKey: activeTimeStepKey })
     await advanceRound()
   }, [isRuntimeReady, isDead, isComplete, isAdvancing, hasUnresolvedBranch, activeTimeStepKey, advanceRound])
 
+  const handleNarrativeAdvance = useCallback(async () => {
+    if (narrativeError) {
+      // A manual tap takes precedence over a delayed automatic retry.
+      autoRetryGenerationRef.current += 1
+      setAutoRetryAttempt(0)
+    }
+    await runNarrativeAttempt()
+  }, [narrativeError, runNarrativeAttempt])
+
+  useEffect(() => {
+    if (!narrativeError) {
+      // Keep the counter while an automatic request is in flight. A successful
+      // completion clears the error after the request settles and resets it.
+      if (!isAdvancing) {
+        autoRetryGenerationRef.current += 1
+        /* eslint-disable react-hooks/set-state-in-effect -- reset local retry budget after a completed request */
+        setAutoRetryAttempt(0)
+        /* eslint-enable react-hooks/set-state-in-effect */
+      }
+      return
+    }
+
+    if (!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch) return
+
+    const attemptIndex = autoRetryAttempt
+    const retryDelay = getAutoNarrativeRetryDelay(attemptIndex)
+    if (retryDelay === null) return
+
+    const generation = autoRetryGenerationRef.current
+    const retryTimer = window.setTimeout(() => {
+      if (generation !== autoRetryGenerationRef.current) return
+      setAutoRetryAttempt(attemptIndex + 1)
+      void runNarrativeAttempt()
+    }, retryDelay)
+
+    return () => window.clearTimeout(retryTimer)
+  }, [narrativeError, isRuntimeReady, isDead, isComplete, isAdvancing, hasUnresolvedBranch, autoRetryAttempt, runNarrativeAttempt])
+
+  const autoRetryPending = Boolean(
+    narrativeError
+      && isRuntimeReady
+      && !isDead
+      && !isComplete
+      && !isAdvancing
+      && !hasUnresolvedBranch
+      && getAutoNarrativeRetryDelay(autoRetryAttempt) !== null,
+  )
+
   const narrativeAdvanceBlockedText = !isRuntimeReady
     ? runtimeBlockedText
-    : narrativeError
-      ? hasUnresolvedBranch
-        ? '完成分支后再重新尝试'
-        : '请使用上方“重新尝试”恢复本段故事'
-      : '完成分支后继续'
+    : '完成分支后继续'
+  const narrativeAdvanceText = narrativeError && !hasUnresolvedBranch
+    ? '立即重试，继续此段故事'
+    : '轻触，让岁月流转'
+  const narrativeAdvanceHint = narrativeError && !hasUnresolvedBranch
+    ? autoRetryPending
+      ? '正在自动重新尝试；轻触可立即重试'
+      : '自动重试未恢复；轻触可再次尝试'
+    : '下一段故事已经准备好'
 
   const activeTimeStepLabel = timeStepOptions.find((o) => o.value === activeTimeStepKey)?.label ?? '按年'
 
@@ -539,10 +588,13 @@ export default function GamePage() {
           {narrativeError && (
             <div className={styles.errorNotice} role="alert">
               <strong>这一段未能写完</strong>
-              <span>{narrativeError}</span>
-              {!hasUnresolvedBranch && !isDead && !isComplete && (
-                <button type="button" disabled={!isRuntimeReady || isAdvancing} onClick={handleNarrativeRetry}>重新尝试</button>
-              )}
+              <span>{autoRetryPending
+                ? `${narrativeError} 正在自动重新尝试；也可在页面底部立即再试。`
+                : hasUnresolvedBranch
+                  ? `${narrativeError} 请先完成当前分支后继续。`
+                  : isDead || isComplete
+                    ? narrativeError
+                    : `${narrativeError} 自动重试未恢复，可在页面底部再次尝试。`}</span>
             </div>
           )}
 
@@ -553,11 +605,12 @@ export default function GamePage() {
             streamingHeader={streamingHeader}
             turnCount={totalRounds}
             showAdvance={!isDead && !isComplete}
-            advanceBlocked={!isRuntimeReady || hasUnresolvedBranch || Boolean(narrativeError)}
+            advanceBlocked={!isRuntimeReady || hasUnresolvedBranch}
             advanceBlockedText={narrativeAdvanceBlockedText}
+            advanceText={narrativeAdvanceText}
+            advanceHint={narrativeAdvanceHint}
             isGenerating={isAdvancing}
             hasEndingEvent={isDead}
-            advanceText="轻触，让岁月流转"
             onAdvance={handleNarrativeAdvance}
             onGoToGameOver={handleGoToGameOver}
             unresolvedBranchIndex={unresolvedBranchIndex}

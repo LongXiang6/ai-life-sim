@@ -160,7 +160,8 @@ check(
       '<NarrativeTimeline',
       'entries={narrativeEntries}',
       'onAdvance={handleNarrativeAdvance}',
-      'advanceText="轻触，让岁月流转"',
+      'advanceText={narrativeAdvanceText}',
+      'advanceHint={narrativeAdvanceHint}',
     ])
     return requireFragments('src/mods/mod-ui/components/organisms/NarrativeTimeline.tsx', [
       'function splitNarrativeParagraphs',

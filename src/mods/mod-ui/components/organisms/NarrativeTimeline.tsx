@@ -34,6 +34,7 @@ export interface NarrativeTimelineProps {
   streamingHeader?: { eraLabel?: string; ageLabel?: string }
   turnCount?: number
   advanceText?: string
+  advanceHint?: string
   showAdvance?: boolean
   advanceBlocked?: boolean
   advanceBlockedText?: string
@@ -66,6 +67,7 @@ export function NarrativeTimeline({
   streamingHeader,
   turnCount = 0,
   advanceText = '轻触，让岁月流转',
+  advanceHint = '下一段故事已经准备好',
   showAdvance = false,
   advanceBlocked = false,
   advanceBlockedText = '✔ 请先选择命运',
@@ -305,11 +307,11 @@ export function NarrativeTimeline({
     : advanceBlocked
       ? advanceBlockedText
       : advanceText
-  const advanceHint = isGenerating
+  const computedAdvanceHint = isGenerating
     ? '下一段人生正在生成'
     : advanceBlocked
       ? '当前故事仍在等待处理'
-      : '下一段故事已经准备好'
+      : advanceHint
 
   const advanceControl = showAdvance ? (
     <div className={styles.advanceDock}>
@@ -335,7 +337,7 @@ export function NarrativeTimeline({
           >
             <span className={styles.advanceText}>
               <strong>{advanceTitle}</strong>
-              <small>{advanceHint}</small>
+              <small>{computedAdvanceHint}</small>
             </span>
           </button>
         )}

@@ -574,11 +574,15 @@ assertOk(
   'NarrativeTimeline scrollMain must not create a nested scrolling or viewport-height layer',
 )
 assertOk(
-  gameStoryPageSrc.includes('if (narrativeError || !isRuntimeReady')
-    && gameStoryPageSrc.includes('onClick={handleNarrativeRetry}>重新尝试</button>')
-    && gameStoryPageSrc.includes('advanceBlocked={!isRuntimeReady || hasUnresolvedBranch || Boolean(narrativeError)}')
-    && gameStoryPageSrc.includes('请使用上方“重新尝试”恢复本段故事'),
-  'game story narrative errors must leave retry as the only advancing action and block the normal timeline control',
+  gameStoryPageSrc.includes('getAutoNarrativeRetryDelay')
+    && gameStoryPageSrc.includes('void runNarrativeAttempt()')
+    && gameStoryPageSrc.includes('autoRetryGenerationRef.current += 1')
+    && gameStoryPageSrc.includes('setAutoRetryAttempt(attemptIndex + 1)')
+    && gameStoryPageSrc.includes('advanceBlocked={!isRuntimeReady || hasUnresolvedBranch}')
+    && gameStoryPageSrc.includes('advanceText={narrativeAdvanceText}')
+    && gameStoryPageSrc.includes('advanceHint={narrativeAdvanceHint}')
+    && !gameStoryPageSrc.includes('handleNarrativeRetry'),
+  'game story narrative errors must retry automatically and reuse the bottom timeline control for manual retry',
 )
 assertOk(
   gameStoryPageSrc.includes('resolveWorldDimensionLabels(worldConfig)')
