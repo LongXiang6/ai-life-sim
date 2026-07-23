@@ -215,7 +215,16 @@ export function createOperationsDashboardServer(options) {
   })
 }
 
-const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+export function isDirectExecution(argvEntry, moduleUrl = import.meta.url) {
+  if (!argvEntry) return false
+  try {
+    return fs.realpathSync(path.resolve(argvEntry)) === fs.realpathSync(fileURLToPath(moduleUrl))
+  } catch {
+    return false
+  }
+}
+
+const isMain = isDirectExecution(process.argv[1])
 if (isMain) {
   const options = parseArgs(process.argv.slice(2))
   const server = createOperationsDashboardServer(options)

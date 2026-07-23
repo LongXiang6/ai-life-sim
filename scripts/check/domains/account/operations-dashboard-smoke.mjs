@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'ai-life-ops-dashboard-'))
 const logRoot = path.join(tempRoot, 'logs')
@@ -115,6 +116,19 @@ try {
   assert.match(dashboardService, /--host 127\.0\.0\.1 --port 4317/u)
   assert.match(dashboardService, /ProtectSystem=strict/u)
   assert.doesNotMatch(dashboardService, /0\.0\.0\.0/u)
+
+  const dashboardScriptPath = fileURLToPath(new URL('../../../ops/operations-dashboard.mjs', import.meta.url))
+  const linkedOpsDirectory = path.join(tempRoot, 'linked-ops')
+  await fs.symlink(
+    path.dirname(dashboardScriptPath),
+    linkedOpsDirectory,
+    process.platform === 'win32' ? 'junction' : 'dir',
+  )
+  assert.equal(
+    dashboard.isDirectExecution(path.join(linkedOpsDirectory, path.basename(dashboardScriptPath))),
+    true,
+  )
+  assert.equal(dashboard.isDirectExecution(path.join(tempRoot, 'missing-dashboard.mjs')), false)
 
   console.log('[operations-dashboard-smoke] PASS')
 } finally {
