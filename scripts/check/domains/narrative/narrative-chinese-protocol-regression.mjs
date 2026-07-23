@@ -376,6 +376,20 @@ assertOk(
   inspectNarrativeResponseQuality(bodyOnlyEnvelope, 200, null).valid,
   'ordinary rounds must accept a complete body without an optional summary',
 )
+const bodyOnlyJsonError = JSON.stringify({
+  error: '这是服务端返回的完整中文错误说明，当前请求没有生成叙事内容，请稍后重试。',
+})
+assertOk(
+  !inspectNarrativeResponseQuality(bodyOnlyJsonError, 200, null).valid,
+  'a long Chinese JSON error object must not be mistaken for a narrative body',
+)
+const bodyOnlyJsonNarrative = JSON.stringify({
+  正文: '你在雨后的旧渡口停下脚步，听见远处船铃回应，随后决定沿着潮湿的石阶追上那盏熟悉的灯。',
+})
+assertOk(
+  inspectNarrativeResponseQuality(bodyOnlyJsonNarrative, 200, null).valid,
+  'a JSON object with a sufficiently long 正文 field may use body-only degradation',
+)
 const fiveParagraphEnvelope = `⟦正文⟧\n第一段。\n\n第二段。\n\n第三段。\n\n第四段。\n\n第五段。\n⟦摘要⟧\n本轮事件按自然节奏写成五段。\n⟦结束⟧`
 const fiveParagraphQuality = inspectNarrativeResponseQuality(fiveParagraphEnvelope, 200, null)
 assertOk(

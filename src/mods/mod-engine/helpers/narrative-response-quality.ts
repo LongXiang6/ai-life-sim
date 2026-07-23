@@ -1,14 +1,19 @@
 import { resolveNarrativeWordCountRange } from '../constants/narrative-config'
 import {
   buildNarrativeAIProtocolRepairReminder,
+  NARRATIVE_BODY_TAG,
+  NARRATIVE_END_TAG,
+  NARRATIVE_SUMMARY_TAG,
   parseNarrativeAIDataJson,
   toNarrativeAIIntentId,
   translateNarrativeAIResponse,
 } from './narrative-ai-protocol'
+import { ChineseTextProcessor } from './chinese-text-processor'
 import { extractTaggedMetaEnvelope } from './tagged-meta-envelope'
 import { validateIntentResolution } from './branch-intent-resolution'
 
 export type NarrativeStructuredDataStatus = 'valid' | 'omitted' | 'rejected'
+export type NarrativeConditionalFailure = 'intent' | 'branch'
 
 export interface NarrativeResponseQuality {
   valid: boolean
@@ -20,6 +25,49 @@ export interface NarrativeResponseQuality {
   structuredDataStatus: NarrativeStructuredDataStatus
   narrativeChars: number
   paragraphCount: number
+  /** 条件 META 失败的归属；正文完整时调用方可按条件选择继续推进。 */
+  conditionalFailure?: NarrativeConditionalFailure
+  /** 已通过协议提取出的正文仍可作为玩家可见回合结果。 */
+  hasUsableNarrative?: boolean
+}
+
+const plainTextProcessor = new ChineseTextProcessor()
+
+function extractBodyOnlyNarrative(content: string): string | null {
+  const trimmed = content.trim()
+  if (!trimmed) return null
+
+  // A JSON response is a protocol-shaped payload, so never mistake an error
+  // message or an arbitrary field for player-visible narrative text.
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    try {
+      const parsed: unknown = JSON.parse(trimmed)
+      if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') return null
+      const candidate = (parsed as Record<string, unknown>)['正文']
+      if (typeof candidate !== 'string' || !candidate.trim()) return null
+      if (!plainTextProcessor.extractLongestChineseBlock(candidate)) return null
+      return candidate.trim()
+    } catch {
+      return null
+    }
+  }
+
+  return plainTextProcessor.extractLongestChineseBlock(trimmed)?.trim() ?? null
+}
+
+function buildBodyOnlyQuality(narrative: string): NarrativeResponseQuality {
+  const paragraphs = narrative
+    .split(/\n\s*\n/u)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+  return {
+    valid: true,
+    reason: '',
+    structuredDataStatus: 'omitted',
+    narrativeChars: narrative.replace(/\s/gu, '').length,
+    paragraphCount: paragraphs.length,
+    hasUsableNarrative: true,
+  }
 }
 
 function hasCompleteSemanticCore(
@@ -37,12 +85,14 @@ function failure(reason: string): NarrativeResponseQuality {
     structuredDataStatus: 'rejected',
     narrativeChars: 0,
     paragraphCount: 0,
+    hasUsableNarrative: false,
   }
 }
 
 function failureWithEnvelope(
   reason: string,
   narrative: string,
+  conditionalFailure?: NarrativeConditionalFailure,
 ): NarrativeResponseQuality {
   const paragraphs = narrative
     .split(/\n\s*\n/u)
@@ -54,11 +104,15 @@ function failureWithEnvelope(
     structuredDataStatus: 'rejected',
     narrativeChars: narrative.replace(/\s/gu, '').length,
     paragraphCount: paragraphs.length,
+    ...(conditionalFailure ? { conditionalFailure } : {}),
+    hasUsableNarrative: narrative.trim().length > 0,
   }
 }
 
 /**
- * 最低门禁只要求非空完整正文和结束标记，摘要与普通数据均可省略，段落数量不参与判定。
+ * 最低门禁只要求可识别的非空完整正文；标准信封带结束标记时可继续提取摘要，
+ * 摘要与普通数据均可省略，段落数量不参与判定。无信封的纯正文只作为玩家可见
+ * 降级结果，不获得任何结构化写入权限。
  * 普通轮的可选数据区畸形时保留正文并整包拒绝数据；当前命运意图或
  * 强制命运分支属于条件契约，缺少相应完整数据时才触发一次格式修复。
  */
@@ -70,7 +124,9 @@ export function inspectNarrativeResponseQuality(
 ): NarrativeResponseQuality {
   const envelope = extractTaggedMetaEnvelope(content)
   if (!envelope) {
-    return failure('缺少完整的正文或结束分区')
+    const plainNarrative = extractBodyOnlyNarrative(content)
+    if (plainNarrative) return buildBodyOnlyQuality(plainNarrative)
+    return failure('缺少可识别的完整叙事正文')
   }
 
   let metadata: ReturnType<typeof translateNarrativeAIResponse> | undefined
@@ -89,15 +145,23 @@ export function inspectNarrativeResponseQuality(
 
   if (typeof expectedIntentId === 'string') {
     if (!metadata || !hasCompleteSemanticCore(metadata)) {
-      return failureWithEnvelope('当前命运意图要求完整语义数据与命运意图判定', envelope.narrative)
+      return failureWithEnvelope(
+        '当前命运意图要求完整语义数据与命运意图判定',
+        envelope.narrative,
+        'intent',
+      )
     }
     const intentError = validateIntentResolution(metadata.intentResolution, expectedIntentId)
-    if (intentError) return failureWithEnvelope(intentError, envelope.narrative)
+    if (intentError) return failureWithEnvelope(intentError, envelope.narrative, 'intent')
   }
 
   if (requireBranch) {
     if (!metadata || !hasCompleteSemanticCore(metadata) || metadata.branch !== true) {
-      return failureWithEnvelope('本轮已请求命运分支，必须返回完整语义数据、分支标题与分支选项', envelope.narrative)
+      return failureWithEnvelope(
+        '本轮已请求命运分支，必须返回完整语义数据、分支标题与分支选项',
+        envelope.narrative,
+        'branch',
+      )
     }
   }
 
@@ -123,7 +187,33 @@ export function inspectNarrativeResponseQuality(
     structuredDataStatus,
     narrativeChars,
     paragraphCount: paragraphs.length,
+    hasUsableNarrative: true,
   }
+}
+
+/**
+ * 任何条件 META 失败都不能阻断已经通过正文/结束标记门禁的故事。
+ * 调用方必须丢弃整包结构化状态，不得伪造缺失的判定或分支结果。
+ */
+export function canContinueWithNarrativeBody(
+  quality: NarrativeResponseQuality,
+  expectedIntentId?: string | null,
+  requireBranch = false,
+): boolean {
+  return !quality.valid
+    && quality.hasUsableNarrative === true
+}
+
+/** 保留正文和摘要，丢弃未通过条件门禁的数据区，供本轮无等待提交。 */
+export function preserveNarrativeBodyAndSummary(content: string): string {
+  const envelope = extractTaggedMetaEnvelope(content)
+  if (!envelope || !envelope.dataPresent) return content
+  return [
+    NARRATIVE_BODY_TAG,
+    envelope.narrative,
+    ...(envelope.summary ? [NARRATIVE_SUMMARY_TAG, envelope.summary] : []),
+    NARRATIVE_END_TAG,
+  ].join('\n')
 }
 
 /** 放在本轮最后一段动态上下文中的紧凑检查表，减少长 Prompt 尾部遗忘。 */

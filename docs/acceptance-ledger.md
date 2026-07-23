@@ -167,6 +167,24 @@
 
 生产验收于 2026-07-23 在 `5.3.2` release `db86ff9` 完成：活动 symlink 与 PM2 cwd 均指向该 release，Next.js 只监听 `127.0.0.1:3000`；Nginx 配置通过，HTTP 正确跳转 HTTPS，两个域名与版本资源均正常。排行榜、邮箱和画像路由在关闭态均返回 `404`。公网浏览器路径覆盖注册、登录、完整 gzip 云存档覆盖与逐字回读、退出清 Key、删除存档、删除账号、320/390/768/1280px 以及零控制台/5xx；清理测试数据后运营面板显示注册账号 `1`、近 24 小时活跃账号 `1`、云存档 `0`、合格排行榜账号 `0`、待处理画像 `0`、已投递邮箱 `0`，账号库和玩家内容库的 SQLite 主库/WAL/SHM 均为 `0600`。账号与 release 清理 timer 已启用，账号清理 service 实跑成功，release 清理 dry-run 因活动版本未完成 72 小时浸泡而正确跳过。运营面板持续监听 `127.0.0.1:4317`，本机 SSH 隧道 `127.0.0.1:4320` 返回 `200`；生产日志未发现本次新增代理、客户端、调试或反馈问题，也没有待标记完成的玩家反馈。
 
+<a id="fate-branch-custom-choice"></a>
+
+### 2.14 自定义命运分支的条件 META 失败恢复
+
+`LastVerified: 2026-07-23`
+
+`Authority: PD-016, PD-017`
+
+`RuntimeSource: src/mods/mod-engine/helpers/narrative-response-quality.ts; src/mods/mod-engine/campaigns/default/index.ts; src/mods/mod-engine/helpers/pre-gen-queue.ts`
+
+`Result: pass`
+
+`Evidence: branch-intent-resolution-smoke.mjs 运行级玩家路径（含标准信封、非法条件数据、强制分支和 body-only 降级）；runtime-subsystem-state-regression.mjs；narrative-chinese-protocol-regression.mjs；no-hard-truncation-audit.mjs；ESLint；TypeScript`
+
+`KnownLimitations: 若模型持续不返回合法命运意图或强制分支 META，相关状态保持 pending 并由预生成或后续轮次继续请求；本轮不会伪造成功、失败、进度或分支结果。只有正文/结束标记不完整时仍会同步进行一次最小协议修复。`
+
+`Supersession: 取代此前“条件 META 失败后整轮回滚并抛出生成失败”的运行实现；产品语义仍以 PD-016/PD-017 为准。`
+
 ## 3. 阶段与发布验收摘要
 
 | 范围 | 当前结论 | 权威入口 |
@@ -179,6 +197,7 @@
 | 5.2.4 本地候选 | DeepSeek 与叙事修复、可选账号云同步、QQ 绑定和共享积分、通用评分与转世天赋已通过本地完整关闸；其生产待验证结论已由 5.3.1 取代 | 本账本 2.2、2.5、2.6、2.9—2.12 |
 | 5.3.1 | 失败自动重试、登录玩家单栏云存档、默认关闭的排行榜/邮箱/画像后台与回环运营面板已通过独立 release、原子切换、HTTPS、公网账号云存档浏览器路径和 systemd 运维验证 | 本账本 2.10、2.13 |
 | 5.3.2 | 内容审核失败给出明确处理建议，确定性 4xx 不重试且重试日志不复制上游正文；移动端 `ui-sync-5` 原型验收完成并随生产 release 验证 | 本账本 2.7、2.9、2.13 |
+| 5.3.3 本地候选 | 任何完整故事都立即交付；条件 META、非法数据与重复度不再触发同步重写，相关状态保持待处理且非法数据整包不写；已通过运行级玩家路径与完整本地关闸，尚未声明生产部署 | 本账本 2.14 |
 
 公开玩家变更以 `../public/changelog-index.json` 与对应 `../public/changelog-*.txt` 为准；本账本不重复维护逐版本玩家文案。
 

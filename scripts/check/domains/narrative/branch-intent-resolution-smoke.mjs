@@ -9,6 +9,12 @@ import {
   NarrativeResponseSchema,
 } from '../../../../src/mods/mod-engine/helpers/narrative-semantic-signals.ts'
 import {
+  canContinueWithNarrativeBody,
+  inspectNarrativeResponseQuality,
+  preserveNarrativeBodyAndSummary,
+} from '../../../../src/mods/mod-engine/helpers/narrative-response-quality.ts'
+import { OrchestratorSystem } from '../../../../src/mods/mod-engine/subsystems/orchestrator-system.ts'
+import {
   buildBranchIntentInstruction,
   commitBranchIntentResolution,
   createBranchIntentState,
@@ -149,16 +155,92 @@ const snapshotRoundTrip = JSON.parse(JSON.stringify({
 assertOk(snapshotRoundTrip.branchIntents.length === 1, 'snapshot serialization must persist unresolved intent state')
 assertOk(snapshotRoundTrip.focusedBranchIntentId === firstIntent.intentId, 'snapshot serialization must persist focused intent ownership')
 
+// 玩家路径回归：自定义选择后的主模型若只返回完整正文/摘要，不能让整轮回滚。
+const bodyOnlyResponse = [
+  '⟦正文⟧',
+  '你把自定义选择付诸行动，现场立刻给出回应，新的局面在眼前展开。',
+  '⟦摘要⟧',
+  '你已经开始执行玩家确认的长期方向。',
+  '⟦结束⟧',
+].join('\n')
+const bodyOnlyQuality = inspectNarrativeResponseQuality(
+  bodyOnlyResponse,
+  200,
+  firstIntent.intentId,
+)
+assertOk(!bodyOnlyQuality.valid, 'missing intent META must remain rejected as structured data')
+assertOk(bodyOnlyQuality.conditionalFailure === 'intent', 'missing intent META must be classified as an intent-only failure')
+assertOk(
+  canContinueWithNarrativeBody(bodyOnlyQuality, firstIntent.intentId),
+  'a complete body must remain usable when only focused intent META is missing',
+)
+assertOk(
+  canContinueWithNarrativeBody(bodyOnlyQuality, firstIntent.intentId, true),
+  'a forced branch body must remain usable while its conditional META is repaired later',
+)
+const malformedConditionalResponse = [
+  '⟦正文⟧',
+  '你已经完成了现场行动，新的局面清楚地落到眼前。',
+  '⟦摘要⟧',
+  '正文事实应先交付给玩家。',
+  '⟦数据⟧',
+  '{"重要程度":"高"}',
+  '⟦结束⟧',
+].join('\n')
+const malformedConditionalQuality = inspectNarrativeResponseQuality(
+  malformedConditionalResponse,
+  200,
+  undefined,
+  true,
+)
+assertOk(!malformedConditionalQuality.valid, 'forced branch META must remain conditionally rejected')
+assertOk(
+  canContinueWithNarrativeBody(malformedConditionalQuality, undefined, true),
+  'forced branch with a complete body must still be player-visible immediately',
+)
+const bodyOnlyEnvelope = preserveNarrativeBodyAndSummary(malformedConditionalResponse)
+assertOk(!bodyOnlyEnvelope.includes('⟦数据⟧'), 'invalid conditional data must be removed before state application')
+assertOk(bodyOnlyEnvelope.includes('正文事实应先交付给玩家。'), 'body-only fallback must preserve the summary')
+const unwrappedStory = '你沿着潮湿的石阶走出城门，风里带着远处海潮和炉火的气味。守门人没有拦你，只把一枚旧铜牌塞进你掌心，提醒你在日落前找到北岸的灯塔。'
+const unwrappedQuality = inspectNarrativeResponseQuality(unwrappedStory, 200, firstIntent.intentId)
+assertOk(unwrappedQuality.valid, 'a complete unwrapped story must bypass protocol repair')
+assertOk(unwrappedQuality.hasUsableNarrative === true, 'unwrapped story must remain player-visible')
+
+const runtime = new OrchestratorSystem()
+runtime.resolveBranchChoice('custom-choice', '自定义寻找失落的航道')
+const runtimeResult = runtime.handleNarrativeResponse(bodyOnlyResponse)
+assertOk(
+  runtimeResult.narrative.includes('自定义选择付诸行动'),
+  'runtime must commit the complete body after custom-choice META failure',
+)
+assertOk(!runtimeResult.intentResolution, 'runtime must not fabricate an intent resolution')
+assertOk(
+  runtime.getActiveBranchIntents().some((intent) => intent.choice === '自定义寻找失落的航道'),
+  'unresolved custom intent must remain pending after body-only acceptance',
+)
+assertOk(runtime.getState().narrativeHistory.length === 1, 'body-only custom choice must create a playable narrative history entry')
+
 const branchCommands = read('src/mods/mod-engine/helpers/branch-commands.ts')
 const responseQuality = read('src/mods/mod-engine/helpers/narrative-response-quality.ts')
 const orchestratorSource = read('src/mods/mod-engine/subsystems/orchestrator-system.ts')
+const campaignSource = read('src/mods/mod-engine/campaigns/default/index.ts')
+const preGenSource = read('src/mods/mod-engine/helpers/pre-gen-queue.ts')
 assertOk(!/callAI|fetch\s*\(/.test(branchCommands), 'selecting a branch must not add a separate AI request')
 assertOk(branchCommands.includes('orchestrator.resolveBranchChoice'), 'branch selection must hand the intent to the owning orchestrator')
 assertOk(
   responseQuality.includes('validateIntentResolution(metadata.intentResolution, expectedIntentId)')
     && responseQuality.includes('当前命运意图要求完整语义数据与命运意图判定')
+    && responseQuality.includes('canContinueWithNarrativeBody')
     && orchestratorSource.includes('当前没有玩家命运意图，禁止提交 intentResolution'),
   'active intent must require matching data while unsolicited intent state is rejected before writes',
+)
+assertOk(
+  campaignSource.includes('preserveNarrativeBodyAndSummary(ctx._fullContent ?? \'\')')
+    && campaignSource.includes('canContinueWithNarrativeBody(initialQuality, expectedIntentId, requireBranch)')
+    && campaignSource.includes('if (!repairedQuality.valid && requireBranch)')
+    && campaignSource.includes('保留完整正文，结构化状态保持待处理')
+    && preGenSource.includes('canContinueWithNarrativeBody(responseQuality, expectedIntentId)'),
+  'main and pre-generated rounds must deliver any complete body while conditionally repairing META later',
 )
 assertOk(
   orchestratorSource.indexOf('intentResolutionError') < orchestratorSource.indexOf("this.applyRoundChanges(effectiveParsed.changes, 'narrative')")

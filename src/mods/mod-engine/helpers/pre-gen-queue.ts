@@ -20,7 +20,10 @@ import { orchestrator } from '../subsystems/orchestrator-system'
 import { useEngineStore } from '../store'
 import { computeNarrativeMaxTokens, DEFAULT_WORD_COUNT_TARGET } from '../constants/narrative-config'
 import { isEligibleNarrativeBranch } from './narrative-branch-policy'
-import { inspectNarrativeResponseQuality } from './narrative-response-quality'
+import {
+  canContinueWithNarrativeBody,
+  inspectNarrativeResponseQuality,
+} from './narrative-response-quality'
 import {
   type NarrativeRoundMetadata,
 } from './narrative-semantic-signals'
@@ -325,13 +328,17 @@ export async function fillPreGenQueue(
       const wordCountTarget = useSettingsStore.getState().wordCountTarget
         ?? DEFAULT_WORD_COUNT_TARGET
       const responseQuality = inspectNarrativeResponseQuality(fullContent, wordCountTarget, expectedIntentId)
-      if (!responseQuality.valid) {
+      if (
+        !responseQuality.valid
+        && !canContinueWithNarrativeBody(responseQuality, expectedIntentId)
+      ) {
         console.info('[PreGen] 预生成响应未通过协议或段落结构门禁，已放弃缓存:', responseQuality.reason)
         return
       }
 
       // 普通轮允许正文+摘要作为最低成功；有效数据区仍用于预判命运分支。
-      // 当前命运意图已经由质量门禁要求完整数据，因此不会把缺失条件字段的结果写入缓存。
+      // 当前命运意图缺失条件 META 时仍可缓存完整正文；主推进会保持意图待处理，
+      // 不把未验证的判定写入状态。
       const metadata = parsePreGenMetadata(fullContent)
       const isBranchPoint = metadata ? isEligibleNarrativeBranch(metadata) : false
       if (isBranchPoint && orchestrator.isBranchCoolingDownForNextRound()) {
