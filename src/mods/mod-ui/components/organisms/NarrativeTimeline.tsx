@@ -242,7 +242,7 @@ export function NarrativeTimeline({
                 <button
                   type="button"
                   className={styles.branchConfirmBtn}
-                  disabled={(selectedBranchOptionId === null || selectedBranchOptionId === undefined) && !(branchCustomText ?? '').trim()}
+                  disabled={isGenerating || ((selectedBranchOptionId === null || selectedBranchOptionId === undefined) && !(branchCustomText ?? '').trim())}
                   onClick={() => onBranchConfirm?.()}
                 >
                   确认选择
