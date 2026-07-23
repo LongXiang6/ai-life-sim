@@ -896,6 +896,7 @@ select:focus-visible {
 .cf-overview-attributes b { display: block; }
 .cf-overview-attributes span { color: var(--cf-faint); font-size: 5.5px; }
 .cf-overview-attributes b { margin-top: 2px; font-size: 9px; }
+.cf-overview-attributes b i { margin-left: 2px; color: var(--cf-accent); font-size: 8px; font-style: normal; font-weight: 600; }
 .cf-talent-list { display: grid; gap: 5px; margin-top: 8px; }
 .cf-talent-list div { display: grid; grid-template-columns: 70px minmax(0, 1fr); gap: 7px; padding-top: 6px; border-top: 1px solid var(--cf-line); }
 .cf-talent-list div:first-child { padding-top: 0; border-top: 0; }
@@ -1019,7 +1020,49 @@ body[data-screen="mythic-inheritance"] .creation-review {
 }
 
 html.embedded-preview body[data-screen] > .creation-shell > .creation-review { display: none; }
-html.embedded-preview body[data-screen] > .creation-shell { width: 100%; min-height: 100vh; padding: 12px 0 28px; }
+html.embedded-preview body[data-screen] > .creation-shell > .prototype-topbar { display: none; }
+html.embedded-preview body[data-screen] > .creation-shell { width: 100%; min-height: 100vh; padding: 0; }
+
+/* A 9px design-canvas floor renders at about 12px on the 430px Pro Max preview. */
+.cf-meta,
+.cf-summary-copy span,
+.cf-summary-facts span,
+.cf-summary-facts strong,
+.cf-choice-label,
+.cf-caption,
+.cf-setting-heading small,
+.cf-setting .cf-segmented button,
+.cf-setting .cf-field,
+.cf-next-number,
+.cf-next-copy small,
+.cf-draw-copy p,
+.cf-draw-readout,
+.cf-draw-readout b,
+.cf-slot small,
+.cf-slot strong,
+.cf-focus small,
+.cf-focus p,
+.cf-library-trigger,
+.cf-library-list span,
+.cf-budget-score span,
+.cf-budget-copy p,
+.cf-attribute-name span,
+.cf-review-world .cf-world-source,
+.cf-review-world p,
+.cf-review-identity,
+.cf-stats span,
+.cf-overview-attributes span,
+.cf-overview-attributes b i,
+.cf-talent-list strong,
+.cf-talent-list span,
+.cf-task i,
+.cf-task strong,
+.cf-task span,
+.cf-dialog-panel p {
+  font-size: 9px;
+}
+
+.cf-attribute-base { font-size: 9px !important; }
 
 @media (max-width: 559px) {
   .creation-shell { width: min(100% - 22px, 900px); padding-top: 18px; }
@@ -1029,6 +1072,15 @@ html.embedded-preview body[data-screen] > .creation-shell { width: 100%; min-hei
 
 @media (max-width: 389px) {
   .creation-phone { width: min(100%, 326px); }
+}
+
+@media (max-width: 559px) {
+  html.embedded-preview body[data-screen] > .creation-shell {
+    width: 100%;
+    padding: 0;
+  }
+
+  html.embedded-preview body[data-screen] > .creation-shell > .creation-stage { width: 100%; }
 }
 
 @media (min-width: 600px) and (max-width: 900px) {

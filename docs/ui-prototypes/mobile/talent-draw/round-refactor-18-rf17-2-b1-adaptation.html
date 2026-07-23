@@ -24,7 +24,7 @@
     .stage { display:grid; justify-items:center; margin-top:18px; }
     .phone { width:min(320px,calc(100vw - 32px)); height:674px; margin:0; border-color:var(--line); background:var(--paper); box-shadow:0 13px 30px rgba(62,55,44,.075); }
     .page { position:relative; height:100%; overflow:hidden; padding:22px 15px 72px; background:linear-gradient(180deg,var(--paper),#f8f6f2); }
-    .step { color:var(--faint); font-size:7px; font-weight:700; letter-spacing:.16em; }
+    .step { color:var(--faint); font-size:9px; font-weight:700; letter-spacing:.16em; }
     .title { margin-top:6px; font-family:"Songti SC","STSong","SimSun",serif; font-size:20px; font-weight:600; }
     .sub { margin-top:5px; color:var(--soft); font-size:8px; line-height:1.55; }
     .aura { position:absolute; z-index:2; top:98px; left:50%; width:220px; height:220px; transform:translateX(-50%); transition:top .72s cubic-bezier(.2,.75,.2,1),transform .72s cubic-bezier(.2,.75,.2,1); }
@@ -39,14 +39,14 @@
     .glyph { position:relative; z-index:3; color:rgb(var(--glyph)); font-family:"Songti SC","STSong",serif; font-size:31px; font-weight:500; text-shadow:0 0 14px rgba(var(--wave),.16); }
     .ritual-copy { position:absolute; z-index:4; top:326px; right:15px; left:15px; text-align:center; transition:.45s ease; }
     .ritual-copy h2 { margin:0; font-family:"Songti SC","STSong",serif; font-size:13px; font-weight:600; }
-    .ritual-copy p { margin:6px 0 0; color:var(--soft); font-size:7px; }
+    .ritual-copy p { margin:6px 0 0; color:var(--soft); font-size:9px; }
     .seal-wrap { position:absolute; z-index:4; top:391px; right:15px; left:15px; padding:10px 10px 11px; border:1px solid var(--line); border-radius:12px; background:rgba(255,254,253,.78); backdrop-filter:blur(10px); transition:.58s ease; }
-    .seal-head { display:flex; justify-content:space-between; color:var(--soft); font-size:7px; font-weight:650; }
-    .seals { display:grid; grid-template-columns:repeat(6,1fr); gap:5px; margin-top:8px; }
-    .seal { display:grid; height:34px; place-items:center; border:1px solid var(--light); border-radius:8px; background:rgba(255,254,253,.86); color:var(--faint); transition:.25s ease; }
+    .seal-head { display:flex; justify-content:space-between; color:var(--soft); font-size:9px; font-weight:650; }
+    .seals { display:grid; grid-template-columns:repeat(5,1fr); gap:5px; margin-top:8px; }
+    .seal { display:grid; height:40px; place-items:center; border:1px solid var(--light); border-radius:8px; background:rgba(255,254,253,.86); color:var(--faint); transition:.25s ease; }
     .seal i,.seal b { grid-area:1/1; font-style:normal; }
-    .seal i { font-size:6px; }
-    .seal b { opacity:0; font-size:6px; }
+    .seal i { font-size:9px; }
+    .seal b { opacity:0; font-size:9px; }
     .seal.lit { transform:translateY(-1px); }
     .seal.lit i { opacity:0; }
     .seal.lit b { opacity:1; }
@@ -116,29 +116,29 @@
     <div class="topbar"><span>移动端创建流程</span><span>05 · 抽取</span></div>
     <p class="eyebrow">DESTINY PATTERN · P1 FINAL</p>
     <h1>命格抽取</h1>
-    <p class="subtitle">保留 P1 云紫宽环原机制；十二条命格全部归位后，进入神话传承式命格选取。</p>
+    <p class="subtitle">保留 P1 云紫宽环原机制；五条候选准备完成后，进入命格选取。</p>
     <section class="stage">
-      <div class="phone" data-relative-phone data-relative-phone-width="320" data-relative-phone-height="674">
+      <div class="phone" data-relative-phone data-relative-phone-width="320" data-relative-phone-height="694">
         <div class="page">
-          <div class="step">NEW LIFE · 05 / DRAW</div>
+          <div class="step">NEW LIFE · 04 / 08</div>
           <div class="title">命格抽取</div>
-          <div class="sub">十二条命格归位后，进入命格选择。</div>
+          <div class="sub">五条候选准备完成后，进入命格选择。</div>
           <div class="aura">
             <i class="wave w1"></i><i class="wave w2"></i><i class="wave w3"></i><i class="wave w4"></i><i class="wave w5"></i><i class="wave w6"></i>
             <span class="sun"><i class="layer l5"></i><i class="layer l4"></i><i class="layer l3"></i><i class="layer l2"></i><i class="layer l1"></i><b class="glyph">命</b></span>
           </div>
           <div class="ritual-copy"><h2>让命运揭示你的命格</h2><p>低饱和云紫，保留命格仪式的神秘感。</p></div>
-          <div class="seal-wrap"><div class="seal-head"><span>十二命印</span><span class="count">0 / 12</span></div><div class="seals"></div></div>
+          <div class="seal-wrap"><div class="seal-head"><span>五道命印</span><span class="count">0 / 5</span></div><div class="seals"></div></div>
         </div>
         <footer class="cf-footer">
           <button class="cf-back" type="button" data-flow-to="character-create" data-flow-back aria-label="返回角色创建" title="返回角色创建"><span data-icon="back"></span></button>
-          <button class="cf-next" type="button" data-action="draw"><span class="cf-next-number">06</span><span class="cf-next-copy"><strong data-action-title>开始抽取</strong><small data-action-hint>十二命印 · 准备就绪</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button>
+          <button class="cf-next" type="button" data-action="draw"><span class="cf-next-number">05</span><span class="cf-next-copy"><strong data-action-title>开始抽取</strong><small data-action-hint>五道命印 · 准备就绪</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button>
         </footer>
       </div>
     </section>
   </main>
   <script>
-    const rarities=[['common','普通'],['fine','精良'],['common','普通'],['rare','稀有'],['fine','精良'],['common','普通'],['epic','史诗'],['fine','精良'],['rare','稀有'],['common','普通'],['legendary','传说'],['common','普通']];
+    const rarities=[['common','普通'],['fine','精良'],['rare','稀有'],['epic','史诗'],['legendary','传世']];
     const phone=document.querySelector('.phone');
     const button=document.querySelector('[data-action="draw"]');
     const actionTitle=document.querySelector('[data-action-title]');
@@ -158,7 +158,7 @@
         items[index].classList.add('lit');
         index+=1;
         phone.querySelector('.count').textContent=index+' / 12';
-        if(index===12){
+        if(index===items.length){
           clearInterval(timer);
           setTimeout(function(){
             phone.classList.remove('drawing');
@@ -166,7 +166,7 @@
             button.disabled=false;
             button.dataset.done='true';
             actionTitle.textContent='进入命格选择';
-            actionHint.textContent='十二命印已归位';
+            actionHint.textContent='五道命印已归位';
           },420);
         }
       },520);

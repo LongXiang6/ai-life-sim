@@ -6,22 +6,22 @@
   <title>AI Life Sim · 移动端界面串联测试</title>
   <link rel="stylesheet" href="assets/library.css">
   <style>
-    .prototype-workbench { min-height: 888px; }
+    .prototype-workbench { min-height: 976px; }
     .preview-stage {
       align-items: start;
       overflow: auto;
     }
     .preview-frame-wrap {
       flex: 0 0 auto;
-      width: 390px;
-      height: 844px;
+      width: 430px;
+      height: 932px;
       border: 0;
       border-radius: 0;
       outline: 1px solid var(--ew-line);
     }
     @media (max-width: 680px) {
       .preview-stage { justify-content: start; }
-      .preview-frame-wrap { width: 390px; height: 844px; }
+      .preview-frame-wrap { width: 430px; height: 932px; }
     }
   </style>
 </head>
@@ -32,13 +32,13 @@
         <a class="hub-back" href="index.html">← 返回界面总览</a>
         <p class="eyebrow">AI LIFE SIM · MOBILE FLOW V1</p>
         <h1>移动端界面串联测试</h1>
-        <p>以角色创建的白纸承托为视觉基线，以 03 的顶部结构为流程标准；03–08 统一使用灰蓝状态、同宽分区、圆形返回与白色浮动底栏，并保留各页原有机制。可按“新人生 → 模拟 → 结算”完整点击。</p>
+        <p>串联当前定版页面，保留各页原有视觉与交互，可按主流程完整点击。</p>
       </div>
       <div class="hub-status" aria-live="polite">
         <span>当前界面</span>
         <strong id="current-screen">欢迎界面</strong>
         <span id="flow-position">01 / 10 主流程</span>
-        <span>观察视口 · 390 × 844</span>
+        <span>观察视口 · 430 × 932</span>
       </div>
     </header>
 
@@ -50,18 +50,18 @@
 
       <div class="preview-stage">
         <div class="preview-frame-wrap">
-          <iframe class="preview-frame" id="preview-frame" title="AI Life Sim 移动端界面预览" src="welcome/round-19-rf4-b-refinement.html"></iframe>
+          <iframe class="preview-frame" id="preview-frame" title="AI Life Sim 移动端界面预览" src="welcome/round-19-rf4-b-refinement.html?preview=20260723-ui-sync"></iframe>
         </div>
       </div>
 
       <aside class="hub-notes">
         <p class="rail-title">TEST NOTES</p>
-        <h2>白纸流程检查点</h2>
-        <p>03–08 共享纯白基底、浅灰分层、灰蓝选中态、淡墨与规则圆纹。顶部、编号、正文层级、内容宽度与底栏采用同一语法，关键控件保持可交互。</p>
+        <h2>流程检查</h2>
+        <p>保持原定版背景、配色、纹样、光效和布局，只核对串联与交互。</p>
         <dl>
-          <div><dt>主流程</dt><dd>欢迎 → 世界 → 角色 → 命格抽取 → 神话传承式选取 → 属性 → 预览 → 故事 → 结算</dd></div>
-          <div><dt>辅助入口</dt><dd>设置、说明从欢迎页进入，并返回原来源。</dd></div>
-          <div><dt>统一视口</dt><dd>所有界面固定在 390 × 844 下观察，避免外框尺寸干扰页面对比。</dd></div>
+          <div><dt>主流程</dt><dd>欢迎 → 世界 → 配置 → 角色 → 命格抽取 → 命格选取 → 属性 → 预览 → 模拟 → 结算</dd></div>
+          <div><dt>辅助入口</dt><dd>账号、设置、说明与反馈从欢迎页进入。</dd></div>
+          <div><dt>统一视口</dt><dd>所有界面在 430 × 932 下观察。</dd></div>
         </dl>
         <div class="hub-controls">
           <button class="hub-control" id="previous-screen" type="button">上一界面</button>
@@ -80,13 +80,17 @@
         ['character-create', '角色创建', 'character-create/round-15-ws-b1-adaptation.html'],
         ['talent-draw', '命格抽取', 'talent-draw/round-refactor-18-rf17-2-b1-adaptation.html'],
         ['mythic-inheritance', '命格选取 · 转世天赋', 'mythic-inheritance/round-14-legacy-layout-b1-rebirth.html'],
+        ['attribute-alloc', '属性分配', 'attribute-alloc/final.html'],
         ['fate-preview', '命运预览', 'fate-preview/round-refactor-01-style-1.html'],
         ['game-story', '核心模拟', 'game-story/round-refactor-20-style-1.html'],
-        ['game-over', '人生结算', 'game-over/round-refactor-01-style-1.html'],
+        ['game-over', '人生结算', 'game-over/final.html'],
+        ['account', '账号与云端', 'account/final.html'],
         ['settings', '设置', 'settings/final.html'],
         ['help', '说明', 'help/final.html'],
+        ['feedback', '反馈与建议', 'feedback/final.html'],
       ]
-      const mainFlowCount = 9
+      const mainFlowCount = 10
+      const previewRevision = '20260723-ui-sync'
       const frame = document.querySelector('#preview-frame')
       const list = document.querySelector('#screen-list')
       const currentName = document.querySelector('#current-screen')
@@ -110,7 +114,7 @@
           : '辅助界面'
         if (!load) return
         frame.classList.add('is-loading')
-        frame.src = screen[2]
+        frame.src = screen[2] + '?preview=' + previewRevision
       }
 
       list.addEventListener('click', function (event) {

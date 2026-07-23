@@ -24,7 +24,6 @@ export default defineMod({
     { path: '/new-game/world-build', page: 'world-build' },
     { path: '/new-game/character-create', page: 'character-create' },
     { path: '/talent-draw', page: 'talent-draw' },
-    // 兼容旧创建会话；页面只跳转到命运预览，不再提供属性分配功能。
     { path: '/attribute-alloc', page: 'attribute-alloc' },
     { path: '/fate-preview', page: 'fate-preview' },
     { path: '/game-story', page: 'game-story' },

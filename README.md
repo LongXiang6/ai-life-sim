@@ -1,6 +1,6 @@
 # AI 人生模拟器
 
-当前版本：**5.2.9**。
+当前版本：**5.3.1**。
 
 基于 Next.js 与 MOD 化架构的 AI 驱动人生叙事游戏。5.0.0 以服务器仍在运行的废弃版 2.7.4 为对照完成重写，当前重点是完整可玩的创建与叙事主链、第二人称沉浸叙事、时间跨度一致性、长局记忆和可靠存档。
 
@@ -10,7 +10,7 @@
 
 - **框架**：Next.js 16、React 19、TypeScript
 - **状态**：Zustand
-- **账号存储**：SQLite（可选登录与云同步）
+- **账号存储**：独立 SQLite（账号同步与玩家内容）
 - **校验**：Zod
 - **样式**：Tailwind CSS 4
 
@@ -84,8 +84,8 @@ npm run dev:warm
 | 内容 | 说明 |
 |------|------|
 | `.env.local` | API Key 等密钥，已在 `.gitignore` 中排除 |
-| 浏览器本地数据 | 游客设置、存档与角色设定保存在浏览器；登录后只有白名单设置、角色设定、转世天赋和结构化战绩可云同步，游戏存档与故事正文仍不会自动带过去 |
-| 账号数据库与加密密钥 | 生产 `accounts.sqlite` 和 `ACCOUNT_DATA_ENCRYPTION_KEY` 位于发布目录外，缺一不可；密钥不得提交到 Git |
+| 浏览器本地数据 | 游客设置、存档与角色设定保存在浏览器；登录玩家另有一个只在手动操作时覆盖的完整云端存档栏位 |
+| 账号与玩家内容数据库 | 生产 `accounts.sqlite`、`player-content.sqlite` 和 `ACCOUNT_DATA_ENCRYPTION_KEY` 位于发布目录外；数据库职责分离，密钥不得提交到 Git |
 | Cursor 工作区规则 | 若你在 `d:\AI\AGENTS.md`、`.agents/` 下有 AI 行为约束，它们不在本仓库内，需另行复制或同步 |
 
 **给接手 AI 的最小信息：**
@@ -103,6 +103,7 @@ npm run dev:warm
 | `npm run dev:warm` | 开发模式 + 路由预热 |
 | `npm run build` | 生产构建 |
 | `npm run lint` | ESLint 检查 |
+| `npm run ops:dashboard` | 启动只监听本机回环地址的聚合运营面板 |
 | `npm run check:quick` | 快速架构/接线检查 |
 | `npm run gate-check:quick` | 轻量交付门禁 |
 | `npm run generate:wiring` | 重新生成 MOD 接线代码 |

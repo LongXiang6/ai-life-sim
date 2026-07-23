@@ -8,8 +8,10 @@
   <link rel="stylesheet" href="../assets/library.css">
   <link rel="stylesheet" href="../assets/creation-flow-unified.css">
   <link rel="stylesheet" href="../assets/end-flow-unified.css">
+  <link rel="stylesheet" href="../assets/relative-phone-layout.css">
   <script src="../assets/prototype.js" defer></script>
   <script src="../assets/creation-flow-unified.js" defer></script>
+  <script src="../assets/relative-phone-layout.js" defer></script>
 </head>
 <body data-screen="settings">
   <main class="end-shell">
@@ -20,7 +22,7 @@
     </header>
 
     <section class="end-stage" aria-label="设置移动端界面">
-      <div class="creation-phone end-phone" data-prototype>
+      <div class="creation-phone end-phone" data-prototype data-relative-phone data-relative-phone-width="330" data-relative-phone-height="715">
         <div data-flow-art></div>
         <div class="end-screen">
           <header class="end-header">
@@ -90,8 +92,8 @@
         </div>
 
         <footer class="cf-footer end-footer">
-          <button class="cf-back" type="button" data-flow-back aria-label="关闭设置" title="关闭设置"><span data-icon="close"></span></button>
-          <button class="cf-next" type="button" data-flow-back><span class="cf-next-number">返</span><span class="cf-next-copy"><strong>完成设置</strong><small>所有调整已即时生效</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button>
+          <button class="cf-back" type="button" data-flow-to="welcome" aria-label="关闭设置" title="关闭设置"><span data-icon="close"></span></button>
+          <button class="cf-next" type="button" data-flow-to="welcome"><span class="cf-next-number">00</span><span class="cf-next-copy"><strong>完成设置</strong><small>所有调整已即时生效</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button>
         </footer>
         <div class="cf-toast end-toast" role="status" aria-live="polite"></div>
       </div>

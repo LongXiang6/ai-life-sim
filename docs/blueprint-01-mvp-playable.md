@@ -5,7 +5,7 @@
 状态：active
 适用范围：MVP 可玩路径、恢复范围和验收链路
 拥有者：产品决策与 `mod-engine` MVP runtime policy
-最后验证：2026-07-20；对照当前 Skills、MVP runtime policy、零基础值创建链、蓝图二 P0/P1 与系统职责索引
+最后验证：2026-07-23；对照当前 Skills、MVP runtime policy、四项属性分配创建链、蓝图二 P0/P1 与系统职责索引
 取代关系：none
 运行真源：`src/mods/mod-engine/helpers/mvp-stages-config.default.json` 与实际玩家路径
 验收证据：结构、MOD、UI、lint、TypeScript、交付 gate 与玩家路径
@@ -16,7 +16,7 @@
 
 ## 〇、一句话目标
 
-**让项目回到"最初能正常游玩的版本"**：选择服务器预设模型或填写自己的 API → 新游戏 → 选世界 → 手动配置世界 → 设定角色 → AI 抽取并选择命格 → 以四项零基础值核对命运 → 进入核心模拟界面默认按"年"推进剧情（玩家可切换为日 / 月 / 季 / 年不同叙事步长）、AI 生成叙事、带记忆压缩防止 token 爆炸、能存档和自动存档。最终验收必须**全程零红错、零崩溃、零未分流 gate FAIL**。
+**让项目回到"最初能正常游玩的版本"**：选择服务器预设模型或填写自己的 API → 新游戏 → 选世界 → 手动配置世界 → 设定角色 → AI 抽取并选择命格 → 分配四项基础属性并核对命运 → 进入核心模拟界面默认按"年"推进剧情（玩家可切换为日 / 月 / 季 / 年不同叙事步长）、AI 生成叙事、带记忆压缩防止 token 爆炸、能存档和自动存档。最终验收必须**全程零红错、零崩溃、零未分流 gate FAIL**。
 
 [蓝图二](blueprint-02-multi-world-simulation-foundation.md)已经完成 P0 多世界基础与 P1 历史事件账本；NPC、旧地图、地理资源、成长、生命周期、经济、社会文明、生态和世界观插件继续延后，等待用户按 P2—P8 逐阶段确认。延后系统优先从 MVP 执行路径隔离；只有为了暴露遗漏依赖时才允许临时抛错桩，且最终验收前不能让抛错桩在正常玩法路径产生红色控制台错误。
 
@@ -135,9 +135,11 @@ Full gate 剩余 FAIL 分流表：
     │  调用 AI 抽命格 → 选择命格 / 天赋 / 词条
     │  （mod-character/subsystems/destiny-pattern-system.ts 全保留）
     ▼
+属性分配 attribute-alloc
+    │  四项基础值共 30 点、每项 0—10；种族、命格和其他来源作为 modifiers 单独展示
+    ▼
 身世预览 fate-preview
-    │  四项基础值强制为 0；种族、命格和其他随机来源作为 modifiers 展示
-    │  汇总展示，无额外 AI
+    │  汇总基础值与独立 modifiers，无额外 AI
     ▼
 核心模拟 game-story
     │  底层按「天」推进 · 默认叙事步长「年」 · 玩家可切换日/月/季/年 · AI 生成叙事 · 记忆压缩防 token 爆炸 · 存档 + 自动存档
@@ -146,7 +148,7 @@ Full gate 剩余 FAIL 分流表：
 ```
 
 对应页面目录（均在 `src/mods/mod-pages/pages/`，大部分已存在；当前核心模拟真实路由为 `/game-story`）：
-`welcome` `new-game` `world-select` `world-customize` `world-build` `character-create` `talent-draw` `fate-preview` `game-story` `game-over` `save-manager`。旧 `/attribute-alloc` 只保留兼容跳转，不是活动页面节点。
+`welcome` `new-game` `world-select` `world-customize` `world-build` `character-create` `talent-draw` `attribute-alloc` `fate-preview` `game-story` `game-over` `save-manager`。其中 `/attribute-alloc` 是活动创建步骤；旧 `/new-game/world-build` 只保留兼容跳转。
 
 ---
 
@@ -267,7 +269,7 @@ MVP 继续要求世界配置由玩家手动确认；P0 只恢复本地结构化�
 - **阶段 A｜引擎地基对齐**：确认 `TimeSystem` 以"天"为唯一最小单位，默认叙事步长为年，且日/月/季/年切换都会换算成正确 `daysPassed`；确认 orchestrator 用 `daysPassed`/`totalDays` 正常组装 context。
 - **阶段 B｜MVP 执行路径收敛**：先把 §五所有非 MVP 子系统从 Prompt、AI changes、核心循环验证路径中隔离；必须保留的清空桩不得在正常玩法路径持续 `console.error`。这一步放在核心模拟验证前，避免旧活代码或抛错桩干扰阶段 D。
 - **阶段 C｜世界配置去 AI**：world-select 预设/自定义 + world-customize 手动四字段，绕过 world-init AI 管线；world/base-universe 的 sim 子系统只保留 MVP 所需纯数据入口；确认阶段 0 的 structural 基线不回归。
-- **阶段 D｜角色链路**：character-create（姓名/性别/种族/背景/寿命）→ talent-draw（AI 命格）→ fate-preview（零基础值与随机修正核对）串通；旧属性分配页仅兼容跳转。隔离 mod-character 的 health/life-stage/attribute-decay/post-death-epilogue，保留 destiny/base/lifespan/luck/morality。
+- **阶段 D｜角色链路**：character-create（姓名/性别/种族/背景/寿命）→ talent-draw（AI 命格）→ attribute-alloc（30 点四项属性）→ fate-preview（基础值与独立修正核对）串通。隔离 mod-character 的 health/life-stage/attribute-decay/post-death-epilogue，保留 destiny/base/lifespan/luck/morality。
 - **阶段 E｜核心模拟循环 + 存档**：game-story 默认按年推进，也能切换为日/月/季推进；AI 出叙事，character-base/lifespan 随 `daysPassed` 更新，记忆压缩生效；手动存档 + 自动存档 + 读档恢复。
 - **阶段 F｜最终清尾与验收**：确认启动→建世界→建角色→进模拟→推进→存读档全程零红错；所有 gate FAIL 均已修复或进入有 owner/阶段/原因的分流表，不能以"迁移期"笼统忽略。
 
@@ -276,7 +278,7 @@ MVP 继续要求世界配置由玩家手动确认；P0 只恢复本地结构化�
 ## 九、验收标准（MVP "能玩"的定义）
 
 1. 设置里填 endpoint + KEY，能保存并被命格 AI、叙事 AI、摘要压缩 AI、降级链读取；不能只验证 UI 存储。
-2. 启动 → 新游戏 → 选世界（预设或自定义手动配置）→ 设定角色 → AI 抽命格并选择 → 以四项零基础值核对命运 → 进核心模拟，**全程无红色报错、无崩溃、无清空桩持续刷 `console.error`**。
+2. 启动 → 新游戏 → 选世界（预设或自定义手动配置）→ 设定角色 → AI 抽命格并选择 → 分配四项基础属性并核对命运 → 进核心模拟，**全程无红色报错、无崩溃、无清空桩持续刷 `console.error`**。
 3. 核心模拟底层按整数天推进；默认叙事步长为「年」，玩家可切换为「日 / 月 / 季 / 年」，AI 生成叙事，角色寿命/属性随 `daysPassed` 变化。
 4. 连续推进多年，token 不爆炸（压缩生效）。
 5. 长局原始叙事、摘要、关系、伏笔、因果标记和用户设定不因字符数、条目数或容量上限被截断；近期窗口之外由压缩与检索覆盖。

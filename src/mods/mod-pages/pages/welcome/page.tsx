@@ -14,6 +14,13 @@ import { useRouter } from 'next/navigation'
 import { useEngineStore } from '@/mods/mod-engine'
 import { saveManager } from '@/core/storage/save-manager'
 import { applyGameSave, orchestrator } from '@/mods/mod-engine/engine-api'
+import { useAccountClientStore } from '@/core/account/account-client-store'
+import {
+  fetchCloudManualSave,
+  fetchCloudManualSaveSummary,
+  removeCloudManualSave,
+} from '@/core/player-content/player-content-client'
+import type { CloudManualSaveSummary } from '@/core/player-content/player-content-contract'
 import { hasAvailableApiConfiguration } from '@/mods/mod-settings'
 import { reportDiagnosticSessionEnvironment } from '@/core/logger/client-logger'
 import {
@@ -30,23 +37,41 @@ const WelcomeModals = dynamic(() => import('./WelcomeModals'), { ssr: false })
 export default function WelcomePage() {
   const router = useRouter()
   const [saves, setSaves] = useState<SaveMetadata[]>([])
-  const [selectedSlot, setSelectedSlot] = useState<number | null>(null)
+  const [cloudSave, setCloudSave] = useState<CloudManualSaveSummary | null>(null)
+  const [selectedSaveId, setSelectedSaveId] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
   const [settingsTab, setSettingsTab] = useState<'appearance' | 'model-call'>('appearance')
   const [showHelp, setShowHelp] = useState(false)
   const [showDisclaimer, setShowDisclaimer] = useState(false)
   const { toasts, addToast, dismissToast } = useToastStore()
+  const accountStatus = useAccountClientStore((state) => state.status)
   const pendingActionRef = useRef<'start-new-game' | null>(null)
 
   useEffect(() => {
     const availableSaves = saveManager.listSaves()
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSaves(availableSaves)
-    setSelectedSlot(availableSaves[0]?.slot ?? null)
     if (!isDisclaimerAccepted()) {
       setShowDisclaimer(true)
     }
   }, [])
+
+  useEffect(() => {
+    let active = true
+    if (accountStatus !== 'authenticated') {
+      queueMicrotask(() => { if (active) setCloudSave(null) })
+      return () => { active = false }
+    }
+    void fetchCloudManualSaveSummary()
+      .then((summary) => {
+        if (!active) return
+        setCloudSave(summary)
+      })
+      .catch((error) => {
+        if (active) addToast('warning', error instanceof Error ? error.message : '云端栏位读取失败', 5000)
+      })
+    return () => { active = false }
+  }, [accountStatus, addToast])
 
   const handleStartNewGame = useCallback(async () => {
     if (!isDisclaimerAccepted()) {
@@ -84,12 +109,41 @@ export default function WelcomePage() {
     try {
       await saveManager.deleteSave(slot)
       setSaves((previous) => previous.filter((save) => save.slot !== slot))
-      setSelectedSlot((current) => current === slot ? null : current)
+      setSelectedSaveId((current) => current === `local:${slot}` ? null : current)
       addToast('success', '存档已删除')
       return true
     } catch (err) {
       console.error('[welcome] 删除存档失败:', err)
       addToast('error', `删除存档失败：${err instanceof Error ? err.message : '未知错误'}`, 5000)
+      return false
+    }
+  }, [addToast])
+
+  const handleContinueCloudSave = useCallback(async (): Promise<boolean> => {
+    try {
+      const cloud = await fetchCloudManualSave()
+      if (!cloud) throw new Error('云端栏位不存在或存档内容已丢失')
+      await orchestrator.waitForBackgroundCompression()
+      applyGameSave(cloud.payload)
+      router.push(useEngineStore.getState().status === 'complete' ? '/game-over' : '/game-story')
+      return true
+    } catch (error) {
+      console.error('[welcome] 云端人生加载失败:', error)
+      addToast('error', `云端存档加载失败：${error instanceof Error ? error.message : '未知错误'}`, 5000)
+      return false
+    }
+  }, [addToast, router])
+
+  const handleDeleteCloudSave = useCallback(async (): Promise<boolean> => {
+    try {
+      const deleted = await removeCloudManualSave()
+      setCloudSave(null)
+      setSelectedSaveId((current) => current === 'cloud' ? null : current)
+      addToast('success', deleted ? '云端存档已删除' : '云端栏位已经为空')
+      return true
+    } catch (error) {
+      console.error('[welcome] 云端人生删除失败:', error)
+      addToast('error', `云端存档删除失败：${error instanceof Error ? error.message : '未知错误'}`, 5000)
       return false
     }
   }, [addToast])
@@ -109,10 +163,13 @@ export default function WelcomePage() {
       <WelcomeView
         onStartNewGame={handleStartNewGame}
         saves={saves}
-        selectedSlot={selectedSlot}
-        onSelectSave={setSelectedSlot}
+        cloudSave={cloudSave}
+        selectedSaveId={selectedSaveId}
+        onSelectSave={setSelectedSaveId}
         onContinueSave={handleContinue}
         onDeleteSave={handleDeleteSave}
+        onContinueCloudSave={handleContinueCloudSave}
+        onDeleteCloudSave={handleDeleteCloudSave}
         onOpenSettings={() => { setSettingsTab('appearance'); setShowSettings(true) }}
         onOpenAccount={() => router.push('/account')}
         onOpenHelp={() => setShowHelp(true)}

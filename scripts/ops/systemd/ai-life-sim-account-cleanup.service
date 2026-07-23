@@ -8,6 +8,8 @@ User=root
 Group=root
 WorkingDirectory=/root/ai-life-sim
 Environment=ACCOUNT_DB_PATH=/var/lib/ai-life-sim/accounts.sqlite
+Environment=PLAYER_CONTENT_DB_PATH=/var/lib/ai-life-sim/player-content.sqlite
+Environment=PORTRAIT_ASSET_ROOT=/var/lib/ai-life-sim/portrait-assets
 ExecStart=/usr/bin/node /root/ai-life-sim/scripts/ops/cleanup-inactive-accounts.mjs
 UMask=0077
 NoNewPrivileges=true

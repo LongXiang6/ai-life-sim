@@ -7,6 +7,8 @@ import Database from 'better-sqlite3'
 
 const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'ai-life-account-'))
 process.env.ACCOUNT_DB_PATH = path.join(tempRoot, 'accounts.sqlite')
+process.env.PLAYER_CONTENT_DB_PATH = path.join(tempRoot, 'player-content.sqlite')
+process.env.PORTRAIT_ASSET_ROOT = path.join(tempRoot, 'portrait-assets')
 process.env.ACCOUNT_DATA_ENCRYPTION_KEY = '11'.repeat(32)
 process.env.ACCOUNT_USERNAME_BLOCKLIST = '自定义禁词'
 process.env.QQ_BOT_INTEGRATION_SECRET = 'integration-test-secret-'.repeat(2)
@@ -14,6 +16,8 @@ process.env.QQ_BOT_INTEGRATION_SECRET = 'integration-test-secret-'.repeat(2)
 const contract = await import('../../../../src/core/account/account-contract.ts')
 const crypto = await import('../../../../src/core/account/account-crypto.ts')
 const databaseModule = await import('../../../../src/core/account/account-database.ts')
+const playerContentDatabaseModule = await import('../../../../src/core/player-content/player-content-database.ts')
+const playerContentService = await import('../../../../src/core/player-content/player-content-service.ts')
 const http = await import('../../../../src/core/account/account-http.ts')
 const service = await import('../../../../src/core/account/account-service.ts')
 const qqBot = await import('../../../../src/core/account/qq-bot-integration.ts')
@@ -339,6 +343,12 @@ try {
 
   const reopened = databaseModule.getAccountDatabase()
   const accountId = reopened.prepare('SELECT id FROM accounts').get().id
+  playerContentService.queuePortraitMailJob(accountId, {
+    ...initialData.gameRecords[0],
+    recordId: 'perfect-cleanup-record',
+    rounds: 101,
+    overallScore: 100,
+  })
   const cleanupNow = Date.now() + contract.ACCOUNT_RETENTION_DAYS * 24 * 60 * 60 * 1000
   const cutoff = cleanupNow - contract.ACCOUNT_RETENTION_DAYS * 24 * 60 * 60 * 1000
   reopened.prepare('UPDATE accounts SET last_active_at = ? WHERE id = ?').run(cutoff, accountId)
@@ -347,6 +357,7 @@ try {
   assert.equal(service.cleanupInactiveAccounts(cleanupNow).deletedAccounts, 1)
   assert.equal(reopened.prepare('SELECT COUNT(*) AS count FROM account_mythic_talents').get().count, 0)
   assert.equal(reopened.prepare('SELECT COUNT(*) AS count FROM account_game_records').get().count, 0)
+  assert.equal(playerContentService.getPlayerContentAggregateCounts().queuedPortraitJobs, 0)
 
   databaseModule.closeAccountDatabaseForTests()
   const futureDatabasePath = path.join(tempRoot, 'future.sqlite')
@@ -362,5 +373,6 @@ try {
   console.log('[account-cloud-smoke] PASS')
 } finally {
   databaseModule.closeAccountDatabaseForTests()
+  playerContentDatabaseModule.closePlayerContentDatabaseForTests()
   await fs.rm(tempRoot, { recursive: true, force: true })
 }

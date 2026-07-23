@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import {
@@ -17,6 +17,8 @@ import {
   RegisterRequestSchema,
 } from '@/core/account/account-contract'
 import { useAccountClientStore } from '@/core/account/account-client-store'
+import { fetchCloudManualSaveSummary, removeCloudManualSave } from '@/core/player-content/player-content-client'
+import type { CloudManualSaveSummary } from '@/core/player-content/player-content-contract'
 import { useLifeRecordStore, useMythicLibraryStore } from '@/mods/mod-character'
 import { useSettingsStore } from '@/mods/mod-settings'
 import { PageScroll } from '@/mods/mod-ui'
@@ -68,6 +70,27 @@ export default function AccountPage() {
   const [qqLinkCode, setQqLinkCode] = useState('')
   const [qqLinkExpiresAt, setQqLinkExpiresAt] = useState(0)
   const [qqLinkBusy, setQqLinkBusy] = useState(false)
+  const [cloudSave, setCloudSave] = useState<CloudManualSaveSummary | null>(null)
+  const [cloudSaveBusy, setCloudSaveBusy] = useState(false)
+  const [cloudDeleteArmed, setCloudDeleteArmed] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    if (status !== 'authenticated') {
+      queueMicrotask(() => {
+        if (!active) return
+        setCloudSave(null)
+        setCloudDeleteArmed(false)
+      })
+      return () => { active = false }
+    }
+    queueMicrotask(() => { if (active) setCloudSaveBusy(true) })
+    void fetchCloudManualSaveSummary()
+      .then((summary) => { if (active) setCloudSave(summary) })
+      .catch((error) => { if (active) setMessage(firstIssueMessage(error)) })
+      .finally(() => { if (active) setCloudSaveBusy(false) })
+    return () => { active = false }
+  }, [status])
 
   const syncLabel = useMemo(() => {
     if (syncStatus === 'syncing') return '同步中'
@@ -188,6 +211,24 @@ export default function AccountPage() {
       setMessage(firstIssueMessage(error))
     } finally {
       setQqLinkBusy(false)
+    }
+  }
+
+  const handleDeleteCloudSave = async () => {
+    if (!cloudDeleteArmed || cloudSaveBusy) {
+      setCloudDeleteArmed(true)
+      return
+    }
+    setCloudSaveBusy(true)
+    setMessage('')
+    try {
+      await removeCloudManualSave()
+      setCloudSave(null)
+      setCloudDeleteArmed(false)
+    } catch (error) {
+      setMessage(firstIssueMessage(error))
+    } finally {
+      setCloudSaveBusy(false)
     }
   }
 
@@ -312,6 +353,26 @@ export default function AccountPage() {
               </div>
             </section>
 
+            <section className={styles.slots} aria-labelledby="cloud-save-slot-title">
+              <div className={styles.sectionHead}>
+                <h2 id="cloud-save-slot-title">云端手动存档</h2>
+                <span>{cloudSave ? '1 / 1' : '0 / 1'}</span>
+              </div>
+              <div className={styles.slotList}>
+                {cloudSave ? (
+                  <div className={styles.slotRow}>
+                    <div>
+                      <strong>{cloudSave.name}</strong>
+                      <small>{cloudSave.characterName || '未命名'} · {cloudSave.worldName || '未知世界'} · 第 {cloudSave.totalRounds} 轮</small>
+                    </div>
+                    <button type="button" disabled={cloudSaveBusy} onClick={() => void handleDeleteCloudSave()}>
+                      {cloudDeleteArmed ? '确认删除' : '删除'}
+                    </button>
+                  </div>
+                ) : <p className={styles.empty}>{cloudSaveBusy ? '正在读取云端栏位...' : '云端栏位为空'}</p>}
+              </div>
+            </section>
+
             <section className={styles.qqBinding} aria-labelledby="qq-binding-title">
               <div className={styles.bindingHead}>
                 <div>
@@ -402,7 +463,7 @@ export default function AccountPage() {
             <section className={styles.danger} aria-labelledby="danger-title">
               <div>
                 <h2 id="danger-title">删除账号</h2>
-                <p>立即删除云端配置、角色设定、Key、天赋、战绩和全部会话。</p>
+                <p>立即删除云端配置、角色设定、Key、天赋、战绩、手动存档、邮箱内容和全部会话。</p>
               </div>
               {!deleteOpen ? (
                 <button type="button" onClick={() => setDeleteOpen(true)}>删除账号</button>

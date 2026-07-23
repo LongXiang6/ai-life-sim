@@ -27,7 +27,6 @@ import {
   TALENT_POLARITY_CONFIG,
   ATTRIBUTE_NAMES,
   RACE_LIFESPAN,
-  ZERO_BASE_ATTRIBUTES,
 } from '@/mods/mod-character'
 import type { LifespanState, RaceLifespanConfig } from '@/mods/mod-character'
 
@@ -230,10 +229,11 @@ function FatePreviewContent() {
     const eraStartYear = useWorldStore.getState().eraStartYear
     const worldSetting = buildOrchestratorWorldSetting(worldConfig, { eraStartYear: eraStartYear || undefined })
 
+    const confirmedBase = { ...characterBase.base }
     useCharacterStore.getState().setCharacterBase({
-      base: { ...ZERO_BASE_ATTRIBUTES },
-      current: { ...ZERO_BASE_ATTRIBUTES },
-      modifiers: { ...ZERO_BASE_ATTRIBUTES },
+      base: confirmedBase,
+      current: { ...confirmedBase },
+      modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
       contextModifiers: {},
     })
 
@@ -253,7 +253,7 @@ function FatePreviewContent() {
         age: startingAge,
         gender,
         background: useCharacterStore.getState().background || `${displayName}，来自${worldConfig?.name ?? '未知世界'}的穿越者`,
-        attributes: ZERO_BASE_ATTRIBUTES as unknown as Record<string, unknown>,
+        attributes: confirmedBase as unknown as Record<string, unknown>,
         destinyPatterns: patternSummaries,
       },
     )
@@ -262,8 +262,8 @@ function FatePreviewContent() {
     orchestrator.applyRoundChanges([
       {
         id: 'character-base',
-        description: '角色创建完成，以零基础值和明确起始年龄进入叙事',
-        changes: { startingAge, base: ZERO_BASE_ATTRIBUTES },
+        description: '角色创建完成，以玩家确认的基础属性和起始年龄进入叙事',
+        changes: { startingAge, base: confirmedBase },
       },
       {
         id: 'destiny-pattern',
@@ -287,7 +287,7 @@ function FatePreviewContent() {
 
     setGamePhase('simulation')
     router.push('/game-story')
-  }, [aiComplete, characterConfirmed, destinyPatternsConfirmed, name, gender, race, startingAge, lifespan.maxAge, worldConfig, setGamePhase, router, selectedPatterns, setSettingsStorySeed, storySeed])
+  }, [aiComplete, characterBase.base, characterConfirmed, destinyPatternsConfirmed, name, gender, race, startingAge, lifespan.maxAge, worldConfig, setGamePhase, router, selectedPatterns, setSettingsStorySeed, storySeed])
 
   const attrKeys = ['physique', 'mind', 'talentAptitude', 'charisma'] as const
 
@@ -357,7 +357,7 @@ function FatePreviewContent() {
             <div className={styles.attrGrid}>
               {attrKeys.map((key) => {
                 const bonus = attrBonuses[key] ?? 0
-                const value = bonus
+                const value = (characterBase.base[key] ?? 0) + bonus
                 return (
                   <div key={key} className={styles.attrItem}>
                     <span>{ATTRIBUTE_NAMES[key]}</span>
@@ -463,8 +463,8 @@ function FatePreviewContent() {
       </main>
 
       <BottomActionBar
-        onBack={() => router.push(!characterConfirmed ? '/new-game/character-create' : '/talent-draw')}
-        backTitle={!characterConfirmed ? '返回确认角色' : '返回确认命格'}
+        onBack={() => router.push(!characterConfirmed ? '/new-game/character-create' : '/attribute-alloc')}
+        backTitle={!characterConfirmed ? '返回确认角色' : '返回确认属性'}
         onConfirm={handleStartLife}
         confirmText={creationGateReason ? '创建信息未完成' : aiComplete ? '开始人生' : aiFailed ? '初始化失败' : (aiIsRunning ? '请等待…' : '等待世界初始化')}
         confirmNumber="完成"

@@ -85,18 +85,19 @@ check(
     'getDestinyPatternSystem().selectPatterns',
     'store.setDestinyPatterns({',
     'patterns: selectedPatterns,',
-    'ZERO_BASE_ATTRIBUTES',
-    "router.push('/fate-preview')",
+    "router.push('/attribute-alloc')",
   ]),
 )
 
 check(
   'V4',
-  'Product/OpeningFlow/ZeroBaseCreation',
-  'Is manual allocation removed while the legacy address safely enters fate preview?',
+  'Product/OpeningFlow/AttributeAllocation',
+  'Does the player allocate the four owned base attributes before fate preview?',
   () => requireFragments('src/mods/mod-pages/pages/attribute-alloc/page.tsx', [
-    'AttributeAllocCompatibilityRedirect',
-    "router.replace('/fate-preview')",
+    'const TOTAL_POINTS = 30',
+    'const MAX_VALUE = 10',
+    'setCharacterBase({',
+    "router.push('/fate-preview')",
   ]),
 )
 
@@ -110,7 +111,7 @@ check(
     "worldInitAIStatus?.status === 'complete'",
     'orchestrator.setContext(',
     'orchestrator.applyRoundChanges([',
-    'ZERO_BASE_ATTRIBUTES',
+    'const confirmedBase = { ...characterBase.base }',
     "id: 'character-base'",
     "id: 'destiny-pattern'",
     "id: 'lifespan'",

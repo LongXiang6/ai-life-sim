@@ -75,7 +75,7 @@ html.flow-leaving .prototype-transition-layer { opacity: 1; }
 
 /* When a final page runs inside the integrated test bench, show the actual device surface first. */
 html.embedded-preview body[data-screen] { min-height: 100vh; background: #edeae4; }
-html.embedded-preview body[data-screen] > .shell { width: 100%; min-height: 100vh; padding: 12px 0 28px; }
+html.embedded-preview body[data-screen] > .shell { width: 100%; min-height: 100vh; padding: 0; }
 html.embedded-preview body[data-screen] > .shell > .topbar,
 html.embedded-preview body[data-screen] > .shell > .eyebrow,
 html.embedded-preview body[data-screen] > .shell > h1,

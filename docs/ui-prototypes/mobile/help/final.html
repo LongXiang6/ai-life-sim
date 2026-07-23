@@ -8,8 +8,10 @@
   <link rel="stylesheet" href="../assets/library.css">
   <link rel="stylesheet" href="../assets/creation-flow-unified.css">
   <link rel="stylesheet" href="../assets/end-flow-unified.css">
+  <link rel="stylesheet" href="../assets/relative-phone-layout.css">
   <script src="../assets/prototype.js" defer></script>
   <script src="../assets/creation-flow-unified.js" defer></script>
+  <script src="../assets/relative-phone-layout.js" defer></script>
 </head>
 <body data-screen="help">
   <main class="end-shell">
@@ -20,7 +22,7 @@
     </header>
 
     <section class="end-stage" aria-label="说明移动端界面">
-      <div class="creation-phone end-phone">
+      <div class="creation-phone end-phone" data-relative-phone data-relative-phone-width="330" data-relative-phone-height="715">
         <div data-flow-art></div>
         <div class="end-screen">
           <header class="end-header">
@@ -65,8 +67,8 @@
         </div>
 
         <footer class="cf-footer end-footer">
-          <button class="cf-back" type="button" data-flow-back aria-label="关闭说明" title="关闭说明"><span data-icon="close"></span></button>
-          <button class="cf-next" type="button" data-flow-back><span class="cf-next-number">返</span><span class="cf-next-copy"><strong>读完说明</strong><small>返回进入说明前的界面</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button>
+          <button class="cf-back" type="button" data-flow-to="welcome" aria-label="关闭说明" title="关闭说明"><span data-icon="close"></span></button>
+          <button class="cf-next" type="button" data-flow-to="welcome"><span class="cf-next-number">00</span><span class="cf-next-copy"><strong>读完说明</strong><small>返回欢迎界面</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button>
         </footer>
       </div>
     </section>

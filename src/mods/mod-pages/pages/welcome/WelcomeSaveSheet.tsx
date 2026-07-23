@@ -3,16 +3,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import type { SaveMetadata } from '@/core/storage/save-manager'
+import type { CloudManualSaveSummary } from '@/core/player-content/player-content-contract'
 
 import styles from './WelcomeView.module.css'
 
 interface WelcomeSaveSheetProps {
   saves: SaveMetadata[]
-  selectedSlot: number | null
-  onSelectSave: (slot: number) => void
+  cloudSave: CloudManualSaveSummary | null
+  selectedSaveId: string | null
+  onSelectSave: (saveId: string) => void
   onContinueSave: (slot: number) => Promise<boolean>
   onDeleteSave: (slot: number) => Promise<boolean>
+  onContinueCloudSave: () => Promise<boolean>
+  onDeleteCloudSave: () => Promise<boolean>
 }
+
+type WelcomeSaveItem =
+  | { id: string; source: 'local'; save: SaveMetadata }
+  | { id: 'cloud'; source: 'cloud'; save: CloudManualSaveSummary }
 
 const saveDateFormatter = new Intl.DateTimeFormat('zh-CN', {
   month: 'numeric',
@@ -23,6 +31,28 @@ const saveDateFormatter = new Intl.DateTimeFormat('zh-CN', {
 
 function getSaveLabel(save: SaveMetadata): string {
   return save.characterName?.trim() || save.name?.trim() || `槽位 ${save.slot}`
+}
+
+function getItemLabel(item: WelcomeSaveItem): string {
+  return item.source === 'cloud'
+    ? item.save.characterName?.trim() || item.save.name?.trim() || '云端人生'
+    : getSaveLabel(item.save)
+}
+
+function getItemDetail(item: WelcomeSaveItem): string {
+  if (item.source === 'cloud') {
+    return [
+      item.save.worldName?.trim(),
+      `第 ${item.save.totalRounds} 轮`,
+      '云端栏位',
+      saveDateFormatter.format(new Date(item.save.updatedAt)),
+    ].filter(Boolean).join(' · ')
+  }
+  return getSaveDetail(item.save)
+}
+
+function getItemTimestamp(item: WelcomeSaveItem): number {
+  return item.source === 'cloud' ? item.save.updatedAt : item.save.timestamp
 }
 
 function getSaveDetail(save: SaveMetadata): string {
@@ -37,14 +67,17 @@ function getSaveDetail(save: SaveMetadata): string {
 
 export default function WelcomeSaveSheet({
   saves,
-  selectedSlot,
+  cloudSave,
+  selectedSaveId,
   onSelectSave,
   onContinueSave,
   onDeleteSave,
+  onContinueCloudSave,
+  onDeleteCloudSave,
 }: WelcomeSaveSheetProps) {
   const [open, setOpen] = useState(false)
   const [isContinuing, setIsContinuing] = useState(false)
-  const [deleteTarget, setDeleteTarget] = useState<SaveMetadata | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<WelcomeSaveItem | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const triggerRef = useRef<HTMLButtonElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
@@ -53,10 +86,14 @@ export default function WelcomeSaveSheet({
   const sheetRef = useRef<HTMLElement>(null)
   const returnFocusRef = useRef<HTMLElement | null>(null)
 
-  const latestSave = saves[0] ?? null
+  const saveItems = useMemo<WelcomeSaveItem[]>(() => [
+    ...(cloudSave ? [{ id: 'cloud' as const, source: 'cloud' as const, save: cloudSave }] : []),
+    ...saves.map((save) => ({ id: `local:${save.slot}`, source: 'local' as const, save })),
+  ].sort((left, right) => getItemTimestamp(right) - getItemTimestamp(left)), [cloudSave, saves])
+  const latestSave = saveItems[0] ?? null
   const selectedSave = useMemo(
-    () => saves.find((save) => save.slot === selectedSlot) ?? latestSave,
-    [latestSave, saves, selectedSlot],
+    () => saveItems.find((save) => save.id === selectedSaveId) ?? latestSave,
+    [latestSave, saveItems, selectedSaveId],
   )
 
   const closeSheet = useCallback((restoreFocus = true) => {
@@ -70,7 +107,7 @@ export default function WelcomeSaveSheet({
     returnFocusRef.current = document.activeElement instanceof HTMLElement
       ? document.activeElement
       : triggerRef.current
-    if (!selectedSave && latestSave) onSelectSave(latestSave.slot)
+    if (!selectedSave && latestSave) onSelectSave(latestSave.id)
     setOpen(true)
   }, [latestSave, onSelectSave, selectedSave])
 
@@ -141,23 +178,27 @@ export default function WelcomeSaveSheet({
     if (!selectedSave || isContinuing) return
     setIsContinuing(true)
     try {
-      const didNavigate = await onContinueSave(selectedSave.slot)
+      const didNavigate = selectedSave.source === 'cloud'
+        ? await onContinueCloudSave()
+        : await onContinueSave(selectedSave.save.slot)
       if (didNavigate) closeSheet(false)
     } finally {
       setIsContinuing(false)
     }
-  }, [closeSheet, isContinuing, onContinueSave, selectedSave])
+  }, [closeSheet, isContinuing, onContinueCloudSave, onContinueSave, selectedSave])
 
   const handleDeleteConfirm = useCallback(async () => {
     if (!deleteTarget || isDeleting) return
     setIsDeleting(true)
     try {
-      const didDelete = await onDeleteSave(deleteTarget.slot)
+      const didDelete = deleteTarget.source === 'cloud'
+        ? await onDeleteCloudSave()
+        : await onDeleteSave(deleteTarget.save.slot)
       if (didDelete) setDeleteTarget(null)
     } finally {
       setIsDeleting(false)
     }
-  }, [deleteTarget, isDeleting, onDeleteSave])
+  }, [deleteTarget, isDeleting, onDeleteCloudSave, onDeleteSave])
 
   return (
     <>
@@ -175,7 +216,7 @@ export default function WelcomeSaveSheet({
           <strong>继续已有的人生</strong>
           <small>
             {latestSave
-              ? `${saves.length} 个存档 · 最近：${getSaveLabel(latestSave)}`
+              ? `${saveItems.length} 个存档 · 最近：${getItemLabel(latestSave)}`
               : '暂无存档 · 可从故事页手动保存'}
           </small>
         </span>
@@ -210,23 +251,23 @@ export default function WelcomeSaveSheet({
           </button>
         </div>
 
-        {saves.length > 0 ? (
+        {saveItems.length > 0 ? (
           <div className={styles.saveList} aria-label="存档栏位">
-            {saves.map((save) => {
-              const active = selectedSave?.slot === save.slot
+            {saveItems.map((save) => {
+              const active = selectedSave?.id === save.id
               return (
                 <button
-                  key={save.slot}
+                  key={save.id}
                   type="button"
                   className={styles.saveItem}
                   aria-pressed={active}
                   tabIndex={open ? 0 : -1}
                   disabled={isContinuing}
-                  onClick={() => onSelectSave(save.slot)}
+                  onClick={() => onSelectSave(save.id)}
                 >
                   <span>
-                    <strong>{getSaveLabel(save)}</strong>
-                    <small>{getSaveDetail(save)}</small>
+                    <strong>{getItemLabel(save)}</strong>
+                    <small>{getItemDetail(save)}</small>
                   </span>
                   <span className={styles.saveCheck} aria-hidden="true" />
                 </button>
@@ -238,7 +279,7 @@ export default function WelcomeSaveSheet({
         )}
 
         <p className={styles.saveSheetStatus} role="status" aria-live="polite">
-          {selectedSave ? `已选择：${getSaveLabel(selectedSave)}` : '尚未选择存档'}
+          {selectedSave ? `已选择：${getItemLabel(selectedSave)}` : '尚未选择存档'}
         </p>
         <button
           type="button"
@@ -258,7 +299,7 @@ export default function WelcomeSaveSheet({
         >
           <span>
             <strong>{isContinuing ? '正在读取人生……' : '继续此人生'}</strong>
-            <small>{selectedSave ? getSaveLabel(selectedSave) : '暂无可用存档'}</small>
+            <small>{selectedSave ? getItemLabel(selectedSave) : '暂无可用存档'}</small>
           </span>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
         </button>
@@ -279,7 +320,7 @@ export default function WelcomeSaveSheet({
             >
               <h2 id="welcome-delete-save-title">删除这段人生？</h2>
               <p id="welcome-delete-save-description">
-                “{getSaveLabel(deleteTarget)}”删除后无法恢复，确定要继续吗？
+                “{getItemLabel(deleteTarget)}”删除后无法恢复，确定要继续吗？
               </p>
               <div className={styles.deleteDialogActions}>
                 <button

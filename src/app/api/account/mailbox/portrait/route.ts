@@ -1,0 +1,24 @@
+import { assertSameOrigin, jsonNoStore, readSessionToken } from '@/core/account/account-http'
+import { requireSessionAccountId } from '@/core/account/account-service'
+import { PortraitMailRequestSchema } from '@/core/player-content/player-content-contract'
+import { isPlayerMailboxEnabled, isPortraitImageEnabled } from '@/core/player-content/player-content-features'
+import { playerContentErrorResponse, readBoundedRequestBody } from '@/core/player-content/player-content-http'
+import { processPortraitMailRequest } from '@/core/player-content/portrait-mail-service'
+
+export const runtime = 'nodejs'
+export const maxDuration = 300
+
+export async function POST(request: Request): Promise<Response> {
+  try {
+    if (!isPlayerMailboxEnabled() || !isPortraitImageEnabled()) {
+      return jsonNoStore({ error: '画像邮箱尚未开放', code: 'feature_disabled' }, { status: 404 })
+    }
+    assertSameOrigin(request)
+    const accountId = requireSessionAccountId(readSessionToken(request))
+    const raw = await readBoundedRequestBody(request, 4 * 1024 * 1024)
+    const input = PortraitMailRequestSchema.parse(JSON.parse(raw.toString('utf8')))
+    return jsonNoStore(await processPortraitMailRequest(accountId, input))
+  } catch (error) {
+    return playerContentErrorResponse(error)
+  }
+}

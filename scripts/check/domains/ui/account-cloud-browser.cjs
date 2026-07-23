@@ -41,6 +41,7 @@ async function main() {
 
   const cloudKey = 'sk-browser-cloud-secret'
   const originalBackground = `浏览器长期背景：${'原文完整保留。'.repeat(80)}`
+  const cloudNarrative = `浏览器云端人生：${'完整叙事不得截断。'.repeat(1200)}`
   const username = `cloud_${Date.now()}`
   const password = '浏览器测试 password 123'
 
@@ -134,7 +135,7 @@ async function main() {
   await assertNoOverflow(page, 'character-create-390')
 
   await page.goto(`${baseUrl}/account`, { waitUntil: 'domcontentloaded' })
-  await page.getByRole('tab', { name: '注册' }).click()
+  await page.getByRole('button', { name: /注册账号/u }).click()
   await page.getByLabel('用户名').fill(username)
   await page.getByLabel('QQ 号（选填）').fill('123456789')
   await page.locator('input[type="password"]').nth(0).fill(password)
@@ -144,6 +145,50 @@ async function main() {
   await page.getByRole('heading', { name: username }).waitFor()
   await page.getByText('沈云归 · 云上住民', { exact: true }).waitFor()
   await page.getByText('已使用服务端密钥加密保存', { exact: true }).waitFor()
+
+  const cloudWrite = await page.evaluate(async ({ narrative }) => {
+    const input = {
+      metadata: {
+        schemaVersion: 1,
+        slot: 1,
+        name: '浏览器云端人生',
+        worldName: '现代地球',
+        characterName: '沈云归',
+        totalRounds: 128,
+        gameVersion: '5.3.0',
+        savedAt: Date.now(),
+      },
+      payload: {
+        engine: { totalRounds: 128, narrativeHistory: [{ id: 'browser-life', text: narrative }] },
+        character: { name: '沈云归' },
+        world: { worldConfig: { name: '现代地球' } },
+        orchestrator: { status: 'running' },
+      },
+    }
+    const compressed = await new Response(
+      new Blob([JSON.stringify(input)]).stream().pipeThrough(new CompressionStream('gzip')),
+    ).arrayBuffer()
+    const response = await fetch('/api/account/cloud-save', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/gzip' },
+      body: compressed,
+    })
+    return { status: response.status, body: await response.json() }
+  }, { narrative: cloudNarrative })
+  if (cloudWrite.status !== 200 || cloudWrite.body?.save?.name !== '浏览器云端人生') {
+    throw new Error(`manual cloud save failed: ${JSON.stringify(cloudWrite)}`)
+  }
+  await page.reload({ waitUntil: 'domcontentloaded' })
+  await page.getByRole('heading', { name: username }).waitFor()
+  await page.getByText('浏览器云端人生', { exact: true }).waitFor()
+  await page.getByText('1 / 1', { exact: true }).waitFor()
+
+  const restoredNarrative = await page.evaluate(async () => {
+    const response = await fetch('/api/account/cloud-save?payload=1', { cache: 'no-store' })
+    const body = await response.json()
+    return body.payload?.engine?.narrativeHistory?.[0]?.text
+  })
+  if (restoredNarrative !== cloudNarrative) throw new Error('manual cloud save narrative was not restored exactly')
 
   const reportDir = path.resolve('reports', 'browser')
   fs.mkdirSync(reportDir, { recursive: true })
@@ -199,8 +244,17 @@ async function main() {
 
   await page.goto(`${baseUrl}/account`, { waitUntil: 'domcontentloaded' })
   await page.getByRole('heading', { name: username }).waitFor()
+  await page.getByText('浏览器云端人生', { exact: true }).waitFor()
   await assertNoOverflow(page, 'account-1280')
   await page.screenshot({ path: path.join(reportDir, 'account-cloud-desktop.png'), fullPage: true })
+
+  await page.getByRole('button', { name: '删除', exact: true }).click()
+  await page.getByRole('button', { name: '确认删除', exact: true }).click()
+  await page.getByText('云端栏位为空', { exact: true }).waitFor()
+  const deletedCloudSave = await page.evaluate(async () => (
+    await fetch('/api/account/cloud-save', { cache: 'no-store' }).then((response) => response.json())
+  ))
+  if (deletedCloudSave.save !== null) throw new Error('manual cloud save remained after explicit deletion')
 
   await page.getByRole('button', { name: '删除账号' }).click()
   await page.getByPlaceholder('输入当前密码').fill(password)
@@ -218,6 +272,7 @@ async function main() {
     username,
     verifiedWidths: [320, 390, 768, 1280],
     cloudOverwrite: true,
+    manualCloudSlot: true,
     logoutClearedApiKey: true,
     accountDeleted: true,
     consoleErrors,

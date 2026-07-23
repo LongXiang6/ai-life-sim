@@ -1,0 +1,25 @@
+[Unit]
+Description=AI Life Sim loopback operations dashboard
+After=network.target
+ConditionPathExists=/root/ai-life-sim/scripts/ops/operations-dashboard.mjs
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/root/ai-life-sim
+Environment=AI_LOG_DIR=/var/log/ai-life-sim
+Environment=ACCOUNT_DB_PATH=/var/lib/ai-life-sim/accounts.sqlite
+Environment=PLAYER_CONTENT_DB_PATH=/var/lib/ai-life-sim/player-content.sqlite
+ExecStart=/usr/bin/node /root/ai-life-sim/scripts/ops/operations-dashboard.mjs --host 127.0.0.1 --port 4317
+Restart=on-failure
+RestartSec=5s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadOnlyPaths=/var/log/ai-life-sim /var/lib/ai-life-sim
+
+[Install]
+WantedBy=multi-user.target

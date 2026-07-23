@@ -1,8 +1,189 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>属性分配 · 最终首版</title><link rel="stylesheet" href="../assets/library.css"><script src="../assets/prototype.js" defer></script><style>
-:root{--canvas:#f3f1ec;--paper:#fbfaf7;--surface:#fffefd;--ink:#292724;--soft:#6e6961;--faint:#9a9389;--line:#d9d3c9;--light:#e9e5de;--mist:#9ca9ac;--negative:#a66d73;--positive:#71858a}*{box-sizing:border-box}body{background:var(--canvas);color:var(--ink)}button{font:inherit}.shell{width:min(900px,calc(100% - 24px));padding:18px 0 42px}.topbar{margin-bottom:18px;color:var(--soft);font-size:12px}.eyebrow{color:var(--soft)}h1{font-family:"Songti SC","STSong","SimSun",serif;font-size:28px}.subtitle{color:var(--soft);font-size:12px}.stage{display:grid;justify-items:center;margin-top:18px}.phone{width:min(292px,calc(100vw - 32px));height:692px;margin:0;border-color:var(--line);background:var(--paper);box-shadow:0 13px 30px rgba(62,55,44,.075)}.screen{height:100%;overflow:auto;padding:22px 15px 72px}.step{color:var(--faint);font-size:7px;font-weight:700;letter-spacing:.16em}.title{margin-top:6px;font-family:"Songti SC","STSong","SimSun",serif;font-size:20px;font-weight:600}.sub{margin-top:5px;color:var(--soft);font-size:8px;line-height:1.55}.budget{display:grid;grid-template-columns:50px 1fr;gap:10px;align-items:center;margin-top:15px;padding:11px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.score{display:grid;width:48px;height:48px;place-items:center;border:1px solid var(--line);border-radius:50%;font-family:"Songti SC",serif;text-align:center}.score b{display:block;font-size:14px}.score small{display:block;color:var(--faint);font-family:inherit;font-size:5px}.budget-copy b{font-size:8px}.budget-copy p{margin:4px 0 0;color:var(--soft);font-size:6px;line-height:1.45}.segments{display:grid;grid-template-columns:repeat(15,1fr);gap:2px;margin-top:7px}.segments i{height:3px;border-radius:3px;background:var(--light)}.segments i.on{background:var(--mist)}.caption{display:flex;justify-content:space-between;margin:11px 1px 5px;color:var(--faint);font-size:6px}.attrs{border-top:1px solid var(--light)}.attr{padding:9px 0;border-bottom:1px solid var(--light)}.attr-head{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px}.name{font-family:"Songti SC",serif;font-size:9px}.bonus{margin-left:5px;color:#69826d;font-family:inherit;font-size:5px}.semantic{margin-top:4px;color:var(--positive);font-size:7px;font-weight:600}.semantic.negative{color:var(--negative)}.base{margin-top:2px;color:var(--faint);font-size:5px}.stepper{display:grid;grid-template-columns:28px 32px 28px;gap:3px;align-items:center}.stepper button{width:28px;height:30px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--soft);font-size:11px}.value{text-align:center;font-size:10px;font-weight:700}.axis{display:grid;grid-template-columns:repeat(15,1fr);gap:2px;margin-top:8px}.axis i{height:5px;border-radius:4px;background:var(--light);opacity:.75}.axis i.far{height:2px;align-self:center;opacity:.35}.axis i.mid{height:3px;align-self:center;opacity:.55}.axis i.on{background:var(--positive);opacity:1}.axis i.neg{background:var(--negative);opacity:1}.tools{display:grid;grid-template-columns:1fr 1fr;margin:11px auto 0;border:1px solid var(--line);border-radius:8px;overflow:hidden}.tools button{height:33px;border:0;background:var(--surface);color:var(--soft);font-size:7px}.tools button+button{border-left:1px solid var(--line)}.bottom{position:absolute;right:0;bottom:0;left:0;padding:7px 15px 10px;border-top:1px solid var(--line);background:rgba(251,250,247,.95);backdrop-filter:blur(10px)}.bar{display:flex;justify-content:space-between}.action{width:64px;height:34px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--soft);font-size:7px}.primary{width:112px;border-color:var(--ink);background:var(--ink);color:var(--surface);font-family:"Songti SC",serif;font-size:9px}.dialog{position:absolute;inset:0;z-index:20;display:grid;place-items:end center;padding:18px;background:rgba(41,39,36,.16);opacity:0;visibility:hidden;transition:.2s}.dialog.open{opacity:1;visibility:visible}.dialog-panel{width:100%;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);transform:translateY(8px);transition:.2s}.dialog.open .dialog-panel{transform:none}.dialog-panel h3{margin:0;font-family:"Songti SC",serif;font-size:13px}.dialog-panel p{margin:7px 0 12px;color:var(--soft);font-size:7px;line-height:1.55}.dialog-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}.dialog-actions button{height:33px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--soft);font-size:7px}.dialog-actions .continue{background:var(--ink);color:var(--surface)}@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
-</style></head><body data-screen="attribute-alloc"><main class="shell"><div class="topbar"><span>移动端创建流程</span><span>05 / 06</span></div><p class="eyebrow">ATTRIBUTE ALLOCATION · FINAL V1</p><h1>属性分配</h1><p class="subtitle">沿用 F2 四项自由属性、预算分段与远端渐隐轴，并补上剩余点数二次确认。</p><section class="stage"><div class="phone"><div class="screen"><div class="step">NEW LIFE · 05</div><div class="title">塑造你的起点</div><div class="sub">四项属性自由增减；离当前值越远，分段越轻。</div><section class="budget"><div class="score"><div><b class="used">10</b><small>/ 30</small></div></div><div class="budget-copy"><b>剩余点数 <span class="remain">20</span></b><p>命格加成单独显示，不消耗自由属性预算。</p><div class="segments"></div></div></section><div class="caption"><span>四项自由属性</span><span>远端渐隐</span></div><div class="attrs"></div><div class="tools"><button class="reset" type="button">↺ 重置</button><button class="average" type="button">平均分配</button></div></div><footer class="bottom"><div class="bar"><button class="action" data-flow-to="mythic-inheritance">返回</button><button class="action primary confirm" type="button">确认属性</button></div></footer><div class="dialog" role="dialog" aria-modal="true" aria-hidden="true"><div class="dialog-panel"><h3>仍有属性点未使用</h3><p>剩余 <b class="dialog-remain"></b> 点将不会自动分配。你可以返回继续调整，或保留当前配置进入命运预览。</p><div class="dialog-actions"><button class="close" type="button">继续分配</button><button class="continue" data-flow-to="fate-preview">仍然确认</button></div></div></div></div></section></main>
-<script>
-const attrs=[['体魄',2],['心智',1],['悟性',0],['魅力',0]],initial=[6,4,2,-2],total=30;let values=[...initial];const desc=(v)=>v<0?['略显拘谨','耐力不足','体质虚弱'][Math.min(2,Math.abs(v)-1)]||'属性失衡':v===0?'常人水平':v<5?'渐入佳境':v<9?'天赋出众':'凡俗巅峰';function signed(v){return(v>0?'+':'')+v}function render(){const used=values.reduce((a,b)=>a+b,0),remain=total-used;document.querySelector('.used').textContent=used;document.querySelector('.remain').textContent=remain;document.querySelector('.segments').innerHTML=Array.from({length:15},(_,i)=>'<i class="'+(i<Math.round(Math.max(0,used)/total*15)?'on':'')+'"></i>').join('');document.querySelector('.attrs').innerHTML=attrs.map((a,i)=>{const v=values[i],pos=Math.max(0,Math.min(14,7+Math.round(v/2)));return '<section class="attr"><div class="attr-head"><div><div class="name">'+a[0]+(a[1]?'<span class="bonus">命格 +'+a[1]+'</span>':'')+'</div><div class="semantic '+(v<0?'negative':'')+'">'+desc(v)+'</div><div class="base">基础值 '+signed(v)+'</div></div><div class="stepper"><button data-i="'+i+'" data-d="-1">−</button><span class="value">'+signed(v)+'</span><button data-i="'+i+'" data-d="1">＋</button></div></div><div class="axis">'+Array.from({length:15},(_,n)=>'<i class="'+(Math.abs(n-pos)>5?'far ':Math.abs(n-pos)>2?'mid ':'')+(n===pos?(v<0?'neg':'on'):'')+'"></i>').join('')+'</div></section>'}).join('');document.querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>{const i=+b.dataset.i,d=+b.dataset.d,next=values[i]+d;if(next>=-5&&values.reduce((a,x,j)=>a+(j===i?next:x),0)<=total){values[i]=next;render()}})}document.querySelector('.reset').onclick=()=>{values=[0,0,0,0];render()};document.querySelector('.average').onclick=()=>{values=[8,8,7,7];render()};const dialog=document.querySelector('.dialog');document.querySelector('.confirm').onclick=()=>{const remain=total-values.reduce((a,b)=>a+b,0);if(remain>0){document.querySelector('.dialog-remain').textContent=remain;dialog.classList.add('open');dialog.setAttribute('aria-hidden','false')}else PrototypeFlow.go('fate-preview')};document.querySelector('.close').onclick=()=>{dialog.classList.remove('open');dialog.setAttribute('aria-hidden','true')};render();
-</script></body></html>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>属性分配 · 最终首版</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <link rel="stylesheet" href="../assets/creation-flow-unified.css">
+  <link rel="stylesheet" href="../assets/relative-phone-layout.css">
+  <script src="../assets/prototype.js" defer></script>
+  <script src="../assets/creation-flow-unified.js" defer></script>
+  <script src="../assets/relative-phone-layout.js" defer></script>
+  <style>
+    body.attribute-b1 { background: #eef1f7; }
+    .attribute-b1 .creation-phone {
+      --cf-paper: #fafbff;
+      --cf-surface: #fff;
+      --cf-soft: #f1f3fa;
+      --cf-ink: #28324b;
+      --cf-muted: #707b92;
+      --cf-faint: #929bb0;
+      --cf-line: #d8deea;
+      --cf-line-strong: #d8deea;
+      --cf-accent: #7382bb;
+      --cf-accent-soft: #edf0fb;
+      --cf-ornament: #7787c0;
+      width: min(100%, 320px);
+      height: 694px;
+      border-color: #d8deea;
+      border-radius: 34px;
+      background: linear-gradient(135deg, rgba(255, 215, 95, .11), rgba(255, 215, 95, 0) 34%), linear-gradient(#fafbff, #f2f4f9);
+      box-shadow: 0 20px 48px rgba(62, 70, 100, .09);
+    }
+    .attribute-screen {
+      position: absolute;
+      z-index: 1;
+      inset: 0;
+      display: flex;
+      min-height: 0;
+      flex-direction: column;
+      overflow-x: hidden;
+      overflow-y: auto;
+      padding: 22px 17px 88px;
+      scrollbar-width: none;
+    }
+    .attribute-screen::-webkit-scrollbar { display: none; }
+    .attribute-step { color: var(--cf-faint); font-size: 9px; font-weight: 700; }
+    .attribute-title { margin-top: 6px; color: var(--cf-ink); font-family: var(--cf-serif); font-size: 21px; font-weight: 600; }
+    .attribute-subtitle { margin-top: 5px; color: var(--cf-muted); font-size: 9px; line-height: 1.55; }
+    .attribute-budget { display: grid; grid-template-columns: 50px 1fr; gap: 10px; align-items: center; margin-top: 15px; padding: 11px 0; border-top: 1px solid var(--cf-line); border-bottom: 1px solid var(--cf-line); }
+    .attribute-score { display: grid; width: 48px; height: 48px; place-items: center; border: 1px solid var(--cf-line); border-radius: 50%; font-family: var(--cf-serif); text-align: center; }
+    .attribute-score b { display: block; font-size: 14px; }
+    .attribute-score small { display: block; color: var(--cf-faint); font-size: 9px; }
+    .attribute-budget-copy b { font-size: 10px; }
+    .attribute-budget-copy p { margin: 4px 0 0; color: var(--cf-muted); font-size: 9px; line-height: 1.45; }
+    .attribute-segments { display: grid; grid-template-columns: repeat(15, 1fr); gap: 2px; margin-top: 7px; }
+    .attribute-segments i { height: 3px; border-radius: 3px; background: #e5e9f2; }
+    .attribute-segments i.on { background: var(--cf-accent); }
+    .attribute-caption { display: flex; justify-content: space-between; margin: 11px 1px 5px; color: var(--cf-faint); font-size: 9px; }
+    .attribute-list { display: grid; min-height: 304px; flex: 1; grid-template-rows: repeat(4, minmax(76px, 1fr)); border-top: 1px solid #e5e9f2; }
+    .attribute-row { display: grid; align-content: center; padding: 9px 0; border-bottom: 1px solid #e5e9f2; }
+    .attribute-row-head { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; }
+    .attribute-name { font-family: var(--cf-serif); font-size: 11px; }
+    .attribute-bonus { margin-left: 5px; color: #5f876f; font-family: var(--cf-sans); font-size: 9px; }
+    .attribute-semantic { margin-top: 4px; color: #6576b2; font-size: 9px; font-weight: 600; }
+    .attribute-base { margin-top: 2px; color: var(--cf-faint); font-size: 9px; }
+    .attribute-stepper { display: grid; grid-template-columns: 30px 34px 30px; gap: 3px; align-items: center; }
+    .attribute-stepper button { width: 30px; height: 32px; border: 1px solid var(--cf-line); border-radius: 8px; background: #fff; color: var(--cf-muted); font-size: 13px; }
+    .attribute-stepper button:disabled { color: #bdc4d2; background: rgba(255, 255, 255, .55); cursor: not-allowed; }
+    .attribute-value { color: var(--cf-ink); font-size: 11px; font-weight: 700; text-align: center; }
+    .attribute-axis { display: grid; grid-template-columns: repeat(15, 1fr); gap: 2px; margin-top: 8px; }
+    .attribute-axis i { height: 5px; border-radius: 4px; background: #e5e9f2; opacity: .75; }
+    .attribute-axis i.far { height: 2px; align-self: center; opacity: .35; }
+    .attribute-axis i.mid { height: 3px; align-self: center; opacity: .55; }
+    .attribute-axis i.on { background: var(--cf-accent); opacity: 1; }
+    .attribute-tools { display: grid; grid-template-columns: 1fr 1fr; margin-top: 11px; overflow: hidden; border: 1px solid var(--cf-line); border-radius: 9px; }
+    .attribute-tools button { height: 35px; border: 0; background: rgba(255, 255, 255, .86); color: var(--cf-muted); font-size: 9px; }
+    .attribute-tools button + button { border-left: 1px solid var(--cf-line); }
+    .attribute-b1 .cf-footer { border-color: rgba(207, 215, 238, .84); background: rgba(255, 255, 255, .8); backdrop-filter: blur(16px); }
+    .attribute-b1 .cf-next-arrow { background: #7382bb; }
+    .attribute-dialog { position: absolute; z-index: 20; inset: 0; display: grid; place-items: end center; padding: 18px; background: rgba(40, 50, 75, .18); opacity: 0; visibility: hidden; transition: opacity .2s; }
+    .attribute-dialog.open { opacity: 1; visibility: visible; }
+    .attribute-dialog-panel { width: 100%; padding: 14px; border: 1px solid var(--cf-line); border-radius: 12px; background: #fff; box-shadow: 0 16px 34px rgba(62, 70, 100, .14); transform: translateY(8px); transition: transform .2s; }
+    .attribute-dialog.open .attribute-dialog-panel { transform: none; }
+    .attribute-dialog-panel h3 { margin: 0; font-family: var(--cf-serif); font-size: 13px; }
+    .attribute-dialog-panel p { margin: 7px 0 12px; color: var(--cf-muted); font-size: 9px; line-height: 1.55; }
+    .attribute-dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .attribute-dialog-actions button { min-height: 35px; border: 1px solid var(--cf-line); border-radius: 8px; background: transparent; color: var(--cf-muted); font-size: 9px; }
+    .attribute-dialog-actions .continue { border-color: #cfd7ee; background: #edf0fb; color: #6576b2; font-weight: 700; }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  </style>
+</head>
+<body class="attribute-b1" data-screen="attribute-alloc">
+  <main class="creation-shell">
+    <header class="creation-review">
+      <p class="creation-review-label">CREATION FLOW · 06 / 08</p>
+      <h1>属性分配</h1>
+      <p class="creation-review-copy">四项基础属性共用 30 点预算，每项可在 0—10 之间分配。</p>
+    </header>
+    <section class="creation-stage" aria-label="属性分配移动端界面">
+      <div class="creation-phone" data-relative-phone data-relative-phone-width="320" data-relative-phone-height="694">
+        <div data-flow-art></div>
+        <div class="attribute-screen">
+          <div class="attribute-step">NEW LIFE · 06 / 08</div>
+          <div class="attribute-title">塑造你的起点</div>
+          <div class="attribute-subtitle">四项属性自由增减，命格修正单独计算。</div>
+          <section class="attribute-budget">
+            <div class="attribute-score"><div><b class="used">12</b><small>/ 30</small></div></div>
+            <div class="attribute-budget-copy"><b>剩余点数 <span class="remain">18</span></b><p>未用点数可在确认后保留。</p><div class="attribute-segments"></div></div>
+          </section>
+          <div class="attribute-caption"><span>四项基础属性</span><span>每项 0—10</span></div>
+          <div class="attribute-list"></div>
+          <div class="attribute-tools"><button class="reset" type="button">重置</button><button class="average" type="button">平均分配</button></div>
+        </div>
+        <footer class="cf-footer">
+          <button class="cf-back" type="button" data-flow-to="mythic-inheritance" aria-label="返回命格选择"><span data-icon="back"></span></button>
+          <button class="cf-next confirm" type="button"><span class="cf-next-number">07</span><span class="cf-next-copy"><strong>确认属性</strong><small class="confirm-hint">剩余 18 点</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button>
+        </footer>
+        <div class="attribute-dialog" role="dialog" aria-modal="true" aria-hidden="true">
+          <div class="attribute-dialog-panel"><h3>仍有属性点未使用</h3><p>剩余 <b class="dialog-remain"></b> 点将保留。你可以继续调整，或按当前配置进入命运预览。</p><div class="attribute-dialog-actions"><button class="close" type="button">继续分配</button><button class="continue" type="button" data-flow-to="fate-preview">确认并继续</button></div></div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script>
+    (function () {
+      const attributes = [['体魄', 2], ['心智', 1], ['悟性', 0], ['魅力', 0]]
+      const initial = [6, 4, 2, 0]
+      const total = 30
+      let values = initial.slice()
+      const list = document.querySelector('.attribute-list')
+      const dialog = document.querySelector('.attribute-dialog')
 
+      function description(value) {
+        if (value === 0) return '常人水平'
+        if (value < 5) return '渐入佳境'
+        if (value < 9) return '天赋出众'
+        return '凡俗巅峰'
+      }
 
+      function render() {
+        const used = values.reduce(function (sum, value) { return sum + value }, 0)
+        const remain = total - used
+        document.querySelector('.used').textContent = used
+        document.querySelector('.remain').textContent = remain
+        document.querySelector('.confirm-hint').textContent = remain ? '剩余 ' + remain + ' 点' : '进入命运预览'
+        document.querySelector('.attribute-segments').innerHTML = Array.from({ length: 15 }, function (_, index) { return '<i class="' + (index < Math.round(used / total * 15) ? 'on' : '') + '"></i>' }).join('')
+        list.innerHTML = attributes.map(function (attribute, index) {
+          const value = values[index]
+          const position = Math.round(value / 10 * 14)
+          const minusDisabled = value <= 0 ? ' disabled' : ''
+          const plusDisabled = value >= 10 || used >= total ? ' disabled' : ''
+          const bonus = attribute[1] ? '<span class="attribute-bonus">命格 +' + attribute[1] + '</span>' : ''
+          const axis = Array.from({ length: 15 }, function (_, axisIndex) {
+            const distance = Math.abs(axisIndex - position)
+            return '<i class="' + (distance > 5 ? 'far ' : distance > 2 ? 'mid ' : '') + (axisIndex === position ? 'on' : '') + '"></i>'
+          }).join('')
+          return '<section class="attribute-row"><div class="attribute-row-head"><div><div class="attribute-name">' + attribute[0] + bonus + '</div><div class="attribute-semantic">' + description(value) + '</div><div class="attribute-base">基础值 ' + value + '</div></div><div class="attribute-stepper"><button type="button" data-index="' + index + '" data-delta="-1" aria-label="减少' + attribute[0] + '"' + minusDisabled + '>−</button><span class="attribute-value">' + value + '</span><button type="button" data-index="' + index + '" data-delta="1" aria-label="增加' + attribute[0] + '"' + plusDisabled + '>＋</button></div></div><div class="attribute-axis">' + axis + '</div></section>'
+        }).join('')
+        list.querySelectorAll('[data-delta]').forEach(function (button) {
+          button.addEventListener('click', function () {
+            const index = Number(button.dataset.index)
+            const next = values[index] + Number(button.dataset.delta)
+            const nextTotal = values.reduce(function (sum, value, valueIndex) { return sum + (valueIndex === index ? next : value) }, 0)
+            if (next < 0 || next > 10 || nextTotal > total) return
+            values[index] = next
+            render()
+          })
+        })
+      }
+
+      document.querySelector('.reset').addEventListener('click', function () { values = [0, 0, 0, 0]; render() })
+      document.querySelector('.average').addEventListener('click', function () { values = [8, 8, 7, 7]; render() })
+      document.querySelector('.confirm').addEventListener('click', function () {
+        const remain = total - values.reduce(function (sum, value) { return sum + value }, 0)
+        if (!remain) { PrototypeFlow.go('fate-preview'); return }
+        document.querySelector('.dialog-remain').textContent = remain
+        dialog.classList.add('open')
+        dialog.setAttribute('aria-hidden', 'false')
+      })
+      document.querySelector('.close').addEventListener('click', function () {
+        dialog.classList.remove('open')
+        dialog.setAttribute('aria-hidden', 'true')
+      })
+      render()
+    })()
+  </script>
+</body>
+</html>

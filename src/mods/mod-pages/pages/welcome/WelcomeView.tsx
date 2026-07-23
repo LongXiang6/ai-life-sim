@@ -7,6 +7,7 @@
  */
 
 import type { SaveMetadata } from '@/core/storage/save-manager'
+import type { CloudManualSaveSummary } from '@/core/player-content/player-content-contract'
 
 import styles from './WelcomeView.module.css'
 import WelcomeSaveSheet from './WelcomeSaveSheet'
@@ -14,10 +15,13 @@ import WelcomeSaveSheet from './WelcomeSaveSheet'
 interface WelcomeViewProps {
   onStartNewGame: () => void
   saves: SaveMetadata[]
-  selectedSlot: number | null
-  onSelectSave: (slot: number) => void
+  cloudSave: CloudManualSaveSummary | null
+  selectedSaveId: string | null
+  onSelectSave: (saveId: string) => void
   onContinueSave: (slot: number) => Promise<boolean>
   onDeleteSave: (slot: number) => Promise<boolean>
+  onContinueCloudSave: () => Promise<boolean>
+  onDeleteCloudSave: () => Promise<boolean>
   onOpenSettings: () => void
   onOpenAccount: () => void
   onOpenHelp: () => void
@@ -27,16 +31,19 @@ interface WelcomeViewProps {
 export default function WelcomeView({
   onStartNewGame,
   saves,
-  selectedSlot,
+  cloudSave,
+  selectedSaveId,
   onSelectSave,
   onContinueSave,
   onDeleteSave,
+  onContinueCloudSave,
+  onDeleteCloudSave,
   onOpenSettings,
   onOpenAccount,
   onOpenHelp,
   onOpenFeedback,
 }: WelcomeViewProps) {
-  const latestSave = saves[0] ?? null
+  const hasAnySave = saves.length > 0 || Boolean(cloudSave)
 
   return (
     <main className={styles.container}>
@@ -87,13 +94,16 @@ export default function WelcomeView({
           <span className={styles.routeArrow} aria-hidden="true">→</span>
         </button>
 
-        {latestSave && (
+        {hasAnySave && (
           <WelcomeSaveSheet
             saves={saves}
-            selectedSlot={selectedSlot}
+            cloudSave={cloudSave}
+            selectedSaveId={selectedSaveId}
             onSelectSave={onSelectSave}
             onContinueSave={onContinueSave}
             onDeleteSave={onDeleteSave}
+            onContinueCloudSave={onContinueCloudSave}
+            onDeleteCloudSave={onDeleteCloudSave}
           />
         )}
 

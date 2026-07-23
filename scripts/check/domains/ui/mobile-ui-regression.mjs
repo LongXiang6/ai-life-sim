@@ -135,10 +135,11 @@ assertOk(
   'creation routes must redirect to the nearest missing prerequisite after persisted stores hydrate',
 )
 assertOk(
-  attributeAllocPageSrc.includes("router.replace('/fate-preview')")
-    && !attributeAllocPageSrc.includes('TOTAL_POINTS')
-    && !attributeAllocPageSrc.includes('setCharacterBase'),
-  'the retired attribute-allocation address must be a compatibility redirect with no allocation behavior',
+  attributeAllocPageSrc.includes('const TOTAL_POINTS = 30')
+    && attributeAllocPageSrc.includes('const MAX_VALUE = 10')
+    && attributeAllocPageSrc.includes('setCharacterBase({')
+    && attributeAllocPageSrc.includes("router.push('/fate-preview')"),
+  'the creation flow must expose the confirmed 30-point four-attribute allocation step',
 )
 assertOk(welcomePageSrc.includes("import WelcomeView from './WelcomeView'"), 'welcome page must use the single responsive WelcomeView')
 assertOk(!welcomePageSrc.includes('useIsMobile'), 'welcome page must not switch desktop/mobile DOM after hydration')
@@ -147,16 +148,18 @@ assertOk(welcomeViewSrc.includes('一生很长，') && welcomeViewSrc.includes('
 assertOk(welcomeViewSrc.includes('选择世界与角色，走过关系、机会、代价和告别。'), 'welcome introduction must use the approved copy without the removed resources/origin attribute')
 assertOk(welcomeViewSrc.includes('开始新人生'), 'welcome primary action must use the approved T2 label')
 assertOk(welcomeViewSrc.includes('aria-hidden="true"') && welcomeViewSrc.includes('styles.trajectory'), 'welcome must render the approved decorative T3 trajectory')
-assertOk(/latestSave\s*&&\s*\(/.test(welcomeViewSrc), 'continue action must only appear when a save exists')
+assertOk(/hasAnySave\s*&&\s*\(/.test(welcomeViewSrc), 'continue action must only appear when a local or cloud save exists')
 assertOk(
   welcomeViewSrc.includes('onDeleteSave={onDeleteSave}')
+    && welcomeViewSrc.includes('onDeleteCloudSave={onDeleteCloudSave}')
     && welcomeSaveSheetSrc.includes('删除已选择的存档')
     && welcomeSaveSheetSrc.includes('role="alertdialog"')
     && welcomeSaveSheetSrc.includes('确认删除')
-    && welcomeSaveSheetSrc.includes('onDeleteSave(deleteTarget.slot)')
+    && welcomeSaveSheetSrc.includes('onDeleteCloudSave()')
+    && welcomeSaveSheetSrc.includes('onDeleteSave(deleteTarget.save.slot)')
     && welcomeCssSrc.includes('.deleteDialogOverlay')
     && welcomeCssSrc.includes('.deleteConfirm'),
-  'welcome save selection must expose a destructive delete action with an explicit second-confirmation dialog',
+  'welcome local and cloud save selection must expose destructive deletion with an explicit second-confirmation dialog',
 )
 assertOk(!/[🎮⚙️📖]/u.test(welcomeViewSrc), 'welcome actions must not use the rejected emoji icon treatment')
 assertOk(welcomeCssSrc.includes('height: 100dvh') && welcomeCssSrc.includes('overflow-y: auto'), 'welcome responsive shell must use a dynamic viewport scroll container')

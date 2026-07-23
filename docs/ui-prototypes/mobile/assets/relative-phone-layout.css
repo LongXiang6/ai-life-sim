@@ -11,5 +11,6 @@
   position: absolute;
   top: 0;
   left: 0;
+  container-type: size;
   transform-origin: top left;
 }

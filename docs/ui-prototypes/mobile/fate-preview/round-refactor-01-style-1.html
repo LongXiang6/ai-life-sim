@@ -7,19 +7,21 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="../assets/library.css">
   <link rel="stylesheet" href="../assets/creation-flow-unified.css">
+  <link rel="stylesheet" href="../assets/relative-phone-layout.css">
   <script src="../assets/prototype.js" defer></script>
   <script src="../assets/creation-flow-unified.js" defer></script>
+  <script src="../assets/relative-phone-layout.js" defer></script>
 </head>
 <body data-screen="fate-preview" data-creation-step="7">
   <main class="creation-shell">
     <header class="creation-review">
-      <p class="creation-review-label">CREATION FLOW · 07 / 07</p>
+      <p class="creation-review-label">CREATION FLOW · 07 / 08</p>
       <h1>命运预览</h1>
-      <p class="creation-review-copy">依次核对世界、角色、零基础值与命格修正，设置模拟种子，等待世界初始化后开启人生。</p>
+      <p class="creation-review-copy">依次核对世界、角色、基础值与独立修正，设置模拟种子，等待世界初始化后开启人生。</p>
     </header>
 
     <section class="creation-stage" aria-label="命运预览移动端界面">
-      <div class="creation-phone">
+      <div class="creation-phone" data-relative-phone data-relative-phone-width="320" data-relative-phone-height="694">
         <div data-flow-art></div>
         <div class="cf-screen">
           <header class="cf-header" data-creation-header data-title="核对命书" data-subtitle="确认所有起点，然后开启人生。"></header>
@@ -40,17 +42,18 @@
           </section>
 
           <section class="cf-section">
-            <div class="cf-section-head"><strong>属性与命格</strong><small>四项属性 · 三重命格</small></div>
+            <div class="cf-section-head"><strong>属性与命格</strong><small>基础值 + 独立修正</small></div>
             <div class="cf-overview-attributes">
-              <div><span>体魄</span><b>+7</b></div>
-              <div><span>心智</span><b>+9</b></div>
-              <div><span>悟性</span><b>+8</b></div>
-              <div><span>魅力</span><b>+4</b></div>
+              <div><span>体魄</span><b>6 <i>+1</i></b></div>
+              <div><span>心智</span><b>4 <i>+5</i></b></div>
+              <div><span>悟性</span><b>2 <i>+6</i></b></div>
+              <div><span>魅力</span><b>0 <i>+4</i></b></div>
             </div>
             <div class="cf-talent-list">
               <div><strong>逆境余火</strong><span>绝境中更容易发现转机。</span></div>
               <div><strong>守诺之人</strong><span>承诺具有有限的因果惯性。</span></div>
               <div><strong>市井耳目</strong><span>关键消息更容易进入视野。</span></div>
+              <div><strong>转世 · 长夜见灯</strong><span>困顿时更容易发现可行动的转机。</span></div>
             </div>
           </section>
 
@@ -75,9 +78,9 @@
         </div>
 
         <footer class="cf-footer">
-          <button class="cf-back" type="button" data-flow-back="mythic-inheritance" aria-label="返回命格选择"><span data-icon="back"></span></button>
+          <button class="cf-back" type="button" data-flow-back="attribute-alloc" aria-label="返回属性分配"><span data-icon="back"></span></button>
           <button class="cf-next" type="button" data-flow-to="game-story" data-start disabled>
-            <span class="cf-next-number">完成</span>
+            <span class="cf-next-number">08</span>
             <span class="cf-next-copy"><strong>开始人生</strong><small data-start-hint>仍有 2 项正在初始化</small></span>
             <span class="cf-next-arrow" data-icon="arrow"></span>
           </button>

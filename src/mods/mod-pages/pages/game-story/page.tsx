@@ -11,12 +11,17 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { clamp } from '@/core/shared'
 import { reportUsageMetric } from '@/core/logger/client-logger'
+import { ENGINE_VERSION } from '@/core/version'
+import { useAccountClientStore } from '@/core/account/account-client-store'
+import { fetchCloudManualSaveSummary, putCloudManualSave } from '@/core/player-content/player-content-client'
+import { CloudGameSavePayloadSchema, type CloudManualSaveSummary } from '@/core/player-content/player-content-contract'
 
 import { useEngine, useNarrative, usePreGenQueueStatus, useSimulationAdvance } from '@/mods/mod-engine'
 import {
   AVAILABLE_TIME_STEPS,
   encodeTimeStepKey,
   formatCurrentNarrativeTimeLabel,
+  collectGameSavePayload,
   saveCurrentGameToSlot,
   setSimulationTimeStepByKey,
 } from '@/mods/mod-engine/engine-api'
@@ -146,11 +151,34 @@ export default function GamePage() {
 
   const [showWorldPanel, setShowWorldPanel] = useState(false)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
+  const [cloudSave, setCloudSave] = useState<CloudManualSaveSummary | null>(null)
+  const [cloudLoading, setCloudLoading] = useState(false)
+  const accountStatus = useAccountClientStore((state) => state.status)
   const narrativeEndRef = useRef<HTMLDivElement>(null)
   const prevEventsLenRef = useRef(0)
   const toasts = useToastStore((s) => s.toasts)
   const addToast = useToastStore((s) => s.addToast)
   const dismissToast = useToastStore((s) => s.dismissToast)
+
+  useEffect(() => {
+    let active = true
+    if (accountStatus !== 'authenticated') {
+      queueMicrotask(() => {
+        if (!active) return
+        setCloudSave(null)
+        setCloudLoading(false)
+      })
+      return () => { active = false }
+    }
+    queueMicrotask(() => { if (active) setCloudLoading(true) })
+    void fetchCloudManualSaveSummary()
+      .then((summary) => { if (active) setCloudSave(summary) })
+      .catch((error) => {
+        if (active) addToast('warning', error instanceof Error ? error.message : '云端栏位读取失败')
+      })
+      .finally(() => { if (active) setCloudLoading(false) })
+    return () => { active = false }
+  }, [accountStatus, addToast])
 
   // 整个书页正文是唯一滚动根；新叙事只在这条连续阅读流内定位。
   useEffect(() => {
@@ -362,6 +390,30 @@ export default function GamePage() {
     addToast('success', `已保存到槽位 ${slot}`)
   }, [addToast, characterName, isAdvancing, isRuntimeReady, preGenStatus.isActive, runtimeIncomplete, worldConfig?.name])
 
+  const handleCloudSave = useCallback(async (name: string) => {
+    if (accountStatus !== 'authenticated') throw new Error('登录后才可使用云端栏位')
+    if (!isRuntimeReady) {
+      throw new Error(runtimeIncomplete ? '核心模拟系统未完整加载，请刷新页面后重试。' : '核心模拟系统仍在初始化，请稍候重试。')
+    }
+    if (preGenStatus.isActive || isAdvancing) throw new Error('当前回合或下一段故事仍在生成，完成后才能保存。')
+    const payload = CloudGameSavePayloadSchema.parse(collectGameSavePayload())
+    const summary = await putCloudManualSave({
+      metadata: {
+        schemaVersion: 1,
+        slot: 1,
+        name,
+        worldName: worldConfig?.name ?? '',
+        characterName,
+        totalRounds,
+        gameVersion: ENGINE_VERSION,
+        savedAt: Date.now(),
+      },
+      payload,
+    })
+    setCloudSave(summary)
+    addToast('success', '已保存到云端栏位')
+  }, [accountStatus, addToast, characterName, isAdvancing, isRuntimeReady, preGenStatus.isActive, runtimeIncomplete, totalRounds, worldConfig?.name])
+
   const flowGuard = useMemo(() => {
     if (!worldConfig || worldCode === 0) {
       return { title: '世界尚未建立', message: '请先完成世界选择与构建，再进入模拟。', action: '/new-game/world-select' }
@@ -396,6 +448,9 @@ export default function GamePage() {
         open={showSaveDialog}
         onClose={() => setShowSaveDialog(false)}
         onSave={handleManualSave}
+        onCloudSave={accountStatus === 'authenticated' ? handleCloudSave : undefined}
+        cloudSave={cloudSave}
+        cloudLoading={cloudLoading}
         defaultWorldName={worldConfig?.name}
         defaultCharacterName={characterName}
       />

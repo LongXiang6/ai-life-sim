@@ -796,7 +796,53 @@ body[data-screen="help"] {
 }
 
 html.embedded-preview body[data-screen] > .end-shell > .end-review { display: none; }
-html.embedded-preview body[data-screen] > .end-shell { width: 100%; min-height: 100vh; padding: 12px 0 28px; }
+html.embedded-preview body[data-screen] > .end-shell { width: 100%; min-height: 100vh; padding: 0; }
+
+/* A 9px design-canvas floor renders at about 12px on the 430px Pro Max preview. */
+.end-meta,
+.end-title-copy p,
+.end-section-head small,
+.end-tabs button,
+.end-tabs button small,
+.life-score span,
+.life-metric,
+.life-act-age,
+.life-act-age span,
+.life-act-copy p,
+.life-verdict small,
+.life-verdict p,
+.life-verdict-meta,
+.mythic-intro,
+.mythic-selector b,
+.mythic-focus small,
+.mythic-focus p,
+.mythic-current,
+.mythic-store small,
+.settings-tools small,
+.restore-action,
+.view-intro,
+.section-cap span,
+.setting-copy small,
+.value-action,
+.stepper output,
+.segments button,
+.model-list button,
+.model-list button.active::after,
+.prompt,
+.note,
+.chapter-nav button,
+.chapter-index,
+.help-chapter p,
+.help-chapter ul,
+.help-tip,
+.release-head time,
+.release p,
+.release ul {
+  font-size: 9px;
+}
+
+.setting-copy b,
+.life-act-copy b { font-size: 10px; }
 
 @media (max-width: 559px) {
   .end-shell { width: min(100% - 22px, 900px); padding-top: 18px; }
@@ -806,6 +852,15 @@ html.embedded-preview body[data-screen] > .end-shell { width: 100%; min-height: 
 
 @media (max-width: 339px) {
   .end-screen { padding-right: 12px; padding-left: 12px; }
+}
+
+@media (max-width: 559px) {
+  html.embedded-preview body[data-screen] > .end-shell {
+    width: 100%;
+    padding: 0;
+  }
+
+  html.embedded-preview body[data-screen] > .end-shell > .end-stage { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

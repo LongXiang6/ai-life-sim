@@ -4,6 +4,8 @@ import { randomUUID } from 'node:crypto'
 
 import type Database from 'better-sqlite3'
 
+import { deletePlayerContentForAccount, projectStructuredGameRecords } from '@/core/player-content/player-content-service'
+
 import {
   ACCOUNT_MAX_SESSIONS,
   ACCOUNT_RETENTION_DAYS,
@@ -14,6 +16,7 @@ import {
   type AccountProfile,
   type AccountSessionPayload,
   type CloudAccountSnapshot,
+  type CloudGameRecord,
   type CloudSyncRequest,
   type LoginRequest,
   type RegisterRequest,
@@ -200,6 +203,14 @@ function sessionPayload(database: Database.Database, row: AccountRow): AccountSe
   }
 }
 
+function projectAccountRecordsSafely(accountId: string, records: CloudGameRecord[], now: number): void {
+  try {
+    projectStructuredGameRecords(accountId, records, now)
+  } catch (error) {
+    console.error('[player-content] 结构化战绩投影失败，账号数据已保留:', error instanceof Error ? error.message : 'unknown')
+  }
+}
+
 export function enforceAccountRateLimit(
   scopeKey: string,
   limit: number,
@@ -280,6 +291,7 @@ export async function registerAccount(input: RegisterRequest): Promise<{
     throw error
   }
   const row = database.prepare('SELECT * FROM accounts WHERE id = ?').get(accountId) as AccountRow
+  projectAccountRecordsSafely(accountId, input.initialData.gameRecords, now)
   return { token, payload: sessionPayload(database, row) }
 }
 
@@ -309,6 +321,7 @@ export async function loginAccount(input: LoginRequest): Promise<{
   })
   const token = transaction()
   const updated = database.prepare('SELECT * FROM accounts WHERE id = ?').get(row.id) as AccountRow
+  projectAccountRecordsSafely(row.id, readSnapshot(database, updated).gameRecords, now)
   return { token, payload: sessionPayload(database, updated) }
 }
 
@@ -339,6 +352,17 @@ export function getSessionAccount(token: string | undefined): AccountSessionPayl
   return sessionPayload(database, row)
 }
 
+export function requireSessionAccountId(token: string | undefined): string {
+  const session = getSessionAccount(token)
+  if (!session) throw new AccountServiceError('登录状态已失效', 401, 'unauthenticated')
+  const account = getAccountByCanonical(
+    getAccountDatabase(),
+    session.account.username.normalize('NFKC').toLocaleLowerCase('zh-CN'),
+  )
+  if (!account) throw new AccountServiceError('账号不存在', 401, 'unauthenticated')
+  return account.id
+}
+
 export function syncAccount(token: string, input: CloudSyncRequest): AccountSessionPayload {
   const session = getSessionAccount(token)
   if (!session) throw new AccountServiceError('登录状态已失效', 401, 'unauthenticated')
@@ -354,6 +378,7 @@ export function syncAccount(token: string, input: CloudSyncRequest): AccountSess
     writeCloudData(database, account.id, input, nextRevision, now)
   })
   transaction()
+  projectAccountRecordsSafely(account.id, input.gameRecords, now)
   const updated = database.prepare('SELECT * FROM accounts WHERE id = ?').get(account.id) as AccountRow
   return sessionPayload(database, updated)
 }
@@ -373,11 +398,19 @@ export async function deleteAccount(token: string, password: string): Promise<vo
     throw new AccountServiceError('密码不正确', 401, 'invalid_credentials')
   }
   database.prepare('DELETE FROM accounts WHERE id = ?').run(row.id)
+  try {
+    deletePlayerContentForAccount(row.id)
+  } catch (error) {
+    console.error('[player-content] 账号已删除，专用内容等待清理器回收:', error instanceof Error ? error.message : 'unknown')
+  }
 }
 
 export function cleanupInactiveAccounts(now = Date.now()): { deletedAccounts: number } {
   const database = getAccountDatabase()
   const cutoff = now - SESSION_DURATION_MS
+  const staleAccounts = database.prepare(`
+    SELECT id FROM accounts WHERE last_active_at < ?
+  `).all(cutoff) as Array<{ id: string }>
   const transaction = database.transaction(() => {
     database.prepare('DELETE FROM account_sessions WHERE expires_at <= ?').run(now)
     database.prepare('DELETE FROM account_rate_limits WHERE window_started_at < ?').run(now - 24 * 60 * 60 * 1000)
@@ -386,5 +419,13 @@ export function cleanupInactiveAccounts(now = Date.now()): { deletedAccounts: nu
     const result = database.prepare('DELETE FROM accounts WHERE last_active_at < ?').run(cutoff)
     return { deletedAccounts: result.changes }
   })
-  return transaction()
+  const result = transaction()
+  for (const account of staleAccounts) {
+    try {
+      deletePlayerContentForAccount(account.id)
+    } catch (error) {
+      console.error('[player-content] 过期账号内容等待清理器回收:', error instanceof Error ? error.message : 'unknown')
+    }
+  }
+  return result
 }

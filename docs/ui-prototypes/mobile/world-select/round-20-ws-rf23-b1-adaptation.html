@@ -415,13 +415,13 @@
     .b1-colorway .sheet { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
     .b1-colorway .phone-page { bottom: 0; padding-bottom: 78px; touch-action: pan-y; }
     .b1-colorway .chapter-end { border-color: rgba(207, 215, 238, .84); background: rgba(255, 255, 255, .76); box-shadow: 0 12px 30px rgba(62, 70, 100, .13), 0 2px 7px rgba(62, 70, 100, .06); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
-    .b1-colorway .world-focus { height: 23cqh; min-height: 0; overflow: hidden; padding-right: 15px; padding-left: 15px; }
+    .b1-colorway .world-focus { height: 19cqh; min-height: 0; overflow: hidden; padding-right: 15px; padding-left: 15px; }
     .b1-colorway .world-focus .difficulty-control { position: absolute; z-index: 2; top: 24px; right: 15px; }
     .b1-colorway .world-focus h3,
     .b1-colorway .world-focus .focus-era { max-width: calc(100% - 100px); }
     .b1-colorway .world-focus .focus-era { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .b1-colorway .world-rule { height: 32px; min-height: 0; align-items: center; }
-    .b1-colorway .world-focus .world-rule { margin-top: 15px; }
+    .b1-colorway .world-focus .world-rule { margin-top: 9px; }
     .b1-colorway .world-rule p { display: block; min-width: 0; overflow: hidden; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; -webkit-line-clamp: unset; }
     .b1-colorway .source-tabs { display: grid; height: 38px; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; margin-top: 9px; }
     .b1-colorway .source-tabs button { min-width: 0; padding: 0 3px; border: 0; border-radius: 7px; background: transparent; color: var(--ink-soft); cursor: pointer; font-size: 8.8px; font-weight: 600; line-height: 1.15; }
@@ -444,6 +444,22 @@
     .b1-colorway .difficulty-arrow path { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
     .b1-colorway .difficulty-control:hover { border-color: #c5cee6; background: rgba(255, 255, 255, .94); }
     .b1-colorway .difficulty-control:active { box-shadow: inset 0 1px 3px rgba(62, 70, 100, .11); transform: translateY(1px); }
+    .b1-colorway .running-head,
+    .b1-colorway .difficulty-control span,
+    .b1-colorway .focus-source,
+    .b1-colorway .focus-index,
+    .b1-colorway .world-rule span,
+    .b1-colorway .world-rule p,
+    .b1-colorway .section-meta,
+    .b1-colorway .saved-choice small,
+    .b1-colorway .field > span,
+    .b1-colorway .action-number,
+    .b1-colorway .action-copy small,
+    .b1-colorway .more-grid button small,
+    .b1-colorway .rule-fact span,
+    .b1-colorway .rule-fact strong,
+    .b1-colorway .manage-row button,
+    .b1-colorway .preset-grid button { font-size: 9px; }
 
     .final-shell { width: min(900px, calc(100% - 24px)); margin: 0 auto; padding: 18px 0 42px; }
     .final-shell > .topbar { margin-bottom: 18px; color: var(--review-muted); font-size: 12px; }
@@ -453,7 +469,7 @@
     .final-stage { display: grid; justify-items: center; margin-top: 18px; }
     .final-stage .phone { margin: 0; }
     html.embedded-preview body[data-screen] { min-height: 100vh; background: var(--review-bg); }
-    html.embedded-preview body[data-screen] > .shell { width: 100%; min-height: 100vh; padding: 12px 0 28px; }
+    html.embedded-preview body[data-screen] > .shell { width: 100%; min-height: 100vh; padding: 0; }
     html.embedded-preview body[data-screen] > .shell > .topbar,
     html.embedded-preview body[data-screen] > .shell > .eyebrow,
     html.embedded-preview body[data-screen] > .shell > h1,
@@ -463,7 +479,7 @@
     @keyframes reveal { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
     @media (max-width: 1099px) { .candidate-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .candidate-meta { min-height: 86px; } }
     @media (max-width: 559px) { .review-shell { padding: 15px 11px 28px; } .review-head { grid-template-columns: 1fr; gap: 9px; padding-right: 3px; padding-left: 3px; } .review-head h1 { font-size: 24px; } .review-status { text-align: left; } .candidate-grid { grid-template-columns: 1fr; } .candidate { padding-right: 8px; padding-left: 8px; } .candidate-meta { min-height: 0; padding: 3px 4px 12px; } .phone { width: min(100%, 330px); } }
-    @media (max-width: 559px) { .final-shell { width: min(100% - 22px, 900px); padding-top: 18px; } .final-shell > h1 { font-size: 24px; } }
+    @media (max-width: 559px) { .final-shell { width: min(100% - 22px, 900px); padding-top: 18px; } .final-shell > h1 { font-size: 24px; } html.embedded-preview .final-shell { width:100%; padding-top:0; } html.embedded-preview .final-stage { width:100%; } }
     @media (max-width: 389px) { .review-shell { padding-right: 9px; padding-left: 9px; } .phone { width: min(100%, 326px); } }
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
   </style>
@@ -475,7 +491,7 @@
     <h1>世界选择 · B1 配色适配</h1>
     <p class="subtitle">完整继承 WS-RF23-1 的布局、圆角、板块和交互，仅调整为 B1 冷白蓝灰配色。</p>
     <section class="final-stage" aria-label="WS-RF23-1 世界选择最终界面">
-      <div class="phone theme-space-balanced white-world-page b1-colorway" data-relative-phone data-relative-phone-width="320" data-relative-phone-height="674" data-app="world-select-ws-rf23-1" data-selected-world="潮汐城邦" data-source="saved" data-difficulty-value="普通"></div>
+      <div class="phone theme-space-balanced white-world-page b1-colorway" data-relative-phone data-relative-phone-width="320" data-relative-phone-height="694" data-app="world-select-ws-rf23-1" data-selected-world="潮汐城邦" data-source="saved" data-difficulty-value="普通"></div>
     </section>
   </main>
 
@@ -508,7 +524,7 @@
       </svg>
     </div>
     <div class="phone-page">
-      <header class="screen-head"><div class="running-head"><span>AI LIFE SIM · 命书</span><span>01 / 世界</span></div><div class="title-row"><div><span class="chapter-label">第一章 · 世界选择</span><h2>选择世界</h2></div></div></header>
+      <header class="screen-head"><div class="running-head"><span>AI LIFE SIM · 命书</span><span>01 / 08</span></div><div class="title-row"><div><span class="chapter-label">第一章 · 世界选择</span><h2>选择世界</h2></div></div></header>
       <section class="world-focus" aria-label="当前世界规则摘要"><div class="focus-top"><span class="focus-source" data-source-label>保存世界</span><span class="focus-index">当前选择</span></div><button class="difficulty-control" type="button" data-difficulty-cycle aria-label="切换人生难度"><span>难度</span><strong data-difficulty-label>普通</strong><svg class="difficulty-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg></button><h3 data-current-label>潮汐城邦</h3><div class="focus-era" data-current-era>群岛历 218 年</div><div class="world-rule"><span>规则摘要</span><p data-current-rule>潮汐决定城市的贸易节律、迁徙方向与每个人回家的时间。</p></div><div class="rule-facts" aria-label="世界概览"><div class="rule-fact"><span>来源</span><strong data-fact-source>已保存</strong></div><div class="rule-fact"><span>年代</span><strong data-fact-era>群岛历</strong></div><div class="rule-fact"><span>难度</span><strong data-fact-level>普通</strong></div></div></section>
       <nav class="source-tabs" aria-label="世界来源"><button type="button" data-source-tab="saved" aria-selected="true">已保存</button><button type="button" data-source-tab="custom" aria-selected="false">自定义</button><button type="button" data-source-tab="preset" aria-selected="false">预设世界</button></nav>
       <div class="source-area">

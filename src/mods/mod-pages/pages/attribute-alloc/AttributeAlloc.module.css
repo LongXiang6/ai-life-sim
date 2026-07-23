@@ -1,0 +1,55 @@
+.page {
+  min-height: 100dvh;
+  overflow-y: auto;
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+  background: #f3f5f7;
+  color: #1d2430;
+  font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+}
+
+.paper {
+  width: min(100%, 44rem);
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: max(1.25rem, env(safe-area-inset-top)) clamp(1rem, 4vw, 1.5rem) 2rem;
+  background: #fff;
+}
+
+.header { padding: 0.25rem 0 1rem; border-bottom: 1px solid #e4e8ed; }
+.header span { color: #8190a2; font-size: 0.75rem; font-weight: 700; }
+.header h1 { margin: 0.35rem 0 0; font-family: "Songti SC", "STSong", "SimSun", serif; font-size: clamp(1.75rem, 7vw, 2.15rem); font-weight: 600; letter-spacing: 0; }
+
+.budget { margin-top: 1rem; padding: 1rem; border: 1px solid #dde3ea; border-radius: 0.75rem; background: #f8fafc; }
+.budget > div:first-child { display: flex; align-items: baseline; justify-content: space-between; }
+.budget span, .budget small { color: #687586; font-size: 0.75rem; }
+.budget strong { color: #536f94; font-size: 1.75rem; }
+.budget small { display: block; margin-top: 0.45rem; }
+.meter, .axis { display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); gap: 0.2rem; }
+.meter { margin-top: 0.7rem; }
+.meter i, .axis i { height: 0.3rem; border-radius: 999px; background: #e1e6ec; }
+.meter .activeSegment, .axis .activeSegment { background: #6e86a6; }
+
+.attributeList { margin-top: 0.75rem; border-top: 1px solid #e4e8ed; }
+.attributeRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.7rem 1rem; padding: 1rem 0; border-bottom: 1px solid #e4e8ed; }
+.attributeCopy strong { display: block; font-family: "Songti SC", "STSong", "SimSun", serif; font-size: 1rem; }
+.attributeCopy span { display: block; margin-top: 0.2rem; color: #687586; font-size: 0.75rem; }
+.stepper { display: grid; grid-template-columns: 2.5rem 2.25rem 2.5rem; align-items: center; gap: 0.25rem; }
+.stepper button { width: 2.5rem; height: 2.5rem; padding: 0; border: 1px solid #d7dee7; border-radius: 0.625rem; background: #fff; color: #53677f; font-size: 1.15rem; }
+.stepper button:disabled { opacity: 0.35; }
+.stepper output { font-size: 0.95rem; font-weight: 700; text-align: center; }
+.axis { grid-column: 1 / -1; grid-template-columns: repeat(10, minmax(0, 1fr)); }
+
+.tools { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; margin-top: 1rem; }
+.tools button { min-height: 2.75rem; border: 1px solid #d7dee7; border-radius: 0.625rem; background: #fff; color: #53677f; font-size: 0.8125rem; }
+
+.dialogBackdrop { position: fixed; z-index: 260; inset: 0; display: grid; align-items: end; padding: 1rem; background: rgb(23 31 42 / 24%); }
+.dialog { width: min(100%, 30rem); margin: 0 auto; padding: 1.1rem; border-radius: 0.75rem; background: #fff; box-shadow: 0 1.25rem 3rem rgb(23 31 42 / 18%); }
+.dialog h2 { margin: 0; font-family: "Songti SC", "STSong", "SimSun", serif; font-size: 1.2rem; }
+.dialog p { margin: 0.45rem 0 1rem; color: #687586; font-size: 0.8125rem; }
+.dialog > div { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+.dialog button { min-height: 2.75rem; border: 1px solid #d7dee7; border-radius: 0.625rem; background: #fff; color: #53677f; font-size: 0.8125rem; }
+.dialog .dialogConfirm { border-color: #5f789b; background: #5f789b; color: #fff; }
+
+@media (min-width: 48rem) {
+  .paper { margin-top: 1.5rem; min-height: calc(100dvh - 3rem); border: 1px solid #e0e5eb; }
+}

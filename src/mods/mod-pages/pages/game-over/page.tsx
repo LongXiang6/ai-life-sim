@@ -21,6 +21,8 @@ import { useSettingsStore } from '@/mods/mod-settings'
 
 import { callAI, useGlobalStore } from '@/core'
 import { DEFAULT_AI_MODEL } from '@/core/ai-service'
+import { useAccountClientStore } from '@/core/account/account-client-store'
+import { requestPortraitMail } from '@/core/player-content/player-content-client'
 import { ENGINE_VERSION } from '@/core/version'
 // 统一使用 shared/ 的 clamp 替代内联 Math.max/Math.min
 import { clamp } from '@/core/shared'
@@ -44,6 +46,7 @@ import {
   selectFeaturedAchievement,
 } from './game-over-scoring'
 import { resetForNewLife } from '../../helpers/new-life-reset'
+import { syncAccountNow } from '../../helpers/account-cloud-sync'
 
 // ============================================================
 // 人生总结生成
@@ -536,16 +539,22 @@ export default function GameOverPage() {
     let active = true
     queueMicrotask(() => {
       if (!active) return
-      try {
-        upsertLifeRecord(cloudLifeRecord)
-      } catch (error) {
-        if (active) setShareStatus(error instanceof Error ? error.message : '战绩保存失败')
-      }
+      void (async () => {
+        try {
+          upsertLifeRecord(cloudLifeRecord)
+          if (overallScore === 100 && useAccountClientStore.getState().status === 'authenticated') {
+            await syncAccountNow()
+            if (active) await requestPortraitMail(cloudLifeRecord.recordId, lifeSummary)
+          }
+        } catch (error) {
+          if (active) setShareStatus(error instanceof Error ? error.message : '战绩保存失败')
+        }
+      })()
     })
     return () => {
       active = false
     }
-  }, [canViewGameOver, cloudLifeRecord, upsertLifeRecord])
+  }, [canViewGameOver, cloudLifeRecord, lifeSummary, overallScore, upsertLifeRecord])
 
   if (!canViewGameOver) {
     return null
