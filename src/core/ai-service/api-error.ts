@@ -32,6 +32,15 @@ function compactSuggestion(suggestion: string): string {
  */
 export function diagnoseApiError(status: number, errorText: string): ApiDiagnostic {
   if (status === 400) {
+    // 内容审核拒绝 - 最优先检查
+    if (matchKeyword(errorText, ['违规', '敏感', '审核', '内容安全', 'content policy', 'safety', 'inappropriate'])) {
+      return {
+        level: 'warn',
+        summary: '输入内容触发了安全审核',
+        detail: 'AI 服务商因内容安全策略拒绝了本次请求。',
+        suggestion: '调整输入内容，避免敏感词汇或场景描述\n或在设置中切换到审核较宽松的模型（如 DeepSeek）\n重试不会解决审核问题',
+      }
+    }
     if (matchKeyword(errorText, ['thinking']) && matchKeyword(errorText, ['type', 'budget_tokens'])) {
       return {
         level: 'error',
@@ -45,7 +54,7 @@ export function diagnoseApiError(status: number, errorText: string): ApiDiagnost
         level: 'error',
         summary: 'API Key 尚未配置',
         detail: '当前模型通道没有可用的访问凭据。',
-        suggestion: '打开“设置 → 模型调用”填写 Key、接口网址和模型名称\n或恢复服务器免费体验通道',
+        suggestion: '打开”设置 → 模型调用”填写 Key、接口网址和模型名称\n或恢复服务器免费体验通道',
       }
     }
     if (matchKeyword(errorText, ['model'])) {
