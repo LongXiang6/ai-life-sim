@@ -202,6 +202,24 @@
 
 `Required follow-up: 恢复 P5-P7 时必须沿用 core/shared 平衡入口，为人口、价格、资源和健康等宏观指标登记范围、单调性与速率上限，使用确定性/均值回归并把变更作为历史账本原子批次提交；不得直接迁回旧版三大域或其无上限公式。`
 
+<a id="preset-mobile-flow-production"></a>
+
+### 2.16 预设通道与移动端串联创建流生产验收
+
+`LastVerified: 2026-07-23`
+
+`Authority: PD-018, PD-030, PD-031, PD-016, PD-017`
+
+`RuntimeSource: src/core/ai-service/server-provider-credentials.ts; src/core/ai-service/server-provider-targets.ts; src/app/api/proxy/route.ts; src/mods/mod-pages/manifest.ts; src/mods/mod-pages/pages/attribute-alloc/page.tsx; scripts/ops/validate-production-env.mjs`
+
+`Result: pass`
+
+`Evidence: 2be5f58 release 已原子切换为活动版本；生产环境校验、PM2、回环 3000、Nginx、HTTP→HTTPS、两个预设 GET configured 与公网 POST 均通过。managed / LongCat-2.0 线上 Puppeteer 全流程完成角色创建→12 候选命格→2 项转世天赋→15 点四维属性→命运预览→4 轮主叙事，4 次请求、4 条正文、无客户端 Key、零控制台错误；公网分支 Puppeteer 验证点击后第二次请求、旧记录 `resolvedChoice` 与 2 条历史正文；`check:structural`、`check:ui`、`gate-check`、Lint、TypeScript、managed AI、proxy、叙事协议与无硬截断审计通过。`
+
+`KnownLimitations: 官方 DeepSeek Provider=deepseek、Model=deepseek-v4-flash 已在本地隔离环境使用临时 Key 完成真实全流程；该 Key 未写入生产环境，生产选择 DeepSeek 仍要求玩家提供自己的 Key。`check:mod` 保留约 80 项历史基线失败，未新增，不宣称全局全绿；废弃版本宏观模拟对比结论见 2.15。`
+
+`Supersession: 取代 5.3.4 只记录分支与叙事修复而未记录预设环境和串联创建流生产证据的结论。`
+
 ## 3. 阶段与发布验收摘要
 
 | 范围 | 当前结论 | 权威入口 |
@@ -215,6 +233,7 @@
 | 5.3.1 | 失败自动重试、登录玩家单栏云存档、默认关闭的排行榜/邮箱/画像后台与回环运营面板已通过独立 release、原子切换、HTTPS、公网账号云存档浏览器路径和 systemd 运维验证 | 本账本 2.10、2.13 |
 | 5.3.2 | 内容审核失败给出明确处理建议，确定性 4xx 不重试且重试日志不复制上游正文；移动端 `ui-sync-5` 原型验收完成并随生产 release 验证 | 本账本 2.7、2.9、2.13 |
 | 5.3.4 | 任何完整故事都立即交付；条件 META、非法数据与重复度不再触发同步重写，相关状态保持待处理且非法数据整包不写；分支确认在生成锁释放前禁用，避免静默跳过下一轮；已通过 DeepSeek 全流程、冷启动/公网分支浏览器、独立 release、旁路、原子切换、HTTPS 和运营运维验证 | 本账本 2.14、2.15 |
+| 5.3.5 | 恢复 LongCat 与原托管预设、增加发布前环境硬校验；移动端串联创建流注册 `/new-game/*` 路由并落地 15 点四项基础属性、12 候选命格与 2 项转世天赋；已通过生产预设真实请求、线上创建流和分支点击回归 | 本账本 2.16 |
 
 公开玩家变更以 `../public/changelog-index.json` 与对应 `../public/changelog-*.txt` 为准；本账本不重复维护逐版本玩家文案。
 
