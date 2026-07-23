@@ -175,11 +175,11 @@
 
 `Authority: PD-016, PD-017`
 
-`RuntimeSource: src/mods/mod-engine/helpers/narrative-response-quality.ts; src/mods/mod-engine/campaigns/default/index.ts; src/mods/mod-engine/helpers/pre-gen-queue.ts`
+`RuntimeSource: src/mods/mod-engine/helpers/narrative-response-quality.ts; src/mods/mod-engine/campaigns/default/index.ts; src/mods/mod-engine/helpers/pre-gen-queue.ts; src/mods/mod-engine/hooks.ts; src/mods/mod-ui/components/organisms/NarrativeTimeline.tsx`
 
 `Result: pass`
 
-`Evidence: branch-intent-resolution-smoke.mjs 运行级玩家路径（含标准信封、非法条件数据、强制分支和 body-only 降级）；test:branch-flow:browser（真实 Puppeteer 选项点击、确认、历史 resolvedChoice 与下一次请求）；runtime-subsystem-state-regression.mjs；narrative-chinese-protocol-regression.mjs；no-hard-truncation-audit.mjs；DeepSeek deepseek-v4-flash 全流程浏览器切片；ESLint；TypeScript`
+`Evidence: branch-intent-resolution-smoke.mjs 运行级玩家路径（含标准信封、非法条件数据、强制分支和 body-only 降级）；test:branch-flow:browser（真实 Puppeteer 选项点击、确认、历史 resolvedChoice 与下一次请求，等待第二条叙事落盘）；runtime-subsystem-state-regression.mjs；narrative-chinese-protocol-regression.mjs；no-hard-truncation-audit.mjs；DeepSeek deepseek-v4-flash 全流程浏览器切片；5.3.4 release 4962bcb 独立构建、旁路与原子切换；公网 HTTPS 分支浏览器回归；ESLint；TypeScript`
 
 `KnownLimitations: 若模型持续不返回合法命运意图或强制分支 META，相关状态保持 pending 并由预生成或后续轮次继续请求；本轮不会伪造成功、失败、进度或分支结果。只有正文/结束标记不完整时仍会同步进行一次最小协议修复。`
 
@@ -213,7 +213,7 @@
 | 5.2.4 本地候选 | DeepSeek 与叙事修复、可选账号云同步、QQ 绑定和共享积分、通用评分与转世天赋已通过本地完整关闸；其生产待验证结论已由 5.3.1 取代 | 本账本 2.2、2.5、2.6、2.9—2.12 |
 | 5.3.1 | 失败自动重试、登录玩家单栏云存档、默认关闭的排行榜/邮箱/画像后台与回环运营面板已通过独立 release、原子切换、HTTPS、公网账号云存档浏览器路径和 systemd 运维验证 | 本账本 2.10、2.13 |
 | 5.3.2 | 内容审核失败给出明确处理建议，确定性 4xx 不重试且重试日志不复制上游正文；移动端 `ui-sync-5` 原型验收完成并随生产 release 验证 | 本账本 2.7、2.9、2.13 |
-| 5.3.3 本地候选 | 任何完整故事都立即交付；条件 META、非法数据与重复度不再触发同步重写，相关状态保持待处理且非法数据整包不写；已通过运行级玩家路径与完整本地关闸，尚未声明生产部署 | 本账本 2.14 |
+| 5.3.4 | 任何完整故事都立即交付；条件 META、非法数据与重复度不再触发同步重写，相关状态保持待处理且非法数据整包不写；分支确认在生成锁释放前禁用，避免静默跳过下一轮；已通过 DeepSeek 全流程、冷启动/公网分支浏览器、独立 release、旁路、原子切换、HTTPS 和运营运维验证 | 本账本 2.14、2.15 |
 
 公开玩家变更以 `../public/changelog-index.json` 与对应 `../public/changelog-*.txt` 为准；本账本不重复维护逐版本玩家文案。
 
