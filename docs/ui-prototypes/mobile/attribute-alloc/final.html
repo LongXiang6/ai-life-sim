@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>属性分配 · 最终首版</title>
-  <link rel="stylesheet" href="../assets/library.css?v=20260723-ui-sync-2">
-  <link rel="stylesheet" href="../assets/creation-flow-unified.css?v=20260723-ui-sync-2">
-  <link rel="stylesheet" href="../assets/relative-phone-layout.css?v=20260723-ui-sync-2">
-  <script src="../assets/prototype.js?v=20260723-ui-sync-2" defer></script>
-  <script src="../assets/creation-flow-unified.js?v=20260723-ui-sync-2" defer></script>
-  <script src="../assets/relative-phone-layout.js?v=20260723-ui-sync-2" defer></script>
+  <link rel="stylesheet" href="../assets/library.css?v=20260723-ui-sync-4">
+  <link rel="stylesheet" href="../assets/creation-flow-unified.css?v=20260723-ui-sync-4">
+  <link rel="stylesheet" href="../assets/relative-phone-layout.css?v=20260723-ui-sync-4">
+  <script src="../assets/prototype.js?v=20260723-ui-sync-4" defer></script>
+  <script src="../assets/creation-flow-unified.js?v=20260723-ui-sync-4" defer></script>
+  <script src="../assets/relative-phone-layout.js?v=20260723-ui-sync-4" defer></script>
   <style>
     body.attribute-b1 { background: #eef1f7; }
     .attribute-b1 .creation-phone {
@@ -28,7 +28,7 @@
       height: 694px;
       border-color: #d8deea;
       border-radius: 34px;
-      background: linear-gradient(135deg, rgba(255, 215, 95, .11), rgba(255, 215, 95, 0) 34%), linear-gradient(#fafbff, #f2f4f9);
+      background: linear-gradient(180deg, #fafbff 0%, #f2f4f9 100%);
       box-shadow: 0 20px 48px rgba(62, 70, 100, .09);
     }
     .attribute-screen {
@@ -40,7 +40,7 @@
       flex-direction: column;
       overflow-x: hidden;
       overflow-y: auto;
-      padding: 22px 17px 88px;
+      padding: 15px 17px 88px;
       scrollbar-width: none;
     }
     .attribute-screen::-webkit-scrollbar { display: none; }
@@ -65,7 +65,7 @@
     .attribute-semantic { margin-top: 4px; color: #6576b2; font-size: 9px; font-weight: 600; }
     .attribute-base { margin-top: 2px; color: var(--cf-faint); font-size: 9px; }
     .attribute-stepper { display: grid; grid-template-columns: 30px 34px 30px; gap: 3px; align-items: center; }
-    .attribute-stepper button { width: 30px; height: 32px; border: 1px solid var(--cf-line); border-radius: 8px; background: #fff; color: var(--cf-muted); font-size: 13px; }
+    .attribute-stepper button { width: 30px; height: 30px; border: 1px solid var(--cf-line); border-radius: 50%; background: rgba(255, 255, 255, .96); color: var(--cf-muted); font-size: 13px; }
     .attribute-stepper button:disabled { color: #bdc4d2; background: rgba(255, 255, 255, .55); cursor: not-allowed; }
     .attribute-value { color: var(--cf-ink); font-size: 11px; font-weight: 700; text-align: center; }
     .attribute-axis { display: grid; grid-template-columns: repeat(15, 1fr); gap: 2px; margin-top: 8px; }
@@ -73,9 +73,8 @@
     .attribute-axis i.far { height: 2px; align-self: center; opacity: .35; }
     .attribute-axis i.mid { height: 3px; align-self: center; opacity: .55; }
     .attribute-axis i.on { background: var(--cf-accent); opacity: 1; }
-    .attribute-tools { display: grid; grid-template-columns: 1fr 1fr; margin-top: 11px; overflow: hidden; border: 1px solid var(--cf-line); border-radius: 9px; }
-    .attribute-tools button { height: 35px; border: 0; background: rgba(255, 255, 255, .86); color: var(--cf-muted); font-size: 9px; }
-    .attribute-tools button + button { border-left: 1px solid var(--cf-line); }
+    .attribute-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 11px; padding: 3px; border: 1px solid var(--cf-line); border-radius: 18px; background: rgba(255, 255, 255, .8); box-shadow: 0 9px 26px rgba(62, 70, 100, .08); }
+    .attribute-tools button { height: 33px; border: 1px solid var(--cf-line); border-radius: 14px; background: rgba(255, 255, 255, .96); color: var(--cf-muted); font-size: 9px; }
     .attribute-b1 .cf-footer { border-color: rgba(207, 215, 238, .84); background: rgba(255, 255, 255, .8); backdrop-filter: blur(16px); }
     .attribute-b1 .cf-next-arrow { background: #7382bb; }
     .attribute-dialog { position: absolute; z-index: 20; inset: 0; display: grid; place-items: end center; padding: 18px; background: rgba(40, 50, 75, .18); opacity: 0; visibility: hidden; transition: opacity .2s; }
@@ -90,23 +89,20 @@
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
   </style>
 </head>
-<body class="attribute-b1" data-screen="attribute-alloc">
+<body class="attribute-b1" data-screen="attribute-alloc" data-creation-step="6">
   <main class="creation-shell">
     <header class="creation-review">
       <p class="creation-review-label">CREATION FLOW · 06 / 08</p>
       <h1>属性分配</h1>
-      <p class="creation-review-copy">四项基础属性共用 30 点预算，每项可在 0—10 之间分配。</p>
+      <p class="creation-review-copy">四项基础属性共用 15 点预算，每项可在 0—10 之间分配。</p>
     </header>
     <section class="creation-stage" aria-label="属性分配移动端界面">
       <div class="creation-phone" data-relative-phone data-relative-phone-width="320" data-relative-phone-height="694">
-        <div data-flow-art></div>
         <div class="attribute-screen">
-          <div class="attribute-step">NEW LIFE · 06 / 08</div>
-          <div class="attribute-title">塑造你的起点</div>
-          <div class="attribute-subtitle">四项属性自由增减，命格修正单独计算。</div>
+          <header class="cf-header" data-creation-header data-title="属性分配" data-subtitle="四项属性自由增减，命格修正单独计算。"></header>
           <section class="attribute-budget">
-            <div class="attribute-score"><div><b class="used">12</b><small>/ 30</small></div></div>
-            <div class="attribute-budget-copy"><b>剩余点数 <span class="remain">18</span></b><p>未用点数可在确认后保留。</p><div class="attribute-segments"></div></div>
+            <div class="attribute-score"><div><b class="used">12</b><small>/ 15</small></div></div>
+            <div class="attribute-budget-copy"><b>剩余点数 <span class="remain">3</span></b><p>未用点数可在确认后保留。</p><div class="attribute-segments"></div></div>
           </section>
           <div class="attribute-caption"><span>四项基础属性</span><span>每项 0—10</span></div>
           <div class="attribute-list"></div>
@@ -114,7 +110,7 @@
         </div>
         <footer class="cf-footer">
           <button class="cf-back" type="button" data-flow-to="mythic-inheritance" aria-label="返回命格选择"><span data-icon="back"></span></button>
-          <button class="cf-next confirm" type="button"><span class="cf-next-number">07</span><span class="cf-next-copy"><strong>确认属性</strong><small class="confirm-hint">剩余 18 点</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button>
+          <button class="cf-next confirm" type="button"><span class="cf-next-number">07</span><span class="cf-next-copy"><strong>确认属性</strong><small class="confirm-hint">剩余 3 点</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button>
         </footer>
         <div class="attribute-dialog" role="dialog" aria-modal="true" aria-hidden="true">
           <div class="attribute-dialog-panel"><h3>仍有属性点未使用</h3><p>剩余 <b class="dialog-remain"></b> 点将保留。你可以继续调整，或按当前配置进入命运预览。</p><div class="attribute-dialog-actions"><button class="close" type="button">继续分配</button><button class="continue" type="button" data-flow-to="fate-preview">确认并继续</button></div></div>
@@ -124,12 +120,31 @@
   </main>
   <script>
     (function () {
-      const attributes = [['体魄', 2], ['心智', 1], ['悟性', 0], ['魅力', 0]]
+      const attributeKeys = ['physique', 'mind', 'talentAptitude', 'charisma']
+      const attributeLabels = ['体魄', '心智', '悟性', '魅力']
+      let attributes = attributeLabels.map(function (label, index) { return [label, [2, 1, 0, 0][index]] })
       const initial = [6, 4, 2, 0]
-      const total = 30
+      const total = 15
       let values = initial.slice()
       const list = document.querySelector('.attribute-list')
       const dialog = document.querySelector('.attribute-dialog')
+
+      function talentBonuses(talents) {
+        return attributeKeys.map(function (key) {
+          return talents.reduce(function (sum, talent) { return sum + Number(talent?.attrBonus?.[key] || 0) }, 0)
+        })
+      }
+
+      function persistAttributes(used, remain) {
+        if (!window.PrototypeFlow) return
+        PrototypeFlow.state.write({
+          attributes: {
+            base: Object.fromEntries(attributeKeys.map(function (key, index) { return [key, values[index]] })),
+            used: used,
+            remaining: remain
+          }
+        })
+      }
 
       function description(value) {
         if (value === 0) return '常人水平'
@@ -141,6 +156,7 @@
       function render() {
         const used = values.reduce(function (sum, value) { return sum + value }, 0)
         const remain = total - used
+        persistAttributes(used, remain)
         document.querySelector('.used').textContent = used
         document.querySelector('.remain').textContent = remain
         document.querySelector('.confirm-hint').textContent = remain ? '剩余 ' + remain + ' 点' : '进入命运预览'
@@ -170,7 +186,7 @@
       }
 
       document.querySelector('.reset').addEventListener('click', function () { values = [0, 0, 0, 0]; render() })
-      document.querySelector('.average').addEventListener('click', function () { values = [8, 8, 7, 7]; render() })
+      document.querySelector('.average').addEventListener('click', function () { values = [4, 4, 4, 3]; render() })
       document.querySelector('.confirm').addEventListener('click', function () {
         const remain = total - values.reduce(function (sum, value) { return sum + value }, 0)
         if (!remain) { PrototypeFlow.go('fate-preview'); return }
@@ -182,6 +198,17 @@
         dialog.classList.remove('open')
         dialog.setAttribute('aria-hidden', 'true')
       })
+      document.addEventListener('DOMContentLoaded', function () {
+        const flow = PrototypeFlow.state.read()
+        const bonuses = talentBonuses(Array.isArray(flow.talents) ? flow.talents : [])
+        if (bonuses.some(Boolean) || Array.isArray(flow.talents)) attributes = attributeLabels.map(function (label, index) { return [label, bonuses[index]] })
+        const stored = flow.attributes?.base
+        if (stored) {
+          const restored = attributeKeys.map(function (key) { return Number(stored[key]) })
+          if (restored.every(function (value) { return Number.isFinite(value) && value >= 0 && value <= 10 }) && restored.reduce(function (sum, value) { return sum + value }, 0) <= total) values = restored
+        }
+        render()
+      }, { once: true })
       render()
     })()
   </script>

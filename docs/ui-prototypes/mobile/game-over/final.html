@@ -4,20 +4,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>一生回望 · AI Life Sim</title>
-  <link rel="stylesheet" href="../assets/library.css?v=20260723-ui-sync-2">
-  <link rel="stylesheet" href="../assets/relative-phone-layout.css?v=20260723-ui-sync-2">
-  <script src="../assets/prototype.js?v=20260723-ui-sync-2" defer></script>
-  <script src="../assets/relative-phone-layout.js?v=20260723-ui-sync-2" defer></script>
+  <link rel="stylesheet" href="../assets/library.css?v=20260723-ui-sync-4">
+  <link rel="stylesheet" href="../assets/relative-phone-layout.css?v=20260723-ui-sync-4">
+  <script src="../assets/prototype.js?v=20260723-ui-sync-4" defer></script>
+  <script src="../assets/relative-phone-layout.js?v=20260723-ui-sync-4" defer></script>
   <style>
-    :root { --paper:#fbfaf7; --surface:#fffefd; --ink:#292724; --soft:#6e6961; --faint:#9a9389; --line:#d9d3c9; --line-light:#e9e5de; --mist:#9ca9ac; }
+    :root { --paper:#fafbff; --surface:#fff; --ink:#28324b; --soft:#707b92; --faint:#929bb0; --line:#d8deea; --line-light:#e5e9f2; --mist:#7382bb; }
     * { box-sizing: border-box; }
-    body { background:#f3f1ec; color:var(--ink); }
+    body { background:#eef1f7; color:var(--ink); }
     button { font:inherit; }
     .shell { width:min(100% - 24px,760px); padding-top:24px; }
     .prototype-head { max-width:520px; margin:0 auto 18px; text-align:center; }
     .prototype-head p { color:var(--soft); font-size:12px; line-height:1.7; }
     .stage { display:grid; place-items:center; }
-    .phone { width:292px; height:692px; margin:0; border-color:var(--line); background:var(--paper); color:var(--ink); box-shadow:0 13px 30px rgba(62,55,44,.075); }
+    .phone { width:292px; height:692px; margin:0; border-color:var(--line); background:var(--paper); color:var(--ink); box-shadow:0 13px 30px rgba(62,70,100,.075); }
     .viewport { height:100%; overflow-y:auto; padding:18px 18px 86px; }
     .identity { text-align:center; }
     .identity small { color:var(--faint); font-size:6.5px; letter-spacing:.12em; }
@@ -89,7 +89,7 @@
     .share-actions { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:7px; }
     .share-actions button { min-height:36px; border:1px solid var(--line); background:transparent; color:var(--soft); font-size:9px; }
     .share-actions button:first-child { border-color:var(--ink); background:var(--ink); color:var(--surface); }
-    .bottom { position:absolute; z-index:8; right:0; bottom:0; left:0; padding:8px 12px 10px; border-top:1px solid var(--line); background:rgba(251,250,247,.96); backdrop-filter:blur(12px); }
+    .bottom { position:absolute; z-index:8; right:0; bottom:0; left:0; padding:8px 12px 10px; border-top:1px solid var(--line); background:rgba(250,251,255,.96); backdrop-filter:blur(12px); }
     .bar { display:grid; grid-template-columns:1fr 1.5fr; gap:8px; }
     .bar button { min-height:42px; border:0; background:transparent; color:var(--soft); font-size:7px; cursor:pointer; }
     .bar .next { color:var(--ink); border-left:1px solid var(--line); font-family:"Songti SC","STSong",serif; font-size:9px; font-weight:600; }
@@ -98,9 +98,9 @@
     button:focus-visible { outline:1px dotted var(--soft); outline-offset:2px; }
     .phone { width:330px; height:715px; }
     .viewport { padding:20px 20px 88px; }
-    .identity small,.identity p,.metric,.metric-comment,.section-label,.acts-head span,.act-age,.act-age span,.act-copy p,.verdict small,.verdict p,.selector b,.selector small,.focus small,.focus p,.current,.store small,.toast,.score-label { font-size:9px; }
-    .act-copy b,.current b { font-size:10px; }
-    .bottom { right:14px; bottom:12px; left:14px; padding:2px 7px; border:1px solid var(--line); border-radius:18px; background:rgba(251,250,247,.96); box-shadow:0 9px 26px rgba(62,55,44,.09); backdrop-filter:none; }
+    .identity small,.identity p,.metric,.metric-comment,.section-label,.acts-head span,.act-age,.act-age span,.act-copy p,.verdict small,.verdict p,.verdict-meta,.mythic-head span,.preview,.selector b,.selector small,.focus small,.focus p,.current,.store small,.toast,.score-label { font-size:9px; }
+    .act-copy b,.current b,.metric b { font-size:10px; }
+    .bottom { right:14px; bottom:12px; left:14px; padding:2px 7px; border:1px solid var(--line); border-radius:18px; background:rgba(250,251,255,.96); box-shadow:0 9px 26px rgba(62,70,100,.09); backdrop-filter:none; }
     .bar { min-height:52px; grid-template-columns:38px minmax(0,1fr); align-items:center; gap:8px; }
     .bar button { min-height:38px; font-size:9px; }
     .bar button:first-child { display:grid; width:38px; height:38px; min-height:38px; place-items:center; padding:0; border:1px solid var(--line); border-radius:50%; background:var(--surface); font-size:17px; }
@@ -111,6 +111,16 @@
     @media(max-width:390px){.phone{width:min(320px,calc(100vw - 42px))}}
     @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important}}
   </style>
+  <link rel="stylesheet" href="../assets/mobile-action-bar-unified.css?v=20260723-ui-sync-4">
+  <style>
+    body[data-screen="game-over"] {
+      --mobile-nav-line: #d8deea;
+      --mobile-nav-control-line: #d8deea;
+      --mobile-nav-ink: #707b92;
+      --mobile-nav-accent: #7382bb;
+      --mobile-nav-focus: rgba(115, 130, 187, .48);
+    }
+  </style>
 </head>
 <body data-screen="game-over">
   <main class="shell">
@@ -118,14 +128,14 @@
     <section class="stage" aria-label="结算页移动端原型">
       <div class="phone" data-relative-phone data-relative-phone-width="330" data-relative-phone-height="715">
         <div class="viewport">
-          <header class="identity"><small>LIFE ARCHIVE · 069</small><h2>沈砚</h2><p>雾海纪元 · 18—87 岁</p></header>
+          <header class="identity"><small>LIFE ARCHIVE · 069</small><h2 data-life-name>沈砚</h2><p data-life-span>雾海纪元 · 18—87 岁</p></header>
           <section class="graph">
             <svg viewBox="0 0 228 181" aria-label="真实四维：体魄72、心智86、悟性91、魅力64，人生评分78">
               <polygon class="grid" points="114,27 176,90 114,153 52,90"/><polygon class="grid" points="114,43 160,90 114,137 68,90"/><polygon class="grid" points="114,59 144,90 114,121 84,90"/>
               <line class="axis" x1="114" y1="90" x2="114" y2="27"/><line class="axis" x1="114" y1="90" x2="176" y2="90"/><line class="axis" x1="114" y1="90" x2="114" y2="153"/><line class="axis" x1="114" y1="90" x2="52" y2="90"/>
-              <polygon class="area" points="114,45 167,90 114,147 74,90"/>
+              <polygon class="area" data-radar-area points="114,45 167,90 114,147 74,90"/>
               <circle class="dot active" data-dot="0" cx="114" cy="45" r="3"/><circle class="dot" data-dot="1" cx="167" cy="90" r="3"/><circle class="dot" data-dot="2" cx="114" cy="147" r="3"/><circle class="dot" data-dot="3" cx="74" cy="90" r="3"/>
-              <text class="score" x="114" y="88">78</text><text class="score-label" x="114" y="99">人生评分</text>
+              <text class="score" data-life-score x="114" y="88">78</text><text class="score-label" x="114" y="99">人生评分</text>
             </svg>
             <button class="metric m1 active" data-index="0" data-axis="体魄" data-comment="身强体壮">体魄<b>72</b></button><button class="metric m2" data-index="1" data-axis="心智" data-comment="智冠群雄">心智<b>86</b></button><button class="metric m3" data-index="2" data-axis="悟性" data-comment="天纵奇才">悟性<b>91</b></button><button class="metric m4" data-index="3" data-axis="魅力" data-comment="魅力四射">魅力<b>64</b></button>
           </section>
@@ -133,14 +143,14 @@
           <div class="section-label">人生三记</div>
           <section class="acts">
             <div class="acts-head"><b>人生三记</b><span>来自现有叙事记录</span></div>
-            <div class="act"><div class="act-age">18—32<span>初入世</span></div><div class="act-copy"><b>离开雾港，追随潮声</b><p>从旧书铺学徒成为远行者，第一次看见海雾之外的世界。</p></div></div>
-            <div class="act"><div class="act-age">33—61<span>立于世</span></div><div class="act-copy"><b>在代价到来时守住誓约</b><p>得到知识与声望，也因自己的选择失去无法挽回的人。</p></div></div>
-            <div class="act"><div class="act-age">62—87<span>别于世</span></div><div class="act-copy"><b>把余生留给未完的书</b><p>回到雾港整理一生所学，在潮声中平静走完最后一程。</p></div></div>
-            <div class="verdict"><small>FINAL VERDICT</small><h3>此生没有白白经过</h3><p>沈砚没有成为高悬天际的名字，却让一些人的命运因此不同。</p><div class="verdict-meta"><span>善良</span><span>69 轮世事</span><span>享年 87 岁</span></div></div>
+            <div class="act"><div class="act-age" data-life-stage="0">18—32<span>初入世</span></div><div class="act-copy"><b>离开雾港，追随潮声</b><p>从旧书铺学徒成为远行者，第一次看见海雾之外的世界。</p></div></div>
+            <div class="act"><div class="act-age" data-life-stage="1">33—61<span>立于世</span></div><div class="act-copy"><b>在代价到来时守住誓约</b><p>得到知识与声望，也因自己的选择失去无法挽回的人。</p></div></div>
+            <div class="act"><div class="act-age" data-life-stage="2">62—87<span>别于世</span></div><div class="act-copy"><b>把余生留给未完的书</b><p>回到雾港整理一生所学，在潮声中平静走完最后一程。</p></div></div>
+            <div class="verdict"><small>FINAL VERDICT</small><h3>此生没有白白经过</h3><p data-verdict-copy>沈砚没有成为高悬天际的名字，却让一些人的命运因此不同。</p><div class="verdict-meta"><span>善良</span><span>69 轮世事</span><span data-life-end>享年 87 岁</span></div></div>
           </section>
           <section class="milestones">
             <div class="mythic-head"><b>此生大事</b><span>2 项真实里程碑</span></div>
-            <article class="milestone"><span>择</span><div><b>守住雾港的旧约</b><p>命运抉择 · 群岛历 241 年</p></div></article>
+            <article class="milestone"><span>择</span><div><b>守住雾港的旧约</b><p data-world-milestone>命运抉择 · 群岛历 241 年</p></div></article>
             <article class="milestone"><span>破</span><div><b>跨过寿命边界</b><p>生命突破 · 享年上限提升</p></div></article>
           </section>
           <section class="mythic">
@@ -157,7 +167,7 @@
           </section>
           <section class="share">
             <div class="mythic-head"><b>留下此生</b><span>仅使用结算事实</span></div>
-            <div class="share-preview"><div><b>沈砚 · 雾海纪元</b><span>18—87 岁 · 69 轮世事</span></div><strong class="share-score">78</strong></div>
+            <div class="share-preview"><div><b data-share-identity>沈砚 · 雾海纪元</b><span data-share-span>18—87 岁 · 69 轮世事</span></div><strong class="share-score" data-share-score>78</strong></div>
             <div class="share-actions"><button type="button" data-share>分享此生</button><button type="button" data-save-image>保存图片</button></div>
           </section>
         </div>
@@ -169,6 +179,50 @@
   <script>
     document.addEventListener('DOMContentLoaded', function () {
       const phone = document.querySelector('.phone');
+      const flow = PrototypeFlow.state.read();
+      const character = flow.character || {};
+      const world = flow.world || {};
+      const talents = Array.isArray(flow.talents) ? flow.talents : [];
+      const base = flow.attributes?.base || {};
+      const keys = ['physique', 'mind', 'talentAptitude', 'charisma'];
+      const name = character.name || '沈砚';
+      const startAge = Number.isFinite(Number(character.age)) ? Math.max(0, Number(character.age)) : 18;
+      const endAge = Number.isFinite(Number(character.life)) ? Math.max(startAge + 1, Number(character.life)) : 87;
+      const values = keys.map(function (key) {
+        const bonus = talents.reduce(function (sum, talent) { return sum + Number(talent?.attrBonus?.[key] || 0) }, 0);
+        return Math.max(0, Math.min(100, (Number(base[key] || 0) + bonus) * 10));
+      });
+      const score = values.some(Boolean) ? Math.round(values.reduce(function (sum, value) { return sum + value }, 0) / values.length) : 78;
+      const comments = function (value) { return value >= 90 ? '天赋卓绝' : value >= 70 ? '根基深厚' : value >= 40 ? '稳步成长' : '平凡起步'; };
+      phone.querySelector('[data-life-name]').textContent = name;
+      phone.querySelector('[data-life-span]').textContent = `${world.name || '雾海纪元'} · ${startAge}—${endAge} 岁`;
+      phone.querySelector('[data-verdict-copy]').textContent = `${name}没有成为高悬天际的名字，却让一些人的命运因此不同。`;
+      phone.querySelector('[data-life-end]').textContent = `享年 ${endAge} 岁`;
+      phone.querySelector('[data-world-milestone]').textContent = `命运抉择 · ${world.era || '群岛历 241 年'}`;
+      phone.querySelector('[data-share-identity]').textContent = `${name} · ${world.name || '雾海纪元'}`;
+      phone.querySelector('[data-share-span]').textContent = `${startAge}—${endAge} 岁 · 69 轮世事`;
+      phone.querySelector('[data-life-score]').textContent = score;
+      phone.querySelector('[data-share-score]').textContent = score;
+      const ranges = [startAge, Math.floor(startAge + (endAge - startAge) * .34), Math.floor(startAge + (endAge - startAge) * .68), endAge];
+      phone.querySelectorAll('[data-life-stage]').forEach(function (stage, index) {
+        stage.firstChild.textContent = `${ranges[index]}—${ranges[index + 1]}`;
+      });
+      const points = [
+        [114, 90 - values[0] * .63],
+        [114 + values[1] * .62, 90],
+        [114, 90 + values[2] * .63],
+        [114 - values[3] * .62, 90]
+      ];
+      phone.querySelector('[data-radar-area]').setAttribute('points', points.map(function (point) { return point.map(function (value) { return Math.round(value); }).join(','); }).join(' '));
+      phone.querySelectorAll('.metric').forEach(function (control, index) {
+        control.querySelector('b').textContent = values[index];
+        control.dataset.comment = comments(values[index]);
+        const dot = phone.querySelector(`[data-dot="${index}"]`);
+        dot.setAttribute('cx', String(Math.round(points[index][0])));
+        dot.setAttribute('cy', String(Math.round(points[index][1])));
+      });
+      phone.querySelector('.graph svg').setAttribute('aria-label', `真实四维：体魄${values[0]}、心智${values[1]}、悟性${values[2]}、魅力${values[3]}，人生评分${score}`);
+      phone.querySelector('.metric-comment b').textContent = comments(values[0]);
       phone.querySelectorAll('.metric').forEach(function (control) {
         control.addEventListener('click', function () {
           phone.querySelectorAll('.metric').forEach(function (item) { item.classList.remove('active'); });

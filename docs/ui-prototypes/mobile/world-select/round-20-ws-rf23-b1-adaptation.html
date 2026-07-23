@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>世界选择 · B1 配色适配</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="../assets/relative-phone-layout.css?v=20260723-ui-sync-2">
-  <script src="../assets/prototype.js?v=20260723-ui-sync-2" defer></script>
-  <script src="../assets/relative-phone-layout.js?v=20260723-ui-sync-2" defer></script>
+  <link rel="stylesheet" href="../assets/relative-phone-layout.css?v=20260723-ui-sync-4">
+  <script src="../assets/prototype.js?v=20260723-ui-sync-4" defer></script>
+  <script src="../assets/relative-phone-layout.js?v=20260723-ui-sync-4" defer></script>
   <style>
     :root {
       color-scheme: light;
@@ -415,7 +415,7 @@
     .b1-colorway .sheet { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
     .b1-colorway .phone-page { bottom: 0; padding-bottom: 78px; touch-action: pan-y; }
     .b1-colorway .chapter-end { border-color: rgba(207, 215, 238, .84); background: rgba(255, 255, 255, .76); box-shadow: 0 12px 30px rgba(62, 70, 100, .13), 0 2px 7px rgba(62, 70, 100, .06); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
-    .b1-colorway .world-focus { height: 19cqh; min-height: 0; overflow: hidden; padding-right: 15px; padding-left: 15px; }
+    .b1-colorway .world-focus { height: 23cqh; min-height: 0; overflow: hidden; padding: 13px 15px; }
     .b1-colorway .world-focus .difficulty-control { position: absolute; z-index: 2; top: 24px; right: 15px; }
     .b1-colorway .world-focus h3,
     .b1-colorway .world-focus .focus-era { max-width: calc(100% - 100px); }
@@ -566,6 +566,17 @@
       const clone = value => JSON.parse(JSON.stringify(value));
       const sourceNames = { saved: '保存世界', custom: '自定义世界', preset: '预设世界' };
 
+      const persistWorld = state => {
+        if (!window.PrototypeFlow || !state.selectedWorld) return;
+        PrototypeFlow.state.write({
+          world: {
+            ...clone(state.selectedWorld),
+            source: state.source,
+            difficulty: levels[state.difficultyIndex]
+          }
+        });
+      };
+
       document.querySelectorAll('[data-app]').forEach((app, index) => {
         app.append(document.querySelector('#page-template').content.cloneNode(true));
         app.append(document.querySelector('#overlay-template').content.cloneNode(true));
@@ -663,9 +674,12 @@
         app.querySelector('[data-fact-source]').textContent = { saved: '已保存', custom: '自定义', preset: '预设' }[state.source] || '待选择';
         app.querySelector('[data-fact-era]').textContent = display.era;
         app.querySelector('[data-fact-level]').textContent = levels[state.difficultyIndex];
+        app.querySelector('[data-difficulty-label]').textContent = levels[state.difficultyIndex];
+        app.dataset.difficultyValue = levels[state.difficultyIndex];
         app.querySelector('[data-confirm-label]').textContent = world ? '确认世界' : '补全自定义世界';
         app.querySelector('[data-confirm-hint]').textContent = world ? `${world.name} · 下一步世界配置` : '名称、年代与描述缺一不可';
         app.querySelector('[data-confirm]').disabled = !world;
+        persistWorld(state);
       };
       const setPresetState = (app, state) => app.querySelectorAll('[data-preset]').forEach(button => button.setAttribute('aria-selected', String(state.source === 'preset' && button.dataset.preset === state.selectedPreset)));
       const renderSaved = (app, state) => {
@@ -778,6 +792,36 @@
         updateSelection(app, state);
         activatePanel(app, state, 'saved');
         openAccordion(app, state, 'saved');
+        document.addEventListener('DOMContentLoaded', () => {
+          const stored = PrototypeFlow.state.read().world;
+          if (stored && stored.name) {
+            const difficultyIndex = levels.indexOf(stored.difficulty);
+            if (difficultyIndex >= 0) state.difficultyIndex = difficultyIndex;
+            const savedEntry = state.saved.find(item => item.current.name === stored.name);
+            const presetKey = Object.keys(presetWorlds).find(key => presetWorlds[key].name === stored.name);
+            if (stored.source === 'saved' && savedEntry) {
+              state.source = 'saved';
+              state.selectedSavedId = savedEntry.id;
+              state.selectedPreset = '';
+            } else if (stored.source === 'preset' && presetKey) {
+              state.source = 'preset';
+              state.selectedSavedId = '';
+              state.selectedPreset = presetKey;
+            } else {
+              state.source = 'custom';
+              state.selectedSavedId = '';
+              state.selectedPreset = '';
+              state.draft = { name: stored.name, era: stored.era || '', description: stored.description || '' };
+              app.querySelectorAll('[data-custom-field]').forEach(field => { field.value = state.draft[field.dataset.customField] || ''; });
+            }
+            state.selectedWorld = { name: stored.name, era: stored.era || '', description: stored.description || '' };
+            activatePanel(app, state, state.source);
+            openAccordion(app, state, state.source);
+            renderSaved(app, state);
+            setPresetState(app, state);
+          }
+          updateSelection(app, state);
+        }, { once: true });
         app.querySelectorAll('[data-source-tab]').forEach(button => button.addEventListener('click', () => activatePanel(app, state, button.dataset.sourceTab)));
         app.querySelectorAll('[data-section-toggle]').forEach(button => button.addEventListener('click', () => {
           const panel = button.closest('[data-source-panel]').dataset.sourcePanel;
@@ -805,6 +849,7 @@
           app.dataset.difficultyValue = value;
           app.querySelector('[data-difficulty-label]').textContent = value;
           app.querySelector('[data-fact-level]').textContent = value;
+          persistWorld(state);
           showToast(app, `人生难度 · ${value}`);
         });
         app.querySelector('[data-edit-form]').addEventListener('submit', event => {

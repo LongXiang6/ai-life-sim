@@ -39,6 +39,7 @@
   const rootUrl = mobileRootUrl()
   const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const handoffKey = 'ai-life-sim-prototype-handoff'
+  const flowStateKey = 'ai-life-sim-prototype-flow-state'
   let navigating = false
 
   if (window.parent !== window) document.documentElement.classList.add('embedded-preview')
@@ -49,6 +50,34 @@
     const target = new URL(route, rootUrl)
     if (window.location.search) target.search = window.location.search
     return target.href
+  }
+
+  function readState() {
+    try {
+      const value = JSON.parse(sessionStorage.getItem(flowStateKey) || '{}')
+      return value && typeof value === 'object' && !Array.isArray(value) ? value : {}
+    } catch (_error) {
+      return {}
+    }
+  }
+
+  function writeState(patch) {
+    const next = Object.assign({}, readState(), patch, { updatedAt: Date.now() })
+    try {
+      sessionStorage.setItem(flowStateKey, JSON.stringify(next))
+    } catch (_error) {
+      // The linked prototype remains usable when session storage is unavailable.
+    }
+    return next
+  }
+
+  function resetState() {
+    try {
+      sessionStorage.removeItem(flowStateKey)
+      sessionStorage.removeItem('ai-life-sim-prototype-fate-state')
+    } catch (_error) {
+      // The next page still opens with its local defaults.
+    }
   }
 
   function notifyParent(screen) {
@@ -150,6 +179,7 @@
         if (!routes[screen]) return
         event.preventDefault()
         event.stopPropagation()
+        if (target.hasAttribute('data-flow-reset')) resetState()
         go(screen)
         return
       }
@@ -167,7 +197,15 @@
     if (selection) selection.textContent = choice ? '当前选择：' + choice : '尚未选择'
   }
 
-  window.PrototypeFlow = { routes, order, go, handoff, back, routeUrl }
+  window.PrototypeFlow = {
+    routes,
+    order,
+    go,
+    handoff,
+    back,
+    routeUrl,
+    state: { read: readState, write: writeState, reset: resetState },
+  }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () {

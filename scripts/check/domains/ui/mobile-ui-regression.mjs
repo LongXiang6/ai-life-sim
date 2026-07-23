@@ -121,6 +121,18 @@ const gameOverPageSrc = readRel('src/mods/mod-pages/pages/game-over/page.tsx')
 const gameOverRadarSrc = readRel('src/mods/mod-pages/pages/game-over/GameOverRadar.tsx')
 const gameOverShareCardSrc = readRel('src/mods/mod-pages/pages/game-over/game-over-share-card.ts')
 const gameOverCssSrc = readRel('src/mods/mod-pages/pages/game-over/GameOver.module.css')
+const prototypeFlowSrc = readRel('docs/ui-prototypes/mobile/assets/prototype.js')
+const prototypeFlowPageSrc = readRel('docs/ui-prototypes/mobile/flow.html')
+const prototypeWelcomeSrc = readRel('docs/ui-prototypes/mobile/welcome/round-19-rf4-b-refinement.html')
+const prototypeWorldSelectSrc = readRel('docs/ui-prototypes/mobile/world-select/round-20-ws-rf23-b1-adaptation.html')
+const prototypeWorldCustomizeSrc = readRel('docs/ui-prototypes/mobile/world-customize/round-07-ws-b1-adaptation.html')
+const prototypeCharacterSrc = readRel('docs/ui-prototypes/mobile/character-create/round-15-ws-b1-adaptation.html')
+const prototypeTalentDrawSrc = readRel('docs/ui-prototypes/mobile/talent-draw/round-refactor-18-rf17-2-b1-adaptation.html')
+const prototypeFateSelectSrc = readRel('docs/ui-prototypes/mobile/mythic-inheritance/round-14-legacy-layout-b1-rebirth.html')
+const prototypeAttributeSrc = readRel('docs/ui-prototypes/mobile/attribute-alloc/final.html')
+const prototypeFatePreviewSrc = readRel('docs/ui-prototypes/mobile/fate-preview/round-refactor-01-style-1.html')
+const prototypeGameStorySrc = readRel('docs/ui-prototypes/mobile/game-story/round-refactor-20-style-1.html')
+const prototypeGameOverSrc = readRel('docs/ui-prototypes/mobile/game-over/final.html')
 
 assertOk(
   worldCustomizeLogicSrc.includes('raw.worldCode === currentWorldCode')
@@ -617,6 +629,64 @@ assertOk(
   newGamePageSrc.includes('void resetForNewLife()')
     && worldConfirmSrc.includes('await prepareNewLifeWorldCommit(worldCode)'),
   'canonical and direct world-selection entry paths must both prevent previous-life state from reaching a new world',
+)
+
+assertOk(
+  prototypeFlowSrc.includes("const flowStateKey = 'ai-life-sim-prototype-flow-state'")
+    && prototypeFlowSrc.includes('state: { read: readState, write: writeState, reset: resetState }')
+    && prototypeWelcomeSrc.includes('data-flow-to="world-select" data-flow-reset'),
+  'the linked mobile prototype must own one resettable session state for a new life',
+)
+assertOk(
+  prototypeFlowPageSrc.includes('width: 430px')
+    && prototypeFlowPageSrc.includes('height: 932px')
+    && prototypeFlowPageSrc.includes("const previewRevision = '20260723-ui-sync-4'"),
+  'the solution-library preview must retain the Pro Max 430x932 observation canvas and current cache revision',
+)
+assertOk(
+  prototypeWorldSelectSrc.includes('PrototypeFlow.state.write({')
+    && prototypeWorldSelectSrc.includes('difficulty: levels[state.difficultyIndex]')
+    && prototypeWorldCustomizeSrc.includes('worldConfig: worldConfig')
+    && prototypeWorldCustomizeSrc.includes('const flow = PrototypeFlow.state.read()'),
+  'world selection and customization prototypes must pass the selected world and four rule dimensions forward',
+)
+assertOk(
+  prototypeCharacterSrc.includes('confirm.disabled = !valid')
+    && prototypeCharacterSrc.includes("confirm.setAttribute('aria-disabled', String(!valid))")
+    && prototypeCharacterSrc.includes('起始年龄需小于预期寿命')
+    && prototypeCharacterSrc.includes('character: {'),
+  'character confirmation must be visibly disabled until name, lifespan and starting age are valid, then persist the character',
+)
+assertOk(
+  prototypeTalentDrawSrc.includes("index+' / '+items.length")
+    && !prototypeTalentDrawSrc.includes("index+' / 12'")
+    && prototypeTalentDrawSrc.includes('<span class="count">0 / 12</span>')
+    && prototypeFateSelectSrc.includes('talents: selectedTalentItems()')
+    && prototypeFateSelectSrc.includes('rebirths: selectedRebirths')
+    && prototypeFateSelectSrc.includes('selectedRebirthItems()')
+    && prototypeFateSelectSrc.includes('0 / 2')
+    && prototypeFateSelectSrc.includes('进入属性分配'),
+  'the prototype draw count must end at twelve and two rebirth slots must flow into attribute allocation',
+)
+assertOk(
+  prototypeAttributeSrc.includes('const total = 15')
+    && prototypeAttributeSrc.includes('talentBonuses(Array.isArray(flow.talents)')
+    && prototypeAttributeSrc.includes('base: Object.fromEntries(attributeKeys.map')
+    && prototypeFatePreviewSrc.includes('data-review-identity')
+    && prototypeFatePreviewSrc.includes('data-review-talents')
+    && prototypeFatePreviewSrc.includes('PrototypeFlow.state.read()'),
+  'attribute bonuses, base values and selected talents must reach the fate preview without fixed character data',
+)
+assertOk(
+  prototypeGameStorySrc.includes('data-flow-character-name')
+    && prototypeGameStorySrc.includes('applyFlowState(root)')
+    && prototypeGameStorySrc.includes('item.textContent = talent.name')
+    && prototypeGameStorySrc.includes('Array.isArray(flow.rebirths)')
+    && prototypeGameOverSrc.includes('data-life-name')
+    && prototypeGameOverSrc.includes('data-radar-area')
+    && prototypeGameOverSrc.includes('mobile-action-bar-unified.css?v=20260723-ui-sync-4')
+    && !prototypeGameOverSrc.includes('cc-rf9-adapt-base.css'),
+  'core simulation and settlement must consume the same session identity while settlement keeps its structure on shared white-paper tokens',
 )
 
 if (failed === 0) {

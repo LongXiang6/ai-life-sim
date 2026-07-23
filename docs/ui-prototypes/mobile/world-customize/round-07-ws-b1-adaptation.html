@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>世界配置 · B1 风格适配</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="../assets/library.css?v=20260723-ui-sync-2">
-  <link rel="stylesheet" href="../assets/creation-flow-unified.css?v=20260723-ui-sync-2">
-  <link rel="stylesheet" href="../assets/relative-phone-layout.css?v=20260723-ui-sync-2">
-  <script src="../assets/prototype.js?v=20260723-ui-sync-2" defer></script>
-  <script src="../assets/creation-flow-unified.js?v=20260723-ui-sync-2" defer></script>
-  <script src="../assets/relative-phone-layout.js?v=20260723-ui-sync-2" defer></script>
+  <link rel="stylesheet" href="../assets/library.css?v=20260723-ui-sync-4">
+  <link rel="stylesheet" href="../assets/creation-flow-unified.css?v=20260723-ui-sync-4">
+  <link rel="stylesheet" href="../assets/relative-phone-layout.css?v=20260723-ui-sync-4">
+  <script src="../assets/prototype.js?v=20260723-ui-sync-4" defer></script>
+  <script src="../assets/creation-flow-unified.js?v=20260723-ui-sync-4" defer></script>
+  <script src="../assets/relative-phone-layout.js?v=20260723-ui-sync-4" defer></script>
   <style>
     html, body, *, *::before, *::after { scrollbar-width: none; -ms-overflow-style: none; }
     *::-webkit-scrollbar { display: none; width: 0; height: 0; }
@@ -141,12 +141,12 @@
           <header class="cf-header" data-creation-header data-title="配置世界" data-subtitle="确认这段人生的底层规则。"></header>
 
           <section class="cf-summary" aria-label="当前世界规则摘要">
-            <div class="ws-focus-top"><span class="ws-focus-source">保存世界</span><span class="ws-focus-index">当前选择</span></div>
-            <div class="ws-difficulty" aria-label="人生难度：普通"><span>难度</span><strong>普通</strong><span data-icon="arrow" aria-hidden="true"></span></div>
-            <h3>潮汐城邦</h3>
-            <div class="ws-focus-era">群岛历 218 年</div>
-            <div class="ws-rule"><span>规则摘要</span><p>潮汐决定城市的贸易节律、迁徙方向与每个人回家的时间。</p></div>
-            <div class="ws-rule-facts" aria-label="世界概览"><div><span>来源</span><strong>已保存</strong></div><div><span>年代</span><strong>群岛历</strong></div><div><span>难度</span><strong>普通</strong></div></div>
+            <div class="ws-focus-top"><span class="ws-focus-source" data-world-source>保存世界</span><span class="ws-focus-index">当前选择</span></div>
+            <div class="ws-difficulty" aria-label="人生难度：普通"><span>难度</span><strong data-world-difficulty>普通</strong><span data-icon="arrow" aria-hidden="true"></span></div>
+            <h3 data-world-name>潮汐城邦</h3>
+            <div class="ws-focus-era" data-world-era>群岛历 218 年</div>
+            <div class="ws-rule"><span>规则摘要</span><p data-world-description>潮汐决定城市的贸易节律、迁徙方向与每个人回家的时间。</p></div>
+            <div class="ws-rule-facts" aria-label="世界概览"><div><span>来源</span><strong data-world-source-fact>已保存</strong></div><div><span>年代</span><strong data-world-era-fact>群岛历</strong></div><div><span>难度</span><strong data-world-difficulty-fact>普通</strong></div></div>
           </section>
 
           <section class="cf-section">
@@ -162,7 +162,7 @@
 
         <footer class="cf-footer">
           <button class="cf-back" type="button" data-flow-to="world-select" data-flow-back aria-label="返回世界选择" title="返回世界选择"><span data-icon="back"></span></button>
-          <button class="cf-next" type="button" data-flow-to="character-create"><span class="cf-next-number">03</span><span class="cf-next-copy"><strong>确认世界</strong><small>潮汐城邦 · 下一步塑造角色</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button>
+          <button class="cf-next" type="button" data-flow-to="character-create"><span class="cf-next-number">03</span><span class="cf-next-copy"><strong>确认世界</strong><small data-world-next-hint>潮汐城邦 · 下一步塑造角色</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button>
         </footer>
         <div class="cf-choice-dialog" data-choice-dialog hidden>
           <section class="cf-choice-sheet">
@@ -183,10 +183,36 @@
         limit: ['1 阶', '3 阶', '5 阶'],
       }
       const selected = { space: 2, essence: 1, power: 1, limit: 1 }
+      const modes = { space: 'select', essence: 'select', power: 'ai', limit: 'select' }
       const labels = { space: '空间形态', essence: '世界本质', power: '力量体系', limit: '力量上限' }
       const choiceDialog = document.querySelector('[data-choice-dialog]')
       const choiceOptions = document.querySelector('[data-choice-options]')
       let choiceTrigger = null
+
+      function settingValue(key) {
+        const setting = document.querySelector(`[data-setting="${key}"]`)
+        if (modes[key] === 'ai') return '由 AI 判断'
+        if (modes[key] === 'custom') return setting.querySelector('[data-setting-value] input')?.value.trim() || ''
+        return maps[key][selected[key]]
+      }
+
+      function persistConfig() {
+        if (!window.PrototypeFlow) return
+        const worldConfig = {}
+        Object.keys(maps).forEach(function (key) { worldConfig[key] = { mode: modes[key], value: settingValue(key) } })
+        PrototypeFlow.state.write({ worldConfig: worldConfig })
+      }
+
+      function renderSetting(key) {
+        const setting = document.querySelector(`[data-setting="${key}"]`)
+        setting.querySelectorAll('[data-mode]').forEach(function (button) {
+          button.classList.toggle('is-active', button.dataset.mode === modes[key])
+        })
+        const value = setting.querySelector('[data-setting-value]')
+        if (modes[key] === 'ai') value.innerHTML = `<input class="cf-field" value="由 AI 判断" aria-label="${labels[key]} AI 结果" disabled>`
+        if (modes[key] === 'custom') value.innerHTML = `<input class="cf-field" aria-label="${labels[key]}自定义设定" placeholder="输入自定义内容..." value="">`
+        if (modes[key] === 'select') value.innerHTML = choiceControl(key)
+      }
 
       function choiceControl(key) {
         return `<button class="cf-select cf-choice-trigger" type="button" data-choice-trigger data-setting-key="${key}" aria-haspopup="listbox" aria-controls="cf-choice-options" aria-expanded="false"><span>${maps[key][selected[key]]}</span><span class="cf-choice-chevron" aria-hidden="true"></span></button>`
@@ -217,17 +243,20 @@
         }))
         trigger.setAttribute('aria-expanded', 'true')
         choiceDialog.hidden = false
-        const hostBox = choiceDialog.parentElement.getBoundingClientRect()
+        const host = choiceDialog.parentElement
+        const hostBox = host.getBoundingClientRect()
         const triggerBox = trigger.getBoundingClientRect()
-        const left = triggerBox.left - hostBox.left
-        const width = triggerBox.width
-        let top = triggerBox.bottom - hostBox.top + 4
+        const scale = hostBox.width / host.offsetWidth
+        const left = (triggerBox.left - hostBox.left) / scale
+        const width = triggerBox.width / scale
+        let top = (triggerBox.bottom - hostBox.top) / scale + 4
         choiceDialog.style.setProperty('--cf-choice-left', `${left}px`)
         choiceDialog.style.setProperty('--cf-choice-width', `${width}px`)
         choiceDialog.style.setProperty('--cf-choice-top', `${top}px`)
-        const sheetHeight = choiceDialog.querySelector('.cf-choice-sheet').getBoundingClientRect().height
-        if (top + sheetHeight > hostBox.height - 10) {
-          top = Math.max(10, triggerBox.top - hostBox.top - sheetHeight - 4)
+        const sheetHeight = choiceDialog.querySelector('.cf-choice-sheet').getBoundingClientRect().height / scale
+        const hostHeight = hostBox.height / scale
+        if (top + sheetHeight > hostHeight - 10) {
+          top = Math.max(10, (triggerBox.top - hostBox.top) / scale - sheetHeight - 4)
           choiceDialog.style.setProperty('--cf-choice-top', `${top}px`)
         }
         choiceOptions.querySelector('[aria-selected="true"]').focus()
@@ -244,6 +273,7 @@
         const key = choiceTrigger.dataset.settingKey
         selected[key] = Number(option.dataset.choiceOption)
         choiceTrigger.querySelector('span').textContent = maps[key][selected[key]]
+        persistConfig()
         CreationFlow.notify(`${labels[key]} · ${maps[key][selected[key]]}`)
         closeChoice()
       })
@@ -259,15 +289,50 @@
           button.addEventListener('click', function () {
             const key = setting.dataset.setting
             const mode = button.dataset.mode
+            modes[key] = mode
             setting.querySelectorAll('[data-mode]').forEach(function (item) { item.classList.toggle('is-active', item === button) })
             const value = setting.querySelector('[data-setting-value]')
             if (mode === 'ai') value.innerHTML = `<input class="cf-field" value="由 AI 判断" aria-label="${labels[key]} AI 结果" disabled>`
             if (mode === 'custom') value.innerHTML = `<input class="cf-field" aria-label="${labels[key]}自定义设定" placeholder="输入自定义内容...">`
             if (mode === 'select') value.innerHTML = choiceControl(key)
+            persistConfig()
             CreationFlow.notify(`${labels[key]} · ${mode === 'ai' ? 'AI 判断' : mode === 'custom' ? '自定义' : '选择'}`)
           })
         })
       })
+
+      document.addEventListener('input', function (event) {
+        if (event.target.closest('[data-setting-value]')) persistConfig()
+      })
+
+      document.addEventListener('DOMContentLoaded', function () {
+        const flow = PrototypeFlow.state.read()
+        const world = flow.world || {}
+        const sourceLabels = { saved: ['保存世界', '已保存'], custom: ['自定义世界', '自定义'], preset: ['预设世界', '预设'] }
+        const source = sourceLabels[world.source] || sourceLabels.saved
+        document.querySelector('[data-world-source]').textContent = source[0]
+        document.querySelector('[data-world-source-fact]').textContent = source[1]
+        document.querySelector('[data-world-name]').textContent = world.name || '潮汐城邦'
+        document.querySelector('[data-world-era]').textContent = world.era || '群岛历 218 年'
+        document.querySelector('[data-world-era-fact]').textContent = world.era || '群岛历'
+        document.querySelector('[data-world-description]').textContent = world.description || '潮汐决定城市的贸易节律、迁徙方向与每个人回家的时间。'
+        document.querySelector('[data-world-difficulty]').textContent = world.difficulty || '普通'
+        document.querySelector('[data-world-difficulty-fact]').textContent = world.difficulty || '普通'
+        document.querySelector('.ws-difficulty').setAttribute('aria-label', `人生难度：${world.difficulty || '普通'}`)
+        document.querySelector('[data-world-next-hint]').textContent = `${world.name || '潮汐城邦'} · 下一步塑造角色`
+
+        Object.entries(flow.worldConfig || {}).forEach(function (entry) {
+          const key = entry[0]
+          const stored = entry[1]
+          if (!maps[key] || !stored) return
+          modes[key] = ['ai', 'select', 'custom'].includes(stored.mode) ? stored.mode : modes[key]
+          const optionIndex = maps[key].indexOf(stored.value)
+          if (optionIndex >= 0) selected[key] = optionIndex
+          renderSetting(key)
+          if (modes[key] === 'custom') document.querySelector(`[data-setting="${key}"] [data-setting-value] input`).value = stored.value || ''
+        })
+        persistConfig()
+      }, { once: true })
     })()
   </script>
 </body>

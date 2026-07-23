@@ -22,9 +22,11 @@
     </div>`
 
   function makeHeader(header, step, title, subtitle) {
+    const stepLabel = header.dataset.headerIndex || (Number.isFinite(step) ? `${String(step).padStart(2, '0')} / 08` : '')
+    const markLabel = Number.isFinite(step) ? String(step).padStart(2, '0') : ''
     header.innerHTML = `
-      <div class="cf-meta"><span>AI LIFE SIM · 命书</span><span>${String(step).padStart(2, '0')} / 08</span></div>
-      <div class="cf-title-row"><div class="cf-title-copy"><h2>${title}</h2><p>${subtitle}</p></div><div class="cf-title-mark"><span>${String(step).padStart(2, '0')}</span></div></div>`
+      <div class="cf-meta"><span>AI LIFE SIM · 命书</span><span>${stepLabel}</span></div>
+      <div class="cf-title-row"><div class="cf-title-copy"><h2>${title}</h2><p>${subtitle}</p></div><div class="cf-title-mark"><span>${markLabel}</span></div></div>`
   }
 
   function notify(message) {

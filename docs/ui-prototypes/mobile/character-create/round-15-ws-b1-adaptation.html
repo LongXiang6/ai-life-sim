@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>角色创建 · B1 风格适配</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="../assets/library.css?v=20260723-ui-sync-2">
-  <link rel="stylesheet" href="../assets/creation-flow-unified.css?v=20260723-ui-sync-2">
-  <link rel="stylesheet" href="../assets/relative-phone-layout.css?v=20260723-ui-sync-2">
-  <script src="../assets/prototype.js?v=20260723-ui-sync-2" defer></script>
-  <script src="../assets/creation-flow-unified.js?v=20260723-ui-sync-2" defer></script>
-  <script src="../assets/relative-phone-layout.js?v=20260723-ui-sync-2" defer></script>
+  <link rel="stylesheet" href="../assets/library.css?v=20260723-ui-sync-4">
+  <link rel="stylesheet" href="../assets/creation-flow-unified.css?v=20260723-ui-sync-4">
+  <link rel="stylesheet" href="../assets/relative-phone-layout.css?v=20260723-ui-sync-4">
+  <script src="../assets/prototype.js?v=20260723-ui-sync-4" defer></script>
+  <script src="../assets/creation-flow-unified.js?v=20260723-ui-sync-4" defer></script>
+  <script src="../assets/relative-phone-layout.js?v=20260723-ui-sync-4" defer></script>
   <style>
     html, body, *, *::before, *::after { scrollbar-width: none; -ms-overflow-style: none; }
     *::-webkit-scrollbar { display: none; width: 0; height: 0; }
@@ -136,7 +136,7 @@
           <section class="cf-summary" aria-live="polite">
             <div class="cf-summary-symbol">人</div>
             <div class="cf-summary-copy"><strong data-summary-name>未命名角色</strong><span data-summary-line>男性 · 人类 · 尚未填写背景</span></div>
-            <div class="cf-summary-facts"><div><span>寿命</span><strong data-summary-life>80 年</strong></div><div><span>起始</span><strong data-summary-age>出生</strong></div><div><span>世界</span><strong>潮汐城邦</strong></div></div>
+            <div class="cf-summary-facts"><div><span>寿命</span><strong data-summary-life>80 年</strong></div><div><span>起始</span><strong data-summary-age>出生</strong></div><div><span>世界</span><strong data-summary-world>潮汐城邦</strong></div></div>
           </section>
 
           <section class="cf-section" data-section="identity">
@@ -208,14 +208,32 @@
       function update() {
         const characterName = name.value.trim()
         const lifeValue = Number(life.value)
+        const ageValue = age.value.trim() === '' ? 0 : Number(age.value)
+        const validLife = Number.isFinite(lifeValue) && lifeValue >= 1
+        const validAge = Number.isFinite(ageValue) && ageValue >= 0 && (!validLife || ageValue < lifeValue)
+        const valid = Boolean(characterName && validLife && validAge)
         document.querySelector('[data-summary-name]').textContent = characterName || '未命名角色'
         document.querySelector('[data-summary-line]').textContent = `${state.gender} · ${state.race} · ${background.value.trim() ? '已填写背景' : '尚未填写背景'}`
-        document.querySelector('[data-summary-life]').textContent = Number.isFinite(lifeValue) && lifeValue >= 1 ? `${Math.floor(lifeValue)} 年` : '待设定'
+        document.querySelector('[data-summary-life]').textContent = validLife ? `${Math.floor(lifeValue)} 年` : '待设定'
         document.querySelector('[data-summary-age]').textContent = age.value ? `${age.value} 岁` : '出生'
         document.querySelector('[data-background-count]').textContent = `${background.value.length} 字`
         document.querySelector('[data-action-hint]').textContent = characterName ? `${characterName} · 进入命格抽取` : '填写姓名后 · 进入命格抽取'
-        if (characterName && Number.isFinite(lifeValue) && lifeValue >= 1) confirm.setAttribute('data-flow-to', confirm.dataset.nextScreen)
+        confirm.disabled = !valid
+        confirm.setAttribute('aria-disabled', String(!valid))
+        if (valid) confirm.setAttribute('data-flow-to', confirm.dataset.nextScreen)
         else confirm.removeAttribute('data-flow-to')
+        if (window.PrototypeFlow) {
+          PrototypeFlow.state.write({
+            character: {
+              name: characterName,
+              gender: state.gender,
+              race: state.race,
+              life: validLife ? Math.floor(lifeValue) : null,
+              age: validAge ? ageValue : null,
+              background: background.value.trim()
+            }
+          })
+        }
       }
 
       document.querySelector('[data-random]').addEventListener('click', function () {
@@ -314,8 +332,37 @@
           document.querySelector('[data-section="life"]').scrollIntoView({ block: 'start', behavior: 'smooth' })
           life.focus()
           notify('预期寿命需为大于 0 的数字')
+          return
+        }
+        const ageValue = age.value.trim() === '' ? 0 : Number(age.value)
+        if (!Number.isFinite(ageValue) || ageValue < 0 || ageValue >= Number(life.value)) {
+          event.preventDefault()
+          event.stopPropagation()
+          document.querySelector('[data-section="life"]').scrollIntoView({ block: 'start', behavior: 'smooth' })
+          age.focus()
+          notify('起始年龄需小于预期寿命')
         }
       })
+
+      document.addEventListener('DOMContentLoaded', function () {
+        const flow = PrototypeFlow.state.read()
+        const stored = flow.character || {}
+        document.querySelector('[data-summary-world]').textContent = flow.world?.name || '潮汐城邦'
+        if (stored.name) name.value = stored.name
+        if (Number.isFinite(stored.life)) life.value = String(stored.life)
+        if (Number.isFinite(stored.age) && stored.age > 0) age.value = String(stored.age)
+        if (stored.background) background.value = stored.background
+        ;['gender', 'race'].forEach(function (key) {
+          if (stored[key]) state[key] = stored[key]
+          const group = document.querySelector(`[data-choice="${key}"]`)
+          group.querySelectorAll('[data-value]').forEach(function (button) {
+            const active = button.dataset.value === state[key]
+            button.classList.toggle('is-active', active)
+            button.setAttribute('aria-pressed', String(active))
+          })
+        })
+        update()
+      }, { once: true })
 
       update()
     })()

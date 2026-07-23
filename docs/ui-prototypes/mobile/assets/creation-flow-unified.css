@@ -1,18 +1,18 @@
 :root {
   color-scheme: light;
-  --cf-canvas: #f2f4f3;
-  --cf-paper: #ffffff;
+  --cf-canvas: #eef1f7;
+  --cf-paper: #fafbff;
   --cf-surface: #ffffff;
-  --cf-soft: #f6f8fa;
-  --cf-ink: #17191d;
-  --cf-muted: #626870;
-  --cf-faint: #969ba2;
-  --cf-line: #e5e7ea;
-  --cf-line-strong: #dce2e8;
-  --cf-accent: #6d7f94;
-  --cf-accent-soft: #f0f3f6;
-  --cf-ornament: #9a7966;
-  --cf-positive: #6d7f94;
+  --cf-soft: #f1f3fa;
+  --cf-ink: #28324b;
+  --cf-muted: #707b92;
+  --cf-faint: #929bb0;
+  --cf-line: #d8deea;
+  --cf-line-strong: #d8deea;
+  --cf-accent: #7382bb;
+  --cf-accent-soft: #edf0fb;
+  --cf-ornament: #7787c0;
+  --cf-positive: #7382bb;
   --cf-negative: #8d6d73;
   --cf-serif: "Songti SC", "STSong", "SimSun", serif;
   --cf-sans: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
@@ -236,6 +236,59 @@ select:focus-visible {
 .cf-title-mark::before { inset: 1px; border-radius: 8px; transform: rotate(45deg); }
 .cf-title-mark::after { inset: 7px; border-radius: 50%; }
 .cf-title-mark span { position: relative; z-index: 1; }
+
+body:is(
+  [data-screen="world-customize"],
+  [data-screen="character-create"],
+  [data-screen="talent-draw"],
+  [data-screen="mythic-inheritance"],
+  [data-screen="attribute-alloc"],
+  [data-screen="fate-preview"],
+  [data-screen="account"],
+  [data-screen="feedback"]
+) .cf-meta {
+  margin-bottom: 6px;
+  font-size: 9px;
+}
+
+body:is(
+  [data-screen="world-customize"],
+  [data-screen="character-create"],
+  [data-screen="talent-draw"],
+  [data-screen="mythic-inheritance"],
+  [data-screen="attribute-alloc"],
+  [data-screen="fate-preview"],
+  [data-screen="account"],
+  [data-screen="feedback"]
+) .cf-title-row {
+  margin-top: 0;
+}
+
+body:is(
+  [data-screen="world-customize"],
+  [data-screen="character-create"],
+  [data-screen="talent-draw"],
+  [data-screen="mythic-inheritance"],
+  [data-screen="attribute-alloc"],
+  [data-screen="fate-preview"],
+  [data-screen="account"],
+  [data-screen="feedback"]
+) .cf-title-row h2 {
+  font-size: 22px;
+}
+
+body:is(
+  [data-screen="world-customize"],
+  [data-screen="character-create"],
+  [data-screen="talent-draw"],
+  [data-screen="mythic-inheritance"],
+  [data-screen="attribute-alloc"],
+  [data-screen="fate-preview"],
+  [data-screen="account"],
+  [data-screen="feedback"]
+) :is(.cf-title-row p, .cf-title-mark) {
+  display: none;
+}
 
 .cf-section {
   position: relative;

@@ -4,21 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>故事进行中 · AI Life Sim</title>
-  <link rel="stylesheet" href="../assets/library.css?v=20260723-ui-sync-2">
-  <script src="../assets/prototype.js?v=20260723-ui-sync-2" defer></script>
+  <link rel="stylesheet" href="../assets/library.css?v=20260723-ui-sync-4">
+  <script src="../assets/prototype.js?v=20260723-ui-sync-4" defer></script>
   <style>
     :root {
       color-scheme: light;
-      --canvas: #efeee9;
-      --paper: #fff;
-      --ink: #242320;
-      --soft: #66625c;
-      --faint: #928d85;
-      --rule: #d8d3ca;
-      --rule-light: #e9e5de;
-      --accent: #70649d;
-      --accent-deep: #514875;
-      --green: #526b61;
+      --canvas: #eef1f7;
+      --paper: #fafbff;
+      --ink: #28324b;
+      --soft: #707b92;
+      --faint: #929bb0;
+      --rule: #d8deea;
+      --rule-light: #e5e9f2;
+      --accent: #7382bb;
+      --accent-deep: #52639c;
+      --green: #6576b2;
       --serif: "Songti SC", "STSong", "SimSun", "Noto Serif CJK SC", serif;
       --sans: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
       --shadow: 0 18px 50px rgba(42,40,34,.1);
@@ -470,19 +470,19 @@
     .mode-jade-index .advance { background: rgba(255,255,255,.72); }
 
     .mode-jade-flow {
-      --paper: #fdfefd;
-      --ink: #29312c;
-      --soft: #636c66;
-      --faint: #949d96;
-      --rule: #dce3de;
-      --rule-light: #ebf0ec;
-      --accent: #778a7e;
-      --accent-deep: #586b60;
-      --green: #61766a;
-      --wash: #f2f6f2;
-      --wash-strong: #e6ede7;
-      --ink-stroke: #708579;
-      --seal: #a87268;
+      --paper: #fafbff;
+      --ink: #28324b;
+      --soft: #707b92;
+      --faint: #929bb0;
+      --rule: #d8deea;
+      --rule-light: #e5e9f2;
+      --accent: #7382bb;
+      --accent-deep: #52639c;
+      --green: #6576b2;
+      --wash: #f1f3fa;
+      --wash-strong: #e7ebf6;
+      --ink-stroke: #7787c0;
+      --seal: #8d6d73;
     }
     .mode-jade-flow .reading { padding-top: 31px; }
     .mode-jade-flow .chapter-head h3 { font-size: 26px; }
@@ -1391,6 +1391,13 @@
   <link rel="stylesheet" href="../assets/cc-rf9-adapt-base.css">
   <link rel="stylesheet" href="../assets/cc-rf9-adapt-1.css">
   <link rel="stylesheet" href="../assets/mobile-action-bar-unified.css">
+  <style>
+    body[data-screen="game-story"] { background: #eef1f7; color: #28324b; }
+    body[data-screen="game-story"] .mobile-viewport { background: var(--paper); }
+    body[data-screen="game-story"] :is(.sticky-shell, .reader-bar, .reader-divider) { background: rgba(250, 251, 255, .98); }
+    body[data-screen="game-story"] :is(h1, h2, h3, h4, .chapter-head) { color: var(--ink); }
+    body[data-screen="game-story"] :is(.bar-time, .section-line small, .ledger-label, .talent::before, .state-list, .advance small, .identity-context) { font-size: 9px; }
+  </style>
 <!-- CC-RF9 VISUAL ADAPTATION ONLY: END -->
 </head>
 <body data-screen="game-story">
@@ -1398,7 +1405,7 @@
     <section class="mobile-viewport mode-ink-celadon mode-jade-flow mode-branch-bare mode-copy-editorial mode-rhythm-balanced mode-hierarchy-current mode-density-continuous mode-spacing-gentle mode-info-dual mode-tree-steady mode-more-safe mode-cluster-balanced" data-mode="hierarchy-current" aria-label="故事进行中"></section>
   </main>
 
-  <template id="save-template"><div class="save-overlay"><section class="save-dialog" role="dialog" aria-modal="true" aria-label="手动存档"><h4>手动存档</h4><div class="save-slot">槽位 1 · 林清和 · 第 12 轮</div><div class="save-slot">槽位 2 · 空</div><div class="save-slot">槽位 3 · 空</div><div class="save-actions"><button type="button" data-save-close>取消</button><button type="button" data-save-confirm>保存</button></div></section></div></template>
+  <template id="save-template"><div class="save-overlay"><section class="save-dialog" role="dialog" aria-modal="true" aria-label="手动存档"><h4>手动存档</h4><div class="save-slot" data-flow-save-slot>槽位 1 · 林清和 · 第 12 轮</div><div class="save-slot">槽位 2 · 空</div><div class="save-slot">槽位 3 · 空</div><div class="save-actions"><button type="button" data-save-close>取消</button><button type="button" data-save-confirm>保存</button></div></section></div></template>
 
   <script>
     (() => {
@@ -1407,8 +1414,8 @@
       const infoIcon = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 11v6M12 7.5h.01" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
 
       function identityMarkup(includeTime) {
-        const detail = includeTime ? '滨海旧城 · <span class="age-label">6岁</span> · <span class="era-label">2006 桃月</span>' : '现代地球 · 滨海旧城';
-        return '<span class="identity"><strong>林清和</strong><small>' + detail + '</small></span>';
+        const detail = includeTime ? '<span data-flow-world-name>现代地球</span> · <span class="age-label">6岁</span> · <span class="era-label">2006 桃月</span>' : '<span data-flow-world-name>现代地球</span>';
+        return '<span class="identity"><strong data-flow-character-name>林清和</strong><small>' + detail + '</small></span>';
       }
 
       function timeMarkup() {
@@ -1433,7 +1440,61 @@
       }
 
       function infoPanelMarkup() {
-        return '<div class="info-inner"><div class="panel-head"><strong>当前信息</strong><button class="icon-button info-close" type="button" aria-label="关闭当前信息"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></div><section class="info-block info-current"><div class="identity-index"><span class="identity-primary">林清和 · 女 · 人类</span><span class="identity-context">现代地球 · 滨海旧城</span></div><div class="attributes"><span>体魄 <b>−1</b></span><span>心智 <b class="rise">+4</b></span><span>悟性 <b class="rise">+3</b></span><span>魅力 <b>−1</b></span><span>生命 <b>100</b></span></div></section><div class="info-dual-body"><section class="info-block info-progress"><div class="section-line"><strong>推进步长</strong><small class="step-label">月</small></div><div class="step-grid"></div></section><section class="info-block info-ledger"><details class="ledger-disclosure" open><summary><strong>世界与角色账簿</strong><small>第 12 轮</small></summary><div class="ledger-content"><p class="ledger-label">角色词条</p><span class="talent" data-index="01">体能守恒织网与冬夜回声的共振契约</span><span class="talent" data-index="02">完美主义的选择刑</span><span class="talent" data-index="03">旧日信标</span><p class="ledger-label">世界与当前状态</p><div class="state-list"><span>城市为主</span><span>温带气候</span><span>市场经济</span><span>无超自然</span><span>体力 100</span><span>精神 100</span></div></div></details></section></div><section class="info-block more-actions"><div class="section-line"><strong>更多</strong><small>当前章节</small></div><div class="more-action-row"><button class="menu-action" type="button" data-save>手动存档</button><a class="menu-action" href="../fate-preview/round-refactor-01-style-1.html" data-flow-to="fate-preview">返回命运预览</a></div></section></div>';
+        return '<div class="info-inner"><div class="panel-head"><strong>当前信息</strong><button class="icon-button info-close" type="button" aria-label="关闭当前信息"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button></div><section class="info-block info-current"><div class="identity-index"><span class="identity-primary" data-flow-identity-primary>林清和 · 女 · 人类</span><span class="identity-context" data-flow-identity-context>现代地球 · 滨海旧城</span></div><div class="attributes"><span data-flow-attribute="physique">体魄 <b>−1</b></span><span data-flow-attribute="mind">心智 <b class="rise">+4</b></span><span data-flow-attribute="talentAptitude">悟性 <b class="rise">+3</b></span><span data-flow-attribute="charisma">魅力 <b>−1</b></span><span data-flow-life>生命 <b>100</b></span></div></section><div class="info-dual-body"><section class="info-block info-progress"><div class="section-line"><strong>推进步长</strong><small class="step-label">月</small></div><div class="step-grid"></div></section><section class="info-block info-ledger"><details class="ledger-disclosure" open><summary><strong>世界与角色账簿</strong><small>第 12 轮</small></summary><div class="ledger-content"><p class="ledger-label">角色词条</p><div data-flow-talents></div><p class="ledger-label">世界与当前状态</p><div class="state-list" data-flow-world-state></div></div></details></section></div><section class="info-block more-actions"><div class="section-line"><strong>更多</strong><small>当前章节</small></div><div class="more-action-row"><button class="menu-action" type="button" data-save>手动存档</button><a class="menu-action" href="../fate-preview/round-refactor-01-style-1.html" data-flow-to="fate-preview">返回命运预览</a></div></section></div>';
+      }
+
+      function applyFlowState(root) {
+        const flow = PrototypeFlow.state.read();
+        const character = flow.character || {};
+        const world = flow.world || {};
+        const config = flow.worldConfig || {};
+        const base = flow.attributes?.base || {};
+        const talents = Array.isArray(flow.talents) ? flow.talents : [];
+        const name = character.name || '林清和';
+        const startAge = Number(character.age) > 0 ? Number(character.age) : 6;
+        root.querySelectorAll('[data-flow-character-name]').forEach((node) => { node.textContent = name; });
+        root.querySelectorAll('[data-flow-world-name]').forEach((node) => { node.textContent = world.name || '现代地球'; });
+        root.querySelectorAll('.age-label').forEach((node) => { node.textContent = `${startAge}岁`; });
+        root.querySelector('[data-flow-identity-primary]').textContent = `${name} · ${character.gender || '女性'} · ${character.race || '人类'}`;
+        root.querySelector('[data-flow-identity-context]').textContent = `${world.name || '现代地球'} · ${world.era || '当前年代'}`;
+        ['physique', 'mind', 'talentAptitude', 'charisma'].forEach((key) => {
+          const bonus = talents.reduce((sum, talent) => sum + Number(talent?.attrBonus?.[key] || 0), 0);
+          const value = Number(base[key] || 0) + bonus;
+          const target = root.querySelector(`[data-flow-attribute="${key}"] b`);
+          target.textContent = String(value);
+          target.classList.toggle('rise', value > 0);
+        });
+        root.querySelector('[data-flow-life] b').textContent = String(character.life || 80);
+        const talentHost = root.querySelector('[data-flow-talents]');
+        talents.forEach((talent, index) => {
+          const item = document.createElement('span');
+          item.className = 'talent';
+          item.dataset.index = String(index + 1).padStart(2, '0');
+          item.textContent = talent.name;
+          talentHost.append(item);
+        });
+        const rebirths = Array.isArray(flow.rebirths) ? flow.rebirths : flow.rebirth ? [flow.rebirth] : [];
+        rebirths.forEach((rebirth) => {
+          const item = document.createElement('span');
+          item.className = 'talent';
+          item.dataset.index = '转';
+          item.textContent = rebirth.name;
+          talentHost.append(item);
+        });
+        if (!talentHost.children.length) {
+          const item = document.createElement('span');
+          item.className = 'talent';
+          item.dataset.index = '00';
+          item.textContent = '尚未选择命格';
+          talentHost.append(item);
+        }
+        const stateHost = root.querySelector('[data-flow-world-state]');
+        [config.space?.value, config.essence?.value, config.power?.value, config.limit?.value, '体力 100', '精神 100'].filter(Boolean).forEach((label) => {
+          const item = document.createElement('span');
+          item.textContent = label;
+          stateHost.append(item);
+        });
+        root.querySelector('[data-flow-save-slot]').textContent = `槽位 1 · ${name} · 第 12 轮`;
       }
 
       function storyMarkup() {
@@ -1452,6 +1513,7 @@
         root.innerHTML = shellMarkup(mode) + '<main class="reading"><div class="story-slot">' + storyMarkup() + '</div></main><div class="save-mount"></div><div class="toast" role="status" aria-live="polite"></div>';
         if (root.classList.contains('mode-info-focus')) root.querySelector('.ledger-disclosure').removeAttribute('open');
         root.querySelector('.save-mount').append(document.querySelector('#save-template').content.cloneNode(true));
+        applyFlowState(root);
         root.querySelectorAll('.step-grid').forEach((grid) => steps.forEach((name) => {
           const button = document.createElement('button');
           button.type = 'button';
@@ -1480,7 +1542,8 @@
         let step = '月';
         let year = 2006;
         let month = 2;
-        let age = 6;
+        const flowAge = Number(PrototypeFlow.state.read().character?.age);
+        let age = Number.isFinite(flowAge) && flowAge > 0 ? flowAge : 6;
         let day = 0;
         let round = 12;
         let forceNext = false;
@@ -1669,7 +1732,9 @@
         });
       }
 
-      document.querySelectorAll('.mobile-viewport').forEach(init);
+      const boot = () => document.querySelectorAll('.mobile-viewport').forEach(init);
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true });
+      else boot();
     })();
   </script>
 </body>

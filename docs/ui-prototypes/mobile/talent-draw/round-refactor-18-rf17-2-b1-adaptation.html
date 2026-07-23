@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>命格抽取 · TD-RF17-2 B1 适配</title>
-  <link rel="stylesheet" href="../assets/library.css?v=20260723-ui-sync-2">
-  <link rel="stylesheet" href="../assets/relative-phone-layout.css?v=20260723-ui-sync-2">
-  <script src="../assets/prototype.js?v=20260723-ui-sync-2" defer></script>
-  <script src="../assets/creation-flow-unified.js?v=20260723-ui-sync-2" defer></script>
-  <script src="../assets/relative-phone-layout.js?v=20260723-ui-sync-2" defer></script>
+  <link rel="stylesheet" href="../assets/library.css?v=20260723-ui-sync-4">
+  <link rel="stylesheet" href="../assets/relative-phone-layout.css?v=20260723-ui-sync-4">
+  <script src="../assets/prototype.js?v=20260723-ui-sync-4" defer></script>
+  <script src="../assets/creation-flow-unified.js?v=20260723-ui-sync-4" defer></script>
+  <script src="../assets/relative-phone-layout.js?v=20260723-ui-sync-4" defer></script>
   <style>
     :root {
       --paper:#fbfaf7; --surface:#fffefd; --ink:#292724; --soft:#6e6961;
@@ -42,8 +42,8 @@
     .ritual-copy p { margin:6px 0 0; color:var(--soft); font-size:9px; }
     .seal-wrap { position:absolute; z-index:4; top:391px; right:15px; left:15px; padding:10px 10px 11px; border:1px solid var(--line); border-radius:12px; background:rgba(255,254,253,.78); backdrop-filter:blur(10px); transition:.58s ease; }
     .seal-head { display:flex; justify-content:space-between; color:var(--soft); font-size:9px; font-weight:650; }
-    .seals { display:grid; grid-template-columns:repeat(5,1fr); gap:5px; margin-top:8px; }
-    .seal { display:grid; height:40px; place-items:center; border:1px solid var(--light); border-radius:8px; background:rgba(255,254,253,.86); color:var(--faint); transition:.25s ease; }
+    .seals { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; margin-top:8px; }
+    .seal { display:grid; height:32px; place-items:center; border:1px solid var(--light); border-radius:8px; background:rgba(255,254,253,.86); color:var(--faint); transition:.25s ease; }
     .seal i,.seal b { grid-area:1/1; font-style:normal; }
     .seal i { font-size:9px; }
     .seal b { opacity:0; font-size:9px; }
@@ -83,7 +83,7 @@
   <link rel="stylesheet" href="../assets/cc-rf9-adapt-base.css">
   <link rel="stylesheet" href="../assets/cc-rf9-adapt-2.css">
 <!-- CC-RF9 VISUAL ADAPTATION ONLY: END -->
-  <link rel="stylesheet" href="../assets/creation-flow-unified.css?v=20260723-ui-sync-2">
+  <link rel="stylesheet" href="../assets/creation-flow-unified.css?v=20260723-ui-sync-4">
   <style>
     html, body, *, *::before, *::after { scrollbar-width: none; -ms-overflow-style: none; }
     *::-webkit-scrollbar { display: none; width: 0; height: 0; }
@@ -111,34 +111,32 @@
     body[data-screen="talent-draw"] .cf-next-arrow { background: #7382bb; color: #fff; }
   </style>
 </head>
-<body data-screen="talent-draw">
+<body data-screen="talent-draw" data-creation-step="4">
   <main class="shell">
     <div class="topbar"><span>移动端创建流程</span><span>05 · 抽取</span></div>
     <p class="eyebrow">DESTINY PATTERN · P1 FINAL</p>
     <h1>命格抽取</h1>
-    <p class="subtitle">保留 P1 云紫宽环原机制；五条候选准备完成后，进入命格选取。</p>
+    <p class="subtitle">保留 P1 云紫宽环原机制；十二条候选准备完成后，进入命格选取。</p>
     <section class="stage">
       <div class="phone" data-relative-phone data-relative-phone-width="320" data-relative-phone-height="694">
         <div class="page">
-          <div class="step">NEW LIFE · 04 / 08</div>
-          <div class="title">命格抽取</div>
-          <div class="sub">五条候选准备完成后，进入命格选择。</div>
+          <header class="cf-header" data-creation-header data-title="命格抽取" data-subtitle="十二条候选准备完成后，进入命格选择。"></header>
           <div class="aura">
             <i class="wave w1"></i><i class="wave w2"></i><i class="wave w3"></i><i class="wave w4"></i><i class="wave w5"></i><i class="wave w6"></i>
             <span class="sun"><i class="layer l5"></i><i class="layer l4"></i><i class="layer l3"></i><i class="layer l2"></i><i class="layer l1"></i><b class="glyph">命</b></span>
           </div>
           <div class="ritual-copy"><h2>让命运揭示你的命格</h2><p>低饱和云紫，保留命格仪式的神秘感。</p></div>
-          <div class="seal-wrap"><div class="seal-head"><span>五道命印</span><span class="count">0 / 5</span></div><div class="seals"></div></div>
+          <div class="seal-wrap"><div class="seal-head"><span>十二道命印</span><span class="count">0 / 12</span></div><div class="seals"></div></div>
         </div>
         <footer class="cf-footer">
           <button class="cf-back" type="button" data-flow-to="character-create" data-flow-back aria-label="返回角色创建" title="返回角色创建"><span data-icon="back"></span></button>
-          <button class="cf-next" type="button" data-action="draw"><span class="cf-next-number">05</span><span class="cf-next-copy"><strong data-action-title>开始抽取</strong><small data-action-hint>五道命印 · 准备就绪</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button>
+          <button class="cf-next" type="button" data-action="draw"><span class="cf-next-number">05</span><span class="cf-next-copy"><strong data-action-title>开始抽取</strong><small data-action-hint>十二道命印 · 准备就绪</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button>
         </footer>
       </div>
     </section>
   </main>
   <script>
-    const rarities=[['common','普通'],['fine','精良'],['rare','稀有'],['epic','史诗'],['legendary','传世']];
+    const rarities=[['common','普通'],['fine','精良'],['fine','精良'],['rare','稀有'],['common','普通'],['rare','稀有'],['epic','史诗'],['fine','精良'],['rare','稀有'],['epic','史诗'],['legendary','传世'],['rare','稀有']];
     const phone=document.querySelector('.phone');
     const button=document.querySelector('[data-action="draw"]');
     const actionTitle=document.querySelector('[data-action-title]');
@@ -157,7 +155,7 @@
       const timer=setInterval(function(){
         items[index].classList.add('lit');
         index+=1;
-        phone.querySelector('.count').textContent=index+' / 12';
+        phone.querySelector('.count').textContent=index+' / '+items.length;
         if(index===items.length){
           clearInterval(timer);
           setTimeout(function(){
@@ -166,10 +164,10 @@
             button.disabled=false;
             button.dataset.done='true';
             actionTitle.textContent='进入命格选择';
-            actionHint.textContent='五道命印已归位';
+            actionHint.textContent='十二道命印已归位';
           },420);
         }
-      },520);
+      },220);
     });
   </script>
 </body>

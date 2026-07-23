@@ -5,12 +5,12 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>命格选取 · B1 转世天赋卡槽</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="../assets/library.css?v=20260723-ui-sync-2">
-  <link rel="stylesheet" href="../assets/creation-flow-unified.css?v=20260723-ui-sync-2">
-  <link rel="stylesheet" href="../assets/relative-phone-layout.css?v=20260723-ui-sync-2">
-  <script src="../assets/prototype.js?v=20260723-ui-sync-2" defer></script>
-  <script src="../assets/creation-flow-unified.js?v=20260723-ui-sync-2" defer></script>
-  <script src="../assets/relative-phone-layout.js?v=20260723-ui-sync-2" defer></script>
+  <link rel="stylesheet" href="../assets/library.css?v=20260723-ui-sync-4">
+  <link rel="stylesheet" href="../assets/creation-flow-unified.css?v=20260723-ui-sync-4">
+  <link rel="stylesheet" href="../assets/relative-phone-layout.css?v=20260723-ui-sync-4">
+  <script src="../assets/prototype.js?v=20260723-ui-sync-4" defer></script>
+  <script src="../assets/creation-flow-unified.js?v=20260723-ui-sync-4" defer></script>
+  <script src="../assets/relative-phone-layout.js?v=20260723-ui-sync-4" defer></script>
   <style>
     html, body, *, *::before, *::after { scrollbar-width: none; -ms-overflow-style: none; }
     *::-webkit-scrollbar { display: none; width: 0; height: 0; }
@@ -33,19 +33,19 @@
     .mi-b1 .creation-phone::before,
     .mi-b1 .creation-phone::after,
     .mi-b1 .cf-art { content: none !important; display: none !important; }
-    .mi-b1 .cf-screen { inset: 0; z-index: 2; display: flex; min-height: 0; flex-direction: column; overflow: hidden; padding: 15px 16px 78px; overscroll-behavior: contain; }
+    .mi-b1 .cf-screen { inset: 0; z-index: 2; display: flex; min-height: 0; flex-direction: column; overflow: hidden; padding: 15px 16px 14px; overscroll-behavior: contain; }
     .mi-b1 .cf-meta { margin-bottom: 6px; color: #929bb0; font-size: 7px; }
     .mi-b1 .cf-title-row h2 { color: #28324b; font-size: 22px; }
     .mi-b1 .cf-title-row p, .mi-b1 .cf-title-mark { display: none; }
     .mi-b1 .rebirth-heading { display: flex; justify-content: space-between; margin-top: 10px; color: #929bb0; font-size: 7px; }
-    .mi-b1 .rebirth-slots { display: grid; grid-template-columns: 1fr; gap: 5px; margin-top: 5px; }
+    .mi-b1 .rebirth-slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; margin-top: 5px; }
     .mi-b1 .rebirth-slot { position: relative; display: flex; height: 68px; min-height: 68px; max-height: 68px; flex-direction: column; padding: 8px 10px; border: 1px solid #cbd4e3; border-radius: 9px; background: rgba(237, 240, 251, .64); color: #929bb0; cursor: pointer; text-align: left; }
-    .mi-b1 .rebirth-slot small, .mi-b1 .rebirth-slot strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mi-b1 .rebirth-slot small, .mi-b1 .rebirth-slot strong { display: block; }
     .mi-b1 .rebirth-slot small { font-size: 6px; }
-    .mi-b1 .rebirth-slot strong { margin-top: 5px; font-size: 8px; font-weight: 650; }
+    .mi-b1 .rebirth-slot strong { margin-top: 5px; overflow: visible; font-size: 8px; font-weight: 650; line-height: 1.2; overflow-wrap: anywhere; white-space: normal; }
     .mi-b1 .rebirth-slot:not(.is-filled) strong, .mi-b1 .ordinary-slot:not(.is-filled) strong { margin-top: 0; }
     .mi-b1 .rebirth-slot span { display: -webkit-box; margin-top: 3px; overflow: hidden; font-size: 5.8px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-    .mi-b1 .rebirth-slot.is-filled { --rebirth-flow: linear-gradient(110deg, rgba(167, 146, 224, .24), rgba(143, 185, 236, .2), rgba(130, 207, 187, .18), rgba(236, 193, 140, .22), rgba(227, 157, 189, .2), rgba(167, 146, 224, .24)); --rebirth-border-flow: linear-gradient(110deg, #a792e0, #8fb9ec, #82cfbb, #ecc18c, #e39dbd, #a792e0); position: relative; z-index: 0; isolation: isolate; overflow: visible; border: 1px solid transparent; background: var(--rebirth-flow) padding-box, linear-gradient(rgba(255, 255, 255, .92), rgba(255, 255, 255, .92)) padding-box, var(--rebirth-border-flow) border-box; background-size: 420% 420%, 100% 100%, 320% 320%; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .82), 0 0 11px rgba(192, 68, 48, .18), 0 0 22px rgba(221, 156, 44, .18), 0 0 32px rgba(190, 66, 39, .1); color: #28324b; animation: rebirth-flow 13s ease-in-out var(--rebirth-delay, 0s) infinite, rebirth-halo 5.6s ease-in-out var(--rebirth-delay, 0s) infinite; }
+    .mi-b1 .rebirth-slot.is-filled { --rebirth-flow: linear-gradient(110deg, rgba(167, 146, 224, .24), rgba(143, 185, 236, .2), rgba(130, 207, 187, .18), rgba(236, 193, 140, .22), rgba(227, 157, 189, .2), rgba(167, 146, 224, .24)); --rebirth-border-flow: linear-gradient(110deg, #a792e0, #8fb9ec, #82cfbb, #ecc18c, #e39dbd, #a792e0); position: relative; z-index: 0; isolation: isolate; overflow: hidden; border: 1px solid transparent; background: var(--rebirth-flow) padding-box, linear-gradient(rgba(255, 255, 255, .92), rgba(255, 255, 255, .92)) padding-box, var(--rebirth-border-flow) border-box; background-size: 420% 420%, 100% 100%, 320% 320%; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .82), 0 0 11px rgba(192, 68, 48, .18), 0 0 22px rgba(221, 156, 44, .18), 0 0 32px rgba(190, 66, 39, .1); color: #28324b; animation: rebirth-flow 13s ease-in-out var(--rebirth-delay, 0s) infinite, rebirth-halo 5.6s ease-in-out var(--rebirth-delay, 0s) infinite; }
     .mi-b1 .rebirth-slot.is-filled span { color: #596277; }
     .mi-b1 .rebirth-slot.is-filled::before { display: none; }
     .mi-b1 .rebirth-slot.is-filled[data-rebirth-slot="0"] { --rebirth-delay: -.4s; }
@@ -81,9 +81,9 @@
     .mi-b1 .slot-heading { display: flex; justify-content: space-between; margin-top: 10px; color: #929bb0; font-size: 7px; }
     .mi-b1 .ordinary-slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin-top: 5px; }
     .mi-b1 .ordinary-slot { position: relative; display: flex; height: 78px; min-height: 78px; max-height: 78px; flex-direction: column; padding: 7px 9px; border: 1px solid #d8deea; border-radius: 9px; background: rgba(255, 255, 255, .7); color: #929bb0; cursor: pointer; text-align: left; }
-    .mi-b1 .ordinary-slot small, .mi-b1 .ordinary-slot strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mi-b1 .ordinary-slot small, .mi-b1 .ordinary-slot strong { display: block; }
     .mi-b1 .ordinary-slot small { font-size: 6px; }
-    .mi-b1 .ordinary-slot strong { margin-top: 5px; font-size: 8px; font-weight: 650; }
+    .mi-b1 .ordinary-slot strong { margin-top: 5px; overflow: visible; font-size: 8px; font-weight: 650; line-height: 1.2; overflow-wrap: anywhere; white-space: normal; }
     .mi-b1 .ordinary-slot span { display: -webkit-box; margin-top: 3px; overflow: hidden; font-size: 5.8px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
     .mi-b1 .ordinary-slot.is-filled { --glow: 115, 130, 187; border-color: rgba(var(--glow), .58); background: linear-gradient(135deg, rgba(var(--glow), .2), rgba(255, 255, 255, .84)); color: rgb(var(--glow)); box-shadow: 0 2px 8px rgba(var(--glow), .18), 0 0 13px rgba(var(--glow), .24); animation: selected-slot-breathe 3.6s ease-in-out var(--breath-delay, 0s) infinite; }
     .mi-b1 .ordinary-slot.is-filled[data-rarity="普通"] { --glow: 128, 143, 162; --breath-delay: -.4s; }
@@ -96,8 +96,8 @@
     .mi-b1 .candidate-head strong { color: #28324b; font-size: 10px; font-weight: 680; }
     .mi-b1 .candidate-head strong small { margin-left: 4px; color: #929bb0; font-size: 6px; font-weight: 500; }
     .mi-b1 .reroll { min-height: 22px; padding: 0 7px; border: 1px solid #d8deea; border-radius: 7px; background: rgba(255, 255, 255, .8); color: #7382bb; cursor: pointer; font-size: 6.5px; }
-    .mi-b1 .candidate-list { display: grid; min-height: 0; flex: 1 1 auto; gap: 10px; margin: 6px -42px 0; padding: 14px 42px 74px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
-    .mi-b1 .candidate { --glow: 115, 130, 187; display: grid; width: 100%; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; gap: 7px; min-height: 56px; padding: 7px 10px 5px; border: 1px solid rgba(var(--glow), .46); border-radius: 9px; background: linear-gradient(90deg, rgba(var(--glow), .11), rgba(255, 255, 255, .88) 40%); box-shadow: 0 0 0 1px rgba(255, 255, 255, .62), 0 3px 11px rgba(var(--glow), .14), 0 0 22px rgba(var(--glow), .2); color: #28324b; cursor: pointer; text-align: left; animation: candidate-breathe 3.6s ease-in-out var(--breath-delay, 0s) infinite; }
+    .mi-b1 .candidate-list { display: grid; min-height: 0; flex: 1 1 auto; gap: 10px; margin: 6px -42px 0; padding: 14px 42px 90px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
+    .mi-b1 .candidate { --glow: 115, 130, 187; display: grid; width: 100%; grid-template-columns: minmax(0, 1fr) auto; align-items: stretch; gap: 7px; min-height: 56px; padding: 7px 10px 5px; border: 1px solid rgba(var(--glow), .58); border-radius: 9px; background: linear-gradient(90deg, rgba(var(--glow), .15), rgba(255, 255, 255, .9) 42%); box-shadow: 0 0 0 1px rgba(255, 255, 255, .68), 0 3px 12px rgba(var(--glow), .2), 0 0 25px rgba(var(--glow), .28); color: #28324b; cursor: pointer; text-align: left; animation: candidate-breathe 3.6s ease-in-out var(--breath-delay, 0s) infinite; }
     .mi-b1 .candidate:hover { border-color: rgba(var(--glow), .58); background: linear-gradient(90deg, rgba(var(--glow), .12), rgba(255, 255, 255, .94) 42%); }
     .mi-b1 .candidate.is-selected { animation: none; opacity: .42; cursor: default; box-shadow: none; }
     .mi-b1 .candidate[data-rarity="普通"] { --glow: 128, 143, 162; --breath-delay: -.4s; }
@@ -113,12 +113,12 @@
     .mi-b1 .candidate-effect { padding: 2px 4px; border-radius: 4px; background: rgba(var(--glow), .1); color: rgb(var(--glow)); font-size: 5.8px; line-height: 1.15; }
     .mi-b1 .candidate-effect.system { background: rgba(40, 50, 75, .06); color: #596277; }
     .mi-b1 .candidate-rarity { align-self: start; padding: 3px 5px; border-radius: 5px; background: rgba(var(--glow), .12); color: rgb(var(--glow)); font-size: 6px; font-weight: 700; }
-    @keyframes candidate-breathe { 0%, 100% { box-shadow: 0 0 0 1px rgba(255, 255, 255, .62), 0 3px 11px rgba(var(--glow), .14), 0 0 22px rgba(var(--glow), .2); } 50% { box-shadow: 0 0 0 1px rgba(255, 255, 255, .8), 0 4px 16px rgba(var(--glow), .28), 0 0 42px rgba(var(--glow), .4); } }
+    @keyframes candidate-breathe { 0%, 100% { box-shadow: 0 0 0 1px rgba(255, 255, 255, .68), 0 3px 12px rgba(var(--glow), .2), 0 0 25px rgba(var(--glow), .28); } 50% { box-shadow: 0 0 0 1px rgba(255, 255, 255, .84), 0 4px 17px rgba(var(--glow), .34), 0 0 44px rgba(var(--glow), .48); } }
     @keyframes selected-slot-breathe { 0%, 100% { box-shadow: 0 2px 8px rgba(var(--glow), .18), 0 0 13px rgba(var(--glow), .24); } 50% { box-shadow: 0 4px 12px rgba(var(--glow), .24), 0 0 25px rgba(var(--glow), .48); } }
     @keyframes rebirth-flow { 0%, 100% { background-position: 0% 50%, 0 0, 0% 50%; } 50% { background-position: 100% 50%, 0 0, 100% 50%; } }
     @keyframes rebirth-halo { 0%, 100% { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .82), 0 0 11px rgba(192, 68, 48, .18), 0 0 22px rgba(221, 156, 44, .18), 0 0 32px rgba(190, 66, 39, .1); } 50% { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .82), 0 0 17px rgba(192, 68, 48, .3), 0 0 34px rgba(221, 156, 44, .28), 0 0 50px rgba(190, 66, 39, .18); } }
     @media (prefers-reduced-motion: reduce) { .mi-b1 .candidate, .mi-b1 .ordinary-slot.is-filled, .mi-b1 .rebirth-slot.is-filled, .mi-b1 .rebirth-option { animation: none; } }
-    .mi-b1 .cf-footer { z-index: 4; border-color: rgba(207, 215, 238, .84); background: rgba(255, 255, 255, .76); box-shadow: 0 12px 30px rgba(62, 70, 100, .13), 0 2px 7px rgba(62, 70, 100, .06); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+    .mi-b1 .cf-footer { z-index: 7; border-color: rgba(207, 215, 238, .84); background: rgba(255, 255, 255, .76); box-shadow: 0 12px 30px rgba(62, 70, 100, .13), 0 2px 7px rgba(62, 70, 100, .06); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
     .mi-b1 .cf-back { border-color: #d8deea; background: rgba(255, 255, 255, .8); color: #707b92; }
     .mi-b1 .cf-next { color: #28324b; }
     .mi-b1 .cf-next-number, .mi-b1 .cf-next-copy small { color: #929bb0; }
@@ -156,12 +156,12 @@
     <section class="creation-stage" aria-label="命格选取移动端界面">
       <div class="creation-phone" data-relative-phone data-relative-phone-width="320" data-relative-phone-height="694">
         <div class="cf-screen">
-          <header class="cf-header" data-creation-header data-title="选择命格" data-subtitle="携带一项转世天赋，并从五个候选中选择三条普通命格。"></header>
-          <div class="rebirth-heading"><span>转世天赋 · 可选</span><span data-rebirth-count>0 / 1</span></div>
-          <div class="rebirth-slots" aria-label="已选择的转世天赋"><button class="rebirth-slot" type="button" data-rebirth-slot="0"><strong>待选择</strong><span class="slot-placeholder">从总库选择一项，或留空</span></button></div>
+          <header class="cf-header" data-creation-header data-title="选择命格" data-subtitle="可携带两项转世天赋，并从十二个候选中选择三条普通命格。"></header>
+          <div class="rebirth-heading"><span>转世天赋 · 可选</span><span data-rebirth-count>0 / 2</span></div>
+          <div class="rebirth-slots" aria-label="已选择的转世天赋"><button class="rebirth-slot" type="button" data-rebirth-slot="0"><strong>待选择</strong><span class="slot-placeholder">选择传承</span></button><button class="rebirth-slot" type="button" data-rebirth-slot="1"><strong>待选择</strong><span class="slot-placeholder">选择传承</span></button></div>
           <div class="slot-heading"><span>普通命格</span><span data-slot-count>0 / 3</span></div>
           <div class="ordinary-slots" aria-label="已选择的普通命格"><button class="ordinary-slot" type="button" data-slot="0"><strong>待选择</strong><span class="slot-placeholder">从候选中选择</span></button><button class="ordinary-slot" type="button" data-slot="1"><strong>待选择</strong><span class="slot-placeholder">从候选中选择</span></button><button class="ordinary-slot" type="button" data-slot="2"><strong>待选择</strong><span class="slot-placeholder">从候选中选择</span></button></div>
-          <div class="candidate-head"><strong>普通命格候选 <small data-candidate-count>5 条</small></strong><button class="reroll" type="button" data-reroll>重抽未选</button></div>
+          <div class="candidate-head"><strong>普通命格候选 <small data-candidate-count>12 条</small></strong><button class="reroll" type="button" data-reroll>重抽未选</button></div>
           <div class="candidate-list" data-candidates aria-live="polite"></div>
         </div>
         <footer class="cf-footer"><button class="cf-back" type="button" data-flow-to="talent-draw" aria-label="返回命格抽取" title="返回命格抽取"><span data-icon="back"></span></button><button class="cf-next" type="button" data-flow-to="attribute-alloc" disabled><span class="cf-next-number">06</span><span class="cf-next-copy"><strong>确认命格</strong><small data-selection-status>还需选择 3 条普通命格</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button></footer>
@@ -204,7 +204,7 @@
       const rebirthOptions = document.querySelector('[data-rebirth-options]')
       const rebirthSheet = document.querySelector('[data-rebirth-sheet]')
       const rebirthSheetTitle = document.querySelector('[data-rebirth-sheet-title]')
-      let ordinary = candidates.slice(0, 5).map(function (item) { return Object.assign({}, item) })
+      let ordinary = candidates.slice(0, 12).map(function (item) { return Object.assign({}, item) })
       let rebirthTarget = 0
       let redrawRound = 0
 
@@ -238,14 +238,24 @@
         if (!item) { delete slot.dataset.name; slot.className = 'rebirth-slot'; slot.innerHTML = `<strong>待选择</strong><span class="slot-placeholder">选择传承</span>`; return }
         slot.dataset.name = item.name; slot.className = 'rebirth-slot is-filled'; slot.innerHTML = `<strong>${item.name}</strong><span class="slot-description">${item.effect}</span>${renderSlotBonuses([item.bonus])}`
       }
+      function selectedTalentItems() {
+        return slots.map(function (slot) { return candidates.find(function (item) { return item.name === slot.dataset.name }) }).filter(Boolean)
+      }
+      function selectedRebirthItems() {
+        return rebirthSlots.map(function (slot) {
+          return rebirths.find(function (item) { return item.name === slot.dataset.name })
+        }).filter(Boolean)
+      }
       function update() {
         const amount = selectedNames().size
-        rebirthCount.textContent = `${rebirthSlots.filter(function (slot) { return slot.dataset.name }).length} / 1`
+        const selectedRebirths = selectedRebirthItems()
+        rebirthCount.textContent = `${selectedRebirths.length} / 2`
         count.textContent = `${amount} / 3`
         const remaining = 3 - amount
         next.disabled = remaining !== 0
-        next.setAttribute('aria-label', remaining ? `还需选择${remaining}条普通命格` : '确认命格并进入命运预览')
-        status.textContent = remaining ? `还需选择 ${remaining} 条普通命格` : '三条普通命格已选择 · 进入命运预览'
+        next.setAttribute('aria-label', remaining ? `还需选择${remaining}条普通命格` : '确认命格并进入属性分配')
+        status.textContent = remaining ? `还需选择 ${remaining} 条普通命格` : '三条普通命格已选择 · 进入属性分配'
+        if (window.PrototypeFlow) PrototypeFlow.state.write({ talents: selectedTalentItems(), rebirths: selectedRebirths, rebirth: selectedRebirths[0] || null })
         renderCandidates()
       }
       function renderCandidates() {
@@ -285,6 +295,23 @@
         const item = rebirths[Number(button.dataset.rebirth)]; renderRebirthSlot(rebirthSlots[rebirthTarget], item); closeRebirthSheet(); renderRebirths(); update(); CreationFlow.notify(`转世天赋 · ${item.name}`)
       })
       document.querySelectorAll('[data-close-rebirth-sheet]').forEach(function (button) { button.addEventListener('click', closeRebirthSheet) })
+      document.addEventListener('DOMContentLoaded', function () {
+        const flow = PrototypeFlow.state.read()
+        const storedTalents = Array.isArray(flow.talents) ? flow.talents : []
+        slots.forEach(function (slot, index) {
+          const stored = storedTalents[index]
+          const item = stored && candidates.find(function (candidate) { return candidate.name === stored.name })
+          renderSlot(slot, item || null)
+        })
+        const storedRebirths = Array.isArray(flow.rebirths) ? flow.rebirths : flow.rebirth ? [flow.rebirth] : []
+        rebirthSlots.forEach(function (slot, index) {
+          const stored = storedRebirths[index]
+          const item = stored && rebirths.find(function (candidate) { return candidate.name === stored.name })
+          renderRebirthSlot(slot, item || null)
+        })
+        renderRebirths()
+        update()
+      }, { once: true })
       renderRebirths(); update()
     })()
   </script>
