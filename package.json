@@ -1,6 +1,6 @@
 {
   "name": "ai-life-sim",
-  "version": "5.3.4",
+  "version": "5.3.5",
   "private": true,
   "scripts": {
     "dev": "node scripts/codegen/generate-mod-wiring.mjs && next dev --turbopack",
@@ -12,6 +12,7 @@
     "generate:wiring": "node scripts/codegen/generate-mod-wiring.mjs",
     "mod:create": "node scripts/codegen/create-mod.mjs",
     "release:record": "node scripts/release/record-game-update.mjs",
+    "ops:validate-production-env": "node scripts/ops/validate-production-env.mjs",
     "logs:inspect": "node scripts/ops/inspect-ai-logs.mjs",
     "logs:analyze": "node scripts/ops/analyze-ai-logs.mjs",
     "ops:dashboard": "node scripts/ops/operations-dashboard.mjs",

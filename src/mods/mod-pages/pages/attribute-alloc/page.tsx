@@ -47,9 +47,21 @@ function normalizeAttributes(value?: Partial<BaseAttributes>): BaseAttributes {
   }
 }
 
+function describeAttribute(value: number): string {
+  if (value <= 0) return '常人水平'
+  if (value < 5) return '渐入佳境'
+  if (value < 9) return '天赋出众'
+  return '凡俗巅峰'
+}
+
+function formatSigned(value: number): string {
+  return value > 0 ? `+${value}` : String(value)
+}
+
 function AttributeAllocContent() {
   const router = useRouter()
   const characterBase = useCharacterStore((state) => state.characterBase)
+  const selectedPatterns = useCharacterStore((state) => state.destinyPatterns.patterns)
   const setCharacterBase = useCharacterStore((state) => state.setCharacterBase)
   const [initialAttributes] = useState(() => normalizeAttributes(characterBase.base))
   const [attributes, setAttributes] = useState(() => ({ ...initialAttributes }))
@@ -61,6 +73,15 @@ function AttributeAllocContent() {
     [attributes],
   )
   const remainingPoints = Math.max(0, TOTAL_POINTS - usedPoints)
+  const attributeBonuses = useMemo(() => {
+    return ATTRIBUTES.reduce((result, attribute) => {
+      result[attribute.key] = selectedPatterns.reduce(
+        (total, pattern) => total + (pattern.attrBonus?.[attribute.key] ?? 0),
+        0,
+      )
+      return result
+    }, {} as Record<keyof BaseAttributes, number>)
+  }, [selectedPatterns])
 
   useEffect(() => {
     if (!showUnusedDialog) return
@@ -106,50 +127,67 @@ function AttributeAllocContent() {
     <>
       <main className={styles.page}>
         <div className={styles.paper}>
+          <span className={styles.spine} aria-hidden="true" />
           <header className={styles.header}>
-            <span>06 / 08</span>
-            <h1>分配属性</h1>
+            <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>06 / 08</span></div>
+            <div className={styles.titleRow}>
+              <div>
+                <h1>属性分配</h1>
+                <p>塑造这段人生的先天起点。</p>
+              </div>
+              <span className={styles.titleMark} aria-hidden="true"><span>06</span></span>
+            </div>
           </header>
 
-          <section className={styles.budget} aria-labelledby="attribute-budget-title">
-            <div>
-              <span id="attribute-budget-title">剩余点数</span>
-              <strong>{remainingPoints}</strong>
+          <section className={`${styles.section} ${styles.budgetSection}`} aria-labelledby="attribute-budget-title">
+            <div className={styles.sectionHeading}><strong id="attribute-budget-title">基础点数</strong><small>命格加成不占预算</small></div>
+            <div className={styles.budget}>
+              <div className={styles.budgetScore}><b>{usedPoints}</b><span>/ {TOTAL_POINTS}</span></div>
+              <div className={styles.budgetCopy}>
+                <strong>剩余 <span>{remainingPoints}</span> 点</strong>
+                <p>四项可在 0 至 10 之间调整。</p>
+                <div className={styles.meter} role="progressbar" aria-valuemin={0} aria-valuemax={TOTAL_POINTS} aria-valuenow={usedPoints} aria-label="已使用属性点">
+                  {Array.from({ length: TOTAL_POINTS }, (_, index) => (
+                    <i key={index} className={index < usedPoints ? styles.activeSegment : ''} />
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className={styles.meter} role="progressbar" aria-valuemin={0} aria-valuemax={TOTAL_POINTS} aria-valuenow={usedPoints}>
-              {Array.from({ length: TOTAL_POINTS }, (_, index) => (
-                <i key={index} className={index < Math.ceil(usedPoints / 2) ? styles.activeSegment : ''} />
-              ))}
-            </div>
-            <small>已用 {usedPoints} / {TOTAL_POINTS}</small>
           </section>
 
-          <section className={styles.attributeList} aria-label="四项基础属性">
+          <section className={`${styles.section} ${styles.attributesSection}`} aria-labelledby="attribute-list-title">
+            <div className={styles.sectionHeading}><strong id="attribute-list-title">四项基础属性</strong><small>数值越高，倾向越明显</small></div>
+            <div className={styles.attributeList}>
             {ATTRIBUTES.map((attribute) => {
               const value = attributes[attribute.key]
               return (
                 <article key={attribute.key} className={styles.attributeRow}>
                   <div className={styles.attributeCopy}>
                     <strong>{attribute.name}</strong>
-                    <span>{attribute.description}</span>
+                    <span>{describeAttribute(value)} · {attribute.description}</span>
+                    <small>基础值 {formatSigned(value)}{attributeBonuses[attribute.key] ? ` · 命格 ${formatSigned(attributeBonuses[attribute.key])}` : ''}</small>
                   </div>
                   <div className={styles.stepper}>
                     <button type="button" onClick={() => updateAttribute(attribute.key, -1)} disabled={value <= MIN_VALUE} aria-label={`减少${attribute.name}`}>−</button>
-                    <output aria-label={`${attribute.name}当前值`}>{value}</output>
+                    <output aria-label={`${attribute.name}当前值`}>{formatSigned(value)}</output>
                     <button type="button" onClick={() => updateAttribute(attribute.key, 1)} disabled={value >= MAX_VALUE || remainingPoints <= 0} aria-label={`增加${attribute.name}`}>+</button>
                   </div>
                   <div className={styles.axis} aria-hidden="true">
-                    {Array.from({ length: 10 }, (_, index) => <i key={index} className={index < value ? styles.activeSegment : ''} />)}
+                    {Array.from({ length: 15 }, (_, index) => {
+                      const distance = Math.abs(index - Math.round(value / MAX_VALUE * 14))
+                      return <i key={index} className={`${index === Math.round(value / MAX_VALUE * 14) ? styles.axisCurrent : ''} ${distance > 5 ? styles.axisFar : distance > 2 ? styles.axisMid : ''}`} />
+                    })}
                   </div>
                 </article>
               )
             })}
-          </section>
+            </div>
 
-          <div className={styles.tools}>
-            <button type="button" onClick={() => setAttributes({ ...initialAttributes })}>重置</button>
-            <button type="button" onClick={() => setAttributes({ physique: 8, mind: 8, talentAptitude: 7, charisma: 7 })}>平均分配</button>
-          </div>
+            <div className={styles.tools}>
+              <button type="button" onClick={() => setAttributes({ ...initialAttributes })}>重置</button>
+              <button type="button" onClick={() => setAttributes({ physique: 4, mind: 4, talentAptitude: 4, charisma: 3 })}>平均分配</button>
+            </div>
+          </section>
         </div>
       </main>
 

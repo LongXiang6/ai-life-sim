@@ -1,55 +1,280 @@
 .page {
+  --flow-canvas: #eef1f7;
+  --flow-paper: #fafbff;
+  --flow-surface: #fff;
+  --flow-soft: #f1f3fa;
+  --flow-ink: #28324b;
+  --flow-muted: #707b92;
+  --flow-faint: #929bb0;
+  --flow-line: #d8deea;
+  --flow-accent: #7382bb;
   min-height: 100dvh;
   overflow-y: auto;
-  padding-bottom: calc(7rem + env(safe-area-inset-bottom));
-  background: #f3f5f7;
-  color: #1d2430;
+  padding-bottom: calc(6.75rem + env(safe-area-inset-bottom));
+  background: var(--flow-canvas);
+  color: var(--flow-ink);
   font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
+
+.page *,
+.page *::before,
+.page *::after { box-sizing: border-box; }
+
+.page button { font: inherit; -webkit-tap-highlight-color: transparent; }
 
 .paper {
-  width: min(100%, 44rem);
+  position: relative;
+  isolation: isolate;
+  width: min(100%, 42rem);
   min-height: 100dvh;
   margin: 0 auto;
-  padding: max(1.25rem, env(safe-area-inset-top)) clamp(1rem, 4vw, 1.5rem) 2rem;
-  background: #fff;
+  overflow: hidden;
+  padding: max(1rem, env(safe-area-inset-top)) clamp(.9rem, 4vw, 1.35rem) calc(6.75rem + env(safe-area-inset-bottom)) clamp(2.15rem, 8vw, 2.75rem);
+  background: var(--flow-paper);
 }
 
-.header { padding: 0.25rem 0 1rem; border-bottom: 1px solid #e4e8ed; }
-.header span { color: #8190a2; font-size: 0.75rem; font-weight: 700; }
-.header h1 { margin: 0.35rem 0 0; font-family: "Songti SC", "STSong", "SimSun", serif; font-size: clamp(1.75rem, 7vw, 2.15rem); font-weight: 600; letter-spacing: 0; }
+.paper::before {
+  position: absolute;
+  z-index: -1;
+  top: -4.5rem;
+  right: -4.5rem;
+  width: 9rem;
+  height: 9rem;
+  border: 1px solid rgb(115 130 187 / 18%);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1.25rem rgb(115 130 187 / 4%), inset 0 0 0 2.5rem rgb(115 130 187 / 3%);
+  content: "";
+}
 
-.budget { margin-top: 1rem; padding: 1rem; border: 1px solid #dde3ea; border-radius: 0.75rem; background: #f8fafc; }
-.budget > div:first-child { display: flex; align-items: baseline; justify-content: space-between; }
-.budget span, .budget small { color: #687586; font-size: 0.75rem; }
-.budget strong { color: #536f94; font-size: 1.75rem; }
-.budget small { display: block; margin-top: 0.45rem; }
-.meter, .axis { display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); gap: 0.2rem; }
-.meter { margin-top: 0.7rem; }
-.meter i, .axis i { height: 0.3rem; border-radius: 999px; background: #e1e6ec; }
-.meter .activeSegment, .axis .activeSegment { background: #6e86a6; }
+.spine {
+  position: absolute;
+  top: max(2rem, env(safe-area-inset-top));
+  bottom: calc(6rem + env(safe-area-inset-bottom));
+  left: clamp(.95rem, 4vw, 1.35rem);
+  width: 1px;
+  background: linear-gradient(180deg, transparent, var(--flow-line) 8% 92%, transparent);
+}
 
-.attributeList { margin-top: 0.75rem; border-top: 1px solid #e4e8ed; }
-.attributeRow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.7rem 1rem; padding: 1rem 0; border-bottom: 1px solid #e4e8ed; }
-.attributeCopy strong { display: block; font-family: "Songti SC", "STSong", "SimSun", serif; font-size: 1rem; }
-.attributeCopy span { display: block; margin-top: 0.2rem; color: #687586; font-size: 0.75rem; }
-.stepper { display: grid; grid-template-columns: 2.5rem 2.25rem 2.5rem; align-items: center; gap: 0.25rem; }
-.stepper button { width: 2.5rem; height: 2.5rem; padding: 0; border: 1px solid #d7dee7; border-radius: 0.625rem; background: #fff; color: #53677f; font-size: 1.15rem; }
-.stepper button:disabled { opacity: 0.35; }
-.stepper output { font-size: 0.95rem; font-weight: 700; text-align: center; }
-.axis { grid-column: 1 / -1; grid-template-columns: repeat(10, minmax(0, 1fr)); }
+.header { position: relative; }
 
-.tools { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; margin-top: 1rem; }
-.tools button { min-height: 2.75rem; border: 1px solid #d7dee7; border-radius: 0.625rem; background: #fff; color: #53677f; font-size: 0.8125rem; }
+.runningHead {
+  display: flex;
+  justify-content: space-between;
+  gap: .75rem;
+  margin-bottom: .7rem;
+  color: var(--flow-faint);
+  font-size: .625rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
 
-.dialogBackdrop { position: fixed; z-index: 260; inset: 0; display: grid; align-items: end; padding: 1rem; background: rgb(23 31 42 / 24%); }
-.dialog { width: min(100%, 30rem); margin: 0 auto; padding: 1.1rem; border-radius: 0.75rem; background: #fff; box-shadow: 0 1.25rem 3rem rgb(23 31 42 / 18%); }
-.dialog h2 { margin: 0; font-family: "Songti SC", "STSong", "SimSun", serif; font-size: 1.2rem; }
-.dialog p { margin: 0.45rem 0 1rem; color: #687586; font-size: 0.8125rem; }
-.dialog > div { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
-.dialog button { min-height: 2.75rem; border: 1px solid #d7dee7; border-radius: 0.625rem; background: #fff; color: #53677f; font-size: 0.8125rem; }
-.dialog .dialogConfirm { border-color: #5f789b; background: #5f789b; color: #fff; }
+.titleRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: .75rem;
+}
 
-@media (min-width: 48rem) {
-  .paper { margin-top: 1.5rem; min-height: calc(100dvh - 3rem); border: 1px solid #e0e5eb; }
+.titleRow h1 {
+  margin: 0;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.1;
+}
+
+.titleRow p {
+  margin: .25rem 0 0;
+  color: var(--flow-muted);
+  font-size: .75rem;
+  line-height: 1.45;
+}
+
+.titleMark {
+  position: relative;
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 2rem;
+  place-items: center;
+  color: var(--flow-accent);
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: .7rem;
+}
+
+.titleMark::before,
+.titleMark::after {
+  position: absolute;
+  border: 1px solid rgb(115 130 187 / 32%);
+  content: "";
+}
+
+.titleMark::before { inset: .125rem; border-radius: .5rem; transform: rotate(45deg); }
+.titleMark::after { inset: .45rem; border-radius: 50%; }
+.titleMark span { position: relative; z-index: 1; }
+
+.section {
+  margin-top: 1.05rem;
+  border: 1px solid var(--flow-line);
+  border-radius: .75rem;
+  background: rgb(255 255 255 / 90%);
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .75rem;
+  padding: .7rem .85rem .55rem;
+}
+
+.sectionHeading strong { font-family: "Songti SC", "STSong", "SimSun", serif; font-size: .95rem; }
+.sectionHeading small { color: var(--flow-faint); font-size: .65rem; }
+
+.budget {
+  display: grid;
+  grid-template-columns: 4rem minmax(0, 1fr);
+  gap: .8rem;
+  align-items: center;
+  padding: .75rem .85rem .9rem;
+}
+
+.budgetScore {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  min-height: 3.5rem;
+  border: 1px solid var(--flow-line);
+  border-radius: .65rem;
+  background: var(--flow-soft);
+}
+
+.budgetScore b { font-size: 1.65rem; line-height: 1; }
+.budgetScore span { color: var(--flow-faint); font-size: .65rem; }
+.budgetCopy { min-width: 0; }
+.budgetCopy strong { font-size: .82rem; }
+.budgetCopy strong span { color: var(--flow-accent); font-size: 1.1rem; }
+.budgetCopy p { margin: .2rem 0 .55rem; color: var(--flow-muted); font-size: .68rem; }
+
+.meter,
+.axis {
+  display: grid;
+  grid-template-columns: repeat(15, minmax(0, 1fr));
+  gap: .2rem;
+}
+
+.meter i,
+.axis i {
+  display: block;
+  height: .28rem;
+  border-radius: 999px;
+  background: #e5e8f0;
+}
+
+.meter .activeSegment { background: var(--flow-accent); }
+
+.attributeList { padding: 0 .85rem; }
+
+.attributeRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .55rem .75rem;
+  padding: .85rem 0 .75rem;
+  border-top: 1px solid #e7eaf2;
+}
+
+.attributeCopy { min-width: 0; }
+.attributeCopy strong { display: block; font-family: "Songti SC", "STSong", "SimSun", serif; font-size: .95rem; }
+.attributeCopy span,
+.attributeCopy small { display: block; margin-top: .18rem; color: var(--flow-muted); font-size: .68rem; line-height: 1.35; }
+.attributeCopy small { color: var(--flow-faint); }
+
+.stepper {
+  display: grid;
+  grid-template-columns: 2rem 2.3rem 2rem;
+  align-items: center;
+  gap: .2rem;
+}
+
+.stepper button {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid var(--flow-line);
+  border-radius: .55rem;
+  background: var(--flow-surface);
+  color: var(--flow-accent);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.stepper button:disabled { cursor: not-allowed; opacity: .35; }
+.stepper output { font-size: .9rem; font-weight: 700; text-align: center; }
+
+.axis {
+  grid-column: 1 / -1;
+  align-items: center;
+}
+
+.axis i { height: .2rem; opacity: .32; }
+.axis .axisMid { opacity: .56; }
+.axis .axisFar { opacity: .2; }
+.axis .axisCurrent { height: .48rem; border-radius: 50%; background: var(--flow-accent); opacity: 1; }
+
+.tools {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .55rem;
+  padding: .8rem 0 .9rem;
+}
+
+.tools button {
+  min-height: 2.1rem;
+  border: 1px solid var(--flow-line);
+  border-radius: .55rem;
+  background: var(--flow-surface);
+  color: var(--flow-muted);
+  font-size: .72rem;
+  cursor: pointer;
+}
+
+.tools button:hover,
+.tools button:focus-visible,
+.stepper button:focus-visible { outline: 2px solid rgb(115 130 187 / 42%); outline-offset: 2px; }
+
+.dialogBackdrop {
+  position: fixed;
+  z-index: 260;
+  inset: 0;
+  display: grid;
+  align-items: end;
+  padding: 1rem;
+  background: rgb(40 50 75 / 24%);
+}
+
+.dialog {
+  width: min(100%, 30rem);
+  margin: 0 auto;
+  padding: 1.1rem;
+  border: 1px solid var(--flow-line);
+  border-radius: .75rem;
+  background: var(--flow-surface);
+  box-shadow: 0 1.25rem 3rem rgb(40 50 75 / 18%);
+}
+
+.dialog h2 { margin: 0; font-family: "Songti SC", "STSong", "SimSun", serif; font-size: 1.15rem; }
+.dialog p { margin: .45rem 0 1rem; color: var(--flow-muted); font-size: .78rem; line-height: 1.5; }
+.dialog > div { display: grid; grid-template-columns: 1fr 1fr; gap: .55rem; }
+.dialog button { min-height: 2.5rem; border: 1px solid var(--flow-line); border-radius: .55rem; background: var(--flow-surface); color: var(--flow-muted); font-size: .75rem; cursor: pointer; }
+.dialog .dialogConfirm { border-color: var(--flow-accent); background: var(--flow-accent); color: #fff; }
+
+@media (min-width: 64rem) {
+  .page { --content-max-width: 48rem; --font-size-base: 1.0625rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page *,
+  .page *::before,
+  .page *::after { transition: none !important; animation: none !important; }
 }

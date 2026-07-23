@@ -23,6 +23,14 @@ export default defineMod({
     { path: '/new-game/world-customize', page: 'world-customize' },
     { path: '/new-game/world-build', page: 'world-build' },
     { path: '/new-game/character-create', page: 'character-create' },
+    // The mobile solution library uses /new-game/* for every creation step.
+    // Keep those links first-class while retaining the shorter legacy paths.
+    { path: '/new-game/talent-draw', page: 'talent-draw' },
+    { path: '/new-game/mythic-inheritance', page: 'talent-draw' },
+    { path: '/new-game/attribute-alloc', page: 'attribute-alloc' },
+    { path: '/new-game/fate-preview', page: 'fate-preview' },
+    { path: '/new-game/game-story', page: 'game-story' },
+    { path: '/new-game/game-over', page: 'game-over' },
     { path: '/talent-draw', page: 'talent-draw' },
     { path: '/attribute-alloc', page: 'attribute-alloc' },
     { path: '/fate-preview', page: 'fate-preview' },

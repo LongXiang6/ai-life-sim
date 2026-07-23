@@ -133,6 +133,19 @@ const prototypeAttributeSrc = readRel('docs/ui-prototypes/mobile/attribute-alloc
 const prototypeFatePreviewSrc = readRel('docs/ui-prototypes/mobile/fate-preview/round-refactor-01-style-1.html')
 const prototypeGameStorySrc = readRel('docs/ui-prototypes/mobile/game-story/round-refactor-20-style-1.html')
 const prototypeGameOverSrc = readRel('docs/ui-prototypes/mobile/game-over/final.html')
+const pageManifestSrc = readRel('src/mods/mod-pages/manifest.ts')
+
+assertOk(
+  [
+    ['/new-game/talent-draw', 'talent-draw'],
+    ['/new-game/mythic-inheritance', 'talent-draw'],
+    ['/new-game/attribute-alloc', 'attribute-alloc'],
+    ['/new-game/fate-preview', 'fate-preview'],
+    ['/new-game/game-story', 'game-story'],
+    ['/new-game/game-over', 'game-over'],
+  ].every(([path, page]) => new RegExp(`\\{ path: '${path}', page: '${page}' \\}`).test(pageManifestSrc)),
+  'the runtime must register the solution-library /new-game aliases for every linked creation and narrative page',
+)
 
 assertOk(
   worldCustomizeLogicSrc.includes('raw.worldCode === currentWorldCode')
