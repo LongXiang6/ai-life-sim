@@ -93,6 +93,21 @@ try {
     })),
     (error) => error?.code === 'invalid_origin',
   )
+  assert.doesNotThrow(() => http.assertSameOrigin(new Request('http://ai-mnrs.icu/api/account', {
+    headers: {
+      origin: 'https://ai-mnrs.icu',
+      'x-forwarded-proto': 'https',
+    },
+  })))
+  assert.throws(
+    () => http.assertSameOrigin(new Request('http://ai-mnrs.icu/api/account', {
+      headers: {
+        origin: 'https://ai-mnrs.icu',
+        'x-forwarded-proto': 'http',
+      },
+    })),
+    (error) => error?.code === 'invalid_origin',
+  )
   await assert.rejects(
     () => http.parseAccountJson(new Request('https://example.test/api/account', {
       method: 'POST',

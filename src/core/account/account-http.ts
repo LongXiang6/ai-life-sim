@@ -12,13 +12,29 @@ import {
 import { AccountServiceError } from './account-service'
 import { getServerRequestSource } from '@/core/logger/server-log-store'
 
+function getExpectedRequestOrigin(request: Request): string {
+  const url = new URL(request.url)
+  const forwardedProto = request.headers.get('x-forwarded-proto')
+    ?.split(',', 1)[0]
+    ?.trim()
+    .toLowerCase()
+
+  // The production app listens only on loopback and Nginx overwrites this
+  // header, so HTTPS browser requests retain their public origin here.
+  if (forwardedProto === 'http' || forwardedProto === 'https') {
+    url.protocol = `${forwardedProto}:`
+  }
+
+  return url.origin
+}
+
 export function assertSameOrigin(request: Request): void {
   const fetchSite = request.headers.get('sec-fetch-site')
   if (fetchSite === 'cross-site') {
     throw new AccountServiceError('拒绝跨站账号请求', 403, 'cross_site_request')
   }
   const origin = request.headers.get('origin')
-  if (origin && origin !== new URL(request.url).origin) {
+  if (origin && origin !== getExpectedRequestOrigin(request)) {
     throw new AccountServiceError('账号请求来源无效', 403, 'invalid_origin')
   }
 }
