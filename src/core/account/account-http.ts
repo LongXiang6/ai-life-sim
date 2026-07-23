@@ -19,9 +19,20 @@ function getExpectedRequestOrigin(request: Request): string {
     ?.trim()
     .toLowerCase()
 
-  // The production app listens only on loopback and Nginx overwrites this
-  // header, so HTTPS browser requests retain their public origin here.
+  // The production app listens only on loopback and Nginx overwrites both
+  // headers, so HTTPS browser requests retain their public origin here.
   if (forwardedProto === 'http' || forwardedProto === 'https') {
+    const forwardedHost = request.headers.get('x-forwarded-host')
+      ?.split(',', 1)[0]
+      ?.trim()
+    const publicHost = forwardedHost || request.headers.get('host')?.trim()
+    if (publicHost) {
+      try {
+        return new URL(`${forwardedProto}://${publicHost}`).origin
+      } catch {
+        // Fall through to a guaranteed-valid URL that will fail comparison.
+      }
+    }
     url.protocol = `${forwardedProto}:`
   }
 

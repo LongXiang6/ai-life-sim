@@ -93,16 +93,18 @@ try {
     })),
     (error) => error?.code === 'invalid_origin',
   )
-  assert.doesNotThrow(() => http.assertSameOrigin(new Request('http://ai-mnrs.icu/api/account', {
+  assert.doesNotThrow(() => http.assertSameOrigin(new Request('http://localhost:3000/api/account', {
     headers: {
       origin: 'https://ai-mnrs.icu',
+      host: 'ai-mnrs.icu',
       'x-forwarded-proto': 'https',
     },
   })))
   assert.throws(
-    () => http.assertSameOrigin(new Request('http://ai-mnrs.icu/api/account', {
+    () => http.assertSameOrigin(new Request('http://localhost:3000/api/account', {
       headers: {
         origin: 'https://ai-mnrs.icu',
+        host: 'ai-mnrs.icu',
         'x-forwarded-proto': 'http',
       },
     })),
