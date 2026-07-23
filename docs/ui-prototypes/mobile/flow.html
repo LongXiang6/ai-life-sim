@@ -14,14 +14,15 @@
     .preview-frame-wrap {
       flex: 0 0 auto;
       width: 430px;
-      height: 932px;
+      height: auto;
+      aspect-ratio: 430 / 932;
       border: 0;
       border-radius: 0;
       outline: 1px solid var(--ew-line);
     }
     @media (max-width: 680px) {
-      .preview-stage { justify-content: start; }
-      .preview-frame-wrap { width: 430px; height: 932px; }
+      .preview-stage { justify-content: start; padding: 0; }
+      .preview-frame-wrap { width: 100vw; }
     }
   </style>
 </head>
@@ -50,7 +51,7 @@
 
       <div class="preview-stage">
         <div class="preview-frame-wrap">
-          <iframe class="preview-frame" id="preview-frame" title="AI Life Sim 移动端界面预览" src="welcome/round-19-rf4-b-refinement.html?preview=20260723-ui-sync-4"></iframe>
+          <iframe class="preview-frame" id="preview-frame" title="AI Life Sim 移动端界面预览" src="welcome/round-19-rf4-b-refinement.html?preview=20260723-ui-sync-5"></iframe>
         </div>
       </div>
 
@@ -90,7 +91,7 @@
         ['feedback', '反馈与建议', 'feedback/final.html'],
       ]
       const mainFlowCount = 10
-      const previewRevision = '20260723-ui-sync-4'
+      const previewRevision = '20260723-ui-sync-5'
       const frame = document.querySelector('#preview-frame')
       const list = document.querySelector('#screen-list')
       const currentName = document.querySelector('#current-screen')

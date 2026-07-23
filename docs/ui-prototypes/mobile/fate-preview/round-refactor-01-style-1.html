@@ -11,6 +11,22 @@
   <script src="../assets/prototype.js?v=20260723-ui-sync-4" defer></script>
   <script src="../assets/creation-flow-unified.js?v=20260723-ui-sync-4" defer></script>
   <script src="../assets/relative-phone-layout.js?v=20260723-ui-sync-4" defer></script>
+  <style>
+    body[data-screen="fate-preview"] .cf-footer {
+      z-index: 4;
+      border-color: rgba(207, 215, 238, .84);
+      background: rgba(255, 255, 255, .76);
+      box-shadow: 0 12px 30px rgba(62, 70, 100, .13), 0 2px 7px rgba(62, 70, 100, .06);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+    }
+    body[data-screen="fate-preview"] .cf-back { border-color: #d8deea; background: rgba(255, 255, 255, .8); color: #707b92; }
+    body[data-screen="fate-preview"] .cf-next { color: #28324b; }
+    body[data-screen="fate-preview"] .cf-next-number,
+    body[data-screen="fate-preview"] .cf-next-copy small { color: #929bb0; }
+    body[data-screen="fate-preview"] .cf-next-copy strong { font-size: 12.2px; font-weight: 680; }
+    body[data-screen="fate-preview"] .cf-next-arrow { background: #7382bb; color: #fff; }
+  </style>
 </head>
 <body data-screen="fate-preview" data-creation-step="7">
   <main class="creation-shell">

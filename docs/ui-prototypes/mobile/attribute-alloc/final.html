@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>属性分配 · 最终首版</title>
+  <title>属性分配 · AA-RF1-1 布局</title>
+  <link rel="icon" href="data:,">
   <link rel="stylesheet" href="../assets/library.css?v=20260723-ui-sync-4">
   <link rel="stylesheet" href="../assets/creation-flow-unified.css?v=20260723-ui-sync-4">
   <link rel="stylesheet" href="../assets/relative-phone-layout.css?v=20260723-ui-sync-4">
@@ -11,8 +12,8 @@
   <script src="../assets/creation-flow-unified.js?v=20260723-ui-sync-4" defer></script>
   <script src="../assets/relative-phone-layout.js?v=20260723-ui-sync-4" defer></script>
   <style>
-    body.attribute-b1 { background: #eef1f7; }
-    .attribute-b1 .creation-phone {
+    body.attribute-aa { background: #eef1f7; }
+    .attribute-aa .creation-phone {
       --cf-paper: #fafbff;
       --cf-surface: #fff;
       --cf-soft: #f1f3fa;
@@ -23,7 +24,6 @@
       --cf-line-strong: #d8deea;
       --cf-accent: #7382bb;
       --cf-accent-soft: #edf0fb;
-      --cf-ornament: #7787c0;
       width: min(100%, 320px);
       height: 694px;
       border-color: #d8deea;
@@ -31,103 +31,108 @@
       background: linear-gradient(180deg, #fafbff 0%, #f2f4f9 100%);
       box-shadow: 0 20px 48px rgba(62, 70, 100, .09);
     }
-    .attribute-screen {
-      position: absolute;
-      z-index: 1;
-      inset: 0;
-      display: flex;
-      min-height: 0;
-      flex-direction: column;
-      overflow-x: hidden;
-      overflow-y: auto;
-      padding: 15px 17px 88px;
-      scrollbar-width: none;
+    .attribute-aa .cf-screen { inset: 0; padding: 15px 16px 84px; }
+    .attribute-aa .cf-section { margin-top: 10px; border-color: #d8deea; background: rgba(255, 255, 255, .9); }
+    .attribute-aa .cf-stepper button:disabled { cursor: not-allowed; opacity: .36; }
+    .attribute-aa .cf-tools .cf-secondary-button { min-height: 33px; }
+    .attribute-aa .cf-footer {
+      z-index: 8;
+      border-color: rgba(207, 215, 238, .84);
+      background: rgba(255, 255, 255, .76);
+      box-shadow: 0 12px 30px rgba(62, 70, 100, .13), 0 2px 7px rgba(62, 70, 100, .06);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
     }
-    .attribute-screen::-webkit-scrollbar { display: none; }
-    .attribute-step { color: var(--cf-faint); font-size: 9px; font-weight: 700; }
-    .attribute-title { margin-top: 6px; color: var(--cf-ink); font-family: var(--cf-serif); font-size: 21px; font-weight: 600; }
-    .attribute-subtitle { margin-top: 5px; color: var(--cf-muted); font-size: 9px; line-height: 1.55; }
-    .attribute-budget { display: grid; grid-template-columns: 50px 1fr; gap: 10px; align-items: center; margin-top: 15px; padding: 11px 0; border-top: 1px solid var(--cf-line); border-bottom: 1px solid var(--cf-line); }
-    .attribute-score { display: grid; width: 48px; height: 48px; place-items: center; border: 1px solid var(--cf-line); border-radius: 50%; font-family: var(--cf-serif); text-align: center; }
-    .attribute-score b { display: block; font-size: 14px; }
-    .attribute-score small { display: block; color: var(--cf-faint); font-size: 9px; }
-    .attribute-budget-copy b { font-size: 10px; }
-    .attribute-budget-copy p { margin: 4px 0 0; color: var(--cf-muted); font-size: 9px; line-height: 1.45; }
-    .attribute-segments { display: grid; grid-template-columns: repeat(15, 1fr); gap: 2px; margin-top: 7px; }
-    .attribute-segments i { height: 3px; border-radius: 3px; background: #e5e9f2; }
-    .attribute-segments i.on { background: var(--cf-accent); }
-    .attribute-caption { display: flex; justify-content: space-between; margin: 11px 1px 5px; color: var(--cf-faint); font-size: 9px; }
-    .attribute-list { display: grid; min-height: 304px; flex: 1; grid-template-rows: repeat(4, minmax(76px, 1fr)); border-top: 1px solid #e5e9f2; }
-    .attribute-row { display: grid; align-content: center; padding: 9px 0; border-bottom: 1px solid #e5e9f2; }
-    .attribute-row-head { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; }
-    .attribute-name { font-family: var(--cf-serif); font-size: 11px; }
-    .attribute-bonus { margin-left: 5px; color: #5f876f; font-family: var(--cf-sans); font-size: 9px; }
-    .attribute-semantic { margin-top: 4px; color: #6576b2; font-size: 9px; font-weight: 600; }
-    .attribute-base { margin-top: 2px; color: var(--cf-faint); font-size: 9px; }
-    .attribute-stepper { display: grid; grid-template-columns: 30px 34px 30px; gap: 3px; align-items: center; }
-    .attribute-stepper button { width: 30px; height: 30px; border: 1px solid var(--cf-line); border-radius: 50%; background: rgba(255, 255, 255, .96); color: var(--cf-muted); font-size: 13px; }
-    .attribute-stepper button:disabled { color: #bdc4d2; background: rgba(255, 255, 255, .55); cursor: not-allowed; }
-    .attribute-value { color: var(--cf-ink); font-size: 11px; font-weight: 700; text-align: center; }
-    .attribute-axis { display: grid; grid-template-columns: repeat(15, 1fr); gap: 2px; margin-top: 8px; }
-    .attribute-axis i { height: 5px; border-radius: 4px; background: #e5e9f2; opacity: .75; }
-    .attribute-axis i.far { height: 2px; align-self: center; opacity: .35; }
-    .attribute-axis i.mid { height: 3px; align-self: center; opacity: .55; }
-    .attribute-axis i.on { background: var(--cf-accent); opacity: 1; }
-    .attribute-tools { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 11px; padding: 3px; border: 1px solid var(--cf-line); border-radius: 18px; background: rgba(255, 255, 255, .8); box-shadow: 0 9px 26px rgba(62, 70, 100, .08); }
-    .attribute-tools button { height: 33px; border: 1px solid var(--cf-line); border-radius: 14px; background: rgba(255, 255, 255, .96); color: var(--cf-muted); font-size: 9px; }
-    .attribute-b1 .cf-footer { border-color: rgba(207, 215, 238, .84); background: rgba(255, 255, 255, .8); backdrop-filter: blur(16px); }
-    .attribute-b1 .cf-next-arrow { background: #7382bb; }
-    .attribute-dialog { position: absolute; z-index: 20; inset: 0; display: grid; place-items: end center; padding: 18px; background: rgba(40, 50, 75, .18); opacity: 0; visibility: hidden; transition: opacity .2s; }
-    .attribute-dialog.open { opacity: 1; visibility: visible; }
-    .attribute-dialog-panel { width: 100%; padding: 14px; border: 1px solid var(--cf-line); border-radius: 12px; background: #fff; box-shadow: 0 16px 34px rgba(62, 70, 100, .14); transform: translateY(8px); transition: transform .2s; }
-    .attribute-dialog.open .attribute-dialog-panel { transform: none; }
-    .attribute-dialog-panel h3 { margin: 0; font-family: var(--cf-serif); font-size: 13px; }
-    .attribute-dialog-panel p { margin: 7px 0 12px; color: var(--cf-muted); font-size: 9px; line-height: 1.55; }
-    .attribute-dialog-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-    .attribute-dialog-actions button { min-height: 35px; border: 1px solid var(--cf-line); border-radius: 8px; background: transparent; color: var(--cf-muted); font-size: 9px; }
-    .attribute-dialog-actions .continue { border-color: #cfd7ee; background: #edf0fb; color: #6576b2; font-weight: 700; }
+    .attribute-aa .cf-back { border-color: #d8deea; background: rgba(255, 255, 255, .8); color: #707b92; }
+    .attribute-aa .cf-next { color: #28324b; }
+    .attribute-aa .cf-next-number,
+    .attribute-aa .cf-next-copy small { color: #929bb0; }
+    .attribute-aa .cf-next-copy strong { font-size: 12.2px; font-weight: 680; }
+    .attribute-aa .cf-next-arrow { background: #7382bb; color: #fff; }
+    .attribute-aa .cf-dialog-actions .is-primary { border-color: #7382bb; background: #7382bb; color: #fff; }
     @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
   </style>
 </head>
-<body class="attribute-b1" data-screen="attribute-alloc" data-creation-step="6">
+<body class="attribute-aa" data-screen="attribute-alloc" data-creation-step="6">
   <main class="creation-shell">
     <header class="creation-review">
       <p class="creation-review-label">CREATION FLOW · 06 / 08</p>
       <h1>属性分配</h1>
-      <p class="creation-review-copy">四项基础属性共用 15 点预算，每项可在 0—10 之间分配。</p>
+      <p class="creation-review-copy">沿用 AA-RF1-1 的预算优先布局，四项基础属性共用 15 点。</p>
     </header>
+
     <section class="creation-stage" aria-label="属性分配移动端界面">
       <div class="creation-phone" data-relative-phone data-relative-phone-width="320" data-relative-phone-height="694">
-        <div class="attribute-screen">
-          <header class="cf-header" data-creation-header data-title="属性分配" data-subtitle="四项属性自由增减，命格修正单独计算。"></header>
-          <section class="attribute-budget">
-            <div class="attribute-score"><div><b class="used">12</b><small>/ 15</small></div></div>
-            <div class="attribute-budget-copy"><b>剩余点数 <span class="remain">3</span></b><p>未用点数可在确认后保留。</p><div class="attribute-segments"></div></div>
+        <div class="cf-screen">
+          <header class="cf-header" data-creation-header data-title="属性分配" data-subtitle="塑造这段人生的先天起点。"></header>
+
+          <section class="cf-section" aria-labelledby="budget-title">
+            <div class="cf-section-head"><strong id="budget-title">基础点数</strong><small>命格加成不占预算</small></div>
+            <div class="cf-budget">
+              <div class="cf-budget-score"><div><b data-used>12</b><span>/ 15</span></div></div>
+              <div class="cf-budget-copy">
+                <strong>剩余 <span data-remain aria-live="polite">3</span> 点</strong>
+                <p>四项可在 0 至 10 之间调整。</p>
+                <div class="cf-meter" data-budget-meter role="progressbar" aria-label="已使用属性点" aria-valuemin="0" aria-valuemax="15" aria-valuenow="12"></div>
+              </div>
+            </div>
           </section>
-          <div class="attribute-caption"><span>四项基础属性</span><span>每项 0—10</span></div>
-          <div class="attribute-list"></div>
-          <div class="attribute-tools"><button class="reset" type="button">重置</button><button class="average" type="button">平均分配</button></div>
+
+          <section class="cf-section" aria-labelledby="attribute-title">
+            <div class="cf-section-head"><strong id="attribute-title">四项基础属性</strong><small>数值越高，倾向越明显</small></div>
+            <ol class="cf-attribute-list" data-attribute-list></ol>
+            <div class="cf-tools">
+              <button class="cf-secondary-button" type="button" data-reset>重置</button>
+              <button class="cf-secondary-button" type="button" data-average>平均分配</button>
+            </div>
+          </section>
         </div>
+
         <footer class="cf-footer">
-          <button class="cf-back" type="button" data-flow-to="mythic-inheritance" aria-label="返回命格选择"><span data-icon="back"></span></button>
-          <button class="cf-next confirm" type="button"><span class="cf-next-number">07</span><span class="cf-next-copy"><strong>确认属性</strong><small class="confirm-hint">剩余 3 点</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button>
+          <button class="cf-back" type="button" data-flow-to="mythic-inheritance" data-flow-back aria-label="返回命格选择" title="返回命格选择"><span data-icon="back"></span></button>
+          <button class="cf-next" type="button" data-confirm><span class="cf-next-number">07</span><span class="cf-next-copy"><strong>确认属性</strong><small data-footer-status>尚余 3 点 · 下一步核对命运</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button>
         </footer>
-        <div class="attribute-dialog" role="dialog" aria-modal="true" aria-hidden="true">
-          <div class="attribute-dialog-panel"><h3>仍有属性点未使用</h3><p>剩余 <b class="dialog-remain"></b> 点将保留。你可以继续调整，或按当前配置进入命运预览。</p><div class="attribute-dialog-actions"><button class="close" type="button">继续分配</button><button class="continue" type="button" data-flow-to="fate-preview">确认并继续</button></div></div>
+
+        <div class="cf-dialog" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="unused-title" data-unused-dialog inert>
+          <div class="cf-dialog-panel">
+            <h3 id="unused-title">仍有属性点未使用</h3>
+            <p>剩余 <strong data-dialog-remain></strong> 点将保留。你可以继续调整，或按当前配置进入命运预览。</p>
+            <div class="cf-dialog-actions">
+              <button class="cf-secondary-button" type="button" data-dialog-close>继续分配</button>
+              <button class="cf-secondary-button is-primary" type="button" data-flow-to="fate-preview">确认并继续</button>
+            </div>
+          </div>
         </div>
+        <div class="cf-toast" role="status" aria-live="polite"></div>
       </div>
     </section>
   </main>
+
   <script>
     (function () {
       const attributeKeys = ['physique', 'mind', 'talentAptitude', 'charisma']
       const attributeLabels = ['体魄', '心智', '悟性', '魅力']
-      let attributes = attributeLabels.map(function (label, index) { return [label, [2, 1, 0, 0][index]] })
       const initial = [6, 4, 2, 0]
       const total = 15
+      const minimum = 0
+      const maximum = 10
       let values = initial.slice()
-      const list = document.querySelector('.attribute-list')
-      const dialog = document.querySelector('.attribute-dialog')
+      let bonuses = [2, 1, 0, 0]
+
+      const list = document.querySelector('[data-attribute-list]')
+      const dialog = document.querySelector('[data-unused-dialog]')
+      const closeButton = document.querySelector('[data-dialog-close]')
+
+      function describe(value) {
+        if (value === 0) return '常人水平'
+        if (value < 5) return '渐入佳境'
+        if (value < 9) return '天赋出众'
+        return '凡俗巅峰'
+      }
+
+      function usedPoints() {
+        return values.reduce(function (sum, value) { return sum + value }, 0)
+      }
 
       function talentBonuses(talents) {
         return attributeKeys.map(function (key) {
@@ -141,74 +146,113 @@
           attributes: {
             base: Object.fromEntries(attributeKeys.map(function (key, index) { return [key, values[index]] })),
             used: used,
-            remaining: remain
-          }
+            remaining: remain,
+          },
         })
       }
 
-      function description(value) {
-        if (value === 0) return '常人水平'
-        if (value < 5) return '渐入佳境'
-        if (value < 9) return '天赋出众'
-        return '凡俗巅峰'
+      function closeDialog() {
+        dialog.classList.remove('is-open')
+        dialog.setAttribute('aria-hidden', 'true')
+        dialog.inert = true
+        document.querySelector('[data-confirm]').focus()
       }
 
       function render() {
-        const used = values.reduce(function (sum, value) { return sum + value }, 0)
+        const used = usedPoints()
         const remain = total - used
         persistAttributes(used, remain)
-        document.querySelector('.used').textContent = used
-        document.querySelector('.remain').textContent = remain
-        document.querySelector('.confirm-hint').textContent = remain ? '剩余 ' + remain + ' 点' : '进入命运预览'
-        document.querySelector('.attribute-segments').innerHTML = Array.from({ length: 15 }, function (_, index) { return '<i class="' + (index < Math.round(used / total * 15) ? 'on' : '') + '"></i>' }).join('')
-        list.innerHTML = attributes.map(function (attribute, index) {
-          const value = values[index]
-          const position = Math.round(value / 10 * 14)
-          const minusDisabled = value <= 0 ? ' disabled' : ''
-          const plusDisabled = value >= 10 || used >= total ? ' disabled' : ''
-          const bonus = attribute[1] ? '<span class="attribute-bonus">命格 +' + attribute[1] + '</span>' : ''
-          const axis = Array.from({ length: 15 }, function (_, axisIndex) {
-            const distance = Math.abs(axisIndex - position)
-            return '<i class="' + (distance > 5 ? 'far ' : distance > 2 ? 'mid ' : '') + (axisIndex === position ? 'on' : '') + '"></i>'
-          }).join('')
-          return '<section class="attribute-row"><div class="attribute-row-head"><div><div class="attribute-name">' + attribute[0] + bonus + '</div><div class="attribute-semantic">' + description(value) + '</div><div class="attribute-base">基础值 ' + value + '</div></div><div class="attribute-stepper"><button type="button" data-index="' + index + '" data-delta="-1" aria-label="减少' + attribute[0] + '"' + minusDisabled + '>−</button><span class="attribute-value">' + value + '</span><button type="button" data-index="' + index + '" data-delta="1" aria-label="增加' + attribute[0] + '"' + plusDisabled + '>＋</button></div></div><div class="attribute-axis">' + axis + '</div></section>'
+        document.querySelector('[data-used]').textContent = used
+        document.querySelector('[data-remain]').textContent = remain
+        document.querySelector('[data-footer-status]').textContent = remain > 0
+          ? `尚余 ${remain} 点 · 下一步核对命运`
+          : '预算已分配 · 下一步核对命运'
+        const meter = document.querySelector('[data-budget-meter]')
+        meter.setAttribute('aria-valuenow', used)
+        meter.setAttribute('aria-valuetext', `已使用 ${used} 点，剩余 ${remain} 点`)
+        meter.innerHTML = Array.from({ length: 15 }, function (_, index) {
+          return `<i class="${index < used ? 'is-on' : ''}"></i>`
         }).join('')
-        list.querySelectorAll('[data-delta]').forEach(function (button) {
-          button.addEventListener('click', function () {
-            const index = Number(button.dataset.index)
-            const next = values[index] + Number(button.dataset.delta)
-            const nextTotal = values.reduce(function (sum, value, valueIndex) { return sum + (valueIndex === index ? next : value) }, 0)
-            if (next < 0 || next > 10 || nextTotal > total) return
-            values[index] = next
-            render()
-          })
-        })
+
+        list.innerHTML = attributeLabels.map(function (label, index) {
+          const value = values[index]
+          const axisPosition = Math.round(value / maximum * 14)
+          const cannotDecrease = value <= minimum
+          const cannotIncrease = value >= maximum || remain <= 0
+          const bonus = bonuses[index] ? ` · 命格 ${bonuses[index] > 0 ? '+' : ''}${bonuses[index]}` : ''
+          const axis = Array.from({ length: 15 }, function (_, axisIndex) {
+            const distance = Math.abs(axisIndex - axisPosition)
+            const classes = [distance > 5 ? 'is-far' : distance > 2 ? 'is-mid' : '', axisIndex === axisPosition ? 'is-on' : ''].filter(Boolean).join(' ')
+            return `<i class="${classes}"></i>`
+          }).join('')
+          return `<li class="cf-attribute">
+            <div class="cf-attribute-name"><strong>${label}</strong><span>${describe(value)}${bonus}</span><span class="cf-attribute-base">基础值 ${value}</span></div>
+            <div class="cf-stepper">
+              <button type="button" data-index="${index}" data-delta="-1" aria-label="降低${label}"${cannotDecrease ? ' disabled' : ''}>−</button>
+              <b>${value}</b>
+              <button type="button" data-index="${index}" data-delta="1" aria-label="提高${label}"${cannotIncrease ? ' disabled' : ''}>＋</button>
+            </div>
+            <div class="cf-axis" aria-hidden="true">${axis}</div>
+          </li>`
+        }).join('')
       }
 
-      document.querySelector('.reset').addEventListener('click', function () { values = [0, 0, 0, 0]; render() })
-      document.querySelector('.average').addEventListener('click', function () { values = [4, 4, 4, 3]; render() })
-      document.querySelector('.confirm').addEventListener('click', function () {
-        const remain = total - values.reduce(function (sum, value) { return sum + value }, 0)
-        if (!remain) { PrototypeFlow.go('fate-preview'); return }
-        document.querySelector('.dialog-remain').textContent = remain
-        dialog.classList.add('open')
+      list.addEventListener('click', function (event) {
+        const button = event.target.closest('[data-delta]')
+        if (!button || button.disabled) return
+        const index = Number(button.dataset.index)
+        const next = values[index] + Number(button.dataset.delta)
+        const nextUsed = values.reduce(function (sum, value, valueIndex) {
+          return sum + (valueIndex === index ? next : value)
+        }, 0)
+        if (next < minimum || next > maximum || nextUsed > total) return
+        values[index] = next
+        render()
+      })
+
+      document.querySelector('[data-reset]').addEventListener('click', function () {
+        values = initial.slice()
+        render()
+        CreationFlow.notify('已恢复初始属性')
+      })
+
+      document.querySelector('[data-average]').addEventListener('click', function () {
+        values = [4, 4, 4, 3]
+        render()
+        CreationFlow.notify('15 点已平均分配')
+      })
+
+      document.querySelector('[data-confirm]').addEventListener('click', function () {
+        const remain = total - usedPoints()
+        if (remain <= 0) {
+          PrototypeFlow.go('fate-preview')
+          return
+        }
+        document.querySelector('[data-dialog-remain]').textContent = remain
+        dialog.classList.add('is-open')
         dialog.setAttribute('aria-hidden', 'false')
+        dialog.inert = false
+        closeButton.focus()
       })
-      document.querySelector('.close').addEventListener('click', function () {
-        dialog.classList.remove('open')
-        dialog.setAttribute('aria-hidden', 'true')
+
+      closeButton.addEventListener('click', closeDialog)
+      dialog.addEventListener('click', function (event) { if (event.target === dialog) closeDialog() })
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && dialog.classList.contains('is-open')) closeDialog()
       })
+
       document.addEventListener('DOMContentLoaded', function () {
         const flow = PrototypeFlow.state.read()
-        const bonuses = talentBonuses(Array.isArray(flow.talents) ? flow.talents : [])
-        if (bonuses.some(Boolean) || Array.isArray(flow.talents)) attributes = attributeLabels.map(function (label, index) { return [label, bonuses[index]] })
+        bonuses = talentBonuses(Array.isArray(flow.talents) ? flow.talents : [])
         const stored = flow.attributes?.base
         if (stored) {
           const restored = attributeKeys.map(function (key) { return Number(stored[key]) })
-          if (restored.every(function (value) { return Number.isFinite(value) && value >= 0 && value <= 10 }) && restored.reduce(function (sum, value) { return sum + value }, 0) <= total) values = restored
+          if (restored.every(function (value) { return Number.isFinite(value) && value >= minimum && value <= maximum })
+            && restored.reduce(function (sum, value) { return sum + value }, 0) <= total) values = restored
         }
         render()
       }, { once: true })
+
       render()
     })()
   </script>

@@ -639,9 +639,12 @@ assertOk(
 )
 assertOk(
   prototypeFlowPageSrc.includes('width: 430px')
-    && prototypeFlowPageSrc.includes('height: 932px')
-    && prototypeFlowPageSrc.includes("const previewRevision = '20260723-ui-sync-4'"),
-  'the solution-library preview must retain the Pro Max 430x932 observation canvas and current cache revision',
+    && prototypeFlowPageSrc.includes('aspect-ratio: 430 / 932')
+    && prototypeFlowPageSrc.includes('.preview-stage { justify-content: start; padding: 0; }')
+    && prototypeFlowPageSrc.includes('.preview-frame-wrap { width: 100vw; }')
+    && prototypeFlowPageSrc.includes('welcome/round-19-rf4-b-refinement.html?preview=20260723-ui-sync-5')
+    && prototypeFlowPageSrc.includes("const previewRevision = '20260723-ui-sync-5'"),
+  'the solution-library preview must retain the Pro Max 430x932 canvas, scale down proportionally and use the current cache revision',
 )
 assertOk(
   prototypeWorldSelectSrc.includes('PrototypeFlow.state.write({')
@@ -669,7 +672,27 @@ assertOk(
   'the prototype draw count must end at twelve and two rebirth slots must flow into attribute allocation',
 )
 assertOk(
-  prototypeAttributeSrc.includes('const total = 15')
+  prototypeTalentDrawSrc.includes('class="phone creation-phone"')
+    && prototypeTalentDrawSrc.includes('data-creation-header data-title="命格抽取"')
+    && prototypeTalentDrawSrc.includes('body[data-screen="talent-draw"] .cf-header { position: relative; z-index: 5; }'),
+  'talent draw must expose the unified creation title structure above the draw effects',
+)
+assertOk(
+  prototypeFateSelectSrc.includes('.mi-b1 .rebirth-slot.is-filled { height: auto; min-height: 104px; max-height: none; }')
+    && prototypeFateSelectSrc.includes('.mi-b1 .ordinary-slot.is-filled { height: auto; min-height: 112px; max-height: none; }')
+    && /\.slot-description\s*\{[\s\S]{0,180}overflow:\s*visible;/.test(prototypeFateSelectSrc)
+    && prototypeFateSelectSrc.includes("return `${attrLabels[key] || key} ${value > 0 ? '+' : '−'}`")
+    && prototypeFateSelectSrc.includes("return `${modifierLabels[key] || key} ${delta >= 0 ? '+' : '−'}`")
+    && prototypeFateSelectSrc.includes('.slot-bonus,')
+    && prototypeFateSelectSrc.includes('font-size: 7px; line-height: 1.1;'),
+  'selected fate slots must show complete descriptions and compact sign-only bonus labels',
+)
+assertOk(
+  prototypeAttributeSrc.includes('<title>属性分配 · AA-RF1-1 布局</title>')
+    && prototypeAttributeSrc.indexOf('class="cf-budget"') < prototypeAttributeSrc.indexOf('class="cf-attribute-list"')
+    && prototypeAttributeSrc.indexOf('class="cf-attribute-list"') < prototypeAttributeSrc.indexOf('class="cf-tools"')
+    && prototypeAttributeSrc.includes('const total = 15')
+    && prototypeAttributeSrc.includes('data-budget-meter role="progressbar"')
     && prototypeAttributeSrc.includes('talentBonuses(Array.isArray(flow.talents)')
     && prototypeAttributeSrc.includes('base: Object.fromEntries(attributeKeys.map')
     && prototypeFatePreviewSrc.includes('data-review-identity')
@@ -678,15 +701,34 @@ assertOk(
   'attribute bonuses, base values and selected talents must reach the fate preview without fixed character data',
 )
 assertOk(
+  prototypeFatePreviewSrc.includes('body[data-screen="fate-preview"] .cf-footer')
+    && prototypeFatePreviewSrc.includes('background: rgba(255, 255, 255, .76);')
+    && prototypeFatePreviewSrc.includes('box-shadow: 0 12px 30px rgba(62, 70, 100, .13)')
+    && prototypeFatePreviewSrc.includes('backdrop-filter: blur(16px);')
+    && prototypeFatePreviewSrc.includes('data-flow-back="attribute-alloc"')
+    && prototypeFatePreviewSrc.includes('data-flow-to="game-story" data-start'),
+  'fate preview must use the same floating creation action bar as steps 03 and 04',
+)
+assertOk(
   prototypeGameStorySrc.includes('data-flow-character-name')
     && prototypeGameStorySrc.includes('applyFlowState(root)')
     && prototypeGameStorySrc.includes('item.textContent = talent.name')
     && prototypeGameStorySrc.includes('Array.isArray(flow.rebirths)')
     && prototypeGameOverSrc.includes('data-life-name')
     && prototypeGameOverSrc.includes('data-radar-area')
-    && prototypeGameOverSrc.includes('mobile-action-bar-unified.css?v=20260723-ui-sync-4')
+    && prototypeGameOverSrc.includes('GAME OVER · A1-2D4A1A')
+    && prototypeGameOverSrc.includes('class="graph-stage"')
+    && prototypeGameOverSrc.includes('class="acts"')
+    && prototypeGameOverSrc.includes('class="verdict"')
+    && prototypeGameOverSrc.includes('class="mythic"')
+    && prototypeGameOverSrc.includes('class="tabs"')
+    && prototypeGameOverSrc.includes('class="vault"')
+    && prototypeGameOverSrc.includes('<span>当前选择</span>')
+    && prototypeGameOverSrc.includes('<span>存入神话总库</span>')
+    && prototypeGameOverSrc.includes('.bottom { position: absolute; z-index: 8; right: 14px; bottom: 12px; left: 14px;')
+    && !prototypeGameOverSrc.includes('mobile-action-bar-unified.css')
     && !prototypeGameOverSrc.includes('cc-rf9-adapt-base.css'),
-  'core simulation and settlement must consume the same session identity while settlement keeps its structure on shared white-paper tokens',
+  'core simulation and A1-2D4A1A settlement must consume the same session identity with the adapted floating action bar',
 )
 
 if (failed === 0) {

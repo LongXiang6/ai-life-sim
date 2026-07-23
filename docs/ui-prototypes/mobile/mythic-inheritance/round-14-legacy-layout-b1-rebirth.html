@@ -147,6 +147,19 @@
     .mi-b1 .rebirth-slot strong,
     .mi-b1 .ordinary-slot strong,
     .mi-b1 .candidate-copy > strong { font-size: 10px; }
+    .mi-b1 .rebirth-slot.is-filled { height: auto; min-height: 104px; max-height: none; }
+    .mi-b1 .ordinary-slot.is-filled { height: auto; min-height: 112px; max-height: none; }
+    .mi-b1 .rebirth-slot.is-filled .slot-description,
+    .mi-b1 .ordinary-slot.is-filled .slot-description {
+      flex: 0 0 auto;
+      margin: 4px 0 31px;
+      overflow: visible;
+    }
+    .mi-b1 .rebirth-slot > .slot-bonuses,
+    .mi-b1 .ordinary-slot > .slot-bonuses { max-height: none; }
+    .mi-b1 .rebirth-slot .slot-bonus,
+    .mi-b1 .ordinary-slot .slot-bonus,
+    .mi-b1 .candidate-effect { padding: 1px 3px; font-size: 7px; line-height: 1.1; }
   </style>
 </head>
 <body class="mi-b1" data-screen="mythic-inheritance" data-creation-step="5">
@@ -189,9 +202,9 @@
       const attrLabels = { physique: '体魄', mind: '心智', talentAptitude: '悟性', charisma: '魅力' }
       const modifierLabels = { luckPointModifier: '气运获取', hpRecoveryModifier: '生命恢复', staminaRecoveryModifier: '体力恢复', breakthroughChanceModifier: '突破成功率', incomeModifier: '收入获得', attributeDecayModifier: '属性衰减', socialMobilityModifier: '社会流动', disasterFrequencyModifier: '灾害频率', migrationRateModifier: '迁徙机会', deathRateModifier: '死亡风险', techProgressModifier: '技术进展' }
       const rebirths = [
-        { name: '长夜见灯', effect: '在困顿阶段更容易发现可行动的转机，并保留一次重整方向的机会。', bonus: '气运获取 +8%' },
-        { name: '未竟之愿', effect: '前世未完成的重要目标会化作微弱指引，帮助你辨认与它相关的人和事件。', bonus: '突破成功率 +6%' },
-        { name: '凡心不灭', effect: '经历重大得失后仍能较快恢复稳定，关键关系不易因一时动摇而彻底失去。', bonus: '生命恢复 +8%' },
+        { name: '长夜见灯', effect: '在困顿阶段更容易发现可行动的转机，并保留一次重整方向的机会。', bonus: '气运获取 +' },
+        { name: '未竟之愿', effect: '前世未完成的重要目标会化作微弱指引，帮助你辨认与它相关的人和事件。', bonus: '突破成功率 +' },
+        { name: '凡心不灭', effect: '经历重大得失后仍能较快恢复稳定，关键关系不易因一时动摇而彻底失去。', bonus: '生命恢复 +' },
       ]
       const slots = Array.from(document.querySelectorAll('[data-slot]'))
       const rebirthSlots = Array.from(document.querySelectorAll('[data-rebirth-slot]'))
@@ -212,13 +225,13 @@
       function formatAttrBonuses(item) {
         return Object.entries(item.attrBonus || {}).map(function (entry) {
           const key = entry[0]; const value = Number(entry[1]); if (!value) return ''
-          return `${attrLabels[key] || key} ${value > 0 ? '+' : ''}${value}`
+          return `${attrLabels[key] || key} ${value > 0 ? '+' : '−'}`
         }).filter(Boolean)
       }
       function formatSystemModifiers(item) {
         return Object.entries(item.systemModifiers || {}).map(function (entry) {
           const key = entry[0]; const value = Number(entry[1]); const delta = Math.round((value - 1) * 100)
-          return `${modifierLabels[key] || key} ${delta >= 0 ? '+' : ''}${delta}%`
+          return `${modifierLabels[key] || key} ${delta >= 0 ? '+' : '−'}`
         })
       }
       function renderCandidateEffects(item) {
