@@ -651,7 +651,7 @@ assertOk(
 )
 assertOk(
   !/\balert\s*\(/.test(worldConfirmSrc)
-    && worldConfirmSrc.includes("throw new Error(\n          '当前主叙事模型不可用")
+    && /throw new Error\(\s*'当前主叙事模型不可用/u.test(worldConfirmSrc)
     && worldSelectMobileSrc.includes('role="alert"'),
   'unavailable narrative configuration must stay inside the selected page instead of opening a native alert',
 )
