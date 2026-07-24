@@ -260,6 +260,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: clamp(0.8rem, 4vw, 2.5rem);
+  row-gap: 0.35rem;
 }
 
 .secondaryBtn {
@@ -267,7 +268,7 @@
 }
 
 .feedbackAction {
-  grid-column: 1 / -1;
+  /* 移除grid-column: 1 / -1; 让它保持2列布局 */
 }
 
 .footerLink {
