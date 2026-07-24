@@ -1,6 +1,6 @@
 /**
  * @file page.tsx
- * @description 游戏结束页面 —— 人生评分、人生总结、转世天赋封存与本机分享卡
+ * @description 游戏结束页面 —— 人生评分、人生总结、轮回天赋封存与本机分享卡
  * @mod mod-pages
  */
 
@@ -422,7 +422,7 @@ export default function GameOverPage() {
       setActiveMythicIndex(0)
     } catch (error) {
       if (!controller.signal.aborted) {
-        setMythicError(error instanceof Error ? error.message : '转世天赋生成失败，请重试')
+        setMythicError(error instanceof Error ? error.message : '轮回天赋生成失败，请重试')
       }
     } finally {
       if (mythicAbortRef.current === controller) mythicAbortRef.current = null
@@ -442,7 +442,7 @@ export default function GameOverPage() {
       setSealedMythicPatternId(sealed.id)
       setMythicError('')
     } catch (error) {
-      setMythicError(error instanceof Error ? error.message : '转世天赋封存失败')
+        setMythicError(error instanceof Error ? error.message : '轮回天赋封存失败')
     }
   }, [activeMythicCandidate, addMythicPattern, characterAge, characterName, lifeRunId, sealedMythicPatternId, setSealedMythicPatternId, worldName])
 
@@ -488,8 +488,8 @@ export default function GameOverPage() {
     if (preGenStatus.isActive || startingNewLifeRef.current) return
     if (!sealedMythicPatternId) {
       setMythicError(mythicCandidates.length === 3
-        ? '请先从三个转世天赋中选择一项并封存。'
-        : '请先完成转世天赋的生成与封存。')
+        ? '请先从三个轮回天赋中选择一项并封存。'
+        : '请先完成轮回天赋的生成与封存。')
       return
     }
     if (!confirmingNewLife) {
@@ -682,7 +682,7 @@ export default function GameOverPage() {
             <div className={styles.sectionHeading}>
               <div>
                 <span className={styles.sectionIndex}>04</span>
-                <h2 id="mythic-title">转世天赋</h2>
+                <h2 id="mythic-title">轮回天赋</h2>
               </div>
               <span className={styles.mythicBadge}>{overallScore} 分 · {reincarnationStrength.label}</span>
             </div>
@@ -690,7 +690,7 @@ export default function GameOverPage() {
 
             {mythicCandidates.length === 3 ? (
               <>
-                <div className={styles.mythicSelectors} role="list" aria-label="转世天赋候选">
+                <div className={styles.mythicSelectors} role="list" aria-label="轮回天赋候选">
                   {mythicCandidates.map((candidate, index) => (
                     <button
                       type="button"
@@ -727,15 +727,15 @@ export default function GameOverPage() {
                   onClick={handleSealMythic}
                   disabled={!activeMythicCandidate || Boolean(sealedMythicPatternId)}
                 >
-                  <span>{sealedMythicPattern ? '已封存至转世天赋库' : '封存至转世天赋库'}</span>
-                  <small>{sealedMythicPattern ? '下一局可在独立转世槽携带' : '封存后不可在本局改选'}</small>
+                  <span>{sealedMythicPattern ? '已封存至轮回天赋库' : '封存至轮回天赋库'}</span>
+                  <small>{sealedMythicPattern ? '下一局可在独立轮回槽携带' : '封存后不可在本局改选'}</small>
                 </button>
               </>
             ) : (
               <div className={styles.mythicLoadingCard} aria-live="polite">
                 <span className={styles.mythicLoadingGlyph} aria-hidden="true">转</span>
                 <div>
-                  <h3>{mythicGenerating ? '正在凝结转世天赋' : '尚未生成转世天赋'}</h3>
+                  <h3>{mythicGenerating ? '正在凝结轮回天赋' : '尚未生成轮回天赋'}</h3>
                   <p>{mythicGenerating ? '正在读取整局摘要与关键人生记录，请稍候。' : '生成失败时不会使用本地词条冒充 AI 结果。'}</p>
                 </div>
               </div>
@@ -744,7 +744,7 @@ export default function GameOverPage() {
             {mythicError ? <p className={styles.mythicError} role="alert">{mythicError}</p> : null}
             {mythicCandidates.length !== 3 && !mythicGenerating ? (
               <button type="button" className={styles.mythicRetry} onClick={() => void handleGenerateMythics()}>
-                重新生成三项转世天赋
+                重新生成三项轮回天赋
               </button>
             ) : null}
           </section>
@@ -757,7 +757,7 @@ export default function GameOverPage() {
               </div>
               <span className={styles.shareBadge}>仅使用真实结算事实</span>
             </div>
-            <p className={styles.shareIntro}>把这一生的年岁、轮数、大事、四维与转世天赋生成分享卡。图片只在当前设备绘制，不上传故事正文或模型配置。</p>
+            <p className={styles.shareIntro}>把这一生的年岁、轮数、大事、四维与轮回天赋生成分享卡。图片只在当前设备绘制，不上传故事正文或模型配置。</p>
 
             <div className={styles.sharePreview} aria-label="人生分享卡预览">
               <div className={styles.sharePreviewMeta}>
@@ -786,9 +786,9 @@ export default function GameOverPage() {
               </div>
 
               <div className={styles.sharePreviewMythic}>
-                <span>{activeMythicCandidate ? `${activeMythicCandidate.concept} · 转世天赋` : '人生回声'}</span>
+                <span>{activeMythicCandidate ? `${activeMythicCandidate.concept} · 轮回天赋` : '人生回声'}</span>
                 <strong>{activeMythicCandidate?.name ?? '此生已经留下回声'}</strong>
-                <p>{activeMythicCandidate?.effect ?? '转世天赋尚未凝结时，分享卡仍会忠实记录当前结算事实。'}</p>
+                <p>{activeMythicCandidate?.effect ?? '轮回天赋尚未凝结时，分享卡仍会忠实记录当前结算事实。'}</p>
               </div>
             </div>
 
@@ -814,7 +814,7 @@ export default function GameOverPage() {
               </button>
             </div>
             <p className={styles.shareStatus} role="status" aria-live="polite">
-              {shareStatus || '分享卡内容会随当前转世天赋选择即时更新。'}
+              {shareStatus || '分享卡内容会随当前轮回天赋选择即时更新。'}
             </p>
           </section>
 
@@ -844,7 +844,7 @@ export default function GameOverPage() {
                     : startingNewLife
                     ? '正在清理当前人生并返回世界选择'
                     : !sealedMythicPatternId
-                    ? '先封存一项转世天赋'
+                    ? '先封存一项轮回天赋'
                     : confirmingNewLife
                     ? '将清理当前人生状态，此操作不可撤销'
                     : '清理当前人生状态 · 返回世界选择'}

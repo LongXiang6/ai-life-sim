@@ -113,7 +113,7 @@ assert.throws(
     name: '第十一项',
     source: { ...patterns[0].source, runId: 'run-11' },
   }),
-  /转世天赋栏位已满/u,
+  /轮回天赋栏位已满/u,
 )
 assert.equal(useMythicLibraryStore.getState().patterns.length, 10)
 

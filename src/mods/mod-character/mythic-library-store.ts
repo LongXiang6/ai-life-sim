@@ -2,7 +2,7 @@
 
 /**
  * @module mythic-library-store
- * @description 跨世界、跨局共享的转世天赋总库
+ * @description 跨世界、跨局共享的轮回天赋总库
  * @mod mod-character
  */
 
@@ -38,7 +38,7 @@ export function sealMythicPatternCandidate(
   acquiredAt = Date.now(),
 ): MythicPattern {
   const candidate = sanitizeMythicPatternCandidate(candidateInput)
-  if (!candidate) throw new Error('转世天赋候选结构无效')
+  if (!candidate) throw new Error('轮回天赋候选结构无效')
   return {
     ...candidate,
     id: `mythic-${hashIdentity(mythicIdentity(candidate))}`,
@@ -84,7 +84,7 @@ export const useMythicLibraryStore = create<MythicLibraryStore>()(
         ))
         if (existing) return existing
         if (get().patterns.length >= ACCOUNT_MAX_SLOTS) {
-          throw new Error('转世天赋栏位已满，请先删除一项旧天赋')
+          throw new Error('轮回天赋栏位已满，请先删除一项旧天赋')
         }
         set((state) => ({ patterns: [...state.patterns, pattern] }))
         return pattern
@@ -93,11 +93,11 @@ export const useMythicLibraryStore = create<MythicLibraryStore>()(
         patterns: state.patterns.filter((pattern) => pattern.id !== id),
       })),
       replacePatterns: (patterns) => {
-        if (patterns.length > ACCOUNT_MAX_SLOTS) throw new Error('转世天赋不能超过 10 项')
+        if (patterns.length > ACCOUNT_MAX_SLOTS) throw new Error('轮回天赋不能超过 10 项')
         const sanitized = patterns
           .map(sanitizeMythicPattern)
           .filter((item): item is MythicPattern => item !== null)
-        if (sanitized.length !== patterns.length) throw new Error('转世天赋数据无效')
+        if (sanitized.length !== patterns.length) throw new Error('轮回天赋数据无效')
         set({ patterns: sanitized })
       },
     }),

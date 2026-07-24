@@ -436,7 +436,7 @@ assertOk(
   COMPILED_NARRATIVE_REPAIR_SYSTEM_PROMPT.length < 5_000,
   'the dedicated repair system asset must remain compact',
 )
-assertOk(narrativePrompt.version === '4.6.0', 'latest narrative attention and repair behavior must use Prompt 4.6.0')
+assertOk(narrativePrompt.version === '4.6.1', 'latest narrative attention and repair behavior must use Prompt 4.6.1')
 assertOk(
   narrativePrompt.systemPrompt === ''
     && narrativePrompt.serverPromptAssetId === NARRATIVE_SERVER_PROMPT_ASSET_ID

@@ -26,7 +26,7 @@ function assertOk(condition, message) {
 }
 
 const longWorldName = '横跨群星与多重世界但仍保持完整名称的测试世界'
-const longMythicName = '未被省略也不会在分享文案中被静默截断的转世天赋'
+const longMythicName = '未被省略也不会在分享文案中被静默截断的轮回天赋'
 const shareData = {
   lifeRunId: 'life-test_01',
   characterName: '沈砚',
@@ -137,7 +137,7 @@ assertOk(
 assertOk(scoringSource.includes('raw >= 95'), 'the normal-score threshold must remain explicit and testable')
 assertOk(!talentCssSource.includes('-webkit-line-clamp'), 'talent detail text must not be hidden by line clamping')
 assertOk(
-  promptSource.includes("version: '1.2.0'")
+  promptSource.includes("version: '1.2.1'")
     && promptSource.includes('endingScore')
     && promptSource.includes('reincarnationStrengthTier'),
   'reincarnation generation Prompt must receive the deterministic score and strength tier',

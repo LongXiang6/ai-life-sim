@@ -378,7 +378,7 @@ assertOk(
   formatEquippedMythicPatternForPrompt?.([
     { name: '未熄之诺', concept: '承诺', effect: '真诚许下的承诺更难被世界轻易抹去。' },
     { name: '回声', concept: '记忆', effect: '重要关系会留下可追溯的回声。' },
-  ]) === '【已装备转世天赋·每轮遵守】未熄之诺（承诺）：真诚许下的承诺更难被世界轻易抹去。\n回声（记忆）：重要关系会留下可追溯的回声。',
+  ]) === '【已装备轮回天赋·每轮遵守】未熄之诺（承诺）：真诚许下的承诺更难被世界轻易抹去。\n回声（记忆）：重要关系会留下可追溯的回声。',
   'multiple equipped mythic effects must be formatted as explicit per-round narrative rules',
 )
 assertOk(
@@ -398,7 +398,7 @@ assertOk(
   'ordinary and equipped mythic effects must both be injected every round',
 )
 assertOk(
-  narrativeSystemPrompt.includes('普通命格与已装备转世天赋效果每轮持续生效'),
+  narrativeSystemPrompt.includes('普通命格与已装备轮回天赋效果每轮持续生效'),
   'system prompt must define ordinary and mythic effects as persistent rules while keeping mythic inheritance narrative-only',
 )
 
@@ -423,7 +423,7 @@ for (const inactiveConnection of [
   )
 }
 assertOk(
-  liveNarrativePrompt.version === '4.6.0'
+  liveNarrativePrompt.version === '4.6.1'
     && liveNarrativePrompt.systemPrompt === ''
     && !narrativeSystemPrompt.includes('examples: ['),
   'optimized prompt must be versioned and keep one governed standard example instead of duplicate examples',

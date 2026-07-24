@@ -44,6 +44,12 @@ export interface EngineConfig {
   maxTokens: number,
 }
 
+/** 后台强制命运分支补救的结构化输出。 */
+export interface NarrativeBranchRepairOutput {
+  分支标题: string
+  分支选项: string[]
+}
+
 /** 叙事流片段 */
 export interface NarrativeChunk {
   /** 唯一标识（生成时用 timestamp + 随机数填充，用于 resolveBranch 索引漂移防御） */

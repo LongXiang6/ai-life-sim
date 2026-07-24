@@ -88,11 +88,11 @@ interface CharacterStore {
 
   talents: TalentPreset[]
 
-  /** 本局结算生成的三个转世天赋候选。 */
+  /** 本局结算生成的三个轮回天赋候选。 */
   mythicCandidates: MythicPatternCandidate[]
-  /** 本局从跨局总库选择携带的独立转世天赋；最多两个，数组是唯一状态真源。 */
+  /** 本局从跨局总库选择携带的独立轮回天赋；最多两个，数组是唯一状态真源。 */
   equippedMythicPatterns: MythicPattern[]
-  /** 本局结算已封存到总库的转世天赋 ID；用于防止重复入库。 */
+  /** 本局结算已封存到总库的轮回天赋 ID；用于防止重复入库。 */
   sealedMythicPatternId: string | null
 
   /** 当前世界编码（用于天赋池隔离） */

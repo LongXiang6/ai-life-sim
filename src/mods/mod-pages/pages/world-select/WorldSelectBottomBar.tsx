@@ -29,7 +29,7 @@ export function WorldSelectBottomBar({ logic }: { logic: WorldSelectLogic }) {
           disabled={!logic.selectedWorld || logic.isConfirming}
           title={logic.confirmTitle}
         >
-          <span className={styles.nextNumber}>03</span>
+          <span className={styles.nextNumber}>02</span>
           <span className={styles.nextCopy}>
             <strong>{logic.isConfirming ? '正在确认世界' : '确认世界'}</strong>
             <small>{hint}</small>

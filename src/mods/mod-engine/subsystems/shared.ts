@@ -96,6 +96,11 @@ export { generateArchetypeHint, buildLifespanReminder } from '../helpers/life-st
 
 export { collectGameSavePayload } from '../helpers/save-restore'
 
+export {
+  narrativeBranchRepairOutputSchema,
+} from '../prompts/narrative-branch-repair-prompt'
+export type { NarrativeBranchRepairOutput } from '../types'
+
 // constants
 export { computeNarrativeMaxTokens, DEFAULT_WORD_COUNT_TARGET } from '../constants/narrative-config'
 export { RECENT_NARRATIVE_WINDOW } from '../constants'

@@ -83,9 +83,9 @@ export interface DestinyPatternInput {
 
 export type ReincarnationTalentStrengthTier = 'echo' | 'deep' | 'legacy' | 'immortal'
 
-/** 一生结算时由 AI 生成的转世天赋候选。纯概念规则，不携带属性或模拟系数。 */
+/** 一生结算时由 AI 生成的轮回天赋候选。纯概念规则，不携带属性或模拟系数。 */
 export interface MythicPatternCandidate {
-  /** 转世天赋名称，如“未熄之诺” */
+  /** 轮回天赋名称，如“未熄之诺” */
   name: string
   /** 概念标签，如“承诺” */
   concept: string
@@ -97,16 +97,16 @@ export interface MythicPatternCandidate {
   sourceScore?: number
 }
 
-/** 转世天赋的来源元数据；只用于总库追溯，不参与效果判定。 */
+/** 轮回天赋的来源元数据；只用于总库追溯，不参与效果判定。 */
 export interface MythicPatternSource {
   worldName: string
   characterName: string
   finalAge?: number
-  /** 当前人生的稳定标识，用于保证同一人生最多封存一个转世天赋。 */
+  /** 当前人生的稳定标识，用于保证同一人生最多封存一个轮回天赋。 */
   runId?: string
 }
 
-/** 已封存到跨局总库的转世天赋。 */
+/** 已封存到跨局总库的轮回天赋。 */
 export interface MythicPattern extends MythicPatternCandidate {
   /** 由本地内容身份生成的稳定 ID，AI 不负责生成。 */
   id: string

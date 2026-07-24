@@ -49,18 +49,43 @@ async function waitForNarrativeCount(page, count, timeout = 240000) {
 async function main() {
   const browser = await puppeteer.launch({ headless: true, executablePath: chromePath, args: ['--no-sandbox'] })
   const page = await browser.newPage()
+  const viewportWidth = Number.parseInt(process.env.UI_VIEWPORT_WIDTH || '430', 10)
+  const viewportHeight = Number.parseInt(process.env.UI_VIEWPORT_HEIGHT || '932', 10)
+  await page.setViewport({
+    width: Number.isFinite(viewportWidth) ? viewportWidth : 430,
+    height: Number.isFinite(viewportHeight) ? viewportHeight : 932,
+  })
   page.setDefaultTimeout(240000)
   page.setDefaultNavigationTimeout(240000)
   const consoleErrors = []
   const proxyRequests = []
   page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()) })
   page.on('pageerror', (error) => consoleErrors.push(error.message))
-  page.on('request', (request) => {
-    if (request.url().includes('/api/proxy') && request.method() === 'POST') {
-      let body = {}
-      try { body = JSON.parse(request.postData() || '{}') } catch { /* ignore malformed telemetry */ }
-      proxyRequests.push({ providerId: body.providerId, model: body.model, hasClientKey: typeof body.apiKey === 'string' && body.apiKey.length > 0, stream: body.stream === true })
+  // A real DeepSeek key is supplied only to this transient test runner. The
+  // page never receives it; interception adds it at the local proxy boundary
+  // and the original browser-authored payload remains what we audit below.
+  await page.setRequestInterception(true)
+  page.on('request', async (request) => {
+    if (!request.url().includes('/api/proxy') || request.method() !== 'POST') return request.continue()
+    let body = {}
+    try { body = JSON.parse(request.postData() || '{}') } catch { /* ignore malformed telemetry */ }
+    proxyRequests.push({
+      providerId: body.providerId,
+      model: body.model,
+      promptAsset: String(body.prompt_asset || ''),
+      hasClientKey: typeof body.apiKey === 'string' && body.apiKey.length > 0,
+      stream: body.stream === true,
+    })
+    const transientKey = process.env.DEEPSEEK_API_KEY?.trim()
+    if (transientKey && body.providerId === 'deepseek' && !body.apiKey) {
+      const headers = { ...request.headers() }
+      delete headers['content-length']
+      return request.continue({
+        headers,
+        postData: JSON.stringify({ ...body, apiKey: transientKey }),
+      })
     }
+    return request.continue()
   })
   await seedPage(page)
 
@@ -75,7 +100,7 @@ async function main() {
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('进入命格选择') && !button.disabled), { timeout: 60000 })
   await clickText(page, '进入命格选择')
   for (const [slotIndex, patternName] of [[1, '未熄之诺'], [2, '回声拾光']]) {
-    await page.click(`button[aria-label^="转世天赋槽${slotIndex}"]`)
+    await page.click(`button[aria-label^="轮回天赋槽${slotIndex}"]`)
     await page.waitForSelector('#mythic-library-sheet')
     await clickText(page, patternName, '#mythic-library-sheet button')
     await page.waitForSelector('#mythic-library-sheet', { hidden: true })
@@ -112,9 +137,15 @@ async function main() {
   if (!branchObserved) {
     await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('强制下一轮分支') && !button.disabled)?.click())
     // A complete body may arrive before optional branch META. Keep the body and
-    // retry the forced intent a small number of times without blocking the flow.
+    // retry the forced intent a small number of times. A successful background
+    // repair presents the branch before the advance button becomes available.
     for (let attempt = 0; attempt < 2 && !branchObserved; attempt += 1) {
-      await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('轻触，让岁月流转') && !button.disabled), { timeout: 240000 })
+      await page.waitForFunction(() => (
+        document.querySelector('input[type="radio"]') !== null
+        || [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('轻触，让岁月流转') && !button.disabled)
+      ), { timeout: 240000 })
+      branchObserved = await page.$('input[type="radio"]') !== null
+      if (branchObserved) break
       await clickText(page, '轻触，让岁月流转')
       forcedRoundCount += 1
       await waitForNarrativeCount(page, forcedRoundCount, 240000)
@@ -126,29 +157,51 @@ async function main() {
     await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('确认选择') && !button.disabled))
     await clickText(page, '确认选择')
     await page.waitForFunction(() => document.body.textContent?.includes('你的选择：'), { timeout: 120000 })
+    await waitForNarrativeCount(page, forcedRoundCount + 1, 240000)
     branchResolved = true
   }
 
   const persisted = await page.evaluate(() => {
     const parse = (key) => JSON.parse(localStorage.getItem(key) || '{}').state || {}
-    return { character: parse('mod-character:persist:character-state'), engine: parse('mod-engine:persist:engine-state'), rawSettings: localStorage.getItem('mod-settings:store') || '' }
+    return {
+      character: parse('mod-character:persist:character-state'),
+      engine: parse('mod-engine:persist:engine-state'),
+      storageValues: Object.keys(localStorage).map((key) => localStorage.getItem(key) || ''),
+    }
   })
   const result = {
     provider: 'deepseek', model: 'deepseek-v4-flash',
+    viewport: { width: viewportWidth, height: viewportHeight },
     route: await page.evaluate(() => location.pathname),
     proxyRequests,
+    mainNarrativeRequests: proxyRequests.filter((request) => request.promptAsset.includes('mod-engine:narrative:')).length,
+    branchRepairRequests: proxyRequests.filter((request) => request.promptAsset.includes('narrative-branch-repair')).length,
     narrativeEntries: persisted.engine.narrativeHistory?.length || 0,
     firstNarrativeChars: first.narrativeHistory?.[0]?.text?.length || 0,
     equippedMythicPatterns: persisted.character.equippedMythicPatterns?.length || 0,
     forcedRoundCount,
     branchObserved, branchResolved,
+    branchRepairPending: persisted.engine.branchRepairPending === true,
+    forceBranchNext: persisted.engine.forceBranchNext === true,
     keySentToBrowserRequest: proxyRequests.some((request) => request.hasClientKey),
-    keyPersistedInBrowser: persisted.rawSettings.includes(providedKeyFingerprint),
+    keyPersistedInBrowser: persisted.storageValues.some((value) => value.includes(providedKeyFingerprint)),
     consoleErrors,
   }
   console.log(JSON.stringify(result, null, 2))
   await browser.close()
-  if (result.route !== '/game-story' || result.narrativeEntries < 2 || result.firstNarrativeChars < 20 || result.equippedMythicPatterns !== 2 || result.keySentToBrowserRequest || result.keyPersistedInBrowser || result.consoleErrors.length > 0) process.exit(1)
+  if (
+    result.route !== '/game-story'
+    || result.narrativeEntries < 3
+    || result.firstNarrativeChars < 20
+    || result.equippedMythicPatterns !== 2
+    || !result.branchObserved
+    || !result.branchResolved
+    || result.branchRepairPending
+    || result.forceBranchNext
+    || result.keySentToBrowserRequest
+    || result.keyPersistedInBrowser
+    || result.consoleErrors.length > 0
+  ) process.exit(1)
 }
 
 main().catch((error) => { console.error(error?.stack || error?.message || String(error)); process.exit(1) })

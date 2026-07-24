@@ -10,7 +10,8 @@ export function WorldSelectCustomForm({ logic }: { logic: WorldSelectLogic }) {
       <h3>{logic.editingWorldId ? L.formEditTitle : L.formCreateTitle}</h3>
       <label className={styles.formField}>
         <span>{L.formLabelName}</span>
-        <input value={logic.customName} maxLength={80} placeholder={L.formPlaceholderName} onChange={(event) => logic.setCustomName(event.target.value)} />
+        <input value={logic.customName} placeholder={L.formPlaceholderName} onChange={(event) => logic.setCustomName(event.target.value)} />
+        <small>{logic.customName.length} 字</small>
       </label>
       <label className={styles.formField}>
         <span>{L.formLabelDesc}</span>

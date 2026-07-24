@@ -14,6 +14,10 @@ import {
   preserveNarrativeBodyAndSummary,
 } from '../../../../src/mods/mod-engine/helpers/narrative-response-quality.ts'
 import { OrchestratorSystem } from '../../../../src/mods/mod-engine/subsystems/orchestrator-system.ts'
+import { useEngineStore } from '../../../../src/mods/mod-engine/store.ts'
+import {
+  narrativeBranchRepairOutputSchema,
+} from '../../../../src/mods/mod-engine/prompts/narrative-branch-repair-prompt.ts'
 import {
   buildBranchIntentInstruction,
   commitBranchIntentResolution,
@@ -203,8 +207,15 @@ assertOk(!bodyOnlyEnvelope.includes('⟦数据⟧'), 'invalid conditional data m
 assertOk(bodyOnlyEnvelope.includes('正文事实应先交付给玩家。'), 'body-only fallback must preserve the summary')
 const unwrappedStory = '你沿着潮湿的石阶走出城门，风里带着远处海潮和炉火的气味。守门人没有拦你，只把一枚旧铜牌塞进你掌心，提醒你在日落前找到北岸的灯塔。'
 const unwrappedQuality = inspectNarrativeResponseQuality(unwrappedStory, 200, firstIntent.intentId)
-assertOk(unwrappedQuality.valid, 'a complete unwrapped story must bypass protocol repair')
+assertOk(
+  !unwrappedQuality.valid && unwrappedQuality.conditionalFailure === 'intent',
+  'a complete unwrapped story must expose missing conditional intent META without withholding its body',
+)
 assertOk(unwrappedQuality.hasUsableNarrative === true, 'unwrapped story must remain player-visible')
+assertOk(
+  inspectNarrativeResponseQuality(unwrappedStory, 200).valid,
+  'an ordinary unwrapped story must remain a complete player-visible success',
+)
 
 const runtime = new OrchestratorSystem()
 runtime.resolveBranchChoice('custom-choice', '自定义寻找失落的航道')
@@ -220,11 +231,74 @@ assertOk(
 )
 assertOk(runtime.getState().narrativeHistory.length === 1, 'body-only custom choice must create a playable narrative history entry')
 
+// 玩家强制分支若只拿到完整正文，正文先落地；后台修复只能把严格校验的
+// 分支 META 合并回同一历史条目，不能改写故事或另增一轮。
+const forcedRuntime = new OrchestratorSystem()
+useEngineStore.setState({ forceBranchNext: true, branchRepairPending: true, narrativeHistory: [] })
+const forcedBodyResult = forcedRuntime.handleNarrativeResponse(bodyOnlyResponse)
+const forcedEntry = forcedRuntime.getState().narrativeHistory[0]
+useEngineStore.setState({ narrativeHistory: structuredClone(forcedRuntime.getState().narrativeHistory) })
+const forcedBranchRepairData = {
+  分支标题: '谁来承担今后的照料责任？',
+  分支选项: ['由守塔人家庭继续抚养', '交由往来船队中的亲族照料'],
+}
+assertOk(
+  narrativeBranchRepairOutputSchema.safeParse(forcedBranchRepairData).success,
+  'dedicated forced-branch output must accept only a title and two to four choices',
+)
+assertOk(
+  !narrativeBranchRepairOutputSchema.safeParse({
+    ...forcedBranchRepairData,
+    分支选项: ['重复选择', '重复选择'],
+  }).success,
+  'dedicated forced-branch output must reject duplicate choices',
+)
+assertOk(
+  !narrativeBranchRepairOutputSchema.safeParse({
+    ...forcedBranchRepairData,
+    正文: '后台结果不得携带或改写正文',
+  }).success,
+  'dedicated forced-branch output must reject every extra narrative or META field',
+)
+assertOk(
+  forcedEntry?.id
+    && forcedRuntime.applyBackgroundForcedBranchRepair(forcedEntry.id, forcedBranchRepairData),
+  'a valid background forced-branch repair must merge into its committed history entry',
+)
+const repairedForcedEntry = forcedRuntime.getState().narrativeHistory[0]
+assertOk(
+  forcedBodyResult.narrative === repairedForcedEntry?.text
+    && repairedForcedEntry?.text.includes('自定义选择付诸行动'),
+  'background branch repair must preserve the exact committed narrative body',
+)
+assertOk(
+  forcedRuntime.getState().narrativeHistory.length === 1
+    && repairedForcedEntry?.isBranchPoint === true
+    && repairedForcedEntry.branchOptions?.length === 2,
+  'background repair must add one unresolved branch without creating another narrative round',
+)
+assertOk(
+  useEngineStore.getState().narrativeHistory[0]?.isBranchPoint === true
+    && useEngineStore.getState().forceBranchNext === false,
+  'accepted background branch META must reach the player-facing Store and clear the force flag',
+)
+useEngineStore.setState({
+  forceBranchNext: false,
+  branchRepairPending: false,
+  narrativeHistory: [],
+})
+
 const branchCommands = read('src/mods/mod-engine/helpers/branch-commands.ts')
 const responseQuality = read('src/mods/mod-engine/helpers/narrative-response-quality.ts')
 const orchestratorSource = read('src/mods/mod-engine/subsystems/orchestrator-system.ts')
 const campaignSource = read('src/mods/mod-engine/campaigns/default/index.ts')
 const preGenSource = read('src/mods/mod-engine/helpers/pre-gen-queue.ts')
+const branchRepairStart = campaignSource.indexOf('ctx._forcedBranchRepair = repairForcedBranchInBackground')
+const branchRepairBodyCommit = campaignSource.indexOf(
+  "ctx._fullContent = preserveNarrativeBodyAndSummary(ctx._fullContent ?? '')",
+  branchRepairStart,
+)
+const branchRepairRequestLifecycle = campaignSource.slice(branchRepairStart, branchRepairBodyCommit)
 assertOk(!/callAI|fetch\s*\(/.test(branchCommands), 'selecting a branch must not add a separate AI request')
 assertOk(branchCommands.includes('orchestrator.resolveBranchChoice'), 'branch selection must hand the intent to the owning orchestrator')
 assertOk(
@@ -239,8 +313,20 @@ assertOk(
     && campaignSource.includes('canContinueWithNarrativeBody(initialQuality, expectedIntentId, requireBranch)')
     && campaignSource.includes('if (!repairedQuality.valid && requireBranch)')
     && campaignSource.includes('保留完整正文，结构化状态保持待处理')
+    && campaignSource.includes('repairForcedBranchInBackground')
+    && campaignSource.includes('applyBackgroundForcedBranchRepair')
+    && campaignSource.includes('setBranchRepairPending(true)')
+    && campaignSource.includes("callKind: 'narrative-branch-repair'")
+    && campaignSource.includes('narrativeBranchRepairPrompt')
     && preGenSource.includes('canContinueWithNarrativeBody(responseQuality, expectedIntentId)'),
-  'main and pre-generated rounds must deliver any complete body while conditionally repairing META later',
+  'main rounds must deliver any complete body and repair a forced branch through its compact background contract',
+)
+assertOk(
+  branchRepairStart >= 0
+    && branchRepairBodyCommit > branchRepairStart
+    && branchRepairRequestLifecycle.includes('.finally(() => {')
+    && branchRepairRequestLifecycle.includes('setBranchRepairPending(false)'),
+  'the background request must own pending-state cleanup before later parsing or commit work can fail',
 )
 assertOk(
   orchestratorSource.indexOf('intentResolutionError') < orchestratorSource.indexOf("this.applyRoundChanges(effectiveParsed.changes, 'narrative')")

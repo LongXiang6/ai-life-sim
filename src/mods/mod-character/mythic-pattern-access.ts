@@ -1,6 +1,6 @@
 /**
  * @module mythic-pattern-access
- * @description 转世天赋生成与跨局总库的公共入口
+ * @description 轮回天赋生成与跨局总库的公共入口
  * @mod mod-character
  */
 
@@ -30,7 +30,7 @@ export interface GenerateMythicPatternCandidatesInput {
   existingPatterns?: readonly Pick<MythicPattern, 'name' | 'concept' | 'effect'>[]
   /** 本地通用结算评分；AI 不得重算或改写。 */
   endingScore: number
-  /** 由评分纯函数确定的转世天赋强度档位。 */
+  /** 由评分纯函数确定的轮回天赋强度档位。 */
   strengthTier: {
     id: ReincarnationTalentStrengthTier
     label: string
@@ -101,7 +101,7 @@ export async function generateMythicPatternCandidates(
   const callAI = options.callAI ?? configuredCallAI
   if (!callAI) throw new Error('[mythic-pattern] AI 服务未配置')
   if (!input.lifeSummary.trim() && input.lifeRecords.length === 0) {
-    throw new Error('[mythic-pattern] 缺少可用于凝结转世天赋的人生记录')
+    throw new Error('[mythic-pattern] 缺少可用于凝结轮回天赋的人生记录')
   }
   if (!Number.isFinite(input.endingScore) || input.endingScore < 0 || input.endingScore > 100) {
     throw new Error('[mythic-pattern] 人生评分无效')

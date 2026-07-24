@@ -107,7 +107,7 @@ export function buildGameOverShareText(data: GameOverShareCardData): string {
     strongest
       ? `最鲜明的力量：${strongest.label} ${strongest.value}（${getDimensionComment(strongest)}）`
       : '',
-    data.mythic ? `此生留下的转世天赋：${data.mythic.name} · ${data.mythic.concept}` : '',
+    data.mythic ? `此生留下的轮回天赋：${data.mythic.name} · ${data.mythic.concept}` : '',
     '#AI人生模拟器',
     data.shareUrl?.trim() ?? '',
   ]
@@ -173,7 +173,7 @@ function prepareCardLayout(
   context.font = `400 30px ${FONT_SANS}`
   const mythicEffectLines = wrapCanvasText(
     context,
-    data.mythic?.effect ?? '转世天赋尚未凝结；分享卡仍只记录当前结算事实。',
+    data.mythic?.effect ?? '轮回天赋尚未凝结；分享卡仍只记录当前结算事实。',
     CARD_CONTENT_WIDTH - 160,
   )
 
@@ -405,7 +405,7 @@ function drawShareCard(
   fillRoundedRect(context, CARD_PADDING, y, CARD_CONTENT_WIDTH, mythicBoxHeight, 28, COLORS.accentSoft, COLORS.border)
   context.fillStyle = COLORS.accent
   context.font = `700 22px ${FONT_SANS}`
-  context.fillText(data.mythic ? `转世天赋 · ${data.mythic.concept}` : '转世天赋', CARD_PADDING + 34, y + 42)
+  context.fillText(data.mythic ? `轮回天赋 · ${data.mythic.concept}` : '轮回天赋', CARD_PADDING + 34, y + 42)
   context.fillStyle = COLORS.text
   context.font = `600 50px ${FONT_SERIF}`
   let mythicY = drawLines(context, layout.mythicTitleLines, CARD_PADDING + 34, y + 102, 62)

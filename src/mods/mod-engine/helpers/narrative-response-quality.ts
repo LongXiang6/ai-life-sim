@@ -125,7 +125,27 @@ export function inspectNarrativeResponseQuality(
   const envelope = extractTaggedMetaEnvelope(content)
   if (!envelope) {
     const plainNarrative = extractBodyOnlyNarrative(content)
-    if (plainNarrative) return buildBodyOnlyQuality(plainNarrative)
+    if (plainNarrative) {
+      // A body-only degradation is still an immediate player-visible success, but
+      // it cannot satisfy a current intent or a player-requested fate branch.
+      // Mark that missing conditional work explicitly so it can be repaired in
+      // the background without withholding the story body.
+      if (requireBranch) {
+        return failureWithEnvelope(
+          '本轮已请求命运分支，纯正文不能替代分支标题与分支选项',
+          plainNarrative,
+          'branch',
+        )
+      }
+      if (typeof expectedIntentId === 'string') {
+        return failureWithEnvelope(
+          '当前命运意图要求完整语义数据与命运意图判定',
+          plainNarrative,
+          'intent',
+        )
+      }
+      return buildBodyOnlyQuality(plainNarrative)
+    }
     return failure('缺少可识别的完整叙事正文')
   }
 
@@ -143,6 +163,16 @@ export function inspectNarrativeResponseQuality(
     }
   }
 
+  if (requireBranch) {
+    if (!metadata || !hasCompleteSemanticCore(metadata) || metadata.branch !== true) {
+      return failureWithEnvelope(
+        '本轮已请求命运分支，必须返回完整语义数据、分支标题与分支选项',
+        envelope.narrative,
+        'branch',
+      )
+    }
+  }
+
   if (typeof expectedIntentId === 'string') {
     if (!metadata || !hasCompleteSemanticCore(metadata)) {
       return failureWithEnvelope(
@@ -153,16 +183,6 @@ export function inspectNarrativeResponseQuality(
     }
     const intentError = validateIntentResolution(metadata.intentResolution, expectedIntentId)
     if (intentError) return failureWithEnvelope(intentError, envelope.narrative, 'intent')
-  }
-
-  if (requireBranch) {
-    if (!metadata || !hasCompleteSemanticCore(metadata) || metadata.branch !== true) {
-      return failureWithEnvelope(
-        '本轮已请求命运分支，必须返回完整语义数据、分支标题与分支选项',
-        envelope.narrative,
-        'branch',
-      )
-    }
   }
 
   const paragraphs = envelope.narrative

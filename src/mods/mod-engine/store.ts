@@ -46,6 +46,9 @@ interface EngineStore extends EngineState {
   /** 下轮强制分叉（更多 → 分支） */
   forceBranchNext: boolean
   setForceBranchNext: (value: boolean) => void
+  /** 强制分支的条件 META 正在后台补全；不持久化，避免恢复时伪装为仍在请求。 */
+  branchRepairPending: boolean
+  setBranchRepairPending: (value: boolean) => void
   /** 已解决的分叉：叙事片段 id → 玩家选择文本 */
   resolvedBranches: Record<string, string>
   resolveBranch: (id: string, choice: string) => void
@@ -80,6 +83,7 @@ const initialState = {
   narrativeError: null as string | null,
   coreMemoryNpcMap: {} as Record<string, NPCInteractionRecord[]>,
   forceBranchNext: false,
+  branchRepairPending: false,
   resolvedBranches: {} as Record<string, string>,
   characterCreations: [] as CharacterCreation[],
 }
@@ -131,6 +135,8 @@ export const useEngineStore = create<EngineStore>()(
 
       setForceBranchNext: (forceBranchNext,) => set({ forceBranchNext, },),
 
+      setBranchRepairPending: (branchRepairPending,) => set({ branchRepairPending, },),
+
       resolveBranch: (id, choice,) =>
         set((state,) => {
           const resolvedBranches = { ...state.resolvedBranches, [id]: choice }
@@ -162,7 +168,7 @@ export const useEngineStore = create<EngineStore>()(
         return persistedState as EngineStore
       },
       partialize: (state,) => {
-        const { setStatus: _a, appendNarrative: _b, setCurrentNarrative: _c, advanceRound: _d, setCompressionStats: _e, setCompressedSummaries: _f, appendStreamingChunk: _g, finalizeNarrative: _h, setNarrativeError: _i, setLastAutoSaveRound: _j, setCoreMemoryNpcMap: _n, setForceBranchNext: _fb, resolveBranch: _rb, reset: _o, ...rest } = state
+        const { setStatus: _a, appendNarrative: _b, setCurrentNarrative: _c, advanceRound: _d, setCompressionStats: _e, setCompressedSummaries: _f, appendStreamingChunk: _g, finalizeNarrative: _h, setNarrativeError: _i, setLastAutoSaveRound: _j, setCoreMemoryNpcMap: _n, setForceBranchNext: _fb, branchRepairPending: _brp, setBranchRepairPending: _sbrp, resolveBranch: _rb, reset: _o, ...rest } = state
         return rest
       },
     },

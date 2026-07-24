@@ -10,6 +10,8 @@ import {
   NARRATIVE_REPAIR_SERVER_PROMPT_ASSET_ID,
   NARRATIVE_SERVER_PROMPT_ASSET_ID,
 } from './prompts/narrative-prompt'
+import { NARRATIVE_BRANCH_REPAIR_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-branch-repair-prompt'
+import { COMPILED_NARRATIVE_BRANCH_REPAIR_SYSTEM_PROMPT } from './server/narrative-branch-repair-system-prompt'
 import { COMPILED_NARRATIVE_REPAIR_SYSTEM_PROMPT } from './server/narrative-repair-system-prompt'
 import { COMPILED_NARRATIVE_SYSTEM_PROMPT } from './server/narrative-system-prompt'
 
@@ -19,6 +21,10 @@ export interface ServerPromptAsset {
 }
 
 const SERVER_PROMPT_ASSETS: Readonly<Record<string, ServerPromptAsset>> = {
+  [NARRATIVE_BRANCH_REPAIR_SERVER_PROMPT_ASSET_ID]: {
+    id: NARRATIVE_BRANCH_REPAIR_SERVER_PROMPT_ASSET_ID,
+    systemPrompt: COMPILED_NARRATIVE_BRANCH_REPAIR_SYSTEM_PROMPT,
+  },
   [NARRATIVE_SERVER_PROMPT_ASSET_ID]: {
     id: NARRATIVE_SERVER_PROMPT_ASSET_ID,
     systemPrompt: COMPILED_NARRATIVE_SYSTEM_PROMPT,
@@ -35,6 +41,7 @@ const SERVER_PROMPT_ASSETS: Readonly<Record<string, ServerPromptAsset>> = {
  */
 const LEGACY_SERVER_PROMPT_ASSET_ALIASES: Readonly<Record<string, string>> = {
   'mod-engine:narrative:4.5.2': NARRATIVE_SERVER_PROMPT_ASSET_ID,
+  'mod-engine:narrative:4.6.0': NARRATIVE_SERVER_PROMPT_ASSET_ID,
 }
 
 /** 只按公开白名单 ID 或精确迁移表返回服务端固定资产。 */

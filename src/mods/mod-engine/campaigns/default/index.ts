@@ -16,7 +16,7 @@
  */
 
 import type { NarrativeStage, RoundContext, AIModelConfig, PromptTemplate } from '@/foundation'
-import { eventBus, callAIWithPromptTemplate, callAIDegraded, buildSegmentedPrompt, getNarrativeUserSegments, recordRoundCacheMetrics } from '@/core'
+import { eventBus, callAIWithPromptTemplate, callAIDegraded, buildSegmentedPrompt, getNarrativeUserSegments, recordRoundCacheMetrics, parseAIJSON } from '@/core'
 import { memoryLifecycle } from '../../subsystems/memory-lifecycle-system'
 import { buildEventInjectionText } from '../../helpers/event-lifecycle-tracker'
 import { useSettingsStore } from '@/mods/mod-settings'
@@ -37,6 +37,11 @@ import { extractTaggedMetaEnvelope } from '../../helpers/tagged-meta-envelope'
 import { buildBranchIntentInstruction } from '../../helpers/branch-intent-resolution'
 import { NARRATIVE_REPAIR_SERVER_PROMPT_ASSET_ID } from '../../prompts/narrative-prompt'
 import {
+  narrativeBranchRepairOutputSchema,
+  narrativeBranchRepairPrompt,
+} from '../../prompts/narrative-branch-repair-prompt'
+import type { NarrativeBranchRepairOutput } from '../../types'
+import {
   compileNarrativeDynamicComponents,
   createNarrativeRepairComponent,
 } from '../../prompts/narrative-prompt-components'
@@ -51,6 +56,8 @@ export interface StageRuntimeContext extends RoundContext {
   _promptContext?: ReturnType<typeof orchestrator.assemblePromptContext>
   _warmupAck?: string
   _fullContent?: string
+  /** 完整正文先提交后，只生成分支标题与选项的后台补救。 */
+  _forcedBranchRepair?: Promise<NarrativeBranchRepairOutput | undefined>
   _roundResult?: ReturnType<typeof orchestrator.handleNarrativeResponse>
 }
 
@@ -360,58 +367,113 @@ export function loadStages(
           if (initialQuality.dataAdvisory) {
             console.info('[Orchestrator]', initialQuality.dataAdvisory)
           }
+
+          const runTargetedRepair = async (
+            quality: ReturnType<typeof inspectNarrativeResponseQuality>,
+            previousContent: string,
+            finalAttempt: boolean,
+          ): Promise<string> => {
+            const repairInstruction = compileNarrativeDynamicComponents([
+              createNarrativeRepairComponent(
+                [
+                  buildNarrativeRepairInstruction(
+                    quality,
+                    wordCountTarget,
+                    expectedIntentId,
+                    requireBranch,
+                  ),
+                  ...(focusedIntentRepairInstruction ? [focusedIntentRepairInstruction] : []),
+                  ...(finalAttempt
+                    ? ['这是最后一次协议修复机会：只修复信封和条件数据，保留上一版全部已成立剧情事实，不要解释。']
+                    : []),
+                ].join('\n'),
+              ),
+            ]) ?? ''
+            if (useStream) {
+              orchestrator.resetCurrentNarrative()
+              useEngineStore.setState({ streamingNarrative: '' })
+            }
+
+            const repairOptions = {
+              ...streamOpts,
+              onChunk: undefined,
+              logContext: {
+                ...streamOpts.logContext,
+                callKind: 'narrative-format-repair',
+              },
+            }
+
+            return callAIWithPromptTemplate(
+              repairPromptTemplate,
+              `${repairInstruction}\n\n【上一版完整输出；唯一剧情事实来源】\n${previousContent}`,
+              repairOptions,
+            )
+          }
+
+          const repairForcedBranchInBackground = async (
+            previousContent: string,
+          ): Promise<NarrativeBranchRepairOutput | undefined> => {
+            const committedNarrative = extractTaggedMetaEnvelope(previousContent)?.narrative
+              ?? previousContent.trim()
+            const rawResult = await callAIWithPromptTemplate(
+              narrativeBranchRepairPrompt,
+              [
+                '【已经提交的完整正文；唯一剧情事实来源】',
+                committedNarrative,
+                '【任务】玩家已明确要求此处出现命运分支。只提炼标题和二至四个可立即选择的行动，不续写正文。',
+              ].join('\n'),
+              {
+                config: { ...aiConfig, model },
+                pool: 'narrative',
+                sessionId,
+                signal: orchestrator.getPreviewAbortSignal(),
+                apiKey: customKey || undefined,
+                strictSchema: true,
+                overrideMaxTokens: 640,
+                overrideTemperature: 0.3,
+                logContext: {
+                  ...logContext,
+                  callKind: 'narrative-branch-repair',
+                },
+                ...routeOpts,
+              },
+            )
+            const validated = narrativeBranchRepairOutputSchema.safeParse(
+              parseAIJSON(rawResult),
+            )
+            return validated.success ? validated.data : undefined
+          }
+
           if (!initialQuality.valid) {
-            // 正文与结束标记完整时先交付正文，条件 META 由后续轮次/预生成静默补救。
-            // 只有协议本身不完整时才发一次最小修复请求。
+            // 正文与结束标记完整时先交付正文。玩家明确请求的强制分支在
+            // 后台补齐并只合并通过严格校验的分支 META，绝不重写已显示正文。
+            // 只有正文协议本身不完整时才在前台等待一次最小格式修复。
             if (canContinueWithNarrativeBody(initialQuality, expectedIntentId, requireBranch)) {
+              const previousContent = ctx._fullContent ?? ''
+              if (
+                requireBranch
+                && initialQuality.conditionalFailure === 'branch'
+                && !orchestrator.isPreviewExecution()
+              ) {
+                useEngineStore.getState().setBranchRepairPending(true)
+                ctx._forcedBranchRepair = repairForcedBranchInBackground(
+                  previousContent,
+                )
+                  .catch((error) => {
+                    console.warn('[Orchestrator] 强制命运分支后台补救失败:', error)
+                    return undefined
+                  })
+                  .finally(() => {
+                    // 终态清理由请求本身拥有，避免后续解析或提交异常留下永久门禁。
+                    useEngineStore.getState().setBranchRepairPending(false)
+                  })
+              }
               ctx._fullContent = preserveNarrativeBodyAndSummary(ctx._fullContent ?? '')
               console.warn(
                 '[Orchestrator] 条件 META 未完成；先提交完整正文，结构化状态保持待处理:',
                 initialQuality.reason,
               )
             } else {
-              const runTargetedRepair = async (
-                quality: ReturnType<typeof inspectNarrativeResponseQuality>,
-                previousContent: string,
-                finalAttempt: boolean,
-              ): Promise<string> => {
-                const repairInstruction = compileNarrativeDynamicComponents([
-                  createNarrativeRepairComponent(
-                    [
-                      buildNarrativeRepairInstruction(
-                        quality,
-                        wordCountTarget,
-                        expectedIntentId,
-                        requireBranch,
-                      ),
-                      ...(focusedIntentRepairInstruction ? [focusedIntentRepairInstruction] : []),
-                      ...(finalAttempt
-                        ? ['这是最后一次协议修复机会：只修复信封和条件数据，保留上一版全部已成立剧情事实，不要解释。']
-                        : []),
-                    ].join('\n'),
-                  ),
-                ]) ?? ''
-                if (useStream) {
-                  orchestrator.resetCurrentNarrative()
-                  useEngineStore.setState({ streamingNarrative: '' })
-                }
-
-                const repairOptions = {
-                  ...streamOpts,
-                  onChunk: undefined,
-                  logContext: {
-                    ...streamOpts.logContext,
-                    callKind: 'narrative-format-repair',
-                  },
-                }
-
-                return callAIWithPromptTemplate(
-                  repairPromptTemplate,
-                  `${repairInstruction}\n\n【上一版完整输出；唯一剧情事实来源】\n${previousContent}`,
-                  repairOptions,
-                )
-              }
-
               const previousContent = ctx._fullContent ?? ''
               ctx._fullContent = await runTargetedRepair(initialQuality, previousContent, false)
               let repairedQuality = inspectNarrativeResponseQuality(
@@ -513,6 +575,28 @@ export function loadStages(
           return
         }
         const result = orchestrator.handleNarrativeResponse(ctx._fullContent)
+
+        if (ctx._forcedBranchRepair) {
+          const history = orchestrator.getState().narrativeHistory
+          const narrativeEntryId = history[history.length - 1]?.id
+          if (!narrativeEntryId) {
+            useEngineStore.getState().setBranchRepairPending(false)
+          } else {
+            void ctx._forcedBranchRepair
+              .then((branchRepair) => {
+                if (!branchRepair) return
+                const applied = orchestrator.applyBackgroundForcedBranchRepair(
+                  narrativeEntryId,
+                  branchRepair,
+                )
+                if (applied) {
+                  orchestrator.triggerAutoSave()
+                } else {
+                  console.warn('[Orchestrator] 强制命运分支后台结果未通过最终合并门禁')
+                }
+              })
+          }
+        }
 
         // 存储 notableEvents，供下一轮跨域联动使用
         if (result.notableEvents?.length) {

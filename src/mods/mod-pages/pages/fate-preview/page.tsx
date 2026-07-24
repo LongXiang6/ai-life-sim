@@ -316,7 +316,7 @@ function FatePreviewContent() {
         <div className={styles.paper}>
           <span className={styles.spine} aria-hidden="true" />
           <header className={styles.header}>
-            <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>08 / 08</span></div>
+            <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>07 / 08</span></div>
             <div className={styles.titleRow}>
               <div>
                 <h1 className={styles.headerTitle}>核对命书</h1>
@@ -381,14 +381,14 @@ function FatePreviewContent() {
               {equippedMythicPatterns.map((pattern) => (
                 <div key={pattern.id} className={styles.patternRow}>
                   <div className={styles.patternHeading}>
-                    <strong>转世 · {pattern.name}</strong>
-                    <small>转世天赋</small>
+                    <strong>轮回 · {pattern.name}</strong>
+                    <small>轮回天赋</small>
                   </div>
                   <span>{pattern.concept}：{pattern.effect}</span>
                 </div>
               ))}
             </div>
-            {equippedMythicPatterns.length === 0 ? <p className={styles.mythicEmpty}>本局不携带转世天赋。</p> : null}
+            {equippedMythicPatterns.length === 0 ? <p className={styles.mythicEmpty}>本局不携带轮回天赋。</p> : null}
             {talents.length > 0 && (
               <div className={styles.talentPills} aria-label="角色天赋">
                 {talents.map((talent) => {

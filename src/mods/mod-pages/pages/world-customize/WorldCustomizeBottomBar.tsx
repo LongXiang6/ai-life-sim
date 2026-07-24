@@ -27,7 +27,7 @@ export function WorldCustomizeBottomBar({
           <span aria-hidden="true">←</span>
         </button>
         <button type="button" className={styles.confirmButton} onClick={onConfirm} disabled={disabled} title={blockedReason ?? undefined}>
-          <span className={styles.nextNumber}>04</span>
+        <span className={styles.nextNumber}>03</span>
           <span className={styles.nextCopy}>
             <strong>{isSaving ? '正在初始化世界' : '确认世界'}</strong>
             <small>{hint}</small>

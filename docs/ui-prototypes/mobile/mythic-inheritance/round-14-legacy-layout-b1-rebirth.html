@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>命格选取 · B1 转世天赋卡槽</title>
+  <title>命格选取 · B1 轮回天赋卡槽</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="../assets/library.css?v=20260723-ui-sync-4">
   <link rel="stylesheet" href="../assets/creation-flow-unified.css?v=20260723-ui-sync-4">
@@ -198,20 +198,20 @@
 <body class="mi-b1" data-screen="mythic-inheritance" data-creation-step="5">
   <main class="creation-shell">
     <div class="prototype-topbar"><a href="index.html">← 返回方案库</a></div>
-    <header class="creation-review"><p class="creation-review-label">CREATION FLOW · 05 / 08</p><h1>命格选取</h1><p class="creation-review-copy">上半区改为印章短签摘要：转世可选两项，普通命格选满三条，详情仍在候选与转世面板中阅读。</p></header>
+    <header class="creation-review"><p class="creation-review-label">CREATION FLOW · 05 / 08</p><h1>命格选取</h1><p class="creation-review-copy">上半区改为印章短签摘要：轮回可选两项，普通命格选满三条，详情仍在候选与轮回面板中阅读。</p></header>
     <section class="creation-stage" aria-label="命格选取移动端界面">
       <div class="creation-phone" data-relative-phone data-relative-phone-width="320" data-relative-phone-height="694">
         <div class="cf-screen">
-          <header class="cf-header" data-creation-header data-title="选择命格" data-subtitle="可携带两项转世天赋，并从十二个候选中选择三条普通命格。"></header>
-          <div class="rebirth-heading"><span>转世 · 可选</span><span data-rebirth-count>0 / 2</span></div>
-          <div class="rebirth-slots" aria-label="已选择的转世天赋"><button class="rebirth-slot" type="button" data-rebirth-slot="0" aria-label="转世天赋槽 1"><strong>＋</strong></button><button class="rebirth-slot" type="button" data-rebirth-slot="1" aria-label="转世天赋槽 2"><strong>＋</strong></button></div>
+          <header class="cf-header" data-creation-header data-title="选择命格" data-subtitle="可携带两项轮回天赋，并从十二个候选中选择三条普通命格。"></header>
+          <div class="rebirth-heading"><span>轮回 · 可选</span><span data-rebirth-count>0 / 2</span></div>
+          <div class="rebirth-slots" aria-label="已选择的轮回天赋"><button class="rebirth-slot" type="button" data-rebirth-slot="0" aria-label="轮回天赋槽 1"><strong>＋</strong></button><button class="rebirth-slot" type="button" data-rebirth-slot="1" aria-label="轮回天赋槽 2"><strong>＋</strong></button></div>
           <div class="slot-heading"><span>普通命格</span><span data-slot-count>0 / 3</span></div>
           <div class="ordinary-slots" aria-label="已选择的普通命格"><button class="ordinary-slot" type="button" data-slot="0" aria-label="普通命格槽 1"><strong>＋</strong></button><button class="ordinary-slot" type="button" data-slot="1" aria-label="普通命格槽 2"><strong>＋</strong></button><button class="ordinary-slot" type="button" data-slot="2" aria-label="普通命格槽 3"><strong>＋</strong></button></div>
           <div class="candidate-head"><strong>普通命格候选 <small data-candidate-count>12 条</small></strong><button class="reroll" type="button" data-reroll>重抽未选</button></div>
           <div class="candidate-list" data-candidates aria-live="polite"></div>
         </div>
         <footer class="cf-footer"><button class="cf-back" type="button" data-flow-to="talent-draw" aria-label="返回命格抽取" title="返回命格抽取"><span data-icon="back"></span></button><button class="cf-next" type="button" data-flow-to="attribute-alloc" disabled><span class="cf-next-number">06</span><span class="cf-next-copy"><strong>确认命格</strong><small data-selection-status>还需选择 3 条普通命格</small></span><span class="cf-next-arrow" data-icon="arrow"></span></button></footer>
-        <div class="rebirth-sheet" data-rebirth-sheet aria-hidden="true"><button class="rebirth-sheet-backdrop" type="button" data-close-rebirth-sheet aria-label="关闭转世天赋选择"></button><section class="rebirth-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="rebirth-sheet-title"><header class="rebirth-sheet-head"><div><p>转世天赋</p><strong id="rebirth-sheet-title" data-rebirth-sheet-title>选择转世天赋</strong></div><button class="rebirth-sheet-close" type="button" data-close-rebirth-sheet aria-label="关闭转世天赋选择" title="关闭">×</button></header><div class="rebirth-options" data-rebirth-options aria-label="转世天赋选择"></div></section></div>
+        <div class="rebirth-sheet" data-rebirth-sheet aria-hidden="true"><button class="rebirth-sheet-backdrop" type="button" data-close-rebirth-sheet aria-label="关闭轮回天赋选择"></button><section class="rebirth-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="rebirth-sheet-title"><header class="rebirth-sheet-head"><div><p>轮回天赋</p><strong id="rebirth-sheet-title" data-rebirth-sheet-title>选择轮回天赋</strong></div><button class="rebirth-sheet-close" type="button" data-close-rebirth-sheet aria-label="关闭轮回天赋选择" title="关闭">×</button></header><div class="rebirth-options" data-rebirth-options aria-label="轮回天赋选择"></div></section></div>
         <div class="cf-toast" role="status" aria-live="polite"></div>
       </div>
     </section>
@@ -295,13 +295,13 @@
           delete slot.dataset.name
           slot.className = 'rebirth-slot'
           slot.innerHTML = '<strong>＋</strong>'
-          slot.setAttribute('aria-label', '转世天赋空槽')
+          slot.setAttribute('aria-label', '轮回天赋空槽')
           return
         }
         slot.dataset.name = item.name
         slot.className = 'rebirth-slot is-filled'
         slot.innerHTML = `<strong>${item.name}</strong>`
-        slot.setAttribute('aria-label', `已选转世天赋 ${item.name}，点击卸下`)
+        slot.setAttribute('aria-label', `已选轮回天赋 ${item.name}，点击卸下`)
       }
       function selectedTalentItems() {
         return slots.map(function (slot) { return candidates.find(function (item) { return item.name === slot.dataset.name }) }).filter(Boolean)
@@ -333,7 +333,7 @@
       }
       function renderRebirths() {
         const used = new Set(rebirthSlots.map(function (slot) { return slot.dataset.name }).filter(Boolean))
-        rebirthOptions.innerHTML = rebirths.map(function (item, index) { return `<button class="rebirth-option" type="button" data-rebirth="${index}" ${used.has(item.name) ? 'disabled' : ''}><small>转世天赋</small><strong>${item.name}</strong><span>${item.effect}</span></button>` }).join('')
+        rebirthOptions.innerHTML = rebirths.map(function (item, index) { return `<button class="rebirth-option" type="button" data-rebirth="${index}" ${used.has(item.name) ? 'disabled' : ''}><small>轮回天赋</small><strong>${item.name}</strong><span>${item.effect}</span></button>` }).join('')
       }
       candidateHost.addEventListener('click', function (event) {
         const button = event.target.closest('[data-candidate]')
@@ -370,7 +370,7 @@
             return
           }
           rebirthTarget = Number(slot.dataset.rebirthSlot)
-          rebirthSheetTitle.textContent = `选择转世 ${String(rebirthTarget + 1).padStart(2, '0')}`
+          rebirthSheetTitle.textContent = `选择轮回 ${String(rebirthTarget + 1).padStart(2, '0')}`
           renderRebirths()
           rebirthSheet.classList.add('is-open')
           rebirthSheet.setAttribute('aria-hidden', 'false')
@@ -378,7 +378,7 @@
       })
       rebirthOptions.addEventListener('click', function (event) {
         const button = event.target.closest('[data-rebirth]'); if (!button) return
-        const item = rebirths[Number(button.dataset.rebirth)]; renderRebirthSlot(rebirthSlots[rebirthTarget], item); closeRebirthSheet(); renderRebirths(); update(); CreationFlow.notify(`转世天赋 · ${item.name}`)
+        const item = rebirths[Number(button.dataset.rebirth)]; renderRebirthSlot(rebirthSlots[rebirthTarget], item); closeRebirthSheet(); renderRebirths(); update(); CreationFlow.notify(`轮回天赋 · ${item.name}`)
       })
       document.querySelectorAll('[data-close-rebirth-sheet]').forEach(function (button) { button.addEventListener('click', closeRebirthSheet) })
       document.addEventListener('DOMContentLoaded', function () {

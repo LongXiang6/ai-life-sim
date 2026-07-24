@@ -198,9 +198,9 @@ async function main() {
   await page.getByRole('button', { name: /进入命格选择/ }).click()
   await page.getByRole('heading', { name: '选择命格' }).waitFor()
 
-  await page.getByRole('button', { name: /转世天赋槽1/ }).click()
+  await page.getByRole('button', { name: /轮回天赋槽1/ }).click()
   await page.getByRole('button', { name: '未熄之诺' }).click()
-  await page.getByRole('button', { name: /转世天赋槽2/ }).click()
+  await page.getByRole('button', { name: /轮回天赋槽2/ }).click()
   await page.getByRole('button', { name: '回声拾光' }).click()
 
   for (let index = 0; index < 3; index += 1) {

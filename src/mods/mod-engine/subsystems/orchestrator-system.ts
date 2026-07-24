@@ -96,6 +96,8 @@ import {
   type TimeStep,
   type ParsedNarrative,
   type DigestLedgerSnapshot,
+  narrativeBranchRepairOutputSchema,
+  type NarrativeBranchRepairOutput,
 } from './shared'
 
 import { useSettingsStore } from '@/mods/mod-settings'
@@ -184,12 +186,12 @@ function formatEquippedMythicPatternForPrompt(patterns: readonly {
   const rules = (patterns ?? []).flatMap((pattern) => {
     const effect = pattern.effect.trim()
     if (!effect) return []
-    const name = pattern.name.trim() || '未命名转世天赋'
+    const name = pattern.name.trim() || '未命名轮回天赋'
     const concept = pattern.concept.trim()
     return [`${name}${concept ? `（${concept}）` : ''}：${effect}`]
   })
   return rules.length > 0
-    ? `【已装备转世天赋·每轮遵守】${rules.join('\n')}`
+    ? `【已装备轮回天赋·每轮遵守】${rules.join('\n')}`
     : undefined
 }
 
@@ -2739,6 +2741,48 @@ export class OrchestratorSystem extends BaseSubsystem {
     return isBranch
       ? { isBranchPoint: true, branchTitle: title, branchOptions: options }
       : { isBranchPoint: false }
+  }
+
+  /** 将独立 Schema 验证过的强制分支合并到原故事条目；正文始终保持不变。 */
+  public applyBackgroundForcedBranchRepair(
+    narrativeEntryId: string,
+    branchRepair: NarrativeBranchRepairOutput,
+  ): boolean {
+    const entryIndex = this.state.narrativeHistory.findIndex(
+      (entry) => entry.id === narrativeEntryId,
+    )
+    const entry = entryIndex >= 0 ? this.state.narrativeHistory[entryIndex] : undefined
+    if (!entry || entry.isBranchPoint || entry.resolvedChoice !== undefined) return false
+
+    const validated = narrativeBranchRepairOutputSchema.safeParse(branchRepair)
+    if (!validated.success) return false
+    const branchTitle = validated.data.分支标题.trim()
+    const branchOptions = normalizeNarrativeBranchOptions(validated.data.分支选项)
+    if (branchOptions.length < 2 || branchOptions.length > 4) return false
+
+    this.lastBranchTotalRound = this.state.totalRounds
+    this.state.narrativeHistory[entryIndex] = {
+      ...entry,
+      isBranchPoint: true,
+      branchTitle,
+      branchOptions,
+    }
+
+    useEngineStore.setState((store) => ({
+      narrativeHistory: store.narrativeHistory.map((chunk) => (
+        chunk.id === narrativeEntryId
+          ? {
+              ...chunk,
+              isBranchPoint: true,
+              branchTitle,
+              branchOptions,
+            }
+          : chunk
+      )),
+      forceBranchNext: false,
+    }))
+    this.publishSimulationSnapshot()
+    return true
   }
 
   private commitFocusedBranchIntentResolution(

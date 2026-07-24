@@ -256,7 +256,7 @@ export default function AccountPage() {
                 <div className={styles.formHead}>
                   <span>AI LIFE SIM · 云端续页</span>
                   <h2 id="auth-title">{mode === 'login' ? '登录账号' : '注册账号'}</h2>
-                  <p>{mode === 'login' ? '载入你的配置、角色设定、转世天赋与战绩。' : '建立一份可跨设备续写的个人命书。'}</p>
+                  <p>{mode === 'login' ? '载入你的配置、角色设定、轮回天赋与战绩。' : '建立一份可跨设备续写的个人命书。'}</p>
                 </div>
                 <label>
                   <span>用户名</span>
@@ -310,7 +310,7 @@ export default function AccountPage() {
           <div className={styles.localData}>
             <section className={styles.slots} aria-labelledby="local-talent-slots-title">
               <div className={styles.sectionHead}>
-                <h2 id="local-talent-slots-title">本地转世天赋</h2>
+                <h2 id="local-talent-slots-title">本地轮回天赋</h2>
                 <span>{mythicTalents.length} / 10</span>
               </div>
               <div className={styles.slotList}>
@@ -430,7 +430,7 @@ export default function AccountPage() {
 
             <section className={styles.slots} aria-labelledby="talent-slots-title">
               <div className={styles.sectionHead}>
-                <h2 id="talent-slots-title">转世天赋</h2>
+                <h2 id="talent-slots-title">轮回天赋</h2>
                 <span>{mythicTalents.length} / 10</span>
               </div>
               <div className={styles.slotList}>

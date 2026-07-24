@@ -116,6 +116,7 @@ export default function GamePage() {
   const { narrativeHistory } = useNarrative()
   const streamingNarrative = useEngineStore((s) => s.streamingNarrative)
   const narrativeError = useEngineStore((s) => s.narrativeError)
+  const branchRepairPending = useEngineStore((s) => s.branchRepairPending)
   const timeStep = useEngineStore((s) => s.timeStep)
   const preGenStatus = usePreGenQueueStatus()
   const activeTimeStepKey = encodeTimeStepKey(timeStep)
@@ -258,10 +259,10 @@ export default function GamePage() {
   }, [router, stop])
 
   const runNarrativeAttempt = useCallback(async () => {
-    if (!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch) return
+    if (!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch || branchRepairPending) return
     reportUsageMetric({ schemaVersion: 1, kind: 'narrative_advance', timeStepKey: activeTimeStepKey })
     await advanceRound()
-  }, [isRuntimeReady, isDead, isComplete, isAdvancing, hasUnresolvedBranch, activeTimeStepKey, advanceRound])
+  }, [isRuntimeReady, isDead, isComplete, isAdvancing, hasUnresolvedBranch, branchRepairPending, activeTimeStepKey, advanceRound])
 
   const handleNarrativeAdvance = useCallback(async () => {
     if (narrativeError) {
@@ -285,7 +286,7 @@ export default function GamePage() {
       return
     }
 
-    if (!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch) return
+    if (!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch || branchRepairPending) return
 
     const attemptIndex = autoRetryAttempt
     const retryDelay = getAutoNarrativeRetryDelay(attemptIndex)
@@ -299,7 +300,7 @@ export default function GamePage() {
     }, retryDelay)
 
     return () => window.clearTimeout(retryTimer)
-  }, [narrativeError, isRuntimeReady, isDead, isComplete, isAdvancing, hasUnresolvedBranch, autoRetryAttempt, runNarrativeAttempt])
+  }, [narrativeError, isRuntimeReady, isDead, isComplete, isAdvancing, hasUnresolvedBranch, branchRepairPending, autoRetryAttempt, runNarrativeAttempt])
 
   const autoRetryPending = Boolean(
     narrativeError
@@ -308,12 +309,15 @@ export default function GamePage() {
       && !isComplete
       && !isAdvancing
       && !hasUnresolvedBranch
+      && !branchRepairPending
       && getAutoNarrativeRetryDelay(autoRetryAttempt) !== null,
   )
 
   const narrativeAdvanceBlockedText = !isRuntimeReady
     ? runtimeBlockedText
-    : '完成分支后继续'
+    : branchRepairPending
+      ? '命运分支正在后台整理'
+      : '完成分支后继续'
   const narrativeAdvanceText = narrativeError && !hasUnresolvedBranch
     ? '立即重试，继续此段故事'
     : '轻触，让岁月流转'
@@ -467,7 +471,7 @@ export default function GamePage() {
               className={`${styles.forceButton} ${forceBranchNext ? styles.forceButtonActive : ''}`}
               aria-label={forceBranchNext ? '取消下一轮强制分支' : '强制下一轮分支'}
               aria-pressed={forceBranchNext}
-              disabled={!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch}
+              disabled={!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch || branchRepairPending}
               onClick={handleForceBranch}
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -572,7 +576,7 @@ export default function GamePage() {
                       <span className={styles.mutedText}>暂无角色词条</span>
                     )}
 
-                    <p className={styles.ledgerLabel}>转世天赋 · 独立槽</p>
+                    <p className={styles.ledgerLabel}>轮回天赋 · 独立槽</p>
                     {equippedMythicPatterns.length > 0 ? (
                       equippedMythicPatterns.map((pattern) => (
                         <div key={pattern.id} className={styles.mythicRule}>
@@ -580,7 +584,7 @@ export default function GamePage() {
                           <span>{pattern.effect}</span>
                         </div>
                       ))
-                    ) : <span className={styles.mutedText}>本局未携带转世天赋</span>}
+                    ) : <span className={styles.mutedText}>本局未携带轮回天赋</span>}
 
                     <p className={styles.ledgerLabel}>世界与当前状态</p>
                     <div className={styles.stateList}>
@@ -631,7 +635,7 @@ export default function GamePage() {
             <small>第 {Math.max(totalRounds, 1)} 回 · 故事进程</small>
             <h1>故事进行中</h1>
             <div className={styles.chapterRule}>
-              <span>{!isRuntimeReady ? runtimeBlockedText : isAdvancing ? '命书正在续写' : hasUnresolvedBranch ? '等待你的选择' : forceBranchNext ? '已请求命运分叉' : '岁月流转'}</span>
+              <span>{!isRuntimeReady ? runtimeBlockedText : isAdvancing ? '命书正在续写' : hasUnresolvedBranch ? '等待你的选择' : branchRepairPending ? '命运分支整理中' : forceBranchNext ? '已请求命运分叉' : '岁月流转'}</span>
             </div>
           </header>
 
@@ -662,7 +666,7 @@ export default function GamePage() {
             streamingHeader={streamingHeader}
             turnCount={totalRounds}
             showAdvance={!isDead && !isComplete}
-            advanceBlocked={!isRuntimeReady || hasUnresolvedBranch}
+            advanceBlocked={!isRuntimeReady || hasUnresolvedBranch || branchRepairPending}
             advanceBlockedText={narrativeAdvanceBlockedText}
             advanceText={narrativeAdvanceText}
             advanceHint={narrativeAdvanceHint}

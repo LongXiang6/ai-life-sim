@@ -130,10 +130,10 @@ export const DEFAULT_DESTINY_PATTERN_COUNT = DESTINY_PATTERN_EARLY_READY_COUNT
 /** 玩家选择数量（选3，对齐废弃项目 TALENT_SELECT_COUNT） */
 export const DESTINY_PATTERN_SELECT_COUNT = 3
 
-/** 每局最多携带的转世天赋数量。 */
+/** 每局最多携带的轮回天赋数量。 */
 export const MYTHIC_PATTERN_SELECT_COUNT = 2
 
-/** 结算页一次生成的转世天赋候选数。 */
+/** 结算页一次生成的轮回天赋候选数。 */
 export const MYTHIC_PATTERN_CANDIDATE_COUNT = 3
 
 /** AI 批量生成：每路请求正好 10 条，后台最多 10 批填满约 100 条本地池。 */

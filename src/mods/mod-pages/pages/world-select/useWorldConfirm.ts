@@ -111,10 +111,9 @@ export function useWorldConfirm() {
     confirmingRef.current = true
     try {
       if (!await hasAvailableApiConfiguration()) {
-        alert(
+        throw new Error(
           '当前主叙事模型不可用：请打开设置 → 模型调用，选择官方厂商预设；你仍可填写自己的 API Key。',
         )
-        return false
       }
 
       const isCustom = selectedWorld.id.startsWith('custom-')

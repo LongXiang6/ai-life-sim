@@ -12,7 +12,7 @@ export function CharacterCreateBottomBar({ logic }: { logic: UseCharacterCreateL
           <span aria-hidden="true">←</span>
         </button>
         <button type="button" className={styles.confirmButton} onClick={logic.handleNext} disabled={!logic.canProceed} title={logic.nextBlockReason ?? undefined}>
-          <span className={styles.nextNumber}>05</span>
+          <span className={styles.nextNumber}>04</span>
           <span className={styles.nextCopy}><strong>确认角色</strong><small>{hint}</small></span>
           <span className={styles.nextArrow} aria-hidden="true">→</span>
         </button>

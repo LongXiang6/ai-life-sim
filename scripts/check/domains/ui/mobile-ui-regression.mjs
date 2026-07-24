@@ -84,6 +84,7 @@ const worldSelectStageSrc = readRel('src/mods/mod-pages/pages/world-select/World
 const worldSelectDirectorySrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectDirectory.tsx')
 const worldSelectMainGridSrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectMainGrid.tsx')
 const worldSelectBottomBarSrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectBottomBar.tsx')
+const worldSelectCustomFormSrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectCustomForm.tsx')
 const worldSelectCssSrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectMobile.module.css')
 const characterCreateMobileSrc = readRel('src/mods/mod-pages/pages/character-create/CharacterCreateMobile.tsx')
 const characterCreatePageSrc = readRel('src/mods/mod-pages/pages/character-create/page.tsx')
@@ -367,10 +368,10 @@ assertOk(
 )
 assertOk(characterCreateMobileSrc.trimEnd().split('\n').length <= 200, 'character create mobile composer must stay at or below the 200-line UI limit')
 assertOk(productDecisionsSrc.includes('欢迎 → 世界选择 → 世界配置 → 角色创建'), 'PD-002 must preserve the live world-customize step before character creation')
-assertOk(worldSelectMobileSrc.includes('<span>02 / 07</span>') && !worldSelectMobileSrc.includes('WORLD · ORIGIN') && worldSelectBottomBarSrc.includes('nextNumber}>03'), 'world selection must use the unified step-02 header and advance to step 03')
-assertOk(worldCustomizeMobileSrc.includes('<span>03 / 07</span>') && !worldCustomizeMobileSrc.includes('WORLD · CHARTER') && worldCustomizeBottomBarSrc.includes('nextNumber}>04'), 'world customization must use the unified step-03 header and advance to step 04')
-assertOk(characterCreateMobileSrc.includes('<span>04 / 07</span>') && !characterCreateMobileSrc.includes('CHARACTER · ORIGIN') && characterBottomBarSrc.includes('nextNumber}>05'), 'character creation must use the unified step-04 header and advance to step 05')
-assertOk(talentDrawPageSrc.includes("phase === 'selecting' ? '06' : '05'") && talentDrawPageSrc.includes("phase === 'selecting' ? '07' : '06'") && talentDrawPageSrc.includes("/ 08</span>"), 'talent draw and selection must occupy creation steps 05 and 06 before final review')
+assertOk(worldSelectMobileSrc.includes('<span>01 / 08</span>') && worldSelectMobileSrc.includes('<span>01</span>') && !worldSelectMobileSrc.includes('WORLD · ORIGIN') && worldSelectBottomBarSrc.includes('nextNumber}>02'), 'world selection must use the selected flow step-01 header and advance to step 02')
+assertOk(worldCustomizeMobileSrc.includes('<span>02 / 08</span>') && worldCustomizeMobileSrc.includes('<span>02</span>') && !worldCustomizeMobileSrc.includes('WORLD · CHARTER') && worldCustomizeBottomBarSrc.includes('nextNumber}>03'), 'world customization must use the selected flow step-02 header and advance to step 03')
+assertOk(characterCreateMobileSrc.includes('<span>03 / 08</span>') && characterCreateMobileSrc.includes('<span>03</span>') && !characterCreateMobileSrc.includes('CHARACTER · ORIGIN') && characterBottomBarSrc.includes('nextNumber}>04'), 'character creation must use the selected flow step-03 header and advance to step 04')
+assertOk(talentDrawPageSrc.includes("phase === 'selecting' ? '05' : '04'") && talentDrawPageSrc.includes("phase === 'selecting' ? '06' : '05'") && talentDrawPageSrc.includes("/ 08</span>"), 'talent draw and selection must occupy creation steps 04 and 05 before final review')
 assertOk(
   !talentDrawPageSrc.includes('CREATION FLOW ·')
     && talentDrawCssSrc.includes('.titleMark::after')
@@ -422,10 +423,22 @@ assertOk(
     && talentDrawPageSrc.includes('selectedUiSlots.map(')
     && talentDrawPageSrc.includes('role="dialog"')
     && talentDrawCssSrc.includes('.rebirthSlotFilled')
-    && talentDrawCssSrc.includes('.selectedSlotFilled'),
-  'selected fate runtime must keep two rebirth slots, three ordinary slots and the rebirth bottom sheet',
+    && talentDrawCssSrc.includes('.selectedSlotFilled')
+    && talentDrawCssSrc.includes('animation: candidate-breathe')
+    && talentDrawCssSrc.includes('animation: seal-breathe')
+    && talentDrawCssSrc.includes('animation: rebirth-flow')
+    && talentDrawCssSrc.includes('rebirth-halo')
+    && talentDrawCssSrc.includes('@keyframes sheet-rise'),
+  'selected fate runtime must keep two rebirth slots, three ordinary slots, the bottom sheet, and all selected glow effects',
 )
-assertOk(fatePreviewPageSrc.includes('<span>08 / 08</span>') && !fatePreviewPageSrc.includes('FATE · PREVIEW') && fatePreviewPageSrc.includes('confirmNumber="完成"'), 'fate preview must use the unified final step and close the creation flow')
+assertOk(
+  talentDrawPageSrc.includes('轮回天赋')
+    && !talentDrawPageSrc.includes('转世天赋')
+    && fatePreviewPageSrc.includes('轮回天赋')
+    && !fatePreviewPageSrc.includes('转世天赋'),
+  'the creation flow must use the current player-facing reincarnation-talent terminology without changing internal mythic contracts',
+)
+assertOk(fatePreviewPageSrc.includes('<span>07 / 08</span>') && fatePreviewPageSrc.includes('<span>07</span>') && !fatePreviewPageSrc.includes('FATE · PREVIEW') && fatePreviewPageSrc.includes('confirmNumber="完成"'), 'fate preview must use the selected flow step-07 and close the creation flow')
 assertOk(
   fatePreviewPageSrc.includes('useCreationStoresHydrated()')
     && fatePreviewPageSrc.includes("router.replace('/new-game/world-select')")
@@ -599,7 +612,7 @@ assertOk(
     && gameStoryPageSrc.includes('void runNarrativeAttempt()')
     && gameStoryPageSrc.includes('autoRetryGenerationRef.current += 1')
     && gameStoryPageSrc.includes('setAutoRetryAttempt(attemptIndex + 1)')
-    && gameStoryPageSrc.includes('advanceBlocked={!isRuntimeReady || hasUnresolvedBranch}')
+    && gameStoryPageSrc.includes('advanceBlocked={!isRuntimeReady || hasUnresolvedBranch || branchRepairPending}')
     && gameStoryPageSrc.includes('advanceText={narrativeAdvanceText}')
     && gameStoryPageSrc.includes('advanceHint={narrativeAdvanceHint}')
     && !gameStoryPageSrc.includes('handleNarrativeRetry'),
@@ -635,6 +648,17 @@ assertOk(
   newGamePageSrc.includes('void resetForNewLife()')
     && worldConfirmSrc.includes('await prepareNewLifeWorldCommit(worldCode)'),
   'canonical and direct world-selection entry paths must both prevent previous-life state from reaching a new world',
+)
+assertOk(
+  !/\balert\s*\(/.test(worldConfirmSrc)
+    && worldConfirmSrc.includes("throw new Error(\n          '当前主叙事模型不可用")
+    && worldSelectMobileSrc.includes('role="alert"'),
+  'unavailable narrative configuration must stay inside the selected page instead of opening a native alert',
+)
+assertOk(
+  !worldSelectCustomFormSrc.includes('maxLength=')
+    && worldSelectCustomFormSrc.includes('{logic.customName.length} 字'),
+  'custom world names must preserve complete input and expose only a non-destructive character count',
 )
 
 assertOk(

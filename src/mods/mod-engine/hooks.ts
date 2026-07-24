@@ -181,6 +181,7 @@ export function useSimulationAdvance() {
 
   const advanceRound = useCallback(async () => {
     if (isAdvancingRef.current) return
+    if (useEngineStore.getState().branchRepairPending) return
     const runtimeReadiness = getSimulationRuntimeReadiness()
     if (!runtimeReadiness.loaderReady) {
       useEngineStore.getState().setNarrativeError('核心模拟系统仍在初始化，请稍候重试。')
@@ -260,6 +261,7 @@ export function useSimulationAdvance() {
         orchestrator.triggerAutoSave()
       })
     } catch (err) {
+      useEngineStore.getState().setBranchRepairPending(false)
       const expectedQualityRejection = err instanceof Error
         && err.name === 'NarrativeGenerationRejectedError'
       const logRoundFailure = expectedQualityRejection ? console.warn : console.error

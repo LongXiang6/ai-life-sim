@@ -177,7 +177,7 @@ reject(forgetting, /causalEvents\.shift\(/, 'causal protection marks must not be
 reject(eventLifecycle, /activeDisasters\.slice\(/, 'event lifecycle must not ignore disasters after a fixed count')
 reject(branchPolicy, /\.slice\(0,\s*4\)/, 'branch option normalization must not silently remove valid options')
 reject(narrativePrompt, /digest:[^\n]*(?:不超过|最多)\d+|keyEvents:[^\n]*最多\d+|entities[^\n]*最多\d+|relationshipUpdates:[^\n]*最多\d+|resolvedForeshadowingIds:[^\n]*最多\d+|notableEvents:[^\n]*最多\d+|creations:[^\n]*最多\d+|foreshadowing:[^\n]*最多\d+/, 'narrative Prompt must not induce fixed character or item limits on semantic META')
-assertOk(narrativePrompt.includes("version: '4.6.0'"), 'no-truncation narrative contract must use Prompt version 4.6.0')
+assertOk(narrativePrompt.includes("version: '4.6.1'"), 'no-truncation narrative contract must use Prompt version 4.6.1')
 assertOk(
   branchIntent.includes('其他未完成命运意图；保持事实连续，不得静默删除')
     && orchestrator.includes('branchIntents: this.branchIntents')

@@ -1,10 +1,10 @@
 /**
  * @module talent-draw-page
- * @description 命格抽取与选择 —— 对齐移动端方案库的十二道命印与双转世槽
+ * @description 命格抽取与选择 —— 对齐移动端方案库的十二道命印与双轮回天赋槽
  *   - 单按钮 + 设置控制 AI/预设
  *   - 缓存池 >= 5 条进入完成交接态，玩家确认后展开选取，后台可继续补池
  *   - 真实进度追踪（onProgress 回调）
- *   - 抽12选3 + 可选两项转世天赋 → 确认 → /attribute-alloc
+ *   - 抽12选3 + 可选两项轮回天赋 → 确认 → /attribute-alloc
  * @mod mod-pages
  */
 
@@ -668,7 +668,7 @@ function TalentDrawContent() {
     if (!pattern) {
       setEquippedMythicPatterns([])
       setLibraryOpen(false)
-      notify('已清空转世天赋槽')
+      notify('已清空轮回天赋槽')
       return
     }
 
@@ -680,7 +680,7 @@ function TalentDrawContent() {
       return
     }
     if (current.length >= MYTHIC_PATTERN_SELECT_COUNT) {
-      notify(`最多携带 ${MYTHIC_PATTERN_SELECT_COUNT} 项转世天赋`)
+      notify(`最多携带 ${MYTHIC_PATTERN_SELECT_COUNT} 项轮回天赋`)
       return
     }
     const insertionIndex = Math.min(activeMythicSlot, current.length)
@@ -690,7 +690,7 @@ function TalentDrawContent() {
       ...current.slice(insertionIndex),
     ])
     setLibraryOpen(false)
-    notify(`转世天赋 · ${pattern.name}`)
+    notify(`轮回天赋 · ${pattern.name}`)
   }, [activeMythicSlot, equippedMythicPatterns, notify, setEquippedMythicPatterns])
 
   const handleOpenMythicSlot = useCallback((slotIndex: number) => {
@@ -814,7 +814,7 @@ function TalentDrawContent() {
       : phase === 'ready'
         ? `${slots.filter(Boolean).length} / ${DESTINY_PATTERN_DISPLAY_COUNT} 条已显现 · 可先进入选择`
         : selectedData.length === DESTINY_PATTERN_SELECT_COUNT
-          ? `三条普通命格已签订 · 转世天赋 ${equippedMythicPatterns.length} / ${MYTHIC_PATTERN_SELECT_COUNT}`
+          ? `三条普通命格已签订 · 轮回天赋 ${equippedMythicPatterns.length} / ${MYTHIC_PATTERN_SELECT_COUNT}`
           : `还需选择 ${DESTINY_PATTERN_SELECT_COUNT - selectedData.length} 条普通命格`
 
   const handleFooterAction = () => {
@@ -835,16 +835,16 @@ function TalentDrawContent() {
             <header className={styles.header}>
               <div className={styles.meta} aria-hidden="true">
                 <span>AI LIFE SIM · 命书</span>
-                <span>{phase === 'selecting' ? '06' : '05'} / 08</span>
+                <span>{phase === 'selecting' ? '05' : '04'} / 08</span>
               </div>
               <div className={styles.titleRow}>
                 <div className={styles.titleCopy}>
                   <h1 id="talent-page-title">{phase === 'selecting' ? '选择命格' : '命格抽取'}</h1>
                   <p>{phase === 'selecting'
-                    ? `从十二个候选中选满三条，可携带 ${MYTHIC_PATTERN_SELECT_COUNT} 项转世天赋。`
+                    ? `从十二个候选中选满三条，可携带 ${MYTHIC_PATTERN_SELECT_COUNT} 项轮回天赋。`
                     : `先生成 ${DESTINY_PATTERN_EARLY_READY_COUNT} 条，十二个候选在后台补齐。`}</p>
                 </div>
-                <div className={styles.titleMark} aria-hidden="true"><span>{phase === 'selecting' ? '06' : '05'}</span></div>
+                <div className={styles.titleMark} aria-hidden="true"><span>{phase === 'selecting' ? '05' : '04'}</span></div>
               </div>
             </header>
 
@@ -888,8 +888,8 @@ function TalentDrawContent() {
               </section>
             ) : (
               <section className={styles.selectionView} aria-label="命格选择">
-                <div className={styles.rebirthHeading}><span>转世 · 可选</span><span>{equippedMythicPatterns.length} / {MYTHIC_PATTERN_SELECT_COUNT}</span></div>
-                <div className={styles.rebirthSlots} aria-label="已选择的转世天赋">
+                <div className={styles.rebirthHeading}><span>轮回 · 可选</span><span>{equippedMythicPatterns.length} / {MYTHIC_PATTERN_SELECT_COUNT}</span></div>
+                <div className={styles.rebirthSlots} aria-label="已选择的轮回天赋">
                   {Array.from({ length: MYTHIC_PATTERN_SELECT_COUNT }, (_, slotIndex) => {
                     const pattern = equippedMythicPatterns[slotIndex]
                     return (
@@ -899,7 +899,7 @@ function TalentDrawContent() {
                         ref={slotIndex === activeMythicSlot ? libraryTriggerRef : undefined}
                         className={cn(styles.rebirthSlot, pattern && styles.rebirthSlotFilled)}
                         onClick={() => pattern ? handleToggleMythic(pattern) : handleOpenMythicSlot(slotIndex)}
-                        aria-label={pattern ? `移除转世天赋：${pattern.name}` : `转世天赋槽${slotIndex + 1}，打开天赋库`}
+                        aria-label={pattern ? `移除轮回天赋：${pattern.name}` : `轮回天赋槽${slotIndex + 1}，打开天赋库`}
                       >
                         <strong>{pattern?.name ?? '+'}</strong>
                       </button>
@@ -969,22 +969,22 @@ function TalentDrawContent() {
 
           {libraryOpen ? (
             <section id="mythic-library-sheet" ref={librarySheetRef} className={styles.librarySheet} role="dialog" aria-modal="true" aria-labelledby="mythic-library-title">
-              <button className={styles.libraryBackdrop} type="button" onClick={() => setLibraryOpen(false)} aria-label="关闭转世天赋选择" />
+              <button className={styles.libraryBackdrop} type="button" onClick={() => setLibraryOpen(false)} aria-label="关闭轮回天赋选择" />
               <div className={styles.libraryPanel}>
                 <header className={styles.libraryHead}>
-                  <div><small>转世天赋</small><strong id="mythic-library-title">选择转世 {String(activeMythicSlot + 1).padStart(2, '0')}</strong></div>
-                  <button ref={libraryCloseRef} type="button" onClick={() => setLibraryOpen(false)} aria-label="关闭转世天赋库"><FlowIcon name="close" /></button>
+                  <div><small>轮回天赋</small><strong id="mythic-library-title">选择轮回 {String(activeMythicSlot + 1).padStart(2, '0')}</strong></div>
+                  <button ref={libraryCloseRef} type="button" onClick={() => setLibraryOpen(false)} aria-label="关闭轮回天赋库"><FlowIcon name="close" /></button>
                 </header>
                 <div className={styles.libraryList}>
                   <button type="button" className={`${styles.libraryItem} ${equippedMythicPatterns.length === 0 ? styles.libraryItemActive : ''}`} onClick={() => handleToggleMythic(null)} aria-pressed={equippedMythicPatterns.length === 0}>
-                    <strong>清空转世槽</strong><span>转世天赋独立于三个普通命格，可留空。</span>
+                    <strong>清空轮回槽</strong><span>轮回天赋独立于三个普通命格，可留空。</span>
                   </button>
                   {mythicLibrary.map((pattern) => (
                     <button type="button" key={pattern.id} className={`${styles.libraryItem} ${equippedMythicPatterns.some((item) => item.id === pattern.id) ? styles.libraryItemActive : ''}`} onClick={() => handleToggleMythic(pattern)} aria-pressed={equippedMythicPatterns.some((item) => item.id === pattern.id)}>
                       <strong>{pattern.name}</strong><span>{pattern.effect || pattern.concept}</span>
                     </button>
                   ))}
-                  {mythicLibrary.length === 0 ? <p className={styles.libraryEmpty}>尚未在人生结算中封存转世天赋。</p> : null}
+                  {mythicLibrary.length === 0 ? <p className={styles.libraryEmpty}>尚未在人生结算中封存轮回天赋。</p> : null}
                 </div>
               </div>
             </section>
@@ -993,7 +993,7 @@ function TalentDrawContent() {
           <footer className={styles.footer}>
             <button type="button" className={styles.backButton} onClick={handleBack} aria-label={phase === 'selecting' ? '返回命格抽取' : '返回角色创建'}><FlowIcon name="back" /></button>
             <button type="button" className={styles.nextButton} onClick={handleFooterAction} disabled={footerDisabled}>
-              <span className={styles.nextNumber}>{phase === 'selecting' ? '07' : '06'}</span>
+              <span className={styles.nextNumber}>{phase === 'selecting' ? '06' : '05'}</span>
               <span className={styles.nextCopy}><strong>{footerTitle}</strong><small>{footerCopy}</small></span>
               <span className={styles.nextArrow} aria-hidden="true"><FlowIcon name="arrow" /></span>
             </button>

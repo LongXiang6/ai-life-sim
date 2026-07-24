@@ -22,6 +22,8 @@ const clientComponents = read('src/mods/mod-engine/prompts/narrative-prompt-comp
 const clientProtocol = read('src/mods/mod-engine/helpers/narrative-ai-protocol.ts')
 const serverPrompt = read('src/mods/mod-engine/server/narrative-system-prompt.ts')
 const repairServerPrompt = read('src/mods/mod-engine/server/narrative-repair-system-prompt.ts')
+const branchRepairContract = read('src/mods/mod-engine/prompts/narrative-branch-repair-prompt.ts')
+const branchRepairServerPrompt = read('src/mods/mod-engine/server/narrative-branch-repair-system-prompt.ts')
 const serverEntry = read('src/mods/mod-engine/server-prompt-assets.ts')
 const manifest = read('src/mods/mod-engine/manifest.ts')
 const generatedSecondary = read('src/core/mod-loader/mod-secondary-api-importers.generated.ts')
@@ -32,10 +34,18 @@ const settingsModal = read('src/mods/mod-settings/components/SettingsModal.tsx')
 const settingsIndex = read('src/mods/mod-settings/index.ts')
 
 assertOk(
-  promptContract.includes("version: '4.6.0'")
+  promptContract.includes("version: '4.6.1'")
     && promptContract.includes("systemPrompt: ''")
     && promptContract.includes('serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID'),
   'browser PromptTemplate must carry only the server asset ID',
+)
+assertOk(
+  branchRepairContract.includes('narrativeBranchRepairOutputSchema')
+    && branchRepairContract.includes("'mod-engine:narrative-branch-repair:1.0.0'")
+    && branchRepairServerPrompt.includes('COMPILED_NARRATIVE_BRANCH_REPAIR_SYSTEM_PROMPT')
+    && branchRepairServerPrompt.includes('不得输出 markdown、正文、摘要、解释、语义信号、状态变更或任何额外字段')
+    && serverEntry.includes('NARRATIVE_BRANCH_REPAIR_SERVER_PROMPT_ASSET_ID'),
+  'player-forced branch repair must use a protected branch-only JSON asset',
 )
 assertOk(
   repairServerPrompt.includes('COMPILED_NARRATIVE_REPAIR_SYSTEM_PROMPT')
@@ -74,6 +84,7 @@ assertOk(
   serverEntry.includes("import 'server-only'")
     && serverEntry.includes('resolveModEngineServerPromptAsset')
     && serverEntry.includes("'mod-engine:narrative:4.5.2'")
+    && serverEntry.includes("'mod-engine:narrative:4.6.0'")
     && serverEntry.includes('LEGACY_SERVER_PROMPT_ASSET_ALIASES')
     && serverEntry.includes('canonicalAssetId'),
   'server Prompt public entry must carry the server-only hard gate and exact release migration',
