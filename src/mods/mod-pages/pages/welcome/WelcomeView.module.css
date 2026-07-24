@@ -1,3 +1,4 @@
+/* 欢迎界面 - 定版B2平衡方案适配 */
 .container {
   position: relative;
   isolation: isolate;
@@ -13,31 +14,17 @@
   grid-template-rows: auto minmax(0, 1fr) auto;
   padding: max(1rem, env(safe-area-inset-top)) clamp(1rem, 5vw, 4.5rem)
     max(0.85rem, env(safe-area-inset-bottom));
-  background: #fff;
-  color: #17191d;
-  font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
-}
-
-.container::after {
-  position: absolute;
-  z-index: -1;
-  top: -5rem;
-  right: -5rem;
-  width: clamp(10rem, 26vw, 16rem);
-  aspect-ratio: 1;
-  border: 1px solid rgb(154 121 102 / 9%);
-  border-radius: 50%;
-  box-shadow:
-    inset 0 0 0 1.2rem rgb(154 121 102 / 2.5%),
-    inset 0 0 0 2.5rem rgb(154 121 102 / 2%);
-  content: "";
+  background: linear-gradient(145deg, rgba(255, 220, 126, 0.1), rgba(255, 220, 126, 0) 36%),
+    linear-gradient(160deg, #fbfcff 0%, #f1f4f8 100%);
+  color: #20283a;
+  font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
 }
 
 .runningHead {
   display: flex;
   padding-left: clamp(1.6rem, 5vw, 3.2rem);
   justify-content: space-between;
-  color: #969ba2;
+  color: #718099;
   font-size: clamp(0.58rem, 1.7vw, 0.72rem);
   font-weight: 650;
   letter-spacing: 0.04em;
@@ -96,15 +83,16 @@
   align-items: center;
   gap: 0.7rem;
   margin: 0;
-  color: #969ba2;
+  color: #718099;
   font-family: "Songti SC", STSong, SimSun, serif;
   font-size: clamp(0.68rem, 1.8vw, 0.8rem);
+  font-weight: 600;
 }
 
 .brand::after {
   width: 3rem;
   height: 1px;
-  background: #e5e7ea;
+  background: #dce3ed;
   content: "";
 }
 
@@ -113,18 +101,17 @@
   flex-direction: column;
   gap: 0.15em;
   margin: clamp(0.9rem, 3vw, 1.5rem) 0 0;
-  color: #17191d;
+  color: #171e35;
   font-family: "Songti SC", STSong, SimSun, serif;
   font-size: clamp(1.75rem, 6.7vw, 3.55rem);
   font-weight: 600;
   line-height: 1.34;
-  letter-spacing: 0;
 }
 
 .subtitle {
   max-width: 30rem;
   margin: 0.85rem 0 0;
-  color: #626870;
+  color: #617086;
   font-size: clamp(0.78rem, 2.5vw, 0.95rem);
   line-height: 1.75;
 }
@@ -140,14 +127,15 @@
   align-items: center;
   gap: 0.7rem;
   margin: 0 0 0.35rem;
-  color: #969ba2;
+  color: #718099;
   font-family: "Songti SC", STSong, SimSun, serif;
   font-size: 0.68rem;
+  font-weight: 650;
 }
 
 .routeHeading::after {
   height: 1px;
-  background: #e5e7ea;
+  background: #dce3ed;
   content: "";
   flex: 1;
 }
@@ -166,7 +154,7 @@
   gap: 0.75rem;
   padding: 0.45rem 0;
   border: 0;
-  border-top: 1px solid #f0f1f3;
+  border-top: 1px solid #e5e7ea;
   background: transparent;
   color: inherit;
   cursor: pointer;
@@ -177,7 +165,7 @@
 
 .routeAction:hover,
 .routeAction:focus-visible {
-  background: rgb(240 243 246 / 72%);
+  background: rgba(240, 243, 246, 0.72);
 }
 
 .routeAction:active {
@@ -185,7 +173,7 @@
 }
 
 .primaryBtn {
-  border-top-color: #e5e7ea;
+  border-top-color: #d8deea;
 }
 
 .savedAction {
@@ -197,7 +185,7 @@
   align-self: stretch;
   display: grid;
   place-items: center;
-  color: #969ba2;
+  color: #8995a5;
   font-size: 0.64rem;
   font-weight: 700;
 }
@@ -208,7 +196,7 @@
   right: 0;
   bottom: 20%;
   width: 1px;
-  background: #e5e7ea;
+  background: #dce3ed;
   content: "";
 }
 
@@ -225,12 +213,14 @@
   font-family: "Songti SC", STSong, SimSun, serif;
   font-size: clamp(0.93rem, 2.7vw, 1.08rem);
   font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.015em;
 }
 
 .routeCopy small {
   margin-top: 0.24rem;
   overflow: hidden;
-  color: #969ba2;
+  color: #8995a5;
   font-size: clamp(0.64rem, 2vw, 0.76rem);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -241,11 +231,10 @@
   width: 2.25rem;
   height: 2.25rem;
   place-items: center;
-  border: 1px solid #dce2e8;
+  border: 1px solid rgba(109, 127, 148, 0.68);
   border-radius: 50%;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.8);
   color: #6d7f94;
-  font-size: 1rem;
 }
 
 .routeArrow svg {
@@ -256,9 +245,9 @@
 .routeArrow path {
   fill: none;
   stroke: currentcolor;
+  stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 1.5;
 }
 
 .primaryBtn .routeArrow {
@@ -291,6 +280,7 @@
   text-decoration: none;
 }
 
+/* 存档弹层 */
 .saveSheet {
   position: absolute;
   z-index: 30;
@@ -300,10 +290,10 @@
   max-height: min(74dvh, 38rem);
   padding: clamp(0.85rem, 3.5vw, 1.1rem);
   overflow-y: auto;
-  border: 1px solid #dce2e8;
+  border: 1px solid rgba(174, 184, 202, 0.48);
   border-radius: clamp(1rem, 5vw, 1.5rem);
-  background: rgb(255 255 255 / 99.5%);
-  box-shadow: 0 1.25rem 3rem rgb(17 24 39 / 16%);
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1.25rem 3rem rgba(31, 43, 65, 0.13);
   opacity: 0;
   pointer-events: none;
   transform: translateY(1rem);
@@ -337,7 +327,7 @@
 
 .saveSheetHead small {
   margin-top: 0.2rem;
-  color: #969ba2;
+  color: #8995a5;
   font-size: 0.66rem;
 }
 
@@ -348,10 +338,11 @@
   flex: 0 0 auto;
   place-items: center;
   padding: 0;
-  border: 1px solid #e5e7ea;
+  border: 1px solid rgba(174, 184, 202, 0.62);
   border-radius: 50%;
-  background: #fff;
-  color: #626870;
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.94), rgba(239, 242, 247, 0.78));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.96), 0 0.25rem 0.625rem rgba(44, 52, 74, 0.05);
+  color: #68738a;
   cursor: pointer;
 }
 
@@ -382,9 +373,10 @@
   grid-template-columns: minmax(0, 1fr) 1rem;
   align-items: center;
   gap: 0.55rem;
-  border: 1px solid transparent;
+  border: 1px solid rgba(174, 184, 202, 0.42);
   border-radius: 0.75rem;
-  background: #f6f8fa;
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.88), rgba(239, 242, 247, 0.7));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.9), 0 0.175rem 0.45rem rgba(44, 52, 74, 0.035);
   color: #17191d;
   cursor: pointer;
   font: inherit;
@@ -407,7 +399,7 @@
 .saveItem small {
   margin-top: 0.2rem;
   overflow: hidden;
-  color: #969ba2;
+  color: #8995a5;
   font-size: 0.61rem;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -417,14 +409,14 @@
   position: relative;
   width: 0.9rem;
   height: 0.9rem;
-  border: 1px solid #dce2e8;
+  border: 1px solid #cbd5e2;
   border-radius: 50%;
-  background: #fff;
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .saveItem[aria-pressed="true"] {
-  border-color: #d8e0e8;
-  background: #f0f3f6;
+  border-color: rgba(109, 127, 148, 0.62);
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.96), rgba(226, 234, 244, 0.8));
 }
 
 .saveItem[aria-pressed="true"] .saveCheck {
@@ -457,7 +449,7 @@
 .saveSheetStatus {
   min-height: 1.2rem;
   margin: 0.5rem 0.15rem 0;
-  color: #626870;
+  color: #626e82;
   font-size: 0.65rem;
 }
 
@@ -467,10 +459,11 @@
   min-height: 2.25rem;
   margin-top: 0.35rem;
   padding: 0.35rem 0.65rem;
-  border: 1px solid #e5e7ea;
+  border: 1px solid rgba(174, 184, 202, 0.52);
   border-radius: 0.75rem;
-  background: #fff;
-  color: #8d6d73;
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.9), rgba(239, 242, 247, 0.72));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.94), 0 0.175rem 0.45rem rgba(44, 52, 74, 0.035);
+  color: #697589;
   cursor: pointer;
   font: inherit;
   font-size: 0.68rem;
@@ -490,10 +483,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.65rem;
-  border: 0;
+  border: 1px solid rgba(109, 127, 148, 0.62);
   border-radius: 0.75rem;
-  background: #17191d;
-  color: #fff;
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.96), rgba(226, 234, 244, 0.82));
+  color: #293449;
   cursor: pointer;
   font: inherit;
   text-align: left;
@@ -504,12 +497,35 @@
   display: block;
 }
 
-.continueSave strong { font-size: 0.75rem; }
-.continueSave small { margin-top: 0.12rem; color: #d9dfe5; font-size: 0.6rem; }
-.continueSave svg { width: 1rem; height: 1rem; }
-.continueSave path { fill: none; stroke: currentcolor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.5; }
-.continueSave:disabled { cursor: not-allowed; opacity: 0.48; }
+.continueSave strong {
+  font-size: 0.75rem;
+}
 
+.continueSave small {
+  margin-top: 0.12rem;
+  color: #697589;
+  font-size: 0.6rem;
+}
+
+.continueSave svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.continueSave path {
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+
+.continueSave:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+/* 删除确认对话框 */
 .deleteDialogOverlay {
   position: fixed;
   z-index: 60;
@@ -518,21 +534,21 @@
   align-items: center;
   justify-content: center;
   padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom));
-  background: rgb(23 25 29 / 18%);
+  background: rgba(23, 25, 29, 0.18);
 }
 
 .deleteDialog {
   width: min(100%, 25rem);
   padding: 1rem;
-  border: 1px solid #e5e7ea;
+  border: 1px solid rgba(174, 184, 202, 0.48);
   border-radius: 1rem;
-  background: #fff;
-  box-shadow: 0 1rem 2.5rem rgb(24 28 34 / 16%);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 1rem 2.5rem rgba(31, 43, 65, 0.16);
 }
 
 .deleteDialog h2 {
   margin: 0;
-  color: #17191d;
+  color: #171e35;
   font-family: "Songti SC", STSong, SimSun, serif;
   font-size: 0.95rem;
   font-weight: 600;
@@ -540,7 +556,7 @@
 
 .deleteDialog p {
   margin: 0.55rem 0 0;
-  color: #626870;
+  color: #617086;
   font-size: 0.72rem;
   line-height: 1.65;
 }
@@ -556,7 +572,7 @@
 .deleteConfirm {
   min-height: 2.25rem;
   padding: 0 0.65rem;
-  border: 1px solid #e5e7ea;
+  border: 1px solid rgba(174, 184, 202, 0.52);
   border-radius: 0.65rem;
   cursor: pointer;
   font: inherit;
@@ -564,8 +580,8 @@
 }
 
 .deleteCancel {
-  background: #fff;
-  color: #626870;
+  background: rgba(255, 255, 255, 0.9);
+  color: #697589;
 }
 
 .deleteConfirm {
@@ -580,6 +596,7 @@
   opacity: 0.55;
 }
 
+/* 焦点可见性 */
 .routeAction:focus-visible,
 .footerLink:focus-visible,
 .saveSheetClose:focus-visible,
@@ -588,10 +605,11 @@
 .deleteSelected:focus-visible,
 .deleteCancel:focus-visible,
 .deleteConfirm:focus-visible {
-  outline: 2px solid rgb(109 127 148 / 48%);
+  outline: 2px solid rgba(109, 127, 148, 0.48);
   outline-offset: 2px;
 }
 
+/* 响应式适配 */
 @media (max-width: 42rem) {
   .container {
     width: 100%;

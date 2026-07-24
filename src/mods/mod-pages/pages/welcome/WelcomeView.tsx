@@ -73,6 +73,7 @@ export default function WelcomeView({
         <p className={styles.brand}>人生序章</p>
         <h1 id="welcome-title" className={styles.title}>
           一生很长，
+          <br />
           <span>也只由几次选择组成。</span>
         </h1>
         <p className={styles.subtitle}>选择世界与角色，走过关系、机会、代价和告别。</p>
@@ -89,9 +90,12 @@ export default function WelcomeView({
           <span className={styles.routeIndex}>01</span>
           <span className={styles.routeCopy}>
             <strong>开始新人生</strong>
-            <small>创建世界与角色，写下新的命书</small>
           </span>
-          <span className={styles.routeArrow} aria-hidden="true">→</span>
+          <span className={styles.routeArrow} aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          </span>
         </button>
 
         {hasAnySave && (
@@ -111,23 +115,39 @@ export default function WelcomeView({
         <div className={styles.secondaryActions}>
           <button type="button" className={`${styles.routeAction} ${styles.secondaryBtn}`} onClick={onOpenAccount}>
             <span className={styles.routeIndex}>03</span>
-            <span className={styles.routeCopy}><strong>账号与云端</strong><small>登录、同步与栏位管理</small></span>
-            <span className={styles.routeArrow} aria-hidden="true">→</span>
+            <span className={styles.routeCopy}><strong>账号与云端</strong></span>
+            <span className={styles.routeArrow} aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </span>
           </button>
           <button type="button" className={`${styles.routeAction} ${styles.secondaryBtn}`} onClick={onOpenSettings}>
             <span className={styles.routeIndex}>04</span>
-            <span className={styles.routeCopy}><strong>设置</strong><small>模型、叙事与界面偏好</small></span>
-            <span className={styles.routeArrow} aria-hidden="true">→</span>
+            <span className={styles.routeCopy}><strong>设置</strong></span>
+            <span className={styles.routeArrow} aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </span>
           </button>
           <button type="button" className={`${styles.routeAction} ${styles.secondaryBtn}`} onClick={onOpenHelp}>
             <span className={styles.routeIndex}>05</span>
-            <span className={styles.routeCopy}><strong>游戏说明</strong><small>规则、版本与操作说明</small></span>
-            <span className={styles.routeArrow} aria-hidden="true">→</span>
+            <span className={styles.routeCopy}><strong>游戏说明</strong></span>
+            <span className={styles.routeArrow} aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </span>
           </button>
           <button type="button" className={`${styles.routeAction} ${styles.secondaryBtn} ${styles.feedbackAction}`} onClick={onOpenFeedback}>
             <span className={styles.routeIndex}>06</span>
-            <span className={styles.routeCopy}><strong>反馈与建议</strong><small>提交问题并打包上传诊断日志</small></span>
-            <span className={styles.routeArrow} aria-hidden="true">→</span>
+            <span className={styles.routeCopy}><strong>反馈与建议</strong></span>
+            <span className={styles.routeArrow} aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <path d="M5 12h14M13 6l6 6-6 6" />
+              </svg>
+            </span>
           </button>
         </div>
 
