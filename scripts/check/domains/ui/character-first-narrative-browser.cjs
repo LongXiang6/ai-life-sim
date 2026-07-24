@@ -200,15 +200,11 @@ async function main() {
 
   await page.getByRole('button', { name: /转世天赋槽1/ }).click()
   await page.getByRole('button', { name: '未熄之诺' }).click()
-  await page.getByRole('button', { name: /关闭转世天赋库/ }).click()
   await page.getByRole('button', { name: /转世天赋槽2/ }).click()
   await page.getByRole('button', { name: '回声拾光' }).click()
-  await page.getByRole('button', { name: /关闭转世天赋库/ }).click()
 
   for (let index = 0; index < 3; index += 1) {
-    const node = page.getByRole('button', { name: /^查看命格：/ }).nth(index)
-    await node.click()
-    await page.getByTitle('加入命格槽').click()
+    await page.getByRole('button', { name: /，选择普通命格$/ }).first().click()
   }
   await waitForEnabled(page, '确认命格')
   await page.getByRole('button', { name: /确认命格/ }).click()

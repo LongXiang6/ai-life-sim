@@ -85,37 +85,8 @@
 .profileFacts span { color: var(--color-text-tertiary); font-size: var(--font-size-2xs); }
 .profileFacts strong { margin-top: var(--spacing-1); font-size: var(--font-size-xs); }
 
-.panelTabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.1875rem;
-  margin-top: var(--spacing-2);
-  padding: 0.1875rem;
-  border-radius: var(--radius-lg);
-  background: var(--color-bg-tertiary);
-}
-
-.panelTabs button {
-  min-height: 2rem;
-  padding: 0 var(--spacing-1);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--color-text-tertiary);
-  font: inherit;
-  font-size: var(--font-size-2xs);
-}
-
-.panelTabs .panelTabActive {
-  border-color: var(--color-border);
-  background: var(--color-bg-card);
-  color: var(--color-primary);
-  font-weight: 700;
-}
-
-.panelArea { min-width: 0; }
-.panelArea > div[hidden] { display: none; }
-.panelArea .section { margin-top: var(--spacing-2); }
+.flowSections { min-width: 0; }
+.flowSections .section { margin-top: var(--spacing-2); scroll-margin-top: 0.75rem; }
 
 .section { margin-top: var(--spacing-2); padding: var(--spacing-3); border: 1px solid var(--color-border); border-radius: var(--radius-xl); background: color-mix(in srgb, var(--color-bg-card) 94%, transparent); }
 .sectionHeading { display: flex; align-items: baseline; justify-content: space-between; gap: var(--spacing-2); margin-bottom: var(--spacing-2); }

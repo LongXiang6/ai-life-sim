@@ -74,6 +74,12 @@ async function main() {
   await clickText(page, '开始抽取')
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('进入命格选择') && !button.disabled), { timeout: 60000 })
   await clickText(page, '进入命格选择')
+  for (const [slotIndex, patternName] of [[1, '未熄之诺'], [2, '回声拾光']]) {
+    await page.click(`button[aria-label^="转世天赋槽${slotIndex}"]`)
+    await page.waitForSelector('#mythic-library-sheet')
+    await clickText(page, patternName, '#mythic-library-sheet button')
+    await page.waitForSelector('#mythic-library-sheet', { hidden: true })
+  }
   await page.waitForSelector('button[aria-label$="选择普通命格"]')
   for (let index = 0; index < 3; index += 1) {
     await page.evaluate(() => document.querySelector('button[aria-label$="选择普通命格"]')?.click())
@@ -133,6 +139,7 @@ async function main() {
     proxyRequests,
     narrativeEntries: persisted.engine.narrativeHistory?.length || 0,
     firstNarrativeChars: first.narrativeHistory?.[0]?.text?.length || 0,
+    equippedMythicPatterns: persisted.character.equippedMythicPatterns?.length || 0,
     forcedRoundCount,
     branchObserved, branchResolved,
     keySentToBrowserRequest: proxyRequests.some((request) => request.hasClientKey),
@@ -141,7 +148,7 @@ async function main() {
   }
   console.log(JSON.stringify(result, null, 2))
   await browser.close()
-  if (result.route !== '/game-story' || result.narrativeEntries < 2 || result.firstNarrativeChars < 20 || result.keySentToBrowserRequest || result.keyPersistedInBrowser || result.consoleErrors.length > 0) process.exit(1)
+  if (result.route !== '/game-story' || result.narrativeEntries < 2 || result.firstNarrativeChars < 20 || result.equippedMythicPatterns !== 2 || result.keySentToBrowserRequest || result.keyPersistedInBrowser || result.consoleErrors.length > 0) process.exit(1)
 }
 
 main().catch((error) => { console.error(error?.stack || error?.message || String(error)); process.exit(1) })

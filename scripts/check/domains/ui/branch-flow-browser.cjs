@@ -1,4 +1,5 @@
 const puppeteer = require('puppeteer')
+const fs = require('node:fs')
 
 const baseUrl = process.env.UI_BASE_URL || 'http://localhost:3000'
 const chromePath = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
@@ -88,9 +89,17 @@ function seedPage(page) {
 async function main() {
   const browser = await puppeteer.launch({ headless: true, executablePath: chromePath, args: ['--no-sandbox'] })
   const page = await browser.newPage()
+  const viewportWidth = Number.parseInt(process.env.UI_VIEWPORT_WIDTH || '1280', 10)
+  const viewportHeight = Number.parseInt(process.env.UI_VIEWPORT_HEIGHT || '932', 10)
+  await page.setViewport({ width: Number.isFinite(viewportWidth) ? viewportWidth : 1280, height: Number.isFinite(viewportHeight) ? viewportHeight : 932 })
   const consoleErrors = []
   const requests = []
   let responseIndex = 0
+  const screenshotDir = process.env.UI_SCREENSHOT_DIR
+  if (screenshotDir) fs.mkdirSync(screenshotDir, { recursive: true })
+  const capture = async (name) => {
+    if (screenshotDir) await page.screenshot({ path: require('node:path').join(screenshotDir, `${viewportWidth}-${name}.png`), fullPage: true })
+  }
   page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()) })
   page.on('pageerror', (error) => consoleErrors.push(error.message))
   await page.setRequestInterception(true)
@@ -110,23 +119,29 @@ async function main() {
 
   await page.goto(`${baseUrl}/new-game/character-create`, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('h1')
+  await capture('character')
   await page.focus('#character-name')
   await page.keyboard.type('分支测试')
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('确认角色'))?.click())
   await page.waitForFunction(() => location.pathname.endsWith('/talent-draw'))
+  await capture('draw-idle')
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('开始抽取') && !button.disabled))
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('开始抽取') && !button.disabled)?.click())
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('进入命格选择') && !button.disabled))
+  await capture('draw-ready')
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('进入命格选择'))?.click())
   await page.waitForFunction(() => location.pathname.endsWith('/talent-draw') && document.body.textContent?.includes('选择命格'))
-  for (const name of ['未熄之诺', '回声拾光']) {
-    await page.evaluate((patternName) => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes(patternName))?.click(), name)
-    await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('关闭转世天赋库'))?.click())
+  for (const [slotIndex, name] of [[1, '未熄之诺'], [2, '回声拾光']]) {
+    await page.click(`button[aria-label^="转世天赋槽${slotIndex}"]`)
+    await page.waitForSelector('#mythic-library-sheet')
+    await page.evaluate((patternName) => [...document.querySelectorAll('#mythic-library-sheet button')].find((button) => button.textContent?.includes(patternName))?.click(), name)
+    await page.waitForSelector('#mythic-library-sheet', { hidden: true })
   }
   for (let index = 0; index < 3; index += 1) {
     await page.waitForSelector('button[aria-label$="选择普通命格"]')
     await page.evaluate(() => document.querySelector('button[aria-label$="选择普通命格"]')?.click())
   }
+  await capture('selection-filled')
   try {
     await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('确认命格') && !button.disabled))
   } catch (error) {
@@ -136,6 +151,7 @@ async function main() {
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('确认命格'))?.click())
   await page.waitForFunction(() => location.pathname.endsWith('/attribute-alloc'))
   await page.waitForSelector('button[aria-label="增加体魄"]')
+  await capture('attribute')
   for (let i = 0; i < 15; i += 1) {
     const label = i < 10 ? '增加体魄' : '增加心智'
     await page.click(`button[aria-label="${label}"]`)
@@ -148,6 +164,7 @@ async function main() {
     console.error('FATE_PREVIEW_TIMEOUT', await page.evaluate(() => ({ path: location.pathname, text: document.body.innerText.slice(-4000), buttons: [...document.querySelectorAll('button')].map((button) => ({ text: button.textContent, disabled: button.disabled, title: button.title })) })))
     throw error
   }
+  await capture('preview')
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('开始人生'))?.click())
   await page.waitForFunction(() => location.pathname.endsWith('/game-story'))
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('轻触，让岁月流转') && !button.disabled), { timeout: 60000 })

@@ -21,10 +21,6 @@ function assertOk(condition, message) {
   }
 }
 
-function countMatches(source, expression) {
-  return [...source.matchAll(expression)].length
-}
-
 function cssRulesForClass(source, className) {
   const escapedClassName = className.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const classPattern = new RegExp(`\\.${escapedClassName}(?![\\w-])(?:\\.[\\w-]+|:(?!:)[\\w-]+(?:\\([^)]*\\))?|\\[[^\\]]+\\])*\\s*$`)
@@ -97,7 +93,6 @@ const characterLifespanSrc = readRel('src/mods/mod-pages/pages/character-create/
 const characterBottomBarSrc = readRel('src/mods/mod-pages/pages/character-create/CharacterCreateBottomBar.tsx')
 const characterCreateCssSrc = readRel('src/mods/mod-pages/pages/character-create/CharacterCreateMobile.module.css')
 const talentDrawPageSrc = readRel('src/mods/mod-pages/pages/talent-draw/page.tsx')
-const talentAstrolabeSrc = readRel('src/mods/mod-pages/pages/talent-draw/TalentAstrolabe.tsx')
 const talentDrawCssSrc = readRel('src/mods/mod-pages/pages/talent-draw/TalentDraw.module.css')
 const attributeAllocPageSrc = readRel('src/mods/mod-pages/pages/attribute-alloc/page.tsx')
 const productDecisionsSrc = readRel('docs/product-decisions.md')
@@ -339,10 +334,17 @@ assertOk(worldSelectMobileSrc.trimEnd().split('\n').length <= 200, 'world select
 
 assertOk(!characterCreateMobileSrc.includes('BottomActionBar'), 'N2A character create must use its page-specific edge-aligned bottom bar')
 assertOk(characterCreateMobileSrc.includes('<CharacterIdentitySection') && characterCreateMobileSrc.includes('<CharacterLifespanSection') && characterCreateMobileSrc.includes('<CharacterBackgroundSection'), 'N2A character create must compose identity, lifespan, and background sections')
-assertOk(characterCreateMobileSrc.includes('role="tablist"') && characterCreateMobileSrc.includes('role="tabpanel"') && characterCreateMobileSrc.includes('hidden={activePanel'), 'character creation must keep identity, lifespan, and background in one accessible tabbed surface')
+assertOk(
+  characterCreateMobileSrc.includes('className={styles.flowSections}')
+    && characterCreateMobileSrc.indexOf('<CharacterIdentitySection') < characterCreateMobileSrc.indexOf('<CharacterLifespanSection')
+    && characterCreateMobileSrc.indexOf('<CharacterLifespanSection') < characterCreateMobileSrc.indexOf('<CharacterBackgroundSection')
+    && !characterCreateMobileSrc.includes('role="tablist"')
+    && !characterCreateMobileSrc.includes('hidden={activePanel'),
+  'character creation must show identity, lifespan and background as the approved continuous vertical flow',
+)
 assertOk(characterIdentitySrc.includes('角色姓名') && characterIdentitySrc.includes('性别') && characterIdentitySrc.includes('种族'), 'N2A identity section must preserve all three core identity groups')
 assertOk(
-  characterIdentitySrc.includes('姓名为必填项')
+  characterIdentitySrc.includes('01 / 03 · 姓名、性别与种族')
     && characterIdentitySrc.includes('必填 · 可随机')
     && !characterIdentitySrc.includes('姓名留空将自动生成')
     && !characterIdentitySrc.includes('可选 · 可随机'),
@@ -376,14 +378,12 @@ assertOk(
   'talent draw header must use the unified title block instead of the legacy eyebrow and round seal',
 )
 assertOk(
-  /import\s+(?:\{[^}]*\bTalentAstrolabe\b[^}]*\}|TalentAstrolabe)\s+from\s+['"]\.\/TalentAstrolabe['"]/.test(talentDrawPageSrc)
-    && countMatches(talentDrawPageSrc, /<TalentAstrolabe\b/g) === 1,
-  'TD-RF17-1 and MI-RF1-1 must share exactly one runtime TalentAstrolabe instance',
-)
-assertOk(
-  talentAstrolabeSrc.includes('aria-label="十二位命格星盘"')
-    && talentAstrolabeSrc.includes('<span aria-hidden="true">命</span>'),
-  'the shared talent astrolabe must preserve the approved five-position identity and center glyph',
+  !talentDrawPageSrc.includes('TalentAstrolabe')
+    && talentDrawPageSrc.includes('className={styles.aura}')
+    && talentDrawPageSrc.includes('<b>命</b>')
+    && talentDrawPageSrc.includes('className={styles.seals}')
+    && talentDrawPageSrc.includes('aria-label="十二道命印"'),
+  'runtime talent draw must use the selected cloud-purple aura and twelve fate seals instead of the retired astrolabe',
 )
 assertOk(
   !talentDrawPageSrc.includes('progressTrack')
@@ -394,14 +394,11 @@ assertOk(
 )
 assertOk(
   !/window\.setInterval\([\s\S]*?4000\s*\)/.test(talentDrawPageSrc)
-    && /const\s+handleTurnAstrolabe[\s\S]{0,360}handleFocusSlot\(next\)/.test(talentDrawPageSrc)
-    && talentDrawPageSrc.includes('onTurn={handleTurnAstrolabe}')
-    && talentDrawPageSrc.includes('onTurn={handleTurnAstrolabe}')
+    && !talentDrawPageSrc.includes('handleTurnAstrolabe')
+    && /const\s+handleCandidateClick[\s\S]{0,260}handleSlotClick\(index\)/.test(talentDrawPageSrc)
     && !talentDrawPageSrc.includes('持续轮转')
-    && talentAstrolabeSrc.includes('aria-label="转动命格星盘"')
-    && talentAstrolabeSrc.includes('eventRippleMain')
-    && !talentAstrolabeSrc.includes('eventRippleTail'),
-  'the shared astrolabe must rotate only from player input and emit one large ripple per turn',
+    && talentDrawPageSrc.includes("phase === 'ready' ? slots.filter(Boolean).length : displayStreamCount"),
+  'talent draw must reveal real generation progress and let candidate clicks fill the stable selection slots directly',
 )
 assertOk(
   /const\s+\[selectedUiSlots,\s*setSelectedUiSlots\]\s*=\s*useState<\(number\s*\|\s*null\)\[\]>/.test(talentDrawPageSrc)
@@ -414,23 +411,19 @@ assertOk(
   'MI-RF1-1 must keep three position-stable UI slots and clear a removed selection in place',
 )
 
-const astrolabeWidths = cssDeclarationValues(talentDrawCssSrc, 'astrolabe', 'width')
-const astrolabeHeights = cssDeclarationValues(talentDrawCssSrc, 'astrolabe', 'height')
-const fateNodeWidths = cssDeclarationValues(talentDrawCssSrc, 'fateNode', 'width')
-const fateNodeHeights = cssDeclarationValues(talentDrawCssSrc, 'fateNode', 'height')
 assertOk(
-  astrolabeWidths.includes('286px')
-    && astrolabeHeights.includes('286px')
-    && astrolabeWidths.every((value) => value === '286px')
-    && astrolabeHeights.every((value) => value === '286px'),
-  'the shared astrolabe must remain exactly 286px in draw and selection layouts without responsive shrinking',
+  hasCssDeclaration(talentDrawCssSrc, 'aura', 'width', 'min(13.75rem, 72vw)')
+    && hasCssDeclaration(talentDrawCssSrc, 'seals', 'grid-template-columns', 'repeat(4, minmax(0, 1fr))')
+    && talentDrawCssSrc.includes('.sealLit[data-rarity="传世"]'),
+  'the selected draw aura and twelve-seal grid must remain fluid and preserve rarity-specific reveal states',
 )
 assertOk(
-  fateNodeWidths.includes('48px')
-    && fateNodeHeights.includes('48px')
-    && fateNodeWidths.every((value) => value === '48px')
-    && fateNodeHeights.every((value) => value === '48px'),
-  'all TalentAstrolabe fate nodes must preserve the approved 48px size',
+  talentDrawPageSrc.includes('Array.from({ length: MYTHIC_PATTERN_SELECT_COUNT }')
+    && talentDrawPageSrc.includes('selectedUiSlots.map(')
+    && talentDrawPageSrc.includes('role="dialog"')
+    && talentDrawCssSrc.includes('.rebirthSlotFilled')
+    && talentDrawCssSrc.includes('.selectedSlotFilled'),
+  'selected fate runtime must keep two rebirth slots, three ordinary slots and the rebirth bottom sheet',
 )
 assertOk(fatePreviewPageSrc.includes('<span>08 / 08</span>') && !fatePreviewPageSrc.includes('FATE · PREVIEW') && fatePreviewPageSrc.includes('confirmNumber="完成"'), 'fate preview must use the unified final step and close the creation flow')
 assertOk(
@@ -463,7 +456,7 @@ assertOk(
     && [welcomeCssSrc, talentDrawCssSrc, fatePreviewCssSrc, saveManagerCssSrc].every((source) => (
       source.includes('zoom: var(--non-simulation-ui-desktop-scale);')
     ))
-    && /@media \(min-width: 64rem\)[\s\S]*\.drawCopy > p,[\s\S]*font-size: 10px;/.test(talentDrawCssSrc)
+    && /@media \(min-width: 64rem\)[\s\S]*\.titleCopy p,[\s\S]*font-size: 0\.7rem;/.test(talentDrawCssSrc)
     && !gameStoryCssSrc.includes('--non-simulation-ui-desktop-scale'),
   'non-simulation pages must gain a modest desktop reading scale while game-story keeps its current density',
 )

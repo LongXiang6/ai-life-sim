@@ -5,7 +5,7 @@ import styles from './CharacterCreateMobile.module.css'
 export function CharacterLifespanSection({ logic }: { logic: UseCharacterCreateLogicReturn }) {
   return (
     <section className={`${styles.section} ${styles.lifespanSection}`}>
-      <div className={styles.sectionHeading}><h2>寿命与起始</h2><span>留空按种族自动计算</span></div>
+      <div className={styles.sectionHeading}><h2>寿命与起始</h2><span>02 / 03 · 人生跨度与开篇时点</span></div>
       <div className={styles.lifespanCard}>
         <div className={styles.lifespanFields}>
           <label><span>寿命上限</span><input value={logic.manualLifespan} inputMode="numeric" placeholder="自动" onChange={(event) => logic.setManualLifespan(event.target.value)} onBlur={logic.handleDetectLifespan} /></label>

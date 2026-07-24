@@ -220,6 +220,30 @@
 
 `Supersession: 取代 5.3.4 只记录分支与叙事修复而未记录预设环境和串联创建流生产证据的结论。`
 
+<a id="mobile-flow-ui-sync-20260724"></a>
+
+### 2.17 移动端串联定版 UI 运行时替换
+
+`LastVerified: 2026-07-24`
+
+`Authority: PD-008, PD-011, PD-012, PD-015`
+
+`SelectedSources: docs/ui-prototypes/mobile/character-create/round-15-ws-b1-adaptation.html; docs/ui-prototypes/mobile/talent-draw/round-refactor-18-rf17-2-b1-adaptation.html; docs/ui-prototypes/mobile/mythic-inheritance/round-14-legacy-layout-b1-rebirth.html; docs/ui-prototypes/mobile/attribute-alloc/final.html; docs/ui-prototypes/mobile/fate-preview/round-refactor-01-style-1.html`
+
+`RuntimeTargets: character-create, talent-draw, attribute-alloc, fate-preview`
+
+`Result: pass (local pre-release)`
+
+`Evidence: 运行时创建链已按 flow.html 的连续顺序落地：角色创建三段纵向流 → 云紫光环与十二道命印 → 两个转世天赋槽、三个普通命格槽与十二候选卡片 → 15 点四项基础属性 → 基础值/命格加成分离的命运预览。AI 模式保留 5 条早进与后台补齐，预设模式只在关闭 AI 命格时可用；候选描述完整呈现，不使用 line-clamp 或故事语义硬截断。Puppeteer 真实点击覆盖 320、375、430、768、1280 宽度，分支确认产生第二次请求、旧选择写入历史且控制台无错误；截图证据位于 .agents/.local/ui-after-current。`
+
+`IntentionalRuntimeAdaptations: AI 首屏等待、后台补池、错误提示、重抽未选和转世天赋底部抽屉属于运行时缺失功能补充；抽屉只从两个定版转世槽打开，未增加独立主工具条。`
+
+`ForbiddenDeviationCheck: 已移除运行时 TalentAstrolabe 及其 286px 星盘/48px 星位主构图与旧 Tab 交互；旧叙事质量回归断言已同步到十二道命印、双转世槽和三普通槽。`
+
+`Gates: npm run check:structural; npm run check:ui; npm run gate-check; TypeScript; no-hard-truncation-audit.mjs; branch-flow-browser.cjs across five viewports.`
+
+`KnownLimitations: 本节是本地发布前证据，尚未替代 2.16 的生产发布记录；check:mod 仍保留既有约 80 项历史基线失败，未新增。`
+
 ## 3. 阶段与发布验收摘要
 
 | 范围 | 当前结论 | 权威入口 |
@@ -234,6 +258,7 @@
 | 5.3.2 | 内容审核失败给出明确处理建议，确定性 4xx 不重试且重试日志不复制上游正文；移动端 `ui-sync-5` 原型验收完成并随生产 release 验证 | 本账本 2.7、2.9、2.13 |
 | 5.3.4 | 任何完整故事都立即交付；条件 META、非法数据与重复度不再触发同步重写，相关状态保持待处理且非法数据整包不写；分支确认在生成锁释放前禁用，避免静默跳过下一轮；已通过 DeepSeek 全流程、冷启动/公网分支浏览器、独立 release、旁路、原子切换、HTTPS 和运营运维验证 | 本账本 2.14、2.15 |
 | 5.3.5 | 恢复 LongCat 与原托管预设、增加发布前环境硬校验；移动端串联创建流注册 `/new-game/*` 路由并落地 15 点四项基础属性、12 候选命格与 2 项转世天赋；已通过生产预设真实请求、线上创建流和分支点击回归 | 本账本 2.16 |
+| 5.3.6 | 按选定移动端串联方案替换角色创建、命格、属性与命运预览运行时 UI；移除旧星盘主构图并同步候选、转世槽与浏览器回归 | 本账本 2.17 |
 
 公开玩家变更以 `../public/changelog-index.json` 与对应 `../public/changelog-*.txt` 为准；本账本不重复维护逐版本玩家文案。
 

@@ -240,23 +240,6 @@
   font-size: 0.55rem;
 }
 
-.backgroundExcerpt {
-  margin: 0.65rem 0 0;
-  padding-top: 0.55rem;
-  border-top: 1px solid var(--flow-line);
-  color: var(--flow-muted);
-  font-size: 0.625rem;
-  line-height: 1.55;
-}
-
-.backgroundExcerpt b {
-  margin-right: 0.45rem;
-  color: var(--flow-faint);
-  font-size: 0.575rem;
-  font-weight: 650;
-  letter-spacing: 0.06em;
-}
-
 .attrGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -282,19 +265,16 @@
 
 .attrValue {
   margin-top: 0.15rem;
+  color: var(--flow-ink);
   font: 700 0.825rem ui-monospace, "SFMono-Regular", Consolas, monospace;
 }
 
-.attrValuePos {
+.attrValue i {
+  margin-left: 0.2rem;
   color: var(--flow-accent);
-}
-
-.attrValueNeg {
-  color: #8d6d73;
-}
-
-.attrValueZero {
-  color: var(--flow-faint);
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 650;
 }
 
 .talentRow {
@@ -352,41 +332,7 @@
   font-size: 0.625rem;
 }
 
-.mythicSlot {
-  display: grid;
-  grid-template-columns: minmax(5.5rem, 0.72fr) minmax(0, 1.28fr);
-  gap: 0.65rem;
-  margin-top: 0.55rem;
-  padding: 0.55rem 0.65rem;
-  border: 1px solid #d8e0e8;
-  border-radius: 0.7rem;
-  background: var(--flow-accent-soft);
-}
-
-.mythicSlot small,
-.mythicSlot strong {
-  display: block;
-}
-
-.mythicSlot small {
-  color: var(--flow-faint);
-  font-size: 0.5rem;
-}
-
-.mythicSlot strong {
-  margin-top: 0.15rem;
-  color: var(--flow-accent);
-  font-family: "Songti SC", "STSong", "SimSun", serif;
-  font-size: 0.725rem;
-  font-weight: 600;
-}
-
-.mythicSlot p {
-  margin: 0;
-  color: var(--flow-muted);
-  font-size: 0.6rem;
-  line-height: 1.5;
-}
+.mythicEmpty { margin: 0.45rem 0 0; color: var(--flow-faint); font-size: 0.6rem; }
 
 .talentPills {
   display: flex;

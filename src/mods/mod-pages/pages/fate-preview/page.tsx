@@ -148,7 +148,6 @@ function FatePreviewContent() {
   const name = useCharacterStore((s) => s.name)
   const gender = useCharacterStore((s) => s.gender)
   const race = useCharacterStore((s) => s.race)
-  const background = useCharacterStore((s) => s.background)
   const characterBase = useCharacterStore((s) => s.characterBase)
   const destinyPatterns = useCharacterStore((s) => s.destinyPatterns)
   const equippedMythicPatterns = useCharacterStore((s) => s.equippedMythicPatterns)
@@ -346,7 +345,6 @@ function FatePreviewContent() {
               <div><b>{worldDimensionLabels?.powerSystem ?? '待确认'}</b><span>力量体系</span></div>
               <div><b>{worldDimensionLabels?.spatialForm ?? '待确认'}</b><span>世界空间</span></div>
             </div>
-            {background && <p className={styles.backgroundExcerpt}><b>人生背景</b>{background}</p>}
           </section>
 
           <section className={`${styles.section} ${styles.attributesSection}`} aria-labelledby="attributes-patterns-title">
@@ -357,13 +355,11 @@ function FatePreviewContent() {
             <div className={styles.attrGrid}>
               {attrKeys.map((key) => {
                 const bonus = attrBonuses[key] ?? 0
-                const value = (characterBase.base[key] ?? 0) + bonus
+                const baseValue = characterBase.base[key] ?? 0
                 return (
                   <div key={key} className={styles.attrItem}>
                     <span>{ATTRIBUTE_NAMES[key]}</span>
-                    <b className={`${styles.attrValue} ${value > 0 ? styles.attrValuePos : value < 0 ? styles.attrValueNeg : styles.attrValueZero}`}>
-                      {value > 0 ? '+' : ''}{value}
-                    </b>
+                    <b className={styles.attrValue}>{baseValue}<i>{bonus >= 0 ? '+' : ''}{bonus}</i></b>
                   </div>
                 )
               })}
@@ -382,20 +378,17 @@ function FatePreviewContent() {
                   </div>
                 )
               }) : <p className={styles.emptyText}>尚未确认命格。</p>}
+              {equippedMythicPatterns.map((pattern) => (
+                <div key={pattern.id} className={styles.patternRow}>
+                  <div className={styles.patternHeading}>
+                    <strong>转世 · {pattern.name}</strong>
+                    <small>转世天赋</small>
+                  </div>
+                  <span>{pattern.concept}：{pattern.effect}</span>
+                </div>
+              ))}
             </div>
-            <div className={styles.mythicSlot} aria-label="本局转世天赋">
-              <div>
-                <small>转世天赋 · 最多 2 项</small>
-                {equippedMythicPatterns.length > 0
-                  ? equippedMythicPatterns.map((pattern) => <strong key={pattern.id}>{pattern.name}</strong>)
-                  : <strong>本局不携带</strong>}
-              </div>
-              <div>
-                {equippedMythicPatterns.length > 0
-                  ? equippedMythicPatterns.map((pattern) => <p key={pattern.id}>{pattern.concept}：{pattern.effect}</p>)
-                  : <p>不占三个普通命格；可返回命格选择页从跨局总库装备。</p>}
-              </div>
-            </div>
+            {equippedMythicPatterns.length === 0 ? <p className={styles.mythicEmpty}>本局不携带转世天赋。</p> : null}
             {talents.length > 0 && (
               <div className={styles.talentPills} aria-label="角色天赋">
                 {talents.map((talent) => {

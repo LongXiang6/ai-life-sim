@@ -142,7 +142,7 @@ function AttributeAllocContent() {
           <section className={`${styles.section} ${styles.budgetSection}`} aria-labelledby="attribute-budget-title">
             <div className={styles.sectionHeading}><strong id="attribute-budget-title">基础点数</strong><small>命格加成不占预算</small></div>
             <div className={styles.budget}>
-              <div className={styles.budgetScore}><b>{usedPoints}</b><span>/ {TOTAL_POINTS}</span></div>
+              <div className={styles.budgetScore}><div><b>{usedPoints}</b><span>/ {TOTAL_POINTS}</span></div></div>
               <div className={styles.budgetCopy}>
                 <strong>剩余 <span>{remainingPoints}</span> 点</strong>
                 <p>四项可在 0 至 10 之间调整。</p>

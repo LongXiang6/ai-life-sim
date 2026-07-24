@@ -134,28 +134,31 @@
 
 .budget {
   display: grid;
-  grid-template-columns: 4rem minmax(0, 1fr);
-  gap: .8rem;
+  grid-template-columns: 3.125rem minmax(0, 1fr);
+  gap: .625rem;
   align-items: center;
-  padding: .75rem .85rem .9rem;
+  padding: .65rem .85rem .85rem;
 }
 
 .budgetScore {
-  display: flex;
-  align-items: baseline;
-  justify-content: center;
-  min-height: 3.5rem;
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  place-items: center;
   border: 1px solid var(--flow-line);
-  border-radius: .65rem;
-  background: var(--flow-soft);
+  border-radius: 50%;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  text-align: center;
 }
 
-.budgetScore b { font-size: 1.65rem; line-height: 1; }
-.budgetScore span { color: var(--flow-faint); font-size: .65rem; }
+.budgetScore b,
+.budgetScore span { display: block; }
+.budgetScore b { font-size: 1rem; line-height: 1; }
+.budgetScore span { margin-top: .1rem; color: var(--flow-faint); font-size: .55rem; }
 .budgetCopy { min-width: 0; }
-.budgetCopy strong { font-size: .82rem; }
-.budgetCopy strong span { color: var(--flow-accent); font-size: 1.1rem; }
-.budgetCopy p { margin: .2rem 0 .55rem; color: var(--flow-muted); font-size: .68rem; }
+.budgetCopy strong { font-size: .75rem; }
+.budgetCopy strong span { color: var(--flow-accent); font-size: .95rem; }
+.budgetCopy p { margin: .18rem 0 .42rem; color: var(--flow-muted); font-size: .62rem; }
 
 .meter,
 .axis {
@@ -167,7 +170,7 @@
 .meter i,
 .axis i {
   display: block;
-  height: .28rem;
+  height: .19rem;
   border-radius: 999px;
   background: #e5e8f0;
 }
@@ -180,29 +183,28 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: .55rem .75rem;
-  padding: .85rem 0 .75rem;
+  padding: .65rem 0;
   border-top: 1px solid #e7eaf2;
 }
 
 .attributeCopy { min-width: 0; }
-.attributeCopy strong { display: block; font-family: "Songti SC", "STSong", "SimSun", serif; font-size: .95rem; }
+.attributeCopy strong { display: block; font-family: "Songti SC", "STSong", "SimSun", serif; font-size: .8rem; }
 .attributeCopy span,
-.attributeCopy small { display: block; margin-top: .18rem; color: var(--flow-muted); font-size: .68rem; line-height: 1.35; }
-.attributeCopy small { color: var(--flow-faint); }
+.attributeCopy small { display: block; margin-top: .18rem; color: var(--flow-muted); font-size: .62rem; line-height: 1.35; }
+.attributeCopy small { color: var(--flow-faint); font-size: .56rem; }
 
 .stepper {
   display: grid;
-  grid-template-columns: 2rem 2.3rem 2rem;
-  align-items: center;
-  gap: .2rem;
+  grid-template-columns: 2rem 2.125rem 2rem;
+  gap: .18rem;
 }
 
 .stepper button {
   width: 2rem;
-  height: 2rem;
+  height: 2.125rem;
   padding: 0;
   border: 1px solid var(--flow-line);
-  border-radius: .55rem;
+  border-radius: .56rem;
   background: var(--flow-surface);
   color: var(--flow-accent);
   font-size: 1rem;
@@ -210,17 +212,17 @@
 }
 
 .stepper button:disabled { cursor: not-allowed; opacity: .35; }
-.stepper output { font-size: .9rem; font-weight: 700; text-align: center; }
+.stepper output { font-size: .7rem; font-weight: 700; text-align: center; }
 
 .axis {
   grid-column: 1 / -1;
   align-items: center;
 }
 
-.axis i { height: .2rem; opacity: .32; }
-.axis .axisMid { opacity: .56; }
-.axis .axisFar { opacity: .2; }
-.axis .axisCurrent { height: .48rem; border-radius: 50%; background: var(--flow-accent); opacity: 1; }
+.axis i { height: .25rem; opacity: .32; }
+.axis .axisMid { height: .19rem; opacity: .56; }
+.axis .axisFar { height: .13rem; opacity: .2; }
+.axis .axisCurrent { height: .25rem; border-radius: 999px; background: var(--flow-accent); opacity: 1; }
 
 .tools {
   display: grid;

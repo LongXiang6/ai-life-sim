@@ -6,8 +6,6 @@
  * @mod mod-pages
  */
 
-import { useState } from 'react'
-
 import { useWorldStore } from '@/mods/mod-world'
 
 import { CharacterBackgroundSection } from './CharacterBackgroundSection'
@@ -18,17 +16,8 @@ import { useCharacterCreateLogic } from './useCharacterCreateLogic'
 
 import styles from './CharacterCreateMobile.module.css'
 
-type CharacterPanel = 'identity' | 'lifespan' | 'background'
-
-const CHARACTER_PANELS: ReadonlyArray<{ id: CharacterPanel; label: string }> = [
-  { id: 'identity', label: '01 · 身份' },
-  { id: 'lifespan', label: '02 · 寿命' },
-  { id: 'background', label: '03 · 背景' },
-]
-
 export function CharacterCreateMobile() {
   const logic = useCharacterCreateLogic()
-  const [activePanel, setActivePanel] = useState<CharacterPanel>('identity')
   const worldName = useWorldStore((state) => state.worldConfig?.name ?? '当前世界')
   const lifespanDisplay = logic.computedLifespan
     ?? (logic.manualLifespan ? Number.parseInt(logic.manualLifespan, 10) : logic.raceInfo?.baseMaxAge)
@@ -70,48 +59,10 @@ export function CharacterCreateMobile() {
               </div>
             </section>
 
-            <nav className={styles.panelTabs} role="tablist" aria-label="角色创建步骤">
-              {CHARACTER_PANELS.map((panel) => (
-                <button
-                  key={panel.id}
-                  id={`character-tab-${panel.id}`}
-                  type="button"
-                  role="tab"
-                  aria-controls={`character-panel-${panel.id}`}
-                  aria-selected={activePanel === panel.id}
-                  className={activePanel === panel.id ? styles.panelTabActive : ''}
-                  onClick={() => setActivePanel(panel.id)}
-                >
-                  {panel.label}
-                </button>
-              ))}
-            </nav>
-
-            <div className={styles.panelArea}>
-              <div
-                id="character-panel-identity"
-                role="tabpanel"
-                aria-labelledby="character-tab-identity"
-                hidden={activePanel !== 'identity'}
-              >
-                <CharacterIdentitySection logic={logic} />
-              </div>
-              <div
-                id="character-panel-lifespan"
-                role="tabpanel"
-                aria-labelledby="character-tab-lifespan"
-                hidden={activePanel !== 'lifespan'}
-              >
-                <CharacterLifespanSection logic={logic} />
-              </div>
-              <div
-                id="character-panel-background"
-                role="tabpanel"
-                aria-labelledby="character-tab-background"
-                hidden={activePanel !== 'background'}
-              >
-                <CharacterBackgroundSection logic={logic} />
-              </div>
+            <div className={styles.flowSections}>
+              <CharacterIdentitySection logic={logic} />
+              <CharacterLifespanSection logic={logic} />
+              <CharacterBackgroundSection logic={logic} />
             </div>
           </div>
         </div>

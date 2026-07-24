@@ -893,12 +893,15 @@ assertOk(
   'destiny redraw must not reintroduce duplicate display names into the visible slots',
 )
 assertOk(
-  /\.astrolabe\s*\{[^}]*width:\s*286px[^}]*height:\s*286px/s.test(talentDrawCssSrc)
-    && /\.fateNode\s*\{[^}]*width:\s*48px[^}]*height:\s*48px/s.test(talentDrawCssSrc)
+  /\.aura\s*\{[^}]*width:\s*min\(13\.75rem,\s*72vw\)/s.test(talentDrawCssSrc)
+    && /\.seals\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/s.test(talentDrawCssSrc)
     && /\.drawReadout\s*\{[^}]*display:\s*flex/s.test(talentDrawCssSrc)
-    && (talentDrawPageSrc.match(/<TalentAstrolabe\b/g) ?? []).length === 1
+    && /aria-label="十二道命印"/.test(talentDrawPageSrc)
+    && /Array\.from\(\{ length: MYTHIC_PATTERN_SELECT_COUNT \}/.test(talentDrawPageSrc)
+    && /selectedUiSlots\.map\(/.test(talentDrawPageSrc)
+    && !/TalentAstrolabe|astrolabe|fateNode/.test(talentDrawPageSrc)
     && !/progressTrack|progressFill/.test(talentDrawPageSrc),
-  'the completed destiny handoff must keep the approved 286px astrolabe, 48px nodes, and compact readout',
+  'the completed destiny handoff must keep the selected aura, twelve seals, two rebirth slots, three ordinary slots, and compact readout',
 )
 
 assertOk(/preGenActivity\.invalidate\(\)/.test(preGenSrc), 'clearPreGenQueue must invalidate through activity state')
