@@ -51,23 +51,6 @@ export default function WelcomeView({
         <span>AI LIFE SIM · 命书</span>
         <span>00 / 欢迎</span>
       </div>
-      <span className={styles.spine} aria-hidden="true" />
-      <span className={styles.verticalBrand} aria-hidden="true">AI LIFE SIM</span>
-      <svg
-        className={styles.trajectory}
-        viewBox="0 0 390 844"
-        preserveAspectRatio="xMidYMid slice"
-        aria-hidden="true"
-      >
-        <path
-          className={styles.trajectoryPath}
-          d="M338 22 C218 122 374 230 272 338 S125 518 244 614 S354 728 290 850"
-        />
-        <circle className={styles.trajectoryStart} cx="338" cy="22" r="5" />
-        <circle className={styles.trajectoryNode} cx="272" cy="338" r="4" />
-        <circle className={styles.trajectoryNode} cx="244" cy="614" r="4" />
-        <circle className={styles.trajectoryNode} cx="290" cy="850" r="4" />
-      </svg>
 
       <section className={styles.intro} aria-labelledby="welcome-title">
         <p className={styles.brand}>人生序章</p>
@@ -76,7 +59,7 @@ export default function WelcomeView({
           <br />
           <span>也只由几次选择组成。</span>
         </h1>
-        <p className={styles.subtitle}>选择世界与角色，走过关系、机会、代价和告别。</p>
+        <p className={styles.subtitle}>选择世界与角色。</p>
       </section>
 
       <section className={styles.actions} aria-label="开始与辅助操作">

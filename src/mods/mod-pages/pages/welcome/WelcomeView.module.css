@@ -1,19 +1,17 @@
-/* 欢迎界面 - 定版B2平衡方案适配 */
+/* 欢迎界面 - 完全按照定版B2原型 */
 .container {
   position: relative;
-  isolation: isolate;
-  display: grid;
-  width: 100%;
-  height: 100dvh;
-  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 430px);
+  height: auto;
+  aspect-ratio: 430 / 932;
   margin: 0 auto;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-  scroll-padding-bottom: max(0.85rem, env(safe-area-inset-bottom));
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  padding: max(1rem, env(safe-area-inset-top)) clamp(1rem, 5vw, 4.5rem)
-    max(0.85rem, env(safe-area-inset-bottom));
+  overflow: hidden;
+  container-type: size;
+  border: 0.2cqw solid #d5deea;
+  border-radius: 4cqw;
+  box-shadow: 0 4.7cqw 11.2cqw rgba(31, 43, 65, 0.1);
   background: linear-gradient(145deg, rgba(255, 220, 126, 0.1), rgba(255, 220, 126, 0) 36%),
     linear-gradient(160deg, #fbfcff 0%, #f1f4f8 100%);
   color: #20283a;
@@ -22,150 +20,131 @@
 
 .runningHead {
   display: flex;
-  padding-left: clamp(1.6rem, 5vw, 3.2rem);
   justify-content: space-between;
+  padding: 2.5cqh 5.1cqw 0;
   color: #718099;
-  font-size: clamp(0.58rem, 1.7vw, 0.72rem);
+  font-size: 1.1cqh;
   font-weight: 650;
-  letter-spacing: 0.04em;
 }
 
 .spine {
-  position: absolute;
-  top: 3.2rem;
-  bottom: 2.2rem;
-  left: clamp(1.5rem, 5vw, 3.2rem);
-  width: 1px;
-  background: linear-gradient(180deg, transparent, #e5e7ea 8% 90%, transparent);
+  display: none;
 }
 
 .verticalBrand {
-  position: absolute;
-  top: 7.8rem;
-  left: calc(clamp(1.5rem, 5vw, 3.2rem) - 0.72rem);
-  color: #969ba2;
-  font-size: 0.5rem;
-  font-weight: 700;
-  white-space: nowrap;
-  transform: rotate(-90deg);
-  transform-origin: left top;
+  display: none;
 }
 
 .trajectory {
-  position: absolute;
-  z-index: -1;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
-.trajectoryPath {
-  fill: none;
-  stroke: #e5e7ea;
-  stroke-width: 1;
-}
-
-.trajectoryNode,
-.trajectoryStart {
-  fill: #9a7966;
-  opacity: 0.62;
+  display: none;
 }
 
 .intro {
-  align-self: center;
-  width: min(100%, 36rem);
-  padding: clamp(2rem, 8dvh, 5rem) 0 clamp(1.5rem, 5dvh, 3rem) clamp(1.7rem, 5vw, 3.2rem);
+  position: relative;
+  z-index: 2;
+  padding: 9cqh 6cqw 5cqh;
 }
 
 .brand {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
+  gap: 1.6cqw;
   margin: 0;
   color: #718099;
   font-family: "Songti SC", STSong, SimSun, serif;
-  font-size: clamp(0.68rem, 1.8vw, 0.8rem);
+  font-size: 1.05cqh;
   font-weight: 600;
 }
 
 .brand::after {
-  width: 3rem;
-  height: 1px;
+  width: 7cqw;
+  height: 0.2cqw;
   background: #dce3ed;
   content: "";
 }
 
 .title {
-  display: flex;
-  flex-direction: column;
-  gap: 0.15em;
-  margin: clamp(0.9rem, 3vw, 1.5rem) 0 0;
+  margin: 3cqh 0 0;
   color: #171e35;
   font-family: "Songti SC", STSong, SimSun, serif;
-  font-size: clamp(1.75rem, 6.7vw, 3.55rem);
+  font-size: 6.9cqw;
   font-weight: 600;
   line-height: 1.34;
 }
 
+.title span {
+  display: block;
+}
+
 .subtitle {
-  max-width: 30rem;
-  margin: 0.85rem 0 0;
+  max-width: 78cqw;
+  margin: 2cqh 0 0;
   color: #617086;
-  font-size: clamp(0.78rem, 2.5vw, 0.95rem);
-  line-height: 1.75;
+  font-size: 1.1cqh;
+  line-height: 1.7;
 }
 
 .actions {
-  width: min(100%, var(--content-max-width));
-  margin-left: clamp(1.7rem, 5vw, 3.2rem);
+  position: relative;
+  z-index: 2;
+  width: calc(100% - 12cqw);
+  margin: auto 6cqw 3.8cqh;
+  padding-bottom: 0;
 }
 
 .routeHeading,
 .utilityHeading {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
-  margin: 0 0 0.35rem;
+  gap: 1.6cqw;
+  margin: 0 0 1cqh;
   color: #718099;
-  font-family: "Songti SC", STSong, SimSun, serif;
-  font-size: 0.68rem;
+  font-size: 1.1cqh;
   font-weight: 650;
+  letter-spacing: 0.02em;
 }
 
 .routeHeading::after {
-  height: 1px;
+  height: 0.15cqw;
   background: #dce3ed;
   content: "";
   flex: 1;
 }
 
 .utilityHeading {
-  margin-top: 0.55rem;
+  margin-top: 1.8cqh;
 }
 
 .routeAction {
+  position: relative;
   display: grid;
   width: 100%;
   min-width: 0;
-  min-height: clamp(3.25rem, 8dvh, 4.15rem);
-  grid-template-columns: 2.4rem minmax(0, 1fr) 2.5rem;
+  overflow: hidden;
+  min-height: 7.2cqh;
+  grid-template-columns: 8cqw minmax(0, 1fr) auto;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.45rem 0;
-  border: 0;
-  border-top: 1px solid #e5e7ea;
-  background: transparent;
+  gap: 2cqw;
+  padding: 1cqh 2cqw;
+  border: 0.2cqw solid #d8deea;
+  border-radius: 5.2cqw;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1cqw 3cqw rgba(62, 70, 100, 0.08);
+  backdrop-filter: blur(1.5cqw);
   color: inherit;
   cursor: pointer;
   font: inherit;
   text-align: left;
-  transition: background-color 150ms ease, transform 150ms ease;
+  transition: background-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
 }
 
-.routeAction:hover,
-.routeAction:focus-visible {
-  background: rgba(240, 243, 246, 0.72);
+.routeAction + .routeAction {
+  margin-top: 1cqh;
+}
+
+.routeAction:hover {
+  background: #fff;
+  box-shadow: 0 1.3cqw 3.5cqw rgba(62, 70, 100, 0.11);
 }
 
 .routeAction:active {
@@ -173,11 +152,14 @@
 }
 
 .primaryBtn {
-  border-top-color: #d8deea;
+  min-height: 7.5cqh;
+  border-color: #cfd7ee;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 1.2cqw 3.4cqw rgba(62, 70, 100, 0.1);
 }
 
 .savedAction {
-  min-height: clamp(3.25rem, 8dvh, 4rem);
+  background: rgba(255, 255, 255, 0.9);
 }
 
 .routeIndex {
@@ -186,7 +168,7 @@
   display: grid;
   place-items: center;
   color: #8995a5;
-  font-size: 0.64rem;
+  font-size: 1.1cqh;
   font-weight: 700;
 }
 
@@ -195,7 +177,7 @@
   top: 20%;
   right: 0;
   bottom: 20%;
-  width: 1px;
+  width: 0.2cqw;
   background: #dce3ed;
   content: "";
 }
@@ -210,36 +192,37 @@
 }
 
 .routeCopy strong {
-  font-family: "Songti SC", STSong, SimSun, serif;
-  font-size: clamp(0.93rem, 2.7vw, 1.08rem);
-  font-weight: 600;
+  font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+  font-size: 1.75cqh;
+  font-weight: 650;
   line-height: 1.2;
   letter-spacing: 0.015em;
 }
 
+.savedAction .routeCopy strong {
+  font-size: 1.6cqh;
+}
+
 .routeCopy small {
-  margin-top: 0.24rem;
-  overflow: hidden;
+  margin-top: 0.3cqh;
   color: #8995a5;
-  font-size: clamp(0.64rem, 2vw, 0.76rem);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: 1.05cqh;
 }
 
 .routeArrow {
   display: grid;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 6.8cqw;
+  height: 6.8cqw;
   place-items: center;
-  border: 1px solid rgba(109, 127, 148, 0.68);
+  border: 0.2cqw solid rgba(109, 127, 148, 0.68);
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.8);
   color: #6d7f94;
 }
 
 .routeArrow svg {
-  width: 1rem;
-  height: 1rem;
+  width: 3cqw;
+  height: 3cqw;
 }
 
 .routeArrow path {
@@ -250,20 +233,20 @@
   stroke-linejoin: round;
 }
 
-.primaryBtn .routeArrow {
-  border-color: #6d7f94;
-  background: #6d7f94;
-  color: #fff;
-}
-
 .secondaryActions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: clamp(0.8rem, 4vw, 2.5rem);
+  column-gap: 6cqw;
+  row-gap: 1.2cqh;
 }
 
 .secondaryBtn {
-  min-height: 3rem;
+  min-height: 6.1cqh;
+}
+
+.secondaryBtn .routeCopy strong {
+  font-size: 1.55cqh;
+  font-weight: 600;
 }
 
 .feedbackAction {
@@ -273,10 +256,11 @@
 .footerLink {
   display: block;
   width: fit-content;
-  margin: 0.55rem 0 0 auto;
-  padding: 0.2rem 0;
-  color: #969ba2;
-  font-size: 0.62rem;
+  margin: 1cqh auto 0;
+  padding: 0.5cqh 0;
+  color: #8995a5;
+  font-size: 0.9cqh;
+  text-align: center;
   text-decoration: none;
 }
 
@@ -284,19 +268,19 @@
 .saveSheet {
   position: absolute;
   z-index: 30;
-  right: clamp(0.75rem, 3vw, 1rem);
-  bottom: max(0.75rem, env(safe-area-inset-bottom));
-  left: clamp(0.75rem, 3vw, 1rem);
-  max-height: min(74dvh, 38rem);
-  padding: clamp(0.85rem, 3.5vw, 1.1rem);
+  right: 3cqw;
+  bottom: 3cqh;
+  left: 3cqw;
+  max-height: 74cqh;
+  padding: 3cqw;
   overflow-y: auto;
-  border: 1px solid rgba(174, 184, 202, 0.48);
-  border-radius: clamp(1rem, 5vw, 1.5rem);
+  border: 0.2cqw solid rgba(174, 184, 202, 0.48);
+  border-radius: 5cqw;
   background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 1.25rem 3rem rgba(31, 43, 65, 0.13);
+  box-shadow: 0 3cqw 7cqw rgba(31, 43, 65, 0.13);
   opacity: 0;
   pointer-events: none;
-  transform: translateY(1rem);
+  transform: translateY(2cqh);
   transition: opacity 170ms ease, transform 190ms ease;
 }
 
@@ -308,10 +292,10 @@
 
 .saveSheetHead {
   display: flex;
-  margin-bottom: 0.65rem;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 2cqw;
+  margin-bottom: 2cqh;
 }
 
 .saveSheetHead strong,
@@ -321,63 +305,59 @@
 
 .saveSheetHead strong {
   font-family: "Songti SC", STSong, SimSun, serif;
-  font-size: 0.92rem;
+  font-size: 1.65cqh;
   font-weight: 600;
 }
 
 .saveSheetHead small {
-  margin-top: 0.2rem;
+  margin-top: 0.6cqh;
   color: #8995a5;
-  font-size: 0.66rem;
+  font-size: 1.1cqh;
 }
 
 .saveSheetClose {
   display: grid;
-  width: 2.25rem;
-  height: 2.25rem;
-  flex: 0 0 auto;
+  width: 7cqw;
+  height: 7cqw;
   place-items: center;
   padding: 0;
-  border: 1px solid rgba(174, 184, 202, 0.62);
+  border: 0.2cqw solid rgba(174, 184, 202, 0.62);
   border-radius: 50%;
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.94), rgba(239, 242, 247, 0.78));
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.96), 0 0.25rem 0.625rem rgba(44, 52, 74, 0.05);
+  box-shadow: inset 0 0.2cqw rgba(255, 255, 255, 0.96), 0 1cqw 2.5cqw rgba(44, 52, 74, 0.05);
   color: #68738a;
   cursor: pointer;
 }
 
 .saveSheetClose svg {
-  width: 0.9rem;
-  height: 0.9rem;
+  width: 3cqw;
+  height: 3cqw;
 }
 
 .saveSheetClose path {
   fill: none;
   stroke: currentcolor;
-  stroke-linecap: round;
   stroke-width: 1.5;
+  stroke-linecap: round;
 }
 
 .saveList {
   display: grid;
-  max-height: min(38dvh, 18rem);
-  overflow-y: auto;
-  gap: 0.4rem;
+  gap: 1cqh;
 }
 
 .saveItem {
   display: grid;
   width: 100%;
-  min-height: 3rem;
-  padding: 0.5rem 0.65rem;
-  grid-template-columns: minmax(0, 1fr) 1rem;
+  min-height: 6cqh;
+  padding: 1cqh 2cqw;
+  grid-template-columns: minmax(0, 1fr) 3.5cqw;
   align-items: center;
-  gap: 0.55rem;
-  border: 1px solid rgba(174, 184, 202, 0.42);
-  border-radius: 0.75rem;
+  gap: 1.5cqw;
+  border: 0.2cqw solid rgba(174, 184, 202, 0.42);
+  border-radius: 3cqw;
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.88), rgba(239, 242, 247, 0.7));
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.9), 0 0.175rem 0.45rem rgba(44, 52, 74, 0.035);
-  color: #17191d;
+  box-shadow: inset 0 0.2cqw rgba(255, 255, 255, 0.9), 0 0.7cqw 1.8cqw rgba(44, 52, 74, 0.035);
   cursor: pointer;
   font: inherit;
   text-align: left;
@@ -390,33 +370,33 @@
 
 .saveItem strong {
   overflow: hidden;
-  font-size: 0.75rem;
+  font-size: 1.4cqh;
   font-weight: 680;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .saveItem small {
-  margin-top: 0.2rem;
+  margin-top: 0.6cqh;
   overflow: hidden;
   color: #8995a5;
-  font-size: 0.61rem;
+  font-size: 1.05cqh;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.saveCheck {
-  position: relative;
-  width: 0.9rem;
-  height: 0.9rem;
-  border: 1px solid #cbd5e2;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.72);
 }
 
 .saveItem[aria-pressed="true"] {
   border-color: rgba(109, 127, 148, 0.62);
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.96), rgba(226, 234, 244, 0.8));
+}
+
+.saveCheck {
+  position: relative;
+  width: 3cqw;
+  height: 3cqw;
+  border: 0.2cqw solid #cbd5e2;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.72);
 }
 
 .saveItem[aria-pressed="true"] .saveCheck {
@@ -426,47 +406,45 @@
 
 .saveItem[aria-pressed="true"] .saveCheck::after {
   position: absolute;
-  top: 0.2rem;
-  left: 0.18rem;
-  width: 0.38rem;
-  height: 0.2rem;
-  border-bottom: 1px solid #fff;
-  border-left: 1px solid #fff;
+  top: 0.7cqw;
+  left: 0.6cqw;
+  width: 1.4cqw;
+  height: 0.7cqw;
+  border-bottom: 0.2cqw solid #fff;
+  border-left: 0.2cqw solid #fff;
   content: "";
   transform: rotate(-45deg);
 }
 
 .saveEmpty {
-  min-height: 5rem;
-  padding: 1.25rem 0.75rem;
-  border-block: 1px solid #f0f1f3;
-  color: #626870;
-  font-size: 0.7rem;
-  line-height: 1.7;
+  min-height: 6cqh;
+  padding: 2cqh 2cqw;
+  color: #626e82;
+  font-size: 1.1cqh;
   text-align: center;
 }
 
 .saveSheetStatus {
-  min-height: 1.2rem;
-  margin: 0.5rem 0.15rem 0;
+  min-height: 2.5cqh;
+  margin: 1.5cqh 0.5cqw 0;
   color: #626e82;
-  font-size: 0.65rem;
+  font-size: 1.1cqh;
 }
 
 .deleteSelected {
   display: block;
   width: 100%;
-  min-height: 2.25rem;
-  margin-top: 0.35rem;
-  padding: 0.35rem 0.65rem;
-  border: 1px solid rgba(174, 184, 202, 0.52);
-  border-radius: 0.75rem;
+  min-height: 5cqh;
+  margin-top: 1cqh;
+  padding: 1cqh 2cqw;
+  border: 0.2cqw solid rgba(174, 184, 202, 0.52);
+  border-radius: 3cqw;
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.9), rgba(239, 242, 247, 0.72));
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.94), 0 0.175rem 0.45rem rgba(44, 52, 74, 0.035);
+  box-shadow: inset 0 0.2cqw rgba(255, 255, 255, 0.94), 0 0.7cqw 1.8cqw rgba(44, 52, 74, 0.035);
   color: #697589;
   cursor: pointer;
   font: inherit;
-  font-size: 0.68rem;
+  font-size: 1.1cqh;
 }
 
 .deleteSelected:disabled {
@@ -477,14 +455,14 @@
 .continueSave {
   display: flex;
   width: 100%;
-  min-height: 2.75rem;
-  margin-top: 0.4rem;
-  padding: 0 0.65rem 0 0.8rem;
+  min-height: 6cqh;
+  margin-top: 1cqh;
+  padding: 0 2cqw 0 2.5cqw;
   align-items: center;
   justify-content: space-between;
-  gap: 0.65rem;
-  border: 1px solid rgba(109, 127, 148, 0.62);
-  border-radius: 0.75rem;
+  gap: 1.5cqw;
+  border: 0.2cqw solid rgba(109, 127, 148, 0.62);
+  border-radius: 3cqw;
   background: linear-gradient(155deg, rgba(255, 255, 255, 0.96), rgba(226, 234, 244, 0.82));
   color: #293449;
   cursor: pointer;
@@ -498,26 +476,26 @@
 }
 
 .continueSave strong {
-  font-size: 0.75rem;
+  font-size: 1.4cqh;
 }
 
 .continueSave small {
-  margin-top: 0.12rem;
+  margin-top: 0.4cqh;
   color: #697589;
-  font-size: 0.6rem;
+  font-size: 1.05cqh;
 }
 
 .continueSave svg {
-  width: 1rem;
-  height: 1rem;
+  width: 3cqw;
+  height: 3cqw;
 }
 
 .continueSave path {
   fill: none;
   stroke: currentcolor;
+  stroke-width: 1.5;
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 1.5;
 }
 
 .continueSave:disabled {
@@ -533,50 +511,50 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom));
+  padding: 2cqh 4cqw;
   background: rgba(23, 25, 29, 0.18);
 }
 
 .deleteDialog {
-  width: min(100%, 25rem);
-  padding: 1rem;
-  border: 1px solid rgba(174, 184, 202, 0.48);
-  border-radius: 1rem;
+  width: min(90%, 80cqw);
+  padding: 3cqw;
+  border: 0.2cqw solid rgba(174, 184, 202, 0.48);
+  border-radius: 4cqw;
   background: rgba(255, 255, 255, 0.98);
-  box-shadow: 0 1rem 2.5rem rgba(31, 43, 65, 0.16);
+  box-shadow: 0 3cqw 7cqw rgba(31, 43, 65, 0.16);
 }
 
 .deleteDialog h2 {
   margin: 0;
   color: #171e35;
   font-family: "Songti SC", STSong, SimSun, serif;
-  font-size: 0.95rem;
+  font-size: 1.6cqh;
   font-weight: 600;
 }
 
 .deleteDialog p {
-  margin: 0.55rem 0 0;
+  margin: 1.2cqh 0 0;
   color: #617086;
-  font-size: 0.72rem;
+  font-size: 1.1cqh;
   line-height: 1.65;
 }
 
 .deleteDialogActions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.45rem;
-  margin-top: 0.9rem;
+  gap: 1.5cqw;
+  margin-top: 2cqh;
 }
 
 .deleteCancel,
 .deleteConfirm {
-  min-height: 2.25rem;
-  padding: 0 0.65rem;
-  border: 1px solid rgba(174, 184, 202, 0.52);
-  border-radius: 0.65rem;
+  min-height: 5cqh;
+  padding: 0 2cqw;
+  border: 0.2cqw solid rgba(174, 184, 202, 0.52);
+  border-radius: 2.5cqw;
   cursor: pointer;
   font: inherit;
-  font-size: 0.7rem;
+  font-size: 1.1cqh;
 }
 
 .deleteCancel {
@@ -605,106 +583,17 @@
 .deleteSelected:focus-visible,
 .deleteCancel:focus-visible,
 .deleteConfirm:focus-visible {
-  outline: 2px solid rgba(109, 127, 148, 0.48);
-  outline-offset: 2px;
+  outline: 0.3cqw solid rgba(109, 127, 148, 0.48);
+  outline-offset: 0.4cqw;
 }
 
-/* 响应式适配 */
-@media (max-width: 42rem) {
+/* 响应式适配 - 小屏幕时撑满 */
+@media (max-width: 680px) {
   .container {
-    width: 100%;
-  }
-
-  .intro {
-    padding-top: clamp(2rem, 8dvh, 4.5rem);
-  }
-}
-
-@media (min-width: 42.01rem) {
-  .container {
-    width: min(100%, var(--content-max-width));
-    padding-right: 1rem;
-    padding-left: 1rem;
-  }
-
-  .runningHead {
-    padding-left: 1.6rem;
-    font-size: 0.62rem;
-  }
-
-  .spine {
-    left: 1.5rem;
-  }
-
-  .verticalBrand {
-    left: 0.78rem;
-  }
-
-  .intro {
-    width: 100%;
-    padding-right: 0;
-    padding-left: 1.7rem;
-  }
-
-  .title {
-    font-size: 2.35rem;
-  }
-
-  .subtitle {
-    font-size: 0.82rem;
-  }
-
-  .actions {
-    width: auto;
-    margin-left: 1.7rem;
-  }
-
-  .secondaryActions {
-    column-gap: 0.8rem;
-  }
-}
-
-@media (min-width: 64rem) {
-  .container {
-    width: min(90.9091%, var(--content-max-width));
-    height: 90.9091dvh;
-    zoom: var(--non-simulation-ui-desktop-scale);
-  }
-}
-
-@media (max-width: 23rem) {
-  .container {
-    padding-inline: 0.75rem;
-  }
-
-  .spine {
-    left: 1.3rem;
-  }
-
-  .verticalBrand {
-    left: 0.58rem;
-  }
-
-  .runningHead,
-  .intro,
-  .actions {
-    padding-left: 1.45rem;
-    margin-left: 0;
-  }
-
-  .secondaryActions {
-    grid-template-columns: 1fr;
-  }
-
-  .feedbackAction {
-    grid-column: auto;
-  }
-
-  .saveSheet {
-    right: 0.55rem;
-    bottom: max(0.55rem, env(safe-area-inset-bottom));
-    left: 0.55rem;
-    padding: 0.8rem;
+    width: 100vw;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
   }
 }
 
