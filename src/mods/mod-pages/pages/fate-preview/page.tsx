@@ -321,15 +321,13 @@ function FatePreviewContent() {
     <>
       <main className={styles.page}>
         <div className={styles.paper}>
-          <span className={styles.spine} aria-hidden="true" />
           <header className={styles.header}>
-            <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>07 / 08</span></div>
+            <div className={styles.runningHead}><span>CREATION FLOW · 07 / 08</span></div>
             <div className={styles.titleRow}>
               <div>
                 <h1 className={styles.headerTitle}>核对命书</h1>
                 <p className={styles.headerSubtitle}>确认所有起点，然后开启人生。</p>
               </div>
-              <span className={styles.titleMark} aria-hidden="true"><span>07</span></span>
             </div>
           </header>
 

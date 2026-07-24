@@ -127,21 +127,19 @@ function AttributeAllocContent() {
   return (
     <>
       <main className={styles.page}>
-        <div className={styles.paper}>
-          <span className={styles.spine} aria-hidden="true" />
+        <div className={styles.screen}>
           <header className={styles.header}>
-            <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>06 / 08</span></div>
+            <div className={styles.meta}><span>AI LIFE SIM · 命书</span><span>06 / 08</span></div>
             <div className={styles.titleRow}>
-              <div>
-                <h1>属性分配</h1>
+              <div className={styles.titleCopy}>
+                <h2>属性分配</h2>
                 <p>塑造这段人生的先天起点。</p>
               </div>
-              <span className={styles.titleMark} aria-hidden="true"><span>06</span></span>
             </div>
           </header>
 
-          <section className={`${styles.section} ${styles.budgetSection}`} aria-labelledby="attribute-budget-title">
-            <div className={styles.sectionHeading}><strong id="attribute-budget-title">基础点数</strong><small>命格加成不占预算</small></div>
+          <section className={styles.section} aria-labelledby="attribute-budget-title">
+            <div className={styles.sectionHead}><strong id="attribute-budget-title">基础点数</strong><small>命格加成不占预算</small></div>
             <div className={styles.budget}>
               <div className={styles.budgetScore}><div><b>{usedPoints}</b><span>/ {TOTAL_POINTS}</span></div></div>
               <div className={styles.budgetCopy}>
@@ -149,44 +147,46 @@ function AttributeAllocContent() {
                 <p>四项可在 0 至 10 之间调整。</p>
                 <div className={styles.meter} role="progressbar" aria-valuemin={0} aria-valuemax={TOTAL_POINTS} aria-valuenow={usedPoints} aria-label="已使用属性点">
                   {Array.from({ length: TOTAL_POINTS }, (_, index) => (
-                    <i key={index} className={index < usedPoints ? styles.activeSegment : ''} />
+                    <i key={index} className={index < usedPoints ? styles.isOn : ''} />
                   ))}
                 </div>
               </div>
             </div>
           </section>
 
-          <section className={`${styles.section} ${styles.attributesSection}`} aria-labelledby="attribute-list-title">
-            <div className={styles.sectionHeading}><strong id="attribute-list-title">四项基础属性</strong><small>数值越高，倾向越明显</small></div>
-            <div className={styles.attributeList}>
+          <section className={styles.section} aria-labelledby="attribute-list-title">
+            <div className={styles.sectionHead}><strong id="attribute-list-title">四项基础属性</strong><small>数值越高，倾向越明显</small></div>
+            <ol className={styles.attributeList}>
             {ATTRIBUTES.map((attribute) => {
               const value = attributes[attribute.key]
+              const bonus = attributeBonuses[attribute.key]
               return (
-                <article key={attribute.key} className={styles.attributeRow}>
-                  <div className={styles.attributeCopy}>
-                    <strong><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">{attribute.icon}</span>{attribute.name}</strong>
-                    <span>{describeAttribute(value)} · {attribute.description}</span>
-                    <small>基础值 {formatSigned(value)}{attributeBonuses[attribute.key] ? ` · 命格 ${formatSigned(attributeBonuses[attribute.key])}` : ''}</small>
+                <li key={attribute.key} className={styles.attribute}>
+                  <div className={styles.attributeName}>
+                    <strong><span className="semantic-emoji" aria-hidden="true">{attribute.icon}</span>{attribute.name}</strong>
+                    <span>{describeAttribute(value)}{bonus ? ` · 命格 ${formatSigned(bonus)}` : ''}</span>
+                    <span className={styles.attributeBase}>基础值 {value}</span>
                   </div>
                   <div className={styles.stepper}>
-                    <button type="button" onClick={() => updateAttribute(attribute.key, -1)} disabled={value <= MIN_VALUE} aria-label={`减少${attribute.name}`}>−</button>
-                    <output aria-label={`${attribute.name}当前值`}>{formatSigned(value)}</output>
-                    <button type="button" onClick={() => updateAttribute(attribute.key, 1)} disabled={value >= MAX_VALUE || remainingPoints <= 0} aria-label={`增加${attribute.name}`}>+</button>
+                    <button type="button" onClick={() => updateAttribute(attribute.key, -1)} disabled={value <= MIN_VALUE} aria-label={`降低${attribute.name}`}>−</button>
+                    <b>{value}</b>
+                    <button type="button" onClick={() => updateAttribute(attribute.key, 1)} disabled={value >= MAX_VALUE || remainingPoints <= 0} aria-label={`提高${attribute.name}`}>＋</button>
                   </div>
                   <div className={styles.axis} aria-hidden="true">
                     {Array.from({ length: 15 }, (_, index) => {
-                      const distance = Math.abs(index - Math.round(value / MAX_VALUE * 14))
-                      return <i key={index} className={`${index === Math.round(value / MAX_VALUE * 14) ? styles.axisCurrent : ''} ${distance > 5 ? styles.axisFar : distance > 2 ? styles.axisMid : ''}`} />
+                      const axisPosition = Math.round(value / MAX_VALUE * 14)
+                      const distance = Math.abs(index - axisPosition)
+                      return <i key={index} className={`${index === axisPosition ? styles.isOn : ''} ${distance > 5 ? styles.isFar : distance > 2 ? styles.isMid : ''}`} />
                     })}
                   </div>
-                </article>
+                </li>
               )
             })}
-            </div>
+            </ol>
 
             <div className={styles.tools}>
-              <button type="button" onClick={() => setAttributes({ ...initialAttributes })}>重置</button>
-              <button type="button" onClick={() => setAttributes({ physique: 4, mind: 4, talentAptitude: 4, charisma: 3 })}>平均分配</button>
+              <button className={styles.secondaryButton} type="button" onClick={() => setAttributes({ ...initialAttributes })}>重置</button>
+              <button className={styles.secondaryButton} type="button" onClick={() => setAttributes({ physique: 4, mind: 4, talentAptitude: 4, charisma: 3 })}>平均分配</button>
             </div>
           </section>
         </div>
@@ -198,17 +198,17 @@ function AttributeAllocContent() {
         onConfirm={handleConfirm}
         confirmText="确认属性"
         confirmNumber="07"
-        confirmDescription={remainingPoints > 0 ? `保留 ${remainingPoints} 点` : '进入命运预览'}
+        confirmDescription={remainingPoints > 0 ? `尚余 ${remainingPoints} 点 · 下一步核对命运` : '预算已分配 · 下一步核对命运'}
       />
 
       {showUnusedDialog ? (
         <div className={styles.dialogBackdrop} role="presentation" onClick={() => setShowUnusedDialog(false)}>
           <div ref={dialogRef} className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="unused-points-title" onClick={(event) => event.stopPropagation()}>
-            <h2 id="unused-points-title">保留剩余点数？</h2>
-            <p>未使用的 {remainingPoints} 点不会自动分配。</p>
-            <div>
-              <button type="button" onClick={() => setShowUnusedDialog(false)}>继续分配</button>
-              <button type="button" className={styles.dialogConfirm} onClick={confirm}>确认保留</button>
+            <h3 id="unused-points-title">仍有属性点未使用</h3>
+            <p>剩余 <strong>{remainingPoints}</strong> 点将保留。你可以继续调整，或按当前配置进入命运预览。</p>
+            <div className={styles.dialogActions}>
+              <button className={styles.secondaryButton} type="button" onClick={() => setShowUnusedDialog(false)}>继续分配</button>
+              <button className={`${styles.secondaryButton} ${styles.isPrimary}`} type="button" onClick={confirm}>确认并继续</button>
             </div>
           </div>
         </div>

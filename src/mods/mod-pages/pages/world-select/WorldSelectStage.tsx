@@ -2,10 +2,6 @@ import type { WorldSelectLogic } from './world-select.types'
 
 import styles from './WorldSelectMobile.module.css'
 
-function getWorldMark(name: string | undefined) {
-  return Array.from(name?.trim() ?? '').find((character) => /[\p{L}\p{N}]/u.test(character)) ?? '界'
-}
-
 function getWorldEraLabel(world: WorldSelectLogic['selectedWorld']) {
   if (!world) return '—'
 
@@ -28,36 +24,35 @@ function getWorldEraLabel(world: WorldSelectLogic['selectedWorld']) {
 export function WorldSelectStage({ logic }: { logic: WorldSelectLogic }) {
   const world = logic.selectedWorld
   const isSaved = Boolean(world?.id.startsWith('custom-'))
-  const sourceLabel = world ? (isSaved ? '已保存' : '预设') : '待选择'
+  const sourceLabel = world ? (isSaved ? '已保存' : '预设世界') : '待选择'
   const challengeLabel = logic.selectedDifficultyLabel
   const eraLabel = getWorldEraLabel(world)
 
   return (
-    <section className={`${styles.stage} ${world ? styles.stageSelected : ''}`} aria-live="polite">
-      <span className={styles.stageIcon} aria-hidden="true">{getWorldMark(world?.name)}</span>
+    <section className={`${styles.stage} ${world ? styles.stageSelected : ''}`} aria-live="polite" aria-label="当前世界规则摘要">
       <div className={styles.stageCopy}>
-        <h2 className={styles.stageTitle}>{world?.name ?? '尚未选择世界'}</h2>
+        <h2 className={styles.stageTitle}>{world?.name ?? '尚未选择'}</h2>
         <p className={styles.stageEra}>
-          {world ? `${eraLabel} · ${sourceLabel}世界` : '从已保存、预设或自定义世界中选择'}
+          {world ? eraLabel : '等待选择'}
         </p>
       </div>
-      <div className={styles.ruleGrid}>
+      <div className={styles.ruleSummary}>
+        <span>规则摘要</span>
+        <p>{world ? world.summary || world.description : '选择或写下一方世界，作为这段人生的开端。'}</p>
+      </div>
+      <div className={styles.ruleGrid} aria-label="世界概览">
         <div className={styles.ruleItem}>
           <span>来源</span>
           <strong>{sourceLabel}</strong>
         </div>
         <div className={styles.ruleItem}>
           <span>年代</span>
-          <strong>{eraLabel}</strong>
+          <strong>{eraLabel.split('·')[0]}</strong>
         </div>
         <div className={styles.ruleItem}>
           <span>难度</span>
           <strong>{challengeLabel}</strong>
         </div>
-      </div>
-      <div className={styles.ruleSummary}>
-        <span>世界规则摘要</span>
-        <p>{world ? world.summary || world.description : '选择世界后，这里会展示决定人生可能性的核心规则。'}</p>
       </div>
     </section>
   )

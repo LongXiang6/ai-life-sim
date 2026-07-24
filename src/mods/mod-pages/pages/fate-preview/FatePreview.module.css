@@ -4,9 +4,9 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior-y: contain;
-  scroll-padding-bottom: calc(5.75rem + env(safe-area-inset-bottom));
-  background: var(--flow-canvas);
-  color: var(--flow-ink);
+  scroll-padding-bottom: calc(4.375rem + env(safe-area-inset-bottom));
+  background: #fafbff;
+  color: #28324b;
   font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
 }
 
@@ -17,34 +17,16 @@
   min-height: 100dvh;
   margin: 0 auto;
   overflow: hidden;
-  padding:
-    max(1rem, env(safe-area-inset-top))
-    clamp(0.9rem, 4vw, 1.35rem)
-    calc(6.5rem + env(safe-area-inset-bottom))
-    clamp(2.15rem, 8vw, 2.75rem);
-  background: var(--flow-paper);
+  padding: 0.875rem 0.9375rem calc(4.625rem + env(safe-area-inset-bottom));
+  background: #fafbff;
 }
 
 .paper::before {
-  position: absolute;
-  z-index: -1;
-  top: -4.5rem;
-  right: -4.5rem;
-  width: 9rem;
-  height: 9rem;
-  border: 1px solid rgb(154 121 102 / 18%);
-  border-radius: 50%;
-  box-shadow: inset 0 0 0 1.25rem rgb(154 121 102 / 4%), inset 0 0 0 2.5rem rgb(154 121 102 / 3%);
-  content: "";
+  content: none;
 }
 
 .spine {
-  position: absolute;
-  top: max(2rem, env(safe-area-inset-top));
-  bottom: calc(5.5rem + env(safe-area-inset-bottom));
-  left: clamp(0.95rem, 4vw, 1.35rem);
-  width: 1px;
-  background: linear-gradient(180deg, transparent, var(--flow-line) 8% 92%, transparent);
+  display: none;
 }
 
 .header {
@@ -55,9 +37,9 @@
   display: flex;
   justify-content: space-between;
   gap: 0.75rem;
-  margin-bottom: 0.7rem;
-  color: var(--flow-faint);
-  font-size: 0.625rem;
+  margin-bottom: 0.375rem;
+  color: #929bb0;
+  font-size: 0.5625rem;
   font-weight: 700;
   letter-spacing: 0.04em;
 }
@@ -72,53 +54,29 @@
 .headerTitle {
   margin: 0;
   font-family: "Songti SC", "STSong", "SimSun", serif;
-  font-size: clamp(1.45rem, 7vw, 1.85rem);
+  font-size: 1.375rem;
   font-weight: 600;
-  line-height: 1.1;
+  line-height: 1.15;
 }
 
 .headerSubtitle {
   margin: 0.25rem 0 0;
-  color: var(--flow-muted);
-  font-size: 0.75rem;
-  line-height: 1.45;
+  color: #707b92;
+  font-size: 0.5rem;
+  line-height: 1.4;
 }
 
 .titleMark {
-  position: relative;
-  display: grid;
-  width: 2rem;
-  height: 2rem;
-  flex: 0 0 2rem;
-  place-items: center;
-  color: var(--flow-accent);
-  font-family: "Songti SC", "STSong", "SimSun", serif;
-  font-size: 0.7rem;
+  display: none;
 }
-
-.titleMark::before,
-.titleMark::after {
-  position: absolute;
-  border: 1px solid rgb(154 121 102 / 32%);
-  content: "";
-}
-
-.titleMark::before {
-  inset: 0.125rem;
-  border-radius: 0.5rem;
-  transform: rotate(45deg);
-}
-
-.titleMark::after { inset: 0.4375rem; border-radius: 50%; }
-.titleMark span { position: relative; z-index: 1; }
 
 .section {
   position: relative;
-  margin-top: 0.7rem;
-  padding: clamp(0.75rem, 3vw, 1rem);
-  border: 1px solid var(--flow-line);
-  border-radius: 0.95rem;
-  background: rgb(255 255 255 / 96%);
+  margin-top: 0.6875rem;
+  padding: 0.625rem;
+  border: 1px solid #d8deea;
+  border-radius: 0.875rem;
+  background: rgba(255, 255, 255, .94);
 }
 
 .worldSection,
@@ -132,19 +90,19 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0.65rem;
-  margin-bottom: 0.65rem;
+  gap: 0.625rem;
+  margin-bottom: 0.5rem;
 }
 
 .sectionHeading strong {
   font-family: "Songti SC", "STSong", "SimSun", serif;
-  font-size: 0.9rem;
+  font-size: 0.6875rem;
   font-weight: 600;
 }
 
 .sectionHeading span {
-  color: var(--flow-faint);
-  font-size: 0.625rem;
+  color: #929bb0;
+  font-size: 0.40625rem;
   text-align: right;
 }
 
@@ -155,25 +113,25 @@
 .worldSource {
   display: block;
   overflow: hidden;
-  color: var(--flow-faint);
-  font-size: 0.6rem;
+  color: #929bb0;
+  font-size: 0.375rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .reviewWorld h2 {
-  margin: 0.3rem 0 0;
+  margin: 0.3125rem 0 0;
   font-family: "Songti SC", "STSong", "SimSun", serif;
-  font-size: clamp(1.05rem, 5vw, 1.3rem);
+  font-size: 1.0625rem;
   font-weight: 600;
   line-height: 1.25;
 }
 
 .reviewWorld > p {
-  margin: 0.45rem 0 0;
-  color: var(--flow-muted);
-  font-size: 0.675rem;
-  line-height: 1.55;
+  margin: 0.375rem 0 0;
+  color: #707b92;
+  font-size: 0.40625rem;
+  line-height: 1.5;
   text-align: left;
 }
 
@@ -182,16 +140,16 @@
   align-items: baseline;
   justify-content: space-between;
   gap: 0.4rem 0.75rem;
-  margin-top: 0.55rem;
-  color: var(--flow-faint);
-  font-size: 0.625rem;
+  margin-top: 0.4375rem;
+  color: #929bb0;
+  font-size: 0.375rem;
   text-align: left;
 }
 
 .reviewIdentity strong {
   min-width: 0;
   overflow: hidden;
-  color: var(--flow-muted);
+  color: #707b92;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -210,14 +168,14 @@
 .stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.35rem;
-  margin-top: 0.65rem;
+  gap: 0.3125rem;
+  margin-top: 0.5rem;
 }
 
 .stats div {
   min-width: 0;
-  padding: 0.45rem 0.15rem;
-  border-bottom: 1px solid var(--flow-line);
+  padding: 0.375rem 0.125rem;
+  border-bottom: 1px solid #d8deea;
   text-align: center;
 }
 
@@ -230,26 +188,24 @@
 }
 
 .stats b {
-  font-size: 0.725rem;
+  font-size: 0.5625rem;
   font-weight: 650;
 }
 
 .stats span {
-  margin-top: 0.15rem;
-  color: var(--flow-faint);
-  font-size: 0.55rem;
+  margin-top: 0.125rem;
+  color: #929bb0;
+  font-size: 0.34375rem;
 }
 
 .attrGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.3rem;
+  gap: 0.25rem;
 }
 
 .attrItem {
   min-width: 0;
-  padding: 0.35rem 0.15rem 0.45rem;
-  border-bottom: 1px solid var(--flow-line);
   text-align: center;
 }
 
@@ -259,36 +215,36 @@
 }
 
 .attrItem span {
-  color: var(--flow-faint);
-  font-size: 0.575rem;
+  color: #929bb0;
+  font-size: 0.34375rem;
 }
 
 .attrValue {
-  margin-top: 0.15rem;
-  color: var(--flow-ink);
-  font: 700 0.825rem ui-monospace, "SFMono-Regular", Consolas, monospace;
+  margin-top: 0.125rem;
+  color: #28324b;
+  font: 700 0.5625rem ui-monospace, "SFMono-Regular", Consolas, monospace;
 }
 
 .attrValue i {
-  margin-left: 0.2rem;
-  color: var(--flow-accent);
-  font-size: 0.72rem;
+  margin-left: 0.125rem;
+  color: #7382bb;
+  font-size: 0.5rem;
   font-style: normal;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 .talentRow {
   display: grid;
-  gap: 0;
-  margin-top: 0.6rem;
+  gap: 0.3125rem;
+  margin-top: 0.5rem;
 }
 
 .patternRow {
   display: grid;
-  grid-template-columns: minmax(4.75rem, 0.72fr) minmax(0, 1.28fr);
-  gap: 0.65rem;
-  padding: 0.5rem 0;
-  border-top: 1px solid var(--flow-line);
+  grid-template-columns: minmax(4.375rem, 0.72fr) minmax(0, 1.28fr);
+  gap: 0.4375rem;
+  padding: 0.375rem 0;
+  border-top: 1px solid #d8deea;
 }
 
 .patternRow:first-child {
@@ -300,13 +256,13 @@
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.1875rem;
 }
 
 .patternHeading strong {
   overflow: hidden;
   font-family: "Songti SC", "STSong", "SimSun", serif;
-  font-size: 0.725rem;
+  font-size: 0.5rem;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -314,151 +270,156 @@
 
 .patternHeading small {
   overflow: hidden;
-  color: var(--flow-faint);
-  font-size: 0.525rem;
+  color: #929bb0;
+  font-size: 0.375rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .patternRow > span {
-  color: var(--flow-muted);
-  font-size: 0.6rem;
-  line-height: 1.5;
+  color: #707b92;
+  font-size: 0.375rem;
+  line-height: 1.4;
 }
 
 .emptyText {
   margin: 0;
-  color: var(--flow-faint);
-  font-size: 0.625rem;
+  color: #929bb0;
+  font-size: 0.375rem;
 }
 
-.mythicEmpty { margin: 0.45rem 0 0; color: var(--flow-faint); font-size: 0.6rem; }
+.mythicEmpty {
+  margin: 0.3125rem 0 0;
+  color: #929bb0;
+  font-size: 0.375rem;
+}
 
 .talentPills {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
-  margin-top: 0.6rem;
-  padding-top: 0.55rem;
-  border-top: 1px solid var(--flow-line);
+  gap: 0.3125rem;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #d8deea;
 }
 
 .talentPill {
   display: inline-flex;
   max-width: 100%;
   align-items: baseline;
-  gap: 0.3rem;
-  padding: 0.3rem 0.45rem;
-  border: 1px solid var(--flow-line);
+  gap: 0.25rem;
+  padding: 0.25rem 0.4375rem;
+  border: 1px solid #d8deea;
   border-radius: 999px;
   background: #f6f8fa;
-  color: var(--flow-muted);
-  font-size: 0.6rem;
+  color: #707b92;
+  font-size: 0.375rem;
 }
 
 .talentPill small {
-  color: var(--flow-faint);
-  font-size: 0.5rem;
+  color: #929bb0;
+  font-size: 0.3125rem;
 }
 
 .seedRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.4rem;
+  grid-template-columns: minmax(0, 1fr) 3.375rem;
+  gap: 0.375rem;
 }
 
 .seedInput,
 .seedBtn {
-  min-height: 2.25rem;
-  border: 1px solid var(--flow-line-strong);
-  border-radius: 0.6rem;
-  font: 0.7rem "SF Pro Text", "PingFang SC", sans-serif;
+  min-height: 2.125rem;
+  border: 1px solid #d8deea;
+  border-radius: 0.5625rem;
+  font: 0.5rem "SF Pro Text", "PingFang SC", sans-serif;
 }
 
 .seedInput {
   min-width: 0;
-  padding: 0.45rem 0.65rem;
+  padding: 0 0.5625rem;
   background: #fff;
-  color: var(--flow-ink);
+  color: #28324b;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
 }
 
 .seedBtn {
-  padding: 0.45rem 0.8rem;
-  background: #f6f8fa;
-  color: var(--flow-muted);
+  padding: 0 0.5rem;
+  background: #fff;
+  color: #707b92;
   cursor: pointer;
+  font-size: 0.4375rem;
 }
 
 .seedInput:focus-visible,
 .seedBtn:focus-visible {
-  outline: 2px solid rgb(109 127 148 / 42%);
+  outline: 2px solid rgba(109, 127, 148, .5);
   outline-offset: 2px;
 }
 
 .seedBtn:hover,
 .seedBtn:focus-visible {
-  border-color: rgb(109 127 148 / 48%);
-  background: var(--flow-accent-soft);
-  color: var(--flow-accent);
+  border-color: rgba(109, 127, 148, .48);
+  background: #edf0fb;
+  color: #7382bb;
 }
 
 .seedHint,
 .initCaption {
-  margin: 0.45rem 0 0;
-  color: var(--flow-faint);
-  font-size: 0.575rem;
-  line-height: 1.5;
+  margin: 0.3125rem 0 0;
+  color: #929bb0;
+  font-size: 0.375rem;
+  line-height: 1.4;
 }
 
 .gateNotice {
-  margin: 0 0 0.55rem;
-  padding: 0.45rem 0.55rem;
-  border: 1px solid rgb(141 109 115 / 24%);
-  border-radius: 0.55rem;
-  background: rgb(141 109 115 / 6%);
+  margin: 0 0 0.5rem;
+  padding: 0.4375rem 0.5rem;
+  border: 1px solid rgba(141, 109, 115, .24);
+  border-radius: 0.5rem;
+  background: rgba(141, 109, 115, .06);
   color: #8d6d73;
-  font-size: 0.6rem;
+  font-size: 0.375rem;
   line-height: 1.45;
 }
 
 .initStepList {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.35rem;
+  gap: 0.3125rem;
 }
 
 .initStepRow {
   display: flex;
   min-width: 0;
-  min-height: 4rem;
+  min-height: 3.25rem;
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  gap: 0.2rem;
-  padding: 0.45rem 0.2rem;
-  border: 1px solid var(--flow-line);
-  border-radius: 0.65rem;
+  gap: 0.25rem;
+  padding: 0.375rem 0.1875rem;
+  border: 1px solid #d8deea;
+  border-radius: 0.5625rem;
   background: #fff;
   text-align: center;
 }
 
 .initStepIcon {
   display: grid;
-  width: 1.25rem;
-  height: 1.25rem;
+  width: 1.0625rem;
+  height: 1.0625rem;
   place-items: center;
   border-radius: 50%;
-  background: #f6f8fa;
-  color: var(--flow-faint);
-  font: normal 0.55rem ui-monospace, "SFMono-Regular", Consolas, monospace;
+  background: #f1f3fa;
+  color: #929bb0;
+  font: normal 0.4375rem ui-monospace, "SFMono-Regular", Consolas, monospace;
 }
 
 .initStepLabel {
   overflow: hidden;
   max-width: 100%;
-  font-size: 0.6rem;
+  font-size: 0.375rem;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -467,34 +428,34 @@
 .initStepTimer {
   overflow: hidden;
   max-width: 100%;
-  color: var(--flow-faint);
-  font: 0.525rem ui-monospace, "SFMono-Regular", Consolas, monospace;
+  color: #929bb0;
+  font: 0.3125rem ui-monospace, "SFMono-Regular", Consolas, monospace;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .initStepDone {
-  border-color: rgb(109 127 148 / 22%);
-  background: rgb(240 243 246 / 58%);
+  border-color: rgba(109, 127, 148, .22);
+  background: rgba(240, 243, 246, .58);
 }
 
 .initStepDone .initStepIcon {
-  background: var(--flow-accent-soft);
-  color: var(--flow-accent);
+  background: #edf0fb;
+  color: #7382bb;
 }
 
 .initStepCurrent {
-  border-color: rgb(109 127 148 / 44%);
-  box-shadow: inset 0 0 0 1px rgb(109 127 148 / 8%);
+  border-color: rgba(109, 127, 148, .44);
+  box-shadow: inset 0 0 0 1px rgba(109, 127, 148, .08);
 }
 
 .initStepCurrent .initStepLabel {
-  color: var(--flow-accent);
+  color: #7382bb;
 }
 
 .initStepFailed {
-  border-color: rgb(141 109 115 / 36%);
-  background: rgb(141 109 115 / 5%);
+  border-color: rgba(141, 109, 115, .36);
+  background: rgba(141, 109, 115, .05);
 }
 
 .initStepFailed .initStepIcon,
@@ -505,10 +466,10 @@
 .loading149 {
   position: relative;
   display: inline-block;
-  width: 0.8rem;
+  width: 0.5rem;
   aspect-ratio: 1;
-  border: 1px solid rgb(109 127 148 / 24%);
-  border-top-color: var(--flow-accent);
+  border: 1px solid rgba(109, 127, 148, .24);
+  border-top-color: #7382bb;
   border-radius: 50%;
   animation: loading149Spin 0.8s linear infinite;
 }
@@ -517,14 +478,14 @@
   display: grid;
   gap: 0.25rem;
   margin-top: 0.5rem;
-  padding-top: 0.45rem;
-  border-top: 1px solid rgb(141 109 115 / 22%);
+  padding-top: 0.4375rem;
+  border-top: 1px solid rgba(141, 109, 115, .22);
 }
 
 .initPanelErrorItem {
   margin: 0;
   color: #8d6d73;
-  font-size: 0.575rem;
+  font-size: 0.375rem;
   line-height: 1.45;
   overflow-wrap: anywhere;
 }
@@ -536,7 +497,7 @@
 @media (max-width: 23.4375rem) {
   .paper {
     padding-right: 0.75rem;
-    padding-left: 1.85rem;
+    padding-left: 0.75rem;
   }
 
   .reviewIdentity {
@@ -550,11 +511,11 @@
 
   .patternRow {
     grid-template-columns: minmax(4.35rem, 0.68fr) minmax(0, 1.32fr);
-    gap: 0.45rem;
+    gap: 0.375rem;
   }
 
   .initStepRow {
-    min-height: 3.75rem;
+    min-height: 3rem;
     padding-inline: 0.1rem;
   }
 }

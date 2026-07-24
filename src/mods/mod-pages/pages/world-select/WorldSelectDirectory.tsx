@@ -18,7 +18,7 @@ export function WorldSelectDirectory({
 
   if (source === 'preset') {
     return (
-      <div className={styles.directoryPanel}>
+      <div className={styles.directoryPanel} data-active="false">
         <button
           type="button"
           className={styles.moreTrigger}
@@ -26,8 +26,7 @@ export function WorldSelectDirectory({
           onClick={() => logic.setShowMore(!logic.showMore)}
           disabled={logic.isConfirming}
         >
-          <span><strong>更多世界</strong><small>{logic.presetMore.length} 个扩展预设</small></span>
-          <span aria-hidden="true">{logic.showMore ? '收起' : '展开'}</span>
+          <span><strong>更多世界</strong></span>
         </button>
         {logic.showMore && (
           <div className={styles.moreGrid}>
@@ -45,6 +44,7 @@ export function WorldSelectDirectory({
                   >
                     <span className={styles.worldIcon} data-semantic-emoji aria-hidden="true">{world.icon}</span>
                     <span>{world.name}</span>
+                    <small>{world.description.slice(0, 20)}</small>
                   </button>
                   {logic.worldCodesWithCache.has(worldCode) && (
                     <button
@@ -70,63 +70,62 @@ export function WorldSelectDirectory({
 
   if (source === 'custom') {
     return (
-      <div className={styles.directoryPanel}>
-        <div className={styles.panelIntro}>
-          <strong>{logic.editingWorldId ? '编辑保存世界' : '创建自定义世界'}</strong>
-          <span>名称与详细介绍必填；纪元和年号可继续细化。</span>
-        </div>
+      <div className={styles.directoryPanel} data-active="true">
         <WorldSelectCustomForm logic={logic} />
       </div>
     )
   }
 
   return (
-    <div className={styles.directoryPanel}>
-      <div className={styles.panelIntro}>
-        <strong>已保存世界</strong>
-        <span>{logic.savedWorlds.length > 0 ? `${logic.savedWorlds.length} 个可用记录` : '尚无保存记录'}</span>
-      </div>
+    <div className={styles.directoryPanel} data-active="true">
       {logic.savedWorlds.length === 0 ? (
         <div className={styles.emptyHint}>
           <p>{L.emptySavedHint}</p>
           <button type="button" onClick={onRequestCustom}>创建第一个世界</button>
         </div>
-      ) : logic.savedWorlds.map((world) => {
-        const selected = logic.selectedWorld?.id === world.id
-        return (
-          <article key={world.id} className={`${styles.savedWorldCard} ${selected ? styles.savedWorldSelected : ''}`}>
-            <button
-              type="button"
-              className={styles.savedWorldMain}
-              onClick={() => logic.handleSelectCustomWorld(world)}
-              aria-pressed={selected}
-              disabled={logic.isConfirming}
-            >
-              <strong>{world.name}</strong>
-              <span>{world.eraName}{Math.abs(world.eraStartYear)}年 · {world.description.slice(0, 72)}</span>
-            </button>
-            <div className={styles.savedActions}>
-              {logic.worldCodesWithCache.has(world.worldCode) && (
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '5px' }}>
+          {logic.savedWorlds.map((world) => {
+            const selected = logic.selectedWorld?.id === world.id
+            return (
+              <article key={world.id} className={`${styles.savedWorldCard} ${selected ? styles.savedWorldSelected : ''}`}>
                 <button
                   type="button"
-                  onClick={() => logic.handleClearWorldCache(world.worldCode)}
-                  disabled={logic.isConfirming || logic.rotatingWorldCode === world.worldCode}
-                  title={`${L.clearCacheTitle}：${world.name}`}
-                >{logic.rotatingWorldCode === world.worldCode ? '清理中…' : '↻ 清缓存'}</button>
-              )}
-              <button type="button" onClick={() => { logic.handleStartEdit(world); onRequestCustom() }} disabled={logic.isConfirming}>{L.editTitle}</button>
-              {logic.pendingDeleteWorldId === world.id ? (
-                <>
-                  <button type="button" className={styles.dangerAction} onClick={() => logic.handleConfirmDeleteCustom(world)} disabled={logic.isConfirming}>确认删除</button>
-                  <button type="button" onClick={logic.handleCancelDeleteCustom} disabled={logic.isConfirming}>取消</button>
-                </>
-              ) : (
-                <button type="button" className={styles.dangerAction} onClick={() => logic.handleDeleteCustom(world)} disabled={logic.isConfirming}>{L.deleteTitle}</button>
-              )}
-            </div>
-          </article>
-        )
-      })}
+                  className={styles.savedWorldMain}
+                  onClick={() => logic.handleSelectCustomWorld(world)}
+                  aria-pressed={selected}
+                  disabled={logic.isConfirming}
+                >
+                  <strong>{world.name}</strong>
+                  <span>{world.eraName}{Math.abs(world.eraStartYear)}年 · 最近修改</span>
+                </button>
+                <span aria-hidden="true">已选</span>
+                {selected && (
+                  <div className={styles.savedActions}>
+                    {logic.worldCodesWithCache.has(world.worldCode) && (
+                      <button
+                        type="button"
+                        onClick={() => logic.handleClearWorldCache(world.worldCode)}
+                        disabled={logic.isConfirming || logic.rotatingWorldCode === world.worldCode}
+                        title={`${L.clearCacheTitle}：${world.name}`}
+                      >{logic.rotatingWorldCode === world.worldCode ? '清理中…' : '↻ 清缓存'}</button>
+                    )}
+                    <button type="button" onClick={() => { logic.handleStartEdit(world); onRequestCustom() }} disabled={logic.isConfirming}>{L.editTitle}</button>
+                    {logic.pendingDeleteWorldId === world.id ? (
+                      <>
+                        <button type="button" className={styles.dangerAction} onClick={() => logic.handleConfirmDeleteCustom(world)} disabled={logic.isConfirming}>确认删除</button>
+                        <button type="button" onClick={logic.handleCancelDeleteCustom} disabled={logic.isConfirming}>取消</button>
+                      </>
+                    ) : (
+                      <button type="button" className={styles.dangerAction} onClick={() => logic.handleDeleteCustom(world)} disabled={logic.isConfirming}>{L.deleteTitle}</button>
+                    )}
+                  </div>
+                )}
+              </article>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

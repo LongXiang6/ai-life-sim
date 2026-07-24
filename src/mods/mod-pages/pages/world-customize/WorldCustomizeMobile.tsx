@@ -19,14 +19,6 @@ export function WorldCustomizeMobile() {
   const macroFields = logic.groupedFields.macro ?? []
   const worldConfig = useWorldStore((state) => state.worldConfig)
 
-  const summarizeField = (key: string) => {
-    const field = macroFields.find((item) => item.key === key)
-    if (!field) return '待设定'
-    if (field.mode === 'adaptive') return field.playerValue || '待选择'
-    if (field.mode === 'custom') return field.customValue.trim() || '待填写'
-    return 'AI 判断'
-  }
-
   return (
     <>
       {logic.conflictModal}
@@ -45,16 +37,25 @@ export function WorldCustomizeMobile() {
               </div>
             </header>
 
-            <section className={styles.worldSummary} aria-live="polite">
-              <span className={styles.summaryMark} aria-hidden="true">界</span>
-              <div className={styles.summaryCopy}>
-                <strong>{worldConfig?.name ?? '自定义世界'}</strong>
-                <span>{worldConfig ? '已选世界 · 当前配置草稿' : '世界规则草稿 · 尚未初始化'}</span>
+            <section className={styles.worldSummary} aria-live="polite" aria-label="当前世界规则摘要">
+              <div>
+                <span>{worldConfig ? '保存世界' : '自定义世界'}</span>
+                <span>当前选择</span>
               </div>
-              <div className={styles.summaryFacts}>
-                <div><span>空间</span><strong>{summarizeField('universeScale')}</strong></div>
-                <div><span>本质</span><strong>{summarizeField('worldviewEssence')}</strong></div>
-                <div><span>上限</span><strong>{summarizeField('powerCeiling')}</strong></div>
+              <div className={styles.summaryCopy} aria-label="人生难度">
+                <span>难度</span>
+                <strong>普通</strong>
+              </div>
+              <h3>{worldConfig?.name ?? '潮汐城邦'}</h3>
+              <div>群岛历 218 年</div>
+              <div>
+                <span>规则摘要</span>
+                <p>潮汐决定城市的贸易节律、迁徙方向与每个人回家的时间。</p>
+              </div>
+              <div className={styles.summaryFacts} aria-label="世界概览">
+                <div><span>来源</span><strong>{worldConfig ? '已保存' : '自定义'}</strong></div>
+                <div><span>年代</span><strong>群岛历</strong></div>
+                <div><span>难度</span><strong>普通</strong></div>
               </div>
             </section>
 
