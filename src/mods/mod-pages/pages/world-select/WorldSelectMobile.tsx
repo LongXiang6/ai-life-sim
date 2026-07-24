@@ -23,11 +23,13 @@ export function WorldSelectMobile() {
   )
 
   return (
-    <>
-      {logic.conflictModal}
-      <main className={styles.page} aria-busy={logic.isConfirming}>
-        <div className={styles.container}>
-          <div className={styles.paper}>
+    <div className="final-flow-frame">
+      <div className="final-flow-design-fit">
+        <div className="final-flow-design-canvas">
+          {logic.conflictModal}
+          <main className={styles.page} aria-busy={logic.isConfirming}>
+            <div className={styles.container}>
+              <div className={styles.paper}>
             <header className={styles.header}>
               <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>01 / 08</span></div>
               <div className={styles.titleRow}>
@@ -37,23 +39,11 @@ export function WorldSelectMobile() {
 
             <WorldSelectStage logic={logic} />
 
-            <section className={styles.difficultySection} aria-label="人生难度">
-              <div className={styles.difficultyOptions} onClick={logic.difficultyItems[0]?.onClick} role="button" tabIndex={0}>
-                {logic.difficultyItems.map((item) => (
-                  item.icon && (
-                    <span key={item.label} className={styles.difficultyActive}>
-                      {item.label}
-                    </span>
-                  )
-                ))}
-              </div>
-            </section>
-
             <div className={styles.sourceTabs} role="tablist" aria-label="世界来源">
               {([
-                ['preset', '预设世界'],
-                ['custom', '自定义'],
                 ['saved', '已保存'],
+                ['custom', '自定义'],
+                ['preset', '预设世界'],
               ] as const).map(([source, label]) => (
                 <button
                   key={source}
@@ -96,11 +86,13 @@ export function WorldSelectMobile() {
               </p>
             )}
             {logic.confirmError && <p className={styles.errorMessage} role="alert">{logic.confirmError}</p>}
-          </div>
+              </div>
+            </div>
+          </main>
+          <WorldSelectBottomBar logic={logic} />
         </div>
-      </main>
-      <WorldSelectBottomBar logic={logic} />
-    </>
+      </div>
+    </div>
   )
 }
 

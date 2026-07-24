@@ -71,6 +71,13 @@ export function useSimulationBranch({ advanceRound }: UseSimulationBranchDeps) {
       return
     }
 
+    confirmingBranchRef.current = true
+    const resolved = resolveNarrativeBranchChoice(branchId, choice)
+    if (!resolved) {
+      confirmingBranchRef.current = false
+      console.warn('[useSimulationBranch] handleBranchConfirm: 当前分支已失效或选择未通过安全检查')
+      return
+    }
     const isCustomChoice = Boolean(branchCustomText.trim())
     reportUsageMetric({
       schemaVersion: 1,
@@ -79,14 +86,6 @@ export function useSimulationBranch({ advanceRound }: UseSimulationBranchDeps) {
       branchTerms: isCustomChoice ? extractAggregateTerms(choice) : undefined,
       branchChars: isCustomChoice ? choice.length : undefined,
     })
-
-    confirmingBranchRef.current = true
-    const resolved = resolveNarrativeBranchChoice(branchId, choice)
-    if (!resolved) {
-      confirmingBranchRef.current = false
-      console.warn('[useSimulationBranch] handleBranchConfirm: 当前分支已失效，请重新选择')
-      return
-    }
     setBranchCustomText('')
     setSelectedBranchOptionId(null)
 

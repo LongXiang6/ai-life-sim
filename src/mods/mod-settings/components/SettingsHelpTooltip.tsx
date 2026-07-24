@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
+import { getSettingsPortalMetrics, getSettingsPortalRoot } from './settings-portal'
 import styles from './SettingsHelpTooltip.module.css'
 
 interface SettingsHelpTooltipProps {
@@ -45,14 +46,18 @@ export function SettingsHelpTooltip({
 
     const viewportPadding = 12
     const gap = 6
+    const metrics = getSettingsPortalMetrics()
     const triggerRect = trigger.getBoundingClientRect()
-    const tooltipWidth = Math.min(width, Math.max(0, window.innerWidth - viewportPadding * 2))
-    const maxLeft = Math.max(viewportPadding, window.innerWidth - tooltipWidth - viewportPadding)
-    const left = Math.min(Math.max(triggerRect.right + gap, viewportPadding), maxLeft)
-    const tooltipHeight = tooltipRef.current?.getBoundingClientRect().height ?? 0
-    const belowTop = triggerRect.bottom + gap
-    const top = tooltipHeight > 0 && belowTop + tooltipHeight > window.innerHeight - viewportPadding
-      ? Math.max(viewportPadding, triggerRect.top - tooltipHeight - gap)
+    const tooltipWidth = Math.min(width, Math.max(0, metrics.width - viewportPadding * 2))
+    const maxLeft = Math.max(viewportPadding, metrics.width - tooltipWidth - viewportPadding)
+    const triggerRight = (triggerRect.right - metrics.left) / metrics.scale
+    const triggerTop = (triggerRect.top - metrics.top) / metrics.scale
+    const triggerBottom = (triggerRect.bottom - metrics.top) / metrics.scale
+    const left = Math.min(Math.max(triggerRight + gap, viewportPadding), maxLeft)
+    const tooltipHeight = (tooltipRef.current?.getBoundingClientRect().height ?? 0) / metrics.scale
+    const belowTop = triggerBottom + gap
+    const top = tooltipHeight > 0 && belowTop + tooltipHeight > metrics.height - viewportPadding
+      ? Math.max(viewportPadding, triggerTop - tooltipHeight - gap)
       : Math.max(viewportPadding, belowTop)
 
     setPosition({ top, left, width: tooltipWidth })
@@ -99,7 +104,7 @@ export function SettingsHelpTooltip({
         >
           {helpData[helpKey]}
         </div>,
-        document.body,
+        getSettingsPortalRoot(),
       )}
     </span>
   )

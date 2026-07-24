@@ -17,7 +17,9 @@
 }
 
 .page {
-  min-height: 100dvh;
+  width: 320px;
+  height: 694px;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior-y: contain;
   background: #eef1f7;
@@ -27,16 +29,16 @@
 
 .container {
   width: 100%;
-  max-width: 900px;
+  max-width: 320px;
   margin: 0 auto;
-  padding: 18px 12px 42px;
+  padding: 0;
 }
 
 .paper {
   position: relative;
   isolation: isolate;
   width: 100%;
-  min-height: 100dvh;
+  min-height: 694px;
   padding: 15px 16px calc(78px + env(safe-area-inset-bottom));
   border: 1px solid var(--cf-line);
   border-radius: 34px;
@@ -622,26 +624,25 @@
 
 /* Bottom Bar */
 .bottomBar {
-  position: fixed;
+  position: absolute;
   z-index: 100;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  padding: 0 16px calc(12px + env(safe-area-inset-bottom));
+  right: 14px;
+  bottom: 12px;
+  left: 14px;
+  padding: 0;
   pointer-events: none;
 }
 
 .bottomBarInner {
   display: flex;
   width: 100%;
-  max-width: 900px;
-  min-height: 54px;
+  min-height: 52px;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   margin: 0 auto;
-  padding: 6px 12px;
+  padding: 2px 7px;
   border: 1px solid rgba(207, 215, 238, 0.84);
-  border-radius: 27px;
+  border-radius: 18px;
   background: rgba(255, 255, 255, 0.76);
   box-shadow: 0 12px 30px rgba(62, 70, 100, 0.13), 0 2px 7px rgba(62, 70, 100, 0.06);
   backdrop-filter: blur(16px);
@@ -651,9 +652,9 @@
 
 .backButton {
   display: grid;
-  width: 42px;
-  height: 42px;
-  flex: 0 0 42px;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
   place-items: center;
   padding: 0;
   border: 1px solid var(--cf-line);
@@ -661,17 +662,17 @@
   background: rgba(255, 255, 255, 0.8);
   color: var(--cf-muted);
   font: inherit;
-  font-size: 18px;
+  font-size: 16px;
   cursor: pointer;
 }
 
 .confirmButton {
   display: flex;
   min-width: 0;
-  min-height: 42px;
+  min-height: 48px;
   flex: 1;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 0;
   border: 0;
   background: transparent;
@@ -737,14 +738,6 @@ textarea:focus-visible,
 select:focus-visible {
   outline: 2px solid rgba(115, 130, 187, 0.48);
   outline-offset: 2px;
-}
-
-/* Responsive Adjustments */
-@media (max-width: 389px) {
-  .container {
-    padding-left: 8px;
-    padding-right: 8px;
-  }
 }
 
 @media (prefers-reduced-transparency: reduce) {

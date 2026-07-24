@@ -121,12 +121,14 @@ function ToastItemComponent({
 export function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
   if (toasts.length === 0) return null
 
+  const portalRoot = document.querySelector<HTMLElement>('.final-flow-frame') ?? document.body
+
   return createPortal(
-    <div className="fixed top-4 right-4 z-[1500] flex flex-col gap-2 w-80 max-w-[calc(100vw-2rem)]">
+    <div className="fixed top-4 right-4 z-[1500] flex w-80 flex-col gap-2" style={{ maxWidth: 'calc(100% - 2rem)' }}>
       {toasts.map((toast) => (
         <ToastItemComponent key={toast.id} toast={toast} onDismiss={onDismiss} />
       ))}
     </div>,
-    document.body,
+    portalRoot,
   )
 }

@@ -69,12 +69,30 @@ try {
 
   await fs.mkdir(path.join(logRoot, 'client-events'), { recursive: true })
   await fs.mkdir(path.join(logRoot, 'proxy-access'), { recursive: true })
-  await fs.writeFile(path.join(logRoot, 'client-events', 'client-events-test.jsonl'), `${JSON.stringify({
-    timestamp: now,
-    diagnostic_code: privateValues.code,
-    ip: privateValues.ip,
-    metric: { kind: 'page_view', page: '/welcome', customText: privateValues.story },
-  })}\n`, 'utf8')
+  await fs.writeFile(path.join(logRoot, 'client-events', 'client-events-test.jsonl'), `${[
+    {
+      timestamp: now,
+      diagnostic_code: privateValues.code,
+      ip: privateValues.ip,
+      metric: { kind: 'page_view', page: '/welcome', customText: privateValues.story },
+    },
+    {
+      timestamp: now,
+      receivedAt: now,
+      diagnostic_code: privateValues.code,
+      metric: {
+        schemaVersion: 2,
+        kind: 'story_repetition',
+        lifeRunId: 'life-dashboard-test',
+        round: 2,
+        windowSize: 1,
+        wordRepeatRate: 0.625,
+        maxRecentWordOverlap: 0.5,
+        maxRecentNgramSimilarity: 0.4,
+        qualityLevel: 'watch',
+      },
+    },
+  ].map(JSON.stringify).join('\n')}\n`, 'utf8')
   await fs.writeFile(path.join(logRoot, 'proxy-access', 'proxy-access-test.jsonl'), `${JSON.stringify({
     timestamp: now,
     diagnostic_code: privateValues.code,
@@ -95,9 +113,19 @@ try {
   assert.equal(snapshot.accounts.registeredToday, 1)
   assert.equal(snapshot.content.cloudSaves, 1)
   assert.equal(snapshot.content.leaderboardAccounts, 1)
+  assert.equal(snapshot.traffic.storyRepetition.observedGames, 1)
+  assert.equal(snapshot.traffic.storyRepetition.observedRounds, 1)
+  assert.equal(snapshot.traffic.storyRepetition.comparedRounds, 1)
+  assert.equal(snapshot.traffic.storyRepetition.averageWordRepeatRate, 0.625)
+  assert.equal(snapshot.traffic.storyRepetition.recentAverageWordRepeatRate, 0.625)
+  assert.equal(snapshot.traffic.storyRepetition.peakWordRepeatRate, 0.625)
+  assert.equal(snapshot.traffic.storyRepetition.highRepeatRounds, 0)
+  assert.equal(snapshot.traffic.storyRepetition.highRepeatRatio, 0)
+  assert.equal(snapshot.traffic.storyRepetition.risingGames, 0)
   assert.deepEqual(snapshot.privacy, { aggregateOnly: true, identifiersIncluded: false, rawContentIncluded: false })
   const serialized = JSON.stringify(snapshot)
   for (const value of Object.values(privateValues)) assert.equal(serialized.includes(value), false, value)
+  assert.equal(serialized.includes('life-dashboard-test'), false, 'dashboard snapshot must not contain run identifiers')
 
   server = dashboard.createOperationsDashboardServer(options)
   await new Promise((resolve, reject) => {
@@ -108,7 +136,12 @@ try {
   const baseUrl = `http://127.0.0.1:${address.port}`
   const page = await fetch(baseUrl).then((response) => response.text())
   assert.match(page, /运营统计/u)
+  assert.match(page, /重复率上升局数/u)
   assert.equal(page.includes(privateValues.username), false)
+  const appScript = await fetch(`${baseUrl}/app.js`).then((response) => response.text())
+  for (const field of ['observedGames', 'observedRounds', 'comparedRounds', 'averageWordRepeatRate', 'recentAverageWordRepeatRate', 'peakWordRepeatRate', 'highRepeatRounds', 'highRepeatRatio', 'risingGames']) {
+    assert.equal(appScript.includes(field), true, `dashboard must render ${field}`)
+  }
   assert.equal((await fetch(`${baseUrl}/favicon.ico`)).status, 204)
   const apiResponse = await fetch(`${baseUrl}/api/stats`)
   assert.equal(apiResponse.headers.get('cache-control'), 'no-store')

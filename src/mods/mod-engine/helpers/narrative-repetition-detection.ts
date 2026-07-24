@@ -139,6 +139,21 @@ export function checkNarrativeRepetition(
   }
 }
 
+/**
+ * 预生成只是尚未提交的候选；消费前必须复用实时路径的重复与阶段连续性门禁。
+ * 命中时丢弃缓存并改走实时生成，避免默认预生成把已知重复正文直接交给玩家。
+ */
+export function inspectPrefetchedNarrativeRepetition(
+  narrative: string,
+  recentHistory: string[],
+): { canConsume: boolean; repetition: RepetitionCheckResult } {
+  const repetition = checkNarrativeRepetition(narrative, recentHistory)
+  return {
+    canConsume: !repetition.isRepetitive,
+    repetition,
+  }
+}
+
 export interface RepetitionRepairDecision {
   accepted: boolean
   content: string
@@ -190,7 +205,7 @@ export function buildRepetitionRepairInstruction(result: RepetitionCheckResult):
   }
   const percent = Math.round(result.maxSimilarity * 100)
   if (result.severity === 'high') {
-    return `上一版正文与近期历史有 ${percent}% 文本重叠（相似度 ${result.maxSimilarity.toFixed(2)}），属于严重重复。必须完全重写：更换场景、人物、事件和因果链，保留世界观但不得复用近期已出现的具体意象、组合或句式。`
+    return `上一版正文与近期历史有 ${percent}% 文本重叠（相似度 ${result.maxSimilarity.toFixed(2)}），属于严重重复。必须重写重复呈现并继续推进，但要保留已经成立的人物、目标、事件结果和因果链；不得靠更换事实来降低相似度。`
   }
-  return `上一版正文与近期历史有 ${percent}% 文本重叠（相似度 ${result.maxSimilarity.toFixed(2)}）。请调整叙事角度、更换场景细节和人物互动，避免重复已提交的意象组合。`
+  return `上一版正文与近期历史有 ${percent}% 文本重叠（相似度 ${result.maxSimilarity.toFixed(2)}）。请调整叙事角度、动作细节和人物互动方式，避免重复已提交的意象组合，同时保持既有事实和因果连续。`
 }

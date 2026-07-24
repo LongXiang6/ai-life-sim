@@ -57,7 +57,7 @@ export function StorageInit({ children }: { children: React.ReactNode }) {
         role="status"
         aria-live="polite"
         style={{
-          minHeight: '100dvh',
+          minHeight: '100%',
           display: 'grid',
           placeItems: 'center',
           padding: 24,

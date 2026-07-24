@@ -318,11 +318,13 @@ function FatePreviewContent() {
   }
 
   return (
-    <>
-      <main className={styles.page}>
-        <div className={styles.paper}>
+    <div className="final-flow-frame">
+      <div className="final-flow-design-fit">
+        <div className="final-flow-design-canvas">
+          <main className={styles.page}>
+            <div className={styles.paper}>
           <header className={styles.header}>
-            <div className={styles.runningHead}><span>CREATION FLOW · 07 / 08</span></div>
+            <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>07 / 08</span></div>
             <div className={styles.titleRow}>
               <div>
                 <h1 className={styles.headerTitle}>核对命书</h1>
@@ -355,7 +357,7 @@ function FatePreviewContent() {
           <section className={`${styles.section} ${styles.attributesSection}`} aria-labelledby="attributes-patterns-title">
             <div className={styles.sectionHeading}>
               <strong id="attributes-patterns-title">属性与命格</strong>
-              <span>四项属性 · {selectedPatterns.length} 条命格</span>
+              <span>基础值 + 独立修正</span>
             </div>
             <div className={styles.attrGrid}>
               {attrKeys.map((key) => {
@@ -461,20 +463,22 @@ function FatePreviewContent() {
               </div>
             ) : null}
           </section>
-        </div>
-      </main>
+            </div>
+          </main>
 
-      <BottomActionBar
+          <BottomActionBar
         onBack={() => router.push(!characterConfirmed ? '/new-game/character-create' : '/attribute-alloc')}
         backTitle={!characterConfirmed ? '返回确认角色' : '返回确认属性'}
         onConfirm={handleStartLife}
         confirmText={creationGateReason ? '创建信息未完成' : aiComplete ? '开始人生' : aiFailed ? '初始化失败' : (aiIsRunning ? '请等待…' : '等待世界初始化')}
-        confirmNumber="完成"
+        confirmNumber="08"
         confirmDescription={creationGateReason ?? (aiComplete ? '所有起点已确认 · 开启人生' : aiFailed ? '请返回世界配置重新确认' : aiIsRunning ? `世界初始化 ${aiProgress} / 4` : '等待世界初始化完成')}
         confirmDisabled={Boolean(creationGateReason) || !aiComplete}
         confirmTitle={creationGateReason ?? (!aiComplete ? aiFailed ? '世界初始化失败，请返回世界配置重新确认' : '等待世界初始化完成' : '开始人生')}
-      />
-    </>
+          />
+        </div>
+      </div>
+    </div>
   )
 }
 

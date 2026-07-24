@@ -14,7 +14,6 @@
   --accent: #7382bb;
   --accent-rgb: 115, 130, 187;
   --accent-soft: #edf0fb;
-  --danger: #9c7d86;
   --ornament: #7787c0;
   --border: #d8deea;
   --serif: "Songti SC", "STSong", "SimSun", serif;
@@ -22,7 +21,8 @@
 }
 
 .page {
-  height: 100dvh;
+  width: 320px;
+  height: 694px;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior-y: contain;
@@ -48,7 +48,8 @@
 .paper {
   position: relative;
   isolation: isolate;
-  min-height: 100dvh;
+  overflow: hidden;
+  min-height: 694px;
   padding:
     max(15px, env(safe-area-inset-top))
     16px
@@ -132,7 +133,7 @@
   position: relative;
   z-index: 1;
   height: 23cqh;
-  min-height: 112px;
+  min-height: 0;
   margin-top: 9px;
   padding: 13px 15px;
   overflow: hidden;
@@ -151,16 +152,27 @@
   min-width: 0;
 }
 
-.stageCopy::before {
-  position: absolute;
-  top: 0;
-  left: 0;
+.focusTop {
+  display: flex;
+  max-width: calc(100% - 100px);
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.stageSource {
   display: block;
   color: var(--accent);
   font-size: 7px;
   font-weight: 700;
   line-height: 1.3;
-  content: '保存世界';
+}
+
+.focusIndex {
+  color: var(--ink-faint);
+  font-size: 7px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
 }
 
 .stageTitle {
@@ -214,6 +226,7 @@
   background: rgba(255, 255, 255, .8);
   box-shadow: inset 0 1px rgba(255, 255, 255, .96), 0 4px 11px rgba(62, 70, 100, .045);
   cursor: pointer;
+  text-align: left;
 }
 
 .difficultyOptions:hover {
@@ -226,39 +239,13 @@
   transform: translateY(1px);
 }
 
-.difficultyOptions button {
-  display: contents;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-
-.difficultyOptions button::before {
+.difficultyOptions > span {
   grid-column: 1;
   grid-row: 1;
   color: var(--ink-faint);
   font-size: 7.2px;
   font-weight: 650;
   line-height: 1.15;
-  content: '难度';
-}
-
-.difficultyOptions button::after {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  display: grid;
-  width: 9px;
-  height: 9px;
-  place-items: center;
-  padding: 3px;
-  border-radius: 50%;
-  background: var(--accent);
-  box-sizing: content-box;
-  color: #fff;
-  content: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='m7 10 5 5 5-5'/%3E%3C/svg%3E");
 }
 
 .difficultyActive {
@@ -268,7 +255,28 @@
   font-size: 10.5px;
   font-weight: 680;
   line-height: 1.2;
-  text-align: left;
+}
+
+.difficultyArrow {
+  display: grid;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  width: 9px;
+  height: 9px;
+  place-items: center;
+  padding: 3px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-sizing: content-box;
+  color: #fff;
+}
+
+.difficultyArrow path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 /* Rule Grid */
@@ -573,6 +581,12 @@
 }
 
 /* Saved World Cards */
+.savedWorldList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+
 .savedWorldCard {
   position: relative;
   display: grid;
@@ -587,6 +601,7 @@
   background: rgba(255, 255, 255, .94);
   color: var(--ink);
   cursor: pointer;
+  font: inherit;
   text-align: left;
 }
 
@@ -596,17 +611,12 @@
 }
 
 .savedWorldMain {
-  display: contents;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
+  display: block;
+  min-width: 0;
 }
 
 .savedWorldMain strong,
-.savedWorldMain span {
+.savedWorldMain small {
   display: block;
 }
 
@@ -619,7 +629,7 @@
   white-space: nowrap;
 }
 
-.savedWorldMain span {
+.savedWorldMain small {
   margin-top: 4px;
   overflow: hidden;
   color: var(--ink-faint);
@@ -629,15 +639,18 @@
   white-space: nowrap;
 }
 
-.savedWorldMain ~ span {
+.savedWorldStatus {
   width: 5px;
   height: 5px;
   margin-top: 2px;
+  overflow: hidden;
   border-radius: 50%;
   background: transparent;
+  color: transparent;
+  font-size: 0;
 }
 
-.savedWorldSelected .savedWorldMain ~ span {
+.savedWorldSelected .savedWorldStatus {
   position: relative;
   width: 14px;
   height: 14px;
@@ -645,7 +658,7 @@
   background: var(--accent);
 }
 
-.savedWorldSelected .savedWorldMain ~ span::after {
+.savedWorldSelected .savedWorldStatus::after {
   position: absolute;
   top: 3px;
   left: 3px;
@@ -682,7 +695,7 @@
 }
 
 .savedActions .dangerAction {
-  color: var(--danger);
+  color: var(--color-error);
 }
 
 /* Custom Form */
@@ -778,12 +791,12 @@
 .feedbackWarning,
 .errorMessage {
   background: rgba(156, 125, 134, .1);
-  color: var(--danger);
+  color: var(--color-error);
 }
 
 /* Bottom Bar */
 .bottomBar {
-  position: fixed;
+  position: absolute;
   z-index: 100;
   right: 14px;
   bottom: 12px;
@@ -908,12 +921,12 @@
 /* Disabled States */
 .backButton:disabled,
 .sourceTabs button:disabled,
-.worldCard:disabled,
-.moreWorldCard:disabled,
-.moreTrigger:disabled,
-.difficultyOptions:disabled,
-.savedWorldMain:disabled,
-.savedActions button:disabled {
+  .worldCard:disabled,
+  .moreWorldCard:disabled,
+  .moreTrigger:disabled,
+  .difficultyOptions:disabled,
+  .savedWorldCard:disabled,
+  .savedActions button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
@@ -924,13 +937,6 @@
 
 @keyframes spin {
   to { transform: rotate(360deg); }
-}
-
-@media (max-width: 389px) {
-  .paper {
-    padding-right: 14px;
-    padding-left: 14px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

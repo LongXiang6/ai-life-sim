@@ -34,7 +34,6 @@ interface SubmitResult {
 export default function FeedbackPage() {
   const router = useRouter()
   const [category, setCategory] = useState<FeedbackCategory>('bug')
-  const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
   const [consent, setConsent] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -88,7 +87,7 @@ export default function FeedbackPage() {
     }
   }, [])
 
-  const canSubmit = subject.trim().length > 0 && message.trim().length > 0 && consent && !submitting
+  const canSubmit = message.trim().length > 0 && consent && !submitting
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -101,9 +100,10 @@ export default function FeedbackPage() {
 
     try {
       const diagnostics = await buildFeedbackDiagnostics()
+      const categoryLabel = CATEGORY_OPTIONS.find((option) => option.id === category)?.label ?? '玩家反馈'
       const envelope: PlayerFeedbackEnvelope = {
         category,
-        subject: subject.trim(),
+        subject: `${categoryLabel}：${message.trim().split(/\r?\n/u).find((line) => line.trim()) ?? message.trim()}`,
         message: message.trim(),
         submittedAt: Date.now(),
         consent: true,
@@ -119,7 +119,6 @@ export default function FeedbackPage() {
         throw new Error(result.error || '反馈提交失败，请稍后重试')
       }
       setFeedbackId(result.feedbackId)
-      setSubject('')
       setMessage('')
       setConsent(false)
       logger.action('feedback', 'feedback-submit-completed', { category, feedbackId: result.feedbackId })
@@ -133,108 +132,75 @@ export default function FeedbackPage() {
   }
 
   return (
-    <main className={styles.page}>
-      <div className={styles.runningHead} aria-hidden="true">
-        <span>AI LIFE SIM · 命书</span>
-        <span>附 / 反馈</span>
-      </div>
-      <span className={styles.spine} aria-hidden="true" />
+    <div className="final-flow-frame">
+      <div className="final-flow-design-fit">
+        <div className="final-flow-design-canvas">
+          <main className={styles.page}>
+            <div className={styles.screen}>
+              <header className={styles.header}>
+                <div className={styles.meta} aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>附 · 反馈</span></div>
+                <h1>反馈与建议</h1>
+              </header>
 
-      <header className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={() => router.back()}>
-          <span aria-hidden="true">←</span>
-          返回
-        </button>
-        <p className={styles.eyebrow}>诊断回执</p>
-        <h1>反馈与建议</h1>
-        <p className={styles.intro}>描述你遇到的问题或希望改进的地方。提交成功后会生成反馈编号。</p>
-      </header>
+              <form className={styles.form} onSubmit={handleSubmit}>
+                <section className={styles.panel}>
+                  <div className={styles.feedbackGrid}>
+                    <label className={styles.field}>
+                      <span><span className="semantic-emoji" aria-hidden="true">💬</span>类型</span>
+                      <select value={category} disabled={submitting} onChange={(event) => setCategory(event.target.value as FeedbackCategory)}>
+                        {CATEGORY_OPTIONS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+                      </select>
+                    </label>
+                    <label className={styles.field}>
+                      <span><span className="semantic-emoji" aria-hidden="true">✍️</span>内容</span>
+                      <textarea
+                        value={message}
+                        disabled={submitting}
+                        onChange={(event) => setMessage(event.target.value)}
+                        placeholder="描述问题或建议"
+                        rows={8}
+                      />
+                    </label>
+                  </div>
+                </section>
 
-      <section className={styles.diagnosticIdentity} aria-live="polite">
-        <div>
-          <small><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">🆔</span>此浏览器的诊断编号</small>
-          <strong>{diagnosticCode ?? (diagnosticCodeError ? '暂不可用' : '分配中')}</strong>
-          <p>出现问题时提供这个六位编号和大致情况，即可定位同期服务器日志。</p>
-        </div>
-        {diagnosticCode ? (
-          <button type="button" onClick={() => { void copyDiagnosticCode() }}>
-            {diagnosticCodeCopied ? '已复制' : '复制编号'}
-          </button>
-        ) : diagnosticCodeError ? (
-          <button type="button" onClick={() => { void retryDiagnosticCode() }}>
-            重新获取
-          </button>
-        ) : null}
-      </section>
+                <section className={styles.panel}>
+                  <label className={styles.dataRow}>
+                    <span><strong><span className="semantic-emoji" aria-hidden="true">🔎</span>附带诊断</strong><small>不含密钥与密码</small></span>
+                    <span className={styles.toggle}><input type="checkbox" checked={consent} disabled={submitting} onChange={(event) => setConsent(event.target.checked)} /><i aria-hidden="true" /></span>
+                  </label>
+                  <div className={styles.dataRow} aria-live="polite">
+                    <span><strong><span className="semantic-emoji" aria-hidden="true">🏷️</span>玩家编号</strong><small>用于查询近期记录</small></span>
+                    {diagnosticCode ? (
+                      <button type="button" className={styles.valueAction} onClick={() => { void copyDiagnosticCode() }}>{diagnosticCodeCopied ? '已复制' : diagnosticCode}</button>
+                    ) : diagnosticCodeError ? (
+                      <button type="button" className={styles.valueAction} onClick={() => { void retryDiagnosticCode() }}>重新获取</button>
+                    ) : <span className={styles.value}>分配中</span>}
+                  </div>
+                </section>
 
-      <form className={styles.form} onSubmit={handleSubmit}>
-        <fieldset className={styles.categoryFieldset} disabled={submitting}>
-          <legend><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">💬</span>反馈类型</legend>
-          <div className={styles.categoryGrid}>
-            {CATEGORY_OPTIONS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                className={category === option.id ? styles.categoryActive : ''}
-                aria-pressed={category === option.id}
-                onClick={() => setCategory(option.id)}
-              >
-                <strong>{option.label}</strong>
-                <small>{option.description}</small>
+                {error ? <p className={styles.error} role="alert">{error}</p> : null}
+                {feedbackId ? (
+                  <section className={styles.success} role="status">
+                    <span>反馈已完整保存</span><strong>{feedbackId}</strong><button type="button" onClick={() => { void copyText(feedbackId) }}>复制编号</button>
+                  </section>
+                ) : null}
+
+                <button type="submit" className={styles.submitButton} disabled={!canSubmit}>
+                  {submitting ? '正在提交' : '提交反馈'}
+                </button>
+              </form>
+            </div>
+
+            <footer className={styles.footer} data-flow-bottom-bar>
+              <button type="button" className={styles.backButton} onClick={() => router.back()} aria-label="返回上一页">←</button>
+              <button type="button" className={styles.returnButton} onClick={() => router.push('/welcome')}>
+                <span className={styles.returnNumber}>00</span><span className={styles.returnCopy}><strong>返回</strong><small>回到欢迎界面</small></span><span className={styles.returnArrow} aria-hidden="true">→</span>
               </button>
-            ))}
-          </div>
-        </fieldset>
-
-        <label className={styles.field}>
-          <span>简要标题</span>
-          <input
-            value={subject}
-            disabled={submitting}
-            onChange={(event) => setSubject(event.target.value)}
-            placeholder="例如：推进故事后页面没有响应"
-            autoComplete="off"
-          />
-        </label>
-
-        <label className={styles.field}>
-          <span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">✍️</span>详细内容</span>
-          <textarea
-            value={message}
-            disabled={submitting}
-            onChange={(event) => setMessage(event.target.value)}
-            placeholder="请写下发生了什么、你当时进行了哪些操作，以及你希望看到的结果。"
-            rows={8}
-          />
-        </label>
-
-        <label className={styles.consent}>
-          <input
-            type="checkbox"
-            checked={consent}
-            disabled={submitting}
-            onChange={(event) => setConsent(event.target.checked)}
-          />
-          <span>
-            <span className="semantic-emoji" data-semantic-emoji aria-hidden="true">🔎</span>我了解提交后会打包上传诊断日志，其中可能包含当前游戏配置、运行状态和近期完整故事；不包含 API Key、认证信息或设备序列号。
-          </span>
-        </label>
-
-        {error && <p className={styles.error} role="alert">{error}</p>}
-        {feedbackId && (
-          <section className={styles.success} role="status">
-            <small>反馈已完整保存</small>
-            <strong>{feedbackId}</strong>
-            <p>排查问题时可提供此编号。</p>
-            <button type="button" onClick={() => { void copyText(feedbackId) }}>复制编号</button>
-          </section>
-        )}
-
-        <button type="submit" className={styles.submitButton} disabled={!canSubmit}>
-          <span>{submitting ? '正在打包并上传诊断日志' : '提交反馈'}</span>
-          <small>{submitting ? '请保持页面开启，完整保存后会返回编号' : '反馈正文与诊断包将整包保存'}</small>
-        </button>
-      </form>
-    </main>
+            </footer>
+          </main>
+        </div>
+      </div>
+    </div>
   )
 }

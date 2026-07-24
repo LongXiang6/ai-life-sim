@@ -114,6 +114,10 @@ export default function GamePage() {
   } = useSimulationBranch({ advanceRound })
 
   const { narrativeHistory } = useNarrative()
+  const storyRepetitionStats = useEngineStore((s) => s.storyRepetitionStats)
+  const recentRepetitionMetrics = narrativeHistory
+    .flatMap((entry) => entry.repetitionMetric ? [entry.repetitionMetric] : [])
+    .slice(-5)
   const streamingNarrative = useEngineStore((s) => s.streamingNarrative)
   const narrativeError = useEngineStore((s) => s.narrativeError)
   const branchRepairPending = useEngineStore((s) => s.branchRepairPending)
@@ -430,15 +434,21 @@ export default function GamePage() {
 
   if (flowGuard) {
     return (
-      <div className={styles.root}>
-        <div className={styles.guardShell}>
-          <div className={styles.guardCard}>
-            <div className={styles.guardIcon}>⚠</div>
-            <h1 className={styles.guardTitle}>{flowGuard.title}</h1>
-            <p className={styles.guardMessage}>{flowGuard.message}</p>
-            <button type="button" className={styles.ctrlBtnPrimary} onClick={() => router.replace(flowGuard.action)}>
-              返回创建流程
-            </button>
+      <div className="final-flow-frame">
+        <div className="final-flow-design-fit final-flow-design-fit--390">
+          <div className="final-flow-design-canvas">
+            <div className={styles.root}>
+              <div className={styles.guardShell}>
+                <div className={styles.guardCard}>
+                  <div className={styles.guardIcon}>⚠</div>
+                  <h1 className={styles.guardTitle}>{flowGuard.title}</h1>
+                  <p className={styles.guardMessage}>{flowGuard.message}</p>
+                  <button type="button" className={styles.ctrlBtnPrimary} onClick={() => router.replace(flowGuard.action)}>
+                    返回创建流程
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -446,7 +456,10 @@ export default function GamePage() {
   }
 
   return (
-    <div className={styles.root}>
+    <div className="final-flow-frame">
+      <div className="final-flow-design-fit final-flow-design-fit--390">
+        <div className="final-flow-design-canvas">
+          <div className={styles.root}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <SaveDialog
         open={showSaveDialog}
@@ -461,39 +474,77 @@ export default function GamePage() {
 
       <section className={styles.bookShell} aria-label="故事进行中">
         <div className={styles.stickyShell}>
-          <header className={styles.readerBar}>
-            <span className={styles.identity}>
-              <strong>{characterName || '未命名'}</strong>
-              <small>{worldConfig?.name ?? '未知世界'} · {raceInfo.name} · {characterAge}岁 · {narrativeTimeLabel}</small>
-            </span>
-            <button
-              type="button"
-              className={`${styles.forceButton} ${forceBranchNext ? styles.forceButtonActive : ''}`}
-              aria-label={forceBranchNext ? '取消下一轮强制分支' : '强制下一轮分支'}
-              aria-pressed={forceBranchNext}
-              disabled={!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch || branchRepairPending}
-              onClick={handleForceBranch}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M6 3v12M18 9a9 9 0 0 1-9 9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                <circle cx="18" cy="6" r="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
-                <circle cx="6" cy="18" r="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
-              </svg>
-              <span className={styles.srOnly}>强制下一轮分支</span>
-            </button>
-            <button
-              type="button"
-              className={styles.infoToggle}
-              aria-label={showWorldPanel ? '收起当前信息' : '展开当前信息'}
-              aria-expanded={showWorldPanel}
-              aria-controls="current-information-panel"
-              onClick={() => setShowWorldPanel((value) => !value)}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
-                <path d="M12 10.5v6M12 7.2v.2" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
-              </svg>
-            </button>
+          <header className={`${styles.readerBar} ${styles.barStatus}`}>
+            <div className={styles.barTop}>
+              <span className={styles.identity}>
+                <strong>{characterName || '未命名'}</strong>
+                <small>{worldConfig?.name ?? '未知世界'} · {raceInfo.name} · {characterAge}岁 · {narrativeTimeLabel}</small>
+              </span>
+              <button
+                type="button"
+                className={`${styles.forceButton} ${forceBranchNext ? styles.forceButtonActive : ''}`}
+                aria-label={forceBranchNext ? '取消下一轮强制分支' : '强制下一轮分支'}
+                aria-pressed={forceBranchNext}
+                disabled={!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch || branchRepairPending}
+                onClick={handleForceBranch}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 3v12M18 9a9 9 0 0 1-9 9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                  <circle cx="18" cy="6" r="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                  <circle cx="6" cy="18" r="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                </svg>
+                <span className={styles.srOnly}>强制下一轮分支</span>
+              </button>
+              <button
+                type="button"
+                className={styles.infoToggle}
+                aria-label={showWorldPanel ? '收起当前信息' : '展开当前信息'}
+                aria-expanded={showWorldPanel}
+                aria-controls="current-information-panel"
+                onClick={() => setShowWorldPanel((value) => !value)}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
+                  <path d="M12 10.5v6M12 7.2v.2" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+            <div className={styles.barVitals}>
+              <div className={styles.barAttrs} aria-label="四维属性">
+                {ATTR_KEYS.map((key) => {
+                  const value = displayBaseAttrs[key] ?? 0
+                  const icon = key === 'physique' ? '💪' : key === 'mind' ? '🧠' : key === 'talentAptitude' ? '✨' : '💫'
+                  return (
+                    <span key={key}>
+                      <em aria-hidden="true">{icon}</em>
+                      <i>{ATTRIBUTE_NAMES[key]}</i>
+                      <b className={value > 0 ? styles.rise : ''}>{value}</b>
+                    </span>
+                  )
+                })}
+              </div>
+              <div className={styles.barTalents} aria-label="已选命格">
+                {(destinyPatterns ?? []).slice(0, 3).map((pattern) => (
+                  <span key={pattern.id} className={styles.barTalent} data-rarity={pattern.rarity}>
+                    {pattern.name}
+                  </span>
+                ))}
+                {(destinyPatterns?.length ?? 0) === 0 ? (
+                  <span className={`${styles.barTalent} ${styles.barTalentEmpty}`}>尚未携带命格</span>
+                ) : null}
+              </div>
+              <div className={styles.barRebirths} aria-label="轮回天赋">
+                {equippedMythicPatterns.length > 0 ? (
+                  equippedMythicPatterns.map((pattern) => (
+                    <span key={pattern.id} className={`${styles.barTalent} ${styles.barTalentRebirth}`}>
+                      {pattern.name}
+                    </span>
+                  ))
+                ) : (
+                  <span className={`${styles.barTalent} ${styles.barTalentEmpty}`}>未携带轮回</span>
+                )}
+              </div>
+            </div>
           </header>
           <div className={styles.readerDivider} aria-hidden="true"><span /></div>
 
@@ -522,8 +573,10 @@ export default function GamePage() {
                 <div className={styles.attributes}>
                   {ATTR_KEYS.map((key) => {
                     const value = displayBaseAttrs[key] ?? 0
+                    const icon = key === 'physique' ? '💪' : key === 'mind' ? '🧠' : key === 'talentAptitude' ? '✨' : '💫'
                     return (
                       <span key={key}>
+                        <em aria-hidden="true">{icon}</em>
                         {ATTRIBUTE_NAMES[key]} <b className={value > 0 ? styles.rise : value < 0 ? styles.fall : ''}>
                           {value > 0 ? '+' : ''}{value}
                         </b>
@@ -591,6 +644,20 @@ export default function GamePage() {
                       {worldSurrounding.map((item) => <span key={item.label}>{item.label} {item.value}</span>)}
                       {worldBasicStatus.map((item) => <span key={item.label}>{item.label} {item.value}</span>)}
                       {worldCharStatus.map((item) => <span key={item.label}>{item.label} {item.value}</span>)}
+                    </div>
+                    <p className={styles.ledgerLabel}>叙事重复观测 · 近五轮</p>
+                    <div className={styles.repetitionStats} aria-live="polite">
+                      <span>本轮 {narrativeHistory[narrativeHistory.length - 1]?.repetitionMetric ? Math.round((narrativeHistory[narrativeHistory.length - 1].repetitionMetric?.wordRepeatRate ?? 0) * 100) + '%' : '待测'}</span>
+                      <span>近五轮均值 {Math.round(storyRepetitionStats.recentAverageWordRepeatRate * 100)}%</span>
+                      <span>峰值 {Math.round(storyRepetitionStats.maxWordRepeatRate * 100)}%</span>
+                      <span>{storyRepetitionStats.trend === 'rising' ? '重复上升' : storyRepetitionStats.trend === 'falling' ? '重复下降' : '保持平稳'}</span>
+                      <div className={styles.repetitionRounds} aria-label="近五轮词语重复率">
+                        {recentRepetitionMetrics.length > 0
+                          ? recentRepetitionMetrics.map((metric) => (
+                              <span key={metric.round}>第{metric.round}轮 <b>{Math.round(metric.wordRepeatRate * 100)}%</b></span>
+                            ))
+                          : <span>暂无轮次数据</span>}
+                      </div>
                     </div>
                     {worldTagSections.map((section) => (
                       <div key={section.name} className={styles.ruleGroup}>
@@ -694,6 +761,9 @@ export default function GamePage() {
           )}
         </div>
       </section>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

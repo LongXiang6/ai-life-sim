@@ -24,6 +24,9 @@ const serverPrompt = read('src/mods/mod-engine/server/narrative-system-prompt.ts
 const repairServerPrompt = read('src/mods/mod-engine/server/narrative-repair-system-prompt.ts')
 const branchRepairContract = read('src/mods/mod-engine/prompts/narrative-branch-repair-prompt.ts')
 const branchRepairServerPrompt = read('src/mods/mod-engine/server/narrative-branch-repair-system-prompt.ts')
+const repetitionRepairContract = read('src/mods/mod-engine/prompts/narrative-repetition-repair-prompt.ts')
+const repetitionRepairServerPrompt = read('src/mods/mod-engine/server/narrative-repetition-repair-system-prompt.ts')
+const repetitionAuditServerPrompt = read('src/mods/mod-engine/server/narrative-repetition-audit-system-prompt.ts')
 const serverEntry = read('src/mods/mod-engine/server-prompt-assets.ts')
 const manifest = read('src/mods/mod-engine/manifest.ts')
 const generatedSecondary = read('src/core/mod-loader/mod-secondary-api-importers.generated.ts')
@@ -48,6 +51,30 @@ assertOk(
   'player-forced branch repair must use a protected branch-only JSON asset',
 )
 assertOk(
+  repetitionRepairContract.includes("'mod-engine:narrative-repetition-repair:1.0.0'")
+    && repetitionRepairContract.includes("'mod-engine:narrative-repetition-audit:1.1.0'")
+    && repetitionRepairContract.includes('parseNarrativeRepetitionRepairOutput')
+    && repetitionRepairContract.includes('parseNarrativeRepetitionAuditOutput')
+    && repetitionRepairContract.includes('事实一致: z.boolean()')
+    && repetitionRepairContract.includes('完整覆盖: z.boolean()')
+    && repetitionRepairContract.includes('覆盖证据: z.array(')
+    && repetitionRepairContract.includes('冲突: z.array(')
+    && repetitionRepairContract.includes('遗漏: z.array(')
+    && !repetitionRepairContract.includes('冲突事实'),
+  'repetition repair and fact audit must expose independent narrow client contracts',
+)
+assertOk(
+  repetitionRepairServerPrompt.includes('COMPILED_NARRATIVE_REPETITION_REPAIR_SYSTEM_PROMPT')
+    && repetitionRepairServerPrompt.includes('不得输出摘要、数据区、markdown、解释或思考过程')
+    && repetitionAuditServerPrompt.includes('COMPILED_NARRATIVE_REPETITION_AUDIT_SYSTEM_PROMPT')
+    && repetitionAuditServerPrompt.includes('{"事实一致":true,"完整覆盖":true,"覆盖证据":[')
+    && repetitionAuditServerPrompt.includes('任何源故事细节都不能仅因“不影响当前场景”而省略')
+    && repetitionAuditServerPrompt.includes('任何额外字段')
+    && serverEntry.includes('NARRATIVE_REPETITION_REPAIR_SERVER_PROMPT_ASSET_ID')
+    && serverEntry.includes('NARRATIVE_REPETITION_AUDIT_SERVER_PROMPT_ASSET_ID'),
+  'repetition rewriting and fact consistency audit must use registered protected server assets',
+)
+assertOk(
   repairServerPrompt.includes('COMPILED_NARRATIVE_REPAIR_SYSTEM_PROMPT')
     && repairServerPrompt.includes('buildNarrativeAIProtocolStandardExample')
     && serverEntry.includes('NARRATIVE_REPAIR_SERVER_PROMPT_ASSET_ID'),
@@ -69,6 +96,8 @@ for (const secretMarker of [
   '你是人生模拟器的主叙事引擎',
   '获得新能力、资源或地位不会自动触发官方或机构审查',
   '你撞开仓房木门，把林舟的铜扣递给阿禾',
+  '你是主叙事重复正文的后台改写器',
+  '你是独立的叙事事实一致性审计器',
 ]) {
   assertOk(
     !clientComponents.includes(secretMarker) && !clientProtocol.includes(secretMarker),

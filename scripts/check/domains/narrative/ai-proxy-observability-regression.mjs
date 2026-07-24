@@ -125,7 +125,7 @@ assert(
     && /sameSite:\s*'lax'/.test(diagnosticIdentityRoute)
     && /browser-profile/.test(diagnosticIdentityRoute)
     && /A-HJ-NP-Z2-9/.test(diagnosticCodeContract)
-    && /此浏览器的诊断编号/.test(feedbackPage),
+    && /玩家编号/.test(feedbackPage),
   'the six-character code must be server-issued, persistent, non-fingerprint identity visible to the player',
 )
 assert(

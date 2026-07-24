@@ -15,6 +15,12 @@ import { useGlobalStore } from '@/core/global-store'
 import { runtimeRegistry } from '@/core/mod-loader/runtime-registry'
 import { DEFAULT_AI_MODEL } from '@/core/ai-service'
 import { useSettingsStore } from '@/mods/mod-settings'
+import { reportUsageMetric } from '@/core/logger/client-logger'
+import {
+  storyRepetitionUsageMetricKey,
+  storyRepetitionUsageMetricRevision,
+  type StoryRepetitionUsageMetric,
+} from '@/core/logger/usage-metrics'
 import { useWorldStore } from '@/mods/mod-world'
 
 import { narrativePrompt } from './prompts/narrative-prompt'
@@ -28,6 +34,56 @@ import { orchestrator } from './subsystems/orchestrator-system'
 import { timeSystem } from './subsystems/time-system'
 import { simulationBridge } from './simulation/simulation-bridge'
 import type { SimulationSnapshot } from './simulation/simulation-types'
+import type { NarrativeRepetitionMetric } from './helpers/narrative-repetition-metrics'
+
+const REPORTED_REPETITION_REVISION_LIMIT = 64
+const reportedRepetitionRevisions = new Map<string, string>()
+let repetitionMetricSubscriptionInstalled = false
+
+function ensureRepetitionMetricSubscription(): void {
+  if (repetitionMetricSubscriptionInstalled) return
+  repetitionMetricSubscriptionInstalled = true
+  useEngineStore.subscribe((state, previousState) => {
+    if (state.narrativeHistory === previousState.narrativeHistory) return
+    const repetition = state.narrativeHistory.at(-1)?.repetitionMetric
+    if (!repetition) return
+    const key = `${state.lifeRunId}:${repetition.round}`
+    // Only rounds completed in this browser session are armed here. Hydrating
+    // an old save must not move historical metrics into the current log window.
+    if (!reportedRepetitionRevisions.has(key)) return
+    reportStoryRepetitionMetric(state.lifeRunId, repetition)
+  })
+}
+
+function reportStoryRepetitionMetric(
+  lifeRunId: string,
+  repetition: NarrativeRepetitionMetric,
+): void {
+  const metric: StoryRepetitionUsageMetric = {
+    schemaVersion: 2,
+    kind: 'story_repetition',
+    lifeRunId,
+    round: repetition.round,
+    windowSize: repetition.comparedRounds.length,
+    wordRepeatRate: repetition.wordRepeatRate,
+    maxRecentWordOverlap: repetition.maxRecentWordOverlap,
+    maxRecentNgramSimilarity: repetition.maxRecentNgramSimilarity,
+    qualityLevel: repetition.qualityLevel,
+  }
+  const key = storyRepetitionUsageMetricKey(metric)
+  const revision = storyRepetitionUsageMetricRevision(metric)
+  if (reportedRepetitionRevisions.get(key) === revision) return
+
+  reportedRepetitionRevisions.delete(key)
+  reportedRepetitionRevisions.set(key, revision)
+  while (reportedRepetitionRevisions.size > REPORTED_REPETITION_REVISION_LIMIT) {
+    const oldestKey = reportedRepetitionRevisions.keys().next().value
+    if (oldestKey === undefined) break
+    reportedRepetitionRevisions.delete(oldestKey)
+  }
+  ensureRepetitionMetricSubscription()
+  reportUsageMetric(metric)
+}
 
 function getSimulationRuntimeReadiness(): {
   ready: boolean
@@ -44,27 +100,37 @@ function getSimulationRuntimeReadiness(): {
 /** 将 orchestrator 内部状态同步到 Zustand（UI 读取 store） */
 export function syncOrchestratorToEngineStore(): void {
   const o = orchestrator.getState()
+  const focusedBranchIntent = orchestrator.getFocusedBranchIntent()
   syncSubsystemStoresFromStates(orchestrator.getSubsystemStateSnapshot())
 
   // 合并 resolvedChoice：orchestrator 内部的 narrativeHistory 不携带 resolvedChoice，
   // 需要从当前 store 的 narrativeHistory 中保留已解析的分支选择，避免 sync 覆盖丢失
   const prevNarrative = useEngineStore.getState().narrativeHistory
-  const resolvedChoiceMap = new Map<string, string>()
+  const resolvedChoiceMap = new Map<string, { choice: string; round?: number }>()
   for (const entry of prevNarrative) {
     if (entry.id && entry.resolvedChoice) {
-      resolvedChoiceMap.set(entry.id, entry.resolvedChoice)
+      resolvedChoiceMap.set(entry.id, {
+        choice: entry.resolvedChoice,
+        round: entry.resolvedChoiceRound,
+      })
     }
   }
 
   const mergedHistory = o.narrativeHistory.map((entry) => {
-    if (entry.id && resolvedChoiceMap.has(entry.id)) {
-      return { ...entry, resolvedChoice: resolvedChoiceMap.get(entry.id) }
+    const resolved = entry.id ? resolvedChoiceMap.get(entry.id) : undefined
+    if (resolved) {
+      return {
+        ...entry,
+        resolvedChoice: resolved.choice,
+        resolvedChoiceRound: resolved.round,
+      }
     }
     return entry
   })
 
   useEngineStore.setState((s) => ({
     ...s,
+    lifeRunId: o.lifeRunId,
     status: o.status,
     round: { ...o.round },
     totalRounds: o.totalRounds,
@@ -74,8 +140,16 @@ export function syncOrchestratorToEngineStore(): void {
     compressedSummaries: structuredClone(o.compressedSummaries),
     lastAutoSaveRound: o.lastAutoSaveRound,
     characterCreations: [...(o.characterCreations ?? [])],
+    storyRepetitionStats: structuredClone(o.storyRepetitionStats),
     streamingNarrative: '',
   }))
+  useEngineStore.getState().setBranchIntentProjection({
+    branchIntents: orchestrator.getActiveBranchIntents(),
+    archivedBranchIntents: orchestrator.getArchivedBranchIntents(),
+    ...(focusedBranchIntent
+      ? { focusedBranchIntentId: focusedBranchIntent.intentId }
+      : {}),
+  })
 }
 
 function restoreRuntimeOrSyncStore(): void {
@@ -256,6 +330,11 @@ export function useSimulationAdvance() {
 
       // 自动保存：先让后台摘要提交，再取最终快照；不阻塞玩家看到本轮结果。
       syncOrchestratorToEngineStore()
+      const completedState = useEngineStore.getState()
+      const repetition = completedState.narrativeHistory[completedState.narrativeHistory.length - 1]?.repetitionMetric
+      if (repetition) {
+        reportStoryRepetitionMetric(completedState.lifeRunId, repetition)
+      }
       void orchestrator.waitForBackgroundCompression().then(() => {
         syncOrchestratorToEngineStore()
         orchestrator.triggerAutoSave()

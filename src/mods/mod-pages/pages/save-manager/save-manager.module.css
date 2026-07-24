@@ -1,5 +1,7 @@
 .container {
-  min-height: 100dvh;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
   display: flex;
   align-items: stretch;
   justify-content: center;
@@ -11,33 +13,26 @@
 
 .frame {
   position: relative;
-  width: min(100%, var(--content-max-width));
-  min-height: 100dvh;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
   overflow-y: auto;
-  padding: max(1rem, env(safe-area-inset-top)) clamp(1rem, 4vw, 2.2rem)
-    max(1rem, env(safe-area-inset-bottom));
+  padding: 14px 15px;
   border: 0;
   border-radius: 0;
   background: #fff;
   box-shadow: none;
+  font-size: 10px;
 }
 
 .frame::before {
   position: absolute;
   top: 3.2rem;
   bottom: 2.2rem;
-  left: clamp(0.65rem, 2.5vw, 1.35rem);
+  left: 8px;
   width: 1px;
   background: linear-gradient(180deg, transparent, #e5e7ea 8% 90%, transparent);
   content: "";
-}
-
-@media (min-width: 64rem) {
-  .frame {
-    width: min(90.9091%, var(--content-max-width));
-    min-height: 90.9091dvh;
-    zoom: var(--non-simulation-ui-desktop-scale);
-  }
 }
 
 .header {
@@ -55,7 +50,7 @@
   margin: 0;
   color: #17191d;
   font-family: "Songti SC", STSong, SimSun, serif;
-  font-size: clamp(1.15rem, 3vw, 1.45rem);
+  font-size: 1.35rem;
   font-weight: 600;
   text-align: center;
 }
@@ -96,7 +91,7 @@
 .empty,
 .loading {
   display: grid;
-  min-height: min(55dvh, 28rem);
+  min-height: min(55cqh, 28rem);
   place-items: center;
   margin: 0;
   color: #969ba2;
@@ -191,21 +186,6 @@
 .deleteConfirmColor {
   border-color: #d6aaa5;
   color: #9a5149;
-}
-
-@media (max-width: 42rem) {
-  .container {
-    padding: 0;
-    background: #fff;
-  }
-
-  .frame {
-    width: 100%;
-    min-height: 100dvh;
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

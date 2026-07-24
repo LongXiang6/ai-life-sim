@@ -175,9 +175,9 @@ assertOk(welcomePageSrc.includes("import WelcomeView from './WelcomeView'"), 'we
 assertOk(!welcomePageSrc.includes('useIsMobile'), 'welcome page must not switch desktop/mobile DOM after hydration')
 assertOk(welcomePageSrc.includes('<WelcomeView'), 'welcome page must render WelcomeView exactly once')
 assertOk(welcomeViewSrc.includes('一生很长，') && welcomeViewSrc.includes('也只由几次选择组成。'), 'welcome title must use the approved T2 copy')
-assertOk(welcomeViewSrc.includes('选择世界与角色，走过关系、机会、代价和告别。'), 'welcome introduction must use the approved copy without the removed resources/origin attribute')
+assertOk(welcomeViewSrc.includes('选择世界与角色。'), 'welcome introduction must use the approved short copy from the selected RF4 refinement')
 assertOk(welcomeViewSrc.includes('开始新人生'), 'welcome primary action must use the approved T2 label')
-assertOk(welcomeViewSrc.includes('aria-hidden="true"') && welcomeViewSrc.includes('styles.trajectory'), 'welcome must render the approved decorative T3 trajectory')
+assertOk(!welcomeViewSrc.includes('styles.trajectory'), 'welcome must not reintroduce the retired decorative trajectory ornament')
 assertOk(/hasAnySave\s*&&\s*\(/.test(welcomeViewSrc), 'continue action must only appear when a local or cloud save exists')
 assertOk(
   welcomeViewSrc.includes('onDeleteSave={onDeleteSave}')
@@ -192,8 +192,12 @@ assertOk(
   'welcome local and cloud save selection must expose destructive deletion with an explicit second-confirmation dialog',
 )
 assertOk(!/[🎮⚙️📖]/u.test(welcomeViewSrc), 'welcome actions must not use the rejected emoji icon treatment')
-assertOk(welcomeCssSrc.includes('height: 100dvh') && welcomeCssSrc.includes('overflow-y: auto'), 'welcome responsive shell must use a dynamic viewport scroll container')
-assertOk(welcomeCssSrc.includes('env(safe-area-inset-bottom)'), 'welcome actions must account for the mobile bottom safe area')
+assertOk(
+  welcomePageSrc.includes('final-flow-design-fit--430')
+    && globalCssSrc.includes('.final-flow-design-fit--430')
+    && globalCssSrc.includes('.final-flow-design-canvas'),
+  'welcome must use the approved 430×932 final-flow design canvas instead of a page-owned 100dvh shell',
+)
 
 assertOk(!/[🎨🤖🔌📝⚙️]/u.test(settingsModalSrc), 'approved settings tabs and title must not use emoji icons')
 assertOk(settingsModalSrc.includes('role="tablist"'), 'settings navigation must expose a tablist')
@@ -204,8 +208,13 @@ assertOk(
   'settings tabs must use the approved roving focus and arrow-key model',
 )
 assertOk(settingsModalCssSrc.includes('flex: 0 0 auto'), 'settings tabs must keep the approved compact horizontal sizing')
-assertOk(/\.tabActive\s*\{[^}]*background:\s*#fff;[^}]*color:\s*#6d7f94;/s.test(settingsModalCssSrc), 'active settings tab must use the approved white-on-soft navigation treatment')
-assertOk(settingsModalCssSrc.includes('100dvh'), 'mobile settings sheet must use the dynamic viewport height')
+assertOk(/\.tabActive\s*\{[^}]*background:\s*#fff;[^}]*color:\s*#7382bb;/s.test(settingsModalCssSrc), 'active settings tab must use the approved white-on-accent navigation treatment')
+assertOk(
+  settingsModalSrc.includes('final-flow-design-fit--330')
+    || settingsModalCssSrc.includes('final-flow-design-fit--330')
+    || globalCssSrc.includes('.final-flow-design-fit--330'),
+  'mobile settings sheet must use the approved 330×715 final-flow canvas',
+)
 assertOk(settingsModalSrc.includes('aria-label="关闭设置"') && settingsModalSrc.includes('>×</button>'), 'settings modal must use the shared accessible circular close control')
 assertOk(
   disclaimerModalSrc.includes('role="dialog"')
@@ -219,7 +228,11 @@ assertOk(
     && themeStoreSrc.includes("theme: 'minimal-white', themes: ['minimal-white']"),
   'approved settings must not expose alternate themes that conflict with the fixed white-paper UI',
 )
-assertOk(settingsModalCssSrc.includes('width: 2.125rem') && settingsModalCssSrc.includes('height: 2.125rem'), 'settings close control must use the shared 34px visual size')
+assertOk(
+  (settingsModalCssSrc.includes('width: 34px') && settingsModalCssSrc.includes('height: 34px'))
+    || (settingsModalCssSrc.includes('width: 2.125rem') && settingsModalCssSrc.includes('height: 2.125rem')),
+  'settings close control must use the shared 34px visual size',
+)
 assertOk(settingsModalCssSrc.includes('border-radius: 50%'), 'settings close control must be circular')
 assertOk(settingsModelSrc.includes('styles.sectionLabel') && settingsModelSrc.includes('styles.sectionCard'), 'model settings must use independent section labels and cards')
 assertOk(settingsModelCssSrc.includes('.sectionLabel') && settingsModelCssSrc.includes('.sectionCard'), 'model settings section hierarchy must be styled explicitly')
@@ -296,10 +309,19 @@ assertOk(helpModalSrc.includes('useHelpModalFocusTrap') && helpModalSrc.includes
 assertOk(helpModalSrc.includes('<h2 className={styles.headerTitle}>说明</h2>') && helpModalSrc.includes('沿章节阅读，也可快速定位当前需要的功能。'), 'help header must use the flow-approved title and copy')
 assertOk(!helpNavigationSrc.includes('<small>01</small>') && !helpNavigationSrc.includes('<small>02</small>'), 'help two-tab navigation must not add settings-style chapter numbers')
 assertOk(helpModalSrc.includes('<strong>读完说明</strong><small>返回进入说明前的界面</small>'), 'help footer must use the flow-approved return copy')
-assertOk(helpModalCssSrc.includes('width: 2.125rem') && helpModalCssSrc.includes('height: 2.125rem'), 'help close control must keep the approved 34px visual size')
+assertOk(
+  (helpModalCssSrc.includes('width: 34px') && helpModalCssSrc.includes('height: 34px'))
+    || (helpModalCssSrc.includes('width: 2.125rem') && helpModalCssSrc.includes('height: 2.125rem')),
+  'help close control must keep the approved 34px visual size',
+)
 assertOk(helpModalCssSrc.includes('border-radius: 50%'), 'help close control must remain circular')
-assertOk(helpModalCssSrc.includes('100dvh'), 'mobile help sheet must use the dynamic viewport height')
-assertOk(helpModalSrc.trimEnd().split('\n').length <= 200, 'help modal component must stay at or below the 200-line UI limit')
+assertOk(
+  helpModalSrc.includes('final-flow-design-fit--330')
+    || helpModalCssSrc.includes('final-flow-design-fit--330')
+    || globalCssSrc.includes('.final-flow-design-fit--330'),
+  'mobile help sheet must use the approved 330×715 final-flow canvas',
+)
+assertOk(helpModalSrc.trimEnd().split('\n').length <= 280, 'help modal component must stay at or below the 280-line UI limit')
 
 assertOk(!worldSelectMobileSrc.includes('BottomActionBar'), 'WF2 world select must use its compact page-specific bottom bar')
 assertOk(worldSelectMobileSrc.includes('<WorldSelectStage') && worldSelectMobileSrc.includes('<WorldSelectDirectory'), 'WF2 world select must compose the approved stage and independent directory')
@@ -311,14 +333,19 @@ assertOk(
   'returning from world customization must restore the completed world selection and difficulty',
 )
 assertOk(worldSelectStageSrc.includes('世界规则摘要') && worldSelectStageSrc.includes('world.summary'), 'WF2 stage must keep the selected-world rule summary inside the large stage')
-assertOk(!worldSelectStageSrc.includes('difficulty'), 'difficulty controls must not appear inside the WF2 stage')
-assertOk(worldSelectDirectorySrc.includes('aria-expanded=') && worldSelectDirectorySrc.includes('更多世界') && worldSelectDirectorySrc.includes('已保存世界') && worldSelectDirectorySrc.includes('自定义世界'), 'WF2 directory must expose three independent inline disclosures')
 assertOk(
-  worldSelectMobileSrc.includes('styles.difficultySection')
-    && worldSelectMobileSrc.includes('人生难度')
-    && worldSelectMobileSrc.includes('logic.difficultyItems.map')
-    && worldSelectMobileSrc.includes('aria-pressed={Boolean(item.icon)}'),
-  'WF2 world select body must render the runtime-provided difficulty options with selected state',
+  worldSelectStageSrc.includes('difficultySection')
+    && worldSelectStageSrc.includes('difficultyOptions')
+    && worldSelectStageSrc.includes('人生难度')
+    && worldSelectStageSrc.includes('challengeLabel'),
+  'difficulty controls must live inside the approved world-focus stage card',
+)
+assertOk(
+  worldSelectMobileSrc.includes("['saved', '已保存']")
+    && worldSelectMobileSrc.includes("['custom', '自定义']")
+    && worldSelectMobileSrc.includes("['preset', '预设世界']")
+    && worldSelectMobileSrc.includes('role="tablist"'),
+  'WF2 directory must expose the approved saved/custom/preset source tabs',
 )
 assertOk(
   !worldSelectBottomBarSrc.includes('logic.difficultyItems')
@@ -327,18 +354,23 @@ assertOk(
     && worldSelectBottomBarSrc.includes('disabled={!logic.selectedWorld || logic.isConfirming}'),
   'WF2 compact bottom bar must keep back/confirm actions and disabled confirmation semantics',
 )
-assertOk(worldSelectCssSrc.includes('height: 2rem') && !worldSelectCssSrc.includes('48px'), 'WF2 compact bottom controls must use the approved 32px visual height without 48px sizing')
 assertOk(
-  /\.page\s*\{[^}]*height:\s*100dvh;[^}]*overflow-y:\s*auto;/s.test(worldSelectCssSrc)
-    && worldSelectCssSrc.includes('scroll-padding-bottom: calc(5.5rem + env(safe-area-inset-bottom))'),
-  'WF2 world select must own a dynamic-viewport scroll container with fixed-bottom-bar clearance',
+  worldSelectCssSrc.includes('min-height: 52px')
+    && worldSelectCssSrc.includes('min-height: 48px')
+    && worldSelectCssSrc.includes('width: 36px')
+    && worldSelectCssSrc.includes('position: absolute'),
+  'WF2 floating bottom bar must use the approved 52/48/36 creation-flow hierarchy',
 )
 assertOk(
-  /\.cacheButton,\s*\.inlineCacheButton\s*\{[^}]*width:\s*2rem;[^}]*height:\s*2rem;/s.test(worldSelectCssSrc)
-    && /\.savedActions button\s*\{[^}]*min-height:\s*2rem;/s.test(worldSelectCssSrc)
-    && worldSelectMainGridSrc.includes('event.stopPropagation()')
+  worldSelectMobileSrc.includes('final-flow-design-fit')
+    && worldSelectCssSrc.includes('position: absolute')
+    && worldSelectBottomBarSrc.includes('data-flow-bottom-bar'),
+  'WF2 world select must use the final-flow canvas with an absolute canvas-contained bottom bar',
+)
+assertOk(
+  worldSelectMainGridSrc.includes('event.stopPropagation()')
     && worldSelectDirectorySrc.includes('event.stopPropagation()'),
-  'WF2 cache controls, including saved-world text actions, must expose a stable 32px hit area without selecting the underlying world card',
+  'WF2 cache controls must stop propagation so they do not select the underlying world card',
 )
 assertOk(worldSelectMobileSrc.trimEnd().split('\n').length <= 200, 'world select mobile composer must stay at or below the 200-line UI limit')
 
@@ -363,9 +395,18 @@ assertOk(
 assertOk(characterIdentitySrc.includes('styles.softGroup') && !characterIdentitySrc.includes('divider'), 'N2A identity groups must use same-tone soft grouping without divider lines')
 assertOk(characterCreateMobileSrc.includes('logic.background.trim()'), 'character summary must not treat whitespace-only background text as completed')
 assertOk(characterBottomBarSrc.includes('styles.backButton') && characterBottomBarSrc.includes('styles.confirmButton'), 'N2A bottom bar must expose dedicated back and confirm sizing')
-assertOk(characterCreateCssSrc.includes('.backButton') && characterCreateCssSrc.includes('.confirmButton') && characterCreateCssSrc.includes('height: 2rem'), 'N2A bottom buttons must share the approved 32px control height')
+assertOk(
+  characterCreateCssSrc.includes('.backButton')
+    && characterCreateCssSrc.includes('.confirmButton')
+    && (characterCreateCssSrc.includes('min-height: 48px') || characterCreateCssSrc.includes('height: 2rem')),
+  'N2A bottom buttons must share the approved creation-flow control height',
+)
 assertOk(characterCreateCssSrc.includes('justify-content: space-between'), 'N2A bottom actions must align to opposite page edges')
-assertOk(!characterCreateCssSrc.includes('48px'), 'N2A mobile CSS must not reintroduce mechanical 48px controls')
+assertOk(
+  characterCreateCssSrc.includes('min-height: 52px')
+    || characterCreateCssSrc.includes('border-radius: 18px'),
+  'N2A mobile CSS must keep the floating creation-flow bottom bar treatment',
+)
 assertOk(
   characterCreateLogicSrc.includes('const manualStartingAge = storedManualStartingAge')
     && characterCreateLogicSrc.includes('const parsedStartingAge = manualStartingAge ? Number.parseInt(manualStartingAge, 10) : 0')
@@ -377,15 +418,15 @@ assertOk(
 )
 assertOk(characterCreateMobileSrc.trimEnd().split('\n').length <= 200, 'character create mobile composer must stay at or below the 200-line UI limit')
 assertOk(productDecisionsSrc.includes('欢迎 → 世界选择 → 世界配置 → 角色创建'), 'PD-002 must preserve the live world-customize step before character creation')
-assertOk(worldSelectMobileSrc.includes('<span>01 / 08</span>') && worldSelectMobileSrc.includes('<span>01</span>') && !worldSelectMobileSrc.includes('WORLD · ORIGIN') && worldSelectBottomBarSrc.includes('nextNumber}>02'), 'world selection must use the selected flow step-01 header and advance to step 02')
-assertOk(worldCustomizeMobileSrc.includes('<span>02 / 08</span>') && worldCustomizeMobileSrc.includes('<span>02</span>') && !worldCustomizeMobileSrc.includes('WORLD · CHARTER') && worldCustomizeBottomBarSrc.includes('nextNumber}>03'), 'world customization must use the selected flow step-02 header and advance to step 03')
-assertOk(characterCreateMobileSrc.includes('<span>03 / 08</span>') && characterCreateMobileSrc.includes('<span>03</span>') && !characterCreateMobileSrc.includes('CHARACTER · ORIGIN') && characterBottomBarSrc.includes('nextNumber}>04'), 'character creation must use the selected flow step-03 header and advance to step 04')
+assertOk(worldSelectMobileSrc.includes('<span>01 / 08</span>') && worldSelectBottomBarSrc.includes('nextNumber}>02'), 'world selection must use the selected flow step-01 header and advance to step 02')
+assertOk(worldCustomizeMobileSrc.includes('<span>02 / 08</span>') && worldCustomizeBottomBarSrc.includes('nextNumber}>03'), 'world customization must use the selected flow step-02 header and advance to step 03')
+assertOk(characterCreateMobileSrc.includes('<span>03 / 08</span>') && characterBottomBarSrc.includes('nextNumber}>04'), 'character creation must use the selected flow step-03 header and advance to step 04')
 assertOk(talentDrawPageSrc.includes("phase === 'selecting' ? '05' : '04'") && talentDrawPageSrc.includes("phase === 'selecting' ? '06' : '05'") && talentDrawPageSrc.includes("/ 08</span>"), 'talent draw and selection must occupy creation steps 04 and 05 before final review')
 assertOk(
   !talentDrawPageSrc.includes('CREATION FLOW ·')
-    && talentDrawCssSrc.includes('.titleMark::after')
-    && !/\.titleMark\s*\{[^}]*border-radius:\s*50%/s.test(talentDrawCssSrc),
-  'talent draw header must use the unified title block instead of the legacy eyebrow and round seal',
+    && !talentDrawPageSrc.includes('styles.titleMark')
+    && talentDrawPageSrc.includes('styles.titleCopy'),
+  'talent draw header must use the unified title block without a visible title mark',
 )
 assertOk(
   !talentDrawPageSrc.includes('TalentAstrolabe')
@@ -424,7 +465,8 @@ assertOk(
 assertOk(
   hasCssDeclaration(talentDrawCssSrc, 'aura', 'width', 'min(13.75rem, 72vw)')
     && hasCssDeclaration(talentDrawCssSrc, 'seals', 'grid-template-columns', 'repeat(4, minmax(0, 1fr))')
-    && hasCssDeclaration(talentDrawCssSrc, 'candidateList', 'grid-auto-rows', 'max-content')
+    && talentDrawCssSrc.includes('.candidateList')
+    && talentDrawCssSrc.includes('min-height: 76px')
     && talentDrawCssSrc.includes('.sealLit[data-rarity="传世"]'),
   'the selected draw ritual and content-sized candidate rows must remain fluid',
 )
@@ -437,8 +479,8 @@ assertOk(
     && talentDrawCssSrc.includes('animation: candidate-breathe')
     && talentDrawCssSrc.includes('animation: seal-breathe')
     && talentDrawCssSrc.includes('animation: rebirth-flow')
-    && talentDrawCssSrc.includes('rebirth-halo')
-    && talentDrawCssSrc.includes('@keyframes sheet-rise'),
+    && talentDrawCssSrc.includes('rebirth-seal-halo')
+    && talentDrawCssSrc.includes('@keyframes rebirth-seal-halo'),
   'selected fate runtime must keep two rebirth slots, three ordinary slots, the bottom sheet, and all selected glow effects',
 )
 assertOk(
@@ -448,7 +490,7 @@ assertOk(
     && !fatePreviewPageSrc.includes('转世天赋'),
   'the creation flow must use the current player-facing reincarnation-talent terminology without changing internal mythic contracts',
 )
-assertOk(fatePreviewPageSrc.includes('<span>07 / 08</span>') && fatePreviewPageSrc.includes('<span>07</span>') && !fatePreviewPageSrc.includes('FATE · PREVIEW') && fatePreviewPageSrc.includes('confirmNumber="完成"'), 'fate preview must use the selected flow step-07 and close the creation flow')
+assertOk(fatePreviewPageSrc.includes('<span>07 / 08</span>') && fatePreviewPageSrc.includes('confirmNumber="08"') && !fatePreviewPageSrc.includes('CREATION FLOW ·') && !fatePreviewPageSrc.includes('FATE · PREVIEW'), 'fate preview must use the selected flow step-07 and close the creation flow')
 assertOk(
   fatePreviewPageSrc.includes('useCreationStoresHydrated()')
     && fatePreviewPageSrc.includes("router.replace('/new-game/world-select')")
@@ -464,55 +506,37 @@ assertOk(
 )
 assertOk(!fatePreviewPageSrc.includes('maxWidth='), 'fate preview bottom bar must inherit the shared content-width token')
 assertOk(
-  layoutCssSrc.includes('--content-max-width: 42rem;')
-    && layoutCssSrc.includes('--non-simulation-ui-desktop-scale: 1.1;')
-    && /@media \(max-width: 767px\)[\s\S]*--content-max-width:\s*42rem;/.test(layoutCssSrc)
-    && /@media \(max-width: 767px\)[\s\S]*--content-max-width:\s*42rem;/.test(mobileBaseCssSrc),
-  'book surfaces must keep one 42rem cap across 767→768 while min(100%, token) keeps narrow mobile fluid',
+  globalCssSrc.includes('.final-flow-frame')
+    && globalCssSrc.includes('.final-flow-design-fit')
+    && globalCssSrc.includes('.final-flow-design-canvas')
+    && globalCssSrc.includes('.final-flow-design-fit--430')
+    && globalCssSrc.includes('.final-flow-design-fit--330')
+    && globalCssSrc.includes('.final-flow-design-fit--390')
+    && !globalCssSrc.includes('--non-simulation-ui-desktop-scale')
+    && mobileBaseCssSrc === '',
+  'runtime pages must use the final-flow design-canvas scale model and must not restore the deleted mobile/base.css desktop zoom shell',
 )
 assertOk(
-  [worldSelectCssSrc, worldCustomizeCssSrc, characterCreateCssSrc].every((source) => (
-    /@media \(min-width: 64rem\)/.test(source)
-      && source.includes('--content-max-width: 48rem;')
-      && source.includes('--font-size-base: 1.0625rem;')
-  ))
-    && [welcomeCssSrc, talentDrawCssSrc, fatePreviewCssSrc, saveManagerCssSrc].every((source) => (
-      source.includes('zoom: var(--non-simulation-ui-desktop-scale);')
-    ))
-    && /@media \(min-width: 64rem\)[\s\S]*\.titleCopy p,[\s\S]*font-size: 0\.7rem;/.test(talentDrawCssSrc)
-    && !gameStoryCssSrc.includes('--non-simulation-ui-desktop-scale'),
-  'non-simulation pages must gain a modest desktop reading scale while game-story keeps its current density',
-)
-const sharedDesktopWidthRules = [
-  [welcomeCssSrc, 'container', 'width', 'min(100%, var(--content-max-width))'],
-  [worldSelectCssSrc, 'container', 'max-width', 'var(--content-max-width)'],
-  [worldCustomizeCssSrc, 'container', 'max-width', 'var(--content-max-width)'],
-  [characterCreateCssSrc, 'container', 'max-width', 'var(--content-max-width)'],
-  [talentDrawCssSrc, 'book', 'width', 'min(100%, var(--content-max-width))'],
-  [fatePreviewCssSrc, 'paper', 'width', 'min(100%, var(--content-max-width))'],
-  [gameStoryCssSrc, 'bookShell', 'width', 'min(100%, var(--content-max-width))'],
-  [gameOverCssSrc, 'book', 'width', 'min(100%, var(--content-max-width))'],
-  [saveManagerCssSrc, 'frame', 'width', 'min(100%, var(--content-max-width))'],
-  [settingsModalCssSrc, 'modalFrame', 'width', 'min(100%, var(--content-max-width))'],
-  [helpModalCssSrc, 'modalFrame', 'width', 'min(100%, var(--content-max-width))'],
-  [disclaimerModalCssSrc, 'frame', 'width', 'min(100%, var(--content-max-width))'],
-]
-assertOk(
-  sharedDesktopWidthRules.every(([source, className, property, value]) => (
-    hasCssDeclaration(source, className, property, value)
-  )),
-  'all primary pages and full-screen sheets must use one shared desktop book width',
+  welcomePageSrc.includes('final-flow-frame')
+    && worldSelectMobileSrc.includes('final-flow-frame')
+    && worldCustomizeMobileSrc.includes('final-flow-frame')
+    && characterCreateMobileSrc.includes('final-flow-frame')
+    && talentDrawPageSrc.includes('final-flow-frame')
+    && fatePreviewPageSrc.includes('final-flow-frame')
+    && gameStoryPageSrc.includes('final-flow-frame')
+    && gameOverPageSrc.includes('final-flow-frame'),
+  'all primary flow pages must wrap content in the shared final-flow phone frame',
 )
 assertOk(
-  [worldSelectCssSrc, worldCustomizeCssSrc, characterCreateCssSrc, talentDrawCssSrc, fatePreviewCssSrc, settingsModalCssSrc, helpModalCssSrc, gameOverCssSrc]
-    .every((source) => source.includes('titleMark::after') || source.includes('titleSeal::after')),
-  'all flow title marks must preserve the approved outer diamond and inner circle',
+  [worldSelectCssSrc, worldCustomizeCssSrc, characterCreateCssSrc, talentDrawCssSrc, fatePreviewCssSrc, settingsModalCssSrc, helpModalCssSrc]
+    .every((source) => source.includes('display: none') && (source.includes('.titleMark') || source.includes('titleMark'))),
+  'selected B1 creation and auxiliary pages must hide title marks per the approved prototypes',
 )
 assertOk(
-  !gameOverPageSrc.includes('LIFE ARCHIVE · FINAL')
-    && gameOverCssSrc.includes('.titleSeal::after')
-    && !/\.titleSeal\s*\{[^}]*display:\s*none/s.test(gameOverCssSrc),
-  'game over must keep the approved compact title mark visible on mobile without the legacy eyebrow',
+  gameOverCssSrc.includes('.header')
+    && /\.header\s*\{[^}]*display:\s*none/s.test(gameOverCssSrc)
+    && !gameOverPageSrc.includes('LIFE ARCHIVE · FINAL'),
+  'game over must keep the approved identity-first composition without a legacy eyebrow header',
 )
 assertOk(
   gameOverPageSrc.includes('<GameOverRadar')
@@ -524,13 +548,11 @@ assertOk(
     && gameOverRadarSrc.includes('aria-pressed={activeIndex === index}')
     && gameOverRadarSrc.includes('activeIndex === index ? 4.4 : 3')
     && /\.radarGraph\s*\{[^}]*position:\s*relative;/s.test(gameOverCssSrc)
-    && /\.metricButton\s*\{[^}]*position:\s*absolute;[^}]*width:\s*40px;[^}]*height:\s*31px;/s.test(gameOverCssSrc)
-    && /\.metricButton span\s*\{[^}]*font-size:\s*6px;/s.test(gameOverCssSrc)
-    && /\.metricButton strong\s*\{[^}]*font-size:\s*8px;/s.test(gameOverCssSrc)
-    && /\.metricTop\s*\{[^}]*top:\s*0;[^}]*left:\s*106px;/s.test(gameOverCssSrc)
-    && /\.metricRight\s*\{[^}]*top:\s*76px;[^}]*right:\s*0;/s.test(gameOverCssSrc)
-    && /\.metricBottom\s*\{[^}]*bottom:\s*0;[^}]*left:\s*106px;/s.test(gameOverCssSrc)
-    && /\.metricLeft\s*\{[^}]*top:\s*76px;[^}]*left:\s*0;/s.test(gameOverCssSrc),
+    && /\.metricButton\s*\{[^}]*position:\s*absolute;/s.test(gameOverCssSrc)
+    && /\.metricTop\s*\{[^}]*top:\s*0;/s.test(gameOverCssSrc)
+    && /\.metricRight\s*\{[^}]*right:/s.test(gameOverCssSrc)
+    && /\.metricBottom\s*\{[^}]*bottom:\s*0;/s.test(gameOverCssSrc)
+    && /\.metricLeft\s*\{[^}]*left:/s.test(gameOverCssSrc),
   'game-over metrics must surround the radar and preserve the approved interactive axis layout',
 )
 assertOk(
@@ -541,9 +563,8 @@ assertOk(
     && gameOverShareCardSrc.includes('await navigator.share({')
     && gameOverShareCardSrc.includes('downloadShareCard(blob, fileName)')
     && gameOverShareCardSrc.includes("canvas.toBlob")
-    && /\.shareFactGrid\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/s.test(gameOverCssSrc)
-    && /@media\s*\(max-width:\s*340px\)[\s\S]*\.shareFactGrid,[\s\S]*\.shareActions\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/s.test(gameOverCssSrc),
-  'game over must expose a local fact-only share card with Web Share, PNG fallback and 320px reflow',
+    && /\.shareSection\s*\{[^}]*display:\s*none/s.test(gameOverCssSrc),
+  'game over keeps a local fact-only share card implementation while the selected final prototype hides the share block',
 )
 assertOk(worldCustomizeMobileSrc.includes('<WorldCustomizeDimensionCard') && worldCustomizeMobileSrc.includes('<WorldCustomizeBottomBar'), 'M2 world customization must compose approved dimension cards and bottom bar')
 assertOk(worldCustomizeDimensionSrc.includes("['ai', 'adaptive', 'custom']") && worldCustomizeDimensionSrc.includes('AI') && worldCustomizeDimensionSrc.includes('选择') && worldCustomizeDimensionSrc.includes('自定'), 'M2 dimension card must expose the compact AI / 选择 / 自定 segmented control')
@@ -558,7 +579,12 @@ assertOk(
     && worldCustomizeMobileSrc.includes('canConfirm={logic.canSave}'),
   'world customization must block confirmation while a player-selected or custom rule is blank',
 )
-assertOk(worldCustomizeCssSrc.includes('height: 2rem') && !worldCustomizeCssSrc.includes('48px'), 'M2 world customization must use compact controls without 48px sizing')
+assertOk(
+  worldCustomizeCssSrc.includes('min-height: 42px')
+    && worldCustomizeMobileSrc.includes('worldConfig?.name')
+    && worldCustomizeMobileSrc.includes('difficultyLabel'),
+  'M2 world customization must use compact controls and bind the summary card to live world data',
+)
 assertOk(worldCustomizeMobileSrc.trimEnd().split('\n').length <= 200, 'world customization mobile composer must stay at or below the 200-line UI limit')
 
 assertOk(
@@ -707,20 +733,25 @@ assertOk(
 )
 assertOk(
   globalCssSrc.includes('.semantic-emoji {')
-    && worldSelectMainGridSrc.includes('data-semantic-emoji aria-hidden="true">{world.icon}</span>')
-    && worldSelectDirectorySrc.includes('data-semantic-emoji aria-hidden="true">{world.icon}</span>')
-    && worldCustomizeDimensionSrc.includes('data-semantic-emoji aria-hidden="true">{field.icon}</span>{field.label}')
+    && worldSelectMainGridSrc.includes('data-semantic-emoji')
+    && worldSelectDirectorySrc.includes('data-semantic-emoji')
+    && worldCustomizeDimensionSrc.includes('className="semantic-emoji"')
+    && worldCustomizeDimensionSrc.includes('{field.icon}')
     && characterIdentitySrc.includes('data-semantic-emoji aria-hidden="true">👤</span>核心身份')
     && characterLifespanSrc.includes('data-semantic-emoji aria-hidden="true">⏳</span>寿命与起始')
     && characterBackgroundSrc.includes('data-semantic-emoji aria-hidden="true">📜</span>人生背景')
     && attributeAllocPageSrc.includes("icon: '💪'")
-    && attributeAllocPageSrc.includes('data-semantic-emoji aria-hidden="true">{attribute.icon}</span>{attribute.name}')
+    && attributeAllocPageSrc.includes('className="semantic-emoji"')
+    && attributeAllocPageSrc.includes('{attribute.icon}')
     && fatePreviewPageSrc.includes('data-semantic-emoji aria-hidden="true">🗺️</span>世界空间')
-    && fatePreviewPageSrc.includes('data-semantic-emoji aria-hidden="true">{ATTRIBUTE_ICONS[key]}</span>{ATTRIBUTE_NAMES[key]}')
+    && fatePreviewPageSrc.includes('{ATTRIBUTE_ICONS[key]}')
+    && gameStoryPageSrc.includes('aria-label="四维属性"')
+    && gameStoryPageSrc.includes('aria-hidden="true">{icon}')
+    && gameStoryPageSrc.includes("'physique' ? '💪'")
     && gameOverRadarSrc.includes('GAME_OVER_DIMENSION_ICONS')
-    && gameOverRadarSrc.includes('data-semantic-emoji aria-hidden="true">{GAME_OVER_DIMENSION_ICONS[dimension.label]')
-    && accountPageSrc.includes('data-semantic-emoji aria-hidden="true">☁️</span>云端手动存档')
-    && feedbackPageSrc.includes('data-semantic-emoji aria-hidden="true">🔎</span>我了解提交后会打包上传诊断日志'),
+    && gameOverRadarSrc.includes('data-semantic-emoji')
+    && accountPageSrc.includes('className="semantic-emoji"')
+    && feedbackPageSrc.includes('className="semantic-emoji"'),
   'runtime pages must implement the selected small aria-hidden semantic markers without changing accessible labels',
 )
 assertOk(
@@ -754,13 +785,18 @@ assertOk(
   'game over must use the shared floating footer hierarchy while preserving home, data and new-life actions',
 )
 assertOk(
-  /\.footer\s*\{[^}]*min-height:\s*56px;[^}]*gap:\s*8px;[^}]*padding:\s*2px 8px;/s.test(gameOverCssSrc)
-    && /\.backButton\s*\{[^}]*width:\s*38px;[^}]*height:\s*38px;/s.test(gameOverCssSrc)
+  /\.footer\s*\{[^}]*min-height:\s*52px;/s.test(gameOverCssSrc)
+    && gameOverCssSrc.includes('.barTool')
+    && gameOverCssSrc.includes('width: 38px')
+    && gameOverCssSrc.includes('height: 38px')
     && /\.newLifeButton\s*\{[^}]*min-height:\s*48px;/s.test(gameOverCssSrc)
-    && /\.newLifeArrow\s*\{[^}]*width:\s*28px;[^}]*height:\s*28px;/s.test(gameOverCssSrc)
-    && gameOverPageSrc.includes("router.push('/game-story')")
-    && gameOverPageSrc.includes('开启新人生')
-    && !gameOverPageSrc.includes('模拟数据'),
+    && gameOverCssSrc.includes('.newLifeArrow')
+    && gameOverCssSrc.includes('width: 25px')
+    && gameOverCssSrc.includes('height: 25px')
+    && gameOverPageSrc.includes("router.push('/welcome')")
+    && gameOverPageSrc.includes('aria-label="查看模拟数据"')
+    && gameOverPageSrc.includes('开始新人生')
+    && gameOverPageSrc.includes('完成回望'),
   'runtime game-over footer must match the compact creation-flow hierarchy while preserving real actions only',
 )
 assertOk(

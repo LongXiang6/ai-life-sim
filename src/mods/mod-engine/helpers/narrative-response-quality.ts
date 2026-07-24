@@ -217,8 +217,8 @@ export function inspectNarrativeResponseQuality(
  */
 export function canContinueWithNarrativeBody(
   quality: NarrativeResponseQuality,
-  expectedIntentId?: string | null,
-  requireBranch = false,
+  _expectedIntentId?: string | null,
+  _requireBranch = false,
 ): boolean {
   return !quality.valid
     && quality.hasUsableNarrative === true
@@ -241,7 +241,6 @@ export function buildNarrativeRoundOutputContract(
   expectedIntentId?: string | null,
   requireBranch = false,
   isOpeningRound = false,
-  focusedChoice?: string,
 ): string {
   const instructions = [
     '【本轮输出契约；生成前最后自检】',
@@ -258,11 +257,6 @@ export function buildNarrativeRoundOutputContract(
   if (typeof expectedIntentId === 'string') {
     instructions.push(
       `当前命运意图必须返回完整语义核心与“命运意图判定”，意图编号严格等于 ${toNarrativeAIIntentId(expectedIntentId)}。`,
-    )
-  }
-  if (focusedChoice?.trim()) {
-    instructions.push(
-      `【当前唯一主线】玩家已选择“${focusedChoice.trim()}”；正文必须立即推进该行动并给出可见回应，不得换题、拖延或替玩家决定未选结果。`,
     )
   }
   if (requireBranch) {

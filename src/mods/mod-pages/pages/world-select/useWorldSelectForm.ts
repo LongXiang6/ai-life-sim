@@ -15,7 +15,7 @@ export interface DifficultyConfig {
   color: string
 }
 
-/** 难度配置（使用 semantic token，支持主题切换） */
+/** 难度配置（使用定版语义 Token） */
 export const DIFFICULTY_CONFIG: Record<Difficulty, DifficultyConfig> = {
   normal: { label: '普通', color: 'var(--color-success)' },
   hard: { label: '困难', color: 'var(--color-warning)' },

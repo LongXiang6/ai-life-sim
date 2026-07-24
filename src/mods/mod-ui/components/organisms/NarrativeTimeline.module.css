@@ -410,10 +410,6 @@
 @keyframes blink { 50% { opacity: 0; } }
 @keyframes advancePulse { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }
 
-@media (max-width: 23.75rem) {
-  .entryBody { font-size: 0.9375rem; }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .entry,
   .streamEntry,

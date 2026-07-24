@@ -12,6 +12,19 @@ import { persist, } from 'zustand/middleware'
 import { DEFAULT_ENGINE_CONFIG, getSeasonForMonth, } from './constants'
 
 import type { EngineState, SimulationStatus, NarrativeChunk, CompressionStats, CharacterCreation, } from './types'
+import {
+  createNarrativeLifeRunId,
+  summarizeNarrativeHistoryRepetition,
+  summarizeNarrativeRepetitionMetrics,
+} from './helpers/narrative-repetition-metrics'
+import {
+  isBranchIntentProjectionConsistent,
+  normalizeBranchIntentProjection,
+  rebuildBranchIntentsFromHistory,
+  type BranchIntentHistoryEntry,
+  type BranchIntentProjection,
+  type BranchIntentState,
+} from './helpers/branch-intent-resolution'
 import type { CompressedSummaries, } from '@/foundation'
 import type { NPCInteractionRecord, } from './subsystems/core-memory-system'
 
@@ -53,6 +66,12 @@ interface EngineStore extends EngineState {
   resolvedBranches: Record<string, string>
   resolveBranch: (id: string, choice: string) => void
 
+  /** orchestrator 私有分支状态的持久化兼容投影，不是第二运行真源。 */
+  branchIntents: BranchIntentState[]
+  archivedBranchIntents: BranchIntentState[]
+  focusedBranchIntentId?: string
+  setBranchIntentProjection: (projection: BranchIntentProjection) => boolean
+
   reset: () => void,
 }
 
@@ -70,6 +89,7 @@ const initialRound = {
 } as const
 
 const initialState = {
+  lifeRunId: createNarrativeLifeRunId(),
   status: 'idle' as SimulationStatus,
   round: { ...initialRound, },
   timeStep: DEFAULT_ENGINE_CONFIG.timeStep,
@@ -85,12 +105,84 @@ const initialState = {
   forceBranchNext: false,
   branchRepairPending: false,
   resolvedBranches: {} as Record<string, string>,
+  branchIntents: [] as BranchIntentState[],
+  archivedBranchIntents: [] as BranchIntentState[],
+  focusedBranchIntentId: undefined as string | undefined,
   characterCreations: [] as CharacterCreation[],
+  storyRepetitionStats: summarizeNarrativeRepetitionMetrics([]),
+}
+
+export const ENGINE_STORE_SCHEMA_VERSION = 4
+
+function rebuildPersistedBranchIntentProjection(history: unknown): BranchIntentProjection {
+  const entries = Array.isArray(history)
+    ? history.filter((entry): entry is Record<string, unknown> => (
+        typeof entry === 'object' && entry !== null && !Array.isArray(entry)
+      ))
+    : []
+  const branchHistory: BranchIntentHistoryEntry[] = entries.map((entry, index) => ({
+    id: entry.id as string | undefined,
+    resolvedChoice: entry.resolvedChoice as string | undefined,
+    resolvedChoiceRound: entry.resolvedChoiceRound as number | undefined,
+    intentResolution: entry.intentResolution as BranchIntentHistoryEntry['intentResolution'],
+    round: entry.repetitionMetric
+      && typeof entry.repetitionMetric === 'object'
+      && !Array.isArray(entry.repetitionMetric)
+      && Number.isInteger((entry.repetitionMetric as { round?: unknown }).round)
+      ? (entry.repetitionMetric as { round: number }).round
+      : index + 1,
+  }))
+  const rebuilt = rebuildBranchIntentsFromHistory(branchHistory)
+  return {
+    branchIntents: rebuilt.intents,
+    archivedBranchIntents: rebuilt.archivedIntents ?? [],
+    ...(rebuilt.focusedIntentId ? { focusedBranchIntentId: rebuilt.focusedIntentId } : {}),
+  }
+}
+
+/** 供 Zustand rehydrate 与持久化回归共享的纯迁移函数。 */
+export function migrateEnginePersistedState(
+  persistedState: unknown,
+  version: number,
+): Record<string, unknown> {
+  const old = persistedState && typeof persistedState === 'object' && !Array.isArray(persistedState)
+    ? { ...(persistedState as Record<string, unknown>) }
+    : {}
+  if (version < 2) {
+    // 旧 chunk 没有稳定 id，数字键 resolvedBranches 无法可靠映射。
+    old.resolvedBranches = {}
+  }
+  if (version < ENGINE_STORE_SCHEMA_VERSION) {
+    const history = Array.isArray(old.narrativeHistory)
+      ? old.narrativeHistory as Array<{ repetitionMetric?: unknown }>
+      : []
+    old.lifeRunId = typeof old.lifeRunId === 'string' && old.lifeRunId.trim()
+      ? old.lifeRunId
+      : createNarrativeLifeRunId()
+    old.storyRepetitionStats = summarizeNarrativeHistoryRepetition(history)
+  }
+
+  const rebuiltProjection = rebuildPersistedBranchIntentProjection(old.narrativeHistory)
+  const persistedProjection = version >= ENGINE_STORE_SCHEMA_VERSION
+    ? normalizeBranchIntentProjection({
+        branchIntents: old.branchIntents,
+        archivedBranchIntents: old.archivedBranchIntents,
+        focusedBranchIntentId: old.focusedBranchIntentId,
+      })
+    : undefined
+  const projection = persistedProjection
+    && isBranchIntentProjectionConsistent(persistedProjection, rebuiltProjection)
+    ? persistedProjection
+    : rebuiltProjection
+  old.branchIntents = projection.branchIntents
+  old.archivedBranchIntents = projection.archivedBranchIntents
+  old.focusedBranchIntentId = projection.focusedBranchIntentId
+  return old
 }
 
 export const useEngineStore = create<EngineStore>()(
   persist(
-    (set,) => ({
+    (set, get) => ({
       ...initialState,
 
       setStatus: (status,) => set({ status, },),
@@ -141,34 +233,41 @@ export const useEngineStore = create<EngineStore>()(
         set((state,) => {
           const resolvedBranches = { ...state.resolvedBranches, [id]: choice }
           const narrativeHistory = state.narrativeHistory.map((chunk) =>
-            chunk.id === id ? { ...chunk, resolvedChoice: choice } : chunk,
+            chunk.id === id
+              ? { ...chunk, resolvedChoice: choice, resolvedChoiceRound: state.totalRounds }
+              : chunk,
           )
           return { resolvedBranches, narrativeHistory, forceBranchNext: false }
         }),
 
+      setBranchIntentProjection: (projection,) => {
+        const normalized = normalizeBranchIntentProjection(projection)
+        if (!normalized) return false
+        const reconstructed = rebuildPersistedBranchIntentProjection(get().narrativeHistory)
+        if (!isBranchIntentProjectionConsistent(normalized, reconstructed)) return false
+        set({
+          branchIntents: normalized.branchIntents,
+          archivedBranchIntents: normalized.archivedBranchIntents,
+          focusedBranchIntentId: normalized.focusedBranchIntentId,
+        })
+        return true
+      },
+
       reset: () =>
         set({
           ...initialState,
+          lifeRunId: createNarrativeLifeRunId(),
           round: { ...initialRound, },
         },),
     }),
     {
       name: 'mod-engine:persist:engine-state',
-      version: 2,
-      migrate: (persistedState: unknown, version: number) => {
-        if (version < 2) {
-          const old = persistedState as Record<string, unknown>
-          // 将旧格式的数字键 resolvedBranches 转换为字符串键
-          const oldBranches = old.resolvedBranches as Record<string, string> | undefined
-          if (oldBranches && typeof oldBranches === 'object') {
-            // 旧数据中 numeric key 保持不动也能用，但为了干净迁移，转为空对象（旧 chunk 无 id 无法映射）
-            old.resolvedBranches = {}
-          }
-        }
-        return persistedState as EngineStore
-      },
+      version: ENGINE_STORE_SCHEMA_VERSION,
+      migrate: (persistedState: unknown, version: number) => (
+        migrateEnginePersistedState(persistedState, version) as unknown as EngineStore
+      ),
       partialize: (state,) => {
-        const { setStatus: _a, appendNarrative: _b, setCurrentNarrative: _c, advanceRound: _d, setCompressionStats: _e, setCompressedSummaries: _f, appendStreamingChunk: _g, finalizeNarrative: _h, setNarrativeError: _i, setLastAutoSaveRound: _j, setCoreMemoryNpcMap: _n, setForceBranchNext: _fb, branchRepairPending: _brp, setBranchRepairPending: _sbrp, resolveBranch: _rb, reset: _o, ...rest } = state
+        const { setStatus: _a, appendNarrative: _b, setCurrentNarrative: _c, advanceRound: _d, setCompressionStats: _e, setCompressedSummaries: _f, appendStreamingChunk: _g, finalizeNarrative: _h, setNarrativeError: _i, setLastAutoSaveRound: _j, setCoreMemoryNpcMap: _n, setForceBranchNext: _fb, branchRepairPending: _brp, setBranchRepairPending: _sbrp, resolveBranch: _rb, setBranchIntentProjection: _bip, reset: _o, ...rest } = state
         return rest
       },
     },

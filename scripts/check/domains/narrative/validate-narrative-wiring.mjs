@@ -57,6 +57,22 @@ const narrativeBranchRepairContract = fs.readFileSync(
   path.join(ROOT, 'src/mods/mod-engine/prompts/narrative-branch-repair-prompt.ts'),
   'utf8',
 )
+const narrativeRepetitionRepairAsset = fs.readFileSync(
+  path.join(ROOT, 'src/mods/mod-engine/server/narrative-repetition-repair-system-prompt.ts'),
+  'utf8',
+)
+const narrativeRepetitionAuditAsset = fs.readFileSync(
+  path.join(ROOT, 'src/mods/mod-engine/server/narrative-repetition-audit-system-prompt.ts'),
+  'utf8',
+)
+const narrativeRepetitionRepairContract = fs.readFileSync(
+  path.join(ROOT, 'src/mods/mod-engine/prompts/narrative-repetition-repair-prompt.ts'),
+  'utf8',
+)
+const serverPromptAssets = fs.readFileSync(
+  path.join(ROOT, 'src/mods/mod-engine/server-prompt-assets.ts'),
+  'utf8',
+)
 for (const field of ['长期记忆', '核心记忆', '相关往事', '近期完整经历', '本轮可回收伏笔']) {
   if (!promptBuilder.includes(field)) {
     console.error(`[FAIL] prompt-builder 缺少三层中文字段 ${field}`)
@@ -79,6 +95,18 @@ if (!narrativeBranchRepairAsset.includes('COMPILED_NARRATIVE_BRANCH_REPAIR_SYSTE
   || !narrativeBranchRepairContract.includes('narrativeBranchRepairOutputSchema')
   || !narrativeBranchRepairContract.includes('NARRATIVE_BRANCH_REPAIR_SERVER_PROMPT_ASSET_ID')) {
   console.error('[FAIL] 玩家强制分支未接入独立服务端资产与严格 JSON Schema')
+  failed++
+}
+if (!narrativeRepetitionRepairAsset.includes('COMPILED_NARRATIVE_REPETITION_REPAIR_SYSTEM_PROMPT')
+  || !narrativeRepetitionRepairAsset.includes('不得输出摘要、数据区、markdown、解释或思考过程')
+  || !narrativeRepetitionAuditAsset.includes('COMPILED_NARRATIVE_REPETITION_AUDIT_SYSTEM_PROMPT')
+  || !narrativeRepetitionAuditAsset.includes('{"事实一致":true,"完整覆盖":true,"覆盖证据":')
+  || !narrativeRepetitionAuditAsset.includes('"冲突":[],"遗漏":[]')
+  || !narrativeRepetitionRepairContract.includes('parseNarrativeRepetitionRepairOutput')
+  || !narrativeRepetitionRepairContract.includes('narrativeRepetitionAuditOutputSchema')
+  || !serverPromptAssets.includes('NARRATIVE_REPETITION_REPAIR_SERVER_PROMPT_ASSET_ID')
+  || !serverPromptAssets.includes('NARRATIVE_REPETITION_AUDIT_SERVER_PROMPT_ASSET_ID')) {
+  console.error('[FAIL] 重复剧情改写与事实一致性审计未接入独立受保护资产和严格输出契约')
   failed++
 }
 if (!narrativeServerAsset.includes('COMPILED_NARRATIVE_SYSTEM_PROMPT')

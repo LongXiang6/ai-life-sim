@@ -99,49 +99,20 @@ export default function WelcomeView({
           <button type="button" className={`${styles.routeAction} ${styles.secondaryBtn}`} onClick={onOpenAccount}>
             <span className={styles.routeIndex}>03</span>
             <span className={styles.routeCopy}><strong>账号与云端</strong></span>
-            <span className={styles.routeArrow} aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M5 12h14M13 6l6 6-6 6" />
-              </svg>
-            </span>
           </button>
           <button type="button" className={`${styles.routeAction} ${styles.secondaryBtn}`} onClick={onOpenSettings}>
             <span className={styles.routeIndex}>04</span>
             <span className={styles.routeCopy}><strong>设置</strong></span>
-            <span className={styles.routeArrow} aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M5 12h14M13 6l6 6-6 6" />
-              </svg>
-            </span>
           </button>
           <button type="button" className={`${styles.routeAction} ${styles.secondaryBtn}`} onClick={onOpenHelp}>
             <span className={styles.routeIndex}>05</span>
             <span className={styles.routeCopy}><strong>游戏说明</strong></span>
-            <span className={styles.routeArrow} aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M5 12h14M13 6l6 6-6 6" />
-              </svg>
-            </span>
           </button>
-          <button type="button" className={`${styles.routeAction} ${styles.secondaryBtn} ${styles.feedbackAction}`} onClick={onOpenFeedback}>
+          <button type="button" className={`${styles.routeAction} ${styles.secondaryBtn}`} onClick={onOpenFeedback}>
             <span className={styles.routeIndex}>06</span>
             <span className={styles.routeCopy}><strong>反馈与建议</strong></span>
-            <span className={styles.routeArrow} aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M5 12h14M13 6l6 6-6 6" />
-              </svg>
-            </span>
           </button>
         </div>
-
-        <a
-          href="https://qm.qq.com/q/6iROwlTqYU"
-          target="_blank"
-          rel="noopener noreferrer"
-          className={styles.footerLink}
-        >
-          故事小分队 · 1097782298
-        </a>
       </section>
     </main>
   )

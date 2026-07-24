@@ -26,10 +26,12 @@ export function CharacterCreateMobile() {
     ?? (logic.manualStartingAge ? Number.parseInt(logic.manualStartingAge, 10) : 0)
 
   return (
-    <>
-      <main className={styles.page}>
-        <div className={styles.container}>
-          <div className={styles.paper}>
+    <div className="final-flow-frame">
+      <div className="final-flow-design-fit">
+        <div className="final-flow-design-canvas">
+          <main className={styles.page}>
+            <div className={styles.container}>
+              <div className={styles.paper}>
             <span className={styles.spine} aria-hidden="true" />
             <header className={styles.header}>
               <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>03 / 08</span></div>
@@ -38,7 +40,6 @@ export function CharacterCreateMobile() {
                   <h1>塑造角色</h1>
                   <p>写下这段人生的起点。</p>
                 </div>
-                <span className={styles.titleMark} aria-hidden="true"><span>03</span></span>
               </div>
             </header>
 
@@ -64,11 +65,13 @@ export function CharacterCreateMobile() {
               <CharacterLifespanSection logic={logic} />
               <CharacterBackgroundSection logic={logic} />
             </div>
-          </div>
+              </div>
+            </div>
+          </main>
+          <CharacterCreateBottomBar logic={logic} />
         </div>
-      </main>
-      <CharacterCreateBottomBar logic={logic} />
-    </>
+      </div>
+    </div>
   )
 }
 

@@ -174,7 +174,7 @@ export const useSettingsStore = create<SettingsState>()(
       }),
       {
         name: 'mod-settings:store',
-        version: 8,
+        version: 9,
         migrate: (persistedState: unknown, version: number) => {
           const state = persistedState as Partial<SettingsState>
           const migrated = { ...state }
@@ -218,6 +218,7 @@ export const useSettingsStore = create<SettingsState>()(
                 : providerConfig?.models[0]?.name ?? DEFAULT_AI_MODEL
             }
           }
+          migrated.theme = 'minimal-white'
           return migrated as SettingsState
         },
         // 不持久化 set 函数

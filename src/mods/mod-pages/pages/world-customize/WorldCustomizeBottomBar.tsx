@@ -21,7 +21,7 @@ export function WorldCustomizeBottomBar({
     : blockedReason ?? `${worldName} · 下一步塑造角色`
 
   return (
-    <nav className={styles.bottomBar} aria-label="世界配置操作">
+    <nav className={styles.bottomBar} aria-label="世界配置操作" data-flow-bottom-bar>
       <div className={styles.bottomBarInner}>
         <button type="button" className={styles.backButton} onClick={onBack} disabled={isSaving} aria-label="返回世界选择">
           <span aria-hidden="true">←</span>

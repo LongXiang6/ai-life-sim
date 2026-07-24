@@ -10,7 +10,7 @@ export function WorldSelectBottomBar({ logic }: { logic: WorldSelectLogic }) {
       : '请先选择或创建一个世界'
 
   return (
-    <nav className={styles.bottomBar} aria-label="世界选择操作">
+    <nav className={styles.bottomBar} aria-label="世界选择操作" data-flow-bottom-bar>
       <div className={styles.bottomBarInner}>
         <button
           type="button"
@@ -20,7 +20,9 @@ export function WorldSelectBottomBar({ logic }: { logic: WorldSelectLogic }) {
           aria-label="返回欢迎页"
           disabled={logic.isConfirming}
         >
-          <span aria-hidden="true">←</span>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M15 18l-6-6 6-6" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
         <button
           type="button"

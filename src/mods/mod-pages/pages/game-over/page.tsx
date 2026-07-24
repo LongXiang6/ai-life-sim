@@ -159,6 +159,7 @@ export default function GameOverPage() {
   const worldCode = useWorldStore((s) => s.worldCode)
   const worldviewId = useGlobalStore((s) => s.worldviewId)
   const narrativeHistory = useEngineStore((s) => s.narrativeHistory)
+  const storyRepetitionStats = useEngineStore((s) => s.storyRepetitionStats)
   const compressedSummaries = useEngineStore((s) => s.compressedSummaries)
   const status = useEngineStore((s) => s.status)
   const preGenStatus = usePreGenQueueStatus()
@@ -516,8 +517,13 @@ export default function GameOverPage() {
       setConfirmingNewLife(false)
       return
     }
-    router.push('/game-story')
+    router.push('/welcome')
   }, [confirmingNewLife, router])
+
+  const handleViewSimulationData = useCallback(() => {
+    const target = document.getElementById('dimensions-title')
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
 
   useEffect(() => {
     if (!canViewGameOver && !leavingForNewLifeRef.current) {
@@ -561,8 +567,11 @@ export default function GameOverPage() {
   }
 
   return (
-    <PageScroll maxWidth={672} className={styles.page}>
-      <div className={styles.wrapper}>
+    <div className="final-flow-frame">
+      <div className="final-flow-design-fit final-flow-design-fit--330">
+        <div className="final-flow-design-canvas">
+          <PageScroll maxWidth={330} className={styles.page}>
+          <div className={styles.wrapper}>
         <article className={styles.book} aria-labelledby="game-over-title">
           <div className={styles.ornament} aria-hidden="true" />
 
@@ -647,6 +656,12 @@ export default function GameOverPage() {
                 <span>{allNarratives.length} 轮世事</span>
                 <span>{ageLabel}</span>
                 {worldviewId !== null && worldviewId !== undefined ? <span>世界编号 {worldviewId}</span> : null}
+              </div>
+              <div className={styles.repetitionSummary} aria-label="故事重复率统计">
+                <span>故事重复观测</span>
+                <strong>近五轮均值 {Math.round(storyRepetitionStats.recentAverageWordRepeatRate * 100)}%</strong>
+                <span>整局峰值 {Math.round(storyRepetitionStats.maxWordRepeatRate * 100)}%</span>
+                <span>高重复 {storyRepetitionStats.highRepeatRounds} 轮 · {storyRepetitionStats.trend === 'rising' ? '近期上升' : storyRepetitionStats.trend === 'falling' ? '近期下降' : '近期平稳'}</span>
               </div>
             </div>
           </section>
@@ -817,44 +832,68 @@ export default function GameOverPage() {
               {shareStatus || '分享卡内容会随当前轮回天赋选择即时更新。'}
             </p>
           </section>
-
-          <footer className={styles.footer} aria-live="polite">
-            <button
-              type="button"
-              className={styles.backButton}
-              onClick={handleFooterBack}
-              aria-label={confirmingNewLife ? '取消开启新人生' : '返回故事记录'}
-              title={confirmingNewLife ? '取消开启新人生' : '返回故事记录'}
-            >
-              {confirmingNewLife ? '×' : '←'}
-            </button>
-            <button
-              type="button"
-              className={`${styles.newLifeButton} ${confirmingNewLife ? styles.newLifeButtonConfirm : ''}`}
-              disabled={preGenStatus.isActive || startingNewLife || !sealedMythicPatternId}
-              onClick={handleStartNewLife}
-              aria-describedby={confirmingNewLife ? 'new-life-confirmation-copy' : undefined}
-            >
-              <span className={styles.newLifeMark}>{confirmingNewLife ? '警' : '新'}</span>
-              <span className={styles.newLifeCopy}>
-                <strong>{confirmingNewLife ? '确认开启新人生' : '开启新人生'}</strong>
-                <small id={confirmingNewLife ? 'new-life-confirmation-copy' : undefined}>
-                  {preGenStatus.isActive
-                    ? '正在收束后台故事状态，请稍候'
-                    : startingNewLife
-                    ? '正在清理当前人生并返回世界选择'
-                    : !sealedMythicPatternId
-                    ? '先封存一项轮回天赋'
-                    : confirmingNewLife
-                    ? '将清理当前人生状态，此操作不可撤销'
-                    : '清理当前人生状态 · 返回世界选择'}
-                </small>
-              </span>
-              <span className={styles.newLifeArrow} aria-hidden="true">{confirmingNewLife ? '✓' : '→'}</span>
-            </button>
-          </footer>
         </article>
+          </div>
+          </PageScroll>
+
+          <footer className={styles.footer} aria-live="polite" data-flow-bottom-bar>
+            <div className={styles.footerBar}>
+              <button
+                type="button"
+                className={styles.barTool}
+                onClick={handleFooterBack}
+                aria-label={confirmingNewLife ? '取消开启新人生' : '返回首页'}
+                title={confirmingNewLife ? '取消开启新人生' : '返回首页'}
+              >
+                {confirmingNewLife ? (
+                  <span aria-hidden="true">×</span>
+                ) : (
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m4 11 8-7 8 7" />
+                    <path d="M6 10v10h12V10M10 20v-6h4v6" />
+                  </svg>
+                )}
+              </button>
+              <button
+                type="button"
+                className={styles.barTool}
+                onClick={handleViewSimulationData}
+                aria-label="查看模拟数据"
+                title="查看模拟数据"
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 20V10M12 20V4M19 20v-7" />
+                  <path d="M3 20h18" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                className={`${styles.newLifeButton} ${confirmingNewLife ? styles.newLifeButtonConfirm : ''}`}
+                disabled={preGenStatus.isActive || startingNewLife || !sealedMythicPatternId}
+                onClick={handleStartNewLife}
+                aria-describedby={confirmingNewLife ? 'new-life-confirmation-copy' : undefined}
+              >
+                <span className={styles.newLifeMark}>{confirmingNewLife ? '警' : '新'}</span>
+                <span className={styles.newLifeCopy}>
+                  <strong>{confirmingNewLife ? '确认开启新人生' : '开始新人生'}</strong>
+                  <small id={confirmingNewLife ? 'new-life-confirmation-copy' : undefined}>
+                    {preGenStatus.isActive
+                      ? '正在收束后台故事状态，请稍候'
+                      : startingNewLife
+                      ? '正在清理当前人生并返回世界选择'
+                      : !sealedMythicPatternId
+                      ? '先封存一项轮回天赋'
+                      : confirmingNewLife
+                      ? '将清理当前人生状态，此操作不可撤销'
+                      : '完成回望 · 重新选择世界'}
+                  </small>
+                </span>
+                <span className={styles.newLifeArrow} aria-hidden="true">{confirmingNewLife ? '✓' : '→'}</span>
+              </button>
+            </div>
+          </footer>
+        </div>
       </div>
-    </PageScroll>
+    </div>
   )
 }

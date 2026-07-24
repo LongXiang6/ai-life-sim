@@ -10,10 +10,3 @@
 @import './effects.css';
 @import './breakpoints.css';
 @import './layout.css';
-
-/* 主题（Apple HIG：极简白 / 极简黑 / 阅读黄 / 暗色宇宙 / 极光 / 赛博霓虹） */
-@import './themes/theme-minimal-black.css';
-@import './themes/theme-reading-yellow.css';
-@import './themes/theme-dark-cosmos.css';
-@import './themes/theme-light-aurora.css';
-@import './themes/theme-cyber-neon.css';

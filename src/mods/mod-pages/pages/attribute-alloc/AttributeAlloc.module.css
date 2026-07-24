@@ -13,7 +13,9 @@
   --cf-accent-soft: #edf0fb;
 
   position: relative;
-  min-height: 100dvh;
+  width: 320px;
+  height: 694px;
+  min-height: 0;
   overflow: hidden;
   background: linear-gradient(180deg, #fafbff 0%, #f2f4f9 100%);
   color: var(--cf-ink);
@@ -311,10 +313,6 @@
   border-color: var(--cf-accent);
   background: var(--cf-accent);
   color: #fff;
-}
-
-@media (min-width: 64rem) {
-  .page { font-size: 1.0625rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

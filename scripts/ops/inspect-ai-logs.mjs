@@ -9,6 +9,14 @@ import readline from 'node:readline'
 import { promisify } from 'node:util'
 import { gunzip } from 'node:zlib'
 
+import {
+  buildCanonicalStoryRepetitionSet,
+  diagnosticCodeOf,
+  operationalTimestamp,
+  summarizeStoryRepetitionRows,
+} from './lib/story-repetition-analytics.mjs'
+import { classifyUpstreamError } from './lib/error-classification.mjs'
+
 const gunzipAsync = promisify(gunzip)
 
 const FEEDBACK_STATUS_LABELS = {
@@ -154,7 +162,7 @@ async function collectJsonlFiles(root, cutoffMs, options) {
   await visit(scan.path)
   // 玩家/IP 索引只保存关联记录；反馈状态由根目录唯一账本持有。
   if (scan.indexesOnly) await visit(path.join(root, 'feedback-status'))
-  return files
+  return files.sort((left, right) => left.path.localeCompare(right.path))
 }
 
 function isContentRef(value) {
@@ -208,9 +216,7 @@ async function hydrateRecordContent(root, record) {
 }
 
 function timestampMs(record) {
-  const raw = record.timestamp ?? record.receivedAt
-  const numeric = typeof raw === 'number' ? raw : Date.parse(String(raw ?? ''))
-  return Number.isFinite(numeric) ? numeric : 0
+  return operationalTimestamp(record)
 }
 
 async function readJsonLines(file, cutoffMs, output) {
@@ -256,7 +262,7 @@ function sourceId(record) {
 }
 
 function diagnosticCode(record) {
-  return record.diagnosticCode ?? record.diagnostic_code
+  return diagnosticCodeOf(record)
 }
 
 function summarizeTrace(record, includeContent) {
@@ -336,32 +342,45 @@ async function main() {
 
   const requestSources = new Map()
   const requestPlayers = new Map()
-  for (const record of access) requestSources.set(record.request_id, sourceIp(record))
+  for (const record of access) {
+    if (typeof record.request_id === 'string' && record.request_id) {
+      requestSources.set(record.request_id, sourceIp(record))
+    }
+  }
   for (const record of access) {
     const code = diagnosticCode(record)
-    if (code) requestPlayers.set(record.request_id, code)
+    if (code && typeof record.request_id === 'string' && record.request_id) {
+      requestPlayers.set(record.request_id, code)
+    }
   }
   for (const record of traces) {
     const ip = sourceIp(record)
-    if (ip !== 'unknown') requestSources.set(record.requestId, ip)
+    if (ip !== 'unknown' && typeof record.requestId === 'string' && record.requestId) {
+      requestSources.set(record.requestId, ip)
+    }
     const code = diagnosticCode(record)
-    if (code) requestPlayers.set(record.requestId, code)
+    if (code && typeof record.requestId === 'string' && record.requestId) {
+      requestPlayers.set(record.requestId, code)
+    }
   }
 
   const matchesSource = (record, requestIdField) => {
     if (!options.ip && !options.feedbackId) return true
     const direct = sourceIp(record)
     const requestId = record[requestIdField]
+    const correlatedSource = typeof requestId === 'string' && requestId
+      ? requestSources.get(requestId)
+      : undefined
     return direct === options.ip
-      || requestSources.get(requestId) === options.ip
+      || correlatedSource === options.ip
       || feedbackSources.has(direct)
-      || feedbackSources.has(requestSources.get(requestId))
+      || (correlatedSource !== undefined && feedbackSources.has(correlatedSource))
   }
   const matchesPlayer = (record, requestIdField) => {
     if (!options.playerCode) return true
     const requestId = record[requestIdField]
     return diagnosticCode(record) === options.playerCode
-      || requestPlayers.get(requestId) === options.playerCode
+      || (typeof requestId === 'string' && requestId && requestPlayers.get(requestId) === options.playerCode)
   }
   const matchesRequest = (record, field) => !options.requestId || record[field] === options.requestId
 
@@ -385,6 +404,11 @@ async function main() {
     matchesSource(record, 'requestId')
       && matchesPlayer(record, 'requestId')
       && matchesRequest(record, 'requestId'))
+  const canonicalRepetition = buildCanonicalStoryRepetitionSet(filteredClients)
+  const storyRepetitionAggregate = summarizeStoryRepetitionRows(canonicalRepetition.rows)
+  const playerStoryRepetition = options.playerCode
+    ? summarizeStoryRepetitionRows(canonicalRepetition.rows, { includePerGame: true })
+    : undefined
 
   const statusCounts = {}
   for (const record of filteredAccess) {
@@ -462,6 +486,7 @@ async function main() {
       feedbackStatusCounts,
       distinctSources: sources.size,
       statusCounts,
+      storyRepetition: storyRepetitionAggregate,
     },
     recentProxyIssues: takeRecent(proxyIssues, options.limit).map((record) => ({
       timestamp: record.timestamp,
@@ -474,7 +499,7 @@ async function main() {
       status: record.status,
       durationMs: record.duration_ms,
       retryCount: record.retry_count,
-      error: record.error,
+      error: classifyUpstreamError(record.error) ?? `http_${record.status ?? 'unknown'}`,
     })),
     recentClientIssues: takeRecent(clientIssues, options.limit).map((record) => ({
       timestamp: record.timestamp,
@@ -504,7 +529,6 @@ async function main() {
       callKind: record.callKind,
       failed: record.failed,
       failureReason: record.failureReason,
-      validationPassed: record.validationPassed,
       validationError: record.validationError,
       promptChars: record.promptChars,
       responseChars: record.responseChars,
@@ -576,6 +600,7 @@ async function main() {
         error: record.error,
       }))
       : undefined,
+    storyRepetition: playerStoryRepetition,
     recentDebugEvents: options.playerCode
       ? takeRecent(filteredDebug, options.limit).map((record) => ({
         timestamp: record.timestamp,

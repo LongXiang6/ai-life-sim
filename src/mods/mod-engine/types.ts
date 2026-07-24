@@ -10,6 +10,7 @@
 import type { TimeStep, } from '@/foundation'
 import type { CompressedSummaries, } from '@/foundation'
 import type { NarrativeIntentResolution } from './helpers/narrative-semantic-signals'
+import type { NarrativeRepetitionMetric, NarrativeRepetitionSummary } from './helpers/narrative-repetition-metrics'
 
 export type { TimeStep, }
 
@@ -50,6 +51,30 @@ export interface NarrativeBranchRepairOutput {
   分支选项: string[]
 }
 
+/** 重复正文后台修复的独立事实审计结果。 */
+export interface NarrativeRepetitionAuditOutput {
+  事实一致: boolean
+  完整覆盖: boolean
+  覆盖证据: Array<{
+    原文事实: string
+    候选对应: string
+  }>
+  冲突: string[]
+  遗漏: string[]
+}
+
+/** 只含正文的后台改写协议解析结果。 */
+export interface NarrativeRepetitionRepairOutput {
+  content: string
+  narrative: string
+}
+
+/** 已通过正文协议与独立事实审计的后台改写候选。 */
+export interface NarrativeRepetitionRepairCandidate {
+  content: string
+  audit: NarrativeRepetitionAuditOutput
+}
+
 /** 叙事流片段 */
 export interface NarrativeChunk {
   /** 唯一标识（生成时用 timestamp + 随机数填充，用于 resolveBranch 索引漂移防御） */
@@ -73,6 +98,8 @@ export interface NarrativeChunk {
   branchOptions?: string[],
   /** 玩家已确认的分支选择 */
   resolvedChoice?: string,
+  /** 玩家实际确认该选择时的回合；旧存档缺失时回退到原分支条目轮次。 */
+  resolvedChoiceRound?: number,
   /** 本轮对当前命运意图的结构化执行结果。 */
   intentResolution?: NarrativeIntentResolution,
   /** 该条叙事写入时的角色年龄（快照） */
@@ -81,6 +108,8 @@ export interface NarrativeChunk {
   displayTimeLabel?: string,
   /** 该条叙事对应的属性变化（用于 UI 展示） */
   attrChanges?: Array<{ icon: string; label: string; change: number }>,
+  /** 本轮故事与最近完整历史的重复率观测；只用于质量统计，不裁剪正文。 */
+  repetitionMetric?: NarrativeRepetitionMetric,
 }
 
 /** 压缩统计 */
@@ -106,6 +135,8 @@ export interface CharacterCreation {
 
 /** 引擎状态 */
 export interface EngineState {
+  /** 不含账号信息的本局不透明标识，用于重复率指标归并。 */
+  lifeRunId: string
   status: SimulationStatus
   round: RoundInfo
   timeStep: TimeStep
@@ -118,6 +149,8 @@ export interface EngineState {
   lastAutoSaveRound: number
   /** 角色已开创的内容清单（防止 AI 改写为遗迹来源） */
   characterCreations: CharacterCreation[]
+  /** 本局故事重复率的持久化聚合快照。 */
+  storyRepetitionStats: NarrativeRepetitionSummary
 }
 
 /** 回合结果 */

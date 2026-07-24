@@ -8,7 +8,7 @@
 下级组成：叙事、Prompt、托管模型、日志反馈、创建流程、结算分享、阶段与发布历史
 适用范围：已进入运行链或已形成长期回归约束的项目能力
 拥有者：各 owning system 与项目测试治理
-最后验证：2026-07-24；对应专项回归、项目关闸、浏览器或生产证据
+最后验证：2026-07-25；对应专项回归、项目关闸、浏览器、生产证据和旧/现行模拟机制库存复核
 取代关系：合并原日期型 playtest、发布验收和发布说明文档；详细流水由 Git 历史保存
 运行真源：各章节列出的 live source
 验收证据：各章节列出的自动检查、浏览器路径与生产检查
@@ -51,6 +51,20 @@
 | UI 边界 | 流式界面只显示正文，不展示摘要、数据、协议标记或修复内容 |
 | 自动证据 | `npm run test:narrative-protocol`、`npm run test:prompt-wiring`、`branch-intent-resolution-smoke.mjs`、`runtime-subsystem-state-regression.mjs` |
 | 模型证据 | DeepSeek `deepseek-v4-flash` 真实 430×932 全流程完成 4 段正文、强制分支后台补救、预设选择和选择后继续推进；5 次代理请求中 1 次为独立分支补救，正文未因条件 META 失败而延迟 |
+
+<a id="narrative-repetition"></a>
+
+### 2.2.1 叙事重复率与非阻塞修复
+
+| 字段 | 结论 |
+|---|---|
+| 对应权威 | PD-009、PD-015、PD-038 |
+| 运行真源 | mod-engine 的 EngineState.storyRepetitionStats、逐条 NarrativeChunk.repetitionMetric、默认 campaign 后台修复链 |
+| 当前结果 | 每局生成不含账号的 lifeRunId；每轮使用中文分词/正则 fallback 计算词语重复率，并和近五轮逐轮比较词集合重叠率、字符 n-gram 相似度、趋势与峰值。历史正文完整保留，日记显示近五轮指标，结算页显示整局摘要。 |
+| 修复边界 | 正文先提交；重复或阶段回退只触发一个受控后台候选。候选必须通过完整中文协议信封、严格 Schema、近期不重复，以及独立事实审计的逐项完整覆盖证据；任一遗漏、冲突或空证据都保留原正文。预生成候选消费前执行同一重复门禁；修复不新建回合、不重放 META、不阻塞玩家。 |
+| 运营投影 | story_repetition 只记录匿名数值指标与 lifeRunId，analyze-ai-logs.mjs/inspect-ai-logs.mjs 提供整局和玩家诊断摘要；日志不是故事或账号状态真源。 |
+| 自动证据 | npm run test:narrative-repetition-metrics、narrative-repetition-smoke.mjs、log-analytics-smoke.mjs、branch-intent-resolution-smoke.mjs、no-hard-truncation-audit.mjs |
+| 历史对照 | `docs/legacy-simulation-mechanism-comparison.md` 已逐机制确认：本次问题位于现行分支/叙事链，不应把废弃项目的同步域循环、正文正则推断或无界公式迁回。 |
 
 <a id="managed-ai-longcat"></a>
 
@@ -192,15 +206,17 @@
 
 ### 2.15 DeepSeek 全流程与废弃版本基线对比
 
-`LastVerified: 2026-07-23`
+`LastVerified: 2026-07-25`
 
 `Authority: PD-016, PD-017, blueprint-02 P0-P8`
 
 `Result: pass with known capability gap`
 
-`Evidence: 官方 Provider=deepseek、Model=deepseek-v4-flash；真实浏览器创建→十二候选命格→两项转世天赋→15点四维属性→命运预览→4轮主叙事，4次代理请求均无客户端 Key、4条正文写入、零控制台错误；BAL-01—04 压力切片全部通过。废弃项目 orchestrator-v2 真实本地100轮为0异常但 priceIndex 110.94→8.94e22、population 5038→50、health 100→8.5；新版纯规则100轮为0异常、totalDays 365→36500、13个外部系统+12个引擎系统稳定。`
+`Evidence: 官方 Provider=deepseek、Model=deepseek-v4-flash；真实浏览器创建→十二候选命格→两项转世天赋→15点四维属性→命运预览→4轮主叙事，4次代理请求均无客户端 Key、4条正文写入、零控制台错误；BAL-01—04 压力切片全部通过。`npm run test:legacy-simulation-probe` 使用共享 Mulberry32 seed 20260724、每年固定 market→population 调用顺序；market 输入 month=(year%12)+1/luck=0/years=1，population 输入 initial=5000/years=1/prosperity=0/disasterCount=5/war=false，100 次结果为 priceIndex=547368166042059970、population=50、growthRate=-0.2。该人口输入是刻意的每年5场灾害 stress fixture，不是正常玩家局预测。新版纯规则100轮为0异常、totalDays 365→36500、13个 external+12个 engine 注册稳定。`
 
-`Comparison: 旧版同步重建约55个世界/社会/角色系统并返回49字段文本上下文，缺少 contextId/scope/能力画像/原子历史账本，宏观公式存在 runaway；新版以唯一 TimeSystem、Orchestrator 阶段机、作用域能力画像和 P1 历史事件账本为运行权威，但当前仅启用 MVP 四个主叙事可写角色系统，P2-P8 的 NPC/关系、空间资源、成长评价、健康衰老、人口经济、社会文明和世界观插件仍按蓝图延后。`
+`Comparison: 废弃项目库存有51个 `*-system.ts` 叶子文件，其中45个由三个 domain 直接引用，另外6个走初始化/Prompt格式化/叙事报告后处理或仅 barrel 导出；旧 `SystemContext` 声明53个字段（orchestrator 注释口径为39个配置驱动字段+14个特殊字段），缺少 contextId/scope/能力画像/原子历史账本。新版以唯一 TimeSystem、Orchestrator 阶段机、作用域能力画像和 P1 历史事件账本为运行权威；`src/mods/**/subsystems/**/*-system.ts` 共77个文件，其中13个 external+12个 engine=25个 active，其余52个 non-active。`memory-engine` 虽在 active 注册表中，但正文/属性正则提取没有当前调用且不得恢复；结构化关系实际由 orchestrator 提交给 `core-memory`。完整逐项处置见 `docs/legacy-simulation-mechanism-comparison.md`。`
+
+`KnownBaseline: 2026-07-25 复核的 `npm run check:mod` 完整日志为258项 FAIL；相对此前可比完整输出270项，消除12项且新增0项。runner 显示的80是输出上限，不是实际失败总数；本地滚动报告不是长期权威引用。因此本节不宣称 MOD 全绿。`
 
 `Required follow-up: 恢复 P5-P7 时必须沿用 core/shared 平衡入口，为人口、价格、资源和健康等宏观指标登记范围、单调性与速率上限，使用确定性/均值回归并把变更作为历史账本原子批次提交；不得直接迁回旧版三大域或其无上限公式。`
 
@@ -218,7 +234,7 @@
 
 `Evidence: 2be5f58 release 已原子切换为活动版本；生产环境校验、PM2、回环 3000、Nginx、HTTP→HTTPS、两个预设 GET configured 与公网 POST 均通过。managed / LongCat-2.0 线上 Puppeteer 全流程完成角色创建→12 候选命格→2 项转世天赋→15 点四维属性→命运预览→4 轮主叙事，4 次请求、4 条正文、无客户端 Key、零控制台错误；公网分支 Puppeteer 验证点击后第二次请求、旧记录 `resolvedChoice` 与 2 条历史正文；`check:structural`、`check:ui`、`gate-check`、Lint、TypeScript、managed AI、proxy、叙事协议与无硬截断审计通过。`
 
-`KnownLimitations: 官方 DeepSeek Provider=deepseek、Model=deepseek-v4-flash 已在本地隔离环境使用临时 Key 完成真实全流程；该 Key 未写入生产环境，生产选择 DeepSeek 仍要求玩家提供自己的 Key。`check:mod` 保留约 80 项历史基线失败，未新增，不宣称全局全绿；废弃版本宏观模拟对比结论见 2.15。`
+`KnownLimitations: 官方 DeepSeek Provider=deepseek、Model=deepseek-v4-flash 已在本地隔离环境使用临时 Key 完成真实全流程；该 Key 未写入生产环境，生产选择 DeepSeek 仍要求玩家提供自己的 Key。`check:mod` 的当前完整基线见 2.15：258 项 FAIL，相对旧完整输出 270 项消除 12 项且新增 0 项；不宣称全局全绿。`
 
 `Supersession: 取代 5.3.4 只记录分支与叙事修复而未记录预设环境和串联创建流生产证据的结论。`
 
@@ -244,7 +260,7 @@
 
 `Gates: npm run check:structural; npm run check:ui; npm run gate-check; npm run check:changelog; npm run test:narrative-protocol; npm run test:managed-ai-default; npm run test:ai-proxy; TypeScript; no-hard-truncation-audit.mjs; branch-intent-resolution-smoke.mjs; branch-flow-browser.cjs across seven viewports.`
 
-`KnownLimitations: 本节是本地发布前证据，尚未替代 2.16 的生产发布记录；check:mod 仍保留既有约 80 项历史基线失败，未新增。`
+`KnownLimitations: 本节是本地发布前证据，尚未替代 2.16 的生产发布记录；`check:mod` 的当前完整基线见 2.15，不把 runner 的 80 项输出上限误写为总数。`
 
 
 ### 2.18 轮回天赋改名与选取页光效锁定
@@ -267,7 +283,7 @@
 
 `Retention: 按本次明确的发布后清理要求，切换完成并确认健康后，发布根从 37 个目录清理为当前 release 与上一版 `2be5f58` 两个目录；3001 旁路已停止，release 根占用从约 5.8G 降至约 1.1G。日常 release cleanup timer 仍按 PD-021 的 72 小时保护规则运行；release/account cleanup timers 与回环运营面板保持 active。`
 
-`KnownLimitations: check:mod 仍保留约 80 项既有历史基线失败，本次未新增；PM2 历史日志中存在切换前旧客户端触发的 Server Action warning，不作为本次发布新增故障。`
+`KnownLimitations: `check:mod` 的当前完整基线见 2.15：258 项 FAIL，相对旧完整输出新增 0 项；PM2 历史日志中存在切换前旧客户端触发的 Server Action warning，不作为本次发布新增故障。`
 
 ### 2.20 移动端语义图标与人生结算底栏定版
 
@@ -283,7 +299,7 @@
 
 `IntentionalAdaptations: 图标只作为 aria-hidden 的紧邻标签标记，不进入可访问名称；人生结算没有引入原型占位的“模拟数据”，保留正式版真实存在的返回故事/取消确认与开启新人生动作，主操作沿用创建流程的完整文字与箭头；账号沿用真实登录态、云存档和长期角色设定区域，没有制造原型中的假 Tab；核心模拟继续沿用已有四维图标，不新增第二套装饰。`
 
-`BaselineDifference: 直接打开单页时 Browser 控制台无错误；通过 flow.html 首次切换 iframe 时，当前内置浏览器记录一条跨文档 View Transition 的 "AbortError: Transition was skipped" 与一条 "MutationObserver.observe" 注入层错误，应用源码未触发 MutationObserver，且后续稳定停留与单页交互未再增加错误。check:mod 保留未改动旧子系统的 80 项历史问题，本轮未新增；可选 character-first Playwright runner 因项目未安装 Playwright 返回 UNAVAILABLE，未擅自新增依赖，真实浏览器证据由现有 Puppeteer 创建链和 DeepSeek 全流程覆盖。`
+`BaselineDifference: 直接打开单页时 Browser 控制台无错误；通过 flow.html 首次切换 iframe 时，当前内置浏览器记录一条跨文档 View Transition 的 "AbortError: Transition was skipped" 与一条 "MutationObserver.observe" 注入层错误，应用源码未触发 MutationObserver，且后续稳定停留与单页交互未再增加错误。`check:mod` 的当前完整基线见 2.15；可选 character-first Playwright runner 因项目未安装 Playwright 返回 UNAVAILABLE，未擅自新增依赖，真实浏览器证据由现有 Puppeteer 创建链和 DeepSeek 全流程覆盖。`
 
 `ProjectChange: yes; FunctionalChange: yes; 已按发布台账统一生成 5.3.7 与一条玩家更新记录，并由 release 7342c8b 完成生产切换。`
 
@@ -303,6 +319,46 @@
 
 `BaselineDifference: Linux Node 20 安装阶段按 Puppeteer 官方开关跳过仅测试用 Chrome 二进制下载；Next 生产构建与全部服务端关闸通过。npm audit 仍报告 4 项既有 high 依赖告警，未在本次 UI 发布中执行破坏性依赖升级。Nginx error log 最新记录为外部 TLS bad key share 探测，PM2 应用错误日志最后修改早于本次发布，均无本轮应用错误。`
 
+### 2.22 定版 UI 相对画布与中央手机框收口
+
+`LastVerified: 2026-07-24`
+
+`Authority: PD-008, PD-011, PD-015`
+
+`SelectedSources: docs/ui-prototypes/mobile/flow.html; docs/ui-prototypes/mobile/assets/relative-phone-layout.css; docs/ui-prototypes/mobile/assets/relative-phone-layout.js; welcome/round-19-rf4-b-refinement.html; world-select/round-20-ws-rf23-b1-adaptation.html; world-customize/round-07-ws-b1-adaptation.html; character-create/round-15-ws-b1-adaptation.html; talent-draw/round-refactor-18-rf17-2-b1-adaptation.html; mythic-inheritance/round-14-legacy-layout-b1-rebirth.html; attribute-alloc/final.html; fate-preview/round-refactor-01-style-1.html; game-story/round-refactor-20-style-1.html; game-over/final.html; account/final.html; settings/final.html; help/final.html; feedback/final.html`
+
+`RuntimeSource: src/app/globals.css; src/mods/mod-pages/pages/**; src/mods/mod-settings/components/**; src/mods/mod-ui/components/organisms/{HelpModal,DisclaimerModal}.tsx; src/core/theme/{theme-store,theme-provider}.ts*`
+
+`Result: pass with known baseline differences`
+
+`Evidence: 运行时所有串联页均包入唯一 final-flow-frame 与 final-flow-design-fit/canvas；欢迎 430×932、常规创建与辅助页 320×694、设置/说明/结算 330×715、核心模拟 390×844 保留各自设计画布，外层按可用宽高最小比例等比缩放。浏览器默认 320×694 实测 frame=320×694、fit=320×693.57、canvas transform=scale(0.744186)、body/html scrollWidth=320，无横向溢出；欢迎页截图与 flow.html 构图一致。桌面规则在 globals.css 中以中央固定手机框和同一纵横比公式实现。旧主题 CSS、StarfieldBackground、styles/mobile/base.css、旧桌面 zoom/scale 覆盖已从运行时导入与文件树删除。npm run lint（0 errors，1 条未改动叙事文件 warning）、npx tsc --noEmit、npm run build、no-hard-truncation-audit.mjs、git diff --check、check:changelog 均通过。`
+
+`IntentionalRuntimeAdaptations: 方案库页面的运行时缺失功能、错误态、存档/账号真实数据和辅助弹窗继续由现有 owning system 提供；这些内容只放入对应定版画布，不改变页内构图、字段顺序或操作语义。`
+
+`BaselineDifference: npm run check:ui 仍报告约 18 项既有断言冲突，集中在旧动态视口壳层、旧 42rem/desktop scale、48px 控件、旧页面结构和已删除的 mobile/base.css/旧主题假设；本轮没有为通过这些旧断言恢复废弃 UI。npm run check:structural 仍因 orchestrator-system.ts 的既有 D-07 相对 import 失败。当前内置 Browser 的视口覆盖被环境固定在 320×694，未伪造 1280×720 的浏览器实测；桌面结论由 CSS 公式、生产构建和中央框实现证据支持。`
+
+`ProjectChange: yes; FunctionalChange: yes; 已按发布台账生成 5.3.8 与一条玩家更新记录（public/changelog-41.txt，2026-07-24 20:41:33）。`
+
+### 2.23 定版 UI 全量对照偏离修复
+
+`LastVerified: 2026-07-24`
+
+`Authority: PD-008, PD-011, PD-015`
+
+`SelectedSources: docs/ui-prototypes/mobile/flow.html 及其串联 14 页选定稿`
+
+`RuntimeSource: src/mods/mod-pages/pages/{welcome,world-select,world-customize,character-create,talent-draw,attribute-alloc,fate-preview,game-story,game-over,account,feedback}/**; src/mods/mod-settings/components/SettingsModal*; src/mods/mod-ui/components/organisms/{BottomActionBar,HelpModal}*; scripts/check/domains/ui/mobile-ui-regression.mjs`
+
+`Result: pass with known baseline differences`
+
+`Evidence: 对照 flow.html 14 屏后修复：人生结算磨砂底栏补齐返回首页/查看模拟数据工具钮并固定在画布外滚动层；命运预览眉标改为命书步骤并统一 BottomActionBar 为 B1 磨砂规格；世界选择 Tab 顺序、focus 难度控件、当前选择索引与绝对定位底栏；命格/角色/世界配置底栏收为 52/38/48/25 悬浮承托；核心模拟恢复双行状态栏与四维语义标记；世界配置摘要绑定真实世界数据；设置/说明关闭钮 34px；命格候选描述去掉 line-clamp 硬截断。mobile-ui-regression 已迁到 final-flow 画布模型并全绿。lint 0 error / 1 既有 unused warning；tsc 通过；gate-check:quick 的 C0/C1/C2 通过。`
+
+`IntentionalRuntimeAdaptations: 分享区代码保留但 CSS 隐藏以匹配定版构图；设置/说明/账号继续承载真实功能与错误态；命格页仍合并抽取与选取两阶段。`
+
+`BaselineDifference: check:ui 仍报告 14 项 S26 页内自定义 CSS 变量未被 Design Token 扫描识别（变量已在页面根定义）；gate-check:quick 仍因 orchestrator-system.ts 既有 D-07 相对 import 失败。本轮未恢复废弃 100dvh/42rem 壳层。`
+
+`ProjectChange: yes; FunctionalChange: yes; 已按发布台账生成 5.3.9 与一条玩家更新记录（public/changelog-42.txt，2026-07-24 21:18:31）。`
+
 ## 3. 阶段与发布验收摘要
 
 | 范围 | 当前结论 | 权威入口 |
@@ -319,6 +375,8 @@
 | 5.3.5 | 恢复 LongCat 与原托管预设、增加发布前环境硬校验；移动端串联创建流注册 `/new-game/*` 路由并落地 15 点四项基础属性、12 候选命格与 2 项转世天赋；已通过生产预设真实请求、线上创建流和分支点击回归 | 本账本 2.16 |
 | 5.3.6 | 按选定移动端串联方案替换角色创建、命格、属性与命运预览运行时 UI；移除旧星盘主构图并同步候选、轮回槽与浏览器回归；已完成生产原子切换与线上分支回归 | 本账本 2.17、2.19 |
 | 5.3.7 | 定版语义图标与统一结算底栏已进入正式运行时；修复 320px 命格卡纵向重叠并加入碰撞关闸，完成公网多视口、DeepSeek、账号云端与只保留上一版的发布验收 | 本账本 2.20、2.21 |
+| 5.3.8 本地定版 UI | 手机端按各页设计画布的相对比例整体缩放，桌面端固定中央手机框；旧主题与旧桌面样式已删除，旧 UI 回归断言不再作为目标 | 本账本 2.22、PD-011 |
+| 5.3.9 定版偏离修复 | 结算/创建底栏、世界选择、核心模拟状态栏与关闸断言对齐 flow.html 选定稿 | 本账本 2.23、PD-011 |
 
 公开玩家变更以 `../public/changelog-index.json` 与对应 `../public/changelog-*.txt` 为准；本账本不重复维护逐版本玩家文案。
 

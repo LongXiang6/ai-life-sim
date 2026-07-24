@@ -7,6 +7,11 @@
 import { useEngineStore } from '../store'
 import { orchestrator } from '../subsystems/orchestrator-system'
 import { clearPreGenQueue } from './pre-gen-queue'
+import { useCharacterStore } from '@/mods/mod-character'
+import {
+  isDisallowedMinorSexualContent,
+  MINOR_SEXUAL_CONTENT_REJECTION_MESSAGE,
+} from './narrative-safety'
 
 /** 切换“下轮强制分支”；任何分支意图变化都会使已有预生成失效。 */
 export function setForceBranchNextRound(value: boolean): void {
@@ -20,6 +25,10 @@ export function resolveNarrativeBranchChoice(branchId: string, choice: string): 
   if (!branchId || !trimmed) return false
 
   const store = useEngineStore.getState()
+  if (isDisallowedMinorSexualContent(trimmed, useCharacterStore.getState().age)) {
+    store.setNarrativeError(MINOR_SEXUAL_CONTENT_REJECTION_MESSAGE)
+    return false
+  }
   const branchEntry = store.narrativeHistory.find((entry) => (
     entry.id === branchId
       && entry.isBranchPoint === true

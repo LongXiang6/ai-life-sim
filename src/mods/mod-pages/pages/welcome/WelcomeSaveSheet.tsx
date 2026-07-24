@@ -213,7 +213,7 @@ export default function WelcomeSaveSheet({
       >
         <span className={styles.routeIndex}>02</span>
         <span className={styles.routeCopy}>
-          <strong>继续已有的人生</strong>
+          <strong>继续人生</strong>
           <small>
             {latestSave
               ? `${saveItems.length} 个存档 · 最近：${getItemLabel(latestSave)}`

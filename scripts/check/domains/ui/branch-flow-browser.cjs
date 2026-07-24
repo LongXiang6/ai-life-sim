@@ -158,7 +158,7 @@ async function assertCreationUiContract(page, expected) {
       }),
       ...(contract.mythicSlots === undefined ? {} : { mythicSlots: document.querySelectorAll('[aria-label="已选择的轮回天赋"] > button').length === contract.mythicSlots }),
       ...(contract.ordinarySlots === undefined ? {} : { ordinarySlots: document.querySelectorAll('[aria-label="已选普通命格"] > button').length === contract.ordinarySlots }),
-      ...(contract.attributeRows === undefined ? {} : { attributeRows: ['体魄', '心智', '悟性', '魅力'].every((name) => document.querySelector(`button[aria-label="增加${name}"]`)) }),
+      ...(contract.attributeRows === undefined ? {} : { attributeRows: ['体魄', '心智', '悟性', '魅力'].every((name) => document.querySelector(`button[aria-label="提高${name}"]`)) }),
       ...(contract.includes === undefined ? {} : { includes: contract.includes.every((value) => (document.body.innerText || '').includes(value)) }),
     }
     return {
@@ -231,8 +231,8 @@ async function main() {
   await page.goto(`${baseUrl}/new-game/world-select`, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('h1')
   await assertCreationUiContract(page, {
-    header: '01 / 08', titleMark: '01', nextNumber: '02', primaryText: '确认世界',
-    includes: ['选择世界', '已保存', '预设', '自定义', '人生难度'],
+    header: '01 / 08', nextNumber: '02', primaryText: '确认世界',
+    includes: ['选择世界', '已保存', '预设世界', '自定义', '难度'],
   })
   await capture('world-select')
 
@@ -273,25 +273,25 @@ async function main() {
   await page.goto(`${baseUrl}/new-game/world-customize`, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('h1')
   await assertCreationUiContract(page, {
-    header: '02 / 08', titleMark: '02', nextNumber: '03', primaryText: '确认世界',
-    includes: ['配置世界', '世界描述', '世界规则', 'AI', '选择', '自定'],
+    header: '02 / 08', nextNumber: '03', primaryText: '确认世界',
+    includes: ['配置世界', '规则摘要', '世界规则', 'AI', '选择', '自定'],
   })
   await capture('world-customize')
 
   await page.goto(`${baseUrl}/new-game/character-create`, { waitUntil: 'domcontentloaded' })
   await page.waitForSelector('h1')
-  await assertCreationUiContract(page, { header: '03 / 08', titleMark: '03', nextNumber: '04', primaryText: '确认角色' })
+  await assertCreationUiContract(page, { header: '03 / 08', nextNumber: '04', primaryText: '确认角色' })
   await capture('character')
   await page.focus('#character-name')
   await page.keyboard.type('分支测试')
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('确认角色'))?.click())
   await page.waitForFunction(() => location.pathname.endsWith('/talent-draw'))
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('开始抽取') && !button.disabled))
-  await assertCreationUiContract(page, { header: '04 / 08', titleMark: '04', nextNumber: '05', primaryText: '开始抽取', includes: ['十二个候选'] })
+  await assertCreationUiContract(page, { header: '04 / 08', nextNumber: '05', primaryText: '开始抽取', includes: ['命格抽取'] })
   await capture('draw-idle')
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('开始抽取') && !button.disabled)?.click())
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('进入命格选择') && !button.disabled))
-  await assertCreationUiContract(page, { header: '04 / 08', titleMark: '04', nextNumber: '05', primaryText: '进入命格选择', includes: ['十二道命印', '12 / 12'] })
+  await assertCreationUiContract(page, { header: '04 / 08', nextNumber: '05', primaryText: '进入命格选择', includes: ['十二道命印', '12 / 12'] })
   await capture('draw-ready')
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('进入命格选择'))?.click())
   await page.waitForFunction(() => location.pathname.endsWith('/talent-draw') && document.body.textContent?.includes('选择命格'))
@@ -306,7 +306,7 @@ async function main() {
     await page.evaluate(() => document.querySelector('button[aria-label$="选择普通命格"]')?.click())
   }
   await assertCreationUiContract(page, {
-    header: '05 / 08', titleMark: '05', nextNumber: '06', primaryText: '确认命格',
+    header: '05 / 08', nextNumber: '06', primaryText: '确认命格',
     candidates: 12, mythicSlots: 2, ordinarySlots: 3, includes: ['轮回天赋', '普通命格候选 12 / 12 条'],
   })
   await capture('selection-filled')
@@ -318,11 +318,11 @@ async function main() {
   }
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('确认命格'))?.click())
   await page.waitForFunction(() => location.pathname.endsWith('/attribute-alloc'))
-  await page.waitForSelector('button[aria-label="增加体魄"]')
-  await assertCreationUiContract(page, { header: '06 / 08', titleMark: '06', nextNumber: '07', primaryText: '确认属性', attributeRows: 4, includes: ['/ 15', '四项基础属性'] })
+  await page.waitForSelector('button[aria-label="提高体魄"]')
+  await assertCreationUiContract(page, { header: '06 / 08', nextNumber: '07', primaryText: '确认属性', attributeRows: 4, includes: ['/ 15', '四项基础属性'] })
   await capture('attribute')
   for (let i = 0; i < 15; i += 1) {
-    const label = i < 10 ? '增加体魄' : '增加心智'
+    const label = i < 10 ? '提高体魄' : '提高心智'
     await page.click(`button[aria-label="${label}"]`)
   }
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('确认属性'))?.click())
@@ -333,7 +333,7 @@ async function main() {
     console.error('FATE_PREVIEW_TIMEOUT', await page.evaluate(() => ({ path: location.pathname, text: document.body.innerText.slice(-4000), buttons: [...document.querySelectorAll('button')].map((button) => ({ text: button.textContent, disabled: button.disabled, title: button.title })) })))
     throw error
   }
-  await assertCreationUiContract(page, { header: '07 / 08', titleMark: '07', primaryText: '开始人生', includes: ['世界与角色', '轮回天赋', '四项属性'] })
+  await assertCreationUiContract(page, { header: '07 / 08', primaryText: '开始人生', includes: ['世界与角色', '轮回天赋', '属性与命格'] })
   await capture('preview')
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('开始人生'))?.click())
   await page.waitForFunction(() => location.pathname.endsWith('/game-story'))
@@ -382,12 +382,25 @@ async function main() {
     }
   }, { timeout: 60000 })
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('mod-engine:persist:engine-state') || '{}').state || {})
+  await page.click('button[aria-label="展开当前信息"]')
+  await page.waitForFunction(() => (
+    document.body.textContent?.includes('叙事重复观测 · 近五轮')
+    && document.querySelector('[aria-label="近五轮词语重复率"]')?.textContent?.includes('第2轮')
+  ))
+  const repetitionRoundsText = await page.$eval(
+    '[aria-label="近五轮词语重复率"]',
+    (node) => node.textContent || '',
+  )
   const result = {
     selectedAfterClick,
     requestCount: requests.length,
     requestChoices: requests.map((request) => request.messages?.map((message) => message.content).join('\n').includes('交给守约者')),
     resolvedChoice: stored.narrativeHistory?.[0]?.resolvedChoice,
     narrativeEntries: stored.narrativeHistory?.length,
+    repetitionMetricRounds: stored.narrativeHistory?.map((entry) => entry.repetitionMetric?.round),
+    repetitionSummaryRounds: stored.storyRepetitionStats?.rounds,
+    repetitionSummaryMeasuredRounds: stored.storyRepetitionStats?.measuredRounds,
+    repetitionRoundsVisible: repetitionRoundsText.includes('第1轮') && repetitionRoundsText.includes('第2轮'),
     consoleErrors,
   }
   if (useBranchRepairFixture) {
@@ -401,7 +414,11 @@ async function main() {
   const repairPass = !useBranchRepairFixture
     || (result.branchRepairRequestCount === 1 && result.branchRepairTitleRendered && result.bodyPreserved && result.requestCount >= 3)
   const choicePass = useCustomChoiceFixture ? selectedAfterClick === customChoiceFixture : selectedAfterClick === true
-  if (!choicePass || result.resolvedChoice !== expectedChoice || result.requestCount < 2 || result.consoleErrors.length > 0 || !repairPass) process.exit(1)
+  const repetitionPass = JSON.stringify(result.repetitionMetricRounds) === '[1,2]'
+    && result.repetitionSummaryRounds === 2
+    && result.repetitionSummaryMeasuredRounds === 1
+    && result.repetitionRoundsVisible
+  if (!choicePass || result.resolvedChoice !== expectedChoice || result.requestCount < 2 || result.consoleErrors.length > 0 || !repairPass || !repetitionPass) process.exit(1)
 }
 
 main().catch((error) => { console.error(error); process.exit(1) })

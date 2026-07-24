@@ -829,8 +829,11 @@ function TalentDrawContent() {
 
   return (
     <PageErrorBoundary message="命格抽取页面出现错误">
-      <main className={styles.page} data-phase={phase}>
-        <article className={styles.book} aria-labelledby="talent-page-title">
+      <div className="final-flow-frame">
+        <div className="final-flow-design-fit">
+          <div className="final-flow-design-canvas">
+            <main className={styles.page} data-phase={phase}>
+            <article className={styles.book} aria-labelledby="talent-page-title">
           <div className={styles.screen}>
             <header className={styles.header}>
               <div className={styles.meta} aria-hidden="true">
@@ -844,7 +847,6 @@ function TalentDrawContent() {
                     ? `从十二个候选中选满三条，可携带 ${MYTHIC_PATTERN_SELECT_COUNT} 项轮回天赋。`
                     : `先生成 ${DESTINY_PATTERN_EARLY_READY_COUNT} 条，十二个候选在后台补齐。`}</p>
                 </div>
-                <div className={styles.titleMark} aria-hidden="true"><span>{phase === 'selecting' ? '05' : '04'}</span></div>
               </div>
             </header>
 
@@ -990,7 +992,7 @@ function TalentDrawContent() {
             </section>
           ) : null}
 
-          <footer className={styles.footer}>
+          <footer className={styles.footer} data-flow-bottom-bar>
             <button type="button" className={styles.backButton} onClick={handleBack} aria-label={phase === 'selecting' ? '返回命格抽取' : '返回角色创建'}><FlowIcon name="back" /></button>
             <button type="button" className={styles.nextButton} onClick={handleFooterAction} disabled={footerDisabled}>
               <span className={styles.nextNumber}>{phase === 'selecting' ? '06' : '05'}</span>
@@ -999,8 +1001,11 @@ function TalentDrawContent() {
             </button>
           </footer>
           <div className={cn(styles.toast, toastMessage && styles.toastVisible)} role="status" aria-live="polite">{toastMessage}</div>
-        </article>
-      </main>
+            </article>
+            </main>
+          </div>
+        </div>
+      </div>
     </PageErrorBoundary>
   )
 }

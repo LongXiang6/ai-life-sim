@@ -38,6 +38,9 @@ const runtimeCallers = [
   read('src/mods/mod-settings/components/SettingsTabTheme.tsx'),
 ].join('\n')
 const envExample = read('.env.example')
+const settingsPersistenceVersion = Number(
+  store.match(/name:\s*'mod-settings:store'[\s\S]*?version:\s*(\d+)/)?.[1],
+)
 
 assertOk(
   provider.includes("DEFAULT_AI_PROVIDER_ID = 'managed'")
@@ -103,7 +106,7 @@ assertOk(
   store.includes('provider: DEFAULT_AI_PROVIDER_ID')
     && store.includes("customUrl: ''")
     && store.includes('customModel: DEFAULT_AI_MODEL')
-    && store.includes('version: 8'),
+    && settingsPersistenceVersion >= 8,
   'new users and restore-default state must select the managed provider without browser Key or URL',
 )
 assertOk(

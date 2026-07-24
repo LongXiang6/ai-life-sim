@@ -34,6 +34,15 @@ const ReasoningEffortSchema = z.enum([
   'level-6',
 ])
 
+const CloudThemeSchema = z.enum([
+  'minimal-white',
+  'minimal-black',
+  'reading-yellow',
+  'dark-cosmos',
+  'light-aurora',
+  'cyber-neon',
+]).transform(() => 'minimal-white' as const)
+
 export const CloudSettingsSchema = z.object({
   provider: z.string().min(1).max(64),
   customUrl: z.string().max(2048),
@@ -51,14 +60,7 @@ export const CloudSettingsSchema = z.object({
   streamingMode: z.enum(['off', 'stream']),
   comfortableParagraphs: z.boolean(),
   reduceMotion: z.boolean(),
-  theme: z.enum([
-    'minimal-white',
-    'minimal-black',
-    'reading-yellow',
-    'dark-cosmos',
-    'light-aurora',
-    'cyber-neon',
-  ]),
+  theme: CloudThemeSchema,
 }).strict()
 
 const CharacterAttributesSchema = z.object({

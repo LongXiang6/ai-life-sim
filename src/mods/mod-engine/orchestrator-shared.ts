@@ -1,0 +1,144 @@
+/**
+ * @module orchestrator-shared.ts
+ * @description 编排器依赖重导出，集中由编排器消费的内部模块接口。
+ * @mod mod-engine
+ *
+ * 解决 D-07: orchestrator-system.ts 15 个相对 import 的合规问题。
+ * 仅由编排器使用，避免把辅助模块误识别为一个子系统。
+ */
+
+// bootstrap
+export {
+  TimeSystem,
+  timeSystem,
+  narrativeParser,
+  summaryCompressor,
+  memoryEngine,
+  plotStructure,
+  foreshadowing,
+  memoryLifecycle,
+  memoryForgetting,
+  causalDelay,
+  coreMemory,
+  subsystemRelevance,
+} from './bootstrap/engine-subsystem-registry'
+
+export { shouldAlignTimeStepTransition } from './subsystems/time-system'
+
+// helpers
+export { adaptationManager } from './subsystems/adaptation-manager-system'
+
+export {
+  DEFAULT_ENGINE_CONFIG,
+  USE_AI_SUMMARY_COMPRESSION,
+  getWorldRules,
+  buildWordCountInstruction,
+  buildStyleInstruction,
+  resolveNarrativeToneHint,
+  buildEventInjectionText,
+  buildTimeBridgeSummary,
+  extractBridgeSnapshot,
+  WorldEventBus,
+  globalDeadLoopDetector,
+  sanitizeSubSystemState,
+  clampNumber,
+  buildLayeredMemoryStateCard,
+  buildNarrativeCoherenceHeader,
+  buildNarrativeWorldRules,
+  collectActiveModWorldRules,
+  collectMemoryStateSummaries,
+  dedupeSummariesAgainstMemory,
+  isSubsystemOpenForPrompt,
+  isMvpNarrativeChangeSubsystem,
+  isMvpPromptSubsystem,
+  isMvpRuntimeSubsystem,
+  buildMvpSubsystemGuide,
+  resolveTimeStep,
+  mapSubsystemStatesToDetectionStates,
+  buildLifeStageNarrativeHint,
+  resolveLifeStageFromAge,
+  normalizeNarrativeParagraphs,
+  buildNarrativeHints,
+  type BridgeSnapshot,
+  type EventLifecycleTracker,
+  type DomainEvent,
+  type SubsystemInstruction,
+  type NarrativeHintInput,
+} from './helpers/orchestrator-pipeline-support'
+
+export {
+  RoundCommitBus,
+  type RoundCommitSource,
+  type RoundCommitResult,
+} from './helpers/round-commit-bus'
+
+export { runNarrativeInterceptors } from './helpers/narrative-interceptor-pipeline'
+
+export { chooseNarrativeRepetitionRepair } from './helpers/narrative-repetition-detection'
+
+export { extractTaggedMetaEnvelope } from './helpers/tagged-meta-envelope'
+
+export {
+  createNarrativeLifeRunId,
+  calculateNarrativeRepetitionMetric,
+  collectNarrativeRepetitionMetrics,
+  isNarrativeRepetitionMetric,
+  summarizeNarrativeHistoryRepetition,
+  summarizeNarrativeRepetitionMetrics,
+} from './helpers/narrative-repetition-metrics'
+
+export {
+  parseNarrativeRepetitionAuditOutput,
+  parseNarrativeRepetitionRepairOutput,
+} from './prompts/narrative-repetition-repair-prompt'
+
+export type { NarrativeRepetitionAuditOutput } from './types'
+
+export type { NarrativePromptComponent } from './helpers/narrative-prompt-component-types'
+
+export {
+  assertNarrativeMinorSafety,
+  isDisallowedMinorSexualContent,
+  NarrativeSafetyRejectedError,
+} from './helpers/narrative-safety'
+
+export {
+  digestLedger,
+  type DigestEntry,
+  type LedgerEvent,
+  type DigestLedgerSnapshot,
+} from './helpers/digest-ledger'
+
+export {
+  buildNarrativeTimeContext,
+  resolveNarrativeCalendarNode,
+  readEraStartYearFromConfig,
+  readBirthEraYearFromConfig,
+  formatNarrativeTimeLabel,
+  resolveCalendarEraYear,
+} from './helpers/narrative-calendar'
+
+export { buildTimeScaleNarrativeHint } from './helpers/time-scale-narrative'
+
+export { generateArchetypeHint, buildLifespanReminder } from './helpers/life-stage-archetypes'
+
+export { collectGameSavePayload } from './helpers/save-restore'
+
+export {
+  narrativeBranchRepairOutputSchema,
+} from './prompts/narrative-branch-repair-prompt'
+export type { NarrativeBranchRepairOutput } from './types'
+
+// constants
+export { computeNarrativeMaxTokens, DEFAULT_WORD_COUNT_TARGET } from './constants/narrative-config'
+export { RECENT_NARRATIVE_WINDOW } from './constants'
+
+// simulation
+export { simulationBridge } from './simulation/simulation-bridge'
+
+// store
+export { useEngineStore } from './store'
+
+// types
+export type { EngineState, RoundInfo, RoundResult, NarrativeChunk, CharacterCreation, TimeStep } from './types'
+export type { ParsedNarrative } from './subsystems/narrative-parser-system'

@@ -5,6 +5,14 @@ import { promises as fsp } from 'node:fs'
 import path from 'node:path'
 import readline from 'node:readline'
 
+import {
+  buildCanonicalStoryRepetitionSet,
+  diagnosticCodeOf,
+  operationalTimestamp,
+  summarizeStoryRepetitionRows,
+} from './lib/story-repetition-analytics.mjs'
+import { classifyUpstreamError } from './lib/error-classification.mjs'
+
 const DEFAULT_ROOT = process.env.AI_LOG_DIR || '/var/log/ai-life-sim'
 const DEFAULT_SINCE_HOURS = 24
 const DEFAULT_BUCKET_MINUTES = 60
@@ -21,6 +29,7 @@ Options:
   --from <ISO>               Inclusive start time; overrides --since-hours
   --to <ISO>                 Exclusive end time (default: now)
   --compare-at <ISO>         Split the window into before/after release slices
+  --player-code <code>       Filter to one player diagnostic code; the code is not printed
   --bucket-minutes <n>       Traffic bucket size (default: 60)
   --top <n>                  Number of top rows (default: 10)
   --min-term-count <n>       Minimum branch-term cohort count (default: 3)
@@ -37,6 +46,7 @@ function parseArgs(argv) {
     from: undefined,
     to: undefined,
     compareAt: undefined,
+    playerCode: undefined,
     bucketMinutes: DEFAULT_BUCKET_MINUTES,
     top: DEFAULT_TOP,
     minTermCount: DEFAULT_MIN_TERM_COUNT,
@@ -54,12 +64,16 @@ function parseArgs(argv) {
     else if (arg === '--from') options.from = next()
     else if (arg === '--to') options.to = next()
     else if (arg === '--compare-at') options.compareAt = next()
+    else if (arg === '--player-code') options.playerCode = next().trim().toUpperCase()
     else if (arg === '--bucket-minutes') options.bucketMinutes = Number(next())
     else if (arg === '--top') options.top = Number(next())
     else if (arg === '--min-term-count') options.minTermCount = Number(next())
     else throw new Error(`未知参数：${arg}`)
   }
   if (!Number.isFinite(options.sinceHours) || options.sinceHours <= 0) throw new Error('--since-hours 必须为正数')
+  if (options.playerCode && !/^(?=.*[A-HJ-NP-Z])(?=.*[2-9])[A-HJ-NP-Z2-9]{6}$/u.test(options.playerCode)) {
+    throw new Error('--player-code 必须为六位大写字母与数字')
+  }
   for (const [key, value] of [['bucket-minutes', options.bucketMinutes], ['top', options.top], ['min-term-count', options.minTermCount]]) {
     if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`--${key} 必须为正整数`)
   }
@@ -105,13 +119,7 @@ async function collectFiles(root) {
       if (fileKind) files.push({ path: path.join(directory, entry.name), kind: fileKind })
     }
   }
-  return files
-}
-
-function recordTimestamp(record) {
-  const raw = record.timestamp ?? record.receivedAt
-  const value = typeof raw === 'number' ? raw : Date.parse(String(raw ?? ''))
-  return Number.isFinite(value) ? value : 0
+  return files.sort((left, right) => left.path.localeCompare(right.path))
 }
 
 async function readRecords(file, window, target) {
@@ -121,8 +129,10 @@ async function readRecords(file, window, target) {
     if (!line.trim()) continue
     try {
       const record = JSON.parse(line)
-      const timestamp = recordTimestamp(record)
-      if (timestamp >= window.fromMs && timestamp < window.toMs) target.push({ ...record, _kind: file.kind, _timestamp: timestamp })
+      const timestamp = operationalTimestamp(record)
+      if (timestamp >= window.fromMs && timestamp < window.toMs) {
+        target.push({ ...record, _kind: file.kind, _timestamp: timestamp, _sequence: target.length })
+      }
     } catch {
       // Ignore a partially written terminal line; the source file remains inspectable.
     }
@@ -173,41 +183,16 @@ function bucketLabel(timestamp, bucketMinutes) {
   return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${minute}`
 }
 
-function normalizeError(value) {
-  if (typeof value !== 'string' || !value.trim()) return undefined
-  const text = value.trim()
-  const lower = text.toLocaleLowerCase('en-US')
-  const patterns = [
-    [/unknown server prompt asset|未知服务器 prompt 资产/u, 'unknown_prompt_asset'],
-    [/thinking: missing field|thinking.*missing.*type/u, 'invalid_thinking_payload'],
-    [/temperature.*less than or equal|temperature.*not less/u, 'invalid_temperature'],
-    [/client aborted|客户端中止/u, 'client_aborted'],
-    [/timeout|timed out|超时/u, 'timeout'],
-    [/missing api key|缺少 api key/u, 'missing_api_key'],
-    [/connection failed|fetch failed|network/u, 'upstream_network_error'],
-    [/invalid.*json|deserialize|解析/u, 'invalid_upstream_payload'],
-  ]
-  for (const [pattern, label] of patterns) if (pattern.test(lower) || pattern.test(text)) return label
-  return text
-    .replace(/[0-9a-f]{8}-[0-9a-f-]{27,}/giu, ':id')
-    .replace(/\b\d{3,}\b/gu, ':n')
-    .replace(/\s+/gu, ' ')
-    .slice(0, 120)
-}
-
 function metricOf(record) {
   return record.metric && typeof record.metric === 'object' ? record.metric : undefined
 }
 
 function playerKey(record) {
-  return typeof record.diagnostic_code === 'string' && record.diagnostic_code
-    ? `code:${record.diagnostic_code}`
-    : typeof record.diagnosticCode === 'string' && record.diagnosticCode
-      ? `code:${record.diagnosticCode}`
-      : undefined
+  const code = diagnosticCodeOf(record)
+  return code ? `code:${code}` : undefined
 }
 
-function summarize(records, options) {
+function summarize(records, options, storyRepetitionRows) {
   const access = records.filter((record) => record._kind === 'access')
   const client = records.filter((record) => record._kind === 'client')
   const statusCounts = new Map()
@@ -245,7 +230,7 @@ function summarize(records, options) {
     const hour = hourMap[localHour(record._timestamp)]
     hour.requests += 1
     if (player) hour.players.add(player)
-    const normalizedError = normalizeError(record.error)
+    const normalizedError = classifyUpstreamError(record.error)
     if (Number(record.status) < 200 || Number(record.status) >= 400) increment(errorCounts, normalizedError ?? `http_${record.status}`)
   }
 
@@ -332,11 +317,19 @@ function summarize(records, options) {
       suppressedTermsBelowCount: options.minTermCount,
     },
     metricKinds: Object.fromEntries(metricKinds),
+    storyRepetition: summarizeStoryRepetitionRows(storyRepetitionRows, {
+      includePerGame: Boolean(options.playerCode),
+    }),
   }
 }
 
 function sliceRecords(records, fromMs, toMs) {
   return records.filter((record) => record._timestamp >= fromMs && record._timestamp < toMs)
+}
+
+function serializeReport(report, playerCode) {
+  const serialized = JSON.stringify(report, null, 2)
+  return playerCode ? serialized.replaceAll(playerCode, '[redacted]') : serialized
 }
 
 async function main() {
@@ -349,6 +342,11 @@ async function main() {
   if (!fs.existsSync(options.root)) throw new Error(`日志目录不存在：${options.root}`)
   const records = []
   for (const file of await collectFiles(options.root)) await readRecords(file, window, records)
+  const selectedRecords = options.playerCode
+    ? records.filter((record) => playerKey(record) === `code:${options.playerCode}`)
+    : records
+  const canonicalRepetition = buildCanonicalStoryRepetitionSet(selectedRecords)
+  const aggregateRecords = canonicalRepetition.records
   const report = {
     schemaVersion: 1,
     generatedAt: new Date().toISOString(),
@@ -357,24 +355,27 @@ async function main() {
       timeZone: TIME_ZONE,
       rawContentIncluded: false,
       identifiersIncluded: false,
-      minimumBranchTermCount: options.minTermCount,
+      anonymousGameAliasesIncluded: Boolean(options.playerCode),
+      playerFilterApplied: Boolean(options.playerCode),
     },
     requestedWindow: {
       from: new Date(window.fromMs).toISOString(),
       to: new Date(window.toMs).toISOString(),
       compareAt: window.compareAtMs === undefined ? null : new Date(window.compareAtMs).toISOString(),
     },
-    overall: summarize(records, options),
+    overall: summarize(aggregateRecords, options, canonicalRepetition.rows),
   }
   if (window.compareAtMs !== undefined) {
-    const before = sliceRecords(records, window.fromMs, window.compareAtMs)
-    const after = sliceRecords(records, window.compareAtMs, window.toMs)
+    const before = sliceRecords(aggregateRecords, window.fromMs, window.compareAtMs)
+    const after = sliceRecords(aggregateRecords, window.compareAtMs, window.toMs)
+    const beforeRepetition = canonicalRepetition.rows.filter((row) => row.timestamp < window.compareAtMs)
+    const afterRepetition = canonicalRepetition.rows.filter((row) => row.timestamp >= window.compareAtMs)
     report.comparison = {
-      before: summarize(before, options),
-      after: summarize(after, options),
+      before: summarize(before, options, beforeRepetition),
+      after: summarize(after, options, afterRepetition),
     }
   }
-  console.log(JSON.stringify(report, null, 2))
+  console.log(serializeReport(report, options.playerCode))
 }
 
 main().catch((error) => {

@@ -74,7 +74,7 @@ export function BottomActionBar({
       : styles.dropdownCenter
 
   return (
-    <div className={`${styles.bar} ${className}`.trim()}>
+    <div className={`${styles.bar} ${className}`.trim()} data-flow-bottom-bar>
       <div className={`${styles.inner} ${hasMore ? '' : styles.innerNoMore}`.trim()} style={{ maxWidth }}>
         <div className={styles.left}>
           {onBack ? (

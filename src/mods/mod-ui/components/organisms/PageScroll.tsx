@@ -28,10 +28,10 @@ export function PageScroll({ children, maxWidth = MAX_WIDTH, className = '' }: P
   const isMobile = useIsMobile()
 
   return (
-    <div className={className} style={{
+    <div className={`flow-page-scroll ${className}`.trim()} style={{
       position: 'relative',
       zIndex: 1,
-      height: '100dvh',
+      height: '100%',
       padding: isMobile ? PAGE_PADDING.mobile : PAGE_PADDING.desktop,
       background: 'var(--color-bg)',
       display: 'flex',

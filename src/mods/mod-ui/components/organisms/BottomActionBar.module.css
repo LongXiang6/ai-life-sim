@@ -1,27 +1,30 @@
 .bar {
-  position: fixed;
+  position: absolute;
   z-index: 100;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  padding: 0.5rem clamp(0.5rem, 2vw, 1rem) max(0.5rem, env(safe-area-inset-bottom));
-  background: linear-gradient(180deg, transparent, rgb(242 244 243 / 92%) 35%);
+  right: 14px;
+  bottom: 12px;
+  left: 14px;
+  padding: 0;
   pointer-events: none;
 }
 
 .inner {
   display: grid;
   width: 100%;
-  min-height: 3.45rem;
+  min-height: 52px;
   margin: 0 auto;
   grid-template-columns: auto minmax(0, 1fr) minmax(8rem, auto);
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.35rem;
-  border: 1px solid #e3e6e9;
-  border-radius: 1.1rem;
-  background: rgb(255 255 255 / 97%);
-  box-shadow: 0 0.65rem 1.8rem rgb(24 30 38 / 8%);
+  gap: 8px;
+  padding: 2px 7px;
+  border: 1px solid rgba(207, 215, 238, 0.84);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow:
+    0 12px 30px rgba(62, 70, 100, 0.13),
+    0 2px 7px rgba(62, 70, 100, 0.06);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   pointer-events: auto;
 }
 
@@ -48,18 +51,18 @@
 
 .backButton,
 .backPlaceholder {
-  width: 2.45rem;
-  height: 2.45rem;
+  width: 38px;
+  height: 38px;
 }
 
 .backButton {
   display: grid;
   place-items: center;
   padding: 0;
-  border: 1px solid #e3e6e9;
+  border: 1px solid #d8deea;
   border-radius: 50%;
-  background: #f8f9fa;
-  color: #626870;
+  background: rgba(255, 255, 255, 0.8);
+  color: #707b92;
   font: inherit;
   font-size: 1rem;
   cursor: pointer;
@@ -72,7 +75,7 @@
 .secondaryButton,
 .confirmButton {
   display: inline-flex;
-  min-height: 2.45rem;
+  min-height: 48px;
   align-items: center;
   justify-content: center;
   gap: 0.4rem;
@@ -103,10 +106,11 @@
 }
 
 .confirmNumber {
-  width: 2rem;
-  color: #969ba2;
+  width: 19px;
+  color: #929bb0;
   font-family: "Songti SC", "STSong", "SimSun", serif;
-  font-size: 0.68rem;
+  font-size: 6.5px;
+  font-variant-numeric: tabular-nums;
   text-align: center;
 }
 
@@ -123,22 +127,25 @@
 }
 
 .confirmCopy strong {
-  font-weight: 650;
+  font-size: 12.2px;
+  font-weight: 680;
+  line-height: 1.2;
 }
 
 .confirmCopy small {
   margin-top: 0.1rem;
-  color: #969ba2;
-  font-size: 0.625rem;
+  color: #929bb0;
+  font-size: 6.5px;
+  line-height: 1.2;
 }
 
 .confirmArrow {
   display: grid;
-  width: 1.75rem;
-  height: 1.75rem;
+  width: 25px;
+  height: 25px;
   place-items: center;
   border-radius: 50%;
-  background: #6d7f94;
+  background: #7382bb;
   color: #fff;
 }
 
@@ -177,7 +184,7 @@
   position: absolute;
   bottom: calc(100% + 0.55rem);
   min-width: 10rem;
-  max-width: min(82vw, 20rem);
+  max-width: 240px;
   overflow: hidden;
   border: 1px solid #e1e5e9;
   border-radius: 0.75rem;
@@ -208,27 +215,6 @@
 .dropdownItem:last-child { border-bottom: 0; }
 .dropdownItem:hover:not(:disabled) { background: #f0f3f6; }
 .dropdownItem:disabled { color: #969ba2; cursor: not-allowed; }
-
-@media (max-width: 24rem) {
-  .inner {
-    grid-template-columns: auto minmax(0, 0.72fr) minmax(7rem, 1.28fr);
-    gap: 0.35rem;
-  }
-
-  .secondaryButton,
-  .confirmButton {
-    min-width: 0;
-    padding-inline: 0.55rem;
-  }
-
-  .confirmButton {
-    min-width: 7rem;
-  }
-
-  .innerNoMore {
-    grid-template-columns: auto minmax(0, 1fr);
-  }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .backButton,

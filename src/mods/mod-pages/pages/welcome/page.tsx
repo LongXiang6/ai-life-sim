@@ -159,22 +159,26 @@ export default function WelcomePage() {
   }, [handleStartNewGame])
 
   return (
-    <>
-      <WelcomeView
-        onStartNewGame={handleStartNewGame}
-        saves={saves}
-        cloudSave={cloudSave}
-        selectedSaveId={selectedSaveId}
-        onSelectSave={setSelectedSaveId}
-        onContinueSave={handleContinue}
-        onDeleteSave={handleDeleteSave}
-        onContinueCloudSave={handleContinueCloudSave}
-        onDeleteCloudSave={handleDeleteCloudSave}
-        onOpenSettings={() => { setSettingsTab('appearance'); setShowSettings(true) }}
-        onOpenAccount={() => router.push('/account')}
-        onOpenHelp={() => setShowHelp(true)}
-        onOpenFeedback={() => router.push('/feedback')}
-      />
+    <div className="final-flow-frame">
+      <div className="final-flow-design-fit final-flow-design-fit--430">
+        <div className="final-flow-design-canvas">
+          <WelcomeView
+            onStartNewGame={handleStartNewGame}
+            saves={saves}
+            cloudSave={cloudSave}
+            selectedSaveId={selectedSaveId}
+            onSelectSave={setSelectedSaveId}
+            onContinueSave={handleContinue}
+            onDeleteSave={handleDeleteSave}
+            onContinueCloudSave={handleContinueCloudSave}
+            onDeleteCloudSave={handleDeleteCloudSave}
+            onOpenSettings={() => { setSettingsTab('appearance'); setShowSettings(true) }}
+            onOpenAccount={() => router.push('/account')}
+            onOpenHelp={() => setShowHelp(true)}
+            onOpenFeedback={() => router.push('/feedback')}
+          />
+        </div>
+      </div>
 
       <WelcomeModals
         toasts={toasts}
@@ -188,6 +192,6 @@ export default function WelcomePage() {
         onSettingsClose={() => setShowSettings(false)}
         settingsTab={settingsTab}
       />
-    </>
+    </div>
   )
 }

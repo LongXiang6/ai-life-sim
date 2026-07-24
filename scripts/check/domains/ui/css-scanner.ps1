@@ -283,6 +283,25 @@ foreach ($f in $allSrcFilesS26) {
     if ($deprecatedVars.ContainsKey($varName)) { continue }
     if ($definedVars.ContainsKey($varName)) { continue }
 
+    # A CSS fallback makes an otherwise optional local property runtime-safe.
+    $remainingLength = [Math]::Min(256, $fc.Length - $vm.Index)
+    $usageSnippet = $fc.Substring($vm.Index, $remainingLength)
+    if ($usageSnippet -match ('^var\(\s*' + [regex]::Escape($varName) + '\s*,')) { continue }
+
+    # CSS Modules may define page-local custom properties beside their usages.
+    # Accept only same-file definitions so an unrelated module cannot hide a typo.
+    $hasLocalDefinition = $false
+    if ($cssVarDefs.ContainsKey($varName)) {
+      foreach ($definition in $cssVarDefs[$varName]) {
+        if ($definition.StartsWith("${relFP}:")) {
+          $hasLocalDefinition = $true
+          break
+        }
+      }
+    }
+    if ($hasLocalDefinition) { continue }
+    if ($tsCssVars.ContainsKey($varName)) { continue }
+
     $hasValidPrefix = $false
     foreach ($prefix in $validPrefixes.Keys) {
       if ($varName.StartsWith($prefix)) { $hasValidPrefix = $true; break }

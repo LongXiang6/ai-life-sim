@@ -26,7 +26,7 @@
   --color-error: #8d6d73;
   --color-success: #6d7f94;
   width: min(100%, 28rem);
-  max-height: calc(100dvh - var(--spacing-px-32));
+  max-height: calc(100% - var(--spacing-px-32));
   overflow-x: hidden;
   overflow-y: auto;
   border-radius: 0.9rem;
@@ -264,18 +264,4 @@
 .saveBtn:focus-visible {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
-}
-
-@media (max-width: 480px) {
-  .overlay {
-    padding: var(--spacing-px-16);
-  }
-
-  .dialog {
-    padding: var(--spacing-px-20);
-  }
-
-  .actions {
-    flex-direction: column;
-  }
 }

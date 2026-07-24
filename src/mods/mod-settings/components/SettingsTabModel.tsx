@@ -13,6 +13,7 @@ import { useSettingsStore } from '../store'
 import type { ReasoningEffort } from '../store'
 import { SettingsParamCard } from './SettingsParamCard'
 import { SettingsHelpTooltip } from './SettingsHelpTooltip'
+import { getSettingsPortalMetrics, getSettingsPortalRoot } from './settings-portal'
 
 import styles from './SettingsTabModel.module.css'
 
@@ -48,13 +49,16 @@ const WORD_COUNT_TARGET_OPTIONS = [50, 100, 150, 200, 300, 400, 500, 800, 1000, 
 
 function getAnchoredDropdownPosition(button: HTMLButtonElement, dropdownWidth: number) {
   const viewportPadding = 12
+  const metrics = getSettingsPortalMetrics()
   const rect = button.getBoundingClientRect()
-  const renderedWidth = Math.min(dropdownWidth, Math.max(0, window.innerWidth - viewportPadding * 2))
-  const maxLeft = Math.max(viewportPadding, window.innerWidth - renderedWidth - viewportPadding)
+  const renderedWidth = Math.min(dropdownWidth, Math.max(0, metrics.width - viewportPadding * 2))
+  const maxLeft = Math.max(viewportPadding, metrics.width - renderedWidth - viewportPadding)
+  const triggerLeft = (rect.left - metrics.left) / metrics.scale
+  const triggerBottom = (rect.bottom - metrics.top) / metrics.scale
 
   return {
-    top: rect.bottom + 4,
-    left: Math.min(Math.max(rect.left, viewportPadding), maxLeft),
+    top: triggerBottom + 4,
+    left: Math.min(Math.max(triggerLeft, viewportPadding), maxLeft),
   }
 }
 
@@ -205,7 +209,7 @@ export function SettingsTabModel() {
                       </button>
                     ))}
                   </div>
-                </div>, document.body,
+                </div>, getSettingsPortalRoot(),
               )}
               {talentThinkOpen && createPortal(
                 <div className={styles.dropdownPortal} style={{ top: talentThinkPos.top, left: talentThinkPos.left, width: 260 }} data-settings-modal-portal>
@@ -219,7 +223,7 @@ export function SettingsTabModel() {
                       </button>
                     ))}
                   </div>
-                </div>, document.body,
+                </div>, getSettingsPortalRoot(),
               )}
             </div>
           </div>
@@ -256,7 +260,7 @@ export function SettingsTabModel() {
                       </button>
                     ))}
                   </div>
-                </div>, document.body,
+                </div>, getSettingsPortalRoot(),
               )}
             </div>
           </div>

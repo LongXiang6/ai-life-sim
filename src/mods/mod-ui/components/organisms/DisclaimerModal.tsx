@@ -46,6 +46,10 @@ export interface DisclaimerModalProps {
   onClose: () => void
 }
 
+function getFlowPortalRoot(): HTMLElement {
+  return document.querySelector<HTMLElement>('.final-flow-frame') ?? document.body
+}
+
 /**
  * 免责声明弹窗组件 —— 首次使用时展示，从 /disclaimer.txt 加载内容
  * @param {DisclaimerModalProps} props - 组件属性
@@ -111,15 +115,17 @@ export function DisclaimerModal({ visible, onAccept, onClose }: DisclaimerModalP
 
   return createPortal(
     <div className={styles.overlay}>
-      <div
-        ref={frameRef}
-        className={styles.frame}
-        onClick={e => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="disclaimer-title"
-        tabIndex={-1}
-      >
+      <div className="final-flow-design-fit final-flow-design-fit--330">
+        <div className="final-flow-design-canvas">
+          <div
+            ref={frameRef}
+            className={styles.frame}
+            onClick={e => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="disclaimer-title"
+            tabIndex={-1}
+          >
         <span className={styles.spine} aria-hidden="true" />
         <header className={styles.header}>
           <div className={styles.metaRow} aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>附 · 须知</span></div>
@@ -144,8 +150,10 @@ export function DisclaimerModal({ visible, onAccept, onClose }: DisclaimerModalP
             className={`${styles.acceptBtn} ${loading ? styles.acceptBtnDisabled : styles.acceptBtnEnabled}`}
           ><span><strong>我已知晓</strong><small>接受说明并进入人生序章</small></span><i aria-hidden="true">→</i></button>
         </div>
+          </div>
+        </div>
       </div>
     </div>,
-    document.body,
+    getFlowPortalRoot(),
   )
 }

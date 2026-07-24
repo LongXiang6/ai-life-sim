@@ -18,13 +18,30 @@ export function WorldCustomizeMobile() {
   const logic = useWorldCustomize()
   const macroFields = logic.groupedFields.macro ?? []
   const worldConfig = useWorldStore((state) => state.worldConfig)
+  const difficultyLabels: Record<string, string> = {
+    normal: '普通',
+    hard: '困难',
+    nightmare: '噩梦',
+    hell: '地狱',
+  }
+  const difficultyLabel = difficultyLabels[worldConfig?.difficulty ?? 'normal'] ?? '普通'
+  const eraName = worldConfig?.eraName?.trim() || '待确定'
+  const eraStartYear = worldConfig?.eraStartYear
+  const eraLabel = typeof eraStartYear === 'number' && Number.isFinite(eraStartYear) && eraStartYear !== 0
+    ? `${eraName} ${eraStartYear} 年`
+    : eraName
+  const ruleSummary = (logic.worldDescription || worldConfig?.description || '').trim()
+    || '确认这段人生的底层规则与世界描述。'
+  const sourceLabel = worldConfig ? '已保存' : '自定义'
 
   return (
-    <>
-      {logic.conflictModal}
-      <main className={styles.page} aria-busy={logic.isSaving}>
-        <div className={styles.container}>
-          <div className={styles.paper}>
+    <div className="final-flow-frame">
+      <div className="final-flow-design-fit">
+        <div className="final-flow-design-canvas">
+          {logic.conflictModal}
+          <main className={styles.page} aria-busy={logic.isSaving}>
+            <div className={styles.container}>
+              <div className={styles.paper}>
             <span className={styles.spine} aria-hidden="true" />
             <header className={styles.header}>
               <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>02 / 08</span></div>
@@ -33,7 +50,6 @@ export function WorldCustomizeMobile() {
                   <h1>配置世界</h1>
                   <p>确认这段人生的底层规则。</p>
                 </div>
-                <span className={styles.titleMark} aria-hidden="true"><span>02</span></span>
               </div>
             </header>
 
@@ -44,18 +60,18 @@ export function WorldCustomizeMobile() {
               </div>
               <div className={styles.summaryCopy} aria-label="人生难度">
                 <span>难度</span>
-                <strong>普通</strong>
+                <strong>{difficultyLabel}</strong>
               </div>
-              <h3>{worldConfig?.name ?? '潮汐城邦'}</h3>
-              <div>群岛历 218 年</div>
-              <div>
+              <h3>{worldConfig?.name ?? '尚未命名世界'}</h3>
+              <div className={styles.summaryEra}>{eraLabel}</div>
+              <div className={styles.summaryRule}>
                 <span>规则摘要</span>
-                <p>潮汐决定城市的贸易节律、迁徙方向与每个人回家的时间。</p>
+                <p>{ruleSummary}</p>
               </div>
               <div className={styles.summaryFacts} aria-label="世界概览">
-                <div><span>来源</span><strong>{worldConfig ? '已保存' : '自定义'}</strong></div>
-                <div><span>年代</span><strong>群岛历</strong></div>
-                <div><span>难度</span><strong>普通</strong></div>
+                <div><span>来源</span><strong>{sourceLabel}</strong></div>
+                <div><span>年代</span><strong>{eraName}</strong></div>
+                <div><span>难度</span><strong>{difficultyLabel}</strong></div>
               </div>
             </section>
 
@@ -97,18 +113,20 @@ export function WorldCustomizeMobile() {
             </section>
 
             {logic.saveError && <p className={styles.errorMessage} role="alert">{logic.saveError}</p>}
-          </div>
+              </div>
+            </div>
+          </main>
+          <WorldCustomizeBottomBar
+            onBack={logic.skip}
+            onConfirm={logic.save}
+            isSaving={logic.isSaving}
+            canConfirm={logic.canSave}
+            blockedReason={logic.saveBlockReason}
+            worldName={worldConfig?.name ?? '当前世界'}
+          />
         </div>
-      </main>
-      <WorldCustomizeBottomBar
-        onBack={logic.skip}
-        onConfirm={logic.save}
-        isSaving={logic.isSaving}
-        canConfirm={logic.canSave}
-        blockedReason={logic.saveBlockReason}
-        worldName={worldConfig?.name ?? '当前世界'}
-      />
-    </>
+      </div>
+    </div>
   )
 }
 

@@ -98,7 +98,22 @@ import {
   type DigestLedgerSnapshot,
   narrativeBranchRepairOutputSchema,
   type NarrativeBranchRepairOutput,
-} from './shared'
+  chooseNarrativeRepetitionRepair,
+  extractTaggedMetaEnvelope,
+  createNarrativeLifeRunId,
+  calculateNarrativeRepetitionMetric,
+  collectNarrativeRepetitionMetrics,
+  isNarrativeRepetitionMetric,
+  summarizeNarrativeHistoryRepetition,
+  summarizeNarrativeRepetitionMetrics,
+  parseNarrativeRepetitionAuditOutput,
+  parseNarrativeRepetitionRepairOutput,
+  type NarrativeRepetitionAuditOutput,
+  type NarrativePromptComponent,
+  assertNarrativeMinorSafety,
+  isDisallowedMinorSexualContent,
+  NarrativeSafetyRejectedError,
+} from '../orchestrator-shared'
 
 import { useSettingsStore } from '@/mods/mod-settings'
 import { getDestinyPatternSystem } from '@/mods/mod-character/destiny-pattern-access'
@@ -118,8 +133,12 @@ import {
   commitBranchIntentResolution,
   findFocusedBranchIntent,
   findMostRecentlyUpdatedBranchIntentId,
+  isBranchIntentProjectionConsistent,
+  normalizeBranchIntentProjection,
+  rebuildBranchIntentsFromHistory,
   upsertBranchIntent,
   validateIntentResolutionForState,
+  type BranchIntentProjection,
   type BranchIntentState,
 } from '../helpers/branch-intent-resolution'
 import { getSeasonForMonth } from '../helpers/calendar-season.js'
@@ -140,8 +159,6 @@ import { buildNarrativeRoundOutputContract } from '../helpers/narrative-response
 import {
   compileNarrativeDynamicComponents,
 } from '../prompts/narrative-prompt-components'
-import type { NarrativePromptComponent } from '../helpers/narrative-prompt-component-types'
-
 import type {
   HistoricalEventCommitBatch,
   HistoricalEventCommitResult,
@@ -268,6 +285,8 @@ export interface OrchestratorSnapshot {
   lastCommittedPlayerChoice?: string
   branchIntents?: BranchIntentState[]
   focusedBranchIntentId?: string
+  /** 终态/被新目标替代的意图历史；只用于连续性审计，不进入活动主线 Prompt。 */
+  archivedBranchIntents?: BranchIntentState[]
   prefetchedNarrativeContent?: string | null
   digestLedgerSnapshot?: DigestLedgerSnapshot
   /** 不由 EngineState 或外部 Store 单独拥有的内部叙事系统状态 */
@@ -303,6 +322,13 @@ type RuntimeManagedSubsystem = ISubSystem & {
   importLegacyCollectedStates?: (states: Record<string, SubSystemState>) => boolean
 }
 
+export interface BackgroundNarrativeEntryGuard {
+  lifeGeneration: number
+  lifeRunId: string
+  sourceRound: number
+  sourceNarrative: string
+}
+
 type HistoricalEventLedgerRuntime = ISubSystem & {
   preflightBatch: (
     batch: HistoricalEventCommitBatch,
@@ -333,6 +359,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   readonly description = '引擎核心编排器，协调本地模拟、AI 叙事生成、事件追踪、跨域联动、叙事后处理全流程' as const
 
   private state: EngineState = {
+    lifeRunId: createNarrativeLifeRunId(),
     status: 'idle',
     round: { year: 0, season: getSeasonForMonth(0), month: 0, day: 0, dayOfYear: 1, totalDays: 0, ...TimeSystem.resolveDisplayEra(0) },
     timeStep: DEFAULT_ENGINE_CONFIG.timeStep,
@@ -343,6 +370,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     compressedSummaries: { summaries: [] },
     lastAutoSaveRound: 0,
     characterCreations: [],
+    storyRepetitionStats: summarizeNarrativeRepetitionMetrics([]),
   }
 
   /** 递增即表示人生时间线已经切换；旧异步写入只能取消，不能提交。 */
@@ -352,6 +380,8 @@ export class OrchestratorSystem extends BaseSubsystem {
   private onNarrativeChunk: ((chunk: NarrativeChunk) => void) | null = null
   /** 流式原始协议缓冲；UI 只接收其中已解析出的正文增量。 */
   private rawNarrativeStream = ''
+  /** 安全命中后当前流不再向 UI 发送任何后续内容。 */
+  private unsafeNarrativeStreamDetected = false
 
   /** 上次收集的子系统状态缓存 */
   private lastSubsystemStates: Record<string, SubSystemState> = {}
@@ -433,6 +463,17 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   /** 所有尚未进入终态的命运选择；不得因新分支或容量压力静默丢失。 */
   private branchIntents: BranchIntentState[] = []
+  private archivedBranchIntents: BranchIntentState[] = []
+  private forcedBranchRepairOwnerToken: string | null = null
+  private forcedBranchRepairSequence = 0
+  private repetitionRepairOwnerToken: string | null = null
+  private repetitionRepairSequence = 0
+
+  /** 后台结果只能在产生它的完整回合成功提交后执行。 */
+  private roundExecutionSequence = 0
+  private activeRoundExecutionToken?: string
+  private committedRoundExecutionToken?: string
+  private pendingRoundCommitCallbacks: Array<() => void> = []
 
   /** 本轮主叙事必须评估并推进的命运意图。 */
   private focusedBranchIntentId?: string
@@ -750,13 +791,38 @@ export class OrchestratorSystem extends BaseSubsystem {
   resetCurrentNarrative(): void {
     this.rawNarrativeStream = ''
     this.state.currentNarrative = ''
+    this.unsafeNarrativeStreamDetected = false
+  }
+
+  private getNarrativeSafetyAge(): number {
+    const runtimeAge = this.characterState?.age
+    return typeof runtimeAge === 'number' && Number.isFinite(runtimeAge)
+      ? runtimeAge
+      : useCharacterStore.getState().age
+  }
+
+  /** 实时、预生成、修复和最终提交共用同一整包安全门禁。 */
+  assertNarrativeContentSafe(content: string): void {
+    if (this.unsafeNarrativeStreamDetected) {
+      throw new NarrativeSafetyRejectedError()
+    }
+    assertNarrativeMinorSafety(content, this.getNarrativeSafetyAge())
   }
 
   /** 追加原始流式块，但只把正文区增量交给 UI，协议标记与数据区不显示。 */
   appendNarrativeChunk(chunk: string): void {
+    if (this.unsafeNarrativeStreamDetected) return
     this.rawNarrativeStream += chunk
     const visibleNarrative = narrativeParser.parsePartial(this.rawNarrativeStream)
     if (!visibleNarrative) return
+
+    if (isDisallowedMinorSexualContent(visibleNarrative, this.getNarrativeSafetyAge())) {
+      this.rawNarrativeStream = ''
+      this.state.currentNarrative = ''
+      this.unsafeNarrativeStreamDetected = true
+      this.onNarrativeChunk?.({ text: '', isComplete: false, isReset: true, timestamp: Date.now() })
+      return
+    }
 
     const previous = this.state.currentNarrative
     if (visibleNarrative.startsWith(previous)) {
@@ -810,8 +876,129 @@ export class OrchestratorSystem extends BaseSubsystem {
     return structuredClone(this.branchIntents)
   }
 
+  getArchivedBranchIntents(): BranchIntentState[] {
+    return structuredClone(this.archivedBranchIntents)
+  }
+
+  tryBeginForcedBranchRepair(generation = this.lifeGeneration): string | undefined {
+    if (generation !== this.lifeGeneration || this.forcedBranchRepairOwnerToken !== null) return undefined
+    this.forcedBranchRepairSequence += 1
+    const token = `branch-repair:${generation}:${this.forcedBranchRepairSequence}`
+    this.forcedBranchRepairOwnerToken = token
+    useEngineStore.getState().setBranchRepairPending(true)
+    return token
+  }
+
+  finishForcedBranchRepair(ownerToken: string): void {
+    if (this.forcedBranchRepairOwnerToken !== ownerToken) return
+    this.forcedBranchRepairOwnerToken = null
+    useEngineStore.getState().setBranchRepairPending(false)
+  }
+
+  tryBeginNarrativeRepetitionRepair(generation = this.lifeGeneration): string | undefined {
+    if (generation !== this.lifeGeneration || this.repetitionRepairOwnerToken !== null) return undefined
+    this.repetitionRepairSequence += 1
+    const token = `repair:${generation}:${this.repetitionRepairSequence}`
+    this.repetitionRepairOwnerToken = token
+    return token
+  }
+
+  finishNarrativeRepetitionRepair(ownerToken: string): void {
+    if (this.repetitionRepairOwnerToken === ownerToken) {
+      this.repetitionRepairOwnerToken = null
+    }
+  }
+
+  getLifeGeneration(): number {
+    return this.lifeGeneration
+  }
+
+  getRoundExecutionToken(): string | undefined {
+    return this.activeRoundExecutionToken
+  }
+
+  enqueueAfterRoundCommit(token: string, callback: () => void): boolean {
+    if (token === this.activeRoundExecutionToken) {
+      this.pendingRoundCommitCallbacks.push(callback)
+      return true
+    }
+    if (token === this.committedRoundExecutionToken) {
+      if (this.isPreviewExecution()) {
+        const completion = this.previewCompletion
+        if (!completion) return false
+        void completion.then(() => {
+          if (token !== this.committedRoundExecutionToken || this.isPreviewExecution()) return
+          this.runAfterRoundCommitCallback(callback)
+        })
+        return true
+      }
+      this.runAfterRoundCommitCallback(callback)
+      return true
+    }
+    return false
+  }
+
+  private beginRoundExecution(): string {
+    this.roundExecutionSequence += 1
+    const token = `round:${this.lifeGeneration}:${this.roundExecutionSequence}`
+    this.activeRoundExecutionToken = token
+    this.committedRoundExecutionToken = undefined
+    this.pendingRoundCommitCallbacks = []
+    return token
+  }
+
+  private commitRoundExecution(token: string): void {
+    if (this.activeRoundExecutionToken !== token) return
+    this.activeRoundExecutionToken = undefined
+    this.committedRoundExecutionToken = token
+    const callbacks = this.pendingRoundCommitCallbacks
+    this.pendingRoundCommitCallbacks = []
+    for (const callback of callbacks) {
+      this.runAfterRoundCommitCallback(callback)
+    }
+  }
+
+  private runAfterRoundCommitCallback(callback: () => void): void {
+    try {
+      callback()
+    } catch (error) {
+      console.warn('[Orchestrator] 回合后后台结果提交失败:', error)
+    }
+  }
+
+  private abortRoundExecution(token: string): void {
+    if (this.activeRoundExecutionToken !== token) return
+    this.activeRoundExecutionToken = undefined
+    this.committedRoundExecutionToken = undefined
+    this.pendingRoundCommitCallbacks = []
+  }
+
+  private clearPendingRoundOperations(): void {
+    this.forcedBranchRepairOwnerToken = null
+    this.repetitionRepairOwnerToken = null
+    this.activeRoundExecutionToken = undefined
+    this.committedRoundExecutionToken = undefined
+    this.pendingRoundCommitCallbacks = []
+  }
+
   private focusMostRecentlyUpdatedBranchIntent(): void {
     this.focusedBranchIntentId = findMostRecentlyUpdatedBranchIntentId(this.branchIntents)
+  }
+
+  private getBranchIntentProjection(): BranchIntentProjection {
+    return {
+      branchIntents: this.branchIntents,
+      archivedBranchIntents: this.archivedBranchIntents,
+      ...(this.focusedBranchIntentId
+        ? { focusedBranchIntentId: this.focusedBranchIntentId }
+        : {}),
+    }
+  }
+
+  private syncBranchIntentProjectionToEngineStore(): void {
+    if (!useEngineStore.getState().setBranchIntentProjection(this.getBranchIntentProjection())) {
+      console.warn('[BranchIntent] 运行态投影未通过持久化校验，已保留上一份 Store 投影')
+    }
   }
 
   resolveBranchChoice(branchId: string, choice: string): void {
@@ -819,7 +1006,9 @@ export class OrchestratorSystem extends BaseSubsystem {
     if (!branchId || !trimmed) return
 
     this.state.narrativeHistory = this.state.narrativeHistory.map((entry) =>
-      entry.id === branchId ? { ...entry, resolvedChoice: trimmed } : entry,
+      entry.id === branchId
+        ? { ...entry, resolvedChoice: trimmed, resolvedChoiceRound: this.state.totalRounds }
+        : entry,
     )
     this.lastBranchTotalRound = Math.max(this.lastBranchTotalRound, this.state.totalRounds)
     this.branchJustResolved = true
@@ -827,6 +1016,13 @@ export class OrchestratorSystem extends BaseSubsystem {
     const next = upsertBranchIntent(this.branchIntents, branchId, trimmed, this.state.totalRounds)
     this.branchIntents = next.intents
     this.focusedBranchIntentId = next.focusedIntentId
+    if (next.archivedIntents?.length) {
+      this.archivedBranchIntents = [
+        ...this.archivedBranchIntents,
+        ...next.archivedIntents,
+      ]
+    }
+    this.syncBranchIntentProjectionToEngineStore()
   }
 
   setPrefetchedNarrative(content: string | null): void {
@@ -912,6 +1108,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       lastCommittedPlayerChoice: this.lastCommittedPlayerChoice,
       branchIntents: this.branchIntents,
       focusedBranchIntentId: this.focusedBranchIntentId,
+      archivedBranchIntents: this.archivedBranchIntents,
       prefetchedNarrativeContent: this.prefetchedNarrativeContent,
       digestLedgerSnapshot: digestLedger.toSnapshot(),
       engineSubsystemStates: this.captureInternalSubsystemStates(),
@@ -979,10 +1176,39 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.branchJustResolved = snap.branchJustResolved ?? false
     this.lastBranchTotalRound = snap.lastBranchTotalRound ?? Number.NEGATIVE_INFINITY
     this.lastCommittedPlayerChoice = snap.lastCommittedPlayerChoice
-    this.branchIntents = Array.isArray(snap.branchIntents)
-      ? structuredClone(snap.branchIntents)
-      : []
-    this.focusedBranchIntentId = snap.focusedBranchIntentId
+    const rebuilt = rebuildBranchIntentsFromHistory(
+      this.state.narrativeHistory.map((entry, index) => ({
+        id: entry.id,
+        resolvedChoice: entry.resolvedChoice,
+        resolvedChoiceRound: entry.resolvedChoiceRound,
+        intentResolution: entry.intentResolution,
+        round: entry.repetitionMetric?.round ?? index + 1,
+      })),
+    )
+    const snapshotHasBranchProjection = snap.branchIntents !== undefined
+      || snap.archivedBranchIntents !== undefined
+      || snap.focusedBranchIntentId !== undefined
+    const snapshotProjection = snapshotHasBranchProjection
+      ? normalizeBranchIntentProjection({
+          branchIntents: snap.branchIntents ?? [],
+          archivedBranchIntents: snap.archivedBranchIntents ?? [],
+          focusedBranchIntentId: snap.focusedBranchIntentId,
+        })
+      : undefined
+    const rebuiltProjection: BranchIntentProjection = {
+      branchIntents: rebuilt.intents,
+      archivedBranchIntents: rebuilt.archivedIntents ?? [],
+      ...(rebuilt.focusedIntentId
+        ? { focusedBranchIntentId: rebuilt.focusedIntentId }
+        : {}),
+    }
+    const restoredProjection = snapshotProjection
+      && isBranchIntentProjectionConsistent(snapshotProjection, rebuiltProjection)
+      ? snapshotProjection
+      : rebuiltProjection
+    this.branchIntents = restoredProjection.branchIntents
+    this.archivedBranchIntents = restoredProjection.archivedBranchIntents
+    this.focusedBranchIntentId = restoredProjection.focusedBranchIntentId
     if (!this.getFocusedBranchIntentRuntime()) {
       this.focusMostRecentlyUpdatedBranchIntent()
     }
@@ -992,8 +1218,38 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   restoreSnapshot(snap: OrchestratorSnapshot): void {
-    this.state = structuredClone(snap.state)
-    this.restoreSnapshotRuntimeState(snap)
+    const clonedState = structuredClone(snap.state) as unknown
+    const rawState = clonedState && typeof clonedState === 'object' && !Array.isArray(clonedState)
+      ? clonedState as Partial<EngineState> & {
+          lifeRunId?: unknown
+          storyRepetitionStats?: unknown
+        }
+      : {}
+    const currentState = structuredClone(this.state)
+    const narrativeHistory = (Array.isArray(rawState.narrativeHistory)
+      ? rawState.narrativeHistory
+      : currentState.narrativeHistory).map((entry): NarrativeChunk => {
+      if (entry.repetitionMetric === undefined || isNarrativeRepetitionMetric(entry.repetitionMetric)) {
+        return entry
+      }
+      const { repetitionMetric: _invalidMetric, ...safeEntry } = entry
+      return safeEntry as NarrativeChunk
+    })
+    const currentLifeRunId = typeof currentState.lifeRunId === 'string' && currentState.lifeRunId.trim()
+      ? currentState.lifeRunId
+      : undefined
+    const lifeRunId = typeof rawState.lifeRunId === 'string' && rawState.lifeRunId.trim()
+      ? rawState.lifeRunId
+      : currentLifeRunId ?? createNarrativeLifeRunId()
+    const restored: EngineState = {
+      ...currentState,
+      ...rawState,
+      lifeRunId,
+      narrativeHistory,
+      storyRepetitionStats: summarizeNarrativeHistoryRepetition(narrativeHistory),
+    }
+    this.state = restored
+    this.restoreSnapshotRuntimeState({ ...snap, state: restored })
     // 旧存档可能保留了按旧规则计算的 season；以月份重新推导当前节点，
     // 但不改写历史叙事条目的时间标签。
     timeSystem.importRound(snap.timeRound ?? this.state.round)
@@ -1014,6 +1270,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       resolvedBranches: prev.resolvedBranches,
       forceBranchNext: prev.forceBranchNext,
     }))
+    this.syncBranchIntentProjectionToEngineStore()
   }
 
   restorePreviewSnapshot(snap: OrchestratorPreviewSnapshot): void {
@@ -1868,6 +2125,8 @@ export class OrchestratorSystem extends BaseSubsystem {
   /** 取消尚未提交的旧人生异步操作；预览快照恢复不调用此入口。 */
   invalidatePendingLifeOperations(): void {
     this.lifeGeneration += 1
+    this.clearPendingRoundOperations()
+    useEngineStore.getState().setBranchRepairPending(false)
   }
 
   reset(): void {
@@ -1881,6 +2140,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
     timeSystem.reset()
     this.state = {
+      lifeRunId: createNarrativeLifeRunId(),
       status: 'idle',
       round: { year: 0, season: getSeasonForMonth(0), month: 0, day: 0, dayOfYear: 1, totalDays: 0, ...TimeSystem.resolveDisplayEra(0) },
       timeStep: DEFAULT_ENGINE_CONFIG.timeStep,
@@ -1891,6 +2151,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       compressedSummaries: { summaries: [] },
       lastAutoSaveRound: 0,
       characterCreations: [],
+      storyRepetitionStats: summarizeNarrativeRepetitionMetrics([]),
     }
     this.lastSubsystemStates = {}
     this.rawNarrativeStream = ''
@@ -1921,6 +2182,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.lastPlayerChoice = undefined
     this.lastCommittedPlayerChoice = undefined
     this.branchIntents = []
+    this.archivedBranchIntents = []
     this.focusedBranchIntentId = undefined
     this.pendingNarrativeCausalEventIds = []
     this.consecutiveSameGoalRounds = 0
@@ -1943,31 +2205,76 @@ export class OrchestratorSystem extends BaseSubsystem {
     digestLedger.reset()
     adaptationManager.clear()
     globalDeadLoopDetector.resetAll()
+    this.syncBranchIntentProjectionToEngineStore()
   }
 
   /** 读档后从 EngineStore 恢复 orchestrator 内部状态 */
   hydrateFromEngineStore(previousTimeStep?: TimeStep, preserveAdaptationCache = false): void {
     const store = useEngineStore.getState()
+    this.clearPendingRoundOperations()
     const lastAutoSaveRound = resolveRestoredAutoSaveRound(
       store.lastAutoSaveRound,
       store.totalRounds,
       undefined,
       undefined,
     )
+    const narrativeHistory: NarrativeChunk[] = store.narrativeHistory.map((chunk): NarrativeChunk => {
+      if (chunk.repetitionMetric === undefined || isNarrativeRepetitionMetric(chunk.repetitionMetric)) {
+        return { ...chunk }
+      }
+      const { repetitionMetric: _invalidMetric, ...safeChunk } = chunk
+      return safeChunk as NarrativeChunk
+    })
+    const lifeRunId = typeof store.lifeRunId === 'string' && store.lifeRunId.trim()
+      ? store.lifeRunId
+      : createNarrativeLifeRunId()
+    const storyRepetitionStats = summarizeNarrativeHistoryRepetition(narrativeHistory)
     this.state = {
+      lifeRunId,
       status: store.status === 'complete' ? 'complete' : 'idle',
       round: { ...store.round },
       timeStep: { ...store.timeStep },
       totalRounds: store.totalRounds,
-      narrativeHistory: store.narrativeHistory.map((chunk) => ({ ...chunk })),
+      narrativeHistory,
       currentNarrative: store.currentNarrative,
       compressionStats: { ...store.compressionStats },
       compressedSummaries: structuredClone(store.compressedSummaries),
       lastAutoSaveRound,
       characterCreations: [...(store.characterCreations ?? [])] as CharacterCreation[],
+      storyRepetitionStats,
     }
-    this.branchIntents = []
-    this.focusedBranchIntentId = undefined
+    const rebuiltIntents = rebuildBranchIntentsFromHistory(
+      narrativeHistory.map((entry, index) => ({
+        id: entry.id,
+        resolvedChoice: entry.resolvedChoice,
+        resolvedChoiceRound: entry.resolvedChoiceRound,
+        intentResolution: entry.intentResolution,
+        round: entry.repetitionMetric?.round ?? index + 1,
+      })),
+    )
+    const persistedProjection = normalizeBranchIntentProjection({
+      branchIntents: store.branchIntents,
+      archivedBranchIntents: store.archivedBranchIntents,
+      focusedBranchIntentId: store.focusedBranchIntentId,
+    })
+    const rebuiltProjection: BranchIntentProjection = {
+      branchIntents: rebuiltIntents.intents,
+      archivedBranchIntents: rebuiltIntents.archivedIntents ?? [],
+      ...(rebuiltIntents.focusedIntentId
+        ? { focusedBranchIntentId: rebuiltIntents.focusedIntentId }
+        : {}),
+    }
+    const restoredProjection = persistedProjection
+      && isBranchIntentProjectionConsistent(persistedProjection, rebuiltProjection)
+      ? persistedProjection
+      : rebuiltProjection
+    this.branchIntents = restoredProjection.branchIntents
+    this.archivedBranchIntents = restoredProjection.archivedBranchIntents
+    this.focusedBranchIntentId = restoredProjection.focusedBranchIntentId
+    if (store.lifeRunId !== lifeRunId || store.storyRepetitionStats !== storyRepetitionStats) {
+      useEngineStore.setState({ lifeRunId, narrativeHistory, storyRepetitionStats })
+    }
+    this.syncBranchIntentProjectionToEngineStore()
     if (lastAutoSaveRound !== store.lastAutoSaveRound) {
       useEngineStore.getState().setLastAutoSaveRound(lastAutoSaveRound)
     }
@@ -2231,7 +2538,6 @@ export class OrchestratorSystem extends BaseSubsystem {
           this.getFocusedBranchIntentRuntime()?.intentId,
           useEngineStore.getState().forceBranchNext,
           isOpeningNarrativeRound,
-          this.getFocusedBranchIntentRuntime()?.choice,
         ),
         order: 10_000,
         kind: '硬限制',
@@ -2615,9 +2921,11 @@ export class OrchestratorSystem extends BaseSubsystem {
       branchFocusLines.push('【命运意图条件】本轮没有玩家命运意图，禁止输出“命运意图判定”字段；不要从标准示例复制条件字段。')
     }
     if (freshPlayerChoice) {
-      branchFocusLines.push(
-        `【刚确认的玩家选择；必须立即进入正文主线】${freshPlayerChoice}`,
-      )
+      if (!focusedIntent) {
+        branchFocusLines.push(
+          `【刚确认的玩家选择；必须立即进入正文主线】${freshPlayerChoice}`,
+        )
+      }
       this.lastCommittedPlayerChoice = freshPlayerChoice
       this.lastPlayerChoice = undefined
     }
@@ -2630,6 +2938,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     const resolvedLines: string[] = []
     for (const [id, choice] of Object.entries(resolved)) {
       if (!choice.trim()) continue
+      if (id === focusedIntent?.branchId) continue
       const pos = this.state.narrativeHistory.findIndex((n) => n.id === id)
       if (pos >= 0) {
         resolvedLines.push(`第${pos + 1}轮:${choice}`)
@@ -2643,9 +2952,9 @@ export class OrchestratorSystem extends BaseSubsystem {
 
     // 连续分叉抑制：上轮已解决分支，本轮禁止再生成新分支
     const lastEntry = this.state.narrativeHistory[this.state.narrativeHistory.length - 1]
-    if (lastEntry?.resolvedChoice) {
+    if (!forceBranch && lastEntry?.resolvedChoice) {
       branchFocusLines.push('上轮已完成命运抉择，本轮禁止生成新的命运分支，给玩家至少一轮消化时间。')
-    } else if (this.shouldSuppressBranchPoint(false)) {
+    } else if (!forceBranch && this.shouldSuppressBranchPoint(false)) {
       branchFocusLines.push(`普通命运分支冷却中：距离上一次分支不足 ${MIN_BRANCH_GAP_ROUNDS} 轮，本轮禁止生成命运分支。`)
     }
     addComponent('branch-execution-focus', branchFocusLines.join('\n'), '硬限制', '玩家意图')
@@ -2696,7 +3005,8 @@ export class OrchestratorSystem extends BaseSubsystem {
       startingAge,
       round: this.state.totalRounds,
       recentEvents: this.buildYearEvents().map(e => ({ narrative: e.narrative, age: e.age })),
-      lastPlayerChoice: this.lastPlayerChoice,
+      // BranchIntent 是活动选择的唯一 Prompt 投影；旧 hints 不再重复注入选择正文。
+      lastPlayerChoice: undefined,
       forceBranch: useEngineStore.getState().forceBranchNext ?? false,
       branchJustResolved: this.branchJustResolved,
       consecutiveSameGoalRounds: this.consecutiveSameGoalRounds,
@@ -2743,24 +3053,48 @@ export class OrchestratorSystem extends BaseSubsystem {
       : { isBranchPoint: false }
   }
 
+  private getGuardedLatestNarrativeEntry(
+    narrativeEntryId: string,
+    guard: BackgroundNarrativeEntryGuard,
+  ): { entry: NarrativeChunk; entryIndex: number } | undefined {
+    if (guard.lifeGeneration !== this.lifeGeneration
+      || guard.lifeRunId !== this.state.lifeRunId
+      || guard.sourceRound !== this.state.totalRounds) return undefined
+    const entryIndex = this.state.narrativeHistory.length - 1
+    const entry = entryIndex >= 0 ? this.state.narrativeHistory[entryIndex] : undefined
+    if (!entry || entry.id !== narrativeEntryId) return undefined
+    if (entry.repetitionMetric && entry.repetitionMetric.round !== guard.sourceRound) return undefined
+    const normalize = (value: string): string => value.normalize('NFKC').replace(/\s+/gu, ' ').trim()
+    if (normalize(entry.text) !== normalize(guard.sourceNarrative)) return undefined
+    return { entry, entryIndex }
+  }
+
   /** 将独立 Schema 验证过的强制分支合并到原故事条目；正文始终保持不变。 */
   public applyBackgroundForcedBranchRepair(
     narrativeEntryId: string,
     branchRepair: NarrativeBranchRepairOutput,
+    guard: BackgroundNarrativeEntryGuard,
   ): boolean {
-    const entryIndex = this.state.narrativeHistory.findIndex(
-      (entry) => entry.id === narrativeEntryId,
-    )
-    const entry = entryIndex >= 0 ? this.state.narrativeHistory[entryIndex] : undefined
-    if (!entry || entry.isBranchPoint || entry.resolvedChoice !== undefined) return false
+    const guarded = this.getGuardedLatestNarrativeEntry(narrativeEntryId, guard)
+    if (!guarded || !useEngineStore.getState().forceBranchNext) return false
+    const { entry, entryIndex } = guarded
+    if (entry.isBranchPoint || entry.resolvedChoice !== undefined) return false
 
     const validated = narrativeBranchRepairOutputSchema.safeParse(branchRepair)
     if (!validated.success) return false
+    try {
+      this.assertNarrativeContentSafe([
+        validated.data.分支标题,
+        ...validated.data.分支选项,
+      ].join('\n'))
+    } catch {
+      return false
+    }
     const branchTitle = validated.data.分支标题.trim()
     const branchOptions = normalizeNarrativeBranchOptions(validated.data.分支选项)
     if (branchOptions.length < 2 || branchOptions.length > 4) return false
 
-    this.lastBranchTotalRound = this.state.totalRounds
+    this.lastBranchTotalRound = guard.sourceRound
     this.state.narrativeHistory[entryIndex] = {
       ...entry,
       isBranchPoint: true,
@@ -2785,6 +3119,88 @@ export class OrchestratorSystem extends BaseSubsystem {
     return true
   }
 
+  /** 将协议完整且不再重复的候选正文合并回原叙事条目，不创建第二轮。 */
+  public applyBackgroundNarrativeRepair(
+    narrativeEntryId: string,
+    sourceContent: string,
+    candidateContent: string,
+    audit: NarrativeRepetitionAuditOutput,
+    guard: BackgroundNarrativeEntryGuard,
+  ): boolean {
+    const guarded = this.getGuardedLatestNarrativeEntry(narrativeEntryId, guard)
+    if (!guarded) return false
+    const { entry, entryIndex } = guarded
+    const sourceEnvelope = extractTaggedMetaEnvelope(sourceContent)
+    const candidate = parseNarrativeRepetitionRepairOutput(candidateContent)
+    const validatedAudit = parseNarrativeRepetitionAuditOutput(audit)
+    if (!sourceEnvelope || !candidate?.narrative.trim()
+      || !validatedAudit?.事实一致
+      || !validatedAudit.完整覆盖
+      || validatedAudit.覆盖证据.length === 0
+      || validatedAudit.冲突.length > 0
+      || validatedAudit.遗漏.length > 0) return false
+    try {
+      this.assertNarrativeContentSafe(candidate.narrative)
+    } catch {
+      return false
+    }
+    const normalizeRepairText = (value: string): string => value.normalize('NFKC').replace(/\s+/gu, ' ').trim()
+    if (normalizeRepairText(sourceEnvelope.narrative) !== normalizeRepairText(guard.sourceNarrative)) return false
+
+    const recentHistory = this.state.narrativeHistory
+      .slice(Math.max(0, entryIndex - 5), entryIndex)
+      .map((item) => item.text)
+    const decision = chooseNarrativeRepetitionRepair({
+      previousContent: entry.text,
+      candidateContent: candidate.narrative,
+      candidateBody: candidate.narrative,
+      candidateProtocolValid: true,
+      recentHistory,
+    })
+    if (!decision.accepted) return false
+
+    const replacementMetric = calculateNarrativeRepetitionMetric({
+      round: entry.repetitionMetric?.round ?? entryIndex + 1,
+      text: candidate.narrative,
+      recentHistory: this.state.narrativeHistory
+        .slice(Math.max(0, entryIndex - 5), entryIndex)
+        .map((item, index) => ({
+          round: item.repetitionMetric?.round ?? Math.max(1, entryIndex - 5 + index + 1),
+          text: item.text,
+        })),
+      windowSize: 5,
+    })
+    const mergedContent = [
+      '⟦正文⟧',
+      candidate.narrative,
+      ...(sourceEnvelope.summary ? ['⟦摘要⟧', sourceEnvelope.summary] : []),
+      ...(sourceEnvelope.dataPresent ? ['⟦数据⟧', sourceEnvelope.dataSection ?? ''] : []),
+      '⟦结束⟧',
+    ].join('\n')
+    this.state.narrativeHistory[entryIndex] = {
+      ...entry,
+      text: candidate.narrative,
+      repetitionMetric: replacementMetric,
+    }
+    this.state.currentNarrative = candidate.narrative
+    this.lastNarrativeText = candidate.narrative
+    this.lastExecutedFullContent = mergedContent
+    this.state.storyRepetitionStats = summarizeNarrativeRepetitionMetrics(
+      collectNarrativeRepetitionMetrics(this.state.narrativeHistory),
+    )
+    useEngineStore.setState((store) => ({
+      narrativeHistory: store.narrativeHistory.map((item) => (
+        item.id === narrativeEntryId
+          ? { ...item, text: candidate.narrative, repetitionMetric: replacementMetric }
+          : item
+      )),
+      currentNarrative: candidate.narrative,
+      storyRepetitionStats: structuredClone(this.state.storyRepetitionStats),
+    }))
+    this.publishSimulationSnapshot()
+    return true
+  }
+
   private commitFocusedBranchIntentResolution(
     resolution: NarrativeIntentResolution,
   ): NarrativeIntentResolution | undefined {
@@ -2801,6 +3217,12 @@ export class OrchestratorSystem extends BaseSubsystem {
 
     this.branchIntents = result.intents
     this.focusedBranchIntentId = result.focusedIntentId
+    if (result.archivedIntents?.length) {
+      this.archivedBranchIntents = [
+        ...this.archivedBranchIntents,
+        ...result.archivedIntents,
+      ]
+    }
     if (result.terminal) {
       this.consecutiveSameGoalRounds = 0
     } else {
@@ -3057,6 +3479,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   handleNarrativeResponse(content: string): RoundResult {
+    this.assertNarrativeContentSafe(content)
     const parsed = narrativeParser.parse(content)
 
     const interceptorOutcome = runNarrativeInterceptors({
@@ -3306,6 +3729,28 @@ export class OrchestratorSystem extends BaseSubsystem {
       ? this.commitFocusedBranchIntentResolution(effectiveParsed.intentResolution)
       : undefined
 
+    // 重复率是本轮正文提交后的只读质量观测。它和正文写入同一引擎状态，
+    // 可随存档恢复；任何观测失败都不得阻塞玩家故事。
+    const repetitionMetric = narrative
+      ? calculateNarrativeRepetitionMetric({
+          round: this.state.totalRounds,
+          text: narrative,
+          recentHistory: this.state.narrativeHistory.map((entry, index) => ({
+            round: Math.max(1, this.state.totalRounds - this.state.narrativeHistory.length + index),
+            text: entry.text,
+          })),
+          windowSize: 5,
+        })
+      : undefined
+    const storyRepetitionStats = repetitionMetric
+      ? summarizeNarrativeRepetitionMetrics([
+          ...this.state.narrativeHistory
+            .map((entry) => entry.repetitionMetric)
+            .filter((metric): metric is NonNullable<typeof metric> => Boolean(metric)),
+          repetitionMetric,
+        ])
+      : this.state.storyRepetitionStats
+
     // 更新叙事历史：完整保存，不按字符、轮数或容量移除旧故事。
     this.state.currentNarrative = narrative
     if (narrative) {
@@ -3330,6 +3775,7 @@ export class OrchestratorSystem extends BaseSubsystem {
         ...(committedIntentResolution
           ? { intentResolution: committedIntentResolution }
           : {}),
+        ...(repetitionMetric ? { repetitionMetric } : {}),
         ...(branchMeta.isBranchPoint
           ? {
               isBranchPoint: true,
@@ -3338,7 +3784,11 @@ export class OrchestratorSystem extends BaseSubsystem {
             }
           : {}),
       })
+      this.state.storyRepetitionStats = storyRepetitionStats
       this.lastNarratedTimeStep = { ...this.state.timeStep }
+    }
+    if (!this.isPreviewExecution()) {
+      this.syncBranchIntentProjectionToEngineStore()
     }
 
     // commit 已修改子系统私有状态；立即刷新快照，确保 UI 同步与本轮自动存档不是上一轮数据。
@@ -3604,46 +4054,57 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
     const roundT0 = performance.now()
 
-    // 使用阶段机驱动回合管线
-    await this.runStageMachine(stages, context)
+    // 预生成在临时快照内运行，不得覆盖上一真实回合的提交令牌。
+    // 否则两次 AI 调用的重复修复候选会在预生成期间被误判为跨轮结果。
+    const roundExecutionToken = this.isPreviewExecution()
+      ? undefined
+      : this.beginRoundExecution()
+    try {
+      // 使用阶段机驱动回合管线
+      await this.runStageMachine(stages, context)
 
-    if (!this.lastExecutedFullContent) {
-      const rejection = new Error('叙事生成结果未通过完整性与结构门禁，本轮未推进，请重新尝试。')
-      rejection.name = 'NarrativeGenerationRejectedError'
-      throw rejection
+      if (!this.lastExecutedFullContent) {
+        const rejection = new Error('叙事生成结果未通过完整性与结构门禁，本轮未推进，请重新尝试。')
+        rejection.name = 'NarrativeGenerationRejectedError'
+        throw rejection
+      }
+
+      // maxRounds 是回合完成后的终局边界；达到时立即进入 complete，
+      // 不要求玩家再点击一次空推进。
+      if (this.shouldStop()) {
+        this.state.status = 'complete'
+      }
+
+      // Instrument: onRoundEnd
+      if (isInstrumentEnabled()) {
+        getInstrumentHooks().onRoundEnd?.(this.state.totalRounds, performance.now() - roundT0)
+      }
+
+      // 构建结果（从阶段机执行后的状态中提取）
+      const result: RoundResult = {
+        narrative: this.state.currentNarrative || this.buildFallbackNarrativeFromState(),
+        changes: [],
+        notableEvents: this.lastNotableEvents ?? [],
+      }
+
+      // 后台异步适配（不阻塞主叙事流）：将子系统硬编码 summary 适配为世界观贴切的叙事文本
+      const pendingStates = Object.entries(this.lastSubsystemStates)
+        .filter(([id]) => id !== this.id && isMvpPromptSubsystem(id))
+        .map(([id, s]) => ({ id, summary: s.summary }))
+      if (!this.isPreviewExecution()) {
+        adaptationManager.adaptPending(pendingStates).catch((err) => {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('[Adaptation] 后台适配异常:', (err as Error)?.message ?? err)
+          }
+        })
+      }
+
+      if (roundExecutionToken) this.commitRoundExecution(roundExecutionToken)
+      return result
+    } catch (error) {
+      if (roundExecutionToken) this.abortRoundExecution(roundExecutionToken)
+      throw error
     }
-
-    // maxRounds 是回合完成后的终局边界；达到时立即进入 complete，
-    // 不要求玩家再点击一次空推进。
-    if (this.shouldStop()) {
-      this.state.status = 'complete'
-    }
-
-    // Instrument: onRoundEnd
-    if (isInstrumentEnabled()) {
-      getInstrumentHooks().onRoundEnd?.(this.state.totalRounds, performance.now() - roundT0)
-    }
-
-    // 构建结果（从阶段机执行后的状态中提取）
-    const result: RoundResult = {
-      narrative: this.state.currentNarrative || this.buildFallbackNarrativeFromState(),
-      changes: [],
-      notableEvents: this.lastNotableEvents ?? [],
-    }
-
-    // 后台异步适配（不阻塞主叙事流）：将子系统硬编码 summary 适配为世界观贴切的叙事文本
-    const pendingStates = Object.entries(this.lastSubsystemStates)
-      .filter(([id]) => id !== this.id && isMvpPromptSubsystem(id))
-      .map(([id, s]) => ({ id, summary: s.summary }))
-    if (!this.isPreviewExecution()) {
-      adaptationManager.adaptPending(pendingStates).catch((err) => {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('[Adaptation] 后台适配异常:', (err as Error)?.message ?? err)
-        }
-      })
-    }
-
-    return result
   }
 }
 

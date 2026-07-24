@@ -125,9 +125,11 @@ function AttributeAllocContent() {
   }
 
   return (
-    <>
-      <main className={styles.page}>
-        <div className={styles.screen}>
+    <div className="final-flow-frame">
+      <div className="final-flow-design-fit">
+        <div className="final-flow-design-canvas">
+          <main className={styles.page}>
+            <div className={styles.screen}>
           <header className={styles.header}>
             <div className={styles.meta}><span>AI LIFE SIM · 命书</span><span>06 / 08</span></div>
             <div className={styles.titleRow}>
@@ -189,19 +191,19 @@ function AttributeAllocContent() {
               <button className={styles.secondaryButton} type="button" onClick={() => setAttributes({ physique: 4, mind: 4, talentAptitude: 4, charisma: 3 })}>平均分配</button>
             </div>
           </section>
-        </div>
-      </main>
+            </div>
+          </main>
 
-      <BottomActionBar
+          <BottomActionBar
         onBack={() => router.push('/talent-draw')}
         backTitle="返回命格选择"
         onConfirm={handleConfirm}
         confirmText="确认属性"
         confirmNumber="07"
         confirmDescription={remainingPoints > 0 ? `尚余 ${remainingPoints} 点 · 下一步核对命运` : '预算已分配 · 下一步核对命运'}
-      />
+          />
 
-      {showUnusedDialog ? (
+          {showUnusedDialog ? (
         <div className={styles.dialogBackdrop} role="presentation" onClick={() => setShowUnusedDialog(false)}>
           <div ref={dialogRef} className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="unused-points-title" onClick={(event) => event.stopPropagation()}>
             <h3 id="unused-points-title">仍有属性点未使用</h3>
@@ -212,8 +214,10 @@ function AttributeAllocContent() {
             </div>
           </div>
         </div>
-      ) : null}
-    </>
+          ) : null}
+        </div>
+      </div>
+    </div>
   )
 }
 

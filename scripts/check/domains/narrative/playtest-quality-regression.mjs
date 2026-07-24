@@ -624,7 +624,10 @@ assertOk(
   }).success,
   'branch options must already be Chinese string choices; object compatibility must not enter the strict path',
 )
-assertOk(/version:\s*8/.test(settingsStoreSrc), 'settings persistence must include the private-target migration version')
+const settingsPersistenceVersion = Number(
+  settingsStoreSrc.match(/name:\s*'mod-settings:store'[\s\S]*?version:\s*(\d+)/)?.[1],
+)
+assertOk(settingsPersistenceVersion >= 8, 'settings persistence must include the private-target migration version')
 const migrateSettings = loadPersistMigration(settingsStoreSrc)
 assertSame(
   migrateSettings({ wordCountTarget: 400, theme: 'minimal-white' }, 2).wordCountTarget,

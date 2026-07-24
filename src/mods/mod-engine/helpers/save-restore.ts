@@ -17,6 +17,17 @@ import { resolveMvpRuntimeReadiness } from './mvp-runtime-policy'
 import { clearPreGenQueue, getPreGenQueueStatus } from './pre-gen-queue'
 import { syncSubsystemStoresFromStates } from './subsystem-store-sync'
 import { useEngineStore } from '../store'
+import {
+  createNarrativeLifeRunId,
+  summarizeNarrativeHistoryRepetition,
+} from './narrative-repetition-metrics'
+import {
+  isBranchIntentProjectionConsistent,
+  normalizeBranchIntentProjection,
+  rebuildBranchIntentsFromHistory,
+  type BranchIntentHistoryEntry,
+  type BranchIntentProjection,
+} from './branch-intent-resolution'
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -78,16 +89,24 @@ function buildEngineSaveSnapshot(): Record<string, unknown> {
   const store = useEngineStore.getState()
   const o = orchestrator.getState()
 
-  const resolvedChoiceMap = new Map<string, string>()
+  const resolvedChoiceMap = new Map<string, { choice: string; round?: number }>()
   for (const entry of store.narrativeHistory) {
     if (entry.id && entry.resolvedChoice) {
-      resolvedChoiceMap.set(entry.id, entry.resolvedChoice)
+      resolvedChoiceMap.set(entry.id, {
+        choice: entry.resolvedChoice,
+        round: entry.resolvedChoiceRound,
+      })
     }
   }
 
   const mergedHistory = o.narrativeHistory.map((entry) => {
-    if (entry.id && resolvedChoiceMap.has(entry.id)) {
-      return { ...entry, resolvedChoice: resolvedChoiceMap.get(entry.id) }
+    const resolved = entry.id ? resolvedChoiceMap.get(entry.id) : undefined
+    if (resolved) {
+      return {
+        ...entry,
+        resolvedChoice: resolved.choice,
+        resolvedChoiceRound: resolved.round,
+      }
     }
     return entry
   })
@@ -131,12 +150,51 @@ export function applyGameSave(data: Record<string, unknown>): void {
   try {
     // —— 核心 store：失败即回滚，gamePhase 保持不变 ——
     const engine = core.engine as Partial<ReturnType<typeof useEngineStore.getState>>
+    const restoredLifeRunId = typeof engine.lifeRunId === 'string' && engine.lifeRunId.trim()
+      ? engine.lifeRunId
+      : createNarrativeLifeRunId()
+    const restoredRepetitionStats = summarizeNarrativeHistoryRepetition(
+      Array.isArray(engine.narrativeHistory) ? engine.narrativeHistory : [],
+    )
+    const history = Array.isArray(engine.narrativeHistory) ? engine.narrativeHistory : []
+    const rebuiltIntents = rebuildBranchIntentsFromHistory(history
+      .filter(isPlainRecord)
+      .map((entry, index): BranchIntentHistoryEntry => ({
+        id: typeof entry.id === 'string' ? entry.id : undefined,
+        resolvedChoice: typeof entry.resolvedChoice === 'string' ? entry.resolvedChoice : undefined,
+        resolvedChoiceRound: typeof entry.resolvedChoiceRound === 'number'
+          ? entry.resolvedChoiceRound
+          : undefined,
+        intentResolution: entry.intentResolution as BranchIntentHistoryEntry['intentResolution'],
+        round: entry.repetitionMetric?.round ?? index + 1,
+      })))
+    const rebuiltProjection: BranchIntentProjection = {
+      branchIntents: rebuiltIntents.intents,
+      archivedBranchIntents: rebuiltIntents.archivedIntents ?? [],
+      ...(rebuiltIntents.focusedIntentId
+        ? { focusedBranchIntentId: rebuiltIntents.focusedIntentId }
+        : {}),
+    }
+    const persistedProjection = normalizeBranchIntentProjection({
+      branchIntents: engine.branchIntents,
+      archivedBranchIntents: engine.archivedBranchIntents,
+      focusedBranchIntentId: engine.focusedBranchIntentId,
+    })
+    const branchIntentProjection = persistedProjection
+      && isBranchIntentProjectionConsistent(persistedProjection, rebuiltProjection)
+      ? persistedProjection
+      : rebuiltProjection
     useEngineStore.setState((prev) => ({
       ...prev,
       ...engine,
+      lifeRunId: restoredLifeRunId,
+      storyRepetitionStats: restoredRepetitionStats,
+      branchIntents: branchIntentProjection.branchIntents,
+      archivedBranchIntents: branchIntentProjection.archivedBranchIntents,
+      focusedBranchIntentId: branchIntentProjection.focusedBranchIntentId,
       streamingNarrative: '',
       narrativeError: null,
-      resolvedBranches: engine.resolvedBranches ?? prev.resolvedBranches ?? {},
+      resolvedBranches: engine.resolvedBranches ?? {},
       forceBranchNext: engine.forceBranchNext ?? false,
       status: savedTerminal ? 'complete' : 'idle',
     }))

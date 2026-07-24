@@ -18,15 +18,6 @@
 @import '../foundation/tokens/themes/theme-minimal-white.css';
 
 /* ═══════════════════════════════════════════════════════════════════
- * 主题覆盖
- * ═══════════════════════════════════════════════════════════════════ */
-@import '../foundation/tokens/themes/theme-minimal-black.css';
-@import '../foundation/tokens/themes/theme-reading-yellow.css';
-@import '../foundation/tokens/themes/theme-dark-cosmos.css';
-@import '../foundation/tokens/themes/theme-light-aurora.css';
-@import '../foundation/tokens/themes/theme-cyber-neon.css';
-
-/* ═══════════════════════════════════════════════════════════════════
  * 全局重置（Apple HIG Deference）
  * ═══════════════════════════════════════════════════════════════════ */
 *, *::before, *::after {
@@ -54,6 +45,133 @@ body {
   color: var(--color-text-primary);
   background: var(--color-bg);
   transition: background 0.3s ease, color 0.3s ease;
+}
+
+/*
+ * Final mobile UI viewport.
+ *
+ * Each page keeps its solution-library design canvas intact and derives one
+ * scale from the available width and height. Larger viewports only center
+ * that phone frame; they never switch the page back to a desktop composition.
+ */
+.final-flow-frame {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  overflow: hidden;
+  place-items: center;
+  background: #eef1f7;
+  color-scheme: light;
+  container-type: size;
+  /* Establish the containing block used by flow sheets and action bars. */
+  transform: translateZ(0);
+}
+
+.final-flow-frame > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.final-flow-frame .flow-page-scroll {
+  height: 100% !important;
+  min-height: 0;
+  width: 100%;
+  padding: 0 !important;
+  overflow-x: hidden;
+  overflow-y: auto;
+  background: transparent !important;
+}
+
+.final-flow-frame .flow-page-scroll > div {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+.final-flow-frame [data-flow-bottom-bar] {
+  position: absolute !important;
+  z-index: 100;
+}
+
+/*
+ * Most approved flow screens use a 320 x 694 design canvas. Keep that canvas
+ * intact and derive one uniform scale from the available frame, matching the
+ * solution-library renderer on every phone aspect ratio.
+ */
+.final-flow-design-fit {
+  position: relative;
+  width: min(100cqw, calc(100cqh * 320 / 694));
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: 320 / 694;
+  container-type: size;
+}
+
+.final-flow-design-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 320px;
+  height: 694px;
+  overflow: hidden;
+  container-type: size;
+  transform: scale(calc(100cqw / 320px));
+  transform-origin: top left;
+}
+
+.final-flow-design-fit--430 {
+  width: min(100cqw, calc(100cqh * 430 / 932));
+  aspect-ratio: 430 / 932;
+}
+
+.final-flow-design-fit--430 > .final-flow-design-canvas {
+  width: 430px;
+  height: 932px;
+  transform: scale(calc(100cqw / 430px));
+}
+
+.final-flow-design-fit--330 {
+  width: min(100cqw, calc(100cqh * 330 / 715));
+  aspect-ratio: 330 / 715;
+}
+
+.final-flow-design-fit--330 > .final-flow-design-canvas {
+  width: 330px;
+  height: 715px;
+  transform: scale(calc(100cqw / 330px));
+}
+
+.final-flow-design-fit--390 {
+  width: min(100cqw, calc(100cqh * 390 / 844));
+  aspect-ratio: 390 / 844;
+}
+
+.final-flow-design-fit--390 > .final-flow-design-canvas {
+  width: 390px;
+  height: 844px;
+  transform: scale(calc(100cqw / 390px));
+}
+
+.final-flow-design-canvas > * {
+  max-width: none;
+}
+
+@media (min-width: 48rem) {
+  .final-flow-frame {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: min(430px, calc((100dvh - 2rem) * 430 / 932));
+    height: min(932px, calc(100dvh - 2rem));
+    border: 1px solid #d8deea;
+    border-radius: 5.58%;
+    box-shadow: 0 16px 34px rgba(31, 43, 65, 0.1);
+    transform: translate(-50%, -50%) translateZ(0);
+  }
 }
 
 html[data-paragraph-comfort='true'] {
@@ -142,6 +260,3 @@ body,
   0%, 100% { opacity: 0.55; }
   50% { opacity: 1; }
 }
-
-/* ==================== 移动端覆盖 ==================== */
-@import '../styles/mobile/base.css';

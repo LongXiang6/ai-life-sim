@@ -74,9 +74,6 @@ export { SaveDialog } from './components/molecules/SaveDialog'
 export { DisclaimerModal, isDisclaimerAccepted, acceptDisclaimer } from './components/organisms/DisclaimerModal'
 export type { DisclaimerModalProps } from './components/organisms/DisclaimerModal'
 
-export { StarfieldBackground } from './components/organisms/StarfieldBackground'
-export type { StarfieldBackgroundProps } from './components/organisms/StarfieldBackground'
-
 // ---- 新增游戏模拟页组件 ----
 
 export { CharacterStatusBar } from './components/organisms/CharacterStatusBar'

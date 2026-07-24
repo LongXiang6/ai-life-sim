@@ -15,7 +15,8 @@
 }
 
 .page {
-  height: 100dvh;
+  width: 320px;
+  height: 694px;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior-y: contain;
@@ -36,7 +37,7 @@
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  min-height: 100dvh;
+  min-height: 694px;
   padding: 15px 16px calc(78px + env(safe-area-inset-bottom)) 16px;
   border: 1px solid var(--cf-line);
   border-radius: 34px;
@@ -182,7 +183,7 @@
   white-space: nowrap;
 }
 
-.worldSummary > div:nth-child(3) {
+.summaryEra {
   max-width: calc(100% - 100px);
   margin-top: 3px;
   overflow: hidden;
@@ -193,7 +194,7 @@
   white-space: nowrap;
 }
 
-.worldSummary > div:nth-child(4) {
+.summaryRule {
   display: grid;
   height: 32px;
   grid-template-columns: 44px minmax(0, 1fr);
@@ -205,13 +206,13 @@
   background: var(--cf-soft);
 }
 
-.worldSummary > div:nth-child(4) > span {
+.summaryRule > span {
   color: var(--cf-faint);
   font-size: 9px;
   line-height: 1.45;
 }
 
-.worldSummary > div:nth-child(4) > p {
+.summaryRule > p {
   min-width: 0;
   margin: 0;
   overflow: hidden;
@@ -569,29 +570,25 @@
 }
 
 .bottomBar {
-  position: fixed;
+  position: absolute;
   z-index: 100;
-  right: 0;
-  bottom: 0;
-  left: 0;
+  right: 14px;
+  bottom: 12px;
+  left: 14px;
   padding: 0;
   pointer-events: none;
 }
 
 .bottomBarInner {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
   display: flex;
   width: 100%;
-  min-height: 56px;
+  min-height: 52px;
   align-items: center;
   gap: 8px;
   margin: 0;
-  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
-  border-top: 1px solid rgba(207, 215, 238, .84);
-  border-radius: 0;
+  padding: 2px 7px;
+  border: 1px solid rgba(207, 215, 238, .84);
+  border-radius: 18px;
   background: rgba(255, 255, 255, .76);
   box-shadow: 0 12px 30px rgba(62, 70, 100, .13), 0 2px 7px rgba(62, 70, 100, .06);
   backdrop-filter: blur(16px);
@@ -601,9 +598,9 @@
 
 .backButton {
   display: grid;
-  width: 40px;
-  height: 40px;
-  flex: 0 0 40px;
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
   place-items: center;
   padding: 0;
   border: 1px solid var(--cf-line);
@@ -618,7 +615,7 @@
 .confirmButton {
   display: flex;
   min-width: 0;
-  min-height: 40px;
+  min-height: 48px;
   flex: 1;
   align-items: center;
   gap: 8px;
@@ -632,9 +629,10 @@
 }
 
 .nextNumber {
-  width: 20px;
+  width: 19px;
   color: var(--cf-faint);
-  font-size: 9px;
+  font-size: 6.5px;
+  font-variant-numeric: tabular-nums;
   text-align: center;
 }
 
@@ -657,16 +655,16 @@
   margin-top: 2px;
   overflow: hidden;
   color: var(--cf-faint);
-  font-size: 9px;
+  font-size: 6.5px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .nextArrow {
   display: grid;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 28px;
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
   place-items: center;
   border-radius: 50%;
   background: var(--cf-accent);

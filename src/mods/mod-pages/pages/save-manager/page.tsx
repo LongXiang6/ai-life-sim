@@ -69,8 +69,11 @@ export default function SaveManagerPage() {
   const normalSaves = saves.filter((s) => !s.isAutoSave)
 
   return (
-    <div className={styles.container}>
-      <div className={styles.frame}>
+    <div className="final-flow-frame">
+      <div className="final-flow-design-fit">
+        <div className="final-flow-design-canvas">
+          <div className={styles.container}>
+            <div className={styles.frame}>
         <header className={styles.header}>
           <button
             type="button"
@@ -159,6 +162,9 @@ export default function SaveManagerPage() {
             })}
           </div>
         )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )

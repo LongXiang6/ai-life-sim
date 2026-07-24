@@ -147,15 +147,18 @@ export function SettingsModal({ open, onClose, initialTab }: SettingsModalProps)
       className={styles.overlay}
       onClick={onClose}
     >
-      <div
-        ref={modalRef}
-        className={styles.modalFrame}
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="settings-dialog-title"
-        tabIndex={-1}
-      >
+      <div className="final-flow-design-fit final-flow-design-fit--330">
+        <div className="final-flow-design-canvas">
+          <div
+            ref={modalRef}
+            className={styles.modalFrame}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settings-dialog-title"
+            data-settings-modal-root
+            tabIndex={-1}
+          >
         <span className={styles.spine} aria-hidden="true" />
 
         <header className={styles.header}>
@@ -226,6 +229,8 @@ export function SettingsModal({ open, onClose, initialTab }: SettingsModalProps)
             <span className={styles.doneArrow} aria-hidden="true">→</span>
           </button>
         </footer>
+          </div>
+        </div>
       </div>
     </div>
   )

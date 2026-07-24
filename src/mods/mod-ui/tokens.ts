@@ -6,7 +6,7 @@
  * 用途：
  *   1. 提供类型安全的 Design Token 常量，供组件和页面在 JS 中引用
  *   2. 映射 CSS 变量名到 JS 常量，避免拼写错误
- *   3. 主题相关 Token（如主色、背景色）通过 CSS 变量间接支持主题切换
+ *   3. 颜色与背景通过定版语义 Token 保持一致
  *
  * 使用方式：
  *   import { TOKENS } from '@/mods/mod-ui'

@@ -9,17 +9,47 @@ const USAGE_STOP_WORDS = new Set([
   '现在', '时候', '起来', '一下', '什么', '怎么', '已经', '可能', '希望', '想要',
 ])
 
+export interface StoryRepetitionUsageMetric {
+  schemaVersion: 2
+  kind: 'story_repetition'
+  /** 局次是浏览器生成的不透明 ID，不关联账号或诊断码。 */
+  lifeRunId: string
+  round: number
+  windowSize: number
+  wordRepeatRate: number
+  maxRecentWordOverlap: number
+  maxRecentNgramSimilarity: number
+  qualityLevel: 'normal' | 'watch' | 'high'
+}
+
 export type AggregateUsageMetric =
   | { schemaVersion: 1; kind: 'page_view'; page: string }
   | { schemaVersion: 1; kind: 'narrative_advance'; timeStepKey: string }
   | { schemaVersion: 1; kind: 'time_step_selected'; timeStepKey: string }
   | {
-    schemaVersion: 1
-    kind: 'branch_choice'
-    branchChoiceType: 'custom' | 'preset'
-    branchTerms?: string[]
-    branchChars?: number
-  }
+      schemaVersion: 1
+      kind: 'branch_choice'
+      branchChoiceType: 'custom' | 'preset'
+      branchTerms?: string[]
+      branchChars?: number
+    }
+  | StoryRepetitionUsageMetric
+
+/** 同一局同一轮的重复率上报是可覆盖观测，聚合端按此键取最后一次。 */
+export function storyRepetitionUsageMetricKey(metric: StoryRepetitionUsageMetric): string {
+  return `${metric.lifeRunId}:${metric.round}`
+}
+
+/** 用纯数字字段判断同一轮的最终观测是否已经上报，不保留任何正文。 */
+export function storyRepetitionUsageMetricRevision(metric: StoryRepetitionUsageMetric): string {
+  return [
+    metric.windowSize,
+    metric.wordRepeatRate,
+    metric.maxRecentWordOverlap,
+    metric.maxRecentNgramSimilarity,
+    metric.qualityLevel,
+  ].join(':')
+}
 
 function normalizeTerm(term: string): string | null {
   const normalized = term.normalize('NFKC').toLocaleLowerCase('zh-CN').trim()

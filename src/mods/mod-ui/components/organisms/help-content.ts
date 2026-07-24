@@ -7,14 +7,10 @@ export interface HelpChapter {
 export const HELP_CHAPTERS: HelpChapter[] = [
   { id: 'help-start-settings', label: '开始', heading: '开始与设置' },
   { id: 'help-world-select', label: '世界选择', heading: '世界选择' },
-  { id: 'help-world-customize', label: '世界定制', heading: '世界定制' },
+  { id: 'help-world-customize', label: '世界配置', heading: '世界定制' },
   { id: 'help-character-create', label: '角色创建', heading: '角色创建' },
   { id: 'help-talent-select', label: '命格', heading: '命格选取' },
-  { id: 'help-attribute-confirm', label: '属性', heading: '属性确认' },
-  { id: 'help-fate-preview', label: '命运预览', heading: '命运预览' },
-  { id: 'help-story', label: '主故事', heading: '主故事页' },
-  { id: 'help-save-debug', label: '存档', heading: '存档与调试' },
-  { id: 'help-faq', label: '常见问题', heading: '常见问题' },
+  { id: 'help-story', label: '故事', heading: '主故事页' },
 ]
 
 function normalizeHeading(value: string): string {

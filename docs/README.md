@@ -22,7 +22,7 @@
 | A2 | [MVP 蓝图](blueprint-01-mvp-playable.md)、[多世界蓝图](blueprint-02-multi-world-simulation-foundation.md) | 当前范围、目标架构和 P0—P8 顺序 |
 | A3 | [模拟架构](simulation-rewrite-architecture.md)、[系统权威索引](system-authority-index.md)、[QQ Bot 接口契约](qq-bot-integration-contract.md) | 系统归属、公开边界、写入权威、依赖和外部适配契约 |
 | A4 | live types、运行策略、manifest、实现与生成注册表 | 实际执行的数据形状和运行成员 |
-| A5 | [验收账本](acceptance-ledger.md)、自动检查与生产证据 | 功能是否按当前权威工作 |
+| A5 | [验收账本](acceptance-ledger.md)、[旧模拟机制对比](legacy-simulation-mechanism-comparison.md)、自动检查与生产证据 | 功能是否按当前权威工作，以及现行与废弃机制的已审计差异 |
 | A6 | Git 历史、未选 UI 候选和已取代方案 | 为什么曾经这样做，不可作为当前指令 |
 
 冲突按 A0 → A6 处理。低层实现、测试结果或历史记录不能覆盖更高层产品意图。
@@ -38,6 +38,7 @@
 | 修改页面 | 产品决策 → `ui-prototypes/mobile/flow.html` 串联的定版原型 → live page |
 | 修改 QQ Bot 联动或积分 | 产品决策 → 系统权威索引 → QQ Bot 接口契约 → live account routes/services |
 | 诊断 Bug 或核对发布 | 系统权威索引 → 验收账本 → 自动检查、日志或生产运行态 |
+| 对比废弃项目与当前核心模拟 | 旧模拟机制对比 → 多世界蓝图 → 系统权威索引 → 当前 runtime policy |
 
 ## 3. 文档维护规则
 
@@ -60,3 +61,4 @@
 | [系统权威索引](system-authority-index.md) | 当前运行系统、平台服务、内部齿轮和延后系统的责任登记 |
 | [QQ Bot 接口契约](qq-bot-integration-contract.md) | Bot 签名、白名单 DTO、QQ 绑定、共享积分和安全边界 |
 | [验收账本](acceptance-ledger.md) | 当前有效验收结论、历史取代关系和发布证据摘要 |
+| [旧模拟机制对比](legacy-simulation-mechanism-comparison.md) | 废弃项目与当前运行时的逐机制映射、稳定性证据和迁移处置 |

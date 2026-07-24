@@ -4,7 +4,10 @@
  * @mod mod-engine
  */
 
-import type { NarrativeIntentResolution } from './narrative-semantic-signals'
+import {
+  NarrativeIntentResolutionSchema,
+  type NarrativeIntentResolution,
+} from './narrative-semantic-signals'
 import {
   AI_INTENT_EXECUTION_MODES,
   AI_INTENT_FEASIBILITIES,
@@ -21,11 +24,23 @@ export interface BranchIntentState {
   createdRound: number
   updatedRound: number
   resolution?: NarrativeIntentResolution
+  /** 生命周期只在本地历史中使用；活动意图省略该字段。 */
+  lifecycle?: 'active' | 'superseded' | 'abandoned' | 'terminal'
+  supersededBy?: string
 }
 
 export interface BranchIntentCollection {
   intents: BranchIntentState[]
   focusedIntentId?: string
+  /** 被新目标替代的旧意图，保留以便审计与存档恢复。 */
+  archivedIntents?: BranchIntentState[]
+}
+
+/** EngineStore 只持久化该兼容投影；运行时所有权仍属于 orchestrator。 */
+export interface BranchIntentProjection {
+  branchIntents: BranchIntentState[]
+  archivedBranchIntents: BranchIntentState[]
+  focusedBranchIntentId?: string
 }
 
 export interface BranchIntentCommitResult extends BranchIntentCollection {
@@ -34,10 +49,33 @@ export interface BranchIntentCommitResult extends BranchIntentCollection {
   terminal: boolean
 }
 
+export interface BranchIntentHistoryEntry {
+  id?: string
+  resolvedChoice?: string
+  resolvedChoiceRound?: number
+  intentResolution?: NarrativeIntentResolution
+  round?: number
+}
+
 const TERMINAL_INTENT_STATUSES = new Set<NarrativeIntentResolution['status']>([
   'succeeded',
   'partially_succeeded',
   'failed',
+])
+const BRANCH_INTENT_PERSISTED_KEYS = new Set([
+  'intentId',
+  'branchId',
+  'choice',
+  'createdRound',
+  'updatedRound',
+  'resolution',
+  'lifecycle',
+  'supersededBy',
+])
+const BRANCH_INTENT_PROJECTION_KEYS = new Set([
+  'branchIntents',
+  'archivedBranchIntents',
+  'focusedBranchIntentId',
 ])
 
 export function createBranchIntentState(
@@ -76,6 +114,142 @@ export function findMostRecentlyUpdatedBranchIntentId(
   return latest?.intentId
 }
 
+function normalizePersistedBranchIntent(
+  value: unknown,
+  expected: 'active' | 'archived',
+): BranchIntentState | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  if (Object.keys(value).some((key) => !BRANCH_INTENT_PERSISTED_KEYS.has(key))) return undefined
+  const raw = value as Partial<BranchIntentState>
+  if (typeof raw.intentId !== 'string' || !raw.intentId.trim()
+    || typeof raw.branchId !== 'string' || !raw.branchId.trim()
+    || raw.intentId !== `branch:${raw.branchId}`
+    || typeof raw.choice !== 'string' || !raw.choice.trim()
+    || typeof raw.createdRound !== 'number'
+    || !Number.isInteger(raw.createdRound) || raw.createdRound < 0
+    || typeof raw.updatedRound !== 'number'
+    || !Number.isInteger(raw.updatedRound) || raw.updatedRound < raw.createdRound) {
+    return undefined
+  }
+
+  const lifecycle = raw.lifecycle
+  if (expected === 'active' && lifecycle !== undefined && lifecycle !== 'active') return undefined
+  if (expected === 'archived'
+    && lifecycle !== 'superseded'
+    && lifecycle !== 'abandoned'
+    && lifecycle !== 'terminal') return undefined
+  if (raw.supersededBy !== undefined
+    && (typeof raw.supersededBy !== 'string' || !raw.supersededBy.trim())) return undefined
+  if (lifecycle === 'superseded'
+    && (!raw.supersededBy || raw.supersededBy === raw.intentId)) return undefined
+
+  let resolution: NarrativeIntentResolution | undefined
+  if (raw.resolution !== undefined) {
+    if (!raw.resolution || typeof raw.resolution !== 'object'
+      || typeof raw.resolution.progress !== 'number') return undefined
+    const parsed = NarrativeIntentResolutionSchema.safeParse(raw.resolution)
+    if (!parsed.success || validateIntentResolution(parsed.data, raw.intentId)) return undefined
+    resolution = parsed.data
+  }
+  if (expected === 'active' && resolution && isTerminalIntentStatus(resolution.status)) return undefined
+  if (lifecycle === 'terminal' && (!resolution || !isTerminalIntentStatus(resolution.status))) {
+    return undefined
+  }
+
+  return {
+    intentId: raw.intentId,
+    branchId: raw.branchId,
+    choice: raw.choice,
+    createdRound: raw.createdRound,
+    updatedRound: raw.updatedRound,
+    ...(resolution ? { resolution: structuredClone(resolution) } : {}),
+    ...(expected === 'archived' ? { lifecycle } : {}),
+    ...(raw.supersededBy ? { supersededBy: raw.supersededBy } : {}),
+  }
+}
+
+/**
+ * 严格恢复 EngineStore 中的兼容投影。任一意图畸形时整包拒绝，调用方可从
+ * 已提交叙事历史重建，不能把部分浏览器状态提升为运行事实。
+ */
+export function normalizeBranchIntentProjection(value: unknown): BranchIntentProjection | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined
+  if (Object.keys(value).some((key) => !BRANCH_INTENT_PROJECTION_KEYS.has(key))) return undefined
+  const raw = value as {
+    branchIntents?: unknown
+    archivedBranchIntents?: unknown
+    focusedBranchIntentId?: unknown
+  }
+  if (!Array.isArray(raw.branchIntents) || !Array.isArray(raw.archivedBranchIntents)) {
+    return undefined
+  }
+
+  const branchIntents: BranchIntentState[] = []
+  for (const candidate of raw.branchIntents) {
+    const intent = normalizePersistedBranchIntent(candidate, 'active')
+    if (!intent) return undefined
+    branchIntents.push(intent)
+  }
+  const archivedBranchIntents: BranchIntentState[] = []
+  for (const candidate of raw.archivedBranchIntents) {
+    const intent = normalizePersistedBranchIntent(candidate, 'archived')
+    if (!intent) return undefined
+    archivedBranchIntents.push(intent)
+  }
+
+  const ids = [...branchIntents, ...archivedBranchIntents].map((intent) => intent.intentId)
+  if (new Set(ids).size !== ids.length) return undefined
+  if (raw.focusedBranchIntentId !== undefined
+    && (typeof raw.focusedBranchIntentId !== 'string' || !raw.focusedBranchIntentId.trim())) {
+    return undefined
+  }
+  const requestedFocus = typeof raw.focusedBranchIntentId === 'string'
+    ? raw.focusedBranchIntentId
+    : undefined
+  const focusedBranchIntentId = findFocusedBranchIntent(branchIntents, requestedFocus)
+    ? requestedFocus
+    : findMostRecentlyUpdatedBranchIntentId(branchIntents)
+
+  return {
+    branchIntents,
+    archivedBranchIntents,
+    ...(focusedBranchIntentId ? { focusedBranchIntentId } : {}),
+  }
+}
+
+/**
+ * 浏览器持久化的分支投影只是运行时缓存，完整叙事历史才是可恢复事实。
+ * 只有投影逐项等于历史重建结果时才能恢复，避免格式正确但无来源的幽灵意图
+ * 抢占后续 Prompt。
+ */
+export function isBranchIntentProjectionConsistent(
+  projection: BranchIntentProjection,
+  reconstructed: BranchIntentProjection,
+): boolean {
+  const signature = (intent: BranchIntentState): string => JSON.stringify({
+    intentId: intent.intentId,
+    branchId: intent.branchId,
+    choice: intent.choice,
+    createdRound: intent.createdRound,
+    updatedRound: intent.updatedRound,
+    resolution: intent.resolution ?? null,
+    lifecycle: intent.lifecycle ?? null,
+    supersededBy: intent.supersededBy ?? null,
+  })
+  const sameCollection = (
+    left: readonly BranchIntentState[],
+    right: readonly BranchIntentState[],
+  ): boolean => {
+    if (left.length !== right.length) return false
+    const rightById = new Map(right.map((intent) => [intent.intentId, signature(intent)]))
+    return left.every((intent) => rightById.get(intent.intentId) === signature(intent))
+  }
+
+  return projection.focusedBranchIntentId === reconstructed.focusedBranchIntentId
+    && sameCollection(projection.branchIntents, reconstructed.branchIntents)
+    && sameCollection(projection.archivedBranchIntents, reconstructed.archivedBranchIntents)
+}
+
 export function upsertBranchIntent(
   current: readonly BranchIntentState[],
   branchId: string,
@@ -86,10 +260,13 @@ export function upsertBranchIntent(
   const intents = structuredClone(current) as BranchIntentState[]
   const existingIndex = intents.findIndex((entry) => entry.intentId === intent.intentId)
   if (existingIndex >= 0) {
-    intents[existingIndex] = intent
-  } else {
-    intents.push(intent)
+    // 同一分支条目重复确认时不重置已经提交的进度；这类重复点击只重新聚焦原意图。
+    return { intents, focusedIntentId: intents[existingIndex].intentId }
   }
+
+  // 另一个分支即使表达相近目标，也可能有不同路径、承诺和既有进度。
+  // 新选择只切换焦点，所有非终态意图继续进入后续 Prompt。
+  intents.push(intent)
   return { intents, focusedIntentId: intent.intentId }
 }
 
@@ -103,7 +280,12 @@ export function validateIntentResolutionForState(
   intent: BranchIntentState,
   resolution: NarrativeIntentResolution | undefined,
 ): string | undefined {
-  return validateIntentResolution(resolution, intent.intentId)
+  const error = validateIntentResolution(resolution, intent.intentId)
+  if (error) return error
+  if (intent.resolution && resolution && resolution.progress < intent.resolution.progress) {
+    return `progress 不得低于该意图已提交的 ${intent.resolution.progress}`
+  }
+  return undefined
 }
 
 export function validateIntentResolution(
@@ -116,6 +298,9 @@ export function validateIntentResolution(
   }
   if (resolution.status === 'succeeded' && resolution.progress !== 100) {
     return 'status=succeeded 时 progress 必须为 100'
+  }
+  if (resolution.status === 'progressing' && resolution.progress >= 100) {
+    return 'status=progressing 时 progress 必须小于 100；达到 100 应提交 succeeded'
   }
   if (resolution.status === 'partially_succeeded'
     && (resolution.progress <= 0 || resolution.progress >= 100)) {
@@ -163,6 +348,9 @@ export function commitBranchIntentResolution(
   intent.resolution = structuredClone(resolution)
   intent.updatedRound = round
   const terminal = isTerminalIntentStatus(resolution.status)
+  const archivedIntents = terminal
+    ? [{ ...intent, resolution: structuredClone(resolution), updatedRound: round, lifecycle: 'terminal' as const }]
+    : undefined
   const remaining = terminal
     ? intents.filter((entry) => entry.intentId !== intent.intentId)
     : intents
@@ -172,8 +360,70 @@ export function commitBranchIntentResolution(
     focusedIntentId: terminal
       ? findMostRecentlyUpdatedBranchIntentId(remaining)
       : intent.intentId,
+    ...(archivedIntents ? { archivedIntents } : {}),
     committed: structuredClone(resolution),
     terminal,
+  }
+}
+
+/**
+ * 从完整叙事历史重建活动与归档意图。
+ *
+ * 浏览器持久化只保存已经提交的分支选择和结构化判定；重建过程不从正文
+ * 猜测意图，也不会把畸形或找不到来源分支的判定提升为事实。
+ */
+export function rebuildBranchIntentsFromHistory(
+  history: readonly BranchIntentHistoryEntry[],
+): BranchIntentCollection {
+  let intents: BranchIntentState[] = []
+  let archivedIntents: BranchIntentState[] = []
+  let focusedIntentId: string | undefined
+
+  history.forEach((entry, index) => {
+    const round = Number.isInteger(entry.round) && (entry.round ?? 0) >= 0
+      ? entry.round as number
+      : index + 1
+    const entryId = typeof entry.id === 'string' ? entry.id.trim() : ''
+    const choice = typeof entry.resolvedChoice === 'string' ? entry.resolvedChoice.trim() : ''
+    if (entryId && choice) {
+      const choiceRound = Number.isInteger(entry.resolvedChoiceRound)
+        && (entry.resolvedChoiceRound ?? -1) >= 0
+        ? entry.resolvedChoiceRound as number
+        : round
+      const next = upsertBranchIntent(intents, entryId, choice, choiceRound)
+      intents = next.intents
+      focusedIntentId = next.focusedIntentId
+      if (next.archivedIntents?.length) {
+        archivedIntents = [...archivedIntents, ...next.archivedIntents]
+      }
+    }
+
+    if (!entry.intentResolution || typeof entry.intentResolution !== 'object'
+      || typeof entry.intentResolution.progress !== 'number') return
+    const parsedResolution = NarrativeIntentResolutionSchema.safeParse(entry.intentResolution)
+    if (!parsedResolution.success) return
+    const resolution = parsedResolution.data
+    if (!intents.some((intent) => intent.intentId === resolution.intentId)) return
+    const committed = commitBranchIntentResolution(
+      intents,
+      resolution.intentId,
+      resolution,
+      round,
+    )
+    if (committed.error || !committed.committed) return
+    intents = committed.intents
+    focusedIntentId = committed.focusedIntentId
+    if (committed.archivedIntents?.length) {
+      archivedIntents = [...archivedIntents, ...committed.archivedIntents]
+    }
+  })
+
+  return {
+    intents,
+    focusedIntentId: findFocusedBranchIntent(intents, focusedIntentId)
+      ? focusedIntentId
+      : findMostRecentlyUpdatedBranchIntentId(intents),
+    ...(archivedIntents.length > 0 ? { archivedIntents } : {}),
   }
 }
 

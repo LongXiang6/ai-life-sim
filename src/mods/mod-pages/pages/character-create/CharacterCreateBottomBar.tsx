@@ -6,7 +6,7 @@ export function CharacterCreateBottomBar({ logic }: { logic: UseCharacterCreateL
   const hint = logic.nextBlockReason ?? `${logic.name.trim()} · 进入命格抽取`
 
   return (
-    <nav className={styles.bottomBar} aria-label="角色创建操作">
+    <nav className={styles.bottomBar} aria-label="角色创建操作" data-flow-bottom-bar>
       <div className={styles.bottomBarInner}>
         <button type="button" className={styles.backButton} onClick={logic.handleBack} title={logic.LABELS.backTitleMobile} aria-label="返回世界配置">
           <span aria-hidden="true">←</span>

@@ -41,6 +41,16 @@ function read(relativePath) {
   return fs.readFileSync(path.join(root, relativePath), 'utf8')
 }
 
+function buildLatestEntryGuard(runtime, entry) {
+  const state = runtime.getState()
+  return {
+    lifeGeneration: runtime.getLifeGeneration(),
+    lifeRunId: state.lifeRunId,
+    sourceRound: state.totalRounds,
+    sourceNarrative: entry.text,
+  }
+}
+
 function buildMetadata(intentResolution) {
   return {
     changes: [],
@@ -151,6 +161,42 @@ commitResult = commitBranchIntentResolution(collection.intents, collection.focus
 assertOk(commitResult.committed?.status === 'succeeded', 'terminal intent result must be returned')
 assertOk(commitResult.intents.length === 1, 'terminal intent may leave the active set only after acceptance')
 assertOk(commitResult.focusedIntentId === firstIntent.intentId, 'engine must resume the most recent remaining unresolved intent')
+assertOk(
+  commitResult.archivedIntents?.some((intent) => intent.intentId === otherIntent.intentId && intent.lifecycle === 'terminal'),
+  'terminal intent must remain in archived history for continuity auditing',
+)
+
+const partiallySucceededIntent = createBranchIntentState('branch-three', '修复旧港的供水系统', 12)
+const partialCollection = upsertBranchIntent(commitResult.intents, 'branch-three', partiallySucceededIntent.choice, 12)
+const partiallySucceeded = {
+  intentId: partiallySucceededIntent.intentId,
+  feasibility: 'conditional',
+  executionMode: 'progressive',
+  status: 'partially_succeeded',
+  riskLevel: 'medium',
+  progress: 60,
+  blockers: ['仍需更换主阀'],
+  prerequisites: ['取得维修材料'],
+  costs: ['消耗储备零件'],
+  timeHorizon: '还需数周完成收尾',
+  reason: '主干管线已恢复，但最后一段仍需材料和时间。',
+  nextStep: '在下个集市采购主阀并完成压力测试',
+}
+const partialResult = commitBranchIntentResolution(
+  partialCollection.intents,
+  partialCollection.focusedIntentId,
+  partiallySucceeded,
+  13,
+)
+assertOk(partialResult.committed?.status === 'partially_succeeded', 'partially_succeeded result must be returned')
+assertOk(
+  !partialResult.intents.some((intent) => intent.intentId === partiallySucceededIntent.intentId),
+  'partially_succeeded is terminal and must leave the active intent set',
+)
+assertOk(
+  partialResult.archivedIntents?.some((intent) => intent.intentId === partiallySucceededIntent.intentId && intent.lifecycle === 'terminal'),
+  'partially_succeeded intent must be archived as a terminal result',
+)
 
 const snapshotRoundTrip = JSON.parse(JSON.stringify({
   branchIntents: commitResult.intents,
@@ -237,6 +283,7 @@ const forcedRuntime = new OrchestratorSystem()
 useEngineStore.setState({ forceBranchNext: true, branchRepairPending: true, narrativeHistory: [] })
 const forcedBodyResult = forcedRuntime.handleNarrativeResponse(bodyOnlyResponse)
 const forcedEntry = forcedRuntime.getState().narrativeHistory[0]
+const forcedEntryGuard = forcedEntry ? buildLatestEntryGuard(forcedRuntime, forcedEntry) : undefined
 useEngineStore.setState({ narrativeHistory: structuredClone(forcedRuntime.getState().narrativeHistory) })
 const forcedBranchRepairData = {
   分支标题: '谁来承担今后的照料责任？',
@@ -261,8 +308,12 @@ assertOk(
   'dedicated forced-branch output must reject every extra narrative or META field',
 )
 assertOk(
-  forcedEntry?.id
-    && forcedRuntime.applyBackgroundForcedBranchRepair(forcedEntry.id, forcedBranchRepairData),
+  forcedEntry?.id && forcedEntryGuard
+    && forcedRuntime.applyBackgroundForcedBranchRepair(
+      forcedEntry.id,
+      forcedBranchRepairData,
+      forcedEntryGuard,
+    ),
   'a valid background forced-branch repair must merge into its committed history entry',
 )
 const repairedForcedEntry = forcedRuntime.getState().narrativeHistory[0]
@@ -287,6 +338,264 @@ useEngineStore.setState({
   branchRepairPending: false,
   narrativeHistory: [],
 })
+
+// 重复正文候选回归：只替换同一条历史记录的正文，并保留原摘要、上下文和分支字段。
+const repairRuntime = new OrchestratorSystem()
+const sourceResponse = [
+  '⟦正文⟧',
+  '旧港的雾气压在屋檐下，你把修井图摊开，逐段核对每一处阀门。',
+  '⟦摘要⟧',
+  '你开始修复旧港供水系统。',
+  '⟦结束⟧',
+].join('\n')
+const repairResult = repairRuntime.handleNarrativeResponse(sourceResponse)
+const repairEntry = repairRuntime.getState().narrativeHistory[0]
+const repairEntryGuard = repairEntry ? buildLatestEntryGuard(repairRuntime, repairEntry) : undefined
+useEngineStore.setState({
+  forceBranchNext: true,
+  narrativeHistory: structuredClone(repairRuntime.getState().narrativeHistory),
+})
+assertOk(
+  repairEntry?.id && repairEntryGuard
+    && repairRuntime.applyBackgroundForcedBranchRepair(
+      repairEntry.id,
+      forcedBranchRepairData,
+      repairEntryGuard,
+    ),
+  'the source entry must have an existing branch field before a repetition replacement',
+)
+const repairOriginalSummary = repairRuntime.getState().narrativeHistory.length
+const repairCandidate = [
+  '⟦正文⟧',
+  '夜雨突然涨过堤岸，你带着修井图进入泵房，先封住倒灌的闸门，再让学徒记录压力变化。',
+  '⟦结束⟧',
+].join('\n')
+const consistentAudit = {
+  事实一致: true,
+  完整覆盖: true,
+  覆盖证据: [{
+    原文事实: '你带着修井图进入泵房并封住倒灌闸门',
+    候选对应: '候选保留修井图、泵房和封闸行动',
+  }],
+  冲突: [],
+  遗漏: [],
+}
+assertOk(
+  repairEntry?.id && repairEntryGuard
+    && repairRuntime.applyBackgroundNarrativeRepair(
+      repairEntry.id,
+      sourceResponse,
+      repairCandidate,
+      consistentAudit,
+      repairEntryGuard,
+    ),
+  'a valid repetition candidate must be accepted for the matching life generation',
+)
+const repairedEntry = repairRuntime.getState().narrativeHistory[0]
+assertOk(repairRuntime.getState().narrativeHistory.length === repairOriginalSummary, 'background narrative repair must not create a second round')
+assertOk(repairedEntry?.text.includes('夜雨突然涨过堤岸'), 'background narrative repair must replace only the body')
+assertOk(repairResult.narrative !== repairedEntry?.text, 'replacement candidate must differ from the repetitive source body')
+assertOk(repairedEntry?.isBranchPoint === true && repairedEntry.branchOptions?.length === 2, 'background repair must preserve existing branch fields')
+assertOk(repairedEntry?.repetitionMetric?.round === repairEntry?.repetitionMetric?.round, 'background repair must keep the original round metric identity')
+const repairedTextBeforeStaleCandidate = repairedEntry?.text
+assertOk(
+  repairEntry?.id
+    && !repairRuntime.applyBackgroundNarrativeRepair(
+      repairEntry.id,
+      sourceResponse,
+      repairCandidate.replace('夜雨突然涨过堤岸', '旧候选试图覆盖新正文'),
+      consistentAudit,
+      repairEntryGuard,
+    ),
+  'a stale background candidate must be rejected after the source entry has already changed',
+)
+assertOk(
+  repairRuntime.getState().narrativeHistory[0]?.text === repairedTextBeforeStaleCandidate,
+  'rejecting a stale candidate must leave the newer narrative entry unchanged',
+)
+
+const strictCandidateRuntime = new OrchestratorSystem()
+const strictSourceResult = strictCandidateRuntime.handleNarrativeResponse(sourceResponse)
+const strictSourceEntry = strictCandidateRuntime.getState().narrativeHistory[0]
+const strictSourceGuard = strictSourceEntry
+  ? buildLatestEntryGuard(strictCandidateRuntime, strictSourceEntry)
+  : undefined
+const candidateWithSummary = repairCandidate.replace(
+  '⟦结束⟧',
+  '⟦摘要⟧\n候选不得携带摘要。\n⟦结束⟧',
+)
+assertOk(
+  strictSourceEntry?.id && strictSourceGuard
+    && !strictCandidateRuntime.applyBackgroundNarrativeRepair(
+      strictSourceEntry.id,
+      sourceResponse,
+      candidateWithSummary,
+      consistentAudit,
+      strictSourceGuard,
+    ),
+  'a repetition repair candidate carrying summary or META must be rejected',
+)
+assertOk(
+  strictSourceEntry?.id && strictSourceGuard
+    && !strictCandidateRuntime.applyBackgroundNarrativeRepair(
+      strictSourceEntry.id,
+      sourceResponse,
+      repairCandidate,
+      {
+        事实一致: false,
+        完整覆盖: true,
+        覆盖证据: [],
+        冲突: ['候选反转了已成立行动结果'],
+        遗漏: [],
+      },
+      strictSourceGuard,
+    ),
+  'a candidate rejected by the independent fact audit must never replace the story',
+)
+assertOk(
+  strictSourceEntry?.id && strictSourceGuard
+    && !strictCandidateRuntime.applyBackgroundNarrativeRepair(
+      strictSourceEntry.id,
+      sourceResponse,
+      repairCandidate,
+      {
+        事实一致: true,
+        完整覆盖: false,
+        覆盖证据: [{
+          原文事实: '修井图仍由你保管',
+          候选对应: '你带着修井图进入泵房',
+        }],
+        冲突: [],
+        遗漏: ['原文逐段核对每一处阀门的已成立行动没有在候选中承载'],
+      },
+      strictSourceGuard,
+    ),
+  'a candidate that omits any established source fact must never replace the story',
+)
+assertOk(
+  strictCandidateRuntime.getState().narrativeHistory[0]?.text === strictSourceResult.narrative,
+  'failed candidate gates must preserve the exact committed source narrative',
+)
+
+const lateCandidateRuntime = new OrchestratorSystem()
+lateCandidateRuntime.handleNarrativeResponse(sourceResponse)
+const lateSourceEntry = lateCandidateRuntime.getState().narrativeHistory[0]
+const lateSourceGuard = lateSourceEntry
+  ? buildLatestEntryGuard(lateCandidateRuntime, lateSourceEntry)
+  : undefined
+lateCandidateRuntime.handleNarrativeResponse([
+  '⟦正文⟧',
+  '第二轮已经进入泵房深处，你完成了新的压力测试。',
+  '⟦结束⟧',
+].join('\n'))
+assertOk(
+  lateSourceEntry?.id && lateSourceGuard
+    && !lateCandidateRuntime.applyBackgroundNarrativeRepair(
+      lateSourceEntry.id,
+      sourceResponse,
+      repairCandidate,
+      consistentAudit,
+      lateSourceGuard,
+    ),
+  'a background candidate must be rejected after a newer narrative entry exists',
+)
+
+const repairLockRuntime = new OrchestratorSystem()
+const oldRepairGeneration = repairLockRuntime.getLifeGeneration()
+const oldRepairToken = repairLockRuntime.tryBeginNarrativeRepetitionRepair(oldRepairGeneration)
+assertOk(
+  oldRepairToken,
+  'the first repetition repair in a life generation must acquire the single-flight lock',
+)
+repairLockRuntime.reset()
+const newRepairGeneration = repairLockRuntime.getLifeGeneration()
+const newRepairToken = repairLockRuntime.tryBeginNarrativeRepetitionRepair(newRepairGeneration)
+assertOk(
+  newRepairGeneration !== oldRepairGeneration
+    && newRepairToken,
+  'a reset must invalidate the old repair and allow the new life to acquire its own lock',
+)
+repairLockRuntime.finishNarrativeRepetitionRepair(oldRepairToken)
+assertOk(
+  !repairLockRuntime.tryBeginNarrativeRepetitionRepair(newRepairGeneration),
+  'completion from an old life must not release the current life repair lock',
+)
+repairLockRuntime.finishNarrativeRepetitionRepair(newRepairToken)
+const replacementRepairToken = repairLockRuntime.tryBeginNarrativeRepetitionRepair(newRepairGeneration)
+assertOk(
+  replacementRepairToken,
+  'the matching life generation must release its repair lock',
+)
+repairLockRuntime.finishNarrativeRepetitionRepair(replacementRepairToken)
+
+const forcedLockRuntime = new OrchestratorSystem()
+const oldForcedGeneration = forcedLockRuntime.getLifeGeneration()
+const oldForcedToken = forcedLockRuntime.tryBeginForcedBranchRepair(oldForcedGeneration)
+forcedLockRuntime.reset()
+const newForcedGeneration = forcedLockRuntime.getLifeGeneration()
+const newForcedToken = forcedLockRuntime.tryBeginForcedBranchRepair(newForcedGeneration)
+forcedLockRuntime.finishForcedBranchRepair(oldForcedToken)
+assertOk(
+  oldForcedToken && newForcedToken && useEngineStore.getState().branchRepairPending,
+  'completion from an old life must not clear a new forced-branch request pending state',
+)
+forcedLockRuntime.finishForcedBranchRepair(newForcedToken)
+assertOk(
+  !useEngineStore.getState().branchRepairPending,
+  'only the matching forced-branch owner may release pending state',
+)
+
+const roundTokenRuntime = new OrchestratorSystem()
+const committedToken = roundTokenRuntime.beginRoundExecution()
+roundTokenRuntime.commitRoundExecution(committedToken)
+let releasePreview
+let deferredCallbackCount = 0
+const preview = roundTokenRuntime.runPreviewRound(async () => new Promise((resolve) => {
+  releasePreview = resolve
+}))
+await Promise.resolve()
+assertOk(
+  roundTokenRuntime.enqueueAfterRoundCommit(committedToken, () => {
+    deferredCallbackCount += 1
+  }),
+  'a committed real-round callback must remain eligible while preview is active',
+)
+assertOk(deferredCallbackCount === 0, 'background merge must wait until preview state is restored')
+releasePreview()
+await preview
+await Promise.resolve()
+assertOk(deferredCallbackCount === 1, 'background merge must run once after preview restoration')
+
+const staleRoundToken = roundTokenRuntime.beginRoundExecution()
+roundTokenRuntime.commitRoundExecution(staleRoundToken)
+const newerRoundToken = roundTokenRuntime.beginRoundExecution()
+let staleRoundCallbackCount = 0
+assertOk(
+  !roundTokenRuntime.enqueueAfterRoundCommit(staleRoundToken, () => {
+    staleRoundCallbackCount += 1
+  }) && staleRoundCallbackCount === 0,
+  'starting a newer real round must invalidate a late callback from the previous round',
+)
+roundTokenRuntime.abortRoundExecution(newerRoundToken)
+
+useEngineStore.getState().reset()
+useEngineStore.setState({ forceBranchNext: true })
+const promptBranchRuntime = new OrchestratorSystem()
+const uniqueChoice = '沿北岸航道寻找失踪的远征队'
+promptBranchRuntime.resolveBranchChoice('prompt-branch', uniqueChoice)
+promptBranchRuntime.setLastPlayerChoice(uniqueChoice)
+const branchUserInstruction = promptBranchRuntime.buildUserInstruction() ?? ''
+const choiceMentions = branchUserInstruction.match(new RegExp(uniqueChoice, 'gu'))?.length ?? 0
+assertOk(
+  choiceMentions === 1,
+  'the active BranchIntent must be the only Prompt projection that repeats the current choice text',
+)
+assertOk(
+  branchUserInstruction.includes('【强制分支】')
+    && !branchUserInstruction.includes('本轮禁止生成新的命运分支')
+    && !branchUserInstruction.includes('普通命运分支冷却中'),
+  'an explicit forced branch must override ordinary branch cooldown instructions',
+)
 
 const branchCommands = read('src/mods/mod-engine/helpers/branch-commands.ts')
 const responseQuality = read('src/mods/mod-engine/helpers/narrative-response-quality.ts')
@@ -315,7 +624,8 @@ assertOk(
     && campaignSource.includes('保留完整正文，结构化状态保持待处理')
     && campaignSource.includes('repairForcedBranchInBackground')
     && campaignSource.includes('applyBackgroundForcedBranchRepair')
-    && campaignSource.includes('setBranchRepairPending(true)')
+    && campaignSource.includes('tryBeginForcedBranchRepair')
+    && campaignSource.includes('finishForcedBranchRepair')
     && campaignSource.includes("callKind: 'narrative-branch-repair'")
     && campaignSource.includes('narrativeBranchRepairPrompt')
     && preGenSource.includes('canContinueWithNarrativeBody(responseQuality, expectedIntentId)'),
@@ -325,8 +635,14 @@ assertOk(
   branchRepairStart >= 0
     && branchRepairBodyCommit > branchRepairStart
     && branchRepairRequestLifecycle.includes('.finally(() => {')
-    && branchRepairRequestLifecycle.includes('setBranchRepairPending(false)'),
+    && branchRepairRequestLifecycle.includes('finishForcedBranchRepair(ownerToken)'),
   'the background request must own pending-state cleanup before later parsing or commit work can fail',
+)
+assertOk(
+  orchestratorSource.includes('if (!forceBranch && lastEntry?.resolvedChoice)')
+    && orchestratorSource.includes('else if (!forceBranch && this.shouldSuppressBranchPoint(false))')
+    && orchestratorSource.includes('const roundExecutionToken = this.isPreviewExecution()'),
+  'forced branches and preview execution must not inherit ordinary real-round suppression or ownership',
 )
 assertOk(
   orchestratorSource.indexOf('intentResolutionError') < orchestratorSource.indexOf("this.applyRoundChanges(effectiveParsed.changes, 'narrative')")

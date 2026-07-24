@@ -21,7 +21,6 @@ import { fetchCloudManualSaveSummary, removeCloudManualSave } from '@/core/playe
 import type { CloudManualSaveSummary } from '@/core/player-content/player-content-contract'
 import { useLifeRecordStore, useMythicLibraryStore } from '@/mods/mod-character'
 import { useSettingsStore } from '@/mods/mod-settings'
-import { PageScroll } from '@/mods/mod-ui'
 
 import {
   applyAccountSession,
@@ -35,6 +34,7 @@ import { useCharacterCreationDraftStore } from '../../helpers/character-creation
 import styles from './Account.module.css'
 
 type GuestMode = 'login' | 'register'
+type AccountTab = 'login' | 'cloud' | 'data'
 
 function firstIssueMessage(error: unknown): string {
   if (error && typeof error === 'object' && 'issues' in error) {
@@ -58,6 +58,7 @@ export default function AccountPage() {
   const characterDraft = useCharacterCreationDraftStore((state) => state.draft)
 
   const [mode, setMode] = useState<GuestMode>('login')
+  const [activeTab, setActiveTab] = useState<AccountTab>('login')
   const [username, setUsername] = useState('')
   const [qq, setQq] = useState('')
   const [password, setPassword] = useState('')
@@ -233,251 +234,173 @@ export default function AccountPage() {
   }
 
   return (
-    <PageScroll maxWidth={920} className={styles.page}>
-      <main className={styles.shell}>
-        <span className={styles.spine} aria-hidden="true" />
-        <span className={styles.verticalBrand} aria-hidden="true">AI LIFE SIM</span>
-        <header className={styles.header}>
-          <button type="button" className={styles.back} onClick={() => router.push('/welcome')} title="返回欢迎页" aria-label="返回欢迎页">←</button>
-          <div className={styles.headerCopy}>
-            <span>AI LIFE SIM · 命书 / 附页 03</span>
-            <h1>账号与云端</h1>
-            <p>游客可以完整游玩，登录只用于保留和同步你的个人数据。</p>
-          </div>
-          {status === 'authenticated' ? <strong className={styles.syncBadge} data-state={syncStatus}>{syncLabel}</strong> : null}
-        </header>
+    <div className="final-flow-frame">
+      <div className="final-flow-design-fit">
+        <div className="final-flow-design-canvas">
+          <main className={styles.page}>
+            <div className={styles.screen}>
+              <header className={styles.header}>
+                <div className={styles.meta}><span>AI LIFE SIM · 命书</span><span>附 · 账号</span></div>
+                <h1>账号与云端</h1>
+              </header>
 
-        {status === 'loading' ? <p className={styles.loading}>正在确认登录状态...</p> : null}
-
-        {status === 'guest' ? (
-          <div className={styles.guestLayout}>
-            <section className={styles.authTool} aria-labelledby="auth-title">
-              <div className={styles.form}>
-                <div className={styles.formHead}>
-                  <span>AI LIFE SIM · 云端续页</span>
-                  <h2 id="auth-title"><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">🔐</span>{mode === 'login' ? '登录账号' : '注册账号'}</h2>
-                  <p>{mode === 'login' ? '载入你的配置、角色设定、轮回天赋与战绩。' : '建立一份可跨设备续写的个人命书。'}</p>
-                </div>
-                <label>
-                  <span>用户名</span>
-                  <input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" maxLength={24} />
-                  {mode === 'register' ? <small>3-24 位中文、英文、数字或下划线</small> : null}
-                </label>
-                {mode === 'register' ? (
-                  <label>
-                    <span>QQ 号（选填）</span>
-                    <input value={qq} onChange={(event) => setQq(event.target.value.replace(/\D/gu, ''))} inputMode="numeric" autoComplete="off" maxLength={12} />
-                    <small>这里只作联系方式；机器人身份需注册后用一次性绑定码验证</small>
-                  </label>
-                ) : null}
-                <label>
-                  <span>密码</span>
-                  <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} maxLength={128} />
-                  {mode === 'register' ? <small>至少 8 位，可使用任意字符</small> : null}
-                </label>
-                {mode === 'register' ? (
-                  <>
-                    <label>
-                      <span>确认密码</span>
-                      <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" maxLength={128} />
-                    </label>
-                    <label className={styles.checkbox}>
-                      <input type="checkbox" checked={registerSaveKey} onChange={(event) => setRegisterSaveKey(event.target.checked)} disabled={!customKey.trim()} />
-                      <span>加密保存当前 API Key</span>
-                    </label>
-                  </>
-                ) : null}
-                {message ? <p className={styles.error} role="alert">{message}</p> : null}
-                <button type="button" className={styles.primary} disabled={busy} onClick={() => void (mode === 'login' ? handleLogin() : handleRegister())}>
-                  {busy ? '处理中...' : mode === 'login' ? '登录并载入云端' : '注册并同步当前数据'}
-                </button>
-                <p className={styles.formSwitch}>
-                  {mode === 'login' ? '还没有账号？' : '已经有账号？'}
-                  <button type="button" onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setMessage('') }}>
-                    {mode === 'login' ? '注册账号' : '返回登录'}
-                  </button>
-                </p>
-                <div className={styles.authNotice}>
-                  <span>每类数据最多 10 个栏位</span>
-                  <span>连续 30 天未登录自动清理</span>
-                </div>
-              </div>
-            </section>
-          </div>
-        ) : null}
-
-        {status === 'guest' && (mythicTalents.length > 0 || gameRecords.length > 0) ? (
-          <div className={styles.localData}>
-            <section className={styles.slots} aria-labelledby="local-talent-slots-title">
-              <div className={styles.sectionHead}>
-                <h2 id="local-talent-slots-title">本地轮回天赋</h2>
-                <span>{mythicTalents.length} / 10</span>
-              </div>
-              <div className={styles.slotList}>
-                {mythicTalents.map((talent) => (
-                  <div key={talent.id} className={styles.slotRow}>
-                    <div><strong>{talent.name}</strong><small>{talent.concept}</small></div>
-                    <button type="button" onClick={() => removeMythicTalent(talent.id)}>删除</button>
-                  </div>
+              <nav className={styles.tabs} role="tablist" aria-label="账号页面">
+                {([
+                  ['login', '🔐', status === 'authenticated' ? '账号' : '登录'],
+                  ['cloud', '☁️', '云存档'],
+                  ['data', '👤', '个人数据'],
+                ] as const).map(([tab, icon, label]) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === tab}
+                    onClick={() => setActiveTab(tab)}
+                  ><span className="semantic-emoji" aria-hidden="true">{icon}</span>{label}</button>
                 ))}
-              </div>
-            </section>
-            <section className={styles.slots} aria-labelledby="local-record-slots-title">
-              <div className={styles.sectionHead}>
-                <h2 id="local-record-slots-title">本地每局战绩</h2>
-                <span>{gameRecords.length} / 10</span>
-              </div>
-              <div className={styles.slotList}>
-                {gameRecords.map((record) => (
-                  <div key={record.recordId} className={styles.slotRow}>
-                    <div><strong>{record.characterName} · {record.worldName}</strong><small>{record.finalAge} 岁 · {record.rounds} 轮 · 评分 {record.overallScore}</small></div>
-                    <button type="button" onClick={() => removeGameRecord(record.recordId)}>删除</button>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </div>
-        ) : null}
+              </nav>
 
-        {status === 'authenticated' && account ? (
-          <div className={styles.accountLayout}>
-            <section className={styles.profile} aria-labelledby="profile-title">
-              <div>
-                <span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">👤</span>当前账号</span>
-                <h2 id="profile-title">{account.username}</h2>
-                <p>{account.linkedQq ? `已验证 QQ ${account.linkedQq}` : account.qq ? `登记 QQ ${account.qq}（未验证）` : '尚未登记 QQ'}</p>
-              </div>
-              <div className={styles.profileActions}>
-                <button type="button" onClick={() => void syncAccountNow()} disabled={busy || syncStatus === 'syncing'}>立即同步</button>
-                <button type="button" onClick={() => void handleLogout()} disabled={busy}>退出登录</button>
-              </div>
-            </section>
-
-            <section className={styles.slots} aria-labelledby="cloud-save-slot-title">
-              <div className={styles.sectionHead}>
-                <h2 id="cloud-save-slot-title"><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">☁️</span>云端手动存档</h2>
-                <span>{cloudSave ? '1 / 1' : '0 / 1'}</span>
-              </div>
-              <div className={styles.slotList}>
-                {cloudSave ? (
-                  <div className={styles.slotRow}>
-                    <div>
-                      <strong>{cloudSave.name}</strong>
-                      <small>{cloudSave.characterName || '未命名'} · {cloudSave.worldName || '未知世界'} · 第 {cloudSave.totalRounds} 轮</small>
+              {activeTab === 'login' ? (
+                <section className={styles.panel} aria-label={status === 'authenticated' ? '当前账号' : mode === 'login' ? '登录账号' : '注册账号'}>
+                  {status === 'loading' ? <p className={styles.empty}>正在确认登录状态...</p> : null}
+                  {status === 'guest' ? (
+                    <div className={styles.form}>
+                      <label className={styles.field}>
+                        <span>账号</span>
+                        <input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" maxLength={24} />
+                      </label>
+                      {mode === 'register' ? (
+                        <label className={styles.field}>
+                          <span>QQ 号（选填）</span>
+                          <input value={qq} onChange={(event) => setQq(event.target.value.replace(/\D/gu, ''))} inputMode="numeric" autoComplete="off" maxLength={12} />
+                        </label>
+                      ) : null}
+                      <label className={styles.field}>
+                        <span>密码</span>
+                        <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} maxLength={128} />
+                      </label>
+                      {mode === 'register' ? (
+                        <>
+                          <label className={styles.field}>
+                            <span>确认密码</span>
+                            <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" maxLength={128} />
+                          </label>
+                          <label className={styles.checkRow}>
+                            <span><strong>加密保存 API Key</strong><small>仅在当前已填写 Key 时可选</small></span>
+                            <input type="checkbox" checked={registerSaveKey} onChange={(event) => setRegisterSaveKey(event.target.checked)} disabled={!customKey.trim()} />
+                          </label>
+                        </>
+                      ) : null}
+                      <button type="button" className={styles.primary} disabled={busy} onClick={() => void (mode === 'login' ? handleLogin() : handleRegister())}>
+                        {busy ? '处理中...' : mode === 'login' ? '登录并同步' : '注册并同步'}
+                      </button>
+                      <button type="button" className={styles.secondary} onClick={() => { setMode(mode === 'login' ? 'register' : 'login'); setMessage('') }}>
+                        {mode === 'login' ? '注册账号' : '返回登录'}
+                      </button>
                     </div>
-                    <button type="button" disabled={cloudSaveBusy} onClick={() => void handleDeleteCloudSave()}>
-                      {cloudDeleteArmed ? '确认删除' : '删除'}
-                    </button>
-                  </div>
-                ) : <p className={styles.empty}>{cloudSaveBusy ? '正在读取云端栏位...' : '云端栏位为空'}</p>}
-              </div>
-            </section>
-
-            <section className={styles.qqBinding} aria-labelledby="qq-binding-title">
-              <div className={styles.bindingHead}>
-                <div>
-                  <span>社区联动</span>
-                  <h2 id="qq-binding-title">QQ群机器人</h2>
-                  <p>验证后可在群内查询账号状态，并使用同一份全局积分。</p>
-                </div>
-                {account.linkedQq ? <strong>{account.pointsBalance} 积分</strong> : null}
-              </div>
-              {account.linkedQq ? (
-                <div className={styles.bindingActions}>
-                  <p>QQ {account.linkedQq} 已绑定。积分交易不会读取你的配置、Key、角色设定或故事。</p>
-                  <div>
-                    <button type="button" onClick={() => void handleRefreshAccount()} disabled={qqLinkBusy}>刷新状态</button>
-                    <button type="button" onClick={() => void handleUnlinkQq()} disabled={qqLinkBusy}>解除绑定</button>
-                  </div>
-                </div>
-              ) : (
-                <div className={styles.bindingActions}>
-                  {qqLinkCode ? (
-                    <div className={styles.linkCode} aria-live="polite">
-                      <span>在机器人所在群发送</span>
-                      <strong>/绑定游戏 {qqLinkCode}</strong>
-                      <small>绑定码于 {new Date(qqLinkExpiresAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })} 失效</small>
+                  ) : null}
+                  {status === 'authenticated' && account ? (
+                    <div className={styles.rows}>
+                      <div className={styles.profileRow}>
+                        <div><strong>{account.username}</strong><small>{account.linkedQq ? `已验证 QQ ${account.linkedQq}` : account.qq ? `登记 QQ ${account.qq}` : '尚未登记 QQ'}</small></div>
+                        <span>{syncLabel}</span>
+                      </div>
+                      <div className={styles.actionRow}>
+                        <button type="button" className={styles.primary} onClick={() => void syncAccountNow()} disabled={busy || syncStatus === 'syncing'}>立即同步</button>
+                        <button type="button" className={styles.secondary} onClick={() => void handleLogout()} disabled={busy}>退出登录</button>
+                      </div>
                     </div>
-                  ) : <p>生成一次性绑定码后，由当前 QQ 在群内确认归属。</p>}
-                  <div>
-                    <button type="button" onClick={() => void handleCreateQqLinkCode()} disabled={qqLinkBusy}>{qqLinkCode ? '换一个绑定码' : '生成绑定码'}</button>
-                    {qqLinkCode ? <button type="button" onClick={() => void handleRefreshAccount()} disabled={qqLinkBusy}>我已绑定，刷新</button> : null}
+                  ) : null}
+                </section>
+              ) : null}
+
+              {activeTab === 'cloud' ? (
+                <section className={styles.panel} aria-label="云存档">
+                  {status !== 'authenticated' ? (
+                    <div className={styles.emptyState}><strong>登录后使用云存档</strong><small>游客存档仍保留在当前浏览器。</small><button type="button" className={styles.primary} onClick={() => setActiveTab('login')}>前往登录</button></div>
+                  ) : (
+                    <div className={styles.rows}>
+                      <div className={styles.dataRow}>
+                        <div><strong>云端人生</strong><small>{cloudSave ? `${cloudSave.worldName || '未知世界'} · 第 ${cloudSave.totalRounds} 轮` : cloudSaveBusy ? '正在读取云端栏位' : '云端栏位为空'}</small></div>
+                        <span>{cloudSave ? '已同步' : '0 / 1'}</span>
+                      </div>
+                      {cloudSave ? (
+                        <div className={styles.dataRow}>
+                          <div><strong>{cloudSave.name}</strong><small>{cloudSave.characterName || '未命名角色'}</small></div>
+                          <button type="button" className={styles.textAction} disabled={cloudSaveBusy} onClick={() => void handleDeleteCloudSave()}>{cloudDeleteArmed ? '确认删除' : '删除'}</button>
+                        </div>
+                      ) : null}
+                      <button type="button" className={styles.primary} onClick={() => void syncAccountNow()} disabled={syncStatus === 'syncing'}>{syncStatus === 'syncing' ? '正在同步' : '同步账号数据'}</button>
+                    </div>
+                  )}
+                </section>
+              ) : null}
+
+              {activeTab === 'data' ? (
+                <section className={styles.panel} aria-label="个人数据">
+                  <div className={styles.rows}>
+                    <div className={styles.dataRow}>
+                      <div><strong>API Key</strong><small>{status === 'authenticated' && saveApiKey ? '服务端加密保存' : '仅保留在当前浏览器'}</small></div>
+                      {status === 'authenticated' ? (
+                        <label className={styles.switch}><input type="checkbox" checked={saveApiKey} onChange={(event) => setCloudApiKeyPreference(event.target.checked)} disabled={!customKey.trim() && !saveApiKey} /><span aria-hidden="true" /></label>
+                      ) : <span>{customKey.trim() ? '本地' : '未设置'}</span>}
+                    </div>
+                    <div className={styles.dataRow}>
+                      <div><strong>角色设定</strong><small>{characterDraft.name.trim() || '未填写姓名'} · {characterDraft.race.trim() || '未填写种族'}</small></div>
+                      <span>{status === 'authenticated' ? syncLabel : '本地'}</span>
+                    </div>
+                    <div className={styles.sectionLine}><strong>轮回天赋</strong><span>{mythicTalents.length} / 10</span></div>
+                    {mythicTalents.map((talent) => (
+                      <div key={talent.id} className={styles.dataRow}><div><strong>{talent.name}</strong><small>{talent.concept}</small></div><button type="button" className={styles.textAction} onClick={() => removeMythicTalent(talent.id)}>删除</button></div>
+                    ))}
+                    {mythicTalents.length === 0 ? <p className={styles.empty}>暂无已封存天赋</p> : null}
+                    <div className={styles.sectionLine}><strong>每局战绩</strong><span>{gameRecords.length} / 10</span></div>
+                    {gameRecords.map((record) => (
+                      <div key={record.recordId} className={styles.dataRow}><div><strong>{record.characterName} · {record.worldName}</strong><small>{record.finalAge} 岁 · {record.rounds} 轮 · 评分 {record.overallScore}</small></div><button type="button" className={styles.textAction} onClick={() => removeGameRecord(record.recordId)}>删除</button></div>
+                    ))}
+                    {gameRecords.length === 0 ? <p className={styles.empty}>暂无结构化战绩</p> : null}
+
+                    {status === 'authenticated' && account ? (
+                      <>
+                        <div className={styles.sectionLine}><strong>QQ群机器人</strong><span>{account.linkedQq ? `${account.pointsBalance} 积分` : '未绑定'}</span></div>
+                        {qqLinkCode ? <p className={styles.linkCode}>/绑定游戏 {qqLinkCode}<small>{new Date(qqLinkExpiresAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })} 失效</small></p> : null}
+                        <div className={styles.actionRow}>
+                          {account.linkedQq ? (
+                            <>
+                              <button type="button" className={styles.secondary} onClick={() => void handleRefreshAccount()} disabled={qqLinkBusy}>刷新状态</button>
+                              <button type="button" className={styles.secondary} onClick={() => void handleUnlinkQq()} disabled={qqLinkBusy}>解除绑定</button>
+                            </>
+                          ) : (
+                            <>
+                              <button type="button" className={styles.secondary} onClick={() => void handleCreateQqLinkCode()} disabled={qqLinkBusy}>{qqLinkCode ? '更换绑定码' : '生成绑定码'}</button>
+                              {qqLinkCode ? <button type="button" className={styles.secondary} onClick={() => void handleRefreshAccount()} disabled={qqLinkBusy}>刷新绑定</button> : null}
+                            </>
+                          )}
+                        </div>
+                        <div className={styles.dangerRow}>
+                          {!deleteOpen ? <button type="button" onClick={() => setDeleteOpen(true)}>删除账号</button> : (
+                            <><input type="password" value={deletePassword} onChange={(event) => setDeletePassword(event.target.value)} placeholder="输入当前密码" autoComplete="current-password" maxLength={128} /><button type="button" onClick={() => void handleDelete()} disabled={busy}>确认删除</button><button type="button" onClick={() => { setDeleteOpen(false); setDeletePassword('') }}>取消</button></>
+                          )}
+                        </div>
+                      </>
+                    ) : null}
                   </div>
-                </div>
-              )}
-            </section>
+                </section>
+              ) : null}
 
-            <section className={styles.preference} aria-labelledby="key-title">
-              <div>
-                <h2 id="key-title">API Key 云保存</h2>
-                <p>{saveApiKey ? '已使用服务端密钥加密保存' : '仅保留在当前浏览器'}</p>
-              </div>
-              <label className={styles.switch}>
-                <input type="checkbox" checked={saveApiKey} onChange={(event) => setCloudApiKeyPreference(event.target.checked)} disabled={!customKey.trim() && !saveApiKey} />
-                <span aria-hidden="true" />
-              </label>
-            </section>
+              {message ? <p className={styles.error} role="alert">{message}</p> : null}
+              {syncError ? <p className={styles.error} role="alert">{syncError}</p> : null}
+            </div>
 
-            <section className={styles.preference} aria-labelledby="character-draft-title">
-              <div>
-                <h2 id="character-draft-title"><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">👤</span>长期角色设定</h2>
-                <p>{characterDraft.name.trim() || '未填写姓名'} · {characterDraft.race.trim() || '未填写种族'}</p>
-              </div>
-              <span className={styles.syncBadge} data-state={syncStatus}>{syncLabel}</span>
-            </section>
-
-            {syncError ? <p className={styles.error} role="alert">{syncError}</p> : null}
-
-            <section className={styles.slots} aria-labelledby="talent-slots-title">
-              <div className={styles.sectionHead}>
-                <h2 id="talent-slots-title">轮回天赋</h2>
-                <span>{mythicTalents.length} / 10</span>
-              </div>
-              <div className={styles.slotList}>
-                {mythicTalents.map((talent) => (
-                  <div key={talent.id} className={styles.slotRow}>
-                    <div><strong>{talent.name}</strong><small>{talent.concept}</small></div>
-                    <button type="button" onClick={() => removeMythicTalent(talent.id)}>删除</button>
-                  </div>
-                ))}
-                {mythicTalents.length === 0 ? <p className={styles.empty}>暂无已封存天赋</p> : null}
-              </div>
-            </section>
-
-            <section className={styles.slots} aria-labelledby="record-slots-title">
-              <div className={styles.sectionHead}>
-                <h2 id="record-slots-title">每局战绩</h2>
-                <span>{gameRecords.length} / 10</span>
-              </div>
-              <div className={styles.slotList}>
-                {gameRecords.map((record) => (
-                  <div key={record.recordId} className={styles.slotRow}>
-                    <div><strong>{record.characterName} · {record.worldName}</strong><small>{record.finalAge} 岁 · {record.rounds} 轮 · 评分 {record.overallScore}</small></div>
-                    <button type="button" onClick={() => removeGameRecord(record.recordId)}>删除</button>
-                  </div>
-                ))}
-                {gameRecords.length === 0 ? <p className={styles.empty}>暂无结构化战绩</p> : null}
-              </div>
-            </section>
-
-            <section className={styles.danger} aria-labelledby="danger-title">
-              <div>
-                <h2 id="danger-title">删除账号</h2>
-                <p>立即删除云端配置、角色设定、Key、天赋、战绩、手动存档、邮箱内容和全部会话。</p>
-              </div>
-              {!deleteOpen ? (
-                <button type="button" onClick={() => setDeleteOpen(true)}>删除账号</button>
-              ) : (
-                <div className={styles.deleteConfirm}>
-                  <input type="password" value={deletePassword} onChange={(event) => setDeletePassword(event.target.value)} placeholder="输入当前密码" autoComplete="current-password" maxLength={128} />
-                  <button type="button" onClick={() => void handleDelete()} disabled={busy}>确认删除</button>
-                  <button type="button" onClick={() => { setDeleteOpen(false); setDeletePassword('') }}>取消</button>
-                </div>
-              )}
-            </section>
-          </div>
-        ) : null}
-      </main>
-    </PageScroll>
+            <footer className={styles.footer} data-flow-bottom-bar>
+              <button type="button" className={styles.back} onClick={() => router.push('/welcome')} aria-label="返回欢迎界面">←</button>
+              <button type="button" className={styles.done} onClick={() => router.push('/welcome')}>
+                <span className={styles.doneNumber}>00</span><span className={styles.doneCopy}><strong>完成</strong><small>返回欢迎界面</small></span><span className={styles.doneArrow} aria-hidden="true">→</span>
+              </button>
+            </footer>
+          </main>
+        </div>
+      </div>
+    </div>
   )
 }
