@@ -117,6 +117,8 @@ const gameOverPageSrc = readRel('src/mods/mod-pages/pages/game-over/page.tsx')
 const gameOverRadarSrc = readRel('src/mods/mod-pages/pages/game-over/GameOverRadar.tsx')
 const gameOverShareCardSrc = readRel('src/mods/mod-pages/pages/game-over/game-over-share-card.ts')
 const gameOverCssSrc = readRel('src/mods/mod-pages/pages/game-over/GameOver.module.css')
+const prototypeLibraryCssSrc = readRel('docs/ui-prototypes/mobile/assets/library.css')
+const prototypeIndexSrc = readRel('docs/ui-prototypes/mobile/index.html')
 const prototypeFlowSrc = readRel('docs/ui-prototypes/mobile/assets/prototype.js')
 const prototypeFlowPageSrc = readRel('docs/ui-prototypes/mobile/flow.html')
 const prototypeWelcomeSrc = readRel('docs/ui-prototypes/mobile/welcome/round-19-rf4-b-refinement.html')
@@ -129,6 +131,10 @@ const prototypeAttributeSrc = readRel('docs/ui-prototypes/mobile/attribute-alloc
 const prototypeFatePreviewSrc = readRel('docs/ui-prototypes/mobile/fate-preview/round-refactor-01-style-1.html')
 const prototypeGameStorySrc = readRel('docs/ui-prototypes/mobile/game-story/round-refactor-20-style-1.html')
 const prototypeGameOverSrc = readRel('docs/ui-prototypes/mobile/game-over/final.html')
+const prototypeAccountSrc = readRel('docs/ui-prototypes/mobile/account/final.html')
+const prototypeSettingsSrc = readRel('docs/ui-prototypes/mobile/settings/final.html')
+const prototypeHelpSrc = readRel('docs/ui-prototypes/mobile/help/final.html')
+const prototypeFeedbackSrc = readRel('docs/ui-prototypes/mobile/feedback/final.html')
 const pageManifestSrc = readRel('src/mods/mod-pages/manifest.ts')
 
 assertOk(
@@ -672,9 +678,53 @@ assertOk(
     && prototypeFlowPageSrc.includes('aspect-ratio: 430 / 932')
     && prototypeFlowPageSrc.includes('.preview-stage { justify-content: start; padding: 0; }')
     && prototypeFlowPageSrc.includes('.preview-frame-wrap { width: 100vw; }')
-    && prototypeFlowPageSrc.includes('welcome/round-19-rf4-b-refinement.html?preview=20260723-ui-sync-16')
-    && prototypeFlowPageSrc.includes("const previewRevision = '20260723-ui-sync-16'"),
-  'the solution-library preview must retain the Pro Max 430x932 canvas, scale down proportionally and use the current cache revision',
+    && prototypeFlowPageSrc.includes('<title>AI Life Sim · 移动端定版串联</title>')
+    && prototypeFlowPageSrc.includes('welcome/round-19-rf4-b-refinement.html?preview=20260724-semantic-icons-final-1')
+    && prototypeFlowPageSrc.includes("const previewRevision = '20260724-semantic-icons-final-1'")
+    && prototypeIndexSrc.includes('<h2>当前定版主界面</h2>')
+    && prototypeIndexSrc.includes('<span>12 选 3</span>'),
+  'the solution-library final preview must retain the Pro Max 430x932 canvas, scale down proportionally and expose the current cache revision',
+)
+assertOk(
+  prototypeLibraryCssSrc.includes('.semantic-emoji {')
+    && prototypeWorldSelectSrc.includes('<span class="semantic-emoji" aria-hidden="true">🌍</span>现代地球')
+    && prototypeWorldCustomizeSrc.includes('<span class="semantic-emoji" aria-hidden="true">🗺️</span>空间形态')
+    && prototypeWorldCustomizeSrc.includes('<span class="semantic-emoji" aria-hidden="true">⚡</span>力量体系')
+    && prototypeCharacterSrc.includes('<span class="semantic-emoji" aria-hidden="true">👤</span>核心身份')
+    && prototypeCharacterSrc.includes('<span class="semantic-emoji" aria-hidden="true">⏳</span>寿命与起始')
+    && prototypeCharacterSrc.includes('<span class="semantic-emoji" aria-hidden="true">📜</span>人生背景')
+    && prototypeAttributeSrc.includes("const attributeIcons = ['💪', '🧠', '✨', '💫']")
+    && prototypeFatePreviewSrc.includes('<span class="semantic-emoji" aria-hidden="true">💪</span>体魄')
+    && prototypeFatePreviewSrc.includes('<span class="semantic-emoji" aria-hidden="true">🗺️</span>世界空间')
+    && prototypeGameOverSrc.includes('data-axis="出身" data-emoji="🏠"')
+    && prototypeAccountSrc.includes('<span class="semantic-emoji" aria-hidden="true">☁️</span>云存档')
+    && prototypeFeedbackSrc.includes('<span class="semantic-emoji" aria-hidden="true">🔎</span>附带诊断'),
+  'selected final prototypes must use small aria-hidden semantic emoji markers on scannable labels and metrics',
+)
+assertOk(
+  prototypeGameStorySrc.includes('<em aria-hidden="true">💪</em><i>体魄</i>')
+    && prototypeGameStorySrc.includes('<em aria-hidden="true">🧠</em><i>心智</i>')
+    && prototypeGameStorySrc.includes('<em aria-hidden="true">✨</em><i>悟性</i>')
+    && prototypeGameStorySrc.includes('<em aria-hidden="true">💫</em><i>魅力</i>'),
+  'the core simulation reference must retain its four semantic attribute markers',
+)
+assertOk(
+  [prototypeWelcomeSrc, prototypeTalentDrawSrc, prototypeFateSelectSrc, prototypeSettingsSrc, prototypeHelpSrc]
+    .every(source => !source.includes('class="semantic-emoji"')),
+  'welcome, talent selection, settings and help must remain free of forced semantic emoji markers',
+)
+assertOk(
+  prototypeGameOverSrc.includes('class="bar-tool home-action"')
+    && prototypeGameOverSrc.includes('aria-label="返回首页"')
+    && prototypeGameOverSrc.includes('class="bar-tool data-action"')
+    && prototypeGameOverSrc.includes('aria-label="查看模拟数据"')
+    && prototypeGameOverSrc.includes('<span class="new-copy"><strong>开始新人生</strong><small>完成回望 · 重新选择世界</small></span>')
+    && prototypeGameOverSrc.includes('.bar { display: flex; width: 100%; min-height: 48px;')
+    && prototypeGameOverSrc.includes('.bar-tool { display: grid; width: 38px; height: 38px; flex: 0 0 38px;')
+    && prototypeGameOverSrc.includes('.new-arrow { display: grid; width: 25px; height: 25px; flex: 0 0 25px;')
+    && prototypeGameOverSrc.includes('backdrop-filter: blur(16px);')
+    && !prototypeGameOverSrc.includes('grid-template-columns: 58px 76px minmax(0, 1fr)'),
+  'game over must use the shared floating footer hierarchy while preserving home, data and new-life actions',
 )
 assertOk(
   prototypeWorldSelectSrc.includes('PrototypeFlow.state.write({')

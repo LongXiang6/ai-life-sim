@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>属性分配 · AA-RF1-1 布局</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="../assets/library.css?v=20260723-ui-sync-4">
+  <link rel="stylesheet" href="../assets/library.css?v=20260724-semantic-icons-final-1">
   <link rel="stylesheet" href="../assets/creation-flow-unified.css?v=20260723-ui-sync-4">
   <link rel="stylesheet" href="../assets/relative-phone-layout.css?v=20260723-ui-sync-4">
   <script src="../assets/prototype.js?v=20260723-ui-sync-4" defer></script>
@@ -112,6 +112,7 @@
     (function () {
       const attributeKeys = ['physique', 'mind', 'talentAptitude', 'charisma']
       const attributeLabels = ['体魄', '心智', '悟性', '魅力']
+      const attributeIcons = ['💪', '🧠', '✨', '💫']
       const initial = [6, 4, 2, 0]
       const total = 15
       const minimum = 0
@@ -186,7 +187,7 @@
             return `<i class="${classes}"></i>`
           }).join('')
           return `<li class="cf-attribute">
-            <div class="cf-attribute-name"><strong>${label}</strong><span>${describe(value)}${bonus}</span><span class="cf-attribute-base">基础值 ${value}</span></div>
+            <div class="cf-attribute-name"><strong><span class="semantic-emoji" aria-hidden="true">${attributeIcons[index]}</span>${label}</strong><span>${describe(value)}${bonus}</span><span class="cf-attribute-base">基础值 ${value}</span></div>
             <div class="cf-stepper">
               <button type="button" data-index="${index}" data-delta="-1" aria-label="降低${label}"${cannotDecrease ? ' disabled' : ''}>−</button>
               <b>${value}</b>

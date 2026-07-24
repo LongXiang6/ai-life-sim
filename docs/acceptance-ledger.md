@@ -269,6 +269,24 @@
 
 `KnownLimitations: check:mod 仍保留约 80 项既有历史基线失败，本次未新增；PM2 历史日志中存在切换前旧客户端触发的 Server Action warning，不作为本次发布新增故障。`
 
+### 2.20 移动端语义图标与人生结算底栏定版
+
+`LastVerified: 2026-07-24`
+
+`Authority: PD-008, PD-011, PD-012`
+
+`SelectedSources: docs/ui-prototypes/mobile/flow.html; docs/ui-prototypes/mobile/assets/library.css; world-select/round-20-ws-rf23-b1-adaptation.html; world-customize/round-07-ws-b1-adaptation.html; character-create/round-15-ws-b1-adaptation.html; attribute-alloc/final.html; fate-preview/round-refactor-01-style-1.html; game-over/final.html; account/final.html; feedback/final.html`
+
+`Result: pass (local prototype visual and interaction scope)`
+
+`Evidence: npm run check:ui、npm run check:changelog、npm run gate-check:quick 与 git diff --check 通过；内置 Browser 在 430×932 逐页确认世界预设、世界规则、角色三分区、四维属性、命运预览、结算指标、账号页签和反馈字段的图标没有挤压文字；命格抽取、命格选取、设置、说明和欢迎页保持无新增语义图标；结算页“模拟数据”提示、“开始新人生”回到世界选择、账号云存档页签、反馈提交均可操作；320、360、375、390、430、768、1280 外层 scrollWidth 均等于视口宽度，320/430/768 的结算底栏完整可见。`
+
+`IntentionalAdaptations: 图标只作为 aria-hidden 的紧邻标签标记，不进入页面标题或可访问名称；人生结算保留首页、模拟数据和开始新人生三个入口，前两项收为圆形工具按钮，主操作沿用创建流程的完整文字与箭头；核心模拟继续沿用已有四维图标，不新增第二套装饰。`
+
+`BaselineDifference: 直接打开单页时 Browser 控制台无错误；通过 flow.html 首次切换 iframe 时，当前内置浏览器记录一条跨文档 View Transition 的 "AbortError: Transition was skipped" 与一条 "MutationObserver.observe" 注入层错误，应用源码未触发 MutationObserver，且后续稳定停留与单页交互未再增加错误。该差异归入原型测试台/浏览器基线，不把本地原型结果描述为生产运行时全绿。`
+
+`ProjectChange: yes; FunctionalChange: no; 未递增游戏版本、未新增玩家 changelog、未执行生产发布。`
+
 ## 3. 阶段与发布验收摘要
 
 | 范围 | 当前结论 | 权威入口 |

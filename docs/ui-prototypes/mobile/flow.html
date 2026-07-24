@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>AI Life Sim · 移动端界面串联测试</title>
+  <title>AI Life Sim · 移动端定版串联</title>
   <link rel="stylesheet" href="assets/library.css">
   <style>
     .prototype-workbench { min-height: 976px; }
@@ -31,9 +31,9 @@
     <header class="hub-header">
       <div class="hub-heading">
         <a class="hub-back" href="index.html">← 返回界面总览</a>
-        <p class="eyebrow">AI LIFE SIM · MOBILE FLOW V1</p>
-        <h1>移动端界面串联测试</h1>
-        <p>串联当前定版页面，保留各页原有视觉与交互，可按主流程完整点击。</p>
+        <p class="eyebrow">AI LIFE SIM · MOBILE FLOW · FINAL</p>
+        <h1>移动端定版串联</h1>
+        <p>本页及其串联页面是当前移动端视觉、层级与交互语义的定版主界面。</p>
       </div>
       <div class="hub-status" aria-live="polite">
         <span>当前界面</span>
@@ -43,7 +43,7 @@
       </div>
     </header>
 
-    <section class="prototype-workbench" aria-label="移动端原型测试台">
+    <section class="prototype-workbench" aria-label="移动端定版串联">
       <nav class="screen-rail" aria-label="界面目录">
         <p class="rail-title">FLOW / SCREEN</p>
         <div class="screen-list" id="screen-list"></div>
@@ -51,14 +51,14 @@
 
       <div class="preview-stage">
         <div class="preview-frame-wrap">
-          <iframe class="preview-frame" id="preview-frame" title="AI Life Sim 移动端界面预览" src="welcome/round-19-rf4-b-refinement.html?preview=20260723-ui-sync-16"></iframe>
+          <iframe class="preview-frame" id="preview-frame" title="AI Life Sim 移动端定版界面预览" src="welcome/round-19-rf4-b-refinement.html?preview=20260724-semantic-icons-final-1"></iframe>
         </div>
       </div>
 
       <aside class="hub-notes">
-        <p class="rail-title">TEST NOTES</p>
-        <h2>流程检查</h2>
-        <p>保持原定版背景、配色、纹样、光效和布局，只核对串联与交互。</p>
+        <p class="rail-title">FINAL NOTES</p>
+        <h2>定版范围</h2>
+        <p>保留各页原定版构图与光效，在适合扫描的位置加入语义图标，并统一结算底部操作语法。</p>
         <dl>
           <div><dt>主流程</dt><dd>欢迎 → 世界 → 配置 → 角色 → 命格抽取 → 命格选取 → 属性 → 预览 → 模拟 → 结算</dd></div>
           <div><dt>辅助入口</dt><dd>账号、设置、说明与反馈从欢迎页进入。</dd></div>
@@ -91,7 +91,7 @@
         ['feedback', '反馈与建议', 'feedback/final.html'],
       ]
       const mainFlowCount = 10
-      const previewRevision = '20260723-ui-sync-16'
+      const previewRevision = '20260724-semantic-icons-final-1'
       const frame = document.querySelector('#preview-frame')
       const list = document.querySelector('#screen-list')
       const currentName = document.querySelector('#current-screen')

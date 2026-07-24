@@ -21,6 +21,18 @@ a { color: inherit; }
 button, input, textarea, select { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 
+.semantic-emoji {
+  display: inline-grid;
+  width: 1.2em;
+  place-items: center;
+  margin-right: .32em;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 1.05em;
+  font-style: normal;
+  line-height: 1;
+  vertical-align: -.08em;
+}
+
 .shell { width: min(1040px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 56px; }
 .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
 .topbar a { color: var(--ew-ink-soft); text-decoration: none; }

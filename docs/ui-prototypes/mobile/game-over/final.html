@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>人生结算 · A1-2D4A1A</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="../assets/library.css?v=20260723-ui-sync-4">
+  <link rel="stylesheet" href="../assets/library.css?v=20260724-semantic-icons-final-1">
   <link rel="stylesheet" href="../assets/relative-phone-layout.css?v=20260723-ui-sync-4">
   <script src="../assets/prototype.js?v=20260723-ui-sync-4" defer></script>
   <script src="../assets/relative-phone-layout.js?v=20260723-ui-sync-4" defer></script>
@@ -128,10 +128,19 @@
     .store-meta b { min-width: 0; overflow: hidden; color: var(--ink); font-family: var(--serif); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
     .store-action { display: flex; width: 100%; min-height: 38px; align-items: center; justify-content: center; gap: 7px; padding: 0 9px; border: 1px solid rgba(116,105,139,.16); border-radius: 11px; background: var(--flow-glass), rgba(255,255,255,.58); background-size: 320% 320%, 100% 100%; color: #37333d; cursor: pointer; font-size: 10px; font-weight: 700; animation: flow-shift 9s ease-in-out infinite; }
     .store-action small { color: #6d6675; font-size: 9px; font-weight: 500; }
-    .bottom { position: absolute; z-index: 8; right: 14px; bottom: 12px; left: 14px; padding: 7px; border: 1px solid rgba(207,215,238,.9); border-radius: 18px; background: rgba(255,255,255,.8); box-shadow: 0 12px 30px rgba(62,70,100,.13), 0 2px 7px rgba(62,70,100,.06); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
-    .bar { display: grid; min-height: 42px; grid-template-columns: 58px 76px minmax(0, 1fr); gap: 6px; }
-    .bar button { min-width: 0; min-height: 38px; padding: 0 7px; border: 1px solid var(--line); border-radius: 11px; background: rgba(255,255,255,.88); color: var(--soft); cursor: pointer; font-size: 9px; font-weight: 650; }
-    .bar .new-action { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .bottom { position: absolute; z-index: 8; right: 14px; bottom: 12px; left: 14px; display: flex; min-height: 52px; align-items: center; gap: 8px; padding: 2px 7px; border: 1px solid rgba(207,215,238,.9); border-radius: 18px; background: rgba(255,255,255,.8); box-shadow: 0 12px 30px rgba(62,70,100,.13), 0 2px 7px rgba(62,70,100,.06); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+    .bar { display: flex; width: 100%; min-height: 48px; align-items: center; gap: 8px; }
+    .bar-tool { display: grid; width: 38px; height: 38px; flex: 0 0 38px; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: #fff; color: var(--soft); cursor: pointer; }
+    .bar-tool svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .new-action { display: flex; min-width: 0; min-height: 48px; flex: 1; align-items: center; gap: 8px; padding: 3px 1px; border: 0; background: transparent; color: var(--ink); cursor: pointer; text-align: left; }
+    .new-number { width: 19px; color: var(--faint); font-size: 7px; font-variant-numeric: tabular-nums; }
+    .new-copy { min-width: 0; flex: 1; }
+    .new-copy strong, .new-copy small { display: block; }
+    .new-copy strong { font-size: 12px; font-weight: 700; line-height: 1.2; }
+    .new-copy small { margin-top: 2px; overflow: hidden; color: var(--faint); font-size: 7px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+    .new-arrow { display: grid; width: 25px; height: 25px; flex: 0 0 25px; place-items: center; border-radius: 50%; background: var(--accent); color: #fff; }
+    .new-arrow svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .bar button:focus-visible { outline: 2px solid rgba(115,130,187,.35); outline-offset: 2px; }
     .prototype-toast { position: absolute; z-index: 12; right: 22px; bottom: 78px; left: 22px; padding: 8px 10px; border-radius: 10px; background: var(--ink); color: #fff; font-size: 9px; text-align: center; opacity: 0; pointer-events: none; transform: translateY(6px); transition: opacity 180ms ease, transform 180ms ease; }
     .prototype-toast.show { opacity: 1; transform: none; }
     @keyframes flow-shift { 0%,100% { background-position: 0% 50%, 0 0; } 50% { background-position: 100% 50%, 0 0; } }
@@ -169,14 +178,14 @@
               <text class="graph-score" data-life-score x="112" y="83">74</text>
               <text class="graph-caption" x="112" y="96">综合评分</text>
             </svg>
-            <button class="metric-control metric-1 active" type="button" data-index="0" data-axis="体魄" data-comment="身强体壮"><span>体魄</span><b>72</b></button>
-            <button class="metric-control metric-2" type="button" data-index="1" data-axis="心智" data-comment="智冠群雄"><span>心智</span><b>86</b></button>
-            <button class="metric-control metric-3" type="button" data-index="2" data-axis="悟性" data-comment="天纵奇才"><span>悟性</span><b>91</b></button>
-            <button class="metric-control metric-4" type="button" data-index="3" data-axis="魅力" data-comment="魅力四射"><span>魅力</span><b>64</b></button>
-            <button class="metric-control metric-5" type="button" data-index="4" data-axis="出身" data-comment="根基尚可"><span>出身</span><b>58</b></button>
+            <button class="metric-control metric-1 active" type="button" data-index="0" data-axis="体魄" data-emoji="💪" data-comment="身强体壮"><span><span class="semantic-emoji" aria-hidden="true">💪</span>体魄</span><b>72</b></button>
+            <button class="metric-control metric-2" type="button" data-index="1" data-axis="心智" data-emoji="🧠" data-comment="智冠群雄"><span><span class="semantic-emoji" aria-hidden="true">🧠</span>心智</span><b>86</b></button>
+            <button class="metric-control metric-3" type="button" data-index="2" data-axis="悟性" data-emoji="✨" data-comment="天纵奇才"><span><span class="semantic-emoji" aria-hidden="true">✨</span>悟性</span><b>91</b></button>
+            <button class="metric-control metric-4" type="button" data-index="3" data-axis="魅力" data-emoji="💫" data-comment="魅力四射"><span><span class="semantic-emoji" aria-hidden="true">💫</span>魅力</span><b>64</b></button>
+            <button class="metric-control metric-5" type="button" data-index="4" data-axis="出身" data-emoji="🏠" data-comment="根基尚可"><span><span class="semantic-emoji" aria-hidden="true">🏠</span>出身</span><b>58</b></button>
           </section>
 
-          <div class="metric-comment"><span>体魄</span><b>身强体壮</b></div>
+          <div class="metric-comment"><span><span class="semantic-emoji" aria-hidden="true">💪</span>体魄</span><b>身强体壮</b></div>
           <div class="story-divider">一生回望</div>
 
           <section class="acts">
@@ -202,7 +211,7 @@
           </section>
         </div>
 
-        <footer class="bottom"><div class="bar"><button class="home-action" type="button" data-flow-to="welcome">首页</button><button class="data-action" type="button" data-demo="模拟数据已打开">模拟数据</button><button class="new-action" type="button" data-flow-to="world-select" data-flow-reset>开始新人生</button></div></footer>
+        <footer class="bottom"><div class="bar"><button class="bar-tool home-action" type="button" data-flow-to="welcome" aria-label="返回首页" title="返回首页"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 11 8-7 8 7"/><path d="M6 10v10h12V10M10 20v-6h4v6"/></svg></button><button class="bar-tool data-action" type="button" data-demo="模拟数据已打开" aria-label="查看模拟数据" title="查看模拟数据"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/><path d="M3 20h18"/></svg></button><button class="new-action" type="button" data-flow-to="world-select" data-flow-reset><span class="new-number">新</span><span class="new-copy"><strong>开始新人生</strong><small>完成回望 · 重新选择世界</small></span><span class="new-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></button></div></footer>
         <div class="prototype-toast" role="status" aria-live="polite"></div>
       </div>
     </section>
@@ -263,7 +272,7 @@
           phone.querySelectorAll('.radar-dot').forEach(function (item) { item.classList.remove('active-shape') })
           control.classList.add('active')
           phone.querySelector(`[data-dot="${control.dataset.index}"]`).classList.add('active-shape')
-          phone.querySelector('.metric-comment').innerHTML = `<span>${control.dataset.axis}</span><b>${control.dataset.comment}</b>`
+          phone.querySelector('.metric-comment').innerHTML = `<span><span class="semantic-emoji" aria-hidden="true">${control.dataset.emoji}</span>${control.dataset.axis}</span><b>${control.dataset.comment}</b>`
         })
       })
 
