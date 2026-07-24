@@ -91,6 +91,7 @@ const characterCreatePageSrc = readRel('src/mods/mod-pages/pages/character-creat
 const characterIdentitySrc = readRel('src/mods/mod-pages/pages/character-create/CharacterIdentitySection.tsx')
 const characterCreateLogicSrc = readRel('src/mods/mod-pages/pages/character-create/useCharacterCreateLogic.ts')
 const characterLifespanSrc = readRel('src/mods/mod-pages/pages/character-create/CharacterLifespanSection.tsx')
+const characterBackgroundSrc = readRel('src/mods/mod-pages/pages/character-create/CharacterBackgroundSection.tsx')
 const characterBottomBarSrc = readRel('src/mods/mod-pages/pages/character-create/CharacterCreateBottomBar.tsx')
 const characterCreateCssSrc = readRel('src/mods/mod-pages/pages/character-create/CharacterCreateMobile.module.css')
 const talentDrawPageSrc = readRel('src/mods/mod-pages/pages/talent-draw/page.tsx')
@@ -117,6 +118,8 @@ const gameOverPageSrc = readRel('src/mods/mod-pages/pages/game-over/page.tsx')
 const gameOverRadarSrc = readRel('src/mods/mod-pages/pages/game-over/GameOverRadar.tsx')
 const gameOverShareCardSrc = readRel('src/mods/mod-pages/pages/game-over/game-over-share-card.ts')
 const gameOverCssSrc = readRel('src/mods/mod-pages/pages/game-over/GameOver.module.css')
+const accountPageSrc = readRel('src/mods/mod-pages/pages/account/page.tsx')
+const feedbackPageSrc = readRel('src/mods/mod-pages/pages/feedback/page.tsx')
 const prototypeLibraryCssSrc = readRel('docs/ui-prototypes/mobile/assets/library.css')
 const prototypeIndexSrc = readRel('docs/ui-prototypes/mobile/index.html')
 const prototypeFlowSrc = readRel('docs/ui-prototypes/mobile/assets/prototype.js')
@@ -421,8 +424,9 @@ assertOk(
 assertOk(
   hasCssDeclaration(talentDrawCssSrc, 'aura', 'width', 'min(13.75rem, 72vw)')
     && hasCssDeclaration(talentDrawCssSrc, 'seals', 'grid-template-columns', 'repeat(4, minmax(0, 1fr))')
+    && hasCssDeclaration(talentDrawCssSrc, 'candidateList', 'grid-auto-rows', 'max-content')
     && talentDrawCssSrc.includes('.sealLit[data-rarity="传世"]'),
-  'the selected draw aura and twelve-seal grid must remain fluid and preserve rarity-specific reveal states',
+  'the selected draw ritual and content-sized candidate rows must remain fluid',
 )
 assertOk(
   talentDrawPageSrc.includes('Array.from({ length: MYTHIC_PATTERN_SELECT_COUNT }')
@@ -702,6 +706,29 @@ assertOk(
   'selected final prototypes must use small aria-hidden semantic emoji markers on scannable labels and metrics',
 )
 assertOk(
+  globalCssSrc.includes('.semantic-emoji {')
+    && worldSelectMainGridSrc.includes('data-semantic-emoji aria-hidden="true">{world.icon}</span>')
+    && worldSelectDirectorySrc.includes('data-semantic-emoji aria-hidden="true">{world.icon}</span>')
+    && worldCustomizeDimensionSrc.includes('data-semantic-emoji aria-hidden="true">{field.icon}</span>{field.label}')
+    && characterIdentitySrc.includes('data-semantic-emoji aria-hidden="true">👤</span>核心身份')
+    && characterLifespanSrc.includes('data-semantic-emoji aria-hidden="true">⏳</span>寿命与起始')
+    && characterBackgroundSrc.includes('data-semantic-emoji aria-hidden="true">📜</span>人生背景')
+    && attributeAllocPageSrc.includes("icon: '💪'")
+    && attributeAllocPageSrc.includes('data-semantic-emoji aria-hidden="true">{attribute.icon}</span>{attribute.name}')
+    && fatePreviewPageSrc.includes('data-semantic-emoji aria-hidden="true">🗺️</span>世界空间')
+    && fatePreviewPageSrc.includes('data-semantic-emoji aria-hidden="true">{ATTRIBUTE_ICONS[key]}</span>{ATTRIBUTE_NAMES[key]}')
+    && gameOverRadarSrc.includes('GAME_OVER_DIMENSION_ICONS')
+    && gameOverRadarSrc.includes('data-semantic-emoji aria-hidden="true">{GAME_OVER_DIMENSION_ICONS[dimension.label]')
+    && accountPageSrc.includes('data-semantic-emoji aria-hidden="true">☁️</span>云端手动存档')
+    && feedbackPageSrc.includes('data-semantic-emoji aria-hidden="true">🔎</span>我了解提交后会打包上传诊断日志'),
+  'runtime pages must implement the selected small aria-hidden semantic markers without changing accessible labels',
+)
+assertOk(
+  [welcomeViewSrc, talentDrawPageSrc, settingsModalSrc, helpModalSurfaceSrc]
+    .every(source => !source.includes('data-semantic-emoji')),
+  'runtime welcome, talent selection, settings and help surfaces must remain free of forced semantic markers',
+)
+assertOk(
   prototypeGameStorySrc.includes('<em aria-hidden="true">💪</em><i>体魄</i>')
     && prototypeGameStorySrc.includes('<em aria-hidden="true">🧠</em><i>心智</i>')
     && prototypeGameStorySrc.includes('<em aria-hidden="true">✨</em><i>悟性</i>')
@@ -725,6 +752,16 @@ assertOk(
     && prototypeGameOverSrc.includes('backdrop-filter: blur(16px);')
     && !prototypeGameOverSrc.includes('grid-template-columns: 58px 76px minmax(0, 1fr)'),
   'game over must use the shared floating footer hierarchy while preserving home, data and new-life actions',
+)
+assertOk(
+  /\.footer\s*\{[^}]*min-height:\s*56px;[^}]*gap:\s*8px;[^}]*padding:\s*2px 8px;/s.test(gameOverCssSrc)
+    && /\.backButton\s*\{[^}]*width:\s*38px;[^}]*height:\s*38px;/s.test(gameOverCssSrc)
+    && /\.newLifeButton\s*\{[^}]*min-height:\s*48px;/s.test(gameOverCssSrc)
+    && /\.newLifeArrow\s*\{[^}]*width:\s*28px;[^}]*height:\s*28px;/s.test(gameOverCssSrc)
+    && gameOverPageSrc.includes("router.push('/game-story')")
+    && gameOverPageSrc.includes('开启新人生')
+    && !gameOverPageSrc.includes('模拟数据'),
+  'runtime game-over footer must match the compact creation-flow hierarchy while preserving real actions only',
 )
 assertOk(
   prototypeWorldSelectSrc.includes('PrototypeFlow.state.write({')

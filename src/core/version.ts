@@ -5,4 +5,4 @@
  */
 
 /** 当前引擎版本（与 package.json 保持同步） */
-export const ENGINE_VERSION = '5.3.6'
+export const ENGINE_VERSION = '5.3.7'

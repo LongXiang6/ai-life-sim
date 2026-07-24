@@ -277,15 +277,15 @@
 
 `SelectedSources: docs/ui-prototypes/mobile/flow.html; docs/ui-prototypes/mobile/assets/library.css; world-select/round-20-ws-rf23-b1-adaptation.html; world-customize/round-07-ws-b1-adaptation.html; character-create/round-15-ws-b1-adaptation.html; attribute-alloc/final.html; fate-preview/round-refactor-01-style-1.html; game-over/final.html; account/final.html; feedback/final.html`
 
-`Result: pass (local prototype visual and interaction scope)`
+`Result: pass (local runtime and real-model pre-release scope)`
 
-`Evidence: npm run check:ui、npm run check:changelog、npm run gate-check:quick 与 git diff --check 通过；内置 Browser 在 430×932 逐页确认世界预设、世界规则、角色三分区、四维属性、命运预览、结算指标、账号页签和反馈字段的图标没有挤压文字；命格抽取、命格选取、设置、说明和欢迎页保持无新增语义图标；结算页“模拟数据”提示、“开始新人生”回到世界选择、账号云存档页签、反馈提交均可操作；320、360、375、390、430、768、1280 外层 scrollWidth 均等于视口宽度，320/430/768 的结算底栏完整可见。`
+`Evidence: 正式运行时已同步世界预设、世界规则、角色三分区、四维属性、命运预览、结算指标、账号真实条件区域和反馈字段的定版语义图标；命格抽取/选取、设置、说明和欢迎页保持无新增图标。内置 Browser 在 430×932 确认账号与反馈页 scrollWidth=430、零元素越界，图标均 aria-hidden。Puppeteer 创建链在 320、360、375、390、430、768、1280 七个视口真实完成十二候选、选三项、两个轮回天赋、15 点四维、预览、叙事与分支确认；320px 长命格文案曾暴露候选卡纵向重叠，现以内容高度行修复，并由卡内内容边界与相邻卡片碰撞断言覆盖。结算页七视口 scrollWidth 均等于视口，底栏固定 56px、返回按钮 38px、主操作 48px、箭头 28px，返回故事与二次确认开启新人生均通过且零 AI 请求。官方 Provider=deepseek、Model=deepseek-v4-flash 在 430×932 完成 4 次主叙事、1 次后台分支补救、4 条正文落盘、分支点击确认与后续推进；浏览器请求/存储无 Key，控制台零错误。npm run lint、TypeScript、npm run check:ui、npm run check:changelog、npm run check:structural、npm run gate-check、no-hard-truncation-audit.mjs 与 git diff --check 通过；lint 仅保留未改动叙事文件的 1 条既有 unused 参数 warning。`
 
-`IntentionalAdaptations: 图标只作为 aria-hidden 的紧邻标签标记，不进入页面标题或可访问名称；人生结算保留首页、模拟数据和开始新人生三个入口，前两项收为圆形工具按钮，主操作沿用创建流程的完整文字与箭头；核心模拟继续沿用已有四维图标，不新增第二套装饰。`
+`IntentionalAdaptations: 图标只作为 aria-hidden 的紧邻标签标记，不进入可访问名称；人生结算没有引入原型占位的“模拟数据”，保留正式版真实存在的返回故事/取消确认与开启新人生动作，主操作沿用创建流程的完整文字与箭头；账号沿用真实登录态、云存档和长期角色设定区域，没有制造原型中的假 Tab；核心模拟继续沿用已有四维图标，不新增第二套装饰。`
 
-`BaselineDifference: 直接打开单页时 Browser 控制台无错误；通过 flow.html 首次切换 iframe 时，当前内置浏览器记录一条跨文档 View Transition 的 "AbortError: Transition was skipped" 与一条 "MutationObserver.observe" 注入层错误，应用源码未触发 MutationObserver，且后续稳定停留与单页交互未再增加错误。该差异归入原型测试台/浏览器基线，不把本地原型结果描述为生产运行时全绿。`
+`BaselineDifference: 直接打开单页时 Browser 控制台无错误；通过 flow.html 首次切换 iframe 时，当前内置浏览器记录一条跨文档 View Transition 的 "AbortError: Transition was skipped" 与一条 "MutationObserver.observe" 注入层错误，应用源码未触发 MutationObserver，且后续稳定停留与单页交互未再增加错误。check:mod 保留未改动旧子系统的 80 项历史问题，本轮未新增；可选 character-first Playwright runner 因项目未安装 Playwright 返回 UNAVAILABLE，未擅自新增依赖，真实浏览器证据由现有 Puppeteer 创建链和 DeepSeek 全流程覆盖。`
 
-`ProjectChange: yes; FunctionalChange: no; 未递增游戏版本、未新增玩家 changelog、未执行生产发布。`
+`ProjectChange: yes; FunctionalChange: yes; 已按发布台账统一生成 5.3.7 与一条玩家更新记录；当前证据为本地发布前状态。`
 
 ## 3. 阶段与发布验收摘要
 

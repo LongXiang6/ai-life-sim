@@ -19,6 +19,13 @@ const HORIZONTAL_RADIUS = 58
 const VERTICAL_RADIUS = 60
 const GRID_LEVELS = [100, 75, 50]
 
+export const GAME_OVER_DIMENSION_ICONS: Record<string, string> = {
+  体魄: '💪',
+  心智: '🧠',
+  悟性: '✨',
+  魅力: '💫',
+}
+
 const METRIC_POSITION_CLASSES = [
   styles.metricTop,
   styles.metricRight,
@@ -107,7 +114,7 @@ export function GameOverRadar({
           aria-label={`${dimension.label} ${dimension.value}，${dimension.comment ?? '查看评语'}`}
           onClick={() => onSelect(index)}
         >
-          <span>{dimension.label}</span>
+          <span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">{GAME_OVER_DIMENSION_ICONS[dimension.label] ?? '◇'}</span>{dimension.label}</span>
           <strong>{dimension.value}</strong>
         </button>
       ))}

@@ -6,12 +6,6 @@ import styles from './WorldCustomizeMobile.module.css'
 
 const MODES: FieldMode[] = ['ai', 'adaptive', 'custom']
 const MODE_LABELS: Record<FieldMode, string> = { ai: 'AI', adaptive: '选择', custom: '自定' }
-const FIELD_MARKS: Record<string, string> = {
-  universeScale: '形',
-  worldviewEssence: '本',
-  powerSystem: '力',
-  powerCeiling: '限',
-}
 
 export function WorldCustomizeDimensionCard({ field, onModeChange, onValueChange, onCustomChange }: {
   field: EditableField
@@ -22,8 +16,10 @@ export function WorldCustomizeDimensionCard({ field, onModeChange, onValueChange
   return (
     <li className={styles.dimensionCard}>
       <div className={styles.dimensionHeader}>
-        <span className={styles.dimensionMark} aria-hidden="true">{FIELD_MARKS[field.key] ?? field.label.slice(0, 1)}</span>
-        <div className={styles.dimensionCopy}><h3>{field.label}</h3><p>{field.description}</p></div>
+        <div className={styles.dimensionCopy}>
+          <h3><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">{field.icon}</span>{field.label}</h3>
+          <p>{field.description}</p>
+        </div>
         <div className={styles.modeControl} aria-label={`${field.label}设定方式`}>
           {MODES.map((mode) => (
             <button key={mode} type="button" className={field.mode === mode ? styles.modeActive : ''} onClick={() => onModeChange(mode)} aria-pressed={field.mode === mode}>

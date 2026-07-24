@@ -28,7 +28,7 @@ import {
   ATTRIBUTE_NAMES,
   RACE_LIFESPAN,
 } from '@/mods/mod-character'
-import type { LifespanState, RaceLifespanConfig } from '@/mods/mod-character'
+import type { BaseAttributes, LifespanState, RaceLifespanConfig } from '@/mods/mod-character'
 
 import styles from './FatePreview.module.css'
 import { resolveWorldDimensionLabels } from '../../helpers/world-dimension-labels'
@@ -37,6 +37,13 @@ import { useCreationStoresHydrated } from '../../hooks/useCreationStoresHydrated
 const GENDER_LABELS: Record<string, string> = {
   male: '男',
   female: '女',
+}
+
+const ATTRIBUTE_ICONS: Record<keyof BaseAttributes, string> = {
+  physique: '💪',
+  mind: '🧠',
+  talentAptitude: '✨',
+  charisma: '💫',
 }
 
 function resolveRandomNameGender(gender: string): string | undefined {
@@ -341,9 +348,9 @@ function FatePreviewContent() {
               </div>
             </div>
             <div className={styles.stats}>
-              <div><b>{lifespan.maxAge > 0 ? lifespan.maxAge : raceInfo.baseMaxAge} 年</b><span>预期寿命</span></div>
-              <div><b>{worldDimensionLabels?.powerSystem ?? '待确认'}</b><span>力量体系</span></div>
-              <div><b>{worldDimensionLabels?.spatialForm ?? '待确认'}</b><span>世界空间</span></div>
+              <div><b>{lifespan.maxAge > 0 ? lifespan.maxAge : raceInfo.baseMaxAge} 年</b><span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">⏳</span>预期寿命</span></div>
+              <div><b>{worldDimensionLabels?.powerSystem ?? '待确认'}</b><span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">⚡</span>力量体系</span></div>
+              <div><b>{worldDimensionLabels?.spatialForm ?? '待确认'}</b><span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">🗺️</span>世界空间</span></div>
             </div>
           </section>
 
@@ -358,7 +365,7 @@ function FatePreviewContent() {
                 const baseValue = characterBase.base[key] ?? 0
                 return (
                   <div key={key} className={styles.attrItem}>
-                    <span>{ATTRIBUTE_NAMES[key]}</span>
+                    <span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">{ATTRIBUTE_ICONS[key]}</span>{ATTRIBUTE_NAMES[key]}</span>
                     <b className={styles.attrValue}>{baseValue}<i>{bonus >= 0 ? '+' : ''}{bonus}</i></b>
                   </div>
                 )

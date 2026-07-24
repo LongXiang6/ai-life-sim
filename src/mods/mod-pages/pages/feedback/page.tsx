@@ -152,7 +152,7 @@ export default function FeedbackPage() {
 
       <section className={styles.diagnosticIdentity} aria-live="polite">
         <div>
-          <small>此浏览器的诊断编号</small>
+          <small><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">🆔</span>此浏览器的诊断编号</small>
           <strong>{diagnosticCode ?? (diagnosticCodeError ? '暂不可用' : '分配中')}</strong>
           <p>出现问题时提供这个六位编号和大致情况，即可定位同期服务器日志。</p>
         </div>
@@ -169,7 +169,7 @@ export default function FeedbackPage() {
 
       <form className={styles.form} onSubmit={handleSubmit}>
         <fieldset className={styles.categoryFieldset} disabled={submitting}>
-          <legend>反馈类型</legend>
+          <legend><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">💬</span>反馈类型</legend>
           <div className={styles.categoryGrid}>
             {CATEGORY_OPTIONS.map((option) => (
               <button
@@ -198,7 +198,7 @@ export default function FeedbackPage() {
         </label>
 
         <label className={styles.field}>
-          <span>详细内容</span>
+          <span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">✍️</span>详细内容</span>
           <textarea
             value={message}
             disabled={submitting}
@@ -216,7 +216,7 @@ export default function FeedbackPage() {
             onChange={(event) => setConsent(event.target.checked)}
           />
           <span>
-            我了解提交后会打包上传诊断日志，其中可能包含当前游戏配置、运行状态和近期完整故事；不包含 API Key、认证信息或设备序列号。
+            <span className="semantic-emoji" data-semantic-emoji aria-hidden="true">🔎</span>我了解提交后会打包上传诊断日志，其中可能包含当前游戏配置、运行状态和近期完整故事；不包含 API Key、认证信息或设备序列号。
           </span>
         </label>
 

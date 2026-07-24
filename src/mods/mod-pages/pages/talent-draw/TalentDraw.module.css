@@ -285,7 +285,7 @@
 .candidateHead small,
 .candidateHead > span { color: var(--flow-faint); font-size: 0.6rem; font-weight: 500; }
 
-.candidateList { display: grid; min-height: 0; flex: 1 1 auto; align-content: start; gap: 0.6rem; margin: 0.3rem -0.75rem 0; padding: 0.75rem 1rem calc(6.25rem + env(safe-area-inset-bottom)); overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
+.candidateList { display: grid; min-height: 0; flex: 1 1 auto; grid-auto-rows: max-content; align-content: start; gap: 0.6rem; margin: 0.3rem -0.75rem 0; padding: 0.75rem 1rem calc(6.25rem + env(safe-area-inset-bottom)); overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; }
 .candidateCard { --color-candidate-glow: 115 130 187; display: grid; width: 100%; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: start; column-gap: 0.45rem; min-height: 4.75rem; padding: 0.55rem 0.625rem 0.5rem; border: 1px solid rgb(var(--color-candidate-glow) / 58%); border-radius: 0.56rem; background: linear-gradient(90deg, rgb(var(--color-candidate-glow) / 15%), rgb(255 255 255 / 90%) 42%); box-shadow: 0 0 0 1px rgb(255 255 255 / 68%), 0 0.2rem 0.625rem rgb(var(--color-candidate-glow) / 18%), 0 0 1rem rgb(var(--color-candidate-glow) / 20%); color: var(--flow-ink); cursor: pointer; text-align: left; animation: candidate-breathe 3.6s ease-in-out infinite; }
 .candidateCard[data-rarity="普通"] { --color-candidate-glow: 128 143 162; }
 .candidateCard[data-rarity="精良"] { --color-candidate-glow: 78 143 116; }

@@ -33,7 +33,7 @@ import type { RadarDimension } from '@/mods/mod-ui'
 import type { AIModelConfig } from '@/foundation'
 
 import styles from './GameOver.module.css'
-import { GameOverRadar } from './GameOverRadar'
+import { GAME_OVER_DIMENSION_ICONS, GameOverRadar } from './GameOverRadar'
 import {
   buildGameOverShareFacts,
   saveGameOverShareCard,
@@ -610,7 +610,7 @@ export default function GameOverPage() {
               />
             </div>
             <p className={styles.metricComment} aria-live="polite">
-              <span>{activeDimension.label}</span>
+              <span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">{GAME_OVER_DIMENSION_ICONS[activeDimension.label] ?? '◇'}</span>{activeDimension.label}</span>
               <strong>{activeDimension.comment}</strong>
             </p>
           </section>

@@ -103,6 +103,19 @@ body,
   color: var(--color-primary);
 }
 
+/* 定版串联页的小型语义标记；只辅助扫描，不进入可访问名称。 */
+.semantic-emoji {
+  display: inline-grid;
+  width: 1.2em;
+  place-items: center;
+  margin-right: 0.32em;
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+  font-size: 1.05em;
+  font-style: normal;
+  line-height: 1;
+  vertical-align: -0.08em;
+}
+
 /* ==================== 减少动效（Apple HIG 无障碍） ==================== */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

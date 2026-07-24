@@ -5,7 +5,7 @@ import styles from './CharacterCreateMobile.module.css'
 export function CharacterIdentitySection({ logic }: { logic: UseCharacterCreateLogicReturn }) {
   return (
     <section className={`${styles.section} ${styles.identitySection}`}>
-      <div className={styles.sectionHeading}><h2>核心身份</h2><span>01 / 03 · 姓名、性别与种族</span></div>
+      <div className={styles.sectionHeading}><h2><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">👤</span>核心身份</h2><span>01 / 03 · 姓名、性别与种族</span></div>
       <div className={styles.identityCard}>
         <div className={styles.softGroup}>
           <div className={styles.groupHeading}><label htmlFor="character-name">角色姓名</label><span>必填 · 可随机</span></div>

@@ -30,12 +30,13 @@ const MAX_VALUE = 10
 const ATTRIBUTES: ReadonlyArray<{
   key: keyof BaseAttributes
   name: string
+  icon: string
   description: string
 }> = [
-  { key: 'physique', name: '体魄', description: '体力与恢复' },
-  { key: 'mind', name: '心智', description: '学习与谋略' },
-  { key: 'talentAptitude', name: '悟性', description: '理解与修炼' },
-  { key: 'charisma', name: '魅力', description: '关系与说服' },
+  { key: 'physique', name: '体魄', icon: '💪', description: '体力与恢复' },
+  { key: 'mind', name: '心智', icon: '🧠', description: '学习与谋略' },
+  { key: 'talentAptitude', name: '悟性', icon: '✨', description: '理解与修炼' },
+  { key: 'charisma', name: '魅力', icon: '💫', description: '关系与说服' },
 ]
 
 function normalizeAttributes(value?: Partial<BaseAttributes>): BaseAttributes {
@@ -163,7 +164,7 @@ function AttributeAllocContent() {
               return (
                 <article key={attribute.key} className={styles.attributeRow}>
                   <div className={styles.attributeCopy}>
-                    <strong>{attribute.name}</strong>
+                    <strong><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">{attribute.icon}</span>{attribute.name}</strong>
                     <span>{describeAttribute(value)} · {attribute.description}</span>
                     <small>基础值 {formatSigned(value)}{attributeBonuses[attribute.key] ? ` · 命格 ${formatSigned(attributeBonuses[attribute.key])}` : ''}</small>
                   </div>

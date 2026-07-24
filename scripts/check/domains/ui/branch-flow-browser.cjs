@@ -131,6 +131,19 @@ async function assertCreationUiContract(page, expected) {
       || node.getAttribute('aria-label')?.includes(contract.primaryText)
     ))
     const primaryRect = primary?.getBoundingClientRect()
+    const candidateCards = [...document.querySelectorAll('[aria-label="普通命格候选"] > button')]
+    const candidateRects = candidateCards.map((card) => card.getBoundingClientRect())
+    const candidateCardsContained = candidateCards.every((card, index) => {
+      const cardRect = candidateRects[index]
+      const maxChildBottom = [...card.querySelectorAll('*')].reduce((max, child) => {
+        if (!(child instanceof HTMLElement)) return max
+        return Math.max(max, child.getBoundingClientRect().bottom)
+      }, cardRect.top)
+      return card.scrollHeight <= card.clientHeight + 1 && maxChildBottom <= cardRect.bottom + 1
+    })
+    const candidateCardsSeparated = candidateRects.every((rect, index) => (
+      index === candidateRects.length - 1 || rect.bottom <= candidateRects[index + 1].top + 1
+    ))
     const checks = {
       header: runningHead.includes(contract.header),
       titleMark: !contract.titleMark || titleMark === contract.titleMark,
@@ -138,13 +151,28 @@ async function assertCreationUiContract(page, expected) {
       noHorizontalOverflow: document.documentElement.scrollWidth <= window.innerWidth + 1 && maxRight <= window.innerWidth + 1,
       bottomVisible: Boolean(bottomRect && bottomRect.bottom >= 0 && bottomRect.top <= window.innerHeight),
       primaryTouchTarget: !contract.primaryText || Boolean(primaryRect && primaryRect.width >= 32 && primaryRect.height >= 32),
-      ...(contract.candidates === undefined ? {} : { candidates: document.querySelectorAll('[aria-label="普通命格候选"] > button').length === contract.candidates }),
+      ...(contract.candidates === undefined ? {} : {
+        candidates: candidateCards.length === contract.candidates,
+        candidateCardsContained,
+        candidateCardsSeparated,
+      }),
       ...(contract.mythicSlots === undefined ? {} : { mythicSlots: document.querySelectorAll('[aria-label="已选择的轮回天赋"] > button').length === contract.mythicSlots }),
       ...(contract.ordinarySlots === undefined ? {} : { ordinarySlots: document.querySelectorAll('[aria-label="已选普通命格"] > button').length === contract.ordinarySlots }),
       ...(contract.attributeRows === undefined ? {} : { attributeRows: ['体魄', '心智', '悟性', '魅力'].every((name) => document.querySelector(`button[aria-label="增加${name}"]`)) }),
       ...(contract.includes === undefined ? {} : { includes: contract.includes.every((value) => (document.body.innerText || '').includes(value)) }),
     }
-    return { checks, details: { runningHead, titleMark, nextNumber, scrollWidth: document.documentElement.scrollWidth, maxRight, viewport: window.innerWidth } }
+    return {
+      checks,
+      details: {
+        runningHead,
+        titleMark,
+        nextNumber,
+        scrollWidth: document.documentElement.scrollWidth,
+        maxRight,
+        viewport: window.innerWidth,
+        candidateHeights: candidateRects.map((rect) => Math.round(rect.height)),
+      },
+    }
   }, expected)
   const failed = Object.entries(result.checks).filter(([, ok]) => !ok).map(([name]) => name)
   if (failed.length > 0) {

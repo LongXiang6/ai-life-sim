@@ -255,7 +255,7 @@ export default function AccountPage() {
               <div className={styles.form}>
                 <div className={styles.formHead}>
                   <span>AI LIFE SIM · 云端续页</span>
-                  <h2 id="auth-title">{mode === 'login' ? '登录账号' : '注册账号'}</h2>
+                  <h2 id="auth-title"><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">🔐</span>{mode === 'login' ? '登录账号' : '注册账号'}</h2>
                   <p>{mode === 'login' ? '载入你的配置、角色设定、轮回天赋与战绩。' : '建立一份可跨设备续写的个人命书。'}</p>
                 </div>
                 <label>
@@ -343,7 +343,7 @@ export default function AccountPage() {
           <div className={styles.accountLayout}>
             <section className={styles.profile} aria-labelledby="profile-title">
               <div>
-                <span>当前账号</span>
+                <span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">👤</span>当前账号</span>
                 <h2 id="profile-title">{account.username}</h2>
                 <p>{account.linkedQq ? `已验证 QQ ${account.linkedQq}` : account.qq ? `登记 QQ ${account.qq}（未验证）` : '尚未登记 QQ'}</p>
               </div>
@@ -355,7 +355,7 @@ export default function AccountPage() {
 
             <section className={styles.slots} aria-labelledby="cloud-save-slot-title">
               <div className={styles.sectionHead}>
-                <h2 id="cloud-save-slot-title">云端手动存档</h2>
+                <h2 id="cloud-save-slot-title"><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">☁️</span>云端手动存档</h2>
                 <span>{cloudSave ? '1 / 1' : '0 / 1'}</span>
               </div>
               <div className={styles.slotList}>
@@ -420,7 +420,7 @@ export default function AccountPage() {
 
             <section className={styles.preference} aria-labelledby="character-draft-title">
               <div>
-                <h2 id="character-draft-title">长期角色设定</h2>
+                <h2 id="character-draft-title"><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">👤</span>长期角色设定</h2>
                 <p>{characterDraft.name.trim() || '未填写姓名'} · {characterDraft.race.trim() || '未填写种族'}</p>
               </div>
               <span className={styles.syncBadge} data-state={syncStatus}>{syncLabel}</span>
