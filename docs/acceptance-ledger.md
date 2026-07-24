@@ -277,7 +277,7 @@
 
 `SelectedSources: docs/ui-prototypes/mobile/flow.html; docs/ui-prototypes/mobile/assets/library.css; world-select/round-20-ws-rf23-b1-adaptation.html; world-customize/round-07-ws-b1-adaptation.html; character-create/round-15-ws-b1-adaptation.html; attribute-alloc/final.html; fate-preview/round-refactor-01-style-1.html; game-over/final.html; account/final.html; feedback/final.html`
 
-`Result: pass (local runtime and real-model pre-release scope)`
+`Result: pass (production)`
 
 `Evidence: 正式运行时已同步世界预设、世界规则、角色三分区、四维属性、命运预览、结算指标、账号真实条件区域和反馈字段的定版语义图标；命格抽取/选取、设置、说明和欢迎页保持无新增图标。内置 Browser 在 430×932 确认账号与反馈页 scrollWidth=430、零元素越界，图标均 aria-hidden。Puppeteer 创建链在 320、360、375、390、430、768、1280 七个视口真实完成十二候选、选三项、两个轮回天赋、15 点四维、预览、叙事与分支确认；320px 长命格文案曾暴露候选卡纵向重叠，现以内容高度行修复，并由卡内内容边界与相邻卡片碰撞断言覆盖。结算页七视口 scrollWidth 均等于视口，底栏固定 56px、返回按钮 38px、主操作 48px、箭头 28px，返回故事与二次确认开启新人生均通过且零 AI 请求。官方 Provider=deepseek、Model=deepseek-v4-flash 在 430×932 完成 4 次主叙事、1 次后台分支补救、4 条正文落盘、分支点击确认与后续推进；浏览器请求/存储无 Key，控制台零错误。npm run lint、TypeScript、npm run check:ui、npm run check:changelog、npm run check:structural、npm run gate-check、no-hard-truncation-audit.mjs 与 git diff --check 通过；lint 仅保留未改动叙事文件的 1 条既有 unused 参数 warning。`
 
@@ -285,7 +285,23 @@
 
 `BaselineDifference: 直接打开单页时 Browser 控制台无错误；通过 flow.html 首次切换 iframe 时，当前内置浏览器记录一条跨文档 View Transition 的 "AbortError: Transition was skipped" 与一条 "MutationObserver.observe" 注入层错误，应用源码未触发 MutationObserver，且后续稳定停留与单页交互未再增加错误。check:mod 保留未改动旧子系统的 80 项历史问题，本轮未新增；可选 character-first Playwright runner 因项目未安装 Playwright 返回 UNAVAILABLE，未擅自新增依赖，真实浏览器证据由现有 Puppeteer 创建链和 DeepSeek 全流程覆盖。`
 
-`ProjectChange: yes; FunctionalChange: yes; 已按发布台账统一生成 5.3.7 与一条玩家更新记录；当前证据为本地发布前状态。`
+`ProjectChange: yes; FunctionalChange: yes; 已按发布台账统一生成 5.3.7 与一条玩家更新记录，并由 release 7342c8b 完成生产切换。`
+
+### 2.21 5.3.7 生产发布与 release 保留
+
+`LastVerified: 2026-07-24`
+
+`Authority: PD-016, PD-017, PD-021, PD-030, PD-031`
+
+`RuntimeSource: /root/ai-life-sim -> /root/ai-life-sim-releases/7342c8b; PM2 ai-life-sim; Nginx -> 127.0.0.1:3000`
+
+`Result: pass`
+
+`Evidence: 本地与 Linux Node 20 的 changelog、full gate、production build、protected-prompt bundle 和 release-cleanup smoke 通过；3001 旁路确认欢迎页、5.3.7 说明/更新日志、诊断接口和排行榜关闭态后原子切换，3000、PM2、Nginx、HTTP→HTTPS、两个 HTTPS 域名与全部创建/叙事/结算路由正常。公网 Puppeteer 在 320、430、1280 完成十二候选、选三项、两个轮回天赋、15 点四维、分支确认和结算返回/新人生，零控制台错误。官方 Provider=deepseek、Model=deepseek-v4-flash 通过公网 HTTPS 完成 4 次主叙事与 1 次后台分支补救，5 次代理请求全为 200，4 条正文落盘，分支点击确认并继续推进；Key 未进入浏览器请求原始载荷、存储、生产日志或 PM2 日志。临时生产账号完成注册、云同步覆盖、完整手动云存档、退出、重新登录、逐字恢复、邮箱/画像关闭态和账号删除。`
+
+`Retention: 发布健康确认后删除非活动且非上一版的 2be5f58，释放约 556 MiB；当前只保留活动 7342c8b 与上一版 3aa346faa14c84f767d7f4b4cd81bf91999e64bc。3001 旁路和临时 archive 已清理；release/account cleanup timers、回环运营面板、pm2-root、Nginx 与 Certbot timer 保持 active，UFW 只开放 22/80/443。`
+
+`BaselineDifference: Linux Node 20 安装阶段按 Puppeteer 官方开关跳过仅测试用 Chrome 二进制下载；Next 生产构建与全部服务端关闸通过。npm audit 仍报告 4 项既有 high 依赖告警，未在本次 UI 发布中执行破坏性依赖升级。Nginx error log 最新记录为外部 TLS bad key share 探测，PM2 应用错误日志最后修改早于本次发布，均无本轮应用错误。`
 
 ## 3. 阶段与发布验收摘要
 
@@ -302,6 +318,7 @@
 | 5.3.4 | 任何完整故事都立即交付；条件 META、非法数据与重复度不再触发同步重写，相关状态保持待处理且非法数据整包不写；分支确认在生成锁释放前禁用，避免静默跳过下一轮；已通过 DeepSeek 全流程、冷启动/公网分支浏览器、独立 release、旁路、原子切换、HTTPS 和运营运维验证 | 本账本 2.14、2.15 |
 | 5.3.5 | 恢复 LongCat 与原托管预设、增加发布前环境硬校验；移动端串联创建流注册 `/new-game/*` 路由并落地 15 点四项基础属性、12 候选命格与 2 项转世天赋；已通过生产预设真实请求、线上创建流和分支点击回归 | 本账本 2.16 |
 | 5.3.6 | 按选定移动端串联方案替换角色创建、命格、属性与命运预览运行时 UI；移除旧星盘主构图并同步候选、轮回槽与浏览器回归；已完成生产原子切换与线上分支回归 | 本账本 2.17、2.19 |
+| 5.3.7 | 定版语义图标与统一结算底栏已进入正式运行时；修复 320px 命格卡纵向重叠并加入碰撞关闸，完成公网多视口、DeepSeek、账号云端与只保留上一版的发布验收 | 本账本 2.20、2.21 |
 
 公开玩家变更以 `../public/changelog-index.json` 与对应 `../public/changelog-*.txt` 为准；本账本不重复维护逐版本玩家文案。
 
