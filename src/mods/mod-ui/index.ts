@@ -66,6 +66,8 @@ export type { PageScrollProps } from './components/organisms/PageScroll'
 export { BottomActionBar } from './components/organisms/BottomActionBar'
 export type { BottomActionBarProps } from './components/organisms/BottomActionBar'
 
+export { FinalFlowScaleRuntime } from './components/organisms/FinalFlowScaleRuntime'
+
 export { HelpModal } from './components/organisms/HelpModal'
 export type { HelpModalProps } from './components/organisms/HelpModal'
 

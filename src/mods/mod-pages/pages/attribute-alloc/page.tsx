@@ -166,7 +166,7 @@ function AttributeAllocContent() {
                   </div>
                   <div className={styles.stepper}>
                     <button type="button" onClick={() => updateAttribute(attribute.key, -1)} aria-label={`降低${attribute.name}`}>−</button>
-                    <b aria-label={`${attribute.name}基础值 ${value}`}>{value}</b>
+                    <b aria-label={`${attribute.name}最终有效值 ${effectiveValue}`}>{effectiveValue}</b>
                     <button type="button" onClick={() => updateAttribute(attribute.key, 1)} disabled={remainingPoints <= 0} aria-label={`提高${attribute.name}`}>＋</button>
                   </div>
                   <div className={styles.axis} aria-hidden="true">
