@@ -10,9 +10,11 @@ import {
 } from '../../../../src/mods/mod-engine/helpers/narrative-semantic-signals.ts'
 import {
   canContinueWithNarrativeBody,
+  buildNarrativeDataRepairInstruction,
   inspectNarrativeResponseQuality,
   preserveNarrativeBodyAndSummary,
 } from '../../../../src/mods/mod-engine/helpers/narrative-response-quality.ts'
+import { replaceTaggedMetaDataSection } from '../../../../src/mods/mod-engine/helpers/tagged-meta-envelope.ts'
 import { OrchestratorSystem } from '../../../../src/mods/mod-engine/subsystems/orchestrator-system.ts'
 import { useEngineStore } from '../../../../src/mods/mod-engine/store.ts'
 import {
@@ -228,6 +230,55 @@ assertOk(
   canContinueWithNarrativeBody(bodyOnlyQuality, firstIntent.intentId, true),
   'a forced branch body must remain usable while its conditional META is repaired later',
 )
+const scalarIntentListResponse = [
+  '⟦正文⟧',
+  '你当场确认了行动方向，并把第一步落实到眼前。',
+  '⟦数据⟧',
+  JSON.stringify({
+    重要程度: '高',
+    情节状态: '进行中',
+    语义信号: {
+      事件类型: '冲突',
+      冲突强度: 20,
+      张力变化: 2,
+      行动规模: '小',
+      不可逆: true,
+      影响范围: '个人',
+      叙事语域: '命运',
+      语域理由: '玩家已把选择付诸行动。',
+      情节类型: '任务',
+    },
+    命运意图判定: {
+      意图编号: '命运分支:branch-one',
+      可行性: '有条件',
+      执行方式: '逐步执行',
+      状态: '推进中',
+      风险等级: '中',
+      进度: 20,
+      阻碍: '仍需确认入口',
+      前置条件: '取得旧友支持',
+      代价: '暴露部分行踪',
+      预计耗时: '数月',
+      判定理由: '当前资源只够完成第一步。',
+      下一步: '确认旧友立场',
+    },
+  }),
+  '⟦结束⟧',
+].join('\n')
+assertOk(
+  inspectNarrativeResponseQuality(scalarIntentListResponse, 200, firstIntent.intentId).valid,
+  'single textual blocker, prerequisite and cost must normalize losslessly into one-item lists',
+)
+const commonChineseAliasesResponse = scalarIntentListResponse
+  .replace('"重要程度":"高"', '"重要程度":"中"')
+  .replace('"情节状态":"进行中"', '"情节状态":"推进中"')
+  .replace('"事件类型":"冲突"', '"事件类型":"成长"')
+  .replace('"影响范围":"个人"', '"影响范围":"社交圈"')
+  .replace('"情节类型":"任务"', '"情节类型":"日常"')
+assertOk(
+  inspectNarrativeResponseQuality(commonChineseAliasesResponse, 200, firstIntent.intentId).valid,
+  'unambiguous Chinese enum aliases from live providers must normalize before strict validation',
+)
 const malformedConditionalResponse = [
   '⟦正文⟧',
   '你已经完成了现场行动，新的局面清楚地落到眼前。',
@@ -251,6 +302,73 @@ assertOk(
 const bodyOnlyEnvelope = preserveNarrativeBodyAndSummary(malformedConditionalResponse)
 assertOk(!bodyOnlyEnvelope.includes('⟦数据⟧'), 'invalid conditional data must be removed before state application')
 assertOk(bodyOnlyEnvelope.includes('正文事实应先交付给玩家。'), 'body-only fallback must preserve the summary')
+
+const invalidIrreversibleData = {
+  重要程度: '高',
+  情节状态: '进行中',
+  语义信号: {
+    事件类型: '冲突',
+    冲突强度: 60,
+    张力变化: 3,
+    行动规模: '中',
+    不可逆: false,
+    影响范围: '关系圈',
+    叙事语域: '命运',
+    语域理由: '你已经开始执行当前命运意图。',
+    情节类型: '任务',
+  },
+  命运意图判定: {
+    意图编号: '命运分支:branch-one',
+    可行性: '有条件',
+    执行方式: '逐步执行',
+    状态: '推进中',
+    风险等级: '中',
+    进度: 20,
+    预计耗时: '数月',
+    判定理由: '当前行动已经发生。',
+    下一步: '继续推进',
+  },
+}
+const exactBodyAndSummary = '⟦正文⟧\r\n你把门推开，已经发生的行动不能被格式修复改写。\r\n\r\n第二段保留原始空行。  \r\n⟦摘要⟧\r\n原摘要也必须逐字保留。\r\n'
+const invalidDataText = JSON.stringify(invalidIrreversibleData)
+const invalidDataEnvelope = `${exactBodyAndSummary}⟦数据⟧\r\n${invalidDataText}\r\n⟦结束⟧`
+const invalidDataQuality = inspectNarrativeResponseQuality(
+  invalidDataEnvelope,
+  200,
+  firstIntent.intentId,
+)
+const irreversibleIssue = invalidDataQuality.validationIssues?.find(
+  (issue) => issue.path === '语义信号.不可逆',
+)
+assertOk(
+  irreversibleIssue?.currentValue === 'false'
+    && irreversibleIssue.rule.includes('命运或传承语域必须对应不可逆变化'),
+  'data repair diagnostics must retain the exact field path, current value and violated rule',
+)
+const dataRepairInstruction = buildNarrativeDataRepairInstruction(
+  invalidDataQuality,
+  invalidDataText,
+  firstIntent.intentId,
+)
+assertOk(
+  dataRepairInstruction.includes('失败路径：语义信号.不可逆')
+    && dataRepairInstruction.includes('当前值：false')
+    && dataRepairInstruction.includes('合法示例：true')
+    && dataRepairInstruction.includes('命运分支:branch-one')
+    && dataRepairInstruction.includes(invalidDataText),
+  'data-only repair must tell the model the path, value, rule, legal shape, current condition and complete original data',
+)
+const repairedDataText = JSON.stringify({
+  ...invalidIrreversibleData,
+  语义信号: { ...invalidIrreversibleData.语义信号, 不可逆: true },
+})
+const repairedDataEnvelope = replaceTaggedMetaDataSection(invalidDataEnvelope, repairedDataText)
+assertOk(
+  repairedDataEnvelope?.startsWith(exactBodyAndSummary) === true
+    && repairedDataEnvelope.endsWith('⟦结束⟧')
+    && inspectNarrativeResponseQuality(repairedDataEnvelope, 200, firstIntent.intentId).valid,
+  'strictly valid repaired data must merge without changing any body or summary bytes',
+)
 const unwrappedStory = '你沿着潮湿的石阶走出城门，风里带着远处海潮和炉火的气味。守门人没有拦你，只把一枚旧铜牌塞进你掌心，提醒你在日落前找到北岸的灯塔。'
 const unwrappedQuality = inspectNarrativeResponseQuality(unwrappedStory, 200, firstIntent.intentId)
 assertOk(
@@ -619,9 +737,12 @@ assertOk(
 )
 assertOk(
   campaignSource.includes('preserveNarrativeBodyAndSummary(ctx._fullContent ?? \'\')')
-    && campaignSource.includes('canContinueWithNarrativeBody(initialQuality, expectedIntentId, requireBranch)')
-    && campaignSource.includes('if (!repairedQuality.valid && requireBranch)')
+    && campaignSource.includes("initialQuality.conditionalFailure !== 'intent'")
+    && campaignSource.includes("requireBranch || typeof expectedIntentId === 'string'")
     && campaignSource.includes('保留完整正文，结构化状态保持待处理')
+    && campaignSource.includes('buildNarrativeDataRepairInstruction')
+    && campaignSource.includes('replaceTaggedMetaDataSection')
+    && campaignSource.includes("callKind: 'narrative-data-repair'")
     && campaignSource.includes('repairForcedBranchInBackground')
     && campaignSource.includes('applyBackgroundForcedBranchRepair')
     && campaignSource.includes('tryBeginForcedBranchRepair')
@@ -629,7 +750,7 @@ assertOk(
     && campaignSource.includes("callKind: 'narrative-branch-repair'")
     && campaignSource.includes('narrativeBranchRepairPrompt')
     && preGenSource.includes('canContinueWithNarrativeBody(responseQuality, expectedIntentId)'),
-  'main rounds must deliver any complete body and repair a forced branch through its compact background contract',
+  'conditional data must use narrow repair paths and preserve a completed body when repair still fails',
 )
 assertOk(
   branchRepairStart >= 0
@@ -637,6 +758,13 @@ assertOk(
     && branchRepairRequestLifecycle.includes('.finally(() => {')
     && branchRepairRequestLifecycle.includes('finishForcedBranchRepair(ownerToken)'),
   'the background request must own pending-state cleanup before later parsing or commit work can fail',
+)
+assertOk(
+  campaignSource.includes('const scheduleForcedBranchRepair = (previousContent: string): void =>')
+    && campaignSource.includes('scheduleForcedBranchRepair(previousContent)')
+    && campaignSource.includes("if (repairedQuality.conditionalFailure === 'branch') {")
+    && campaignSource.includes("scheduleForcedBranchRepair(ctx._fullContent ?? '')"),
+  'a forced branch repair must be scheduled for both the initial usable body and a body recovered by format repair',
 )
 assertOk(
   orchestratorSource.includes('if (!forceBranch && lastEntry?.resolvedChoice)')

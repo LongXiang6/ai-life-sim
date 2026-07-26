@@ -24,70 +24,12 @@ export interface GameOverBreakthroughFact {
   description: string
 }
 
-export interface GameOverScoreInput {
-  dimensionValues: readonly number[]
-  rounds: number
-  resolvedChoiceCount: number
-  breakthroughCount: number
-  completed: boolean
-}
-
-export interface GameOverScoreResult {
-  score: number
-  rawScore: number
-  components: {
-    attributes: number
-    journey: number
-    choices: number
-    breakthroughs: number
-    completion: number
-  }
-}
-
 export type ReincarnationStrengthTierId = 'echo' | 'deep' | 'legacy' | 'immortal'
 
 export interface ReincarnationStrengthTier {
   id: ReincarnationStrengthTierId
   label: string
   guidance: string
-}
-
-function clampScore(value: number): number {
-  return Math.max(0, Math.min(100, value))
-}
-
-export function normalizeAchievementScore(rawScore: number): number {
-  const raw = clampScore(rawScore)
-  if (raw >= 95) return Math.round(raw)
-  return Math.min(94, Math.round(72 + 23 * Math.sqrt(raw / 95)))
-}
-
-export function calculateGameOverScore(input: GameOverScoreInput): GameOverScoreResult {
-  const attributes = input.dimensionValues.length > 0
-    ? clampScore(input.dimensionValues.reduce((sum, value) => sum + clampScore(value), 0) / input.dimensionValues.length)
-    : 0
-  const journey = clampScore((1 - Math.exp(-Math.max(0, input.rounds) / 16)) * 100)
-  const choices = clampScore(Math.max(0, input.resolvedChoiceCount) * 25)
-  const breakthroughs = clampScore(Math.max(0, input.breakthroughCount) * 40)
-  const completion = input.completed ? 100 : 0
-  const rawScore = clampScore(
-    attributes * 0.20
-    + journey * 0.35
-    + choices * 0.25
-    + breakthroughs * 0.15
-    + completion * 0.05,
-  )
-  return {
-    score: normalizeAchievementScore(rawScore),
-    rawScore: Math.round(rawScore * 10) / 10,
-    components: {
-      attributes: Math.round(attributes),
-      journey: Math.round(journey),
-      choices: Math.round(choices),
-      breakthroughs: Math.round(breakthroughs),
-      completion,
-    },
-  }
 }
 
 export function buildGameOverAchievements(

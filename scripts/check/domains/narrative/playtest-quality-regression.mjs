@@ -106,6 +106,7 @@ function loadPersistMigration(sourceText) {
     'AI_PROVIDERS',
     'DEFAULT_AI_PROVIDER_ID',
     'DEFAULT_AI_MODEL',
+    'normalizeReasoningEffort',
     transpiled,
   )(
     module,
@@ -114,6 +115,18 @@ function loadPersistMigration(sourceText) {
     AI_PROVIDERS,
     DEFAULT_AI_PROVIDER_ID,
     DEFAULT_AI_MODEL,
+    (value) => ({
+      disabled: 'disabled',
+      'level-1': 'auto',
+      'level-2': 'auto',
+      'level-3': 'high',
+      'level-4': 'high',
+      'level-5': 'high',
+      'level-6': 'max',
+      auto: 'auto',
+      high: 'high',
+      max: 'max',
+    })[value] ?? 'disabled',
   )
   return module.exports
 }
@@ -565,8 +578,22 @@ assertSame(
 
 assertSame(DEFAULT_WORD_COUNT_TARGET, 200, 'new and reset games must default to about 200 narrative characters')
 assertSame(NARRATIVE_WORD_COUNT_DEFAULT_MAX, 200, 'legacy narrative default alias must follow the single authority')
-assertSame(computeNarrativeMaxTokens(50), 8192, 'low word-count preferences must retain a generous narrative budget')
-assertSame(computeNarrativeMaxTokens(200), 8192, '200-character preferences must not become a small output ceiling')
+assertSame(computeNarrativeMaxTokens(50), 1088, 'disabled reasoning must budget story, envelope and variance for a 50-character target')
+assertSame(computeNarrativeMaxTokens(200), 1152, 'disabled reasoning must budget story, envelope and variance for the default target')
+assertSame(
+  computeNarrativeMaxTokens(200, { reasoningEffort: 'auto' }),
+  2176,
+  'automatic reasoning must include the startup reasoning allowance',
+)
+assertSame(
+  computeNarrativeMaxTokens(200, { reasoningEffort: 'max' }),
+  5248,
+  'maximum reasoning must include the larger startup reasoning allowance',
+)
+assertOk(
+  [50, 200, 777].every((target) => computeNarrativeMaxTokens(target, { reasoningEffort: 'high' }) % 64 === 0),
+  'every narrative completion budget must be rounded up to a 64-token boundary',
+)
 assertIncludes(buildWordCountInstruction(200), '玩家偏好约200字', 'word-count prompt must reflect the 200-character default as a soft preference')
 assertOk(
   buildWordCountInstruction(200).includes('不是硬上限、硬下限或重写条件')
@@ -627,7 +654,7 @@ assertOk(
 const settingsPersistenceVersion = Number(
   settingsStoreSrc.match(/name:\s*'mod-settings:store'[\s\S]*?version:\s*(\d+)/)?.[1],
 )
-assertOk(settingsPersistenceVersion >= 8, 'settings persistence must include the private-target migration version')
+assertOk(settingsPersistenceVersion >= 11, 'settings persistence must include reasoning and custom-style migrations')
 const migrateSettings = loadPersistMigration(settingsStoreSrc)
 assertSame(
   migrateSettings({ wordCountTarget: 400, theme: 'minimal-white' }, 2).wordCountTarget,
@@ -676,6 +703,27 @@ const preservedCustomConfig = migrateSettings({
 }, 4)
 assertSame(preservedCustomConfig.provider, 'custom', 'explicit player provider must survive migration')
 assertSame(preservedCustomConfig.customModel, 'player-model', 'explicit player model must survive migration')
+const migratedReasoningModes = migrateSettings({
+  reasoningEffort: 'level-4',
+  talentThinkingIntensity: 'level-6',
+}, 9)
+assertSame(migratedReasoningModes.reasoningEffort, 'high', 'legacy level-4 reasoning must migrate to the deep mode')
+assertSame(migratedReasoningModes.talentThinkingIntensity, 'max', 'legacy level-6 reasoning must migrate to the maximum mode')
+const migratedLegacyStyle = migrateSettings({ narrativeStyle: 'poetic' }, 10)
+assertSame(migratedLegacyStyle.narrativeStyle, 'default', 'legacy style buttons must migrate to the custom-text owner')
+assertOk(
+  migratedLegacyStyle.narrativeStyleText.includes('凝练')
+    && migratedLegacyStyle.narrativeStyleVersion === 1,
+  'legacy poetic style must migrate to a readable active custom style and version',
+)
+const exactCustomStyle = '第一行保持完整。\n第二行  保留空格。'
+const migratedCustomStyle = migrateSettings({
+  narrativeStyle: 'realistic',
+  narrativeStyleText: exactCustomStyle,
+  narrativeStyleVersion: 7,
+}, 10)
+assertSame(migratedCustomStyle.narrativeStyleText, exactCustomStyle, 'saved custom style text must survive migration byte-for-byte')
+assertSame(migratedCustomStyle.narrativeStyleVersion, 7, 'saved custom style version must survive migration')
 assertOk(
   /export async function hasAvailableApiConfiguration\(\)[\s\S]{0,420}provider === 'custom'[\s\S]{0,260}params\.set\('baseUrl', customUrl\)[\s\S]{0,180}fetch\(`\/api\/proxy\?\$\{params\.toString\(\)\}`/.test(settingsStoreSrc)
     && /export function GET\(request: Request\): Response[\s\S]{0,420}isRegisteredServerProviderBaseUrl[\s\S]{0,220}hasServerProviderTarget\(providerId\)[\s\S]{0,160}hasServerProviderApiKey\(providerId\)/.test(proxyRouteSrc)
@@ -856,11 +904,14 @@ assertOk(
 )
 assertOk(
   /type PagePhase = 'idle' \| 'generating' \| 'ready' \| 'selecting'/.test(talentDrawPageSrc),
-  'destiny draw must keep an explicit non-persisted handoff state after five candidates are ready',
+  'destiny draw must keep an explicit non-persisted handoff state after twelve candidates are ready',
 )
 assertOk(
-  /const revealPatterns = \(patterns:[\s\S]{0,260}visiblePatterns\.length < DEFAULT_DESTINY_PATTERN_COUNT[\s\S]{0,900}setSlots\((?:drawSlotsFromPool|revealSlotsInOrder)\(visiblePatterns\)\)[\s\S]{0,180}setPhase\('ready'\)/.test(talentDrawPageSrc),
-  'AI destiny readiness must require five display-unique candidates before the completed handoff opens',
+  /const completeFullDraw = useCallback\(\(patterns: DestinyPattern\[\]\)/.test(talentDrawPageSrc)
+    && /visiblePatterns\.length < DESTINY_PATTERN_DISPLAY_COUNT/.test(talentDrawPageSrc)
+    && /setSlots\(revealSlotsInOrder\(visiblePatterns\)\)/.test(talentDrawPageSrc)
+    && /completionTimerRef\.current = window\.setTimeout\([\s\S]{0,220}setPhase\('ready'\)/.test(talentDrawPageSrc),
+  'AI destiny readiness must require twelve display-unique candidates before the completed handoff opens',
 )
 assertOk(
   /phase === 'ready'[\s\S]{0,1600}进入命格选择/.test(talentDrawPageSrc),
@@ -868,10 +919,10 @@ assertOk(
 )
 assertOk(
   /function uniquePatternsByIdentity[\s\S]{0,700}seenIds[\s\S]{0,300}seenNames[\s\S]{0,300}patternNameKey/.test(talentDrawPageSrc),
-  'a five-slot destiny draw must remove duplicate IDs and duplicate display names',
+  'a twelve-slot destiny draw must remove duplicate IDs and duplicate display names',
 )
 assertOk(
-  /const savedSlotsMatchMode[\s\S]{0,360}uniquePatternsByIdentity\(savedPatterns\)\.length === DEFAULT_DESTINY_PATTERN_COUNT/.test(talentDrawPageSrc),
+  /const savedSlotsMatchMode[\s\S]{0,360}savedPatterns\.length >= DESTINY_PATTERN_DISPLAY_COUNT[\s\S]{0,260}uniquePatternsByIdentity\(savedPatterns\)\.length === savedPatterns\.length/.test(talentDrawPageSrc),
   'persisted selecting slots must not restore a normalized duplicate set',
 )
 assertOk(
@@ -886,25 +937,26 @@ assertOk(
 )
 assertOk(
   /providerId === 'deepseek'[\s\S]{0,220}reasoningEffort === 'disabled'[\s\S]{0,120}thinking = \{ type: 'disabled' \}/.test(aiClientSrc)
-    && /\{ type: 'enabled', budget_tokens: budgetTokens \}/.test(aiClientSrc)
-    && /type: z\.literal\('enabled'\)[\s\S]{0,160}budget_tokens/.test(proxyRouteSrc)
+    && /proxyBody\.reasoning_effort = reasoningEffort/.test(aiClientSrc)
+    && /reasoning_effort:\s*z\.enum\(\['high', 'max'\]\)/.test(proxyRouteSrc)
     && /type: z\.literal\('disabled'\)/.test(proxyRouteSrc),
-  'DeepSeek reasoning must transmit an explicit enabled/disabled type and preserve enabled budgets',
+  'DeepSeek reasoning must transmit an explicit enabled/disabled type and supported reasoning effort',
 )
 assertOk(
   /const usedNames = new Set<string>\(\)[\s\S]{0,700}!usedNames\.has\(patternNameKey\(p\)\)/.test(talentDrawPageSrc),
   'destiny redraw must not reintroduce duplicate display names into the visible slots',
 )
 assertOk(
-  /\.aura\s*\{[^}]*width:\s*min\(13\.75rem,\s*72vw\)/s.test(talentDrawCssSrc)
+  /\.aura\s*\{[^}]*width:\s*220px/s.test(talentDrawCssSrc)
     && /\.seals\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/s.test(talentDrawCssSrc)
-    && /\.drawReadout\s*\{[^}]*display:\s*flex/s.test(talentDrawCssSrc)
+    && /\.drawStageComplete \.aura\s*\{[^}]*top:\s*224px/s.test(talentDrawCssSrc)
+    && /\.drawStageComplete \.sealWrap\s*\{[^}]*opacity:\s*0/s.test(talentDrawCssSrc)
     && /aria-label="十二道命印"/.test(talentDrawPageSrc)
     && /Array\.from\(\{ length: MYTHIC_PATTERN_SELECT_COUNT \}/.test(talentDrawPageSrc)
     && /selectedUiSlots\.map\(/.test(talentDrawPageSrc)
     && !/TalentAstrolabe|astrolabe|fateNode/.test(talentDrawPageSrc)
     && !/progressTrack|progressFill/.test(talentDrawPageSrc),
-  'the completed destiny handoff must keep the selected aura, twelve seals, two rebirth slots, three ordinary slots, and compact readout',
+  'the completed destiny handoff must keep the selected aura, twelve seals, two rebirth slots, and three ordinary slots',
 )
 
 assertOk(/preGenActivity\.invalidate\(\)/.test(preGenSrc), 'clearPreGenQueue must invalidate through activity state')
@@ -948,7 +1000,7 @@ const monthAfterSeasonStep = (mayIndex + 3) % 12
 assertSame(Math.floor(((monthAfterSeasonStep + 10) % 12) / 3), 1, 'month->season must land in the following solar season')
 assertOk(/candidate\.importance\s*===\s*'HIGH'/.test(branchPolicySrc), 'ordinary branch points must require HIGH importance')
 assertOk(narrativePromptComponentsSrc.includes('身份、核心关系、长期目标、关键资源、阵营、存亡等不可逆轨迹'), 'branch prompt must define fate-changing impact dimensions')
-assertOk(/version:\s*'4\.6\.1'/.test(narrativePromptSrc), 'latest narrative attention and repair contract must use version 4.6.1')
+assertOk(/version:\s*'4\.7\.0'/.test(narrativePromptSrc), 'four-layer narrative and data-repair contract must use version 4.7.0')
 assertOk(
   /semanticSignals\?\.irreversible\s*===\s*true/.test(branchPolicySrc)
     && /narrativeRegister\s*===\s*'fate'/.test(branchPolicySrc),

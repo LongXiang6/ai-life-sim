@@ -18,11 +18,23 @@ const {
   recordCacheUsage,
   resetCacheStats,
 } = await import('../../../../src/core/ai-service/cache-stats.ts')
+const {
+  getAiUsageStats,
+  recordAiUsage,
+} = await import('../../../../src/core/ai-service/usage-stats.ts')
 const { normalizeAiUsage } = await import('../../../../src/core/ai-service/normalize-ai-usage.ts')
+const { resolveInternalCachePool } = await import('../../../../src/core/ai-service/ai-client.ts')
 
 function assertOk(condition, message) {
   if (!condition) throw new Error(`[cache-stats-smoke] ${message}`)
 }
+
+assertOk(resolveInternalCachePool('narrative', 'narrative-main') === 'narrative-main', 'main narrative must have its own internal cache pool')
+assertOk(resolveInternalCachePool('narrative', 'narrative-data-repair') === 'narrative-repair', 'all narrative repair calls must share the repair protocol pool')
+assertOk(resolveInternalCachePool('summary', 'summary-compress-L1') === 'summary-L1', 'L1 summaries must remain separate')
+assertOk(resolveInternalCachePool('summary', 'summary-compress-L2') === 'summary-L2', 'L2 summaries must remain separate')
+assertOk(resolveInternalCachePool('summary', 'summary-compress-L3') === 'summary-L3', 'L3 summaries must remain separate')
+assertOk(resolveInternalCachePool('worldInit', 'world-scoring-profile') === 'world-init', 'world initialization calls must remain separate from narrative calls')
 
 const deepseekMain = {
   providerId: 'deepseek',
@@ -42,11 +54,12 @@ const deepseekUsage = normalizeAiUsage({
   prompt_cache_hit_tokens: 640,
   prompt_cache_miss_tokens: 160,
   completion_tokens: 20,
+  completion_tokens_details: { reasoning_tokens: 8 },
   total_tokens: 820,
 })
 assertOk(
-  deepseekUsage?.hitTokens === 640 && deepseekUsage.missTokens === 160,
-  'DeepSeek cache usage must keep its explicit hit and miss fields',
+  deepseekUsage?.hitTokens === 640 && deepseekUsage.missTokens === 160 && deepseekUsage.reasoningTokens === 8,
+  'DeepSeek usage must keep explicit cache and reasoning fields',
 )
 
 const longcatUsage = normalizeAiUsage({
@@ -65,6 +78,39 @@ assertOk(
 
 localStorage.setItem('ai-cache-stats', JSON.stringify({ hitTokens: 999, missTokens: 1 }))
 assertOk(getCacheStats(deepseekMain).hitRate === 0, 'legacy mixed statistics must not leak into a scoped model view')
+
+localStorage.setItem('ai-usage-stats', JSON.stringify({
+  version: 1,
+  total: { knownCalls: 1, hitTokens: 999, missTokens: 1 },
+  byPool: { narrative: { knownCalls: 1, hitTokens: 999, missTokens: 1 } },
+}))
+const migratedUsage = getAiUsageStats()
+assertOk(
+  migratedUsage.version === 2
+    && migratedUsage.total.knownCalls === 0
+    && Object.keys(migratedUsage.byPool).length === 0,
+  'legacy broad-pool usage must not leak into fine-grained usage statistics',
+)
+recordAiUsage(deepseekUsage, {
+  ...deepseekMain,
+  pool: 'narrative-main',
+  reasoningEffort: 'auto',
+  lifeRunId: 'life-cache-smoke',
+  round: 1,
+  executionKind: 'real',
+  durationMs: 1234,
+})
+assertOk(
+  getAiUsageStats().byPool['narrative-main']?.knownCalls === 1,
+  'new usage must be recorded under the resolved internal cache pool',
+)
+const latencyAggregate = getAiUsageStats().runs['life-cache-smoke']?.byPool['narrative-main']
+assertOk(
+  latencyAggregate?.latencySamples === 1
+    && latencyAggregate.latencyMsTotal === 1234
+    && latencyAggregate.latencyMaxMs === 1234,
+  'per-run and per-pool usage must retain complete response latency statistics',
+)
 
 recordCacheUsage({ hitTokens: 100, missTokens: 100 }, deepseekMain)
 recordCacheUsage({ hitTokens: 900, missTokens: 100 }, deepseekRepair)

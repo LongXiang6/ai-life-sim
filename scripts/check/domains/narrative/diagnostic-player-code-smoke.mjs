@@ -6,155 +6,154 @@ import os from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 
+import Database from 'better-sqlite3'
+
 const execFile = promisify(execFileCallback)
 
 function assert(condition, message) {
   if (!condition) throw new Error(message)
 }
 
-const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'ai-life-sim-player-code-'))
-process.env.AI_LOG_DIR = tempRoot
+const tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'ai-life-sim-log-identity-'))
+const logDatabasePath = path.join(tempRoot, 'logs.sqlite')
+process.env.AI_LOG_DB_PATH = logDatabasePath
+process.env.ACCOUNT_DB_PATH = path.join(tempRoot, 'accounts.sqlite')
+process.env.PLAYER_CONTENT_DB_PATH = path.join(tempRoot, 'player-content.sqlite')
+
+const [
+  identityStore,
+  codeContract,
+  deviceIdentity,
+  deviceContract,
+  safety,
+  store,
+  accountContract,
+  accountService,
+  accountDatabase,
+  playerContentDatabase,
+] = await Promise.all([
+  import('../../../../src/core/logger/diagnostic-player-identity.ts'),
+  import('../../../../src/core/logger/diagnostic-player-code.ts'),
+  import('../../../../src/core/logger/device-provenance-identity.ts'),
+  import('../../../../src/core/logger/device-provenance.ts'),
+  import('../../../../src/core/logger/server-log-safety.ts'),
+  import('../../../../src/core/logger/server-log-store.ts'),
+  import('../../../../src/core/account/account-contract.ts'),
+  import('../../../../src/core/account/account-service.ts'),
+  import('../../../../src/core/account/account-database.ts'),
+  import('../../../../src/core/player-content/player-content-database.ts'),
+])
 
 try {
-  const [identityStore, codeContract, safety, store] = await Promise.all([
-    import('../../../../src/core/logger/diagnostic-player-identity.ts'),
-    import('../../../../src/core/logger/diagnostic-player-code.ts'),
-    import('../../../../src/core/logger/server-log-safety.ts'),
-    import('../../../../src/core/logger/server-log-store.ts'),
-  ])
-
-  const firstCode = codeContract.normalizeDiagnosticPlayerCode(
-    await identityStore.ensureDiagnosticPlayerCode(),
-  )
+  const firstCode = accountContract.UsernameSchema
+    ? codeContract.normalizeDiagnosticPlayerCode(await identityStore.ensureDiagnosticPlayerCode())
+    : null
   assert(firstCode, 'allocated diagnostic code must use the six-character contract')
   assert(/[A-Z]/.test(firstCode) && /[0-9]/.test(firstCode), 'diagnostic code must mix uppercase letters and digits')
-  assert(
-    await identityStore.ensureDiagnosticPlayerCode(firstCode) === firstCode,
-    'an existing issued code must remain stable across requests and IP changes',
-  )
+  assert(await identityStore.ensureDiagnosticPlayerCode(firstCode) === firstCode, 'existing diagnostic code must remain stable')
+  const secondCode = await identityStore.ensureDiagnosticPlayerCode()
+  assert(secondCode && secondCode !== firstCode, 'SQLite reservation must not reuse an occupied code')
+  const firstDeviceId = await deviceIdentity.ensureDeviceProvenanceId()
+  assert(deviceContract.normalizeDeviceProvenanceId(firstDeviceId) === firstDeviceId, 'device provenance ID must use the stable plaintext contract')
+  assert(await deviceIdentity.ensureDeviceProvenanceId(firstDeviceId) === firstDeviceId, 'existing device provenance ID must remain stable')
 
-  const source = safety.getServerRequestSource(new Request('http://localhost/api/log', {
+  const registration = accountContract.RegisterRequestSchema.parse({
+    username: '日志测试用户',
+    qq: '',
+    password: 'plain-password-123',
+    confirmPassword: 'plain-password-123',
+    initialData: {
+      settings: {
+        provider: 'deepseek',
+        customUrl: '',
+        customModel: 'deepseek-chat',
+        temperature: 0.8,
+        topP: 0.9,
+        maxTokens: 4096,
+        reasoningEffort: 'level-2',
+        talentThinkingIntensity: 'level-2',
+        aiTalentGeneration: true,
+        preGenerateRounds: 0,
+        storySeed: '',
+        narrativeStyle: 'default',
+        wordCountTarget: 1200,
+        streamingMode: 'off',
+        comfortableParagraphs: true,
+        reduceMotion: false,
+        theme: 'minimal-white',
+      },
+      saveApiKey: false,
+      apiKey: null,
+      characterDraft: accountContract.DEFAULT_CLOUD_CHARACTER_DRAFT,
+      mythicTalents: [],
+      gameRecords: [],
+    },
+  })
+  const account = await accountService.registerAccount(registration)
+
+  const request = new Request('http://localhost/api/debug-log', {
     headers: {
       'x-real-ip': '198.51.100.42',
-      'x-player-code': 'ZZZ999',
-      cookie: `${codeContract.DIAGNOSTIC_PLAYER_CODE_COOKIE}=${firstCode}`,
+      cookie: `${codeContract.DIAGNOSTIC_PLAYER_CODE_COOKIE}=${firstCode}; ${deviceContract.DEVICE_PROVENANCE_ID_COOKIE}=${firstDeviceId}; ${accountContract.ACCOUNT_SESSION_COOKIE}=${encodeURIComponent(account.token)}`,
     },
+  })
+  const baseSource = safety.getServerRequestSource(request)
+  assert(!baseSource.isRegistered, 'pure network source parser must not trust account headers')
+  const source = store.getServerRequestSource(request)
+  assert(source.diagnosticCode === firstCode, 'issued diagnostic Cookie must join the source')
+  assert(source.deviceProvenanceId === firstDeviceId, 'issued device provenance Cookie must join the source independently')
+  assert(source.isRegistered, 'valid server session must mark the source as registered')
+  assert(source.username === '日志测试用户' && source.accountId, 'trusted account ID and username must join every row')
+
+  await store.appendServerLogEntry({
+    id: 'identity-smoke-entry',
+    entryType: 'ai-call',
+    category: 'narrative-rounds',
+    source,
+    requestId: 'identity-smoke-request',
+    prompt: '用户身份关联 Prompt',
+    response: '用户身份关联叙事',
+    payload: { apiKey: 'visible-plain-value' },
+  })
+  const row = store.queryServerLogEntries({ requestId: 'identity-smoke-request' }).entries[0]
+  assert(row.accountId === source.accountId && row.username === source.username, 'database query must return account identity')
+  assert(row.deviceProvenanceId === firstDeviceId, 'database query must return the independent device provenance ID')
+  assert(row.payload.apiKey === 'visible-plain-value', 'identity-associated payload must remain plaintext')
+
+  const anonymous = store.getServerRequestSource(new Request('http://localhost/api/log', {
+    headers: { 'x-real-ip': '203.0.113.9' },
   }))
-  assert(source.diagnosticCode === firstCode, 'server log classification must read the issued Cookie code')
-  assert(source.diagnosticCode !== 'ZZZ999', 'client-controlled headers must not override the diagnostic code')
+  assert(!anonymous.isRegistered && !anonymous.accountId && !anonymous.username, 'missing session must remain explicitly anonymous')
 
-  const secondCode = await identityStore.ensureDiagnosticPlayerCode()
-  assert(secondCode !== firstCode, 'atomic allocation must not reuse an occupied code')
-
-  const event = {
-    schemaVersion: 2,
-    eventId: 'diagnostic-code-smoke-event',
-    timestamp: new Date().toISOString(),
-    level: 'info',
-    module: 'diagnostic-code-smoke',
-    message: 'player action',
-    eventType: 'user_action',
-    action: 'smoke-action',
-    sourceIp: source.ip,
-    sourceId: source.sourceId,
-    diagnosticCode: source.diagnosticCode,
+  const database = new Database(logDatabasePath, { readonly: true, fileMustExist: true })
+  try {
+    assert(database.prepare('SELECT COUNT(*) AS count FROM diagnostic_identities').get().count === 2, 'diagnostic code reservations must be stored in SQLite')
+    assert(database.prepare('SELECT COUNT(*) AS count FROM device_provenance_identities').get().count === 1, 'device provenance reservations must be stored in SQLite')
+  } finally {
+    database.close()
   }
-  await Promise.all([
-    store.appendServerJsonLine('client-events/client-events-2026-07-19.jsonl', event),
-    store.appendSourceJsonLine(source, 'client-events-2026-07-19.jsonl', event),
-  ])
 
-  const playerIndex = path.join(tempRoot, 'players', firstCode, 'client-events-2026-07-19.jsonl')
-  assert((await fs.readFile(playerIndex, 'utf8')).includes(firstCode), 'per-player log index must carry the diagnostic code')
-  await fs.access(path.join(tempRoot, 'diagnostic-identities', 'codes', `${firstCode}.json`))
-
-  const repeatedPrompt = '固定提示词与完整上下文。'.repeat(500)
-  const firstRef = await store.storeServerLogContent(repeatedPrompt, 'text')
-  const secondRef = await store.storeServerLogContent(repeatedPrompt, 'text')
-  assert(firstRef?.hash === secondRef?.hash, 'identical large content must reuse one SHA-256 reference')
-  assert(firstRef?.path === secondRef?.path, 'identical large content must reuse one gzip object path')
-  assert(await store.readServerLogContent(firstRef) === repeatedPrompt, 'content reference must restore the complete text')
-
-  const protectedRef = await store.storeServerLogContent({
-    apiKey: 'player-secret-key',
-    serialNumber: 'SERIAL-001',
-    story: repeatedPrompt,
-  }, 'json')
-  const restoredProtected = await store.readServerLogContent(protectedRef)
-  assert(restoredProtected.apiKey === '[REDACTED]', 'content store must redact API keys before hashing and writing')
-  assert(restoredProtected.serialNumber === '[REDACTED]', 'content store must redact device serials before hashing and writing')
-  assert(restoredProtected.story === repeatedPrompt, 'content store must preserve complete non-secret story text')
-
-  const contextRef = await store.storeServerLogContent({
-    path: '/game-story',
-    environmentSnapshot: { viewportWidth: 390, deviceMemoryGiB: 8 },
-  }, 'json')
-  const v2Event = {
-    schemaVersion: 2,
-    eventId: 'diagnostic-code-v2-event',
-    requestId: 'diagnostic-code-request',
-    timestamp: new Date().toISOString(),
-    receivedAt: Date.now(),
-    level: 'info',
-    module: 'diagnostic-session',
-    message: 'environment-snapshot',
-    eventType: 'log',
-    path: '/game-story',
-    sourceIp: source.ip,
-    sourceId: source.sourceId,
-    diagnosticCode: source.diagnosticCode,
-    contextRef,
-  }
-  await Promise.all([
-    store.appendServerJsonLine('client-events/client-events-2026-07-20.jsonl', v2Event),
-    store.appendSourceJsonLine(source, 'client-events-2026-07-20.jsonl', v2Event),
-    store.appendServerJsonLine('feedback/feedback-2026-07-20.jsonl', {
-      schemaVersion: 2,
-      feedbackId: 'FB-20260720-UNRELATED',
-      receivedAt: Date.now(),
-      sourceIp: source.ip,
-      sourceId: source.sourceId,
-      diagnosticCode: source.diagnosticCode,
-      category: 'bug',
-      subject: 'unrelated feedback',
-    }),
-  ])
-
-  const inspectorPath = path.resolve('scripts/ops/inspect-ai-logs.mjs')
   const inspected = await execFile(process.execPath, [
-    inspectorPath,
-    '--root', tempRoot,
+    path.resolve('scripts/ops/inspect-ai-logs.mjs'),
+    '--database', logDatabasePath,
     '--all',
-    '--player-code', firstCode,
+    '--account-id', source.accountId,
+    '--device-id', firstDeviceId,
   ], { encoding: 'utf8' })
   const report = JSON.parse(inspected.stdout)
-  assert(report.filters.playerCode === firstCode, 'operator inspector must expose the active player-code filter')
-  assert(report.recentClientEvents?.[0]?.diagnosticCode === firstCode, 'player-code lookup must return correlated client actions')
-
-  const inspectedContent = await execFile(process.execPath, [
-    inspectorPath,
-    '--root', tempRoot,
-    '--all',
-    '--player-code', firstCode,
-    '--include-content',
-  ], { encoding: 'utf8' })
-  const contentReport = JSON.parse(inspectedContent.stdout)
-  const environmentEvent = contentReport.clientEvents?.find((item) => item.eventId === 'diagnostic-code-v2-event')
-  assert(environmentEvent?.context?.path === '/game-story', 'operator inspector must hydrate v2 content references')
-  assert(environmentEvent?.context?.environmentSnapshot?.viewportWidth === 390, 'hydrated environment snapshot must remain complete')
-
-  const inspectedRequest = await execFile(process.execPath, [
-    inspectorPath,
-    '--root', tempRoot,
-    '--all',
-    '--request-id', 'diagnostic-code-request',
-  ], { encoding: 'utf8' })
-  const requestReport = JSON.parse(inspectedRequest.stdout)
-  assert(requestReport.totals.clientEvents === 1, 'request-id lookup must retain the matching client event')
-  assert(requestReport.totals.feedbackSubmissions === 0, 'request-id lookup must exclude unrelated feedback metadata')
-  assert(requestReport.recentFeedback.length === 0, 'request-id output must not attach unrelated feedback rows')
+  assert(report.filters.accountId === source.accountId, 'inspector must expose the account filter')
+  assert(report.filters.deviceId === firstDeviceId, 'inspector must expose the device provenance filter')
+  assert(report.entries[0].username === '日志测试用户', 'inspector must show registered username')
+  assert(report.entries[0].prompt === '用户身份关联 Prompt', 'inspector must show plaintext Prompt without an extra flag')
+  assert(report.entries[0].response === '用户身份关联叙事', 'inspector must show plaintext response without an extra flag')
 
   console.log(`[diagnostic-player-code-smoke] PASS code=${firstCode}`)
 } finally {
+  store.closeServerLogDatabaseForTests()
+  accountDatabase.closeAccountDatabaseForTests()
+  playerContentDatabase.closePlayerContentDatabaseForTests()
   await fs.rm(tempRoot, { recursive: true, force: true })
+  delete process.env.AI_LOG_DB_PATH
+  delete process.env.ACCOUNT_DB_PATH
+  delete process.env.PLAYER_CONTENT_DB_PATH
 }

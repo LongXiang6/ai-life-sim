@@ -84,8 +84,12 @@ const worldSelectStageSrc = readRel('src/mods/mod-pages/pages/world-select/World
 const worldSelectDirectorySrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectDirectory.tsx')
 const worldSelectMainGridSrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectMainGrid.tsx')
 const worldSelectBottomBarSrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectBottomBar.tsx')
+const worldSelectCacheDialogSrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectCacheResetDialog.tsx')
 const worldSelectCustomFormSrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectCustomForm.tsx')
 const worldSelectCssSrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectMobile.module.css')
+const worldGeneratedCacheSrc = readRel('src/mods/mod-world/utils/world-generated-cache.ts')
+const bottomActionBarSrc = readRel('src/mods/mod-ui/components/organisms/BottomActionBar.tsx')
+const bottomActionBarCssSrc = readRel('src/mods/mod-ui/components/organisms/BottomActionBar.module.css')
 const characterCreateMobileSrc = readRel('src/mods/mod-pages/pages/character-create/CharacterCreateMobile.tsx')
 const characterCreatePageSrc = readRel('src/mods/mod-pages/pages/character-create/page.tsx')
 const characterIdentitySrc = readRel('src/mods/mod-pages/pages/character-create/CharacterIdentitySection.tsx')
@@ -166,10 +170,13 @@ assertOk(
 )
 assertOk(
   attributeAllocPageSrc.includes('const TOTAL_POINTS = 15')
-    && attributeAllocPageSrc.includes('const MAX_VALUE = 10')
+    && attributeAllocPageSrc.includes('const effectiveValue = value + bonus')
+    && attributeAllocPageSrc.includes('nextUsedPoints > TOTAL_POINTS')
+    && !attributeAllocPageSrc.includes('const MAX_VALUE = 10')
+    && !attributeAllocPageSrc.includes('const MIN_VALUE = 0')
     && attributeAllocPageSrc.includes('setCharacterBase({')
     && attributeAllocPageSrc.includes("router.push('/fate-preview')"),
-  'the creation flow must expose the confirmed 15-point four-attribute allocation step',
+  'the creation flow must expose the confirmed 15-point allocation with unbounded per-attribute values and effective-value display',
 )
 assertOk(welcomePageSrc.includes("import WelcomeView from './WelcomeView'"), 'welcome page must use the single responsive WelcomeView')
 assertOk(!welcomePageSrc.includes('useIsMobile'), 'welcome page must not switch desktop/mobile DOM after hydration')
@@ -337,8 +344,11 @@ assertOk(
   worldSelectStageSrc.includes('difficultySection')
     && worldSelectStageSrc.includes('difficultyOptions')
     && worldSelectStageSrc.includes('人生难度')
-    && worldSelectStageSrc.includes('challengeLabel'),
-  'difficulty controls must live inside the approved world-focus stage card',
+    && worldSelectStageSrc.includes('challengeLabel')
+    && worldSelectStageSrc.includes('type="button"')
+    && worldSelectStageSrc.includes('onClick={logic.handleCycleDifficulty}')
+    && !worldSelectStageSrc.includes('role="button"'),
+  'difficulty controls must use the approved native cycle button inside the world-focus stage card',
 )
 assertOk(
   worldSelectMobileSrc.includes("['saved', '已保存']")
@@ -349,28 +359,55 @@ assertOk(
 )
 assertOk(
   !worldSelectBottomBarSrc.includes('logic.difficultyItems')
-    && worldSelectBottomBarSrc.includes('onClick={logic.handleBack}')
-    && worldSelectBottomBarSrc.includes('onClick={logic.handleConfirm}')
-    && worldSelectBottomBarSrc.includes('disabled={!logic.selectedWorld || logic.isConfirming}'),
+    && worldSelectBottomBarSrc.includes('onBack={logic.handleBack}')
+    && worldSelectBottomBarSrc.includes('onConfirm={logic.handleConfirm}')
+    && worldSelectBottomBarSrc.includes('confirmDisabled={!logic.selectedWorld || logic.isConfirming}')
+    && bottomActionBarSrc.includes('onClick={onBack}')
+    && bottomActionBarSrc.includes('disabled={backDisabled}')
+    && bottomActionBarSrc.includes('disabled={confirmDisabled}'),
   'WF2 compact bottom bar must keep back/confirm actions and disabled confirmation semantics',
 )
 assertOk(
-  worldSelectCssSrc.includes('min-height: 52px')
-    && worldSelectCssSrc.includes('min-height: 48px')
-    && worldSelectCssSrc.includes('width: 36px')
-    && worldSelectCssSrc.includes('position: absolute'),
-  'WF2 floating bottom bar must use the approved 52/48/36 creation-flow hierarchy',
+  bottomActionBarCssSrc.includes('min-height: 52px')
+    && bottomActionBarCssSrc.includes('min-height: 48px')
+    && bottomActionBarCssSrc.includes('width: 38px')
+    && bottomActionBarCssSrc.includes('position: absolute'),
+  'WF2 floating bottom bar must use the approved unified 52/48/38 creation-flow hierarchy',
 )
 assertOk(
   worldSelectMobileSrc.includes('final-flow-design-fit')
-    && worldSelectCssSrc.includes('position: absolute')
-    && worldSelectBottomBarSrc.includes('data-flow-bottom-bar'),
+    && bottomActionBarCssSrc.includes('position: absolute')
+    && bottomActionBarSrc.includes('data-flow-bottom-bar'),
   'WF2 world select must use the final-flow canvas with an absolute canvas-contained bottom bar',
 )
 assertOk(
   worldSelectMainGridSrc.includes('event.stopPropagation()')
-    && worldSelectDirectorySrc.includes('event.stopPropagation()'),
-  'WF2 cache controls must stop propagation so they do not select the underlying world card',
+    && worldSelectDirectorySrc.includes('event.stopPropagation()')
+    && worldSelectMainGridSrc.includes('handleRequestClearWorldCache')
+    && worldSelectDirectorySrc.includes('handleRequestClearWorldCache')
+    && !/\.cacheButton\s*\{\s*display:\s*none/.test(worldSelectCssSrc)
+    && !/\.inlineCacheButton\s*\{\s*display:\s*none/.test(worldSelectCssSrc),
+  'WF2 cached worlds must expose reset controls without selecting the underlying card',
+)
+assertOk(
+  worldGeneratedCacheSrc.includes("const DESTINY_POOL_CACHE_PREFIX = 'mod-character:cache:destiny-pool:'")
+    && worldGeneratedCacheSrc.includes('parseDestinyPoolWorldCode')
+    && worldGeneratedCacheSrc.includes('parseDestinyPoolWorldCode(stripped) === worldCode'),
+  'world cache scanning and clearing must include versioned destiny pools while remaining worldCode-scoped',
+)
+assertOk(
+  worldSelectCacheDialogSrc.includes('role="alertdialog"')
+    && worldSelectCacheDialogSrc.includes('aria-modal="true"')
+    && worldSelectCacheDialogSrc.includes('不会删除世界、存档或其他世界的数据')
+    && worldSelectCacheDialogSrc.includes("event.key === 'Escape'")
+    && worldSelectCacheDialogSrc.includes("event.key !== 'Tab'"),
+  'WF2 cache reset must use an explicit accessible confirmation dialog and disclose the preserved data',
+)
+assertOk(
+  bottomActionBarSrc.includes('<span className={styles.confirmArrow}')
+    && bottomActionBarSrc.includes('M5 12h14m-6-6 6 6-6 6')
+    && !bottomActionBarSrc.includes('aria-hidden="true">→</span>'),
+  'WF2 bottom action must use the approved centered SVG arrow instead of a font glyph',
 )
 assertOk(worldSelectMobileSrc.trimEnd().split('\n').length <= 200, 'world select mobile composer must stay at or below the 200-line UI limit')
 
@@ -394,17 +431,17 @@ assertOk(
 )
 assertOk(characterIdentitySrc.includes('styles.softGroup') && !characterIdentitySrc.includes('divider'), 'N2A identity groups must use same-tone soft grouping without divider lines')
 assertOk(characterCreateMobileSrc.includes('logic.background.trim()'), 'character summary must not treat whitespace-only background text as completed')
-assertOk(characterBottomBarSrc.includes('styles.backButton') && characterBottomBarSrc.includes('styles.confirmButton'), 'N2A bottom bar must expose dedicated back and confirm sizing')
+assertOk(characterBottomBarSrc.includes('<BottomActionBar') && characterBottomBarSrc.includes('onBack={logic.handleBack}') && characterBottomBarSrc.includes('onConfirm={logic.handleNext}'), 'N2A bottom bar must delegate back and confirm actions to the unified creation-flow control')
 assertOk(
-  characterCreateCssSrc.includes('.backButton')
-    && characterCreateCssSrc.includes('.confirmButton')
-    && (characterCreateCssSrc.includes('min-height: 48px') || characterCreateCssSrc.includes('height: 2rem')),
+  bottomActionBarCssSrc.includes('.backButton')
+    && bottomActionBarCssSrc.includes('.confirmButton')
+    && bottomActionBarCssSrc.includes('min-height: 48px'),
   'N2A bottom buttons must share the approved creation-flow control height',
 )
 assertOk(characterCreateCssSrc.includes('justify-content: space-between'), 'N2A bottom actions must align to opposite page edges')
 assertOk(
-  characterCreateCssSrc.includes('min-height: 52px')
-    || characterCreateCssSrc.includes('border-radius: 18px'),
+  bottomActionBarCssSrc.includes('min-height: 52px')
+    && bottomActionBarCssSrc.includes('border-radius: 18px'),
   'N2A mobile CSS must keep the floating creation-flow bottom bar treatment',
 )
 assertOk(
@@ -413,14 +450,14 @@ assertOk(
     && characterCreateLogicSrc.includes('previewStartingAge: ageSetupPreview.startingAge')
     && characterCreateLogicSrc.includes('起始年龄必须小于预期寿命')
     && characterLifespanSrc.includes('logic.previewStartingAge === 0 ? \'出生\'')
-    && characterBottomBarSrc.includes('disabled={!logic.canProceed}'),
+    && characterBottomBarSrc.includes('confirmDisabled={!logic.canProceed}'),
   'character lifespan must retain an empty birth-age input, preview edits immediately, and block an age at or beyond the lifespan',
 )
 assertOk(characterCreateMobileSrc.trimEnd().split('\n').length <= 200, 'character create mobile composer must stay at or below the 200-line UI limit')
 assertOk(productDecisionsSrc.includes('欢迎 → 世界选择 → 世界配置 → 角色创建'), 'PD-002 must preserve the live world-customize step before character creation')
-assertOk(worldSelectMobileSrc.includes('<span>01 / 08</span>') && worldSelectBottomBarSrc.includes('nextNumber}>02'), 'world selection must use the selected flow step-01 header and advance to step 02')
-assertOk(worldCustomizeMobileSrc.includes('<span>02 / 08</span>') && worldCustomizeBottomBarSrc.includes('nextNumber}>03'), 'world customization must use the selected flow step-02 header and advance to step 03')
-assertOk(characterCreateMobileSrc.includes('<span>03 / 08</span>') && characterBottomBarSrc.includes('nextNumber}>04'), 'character creation must use the selected flow step-03 header and advance to step 04')
+assertOk(worldSelectMobileSrc.includes('<span>01 / 08</span>') && worldSelectBottomBarSrc.includes('confirmNumber="02"'), 'world selection must use the selected flow step-01 header and advance to step 02')
+assertOk(worldCustomizeMobileSrc.includes('<span>02 / 08</span>') && worldCustomizeBottomBarSrc.includes('confirmNumber="03"'), 'world customization must use the selected flow step-02 header and advance to step 03')
+assertOk(characterCreateMobileSrc.includes('<span>03 / 08</span>') && characterBottomBarSrc.includes('confirmNumber="04"'), 'character creation must use the selected flow step-03 header and advance to step 04')
 assertOk(talentDrawPageSrc.includes("phase === 'selecting' ? '05' : '04'") && talentDrawPageSrc.includes("phase === 'selecting' ? '06' : '05'") && talentDrawPageSrc.includes("/ 08</span>"), 'talent draw and selection must occupy creation steps 04 and 05 before final review')
 assertOk(
   !talentDrawPageSrc.includes('CREATION FLOW ·')
@@ -448,8 +485,10 @@ assertOk(
     && !talentDrawPageSrc.includes('handleTurnAstrolabe')
     && /const\s+handleCandidateClick[\s\S]{0,260}handleSlotClick\(index\)/.test(talentDrawPageSrc)
     && !talentDrawPageSrc.includes('持续轮转')
-    && talentDrawPageSrc.includes("phase === 'ready' ? slots.filter(Boolean).length : displayStreamCount"),
-  'talent draw must reveal real generation progress and let candidate clicks fill the stable selection slots directly',
+    && talentDrawPageSrc.includes('visiblePatterns.length < DESTINY_PATTERN_DISPLAY_COUNT')
+    && /completionTimerRef\.current\s*=\s*window\.setTimeout\([\s\S]{0,240}setPhase\('ready'\)[\s\S]{0,80}1000\)/.test(talentDrawPageSrc)
+    && !talentDrawPageSrc.includes('可先进入选择'),
+  'talent draw must reveal real progress, wait for all twelve candidates, and hold the completed seals for one second before handoff',
 )
 assertOk(
   /const\s+\[selectedUiSlots,\s*setSelectedUiSlots\]\s*=\s*useState<\(number\s*\|\s*null\)\[\]>/.test(talentDrawPageSrc)
@@ -463,12 +502,15 @@ assertOk(
 )
 
 assertOk(
-  hasCssDeclaration(talentDrawCssSrc, 'aura', 'width', 'min(13.75rem, 72vw)')
+  hasCssDeclaration(talentDrawCssSrc, 'aura', 'width', '220px')
+    && hasCssDeclaration(talentDrawCssSrc, 'aura', 'height', '220px')
     && hasCssDeclaration(talentDrawCssSrc, 'seals', 'grid-template-columns', 'repeat(4, minmax(0, 1fr))')
+    && talentDrawCssSrc.includes('.drawStageComplete .aura { top: 224px;')
+    && talentDrawCssSrc.includes('.drawStageComplete .sealWrap { opacity: 0;')
     && talentDrawCssSrc.includes('.candidateList')
     && talentDrawCssSrc.includes('min-height: 76px')
     && talentDrawCssSrc.includes('.sealLit[data-rarity="传世"]'),
-  'the selected draw ritual and content-sized candidate rows must remain fluid',
+  'the selected draw ritual must keep its exact 220px aura, centered completion state, hidden seal handoff, and content-sized candidate rows',
 )
 assertOk(
   talentDrawPageSrc.includes('Array.from({ length: MYTHIC_PATTERN_SELECT_COUNT }')
@@ -482,6 +524,15 @@ assertOk(
     && talentDrawCssSrc.includes('rebirth-seal-halo')
     && talentDrawCssSrc.includes('@keyframes rebirth-seal-halo'),
   'selected fate runtime must keep two rebirth slots, three ordinary slots, the bottom sheet, and all selected glow effects',
+)
+assertOk(
+  talentDrawCssSrc.includes('margin-right: 8px')
+    && talentDrawCssSrc.includes('padding: 14px 18px 96px')
+    && talentDrawPageSrc.includes('confirmationRef.current')
+    && talentDrawPageSrc.includes('destinyPatterns.patterns.length !== DESTINY_PATTERN_SELECT_COUNT')
+    && talentDrawPageSrc.includes("window.location.assign('/attribute-alloc')")
+    && talentDrawPageSrc.includes('三条普通命格已选择 · 进入属性分配'),
+  'talent selection must preserve glow clearance and make one confirmation commit reliably without requiring a reincarnation talent',
 )
 assertOk(
   talentDrawPageSrc.includes('轮回天赋')
@@ -570,12 +621,12 @@ assertOk(worldCustomizeMobileSrc.includes('<WorldCustomizeDimensionCard') && wor
 assertOk(worldCustomizeDimensionSrc.includes("['ai', 'adaptive', 'custom']") && worldCustomizeDimensionSrc.includes('AI') && worldCustomizeDimensionSrc.includes('选择') && worldCustomizeDimensionSrc.includes('自定'), 'M2 dimension card must expose the compact AI / 选择 / 自定 segmented control')
 assertOk(worldCustomizeDimensionSrc.includes('aria-pressed=') && worldCustomizeDimensionSrc.includes('styles.modeActive'), 'M2 mode buttons must expose non-color selected state')
 assertOk(worldCustomizeDimensionSrc.includes('styles.currentValue'), 'M2 dimension card must preserve the full-width current-value row')
-assertOk(worldCustomizeBottomBarSrc.includes('styles.backButton') && worldCustomizeBottomBarSrc.includes('styles.confirmButton'), 'world customization must use the shared-size edge-aligned bottom actions')
+assertOk(worldCustomizeBottomBarSrc.includes('<BottomActionBar') && worldCustomizeBottomBarSrc.includes('onBack={onBack}') && worldCustomizeBottomBarSrc.includes('onConfirm={onConfirm}'), 'world customization must use the shared-size unified bottom actions')
 assertOk(
   worldCustomizeLogicSrc.includes("field.mode === 'adaptive' && !field.playerValue.trim()")
     && worldCustomizeLogicSrc.includes("field.mode === 'custom' && !field.customValue.trim()")
     && worldCustomizeLogicSrc.includes('const canSave = !isSaving && saveBlockReason === null')
-    && worldCustomizeBottomBarSrc.includes('disabled={disabled}')
+    && worldCustomizeBottomBarSrc.includes('confirmDisabled={disabled}')
     && worldCustomizeMobileSrc.includes('canConfirm={logic.canSave}'),
   'world customization must block confirmation while a player-selected or custom rule is blank',
 )
@@ -591,6 +642,17 @@ assertOk(
   gameStoryPageSrc.includes('const includeCreationPatternBonus = totalRounds === 0')
     && gameStoryPageSrc.includes('includeCreationPatternBonus ? (patternBonus[k] ?? 0) : 0'),
   'game story must only add preview-time destiny bonuses before the runtime character state is synchronized',
+)
+assertOk(
+  gameStoryPageSrc.includes('className={styles.barActions}')
+    && gameStoryPageSrc.includes('className={styles.stepMenu}')
+    && gameStoryPageSrc.includes('aria-haspopup="listbox"')
+    && gameStoryPageSrc.includes('aria-selected={isActive}')
+    && gameStoryPageSrc.includes('document.addEventListener(\'pointerdown\', handlePointerDown)')
+    && gameStoryPageSrc.includes("event.key !== 'Escape'")
+    && !gameStoryPageSrc.includes('<strong>推进步长</strong>')
+    && !gameStoryPageSrc.includes('className={styles.stepGrid}'),
+  'game story must keep the time-step menu in the approved top-bar action group and remove the duplicate info-panel step grid',
 )
 
 const readingOpeningTag = gameStoryPageSrc.match(/<(?:main|div|section)\b(?=[^>]*className=\{styles\.reading\})[^>]*>/)?.[0] ?? ''

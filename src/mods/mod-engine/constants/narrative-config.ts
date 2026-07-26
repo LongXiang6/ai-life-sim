@@ -7,6 +7,12 @@
  * 移植原则：用新项目 MOD 架构重新实现，常量归入 mod-engine/constants
  */
 
+import type { ReasoningEffort } from '@/foundation'
+import {
+  computeNarrativeTokenBudget,
+  getNarrativeTokenCalibration,
+} from '@/core/ai-service'
+
 // ============================================================
 // 叙事风格（4 种）—— Prompt 指令文本
 // ============================================================
@@ -51,7 +57,7 @@ export const WORD_COUNT_RANGES: WordCountRange[] = [
 /**
  * @deprecated 压缩调度的唯一来源是 `../constants.ts`；此兼容导出保持同一数值。
  */
-export const SUMMARY_INTERVAL = 5
+export const SUMMARY_INTERVAL = 4
 
 // ============================================================
 // 紧凑 JSON 键名映射（用于压缩 Prompt 中的 JSON 字段名）
@@ -117,23 +123,36 @@ export function buildWordCountInstruction(target: number): string {
 /** 废弃项目 NARRATIVE_WORD_COUNT_DEFAULT_MAX */
 export const NARRATIVE_WORD_COUNT_DEFAULT_MAX = DEFAULT_WORD_COUNT_TARGET
 
-/**
- * 叙事调用的最低 token 预算。
- *
- * wordCountTarget 只是节奏偏好，不能把低偏好值变成截断上限；预算只负责给
- * 主叙事与 META 留出足够的技术空间，真正的输出长度由 Prompt、模型和 Provider
- * 上下文窗口共同决定。更高的偏好仍可扩大预算，但不会缩小故事可用空间。
- */
-export const NARRATIVE_MIN_TOKEN_BUDGET = 8_192
+export interface NarrativeMaxTokenOptions {
+  reasoningEffort?: ReasoningEffort
+  providerId?: string
+  model?: string
+}
 
 /**
- * 叙事 maxTokens 计算 —— 字数偏好只影响额外余量，不作为正文质量门禁或硬上限。
+ * 叙事 maxTokens 计算：正文、协议信封、波动和思考余量分别估算并向上取整。
+ * 同 Provider/模型/模式积累至少 8 个真实样本后使用 P95 校准。
  */
-export function computeNarrativeMaxTokens(wordCountTarget: number): number {
+export function computeNarrativeMaxTokens(
+  wordCountTarget: number,
+  options: NarrativeMaxTokenOptions = {},
+): number {
   const normalizedTarget = Number.isFinite(wordCountTarget)
     ? Math.max(50, Math.round(wordCountTarget))
     : DEFAULT_WORD_COUNT_TARGET
-  return Math.max(NARRATIVE_MIN_TOKEN_BUDGET, Math.ceil(normalizedTarget * 5) + 2_000)
+  const reasoningEffort = options.reasoningEffort ?? 'disabled'
+  const calibration = options.providerId && options.model
+    ? getNarrativeTokenCalibration({
+      providerId: options.providerId,
+      model: options.model,
+      reasoningEffort,
+    })
+    : undefined
+  return computeNarrativeTokenBudget({
+    targetChineseCharacters: normalizedTarget,
+    reasoningEffort,
+    calibration,
+  })
 }
 
 /**

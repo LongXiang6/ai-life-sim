@@ -116,6 +116,7 @@ const requiredContextFields = [
   'characterProfileView',
   'characterStatusView',
   'worldNarrativeView',
+  'changeRequirementsText',
 ]
 
 for (const key of requiredContextFields) {
@@ -184,10 +185,10 @@ if (
 }
 
 if (
-  !summaryPrompt.includes('只总结 eventRecords.narrative') ||
-  !summaryPrompt.includes('模拟系统可能延后')
+  !summaryPrompt.includes('只写 sourceFacts 或 existingCompressedHistory') ||
+  !summaryPrompt.includes('禁止补写模拟状态')
 ) {
-  console.error('FAIL: summary prompt must forbid inferred deferred simulation states')
+  console.error('FAIL: timeline summary prompt must forbid inferred deferred simulation states')
   failed++
 }
 
@@ -226,9 +227,10 @@ if (lifespanSystem.includes('lastNarrativeText')) {
 }
 
 for (const [name, requiredKeys] of [
-  ['GLOBAL_JSON_KEYS', ['世界设定', '角色档案', '状态变更指南']],
+  ['GLOBAL_JSON_KEYS', ['世界设定', '角色档案']],
   ['MEMORY_JSON_KEYS', ['长期记忆', '核心记忆', '相关往事', '近期完整经历']],
   ['ROUND_JSON_KEYS', ['当前时间', '角色现状', '本轮触发事项', '本轮导演提示']],
+  ['CHANGE_REQUIREMENT_JSON_KEYS', ['可写状态字段', '本轮结构化要求']],
 ]) {
   const match = promptBuilder.match(new RegExp(`const ${name} = \\[([\\s\\S]*?)\\] as const`))
   assertOk(Boolean(match), `${name} must remain an explicit ordered layer`)
@@ -240,8 +242,10 @@ assertOk(
   promptBuilder.indexOf('全局信息: pickJsonKeys')
     < promptBuilder.indexOf('记忆: pickJsonKeys')
     && promptBuilder.indexOf('记忆: pickJsonKeys')
-      < promptBuilder.indexOf('本轮引导: pickJsonKeys'),
-  'three-layer assembly must remain global information -> memory -> round guidance',
+      < promptBuilder.indexOf('本轮引导: pickJsonKeys')
+    && promptBuilder.indexOf('本轮引导: pickJsonKeys')
+      < promptBuilder.indexOf('变化要求: pickJsonKeys'),
+  'four-layer assembly must remain global information -> memory -> round guidance -> change requirements',
 )
 const timeScaleNarrative = fs.readFileSync(
   path.join(root, 'src/mods/mod-engine/helpers/time-scale-narrative.ts'),
@@ -250,7 +254,6 @@ const timeScaleNarrative = fs.readFileSync(
 
 const cacheLayerBaseContext = {
   worldNarrativeView: {
-    当前上下文编号: 'ctx-cache',
     当前上下文类型: '世界',
     当前模拟范围: '当前完整模拟',
     当前世界能力: ['生命'],
@@ -423,7 +426,7 @@ for (const inactiveConnection of [
   )
 }
 assertOk(
-  liveNarrativePrompt.version === '4.6.1'
+  liveNarrativePrompt.version === '4.7.0'
     && liveNarrativePrompt.systemPrompt === ''
     && !narrativeSystemPrompt.includes('examples: ['),
   'optimized prompt must be versioned and keep one governed standard example instead of duplicate examples',

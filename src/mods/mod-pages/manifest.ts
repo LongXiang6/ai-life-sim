@@ -38,6 +38,8 @@ export default defineMod({
     { path: '/save-manager', page: 'save-manager' },
     { path: '/account', page: 'account' },
     { path: '/feedback', page: 'feedback' },
+    { path: '/leaderboard', page: 'leaderboard' },
+    { path: '/mailbox', page: 'mailbox' },
     { path: '/debug-log', page: 'debug-log' },
     { path: '/game-over', page: 'game-over' },
   ],

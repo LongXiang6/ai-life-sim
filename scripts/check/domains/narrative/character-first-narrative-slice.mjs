@@ -95,7 +95,8 @@ check(
   'Does the player allocate the four owned base attributes before fate preview?',
   () => requireFragments('src/mods/mod-pages/pages/attribute-alloc/page.tsx', [
     'const TOTAL_POINTS = 15',
-    'const MAX_VALUE = 10',
+    'const effectiveValue = value + bonus',
+    'nextUsedPoints > TOTAL_POINTS',
     'setCharacterBase({',
     "router.push('/fate-preview')",
   ]),

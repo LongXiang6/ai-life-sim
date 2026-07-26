@@ -75,6 +75,7 @@ assert.equal(parsed.choices[0].message.content, completeContent, 'SSE aggregatio
 assert.equal(aggregated.contentChars, completeContent.length, 'content length must describe the complete result')
 assert.equal(parsed.model, 'gpt-5.6-luna-build', 'upstream model metadata should survive aggregation')
 assert.deepEqual(parsed.usage, { prompt_tokens: 10, completion_tokens: 20 }, 'usage should survive aggregation when provided')
+assert.equal(aggregated.rawResponseBody, validSse, 'managed aggregation must expose the exact raw SSE for archival')
 
 const attemptedModels = []
 const fallbackResult = await requestManagedAggregatedCompletion({

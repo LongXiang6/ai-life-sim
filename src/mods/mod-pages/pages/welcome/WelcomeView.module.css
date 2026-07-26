@@ -23,6 +23,50 @@
   font-weight: 650;
 }
 
+.quickActions {
+  position: absolute;
+  z-index: 4;
+  top: 5.2cqh;
+  right: 5.1cqw;
+  display: flex;
+  gap: 2.2cqw;
+}
+
+.quickActions button {
+  display: grid;
+  width: 8.4cqw;
+  height: 8.4cqw;
+  place-items: center;
+  padding: 0;
+  border: 0.2cqw solid rgba(174, 184, 202, 0.72);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1cqw 2.6cqw rgba(62, 70, 100, 0.08);
+  color: #617086;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+
+.quickActions button:hover,
+.quickActions button:focus-visible {
+  border-color: #8290a5;
+  background: #fff;
+}
+
+.quickActions button:active {
+  transform: translateY(1px);
+}
+
+.quickActions svg {
+  width: 4.2cqw;
+  height: 4.2cqw;
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.55;
+}
+
 .intro {
   position: relative;
   z-index: 2;
@@ -495,7 +539,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .routeAction,
-  .saveSheet {
+  .saveSheet,
+  .quickActions button {
     transition: none;
   }
 }

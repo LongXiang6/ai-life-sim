@@ -21,6 +21,7 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    ".tmp-ui-qa/**",
     // 构建脚本不参与运行时，独立执行
     "scripts/**",
   ]),

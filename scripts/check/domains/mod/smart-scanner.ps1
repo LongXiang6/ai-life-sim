@@ -32,51 +32,19 @@ foreach ($md in $modDirs) {
   $mc = Get-FileContent $mp
   $info = @{ Path = $md.FullName; ManContent = $mc }
 
-  $m = [regex]::Match($mc, "subsystems:\s*\[([^\]]*)\]")
-  if ($m.Success) {
-    $raw = $m.Groups[1].Value -replace "[\s']", ""
-    $info.Subsystems = if ($raw) { $raw -split "," | Where-Object { $_ } } else { @() }
-  } else { $info.Subsystems = @() }
-
-  $m = [regex]::Match($mc, "stores:\s*\[([^\]]*)\]")
-  if ($m.Success) {
-    $raw = $m.Groups[1].Value -replace "[\s']", ""
-    $info.Stores = if ($raw) { $raw -split "," | Where-Object { $_ } } else { @() }
-  } else { $info.Stores = @() }
-
-  $m = [regex]::Match($mc, "dependencies:\s*\[([^\]]*)\]")
-  if ($m.Success) {
-    $raw = $m.Groups[1].Value -replace "[\s']", ""
-    $info.Deps = if ($raw) { $raw -split "," | Where-Object { $_ } } else { @() }
-  } else { $info.Deps = @() }
-
-  $m = [regex]::Match($mc, "provides:\s*\[([^\]]*)\]")
-  if ($m.Success) {
-    $raw = $m.Groups[1].Value -replace "[\s']", ""
-    $info.Provides = if ($raw) { $raw -split "," | Where-Object { $_ } } else { @() }
-  } else { $info.Provides = @() }
-
-  $m = [regex]::Match($mc, "consumes:\s*\[([^\]]*)\]")
-  if ($m.Success) {
-    $raw = $m.Groups[1].Value -replace "[\s']", ""
-    $info.Consumes = if ($raw) { $raw -split "," | Where-Object { $_ } } else { @() }
-  } else { $info.Consumes = @() }
+  $info.Subsystems = @(Get-DeclaredStringArray $mc 'subsystems')
+  $info.Stores = @(Get-DeclaredStringArray $mc 'stores')
+  $info.Deps = @(Get-DeclaredStringArray $mc 'dependencies')
+  $info.Provides = @(Get-DeclaredStringArray $mc 'provides')
+  $info.Consumes = @(Get-DeclaredStringArray $mc 'consumes')
 
   $info.Emits = @()
   $info.Listens = @()
   $evtBlockMatch = [regex]::Match($mc, "events:\s*\{([\s\S]+?)\}")
   if ($evtBlockMatch.Success) {
     $evtBlock = $evtBlockMatch.Groups[1].Value
-    $emitMatch = [regex]::Match($evtBlock, "emits:\s*\[([^\]]*)\]")
-    if ($emitMatch.Success) {
-      $raw = $emitMatch.Groups[1].Value -replace "[\s']", ""
-      $info.Emits = if ($raw) { $raw -split "," | Where-Object { $_ } } else { @() }
-    }
-    $listenMatch = [regex]::Match($evtBlock, "listens:\s*\[([^\]]*)\]")
-    if ($listenMatch.Success) {
-      $raw = $listenMatch.Groups[1].Value -replace "[\s']", ""
-      $info.Listens = if ($raw) { $raw -split "," | Where-Object { $_ } } else { @() }
-    }
+    $info.Emits = @(Get-DeclaredStringArray $evtBlock 'emits')
+    $info.Listens = @(Get-DeclaredStringArray $evtBlock 'listens')
   }
 
   $ip = Join-Path $md.FullName "index.ts"
@@ -114,6 +82,24 @@ function Resolve-ModDependencyName($dep) {
 }
 
 Write-Host "  Pre-pass: collected $($AllModInfo.Count) MOD manifests"
+$generatedSubsystemImporterPath = Join-Path $SrcDir 'core\mod-loader\mod-subsystem-importers.generated.ts'
+$generatedSubsystemImporterContent = if (Test-Path $generatedSubsystemImporterPath) {
+  Get-FileContent $generatedSubsystemImporterPath
+} else {
+  ''
+}
+$generatedEngineSubsystemPath = Join-Path $SrcDir 'mods\mod-engine\bootstrap\engine-subsystems.generated.ts'
+$generatedEngineSubsystemContent = if (Test-Path $generatedEngineSubsystemPath) {
+  Get-FileContent $generatedEngineSubsystemPath
+} else {
+  ''
+}
+$engineSubsystemRegistrationPath = Join-Path $SrcDir 'mods\mod-engine\bootstrap\register-subsystems.ts'
+$engineSubsystemRegistrationContent = if (Test-Path $engineSubsystemRegistrationPath) {
+  Get-FileContent $engineSubsystemRegistrationPath
+} else {
+  ''
+}
 
 # === D6: Import path resolution ===
 Write-Host "  [D6] Checking import paths..." -ForegroundColor DarkGray
@@ -198,7 +184,30 @@ foreach ($mn in $AllModInfo.Keys) {
       }
     }
   } else {
-    Fail "D7-SUBSINDEX" $mn "" "subsystems/ exists but missing index.ts"
+    $missingGeneratedImports = @()
+    foreach ($cls in $info.Subsystems) {
+      if (-not $actualClasses.ContainsKey($cls)) { continue }
+      $classFileBase = $actualClasses[$cls] -replace '\.ts$', ''
+      $hasGeneratedImport = $generatedSubsystemImporterContent -match [regex]::Escape("@/mods/${mn}/subsystems/${classFileBase}")
+      if ($mn -eq 'mod-engine') {
+        $hasGeneratedImport = $hasGeneratedImport -or (
+          $generatedEngineSubsystemContent -match [regex]::Escape("../subsystems/${classFileBase}")
+        )
+        if ($classFileBase -eq 'orchestrator-system') {
+          $hasGeneratedImport = $hasGeneratedImport -or (
+            $engineSubsystemRegistrationContent -match [regex]::Escape("../subsystems/${classFileBase}")
+          )
+        }
+      }
+      if (-not $hasGeneratedImport) {
+        $missingGeneratedImports += $classFileBase
+      }
+    }
+    if ($missingGeneratedImports.Count -eq 0) {
+      Pass 'D7-SUBSINDEX' $mn 'code-generated subsystem importer owns registration; no manual subsystems/index.ts required'
+    } else {
+      Fail 'D7-SUBSINDEX' $mn '' "generated subsystem importer is missing: $($missingGeneratedImports -join ', ')"
+    }
   }
 
   $modIdxPath2 = Join-Path $info.Path "index.ts"
@@ -275,7 +284,8 @@ foreach ($mn in $AllModInfo.Keys) {
       $inSubsystem = $cap -in $info.SubsystemIds
       $inNamespace = ($cap -eq $modShort) -or ($cap -like "$modShort-*")
       $inIndex = $ic -and ($ic -match [regex]::Escape($cap))
-      if (-not $inSubsystem -and -not $inNamespace -and -not $inIndex) {
+      $consumedByAnotherMod = @($AllModInfo.Values | Where-Object { $cap -in $_.Consumes }).Count -gt 0
+      if (-not $inSubsystem -and -not $inNamespace -and -not $inIndex -and -not $consumedByAnotherMod) {
         Fail "D9-PROVIDE" $mn "" "provides '$cap' not matched by subsystem id, mod namespace '$modShort', or index.ts export"
       }
     }

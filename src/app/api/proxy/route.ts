@@ -11,11 +11,11 @@
  * 支持：
  *   - POST JSON 请求体转发
  *   - SSE 流式透传（stream: true）
- *   - user_id 缓存池（由客户端传入）
+ *   - 由服务端可信账号或设备来源分配业务 user_id
  *   - response_format JSON Mode（由客户端传入）
  *   - 动态 Provider 路由（6 家厂商 + 自定义）
  *   - thinking 参数透传（推理强度）
- *   - 代理访问日志（CSV 记录每次调用）
+ *   - 代理访问日志（明文 SQLite 记录每次调用）
  *   - 上游错误响应原文保存
  */
 
@@ -50,12 +50,15 @@ import {
 } from '@/core/ai-service/stream-timeout'
 import { normalizeProxyStorySeedInput } from '@/core/ai-service/story-seed'
 import {
-  appendSourceJsonLine,
-  appendServerJsonLine,
+  appendServerLogEntry,
   getServerRequestSource,
-  storeServerLogContent,
   type ServerRequestSource,
 } from '@/core/logger/server-log-store'
+import {
+  appendNarrativeRoundExchange,
+  type NarrativeRoundTraceContext,
+} from '@/core/logger/narrative-round-archive'
+import { appendDevelopmentSystemEvents } from '@/core/logger/development-system-diagnostic.server'
 import { resolveModEngineServerPromptAsset } from '@/mods/mod-engine/server-prompt-assets'
 
 // ---- 常量 ----
@@ -80,6 +83,7 @@ const ProxyRequestSchema = z.object({
   temperature: z.number().min(0).max(2).optional(),
   max_tokens: z.number().int().positive().optional(),
   stream: z.boolean().optional(),
+  stream_options: z.object({ include_usage: z.boolean() }).strict().optional(),
   response_format: z.object({ type: z.string() }).optional(),
   user_id: z.string().optional(),
   top_p: z.number().min(0).max(1).optional(),
@@ -97,12 +101,25 @@ const ProxyRequestSchema = z.object({
       budget_tokens: z.number().int().positive().optional(),
     }).strict(),
   ]).optional(),
+  reasoning_effort: z.enum(['high', 'max']).optional(),
   // Provider 路由
   providerId: z.string().default('deepseek'),
   baseUrl: z.string().url().optional(),
   apiKey: z.string().optional(),
   /** 服务端固定 Prompt 资产；客户端不得同时提交 system 消息。 */
   prompt_asset: z.string().min(1).max(128).optional(),
+  /** 仅供代理落盘关联；该对象不会进入上游请求体。 */
+  trace_context: z.object({
+    lifeRunId: z.string().min(1).max(160),
+    round: z.number().int().positive(),
+    callKind: z.string().min(1).max(96),
+    executionKind: z.string().min(1).max(32).optional(),
+    promptVersion: z.string().min(1).max(64).optional(),
+    targetWordCount: z.number().int().positive().optional(),
+    styleSource: z.enum(['default', 'custom']).optional(),
+    styleText: z.string().optional(),
+    styleVersion: z.number().int().nonnegative().optional(),
+  }).strict().optional(),
 })
 
 type ProxyRequest = z.infer<typeof ProxyRequestSchema>
@@ -145,7 +162,7 @@ function trackFingerprint(fp: string): { isRetry: boolean; retryCount: number } 
   return { isRetry: false, retryCount: 0 }
 }
 
-// ---- 智能访问日志（JSONL 格式，含指纹 + IP + 重试追踪） ----
+// ---- 智能访问日志（明文 SQLite，含指纹 + IP + 重试追踪） ----
 
 interface SmartAccessEntry {
   timestamp: string
@@ -153,6 +170,7 @@ interface SmartAccessEntry {
   ip: string
   source_id: string
   diagnostic_code?: string
+  device_provenance_id?: string
   provider: string
   model: string
   fingerprint: string
@@ -165,6 +183,10 @@ interface SmartAccessEntry {
   message_count: number
   prompt_chars: number
   error: string
+  round?: number
+  call_kind?: string
+  life_run_id?: string
+  execution_kind?: string
 }
 
 async function writeAccessLogAsync(
@@ -182,6 +204,7 @@ async function writeAccessLogAsync(
   messageCount: number,
   promptChars: number,
   error?: string,
+  trace?: NarrativeRoundTraceContext,
 ): Promise<void> {
   const now = new Date()
   const entry: SmartAccessEntry = {
@@ -190,8 +213,13 @@ async function writeAccessLogAsync(
     ip: source.ip,
     source_id: source.sourceId,
     diagnostic_code: source.diagnosticCode,
+    device_provenance_id: source.deviceProvenanceId,
     provider: providerId,
     model,
+    round: trace?.round,
+    call_kind: trace?.callKind,
+    life_run_id: trace?.lifeRunId,
+    execution_kind: trace?.executionKind,
     fingerprint,
     status,
     duration_ms: durationMs,
@@ -203,11 +231,31 @@ async function writeAccessLogAsync(
     prompt_chars: promptChars,
     error: error ?? '',
   }
-  const date = now.toISOString().slice(0, 10)
-  await Promise.all([
-    appendServerJsonLine(`proxy-access/proxy-access-${date}.jsonl`, entry),
-    appendSourceJsonLine(source, `proxy-access-${date}.jsonl`, entry),
-  ])
+  await appendServerLogEntry({
+    createdAt: now.getTime(),
+    entryType: 'proxy-access',
+    category: 'ai-proxy',
+    level: status >= 400 ? 'error' : 'info',
+    module: 'api-proxy',
+    message: error || `HTTP ${status}`,
+    requestId,
+    source,
+    provider: providerId,
+    model,
+    status,
+    error,
+    round: trace?.round,
+    callKind: trace?.callKind,
+    meta: {
+      ...(trace ? {
+        lifeRunId: trace.lifeRunId,
+        round: trace.round,
+        callKind: trace.callKind,
+        executionKind: trace.executionKind,
+      } : {}),
+    },
+    payload: entry,
+  })
 }
 
 // ---- 错误响应保存 ----
@@ -222,37 +270,34 @@ async function saveRawResponse(
 ): Promise<void> {
   const now = new Date()
   const timestamp = now.toISOString()
-  const responseRef = await storeServerLogContent(body, 'text')
   const record = {
-    schemaVersion: 2,
-    eventId: randomUUID(),
     timestamp,
     requestId,
     sourceIp: source.ip,
     sourceId: source.sourceId,
     diagnosticCode: source.diagnosticCode,
+    deviceProvenanceId: source.deviceProvenanceId,
     provider: providerId,
     model,
     status,
     responseChars: body.length,
-    responseRef,
-    contentWriteFailed: !responseRef,
   }
-  const date = timestamp.slice(0, 10)
-  await Promise.all([
-    appendServerJsonLine(`raw-responses/raw-responses-${date}.jsonl`, record),
-    appendSourceJsonLine(source, `raw-responses-${date}.jsonl`, record),
-  ])
-}
-
-function sanitizeBaseUrlForLog(baseUrl?: string): string | undefined {
-  if (!baseUrl) return undefined
-  try {
-    const parsed = new URL(baseUrl)
-    return `${parsed.origin}${parsed.pathname}`
-  } catch {
-    return '[invalid-url]'
-  }
+  await appendServerLogEntry({
+    createdAt: now.getTime(),
+    entryType: 'raw-response',
+    category: 'ai-proxy',
+    level: 'error',
+    module: 'api-proxy',
+    message: `上游返回 HTTP ${status}`,
+    requestId,
+    source,
+    provider: providerId,
+    model,
+    status,
+    response: body,
+    error: body,
+    payload: record,
+  })
 }
 
 function buildTraceRequest(
@@ -272,8 +317,8 @@ function buildTraceRequest(
     top_p: body.top_p,
     seed: body.seed,
     thinking: body.thinking,
-    baseUrl: sanitizeBaseUrlForLog(body.baseUrl),
-    credentialSource: body.apiKey ? 'request' : 'server-or-missing',
+    baseUrl: body.baseUrl,
+    apiKey: body.apiKey,
   }
 }
 
@@ -282,38 +327,32 @@ async function writeProxyTrace(
   requestId: string,
   event: 'request' | 'response' | 'rejected' | 'exception',
   details: Record<string, unknown>,
+  trace?: NarrativeRoundTraceContext,
 ): Promise<void> {
   const now = new Date()
-  const date = now.toISOString().slice(0, 10)
-  const traceFile = `ai-traces/ai-trace-${date}.jsonl`
   const {
     request: requestContent,
     responseBody: responseContent,
     rawRequestBody,
     ...inlineDetails
   } = details
-  const [requestRef, responseRef, rawRequestRef] = await Promise.all([
-    requestContent === undefined ? null : storeServerLogContent(requestContent, 'json'),
-    responseContent === undefined ? null : storeServerLogContent(responseContent, 'text'),
-    rawRequestBody === undefined ? null : storeServerLogContent(rawRequestBody, 'text'),
-  ])
   const request = requestContent && typeof requestContent === 'object'
     ? requestContent as Record<string, unknown>
     : undefined
   const requestMessages = Array.isArray(request?.messages) ? request.messages : []
   const record = {
-    schemaVersion: 2,
-    eventId: randomUUID(),
     timestamp: now.toISOString(),
     requestId,
     event,
     sourceIp: source.ip,
     sourceId: source.sourceId,
     diagnosticCode: source.diagnosticCode,
+    deviceProvenanceId: source.deviceProvenanceId,
     ...inlineDetails,
-    requestRef: requestRef ?? undefined,
-    responseRef: responseRef ?? undefined,
-    rawRequestRef: rawRequestRef ?? undefined,
+    ...(trace ? { trace: { ...trace } } : {}),
+    request: requestContent,
+    responseBody: responseContent,
+    rawRequestBody,
     provider: typeof request?.providerId === 'string' ? request.providerId : undefined,
     requestedModel: typeof request?.model === 'string' ? request.model : undefined,
     promptAssetId: typeof request?.promptAssetId === 'string' ? request.promptAssetId : undefined,
@@ -324,16 +363,44 @@ async function writeProxyTrace(
       ), 0)
       : undefined,
     responseBodyChars: typeof responseContent === 'string' ? responseContent.length : undefined,
-    contentWriteFailed: (
-      (requestContent !== undefined && !requestRef)
-      || (responseContent !== undefined && !responseRef)
-      || (rawRequestBody !== undefined && !rawRequestRef)
-    ) || undefined,
   }
-  await Promise.all([
-    appendServerJsonLine(traceFile, record),
-    appendSourceJsonLine(source, `trace-index-${date}.jsonl`, record),
-  ])
+  const prompt = requestContent === undefined
+    ? typeof rawRequestBody === 'string' ? rawRequestBody : undefined
+    : JSON.stringify(requestContent, null, 2)
+  await appendServerLogEntry({
+    createdAt: now.getTime(),
+    entryType: 'proxy-trace',
+    category: 'ai-proxy',
+    level: event === 'exception' || event === 'rejected' || Number(inlineDetails.status) >= 400
+      ? 'error'
+      : 'info',
+    module: 'api-proxy',
+    message: event,
+    event,
+    requestId,
+    source,
+    provider: typeof request?.providerId === 'string' ? request.providerId : undefined,
+    model: typeof request?.model === 'string' ? request.model : undefined,
+    status: typeof inlineDetails.status === 'number' ? inlineDetails.status : undefined,
+    round: trace?.round,
+    callKind: trace?.callKind,
+    prompt,
+    response: typeof responseContent === 'string' ? responseContent : undefined,
+    error: typeof inlineDetails.error === 'string'
+      ? inlineDetails.error
+      : typeof inlineDetails.reason === 'string' ? inlineDetails.reason : undefined,
+    stack: typeof inlineDetails.stack === 'string' ? inlineDetails.stack : undefined,
+    meta: {
+      ...inlineDetails,
+      ...(trace ? {
+        lifeRunId: trace.lifeRunId,
+        round: trace.round,
+        callKind: trace.callKind,
+        executionKind: trace.executionKind,
+      } : {}),
+    },
+    payload: record,
+  })
 }
 
 interface UpstreamErrorDiagnostic {
@@ -433,29 +500,107 @@ export async function POST(request: Request): Promise<Response> {
   let messageCount = 0
   let promptChars = 0
   let trackResult = { isRetry: false, retryCount: 0 }
+  let narrativeTrace: NarrativeRoundTraceContext | undefined
 
   const writeCurrentTrace = (
     event: 'request' | 'response' | 'rejected' | 'exception',
     details: Record<string, unknown>,
-  ): Promise<void> => writeProxyTrace(source, requestId, event, details)
+  ): Promise<void> => writeProxyTrace(source, requestId, event, details, narrativeTrace)
 
   const writeCurrentAccessLog = async (status: number, error?: string): Promise<void> => {
-    await writeAccessLogAsync(
-      requestId,
-      providerId,
-      model,
-      status,
-      Date.now() - startTime,
-      fingerprint,
-      trackResult.isRetry,
-      trackResult.retryCount,
-      isStream,
-      source,
-      requestBytes,
-      messageCount,
-      promptChars,
-      error,
-    )
+    const durationMs = Date.now() - startTime
+    await Promise.all([
+      writeAccessLogAsync(
+        requestId,
+        providerId,
+        model,
+        status,
+        durationMs,
+        fingerprint,
+        trackResult.isRetry,
+        trackResult.retryCount,
+        isStream,
+        source,
+        requestBytes,
+        messageCount,
+        promptChars,
+        error,
+        narrativeTrace,
+      ),
+      appendDevelopmentSystemEvents([{
+        schemaVersion: 1,
+        timestamp: Date.now(),
+        system: 'ai-proxy',
+        event: 'request-completed',
+        status: status >= 400 ? 'error' : 'ok',
+        ...(narrativeTrace?.lifeRunId ? { lifeRunId: narrativeTrace.lifeRunId } : {}),
+        ...(narrativeTrace?.round ? { round: narrativeTrace.round } : {}),
+        durationMs,
+        details: {
+          requestId,
+          providerId,
+          model,
+          httpStatus: status,
+          callKind: narrativeTrace?.callKind,
+          executionKind: narrativeTrace?.executionKind,
+          retryCount: trackResult.retryCount,
+          stream: isStream,
+          requestBytes,
+          promptChars,
+          accountId: source.accountId,
+          username: source.username,
+          deviceProvenanceId: source.deviceProvenanceId,
+          error: error ?? '',
+        },
+        ...(error ? { error: { message: error } } : {}),
+      }]).catch((diagnosticError) => {
+        console.error('[api-proxy] 开发系统诊断写入失败', diagnosticError)
+      }),
+    ])
+  }
+
+  const archiveCurrentExchange = async (input: {
+    model: string
+    attempt: number
+    status?: number
+    requestBody: string
+    responseBody: string | Uint8Array
+    transportError?: string
+  }): Promise<void> => {
+    if (!narrativeTrace) return
+    try {
+      await appendNarrativeRoundExchange({
+        trace: narrativeTrace,
+        requestId,
+        providerId,
+        deviceProvenanceId: source.deviceProvenanceId,
+        accountId: source.accountId,
+        username: source.username,
+        styleFingerprint: narrativeTrace.styleText !== undefined
+          ? createHash('sha256')
+            .update(`narrative-style-v1\0${narrativeTrace.styleText}`, 'utf8')
+            .digest('hex')
+          : undefined,
+        ...input,
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      await appendServerLogEntry({
+        entryType: 'narrative-round-archive-error',
+        category: 'ai-proxy',
+        level: 'error',
+        module: 'api-proxy',
+        message,
+        requestId,
+        source,
+        provider: providerId,
+        model: input.model,
+        round: narrativeTrace.round,
+        callKind: narrativeTrace.callKind,
+        error: message,
+        meta: { lifeRunId: narrativeTrace.lifeRunId, attempt: input.attempt },
+      })
+    }
   }
 
   try {
@@ -502,6 +647,7 @@ export async function POST(request: Request): Promise<Response> {
 
     providerId = body.providerId
     model = body.model
+    narrativeTrace = body.trace_context
     isStream = body.stream === true
     messageCount = body.messages.length
     promptChars = body.messages.reduce((sum, message) => sum + message.content.length, 0)
@@ -614,7 +760,16 @@ export async function POST(request: Request): Promise<Response> {
     const aggregateManagedStream = shouldAggregateManagedNonStream(providerId) && !isStream
     if (body.stream !== undefined) forwardBody.stream = aggregateManagedStream ? true : body.stream
     if (body.response_format !== undefined) forwardBody.response_format = body.response_format
-    if (body.user_id !== undefined) forwardBody.user = body.user_id
+    const isDeepSeekTarget = providerId === 'deepseek'
+      || (providerId === 'custom' && body.model.toLowerCase().includes('deepseek'))
+    const trustedUserId = source.accountId
+      ?? source.deviceProvenanceId
+      ?? source.diagnosticCode
+      ?? source.sourceId
+    const normalizedTrustedUserId = trustedUserId.replace(/[^a-zA-Z0-9_-]+/gu, '_').slice(0, 512)
+    if (isDeepSeekTarget) forwardBody.user_id = normalizedTrustedUserId
+    else forwardBody.user = normalizedTrustedUserId
+    if (body.stream_options !== undefined) forwardBody.stream_options = body.stream_options
     if (body.top_p !== undefined) forwardBody.top_p = body.top_p
     if (body.seed !== undefined) forwardBody.seed = body.seed
 
@@ -626,6 +781,9 @@ export async function POST(request: Request): Promise<Response> {
       } else {
         forwardBody.thinking = body.thinking
       }
+    }
+    if (body.reasoning_effort !== undefined) {
+      forwardBody.reasoning_effort = body.reasoning_effort
     }
 
     // 5. 转发请求（带超时 + 客户端取消接线）
@@ -649,6 +807,7 @@ export async function POST(request: Request): Promise<Response> {
         forwardBody,
         clientSignal: request.signal,
         timeoutMs: UPSTREAM_TIMEOUT_MS,
+        onAttemptComplete: (exchange) => archiveCurrentExchange(exchange),
       })
       model = managedResult.model
 
@@ -726,6 +885,8 @@ export async function POST(request: Request): Promise<Response> {
     let connectionError = ''
     let upstreamResp: Response | null = null
     let upstreamErrorText = ''
+    let upstreamRequestBody = ''
+    let selectedAttempt = 0
     const upstreamAttempts: ManagedUpstreamAttempt[] = []
     const modelCandidates = getProviderModelCandidates(providerId, body.model)
 
@@ -748,6 +909,8 @@ export async function POST(request: Request): Promise<Response> {
       connectionError = ''
       forwardBody.model = candidate
       model = candidate
+      upstreamRequestBody = JSON.stringify(forwardBody)
+      selectedAttempt = index + 1
 
       const candidateResponse = await fetch(apiUrl, {
         method: 'POST',
@@ -755,7 +918,7 @@ export async function POST(request: Request): Promise<Response> {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${apiKey}`,
         },
-        body: JSON.stringify(forwardBody),
+        body: upstreamRequestBody,
         signal: upstreamController.signal,
       }).catch((error) => {
         connectionError = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
@@ -763,6 +926,13 @@ export async function POST(request: Request): Promise<Response> {
       })
 
       if (!candidateResponse) {
+        await archiveCurrentExchange({
+          model: candidate,
+          attempt: index + 1,
+          requestBody: upstreamRequestBody,
+          responseBody: '',
+          transportError: connectionError || 'Connection failed or timeout',
+        })
         upstreamAttempts.push({
           model: candidate,
           durationMs: Date.now() - attemptStartedAt,
@@ -779,6 +949,13 @@ export async function POST(request: Request): Promise<Response> {
 
       if (!candidateResponse.ok) {
         upstreamErrorText = await candidateResponse.text().catch(() => '未知错误')
+        await archiveCurrentExchange({
+          model: candidate,
+          attempt: index + 1,
+          status: candidateResponse.status,
+          requestBody: upstreamRequestBody,
+          responseBody: upstreamErrorText,
+        })
         upstreamAttempts.push({
           model: candidate,
           status: candidateResponse.status,
@@ -872,7 +1049,16 @@ export async function POST(request: Request): Promise<Response> {
         if (logged) return
         logged = true
         const responseBody = Buffer.concat(capturedChunks.map((chunk) => Buffer.from(chunk))).toString('utf8')
+        const responseBytes = Buffer.concat(capturedChunks.map((chunk) => Buffer.from(chunk)))
         await Promise.all([
+          archiveCurrentExchange({
+            model,
+            attempt: selectedAttempt,
+            status,
+            requestBody: upstreamRequestBody,
+            responseBody: responseBytes,
+            transportError: error,
+          }),
           writeCurrentTrace('response', {
             status,
             upstreamHeaders: getUpstreamHeaderSnapshot(upstreamResp.headers),
@@ -934,6 +1120,13 @@ export async function POST(request: Request): Promise<Response> {
     clearUpstreamGuards()
     const responseBody = await upstreamResp.text()
     await Promise.all([
+      archiveCurrentExchange({
+        model,
+        attempt: selectedAttempt,
+        status: upstreamResp.status,
+        requestBody: upstreamRequestBody,
+        responseBody,
+      }),
       writeCurrentTrace('response', {
         status: 200,
         upstreamHeaders: getUpstreamHeaderSnapshot(upstreamResp.headers),

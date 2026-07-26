@@ -2,14 +2,13 @@
 
 /**
  * @module SettingsTabTheme.tsx
- * @description "个性化" Tab —— 阅读排版、叙事显示、缓存与数据管理
+ * @description "阅读与界面" Tab —— 阅读排版、显示方式与数据管理
  * @mod mod-settings
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { clearGameProgressFromLocalStorage, opfsStorage, safeCleanupReload } from '@/core'
-import { DEFAULT_AI_MODEL, getCacheStats, getRoundCacheMetrics, resetCacheStats } from '@/core/ai-service'
 import { clamp } from '@/core/shared'
 import { useFontStore } from '@/core/theme/font-store'
 
@@ -22,12 +21,6 @@ import type { NarrativeStyle } from '../store'
 
 import styles from './SettingsTabTheme.module.css'
 
-function formatTokenCount(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`
-  return value.toLocaleString()
-}
-
 const FONT_OPTIONS = [
   { id: 'default' as const, label: '默认', description: '跟随系统字体' },
   { id: 'pingfang' as const, label: '苹方', description: '现代、清晰' },
@@ -38,13 +31,6 @@ const FONT_OPTIONS = [
   { id: 'kaiti' as const, label: '楷体', description: '偏手写的阅读感' },
 ]
 
-const NARRATIVE_OPTIONS: Array<{ id: NarrativeStyle; label: string; description: string }> = [
-  { id: 'default', label: '默认', description: '平衡清晰与沉浸感' },
-  { id: 'epic', label: '史诗', description: '更强调规模与命运感' },
-  { id: 'realistic', label: '写实', description: '具体、克制、贴近日常' },
-  { id: 'poetic', label: '诗意', description: '更注重节奏与意象' },
-]
-
 const STREAMING_OPTIONS = [
   { value: 'off' as const, label: '完整显示', description: '接收完成后一次显示，稳定性优先' },
   { value: 'stream' as const, label: '流式显示', description: '边接收边显示，响应速度优先' },
@@ -53,6 +39,8 @@ const STREAMING_OPTIONS = [
 export function SettingsTabTheme() {
   const {
     narrativeStyle,
+    narrativeStyleText,
+    narrativeStyleVersion,
     streamingMode,
     comfortableParagraphs,
     reduceMotion,
@@ -90,45 +78,10 @@ export function SettingsTabTheme() {
   const fontFamily = useFontStore((state) => state.fontFamily)
   const setFontFamily = useFontStore((state) => state.setFontFamily)
 
-  const [cacheStatsRevision, setCacheStatsRevision] = useState(0)
-  const [roundMetrics, setRoundMetrics] = useState(() => getRoundCacheMetrics())
   const [importMode, setImportMode] = useState<'merge' | 'overwrite'>('merge')
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const resetTriggerRef = useRef<HTMLButtonElement>(null)
   const resetDialogRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const handleCacheStatsUpdated = () => setCacheStatsRevision((revision) => revision + 1)
-    window.addEventListener('cache-stats-updated', handleCacheStatsUpdated)
-    return () => window.removeEventListener('cache-stats-updated', handleCacheStatsUpdated)
-  }, [])
-
-  useEffect(() => {
-    const handleRoundMetricsUpdated = () => setRoundMetrics(getRoundCacheMetrics())
-    window.addEventListener('round-cache-metrics-updated', handleRoundMetricsUpdated)
-    return () => window.removeEventListener('round-cache-metrics-updated', handleRoundMetricsUpdated)
-  }, [])
-
-  const cacheStats = useMemo(() => {
-    void cacheStatsRevision
-    return getCacheStats({
-      providerId: provider,
-      model: customModel || DEFAULT_AI_MODEL,
-      pool: 'narrative',
-      callKind: 'narrative-main',
-    })
-  }, [cacheStatsRevision, customModel, provider])
-  const handleRefreshCache = useCallback(() => {
-    setCacheStatsRevision((revision) => revision + 1)
-  }, [])
-  const handleResetCache = useCallback(() => {
-    resetCacheStats({
-      providerId: provider,
-      model: customModel || DEFAULT_AI_MODEL,
-      pool: 'narrative',
-      callKind: 'narrative-main',
-    })
-  }, [customModel, provider])
 
   const handleExport = useCallback(() => {
     const data = {
@@ -148,6 +101,8 @@ export function SettingsTabTheme() {
         preGenerateRounds,
         storySeed,
         narrativeStyle,
+        narrativeStyleText,
+        narrativeStyleVersion,
         wordCountTarget,
         streamingMode,
         comfortableParagraphs,
@@ -173,6 +128,8 @@ export function SettingsTabTheme() {
     fontFamily,
     maxTokens,
     narrativeStyle,
+    narrativeStyleText,
+    narrativeStyleVersion,
     preGenerateRounds,
     provider,
     reasoningEffort,
@@ -217,6 +174,10 @@ export function SettingsTabTheme() {
             setPreGenerateRounds(DEFAULT_SETTINGS_VALUES.preGenerateRounds)
             setStorySeed(DEFAULT_SETTINGS_VALUES.storySeed)
             setNarrativeStyle(DEFAULT_SETTINGS_VALUES.narrativeStyle)
+            useSettingsStore.setState({
+              narrativeStyleText: DEFAULT_SETTINGS_VALUES.narrativeStyleText,
+              narrativeStyleVersion: DEFAULT_SETTINGS_VALUES.narrativeStyleVersion,
+            })
             setWordCountTarget(DEFAULT_SETTINGS_VALUES.wordCountTarget)
             setStreamingMode(DEFAULT_SETTINGS_VALUES.streamingMode)
             setComfortableParagraphs(DEFAULT_SETTINGS_VALUES.comfortableParagraphs)
@@ -238,6 +199,14 @@ export function SettingsTabTheme() {
           if (typeof settings.preGenerateRounds === 'number') setPreGenerateRounds(clamp(settings.preGenerateRounds, 0, 3))
           if (typeof settings.storySeed === 'string') setStorySeed(settings.storySeed)
           if (typeof settings.narrativeStyle === 'string') setNarrativeStyle(settings.narrativeStyle as NarrativeStyle)
+          if (typeof settings.narrativeStyleText === 'string') {
+            useSettingsStore.setState({
+              narrativeStyleText: settings.narrativeStyleText,
+              narrativeStyleVersion: Number.isInteger(settings.narrativeStyleVersion)
+                ? Math.max(0, settings.narrativeStyleVersion)
+                : settings.narrativeStyleText ? 1 : 0,
+            })
+          }
           if (typeof settings.wordCountTarget === 'number') setWordCountTarget(Math.max(50, settings.wordCountTarget))
           if (typeof settings.streamingMode === 'string') setStreamingMode(settings.streamingMode)
           if (typeof settings.comfortableParagraphs === 'boolean') setComfortableParagraphs(settings.comfortableParagraphs)
@@ -308,9 +277,6 @@ export function SettingsTabTheme() {
   }, [handleCancelReset, showResetConfirm])
 
   const currentFontLabel = FONT_OPTIONS.find((font) => font.id === fontFamily)?.label ?? '默认'
-  const currentNarrativeLabel = NARRATIVE_OPTIONS.find((option) => option.id === narrativeStyle)?.label ?? '默认'
-  const cacheHitRate = clamp(cacheStats.hitRate, 0, 100)
-
   return (
     <div className={styles.tabRoot}>
       <p className={styles.preferenceIntro}>阅读与动效偏好只调整呈现方式。</p>
@@ -393,31 +359,10 @@ export function SettingsTabTheme() {
 
       <section className={styles.section} aria-labelledby="settings-narrative-heading">
         <div className={styles.sectionLabel}>
-          <h3 id="settings-narrative-heading">叙事呈现</h3>
-          <span>当前：{currentNarrativeLabel}</span>
+          <h3 id="settings-narrative-heading">叙事显示</h3>
+          <span>{streamingMode === 'off' ? '完整显示' : '流式显示'}</span>
         </div>
         <div className={styles.sectionCard}>
-          <div className={styles.optionGroup}>
-            <div className={styles.groupHeading}>
-              <span>基础文风</span>
-              <span>影响叙事表达</span>
-            </div>
-            <div className={styles.narrativeGrid} role="group" aria-label="叙事风格">
-              {NARRATIVE_OPTIONS.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className={styles.choiceButton}
-                  aria-pressed={narrativeStyle === option.id}
-                  onClick={() => setNarrativeStyle(option.id)}
-                >
-                  <span className={styles.choiceTitle}>{option.label}</span>
-                  <span className={styles.choiceDescription}>{option.description}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
           <div className={styles.optionGroup}>
             <div className={styles.groupHeading}>
               <span>显示方式</span>
@@ -437,50 +382,6 @@ export function SettingsTabTheme() {
                 </button>
               ))}
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section className={styles.section} aria-labelledby="settings-cache-heading">
-        <div className={styles.sectionLabel}>
-          <h3 id="settings-cache-heading">AI 缓存</h3>
-          <span>主叙事命中率 {cacheStats.hitRate}%</span>
-        </div>
-        <div className={styles.sectionCard}>
-          <div className={styles.cacheBody}>
-            <div className={styles.cacheSummary}>
-              <div>
-                <span className={styles.metricLabel}>命中 Token</span>
-                <strong>{formatTokenCount(cacheStats.hitTokens)}</strong>
-              </div>
-              <div>
-                <span className={styles.metricLabel}>未命中 Token</span>
-                <strong>{formatTokenCount(cacheStats.missTokens)}</strong>
-              </div>
-              <div className={styles.cacheActions}>
-                <button type="button" className={styles.textButton} onClick={handleRefreshCache}>刷新</button>
-                <button type="button" className={styles.textButton} onClick={handleResetCache}>重置统计</button>
-              </div>
-            </div>
-            <progress className={styles.progressBar} max={100} value={cacheHitRate} aria-label={`缓存命中率 ${cacheStats.hitRate}%`} />
-            <p className={styles.supportingText}>这里只统计当前 Provider 与模型的主叙事生成，不混入格式修复、命格或摘要；上游未返回缓存 Token 时显示 0，不沿用其他模型的旧数据。</p>
-
-            {roundMetrics.length > 0 && (
-              <div className={styles.roundMetrics}>
-                <div className={styles.groupHeading}>
-                  <span>最近 {Math.min(5, roundMetrics.length)} 轮策略</span>
-                  <span>开发诊断</span>
-                </div>
-                <ul>
-                  {[...roundMetrics].reverse().slice(0, 5).map((metric, index) => (
-                    <li key={`${metric.timestamp}-${index}`}>
-                      <span>{metric.strategy}</span>
-                      <span>{metric.stablePrefixChars} 字符 · {metric.userMessageCount} 条用户消息</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </div>
         </div>
       </section>

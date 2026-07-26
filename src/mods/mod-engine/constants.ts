@@ -127,61 +127,33 @@ export const STORAGE_KEYS = {
 // 来源: summary-compressor-spec.md §6 依赖的配置常量
 // ============================================================
 
-/** 每个 L1 摘要块包含的轮次数；短块减少远期压缩一次吞入的正文。 */
-export const SUMMARY_INTERVAL = 5
+/** 每个 L1 摘要块包含 4 轮完整叙事。 */
+export const SUMMARY_INTERVAL = 4
 
-/** L1 在完整短块结束后立即后台生成，不额外滞留完整正文块。 */
-export const COMPRESS_L1_DELAY_ROUNDS = 0
+/** L1 延迟一个完整块：完成第 8 轮后才压缩 1~4 轮，供第 9 轮使用。 */
+export const COMPRESS_L1_DELAY_BLOCKS = 1
 
 /**
  * 主叙事 Prompt 保留的最近完整原文轮数。
  *
- * L1 在每个短块完成后立即生成；常驻 Prompt 只保留最近 5 轮完整正文，
- * 不再按历史长度或摘要失败自适应扩大。
+ * 常驻 Prompt 始终保留最近 4 轮完整正文；更早内容只在摘要成功后被覆盖。
  */
 export const RECENT_NARRATIVE_WINDOW = SUMMARY_INTERVAL
 
-/** 合并 N 个 L1 摘要为一个 L2 摘要 */
-export const COMPRESS_L2_MERGE_COUNT = 5
+/** 每个高层节点固定合并 4 个直接子节点。 */
+export const SUMMARY_LEVEL_MULTIPLIER = 4
 
-/** L2 压缩在 blockRound >= 2 时触发 */
-export const COMPRESS_L2_DELAY_ROUNDS = 2
+/** 合并 4 个 L1 为一个 L2（16轮）。 */
+export const COMPRESS_L2_MERGE_COUNT = SUMMARY_LEVEL_MULTIPLIER
 
-/** 合并 N 个 L2 摘要为一个 L3 摘要 */
-export const COMPRESS_L3_MERGE_COUNT = 5
-
-/** L3 压缩在 blockRound >= 2 时触发 */
-export const COMPRESS_L3_DELAY_ROUNDS = 2
-
-/** 合并 N 个 L3 骨架为一个 L4 纪元（定义但 L4 复用 L3 常量） */
-export const COMPRESS_L4_MERGE_COUNT = 5
+/** 合并 4 个 L2 为一个 L3（64轮）。 */
+export const COMPRESS_L3_MERGE_COUNT = SUMMARY_LEVEL_MULTIPLIER
 
 /** L2 合并区间 = SUMMARY_INTERVAL × COMPRESS_L2_MERGE_COUNT */
 export const COMPRESS_L2_MERGE_INTERVAL = SUMMARY_INTERVAL * COMPRESS_L2_MERGE_COUNT
 
 /** L3 合并区间 = COMPRESS_L2_MERGE_INTERVAL × COMPRESS_L3_MERGE_COUNT */
 export const COMPRESS_L3_MERGE_INTERVAL = COMPRESS_L2_MERGE_INTERVAL * COMPRESS_L3_MERGE_COUNT
-
-/** L4 合并区间 = COMPRESS_L3_MERGE_INTERVAL × COMPRESS_L4_MERGE_COUNT */
-export const COMPRESS_L4_MERGE_INTERVAL = COMPRESS_L3_MERGE_INTERVAL * COMPRESS_L4_MERGE_COUNT
-
-/** 合并 N 个 L4 纪元为一个 L5 时代 */
-export const COMPRESS_L5_MERGE_COUNT = 5
-
-/** L5 压缩在 blockRound >= 2 时触发 */
-export const COMPRESS_L5_DELAY_ROUNDS = 2
-
-/** L5 合并区间 = COMPRESS_L4_MERGE_INTERVAL × COMPRESS_L5_MERGE_COUNT */
-export const COMPRESS_L5_MERGE_INTERVAL = COMPRESS_L4_MERGE_INTERVAL * COMPRESS_L5_MERGE_COUNT
-
-/** 合并 N 个 L5 时代为一个 L6 历史 */
-export const COMPRESS_L6_MERGE_COUNT = 5
-
-/** L6 压缩在 blockRound >= 2 时触发 */
-export const COMPRESS_L6_DELAY_ROUNDS = 2
-
-/** L6 合并区间 = COMPRESS_L5_MERGE_INTERVAL × COMPRESS_L6_MERGE_COUNT */
-export const COMPRESS_L6_MERGE_INTERVAL = COMPRESS_L5_MERGE_INTERVAL * COMPRESS_L6_MERGE_COUNT
 
 // ---- Token / 字数计算常量 ----
 
@@ -196,12 +168,3 @@ export const SUMMARY_L2_MIN_TOKENS = 1000
 
 /** L3 合并 token 保底 */
 export const SUMMARY_L3_MIN_TOKENS = 1200
-
-/** L4 合并 token 保底 */
-export const SUMMARY_L4_MIN_TOKENS = 1500
-
-/** L5 合并 token 保底 */
-export const SUMMARY_L5_MIN_TOKENS = 1800
-
-/** L6 合并 token 保底 */
-export const SUMMARY_L6_MIN_TOKENS = 2000

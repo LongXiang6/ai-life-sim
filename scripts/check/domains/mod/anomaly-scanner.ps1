@@ -690,6 +690,8 @@ $a10StartWarnings = $E.Warnings
 # Loading chain files — functions should appear in at least one of these
 $loadingChainPaths = @(
   Join-Path $SrcDir "app\_components\init-mods.tsx"
+  Join-Path $SrcDir "app\_components\init-mods-routes.ts"
+  Join-Path $SrcDir "app\_components\init-mods-bootstrap.ts"
   Join-Path $SrcDir "core\mod-loader\mod-loader.ts"
   Join-Path $SrcDir "core\mod-loader\mod-lifecycle.ts"
   Join-Path $SrcDir "core\mod-loader\mod-validator.ts"

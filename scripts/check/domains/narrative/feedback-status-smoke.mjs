@@ -6,6 +6,8 @@ import path from 'node:path'
 import process from 'node:process'
 import { spawnSync } from 'node:child_process'
 
+import Database from 'better-sqlite3'
+
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'ai-life-sim-feedback-status-'))
 const projectRoot = process.cwd()
 const statusScript = path.join(projectRoot, 'scripts', 'ops', 'feedback-status.mjs')
@@ -24,16 +26,68 @@ function run(script, args) {
 }
 
 try {
-  fs.mkdirSync(path.join(root, 'feedback'), { recursive: true })
-  fs.writeFileSync(
-    path.join(root, 'feedback', 'feedback-2026-07-21.jsonl'),
-    `${JSON.stringify({ feedbackId, receivedAt: Date.now(), sourceIp: '127.0.0.1', category: 'bug', subject: 'test feedback' })}\n`,
+  const databasePath = path.join(root, 'logs.sqlite')
+  const database = new Database(databasePath)
+  database.exec(`
+    CREATE TABLE log_entries (
+      id TEXT PRIMARY KEY,
+      created_at INTEGER NOT NULL,
+      client_timestamp INTEGER,
+      entry_type TEXT NOT NULL,
+      category TEXT,
+      level TEXT,
+      module TEXT,
+      message TEXT,
+      event TEXT,
+      request_id TEXT,
+      source_ip TEXT NOT NULL,
+      source_id TEXT NOT NULL,
+      diagnostic_code TEXT,
+      is_registered INTEGER NOT NULL DEFAULT 0,
+      account_id TEXT,
+      username TEXT,
+      feedback_id TEXT,
+      round INTEGER,
+      age REAL,
+      era TEXT,
+      provider TEXT,
+      model TEXT,
+      call_kind TEXT,
+      strategy TEXT,
+      status INTEGER,
+      prompt TEXT,
+      response TEXT,
+      error TEXT,
+      stack TEXT,
+      meta_json TEXT,
+      payload_json TEXT
+    )
+  `)
+  const receivedAt = Date.now()
+  database.prepare(`
+    INSERT INTO log_entries(
+      id, created_at, entry_type, category, level, module, message, event,
+      source_ip, source_id, diagnostic_code, is_registered, account_id,
+      username, feedback_id, payload_json
+    ) VALUES (?, ?, 'feedback', 'bug', 'info', 'feedback', ?, 'feedback',
+      '127.0.0.1', 'ip-127.0.0.1', ?, 1, 'account-test', '测试用户', ?, ?)
+  `).run(
+    'feedback-row',
+    receivedAt,
+    'test feedback',
+    playerCode,
+    feedbackId,
+    JSON.stringify({
+      feedbackId,
+      receivedAt,
+      diagnosticCode: playerCode,
+      accountId: 'account-test',
+      username: '测试用户',
+      category: 'bug',
+      subject: 'test feedback',
+    }, null, 2),
   )
-  fs.mkdirSync(path.join(root, 'players', playerCode), { recursive: true })
-  fs.writeFileSync(
-    path.join(root, 'players', playerCode, 'feedback-2026-07-21.jsonl'),
-    `${JSON.stringify({ feedbackId, receivedAt: Date.now(), sourceIp: '127.0.0.1', diagnosticCode: playerCode, category: 'bug', subject: 'test feedback' })}\n`,
-  )
+  database.close()
 
   const initial = JSON.parse(run(statusScript, ['--root', root, '--feedback-id', feedbackId, '--show']))
   assert(initial.status === 'new', 'feedback without status events must be new')
@@ -46,6 +100,7 @@ try {
   assert(resolved.recentFeedback[0].status === 'resolved', 'inspector must expose the latest feedback status')
   assert(resolved.recentFeedback[0].statusLabel === '已完成', 'resolved status must have a player-independent Chinese label')
   assert(resolved.recentFeedbackStatusEvents[0].evidence === 'commit and focused regression passed', 'inspector must retain resolution evidence')
+  assert(resolved.recentFeedback[0].username === '测试用户', 'inspector must expose the registered username in plaintext')
 
   const playerResolved = JSON.parse(run(inspectorScript, [
     '--root', root,

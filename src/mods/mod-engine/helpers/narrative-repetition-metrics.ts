@@ -172,8 +172,12 @@ export function calculateNarrativeRepetitionMetric(params: {
   }))
   const overlaps = comparisons.map((entry) => jaccard(currentSet, entry.tokens))
   const maxOverlap = overlaps.length ? Math.max(...overlaps) : 0
+  const maxWordOverlapIndex = overlaps.findIndex((value) => value === maxOverlap)
+  const closestWordVocabulary = maxWordOverlapIndex >= 0
+    ? comparisons[maxWordOverlapIndex].tokens
+    : undefined
   const repeatedTokenCount = currentTokens.filter((token) =>
-    comparisons.some((entry) => entry.tokens.has(token)),
+    closestWordVocabulary?.has(token) === true,
   ).length
   const wordRepeatRate = currentTokens.length ? clampRate(repeatedTokenCount / currentTokens.length) : 0
   const currentNgrams = ngramSet(params.text)
@@ -182,14 +186,13 @@ export function calculateNarrativeRepetitionMetric(params: {
   const averageRecentWordOverlap = overlaps.length
     ? clampRate(overlaps.reduce((sum, value) => sum + value, 0) / overlaps.length)
     : 0
-  const maxWordOverlapIndex = overlaps.findIndex((value) => value === maxOverlap)
   const maxNgramIndex = ngramSimilarities.findIndex((value) => value === maxRecentNgramSimilarity)
   const matchedIndex = maxRecentNgramSimilarity > maxOverlap
     ? maxNgramIndex
     : maxWordOverlapIndex
-  const qualityLevel: NarrativeRepetitionQuality = maxRecentNgramSimilarity >= 0.85 || wordRepeatRate >= 0.8
+  const qualityLevel: NarrativeRepetitionQuality = maxRecentNgramSimilarity >= 0.65 || maxOverlap >= 0.75
     ? 'high'
-    : maxRecentNgramSimilarity >= 0.7 || wordRepeatRate >= 0.6
+    : maxRecentNgramSimilarity >= 0.35 || maxOverlap >= 0.55
       ? 'watch'
       : 'normal'
   return {

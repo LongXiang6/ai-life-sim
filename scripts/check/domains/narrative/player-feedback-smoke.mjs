@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs'
+import { promises as fsp } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 
 import { PlayerFeedbackEnvelopeSchema } from '../../../../src/core/logger/feedback-contract.ts'
-import { redactSensitiveData } from '../../../../src/core/logger/redact-sensitive-data.ts'
 
 const root = process.cwd()
 
@@ -21,39 +22,29 @@ const completeStory = '这是完整故事正文。'.repeat(400)
 const parsed = PlayerFeedbackEnvelopeSchema.parse({
   category: 'bug',
   subject: '故事推进异常',
-  message: '点击推进后没有显示新内容。',
+  message: '推进后没有显示新内容。',
   submittedAt: Date.now(),
-  consent: true,
   diagnostics: {
     app: { version: 'test', page: '/game-story' },
-    device: { userAgent: 'test-agent' },
-    globalConfig: { theme: 'minimal-white' },
+    device: { userAgent: 'test-agent', serialNumber: 'SERIAL-PLAIN' },
+    globalConfig: {
+      theme: 'minimal-white',
+      customKey: 'plain-feedback-key',
+      authorization: 'Bearer plain-feedback-token',
+    },
     gameState: { round: 21 },
     recentStory: [{ text: completeStory, round: 20 }],
     recentClientLogs: [{ level: 'error', message: 'failed' }],
   },
 })
 assert(parsed.diagnostics.recentStory[0].text === completeStory, 'recent story text must remain complete')
-
-const redacted = redactSensitiveData({
-  customKey: 'player-secret',
-  authorization: 'Bearer hidden-value',
-  serialNumber: 'SERIAL-001',
-  hardwareId: 'HW-001',
-  story: completeStory,
-})
-assert(redacted.customKey === '[REDACTED]', 'custom API key must be redacted')
-assert(redacted.authorization === '[REDACTED]', 'authorization must be redacted')
-assert(redacted.serialNumber === '[REDACTED]', 'device serial number must be redacted')
-assert(redacted.hardwareId === '[REDACTED]', 'hardware ID must be redacted')
-assert(redacted.story === completeStory, 'non-secret story content must not be shortened')
+assert(!('consent' in parsed), 'feedback contract must not require a consent field')
 
 const collector = read('src/mods/mod-pages/pages/feedback/build-feedback-diagnostics.ts')
 const route = read('src/app/api/feedback/route.ts')
-const store = read('src/core/logger/player-feedback-store.ts')
 const page = read('src/mods/mod-pages/pages/feedback/page.tsx')
 const disclaimer = read('public/disclaimer.txt')
-const disclaimerModal = read('src/mods/mod-ui/components/organisms/DisclaimerModal.tsx')
+const help = read('public/help.md')
 
 assert(
   collector.includes('.slice(-RECENT_NARRATIVE_WINDOW)')
@@ -61,42 +52,46 @@ assert(
   'collector must select the recent window without truncating story text',
 )
 assert(
-  collector.includes("['provider', 'customKey', 'customUrl', 'customModel']"),
-  'collector must exclude player API routing and credential fields',
+  !/redact|excludedTerms|delete safeSettings|customKey.*delete/.test(collector),
+  'feedback collector must not redact or omit user configuration fields',
 )
 assert(
-  collector.includes('getCachedDiagnosticPlayerCode()'),
-  'feedback diagnostics must carry the current server-issued player code',
+  route.includes('反馈内容过大，未保存任何内容') && route.includes('storePlayerFeedback'),
+  'oversized or failed feedback must reject the whole submission',
 )
 assert(
-  !/serialNumber|hardwareId|deviceId|imei|macAddress/.test(collector),
-  'device collector must not collect stable hardware identifiers',
+  !/consent|附带诊断|玩家编号|诊断编号|API Key、认证信息|隐私|脱敏|采集/.test(page),
+  'feedback page must contain no collection disclosure or consent UI',
 )
 assert(
-  route.includes('诊断包过大，未保存任何内容') && route.includes('storePlayerFeedback'),
-  'oversized or failed feedback must reject the whole diagnostic package',
-)
-assert(
-  store.includes("storeServerLogContent(storedRecord, 'json')")
-    && store.includes('submissionRef')
-    && store.includes('appendSourceJsonLine')
-    && store.includes('diagnosticCode: source.diagnosticCode'),
-  'feedback must persist one compressed private submission reference with IP and player-code indexes',
-)
-assert(
-  page.includes('近期完整故事')
-    && page.includes('不包含 API Key、认证信息或设备序列号')
-    && page.includes('此浏览器的诊断编号'),
-  'feedback page must give a concise truthful diagnostic-package disclosure',
-)
-assert(
-  disclaimer.includes('版本：2.3.0')
-    && disclaimer.includes('反馈诊断包只在玩家明确确认并提交时上传')
-    && disclaimer.includes('每个浏览器会话还会保存一次非敏感运行环境快照')
-    && disclaimer.includes('按哈希去重压缩保存')
-    && disclaimer.includes('六位诊断编号')
-    && disclaimerModal.includes('DIAGNOSTIC_DISCLOSURE_VERSION'),
-  'the versioned disclaimer must replace the obsolete no-server-storage claim',
+  !/诊断日志|隐私|脱敏|采集|哈希去重|诊断编号|环境快照/.test(disclaimer + help),
+  'user-facing disclaimer and help must contain no logging or collection disclosure',
 )
 
-console.log('[player-feedback-smoke] PASS')
+const tempRoot = await fsp.mkdtemp(path.join(os.tmpdir(), 'ai-life-sim-feedback-plaintext-'))
+process.env.AI_LOG_DB_PATH = path.join(tempRoot, 'logs.sqlite')
+const [feedbackStore, logStore] = await Promise.all([
+  import('../../../../src/core/logger/player-feedback-store.ts'),
+  import('../../../../src/core/logger/server-log-store.ts'),
+])
+try {
+  const source = {
+    ip: '203.0.113.22',
+    sourceId: 'ip-203.0.113.22',
+    diagnosticCode: '7K3M9Q',
+    isRegistered: false,
+  }
+  const stored = await feedbackStore.storePlayerFeedback(parsed, source)
+  assert(stored?.feedbackId, 'feedback must be stored in the plaintext database')
+  const row = logStore.queryServerLogEntries({ feedbackId: stored.feedbackId }).entries[0]
+  assert(row.entryType === 'feedback', 'feedback must own a database row')
+  assert(row.payload.diagnostics.globalConfig.customKey === 'plain-feedback-key', 'feedback API key field must remain plaintext')
+  assert(row.payload.diagnostics.globalConfig.authorization === 'Bearer plain-feedback-token', 'feedback authorization field must remain plaintext')
+  assert(row.payload.diagnostics.device.serialNumber === 'SERIAL-PLAIN', 'device field must remain plaintext')
+  assert(row.payload.diagnostics.recentStory[0].text === completeStory, 'feedback story must round-trip without compression or truncation')
+  console.log('[player-feedback-smoke] PASS')
+} finally {
+  logStore.closeServerLogDatabaseForTests()
+  await fsp.rm(tempRoot, { recursive: true, force: true })
+  delete process.env.AI_LOG_DB_PATH
+}

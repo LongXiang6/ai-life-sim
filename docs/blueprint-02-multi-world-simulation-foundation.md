@@ -1,21 +1,11 @@
 # 蓝图二 · 多世界模拟重写计划执行书
 
-文档角色：selected-target  
-权威层级：A2  
-状态：selected  
-体系路径：project > simulation-runtime > multi-world-simulation-blueprint  
-上级目标：在保持当前 MVP 可玩链路稳定的前提下，以更少的独立拥有系统承载单世界、诸天万界、多星球和多场景切换  
-下级组成：世界上下文、能力画像、空间与切换、模拟范围、历史因果、NPC 社会、成长、生命周期、经济文明、生态和世界观插件  
-适用范围：延后模拟系统的拆分、重组、恢复顺序、运行启停和多世界适配设计  
-拥有者：用户产品决策与 `PD-027`；实现所有者按本文件目标归属和具体阶段登记确定  
-最后验证：2026-07-20；对照当前 MVP 运行策略、系统权威索引、P0 二次审批、P1 Store v2/旧迁移、新人生隔离与 `test:world-context-p0`、`test:historical-event-p1`、`test:new-life-isolation`
-取代关系：none  
-运行真源：`src/mods/mod-engine/helpers/mvp-stages-config.default.json`  
-验收证据：P0 契约、实现与复审见第 14 节；P1 契约与验收见第 15 节；P2—P8 仍需逐阶段建立实现、迁移、存档和玩家路径验收
+文档角色：多世界历史源记录
+状态：按需读取
+适用范围：多世界模拟阶段、系统拆分、运行启停和迁移事实
+运行真源：`src/mods/mod-engine/helpers/mvp-stages-config.default.json`
 
-执行状态：P0 已完成复审收口；P1 实现与阶段验收已完成，整项任务交付关闸中；P2—P8 未开始  
-当前执行阶段：P1 历史与因果交付验证  
-阶段授权：用户于 2026-07-19 批准 P0 审批无阻断后执行 P1；对应产品授权为 `PD-029`  
+本文件只提供阶段与架构事实。通过 `docs/authority-index.md` 选择相关章节，不要整篇加载。当前用户要求高于本文件。
 
 ## 1. 文档结论与边界
 

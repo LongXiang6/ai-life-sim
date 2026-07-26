@@ -36,6 +36,16 @@ export type {
   EntityCountRange,
 } from './types'
 
+export {
+  buildFallbackWorldScoringProfile,
+  isCompleteWorldScoringProfile,
+  normalizeWorldScoringProfile,
+  SCORING_CURVE_IDS,
+  SCORING_EVIDENCE_KINDS,
+  WorldScoringProfileSuggestionSchema,
+} from './scoring-profile'
+export { generateWorldScoringProfile } from './world-scoring-profile-generation'
+
 // 常量
 export {
   ESSENCE_TAGS,

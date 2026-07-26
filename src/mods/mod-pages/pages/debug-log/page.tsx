@@ -1,119 +1,210 @@
 /**
  * @file page.tsx
- * @description 调试日志查看页面 —— 开发模式可见，按分类查看 AI 调试日志
+ * @description 明文日志数据库查看页
  * @mod mod-pages
  */
 
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { RuntimeRegistryPanel } from './runtime-registry-panel'
 
 type DebugView = 'logs' | 'registry'
-
-type DebugLogCategory =
+type LogFilter =
+  | 'all'
   | 'narrative-rounds'
-  | 'world-init'
-  | 'talent-generate'
-  | 'epilogue'
-  | 'background-events'
+  | 'ai-call'
+  | 'client-log'
+  | 'proxy-trace'
+  | 'proxy-access'
+  | 'raw-response'
+  | 'feedback'
 
-const CATEGORY_LABELS: Record<DebugLogCategory, string> = {
-  'narrative-rounds': '叙事轮次',
-  'world-init': '世界初始化',
-  'talent-generate': '天赋生成',
-  'epilogue': '结语/来世',
-  'background-events': '背景事件',
+interface PlaintextLogEntry {
+  id: string
+  createdAt: number
+  clientTimestamp: number | null
+  entryType: string
+  category: string | null
+  level: string | null
+  module: string | null
+  message: string | null
+  event: string | null
+  requestId: string | null
+  sourceIp: string
+  sourceId: string
+  diagnosticCode: string | null
+  deviceProvenanceId: string | null
+  isRegistered: boolean
+  accountId: string | null
+  username: string | null
+  feedbackId: string | null
+  round: number | null
+  age: number | null
+  era: string | null
+  provider: string | null
+  model: string | null
+  callKind: string | null
+  strategy: string | null
+  status: number | null
+  prompt: string | null
+  response: string | null
+  error: string | null
+  stack: string | null
+  meta: unknown
+  payload: unknown
+}
+
+const FILTER_LABELS: Record<LogFilter, string> = {
+  all: '全部',
+  'narrative-rounds': '核心叙事',
+  'ai-call': 'AI 调用',
+  'client-log': '客户端诊断',
+  'proxy-trace': '代理明细',
+  'proxy-access': '代理访问',
+  'raw-response': '上游错误',
+  feedback: '反馈',
+}
+
+function buildFilterQuery(filter: LogFilter): URLSearchParams {
+  const query = new URLSearchParams({ limit: '100' })
+  if (filter === 'narrative-rounds') query.set('category', filter)
+  else if (filter !== 'all') query.set('entryType', filter)
+  return query
+}
+
+function formatJson(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'string') return value
+  try {
+    return JSON.stringify(value, null, 2)
+  } catch {
+    return String(value)
+  }
+}
+
+function formatTime(timestamp: number): string {
+  return new Intl.DateTimeFormat('zh-CN', {
+    dateStyle: 'medium',
+    timeStyle: 'medium',
+    hour12: false,
+  }).format(timestamp)
+}
+
+function DetailBlock({ title, value, tone = 'normal' }: {
+  title: string
+  value: string
+  tone?: 'normal' | 'error'
+}) {
+  if (!value) return null
+  return (
+    <section className="border-t border-[var(--color-border)] pt-3 first:border-t-0 first:pt-0">
+      <h3 className={`mb-2 text-xs font-semibold ${tone === 'error' ? 'text-red-500' : 'text-[var(--color-text-primary)]'}`}>
+        {title}
+      </h3>
+      <pre className="max-h-[32rem] overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-[var(--color-text-secondary)]">
+        {value}
+      </pre>
+    </section>
+  )
 }
 
 export default function DebugLogPage() {
   const [view, setView] = useState<DebugView>('logs')
-  const [category, setCategory] = useState<DebugLogCategory>('narrative-rounds')
-  const [entries, setEntries] = useState<string[]>([])
+  const [filter, setFilter] = useState<LogFilter>('all')
+  const [entries, setEntries] = useState<PlaintextLogEntry[]>([])
+  const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [expandedEntry, setExpandedEntry] = useState<number | null>(null)
+  const [expandedEntry, setExpandedEntry] = useState<string | null>(null)
+
+  const activeQuery = useMemo(() => buildFilterQuery(filter), [filter])
 
   const fetchLogs = useCallback(async () => {
     setLoading(true)
     try {
-      const resp = await fetch(`/api/debug-log?category=${category}&limit=50`)
-      if (resp.ok) {
-        const data = await resp.json()
-        setEntries(data.entries ?? [])
-      } else {
-        setEntries([])
-      }
+      const response = await fetch(`/api/debug-log?${activeQuery.toString()}`, { cache: 'no-store' })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const data = await response.json() as { entries?: PlaintextLogEntry[]; total?: number }
+      setEntries(Array.isArray(data.entries) ? data.entries : [])
+      setTotal(Number(data.total ?? 0))
     } catch {
       setEntries([])
+      setTotal(0)
     } finally {
       setLoading(false)
     }
-  }, [category])
+  }, [activeQuery])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchLogs()
+    const timer = window.setTimeout(() => { void fetchLogs() }, 0)
+    return () => window.clearTimeout(timer)
   }, [fetchLogs])
 
   const handleClear = useCallback(async () => {
-    if (!confirm('确定要清除当前分类的日志吗？')) return
+    if (!confirm(`确定要清除“${FILTER_LABELS[filter]}”日志吗？`)) return
     try {
-      await fetch(`/api/debug-log?category=${category}`, { method: 'DELETE' })
+      const query = buildFilterQuery(filter)
+      query.delete('limit')
+      const response = await fetch(`/api/debug-log?${query.toString()}`, { method: 'DELETE' })
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
       setEntries([])
+      setTotal(0)
+      setExpandedEntry(null)
     } catch {
       alert('清除失败')
     }
-  }, [category])
+  }, [filter])
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text-primary)]">
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
+      <div className="mx-auto max-w-6xl px-4 py-8">
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold">开发调试</h1>
-            <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-              AI 日志与 RuntimeRegistry（data.raw 等价快照）
+            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
+              明文 SQLite 日志 · 当前 {total} 条
             </p>
           </div>
-          {view === 'logs' && (
+          {view === 'logs' ? (
             <div className="flex gap-2">
               <button
-                onClick={fetchLogs}
-                className="px-3 py-1.5 rounded-lg border border-[var(--color-border)] text-xs text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors"
+                type="button"
+                onClick={() => { void fetchLogs() }}
+                className="border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
               >
                 刷新
               </button>
               <button
-                onClick={handleClear}
-                className="px-3 py-1.5 rounded-lg border border-red-500/30 text-xs text-red-500 hover:bg-red-500/10 transition-colors"
+                type="button"
+                onClick={() => { void handleClear() }}
+                className="border border-red-500/40 px-3 py-1.5 text-xs text-red-500 transition-colors hover:bg-red-500/10"
               >
                 清除
               </button>
             </div>
-          )}
+          ) : null}
         </div>
 
-        {/* 主视图切换 */}
-        <div className="flex gap-2 mb-6">
+        <div className="mb-6 flex gap-2">
           <button
             type="button"
             onClick={() => setView('logs')}
-            className={`px-4 py-2 rounded-lg text-sm transition-colors ${
+            className={`px-4 py-2 text-sm transition-colors ${
               view === 'logs'
                 ? 'bg-[var(--color-primary)] text-white'
-                : 'bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)]'
+                : 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)]'
             }`}
           >
-            AI 日志
+            日志数据库
           </button>
           <button
             type="button"
             onClick={() => setView('registry')}
-            className={`px-4 py-2 rounded-lg text-sm transition-colors ${
+            className={`px-4 py-2 text-sm transition-colors ${
               view === 'registry'
                 ? 'bg-[var(--color-primary)] text-white'
-                : 'bg-[var(--color-surface)] border border-[var(--color-border)] text-[var(--color-text-secondary)]'
+                : 'border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)]'
             }`}
           >
             运行时注册表
@@ -124,75 +215,93 @@ export default function DebugLogPage() {
           <RuntimeRegistryPanel />
         ) : (
           <>
-        {/* 分类选择 */}
-        <div className="flex gap-2 mb-6 flex-wrap">
-          {(Object.keys(CATEGORY_LABELS) as DebugLogCategory[]).map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategory(cat)}
-              className={`px-3 py-1.5 rounded-full text-xs transition-colors ${
-                category === cat
-                  ? 'bg-[var(--color-primary)] text-white'
-                  : 'bg-[var(--color-surface)] text-[var(--color-text-secondary)] border border-[var(--color-border)] hover:border-[var(--color-primary)]/50'
-              }`}
-            >
-              {CATEGORY_LABELS[cat]}
-            </button>
-          ))}
-        </div>
-
-        {/* 日志列表 */}
-        {loading ? (
-          <div className="text-center py-8 text-[var(--color-text-secondary)]">加载中...</div>
-        ) : entries.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="text-4xl mb-4">📋</div>
-            <p className="text-[var(--color-text-secondary)]">暂无日志</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {entries.map((entry, idx) => {
-              const isExpanded = expandedEntry === idx
-              // 提取第一行作为摘要
-              const firstLine = entry.split('\n').find(Boolean) ?? ''
-              const hasPrompt = entry.includes('发送给 AI')
-              const hasResponse = entry.includes('AI 返回')
-
-              return (
-                <div
-                  key={idx}
-                  className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] overflow-hidden"
+            <div className="mb-6 flex flex-wrap gap-2" role="tablist" aria-label="日志类型">
+              {(Object.keys(FILTER_LABELS) as LogFilter[]).map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  role="tab"
+                  aria-selected={filter === item}
+                  onClick={() => {
+                    setFilter(item)
+                    setExpandedEntry(null)
+                  }}
+                  className={`border px-3 py-1.5 text-xs transition-colors ${
+                    filter === item
+                      ? 'border-[var(--color-primary)] bg-[var(--color-primary)] text-white'
+                      : 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)]'
+                  }`}
                 >
-                  <button
-                    onClick={() => setExpandedEntry(isExpanded ? null : idx)}
-                    className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-[var(--color-bg)]/50 transition-colors"
-                  >
-                    <span className="text-xs text-[var(--color-text-tertiary)] font-mono">
-                      #{entries.length - idx}
-                    </span>
-                    <span className="text-sm truncate flex-1">{firstLine}</span>
-                    <div className="flex gap-1">
-                      {hasPrompt && (
-                        <span className="text-xs px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500">Prompt</span>
-                      )}
-                      {hasResponse && (
-                        <span className="text-xs px-1.5 py-0.5 rounded bg-green-500/10 text-green-500">Response</span>
-                      )}
-                    </div>
-                    <span className="text-[var(--color-text-tertiary)]">{isExpanded ? '▲' : '▼'}</span>
-                  </button>
-                  {isExpanded && (
-                    <div className="px-4 pb-4 border-t border-[var(--color-border)]">
-                      <pre className="text-xs text-[var(--color-text-secondary)] whitespace-pre-wrap break-words mt-3 font-mono leading-relaxed max-h-96 overflow-y-auto">
-                        {entry}
-                      </pre>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
+                  {FILTER_LABELS[item]}
+                </button>
+              ))}
+            </div>
+
+            {loading ? (
+              <div className="py-8 text-center text-[var(--color-text-secondary)]">加载中...</div>
+            ) : entries.length === 0 ? (
+              <div className="border-y border-[var(--color-border)] py-16 text-center text-[var(--color-text-secondary)]">
+                暂无日志
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {entries.map((entry) => {
+                  const isExpanded = expandedEntry === entry.id
+                  const identity = entry.isRegistered
+                    ? `${entry.username ?? '未命名账号'} · ${entry.accountId ?? '账号 ID 缺失'}`
+                    : `匿名用户${entry.diagnosticCode ? ` · ${entry.diagnosticCode}` : ''}`
+                  const hasError = entry.level === 'error' || Boolean(entry.error) || (entry.status ?? 0) >= 400
+                  return (
+                    <article key={entry.id} className="border border-[var(--color-border)] bg-[var(--color-surface)]">
+                      <button
+                        type="button"
+                        onClick={() => setExpandedEntry(isExpanded ? null : entry.id)}
+                        className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-3 px-4 py-3 text-left transition-colors hover:bg-[var(--color-bg)]/50"
+                      >
+                        <span className="min-w-0">
+                          <span className="flex flex-wrap items-center gap-2 text-xs text-[var(--color-text-tertiary)]">
+                            <time>{formatTime(entry.createdAt)}</time>
+                            <span>{entry.entryType}</span>
+                            {entry.category ? <span>{entry.category}</span> : null}
+                            {entry.status !== null ? <span>HTTP {entry.status}</span> : null}
+                          </span>
+                          <strong className={`mt-1 block truncate text-sm ${hasError ? 'text-red-500' : ''}`}>
+                            {entry.message || entry.callKind || entry.module || entry.id}
+                          </strong>
+                          <span className="mt-1 block truncate text-xs text-[var(--color-text-secondary)]">
+                            {entry.isRegistered ? '已注册' : '匿名'} · {identity} · IP {entry.sourceIp}
+                          </span>
+                        </span>
+                        <span className="flex items-center gap-2 self-center text-xs text-[var(--color-text-tertiary)]">
+                          {entry.prompt ? <span>Prompt</span> : null}
+                          {entry.response ? <span>Response</span> : null}
+                          <span aria-hidden="true">{isExpanded ? '▲' : '▼'}</span>
+                        </span>
+                      </button>
+
+                      {isExpanded ? (
+                        <div className="space-y-4 border-t border-[var(--color-border)] px-4 py-4">
+                          <dl className="grid gap-x-6 gap-y-2 text-xs sm:grid-cols-2 lg:grid-cols-3">
+                            <div><dt className="text-[var(--color-text-tertiary)]">账号状态</dt><dd>{entry.isRegistered ? '已注册' : '匿名'}</dd></div>
+                            <div><dt className="text-[var(--color-text-tertiary)]">用户名</dt><dd>{entry.username ?? '-'}</dd></div>
+                            <div><dt className="text-[var(--color-text-tertiary)]">账号 ID</dt><dd className="break-all font-mono">{entry.accountId ?? '-'}</dd></div>
+                            <div><dt className="text-[var(--color-text-tertiary)]">诊断编号</dt><dd>{entry.diagnosticCode ?? '-'}</dd></div>
+                            <div><dt className="text-[var(--color-text-tertiary)]">设备来源编号</dt><dd className="break-all font-mono">{entry.deviceProvenanceId ?? '-'}</dd></div>
+                            <div><dt className="text-[var(--color-text-tertiary)]">请求 ID</dt><dd className="break-all font-mono">{entry.requestId ?? '-'}</dd></div>
+                            <div><dt className="text-[var(--color-text-tertiary)]">模型</dt><dd>{entry.model ?? '-'}</dd></div>
+                          </dl>
+                          <DetailBlock title="错误" value={[entry.error, entry.stack].filter(Boolean).join('\n\n')} tone="error" />
+                          <DetailBlock title="Prompt / AI 输入" value={entry.prompt ?? ''} />
+                          <DetailBlock title="AI 返回 / 叙事" value={entry.response ?? ''} />
+                          <DetailBlock title="Meta" value={formatJson(entry.meta)} />
+                          <DetailBlock title="完整记录" value={formatJson(entry.payload)} />
+                        </div>
+                      ) : null}
+                    </article>
+                  )
+                })}
+              </div>
+            )}
           </>
         )}
       </div>

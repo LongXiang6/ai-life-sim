@@ -10,9 +10,6 @@ import {
   MIN_SUMMARY_TOKENS,
   SUMMARY_L2_MIN_TOKENS,
   SUMMARY_L3_MIN_TOKENS,
-  SUMMARY_L4_MIN_TOKENS,
-  SUMMARY_L5_MIN_TOKENS,
-  SUMMARY_L6_MIN_TOKENS,
 } from './constants'
 
 import { estimateTokenBudget as foundationEstimateTokenBudget } from '@/foundation'
@@ -123,28 +120,4 @@ export function computeSummaryL2Tokens(inputTextLength: number): number {
  */
 export function computeSummaryL3Tokens(inputTextLength: number): number {
   return computeCoverageSafeSummaryTokens(inputTextLength, SUMMARY_L3_MIN_TOKENS)
-}
-
-/**
- * 计算 L4 合并 token 预算
- * 输出余量足以覆盖完整输入；压缩失败时保留 L3，不宣告覆盖。
- */
-export function computeSummaryL4Tokens(inputTextLength: number): number {
-  return computeCoverageSafeSummaryTokens(inputTextLength, SUMMARY_L4_MIN_TOKENS)
-}
-
-/**
- * 计算 L5 合并 token 预算
- * 输出余量足以覆盖完整输入；压缩失败时保留 L4，不宣告覆盖。
- */
-export function computeSummaryL5Tokens(inputTextLength: number): number {
-  return computeCoverageSafeSummaryTokens(inputTextLength, SUMMARY_L5_MIN_TOKENS)
-}
-
-/**
- * 计算 L6 合并 token 预算
- * 输出余量足以覆盖完整输入；压缩失败时保留 L5，不宣告覆盖。
- */
-export function computeSummaryL6Tokens(inputTextLength: number): number {
-  return computeCoverageSafeSummaryTokens(inputTextLength, SUMMARY_L6_MIN_TOKENS)
 }

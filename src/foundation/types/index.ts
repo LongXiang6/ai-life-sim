@@ -40,9 +40,19 @@ export type {
 
 export type {
   AIModelConfig,
+  ReasoningEffort,
   NarrativeResponse,
   ResponseFormat,
 } from './api.types'
+
+export type {
+  ScoringEvidenceKind,
+  ScoringCurveId,
+  WorldScoringDimension,
+  WorldScoringProfile,
+  NarrativeTransitionAuditSnapshot,
+  LifeScoringAuditSnapshot,
+} from './scoring.types'
 
 export type {
   PromptTemplate,
@@ -50,6 +60,7 @@ export type {
   WorldSetting,
   CharacterState,
   SummaryLevel,
+  CompressedMemoryEvent,
   CompressedSummaryItem,
   CompressedSummaries,
   LifeStage,

@@ -2,7 +2,7 @@
 
 /**
  * @module build-feedback-diagnostics.ts
- * @description 组装玩家主动提交的非密钥诊断包
+ * @description 组装玩家主动提交的完整诊断数据
  * @mod mod-pages
  */
 
@@ -13,7 +13,6 @@ import {
   getDiagnosticSessionId,
   getRecentClientDiagnostics,
 } from '@/core/logger/client-logger'
-import { redactSensitiveData } from '@/core/logger/redact-sensitive-data'
 import { getCachedDiagnosticPlayerCode } from '@/core/logger/diagnostic-player-code-client'
 import { RECENT_NARRATIVE_WINDOW, useEngineStore } from '@/mods/mod-engine'
 import { useCharacterStore } from '@/mods/mod-character'
@@ -55,23 +54,19 @@ function toSerializable(value: unknown, seen = new WeakSet<object>()): unknown {
   return String(value)
 }
 
-function sanitizeRecord(value: unknown): Record<string, unknown> {
+function serializeRecord(value: unknown): Record<string, unknown> {
   const serialized = toSerializable(value)
-  const redacted = redactSensitiveData(serialized)
-  return redacted && typeof redacted === 'object' && !Array.isArray(redacted)
-    ? redacted as Record<string, unknown>
+  return serialized && typeof serialized === 'object' && !Array.isArray(serialized)
+    ? serialized as Record<string, unknown>
     : {}
 }
 
 function collectProjectConfigEntries(): Record<string, unknown> {
   if (typeof localStorage === 'undefined') return {}
   const entries: Record<string, unknown> = {}
-  const excludedTerms = ['api', 'provider', 'model', 'key', 'token', 'auth', 'secret', 'password', 'cookie']
   for (let index = 0; index < localStorage.length; index++) {
     const key = localStorage.key(index)
     if (!key?.startsWith('ai-life-sim:') || !key.includes(':config:')) continue
-    const lowered = key.toLowerCase()
-    if (excludedTerms.some((term) => lowered.includes(term))) continue
     const raw = localStorage.getItem(key)
     if (raw === null) continue
     try {
@@ -80,7 +75,7 @@ function collectProjectConfigEntries(): Record<string, unknown> {
       entries[key] = raw
     }
   }
-  return sanitizeRecord(entries)
+  return serializeRecord(entries)
 }
 
 async function collectDeviceEnvironment(): Promise<Record<string, unknown>> {
@@ -94,7 +89,7 @@ async function collectDeviceEnvironment(): Promise<Record<string, unknown>> {
   const storage = await navigator.storage?.estimate().catch(() => undefined)
   const orientation = screen.orientation
 
-  return sanitizeRecord({
+  return serializeRecord({
     browser: {
       userAgent: navigator.userAgent,
       platform: navigator.platform,
@@ -150,21 +145,20 @@ export async function buildFeedbackDiagnostics(): Promise<FeedbackDiagnostics> {
   const fontState = useFontStore.getState()
   const diagnosticSessionId = getDiagnosticSessionId()
 
-  const safeSettings = sanitizeRecord(settingsState)
-  for (const key of ['provider', 'customKey', 'customUrl', 'customModel']) delete safeSettings[key]
+  const settings = serializeRecord(settingsState)
 
-  const engineWithoutHistory = sanitizeRecord(engineState)
+  const engineWithoutHistory = serializeRecord(engineState)
   delete engineWithoutHistory.narrativeHistory
 
   const recentStory = engineState.narrativeHistory
     .slice(-RECENT_NARRATIVE_WINDOW)
-    .map((entry) => sanitizeRecord(entry))
+    .map((entry) => serializeRecord(entry))
 
   const recentClientLogs = getRecentClientDiagnostics()
-    .map((entry) => sanitizeRecord(entry))
+    .map((entry) => serializeRecord(entry))
 
   return {
-    app: sanitizeRecord({
+    app: serializeRecord({
       version: ENGINE_VERSION,
       page: location.pathname,
       diagnosticSessionId,
@@ -176,14 +170,14 @@ export async function buildFeedbackDiagnostics(): Promise<FeedbackDiagnostics> {
       availableCapabilities: Object.fromEntries(modRegistry.getAvailableCapabilities()),
     }),
     device: await collectDeviceEnvironment(),
-    globalConfig: sanitizeRecord({
+    globalConfig: serializeRecord({
       app: globalState,
-      settings: safeSettings,
+      settings,
       theme: themeState,
       font: fontState,
       projectConfigEntries: collectProjectConfigEntries(),
     }),
-    gameState: sanitizeRecord({
+    gameState: serializeRecord({
       world: worldState,
       character: characterState,
       engine: engineWithoutHistory,

@@ -333,7 +333,7 @@ export class CoreMemorySystem extends BaseSubsystem {
       return null
     }
 
-    // 筛选覆盖溢出区间的摘要：L2 优先（25轮跨度），L2 不足时 L3 兜底，均不足时 L1 兜底
+    // 筛选覆盖溢出区间的摘要：L2 优先（16轮跨度），L3 不足时 L1 兜底
     const relevant = summaries
       .filter((s) => {
         // 与 [startRound, endRound] 有交集
@@ -349,7 +349,7 @@ export class CoreMemorySystem extends BaseSubsystem {
       })
 
     if (relevant.length === 0) {
-      // L2/L3 均不可用：尝试 L1 摘要兜底（每 5 轮生成，最早可用）
+      // L2/L3 均不可用：尝试 L1 摘要兜底（每 4 轮生成，最早可用）
       const l1Summaries = summaries.filter((s) => (
         s.level === 1 && isNarrativeRecordVisible({ contextIds: s.contextIds }, view)
       ))

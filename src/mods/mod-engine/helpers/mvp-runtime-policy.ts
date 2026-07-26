@@ -45,6 +45,7 @@ export function buildMvpSubsystemGuide(activeSubsystemIds: Iterable<string>): st
   return [
     `本轮可变更系统仅限：${writableNames.join('、')}`,
     buildSubsystemGuide(writableIds),
+    '“状态变更”必须是数组；每项固定为 {"系统":"上列系统名","说明":"本轮成立的变化","变更":{"上列字段名":数值}}，禁止把“变更”对象直接放在“状态变更”下。',
     '提交规则：只有剧情明确造成上述数值变化时才写入“状态变更”；否则省略整个字段。',
     '只使用上列中文系统名与中文字段名；当前年龄由时间系统派生，禁止提交年龄；未列系统不得写入。',
   ].join('\n')

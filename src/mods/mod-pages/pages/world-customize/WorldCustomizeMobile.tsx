@@ -54,13 +54,16 @@ export function WorldCustomizeMobile() {
             </header>
 
             <section className={styles.worldSummary} aria-live="polite" aria-label="当前世界规则摘要">
-              <div>
+              <div className={styles.summaryTop}>
                 <span>{worldConfig ? '保存世界' : '自定义世界'}</span>
                 <span>当前选择</span>
               </div>
-              <div className={styles.summaryCopy} aria-label="人生难度">
+              <div className={styles.summaryDifficulty} aria-label={`人生难度：${difficultyLabel}`}>
                 <span>难度</span>
                 <strong>{difficultyLabel}</strong>
+                <span className={styles.summaryDifficultyIcon} aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
+                </span>
               </div>
               <h3>{worldConfig?.name ?? '尚未命名世界'}</h3>
               <div className={styles.summaryEra}>{eraLabel}</div>

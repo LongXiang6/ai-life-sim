@@ -10,10 +10,13 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 
 import { useRouter } from 'next/navigation'
 import { clamp } from '@/core/shared'
-import { reportUsageMetric } from '@/core/logger/client-logger'
 import { ENGINE_VERSION } from '@/core/version'
 import { useAccountClientStore } from '@/core/account/account-client-store'
-import { fetchCloudManualSaveSummary, putCloudManualSave } from '@/core/player-content/player-content-client'
+import {
+  fetchCloudManualSaveSummary,
+  fetchLegendaryEncounter,
+  putCloudManualSave,
+} from '@/core/player-content/player-content-client'
 import { CloudGameSavePayloadSchema, type CloudManualSaveSummary } from '@/core/player-content/player-content-contract'
 
 import { useEngine, useNarrative, usePreGenQueueStatus, useSimulationAdvance } from '@/mods/mod-engine'
@@ -47,6 +50,10 @@ import { resolveWorldDimensionLabels } from '../../helpers/world-dimension-label
 import { getAutoNarrativeRetryDelay } from './narrative-retry-policy'
 
 const GENDER_LABELS: Record<string, string> = { male: '男', female: '女' }
+
+function stripLeadingNarrativeProtocolMarker(text: string): string {
+  return text.replace(/^⟦正文⟧(?:\r?\n)+/u, '')
+}
 
 import { useSimulationBranch } from './useSimulationBranch'
 
@@ -121,14 +128,20 @@ export default function GamePage() {
   const streamingNarrative = useEngineStore((s) => s.streamingNarrative)
   const narrativeError = useEngineStore((s) => s.narrativeError)
   const branchRepairPending = useEngineStore((s) => s.branchRepairPending)
+  const lifeRunId = useEngineStore((s) => s.lifeRunId)
+  const legendaryEncounterCheckedForLifeRunId = useEngineStore((s) => s.legendaryEncounterCheckedForLifeRunId)
+  const setLegendaryEncounterSelection = useEngineStore((s) => s.setLegendaryEncounterSelection)
   const timeStep = useEngineStore((s) => s.timeStep)
   const preGenStatus = usePreGenQueueStatus()
   const activeTimeStepKey = encodeTimeStepKey(timeStep)
   const [autoRetryAttempt, setAutoRetryAttempt] = useState(0)
   const autoRetryGenerationRef = useRef(0)
+  const [showStepMenu, setShowStepMenu] = useState(false)
+  const stepMenuRef = useRef<HTMLDivElement>(null)
+  const stepButtonRef = useRef<HTMLButtonElement>(null)
   const handleTimeStepChange = useCallback((key: string) => {
     setSimulationTimeStepByKey(key)
-    reportUsageMetric({ schemaVersion: 1, kind: 'time_step_selected', timeStepKey: key })
+    setShowStepMenu(false)
   }, [])
   const timeStepOptions = useMemo(
     () => AVAILABLE_TIME_STEPS.map((s) => ({
@@ -184,6 +197,17 @@ export default function GamePage() {
       .finally(() => { if (active) setCloudLoading(false) })
     return () => { active = false }
   }, [accountStatus, addToast])
+
+  useEffect(() => {
+    if (!lifeRunId || legendaryEncounterCheckedForLifeRunId === lifeRunId) return
+    let active = true
+    void fetchLegendaryEncounter(lifeRunId)
+      .then((encounter) => {
+        if (active) setLegendaryEncounterSelection(lifeRunId, encounter)
+      })
+      .catch(() => undefined)
+    return () => { active = false }
+  }, [legendaryEncounterCheckedForLifeRunId, lifeRunId, setLegendaryEncounterSelection])
 
   // 整个书页正文是唯一滚动根；新叙事只在这条连续阅读流内定位。
   useEffect(() => {
@@ -242,10 +266,12 @@ export default function GamePage() {
     return result
   }, [characterBase, patternBonus, totalRounds])
 
-  const narrativeTimeLabel = useMemo(
+  const calculatedNarrativeTimeLabel = useMemo(
     () => formatCurrentNarrativeTimeLabel({ timeStep, round, eraStartYear, worldEraName }),
     [timeStep, round, eraStartYear, worldEraName],
   )
+  const latestNarrativeTimeLabel = narrativeHistory.at(-1)?.displayTimeLabel?.trim()
+  const narrativeTimeLabel = latestNarrativeTimeLabel || calculatedNarrativeTimeLabel
 
   const worldTagsText = useMemo(
     () => resolveDestinyPatternWorldTags(worldConfig, worldTags),
@@ -264,9 +290,8 @@ export default function GamePage() {
 
   const runNarrativeAttempt = useCallback(async () => {
     if (!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch || branchRepairPending) return
-    reportUsageMetric({ schemaVersion: 1, kind: 'narrative_advance', timeStepKey: activeTimeStepKey })
     await advanceRound()
-  }, [isRuntimeReady, isDead, isComplete, isAdvancing, hasUnresolvedBranch, branchRepairPending, activeTimeStepKey, advanceRound])
+  }, [isRuntimeReady, isDead, isComplete, isAdvancing, hasUnresolvedBranch, branchRepairPending, advanceRound])
 
   const handleNarrativeAdvance = useCallback(async () => {
     if (narrativeError) {
@@ -331,11 +356,29 @@ export default function GamePage() {
       : '自动重试未恢复；轻触可再次尝试'
     : '下一段故事已经准备好'
 
-  const activeTimeStepLabel = timeStepOptions.find((o) => o.value === activeTimeStepKey)?.label ?? '按年'
+  const activeTimeStepLabel = timeStepOptions.find((o) => o.value === activeTimeStepKey)?.label ?? '年'
+
+  useEffect(() => {
+    if (!showStepMenu) return
+    const handlePointerDown = (event: PointerEvent) => {
+      if (!stepMenuRef.current?.contains(event.target as Node)) setShowStepMenu(false)
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setShowStepMenu(false)
+      stepButtonRef.current?.focus()
+    }
+    document.addEventListener('pointerdown', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [showStepMenu])
 
   const narrativeEntries: NarrativeEntry[] = useMemo(() =>
     narrativeHistory.map((chunk) => ({
-      text: chunk.text,
+      text: stripLeadingNarrativeProtocolMarker(chunk.text),
       timestamp: chunk.timestamp,
       eraLabel: chunk.displayTimeLabel ?? narrativeTimeLabel,
       ageLabel: chunk.displayAge !== undefined ? `${chunk.displayAge} 岁` : `${characterAge} 岁`,
@@ -477,24 +520,69 @@ export default function GamePage() {
           <header className={`${styles.readerBar} ${styles.barStatus}`}>
             <div className={styles.barTop}>
               <span className={styles.identity}>
-                <strong>{characterName || '未命名'}</strong>
-                <small>{worldConfig?.name ?? '未知世界'} · {raceInfo.name} · {characterAge}岁 · {narrativeTimeLabel}</small>
+                <strong>{characterName || '未命名'} · {genderLabel}</strong>
+                <small>{worldConfig?.name ?? '未知世界'} · {characterAge}岁 · {narrativeTimeLabel}</small>
               </span>
-              <button
-                type="button"
-                className={`${styles.forceButton} ${forceBranchNext ? styles.forceButtonActive : ''}`}
-                aria-label={forceBranchNext ? '取消下一轮强制分支' : '强制下一轮分支'}
-                aria-pressed={forceBranchNext}
-                disabled={!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch || branchRepairPending}
-                onClick={handleForceBranch}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M6 3v12M18 9a9 9 0 0 1-9 9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                  <circle cx="18" cy="6" r="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
-                  <circle cx="6" cy="18" r="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
-                </svg>
-                <span className={styles.srOnly}>强制下一轮分支</span>
-              </button>
+              <div ref={stepMenuRef} className={styles.barActions}>
+                <div className={styles.stepMenu}>
+                  <button
+                    ref={stepButtonRef}
+                    type="button"
+                    className={styles.stepButton}
+                    aria-expanded={showStepMenu}
+                    aria-haspopup="listbox"
+                    aria-controls="time-step-menu"
+                    aria-label={`推进步长 ${activeTimeStepLabel}`}
+                    onClick={() => {
+                      setShowWorldPanel(false)
+                      setShowStepMenu((value) => !value)
+                    }}
+                  >
+                    <span>{activeTimeStepLabel}</span>
+                    <svg viewBox="0 0 12 12" aria-hidden="true">
+                      <path d="M3 4.5 6 8l3-3.5" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                  <div
+                    id="time-step-menu"
+                    className={`${styles.stepMenuPanel} ${showStepMenu ? styles.stepMenuPanelOpen : ''}`}
+                    role="listbox"
+                    aria-label="选择推进步长"
+                    aria-hidden={!showStepMenu}
+                  >
+                    {timeStepOptions.map((option) => {
+                      const isActive = option.value === activeTimeStepKey
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          role="option"
+                          aria-selected={isActive}
+                          className={isActive ? styles.stepMenuOptionActive : ''}
+                          onClick={() => handleTimeStepChange(option.value)}
+                        >
+                          {option.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className={`${styles.forceButton} ${forceBranchNext ? styles.forceButtonActive : ''}`}
+                  aria-label={forceBranchNext ? '取消下一轮强制分支' : '强制下一轮分支'}
+                  aria-pressed={forceBranchNext}
+                  disabled={!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch || branchRepairPending}
+                  onClick={handleForceBranch}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M6 3v12M18 9a9 9 0 0 1-9 9" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                    <circle cx="18" cy="6" r="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                    <circle cx="6" cy="18" r="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
+                  </svg>
+                  <span className={styles.srOnly}>强制下一轮分支</span>
+                </button>
+              </div>
               <button
                 type="button"
                 className={styles.infoToggle}
@@ -568,46 +656,14 @@ export default function GamePage() {
               <section className={styles.currentBlock}>
                 <div className={styles.identityIndex}>
                   <span>{characterName} · {genderLabel} · {raceInfo.name}</span>
-                  <small>{worldConfig?.name} · {narrativeTimeLabel}</small>
+                  <small>{worldConfig?.name ?? '未知世界'} · {characterAge}岁 · {narrativeTimeLabel}</small>
                 </div>
                 <div className={styles.attributes}>
-                  {ATTR_KEYS.map((key) => {
-                    const value = displayBaseAttrs[key] ?? 0
-                    const icon = key === 'physique' ? '💪' : key === 'mind' ? '🧠' : key === 'talentAptitude' ? '✨' : '💫'
-                    return (
-                      <span key={key}>
-                        <em aria-hidden="true">{icon}</em>
-                        {ATTRIBUTE_NAMES[key]} <b className={value > 0 ? styles.rise : value < 0 ? styles.fall : ''}>
-                          {value > 0 ? '+' : ''}{value}
-                        </b>
-                      </span>
-                    )
-                  })}
                   <span>生命 <b>{health.hp}/{health.maxHp}</b></span>
                 </div>
               </section>
 
               <div className={styles.infoBody}>
-                <section className={styles.infoBlock}>
-                  <div className={styles.sectionLine}>
-                    <strong>推进步长</strong>
-                    <small>{activeTimeStepLabel} · 下一轮生效</small>
-                  </div>
-                  <div className={styles.stepGrid}>
-                    {timeStepOptions.map((option) => (
-                      <button
-                        key={option.value}
-                        type="button"
-                        className={option.value === activeTimeStepKey ? styles.stepActive : ''}
-                        aria-pressed={option.value === activeTimeStepKey}
-                        onClick={() => handleTimeStepChange(option.value)}
-                      >
-                        {option.label.replace(/^按/, '')}
-                      </button>
-                    ))}
-                  </div>
-                </section>
-
                 <details className={styles.ledgerDisclosure} open>
                   <summary>
                     <strong>世界与角色账簿</strong>

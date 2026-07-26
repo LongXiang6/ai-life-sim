@@ -10,6 +10,8 @@ import { isValidAiContent } from '../ai-service/stream-text-extractor'
 
 /** 单条 AI 调用日志上下文（轮次 / 策略 / 调用类型） */
 export interface AICallLogContext {
+  /** 存档内稳定的人生 ID；用于逐轮原文归档和跨日志关联。 */
+  lifeRunId?: string
   round?: number
   age?: number
   era?: string
@@ -22,6 +24,16 @@ export interface AICallLogContext {
   pool?: string
   model?: string
   sessionId?: string
+  /** real | preview；用于区分真实推进与预生成上游尝试。 */
+  executionKind?: string
+  /** 主叙事固定协议版本，用于缓存和日志分桶。 */
+  promptVersion?: string
+  /** 玩家本轮目标正文字数。 */
+  targetWordCount?: number
+  /** 本轮实际生效文风；只进入服务端按轮归档，不进入上游。 */
+  styleSource?: 'default' | 'custom'
+  styleText?: string
+  styleVersion?: number
 }
 
 /** API usage 字段（写入 meta） */
@@ -29,6 +41,7 @@ export interface AICallUsageSnapshot {
   hitTokens?: number
   missTokens?: number
   completionTokens?: number
+  reasoningTokens?: number
   totalTokens?: number
 }
 
@@ -36,6 +49,8 @@ export interface RecordAICallLogParams {
   category: DebugLogCategory
   messages: Array<{ role: string; content: string }>
   response: string
+  /** 代理请求关联 ID；用于把同一次重试链与服务端访问日志串起来。 */
+  requestId?: string
   logContext?: AICallLogContext
   usage?: AICallUsageSnapshot
   extraMeta?: Record<string, unknown>
@@ -63,6 +78,8 @@ export async function recordAICallLog(params: RecordAICallLogParams): Promise<bo
   const { category, messages, response, logContext, usage, extraMeta, isFallback } = params
 
   const isFailed = extraMeta?.failed === true
+  // 代理已经逐字保存本次上游交换时，不再从浏览器重复上传完整 Prompt 与响应。
+  if (params.requestId && !isFallback) return true
   if (!isFallback && !isFailed && !isValidAiContent(response)) {
     return false
   }
@@ -81,12 +98,15 @@ export async function recordAICallLog(params: RecordAICallLogParams): Promise<bo
     if (logContext.pool) meta.pool = logContext.pool
     if (logContext.model) meta.model = logContext.model
     if (logContext.sessionId) meta.sessionId = logContext.sessionId
+    if (logContext.lifeRunId) meta.lifeRunId = logContext.lifeRunId
+    if (logContext.executionKind) meta.executionKind = logContext.executionKind
   }
 
   if (usage) {
     if (usage.hitTokens !== undefined) meta.cacheHitTokens = usage.hitTokens
     if (usage.missTokens !== undefined) meta.cacheMissTokens = usage.missTokens
     if (usage.completionTokens !== undefined) meta.completionTokens = usage.completionTokens
+    if (usage.reasoningTokens !== undefined) meta.reasoningTokens = usage.reasoningTokens
     if (usage.totalTokens !== undefined) meta.totalTokens = usage.totalTokens
     const inputTotal = (usage.hitTokens ?? 0) + (usage.missTokens ?? 0)
     if (inputTotal > 0) {
@@ -104,6 +124,7 @@ export async function recordAICallLog(params: RecordAICallLogParams): Promise<bo
   return await logAICallFireAndForget({
     category,
     timestamp: Date.now(),
+    requestId: params.requestId,
     round: logContext?.round,
     age: logContext?.age,
     era: logContext?.era,

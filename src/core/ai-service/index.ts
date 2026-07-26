@@ -5,7 +5,8 @@
  */
 
 export { callAI, callAIConversation, callAIStream, callAIStreamConversation, callAIDegraded, callAIStreamDegraded, getCacheStats, resetCacheStats, recordRoundCacheMetrics, getRoundCacheMetrics, setOnAiError, isAiCredentialError } from './ai-client'
-export type { AICallOptions, CachePoolType, CacheHitInfo, CacheStatsFilter, CacheStatsSnapshot, RoundCacheMetrics, AICallLogContext, AICallUsageSnapshot } from './ai-client'
+export type { AICallOptions, CachePoolType, InternalCachePool, CacheHitInfo, CacheStatsFilter, CacheStatsSnapshot, RoundCacheMetrics, AICallLogContext, AICallUsageSnapshot } from './ai-client'
+export { resolveInternalCachePool } from './ai-client'
 export { callAIWithPromptTemplate } from './ai-call-wrapper'
 export type { UnifiedCallOptions, PromptTemplateLike } from './ai-call-wrapper'
 export { applyKvPromptOrder } from './kv-prompt-order'
@@ -28,6 +29,12 @@ export {
   EXPERIMENTAL_TIME_STEPS_UI,
 } from './prompt-flags'
 export type { KVMessageStrategy } from './prompt-flags'
+export { getAiUsageStats, resetAiUsageStats, formatNanoYuan, DEEPSEEK_PRICE_VERSION, DEEPSEEK_PRICE_SOURCE, getNarrativeTokenCalibration } from './usage-stats'
+export type { AiUsageAggregate, AiUsageContext, AiUsageStatsSnapshot, NarrativeTokenCalibrationSample } from './usage-stats'
+export { computeNarrativeTokenBudget } from './narrative-token-budget'
+export type { NarrativeTokenBudgetCalibration, NarrativeTokenBudgetInput } from './narrative-token-budget'
+export { fetchDeepSeekBalance } from './deepseek-balance-client'
+export type { DeepSeekBalanceInfo, DeepSeekBalanceSnapshot } from './deepseek-balance-client'
 export { diagnoseApiError, diagnoseProxyError, formatApiErrorForUser } from './api-error'
 export type { ApiDiagnostic } from './api-error'
 export {
@@ -40,7 +47,6 @@ export {
   isServerManagedProvider,
   isRegisteredProviderBaseUrl,
   shouldAggregateManagedNonStream,
-  REASONING_BUDGET_MAP,
   REASONING_EFFORT_OPTIONS,
   resolveProvider,
   getProviderIds,

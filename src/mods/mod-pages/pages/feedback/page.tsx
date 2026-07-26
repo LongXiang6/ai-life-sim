@@ -6,12 +6,11 @@
  * @mod mod-pages
  */
 
-import { useEffect, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 
 import { useRouter } from 'next/navigation'
 
 import { logger } from '@/core/logger/client-logger'
-import { ensureDiagnosticPlayerCode } from '@/core/logger/diagnostic-player-code-client'
 
 import type { FeedbackCategory, PlayerFeedbackEnvelope } from '@/core/logger/feedback-contract'
 
@@ -35,13 +34,9 @@ export default function FeedbackPage() {
   const router = useRouter()
   const [category, setCategory] = useState<FeedbackCategory>('bug')
   const [message, setMessage] = useState('')
-  const [consent, setConsent] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [feedbackId, setFeedbackId] = useState<string | null>(null)
-  const [diagnosticCode, setDiagnosticCode] = useState<string | null>(null)
-  const [diagnosticCodeError, setDiagnosticCodeError] = useState(false)
-  const [diagnosticCodeCopied, setDiagnosticCodeCopied] = useState(false)
 
   const copyText = async (value: string): Promise<boolean> => {
     try {
@@ -62,32 +57,7 @@ export default function FeedbackPage() {
     }
   }
 
-  const copyDiagnosticCode = async () => {
-    if (!diagnosticCode) return
-    const copied = await copyText(diagnosticCode)
-    setDiagnosticCodeCopied(copied)
-  }
-
-  const retryDiagnosticCode = async () => {
-    setDiagnosticCodeError(false)
-    const code = await ensureDiagnosticPlayerCode()
-    setDiagnosticCode(code ?? null)
-    setDiagnosticCodeError(!code)
-  }
-
-  useEffect(() => {
-    let cancelled = false
-    void ensureDiagnosticPlayerCode().then((code) => {
-      if (cancelled) return
-      setDiagnosticCode(code ?? null)
-      setDiagnosticCodeError(!code)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  const canSubmit = message.trim().length > 0 && consent && !submitting
+  const canSubmit = message.trim().length > 0 && !submitting
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -96,7 +66,6 @@ export default function FeedbackPage() {
     setSubmitting(true)
     setError(null)
     setFeedbackId(null)
-    logger.action('feedback', 'feedback-submit-started', { category })
 
     try {
       const diagnostics = await buildFeedbackDiagnostics()
@@ -106,7 +75,6 @@ export default function FeedbackPage() {
         subject: `${categoryLabel}：${message.trim().split(/\r?\n/u).find((line) => line.trim()) ?? message.trim()}`,
         message: message.trim(),
         submittedAt: Date.now(),
-        consent: true,
         diagnostics,
       }
       const response = await fetch('/api/feedback', {
@@ -120,12 +88,10 @@ export default function FeedbackPage() {
       }
       setFeedbackId(result.feedbackId)
       setMessage('')
-      setConsent(false)
-      logger.action('feedback', 'feedback-submit-completed', { category, feedbackId: result.feedbackId })
     } catch (submitError) {
       const messageText = submitError instanceof Error ? submitError.message : '反馈提交失败，请稍后重试'
       setError(messageText)
-      logger.error('feedback', '反馈诊断包提交失败', submitError)
+      logger.error('feedback', '反馈提交失败', submitError)
     } finally {
       setSubmitting(false)
     }
@@ -161,21 +127,6 @@ export default function FeedbackPage() {
                         rows={8}
                       />
                     </label>
-                  </div>
-                </section>
-
-                <section className={styles.panel}>
-                  <label className={styles.dataRow}>
-                    <span><strong><span className="semantic-emoji" aria-hidden="true">🔎</span>附带诊断</strong><small>不含密钥与密码</small></span>
-                    <span className={styles.toggle}><input type="checkbox" checked={consent} disabled={submitting} onChange={(event) => setConsent(event.target.checked)} /><i aria-hidden="true" /></span>
-                  </label>
-                  <div className={styles.dataRow} aria-live="polite">
-                    <span><strong><span className="semantic-emoji" aria-hidden="true">🏷️</span>玩家编号</strong><small>用于查询近期记录</small></span>
-                    {diagnosticCode ? (
-                      <button type="button" className={styles.valueAction} onClick={() => { void copyDiagnosticCode() }}>{diagnosticCodeCopied ? '已复制' : diagnosticCode}</button>
-                    ) : diagnosticCodeError ? (
-                      <button type="button" className={styles.valueAction} onClick={() => { void retryDiagnosticCode() }}>重新获取</button>
-                    ) : <span className={styles.value}>分配中</span>}
                   </div>
                 </section>
 

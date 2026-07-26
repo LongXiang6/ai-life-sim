@@ -1,23 +1,15 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs'
-import { promises as fsp } from 'node:fs'
-import { createHash } from 'node:crypto'
 import path from 'node:path'
 import process from 'node:process'
-import readline from 'node:readline'
-import { promisify } from 'node:util'
-import { gunzip } from 'node:zlib'
+
+import Database from 'better-sqlite3'
 
 import {
   buildCanonicalStoryRepetitionSet,
-  diagnosticCodeOf,
-  operationalTimestamp,
   summarizeStoryRepetitionRows,
 } from './lib/story-repetition-analytics.mjs'
-import { classifyUpstreamError } from './lib/error-classification.mjs'
-
-const gunzipAsync = promisify(gunzip)
 
 const FEEDBACK_STATUS_LABELS = {
   new: '待处理',
@@ -28,609 +20,313 @@ const FEEDBACK_STATUS_LABELS = {
   reopened: '已重新打开',
 }
 
-function printHelp() {
-  console.log(`Usage: node scripts/ops/inspect-ai-logs.mjs [options]
-
-Options:
-  --root <path>          Log root (default: AI_LOG_DIR, /var/log/ai-life-sim, or ./logs)
-  --since-hours <n>      Inspect the latest n hours (default: 24)
-  --all                  Inspect all retained files
-  --ip <address>         Filter by exact server-derived source IP
-  --player-code <code>   Filter by six-character player diagnostic code
-  --request-id <id>      Filter by AI request ID
-  --feedback-id <id>     Filter by player feedback ID and correlate its source
-  --limit <n>            Maximum recent issue rows (default: 20)
-  --include-content      Include full sanitized Prompt/response trace records
-  --help                 Show this help
-
-The default output excludes full player Prompt, response, story, and feedback content.`)
-}
-
-function defaultRoot() {
+function defaultDatabasePath() {
   const candidates = [
-    process.env.AI_LOG_DIR,
-    '/var/log/ai-life-sim',
-    path.join(process.cwd(), 'logs'),
+    process.env.AI_LOG_DB_PATH,
+    process.env.AI_LOG_DIR ? path.join(process.env.AI_LOG_DIR, 'logs.sqlite') : undefined,
+    '/var/lib/ai-life-sim/logs.sqlite',
+    '/var/log/ai-life-sim/logs.sqlite',
+    path.join(process.cwd(), '.data', 'logs.sqlite'),
   ].filter(Boolean)
   return candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates.at(-1)
 }
 
+function databasePathFromRoot(value) {
+  const resolved = path.resolve(value)
+  if (path.extname(resolved).toLowerCase() === '.sqlite') return resolved
+  return path.join(resolved, 'logs.sqlite')
+}
+
+function printHelp() {
+  console.log(`Usage: node scripts/ops/inspect-ai-logs.mjs [options]
+
+Options:
+  --database <path>      Plaintext SQLite log database
+  --root <path>          Compatibility alias: directory containing logs.sqlite
+  --since-hours <n>      Inspect the latest n hours (default: 24)
+  --all                  Inspect all retained rows
+  --ip <address>         Filter by exact server-derived source IP
+  --player-code <code>   Filter by six-character diagnostic code
+  --device-id <id>       Filter by stable device provenance ID
+  --account-id <id>      Filter by registered account ID
+  --username <name>      Filter by exact registered username
+  --request-id <id>      Filter by AI request ID
+  --feedback-id <id>     Filter by feedback ID
+  --entry-type <type>    Filter by log entry type
+  --limit <n>            Maximum recent rows in each list (default: 20)
+  --include-content      Compatibility flag; plaintext content is always included
+  --help                 Show this help`)
+}
+
 function parseArgs(argv) {
   const options = {
-    root: defaultRoot(),
+    database: defaultDatabasePath(),
     sinceHours: 24,
     all: false,
     ip: undefined,
     playerCode: undefined,
+    deviceId: undefined,
+    accountId: undefined,
+    username: undefined,
     requestId: undefined,
     feedbackId: undefined,
+    entryType: undefined,
     limit: 20,
-    includeContent: false,
+    includeContent: true,
   }
-
-  for (let index = 0; index < argv.length; index++) {
+  for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index]
     const next = () => {
       const value = argv[++index]
       if (!value) throw new Error(`${arg} 缺少参数`)
       return value
     }
-    if (arg === '--root') options.root = path.resolve(next())
+    if (arg === '--database') options.database = path.resolve(next())
+    else if (arg === '--root') options.database = databasePathFromRoot(next())
     else if (arg === '--since-hours') options.sinceHours = Number(next())
     else if (arg === '--all') options.all = true
     else if (arg === '--ip') options.ip = next()
     else if (arg === '--player-code') options.playerCode = next().trim().toUpperCase()
+    else if (arg === '--device-id') options.deviceId = next().trim().toUpperCase()
+    else if (arg === '--account-id') options.accountId = next()
+    else if (arg === '--username') options.username = next()
     else if (arg === '--request-id') options.requestId = next()
     else if (arg === '--feedback-id') options.feedbackId = next()
+    else if (arg === '--entry-type') options.entryType = next()
     else if (arg === '--limit') options.limit = Number(next())
     else if (arg === '--include-content') options.includeContent = true
     else if (arg === '--help' || arg === '-h') {
       printHelp()
       process.exit(0)
-    } else {
-      throw new Error(`未知参数：${arg}`)
-    }
+    } else throw new Error(`未知参数：${arg}`)
   }
-
   if (!options.all && (!Number.isFinite(options.sinceHours) || options.sinceHours <= 0)) {
     throw new Error('--since-hours 必须为正数')
   }
-  if (!Number.isSafeInteger(options.limit) || options.limit <= 0) {
-    throw new Error('--limit 必须为正整数')
-  }
-  if (options.playerCode && !/^(?=.*[A-HJ-NP-Z])(?=.*[2-9])[A-HJ-NP-Z2-9]{6}$/.test(options.playerCode)) {
+  if (!Number.isSafeInteger(options.limit) || options.limit <= 0) throw new Error('--limit 必须为正整数')
+  if (options.playerCode && !/^(?=.*[A-HJ-NP-Z])(?=.*[2-9])[A-HJ-NP-Z2-9]{6}$/u.test(options.playerCode)) {
     throw new Error('--player-code 必须为六位大写字母与数字')
   }
   return options
 }
 
-function safeLogSegment(value) {
-  const normalized = String(value).trim().replace(/[^a-zA-Z0-9._-]+/g, '_').replace(/^\.+/, '')
-  return normalized.slice(0, 96) || 'unknown'
+function parseJson(value) {
+  if (value === null || value === undefined) return null
+  try { return JSON.parse(value) } catch { return value }
 }
 
-function classifyJsonlFile(name) {
-  if (name.startsWith('proxy-access-')) return 'access'
-  if (name.startsWith('ai-trace-') || name.startsWith('trace-index-')) return 'trace'
-  if (name.startsWith('client-events-')) return 'client'
-  if (name.startsWith('feedback-status-')) return 'feedback-status'
-  if (name.startsWith('feedback-')) return 'feedback'
-  if (name.startsWith('ai-debug-') || name.startsWith('ai-debug-index-')) return 'debug'
-  if (name.startsWith('raw-responses-')) return 'raw'
-  return undefined
-}
-
-function resolveScanRoot(root, options) {
-  if (options.playerCode) {
-    const playerRoot = path.join(root, 'players', options.playerCode)
-    if (fs.existsSync(playerRoot)) return { path: playerRoot, indexesOnly: true }
-  }
-  if (options.ip) {
-    const sourceRoot = path.join(root, 'sources', `ip-${safeLogSegment(options.ip)}`)
-    if (fs.existsSync(sourceRoot)) return { path: sourceRoot, indexesOnly: true }
-  }
-  return { path: root, indexesOnly: false }
-}
-
-async function collectJsonlFiles(root, cutoffMs, options) {
-  const files = []
-  const scan = resolveScanRoot(root, options)
-  async function visit(dir) {
-    let entries
-    try {
-      entries = await fsp.readdir(dir, { withFileTypes: true })
-    } catch {
-      return
-    }
-    for (const entry of entries) {
-      const target = path.join(dir, entry.name)
-      if (entry.isDirectory()) {
-        if (
-          !scan.indexesOnly
-          && ['sources', 'players', 'diagnostic-identities', 'content'].includes(entry.name)
-        ) continue
-        await visit(target)
-      } else if (entry.isFile() && entry.name.endsWith('.jsonl')) {
-        const kind = classifyJsonlFile(entry.name)
-        if (!kind) continue
-        const stat = await fsp.stat(target)
-        if (cutoffMs && stat.mtimeMs < cutoffMs - (48 * 60 * 60 * 1000)) continue
-        files.push({ path: target, kind })
-      }
-    }
-  }
-  await visit(scan.path)
-  // 玩家/IP 索引只保存关联记录；反馈状态由根目录唯一账本持有。
-  if (scan.indexesOnly) await visit(path.join(root, 'feedback-status'))
-  return files.sort((left, right) => left.path.localeCompare(right.path))
-}
-
-function isContentRef(value) {
-  return Boolean(
-    value
-    && typeof value === 'object'
-    && value.storage === 'sha256-gzip'
-    && value.algorithm === 'sha256'
-    && typeof value.path === 'string'
-    && (value.format === 'json' || value.format === 'text'),
-  )
-}
-
-async function readContentRef(root, reference) {
-  if (!isContentRef(reference)) return undefined
-  const target = path.resolve(root, reference.path)
-  const resolvedRoot = path.resolve(root)
-  if (target !== resolvedRoot && !target.startsWith(`${resolvedRoot}${path.sep}`)) {
-    throw new Error(`内容引用越界：${reference.path}`)
-  }
-  const serialized = await gunzipAsync(await fsp.readFile(target))
-  const digest = createHash('sha256')
-    .update(reference.format)
-    .update('\0')
-    .update(serialized)
-    .digest('hex')
-  if (digest !== reference.hash) throw new Error(`内容哈希校验失败：${reference.path}`)
-  const text = serialized.toString('utf8')
-  return reference.format === 'json' ? JSON.parse(text) : text
-}
-
-const CONTENT_REF_FIELDS = {
-  requestRef: 'request',
-  responseRef: 'responseBody',
-  rawRequestRef: 'rawRequestBody',
-  argsRef: 'args',
-  contextRef: 'context',
-  rawRef: 'raw',
-  promptRef: 'prompt',
-  metaRef: 'meta',
-  submissionRef: 'submission',
-}
-
-async function hydrateRecordContent(root, record) {
-  const hydrated = { ...record }
-  await Promise.all(Object.entries(CONTENT_REF_FIELDS).map(async ([refField, contentField]) => {
-    if (!isContentRef(record[refField])) return
-    hydrated[contentField] = await readContentRef(root, record[refField])
-  }))
-  return hydrated
-}
-
-function timestampMs(record) {
-  return operationalTimestamp(record)
-}
-
-async function readJsonLines(file, cutoffMs, output) {
-  const input = fs.createReadStream(file, { encoding: 'utf8' })
-  const lines = readline.createInterface({ input, crlfDelay: Infinity })
-  for await (const line of lines) {
-    if (!line.trim()) continue
-    try {
-      const record = JSON.parse(line)
-      if (!cutoffMs || timestampMs(record) >= cutoffMs) output.push(record)
-    } catch {
-      // A partially written terminal line is ignored; the source file remains available for inspection.
-    }
-  }
-}
-
-async function readFeedbackSubmission(root, feedbackId) {
-  const submissionsRoot = path.join(root, 'feedback', 'submissions')
-  let dates
-  try {
-    dates = await fsp.readdir(submissionsRoot, { withFileTypes: true })
-  } catch {
-    return undefined
-  }
-  for (const entry of dates) {
-    if (!entry.isDirectory()) continue
-    const target = path.join(submissionsRoot, entry.name, `${feedbackId}.json`)
-    try {
-      return JSON.parse(await fsp.readFile(target, 'utf8'))
-    } catch {
-      // Continue searching retained date directories.
-    }
-  }
-  return undefined
-}
-
-function sourceIp(record) {
-  return record.sourceIp ?? record.ip ?? 'unknown'
-}
-
-function sourceId(record) {
-  return record.sourceId ?? record.source_id ?? 'unknown'
-}
-
-function diagnosticCode(record) {
-  return diagnosticCodeOf(record)
-}
-
-function summarizeTrace(record, includeContent) {
-  if (includeContent) return record
-  const request = record.request && typeof record.request === 'object' ? record.request : undefined
-  const messages = Array.isArray(request?.messages) ? request.messages : []
+function mapRow(row) {
   return {
-    timestamp: record.timestamp,
-    requestId: record.requestId,
-    event: record.event,
-    sourceIp: sourceIp(record),
-    sourceId: sourceId(record),
-    diagnosticCode: diagnosticCode(record),
-    status: record.status,
-    provider: record.provider ?? request?.providerId,
-    model: record.selectedModel ?? record.requestedModel ?? request?.model,
-    messageCount: (record.requestMessageCount ?? messages.length) || undefined,
-    promptChars: record.requestPromptChars ?? (messages.length > 0
-      ? messages.reduce((sum, message) => sum + String(message?.content ?? '').length, 0)
-      : undefined),
-    responseBodyChars: record.responseBodyChars
-      ?? (typeof record.responseBody === 'string' ? record.responseBody.length : undefined),
-    error: record.error,
-    upstreamError: record.upstreamError,
-    contentWriteFailed: record.contentWriteFailed,
+    id: row.id,
+    createdAt: row.created_at,
+    timestamp: new Date(row.created_at).toISOString(),
+    clientTimestamp: row.client_timestamp,
+    entryType: row.entry_type,
+    category: row.category,
+    level: row.level,
+    module: row.module,
+    message: row.message,
+    event: row.event,
+    requestId: row.request_id,
+    sourceIp: row.source_ip,
+    sourceId: row.source_id,
+    diagnosticCode: row.diagnostic_code,
+    deviceProvenanceId: row.device_provenance_id ?? null,
+    isRegistered: row.is_registered === 1,
+    accountId: row.account_id,
+    username: row.username,
+    feedbackId: row.feedback_id,
+    round: row.round,
+    age: row.age,
+    era: row.era,
+    provider: row.provider,
+    model: row.model,
+    callKind: row.call_kind,
+    strategy: row.strategy,
+    status: row.status,
+    prompt: row.prompt,
+    response: row.response,
+    error: row.error,
+    stack: row.stack,
+    meta: parseJson(row.meta_json),
+    payload: parseJson(row.payload_json),
+    meta_json: row.meta_json,
+    payload_json: row.payload_json,
   }
 }
 
-function takeRecent(records, limit) {
-  return [...records].sort((a, b) => timestampMs(b) - timestampMs(a)).slice(0, limit)
+function payloadRecord(entry) {
+  const payload = entry.payload && typeof entry.payload === 'object' && !Array.isArray(entry.payload)
+    ? entry.payload
+    : {}
+  return {
+    ...payload,
+    id: entry.id,
+    timestamp: payload.timestamp ?? entry.timestamp,
+    receivedAt: payload.receivedAt ?? entry.createdAt,
+    requestId: payload.requestId ?? entry.requestId,
+    request_id: payload.request_id ?? entry.requestId,
+    sourceIp: entry.sourceIp,
+    sourceId: entry.sourceId,
+    diagnosticCode: entry.diagnosticCode,
+    isRegistered: entry.isRegistered,
+    accountId: entry.accountId,
+    username: entry.username,
+    feedbackId: entry.feedbackId ?? payload.feedbackId,
+    level: entry.level ?? payload.level,
+    module: entry.module ?? payload.module,
+    message: entry.message ?? payload.message,
+    eventType: entry.event ?? payload.eventType,
+    category: entry.category ?? payload.category,
+    status: entry.status ?? payload.status,
+    provider: entry.provider ?? payload.provider,
+    model: entry.model ?? payload.model,
+    prompt: entry.prompt,
+    response: entry.response,
+    error: entry.error ?? payload.error,
+    stack: entry.stack ?? payload.stack,
+    meta: entry.meta,
+  }
 }
 
-async function main() {
+function takeRecent(rows, limit) {
+  return [...rows].sort((left, right) => right.createdAt - left.createdAt).slice(0, limit)
+}
+
+function main() {
   const options = parseArgs(process.argv.slice(2))
-  const cutoffMs = options.all ? 0 : Date.now() - options.sinceHours * 60 * 60 * 1000
-  if (!fs.existsSync(options.root)) {
-    throw new Error(`日志目录不存在：${options.root}`)
-  }
-
-  const files = await collectJsonlFiles(options.root, cutoffMs, options)
-  const access = []
-  const traces = []
-  const clients = []
-  const feedback = []
-  const feedbackStatus = []
-  const debug = []
-  const rawResponses = []
-  for (const file of files) {
-    const target = file.kind === 'access'
-      ? access
-      : file.kind === 'trace'
-        ? traces
-        : file.kind === 'feedback'
-          ? feedback
-          : file.kind === 'feedback-status'
-            ? feedbackStatus
-          : file.kind === 'debug'
-            ? debug
-            : file.kind === 'raw'
-              ? rawResponses
-              : clients
-    await readJsonLines(file.path, cutoffMs, target)
-  }
-
-  const filteredFeedback = feedback.filter((record) =>
-    (!options.ip || sourceIp(record) === options.ip)
-    && (!options.playerCode || diagnosticCode(record) === options.playerCode)
-    && (!options.requestId || record.requestId === options.requestId)
-    && (!options.feedbackId || record.feedbackId === options.feedbackId))
-  const feedbackIds = new Set(filteredFeedback.map((record) => record.feedbackId))
-  const filteredFeedbackStatus = feedbackStatus.filter((record) => feedbackIds.has(record.feedbackId))
-  const latestFeedbackStatus = new Map()
-  for (const record of filteredFeedbackStatus.sort((a, b) => timestampMs(a) - timestampMs(b))) {
-    latestFeedbackStatus.set(record.feedbackId, record)
-  }
-  const feedbackSources = new Set(filteredFeedback.map(sourceIp).filter((ip) => ip !== 'unknown'))
-
-  const requestSources = new Map()
-  const requestPlayers = new Map()
-  for (const record of access) {
-    if (typeof record.request_id === 'string' && record.request_id) {
-      requestSources.set(record.request_id, sourceIp(record))
+  if (!fs.existsSync(options.database)) throw new Error(`日志数据库不存在：${options.database}`)
+  const database = new Database(options.database, { readonly: true, fileMustExist: true })
+  try {
+    const clauses = []
+    const values = []
+    if (!options.all) {
+      clauses.push('created_at >= ?')
+      values.push(Date.now() - options.sinceHours * 60 * 60 * 1000)
     }
-  }
-  for (const record of access) {
-    const code = diagnosticCode(record)
-    if (code && typeof record.request_id === 'string' && record.request_id) {
-      requestPlayers.set(record.request_id, code)
+    for (const [column, value] of [
+      ['source_ip', options.ip],
+      ['diagnostic_code', options.playerCode],
+      ['device_provenance_id', options.deviceId],
+      ['account_id', options.accountId],
+      ['username', options.username],
+      ['request_id', options.requestId],
+      ['feedback_id', options.feedbackId],
+      ['entry_type', options.entryType],
+    ]) {
+      if (value === undefined) continue
+      clauses.push(`${column} = ?`)
+      values.push(value)
     }
-  }
-  for (const record of traces) {
-    const ip = sourceIp(record)
-    if (ip !== 'unknown' && typeof record.requestId === 'string' && record.requestId) {
-      requestSources.set(record.requestId, ip)
+    const where = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : ''
+    let rows = database.prepare(`SELECT * FROM log_entries ${where} ORDER BY created_at DESC, rowid DESC`).all(...values).map(mapRow)
+
+    const relatedFeedbackIds = [...new Set(rows.map((entry) => entry.feedbackId).filter(Boolean))]
+    if (relatedFeedbackIds.length > 0) {
+      const placeholders = relatedFeedbackIds.map(() => '?').join(', ')
+      const relatedStatusRows = database.prepare(`
+        SELECT * FROM log_entries
+        WHERE entry_type = 'feedback-status' AND feedback_id IN (${placeholders})
+        ORDER BY created_at DESC, rowid DESC
+      `).all(...relatedFeedbackIds).map(mapRow)
+      const rowIds = new Set(rows.map((entry) => entry.id))
+      rows = [...rows, ...relatedStatusRows.filter((entry) => !rowIds.has(entry.id))]
+        .sort((left, right) => right.createdAt - left.createdAt)
     }
-    const code = diagnosticCode(record)
-    if (code && typeof record.requestId === 'string' && record.requestId) {
-      requestPlayers.set(record.requestId, code)
+
+    const access = rows.filter((entry) => entry.entryType === 'proxy-access')
+    const traces = rows.filter((entry) => entry.entryType === 'proxy-trace')
+    const clients = rows.filter((entry) => entry.entryType === 'client-log' || entry.entryType === 'quality-metric')
+    const debug = rows.filter((entry) => entry.entryType === 'ai-call')
+    const rawResponses = rows.filter((entry) => entry.entryType === 'raw-response')
+    const feedback = rows.filter((entry) => entry.entryType === 'feedback')
+    const feedbackStatus = rows.filter((entry) => entry.entryType === 'feedback-status')
+    const accessPayloads = access.map(payloadRecord)
+    const clientPayloads = clients.map(payloadRecord)
+    const canonicalRepetition = buildCanonicalStoryRepetitionSet(clientPayloads)
+
+    const statusCounts = {}
+    for (const entry of access) {
+      const key = String(entry.status ?? 'unknown')
+      statusCounts[key] = (statusCounts[key] ?? 0) + 1
     }
-  }
-
-  const matchesSource = (record, requestIdField) => {
-    if (!options.ip && !options.feedbackId) return true
-    const direct = sourceIp(record)
-    const requestId = record[requestIdField]
-    const correlatedSource = typeof requestId === 'string' && requestId
-      ? requestSources.get(requestId)
-      : undefined
-    return direct === options.ip
-      || correlatedSource === options.ip
-      || feedbackSources.has(direct)
-      || (correlatedSource !== undefined && feedbackSources.has(correlatedSource))
-  }
-  const matchesPlayer = (record, requestIdField) => {
-    if (!options.playerCode) return true
-    const requestId = record[requestIdField]
-    return diagnosticCode(record) === options.playerCode
-      || (typeof requestId === 'string' && requestId && requestPlayers.get(requestId) === options.playerCode)
-  }
-  const matchesRequest = (record, field) => !options.requestId || record[field] === options.requestId
-
-  const filteredAccess = access.filter((record) =>
-    matchesSource(record, 'request_id')
-      && matchesPlayer(record, 'request_id')
-      && matchesRequest(record, 'request_id'))
-  const filteredTraces = traces.filter((record) =>
-    matchesSource(record, 'requestId')
-      && matchesPlayer(record, 'requestId')
-      && matchesRequest(record, 'requestId'))
-  const filteredClients = clients.filter((record) =>
-    matchesSource(record, 'requestId')
-      && matchesPlayer(record, 'requestId')
-      && matchesRequest(record, 'requestId'))
-  const filteredDebug = debug.filter((record) =>
-    matchesSource(record, 'requestId')
-      && matchesPlayer(record, 'requestId')
-      && matchesRequest(record, 'requestId'))
-  const filteredRawResponses = rawResponses.filter((record) =>
-    matchesSource(record, 'requestId')
-      && matchesPlayer(record, 'requestId')
-      && matchesRequest(record, 'requestId'))
-  const canonicalRepetition = buildCanonicalStoryRepetitionSet(filteredClients)
-  const storyRepetitionAggregate = summarizeStoryRepetitionRows(canonicalRepetition.rows)
-  const playerStoryRepetition = options.playerCode
-    ? summarizeStoryRepetitionRows(canonicalRepetition.rows, { includePerGame: true })
-    : undefined
-
-  const statusCounts = {}
-  for (const record of filteredAccess) {
-    const status = String(record.status ?? 'unknown')
-    statusCounts[status] = (statusCounts[status] ?? 0) + 1
-  }
-  const feedbackStatusCounts = {
-    new: filteredFeedback.filter((record) => !latestFeedbackStatus.has(record.feedbackId)).length,
-  }
-  for (const record of latestFeedbackStatus.values()) {
-    feedbackStatusCounts[record.status] = (feedbackStatusCounts[record.status] ?? 0) + 1
-  }
-
-  const sources = new Set(filteredAccess.map(sourceIp).filter((ip) => ip !== 'unknown'))
-  const proxyIssues = filteredAccess.filter((record) => Number(record.status) !== 200)
-  const clientIssues = filteredClients.filter((record) => record.level === 'warn' || record.level === 'error')
-  const debugIssues = filteredDebug.filter((record) => (
-    record.failed === true
-    || record.validationPassed === false
-    || Boolean(record.failureReason)
-    || Boolean(record.validationError)
-  ))
-
-  const selectedFeedbackRecord = options.feedbackId
-    ? filteredFeedback.find((record) => record.feedbackId === options.feedbackId)
-    : undefined
-  let feedbackContent
-  if (options.feedbackId && options.includeContent) {
-    if (selectedFeedbackRecord?.submissionRef) {
-      feedbackContent = (await hydrateRecordContent(options.root, selectedFeedbackRecord)).submission
-    } else {
-      feedbackContent = await readFeedbackSubmission(options.root, options.feedbackId)
+    const latestFeedbackStatus = new Map()
+    for (const entry of [...feedbackStatus].sort((a, b) => a.createdAt - b.createdAt)) {
+      latestFeedbackStatus.set(entry.feedbackId, payloadRecord(entry))
     }
+    const feedbackStatusCounts = { new: 0 }
+    for (const entry of feedback) {
+      const status = latestFeedbackStatus.get(entry.feedbackId)?.status ?? 'new'
+      feedbackStatusCounts[status] = (feedbackStatusCounts[status] ?? 0) + 1
+    }
+    const distinctSources = new Set(rows.map((entry) => entry.sourceId).filter(Boolean)).size
+
+    const result = {
+      database: options.database,
+      window: options.all ? 'all retained rows' : `${options.sinceHours} hours`,
+      filters: {
+        ip: options.ip,
+        playerCode: options.playerCode,
+        deviceId: options.deviceId,
+        accountId: options.accountId,
+        username: options.username,
+        requestId: options.requestId,
+        feedbackId: options.feedbackId,
+        entryType: options.entryType,
+      },
+      totals: {
+        entries: rows.length,
+        requests: access.length,
+        traceEvents: traces.length,
+        clientEvents: clients.length,
+        debugEvents: debug.length,
+        rawResponses: rawResponses.length,
+        feedbackSubmissions: feedback.length,
+        feedbackStatusEvents: feedbackStatus.length,
+        feedbackStatusCounts,
+        registeredEntries: rows.filter((entry) => entry.isRegistered).length,
+        anonymousEntries: rows.filter((entry) => !entry.isRegistered).length,
+        distinctSources,
+        statusCounts,
+        storyRepetition: summarizeStoryRepetitionRows(canonicalRepetition.rows),
+      },
+      recentProxyIssues: takeRecent(access.filter((entry) => entry.status !== 200), options.limit),
+      recentClientIssues: takeRecent(clients.filter((entry) => entry.level === 'warn' || entry.level === 'error'), options.limit),
+      recentDebugIssues: takeRecent(debug.filter((entry) => entry.level === 'error' || entry.error), options.limit),
+      recentRawResponses: takeRecent(rawResponses, options.limit),
+      recentFeedback: takeRecent(feedback, options.limit).map((entry) => {
+        const status = latestFeedbackStatus.get(entry.feedbackId)?.status ?? 'new'
+        return {
+          ...entry,
+          status,
+          statusLabel: FEEDBACK_STATUS_LABELS[status],
+          statusUpdatedAt: latestFeedbackStatus.get(entry.feedbackId)?.timestamp ?? null,
+        }
+      }),
+      recentFeedbackStatusEvents: takeRecent(feedbackStatus, options.limit).map(payloadRecord),
+      recentRequests: takeRecent(access, options.limit),
+      recentClientEvents: takeRecent(clients, options.limit),
+      recentDebugEvents: takeRecent(debug, options.limit),
+      storyRepetition: options.playerCode || options.accountId
+        ? summarizeStoryRepetitionRows(canonicalRepetition.rows, { includePerGame: true })
+        : undefined,
+      feedbackContent: options.feedbackId ? feedback[0]?.payload ?? null : undefined,
+      traces: takeRecent(traces, options.limit),
+      clientEvents: takeRecent(clients, options.limit),
+      debugEvents: takeRecent(debug, options.limit),
+      rawResponseContent: takeRecent(rawResponses, options.limit),
+      entries: takeRecent(rows, options.limit),
+      accessPayloads: takeRecent(accessPayloads.map((payload, index) => ({ ...payload, createdAt: access[index]?.createdAt ?? 0 })), options.limit),
+    }
+    console.log(JSON.stringify(result, null, 2))
+  } finally {
+    database.close()
   }
-
-  const hydratedTraces = options.includeContent
-    ? await Promise.all(takeRecent(filteredTraces, options.limit).map((record) => (
-      hydrateRecordContent(options.root, record)
-    )))
-    : undefined
-  const hydratedClients = options.includeContent
-    ? await Promise.all(takeRecent(filteredClients, options.limit).map((record) => (
-      hydrateRecordContent(options.root, record)
-    )))
-    : undefined
-  const hydratedDebug = options.includeContent
-    ? await Promise.all(takeRecent(filteredDebug, options.limit).map((record) => (
-      hydrateRecordContent(options.root, record)
-    )))
-    : undefined
-  const hydratedRawResponses = options.includeContent
-    ? await Promise.all(takeRecent(filteredRawResponses, options.limit).map((record) => (
-      hydrateRecordContent(options.root, record)
-    )))
-    : undefined
-
-  const result = {
-    root: options.root,
-    window: options.all ? 'all retained logs' : `${options.sinceHours} hours`,
-    filters: {
-      ip: options.ip,
-      playerCode: options.playerCode,
-      requestId: options.requestId,
-      feedbackId: options.feedbackId,
-      includeContent: options.includeContent,
-    },
-    totals: {
-      requests: filteredAccess.length,
-      traceEvents: filteredTraces.length,
-      clientEvents: filteredClients.length,
-      debugEvents: filteredDebug.length,
-      rawResponses: filteredRawResponses.length,
-      feedbackSubmissions: filteredFeedback.length,
-      feedbackStatusEvents: filteredFeedbackStatus.length,
-      feedbackStatusCounts,
-      distinctSources: sources.size,
-      statusCounts,
-      storyRepetition: storyRepetitionAggregate,
-    },
-    recentProxyIssues: takeRecent(proxyIssues, options.limit).map((record) => ({
-      timestamp: record.timestamp,
-      requestId: record.request_id,
-      sourceIp: sourceIp(record),
-      sourceId: sourceId(record),
-      diagnosticCode: diagnosticCode(record),
-      provider: record.provider,
-      model: record.model,
-      status: record.status,
-      durationMs: record.duration_ms,
-      retryCount: record.retry_count,
-      error: classifyUpstreamError(record.error) ?? `http_${record.status ?? 'unknown'}`,
-    })),
-    recentClientIssues: takeRecent(clientIssues, options.limit).map((record) => ({
-      timestamp: record.timestamp,
-      receivedAt: record.receivedAt,
-      requestId: record.requestId,
-      sourceIp: sourceIp(record),
-      sourceId: sourceId(record),
-      diagnosticCode: diagnosticCode(record),
-      level: record.level,
-      module: record.module,
-      eventType: record.eventType,
-      path: record.path ?? record.context?.path,
-      message: record.message,
-      error: record.error,
-      rawChars: record.rawChars ?? (typeof record.raw === 'string' ? record.raw.length : undefined),
-    })),
-    recentDebugIssues: takeRecent(debugIssues, options.limit).map((record) => ({
-      timestamp: record.timestamp,
-      requestId: record.requestId,
-      sourceIp: sourceIp(record),
-      sourceId: sourceId(record),
-      diagnosticCode: diagnosticCode(record),
-      category: record.category,
-      round: record.round,
-      age: record.age,
-      model: record.model,
-      callKind: record.callKind,
-      failed: record.failed,
-      failureReason: record.failureReason,
-      validationError: record.validationError,
-      promptChars: record.promptChars,
-      responseChars: record.responseChars,
-    })),
-    recentRawResponses: takeRecent(filteredRawResponses, options.limit).map((record) => ({
-      timestamp: record.timestamp,
-      requestId: record.requestId,
-      sourceIp: sourceIp(record),
-      sourceId: sourceId(record),
-      diagnosticCode: diagnosticCode(record),
-      provider: record.provider,
-      model: record.model,
-      status: record.status,
-      responseChars: record.responseChars,
-    })),
-    recentFeedback: takeRecent(filteredFeedback, options.limit).map((record) => ({
-      feedbackId: record.feedbackId,
-      receivedAt: record.receivedAt,
-      sourceIp: sourceIp(record),
-      sourceId: sourceId(record),
-      diagnosticCode: diagnosticCode(record),
-      category: record.category,
-      subject: record.subject,
-      page: record.page,
-      appVersion: record.appVersion,
-      diagnosticSessionId: record.diagnosticSessionId,
-      recentStoryEntries: record.recentStoryEntries,
-      recentStoryChars: record.recentStoryChars,
-      recentClientLogEntries: record.recentClientLogEntries,
-      status: latestFeedbackStatus.get(record.feedbackId)?.status ?? 'new',
-      statusLabel: FEEDBACK_STATUS_LABELS[latestFeedbackStatus.get(record.feedbackId)?.status ?? 'new'],
-      statusUpdatedAt: latestFeedbackStatus.get(record.feedbackId)?.timestamp ?? null,
-    })),
-    recentFeedbackStatusEvents: takeRecent(filteredFeedbackStatus, options.limit).map((record) => ({
-      eventId: record.eventId,
-      timestamp: record.timestamp,
-      feedbackId: record.feedbackId,
-      previousStatus: record.previousStatus,
-      status: record.status,
-      operator: record.operator,
-      note: record.note,
-      evidence: record.evidence,
-      duplicateOf: record.duplicateOf,
-    })),
-    recentRequests: options.playerCode
-      ? takeRecent(filteredAccess, options.limit).map((record) => ({
-        timestamp: record.timestamp,
-        requestId: record.request_id,
-        diagnosticCode: diagnosticCode(record),
-        provider: record.provider,
-        model: record.model,
-        status: record.status,
-        durationMs: record.duration_ms,
-        retryCount: record.retry_count,
-      }))
-      : undefined,
-    recentClientEvents: options.playerCode
-      ? takeRecent(filteredClients, options.limit).map((record) => ({
-        timestamp: record.timestamp,
-        receivedAt: record.receivedAt,
-        requestId: record.requestId,
-        diagnosticCode: diagnosticCode(record),
-        level: record.level,
-        module: record.module,
-        eventType: record.eventType,
-        action: record.action,
-        path: record.path ?? record.context?.path,
-        message: record.message,
-        error: record.error,
-      }))
-      : undefined,
-    storyRepetition: playerStoryRepetition,
-    recentDebugEvents: options.playerCode
-      ? takeRecent(filteredDebug, options.limit).map((record) => ({
-        timestamp: record.timestamp,
-        requestId: record.requestId,
-        diagnosticCode: diagnosticCode(record),
-        category: record.category,
-        round: record.round,
-        age: record.age,
-        model: record.model,
-        callKind: record.callKind,
-        failed: record.failed,
-        validationPassed: record.validationPassed,
-        promptChars: record.promptChars,
-        responseChars: record.responseChars,
-      }))
-      : undefined,
-    feedbackContent,
-    traces: (options.requestId || options.playerCode || options.includeContent)
-      ? (hydratedTraces ?? takeRecent(filteredTraces, options.limit))
-        .map((record) => summarizeTrace(record, options.includeContent))
-      : undefined,
-    clientEvents: options.includeContent ? hydratedClients : undefined,
-    debugEvents: options.includeContent ? hydratedDebug : undefined,
-    rawResponseContent: options.includeContent ? hydratedRawResponses : undefined,
-  }
-
-  console.log(JSON.stringify(result, null, 2))
 }
 
-main().catch((error) => {
+try {
+  main()
+} catch (error) {
   console.error(`[inspect-ai-logs] ${error instanceof Error ? error.message : String(error)}`)
   process.exit(1)
-})
+}

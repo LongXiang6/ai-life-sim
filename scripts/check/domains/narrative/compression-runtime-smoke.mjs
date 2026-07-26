@@ -32,7 +32,7 @@ const readNumericConstant = (name) => {
   return Number(match[1])
 }
 const SUMMARY_INTERVAL = readNumericConstant('SUMMARY_INTERVAL')
-const COMPRESS_L1_DELAY_ROUNDS = readNumericConstant('COMPRESS_L1_DELAY_ROUNDS')
+const COMPRESS_L1_DELAY_BLOCKS = readNumericConstant('COMPRESS_L1_DELAY_BLOCKS')
 const recentWindowExpression = constantsSource.match(
   /export const RECENT_NARRATIVE_WINDOW = SUMMARY_INTERVAL/,
 )
@@ -145,25 +145,29 @@ assertOk(
 
 function expectedL1Range(totalRounds) {
   const blockIndex = Math.floor(totalRounds / SUMMARY_INTERVAL)
-  const blockRound = totalRounds % SUMMARY_INTERVAL
-  if (blockRound !== 0 || blockIndex < 1) return null
-  const targetBlock = blockIndex - 1
+  const targetBlock = blockIndex - 1 - COMPRESS_L1_DELAY_BLOCKS
+  if (targetBlock < 0) return null
   return [targetBlock * SUMMARY_INTERVAL + 1, (targetBlock + 1) * SUMMARY_INTERVAL]
 }
 
-assertOk(expectedL1Range(4) === null, 'L1 must wait for one complete five-round block')
+assertOk(expectedL1Range(4) === null, 'L1 must wait for one delayed four-round block')
 assertOk(
-  JSON.stringify(expectedL1Range(5)) === JSON.stringify([1, 5]),
-  'the first L1 must cover rounds 1-5 immediately after round 5',
+  JSON.stringify(expectedL1Range(8)) === JSON.stringify([1, 4]),
+  'the first L1 must cover rounds 1-4 after round 8',
 )
 assertOk(
-  JSON.stringify(expectedL1Range(10)) === JSON.stringify([6, 10]),
-  'the second L1 must cover rounds 6-10 immediately after round 10',
+  JSON.stringify(expectedL1Range(12)) === JSON.stringify([5, 8]),
+  'the second L1 must cover rounds 5-8 after round 12',
+)
+assertOk(
+  JSON.stringify(expectedL1Range(16)) === JSON.stringify([9, 12]),
+  'the third L1 must cover rounds 9-12 after round 16',
 )
 assertOk(
   RECENT_NARRATIVE_WINDOW === SUMMARY_INTERVAL,
-  'the raw prompt window must stay at one five-round L1 block',
+  'the raw prompt window must stay at one four-round L1 block',
 )
+assertOk(COMPRESS_L1_DELAY_BLOCKS === 1, 'L1 must retain one complete block before compression')
 
 const orchestratorSource = fs.readFileSync(
   path.join(root, 'src/mods/mod-engine/subsystems/orchestrator-system.ts'),
@@ -203,10 +207,10 @@ assertOk(
   'production memory assembly must preserve the caller-provided raw window and use hierarchical leaf summaries',
 )
 assertOk(
-  summaryPromptSource.includes('eventRecords.digest')
-    && summaryPromptSource.includes('eventRecords.keyEvents')
-    && summaryPromptSource.includes('importance'),
-  'L1 summary Prompt must receive the extra digest and per-event weights',
+  summaryPromptSource.includes('eventRecords')
+    && summaryPromptSource.includes('sourceFacts')
+    && summaryPromptSource.includes('sourceIds'),
+  'timeline compression Prompt must receive full event records and traceable source IDs',
 )
 assertOk(
   summaryPromptSource.includes('SUMMARY_COMPLETION_MARKER')
@@ -215,12 +219,19 @@ assertOk(
   'summary Prompt must require complete coverage without a semantic character cap',
 )
 assertOk(
-  compressorSource.includes('requireCompletedSummaryContent')
+  compressorSource.includes('TimelineCompressionOutputSchema')
+    && compressorSource.includes('buildCompressedMemoryEvents')
     && summaryCoverageSource.includes('摘要缺少完整覆盖标记')
-    && !/轮(?:综合|时代|纪元|历史)概略/.test(compressorSource)
+    && !/\btotalL[4-6]\b/.test(compressorSource)
     && !compressorSource.includes('fallbackParts')
-    && compressorSource.includes('失败不得建立覆盖节点或成功统计'),
+    && compressorSource.includes('保留低层来源等待重试'),
   'incomplete or failed compression at every level must retain leaves without creating fallback coverage or success statistics',
+)
+assertOk(
+  compressorSource.includes('isCurrentAlignedSummary(summary, level)')
+    && compressorSource.includes('isCurrentAlignedSummary(summary, childLevel)')
+    && compressorSource.includes('summary.endRound === endRound'),
+  'legacy summary boundaries must not block current four-round L1 or higher-level promotion',
 )
 assertOk(
   engineUtilsSource.includes('computeCoverageSafeSummaryTokens')

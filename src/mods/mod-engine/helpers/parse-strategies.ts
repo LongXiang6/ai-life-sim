@@ -11,7 +11,7 @@ import type { ParsedNarrative } from '../subsystems/narrative-parser-system'
 import type { ChineseTextProcessor } from './chinese-text-processor'
 import { mapRawNarrativeChanges } from './narrative-change-bundle'
 import { normalizeNarrativeBranchOptions } from './narrative-branch-policy'
-import { extractTaggedMetaEnvelope } from './tagged-meta-envelope'
+import { extractTaggedMetaEnvelope, extractTaggedNarrativePrefix } from './tagged-meta-envelope'
 import {
   NarrativeResponseSchema,
   type NarrativeIntentResolution,
@@ -60,6 +60,14 @@ interface RawAIResponse {
 
 /** 清理 AI 在降级/嵌套输出时残留到正文里的信封标签，避免 UI 直接显示协议标记。 */
 function stripNarrativeEnvelopeArtifacts(text: string): string {
+  const taggedPrefix = extractTaggedNarrativePrefix(text)
+  if (taggedPrefix) {
+    const hasBoundary = taggedPrefix.hasSummaryMarker
+      || taggedPrefix.hasDataMarker
+      || taggedPrefix.hasEndMarker
+    return hasBoundary ? taggedPrefix.narrative : ''
+  }
+
   const normalized = text.replace(/\r\n?/gu, '\n')
   const bodyStart = normalized.indexOf(NARRATIVE_BODY_TAG)
   const narrativeStart = bodyStart >= 0 ? bodyStart + NARRATIVE_BODY_TAG.length : 0
@@ -221,7 +229,9 @@ export class RegexExtractStrategy implements ParseStrategy {
   parse(content: string, processor: ChineseTextProcessor): ParsedNarrative | null {
     const extracted = this.extractNarrativeField(content, processor)
     if (!extracted) return null
-    return { narrative: extracted, changes: [], notableEvents: [] }
+    const narrative = stripNarrativeEnvelopeArtifacts(extracted)
+    if (!narrative) return null
+    return { narrative, changes: [], notableEvents: [] }
   }
 
   /**
@@ -273,8 +283,17 @@ export class PlainTextStrategy implements ParseStrategy {
   readonly name = 'plain-text'
 
   parse(content: string, processor: ChineseTextProcessor): ParsedNarrative | null {
+    const taggedPrefix = extractTaggedNarrativePrefix(content)
+    if (
+      taggedPrefix
+      && !taggedPrefix.hasSummaryMarker
+      && !taggedPrefix.hasDataMarker
+      && !taggedPrefix.hasEndMarker
+    ) return null
     const chineseBlock = processor.extractLongestChineseBlock(content)
     if (!chineseBlock) return null
-    return { narrative: chineseBlock, changes: [] as SubSystemChanges[], notableEvents: [] }
+    const narrative = stripNarrativeEnvelopeArtifacts(chineseBlock)
+    if (!narrative) return null
+    return { narrative, changes: [] as SubSystemChanges[], notableEvents: [] }
   }
 }

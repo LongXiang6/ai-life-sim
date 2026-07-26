@@ -24,6 +24,8 @@ const serverPrompt = read('src/mods/mod-engine/server/narrative-system-prompt.ts
 const repairServerPrompt = read('src/mods/mod-engine/server/narrative-repair-system-prompt.ts')
 const branchRepairContract = read('src/mods/mod-engine/prompts/narrative-branch-repair-prompt.ts')
 const branchRepairServerPrompt = read('src/mods/mod-engine/server/narrative-branch-repair-system-prompt.ts')
+const dataRepairContract = read('src/mods/mod-engine/prompts/narrative-data-repair-prompt.ts')
+const dataRepairServerPrompt = read('src/mods/mod-engine/server/narrative-data-repair-system-prompt.ts')
 const repetitionRepairContract = read('src/mods/mod-engine/prompts/narrative-repetition-repair-prompt.ts')
 const repetitionRepairServerPrompt = read('src/mods/mod-engine/server/narrative-repetition-repair-system-prompt.ts')
 const repetitionAuditServerPrompt = read('src/mods/mod-engine/server/narrative-repetition-audit-system-prompt.ts')
@@ -37,7 +39,7 @@ const settingsModal = read('src/mods/mod-settings/components/SettingsModal.tsx')
 const settingsIndex = read('src/mods/mod-settings/index.ts')
 
 assertOk(
-  promptContract.includes("version: '4.6.1'")
+  promptContract.includes("version: '4.7.0'")
     && promptContract.includes("systemPrompt: ''")
     && promptContract.includes('serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID'),
   'browser PromptTemplate must carry only the server asset ID',
@@ -79,6 +81,16 @@ assertOk(
     && repairServerPrompt.includes('buildNarrativeAIProtocolStandardExample')
     && serverEntry.includes('NARRATIVE_REPAIR_SERVER_PROMPT_ASSET_ID'),
   'the compact repair asset must remain server-owned and reuse the single protocol source',
+)
+assertOk(
+  dataRepairContract.includes("'mod-engine:narrative-data-repair:1.0.0'")
+    && dataRepairContract.includes("outputFormat: 'json'")
+    && dataRepairContract.includes('outputSchema: NarrativeDataRepairObjectSchema')
+    && dataRepairServerPrompt.includes('COMPILED_NARRATIVE_DATA_REPAIR_SYSTEM_PROMPT')
+    && dataRepairServerPrompt.includes('最终只能返回一个完整 JSON 对象')
+    && dataRepairServerPrompt.includes('禁止正文、摘要、分区标签')
+    && serverEntry.includes('NARRATIVE_DATA_REPAIR_SERVER_PROMPT_ASSET_ID'),
+  'valid narrative bodies must use a protected data-only repair asset with an object gate and caller-owned precise validation',
 )
 assertOk(
   serverPrompt.includes('你是人生模拟器的主叙事引擎')

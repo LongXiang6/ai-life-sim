@@ -4,6 +4,8 @@ import { createHash, randomUUID } from 'node:crypto'
 import { gunzipSync, gzipSync } from 'node:zlib'
 
 import type { CloudGameRecord } from '@/core/account/account-contract'
+import { verifyStoredLifeScore } from '@/core/scoring/life-scoring'
+import { appendDevelopmentSystemEvents } from '@/core/logger/development-system-diagnostic.server'
 
 import {
   CLOUD_MANUAL_SAVE_MAX_COMPRESSED_BYTES,
@@ -15,6 +17,7 @@ import {
   isLeaderboardEligible,
   type CloudManualSaveSummary,
   type CloudManualSaveWrite,
+  type LegendaryEncounterProjection,
   type LeaderboardEntry,
   type LeaderboardProjection,
   type PlayerMailMessage,
@@ -35,6 +38,31 @@ interface StoredCloudSaveRow {
   compressed_bytes: number
   uncompressed_bytes: number
   updated_at: number
+}
+
+function recordScoringVerification(
+  record: CloudGameRecord,
+  operation: 'leaderboard-projection' | 'portrait-queue',
+  verification: ReturnType<typeof verifyStoredLifeScore>,
+): void {
+  void appendDevelopmentSystemEvents([{
+    schemaVersion: 1,
+    timestamp: Date.now(),
+    system: 'life-scoring',
+    event: operation,
+    status: verification.valid ? 'ok' : 'error',
+    ...(record.scoring?.audit?.lifeRunId
+      ? { lifeRunId: record.scoring.audit.lifeRunId }
+      : {}),
+    ...(record.rounds > 0 ? { round: record.rounds } : {}),
+    details: {
+      recordId: record.recordId,
+      score: record.overallScore,
+      verificationReasons: verification.reasons,
+    },
+  }]).catch((error) => {
+    console.error('[player-content] 开发评分诊断写入失败', error)
+  })
 }
 
 export class PlayerContentServiceError extends Error {
@@ -192,16 +220,10 @@ export function deleteCloudManualSave(accountId: string): boolean {
 }
 
 export function projectLeaderboardRecord(accountId: string, source: CloudGameRecord, now = Date.now()): LeaderboardProjection | null {
-  const record = CloudGameRecordLeaderboardSchema.parse({
-    recordId: source.recordId,
-    completedAt: source.completedAt,
-    characterName: source.characterName,
-    worldName: source.worldName,
-    finalAge: source.finalAge,
-    rounds: source.rounds,
-    overallScore: source.overallScore,
-  })
-  if (!isLeaderboardEligible(record)) return null
+  const record = CloudGameRecordLeaderboardSchema.parse(source)
+  const verification = verifyStoredLifeScore(record)
+  recordScoringVerification(record, 'leaderboard-projection', verification)
+  if (!verification.valid || !isLeaderboardEligible(record)) return null
   const database = getPlayerContentDatabase()
   const current = database.prepare(`
     SELECT score, rounds, record_id, completed_at
@@ -217,16 +239,32 @@ export function projectLeaderboardRecord(accountId: string, source: CloudGameRec
     recordId: current.record_id,
     completedAt: current.completed_at,
   } : null
+  const portrait = database.prepare(`
+    SELECT asset_id FROM player_mail_messages
+    WHERE account_id = ? AND record_id = ? AND kind = 'portrait'
+  `).get(accountId, record.recordId) as { asset_id: string | null } | undefined
   database.prepare(`
-    INSERT INTO leaderboard_best_runs(account_id, record_id, score, rounds, completed_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO leaderboard_best_runs(
+      account_id, record_id, score, rounds, completed_at, record_json, portrait_asset_id, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(account_id) DO UPDATE SET
       record_id = excluded.record_id,
       score = excluded.score,
       rounds = excluded.rounds,
       completed_at = excluded.completed_at,
+      record_json = excluded.record_json,
+      portrait_asset_id = excluded.portrait_asset_id,
       updated_at = excluded.updated_at
-  `).run(accountId, record.recordId, record.overallScore, record.rounds, record.completedAt, now)
+  `).run(
+    accountId,
+    record.recordId,
+    record.overallScore,
+    record.rounds,
+    record.completedAt,
+    JSON.stringify(record),
+    portrait?.asset_id ?? null,
+    now,
+  )
   return {
     score: record.overallScore,
     rounds: record.rounds,
@@ -236,16 +274,13 @@ export function projectLeaderboardRecord(accountId: string, source: CloudGameRec
 }
 
 export function queuePortraitMailJob(accountId: string, source: CloudGameRecord, now = Date.now()): boolean {
-  const record = CloudGameRecordLeaderboardSchema.parse({
-    recordId: source.recordId,
-    completedAt: source.completedAt,
-    characterName: source.characterName,
-    worldName: source.worldName,
-    finalAge: source.finalAge,
-    rounds: source.rounds,
-    overallScore: source.overallScore,
-  })
-  if (record.overallScore !== 100) return false
+  const record = CloudGameRecordLeaderboardSchema.parse(source)
+  const verification = verifyStoredLifeScore(record)
+  recordScoringVerification(record, 'portrait-queue', verification)
+  if (!verification.valid
+    || !isLeaderboardEligible(record)
+    || record.overallScore !== 100
+    || record.scoring?.integrity.perfectGatePassed !== true) return false
   return getPlayerContentDatabase().prepare(`
     INSERT INTO portrait_mail_jobs(account_id, record_id, status, created_at, updated_at)
     VALUES (?, ?, 'awaiting_brief', ?, ?)
@@ -260,7 +295,9 @@ export function projectStructuredGameRecords(accountId: string, records: readonl
     const perfectRecordIds = new Set<string>()
     for (const record of records) {
       projectLeaderboardRecord(accountId, record, now)
-      if (record.overallScore === 100) perfectRecordIds.add(record.recordId)
+      if (record.overallScore === 100 && record.scoring?.integrity.perfectGatePassed) {
+        perfectRecordIds.add(record.recordId)
+      }
       queuePortraitMailJob(accountId, record, now)
     }
     const removableJobs = database.prepare(`
@@ -274,6 +311,12 @@ export function projectStructuredGameRecords(accountId: string, records: readonl
       if (!perfectRecordIds.has(job.record_id)) removeJob.run(accountId, job.record_id)
     }
   })()
+  // 账号同步也可能是游客满分存档第一次被领取的时机；让画像 worker 在进程内异步接管，不阻塞同步响应。
+  if (records.some((record) => record.overallScore === 100 && record.scoring?.integrity.perfectGatePassed === true)) {
+    void import('./portrait-mail-service')
+      .then(({ schedulePortraitMailWorker }) => schedulePortraitMailWorker())
+      .catch(() => undefined)
+  }
 }
 
 export function deletePlayerContentForAccount(accountId: string): void {
@@ -287,6 +330,9 @@ export function deletePlayerContentForAccount(accountId: string): void {
     database.prepare('DELETE FROM portrait_mail_jobs WHERE account_id = ?').run(accountId)
     database.prepare('DELETE FROM player_mail_messages WHERE account_id = ?').run(accountId)
     database.prepare('DELETE FROM portrait_assets WHERE account_id = ?').run(accountId)
+    database.prepare('DELETE FROM legendary_run_decisions WHERE source_account_id = ? OR target_key = ?')
+      .run(accountId, `account:${accountId}`)
+    database.prepare('DELETE FROM legendary_target_states WHERE target_key = ?').run(`account:${accountId}`)
   })()
   removePortraitAssets(assets.map((asset) => asset.storage_key))
 }
@@ -308,9 +354,9 @@ export function readLeaderboardEntries(
 ): LeaderboardEntry[] {
   const safeLimit = Math.max(1, Math.min(100, Math.trunc(limit)))
   const rows = getPlayerContentDatabase().prepare(`
-    SELECT account_id, record_id, score, rounds, completed_at
+    SELECT account_id, record_id, score, rounds, completed_at, record_json, portrait_asset_id
     FROM leaderboard_best_runs
-    ORDER BY score DESC, rounds DESC, completed_at ASC, account_id ASC
+    ORDER BY score DESC, rounds DESC, completed_at ASC, record_id ASC
     LIMIT ?
   `).all(safeLimit) as Array<{
     account_id: string
@@ -318,21 +364,213 @@ export function readLeaderboardEntries(
     score: number
     rounds: number
     completed_at: number
+    record_json: string
+    portrait_asset_id: string | null
   }>
-  return rows
-    .filter((row) => usernames.has(row.account_id))
-    .map((row, index) => ({
-      rank: index + 1,
-      username: usernames.get(row.account_id)!,
+  const entries: LeaderboardEntry[] = []
+  for (const row of rows) {
+    const username = usernames.get(row.account_id)
+    if (!username) continue
+    let record: CloudGameRecord
+    try {
+      record = CloudGameRecordLeaderboardSchema.parse(JSON.parse(row.record_json))
+    } catch {
+      continue
+    }
+    if (!verifyStoredLifeScore(record).valid || !isLeaderboardEligible(record)) continue
+    entries.push({
+      rank: entries.length + 1,
+      username,
       score: row.score,
       rounds: row.rounds,
       recordId: row.record_id,
       completedAt: row.completed_at,
-    }))
+      characterName: record.characterName,
+      worldName: record.worldName,
+      finalAge: record.finalAge,
+      dimensions: record.dimensions,
+      endingReview: record.endingReview!,
+      achievements: record.achievements ?? [],
+      portraitAssetId: row.portrait_asset_id,
+      portraitAssetUrl: row.portrait_asset_id
+        ? `/api/leaderboard/assets/${encodeURIComponent(row.portrait_asset_id)}`
+        : null,
+    })
+  }
+  return entries
+}
+
+export function readLeaderboardPortraitAsset(
+  assetId: string,
+): { mimeType: string; storageKey: string } | null {
+  const row = getPlayerContentDatabase().prepare(`
+    SELECT assets.mime_type, assets.storage_key
+    FROM leaderboard_best_runs AS leaderboard
+    JOIN portrait_assets AS assets ON assets.id = leaderboard.portrait_asset_id
+    WHERE leaderboard.portrait_asset_id = ?
+  `).get(assetId) as { mime_type: string; storage_key: string } | undefined
+  return row ? { mimeType: row.mime_type, storageKey: row.storage_key } : null
+}
+
+interface LegendaryTargetStateRow {
+  completed_run_decisions: number
+  cooldown_remaining: number
+  seen_record_ids_json: string
+}
+
+function parseSeenLegendIds(raw: string): string[] {
+  try {
+    const value = JSON.parse(raw) as unknown
+    if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) return []
+    return [...new Set(value)]
+  } catch {
+    return []
+  }
+}
+
+function deterministicLegendNumber(...parts: Array<string | number>): number {
+  return createHash('sha256').update(parts.join('\u0000')).digest().readUInt32BE(0)
+}
+
+function parseLegendProjection(raw: string | null): LegendaryEncounterProjection | null {
+  if (!raw) return null
+  try {
+    const value = JSON.parse(raw) as LegendaryEncounterProjection
+    return value
+      && typeof value.sourceRecordId === 'string'
+      && typeof value.characterName === 'string'
+      && typeof value.worldName === 'string'
+      && typeof value.endingReview === 'string'
+      && Array.isArray(value.achievements)
+      && Number.isInteger(value.selectedAt)
+      ? value
+      : null
+  } catch {
+    return null
+  }
+}
+
+export function selectLegendaryEncounter(input: {
+  targetKey: string
+  targetAccountId?: string
+  targetLifeRunId: string
+  now?: number
+}): LegendaryEncounterProjection | null {
+  const database = getPlayerContentDatabase()
+  const now = input.now ?? Date.now()
+  return database.transaction(() => {
+    const existing = database.prepare(`
+      SELECT status, projection_json FROM legendary_run_decisions
+      WHERE target_life_run_id = ? AND target_key = ?
+    `).get(input.targetLifeRunId, input.targetKey) as {
+      status: 'none' | 'selected' | 'injected'
+      projection_json: string | null
+    } | undefined
+    if (existing) return existing.status === 'none' ? null : parseLegendProjection(existing.projection_json)
+
+    const state = database.prepare(`
+      SELECT completed_run_decisions, cooldown_remaining, seen_record_ids_json
+      FROM legendary_target_states WHERE target_key = ?
+    `).get(input.targetKey) as LegendaryTargetStateRow | undefined
+    const decisionNumber = (state?.completed_run_decisions ?? 0) + 1
+    let cooldownRemaining = state?.cooldown_remaining ?? 0
+    const seenIds = parseSeenLegendIds(state?.seen_record_ids_json ?? '[]')
+    let selected: {
+      accountId: string
+      record: CloudGameRecord
+      projection: LegendaryEncounterProjection
+    } | null = null
+
+    if (cooldownRemaining > 0) {
+      cooldownRemaining -= 1
+    } else {
+      const draw = deterministicLegendNumber(input.targetKey, input.targetLifeRunId, decisionNumber, 'gate') / 0x1_0000_0000
+      if (draw < 0.2) {
+        const rows = database.prepare(`
+          SELECT account_id, record_json FROM leaderboard_best_runs
+          WHERE score = 100
+          ORDER BY completed_at ASC, record_id ASC
+        `).all() as Array<{ account_id: string; record_json: string }>
+        const candidates = rows.flatMap((row) => {
+          if (row.account_id === input.targetAccountId) return []
+          try {
+            const record = CloudGameRecordLeaderboardSchema.parse(JSON.parse(row.record_json))
+            if (record.overallScore !== 100
+              || !verifyStoredLifeScore(record).valid
+              || !isLeaderboardEligible(record)
+              || seenIds.includes(record.recordId)) return []
+            return [{ accountId: row.account_id, record }]
+          } catch {
+            return []
+          }
+        })
+        if (candidates.length > 0) {
+          const index = deterministicLegendNumber(input.targetKey, input.targetLifeRunId, decisionNumber, 'source') % candidates.length
+          const candidate = candidates[index]!
+          selected = {
+            accountId: candidate.accountId,
+            record: candidate.record,
+            projection: {
+              sourceRecordId: candidate.record.recordId,
+              characterName: candidate.record.characterName,
+              worldName: candidate.record.worldName,
+              endingReview: candidate.record.endingReview!.review,
+              achievements: candidate.record.achievements ?? [],
+              selectedAt: now,
+            },
+          }
+          seenIds.push(candidate.record.recordId)
+          cooldownRemaining = 3
+        }
+      }
+    }
+
+    database.prepare(`
+      INSERT INTO legendary_run_decisions(
+        target_life_run_id, target_key, source_account_id, source_record_id,
+        status, projection_json, selected_at, injected_round, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?)
+    `).run(
+      input.targetLifeRunId,
+      input.targetKey,
+      selected?.accountId ?? null,
+      selected?.record.recordId ?? null,
+      selected ? 'selected' : 'none',
+      selected ? JSON.stringify(selected.projection) : null,
+      now,
+      now,
+    )
+    database.prepare(`
+      INSERT INTO legendary_target_states(
+        target_key, completed_run_decisions, cooldown_remaining, seen_record_ids_json, updated_at
+      ) VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(target_key) DO UPDATE SET
+        completed_run_decisions = excluded.completed_run_decisions,
+        cooldown_remaining = excluded.cooldown_remaining,
+        seen_record_ids_json = excluded.seen_record_ids_json,
+        updated_at = excluded.updated_at
+    `).run(input.targetKey, decisionNumber, cooldownRemaining, JSON.stringify(seenIds), now)
+    return selected?.projection ?? null
+  })()
+}
+
+export function markLegendaryEncounterInjected(input: {
+  targetKey: string
+  targetLifeRunId: string
+  round: number
+  now?: number
+}): boolean {
+  const now = input.now ?? Date.now()
+  return getPlayerContentDatabase().prepare(`
+    UPDATE legendary_run_decisions
+    SET status = 'injected', injected_round = COALESCE(injected_round, ?), updated_at = ?
+    WHERE target_key = ? AND target_life_run_id = ? AND status IN ('selected', 'injected')
+  `).run(Math.max(1, Math.trunc(input.round)), now, input.targetKey, input.targetLifeRunId).changes > 0
 }
 
 export function readPlayerMail(accountId: string): PlayerMailMessage[] {
-  const rows = getPlayerContentDatabase().prepare(`
+  const database = getPlayerContentDatabase()
+  const rows = database.prepare(`
     SELECT id, kind, record_id, title, body, asset_id, created_at, read_at
     FROM player_mail_messages
     WHERE account_id = ?
@@ -347,7 +585,7 @@ export function readPlayerMail(accountId: string): PlayerMailMessage[] {
     created_at: number
     read_at: number | null
   }>
-  return rows.map((row) => ({
+  const messages: PlayerMailMessage[] = rows.map((row) => ({
     id: row.id,
     kind: row.kind,
     recordId: row.record_id,
@@ -356,7 +594,39 @@ export function readPlayerMail(accountId: string): PlayerMailMessage[] {
     assetId: row.asset_id,
     createdAt: row.created_at,
     readAt: row.read_at,
+    status: 'ready',
   }))
+  const existingRecordIds = new Set(messages.map((message) => message.recordId))
+  const jobs = database.prepare(`
+    SELECT record_id, status, last_error_code, created_at, updated_at
+    FROM portrait_mail_jobs
+    WHERE account_id = ? AND status IN ('awaiting_brief', 'processing', 'failed')
+    ORDER BY created_at DESC, record_id ASC
+  `).all(accountId) as Array<{
+    record_id: string
+    status: 'awaiting_brief' | 'processing' | 'failed'
+    last_error_code: string | null
+    created_at: number
+    updated_at: number
+  }>
+  for (const job of jobs) {
+    if (existingRecordIds.has(job.record_id)) continue
+    messages.push({
+      id: `portrait-job:${accountId}:${job.record_id}`,
+      kind: 'portrait',
+      recordId: job.record_id,
+      title: job.status === 'failed' ? '满分人生画像生成失败' : '满分人生画像处理中',
+      body: job.status === 'failed'
+        ? `画像生成暂时失败（${job.last_error_code ?? 'unknown'}），服务端会在下一次任务调度时重试。`
+        : '画像任务已入队，完成后会自动寄到这里。',
+      assetId: null,
+      createdAt: job.created_at,
+      readAt: null,
+      status: job.status === 'failed' ? 'failed' : 'processing',
+      ...(job.last_error_code ? { errorCode: job.last_error_code } : {}),
+    })
+  }
+  return messages.sort((left, right) => right.createdAt - left.createdAt || left.id.localeCompare(right.id))
 }
 
 export function markPlayerMailRead(accountId: string, messageId: string, now = Date.now()): boolean {

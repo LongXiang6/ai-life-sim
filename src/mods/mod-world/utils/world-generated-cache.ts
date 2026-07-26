@@ -8,13 +8,23 @@ import { cacheStore, configStore, saveStore } from '@/core'
 
 const STORAGE_PREFIX = 'ai-life-sim'
 
+const DESTINY_POOL_CACHE_PREFIX = 'mod-character:cache:destiny-pool:'
+
 const CACHE_KEY_PATTERNS: RegExp[] = [
-  /^mod-character:cache:destiny-pool:(\d+)/,
   /^mod-world:save:0:init-cal:(\d+)/,
   /^mod-world:save:0:entities:(\d+)/,
   /^mod-base-universe:save:0:world-map:(\d+)/,
   /^mod-pages:config:(?:talent-draw|fate-preview|attribute-alloc|character-create-form):(\d+)/,
 ]
+
+function parseDestinyPoolWorldCode(logicalKey: string): number | null {
+  if (!logicalKey.startsWith(DESTINY_POOL_CACHE_PREFIX)) return null
+  const suffix = logicalKey.slice(DESTINY_POOL_CACHE_PREFIX.length)
+  const rawWorldCode = suffix.slice(suffix.lastIndexOf(':') + 1)
+  if (!/^\d+$/.test(rawWorldCode)) return null
+  const worldCode = Number.parseInt(rawWorldCode, 10)
+  return worldCode > 0 ? worldCode : null
+}
 
 function stripStoragePrefix(fullKey: string): string | null {
   if (!fullKey.startsWith(`${STORAGE_PREFIX}:`)) return null
@@ -31,6 +41,11 @@ export function scanWorldCodesWithGeneratedCache(): Set<number> {
     if (!raw) continue
     const stripped = stripStoragePrefix(raw)
     if (!stripped) continue
+    const destinyPoolWorldCode = parseDestinyPoolWorldCode(stripped)
+    if (destinyPoolWorldCode !== null) {
+      codes.add(destinyPoolWorldCode)
+      continue
+    }
     for (const pattern of CACHE_KEY_PATTERNS) {
       const match = stripped.match(pattern)
       if (match) {
@@ -58,6 +73,14 @@ export function clearWorldGeneratedCache(worldCode: number): void {
 
   try {
     cacheStore.remove('mod-character', `destiny-pool:${worldCode}`)
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const raw = localStorage.key(i)
+      if (!raw) continue
+      const stripped = stripStoragePrefix(raw)
+      if (stripped && parseDestinyPoolWorldCode(stripped) === worldCode) {
+        localStorage.removeItem(raw)
+      }
+    }
   } catch {
     /* ignore */
   }

@@ -1,21 +1,11 @@
 # QQ Bot 联动接口契约
 
-文档角色：architecture
-权威层级：A3
-状态：active
-体系路径：project > data-lifecycle > shared-qq-community > bot-adapter
-上级目标：让主项目与 QQ 群机器人共享已验证身份和积分，同时隔离账号私密数据
-下级组成：HMAC 请求认证、账号公开投影、QQ 绑定、积分事务、项目状态投影
-适用范围：`/api/integrations/qq-bot/*` 与后续 QQ Bot 调用方
-拥有者：AI Life Sim 主项目 `core/account`
-最后验证：2026-07-21；账号云专项回归、签名重放与积分事务测试
-取代关系：none
+文档角色：QQ 集成按需附件
+状态：按需读取
+适用范围：QQ Bot 接口、签名、绑定、积分和项目状态投影事实
 运行真源：`src/core/account/qq-bot-integration.ts`、`src/core/account/qq-points-service.ts` 与对应 API routes
-验收证据：`npm run test:account-cloud`、`npx tsc --noEmit`
-TreeId：DATA
-NodeId：shared-qq-community
-ParentNodeId：data-lifecycle
-存储权威：database
+
+本文件只提供接口事实。通过 `docs/authority-index.md` 选择相关章节，不要整篇加载。当前用户要求高于本文件。
 跨树关系：projects-to UX account；consumed-by RUN external QQ Bot；verified-by QUAL account-cloud
 
 ## 1. 所有权和安全边界

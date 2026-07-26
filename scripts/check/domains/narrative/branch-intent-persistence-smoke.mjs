@@ -56,7 +56,7 @@ const migrated = migrateEnginePersistedState({
   ],
 }, 3)
 
-assertOk(ENGINE_STORE_SCHEMA_VERSION === 4, 'EngineStore branch projection must use schema version 4')
+assertOk(ENGINE_STORE_SCHEMA_VERSION === 5, 'EngineStore branch and legendary encounter projection must use schema version 5')
 assertOk(
   Array.isArray(migrated.branchIntents)
     && migrated.branchIntents.length === 1

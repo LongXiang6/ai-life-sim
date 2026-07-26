@@ -116,6 +116,8 @@ export interface PromptContext {
   creationProtectionText?: string,
   /** 子系统变更字段指南（从 System Prompt 移出的 subsystemGuide，动态注入 User Prompt） */
   subsystemGuideText?: string,
+  /** 本轮只允许 AI 返回的源变化与条件结构化结果。 */
+  changeRequirementsText?: string,
   /** 时间描写引导（totalRounds > 0 时注入，指导 AI 避免"这一年"开头） */
   timeGuideText?: string,
   /** 力量体系预设（叙事分层格式：当前可达范围完整说明，更高阶只提供边界名称） */
@@ -192,8 +194,30 @@ export const DIFFICULTY_MULTIPLIERS_FORTUNE: Record<DifficultyLevel, number> = {
 // 来源: summary-compressor-spec.md §3 完整数据结构
 // ============================================================
 
-/** 摘要压缩级别 */
-export type SummaryLevel = 1 | 2 | 3 | 4 | 5 | 6
+/** 摘要压缩级别：L1=4轮、L2=16轮、L3=64轮。 */
+export type SummaryLevel = 1 | 2 | 3
+
+/** 压缩系统拥有的时间轴记忆事件。 */
+export interface CompressedMemoryEvent {
+  /** 存档内稳定事件 ID。 */
+  id: string
+  /** 该行所属时间段。 */
+  timeSpan: string
+  /** 客观事件说明。 */
+  text: string
+  /** 事件实际发生或被发送记录的时间。 */
+  occurrenceTime: string
+  /** 本事件覆盖的直接来源事件 ID。 */
+  sourceEventIds: string[]
+  /** 本事件覆盖的原始轮次。 */
+  sourceRounds: number[]
+  /** 初始权重 1~10；10 永久不衰减。 */
+  initialWeight: number
+  /** 当前衰减算法的起算轮。更高层压缩不得重置它。 */
+  weightAnchorRound: number
+  /** 权重 10 的最初 L1 原文事件，后续层级只能原样携带。 */
+  permanent: boolean
+}
 
 /** 压缩后的摘要条目 */
 export interface CompressedSummaryItem {
@@ -205,6 +229,16 @@ export interface CompressedSummaryItem {
   endRound: number
   /** 压缩后的文本内容 */
   content: string,
+  /** 压缩系统的结构化时间轴事件；旧存档可缺失。 */
+  memoryEvents?: CompressedMemoryEvent[]
+  /** 建立该节点的模型原始返回，供存档级明文数据库补写。 */
+  rawCompressionResponse?: string
+  /** L1 建立时包含权重 1 的完整时间轴档案文本；常驻 Prompt 可再按衰减过滤。 */
+  archiveContent?: string
+  /** 直接来源摘要节点 ID。 */
+  sourceSummaryIds?: string[]
+  /** 节点建立时已完成的轮次。 */
+  createdRound?: number
   /** 摘要覆盖的上下文集合；旧存档缺失时按当前上下文兼容 */
   contextIds?: string[]
   /** 摘要覆盖的规范全局时间范围 */

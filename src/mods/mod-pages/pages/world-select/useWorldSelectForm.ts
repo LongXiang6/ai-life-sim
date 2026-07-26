@@ -10,6 +10,8 @@ import { useState } from 'react'
 
 export type Difficulty = 'normal' | 'hard' | 'nightmare' | 'hell'
 
+export const DIFFICULTY_ORDER: readonly Difficulty[] = ['normal', 'hard', 'nightmare', 'hell']
+
 export interface DifficultyConfig {
   label: string
   color: string

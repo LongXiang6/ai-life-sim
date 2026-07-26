@@ -4,6 +4,9 @@ import type {
   CloudManualSaveSummary,
   CloudManualSaveWrite,
   CloudGameSavePayload,
+  LegendaryEncounterProjection,
+  LeaderboardEntry,
+  PlayerMailMessageView,
 } from './player-content-contract'
 
 interface ErrorBody { error?: string, code?: string }
@@ -76,8 +79,8 @@ export async function removeCloudManualSave(): Promise<boolean> {
 export async function requestPortraitMail(
   recordId: string,
   lifeSummary: string,
-): Promise<{ messageId: string; created: boolean } | null> {
-  if (process.env.NEXT_PUBLIC_PLAYER_MAILBOX_ENABLED !== '1') return null
+): Promise<{ messageId: string | null; created: boolean; status: 'queued' | 'processing' | 'ready' | 'failed' } | null> {
+  if (process.env.NEXT_PUBLIC_PLAYER_MAILBOX_ENABLED === '0') return null
   const response = await fetch('/api/account/mailbox/portrait', {
     method: 'POST',
     credentials: 'same-origin',
@@ -86,5 +89,59 @@ export async function requestPortraitMail(
     body: JSON.stringify({ recordId, lifeSummary }),
   })
   if (response.status === 404) return null
-  return parseJson<{ messageId: string; created: boolean }>(response)
+  return parseJson<{ messageId: string | null; created: boolean; status: 'queued' | 'processing' | 'ready' | 'failed' }>(response)
+}
+
+export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
+  const response = await fetch('/api/leaderboard', {
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+  return (await parseJson<{ entries: LeaderboardEntry[] }>(response)).entries
+}
+
+export async function fetchPlayerMail(): Promise<PlayerMailMessageView[]> {
+  const response = await fetch('/api/account/mailbox', {
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+  return (await parseJson<{ messages: PlayerMailMessageView[] }>(response)).messages
+}
+
+export async function markPlayerMailRead(messageId: string): Promise<boolean> {
+  const response = await fetch('/api/account/mailbox', {
+    method: 'POST',
+    credentials: 'same-origin',
+    cache: 'no-store',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messageId }),
+  })
+  return (await parseJson<{ updated: boolean }>(response)).updated
+}
+
+export async function fetchLegendaryEncounter(
+  lifeRunId: string,
+): Promise<LegendaryEncounterProjection | null> {
+  const response = await fetch('/api/legendary-encounter', {
+    method: 'POST',
+    credentials: 'same-origin',
+    cache: 'no-store',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'select', lifeRunId }),
+  })
+  return (await parseJson<{ encounter: LegendaryEncounterProjection | null }>(response)).encounter
+}
+
+export async function notifyLegendaryEncounterInjected(
+  lifeRunId: string,
+  round: number,
+): Promise<boolean> {
+  const response = await fetch('/api/legendary-encounter', {
+    method: 'POST',
+    credentials: 'same-origin',
+    cache: 'no-store',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'injected', lifeRunId, round }),
+  })
+  return (await parseJson<{ updated: boolean }>(response)).updated
 }

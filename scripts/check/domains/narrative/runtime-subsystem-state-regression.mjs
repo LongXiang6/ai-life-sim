@@ -248,9 +248,10 @@ assertOk(
   'the first delayed L1 summary must not be excluded by a moving recent-round filter',
 )
 assertIncludes(orchestrator, 'this.hydrateFromEngineStore(snap.orchestrator.state.timeStep, true)', 'invalidated preview restore must preserve legitimate adaptation cache')
-assertIncludes(
-  orchestrator,
-  "if (this.state.status !== 'running' && this.state.status !== 'complete') return",
+assertOk(
+  orchestrator.includes("if (this.state.status !== 'running' && this.state.status !== 'complete') {")
+    && orchestrator.includes("reason: 'invalid-engine-status'")
+    && orchestrator.includes("status: 'skipped'"),
   'terminal rounds must still be eligible for the final auto-save',
 )
 assertOk(
@@ -486,7 +487,7 @@ const hooks = read('src/mods/mod-engine/hooks.ts')
 assertIncludes(hooks, 'syncSubsystemStoresFromStates(orchestrator.getSubsystemStateSnapshot())', 'UI sync must publish the latest subsystem snapshot')
 assertIncludes(hooks, "runtimeStatus === 'complete' ? 'complete' : 'idle'", 'advance cleanup must preserve terminal complete status')
 assertOk(
-  /waitForBackgroundCompression\(\)\.then\(\(\) => \{\s*syncOrchestratorToEngineStore\(\)\s*orchestrator\.triggerAutoSave\(\)/s.test(hooks),
+  /queueRoundFinalization\([\s\S]{0,1600}waitForBackgroundCompression\(\)[\s\S]{0,600}syncOrchestratorToEngineStore\(\)[\s\S]{0,600}(?:await\s+)?orchestrator\.triggerAutoSave\(\)/s.test(hooks),
   'automatic saves must capture state only after background summary compression commits',
 )
 assertIncludes(hooks, 'runtimeRegistry.isFrozen()', 'runtime readiness must distinguish completed bootstrap from an early partial registration')

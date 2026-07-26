@@ -9,6 +9,7 @@
 import { useState } from 'react'
 
 import { WorldSelectBottomBar } from './WorldSelectBottomBar'
+import { WorldSelectCacheResetDialog } from './WorldSelectCacheResetDialog'
 import { WorldSelectDirectory } from './WorldSelectDirectory'
 import { WorldSelectMainGrid } from './WorldSelectMainGrid'
 import { WorldSelectStage } from './WorldSelectStage'
@@ -89,6 +90,7 @@ export function WorldSelectMobile() {
               </div>
             </div>
           </main>
+          <WorldSelectCacheResetDialog logic={logic} />
           <WorldSelectBottomBar logic={logic} />
         </div>
       </div>

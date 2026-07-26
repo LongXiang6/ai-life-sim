@@ -4,7 +4,7 @@
  * @mod mod-engine
  *
  * 四方案融合设计：
- *   A. 三层记忆分离：状态卡(始终在)+叙事窗(L0近期)+历史纲(L6)，L2-L6转为检索索引
+ *   A. 三层记忆分离：状态卡(始终在)+叙事窗(L0近期)+L3历史轴，L1-L3按覆盖关系注入或检索
  *   B. 重要度分层：消费 AI 的 HIGH/NORMAL/LOW，差异化压缩保留
  *   C. 事件闭环驱动：消费 AI 的 arcStatus/arcType，避免语义断裂
  *   D. 事件聚合（合并自 span-event-aggregator）：严重度排序 + 因果链合并，完整保留当前事件
@@ -14,9 +14,9 @@
  *
  * 每轮Prompt注入内容（精简到极致）：
  *   1. 状态卡（subsystem summaries，结构化当前状态）
-   *   2. 固定最近5轮L0原文（与一个L1摘要块对齐）
- *   3. L6历史纲要（一生纵览，长期记忆框架）
- *   4. 检索命中摘要（L2-L6 中按 AI 标注实体匹配，"突然想起来的往事"）
+ *   2. 固定最近4轮L0原文（与一个L1摘要块对齐）
+ *   3. L3历史时间轴（长期记忆框架）
+ *   4. 检索命中摘要（L1-L3 中按 AI 标注实体匹配，"突然想起来的往事"）
  *   5. 聚合事件（严重事件优先，因果链合并，不做固定条数淘汰）
  *
  * AI 重要性约定：
@@ -39,6 +39,7 @@ import {
   isNarrativeRecordVisible,
   type NarrativeMemoryScope,
 } from '../helpers/narrative-context-scope'
+import { formatSummaryForPrompt } from '../helpers/timeline-memory'
 
 // ============================================================
 // 类型定义
@@ -188,11 +189,11 @@ export interface RichPromptContext {
   l2Summary: string
   /** L3 远距离叶子摘要 */
   l3Summary: string
-  /** L4 纪元叶子摘要 */
+  /** 兼容旧消费者；三层方案不再产生 L4。 */
   l4Summary: string
-  /** L5-L6 历史纲要（一生纵览） */
+  /** L3 长期历史时间轴 */
   historyOutline: string
-  /** 检索命中（从 L2-L6 结构化实体匹配） */
+  /** 检索命中（从三层结构化实体匹配） */
   retrievalHits: string[],
 }
 
@@ -224,7 +225,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
   /** 当前块中已标记的事件（尚未压缩） */
   private taggedEvents: TaggedEvent[] = []
 
-  /** 检索索引（L2-L6 摘要的结构化实体索引） */
+  /** 检索索引（L1-L3 摘要的结构化实体索引） */
   private searchIndex: IndexEntry[] = []
 
   /** 当前是否在战斗/任务/旅程中 */
@@ -623,7 +624,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
   /**
    * 将压缩后的摘要添加到检索索引
    *
-   * L2-L6摘要不重复注入Prompt，而是存入索引。
+   * L1-L3摘要不重复注入Prompt，而是存入索引。
    * 当后续回合的 AI 结构化实体与索引重合时，按需检索并临时注入。
    */
   addToIndex(
@@ -661,7 +662,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
   }
 
   /**
-   * 将 L2-L6 摘要加入同一检索索引。
+   * 将 L1-L3 摘要加入同一检索索引。
    *
    * L1 生成后，覆盖区间内的原始 TaggedEvent 会按延迟策略清理；高层摘要
    * 因此从已经建立的低层索引继承实体与最高重要度，避免远期记忆失去可检索性。
@@ -724,7 +725,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
    * 检索引擎据此调取相关叙事历史，实现"区域感知"。
    *
    * 这等价于：L0=角色当前位置的叙事，L1=城镇级摘要，L2=区域级摘要，
-   * L3=大陆级摘要，L4+=世界级摘要。检索引擎按结构化实体匹配自动选择
+   * L3=长期时间轴。检索引擎按结构化实体匹配自动选择
    * 相关层级的摘要注入 Prompt，无需手动管理地图层级。
    *
    * @param _queryText 兼容旧调用；不再读取正文做语义检索
@@ -807,7 +808,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
   }
 
   // ============================================================
-  // 核心方法4：富Prompt组装（5压缩层级+L0，适配1M上下文）
+  // 核心方法4：富Prompt组装（L1/L2/L3 + L0）
   // ============================================================
 
   /**
@@ -815,15 +816,13 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
    *
    * 注入策略（DS V4 1M上下文，可以放宽）：
    *   1. 状态卡 → 当前角色/世界状态（每轮更新）
-   *   2. L6 → 一生纵览（最远框架）
-   *   3. L4 → 纪元记忆（数百轮范围）
-   *   4. L3 → 远距离记忆（百轮范围）
-   *   5. L2 → 中距离记忆（数十轮范围）
-   *   6. L1 → 近距离记忆（最近2条摘要）
-   *   7. 检索命中 → 按需注入
-   *   8. L0 → 最近N轮原文（短期完整记忆）
+   *   2. L3 → 一生纵览（最远框架）
+   *   3. L2 → 中距离记忆
+   *   4. L1 → 近距离记忆
+   *   5. 检索命中 → 按需注入
+   *   6. L0 → 最近4轮原文（短期完整记忆）
    *
-   * 共5个压缩层级 + L0原文 + 状态卡 + 检索命中
+   * 共3个压缩层级 + L0原文 + 状态卡 + 检索命中
    *
    * @param subsystemSummaries 子系统状态文本
    * @param recentNarratives 最近原始叙事
@@ -840,10 +839,12 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
         endRound: number
         content: string
         contextIds?: string[]
+        memoryEvents?: Parameters<typeof formatSummaryForPrompt>[0]['memoryEvents']
       }>,
     },
     currentContextId?: string,
     closedContextIds?: ReadonlySet<string>,
+    currentRound = 0,
   ): RichPromptContext {
     // 检索命中
     const queryText = recentNarratives.length > 0
@@ -854,7 +855,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
     // 只注入没有被更高层摘要覆盖的叶子摘要。所有摘要仍完整保存在存储和
     // 检索索引中，这里是语义压缩后的无损覆盖选择，不是固定条数截断。
     const summaries = compressedSummaries.summaries
-    const visibleByLevel = this.selectLeafSummaries(summaries, currentContextId, closedContextIds)
+    const visibleByLevel = this.selectLeafSummaries(summaries, currentContextId, closedContextIds, currentRound)
 
     return {
       stateCard: subsystemSummaries,
@@ -862,11 +863,8 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
       l1Summaries: visibleByLevel.get(1) ?? [],
       l2Summary: (visibleByLevel.get(2) ?? []).join('\n'),
       l3Summary: (visibleByLevel.get(3) ?? []).join('\n'),
-      l4Summary: (visibleByLevel.get(4) ?? []).join('\n'),
-      historyOutline: [
-        ...(visibleByLevel.get(6) ?? []),
-        ...(visibleByLevel.get(5) ?? []),
-      ].join('\n'),
+      l4Summary: '',
+      historyOutline: '',
       retrievalHits,
     }
   }
@@ -877,7 +875,8 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
     endRound: number
     content: string
     contextIds?: string[]
-  }>, currentContextId?: string, closedContextIds?: ReadonlySet<string>): Map<number, string[]> {
+    memoryEvents?: Parameters<typeof formatSummaryForPrompt>[0]['memoryEvents']
+  }>, currentContextId?: string, closedContextIds?: ReadonlySet<string>, currentRound = 0): Map<number, string[]> {
     const byLevel = new Map<number, typeof summaries>()
     for (const summary of summaries) {
       if (!isNarrativeRecordVisible(
@@ -905,9 +904,9 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
       }
       visibleByLevel.set(level, visible.map((summary) => {
         const contextIds = summary.contextIds ?? []
-        if (contextIds.length === 0) return summary.content
+        if (contextIds.length === 0) return formatSummaryForPrompt(summary, currentRound)
         const currentMark = currentContextId && contextIds.includes(currentContextId) ? '·含当前' : ''
-        return `【上下文=${contextIds.join('、')}${currentMark}】${summary.content}`
+        return `【上下文=${contextIds.join('、')}${currentMark}】${formatSummaryForPrompt(summary, currentRound)}`
       }))
     }
 
@@ -916,20 +915,14 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
 
   /**
    * 格式化低频变化的长期记忆覆盖层。
-   * 这里只包含已经建立覆盖关系的 L1—L6 摘要，因此仅在压缩成功时变化，
+   * 这里只包含已经建立覆盖关系的 L1—L3 摘要，因此仅在压缩成功时变化，
    * 可以稳定放在记忆消息的前缀。
    */
   formatLongTermMemoryForInjection(context: RichPromptContext): string {
     const parts: string[] = []
 
-    if (context.historyOutline) {
-      parts.push('【一生纵览】', context.historyOutline)
-    }
-    if (context.l4Summary) {
-      parts.push('【纪元概览】', context.l4Summary)
-    }
     if (context.l3Summary) {
-      parts.push('【远距记忆】', context.l3Summary)
+      parts.push('【L3长期时间轴】', context.l3Summary)
     }
     if (context.l2Summary) {
       parts.push('【中距记忆】', context.l2Summary)
@@ -993,23 +986,15 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
   // ============================================================
 
   /**
-   * 获取L6历史纲要从摘要中包含的文本
+   * 获取 L3 长期时间轴文本
    */
   extractHistoryOutline(compressedSummaries: {
     summaries: Array<{ level: number; content: string }>
   },): string {
-    const l6Summaries = compressedSummaries.summaries.filter((s,) => s.level === 6,)
-    if (l6Summaries.length === 0) {
-      // 退化为查找最高层级
-      for (let level = 5; level >= 2; level--) {
-        const found = compressedSummaries.summaries.filter((s,) => s.level === level,)
-        if (found.length > 0) {
-          return found.map((s,) => s.content,).join('\n',)
-        }
-      }
-      return ''
-    }
-    return l6Summaries.map((s,) => s.content,).join('\n',)
+    return compressedSummaries.summaries
+      .filter((s,) => s.level === 3)
+      .map((s,) => s.content)
+      .join('\n')
   }
 
   /**

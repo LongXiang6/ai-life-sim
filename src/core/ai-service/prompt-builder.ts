@@ -16,7 +16,7 @@
 
  *   S3：固定前缀 + 多轮历史对话 + 当前消息
 
- *   S4（默认）：三条用户消息，全局信息 | 记忆 | 本轮引导
+ *   S4（默认）：四条用户消息，全局信息 | 记忆 | 本轮引导 | 变化要求
 
  *
 
@@ -100,7 +100,7 @@ export interface PromptSegments {
 
 
 
-/** 三层键序：全局信息 → 记忆 → 本轮引导。每层内部仍按慢到快排序。 */
+/** 四层键序：全局信息 → 记忆 → 本轮引导 → 变化要求。 */
 
 const GLOBAL_JSON_KEYS = [
   '世界规则',
@@ -112,7 +112,6 @@ const GLOBAL_JSON_KEYS = [
   '玩家自定义',
   '叙事风格',
   '叙事基调',
-  '状态变更指南',
   '篇幅偏好',
   '角色档案',
   '命格天赋',
@@ -140,6 +139,11 @@ const ROUND_JSON_KEYS = [
   '本轮导演提示',
 ] as const
 
+const CHANGE_REQUIREMENT_JSON_KEYS = [
+  '可写状态字段',
+  '本轮结构化要求',
+] as const
+
 
 
 type NarrativeJsonKey =
@@ -149,6 +153,8 @@ type NarrativeJsonKey =
   | (typeof MEMORY_JSON_KEYS)[number]
 
   | (typeof ROUND_JSON_KEYS)[number]
+
+  | (typeof CHANGE_REQUIREMENT_JSON_KEYS)[number]
 
 
 
@@ -335,7 +341,6 @@ export function buildNarrativeUserJson(
     原创保护: context.creationProtectionText,
     叙事风格: context.narrativeStyle,
     叙事基调: context.narrativeToneHint,
-    状态变更指南: context.subsystemGuideText,
     篇幅偏好: context.wordCountInstruction,
     角色档案: context.characterProfileView,
     命格天赋: context.talents,
@@ -356,12 +361,15 @@ export function buildNarrativeUserJson(
     已触发因果: context.causalChainHint,
     玩家与系统指令: context.userInstruction,
     本轮导演提示: buildRoundDirectorHint(context),
+    可写状态字段: context.subsystemGuideText,
+    本轮结构化要求: context.changeRequirementsText,
   }
 
   return {
     全局信息: pickJsonKeys(raw, GLOBAL_JSON_KEYS),
     记忆: pickJsonKeys(raw, MEMORY_JSON_KEYS),
     本轮引导: pickJsonKeys(raw, ROUND_JSON_KEYS),
+    变化要求: pickJsonKeys(raw, CHANGE_REQUIREMENT_JSON_KEYS),
   }
 
 }
@@ -409,22 +417,24 @@ export function buildSegmentedPrompt(template: PromptTemplate, context: PromptCo
   const globalInfo = (fullObj.全局信息 ?? {}) as Record<string, unknown>
   const memory = (fullObj.记忆 ?? {}) as Record<string, unknown>
   const roundGuidance = (fullObj.本轮引导 ?? {}) as Record<string, unknown>
+  const changeRequirements = (fullObj.变化要求 ?? {}) as Record<string, unknown>
 
   const globalStr = jsonToPromptString({ 全局信息: globalInfo })
   const memoryStr = jsonToPromptString({ 记忆: memory })
   const roundStr = jsonToPromptString({ 本轮引导: roundGuidance })
-  const memoryAndRoundStr = `${memoryStr}\n${roundStr}`
+  const changeRequirementsStr = jsonToPromptString({ 变化要求: changeRequirements })
+  const memoryAndRoundStr = `${memoryStr}\n${roundStr}\n${changeRequirementsStr}`
   const stablePrefixChars = globalStr.length
   const memorySegmentChars = memoryStr.length
 
   if (strategy === 'S4') {
-    const userSegments = [globalStr, memoryStr, roundStr]
+    const userSegments = [globalStr, memoryStr, roundStr, changeRequirementsStr]
     return {
       stablePrefixChars,
       memorySegmentChars,
       full,
       userSegments,
-      userMessageCount: 3,
+      userMessageCount: 4,
       strategy: 'S4',
       stablePrefix: globalStr,
       variableSuffix: memoryAndRoundStr,

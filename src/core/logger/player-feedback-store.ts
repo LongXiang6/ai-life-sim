@@ -1,21 +1,18 @@
 /**
  * @module player-feedback-store.ts
- * @description 将完整玩家反馈诊断包安全写入生产诊断目录
+ * @description 将完整玩家反馈与诊断数据写入明文日志数据库
  * @mod core
  */
 
 import 'server-only'
 
-import { randomUUID } from 'crypto'
+import { randomUUID } from 'node:crypto'
 
 import type { PlayerFeedbackEnvelope } from './feedback-contract'
 import {
-  appendSourceJsonLine,
-  appendServerJsonLine,
-  storeServerLogContent,
+  appendServerLogEntry,
   type ServerRequestSource,
 } from './server-log-store'
-import { redactSensitiveData } from './redact-sensitive-data'
 
 export interface StoredPlayerFeedback {
   feedbackId: string
@@ -32,47 +29,29 @@ export async function storePlayerFeedback(
   source: ServerRequestSource,
 ): Promise<StoredPlayerFeedback | null> {
   const receivedAt = Date.now()
-  const date = new Date(receivedAt).toISOString().slice(0, 10)
   const feedbackId = createFeedbackId(receivedAt)
-  const redactedEnvelope = redactSensitiveData(envelope) as PlayerFeedbackEnvelope
-  const storyChars = redactedEnvelope.diagnostics.recentStory.reduce((sum, entry) => {
-    const text = typeof entry.text === 'string' ? entry.text : ''
-    return sum + text.length
-  }, 0)
-  const storedRecord = {
+  const written = await appendServerLogEntry({
+    createdAt: receivedAt,
+    clientTimestamp: envelope.submittedAt,
+    entryType: 'feedback',
+    category: envelope.category,
+    level: 'info',
+    module: 'player-feedback',
+    message: envelope.subject,
     feedbackId,
-    receivedAt,
-    sourceIp: source.ip,
-    sourceId: source.sourceId,
-    diagnosticCode: source.diagnosticCode,
-    ...redactedEnvelope,
-  }
-  const submissionRef = await storeServerLogContent(storedRecord, 'json')
-  if (!submissionRef) return null
-  const indexRecord = {
-    schemaVersion: 2,
-    eventId: randomUUID(),
-    feedbackId,
-    receivedAt,
-    sourceIp: source.ip,
-    sourceId: source.sourceId,
-    diagnosticCode: source.diagnosticCode,
-    category: redactedEnvelope.category,
-    subject: redactedEnvelope.subject,
-    page: redactedEnvelope.diagnostics.app.page,
-    appVersion: redactedEnvelope.diagnostics.app.version,
-    diagnosticSessionId: redactedEnvelope.diagnostics.app.diagnosticSessionId,
-    recentStoryEntries: redactedEnvelope.diagnostics.recentStory.length,
-    recentStoryChars: storyChars,
-    recentClientLogEntries: redactedEnvelope.diagnostics.recentClientLogs.length,
-    submissionRef,
-  }
-
-  const [indexWritten, sourceIndexWritten] = await Promise.all([
-    appendServerJsonLine(`feedback/feedback-${date}.jsonl`, indexRecord),
-    appendSourceJsonLine(source, `feedback-${date}.jsonl`, indexRecord),
-  ])
-
-  if (!indexWritten || !sourceIndexWritten) return null
-  return { feedbackId, receivedAt }
+    source,
+    payload: {
+      feedbackId,
+      receivedAt,
+      sourceIp: source.ip,
+      sourceId: source.sourceId,
+      diagnosticCode: source.diagnosticCode,
+      deviceProvenanceId: source.deviceProvenanceId,
+      isRegistered: source.isRegistered,
+      accountId: source.accountId,
+      username: source.username,
+      ...envelope,
+    },
+  })
+  return written ? { feedbackId, receivedAt } : null
 }

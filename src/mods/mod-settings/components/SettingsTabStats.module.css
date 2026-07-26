@@ -1,0 +1,215 @@
+.tabRoot {
+  display: grid;
+  gap: 13px;
+  padding: 12px 0 4px;
+}
+
+.section {
+  display: grid;
+  gap: 6px;
+}
+
+.sectionLabel {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sectionLabel h3 {
+  margin: 0;
+  color: #28324b;
+  font-size: 9px;
+}
+
+.sectionLabel span {
+  max-width: 58%;
+  overflow: hidden;
+  color: #929bb0;
+  font-size: 6px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sectionCard {
+  padding: 10px;
+  border: 1px solid #d8deea;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.metricGrid > div {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #e5e9f2;
+  border-radius: 6px;
+  background: #f6f8fa;
+}
+
+.metricGrid span,
+.metricGrid strong,
+.metricGrid small {
+  display: block;
+}
+
+.metricGrid span,
+.metricGrid small,
+.notice,
+.empty {
+  color: #707b92;
+  font-size: 6px;
+}
+
+.metricGrid strong {
+  margin-top: 3px;
+  overflow-wrap: anywhere;
+  color: #28324b;
+  font-size: 10px;
+}
+
+.metricGrid small {
+  margin-top: 2px;
+}
+
+.notice,
+.empty,
+.error {
+  margin: 8px 0 0;
+  line-height: 1.55;
+}
+
+.cacheRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  color: #707b92;
+  font-size: 6px;
+}
+
+.cacheRow span,
+.cacheRow strong {
+  display: block;
+}
+
+.cacheRow strong {
+  margin-top: 2px;
+  color: #28324b;
+  font-size: 10px;
+}
+
+.sectionCard progress {
+  width: 100%;
+  height: 5px;
+  margin-top: 9px;
+  accent-color: #7382bb;
+}
+
+.poolList,
+.balanceList {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.poolList li,
+.balanceList li {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 0;
+  border-bottom: 1px solid #e5e9f2;
+}
+
+.poolList li:last-child,
+.balanceList li:last-child {
+  border-bottom: 0;
+}
+
+.poolList span,
+.poolList strong,
+.poolList small,
+.balanceList span,
+.balanceList strong,
+.balanceList small {
+  display: block;
+  min-width: 0;
+}
+
+.poolList strong,
+.balanceList strong {
+  overflow-wrap: anywhere;
+  color: #28324b;
+  font-size: 7px;
+}
+
+.poolList small,
+.balanceList small,
+.balanceList span {
+  margin-top: 2px;
+  color: #707b92;
+  font-size: 5.5px;
+}
+
+.poolList b {
+  flex: 0 0 auto;
+  color: #7382bb;
+  font-size: 6px;
+  font-weight: 700;
+}
+
+.balanceList li {
+  display: grid;
+  grid-template-columns: 35px minmax(0, 1fr);
+}
+
+.balanceList small {
+  grid-column: 2;
+}
+
+.actionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.actionRow small {
+  color: #929bb0;
+  font-size: 5.5px;
+}
+
+.actionRow button,
+.actionRow a {
+  min-height: 24px;
+  padding: 0 8px;
+  border: 1px solid #d8deea;
+  border-radius: 6px;
+  background: #fff;
+  color: #7382bb;
+  cursor: pointer;
+  font: inherit;
+  font-size: 6px;
+  line-height: 22px;
+  text-decoration: none;
+}
+
+.actionRow button:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.error {
+  color: #8d4f59;
+  font-size: 6px;
+}

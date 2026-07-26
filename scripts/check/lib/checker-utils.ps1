@@ -1,7 +1,11 @@
 $ErrorActionPreference = "Continue"
 
-$E = @{ Total=0; Errors=0; Warnings=0; Pass=0 }
-$Results = [System.Collections.ArrayList]::new()
+if (-not (Get-Variable -Name E -ErrorAction SilentlyContinue)) {
+  $E = @{ Total=0; Errors=0; Warnings=0; Pass=0 }
+}
+if (-not (Get-Variable -Name Results -ErrorAction SilentlyContinue)) {
+  $Results = [System.Collections.ArrayList]::new()
+}
 
 # ============================================================
 # Encoding pre-check: validate PowerShell scripts are valid UTF-8
@@ -100,6 +104,20 @@ function Get-FileContent($filePath) {
     $Script:FileContentCache[$filePath] = $content
   }
   return $content
+}
+
+function Get-DeclaredStringArray($content, $fieldName) {
+  if (-not $content -or -not $fieldName) { return @() }
+  $escapedField = [regex]::Escape($fieldName)
+  $match = [regex]::Match($content, "${escapedField}:\s*\[([\s\S]*?)\]")
+  if (-not $match.Success) { return @() }
+
+  $values = @(
+    [regex]::Matches($match.Groups[1].Value, '[''"]([^''"]+)[''"]') |
+      ForEach-Object { $_.Groups[1].Value.Trim() } |
+      Where-Object { $_ }
+  )
+  return $values
 }
 
 function Preload-AllFiles($srcDir) {

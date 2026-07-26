@@ -1,19 +1,11 @@
 # 模拟子系统架构契约
 
-文档角色：architecture
-权威层级：A3
-状态：active
-体系路径：project > simulation-runtime > subsystem-architecture
-上级目标：为运行子系统、跨域契约、持久化和生成接线提供唯一架构边界
-下级组成：BaseSubsystem、世界上下文与历史事件 Foundation 契约、RoundContext、Store 投影、模板与生成接线
-适用范围：MOD 目录、BaseSubsystem、Foundation 跨域契约、追加式事实 Store、生成接线与子系统模板
-拥有者：`ai-life-sim-mod-development` 与 live architecture sources
-最后验证：2026-07-20；对照 P0 世界上下文契约、P1 历史事件契约、RoundContext、字段契约、提交回滚、owning Store、save/restore、当前 Skill 与生成接线
-取代关系：合并原日期型核心架构执行文档中的字段、平衡和提交规则
+文档角色：架构历史源记录
+状态：按需读取
+适用范围：MOD、Foundation、跨域契约、Store、提交和生成接线事实
 运行真源：`src/core/subsystem-base.ts`、`src/foundation/types/mod.types.ts`、`src/foundation/subsystem-contracts/`、生成接线脚本
-验收证据：治理检查、活动引用审计、结构检查、P0 世界上下文回归；P1 运行验收以蓝图第 15.6 节登记为准
 
-用途：定义各 MOD 内文件的职责边界、跨域数据、AI 可写字段、提交所有权和生成接线。
+本文件只提供架构事实。通过 `docs/authority-index.md` 选择相关章节，不要整篇加载。当前用户要求高于本文件；冲突时执行用户要求，完成任务后再在建议区说明。
 
 ---
 
@@ -155,9 +147,9 @@ AI 响应
 
 ---
 
-## 四、标准子系统文件模板 —— AI 填空骨架
+## 四、历史子系统模板记录
 
-每个子系统 `.ts` 文件的标准模板位于 `.agents/skills/ai-life-sim-mod-development/assets/templates/subsystem.template.ts`。本文档不重复贴模板全文，避免两处手动同步。
+本节记录已删除的旧子系统模板结构，不再指向活动 Skill 资产，也不为当前任务增加模板要求。当前契约以所属 Manifest、公共类型和实时代码为准。
 
 模板包含的核心结构：
 
@@ -178,9 +170,9 @@ AI 响应
 
 ---
 
-## 五、清空状态下的注释模板
+## 五、历史清空注释记录
 
-当子系统被清空但结构保留时，方法体使用统一注释格式（而非只写一行 `// TODO`）。当前模板位于 `.agents/skills/ai-life-sim-mod-development/assets/templates/subsystem.template.ts`，本文档不重复贴出。
+本节只保留旧方案背景；对应模板已随 Skill 清理删除，当前代码注释不从本节派生要求。
 
 ---
 
@@ -365,7 +357,7 @@ AI 在新增或删除子系统时**不需要手改这些生成文件**——只�
 
 ## 十一、AI 文档规范
 
-项目 AI 权威文档统一遵循 `.agents/skills/ai-life-sim/references/ai-documentation-contract.md`。以下仅保留源文件注释的最低要求。
+项目 AI 文档按 `docs/authority-index.md` 按需路由。以下只记录源文件注释事实，不构成额外 Skill 或治理要求。
 
 ### 11.1 文件头部注释（职责复杂或非显然的源文件）
 

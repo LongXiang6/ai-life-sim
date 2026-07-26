@@ -17,6 +17,7 @@
 
 import type { NarrativeStage, RoundContext, AIModelConfig, PromptTemplate } from '@/foundation'
 import { eventBus, callAIWithPromptTemplate, callAIDegraded, buildSegmentedPrompt, getNarrativeUserSegments, recordRoundCacheMetrics, parseAIJSON } from '@/core'
+import { logger } from '@/core/logger/client-logger'
 import { memoryLifecycle } from '../../subsystems/memory-lifecycle-system'
 import { buildEventInjectionText } from '../../helpers/event-lifecycle-tracker'
 import { useSettingsStore } from '@/mods/mod-settings'
@@ -26,6 +27,7 @@ import { runImmersionWarmupPass } from '../../helpers/immersion-two-pass'
 import { DEFAULT_WORD_COUNT_TARGET } from '../../constants/narrative-config'
 import {
   canContinueWithNarrativeBody,
+  buildNarrativeDataRepairInstruction,
   buildNarrativeRepairInstruction,
   inspectNarrativeResponseQuality,
   preserveNarrativeBodyAndSummary,
@@ -36,13 +38,19 @@ import {
   buildRepetitionRepairInstruction,
   inspectPrefetchedNarrativeRepetition,
 } from '../../helpers/narrative-repetition-detection'
-import { extractTaggedMetaEnvelope } from '../../helpers/tagged-meta-envelope'
+import {
+  extractTaggedMetaEnvelope,
+  extractTaggedNarrativePrefix,
+  replaceTaggedMetaDataSection,
+  TAGGED_NARRATIVE_PROTOCOL,
+} from '../../helpers/tagged-meta-envelope'
 import { buildBranchIntentInstruction } from '../../helpers/branch-intent-resolution'
 import { NARRATIVE_REPAIR_SERVER_PROMPT_ASSET_ID } from '../../prompts/narrative-prompt'
 import {
   narrativeBranchRepairOutputSchema,
   narrativeBranchRepairPrompt,
 } from '../../prompts/narrative-branch-repair-prompt'
+import { narrativeDataRepairPrompt } from '../../prompts/narrative-data-repair-prompt'
 import {
   narrativeRepetitionAuditPrompt,
   narrativeRepetitionRepairPrompt,
@@ -58,6 +66,7 @@ import {
   createNarrativeRepairComponent,
 } from '../../prompts/narrative-prompt-components'
 import { isNarrativeSafetyRejectedError } from '../../helpers/narrative-safety'
+import { notifyLegendaryEncounterInjected } from '@/core/player-content/player-content-client'
 
 /** 阶段运行时上下文（扩展 RoundContext，携带本轮调用参数 + 阶段间临时数据） */
 export interface StageRuntimeContext extends RoundContext {
@@ -83,6 +92,61 @@ export interface StageRuntimeContext extends RoundContext {
   _repetitionRepairSourceContent?: string
   _repetitionRepairRoundToken?: string
   _roundResult?: ReturnType<typeof orchestrator.handleNarrativeResponse>
+  _legendaryEncounterInjected?: boolean
+}
+
+function buildLegendaryEncounterGuidance(
+  encounter: NonNullable<ReturnType<typeof useEngineStore.getState>['legendaryEncounter']>,
+): string {
+  const representative = encounter.achievements.find((item) => item.kind === 'breakthrough')
+    ?? encounter.achievements[0]
+  return [
+    '【低优先级异界传闻素材】',
+    `另一段人生曾发生于“${encounter.worldName}”，主角名为“${encounter.characterName}”。`,
+    `留下的结算评语：${encounter.endingReview}`,
+    ...(representative
+      ? [`可引用事件：${representative.timeLabel}，${representative.title}：${representative.detail}`]
+      : []),
+    '仅在不影响本轮主线、玩家意图、命运事件和连续性的前提下，把它改写成当前世界能够理解的一小段传说、书页、旧档案、梦境、遗物铭文或路人故事。',
+    '不得让传闻直接改变主角属性、强制选择或夺取主线；不适合出现时可以完全不用。',
+  ].join('\n')
+}
+
+function replaceNarrativeBodyPreservingMetadata(
+  sourceContent: string,
+  replacementNarrative: string,
+): string {
+  const source = extractTaggedMetaEnvelope(sourceContent)
+  if (!source) return sourceContent
+  return [
+    TAGGED_NARRATIVE_PROTOCOL.body,
+    replacementNarrative,
+    ...(source.summary
+      ? [TAGGED_NARRATIVE_PROTOCOL.summary, source.summary]
+      : []),
+    ...(source.dataPresent
+      ? [TAGGED_NARRATIVE_PROTOCOL.data, source.dataSection ?? '']
+      : []),
+    TAGGED_NARRATIVE_PROTOCOL.end,
+  ].join('\n')
+}
+
+/**
+ * Use the same committed body for foreground delivery and background branch repair.
+ * A body-only tagged prefix is accepted only after an explicit section boundary;
+ * an untagged plain response remains a valid body-only fallback.
+ */
+function extractRepairSourceNarrative(content: string): string {
+  const envelope = extractTaggedMetaEnvelope(content)
+  if (envelope) return envelope.narrative
+  const prefix = extractTaggedNarrativePrefix(content)
+  if (prefix) {
+    const hasBoundary = prefix.hasSummaryMarker
+      || prefix.hasDataMarker
+      || prefix.hasEndMarker
+    if (hasBoundary) return prefix.narrative
+  }
+  return content.trim()
 }
 
 /**
@@ -184,9 +248,33 @@ export function loadStages(
     // === 阶段 7: 组装富 PromptContext ===
     {
       name: 'assemble-prompt',
-      onEnter: (_ctx) => {
+      onEnter: async (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
-        ctx._promptContext = orchestrator.assemblePromptContext(ctx._eventInjectionText)
+        if (!orchestrator.isPreviewExecution()) {
+          await orchestrator.refreshNarrativeMemoryRecall()
+        }
+        const engineState = useEngineStore.getState()
+        const encounter = engineState.legendaryEncounter
+        const lastNarrative = engineState.narrativeHistory[engineState.narrativeHistory.length - 1]
+        const canInjectLegend = !orchestrator.isPreviewExecution()
+          && encounter?.status === 'selected'
+          && engineState.totalRounds >= 2
+          && !ctx._eventInjectionText
+          && !orchestrator.getFocusedBranchIntent()
+          && !engineState.forceBranchNext
+          && !engineState.branchRepairPending
+          && !lastNarrative?.resolvedChoice
+        const promptContext = orchestrator.assemblePromptContext(ctx._eventInjectionText)
+        ctx._promptContext = canInjectLegend && encounter
+          ? {
+              ...promptContext,
+              narrativeGuidanceText: [
+                promptContext.narrativeGuidanceText,
+                buildLegendaryEncounterGuidance(encounter),
+              ].filter(Boolean).join('\n'),
+            }
+          : promptContext
+        ctx._legendaryEncounterInjected = canInjectLegend
       },
       maxRounds: 1,
     },
@@ -200,6 +288,14 @@ export function loadStages(
 
         const wordCountTarget = useSettingsStore.getState().wordCountTarget
           ?? DEFAULT_WORD_COUNT_TARGET
+        const activeStyle = orchestrator.getNarrativeStyleSnapshot()
+        orchestrator.noteNarrativeQuality({
+          targetWordCount: wordCountTarget,
+          styleSource: activeStyle.source,
+          styleVersion: activeStyle.version,
+          repairAttempts: 0,
+          repairKinds: [],
+        })
         const focusedIntent = orchestrator.getFocusedBranchIntent()
         const expectedIntentId = focusedIntent?.intentId ?? null
         const requireBranch = useEngineStore.getState().forceBranchNext
@@ -212,7 +308,8 @@ export function loadStages(
             )
           : undefined
 
-        const prefetched = orchestrator.consumePrefetchedNarrative()
+        const prefetchedCandidate = orchestrator.consumePrefetchedNarrative()
+        const prefetched = ctx._legendaryEncounterInjected ? undefined : prefetchedCandidate
         if (prefetched) {
           orchestrator.assertNarrativeContentSafe(prefetched)
           const prefetchedQuality = inspectNarrativeResponseQuality(
@@ -221,10 +318,12 @@ export function loadStages(
             expectedIntentId,
             requireBranch,
           )
-          if (
-            prefetchedQuality.valid
-            || canContinueWithNarrativeBody(prefetchedQuality, expectedIntentId, requireBranch)
-          ) {
+          const canConsumeBodyOnly = canContinueWithNarrativeBody(
+            prefetchedQuality,
+            expectedIntentId,
+            requireBranch,
+          ) && prefetchedQuality.conditionalFailure !== 'intent'
+          if (prefetchedQuality.valid || canConsumeBodyOnly) {
             const candidateContent = prefetchedQuality.valid
               ? prefetched
               : preserveNarrativeBodyAndSummary(prefetched)
@@ -243,6 +342,18 @@ export function loadStages(
                 useEngineStore.setState({ streamingNarrative: '' })
               }
               ctx._fullContent = candidateContent
+              orchestrator.noteNarrativeQuality({
+                source: 'prefetched',
+                initialValid: prefetchedQuality.valid,
+                initialReason: prefetchedQuality.reason || undefined,
+                finalValid: prefetchedQuality.valid,
+                acceptedNarrativeBody: prefetchedQuality.valid || canConsumeBodyOnly,
+                finalReason: prefetchedQuality.reason || undefined,
+                structuredDataStatus: prefetchedQuality.structuredDataStatus,
+                conditionalFailure: prefetchedQuality.conditionalFailure,
+                narrativeChars: prefetchedQuality.narrativeChars,
+                responseChars: candidateContent.length,
+              })
               if (!prefetchedQuality.valid) {
                 console.info(
                   '[Orchestrator] 预生成命运意图 META 未完成；消费完整正文，意图保持待处理:',
@@ -287,6 +398,7 @@ export function loadStages(
             ...routeOpts,
             stableUserPrefix: baseSegments.stablePrefix,
             logContext: {
+              lifeRunId: orchestrator.getState().lifeRunId,
               round: orchestrator.getState().totalRounds,
               age: Number(ctx._promptContext.characterStatusView.年龄),
               strategy: baseSegments.strategy,
@@ -294,6 +406,7 @@ export function loadStages(
               pool: 'narrative',
               model,
               sessionId,
+              executionKind: orchestrator.isPreviewExecution() ? 'preview' : 'real',
             },
           },
         )
@@ -322,6 +435,7 @@ export function loadStages(
 
         const roundInfo = orchestrator.getState().round
         const logContext = {
+          lifeRunId: orchestrator.getState().lifeRunId,
           round: orchestrator.getState().totalRounds,
           age: Number(ctx._promptContext.characterStatusView.年龄) || roundInfo.year,
           era: ctx._promptContext.currentTime ?? `${roundInfo.eraName}${roundInfo.eraYear}年`,
@@ -330,6 +444,12 @@ export function loadStages(
           pool: 'narrative',
           model,
           sessionId,
+          executionKind: orchestrator.isPreviewExecution() ? 'preview' : 'real',
+          promptVersion: promptTemplate.version,
+          targetWordCount: wordCountTarget,
+          styleSource: activeStyle.source,
+          styleText: activeStyle.text,
+          styleVersion: activeStyle.version,
         }
 
         const streamOpts = {
@@ -342,6 +462,14 @@ export function loadStages(
           apiKey: customKey || undefined,
           serverPromptAssetId: promptTemplate.serverPromptAssetId,
           logContext,
+          logMetaResolver: (response: string) => {
+            const narrative = extractTaggedMetaEnvelope(response)?.narrative ?? response.trim()
+            return {
+          targetWordCount: wordCountTarget,
+              narrativeChars: narrative.replace(/\s/gu, '').length,
+              estimatedNarrativeTokens: Math.ceil(narrative.replace(/\s/gu, '').length * 0.6),
+            }
+          },
           ...routeOpts,
           ...(normalizedStorySeed ? { storySeed: normalizedStorySeed } : {}),
           ...(useStream
@@ -408,6 +536,32 @@ export function loadStages(
             expectedIntentId,
             requireBranch,
           )
+          logger.info('narrative-quality', 'initial-response-inspected', {
+            round: orchestrator.getState().totalRounds,
+            valid: initialQuality.valid,
+            reason: initialQuality.reason || undefined,
+            conditionalFailure: initialQuality.conditionalFailure,
+            structuredDataStatus: initialQuality.structuredDataStatus,
+            validationError: initialQuality.validationError,
+            validationIssues: initialQuality.validationIssues,
+            narrativeChars: initialQuality.narrativeChars,
+            responseChars: ctx._fullContent?.length ?? 0,
+            expectedIntent: expectedIntentId ?? undefined,
+            requireBranch,
+          })
+          let repairAttempts = 0
+          const repairKinds: string[] = []
+          orchestrator.noteNarrativeQuality({
+            source: 'live',
+            initialValid: initialQuality.valid,
+            initialReason: initialQuality.reason || undefined,
+            initialConditionalFailure: initialQuality.conditionalFailure,
+            initialStructuredDataStatus: initialQuality.structuredDataStatus,
+            initialValidationError: initialQuality.validationError,
+            initialValidationIssues: initialQuality.validationIssues,
+            initialNarrativeChars: initialQuality.narrativeChars,
+            responseChars: ctx._fullContent?.length ?? 0,
+          })
           if (initialQuality.dataAdvisory) {
             console.info('[Orchestrator]', initialQuality.dataAdvisory)
           }
@@ -417,6 +571,51 @@ export function loadStages(
             previousContent: string,
             finalAttempt: boolean,
           ): Promise<string> => {
+            const envelope = extractTaggedMetaEnvelope(previousContent)
+            repairAttempts += 1
+            repairKinds.push(envelope && quality.hasUsableNarrative
+              ? 'narrative-data-repair'
+              : 'narrative-format-repair')
+            orchestrator.noteNarrativeQuality({ repairAttempts, repairKinds: [...repairKinds] })
+            if (envelope && quality.hasUsableNarrative) {
+              const repairInstruction = buildNarrativeDataRepairInstruction(
+                quality,
+                envelope.dataSection ?? '',
+                expectedIntentId,
+                requireBranch,
+              )
+              const repairedData = await callAIWithPromptTemplate(
+                narrativeDataRepairPrompt,
+                [
+                  repairInstruction,
+                  '【已成立正文；只用于核对数据，禁止复述或改写】',
+                  envelope.narrative,
+                  ...(envelope.summary
+                    ? ['【已成立摘要；只用于核对数据，禁止复述或改写】', envelope.summary]
+                    : []),
+                  ...(focusedIntentRepairInstruction
+                    ? ['【当前命运意图条件】', focusedIntentRepairInstruction]
+                    : []),
+                  ...(finalAttempt
+                    ? ['【最后一次数据修复】必须逐项解决全部问题；仍无法成立的可选字段整个省略。']
+                    : []),
+                ].join('\n'),
+                {
+                  ...streamOpts,
+                  onChunk: undefined,
+                  overrideMaxTokens: 2400,
+                  overrideTemperature: 0,
+                  logContext: {
+                    ...streamOpts.logContext,
+                    callKind: 'narrative-data-repair',
+                  },
+                },
+              )
+              const merged = replaceTaggedMetaDataSection(previousContent, repairedData)
+              if (!merged) throw new Error('数据修复结果无法与原叙事信封合并')
+              return merged
+            }
+
             const repairInstruction = compileNarrativeDynamicComponents([
               createNarrativeRepairComponent(
                 [
@@ -461,8 +660,7 @@ export function loadStages(
             generation: number,
           ): Promise<NarrativeBranchRepairOutput | undefined> => {
             if (generation !== orchestrator.getLifeGeneration()) return undefined
-            const committedNarrative = extractTaggedMetaEnvelope(previousContent)?.narrative
-              ?? previousContent.trim()
+            const committedNarrative = extractRepairSourceNarrative(previousContent)
             const rawResult = await callAIWithPromptTemplate(
               narrativeBranchRepairPrompt,
               [
@@ -493,7 +691,39 @@ export function loadStages(
             return validated.success ? validated.data : undefined
           }
 
-          const repairRepetitiveNarrativeInBackground = async (
+          const scheduleForcedBranchRepair = (previousContent: string): void => {
+            if (
+              !requireBranch
+              || orchestrator.isPreviewExecution()
+              || ctx._forcedBranchRepair
+            ) return
+
+            const generation = orchestrator.getLifeGeneration()
+            const roundToken = orchestrator.getRoundExecutionToken()
+            const ownerToken = roundToken
+              ? orchestrator.tryBeginForcedBranchRepair(generation)
+              : undefined
+            if (!roundToken || !ownerToken) return
+
+            ctx._forcedBranchRepairGeneration = generation
+            ctx._forcedBranchRepairOwnerToken = ownerToken
+            ctx._forcedBranchRepairSourceNarrative = extractRepairSourceNarrative(previousContent)
+            ctx._forcedBranchRepairRoundToken = roundToken
+            ctx._forcedBranchRepair = repairForcedBranchInBackground(
+              previousContent,
+              generation,
+            )
+              .catch((error) => {
+                console.warn('[Orchestrator] 强制命运分支后台补救失败:', error)
+                return undefined
+              })
+              .finally(() => {
+                // 只有本请求的 owner token 能释放等待态；旧人生结果不得清除新请求。
+                orchestrator.finishForcedBranchRepair(ownerToken)
+              })
+          }
+
+          const repairRepetitiveNarrative = async (
             previousContent: string,
             repetitionResult: ReturnType<typeof checkNarrativeRepetition>,
             recentHistory: string[],
@@ -551,7 +781,7 @@ export function loadStages(
                 serverPromptAssetId: narrativeRepetitionAuditPrompt.serverPromptAssetId,
                 onChunk: undefined,
                 strictSchema: true,
-                overrideMaxTokens: 900,
+                overrideMaxTokens: 1800,
                 overrideTemperature: 0,
                 logContext: {
                   ...streamOpts.logContext,
@@ -573,37 +803,15 @@ export function loadStages(
             // 正文与结束标记完整时先交付正文。玩家明确请求的强制分支在
             // 后台补齐并只合并通过严格校验的分支 META，绝不重写已显示正文。
             // 只有正文协议本身不完整时才在前台等待一次最小格式修复。
-            if (canContinueWithNarrativeBody(initialQuality, expectedIntentId, requireBranch)) {
+            const canCommitBodyBeforeConditionalRepair = canContinueWithNarrativeBody(
+              initialQuality,
+              expectedIntentId,
+              requireBranch,
+            ) && initialQuality.conditionalFailure !== 'intent'
+            if (canCommitBodyBeforeConditionalRepair) {
               const previousContent = ctx._fullContent ?? ''
-              if (
-                requireBranch
-                && initialQuality.conditionalFailure === 'branch'
-                && !orchestrator.isPreviewExecution()
-              ) {
-                const generation = orchestrator.getLifeGeneration()
-                const roundToken = orchestrator.getRoundExecutionToken()
-                const ownerToken = roundToken
-                  ? orchestrator.tryBeginForcedBranchRepair(generation)
-                  : undefined
-                if (roundToken && ownerToken) {
-                  ctx._forcedBranchRepairGeneration = generation
-                  ctx._forcedBranchRepairOwnerToken = ownerToken
-                  ctx._forcedBranchRepairSourceNarrative = extractTaggedMetaEnvelope(previousContent)?.narrative
-                    ?? previousContent.trim()
-                  ctx._forcedBranchRepairRoundToken = roundToken
-                  ctx._forcedBranchRepair = repairForcedBranchInBackground(
-                    previousContent,
-                    generation,
-                  )
-                    .catch((error) => {
-                      console.warn('[Orchestrator] 强制命运分支后台补救失败:', error)
-                      return undefined
-                    })
-                    .finally(() => {
-                      // 只有本请求的 owner token 能释放等待态；旧人生结果不得清除新请求。
-                      orchestrator.finishForcedBranchRepair(ownerToken)
-                    })
-                }
+              if (initialQuality.conditionalFailure === 'branch') {
+                scheduleForcedBranchRepair(previousContent)
               }
               ctx._fullContent = preserveNarrativeBodyAndSummary(ctx._fullContent ?? '')
               console.warn(
@@ -619,12 +827,23 @@ export function loadStages(
                 expectedIntentId,
                 requireBranch,
               )
+              logger.info('narrative-quality', 'repair-response-inspected', {
+                round: orchestrator.getState().totalRounds,
+                attempt: 1,
+                valid: repairedQuality.valid,
+                reason: repairedQuality.reason || undefined,
+                conditionalFailure: repairedQuality.conditionalFailure,
+                structuredDataStatus: repairedQuality.structuredDataStatus,
+                validationError: repairedQuality.validationError,
+                validationIssues: repairedQuality.validationIssues,
+                narrativeChars: repairedQuality.narrativeChars,
+              })
               if (repairedQuality.dataAdvisory) {
                 console.info('[Orchestrator]', repairedQuality.dataAdvisory)
               }
               // 条件意图/强制分支是玩家当前动作的关键路径；首轮修复仍波动时，
               // 再进行一次同一失败原因的协议修复，避免玩家只能靠刷新恢复。
-              if (!repairedQuality.valid && requireBranch) {
+              if (!repairedQuality.valid && (requireBranch || typeof expectedIntentId === 'string')) {
                 const secondPreviousContent = ctx._fullContent ?? previousContent
                 ctx._fullContent = await runTargetedRepair(repairedQuality, secondPreviousContent, true)
                 repairedQuality = inspectNarrativeResponseQuality(
@@ -633,9 +852,28 @@ export function loadStages(
                   expectedIntentId,
                   requireBranch,
                 )
+                logger.info('narrative-quality', 'repair-response-inspected', {
+                  round: orchestrator.getState().totalRounds,
+                  attempt: 2,
+                  valid: repairedQuality.valid,
+                  reason: repairedQuality.reason || undefined,
+                  conditionalFailure: repairedQuality.conditionalFailure,
+                  structuredDataStatus: repairedQuality.structuredDataStatus,
+                  validationError: repairedQuality.validationError,
+                  validationIssues: repairedQuality.validationIssues,
+                  narrativeChars: repairedQuality.narrativeChars,
+                })
               }
               if (!repairedQuality.valid) {
-                if (canContinueWithNarrativeBody(repairedQuality, expectedIntentId, requireBranch)) {
+                const canCommitBodyAfterConditionalRepair = canContinueWithNarrativeBody(
+                  repairedQuality,
+                  expectedIntentId,
+                  requireBranch,
+                )
+                if (canCommitBodyAfterConditionalRepair) {
+                  if (repairedQuality.conditionalFailure === 'branch') {
+                    scheduleForcedBranchRepair(ctx._fullContent ?? '')
+                  }
                   ctx._fullContent = preserveNarrativeBodyAndSummary(ctx._fullContent ?? '')
                   console.warn(
                     '[Orchestrator] 修复后条件 META 仍未完成；保留完整正文，结构化状态保持待处理:',
@@ -643,7 +881,15 @@ export function loadStages(
                   )
                 } else {
                   const logQualityFailure = orchestrator.isPreviewExecution() ? console.info : console.warn
-                  logQualityFailure('[Orchestrator] 叙事完整重写后仍未通过质量门禁:', repairedQuality.reason)
+                  logger.warn('narrative-quality', 'round-rejected-quality-gate', {
+                    round: orchestrator.getState().totalRounds,
+                    reason: repairedQuality.reason,
+                    conditionalFailure: repairedQuality.conditionalFailure,
+                    validationError: repairedQuality.validationError,
+                    narrativeChars: repairedQuality.narrativeChars,
+                    preview: orchestrator.isPreviewExecution(),
+                  })
+                  logQualityFailure('[Orchestrator] 叙事修复后仍未通过质量门禁:', repairedQuality.reason)
                   orchestrator.resetCurrentNarrative()
                   orchestrator.setLastExecutedFullContent(undefined)
                   if (!orchestrator.isPreviewExecution()) {
@@ -655,7 +901,8 @@ export function loadStages(
             }
           }
 
-          // 重复检测只做观测；完整正文优先交付，后台候选在独立质量门禁通过后再替换同一历史条目。
+          // 重复正文必须在提交前修复。后台替换来不及进入下一轮 Prompt，
+          // 会让同一场景被当成已成立历史继续放大成连续剧情循环。
           if (ctx._fullContent?.trim()) {
             const envelope = extractTaggedMetaEnvelope(ctx._fullContent)
             if (envelope) {
@@ -664,35 +911,100 @@ export function loadStages(
                 .map((entry) => entry.text)
               const repetitionResult = checkNarrativeRepetition(envelope.narrative, recentHistory)
               if (repetitionResult.isRepetitive) {
+                orchestrator.noteNarrativeQuality({
+                  repetitionDetected: true,
+                  repetitionSeverity: repetitionResult.severity,
+                  repetitionMaxSimilarity: repetitionResult.maxSimilarity,
+                })
+                logger.warn('narrative-quality', 'repetition-detected', {
+                  round: orchestrator.getState().totalRounds,
+                  severity: repetitionResult.severity,
+                  maxSimilarity: repetitionResult.maxSimilarity,
+                })
                 const percent = Math.round(repetitionResult.maxSimilarity * 100)
                 console.warn(
-                  `[Orchestrator] 叙事重复检测：相似度 ${percent}%，先交付正文并启动后台候选修复`,
+                  `[Orchestrator] 叙事重复检测：相似度 ${percent}%，提交前执行去重修复`,
                 )
                 const generation = orchestrator.getLifeGeneration()
                 const ownerToken = orchestrator.tryBeginNarrativeRepetitionRepair(generation)
-                const roundToken = orchestrator.getRoundExecutionToken()
-                if (!orchestrator.isPreviewExecution() && ownerToken && roundToken) {
+                if (!orchestrator.isPreviewExecution() && ownerToken) {
                   const previousContent = ctx._fullContent
-                  ctx._repetitionRepairGeneration = generation
-                  ctx._repetitionRepairOwnerToken = ownerToken
-                  ctx._repetitionRepairSourceContent = previousContent
-                  ctx._repetitionRepairRoundToken = roundToken
-                  ctx._repetitionRepair = repairRepetitiveNarrativeInBackground(
-                    previousContent,
-                    repetitionResult,
-                    recentHistory,
-                    generation,
-                  ).catch((error) => {
-                    console.warn('[Orchestrator] 后台重复修复请求失败，保留原正文:', error)
-                    return undefined
-                  }).finally(() => {
+                  let candidate: NarrativeRepetitionRepairCandidate | undefined
+                  try {
+                    candidate = await repairRepetitiveNarrative(
+                      previousContent,
+                      repetitionResult,
+                      recentHistory,
+                      generation,
+                    )
+                  } catch (error) {
+                    console.warn('[Orchestrator] 重复正文修复请求失败:', error)
+                  } finally {
                     orchestrator.finishNarrativeRepetitionRepair(ownerToken)
-                  })
+                  }
+                  const candidateOutput = candidate
+                    ? parseNarrativeRepetitionRepairOutput(candidate.content)
+                    : undefined
+                  if (candidateOutput?.narrative) {
+                    ctx._fullContent = replaceNarrativeBodyPreservingMetadata(
+                      previousContent,
+                      candidateOutput.narrative,
+                    )
+                    console.info('[Orchestrator] 重复正文已在本轮提交前完成修复')
+                    repairAttempts += 1
+                    repairKinds.push('narrative-repetition-repair')
+                    orchestrator.noteNarrativeQuality({
+                      repairAttempts,
+                      repairKinds: [...repairKinds],
+                      repetitionRepairAccepted: true,
+                    })
+                  } else if (repetitionResult.severity === 'high') {
+                    console.warn('[Orchestrator] 严重重复正文未通过修复门禁，本轮拒绝提交')
+                    orchestrator.resetCurrentNarrative()
+                    orchestrator.setLastExecutedFullContent(undefined)
+                    useEngineStore.setState({ streamingNarrative: '' })
+                    ctx._fullContent = undefined
+                    orchestrator.noteNarrativeQuality({ repetitionRepairAccepted: false })
+                  }
                 } else if (ownerToken) {
                   orchestrator.finishNarrativeRepetitionRepair(ownerToken)
                 }
               }
             }
+          }
+
+          if (ctx._fullContent?.trim()) {
+            const finalQuality = inspectNarrativeResponseQuality(
+              ctx._fullContent,
+              wordCountTarget,
+              expectedIntentId,
+              requireBranch,
+            )
+            orchestrator.noteNarrativeQuality({
+              finalValid: finalQuality.valid,
+              acceptedNarrativeBody: canContinueWithNarrativeBody(
+                finalQuality,
+                expectedIntentId,
+                requireBranch,
+              ),
+              finalReason: finalQuality.reason || undefined,
+              finalConditionalFailure: finalQuality.conditionalFailure,
+              finalStructuredDataStatus: finalQuality.structuredDataStatus,
+              finalValidationError: finalQuality.validationError,
+              finalValidationIssues: finalQuality.validationIssues,
+              narrativeChars: finalQuality.narrativeChars,
+              responseChars: ctx._fullContent.length,
+              repairAttempts,
+              repairKinds: [...repairKinds],
+            })
+          } else {
+            orchestrator.noteNarrativeQuality({
+              finalValid: false,
+              acceptedNarrativeBody: false,
+              finalReason: '没有可提交的完整叙事输出',
+              repairAttempts,
+              repairKinds: [...repairKinds],
+            })
           }
 
           recordRoundCacheMetrics({
@@ -707,6 +1019,11 @@ export function loadStages(
             userMessageCount: segments.userMessageCount ?? 1,
           })
         } catch (err) {
+          orchestrator.noteNarrativeQuality({
+            finalValid: false,
+            acceptedNarrativeBody: false,
+            finalReason: err instanceof Error ? err.message : String(err),
+          })
           if (isNarrativeSafetyRejectedError(err)) {
             console.warn('[Orchestrator] 叙事输出未通过未成年人安全门禁，本轮整体拒绝')
             orchestrator.resetCurrentNarrative()
@@ -718,6 +1035,7 @@ export function loadStages(
             throw err
           }
           console.error('[Orchestrator] AI 调用完全失败（降级链耗尽）:', err)
+          logger.error('narrative-ai', 'degraded-chain-exhausted', err)
           orchestrator.resetCurrentNarrative()
           orchestrator.setLastExecutedFullContent(undefined)
           if (!orchestrator.isPreviewExecution()) {
@@ -745,6 +1063,13 @@ export function loadStages(
           return
         }
         const result = orchestrator.handleNarrativeResponse(ctx._fullContent)
+
+        if (ctx._legendaryEncounterInjected && result.narrative) {
+          const engineState = useEngineStore.getState()
+          engineState.markLegendaryEncounterInjected(engineState.totalRounds)
+          void notifyLegendaryEncounterInjected(engineState.lifeRunId, engineState.totalRounds)
+            .catch(() => undefined)
+        }
 
         if (ctx._repetitionRepair && ctx._repetitionRepairRoundToken) {
           const sourceState = orchestrator.getState()

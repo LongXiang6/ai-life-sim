@@ -7,7 +7,9 @@ import {
 } from '@/core/account/account-client'
 import {
   CloudSettingsSchema,
+  ACCOUNT_MAX_SLOTS,
   type AccountSessionPayload,
+  type CloudGameRecord,
   type CloudSettings,
 } from '@/core/account/account-contract'
 import { useAccountClientStore } from '@/core/account/account-client-store'
@@ -25,6 +27,37 @@ let syncTimer: ReturnType<typeof setTimeout> | null = null
 let syncRunning = false
 let syncQueued = false
 
+function recordRichness(record: CloudGameRecord): number {
+  return (record.scoring ? 4 : 0)
+    + (record.endingReview ? 2 : 0)
+    + (record.achievements?.length ?? 0)
+    + (record.dimensions.length * 2)
+}
+
+/** 登录/注册时把游客浏览器中的完整人生并入云端，不让云端快照静默覆盖游客记录。 */
+function mergeGameRecords(
+  localRecords: readonly CloudGameRecord[],
+  cloudRecords: readonly CloudGameRecord[],
+): CloudGameRecord[] {
+  const merged = new Map<string, CloudGameRecord>()
+  for (const record of cloudRecords) merged.set(record.recordId, record)
+  for (const record of localRecords) {
+    const existing = merged.get(record.recordId)
+    if (!existing
+      || record.completedAt > existing.completedAt
+      || (record.completedAt === existing.completedAt && recordRichness(record) > recordRichness(existing))) {
+      merged.set(record.recordId, record)
+    }
+  }
+  const result = [...merged.values()].sort((left, right) => (
+    right.completedAt - left.completedAt || left.recordId.localeCompare(right.recordId)
+  ))
+  if (result.length > ACCOUNT_MAX_SLOTS) {
+    throw new Error(`本地与云端人生记录合并后超过 ${ACCOUNT_MAX_SLOTS} 个存档，请先在账号页整理记录。`)
+  }
+  return result
+}
+
 function localSettings(): CloudSettings {
   const state = useSettingsStore.getState()
   return CloudSettingsSchema.parse({
@@ -40,6 +73,8 @@ function localSettings(): CloudSettings {
     preGenerateRounds: state.preGenerateRounds,
     storySeed: state.storySeed,
     narrativeStyle: state.narrativeStyle,
+    narrativeStyleText: state.narrativeStyleText,
+    narrativeStyleVersion: state.narrativeStyleVersion,
     wordCountTarget: state.wordCountTarget,
     streamingMode: state.streamingMode,
     comfortableParagraphs: state.comfortableParagraphs,
@@ -61,6 +96,10 @@ export function buildInitialCloudData(saveApiKey: boolean) {
 }
 
 export function applyAccountSession(payload: AccountSessionPayload): void {
+  const localRecords = useLifeRecordStore.getState().records
+  const mergedRecords = mergeGameRecords(localRecords, payload.snapshot.gameRecords)
+  const cloudRecordIds = new Set(payload.snapshot.gameRecords.map((record) => record.recordId))
+  const hasLocalOnlyRecords = mergedRecords.some((record) => !cloudRecordIds.has(record.recordId))
   applyingCloud = true
   try {
     useSettingsStore.setState({
@@ -69,10 +108,13 @@ export function applyAccountSession(payload: AccountSessionPayload): void {
     })
     useCharacterCreationDraftStore.getState().replaceDraft(payload.snapshot.characterDraft)
     useMythicLibraryStore.getState().replacePatterns(payload.snapshot.mythicTalents)
-    useLifeRecordStore.getState().replaceRecords(payload.snapshot.gameRecords)
+    useLifeRecordStore.getState().replaceRecords(mergedRecords)
     useAccountClientStore.getState().acceptSession(payload)
   } finally {
-    queueMicrotask(() => { applyingCloud = false })
+    queueMicrotask(() => {
+      applyingCloud = false
+      if (hasLocalOnlyRecords) scheduleAccountSync(0)
+    })
   }
 }
 

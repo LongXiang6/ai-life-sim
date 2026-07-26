@@ -23,9 +23,9 @@ import { clearWorldGeneratedCache, resolvePresetWorldCode } from '@/mods/mod-wor
 
 import {
   useWorldSelectForm,
+  DIFFICULTY_ORDER,
   DIFFICULTY_CONFIG,
   DIFFICULTY_TITLES,
-  type Difficulty,
   type EraEntry,
   type SavedCustomWorld,
 } from './useWorldSelectForm'
@@ -173,7 +173,15 @@ export function useWorldSelectLogic() {
   const existingWorldConfig = useWorldStore((state) => state.worldConfig)
   const existingWorldCode = useWorldStore((state) => state.worldCode)
   const { handleConfirm: confirmWorld, conflictModal } = useWorldConfirm()
-  const { worldCodesWithCache, rotatingWorldCode, handleClearWorldCache } = useWorldSelectCache()
+  const {
+    worldCodesWithCache,
+    rotatingWorldCode,
+    pendingCacheReset,
+    handleRequestClearWorldCache,
+    handleCancelClearWorldCache,
+    handleConfirmClearWorldCache,
+    handleClearWorldCache,
+  } = useWorldSelectCache()
   const [isConfirming, setIsConfirming] = useState(false)
   const [confirmError, setConfirmError] = useState('')
 
@@ -228,7 +236,7 @@ export function useWorldSelectLogic() {
   // ---- 难度下拉项 ----
   const difficultyItems = useMemo(
     () =>
-      (['normal', 'hard', 'nightmare', 'hell'] as Difficulty[]).map((d) => ({
+      DIFFICULTY_ORDER.map((d) => ({
         label: DIFFICULTY_CONFIG[d].label,
         icon: difficulty === d ? ('✔' as const) : undefined,
         title: DIFFICULTY_TITLES[d],
@@ -239,6 +247,13 @@ export function useWorldSelectLogic() {
       })),
     [difficulty, setDifficulty],
   )
+
+  const handleCycleDifficulty = useCallback(() => {
+    const currentIndex = DIFFICULTY_ORDER.indexOf(difficulty)
+    const nextDifficulty = DIFFICULTY_ORDER[(currentIndex + 1) % DIFFICULTY_ORDER.length] ?? 'normal'
+    setDifficulty(nextDifficulty)
+    setConfirmError('')
+  }, [difficulty, setDifficulty])
 
   // ---- 确认标题 ----
   const confirmTitle = useMemo(
@@ -524,6 +539,7 @@ export function useWorldSelectLogic() {
     handleCancelDeleteCustom,
     handleConfirm,
     handleBack,
+    handleCycleDifficulty,
 
     // 计算值
     presetMain,
@@ -535,6 +551,10 @@ export function useWorldSelectLogic() {
     // 从子 hook 透传
     worldCodesWithCache,
     rotatingWorldCode,
+    pendingCacheReset,
+    handleRequestClearWorldCache,
+    handleCancelClearWorldCache,
+    handleConfirmClearWorldCache,
     handleClearWorldCache,
     conflictModal,
 

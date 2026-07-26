@@ -95,6 +95,15 @@ export const DOMAINS = {
           '--no-warnings=ExperimentalWarning',
           '--loader',
           './scripts/check/lib/typescript-loader.mjs',
+          'scripts/check/domains/ui/world-generated-cache-smoke.mjs',
+        ],
+      },
+      {
+        cmd: 'node',
+        args: [
+          '--no-warnings=ExperimentalWarning',
+          '--loader',
+          './scripts/check/lib/typescript-loader.mjs',
           'scripts/check/domains/ui/game-over-share-card-smoke.mjs',
         ],
       },
@@ -164,6 +173,7 @@ export const DOMAINS = {
       { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/managed-sse-aggregation-smoke.mjs'] },
       { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/ai-error-translation-smoke.mjs'] },
       { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/cache-stats-smoke.mjs'] },
+      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/development-system-diagnostic-smoke.mjs'] },
       { cmd: 'node', args: ['scripts/check/domains/narrative/narrative-regression-seed.mjs'] },
     ],
   },

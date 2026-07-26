@@ -70,7 +70,7 @@ export type { GlobalState, GamePhase } from './global-store'
 
 // AI 服务
 export { callAI, callAIConversation, callAIStream, callAIStreamConversation, callAIDegraded, callAIStreamDegraded, handleStream, buildPrompt, buildSegmentedPrompt, buildNarrativeUserJson, getNarrativeUserSegments, buildConversationMessages, recordRoundCacheMetrics, getRoundCacheMetrics, callAIWithPromptTemplate, isAiCredentialError, parseAIJSON } from './ai-service'
-export type { AICallOptions, CachePoolType, CacheHitInfo, PromptSegments, RoundCacheMetrics, ChatMessage, KVMessageStrategy, AICallLogContext, AICallUsageSnapshot, UnifiedCallOptions, PromptTemplateLike } from './ai-service'
+export type { AICallOptions, CachePoolType, InternalCachePool, CacheHitInfo, PromptSegments, RoundCacheMetrics, ChatMessage, KVMessageStrategy, AICallLogContext, AICallUsageSnapshot, UnifiedCallOptions, PromptTemplateLike } from './ai-service'
 
 // 存储服务
 export { configStore, saveStore, cacheStore, tempStore, opfsStorage, saveManager, clearGameProgressFromLocalStorage, flushOpfsQueueNow, safeCleanupReload } from './storage'
@@ -88,6 +88,15 @@ export {
   getInstrumentHooks,
 } from './instrument/instrument-mode'
 export type { InstrumentHooks, PromptAssemblyReport } from './instrument/instrument-mode'
+
+export {
+  postNarrativeRoundOutcome,
+} from './logger/narrative-round-diagnostic'
+export type {
+  NarrativeDiagnosticPhase,
+  NarrativeRoundAdoption,
+  NarrativeRoundOutcomeReport,
+} from './logger/narrative-round-diagnostic'
 
 // 跨 MOD 公共函数库
 export {
@@ -114,3 +123,6 @@ export {
   calcTagMatchScore,
 } from './shared'
 export type { NarrativePromptKey } from './shared'
+
+// Deterministic life scoring
+export * from './scoring'

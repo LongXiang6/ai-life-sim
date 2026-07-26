@@ -12,11 +12,10 @@ const {
 } = await import('../../../../src/mods/mod-pages/pages/game-over/game-over-share-card.ts')
 const {
   buildGameOverAchievements,
-  calculateGameOverScore,
   getReincarnationStrengthTier,
-  normalizeAchievementScore,
   selectFeaturedAchievement,
 } = await import('../../../../src/mods/mod-pages/pages/game-over/game-over-scoring.ts')
+const { calculateLifeScore } = await import('../../../../src/core/scoring/life-scoring.ts')
 
 let failed = 0
 function assertOk(condition, message) {
@@ -75,18 +74,62 @@ assertOk(
   'share file name must use the stable technical life run ID rather than player prose',
 )
 
-assertOk(normalizeAchievementScore(94.9) === 94, 'boosted scores below raw 95 must remain below 95')
-assertOk(normalizeAchievementScore(95) === 95, 'raw score 95 must remain unchanged')
-assertOk(normalizeAchievementScore(98.4) === 98, 'raw scores above 95 must use normal rounding')
-
-const meaningfulScore = calculateGameOverScore({
-  dimensionValues: [30, 30, 30, 30],
+const scoringProfile = {
+  profileVersion: 1,
+  worldId: 'share-smoke-world',
+  dimensions: [
+    { id: 'growth', label: '成长', description: '角色成长', weight: 25, evidenceKinds: ['attributes', 'breakthroughs'], curveId: 'growth' },
+    { id: 'agency', label: '抉择', description: '关键抉择', weight: 25, evidenceKinds: ['choices', 'achievements'], curveId: 'agency' },
+    { id: 'journey', label: '历程', description: '完整历程', weight: 25, evidenceKinds: ['journey', 'completion'], curveId: 'journey' },
+    { id: 'impact', label: '影响', description: '留下影响', weight: 25, evidenceKinds: ['achievements', 'choices', 'breakthroughs'], curveId: 'impact' },
+  ],
+}
+const meaningfulScore = calculateLifeScore({
+  profile: scoringProfile,
+  lifeRunId: 'life-score-meaningful',
+  attributeValues: [10, 10, 10, 10],
   rounds: 12,
-  resolvedChoiceCount: 1,
-  breakthroughCount: 0,
+  committedRounds: 12,
+  narrativeIds: Array.from({ length: 12 }, (_, index) => `round-${index + 1}`),
+  resolvedChoiceCount: 4,
+  breakthroughCount: 2,
+  achievementIds: ['a', 'b', 'c', 'd', 'e'],
   completed: true,
+  terminalCommitted: true,
+  stateTransitionsTrusted: true,
 })
 assertOk(meaningfulScore.score >= 80, 'a meaningful completed run must commonly clear 80')
+assertOk(meaningfulScore.score < 90, 'a sub-90 raw result must remain below the protected 90-point range')
+const invalidScore = calculateLifeScore({
+  profile: scoringProfile,
+  lifeRunId: 'life-score-invalid',
+  attributeValues: [10],
+  rounds: 2,
+  committedRounds: 1,
+  narrativeIds: ['only-one'],
+  resolvedChoiceCount: 5,
+  breakthroughCount: 3,
+  achievementIds: ['a', 'b', 'c', 'd', 'e'],
+  completed: true,
+  terminalCommitted: true,
+  stateTransitionsTrusted: true,
+})
+assertOk(invalidScore.score <= 69 && !invalidScore.integrity.passed, 'invalid completion evidence must never receive a 70+ score')
+const perfectScore = calculateLifeScore({
+  profile: scoringProfile,
+  lifeRunId: 'life-score-perfect',
+  attributeValues: [1000, 1000, 1000, 1000],
+  rounds: 20,
+  committedRounds: 20,
+  narrativeIds: Array.from({ length: 20 }, (_, index) => `perfect-round-${index + 1}`),
+  resolvedChoiceCount: 5,
+  breakthroughCount: 3,
+  achievementIds: ['a', 'b', 'c', 'd', 'e'],
+  completed: true,
+  terminalCommitted: true,
+  stateTransitionsTrusted: true,
+})
+assertOk(perfectScore.score === 100 && perfectScore.integrity.perfectGatePassed, '100 points must require every deterministic perfect gate')
 assertOk(getReincarnationStrengthTier(79).id === 'echo', 'scores below 80 must use the echo tier')
 assertOk(getReincarnationStrengthTier(80).id === 'deep', 'score 80 must enter the deep tier')
 assertOk(getReincarnationStrengthTier(90).id === 'legacy', 'score 90 must enter the legacy tier')
@@ -134,7 +177,7 @@ assertOk(
     && helperSource.includes('if (normalizedValue > 0)'),
   'share rendering must preserve no-File fallback and must not draw a false positive bar for zero values',
 )
-assertOk(scoringSource.includes('raw >= 95'), 'the normal-score threshold must remain explicit and testable')
+assertOk(!scoringSource.includes('calculateGameOverScore'), 'the page helper must not retain a second score calculation owner')
 assertOk(!talentCssSource.includes('-webkit-line-clamp'), 'talent detail text must not be hidden by line clamping')
 assertOk(
   promptSource.includes("version: '1.2.1'")

@@ -97,14 +97,15 @@ reject(store, /narrativeHistory[\s\S]{0,160}slice\(-?\d+\)/, 'engine persistence
 reject(compressor, /MAX_SUMMARIES|summaries\s*=\s*summaries\.slice\(/, 'summary storage must not discard old semantic summaries by capacity')
 reject(compressor, /轮综合概略|轮时代概略|轮纪元概略|轮历史概略|叙事概略（生成失败）/, 'compression failure must not create fact-free placeholder coverage nodes')
 assertOk(
-  compressor.includes('requireCompletedSummaryContent')
-    && compressor.includes('保留全部 L5 叶子等待后续重试'),
+  compressor.includes('TimelineCompressionOutputSchema')
+    && compressor.includes('buildCompressedMemoryEvents')
+    && compressor.includes('保留低层来源等待重试'),
   'summary compression must reject incomplete AI output and retain lower-level leaves on failure',
 )
 reject(summaryPrompt, /charLimit|不超过\s*\$?\{?\w*\}?\s*字|不超过指定字数|仅保留：|极简摘要|高度浓缩摘要/, 'summary Prompt must not induce character limits or fact-dropping level semantics')
 assertOk(
   summaryPrompt.includes('SUMMARY_COMPLETION_MARKER')
-    && summaryPrompt.includes('无法完整覆盖时不要输出完成标记'),
+    && summaryPrompt.includes('无法完整覆盖时省略该标记'),
   'summary Prompt must require an explicit complete-coverage marker',
 )
 assertOk(
@@ -113,7 +114,11 @@ assertOk(
   'summary coverage validation must reject missing markers and empty content',
 )
 reject(compressor, /fallbackParts|失败降级：保留完整叙事文本/, 'failed L1 compression must not create a fallback coverage node or success statistic')
-assertOk(compressor.includes('失败不得建立覆盖节点或成功统计'), 'failed L1 compression must retain original leaves for retry')
+assertOk(
+  compressor.includes('保留完整来源等待下一轮重试')
+    && compressor.includes('保留低层来源等待重试'),
+  'failed compression must retain original leaves for retry',
+)
 reject(engineUtils, /computeSummaryCharLimit|inputTextLength\s*\/\s*(?:2|4|8|10|12)/, 'summary token headroom must not shrink by level or convert into a character cap')
 assertOk(engineUtils.includes('computeCoverageSafeSummaryTokens'), 'summary token budgets must provide coverage-safe technical headroom')
 reject(ledger, /MAX_LEDGER_ENTRIES|entry\.events\.shift\(|kept[\s\S]{0,120}\.slice\(/, 'digest ledger must not delete or top-N truncate narrative facts')
@@ -177,7 +182,7 @@ reject(forgetting, /causalEvents\.shift\(/, 'causal protection marks must not be
 reject(eventLifecycle, /activeDisasters\.slice\(/, 'event lifecycle must not ignore disasters after a fixed count')
 reject(branchPolicy, /\.slice\(0,\s*4\)/, 'branch option normalization must not silently remove valid options')
 reject(narrativePrompt, /digest:[^\n]*(?:不超过|最多)\d+|keyEvents:[^\n]*最多\d+|entities[^\n]*最多\d+|relationshipUpdates:[^\n]*最多\d+|resolvedForeshadowingIds:[^\n]*最多\d+|notableEvents:[^\n]*最多\d+|creations:[^\n]*最多\d+|foreshadowing:[^\n]*最多\d+/, 'narrative Prompt must not induce fixed character or item limits on semantic META')
-assertOk(narrativePrompt.includes("version: '4.6.1'"), 'no-truncation narrative contract must use Prompt version 4.6.1')
+assertOk(narrativePrompt.includes("version: '4.7.0'"), 'no-truncation narrative contract must use Prompt version 4.7.0')
 assertOk(
   branchIntent.includes('其他未完成命运意图；保持事实连续，不得静默删除')
     && orchestrator.includes('branchIntents: this.branchIntents')

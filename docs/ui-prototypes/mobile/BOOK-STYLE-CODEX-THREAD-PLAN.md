@@ -1,4 +1,6 @@
-# AI Life Sim 移动端书本式排版竞赛：Codex 多线程任务书
+# AI Life Sim 移动端书本式排版竞赛历史任务书（已停用）
+
+> 停用说明：本文不再是活动计划、权威文档或任务前置材料。下文的“必须”“不得”、B01–B21 编号、并发波次、启动提示和验收顺序只记录当时过程，不约束后续任务；当前任务按 `D:/AI/AGENTS.md` 与 `docs/authority-index.md` 执行。
 
 > 状态：B01–B04 已完成；B05 按用户反馈改为逐页四选一评审  
 > 范围：界面 02–11  
@@ -230,7 +232,7 @@ B10 不得把某个代表页的完整布局强行复制给其他页面。规范�
 
 用户明确选择某页胜者后，另开后续整合任务更新该页 `final.html`；B21 本身仍不得覆盖最终稿。
 
-## 10. 新 Codex 线程的统一启动提示
+## 10. 历史 Codex 线程启动提示（已停用）
 
 将下面文字复制到新线程，只替换任务编号：
 
@@ -238,7 +240,7 @@ B10 不得把某个代表页的完整布局强行复制给其他页面。规范�
 请先完整阅读：
 D:/AI/AGENTS.md
 D:/AI/.agents/skills/ai-life-sim/SKILL.md
-D:/AI/.agents/skills/ai-life-sim/references/project-task-execution.md
+D:/AI/ai-life-sim/docs/authority-index.md
 D:/AI/.agents/skills/ai-life-sim-ui/SKILL.md
 D:/AI/ai-life-sim/docs/ui-prototypes/mobile/NEXT-THREAD-HANDOFF.md
 D:/AI/ai-life-sim/docs/ui-prototypes/mobile/BOOK-STYLE-CODEX-THREAD-PLAN.md
@@ -246,7 +248,7 @@ D:/AI/ai-life-sim/docs/ui-prototypes/mobile/BOOK-STYLE-CODEX-THREAD-PLAN.md
 然后执行任务 B01（把 B01 替换为本线程编号）。不要调用 Pi，不要覆盖任何 final.html，不要删除历史文件，不要修改其他线程拥有的目录。主题和颜色不是本轮重点；先用中性色证明排版、阅读层级和书本式沉浸感。布局可以竞争和重排，但必须保留该页面全部字段、机制、状态含义和流程。完成后按任务书提供浏览器证据、门禁结果和实际文件清单。
 ```
 
-## 11. 推荐开线程顺序
+## 11. 历史开线程顺序（已停用）
 
 ```text
 已完成：B01 + B02 + B03 + B04

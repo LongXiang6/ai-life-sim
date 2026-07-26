@@ -79,11 +79,11 @@ for (const field of ['长期记忆', '核心记忆', '相关往事', '近期完�
     failed++
   }
 }
-if (!narrativePrompt.includes("version: '4.6.1'")
+if (!narrativePrompt.includes("version: '4.7.0'")
   || !narrativePrompt.includes('NarrativeAIResponseSchema')
   || !narrativePrompt.includes('serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID')
   || !narrativePrompt.includes('NARRATIVE_REPAIR_SERVER_PROMPT_ASSET_ID')) {
-  console.error('[FAIL] narrative-prompt 未接入 4.6.1 主资产、精简修复资产与中文协议 Schema')
+  console.error('[FAIL] narrative-prompt 未接入 4.7.0 四层主资产、精简修复资产与中文协议 Schema')
   failed++
 }
 if (!narrativeRepairAsset.includes('COMPILED_NARRATIVE_REPAIR_SYSTEM_PROMPT')

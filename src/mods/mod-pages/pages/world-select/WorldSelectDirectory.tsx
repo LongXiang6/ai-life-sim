@@ -34,11 +34,12 @@ export function WorldSelectDirectory({
             {logic.presetMore.map((world) => {
               const selected = logic.selectedWorld?.id === world.id
               const worldCode = resolvePresetWorldCode(world)
+              const hasCache = logic.worldCodesWithCache.has(worldCode)
               return (
                 <div key={world.id} className={styles.moreWorldCardWrap}>
                   <button
                     type="button"
-                    className={`${styles.moreWorldCard} ${selected ? styles.moreWorldCardSelected : ''}`}
+                    className={`${styles.moreWorldCard} ${hasCache ? styles.moreWorldCardWithCache : ''} ${selected ? styles.moreWorldCardSelected : ''}`}
                     onClick={() => logic.handleSelectPreset(world)}
                     aria-pressed={selected}
                     disabled={logic.isConfirming}
@@ -47,7 +48,7 @@ export function WorldSelectDirectory({
                     <span>{world.name}</span>
                     <small>{world.description.slice(0, 20)}</small>
                   </button>
-                  {logic.worldCodesWithCache.has(worldCode) && (
+                  {hasCache && (
                     <button
                       type="button"
                       aria-label={`${L.clearCacheTitle}：${world.name}`}
@@ -55,7 +56,7 @@ export function WorldSelectDirectory({
                       className={`${styles.inlineCacheButton} ${logic.rotatingWorldCode === worldCode ? styles.spinning : ''}`}
                       onClick={(event) => {
                         event.stopPropagation()
-                        logic.handleClearWorldCache(worldCode)
+                        logic.handleRequestClearWorldCache(worldCode, world.name)
                       }}
                       disabled={logic.isConfirming}
                     >↻</button>
@@ -114,12 +115,14 @@ export function WorldSelectDirectory({
                 onClick={() => { logic.handleStartEdit(selectedSavedWorld); onRequestCustom() }}
                 disabled={logic.isConfirming}
               >修改</button>
-              <button
-                type="button"
-                onClick={() => logic.handleClearWorldCache(selectedSavedWorld.worldCode)}
-                disabled={logic.isConfirming || logic.rotatingWorldCode === selectedSavedWorld.worldCode}
-                title={`${L.clearCacheTitle}：${selectedSavedWorld.name}`}
-              >重置</button>
+              {logic.worldCodesWithCache.has(selectedSavedWorld.worldCode) && (
+                <button
+                  type="button"
+                  onClick={() => logic.handleRequestClearWorldCache(selectedSavedWorld.worldCode, selectedSavedWorld.name)}
+                  disabled={logic.isConfirming || logic.rotatingWorldCode === selectedSavedWorld.worldCode}
+                  title={`${L.clearCacheTitle}：${selectedSavedWorld.name}`}
+                >重置</button>
+              )}
               {logic.pendingDeleteWorldId === selectedSavedWorld.id ? (
                 <>
                   <button

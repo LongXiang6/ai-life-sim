@@ -2,13 +2,25 @@ import {
   getProviderModelCandidates,
   shouldTryManagedFallback,
 } from './provider-config'
-import { aggregateSseCompletion } from './managed-sse-aggregation'
+import {
+  aggregateSseCompletion,
+  ManagedSseAggregationError,
+} from './managed-sse-aggregation'
 
 export interface ManagedUpstreamAttempt {
   model: string
   status?: number
   durationMs: number
   error?: string
+}
+
+export interface ManagedUpstreamExchange {
+  model: string
+  attempt: number
+  status?: number
+  requestBody: string
+  responseBody: string
+  transportError?: string
 }
 
 export type ManagedAggregatedResult =
@@ -44,6 +56,7 @@ interface ManagedAggregatedRequest {
   clientSignal: AbortSignal
   timeoutMs: number
   fetchImpl?: typeof fetch
+  onAttemptComplete?: (exchange: ManagedUpstreamExchange) => Promise<void> | void
 }
 
 /**
@@ -59,6 +72,7 @@ export async function requestManagedAggregatedCompletion({
   clientSignal,
   timeoutMs,
   fetchImpl = fetch,
+  onAttemptComplete,
 }: ManagedAggregatedRequest): Promise<ManagedAggregatedResult> {
   const candidates = getProviderModelCandidates(providerId, requestedModel)
   const attempts: ManagedUpstreamAttempt[] = []
@@ -74,6 +88,21 @@ export async function requestManagedAggregatedCompletion({
       clearTimeout(timeoutId)
       clientSignal.removeEventListener('abort', onClientAbort)
     }
+    const requestBody = JSON.stringify({ ...forwardBody, model: candidate, stream: true })
+    const capture = async (
+      status: number | undefined,
+      responseBody: string,
+      transportError?: string,
+    ): Promise<void> => {
+      await onAttemptComplete?.({
+        model: candidate,
+        attempt: index + 1,
+        status,
+        requestBody,
+        responseBody,
+        transportError,
+      })
+    }
 
     try {
       const response = await fetchImpl(apiUrl, {
@@ -82,13 +111,14 @@ export async function requestManagedAggregatedCompletion({
           'Content-Type': 'application/json',
           Authorization: `Bearer ${apiKey}`,
         },
-        body: JSON.stringify({ ...forwardBody, model: candidate, stream: true }),
+        body: requestBody,
         signal: controller.signal,
       })
       clearTimeout(timeoutId)
 
       if (!response.ok) {
         const errorText = await response.text().catch(() => '未知错误')
+        await capture(response.status, errorText)
         attempts.push({
           model: candidate,
           status: response.status,
@@ -109,6 +139,7 @@ export async function requestManagedAggregatedCompletion({
 
       if (!response.body) {
         const error = '托管通道未返回响应流'
+        await capture(response.status, '', error)
         attempts.push({ model: candidate, durationMs: Date.now() - attemptStartedAt, error })
         cleanup()
         if (index < candidates.length - 1) continue
@@ -117,6 +148,7 @@ export async function requestManagedAggregatedCompletion({
 
       try {
         const aggregated = await aggregateSseCompletion(response.body)
+        await capture(response.status, aggregated.rawResponseBody)
         attempts.push({ model: candidate, status: 200, durationMs: Date.now() - attemptStartedAt })
         cleanup()
         return {
@@ -129,6 +161,11 @@ export async function requestManagedAggregatedCompletion({
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
+        await capture(
+          response.status,
+          error instanceof ManagedSseAggregationError ? error.rawResponseBody : '',
+          message,
+        )
         controller.abort()
         attempts.push({ model: candidate, status: 200, durationMs: Date.now() - attemptStartedAt, error: message })
         cleanup()
@@ -140,6 +177,7 @@ export async function requestManagedAggregatedCompletion({
       }
     } catch (error) {
       const message = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+      await capture(undefined, '', message)
       attempts.push({ model: candidate, durationMs: Date.now() - attemptStartedAt, error: message })
       cleanup()
       if (clientSignal.aborted) {

@@ -9,11 +9,18 @@ import {
   translateNarrativeAIResponse,
 } from './narrative-ai-protocol'
 import { ChineseTextProcessor } from './chinese-text-processor'
-import { extractTaggedMetaEnvelope } from './tagged-meta-envelope'
+import { extractTaggedMetaEnvelope, extractTaggedNarrativePrefix } from './tagged-meta-envelope'
 import { validateIntentResolution } from './branch-intent-resolution'
 
 export type NarrativeStructuredDataStatus = 'valid' | 'omitted' | 'rejected'
 export type NarrativeConditionalFailure = 'intent' | 'branch'
+
+export interface NarrativeValidationIssue {
+  path: string
+  currentValue: string
+  rule: string
+  legalExample: string
+}
 
 export interface NarrativeResponseQuality {
   valid: boolean
@@ -29,6 +36,10 @@ export interface NarrativeResponseQuality {
   conditionalFailure?: NarrativeConditionalFailure
   /** 已通过协议提取出的正文仍可作为玩家可见回合结果。 */
   hasUsableNarrative?: boolean
+  /** 结构化数据被拒绝时的精确校验摘要，仅供诊断日志使用。 */
+  validationError?: string
+  /** 数据修复请求使用的完整问题列表，不裁剪 Schema 错误。 */
+  validationIssues?: NarrativeValidationIssue[]
 }
 
 const plainTextProcessor = new ChineseTextProcessor()
@@ -36,6 +47,14 @@ const plainTextProcessor = new ChineseTextProcessor()
 function extractBodyOnlyNarrative(content: string): string | null {
   const trimmed = content.trim()
   if (!trimmed) return null
+
+  const taggedPrefix = extractTaggedNarrativePrefix(trimmed)
+  if (taggedPrefix) {
+    const hasBoundary = taggedPrefix.hasSummaryMarker
+      || taggedPrefix.hasDataMarker
+      || taggedPrefix.hasEndMarker
+    return hasBoundary ? taggedPrefix.narrative : null
+  }
 
   // A JSON response is a protocol-shaped payload, so never mistake an error
   // message or an arbitrary field for player-visible narrative text.
@@ -93,6 +112,8 @@ function failureWithEnvelope(
   reason: string,
   narrative: string,
   conditionalFailure?: NarrativeConditionalFailure,
+  validationError?: string,
+  validationIssues?: NarrativeValidationIssue[],
 ): NarrativeResponseQuality {
   const paragraphs = narrative
     .split(/\n\s*\n/u)
@@ -106,7 +127,126 @@ function failureWithEnvelope(
     paragraphCount: paragraphs.length,
     ...(conditionalFailure ? { conditionalFailure } : {}),
     hasUsableNarrative: narrative.trim().length > 0,
+    ...(validationError ? { validationError } : {}),
+    ...(validationIssues?.length ? { validationIssues } : {}),
   }
+}
+
+function serializeValidationValue(value: unknown): string {
+  if (value === undefined) return '（缺失）'
+  try {
+    return JSON.stringify(value) ?? String(value)
+  } catch {
+    return String(value)
+  }
+}
+
+function readValueAtPath(source: unknown, path: readonly PropertyKey[]): unknown {
+  let current = source
+  for (const segment of path) {
+    if (!current || typeof current !== 'object') return undefined
+    current = (current as Record<PropertyKey, unknown>)[segment]
+  }
+  return current
+}
+
+function legalExampleForPath(path: string): string {
+  const examples: Record<string, string> = {
+    重要程度: '"高"',
+    情节状态: '"进行中"',
+    '语义信号.事件类型': '"日常"',
+    '语义信号.冲突强度': '0',
+    '语义信号.张力变化': '0',
+    '语义信号.行动规模': '"小"',
+    '语义信号.不可逆': 'true',
+    '语义信号.影响范围': '"个人"',
+    '语义信号.叙事语域': '"生活"',
+    '语义信号.语域理由': '"本轮只形成个人日常变化"',
+    '语义信号.情节类型': '"无"',
+    命运分支: 'true',
+    分支标题: '"决定下一步"',
+    分支选项: '["采取行动一", "采取行动二"]',
+    '命运意图判定.意图编号': '"必须照抄本轮指定编号"',
+    '命运意图判定.进度': '65',
+    '命运意图判定.下一步': '"继续执行当前意图"',
+  }
+  if (examples[path]) return examples[path]
+  if (path.startsWith('命运意图判定.')) {
+    return '{"意图编号":"指定编号","可行性":"有条件","执行方式":"逐步执行","状态":"推进中","风险等级":"中","进度":65,"预计耗时":"多个节点","判定理由":"依据已成立正文判断","下一步":"继续执行"}'
+  }
+  if (path.startsWith('语义信号.')) {
+    return '{"事件类型":"日常","冲突强度":0,"张力变化":0,"行动规模":"小","不可逆":false,"影响范围":"个人","叙事语域":"生活","语域理由":"本轮只形成个人日常变化","情节类型":"无"}'
+  }
+  return '使用中文协议中该字段的合法类型和值；没有内容时省略整个可选字段'
+}
+
+function describeNarrativeValidationError(
+  error: unknown,
+  rawData: unknown,
+  rawDataSection: string,
+): { summary?: string; issues: NarrativeValidationIssue[] } {
+  if (error && typeof error === 'object' && 'issues' in error) {
+    const issues = (error as { issues?: unknown }).issues
+    if (Array.isArray(issues)) {
+      const validationIssues = issues.map((issue): NarrativeValidationIssue => {
+        if (!issue || typeof issue !== 'object') {
+          return {
+            path: '数据区',
+            currentValue: serializeValidationValue(rawData),
+            rule: String(issue),
+            legalExample: '返回一个完整且符合中文协议的 JSON 对象',
+          }
+        }
+        const rawPath = Array.isArray((issue as { path?: unknown }).path)
+          ? (issue as { path: PropertyKey[] }).path
+          : []
+        const path = rawPath.map(String).join('.') || '数据区'
+        const message = typeof (issue as { message?: unknown }).message === 'string'
+          ? (issue as { message: string }).message
+          : String(issue)
+        return {
+          path,
+          currentValue: serializeValidationValue(readValueAtPath(rawData, rawPath)),
+          rule: message,
+          legalExample: legalExampleForPath(path),
+        }
+      })
+      return {
+        summary: validationIssues.map((issue) => `${issue.path}: ${issue.rule}`).join('; ') || undefined,
+        issues: validationIssues,
+      }
+    }
+  }
+  const rule = error instanceof Error ? error.message : String(error)
+  const issue = {
+    path: '数据区',
+    currentValue: rawData === undefined ? rawDataSection : serializeValidationValue(rawData),
+    rule,
+    legalExample: '返回一个完整且符合中文协议的 JSON 对象，不使用 Markdown 代码块',
+  }
+  return { summary: rule || undefined, issues: [issue] }
+}
+
+function buildConditionalIssue(
+  path: string,
+  currentValue: unknown,
+  rule: string,
+): NarrativeValidationIssue {
+  return {
+    path,
+    currentValue: serializeValidationValue(currentValue),
+    rule,
+    legalExample: legalExampleForPath(path),
+  }
+}
+
+function resolveIntentIssuePath(reason: string): string {
+  if (reason.includes('intentId')) return '命运意图判定.意图编号'
+  if (reason.includes('progress')) return '命运意图判定.进度'
+  if (reason.includes('nextStep')) return '命运意图判定.下一步'
+  if (reason.includes('status')) return '命运意图判定.状态'
+  if (reason.includes('feasibility')) return '命运意图判定.可行性'
+  return '命运意图判定'
 }
 
 /**
@@ -150,39 +290,91 @@ export function inspectNarrativeResponseQuality(
   }
 
   let metadata: ReturnType<typeof translateNarrativeAIResponse> | undefined
+  let rawData: unknown
   let structuredDataStatus: NarrativeStructuredDataStatus = envelope.dataPresent ? 'rejected' : 'omitted'
+  let validationError: string | undefined
+  let validationIssues: NarrativeValidationIssue[] = []
   if (envelope.dataPresent) {
     try {
+      rawData = parseNarrativeAIDataJson(envelope.dataSection ?? '')
       metadata = translateNarrativeAIResponse(
-        parseNarrativeAIDataJson(envelope.dataSection ?? ''),
+        rawData,
         envelope.summary,
       )
       structuredDataStatus = 'valid'
-    } catch {
+    } catch (error) {
       structuredDataStatus = 'rejected'
+      const described = describeNarrativeValidationError(
+        error,
+        rawData,
+        envelope.dataSection ?? '',
+      )
+      validationError = described.summary
+      validationIssues = described.issues
     }
   }
 
   if (requireBranch) {
     if (!metadata || !hasCompleteSemanticCore(metadata) || metadata.branch !== true) {
+      const source = rawData && typeof rawData === 'object' && !Array.isArray(rawData)
+        ? rawData as Record<string, unknown>
+        : undefined
+      const issue = buildConditionalIssue(
+        '命运分支',
+        source?.命运分支,
+        '本轮明确要求命运分支，必须为 true，并同时提交分支标题、二至四个分支选项及完整语义核心',
+      )
       return failureWithEnvelope(
         '本轮已请求命运分支，必须返回完整语义数据、分支标题与分支选项',
         envelope.narrative,
         'branch',
+        validationError,
+        [...validationIssues, issue],
       )
     }
   }
 
   if (typeof expectedIntentId === 'string') {
     if (!metadata || !hasCompleteSemanticCore(metadata)) {
+      const source = rawData && typeof rawData === 'object' && !Array.isArray(rawData)
+        ? rawData as Record<string, unknown>
+        : undefined
+      const issue = buildConditionalIssue(
+        '命运意图判定',
+        source?.命运意图判定,
+        `当前命运意图必须提交完整语义核心和命运意图判定；意图编号必须为 ${toNarrativeAIIntentId(expectedIntentId)}`,
+      )
       return failureWithEnvelope(
         '当前命运意图要求完整语义数据与命运意图判定',
         envelope.narrative,
         'intent',
+        validationError,
+        [...validationIssues, issue],
       )
     }
     const intentError = validateIntentResolution(metadata.intentResolution, expectedIntentId)
-    if (intentError) return failureWithEnvelope(intentError, envelope.narrative, 'intent')
+    if (intentError) {
+      const source = rawData && typeof rawData === 'object' && !Array.isArray(rawData)
+        ? rawData as Record<string, unknown>
+        : undefined
+      const path = resolveIntentIssuePath(intentError)
+      const aiIntent = source?.命运意图判定 && typeof source.命运意图判定 === 'object'
+        ? source.命运意图判定 as Record<string, unknown>
+        : undefined
+      const key = path.split('.').at(-1)
+      const issue = buildConditionalIssue(
+        path,
+        key && path.includes('.') ? aiIntent?.[key] : source?.命运意图判定,
+        intentError,
+      )
+      return failureWithEnvelope(
+        intentError,
+        envelope.narrative,
+        'intent',
+        validationError,
+        [...validationIssues, issue],
+      )
+    }
   }
 
   const paragraphs = envelope.narrative
@@ -208,6 +400,8 @@ export function inspectNarrativeResponseQuality(
     narrativeChars,
     paragraphCount: paragraphs.length,
     hasUsableNarrative: true,
+    ...(validationError ? { validationError } : {}),
+    ...(validationIssues.length ? { validationIssues } : {}),
   }
 }
 
@@ -227,19 +421,27 @@ export function canContinueWithNarrativeBody(
 /** 保留正文和摘要，丢弃未通过条件门禁的数据区，供本轮无等待提交。 */
 export function preserveNarrativeBodyAndSummary(content: string): string {
   const envelope = extractTaggedMetaEnvelope(content)
-  if (!envelope || !envelope.dataPresent) return content
+  if (envelope && !envelope.dataPresent) return content
+  const visible = envelope ?? extractTaggedNarrativePrefix(content)
+  if (!visible) return content
+  if (
+    'hasSummaryMarker' in visible
+    && !visible.hasSummaryMarker
+    && !visible.hasDataMarker
+    && !visible.hasEndMarker
+  ) return content
   return [
     NARRATIVE_BODY_TAG,
-    envelope.narrative,
-    ...(envelope.summary ? [NARRATIVE_SUMMARY_TAG, envelope.summary] : []),
+    visible.narrative,
+    ...(visible.summary ? [NARRATIVE_SUMMARY_TAG, visible.summary] : []),
     NARRATIVE_END_TAG,
   ].join('\n')
 }
 
 /** 放在本轮最后一段动态上下文中的紧凑检查表，减少长 Prompt 尾部遗忘。 */
 export function buildNarrativeRoundOutputContract(
-  expectedIntentId?: string | null,
-  requireBranch = false,
+  _expectedIntentId?: string | null,
+  _requireBranch = false,
   isOpeningRound = false,
 ): string {
   const instructions = [
@@ -254,13 +456,30 @@ export function buildNarrativeRoundOutputContract(
       '这是人生首轮：必须写清角色如何进入当前世界或当前生活，以及抵达后的直接落点和最初处境；不得无因果直接跳过数周或数月。原生本地角色则用现场、家庭、职责或关键关系建立起点。只有玩家明确要求从中途或既定关系开始时才可跳时，并交代必要过渡。',
     )
   }
+  return instructions.join('\n')
+}
+
+/** 独立于剧情方向的变化区，只声明本轮允许返回的源变化与条件结果。 */
+export function buildNarrativeChangeRequirements(
+  expectedIntentId?: string | null,
+  requireBranch = false,
+): string {
+  const instructions = [
+    '【本轮变化要求】',
+    '只返回本轮正文中已经成立的源变化；没有变化的字段整个省略，不输出空数组、空对象、null、零变化或全量状态。',
+    '状态变更只提交“可写状态字段”列出的源字段；派生属性、连锁数值、人口、科技进度和规律推进全部由本地系统计算，不得代算或补写。',
+  ]
   if (typeof expectedIntentId === 'string') {
     instructions.push(
       `当前命运意图必须返回完整语义核心与“命运意图判定”，意图编号严格等于 ${toNarrativeAIIntentId(expectedIntentId)}。`,
     )
+  } else {
+    instructions.push('当前没有待判定命运意图时，省略“命运意图判定”。')
   }
   if (requireBranch) {
-    instructions.push('本轮强制命运分支，必须返回完整语义核心、分支标题和二至四个分支选项。')
+    instructions.push('本轮强制命运分支，必须返回完整语义核心、命运分支=true、分支标题和二至四个分支选项。')
+  } else {
+    instructions.push('本轮不强制新增命运分支；未形成命运分支时省略命运分支、分支标题和分支选项。')
   }
   return instructions.join('\n')
 }
@@ -294,4 +513,81 @@ export function buildNarrativeRepairInstruction(
     )
   }
   return instructions.join('\n')
+}
+
+function buildDataRepairExample(
+  expectedIntentId?: string | null,
+  requireBranch = false,
+): Record<string, unknown> {
+  const example: Record<string, unknown> = {
+    重要程度: '高',
+    情节状态: '进行中',
+    语义信号: {
+      事件类型: '冲突',
+      冲突强度: 60,
+      张力变化: 3,
+      行动规模: '中',
+      不可逆: true,
+      影响范围: '关系圈',
+      叙事语域: '命运',
+      语域理由: '本轮已经形成不可逆的关系与行动后果',
+      情节类型: '任务',
+    },
+  }
+  if (requireBranch) {
+    example.命运分支 = true
+    example.分支标题 = '决定下一步'
+    example.分支选项 = ['采取行动一', '采取行动二']
+  }
+  if (typeof expectedIntentId === 'string') {
+    example.命运意图判定 = {
+      意图编号: toNarrativeAIIntentId(expectedIntentId),
+      可行性: '有条件',
+      执行方式: '逐步执行',
+      状态: '推进中',
+      风险等级: '中',
+      进度: 65,
+      预计耗时: '多个节点',
+      判定理由: '依据已成立正文判断',
+      下一步: '继续执行当前意图',
+    }
+  }
+  return example
+}
+
+/** 正文有效时的专用修复说明：只要求完整数据对象，不允许重写正文或摘要。 */
+export function buildNarrativeDataRepairInstruction(
+  quality: NarrativeResponseQuality,
+  originalDataSection: string,
+  expectedIntentId?: string | null,
+  requireBranch = false,
+): string {
+  const issues = quality.validationIssues?.length
+    ? quality.validationIssues
+    : [buildConditionalIssue('数据区', originalDataSection, quality.reason)]
+  const conditions = [
+    typeof expectedIntentId === 'string'
+      ? `当前命运意图编号：${toNarrativeAIIntentId(expectedIntentId)}；必须返回完整语义核心与命运意图判定。`
+      : '当前没有必须判定的命运意图。',
+    requireBranch
+      ? '本轮强制命运分支：必须返回完整语义核心、命运分支=true、分支标题和二至四个分支选项。'
+      : '本轮不强制新增命运分支；原数据没有分支时不得凭空新增。',
+  ]
+  return [
+    '【修复目标】只返回修复后的完整数据区 JSON 对象；禁止输出正文、摘要、分区标签、Markdown、解释或点评。',
+    '保留原数据中已经合法且与正文一致的字段，只修复下列错误；无法从正文成立的可选字段应整个省略，不得猜测。',
+    ...issues.flatMap((issue, index) => [
+      `【问题 ${index + 1}】`,
+      `失败路径：${issue.path}`,
+      `当前值：${issue.currentValue}`,
+      `标准规则：${issue.rule}`,
+      `合法示例：${issue.legalExample}`,
+    ]),
+    '【本轮条件】',
+    ...conditions,
+    '【完整合法形状示例；只参考字段形状，事实和值必须来自正文与原始数据】',
+    JSON.stringify(buildDataRepairExample(expectedIntentId, requireBranch)),
+    '【原始数据区；必须整包修复后完整返回】',
+    originalDataSection.trim() || '（原输出缺少数据区）',
+  ].join('\n')
 }

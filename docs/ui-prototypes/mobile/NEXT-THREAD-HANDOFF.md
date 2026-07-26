@@ -1,4 +1,6 @@
-# AI Life Sim 移动端 UI 原型：新线程交接文档
+# AI Life Sim 移动端 UI 原型交接记录（已停用）
+
+> 停用说明：本文只保留 UI 原型迭代历史，不再是任务入口、活动权威、前置阅读或执行计划。后续任务从 `D:/AI/AGENTS.md` 和 `docs/authority-index.md` 按需路由，不得因本文要求完整阅读、领取任务编号或按历史波次执行。
 
 > 交接时间：2026-07-24
 > 项目根目录：`D:/AI/ai-life-sim`  
@@ -42,19 +44,9 @@
 
 入口 05–12 均不再采用结构梯度，三版依次为“1 极简白纸、2 淡墨承托、3 书页精修”，差异仅来自 CSS 视觉层；每版原 DOM、内联 JavaScript、状态和运行顺序均与同目录 `final.html` 一致。入口 05–10 的第 1 版已由用户选择，入口 11–12 仍待选择。所有既有 `final.html`、`flow.html` 与共享 CSS/JS 保持不变；未经进一步明确指令，不覆盖任何 `final.html`。
 
-## 1. 新线程必须先做什么
+## 1. 历史文件的使用方式
 
-1. 阅读 `D:/AI/AGENTS.md`。
-2. 使用 `$ai-life-sim`，完整读取：
-   - `D:/AI/.agents/skills/ai-life-sim/SKILL.md`
-   - `D:/AI/.agents/skills/ai-life-sim/references/project-task-execution.md`
-3. 使用 `$ai-life-sim-ui`，完整读取：
-   - `D:/AI/.agents/skills/ai-life-sim-ui/SKILL.md`
-4. 打开 [index.html](index.html)，确认总览、当前适配版板块和 12 个历史档案入口均正常。
-5. 完整阅读 [BOOK-STYLE-CODEX-THREAD-PLAN.md](BOOK-STYLE-CODEX-THREAD-PLAN.md)，只领取一个明确任务编号。
-6. 在修改前运行 `git status --short -- docs/ui-prototypes/mobile`，确认没有误删现有历史页面。
-
-不要重新考古、不要重新清理目录。本文件记录的是当前可继续工作的真源。
+只有用户明确要求追溯这轮 UI 原型竞赛时，才读取本文的对应章节。本文不要求新任务完整阅读任何蓝图或任务书，也不分配任务编号；当前界面目标、机制和实时源以 [界面体系权威](../../authority/interface-tree.md) 及用户本次要求为准。
 
 ## 2. 用户当前目标
 
@@ -108,7 +100,7 @@
 
 - [index.html](index.html)：移动端 UI 总览大页面。
 - [flow.html](flow.html)：当前适配版完整串联测试。
-- [BOOK-STYLE-CODEX-THREAD-PLAN.md](BOOK-STYLE-CODEX-THREAD-PLAN.md)：当前 Codex 多线程排版竞赛的唯一任务分解与文件所有权说明。
+- [BOOK-STYLE-CODEX-THREAD-PLAN.md](BOOK-STYLE-CODEX-THREAD-PLAN.md)：已停用的多线程排版竞赛历史任务书。
 - [assets/library.css](assets/library.css)：当前暖白适配版与串联测试共享样式。
 - [assets/library-history.css](assets/library-history.css)：历史轮次原版蓝灰样式，并包含跨文档无缝过场。
 - [assets/prototype.js](assets/prototype.js)：当前流程路由、跨页面过场和测试台通信。
@@ -193,9 +185,9 @@ D:/AI/.qa-output/mobile-history-mythic-index.png
 D:/AI/.qa-output/mobile-history-overview-390.png
 ```
 
-## 7. 下一线程的执行顺序
+## 7. 历史执行顺序（已停用）
 
-完整任务、目录和验收标准见 [BOOK-STYLE-CODEX-THREAD-PLAN.md](BOOK-STYLE-CODEX-THREAD-PLAN.md)。顺序不得跨阶段抢跑：
+下列波次只记录当时的竞赛安排，后续任务不再按此启动或排队：
 
 ```text
 并行波次 1：B01 章节书页 + B02 对开书册 + B03 批注手稿 + B04 章回长卷
@@ -205,13 +197,9 @@ D:/AI/.qa-output/mobile-history-overview-390.png
 串行集成：B21 → 用户逐页选择
 ```
 
-第一阶段 B01–B04 已完成。四个目录及其候选必须原样保留，不得因 B05 评审形式变化而重新生成。
+当时第一阶段 B01–B04 已完成；相关候选和后续安排仅作为历史结果保留。实际文件是否修改由当前用户要求决定。
 
-第二阶段只有在用户分别完成四个代表页面的选择或页面内融合、并由 B10 写成规范后才能启动。页面线程允许重排布局，不允许删除机制；每个线程只写自己的候选前缀，不修改共享入口。
-
-用户选定某页胜者后，才允许另开整合任务更新该页 `final.html`、`flow.html` 和目录状态。淘汰候选继续保留。
-
-## 8. 每轮必须执行的验证
+## 8. 历史验证清单（按需参考）
 
 ### 静态检查
 
@@ -256,7 +244,7 @@ git diff --check
 
 如果只新增交接文档而未修改界面，不必重复运行 UI 浏览器验收；实际界面变化必须运行。
 
-## 9. 工作区安全规则
+## 9. 历史工作区说明
 
 - 当前工作区很脏，保留所有无关修改。
 - 不得运行 `git reset --hard`、`git checkout --` 或批量清理未跟踪文件。
@@ -265,13 +253,15 @@ git diff --check
 - 不得把 `.qa-output` 截图写回项目目录。
 - 不得把当前历史目录再次“只保留 final”。用户已经明确要求保留全部迭代记录。
 
-## 10. 可直接复制到新线程的启动提示
+## 10. 历史启动提示（已停用）
+
+以下文本只用于还原当时任务，不得用于启动当前任务：
 
 ```text
 请先完整阅读：
 D:/AI/AGENTS.md
 D:/AI/.agents/skills/ai-life-sim/SKILL.md
-D:/AI/.agents/skills/ai-life-sim/references/project-task-execution.md
+D:/AI/ai-life-sim/docs/authority-index.md
 D:/AI/.agents/skills/ai-life-sim-ui/SKILL.md
 D:/AI/ai-life-sim/docs/ui-prototypes/mobile/NEXT-THREAD-HANDOFF.md
 D:/AI/ai-life-sim/docs/ui-prototypes/mobile/BOOK-STYLE-CODEX-THREAD-PLAN.md

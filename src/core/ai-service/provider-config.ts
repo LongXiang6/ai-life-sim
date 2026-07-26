@@ -151,28 +151,14 @@ export const AI_PROVIDERS: Record<string, AIProviderConfig> = {
   },
 }
 
-// ---- 推理强度 budget_tokens 映射 ----
+// ---- 推理模式 ----
 
-/** 推理强度 → thinking.budget_tokens 映射（DeepSeek 风格） */
-export const REASONING_BUDGET_MAP: Record<string, number> = {
-  disabled: 0,
-  'level-1': 1024,
-  'level-2': 2048,
-  'level-3': 4096,
-  'level-4': 8192,
-  'level-5': 16384,
-  'level-6': 32768,
-}
-
-/** 推理强度选项（用于 UI 下拉） */
+/** 推理模式选项（用于 UI 下拉） */
 export const REASONING_EFFORT_OPTIONS = [
-  { value: 'disabled', label: '关闭', description: '不使用推理/思考', tokens: 0, },
-  { value: 'level-1', label: 'Level 1', description: '轻量推理', tokens: 1024, },
-  { value: 'level-2', label: 'Level 2', description: '标准推理', tokens: 2048, },
-  { value: 'level-3', label: 'Level 3', description: '深度推理', tokens: 4096, },
-  { value: 'level-4', label: 'Level 4', description: '高级推理', tokens: 8192, },
-  { value: 'level-5', label: 'Level 5', description: '专家推理', tokens: 16384, },
-  { value: 'level-6', label: 'Level 6', description: '最大推理', tokens: 32768, },
+  { value: 'disabled', label: '关闭', description: '不启用推理模式' },
+  { value: 'auto', label: '自动', description: '由模型选择合适的推理深度' },
+  { value: 'high', label: '深入', description: '要求高强度推理' },
+  { value: 'max', label: '最大', description: '要求最大强度推理' },
 ] as const
 
 // ---- 自定义 Provider 配置 ----

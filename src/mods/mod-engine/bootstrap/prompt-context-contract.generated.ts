@@ -36,6 +36,7 @@ export const PROMPT_CONTEXT_FIELDS = [
   "talents",
   "creationProtectionText",
   "subsystemGuideText",
+  "changeRequirementsText",
   "timeGuideText",
   "powerCeilingPresets"
 ] as const

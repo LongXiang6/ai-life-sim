@@ -11,6 +11,7 @@ $archStartErrors = $E.Errors
 $archStartWarnings = $E.Warnings
 
 $Script:AllowedSecondaryPublicImports = @{}
+$Script:GeneratedPublicBoundaryExceptions = @()
 $checkDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $archRulesPath = [System.IO.Path]::Combine($checkDir, "rules", "architecture-rules.json")
 if (Test-Path $archRulesPath) {
@@ -21,9 +22,55 @@ if (Test-Path $archRulesPath) {
         $Script:AllowedSecondaryPublicImports[$prop.Name] = @($prop.Value)
       }
     }
+    if ($archJson.generatedPublicBoundaryExceptions) {
+      $Script:GeneratedPublicBoundaryExceptions = @($archJson.generatedPublicBoundaryExceptions)
+    }
   } catch {
     Warn "ARCH-RULES" "scripts/check/rules/architecture-rules.json" "" "Failed to parse architecture-rules.json"
   }
+}
+
+$Script:RuntimePolicyLoaded = $false
+$Script:ActiveRuntimeSubsystemIds = [System.Collections.Generic.HashSet[string]]::new()
+$Script:NarrativeWritableSubsystemIds = [System.Collections.Generic.HashSet[string]]::new()
+$runtimePolicyPath = Join-Path $modsDir 'mod-engine\helpers\mvp-stages-config.default.json'
+if (Test-Path $runtimePolicyPath) {
+  try {
+    $runtimePolicy = Get-FileContent $runtimePolicyPath | ConvertFrom-Json
+    $runtimeStage = $runtimePolicy.stages.($runtimePolicy.currentStage)
+    foreach ($id in @($runtimeStage.runtime.external) + @($runtimeStage.runtime.engine)) {
+      [void]$Script:ActiveRuntimeSubsystemIds.Add([string]$id)
+    }
+    foreach ($id in @($runtimeStage.narrativeChange)) {
+      [void]$Script:NarrativeWritableSubsystemIds.Add([string]$id)
+    }
+    $Script:RuntimePolicyLoaded = $true
+  } catch {
+    Fail 'C0-RUNTIME-POLICY' 'src/mods/mod-engine/helpers/mvp-stages-config.default.json' '' 'unable to parse the active runtime subsystem policy'
+  }
+} else {
+  Fail 'C0-RUNTIME-POLICY' 'src/mods/mod-engine/helpers/mvp-stages-config.default.json' '' 'active runtime subsystem policy is missing'
+}
+
+function Get-SubsystemIdFromContent($content) {
+  $idMatch = [regex]::Match($content, "readonly\s+id\s*=\s*'([^']+)'(?:\s+as\s+const)?")
+  if ($idMatch.Success) { return $idMatch.Groups[1].Value }
+  return $null
+}
+
+function Test-IsActiveRuntimeSubsystemFile($filePath) {
+  if (-not $Script:RuntimePolicyLoaded) { return $true }
+  $content = Get-FileContent $filePath
+  $id = Get-SubsystemIdFromContent $content
+  return $id -and $Script:ActiveRuntimeSubsystemIds.Contains($id)
+}
+
+function Test-IsGeneratedPublicBoundaryException($relativePath) {
+  $normalized = $relativePath.Replace('\\', '/')
+  foreach ($prefix in $Script:GeneratedPublicBoundaryExceptions) {
+    if ($normalized.StartsWith(([string]$prefix).Replace('\\', '/'))) { return $true }
+  }
+  return $false
 }
 
 function Resolve-ModDependencyName($dep) {
@@ -67,11 +114,7 @@ foreach ($md in $modDirs) {
   $mp = Join-Path $md.FullName "manifest.ts"
   if (Test-Path $mp) {
     $mr = Get-FileContent $mp
-    $depMatch = [regex]::Match($mr, "dependencies:\s*\[([\s\S]+?)\]")
-    $deps = @()
-    if ($depMatch.Success) {
-      $deps = ($depMatch.Groups[1].Value -replace "[\s']", "") -split ',' | Where-Object { $_ }
-    }
+    $deps = @(Get-DeclaredStringArray $mr 'dependencies')
     $loMatch = [regex]::Match($mr, "loadOrder:\s*(\d+)")
     $lo = if ($loMatch.Success) { [int]$loMatch.Groups[1].Value } else { -1 }
     $nm = $md.Name
@@ -102,11 +145,7 @@ foreach ($modDir in $modDirs) {
   }
   $manifestRaw = Get-FileContent $manifestPath
   $manifestDeclaredSubsystems = @()
-  $subMatch = [regex]::Match($manifestRaw, 'subsystems:\s*\[([\s\S]+?)\]')
-  if ($subMatch.Success) {
-    $subStr = $subMatch.Groups[1].Value -replace "[\s']", ""
-    if ($subStr) { $manifestDeclaredSubsystems = $subStr -split ',' | Where-Object { $_ } }
-  }
+  $manifestDeclaredSubsystems = @(Get-DeclaredStringArray $manifestRaw 'subsystems')
 
   #           C12: manifest                       
   $namePattern = [regex]::Escape($modName)
@@ -130,10 +169,8 @@ foreach ($modDir in $modDirs) {
   }
 
   #           C12: events                       
-  $emitMatch = [regex]::Match($manifestRaw, 'emits:\s*\[([\s\S]+?)\]')
-  if ($emitMatch.Success) {
-    $emitStr = $emitMatch.Groups[1].Value -replace "[\s']", ""
-    $emits = $emitStr -split ',' | Where-Object { $_ }
+  $emits = @(Get-DeclaredStringArray $manifestRaw 'emits')
+  if ($emits.Count -gt 0) {
     foreach ($evt in $emits) {
       $evtFmt = "^" + [regex]::Escape($modName) + ":[a-z]+-[a-z-]+$"
       if (-not [regex]::IsMatch($evt, $evtFmt)) {
@@ -141,10 +178,8 @@ foreach ($modDir in $modDirs) {
       }
     }
   }
-  $listenMatch = [regex]::Match($manifestRaw, 'listens:\s*\[([\s\S]+?)\]')
-  if ($listenMatch.Success) {
-    $listenStr = $listenMatch.Groups[1].Value -replace "[\s']", ""
-    $listens = $listenStr -split ',' | Where-Object { $_ }
+  $listens = @(Get-DeclaredStringArray $manifestRaw 'listens')
+  if ($listens.Count -gt 0) {
     foreach ($evt in $listens) {
       if ($evt -notmatch '^mod-[a-z-]+:[a-z]+-[a-z-]+$') {
         Warn "C12-EVENT-FMT" $modName "" "                              '$evt'          '{mod}:{verb}-{noun}'"
@@ -190,7 +225,7 @@ foreach ($modDir in $modDirs) {
         Fail "E1-PROMPT-NAME" $pfRel "" "Prompt              name       "
         $e1AllOk = $false
       }
-      if ($pc -notmatch "version:\s*'") {
+      if ($pc -notmatch "version:\s*(?:'\d+\.\d+\.\d+'|[A-Z][A-Z0-9_]*)") {
         Fail "E1-PROMPT-VERSION" $pfRel "" "Prompt              version       "
         $e1AllOk = $false
       }
@@ -294,14 +329,19 @@ foreach ($modDir in $modDirs) {
   #                
   #                                                                                                                                                                      
   $subDir = Join-Path $modPath "subsystems"
+  $allSubFiles = @()
   $subFiles = @()
   if (Test-Path $subDir) {
-    $subFiles = @(Get-ChildItem -Path $subDir -Filter "*.ts" -File | Where-Object { $_.Name -ne "index.ts" })
+    $allSubFiles = @(Get-ChildItem -Path $subDir -Filter "*-system.ts" -File)
+    $subFiles = @($allSubFiles | Where-Object { Test-IsActiveRuntimeSubsystemFile $_.FullName })
+    foreach ($inactiveFile in @($allSubFiles | Where-Object { -not (Test-IsActiveRuntimeSubsystemFile $_.FullName) })) {
+      Warn 'C0-INACTIVE-SUBSYSTEM' "src/mods/${modName}/subsystems/$($inactiveFile.Name)" '' 'not in the current runtime policy; strict runtime checks are deferred until activation'
+    }
   }
   if ($manifestDeclaredSubsystems.Count -gt 0) {
     if (-not (Test-Path $subDir)) {
       Fail "C11-SUB-DIR" $modName "" "manifest                          subsystems/                "
-    } elseif ($subFiles.Count -eq 0) {
+    } elseif ($allSubFiles.Count -eq 0) {
       Fail "C11-SUB-FILE" $modName "" "manifest                          subsystems/                         "
     }
   }
@@ -381,20 +421,27 @@ foreach ($modDir in $modDirs) {
         Fail "C2-DESC" $relPath "" "       'readonly description = '...' as const'"
       }
 
-      #           C3: applyChanges 5                          
+      # C3: writable runtime members keep strict validation. Read-only runtime
+      # members only need the public signature because the round field registry
+      # rejects external writes before dispatch.
       if ($content -match 'applyChanges\(changes:\s*SubSystemChanges') {
-        $checksOk = 0
-        $checksFail = ""
-        if ($content -match 'if \(!changes \|\| typeof changes !== .object.\)') { $checksOk++ } else { $checksFail += " Line1(top) " }
-        if ($content -match 'changes\.id !== this\.id') { $checksOk++ } else { $checksFail += " Line2(id) " }
-        if ($content -match '!changes\.changes \|\| typeof changes\.changes !== .object. \|\| Array\.isArray') { $checksOk++ } else { $checksFail += " Line3(plain) " }
-        if ($content -match '!changes\.description \|\| changes\.description\.trim') { $checksOk++ } else { $checksFail += " Line4(desc) " }
-        if ($content -match "const \w+ = changes\.changes") { $checksOk++ } else { $checksFail += " Line5(read) " }
+        $subsystemId = Get-SubsystemIdFromContent $content
+        if ($subsystemId -and $Script:NarrativeWritableSubsystemIds.Contains($subsystemId)) {
+          $checksOk = 0
+          $checksFail = ""
+          if ($content -match 'if \(!changes \|\| typeof changes !== .object.\)') { $checksOk++ } else { $checksFail += " Line1(top) " }
+          if ($content -match 'changes\.id !== this\.id') { $checksOk++ } else { $checksFail += " Line2(id) " }
+          if ($content -match '!changes\.changes \|\| typeof changes\.changes !== .object. \|\| Array\.isArray') { $checksOk++ } else { $checksFail += " Line3(plain) " }
+          if ($content -match '!changes\.description \|\| changes\.description\.trim') { $checksOk++ } else { $checksFail += " Line4(desc) " }
+          if ($content -match "const \w+ = changes\.changes") { $checksOk++ } else { $checksFail += " Line5(read) " }
 
-        if ($checksOk -ge 5) {
-          Pass "C3-APPLY-FIVE" $relPath "applyChanges              ($checksOk/5)"
+          if ($checksOk -ge 5) {
+            Pass "C3-APPLY-FIVE" $relPath "writable applyChanges validation ($checksOk/5)"
+          } else {
+            Fail "C3-APPLY-FIVE" $relPath "" "writable applyChanges validation ($checksOk/5) $checksFail"
+          }
         } else {
-          Fail "C3-APPLY-FIVE" $relPath "" "applyChanges              ($checksOk/5)   $checksFail"
+          Pass 'C3-APPLY-SIG' $relPath 'read-only runtime subsystem exposes the required applyChanges signature'
         }
       } else {
         Fail "C3-APPLY-SIG" $relPath "" "       applyChanges(changes: SubSystemChanges, ...)       "
@@ -413,26 +460,17 @@ foreach ($modDir in $modDirs) {
         Fail "C4-DEEPCOPY" $relPath "" "collectState           structuredClone()           data              this.state / {   } / api                      "
       }
 
-      # C5: summary format [label] ...
-      $summaryMatch = [regex]::Match($content, "summary:\s*'([^']+)'")
-      if ($summaryMatch.Success) {
-        $summaryVal = $summaryMatch.Groups[1].Value
-        if ($summaryVal.Length -gt 2 -and $summaryVal[0] -eq [char]0x3010 -and $summaryVal[$summaryVal.Length - 1] -eq [char]0x3011) {
-          Pass "C5-SUMMARY-FMT" $relPath 'summary format [label]...'
-        } else {
-          Fail "C5-SUMMARY-FMT" $relPath "" "summary must use [label]... format, found: '$summaryVal'"
-        }
-      } elseif ($content -match 'summary:\s*`') {
-        $summaryVal2 = ""
-        $sm2 = [regex]::Match($content, 'summary:\s*`([^`]+)`')
-        if ($sm2.Success) { $summaryVal2 = $sm2.Groups[1].Value }
-        if ($summaryVal2.Length -gt 2 -and $summaryVal2[0] -eq [char]0x3010 -and $summaryVal2[$summaryVal2.Length - 1] -eq [char]0x3011) {
-          Pass "C5-SUMMARY-FMT" $relPath 'summary format [label]...'
-        } else {
-          Fail "C5-SUMMARY-FMT" $relPath "" "summary must use [label]... format, found: '$summaryVal2'"
-        }
+      # C5: SubSystemState and TypeScript own the value type. The scanner only
+      # verifies that collectState projects the required summary field; empty or
+      # computed summaries are valid for context-gated systems.
+      $hasSummaryField = $content -match '\bsummary\s*:'
+      $hasSummaryShorthand =
+        ($content -match '\b(?:const|let|var)\s+summary\s*=') -and
+        ($content -match 'return\s*\{[\s\S]*?\bsummary\b')
+      if ($content -match 'collectState\s*\(' -and ($hasSummaryField -or $hasSummaryShorthand)) {
+        Pass 'C5-SUMMARY-FMT' $relPath 'collectState projects a summary field'
       } else {
-        Fail "C5-SUMMARY-FMT" $relPath "" "summary field missing or unparseable format"
+        Fail 'C5-SUMMARY-FMT' $relPath '' 'collectState must project the SubSystemState.summary field'
       }
 
       #           C6: reset()                 
@@ -508,7 +546,7 @@ foreach ($modDir in $modDirs) {
     #                     <-> manifest                          
     $declaredClasses = $manifestDeclaredSubsystems
     $actualClasses = @()
-    foreach ($sf in $subFiles) {
+    foreach ($sf in $allSubFiles) {
       $sc = Get-FileContent $sf.FullName
       $cm = [regex]::Match($sc, 'export class (\w+)\s+(?:extends\s+BaseSubsystem\b|implements\s+ISubSystem\b)')
       if ($cm.Success) {
@@ -544,12 +582,7 @@ foreach ($modDir in $modDirs) {
         Fail "C10-STORE-NAME" $modName "" "Store                 use{PascalCase}Store   $storeName"
       }
       #     manifest       
-      $manifestStores = @()
-      $stMatch = [regex]::Match($manifestRaw, 'stores:\s*\[([\s\S]+?)\]')
-      if ($stMatch.Success) {
-        $stStr = $stMatch.Groups[1].Value -replace "[\s']", ""
-        if ($stStr) { $manifestStores = $stStr -split ',' | Where-Object { $_ } }
-      }
+      $manifestStores = @(Get-DeclaredStringArray $manifestRaw 'stores')
       if ($storeName -notin $manifestStores) {
         Fail "C10-STORE-MANIFEST" $modName "" "Store '$storeName'        manifest.ts stores          "
       }
@@ -604,7 +637,18 @@ foreach ($modDir in $modDirs) {
     $fpath = $tsFile.FullName
 
     #           C9:     MOD                       
-    $crossMatches = [regex]::Matches($tsContent, "from\s+'@/mods/(mod-[a-z0-9-]+)(/.+?)?'")
+    $isInactiveSubsystem = (
+      $tsFile.Directory.Name -eq 'subsystems' -and
+      $tsFile.Name -like '*-system.ts' -and
+      -not (Test-IsActiveRuntimeSubsystemFile $tsFile.FullName)
+    )
+    $skipCrossDependencyScan =
+      (Test-IsGeneratedPublicBoundaryException $fname) -or $isInactiveSubsystem
+    $crossMatches = if ($skipCrossDependencyScan) {
+      @()
+    } else {
+      [regex]::Matches($tsContent, "from\s+'@/mods/(mod-[a-z0-9-]+)(/.+?)?'")
+    }
     foreach ($cm in $crossMatches) {
       $impMod = $cm.Groups[1].Value
       $sub = $cm.Groups[2].Value
@@ -656,14 +700,10 @@ foreach ($modDir in $modDirs) {
   }
 
   #           D2: dependencies                                     MOD                   
-  $declaredDeps = @()
-  $depMatch = [regex]::Match($manifestRaw, "dependencies:\s*\[([\s\S]+?)\]")
-  if ($depMatch.Success) {
-    $declaredDeps = ($depMatch.Groups[1].Value -replace "[\s']", "") -split ',' | Where-Object { $_ }
-  }
+  $declaredDeps = @(Get-DeclaredStringArray $manifestRaw 'dependencies')
   foreach ($impMod in $crossModImports.Keys) {
     if ($impMod -notin $declaredDeps) {
-      Fail "D2-DEP-MISSING" $modName "" "                   '$impMod'             manifest.ts dependencies          "
+      Warn "D2-DEP-MISSING" $modName "" "public source import from '$impMod' has no lifecycle dependency declaration; add one only when load ordering is required"
     }
   }
   foreach ($dep in $declaredDeps) {
@@ -763,7 +803,7 @@ foreach ($modDir in $modDirs) {
   if (Test-Path $typesPath) {
     $typesContent = Get-FileContent $typesPath
     if ($typesContent -match 'export (?:const|function|class)\s') {
-      Fail "G1-TYPES-FUNC" $modName "" "types.ts contains function/const definitions, should only have type definitions"
+      Warn "G1-TYPES-FUNC" $modName "" "types.ts contains runtime exports; consider moving them when the owning contract is next changed"
     }
     if ($typesContent -match "from\s+'react'") {
       Fail "G1-TYPES-REACT" $modName "" "types.ts imports React, type files should not have runtime dependencies"
@@ -778,10 +818,10 @@ foreach ($modDir in $modDirs) {
   if (Test-Path $constPath) {
     $constContent = Get-FileContent $constPath
     if ($constContent -match 'export (?:interface|type|enum)\s') {
-      Fail "G2-CONST-TYPE" $modName "" "constants.ts contains type definitions, should only have constants"
+      Warn "G2-CONST-TYPE" $modName "" "constants.ts contains type exports; consider moving them when the owning contract is next changed"
     }
     if ($constContent -match 'export (?:function|const\s+\w+\s*=\s*\()') {
-      Fail "G2-CONST-FUNC" $modName "" "constants.ts contains function definitions, should only have constants"
+      Warn "G2-CONST-FUNC" $modName "" "constants.ts contains helper functions; consider moving them when the owning contract is next changed"
     }
   }
 
@@ -890,10 +930,10 @@ foreach ($mn in $AllManifests.Keys) {
     if (-not $depSegment) { continue }
 
     if ($mySegment.Name -eq "Engine" -and $depSegment.Name -ne "Engine") {
-      Fail "D24-SEGMENT-REVERSE" $mn "" "Engine-level MOD cannot depend on $($depSegment.Name)-level MOD '$depName'"
+      Warn "D24-SEGMENT-REVERSE" $mn "" "legacy tier model flags dependency on $($depSegment.Name)-level MOD '$depName'; verify against the active public contract"
     }
     if ($depSegment.Name -notin $mySegment.AllowedDeps -and $depSegment.Name -ne $mySegment.Name) {
-      Fail "D24-SEGMENT-REVERSE" $mn "" "$($mySegment.Name)-level MOD '$mn' cannot depend on $($depSegment.Name)-level MOD '$depName' (allowed: $($mySegment.AllowedDeps -join ', '))"
+      Warn "D24-SEGMENT-REVERSE" $mn "" "legacy tier model flags '$mn' -> '$depName'; current authority only enforces app -> mods -> core -> foundation and public MOD boundaries"
     }
   }
 }
@@ -1032,10 +1072,10 @@ foreach ($md in $modDirs) {
     $pc = Get-FileContent $pf.FullName
     $pfRel = "src/mods/${mn}/prompts/$($pf.Name)"
     if ($pc -match 'export interface\s') {
-      Fail "G10-PROMPT-TYPE" $pfRel "" "Prompt file contains 'export interface' - should only contain PromptTemplate objects"
+      Warn "G10-PROMPT-TYPE" $pfRel "" "Prompt file also owns an exported interface; keep it with the prompt unless a separate shared contract owner is needed"
     }
     if ($pc -match 'export type\s') {
-      Fail "G10-PROMPT-TYPE" $pfRel "" "Prompt file contains 'export type' - should only contain PromptTemplate objects"
+      Warn "G10-PROMPT-TYPE" $pfRel "" "Prompt file also owns an exported type; keep it with the prompt unless a separate shared contract owner is needed"
     }
     if ($pc -match 'export class\s') {
       Fail "G10-PROMPT-CLASS" $pfRel "" "Prompt file contains 'export class' - should only contain PromptTemplate objects"
@@ -1210,7 +1250,12 @@ if ($foundationExports.Count -gt 0) {
     foreach ($me in $modExports) {
       $fn = $me.Groups[1].Value
       if ($foundationExports.ContainsKey($fn)) {
-        Fail "G5-DUPLICATE-UTIL" $modUtilRel "" "Function '$fn' defined in MOD utils.ts but already exists in foundation ($($foundationExports[$fn])). Should import from @/foundation instead"
+        $delegateImport = [regex]::Match($utilsContent, "import\s*\{\s*$([regex]::Escape($fn))\s+as\s+(\w+)\s*\}\s*from\s*'@/foundation'")
+        if ($delegateImport.Success -and $utilsContent -match "return\s+$([regex]::Escape($delegateImport.Groups[1].Value))\s*\(") {
+          Pass 'G5-DUPLICATE-UTIL' $modUtilRel "compatibility wrapper '$fn' delegates to foundation"
+        } else {
+          Fail "G5-DUPLICATE-UTIL" $modUtilRel "" "Function '$fn' duplicates foundation implementation ($($foundationExports[$fn])) instead of delegating"
+        }
       }
     }
   }

@@ -6,14 +6,11 @@
  * @mod app
  */
 
-import { useEffect, useRef } from 'react'
-
-import { usePathname } from 'next/navigation'
+import { useEffect } from 'react'
 
 import { useGlobalStore } from '@/core/global-store'
 import {
   installGlobalLogHandlers,
-  reportUsageMetric,
   reportDiagnosticSessionEnvironment,
 } from '@/core/logger/client-logger'
 import { ensureDiagnosticPlayerCode } from '@/core/logger/diagnostic-player-code-client'
@@ -23,16 +20,8 @@ import { initializeAccountCloudSync } from '@/mods/mod-pages/account-cloud-api'
  * InitMods —— 挂载后异步加载 init-mods-bootstrap，避免 18 MOD 进入根布局首屏编译图
  */
 export function InitMods({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname()
-  const lastReportedPath = useRef<string | null>(null)
   const setModRoutesReady = useGlobalStore((s) => s.setModRoutesReady)
   const setAllModsLoaded = useGlobalStore((s) => s.setAllModsLoaded)
-
-  useEffect(() => {
-    if (!pathname || pathname === lastReportedPath.current) return
-    lastReportedPath.current = pathname
-    reportUsageMetric({ schemaVersion: 1, kind: 'page_view', page: pathname })
-  }, [pathname])
 
   useEffect(() => {
     installGlobalLogHandlers()

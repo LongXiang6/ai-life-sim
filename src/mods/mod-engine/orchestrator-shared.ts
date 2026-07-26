@@ -142,3 +142,7 @@ export { useEngineStore } from './store'
 // types
 export type { EngineState, RoundInfo, RoundResult, NarrativeChunk, CharacterCreation, TimeStep } from './types'
 export type { ParsedNarrative } from './subsystems/narrative-parser-system'
+
+// 结算复算使用的逐轮迁移审计属于 foundation 公共契约；编排器只通过
+// 该重导出边界消费它，避免在 orchestrator-system 中建立私有类型副本。
+export type { NarrativeTransitionAuditSnapshot } from '@/foundation'

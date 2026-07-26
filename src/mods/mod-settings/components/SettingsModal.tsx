@@ -14,16 +14,19 @@ import { DEFAULT_SETTINGS_VALUES, useSettingsStore } from '../store'
 
 import { SettingsTabTheme } from './SettingsTabTheme'
 import { SettingsTabModel } from './SettingsTabModel'
+import { SettingsTabNarrative } from './SettingsTabNarrative'
 import { SettingsTabPresets } from './SettingsTabPresets'
+import { SettingsTabStats } from './SettingsTabStats'
 
 import styles from './SettingsModal.module.css'
 
-type TabId = 'appearance' | 'ai' | 'model-call'
+type TabId = 'appearance' | 'narrative' | 'model-call' | 'statistics'
 
 const TABS: { id: TabId; label: string; index: string }[] = [
-  { id: 'appearance', label: '个性化', index: '01' },
-  { id: 'ai', label: '模型设置', index: '02' },
-  { id: 'model-call', label: '模型调用', index: '03' },
+  { id: 'appearance', label: '阅读与界面', index: '01' },
+  { id: 'narrative', label: '叙事偏好', index: '02' },
+  { id: 'model-call', label: '模型与调用', index: '03' },
+  { id: 'statistics', label: '数据统计', index: '04' },
 ]
 
 function areSettingsDefault(state: ReturnType<typeof useSettingsStore.getState>): boolean {
@@ -217,8 +220,14 @@ export function SettingsModal({ open, onClose, initialTab }: SettingsModalProps)
           aria-labelledby={`settings-tab-${activeTab}`}
         >
           {activeTab === 'appearance' && <SettingsTabTheme />}
-          {activeTab === 'ai' && <SettingsTabModel />}
-          {activeTab === 'model-call' && <SettingsTabPresets key={settingsRevision} />}
+          {activeTab === 'narrative' && <SettingsTabNarrative />}
+          {activeTab === 'model-call' && (
+            <>
+              <SettingsTabPresets key={settingsRevision} />
+              <SettingsTabModel />
+            </>
+          )}
+          {activeTab === 'statistics' && <SettingsTabStats />}
         </div>
 
         <footer className={styles.footer}>

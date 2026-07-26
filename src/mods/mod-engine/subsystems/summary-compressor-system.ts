@@ -1,22 +1,11 @@
 /**
  * @module summary-compressor-system.ts
- * @description 叙事总结压缩系统 —— 六级 AI 驱动压缩管线
+ * @description 叙事压缩系统 —— L1/L2/L3 四倍时间轴记忆管线
  * @mod mod-engine
  *
- * 来源: summary-compressor-spec.md 完整规范
- *
- * 为什么需要压缩：
- *   每轮生成叙事文本后追加到历史，连续数百轮后 Prompt 将超出 AI token 限制。
- *   压缩器通过六级渐进压缩解决此问题：
- *   - L1 块总结：每 5 轮完成后立即将该块压缩为一段摘要
- *   - L2 深度压缩：将 5 条 L1 摘要再压缩为一条（25轮）
- *   - L3 骨架压缩：将 5 条 L2 摘要压缩为时代骨架（250轮）
- *   - L4 纪元压缩：将 5 条 L3 骨架压缩为纪元概览（1250轮）
- *   - L5 时代压缩：将 5 条 L4 纪元压缩为时代概略（6250轮）
- *   - L6 历史压缩：将 5 条 L5 时代压缩为历史概略（31250轮）
- *
- * 这确保 AI 固定保留最近 5 轮原始上下文，同时距离越远的历史被压缩得越紧凑。
- * L6 层级覆盖 31250 轮，日步进玩家可体验约 85 年人生。
+ * L1 覆盖 4 轮完整叙事，L2 覆盖 4 个 L1（16 轮），L3 覆盖 4 个 L2（64 轮）。
+ * L1 延迟一个完整块：第 8 轮完成后压缩 1~4 轮，第 12 轮完成后压缩 5~8 轮，
+ * 因而第 9/13 轮始终同时拥有已完成摘要和最近 4 轮完整正文。
  */
 
 import type {
@@ -28,6 +17,7 @@ import type {
   CharacterState,
   CompressedSummaries,
   CompressedSummaryItem,
+  CompressedMemoryEvent,
   LongTermMemory,
   LifeStage,
   NarrativeDirection,
@@ -37,663 +27,502 @@ import { BaseSubsystem, callAI } from '@/core'
 import { useSettingsStore } from '@/mods/mod-settings'
 
 import {
-  buildSummaryPrompt,
-  buildSummarySystemPrompt,
+  buildTimelineCompressionPrompt,
 } from '../prompts/summary-prompt'
-import { requireCompletedSummaryContent } from '../helpers/summary-coverage'
 import {
   SUMMARY_INTERVAL,
-  COMPRESS_L1_DELAY_ROUNDS,
+  COMPRESS_L1_DELAY_BLOCKS,
   RECENT_NARRATIVE_WINDOW,
   COMPRESS_L2_MERGE_COUNT,
-  COMPRESS_L2_DELAY_ROUNDS,
   COMPRESS_L3_MERGE_COUNT,
-  COMPRESS_L3_DELAY_ROUNDS,
-  COMPRESS_L4_MERGE_COUNT,
-  COMPRESS_L5_MERGE_COUNT,
-  COMPRESS_L5_DELAY_ROUNDS,
-  COMPRESS_L6_MERGE_COUNT,
-  COMPRESS_L6_DELAY_ROUNDS,
+  COMPRESS_L2_MERGE_INTERVAL,
+  COMPRESS_L3_MERGE_INTERVAL,
 } from '../constants'
 import {
   computeSummaryTokenBudget,
   computeSummaryL2Tokens,
   computeSummaryL3Tokens,
-  computeSummaryL4Tokens,
-  computeSummaryL5Tokens,
-  computeSummaryL6Tokens,
 } from '../utils'
+import {
+  TimelineCompressionOutputSchema,
+  type TimelineSourceFact,
+  buildCompressedMemoryEvents,
+  compressedSummaryId,
+  formatSummaryForPrompt,
+  formatTimelineEvents,
+  isMemoryEventActive,
+  mapImportanceToMemoryWeight,
+  coarseImportanceWeight,
+} from '../helpers/timeline-memory'
+import {
+  advanceNarrativeMemory,
+  searchNarrativeMemory,
+  syncNarrativeMemory,
+} from '../helpers/narrative-memory-client'
 
 import type { MemoryLifecycleSystem } from './memory-lifecycle-system'
-import { digestLedger } from '../helpers/digest-ledger'
 
-// ============================================================
-// 类型（内部使用）
-// ============================================================
-
-/** generateCompressedSummaries 返回值 */
 export interface CompressionResult {
-  /** 更新后的压缩摘要 */
   newCompressedSummaries: CompressedSummaries
-  /** 本轮新生成的 L1 摘要文本（可能为空） */
   newLatestSummary: string
-  /** 是否需要在 UI 显示本轮总结 */
   shouldShowSummary: boolean
-  /** 本轮是否生成了通过完整覆盖校验的新压缩摘要 */
-  didCompress: boolean,
+  didCompress: boolean
 }
 
-// 兼容旧导出
 export type CompressionLevel = 'L0' | 'L1' | 'L2' | 'L3'
+
 export interface CompressedEntry {
   level: CompressionLevel
   content: string
   originalCount: number
-  compressedAt: number,
+  compressedAt: number
 }
+
 export interface CompressorConfig {
   l1TriggerCount: number
   l2TriggerCount: number
-  l3TriggerCount: number,
+  l3TriggerCount: number
 }
+
 export interface CompressorStats {
   totalL1: number
   totalL2: number
   totalL3: number
-  totalL4: number
-  totalL5: number
-  totalL6: number
-  lastCompressionAt: number,
+  lastCompressionAt: number
 }
 
-// ============================================================
-// SummaryCompressorSystem
-// ============================================================
+interface SummarySourceGroup {
+  startRound: number
+  endRound: number
+  childSummaries: CompressedSummaryItem[]
+  sourceFacts: TimelineSourceFact[]
+  permanentEvents: CompressedMemoryEvent[]
+}
+
+function normalizeLegacySummaries(input: CompressedSummaries | undefined): CompressedSummaries {
+  const summaries = (input?.summaries ?? [])
+    .filter((summary) => summary && Number.isFinite(summary.startRound) && Number.isFinite(summary.endRound))
+    .map((summary) => ({
+      ...summary,
+      level: Math.max(1, Math.min(3, Number(summary.level))) as 1 | 2 | 3,
+    }))
+  return { summaries }
+}
+
+/**
+ * 只让当前四倍时间轴边界参与新层级晋升。
+ *
+ * 旧存档可能在配置切换前留下 5 轮 L1（例如 1-5、6-10）。这些节点和
+ * 原始明文档案必须保留，但不能与当前 4/16/64 轮边界混合，否则会让
+ * 高层永远找不到连续的四个子节点。
+ */
+function isCurrentAlignedSummary(
+  summary: Pick<CompressedSummaryItem, 'level' | 'startRound' | 'endRound'>,
+  level: number = summary.level,
+): boolean {
+  const interval = level === 1
+    ? SUMMARY_INTERVAL
+    : level === 2
+      ? COMPRESS_L2_MERGE_INTERVAL
+      : COMPRESS_L3_MERGE_INTERVAL
+  return summary.startRound >= 1
+    && summary.endRound >= summary.startRound
+    && summary.endRound - summary.startRound + 1 === interval
+    && (summary.startRound - 1) % interval === 0
+}
 
 export class SummaryCompressorSystem extends BaseSubsystem {
   readonly id = 'summary-compressor' as const
   readonly mod = 'mod-engine' as const
   readonly label = '叙事压缩' as const
-  readonly description = '六级压缩管线管理叙事历史，防止 Prompt 超 token 限制' as const
+  readonly description = 'L1/L2/L3 四倍时间轴压缩与记忆归档' as const
 
-  /** 当前压缩摘要状态 */
   private compressedSummaries: CompressedSummaries = { summaries: [] }
-
-  /** 统计 */
   private stats: CompressorStats = {
     totalL1: 0,
     totalL2: 0,
     totalL3: 0,
-    totalL4: 0,
-    totalL5: 0,
-    totalL6: 0,
     lastCompressionAt: 0,
   }
 
-  // ---- 公共访问器 ----
-
   getSummaries(): CompressedSummaries {
-    return { summaries: [...this.compressedSummaries.summaries] }
+    return structuredClone(this.compressedSummaries)
   }
 
   getStats(): CompressorStats {
     return { ...this.stats }
   }
 
-  /** 从 EngineState 已有字段恢复压缩器私有状态，不扩展存档载荷。 */
   restoreFromEngineState(
     summaries: CompressedSummaries | undefined,
-    stats?: { l1Count?: number; l2Count?: number; l3Count?: number; l4Count?: number; lastAt?: number },
+    stats?: { l1Count?: number; l2Count?: number; l3Count?: number; lastAt?: number },
   ): void {
-    this.compressedSummaries = structuredClone(summaries ?? { summaries: [] })
+    this.compressedSummaries = normalizeLegacySummaries(summaries)
     const countLevel = (level: number) => this.compressedSummaries.summaries.filter((item) => item.level === level).length
     this.stats = {
       totalL1: stats?.l1Count ?? countLevel(1),
       totalL2: stats?.l2Count ?? countLevel(2),
       totalL3: stats?.l3Count ?? countLevel(3),
-      totalL4: stats?.l4Count ?? countLevel(4),
-      totalL5: countLevel(5),
-      totalL6: countLevel(6),
       lastCompressionAt: stats?.lastAt ?? 0,
     }
   }
 
-  // ---- 旧 API 兼容（保留，供现有代码过渡） ----
-
   getAllCompressed(): CompressedEntry[] {
-    return this.compressedSummaries.summaries.map((s) => ({
-      level: `L${s.level}` as CompressionLevel,
-      content: s.content,
-      originalCount: 5, // 近似值
+    return this.compressedSummaries.summaries.map((summary) => ({
+      level: `L${summary.level}` as CompressionLevel,
+      content: summary.content,
+      originalCount: summary.endRound - summary.startRound + 1,
       compressedAt: this.stats.lastCompressionAt,
     }))
   }
 
-  checkNeed(narratives: string[]): CompressionLevel | null {
-    // 兼容旧接口，返回 null（新管线由 generateCompressedSummaries 管理）
-    void narratives
+  checkNeed(_narratives: string[]): CompressionLevel | null {
     return null
   }
 
   compressLocal(level: CompressionLevel, entries: string[]): CompressedEntry {
-    // 兼容旧接口，保留完整文本（不截断）
-    const now = Date.now()
-    const summary = entries
-      .map((e, i) => {
-        if (level === 'L1') return `${i + 1}. ${e}`
-        return e
-      })
-      .join(' | ')
-
     return {
       level,
-      content: summary,
+      content: entries.join(' | '),
       originalCount: entries.length,
-      compressedAt: now,
+      compressedAt: Date.now(),
     }
   }
 
-  applyCompression(level: CompressionLevel, _entry: CompressedEntry): void {
-    void level
-    void _entry
-    // 兼容旧接口，实际由 generateCompressedSummaries 管理
+  applyCompression(_level: CompressionLevel, _entry: CompressedEntry): void {
+    // 旧 API 只保留类型兼容，真实状态由 generateCompressedSummaries 管理。
   }
 
-  // ============================================================
-  // 核心方法：四级 AI 驱动压缩管线
-  // 来源: summary-compressor-spec.md §4
-  // ============================================================
+  private buildL1SourceFacts(events: YearEvent[]): TimelineSourceFact[] {
+    return events.flatMap((event) => {
+      const facts: TimelineSourceFact[] = []
+      const time = event.timeLabel || `${event.eraName}${event.eraYear}年`
+      const maxImportance = event.keyEvents?.reduce(
+        (max, keyEvent) => Math.max(max, Number(keyEvent.importance) || 0),
+        0,
+      ) ?? 0
+      if (event.narrative?.trim()) {
+        facts.push({
+          id: `round-${event.id}:body`,
+          round: event.id,
+          time,
+          text: `正文：${event.narrative}${event.digest ? `\n本轮摘要：${event.digest}` : ''}`,
+          initialWeight: maxImportance > 0
+            ? mapImportanceToMemoryWeight(maxImportance)
+            : coarseImportanceWeight(event.importance),
+          weightAnchorRound: event.id,
+          permanent: maxImportance >= 90,
+        })
+      }
+      for (const [index, keyEvent] of (event.keyEvents ?? []).entries()) {
+        facts.push({
+          id: `round-${event.id}:event-${index + 1}`,
+          round: event.id,
+          time,
+          text: `${keyEvent.text}${keyEvent.entities?.length ? `（${keyEvent.entities.join('、')}）` : ''}`,
+          initialWeight: mapImportanceToMemoryWeight(keyEvent.importance),
+          weightAnchorRound: event.id,
+          permanent: Number(keyEvent.importance) >= 90,
+        })
+      }
+      if (facts.length === 0) {
+        facts.push({
+          id: `round-${event.id}:fallback`,
+          round: event.id,
+          time,
+          text: event.narrative || event.digest || `第${event.id}轮无可提取正文`,
+          initialWeight: coarseImportanceWeight(event.importance),
+          weightAnchorRound: event.id,
+          permanent: false,
+        })
+      }
+      return facts
+    })
+  }
 
-  /**
-   * 生成压缩摘要（每轮叙事生成后调用）
-   *
-   * @param config AI 模型配置
-   * @param events 全部叙事事件数组（从第 1 轮到当前轮）
-   * @param world 世界设定
-   * @param character 角色信息
-   * @param turnCount 当前回合数（0-based）
-   * @param resolvedBranches 已解决的分支选择
-   * @param storySeed 存档级剧情种子
-   */
+  private buildHigherLevelSourceGroup(
+    level: 2 | 3,
+    summaries: CompressedSummaryItem[],
+  ): SummarySourceGroup | undefined {
+    const childLevel = level - 1
+    const covered = summaries
+      .filter((summary) => summary.level === level)
+      .filter((summary) => isCurrentAlignedSummary(summary, level))
+      .map((summary) => ({ start: summary.startRound, end: summary.endRound }))
+    const children = summaries
+      .filter((summary) => summary.level === childLevel)
+      .filter((summary) => isCurrentAlignedSummary(summary, childLevel))
+      .filter((summary) => !covered.some((range) => (
+        summary.startRound >= range.start && summary.endRound <= range.end
+      )))
+      .sort((a, b) => a.startRound - b.startRound)
+    const count = level === 2 ? COMPRESS_L2_MERGE_COUNT : COMPRESS_L3_MERGE_COUNT
+    for (let index = 0; index <= children.length - count; index++) {
+      const candidate = children.slice(index, index + count)
+      if (candidate.length !== count) continue
+      const contiguous = candidate.every((summary, childIndex) => (
+        childIndex === 0 || summary.startRound === candidate[childIndex - 1].endRound + 1
+      ))
+      if (!contiguous) continue
+      const sourceFacts: TimelineSourceFact[] = []
+      const permanentEvents: CompressedMemoryEvent[] = []
+      for (const child of candidate) {
+        const events = child.memoryEvents ?? [{
+          id: `legacy:${child.level}:${child.startRound}-${child.endRound}`,
+          timeSpan: `${child.startRound}-${child.endRound}轮`,
+          text: child.content,
+          occurrenceTime: `${child.startRound}-${child.endRound}轮`,
+          sourceEventIds: [],
+          sourceRounds: Array.from({ length: child.endRound - child.startRound + 1 }, (_, offset) => child.startRound + offset),
+          initialWeight: 5,
+          weightAnchorRound: child.startRound,
+          permanent: false,
+        } satisfies CompressedMemoryEvent]
+        for (const event of events) {
+          if (event.permanent || event.initialWeight >= 10) {
+            permanentEvents.push(structuredClone({ ...event, permanent: true, initialWeight: 10 }))
+            continue
+          }
+          if (!isMemoryEventActive(event, candidate.at(-1)!.endRound)) continue
+          sourceFacts.push({
+            id: event.id,
+            round: Math.min(...event.sourceRounds, child.startRound),
+            time: event.occurrenceTime,
+            text: `${event.timeSpan}：${event.text}`,
+            initialWeight: event.initialWeight,
+            weightAnchorRound: event.weightAnchorRound,
+            permanent: false,
+          })
+        }
+      }
+      return {
+        startRound: candidate[0].startRound,
+        endRound: candidate.at(-1)!.endRound,
+        childSummaries: candidate,
+        sourceFacts,
+        permanentEvents,
+      }
+    }
+    return undefined
+  }
+
+  private existingHistoryForPrompt(summaries: CompressedSummaryItem[], currentRound: number) {
+    return summaries
+      .sort((a, b) => a.startRound - b.startRound || a.level - b.level)
+      .map((summary) => ({
+        level: summary.level,
+        startRound: summary.startRound,
+        endRound: summary.endRound,
+        content: formatSummaryForPrompt(summary, currentRound),
+      }))
+  }
+
+  private async compressGroup(
+    level: 1 | 2 | 3,
+    group: SummarySourceGroup,
+    config: AIModelConfig,
+    world: WorldSetting,
+    character: CharacterState,
+    summarySessionId: string,
+    routeOpts: { providerId?: string; customBaseUrl?: string; customModel?: string },
+    customKey: string | undefined,
+    allSummaries: CompressedSummaryItem[],
+    createdRound: number,
+  ): Promise<CompressedSummaryItem> {
+    const sourceFacts = group.sourceFacts
+    let rawCompressionResponse = ''
+    let memoryEvents: CompressedMemoryEvent[] = [...group.permanentEvents]
+
+    if (sourceFacts.length > 0) {
+      const { system, user } = buildTimelineCompressionPrompt({
+        level,
+        character,
+        world,
+        sourceFacts,
+        existingCompressedHistory: this.existingHistoryForPrompt(allSummaries, createdRound),
+      })
+      const inputLength = user.length
+      const maxTokens = level === 1
+        ? computeSummaryTokenBudget(inputLength)
+        : level === 2
+          ? computeSummaryL2Tokens(inputLength)
+          : computeSummaryL3Tokens(inputLength)
+      rawCompressionResponse = await callAI(system, user, {
+        config,
+        pool: 'summary',
+        sessionId: summarySessionId,
+        storySeed: summarySessionId,
+        apiKey: customKey,
+        ...routeOpts,
+        overrideMaxTokens: maxTokens,
+        overrideTemperature: level === 1 ? 0.6 : level === 2 ? 0.4 : 0.3,
+        overrideTopP: level === 1 ? 0.8 : level === 2 ? 0.7 : 0.6,
+        jsonMode: true,
+        outputSchema: TimelineCompressionOutputSchema,
+        strictSchema: true,
+        logContext: {
+          callKind: `summary-compress-L${level}`,
+          round: group.endRound,
+          sessionId: summarySessionId,
+        },
+      })
+      const parsed = TimelineCompressionOutputSchema.parse(JSON.parse(rawCompressionResponse))
+      const expectedIds = new Set(sourceFacts.map((source) => source.id))
+      const coveredIds = new Set(parsed.periods.flatMap((period) => period.events.flatMap((event) => event.sourceIds)))
+      for (const id of expectedIds) {
+        if (!coveredIds.has(id)) throw new Error(`L${level} 压缩缺少来源覆盖：${id}`)
+      }
+      if ([...coveredIds].some((id) => !expectedIds.has(id))) {
+        throw new Error(`L${level} 压缩引用了未知来源事件`)
+      }
+      memoryEvents = [
+        ...memoryEvents,
+        ...buildCompressedMemoryEvents(level, group.startRound, group.endRound, parsed, sourceFacts),
+      ]
+    }
+
+    const summaryId = compressedSummaryId(level, group.startRound, group.endRound)
+    return {
+      level,
+      startRound: group.startRound,
+      endRound: group.endRound,
+      createdRound,
+      content: formatTimelineEvents(memoryEvents, createdRound),
+      archiveContent: formatTimelineEvents(memoryEvents, createdRound, { includeInactive: true }),
+      memoryEvents,
+      rawCompressionResponse: rawCompressionResponse || '{"completionMarker":"LOCAL_NO_COMPRESSIBLE_MEMORY"}',
+      sourceSummaryIds: group.childSummaries.map((summary) => compressedSummaryId(summary.level, summary.startRound, summary.endRound)),
+      ...this.scopeFromSummaries(group.childSummaries),
+      // The stable node ID is included in sourceSummaryIds-compatible metadata by the DB client.
+      ...(summaryId ? {} : {}),
+    }
+  }
+
+  private scopeFromEvents(items: YearEvent[]): Pick<CompressedSummaryItem, 'contextIds' | 'startTotalDays' | 'endTotalDays'> {
+    const contextIds = [...new Set(items.map((item) => item.contextId).filter((id): id is string => Boolean(id)))]
+    const days = items.map((item) => item.totalDays).filter((value): value is number => typeof value === 'number')
+    return {
+      ...(contextIds.length ? { contextIds } : {}),
+      ...(days.length ? { startTotalDays: Math.min(...days), endTotalDays: Math.max(...days) } : {}),
+    }
+  }
+
+  private scopeFromSummaries(items: CompressedSummaryItem[]): Pick<CompressedSummaryItem, 'contextIds' | 'startTotalDays' | 'endTotalDays'> {
+    const contextIds = [...new Set(items.flatMap((item) => item.contextIds ?? []))]
+    const starts = items.map((item) => item.startTotalDays).filter((value): value is number => typeof value === 'number')
+    const ends = items.map((item) => item.endTotalDays).filter((value): value is number => typeof value === 'number')
+    return {
+      ...(contextIds.length ? { contextIds } : {}),
+      ...(starts.length ? { startTotalDays: Math.min(...starts) } : {}),
+      ...(ends.length ? { endTotalDays: Math.max(...ends) } : {}),
+    }
+  }
+
   async generateCompressedSummaries(
     config: AIModelConfig,
     events: YearEvent[],
     world: WorldSetting,
     character: CharacterState,
     turnCount: number,
-    resolvedBranches?: Record<number, string>,
+    _resolvedBranches?: Record<number, string>,
     storySeed?: string,
     _memoryLifecycle?: MemoryLifecycleSystem,
+    lifeRunId?: string,
   ): Promise<CompressionResult> {
-    // 读取用户 AI 设置
     const { customKey, provider, customUrl, customModel } = useSettingsStore.getState()
     const model = customModel || config.model
-    const routeOpts = { providerId: provider, customBaseUrl: customUrl || undefined, customModel: model } as const
+    const routeOpts = { providerId: provider, customBaseUrl: customUrl || undefined, customModel: model }
     const aiConfig = { ...config, model }
     const summarySessionId = storySeed ?? world.name.replace(/\s+/g, '-').slice(0, 32)
-
-    // Step 0: 入口检查
-    if (turnCount + 1 <= 0) {
-      return {
-        newCompressedSummaries: this.compressedSummaries,
-        newLatestSummary: '',
-        shouldShowSummary: false,
-        didCompress: false,
-      }
+    const completedRounds = turnCount + 1
+    if (completedRounds <= 0) {
+      return { newCompressedSummaries: this.compressedSummaries, newLatestSummary: '', shouldShowSummary: false, didCompress: false }
     }
 
-    // Step 1: 计算块索引
-    const completedRounds = turnCount + 1
-    const blockRound = completedRounds % SUMMARY_INTERVAL
-
-    let summaries = [...this.compressedSummaries.summaries]
+    let summaries = normalizeLegacySummaries(this.compressedSummaries).summaries
+    let didCompress = false
     let newLatestSummary = ''
     let shouldShowSummary = false
-    let didCompress = false
-    const appendSummary = (summary: CompressedSummaryItem): void => {
+    const append = (summary: CompressedSummaryItem) => {
       summaries = [...summaries, summary]
       didCompress = true
-    }
-    const scopeFromEvents = (items: YearEvent[]): Pick<CompressedSummaryItem, 'contextIds' | 'startTotalDays' | 'endTotalDays'> => {
-      const contextIds = [...new Set(items.map((item) => item.contextId).filter((id): id is string => Boolean(id)))]
-      const totalDays = items.map((item) => item.totalDays).filter((value): value is number => typeof value === 'number')
-      return {
-        ...(contextIds.length > 0 ? { contextIds } : {}),
-        ...(totalDays.length > 0 ? {
-          startTotalDays: Math.min(...totalDays),
-          endTotalDays: Math.max(...totalDays),
-        } : {}),
+      if (summary.level === 1) {
+        newLatestSummary = summary.content
+        shouldShowSummary = true
       }
-    }
-    const scopeFromSummaries = (items: CompressedSummaryItem[]): Pick<CompressedSummaryItem, 'contextIds' | 'startTotalDays' | 'endTotalDays'> => {
-      const contextIds = [...new Set(items.flatMap((item) => item.contextIds ?? []))]
-      const startDays = items.map((item) => item.startTotalDays).filter((value): value is number => typeof value === 'number')
-      const endDays = items.map((item) => item.endTotalDays).filter((value): value is number => typeof value === 'number')
-      return {
-        ...(contextIds.length > 0 ? { contextIds } : {}),
-        ...(startDays.length > 0 ? { startTotalDays: Math.min(...startDays) } : {}),
-        ...(endDays.length > 0 ? { endTotalDays: Math.max(...endDays) } : {}),
-      }
+      this.stats[`totalL${summary.level}` as 'totalL1' | 'totalL2' | 'totalL3']++
     }
 
-    // ============================================================
-    // Step 2: L1 块总结
-    // ============================================================
-    // L1 在每个完整短块结束后立即后台生成；下一轮开始前会等待提交完成。
-    // 若调用失败，后续回合会继续尝试最早的未覆盖完整块，不扩大主 Prompt 窗口。
-    const latestEligibleBlock = Math.floor(completedRounds / SUMMARY_INTERVAL)
-      - 1
-      - COMPRESS_L1_DELAY_ROUNDS
-    let targetBlock = -1
+    // 延迟一个 L1 块，完成 8 轮时目标块为 1~4，完成 12 轮时目标块为 5~8。
+    const latestEligibleBlock = Math.floor(completedRounds / SUMMARY_INTERVAL) - 1 - COMPRESS_L1_DELAY_BLOCKS
     for (let block = 0; block <= latestEligibleBlock; block++) {
       const startRound = block * SUMMARY_INTERVAL + 1
-      if (!summaries.some((summary) => summary.level === 1 && summary.startRound === startRound)) {
-        targetBlock = block
+      const endRound = (block + 1) * SUMMARY_INTERVAL
+      // 只按完整边界去重。旧的 5 轮节点可能与当前 4 轮窗口同起点，
+      // 但不能阻止补建当前边界的 L1。
+      if (summaries.some((summary) => (
+        summary.level === 1
+        && summary.startRound === startRound
+        && summary.endRound === endRound
+      ))) continue
+      const blockEvents = events.filter((event) => event.id >= startRound && event.id <= endRound)
+      if (blockEvents.length < SUMMARY_INTERVAL) break
+      try {
+        const group: SummarySourceGroup = {
+          startRound,
+          endRound,
+          childSummaries: [],
+          sourceFacts: this.buildL1SourceFacts(blockEvents),
+          permanentEvents: [],
+        }
+        append(await this.compressGroup(1, group, aiConfig, world, character, summarySessionId, routeOpts, customKey || undefined, summaries, completedRounds))
+      } catch (error) {
+        console.warn('[SummaryCompressor] L1 压缩失败，保留完整来源等待下一轮重试:', error)
         break
       }
     }
 
-    if (targetBlock >= 0) {
-      const startRound = targetBlock * SUMMARY_INTERVAL + 1
-      const endRound = (targetBlock + 1) * SUMMARY_INTERVAL
-
-      // 去重检查
-      const existing = summaries.find(
-        (s) => s.level === 1 && s.startRound === startRound,
-      )
-      if (!existing) {
-        // `events` 是保留窗口，不一定从第 1 轮开始；必须按真实 round/id
-        // 取目标块，不能把 round 当作当前数组的零基下标。
-        const blockEvents = events.filter(
-          (event) => event.id >= startRound && event.id <= endRound,
-        )
-        try {
-          const totalNarrativeChars = blockEvents.reduce(
-            (sum, e) => sum + (e.narrative?.length || 0),
-            0,
-          )
-          let summaryTokens = computeSummaryTokenBudget(totalNarrativeChars)
-
-          // 只使用 AI 摘要账本的重要性；缺失时采用中性 0.5，不扫描叙事正文。
-          const ledgerAvg = digestLedger.averageAdjustedImportance(startRound, endRound) ?? 0.5
-          const boostFactor = 0.75 + ledgerAvg
-          summaryTokens = Math.round(summaryTokens * boostFactor)
-
-          const { system, user } = buildSummaryPrompt(
-            blockEvents,
-            world,
-            character,
-            [],
-            resolvedBranches,
-          )
-
-          const raw = await callAI(system, user, {
-            config: aiConfig,
-            pool: 'summary',
-            sessionId: summarySessionId,
-            storySeed,
-            apiKey: customKey || undefined,
-            ...routeOpts,
-            overrideMaxTokens: summaryTokens,
-            overrideTemperature: 0.6,
-            overrideTopP: 0.8,
-            logContext: { callKind: 'summary-compress-L1', round: endRound, sessionId: summarySessionId },
-            logMeta: { userId: `summ-${summarySessionId}` },
-          })
-
-          const trimmed = this.sanitizeContent(raw)
-          appendSummary({
-            level: 1 as const,
-            startRound,
-            endRound,
-            content: trimmed,
-            ...scopeFromEvents(blockEvents),
-          })
-          newLatestSummary = trimmed
-          shouldShowSummary = true
-          this.stats.totalL1++
-        } catch {
-          // 保留目标区间的完整原始事件等待后续重试；失败不得建立覆盖节点或成功统计。
-        }
+    for (const level of [2, 3] as const) {
+      const group = this.buildHigherLevelSourceGroup(level, summaries)
+      if (!group) continue
+      try {
+        append(await this.compressGroup(level, group, aiConfig, world, character, summarySessionId, routeOpts, customKey || undefined, summaries, completedRounds))
+      } catch (error) {
+        console.warn(`[SummaryCompressor] L${level} 压缩失败，保留低层来源等待重试:`, error)
       }
     }
 
-    // ============================================================
-    // Step 3: L2 深度压缩
-    // ============================================================
-    if (blockRound >= COMPRESS_L2_DELAY_ROUNDS) {
-      const l1Summaries = summaries.filter((s) => s.level === 1)
-      const l2Summaries = summaries.filter((s) => s.level >= 2)
-
-      // 找出未被任何 L2+ 覆盖的 L1 摘要
-      const unmergedL1 = l1Summaries.filter(
-        (l1) =>
-          !l2Summaries.some(
-            (l2) => l1.startRound >= l2.startRound && l1.endRound <= l2.endRound,
-          ),
-      )
-
-      if (unmergedL1.length >= COMPRESS_L2_MERGE_COUNT) {
-        const mergeTargets = unmergedL1.slice(0, COMPRESS_L2_MERGE_COUNT)
-        const startRound = mergeTargets[0].startRound
-        const endRound = mergeTargets[mergeTargets.length - 1].endRound
-
-        // 去重检查
-        const existing = summaries.find(
-          (s) => s.level === 2 && s.startRound === startRound,
-        )
-        if (!existing) {
-          const eventsForMerge = mergeTargets
-            .map((s) => `[${s.startRound}-${s.endRound}] ${s.content}`)
-            .join('\n')
-
-          try {
-            const maxTokens = computeSummaryL2Tokens(eventsForMerge.length)
-            const system = buildSummarySystemPrompt(2)
-
-            const raw = await callAI(system, eventsForMerge, {
-              config: aiConfig,
-              pool: 'summary',
-              sessionId: summarySessionId,
-              storySeed,
-              apiKey: customKey || undefined,
-              ...routeOpts,
-              overrideMaxTokens: maxTokens,
-              overrideTemperature: 0.4,
-              overrideTopP: 0.7,
-              logContext: { callKind: 'summary-compress-L2', sessionId: summarySessionId },
-              logMeta: { userId: `summ-${summarySessionId}` },
-            })
-
-            appendSummary({
-              level: 2 as const,
-              startRound,
-              endRound,
-              content: this.sanitizeContent(raw),
-              ...scopeFromSummaries(mergeTargets),
-            })
-            this.stats.totalL2++
-          } catch {
-            // 保留全部 L1 叶子等待后续重试；失败不得伪造覆盖节点。
-          }
-        }
-      }
-    }
-
-    // ============================================================
-    // Step 4: L3 骨架压缩
-    // ============================================================
-    if (blockRound >= COMPRESS_L3_DELAY_ROUNDS) {
-      // 找出未被 L3+ 覆盖的 L2 摘要（注意: s.level >= 3）
-      const unmergedL2 = summaries
-        .filter((s) => s.level === 2)
-        .filter(
-          (l2) =>
-            !summaries.some(
-              (s) =>
-                s.level >= 3 &&
-                l2.startRound >= s.startRound &&
-                l2.endRound <= s.endRound,
-            ),
-        )
-
-      if (unmergedL2.length >= COMPRESS_L3_MERGE_COUNT) {
-        const mergeTargets = unmergedL2.slice(0, COMPRESS_L3_MERGE_COUNT)
-        const startRound = mergeTargets[0].startRound
-        const endRound = mergeTargets[mergeTargets.length - 1].endRound
-
-        const existing = summaries.find(
-          (s) => s.level === 3 && s.startRound === startRound,
-        )
-        if (!existing) {
-          const eventsForMerge = mergeTargets
-            .map((s) => `[${s.startRound}-${s.endRound}] ${s.content}`)
-            .join('\n')
-
-          try {
-            const maxTokens = computeSummaryL3Tokens(eventsForMerge.length)
-            const system = buildSummarySystemPrompt(3)
-
-            const raw = await callAI(system, eventsForMerge, {
-              config: aiConfig,
-              pool: 'summary',
-              sessionId: summarySessionId,
-              storySeed,
-              apiKey: customKey || undefined,
-              ...routeOpts,
-              overrideMaxTokens: maxTokens,
-              overrideTemperature: 0.3,
-              overrideTopP: 0.6,
-              logContext: { callKind: 'summary-compress-L3', sessionId: summarySessionId },
-              logMeta: { userId: `summ-${summarySessionId}` },
-            })
-
-            appendSummary({
-              level: 3 as const,
-              startRound,
-              endRound,
-              content: this.sanitizeContent(raw),
-              ...scopeFromSummaries(mergeTargets),
-            })
-            this.stats.totalL3++
-          } catch {
-            // 保留全部 L2 叶子等待后续重试；失败不得伪造覆盖节点。
-          }
-        }
-      }
-    }
-
-    // ============================================================
-    // Step 5: L4 纪元压缩（复用 L3 的 MERGE_COUNT 和 DELAY_ROUNDS）
-    // ============================================================
-    if (blockRound >= COMPRESS_L3_DELAY_ROUNDS) {
-      const unmergedL3 = summaries
-        .filter((s) => s.level === 3)
-        .filter(
-          (l3) =>
-            !summaries.some(
-              (s) =>
-                s.level >= 4 &&
-                l3.startRound >= s.startRound &&
-                l3.endRound <= s.endRound,
-            ),
-        )
-
-      if (unmergedL3.length >= COMPRESS_L4_MERGE_COUNT) {
-        const mergeTargets = unmergedL3.slice(0, COMPRESS_L4_MERGE_COUNT)
-        const startRound = mergeTargets[0].startRound
-        const endRound = mergeTargets[mergeTargets.length - 1].endRound
-
-        const existing = summaries.find(
-          (s) => s.level === 4 && s.startRound === startRound,
-        )
-        if (!existing) {
-          const eventsForMerge = mergeTargets
-            .map((s) => `[${s.startRound}-${s.endRound}] ${s.content}`)
-            .join('\n')
-
-          try {
-            const maxTokens = computeSummaryL4Tokens(eventsForMerge.length)
-            const system = buildSummarySystemPrompt(4)
-
-            const raw = await callAI(system, eventsForMerge, {
-              config: aiConfig,
-              pool: 'summary',
-              sessionId: summarySessionId,
-              storySeed,
-              apiKey: customKey || undefined,
-              ...routeOpts,
-              overrideMaxTokens: maxTokens,
-              overrideTemperature: 0.2,
-              overrideTopP: 0.5,
-              logContext: { callKind: 'summary-compress-L4', sessionId: summarySessionId },
-              logMeta: { userId: `summ-${summarySessionId}` },
-            })
-
-            appendSummary({
-              level: 4 as const,
-              startRound,
-              endRound,
-              content: this.sanitizeContent(raw),
-              ...scopeFromSummaries(mergeTargets),
-            })
-            this.stats.totalL4++
-          } catch {
-            // 保留全部 L3 叶子等待后续重试；失败不得伪造覆盖节点。
-          }
-        }
-      }
-    }
-
-    // ============================================================
-    // Step 6: L5 时代压缩
-    // ============================================================
-    if (blockRound >= COMPRESS_L5_DELAY_ROUNDS) {
-      const unmergedL4 = summaries
-        .filter((s) => s.level === 4)
-        .filter(
-          (l4) =>
-            !summaries.some(
-              (s) =>
-                (s.level as number) >= 5 &&
-                l4.startRound >= s.startRound &&
-                l4.endRound <= s.endRound,
-            ),
-        )
-
-      if (unmergedL4.length >= COMPRESS_L5_MERGE_COUNT) {
-        const mergeTargets = unmergedL4.slice(0, COMPRESS_L5_MERGE_COUNT)
-        const startRound = mergeTargets[0].startRound
-        const endRound = mergeTargets[mergeTargets.length - 1].endRound
-
-        const existing = summaries.find(
-          (s) => (s.level as number) === 5 && s.startRound === startRound,
-        )
-        if (!existing) {
-          const eventsForMerge = mergeTargets
-            .map((s) => `[${s.startRound}-${s.endRound}] ${s.content}`)
-            .join('\n')
-
-          try {
-            const maxTokens = computeSummaryL5Tokens(eventsForMerge.length)
-            const system = buildSummarySystemPrompt(5)
-
-            const raw = await callAI(system, eventsForMerge, {
-              config: aiConfig,
-              pool: 'summary',
-              sessionId: summarySessionId,
-              storySeed,
-              apiKey: customKey || undefined,
-              ...routeOpts,
-              overrideMaxTokens: maxTokens,
-              overrideTemperature: 0.15,
-              overrideTopP: 0.4,
-              logContext: { callKind: 'summary-compress-L5', sessionId: summarySessionId },
-              logMeta: { userId: `summ-${summarySessionId}` },
-            })
-
-            appendSummary({
-              level: 5,
-              startRound,
-              endRound,
-              content: this.sanitizeContent(raw),
-              ...scopeFromSummaries(mergeTargets),
-            })
-            this.stats.totalL5++
-          } catch {
-            // 保留全部 L4 叶子等待后续重试；失败不得伪造覆盖节点。
-          }
-        }
-      }
-    }
-
-    // ============================================================
-    // Step 7: L6 历史压缩（最高层级，31250轮）
-    // ============================================================
-    if (blockRound >= COMPRESS_L6_DELAY_ROUNDS) {
-      const unmergedL5 = summaries
-        .filter((s) => (s.level as number) === 5)
-        .filter(
-          (l5) =>
-            !summaries.some(
-              (s) =>
-                (s.level as number) >= 6 &&
-                l5.startRound >= s.startRound &&
-                l5.endRound <= s.endRound,
-            ),
-        )
-
-      if (unmergedL5.length >= COMPRESS_L6_MERGE_COUNT) {
-        const mergeTargets = unmergedL5.slice(0, COMPRESS_L6_MERGE_COUNT)
-        const startRound = mergeTargets[0].startRound
-        const endRound = mergeTargets[mergeTargets.length - 1].endRound
-
-        const existing = summaries.find(
-          (s) => (s.level as number) === 6 && s.startRound === startRound,
-        )
-        if (!existing) {
-          const eventsForMerge = mergeTargets
-            .map((s) => `[${s.startRound}-${s.endRound}] ${s.content}`)
-            .join('\n')
-
-          try {
-            const maxTokens = computeSummaryL6Tokens(eventsForMerge.length)
-            const system = buildSummarySystemPrompt(6)
-
-            const raw = await callAI(system, eventsForMerge, {
-              config: aiConfig,
-              pool: 'summary',
-              sessionId: summarySessionId,
-              storySeed,
-              apiKey: customKey || undefined,
-              ...routeOpts,
-              overrideMaxTokens: maxTokens,
-              overrideTemperature: 0.1,
-              overrideTopP: 0.3,
-              logContext: { callKind: 'summary-compress-L6', sessionId: summarySessionId },
-              logMeta: { userId: `summ-${summarySessionId}` },
-            })
-
-            appendSummary({
-              level: 6,
-              startRound,
-              endRound,
-              content: this.sanitizeContent(raw),
-              ...scopeFromSummaries(mergeTargets),
-            })
-            this.stats.totalL6++
-          } catch {
-            // 保留全部 L5 叶子等待后续重试；失败不得伪造覆盖节点。
-          }
-        }
-      }
-    }
-
-    // Step 8: 更新内部状态并返回。所有层级摘要完整保留；容量压力只能通过
-    // 更高层语义压缩与叶子摘要注入处理，禁止按条目数淘汰历史事实。
     this.compressedSummaries = { summaries }
-    if (didCompress) {
-      this.stats.lastCompressionAt = Date.now()
+    if (didCompress) this.stats.lastCompressionAt = Date.now()
+
+    if (lifeRunId) {
+      try {
+        if (didCompress) {
+          await syncNarrativeMemory({ lifeRunId, currentRound: completedRounds, summaries })
+        } else {
+          await advanceNarrativeMemory(lifeRunId, completedRounds)
+        }
+      } catch (error) {
+        console.error('[SummaryCompressor] 存档记忆数据库同步失败，内存状态保留并将在下一轮重试:', error)
+      }
     }
 
     return {
-      newCompressedSummaries: { summaries },
+      newCompressedSummaries: structuredClone(this.compressedSummaries),
       newLatestSummary,
       shouldShowSummary,
       didCompress,
     }
   }
 
-  // ============================================================
-  // determineLocalDirection: 7 步优先级方向预判
-  // 来源: summary-compressor-spec.md §5
-  // ============================================================
+  async searchMemory(
+    lifeRunId: string,
+    currentRound: number,
+    terms: readonly string[],
+  ) {
+    return searchNarrativeMemory(lifeRunId, currentRound, terms)
+  }
 
-  /**
-   * 方向预判
-   *
-   * 按优先级从高到低执行，找到第一个匹配的方向即返回。
-   */
   determineLocalDirection(
     _events: YearEvent[],
     memory: LongTermMemory,
@@ -704,46 +533,26 @@ export class SummaryCompressorSystem extends BaseSubsystem {
     _worldview?: string,
   ): NarrativeDirection {
     let direction: NarrativeDirection = null
-
-    // Step 1: 玩家选择优先 (⭐⭐⭐⭐⭐⭐⭐)
     if (lastPlayerChoice) {
-      const choice = lastPlayerChoice
-      if (/战斗|攻击|征服|入侵/.test(choice)) direction = '战斗/征服'
-      else if (/经商|买卖|交易|积累|赚钱/.test(choice)) direction = '经商/积累'
-      else if (/修炼|练功|突破|境界/.test(choice)) direction = '修炼/突破'
-      else if (/结盟|结交|社交|和谈/.test(choice)) direction = '社交/结盟'
-      else if (/探索|冒险|秘境|发现/.test(choice)) direction = '探索/冒险'
-      else if (/建设|经营|发展|管理/.test(choice)) direction = '经营/建设'
-      else if (/学习|研究|知识/.test(choice)) direction = '学习/研究'
+      if (/战斗|攻击|征服|入侵/.test(lastPlayerChoice)) direction = '战斗/征服'
+      else if (/经商|买卖|交易|积累|赚钱/.test(lastPlayerChoice)) direction = '经商/积累'
+      else if (/修炼|练功|突破|境界/.test(lastPlayerChoice)) direction = '修炼/突破'
+      else if (/结盟|结交|社交|和谈/.test(lastPlayerChoice)) direction = '社交/结盟'
+      else if (/探索|冒险|秘境|发现/.test(lastPlayerChoice)) direction = '探索/冒险'
+      else if (/建设|经营|发展|管理/.test(lastPlayerChoice)) direction = '经营/建设'
+      else if (/学习|研究|知识/.test(lastPlayerChoice)) direction = '学习/研究'
     }
-
-    // Step 2: worldview-方向兼容性检测
-    // 设计理念：AI 通过 worldDescription/worldRules 已充分了解世界观约束；
-    // 本步骤仅作"提示"（玩家意图与世界观可能不兼容），不硬删除方向。
-    // 删除方向 = 让 AI 完全丧失玩家意图信息，比保留方向更糟。
-    // 玩家意图方向保留后，AI 可基于世界规则自行判断如何叙事。
-    // （例：唯物世界玩家输入"修炼"——AI 可写"主角尝试用科学方式强身健体"，给出自洽解释）
-
-    // Step 3: 派系目标检测 (⭐⭐⭐⭐⭐)
-    if (direction === null && memory.faction && memory.faction.rank >= 5) {
-      direction = '经营/建设'
-    }
-
-    // Step 4: 动态属性趋势 (⭐⭐⭐⭐)
+    if (direction === null && memory.faction && memory.faction.rank >= 5) direction = '经营/建设'
     if (direction === null) {
       if ((dynamicAttrs.wealth ?? 0) < -5) direction = '经商/积累'
       else if ((dynamicAttrs.fame ?? 0) < -3) direction = '社交/结盟'
     }
-
-    // Step 5: 强制分支冲突方向 (⭐⭐⭐)
     if (direction === null && forceBranch) {
-      const conflictPools: NarrativeDirection[] = ['战斗/征服', '探索/冒险', '社交/结盟']
-      direction = conflictPools[Math.floor(Math.random() * conflictPools.length)]
+      const pools: NarrativeDirection[] = ['战斗/征服', '探索/冒险', '社交/结盟']
+      direction = pools[Math.floor(Math.random() * pools.length)]
     }
-
-    // Step 6: 按生命阶段默认方向 (⭐⭐)
     if (direction === null) {
-      const stagePools: Record<string, NarrativeDirection[]> = {
+      const pools: Record<string, NarrativeDirection[]> = {
         infant: ['日常/生活'],
         child: ['学习/研究', '日常/生活'],
         teenager: ['学习/研究', '社交/结盟', '探索/冒险'],
@@ -752,143 +561,47 @@ export class SummaryCompressorSystem extends BaseSubsystem {
         middle_age: ['经营/建设', '社交/结盟', '学习/研究', '日常/生活'],
         elder: ['日常/生活', '学习/研究', '社交/结盟'],
       }
-      const pool = stagePools[lifeStage]
-      if (pool) {
-        direction = pool[Math.floor(Math.random() * pool.length)]
-      }
+      const pool = pools[lifeStage]
+      if (pool) direction = pool[Math.floor(Math.random() * pool.length)]
     }
-
-    // Step 7: 兜底 (⭐)
-    if (direction === null) {
-      direction = '日常/生活'
-    }
-
-    return direction
+    return direction ?? '日常/生活'
   }
 
-  // ============================================================
-  // 辅助方法
-  // ============================================================
-
-  /**
-   * 构建用于 Prompt 的压缩后历史文本（叶子摘要注入策略）
-   *
-   * 策略：只注入不被更高层级覆盖的"叶子"摘要，避免冗余传输。
-   * 例如 L2 已覆盖第 1-25 轮，则第 1-5、6-10、...、21-25 轮的 L1 不再重复注入。
-   *
-   * 实际生产路径为 memoryLifecycle.buildRichPrompt + formatRichPromptForInjection，
-   * 此方法作为备选/测试接口保留。
-   *
-   * @param recentNarratives 最近原始叙事文本数组
-   * @param currentAge 可选的角色当前年龄，提供后在输出的各层级中添加年龄标注
-   */
   buildPromptHistory(recentNarratives: string[], currentAge?: number): string {
     const parts: string[] = []
-    const summaries = this.compressedSummaries.summaries
-
-    // 角色年龄时间锚点
-    if (currentAge !== undefined) {
-      parts.push(`【角色当前年龄】${currentAge}岁`)
-    }
-
-    if (summaries.length === 0) {
-      if (recentNarratives.length > 0) {
-        parts.push('【最新发展】\n' + recentNarratives.slice(-RECENT_NARRATIVE_WINDOW).join('\n---\n'))
-      }
-      return parts.join('\n\n')
-    }
-
-    // 按层级从高到低分组
-    const byLevel = new Map<number, typeof summaries>()
-    for (const s of summaries) {
-      const lv = s.level as number
-      if (!byLevel.has(lv)) byLevel.set(lv, [])
-      byLevel.get(lv)!.push(s)
-    }
-    const levels = [...byLevel.keys()].sort((a, b) => b - a) // L6 → L1
-
-    // 叶子注入：高层摘要"覆盖"低层摘要的区间，被覆盖的 L1 不再重复传输
-    const coveredRanges: Array<{ start: number; end: number }> = []
-    const levelLabels: Record<number, string> = {
-      6: '历史概略', 5: '时代概略', 4: '纪元概览', 3: '时代概略', 2: '历史概要', 1: '近期摘要',
-    }
-
-    for (const level of levels) {
-      const items = byLevel.get(level)!
-      const visible = items.filter((s) =>
-        !coveredRanges.some((r) => s.startRound >= r.start && s.endRound <= r.end),
-      )
+    if (currentAge !== undefined) parts.push(`【角色当前年龄】${currentAge}岁`)
+    const summaries = [...this.compressedSummaries.summaries]
+      .sort((a, b) => b.level - a.level || a.startRound - b.startRound)
+    for (const level of [3, 2, 1] as const) {
+      const visible = summaries.filter((summary) => summary.level === level)
       if (visible.length === 0) continue
-
-      // 标记载入区域
-      for (const v of visible) {
-        coveredRanges.push({ start: v.startRound, end: v.endRound })
-      }
-
-      const label = levelLabels[level] ?? `L${level}`
-      const ageSuffix = currentAge !== undefined ? `·${currentAge}岁视角` : ''
-      parts.push(
-        `【${label}${ageSuffix}】\n${visible.map((s) => s.content).join('\n')}`,
-      )
+      parts.push(`【L${level}时间轴】\n${visible.map((summary) => formatSummaryForPrompt(summary, Number.MAX_SAFE_INTEGER)).join('\n')}`)
     }
-
-    if (recentNarratives.length > 0) {
-      parts.push('【最新发展】\n' + recentNarratives.slice(-RECENT_NARRATIVE_WINDOW).join('\n---\n'))
-    }
-
+    if (recentNarratives.length > 0) parts.push(`【最近四轮完整叙事】\n${recentNarratives.slice(-RECENT_NARRATIVE_WINDOW).join('\n---\n')}`)
     return parts.join('\n\n')
   }
-
-  /** 清理 AI 返回内容 */
-  private sanitizeContent(raw: string): string {
-    return requireCompletedSummaryContent(raw)
-  }
-
-  // ============================================================
-  // ISubSystem 实现
-  // ============================================================
 
   collectState(_context: RoundContext): SubSystemState {
     return {
       id: this.id,
-      summary: `【${this.label}】L1:${this.stats.totalL1} L2:${this.stats.totalL2} L3:${this.stats.totalL3} L4:${this.stats.totalL4} L5:${this.stats.totalL5} L6:${this.stats.totalL6}`,
-      data: structuredClone({
-        stats: this.stats,
-        summaries: this.compressedSummaries,
-      }),
+      summary: `【${this.label}】L1:${this.stats.totalL1} L2:${this.stats.totalL2} L3:${this.stats.totalL3}`,
+      data: structuredClone({ stats: this.stats, summaries: this.compressedSummaries }),
     }
   }
 
   applyChanges(changes: SubSystemChanges, _context: RoundContext): void {
-    if (!changes || typeof changes !== 'object') {
-      throw new Error(`[${this.id}] Invalid changes: expected object`)
-    }
-    if (changes.id !== this.id) {
-      throw new Error(`[${this.id}] Changes ID mismatch`)
-    }
+    if (!changes || typeof changes !== 'object') throw new Error(`[${this.id}] Invalid changes: expected object`)
+    if (changes.id !== this.id) throw new Error(`[${this.id}] Changes ID mismatch`)
     if (!changes.changes || typeof changes.changes !== 'object' || Array.isArray(changes.changes)) {
-      throw new Error(`[${this.id}] Invalid changes.changes: expected plain object`)
+      throw new Error(`[${this.id}] Invalid changes.changes: expected object`)
     }
-    if (!changes.description || changes.description.trim() === '') {
-      throw new Error(`[${this.id}] Missing changes.description`)
-    }
-    // 压缩系统一般不从外部接收变更
-    void changes.changes;
+    if (!changes.description || changes.description.trim() === '') throw new Error(`[${this.id}] Missing changes.description`)
   }
 
   reset(): void {
     this.compressedSummaries = { summaries: [] }
-    this.stats = {
-      totalL1: 0,
-      totalL2: 0,
-      totalL3: 0,
-      totalL4: 0,
-      totalL5: 0,
-      totalL6: 0,
-      lastCompressionAt: 0,
-    }
+    this.stats = { totalL1: 0, totalL2: 0, totalL3: 0, lastCompressionAt: 0 }
   }
 }
 
-/** 单例 */
 export const summaryCompressor = new SummaryCompressorSystem()

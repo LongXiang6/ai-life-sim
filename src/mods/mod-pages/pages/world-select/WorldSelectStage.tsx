@@ -27,29 +27,22 @@ export function WorldSelectStage({ logic }: { logic: WorldSelectLogic }) {
   const sourceLabel = world ? (isSaved ? '已保存' : '预设世界') : '待选择'
   const challengeLabel = logic.selectedDifficultyLabel
   const eraLabel = getWorldEraLabel(world)
-  const difficultyItems = logic.difficultyItems
-
   return (
     <section className={`${styles.stage} ${world ? styles.stageSelected : ''}`} aria-live="polite" aria-label="当前世界规则摘要">
       <section className={styles.difficultySection} aria-label="人生难度">
-        <div
+        <button
+          type="button"
           className={styles.difficultyOptions}
-          onClick={difficultyItems[0]?.onClick}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault()
-              difficultyItems[0]?.onClick?.()
-            }
-          }}
+          onClick={logic.handleCycleDifficulty}
+          aria-label={`切换人生难度，当前${challengeLabel}`}
+          disabled={logic.isConfirming}
         >
           <span>难度</span>
           <strong className={styles.difficultyActive}>{challengeLabel}</strong>
           <svg className={styles.difficultyArrow} viewBox="0 0 24 24" aria-hidden="true">
             <path d="m7 10 5 5 5-5" />
           </svg>
-        </div>
+        </button>
       </section>
       <div className={styles.stageCopy}>
         <div className={styles.focusTop}>

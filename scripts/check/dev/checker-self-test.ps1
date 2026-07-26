@@ -201,6 +201,7 @@ $requiredFunctions = @(
   "Fail",
   "Warn",
   "Pass",
+  "Get-DeclaredStringArray",
   "Test-FunctionOrder",
   "Preload-AllFiles",
   "Save-Reports"
@@ -231,6 +232,72 @@ try {
 }
 
 # ============================================================
+# Test 2b: MOD declaration and generated registration probes
+# ============================================================
+Write-SectionHeader "Test 2b: MOD Declaration and Registration Probes"
+
+$manifestProbe = @'
+defineMod({
+  dependencies: ['mod-core', '~mod-optional'],
+  provides: ['engine', 'narrative-parser'],
+  consumes: [],
+  subsystems: ['TimeSystem', 'NarrativeParserSystem'],
+  stores: ['useEngineStore'],
+  events: { emits: ['mod-engine:round-start'], listens: [] },
+})
+'@
+$probeSubsystems = @(Get-DeclaredStringArray $manifestProbe 'subsystems')
+$probeDependencies = @(Get-DeclaredStringArray $manifestProbe 'dependencies')
+$probeProvides = @(Get-DeclaredStringArray $manifestProbe 'provides')
+$arraysOk =
+  $probeSubsystems.Count -eq 2 -and
+  $probeSubsystems[0] -eq 'TimeSystem' -and
+  $probeSubsystems[1] -eq 'NarrativeParserSystem' -and
+  $probeDependencies.Count -eq 2 -and
+  $probeProvides.Count -eq 2
+Write-TestResult "2b-ARRAYS: Manifest arrays remain itemized" $arraysOk "Manifest array parser returned nested or incomplete values"
+
+$runtimePolicyPath = Join-Path $projectRoot "src/mods/mod-engine/helpers/mvp-stages-config.default.json"
+$runtimePolicy = $null
+try {
+  $runtimePolicyRaw = [System.IO.File]::ReadAllText($runtimePolicyPath, [System.Text.UTF8Encoding]::new($true, $true))
+  $runtimePolicy = $runtimePolicyRaw | ConvertFrom-Json
+} catch {
+  Write-TestResult "2b-POLICY: Runtime policy parses as UTF-8 JSON" $false "Unable to parse runtime policy: $_"
+}
+
+if ($runtimePolicy) {
+  $stage = $runtimePolicy.stages.($runtimePolicy.currentStage)
+  $activeIds = @($stage.runtime.external) + @($stage.runtime.engine)
+  $activeFile = Join-Path $projectRoot "src/mods/mod-engine/subsystems/time-system.ts"
+  $inactiveFile = Join-Path $projectRoot "src/mods/mod-character/subsystems/health-system.ts"
+  $activeMatch = [regex]::Match((Get-FileContent $activeFile), "readonly\s+id\s*=\s*'([^']+)'")
+  $inactiveMatch = [regex]::Match((Get-FileContent $inactiveFile), "readonly\s+id\s*=\s*'([^']+)'")
+  $filterOk =
+    $activeMatch.Success -and $activeMatch.Groups[1].Value -in $activeIds -and
+    $inactiveMatch.Success -and $inactiveMatch.Groups[1].Value -notin $activeIds
+  Write-TestResult "2b-FILTER: Active and inactive subsystem IDs are distinct" $filterOk "Runtime policy did not separate known active and inactive files"
+}
+
+$registrationPath = Join-Path $projectRoot "src/mods/mod-engine/bootstrap/register-subsystems.ts"
+$registrationContent = Get-FileContent $registrationPath
+$registrationOk =
+  $registrationContent -match 'MOD_SUBSYSTEM_IMPORTERS' -and
+  $registrationContent -match 'registerAllSubsystems' -and
+  $registrationContent -match 'manifest\.subsystems'
+Write-TestResult "2b-REGISTRATION: Dynamic manifest registration entry exists" $registrationOk "Dynamic subsystem registration contract is incomplete"
+
+$externalImporterPath = Join-Path $projectRoot "src/core/mod-loader/mod-subsystem-importers.generated.ts"
+$engineImporterPath = Join-Path $projectRoot "src/mods/mod-engine/bootstrap/engine-subsystems.generated.ts"
+$externalImporterContent = Get-FileContent $externalImporterPath
+$engineImporterContent = Get-FileContent $engineImporterPath
+$generatedImportsOk =
+  $externalImporterContent -match "@/mods/mod-world/subsystems/world-context-registry-system" -and
+  $engineImporterContent -match "\.\./subsystems/time-system" -and
+  $registrationContent -match "\.\./subsystems/orchestrator-system"
+Write-TestResult "2b-GENERATED: External and engine generated imports are wired" $generatedImportsOk "Generated subsystem import paths are incomplete"
+
+# ============================================================
 # Test 3: Dot-Source Chain Test
 # ============================================================
 Write-SectionHeader "Test 3: Dot-Source Chain Test"
@@ -246,6 +313,22 @@ $tempSrcDir = Join-Path $tempEnvDir "src"
 $tempModsDir = Join-Path $tempSrcDir "mods"
 $tempModDir = Join-Path $tempModsDir "mod-test"
 New-Item -ItemType Directory -Path $tempModDir -Force | Out-Null
+$tempCoreDir = Join-Path $tempSrcDir "core"
+New-Item -ItemType Directory -Path $tempCoreDir -Force | Out-Null
+"export {};" | Set-Content -Path (Join-Path $tempCoreDir "index.ts") -Encoding UTF8
+$tempEngineHelpersDir = Join-Path $tempModsDir "mod-engine/helpers"
+New-Item -ItemType Directory -Path $tempEngineHelpersDir -Force | Out-Null
+@'
+{
+  "currentStage": "mvp",
+  "stages": {
+    "mvp": {
+      "runtime": { "external": [], "engine": [] },
+      "narrativeChange": []
+    }
+  }
+}
+'@ | Set-Content -Path (Join-Path $tempEngineHelpersDir "mvp-stages-config.default.json") -Encoding UTF8
 
 # Create minimal manifest.ts, types.ts, index.ts
 @"
@@ -268,14 +351,18 @@ export default defineMod({
 "export interface TestConfig {}" | Set-Content -Path (Join-Path $tempModDir "types.ts") -Encoding UTF8
 "export type { TestConfig } from './types';" | Set-Content -Path (Join-Path $tempModDir "index.ts") -Encoding UTF8
 
-# Set up global vars that scanners expect
-$global:modDirs = @(Get-ChildItem -Path $tempModsDir -Directory | Where-Object { $_.Name -match '^mod-' })
-$global:SrcDir = $tempSrcDir
-$global:modsDir = $tempModsDir
+# Set up scanner variables in the current scope so each dot-sourced scanner
+# sees the same isolated temporary project.
+$modDirs = @(Get-ChildItem -Path $tempModsDir -Directory | Where-Object { $_.Name -eq 'mod-test' })
+$SrcDir = $tempSrcDir
+$modsDir = $tempModsDir
+$global:modDirs = $modDirs
+$global:SrcDir = $SrcDir
+$global:modsDir = $modsDir
 $global:VerboseOutput = $false
 $global:AllSrcFiles = @()
 $global:AllTsxFiles = @()
-$global:Global:ErrorOnly = $false
+$Global:ErrorOnly = $false
 
 # checker-utils.ps1 already loaded in Test 2; only test scanner scripts
 $scannerOnly = @(

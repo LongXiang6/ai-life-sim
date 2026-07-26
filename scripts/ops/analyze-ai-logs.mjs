@@ -1,42 +1,40 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs'
-import { promises as fsp } from 'node:fs'
 import path from 'node:path'
-import readline from 'node:readline'
+
+import Database from 'better-sqlite3'
 
 import {
   buildCanonicalStoryRepetitionSet,
   diagnosticCodeOf,
-  operationalTimestamp,
   summarizeStoryRepetitionRows,
 } from './lib/story-repetition-analytics.mjs'
 import { classifyUpstreamError } from './lib/error-classification.mjs'
 
-const DEFAULT_ROOT = process.env.AI_LOG_DIR || '/var/log/ai-life-sim'
+const DEFAULT_ROOT = process.env.AI_LOG_DB_PATH
+  || process.env.AI_LOG_DIR
+  || '/var/lib/ai-life-sim/logs.sqlite'
 const DEFAULT_SINCE_HOURS = 24
 const DEFAULT_BUCKET_MINUTES = 60
 const DEFAULT_TOP = 10
-const DEFAULT_MIN_TERM_COUNT = 3
 const TIME_ZONE = 'Asia/Shanghai'
 
 function printHelp() {
   console.log(`Usage: node scripts/ops/analyze-ai-logs.mjs [options]
 
 Options:
-  --root <path>              Log root (default: AI_LOG_DIR or /var/log/ai-life-sim)
+  --root <path>              logs.sqlite path or its containing directory
   --since-hours <n>          Inspect the latest n hours (default: 24)
   --from <ISO>               Inclusive start time; overrides --since-hours
   --to <ISO>                 Exclusive end time (default: now)
   --compare-at <ISO>         Split the window into before/after release slices
-  --player-code <code>       Filter to one player diagnostic code; the code is not printed
+  --player-code <code>       Filter to one player diagnostic code
   --bucket-minutes <n>       Traffic bucket size (default: 60)
   --top <n>                  Number of top rows (default: 10)
-  --min-term-count <n>       Minimum branch-term cohort count (default: 3)
   --help                     Show this help
 
-The report is aggregate-only: it does not print IPs, diagnostic codes, account IDs,
-raw messages, story text, Prompt content, or low-frequency branch terms.`)
+The report aggregates AI requests, errors, and story-quality rows from the plaintext database.`)
 }
 
 function parseArgs(argv) {
@@ -49,7 +47,6 @@ function parseArgs(argv) {
     playerCode: undefined,
     bucketMinutes: DEFAULT_BUCKET_MINUTES,
     top: DEFAULT_TOP,
-    minTermCount: DEFAULT_MIN_TERM_COUNT,
   }
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index]
@@ -67,14 +64,13 @@ function parseArgs(argv) {
     else if (arg === '--player-code') options.playerCode = next().trim().toUpperCase()
     else if (arg === '--bucket-minutes') options.bucketMinutes = Number(next())
     else if (arg === '--top') options.top = Number(next())
-    else if (arg === '--min-term-count') options.minTermCount = Number(next())
     else throw new Error(`未知参数：${arg}`)
   }
   if (!Number.isFinite(options.sinceHours) || options.sinceHours <= 0) throw new Error('--since-hours 必须为正数')
   if (options.playerCode && !/^(?=.*[A-HJ-NP-Z])(?=.*[2-9])[A-HJ-NP-Z2-9]{6}$/u.test(options.playerCode)) {
     throw new Error('--player-code 必须为六位大写字母与数字')
   }
-  for (const [key, value] of [['bucket-minutes', options.bucketMinutes], ['top', options.top], ['min-term-count', options.minTermCount]]) {
+  for (const [key, value] of [['bucket-minutes', options.bucketMinutes], ['top', options.top]]) {
     if (!Number.isSafeInteger(value) || value <= 0) throw new Error(`--${key} 必须为正整数`)
   }
   return options
@@ -97,45 +93,58 @@ function resolveWindow(options, nowMs = Date.now()) {
   return { fromMs, toMs, compareAtMs }
 }
 
-function classifyFile(name) {
-  if (name.startsWith('proxy-access-')) return 'access'
-  if (name.startsWith('client-events-')) return 'client'
-  return undefined
+function resolveDatabasePath(root) {
+  const resolved = path.resolve(root)
+  return path.extname(resolved).toLowerCase() === '.sqlite'
+    ? resolved
+    : path.join(resolved, 'logs.sqlite')
 }
 
-async function collectFiles(root) {
-  const files = []
-  for (const kind of ['proxy-access', 'client-events']) {
-    const directory = path.join(root, kind)
-    let entries
-    try {
-      entries = await fsp.readdir(directory, { withFileTypes: true })
-    } catch {
-      continue
-    }
-    for (const entry of entries) {
-      if (!entry.isFile()) continue
-      const fileKind = classifyFile(entry.name)
-      if (fileKind) files.push({ path: path.join(directory, entry.name), kind: fileKind })
-    }
-  }
-  return files.sort((left, right) => left.path.localeCompare(right.path))
+function parseJson(value) {
+  if (!value) return {}
+  try { return JSON.parse(value) } catch { return {} }
 }
 
-async function readRecords(file, window, target) {
-  const input = fs.createReadStream(file.path, { encoding: 'utf8' })
-  const lines = readline.createInterface({ input, crlfDelay: Infinity })
-  for await (const line of lines) {
-    if (!line.trim()) continue
-    try {
-      const record = JSON.parse(line)
-      const timestamp = operationalTimestamp(record)
-      if (timestamp >= window.fromMs && timestamp < window.toMs) {
-        target.push({ ...record, _kind: file.kind, _timestamp: timestamp, _sequence: target.length })
-      }
-    } catch {
-      // Ignore a partially written terminal line; the source file remains inspectable.
+function readRecords(root, window, target) {
+  const databasePath = resolveDatabasePath(root)
+  if (!fs.existsSync(databasePath)) throw new Error(`日志数据库不存在：${databasePath}`)
+  const database = new Database(databasePath, { readonly: true, fileMustExist: true })
+  try {
+    const rows = database.prepare(`
+      SELECT * FROM log_entries
+      WHERE created_at >= ? AND created_at < ?
+        AND entry_type IN ('proxy-access', 'client-log', 'quality-metric')
+      ORDER BY created_at ASC, rowid ASC
+    `).all(window.fromMs, window.toMs)
+    for (const row of rows) {
+      const payload = parseJson(row.payload_json)
+      const kind = row.entry_type === 'proxy-access' ? 'access' : 'client'
+      target.push({
+        ...payload,
+        timestamp: payload.timestamp ?? new Date(row.created_at).toISOString(),
+        receivedAt: payload.receivedAt ?? row.created_at,
+        requestId: payload.requestId ?? row.request_id,
+        request_id: payload.request_id ?? row.request_id,
+        sourceIp: row.source_ip,
+        sourceId: row.source_id,
+        diagnosticCode: row.diagnostic_code,
+        deviceProvenanceId: row.device_provenance_id ?? null,
+        accountId: row.account_id,
+        username: row.username,
+        isRegistered: row.is_registered === 1,
+        level: row.level ?? payload.level,
+        module: row.module ?? payload.module,
+        message: row.message ?? payload.message,
+        status: row.status ?? payload.status,
+        provider: row.provider ?? payload.provider,
+        model: row.model ?? payload.model,
+        _kind: kind,
+        _timestamp: row.created_at,
+        _sequence: target.length,
+      })
     }
+  } finally {
+    database.close()
   }
 }
 
@@ -188,6 +197,7 @@ function metricOf(record) {
 }
 
 function playerKey(record) {
+  if (typeof record.accountId === 'string' && record.accountId) return `account:${record.accountId}`
   const code = diagnosticCodeOf(record)
   return code ? `code:${code}` : undefined
 }
@@ -202,13 +212,8 @@ function summarize(records, options, storyRepetitionRows) {
   const latency = []
   const promptChars = []
   const requestPlayers = new Set()
-  const metricPlayers = new Set()
   const bucketMap = new Map()
-  const hourMap = Array.from({ length: 24 }, (_, hour) => ({ hour, requests: 0, pageViews: 0, narrativeAdvances: 0, players: new Set() }))
-  const pageViews = new Map()
-  const timeSteps = new Map()
-  const branchTypes = new Map()
-  const branchTerms = new Map()
+  const hourMap = Array.from({ length: 24 }, (_, hour) => ({ hour, requests: 0, failures: 0, players: new Set() }))
   const metricKinds = new Map()
 
   for (const record of access) {
@@ -229,6 +234,7 @@ function summarize(records, options, storyRepetitionRows) {
     bucketMap.set(bucket, bucketRow)
     const hour = hourMap[localHour(record._timestamp)]
     hour.requests += 1
+    if (Number(record.status) < 200 || Number(record.status) >= 400) hour.failures += 1
     if (player) hour.players.add(player)
     const normalizedError = classifyUpstreamError(record.error)
     if (Number(record.status) < 200 || Number(record.status) >= 400) increment(errorCounts, normalizedError ?? `http_${record.status}`)
@@ -236,33 +242,12 @@ function summarize(records, options, storyRepetitionRows) {
 
   for (const record of client) {
     const metric = metricOf(record)
-    if (!metric) continue
+    if (metric?.kind !== 'story_repetition') continue
     increment(metricKinds, metric.kind)
-    const player = playerKey(record)
-    if (player) metricPlayers.add(player)
-    const hour = hourMap[localHour(record._timestamp)]
-    if (player) hour.players.add(player)
-    if (metric.kind === 'page_view') {
-      const page = typeof metric.page === 'string' && metric.page.startsWith('/') ? metric.page : '/unknown'
-      increment(pageViews, page)
-      hour.pageViews += 1
-    }
-    if (metric.kind === 'narrative_advance') {
-      increment(timeSteps, typeof metric.timeStepKey === 'string' ? metric.timeStepKey : 'unknown')
-      hour.narrativeAdvances += 1
-    }
-    if (metric.kind === 'time_step_selected') increment(timeSteps, typeof metric.timeStepKey === 'string' ? metric.timeStepKey : 'unknown')
-    if (metric.kind === 'branch_choice') {
-      increment(branchTypes, metric.branchChoiceType === 'custom' ? 'custom' : 'preset')
-      if (Array.isArray(metric.branchTerms)) {
-        for (const term of new Set(metric.branchTerms)) increment(branchTerms, term)
-      }
-    }
   }
 
   const successful = access.filter((record) => Number(record.status) >= 200 && Number(record.status) < 300).length
   const failed = access.length - successful
-  const activePlayers = new Set([...requestPlayers, ...metricPlayers])
   const buckets = [...bucketMap.values()].sort((a, b) => a.bucket.localeCompare(b.bucket)).map((row) => ({
     bucket: row.bucket,
     requests: row.requests,
@@ -272,15 +257,10 @@ function summarize(records, options, storyRepetitionRows) {
   const hours = hourMap.map((row) => ({
     hour: row.hour,
     requests: row.requests,
-    pageViews: row.pageViews,
-    narrativeAdvances: row.narrativeAdvances,
+    failures: row.failures,
     estimatedPlayers: row.players.size,
   }))
   const peak = (field) => [...hours].sort((a, b) => b[field] - a[field] || a.hour - b.hour)[0]
-  const highFrequencyTerms = sortedMap(
-    new Map([...branchTerms].filter(([, count]) => count >= options.minTermCount)),
-    options.top,
-  )
   return {
     window: {
       from: new Date(records.length ? Math.min(...records.map((record) => record._timestamp)) : 0).toISOString(),
@@ -291,8 +271,7 @@ function summarize(records, options, storyRepetitionRows) {
       successful,
       failed,
       successRate: access.length ? Number((successful / access.length).toFixed(4)) : null,
-      estimatedActivePlayers: activePlayers.size,
-      telemetryPlayers: metricPlayers.size,
+      estimatedActivePlayers: requestPlayers.size,
       requestPlayers: requestPlayers.size,
       clientEvents: client.length,
     },
@@ -306,15 +285,7 @@ function summarize(records, options, storyRepetitionRows) {
     localHourDistribution: hours,
     peaks: {
       requests: peak('requests')?.hour ?? null,
-      pageViews: peak('pageViews')?.hour ?? null,
-      narrativeAdvances: peak('narrativeAdvances')?.hour ?? null,
-    },
-    pageViews: sortedMap(pageViews, options.top),
-    timeSteps: sortedMap(timeSteps, options.top),
-    branchChoices: {
-      types: Object.fromEntries(branchTypes),
-      highFrequencyTerms,
-      suppressedTermsBelowCount: options.minTermCount,
+      failures: peak('failures')?.hour ?? null,
     },
     metricKinds: Object.fromEntries(metricKinds),
     storyRepetition: summarizeStoryRepetitionRows(storyRepetitionRows, {
@@ -327,11 +298,6 @@ function sliceRecords(records, fromMs, toMs) {
   return records.filter((record) => record._timestamp >= fromMs && record._timestamp < toMs)
 }
 
-function serializeReport(report, playerCode) {
-  const serialized = JSON.stringify(report, null, 2)
-  return playerCode ? serialized.replaceAll(playerCode, '[redacted]') : serialized
-}
-
 async function main() {
   const options = parseArgs(process.argv.slice(2))
   if (options.help) {
@@ -339,25 +305,18 @@ async function main() {
     return
   }
   const window = resolveWindow(options)
-  if (!fs.existsSync(options.root)) throw new Error(`日志目录不存在：${options.root}`)
   const records = []
-  for (const file of await collectFiles(options.root)) await readRecords(file, window, records)
+  readRecords(options.root, window, records)
   const selectedRecords = options.playerCode
-    ? records.filter((record) => playerKey(record) === `code:${options.playerCode}`)
+    ? records.filter((record) => diagnosticCodeOf(record) === options.playerCode)
     : records
   const canonicalRepetition = buildCanonicalStoryRepetitionSet(selectedRecords)
   const aggregateRecords = canonicalRepetition.records
   const report = {
     schemaVersion: 1,
     generatedAt: new Date().toISOString(),
-    privacy: {
-      aggregateOnly: true,
-      timeZone: TIME_ZONE,
-      rawContentIncluded: false,
-      identifiersIncluded: false,
-      anonymousGameAliasesIncluded: Boolean(options.playerCode),
-      playerFilterApplied: Boolean(options.playerCode),
-    },
+    timeZone: TIME_ZONE,
+    filters: { playerCode: options.playerCode ?? null },
     requestedWindow: {
       from: new Date(window.fromMs).toISOString(),
       to: new Date(window.toMs).toISOString(),
@@ -375,7 +334,7 @@ async function main() {
       after: summarize(after, options, afterRepetition),
     }
   }
-  console.log(serializeReport(report, options.playerCode))
+  console.log(JSON.stringify(report, null, 2))
 }
 
 main().catch((error) => {

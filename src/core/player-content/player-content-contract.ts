@@ -1,5 +1,10 @@
 import { z } from 'zod'
 
+import {
+  CloudGameRecordSchema,
+  type CloudGameRecord,
+} from '@/core/account/account-contract'
+
 export const CLOUD_MANUAL_SAVE_SCHEMA_VERSION = 1
 export const CLOUD_MANUAL_SAVE_SLOT = 1
 export const CLOUD_MANUAL_SAVE_MAX_BYTES = 64 * 1024 * 1024
@@ -31,19 +36,11 @@ export const CloudManualSaveWriteSchema = z.object({
   payload: CloudGameSavePayloadSchema,
 }).strict()
 
-export const CloudGameRecordLeaderboardSchema = z.object({
-  recordId: z.string().min(1).max(200),
-  completedAt: z.number().int().nonnegative(),
-  characterName: z.string().min(1).max(100),
-  worldName: z.string().min(1).max(200),
-  finalAge: z.number().finite().nonnegative(),
-  rounds: z.number().int().nonnegative().max(1_000_000),
-  overallScore: z.number().finite().min(0).max(100),
-}).strict()
+export const CloudGameRecordLeaderboardSchema = CloudGameRecordSchema
 
 export const PortraitMailRequestSchema = z.object({
   recordId: z.string().min(1).max(200),
-  lifeSummary: z.string().trim().min(1),
+  lifeSummary: z.string().trim().min(1).max(200_000),
 }).strict()
 
 export type CloudGameSavePayload = z.infer<typeof CloudGameSavePayloadSchema>
@@ -68,6 +65,14 @@ export interface LeaderboardProjection {
 export interface LeaderboardEntry extends LeaderboardProjection {
   rank: number
   username: string
+  characterName: string
+  worldName: string
+  finalAge: number
+  dimensions: CloudGameRecord['dimensions']
+  endingReview: NonNullable<CloudGameRecord['endingReview']>
+  achievements: NonNullable<CloudGameRecord['achievements']>
+  portraitAssetId: string | null
+  portraitAssetUrl: string | null
 }
 
 export interface PlayerMailMessage {
@@ -79,8 +84,29 @@ export interface PlayerMailMessage {
   assetId: string | null
   createdAt: number
   readAt: number | null
+  status: 'processing' | 'failed' | 'ready'
+  errorCode?: string
+}
+
+export interface PlayerMailMessageView extends PlayerMailMessage {
+  assetUrl: string | null
+}
+
+export interface LegendaryEncounterProjection {
+  sourceRecordId: string
+  characterName: string
+  worldName: string
+  endingReview: string
+  achievements: NonNullable<CloudGameRecord['achievements']>
+  selectedAt: number
 }
 
 export function isLeaderboardEligible(record: CloudGameRecordLeaderboard): boolean {
-  return record.rounds > 100 && record.overallScore > 97
+  return Number.isInteger(record.overallScore)
+    && record.overallScore > 97
+    && record.overallScore <= 100
+    && record.scoring?.validCompletedLife === true
+    && record.scoring.integrity.passed
+    && (record.overallScore < 100 || record.scoring.integrity.perfectGatePassed)
+    && Boolean(record.endingReview?.review.trim())
 }

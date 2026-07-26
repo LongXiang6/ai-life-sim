@@ -1,6 +1,18 @@
 export interface AggregatedSseCompletion {
   responseBody: string
+  /** 上游实际返回的完整 SSE 原文；不经过 JSON 重建。 */
+  rawResponseBody: string
   contentChars: number
+}
+
+export class ManagedSseAggregationError extends Error {
+  readonly rawResponseBody: string
+
+  constructor(message: string, rawResponseBody: string) {
+    super(message)
+    this.name = 'ManagedSseAggregationError'
+    this.rawResponseBody = rawResponseBody
+  }
 }
 
 /**
@@ -12,7 +24,9 @@ export async function aggregateSseCompletion(
 ): Promise<AggregatedSseCompletion> {
   const reader = stream.getReader()
   const decoder = new TextDecoder()
+  const rawDecoder = new TextDecoder()
   let buffer = ''
+  let rawResponseBody = ''
   let content = ''
   let completionId: string | undefined
   let created: number | undefined
@@ -56,20 +70,28 @@ export async function aggregateSseCompletion(
     }
   }
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop() ?? ''
-    for (const line of lines) consumeLine(line)
-  }
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      rawResponseBody += rawDecoder.decode(value, { stream: true })
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop() ?? ''
+      for (const line of lines) consumeLine(line)
+    }
 
-  buffer += decoder.decode()
-  if (buffer) consumeLine(buffer)
-  if (!completed) throw new Error('托管通道 SSE 未返回完整结束标记')
-  if (finishReason === 'length') throw new Error('托管通道 SSE 达到 max_tokens，正文可能不完整')
-  if (!content) throw new Error('托管通道 SSE 返回空正文')
+    rawResponseBody += rawDecoder.decode()
+    buffer += decoder.decode()
+    if (buffer) consumeLine(buffer)
+    if (!completed) throw new Error('托管通道 SSE 未返回完整结束标记')
+    if (finishReason === 'length') throw new Error('托管通道 SSE 达到 max_tokens，正文可能不完整')
+    if (!content) throw new Error('托管通道 SSE 返回空正文')
+  } catch (error) {
+    rawResponseBody += rawDecoder.decode()
+    const message = error instanceof Error ? error.message : String(error)
+    throw new ManagedSseAggregationError(message, rawResponseBody)
+  }
 
   const completion: Record<string, unknown> = {
     id: completionId,
@@ -85,6 +107,7 @@ export async function aggregateSseCompletion(
   if (usage !== undefined) completion.usage = usage
   return {
     responseBody: JSON.stringify(completion),
+    rawResponseBody,
     contentChars: content.length,
   }
 }

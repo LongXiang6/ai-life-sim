@@ -4,7 +4,7 @@
  * @mod mod-engine
  *
  * 固定提示词由服务端资产注册表编译和注入；浏览器只按“全局信息、记忆、
- * 本轮引导”计算动态消息。AI 可见字段与枚举统一使用中文，解析后由严格
+ * 本轮引导、变化要求”计算动态消息。AI 可见字段与枚举统一使用中文，解析后由严格
  * 转译层恢复内部稳定契约。
  */
 
@@ -29,7 +29,7 @@ export const WORLD_RULES: Record<string, string> = {
 }
 
 /** 公开 ID 只用于请求服务端资产；不包含任何固定 Prompt 文本。 */
-export const NARRATIVE_SERVER_PROMPT_ASSET_ID = 'mod-engine:narrative:4.6.1'
+export const NARRATIVE_SERVER_PROMPT_ASSET_ID = 'mod-engine:narrative:4.7.0'
 export const NARRATIVE_REPAIR_SERVER_PROMPT_ASSET_ID = 'mod-engine:narrative-repair:1.0.0'
 
 /**
@@ -48,11 +48,11 @@ export function getWorldRules(essenceTag?: string): string {
 
 export const narrativePrompt: PromptTemplate = {
   name: 'narrative',
-  version: '4.6.1',
+  version: '4.7.0',
   mod: 'mod-engine',
   systemPrompt: '',
   serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID,
-  userPromptTemplate: '主叙事用户消息由统一编译器装配为“全局信息、记忆、本轮引导”三层。',
+  userPromptTemplate: '主叙事用户消息由统一编译器装配为“全局信息、记忆、本轮引导、变化要求”四层。',
   variables: [],
   outputFormat: 'text',
   outputSchema: NarrativeAIResponseSchema,

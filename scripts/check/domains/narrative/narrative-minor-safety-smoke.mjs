@@ -80,11 +80,10 @@ const branchHookSource = fs.readFileSync(
   path.join(root, 'src/mods/mod-pages/pages/game-story/useSimulationBranch.ts'),
   'utf8',
 )
-const confirmStart = branchHookSource.indexOf('const handleBranchConfirm')
-assert.ok(
-  branchHookSource.indexOf('resolveNarrativeBranchChoice(branchId, choice)', confirmStart)
-    < branchHookSource.indexOf('reportUsageMetric({', confirmStart),
-  '分支词项日志只能在选择通过安全与状态门禁后上报',
+assert.equal(
+  branchHookSource.includes('reportUsageMetric'),
+  false,
+  '分支选择属于用户操作，禁止记录选择类型、词项或字符数遥测',
 )
 
 useEngineStore.getState().reset()

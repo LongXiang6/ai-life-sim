@@ -1,17 +1,11 @@
 # 现行与废弃核心模拟机制对比矩阵
 
-文档角色：acceptance
-权威层级：A5
-状态：active
-体系路径：project > simulation > legacy comparison
-上级目标：用可复核的逐机制对照说明现行运行时与 `../废弃项目` 的差异、保留项、延后项和禁止回迁项
-下级组成：旧叶子库存审计、旧非叶子调用链、现行运行成员、字段口径、公式压力探针和迁移处置
-适用范围：`D:\AI\废弃项目` 与 `D:\AI\ai-life-sim` 的核心模拟、叙事、记忆、分支、初始化、持久化和终局机制
-拥有者：项目测试治理与各当前 owning system
-最后验证：2026-07-25；对照旧三域直接 import、旧 `SystemContext`、当前阶段白名单、当前系统文件库存和固定输入公式探针
-取代关系：不取代 `product-decisions.md`、蓝图或运行时系统索引；旧项目只能作为 A6 历史实现证据
-运行真源：`src/mods/mod-engine/helpers/mvp-stages-config.default.json`、`docs/system-authority-index.md` 与各表列出的 live source
-验收证据：本文件的文件枚举、100 轮公式探针、`npm run test:calibration`、`npm run test:narrative-protocol`、结构与持久化专项 smoke
+文档角色：废弃机制历史对照
+状态：按需读取
+适用范围：`D:\AI\废弃项目` 与当前核心模拟的历史差异证据
+运行真源：`src/mods/mod-engine/helpers/mvp-stages-config.default.json` 与各表列出的实时代码
+
+本文件不定义活动权威、执行顺序或恢复要求。当前任务按 `docs/authority-index.md` 路由，仅在用户要求对照废弃机制时读取对应章节。
 
 ## 1. 结论
 

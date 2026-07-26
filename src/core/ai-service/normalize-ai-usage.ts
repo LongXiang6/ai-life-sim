@@ -2,6 +2,7 @@ export interface NormalizedAiUsage {
   hitTokens: number
   missTokens: number
   completionTokens: number
+  reasoningTokens: number
   totalTokens: number
 }
 
@@ -44,7 +45,12 @@ export function normalizeAiUsage(usage: unknown): NormalizedAiUsage | undefined 
   const explicitMissTokens = asNonNegativeNumber(record.prompt_cache_miss_tokens)
   const missTokens = explicitMissTokens ?? Math.max(promptTokens - hitTokens, 0)
   const completionTokens = maxKnown([record.completion_tokens, record.output_tokens]) ?? 0
+  const completionDetails = asRecord(record.completion_tokens_details)
+  const reasoningTokens = maxKnown([
+    completionDetails?.reasoning_tokens,
+    record.reasoning_tokens,
+  ]) ?? 0
   const totalTokens = maxKnown([record.total_tokens]) ?? promptTokens + completionTokens
 
-  return { hitTokens, missTokens, completionTokens, totalTokens }
+  return { hitTokens, missTokens, completionTokens, reasoningTokens, totalTokens }
 }

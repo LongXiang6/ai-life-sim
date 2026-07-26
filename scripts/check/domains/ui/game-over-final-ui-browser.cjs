@@ -100,7 +100,7 @@ function seedPage(page) {
           { id: 'record-3', text: '晚年的你把灯塔交给学生，亲眼看着新航线第一次贯通群岛。', isComplete: true, timestamp: 3, displayAge: 73, displayTimeLabel: '潮历73年' },
         ],
         compressedSummaries: { summaries: [] },
-        compressionStats: { l1Count: 0, l2Count: 0, l3Count: 0, l4Count: 0, lastAt: 0 },
+        compressionStats: { l1Count: 0, l2Count: 0, l3Count: 0, lastAt: 0 },
         resolvedBranches: {}, forceBranchNext: false, branchRepairPending: false,
       },
     }))
@@ -128,7 +128,7 @@ async function main() {
 
   const result = await page.evaluate(() => {
     const footer = document.querySelector('footer')
-    const back = footer?.querySelector('button[class*="backButton"]')
+    const back = footer?.querySelector('button[aria-label="返回首页"]')
     const primary = footer?.querySelector('button[class*="newLifeButton"]')
     const arrow = footer?.querySelector('[class*="newLifeArrow"]')
     const semantic = [...document.querySelectorAll('[data-semantic-emoji]')]
@@ -157,8 +157,8 @@ async function main() {
     await page.screenshot({ path: path.join(screenshotDir, `${viewportWidth}-game-over-footer.png`) })
   }
 
-  await page.click('footer button[class*="backButton"]')
-  await page.waitForFunction(() => location.pathname.endsWith('/game-story'))
+  await page.click('footer button[aria-label="返回首页"]')
+  await page.waitForFunction(() => location.pathname.endsWith('/welcome'))
   result.backRoute = await page.evaluate(() => location.pathname)
 
   await page.goto(`${baseUrl}/game-over`, { waitUntil: 'domcontentloaded' })
@@ -174,7 +174,10 @@ async function main() {
   console.log(JSON.stringify(result, null, 2))
   await browser.close()
 
-  const near = (value, expected) => typeof value === 'number' && Math.abs(value - expected) <= 1
+  const scale = result.backSize?.[0] / 38
+  const nearScaled = (value, expected) => typeof value === 'number'
+    && typeof scale === 'number'
+    && Math.abs(value - expected * scale) <= 1
   if (
     result.route !== '/game-over'
     || result.scrollWidth > result.viewport[0] + 1
@@ -182,12 +185,12 @@ async function main() {
     || !result.semanticHidden
     || result.metricNames.length !== 4
     || !result.footerVisible
-    || !near(result.backSize?.[0], 38)
-    || !near(result.backSize?.[1], 38)
-    || !near(result.primaryHeight, 48)
-    || !near(result.arrowSize?.[0], 28)
-    || !near(result.arrowSize?.[1], 28)
-    || result.backRoute !== '/game-story'
+    || !nearScaled(result.backSize?.[0], 38)
+    || !nearScaled(result.backSize?.[1], 38)
+    || !nearScaled(result.primaryHeight, 48)
+    || !nearScaled(result.arrowSize?.[0], 25)
+    || !nearScaled(result.arrowSize?.[1], 25)
+    || result.backRoute !== '/welcome'
     || result.newLifeRoute !== '/new-game/world-select'
     || result.proxyRequests !== 0
     || result.consoleErrors.length > 0

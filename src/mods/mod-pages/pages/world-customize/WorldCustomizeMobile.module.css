@@ -1,5 +1,4 @@
-.page,
-.bottomBar {
+.page {
   color-scheme: light;
   --cf-paper: #fafbff;
   --cf-surface: #fff;
@@ -96,32 +95,32 @@
 .worldSummary {
   position: relative;
   display: block;
-  height: 155px;
+  min-height: 155px;
   margin-top: 10px;
   padding: 12px 15px;
-  overflow: hidden;
+  box-sizing: border-box;
   border: 1px solid var(--cf-line);
   border-radius: 15px;
   background: rgba(255, 255, 255, .94);
   box-shadow: 0 10px 28px rgba(62, 70, 100, .055);
-  container-type: size;
+  container-type: inline-size;
 }
 
-.worldSummary > div:first-child {
+.summaryTop {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
 }
 
-.worldSummary > div:first-child > span:first-child {
+.summaryTop > span:first-child {
   color: var(--cf-accent);
   font-size: 9px;
   font-weight: 700;
   line-height: 1.3;
 }
 
-.worldSummary > div:first-child > span:last-child {
+.summaryTop > span:last-child {
   color: var(--cf-faint);
   font-size: 9px;
   font-variant-numeric: tabular-nums;
@@ -131,7 +130,7 @@
   display: none;
 }
 
-.summaryCopy {
+.summaryDifficulty {
   position: absolute;
   top: 24px;
   right: 15px;
@@ -150,7 +149,7 @@
   box-shadow: inset 0 1px rgba(255, 255, 255, .96), 0 4px 11px rgba(62, 70, 100, .045);
 }
 
-.summaryCopy > span:first-child {
+.summaryDifficulty > span:first-child {
   grid-column: 1;
   grid-row: 1;
   color: var(--cf-faint);
@@ -159,44 +158,61 @@
   line-height: 1.15;
 }
 
-.summaryCopy strong {
+.summaryDifficulty strong {
   grid-column: 1;
   grid-row: 2;
   color: var(--cf-ink);
   font-size: 10.5px;
   font-weight: 680;
   line-height: 1.2;
-  overflow: visible;
-  text-overflow: clip;
-  white-space: normal;
+}
+
+.summaryDifficultyIcon {
+  display: grid;
+  width: 9px;
+  height: 9px;
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  place-items: center;
+  padding: 3px;
+  border-radius: 50%;
+  box-sizing: content-box;
+  background: var(--cf-accent);
+  color: #fff;
+}
+
+.summaryDifficultyIcon svg {
+  width: 9px;
+  height: 9px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
 }
 
 .worldSummary h3 {
   max-width: calc(100% - 100px);
   margin: 7px 0 0;
-  overflow: hidden;
   color: var(--cf-ink);
   font-size: 16.5px;
   font-weight: 700;
   line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .summaryEra {
   max-width: calc(100% - 100px);
   margin-top: 3px;
-  overflow: hidden;
   color: var(--cf-muted);
   font-size: 9px;
   line-height: 1.3;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .summaryRule {
   display: grid;
-  height: 32px;
+  min-height: 32px;
   grid-template-columns: 44px minmax(0, 1fr);
   align-items: center;
   gap: 7px;
@@ -215,12 +231,10 @@
 .summaryRule > p {
   min-width: 0;
   margin: 0;
-  overflow: hidden;
   color: var(--cf-muted);
   font-size: 9px;
-  line-height: 1.3;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .summaryFacts {
@@ -240,9 +254,7 @@
 .summaryFacts span,
 .summaryFacts strong {
   display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .summaryFacts span {
@@ -507,25 +519,30 @@
 
 .choiceDialog {
   position: absolute;
-  z-index: 8;
-  top: 100%;
-  left: 0;
-  width: 100%;
-  margin-top: 4px;
+  z-index: 101;
+  display: flex;
   padding: 5px;
   border: 1px solid rgba(207, 215, 238, .98);
   border-radius: 9px;
   background: rgba(255, 255, 255, .98);
   box-shadow: 0 9px 20px rgba(40, 50, 75, .13);
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .choiceSheet {
-  /* Empty wrapper for consistency with prototype structure */
+  display: flex;
+  min-height: 0;
+  flex: 1;
 }
 
 .choiceOptions {
   display: grid;
+  min-height: 0;
+  flex: 1;
   gap: 3px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .choiceOption {
@@ -542,6 +559,26 @@
   font: inherit;
   font-size: 8.5px;
   text-align: left;
+}
+
+.choiceOptionCopy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.choiceOptionCopy strong {
+  color: inherit;
+  font-size: 8.5px;
+  font-weight: 680;
+  line-height: 1.25;
+}
+
+.choiceOptionCopy small {
+  color: var(--cf-muted);
+  font-size: 7.5px;
+  line-height: 1.38;
+  overflow-wrap: anywhere;
 }
 
 .choiceOption:hover {
@@ -563,133 +600,4 @@
   border-right: 1.5px solid currentColor;
   border-bottom: 1.5px solid currentColor;
   transform: rotate(45deg) translateY(-1px);
-}
-
-.currentValue {
-  position: relative;
-}
-
-.bottomBar {
-  position: absolute;
-  z-index: 100;
-  right: 14px;
-  bottom: 12px;
-  left: 14px;
-  padding: 0;
-  pointer-events: none;
-}
-
-.bottomBarInner {
-  display: flex;
-  width: 100%;
-  min-height: 52px;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  padding: 2px 7px;
-  border: 1px solid rgba(207, 215, 238, .84);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, .76);
-  box-shadow: 0 12px 30px rgba(62, 70, 100, .13), 0 2px 7px rgba(62, 70, 100, .06);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  pointer-events: auto;
-}
-
-.backButton {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
-  place-items: center;
-  padding: 0;
-  border: 1px solid var(--cf-line);
-  border-radius: 50%;
-  background: rgba(255, 255, 255, .8);
-  color: var(--cf-muted);
-  font: inherit;
-  font-size: 16px;
-  cursor: pointer;
-}
-
-.confirmButton {
-  display: flex;
-  min-width: 0;
-  min-height: 48px;
-  flex: 1;
-  align-items: center;
-  gap: 8px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--cf-ink);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.nextNumber {
-  width: 19px;
-  color: var(--cf-faint);
-  font-size: 6.5px;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
-.nextCopy {
-  min-width: 0;
-  flex: 1;
-}
-
-.nextCopy strong,
-.nextCopy small {
-  display: block;
-}
-
-.nextCopy strong {
-  font-size: 12.2px;
-  font-weight: 680;
-}
-
-.nextCopy small {
-  margin-top: 2px;
-  overflow: hidden;
-  color: var(--cf-faint);
-  font-size: 6.5px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.nextArrow {
-  display: grid;
-  width: 25px;
-  height: 25px;
-  flex: 0 0 25px;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--cf-accent);
-  color: #fff;
-}
-
-.confirmButton:disabled,
-.backButton:disabled {
-  color: var(--cf-faint);
-  cursor: not-allowed;
-}
-
-.confirmButton:disabled .nextArrow {
-  background: var(--cf-line);
-}
-
-.backButton:focus-visible,
-.confirmButton:focus-visible {
-  outline: 2px solid rgba(115, 130, 187, .48);
-  outline-offset: 2px;
-}
-
-@media (prefers-reduced-transparency: reduce) {
-  .bottomBarInner {
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
 }

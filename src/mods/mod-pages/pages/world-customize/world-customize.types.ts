@@ -4,6 +4,12 @@
  * @mod mod-pages
  */
 
+import {
+  RATING_DESCRIPTIONS,
+  TRUE_INFINITE_DESCRIPTION,
+  UNIT_NAMES,
+} from '@/mods/mod-power-system'
+
 /** 字段大类 */
 export type FieldCategory = 'macro'
 
@@ -27,6 +33,11 @@ export interface EditableField {
   label: string
   /** 下拉选项 */
   options: string[]
+  /** 下拉项的补充展示信息；持久化仍使用 options 中的稳定值。 */
+  optionDetails?: Record<string, {
+    title: string
+    description: string
+  }>
   /** 图标 emoji */
   icon: string
   /** 描述提示 */
@@ -52,6 +63,24 @@ function buildPowerCeilingOptions(maxLevel: number): string[] {
     result.push(`${i}阶`)
   }
   return result
+}
+
+function buildPowerCeilingOptionDetails(maxLevel: number): Record<string, {
+  title: string
+  description: string
+}> {
+  return Object.fromEntries(buildPowerCeilingOptions(maxLevel).map((option) => {
+    const level = Number.parseInt(option, 10)
+    const unit = UNIT_NAMES[level] ?? ''
+    const description = level === 24
+      ? TRUE_INFINITE_DESCRIPTION
+      : RATING_DESCRIPTIONS[level] ?? ''
+
+    return [option, {
+      title: unit ? `${option} · ${unit}级` : option,
+      description,
+    }]
+  }))
 }
 
 /** 宏观维度字段配置表（动态生成力量上限选项）
@@ -89,6 +118,7 @@ export function buildFieldDefs(maxPowerCeiling = 24): Array<Omit<EditableField, 
       category: 'macro',
       label: '力量上限',
       options: buildPowerCeilingOptions(maxPowerCeiling),
+      optionDetails: buildPowerCeilingOptionDetails(maxPowerCeiling),
       icon: '🏔️',
       description: '决定世界力量体系的天花板',
     },

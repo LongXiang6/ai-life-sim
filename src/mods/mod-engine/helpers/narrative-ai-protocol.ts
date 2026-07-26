@@ -340,7 +340,7 @@ export type NarrativeAIResponse = z.infer<typeof NarrativeAIResponseSchema>
 
 /**
  * 仅修复 AI 把 JSON 语法引号/分隔符写成中文全角形式的协议错误。
- * 不补括号、不丢数组项、不提取局部对象，也不改写字符串内部的中文引号。
+ * 不丢数组项、不提取局部对象，也不改写字符串内部的中文引号。
  */
 export function normalizeNarrativeAIJsonSyntax(source: string): string {
   let output = ''
@@ -401,6 +401,49 @@ export function normalizeNarrativeAIJsonSyntax(source: string): string {
 }
 
 /**
+ * 只复原能够由结构栈唯一判定的一个缺失最外层 `}`。模型偶尔会正确关闭
+ * 最后一个嵌套对象，却漏掉包裹数据区的根对象；此处不猜字段、不重排数组，
+ * 遇到任何字符串未闭合、括号错配或多层缺失都保持原样交给严格 JSON 解析拒绝。
+ */
+function restoreSingleMissingRootObjectBrace(source: string): string {
+  if (!source.startsWith('{') || !source.endsWith('}')) return source
+
+  const stack: Array<'{' | '['> = []
+  let inString = false
+  let escaped = false
+  for (const char of source) {
+    if (inString) {
+      if (escaped) {
+        escaped = false
+      } else if (char === '\\') {
+        escaped = true
+      } else if (char === '"') {
+        inString = false
+      }
+      continue
+    }
+
+    if (char === '"') {
+      inString = true
+      continue
+    }
+    if (char === '{' || char === '[') {
+      stack.push(char)
+      continue
+    }
+    if (char !== '}' && char !== ']') continue
+
+    const expectedOpening = char === '}' ? '{' : '['
+    if (stack.at(-1) !== expectedOpening) return source
+    stack.pop()
+  }
+
+  return !inString && stack.length === 1 && stack[0] === '{'
+    ? `${source}}`
+    : source
+}
+
+/**
  * 删除标准示例中可能被模型误复制的 `⟪说明⟫`。
  * 仅处理 JSON 字符串外的完整注释，不使用正则，也不改写字符串内容。
  */
@@ -446,7 +489,9 @@ export function stripNarrativeAIAnnotations(source: string): string {
 }
 
 export function parseNarrativeAIDataJson(source: string): unknown {
-  const normalized = normalizeNarrativeAIJsonSyntax(stripNarrativeAIAnnotations(source)).trim()
+  const normalized = restoreSingleMissingRootObjectBrace(
+    normalizeNarrativeAIJsonSyntax(stripNarrativeAIAnnotations(source)).trim(),
+  )
   if (!normalized.startsWith('{') || !normalized.endsWith('}')) {
     throw new Error('数据区必须且只能包含一个完整对象')
   }
@@ -463,6 +508,36 @@ function omitEmptyNarrativeAIOptionals(raw: unknown): unknown {
 
   const source = raw as Record<string, unknown>
   const output: Record<string, unknown> = { ...source }
+  const normalizeAlias = (
+    value: unknown,
+    aliases: Record<string, string>,
+  ): unknown => typeof value === 'string' ? aliases[value.trim()] ?? value : value
+  const normalizeHumanScore = (
+    value: unknown,
+    aliases: Record<string, number>,
+  ): unknown => {
+    if (typeof value !== 'string') return value
+    const normalized = value.trim()
+    if (/^\d+(?:\.\d+)?$/u.test(normalized)) return Number(normalized)
+    return aliases[normalized] ?? value
+  }
+
+  if (output.重要程度 !== undefined) {
+    output.重要程度 = normalizeAlias(output.重要程度, {
+      中: '普通',
+      中等: '普通',
+      一般: '普通',
+    })
+  }
+  if (output.情节状态 !== undefined) {
+    output.情节状态 = normalizeAlias(output.情节状态, {
+      推进中: '进行中',
+      进展中: '进行中',
+      进行: '进行中',
+      已完成: '结束',
+      完成: '结束',
+    })
+  }
   // “没有分支”偶尔会被模型写成 false；协议语义是省略三项，
   // 仅在没有其它分支字段时将其归一为省略。若同时带标题或选项，继续交给
   // 严格 Schema 拒绝不一致的分支包。
@@ -507,6 +582,13 @@ function omitEmptyNarrativeAIOptionals(raw: unknown): unknown {
     output.新伏笔 = output.新伏笔.map((item) => {
       if (!item || typeof item !== 'object' || Array.isArray(item)) return item
       const normalized = { ...(item as Record<string, unknown>) }
+      normalized.优先级 = normalizeHumanScore(normalized.优先级, {
+        极高: 10,
+        高: 8,
+        中: 5,
+        中等: 5,
+        低: 2,
+      })
       if (typeof normalized.类型 === 'string'
         && !AI_FORESHADOWING_TYPES.aiValues.includes(normalized.类型 as never)) {
         normalized.类型 = '其他'
@@ -514,10 +596,61 @@ function omitEmptyNarrativeAIOptionals(raw: unknown): unknown {
       return normalized
     })
   }
+  if (Array.isArray(output.关键事件)) {
+    output.关键事件 = output.关键事件.map((item) => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) return item
+      const normalized = { ...(item as Record<string, unknown>) }
+      normalized.重要度 = normalizeHumanScore(normalized.重要度, {
+        极高: 100,
+        高: 80,
+        中: 50,
+        中等: 50,
+        低: 20,
+      })
+      return normalized
+    })
+  }
 
   const semantic = output.语义信号
   if (semantic && typeof semantic === 'object' && !Array.isArray(semantic)) {
     const normalizedSemantic = { ...(semantic as Record<string, unknown>) }
+    normalizedSemantic.事件类型 = normalizeAlias(normalizedSemantic.事件类型, {
+      生活: '日常',
+      成长: '成就',
+      机会: '发现',
+      机遇: '发现',
+      信息获取: '发现',
+      情报获取: '发现',
+      获取信息: '发现',
+      情报: '发现',
+      信号: '发现',
+      线索: '发现',
+      探索: '发现',
+      调查: '发现',
+    })
+    normalizedSemantic.行动规模 = normalizeAlias(normalizedSemantic.行动规模, {
+      微小: '小',
+      小型: '小',
+      中型: '中',
+      大型: '大',
+    })
+    normalizedSemantic.影响范围 = normalizeAlias(normalizedSemantic.影响范围, {
+      家庭: '关系圈',
+      家庭圈: '关系圈',
+      社交圈: '关系圈',
+      个人能力: '个人',
+    })
+    normalizedSemantic.叙事语域 = normalizeAlias(normalizedSemantic.叙事语域, {
+      日常: '生活',
+    })
+    normalizedSemantic.情节类型 = normalizeAlias(normalizedSemantic.情节类型, {
+      日常: '无',
+      成长: '人生阶段',
+      探索: '旅程',
+      调查: '任务',
+      情报: '任务',
+      收集情报: '任务',
+    })
     for (const key of ['关系变化', '已回收伏笔编号'] as const) {
       if (Array.isArray(normalizedSemantic[key]) && normalizedSemantic[key].length === 0) {
         delete normalizedSemantic[key]
@@ -540,7 +673,34 @@ function omitEmptyNarrativeAIOptionals(raw: unknown): unknown {
   const intent = output.命运意图判定
   if (intent && typeof intent === 'object' && !Array.isArray(intent)) {
     const normalizedIntent = { ...(intent as Record<string, unknown>) }
+    normalizedIntent.可行性 = normalizeAlias(normalizedIntent.可行性, {
+      可行: '可执行',
+      可完成: '可执行',
+      不可行: '不可能',
+    })
+    normalizedIntent.执行方式 = normalizeAlias(normalizedIntent.执行方式, {
+      立即: '立即执行',
+      阶段性推进: '逐步执行',
+      持续推进: '逐步执行',
+      延后: '延后执行',
+    })
+    normalizedIntent.状态 = normalizeAlias(normalizedIntent.状态, {
+      进展中: '推进中',
+      进行中: '推进中',
+      完成: '成功',
+      已完成: '成功',
+      部分完成: '部分成功',
+    })
+    normalizedIntent.风险等级 = normalizeAlias(normalizedIntent.风险等级, {
+      一般: '中',
+      较高: '高',
+      很高: '极高',
+    })
+    normalizedIntent.进度 = normalizeHumanScore(normalizedIntent.进度, { 无: 0 })
     for (const key of ['阻碍', '前置条件', '代价'] as const) {
+      if (typeof normalizedIntent[key] === 'string' && normalizedIntent[key].trim()) {
+        normalizedIntent[key] = [normalizedIntent[key]]
+      }
       if (Array.isArray(normalizedIntent[key]) && normalizedIntent[key].length === 0) {
         delete normalizedIntent[key]
       }

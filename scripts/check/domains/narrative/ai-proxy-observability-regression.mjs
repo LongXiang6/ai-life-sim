@@ -22,40 +22,37 @@ const client = read('src/core/ai-service/ai-client.ts')
 const storySeed = read('src/core/ai-service/story-seed.ts')
 const logStore = read('src/core/logger/server-log-store.ts')
 const logSafety = read('src/core/logger/server-log-safety.ts')
-const redactionSafety = read('src/core/logger/redact-sensitive-data.ts')
+const accountService = read('src/core/account/account-service.ts')
 const clientLogRoute = read('src/app/api/log/route.ts')
 const clientLogger = read('src/core/logger/client-logger.ts')
-const diagnosticConsent = read('src/core/logger/diagnostic-consent.ts')
 const debugLogRoute = read('src/app/api/debug-log/route.ts')
 const debugLogger = read('src/core/logger/debug-logger.ts')
-const inspector = read('scripts/ops/inspect-ai-logs.mjs')
-const diagnosticIdentityRoute = read('src/app/api/diagnostic-identity/route.ts')
+const debugLogPage = read('src/mods/mod-pages/pages/debug-log/page.tsx')
 const diagnosticIdentityStore = read('src/core/logger/diagnostic-player-identity.ts')
+const diagnosticIdentityRoute = read('src/app/api/diagnostic-identity/route.ts')
 const diagnosticCodeContract = read('src/core/logger/diagnostic-player-code.ts')
 const feedbackPage = read('src/mods/mod-pages/pages/feedback/page.tsx')
+const feedbackContract = read('src/core/logger/feedback-contract.ts')
+const feedbackBuilder = read('src/mods/mod-pages/pages/feedback/build-feedback-diagnostics.ts')
+const initMods = read('src/app/_components/init-mods.tsx')
+const gameStory = read('src/mods/mod-pages/pages/game-story/page.tsx')
+const gameBranch = read('src/mods/mod-pages/pages/game-story/useSimulationBranch.ts')
+const engineHooks = read('src/mods/mod-engine/hooks.ts')
+const inspector = read('scripts/ops/inspect-ai-logs.mjs')
 
 assert(
-  /type:\s*z\.literal\('enabled'\)[\s\S]{0,160}budget_tokens/.test(proxy),
-  'proxy schema must accept DeepSeek thinking type=enabled with an optional budget',
+  /reasoning_effort:\s*z\.enum\(\['high', 'max'\]\)\.optional\(\)/.test(proxy),
+  'proxy schema must accept the supported DeepSeek reasoning effort values',
 )
 assert(
-  /providerId === 'deepseek'[\s\S]{0,500}\{ type: 'enabled', budget_tokens: budgetTokens \}/.test(client),
-  'DeepSeek enabled reasoning must send type=enabled together with budget_tokens',
+  /providerId === 'deepseek'[\s\S]{0,500}proxyBody\.reasoning_effort = reasoningEffort/.test(client)
+    && !/REASONING_BUDGET_MAP/.test(client),
+  'DeepSeek enabled reasoning must use reasoning_effort without legacy budget mapping',
 )
 assert(
   /seed:\s*z\.preprocess\([\s\S]{0,120}normalizeProxyStorySeedInput[\s\S]{0,120}z\.number\(\)\.finite\(\)\.optional\(\)/.test(proxy)
     && /value === null \? undefined : value/.test(storySeed),
   'proxy must normalize cached legacy seed=null requests to an omitted seed',
-)
-assert(
-  /normalizeStorySeed\(options\?\.storySeed\)/.test(client)
-    && /function normalizeStorySeed\(storySeed: unknown\)/.test(storySeed)
-    && /Number\.isFinite\(parsed\)/.test(storySeed),
-  'client must omit non-finite and non-numeric story seeds before serialization',
-)
-assert(
-  /\{ type: 'disabled' \}/.test(client),
-  'DeepSeek disabled reasoning must remain explicit',
 )
 assert(
   !/MAX_RETRY_COUNT|shouldReject|Retry limit exceeded/.test(proxy),
@@ -68,105 +65,103 @@ assert(
   'deterministic 400 responses must not enter the transient internal retry path',
 )
 assert(
-  /AI 调用暂时失败，正在重试/.test(client)
-    && /const retryKind = err instanceof AIHttpError \? `HTTP \$\{err\.status\}` : '临时网络错误'/.test(client)
-    && !/err\.responseText\.slice\(0, 100\)/.test(client),
-  'retry diagnostics must retain status and attempt context without duplicating upstream response content',
-)
-assert(
   /randomUUID\(\)/.test(proxy)
     && /x-ai-request-id/.test(proxy)
-    && /ai-traces\/ai-trace-/.test(proxy),
-  'every proxy call must expose a request ID and persist an AI trace',
+    && /appendServerLogEntry/.test(proxy),
+  'every proxy call must expose a request ID and persist one-row trace records',
 )
 assert(
   /saveRawResponse\(source, requestId, providerId, model, upstreamResp\.status, errorText\)/.test(proxy)
-    && /formatApiErrorForUser/.test(client),
-  'raw upstream failures must remain in sanitized server logs while the client uses the translation layer',
+    && /response:\s*body/.test(proxy),
+  'raw upstream failures must be stored directly in the plaintext response column',
 )
 assert(
-  /AI_LOG_DIR/.test(logStore)
-    && /AI_LOG_RETENTION_DAYS/.test(logStore)
-    && /AI_LOG_MAX_TOTAL_BYTES/.test(logStore)
-    && /DEFAULT_MAX_TOTAL_BYTES\s*=\s*10\s*\*\s*1024\s*\*\s*1024\s*\*\s*1024/.test(logStore)
-    && /redactSensitiveData/.test(logStore),
-  'server log store must support persistent roots, 10 GiB capacity, retention cleanup, and redaction',
+  /better-sqlite3/.test(logStore)
+    && /CREATE TABLE IF NOT EXISTS log_entries/.test(logStore)
+    && /prompt TEXT/.test(logStore)
+    && /response TEXT/.test(logStore)
+    && /meta_json TEXT/.test(logStore)
+    && /payload_json TEXT/.test(logStore)
+    && /storage_format', 'plaintext-sqlite'/.test(logStore),
+  'the log owner must be a directly readable plaintext SQLite schema',
 )
 assert(
-  /storeServerLogContent/.test(logStore)
-    && /sha256-gzip/.test(logStore)
-    && /gzipAsync/.test(logStore)
-    && /content\/sha256/.test(logStore)
-    && /fs\.utimes/.test(logStore)
-    && /requestRef/.test(proxy)
-    && /responseRef/.test(proxy),
-  'large Prompt and response content must use one content-addressed gzip object with compact row references',
+  !/redactSensitiveData|sha256-gzip|gzip|gunzip|content\/sha256|storeServerLogContent|readServerLogContent/.test(logStore + proxy + clientLogRoute + debugLogRoute + feedbackBuilder),
+  'runtime logging must contain no redaction, compression, or content-reference path',
 )
 assert(
-  /Buffer\.isBuffer\(content\)[\s\S]{0,180}redactSensitiveData/.test(logStore),
-  'standalone raw text and Buffer log files must pass through secret redaction before writing',
+  /setDate\(startOfToday\.getDate\(\) - 1\)/.test(logStore)
+    && /DELETE FROM log_entries WHERE created_at < \?/.test(logStore)
+    && /CLEANUP_INTERVAL_MS = 15 \* 60 \* 1000/.test(logStore),
+  'retention must keep only yesterday and today with startup/interval cleanup',
 )
 assert(
   /x-real-ip/.test(logSafety)
     && logSafety.indexOf("request.headers.get('x-real-ip')") < logSafety.indexOf("request.headers.get('x-forwarded-for')")
-    && /sourceId:\s*`ip-\$\{safeLogSegment\(ip\)\}`/.test(logSafety)
-    && /sources\/\$\{source\.sourceId\}/.test(logStore),
-  'server-derived IP must prefer the trusted Nginx header and own a per-source index',
+    && /isRegistered:\s*false/.test(logSafety),
+  'trusted source classification must retain an explicit anonymous fallback',
+)
+assert(
+  /getSessionAccountIdentity/.test(logStore)
+    && /accountId:\s*identity\.accountId/.test(logStore)
+    && /username:\s*identity\.username/.test(logStore)
+    && /SELECT accounts\.id, accounts\.username/.test(accountService),
+  'registered account identity must come from the trusted server session',
 )
 assert(
   /DIAGNOSTIC_PLAYER_CODE_COOKIE/.test(logSafety)
-    && /diagnosticCode/.test(proxy)
-    && /players\/\$\{source\.diagnosticCode\}/.test(logStore)
-    && /reserveServerLogFile/.test(diagnosticIdentityStore),
-  'issued player diagnostic codes must join every log record and own an atomic per-player index',
+    && /reserveDiagnosticIdentity/.test(diagnosticIdentityStore)
+    && /diagnostic_identities/.test(logStore)
+    && /HttpOnly/i.test(diagnosticIdentityRoute)
+    && /A-HJ-NP-Z2-9/.test(diagnosticCodeContract),
+  'anonymous diagnostic identity must remain directly queryable in SQLite',
 )
 assert(
-  /HttpOnly/i.test(diagnosticIdentityRoute)
-    && /sameSite:\s*'lax'/.test(diagnosticIdentityRoute)
-    && /browser-profile/.test(diagnosticIdentityRoute)
-    && /A-HJ-NP-Z2-9/.test(diagnosticCodeContract)
-    && /玩家编号/.test(feedbackPage),
-  'the six-character code must be server-issued, persistent, non-fingerprint identity visible to the player',
+  /isUserOperation\(entry\)/.test(clientLogRoute)
+    && /ignored: 'user-operation'/.test(clientLogRoute)
+    && /USER_OPERATION_METRICS/.test(clientLogRoute),
+  'server logging must discard stale user-operation payloads',
 )
 assert(
-  /custom\|managed\|provider/.test(redactionSafety)
-    && /key\|token\|secret\|password\|authorization\|cookie/.test(redactionSafety),
-  'secret redaction must cover player custom keys and token-like credential fields',
+  !/logger\.action|reportDomAction|addEventListener\('click'|addEventListener\('submit'|addEventListener\('change'/.test(clientLogger + initMods + gameStory + gameBranch + engineHooks)
+    && !/kind:\s*'page_view'|kind:\s*'narrative_advance'|kind:\s*'time_step_selected'|kind:\s*'branch_choice'/.test(initMods + gameStory + gameBranch + engineHooks),
+  'client code must not record clicks, forms, navigation, advances, time-step changes, or branch choices',
 )
 assert(
-  /getServerRequestSource\(request\)/.test(clientLogRoute)
-    && /sourceIp:\s*source\.ip/.test(clientLogRoute)
-    && /requestId:\s*z\.string\(\)\.optional\(\)/.test(clientLogRoute)
-    && /requestId/.test(clientLogger),
-  'client diagnostics must receive a trusted source and preserve optional AI request correlation',
+  /eventType\?: 'log' \| 'exception' \| 'metric'/.test(clientLogger)
+    && /kind: 'story_repetition'/.test(engineHooks),
+  'system quality metrics may remain without being classified as user operations',
 )
 assert(
-  /DIAGNOSTIC_DISCLOSURE_VERSION = '2\.3\.0'/.test(diagnosticConsent)
-    && /reportDiagnosticSessionEnvironment/.test(clientLogger)
-    && /environment-snapshot/.test(clientLogger)
-    && /storeServerLogContent\(context, 'json'\)/.test(clientLogRoute),
-  'accepted players must produce one non-sensitive session environment snapshot stored by content reference',
-)
-assert(
-  /AI_DIAGNOSTIC_LOGS_ENABLED/.test(debugLogRoute)
-    && /process\.env\.NODE_ENV === 'production'/.test(debugLogRoute)
-    && /getServerRequestSource\(request\)/.test(debugLogRoute)
-    && /ai-debug-index-/.test(debugLogRoute)
-    && /storeServerLogContent\(entry\.prompt, 'text'\)/.test(debugLogRoute)
-    && /appendServerJsonLine\(relativePath, record\)/.test(debugLogRoute)
+  /appendServerLogEntry/.test(debugLogRoute)
+    && /queryServerLogEntries/.test(debugLogRoute)
+    && /entryType:\s*'ai-call'/.test(debugLogRoute)
     && /NEXT_PUBLIC_DISABLE_DEBUG_LOG_COLLECTION/.test(debugLogger),
-  'complete AI debug metadata must keep collecting in production while public read/delete stays closed',
+  'AI debug logs must write and query direct database rows',
 )
 assert(
-  /--ip <address>/.test(inspector)
-    && /--player-code <code>/.test(inspector)
-    && /--request-id <id>/.test(inspector)
-    && /--feedback-id <id>/.test(inspector)
-    && /--include-content/.test(inspector)
-    && /default output excludes full player Prompt/.test(inspector),
-  'the private operator inspector must support IP/request lookup without exposing content by default',
+  /账号状态/.test(debugLogPage)
+    && /账号 ID/.test(debugLogPage)
+    && /用户名/.test(debugLogPage)
+    && /Prompt \/ AI 输入/.test(debugLogPage)
+    && /AI 返回 \/ 叙事/.test(debugLogPage),
+  'database viewer must show plaintext content and registered/anonymous identity',
+)
+assert(
+  !/consent|附带诊断|玩家编号|ensureDiagnosticPlayerCode/.test(feedbackPage + feedbackContract)
+    && !/redact|excludedTerms|delete safeSettings/.test(feedbackBuilder),
+  'feedback must submit silently without consent UI or redaction',
+)
+assert(
+  !fs.existsSync(path.join(root, 'src/core/logger/redact-sensitive-data.ts'))
+    && !fs.existsSync(path.join(root, 'src/core/logger/diagnostic-consent.ts')),
+  'redaction and diagnostic-consent modules must not remain in the logging system',
+)
+assert(
+  /better-sqlite3/.test(inspector)
+    && /--account-id <id>/.test(inspector)
+    && /payload_json/.test(inspector),
+  'private inspector must query plaintext SQLite rows and account identity',
 )
 
-if (!process.exitCode) {
-  console.log('[ai-proxy-observability] PASS')
-}
+if (!process.exitCode) console.log('[ai-proxy-observability] PASS')

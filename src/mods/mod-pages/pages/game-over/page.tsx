@@ -15,22 +15,28 @@ import {
   useMythicLibraryStore,
 } from '@/mods/mod-character'
 import { generateMythicPatternCandidates } from '@/mods/mod-character/mythic-pattern-access'
-import { useWorldStore } from '@/mods/mod-world'
+import {
+  buildFallbackWorldScoringProfile,
+  isCompleteWorldScoringProfile,
+  useWorldStore,
+} from '@/mods/mod-world'
 import { useEngineStore, usePreGenQueueStatus } from '@/mods/mod-engine'
 import { useSettingsStore } from '@/mods/mod-settings'
 
-import { callAI, useGlobalStore } from '@/core'
+import { calculateLifeScore, callAI, useGlobalStore } from '@/core'
 import { DEFAULT_AI_MODEL } from '@/core/ai-service'
 import { useAccountClientStore } from '@/core/account/account-client-store'
 import { requestPortraitMail } from '@/core/player-content/player-content-client'
 import { ENGINE_VERSION } from '@/core/version'
-// 统一使用 shared/ 的 clamp 替代内联 Math.max/Math.min
-import { clamp } from '@/core/shared'
 
 import { PageScroll } from '@/mods/mod-ui'
 
 import type { RadarDimension } from '@/mods/mod-ui'
-import type { AIModelConfig } from '@/foundation'
+import type {
+  AIModelConfig,
+  LifeScoringAuditSnapshot,
+  NarrativeTransitionAuditSnapshot,
+} from '@/foundation'
 
 import styles from './GameOver.module.css'
 import { GAME_OVER_DIMENSION_ICONS, GameOverRadar } from './GameOverRadar'
@@ -41,16 +47,16 @@ import {
 } from './game-over-share-card'
 import {
   buildGameOverAchievements,
-  calculateGameOverScore,
   getReincarnationStrengthTier,
   selectFeaturedAchievement,
 } from './game-over-scoring'
+import {
+  buildLocalEndingReview,
+  generateEndingReview,
+  type EndingReview,
+} from './game-over-review'
 import { resetForNewLife } from '../../helpers/new-life-reset'
 import { syncAccountNow } from '../../helpers/account-cloud-sync'
-
-// ============================================================
-// 人生总结生成
-// ============================================================
 
 const MORALITY_LABELS: Record<string, string> = {
   supremeGood: '至善',
@@ -66,22 +72,6 @@ function formatMorality(level: string): string {
   return MORALITY_LABELS[level] ?? '中庸'
 }
 
-/** 只基于结构化状态与记录数量生成摘要，不从自由叙事猜测成就、境界或死因。 */
-function generateLifeSummary(
-  name: string,
-  age: number,
-  worldName: string,
-  moralityLevel: string,
-  narrativeCount: number,
-  isDead: boolean,
-): string {
-  const moralityText = formatMorality(moralityLevel)
-  const ending = isDead
-    ? `生命记录在 ${age} 岁结束；死因与尾声仅以结构化结算数据为准。`
-    : `本卷在 ${age} 岁结束，未对未记录的结局作额外推断。`
-  return `${name || '无名之辈'}在${worldName}留下了 ${narrativeCount} 段人生记录，当前品性档位为${moralityText}。${ending}`
-}
-
 interface LifeRecordSource {
   text: string
   displayTimeLabel?: string
@@ -94,6 +84,29 @@ interface LifeRecord {
   timeLabel: string
   ageLabel: string
   text: string
+}
+
+function missingTransitionAudit(
+  round: number,
+  narrativeId: string,
+): NarrativeTransitionAuditSnapshot {
+  return {
+    schemaVersion: 1,
+    round,
+    narrativeId,
+    validatedWritePath: false,
+    interceptorPassed: false,
+    intentValidationPassed: false,
+    historicalCommitPassed: false,
+    structuredDataPresent: false,
+    structuredDataAccepted: false,
+    requestedChangeCount: 0,
+    committedChangeCount: 0,
+    rejectedChangeCount: 0,
+    trusted: false,
+    validationClean: false,
+    reasons: ['missing-transition-audit'],
+  }
 }
 
 /** 从真实叙事历史中选择早、中、末三处记录，不推断新的剧情语义。 */
@@ -123,16 +136,6 @@ function selectLifeRecords(history: LifeRecordSource[]): LifeRecord[] {
   })
 }
 
-function buildLifeRunId(parts: readonly (string | number)[]): string {
-  const value = parts.join('\u0000')
-  let hash = 0x811c9dc5
-  for (let index = 0; index < value.length; index++) {
-    hash ^= value.charCodeAt(index)
-    hash = Math.imul(hash, 0x01000193)
-  }
-  return `life-${(hash >>> 0).toString(36)}`
-}
-
 // ============================================================
 // 组件
 // ============================================================
@@ -157,10 +160,14 @@ export default function GameOverPage() {
   const upsertLifeRecord = useLifeRecordStore((s) => s.upsertRecord)
   const worldConfig = useWorldStore((s) => s.worldConfig)
   const worldCode = useWorldStore((s) => s.worldCode)
+  const currentContextId = useWorldStore((s) => s.currentContextId)
   const worldviewId = useGlobalStore((s) => s.worldviewId)
   const narrativeHistory = useEngineStore((s) => s.narrativeHistory)
   const storyRepetitionStats = useEngineStore((s) => s.storyRepetitionStats)
   const compressedSummaries = useEngineStore((s) => s.compressedSummaries)
+  const lifeRunId = useEngineStore((s) => s.lifeRunId)
+  const totalRounds = useEngineStore((s) => s.totalRounds)
+  const narrativeError = useEngineStore((s) => s.narrativeError)
   const status = useEngineStore((s) => s.status)
   const preGenStatus = usePreGenQueueStatus()
   const isDead = useCharacterStore((s) => s.health.isDead)
@@ -175,6 +182,10 @@ export default function GameOverPage() {
   const leavingForNewLifeRef = useRef(false)
   const startingNewLifeRef = useRef(false)
   const mythicAbortRef = useRef<AbortController | null>(null)
+  const endingReviewRequestedRef = useRef('')
+  const publishedRecordRef = useRef('')
+  const [endingReview, setEndingReview] = useState<EndingReview | null>(null)
+  const [endingReviewReady, setEndingReviewReady] = useState(false)
 
   const canViewGameOver = status === 'complete' || isDead
 
@@ -183,54 +194,70 @@ export default function GameOverPage() {
     [narrativeHistory],
   )
 
-  const dimensions = useMemo<RadarDimension[]>(() => {
-    const toScore = (value: number) => clamp(Math.round((value / 20) * 100), 0, 100)
-    const comment = (score: number) => score >= 80 ? '卓越' : score >= 60 ? '出众' : score >= 40 ? '稳健' : score >= 20 ? '尚待成长' : '起点微弱'
-
-    const physiqueScore = toScore(physique)
-    const mindScore = toScore(mind)
-    const talentScore = toScore(talentAptitude)
-    const charismaScore = toScore(charisma)
-    return [
-      {
-        label: '体魄',
-        value: physiqueScore,
-        comment: comment(physiqueScore),
-      },
-      {
-        label: '心智',
-        value: mindScore,
-        comment: comment(mindScore),
-      },
-      {
-        label: '悟性',
-        value: talentScore,
-        comment: comment(talentScore),
-      },
-      {
-        label: '魅力',
-        value: charismaScore,
-        comment: comment(charismaScore),
-      },
-    ]
-  }, [
-    charisma,
-    mind,
-    physique,
-    talentAptitude,
-  ])
-
   const achievements = useMemo(
     () => buildGameOverAchievements(narrativeHistory, lifespanBreakthroughs),
     [lifespanBreakthroughs, narrativeHistory],
   )
-  const scoreResult = useMemo(() => calculateGameOverScore({
-    dimensionValues: dimensions.map((dimension) => dimension.value),
+  const worldName = worldConfig?.name ?? '未知世界'
+  const scoringProfile = useMemo(() => (
+    isCompleteWorldScoringProfile(worldConfig?.scoringProfile)
+      ? worldConfig.scoringProfile
+      : buildFallbackWorldScoringProfile(
+          worldConfig ?? { essenceTag: 'unknown', powerSystemTag: 'unknown' },
+          currentContextId ?? `world-${worldCode}`,
+        )
+  ), [currentContextId, worldCode, worldConfig])
+  const scoringNarrativeIds = useMemo(() => narrativeHistory.map((entry, index) => (
+    entry.id?.trim() || `missing-narrative-id-${index + 1}`
+  )), [narrativeHistory])
+  const transitionAudits = useMemo(() => narrativeHistory.map((entry, index) => {
+    const narrativeId = scoringNarrativeIds[index]!
+    return entry.transitionAudit
+      ? { ...entry.transitionAudit, narrativeId }
+      : missingTransitionAudit(index + 1, narrativeId)
+  }), [narrativeHistory, scoringNarrativeIds])
+  const scoringAudit = useMemo<LifeScoringAuditSnapshot>(() => {
+    const stateTransitionsTrusted = transitionAudits.length === narrativeHistory.length
+      && transitionAudits.every((audit) => audit.trusted && audit.validationClean)
+    return {
+      schemaVersion: 1,
+      lifeRunId,
+      committedRounds: totalRounds,
+      narrativeIds: scoringNarrativeIds,
+      resolvedChoiceCount: achievements.filter((item) => item.kind === 'choice').length,
+      breakthroughCount: lifespanBreakthroughs.length,
+      achievementIds: achievements.map((item) => item.id),
+      completed: canViewGameOver,
+      terminalCommitted: canViewGameOver
+        && transitionAudits.length > 0
+        && transitionAudits.at(-1)?.trusted === true,
+      stateTransitionsTrusted,
+      hasValidationFailure: Boolean(narrativeError)
+        || transitionAudits.some((audit) => !audit.validationClean),
+      transitionAudits,
+    }
+  }, [achievements, canViewGameOver, lifeRunId, lifespanBreakthroughs.length, narrativeError, narrativeHistory.length, scoringNarrativeIds, totalRounds, transitionAudits])
+  const scoreResult = useMemo(() => calculateLifeScore({
+    profile: scoringProfile,
+    lifeRunId: scoringAudit.lifeRunId,
+    attributeValues: [physique, mind, talentAptitude, charisma],
     rounds: narrativeHistory.length,
-    resolvedChoiceCount: achievements.filter((item) => item.kind === 'choice').length,
-    breakthroughCount: lifespanBreakthroughs.length,
-    completed: canViewGameOver,
-  }), [achievements, canViewGameOver, dimensions, lifespanBreakthroughs.length, narrativeHistory.length])
+    committedRounds: scoringAudit.committedRounds,
+    narrativeIds: scoringAudit.narrativeIds,
+    resolvedChoiceCount: scoringAudit.resolvedChoiceCount,
+    breakthroughCount: scoringAudit.breakthroughCount,
+    achievementIds: scoringAudit.achievementIds,
+    completed: scoringAudit.completed,
+    terminalCommitted: scoringAudit.terminalCommitted,
+    stateTransitionsTrusted: scoringAudit.stateTransitionsTrusted,
+    hasValidationFailure: scoringAudit.hasValidationFailure,
+    transitionAudits: scoringAudit.transitionAudits,
+  }), [charisma, mind, narrativeHistory.length, physique, scoringAudit, scoringProfile, talentAptitude])
+  const dimensions = useMemo<RadarDimension[]>(() => scoreResult.dimensions.map((dimension) => ({
+    label: dimension.label,
+    value: dimension.value,
+    comment: dimension.comment,
+  })), [scoreResult.dimensions])
   const overallScore = scoreResult.score
   const reincarnationStrength = useMemo(
     () => getReincarnationStrengthTier(overallScore),
@@ -240,17 +267,19 @@ export default function GameOverPage() {
     () => selectFeaturedAchievement(achievements),
     [achievements],
   )
-  const lifeSummary = useMemo(
-    () => generateLifeSummary(
-      characterName,
-      characterAge,
-      worldConfig?.name ?? '未知世界',
-      morality.level,
-      allNarratives.length,
-      isDead,
-    ),
-    [allNarratives.length, characterAge, characterName, isDead, morality.level, worldConfig?.name],
-  )
+  const localEndingReview = useMemo(() => buildLocalEndingReview({
+    lifeRunId,
+    round: narrativeHistory.length,
+    characterName: characterName || '无名之辈',
+    worldName,
+    finalAge: characterAge,
+    died: isDead,
+    score: overallScore,
+    dimensions: scoreResult.dimensions,
+    achievements,
+  }), [achievements, characterAge, characterName, isDead, lifeRunId, narrativeHistory.length, overallScore, scoreResult.dimensions, worldName])
+  const effectiveEndingReview = endingReview ?? localEndingReview
+  const lifeSummary = effectiveEndingReview.review
   const lifeRecords = useMemo(() => selectLifeRecords(narrativeHistory), [narrativeHistory])
   const firstRecordedAge = useMemo(
     () => narrativeHistory.find((entry) => entry.displayAge !== undefined)?.displayAge,
@@ -261,7 +290,6 @@ export default function GameOverPage() {
     : `${characterAge} 岁`
   const moralityLabel = formatMorality(morality.level)
   const activeDimension = dimensions[activeDimensionIndex] ?? dimensions[0]
-  const worldName = worldConfig?.name ?? '未知世界'
   const sealCharacter = characterName.trim().slice(0, 1) || '终'
   const roundLabel = String(allNarratives.length).padStart(3, '0')
   const sealedMythicPattern = mythicLibrary.find((pattern) => pattern.id === sealedMythicPatternId) ?? null
@@ -277,15 +305,6 @@ export default function GameOverPage() {
     ?? mythicCandidates[effectiveMythicIndex]
     ?? mythicCandidates[0]
   const sealedOutsideCurrentCandidates = Boolean(sealedMythicPattern && sealedCandidateIndex < 0)
-  const lifeRunId = useMemo(() => buildLifeRunId([
-    worldCode,
-    worldName,
-    characterName,
-    characterAge,
-    narrativeHistory.length,
-    narrativeHistory[0]?.timestamp ?? 0,
-    narrativeHistory[narrativeHistory.length - 1]?.timestamp ?? 0,
-  ]), [characterAge, characterName, narrativeHistory, worldCode, worldName])
   const shareCardData = useMemo(() => ({
     lifeRunId,
     characterName: characterName || '无名之辈',
@@ -294,6 +313,7 @@ export default function GameOverPage() {
     rounds: allNarratives.length,
     moralityLabel,
     overallScore,
+    attributes: { physique, mind, talentAptitude, charisma },
     achievementCount: achievements.length,
     featuredAchievement: featuredAchievement
       ? { title: featuredAchievement.title, detail: featuredAchievement.detail }
@@ -306,7 +326,7 @@ export default function GameOverPage() {
           effect: activeMythicCandidate.effect,
         }
       : null,
-  }), [achievements.length, activeMythicCandidate, ageLabel, allNarratives.length, characterName, dimensions, featuredAchievement, lifeRunId, moralityLabel, overallScore, worldName])
+  }), [achievements.length, activeMythicCandidate, ageLabel, allNarratives.length, characterName, charisma, dimensions, featuredAchievement, lifeRunId, mind, moralityLabel, overallScore, physique, talentAptitude, worldName])
   const shareFacts = useMemo(() => buildGameOverShareFacts(shareCardData), [shareCardData])
   const cloudLifeRecord = useMemo(() => ({
     recordId: lifeRunId,
@@ -325,15 +345,28 @@ export default function GameOverPage() {
       detail,
       timeLabel,
     })),
-    dimensions: dimensions.map((dimension) => ({
+    dimensions: scoreResult.dimensions.map((dimension) => ({
+      id: dimension.id,
       label: dimension.label,
+      description: dimension.description,
+      weight: dimension.weight,
       value: dimension.value,
-      ...(dimension.comment ? { comment: dimension.comment } : {}),
+      comment: dimension.comment,
     })),
+    scoring: {
+      version: scoreResult.version,
+      profile: scoringProfile,
+      rawScore: scoreResult.rawScore,
+      validCompletedLife: scoreResult.validCompletedLife,
+      evidence: scoreResult.evidence,
+      integrity: scoreResult.integrity,
+      audit: scoringAudit,
+    },
+    endingReview: effectiveEndingReview,
     destinyNames: regularPatterns.map((pattern) => pattern.name),
     ...(sealedMythicPattern ? { mythicName: sealedMythicPattern.name } : {}),
     gameVersion: ENGINE_VERSION,
-  }), [achievements, characterAge, characterName, dimensions, isDead, lifeRunId, moralityLabel, narrativeHistory, overallScore, regularPatterns, sealedMythicPattern, worldName])
+  }), [achievements, characterAge, characterName, effectiveEndingReview, isDead, lifeRunId, moralityLabel, narrativeHistory, overallScore, regularPatterns, scoreResult, scoringAudit, scoringProfile, sealedMythicPattern, worldName])
 
   const mythicLifeDigests = useMemo(() => (
     compressedSummaries.summaries
@@ -532,6 +565,33 @@ export default function GameOverPage() {
   }, [canViewGameOver, narrativeHistory.length, router])
 
   useEffect(() => {
+    if (!canViewGameOver || endingReviewRequestedRef.current === lifeRunId) return
+    endingReviewRequestedRef.current = lifeRunId
+    let active = true
+    queueMicrotask(() => {
+      if (!active) return
+      setEndingReview(localEndingReview)
+      setEndingReviewReady(false)
+      void generateEndingReview({
+        lifeRunId,
+        round: narrativeHistory.length,
+        characterName: characterName || '无名之辈',
+        worldName,
+        finalAge: characterAge,
+        died: isDead,
+        score: overallScore,
+        dimensions: scoreResult.dimensions,
+        achievements,
+      }).then((review) => {
+        if (!active) return
+        setEndingReview(review)
+        setEndingReviewReady(true)
+      })
+    })
+    return () => { active = false }
+  }, [achievements, canViewGameOver, characterAge, characterName, isDead, lifeRunId, localEndingReview, narrativeHistory.length, overallScore, scoreResult.dimensions, worldName])
+
+  useEffect(() => {
     if (!canViewGameOver || mythicCandidates.length === 3 || sealedMythicPatternId) return
     const timer = window.setTimeout(() => { void handleGenerateMythics() }, 0)
     return () => {
@@ -542,25 +602,38 @@ export default function GameOverPage() {
 
   useEffect(() => {
     if (!canViewGameOver) return
-    let active = true
     queueMicrotask(() => {
-      if (!active) return
-      void (async () => {
-        try {
-          upsertLifeRecord(cloudLifeRecord)
-          if (overallScore === 100 && useAccountClientStore.getState().status === 'authenticated') {
-            await syncAccountNow()
-            if (active) await requestPortraitMail(cloudLifeRecord.recordId, lifeSummary)
-          }
-        } catch (error) {
-          if (active) setShareStatus(error instanceof Error ? error.message : '战绩保存失败')
-        }
-      })()
+      try {
+        upsertLifeRecord(cloudLifeRecord)
+      } catch (error) {
+        setShareStatus(error instanceof Error ? error.message : '战绩保存失败')
+      }
     })
-    return () => {
-      active = false
-    }
-  }, [canViewGameOver, cloudLifeRecord, lifeSummary, overallScore, upsertLifeRecord])
+  }, [canViewGameOver, cloudLifeRecord, upsertLifeRecord])
+
+  useEffect(() => {
+    if (!canViewGameOver
+      || !endingReviewReady
+      || overallScore <= 97
+      || !scoreResult.integrity.passed
+      || useAccountClientStore.getState().status !== 'authenticated') return
+    const publicationKey = `${cloudLifeRecord.recordId}:${effectiveEndingReview.source}:${effectiveEndingReview.review}`
+    if (publishedRecordRef.current === publicationKey) return
+    let active = true
+    publishedRecordRef.current = publicationKey
+    void (async () => {
+      try {
+        await syncAccountNow()
+        if (active && overallScore === 100 && scoreResult.integrity.perfectGatePassed) {
+          await requestPortraitMail(cloudLifeRecord.recordId, effectiveEndingReview.review)
+        }
+      } catch (error) {
+        publishedRecordRef.current = ''
+        if (active) setShareStatus(error instanceof Error ? error.message : '战绩同步失败')
+      }
+    })()
+    return () => { active = false }
+  }, [canViewGameOver, cloudLifeRecord.recordId, effectiveEndingReview.review, effectiveEndingReview.source, endingReviewReady, overallScore, scoreResult.integrity.passed, scoreResult.integrity.perfectGatePassed])
 
   if (!canViewGameOver) {
     return null
@@ -606,9 +679,9 @@ export default function GameOverPage() {
             <div className={styles.sectionHeading}>
               <div>
                 <span className={styles.sectionIndex}>01</span>
-                <h2 id="dimensions-title">真实四维</h2>
+                <h2 id="dimensions-title">世界维度</h2>
               </div>
-              <p>点击属性查看此生评语</p>
+              <p>点击维度查看本地评分依据</p>
             </div>
             <div className={styles.radarSection}>
               <GameOverRadar
@@ -649,7 +722,7 @@ export default function GameOverPage() {
             )}
 
             <div className={styles.summaryBlock}>
-              <span>此生摘要</span>
+              <span>此生评语</span>
               <p>{lifeSummary}</p>
               <div className={styles.summaryMeta}>
                 <span>{moralityLabel}</span>

@@ -6,12 +6,10 @@
  * 废弃项目参考：src/lib/utils/logger.ts
  */
 
-import { redactSensitiveData } from './redact-sensitive-data'
 import { getCachedDiagnosticPlayerCode } from './diagnostic-player-code-client'
-import { isDiagnosticDisclosureAccepted } from './diagnostic-consent'
 
 import { ENGINE_VERSION } from '@/core/version'
-import type { AggregateUsageMetric } from './usage-metrics'
+import type { StoryRepetitionUsageMetric } from './usage-metrics'
 
 const LOG_API = '/api/log'
 const RECENT_DIAGNOSTIC_LIMIT = 80
@@ -35,15 +33,24 @@ export interface ClientDiagnosticEntry {
   errorName?: string
   stack?: string
   requestId?: string
-  eventType?: 'log' | 'exception' | 'user_action'
-  action?: string
+  eventType?: 'log' | 'exception' | 'metric'
   context?: Record<string, unknown>
-  metric?: AggregateUsageMetric
+  metric?: StoryRepetitionUsageMetric
 }
 
-export type { AggregateUsageMetric } from './usage-metrics'
+export type { StoryRepetitionUsageMetric } from './usage-metrics'
 
 const recentDiagnosticEntries: ClientDiagnosticEntry[] = []
+let consoleCaptureSuppressionDepth = 0
+
+function writeConsole(level: LogLevel, ...args: unknown[]): void {
+  consoleCaptureSuppressionDepth += 1
+  try {
+    console[level](...args)
+  } finally {
+    consoleCaptureSuppressionDepth -= 1
+  }
+}
 
 export function getDiagnosticSessionId(): string {
   if (typeof window === 'undefined') return 'server'
@@ -61,8 +68,7 @@ export function getDiagnosticSessionId(): string {
 }
 
 function rememberDiagnosticEntry(entry: ClientDiagnosticEntry): void {
-  const redacted = redactSensitiveData(entry) as ClientDiagnosticEntry
-  recentDiagnosticEntries.push(redacted)
+  recentDiagnosticEntries.push(entry)
   if (recentDiagnosticEntries.length > RECENT_DIAGNOSTIC_LIMIT) {
     recentDiagnosticEntries.splice(0, recentDiagnosticEntries.length - RECENT_DIAGNOSTIC_LIMIT)
   }
@@ -114,32 +120,30 @@ function sendToServer(entry: ClientDiagnosticEntry): void {
     },
   }
   rememberDiagnosticEntry(enriched)
+  const payload = JSON.stringify(enriched)
   if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
-    const blob = new Blob([JSON.stringify(enriched)], { type: 'application/json' })
-    navigator.sendBeacon(LOG_API, blob)
-  } else {
-    fetch(LOG_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(enriched),
-    }).catch(() => {
-      // 上报失败静默丢弃
-    })
+    const blob = new Blob([payload], { type: 'application/json' })
+    if (navigator.sendBeacon(LOG_API, blob)) return
   }
+  fetch(LOG_API, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: payload,
+    keepalive: true,
+  }).catch(() => {
+    // 上报失败静默丢弃
+  })
 }
 
-/**
- * 仅在当前版本诊断声明已接受后上报聚合使用指标；指标不包含原始用户输入。
- */
-export function reportUsageMetric(metric: AggregateUsageMetric): void {
-  if (typeof window === 'undefined' || !isDiagnosticDisclosureAccepted()) return
+/** 上报叙事生成质量指标；不记录页面、点击、推进或分支操作。 */
+export function reportUsageMetric(metric: StoryRepetitionUsageMetric): void {
+  if (typeof window === 'undefined') return
   sendToServer({
     level: 'info',
-    module: 'usage-metric',
+    module: 'story-quality',
     message: metric.kind,
     timestamp: Date.now(),
-    eventType: 'user_action',
-    action: metric.kind,
+    eventType: 'metric',
     metric,
   })
 }
@@ -153,7 +157,7 @@ async function collectDiagnosticSessionEnvironment(): Promise<Record<string, unk
     memory?: { jsHeapSizeLimit?: number; totalJSHeapSize?: number; usedJSHeapSize?: number }
   }).memory
   const storage = await navigator.storage?.estimate().catch(() => undefined)
-  return redactSensitiveData({
+  return {
     app: {
       version: ENGINE_VERSION,
       page: location.pathname,
@@ -205,12 +209,12 @@ async function collectDiagnosticSessionEnvironment(): Promise<Record<string, unk
       totalHeapBytes: memory.totalJSHeapSize,
       usedHeapBytes: memory.usedJSHeapSize,
     } : undefined,
-  }) as Record<string, unknown>
+  }
 }
 
-/** 新版声明已接受后，每个浏览器会话只静默保存一次非敏感运行环境。 */
+/** 每个浏览器会话静默保存一次完整运行环境。 */
 export async function reportDiagnosticSessionEnvironment(): Promise<boolean> {
-  if (typeof window === 'undefined' || !isDiagnosticDisclosureAccepted()) return false
+  if (typeof window === 'undefined') return false
   try {
     if (sessionStorage.getItem(DIAGNOSTIC_ENVIRONMENT_REPORTED_KEY) === 'sent') return true
     if (sessionStorage.getItem(DIAGNOSTIC_ENVIRONMENT_REPORTED_KEY) === 'pending') return false
@@ -248,17 +252,31 @@ export async function reportDiagnosticSessionEnvironment(): Promise<boolean> {
 export const logger = {
   debug(module: string, message: string, ...args: unknown[]): void {
     if (!shouldLog('debug')) return
-    console.debug(`[${module}] ${message}`, ...args)
+    writeConsole('debug', `[${module}] ${message}`, ...args)
+    sendToServer({
+      level: 'debug',
+      module,
+      message,
+      timestamp: Date.now(),
+      args: args.length > 0 ? args : undefined,
+    })
   },
 
   info(module: string, message: string, ...args: unknown[]): void {
     if (!shouldLog('info')) return
-    console.info(`[${module}] ${message}`, ...args)
+    writeConsole('info', `[${module}] ${message}`, ...args)
+    sendToServer({
+      level: 'info',
+      module,
+      message,
+      timestamp: Date.now(),
+      args: args.length > 0 ? args : undefined,
+    })
   },
 
   warn(module: string, message: string, ...args: unknown[]): void {
     if (!shouldLog('warn')) return
-    console.warn(`[${module}] ${message}`, ...args)
+    writeConsole('warn', `[${module}] ${message}`, ...args)
     // 自动上报到服务端
     sendToServer({
       level: 'warn',
@@ -271,7 +289,7 @@ export const logger = {
 
   error(module: string, message: string, ...args: unknown[]): void {
     if (!shouldLog('error')) return
-    console.error(`[${module}] ${message}`, ...args)
+    writeConsole('error', `[${module}] ${message}`, ...args)
     // 自动上报到服务端
     const errorArg = args.find(a => a instanceof Error)
     const errorWithRequestId = errorArg as (Error & { requestId?: unknown }) | undefined
@@ -303,7 +321,7 @@ export const logger = {
     context?: Record<string, unknown>,
   ): void {
     if (!shouldLog('warn')) return
-    console.warn(`[${module}] ${message}`, raw.slice(0, 200), error)
+    writeConsole('warn', `[${module}] ${message}`, raw.slice(0, 200), error)
     sendToServer({
       level: 'warn',
       module,
@@ -328,7 +346,7 @@ export const logger = {
     context?: Record<string, unknown>,
   ): void {
     if (!shouldLog('error')) return
-    console.error(`[${module}] ${message}`, raw.slice(0, 200), error)
+    writeConsole('error', `[${module}] ${message}`, raw.slice(0, 200), error)
     sendToServer({
       level: 'error',
       module,
@@ -343,26 +361,41 @@ export const logger = {
     })
   },
 
-  action(module: string, action: string, context?: Record<string, unknown>): void {
-    if (!shouldLog('info')) return
-    console.info(`[${module}] action:${action}`, context)
-    sendToServer({
-      level: 'info',
-      module,
-      message: action,
-      timestamp: Date.now(),
-      eventType: 'user_action',
-      action,
-      context,
-    })
-  },
 }
 
 let globalHandlersInstalled = false
 
+function diagnosticMessage(value: unknown): string {
+  if (value instanceof Error) return value.message
+  if (typeof value === 'string') return value
+  if (value === null) return 'null'
+  if (value === undefined) return 'undefined'
+  return Object.prototype.toString.call(value)
+}
+
 export function installGlobalLogHandlers(): void {
   if (globalHandlersInstalled || typeof window === 'undefined') return
   globalHandlersInstalled = true
+
+  const originalConsoleError = console.error.bind(console)
+  console.error = (...args: unknown[]) => {
+    originalConsoleError(...args)
+    if (consoleCaptureSuppressionDepth > 0) return
+    const error = args.find((arg) => arg instanceof Error) as Error | undefined
+    sendToServer({
+      level: 'error',
+      module: 'console',
+      message: diagnosticMessage(args[0]),
+      timestamp: Date.now(),
+      args,
+      error: error?.message,
+      errorName: error?.name,
+      stack: error?.stack,
+      requestId: error && typeof (error as Error & { requestId?: unknown }).requestId === 'string'
+        ? (error as Error & { requestId: string }).requestId
+        : undefined,
+    })
+  }
 
   window.addEventListener('error', (event) => {
     const err = event.error instanceof Error ? event.error : undefined

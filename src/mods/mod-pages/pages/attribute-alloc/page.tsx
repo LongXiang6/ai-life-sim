@@ -11,6 +11,8 @@ import { useRouter } from 'next/navigation'
 
 import {
   DESTINY_PATTERN_SELECT_COUNT,
+  getAttrSemantic,
+  getAttrTierIndex,
   useCharacterStore,
 } from '@/mods/mod-character'
 import type { BaseAttributes } from '@/mods/mod-character'
@@ -20,12 +22,7 @@ import { BottomActionBar } from '@/mods/mod-ui'
 import { useCreationStoresHydrated } from '../../hooks/useCreationStoresHydrated'
 import styles from './AttributeAlloc.module.css'
 
-// The selected mobile flow is the product authority for new-life creation.
-// Existing saves may still contain a legacy allocation above this budget; those
-// values are preserved and can only be confirmed, never silently rewritten.
 const TOTAL_POINTS = 15
-const MIN_VALUE = 0
-const MAX_VALUE = 10
 
 const ATTRIBUTES: ReadonlyArray<{
   key: keyof BaseAttributes
@@ -46,13 +43,6 @@ function normalizeAttributes(value?: Partial<BaseAttributes>): BaseAttributes {
     talentAptitude: value?.talentAptitude ?? 0,
     charisma: value?.charisma ?? 0,
   }
-}
-
-function describeAttribute(value: number): string {
-  if (value <= 0) return '常人水平'
-  if (value < 5) return '渐入佳境'
-  if (value < 9) return '天赋出众'
-  return '凡俗巅峰'
 }
 
 function formatSigned(value: number): string {
@@ -101,8 +91,11 @@ function AttributeAllocContent() {
   const updateAttribute = (key: keyof BaseAttributes, delta: number) => {
     setAttributes((current) => {
       const nextValue = current[key] + delta
-      if (nextValue < MIN_VALUE || nextValue > MAX_VALUE) return current
-      if (delta > 0 && remainingPoints <= 0) return current
+      const nextUsedPoints = ATTRIBUTES.reduce(
+        (total, attribute) => total + (attribute.key === key ? nextValue : current[attribute.key]),
+        0,
+      )
+      if (delta > 0 && nextUsedPoints > TOTAL_POINTS) return current
       return { ...current, [key]: nextValue }
     })
   }
@@ -127,7 +120,7 @@ function AttributeAllocContent() {
   return (
     <div className="final-flow-frame">
       <div className="final-flow-design-fit">
-        <div className="final-flow-design-canvas">
+        <div className={`final-flow-design-canvas ${styles.flowCanvas}`}>
           <main className={styles.page}>
             <div className={styles.screen}>
           <header className={styles.header}>
@@ -146,8 +139,8 @@ function AttributeAllocContent() {
               <div className={styles.budgetScore}><div><b>{usedPoints}</b><span>/ {TOTAL_POINTS}</span></div></div>
               <div className={styles.budgetCopy}>
                 <strong>剩余 <span>{remainingPoints}</span> 点</strong>
-                <p>四项可在 0 至 10 之间调整。</p>
-                <div className={styles.meter} role="progressbar" aria-valuemin={0} aria-valuemax={TOTAL_POINTS} aria-valuenow={usedPoints} aria-label="已使用属性点">
+                <p>0 是普通人基准，10 是人类顶尖，超过 10 即为超凡；命格加成另行结算。</p>
+                <div className={styles.meter} role="progressbar" aria-valuemin={0} aria-valuemax={TOTAL_POINTS} aria-valuenow={Math.max(0, Math.min(TOTAL_POINTS, usedPoints))} aria-valuetext={`已使用 ${usedPoints} 点，剩余 ${remainingPoints} 点`} aria-label="已使用属性点">
                   {Array.from({ length: TOTAL_POINTS }, (_, index) => (
                     <i key={index} className={index < usedPoints ? styles.isOn : ''} />
                   ))}
@@ -162,23 +155,24 @@ function AttributeAllocContent() {
             {ATTRIBUTES.map((attribute) => {
               const value = attributes[attribute.key]
               const bonus = attributeBonuses[attribute.key]
+              const effectiveValue = value + bonus
+              const tierPosition = Math.round(getAttrTierIndex(effectiveValue) / 10 * 14)
               return (
                 <li key={attribute.key} className={styles.attribute}>
                   <div className={styles.attributeName}>
                     <strong><span className="semantic-emoji" aria-hidden="true">{attribute.icon}</span>{attribute.name}</strong>
-                    <span>{describeAttribute(value)}{bonus ? ` · 命格 ${formatSigned(bonus)}` : ''}</span>
-                    <span className={styles.attributeBase}>基础值 {value}</span>
+                    <span>{getAttrSemantic(attribute.key, effectiveValue)}{bonus ? ` · 命格 ${formatSigned(bonus)}` : ''}</span>
+                    <span className={styles.attributeBase}>基础值 {value} · 有效值 {effectiveValue}</span>
                   </div>
                   <div className={styles.stepper}>
-                    <button type="button" onClick={() => updateAttribute(attribute.key, -1)} disabled={value <= MIN_VALUE} aria-label={`降低${attribute.name}`}>−</button>
-                    <b>{value}</b>
-                    <button type="button" onClick={() => updateAttribute(attribute.key, 1)} disabled={value >= MAX_VALUE || remainingPoints <= 0} aria-label={`提高${attribute.name}`}>＋</button>
+                    <button type="button" onClick={() => updateAttribute(attribute.key, -1)} aria-label={`降低${attribute.name}`}>−</button>
+                    <b aria-label={`${attribute.name}基础值 ${value}`}>{value}</b>
+                    <button type="button" onClick={() => updateAttribute(attribute.key, 1)} disabled={remainingPoints <= 0} aria-label={`提高${attribute.name}`}>＋</button>
                   </div>
                   <div className={styles.axis} aria-hidden="true">
                     {Array.from({ length: 15 }, (_, index) => {
-                      const axisPosition = Math.round(value / MAX_VALUE * 14)
-                      const distance = Math.abs(index - axisPosition)
-                      return <i key={index} className={`${index === axisPosition ? styles.isOn : ''} ${distance > 5 ? styles.isFar : distance > 2 ? styles.isMid : ''}`} />
+                      const distance = Math.abs(index - tierPosition)
+                      return <i key={index} className={`${index === tierPosition ? styles.isOn : ''} ${distance > 5 ? styles.isFar : distance > 2 ? styles.isMid : ''}`} />
                     })}
                   </div>
                 </li>

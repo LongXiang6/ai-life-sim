@@ -16,6 +16,7 @@ import {
   DEFAULT_AI_PROVIDER_ID,
 } from '@/core/ai-service'
 import { DEFAULT_WORD_COUNT_TARGET } from '@/mods/mod-engine'
+import type { ReasoningEffort } from '@/foundation'
 
 /** 叙事风格 */
 export type NarrativeStyle = 'default' | 'epic' | 'realistic' | 'poetic'
@@ -23,8 +24,26 @@ export type NarrativeStyle = 'default' | 'epic' | 'realistic' | 'poetic'
 /** 叙事显示模式 */
 export type StreamingMode = 'off' | 'stream'
 
-/** 推理强度 */
-export type ReasoningEffort = 'disabled' | 'level-1' | 'level-2' | 'level-3' | 'level-4' | 'level-5' | 'level-6'
+export type { ReasoningEffort } from '@/foundation'
+
+const LEGACY_REASONING_EFFORT_MAP: Record<string, ReasoningEffort> = {
+  disabled: 'disabled',
+  'level-1': 'auto',
+  'level-2': 'auto',
+  'level-3': 'high',
+  'level-4': 'high',
+  'level-5': 'high',
+  'level-6': 'max',
+  auto: 'auto',
+  high: 'high',
+  max: 'max',
+}
+
+export function normalizeReasoningEffort(value: unknown): ReasoningEffort {
+  return typeof value === 'string'
+    ? LEGACY_REASONING_EFFORT_MAP[value] ?? 'disabled'
+    : 'disabled'
+}
 
 /** 新用户、恢复默认与覆盖导入共享的唯一默认值。 */
 export const DEFAULT_SETTINGS_VALUES = {
@@ -41,6 +60,8 @@ export const DEFAULT_SETTINGS_VALUES = {
   preGenerateRounds: 1,
   storySeed: '',
   narrativeStyle: 'default' as NarrativeStyle,
+  narrativeStyleText: '',
+  narrativeStyleVersion: 0,
   wordCountTarget: DEFAULT_WORD_COUNT_TARGET,
   streamingMode: 'off' as StreamingMode,
   comfortableParagraphs: true,
@@ -112,6 +133,10 @@ interface SettingsState {
   // ---- 叙事偏好 ----
   /** 叙事风格 */
   narrativeStyle: NarrativeStyle
+  /** 已显式保存并用于后续主叙事的完整自定义文风；空值表示项目默认。 */
+  narrativeStyleText: string
+  /** 每次保存不同的生效文风时递增。 */
+  narrativeStyleVersion: number
   /** 大致字数目标 */
   wordCountTarget: number
   /** 叙事显示模式 */
@@ -139,6 +164,8 @@ interface SettingsState {
   setPreGenerateRounds: (rounds: number) => void
   setStorySeed: (seed: string) => void
   setNarrativeStyle: (style: NarrativeStyle) => void
+  saveNarrativeStyleText: (styleText: string) => void
+  restoreDefaultNarrativeStyle: () => void
   setWordCountTarget: (target: number) => void
   setStreamingMode: (mode: StreamingMode) => void
   setComfortableParagraphs: (enabled: boolean) => void
@@ -166,6 +193,23 @@ export const useSettingsStore = create<SettingsState>()(
         setPreGenerateRounds: (preGenerateRounds,) => set({ preGenerateRounds, },),
         setStorySeed: (storySeed,) => set({ storySeed, },),
         setNarrativeStyle: (narrativeStyle,) => set({ narrativeStyle, },),
+        saveNarrativeStyleText: (styleText,) => set((state) => {
+          const narrativeStyleText = styleText.trim().length > 0 ? styleText : ''
+          if (narrativeStyleText === state.narrativeStyleText) return state
+          return {
+            narrativeStyle: 'default',
+            narrativeStyleText,
+            narrativeStyleVersion: state.narrativeStyleVersion + 1,
+          }
+        }),
+        restoreDefaultNarrativeStyle: () => set((state) => {
+          if (!state.narrativeStyleText) return state
+          return {
+            narrativeStyle: 'default',
+            narrativeStyleText: '',
+            narrativeStyleVersion: state.narrativeStyleVersion + 1,
+          }
+        }),
         setWordCountTarget: (wordCountTarget,) => set({ wordCountTarget, },),
         setStreamingMode: (streamingMode,) => set({ streamingMode, },),
         setComfortableParagraphs: (comfortableParagraphs,) => set({ comfortableParagraphs, },),
@@ -174,7 +218,7 @@ export const useSettingsStore = create<SettingsState>()(
       }),
       {
         name: 'mod-settings:store',
-        version: 9,
+        version: 11,
         migrate: (persistedState: unknown, version: number) => {
           const state = persistedState as Partial<SettingsState>
           const migrated = { ...state }
@@ -218,12 +262,33 @@ export const useSettingsStore = create<SettingsState>()(
                 : providerConfig?.models[0]?.name ?? DEFAULT_AI_MODEL
             }
           }
+          if (version < 10) {
+            migrated.reasoningEffort = normalizeReasoningEffort(state.reasoningEffort)
+            migrated.talentThinkingIntensity = normalizeReasoningEffort(state.talentThinkingIntensity)
+          }
+          if (version < 11) {
+            const legacyStyleText: Partial<Record<NarrativeStyle, string>> = {
+              epic: '采用有历史感和命运感的叙事，但始终以具体事件、行动、代价与后果推进。',
+              realistic: '采用具体、克制的写实叙事，多写行动、对话、现实约束与人物反应。',
+              poetic: '采用凝练、有画面感的表达，让意象服务剧情、人物选择与实际后果。',
+            }
+            const existingText = typeof state.narrativeStyleText === 'string'
+              ? state.narrativeStyleText
+              : ''
+            migrated.narrativeStyleText = existingText
+              || legacyStyleText[state.narrativeStyle ?? 'default']
+              || ''
+            migrated.narrativeStyleVersion = Number.isInteger(state.narrativeStyleVersion)
+              ? Math.max(0, Number(state.narrativeStyleVersion))
+              : migrated.narrativeStyleText ? 1 : 0
+            migrated.narrativeStyle = 'default'
+          }
           migrated.theme = 'minimal-white'
           return migrated as SettingsState
         },
         // 不持久化 set 函数
         partialize: (state,) => {
-          const { setProvider: _sp, setCustomKey: _sck, setCustomUrl: _scu, setCustomModel: _scm, setTemperature: _st, setTopP: _stp, setMaxTokens: _smt, setReasoningEffort: _sre, setTalentThinkingIntensity: _stti, setAiTalentGeneration: _satg, setPreGenerateRounds: _spgr, setStorySeed: _sss, setNarrativeStyle: _sns, setWordCountTarget: _swct, setStreamingMode: _ssm, setComfortableParagraphs: _scp, setReduceMotion: _srm, setTheme: _sth, ...rest } = state
+          const { setProvider: _sp, setCustomKey: _sck, setCustomUrl: _scu, setCustomModel: _scm, setTemperature: _st, setTopP: _stp, setMaxTokens: _smt, setReasoningEffort: _sre, setTalentThinkingIntensity: _stti, setAiTalentGeneration: _satg, setPreGenerateRounds: _spgr, setStorySeed: _sss, setNarrativeStyle: _sns, saveNarrativeStyleText: _snst, restoreDefaultNarrativeStyle: _rdns, setWordCountTarget: _swct, setStreamingMode: _ssm, setComfortableParagraphs: _scp, setReduceMotion: _srm, setTheme: _sth, ...rest } = state
           return rest
         },
       },

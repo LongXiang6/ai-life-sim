@@ -1152,7 +1152,7 @@ useEngineStore.setState({
   totalRounds: 3,
   narrativeHistory: [],
   currentNarrative: '',
-  compressionStats: { l1Count: 0, l2Count: 0, l3Count: 0, l4Count: 0, lastAt: 0 },
+  compressionStats: { l1Count: 0, l2Count: 0, l3Count: 0, lastAt: 0 },
   compressedSummaries: { summaries: [] },
   lastAutoSaveRound: 0,
   characterCreations: [],

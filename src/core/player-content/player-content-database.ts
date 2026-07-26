@@ -9,7 +9,7 @@ declare global {
   var __aiLifePlayerContentDatabase: Database.Database | undefined
 }
 
-const PLAYER_CONTENT_SCHEMA_VERSION = 2
+const PLAYER_CONTENT_SCHEMA_VERSION = 4
 
 function resolveDatabasePath(): string {
   const configured = process.env.PLAYER_CONTENT_DB_PATH?.trim()
@@ -48,27 +48,68 @@ function createPortraitMailJobsTable(database: Database.Database): void {
   `)
 }
 
+function createLeaderboardBestRunsTable(database: Database.Database): void {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS leaderboard_best_runs (
+      account_id TEXT PRIMARY KEY,
+      record_id TEXT NOT NULL,
+      score INTEGER NOT NULL CHECK (score BETWEEN 98 AND 100),
+      rounds INTEGER NOT NULL CHECK (rounds >= 0),
+      completed_at INTEGER NOT NULL,
+      record_json TEXT NOT NULL,
+      portrait_asset_id TEXT,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS leaderboard_best_runs_order_idx
+      ON leaderboard_best_runs(score DESC, rounds DESC, completed_at ASC, record_id ASC);
+  `)
+}
+
 function migrateSchema(database: Database.Database, version: number): void {
-  if (version >= 2) return
-  const hasJobs = database.prepare(`
-    SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'portrait_mail_jobs'
-  `).get()
-  if (!hasJobs) return
-  database.exec(`
-    ALTER TABLE portrait_mail_jobs RENAME TO portrait_mail_jobs_v1;
-  `)
-  createPortraitMailJobsTable(database)
-  database.exec(`
-    INSERT INTO portrait_mail_jobs(
-      account_id, record_id, status, prompt_sha256, attempts,
-      last_error_code, created_at, updated_at
-    )
-    SELECT account_id, record_id,
-      CASE status WHEN 'ready' THEN 'ready' WHEN 'failed' THEN 'failed' ELSE 'awaiting_brief' END,
-      prompt_sha256, attempts, last_error_code, created_at, updated_at
-    FROM portrait_mail_jobs_v1;
-    DROP TABLE portrait_mail_jobs_v1;
-  `)
+  if (version < 2) {
+    const hasJobs = database.prepare(`
+      SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'portrait_mail_jobs'
+    `).get()
+    if (hasJobs) {
+      database.exec(`
+        DROP INDEX IF EXISTS portrait_mail_jobs_status_idx;
+        ALTER TABLE portrait_mail_jobs RENAME TO portrait_mail_jobs_v1;
+      `)
+      createPortraitMailJobsTable(database)
+      database.exec(`
+        INSERT INTO portrait_mail_jobs(
+          account_id, record_id, status, prompt_sha256, attempts,
+          last_error_code, created_at, updated_at
+        )
+        SELECT account_id, record_id,
+          CASE status WHEN 'ready' THEN 'ready' WHEN 'failed' THEN 'failed' ELSE 'awaiting_brief' END,
+          prompt_sha256, attempts, last_error_code, created_at, updated_at
+        FROM portrait_mail_jobs_v1;
+        DROP TABLE portrait_mail_jobs_v1;
+      `)
+    }
+  }
+  if (version < 3) {
+    const hasLeaderboard = database.prepare(`
+      SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'leaderboard_best_runs'
+    `).get()
+    if (hasLeaderboard) {
+      database.exec(`
+        DROP INDEX IF EXISTS leaderboard_best_runs_order_idx;
+        ALTER TABLE leaderboard_best_runs RENAME TO leaderboard_best_runs_v2;
+      `)
+      createLeaderboardBestRunsTable(database)
+      database.exec(`
+        INSERT INTO leaderboard_best_runs(
+          account_id, record_id, score, rounds, completed_at,
+          record_json, portrait_asset_id, updated_at
+        )
+        SELECT account_id, record_id, score, rounds, completed_at, '{}', NULL, updated_at
+        FROM leaderboard_best_runs_v2;
+        DROP TABLE leaderboard_best_runs_v2;
+      `)
+    }
+  }
 }
 
 function initializeSchema(database: Database.Database): void {
@@ -109,17 +150,6 @@ function initializeSchema(database: Database.Database): void {
     CREATE INDEX IF NOT EXISTS cloud_manual_saves_updated_idx
       ON cloud_manual_saves(updated_at DESC);
 
-    CREATE TABLE IF NOT EXISTS leaderboard_best_runs (
-      account_id TEXT PRIMARY KEY,
-      record_id TEXT NOT NULL,
-      score INTEGER NOT NULL CHECK (score BETWEEN 98 AND 100),
-      rounds INTEGER NOT NULL CHECK (rounds > 100),
-      completed_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS leaderboard_best_runs_order_idx
-      ON leaderboard_best_runs(score DESC, rounds DESC, completed_at ASC);
-
     CREATE TABLE IF NOT EXISTS player_mail_messages (
       id TEXT PRIMARY KEY,
       account_id TEXT NOT NULL,
@@ -146,7 +176,32 @@ function initializeSchema(database: Database.Database): void {
     );
     CREATE INDEX IF NOT EXISTS portrait_assets_account_idx
       ON portrait_assets(account_id, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS legendary_target_states (
+      target_key TEXT PRIMARY KEY,
+      completed_run_decisions INTEGER NOT NULL DEFAULT 0 CHECK (completed_run_decisions >= 0),
+      cooldown_remaining INTEGER NOT NULL DEFAULT 0 CHECK (cooldown_remaining >= 0),
+      seen_record_ids_json TEXT NOT NULL DEFAULT '[]',
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS legendary_run_decisions (
+      target_life_run_id TEXT PRIMARY KEY,
+      target_key TEXT NOT NULL,
+      source_account_id TEXT,
+      source_record_id TEXT,
+      status TEXT NOT NULL CHECK (status IN ('none', 'selected', 'injected')),
+      projection_json TEXT,
+      selected_at INTEGER NOT NULL,
+      injected_round INTEGER,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS legendary_run_decisions_target_idx
+      ON legendary_run_decisions(target_key, selected_at DESC);
+    CREATE INDEX IF NOT EXISTS legendary_run_decisions_source_idx
+      ON legendary_run_decisions(source_record_id, selected_at DESC);
   `)
+  createLeaderboardBestRunsTable(database)
   migrateSchema(database, currentVersion)
   createPortraitMailJobsTable(database)
 

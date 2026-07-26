@@ -63,9 +63,19 @@
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.8);
   color: #707b92;
+  box-sizing: border-box;
   font: inherit;
-  font-size: 1rem;
   cursor: pointer;
+}
+
+.backButton svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
 }
 
 .backPlaceholder {
@@ -95,10 +105,12 @@
 }
 
 .confirmButton {
-  display: grid;
+  display: flex;
   width: 100%;
   min-width: 8rem;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 1px;
   border: 0;
   background: transparent;
   color: #17191d;
@@ -116,6 +128,7 @@
 
 .confirmCopy {
   min-width: 0;
+  flex: 1;
 }
 
 .confirmCopy strong,
@@ -143,13 +156,25 @@
   display: grid;
   width: 25px;
   height: 25px;
+  flex: 0 0 25px;
   place-items: center;
   border-radius: 50%;
   background: #7382bb;
   color: #fff;
 }
 
+.confirmArrow svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
 .confirmButton:disabled,
+.backButton:disabled,
 .secondaryButton:disabled {
   cursor: not-allowed;
   opacity: 0.45;

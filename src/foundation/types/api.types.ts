@@ -8,6 +8,9 @@
 
 import type { SubSystemChanges } from './subsystem.types'
 
+/** 玩家可选的推理模式；Provider 适配层负责映射厂商私有参数。 */
+export type ReasoningEffort = 'disabled' | 'auto' | 'high' | 'max'
+
 /** JSON Mode 配置 */
 export interface ResponseFormat {
   type: 'json_object' | 'text',
@@ -25,8 +28,8 @@ export interface AIModelConfig {
   stream: boolean,
   /** JSON Mode 输出格式（response_format） */
   responseFormat?: ResponseFormat,
-  /** 推理强度（7 级：disabled + level-1~6） */
-  reasoningEffort?: 'disabled' | 'level-1' | 'level-2' | 'level-3' | 'level-4' | 'level-5' | 'level-6',
+  /** 推理模式（关闭 / 自动 / 深入 / 最大） */
+  reasoningEffort?: ReasoningEffort,
 }
 
 /** AI 叙事响应 */

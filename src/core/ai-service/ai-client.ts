@@ -4,9 +4,9 @@
  * @mod core
  *
  * 机制说明：
- *   1. KV Cache 优化：通过 user_id 隔离不同任务类型的缓存池
+ *   1. KV Cache 观测：按内部调用池统计命中；业务用户隔离由服务端可信身份负责
  *   2. JSON Mode：通过 AIModelConfig.responseFormat 配置，类型安全
- *   3. 缓存池：narrative / summary / worldInit / fate / lowFrequency 五种池
+ *   3. 缓存池：调用方提交宽分类，客户端再派生为主叙事、修复、三级摘要等独立统计池
  *   4. 流式输出：支持 SSE 流式读取，逐 chunk 回调
  *   5. 重试机制：MAX_RETRY=3, RETRY_DELAY=1500ms，429 限流退避
  *   6. 超时控制：90s AbortController
@@ -14,7 +14,7 @@
  *   8. 多 Provider：通过 resolveProvider() 动态解析 Provider 配置
  */
 
-import type { AIModelConfig } from '@/foundation'
+import type { AIModelConfig, ReasoningEffort } from '@/foundation'
 
 import { z } from 'zod'
 import type { ZodSchema } from 'zod'
@@ -31,12 +31,12 @@ import {
   DEFAULT_AI_MODEL,
   DEFAULT_AI_PROVIDER_ID,
   isServerManagedProvider,
-  REASONING_BUDGET_MAP,
 } from './provider-config'
 import { normalizeAiUsage } from './normalize-ai-usage'
 import { normalizeStorySeed } from './story-seed'
 import { isValidAiContent, mergeStreamTextChunk } from './stream-text-extractor'
-import { recordCacheUsage, type CacheUsageContext } from './cache-stats'
+import { recordCacheUsage } from './cache-stats'
+import { recordAiUsage, type AiUsageContext } from './usage-stats'
 import { AI_STREAM_IDLE_TIMEOUT_MS, readStreamWithIdleTimeout } from './stream-timeout'
 
 export { getCacheStats, resetCacheStats } from './cache-stats'
@@ -149,19 +149,40 @@ export interface RoundCacheMetrics {
   userMessageCount: number
 }
 
-// ---- 缓存池类型 ----
+// ---- 调用池与缓存统计分类 ----
 
-/** 任务类型 → 决定使用哪个 user_id 缓存池 */
+/** 调用方的宽分类，用于默认日志归属。 */
 export type CachePoolType = 'narrative' | 'summary' | 'worldInit' | 'fate' | 'lowFrequency' | 'adaptation'
 
-/** 每个缓存池的 user_id 前缀 */
-const POOL_PREFIX: Record<CachePoolType, string> = {
-  narrative: 'narr',
-  summary: 'summ',
-  worldInit: 'winit',
-  fate: 'fate',
-  lowFrequency: 'lowf',
-  adaptation: 'adap',
+export type InternalCachePool =
+  | 'narrative-main'
+  | 'narrative-repair'
+  | 'summary-L1'
+  | 'summary-L2'
+  | 'summary-L3'
+  | 'world-init'
+  | 'fate-talent'
+  | 'low-frequency'
+  | 'adaptation'
+  | 'connectivity-test'
+
+export function resolveInternalCachePool(
+  pool: CachePoolType,
+  callKind?: string,
+): InternalCachePool {
+  const kind = callKind?.trim().toLowerCase() ?? ''
+  if (kind.includes('connect') && kind.includes('test')) return 'connectivity-test'
+  if (kind === 'summary-compress-l1') return 'summary-L1'
+  if (kind === 'summary-compress-l2') return 'summary-L2'
+  if (kind === 'summary-compress-l3') return 'summary-L3'
+  if (kind === 'narrative-main' || kind === 'immersion-warmup') return 'narrative-main'
+  if (kind.startsWith('narrative-')) return 'narrative-repair'
+  if (pool === 'summary') return 'summary-L1'
+  if (pool === 'worldInit') return 'world-init'
+  if (pool === 'fate') return 'fate-talent'
+  if (pool === 'lowFrequency') return 'low-frequency'
+  if (pool === 'adaptation') return 'adaptation'
+  return 'narrative-main'
 }
 
 /** pool 类型 → 调试日志分类（用于自动记录每次 AI 调用） */
@@ -221,8 +242,8 @@ export interface AICallOptions {
   userSegments?: string[]
   /** 追加在 userSegments 之后的额外 user 消息（如重试修正提示，不破坏 JSON 前缀） */
   extraUserMessages?: string[]
-  /** 推理强度（7 级：disabled + level-1~6） */
-  reasoningEffort?: string
+  /** 推理模式（关闭 / 自动 / 深入 / 最大） */
+  reasoningEffort?: ReasoningEffort
   /** 调试日志分类（不传则根据 pool 自动映射） */
   logCategory?: DebugLogCategory
   /** 调试日志上下文（轮次 / 策略 / 调用类型，写入每条 debug-log） */
@@ -283,20 +304,23 @@ async function logSuccessfulAICall(
   usage?: AICallUsageSnapshot,
   finishReason?: string,
   requestId?: string,
+  extraMeta?: Record<string, unknown>,
 ): Promise<void> {
   if (!isValidAiContent(response)) return
 
   const maxTokens = resolveMaxTokens(options)
   const truncated = isTruncatedResponse(usage, maxTokens, finishReason)
   const resolvedMeta = options.logMetaResolver?.(response) ?? {}
+  const cachePool = resolveInternalCachePool(pool, options.logContext?.callKind)
 
   await recordAICallLog({
     category: resolveLogCategory(pool, options.logCategory),
     messages,
     response,
+    requestId,
     logContext: {
       ...options.logContext,
-      pool: options.logContext?.pool ?? pool,
+      pool: cachePool,
       model: options.logContext?.model ?? options.customModel ?? options.config.model,
       sessionId: options.logContext?.sessionId ?? options.sessionId,
     },
@@ -308,6 +332,7 @@ async function logSuccessfulAICall(
       ...(requestId ? { requestId } : {}),
       ...resolvedMeta,
       ...options.logMeta,
+      ...extraMeta,
     },
   })
 }
@@ -322,12 +347,14 @@ async function logFailedAICall(
   finishReason?: string,
   lastContent?: string,
   requestId?: string,
+  extraMeta?: Record<string, unknown>,
 ): Promise<void> {
   const maxTokens = resolveMaxTokens(options)
   const truncated = isTruncatedResponse(usage, maxTokens, finishReason)
   const resolverMeta = lastContent && options.logMetaResolver
     ? options.logMetaResolver(lastContent)
     : {}
+  const cachePool = resolveInternalCachePool(pool, options.logContext?.callKind)
 
   await recordAICallLog({
     category: resolveLogCategory(pool, options.logCategory),
@@ -335,9 +362,10 @@ async function logFailedAICall(
     response: lastContent?.trim()
       ? lastContent
       : `[调用失败] ${reason}`,
+    requestId,
     logContext: {
       ...options.logContext,
-      pool: options.logContext?.pool ?? pool,
+      pool: cachePool,
       model: options.logContext?.model ?? options.customModel ?? options.config.model,
       sessionId: options.logContext?.sessionId ?? options.sessionId,
       callKind: options.logContext?.callKind ?? 'api-failed',
@@ -357,6 +385,7 @@ async function logFailedAICall(
         : `调用失败: ${reason}`,
       ...resolverMeta,
       ...options.logMeta,
+      ...extraMeta,
     },
   })
 }
@@ -369,13 +398,14 @@ function logFallbackAICall(
   pool: CachePoolType,
   reason: string,
 ): void {
+  const cachePool = resolveInternalCachePool(pool, options.logContext?.callKind)
   recordAICallLog({
     category: resolveLogCategory(pool, options.logCategory),
     messages,
     response: fallbackText,
     logContext: {
       ...options.logContext,
-      pool: options.logContext?.pool ?? pool,
+      pool: cachePool,
       callKind: options.logContext?.callKind ?? 'fallback-local',
     },
     extraMeta: { fallbackReason: reason },
@@ -440,22 +470,8 @@ export function getRoundCacheMetrics(): RoundCacheMetrics[] {
 
 // ---- 核心调用 ----
 
-/**
- * 构建 user_id
- * 格式：{poolPrefix}-{sessionId}
- * 同 sessionId + 同 pool = 共享 KV Cache
- */
-function buildUserId(pool: CachePoolType, sessionId?: string): string {
-  const prefix = POOL_PREFIX[pool]
-  const sid = sessionId ?? 'default'
-  return `${prefix}-${sid}`
-}
-
-/** 普通叙事只允许轻量推理；高档推理留给命格、世界初始化等低频任务。 */
-function resolveCallReasoningEffort(options: AICallOptions, pool: CachePoolType): string {
-  const selected = options.reasoningEffort ?? options.config.reasoningEffort ?? 'disabled'
-  if (pool !== 'narrative' || selected === 'disabled') return selected
-  return 'level-1'
+function resolveCallReasoningEffort(options: AICallOptions): ReasoningEffort {
+  return options.reasoningEffort ?? options.config.reasoningEffort ?? 'disabled'
 }
 
 /** 构建请求体公共逻辑 */
@@ -463,8 +479,6 @@ function buildRequestBody(
   config: AIModelConfig,
   messages: Array<{ role: string; content: string }>,
   stream: boolean,
-  pool: CachePoolType,
-  sessionId?: string,
   options?: Pick<AICallOptions, 'overrideMaxTokens' | 'overrideTemperature' | 'overrideTopP' | 'jsonMode' | 'storySeed' | 'reasoningEffort'>,
 ): Record<string, unknown> {
   const body: Record<string, unknown> = {
@@ -472,7 +486,6 @@ function buildRequestBody(
     messages,
     temperature: options?.overrideTemperature ?? config.temperature,
     max_tokens: options?.overrideMaxTokens ?? config.maxTokens,
-    user_id: buildUserId(pool, sessionId),
     stream,
   }
 
@@ -493,15 +506,6 @@ function buildRequestBody(
     body.seed = normalizedSeed
   }
 
-  // 推理强度 → thinking 参数
-  const effort = options?.reasoningEffort ?? config.reasoningEffort ?? 'disabled'
-  if (effort !== 'disabled') {
-    const budgetTokens = REASONING_BUDGET_MAP[effort] ?? 0
-    if (budgetTokens > 0) {
-      body.thinking = { budget_tokens: budgetTokens }
-    }
-  }
-
   return body
 }
 
@@ -512,9 +516,9 @@ export function buildProxyBody(
   stream: boolean,
   pool: CachePoolType,
   sessionId?: string,
-  options?: Pick<AICallOptions, 'overrideMaxTokens' | 'overrideTemperature' | 'overrideTopP' | 'jsonMode' | 'storySeed' | 'reasoningEffort' | 'providerId' | 'apiKey' | 'customBaseUrl' | 'customModel' | 'serverPromptAssetId'>,
+  options?: Pick<AICallOptions, 'overrideMaxTokens' | 'overrideTemperature' | 'overrideTopP' | 'jsonMode' | 'storySeed' | 'reasoningEffort' | 'providerId' | 'apiKey' | 'customBaseUrl' | 'customModel' | 'serverPromptAssetId' | 'logContext'>,
 ): Record<string, unknown> {
-  const aiBody = buildRequestBody(config, messages, stream, pool, sessionId, options)
+  const aiBody = buildRequestBody(config, messages, stream, options)
   const proxyMessages = options?.serverPromptAssetId
     ? messages.filter((message) => message.role !== 'system')
     : messages
@@ -526,14 +530,30 @@ export function buildProxyBody(
     temperature: aiBody.temperature,
     max_tokens: aiBody.max_tokens,
     stream: aiBody.stream,
-    user_id: aiBody.user_id,
   }
 
   if (aiBody.top_p !== undefined) proxyBody.top_p = aiBody.top_p
   if (aiBody.response_format !== undefined) proxyBody.response_format = aiBody.response_format
   if (aiBody.seed !== undefined) proxyBody.seed = aiBody.seed
-  if (aiBody.thinking !== undefined) proxyBody.thinking = aiBody.thinking
   if (options?.serverPromptAssetId) proxyBody.prompt_asset = options.serverPromptAssetId
+  const trace = options?.logContext
+  if (
+    trace?.lifeRunId
+    && Number.isInteger(trace.round)
+    && Number(trace.round) > 0
+  ) {
+    proxyBody.trace_context = {
+      lifeRunId: trace.lifeRunId,
+      round: trace.round,
+      callKind: trace.callKind || 'narrative',
+      ...(trace.executionKind ? { executionKind: trace.executionKind } : {}),
+      ...(trace.promptVersion ? { promptVersion: trace.promptVersion } : {}),
+      ...(Number.isFinite(trace.targetWordCount) ? { targetWordCount: Math.round(trace.targetWordCount as number) } : {}),
+      ...(trace.styleSource ? { styleSource: trace.styleSource } : {}),
+      ...(trace.styleText !== undefined ? { styleText: trace.styleText } : {}),
+      ...(Number.isInteger(trace.styleVersion) ? { styleVersion: trace.styleVersion } : {}),
+    }
+  }
 
   // Provider 路由信息
   const providerId = options?.providerId ?? DEFAULT_AI_PROVIDER_ID
@@ -542,8 +562,7 @@ export function buildProxyBody(
     proxyBody.model = DEFAULT_AI_MODEL
   }
 
-  // DeepSeek V4 的 thinking 对象必须显式携带 type；启用时同时保留用户选择的预算。
-  // 自定义 Provider 使用 DeepSeek 模型时也需要正确的 thinking 格式。
+  // 推理模式由 Provider 适配层映射，不能把 DeepSeek 私有参数发给未知 Provider。
   const reasoningEffort = options?.reasoningEffort ?? config.reasoningEffort ?? 'disabled'
   const modelForThinking = (options?.customModel?.trim() || config.model).toLowerCase()
   const isDeepSeekModel = modelForThinking.includes('deepseek')
@@ -552,11 +571,14 @@ export function buildProxyBody(
     if (reasoningEffort === 'disabled') {
       proxyBody.thinking = { type: 'disabled' }
     } else {
-      const budgetTokens = REASONING_BUDGET_MAP[reasoningEffort] ?? 0
-      proxyBody.thinking = budgetTokens > 0
-        ? { type: 'enabled', budget_tokens: budgetTokens }
-        : { type: 'enabled' }
+      proxyBody.thinking = { type: 'enabled' }
+      if (reasoningEffort === 'high' || reasoningEffort === 'max') {
+        proxyBody.reasoning_effort = reasoningEffort
+      }
+      delete proxyBody.temperature
+      delete proxyBody.top_p
     }
+    if (stream) proxyBody.stream_options = { include_usage: true }
   } else if (providerId === DEFAULT_AI_PROVIDER_ID) {
     // LongCat 官方只声明 enabled / disabled，不接收项目内部的预算档位。
     proxyBody.thinking = reasoningEffort === 'disabled'
@@ -583,7 +605,7 @@ export function buildProxyBody(
   return proxyBody
 }
 
-function resolveCacheUsageContext(options: AICallOptions, pool: CachePoolType): CacheUsageContext {
+function resolveCacheUsageContext(options: AICallOptions, pool: CachePoolType): AiUsageContext {
   const providerId = options.providerId ?? DEFAULT_AI_PROVIDER_ID
   const model = options.providerId === undefined
     ? DEFAULT_AI_MODEL
@@ -591,8 +613,13 @@ function resolveCacheUsageContext(options: AICallOptions, pool: CachePoolType): 
   return {
     providerId,
     model,
-    pool,
+    pool: resolveInternalCachePool(pool, options.logContext?.callKind),
     callKind: options.logContext?.callKind?.trim() || pool,
+    reasoningEffort: resolveCallReasoningEffort(options),
+    lifeRunId: options.logContext?.lifeRunId,
+    round: options.logContext?.round,
+    executionKind: options.logContext?.executionKind,
+    targetWordCount: options.logContext?.targetWordCount,
   }
 }
 
@@ -655,27 +682,74 @@ async function executeAiFetchWithRetry(
   let lastRequestId: string | undefined
 
   for (let attempt = 0; attempt < MAX_RETRY; attempt++) {
+    const attemptStartedAt = performance.now()
     try {
       const { content, usage, finishReason, requestId } = await fetchFn()
       lastUsage = usage
       lastFinishReason = finishReason
       lastContent = content
       lastRequestId = requestId
+      const resolvedMeta = options.logMetaResolver?.(content) ?? {}
+      const actualNarrativeChars = Number(resolvedMeta.narrativeChars)
+      recordAiUsage(usage, {
+        ...resolveCacheUsageContext(options, pool),
+        ...(Number.isFinite(actualNarrativeChars) ? { actualNarrativeChars } : {}),
+        ...(finishReason ? { finishReason } : {}),
+        durationMs: Math.max(0, Math.round(performance.now() - attemptStartedAt)),
+      })
 
       if (!isValidAiContent(content)) {
         if (attempt < MAX_RETRY - 1) {
+          await logFailedAICall(
+            messages,
+            options,
+            pool,
+            content.trim() ? 'AI 返回无效内容' : 'AI 返回空响应',
+            usage,
+            finishReason,
+            content,
+            requestId,
+            {
+              attempt: attempt + 1,
+              maxAttempts: MAX_RETRY,
+              responseInvalid: true,
+              willRetry: true,
+            },
+          )
           // 重试前清空消费端已 append 的部分流式文本，避免拼接重复
           options.onResetStream?.()
           await new Promise((r) => setTimeout(r, getBackoffDelay(attempt)))
           continue
         }
         await logFailedAICall(
-          messages, options, pool, 'AI 返回空响应', usage, finishReason, lastContent, requestId,
+          messages,
+          options,
+          pool,
+          'AI 返回空响应',
+          usage,
+          finishReason,
+          lastContent,
+          requestId,
+          {
+            attempt: attempt + 1,
+            maxAttempts: MAX_RETRY,
+            willRetry: false,
+            responseInvalid: true,
+          },
         )
         throw new Error('AI 返回了空内容')
       }
 
-      await logSuccessfulAICall(messages, content, options, pool, usage, finishReason, requestId)
+      await logSuccessfulAICall(
+        messages,
+        content,
+        options,
+        pool,
+        usage,
+        finishReason,
+        requestId,
+        { attempt: attempt + 1, maxAttempts: MAX_RETRY },
+      )
       return content
     } catch (err) {
       if (err instanceof Error && err.name === 'AbortError') {
@@ -684,6 +758,23 @@ async function executeAiFetchWithRetry(
       if (err instanceof AIHttpError) lastRequestId = err.requestId
       if (attempt < MAX_RETRY - 1 && isRetryableAiError(err)) {
         const retryKind = err instanceof AIHttpError ? `HTTP ${err.status}` : '临时网络错误'
+        await logFailedAICall(
+          messages,
+          options,
+          pool,
+          err instanceof Error ? err.message : String(err),
+          lastUsage,
+          lastFinishReason,
+          lastContent,
+          lastRequestId,
+          {
+            attempt: attempt + 1,
+            maxAttempts: MAX_RETRY,
+            retryable: true,
+            retryKind,
+            willRetry: true,
+          },
+        )
         logger.warn(
           'ai-client',
           `AI 调用暂时失败，正在重试 (${attempt + 1}/${MAX_RETRY}) · ${retryKind}`,
@@ -713,6 +804,7 @@ async function executeAiFetchWithRetry(
           lastFinishReason,
           lastContent,
           lastRequestId,
+          { attempt: attempt + 1, maxAttempts: MAX_RETRY, willRetry: false },
         )
       }
       throw err
@@ -723,7 +815,15 @@ async function executeAiFetchWithRetry(
     onAiError('AI 调用失败，已达最大重试次数')
   }
   await logFailedAICall(
-    messages, options, pool, '已达最大重试次数', lastUsage, lastFinishReason, lastContent, lastRequestId,
+    messages,
+    options,
+    pool,
+    '已达最大重试次数',
+    lastUsage,
+    lastFinishReason,
+    lastContent,
+    lastRequestId,
+    { attempt: MAX_RETRY, maxAttempts: MAX_RETRY, willRetry: false },
   )
   throw new Error('AI 调用失败，已达最大重试次数')
 }
@@ -733,7 +833,7 @@ async function executeAiFetchWithRetry(
  */
 async function fetchAIResponse(
   proxyBody: Record<string, unknown>,
-  cacheContext: CacheUsageContext,
+  cacheContext: AiUsageContext,
   signal?: AbortSignal,
 ): Promise<FetchAIResult> {
   const resp = await fetchWithTimeout('/api/proxy', {
@@ -767,7 +867,6 @@ async function fetchAIResponse(
   const usage = parseUsage(data.usage)
 
   if (usage) recordCacheUsage(usage, cacheContext)
-
   return {
     content: data.choices?.[0]?.message?.content ?? '',
     usage,
@@ -874,7 +973,7 @@ async function validateWithRetry(
  */
 export async function callAI(systemPrompt: string, userPrompt: string, options: AICallOptions): Promise<string> {
   const { config, pool = 'narrative', sessionId, signal, overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed, providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, userSegments, extraUserMessages, outputSchema } = options
-  const effectiveReasoningEffort = resolveCallReasoningEffort(options, pool)
+  const effectiveReasoningEffort = resolveCallReasoningEffort(options)
 
   const messages = buildMessagesFromPrompt(systemPrompt, userPrompt, userSegments, extraUserMessages)
 
@@ -885,7 +984,7 @@ export async function callAI(systemPrompt: string, userPrompt: string, options: 
     () => fetchAIResponse(
       buildProxyBody(config, messages, false, pool, sessionId, {
         overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed,
-        providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, reasoningEffort: effectiveReasoningEffort,
+        providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, reasoningEffort: effectiveReasoningEffort, logContext: options.logContext,
       }),
       resolveCacheUsageContext(options, pool),
       signal,
@@ -909,7 +1008,7 @@ export async function callAIConversation(
   options: AICallOptions,
 ): Promise<string> {
   const { config, pool = 'narrative', sessionId, signal, overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed, providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId } = options
-  const effectiveReasoningEffort = resolveCallReasoningEffort(options, pool)
+  const effectiveReasoningEffort = resolveCallReasoningEffort(options)
 
   return executeAiFetchWithRetry(
     messages,
@@ -918,7 +1017,7 @@ export async function callAIConversation(
     () => fetchAIResponse(
       buildProxyBody(config, messages, false, pool, sessionId, {
         overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed,
-        providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, reasoningEffort: effectiveReasoningEffort,
+        providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, reasoningEffort: effectiveReasoningEffort, logContext: options.logContext,
       }),
       resolveCacheUsageContext(options, pool),
       signal,
@@ -932,7 +1031,7 @@ export async function callAIConversation(
  */
 async function fetchAIStreamResponse(
   proxyBody: Record<string, unknown>,
-  cacheContext: CacheUsageContext,
+  cacheContext: AiUsageContext,
   onChunk?: (text: string) => void,
   signal?: AbortSignal,
 ): Promise<FetchAIResult> {
@@ -992,7 +1091,7 @@ export async function callAIStreamConversation(
     customModel,
     serverPromptAssetId,
   } = options
-  const effectiveReasoningEffort = resolveCallReasoningEffort(options, pool)
+  const effectiveReasoningEffort = resolveCallReasoningEffort(options)
 
   return executeAiFetchWithRetry(
     messages,
@@ -1011,6 +1110,7 @@ export async function callAIStreamConversation(
         customModel,
         serverPromptAssetId,
         reasoningEffort: effectiveReasoningEffort,
+        logContext: options.logContext,
       }),
       resolveCacheUsageContext(options, pool),
       onChunk,
@@ -1033,7 +1133,7 @@ export async function callAIStream(
   options: AICallOptions,
 ): Promise<string> {
   const { config, pool = 'narrative', sessionId, onChunk, signal, overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed, providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, userSegments, extraUserMessages } = options
-  const effectiveReasoningEffort = resolveCallReasoningEffort(options, pool)
+  const effectiveReasoningEffort = resolveCallReasoningEffort(options)
 
   const messages = buildMessagesFromPrompt(systemPrompt, userPrompt, userSegments, extraUserMessages)
 
@@ -1044,7 +1144,7 @@ export async function callAIStream(
     () => fetchAIStreamResponse(
       buildProxyBody(config, messages, true, pool, sessionId, {
         overrideMaxTokens, overrideTemperature, overrideTopP, jsonMode, storySeed,
-        providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, reasoningEffort: effectiveReasoningEffort,
+        providerId, apiKey, customBaseUrl, customModel, serverPromptAssetId, reasoningEffort: effectiveReasoningEffort, logContext: options.logContext,
       }),
       resolveCacheUsageContext(options, pool),
       onChunk,

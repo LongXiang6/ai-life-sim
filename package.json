@@ -1,6 +1,6 @@
 {
   "name": "ai-life-sim",
-  "version": "5.4.0",
+  "version": "5.4.2",
   "private": true,
   "scripts": {
     "dev": "node scripts/codegen/generate-mod-wiring.mjs && next dev --turbopack",
@@ -16,6 +16,7 @@
     "logs:inspect": "node scripts/ops/inspect-ai-logs.mjs",
     "logs:analyze": "node scripts/ops/analyze-ai-logs.mjs",
     "ops:dashboard": "node scripts/ops/operations-dashboard.mjs",
+    "data:viewer": "node scripts/ops/data-viewer.mjs",
     "check:changelog": "node scripts/check/domains/ui/game-changelog-regression.mjs",
     "validate:narrative": "node scripts/check/domains/narrative/validate-narrative-wiring.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/semantic-authority-audit.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs",
     "validate:regression": "node scripts/check/domains/narrative/narrative-regression-seed.mjs",
@@ -24,9 +25,11 @@
     "test:branch-flow:browser": "node scripts/check/domains/ui/branch-flow-browser.cjs",
     "test:game-over-ui:browser": "node scripts/check/domains/ui/game-over-final-ui-browser.cjs",
     "test:new-life-isolation": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/ui/new-life-isolation-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/autosave-lifecycle-smoke.mjs",
-    "test:account-cloud": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/account-cloud-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/player-content-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/operations-dashboard-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/character-draft-persistence-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/account-cleanup-ops-smoke.mjs",
+    "test:account-cloud": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/account-cloud-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/player-content-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/operations-dashboard-smoke.mjs && node scripts/check/domains/account/data-viewer-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/character-draft-persistence-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/account-cleanup-ops-smoke.mjs",
+    "test:data-viewer": "node scripts/check/domains/account/data-viewer-smoke.mjs",
     "test:account-cloud:browser": "node scripts/check/domains/ui/account-cloud-browser.cjs",
     "test:compression-runtime": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/compression-runtime-smoke.mjs",
+    "test:narrative-memory": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-round-archive-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-memory-store-smoke.mjs",
     "test:narrative-protocol": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-repetition-smoke.mjs",
     "test:narrative-repetition-metrics": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-repetition-metrics-smoke.mjs",
     "test:narrative-opening:live": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-opening-live-eval.mjs",

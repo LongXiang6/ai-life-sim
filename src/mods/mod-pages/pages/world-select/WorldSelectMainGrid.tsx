@@ -10,13 +10,14 @@ export function WorldSelectMainGrid({ logic }: { logic: WorldSelectLogic }) {
       {logic.presetMain.map((world) => {
         const selected = logic.selectedWorld?.id === world.id
         const worldCode = resolvePresetWorldCode(world)
+        const hasCache = logic.worldCodesWithCache.has(worldCode)
 
         return (
           <div key={world.id} className={styles.worldCardWrap}>
             <button
               type="button"
               onClick={() => logic.handleSelectPreset(world)}
-              className={`${styles.worldCard} ${selected ? styles.worldCardSelected : ''}`}
+              className={`${styles.worldCard} ${hasCache ? styles.worldCardWithCache : ''} ${selected ? styles.worldCardSelected : ''}`}
               aria-pressed={selected}
               disabled={logic.isConfirming}
             >
@@ -24,7 +25,7 @@ export function WorldSelectMainGrid({ logic }: { logic: WorldSelectLogic }) {
               <span className={styles.worldName}>{world.name}</span>
               {selected && <span className={styles.selectedMark} aria-hidden="true">✓</span>}
             </button>
-            {logic.worldCodesWithCache.has(worldCode) && (
+            {hasCache && (
               <button
                 type="button"
                 aria-label={`${logic.LABELS.clearCacheTitle}：${world.name}`}
@@ -32,7 +33,7 @@ export function WorldSelectMainGrid({ logic }: { logic: WorldSelectLogic }) {
                 className={`${styles.cacheButton} ${logic.rotatingWorldCode === worldCode ? styles.spinning : ''}`}
                 onClick={(event) => {
                   event.stopPropagation()
-                  logic.handleClearWorldCache(worldCode)
+                  logic.handleRequestClearWorldCache(worldCode, world.name)
                 }}
                 disabled={logic.isConfirming}
               >↻</button>

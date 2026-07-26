@@ -1,44 +1,12 @@
-# System Authority Index
+# 系统权威历史源记录
 
-文档角色：system-index
-权威层级：A3
-状态：active
-体系路径：project > governance > system-index
-上级目标：让项目中的运行与延后系统拥有唯一责任、接口、生命周期和验收路由
-下级组成：活动权威登记、平台服务、新人生生命周期、外部 MVP 系统、引擎 MVP 系统、历史因果内部组件、延后剧情系统
-适用范围：平台服务、MVP 运行子系统、历史事件与消费者引用、延后但承载剧情事实的系统、状态与写入所有权、AI 参与、持久化和运行存活性
-拥有者：`mod-engine` 运行注册与各 owning MOD
-最后验证：2026-07-25；对照[蓝图二](blueprint-02-multi-world-simulation-foundation.md)、[运行阶段策略](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、25 个 active/52 个 non-active 系统库存、[旧模拟机制对比](legacy-simulation-mechanism-comparison.md)、P0/P1 focused 回归、四项属性分配新人生、历史事件 Store v2/旧迁移、子系统实现、Prompt/Schema、缓存统计分桶、[统一验收账本](acceptance-ledger.md)、[数据生命周期拓扑](../../.agents/skills/ai-life-sim/references/system-topology.md)、[中文协议回归](../scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs)和[硬截断审计](../scripts/check/domains/narrative/no-hard-truncation-audit.mjs)
-取代关系：none
-运行真源：[mvp-stages-config.default.json](../src/mods/mod-engine/helpers/mvp-stages-config.default.json)、manifest、生成注册表和各实现文件
-验收证据：`.agents` 治理检查、引用审计、活动系统覆盖检查、`npm run test:world-context-p0`、`npm run test:historical-event-p1`、`npm run test:narrative-protocol`、`npm run test:player-feedback`、`npm run test:creation-first-narrative`、无硬截断审计与[统一验收账本](acceptance-ledger.md)
+状态：历史记录，按需读取。活动路由是 `docs/authority-index.md` 及其四份体系树。
 
-## 1. Reading rules
+本文件保留系统责任、运行成员、生命周期、AI 参与和持久化事实，不再定义全局体系、优先级或冲突处理。当前用户要求高于本文件；冲突时执行用户要求，完成任务后再在建议区说明。
 
-- This index owns responsibility routing, not detailed field schemas or runtime implementation.
-- Use the authority ladder in `.agents/skills/ai-life-sim/references/authority-hierarchy.md` when sources conflict.
-- Treat `SystemPath` as a conceptual ownership path rather than a filesystem path. Each responsibility has one primary governance parent and one runtime owner; model other relationships as dependencies, producers, adapters, or consumers.
-- Use [system topology](../../.agents/skills/ai-life-sim/references/system-topology.md) for the six root pyramids and cross-tree roles. Persistence belongs to the `DATA` tree without taking state ownership from the runtime system that produces the data.
-- Use live code and types for exact data shape. Use [mvp-stages-config.default.json](../src/mods/mod-engine/helpers/mvp-stages-config.default.json) for runtime liveness; a source file or manifest entry alone is insufficient.
-- Update this index in the same task when a system is added, removed, renamed, activated, deactivated, changes owner or responsibility, changes public state or API authority, changes AI participation, or changes persistence behavior.
+精确数据形状以实时代码、类型、Manifest、生成注册表和 `src/mods/mod-engine/helpers/mvp-stages-config.default.json` 为准。不要整篇加载本文件，只在活动权威树指向历史证据时读取对应段落。
 
-## 2. Active authority registry
-
-| Authority | Tier | Role | Update trigger |
-|---|---|---|---|
-| `../../AGENTS.md` | A0 | Project entry, authorization boundary, commands, secret handling | Project workflow, permissions, gates, infrastructure, or Skill routing changes |
-| `docs/product-decisions.md` | A1 | Active product semantics | User-visible meaning, product red line, or selected behavior changes |
-| `docs/blueprint-02-multi-world-simulation-foundation.md` | A2 | Multi-world simulation target, P0-P8 order, and active P0/P1 execution contracts | P0/P1 target, phase order, composition, or acceptance changes |
-| `docs/README.md` | A3 | Active documentation map and reading routes | Document authority, consolidation or task-reading routes change |
-| `docs/system-authority-index.md` | A3 | System responsibility and ownership map | System lifecycle, ownership, writes, AI role, persistence, or liveness changes |
-| `docs/simulation-rewrite-architecture.md` | A3 | BaseSubsystem and Foundation architecture | Subsystem base contract or cross-domain contract rules change |
-| `src/mods/mod-engine/helpers/mvp-stages-config.default.json` | A4 | Runtime subsystem policy | Active stage or runtime membership changes |
-| Manifests, generated registration, public entries, live implementations | A4 | Current executable truth | Code, registration, API, state, or generated wiring changes |
-| `docs/acceptance-ledger.md` | A5 | Consolidated current acceptance and supersession record | Expected behavior, reproduction, browser, production or validation result changes |
-| Regression, gate, browser, playtest, and runtime records | A5 | Acceptance evidence | Expected behavior, reproduction, or validation result changes |
-| Superseded plans, proposals, archived snapshots, unselected candidates | A6 | History and alternatives | Preserve explanation only; never present as active instruction |
-
-## 3. Runtime and persistence contract
+## Runtime and persistence contract
 
 The current runtime stage key remains `mvp`; its active policy includes the completed P0 multi-world foundation and the P1 historical-event ledger. P2-P8 simulation packages remain deferred.
 

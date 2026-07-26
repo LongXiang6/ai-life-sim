@@ -7,10 +7,14 @@
  * 四季：按阳历月份区间划分（3–5月春/6–8月夏/9–11月秋/12–2月冬）
  */
 
-import type { TimeStep, } from '@/foundation'
-import type { CompressedSummaries, } from '@/foundation'
+import type {
+  TimeStep,
+  CompressedSummaries,
+  NarrativeTransitionAuditSnapshot,
+} from '@/foundation'
 import type { NarrativeIntentResolution } from './helpers/narrative-semantic-signals'
 import type { NarrativeRepetitionMetric, NarrativeRepetitionSummary } from './helpers/narrative-repetition-metrics'
+import type { LegendaryEncounterProjection } from '@/core/player-content/player-content-contract'
 
 export type { TimeStep, }
 
@@ -110,6 +114,8 @@ export interface NarrativeChunk {
   attrChanges?: Array<{ icon: string; label: string; change: number }>,
   /** 本轮故事与最近完整历史的重复率观测；只用于质量统计，不裁剪正文。 */
   repetitionMetric?: NarrativeRepetitionMetric,
+  /** 本轮状态迁移审计；用于结算复算，不进入 AI Prompt。 */
+  transitionAudit?: NarrativeTransitionAuditSnapshot,
 }
 
 /** 压缩统计 */
@@ -117,7 +123,6 @@ export interface CompressionStats {
   l1Count: number
   l2Count: number
   l3Count: number
-  l4Count: number
   lastAt: number,
 }
 
@@ -151,6 +156,13 @@ export interface EngineState {
   characterCreations: CharacterCreation[]
   /** 本局故事重复率的持久化聚合快照。 */
   storyRepetitionStats: NarrativeRepetitionSummary
+  /** 本局抽中的低频跨世界传奇；只作为一次性低优先级叙事素材。 */
+  legendaryEncounter?: LegendaryEncounterProjection & {
+    status: 'selected' | 'injected'
+    injectedRound?: number
+  }
+  /** 防止同一局在没有抽中时反复请求。 */
+  legendaryEncounterCheckedForLifeRunId?: string
 }
 
 /** 回合结果 */

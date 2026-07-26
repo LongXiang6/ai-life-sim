@@ -1,6 +1,6 @@
 /**
  * @module server-log-safety.ts
- * @description 生产日志的纯来源分类与秘密脱敏规则
+ * @description 生产日志的可信请求来源分类
  * @mod core
  */
 
@@ -10,8 +10,10 @@ import {
   DIAGNOSTIC_PLAYER_CODE_COOKIE,
   normalizeDiagnosticPlayerCode,
 } from './diagnostic-player-code'
-
-export { redactSensitiveData } from './redact-sensitive-data'
+import {
+  DEVICE_PROVENANCE_ID_COOKIE,
+  normalizeDeviceProvenanceId,
+} from './device-provenance'
 
 /** 将任意动态字段压缩为安全文件名片段。 */
 export function safeLogSegment(value: string): string {
@@ -23,6 +25,10 @@ export interface ServerRequestSource {
   ip: string
   sourceId: string
   diagnosticCode?: string
+  deviceProvenanceId?: string
+  isRegistered: boolean
+  accountId?: string
+  username?: string
 }
 
 function readCookie(request: Request, name: string): string | undefined {
@@ -66,9 +72,14 @@ export function getServerRequestSource(request: Request): ServerRequestSource {
   const diagnosticCode = normalizeDiagnosticPlayerCode(
     readCookie(request, DIAGNOSTIC_PLAYER_CODE_COOKIE),
   )
+  const deviceProvenanceId = normalizeDeviceProvenanceId(
+    readCookie(request, DEVICE_PROVENANCE_ID_COOKIE),
+  )
   return {
     ip,
     sourceId: `ip-${safeLogSegment(ip)}`,
     diagnosticCode,
+    deviceProvenanceId,
+    isRegistered: false,
   }
 }

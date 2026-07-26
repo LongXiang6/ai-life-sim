@@ -22,6 +22,7 @@ export interface MoreMenuItem {
 export interface BottomActionBarProps {
   onBack?: () => void
   backTitle?: string
+  backDisabled?: boolean
   onConfirm?: () => void
   confirmText?: string
   confirmNumber?: string
@@ -48,6 +49,7 @@ function useClickOutside(ref: React.RefObject<HTMLElement | null>, handler: () =
 export function BottomActionBar({
   onBack,
   backTitle = '返回上一步',
+  backDisabled = false,
   onConfirm,
   confirmText = '确认',
   confirmNumber,
@@ -82,10 +84,13 @@ export function BottomActionBar({
               type="button"
               className={styles.backButton}
               onClick={onBack}
+              disabled={backDisabled}
               title={backTitle}
               aria-label={backTitle}
             >
-              <span aria-hidden="true">←</span>
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M19 12H5m6-6-6 6 6 6" />
+              </svg>
             </button>
           ) : <span className={styles.backPlaceholder} aria-hidden="true" />}
         </div>
@@ -157,7 +162,9 @@ export function BottomActionBar({
                 <strong>{confirmText}</strong>
                 {confirmDescription ? <small>{confirmDescription}</small> : null}
               </span>
-              <span className={styles.confirmArrow} aria-hidden="true">→</span>
+              <span className={styles.confirmArrow} aria-hidden="true">
+                <svg viewBox="0 0 24 24" focusable="false"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
+              </span>
             </button>
           ) : null}
         </div>

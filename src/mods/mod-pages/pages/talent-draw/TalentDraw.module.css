@@ -51,7 +51,15 @@
   overscroll-behavior: contain;
 }
 
-.header { flex: 0 0 auto; }
+.header {
+  position: relative;
+  z-index: 5;
+  flex: 0 0 auto;
+}
+
+.screenDraw { padding: 18px 16px 0; }
+.screenDraw .meta { margin-bottom: 6px; font-size: 9px; }
+.screenDraw .titleCopy h1 { font-size: 21px; }
 
 .meta {
   margin-bottom: 4px;
@@ -83,22 +91,20 @@
 }
 
 .drawStage {
-  position: relative;
-  display: flex;
-  min-height: 0;
-  flex: 1 1 auto;
-  flex-direction: column;
-  align-items: center;
-  padding: 0.85rem 0 calc(5.1rem + env(safe-area-inset-bottom));
+  position: absolute;
+  inset: 0;
   overflow: hidden;
 }
 
 .aura {
-  position: relative;
-  width: min(13.75rem, 72vw);
-  aspect-ratio: 1;
-  flex: 0 0 auto;
-  transition: transform 0.7s cubic-bezier(0.2, 0.75, 0.2, 1), margin 0.7s cubic-bezier(0.2, 0.75, 0.2, 1);
+  position: absolute;
+  z-index: 2;
+  top: 98px;
+  left: 50%;
+  width: 220px;
+  height: 220px;
+  transform: translateX(-50%);
+  transition: top 0.72s cubic-bezier(0.2, 0.75, 0.2, 1), transform 0.72s cubic-bezier(0.2, 0.75, 0.2, 1);
 }
 
 .wave {
@@ -137,32 +143,43 @@
 
 .drawStageDrawing .wave { animation: draw-wave 4.8s ease-out infinite; }
 .drawStageDrawing .sun i { animation: layer-glow 3.8s ease-in-out infinite; }
-.drawStageComplete .aura { margin-top: 2.25rem; transform: scale(1.02); }
+.drawStageDrawing .layerOne { animation-delay: 0s; }
+.drawStageDrawing .layerTwo { animation-delay: 0.26s; }
+.drawStageDrawing .layerThree { animation-delay: 0.52s; }
+.drawStageDrawing .layerFour { animation-delay: 0.78s; }
+.drawStageDrawing .layerFive { animation-delay: 1.04s; }
+.drawStageComplete .aura { top: 224px; transform: translateX(-50%) scale(1.02); }
 .drawStageComplete .wave { border-color: rgb(132 123 180 / 36%); animation: finish-wave 5.6s cubic-bezier(0.2, 0.62, 0.28, 1) infinite; }
+.drawStageComplete .wave:nth-child(n + 5) { display: none; }
 .drawStageComplete .sun i { animation: complete-glow 3.2s ease-in-out infinite alternate; }
+.drawStageComplete .sealWrap { opacity: 0; filter: blur(5px); pointer-events: none; transform: translateY(32px) scale(0.94); }
+.drawStageComplete .ritualCopy { opacity: 0; pointer-events: none; }
 
 .ritualCopy {
-  width: min(18.5rem, 100%);
-  margin-top: 0.3rem;
+  position: absolute;
+  z-index: 4;
+  top: 326px;
+  right: 15px;
+  left: 15px;
   text-align: center;
-  transition: opacity 0.35s ease;
+  transition: opacity 0.45s ease;
 }
 
 .ritualCopy strong { display: block; font-family: "Songti SC", "STSong", serif; font-size: 0.875rem; font-weight: 600; }
 .ritualCopy p { margin: 0.35rem 0 0; color: var(--cf-muted); font-size: 0.65rem; line-height: 1.5; }
-.drawReadout { display: flex; align-items: center; justify-content: center; gap: 0.5rem; margin-top: 0.5rem; color: var(--cf-faint); font-size: 0.625rem; }
-.drawReadout span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.drawReadout b { color: var(--cf-accent); font-variant-numeric: tabular-nums; }
-
 .sealWrap {
-  width: min(19rem, 100%);
-  margin-top: 0.8rem;
+  position: absolute;
+  z-index: 4;
+  top: 391px;
+  right: 15px;
+  left: 15px;
   padding: 0.625rem;
   border: 1px solid var(--cf-line);
   border-radius: 0.8rem;
   background: rgb(255 255 255 / 84%);
   box-shadow: 0 0.5rem 1.375rem rgb(62 70 100 / 4%);
   backdrop-filter: blur(0.625rem);
+  transition: opacity 0.58s ease, filter 0.58s ease, transform 0.58s ease;
 }
 
 .sealHead { display: flex; justify-content: space-between; color: var(--cf-muted); font-size: 0.625rem; font-weight: 650; }
@@ -218,8 +235,8 @@
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 8px;
-  margin-right: 2px;
-  margin-left: 2px;
+  margin-right: 8px;
+  margin-left: 8px;
   padding: 6px 2px;
   overflow: visible;
 }
@@ -343,8 +360,8 @@
   min-height: 0;
   flex: 1 1 0;
   gap: 10px;
-  margin: 5px -12px 0;
-  padding: 14px 16px 96px;
+  margin: 5px -8px 0;
+  padding: 14px 18px 96px;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -581,82 +598,8 @@
 
 .libraryEmpty { margin: 0; padding: 0.6rem; color: var(--cf-faint); font-size: 0.625rem; text-align: center; }
 
-.footer {
-  position: absolute;
-  z-index: 7;
-  right: 14px;
-  bottom: 12px;
-  left: 14px;
-  display: flex;
-  min-height: 52px;
-  align-items: center;
-  gap: 8px;
-  padding: 2px 7px;
-  border: 1px solid rgb(207 215 238 / 84%);
-  border-radius: 18px;
-  background: rgb(255 255 255 / 76%);
-  box-shadow: 0 12px 30px rgb(62 70 100 / 13%), 0 2px 7px rgb(62 70 100 / 6%);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-}
-
-.backButton {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
-  place-items: center;
-  padding: 0;
-  border: 1px solid var(--cf-line);
-  border-radius: 50%;
-  background: rgb(255 255 255 / 80%);
-  color: var(--cf-muted);
-  cursor: pointer;
-}
-.backButton svg { width: 1rem; height: 1rem; }
-
-.nextButton {
-  display: flex;
-  min-width: 0;
-  min-height: 48px;
-  flex: 1;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: var(--cf-ink);
-  cursor: pointer;
-  text-align: left;
-}
-.nextButton:disabled { color: var(--cf-faint); cursor: not-allowed; }
-
-.nextNumber {
-  width: 19px;
-  color: var(--cf-faint);
-  font-size: 6.5px;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
-.nextCopy { min-width: 0; flex: 1; }
-.nextCopy strong,
-.nextCopy small { display: block; }
-.nextCopy strong { color: var(--cf-ink); font-size: 12.2px; font-weight: 680; line-height: 1.2; }
-.nextCopy small { margin-top: 0.15rem; overflow: hidden; color: var(--cf-faint); font-size: 6.5px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
-
-.nextArrow {
-  display: grid;
-  width: 25px;
-  height: 25px;
-  flex: 0 0 25px;
-  place-items: center;
-  border-radius: 50%;
-  background: var(--cf-accent);
-  color: #fff;
-}
-.nextButton:disabled .nextArrow { background: #d9dfe5; }
-.nextArrow svg { width: 0.85rem; height: 0.85rem; }
+.reroll svg,
+.libraryHead button svg { display: block; }
 
 .toast {
   position: absolute;
@@ -679,13 +622,9 @@
 
 .validationMsg { width: min(19rem, 100%); margin: 0.5rem auto 0; color: #96564f; font-size: 0.65rem; line-height: 1.45; text-align: center; }
 
-.backButton svg path,
-.nextArrow svg path,
 .reroll svg path,
 .libraryHead button svg path { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
 
-.backButton:focus-visible,
-.nextButton:focus-visible,
 .reroll:focus-visible,
 .rebirthSlot:focus-visible,
 .selectedSlot:focus-visible,

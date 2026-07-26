@@ -26,6 +26,8 @@ interface WelcomeViewProps {
   onOpenAccount: () => void
   onOpenHelp: () => void
   onOpenFeedback: () => void
+  onOpenLeaderboard: () => void
+  onOpenMailbox: () => void
 }
 
 export default function WelcomeView({
@@ -42,6 +44,8 @@ export default function WelcomeView({
   onOpenAccount,
   onOpenHelp,
   onOpenFeedback,
+  onOpenLeaderboard,
+  onOpenMailbox,
 }: WelcomeViewProps) {
   const hasAnySave = saves.length > 0 || Boolean(cloudSave)
 
@@ -51,6 +55,20 @@ export default function WelcomeView({
         <span>AI LIFE SIM · 命书</span>
         <span>00 / 欢迎</span>
       </div>
+
+      <nav className={styles.quickActions} aria-label="排行榜与邮箱">
+        <button type="button" onClick={onOpenLeaderboard} aria-label="打开排行榜" title="排行榜">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8 4h8v3a4 4 0 0 1-8 0V4Z" />
+            <path d="M8 6H5v1a4 4 0 0 0 4 4M16 6h3v1a4 4 0 0 1-4 4M12 11v5M8 20h8M9 16h6v4" />
+          </svg>
+        </button>
+        <button type="button" onClick={onOpenMailbox} aria-label="打开邮箱" title="邮箱">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 6h16v12H4zM4 7l8 6 8-6" />
+          </svg>
+        </button>
+      </nav>
 
       <section className={styles.intro} aria-labelledby="welcome-title">
         <p className={styles.brand}>人生序章</p>

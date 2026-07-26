@@ -15,7 +15,6 @@ export const PlayerFeedbackEnvelopeSchema = z.object({
   subject: z.string().trim().min(1),
   message: z.string().trim().min(1),
   submittedAt: z.number().finite(),
-  consent: z.literal(true),
   diagnostics: z.object({
     app: JsonObjectSchema,
     device: JsonObjectSchema,

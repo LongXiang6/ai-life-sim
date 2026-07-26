@@ -1,15 +1,17 @@
 import 'server-only'
 
-function enabled(name: string): boolean {
-  return process.env[name]?.trim() === '1'
+function enabled(name: string, defaultValue = false): boolean {
+  const configured = process.env[name]?.trim()
+  if (configured === undefined || configured === '') return defaultValue
+  return configured === '1'
 }
 
 export function isPlayerLeaderboardEnabled(): boolean {
-  return enabled('PLAYER_LEADERBOARD_ENABLED')
+  return enabled('PLAYER_LEADERBOARD_ENABLED', true)
 }
 
 export function isPlayerMailboxEnabled(): boolean {
-  return enabled('PLAYER_MAILBOX_ENABLED')
+  return enabled('PLAYER_MAILBOX_ENABLED', true)
 }
 
 export function isPortraitImageEnabled(): boolean {

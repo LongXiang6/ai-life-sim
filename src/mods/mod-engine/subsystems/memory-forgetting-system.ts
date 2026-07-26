@@ -8,7 +8,7 @@
  *   小事不应遗忘——正是这些小事组成了一个人。
  *
  * 核心机制：
- *   - 触发时机：在 L2 压缩时触发（每 25 轮检查一次），避免太频繁
+ *   - 触发时机：保留旧的 L1 遗忘检查公共能力；当前时间轴权重生命周期由 summary-compressor 负责
  *   - 遗忘对象：L1 摘要中的重复事件、无意义日常
  *   - 保留规则：重大事件、人物关系变化、关键转折不遗忘
  *   - 小事保留：随机保留 10% 的日常小事，形成人物性格记忆
@@ -86,7 +86,7 @@ export interface CausalMarkedEvent {
 
 /** 默认遗忘配置 */
 const DEFAULT_FORGETTING_CONFIG: ForgettingConfig = {
-  triggerInterval: COMPRESS_L2_MERGE_INTERVAL, // 25轮触发一次
+  triggerInterval: COMPRESS_L2_MERGE_INTERVAL, // 当前 L2 覆盖 16 轮
   repetitiveThreshold: 0.7, // 相似度 > 70% 则遗忘
   smallEventRetentionRate: 0.1, // 保留 10% 小事
   maxForgettingRate: 0.3, // 每次最多遗忘 30%,

@@ -50,7 +50,6 @@ const CAPABILITY_LABELS: Record<string, string> = {
 }
 
 export interface NarrativeAIWorldView extends Record<string, unknown> {
-  当前上下文编号: string
   当前上下文类型: string
   当前模拟范围: string
   当前世界能力: string[]
@@ -79,7 +78,6 @@ export function projectWorldSettingForNarrativeAI(
   },
 ): NarrativeAIWorldView {
   return {
-    当前上下文编号: worldSetting.contextId || '旧存档当前上下文',
     当前上下文类型: CONTEXT_KIND_LABELS[worldSetting.contextKind] ?? '世界',
     当前模拟范围: SCOPE_LABELS[worldSetting.simulationScope] ?? '当前完整模拟',
     当前世界能力: (worldSetting.capabilityProfile?.capabilities ?? []).map(

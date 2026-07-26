@@ -17,7 +17,10 @@ import {
   toNarrativeAIIntentId,
   translateNarrativeAIResponse,
 } from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
-import { extractTaggedMetaEnvelope } from '../../../../src/mods/mod-engine/helpers/tagged-meta-envelope.ts'
+import {
+  extractTaggedMetaEnvelope,
+  extractTaggedNarrativePrefix,
+} from '../../../../src/mods/mod-engine/helpers/tagged-meta-envelope.ts'
 import {
   projectCharacterForNarrativeAI,
   projectWorldSettingForNarrativeAI,
@@ -25,9 +28,13 @@ import {
 import { buildNarrativeHints } from '../../../../src/mods/mod-engine/helpers/narrative-hints.ts'
 import {
   buildNarrativeRepairInstruction,
+  buildNarrativeChangeRequirements,
   buildNarrativeRoundOutputContract,
   inspectNarrativeResponseQuality,
+  preserveNarrativeBodyAndSummary,
 } from '../../../../src/mods/mod-engine/helpers/narrative-response-quality.ts'
+import { PlainTextStrategy, RegexExtractStrategy } from '../../../../src/mods/mod-engine/helpers/parse-strategies.ts'
+import { ChineseTextProcessor } from '../../../../src/mods/mod-engine/helpers/chinese-text-processor.ts'
 import { buildTimeScaleNarrativeHint } from '../../../../src/mods/mod-engine/helpers/time-scale-narrative.ts'
 import {
   COMPILED_NARRATIVE_SYSTEM_PROMPT,
@@ -44,6 +51,10 @@ import { COMPILED_NARRATIVE_REPAIR_SYSTEM_PROMPT } from '../../../../src/mods/mo
 
 let failed = 0
 const root = getProjectRoot(import.meta.url)
+const orchestratorSource = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/subsystems/orchestrator-system.ts'),
+  'utf8',
+)
 
 function assertOk(condition, message) {
   if (condition) return
@@ -275,9 +286,16 @@ const worldView = projectWorldSettingForNarrativeAI(worldSetting)
 const characterView = projectCharacterForNarrativeAI(character)
 assertOk(
   !('config' in worldView)
+    && !('当前上下文编号' in worldView)
     && !('attributes' in characterView.profile)
     && !('attributes' in characterView.status),
   'AI world and character projections must not expose internal object copies',
+)
+assertOk(
+  /s\.id !== 'population'[\s\S]{0,120}s\.id !== 'culture-tech'/.test(orchestratorSource)
+    && /Object\.entries\(calibrationRaw\.world\)\.filter\(\(\[key\]\) => key !== 'populationBase'\)/.test(orchestratorSource)
+    && /Object\.entries\(calibrationRaw\.formulas\)\.filter\(\(\[key\]\) => key !== 'techProgressModifier'\)/.test(orchestratorSource),
+  'main narrative projection must exclude population, technology progress and their subsystem summaries',
 )
 
 const baseContext = {
@@ -304,15 +322,16 @@ const nextSegments = buildSegmentedPrompt(narrativePrompt, {
 })
 assertOk(
   firstSegments.strategy === 'S4'
-    && firstSegments.userSegments?.length === 3
-    && firstSegments.userMessageCount === 3,
-  'main narrative must send exactly three ordered user layers',
+    && firstSegments.userSegments?.length === 4
+    && firstSegments.userMessageCount === 4,
+  'main narrative must send exactly four ordered user layers',
 )
 assertOk(
   firstSegments.userSegments?.[0]?.startsWith('{"全局信息":')
     && firstSegments.userSegments[1]?.startsWith('{"记忆":')
-    && firstSegments.userSegments[2]?.startsWith('{"本轮引导":'),
-  'the user layers must be ordered as global information, memory, then round guidance',
+    && firstSegments.userSegments[2]?.startsWith('{"本轮引导":')
+    && firstSegments.userSegments[3]?.startsWith('{"变化要求":'),
+  'the user layers must be ordered as global information, memory, round guidance, then change requirements',
 )
 assertOk(
   firstSegments.userSegments?.[0] === nextSegments.userSegments?.[0]
@@ -328,6 +347,9 @@ for (const forbiddenInternalName of [
   '_coherenceLocks',
   'hiddenInternalAttribute',
   'physique',
+  '当前上下文编号',
+  'populationBase',
+  'techProgressModifier',
 ]) {
   assertOk(
     !aiViewJson.includes(forbiddenInternalName),
@@ -357,7 +379,13 @@ assertOk(
 )
 const nearSynonymConditionalData = structuredClone(modelNoOpConditionalData)
 nearSynonymConditionalData.新伏笔 = [{ 类型: '隐藏信息', 说明: '保留说明并归入其他', 优先级: 7 }]
-nearSynonymConditionalData.语义信号.关系变化 = [{ 姓名: '林舟', 类型: '怀疑', 说明: '保留关系说明并归入其他' }]
+nearSynonymConditionalData.语义信号 = {
+  ...nearSynonymConditionalData.语义信号,
+  事件类型: '生活',
+  影响范围: '家庭圈',
+  叙事语域: '日常',
+  关系变化: [{ 姓名: '林舟', 类型: '怀疑', 说明: '保留关系说明并归入其他' }],
+}
 assertOk(
   inspectNarrativeResponseQuality(
     tolerantConditionalEnvelope.replace(JSON.stringify(modelNoOpConditionalData), JSON.stringify(nearSynonymConditionalData)),
@@ -365,6 +393,56 @@ assertOk(
     'branch:夺回家园',
   ).valid,
   'optional near-synonym enums must not turn an otherwise valid conditional narrative into a hard reasoning error',
+)
+const liveIntentSyntaxRecoveryData = structuredClone(modelNoOpConditionalData)
+liveIntentSyntaxRecoveryData.语义信号 = {
+  ...liveIntentSyntaxRecoveryData.语义信号,
+  // Mirrors the real provider output captured during the round-retry diagnosis.
+  事件类型: '信息获取',
+  情节类型: '收集情报',
+}
+const liveIntentResolution = liveIntentSyntaxRecoveryData.命运意图判定
+delete liveIntentSyntaxRecoveryData.命运意图判定
+liveIntentSyntaxRecoveryData.命运意图判定 = liveIntentResolution
+const liveIntentSyntaxRecoveryJson = JSON.stringify(liveIntentSyntaxRecoveryData)
+const liveIntentSyntaxRecoveryEnvelope = tolerantConditionalEnvelope.replace(
+  JSON.stringify(modelNoOpConditionalData),
+  liveIntentSyntaxRecoveryJson.slice(0, -1),
+)
+assertOk(
+  inspectNarrativeResponseQuality(
+    liveIntentSyntaxRecoveryEnvelope,
+    200,
+    'branch:夺回家园',
+  ).valid,
+  'a single missing outer JSON brace and established model enum synonyms must recover without weakening the strict schema',
+)
+const liveSignalAliasData = structuredClone(modelNoOpConditionalData)
+liveSignalAliasData.语义信号 = {
+  ...liveSignalAliasData.语义信号,
+  // Mirrors the two format-repair responses emitted by the provider.
+  事件类型: '信号',
+  情节类型: '情报',
+}
+assertOk(
+  inspectNarrativeResponseQuality(
+    tolerantConditionalEnvelope.replace(
+      JSON.stringify(modelNoOpConditionalData),
+      JSON.stringify(liveSignalAliasData),
+    ),
+    200,
+    'branch:夺回家园',
+  ).valid,
+  'established signal and intelligence aliases must normalize to the strict semantic schema',
+)
+assertThrows(
+  () => parseNarrativeAIDataJson(liveIntentSyntaxRecoveryJson.slice(0, -2)),
+  'multiple missing JSON braces must remain rejected instead of being guessed',
+)
+assertOk(
+  COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('禁止用单个对象或字符串代替数组')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('语义信号一旦输出就必须完整包含'),
+  'the fixed protocol must state the array wrappers and complete semantic signal shape seen in live failures',
 )
 const minimumEnvelope = `⟦正文⟧\n一个自然段也能完整讲清本轮事件。\n⟦摘要⟧\n本轮发生了一个完整的小事件。\n⟦结束⟧`
 assertOk(
@@ -375,6 +453,61 @@ const bodyOnlyEnvelope = `⟦正文⟧\n这一轮只返回完整正文；没有�
 assertOk(
   inspectNarrativeResponseQuality(bodyOnlyEnvelope, 200, null).valid,
   'ordinary rounds must accept a complete body without an optional summary',
+)
+const incompleteTaggedBody = `⟦正文⟧\n模型提前结束了输出，但正文仍然完整，玩家可以继续看到本轮发生的行动和结果。`
+const incompleteTaggedPrefix = extractTaggedNarrativePrefix(incompleteTaggedBody)
+assertOk(
+  incompleteTaggedPrefix?.hasSummaryMarker === false
+    && incompleteTaggedPrefix?.hasDataMarker === false
+    && incompleteTaggedPrefix?.hasEndMarker === false,
+  'a body-only prefix must expose that no section boundary was received',
+)
+const incompleteTaggedQuality = inspectNarrativeResponseQuality(incompleteTaggedBody, 200, null)
+assertOk(
+  !incompleteTaggedQuality.valid && incompleteTaggedQuality.hasUsableNarrative !== true,
+  'a response cut off inside the body must not be delivered as a usable narrative',
+)
+const incompleteTaggedResult = new PlainTextStrategy().parse(
+  incompleteTaggedBody,
+  new ChineseTextProcessor(),
+)
+assertOk(
+  incompleteTaggedResult === null,
+  'plain-text degradation must reject a body-only response cut off before any section boundary',
+)
+const truncatedDataEnvelope = `⟦正文⟧\n你在封锁线前停下，确认旧渡口的暗号仍然有效。\n\n你让林舟先带船队转入浅水道，自己留下观察追兵的巡逻规律。\n⟦摘要⟧\n你保住了船队，也获得了可供下一轮使用的巡逻情报。\n⟦数据⟧\n{"状态变更":[{"系统":"道德"`
+const truncatedDataPrefix = extractTaggedNarrativePrefix(truncatedDataEnvelope)
+assertOk(
+  truncatedDataPrefix?.hasSummaryMarker === true
+    && truncatedDataPrefix?.hasDataMarker === true
+    && truncatedDataPrefix?.hasEndMarker === false,
+  'a data-truncated response must retain body, summary, and data-boundary evidence',
+)
+const truncatedDataQuality = inspectNarrativeResponseQuality(truncatedDataEnvelope, 200, null)
+assertOk(
+  truncatedDataQuality.valid && truncatedDataQuality.structuredDataStatus === 'omitted',
+  'a response truncated inside the data section must preserve the complete body as a body-only result',
+)
+const preservedTruncatedEnvelope = preserveNarrativeBodyAndSummary(truncatedDataEnvelope)
+assertOk(
+  preservedTruncatedEnvelope.includes('你让林舟先带船队转入浅水道')
+    && preservedTruncatedEnvelope.includes('你保住了船队')
+    && preservedTruncatedEnvelope.endsWith('⟦结束⟧')
+    && !preservedTruncatedEnvelope.includes('⟦数据⟧')
+    && !preservedTruncatedEnvelope.includes('"状态变更"'),
+  'a data-truncated envelope must be canonically reduced to body and summary before it can reach the player',
+)
+const regexTruncatedResult = new RegexExtractStrategy().parse(
+  truncatedDataEnvelope,
+  new ChineseTextProcessor(),
+)
+assertOk(
+  Boolean(regexTruncatedResult?.narrative)
+    && !regexTruncatedResult.narrative.includes('⟦正文⟧')
+    && !regexTruncatedResult.narrative.includes('⟦摘要⟧')
+    && !regexTruncatedResult.narrative.includes('⟦数据⟧')
+    && !regexTruncatedResult.narrative.includes('"状态变更"'),
+  'regex degradation must never render protocol markers or an incomplete data payload as story body',
 )
 const bodyOnlyJsonError = JSON.stringify({
   error: '这是服务端返回的完整中文错误说明，当前请求没有生成叙事内容，请稍后重试。',
@@ -425,18 +558,21 @@ assertOk(
 )
 
 const finalRoundContract = buildNarrativeRoundOutputContract('branch:夺回家园', true, true)
+const finalChangeRequirements = buildNarrativeChangeRequirements('branch:夺回家园', true)
 assertOk(
   finalRoundContract.includes('本轮输出契约')
     && finalRoundContract.includes('安心发育')
     && finalRoundContract.includes('不得无因果直接跳过数周或数月')
-    && finalRoundContract.includes('命运分支:夺回家园'),
-  'the nearest dynamic contract must retain protocol, calm progression, opening origin and focused intent checks',
+    && finalChangeRequirements.includes('命运分支:夺回家园')
+    && finalChangeRequirements.includes('派生属性、连锁数值、人口、科技进度')
+    && finalChangeRequirements.includes('命运分支=true'),
+  'narrative guidance and change requirements must stay separate while retaining all current conditions',
 )
 assertOk(
   COMPILED_NARRATIVE_REPAIR_SYSTEM_PROMPT.length < 5_000,
   'the dedicated repair system asset must remain compact',
 )
-assertOk(narrativePrompt.version === '4.6.1', 'latest narrative attention and repair behavior must use Prompt 4.6.1')
+assertOk(narrativePrompt.version === '4.7.0', 'four-layer narrative and data-repair behavior must use Prompt 4.7.0')
 assertOk(
   narrativePrompt.systemPrompt === ''
     && narrativePrompt.serverPromptAssetId === NARRATIVE_SERVER_PROMPT_ASSET_ID

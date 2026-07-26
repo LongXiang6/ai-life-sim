@@ -90,7 +90,8 @@ function buildPreGenSignature(promptTemplate: PromptTemplate): string {
     settings.reasoningEffort,
     settings.wordCountTarget,
     settings.storySeed,
-    settings.narrativeStyle,
+    settings.narrativeStyleText,
+    settings.narrativeStyleVersion,
     promptTemplate.name,
     promptTemplate.version,
     promptTemplate.systemPrompt,
@@ -301,14 +302,18 @@ export async function fillPreGenQueue(
     await orchestrator.waitForBackgroundCompression()
     if (!preGenActivity.isCurrent(gen)) return
 
-    const { customModel, temperature, reasoningEffort } = useSettingsStore.getState()
+    const { customModel, temperature, reasoningEffort, provider } = useSettingsStore.getState()
     // 从单一来源常量取默认字数，与 orchestrator、hooks 共享同一常量
     const wordCountTarget = useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET
     const model = customModel || DEFAULT_AI_MODEL
     const aiConfig: AIModelConfig = {
       model,
       temperature: temperature ?? 0.8,
-      maxTokens: computeNarrativeMaxTokens(wordCountTarget),
+      maxTokens: computeNarrativeMaxTokens(wordCountTarget, {
+        reasoningEffort,
+        providerId: provider,
+        model,
+      }),
       stream: false,
       reasoningEffort,
     }

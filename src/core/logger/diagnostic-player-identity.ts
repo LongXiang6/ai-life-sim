@@ -12,7 +12,7 @@ import {
   DIAGNOSTIC_PLAYER_CODE_LENGTH,
   normalizeDiagnosticPlayerCode,
 } from './diagnostic-player-code'
-import { reserveServerLogFile } from './server-log-store'
+import { reserveDiagnosticIdentity } from './server-log-store'
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const MAX_ALLOCATION_ATTEMPTS = 128
@@ -27,11 +27,7 @@ function generateCandidate(): string {
 }
 
 async function reserveCode(code: string): Promise<'created' | 'exists' | 'failed'> {
-  return reserveServerLogFile(`diagnostic-identities/codes/${code}.json`, {
-    diagnosticCode: code,
-    issuedAt: Date.now(),
-    formatVersion: 1,
-  })
+  return reserveDiagnosticIdentity(code)
 }
 
 /**
@@ -53,4 +49,3 @@ export async function ensureDiagnosticPlayerCode(existingCode?: string): Promise
   }
   return null
 }
-

@@ -1,5 +1,22 @@
 /* Attribute Allocation — AA-RF1-1 unified creation flow design */
 
+.flowCanvas {
+  --cf-canvas: #eef1f7;
+  --cf-paper: #fafbff;
+  --cf-surface: #ffffff;
+  --cf-soft: #f1f3fa;
+  --cf-ink: #28324b;
+  --cf-muted: #707b92;
+  --cf-faint: #929bb0;
+  --cf-line: #d8deea;
+  --cf-accent: #7382bb;
+  --cf-accent-soft: #edf0fb;
+
+  color: var(--cf-ink);
+  font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
 .page {
   --cf-canvas: #eef1f7;
   --cf-paper: #fafbff;
@@ -195,7 +212,7 @@
 
 .stepper {
   display: grid;
-  grid-template-columns: 32px 34px 32px;
+  grid-template-columns: 32px 44px 32px;
   gap: 3px;
   align-items: center;
 }
@@ -225,7 +242,10 @@
 }
 
 .stepper b {
+  min-width: 44px;
   font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
   text-align: center;
 }
 

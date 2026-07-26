@@ -176,6 +176,8 @@ export default function WelcomePage() {
             onOpenAccount={() => router.push('/account')}
             onOpenHelp={() => setShowHelp(true)}
             onOpenFeedback={() => router.push('/feedback')}
+            onOpenLeaderboard={() => router.push('/leaderboard')}
+            onOpenMailbox={() => router.push('/mailbox')}
           />
         </div>
       </div>

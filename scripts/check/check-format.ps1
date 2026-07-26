@@ -787,8 +787,17 @@ $initModsPath = Join-Path $projectRoot "src\app\_components\init-mods.tsx"
 if (Test-Path $initModsPath) {
   $initContent = Get-FileContent $initModsPath
   if ($initContent) {
-    # Pattern 1: centralized registry.ts import (preferred)
-    if ($initContent -match "from\s+'@/mods/registry'") {
+    $registrationEntryContent = $initContent
+    foreach ($entryFile in @('init-mods-routes.ts', 'init-mods-bootstrap.ts')) {
+      $entryPath = Join-Path $projectRoot "src\app\_components\${entryFile}"
+      if (Test-Path $entryPath) {
+        $registrationEntryContent += "`n" + (Get-FileContent $entryPath)
+      }
+    }
+
+    # Pattern 1: centralized generated registry, including dynamically loaded
+    # route/bootstrap leaves used to keep the first viewport bundle light.
+    if ($registrationEntryContent -match "(?:from\s+|import\()'@/mods/registry'") {
       $registryPaths = @(
         (Join-Path $projectRoot "src\mods\registry.generated.ts"),
         (Join-Path $projectRoot "src\mods\registry.ts")

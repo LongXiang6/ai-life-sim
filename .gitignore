@@ -14,6 +14,7 @@ coverage/
 .nyc_output/
 
 # local QA and browser-run artifacts
+.qa-output/
 .tmp-ui-qa/
 test-results/
 
@@ -48,10 +49,12 @@ next-env.d.ts
 .vercel/
 
 # local generated artifacts
+.artifacts/
 *.local
 .superpowers/
 .data/
 .data-browser/
+.datadiagnostics/
 
 # environment exports without leading dot
 env.*

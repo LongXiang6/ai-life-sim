@@ -60,6 +60,11 @@ interface SessionJoinRow extends AccountRow {
   last_seen_at: number
 }
 
+export interface SessionAccountIdentity {
+  accountId: string
+  username: string
+}
+
 export class AccountServiceError extends Error {
   constructor(
     message: string,
@@ -350,6 +355,25 @@ export function getSessionAccount(token: string | undefined): AccountSessionPayl
     row.last_active_at = now
   }
   return sessionPayload(database, row)
+}
+
+/** 供服务端日志关联账号；不接受客户端声明的账号 ID 或用户名。 */
+export function getSessionAccountIdentity(token: string | undefined): SessionAccountIdentity | null {
+  if (!token) return null
+  const database = getAccountDatabase()
+  const tokenHash = hashSessionToken(token)
+  const row = database.prepare(`
+    SELECT accounts.id, accounts.username, account_sessions.expires_at
+    FROM account_sessions
+    JOIN accounts ON accounts.id = account_sessions.account_id
+    WHERE account_sessions.token_hash = ?
+  `).get(tokenHash) as { id: string; username: string; expires_at: number } | undefined
+  if (!row) return null
+  if (row.expires_at <= Date.now()) {
+    database.prepare('DELETE FROM account_sessions WHERE token_hash = ?').run(tokenHash)
+    return null
+  }
+  return { accountId: row.id, username: row.username }
 }
 
 export function requireSessionAccountId(token: string | undefined): string {

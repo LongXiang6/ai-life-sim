@@ -1,14 +1,28 @@
 const puppeteer = require('puppeteer')
+const fs = require('node:fs')
+const path = require('node:path')
 
-const baseUrl = process.env.UI_BASE_URL || 'http://localhost:3001'
+const baseUrl = process.env.UI_BASE_URL || 'http://localhost:3000'
 const chromePath = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
 // Read the transient test credential only when the caller supplied it; never commit it.
 const providedKeyFingerprint = process.env.DEEPSEEK_API_KEY || '__deepseek_test_key_not_configured__'
 const worldCode = 202607230002
+const targetRounds = Number.parseInt(process.env.NARRATIVE_ROUNDS || '20', 10)
+const reportPath = process.env.NARRATIVE_REPORT_PATH
+  || path.join(process.cwd(), 'reports', `deepseek-${targetRounds}-round-flow.json`)
 
 function seedPage(page) {
   return page.evaluateOnNewDocument((fixtureWorldCode) => {
+    // Force the logger's fetch fallback so Puppeteer can inspect the JSON body;
+    // a separate persisted-log assertion covers the normal sendBeacon path.
+    Object.defineProperty(navigator, 'sendBeacon', {
+      configurable: true,
+      value: () => false,
+    })
+    if (sessionStorage.getItem('deepseekFullFlowFixtureInitialized') === '1') return
+    sessionStorage.setItem('deepseekFullFlowFixtureInitialized', '1')
     localStorage.clear()
+    localStorage.setItem('ai-life-sim:disclaimer-accepted', '2.3.0')
     localStorage.setItem('mod-world:persist:world-state', JSON.stringify({ version: 4, state: {
       worldConfig: { name: '现代地球', eraName: '公元', eraStartYear: 2000, essenceTag: 'modern', powerSystemTag: 'none',
         powerCeiling: 8, spatialForm: 'plane', civilizationStage: 'modern', difficulty: 'normal', description: 'DeepSeek 全流程真实测试世界。', worldType: 'materialist' },
@@ -41,9 +55,28 @@ async function waitForNarrativeCount(page, count, timeout = 240000) {
   await page.waitForFunction((expected) => {
     try {
       const state = JSON.parse(localStorage.getItem('mod-engine:persist:engine-state') || '{}').state || {}
-      return (state.narrativeHistory?.length || 0) >= expected
+      return (state.narrativeHistory?.length || 0) >= expected || Boolean(state.narrativeError)
     } catch { return false }
   }, { timeout }, count)
+  const state = await readEngineState(page)
+  if (state.narrativeError) {
+    throw new Error(`round ${state.totalRounds + 1} failed: ${state.narrativeError}`)
+  }
+}
+
+async function readEngineState(page) {
+  return page.evaluate(() => JSON.parse(localStorage.getItem('mod-engine:persist:engine-state') || '{}').state || {})
+}
+
+async function waitForNextSimulationControl(page, timeout = 240000) {
+  await page.waitForFunction(() => {
+    const buttons = [...document.querySelectorAll('button')]
+    const canAdvance = buttons.some((button) => button.textContent?.includes('轻触，让岁月流转') && !button.disabled)
+    const canConfirmBranch = buttons.some((button) => button.textContent?.includes('确认选择') && !button.disabled)
+    let state = {}
+    try { state = JSON.parse(localStorage.getItem('mod-engine:persist:engine-state') || '{}').state || {} } catch { /* ignore */ }
+    return canAdvance || canConfirmBranch || document.querySelector('input[type="radio"]') !== null || Boolean(state.narrativeError)
+  }, { timeout })
 }
 
 async function main() {
@@ -59,13 +92,42 @@ async function main() {
   page.setDefaultNavigationTimeout(240000)
   const consoleErrors = []
   const proxyRequests = []
+  const proxyRequestIds = []
+  const clientActions = []
+  const debugLogRequests = []
   page.on('console', (message) => { if (message.type() === 'error') consoleErrors.push(message.text()) })
   page.on('pageerror', (error) => consoleErrors.push(error.message))
+  page.on('response', (response) => {
+    if (!response.url().includes('/api/proxy') || response.request().method() !== 'POST') return
+    const requestId = response.headers()['x-ai-request-id']
+    if (requestId) proxyRequestIds.push(requestId)
+  })
   // A real DeepSeek key is supplied only to this transient test runner. The
   // page never receives it; interception adds it at the local proxy boundary
   // and the original browser-authored payload remains what we audit below.
   await page.setRequestInterception(true)
   page.on('request', async (request) => {
+    if (request.url().includes('/api/log') && request.method() === 'POST') {
+      try {
+        const body = JSON.parse(request.postData() || '{}')
+        if (body.eventType === 'user_action') {
+          clientActions.push({ module: body.module, action: body.action, path: body.context?.path })
+        }
+      } catch { /* ignore malformed diagnostic probes */ }
+      return request.continue()
+    }
+    if (request.url().includes('/api/debug-log') && request.method() === 'POST') {
+      try {
+        const body = JSON.parse(request.postData() || '{}')
+        debugLogRequests.push({
+          category: body.category,
+          round: body.round,
+          requestId: body.requestId || body.meta?.requestId,
+          failed: body.meta?.failed === true,
+        })
+      } catch { /* ignore malformed diagnostic probes */ }
+      return request.continue()
+    }
     if (!request.url().includes('/api/proxy') || request.method() !== 'POST') return request.continue()
     let body = {}
     try { body = JSON.parse(request.postData() || '{}') } catch { /* ignore malformed telemetry */ }
@@ -112,9 +174,9 @@ async function main() {
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('确认命格') && !button.disabled))
   await clickText(page, '确认命格')
   await page.waitForFunction(() => location.pathname.endsWith('/attribute-alloc'))
-  await page.waitForSelector('button[aria-label="增加体魄"]')
+  await page.waitForSelector('button[aria-label="提高体魄"]')
   for (let index = 0; index < 15; index += 1) {
-    await page.click(`button[aria-label="${index < 10 ? '增加体魄' : '增加心智'}"]`)
+    await page.click(`button[aria-label="${index < 10 ? '提高体魄' : '提高心智'}"]`)
   }
   await clickText(page, '确认属性')
   await page.waitForFunction(() => location.pathname.endsWith('/fate-preview'))
@@ -123,43 +185,66 @@ async function main() {
   await page.waitForFunction(() => location.pathname.endsWith('/game-story'))
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('轻触，让岁月流转') && !button.disabled), { timeout: 120000 })
 
-  await clickText(page, '轻触，让岁月流转')
-  await waitForNarrativeCount(page, 1)
-  const first = await page.evaluate(() => JSON.parse(localStorage.getItem('mod-engine:persist:engine-state') || '{}').state || {})
-
-  await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('轻触，让岁月流转') && !button.disabled), { timeout: 240000 })
-  await clickText(page, '轻触，让岁月流转')
-  await waitForNarrativeCount(page, 2)
-
-  let branchObserved = await page.$('input[type="radio"]') !== null
+  let branchObserved = false
   let branchResolved = false
-  let forcedRoundCount = 2
-  if (!branchObserved) {
-    await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('强制下一轮分支') && !button.disabled)?.click())
-    // A complete body may arrive before optional branch META. Keep the body and
-    // retry the forced intent a small number of times. A successful background
-    // repair presents the branch before the advance button becomes available.
-    for (let attempt = 0; attempt < 2 && !branchObserved; attempt += 1) {
-      await page.waitForFunction(() => (
-        document.querySelector('input[type="radio"]') !== null
-        || [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('轻触，让岁月流转') && !button.disabled)
-      ), { timeout: 240000 })
-      branchObserved = await page.$('input[type="radio"]') !== null
-      if (branchObserved) break
+  let branchObservedCount = 0
+  let branchResolvedCount = 0
+  let forcedBranchAttempts = 0
+  let reloadVerified = false
+  let reloadRound = 0
+  const roundDurationsMs = []
+
+  while ((await readEngineState(page)).narrativeHistory?.length < targetRounds) {
+    await waitForNextSimulationControl(page)
+    const before = await readEngineState(page)
+    if (before.narrativeError) throw new Error(`round ${before.totalRounds + 1} failed: ${before.narrativeError}`)
+
+    const radio = await page.$('input[type="radio"]')
+    const startedAt = Date.now()
+    if (radio) {
+      branchObserved = true
+      branchObservedCount += 1
+      await radio.click()
+      await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('确认选择') && !button.disabled))
+      await clickText(page, '确认选择')
+      await waitForNarrativeCount(page, before.narrativeHistory.length + 1)
+      branchResolved = true
+      branchResolvedCount += 1
+    } else {
+      if (!branchObserved && before.narrativeHistory.length >= 2 && forcedBranchAttempts < 3 && before.forceBranchNext !== true) {
+        const toggled = await page.evaluate(() => {
+          const button = [...document.querySelectorAll('button')].find((item) => item.textContent?.includes('强制下一轮分支') && !item.disabled)
+          button?.click()
+          return Boolean(button)
+        })
+        if (toggled) forcedBranchAttempts += 1
+      }
       await clickText(page, '轻触，让岁月流转')
-      forcedRoundCount += 1
-      await waitForNarrativeCount(page, forcedRoundCount, 240000)
-      branchObserved = await page.$('input[type="radio"]') !== null
+      await waitForNarrativeCount(page, before.narrativeHistory.length + 1)
+    }
+    roundDurationsMs.push(Date.now() - startedAt)
+
+    const after = await readEngineState(page)
+    if (!reloadVerified && after.narrativeHistory.length >= Math.min(10, targetRounds)) {
+      await waitForNextSimulationControl(page)
+      const stableBeforeReload = await readEngineState(page)
+      if (!stableBeforeReload.branchRepairPending && await page.$('input[type="radio"]') === null) {
+        reloadRound = stableBeforeReload.narrativeHistory.length
+        const lifeRunId = stableBeforeReload.lifeRunId
+        await page.reload({ waitUntil: 'domcontentloaded' })
+        await page.waitForFunction((expectedRounds, expectedLifeRunId) => {
+          try {
+            const state = JSON.parse(localStorage.getItem('mod-engine:persist:engine-state') || '{}').state || {}
+            return state.narrativeHistory?.length === expectedRounds && state.lifeRunId === expectedLifeRunId
+          } catch { return false }
+        }, { timeout: 120000 }, reloadRound, lifeRunId)
+        await waitForNextSimulationControl(page)
+        reloadVerified = true
+      }
     }
   }
-  if (branchObserved) {
-    await page.click('input[type="radio"]')
-    await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('确认选择') && !button.disabled))
-    await clickText(page, '确认选择')
-    await page.waitForFunction(() => document.body.textContent?.includes('你的选择：'), { timeout: 120000 })
-    await waitForNarrativeCount(page, forcedRoundCount + 1, 240000)
-    branchResolved = true
-  }
+
+  await new Promise((resolve) => setTimeout(resolve, 2500))
 
   const persisted = await page.evaluate(() => {
     const parse = (key) => JSON.parse(localStorage.getItem(key) || '{}').state || {}
@@ -169,35 +254,93 @@ async function main() {
       storageValues: Object.keys(localStorage).map((key) => localStorage.getItem(key) || ''),
     }
   })
+  const narrativeRounds = (persisted.engine.narrativeHistory || []).map((entry, index) => ({
+    round: entry.repetitionMetric?.round || index + 1,
+    displayAge: entry.displayAge,
+    displayTimeLabel: entry.displayTimeLabel,
+    totalDays: entry.totalDays,
+    chars: entry.text?.length || 0,
+    firstLine: String(entry.text || '').split(/\r?\n/u).find((line) => line.trim())?.trim() || '',
+    text: entry.text,
+    branchPoint: entry.isBranchPoint === true,
+    branchResolved: entry.resolvedChoice !== undefined,
+    intentResolution: entry.intentResolution,
+    repetition: entry.repetitionMetric,
+  }))
+  const normalizedOpenings = narrativeRounds.map((entry) => entry.firstLine.replace(/[，。！？].*$/u, '').slice(0, 18))
+  const repeatedOpeningCount = normalizedOpenings.length - new Set(normalizedOpenings).size
+  const mainDebugLogs = debugLogRequests.filter((entry) => entry.category === 'narrative-rounds')
+  fs.mkdirSync(path.dirname(reportPath), { recursive: true })
+  fs.writeFileSync(reportPath, JSON.stringify({
+    generatedAt: new Date().toISOString(),
+    provider: 'deepseek',
+    model: 'deepseek-v4-flash',
+    targetRounds,
+    reloadRound,
+    storyRepetitionStats: persisted.engine.storyRepetitionStats,
+    rounds: narrativeRounds,
+  }, null, 2))
   const result = {
     provider: 'deepseek', model: 'deepseek-v4-flash',
+    targetRounds,
     viewport: { width: viewportWidth, height: viewportHeight },
     route: await page.evaluate(() => location.pathname),
-    proxyRequests,
+    proxyRequestCount: proxyRequests.length,
     mainNarrativeRequests: proxyRequests.filter((request) => request.promptAsset.includes('mod-engine:narrative:')).length,
     branchRepairRequests: proxyRequests.filter((request) => request.promptAsset.includes('narrative-branch-repair')).length,
     narrativeEntries: persisted.engine.narrativeHistory?.length || 0,
-    firstNarrativeChars: first.narrativeHistory?.[0]?.text?.length || 0,
+    incompleteNarrativeRounds: narrativeRounds.filter((entry) => entry.chars < 20).map((entry) => entry.round),
+    missingRepetitionMetricRounds: narrativeRounds.filter((entry) => !entry.repetition).map((entry) => entry.round),
+    repeatedOpeningCount,
+    highRepeatRounds: narrativeRounds.filter((entry) => entry.repetition?.qualityLevel === 'high').map((entry) => entry.round),
+    repetitionSummary: persisted.engine.storyRepetitionStats,
+    roundDurationsMs,
     equippedMythicPatterns: persisted.character.equippedMythicPatterns?.length || 0,
-    forcedRoundCount,
-    branchObserved, branchResolved,
+    forcedBranchAttempts,
+    branchObserved, branchResolved, branchObservedCount, branchResolvedCount,
+    committedIntentResolutions: narrativeRounds.filter((entry) => entry.intentResolution).length,
+    activeBranchIntents: persisted.engine.branchIntents?.length || 0,
+    archivedBranchIntents: persisted.engine.archivedBranchIntents?.length || 0,
     branchRepairPending: persisted.engine.branchRepairPending === true,
     forceBranchNext: persisted.engine.forceBranchNext === true,
+    reloadVerified,
+    reloadRound,
+    lastAutoSaveRound: persisted.engine.lastAutoSaveRound,
+    proxyRequestIds: proxyRequestIds.length,
+    uniqueProxyRequestIds: new Set(proxyRequestIds).size,
+    mainDebugLogs: mainDebugLogs.length,
+    debugLogsWithRequestId: mainDebugLogs.filter((entry) => entry.requestId).length,
+    capturedUserActions: clientActions.length,
+    capturedRoundCompletions: clientActions.filter((entry) => entry.action === 'round-advance-completed').length,
+    capturedControlActivations: clientActions.filter((entry) => entry.action === 'control-activated').length,
+    actionPaths: [...new Set(clientActions.map((entry) => entry.path).filter(Boolean))],
     keySentToBrowserRequest: proxyRequests.some((request) => request.hasClientKey),
     keyPersistedInBrowser: persisted.storageValues.some((value) => value.includes(providedKeyFingerprint)),
+    reportPath,
     consoleErrors,
   }
   console.log(JSON.stringify(result, null, 2))
   await browser.close()
   if (
     result.route !== '/game-story'
-    || result.narrativeEntries < 3
-    || result.firstNarrativeChars < 20
+    || result.narrativeEntries !== targetRounds
+    || result.incompleteNarrativeRounds.length > 0
+    || result.missingRepetitionMetricRounds.length > 0
+    || result.highRepeatRounds.length > 0
     || result.equippedMythicPatterns !== 2
     || !result.branchObserved
     || !result.branchResolved
+    || result.committedIntentResolutions === 0
     || result.branchRepairPending
     || result.forceBranchNext
+    || !result.reloadVerified
+    || result.lastAutoSaveRound < targetRounds
+    || result.proxyRequestIds === 0
+    || result.uniqueProxyRequestIds !== result.proxyRequestIds
+    || result.mainDebugLogs < targetRounds
+    || result.debugLogsWithRequestId < targetRounds
+    || result.capturedRoundCompletions < targetRounds
+    || result.capturedControlActivations === 0
     || result.keySentToBrowserRequest
     || result.keyPersistedInBrowser
     || result.consoleErrors.length > 0

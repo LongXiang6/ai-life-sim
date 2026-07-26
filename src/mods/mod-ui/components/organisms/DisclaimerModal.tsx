@@ -13,12 +13,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 
-import {
-  DIAGNOSTIC_DISCLOSURE_KEY,
-  DIAGNOSTIC_DISCLOSURE_VERSION,
-} from '@/core/logger/diagnostic-consent'
-
 import styles from './DisclaimerModal.module.css'
+
+const DISCLAIMER_ACCEPTED_KEY = 'ai-life-sim:disclaimer-accepted'
+const DISCLAIMER_VERSION = '2.3.0'
 
 /**
  * 检查是否已接受免责声明
@@ -26,7 +24,7 @@ import styles from './DisclaimerModal.module.css'
  */
 export function isDisclaimerAccepted(): boolean {
   try {
-    return localStorage.getItem(DIAGNOSTIC_DISCLOSURE_KEY) === DIAGNOSTIC_DISCLOSURE_VERSION
+    return localStorage.getItem(DISCLAIMER_ACCEPTED_KEY) === DISCLAIMER_VERSION
   } catch {
     return false
   }
@@ -34,7 +32,7 @@ export function isDisclaimerAccepted(): boolean {
 
 export function acceptDisclaimer(): void {
   try {
-    localStorage.setItem(DIAGNOSTIC_DISCLOSURE_KEY, DIAGNOSTIC_DISCLOSURE_VERSION)
+    localStorage.setItem(DISCLAIMER_ACCEPTED_KEY, DISCLAIMER_VERSION)
   } catch {
     // localStorage 不可用时静默忽略
   }

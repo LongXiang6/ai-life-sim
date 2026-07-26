@@ -10,8 +10,6 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 
 import { resolveNarrativeBranchChoice, setForceBranchNextRound } from '@/mods/mod-engine/engine-api'
 import { useEngineStore } from '@/mods/mod-engine'
-import { reportUsageMetric } from '@/core/logger/client-logger'
-import { extractAggregateTerms } from '@/core/logger/usage-metrics'
 
 interface UseSimulationBranchDeps {
   advanceRound: () => Promise<void>
@@ -78,14 +76,6 @@ export function useSimulationBranch({ advanceRound }: UseSimulationBranchDeps) {
       console.warn('[useSimulationBranch] handleBranchConfirm: 当前分支已失效或选择未通过安全检查')
       return
     }
-    const isCustomChoice = Boolean(branchCustomText.trim())
-    reportUsageMetric({
-      schemaVersion: 1,
-      kind: 'branch_choice',
-      branchChoiceType: isCustomChoice ? 'custom' : 'preset',
-      branchTerms: isCustomChoice ? extractAggregateTerms(choice) : undefined,
-      branchChars: isCustomChoice ? choice.length : undefined,
-    })
     setBranchCustomText('')
     setSelectedBranchOptionId(null)
 

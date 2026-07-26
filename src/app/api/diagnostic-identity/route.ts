@@ -1,6 +1,6 @@
 /**
  * @module diagnostic-identity/route.ts
- * @description 为当前浏览器环境分配稳定的六位玩家诊断编号
+ * @description 为当前浏览器环境分配稳定的诊断编号与设备来源编号
  * @mod app
  */
 
@@ -10,6 +10,8 @@ import {
   DIAGNOSTIC_PLAYER_CODE_COOKIE,
 } from '@/core/logger/diagnostic-player-code'
 import { ensureDiagnosticPlayerCode } from '@/core/logger/diagnostic-player-identity'
+import { DEVICE_PROVENANCE_ID_COOKIE } from '@/core/logger/device-provenance'
+import { ensureDeviceProvenanceId } from '@/core/logger/device-provenance-identity'
 import { getServerRequestSource } from '@/core/logger/server-log-store'
 
 const COOKIE_MAX_AGE_SECONDS = 10 * 365 * 24 * 60 * 60
@@ -45,18 +47,30 @@ export async function GET(request: Request): Promise<Response> {
     return Response.json({ error: '诊断编号请求过于频繁' }, { status: 429 })
   }
 
-  const diagnosticCode = await ensureDiagnosticPlayerCode(source.diagnosticCode)
-  if (!diagnosticCode) {
-    return Response.json({ error: '暂时无法分配诊断编号' }, { status: 503 })
+  const [diagnosticCode, deviceProvenanceId] = await Promise.all([
+    ensureDiagnosticPlayerCode(source.diagnosticCode),
+    ensureDeviceProvenanceId(source.deviceProvenanceId),
+  ])
+  if (!diagnosticCode || !deviceProvenanceId) {
+    return Response.json({ error: '暂时无法分配日志来源编号' }, { status: 503 })
   }
 
   const response = NextResponse.json(
-    { diagnosticCode, scope: 'browser-profile' },
+    { diagnosticCode, deviceProvenanceId, scope: 'browser-profile' },
     { headers: { 'Cache-Control': 'no-store' } },
   )
   response.cookies.set({
     name: DIAGNOSTIC_PLAYER_CODE_COOKIE,
     value: diagnosticCode,
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    path: '/',
+    maxAge: COOKIE_MAX_AGE_SECONDS,
+  })
+  response.cookies.set({
+    name: DEVICE_PROVENANCE_ID_COOKIE,
+    value: deviceProvenanceId,
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',

@@ -11,11 +11,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { AIModelConfig } from '@/foundation'
 
 import { eventBus, CoreEvents } from '@/core/event-bus'
+import { postNarrativeRoundOutcome } from '@/core/logger/narrative-round-diagnostic'
 import { useGlobalStore } from '@/core/global-store'
 import { runtimeRegistry } from '@/core/mod-loader/runtime-registry'
 import { DEFAULT_AI_MODEL } from '@/core/ai-service'
 import { useSettingsStore } from '@/mods/mod-settings'
-import { reportUsageMetric } from '@/core/logger/client-logger'
+import { logger, reportUsageMetric } from '@/core/logger/client-logger'
 import {
   storyRepetitionUsageMetricKey,
   storyRepetitionUsageMetricRevision,
@@ -39,6 +40,22 @@ import type { NarrativeRepetitionMetric } from './helpers/narrative-repetition-m
 const REPORTED_REPETITION_REVISION_LIMIT = 64
 const reportedRepetitionRevisions = new Map<string, string>()
 let repetitionMetricSubscriptionInstalled = false
+let pendingRoundFinalization: Promise<void> | null = null
+
+async function waitForRoundFinalization(): Promise<void> {
+  const pending = pendingRoundFinalization
+  if (pending) await pending
+}
+
+function queueRoundFinalization(task: () => Promise<void>): void {
+  const pending = task().catch((error) => {
+    logger.warn('simulation', '回合诊断最终化失败', error)
+  })
+  const finalized = pending.finally(() => {
+    if (pendingRoundFinalization === finalized) pendingRoundFinalization = null
+  })
+  pendingRoundFinalization = finalized
+}
 
 function ensureRepetitionMetricSubscription(): void {
   if (repetitionMetricSubscriptionInstalled) return
@@ -254,8 +271,14 @@ export function useSimulationAdvance() {
   }, [])
 
   const advanceRound = useCallback(async () => {
-    if (isAdvancingRef.current) return
-    if (useEngineStore.getState().branchRepairPending) return
+    await waitForRoundFinalization()
+    const before = useEngineStore.getState()
+    if (isAdvancingRef.current) {
+      return
+    }
+    if (before.branchRepairPending) {
+      return
+    }
     const runtimeReadiness = getSimulationRuntimeReadiness()
     if (!runtimeReadiness.loaderReady) {
       useEngineStore.getState().setNarrativeError('核心模拟系统仍在初始化，请稍候重试。')
@@ -281,6 +304,7 @@ export function useSimulationAdvance() {
       customModel,
       temperature,
       reasoningEffort,
+      provider,
     } = useSettingsStore.getState()
     // 从单一来源常量取默认字数，与 orchestrator、pre-gen 共享同一常量
     const wordCountTarget = useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET
@@ -289,7 +313,11 @@ export function useSimulationAdvance() {
     const aiConfig: AIModelConfig = {
       model,
       temperature: temperature ?? 0.8,
-      maxTokens: computeNarrativeMaxTokens(wordCountTarget),
+      maxTokens: computeNarrativeMaxTokens(wordCountTarget, {
+        reasoningEffort,
+        providerId: provider,
+        model,
+      }),
       stream: true,
       reasoningEffort,
     }
@@ -328,27 +356,36 @@ export function useSimulationAdvance() {
       )
       roundSucceeded = true
 
-      // 自动保存：先让后台摘要提交，再取最终快照；不阻塞玩家看到本轮结果。
+      // 自动保存与回合 outcome 只在同一轮最终状态稳定后各执行一次；不记录点击、导航或输入过程。
       syncOrchestratorToEngineStore()
       const completedState = useEngineStore.getState()
       const repetition = completedState.narrativeHistory[completedState.narrativeHistory.length - 1]?.repetitionMetric
       if (repetition) {
         reportStoryRepetitionMetric(completedState.lifeRunId, repetition)
       }
-      void orchestrator.waitForBackgroundCompression().then(() => {
+      queueRoundFinalization(async () => {
+        await orchestrator.waitForBackgroundCompression()
         syncOrchestratorToEngineStore()
-        orchestrator.triggerAutoSave()
+        await orchestrator.triggerAutoSave()
+        const report = orchestrator.getLastRoundDiagnostic()
+        if (report) await postNarrativeRoundOutcome(report)
       })
     } catch (err) {
       useEngineStore.getState().setBranchRepairPending(false)
       const expectedQualityRejection = err instanceof Error
         && err.name === 'NarrativeGenerationRejectedError'
-      const logRoundFailure = expectedQualityRejection ? console.warn : console.error
-      logRoundFailure('[useSimulationAdvance] 回合执行失败:', err)
+      const logRoundFailure = expectedQualityRejection ? logger.warn : logger.error
+      logRoundFailure('simulation', '回合执行失败', err)
       try {
         orchestrator.restorePreviewSnapshot(roundSnapshot)
       } catch (rollbackError) {
-        console.error('[useSimulationAdvance] 回合回滚失败:', rollbackError)
+        logger.error('simulation', '回合回滚失败', rollbackError)
+      }
+      const failedReport = orchestrator.getLastRoundDiagnostic()
+      if (failedReport) {
+        queueRoundFinalization(async () => {
+          await postNarrativeRoundOutcome(failedReport)
+        })
       }
       useEngineStore.getState().setNarrativeError(
         err instanceof Error ? err.message : '叙事生成失败',

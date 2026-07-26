@@ -1,16 +1,11 @@
 # 蓝图一 · MVP 最小可玩版本（交付 AI 执行）
 
-文档角色：selected-target
-权威层级：A2
-状态：active
-适用范围：MVP 可玩路径、恢复范围和验收链路
-拥有者：产品决策与 `mod-engine` MVP runtime policy
-最后验证：2026-07-23；对照当前 Skills、MVP runtime policy、四项属性分配创建链、蓝图二 P0/P1 与系统职责索引
-取代关系：none
+文档角色：MVP 历史源记录
+状态：按需读取
+适用范围：MVP 可玩路径、恢复范围和验收事实
 运行真源：`src/mods/mod-engine/helpers/mvp-stages-config.default.json` 与实际玩家路径
-验收证据：结构、MOD、UI、lint、TypeScript、交付 gate 与玩家路径
 
-版本：v1.6；创建：2026-07-04。本文档约束 MVP 范围，但不替代 `.agents/` 技能体系。
+本文件只提供 MVP 范围事实。通过 `docs/authority-index.md` 选择相关章节，不要整篇加载。当前用户要求高于本文件。
 
 ---
 
@@ -22,36 +17,11 @@
 
 ---
 
-## 〇.1 执行权威优先级
+## 〇.1 当前文档地位
 
-本蓝图只定义 MVP 范围和执行目标；遇到不清楚或与技能文件冲突时，按以下优先级执行：
+本蓝图只保留 MVP 范围和历史目标，不定义优先级、任务前置阅读、执行计划或修改权限。当前任务从 `docs/authority-index.md` 进入四份活动权威树，只在需要追溯本蓝图中的某项历史事实时读取对应章节。
 
-1. `docs/product-decisions.md`：当前产品语义的唯一真源，生效 `PD-xxx` 优先于旧计划和本文档。
-2. `../../AGENTS.md` 与 `.agents/skills/ai-life-sim/SKILL.md`：项目边界、总体架构、运行权威和精确命令。
-3. 对应域 Skill：MOD / 子系统使用 `ai-life-sim-mod-development`，Prompt / Token 使用 `ai-life-sim-prompt-engineering`，UI 使用 `ai-life-sim-ui`。
-4. 本蓝图：只作为 MVP 范围、页面链路、延后清单和验收标准。
-5. 实际代码与运行配置：用调用链和 `mvp-stages-config.default.json` 核实当前状态，文件存在不代表系统正在运行。
-
-若当前 Skill、旧计划与实际代码冲突，先按产品决策和运行配置判定；仍有多种合理解释时列出证据与影响后再确认。
-
----
-
-## 一、必读前置（动手前先读，不在本文件重复）
-
-| 主题 | 权威源 | 要点 |
-|------|--------|------|
-| 项目边界与命令 | `../../AGENTS.md` | 修改权限、工作区、结构检查与交付关闸 |
-| 项目架构 / 为什么叙事是根 | `.agents/skills/ai-life-sim/SKILL.md` + `docs/system-authority-index.md` | foundation→core→mods→app；mod-engine 是叙事根 |
-| 子系统写法（BaseSubsystem） | `.agents/skills/ai-life-sim-mod-development/SKILL.md` + `src/core/subsystem-base.ts` | 新建或恢复子系统遵循 live BaseSubsystem；时间只读 canonical RoundContext |
-| 子系统模板 / 清空桩模板 | `.agents/skills/ai-life-sim-mod-development/assets/templates/subsystem.template.ts` | 恢复子系统使用当前模板；延后系统优先从执行路径隔离 |
-| 分段恢复优先级 | 本蓝图 + `docs/blueprint-02-multi-world-simulation-foundation.md` | 当前 MVP 边界与 P0—P8 恢复顺序；冲突时以活动产品决策为准 |
-| 架构边界 | `docs/simulation-rewrite-architecture.md` | BaseSubsystem、时间、字段契约、原子提交与跨域数据规则 |
-| MOD 清单 / 依赖 | live manifests + `src/foundation/types/mod.types.ts` + MVP runtime policy | 当前依赖、公开边界与运行成员 |
-| 关闸命令 | `../../AGENTS.md` §5 | 使用 structural、MOD、lint、tsc 和相应 gate |
-
-**改变 `src/core/` 或 `src/foundation/` 的公开契约、持久化、运行态结构或跨模块语义时，按 `../../AGENTS.md` 权限边界处理。**
-
-**迁移口径**：本蓝图不要求一次性机械迁移所有 74 个旧子系统；凡本轮实际触碰、清空、恢复的子系统，必须按当前技能模板迁到 `extends BaseSubsystem`。未触碰的保留系统不得"顺手"大迁移，除非链路检索证明它阻断 MVP。
+**历史迁移口径**：当时没有要求一次性机械迁移全部旧子系统。该记录不再为当前任务增加迁移要求。
 
 ---
 

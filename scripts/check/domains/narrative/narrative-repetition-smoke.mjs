@@ -36,7 +36,7 @@ const campaignSource = readFileSync(
   'utf8',
 )
 const prefetchedStart = campaignSource.indexOf(
-  'const prefetched = orchestrator.consumePrefetchedNarrative()',
+  'const prefetchedCandidate = orchestrator.consumePrefetchedNarrative()',
 )
 const prefetchedGate = campaignSource.indexOf(
   'const prefetchDecision = inspectPrefetchedNarrativeRepetition(',

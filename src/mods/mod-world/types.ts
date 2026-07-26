@@ -11,6 +11,7 @@ import type {
   SpatialEdge,
   SpatialGraphContract,
   WorldContextRecord,
+  WorldScoringProfile,
 } from '@/foundation'
 
 /** AI 世界初始化状态 */
@@ -175,6 +176,10 @@ export interface WorldConfig {
   _dimensionValues?: Record<string, string>
   /** AI 生成的 W02 详细参数（world-config-prompt 产出） */
   aiDetailedParameters?: WorldAIDetailedParameters
+  /** 世界初始化时固化的本地可复算结算维度。 */
+  scoringProfile?: WorldScoringProfile
+  /** 评分维度来源；fallback 会在后台 AI 初始化成功后替换。 */
+  _scoringProfileSource?: 'fallback' | 'ai'
 }
 
 // ==================== 具名实体 ====================

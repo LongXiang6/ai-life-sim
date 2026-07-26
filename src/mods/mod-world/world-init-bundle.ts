@@ -25,6 +25,11 @@ import {
 } from './world-init-bundle-deps'
 import type { WorldConfig, WorldInitAIStatus, WorldSnapshot } from './types'
 import {
+  buildFallbackWorldScoringProfile,
+  isCompleteWorldScoringProfile,
+} from './scoring-profile'
+import { generateWorldScoringProfile } from './world-scoring-profile-generation'
+import {
   createWorldInitPipelineContext,
   injectWorldInitOrchestratorContext,
   runWorldInitPipeline,
@@ -68,6 +73,7 @@ export interface WorldInitBundleResult {
   tagsGenerated: boolean
   configGenerated: boolean
   entitiesGenerated: boolean
+  scoringProfileGenerated: boolean
   errors: string[]
   rawTags?: string[]
 }
@@ -127,7 +133,15 @@ export async function commitWorldInitialization(
   })
   const previousContextId = store.currentContextId
   const previousInstance = store.contexts[contextId]
-  const resolvedConfig = applyCoherenceToWorldConfig(config)
+  const coherentConfig = applyCoherenceToWorldConfig(config)
+  const resolvedConfig = isCompleteWorldScoringProfile(coherentConfig.scoringProfile)
+    && coherentConfig.scoringProfile.worldId === contextId
+    ? coherentConfig
+    : {
+        ...coherentConfig,
+        scoringProfile: buildFallbackWorldScoringProfile(coherentConfig, contextId),
+        _scoringProfileSource: 'fallback' as const,
+      }
   const parentContextId = options?.parentContextId ?? previousInstance?.record.parentContextId
   const contextKind = options?.contextKind ?? previousInstance?.record.kind ?? inferContextKind(resolvedConfig)
   const localCalendar = options?.localCalendar ?? previousInstance?.record.localCalendar
@@ -279,6 +293,7 @@ export async function generateWorldInitBundle(
       tagsGenerated: false,
       configGenerated: false,
       entitiesGenerated: false,
+      scoringProfileGenerated: false,
       errors: [],
     }
   }
@@ -297,21 +312,43 @@ export async function generateWorldInitBundle(
 
   const result = await runWorldInitPipeline(ctx)
 
+  let scoringProfileGenerated = config._scoringProfileSource === 'ai'
+  const current = useWorldStore.getState()
+  const activeWorldId = current.currentContextId
+    ?? current.worldConfig?.scoringProfile?.worldId
+    ?? `world-${worldCode}`
+  if (!scoringProfileGenerated) {
+    try {
+      const profile = await generateWorldScoringProfile(config, activeWorldId, worldCode)
+      const latest = useWorldStore.getState()
+      if (latest.worldCode === worldCode && latest.worldConfig) {
+        latest.setWorldConfig({
+          ...latest.worldConfig,
+          scoringProfile: profile,
+          _scoringProfileSource: 'ai',
+        })
+        scoringProfileGenerated = true
+      }
+    } catch (error) {
+      result.errors.push(`结算维度生成失败，继续使用本地维度：${error instanceof Error ? error.message : String(error)}`)
+    }
+  }
+
   await injectWorldInitOrchestratorContext(config, result.rawTags)
 
   const successCount = [
     result.calibrationGenerated, result.tagsGenerated, result.configGenerated,
-    result.entitiesGenerated,
+    result.entitiesGenerated, scoringProfileGenerated,
   ].filter(Boolean).length
   console.info(
-    `[mod-world] 世界 "${config.name}" AI 初始化完成: ${successCount}/4 成功` +
+    `[mod-world] 世界 "${config.name}" AI 初始化完成: ${successCount}/5 成功` +
     (result.errors.length > 0 ? `，${result.errors.length} 项失败` : ''),
   )
   if (result.errors.length > 0) {
     console.warn('[mod-world] 世界 AI 初始化部分失败', result.errors)
   }
 
-  return result
+  return { ...result, scoringProfileGenerated }
 }
 
 /** 全局去重守卫：防止并发调用同一世界/阶段的 AI 填充 */
