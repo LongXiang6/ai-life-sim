@@ -121,7 +121,7 @@ function AttributeAllocContent() {
     <div className="final-flow-frame">
       <div className="final-flow-design-fit">
         <div className={`final-flow-design-canvas ${styles.flowCanvas}`}>
-          <main className={styles.page}>
+          <main className={`${styles.page} final-flow-page-surface`}>
             <div className={styles.screen}>
           <header className={styles.header}>
             <div className={styles.meta}><span>AI LIFE SIM · 命书</span><span>06 / 08</span></div>

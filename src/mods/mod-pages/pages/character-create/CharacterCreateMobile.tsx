@@ -31,7 +31,7 @@ export function CharacterCreateMobile() {
         <div className="final-flow-design-canvas">
           <main className={styles.page}>
             <div className={styles.container}>
-              <div className={styles.paper}>
+              <div className={`${styles.paper} final-flow-page-surface`}>
             <span className={styles.spine} aria-hidden="true" />
             <header className={styles.header}>
               <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>03 / 08</span></div>

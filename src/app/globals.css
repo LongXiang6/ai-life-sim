@@ -100,6 +100,17 @@ body {
 }
 
 /*
+ * Runtime pages are full-bleed on a real device. Individual page modules may
+ * still use a rounded paper/screen for their prototype, so the outer surface
+ * opts into this shared reset while inner cards keep their own borders.
+ */
+.final-flow-frame .final-flow-page-surface {
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/*
  * Most approved flow screens use a 320 x 694 design canvas. Keep that canvas
  * intact and derive one uniform scale from the available frame, matching the
  * solution-library renderer on every phone aspect ratio.

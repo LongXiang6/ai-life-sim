@@ -909,7 +909,7 @@ function TalentDrawContent() {
           <div className="final-flow-design-canvas">
             <main className={styles.page} data-phase={phase}>
             <article className={styles.book} aria-labelledby="talent-page-title">
-          <div className={cn(styles.screen, phase !== 'selecting' && styles.screenDraw)}>
+          <div className={cn(styles.screen, phase !== 'selecting' && styles.screenDraw, 'final-flow-page-surface')}>
             <header className={styles.header}>
               <div className={styles.meta} aria-hidden="true">
                 <span>AI LIFE SIM · 命书</span>

@@ -30,7 +30,7 @@ export function WorldSelectMobile() {
           {logic.conflictModal}
           <main className={styles.page} aria-busy={logic.isConfirming}>
             <div className={styles.container}>
-              <div className={styles.paper}>
+              <div className={`${styles.paper} final-flow-page-surface`}>
             <header className={styles.header}>
               <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>01 / 08</span></div>
               <div className={styles.titleRow}>

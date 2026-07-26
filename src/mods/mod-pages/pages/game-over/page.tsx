@@ -643,7 +643,7 @@ export default function GameOverPage() {
     <div className="final-flow-frame">
       <div className="final-flow-design-fit final-flow-design-fit--330">
         <div className="final-flow-design-canvas">
-          <PageScroll maxWidth={330} className={styles.page}>
+          <PageScroll maxWidth={330} className={`${styles.page} final-flow-page-surface`}>
           <div className={styles.wrapper}>
         <article className={styles.book} aria-labelledby="game-over-title">
           <div className={styles.ornament} aria-hidden="true" />

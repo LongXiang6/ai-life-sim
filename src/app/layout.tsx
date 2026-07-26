@@ -18,11 +18,17 @@ import { InitMods } from './_components/init-mods'
 import { PreferenceEffects } from './_components/preference-effects'
 import { StorageInit } from './_components/storage-init'
 
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 
 export const metadata: Metadata = {
   title: 'AI 人生模拟器',
   description: 'AI 驱动的人生模拟器',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

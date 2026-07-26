@@ -101,7 +101,7 @@ export default function FeedbackPage() {
     <div className="final-flow-frame">
       <div className="final-flow-design-fit">
         <div className="final-flow-design-canvas">
-          <main className={styles.page}>
+          <main className={`${styles.page} final-flow-page-surface`}>
             <div className={styles.screen}>
               <header className={styles.header}>
                 <div className={styles.meta} aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>附 · 反馈</span></div>

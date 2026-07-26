@@ -73,7 +73,7 @@ export default function SaveManagerPage() {
       <div className="final-flow-design-fit">
         <div className="final-flow-design-canvas">
           <div className={styles.container}>
-            <div className={styles.frame}>
+            <div className={`${styles.frame} final-flow-page-surface`}>
         <header className={styles.header}>
           <button
             type="button"
