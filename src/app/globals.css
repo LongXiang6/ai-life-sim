@@ -48,11 +48,11 @@ body {
 }
 
 /*
- * Final mobile UI viewport.
+ * Final runtime viewport.
  *
- * Each page keeps its solution-library design canvas intact and derives one
- * scale from the available width and height. Larger viewports only center
- * that phone frame; they never switch the page back to a desktop composition.
+ * The solution-library phone element is a visual reference only. Runtime
+ * pages keep the approved design canvas, but the outer viewport itself is
+ * never rendered as a device shell.
  */
 .final-flow-frame {
   position: relative;
@@ -65,7 +65,9 @@ body {
   margin: 0;
   overflow: hidden;
   place-items: center;
-  background: #eef1f7;
+  background:
+    linear-gradient(135deg, rgba(255, 215, 95, 0.07), rgba(255, 215, 95, 0) 32%),
+    linear-gradient(#fafbff, #f3f5f9);
   color-scheme: light;
   container-type: size;
   /* Establish the containing block used by flow sheets and action bars. */
@@ -160,17 +162,40 @@ body {
   max-width: none;
 }
 
+/*
+ * On a real phone the visible browser height is often shorter than the
+ * approved design canvas. Keep the canvas width exact and let the runtime
+ * viewport scroll vertically so the bottom controls remain reachable.
+ */
+@media (max-width: 47.99rem) {
+  .final-flow-frame {
+    display: flex;
+    height: 100dvh;
+    min-height: 100dvh;
+    align-items: flex-start;
+    justify-content: center;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .final-flow-design-fit,
+  .final-flow-design-fit--430,
+  .final-flow-design-fit--330,
+  .final-flow-design-fit--390 {
+    width: 100%;
+    max-width: none;
+    max-height: none;
+    flex: 0 0 auto;
+  }
+}
+
 @media (min-width: 48rem) {
   .final-flow-frame {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    width: min(430px, calc((100dvh - 2rem) * 430 / 932));
-    height: min(932px, calc(100dvh - 2rem));
-    border: 1px solid #d8deea;
-    border-radius: 5.58%;
-    box-shadow: 0 16px 34px rgba(31, 43, 65, 0.1);
-    transform: translate(-50%, -50%) translateZ(0);
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
   }
 }
 
