@@ -9,6 +9,7 @@
 - Next.js 动态入口位于 `src/app/[mod-page]/` 和 `src/app/[...mod-page]/`，实际页面由 `src/mods/mod-pages/` 提供。
 - 页面拥有渲染、导航和页面内临时交互状态；业务状态、计算、持久化和跨系统提交由所属 MOD 或 Core 服务负责。
 - 页面通过公共入口调用所属系统，不从其他 MOD 私有目录建立第二套状态或写入路径。
+- `final-flow` 手机画布按设计宽度统一缩放；当真实可视高度短于含统一底栏的设计画布时，共享运行时将内容视口回算到可见高度，由页内滚动承载溢出内容并让底栏保持在可点击区域。实时源为 `src/mods/mod-ui/components/organisms/FinalFlowScaleRuntime.tsx` 与 `src/app/globals.css`。
 - `docs/ui-prototypes/mobile/flow.html` 及其页面只在用户明确要求原型或视觉对照时作为界面资产，不定义运行时机制或全局执行流程。
 
 ## 界面树

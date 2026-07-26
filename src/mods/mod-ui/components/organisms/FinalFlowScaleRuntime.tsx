@@ -13,9 +13,38 @@ const DESIGN_SIZES: Record<string, { width: number; height: number }> = {
   'final-flow-design-fit--330': { width: 330, height: 715 },
 }
 
+const MOBILE_BREAKPOINT = 768
+const MOBILE_HEIGHT_FIT_ATTRIBUTE = 'data-final-flow-mobile-height-fit'
+const HEIGHT_OWNER_ATTRIBUTE = 'data-final-flow-height-owner'
+
 function getDesignSize(fit: HTMLElement) {
   const variant = Object.keys(DESIGN_SIZES).find((className) => fit.classList.contains(className))
   return variant ? DESIGN_SIZES[variant] : { width: 320, height: 694 }
+}
+
+function syncMobileHeightFit(
+  canvas: HTMLElement,
+  bottomBar: HTMLElement | null,
+  visibleDesignHeight: number,
+  enabled: boolean,
+) {
+  const heightOwner = enabled && bottomBar?.offsetParent instanceof HTMLElement
+    ? bottomBar.offsetParent
+    : null
+
+  canvas.querySelectorAll<HTMLElement>(`[${HEIGHT_OWNER_ATTRIBUTE}]`).forEach((owner) => {
+    if (owner !== heightOwner) owner.removeAttribute(HEIGHT_OWNER_ATTRIBUTE)
+  })
+
+  if (!enabled) {
+    canvas.removeAttribute(MOBILE_HEIGHT_FIT_ATTRIBUTE)
+    canvas.style.removeProperty('--final-flow-visible-height')
+    return
+  }
+
+  canvas.setAttribute(MOBILE_HEIGHT_FIT_ATTRIBUTE, 'true')
+  canvas.style.setProperty('--final-flow-visible-height', `${visibleDesignHeight}px`)
+  if (heightOwner && heightOwner !== canvas) heightOwner.setAttribute(HEIGHT_OWNER_ATTRIBUTE, 'true')
 }
 
 function syncFit(fit: HTMLElement) {
@@ -32,22 +61,36 @@ function syncFit(fit: HTMLElement) {
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return
 
   const design = getDesignSize(fit)
-  const isMobile = width < 768
-  const scale = isMobile
-    ? width / design.width
-    : Math.min(width / design.width, height / design.height)
+  const isMobile = width < MOBILE_BREAKPOINT
+  // Mobile: use the smaller of width/height ratio so the canvas always fits
+  // within the viewport without overflow. Desktop: same formula (min of both).
+  const widthRatio = width / design.width
+  const heightRatio = height / design.height
+  const scale = Math.min(widthRatio, heightRatio)
   if (!Number.isFinite(scale) || scale <= 0) return
+
+  const bottomBar = canvas.querySelector<HTMLElement>('[data-flow-bottom-bar]')
+  const visualHeight = window.visualViewport?.height
+  const availableHeight = isMobile && Number.isFinite(visualHeight) && visualHeight! > 0
+    ? Math.min(height, visualHeight!)
+    : height
+  const visibleDesignHeight = Math.min(design.height, availableHeight / scale)
+  const fitMobileHeight = isMobile
+    && bottomBar !== null
+    && visibleDesignHeight < design.height - 0.5
+  const canvasHeight = fitMobileHeight ? visibleDesignHeight : design.height
 
   // CSS typed division is unavailable in older mobile browsers; keep the
   // canvas dimensions fixed and provide a plain numeric transform instead.
   fit.style.width = `${design.width * scale}px`
-  fit.style.height = `${design.height * scale}px`
+  fit.style.height = `${canvasHeight * scale}px`
   fit.style.maxWidth = 'none'
   fit.style.maxHeight = 'none'
   canvas.style.width = `${design.width}px`
-  canvas.style.height = `${design.height}px`
+  canvas.style.height = `${canvasHeight}px`
   canvas.style.transformOrigin = 'top left'
   canvas.style.transform = `scale(${scale})`
+  syncMobileHeightFit(canvas, bottomBar, visibleDesignHeight, fitMobileHeight)
 }
 
 function syncAllFits() {

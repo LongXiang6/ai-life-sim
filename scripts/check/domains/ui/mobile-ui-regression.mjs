@@ -78,6 +78,7 @@ const helpModalCssSrc = readRel('src/mods/mod-ui/components/organisms/HelpModal.
 const disclaimerModalSrc = readRel('src/mods/mod-ui/components/organisms/DisclaimerModal.tsx')
 const disclaimerModalCssSrc = readRel('src/mods/mod-ui/components/organisms/DisclaimerModal.module.css')
 const helpModalSurfaceSrc = `${helpModalSrc}\n${helpNavigationSrc}`
+const finalFlowScaleRuntimeSrc = readRel('src/mods/mod-ui/components/organisms/FinalFlowScaleRuntime.tsx')
 const worldSelectMobileSrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectMobile.tsx')
 const worldSelectLogicSrc = readRel('src/mods/mod-pages/pages/world-select/useWorldSelectLogic.ts')
 const worldSelectStageSrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectStage.tsx')
@@ -566,6 +567,14 @@ assertOk(
     && !globalCssSrc.includes('--non-simulation-ui-desktop-scale')
     && mobileBaseCssSrc === '',
   'runtime pages must use the final-flow design-canvas scale model and must not restore the deleted mobile/base.css desktop zoom shell',
+)
+assertOk(
+  finalFlowScaleRuntimeSrc.includes("querySelector<HTMLElement>('[data-flow-bottom-bar]')")
+    && finalFlowScaleRuntimeSrc.includes('visibleDesignHeight')
+    && finalFlowScaleRuntimeSrc.includes('data-final-flow-mobile-height-fit')
+    && globalCssSrc.includes(".final-flow-design-canvas[data-final-flow-mobile-height-fit='true'] > main")
+    && globalCssSrc.includes("[data-final-flow-height-owner='true']"),
+  'short mobile final-flow canvases must keep shared bottom actions inside the visible height while page content remains scrollable',
 )
 assertOk(
   welcomePageSrc.includes('final-flow-frame')

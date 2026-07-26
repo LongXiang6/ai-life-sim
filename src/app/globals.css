@@ -173,10 +173,17 @@ body {
   max-width: none;
 }
 
+.final-flow-design-canvas[data-final-flow-mobile-height-fit='true'] > main,
+.final-flow-design-canvas[data-final-flow-mobile-height-fit='true'] [data-final-flow-height-owner='true'] {
+  height: var(--final-flow-visible-height) !important;
+  min-height: 0 !important;
+}
+
 /*
  * On a real phone the visible browser height is often shorter than the
- * approved design canvas. Keep the canvas width exact and let the runtime
- * viewport scroll vertically so the bottom controls remain reachable.
+ * approved design canvas. Keep the canvas width exact; pages with a shared
+ * bottom action bar use the runtime-computed visible height so their content
+ * scrolls above an always-reachable bar. Other canvases retain outer scrolling.
  */
 @media (max-width: 47.99rem) {
   .final-flow-frame {
@@ -196,6 +203,7 @@ body {
   .final-flow-design-fit--330,
   .final-flow-design-fit--390 {
     width: 100%;
+    height: 100%;
     max-width: none;
     max-height: none;
     flex: 0 0 auto;

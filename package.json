@@ -1,6 +1,6 @@
 {
   "name": "ai-life-sim",
-  "version": "5.4.5",
+  "version": "5.4.6",
   "private": true,
   "scripts": {
     "dev": "node scripts/codegen/generate-mod-wiring.mjs && next dev --turbopack",
