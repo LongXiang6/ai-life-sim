@@ -21,8 +21,8 @@
 }
 
 .page {
-  width: 320px;
-  height: 694px;
+  width: 100%;
+  height: 100%;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior-y: contain;
@@ -49,7 +49,7 @@
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  min-height: 694px;
+  min-height: 100%;
   padding:
     max(15px, env(safe-area-inset-top))
     16px
@@ -718,9 +718,12 @@
   display: flex;
   min-height: 25px;
   align-items: center;
-  gap: 17px;
+  gap: 8px;
   margin-top: 5px;
-  padding: 1px 4px 0;
+  padding: 7px 10px 6px;
+  border: 1px solid #eceef0;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .94);
 }
 
 .savedActions[hidden] {
@@ -729,9 +732,10 @@
 
 .savedActions button {
   min-height: 25px;
-  padding: 4px 0;
-  border: 0;
-  background: transparent;
+  padding: 2px 10px;
+  border: 1px solid #eceef0;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .94);
   color: var(--ink-soft);
   cursor: pointer;
   font: inherit;
@@ -812,16 +816,271 @@
 }
 
 .formField small { display: none; }
-.eraFieldset { display: none; }
-.autoEraHeading { display: none; }
-.eraEditor { display: none; }
-.formActions { display: none; }
+
+/* Era Fieldset */
+.eraFieldset {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto 34px;
+  gap: 5px;
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+  padding: 7px 10px 6px;
+  border: 1px solid #eceef0;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .94);
+}
+
+.eraFieldset legend {
+  display: none;
+}
+
+.eraFieldset input {
+  min-width: 0;
+  width: 100%;
+  min-height: 22px;
+  padding: 2px 6px;
+  border: 1px solid #eceef0;
+  border-radius: 5px;
+  background: var(--surface-soft);
+  color: var(--ink);
+  font: inherit;
+  font-size: 9.4px;
+  text-align: left;
+}
+
+.eraFieldset input::placeholder {
+  color: #a2aaa5;
+  opacity: 1;
+}
+
+/* BC/CE Label */
+.eraFieldset > span {
+  min-width: 3ch;
+  padding: 0 4px;
+  color: var(--ink-soft);
+  font-size: 7.5px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+
+/* BC/CE Toggle Switch */
+.eraFieldset > button {
+  position: relative;
+  width: 34px;
+  min-width: 34px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid #d8deea;
+  border-radius: 999px;
+  background: #f1f3fa;
+  cursor: pointer;
+  font: 0;
+  color: transparent;
+}
+
+.eraFieldset > button::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #929bb0;
+  transition: left 140ms ease, background 140ms ease;
+  content: '';
+}
+
+.eraFieldset > button[aria-pressed="true"] {
+  border-color: #d1dbe5;
+  background: #e7ebf6;
+}
+
+.eraFieldset > button[aria-pressed="true"]::after {
+  left: 17px;
+  background: #7382bb;
+}
+
+/* Auto Era */
+.autoEraHeading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 10px 6px;
+  border: 1px solid #eceef0;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .94);
+}
+
+.autoEraHeading > span {
+  color: var(--ink-faint);
+  font-size: 7.2px;
+  line-height: 1.2;
+}
+
+/* Auto Era Label */
+.autoEraHeading > em {
+  font-style: normal;
+  color: var(--ink-soft);
+  font-size: 7.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Auto Era Toggle Switch */
+.autoEraHeading > button {
+  position: relative;
+  width: 34px;
+  min-width: 34px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  cursor: pointer;
+  font: 0;
+  color: transparent;
+}
+
+.autoEraHeading > button::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+  transition: left 140ms ease, background 140ms ease;
+  content: '';
+}
+
+.autoEraHeading > button[aria-pressed="true"] {
+  border-color: #d1dbe5;
+  background: var(--accent-soft);
+}
+
+.autoEraHeading > button[aria-pressed="true"]::after {
+  left: 17px;
+  background: var(--accent);
+}
+
+/* Era Editor */
+.eraEditor {
+  display: grid;
+  gap: 5px;
+}
+
+.eraEntry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .94);
+}
+
+.eraEntry span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-size: 8.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eraEntry button {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface-soft);
+  color: var(--ink-faint);
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.eraAddRow {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 4px;
+  align-items: center;
+}
+
+.eraAddRow input {
+  min-width: 0;
+  min-height: 22px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .94);
+  color: var(--ink);
+  font: inherit;
+  font-size: 8.5px;
+}
+
+.eraAddRow input::placeholder {
+  color: #a2aaa5;
+  opacity: 1;
+}
+
+.eraAddRow button {
+  min-height: 22px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 7px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: 8px;
+  font-weight: 600;
+}
+
+.eraEditor > p {
+  margin: 0;
+  color: var(--ink-faint);
+  font-size: 7px;
+  line-height: 1.4;
+}
+
+/* Form Actions */
+.formActions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+}
+.formActions button {
+  width: 100%;
+  min-height: 30px;
+  padding: 0 12px;
+  border: 1px solid #eceef0;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .94);
+  color: var(--ink-soft);
+  cursor: pointer;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 600;
+}
+.formActions .primaryFormAction {
+  background: rgba(255, 255, 255, .94);
+  color: var(--ink);
+  font-weight: 700;
+}
 
 /* Feedback & Error */
 .feedback,
 .errorMessage {
-  margin: 8px 0 0;
-  padding: 8px;
+  margin: 7px 10px 0 10px;
+  padding: 7px 8px;
+  border: 1px solid #eceef0;
   border-radius: 9px;
   font-size: 8px;
   line-height: 1.5;
@@ -847,7 +1106,10 @@
   .moreTrigger:disabled,
   .difficultyOptions:disabled,
   .savedWorldCard:disabled,
-  .savedActions button:disabled {
+  .savedActions button:disabled,
+  .formActions button:disabled,
+  .eraFieldset > button:disabled,
+  .autoEraHeading > button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
@@ -915,7 +1177,8 @@
 .difficultyOptions:focus-visible,
 .cacheButton:focus-visible,
 .inlineCacheButton:focus-visible,
-.cacheDialogActions button:focus-visible {
+.cacheDialogActions button:focus-visible,
+.eraFieldset > button:focus-visible {
   outline: 2px solid rgba(115, 130, 187, .55);
   outline-offset: 2px;
 }
@@ -932,5 +1195,9 @@
   .spinning,
   .directoryPanel[data-active="true"] {
     animation: none;
+  }
+  .eraFieldset > button::after,
+  .autoEraHeading > button::after {
+    transition: none;
   }
 }

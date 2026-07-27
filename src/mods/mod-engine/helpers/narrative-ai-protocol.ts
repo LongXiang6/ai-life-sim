@@ -488,14 +488,32 @@ export function stripNarrativeAIAnnotations(source: string): string {
   return output
 }
 
-export function parseNarrativeAIDataJson(source: string): unknown {
-  const normalized = restoreSingleMissingRootObjectBrace(
-    normalizeNarrativeAIJsonSyntax(stripNarrativeAIAnnotations(source)).trim(),
-  )
-  if (!normalized.startsWith('{') || !normalized.endsWith('}')) {
+export async function parseNarrativeAIDataJson(
+  source: string,
+  context?: { source?: string; worldType?: string; roundNumber?: number },
+): Promise<unknown> {
+  const { globalRepairPipeline } = await import('./repair-pipeline')
+  const { recordRepairAttempt } = await import('./repair-analytics')
+
+  const repairContext = {
+    source: context?.source ?? 'narrative-data',
+    timestamp: Date.now(),
+    worldType: context?.worldType,
+    roundNumber: context?.roundNumber,
+  }
+
+  const metrics = await globalRepairPipeline.repairWithMetrics(source.trim(), repairContext)
+
+  // 记录修复指标
+  if (metrics.stages.some(s => s.applied)) {
+    recordRepairAttempt(metrics)
+  }
+
+  if (!metrics.finalSuccess) {
     throw new Error('数据区必须且只能包含一个完整对象')
   }
-  return JSON.parse(normalized)
+
+  return JSON.parse(metrics.finalResult!)
 }
 
 /**

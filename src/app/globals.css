@@ -206,7 +206,24 @@ body {
     height: 100%;
     max-width: none;
     max-height: none;
+    aspect-ratio: unset;
     flex: 0 0 auto;
+  }
+
+  .final-flow-design-canvas {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform: none;
+    overflow: hidden;
+  }
+
+  .final-flow-frame [data-flow-bottom-bar] {
+    position: fixed !important;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0));
+    left: 16px;
+    right: 16px;
+    z-index: 100;
   }
 }
 

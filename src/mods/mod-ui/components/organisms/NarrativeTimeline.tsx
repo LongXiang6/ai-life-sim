@@ -6,7 +6,7 @@
  * @mod mod-ui
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { clamp } from '@/core/shared'
 
 import styles from './NarrativeTimeline.module.css'
@@ -90,6 +90,19 @@ export function NarrativeTimeline({
   const scrollRef = scrollContainerRef ?? internalScrollRef
   const sentinelRef = useRef<HTMLDivElement>(null)
   const scrollRestoreRef = useRef(0)
+  const branchTextareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const handleBranchOptionSelect = useCallback((optionId: string) => {
+    // 移动端点击预设选项时，先收起软键盘防止 textarea 焦点干扰点击
+    branchTextareaRef.current?.blur()
+    onBranchSelect?.(optionId)
+  }, [onBranchSelect])
+
+  const handleBranchConfirmClick = useCallback(() => {
+    // 移动端收起软键盘，防止第一次点击被键盘吞掉
+    branchTextareaRef.current?.blur()
+    onBranchConfirm?.()
+  }, [onBranchConfirm])
   const prevTotalRef = useRef(entries.length)
 
   const [renderStart, setRenderStart] = useState(() => clamp(entries.length - WINDOW_SIZE, 0, Infinity))
@@ -209,14 +222,14 @@ export function NarrativeTimeline({
                     <label
                       key={optIdx}
                       className={styles.branchOption}
-                      onClick={() => onBranchSelect?.(String(optIdx))}
+                      onClick={() => handleBranchOptionSelect(String(optIdx))}
                     >
                       <input
                         type="radio"
                         name={`branch-${i}`}
                         className={styles.branchOptionRadio}
                         checked={selectedBranchOptionId === String(optIdx)}
-                        onChange={() => onBranchSelect?.(String(optIdx))}
+                        onChange={() => handleBranchOptionSelect(String(optIdx))}
                       />
                       <span className={styles.branchNumber}>{String(optIdx + 1).padStart(2, '0')}</span>
                       <span>{option}</span>
@@ -225,6 +238,7 @@ export function NarrativeTimeline({
                 </div>
               )}
               <textarea
+                ref={branchTextareaRef}
                 className={styles.branchCustomInput}
                 placeholder="也可以写下你的做法……"
                 value={branchCustomText ?? ''}
@@ -243,7 +257,7 @@ export function NarrativeTimeline({
                   type="button"
                   className={styles.branchConfirmBtn}
                   disabled={isGenerating || ((selectedBranchOptionId === null || selectedBranchOptionId === undefined) && !(branchCustomText ?? '').trim())}
-                  onClick={() => onBranchConfirm?.()}
+                  onClick={handleBranchConfirmClick}
                 >
                   确认选择
                 </button>

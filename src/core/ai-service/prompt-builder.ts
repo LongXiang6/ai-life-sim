@@ -521,24 +521,24 @@ export function buildSegmentedPrompt(template: PromptTemplate, context: PromptCo
 
 
 
-  return {
-
+  const segments: PromptSegments = {
     stablePrefixChars,
-
     memorySegmentChars,
-
     full,
-
     userMessageCount: 1,
-
     strategy: 'S1',
-
     stablePrefix: globalStr,
-
     variableSuffix: memoryAndRoundStr,
-
   }
 
+  // 异步记录性能指标（不阻塞主流程）
+  import('./prompt-analytics')
+    .then(({ analyzePromptPerformance }) => {
+      analyzePromptPerformance(segments).catch(() => {})
+    })
+    .catch(() => {})
+
+  return segments
 }
 
 

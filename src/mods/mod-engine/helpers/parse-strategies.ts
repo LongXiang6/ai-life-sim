@@ -21,7 +21,6 @@ import {
 import {
   NARRATIVE_BODY_TAG,
   NARRATIVE_DATA_TAG,
-  NARRATIVE_END_TAG,
   NARRATIVE_SUMMARY_TAG,
   parseNarrativeAIDataJson,
   translateNarrativeAIResponse,
@@ -76,12 +75,16 @@ function stripNarrativeEnvelopeArtifacts(text: string): string {
   const endCandidates = [summaryStart, dataStart]
     .filter((index) => index >= narrativeStart)
   const narrativeEnd = endCandidates.length > 0 ? Math.min(...endCandidates) : normalized.length
+
   return normalized
     .slice(narrativeStart, narrativeEnd)
-    .replaceAll(NARRATIVE_END_TAG, '')
-    .replace(/\[回合数据\][\s\S]*$/u, '')
-    .replace(/\[\/?正文\]/gu, '')
-    .replace(/\[\/回合数据\]/gu, '')
+    .replace(/⟦\s*结束\s*⟧/gu, '')
+    .replace(/⟦\s*正文\s*⟧/gu, '')
+    .replace(/⟦\s*数据\s*⟧/gu, '')
+    .replace(/⟦\s*摘要\s*⟧/gu, '')
+    .replace(/\[\s*回合数据\s*\][\s\S]*$/u, '')
+    .replace(/\[\s*\/?正文\s*\]/gu, '')
+    .replace(/\[\s*\/回合数据\s*\]/gu, '')
     .trim()
 }
 

@@ -240,3 +240,18 @@ export function compileNarrativeSystemPrompt(
 export const COMPILED_NARRATIVE_SYSTEM_PROMPT = compileNarrativeSystemPrompt(
   NARRATIVE_SYSTEM_COMPONENTS,
 )
+
+/**
+ * 使用组件注册中心动态组装系统提示词
+ * 支持按 Campaign 和 MOD 定制组件
+ */
+export async function compileDynamicSystemPrompt(
+  campaignId: string = 'default',
+  activeModIds: string[] = [],
+): Promise<string> {
+  const { getComponentsForContext, compileComponentsToSystemPrompt } = await import(
+    '../prompts/components/registry'
+  )
+  const components = getComponentsForContext(campaignId, activeModIds)
+  return compileComponentsToSystemPrompt(components)
+}

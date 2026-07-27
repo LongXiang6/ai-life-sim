@@ -22,7 +22,7 @@ import {
   AI_DESTINY_PATTERN_BATCH_COUNT,
   AI_DESTINY_PATTERN_FIRST_SCREEN_CONCURRENCY,
 } from '../constants'
-import { destinyPatternPrompt } from '../prompts/destiny-pattern-prompt'
+import { destinyPatternPrompt, translateDestinyPatternAIResponse } from '../prompts/destiny-pattern-prompt'
 import { bumpTokenBudget } from '@/foundation'
 
 import {
@@ -740,39 +740,32 @@ export class DestinyPatternSystem extends BaseSubsystem {
       }
 
       const parsed = JSON.parse(jsonText)
+      let list: unknown[] = []
       if (Array.isArray(parsed)) {
-        return parsed
-      }
-      if (parsed && typeof parsed === 'object' && parsed.name) {
-        return [parsed]
-      }
-      if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { patterns?: unknown }).patterns)) {
-        return (parsed as { patterns: Array<{
-          name: string
-          description: string
-          rarity: string
-          polarity: string
-          effect: string
-          attrBonus: Record<string, number>
-          systemModifiers?: Record<string, number>
-        }> }).patterns
-      }
-      if (parsed && typeof parsed === 'object') {
+        list = parsed
+      } else if (parsed && typeof parsed === 'object' && parsed.name) {
+        list = [parsed]
+      } else if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { patterns?: unknown }).patterns)) {
+        list = (parsed as { patterns: unknown[] }).patterns
+      } else if (parsed && typeof parsed === 'object') {
         for (const val of Object.values(parsed)) {
           if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'object') {
-            return val as Array<{
-              name: string
-              description: string
-              rarity: string
-              polarity: string
-              effect: string
-              attrBonus: Record<string, number>
-              systemModifiers?: Record<string, number>
-            }>
+            list = val
+            break
           }
         }
       }
-      return []
+
+      // 执行中文键值对底层英文契约翻译映射转译
+      return translateDestinyPatternAIResponse(list) as Array<{
+        name: string
+        description: string
+        rarity: string
+        polarity: string
+        effect: string
+        attrBonus: Record<string, number>
+        systemModifiers?: Record<string, number>
+      }>
     } catch {
       return []
     }

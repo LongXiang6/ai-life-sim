@@ -120,6 +120,15 @@ export default function GamePage() {
     setSelectedBranchOptionId,
   } = useSimulationBranch({ advanceRound })
 
+  const addToast = useToastStore((s) => s.addToast)
+
+  const handleBranchConfirmWithFeedback = useCallback(async () => {
+    const result = await handleBranchConfirm()
+    if (!result.ok && result.error) {
+      addToast('warning', result.error)
+    }
+  }, [handleBranchConfirm, addToast])
+
   const { narrativeHistory } = useNarrative()
   const storyRepetitionStats = useEngineStore((s) => s.storyRepetitionStats)
   const recentRepetitionMetrics = narrativeHistory
@@ -175,7 +184,6 @@ export default function GamePage() {
   const narrativeEndRef = useRef<HTMLDivElement>(null)
   const prevEventsLenRef = useRef(0)
   const toasts = useToastStore((s) => s.toasts)
-  const addToast = useToastStore((s) => s.addToast)
   const dismissToast = useToastStore((s) => s.dismissToast)
 
   useEffect(() => {
@@ -803,7 +811,7 @@ export default function GamePage() {
             selectedBranchOptionId={selectedBranchOptionId}
             branchCustomText={branchCustomText}
             onBranchSelect={setSelectedBranchOptionId}
-            onBranchConfirm={handleBranchConfirm}
+            onBranchConfirm={handleBranchConfirmWithFeedback}
             onBranchCancel={handleBranchCancel}
             onCustomInputChange={setBranchCustomText}
           />

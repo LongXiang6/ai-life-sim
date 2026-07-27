@@ -269,14 +269,28 @@
   row-gap: 1cqh;
 }
 
+.secondaryActions .routeAction + .routeAction {
+  margin-top: 0;
+}
+
 .secondaryBtn {
-  min-height: 6.1cqh;
+  height: 6.1cqh;
   grid-template-columns: 8cqw minmax(0, 1fr);
 }
 
+.secondaryBtn .routeCopy {
+  min-width: 0;
+  overflow: hidden;
+}
+
 .secondaryBtn .routeCopy strong {
+  display: block;
+  overflow: hidden;
   font-size: 1.55cqh;
   font-weight: 600;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .saveSheet {

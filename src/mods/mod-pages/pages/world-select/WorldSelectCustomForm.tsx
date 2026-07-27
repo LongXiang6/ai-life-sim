@@ -22,13 +22,13 @@ export function WorldSelectCustomForm({ logic }: { logic: WorldSelectLogic }) {
         <legend>{L.formLabelEra}</legend>
         <input value={logic.customEraName} placeholder={L.formPlaceholderEraName} onChange={(event) => logic.setCustomEraName(event.target.value)} />
         <input type="number" min="1" inputMode="numeric" value={logic.customEraYear} placeholder={L.formPlaceholderYear} onChange={(event) => logic.setCustomEraYear(event.target.value)} />
-        <button type="button" onClick={() => logic.setIsBC(!logic.isBC)} aria-pressed={logic.isBC}>{logic.isBC ? L.bcLabel : L.adLabel}</button>
+        <span>{logic.isBC ? L.bcLabel : L.adLabel}</span>
+        <button type="button" onClick={() => logic.setIsBC(!logic.isBC)} aria-pressed={logic.isBC} aria-label="切换公元/公元前" />
       </fieldset>
       <div className={styles.autoEraHeading}>
         <span>{L.formLabelAutoEra}</span>
-        <button type="button" onClick={() => logic.setAutoEraEnabled(!logic.autoEraEnabled)} aria-pressed={logic.autoEraEnabled}>
-          {logic.autoEraEnabled ? L.autoEraEnabledText : L.autoEraDisabledText}
-        </button>
+        <em>{logic.autoEraEnabled ? L.autoEraEnabledText : L.autoEraDisabledText}</em>
+        <button type="button" onClick={() => logic.setAutoEraEnabled(!logic.autoEraEnabled)} aria-pressed={logic.autoEraEnabled} aria-label="启用或禁用自动年号系统" />
       </div>
       {logic.autoEraEnabled && (
         <div className={styles.eraEditor}>
