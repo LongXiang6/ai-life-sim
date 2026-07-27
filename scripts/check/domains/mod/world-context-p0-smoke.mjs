@@ -882,7 +882,7 @@ useWorldStore.setState((state) => ({
 }))
 useEngineStore.setState({ currentNarrative: '污染后的叙事状态' })
 useCharacterStore.setState({ name: '污染后的角色' })
-applyGameSave(fullSavePayload)
+await applyGameSave(fullSavePayload)
 assertOk(
   useWorldStore.getState().currentContextId === savedCurrentContextId
     && Object.keys(useWorldStore.getState().contexts).length === savedContextCount
@@ -905,7 +905,7 @@ const mismatchedSavePayload = JSON.parse(JSON.stringify(fullSavePayload))
 mismatchedSavePayload.orchestrator.worldContextId = migratedContextId
 let mismatchedSaveRejected = false
 try {
-  applyGameSave(mismatchedSavePayload)
+  await applyGameSave(mismatchedSavePayload)
 } catch {
   mismatchedSaveRejected = true
 }

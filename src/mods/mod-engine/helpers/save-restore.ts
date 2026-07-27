@@ -14,7 +14,11 @@ import { buildOrchestratorWorldSetting } from '@/mods/mod-engine/helpers/orchest
 
 import { orchestrator } from '../subsystems/orchestrator-system'
 import { resolveMvpRuntimeReadiness } from './mvp-runtime-policy'
-import { clearPreGenQueue, getPreGenQueueStatus } from './pre-gen-queue'
+import {
+  cancelPreGenQueue,
+  clearPreGenQueue,
+  isPreGenQueueRunning,
+} from './pre-gen-queue'
 import { syncSubsystemStoresFromStates } from './subsystem-store-sync'
 import { useEngineStore } from '../store'
 import {
@@ -34,8 +38,8 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function assertPreGenIdle(action: string): void {
-  if (getPreGenQueueStatus().isActive) {
-    throw new Error(`下一段故事仍在后台准备，暂时不能${action}。请等待准备完成后重试。`)
+  if (isPreGenQueueRunning()) {
+    throw new Error(`下一段故事的后台清理尚未完成，暂时不能${action}。`)
   }
 }
 
@@ -131,13 +135,15 @@ function buildEngineSaveSnapshot(): Record<string, unknown> {
  *   - 旧存档可以缺少 orchestrator/P1 快照，此时从已经恢复的核心 Store 重建；
  *     但只要快照存在，就必须完整通过上下文与 owning system 校验，不能静默跳过坏数据。
  */
-export function applyGameSave(data: Record<string, unknown>): void {
+export async function applyGameSave(data: Record<string, unknown>): Promise<void> {
   assertRuntimeReady('加载存档')
-  assertPreGenIdle('加载存档')
-  assertCompressionIdle('加载存档')
   const core = assertCoreSavePayload(data)
   const migratedCharacter = sanitizeCharacterStateSnapshot(core.character)
   const migratedWorld = sanitizeWorldStateSnapshot(core.world)
+  await cancelPreGenQueue()
+  await orchestrator.waitForBackgroundCompression()
+  assertPreGenIdle('加载存档')
+  assertCompressionIdle('加载存档')
   const savedTerminal = core.engine.status === 'complete'
   const previous = {
     engine: useEngineStore.getState(),
@@ -264,6 +270,16 @@ export function collectGameSavePayload(): Record<string, unknown> {
   }
 }
 
+/** 手动存档先取消派生预生成并等待后台提交，再从唯一引擎边界收集载荷。 */
+export async function collectManualGameSavePayload(): Promise<Record<string, unknown>> {
+  assertRuntimeReady('手动存档')
+  await cancelPreGenQueue()
+  await orchestrator.waitForBackgroundCompression()
+  assertPreGenIdle('手动存档')
+  assertCompressionIdle('手动存档')
+  return collectGameSavePayload()
+}
+
 /** 手动存档公开入口；调用方只传 UI 输入，存档载荷由引擎统一收集。 */
 export async function saveCurrentGameToSlot(
   slot: number,
@@ -271,10 +287,8 @@ export async function saveCurrentGameToSlot(
   worldName: string,
   characterName: string,
 ): Promise<void> {
-  assertRuntimeReady('手动存档')
-  assertPreGenIdle('手动存档')
-  assertCompressionIdle('手动存档')
-  await saveManager.saveToSlot(slot, name, worldName, characterName, collectGameSavePayload())
+  const payload = await collectManualGameSavePayload()
+  await saveManager.saveToSlot(slot, name, worldName, characterName, payload)
 }
 
 /**

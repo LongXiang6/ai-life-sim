@@ -10,17 +10,18 @@
  *
  * 核心机制：
  *   1. 7 阶段状态机：setup → rising_action → climax_approach → climax → falling_action → resolution → new_chapter
- *   2. 阶段判定纯本地规则（回合数 + 子系统数据变化 + 闭环事件）
+ *   2. 阶段判定纯本地规则（规范时间 + 子系统数据变化 + 闭环事件）
  *   3. Prompt 注入极简（~80字），不增加 AI 调用
  *   4. 含 enabled 开关，用户可选择性启用
  */
 
 import type { SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
 import { getRoundSequence } from '@/foundation'
-import { BaseSubsystem } from '@/core'
+import { BaseSubsystem } from '@/core/subsystem-base'
 import type { NarrativeSemanticSignals } from '../helpers/narrative-semantic-signals'
 // mod-engine 使用 system-safety 的 clampNumber（含 safeNumber 保护）
 import { clampNumber } from '../helpers/system-safety'
+import { CALENDAR } from '../constants'
 
 
 
@@ -49,31 +50,37 @@ const PHASE_LABELS: Record<PlotPhase, string> = {
   new_chapter: '新篇章',
 }
 
-/** 各阶段默认持续时间（轮次） */
-const DEFAULT_PHASE_DURATIONS: Record<PlotPhase, { min: number; max: number }> = {
-  setup: { min: 3, max: 8 },
-  rising_action: { min: 4, max: 15 },
-  climax_approach: { min: 1, max: 3 },
-  climax: { min: 1, max: 1 },
-  falling_action: { min: 1, max: 3 },
-  resolution: { min: 2, max: 5 },
-  new_chapter: { min: 1, max: 2 },
+/** 各阶段默认持续时间。年只用于配置可读性，运行判定统一换算为规范天数。 */
+const DEFAULT_PHASE_DURATIONS: Record<PlotPhase, { minDays: number; maxDays: number }> = {
+  setup: { minDays: 3 * CALENDAR.DAYS_PER_YEAR, maxDays: 8 * CALENDAR.DAYS_PER_YEAR },
+  rising_action: { minDays: 4 * CALENDAR.DAYS_PER_YEAR, maxDays: 15 * CALENDAR.DAYS_PER_YEAR },
+  climax_approach: { minDays: CALENDAR.DAYS_PER_YEAR, maxDays: 3 * CALENDAR.DAYS_PER_YEAR },
+  climax: { minDays: CALENDAR.DAYS_PER_YEAR, maxDays: CALENDAR.DAYS_PER_YEAR },
+  falling_action: { minDays: CALENDAR.DAYS_PER_YEAR, maxDays: 3 * CALENDAR.DAYS_PER_YEAR },
+  resolution: { minDays: 2 * CALENDAR.DAYS_PER_YEAR, maxDays: 5 * CALENDAR.DAYS_PER_YEAR },
+  new_chapter: { minDays: CALENDAR.DAYS_PER_YEAR, maxDays: 2 * CALENDAR.DAYS_PER_YEAR },
 }
 
 /** 情节结构状态 */
 export interface PlotStructureState {
   enabled: boolean
   currentPhase: PlotPhase
-  phaseRound: number
+  phaseStartedAtTotalDays: number
+  phaseElapsedDays: number
   chapterCount: number
   tensionLevel: number
-  lastClimaxRound: number
+  lastClimaxTotalDays: number
   lastConflictIntensity: number
   consecutiveConflictRounds: number
   lastNarrativeRegister: NarrativeSemanticSignals['narrativeRegister']
   /** 最近一次已接受叙事所关联的历史事件账本条目。 */
   lastHistoricalEventIds: string[]
-  phaseHistory: Array<{ phase: PlotPhase; round: number; contextId?: string }>,
+  phaseHistory: Array<{
+    phase: PlotPhase
+    roundSequence: number
+    totalDays: number
+    contextId?: string
+  }>,
 }
 
 function normalizeHistoricalEventIds(ids?: readonly string[]): string[] {
@@ -107,10 +114,11 @@ export class PlotStructureSystem extends BaseSubsystem {
   private state: PlotStructureState = {
     enabled: true,
     currentPhase: 'setup',
-    phaseRound: 0,
+    phaseStartedAtTotalDays: 0,
+    phaseElapsedDays: 0,
     chapterCount: 1,
     tensionLevel: 30,
-    lastClimaxRound: 0,
+    lastClimaxTotalDays: 0,
     lastConflictIntensity: 0,
     consecutiveConflictRounds: 0,
     lastNarrativeRegister: 'life',
@@ -170,10 +178,11 @@ export class PlotStructureSystem extends BaseSubsystem {
     this.state = {
       enabled: true,
       currentPhase: 'setup',
-      phaseRound: 0,
+      phaseStartedAtTotalDays: 0,
+      phaseElapsedDays: 0,
       chapterCount: 1,
       tensionLevel: 30,
-      lastClimaxRound: 0,
+      lastClimaxTotalDays: 0,
       lastConflictIntensity: 0,
       consecutiveConflictRounds: 0,
       lastNarrativeRegister: 'life',
@@ -261,11 +270,11 @@ export class PlotStructureSystem extends BaseSubsystem {
     const phase = this.state.currentPhase
     const label = PHASE_LABELS[phase]
     const guidance = PHASE_GUIDANCE[phase]
-    const tension = this.state.tensionLevel
-    const round = this.state.phaseRound
+    const tension = Math.round(this.state.tensionLevel)
+    const elapsedDays = this.state.phaseElapsedDays
 
     return [
-      `【当前情节阶段】${label}（第${round}轮）`,
+      `【当前情节阶段】${label}（已持续${elapsedDays}天）`,
       `张力：${tension}/100`,
       `引导：${guidance}`,
       tension >= 70 ? '高张力：为关键转折做铺垫，沿用既有因果，不新增无关障碍。' : '',
@@ -277,30 +286,43 @@ export class PlotStructureSystem extends BaseSubsystem {
 
   /** 推进情节阶段 */
   private advancePhase(context: RoundContext): void {
-    this.state.phaseRound++
+    const daysPassed = this.getDaysPassed(context)
+    if (!Number.isSafeInteger(daysPassed) || daysPassed < 0) {
+      throw new Error(`[${this.id}] RoundContext.daysPassed 必须是非负安全整数`)
+    }
+    if (!Number.isSafeInteger(context.totalDays) || context.totalDays < 0) {
+      throw new Error(`[${this.id}] RoundContext.totalDays 必须是非负安全整数`)
+    }
+    if (context.totalDays < this.state.phaseStartedAtTotalDays) {
+      throw new Error(`[${this.id}] 规范时间早于当前剧情阶段起点`)
+    }
 
-    this.applyPhaseTensionDrift()
+    this.state.phaseElapsedDays = context.totalDays - this.state.phaseStartedAtTotalDays
+
+    this.applyPhaseTensionDrift(daysPassed)
 
     // 检查是否需要转移阶段
     const nextPhase = this.shouldTransition()
     if (nextPhase) {
-      this.performTransition(nextPhase, getRoundSequence(context), context.contextId)
+      this.performTransition(nextPhase, context)
     }
   }
 
   /** 转移阶段 */
-  private performTransition(nextPhase: PlotPhase, round: number, contextId?: string): void {
+  private performTransition(nextPhase: PlotPhase, context: RoundContext): void {
     this.state.phaseHistory.push({
       phase: this.state.currentPhase,
-      round,
-      contextId,
+      roundSequence: getRoundSequence(context),
+      totalDays: context.totalDays,
+      contextId: context.contextId,
     })
 
     this.state.currentPhase = nextPhase
-    this.state.phaseRound = 0
+    this.state.phaseStartedAtTotalDays = context.totalDays
+    this.state.phaseElapsedDays = 0
 
     if (nextPhase === 'climax') {
-      this.state.lastClimaxRound = round
+      this.state.lastClimaxTotalDays = context.totalDays
     }
     if (nextPhase === 'setup') {
       this.state.chapterCount++
@@ -319,60 +341,59 @@ export class PlotStructureSystem extends BaseSubsystem {
   private shouldTransition(): PlotPhase | null {
     const phase = this.state.currentPhase
     const durations = DEFAULT_PHASE_DURATIONS[phase]
-    const directionModifier = 1.0
-
-    const adjustedMin = Math.max(1, Math.round(durations.min * directionModifier))
-    const adjustedMax = Math.max(adjustedMin, Math.round(durations.max * directionModifier))
+    const elapsedDays = this.state.phaseElapsedDays
 
     // 阶段特定转移条件
     switch (phase) {
       case 'setup':
-        // 铺垫期：达到最小轮数 + 有事件触发时转移
-        if (this.state.phaseRound >= adjustedMin && this.state.lastConflictIntensity >= 30) {
+        // 铺垫期：达到最短规范时间 + 有事件触发时转移
+        if (elapsedDays >= durations.minDays && this.state.lastConflictIntensity >= 30) {
           return 'rising_action'
         }
-        // 超过最大轮数强制转移
-        if (this.state.phaseRound >= adjustedMax) {
+        // 超过最长规范时间强制转移
+        if (elapsedDays >= durations.maxDays) {
           return 'rising_action'
         }
         break
 
       case 'rising_action':
-        // 冲突升级：张力 ≥ 60 且 达到最小轮数 → 进入转折前
-        if (this.state.tensionLevel >= 60 && this.state.phaseRound >= adjustedMin) {
+        // 冲突升级：张力 ≥ 60 且达到最短规范时间 → 进入转折前
+        if (this.state.tensionLevel >= 60 && elapsedDays >= durations.minDays) {
           return 'climax_approach'
         }
-        // 超过最大轮数强制转移
-        if (this.state.phaseRound >= adjustedMax) {
+        // 超过最长规范时间强制转移
+        if (elapsedDays >= durations.maxDays) {
           return 'climax_approach'
         }
         break
 
       case 'climax_approach':
-        // 转折前：达到最小轮数后自动进入高潮
-        if (this.state.phaseRound >= adjustedMin) {
+        // 转折前：达到最短规范时间后自动进入高潮
+        if (elapsedDays >= durations.minDays) {
           return 'climax'
         }
         break
 
       case 'climax':
-        // 高潮只持续 1 轮
-        return 'falling_action'
+        if (elapsedDays >= durations.minDays) {
+          return 'falling_action'
+        }
+        break
 
       case 'falling_action':
-        if (this.state.phaseRound >= adjustedMin) {
+        if (elapsedDays >= durations.minDays) {
           return 'resolution'
         }
         break
 
       case 'resolution':
-        if (this.state.phaseRound >= adjustedMin) {
+        if (elapsedDays >= durations.minDays) {
           return 'new_chapter'
         }
         break
 
       case 'new_chapter':
-        if (this.state.phaseRound >= adjustedMin) {
+        if (elapsedDays >= durations.minDays) {
           return 'setup'
         }
         break
@@ -381,17 +402,18 @@ export class PlotStructureSystem extends BaseSubsystem {
     return null
   }
 
-  /** 阶段自身的确定性张力漂移；叙事语义增量由 recordNarrativeSignals 提供。 */
-  private applyPhaseTensionDrift(): void {
+  /** 阶段自身的确定性张力漂移；按规范天数缩放，叙事语义增量另行叠加。 */
+  private applyPhaseTensionDrift(daysPassed: number): void {
+    const elapsedYears = daysPassed / CALENDAR.DAYS_PER_YEAR
     this.state.tensionLevel = clampNumber(
-      this.state.tensionLevel + this.getPhaseTensionDecay(),
+      this.state.tensionLevel + this.getAnnualPhaseTensionDrift() * elapsedYears,
       0,
       100,
     )
   }
 
-  /** 获取阶段的基础张力衰减 */
-  private getPhaseTensionDecay(): number {
+  /** 获取阶段每个规范年的基础张力漂移。 */
+  private getAnnualPhaseTensionDrift(): number {
     switch (this.state.currentPhase) {
       case 'setup': return 2      // 铺垫期张力自然积累
       case 'rising_action': return 3 // 冲突期张力快速上升

@@ -63,16 +63,7 @@ function syncFit(fit: HTMLElement) {
   const design = getDesignSize(fit)
   const isMobile = width < MOBILE_BREAKPOINT
 
-  if (isMobile) {
-    // Mobile: let CSS handle all sizing. Clear inline styles so CSS takes effect.
-    for (const prop of ['width', 'height', 'maxWidth', 'maxHeight', 'transform', 'transformOrigin'] as const) {
-      fit.style.removeProperty(prop)
-      canvas.style.removeProperty(prop)
-    }
-    return
-  }
-
-  // Desktop: use the smaller of width/height ratio so the canvas always fits.
+  // Always apply numeric scale regardless of mobile or desktop
   const widthRatio = width / design.width
   const heightRatio = height / design.height
   const scale = Math.min(widthRatio, heightRatio)
@@ -83,8 +74,6 @@ function syncFit(fit: HTMLElement) {
   const fitMobileHeight = false
   const canvasHeight = design.height
 
-  // CSS typed division is unavailable in older mobile browsers; keep the
-  // canvas dimensions fixed and provide a plain numeric transform instead.
   fit.style.width = `${design.width * scale}px`
   fit.style.height = `${canvasHeight * scale}px`
   fit.style.maxWidth = 'none'

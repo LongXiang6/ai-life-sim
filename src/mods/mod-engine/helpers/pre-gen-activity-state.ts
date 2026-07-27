@@ -13,6 +13,7 @@ export class PreGenActivityState {
   private generation = 0
   private activeGeneration: number | null = null
   private activeController: AbortController | null = null
+  private idleWaiters = new Set<() => void>()
 
   begin(): number {
     if (this.activeGeneration !== null) {
@@ -47,10 +48,20 @@ export class PreGenActivityState {
     return this.activeController?.signal
   }
 
+  waitForIdle(): Promise<void> {
+    if (!this.isRunning()) return Promise.resolve()
+    return new Promise((resolve) => {
+      this.idleWaiters.add(resolve)
+    })
+  }
+
   finish(generation: number): void {
     if (this.activeGeneration === generation) {
       this.activeGeneration = null
       this.activeController = null
+      const waiters = [...this.idleWaiters]
+      this.idleWaiters.clear()
+      for (const resolve of waiters) resolve()
     }
   }
 }

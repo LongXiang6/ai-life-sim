@@ -313,10 +313,17 @@ assertOk(
   validateIndex >= 0 && firstCoreWriteIndex > validateIndex,
   'all three core save payloads must be validated before the first Store write',
 )
-assertIncludes(saveRestore, "assertPreGenIdle('加载存档')", 'loading must reject an active preview before mutating Stores')
-assertIncludes(saveRestore, "assertCompressionIdle('加载存档')", 'loading must reject an uncommitted summary compression')
-assertIncludes(saveRestore, "assertPreGenIdle('手动存档')", 'manual saves must reject an active preview')
-assertIncludes(saveRestore, "assertCompressionIdle('手动存档')", 'manual saves must reject an uncommitted summary compression')
+const loadCancelIndex = saveRestore.indexOf('await cancelPreGenQueue()', validateIndex)
+const loadCompressionWaitIndex = saveRestore.indexOf('await orchestrator.waitForBackgroundCompression()', loadCancelIndex)
+assertOk(
+  loadCancelIndex > validateIndex && loadCompressionWaitIndex > loadCancelIndex && firstCoreWriteIndex > loadCompressionWaitIndex,
+  'loading must validate input, cancel and await preview cleanup, then await compression before mutating Stores',
+)
+assertIncludes(saveRestore, "assertPreGenIdle('加载存档')", 'loading must verify preview cleanup before mutating Stores')
+assertIncludes(saveRestore, "assertCompressionIdle('加载存档')", 'loading must verify summary compression has committed')
+assertIncludes(saveRestore, 'export async function collectManualGameSavePayload()', 'manual saves must use an engine-owned asynchronous collection boundary')
+assertIncludes(saveRestore, "assertPreGenIdle('手动存档')", 'manual saves must verify preview cleanup before collecting state')
+assertIncludes(saveRestore, "assertCompressionIdle('手动存档')", 'manual saves must verify summary compression has committed')
 assertIncludes(saveRestore, 'useCharacterStore.setState(previous.character, true)', 'failed core restore must roll character Store back atomically')
 assertIncludes(saveRestore, 'useWorldStore.setState(previous.world, true)', 'failed core restore must roll world Store back atomically')
 assertIncludes(saveRestore, 'useEngineStore.setState(previous.engine, true)', 'failed core restore must roll engine Store back atomically')
@@ -502,6 +509,15 @@ const gameStory = read('src/mods/mod-pages/pages/game-story/page.tsx')
 assertIncludes(gameStory, 'runtimeReadiness,', 'the story page must consume engine-owned runtime readiness')
 assertOk(!gameStory.includes('allModsLoaded'), 'the story page must not gate simulation controls on loader UI state alone')
 assertIncludes(gameStory, '核心系统未完整加载', 'the story page must distinguish incomplete registration from normal initialization')
+assertIncludes(gameStory, 'collectManualGameSavePayload()', 'cloud saves must use the engine-owned pre-generation cancellation boundary')
+assertOk(
+  !gameStory.includes('preGenStatus.isActive || isAdvancing'),
+  'background pre-generation alone must not block local or cloud manual saves',
+)
+assertOk(
+  !gameStory.includes('disabled={!isRuntimeReady || isAdvancing || preGenStatus.isActive}'),
+  'background pre-generation alone must not disable the manual-save entry',
+)
 
 const campaign = read('src/mods/mod-engine/campaigns/default/index.ts')
 assertOk(
@@ -532,8 +548,22 @@ assertOk(
 const plotStructure = read('src/mods/mod-engine/subsystems/plot-structure-system.ts')
 assertIncludes(
   plotStructure,
-  'this.performTransition(nextPhase, getRoundSequence(context), context.contextId)',
-  'plot phase history must use roundSequence under day/month/season steps and preserve context scope',
+  'this.state.phaseElapsedDays = context.totalDays - this.state.phaseStartedAtTotalDays',
+  'plot phase duration must derive from canonical totalDays',
+)
+assertIncludes(
+  plotStructure,
+  'totalDays: context.totalDays',
+  'plot phase history must preserve the canonical transition day',
+)
+assertIncludes(
+  plotStructure,
+  'roundSequence: getRoundSequence(context)',
+  'plot phase history must keep roundSequence only as an audit sequence',
+)
+assertOk(
+  !plotStructure.includes('phaseRound'),
+  'plot phase duration must not retain a parallel round counter',
 )
 
 const adaptationManager = read('src/mods/mod-engine/subsystems/adaptation-manager-system.ts')

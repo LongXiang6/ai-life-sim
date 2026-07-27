@@ -29,7 +29,7 @@ TimeSystem
 
 - 时间系统只拥有时间计算、步长、日历和时间快照；不拥有业务状态、剧情文本或其他系统内部计算。
 - Orchestrator 负责按顺序调用和分发时间快照，不复制时间计算；各系统负责依据快照完成自己的计算、校验和写入。
-- 当前 `plot-structure` 仍以 `phaseRound`、`roundSequence` 和轮次阈值判定阶段时长，这是现有实现而非最终时间权威。后续涉及剧情推进的实现必须改为规范时间主轴，并将结构信号作为条件修正；不得继续扩展独立轮次计时真源。
+- `plot-structure` 以 `phaseStartedAtTotalDays` 和 `phaseElapsedDays` 判定阶段时长，并按 `daysPassed` 缩放阶段自身的张力漂移；冲突与语义信号只作为同一规范时间节点内的条件修正。`roundSequence` 只用于幂等和阶段历史审计，不再承担剧情阶段计时。
 
 ## 当前架构
 

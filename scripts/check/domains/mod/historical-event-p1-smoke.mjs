@@ -1514,7 +1514,7 @@ persistedLedger.events.push(JSON.parse(JSON.stringify(persistedLedger.events[0])
 const beforeRejectedGameSave = JSON.stringify(collectGameSavePayload())
 let corruptGameSaveRejectedByLedger = false
 try {
-  applyGameSave(corruptedGameSave)
+  await applyGameSave(corruptedGameSave)
 } catch (error) {
   corruptGameSaveRejectedByLedger = error instanceof Error
     && error.message.includes('历史事件账本持久化快照不一致')

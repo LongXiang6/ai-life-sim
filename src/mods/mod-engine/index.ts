@@ -61,7 +61,7 @@ export type {
 } from './constants/pre-gen-config'
 export { checkAndClearPreGenOnTimeStepChange, clearPreGenQueue, fillPreGenQueue, getPreGenQueueLength, getPreGenQueueStatus, subscribePreGenQueue } from './helpers/pre-gen-queue'
 export type { PreGenCachedRound, PreGenQueueStatus } from './helpers/pre-gen-queue'
-export { applyGameSave, collectGameSavePayload, saveCurrentGameToSlot } from './helpers/save-restore'
+export { applyGameSave, collectGameSavePayload, collectManualGameSavePayload, saveCurrentGameToSlot } from './helpers/save-restore'
 export {
   AVAILABLE_TIME_STEPS as ENGINE_AVAILABLE_TIME_STEPS,
   encodeTimeStepKey,

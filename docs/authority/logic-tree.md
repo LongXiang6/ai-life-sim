@@ -70,7 +70,7 @@
 ## 存档与恢复
 
 - **目标**：保存完整可恢复的本局事实，并在坏快照或不一致上下文下保持原运行态不被部分覆盖。
-- **当前机制**：保存前从 Engine、Character、World、Orchestrator 和活动所属系统统一收集快照，再交给存储管理器。恢复前等待预生成和后台压缩空闲并检查运行成员；随后校验、迁移、写入核心 Store、恢复 Orchestrator 和所属系统。任一步失败则恢复进入函数前的核心快照，不切换到模拟页。
+- **当前机制**：自动保存从 Engine、Character、World、Orchestrator 和活动所属系统统一收集快照；手动本地或云端保存由引擎边界先取消预生成、等待预览清理与后台压缩提交，再收集同一载荷。恢复先验证载荷并检查运行成员，再取消在途预生成并等待单写者释放，随后迁移、写入核心 Store、恢复 Orchestrator 和所属系统。任一步失败则恢复进入函数前的核心快照，不切换到模拟页。
 - **权责边界**：`save-restore.ts` 负责收集和恢复顺序，`src/core/storage/` 负责槽位与序列化，各 Store/子系统负责自身字段合法性。页面不拼装第二份存档载荷。
 - **实时源**：`src/mods/mod-engine/helpers/save-restore.ts`、`src/core/storage/`、所属 Store 的快照方法、`src/mods/mod-engine/hooks.ts`。
 

@@ -13,7 +13,7 @@ import { useRouter } from 'next/navigation'
 
 import { useEngineStore } from '@/mods/mod-engine'
 import { saveManager } from '@/core/storage/save-manager'
-import { applyGameSave, orchestrator } from '@/mods/mod-engine/engine-api'
+import { applyGameSave } from '@/mods/mod-engine/engine-api'
 import { useAccountClientStore } from '@/core/account/account-client-store'
 import {
   fetchCloudManualSave,
@@ -93,8 +93,7 @@ export default function WelcomePage() {
     try {
       const data = await saveManager.loadSave(slot)
       if (!data) throw new Error(`槽位 ${slot} 不存在或存档内容已丢失`)
-      await orchestrator.waitForBackgroundCompression()
-      applyGameSave(data)
+      await applyGameSave(data)
       router.push(useEngineStore.getState().status === 'complete' ? '/game-over' : '/game-story')
       return true
     } catch (err) {
@@ -123,8 +122,7 @@ export default function WelcomePage() {
     try {
       const cloud = await fetchCloudManualSave()
       if (!cloud) throw new Error('云端栏位不存在或存档内容已丢失')
-      await orchestrator.waitForBackgroundCompression()
-      applyGameSave(cloud.payload)
+      await applyGameSave(cloud.payload)
       router.push(useEngineStore.getState().status === 'complete' ? '/game-over' : '/game-story')
       return true
     } catch (error) {
@@ -172,9 +170,9 @@ export default function WelcomePage() {
             onDeleteSave={handleDeleteSave}
             onContinueCloudSave={handleContinueCloudSave}
             onDeleteCloudSave={handleDeleteCloudSave}
-            onOpenSettings={() => { setSettingsTab('appearance'); setShowSettings(true) }}
+            onOpenSettings={() => router.push('/settings')}
             onOpenAccount={() => router.push('/account')}
-            onOpenHelp={() => setShowHelp(true)}
+            onOpenHelp={() => router.push('/help')}
             onOpenFeedback={() => router.push('/feedback')}
             onOpenLeaderboard={() => router.push('/leaderboard')}
             onOpenMailbox={() => router.push('/mailbox')}

@@ -84,19 +84,30 @@
 }
 
 .tabBar {
-  display: grid;
+  display: flex;
   flex: 0 0 auto;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 3px;
+  overflow-x: auto;
+  overflow-y: hidden;
   margin: 5px 15px 0;
   padding: 3px;
   border-radius: 11px;
   background: #f1f3fa;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  touch-action: pan-x;
+  white-space: nowrap;
+}
+
+.tabBar::-webkit-scrollbar {
+  display: none;
 }
 
 .tab {
-  min-width: 0;
+  min-width: 78px;
   min-height: 31px;
+  flex: 0 0 78px;
   padding: 4px 3px;
   border: 1px solid transparent;
   border-radius: 8px;
@@ -105,6 +116,7 @@
   cursor: pointer;
   font: inherit;
   font-size: 7px;
+  scroll-snap-align: center;
 }
 
 .tab small,

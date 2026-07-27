@@ -37,6 +37,8 @@ export default defineMod({
     { path: '/game-story', page: 'game-story' },
     { path: '/save-manager', page: 'save-manager' },
     { path: '/account', page: 'account' },
+    { path: '/settings', page: 'settings' },
+    { path: '/help', page: 'help' },
     { path: '/feedback', page: 'feedback' },
     { path: '/leaderboard', page: 'leaderboard' },
     { path: '/mailbox', page: 'mailbox' },

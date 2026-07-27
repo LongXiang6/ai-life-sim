@@ -24,7 +24,7 @@ import {
   AVAILABLE_TIME_STEPS,
   encodeTimeStepKey,
   formatCurrentNarrativeTimeLabel,
-  collectGameSavePayload,
+  collectManualGameSavePayload,
   saveCurrentGameToSlot,
   setSimulationTimeStepByKey,
 } from '@/mods/mod-engine/engine-api'
@@ -442,20 +442,20 @@ export default function GamePage() {
         ? '核心模拟系统未完整加载，请刷新页面后重试。'
         : '核心模拟系统仍在初始化，请稍候重试。')
     }
-    if (preGenStatus.isActive || isAdvancing) {
-      throw new Error('当前回合或下一段故事仍在生成，完成后才能保存。')
+    if (isAdvancing) {
+      throw new Error('当前回合仍在生成，完成后才能保存。')
     }
     await saveCurrentGameToSlot(slot, name, worldConfig?.name ?? '', characterName)
     addToast('success', `已保存到槽位 ${slot}`)
-  }, [addToast, characterName, isAdvancing, isRuntimeReady, preGenStatus.isActive, runtimeIncomplete, worldConfig?.name])
+  }, [addToast, characterName, isAdvancing, isRuntimeReady, runtimeIncomplete, worldConfig?.name])
 
   const handleCloudSave = useCallback(async (name: string) => {
     if (accountStatus !== 'authenticated') throw new Error('登录后才可使用云端栏位')
     if (!isRuntimeReady) {
       throw new Error(runtimeIncomplete ? '核心模拟系统未完整加载，请刷新页面后重试。' : '核心模拟系统仍在初始化，请稍候重试。')
     }
-    if (preGenStatus.isActive || isAdvancing) throw new Error('当前回合或下一段故事仍在生成，完成后才能保存。')
-    const payload = CloudGameSavePayloadSchema.parse(collectGameSavePayload())
+    if (isAdvancing) throw new Error('当前回合仍在生成，完成后才能保存。')
+    const payload = CloudGameSavePayloadSchema.parse(await collectManualGameSavePayload())
     const summary = await putCloudManualSave({
       metadata: {
         schemaVersion: 1,
@@ -471,7 +471,7 @@ export default function GamePage() {
     })
     setCloudSave(summary)
     addToast('success', '已保存到云端栏位')
-  }, [accountStatus, addToast, characterName, isAdvancing, isRuntimeReady, preGenStatus.isActive, runtimeIncomplete, totalRounds, worldConfig?.name])
+  }, [accountStatus, addToast, characterName, isAdvancing, isRuntimeReady, runtimeIncomplete, totalRounds, worldConfig?.name])
 
   const flowGuard = useMemo(() => {
     if (!worldConfig || worldCode === 0) {
@@ -743,8 +743,8 @@ export default function GamePage() {
                   <div className={styles.moreActionRow}>
                     <button
                       type="button"
-                      disabled={!isRuntimeReady || isAdvancing || preGenStatus.isActive}
-                      title={!isRuntimeReady ? `${runtimeBlockedText}，暂时不能保存` : isAdvancing || preGenStatus.isActive ? '故事生成完成后才能保存' : undefined}
+                      disabled={!isRuntimeReady || isAdvancing}
+                      title={!isRuntimeReady ? `${runtimeBlockedText}，暂时不能保存` : isAdvancing ? '故事生成完成后才能保存' : undefined}
                       onClick={() => {
                         setShowWorldPanel(false)
                         setShowSaveDialog(true)

@@ -12,7 +12,7 @@
 import { useState, useEffect, useCallback } from 'react'
 
 import { saveManager, type SaveMetadata } from '@/core/storage/save-manager'
-import { applyGameSave, orchestrator } from '@/mods/mod-engine/engine-api'
+import { applyGameSave } from '@/mods/mod-engine/engine-api'
 import { useEngineStore } from '@/mods/mod-engine'
 import { useRouter } from 'next/navigation'
 
@@ -38,8 +38,7 @@ export default function SaveManagerPage() {
     try {
       const data = await saveManager.loadSave(slot)
       if (data) {
-        await orchestrator.waitForBackgroundCompression()
-        applyGameSave(data)
+        await applyGameSave(data)
         router.push(useEngineStore.getState().status === 'complete' ? '/game-over' : '/game-story')
       }
     } catch (err) {

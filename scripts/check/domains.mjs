@@ -157,6 +157,8 @@ export const DOMAINS = {
       { cmd: 'node', args: ['scripts/check/domains/narrative/validate-narrative-wiring.mjs'] },
       { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/semantic-authority-audit.mjs'] },
       { cmd: 'node', args: ['scripts/check/domains/narrative/time-step-resolver-smoke.mjs'] },
+      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/plot-structure-canonical-time-smoke.mjs'] },
+      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/pre-gen-cancellation-smoke.mjs'] },
       { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/playtest-quality-regression.mjs'] },
       { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/branch-intent-resolution-smoke.mjs'] },
       { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/branch-intent-persistence-smoke.mjs'] },

@@ -39,6 +39,8 @@ interface SettingsModalProps {
   onClose: () => void
   /** 初始激活的标签页，默认 'appearance'（个性化） */
   initialTab?: TabId
+  /** 是否作为独立页面渲染（非弹窗模式） */
+  isPage?: boolean
 }
 
 /** 设置弹窗容器 —— 横向紧凑标签 + 单一响应式 Sheet
@@ -46,10 +48,11 @@ interface SettingsModalProps {
  * @param onClose 关闭回调
  * @param initialTab 初始激活的标签页（默认 'appearance'）
  */
-export function SettingsModal({ open, onClose, initialTab }: SettingsModalProps) {
+export function SettingsModal({ open, onClose, initialTab, isPage }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<TabId>(initialTab ?? 'appearance')
   const [settingsRevision, setSettingsRevision] = useState(0)
   const modalRef = useRef<HTMLDivElement>(null)
+  const tabBarRef = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
   const settingsAreDefault = useSettingsStore(areSettingsDefault)
   const fontFamily = useFontStore((state) => state.fontFamily)
@@ -59,6 +62,21 @@ export function SettingsModal({ open, onClose, initialTab }: SettingsModalProps)
   useEffect(() => {
     onCloseRef.current = onClose
   }, [onClose])
+
+  useEffect(() => {
+    if (!open) return
+    const frame = window.requestAnimationFrame(() => {
+      const activeButton = tabBarRef.current?.querySelector<HTMLElement>(
+        `#settings-tab-${activeTab}`,
+      )
+      activeButton?.scrollIntoView({
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+        block: 'nearest',
+        inline: 'center',
+      })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [activeTab, open])
 
   useEffect(() => {
     if (!open) return
@@ -145,91 +163,86 @@ export function SettingsModal({ open, onClose, initialTab }: SettingsModalProps)
     setSettingsRevision((current) => current + 1)
   }
 
-  return (
+  const content = (
     <div
-      className={styles.overlay}
-      onClick={onClose}
+      ref={modalRef}
+      className={styles.modalFrame}
+      onClick={(e) => e.stopPropagation()}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="settings-dialog-title"
+      data-settings-modal-root
+      tabIndex={-1}
     >
-      <div className="final-flow-design-fit final-flow-design-fit--330">
-        <div className="final-flow-design-canvas">
-          <div
-            ref={modalRef}
-            className={styles.modalFrame}
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="settings-dialog-title"
-            data-settings-modal-root
-            tabIndex={-1}
-          >
-        <span className={styles.spine} aria-hidden="true" />
+      <span className={styles.spine} aria-hidden="true" />
 
-        <header className={styles.header}>
-          <div className={styles.metaRow} aria-hidden="true">
-            <span>AI LIFE SIM · 命书</span>
-            <span>附 · {activeTabIndex}</span>
-          </div>
-          <div className={styles.titleRow}>
-            <div>
-              <h2 id="settings-dialog-title" className={styles.title}>设置</h2>
-              <p>偏好即时生效，不改变已经发生的模拟事实。</p>
-            </div>
-            <span className={styles.titleMark} aria-hidden="true"><span>设</span></span>
-          </div>
-          <div className={styles.divider} aria-hidden="true"><span /></div>
-        </header>
-
-        {/* Tab 栏 */}
-        <div className={styles.tabBar} role="tablist" aria-label="设置分类">
-          {TABS.map((tab, index) => (
-            <button
-              type="button"
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              onKeyDown={(event) => handleTabKeyDown(event, index)}
-              className={`${styles.tab} ${activeTab === tab.id ? styles.tabActive : ''}`}
-              role="tab"
-              id={`settings-tab-${tab.id}`}
-              aria-selected={activeTab === tab.id}
-              aria-controls={activeTab === tab.id ? `settings-panel-${tab.id}` : undefined}
-              tabIndex={activeTab === tab.id ? 0 : -1}
-            >
-              <small>{tab.index}</small>
-              <span>{tab.label}</span>
-            </button>
-          ))}
+      <header className={styles.header}>
+        <div className={styles.metaRow} aria-hidden="true">
+          <span>AI LIFE SIM · 命书</span>
+          <span>附 · {activeTabIndex}</span>
         </div>
+        <div className={styles.titleRow}>
+          <div>
+            <h2 id="settings-dialog-title" className={styles.title}>设置</h2>
+            <p>偏好即时生效，不改变已经发生的模拟事实。</p>
+          </div>
+          <span className={styles.titleMark} aria-hidden="true"><span>设</span></span>
+        </div>
+        <div className={styles.divider} aria-hidden="true"><span /></div>
+      </header>
 
-        <div className={styles.settingsTools}>
-          <small>{allSettingsAreDefault ? '当前为默认设置' : '已有调整 · 即时生效'}</small>
+      {/* Tab 栏 */}
+      <div ref={tabBarRef} className={styles.tabBar} role="tablist" aria-label="设置分类">
+        {TABS.map((tab, index) => (
           <button
             type="button"
-            className={styles.restoreAction}
-            disabled={allSettingsAreDefault}
-            onClick={handleRestoreDefaults}
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            onKeyDown={(event) => handleTabKeyDown(event, index)}
+            className={`${styles.tab} ${activeTab === tab.id ? styles.tabActive : ''}`}
+            role="tab"
+            id={`settings-tab-${tab.id}`}
+            aria-selected={activeTab === tab.id}
+            aria-controls={activeTab === tab.id ? `settings-panel-${tab.id}` : undefined}
+            tabIndex={activeTab === tab.id ? 0 : -1}
           >
-            恢复默认
+            <small>{tab.index}</small>
+            <span>{tab.label}</span>
           </button>
-        </div>
+        ))}
+      </div>
 
-        {/* Tab 内容 */}
-        <div
-          id={`settings-panel-${activeTab}`}
-          className={styles.tabContent}
-          role="tabpanel"
-          aria-labelledby={`settings-tab-${activeTab}`}
+      <div className={styles.settingsTools}>
+        <small>{allSettingsAreDefault ? '当前为默认设置' : '已有调整 · 即时生效'}</small>
+        <button
+          type="button"
+          className={styles.restoreAction}
+          disabled={allSettingsAreDefault}
+          onClick={handleRestoreDefaults}
         >
-          {activeTab === 'appearance' && <SettingsTabTheme />}
-          {activeTab === 'narrative' && <SettingsTabNarrative />}
-          {activeTab === 'model-call' && (
-            <>
-              <SettingsTabPresets key={settingsRevision} />
-              <SettingsTabModel />
-            </>
-          )}
-          {activeTab === 'statistics' && <SettingsTabStats />}
-        </div>
+          恢复默认
+        </button>
+      </div>
 
+      {/* Tab 内容 */}
+      <div
+        id={`settings-panel-${activeTab}`}
+        className={styles.tabContent}
+        role="tabpanel"
+        aria-labelledby={`settings-tab-${activeTab}`}
+      >
+        {activeTab === 'appearance' && <SettingsTabTheme />}
+        {activeTab === 'narrative' && <SettingsTabNarrative />}
+        {activeTab === 'model-call' && (
+          <>
+            <SettingsTabPresets key={settingsRevision} />
+            <SettingsTabModel />
+          </>
+        )}
+        {activeTab === 'statistics' && <SettingsTabStats />}
+      </div>
+
+      {!isPage && (
         <footer className={styles.footer}>
           <button type="button" onClick={onClose} className={styles.closeBtn} aria-label="关闭设置">×</button>
           <button type="button" onClick={onClose} className={styles.doneBtn}>
@@ -238,7 +251,22 @@ export function SettingsModal({ open, onClose, initialTab }: SettingsModalProps)
             <span className={styles.doneArrow} aria-hidden="true">→</span>
           </button>
         </footer>
-          </div>
+      )}
+    </div>
+  )
+
+  if (isPage) {
+    return content
+  }
+
+  return (
+    <div
+      className={styles.overlay}
+      onClick={onClose}
+    >
+      <div className="final-flow-design-fit final-flow-design-fit--330">
+        <div className="final-flow-design-canvas">
+          {content}
         </div>
       </div>
     </div>

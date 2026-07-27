@@ -8,7 +8,7 @@ import { useHelpModalFocusTrap } from './HelpModalFocusTrap'
 import { HelpModalNavigation } from './HelpModalNavigation'
 import { useHelpModalScrollSpy } from './HelpModalScrollSpy'
 import styles from './HelpModal.module.css'
-export interface HelpModalProps { visible: boolean; onClose: () => void }
+export interface HelpModalProps { visible: boolean; onClose: () => void; isPage?: boolean }
 
 function getFlowPortalRoot(): HTMLElement {
   return document.querySelector<HTMLElement>('.final-flow-frame') ?? document.body
@@ -74,7 +74,7 @@ function ApprovedHelpGuide() {
   )
 }
 
-export function HelpModal({ visible, onClose }: HelpModalProps) {
+export function HelpModal({ visible, onClose, isPage }: HelpModalProps) {
   const [tab, setTab] = useState<HelpTab>('docs')
   const [activeChapter, setActiveChapter] = useState(HELP_CHAPTERS[0].id)
   const [content, setContent] = useState('')
@@ -209,6 +209,58 @@ export function HelpModal({ visible, onClose }: HelpModalProps) {
 
   if (!visible) return null
 
+  const modalNode = (
+    <div ref={modalRef} className={styles.modalFrame} onClick={(event) => event.stopPropagation()} tabIndex={-1}>
+      <span className={styles.spine} aria-hidden="true" />
+      <header className={styles.header}>
+        <div className={styles.metaRow} aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>附 · 说明</span></div>
+        <div className={styles.titleRow}>
+          <div>
+            <h2 className={styles.headerTitle}>说明</h2>
+            <p>沿章节阅读，也可快速定位当前需要的功能。</p>
+          </div>
+          <span className={styles.titleMark} aria-hidden="true"><span>阅</span></span>
+        </div>
+        <div className={styles.divider} aria-hidden="true"><span /></div>
+      </header>
+
+      <HelpModalNavigation tab={tab} activeChapter={activeChapter} onTabChange={handleTabChange} onChapterClick={handleChapterClick} />
+
+      <div ref={contentViewportRef} className={styles.contentViewport} role="tabpanel" aria-live="polite">
+        {loading ? (
+          <p className={styles.loading}>加载中…</p>
+        ) : tab === 'docs' ? (
+          <div className={styles.docsContent}>
+            <ApprovedHelpGuide />
+            {content ? (
+              <details className={styles.fullDocs}>
+                <summary>完整说明</summary>
+                <div dangerouslySetInnerHTML={{ __html: content }} />
+              </details>
+            ) : null}
+          </div>
+        ) : (
+          <HelpChangelogContent htmls={changelogHtmls} loadError={loadError} hasMore={hasMore} currentChunk={currentChunk} maxChunk={maxChunk} loadingMore={loadingMore} onLoadMore={handleLoadMore} />
+        )}
+      </div>
+
+      {!isPage && (
+        <footer className={styles.footer}>
+          <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="关闭说明">×</button>
+          <button type="button" className={styles.doneBtn} onClick={onClose}>
+            <span className={styles.doneIndex}>返</span>
+            <span className={styles.doneCopy}><strong>读完说明</strong><small>返回进入说明前的界面</small></span>
+            <span className={styles.doneArrow} aria-hidden="true">→</span>
+          </button>
+        </footer>
+      )}
+    </div>
+  )
+
+  if (isPage) {
+    return modalNode
+  }
+
   return createPortal(
     <div
       className={styles.overlay}
@@ -219,49 +271,7 @@ export function HelpModal({ visible, onClose }: HelpModalProps) {
     >
       <div className="final-flow-design-fit final-flow-design-fit--330">
         <div className="final-flow-design-canvas">
-          <div ref={modalRef} className={styles.modalFrame} onClick={(event) => event.stopPropagation()} tabIndex={-1}>
-        <span className={styles.spine} aria-hidden="true" />
-        <header className={styles.header}>
-          <div className={styles.metaRow} aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>附 · 说明</span></div>
-          <div className={styles.titleRow}>
-            <div>
-              <h2 className={styles.headerTitle}>说明</h2>
-              <p>沿章节阅读，也可快速定位当前需要的功能。</p>
-            </div>
-            <span className={styles.titleMark} aria-hidden="true"><span>阅</span></span>
-          </div>
-          <div className={styles.divider} aria-hidden="true"><span /></div>
-        </header>
-
-        <HelpModalNavigation tab={tab} activeChapter={activeChapter} onTabChange={handleTabChange} onChapterClick={handleChapterClick} />
-
-        <div ref={contentViewportRef} className={styles.contentViewport} role="tabpanel" aria-live="polite">
-          {loading ? (
-            <p className={styles.loading}>加载中…</p>
-          ) : tab === 'docs' ? (
-            <div className={styles.docsContent}>
-              <ApprovedHelpGuide />
-              {content ? (
-                <details className={styles.fullDocs}>
-                  <summary>完整说明</summary>
-                  <div dangerouslySetInnerHTML={{ __html: content }} />
-                </details>
-              ) : null}
-            </div>
-          ) : (
-            <HelpChangelogContent htmls={changelogHtmls} loadError={loadError} hasMore={hasMore} currentChunk={currentChunk} maxChunk={maxChunk} loadingMore={loadingMore} onLoadMore={handleLoadMore} />
-          )}
-        </div>
-
-        <footer className={styles.footer}>
-          <button type="button" className={styles.closeBtn} onClick={onClose} aria-label="关闭说明">×</button>
-          <button type="button" className={styles.doneBtn} onClick={onClose}>
-            <span className={styles.doneIndex}>返</span>
-            <span className={styles.doneCopy}><strong>读完说明</strong><small>返回进入说明前的界面</small></span>
-            <span className={styles.doneArrow} aria-hidden="true">→</span>
-          </button>
-        </footer>
-          </div>
+          {modalNode}
         </div>
       </div>
     </div>,

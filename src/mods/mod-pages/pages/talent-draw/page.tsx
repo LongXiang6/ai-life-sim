@@ -1028,12 +1028,15 @@ function TalentDrawContent() {
                       >
                         {pattern ? (
                           <>
-                            <span className={styles.candidateCopy}><strong>{pattern.name}</strong><span>{pattern.description}</span></span>
+                            <span className={styles.candidateCopy}>
+                              <strong>{pattern.name}</strong>
+                              <span>{pattern.description}</span>
+                              {pattern.effect ? <i>{pattern.effect}</i> : null}
+                            </span>
                             <small className={styles.candidateRarity}>{rarity}</small>
                             <span className={styles.candidateEffects}>
                               {formatPatternAttrSummary(pattern) !== '无属性加成' ? <i>{formatPatternAttrSummary(pattern)}</i> : null}
                               {systemEffects.map((effect) => <i key={effect} className={styles.systemEffect}>{effect}</i>)}
-                              {pattern.effect ? <i>{pattern.effect}</i> : null}
                             </span>
                           </>
                         ) : <span className={styles.candidatePendingCopy}>候选 {String(index + 1).padStart(2, '0')} · 后台生成中</span>}

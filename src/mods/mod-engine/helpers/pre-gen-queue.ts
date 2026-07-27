@@ -156,6 +156,16 @@ export function clearPreGenQueue(): void {
   notifyPreGenListeners()
 }
 
+/** 取消缓存和在途预生成，并等待预览快照完成恢复后再交还状态写入权。 */
+export async function cancelPreGenQueue(): Promise<void> {
+  clearPreGenQueue()
+  await preGenActivity.waitForIdle()
+}
+
+export function isPreGenQueueRunning(): boolean {
+  return preGenActivity.isRunning()
+}
+
 /** 检测时间步长是否变化，变化则清空旧粒度预生成队列。
  *  应在消费预生成队列前调用。
  *  返回 true 表示已清空（队列中的内容粒度不匹配）。 */

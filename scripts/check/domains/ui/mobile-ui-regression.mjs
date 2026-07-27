@@ -215,6 +215,17 @@ assertOk(
     && settingsModalSrc.includes('tabIndex={activeTab === tab.id ? 0 : -1}'),
   'settings tabs must use the approved roving focus and arrow-key model',
 )
+assertOk(
+  settingsModalSrc.includes('ref={tabBarRef}')
+    && settingsModalSrc.includes("scrollIntoView({")
+    && settingsModalSrc.includes("inline: 'center'"),
+  'settings tab changes must scroll the active tab into the horizontal viewport',
+)
+assertOk(
+  /\.tabBar\s*\{[^}]*overflow-x:\s*auto;[^}]*scrollbar-width:\s*none;[^}]*touch-action:\s*pan-x;/s.test(settingsModalCssSrc)
+    && settingsModalCssSrc.includes('.tabBar::-webkit-scrollbar'),
+  'settings tabs must support native horizontal touch scrolling with hidden scrollbars',
+)
 assertOk(settingsModalCssSrc.includes('flex: 0 0 auto'), 'settings tabs must keep the approved compact horizontal sizing')
 assertOk(/\.tabActive\s*\{[^}]*background:\s*#fff;[^}]*color:\s*#7382bb;/s.test(settingsModalCssSrc), 'active settings tab must use the approved white-on-accent navigation treatment')
 assertOk(

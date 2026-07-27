@@ -23,6 +23,7 @@ export type {
 export {
   applyGameSave,
   collectGameSavePayload,
+  collectManualGameSavePayload,
   ensureOrchestratorContextFromStores,
   saveCurrentGameToSlot,
 } from './helpers/save-restore'
