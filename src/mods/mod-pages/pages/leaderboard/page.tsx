@@ -8,7 +8,7 @@ import { fetchLeaderboard } from '@/core/player-content/player-content-client'
 import type { LeaderboardEntry } from '@/core/player-content/player-content-contract'
 import { BottomActionBar } from '@/mods/mod-ui'
 
-import styles from '../player-content/PlayerContent.module.css'
+import styles from './Leaderboard.module.css'
 
 export default function LeaderboardPage() {
   const router = useRouter()

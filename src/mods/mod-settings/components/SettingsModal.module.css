@@ -6,7 +6,6 @@
   overflow: hidden;
   place-items: center;
   background: rgb(238 241 247 / 88%);
-  container-type: size;
 }
 
 .modalFrame {

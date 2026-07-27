@@ -111,9 +111,6 @@ import {
   parseNarrativeRepetitionRepairOutput,
   type NarrativeRepetitionAuditOutput,
   type NarrativePromptComponent,
-  assertNarrativeMinorSafety,
-  isDisallowedMinorSexualContent,
-  NarrativeSafetyRejectedError,
 } from '../orchestrator-shared'
 
 import { useSettingsStore } from '@/mods/mod-settings'
@@ -400,8 +397,6 @@ export class OrchestratorSystem extends BaseSubsystem {
   private onNarrativeChunk: ((chunk: NarrativeChunk) => void) | null = null
   /** 流式原始协议缓冲；UI 只接收其中已解析出的正文增量。 */
   private rawNarrativeStream = ''
-  /** 安全命中后当前流不再向 UI 发送任何后续内容。 */
-  private unsafeNarrativeStreamDetected = false
 
   /** 上次收集的子系统状态缓存 */
   private lastSubsystemStates: Record<string, SubSystemState> = {}
@@ -978,38 +973,13 @@ export class OrchestratorSystem extends BaseSubsystem {
   resetCurrentNarrative(): void {
     this.rawNarrativeStream = ''
     this.state.currentNarrative = ''
-    this.unsafeNarrativeStreamDetected = false
-  }
-
-  private getNarrativeSafetyAge(): number {
-    const runtimeAge = this.characterState?.age
-    return typeof runtimeAge === 'number' && Number.isFinite(runtimeAge)
-      ? runtimeAge
-      : useCharacterStore.getState().age
-  }
-
-  /** 实时、预生成、修复和最终提交共用同一整包安全门禁。 */
-  assertNarrativeContentSafe(content: string): void {
-    if (this.unsafeNarrativeStreamDetected) {
-      throw new NarrativeSafetyRejectedError()
-    }
-    assertNarrativeMinorSafety(content, this.getNarrativeSafetyAge())
   }
 
   /** 追加原始流式块，但只把正文区增量交给 UI，协议标记与数据区不显示。 */
   appendNarrativeChunk(chunk: string): void {
-    if (this.unsafeNarrativeStreamDetected) return
     this.rawNarrativeStream += chunk
     const visibleNarrative = narrativeParser.parsePartial(this.rawNarrativeStream)
     if (!visibleNarrative) return
-
-    if (isDisallowedMinorSexualContent(visibleNarrative, this.getNarrativeSafetyAge())) {
-      this.rawNarrativeStream = ''
-      this.state.currentNarrative = ''
-      this.unsafeNarrativeStreamDetected = true
-      this.onNarrativeChunk?.({ text: '', isComplete: false, isReset: true, timestamp: Date.now() })
-      return
-    }
 
     const previous = this.state.currentNarrative
     if (visibleNarrative.startsWith(previous)) {
@@ -3442,14 +3412,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     if (!validated.success) {
       return rejectRepair('schema-invalid', { issueCount: validated.error.issues.length })
     }
-    try {
-      this.assertNarrativeContentSafe([
-        validated.data.分支标题,
-        ...validated.data.分支选项,
-      ].join('\n'))
-    } catch {
-      return rejectRepair('safety-rejected')
-    }
     const branchTitle = validated.data.分支标题.trim()
     const branchOptions = normalizeNarrativeBranchOptions(validated.data.分支选项)
     if (branchOptions.length < 2 || branchOptions.length > 4) {
@@ -3505,11 +3467,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       || validatedAudit.覆盖证据.length === 0
       || validatedAudit.冲突.length > 0
       || validatedAudit.遗漏.length > 0) return false
-    try {
-      this.assertNarrativeContentSafe(candidate.narrative)
-    } catch {
-      return false
-    }
     const normalizeRepairText = (value: string): string => value.normalize('NFKC').replace(/\s+/gu, ' ').trim()
     if (normalizeRepairText(sourceEnvelope.narrative) !== normalizeRepairText(guard.sourceNarrative)) return false
 
@@ -3845,7 +3802,6 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   handleNarrativeResponse(content: string): RoundResult {
-    this.assertNarrativeContentSafe(content)
     const parsed = narrativeParser.parse(content)
     this.setRoundAdoption({
       responseReceived: true,

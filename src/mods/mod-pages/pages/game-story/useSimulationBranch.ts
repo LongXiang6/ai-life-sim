@@ -90,13 +90,13 @@ export function useSimulationBranch({ advanceRound }: UseSimulationBranchDeps) {
     }, 10_000)
 
     const resolved = resolveNarrativeBranchChoice(branchId, choice)
-    if (!resolved) {
+    if (!resolved.ok) {
       confirmingBranchRef.current = false
       if (confirmTimerRef.current !== null) {
         clearTimeout(confirmTimerRef.current)
         confirmTimerRef.current = null
       }
-      return { ok: false, error: '当前分支已失效或选择内容未通过校验' }
+      return { ok: false, error: resolved.error ?? '当前分支已失效或选择内容未通过校验' }
     }
     setBranchCustomText('')
     setSelectedBranchOptionId(null)

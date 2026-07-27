@@ -528,7 +528,7 @@ assertOk(
 )
 assertOk(
   talentDrawCssSrc.includes('margin-right: 8px')
-    && talentDrawCssSrc.includes('padding: 14px 18px 96px')
+    && talentDrawCssSrc.includes('padding: 14px 16px 96px')
     && talentDrawPageSrc.includes('confirmationRef.current')
     && talentDrawPageSrc.includes('destinyPatterns.patterns.length !== DESTINY_PATTERN_SELECT_COUNT')
     && talentDrawPageSrc.includes("window.location.assign('/attribute-alloc')")

@@ -556,7 +556,7 @@
   display: grid;
   gap: 5px;
   margin-top: 8px;
-  max-height: min(47cqh, 22rem);
+  max-height: min(calc(47 * var(--final-flow-block-unit)), 22rem);
   overflow-y: auto;
 }
 

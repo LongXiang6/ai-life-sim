@@ -65,7 +65,6 @@ import {
   compileNarrativeDynamicComponents,
   createNarrativeRepairComponent,
 } from '../../prompts/narrative-prompt-components'
-import { isNarrativeSafetyRejectedError } from '../../helpers/narrative-safety'
 import { notifyLegendaryEncounterInjected } from '@/core/player-content/player-content-client'
 
 /** 阶段运行时上下文（扩展 RoundContext，携带本轮调用参数 + 阶段间临时数据） */
@@ -311,7 +310,6 @@ export function loadStages(
         const prefetchedCandidate = orchestrator.consumePrefetchedNarrative()
         const prefetched = ctx._legendaryEncounterInjected ? undefined : prefetchedCandidate
         if (prefetched) {
-          orchestrator.assertNarrativeContentSafe(prefetched)
           const prefetchedQuality = inspectNarrativeResponseQuality(
             prefetched,
             wordCountTarget,
@@ -528,8 +526,6 @@ export function loadStages(
             }
           }
 
-          orchestrator.assertNarrativeContentSafe(ctx._fullContent ?? '')
-
           const initialQuality = inspectNarrativeResponseQuality(
             ctx._fullContent ?? '',
             wordCountTarget,
@@ -651,7 +647,6 @@ export function loadStages(
               `${repairInstruction}\n\n【上一版完整输出；唯一剧情事实来源】\n${previousContent}`,
               repairOptions,
             )
-            orchestrator.assertNarrativeContentSafe(repaired)
             return repaired
           }
 
@@ -754,9 +749,6 @@ export function loadStages(
             )
             if (generation !== orchestrator.getLifeGeneration()) return undefined
             const candidateOutput = parseNarrativeRepetitionRepairOutput(rawCandidate)
-            if (candidateOutput?.narrative) {
-              orchestrator.assertNarrativeContentSafe(candidateOutput.narrative)
-            }
             const candidateDecision = chooseNarrativeRepetitionRepair({
               previousContent,
               candidateContent: rawCandidate,
@@ -1024,16 +1016,6 @@ export function loadStages(
             acceptedNarrativeBody: false,
             finalReason: err instanceof Error ? err.message : String(err),
           })
-          if (isNarrativeSafetyRejectedError(err)) {
-            console.warn('[Orchestrator] 叙事输出未通过未成年人安全门禁，本轮整体拒绝')
-            orchestrator.resetCurrentNarrative()
-            orchestrator.setLastExecutedFullContent(undefined)
-            if (!orchestrator.isPreviewExecution()) {
-              useEngineStore.setState({ streamingNarrative: '' })
-            }
-            ctx._fullContent = undefined
-            throw err
-          }
           console.error('[Orchestrator] AI 调用完全失败（降级链耗尽）:', err)
           logger.error('narrative-ai', 'degraded-chain-exhausted', err)
           orchestrator.resetCurrentNarrative()

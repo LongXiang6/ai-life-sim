@@ -103,7 +103,6 @@
   border-radius: 15px;
   background: rgba(255, 255, 255, .94);
   box-shadow: 0 10px 28px rgba(62, 70, 100, .055);
-  container-type: inline-size;
 }
 
 .summaryTop {

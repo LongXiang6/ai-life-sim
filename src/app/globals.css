@@ -69,7 +69,6 @@ body {
     linear-gradient(135deg, rgba(255, 215, 95, 0.07), rgba(255, 215, 95, 0) 32%),
     linear-gradient(#fafbff, #f3f5f9);
   color-scheme: light;
-  container-type: size;
   /* Establish the containing block used by flow sheets and action bars. */
   transform: translateZ(0);
 }
@@ -117,11 +116,10 @@ body {
  */
 .final-flow-design-fit {
   position: relative;
-  width: min(100cqw, calc(100cqh * 320 / 694));
+  width: 320px;
   max-width: 100%;
   max-height: 100%;
   aspect-ratio: 320 / 694;
-  container-type: size;
 }
 
 .final-flow-design-canvas {
@@ -131,42 +129,44 @@ body {
   width: 320px;
   height: 694px;
   overflow: hidden;
-  container-type: size;
-  transform: scale(calc(100cqw / 320px));
-  transform-origin: top left;
+  --final-flow-inline-unit: 3.2px;
+  --final-flow-block-unit: 6.94px;
 }
 
 .final-flow-design-fit--430 {
-  width: min(100cqw, calc(100cqh * 430 / 932));
+  width: 430px;
   aspect-ratio: 430 / 932;
 }
 
 .final-flow-design-fit--430 > .final-flow-design-canvas {
   width: 430px;
   height: 932px;
-  transform: scale(calc(100cqw / 430px));
+  --final-flow-inline-unit: 4.3px;
+  --final-flow-block-unit: 9.32px;
 }
 
 .final-flow-design-fit--330 {
-  width: min(100cqw, calc(100cqh * 330 / 715));
+  width: 330px;
   aspect-ratio: 330 / 715;
 }
 
 .final-flow-design-fit--330 > .final-flow-design-canvas {
   width: 330px;
   height: 715px;
-  transform: scale(calc(100cqw / 330px));
+  --final-flow-inline-unit: 3.3px;
+  --final-flow-block-unit: 7.15px;
 }
 
 .final-flow-design-fit--390 {
-  width: min(100cqw, calc(100cqh * 390 / 844));
+  width: 390px;
   aspect-ratio: 390 / 844;
 }
 
 .final-flow-design-fit--390 > .final-flow-design-canvas {
   width: 390px;
   height: 844px;
-  transform: scale(calc(100cqw / 390px));
+  --final-flow-inline-unit: 3.9px;
+  --final-flow-block-unit: 8.44px;
 }
 
 .final-flow-design-canvas > * {
@@ -210,12 +210,16 @@ body {
     flex: 0 0 auto;
   }
 
-  .final-flow-design-canvas {
+  .final-flow-design-canvas,
+  .final-flow-design-fit--430 > .final-flow-design-canvas,
+  .final-flow-design-fit--330 > .final-flow-design-canvas,
+  .final-flow-design-fit--390 > .final-flow-design-canvas {
     position: relative;
     width: 100%;
     height: 100%;
-    transform: none;
     overflow: hidden;
+    --final-flow-inline-unit: 1vw;
+    --final-flow-block-unit: 1vh;
   }
 
   .final-flow-frame [data-flow-bottom-bar] {

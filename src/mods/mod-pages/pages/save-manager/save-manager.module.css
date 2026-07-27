@@ -91,7 +91,7 @@
 .empty,
 .loading {
   display: grid;
-  min-height: min(55cqh, 28rem);
+  min-height: min(calc(55 * var(--final-flow-block-unit)), 28rem);
   place-items: center;
   margin: 0;
   color: #969ba2;

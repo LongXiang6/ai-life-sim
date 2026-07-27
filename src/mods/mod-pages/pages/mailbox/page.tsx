@@ -9,7 +9,7 @@ import { fetchPlayerMail, markPlayerMailRead } from '@/core/player-content/playe
 import type { PlayerMailMessageView } from '@/core/player-content/player-content-contract'
 import { BottomActionBar } from '@/mods/mod-ui'
 
-import styles from '../player-content/PlayerContent.module.css'
+import styles from './Mailbox.module.css'
 
 export default function MailboxPage() {
   const router = useRouter()

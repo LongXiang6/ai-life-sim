@@ -1,0 +1,207 @@
+.page {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  background: linear-gradient(#fafbff, #f3f5f9);
+  color: #20283a;
+  font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+}
+
+.screen {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  padding: calc(2.5 * var(--final-flow-block-unit)) calc(5.1 * var(--final-flow-inline-unit)) calc(2 * var(--final-flow-block-unit));
+  overflow: hidden;
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  color: #718099;
+  font-size: calc(1.1 * var(--final-flow-block-unit));
+  font-weight: 650;
+}
+
+.header {
+  padding: calc(4.4 * var(--final-flow-block-unit)) calc(1 * var(--final-flow-inline-unit)) calc(2.4 * var(--final-flow-block-unit));
+  border-bottom: calc(0.2 * var(--final-flow-inline-unit)) solid #dce3ed;
+}
+
+.header h1 {
+  margin: 0;
+  color: #171e35;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: calc(6 * var(--final-flow-inline-unit));
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.header p {
+  margin: calc(1 * var(--final-flow-block-unit)) 0 0;
+  color: #718099;
+  font-size: calc(1.1 * var(--final-flow-block-unit));
+}
+
+.content {
+  min-height: 0;
+  flex: 1;
+  padding: calc(2 * var(--final-flow-block-unit)) 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.status {
+  display: grid;
+  min-height: calc(28 * var(--final-flow-block-unit));
+  place-items: center;
+  margin: 0;
+  color: #718099;
+  font-size: calc(1.25 * var(--final-flow-block-unit));
+  text-align: center;
+}
+
+.error {
+  color: #9a4f59;
+}
+
+.entryList {
+  display: grid;
+  gap: calc(1.2 * var(--final-flow-block-unit));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entry {
+  min-height: calc(8.5 * var(--final-flow-block-unit));
+  padding: calc(1.3 * var(--final-flow-block-unit)) calc(3 * var(--final-flow-inline-unit));
+  border: calc(0.2 * var(--final-flow-inline-unit)) solid #d8deea;
+  border-radius: calc(2 * var(--final-flow-inline-unit));
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.entryTop {
+  display: grid;
+  grid-template-columns: calc(11 * var(--final-flow-inline-unit)) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: calc(2.2 * var(--final-flow-inline-unit));
+}
+
+.rank {
+  color: #718099;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: calc(3.8 * var(--final-flow-inline-unit));
+  font-weight: 600;
+  text-align: center;
+}
+
+.entry:first-child .rank {
+  color: #977026;
+}
+
+.entryCopy {
+  min-width: 0;
+}
+
+.entryCopy strong,
+.entryCopy small {
+  display: block;
+}
+
+.entryCopy strong {
+  overflow: hidden;
+  font-size: calc(1.55 * var(--final-flow-block-unit));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entryCopy small {
+  margin-top: calc(0.45 * var(--final-flow-block-unit));
+  color: #718099;
+  font-size: calc(1.05 * var(--final-flow-block-unit));
+}
+
+.score {
+  min-width: 0;
+  text-align: right;
+}
+
+.score strong,
+.score small {
+  display: block;
+}
+
+.score strong {
+  color: #293449;
+  font-size: calc(2 * var(--final-flow-block-unit));
+}
+
+.score small {
+  margin-top: calc(0.45 * var(--final-flow-block-unit));
+  color: #718099;
+  font-size: calc(1.05 * var(--final-flow-block-unit));
+}
+
+.entryMeta {
+  margin: calc(1 * var(--final-flow-block-unit)) 0 0;
+  color: #718099;
+  font-size: calc(1.05 * var(--final-flow-block-unit));
+}
+
+.dimensionGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: calc(0.7 * var(--final-flow-block-unit)) calc(3 * var(--final-flow-inline-unit));
+  margin: calc(1.2 * var(--final-flow-block-unit)) 0 0;
+}
+
+.dimensionGrid div {
+  display: flex;
+  min-width: 0;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: calc(2 * var(--final-flow-inline-unit));
+  padding-top: calc(0.7 * var(--final-flow-block-unit));
+  border-top: calc(0.15 * var(--final-flow-inline-unit)) solid #e3e7ef;
+}
+
+.dimensionGrid dt,
+.dimensionGrid dd {
+  margin: 0;
+}
+
+.dimensionGrid dt {
+  overflow: hidden;
+  color: #59677b;
+  font-size: calc(1.05 * var(--final-flow-block-unit));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dimensionGrid dd {
+  color: #293449;
+  font-size: calc(1.15 * var(--final-flow-block-unit));
+  font-weight: 700;
+}
+
+.endingReview {
+  margin: calc(1.2 * var(--final-flow-block-unit)) 0 0;
+  color: #536176;
+  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-size: calc(1.15 * var(--final-flow-block-unit));
+  line-height: 1.65;
+}
+
+.leaderboardPortrait {
+  width: 100%;
+  height: auto;
+  margin-top: calc(1.2 * var(--final-flow-block-unit));
+  border: calc(0.2 * var(--final-flow-inline-unit)) solid #d8deea;
+  border-radius: calc(1.5 * var(--final-flow-inline-unit));
+  object-fit: cover;
+}

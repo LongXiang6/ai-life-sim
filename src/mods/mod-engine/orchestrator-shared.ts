@@ -97,12 +97,6 @@ export type { NarrativeRepetitionAuditOutput } from './types'
 export type { NarrativePromptComponent } from './helpers/narrative-prompt-component-types'
 
 export {
-  assertNarrativeMinorSafety,
-  isDisallowedMinorSexualContent,
-  NarrativeSafetyRejectedError,
-} from './helpers/narrative-safety'
-
-export {
   digestLedger,
   type DigestEntry,
   type LedgerEvent,
