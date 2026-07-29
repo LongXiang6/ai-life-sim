@@ -9,7 +9,7 @@
 - Next.js 动态入口位于 `src/app/[mod-page]/` 和 `src/app/[...mod-page]/`，实际页面由 `src/mods/mod-pages/` 提供。
 - 页面拥有渲染、导航和页面内临时交互状态；业务状态、计算、持久化和跨系统提交由所属 MOD 或 Core 服务负责。
 - 页面通过公共入口调用所属系统，不从其他 MOD 私有目录建立第二套状态或写入路径。
-- `final-flow` 页面直接占用浏览器真实可视区域，不使用固定宽高设计画布、整页 `transform/zoom`、运行时尺寸回算或设备外壳。手机端宽度跟随视口，纵向密度跟随动态可视高度；页面内容自行滚动，共享底栏固定在浏览器安全区内。桌面端只限制内容阅读宽度，不缩放整页。实时源为 `src/app/globals.css` 中的 `.final-flow-frame`、`.flow-responsive-viewport` 与 `.flow-responsive-layout`。
+- `final-flow` 页面直接占用浏览器真实可视区域，不使用固定宽高设计画布、整页 `transform/zoom`、运行时尺寸回算或设备外壳。手机端宽度跟随视口，纵向密度跟随动态可视高度；页面内容自行滚动，共享底栏固定在浏览器安全区内。桌面端只限制内容阅读宽度，不缩放整页。非核心模拟页面通过统一密度单位把文字、控件和间距按原生布局放大 `1.2` 倍；核心故事根节点把该密度恢复为 `1` 倍，连同挂载在根节点内的弹窗和底栏保持原尺寸。实时源为 `src/app/globals.css` 中的 `.final-flow-frame`、`.flow-responsive-viewport` 与 `.flow-responsive-layout`。
 - `docs/ui-prototypes/mobile/flow.html` 及其页面只在用户明确要求原型或视觉对照时作为界面资产，不定义运行时机制或全局执行流程。
 
 ## 界面树
@@ -60,7 +60,7 @@
 | 邮箱 | 查看当前账号的满分画像邮件并标记已读 | 页面只读取当前登录账号邮件，按需打开受控画像资产；未登录、处理中、失败和空邮箱各有明确状态 | `src/mods/mod-pages/pages/mailbox/`、账号邮箱 API、`src/core/player-content/portrait-mail-service.ts`；页面不拥有邮件或画像任务状态 |
 | 设置 | 调整阅读界面、叙事偏好、模型调用并查看自己的数据统计 | 独立路由页面（`/settings`），固定四个 Tab：`阅读与界面 / 叙事偏好 / 模型与调用 / 数据统计`。支持作为 Modal 弹窗或独立页面渲染（`isPage`），在 `final-flow` 原生视口布局下按可用宽高响应，并由子选项卡纵向内滚动承载长内容。Tab 栏使用隐藏滚动条的原生横向滚动，激活项在点击或键盘切换后自动滚入可见区域。叙事文风编辑稿经“保存当前风格”生效，可“恢复默认”；正文目标使用 50 至 2000 的 16 档下拉单选；思考模式为关闭、自动、深入、最大；统计页展示 Token 与费用数据。 | `src/mods/mod-pages/pages/settings/`、`src/mods/mod-settings/`；不显示原始 Prompt、其他用户、设备来源或管理者入口，请求与计费计算由 AI 服务负责 |
 | 游戏说明 | 查看游戏流程与更新日志说明 | 独立路由页面（`/help`），展示新手引导章集与版本变更，支持独立页面与弹窗两种模式。更新日志在每个文本资源内按新到旧保存最多 10 个版本，当前资源满 10 个后创建下一资源；页面先加载最新资源并按需继续加载历史版本，不向玩家展示资源分片信息。 | `src/mods/mod-pages/pages/help/`、`src/mods/mod-ui/`、`public/changelog-index.json` 与 `public/changelog-*.txt`；版本记录器拥有写入和轮换规则，页面只负责读取与展示 |
-| 反馈 | 提交玩家描述并展示提交状态 | 页面静默构建完整诊断请求，经 API 明文保存后返回反馈编号 | `src/mods/mod-pages/pages/feedback/`、`src/core/logger/` 和反馈 API；不设置诊断同意步骤，具体链路见 [逻辑体系](logic-tree.md#诊断与反馈) |
+| 反馈 | 提交玩家描述并展示提交状态 | 页面进入时分配并显示当前浏览器的六位诊断编号，支持复制和失败后重新获取；提交时静默构建完整诊断请求，经 API 明文保存后另行返回反馈编号 | `src/mods/mod-pages/pages/feedback/`、`src/core/logger/` 和反馈 API；六位诊断编号用于关联近期记录，反馈编号标识本次提交；不设置诊断同意步骤，具体链路见 [逻辑体系](logic-tree.md#诊断与反馈) |
 
 ## 开发辅助界面
 

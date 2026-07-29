@@ -37,12 +37,12 @@
   position: relative;
   isolation: isolate;
   width: 100%;
-  min-height: 694px;
-  padding: 15px 16px calc(78px + env(safe-area-inset-bottom));
-  border: 1px solid var(--cf-line);
-  border-radius: 34px;
+  min-height: calc(694 * var(--final-flow-density-px));
+  padding: calc(15 * var(--final-flow-density-px)) calc(16 * var(--final-flow-density-px)) calc(calc(78 * var(--final-flow-density-px)) + env(safe-area-inset-bottom));
+  border: calc(1 * var(--final-flow-density-px)) solid var(--cf-line);
+  border-radius: calc(34 * var(--final-flow-density-px));
   background: linear-gradient(135deg, rgba(255, 215, 95, 0.11) 0%, rgba(255, 215, 95, 0) 34%), linear-gradient(var(--cf-paper), #f2f4f9);
-  box-shadow: 0 20px 48px rgba(62, 70, 100, 0.09);
+  box-shadow: 0 calc(20 * var(--final-flow-density-px)) calc(48 * var(--final-flow-density-px)) rgba(62, 70, 100, 0.09);
   overflow: hidden;
 }
 
@@ -58,9 +58,9 @@
 .paper::before {
   top: 0;
   left: 0;
-  width: 132px;
-  height: 132px;
-  border: 2px solid var(--cf-ornament);
+  width: calc(132 * var(--final-flow-density-px));
+  height: calc(132 * var(--final-flow-density-px));
+  border: calc(2 * var(--final-flow-density-px)) solid var(--cf-ornament);
   border-radius: 50%;
   opacity: 0.04;
   transform: translate(-50%, -50%);
@@ -69,9 +69,9 @@
 .paper::after {
   right: 0;
   bottom: 0;
-  width: 132px;
-  height: 132px;
-  border: 2px solid var(--cf-ornament);
+  width: calc(132 * var(--final-flow-density-px));
+  height: calc(132 * var(--final-flow-density-px));
+  border: calc(2 * var(--final-flow-density-px)) solid var(--cf-ornament);
   border-radius: 50%;
   opacity: 0.04;
   transform: translate(50%, 50%);
@@ -84,16 +84,16 @@
 .header {
   position: relative;
   z-index: 1;
-  margin-bottom: 10px;
+  margin-bottom: calc(10 * var(--final-flow-density-px));
 }
 
 .runningHead {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 6px;
+  gap: calc(8 * var(--final-flow-density-px));
+  margin-bottom: calc(6 * var(--final-flow-density-px));
   color: var(--cf-faint);
-  font-size: 8.5px;
+  font-size: calc(8.5 * var(--final-flow-density-px));
   font-weight: 650;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -111,7 +111,7 @@
   margin: 0;
   color: var(--cf-ink);
   font-family: 'Songti SC', 'STSong', 'SimSun', serif;
-  font-size: 22px;
+  font-size: calc(22 * var(--final-flow-density-px));
   font-weight: 600;
   line-height: 1.2;
 }
@@ -129,26 +129,26 @@
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: 30px minmax(0, 1fr);
-  gap: 10px;
-  margin-top: 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--cf-line);
-  border-radius: 15px;
+  grid-template-columns: calc(30 * var(--final-flow-density-px)) minmax(0, 1fr);
+  gap: calc(10 * var(--final-flow-density-px));
+  margin-top: calc(10 * var(--final-flow-density-px));
+  padding: calc(10 * var(--final-flow-density-px)) calc(12 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid var(--cf-line);
+  border-radius: calc(15 * var(--final-flow-density-px));
   background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 10px 28px rgba(62, 70, 100, 0.055);
+  box-shadow: 0 calc(10 * var(--final-flow-density-px)) calc(28 * var(--final-flow-density-px)) rgba(62, 70, 100, 0.055);
 }
 
 .profileAvatar {
   display: grid;
-  width: 30px;
-  height: 30px;
+  width: calc(30 * var(--final-flow-density-px));
+  height: calc(30 * var(--final-flow-density-px));
   place-items: center;
-  border: 1px solid var(--cf-line);
-  border-radius: 9px;
+  border: calc(1 * var(--final-flow-density-px)) solid var(--cf-line);
+  border-radius: calc(9 * var(--final-flow-density-px));
   background: var(--cf-accent-soft);
   color: var(--cf-accent);
-  font-size: 12px;
+  font-size: calc(12 * var(--final-flow-density-px));
 }
 
 .profileCopy {
@@ -166,28 +166,28 @@
 
 .profileCopy strong {
   color: var(--cf-ink);
-  font-size: 12px;
+  font-size: calc(12 * var(--final-flow-density-px));
   font-weight: 680;
 }
 
 .profileCopy span {
-  margin-top: 3px;
+  margin-top: calc(3 * var(--final-flow-density-px));
   color: var(--cf-muted);
-  font-size: 8.5px;
+  font-size: calc(8.5 * var(--final-flow-density-px));
 }
 
 .profileFacts {
   display: flex;
   grid-column: 1 / -1;
-  gap: 5px;
-  margin-top: 7px;
+  gap: calc(5 * var(--final-flow-density-px));
+  margin-top: calc(7 * var(--final-flow-density-px));
 }
 
 .profileFacts div {
   flex: 1;
   min-width: 0;
-  padding: 6px 7px;
-  border-radius: 9px;
+  padding: calc(6 * var(--final-flow-density-px)) calc(7 * var(--final-flow-density-px));
+  border-radius: calc(9 * var(--final-flow-density-px));
   background: var(--cf-soft);
 }
 
@@ -201,13 +201,13 @@
 
 .profileFacts span {
   color: var(--cf-faint);
-  font-size: 8.5px;
+  font-size: calc(8.5 * var(--final-flow-density-px));
 }
 
 .profileFacts strong {
-  margin-top: 3px;
+  margin-top: calc(3 * var(--final-flow-density-px));
   color: var(--cf-muted);
-  font-size: 8px;
+  font-size: calc(8 * var(--final-flow-density-px));
   font-weight: 650;
 }
 
@@ -219,16 +219,16 @@
 }
 
 .flowSections .section {
-  margin-top: 8px;
-  scroll-margin-top: 8px;
+  margin-top: calc(8 * var(--final-flow-density-px));
+  scroll-margin-top: calc(8 * var(--final-flow-density-px));
 }
 
 /* Section Styles */
 .section {
-  margin-top: 8px;
-  padding: 10px;
-  border: 1px solid var(--cf-line);
-  border-radius: 14px;
+  margin-top: calc(8 * var(--final-flow-density-px));
+  padding: calc(10 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid var(--cf-line);
+  border-radius: calc(14 * var(--final-flow-density-px));
   background: rgba(255, 255, 255, 0.94);
   box-shadow: none;
 }
@@ -237,21 +237,21 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
+  gap: calc(8 * var(--final-flow-density-px));
+  margin-bottom: calc(8 * var(--final-flow-density-px));
 }
 
 .sectionHeading h2 {
   margin: 0;
   color: var(--cf-ink);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", sans-serif;
-  font-size: 11.4px;
+  font-size: calc(11.4 * var(--final-flow-density-px));
   font-weight: 650;
 }
 
 .sectionHeading span {
   color: var(--cf-faint);
-  font-size: 8.5px;
+  font-size: calc(8.5 * var(--final-flow-density-px));
   text-align: right;
 }
 
@@ -261,8 +261,8 @@
 }
 
 .softGroup {
-  padding: 8px 0;
-  border-top: 1px solid #e5e9f2;
+  padding: calc(8 * var(--final-flow-density-px)) 0;
+  border-top: calc(1 * var(--final-flow-density-px)) solid #e5e9f2;
 }
 
 .softGroup:first-child {
@@ -278,14 +278,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 6px;
+  gap: calc(8 * var(--final-flow-density-px));
+  margin-bottom: calc(6 * var(--final-flow-density-px));
 }
 
 .groupHeading label,
 .groupHeading > span {
   color: var(--cf-faint);
-  font-size: 8.5px;
+  font-size: calc(8.5 * var(--final-flow-density-px));
   font-weight: 650;
 }
 
@@ -295,13 +295,13 @@
 }
 
 .groupHeading button {
-  min-height: 28px;
-  padding: 0 8px;
+  min-height: calc(28 * var(--final-flow-density-px));
+  padding: 0 calc(8 * var(--final-flow-density-px));
   border: 0;
   background: transparent;
   color: var(--cf-accent);
   font: inherit;
-  font-size: 8.5px;
+  font-size: calc(8.5 * var(--final-flow-density-px));
 }
 
 /* Input Fields */
@@ -309,7 +309,7 @@
 .inlineInputRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 4px;
+  gap: calc(4 * var(--final-flow-density-px));
 }
 
 .nameRow input,
@@ -319,14 +319,14 @@
 .presetSaveForm input {
   width: 100%;
   min-width: 0;
-  min-height: 31px;
-  padding: 0 10px;
-  border: 1px solid var(--cf-line);
-  border-radius: 8px;
+  min-height: calc(31 * var(--final-flow-density-px));
+  padding: 0 calc(10 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid var(--cf-line);
+  border-radius: calc(8 * var(--final-flow-density-px));
   background: #fbfcff;
   color: var(--cf-ink);
   font: inherit;
-  font-size: 8.6px;
+  font-size: calc(8.6 * var(--final-flow-density-px));
 }
 
 .nameRow input::placeholder,
@@ -340,45 +340,45 @@
 
 .nameRow button,
 .inlineInputRow button {
-  min-height: 31px;
-  padding: 0 10px;
-  border: 1px solid var(--cf-line);
-  border-radius: 8px;
+  min-height: calc(31 * var(--final-flow-density-px));
+  padding: 0 calc(10 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid var(--cf-line);
+  border-radius: calc(8 * var(--final-flow-density-px));
   background: var(--cf-accent-soft);
   color: var(--cf-accent);
   font: inherit;
-  font-size: 8.5px;
+  font-size: calc(8.5 * var(--final-flow-density-px));
   white-space: nowrap;
 }
 
 .fieldError {
-  margin: 4px 0 0;
+  margin: calc(4 * var(--final-flow-density-px)) 0 0;
   color: #c85a5f;
-  font-size: 8.5px;
+  font-size: calc(8.5 * var(--final-flow-density-px));
 }
 
 /* Choice Label */
 .groupHeading .choiceLabel {
   color: var(--cf-faint);
-  font-size: 8.5px;
+  font-size: calc(8.5 * var(--final-flow-density-px));
 }
 
 /* Chip/Segmented Controls */
 .chipRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 3px;
+  gap: calc(3 * var(--final-flow-density-px));
 }
 
 .chipRow button {
-  min-height: 28px;
-  padding: 0 10px;
-  border: 1px solid transparent;
-  border-radius: 7px;
+  min-height: calc(28 * var(--final-flow-density-px));
+  padding: 0 calc(10 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid transparent;
+  border-radius: calc(7 * var(--final-flow-density-px));
   background: var(--cf-soft);
   color: var(--cf-muted);
   font: inherit;
-  font-size: 8.5px;
+  font-size: calc(8.5 * var(--final-flow-density-px));
   cursor: pointer;
 }
 
@@ -396,50 +396,50 @@
 
 .removableChip .removeChip {
   position: absolute;
-  top: -4px;
-  right: -4px;
-  width: 16px;
-  min-height: 16px;
+  top: calc(-4 * var(--final-flow-density-px));
+  right: calc(-4 * var(--final-flow-density-px));
+  width: calc(16 * var(--final-flow-density-px));
+  min-height: calc(16 * var(--final-flow-density-px));
   padding: 0;
   border: 0;
   border-radius: 50%;
   background: #c85a5f;
   color: #fff;
-  font-size: 12px;
+  font-size: calc(12 * var(--final-flow-density-px));
   line-height: 1;
 }
 
 .groupCaption {
-  margin: 6px 0 0;
+  margin: calc(6 * var(--final-flow-density-px)) 0 0;
   color: var(--cf-faint);
-  font-size: 8.5px;
+  font-size: calc(8.5 * var(--final-flow-density-px));
   line-height: 1.5;
 }
 
 /* Catalog Grid */
 .inlinePanel {
-  margin-top: 8px;
-  padding: 8px;
-  border-radius: 10px;
+  margin-top: calc(8 * var(--final-flow-density-px));
+  padding: calc(8 * var(--final-flow-density-px));
+  border-radius: calc(10 * var(--final-flow-density-px));
   background: var(--cf-soft);
 }
 
 .catalogGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-  margin-top: 6px;
+  gap: calc(4 * var(--final-flow-density-px));
+  margin-top: calc(6 * var(--final-flow-density-px));
 }
 
 .catalogGrid button {
-  min-height: 28px;
-  padding: 0 8px;
-  border: 1px solid var(--cf-line);
-  border-radius: 7px;
+  min-height: calc(28 * var(--final-flow-density-px));
+  padding: 0 calc(8 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid var(--cf-line);
+  border-radius: calc(7 * var(--final-flow-density-px));
   background: #fbfcff;
   color: var(--cf-muted);
   font: inherit;
-  font-size: 8.5px;
+  font-size: calc(8.5 * var(--final-flow-density-px));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -465,7 +465,7 @@
 .lifespanFields {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 4px;
+  gap: calc(4 * var(--final-flow-density-px));
 }
 
 .lifespanFields label {
@@ -475,30 +475,30 @@
 
 .lifespanFields label span {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: calc(4 * var(--final-flow-density-px));
   color: var(--cf-faint);
-  font-size: 8.5px;
+  font-size: calc(8.5 * var(--final-flow-density-px));
 }
 
 .lifespanFields button {
   grid-column: 1 / -1;
   width: 100%;
-  min-height: 28px;
-  margin-top: 7px;
-  padding: 0 10px;
-  border: 1px solid var(--cf-line);
-  border-radius: 7px;
+  min-height: calc(28 * var(--final-flow-density-px));
+  margin-top: calc(7 * var(--final-flow-density-px));
+  padding: 0 calc(10 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid var(--cf-line);
+  border-radius: calc(7 * var(--final-flow-density-px));
   background: #fbfcff;
   color: var(--cf-accent);
   font: inherit;
-  font-size: 8.5px;
+  font-size: calc(8.5 * var(--final-flow-density-px));
   cursor: pointer;
 }
 
 .lifespanResult {
-  margin: 6px 0 0;
+  margin: calc(6 * var(--final-flow-density-px)) 0 0;
   color: var(--cf-faint);
-  font-size: 8.5px;
+  font-size: calc(8.5 * var(--final-flow-density-px));
   line-height: 1.5;
 }
 
@@ -510,29 +510,29 @@
 .backgroundPresets {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  margin-bottom: 8px;
+  gap: calc(4 * var(--final-flow-density-px));
+  margin-bottom: calc(8 * var(--final-flow-density-px));
 }
 
 .backgroundPresetWrap {
   position: relative;
   display: inline-flex;
   min-width: 0;
-  border: 1px solid var(--cf-line);
-  border-radius: 7px;
+  border: calc(1 * var(--final-flow-density-px)) solid var(--cf-line);
+  border-radius: calc(7 * var(--final-flow-density-px));
   background: #fbfcff;
   overflow: hidden;
 }
 
 .backgroundPresetWrap > button:first-child {
   min-width: 0;
-  min-height: 25px;
-  padding: 0 7px;
+  min-height: calc(25 * var(--final-flow-density-px));
+  padding: 0 calc(7 * var(--final-flow-density-px));
   border: 0;
   background: transparent;
   color: var(--cf-muted);
   font: inherit;
-  font-size: 8.5px;
+  font-size: calc(8.5 * var(--final-flow-density-px));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -545,29 +545,29 @@
 }
 
 .backgroundPresetWrap .removePreset {
-  width: 20px;
-  min-height: 25px;
+  width: calc(20 * var(--final-flow-density-px));
+  min-height: calc(25 * var(--final-flow-density-px));
   padding: 0;
   border: 0;
-  border-left: 1px solid #e5e9f2;
+  border-left: calc(1 * var(--final-flow-density-px)) solid #e5e9f2;
   background: transparent;
   color: var(--cf-faint);
   font: inherit;
-  font-size: 12px;
+  font-size: calc(12 * var(--final-flow-density-px));
   line-height: 1;
   cursor: pointer;
 }
 
 .backgroundTextarea {
   width: 100%;
-  min-height: 82px;
-  padding: 9px 10px;
-  border: 1px solid var(--cf-line);
-  border-radius: 8px;
+  min-height: calc(82 * var(--final-flow-density-px));
+  padding: calc(9 * var(--final-flow-density-px)) calc(10 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid var(--cf-line);
+  border-radius: calc(8 * var(--final-flow-density-px));
   background: #fbfcff;
   color: var(--cf-ink);
   font: inherit;
-  font-size: 8.6px;
+  font-size: calc(8.6 * var(--final-flow-density-px));
   line-height: 1.5;
   resize: vertical;
 }
@@ -581,21 +581,21 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-top: 7px;
+  gap: calc(8 * var(--final-flow-density-px));
+  margin-top: calc(7 * var(--final-flow-density-px));
   color: var(--cf-faint);
-  font-size: 8.5px;
+  font-size: calc(8.5 * var(--final-flow-density-px));
 }
 
 .backgroundFooter > button {
-  min-height: 28px;
-  padding: 0 8px;
-  border: 1px solid var(--cf-line);
-  border-radius: 7px;
+  min-height: calc(28 * var(--final-flow-density-px));
+  padding: 0 calc(8 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid var(--cf-line);
+  border-radius: calc(7 * var(--final-flow-density-px));
   background: var(--cf-accent-soft);
   color: var(--cf-accent);
   font: inherit;
-  font-size: 8.5px;
+  font-size: calc(8.5 * var(--final-flow-density-px));
   cursor: pointer;
 }
 
@@ -603,21 +603,21 @@
 .presetSaveForm {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 4px;
-  margin-top: 5px;
-  padding-top: 8px;
-  border-top: 1px solid #e5e9f2;
+  gap: calc(4 * var(--final-flow-density-px));
+  margin-top: calc(5 * var(--final-flow-density-px));
+  padding-top: calc(8 * var(--final-flow-density-px));
+  border-top: calc(1 * var(--final-flow-density-px)) solid #e5e9f2;
 }
 
 .presetSaveForm button {
-  min-height: 28px;
-  padding: 0 10px;
-  border: 1px solid var(--cf-line);
-  border-radius: 7px;
+  min-height: calc(28 * var(--final-flow-density-px));
+  padding: 0 calc(10 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid var(--cf-line);
+  border-radius: calc(7 * var(--final-flow-density-px));
   background: var(--cf-accent-soft);
   color: var(--cf-accent);
   font: inherit;
-  font-size: 8.5px;
+  font-size: calc(8.5 * var(--final-flow-density-px));
   cursor: pointer;
 }
 
@@ -626,6 +626,6 @@ button:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 2px solid rgba(115, 130, 187, 0.48);
-  outline-offset: 2px;
+  outline: calc(2 * var(--final-flow-density-px)) solid rgba(115, 130, 187, 0.48);
+  outline-offset: calc(2 * var(--final-flow-density-px));
 }

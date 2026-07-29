@@ -6,11 +6,12 @@
  * @mod mod-pages
  */
 
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 
 import { useRouter } from 'next/navigation'
 
 import { logger } from '@/core/logger/client-logger'
+import { ensureDiagnosticPlayerCode } from '@/core/logger/diagnostic-player-code-client'
 
 import type { FeedbackCategory, PlayerFeedbackEnvelope } from '@/core/logger/feedback-contract'
 
@@ -37,6 +38,9 @@ export default function FeedbackPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [feedbackId, setFeedbackId] = useState<string | null>(null)
+  const [diagnosticCode, setDiagnosticCode] = useState<string | null>(null)
+  const [diagnosticCodeError, setDiagnosticCodeError] = useState(false)
+  const [diagnosticCodeCopied, setDiagnosticCodeCopied] = useState(false)
 
   const copyText = async (value: string): Promise<boolean> => {
     try {
@@ -56,6 +60,26 @@ export default function FeedbackPage() {
       return copied
     }
   }
+
+  const loadDiagnosticCode = async () => {
+    setDiagnosticCodeError(false)
+    setDiagnosticCodeCopied(false)
+    const code = await ensureDiagnosticPlayerCode()
+    setDiagnosticCode(code ?? null)
+    setDiagnosticCodeError(!code)
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    void ensureDiagnosticPlayerCode().then((code) => {
+      if (cancelled) return
+      setDiagnosticCode(code ?? null)
+      setDiagnosticCodeError(!code)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const canSubmit = message.trim().length > 0 && !submitting
 
@@ -127,6 +151,26 @@ export default function FeedbackPage() {
                         rows={8}
                       />
                     </label>
+                  </div>
+                </section>
+
+                <section className={styles.panel}>
+                  <div className={styles.dataRow} aria-live="polite">
+                    <span><strong>六位诊断编号</strong><small>反馈后可凭此编号查询近期记录</small></span>
+                    {diagnosticCode ? (
+                      <button
+                        type="button"
+                        className={styles.valueAction}
+                        aria-label={`复制诊断编号 ${diagnosticCode}`}
+                        onClick={() => {
+                          void copyText(diagnosticCode).then(setDiagnosticCodeCopied)
+                        }}
+                      >
+                        {diagnosticCodeCopied ? '已复制' : diagnosticCode}
+                      </button>
+                    ) : diagnosticCodeError ? (
+                      <button type="button" className={styles.valueAction} onClick={() => { void loadDiagnosticCode() }}>重新获取</button>
+                    ) : <span className={styles.value}>分配中</span>}
                   </div>
                 </section>
 

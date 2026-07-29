@@ -4,7 +4,7 @@
  * 覆盖：
  *   1. 主叙事最低成功允许省略 digest；可选 keyEvents 一旦出现仍必须带 importance；
  *   2. 摘要账本实际按权重保留高分事件、折叠低分事件；
- *   3. L1 延迟窗口的首个覆盖区间与最近完整原文窗口不能产生空洞；
+ *   3. L1 延迟窗口的首个覆盖区间与近期事实窗口不能产生空洞；
  *   4. 摘要必须带完整覆盖标记，任何层级失败时不得伪造覆盖节点或成功统计。
  *
  * 该脚本不调用外部 AI，只验证进入运行时后的结构与调度契约。
@@ -122,9 +122,16 @@ assertOk(
   !timelineEvents.some((event) => event.text.includes('你整理了屋舍')),
   'low-value events must leave the always-on prompt while remaining in the ledger',
 )
+const recentFacts = digestLedger.selectRecentFactsForNarrativeTimeline(2, RECENT_NARRATIVE_WINDOW)
+assertOk(
+  recentFacts.some((event) => event.text === '你整理了屋舍')
+    && recentFacts.some((event) => event.text === '你救下失散的孩子')
+    && !recentFacts.some((event) => event.text === '平静的一天。'),
+  'recent prompt memory must use complete structured facts without duplicating the digest when key events exist',
+)
 assertOk(
   digestLedger.selectForNarrativeTimeline(2, undefined, undefined, { excludeRoundsAtOrAfter: 1 }).length === 0,
-  'events already covered by the recent full-text window must not be sent twice',
+  'events already covered by the recent fact window must not be sent twice',
 )
 assertOk(
   digestLedger.averageAdjustedImportance(1, 2) !== null,
@@ -140,6 +147,13 @@ for (let round = 3; round <= 522; round++) {
 assertOk(
   digestLedger.getEntries().length === 522,
   'long-session digest ledger must retain every recorded round instead of applying a capacity cut',
+)
+const fourCompletedRounds = digestLedger.selectRecentFactsForNarrativeTimeline(522, RECENT_NARRATIVE_WINDOW)
+assertOk(
+  fourCompletedRounds.length === 4
+    && fourCompletedRounds[0]?.round === 519
+    && fourCompletedRounds[3]?.round === 522,
+  'the recent fact window must contain exactly the four latest completed rounds',
 )
 const longSessionProjection = digestLedger.selectForNarrativeTimeline(522)
 assertOk(
@@ -204,14 +218,16 @@ const memorySource = fs.readFileSync(
   'utf8',
 )
 assertOk(
-  orchestratorSource.includes('selectNarrativeHistoryForPrompt(RECENT_NARRATIVE_WINDOW)')
-    && orchestratorSource.includes('filterNarrativeRecordsForPrompt(')
-    && orchestratorSource.includes('.filter(({ entry }) => visibleEntries.has(entry))')
-    && orchestratorSource.includes('.slice(-limit)')
+  orchestratorSource.includes('selectRecentFactsForNarrativeTimeline(')
+    && orchestratorSource.includes('const latestCompletedRound = Math.max(0, this.state.totalRounds - 1)')
+    && orchestratorSource.includes('latestCompletedRound - RECENT_NARRATIVE_WINDOW + 1')
+    && !orchestratorSource.includes('selectNarrativeHistoryForPrompt(')
+    && !orchestratorSource.includes('lastNarrativeText')
+    && !orchestratorSource.includes('e.narrative.trim()')
     && memorySource.includes('buildNarrativeTimelineProjection(')
-    && memorySource.includes('...recentNarratives')
+    && memorySource.includes('...recentFacts')
     && memorySource.includes('selectLeafSummaries'),
-  'production memory projection must preserve the caller-provided raw window and use hierarchical leaf summaries',
+  'production memory projection must use recent structured facts and hierarchical leaf summaries without resending story prose',
 )
 assertOk(
   summaryPromptSource.includes('eventRecords')

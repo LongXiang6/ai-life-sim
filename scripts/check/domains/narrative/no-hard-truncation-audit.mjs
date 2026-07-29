@@ -13,6 +13,8 @@ register('../../lib/typescript-loader.mjs', import.meta.url)
 const { mapRawNarrativeChanges } = await import('../../../../src/mods/mod-engine/helpers/narrative-change-bundle.ts')
 const { validateRoundChanges } = await import('../../../../src/mods/mod-engine/helpers/subsystem-field-registry.ts')
 const { requireCompletedSummaryContent } = await import('../../../../src/mods/mod-engine/helpers/summary-coverage.ts')
+const { buildPowerCeilingPresetsForNarrative } = await import('../../../../src/mods/mod-world/utils/world-init-prompt-vars.ts')
+const { RATING_DESCRIPTIONS, TRUE_INFINITE_DESCRIPTION, UNIT_NAMES } = await import('../../../../src/mods/mod-power-system/constants.ts')
 
 const root = getProjectRoot(import.meta.url)
 let failed = 0
@@ -143,6 +145,12 @@ assertOk(
     && timelineMemory.includes('initialWeight'),
   'compression storage and story projection must remain separate while preserving complete internal memory data',
 )
+assertOk(
+  !orchestrator.includes('lastNarrativeText')
+    && !orchestrator.includes('e.narrative.trim()')
+    && ledger.includes('selectRecentFactsForNarrativeTimeline'),
+  'main narrative context must consume fact projections without a raw previous-story compatibility path',
+)
 reject(forgettingPatterns, /keywords\.slice\(/, 'explainable forgetting must preserve every matched audit reason')
 reject(foreshadowing, /MAX_ACTIVE_FORESHADOWING|MAX_PROMPT_FORESHADOWING|TIMEOUT_ROUNDS|\.slice\(0,\s*MAX_PROMPT/, 'foreshadowing must not evict or top-N truncate unresolved threads')
 reject(changeBundle, /changes\.slice\(/, 'narrative changes must never be partially mapped through slicing')
@@ -194,7 +202,25 @@ assertOk(
   'historical Prompt projection must be bounded by unresolved status and current scope without dropping source facts',
 )
 reject(calibration, /SUMMARY_MAX_LEN|joined\.slice\(/, 'calibration summary must not be cut by character count')
-reject(powerContext, /split\(['"]。['"]\)\[0\]/, 'power context must not shorten higher tiers to the first phrase')
+reject(powerContext, /split\(['"]。['"]\)\[0\]/, 'power context must not derive compact tiers by cutting source descriptions at runtime')
+const powerNarrativeProjection = buildPowerCeilingPresetsForNarrative(8)
+const firstTierPowerNarrativeProjection = buildPowerCeilingPresetsForNarrative(1)
+const powerTierLines = powerNarrativeProjection.split('\n').filter((line) => /^\d+阶/u.test(line))
+assertOk(
+  powerNarrativeProjection.startsWith('当前世界可达上限：8阶【穰级】\n完整阶位标尺：')
+    && firstTierPowerNarrativeProjection.startsWith('当前世界可达上限：1阶【尘级】\n完整阶位标尺：')
+    && powerTierLines.length === 24
+    && powerTierLines.every((line, index) => line.startsWith(`${index + 1}阶【${UNIT_NAMES[index + 1]}级】：`))
+    && Object.keys(RATING_DESCRIPTIONS).length === 23
+    && Object.values(RATING_DESCRIPTIONS).every((description) => description.length <= 32)
+    && TRUE_INFINITE_DESCRIPTION.length <= 32,
+  'narrative power context must transmit the current ceiling and all 24 named boundaries in the curated compact contract',
+)
+assertOk(
+  orchestrator.includes("powerSystemTag === 'none' || !Number.isFinite(powerCeiling) || powerCeiling < 1")
+    && !orchestrator.includes('powerCeiling <= 1'),
+  'every valid power-enabled world, including a first-tier ceiling, must inject the complete power scale',
+)
 reject(crossDomain, /eventHistory\s*=\s*this\.eventHistory\.slice\(-500\)/, 'cross-domain event history must not discard old events by capacity')
 reject(postDeath, /narrativeHistory\.slice\(|deathNarratives\.slice\(/, 'death and epilogue narrative must not use fixed-count life-history cuts')
 reject(postDeath, /总字数\s*\d+\s*[-—]\s*\d+\s*字/, 'death and epilogue Prompts must not impose fixed character ranges')
@@ -202,7 +228,7 @@ reject(memoryEngine, /majorEvents\.slice\(-3\)|relationships\.shift\(|majorEvent
 reject(forgetting, /causalEvents\.shift\(/, 'causal protection marks must not be evicted by capacity')
 reject(eventLifecycle, /activeDisasters\.slice\(/, 'event lifecycle must not ignore disasters after a fixed count')
 reject(narrativePrompt, /digest:[^\n]*(?:不超过|最多)\d+|keyEvents:[^\n]*最多\d+|entities[^\n]*最多\d+|relationshipUpdates:[^\n]*最多\d+|resolvedForeshadowingIds:[^\n]*最多\d+|notableEvents:[^\n]*最多\d+|creations:[^\n]*最多\d+|foreshadowing:[^\n]*最多\d+/, 'narrative Prompt must not induce fixed character or item limits on semantic META')
-assertOk(narrativePrompt.includes("version: '5.7.0'"), 'no-truncation narrative contract must use pure narrative Prompt version 5.7.0')
+assertOk(narrativePrompt.includes("version: '5.8.0'"), 'no-truncation narrative contract must use pure narrative Prompt version 5.8.0')
 assertOk(
   branchIntent.includes('其他未完成命运意图；保持事实连续，不得静默删除')
     && orchestrator.includes('branchIntents: this.branchIntents')

@@ -70,7 +70,7 @@ async function inspectRoute(page, viewport, route) {
     const responsiveViewport = document.querySelector('.flow-responsive-viewport')
     const layout = document.querySelector('.flow-responsive-layout')
     const bottomBar = document.querySelector('[data-flow-bottom-bar]')
-    const title = document.querySelector('h1')
+    const title = document.querySelector('h1, h2')
     const actions = document.querySelector('main section:last-of-type')
     const tabPanel = document.querySelector('[role="tabpanel"]')
     const frameStyle = getComputedStyle(frame)
@@ -86,8 +86,11 @@ async function inspectRoute(page, viewport, route) {
       title: readRect(title),
       actions: readRect(actions),
       titleFontSize: title ? Number.parseFloat(getComputedStyle(title).fontSize) : null,
+      densityPixelUnit: Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--final-flow-density-px')),
       frameTransform: frameStyle.transform,
       layoutTransform: layoutStyle.transform,
+      frameZoom: frameStyle.zoom,
+      layoutZoom: layoutStyle.zoom,
       inlineTransform: layout instanceof HTMLElement ? layout.style.transform : '',
       legacyNodeCount: document.querySelectorAll('.final-flow-design-fit, .final-flow-design-canvas').length,
       tabPanel: tabPanel ? {
@@ -104,6 +107,8 @@ async function inspectRoute(page, viewport, route) {
   assertCheck(metrics.frame && approximately(metrics.frame.left, 0) && approximately(metrics.frame.top, 0), 'frame does not start at the viewport origin', failures)
   assertCheck(metrics.frame && approximately(metrics.frame.right, width) && approximately(metrics.frame.bottom, height), 'frame does not match the browser viewport', failures)
   assertCheck(metrics.frameTransform === 'none' && metrics.layoutTransform === 'none' && metrics.inlineTransform === '', 'page frame or layout is transformed or scaled', failures)
+  assertCheck(metrics.frameZoom === '1' && metrics.layoutZoom === '1', 'page frame or layout uses CSS zoom', failures)
+  assertCheck(approximately(metrics.densityPixelUnit, 1.2, 0.01), 'non-core density is not exactly 1.2x', failures)
   assertCheck(metrics.legacyNodeCount === 0, 'legacy design-canvas nodes remain in the DOM', failures)
   assertCheck(metrics.layout && metrics.responsiveViewport && approximately(metrics.layout.width, metrics.responsiveViewport.width) && approximately(metrics.layout.height, metrics.responsiveViewport.height), 'layout does not match its responsive viewport', failures)
 
@@ -122,7 +127,17 @@ async function inspectRoute(page, viewport, route) {
 
   if (route.name === 'welcome') {
     assertCheck(metrics.actions && metrics.actions.bottom <= height + 1, 'welcome actions exceed the visible height', failures)
-    assertCheck(metrics.titleFontSize !== null && metrics.titleFontSize >= 20 && metrics.titleFontSize <= 32, 'welcome title is abnormally scaled', failures)
+    const originalInlineUnit = Math.min(4.3, Math.max(3.2, width / 100))
+    assertCheck(metrics.titleFontSize !== null && approximately(metrics.titleFontSize, originalInlineUnit * 6.9 * 1.2, 0.15), 'welcome title is not 1.2x its native baseline', failures)
+  }
+
+  const fixedTitleBaselines = { settings: 21, 'world-select': 24, feedback: 22 }
+  if (Object.hasOwn(fixedTitleBaselines, route.name)) {
+    assertCheck(
+      metrics.titleFontSize !== null && approximately(metrics.titleFontSize, fixedTitleBaselines[route.name] * 1.2, 0.15),
+      `${route.name} title is not 1.2x its native baseline`,
+      failures,
+    )
   }
 
   if (route.name === 'settings') {

@@ -471,7 +471,7 @@ export default function GamePage() {
 
   if (flowGuard) {
     return (
-      <div className="final-flow-frame">
+      <div className="final-flow-frame final-flow-frame--core-simulation">
         <div className="flow-responsive-viewport">
           <div className="flow-responsive-layout">
             <div className={styles.root}>
@@ -493,7 +493,7 @@ export default function GamePage() {
   }
 
   return (
-    <div className="final-flow-frame">
+    <div className="final-flow-frame final-flow-frame--core-simulation">
       <div className="flow-responsive-viewport">
         <div className="flow-responsive-layout">
           <div className={styles.root}>

@@ -68,10 +68,10 @@ assertOk(
   '第一次调用必须只装配全局信息、记忆和本轮引导三条动态消息',
 )
 assertOk(
-  narrativePrompt.includes("version: '5.7.0'")
-    && narrativePrompt.includes("'mod-engine:narrative:5.7.0'")
+  narrativePrompt.includes("version: '5.8.0'")
+    && narrativePrompt.includes("'mod-engine:narrative:5.8.0'")
     && narrativePrompt.includes('serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID'),
-  '第一次调用必须接入唯一 5.7.0 受保护叙事资产',
+  '第一次调用必须接入唯一 5.8.0 受保护叙事资产',
 )
 assertOk(
   settlementPrompt.includes("version: '1.1.0'")
@@ -85,6 +85,8 @@ assertOk(
     && narrativeServerAsset.includes('buildNarrativeAIProtocolStandardExample')
     && narrativeServerAsset.includes('buildNarrativeAIProtocolPromptExample')
     && narrativeServerAsset.includes('reasoning_content 承载')
+    && narrativeServerAsset.includes('`${NARRATIVE_BODY_TAG}<完整正文>')
+    && !narrativeServerAsset.includes('此处填写')
     && narrativeServerAsset.includes('【content 返回结构示例结束】'),
   '主叙事资产必须只约束正文及可选分支，并提供唯一标准示例',
 )

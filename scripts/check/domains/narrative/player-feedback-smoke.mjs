@@ -60,8 +60,12 @@ assert(
   'oversized or failed feedback must reject the whole submission',
 )
 assert(
-  !/consent|附带诊断|玩家编号|诊断编号|API Key、认证信息|隐私|脱敏|采集/.test(page),
-  'feedback page must contain no collection disclosure or consent UI',
+  page.includes('ensureDiagnosticPlayerCode')
+    && page.includes('六位诊断编号')
+    && page.includes('复制诊断编号')
+    && page.includes('重新获取')
+    && !/consent|附带诊断|API Key、认证信息|隐私|脱敏|采集/.test(page),
+  'feedback page must expose the six-character diagnostic code without restoring consent or collection disclosure UI',
 )
 assert(
   !/诊断日志|隐私|脱敏|采集|哈希去重|诊断编号|环境快照/.test(disclaimer + help),

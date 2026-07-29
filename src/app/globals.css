@@ -34,6 +34,8 @@ html, body, #__next {
 }
 
 html {
+  --final-flow-density-px: 1.2px;
+  --final-flow-density-rem: 1.2rem;
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;
   -moz-osx-font-smoothing: grayscale;
@@ -94,6 +96,18 @@ body {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  --final-flow-inline-unit: clamp(3.84px, 1.2vw, 5.16px);
+  --final-flow-block-unit: clamp(7.68px, 1.2vh, 11.184px);
+  --final-flow-block-unit: clamp(7.68px, 1.2dvh, 11.184px);
+}
+
+/* The story reader and every portal mounted inside it keep their tuned size. */
+.final-flow-frame--core-simulation {
+  --final-flow-density-px: 1px;
+  --final-flow-density-rem: 1rem;
+}
+
+.final-flow-frame--core-simulation .flow-responsive-layout {
   --final-flow-inline-unit: clamp(3.2px, 1vw, 4.3px);
   --final-flow-block-unit: clamp(6.4px, 1vh, 9.32px);
   --final-flow-block-unit: clamp(6.4px, 1dvh, 9.32px);
@@ -141,9 +155,9 @@ body {
 @media (max-width: 47.99rem) {
   .final-flow-frame [data-flow-bottom-bar] {
     position: fixed !important;
-    bottom: max(12px, env(safe-area-inset-bottom, 0px));
-    left: max(16px, env(safe-area-inset-left, 0px));
-    right: max(16px, env(safe-area-inset-right, 0px));
+    bottom: max(calc(12 * var(--final-flow-density-px)), env(safe-area-inset-bottom, 0px));
+    left: max(calc(16 * var(--final-flow-density-px)), env(safe-area-inset-left, 0px));
+    right: max(calc(16 * var(--final-flow-density-px)), env(safe-area-inset-right, 0px));
     z-index: 100;
   }
 }

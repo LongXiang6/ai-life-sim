@@ -332,7 +332,8 @@ assertOk(
   'local guidance compiler must sort, dedupe exact system text, preserve player input, and avoid length truncation',
 )
 assertOk(
-  narrativeSystemPrompt.includes('记忆、摘要与近期历史原文只提供已经成立的事实')
+  narrativeSystemPrompt.includes('记忆只提供已经成立的事实')
+    && narrativeSystemPrompt.includes('本轮必须从当前时间与引导产生新的变化和结果')
     && narrativeSystemPrompt.includes('正文全程用第二人称“你”')
     && !memoryLifecycle.includes('不得模仿其中的人称、措辞或段落结构'),
   'server fixed authority alone must define how narrative memory is used',
@@ -349,64 +350,48 @@ for (const [source, duplicatedRule] of [
 }
 const exactSampleContext = {
   worldNarrativeView: {
-    当前上下文类型: '世界',
-    当前模拟范围: '当前完整模拟',
-    当前世界能力: ['生命', '空间', '个体角色'],
-    世界名称: '临海北湾',
-    世界描述: '旧桥连接港区与北岸，现实物理与社会因果有效。',
-    当前历法: '公历',
+    字段名称: '<世界设定字段值>',
   },
-  worldRules: '【标签参考；具体世界设定优先】\n默认遵循现实物理与社会因果；除非世界设定明确允许，不引入超自然事实。',
-  modWorldRules: 'NPC 与关系只通过已登记实体和公开契约运行。',
-  worldTagsText: 'modern,coastal-city',
-  calibrationSummary: '现实世界校准：不引入超自然力量。',
-  powerCeilingPresets: '无超自然力量体系。',
-  talents: '【轮回天赋】未熄之诺（承诺）：真诚许下的承诺更难被世界轻易抹去。\n【普通命格】潮声：能从潮声中辨认环境变化，但不会给出确定答案。',
+  worldRules: '<世界规则>',
+  modWorldRules: '<模组世界规则>',
+  worldTagsText: '<世界标签>',
+  calibrationSummary: '<世界校准>',
+  powerCeilingPresets: '<力量体系>',
+  talents: '<命格天赋>',
   characterProfileView: {
-    姓名: '林舟',
-    性别: '男',
-    背景: '27岁，住在北湾港区，正在寻找失联的阿禾。',
+    字段名称: '<角色档案字段值>',
   },
-  narrativeStyle: '写实',
-  narrativeToneHint: '克制而温暖',
+  narrativeStyle: '<叙事风格设置>',
+  narrativeToneHint: '<叙事基调设置>',
   timelineMemory: [
     '【时间轴记忆】',
-    '【时间阶段：2023年1月】',
-    '- [2023年1月 · 角色24岁] 【发生上下文：临海北湾】',
-    '  你与阿禾共同经营北湾修船铺。',
+    '【时间阶段：<时间阶段一>】',
+    '- [<发生时间一>] <已成立事实一>',
     '',
-    '【时间阶段：2023年6月2日】',
-    '- [2023年6月2日 · 角色24岁] 【发生上下文：临海北湾】',
-    '  阿禾在港口事故中救过你。',
-    '',
-    '【时间阶段：2026年8月12日】',
-    '- [2026年8月12日 · 角色27岁] 玩家角色亲自开创[玩家原创·物品] 潮声罗盘：只能辨认海潮方向。',
-    '',
-    '【时间阶段：2026年9月17日 · 秋 · 18:20】',
-    '- [2026年9月17日 · 秋 · 18:20 · 角色27岁] 【发生上下文：临海北湾】',
-    '  你发现巡船正在搜查北岸，旧桥仍是你与阿禾约定重逢的地点。',
+    '【时间阶段：<时间阶段二>】',
+    '- [<发生时间二>] <已成立事实二>',
   ].join('\n'),
-  currentTime: '2026年9月18日 · 秋 · 18:40',
-  characterStatusView: { 年龄: 27 },
-  subsystemSummaries: ['阿禾位于旧桥北端', '你与阿禾的关系在当前世界生效'],
-  systemChangeSummary: '上一轮没有已提交的数值变化。',
-  plotStructureText: '当前阶段：寻找阿禾并重建信任。',
-  foreshadowingText: '暂无本轮必须回收的伏笔。',
-  eventInjectionText: '已接受事件 event:accepted-123：你在旧桥救下阿禾。',
-  timeBridgeSummary: '本轮没有跨年跳跃。',
-  causalChainHint: '巡船搜索路线因救援改变。',
-  roundSystemGuidanceText: '推进1天，围绕同一现场写出行动、回应与直接后果。',
-  narrativeGuidanceText: '写救援后的现场、关系回应和新的航向。',
+  currentTime: '<当前时间>',
+  characterStatusView: { 字段名称: '<角色现状字段值>' },
+  subsystemSummaries: ['<当前状态条目>'],
+  systemChangeSummary: '<最近变化>',
+  plotStructureText: '<当前情节阶段>',
+  foreshadowingText: '<本轮可回收伏笔>',
+  eventInjectionText: '<本轮触发事项>',
+  timeBridgeSummary: '<时间跨度摘要>',
+  causalChainHint: '<已触发因果>',
+  roundSystemGuidanceText: '<系统引导>',
+  narrativeGuidanceText: '<叙事引导>',
   playerBranchIntent: {
     当前意图: {
-      意图编号: '命运分支:north-route',
-      分支编号: 'north-route',
-      玩家选择: '驶入海雾寻找北岸航道',
-      建立轮次: 4,
-      更新轮次: 4,
+      意图编号: '<意图编号>',
+      分支编号: '<分支编号>',
+      玩家选择: '<玩家原始选择>',
+      建立轮次: '<建立轮次>',
+      更新轮次: '<更新轮次>',
     },
   },
-  wordCountInstruction: '写成一个短段、1至2个短句：一个感官或动作，加一个直接结果。\n正文全部段落合计写成40-60字，中心约50字。',
+  wordCountInstruction: '<本轮字数要求>',
 }
 const exactSampleDynamicInput = buildSegmentedPrompt(
   liveNarrativePrompt,
@@ -424,11 +409,12 @@ assertOk(
     && sampleDynamicInput === exactSampleDynamicInput
     && sampleDynamicInput.split('\n').filter((line) => /^⟦(?:全局信息|记忆|本轮引导)⟧/u.test(line)).length === 3
     && sampleDynamicInput.includes('⟦记忆⟧【时间轴记忆】\n【时间阶段：')
-    && sampleDynamicInput.includes('\n\n【时间阶段：2026年8月12日】\n- ')
+    && sampleDynamicInput.includes('\n\n【时间阶段：<时间阶段二>】\n- ')
     && !/weight|权重|sourceEventIds|currentWeight|衰减|L[123]时间轴/iu.test(sampleDynamicInput)
     && !sampleDynamicInput.includes('以下内容由玩家角色亲自开创')
+    && !/临海北湾|阿禾|旧桥|海雾|写实|克制而温暖/u.test(sampleDynamicInput)
     && !sampleDynamicInput.includes('最终玩家可见结果完整写入 content'),
-  'the exact I/O sample must byte-match the compiled messages and keep chronological rule-free memory lines',
+  'the exact I/O sample must byte-match the compiled messages and contain only format placeholders',
 )
 
 const wordCountStart = orchestrator.indexOf('wordCountInstruction:')
@@ -530,7 +516,7 @@ for (const inactiveConnection of [
   )
 }
 assertOk(
-  liveNarrativePrompt.version === '5.7.0'
+  liveNarrativePrompt.version === '5.8.0'
     && liveNarrativePrompt.systemPrompt === ''
     && !narrativeSystemPrompt.includes('examples: ['),
   'optimized prompt must be versioned and keep one governed standard example instead of duplicate examples',

@@ -33,11 +33,11 @@ const settingsModal = read('src/mods/mod-settings/components/SettingsModal.tsx')
 const settingsIndex = read('src/mods/mod-settings/index.ts')
 
 assertOk(
-  narrativeContract.includes("version: '5.7.0'")
+  narrativeContract.includes("version: '5.8.0'")
     && narrativeContract.includes("systemPrompt: ''")
-    && narrativeContract.includes("'mod-engine:narrative:5.7.0'")
+    && narrativeContract.includes("'mod-engine:narrative:5.8.0'")
     && narrativeContract.includes('serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID'),
-  'browser narrative PromptTemplate must carry only the 5.7.0 server asset ID',
+  'browser narrative PromptTemplate must carry only the 5.8.0 server asset ID',
 )
 assertOk(
   settlementContract.includes("version: '1.1.0'")
@@ -52,6 +52,8 @@ assertOk(
     && narrativeServerPrompt.includes('player-setting-ownership')
     && narrativeServerPrompt.includes('narrative-length-control')
     && narrativeServerPrompt.includes('正文全部段落合计的篇幅区间和结构密度')
+    && narrativeServerPrompt.includes('`${NARRATIVE_BODY_TAG}<完整正文>')
+    && !narrativeServerPrompt.includes('此处填写')
     && narrativeServerPrompt.includes('世界观、已激活模组规则与确定性模拟逻辑')
     && narrativeServerPrompt.includes('COMPILED_NARRATIVE_SYSTEM_PROMPT'),
   'server Prompt owner must retain the fixed narrative asset and standard example',

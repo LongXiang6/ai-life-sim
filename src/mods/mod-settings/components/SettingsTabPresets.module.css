@@ -1,13 +1,13 @@
 .tabRoot {
   width: 100%;
   color: #28324b;
-  font-size: 10px;
+  font-size: calc(10 * var(--final-flow-density-px));
 }
 
 .section {
   margin: 0;
-  padding: 9px 0;
-  border-top: 1px solid #d8deea;
+  padding: calc(9 * var(--final-flow-density-px)) 0;
+  border-top: calc(1 * var(--final-flow-density-px)) solid #d8deea;
 }
 
 .section:first-of-type {
@@ -25,16 +25,16 @@
 
 .sectionLabel {
   justify-content: space-between;
-  gap: 8px;
-  margin: 0 0 4px;
-  padding-inline: 3px;
+  gap: calc(8 * var(--final-flow-density-px));
+  margin: 0 0 calc(4 * var(--final-flow-density-px));
+  padding-inline: calc(3 * var(--final-flow-density-px));
 }
 
 .sectionLabel h3 {
   margin: 0;
   color: #28324b;
   font-family: "Songti SC", STSong, SimSun, serif;
-  font-size: 10px;
+  font-size: calc(10 * var(--final-flow-density-px));
   font-weight: 600;
   letter-spacing: 0;
 }
@@ -42,7 +42,7 @@
 .sectionLabel > span,
 .groupHeading > span:last-child {
   color: #929bb0;
-  font-size: 5.5px;
+  font-size: calc(5.5 * var(--final-flow-density-px));
   text-align: right;
 }
 
@@ -60,7 +60,7 @@
 
 .cardBody,
 .actionBody {
-  padding: 4px 0;
+  padding: calc(4 * var(--final-flow-density-px)) 0;
 }
 
 .supportingText,
@@ -69,7 +69,7 @@
 .providerGuide {
   margin: 0;
   color: #929bb0;
-  font-size: 6.5px;
+  font-size: calc(6.5 * var(--final-flow-density-px));
   line-height: 1.55;
 }
 
@@ -77,25 +77,25 @@
 .modelGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-  margin-top: 7px;
+  gap: calc(4 * var(--final-flow-density-px));
+  margin-top: calc(7 * var(--final-flow-density-px));
 }
 
 .modelPicker {
-  margin-top: 9px;
-  padding-top: 8px;
-  border-top: 1px solid #e5e9f2;
+  margin-top: calc(9 * var(--final-flow-density-px));
+  padding-top: calc(8 * var(--final-flow-density-px));
+  border-top: calc(1 * var(--final-flow-density-px)) solid #e5e9f2;
 }
 
 .groupHeading {
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 5px;
+  gap: calc(8 * var(--final-flow-density-px));
+  margin-bottom: calc(5 * var(--final-flow-density-px));
 }
 
 .groupHeading > span:first-child {
   color: #46515c;
-  font-size: 7px;
+  font-size: calc(7 * var(--final-flow-density-px));
   font-weight: 650;
 }
 
@@ -105,15 +105,15 @@
 .primaryButton,
 .secondaryButton {
   min-width: 0;
-  min-height: 29px;
-  padding: 4px 6px;
-  border: 1px solid #d8deea;
-  border-radius: 8px;
+  min-height: calc(29 * var(--final-flow-density-px));
+  padding: calc(4 * var(--final-flow-density-px)) calc(6 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
+  border-radius: calc(8 * var(--final-flow-density-px));
   background: #fff;
   color: #46515c;
   cursor: pointer;
   font: inherit;
-  font-size: 7px;
+  font-size: calc(7 * var(--final-flow-density-px));
 }
 
 .vendorButton,
@@ -132,34 +132,34 @@
 }
 
 .modelNotes {
-  margin-top: 6px;
-  padding: 6px 7px;
-  border-left: 2px solid #8797a9;
+  margin-top: calc(6 * var(--final-flow-density-px));
+  padding: calc(6 * var(--final-flow-density-px)) calc(7 * var(--final-flow-density-px));
+  border-left: calc(2 * var(--final-flow-density-px)) solid #8797a9;
   background: #f1f3fa;
 }
 
 .vendorNotes,
 .providerGuide {
-  margin-top: 6px;
+  margin-top: calc(6 * var(--final-flow-density-px));
 }
 
 .providerGuide {
-  padding: 6px 7px;
-  border: 1px solid #d8deea;
+  padding: calc(6 * var(--final-flow-density-px)) calc(7 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
   background: #f6f8fa;
 }
 
 .providerGuide a {
   color: #52639c;
   font-weight: 650;
-  text-underline-offset: 2px;
+  text-underline-offset: calc(2 * var(--final-flow-density-px));
 }
 
 .fieldGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
-  margin-top: 8px;
+  gap: calc(7 * var(--final-flow-density-px));
+  margin-top: calc(8 * var(--final-flow-density-px));
 }
 
 .field:first-child {
@@ -168,24 +168,24 @@
 
 .field {
   display: grid;
-  gap: 3px;
+  gap: calc(3 * var(--final-flow-density-px));
 }
 
 .field > span {
   color: #929bb0;
-  font-size: 6.5px;
+  font-size: calc(6.5 * var(--final-flow-density-px));
 }
 
 .presetInput {
   width: 100%;
-  min-height: 29px;
-  padding: 4px 6px;
-  border: 1px solid #d8deea;
-  border-radius: 7px;
+  min-height: calc(29 * var(--final-flow-density-px));
+  padding: calc(4 * var(--final-flow-density-px)) calc(6 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
+  border-radius: calc(7 * var(--final-flow-density-px));
   background: #fff;
   color: #46515c;
   font: inherit;
-  font-size: 7px;
+  font-size: calc(7 * var(--final-flow-density-px));
 }
 
 .presetInput::placeholder {
@@ -193,45 +193,45 @@
 }
 
 .presetInput:focus {
-  outline: 2px solid rgb(115 130 187 / 48%);
-  outline-offset: 1px;
+  outline: calc(2 * var(--final-flow-density-px)) solid rgb(115 130 187 / 48%);
+  outline-offset: calc(1 * var(--final-flow-density-px));
 }
 
 .connectionRow {
   justify-content: space-between;
-  gap: 8px;
-  margin-top: 8px;
+  gap: calc(8 * var(--final-flow-density-px));
+  margin-top: calc(8 * var(--final-flow-density-px));
 }
 
 .configSummary {
   display: grid;
-  gap: 2px;
+  gap: calc(2 * var(--final-flow-density-px));
   min-width: 0;
 }
 
 .configSummary span {
   color: #929bb0;
-  font-size: 5.8px;
+  font-size: calc(5.8 * var(--final-flow-density-px));
 }
 
 .configSummary strong {
   overflow: hidden;
   color: #46515c;
-  font-size: 7px;
+  font-size: calc(7 * var(--final-flow-density-px));
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .connectionStatus {
   flex: 0 0 auto;
-  gap: 4px;
+  gap: calc(4 * var(--final-flow-density-px));
   color: #929bb0;
-  font-size: 6.5px;
+  font-size: calc(6.5 * var(--final-flow-density-px));
 }
 
 .statusDot {
-  width: 7px;
-  height: 7px;
+  width: calc(7 * var(--final-flow-density-px));
+  height: calc(7 * var(--final-flow-density-px));
   border-radius: 50%;
   background: #929bb0;
 }
@@ -250,14 +250,14 @@
 
 .actionRow {
   flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 8px;
+  gap: calc(5 * var(--final-flow-density-px));
+  margin-top: calc(8 * var(--final-flow-density-px));
 }
 
 .primaryButton,
 .secondaryButton {
-  min-height: 29px;
-  padding: 4px 9px;
+  min-height: calc(29 * var(--final-flow-density-px));
+  padding: calc(4 * var(--final-flow-density-px)) calc(9 * var(--final-flow-density-px));
 }
 
 .primaryButton {
@@ -278,8 +278,8 @@
 .retryButton:focus-visible,
 .primaryButton:focus-visible,
 .secondaryButton:focus-visible {
-  outline: 2px solid rgb(115 130 187 / 48%);
-  outline-offset: 2px;
+  outline: calc(2 * var(--final-flow-density-px)) solid rgb(115 130 187 / 48%);
+  outline-offset: calc(2 * var(--final-flow-density-px));
 }
 
 @media (prefers-reduced-motion: reduce) {

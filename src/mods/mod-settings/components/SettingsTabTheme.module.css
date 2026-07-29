@@ -1,23 +1,23 @@
 .tabRoot {
   width: 100%;
   color: #28324b;
-  font-size: 10px;
+  font-size: calc(10 * var(--final-flow-density-px));
 }
 
 .preferenceIntro {
-  margin: 8px 0 10px;
+  margin: calc(8 * var(--final-flow-density-px)) 0 calc(10 * var(--final-flow-density-px));
   color: #707b92;
-  font-size: 7px;
+  font-size: calc(7 * var(--final-flow-density-px));
   line-height: 1.5;
 }
 
 .settingRow {
   display: grid;
-  min-height: 41px;
+  min-height: calc(41 * var(--final-flow-density-px));
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
-  padding: 4px 0;
+  gap: calc(8 * var(--final-flow-density-px));
+  padding: calc(4 * var(--final-flow-density-px)) 0;
 }
 
 .settingCopy {
@@ -32,36 +32,36 @@
 .settingCopy strong {
   color: #28324b;
   font-family: "Songti SC", STSong, SimSun, serif;
-  font-size: 8px;
+  font-size: calc(8 * var(--final-flow-density-px));
   font-weight: 650;
   line-height: 1.25;
 }
 
 .settingCopy small {
-  margin-top: 2px;
+  margin-top: calc(2 * var(--final-flow-density-px));
   color: #929bb0;
-  font-size: 5.8px;
+  font-size: calc(5.8 * var(--final-flow-density-px));
   line-height: 1.35;
 }
 
 .toggle {
   position: relative;
-  width: 34px;
-  min-width: 34px;
-  height: 20px;
+  width: calc(34 * var(--final-flow-density-px));
+  min-width: calc(34 * var(--final-flow-density-px));
+  height: calc(20 * var(--final-flow-density-px));
   padding: 0;
-  border: 1px solid #d8deea;
-  border-radius: 999px;
+  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
+  border-radius: calc(999 * var(--final-flow-density-px));
   background: #f1f3fa;
   cursor: pointer;
 }
 
 .toggle::after {
   position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 12px;
-  height: 12px;
+  top: calc(3 * var(--final-flow-density-px));
+  left: calc(3 * var(--final-flow-density-px));
+  width: calc(12 * var(--final-flow-density-px));
+  height: calc(12 * var(--final-flow-density-px));
   border-radius: 50%;
   background: #929bb0;
   content: "";
@@ -74,14 +74,14 @@
 }
 
 .toggle[aria-checked="true"]::after {
-  left: 17px;
+  left: calc(17 * var(--final-flow-density-px));
   background: #7382bb;
 }
 
 .section {
   margin: 0;
-  padding: 9px 0;
-  border-top: 1px solid #d8deea;
+  padding: calc(9 * var(--final-flow-density-px)) 0;
+  border-top: calc(1 * var(--final-flow-density-px)) solid #d8deea;
 }
 
 .section:first-of-type {
@@ -100,9 +100,9 @@
 
 .sectionLabel {
   justify-content: space-between;
-  gap: 8px;
-  margin: 0 0 4px;
-  padding-inline: 3px;
+  gap: calc(8 * var(--final-flow-density-px));
+  margin: 0 0 calc(4 * var(--final-flow-density-px));
+  padding-inline: calc(3 * var(--final-flow-density-px));
 }
 
 .sectionLabel h3,
@@ -110,7 +110,7 @@
   margin: 0;
   color: #28324b;
   font-family: "Songti SC", STSong, SimSun, serif;
-  font-size: 10px;
+  font-size: calc(10 * var(--final-flow-density-px));
   font-weight: 600;
   letter-spacing: 0;
 }
@@ -118,7 +118,7 @@
 .sectionLabel > span,
 .groupHeading > span:last-child {
   color: #929bb0;
-  font-size: 5.5px;
+  font-size: calc(5.5 * var(--final-flow-density-px));
   text-align: right;
 }
 
@@ -133,23 +133,23 @@
 .optionGroup,
 .cacheBody,
 .dataBody {
-  padding: 9px 0;
+  padding: calc(9 * var(--final-flow-density-px)) 0;
 }
 
 .optionGroup + .optionGroup {
-  border-top: 1px solid #d8deea;
+  border-top: calc(1 * var(--final-flow-density-px)) solid #d8deea;
 }
 
 .groupHeading {
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 4px;
+  gap: calc(8 * var(--final-flow-density-px));
+  margin-bottom: calc(4 * var(--final-flow-density-px));
 }
 
 .groupHeading > span:first-child,
 .importModeRow > span {
   color: #46515c;
-  font-size: 7px;
+  font-size: calc(7 * var(--final-flow-density-px));
   font-weight: 650;
 }
 
@@ -157,7 +157,7 @@
 .narrativeGrid,
 .streamGrid {
   display: grid;
-  gap: 4px;
+  gap: calc(4 * var(--final-flow-density-px));
 }
 
 .narrativeGrid {
@@ -179,20 +179,20 @@
 .secondaryButton,
 .dangerButton,
 .confirmDangerButton {
-  border: 1px solid #d8deea;
-  border-radius: 8px;
+  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
+  border-radius: calc(8 * var(--final-flow-density-px));
   background: #fff;
   color: #46515c;
   cursor: pointer;
   font: inherit;
-  font-size: 7px;
+  font-size: calc(7 * var(--final-flow-density-px));
 }
 
 .choiceButton,
 .fontButton {
   min-width: 0;
-  min-height: 29px;
-  padding: 4px 6px;
+  min-height: calc(29 * var(--final-flow-density-px));
+  padding: calc(4 * var(--final-flow-density-px)) calc(6 * var(--final-flow-density-px));
 }
 
 .choiceButton {
@@ -212,14 +212,14 @@
 }
 
 .choiceTitle {
-  font-size: 8px;
+  font-size: calc(8 * var(--final-flow-density-px));
   line-height: 1.25;
 }
 
 .choiceDescription {
-  margin-top: 2px;
+  margin-top: calc(2 * var(--final-flow-density-px));
   color: #929bb0;
-  font-size: 5.8px;
+  font-size: calc(5.8 * var(--final-flow-density-px));
   line-height: 1.35;
 }
 
@@ -229,34 +229,34 @@
 
 .cacheSummary {
   justify-content: space-between;
-  gap: 8px;
+  gap: calc(8 * var(--final-flow-density-px));
 }
 
 .cacheSummary > div:not(.cacheActions) {
   display: grid;
-  gap: 2px;
+  gap: calc(2 * var(--final-flow-density-px));
 }
 
 .metricLabel {
   color: #929bb0;
-  font-size: 5.8px;
+  font-size: calc(5.8 * var(--final-flow-density-px));
 }
 
 .cacheSummary strong {
   color: #28324b;
   font-family: "Songti SC", STSong, SimSun, serif;
-  font-size: 11px;
+  font-size: calc(11 * var(--final-flow-density-px));
 }
 
 .cacheActions {
   display: flex;
-  gap: 4px;
+  gap: calc(4 * var(--final-flow-density-px));
   margin-left: auto;
 }
 
 .textButton {
-  min-height: 24px;
-  padding: 0 6px;
+  min-height: calc(24 * var(--final-flow-density-px));
+  padding: 0 calc(6 * var(--final-flow-density-px));
   border-color: transparent;
   background: transparent;
   color: #7382bb;
@@ -265,22 +265,22 @@
 .progressBar {
   display: block;
   width: 100%;
-  height: 5px;
-  margin-top: 8px;
+  height: calc(5 * var(--final-flow-density-px));
+  margin-top: calc(8 * var(--final-flow-density-px));
   accent-color: #7382bb;
 }
 
 .supportingText {
-  margin: 6px 0 0;
+  margin: calc(6 * var(--final-flow-density-px)) 0 0;
   color: #929bb0;
-  font-size: 6.5px;
+  font-size: calc(6.5 * var(--final-flow-density-px));
   line-height: 1.55;
 }
 
 .roundMetrics {
-  margin-top: 8px;
-  padding-top: 7px;
-  border-top: 1px solid #d8deea;
+  margin-top: calc(8 * var(--final-flow-density-px));
+  padding-top: calc(7 * var(--final-flow-density-px));
+  border-top: calc(1 * var(--final-flow-density-px)) solid #d8deea;
 }
 
 .roundMetrics ul {
@@ -292,11 +292,11 @@
 .roundMetrics li {
   display: flex;
   justify-content: space-between;
-  gap: 8px;
-  padding: 4px 0;
-  border-top: 1px solid #e5e9f2;
+  gap: calc(8 * var(--final-flow-density-px));
+  padding: calc(4 * var(--final-flow-density-px)) 0;
+  border-top: calc(1 * var(--final-flow-density-px)) solid #e5e9f2;
   color: #929bb0;
-  font-size: 6px;
+  font-size: calc(6 * var(--final-flow-density-px));
 }
 
 .roundMetrics li span:last-child {
@@ -309,31 +309,31 @@
 
 .importModeRow {
   justify-content: space-between;
-  gap: 8px;
-  margin-top: 8px;
+  gap: calc(8 * var(--final-flow-density-px));
+  margin-top: calc(8 * var(--final-flow-density-px));
 }
 
 .segmentedControl {
   display: flex;
-  gap: 3px;
+  gap: calc(3 * var(--final-flow-density-px));
 }
 
 .segmentedControl button {
-  min-height: 25px;
-  padding: 0 7px;
+  min-height: calc(25 * var(--final-flow-density-px));
+  padding: 0 calc(7 * var(--final-flow-density-px));
 }
 
 .dataActions {
   flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 8px;
+  gap: calc(4 * var(--final-flow-density-px));
+  margin-top: calc(8 * var(--final-flow-density-px));
 }
 
 .secondaryButton,
 .dangerButton,
 .confirmDangerButton {
-  min-height: 28px;
-  padding: 0 8px;
+  min-height: calc(28 * var(--final-flow-density-px));
+  padding: 0 calc(8 * var(--final-flow-density-px));
 }
 
 .dangerButton,
@@ -348,43 +348,43 @@
   inset: 0;
   display: grid;
   place-items: center;
-  padding: 20px;
+  padding: calc(20 * var(--final-flow-density-px));
   background: rgb(40 50 75 / 18%);
 }
 
 .resetDialog {
-  width: min(100%, 300px);
-  padding: 16px;
-  border: 1px solid #d8deea;
-  border-radius: 10px;
+  width: min(100%, calc(300 * var(--final-flow-density-px)));
+  padding: calc(16 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
+  border-radius: calc(10 * var(--final-flow-density-px));
   background: #fff;
-  box-shadow: 0 18px 40px rgb(40 50 75 / 16%);
+  box-shadow: 0 calc(18 * var(--final-flow-density-px)) calc(40 * var(--final-flow-density-px)) rgb(40 50 75 / 16%);
 }
 
 .resetDialog > p,
 .resetWarning {
-  margin: 8px 0 0;
+  margin: calc(8 * var(--final-flow-density-px)) 0 0;
   color: #707b92;
-  font-size: 7px;
+  font-size: calc(7 * var(--final-flow-density-px));
   line-height: 1.55;
 }
 
 .resetWarning {
-  padding: 7px 8px;
-  border-left: 2px solid #b86660;
+  padding: calc(7 * var(--final-flow-density-px)) calc(8 * var(--final-flow-density-px));
+  border-left: calc(2 * var(--final-flow-density-px)) solid #b86660;
   background: #fbf3f2;
   color: #984b46 !important;
 }
 
 .dialogActions {
   justify-content: flex-end;
-  gap: 5px;
-  margin-top: 12px;
+  gap: calc(5 * var(--final-flow-density-px));
+  margin-top: calc(12 * var(--final-flow-density-px));
 }
 
 .dialogActions button {
-  min-height: 28px;
-  padding: 0 8px;
+  min-height: calc(28 * var(--final-flow-density-px));
+  padding: 0 calc(8 * var(--final-flow-density-px));
 }
 
 .choiceButton:focus-visible,
@@ -396,8 +396,8 @@
 .confirmDangerButton:focus-visible,
 .resetDialog:focus-visible,
 .toggle:focus-visible {
-  outline: 2px solid rgb(115 130 187 / 48%);
-  outline-offset: 2px;
+  outline: calc(2 * var(--final-flow-density-px)) solid rgb(115 130 187 / 48%);
+  outline-offset: calc(2 * var(--final-flow-density-px));
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -1,54 +1,54 @@
 .tabRoot {
   display: grid;
-  gap: 13px;
-  padding: 12px 0 4px;
+  gap: calc(13 * var(--final-flow-density-px));
+  padding: calc(12 * var(--final-flow-density-px)) 0 calc(4 * var(--final-flow-density-px));
 }
 
 .section {
   display: grid;
-  gap: 6px;
+  gap: calc(6 * var(--final-flow-density-px));
 }
 
 .sectionLabel {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
+  gap: calc(8 * var(--final-flow-density-px));
 }
 
 .sectionLabel h3 {
   margin: 0;
   color: #28324b;
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
 }
 
 .sectionLabel span {
   max-width: 58%;
   overflow: hidden;
   color: #929bb0;
-  font-size: 6px;
+  font-size: calc(6 * var(--final-flow-density-px));
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .sectionCard {
-  padding: 10px;
-  border: 1px solid #d8deea;
-  border-radius: 8px;
+  padding: calc(10 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
+  border-radius: calc(8 * var(--final-flow-density-px));
   background: #fff;
 }
 
 .metricGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px;
+  gap: calc(7 * var(--final-flow-density-px));
 }
 
 .metricGrid > div {
   min-width: 0;
-  padding: 8px;
-  border: 1px solid #e5e9f2;
-  border-radius: 6px;
+  padding: calc(8 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid #e5e9f2;
+  border-radius: calc(6 * var(--final-flow-density-px));
   background: #f6f8fa;
 }
 
@@ -63,33 +63,33 @@
 .notice,
 .empty {
   color: #707b92;
-  font-size: 6px;
+  font-size: calc(6 * var(--final-flow-density-px));
 }
 
 .metricGrid strong {
-  margin-top: 3px;
+  margin-top: calc(3 * var(--final-flow-density-px));
   overflow-wrap: anywhere;
   color: #28324b;
-  font-size: 10px;
+  font-size: calc(10 * var(--final-flow-density-px));
 }
 
 .metricGrid small {
-  margin-top: 2px;
+  margin-top: calc(2 * var(--final-flow-density-px));
 }
 
 .notice,
 .empty,
 .error {
-  margin: 8px 0 0;
+  margin: calc(8 * var(--final-flow-density-px)) 0 0;
   line-height: 1.55;
 }
 
 .cacheRow {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: calc(8 * var(--final-flow-density-px));
   color: #707b92;
-  font-size: 6px;
+  font-size: calc(6 * var(--final-flow-density-px));
 }
 
 .cacheRow span,
@@ -98,15 +98,15 @@
 }
 
 .cacheRow strong {
-  margin-top: 2px;
+  margin-top: calc(2 * var(--final-flow-density-px));
   color: #28324b;
-  font-size: 10px;
+  font-size: calc(10 * var(--final-flow-density-px));
 }
 
 .sectionCard progress {
   width: 100%;
-  height: 5px;
-  margin-top: 9px;
+  height: calc(5 * var(--final-flow-density-px));
+  margin-top: calc(9 * var(--final-flow-density-px));
   accent-color: #7382bb;
 }
 
@@ -125,9 +125,9 @@
   min-width: 0;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 7px 0;
-  border-bottom: 1px solid #e5e9f2;
+  gap: calc(8 * var(--final-flow-density-px));
+  padding: calc(7 * var(--final-flow-density-px)) 0;
+  border-bottom: calc(1 * var(--final-flow-density-px)) solid #e5e9f2;
 }
 
 .poolList li:last-child,
@@ -149,27 +149,27 @@
 .balanceList strong {
   overflow-wrap: anywhere;
   color: #28324b;
-  font-size: 7px;
+  font-size: calc(7 * var(--final-flow-density-px));
 }
 
 .poolList small,
 .balanceList small,
 .balanceList span {
-  margin-top: 2px;
+  margin-top: calc(2 * var(--final-flow-density-px));
   color: #707b92;
-  font-size: 5.5px;
+  font-size: calc(5.5 * var(--final-flow-density-px));
 }
 
 .poolList b {
   flex: 0 0 auto;
   color: #7382bb;
-  font-size: 6px;
+  font-size: calc(6 * var(--final-flow-density-px));
   font-weight: 700;
 }
 
 .balanceList li {
   display: grid;
-  grid-template-columns: 35px minmax(0, 1fr);
+  grid-template-columns: calc(35 * var(--final-flow-density-px)) minmax(0, 1fr);
 }
 
 .balanceList small {
@@ -180,27 +180,27 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-top: 8px;
+  gap: calc(8 * var(--final-flow-density-px));
+  margin-top: calc(8 * var(--final-flow-density-px));
 }
 
 .actionRow small {
   color: #929bb0;
-  font-size: 5.5px;
+  font-size: calc(5.5 * var(--final-flow-density-px));
 }
 
 .actionRow button,
 .actionRow a {
-  min-height: 24px;
-  padding: 0 8px;
-  border: 1px solid #d8deea;
-  border-radius: 6px;
+  min-height: calc(24 * var(--final-flow-density-px));
+  padding: 0 calc(8 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
+  border-radius: calc(6 * var(--final-flow-density-px));
   background: #fff;
   color: #7382bb;
   cursor: pointer;
   font: inherit;
-  font-size: 6px;
-  line-height: 22px;
+  font-size: calc(6 * var(--final-flow-density-px));
+  line-height: calc(22 * var(--final-flow-density-px));
   text-decoration: none;
 }
 
@@ -211,5 +211,5 @@
 
 .error {
   color: #8d4f59;
-  font-size: 6px;
+  font-size: calc(6 * var(--final-flow-density-px));
 }

@@ -195,9 +195,11 @@ assertOk(
 )
 assertOk(
   buildNarrativeAIProtocolPromptExample().includes('【content 返回结构示例开始')
-    && buildNarrativeAIProtocolPromptExample().includes('\n\n如需分段，此处填写后续段落。')
+    && buildNarrativeAIProtocolPromptExample().includes('⟦正文⟧<完整正文>')
     && buildNarrativeAIProtocolPromptExample().includes('\n\n⟦分支⟧')
-    && buildNarrativeAIProtocolPromptExample().includes('此处填写分支标题')
+    && buildNarrativeAIProtocolPromptExample().includes('"标题":"<分支标题>"')
+    && buildNarrativeAIProtocolPromptExample().includes('"选项":["<分支选项>","<分支选项>"]')
+    && !buildNarrativeAIProtocolPromptExample().includes('此处填写')
     && !/阿禾|仓门|巡船|礁石|缆绳|海雾|航向/u.test(buildNarrativeAIProtocolPromptExample())
     && buildNarrativeAIProtocolPromptExample().endsWith('均是本轮输入，不属于 content。')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes(buildNarrativeAIProtocolPromptExample()),
@@ -586,14 +588,15 @@ assertOk(
 )
 
 assertOk(
-  narrativePrompt.version === '5.7.0'
+  narrativePrompt.version === '5.8.0'
     && narrativePrompt.serverPromptAssetId === NARRATIVE_SERVER_PROMPT_ASSET_ID
     && narrativeSettlementPrompt.version === '1.1.0'
     && narrativeSettlementPrompt.serverPromptAssetId === NARRATIVE_SETTLEMENT_SERVER_PROMPT_ASSET_ID
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('⟦结束⟧')
     && !COMPILED_NARRATIVE_SETTLEMENT_SYSTEM_PROMPT.includes('⟦结束⟧')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('角色自创内容的后续发展必须来自角色自身')
-    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('记忆、摘要与近期历史原文只提供已经成立的事实'),
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('记忆只提供已经成立的事实')
+    && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('本轮必须从当前时间与引导产生新的变化和结果'),
   'the live prompts must expose only the two versioned assets and no ending tag',
 )
 

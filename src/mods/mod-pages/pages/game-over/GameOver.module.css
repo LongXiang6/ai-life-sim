@@ -6,8 +6,8 @@
 
 .wrapper {
   width: 100%;
-  min-height: 715px;
-  padding: 16px 12px 88px;
+  min-height: calc(715 * var(--final-flow-density-px));
+  padding: calc(16 * var(--final-flow-density-px)) calc(12 * var(--final-flow-density-px)) calc(88 * var(--final-flow-density-px));
 }
 
 .book {
@@ -23,7 +23,7 @@
 
   position: relative;
   width: 100%;
-  max-width: 330px;
+  max-width: calc(330 * var(--final-flow-density-px));
   margin: 0 auto;
   background: transparent;
   color: var(--ink);
@@ -53,7 +53,7 @@
 /* Identity Section */
 .identity {
   text-align: center;
-  padding: 0 0 8px;
+  padding: 0 0 calc(8 * var(--final-flow-density-px));
 }
 
 .identitySeal {
@@ -67,15 +67,15 @@
 .identityCopy h2 {
   margin: 0;
   font-family: var(--serif);
-  font-size: 21px;
+  font-size: calc(21 * var(--final-flow-density-px));
   font-weight: 650;
   line-height: 1.2;
 }
 
 .identityCopy p {
-  margin: 3px 0 0;
+  margin: calc(3 * var(--final-flow-density-px)) 0 0;
   color: var(--faint);
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   line-height: 1.4;
 }
 
@@ -86,7 +86,7 @@
 /* Section Base */
 .section {
   margin: 0;
-  padding: 0 0 18px;
+  padding: 0 0 calc(18 * var(--final-flow-density-px));
   border-top: 0;
 }
 
@@ -94,9 +94,9 @@
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-  padding: 0 3px;
+  gap: calc(12 * var(--final-flow-density-px));
+  margin-bottom: calc(8 * var(--final-flow-density-px));
+  padding: 0 calc(3 * var(--final-flow-density-px));
 }
 
 .sectionHeading > div {
@@ -108,7 +108,7 @@
 .sectionHeading h2 {
   margin: 0;
   font-family: var(--serif);
-  font-size: 11px;
+  font-size: calc(11 * var(--final-flow-density-px));
   font-weight: 600;
   line-height: 1.2;
 }
@@ -116,7 +116,7 @@
 .sectionHeading p {
   margin: 0;
   color: var(--faint);
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   line-height: 1.4;
   text-align: right;
 }
@@ -129,13 +129,13 @@
 .radarSection {
   display: flex;
   justify-content: center;
-  padding: 5px 0 0;
+  padding: calc(5 * var(--final-flow-density-px)) 0 0;
 }
 
 .radarGraph {
   position: relative;
-  width: 226px;
-  height: 174px;
+  width: calc(226 * var(--final-flow-density-px));
+  height: calc(174 * var(--final-flow-density-px));
 }
 
 .radarChart {
@@ -177,27 +177,27 @@
 
 .radarScoreText {
   fill: var(--ink);
-  font-size: 18px;
+  font-size: calc(18 * var(--final-flow-density-px));
   font-weight: 750;
   text-anchor: middle;
 }
 
 .radarScoreLabel {
   fill: var(--faint);
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   text-anchor: middle;
 }
 
 .metricButton {
   position: absolute;
-  min-width: 42px;
-  padding: 3px;
+  min-width: calc(42 * var(--final-flow-density-px));
+  padding: calc(3 * var(--final-flow-density-px));
   border: 0;
   background: transparent;
   color: var(--faint);
   cursor: pointer;
   text-align: center;
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   line-height: 1.15;
 }
 
@@ -207,9 +207,9 @@
 
 .metricButton strong {
   display: block;
-  margin-top: 1px;
+  margin-top: calc(1 * var(--final-flow-density-px));
   color: var(--soft);
-  font-size: 10px;
+  font-size: calc(10 * var(--final-flow-density-px));
   font-weight: 600;
 }
 
@@ -224,45 +224,45 @@
 
 .metricTop {
   top: 0;
-  left: 92px;
+  left: calc(92 * var(--final-flow-density-px));
 }
 
 .metricRight {
-  top: 46px;
-  right: -5px;
+  top: calc(46 * var(--final-flow-density-px));
+  right: calc(-5 * var(--final-flow-density-px));
 }
 
 .metricBottom {
-  right: 7px;
+  right: calc(7 * var(--final-flow-density-px));
   bottom: 0;
 }
 
 .metricLeft {
   bottom: 0;
-  left: 7px;
+  left: calc(7 * var(--final-flow-density-px));
 }
 
 .metricButton:focus-visible {
-  outline: 2px solid rgba(115, 130, 187, 0.35);
-  outline-offset: 2px;
+  outline: calc(2 * var(--final-flow-density-px)) solid rgba(115, 130, 187, 0.35);
+  outline-offset: calc(2 * var(--final-flow-density-px));
 }
 
 .metricComment {
   display: flex;
-  min-height: 20px;
+  min-height: calc(20 * var(--final-flow-density-px));
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  margin: -2px 0 0;
+  gap: calc(7 * var(--final-flow-density-px));
+  margin: calc(-2 * var(--final-flow-density-px)) 0 0;
   color: var(--faint);
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   line-height: 1.3;
 }
 
 .metricComment::before,
 .metricComment::after {
-  width: 20px;
-  height: 1px;
+  width: calc(20 * var(--final-flow-density-px));
+  height: calc(1 * var(--final-flow-density-px));
   background: var(--line);
   content: "";
 }
@@ -275,37 +275,37 @@
 /* Records Section */
 .recordList {
   position: relative;
-  padding: 0 3px;
+  padding: 0 calc(3 * var(--final-flow-density-px));
 }
 
 .record {
   position: relative;
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
-  gap: 8px;
-  padding: 7px 0 8px 13px;
+  grid-template-columns: calc(44 * var(--final-flow-density-px)) minmax(0, 1fr);
+  gap: calc(8 * var(--final-flow-density-px));
+  padding: calc(7 * var(--final-flow-density-px)) 0 calc(8 * var(--final-flow-density-px)) calc(13 * var(--final-flow-density-px));
 }
 
 .record::before {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 3px;
-  width: 1px;
+  left: calc(3 * var(--final-flow-density-px));
+  width: calc(1 * var(--final-flow-density-px));
   background: var(--line);
   content: "";
 }
 
 .record::after {
   position: absolute;
-  top: 11px;
+  top: calc(11 * var(--final-flow-density-px));
   left: 0;
-  width: 7px;
-  height: 7px;
-  border: 2px solid #fafbff;
+  width: calc(7 * var(--final-flow-density-px));
+  height: calc(7 * var(--final-flow-density-px));
+  border: calc(2 * var(--final-flow-density-px)) solid #fafbff;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 0 1px var(--line);
+  box-shadow: 0 0 0 calc(1 * var(--final-flow-density-px)) var(--line);
   content: "";
 }
 
@@ -316,24 +316,24 @@
 .recordMeta strong {
   display: block;
   color: var(--accent-deep);
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   font-weight: 700;
   line-height: 1.3;
 }
 
 .recordMeta span {
   display: block;
-  margin-top: 2px;
+  margin-top: calc(2 * var(--final-flow-density-px));
   color: var(--faint);
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   font-weight: 500;
   line-height: 1.3;
 }
 
 .record p {
-  margin: 3px 0 0;
+  margin: calc(3 * var(--final-flow-density-px)) 0 0;
   color: var(--soft);
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -342,12 +342,12 @@
 .summaryBlock {
   position: relative;
   overflow: hidden;
-  margin-top: 5px;
-  padding: 11px 12px;
-  border: 1px solid var(--line);
-  border-radius: 13px;
+  margin-top: calc(5 * var(--final-flow-density-px));
+  padding: calc(11 * var(--final-flow-density-px)) calc(12 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid var(--line);
+  border-radius: calc(13 * var(--final-flow-density-px));
   background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 8px 22px rgba(62, 70, 100, 0.05);
+  box-shadow: 0 calc(8 * var(--final-flow-density-px)) calc(22 * var(--final-flow-density-px)) rgba(62, 70, 100, 0.05);
 }
 
 .summaryBlock::before {
@@ -355,21 +355,21 @@
   top: 0;
   right: 0;
   left: 0;
-  height: 2px;
+  height: calc(2 * var(--final-flow-density-px));
   background: linear-gradient(90deg, var(--accent), #9aa6cf);
   content: "";
 }
 
 .summaryBlock > span {
   color: var(--faint);
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   line-height: 1.3;
 }
 
 .summaryBlock > p {
-  margin: 4px 0 0;
+  margin: calc(4 * var(--final-flow-density-px)) 0 0;
   font-family: var(--serif);
-  font-size: 12px;
+  font-size: calc(12 * var(--final-flow-density-px));
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
@@ -377,21 +377,21 @@
 .summaryMeta {
   display: flex;
   flex-wrap: wrap;
-  gap: 9px;
-  margin-top: 6px;
+  gap: calc(9 * var(--final-flow-density-px));
+  margin-top: calc(6 * var(--final-flow-density-px));
   color: var(--faint);
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   line-height: 1.3;
 }
 
 .repetitionSummary {
   display: grid;
-  gap: 3px;
-  margin-top: 9px;
-  padding-top: 7px;
-  border-top: 1px solid var(--line-light);
+  gap: calc(3 * var(--final-flow-density-px));
+  margin-top: calc(9 * var(--final-flow-density-px));
+  padding-top: calc(7 * var(--final-flow-density-px));
+  border-top: calc(1 * var(--final-flow-density-px)) solid var(--line-light);
   color: var(--faint);
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   line-height: 1.35;
 }
 
@@ -403,31 +403,31 @@
 /* Achievements Section */
 .achievementList {
   display: grid;
-  gap: 8px;
-  padding: 0 3px;
+  gap: calc(8 * var(--final-flow-density-px));
+  padding: 0 calc(3 * var(--final-flow-density-px));
 }
 
 .achievement {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
-  gap: 10px;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  grid-template-columns: calc(32 * var(--final-flow-density-px)) minmax(0, 1fr);
+  gap: calc(10 * var(--final-flow-density-px));
+  padding: calc(10 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid var(--line);
+  border-radius: calc(10 * var(--final-flow-density-px));
   background: rgba(255, 255, 255, 0.7);
 }
 
 .achievement > span {
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: calc(32 * var(--final-flow-density-px));
+  height: calc(32 * var(--final-flow-density-px));
   place-items: center;
-  border: 1px solid var(--line);
+  border: calc(1 * var(--final-flow-density-px)) solid var(--line);
   border-radius: 50%;
   background: #fff;
   color: var(--accent);
   font-family: var(--serif);
-  font-size: 13px;
+  font-size: calc(13 * var(--final-flow-density-px));
 }
 
 .achievement > div {
@@ -438,85 +438,85 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 4px 10px;
+  gap: calc(4 * var(--final-flow-density-px)) calc(10 * var(--final-flow-density-px));
   color: var(--faint);
 }
 
 .achievementMeta small {
-  font-size: 8px;
+  font-size: calc(8 * var(--final-flow-density-px));
   line-height: 1.3;
 }
 
 .achievement h3 {
-  margin: 4px 0 0;
+  margin: calc(4 * var(--final-flow-density-px)) 0 0;
   font-family: var(--serif);
-  font-size: 11px;
+  font-size: calc(11 * var(--final-flow-density-px));
   font-weight: 600;
   line-height: 1.3;
   overflow-wrap: anywhere;
 }
 
 .achievement p {
-  margin: 3px 0 0;
+  margin: calc(3 * var(--final-flow-density-px)) 0 0;
   color: var(--soft);
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
 .emptyState {
   margin: 0;
-  padding: 12px;
-  border-radius: 10px;
+  padding: calc(12 * var(--final-flow-density-px));
+  border-radius: calc(10 * var(--final-flow-density-px));
   background: rgba(255, 255, 255, 0.6);
   color: var(--faint);
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   line-height: 1.5;
   text-align: center;
 }
 
 /* Mythic Section */
 .mythicSection {
-  padding-bottom: 12px;
+  padding-bottom: calc(12 * var(--final-flow-density-px));
 }
 
 .mythicBadge {
-  padding: 3px 8px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
+  padding: calc(3 * var(--final-flow-density-px)) calc(8 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid var(--line);
+  border-radius: calc(999 * var(--final-flow-density-px));
   color: var(--faint);
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   line-height: 1.2;
   white-space: nowrap;
 }
 
 .mythicIntro {
-  margin: 0 0 10px;
-  padding: 0 3px;
+  margin: 0 0 calc(10 * var(--final-flow-density-px));
+  padding: 0 calc(3 * var(--final-flow-density-px));
   color: var(--soft);
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   line-height: 1.6;
 }
 
 .mythicSelectors {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-  padding: 9px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  gap: calc(4 * var(--final-flow-density-px));
+  padding: calc(9 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid var(--line);
+  border-radius: calc(12 * var(--final-flow-density-px));
   background: rgba(250, 251, 255, 0.86);
 }
 
 .mythicSelector {
   display: flex;
   min-width: 0;
-  min-height: 34px;
+  min-height: calc(34 * var(--final-flow-density-px));
   align-items: center;
-  gap: 4px;
-  padding: 4px;
-  border: 1px solid transparent;
-  border-radius: 8px;
+  gap: calc(4 * var(--final-flow-density-px));
+  padding: calc(4 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid transparent;
+  border-radius: calc(8 * var(--final-flow-density-px));
   background: rgba(255, 255, 255, 0.68);
   color: var(--faint);
   cursor: pointer;
@@ -525,23 +525,23 @@
 
 .mythicSelector > span {
   display: grid;
-  width: 22px;
-  height: 22px;
+  width: calc(22 * var(--final-flow-density-px));
+  height: calc(22 * var(--final-flow-density-px));
   flex: 0 0 auto;
   place-items: center;
-  border: 1px solid var(--line);
+  border: calc(1 * var(--final-flow-density-px)) solid var(--line);
   border-radius: 50%;
   background: #fff;
   color: var(--soft);
   font-family: var(--serif);
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
 }
 
 .mythicSelector strong {
   width: 100%;
   overflow: hidden;
   font-family: var(--serif);
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -564,46 +564,46 @@
 .mythicFocus {
   position: relative;
   display: grid;
-  grid-template-columns: 50px minmax(0, 1fr);
+  grid-template-columns: calc(50 * var(--final-flow-density-px)) minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
-  margin-top: 7px;
-  padding: 11px;
-  border: 1px solid rgba(116, 105, 139, 0.16);
-  border-radius: 11px;
+  gap: calc(10 * var(--final-flow-density-px));
+  margin-top: calc(7 * var(--final-flow-density-px));
+  padding: calc(11 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid rgba(116, 105, 139, 0.16);
+  border-radius: calc(11 * var(--final-flow-density-px));
   background:
     linear-gradient(110deg, rgba(167, 146, 224, 0.42), rgba(143, 185, 236, 0.38), rgba(130, 207, 187, 0.36), rgba(236, 193, 140, 0.4), rgba(227, 157, 189, 0.38), rgba(167, 146, 224, 0.42)),
     rgba(255, 255, 255, 0.56);
   background-size: 320% 320%, 100% 100%;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.56);
+  box-shadow: inset 0 0 0 calc(1 * var(--final-flow-density-px)) rgba(255, 255, 255, 0.56);
   animation: flow-shift 9s ease-in-out infinite;
 }
 
 .mythicGlyph {
   display: grid;
-  width: 50px;
-  height: 50px;
+  width: calc(50 * var(--final-flow-density-px));
+  height: calc(50 * var(--final-flow-density-px));
   place-items: center;
-  border: 1px solid var(--line);
+  border: calc(1 * var(--final-flow-density-px)) solid var(--line);
   border-radius: 50%;
   background: #fff;
   color: var(--soft);
   font-family: var(--serif);
-  font-size: 15px;
+  font-size: calc(15 * var(--final-flow-density-px));
 }
 
 .mythicFocus small {
   display: block;
   color: #81788e;
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   line-height: 1.3;
 }
 
 .mythicFocus h3 {
-  margin: 3px 0 0;
+  margin: calc(3 * var(--final-flow-density-px)) 0 0;
   color: var(--ink);
   font-family: var(--serif);
-  font-size: 12px;
+  font-size: calc(12 * var(--final-flow-density-px));
   font-weight: 600;
   line-height: 1.3;
 }
@@ -611,21 +611,21 @@
 .mythicFocus p {
   margin: 0;
   color: var(--soft);
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
 .mythicCurrent {
   display: flex;
-  min-height: 28px;
+  min-height: calc(28 * var(--final-flow-density-px));
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  margin: 0 2px;
-  padding: 5px 0;
+  gap: calc(10 * var(--final-flow-density-px));
+  margin: 0 calc(2 * var(--final-flow-density-px));
+  padding: calc(5 * var(--final-flow-density-px)) 0;
   color: var(--faint);
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   line-height: 1.3;
 }
 
@@ -634,7 +634,7 @@
   overflow: hidden;
   color: var(--ink);
   font-family: var(--serif);
-  font-size: 10px;
+  font-size: calc(10 * var(--final-flow-density-px));
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -643,21 +643,21 @@
 .mythicStore {
   display: flex;
   width: 100%;
-  min-height: 38px;
+  min-height: calc(38 * var(--final-flow-density-px));
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  margin-top: 7px;
-  padding: 0 9px;
-  border: 1px solid rgba(116, 105, 139, 0.16);
-  border-radius: 11px;
+  gap: calc(7 * var(--final-flow-density-px));
+  margin-top: calc(7 * var(--final-flow-density-px));
+  padding: 0 calc(9 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid rgba(116, 105, 139, 0.16);
+  border-radius: calc(11 * var(--final-flow-density-px));
   background:
     linear-gradient(110deg, rgba(167, 146, 224, 0.42), rgba(143, 185, 236, 0.38), rgba(130, 207, 187, 0.36), rgba(236, 193, 140, 0.4), rgba(227, 157, 189, 0.38), rgba(167, 146, 224, 0.42)),
     rgba(255, 255, 255, 0.58);
   background-size: 320% 320%, 100% 100%;
   color: #37333d;
   cursor: pointer;
-  font-size: 10px;
+  font-size: calc(10 * var(--final-flow-density-px));
   font-weight: 700;
   line-height: 1.3;
   animation: flow-shift 9s ease-in-out infinite;
@@ -670,7 +670,7 @@
 .mythicStore small {
   display: block;
   color: #6d6675;
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   font-weight: 500;
 }
 
@@ -683,64 +683,64 @@
 .mythicLoadingCard {
   position: relative;
   display: grid;
-  grid-template-columns: 50px minmax(0, 1fr);
+  grid-template-columns: calc(50 * var(--final-flow-density-px)) minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
-  margin-top: 7px;
-  padding: 11px;
-  border: 1px solid var(--line);
-  border-radius: 11px;
+  gap: calc(10 * var(--final-flow-density-px));
+  margin-top: calc(7 * var(--final-flow-density-px));
+  padding: calc(11 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid var(--line);
+  border-radius: calc(11 * var(--final-flow-density-px));
   background: rgba(255, 255, 255, 0.7);
 }
 
 .mythicLoadingGlyph {
   display: grid;
-  width: 50px;
-  height: 50px;
+  width: calc(50 * var(--final-flow-density-px));
+  height: calc(50 * var(--final-flow-density-px));
   place-items: center;
-  border: 1px solid var(--line);
+  border: calc(1 * var(--final-flow-density-px)) solid var(--line);
   border-radius: 50%;
   background: #fff;
   color: var(--soft);
   font-family: var(--serif);
-  font-size: 15px;
+  font-size: calc(15 * var(--final-flow-density-px));
 }
 
 .mythicLoadingCard h3 {
   margin: 0;
   font-family: var(--serif);
-  font-size: 12px;
+  font-size: calc(12 * var(--final-flow-density-px));
   font-weight: 600;
   line-height: 1.3;
 }
 
 .mythicLoadingCard p {
-  margin: 4px 0 0;
+  margin: calc(4 * var(--final-flow-density-px)) 0 0;
   color: var(--soft);
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
 .mythicRetry {
   width: 100%;
-  min-height: 34px;
-  margin-top: 8px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  min-height: calc(34 * var(--final-flow-density-px));
+  margin-top: calc(8 * var(--final-flow-density-px));
+  padding: 0 calc(10 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid var(--line);
+  border-radius: calc(10 * var(--final-flow-density-px));
   background: #fff;
   color: var(--soft);
   cursor: pointer;
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   font-weight: 600;
   line-height: 1.3;
 }
 
 .mythicError {
-  margin: 8px 2px 0;
+  margin: calc(8 * var(--final-flow-density-px)) calc(2 * var(--final-flow-density-px)) 0;
   color: #9a5149;
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   line-height: 1.5;
 }
 
@@ -769,50 +769,50 @@
 .footer {
   position: absolute;
   z-index: 8;
-  right: 14px;
-  bottom: 12px;
-  left: 14px;
+  right: calc(14 * var(--final-flow-density-px));
+  bottom: calc(12 * var(--final-flow-density-px));
+  left: calc(14 * var(--final-flow-density-px));
   display: flex;
-  min-height: 52px;
+  min-height: calc(52 * var(--final-flow-density-px));
   align-items: center;
-  padding: 2px 7px;
-  border: 1px solid rgba(207, 215, 238, 0.9);
-  border-radius: 18px;
+  padding: calc(2 * var(--final-flow-density-px)) calc(7 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid rgba(207, 215, 238, 0.9);
+  border-radius: calc(18 * var(--final-flow-density-px));
   background: rgba(255, 255, 255, 0.8);
   box-shadow:
-    0 12px 30px rgba(62, 70, 100, 0.13),
-    0 2px 7px rgba(62, 70, 100, 0.06);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+    0 calc(12 * var(--final-flow-density-px)) calc(30 * var(--final-flow-density-px)) rgba(62, 70, 100, 0.13),
+    0 calc(2 * var(--final-flow-density-px)) calc(7 * var(--final-flow-density-px)) rgba(62, 70, 100, 0.06);
+  backdrop-filter: blur(calc(16 * var(--final-flow-density-px)));
+  -webkit-backdrop-filter: blur(calc(16 * var(--final-flow-density-px)));
 }
 
 .footerBar {
   display: flex;
   width: 100%;
-  min-height: 48px;
+  min-height: calc(48 * var(--final-flow-density-px));
   align-items: center;
-  gap: 8px;
+  gap: calc(8 * var(--final-flow-density-px));
 }
 
 .barTool {
   display: grid;
-  flex: 0 0 38px;
-  width: 38px;
-  height: 38px;
+  flex: 0 0 calc(38 * var(--final-flow-density-px));
+  width: calc(38 * var(--final-flow-density-px));
+  height: calc(38 * var(--final-flow-density-px));
   place-items: center;
   padding: 0;
-  border: 1px solid var(--line, #d8deea);
+  border: calc(1 * var(--final-flow-density-px)) solid var(--line, #d8deea);
   border-radius: 50%;
   background: #fff;
   color: var(--soft, #707b92);
   cursor: pointer;
-  font-size: 14px;
+  font-size: calc(14 * var(--final-flow-density-px));
   line-height: 1;
 }
 
 .barTool svg {
-  width: 16px;
-  height: 16px;
+  width: calc(16 * var(--final-flow-density-px));
+  height: calc(16 * var(--final-flow-density-px));
   fill: none;
   stroke: currentColor;
   stroke-width: 1.5;
@@ -821,18 +821,18 @@
 }
 
 .barTool:focus-visible {
-  outline: 2px solid rgba(115, 130, 187, 0.35);
-  outline-offset: 2px;
+  outline: calc(2 * var(--final-flow-density-px)) solid rgba(115, 130, 187, 0.35);
+  outline-offset: calc(2 * var(--final-flow-density-px));
 }
 
 .newLifeButton {
   display: flex;
   min-width: 0;
-  min-height: 48px;
+  min-height: calc(48 * var(--final-flow-density-px));
   flex: 1;
   align-items: center;
-  gap: 8px;
-  padding: 3px 1px;
+  gap: calc(8 * var(--final-flow-density-px));
+  padding: calc(3 * var(--final-flow-density-px)) calc(1 * var(--final-flow-density-px));
   border: 0;
   background: transparent;
   color: var(--ink);
@@ -855,10 +855,10 @@
 }
 
 .newLifeMark {
-  width: 19px;
-  flex: 0 0 19px;
+  width: calc(19 * var(--final-flow-density-px));
+  flex: 0 0 calc(19 * var(--final-flow-density-px));
   color: var(--faint);
-  font-size: 7px;
+  font-size: calc(7 * var(--final-flow-density-px));
   font-variant-numeric: tabular-nums;
   line-height: 1;
   text-align: center;
@@ -875,16 +875,16 @@
 }
 
 .newLifeCopy strong {
-  font-size: 12px;
+  font-size: calc(12 * var(--final-flow-density-px));
   font-weight: 700;
   line-height: 1.2;
 }
 
 .newLifeCopy small {
-  margin-top: 2px;
+  margin-top: calc(2 * var(--final-flow-density-px));
   overflow: hidden;
   color: var(--faint);
-  font-size: 7px;
+  font-size: calc(7 * var(--final-flow-density-px));
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -892,20 +892,20 @@
 
 .newLifeArrow {
   display: grid;
-  width: 25px;
-  height: 25px;
-  flex: 0 0 25px;
+  width: calc(25 * var(--final-flow-density-px));
+  height: calc(25 * var(--final-flow-density-px));
+  flex: 0 0 calc(25 * var(--final-flow-density-px));
   place-items: center;
   border-radius: 50%;
   background: var(--accent);
   color: #fff;
-  font-size: 12px;
+  font-size: calc(12 * var(--final-flow-density-px));
   line-height: 1;
 }
 
 .newLifeButton:focus-visible {
-  outline: 2px solid rgba(115, 130, 187, 0.35);
-  outline-offset: 2px;
+  outline: calc(2 * var(--final-flow-density-px)) solid rgba(115, 130, 187, 0.35);
+  outline-offset: calc(2 * var(--final-flow-density-px));
 }
 
 @keyframes flow-shift {

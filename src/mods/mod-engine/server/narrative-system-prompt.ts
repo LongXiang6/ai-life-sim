@@ -23,9 +23,9 @@ export function buildNarrativeAIProtocolBaseRules(): string[] {
 
 /** 第一次调用唯一紧凑标准示例。 */
 export function buildNarrativeAIProtocolStandardExample(): string {
-  return `${NARRATIVE_BODY_TAG}此处填写完整正文；实际段落数量和篇幅以本轮要求为准。\n\n如需分段，此处填写后续段落。\n\n${NARRATIVE_BRANCH_TAG}${JSON.stringify({
-    标题: '此处填写分支标题',
-    选项: ['此处填写选项一', '此处填写选项二'],
+  return `${NARRATIVE_BODY_TAG}<完整正文>\n\n${NARRATIVE_BRANCH_TAG}${JSON.stringify({
+    标题: '<分支标题>',
+    选项: ['<分支选项>', '<分支选项>'],
   })}`
 }
 
@@ -132,7 +132,7 @@ const NARRATIVE_SYSTEM_COMPONENT_DEFINITIONS: readonly Omit<
     exitWhen: '永不退出',
     content: [
       '正文全程用第二人称“你”；除直接称呼或消歧外，不用姓名、他、她、主角或角色作叙事主语。',
-      '镜头只写你能感知、回忆或合理推断的内容，不写全知旁白、第三人称传记或编年报告；记忆、摘要与近期历史原文只提供已经成立的事实，不能成为本轮的人称、措辞、文风或段落样本。',
+      '镜头只写你能感知、回忆或合理推断的内容，不写全知旁白、第三人称传记或编年报告；记忆只提供已经成立的事实，不能成为本轮的场景组织、人称、措辞、文风或段落样本。本轮必须从当前时间与引导产生新的变化和结果。',
     ],
   },
   {

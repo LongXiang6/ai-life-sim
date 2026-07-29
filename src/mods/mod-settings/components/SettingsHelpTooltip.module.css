@@ -1,24 +1,24 @@
 .wrapper {
   display: inline-flex;
   align-items: center;
-  margin-left: 3px;
+  margin-left: calc(3 * var(--final-flow-density-px));
   vertical-align: middle;
 }
 
 .trigger {
   display: inline-flex;
-  width: 12px;
-  height: 12px;
+  width: calc(12 * var(--final-flow-density-px));
+  height: calc(12 * var(--final-flow-density-px));
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: 1px solid #cfd5db;
+  border: calc(1 * var(--final-flow-density-px)) solid #cfd5db;
   border-radius: 50%;
   background: #f8f9fa;
   color: #78838e;
   cursor: pointer;
   font: inherit;
-  font-size: 7px;
+  font-size: calc(7 * var(--final-flow-density-px));
   line-height: 1;
 }
 
@@ -26,23 +26,23 @@
   position: fixed;
   z-index: 1700;
   box-sizing: border-box;
-  max-width: calc(100% - 24px);
-  padding: 6px 7px;
-  border: 1px solid #d8deea;
-  border-radius: 7px;
+  max-width: calc(100% - calc(24 * var(--final-flow-density-px)));
+  padding: calc(6 * var(--final-flow-density-px)) calc(7 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
+  border-radius: calc(7 * var(--final-flow-density-px));
   background: #fff;
-  box-shadow: 0 12px 28px rgb(40 50 75 / 13%);
+  box-shadow: 0 calc(12 * var(--final-flow-density-px)) calc(28 * var(--final-flow-density-px)) rgb(40 50 75 / 13%);
   color: #46515c;
   font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
-  font-size: 7px;
+  font-size: calc(7 * var(--final-flow-density-px));
   font-weight: 400;
   line-height: 1.55;
   white-space: normal;
 }
 
 .trigger:focus-visible {
-  outline: 2px solid rgb(115 130 187 / 48%);
-  outline-offset: 2px;
+  outline: calc(2 * var(--final-flow-density-px)) solid rgb(115 130 187 / 48%);
+  outline-offset: calc(2 * var(--final-flow-density-px));
 }
 
 @media (prefers-reduced-motion: reduce) {

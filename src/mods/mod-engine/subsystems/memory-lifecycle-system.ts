@@ -4,7 +4,7 @@
  * @mod mod-engine
  *
  * 内部数据保留事件重要度、闭环、来源、层级、权重、衰减和检索索引。
- * 故事侧只取得可见叶子摘要、检索命中和近期完整经历的统一时间轴条目；
+ * 故事侧只取得可见叶子摘要、检索命中和近期结构化事实的统一时间轴条目；
  * 当前状态由所属系统单独投影，不混入记忆段。
  */
 
@@ -165,7 +165,7 @@ export interface CompressionDecision {
 
 /** 故事 AI 可见的统一时间轴记忆候选。 */
 export interface NarrativeTimelineProjection {
-  /** 叶子摘要、检索命中与近期完整经历的统一时间轴投影。 */
+  /** 叶子摘要、检索命中与近期结构化事实的统一时间轴投影。 */
   timelineEntries: NarrativeTimelineEntry[]
 }
 
@@ -793,20 +793,20 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
   /**
    * 构建故事 AI 的时间轴候选；层级与权重只参与本地选择，不进入结果。
    *
-   * @param recentNarratives 最近原始叙事
+   * @param recentFacts 近期结构化事实
    * @param compressedSummaries 压缩摘要全量数据
    * @returns 统一时间轴投影
    */
   buildNarrativeTimelineProjection(
-    recentNarratives: NarrativeTimelineEntry[],
+    recentFacts: NarrativeTimelineEntry[],
     compressedSummaries: { summaries: CompressedSummaryItem[] },
     currentContextId?: string,
     closedContextIds?: ReadonlySet<string>,
     currentRound = 0,
   ): NarrativeTimelineProjection {
     // 检索命中
-    const queryText = recentNarratives.length > 0
-      ? recentNarratives[recentNarratives.length - 1].text
+    const queryText = recentFacts.length > 0
+      ? recentFacts[recentFacts.length - 1].text
       : ''
     const retrievalHits = this.retrieveFromIndex(queryText, currentContextId, closedContextIds)
 
@@ -819,7 +819,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
       timelineEntries: [
         ...leafTimeline,
         ...retrievalHits,
-        ...recentNarratives,
+        ...recentFacts,
       ],
     }
   }

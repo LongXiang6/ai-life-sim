@@ -1,9 +1,9 @@
 .bar {
   position: absolute;
   z-index: 100;
-  right: 14px;
-  bottom: 12px;
-  left: 14px;
+  right: calc(14 * var(--final-flow-density-px));
+  bottom: calc(12 * var(--final-flow-density-px));
+  left: calc(14 * var(--final-flow-density-px));
   padding: 0;
   pointer-events: none;
 }
@@ -11,20 +11,20 @@
 .inner {
   display: grid;
   width: 100%;
-  min-height: 52px;
+  min-height: calc(52 * var(--final-flow-density-px));
   margin: 0 auto;
-  grid-template-columns: auto minmax(0, 1fr) minmax(8rem, auto);
+  grid-template-columns: auto minmax(0, 1fr) minmax(calc(8 * var(--final-flow-density-rem)), auto);
   align-items: center;
-  gap: 8px;
-  padding: 2px 7px;
-  border: 1px solid rgba(207, 215, 238, 0.84);
-  border-radius: 18px;
+  gap: calc(8 * var(--final-flow-density-px));
+  padding: calc(2 * var(--final-flow-density-px)) calc(7 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid rgba(207, 215, 238, 0.84);
+  border-radius: calc(18 * var(--final-flow-density-px));
   background: rgba(255, 255, 255, 0.76);
   box-shadow:
-    0 12px 30px rgba(62, 70, 100, 0.13),
-    0 2px 7px rgba(62, 70, 100, 0.06);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+    0 calc(12 * var(--final-flow-density-px)) calc(30 * var(--final-flow-density-px)) rgba(62, 70, 100, 0.13),
+    0 calc(2 * var(--final-flow-density-px)) calc(7 * var(--final-flow-density-px)) rgba(62, 70, 100, 0.06);
+  backdrop-filter: blur(calc(16 * var(--final-flow-density-px)));
+  -webkit-backdrop-filter: blur(calc(16 * var(--final-flow-density-px)));
   pointer-events: auto;
 }
 
@@ -51,15 +51,15 @@
 
 .backButton,
 .backPlaceholder {
-  width: 38px;
-  height: 38px;
+  width: calc(38 * var(--final-flow-density-px));
+  height: calc(38 * var(--final-flow-density-px));
 }
 
 .backButton {
   display: grid;
   place-items: center;
   padding: 0;
-  border: 1px solid #d8deea;
+  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.8);
   color: #707b92;
@@ -69,8 +69,8 @@
 }
 
 .backButton svg {
-  width: 17px;
-  height: 17px;
+  width: calc(17 * var(--final-flow-density-px));
+  height: calc(17 * var(--final-flow-density-px));
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
@@ -85,20 +85,20 @@
 .secondaryButton,
 .confirmButton {
   display: inline-flex;
-  min-height: 48px;
+  min-height: calc(48 * var(--final-flow-density-px));
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  padding: 0.45rem 0.8rem;
-  border-radius: 0.75rem;
+  gap: calc(0.4 * var(--final-flow-density-rem));
+  padding: calc(0.45 * var(--final-flow-density-rem)) calc(0.8 * var(--final-flow-density-rem));
+  border-radius: calc(0.75 * var(--final-flow-density-rem));
   font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
-  font-size: 0.75rem;
+  font-size: calc(0.75 * var(--final-flow-density-rem));
   cursor: pointer;
 }
 
 .secondaryButton {
   max-width: 100%;
-  border: 1px solid #e5e7ea;
+  border: calc(1 * var(--final-flow-density-px)) solid #e5e7ea;
   background: #f8f9fa;
   color: #626870;
   white-space: nowrap;
@@ -107,10 +107,10 @@
 .confirmButton {
   display: flex;
   width: 100%;
-  min-width: 8rem;
+  min-width: calc(8 * var(--final-flow-density-rem));
   align-items: center;
-  gap: 8px;
-  padding: 3px 1px;
+  gap: calc(8 * var(--final-flow-density-px));
+  padding: calc(3 * var(--final-flow-density-px)) calc(1 * var(--final-flow-density-px));
   border: 0;
   background: transparent;
   color: #17191d;
@@ -118,10 +118,10 @@
 }
 
 .confirmNumber {
-  width: 19px;
+  width: calc(19 * var(--final-flow-density-px));
   color: #929bb0;
   font-family: "Songti SC", "STSong", "SimSun", serif;
-  font-size: 6.5px;
+  font-size: calc(6.5 * var(--final-flow-density-px));
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
@@ -140,23 +140,23 @@
 }
 
 .confirmCopy strong {
-  font-size: 12.2px;
+  font-size: calc(12.2 * var(--final-flow-density-px));
   font-weight: 680;
   line-height: 1.2;
 }
 
 .confirmCopy small {
-  margin-top: 0.1rem;
+  margin-top: calc(0.1 * var(--final-flow-density-rem));
   color: #929bb0;
-  font-size: 6.5px;
+  font-size: calc(6.5 * var(--final-flow-density-px));
   line-height: 1.2;
 }
 
 .confirmArrow {
   display: grid;
-  width: 38px;
-  height: 38px;
-  flex: 0 0 38px;
+  width: calc(38 * var(--final-flow-density-px));
+  height: calc(38 * var(--final-flow-density-px));
+  flex: 0 0 calc(38 * var(--final-flow-density-px));
   place-items: center;
   border-radius: 50%;
   background: #7382bb;
@@ -164,8 +164,8 @@
 }
 
 .confirmArrow svg {
-  width: 17px;
-  height: 17px;
+  width: calc(17 * var(--final-flow-density-px));
+  height: calc(17 * var(--final-flow-density-px));
   fill: none;
   stroke: currentColor;
   stroke-linecap: round;
@@ -190,8 +190,8 @@
 .secondaryButton:hover:not(:disabled),
 .secondaryButton:focus-visible,
 .confirmButton:focus-visible {
-  outline: 2px solid rgb(109 127 148 / 45%);
-  outline-offset: 2px;
+  outline: calc(2 * var(--final-flow-density-px)) solid rgb(109 127 148 / 45%);
+  outline-offset: calc(2 * var(--final-flow-density-px));
 }
 
 .moreWrapper {
@@ -202,19 +202,19 @@
 }
 
 .chevron {
-  font-size: 0.68rem;
+  font-size: calc(0.68 * var(--final-flow-density-rem));
 }
 
 .dropdown {
   position: absolute;
-  bottom: calc(100% + 0.55rem);
-  min-width: 10rem;
-  max-width: 240px;
+  bottom: calc(100% + calc(0.55 * var(--final-flow-density-rem)));
+  min-width: calc(10 * var(--final-flow-density-rem));
+  max-width: calc(240 * var(--final-flow-density-px));
   overflow: hidden;
-  border: 1px solid #e1e5e9;
-  border-radius: 0.75rem;
+  border: calc(1 * var(--final-flow-density-px)) solid #e1e5e9;
+  border-radius: calc(0.75 * var(--final-flow-density-rem));
   background: #fff;
-  box-shadow: 0 0.9rem 2.2rem rgb(24 30 38 / 14%);
+  box-shadow: 0 calc(0.9 * var(--final-flow-density-rem)) calc(2.2 * var(--final-flow-density-rem)) rgb(24 30 38 / 14%);
 }
 
 .dropdownLeft { left: 0; }
@@ -224,15 +224,15 @@
 .dropdownItem {
   display: flex;
   width: 100%;
-  min-height: 2.55rem;
+  min-height: calc(2.55 * var(--final-flow-density-rem));
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.55rem 0.75rem;
+  gap: calc(0.45 * var(--final-flow-density-rem));
+  padding: calc(0.55 * var(--final-flow-density-rem)) calc(0.75 * var(--final-flow-density-rem));
   border: 0;
-  border-bottom: 1px solid #f0f1f3;
+  border-bottom: calc(1 * var(--final-flow-density-px)) solid #f0f1f3;
   background: #fff;
   color: #17191d;
-  font: 0.75rem "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+  font: calc(0.75 * var(--final-flow-density-rem)) "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", sans-serif;
   text-align: left;
   cursor: pointer;
 }

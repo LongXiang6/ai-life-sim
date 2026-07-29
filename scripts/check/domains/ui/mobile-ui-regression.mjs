@@ -53,6 +53,10 @@ function cssClassAvoidsValue(source, className, property, rejectedValue) {
   return !cssDeclarationValues(source, className, property).includes(rejectedValue)
 }
 
+function scaledPx(value) {
+  return `calc(${value} * var(--final-flow-density-px))`
+}
+
 const welcomePageSrc = readRel('src/mods/mod-pages/pages/welcome/page.tsx')
 const welcomeViewSrc = readRel('src/mods/mod-pages/pages/welcome/WelcomeView.tsx')
 const welcomeSaveSheetSrc = readRel('src/mods/mod-pages/pages/welcome/WelcomeSaveSheet.tsx')
@@ -249,9 +253,9 @@ assertOk(
   'approved settings must not expose alternate themes that conflict with the fixed white-paper UI',
 )
 assertOk(
-  (settingsModalCssSrc.includes('width: 34px') && settingsModalCssSrc.includes('height: 34px'))
-    || (settingsModalCssSrc.includes('width: 2.125rem') && settingsModalCssSrc.includes('height: 2.125rem')),
-  'settings close control must use the shared 34px visual size',
+  settingsModalCssSrc.includes(`width: ${scaledPx(34)}`)
+    && settingsModalCssSrc.includes(`height: ${scaledPx(34)}`),
+  'settings close control must use the shared 1.2x density size',
 )
 assertOk(settingsModalCssSrc.includes('border-radius: 50%'), 'settings close control must be circular')
 assertOk(settingsModelSrc.includes('styles.sectionLabel') && settingsModelSrc.includes('styles.sectionCard'), 'model settings must use independent section labels and cards')
@@ -330,9 +334,9 @@ assertOk(helpModalSrc.includes('<h2 className={styles.headerTitle}>说明</h2>')
 assertOk(!helpNavigationSrc.includes('<small>01</small>') && !helpNavigationSrc.includes('<small>02</small>'), 'help two-tab navigation must not add settings-style chapter numbers')
 assertOk(helpModalSrc.includes('<strong>读完说明</strong><small>返回进入说明前的界面</small>'), 'help footer must use the flow-approved return copy')
 assertOk(
-  (helpModalCssSrc.includes('width: 34px') && helpModalCssSrc.includes('height: 34px'))
-    || (helpModalCssSrc.includes('width: 2.125rem') && helpModalCssSrc.includes('height: 2.125rem')),
-  'help close control must keep the approved 34px visual size',
+  helpModalCssSrc.includes(`width: ${scaledPx(34)}`)
+    && helpModalCssSrc.includes(`height: ${scaledPx(34)}`),
+  'help close control must keep the approved hierarchy at 1.2x density',
 )
 assertOk(helpModalCssSrc.includes('border-radius: 50%'), 'help close control must remain circular')
 assertOk(
@@ -381,9 +385,9 @@ assertOk(
   'WF2 compact bottom bar must keep back/confirm actions and disabled confirmation semantics',
 )
 assertOk(
-  bottomActionBarCssSrc.includes('min-height: 52px')
-    && bottomActionBarCssSrc.includes('min-height: 48px')
-    && bottomActionBarCssSrc.includes('width: 38px')
+  bottomActionBarCssSrc.includes(`min-height: ${scaledPx(52)}`)
+    && bottomActionBarCssSrc.includes(`min-height: ${scaledPx(48)}`)
+    && bottomActionBarCssSrc.includes(`width: ${scaledPx(38)}`)
     && bottomActionBarCssSrc.includes('position: absolute'),
   'WF2 floating bottom bar must use the approved unified 52/48/38 creation-flow hierarchy',
 )
@@ -448,13 +452,13 @@ assertOk(characterBottomBarSrc.includes('<BottomActionBar') && characterBottomBa
 assertOk(
   bottomActionBarCssSrc.includes('.backButton')
     && bottomActionBarCssSrc.includes('.confirmButton')
-    && bottomActionBarCssSrc.includes('min-height: 48px'),
+    && bottomActionBarCssSrc.includes(`min-height: ${scaledPx(48)}`),
   'N2A bottom buttons must share the approved creation-flow control height',
 )
 assertOk(characterCreateCssSrc.includes('justify-content: space-between'), 'N2A bottom actions must align to opposite page edges')
 assertOk(
-  bottomActionBarCssSrc.includes('min-height: 52px')
-    && bottomActionBarCssSrc.includes('border-radius: 18px'),
+  bottomActionBarCssSrc.includes(`min-height: ${scaledPx(52)}`)
+    && bottomActionBarCssSrc.includes(`border-radius: ${scaledPx(18)}`),
   'N2A mobile CSS must keep the floating creation-flow bottom bar treatment',
 )
 assertOk(
@@ -515,13 +519,13 @@ assertOk(
 )
 
 assertOk(
-  hasCssDeclaration(talentDrawCssSrc, 'aura', 'width', '220px')
-    && hasCssDeclaration(talentDrawCssSrc, 'aura', 'height', '220px')
+  hasCssDeclaration(talentDrawCssSrc, 'aura', 'width', scaledPx(220))
+    && hasCssDeclaration(talentDrawCssSrc, 'aura', 'height', scaledPx(220))
     && hasCssDeclaration(talentDrawCssSrc, 'seals', 'grid-template-columns', 'repeat(4, minmax(0, 1fr))')
-    && talentDrawCssSrc.includes('.drawStageComplete .aura { top: 224px;')
+    && talentDrawCssSrc.includes(`.drawStageComplete .aura { top: ${scaledPx(224)};`)
     && talentDrawCssSrc.includes('.drawStageComplete .sealWrap { opacity: 0;')
     && talentDrawCssSrc.includes('.candidateList')
-    && talentDrawCssSrc.includes('min-height: 76px')
+    && talentDrawCssSrc.includes(`min-height: ${scaledPx(76)}`)
     && talentDrawCssSrc.includes('.sealLit[data-rarity="传世"]'),
   'the selected draw ritual must keep its exact 220px aura, centered completion state, hidden seal handoff, and content-sized candidate rows',
 )
@@ -539,8 +543,8 @@ assertOk(
   'selected fate runtime must keep two rebirth slots, three ordinary slots, the bottom sheet, and all selected glow effects',
 )
 assertOk(
-  talentDrawCssSrc.includes('margin-right: 8px')
-    && talentDrawCssSrc.includes('padding: 14px 16px 96px')
+  talentDrawCssSrc.includes(`margin-right: ${scaledPx(8)}`)
+    && talentDrawCssSrc.includes(`padding: ${scaledPx(14)} ${scaledPx(16)} ${scaledPx(96)}`)
     && talentDrawPageSrc.includes('confirmationRef.current')
     && talentDrawPageSrc.includes('destinyPatterns.patterns.length !== DESTINY_PATTERN_SELECT_COUNT')
     && talentDrawPageSrc.includes("window.location.assign('/attribute-alloc')")
@@ -574,6 +578,14 @@ assertOk(
     && globalCssSrc.includes('.flow-responsive-viewport')
     && globalCssSrc.includes('.flow-responsive-layout')
     && globalCssSrc.includes('height: 100dvh')
+    && globalCssSrc.includes('--final-flow-density-px: 1.2px')
+    && globalCssSrc.includes('--final-flow-density-rem: 1.2rem')
+    && globalCssSrc.includes('--final-flow-inline-unit: clamp(3.84px, 1.2vw, 5.16px)')
+    && globalCssSrc.includes('--final-flow-block-unit: clamp(7.68px, 1.2dvh, 11.184px)')
+    && globalCssSrc.includes('.final-flow-frame--core-simulation {')
+    && globalCssSrc.includes('--final-flow-density-px: 1px')
+    && globalCssSrc.includes('--final-flow-density-rem: 1rem')
+    && globalCssSrc.includes('.final-flow-frame--core-simulation .flow-responsive-layout')
     && globalCssSrc.includes('--final-flow-inline-unit: clamp(3.2px, 1vw, 4.3px)')
     && globalCssSrc.includes('--final-flow-block-unit: clamp(6.4px, 1dvh, 9.32px)')
     && globalCssSrc.includes('-webkit-text-size-adjust: 100%')
@@ -583,7 +595,24 @@ assertOk(
     && finalFlowScaleRuntimeSrc === ''
     && !rootLayoutSrc.includes('FinalFlowScaleRuntime')
     && mobileBaseCssSrc === '',
-  'runtime pages must use the native viewport contract and must not restore fixed-canvas or desktop zoom scaling',
+  'runtime pages must use native 1.2x non-core density while the story reader keeps its tuned size without fixed-canvas or zoom scaling',
+)
+assertOk(
+  [
+    worldSelectCssSrc,
+    worldCustomizeCssSrc,
+    characterCreateCssSrc,
+    talentDrawCssSrc,
+    fatePreviewCssSrc,
+    gameOverCssSrc,
+    settingsModalCssSrc,
+    helpModalCssSrc,
+    disclaimerModalCssSrc,
+    bottomActionBarCssSrc,
+  ].every((source) => source.includes('var(--final-flow-density-px)'))
+    && gameStoryPageSrc.includes('final-flow-frame final-flow-frame--core-simulation')
+    && !gameStoryCssSrc.includes('var(--final-flow-density-px)'),
+  'all fixed-unit non-core surfaces must consume the 1.2x density unit and game-story must remain explicitly excluded',
 )
 assertOk(
   globalCssSrc.includes('position: fixed !important')
@@ -656,7 +685,7 @@ assertOk(
   'world customization must block confirmation while a player-selected or custom rule is blank',
 )
 assertOk(
-  worldCustomizeCssSrc.includes('min-height: 42px')
+  worldCustomizeCssSrc.includes(`min-height: ${scaledPx(42)}`)
     && worldCustomizeMobileSrc.includes('worldConfig?.name')
     && worldCustomizeMobileSrc.includes('difficultyLabel'),
   'M2 world customization must use compact controls and bind the summary card to live world data',
@@ -872,14 +901,14 @@ assertOk(
   'game over must use the shared floating footer hierarchy while preserving home, data and new-life actions',
 )
 assertOk(
-  /\.footer\s*\{[^}]*min-height:\s*52px;/s.test(gameOverCssSrc)
+  hasCssDeclaration(gameOverCssSrc, 'footer', 'min-height', scaledPx(52))
     && gameOverCssSrc.includes('.barTool')
-    && gameOverCssSrc.includes('width: 38px')
-    && gameOverCssSrc.includes('height: 38px')
-    && /\.newLifeButton\s*\{[^}]*min-height:\s*48px;/s.test(gameOverCssSrc)
+    && gameOverCssSrc.includes(`width: ${scaledPx(38)}`)
+    && gameOverCssSrc.includes(`height: ${scaledPx(38)}`)
+    && hasCssDeclaration(gameOverCssSrc, 'newLifeButton', 'min-height', scaledPx(48))
     && gameOverCssSrc.includes('.newLifeArrow')
-    && gameOverCssSrc.includes('width: 25px')
-    && gameOverCssSrc.includes('height: 25px')
+    && gameOverCssSrc.includes(`width: ${scaledPx(25)}`)
+    && gameOverCssSrc.includes(`height: ${scaledPx(25)}`)
     && gameOverPageSrc.includes("router.push('/welcome')")
     && gameOverPageSrc.includes('aria-label="查看模拟数据"')
     && gameOverPageSrc.includes('开始新人生')

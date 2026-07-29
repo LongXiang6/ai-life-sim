@@ -136,7 +136,6 @@ import {
   type NarrativeTimelineEntry,
 } from '../helpers/timeline-memory'
 import {
-  filterNarrativeRecordsForPrompt,
   type NarrativeScopeView,
 } from '../helpers/narrative-context-scope'
 import {
@@ -250,7 +249,6 @@ export interface OrchestratorSnapshot {
   prevBridgeSnapshot: BridgeSnapshot
   /** 本次叙事开始前的时间节点；用于给 Prompt 提供真实的起止窗口。 */
   previousNarrativeRound?: RoundInfo
-  lastNarrativeText: string
   totalBreakthroughs: number
   timeRound: RoundInfo
   lastNarratedTimeStep?: TimeStep
@@ -401,7 +399,6 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   /** 上一轮叙事全文（兼容旧 RoundContext；不得用于本地语义判定） */
-  private lastNarrativeText = ''
 
   /** 上一条已完成叙事采用的时间步长，用于粗→细切换后定位下一时间节点 */
   private lastNarratedTimeStep: TimeStep = { ...DEFAULT_ENGINE_CONFIG.timeStep }
@@ -1056,7 +1053,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       prevRoundYear: this.prevRoundYear,
       prevBridgeSnapshot: this.prevBridgeSnapshot,
       previousNarrativeRound: this.previousNarrativeRound,
-      lastNarrativeText: this.lastNarrativeText,
       totalBreakthroughs: this.totalBreakthroughs,
       timeRound: timeSystem.exportRound(),
       lastNarratedTimeStep: this.lastNarratedTimeStep,
@@ -1122,7 +1118,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.previousNarrativeRound = {
       ...(snap.previousNarrativeRound ?? snap.state.round ?? this.state.round),
     }
-    this.lastNarrativeText = snap.lastNarrativeText ?? ''
     this.totalBreakthroughs = snap.totalBreakthroughs ?? 0
     this.lastNarratedTimeStep = { ...(snap.lastNarratedTimeStep ?? this.state.timeStep) }
     this.lastTimeStepAlignment = snap.lastTimeStepAlignment
@@ -1480,7 +1475,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       roundSequence: this.state.totalRounds,
       daysPassed: timeSystem.getDaysPassed(),
       totalDays: this.state.round.totalDays,
-      lastNarrativeText: this.lastNarrativeText || undefined,
       eraStartYear: eraStartYear || undefined,
       birthEraYear: birthEraYear || undefined,
       essenceTag,
@@ -1863,28 +1857,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
   }
 
-  private selectNarrativeHistoryForPrompt(limit: number): Array<{
-    entry: NarrativeChunk
-    round: number
-  }> {
-    const visible = filterNarrativeRecordsForPrompt(
-      this.state.narrativeHistory,
-      this.getNarrativeScopeView(),
-    )
-    const visibleEntries = new Set(visible)
-    const firstRound = Math.max(
-      1,
-      this.state.totalRounds - this.state.narrativeHistory.length + 1,
-    )
-    return this.state.narrativeHistory
-      .map((entry, index) => ({
-        entry,
-        round: entry.transitionAudit?.round ?? firstRound + index,
-      }))
-      .filter(({ entry }) => visibleEntries.has(entry))
-      .slice(-limit)
-  }
-
   /**
    * 在组装主叙事 Prompt 前检索本存档的明文时间轴记忆。
    * 查询词来自上一轮 AI 已提交的事件实体；数据库仍由压缩系统拥有。
@@ -1936,8 +1908,17 @@ export class OrchestratorSystem extends BaseSubsystem {
   /** 组装主叙事唯一的时间轴记忆投影。 */
   private buildPromptTimelineMemory(): string | undefined {
     const scopeView = this.getNarrativeScopeView()
-    const recentTimelineEntries = this.selectNarrativeHistoryForPrompt(RECENT_NARRATIVE_WINDOW)
-      .map(({ entry, round }) => this.projectNarrativeHistoryEntry(entry, round))
+    const latestCompletedRound = Math.max(0, this.state.totalRounds - 1)
+    const recentTimelineEntries = digestLedger.selectRecentFactsForNarrativeTimeline(
+      latestCompletedRound,
+      RECENT_NARRATIVE_WINDOW,
+      scopeView.currentContextId,
+      scopeView.closedContextIds,
+    ).map((event) => this.projectRoundMemoryEvent(
+      event.round,
+      event.text,
+      event.contextId,
+    ))
     const timelineProjection = memoryLifecycle.buildNarrativeTimelineProjection(
       recentTimelineEntries,
       summaryCompressor.getSummaries(),
@@ -1953,7 +1934,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       {
         excludeRoundsAtOrAfter: Math.max(
           1,
-          this.state.totalRounds - RECENT_NARRATIVE_WINDOW + 1,
+          latestCompletedRound - RECENT_NARRATIVE_WINDOW + 1,
         ),
       },
     ).map((event) => this.projectRoundMemoryEvent(
@@ -2131,7 +2112,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       totalDays: 0,
       ...TimeSystem.resolveDisplayEra(0),
     }
-    this.lastNarrativeText = ''
     this.lastNotableEvents = []
     this.lastNarratedTimeStep = { ...DEFAULT_ENGINE_CONFIG.timeStep }
     this.lastTimeStepAlignment = undefined
@@ -2256,9 +2236,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.pendingTimeStepAlignmentFromValue = shouldRestorePendingAlignment
       ? previousTimeStep.value
       : undefined
-    if (store.narrativeHistory.length > 0) {
-      this.lastNarrativeText = store.narrativeHistory[store.narrativeHistory.length - 1]?.text ?? ''
-    }
     this.hydrateSubsystemsFromStores()
     summaryCompressor.restoreFromEngineState(store.compressedSummaries, store.compressionStats)
     coreMemory.hydrateFromStore()
@@ -2556,7 +2533,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     // 非超凡世界不重复发送无关的 24 阶力量表；有力量体系时使用现有叙事精简格式。
     const powerSystemTag = typeof config.powerSystemTag === 'string' ? config.powerSystemTag : ''
     const powerCeiling = Number(config.powerCeiling)
-    const powerCeilingPresets = powerSystemTag === 'none' || !Number.isFinite(powerCeiling) || powerCeiling <= 1
+    const powerCeilingPresets = powerSystemTag === 'none' || !Number.isFinite(powerCeiling) || powerCeiling < 1
       ? undefined
       : buildPowerCeilingPresetsForNarrative(powerCeiling)
     const timeScaleHint = buildTimeScaleNarrativeHint(this.state.timeStep, {
@@ -2685,15 +2662,20 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   private getMemoryL0Titles(fromYear: number, toYear: number): string[] {
-    const digestByRound = new Map(
-      digestLedger.getEntries().map((entry) => [entry.round, entry.digest.trim()]),
+    const factsByRound = new Map(
+      digestLedger.getEntries().map((entry) => [
+        entry.round,
+        entry.events.length > 0
+          ? entry.events.map((event) => event.text).join('；')
+          : entry.digest.trim(),
+      ]),
     )
     return memoryLifecycle.getTaggedEvents()
       .filter((e) => {
         const calendarYear = e.calendarYear ?? e.round
         return calendarYear > fromYear && calendarYear <= toYear
       })
-      .map((e) => digestByRound.get(e.round) || e.narrative.trim())
+      .map((e) => factsByRound.get(e.round) || '')
       .filter(Boolean)
   }
 
@@ -3413,7 +3395,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       const branchMeta = this.resolveBranchFromParsed(parsed)
 
       this.state.currentNarrative = narrative
-      this.lastNarrativeText = narrative
       this.state.narrativeHistory.push({
         id: transitionAuditId,
         text: narrative,

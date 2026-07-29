@@ -1,50 +1,50 @@
 .tabRoot {
-  padding-top: 10px;
+  padding-top: calc(10 * var(--final-flow-density-px));
 }
 
 .section {
-  margin-bottom: 13px;
+  margin-bottom: calc(13 * var(--final-flow-density-px));
 }
 
 .sectionLabel {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 5px;
+  gap: calc(8 * var(--final-flow-density-px));
+  margin-bottom: calc(5 * var(--final-flow-density-px));
   color: #707b92;
-  font-size: 7px;
+  font-size: calc(7 * var(--final-flow-density-px));
 }
 
 .sectionLabel h3 {
   margin: 0;
   color: #28324b;
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
   font-weight: 700;
 }
 
 .sectionBody,
 .wordCountBody {
-  padding: 10px;
-  border: 1px solid #d8deea;
-  border-radius: 8px;
+  padding: calc(10 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
+  border-radius: calc(8 * var(--final-flow-density-px));
   background: #fff;
 }
 
 .styleInput {
   display: block;
   width: 100%;
-  min-height: 126px;
+  min-height: calc(126 * var(--final-flow-density-px));
   resize: vertical;
   box-sizing: border-box;
-  padding: 9px;
-  border: 1px solid #d8deea;
-  border-radius: 6px;
+  padding: calc(9 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
+  border-radius: calc(6 * var(--final-flow-density-px));
   outline: none;
   background: #fafbff;
   color: #28324b;
   font: inherit;
-  font-size: 8px;
+  font-size: calc(8 * var(--final-flow-density-px));
   line-height: 1.7;
 }
 
@@ -54,7 +54,7 @@
 
 .styleInput:focus {
   border-color: #7382bb;
-  box-shadow: 0 0 0 2px rgb(115 130 187 / 14%);
+  box-shadow: 0 0 0 calc(2 * var(--final-flow-density-px)) rgb(115 130 187 / 14%);
 }
 
 .styleMeta,
@@ -66,24 +66,24 @@
 
 .styleMeta {
   justify-content: space-between;
-  margin-top: 5px;
+  margin-top: calc(5 * var(--final-flow-density-px));
   color: #929bb0;
-  font-size: 6.5px;
+  font-size: calc(6.5 * var(--final-flow-density-px));
 }
 
 .actions {
   justify-content: flex-end;
-  gap: 7px;
-  margin-top: 9px;
+  gap: calc(7 * var(--final-flow-density-px));
+  margin-top: calc(9 * var(--final-flow-density-px));
 }
 
 .actions button {
-  min-height: 28px;
-  padding: 0 10px;
-  border-radius: 7px;
+  min-height: calc(28 * var(--final-flow-density-px));
+  padding: 0 calc(10 * var(--final-flow-density-px));
+  border-radius: calc(7 * var(--final-flow-density-px));
   cursor: pointer;
   font: inherit;
-  font-size: 7px;
+  font-size: calc(7 * var(--final-flow-density-px));
   font-weight: 700;
 }
 
@@ -93,36 +93,36 @@
 }
 
 .secondaryButton {
-  border: 1px solid #d8deea;
+  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
   background: #fff;
   color: #707b92;
 }
 
 .primaryButton {
-  border: 1px solid #7382bb;
+  border: calc(1 * var(--final-flow-density-px)) solid #7382bb;
   background: #7382bb;
   color: #fff;
 }
 
 .wordCountControl {
   justify-content: space-between;
-  gap: 8px;
+  gap: calc(8 * var(--final-flow-density-px));
   color: #707b92;
-  font-size: 8px;
+  font-size: calc(8 * var(--final-flow-density-px));
 }
 
 .wordCountControl select {
-  width: 104px;
-  min-height: 30px;
+  width: calc(104 * var(--final-flow-density-px));
+  min-height: calc(30 * var(--final-flow-density-px));
   margin-left: auto;
-  padding: 0 7px;
-  border: 1px solid #d8deea;
-  border-radius: 6px;
+  padding: 0 calc(7 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
+  border-radius: calc(6 * var(--final-flow-density-px));
   outline: none;
   background: #fafbff;
   color: #28324b;
   font: inherit;
-  font-size: 9px;
+  font-size: calc(9 * var(--final-flow-density-px));
 }
 
 .wordCountControl select:focus {

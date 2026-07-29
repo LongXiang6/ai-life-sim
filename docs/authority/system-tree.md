@@ -127,7 +127,7 @@ TimeSystem
 |---|---|---|
 | `mod-base-universe` | 天体、时代、基础地图、命运预言和创世 | `src/mods/mod-base-universe/`；不拥有当前上下文、地图呈现或叙事编排 |
 | `mod-environment-ecology` | 气候、地理、生态、自然资源和污染 | `src/mods/mod-environment-ecology/`；不拥有世界身份和地图 UI |
-| `mod-power-system` | 战力、修炼、怪物、遭遇、信仰、异常、材料和技能 | `src/mods/mod-power-system/`；不接管角色或世界状态 |
+| `mod-power-system` | 战力、修炼、怪物、遭遇、信仰、异常、材料和技能 | 数值子系统当前未列入 MVP 运行清单，不参与每轮状态推进；其 `1-24` 阶名称和边界作为世界力量设定的只读参考，经 `mod-world` 和 Orchestrator 投影到有力量体系世界的主叙事输入。`src/mods/mod-power-system/`；不接管角色或世界状态 |
 | `mod-economy` | 经济、货币、职业、物品、库存、聚落和人口 | `src/mods/mod-economy/`；不接管政治或世界状态 |
 | `mod-politics` | 阶层、派系、国家关系、法律、冲突、语言和价值观 | `src/mods/mod-politics/`；不接管经济或世界状态 |
 | `mod-culture` | 文化、艺术、教育、声望、成就、家庭和个人能力 | `src/mods/mod-culture/`；不拥有通用关系图，也不接管角色与世界的所属状态 |

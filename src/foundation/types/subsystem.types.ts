@@ -74,8 +74,6 @@ export interface RoundContext {
   daysPassed: number,
   /** 游戏总天数（整数，唯一权威累计时间源），由 TimeSystem 产出，子系统只读 */
   totalDays: number,
-  /** 上一轮叙事全文（兼容旧上下文；不得作为本地语义判定权威） */
-  lastNarrativeText?: string,
   /** 世界叙事锚定年（如 1991），0 = 未设定 */
   eraStartYear?: number,
   /** 角色出生纪年（默认同 eraStartYear） */

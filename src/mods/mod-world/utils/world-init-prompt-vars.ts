@@ -31,18 +31,20 @@ export function buildPowerCeilingPresets(): string {
 }
 
 /**
- * 力量体系预设（叙事完整格式）
+ * 力量体系预设（叙事精简格式）
  *
- * 所有阶位均提供完整描述（阶位 + 单位名 + 量级描述）。当前天花板只决定
- * 叙事可达范围，不能成为截断更高阶世界观语义的理由。
+ * 明确当前世界上限，并保留 1-24 阶的名称与边界描述。高阶边界不截断，
+ * 每阶只携带区分相邻阶段所需的最小语义。
  *
- * @param _currentCeiling - 当前世界战力天花板（保留参数兼容；不再用于缩短描述）
+ * @param currentCeiling - 当前世界战力天花板
  */
-export function buildPowerCeilingPresetsForNarrative(_currentCeiling: number): string {
-  const lines: string[] = []
+export function buildPowerCeilingPresetsForNarrative(currentCeiling: number): string {
+  const ceiling = Math.max(1, Math.min(23, Math.round(currentCeiling)))
+  const ceilingUnit = UNIT_NAMES[ceiling]
+  const lines: string[] = [`当前世界可达上限：${ceiling}阶【${ceilingUnit}级】`, '完整阶位标尺：']
   for (let i = 1; i <= 24; i++) {
     const unit = UNIT_NAMES[i] ? `【${UNIT_NAMES[i]}级】` : ''
-    const desc = i === 24 ? '真无限级' : (RATING_DESCRIPTIONS[i] ?? '')
+    const desc = i === 24 ? TRUE_INFINITE_DESCRIPTION : (RATING_DESCRIPTIONS[i] ?? '')
     lines.push(`${i}阶${unit}：${desc}`)
   }
   return lines.join('\n')

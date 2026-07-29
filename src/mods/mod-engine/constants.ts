@@ -122,9 +122,9 @@ export const SUMMARY_INTERVAL = 4
 export const COMPRESS_L1_DELAY_BLOCKS = 1
 
 /**
- * 主叙事 Prompt 保留的最近完整原文轮数。
+ * 主叙事 Prompt 保留的最近事实投影轮数。
  *
- * 常驻 Prompt 始终保留最近 4 轮完整正文；更早内容只在摘要成功后被覆盖。
+ * 最近 4 轮从摘要账本投影结构化事实；完整正文只在叙事历史、反馈和归档中保留。
  */
 export const RECENT_NARRATIVE_WINDOW = SUMMARY_INTERVAL
 

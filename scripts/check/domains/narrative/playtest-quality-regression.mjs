@@ -1004,9 +1004,9 @@ assertOk(
   'destiny redraw must not reintroduce duplicate display names into the visible slots',
 )
 assertOk(
-  /\.aura\s*\{[^}]*width:\s*220px/s.test(talentDrawCssSrc)
+  /\.aura\s*\{[^}]*width:\s*calc\(220 \* var\(--final-flow-density-px\)\)/s.test(talentDrawCssSrc)
     && /\.seals\s*\{[^}]*grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/s.test(talentDrawCssSrc)
-    && /\.drawStageComplete \.aura\s*\{[^}]*top:\s*224px/s.test(talentDrawCssSrc)
+    && /\.drawStageComplete \.aura\s*\{[^}]*top:\s*calc\(224 \* var\(--final-flow-density-px\)\)/s.test(talentDrawCssSrc)
     && /\.drawStageComplete \.sealWrap\s*\{[^}]*opacity:\s*0/s.test(talentDrawCssSrc)
     && /aria-label="十二道命印"/.test(talentDrawPageSrc)
     && /Array\.from\(\{ length: MYTHIC_PATTERN_SELECT_COUNT \}/.test(talentDrawPageSrc)
@@ -1057,7 +1057,7 @@ const monthAfterSeasonStep = (mayIndex + 3) % 12
 assertSame(Math.floor(((monthAfterSeasonStep + 10) % 12) / 3), 1, 'month->season must land in the following solar season')
 assertOk(narrativeSignalsSrc.includes("metadata.importance !== 'HIGH'"), 'branch metadata must require HIGH importance')
 assertOk(narrativePromptComponentsSrc.includes('身份、核心关系、长期目标、关键资源、阵营、存亡等不可逆轨迹'), 'branch prompt must define fate-changing impact dimensions')
-assertOk(/version:\s*'5\.7\.0'/.test(narrativePromptSrc), 'pure narrative contract must use version 5.7.0')
+assertOk(/version:\s*'5\.8\.0'/.test(narrativePromptSrc), 'pure narrative contract must use version 5.8.0')
 assertOk(
   narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
     && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),

@@ -279,8 +279,8 @@ export class DigestLedger {
    * 为 prompt 注入挑选记忆：
    *   1. 计算每条事件的有效重要性。
    *   2. 有效重要性 ≥ FOLD_THRESHOLD 的事件逐条保留（附轮次）。
-   *   3. 低于阈值的事件退出常驻投影；源记录不删除，由近期原文、摘要或检索承接。
-   *   4. 可排除近期完整原文已覆盖的轮次，避免同一事实重复发送。
+   *   3. 低于阈值的事件退出常驻投影；源记录不删除，由近期事实、摘要或检索承接。
+   *   4. 可排除近期事实投影已覆盖的轮次，避免同一事实重复发送。
    *   5. 不设置固定条目上限；高价值事件始终按语义权重保留。
    */
   selectForNarrativeTimeline(
@@ -327,6 +327,37 @@ export class DigestLedger {
       }))
 
     return keptEvents
+  }
+
+  /**
+   * 为主叙事投影近期事实。近期每轮优先使用全部结构化关键事件；没有关键事件时
+   * 使用该轮摘要。完整故事正文仍由叙事历史保存，但不作为下一轮的措辞样本发送。
+   */
+  selectRecentFactsForNarrativeTimeline(
+    latestCompletedRound: number,
+    recentRoundCount: number,
+    currentContextId?: string,
+    closedContextIds?: ReadonlySet<string>,
+  ): Array<{ round: number; contextId?: string; text: string }> {
+    const firstRecentRound = Math.max(1, latestCompletedRound - recentRoundCount + 1)
+    const facts: Array<{ round: number; contextId?: string; text: string }> = []
+
+    for (const entry of this.entries) {
+      if (entry.round < firstRecentRound || entry.round > latestCompletedRound) continue
+      if (!isNarrativeRecordVisible(
+        { contextId: entry.contextId, memoryScope: entry.memoryScope },
+        { currentContextId, closedContextIds },
+      )) continue
+
+      const roundFacts = entry.events.length > 0
+        ? entry.events.map((event) => event.text)
+        : entry.digest ? [entry.digest] : []
+      for (const text of new Set(roundFacts)) {
+        facts.push({ round: entry.round, contextId: entry.contextId, text })
+      }
+    }
+
+    return facts
   }
 
   /** 拼合近 N 轮 digest 为一段（供"近期精简"注入） */
