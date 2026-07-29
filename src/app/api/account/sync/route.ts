@@ -7,6 +7,7 @@ import {
   readSessionToken,
 } from '@/core/account/account-http'
 import { AccountServiceError, syncAccount } from '@/core/account/account-service'
+import { getServerRequestSource } from '@/core/logger/server-log-store'
 
 export const runtime = 'nodejs'
 
@@ -16,7 +17,11 @@ export async function PUT(request: Request): Promise<Response> {
     const token = readSessionToken(request)
     if (!token) throw new AccountServiceError('请先登录账号', 401, 'unauthenticated')
     const input = CloudSyncRequestSchema.parse(await parseAccountJson(request))
-    return jsonNoStore(syncAccount(token, input))
+    const source = getServerRequestSource(request)
+    return jsonNoStore(syncAccount(token, input, {
+      diagnosticCode: source.diagnosticCode,
+      deviceProvenanceId: source.deviceProvenanceId,
+    }))
   } catch (error) {
     return accountErrorResponse(error)
   }

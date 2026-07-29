@@ -12,8 +12,8 @@ const contract = await import('../../../../src/core/player-content/player-conten
 const databaseModule = await import('../../../../src/core/player-content/player-content-database.ts')
 const accountDatabaseModule = await import('../../../../src/core/account/account-database.ts')
 const service = await import('../../../../src/core/player-content/player-content-service.ts')
+const playerMail = await import('../../../../src/core/player-content/player-mail-service.ts')
 const scoring = await import('../../../../src/core/scoring/life-scoring.ts')
-const features = await import('../../../../src/core/player-content/player-content-features.ts')
 const provider = await import('../../../../src/core/player-content/portrait-image-provider.ts')
 const portraitMail = await import('../../../../src/core/player-content/portrait-mail-service.ts')
 
@@ -243,7 +243,6 @@ try {
     `).run(accountId, record.recordId, JSON.stringify(record))
   }
 
-  delete process.env.PLAYER_MAILBOX_ENABLED
   delete process.env.PORTRAIT_IMAGE_ENABLED
   let providerCalls = 0
   await assert.rejects(
@@ -253,7 +252,6 @@ try {
     (error) => error?.code === 'feature_disabled',
   )
   assert.equal(providerCalls, 0)
-  assert.equal(features.isPlayerMailboxEnabled(), true)
 
   const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x49, 0x45, 0x4e, 0x44])
   assert.deepEqual(provider.parsePortraitImageResponse({ data: [{ b64_json: png.toString('base64') }] }), {
@@ -294,7 +292,6 @@ try {
   )
 
   // 画像任务必须先入队、再由 worker 消费；重复消费和失败重试均有明确边界。
-  process.env.PLAYER_MAILBOX_ENABLED = '1'
   process.env.PORTRAIT_IMAGE_ENABLED = '1'
   process.env.PORTRAIT_IMAGE_API_KEY = 'test-only-key'
   process.env.PORTRAIT_IMAGE_BASE_URL = 'https://api.openai.com'
@@ -318,7 +315,10 @@ try {
     SELECT status, attempts FROM portrait_mail_jobs WHERE account_id = ? AND record_id = ?
   `).get('portrait-success-account', portraitSuccess.recordId)
   assert.deepEqual(readyJob, { status: 'ready', attempts: 1 })
-  assert.equal(service.readPlayerMail('portrait-success-account')[0].status, 'ready')
+  assert.equal(playerMail.readPlayerMailboxPage({
+    identity: { accountId: 'portrait-success-account', username: 'portrait-success-account' },
+    folder: 'inbox',
+  }).messages[0].kind, 'portrait')
   await portraitMail.processPortraitMailJobForTests(
     'portrait-success-account',
     portraitSuccess.recordId,
@@ -348,13 +348,212 @@ try {
   assert.equal(failedJob.status, 'failed')
   assert.equal(failedJob.attempts, 3)
   assert.equal(failureProviderCalls, 3)
-  assert.equal(service.readPlayerMail('portrait-failure-account')[0].status, 'failed')
+  assert.equal(playerMail.readPlayerMailboxPage({
+    identity: { accountId: 'portrait-failure-account', username: 'portrait-failure-account' },
+    folder: 'inbox',
+  }).messages.length, 0)
   await portraitMail.processPortraitMailJobForTests(
     'portrait-failure-account',
     portraitFailure.recordId,
     failureFetch,
   )
   assert.equal(failureProviderCalls, 3)
+
+  // 邮箱同时覆盖诊断身份、幂等发送、已读/删除、单份广播和唯一天赋托管。
+  const mailNow = Date.now() + 10_000
+  const senderRecord = gameRecord({ recordId: 'mail-sender-record', overallScore: 98 })
+  const receiverRecord = gameRecord({ recordId: 'mail-receiver-record', overallScore: 98 })
+  ensureAccountRecord('mail-sender', senderRecord)
+  ensureAccountRecord('mail-receiver', receiverRecord)
+  const diagnosticA = 'AAAAA2'
+  const diagnosticB = 'BBBBB3'
+  const deviceA = `DEV-${'A'.repeat(32)}`
+  const deviceB = `DEV-${'B'.repeat(32)}`
+  assert.equal(playerMail.bindDiagnosticMailboxIdentity(diagnosticA, deviceA, mailNow), diagnosticA)
+  assert.equal(playerMail.bindDiagnosticMailboxIdentity(diagnosticB, deviceB, mailNow), diagnosticB)
+  assert.equal(playerMail.bindDiagnosticMailboxIdentity(diagnosticA, `DEV-${'C'.repeat(32)}`, mailNow), null)
+
+  const transferableTalent = {
+    id: 'mythic-mail-transfer',
+    name: '星河留灯',
+    concept: '为远行者留下回程的光',
+    effect: '在最困难的选择中仍记得当初的承诺',
+    acquiredAt: mailNow - 1_000,
+    source: { worldName: '测试世界', characterName: '林见星', runId: 'mail-source-run' },
+  }
+  accountDatabase.prepare(`
+    INSERT INTO account_mythic_talents(account_id, slot, talent_id, data_json, updated_at)
+    VALUES ('mail-sender', 1, ?, ?, ?)
+  `).run(transferableTalent.id, JSON.stringify(transferableTalent), mailNow)
+
+  const firstMailId = crypto.randomUUID()
+  const firstSend = playerMail.sendPlayerMail({
+    identity: { accountId: 'mail-sender', username: 'mail-sender' },
+    requestId: firstMailId,
+    recipient: { type: 'diagnostic', value: diagnosticA },
+    title: '给你的一盏灯',
+    body: '这是一封保留完整正文的测试邮件。',
+    talent: transferableTalent,
+    now: mailNow,
+  })
+  assert.equal(firstSend.updated, true)
+  assert.equal(accountDatabase.prepare(`
+    SELECT COUNT(*) AS count FROM account_mythic_talents
+    WHERE account_id = 'mail-sender' AND talent_id = ?
+  `).get(transferableTalent.id).count, 0)
+  assert.equal(playerMail.sendPlayerMail({
+    identity: { accountId: 'mail-sender', username: 'mail-sender' },
+    requestId: firstMailId,
+    recipient: { type: 'diagnostic', value: diagnosticA },
+    title: '给你的一盏灯',
+    body: '这是一封保留完整正文的测试邮件。',
+    talent: transferableTalent,
+    now: mailNow,
+  }).updated, false)
+
+  const anonymousInbox = playerMail.readPlayerMailboxPage({
+    identity: { diagnosticCode: diagnosticA, deviceProvenanceId: deviceA },
+    folder: 'inbox',
+    now: mailNow + 1,
+  })
+  assert.equal(anonymousInbox.messages.length, 1)
+  assert.equal(anonymousInbox.unreadCount, 1)
+  assert.equal(anonymousInbox.messages[0].talent.talent.id, transferableTalent.id)
+  assert.equal(anonymousInbox.messages[0].expiresAt, mailNow + databaseModule.PLAYER_MAIL_RETENTION_MS)
+  playerMail.markPlayerMailboxMessageRead({
+    identity: { diagnosticCode: diagnosticA, deviceProvenanceId: deviceA },
+    messageId: firstMailId,
+    now: mailNow + 2,
+  })
+  assert.equal(playerMail.readPlayerMailboxPage({
+    identity: { diagnosticCode: diagnosticA, deviceProvenanceId: deviceA },
+    folder: 'inbox',
+    now: mailNow + 3,
+  }).unreadCount, 0)
+  assert.equal(playerMail.acceptPlayerMailboxTalent({
+    identity: { diagnosticCode: diagnosticA, deviceProvenanceId: deviceA },
+    messageId: firstMailId,
+    now: mailNow + 4,
+  }).acceptedTalent.id, transferableTalent.id)
+
+  const relayMailId = crypto.randomUUID()
+  playerMail.sendPlayerMail({
+    identity: { diagnosticCode: diagnosticA, deviceProvenanceId: deviceA },
+    requestId: relayMailId,
+    recipient: { type: 'account', value: 'mail-receiver' },
+    title: '把灯传下去',
+    body: '现在它属于你。',
+    talent: transferableTalent,
+    now: mailNow + 5,
+  })
+  const receiverAccept = playerMail.acceptPlayerMailboxTalent({
+    identity: { accountId: 'mail-receiver', username: 'mail-receiver' },
+    messageId: relayMailId,
+    now: mailNow + 6,
+  })
+  assert.equal(receiverAccept.acceptedTalent.id, transferableTalent.id)
+  assert.equal(accountDatabase.prepare(`
+    SELECT COUNT(*) AS count FROM account_mythic_talents
+    WHERE account_id = 'mail-receiver' AND talent_id = ?
+  `).get(transferableTalent.id).count, 1)
+  assert.equal(playerMail.reconcileAccountMailTalents({
+    accountId: 'mail-sender',
+    talents: [transferableTalent],
+    now: mailNow + 7,
+  }).length, 0)
+
+  const returnedTalent = {
+    ...transferableTalent,
+    id: 'mythic-mail-return',
+    name: '未寄出的潮声',
+    source: { ...transferableTalent.source, runId: 'mail-return-run' },
+  }
+  accountDatabase.prepare(`
+    INSERT INTO account_mythic_talents(account_id, slot, talent_id, data_json, updated_at)
+    VALUES ('mail-sender', 2, ?, ?, ?)
+  `).run(returnedTalent.id, JSON.stringify(returnedTalent), mailNow)
+  const returnMailId = crypto.randomUUID()
+  playerMail.sendPlayerMail({
+    identity: { accountId: 'mail-sender', username: 'mail-sender' },
+    requestId: returnMailId,
+    recipient: { type: 'diagnostic', value: diagnosticB },
+    title: '可以退回的邮件',
+    body: '删除后天赋应回到发件人。',
+    talent: returnedTalent,
+    now: mailNow + 8,
+  })
+  playerMail.deletePlayerMailboxMessage({
+    identity: { diagnosticCode: diagnosticB, deviceProvenanceId: deviceB },
+    messageId: returnMailId,
+    now: mailNow + 9,
+  })
+  assert.equal(accountDatabase.prepare(`
+    SELECT COUNT(*) AS count FROM account_mythic_talents
+    WHERE account_id = 'mail-sender' AND talent_id = ?
+  `).get(returnedTalent.id).count, 1)
+
+  const broadcastId = crypto.randomUUID()
+  database.prepare(`
+    INSERT INTO player_mail_messages(
+      id, audience, kind, sender_key, sender_label, recipient_key, recipient_label,
+      title, body, record_id, asset_id, created_at, expires_at
+    ) VALUES (?, 'broadcast', 'message', 'developer:operations', '开发者', NULL, NULL,
+      '全体测试通知', '这封邮件在数据库中只保存一份。', NULL, NULL, ?, ?)
+  `).run(broadcastId, mailNow + 10, mailNow + 10 + databaseModule.PLAYER_MAIL_RETENTION_MS)
+  assert.equal(database.prepare(`
+    SELECT COUNT(*) AS count FROM player_mail_messages WHERE id = ?
+  `).get(broadcastId).count, 1)
+  assert.equal(playerMail.readPlayerMailboxPage({
+    identity: { diagnosticCode: diagnosticA, deviceProvenanceId: deviceA },
+    folder: 'inbox',
+    now: mailNow + 11,
+  }).messages.some((message) => message.id === broadcastId), true)
+  assert.equal(playerMail.readPlayerMailboxPage({
+    identity: { accountId: 'mail-receiver', username: 'mail-receiver' },
+    folder: 'inbox',
+    now: mailNow + 11,
+  }).messages.some((message) => message.id === broadcastId), true)
+  playerMail.deletePlayerMailboxMessage({
+    identity: { diagnosticCode: diagnosticA, deviceProvenanceId: deviceA },
+    messageId: broadcastId,
+    now: mailNow + 12,
+  })
+  assert.equal(database.prepare(`
+    SELECT COUNT(*) AS count FROM player_mail_messages WHERE id = ?
+  `).get(broadcastId).count, 1)
+
+  const expiryTalent = {
+    ...returnedTalent,
+    id: 'mythic-mail-expiry',
+    name: '三日归途',
+    source: { ...returnedTalent.source, runId: 'mail-expiry-run' },
+  }
+  accountDatabase.prepare(`
+    INSERT INTO account_mythic_talents(account_id, slot, talent_id, data_json, updated_at)
+    VALUES ('mail-sender', 3, ?, ?, ?)
+  `).run(expiryTalent.id, JSON.stringify(expiryTalent), mailNow)
+  const expiryMailId = crypto.randomUUID()
+  playerMail.sendPlayerMail({
+    identity: { accountId: 'mail-sender', username: 'mail-sender' },
+    requestId: expiryMailId,
+    recipient: { type: 'diagnostic', value: diagnosticB },
+    title: '三天到期',
+    body: '超时后邮件删除，未领天赋退回。',
+    talent: expiryTalent,
+    now: mailNow + 20,
+  })
+  const cleanup = playerMail.cleanupExpiredPlayerMail(
+    mailNow + 20 + databaseModule.PLAYER_MAIL_RETENTION_MS + 1,
+  )
+  assert.equal(cleanup.deletedMessages > 0, true)
+  assert.equal(cleanup.returnedTalents > 0, true)
+  assert.equal(database.prepare(`
+    SELECT COUNT(*) AS count FROM player_mail_messages WHERE id = ?
+  `).get(expiryMailId).count, 0)
+  assert.equal(accountDatabase.prepare(`
+    SELECT COUNT(*) AS count FROM account_mythic_talents
+    WHERE account_id = 'mail-sender' AND talent_id = ?
+  `).get(expiryTalent.id).count, 1)
 
   service.deletePlayerContentForAccount('account-a')
   assert.equal(service.readCloudManualSaveSummary('account-a'), null)

@@ -91,6 +91,13 @@ try {
     endingReview: { perspective: 'macro', review: '你完成了这一段可验证的人生。', evidenceIds: ['event-a'], source: 'local' },
     gameVersion: '5.2.9',
   }, now)
+  // 本测试只验证运营聚合读取；排行榜资格不在此处重复构造评分审计。
+  playerContentDatabaseModule.getPlayerContentDatabase().prepare(`
+    INSERT OR IGNORE INTO leaderboard_best_runs(
+      account_id, record_id, score, rounds, completed_at, record_json,
+      portrait_asset_id, updated_at
+    ) VALUES ('account-a', 'dashboard-record', 98, 120, ?, '{}', NULL, ?)
+  `).run(now, now)
   playerContentDatabaseModule.closePlayerContentDatabaseForTests()
 
   const source = {

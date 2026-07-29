@@ -1,31 +1,40 @@
-import { z } from 'zod'
-
-import { assertSameOrigin, jsonNoStore, readSessionToken } from '@/core/account/account-http'
-import { requireSessionAccountId } from '@/core/account/account-service'
-import { isPlayerMailboxEnabled } from '@/core/player-content/player-content-features'
-import { playerContentErrorResponse, readBoundedRequestBody } from '@/core/player-content/player-content-http'
-import { markPlayerMailRead, readPlayerMail } from '@/core/player-content/player-content-service'
+import { assertSameOrigin, jsonNoStore } from '@/core/account/account-http'
+import { getServerRequestSource } from '@/core/logger/server-log-store'
+import {
+  PlayerMailCommandSchema,
+  PlayerMailFolderSchema,
+} from '@/core/player-content/player-content-contract'
+import { playerContentErrorResponse } from '@/core/player-content/player-content-http'
+import {
+  acceptPlayerMailboxTalent,
+  deletePlayerMailboxMessage,
+  markPlayerMailboxMessageRead,
+  readPlayerMailboxPage,
+  sendPlayerMail,
+  type PlayerMailboxIdentity,
+} from '@/core/player-content/player-mail-service'
 
 export const runtime = 'nodejs'
 
-const ReadMailSchema = z.object({ messageId: z.string().uuid() }).strict()
-
-function disabled(): Response | null {
-  return isPlayerMailboxEnabled()
-    ? null
-    : jsonNoStore({ error: '邮箱尚未开放', code: 'feature_disabled' }, { status: 404 })
+function mailboxIdentity(request: Request): PlayerMailboxIdentity {
+  const source = getServerRequestSource(request)
+  return {
+    ...(source.accountId ? { accountId: source.accountId } : {}),
+    ...(source.username ? { username: source.username } : {}),
+    ...(source.diagnosticCode ? { diagnosticCode: source.diagnosticCode } : {}),
+    ...(source.deviceProvenanceId ? { deviceProvenanceId: source.deviceProvenanceId } : {}),
+  }
 }
 
 export async function GET(request: Request): Promise<Response> {
   try {
-    const disabledResponse = disabled()
-    if (disabledResponse) return disabledResponse
-    const accountId = requireSessionAccountId(readSessionToken(request))
-    const messages = readPlayerMail(accountId).map((message) => ({
-      ...message,
-      assetUrl: message.assetId ? `/api/account/mailbox/assets/${message.assetId}` : null,
+    const url = new URL(request.url)
+    const folder = PlayerMailFolderSchema.parse(url.searchParams.get('folder') ?? 'inbox')
+    return jsonNoStore(readPlayerMailboxPage({
+      identity: mailboxIdentity(request),
+      folder,
+      cursor: url.searchParams.get('cursor'),
     }))
-    return jsonNoStore({ messages })
   } catch (error) {
     return playerContentErrorResponse(error)
   }
@@ -33,13 +42,19 @@ export async function GET(request: Request): Promise<Response> {
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const disabledResponse = disabled()
-    if (disabledResponse) return disabledResponse
     assertSameOrigin(request)
-    const accountId = requireSessionAccountId(readSessionToken(request))
-    const raw = await readBoundedRequestBody(request, 16 * 1024)
-    const input = ReadMailSchema.parse(JSON.parse(raw.toString('utf8')))
-    return jsonNoStore({ updated: markPlayerMailRead(accountId, input.messageId) })
+    const input = PlayerMailCommandSchema.parse(JSON.parse(await request.text()))
+    const identity = mailboxIdentity(request)
+    switch (input.action) {
+      case 'send':
+        return jsonNoStore(sendPlayerMail({ identity, ...input }), { status: 201 })
+      case 'read':
+        return jsonNoStore(markPlayerMailboxMessageRead({ identity, ...input }))
+      case 'delete':
+        return jsonNoStore(deletePlayerMailboxMessage({ identity, ...input }))
+      case 'accept-talent':
+        return jsonNoStore(acceptPlayerMailboxTalent({ identity, ...input }))
+    }
   } catch (error) {
     return playerContentErrorResponse(error)
   }

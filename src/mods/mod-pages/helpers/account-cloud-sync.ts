@@ -10,6 +10,7 @@ import {
   ACCOUNT_MAX_SLOTS,
   type AccountSessionPayload,
   type CloudGameRecord,
+  type CloudMythicTalent,
   type CloudSettings,
 } from '@/core/account/account-contract'
 import { useAccountClientStore } from '@/core/account/account-client-store'
@@ -58,6 +59,29 @@ function mergeGameRecords(
   return result
 }
 
+function mythicName(value: string): string {
+  return value.normalize('NFKC').trim().replace(/\s+/gu, '').toLocaleLowerCase()
+}
+
+function mergeMythicTalents(
+  localTalents: readonly CloudMythicTalent[],
+  cloudTalents: readonly CloudMythicTalent[],
+): CloudMythicTalent[] {
+  const result = [...cloudTalents]
+  for (const talent of localTalents) {
+    const duplicate = result.some((existing) => (
+      existing.id === talent.id
+      || mythicName(existing.name) === mythicName(talent.name)
+      || Boolean(talent.source.runId && existing.source.runId === talent.source.runId)
+    ))
+    if (!duplicate) result.push(talent)
+  }
+  if (result.length > ACCOUNT_MAX_SLOTS) {
+    throw new Error(`本地与云端轮回天赋合并后超过 ${ACCOUNT_MAX_SLOTS} 项，请先整理天赋库。`)
+  }
+  return result
+}
+
 function localSettings(): CloudSettings {
   const state = useSettingsStore.getState()
   return CloudSettingsSchema.parse({
@@ -97,9 +121,13 @@ export function buildInitialCloudData(saveApiKey: boolean) {
 
 export function applyAccountSession(payload: AccountSessionPayload): void {
   const localRecords = useLifeRecordStore.getState().records
+  const localTalents = useMythicLibraryStore.getState().patterns
   const mergedRecords = mergeGameRecords(localRecords, payload.snapshot.gameRecords)
+  const mergedTalents = mergeMythicTalents(localTalents, payload.snapshot.mythicTalents)
   const cloudRecordIds = new Set(payload.snapshot.gameRecords.map((record) => record.recordId))
+  const cloudTalentIds = new Set(payload.snapshot.mythicTalents.map((talent) => talent.id))
   const hasLocalOnlyRecords = mergedRecords.some((record) => !cloudRecordIds.has(record.recordId))
+  const hasLocalOnlyTalents = mergedTalents.some((talent) => !cloudTalentIds.has(talent.id))
   applyingCloud = true
   try {
     useSettingsStore.setState({
@@ -107,13 +135,13 @@ export function applyAccountSession(payload: AccountSessionPayload): void {
       customKey: payload.snapshot.apiKey ?? '',
     })
     useCharacterCreationDraftStore.getState().replaceDraft(payload.snapshot.characterDraft)
-    useMythicLibraryStore.getState().replacePatterns(payload.snapshot.mythicTalents)
+    useMythicLibraryStore.getState().replacePatterns(mergedTalents)
     useLifeRecordStore.getState().replaceRecords(mergedRecords)
     useAccountClientStore.getState().acceptSession(payload)
   } finally {
     queueMicrotask(() => {
       applyingCloud = false
-      if (hasLocalOnlyRecords) scheduleAccountSync(0)
+      if (hasLocalOnlyRecords || hasLocalOnlyTalents) scheduleAccountSync(0)
     })
   }
 }
@@ -133,6 +161,12 @@ async function performSync(): Promise<void> {
       ...local,
       baseRevision: account.revision,
     })
+    applyingCloud = true
+    try {
+      useMythicLibraryStore.getState().replacePatterns(payload.snapshot.mythicTalents)
+    } finally {
+      applyingCloud = false
+    }
     useAccountClientStore.getState().setRevision(payload.snapshot.revision)
     useAccountClientStore.getState().setSaveApiKey(payload.snapshot.saveApiKey)
     useAccountClientStore.getState().setSyncState('synced')

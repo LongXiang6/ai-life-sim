@@ -9,13 +9,12 @@ import { appendDevelopmentSystemEvents } from '@/core/logger/development-system-
 
 import { PortraitMailRequestSchema, type PortraitMailRequest } from './player-content-contract'
 import { getPlayerContentDatabase } from './player-content-database'
-import {
-  isPlayerMailboxEnabled,
-  isPortraitImageEnabled,
-} from './player-content-features'
+import { isPortraitImageEnabled } from './player-content-features'
+import { createPortraitPlayerMail } from './player-mail-service'
 import { generatePortraitImage, PortraitImageProviderError } from './portrait-image-provider'
 import { removePortraitAssets, writePortraitAsset } from './portrait-asset-store'
-import { PlayerContentServiceError, queuePortraitMailJob } from './player-content-service'
+import { PlayerContentServiceError } from './player-content-error'
+import { queuePortraitMailJob } from './player-content-service'
 
 const MAX_JOB_ATTEMPTS = 3
 const STALE_PROCESSING_MS = 10 * 60 * 1000
@@ -91,8 +90,8 @@ export async function processPortraitMailRequest(
   input: PortraitMailRequest,
   options: { now?: number; fetchImplementation?: typeof fetch } = {},
 ): Promise<{ messageId: string | null; created: boolean; status: 'queued' | 'processing' | 'ready' | 'failed' }> {
-  if (!isPlayerMailboxEnabled() || !isPortraitImageEnabled()) {
-    throw new PlayerContentServiceError('画像邮箱尚未开放', 404, 'feature_disabled')
+  if (!isPortraitImageEnabled()) {
+    throw new PlayerContentServiceError('满分人生画像尚未开放', 404, 'feature_disabled')
   }
   const parsed = PortraitMailRequestSchema.parse(input)
   const record = readOwnedRecord(accountId, parsed.recordId)
@@ -107,8 +106,8 @@ export async function processPortraitMailRequest(
   const database = getPlayerContentDatabase()
   const existing = database.prepare(`
     SELECT id FROM player_mail_messages
-    WHERE account_id = ? AND record_id = ? AND kind = 'portrait'
-  `).get(accountId, record.recordId) as { id: string } | undefined
+    WHERE recipient_key = ? AND record_id = ? AND kind = 'portrait'
+  `).get(`account:${accountId}`, record.recordId) as { id: string } | undefined
   if (existing) return { messageId: existing.id, created: false, status: 'ready' }
   const now = options.now ?? Date.now()
   const created = queuePortraitMailJob(accountId, record, now)
@@ -186,7 +185,6 @@ async function processPortraitMailJob(
     const written = await writePortraitAsset(generated.bytes, generated.mimeType, now)
     storageKey = written.storageKey
     const assetId = randomUUID()
-    const messageId = randomUUID()
     const digest = createHash('sha256').update(generated.bytes).digest('hex')
     database.transaction(() => {
       database.prepare(`
@@ -194,12 +192,7 @@ async function processPortraitMailJob(
           id, account_id, mime_type, byte_length, sha256, storage_key, created_at
         ) VALUES (?, ?, ?, ?, ?, ?, ?)
       `).run(assetId, accountId, generated.mimeType, generated.bytes.byteLength, digest, storageKey, now)
-      database.prepare(`
-        INSERT INTO player_mail_messages(
-          id, account_id, kind, record_id, title, body, asset_id, created_at
-        ) VALUES (?, ?, 'portrait', ?, '满分人生画像', '你走完的满分人生已留下一幅主角画像。', ?, ?)
-        ON CONFLICT(account_id, record_id, kind) DO NOTHING
-      `).run(messageId, accountId, recordId, assetId, now)
+      createPortraitPlayerMail({ accountId, recordId, assetId, now })
       database.prepare(`
         UPDATE portrait_mail_jobs
         SET status = 'ready', last_error_code = NULL, updated_at = ?

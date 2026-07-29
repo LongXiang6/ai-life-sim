@@ -7,6 +7,7 @@ import process from 'node:process'
 import Database from 'better-sqlite3'
 
 const RETENTION_MS = 30 * 24 * 60 * 60 * 1000
+const ACCOUNT_KEY_PREFIX = 'account:'
 
 function parseArgs(argv) {
   const options = {
@@ -59,7 +60,6 @@ function deletePlayerContent(database, accountIds, assetRoot) {
     'DELETE FROM cloud_manual_saves WHERE account_id = ?',
     'DELETE FROM leaderboard_best_runs WHERE account_id = ?',
     'DELETE FROM portrait_mail_jobs WHERE account_id = ?',
-    'DELETE FROM player_mail_messages WHERE account_id = ?',
     'DELETE FROM portrait_assets WHERE account_id = ?',
   ].map((sql) => database.prepare(sql))
   const assetKeys = []
@@ -78,6 +78,67 @@ function deletePlayerContent(database, accountIds, assetRoot) {
     }
   }
   return { deletedContentAccounts: accountIds.length, deletedAssetFiles }
+}
+
+function returnExpiredMail(database, now) {
+  database.prepare('ATTACH DATABASE ? AS account_store').run(options.database)
+  let returnedTalents = 0
+  const result = database.transaction(() => {
+    const attachments = database.prepare(`
+      SELECT attachments.message_id, attachments.talent_id, attachments.talent_json,
+        attachments.sender_key
+      FROM player_mail_talent_attachments AS attachments
+      JOIN player_mail_messages AS messages ON messages.id = attachments.message_id
+      WHERE messages.expires_at <= ? AND attachments.status = 'pending'
+      ORDER BY messages.expires_at, messages.id
+    `).all(now)
+    for (const attachment of attachments) {
+      database.prepare(`
+        UPDATE player_mail_talent_attachments
+        SET status = 'returned', returned_at = ?
+        WHERE message_id = ? AND status = 'pending'
+      `).run(now, attachment.message_id)
+      database.prepare(`
+        UPDATE player_mail_talent_ownership
+        SET owner_key = ?, talent_json = ?, updated_at = ?
+        WHERE talent_id = ?
+      `).run(attachment.sender_key, attachment.talent_json, now, attachment.talent_id)
+      if (attachment.sender_key.startsWith(ACCOUNT_KEY_PREFIX)) {
+        const accountId = attachment.sender_key.slice(ACCOUNT_KEY_PREFIX.length)
+        const accountExists = database.prepare(`
+          SELECT 1 FROM account_store.accounts WHERE id = ?
+        `).get(accountId)
+        const talentExists = database.prepare(`
+          SELECT 1 FROM account_store.account_mythic_talents
+          WHERE account_id = ? AND talent_id = ?
+        `).get(accountId, attachment.talent_id)
+        if (accountExists && !talentExists) {
+          const slots = new Set(database.prepare(`
+            SELECT slot FROM account_store.account_mythic_talents WHERE account_id = ?
+          `).all(accountId).map((row) => row.slot))
+          let slot = 1
+          while (slots.has(slot) && slot <= 10) slot += 1
+          if (slot <= 10) {
+            database.prepare(`
+              INSERT INTO account_store.account_mythic_talents(
+                account_id, slot, talent_id, data_json, updated_at
+              ) VALUES (?, ?, ?, ?, ?)
+            `).run(accountId, slot, attachment.talent_id, attachment.talent_json, now)
+            database.prepare(`
+              UPDATE account_store.accounts
+              SET revision = revision + 1, last_active_at = ? WHERE id = ?
+            `).run(now, accountId)
+          }
+        }
+      }
+      returnedTalents += 1
+    }
+    const deleted = database.prepare(`
+      DELETE FROM player_mail_messages WHERE expires_at <= ?
+    `).run(now)
+    return deleted.changes
+  })()
+  return { deletedExpiredMail: result, returnedMailTalents: returnedTalents }
 }
 
 function reconcileAssetFiles(database, assetRoot) {
@@ -131,13 +192,13 @@ try {
   let contentCleanup = { deletedContentAccounts: 0, deletedAssetFiles: 0, deletedOrphanAssetFiles: 0 }
   if (fs.existsSync(options.playerContentDatabase)) {
     playerContentDatabase = openDatabase(options.playerContentDatabase)
-    assertSchema(playerContentDatabase, 'player_content_meta', '4')
+    assertSchema(playerContentDatabase, 'player_content_meta', '5')
+    Object.assign(contentCleanup, returnExpiredMail(playerContentDatabase, now))
     const liveAccountIds = new Set(accountDatabase.prepare('SELECT id FROM accounts').all().map((row) => row.id))
     const contentAccountIds = playerContentDatabase.prepare(`
       SELECT account_id FROM cloud_manual_saves
       UNION SELECT account_id FROM leaderboard_best_runs
       UNION SELECT account_id FROM portrait_mail_jobs
-      UNION SELECT account_id FROM player_mail_messages
       UNION SELECT account_id FROM portrait_assets
     `).all().map((row) => row.account_id)
     const orphanIds = [...new Set([...staleAccountIds, ...contentAccountIds])]

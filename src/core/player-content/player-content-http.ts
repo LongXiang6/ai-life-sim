@@ -4,7 +4,7 @@ import { ZodError } from 'zod'
 
 import { accountErrorResponse, jsonNoStore } from '@/core/account/account-http'
 
-import { PlayerContentServiceError } from './player-content-service'
+import { PlayerContentServiceError } from './player-content-error'
 
 export function playerContentErrorResponse(error: unknown): Response {
   if (error instanceof PlayerContentServiceError) {

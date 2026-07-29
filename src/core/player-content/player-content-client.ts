@@ -1,12 +1,18 @@
 'use client'
 
 import type {
+  CloudMythicTalent,
+} from '@/core/account/account-contract'
+import type {
   CloudManualSaveSummary,
   CloudManualSaveWrite,
   CloudGameSavePayload,
   LegendaryEncounterProjection,
   LeaderboardEntry,
-  PlayerMailMessageView,
+  PlayerMailCommandResult,
+  PlayerMailFolder,
+  PlayerMailPage,
+  PlayerMailRecipient,
 } from './player-content-contract'
 
 interface ErrorBody { error?: string, code?: string }
@@ -80,7 +86,6 @@ export async function requestPortraitMail(
   recordId: string,
   lifeSummary: string,
 ): Promise<{ messageId: string | null; created: boolean; status: 'queued' | 'processing' | 'ready' | 'failed' } | null> {
-  if (process.env.NEXT_PUBLIC_PLAYER_MAILBOX_ENABLED === '0') return null
   const response = await fetch('/api/account/mailbox/portrait', {
     method: 'POST',
     credentials: 'same-origin',
@@ -100,23 +105,50 @@ export async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
   return (await parseJson<{ entries: LeaderboardEntry[] }>(response)).entries
 }
 
-export async function fetchPlayerMail(): Promise<PlayerMailMessageView[]> {
-  const response = await fetch('/api/account/mailbox', {
+export async function fetchPlayerMailPage(
+  folder: PlayerMailFolder,
+  cursor?: string | null,
+): Promise<PlayerMailPage> {
+  const parameters = new URLSearchParams({ folder })
+  if (cursor) parameters.set('cursor', cursor)
+  const response = await fetch(`/api/account/mailbox?${parameters.toString()}`, {
     credentials: 'same-origin',
     cache: 'no-store',
   })
-  return (await parseJson<{ messages: PlayerMailMessageView[] }>(response)).messages
+  return parseJson<PlayerMailPage>(response)
 }
 
-export async function markPlayerMailRead(messageId: string): Promise<boolean> {
+async function postPlayerMailCommand(body: unknown): Promise<PlayerMailCommandResult> {
   const response = await fetch('/api/account/mailbox', {
     method: 'POST',
     credentials: 'same-origin',
     cache: 'no-store',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messageId }),
+    body: JSON.stringify(body),
   })
-  return (await parseJson<{ updated: boolean }>(response)).updated
+  return parseJson<PlayerMailCommandResult>(response)
+}
+
+export function sendPlayerMailMessage(input: {
+  requestId: string
+  recipient: PlayerMailRecipient
+  title: string
+  body: string
+  talent?: CloudMythicTalent
+}): Promise<PlayerMailCommandResult> {
+  return postPlayerMailCommand({ action: 'send', ...input })
+}
+
+export function markPlayerMailRead(messageId: string): Promise<PlayerMailCommandResult> {
+  return postPlayerMailCommand({ action: 'read', messageId })
+}
+
+export function deletePlayerMail(messageId: string): Promise<PlayerMailCommandResult> {
+  return postPlayerMailCommand({ action: 'delete', messageId })
+}
+
+export function acceptPlayerMailTalent(messageId: string): Promise<PlayerMailCommandResult> {
+  return postPlayerMailCommand({ action: 'accept-talent', messageId })
 }
 
 export async function fetchLegendaryEncounter(

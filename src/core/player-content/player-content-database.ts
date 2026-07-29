@@ -9,7 +9,9 @@ declare global {
   var __aiLifePlayerContentDatabase: Database.Database | undefined
 }
 
-const PLAYER_CONTENT_SCHEMA_VERSION = 4
+const PLAYER_CONTENT_SCHEMA_VERSION = 5
+
+export const PLAYER_MAIL_RETENTION_MS = 3 * 24 * 60 * 60 * 1000
 
 function resolveDatabasePath(): string {
   const configured = process.env.PLAYER_CONTENT_DB_PATH?.trim()
@@ -63,6 +65,118 @@ function createLeaderboardBestRunsTable(database: Database.Database): void {
     CREATE INDEX IF NOT EXISTS leaderboard_best_runs_order_idx
       ON leaderboard_best_runs(score DESC, rounds DESC, completed_at ASC, record_id ASC);
   `)
+}
+
+function createMailboxTables(database: Database.Database): void {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS diagnostic_mailboxes (
+      diagnostic_code TEXT PRIMARY KEY,
+      device_provenance_id TEXT UNIQUE,
+      created_at INTEGER NOT NULL,
+      last_seen_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS player_mail_messages (
+      id TEXT PRIMARY KEY,
+      audience TEXT NOT NULL CHECK (audience IN ('direct', 'broadcast')),
+      kind TEXT NOT NULL CHECK (kind IN ('message', 'portrait')),
+      sender_key TEXT NOT NULL,
+      sender_label TEXT NOT NULL,
+      recipient_key TEXT,
+      recipient_label TEXT,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      record_id TEXT,
+      asset_id TEXT,
+      created_at INTEGER NOT NULL,
+      expires_at INTEGER NOT NULL,
+      CHECK (
+        (audience = 'broadcast' AND recipient_key IS NULL AND recipient_label IS NULL)
+        OR (audience = 'direct' AND recipient_key IS NOT NULL AND recipient_label IS NOT NULL)
+      )
+    );
+    CREATE INDEX IF NOT EXISTS player_mail_messages_inbox_idx
+      ON player_mail_messages(recipient_key, expires_at, created_at DESC, id ASC);
+    CREATE INDEX IF NOT EXISTS player_mail_messages_broadcast_idx
+      ON player_mail_messages(audience, expires_at, created_at DESC, id ASC);
+    CREATE INDEX IF NOT EXISTS player_mail_messages_sender_idx
+      ON player_mail_messages(sender_key, expires_at, created_at DESC, id ASC);
+    CREATE UNIQUE INDEX IF NOT EXISTS player_mail_messages_portrait_idx
+      ON player_mail_messages(recipient_key, record_id)
+      WHERE kind = 'portrait';
+
+    CREATE TABLE IF NOT EXISTS player_mail_recipient_states (
+      message_id TEXT NOT NULL REFERENCES player_mail_messages(id) ON DELETE CASCADE,
+      recipient_key TEXT NOT NULL,
+      read_at INTEGER,
+      deleted_at INTEGER,
+      PRIMARY KEY (message_id, recipient_key)
+    );
+    CREATE INDEX IF NOT EXISTS player_mail_recipient_states_recipient_idx
+      ON player_mail_recipient_states(recipient_key, deleted_at, message_id);
+
+    CREATE TABLE IF NOT EXISTS player_mail_talent_attachments (
+      message_id TEXT PRIMARY KEY REFERENCES player_mail_messages(id) ON DELETE CASCADE,
+      talent_id TEXT NOT NULL,
+      talent_json TEXT NOT NULL,
+      sender_key TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'returned')),
+      accepted_by_key TEXT,
+      accepted_at INTEGER,
+      returned_at INTEGER
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS player_mail_talent_pending_idx
+      ON player_mail_talent_attachments(talent_id)
+      WHERE status = 'pending';
+    CREATE INDEX IF NOT EXISTS player_mail_talent_sender_idx
+      ON player_mail_talent_attachments(sender_key, status);
+
+    CREATE TABLE IF NOT EXISTS player_mail_talent_ownership (
+      talent_id TEXT PRIMARY KEY,
+      owner_key TEXT NOT NULL,
+      talent_json TEXT NOT NULL,
+      source_message_id TEXT NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS player_mail_talent_owner_idx
+      ON player_mail_talent_ownership(owner_key, updated_at, talent_id);
+  `)
+}
+
+function migrateMailboxSchema(database: Database.Database, version: number): void {
+  if (version >= 5) {
+    createMailboxTables(database)
+    return
+  }
+  const legacyMail = database.prepare(`
+    SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'player_mail_messages'
+  `).get()
+  if (!legacyMail) {
+    createMailboxTables(database)
+    return
+  }
+  database.exec(`
+    DROP INDEX IF EXISTS player_mail_messages_account_idx;
+    ALTER TABLE player_mail_messages RENAME TO player_mail_messages_v4;
+  `)
+  createMailboxTables(database)
+  database.prepare(`
+    INSERT INTO player_mail_messages(
+      id, audience, kind, sender_key, sender_label, recipient_key, recipient_label,
+      title, body, record_id, asset_id, created_at, expires_at
+    )
+    SELECT id, 'direct', 'portrait', 'system:portrait', '人生画像',
+      'account:' || account_id, '当前账号', title, body, record_id, asset_id,
+      created_at, created_at + ?
+    FROM player_mail_messages_v4
+  `).run(PLAYER_MAIL_RETENTION_MS)
+  database.prepare(`
+    INSERT INTO player_mail_recipient_states(message_id, recipient_key, read_at)
+    SELECT id, 'account:' || account_id, read_at
+    FROM player_mail_messages_v4
+    WHERE read_at IS NOT NULL
+  `).run()
+  database.exec('DROP TABLE player_mail_messages_v4;')
 }
 
 function migrateSchema(database: Database.Database, version: number): void {
@@ -150,21 +264,6 @@ function initializeSchema(database: Database.Database): void {
     CREATE INDEX IF NOT EXISTS cloud_manual_saves_updated_idx
       ON cloud_manual_saves(updated_at DESC);
 
-    CREATE TABLE IF NOT EXISTS player_mail_messages (
-      id TEXT PRIMARY KEY,
-      account_id TEXT NOT NULL,
-      kind TEXT NOT NULL CHECK (kind IN ('portrait')),
-      record_id TEXT NOT NULL,
-      title TEXT NOT NULL,
-      body TEXT NOT NULL,
-      asset_id TEXT,
-      created_at INTEGER NOT NULL,
-      read_at INTEGER,
-      UNIQUE(account_id, record_id, kind)
-    );
-    CREATE INDEX IF NOT EXISTS player_mail_messages_account_idx
-      ON player_mail_messages(account_id, created_at DESC);
-
     CREATE TABLE IF NOT EXISTS portrait_assets (
       id TEXT PRIMARY KEY,
       account_id TEXT NOT NULL,
@@ -204,6 +303,7 @@ function initializeSchema(database: Database.Database): void {
   createLeaderboardBestRunsTable(database)
   migrateSchema(database, currentVersion)
   createPortraitMailJobsTable(database)
+  migrateMailboxSchema(database, currentVersion)
 
   database.prepare(`
     INSERT INTO player_content_meta(key, value) VALUES ('schema_version', ?)

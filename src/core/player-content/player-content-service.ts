@@ -1,6 +1,6 @@
 import 'server-only'
 
-import { createHash, randomUUID } from 'node:crypto'
+import { createHash } from 'node:crypto'
 import { gunzipSync, gzipSync } from 'node:zlib'
 
 import type { CloudGameRecord } from '@/core/account/account-contract'
@@ -20,9 +20,9 @@ import {
   type LegendaryEncounterProjection,
   type LeaderboardEntry,
   type LeaderboardProjection,
-  type PlayerMailMessage,
 } from './player-content-contract'
 import { getPlayerContentDatabase } from './player-content-database'
+import { PlayerContentServiceError } from './player-content-error'
 import { removePortraitAssets } from './portrait-asset-store'
 
 interface StoredCloudSaveRow {
@@ -63,17 +63,6 @@ function recordScoringVerification(
   }]).catch((error) => {
     console.error('[player-content] 开发评分诊断写入失败', error)
   })
-}
-
-export class PlayerContentServiceError extends Error {
-  constructor(
-    message: string,
-    readonly status: number,
-    readonly code: string,
-  ) {
-    super(message)
-    this.name = 'PlayerContentServiceError'
-  }
 }
 
 function cloudSaveSummary(row: Omit<StoredCloudSaveRow, 'payload_gzip'>): CloudManualSaveSummary {
@@ -241,8 +230,8 @@ export function projectLeaderboardRecord(accountId: string, source: CloudGameRec
   } : null
   const portrait = database.prepare(`
     SELECT asset_id FROM player_mail_messages
-    WHERE account_id = ? AND record_id = ? AND kind = 'portrait'
-  `).get(accountId, record.recordId) as { asset_id: string | null } | undefined
+    WHERE recipient_key = ? AND record_id = ? AND kind = 'portrait'
+  `).get(`account:${accountId}`, record.recordId) as { asset_id: string | null } | undefined
   database.prepare(`
     INSERT INTO leaderboard_best_runs(
       account_id, record_id, score, rounds, completed_at, record_json, portrait_asset_id, updated_at
@@ -328,24 +317,12 @@ export function deletePlayerContentForAccount(accountId: string): void {
     database.prepare('DELETE FROM cloud_manual_saves WHERE account_id = ?').run(accountId)
     database.prepare('DELETE FROM leaderboard_best_runs WHERE account_id = ?').run(accountId)
     database.prepare('DELETE FROM portrait_mail_jobs WHERE account_id = ?').run(accountId)
-    database.prepare('DELETE FROM player_mail_messages WHERE account_id = ?').run(accountId)
     database.prepare('DELETE FROM portrait_assets WHERE account_id = ?').run(accountId)
     database.prepare('DELETE FROM legendary_run_decisions WHERE source_account_id = ? OR target_key = ?')
       .run(accountId, `account:${accountId}`)
     database.prepare('DELETE FROM legendary_target_states WHERE target_key = ?').run(`account:${accountId}`)
   })()
   removePortraitAssets(assets.map((asset) => asset.storage_key))
-}
-
-export function readOwnedPortraitAsset(
-  accountId: string,
-  assetId: string,
-): { mimeType: string; storageKey: string } | null {
-  const row = getPlayerContentDatabase().prepare(`
-    SELECT mime_type, storage_key FROM portrait_assets
-    WHERE id = ? AND account_id = ?
-  `).get(assetId, accountId) as { mime_type: string; storage_key: string } | undefined
-  return row ? { mimeType: row.mime_type, storageKey: row.storage_key } : null
 }
 
 export function readLeaderboardEntries(
@@ -568,95 +545,6 @@ export function markLegendaryEncounterInjected(input: {
   `).run(Math.max(1, Math.trunc(input.round)), now, input.targetKey, input.targetLifeRunId).changes > 0
 }
 
-export function readPlayerMail(accountId: string): PlayerMailMessage[] {
-  const database = getPlayerContentDatabase()
-  const rows = database.prepare(`
-    SELECT id, kind, record_id, title, body, asset_id, created_at, read_at
-    FROM player_mail_messages
-    WHERE account_id = ?
-    ORDER BY created_at DESC, id ASC
-  `).all(accountId) as Array<{
-    id: string
-    kind: 'portrait'
-    record_id: string
-    title: string
-    body: string
-    asset_id: string | null
-    created_at: number
-    read_at: number | null
-  }>
-  const messages: PlayerMailMessage[] = rows.map((row) => ({
-    id: row.id,
-    kind: row.kind,
-    recordId: row.record_id,
-    title: row.title,
-    body: row.body,
-    assetId: row.asset_id,
-    createdAt: row.created_at,
-    readAt: row.read_at,
-    status: 'ready',
-  }))
-  const existingRecordIds = new Set(messages.map((message) => message.recordId))
-  const jobs = database.prepare(`
-    SELECT record_id, status, last_error_code, created_at, updated_at
-    FROM portrait_mail_jobs
-    WHERE account_id = ? AND status IN ('awaiting_brief', 'processing', 'failed')
-    ORDER BY created_at DESC, record_id ASC
-  `).all(accountId) as Array<{
-    record_id: string
-    status: 'awaiting_brief' | 'processing' | 'failed'
-    last_error_code: string | null
-    created_at: number
-    updated_at: number
-  }>
-  for (const job of jobs) {
-    if (existingRecordIds.has(job.record_id)) continue
-    messages.push({
-      id: `portrait-job:${accountId}:${job.record_id}`,
-      kind: 'portrait',
-      recordId: job.record_id,
-      title: job.status === 'failed' ? '满分人生画像生成失败' : '满分人生画像处理中',
-      body: job.status === 'failed'
-        ? `画像生成暂时失败（${job.last_error_code ?? 'unknown'}），服务端会在下一次任务调度时重试。`
-        : '画像任务已入队，完成后会自动寄到这里。',
-      assetId: null,
-      createdAt: job.created_at,
-      readAt: null,
-      status: job.status === 'failed' ? 'failed' : 'processing',
-      ...(job.last_error_code ? { errorCode: job.last_error_code } : {}),
-    })
-  }
-  return messages.sort((left, right) => right.createdAt - left.createdAt || left.id.localeCompare(right.id))
-}
-
-export function markPlayerMailRead(accountId: string, messageId: string, now = Date.now()): boolean {
-  return getPlayerContentDatabase().prepare(`
-    UPDATE player_mail_messages
-    SET read_at = COALESCE(read_at, ?)
-    WHERE account_id = ? AND id = ?
-  `).run(now, accountId, messageId).changes > 0
-}
-
-export function createPlayerMailMessage(input: {
-  accountId: string
-  recordId: string
-  assetId: string
-  now?: number
-}): string {
-  const id = randomUUID()
-  const now = input.now ?? Date.now()
-  getPlayerContentDatabase().prepare(`
-    INSERT INTO player_mail_messages(id, account_id, kind, record_id, title, body, asset_id, created_at)
-    VALUES (?, ?, 'portrait', ?, '满分人生画像', '你走完的满分人生已留下一幅主角画像。', ?, ?)
-    ON CONFLICT(account_id, record_id, kind) DO NOTHING
-  `).run(id, input.accountId, input.recordId, input.assetId, now)
-  const row = getPlayerContentDatabase().prepare(`
-    SELECT id FROM player_mail_messages
-    WHERE account_id = ? AND record_id = ? AND kind = 'portrait'
-  `).get(input.accountId, input.recordId) as { id: string }
-  return row.id
-}
-
 export function getPlayerContentAggregateCounts(): {
   cloudSaves: number
   eligibleLeaderboardAccounts: number
@@ -670,7 +558,9 @@ export function getPlayerContentAggregateCounts(): {
     SELECT COUNT(*) AS count FROM portrait_mail_jobs
     WHERE status IN ('awaiting_brief', 'processing')
   `).get() as { count: number }
-  const mail = database.prepare('SELECT COUNT(*) AS count FROM player_mail_messages').get() as { count: number }
+  const mail = database.prepare(`
+    SELECT COUNT(*) AS count FROM player_mail_messages WHERE kind = 'portrait'
+  `).get() as { count: number }
   return {
     cloudSaves: cloudSaves.count,
     eligibleLeaderboardAccounts: leaderboard.count,

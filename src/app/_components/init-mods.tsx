@@ -28,9 +28,9 @@ export function InitMods({ children }: { children: React.ReactNode }) {
     let cancelled = false
 
     void (async () => {
-      await initializeAccountCloudSync()
-      if (cancelled) return
       await ensureDiagnosticPlayerCode()
+      if (cancelled) return
+      await initializeAccountCloudSync()
       if (cancelled) return
       void reportDiagnosticSessionEnvironment()
 

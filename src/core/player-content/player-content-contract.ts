@@ -2,7 +2,9 @@ import { z } from 'zod'
 
 import {
   CloudGameRecordSchema,
+  CloudMythicTalentSchema,
   type CloudGameRecord,
+  type CloudMythicTalent,
 } from '@/core/account/account-contract'
 
 export const CLOUD_MANUAL_SAVE_SCHEMA_VERSION = 1
@@ -43,11 +45,35 @@ export const PortraitMailRequestSchema = z.object({
   lifeSummary: z.string().trim().min(1).max(200_000),
 }).strict()
 
+export const PlayerMailFolderSchema = z.enum(['inbox', 'sent'])
+
+export const PlayerMailRecipientSchema = z.object({
+  type: z.enum(['account', 'diagnostic']),
+  value: z.string().trim().min(1),
+}).strict()
+
+export const PlayerMailCommandSchema = z.discriminatedUnion('action', [
+  z.object({
+    action: z.literal('send'),
+    requestId: z.string().uuid(),
+    recipient: PlayerMailRecipientSchema,
+    title: z.string().min(1),
+    body: z.string().min(1),
+    talent: CloudMythicTalentSchema.optional(),
+  }).strict(),
+  z.object({ action: z.literal('read'), messageId: z.string().uuid() }).strict(),
+  z.object({ action: z.literal('delete'), messageId: z.string().uuid() }).strict(),
+  z.object({ action: z.literal('accept-talent'), messageId: z.string().uuid() }).strict(),
+])
+
 export type CloudGameSavePayload = z.infer<typeof CloudGameSavePayloadSchema>
 export type CloudManualSaveMetadata = z.infer<typeof CloudManualSaveMetadataSchema>
 export type CloudManualSaveWrite = z.infer<typeof CloudManualSaveWriteSchema>
 export type CloudGameRecordLeaderboard = z.infer<typeof CloudGameRecordLeaderboardSchema>
 export type PortraitMailRequest = z.infer<typeof PortraitMailRequestSchema>
+export type PlayerMailFolder = z.infer<typeof PlayerMailFolderSchema>
+export type PlayerMailRecipient = z.infer<typeof PlayerMailRecipientSchema>
+export type PlayerMailCommand = z.infer<typeof PlayerMailCommandSchema>
 
 export interface CloudManualSaveSummary extends CloudManualSaveMetadata {
   compressedBytes: number
@@ -75,21 +101,49 @@ export interface LeaderboardEntry extends LeaderboardProjection {
   portraitAssetUrl: string | null
 }
 
+export interface PlayerMailTalentAttachment {
+  status: 'pending' | 'accepted' | 'returned'
+  talent: CloudMythicTalent
+  acceptedAt: number | null
+  returnedAt: number | null
+}
+
 export interface PlayerMailMessage {
   id: string
-  kind: 'portrait'
-  recordId: string
+  kind: 'message' | 'portrait'
+  senderLabel: string
+  recipientLabel: string
   title: string
   body: string
+  recordId: string | null
   assetId: string | null
   createdAt: number
+  expiresAt: number
   readAt: number | null
-  status: 'processing' | 'failed' | 'ready'
-  errorCode?: string
+  talent: PlayerMailTalentAttachment | null
 }
 
 export interface PlayerMailMessageView extends PlayerMailMessage {
   assetUrl: string | null
+}
+
+export interface PlayerMailPage {
+  messages: PlayerMailMessageView[]
+  nextCursor: string | null
+  unreadCount: number
+  diagnosticCode: string
+  accountRevision: number | null
+  talentReconciliation: {
+    removeTalentIds: string[]
+    ownedTalents: CloudMythicTalent[]
+  }
+}
+
+export interface PlayerMailCommandResult {
+  updated: boolean
+  message?: PlayerMailMessageView
+  acceptedTalent?: CloudMythicTalent
+  accountRevision: number | null
 }
 
 export interface LegendaryEncounterProjection {

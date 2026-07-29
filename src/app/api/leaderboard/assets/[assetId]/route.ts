@@ -1,4 +1,3 @@
-import { isPlayerLeaderboardEnabled } from '@/core/player-content/player-content-features'
 import { playerContentErrorResponse } from '@/core/player-content/player-content-http'
 import { readPortraitAsset } from '@/core/player-content/portrait-asset-store'
 import { readLeaderboardPortraitAsset } from '@/core/player-content/player-content-service'
@@ -10,7 +9,6 @@ export async function GET(
   context: { params: Promise<{ assetId: string }> },
 ): Promise<Response> {
   try {
-    if (!isPlayerLeaderboardEnabled()) return new Response(null, { status: 404 })
     const { assetId } = await context.params
     const asset = readLeaderboardPortraitAsset(assetId)
     if (!asset) return new Response(null, { status: 404 })

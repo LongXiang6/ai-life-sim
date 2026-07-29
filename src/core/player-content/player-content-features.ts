@@ -6,14 +6,6 @@ function enabled(name: string, defaultValue = false): boolean {
   return configured === '1'
 }
 
-export function isPlayerLeaderboardEnabled(): boolean {
-  return enabled('PLAYER_LEADERBOARD_ENABLED', true)
-}
-
-export function isPlayerMailboxEnabled(): boolean {
-  return enabled('PLAYER_MAILBOX_ENABLED', true)
-}
-
 export function isPortraitImageEnabled(): boolean {
   return enabled('PORTRAIT_IMAGE_ENABLED')
 }

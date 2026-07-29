@@ -13,6 +13,7 @@ import { ensureDiagnosticPlayerCode } from '@/core/logger/diagnostic-player-iden
 import { DEVICE_PROVENANCE_ID_COOKIE } from '@/core/logger/device-provenance'
 import { ensureDeviceProvenanceId } from '@/core/logger/device-provenance-identity'
 import { getServerRequestSource } from '@/core/logger/server-log-store'
+import { bindDiagnosticMailboxIdentity } from '@/core/player-content/player-mail-service'
 
 const COOKIE_MAX_AGE_SECONDS = 10 * 365 * 24 * 60 * 60
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
@@ -47,13 +48,26 @@ export async function GET(request: Request): Promise<Response> {
     return Response.json({ error: '诊断编号请求过于频繁' }, { status: 429 })
   }
 
-  const [diagnosticCode, deviceProvenanceId] = await Promise.all([
+  const allocatedIdentity = await Promise.all([
     ensureDiagnosticPlayerCode(source.diagnosticCode),
     ensureDeviceProvenanceId(source.deviceProvenanceId),
   ])
+  let diagnosticCode = allocatedIdentity[0]
+  const deviceProvenanceId = allocatedIdentity[1]
   if (!diagnosticCode || !deviceProvenanceId) {
     return Response.json({ error: '暂时无法分配日志来源编号' }, { status: 503 })
   }
+  let boundDiagnosticCode = bindDiagnosticMailboxIdentity(diagnosticCode, deviceProvenanceId)
+  for (let attempt = 0; !boundDiagnosticCode && attempt < 4; attempt += 1) {
+    diagnosticCode = await ensureDiagnosticPlayerCode()
+    if (diagnosticCode) {
+      boundDiagnosticCode = bindDiagnosticMailboxIdentity(diagnosticCode, deviceProvenanceId)
+    }
+  }
+  if (!boundDiagnosticCode) {
+    return Response.json({ error: '暂时无法建立邮箱身份' }, { status: 503 })
+  }
+  diagnosticCode = boundDiagnosticCode
 
   const response = NextResponse.json(
     { diagnosticCode, deviceProvenanceId, scope: 'browser-profile' },

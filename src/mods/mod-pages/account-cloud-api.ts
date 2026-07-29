@@ -1,3 +1,3 @@
 'use client'
 
-export { initializeAccountCloudSync } from './helpers/account-cloud-sync'
+export { initializeAccountCloudSync, syncAccountNow } from './helpers/account-cloud-sync'

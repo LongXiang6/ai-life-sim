@@ -5,6 +5,10 @@ import { randomUUID } from 'node:crypto'
 import type Database from 'better-sqlite3'
 
 import { deletePlayerContentForAccount, projectStructuredGameRecords } from '@/core/player-content/player-content-service'
+import {
+  reconcileAccountMailTalents,
+  type PlayerMailboxIdentity,
+} from '@/core/player-content/player-mail-service'
 
 import {
   ACCOUNT_MAX_SESSIONS,
@@ -243,7 +247,10 @@ export function enforceAccountRateLimit(
   transaction()
 }
 
-export async function registerAccount(input: RegisterRequest): Promise<{
+export async function registerAccount(
+  input: RegisterRequest,
+  mailboxIdentity: PlayerMailboxIdentity = {},
+): Promise<{
   token: string
   payload: AccountSessionPayload
 }> {
@@ -260,7 +267,20 @@ export async function registerAccount(input: RegisterRequest): Promise<{
   }
   const passwordHash = await hashPassword(input.password)
   const now = Date.now()
+  if (getAccountByCanonical(database, username.canonical)) {
+    throw new AccountServiceError('该用户名已被使用', 409, 'username_exists')
+  }
   const accountId = randomUUID()
+  const initialData = {
+    ...input.initialData,
+    mythicTalents: reconcileAccountMailTalents({
+      accountId,
+      talents: input.initialData.mythicTalents,
+      diagnosticCode: mailboxIdentity.diagnosticCode,
+      deviceProvenanceId: mailboxIdentity.deviceProvenanceId,
+      now,
+    }),
+  }
   const transaction = database.transaction(() => {
     if (getAccountByCanonical(database, username.canonical)) {
       throw new AccountServiceError('该用户名已被使用', 409, 'username_exists')
@@ -281,7 +301,7 @@ export async function registerAccount(input: RegisterRequest): Promise<{
       now,
       now,
     )
-    writeCloudData(database, accountId, input.initialData, 1, now)
+    writeCloudData(database, accountId, initialData, 1, now)
     return createSession(database, accountId, now)
   })
 
@@ -296,7 +316,7 @@ export async function registerAccount(input: RegisterRequest): Promise<{
     throw error
   }
   const row = database.prepare('SELECT * FROM accounts WHERE id = ?').get(accountId) as AccountRow
-  projectAccountRecordsSafely(accountId, input.initialData.gameRecords, now)
+  projectAccountRecordsSafely(accountId, initialData.gameRecords, now)
   return { token, payload: sessionPayload(database, row) }
 }
 
@@ -387,7 +407,11 @@ export function requireSessionAccountId(token: string | undefined): string {
   return account.id
 }
 
-export function syncAccount(token: string, input: CloudSyncRequest): AccountSessionPayload {
+export function syncAccount(
+  token: string,
+  input: CloudSyncRequest,
+  mailboxIdentity: PlayerMailboxIdentity = {},
+): AccountSessionPayload {
   const session = getSessionAccount(token)
   if (!session) throw new AccountServiceError('登录状态已失效', 401, 'unauthenticated')
   const database = getAccountDatabase()
@@ -398,11 +422,21 @@ export function syncAccount(token: string, input: CloudSyncRequest): AccountSess
   }
   const now = Date.now()
   const nextRevision = account.revision + 1
+  const reconciledInput = {
+    ...input,
+    mythicTalents: reconcileAccountMailTalents({
+      accountId: account.id,
+      talents: input.mythicTalents,
+      diagnosticCode: mailboxIdentity.diagnosticCode,
+      deviceProvenanceId: mailboxIdentity.deviceProvenanceId,
+      now,
+    }),
+  }
   const transaction = database.transaction(() => {
-    writeCloudData(database, account.id, input, nextRevision, now)
+    writeCloudData(database, account.id, reconciledInput, nextRevision, now)
   })
   transaction()
-  projectAccountRecordsSafely(account.id, input.gameRecords, now)
+  projectAccountRecordsSafely(account.id, reconciledInput.gameRecords, now)
   const updated = database.prepare('SELECT * FROM accounts WHERE id = ?').get(account.id) as AccountRow
   return sessionPayload(database, updated)
 }

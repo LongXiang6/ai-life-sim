@@ -11,7 +11,7 @@ declare global {
   var __aiLifeAccountDatabase: Database.Database | undefined
 }
 
-function resolveDatabasePath(): string {
+export function getAccountDatabasePath(): string {
   const configured = process.env.ACCOUNT_DB_PATH?.trim()
   if (configured) return path.resolve(configured)
   return process.env.NODE_ENV === 'production'
@@ -207,7 +207,7 @@ function initializeSchema(database: Database.Database): void {
 export function getAccountDatabase(): Database.Database {
   if (globalThis.__aiLifeAccountDatabase?.open) return globalThis.__aiLifeAccountDatabase
 
-  const databasePath = resolveDatabasePath()
+  const databasePath = getAccountDatabasePath()
   fs.mkdirSync(path.dirname(databasePath), { recursive: true, mode: 0o700 })
   try { fs.chmodSync(path.dirname(databasePath), 0o700) } catch { /* Windows or restricted runtime. */ }
 
