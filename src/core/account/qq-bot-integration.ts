@@ -308,7 +308,12 @@ export function readQqBotProjectStatus(): QqBotProjectStatus {
   const changelogPath = path.join(process.cwd(), 'public', `changelog-${changelogIndex.latestChunk}.txt`)
   let latestUpdates: string[] = []
   try {
-    latestUpdates = fs.readFileSync(changelogPath, 'utf8')
+    const latestEntry = fs.readFileSync(changelogPath, 'utf8')
+      .replace(/\r\n?/gu, '\n')
+      .split(/^---\s*$/mu)
+      .map((section) => section.trim())
+      .filter(Boolean)[0] ?? ''
+    latestUpdates = latestEntry
       .split(/\r?\n/u)
       .filter((line) => /^\s+-\s+/u.test(line))
       .map((line) => line.replace(/^\s+-\s+/u, '').trim())

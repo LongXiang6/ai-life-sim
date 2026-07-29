@@ -4,7 +4,7 @@
  * @mod mod-engine
  */
 
-export { getWorldRules } from '../campaigns/default/prompts/system-prompt'
+export { getWorldRules } from '../prompts/narrative-prompt'
 export {
   DEFAULT_ENGINE_CONFIG,
   USE_AI_SUMMARY_COMPRESSION,
@@ -40,15 +40,12 @@ export {
   collectActiveModWorldRules,
   collectMemoryStateSummaries,
   dedupeSummariesAgainstMemory,
-  getNarrativeChangeBlockReason,
+  getSystemInstructionBlockReason,
   isPromptNoiseSummary,
   isSubsystemOpenForPrompt,
 } from './subsystem-prompt-gate'
 export {
-  buildMvpSubsystemGuide,
-  MVP_ALLOWED_SUBSYSTEMS_TEXT,
-  MVP_SUBSYSTEM_GUIDE,
-  isMvpNarrativeChangeSubsystem,
+  isMvpSystemInstructionSubsystem,
   isMvpPromptSubsystem,
   isMvpRuntimeSubsystem,
   shouldApplyMvpCommit,

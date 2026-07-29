@@ -8,7 +8,11 @@ import { useGlobalStore } from '@/core/global-store'
 import { runtimeRegistry } from '@/core/mod-loader/runtime-registry'
 import { saveManager } from '@/core/storage/save-manager'
 import { sanitizeCharacterStateSnapshot, useCharacterStore } from '@/mods/mod-character'
-import { sanitizeWorldStateSnapshot, useWorldStore } from '@/mods/mod-world'
+import {
+  registerWorldEntityReference,
+  sanitizeWorldStateSnapshot,
+  useWorldStore,
+} from '@/mods/mod-world'
 import { buildDefaultCalibration, formatCalibrationSummary } from '@/mods/mod-world'
 import { buildOrchestratorWorldSetting } from '@/mods/mod-engine/helpers/orchestrator-world-setting'
 
@@ -89,6 +93,14 @@ function serializeStoreSnapshot<T extends object>(state: T): Record<string, unkn
   return JSON.parse(JSON.stringify(state)) as Record<string, unknown>
 }
 
+function buildWorldSaveSnapshot(): Record<string, unknown> {
+  const {
+    entityReferences: _ownedByWorldEntitySystem,
+    ...world
+  } = serializeStoreSnapshot(useWorldStore.getState())
+  return world
+}
+
 function buildEngineSaveSnapshot(): Record<string, unknown> {
   const store = useEngineStore.getState()
   const o = orchestrator.getState()
@@ -119,7 +131,6 @@ function buildEngineSaveSnapshot(): Record<string, unknown> {
     ...store,
     ...o,
     narrativeHistory: mergedHistory,
-    streamingNarrative: '',
     narrativeError: null,
     resolvedBranches: store.resolvedBranches,
     forceBranchNext: store.forceBranchNext,
@@ -198,7 +209,6 @@ export async function applyGameSave(data: Record<string, unknown>): Promise<void
       branchIntents: branchIntentProjection.branchIntents,
       archivedBranchIntents: branchIntentProjection.archivedBranchIntents,
       focusedBranchIntentId: branchIntentProjection.focusedBranchIntentId,
-      streamingNarrative: '',
       narrativeError: null,
       resolvedBranches: engine.resolvedBranches ?? {},
       forceBranchNext: engine.forceBranchNext ?? false,
@@ -265,7 +275,7 @@ export function collectGameSavePayload(): Record<string, unknown> {
   return {
     engine: buildEngineSaveSnapshot(),
     character: serializeStoreSnapshot(useCharacterStore.getState()),
-    world: serializeStoreSnapshot(useWorldStore.getState()),
+    world: buildWorldSaveSnapshot(),
     orchestrator: serializeStoreSnapshot(orchestrator.captureSnapshot()),
   }
 }
@@ -313,6 +323,13 @@ export function ensureOrchestratorContextFromStores(): boolean {
   const calibration = worldState.calibration ?? buildDefaultCalibration(worldConfig)
   const characterId = character.characterId || character.ensureCharacterId()
   const currentInstance = worldState.contexts[worldState.currentContextId]
+  registerWorldEntityReference({
+    entityId: characterId,
+    kind: 'player',
+    displayName: character.name || '未命名',
+    contextIds: [currentInstance.record.id],
+    registeredAtTotalDays: useEngineStore.getState().round.totalDays,
+  })
   if (!currentInstance.spatialGraph.entityLocations[characterId]) {
     worldState.replaceContext({
       ...currentInstance,

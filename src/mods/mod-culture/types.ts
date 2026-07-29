@@ -36,80 +36,8 @@ export interface ReputationState {
 }
 
 // ============================================================
-// §2 关系系统
+// §2 家族系统
 // ============================================================
-
-/** 关系类型 */
-export type RelationshipType =
-  | 'friend'
-  | 'enemy'
-  | 'rival'
-  | 'mentor'
-  | 'student'
-  | 'lover'
-  | 'spouse'
-  | 'family'
-  | 'ally'
-  | 'neutral'
-
-/** 关系条目 */
-export interface RelationshipEntry {
-  id: string
-  name: string
-  type: RelationshipType
-  /** 好感度 -100 ~ 100 */
-  affinity: number
-  /** 信任度 0-100 */
-  trust: number
-  /** 结识年份 */
-  metYear: number
-  /** 最后互动年份 */
-  lastInteractionYear: number
-  /** 备注 */
-  notes: string
-  /** 羁绊类型（不为空时表示有特殊羁绊关系） */
-  bondType?: BondType
-  /** 羁绊强度 0-100 */
-  bondIntensity?: number
-  /** 羁绊建立年份 */
-  bondEstablishedYear?: number
-  /** 羁绊是否已断 */
-  bondBroken?: boolean
-  /** 羁绊描述 */
-  bondDescription?: string
-}
-
-/** 羁绊类型 */
-export type BondType =
-  | 'oath_of_brotherhood'   // 结义
-  | 'master_disciple'       // 师徒
-  | 'life_saving_debt'      // 救命之恩
-  | 'sworn_enemy'           // 血仇
-  | 'political_marriage'    // 政治婚姻
-  | 'blood_pact'            // 血盟
-  | 'fate_bond'             // 命运纽带
-  | 'mutual_benefit'        // 互利
-
-/** 盟友原型 */
-export interface AllyArchetype {
-  id: string
-  name: string
-  /** 性格描述 */
-  personality: string
-  /** 初始好感度 */
-  initialAffinity: number
-  /** 偏好生命阶段 */
-  preferredLifeStages: string[]
-  /** 世界观权重（key=worldview, value=权重 0-1） */
-  worldviewWeights: Record<string, number>
-  /** 叙事钩子 */
-  narrativeHook: string
-}
-
-/** 关系状态 */
-export interface RelationshipState {
-  relationships: Record<string, RelationshipEntry>
-}
 
 // ============================================================
 // §3 家族系统
@@ -503,7 +431,6 @@ export interface WorksState {
 /** MOD 整体摘要 */
 export interface CultureSummary {
   reputation: ReputationState
-  relationship: RelationshipState
   family: FamilyState
   education: EducationState
   culture: CultureState

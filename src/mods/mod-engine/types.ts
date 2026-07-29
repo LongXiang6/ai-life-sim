@@ -49,37 +49,7 @@ export interface EngineConfig {
   maxTokens: number,
 }
 
-/** 后台强制命运分支补救的结构化输出。 */
-export interface NarrativeBranchRepairOutput {
-  分支标题: string
-  分支选项: string[]
-}
-
-/** 重复正文后台修复的独立事实审计结果。 */
-export interface NarrativeRepetitionAuditOutput {
-  事实一致: boolean
-  完整覆盖: boolean
-  覆盖证据: Array<{
-    原文事实: string
-    候选对应: string
-  }>
-  冲突: string[]
-  遗漏: string[]
-}
-
-/** 只含正文的后台改写协议解析结果。 */
-export interface NarrativeRepetitionRepairOutput {
-  content: string
-  narrative: string
-}
-
-/** 已通过正文协议与独立事实审计的后台改写候选。 */
-export interface NarrativeRepetitionRepairCandidate {
-  content: string
-  audit: NarrativeRepetitionAuditOutput
-}
-
-/** 叙事流片段 */
+/** 已提交的逐轮叙事记录 */
 export interface NarrativeChunk {
   /** 唯一标识（生成时用 timestamp + 随机数填充，用于 resolveBranch 索引漂移防御） */
   id?: string,

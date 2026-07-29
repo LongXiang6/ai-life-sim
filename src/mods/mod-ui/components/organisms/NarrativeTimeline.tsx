@@ -2,7 +2,7 @@
 
 /**
  * @module NarrativeTimeline
- * @description 叙事时间线 —— 对齐废弃项目：虚拟窗口、分隔线、流式段落、故事尾部推进区
+ * @description 叙事时间线 —— 虚拟窗口、分隔线、整轮生成状态与故事尾部推进区
  * @mod mod-ui
  */
 
@@ -29,9 +29,7 @@ export interface NarrativeEntry {
 
 export interface NarrativeTimelineProps {
   entries: NarrativeEntry[]
-  streamingText?: string
   scrollContainerRef?: React.RefObject<HTMLDivElement | null>
-  streamingHeader?: { eraLabel?: string; ageLabel?: string }
   turnCount?: number
   advanceText?: string
   advanceHint?: string
@@ -62,9 +60,7 @@ function splitNarrativeParagraphs(text: string): string[] {
 
 export function NarrativeTimeline({
   entries,
-  streamingText,
   scrollContainerRef,
-  streamingHeader,
   turnCount = 0,
   advanceText = '轻触，让岁月流转',
   advanceHint = '下一段故事已经准备好',
@@ -290,34 +286,17 @@ export function NarrativeTimeline({
       )
       nodes.push(
         <div key="stream-entry" className={styles.streamEntry}>
-          {(streamingHeader?.eraLabel || streamingHeader?.ageLabel) && (
-            <div className={styles.entryMeta}>
-              <span>{streamingHeader?.eraLabel ?? ''}</span>
-              {streamingHeader?.ageLabel && (
-                <span className={styles.entryAge}>{streamingHeader.ageLabel}</span>
-              )}
-            </div>
-          )}
           <div className={styles.entryBody}>
-            {streamingText ? (
-              splitNarrativeParagraphs(streamingText).map((paragraph, idx, arr) => (
-                <p key={idx} className={styles.entryParagraph}>
-                  {paragraph.trim()}
-                  {idx === arr.length - 1 && <span className={styles.cursor} />}
-                </p>
-              ))
-            ) : (
-              <p className={styles.entryParagraph}>
-                <span className={styles.cursor} />
-              </p>
-            )}
+            <p className={styles.entryParagraph}>
+              <span className={styles.cursor} />
+            </p>
           </div>
         </div>,
       )
     }
 
     return nodes
-  }, [renderStart, entries, isGenerating, streamingText, streamingHeader, unresolvedBranchIndex, branchTitle, branchOptions, selectedBranchOptionId, branchCustomText, onBranchSelect, onBranchConfirm, onBranchCancel, onCustomInputChange])
+  }, [renderStart, entries, isGenerating, unresolvedBranchIndex, branchTitle, branchOptions, selectedBranchOptionId, branchCustomText, onBranchSelect, onBranchConfirm, onBranchCancel, onCustomInputChange])
 
   const canTapAdvance = showAdvance && !advanceBlocked && !isGenerating
   const advanceTitle = isGenerating

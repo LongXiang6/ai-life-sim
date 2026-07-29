@@ -51,10 +51,6 @@ import { getAutoNarrativeRetryDelay } from './narrative-retry-policy'
 
 const GENDER_LABELS: Record<string, string> = { male: '男', female: '女' }
 
-function stripLeadingNarrativeProtocolMarker(text: string): string {
-  return text.replace(/^⟦正文⟧(?:\r?\n)+/u, '')
-}
-
 import { useSimulationBranch } from './useSimulationBranch'
 
 interface TagSection {
@@ -134,9 +130,7 @@ export default function GamePage() {
   const recentRepetitionMetrics = narrativeHistory
     .flatMap((entry) => entry.repetitionMetric ? [entry.repetitionMetric] : [])
     .slice(-5)
-  const streamingNarrative = useEngineStore((s) => s.streamingNarrative)
   const narrativeError = useEngineStore((s) => s.narrativeError)
-  const branchRepairPending = useEngineStore((s) => s.branchRepairPending)
   const lifeRunId = useEngineStore((s) => s.lifeRunId)
   const legendaryEncounterCheckedForLifeRunId = useEngineStore((s) => s.legendaryEncounterCheckedForLifeRunId)
   const setLegendaryEncounterSelection = useEngineStore((s) => s.setLegendaryEncounterSelection)
@@ -235,7 +229,7 @@ export default function GamePage() {
       }
     }
     prevEventsLenRef.current = narrativeHistory.length
-  }, [narrativeHistory.length, streamingNarrative])
+  }, [narrativeHistory.length])
 
   const isComplete = status === 'complete'
   const isDead = health.isDead
@@ -297,9 +291,9 @@ export default function GamePage() {
   }, [router, stop])
 
   const runNarrativeAttempt = useCallback(async () => {
-    if (!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch || branchRepairPending) return
+    if (!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch) return
     await advanceRound()
-  }, [isRuntimeReady, isDead, isComplete, isAdvancing, hasUnresolvedBranch, branchRepairPending, advanceRound])
+  }, [isRuntimeReady, isDead, isComplete, isAdvancing, hasUnresolvedBranch, advanceRound])
 
   const handleNarrativeAdvance = useCallback(async () => {
     if (narrativeError) {
@@ -323,7 +317,7 @@ export default function GamePage() {
       return
     }
 
-    if (!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch || branchRepairPending) return
+    if (!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch) return
 
     const attemptIndex = autoRetryAttempt
     const retryDelay = getAutoNarrativeRetryDelay(attemptIndex)
@@ -337,7 +331,7 @@ export default function GamePage() {
     }, retryDelay)
 
     return () => window.clearTimeout(retryTimer)
-  }, [narrativeError, isRuntimeReady, isDead, isComplete, isAdvancing, hasUnresolvedBranch, branchRepairPending, autoRetryAttempt, runNarrativeAttempt])
+  }, [narrativeError, isRuntimeReady, isDead, isComplete, isAdvancing, hasUnresolvedBranch, autoRetryAttempt, runNarrativeAttempt])
 
   const autoRetryPending = Boolean(
     narrativeError
@@ -346,15 +340,12 @@ export default function GamePage() {
       && !isComplete
       && !isAdvancing
       && !hasUnresolvedBranch
-      && !branchRepairPending
       && getAutoNarrativeRetryDelay(autoRetryAttempt) !== null,
   )
 
   const narrativeAdvanceBlockedText = !isRuntimeReady
     ? runtimeBlockedText
-    : branchRepairPending
-      ? '命运分支正在后台整理'
-      : '完成分支后继续'
+    : '完成分支后继续'
   const narrativeAdvanceText = narrativeError && !hasUnresolvedBranch
     ? '立即重试，继续此段故事'
     : '轻触，让岁月流转'
@@ -386,7 +377,7 @@ export default function GamePage() {
 
   const narrativeEntries: NarrativeEntry[] = useMemo(() =>
     narrativeHistory.map((chunk) => ({
-      text: stripLeadingNarrativeProtocolMarker(chunk.text),
+      text: chunk.text,
       timestamp: chunk.timestamp,
       eraLabel: chunk.displayTimeLabel ?? narrativeTimeLabel,
       ageLabel: chunk.displayAge !== undefined ? `${chunk.displayAge} 岁` : `${characterAge} 岁`,
@@ -399,11 +390,6 @@ export default function GamePage() {
     })),
     [narrativeHistory, narrativeTimeLabel, characterAge],
   )
-
-  const streamingHeader = useMemo(() => ({
-    eraLabel: narrativeTimeLabel,
-    ageLabel: `${characterAge} 岁`,
-  }), [narrativeTimeLabel, characterAge])
 
   // 构建世界信息面板数据
   const worldSurrounding = useMemo(() => {
@@ -580,7 +566,7 @@ export default function GamePage() {
                   className={`${styles.forceButton} ${forceBranchNext ? styles.forceButtonActive : ''}`}
                   aria-label={forceBranchNext ? '取消下一轮强制分支' : '强制下一轮分支'}
                   aria-pressed={forceBranchNext}
-                  disabled={!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch || branchRepairPending}
+                  disabled={!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch}
                   onClick={handleForceBranch}
                 >
                   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -766,7 +752,7 @@ export default function GamePage() {
             <small>第 {Math.max(totalRounds, 1)} 回 · 故事进程</small>
             <h1>故事进行中</h1>
             <div className={styles.chapterRule}>
-              <span>{!isRuntimeReady ? runtimeBlockedText : isAdvancing ? '命书正在续写' : hasUnresolvedBranch ? '等待你的选择' : branchRepairPending ? '命运分支整理中' : forceBranchNext ? '已请求命运分叉' : '岁月流转'}</span>
+              <span>{!isRuntimeReady ? runtimeBlockedText : isAdvancing ? '命书正在续写' : hasUnresolvedBranch ? '等待你的选择' : forceBranchNext ? '已请求命运分叉' : '岁月流转'}</span>
             </div>
           </header>
 
@@ -792,12 +778,10 @@ export default function GamePage() {
 
           <NarrativeTimeline
             entries={narrativeEntries}
-            streamingText={streamingNarrative}
             scrollContainerRef={narrativeEndRef}
-            streamingHeader={streamingHeader}
             turnCount={totalRounds}
             showAdvance={!isDead && !isComplete}
-            advanceBlocked={!isRuntimeReady || hasUnresolvedBranch || branchRepairPending}
+            advanceBlocked={!isRuntimeReady || hasUnresolvedBranch}
             advanceBlockedText={narrativeAdvanceBlockedText}
             advanceText={narrativeAdvanceText}
             advanceHint={narrativeAdvanceHint}
@@ -816,7 +800,7 @@ export default function GamePage() {
             onCustomInputChange={setBranchCustomText}
           />
 
-          {(isDead || isComplete) && !streamingNarrative && (
+          {(isDead || isComplete) && (
             <section className={styles.statusBanner}>
               <h2>{isDead ? `${characterName} 的一生已落幕` : '本卷人生已经写完'}</h2>
               <p>{isDead ? `角色在第 ${round.year} 年 ${seasonName} 离世。` : `共走过 ${totalRounds} 轮，结算页将整理这一生的轨迹。`}</p>

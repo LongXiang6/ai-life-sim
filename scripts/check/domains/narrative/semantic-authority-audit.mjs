@@ -36,9 +36,10 @@ const activeFiles = {
   campaign: read('src/mods/mod-engine/campaigns/default/index.ts'),
   hints: read('src/mods/mod-engine/helpers/narrative-hints.ts'),
   archetypes: read('src/mods/mod-engine/helpers/life-stage-archetypes.ts'),
-  parser: read('src/mods/mod-engine/helpers/parse-strategies.ts'),
+  parser: read('src/mods/mod-engine/subsystems/narrative-parser-system.ts'),
   prompt: read('src/mods/mod-engine/prompts/narrative-prompt.ts'),
   promptComponents: read('src/mods/mod-engine/server/narrative-system-prompt.ts'),
+  settlementPromptComponents: read('src/mods/mod-engine/server/narrative-settlement-system-prompt.ts'),
   aiProtocol: read('src/mods/mod-engine/helpers/narrative-ai-protocol.ts'),
   plot: read('src/mods/mod-engine/subsystems/plot-structure-system.ts'),
   memory: read('src/mods/mod-engine/subsystems/memory-lifecycle-system.ts'),
@@ -130,34 +131,34 @@ for (const register of ['生活', '命运', '传承']) {
   )
 }
 assertIncludes(activeFiles.aiProtocol, 'AI_NARRATIVE_REGISTERS = createEnumTranslator', 'prompt register values must come from the Chinese translation authority')
-assertIncludes(activeFiles.prompt, "version: '4.7.0'", 'four-layer narrative and data-repair contract must use Prompt version 4.7.0')
+assertIncludes(activeFiles.prompt, "version: '5.7.0'", 'pure narrative contract must use Prompt version 5.7.0')
 assertIncludes(
-  activeFiles.promptComponents,
-  '无内容、无变化时省略整个字段',
-  'AI-visible optional data must omit empty fields instead of emitting noise',
+  activeFiles.settlementPromptComponents,
+  '没有变化的系统省略整段',
+  'AI-visible optional system changes must omit empty segments instead of emitting noise',
 )
 if (/关系变化\s*:\s*\{\s*shape\s*:/.test(activeFiles.aiProtocol)) {
   fail('Chinese relationship updates must not be modeled as a shape/types wrapper object')
 }
 assertIncludes(
-  activeFiles.promptComponents,
-  '禁止空数组、空对象、空字符串和 null',
-  'prompt must require omission instead of noisy empty fields',
+  activeFiles.settlementPromptComponents,
+  '只有通用关系系统的解除操作使用空变更对象',
+  'prompt must reserve the only empty-object payload for relationship termination',
 )
 assertIncludes(
   activeFiles.parser,
-  'NarrativeResponseSchema.safeParse(metadataCandidate)',
-  'parser must validate the complete semantic metadata and raw change bundle together',
+  'NarrativeResponseSchema.parse({',
+  'combined narrative and settlement data must pass the complete response schema together',
 )
 assertIncludes(
   activeFiles.parser,
-  'metadataRejected: metadataRejectedOverride || Boolean(metadataResult && !metadataResult.success)',
-  'parser must expose complete META rejection to the whole-package interceptor',
+  'combineNarrativeAndSettlement(',
+  'parser must expose one strict combination boundary for the two AI responses',
 )
 assertIncludes(
   activeFiles.orchestrator,
-  'if (hasValidatedSemanticMetadata)',
-  'orchestrator must gate semantic side effects on complete metadata validation',
+  'if (parsed.semanticSignals)',
+  'orchestrator must apply semantic side effects only when validated settlement metadata exists',
 )
 
 for (const call of [

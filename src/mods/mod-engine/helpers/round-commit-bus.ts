@@ -13,7 +13,7 @@ import type { ISubSystem, SubSystemChanges, RoundContext } from '@/foundation'
 import { deepSanitize } from './system-safety'
 import { validateChange } from './subsystem-field-registry'
 import { validateCrossDomainChange } from './cross-domain-change-validator'
-import { getNarrativeChangeBlockReason } from './subsystem-prompt-gate'
+import { getSystemInstructionBlockReason } from './subsystem-prompt-gate'
 import { shouldApplyMvpCommit } from './mvp-runtime-policy'
 
 export type RoundCommitSource =
@@ -99,7 +99,15 @@ export class RoundCommitBus {
       }
 
       if (commit.source === 'narrative') {
-        const blockReason = getNarrativeChangeBlockReason(
+        if (!change.targetObjectId || !change.targetContextId || !change.operation) {
+          rejected.push({ change, reason: '系统指令缺少稳定目标对象、目标上下文或标准操作' })
+          continue
+        }
+        if (change.targetContextId !== context.contextId) {
+          rejected.push({ change, reason: '系统指令目标上下文不是当前回合上下文' })
+          continue
+        }
+        const blockReason = getSystemInstructionBlockReason(
           change.id,
           change.changes ?? {},
           context,
@@ -126,6 +134,26 @@ export class RoundCommitBus {
     // 主叙事必须先完成整包预检；任一项失败时，在任何子系统写入前拒绝全部变更。
     if (commit.source === 'narrative' && rejected.length > 0) {
       console.warn(`[RoundCommit] narrative 预检失败，整包拒绝 ${commit.changes.length} 条变更`)
+      return { committed: [], rejected }
+    }
+
+    // Owning systems preflight the complete instruction package before any write.
+    for (const change of prepared) {
+      const subsystem = this.resolveSubsystem(change.id) as ISubSystem & {
+        preflightChanges?: (value: SubSystemChanges, valueContext: RoundContext) => void
+      }
+      if (!subsystem.preflightChanges) continue
+      try {
+        subsystem.preflightChanges(change, context)
+      } catch (error) {
+        rejected.push({
+          change,
+          reason: error instanceof Error ? error.message : String(error),
+        })
+      }
+    }
+    if (commit.source === 'narrative' && rejected.length > 0) {
+      console.warn(`[RoundCommit] 系统指令 owning system 预检失败，整包拒绝 ${commit.changes.length} 条变更`)
       return { committed: [], rejected }
     }
 

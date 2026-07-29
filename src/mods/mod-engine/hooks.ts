@@ -158,7 +158,6 @@ export function syncOrchestratorToEngineStore(): void {
     lastAutoSaveRound: o.lastAutoSaveRound,
     characterCreations: [...(o.characterCreations ?? [])],
     storyRepetitionStats: structuredClone(o.storyRepetitionStats),
-    streamingNarrative: '',
   }))
   useEngineStore.getState().setBranchIntentProjection({
     branchIntents: orchestrator.getActiveBranchIntents(),
@@ -253,15 +252,6 @@ export function useSimulationAdvance() {
   }, [allModsLoaded])
 
   useEffect(() => {
-    orchestrator.onStream((chunk) => {
-      if (chunk.isReset) {
-        // AI 重试/降级：丢弃上一次尝试的残留流式文本
-        useEngineStore.setState({ streamingNarrative: '' })
-        return
-      }
-      useEngineStore.getState().appendStreamingChunk(chunk.text)
-    })
-
     const persistApi = useEngineStore.persist
     if (!persistApi.hasHydrated()) {
       return persistApi.onFinishHydration(restoreRuntimeOrSyncStore)
@@ -272,11 +262,7 @@ export function useSimulationAdvance() {
 
   const advanceRound = useCallback(async () => {
     await waitForRoundFinalization()
-    const before = useEngineStore.getState()
     if (isAdvancingRef.current) {
-      return
-    }
-    if (before.branchRepairPending) {
       return
     }
     const runtimeReadiness = getSimulationRuntimeReadiness()
@@ -295,7 +281,7 @@ export function useSimulationAdvance() {
 
     isAdvancingRef.current = true
     setIsAdvancing(true)
-    useEngineStore.setState({ streamingNarrative: '', narrativeError: null })
+    useEngineStore.setState({ narrativeError: null })
 
     // 预生成关闭时也要等待上一轮摘要压缩提交，避免两个真实回合并发改写同一压缩器。
     await orchestrator.waitForBackgroundCompression()
@@ -318,7 +304,7 @@ export function useSimulationAdvance() {
         providerId: provider,
         model,
       }),
-      stream: true,
+      stream: false,
       reasoningEffort,
     }
 
@@ -347,15 +333,12 @@ export function useSimulationAdvance() {
       if (cached.isBranchPoint) clearPreGenQueue()
     }
 
-    let roundSucceeded = false
     try {
       await orchestrator.executeRoundV2(
         narrativePrompt,
         aiConfig,
         worldCode ? `sim-${worldCode}` : undefined,
       )
-      roundSucceeded = true
-
       // 自动保存与回合 outcome 只在同一轮最终状态稳定后各执行一次；不记录点击、导航或输入过程。
       syncOrchestratorToEngineStore()
       const completedState = useEngineStore.getState()
@@ -369,11 +352,14 @@ export function useSimulationAdvance() {
         await orchestrator.triggerAutoSave()
         const report = orchestrator.getLastRoundDiagnostic()
         if (report) await postNarrativeRoundOutcome(report)
+        void fillPreGenQueue(narrativePrompt, worldCode ? `sim-pregen-${worldCode}` : undefined)
       })
     } catch (err) {
-      useEngineStore.getState().setBranchRepairPending(false)
       const expectedQualityRejection = err instanceof Error
-        && err.name === 'NarrativeGenerationRejectedError'
+        && (
+          err.name === 'NarrativeGenerationRejectedError'
+          || err.name === 'NarrativeSettlementRejectedError'
+        )
       const logRoundFailure = expectedQualityRejection ? logger.warn : logger.error
       logRoundFailure('simulation', '回合执行失败', err)
       try {
@@ -396,9 +382,6 @@ export function useSimulationAdvance() {
       useEngineStore.getState().setStatus(runtimeStatus === 'complete' ? 'complete' : 'idle')
       isAdvancingRef.current = false
       setIsAdvancing(false)
-      if (roundSucceeded) {
-        void fillPreGenQueue(narrativePrompt, worldCode ? `sim-pregen-${worldCode}` : undefined)
-      }
     }
   }, [worldCode])
 

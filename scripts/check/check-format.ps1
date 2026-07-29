@@ -486,10 +486,10 @@ $narrativePipelineFiles = @(
 )
 $pipelineContent = ($narrativePipelineFiles | Where-Object { Test-Path $_ } | ForEach-Object { Get-FileContent $_ }) -join "`n"
 $narrativeCriticalMethods = @(
-  'buildCoreMemory', 'buildForeshadowingText', 'detectForeshadowing', 'resolveForeshadowing',
+  'buildCreationTimelineEntries', 'buildNPCNetworkText', 'buildForeshadowingText', 'detectForeshadowing', 'resolveForeshadowing',
   'scoreImportance', 'setAISemanticAnalysis', 'recordNarrativeSignals', 'recordRelationshipUpdates',
-  'getRelevantStates', 'buildRichPrompt',
-  'formatRichPromptForInjection', 'buildPhaseGuidance'
+  'getRelevantStates', 'buildNarrativeTimelineProjection',
+  'buildPromptTimelineMemory', 'buildPhaseGuidance'
 )
 foreach ($m in $narrativeCriticalMethods) {
   if ($pipelineContent -notmatch "\b$([regex]::Escape($m))\s*\(") {

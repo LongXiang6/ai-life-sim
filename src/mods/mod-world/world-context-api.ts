@@ -4,7 +4,16 @@
  * @mod mod-world
  */
 
-import type { ContextTransitionRequest, ContextTransitionResult, SpatialEdge } from '@/foundation'
+import type {
+  ContextTransitionRequest,
+  ContextTransitionResult,
+  ContextCapability,
+  EntitySpatialLocation,
+  EntityReference,
+  EntityReferenceKind,
+  SpatialEdge,
+  SpatialNodeId,
+} from '@/foundation'
 
 import { useWorldStore } from './store'
 import type { WorldConfig, WorldContextInstance } from './types'
@@ -15,6 +24,7 @@ import {
 import { getContextTransitionSystem } from './subsystems/context-transition-system'
 import { getSimulationScopePolicySystem } from './subsystems/simulation-scope-policy-system'
 import { getSpatialGraphSystem } from './subsystems/spatial-graph-system'
+import { getWorldEntitySystem } from './subsystems/world-entity-system'
 import { createCrossContextExit } from './utils/world-context-runtime'
 
 export async function createAdditionalWorldContext(
@@ -44,6 +54,63 @@ export function getCurrentWorldContext(): WorldContextInstance | null {
   const state = useWorldStore.getState()
   const instance = state.currentContextId ? state.contexts[state.currentContextId] : undefined
   return instance ? structuredClone(instance) : null
+}
+
+export function registerWorldEntityReference(reference: EntityReference): EntityReference {
+  return getWorldEntitySystem().registerEntityReference(reference)
+}
+
+export function getWorldEntityReference(entityId: string): EntityReference | undefined {
+  return getWorldEntitySystem().getEntityReference(entityId)
+}
+
+export function listWorldEntityReferences(): EntityReference[] {
+  return getWorldEntitySystem().listEntityReferences()
+}
+
+export function assertWorldEntityReference(
+  entityId: string,
+  allowedKinds?: readonly EntityReferenceKind[],
+): EntityReference {
+  return getWorldEntitySystem().assertEntityReference(entityId, allowedKinds)
+}
+
+export function contextHasCapability(contextId: string, capability: ContextCapability): boolean {
+  return useWorldStore.getState().contexts[contextId]?.capabilityProfile.capabilities.includes(capability) ?? false
+}
+
+export function canRunBackgroundWorldSubsystem(contextId: string, subsystemId: string): boolean {
+  const instance = useWorldStore.getState().contexts[contextId]
+  return instance?.scope.scope === 'background'
+    && instance.capabilityProfile.backgroundSubsystemIds.includes(subsystemId)
+}
+
+export function assertWorldSpatialNode(contextId: string, nodeId: SpatialNodeId): void {
+  const node = useWorldStore.getState().contexts[contextId]?.spatialGraph.nodes[nodeId]
+  if (!node || node.contextId !== contextId) throw new Error(`空间节点不存在：${nodeId}`)
+}
+
+export function assertWorldEntityLocation(location: EntitySpatialLocation): void {
+  assertWorldEntityReference(location.entityId)
+  getSpatialGraphSystem().assertEntityLocation(location)
+}
+
+export function listCoLocatedWorldEntityIds(
+  contextId: string,
+  anchorEntityId: string,
+): string[] {
+  const instance = useWorldStore.getState().contexts[contextId]
+  if (!instance) throw new Error(`查询同场实体时上下文不存在：${contextId}`)
+  const anchor = instance.spatialGraph.entityLocations[anchorEntityId]
+  if (!anchor) return [anchorEntityId]
+  return Object.values(instance.spatialGraph.entityLocations)
+    .filter((location) => location.nodeId === anchor.nodeId)
+    .map((location) => location.entityId)
+}
+
+export function moveWorldEntityLocation(location: EntitySpatialLocation): void {
+  assertWorldEntityLocation(location)
+  getSpatialGraphSystem().setEntityLocation(location)
 }
 
 export function connectWorldContexts(

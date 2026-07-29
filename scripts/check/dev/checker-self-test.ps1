@@ -324,7 +324,7 @@ New-Item -ItemType Directory -Path $tempEngineHelpersDir -Force | Out-Null
   "stages": {
     "mvp": {
       "runtime": { "external": [], "engine": [] },
-      "narrativeChange": []
+      "systemInstruction": []
     }
   }
 }

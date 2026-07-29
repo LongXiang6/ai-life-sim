@@ -33,16 +33,44 @@ export function formatShanghaiTimestamp(date = new Date()) {
   return `${value.year}-${value.month}-${value.day} ${value.hour}:${value.minute}:${value.second}`
 }
 
+export const CHANGELOG_VERSIONS_PER_CHUNK = 10
+
+const INTERNAL_CHANGELOG_TERMS = /\b(?:API|JSON|KVCache|MCP|MOD|Prompt|Provider|Schema|SQL|Store|Token)\b|(?:src|scripts|public|docs)[\\/]|\.(?:cjs|js|json|md|mjs|ts|tsx)\b|内部系统|内部实现|服务端|数据库|缓存(?:命中|策略)?|脚本|路由|提示词|协议(?:字段)?|校验(?:器)?|请求链路|响应结构|架构分层|工程过程|部署|构建产物|测试数量|文件名/iu
+
+export function parseChangelogEntries(content, fileName = 'changelog') {
+  const sections = content
+    .replace(/\r\n?/gu, '\n')
+    .split(/^---\s*$/mu)
+    .map((section) => section.trim())
+    .filter(Boolean)
+
+  if (sections.length === 0) throw new Error(`${fileName}: no changelog entries`)
+
+  return sections.map((section, index) => {
+    const version = section.match(/^Version:\s*(\S+)\s*$/mu)?.[1]
+    const timestamp = section.match(/^Date:\s*(.+?)\s*$/mu)?.[1]
+    if (!version || !timestamp) throw new Error(`${fileName}#${index + 1}: missing Version or Date`)
+    const bullets = section.split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.startsWith('- '))
+      .map((line) => line.slice(2).trim())
+    return { version, timestamp, bullets }
+  })
+}
+
 export function parseChangelogHeader(content, fileName = 'changelog') {
-  const version = content.match(/^Version:\s*(\S+)\s*$/m)?.[1]
-  const timestamp = content.match(/^Date:\s*(.+?)\s*$/m)?.[1]
-  if (!version || !timestamp) throw new Error(`${fileName}: missing Version or Date`)
+  const [{ version, timestamp }] = parseChangelogEntries(content, fileName)
   return { version, timestamp }
 }
 
-export function parseChangelogBullets(content) {
-  return content.split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.startsWith('- '))
-    .map((line) => line.slice(2).trim())
+export function parseChangelogBullets(content, fileName = 'changelog') {
+  return parseChangelogEntries(content, fileName)[0].bullets
+}
+
+export function validatePlayerFacingChangelogBullet(value) {
+  const summary = value.trim()
+  if (INTERNAL_CHANGELOG_TERMS.test(summary)) {
+    throw new Error(`summary exposes internal implementation details: ${summary}`)
+  }
+  return summary
 }

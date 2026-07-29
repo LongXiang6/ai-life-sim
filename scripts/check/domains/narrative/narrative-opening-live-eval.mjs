@@ -6,6 +6,7 @@ import process from 'node:process'
 
 import { buildSegmentedPrompt } from '../../../../src/core/ai-service/prompt-builder.ts'
 import { buildTimeScaleNarrativeHint } from '../../../../src/mods/mod-engine/helpers/time-scale-narrative.ts'
+import { parseNarrativeResponseEnvelope } from '../../../../src/mods/mod-engine/helpers/tagged-meta-envelope.ts'
 import { narrativePrompt } from '../../../../src/mods/mod-engine/prompts/narrative-prompt.ts'
 import { COMPILED_NARRATIVE_SYSTEM_PROMPT } from '../../../../src/mods/mod-engine/server/narrative-system-prompt.ts'
 
@@ -26,12 +27,11 @@ function readLocalEnv(name) {
 }
 
 function extractBody(content) {
-  const start = content.indexOf('⟦正文⟧')
-  const summary = content.indexOf('⟦摘要⟧', start + 1)
-  const terminal = content.indexOf('⟦结束⟧', start + 1)
-  const end = summary >= 0 && (terminal < 0 || summary < terminal) ? summary : terminal
-  if (start < 0 || end < 0) return undefined
-  return content.slice(start + '⟦正文⟧'.length, end).trim()
+  try {
+    return parseNarrativeResponseEnvelope(content).narrative
+  } catch {
+    return undefined
+  }
 }
 
 function firstNarrativeLine(body) {
@@ -45,8 +45,11 @@ function buildMessages(round, history) {
     characterProfileView: '你出身修船匠家庭，擅长辨认潮声，重视承诺，但没有未经训练的超凡能力。',
     characterStatusView: `你${17 + round}岁，目前在北港灯塔做学徒，正在追查父亲失踪前留下的航线缺口。`,
     currentTime: `${year}年 · 春 · 4月`,
-    narrativeHistory: history,
-    recentNarrativeMemory: history.length > 0 ? history.join('\n\n') : undefined,
+    timelineMemory: history.length > 0
+      ? ['【时间轴记忆】', ...history.map((text, index) => (
+          `【时间阶段：第${index + 1}轮】\n- [第${index + 1}轮] ${text}`
+        ))].join('\n\n')
+      : undefined,
     narrativeGuidanceText: [
       '本轮围绕同一条主线推进：港务官突然封存旧航海图，你必须决定如何保住调查线索。',
       '直接写可感知现场、具体动作、他人回应和本轮后果；不要写年度总结。',
@@ -95,7 +98,7 @@ async function callRound(apiKey, round, history) {
     const content = payload.choices?.[0]?.message?.content
     if (typeof content !== 'string' || !content.trim()) throw new Error('DeepSeek returned no final text')
     const body = extractBody(content)
-    if (!body) throw new Error('Narrative envelope is missing body or digest markers')
+    if (!body) throw new Error('Narrative response does not match the strict first-call protocol')
     const firstLine = firstNarrativeLine(body)
     return {
       body,

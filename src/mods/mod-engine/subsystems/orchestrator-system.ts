@@ -1,37 +1,23 @@
 /**
  * @module orchestrator-system.ts
- * @description 引擎编排子系统 —— 协调各子系统，执行完整模拟主循环（含本地模拟、事件追踪、跨域联动、安全检查）
+ * @description 引擎编排子系统 —— 协调本地模拟、两次串行 AI 调用与原子提交
  * @mod mod-engine
  *
- * 完整 13 步管线：
- *   1. 推进时间 (TimeSystem)
- *   2. 本地模拟推进 (subsystem.advance — 非 AI 回合纯规则计算)
- *   3. 收集所有子系统状态 (collectState)
- *   4. 事件生命周期追踪 (EventLifecycleTracker — 10 维度事件检测)
- *   5. 跨域联动 (WorldEventBus — 5 条规则)
- *   6. 组装富 PromptContext (assemblePromptContext — 含事件注入、天赋列表、世界自定义)
- *   7. 构建分段 Prompt (buildSegmentedPrompt — 模板顺序决定 KV Cache 命中区间)
- *   8. 调用 AI (callAIStream，流式输出)
- *   9. 解析响应 + 分发变更 (handleNarrativeResponse)
- *  10. 世界方向修正 (MVP 暂停；未来段由存活子系统重新接入)
- *  11. 检测死亡并触发死后尾声 (PostDeathEpilogueSystem)
- *  12. 检查叙事压缩 (SummaryCompressor)
- *  13. 触发回合完成事件 (EventBus)
+ * 默认 Campaign 负责声明阶段顺序；本系统只提供上下文、状态快照、
+ * 严格提交和失败恢复边界，不保留第二条硬编码回合管线。
  */
 
-import { BaseSubsystem, eventBus, callAIWithPromptTemplate, buildSegmentedPrompt, getNarrativeUserSegments } from '@/core'
+import { BaseSubsystem, eventBus } from '@/core'
 import { isInstrumentEnabled, getInstrumentHooks } from '@/core/instrument/instrument-mode'
 import type { NarrativeStage, YearEvent } from '@/foundation'
 import { saveManager } from '@/core/storage/save-manager'
 import {
-  adaptationManager,
   DEFAULT_ENGINE_CONFIG,
   USE_AI_SUMMARY_COMPRESSION,
   getWorldRules,
   buildWordCountInstruction,
   buildStyleInstruction,
   resolveNarrativeToneHint,
-  buildEventInjectionText,
   buildTimeBridgeSummary,
   extractBridgeSnapshot,
   WorldEventBus,
@@ -41,19 +27,15 @@ import {
   buildNarrativeWorldRules,
   collectActiveModWorldRules,
   isSubsystemOpenForPrompt,
-  isMvpNarrativeChangeSubsystem,
-  isMvpPromptSubsystem,
+  isMvpSystemInstructionSubsystem,
   isMvpRuntimeSubsystem,
-  buildMvpSubsystemGuide,
   resolveTimeStep,
   shouldAlignTimeStepTransition,
   mapSubsystemStatesToDetectionStates,
   buildLifeStageNarrativeHint,
   resolveLifeStageFromAge,
-  normalizeNarrativeParagraphs,
   buildNarrativeHints,
   RoundCommitBus,
-  runNarrativeInterceptors,
   buildNarrativeTimeContext,
   resolveNarrativeCalendarNode,
   readEraStartYearFromConfig,
@@ -69,7 +51,6 @@ import {
   simulationBridge,
   TimeSystem,
   timeSystem,
-  narrativeParser,
   summaryCompressor,
   memoryEngine,
   plotStructure,
@@ -97,19 +78,11 @@ import {
   type TimeStep,
   type ParsedNarrative,
   type DigestLedgerSnapshot,
-  narrativeBranchRepairOutputSchema,
-  type NarrativeBranchRepairOutput,
-  chooseNarrativeRepetitionRepair,
-  extractTaggedMetaEnvelope,
   createNarrativeLifeRunId,
   calculateNarrativeRepetitionMetric,
-  collectNarrativeRepetitionMetrics,
   isNarrativeRepetitionMetric,
   summarizeNarrativeHistoryRepetition,
   summarizeNarrativeRepetitionMetrics,
-  parseNarrativeRepetitionAuditOutput,
-  parseNarrativeRepetitionRepairOutput,
-  type NarrativeRepetitionAuditOutput,
   type NarrativePromptComponent,
 } from '../orchestrator-shared'
 
@@ -136,14 +109,10 @@ import {
 } from '@/mods/mod-world'
 import { buildCalendarNarrativeContext } from '../helpers/calendar-narrative-context'
 import {
-  isEligibleNarrativeBranch,
-  normalizeNarrativeBranchOptions,
-} from '../helpers/narrative-branch-policy'
-import {
   type NarrativeIntentResolution,
 } from '../helpers/narrative-semantic-signals'
 import {
-  buildBranchIntentInstruction,
+  buildNarrativeBranchIntentProjection,
   commitBranchIntentResolution,
   findFocusedBranchIntent,
   findMostRecentlyUpdatedBranchIntentId,
@@ -161,6 +130,12 @@ import {
   projectWorldSettingForNarrativeAI,
 } from '../helpers/narrative-ai-input-view'
 import {
+  formatNarrativeTimelineEntries,
+  formatNarrativeTimelineForPrompt,
+  projectSummaryToNarrativeTimeline,
+  type NarrativeTimelineEntry,
+} from '../helpers/timeline-memory'
+import {
   filterNarrativeRecordsForPrompt,
   type NarrativeScopeView,
 } from '../helpers/narrative-context-scope'
@@ -168,11 +143,7 @@ import {
   buildHistoricalEventPromptProjection,
   HISTORICAL_EVENT_LEDGER_ID,
 } from '../helpers/historical-event-prompt-projection'
-import { AI_CREATION_CATEGORIES } from '../helpers/narrative-ai-protocol'
-import {
-  buildNarrativeChangeRequirements,
-  buildNarrativeRoundOutputContract,
-} from '../helpers/narrative-response-quality'
+import { buildNarrativeRoundOutputContract } from '../helpers/narrative-response-quality'
 import {
   compileNarrativeDynamicComponents,
 } from '../prompts/narrative-prompt-components'
@@ -201,10 +172,6 @@ import type {
 
 // Uses pattern matching via patternManager; USE_PATTERN_MANAGER feature flag managed centrally
 
-/** 兜底叙事 maxAge 后备值（lifespan 子系统未注册时） */
-/** 普通命运分支最小间隔。强制分支不受此限制。 */
-const MIN_BRANCH_GAP_ROUNDS = 4
-
 function createHistoricalTransactionId(kind: string): string {
   const suffix = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
     ? crypto.randomUUID()
@@ -225,7 +192,7 @@ function formatEquippedMythicPatternForPrompt(patterns: readonly {
     return [`${name}${concept ? `（${concept}）` : ''}：${effect}`]
   })
   return rules.length > 0
-    ? `【已装备轮回天赋·每轮遵守】${rules.join('\n')}`
+    ? `【轮回天赋】${rules.join('\n')}`
     : undefined
 }
 
@@ -245,7 +212,7 @@ function formatDestinyPatternsForPrompt(
     return [`${name}：${rule}${openingDetail}`]
   })
   if (rows.length === 0) return undefined
-  return `【普通命格·每轮遵守】${rows.join('；')}`
+  return `【普通命格】${rows.join('；')}`
 }
 
 function resolveRestoredAutoSaveRound(
@@ -298,7 +265,6 @@ export interface OrchestratorSnapshot {
   lastPlayerChoice?: string
   consecutiveSameGoalRounds?: number
   branchJustResolved?: boolean
-  lastBranchTotalRound?: number
   lastCommittedPlayerChoice?: string
   branchIntents?: BranchIntentState[]
   focusedBranchIntentId?: string
@@ -324,7 +290,7 @@ export interface OrchestratorPreviewSnapshot {
   >
   engineStoreRuntime: Pick<
     ReturnType<typeof useEngineStore.getState>,
-    'status' | 'streamingNarrative' | 'narrativeError'
+    'status' | 'narrativeError'
   >
   subsystemPreviewStates: Record<string, unknown>
 }
@@ -337,13 +303,6 @@ type RuntimeManagedSubsystem = ISubSystem & {
   capturePersistenceState?: () => unknown
   restorePersistenceState?: (snapshot: unknown) => void
   importLegacyCollectedStates?: (states: Record<string, SubSystemState>) => boolean
-}
-
-export interface BackgroundNarrativeEntryGuard {
-  lifeGeneration: number
-  lifeRunId: string
-  sourceRound: number
-  sourceNarrative: string
 }
 
 type HistoricalEventLedgerRuntime = ISubSystem & {
@@ -394,10 +353,6 @@ export class OrchestratorSystem extends BaseSubsystem {
   private lifeGeneration = 0
 
   private subsystems: ISubSystem[] = []
-  private onNarrativeChunk: ((chunk: NarrativeChunk) => void) | null = null
-  /** 流式原始协议缓冲；UI 只接收其中已解析出的正文增量。 */
-  private rawNarrativeStream = ''
-
   /** 上次收集的子系统状态缓存 */
   private lastSubsystemStates: Record<string, SubSystemState> = {}
 
@@ -470,26 +425,12 @@ export class OrchestratorSystem extends BaseSubsystem {
   /** 上轮是否为分叉点且已被解决 */
   private branchJustResolved = false
 
-  /** 最近一次生成分支的总轮次；预生成快照也依赖它判断普通分支冷却。 */
-  private lastBranchTotalRound = Number.NEGATIVE_INFINITY
-
   /** 缓存的上轮玩家选择（用于进度对比） */
   private lastCommittedPlayerChoice?: string
 
   /** 所有尚未进入终态的命运选择；不得因新分支或容量压力静默丢失。 */
   private branchIntents: BranchIntentState[] = []
   private archivedBranchIntents: BranchIntentState[] = []
-  private forcedBranchRepairOwnerToken: string | null = null
-  private forcedBranchRepairSequence = 0
-  private repetitionRepairOwnerToken: string | null = null
-  private repetitionRepairSequence = 0
-
-  /** 后台结果只能在产生它的完整回合成功提交后执行。 */
-  private roundExecutionSequence = 0
-  private activeRoundExecutionToken?: string
-  private committedRoundExecutionToken?: string
-  private pendingRoundCommitCallbacks: Array<() => void> = []
-
   /** 本轮主叙事必须评估并推进的命运意图。 */
   private focusedBranchIntentId?: string
 
@@ -520,7 +461,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   } | null = null
 
   /** 压缩系统从本存档数据库返回的按需时间轴回忆。 */
-  private narrativeMemoryRecall: string[] = []
+  private narrativeMemoryRecall: NarrativeTimelineEntry[] = []
 
   private emptyRoundAdoption(): NarrativeRoundAdoption {
     return {
@@ -557,7 +498,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   private finishRoundDiagnostic(status: 'completed' | 'failed', error?: unknown): void {
-    if (!this.roundDiagnostic) return
+    if (this.isPreviewExecution() || !this.roundDiagnostic) return
     const report = this.roundDiagnostic.report
     report.status = status
     report.completedAt = Date.now()
@@ -585,6 +526,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     details?: Record<string, unknown>,
     error?: unknown,
   ): void {
+    if (this.isPreviewExecution()) return
     const report = this.roundDiagnostic?.report
     if (!report) return
     recordDevelopmentSystemEvent({
@@ -599,7 +541,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   private pushDiagnosticPhase(phase: NarrativeDiagnosticPhase): void {
-    if (!this.roundDiagnostic) return
+    if (this.isPreviewExecution() || !this.roundDiagnostic) return
     this.roundDiagnostic.report.phases.push(phase)
     this.recordSystemDiagnostic(
       'orchestrator-stage',
@@ -615,7 +557,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   noteNarrativeQuality(details: Record<string, unknown>): void {
-    if (!this.roundDiagnostic) return
+    if (this.isPreviewExecution() || !this.roundDiagnostic) return
     this.roundDiagnostic.report.quality = {
       ...(this.roundDiagnostic.report.quality ?? {}),
       ...details,
@@ -624,7 +566,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   setRoundAdoption(adoption: Partial<NarrativeRoundAdoption>): void {
-    if (!this.roundDiagnostic) return
+    if (this.isPreviewExecution() || !this.roundDiagnostic) return
     this.roundDiagnostic.report.adoption = {
       ...this.roundDiagnostic.report.adoption,
       ...adoption,
@@ -640,7 +582,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   setCompressionDiagnostic(details: Record<string, unknown>): void {
-    if (!this.roundDiagnostic) return
+    if (this.isPreviewExecution() || !this.roundDiagnostic) return
     this.roundDiagnostic.report.compression = {
       ...(this.roundDiagnostic.report.compression ?? {}),
       ...details,
@@ -656,7 +598,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   setAutoSaveDiagnostic(details: Record<string, unknown>): void {
-    if (!this.roundDiagnostic) return
+    if (this.isPreviewExecution() || !this.roundDiagnostic) return
     this.roundDiagnostic.report.autoSave = {
       ...(this.roundDiagnostic.report.autoSave ?? {}),
       ...details,
@@ -844,16 +786,16 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.modManifests = manifests
   }
 
-  onStream(callback: (chunk: NarrativeChunk) => void): void {
-    this.onNarrativeChunk = callback
-  }
-
   getState(): EngineState {
     return { ...this.state, compressionStats: { ...this.state.compressionStats } }
   }
 
   getSubsystemStateSnapshot(): Record<string, SubSystemState> {
     return structuredClone(this.lastSubsystemStates)
+  }
+
+  getRoundContextSnapshot(): RoundContext {
+    return structuredClone(this.buildRoundContext())
   }
 
   getRound(): { year: number; season: number; month: number; day: number } {
@@ -969,40 +911,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.lastNotableEvents = events
   }
 
-  /** 重置当前叙事文本（供 stage 闭包使用） */
-  resetCurrentNarrative(): void {
-    this.rawNarrativeStream = ''
-    this.state.currentNarrative = ''
-  }
-
-  /** 追加原始流式块，但只把正文区增量交给 UI，协议标记与数据区不显示。 */
-  appendNarrativeChunk(chunk: string): void {
-    this.rawNarrativeStream += chunk
-    const visibleNarrative = narrativeParser.parsePartial(this.rawNarrativeStream)
-    if (!visibleNarrative) return
-
-    const previous = this.state.currentNarrative
-    if (visibleNarrative.startsWith(previous)) {
-      const delta = visibleNarrative.slice(previous.length)
-      this.state.currentNarrative = visibleNarrative
-      if (delta && this.onNarrativeChunk) {
-        this.onNarrativeChunk({ text: delta, isComplete: false, timestamp: Date.now() })
-      }
-      return
-    }
-
-    this.state.currentNarrative = visibleNarrative
-    if (this.onNarrativeChunk) {
-      this.onNarrativeChunk({ text: '', isComplete: false, isReset: true, timestamp: Date.now() })
-      this.onNarrativeChunk({ text: visibleNarrative, isComplete: false, timestamp: Date.now() })
-    }
-  }
-
-  /** 构建兜底叙事（供 stage 闭包使用） */
-  buildFallbackNarrative(): string {
-    return this.buildFallbackNarrativeFromState()
-  }
-
   /** 执行跨域联动（供 stage 闭包使用，无参版本） */
   async executeCrossDomainLinkage(): Promise<void> {
     await this._executeCrossDomainLinkage(this.buildRoundContext())
@@ -1037,105 +945,8 @@ export class OrchestratorSystem extends BaseSubsystem {
     return structuredClone(this.archivedBranchIntents)
   }
 
-  tryBeginForcedBranchRepair(generation = this.lifeGeneration): string | undefined {
-    if (generation !== this.lifeGeneration || this.forcedBranchRepairOwnerToken !== null) return undefined
-    this.forcedBranchRepairSequence += 1
-    const token = `branch-repair:${generation}:${this.forcedBranchRepairSequence}`
-    this.forcedBranchRepairOwnerToken = token
-    useEngineStore.getState().setBranchRepairPending(true)
-    return token
-  }
-
-  finishForcedBranchRepair(ownerToken: string): void {
-    if (this.forcedBranchRepairOwnerToken !== ownerToken) return
-    this.forcedBranchRepairOwnerToken = null
-    useEngineStore.getState().setBranchRepairPending(false)
-  }
-
-  tryBeginNarrativeRepetitionRepair(generation = this.lifeGeneration): string | undefined {
-    if (generation !== this.lifeGeneration || this.repetitionRepairOwnerToken !== null) return undefined
-    this.repetitionRepairSequence += 1
-    const token = `repair:${generation}:${this.repetitionRepairSequence}`
-    this.repetitionRepairOwnerToken = token
-    return token
-  }
-
-  finishNarrativeRepetitionRepair(ownerToken: string): void {
-    if (this.repetitionRepairOwnerToken === ownerToken) {
-      this.repetitionRepairOwnerToken = null
-    }
-  }
-
   getLifeGeneration(): number {
     return this.lifeGeneration
-  }
-
-  getRoundExecutionToken(): string | undefined {
-    return this.activeRoundExecutionToken
-  }
-
-  enqueueAfterRoundCommit(token: string, callback: () => void): boolean {
-    if (token === this.activeRoundExecutionToken) {
-      this.pendingRoundCommitCallbacks.push(callback)
-      return true
-    }
-    if (token === this.committedRoundExecutionToken) {
-      if (this.isPreviewExecution()) {
-        const completion = this.previewCompletion
-        if (!completion) return false
-        void completion.then(() => {
-          if (token !== this.committedRoundExecutionToken || this.isPreviewExecution()) return
-          this.runAfterRoundCommitCallback(callback)
-        })
-        return true
-      }
-      this.runAfterRoundCommitCallback(callback)
-      return true
-    }
-    return false
-  }
-
-  private beginRoundExecution(): string {
-    this.roundExecutionSequence += 1
-    const token = `round:${this.lifeGeneration}:${this.roundExecutionSequence}`
-    this.activeRoundExecutionToken = token
-    this.committedRoundExecutionToken = undefined
-    this.pendingRoundCommitCallbacks = []
-    return token
-  }
-
-  private commitRoundExecution(token: string): void {
-    if (this.activeRoundExecutionToken !== token) return
-    this.activeRoundExecutionToken = undefined
-    this.committedRoundExecutionToken = token
-    const callbacks = this.pendingRoundCommitCallbacks
-    this.pendingRoundCommitCallbacks = []
-    for (const callback of callbacks) {
-      this.runAfterRoundCommitCallback(callback)
-    }
-  }
-
-  private runAfterRoundCommitCallback(callback: () => void): void {
-    try {
-      callback()
-    } catch (error) {
-      console.warn('[Orchestrator] 回合后后台结果提交失败:', error)
-    }
-  }
-
-  private abortRoundExecution(token: string): void {
-    if (this.activeRoundExecutionToken !== token) return
-    this.activeRoundExecutionToken = undefined
-    this.committedRoundExecutionToken = undefined
-    this.pendingRoundCommitCallbacks = []
-  }
-
-  private clearPendingRoundOperations(): void {
-    this.forcedBranchRepairOwnerToken = null
-    this.repetitionRepairOwnerToken = null
-    this.activeRoundExecutionToken = undefined
-    this.committedRoundExecutionToken = undefined
-    this.pendingRoundCommitCallbacks = []
   }
 
   private focusMostRecentlyUpdatedBranchIntent(): void {
@@ -1167,7 +978,6 @@ export class OrchestratorSystem extends BaseSubsystem {
         ? { ...entry, resolvedChoice: trimmed, resolvedChoiceRound: this.state.totalRounds }
         : entry,
     )
-    this.lastBranchTotalRound = Math.max(this.lastBranchTotalRound, this.state.totalRounds)
     this.branchJustResolved = true
 
     const next = upsertBranchIntent(this.branchIntents, branchId, trimmed, this.state.totalRounds)
@@ -1214,10 +1024,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     if (completion) await completion
   }
 
-  isBranchCoolingDownForNextRound(): boolean {
-    return this.shouldSuppressBranchPoint(false, this.state.totalRounds + 1)
-  }
-
   async runPreviewRound<T>(runner: () => Promise<T>, signal?: AbortSignal): Promise<T> {
     if (this.previewExecutionDepth > 0) return runner()
 
@@ -1261,7 +1067,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       lastPlayerChoice: this.lastPlayerChoice,
       consecutiveSameGoalRounds: this.consecutiveSameGoalRounds,
       branchJustResolved: this.branchJustResolved,
-      lastBranchTotalRound: this.lastBranchTotalRound,
       lastCommittedPlayerChoice: this.lastCommittedPlayerChoice,
       branchIntents: this.branchIntents,
       focusedBranchIntentId: this.focusedBranchIntentId,
@@ -1295,7 +1100,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       },
       engineStoreRuntime: {
         status: engineStore.status,
-        streamingNarrative: engineStore.streamingNarrative,
         narrativeError: engineStore.narrativeError,
       },
       subsystemPreviewStates: this.captureSubsystemPreviewStates(),
@@ -1331,7 +1135,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.lastPlayerChoice = snap.lastPlayerChoice
     this.consecutiveSameGoalRounds = snap.consecutiveSameGoalRounds ?? 0
     this.branchJustResolved = snap.branchJustResolved ?? false
-    this.lastBranchTotalRound = snap.lastBranchTotalRound ?? Number.NEGATIVE_INFINITY
     this.lastCommittedPlayerChoice = snap.lastCommittedPlayerChoice
     const rebuilt = rebuildBranchIntentsFromHistory(
       this.state.narrativeHistory.map((entry, index) => ({
@@ -1417,7 +1220,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     useEngineStore.setState((prev) => ({
       ...prev,
       ...this.state,
-      streamingNarrative: '',
       narrativeError: null,
       lastAutoSaveRound: resolveRestoredAutoSaveRound(
         this.state.lastAutoSaveRound,
@@ -1453,7 +1255,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
     this.restoreSnapshotRuntimeState(snap.orchestrator)
     this.restoreSubsystemPreviewStates(snap.subsystemPreviewStates)
-    this.hydrateFromEngineStore(snap.orchestrator.state.timeStep, true)
+    this.hydrateFromEngineStore(snap.orchestrator.state.timeStep)
   }
 
   /** 世界方向修正（供 stage 闭包使用；MVP 阶段只保留未来段入口） */
@@ -1734,173 +1536,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     )
   }
 
-  // === 主循环 ===
-
-  /**
-   * 执行完整回合（完整 14 步管线）
-   *
-   * @deprecated 请使用 executeRoundV2()，它通过声明式阶段机驱动管线。
-   *   此方法保留仅用于向后兼容，未来版本将移除。
-   */
-  async executeRound(
-    promptTemplate: PromptTemplate,
-    aiConfig: AIModelConfig,
-    sessionId?: string,
-  ): Promise<RoundResult> {
-    if (this.state.status !== 'running' && this.state.status !== 'idle') {
-      return { narrative: '', changes: [], notableEvents: [] }
-    }
-    if (this.shouldStop()) {
-      this.state.status = 'complete'
-      return { narrative: '', changes: [], notableEvents: [] }
-    }
-
-    // 死循环保护
-    const pipelineCheck = globalDeadLoopDetector.checkAndIncrement('orchestrator-pipeline', 200)
-    if (!pipelineCheck.allowed) {
-      console.error('[Orchestrator]', pipelineCheck.reason)
-      this.state.status = 'complete'
-      return { narrative: '', changes: [], notableEvents: [] }
-    }
-
-    this.state.status = 'running'
-    this.lastSessionId = sessionId
-
-    // 1. 推进时间
-    eventBus.emit('mod-engine:round-start', this.state.round)
-    this.state.round = this.advanceTimeForCurrentStep()
-    this.state.totalRounds++
-
-    // 2. 本地模拟推进（所有子系统的纯规则推演）
-    this.advanceSubsystems(this.buildRoundContext())
-
-    // 3. 收集子系统状态
-    this.collectSubsystemStates()
-
-    // 4. 事件生命周期追踪（10 维度事件检测）
-    const context = this.buildRoundContext()
-    const { eventInjectionText, newLifecycle } = buildEventInjectionText(
-      this.extractDetectionStates(),
-      this.eventLifecycle,
-      this.state.totalRounds,
-    )
-    this.eventLifecycle = newLifecycle
-
-    // 5. 跨域联动（宏观事件驱动规则 + 角色状态驱动规则 → 产出指令 → 应用到子系统）
-    //    移除 if(eventInjectionText) 守卫：角色状态驱动规则需要每轮检查 dataCondition
-    const hadMacroEvents = !!eventInjectionText
-    await this._executeCrossDomainLinkage(context)
-
-    // 重新收集状态（跨域联动可能已修改子系统数据）
-    this.collectSubsystemStates()
-
-    // P5: 跨域联动后重新事件检测（仅宏观事件后重检，新事件注入当前轮 Prompt，不延迟到下一轮）
-    let finalEventInjectionText = eventInjectionText
-    if (hadMacroEvents) {
-      const reDetect = buildEventInjectionText(
-        this.extractDetectionStates(),
-        this.eventLifecycle,
-        this.state.totalRounds,
-      )
-      this.eventLifecycle = reDetect.newLifecycle
-      if (reDetect.eventInjectionText) {
-        finalEventInjectionText = [eventInjectionText, reDetect.eventInjectionText]
-          .filter(Boolean)
-          .join('\n')
-      }
-    }
-
-    // 6. 组装富 PromptContext
-    const promptContext = this.assemblePromptContext(finalEventInjectionText)
-
-    // 7. 构建分段 Prompt
-    const segments = buildSegmentedPrompt(promptTemplate, promptContext)
-
-    // 8. 调用 AI（流式 + 降级链）
-    this.state.currentNarrative = ''
-    const fallbackNarrative = this.buildFallbackNarrativeFromState()
-    const { customKey, provider, customUrl, customModel } = useSettingsStore.getState()
-    let fullContent: string
-    try {
-      const model = customModel || aiConfig.model
-      fullContent = await callAIWithPromptTemplate(
-        promptTemplate,
-        segments.full,
-        {
-          streaming: true,
-          fallbackText: fallbackNarrative,
-          config: { ...aiConfig, model },
-          pool: 'narrative',
-          strictSchema: true,
-          sessionId,
-          providerId: provider,
-          customBaseUrl: customUrl || undefined,
-          customModel: model,
-          apiKey: customKey || undefined,
-          userSegments: getNarrativeUserSegments(segments),
-          onChunk: (chunk: string) => {
-            this.state.currentNarrative += chunk
-            if (this.onNarrativeChunk) {
-              this.onNarrativeChunk({
-                text: chunk,
-                isComplete: false,
-                timestamp: Date.now(),
-              })
-            }
-          },
-          onResetStream: () => {
-            // AI 重试/降级前：清空本地累积 + 通知 UI 丢弃残留流式文本，避免拼接重复
-            this.state.currentNarrative = ''
-            if (this.onNarrativeChunk) {
-              this.onNarrativeChunk({
-                text: '',
-                isComplete: false,
-                isReset: true,
-                timestamp: Date.now(),
-              })
-            }
-          },
-        },
-      )
-    } catch (err) {
-      // 极端情况：连降级链都失败（理论上不会到达这里，wrapper 内部 callAIStreamDegraded 已兜底）
-      console.error('[Orchestrator] AI 调用完全失败（降级链耗尽）:', err)
-      fullContent = fallbackNarrative
-    }
-
-    // 9. 解析响应 + 分发变更
-    const result = this.handleNarrativeResponse(fullContent)
-
-    // P3: 存储 notableEvents，供下一轮跨域联动使用
-    if (result.notableEvents?.length) {
-      this.lastNotableEvents = result.notableEvents
-    }
-
-    // 10. 记忆生命周期：消费 AI 结构化重要度与事件弧状态
-    if (result.narrative) {
-      const importanceResult = memoryLifecycle.scoreImportance(
-        result.narrative,
-        this.state.totalRounds,
-        this.state.round.year,
-        this.worldSetting?.contextId,
-      )
-      if (importanceResult.importance === 'HIGH' || importanceResult.isClosure) {
-        // console.log(
-        //   `[Orchestrator] 叙事重要度：${importanceResult.importance}，` +
-        //   `闭环检测：${importanceResult.isClosure ? importanceResult.closureType : '无'}`
-        // )
-      }
-    }
-
-    // 11. 世界方向修正：MVP 阶段目标子系统未运行，仅保留未来段入口
-    this._applyWorldDirectionFromNarrative(result.narrative)
-
-    // 12. 检测死亡 → 触发死后尾声生成（等待完成后继续）
-    await this._checkAndTriggerEpilogue(aiConfig, sessionId)
-
-    return result
-  }
-
   // === 世界方向修正 ===
 
   /**
@@ -1947,7 +1582,16 @@ export class OrchestratorSystem extends BaseSubsystem {
       if (epilogueSub.hasEpilogue()) return
 
       const freshContext = this.buildRoundContext()
-      const narrativeHistory = this.state.narrativeHistory.map((n) => this.formatNarrativeHistoryEntry(n))
+      const firstRound = Math.max(
+        1,
+        this.state.totalRounds - this.state.narrativeHistory.length + 1,
+      )
+      const narrativeHistory = this.state.narrativeHistory.map((entry, index) => (
+        this.formatNarrativeHistoryEntry(
+          entry,
+          entry.transitionAudit?.round ?? firstRound + index,
+        )
+      ))
 
       await epilogueSub.generateEpilogue(freshContext, aiConfig, narrativeHistory, sessionId)
         .then((epilogueText) => {
@@ -2148,6 +1792,7 @@ export class OrchestratorSystem extends BaseSubsystem {
                 summary.startRound,
                 summary.endRound,
                 summary.content,
+                projectSummaryToNarrativeTimeline(summary, this.state.totalRounds),
                 memoryLifecycle.getTaggedEvents().filter(
                   (e) => e.round >= summary.startRound && e.round <= summary.endRound,
                 ),
@@ -2159,6 +1804,7 @@ export class OrchestratorSystem extends BaseSubsystem {
                 summary.startRound,
                 summary.endRound,
                 summary.content,
+                projectSummaryToNarrativeTimeline(summary, this.state.totalRounds),
               )
             }
           }
@@ -2217,12 +1863,26 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
   }
 
-  private selectNarrativeHistoryForPrompt(limit: number): NarrativeChunk[] {
+  private selectNarrativeHistoryForPrompt(limit: number): Array<{
+    entry: NarrativeChunk
+    round: number
+  }> {
     const visible = filterNarrativeRecordsForPrompt(
       this.state.narrativeHistory,
       this.getNarrativeScopeView(),
     )
-    return visible.slice(-limit)
+    const visibleEntries = new Set(visible)
+    const firstRound = Math.max(
+      1,
+      this.state.totalRounds - this.state.narrativeHistory.length + 1,
+    )
+    return this.state.narrativeHistory
+      .map((entry, index) => ({
+        entry,
+        round: entry.transitionAudit?.round ?? firstRound + index,
+      }))
+      .filter(({ entry }) => visibleEntries.has(entry))
+      .slice(-limit)
   }
 
   /**
@@ -2248,9 +1908,16 @@ export class OrchestratorSystem extends BaseSubsystem {
         this.state.totalRounds,
         terms,
       )
-      this.narrativeMemoryRecall = hits.map((hit) => (
-        `[时间轴回忆：${hit.timeSpan}][权重${hit.currentWeight}] ${hit.text}`
-      ))
+      this.narrativeMemoryRecall = hits
+        .filter((hit) => hit.active)
+        .map((hit) => ({
+          timeSpan: hit.timeSpan,
+          occurrenceTime: hit.occurrenceTime,
+          text: hit.text,
+          sortRound: hit.sourceRounds.length > 0
+            ? Math.min(...hit.sourceRounds)
+            : this.state.totalRounds,
+        }))
       this.recordSystemDiagnostic('narrative-memory', 'recall-completed', 'ok', {
         searchTermCount: terms.length,
         hitCount: hits.length,
@@ -2266,29 +1933,20 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
   }
 
-  /**
-   * 组装主叙事三层消息中的“记忆”层。
-   * 长期覆盖摘要在前，只在成功压缩时变化；相关往事与近期完整原文在后，
-   * 从而让同一摘要版本下的请求尽量复用相同前缀。
-   */
-  private buildPromptMemoryLayers(): {
-    longTermMemory?: string
-    relevantMemory?: string
-    recentNarrativeMemory?: string
-  } {
+  /** 组装主叙事唯一的时间轴记忆投影。 */
+  private buildPromptTimelineMemory(): string | undefined {
     const scopeView = this.getNarrativeScopeView()
-    const richContext = memoryLifecycle.buildRichPrompt(
-      '',
-      this.selectNarrativeHistoryForPrompt(RECENT_NARRATIVE_WINDOW).map((n) => this.formatNarrativeHistoryEntry(n)),
+    const recentTimelineEntries = this.selectNarrativeHistoryForPrompt(RECENT_NARRATIVE_WINDOW)
+      .map(({ entry, round }) => this.projectNarrativeHistoryEntry(entry, round))
+    const timelineProjection = memoryLifecycle.buildNarrativeTimelineProjection(
+      recentTimelineEntries,
       summaryCompressor.getSummaries(),
       scopeView.currentContextId,
       scopeView.closedContextIds,
       this.state.totalRounds,
     )
 
-    const longTermMemory = memoryLifecycle.formatLongTermMemoryForInjection(richContext)
-    const retrievedMemory = memoryLifecycle.formatRetrievedMemoryForInjection(richContext)
-    const ledgerLines = digestLedger.selectForPrompt(
+    const ledgerEntries = digestLedger.selectForNarrativeTimeline(
       this.state.totalRounds,
       scopeView.currentContextId,
       scopeView.closedContextIds,
@@ -2298,56 +1956,86 @@ export class OrchestratorSystem extends BaseSubsystem {
           this.state.totalRounds - RECENT_NARRATIVE_WINDOW + 1,
         ),
       },
+    ).map((event) => this.projectRoundMemoryEvent(
+      event.round,
+      event.text,
+      event.contextId,
+    ))
+    const creationEntries = coreMemory.buildCreationTimelineEntries(
+      this.state.characterCreations,
+      (round) => this.resolveNarrativeRoundTime(round),
     )
-    const ledgerMemory = ledgerLines.length > 0
-      ? ['【往事回响】', ...ledgerLines].join('\n')
-      : ''
-    const timelineMemory = this.narrativeMemoryRecall.length > 0
-      ? ['【存档时间轴检索】', ...this.narrativeMemoryRecall].join('\n')
-      : ''
-    const relevantMemory = [retrievedMemory, timelineMemory, ledgerMemory].filter(Boolean).join('\n\n')
-    const recentNarrativeMemory = memoryLifecycle.formatRecentNarrativesForInjection(richContext)
+    const timelineMemory = formatNarrativeTimelineForPrompt([
+      ...timelineProjection.timelineEntries,
+      ...creationEntries,
+      ...this.narrativeMemoryRecall,
+      ...ledgerEntries,
+    ])
 
+    return timelineMemory || undefined
+  }
+
+  private resolveNarrativeRoundTime(round: number): {
+    displayTimeLabel?: string
+    displayAge?: number
+    totalDays?: number
+  } | undefined {
+    const firstRound = Math.max(
+      1,
+      this.state.totalRounds - this.state.narrativeHistory.length + 1,
+    )
+    const entry = this.state.narrativeHistory.find(
+      (candidate) => candidate.transitionAudit?.round === round,
+    ) ?? this.state.narrativeHistory[round - firstRound]
+    if (!entry) return undefined
     return {
-      longTermMemory: longTermMemory || undefined,
-      relevantMemory: relevantMemory || undefined,
-      recentNarrativeMemory: recentNarrativeMemory || undefined,
+      displayTimeLabel: entry.displayTimeLabel,
+      displayAge: entry.displayAge,
+      totalDays: entry.totalDays,
     }
   }
 
-  getCompressedNarrativeHistory(): string {
-    // 使用记忆生命周期系统构建富Prompt上下文
-    // DS V4 1M上下文：L1/L2/L3 + L0原文 + 状态卡 + 检索命中
-
-    const summaries = summaryCompressor.getSummaries()
-    const scopeView = this.getNarrativeScopeView()
-    const recentTexts = this.selectNarrativeHistoryForPrompt(RECENT_NARRATIVE_WINDOW)
-      .map((n) => this.formatNarrativeHistoryEntry(n))
-
-    // 构建状态卡
-    const stateCardLines: string[] = Object.values(this.lastSubsystemStates)
-      .filter((s) => s.id !== this.id)
-      .map((s) => s.summary)
-      .filter(Boolean)
-    const stateCard = stateCardLines.join('\n')
-
-    // 组装富Prompt（4层级+L0）
-    const richContext = memoryLifecycle.buildRichPrompt(
-      stateCard,
-      recentTexts,
-      summaries,
-      scopeView.currentContextId,
-      scopeView.closedContextIds,
-      this.state.totalRounds,
-    )
-
-    return memoryLifecycle.formatRichPromptForInjection(richContext)
+  private projectRoundMemoryEvent(
+    round: number,
+    text: string,
+    contextId?: string,
+  ): NarrativeTimelineEntry {
+    const time = this.resolveNarrativeRoundTime(round)
+    const roundLabel = `第${round}轮`
+    const timeLabel = time?.displayTimeLabel?.trim() || roundLabel
+    const ageLabel = time?.displayAge === undefined ? undefined : `角色${time.displayAge}岁`
+    const contextLabel = contextId === this.worldSetting?.contextId
+      ? this.worldSetting?.name ?? contextId
+      : contextId
+    return {
+      timeSpan: timeLabel,
+      occurrenceTime: [timeLabel, ageLabel].filter(Boolean).join(' · '),
+      text: contextLabel ? `【发生上下文：${contextLabel}】\n${text}` : text,
+      sortRound: round,
+      sortTotalDays: time?.totalDays,
+    }
   }
 
-  private formatNarrativeHistoryEntry(entry: NarrativeChunk): string {
+  private projectNarrativeHistoryEntry(
+    entry: NarrativeChunk,
+    round: number,
+  ): NarrativeTimelineEntry {
     const contextLabel = entry.contextName || entry.contextId
-    const narrative = entry.text.replace(/^⟦正文⟧(?:\r?\n)+/u, '')
-    return contextLabel ? `【发生上下文：${contextLabel}】${narrative}` : narrative
+    const narrative = entry.text.replace(/^⟦正文⟧(?:\r?\n)*/u, '').trim()
+    const roundLabel = `第${round}轮`
+    const timeLabel = entry.displayTimeLabel?.trim() || roundLabel
+    const ageLabel = entry.displayAge === undefined ? undefined : `角色${entry.displayAge}岁`
+    return {
+      timeSpan: timeLabel,
+      occurrenceTime: [timeLabel, ageLabel].filter(Boolean).join(' · '),
+      text: contextLabel ? `【发生上下文：${contextLabel}】\n${narrative}` : narrative,
+      sortRound: round,
+      sortTotalDays: entry.totalDays,
+    }
+  }
+
+  private formatNarrativeHistoryEntry(entry: NarrativeChunk, round: number): string {
+    return formatNarrativeTimelineEntries([this.projectNarrativeHistoryEntry(entry, round)])
   }
 
   // === 控制 ===
@@ -2402,8 +2090,6 @@ export class OrchestratorSystem extends BaseSubsystem {
   /** 取消尚未提交的旧人生异步操作；预览快照恢复不调用此入口。 */
   invalidatePendingLifeOperations(): void {
     this.lifeGeneration += 1
-    this.clearPendingRoundOperations()
-    useEngineStore.getState().setBranchRepairPending(false)
   }
 
   reset(): void {
@@ -2431,7 +2117,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       storyRepetitionStats: summarizeNarrativeRepetitionMetrics([]),
     }
     this.lastSubsystemStates = {}
-    this.rawNarrativeStream = ''
     this.eventLifecycle = {}
     this.totalBreakthroughs = 0
     this.prevAbbreviationSnapshot = {}
@@ -2464,12 +2149,10 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.pendingNarrativeCausalEventIds = []
     this.consecutiveSameGoalRounds = 0
     this.branchJustResolved = false
-    this.lastBranchTotalRound = Number.NEGATIVE_INFINITY
     this.prefetchedNarrativeContent = null
     this.worldSetting = null
     this.characterState = null
     this.worldEventBus.reset()
-    narrativeParser.reset()
     summaryCompressor.reset()
     memoryEngine.reset()
     memoryLifecycle.reset()
@@ -2481,15 +2164,13 @@ export class OrchestratorSystem extends BaseSubsystem {
     coreMemory.reset()
     digestLedger.reset()
     this.narrativeMemoryRecall = []
-    adaptationManager.clear()
     globalDeadLoopDetector.resetAll()
     this.syncBranchIntentProjectionToEngineStore()
   }
 
   /** 读档后从 EngineStore 恢复 orchestrator 内部状态 */
-  hydrateFromEngineStore(previousTimeStep?: TimeStep, preserveAdaptationCache = false): void {
+  hydrateFromEngineStore(previousTimeStep?: TimeStep): void {
     const store = useEngineStore.getState()
-    this.clearPendingRoundOperations()
     const lastAutoSaveRound = resolveRestoredAutoSaveRound(
       store.lastAutoSaveRound,
       store.totalRounds,
@@ -2581,7 +2262,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.hydrateSubsystemsFromStores()
     summaryCompressor.restoreFromEngineState(store.compressedSummaries, store.compressionStats)
     coreMemory.hydrateFromStore()
-    if (!preserveAdaptationCache) adaptationManager.clear()
     if (this.state.status !== 'complete') this.start()
   }
 
@@ -2675,7 +2355,7 @@ export class OrchestratorSystem extends BaseSubsystem {
 
       if (instructions.length > 0) {
         const mvpInstructions = instructions.filter((inst) =>
-          isMvpNarrativeChangeSubsystem(inst.targetSystemId),
+          isMvpSystemInstructionSubsystem(inst.targetSystemId),
         )
         if (mvpInstructions.length === 0) return
 
@@ -2735,14 +2415,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       this.lastSubsystemStates,
       context,
     )
-    const memoryRelevantStates = subsystemRelevance.getMemoryRelevantStates(
-      this.lastSubsystemStates,
-      context,
-    )
-    const promptOpenIds = Object.keys(memoryRelevantStates).filter(
-      (id) => id !== this.id && isSubsystemOpenForPrompt(memoryRelevantStates[id], id),
-    )
-    // 获取适配后的 summaries（adaptation 管线：缓存命中用适配文本，未命中用原始文本）
     const rawStateSummaries = Object.values(relevantStates)
       .filter((s) => (
         s.id !== this.id
@@ -2757,10 +2429,7 @@ export class OrchestratorSystem extends BaseSubsystem {
           : s.summary,
       }))
       .filter((s) => s.summary)
-    const adaptedMap = adaptationManager.getAdaptedSummaries(rawStateSummaries)
-
-    const summaries: string[] = rawStateSummaries
-      .map((s) => adaptedMap.get(s.id) ?? s.summary)
+    const summaries: string[] = rawStateSummaries.map((s) => s.summary)
 
     // 滑动窗口变化摘要（最近 3 轮内有变化的系统）
     const slidingWindowText = subsystemRelevance.buildSlidingWindowSummary(
@@ -2818,7 +2487,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       {
         id: 'round-output-contract',
         content: buildNarrativeRoundOutputContract(
-          this.getFocusedBranchIntentRuntime()?.intentId,
           useEngineStore.getState().forceBranchNext,
           isOpeningNarrativeRound,
         ),
@@ -2845,11 +2513,6 @@ export class OrchestratorSystem extends BaseSubsystem {
            content: source.content!,
         })),
     )
-    const changeRequirementsText = buildNarrativeChangeRequirements(
-      this.getFocusedBranchIntentRuntime()?.intentId,
-      useEngineStore.getState().forceBranchNext,
-    )
-
     const calibrationRaw = this.worldSetting?.config?._calibration as WorldCalibration | undefined
     const narrativeToneHint = resolveNarrativeToneHint(
       calibrationRaw?.styleGuide?.narrativeTone,
@@ -2874,7 +2537,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       })
       : undefined
 
-    const userInstruction = this.buildUserInstruction()
+    const roundGuidance = this.buildRoundGuidanceInput()
     const mythicPatternText = formatEquippedMythicPatternForPrompt(
       useCharacterStore.getState().equippedMythicPatterns,
     )
@@ -2888,7 +2551,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     const lightWorldSetting = this.buildLightWorldSetting(narrativeTime.eraLabel)
     const worldNarrativeView = projectWorldSettingForNarrativeAI(lightWorldSetting, narrativeTime)
     const characterNarrativeView = projectCharacterForNarrativeAI(syncedCharacter)
-    const promptMemory = this.buildPromptMemoryLayers()
+    const timelineMemory = this.buildPromptTimelineMemory()
 
     // 非超凡世界不重复发送无关的 24 阶力量表；有力量体系时使用现有叙事精简格式。
     const powerSystemTag = typeof config.powerSystemTag === 'string' ? config.powerSystemTag : ''
@@ -2945,14 +2608,11 @@ export class OrchestratorSystem extends BaseSubsystem {
       characterStatusView: characterNarrativeView.status,
       currentTime: narrativeTime.timeLabel,
       subsystemSummaries: summaries,
-      narrativeHistory: this.selectNarrativeHistoryForPrompt(RECENT_NARRATIVE_WINDOW)
-        .map((n) => this.formatNarrativeHistoryEntry(n)),
       eventInjectionText: eventInjectionText || undefined,
       causalChainHint: triggeredCausality.narrativeText || undefined,
       timeBridgeSummary: buildTimeBridgeSummary(this.buildTimeBridgeInput()) || undefined,
       systemChangeSummary: systemChangeSummary || undefined,
       narrativeGuidanceText: narrativeGuidanceText || undefined,
-      changeRequirementsText,
       plotStructureText: plotStructure.buildPhaseGuidance() || undefined,
       foreshadowingText: foreshadowing.buildForeshadowingText(this.worldSetting?.contextId) || undefined,
       worldTagsText: (this.worldSetting?.config?._worldTagsText as string) || undefined,
@@ -2965,31 +2625,24 @@ export class OrchestratorSystem extends BaseSubsystem {
       ),
       narrativeStyle: this.getNarrativeStyle(),
       narrativeToneHint,
-      talents: [destinyPatternText, mythicPatternText].filter(Boolean).join('\n') || undefined,
-      longTermMemory: promptMemory.longTermMemory,
-      relevantMemory: promptMemory.relevantMemory,
-      recentNarrativeMemory: promptMemory.recentNarrativeMemory,
-      coreMemory: coreMemory.buildCoreMemory(promptScopeView) || undefined,
+      talents: [mythicPatternText, destinyPatternText].filter(Boolean).join('\n') || undefined,
+      timelineMemory,
       // 从单一来源常量取默认字数，避免散落硬编码回退
       wordCountInstruction: buildWordCountInstruction(useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET),
       calibrationSummary: narrativeCalibrationSummary,
-      creationProtectionText: this.buildCreationProtectionText(),
-      userInstruction,
+      roundSystemGuidanceText: roundGuidance.roundSystemGuidanceText,
+      playerBranchIntent: roundGuidance.playerBranchIntent,
       powerCeilingPresets,
     }
 
     if (isOpeningNarrativeRound) {
       const firstRoundInstruction = isBirthOpeningRound
-        ? '【出生开场】只写出生当日或前后短时段：用婴儿可感知的细节建立家庭处境与时代环境；禁止跨到翻身、爬行、学步或说话。当前年龄由时间系统派生；没有永久数值变化时省略状态变更。'
+        ? '【出生开场】只写出生当日或前后短时段：用婴儿可感知的细节建立家庭处境与时代环境；禁止跨到翻身、爬行、学步或说话。当前年龄由时间系统派生；没有永久数值变化时省略系统指令。'
         : '人生记录开场：从当前年龄附近的具体场景建立身份、家世、环境与社会位置，不概述此前整段人生。'
-      assembled.userInstruction = assembled.userInstruction
-        ? `${assembled.userInstruction}\n\n${firstRoundInstruction}`
+      assembled.roundSystemGuidanceText = assembled.roundSystemGuidanceText
+        ? `${assembled.roundSystemGuidanceText}\n\n${firstRoundInstruction}`
         : firstRoundInstruction
     }
-
-    // 只注入当前实际开放且可由叙事写入的字段，避免延后系统进入 Prompt。
-    const activeSubsystemGuide = buildMvpSubsystemGuide(promptOpenIds)
-    if (activeSubsystemGuide) assembled.subsystemGuideText = activeSubsystemGuide
 
     // 每轮动态时间导演提示放在 FAST 段末尾，避免污染 STABLE 前缀缓存。
     assembled.timeGuideText = [
@@ -2998,12 +2651,8 @@ export class OrchestratorSystem extends BaseSubsystem {
     ].filter(Boolean).join('\n')
 
     if (isInstrumentEnabled()) {
-      const mem = [
-        assembled.longTermMemory,
-        assembled.relevantMemory,
-        assembled.recentNarrativeMemory,
-      ].filter(Boolean).join('\n')
-      const core = assembled.coreMemory ?? ''
+      const mem = assembled.timelineMemory ?? ''
+      const core = ''
       const fore = assembled.foreshadowingText ?? ''
       const plot = assembled.plotStructureText ?? ''
       const totalChars = mem.length + core.length + fore.length + plot.length
@@ -3086,27 +2735,6 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   /**
-   * 构建原创保护文本（作为慢变连续性硬事实注入记忆层前缀）
-   * 从 characterCreations 生成硬性约束，禁止 AI 将角色原创改写为遗迹来源
-   */
-  private buildCreationProtectionText(): string | undefined {
-    const creations = this.state.characterCreations
-    if (!creations.length) return undefined
-    const lines = creations.map((c) => {
-      const category = AI_CREATION_CATEGORIES.internalToAI[
-        c.category as keyof typeof AI_CREATION_CATEGORIES.internalToAI
-      ] ?? '其他'
-      return `- [${category}] ${c.name}：${c.description}（第${c.confirmedRound}轮开创）`
-    })
-    return [
-      '【原创保护（硬性约束）】以下为角色亲自开创的内容，其来源是角色自身的创造力。',
-      '严禁在后续叙事中将其改写为「遗迹发现」「古人传承」「秘境所得」「他人遗留」等外部来源。',
-      '若需描写这些内容的发展，应侧重于角色的自我完善、突破或传道授业，而非发掘古人遗产。',
-      ...lines,
-    ].join('\n')
-  }
-
-  /**
    * 构建角色影响力文本（五维过滤：力量等级 → 叙事因果影响范围）
    */
   private buildInfluenceText(): string | undefined {
@@ -3125,13 +2753,6 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   // === AI 响应处理 ===
-
-  /** 基于当前状态生成兜底叙事（不依赖 AI） */
-  private buildFallbackNarrativeFromState(): string {
-    const age = this.computeNarrativeAge(this.buildRoundContext())
-    const worldName = this.worldSetting?.name ?? '这个世界'
-    return `你继续生活在${worldName}中，今年${age}岁。岁月平静地流逝着，没有什么特别的事情发生。生活依旧，你按照自己的方式继续前行。`
-  }
 
   /**
    * 构建轻量 worldSetting，剥离每轮不变的静态参数。
@@ -3171,7 +2792,10 @@ export class OrchestratorSystem extends BaseSubsystem {
     } as unknown as import('@/foundation').WorldSetting
   }
 
-  private buildUserInstruction(): string | undefined {
+  private buildRoundGuidanceInput(): {
+    roundSystemGuidanceText?: string
+    playerBranchIntent?: Record<string, unknown>
+  } {
     const components: NarrativePromptComponent[] = []
     let order = 10
     const addComponent = (
@@ -3200,9 +2824,6 @@ export class OrchestratorSystem extends BaseSubsystem {
 
     const hasFreshPlayerChoice = Boolean(this.lastPlayerChoice?.trim())
     this.branchJustResolved = hasFreshPlayerChoice
-    if (hasFreshPlayerChoice) {
-      this.lastBranchTotalRound = Math.max(this.lastBranchTotalRound, this.state.totalRounds)
-    }
 
     // 动态 hints（移植自废弃项目 buildNarrativeRoundPrompt）
     const hints = buildNarrativeHints(this.buildHintInput())
@@ -3214,30 +2835,20 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
 
     const focusedIntent = this.getFocusedBranchIntentRuntime()
-    const forceBranch = useEngineStore.getState().forceBranchNext
     const freshPlayerChoice = this.lastPlayerChoice?.trim()
-    const branchFocusLines: string[] = []
+    let playerBranchIntent: Record<string, unknown> | undefined
     if (focusedIntent) {
       const otherActiveIntents = this.branchIntents.filter(
         (intent) => intent.intentId !== focusedIntent.intentId,
       )
-      branchFocusLines.push(buildBranchIntentInstruction(focusedIntent, otherActiveIntents))
-    } else {
-      branchFocusLines.push('【命运意图条件】本轮没有玩家命运意图，禁止输出“命运意图判定”字段；不要从标准示例复制条件字段。')
+      playerBranchIntent = buildNarrativeBranchIntentProjection(focusedIntent, otherActiveIntents)
     }
     if (freshPlayerChoice) {
       if (!focusedIntent) {
-        branchFocusLines.push(
-          `【刚确认的玩家选择；必须立即进入正文主线】${freshPlayerChoice}`,
-        )
+        playerBranchIntent = { 玩家选择: freshPlayerChoice }
       }
       this.lastCommittedPlayerChoice = freshPlayerChoice
       this.lastPlayerChoice = undefined
-    }
-    if (forceBranch) {
-      branchFocusLines.push(
-        '【强制分支】本轮必须输出“命运分支”:true、“分支标题”和二至四个“分支选项”；正文停在玩家选择现场，不能替玩家选结果。',
-      )
     }
     const resolved = useEngineStore.getState().resolvedBranches
     const resolvedLines: string[] = []
@@ -3252,48 +2863,14 @@ export class OrchestratorSystem extends BaseSubsystem {
       }
     }
     if (resolvedLines.length > 0) {
-      branchFocusLines.push(`【最近已确认的分支结果】${resolvedLines.slice(-3).join('；')}`)
+      addComponent('recent-resolved-branches', `【最近已确认的分支结果】${resolvedLines.slice(-3).join('；')}`, '流程指令', '当前事实')
     }
 
-    // 连续分叉抑制：上轮已解决分支，本轮禁止再生成新分支
-    const lastEntry = this.state.narrativeHistory[this.state.narrativeHistory.length - 1]
-    if (!forceBranch && lastEntry?.resolvedChoice) {
-      branchFocusLines.push('上轮已完成命运抉择，本轮禁止生成新的命运分支，给玩家至少一轮消化时间。')
-    } else if (!forceBranch && this.shouldSuppressBranchPoint(false)) {
-      branchFocusLines.push(`普通命运分支冷却中：距离上一次分支不足 ${MIN_BRANCH_GAP_ROUNDS} 轮，本轮禁止生成命运分支。`)
+    const roundSystemGuidanceText = compileNarrativeDynamicComponents(components)
+    return {
+      ...(roundSystemGuidanceText ? { roundSystemGuidanceText } : {}),
+      ...(playerBranchIntent ? { playerBranchIntent } : {}),
     }
-    addComponent('branch-execution-focus', branchFocusLines.join('\n'), '硬限制', '玩家意图')
-    return compileNarrativeDynamicComponents(components)
-  }
-
-  private getRoundsSinceLatestBranch(history: EngineState['narrativeHistory']): number | null {
-    for (let i = history.length - 1; i >= 0; i -= 1) {
-      if (history[i]?.isBranchPoint) {
-        return history.length - 1 - i
-      }
-    }
-    return null
-  }
-
-  private shouldSuppressBranchPoint(forceBranch: boolean, targetTotalRounds = this.state.totalRounds): boolean {
-    if (forceBranch) return false
-    if (this.branchJustResolved) return true
-
-    const roundsSinceTrackedBranch = targetTotalRounds - this.lastBranchTotalRound
-    if (roundsSinceTrackedBranch >= 0 && roundsSinceTrackedBranch < MIN_BRANCH_GAP_ROUNDS) {
-      return true
-    }
-
-    const historyDistances = [
-      this.getRoundsSinceLatestBranch(this.state.narrativeHistory),
-      this.getRoundsSinceLatestBranch(useEngineStore.getState().narrativeHistory),
-    ].filter((distance): distance is number => distance !== null)
-
-    if (historyDistances.some((distance) => distance < MIN_BRANCH_GAP_ROUNDS)) {
-      return true
-    }
-
-    return false
   }
 
   /** 构建 NarrativeHintInput（从当前 orchestrator 状态收集数据） */
@@ -3311,7 +2888,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       round: this.state.totalRounds,
       recentEvents: this.buildYearEvents().map(e => ({ narrative: e.narrative, age: e.age })),
       // BranchIntent 是活动选择的唯一 Prompt 投影；旧 hints 不再重复注入选择正文。
-      lastPlayerChoice: undefined,
       forceBranch: useEngineStore.getState().forceBranchNext ?? false,
       branchJustResolved: this.branchJustResolved,
       consecutiveSameGoalRounds: this.consecutiveSameGoalRounds,
@@ -3326,202 +2902,25 @@ export class OrchestratorSystem extends BaseSubsystem {
     branchTitle?: string
     branchOptions?: string[]
   } {
-    const options = normalizeNarrativeBranchOptions(parsed.branchOptions)
-    let title = parsed.branchTitle?.trim() ?? ''
-    let isBranch = isEligibleNarrativeBranch(parsed)
-
-    if (parsed.branch === true && !isBranch) {
-      console.warn('[Branch] 已抑制未满足 HIGH、不可逆命运语义或有效选项要求的分叉点')
-    }
-
-    if (isBranch && !title) {
-      title = '你愿意承担哪一种长期后果？'
-    }
-
-    // 连续分叉抑制：如果上一条叙事历史有 resolvedChoice（刚被解决），强制抑制新分叉点
-    const lastHistoryEntry = useEngineStore.getState().narrativeHistory[
-      useEngineStore.getState().narrativeHistory.length - 1
-    ]
-    const forceBranchNext = useEngineStore.getState().forceBranchNext
-    const shouldSuppressBranch = (lastHistoryEntry?.resolvedChoice || this.shouldSuppressBranchPoint(forceBranchNext)) && !forceBranchNext
-
-    if (shouldSuppressBranch) {
-      isBranch = false
-    }
-
-    if (isBranch) {
+    const forcedBranchRequested = useEngineStore.getState().forceBranchNext === true
+    if (parsed.branch !== true) {
+      if (!forcedBranchRequested) return { isBranchPoint: false }
       useEngineStore.getState().setForceBranchNext(false)
+      return {
+        isBranchPoint: true,
+        branchTitle: '由你决定下一步',
+        branchOptions: [],
+      }
     }
-
-    return isBranch
-      ? { isBranchPoint: true, branchTitle: title, branchOptions: options }
-      : { isBranchPoint: false }
-  }
-
-  private getGuardedLatestNarrativeEntry(
-    narrativeEntryId: string,
-    guard: BackgroundNarrativeEntryGuard,
-  ): { entry: NarrativeChunk; entryIndex: number } | undefined {
-    if (guard.lifeGeneration !== this.lifeGeneration
-      || guard.lifeRunId !== this.state.lifeRunId
-      || guard.sourceRound !== this.state.totalRounds) return undefined
-    const entryIndex = this.state.narrativeHistory.length - 1
-    const entry = entryIndex >= 0 ? this.state.narrativeHistory[entryIndex] : undefined
-    if (!entry || entry.id !== narrativeEntryId) return undefined
-    if (entry.repetitionMetric && entry.repetitionMetric.round !== guard.sourceRound) return undefined
-    const normalize = (value: string): string => value.normalize('NFKC').replace(/\s+/gu, ' ').trim()
-    if (normalize(entry.text) !== normalize(guard.sourceNarrative)) return undefined
-    return { entry, entryIndex }
-  }
-
-  /** 将独立 Schema 验证过的强制分支合并到原故事条目；正文始终保持不变。 */
-  public applyBackgroundForcedBranchRepair(
-    narrativeEntryId: string,
-    branchRepair: NarrativeBranchRepairOutput,
-    guard: BackgroundNarrativeEntryGuard,
-  ): boolean {
-    const rejectRepair = (reason: string, details: Record<string, unknown> = {}): false => {
-      this.recordSystemDiagnostic('narrative-quality', 'forced-branch-repair-rejected', 'warning', {
-        reason,
-        ...details,
-      })
-      return false
+    if (!parsed.branchTitle || !parsed.branchOptions) {
+      throw new Error('严格分支结果缺少标题或选项')
     }
-    const guarded = this.getGuardedLatestNarrativeEntry(narrativeEntryId, guard)
-    if (!guarded) {
-      return rejectRepair('guard-mismatch', {
-        currentRound: this.state.totalRounds,
-        guardRound: guard.sourceRound,
-        currentLifeRunIdMatches: this.state.lifeRunId === guard.lifeRunId,
-        currentGeneration: this.lifeGeneration,
-        guardGeneration: guard.lifeGeneration,
-      })
-    }
-    if (!useEngineStore.getState().forceBranchNext) {
-      return rejectRepair('force-flag-cleared')
-    }
-    const { entry, entryIndex } = guarded
-    if (entry.isBranchPoint || entry.resolvedChoice !== undefined) {
-      return rejectRepair('entry-already-resolved', {
-        isBranchPoint: entry.isBranchPoint,
-        hasResolvedChoice: entry.resolvedChoice !== undefined,
-      })
-    }
-
-    const validated = narrativeBranchRepairOutputSchema.safeParse(branchRepair)
-    if (!validated.success) {
-      return rejectRepair('schema-invalid', { issueCount: validated.error.issues.length })
-    }
-    const branchTitle = validated.data.分支标题.trim()
-    const branchOptions = normalizeNarrativeBranchOptions(validated.data.分支选项)
-    if (branchOptions.length < 2 || branchOptions.length > 4) {
-      return rejectRepair('option-count-invalid', { optionCount: branchOptions.length })
-    }
-
-    this.lastBranchTotalRound = guard.sourceRound
-    this.state.narrativeHistory[entryIndex] = {
-      ...entry,
+    useEngineStore.getState().setForceBranchNext(false)
+    return {
       isBranchPoint: true,
-      branchTitle,
-      branchOptions,
+      branchTitle: parsed.branchTitle,
+      branchOptions: [...parsed.branchOptions],
     }
-
-    useEngineStore.setState((store) => ({
-      narrativeHistory: store.narrativeHistory.map((chunk) => (
-        chunk.id === narrativeEntryId
-          ? {
-              ...chunk,
-              isBranchPoint: true,
-              branchTitle,
-              branchOptions,
-            }
-          : chunk
-      )),
-      forceBranchNext: false,
-    }))
-    this.publishSimulationSnapshot()
-    this.recordSystemDiagnostic('narrative-quality', 'forced-branch-repair-applied', 'ok', {
-      optionCount: branchOptions.length,
-      entryIndex,
-    })
-    return true
-  }
-
-  /** 将协议完整且不再重复的候选正文合并回原叙事条目，不创建第二轮。 */
-  public applyBackgroundNarrativeRepair(
-    narrativeEntryId: string,
-    sourceContent: string,
-    candidateContent: string,
-    audit: NarrativeRepetitionAuditOutput,
-    guard: BackgroundNarrativeEntryGuard,
-  ): boolean {
-    const guarded = this.getGuardedLatestNarrativeEntry(narrativeEntryId, guard)
-    if (!guarded) return false
-    const { entry, entryIndex } = guarded
-    const sourceEnvelope = extractTaggedMetaEnvelope(sourceContent)
-    const candidate = parseNarrativeRepetitionRepairOutput(candidateContent)
-    const validatedAudit = parseNarrativeRepetitionAuditOutput(audit)
-    if (!sourceEnvelope || !candidate?.narrative.trim()
-      || !validatedAudit?.事实一致
-      || !validatedAudit.完整覆盖
-      || validatedAudit.覆盖证据.length === 0
-      || validatedAudit.冲突.length > 0
-      || validatedAudit.遗漏.length > 0) return false
-    const normalizeRepairText = (value: string): string => value.normalize('NFKC').replace(/\s+/gu, ' ').trim()
-    if (normalizeRepairText(sourceEnvelope.narrative) !== normalizeRepairText(guard.sourceNarrative)) return false
-
-    const recentHistory = this.state.narrativeHistory
-      .slice(Math.max(0, entryIndex - 5), entryIndex)
-      .map((item) => item.text)
-    const decision = chooseNarrativeRepetitionRepair({
-      previousContent: entry.text,
-      candidateContent: candidate.narrative,
-      candidateBody: candidate.narrative,
-      candidateProtocolValid: true,
-      recentHistory,
-    })
-    if (!decision.accepted) return false
-
-    const replacementMetric = calculateNarrativeRepetitionMetric({
-      round: entry.repetitionMetric?.round ?? entryIndex + 1,
-      text: candidate.narrative,
-      recentHistory: this.state.narrativeHistory
-        .slice(Math.max(0, entryIndex - 5), entryIndex)
-        .map((item, index) => ({
-          round: item.repetitionMetric?.round ?? Math.max(1, entryIndex - 5 + index + 1),
-          text: item.text,
-        })),
-      windowSize: 5,
-    })
-    const mergedContent = [
-      '⟦正文⟧',
-      candidate.narrative,
-      ...(sourceEnvelope.summary ? ['⟦摘要⟧', sourceEnvelope.summary] : []),
-      ...(sourceEnvelope.dataPresent ? ['⟦数据⟧', sourceEnvelope.dataSection ?? ''] : []),
-      '⟦结束⟧',
-    ].join('\n')
-    this.state.narrativeHistory[entryIndex] = {
-      ...entry,
-      text: candidate.narrative,
-      repetitionMetric: replacementMetric,
-    }
-    this.state.currentNarrative = candidate.narrative
-    this.lastNarrativeText = candidate.narrative
-    this.lastExecutedFullContent = mergedContent
-    this.state.storyRepetitionStats = summarizeNarrativeRepetitionMetrics(
-      collectNarrativeRepetitionMetrics(this.state.narrativeHistory),
-    )
-    useEngineStore.setState((store) => ({
-      narrativeHistory: store.narrativeHistory.map((item) => (
-        item.id === narrativeEntryId
-          ? { ...item, text: candidate.narrative, repetitionMetric: replacementMetric }
-          : item
-      )),
-      currentNarrative: candidate.narrative,
-      storyRepetitionStats: structuredClone(this.state.storyRepetitionStats),
-    }))
-    this.publishSimulationSnapshot()
-    return true
   }
 
   private commitFocusedBranchIntentResolution(
@@ -3801,338 +3200,222 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
   }
 
-  handleNarrativeResponse(content: string): RoundResult {
-    const parsed = narrativeParser.parse(content)
-    this.setRoundAdoption({
-      responseReceived: true,
-      narrativeChars: content.length,
-      structuredDataPresent: parsed.structuredDataPresent === true,
-    })
+  handleNarrativeResponse(parsed: ParsedNarrative): RoundResult {
+    const commitSnapshot = this.capturePreviewSnapshot()
+    try {
+      const narrative = parsed.narrative
+      const digest = parsed.digest?.trim()
+      if (!narrative.trim()) throw new Error('提交候选缺少正文')
+      if (!digest) throw new Error('提交候选缺少结算摘要')
 
-    const interceptorOutcome = runNarrativeInterceptors({
-      rawContent: content,
-      parsed,
-      roundSequence: this.state.totalRounds,
-      knownSubsystemIds: this.subsystems.map((s) => s.id),
-    })
+      this.setRoundAdoption({
+        responseReceived: true,
+        narrativeChars: narrative.length,
+        structuredDataPresent: true,
+      })
 
-    for (const warning of interceptorOutcome.warnings) {
-      console.warn('[NarrativeInterceptor]', warning)
-    }
-
-    const effectiveParsed = interceptorOutcome.parsed
-
-    const ageAtRound = this.computeNarrativeAge(this.buildRoundContext())
-    const displayTimeLabel = buildNarrativeTimeContext(
-      this.buildRoundContext(),
-      this.worldSetting,
-    ).timeLabel
-
-    // P1: 兜底叙事
-    let narrative = effectiveParsed.narrative
-    if (interceptorOutcome.blocked || !narrative) {
-      narrative = this.buildFallbackNarrativeFromState()
-      if (interceptorOutcome.blocked) {
-        console.warn('[NarrativeInterceptor] 已阻断状态提交:', interceptorOutcome.blockReason)
+      const focusedIntentBeforeCommit = this.getFocusedBranchIntentRuntime()
+      if (!focusedIntentBeforeCommit && parsed.intentResolution) {
+        throw new Error('当前没有待判定命运意图，结算不得提交命运意图判定')
       }
-    }
-
-    // 若解析结果仍是原始对象文本，强制再提取中文正文字段
-    const trimmed = narrative.trimStart()
-    if (trimmed.startsWith('{') && trimmed.includes('"正文"')) {
-      const reparsed = narrativeParser.parse(content)
-      if (reparsed.narrative?.trim()) {
-        narrative = reparsed.narrative
-      }
-    }
-
-    narrative = normalizeNarrativeParagraphs(narrative)
-
-    const focusedIntentBeforeCommit = this.getFocusedBranchIntentRuntime()
-    const intentResolutionError = focusedIntentBeforeCommit
-      ? validateIntentResolutionForState(focusedIntentBeforeCommit, effectiveParsed.intentResolution)
-      : undefined
-    if (!focusedIntentBeforeCommit && effectiveParsed.intentResolution) {
-      // 条件字段误复制不会获得任何写入权限；仅丢弃该字段，保留本轮合法正文、摘要、
-      // 语义和分支，避免标准示例的条件字段复制把整个分支结果拖成推理错误。
-      console.warn('[BranchIntent] 当前没有玩家命运意图，禁止提交 intentResolution')
-    }
-    if (intentResolutionError) {
-      console.warn('[BranchIntent] 本轮 META 未通过命运意图契约:', intentResolutionError)
-    }
-
-    // 普通状态、历史事实、延期因果、伏笔、剧情、记忆与原创保护共享同一快照。
-    // 摘要账本独立保存合格摘要；其余任一副作用失败都整包回滚并拒绝依赖 META。
-    const narrativeCommitSnapshot = this.captureSubsystemPreviewStates()
-    const characterCreationsSnapshot = structuredClone(this.state.characterCreations)
-    const pendingCausalIdsSnapshot = [...this.pendingNarrativeCausalEventIds]
-    const transitionAuditId = `narrative-${this.state.lifeRunId}-${this.state.totalRounds}`
-    const transitionAuditReasons: string[] = []
-    let historicalCommitPassed = true
-    let commitResult = interceptorOutcome.blocked || intentResolutionError
-      ? { committed: [], rejected: [] }
-      : this.applyRoundChanges(effectiveParsed.changes, 'narrative')
-    if (commitResult.rejected.length > 0) {
-      this.restoreSubsystemPreviewStates(narrativeCommitSnapshot)
-      this.state.characterCreations = characterCreationsSnapshot
-      this.pendingNarrativeCausalEventIds = pendingCausalIdsSnapshot
-      console.warn('[RoundCommit] 本轮叙事变更未能完整提交，已回滚并整包拒绝 META')
-      commitResult = { committed: [], rejected: commitResult.rejected }
-      transitionAuditReasons.push(...commitResult.rejected.map((item) => item.reason))
-    }
-    let committedChanges = commitResult.committed
-    const stateChangeBundleAccepted = commitResult.rejected.length === 0
-      && committedChanges.length === effectiveParsed.changes.length
-
-    // 数据区只有在完整 Schema、命运意图和普通状态变更整包都通过时才可消费。
-    let structuredDataAccepted = !interceptorOutcome.blocked
-      && stateChangeBundleAccepted
-      && intentResolutionError === undefined
-      && effectiveParsed.metadataRejected !== true
-      && effectiveParsed.structuredDataPresent === true
-    let hasValidatedSemanticMetadata = structuredDataAccepted
-      && effectiveParsed.semanticSignals !== undefined
-    let acceptedHistoricalEventIds: string[] = []
-
-    let committedNarrativeId: string | undefined
-    if (narrative) {
-      const roundSequence = this.state.totalRounds
-      const structuredKeyEvents = structuredDataAccepted && Array.isArray(effectiveParsed.keyEvents)
-        ? effectiveParsed.keyEvents.filter((event): event is {
-            text: string
-            importance: number
-            entities?: string[]
-          } => typeof event === 'object' && event !== null && typeof event.text === 'string')
-        : []
-      const ledger = this.getHistoricalEventLedgerRuntime()
-      const historicalPlan = structuredDataAccepted && ledger
-        ? this.buildHistoricalNarrativeTransactionPlan(ledger, effectiveParsed, structuredKeyEvents)
+      const intentResolutionError = focusedIntentBeforeCommit
+        ? validateIntentResolutionForState(focusedIntentBeforeCommit, parsed.intentResolution)
         : undefined
-      const historicalInputRequired = structuredDataAccepted && (
-        structuredKeyEvents.length > 0
-        || effectiveParsed.semanticSignals !== undefined
-        || (effectiveParsed.deferredCausality?.length ?? 0) > 0
-      )
-      const rollbackDependentMeta = (reason: string): void => {
-        this.restoreSubsystemPreviewStates(narrativeCommitSnapshot)
-        this.state.characterCreations = structuredClone(characterCreationsSnapshot)
-        this.pendingNarrativeCausalEventIds = [...pendingCausalIdsSnapshot]
-        committedChanges = []
-        acceptedHistoricalEventIds = []
-        structuredDataAccepted = false
-        hasValidatedSemanticMetadata = false
-        historicalCommitPassed = false
-        transitionAuditReasons.push(reason)
-        console.warn(`[HistoricalEventTransaction] ${reason}；已回滚全部依赖 META`)
+      if (intentResolutionError) throw new Error(intentResolutionError)
+
+      const commitResult = this.applyRoundChanges(parsed.changes, 'narrative')
+      if (
+        commitResult.rejected.length > 0
+        || commitResult.committed.length !== parsed.changes.length
+      ) {
+        const reasons = commitResult.rejected.map((item) => item.reason)
+        throw new Error(`系统变更未能完整提交：${reasons.join('；') || '提交数量不一致'}`)
       }
 
+      const roundSequence = this.state.totalRounds
+      const ageAtRound = this.computeNarrativeAge(this.buildRoundContext())
+      const displayTimeLabel = buildNarrativeTimeContext(
+        this.buildRoundContext(),
+        this.worldSetting,
+      ).timeLabel
+      const structuredKeyEvents = parsed.keyEvents ?? []
+      const ledger = this.getHistoricalEventLedgerRuntime()
+      const historicalInputRequired = structuredKeyEvents.length > 0
+        || parsed.semanticSignals !== undefined
+        || (parsed.deferredCausality?.length ?? 0) > 0
       if (historicalInputRequired && !ledger) {
-        rollbackDependentMeta('historical-event-ledger 未注册或公开契约不完整')
-      } else if (structuredDataAccepted && historicalPlan && ledger) {
+        throw new Error('historical-event-ledger 未注册或公开契约不完整')
+      }
+
+      const historicalPlan = ledger
+        ? this.buildHistoricalNarrativeTransactionPlan(ledger, parsed, structuredKeyEvents)
+        : undefined
+      if (historicalPlan && ledger) {
         const preflight = ledger.preflightBatch(historicalPlan.batch, this.buildRoundContext())
         if (!preflight.ok) {
-          rollbackDependentMeta(`历史批次预检失败：${preflight.errors.join('；')}`)
+          throw new Error(`历史批次预检失败：${preflight.errors.join('；')}`)
         }
       }
 
-      if (structuredDataAccepted) {
-        try {
-          if (historicalPlan && ledger) {
-            const historicalCommit = ledger.commitBatch(
-              historicalPlan.batch,
-              this.buildRoundContext(),
-            )
-            if (
-              !historicalCommit.ok
-              || historicalCommit.eventIds.length !== historicalPlan.eventIds.length
-              || historicalPlan.eventIds.some((eventId) => !historicalCommit.eventIds.includes(eventId))
-            ) {
-              throw new Error(historicalCommit.errors.join('；') || '历史批次提交结果不完整')
-            }
-            acceptedHistoricalEventIds = [...historicalCommit.eventIds]
-          }
-
-          if (hasValidatedSemanticMetadata) {
-            plotStructure.recordNarrativeSignals(
-              effectiveParsed.semanticSignals!,
-              acceptedHistoricalEventIds,
-            )
-          }
-
-          foreshadowing.detectForeshadowing(
-            roundSequence,
-            this.characterState?.age ?? 0,
-            effectiveParsed.foreshadowing,
-            this.worldSetting?.contextId,
-            acceptedHistoricalEventIds,
-          )
-
-          for (const [index, item] of (effectiveParsed.deferredCausality ?? []).entries()) {
-            causalDelay.recordCausalEvent(
-              item.type,
-              item.severity,
-              roundSequence,
-              ageAtRound,
-              item.description,
-              item.relatedPerson,
-              item.relatedFaction,
-              {
-                scope: this.worldSetting?.contextId ? 'context' : 'global',
-                contextId: this.worldSetting?.contextId,
-                createdTotalDays: this.state.round.totalDays,
-                originEventId: historicalPlan?.deferredEventIds[index],
-              },
-            )
-          }
-
-          // 原创保护：只累积完整数据区中经校验且与其余 META 同批成功的 creations。
-          const roundCreations = effectiveParsed.creations
-          if (roundCreations?.length) {
-            for (const creation of roundCreations) {
-              if (!this.state.characterCreations.some((existing) => existing.name === creation.name)) {
-                this.state.characterCreations.push({
-                  name: creation.name,
-                  description: creation.description,
-                  category: creation.category as CharacterCreation['category'],
-                  confirmedRound: this.state.totalRounds,
-                })
-              }
-            }
-          }
-
-          if (hasValidatedSemanticMetadata) {
-            const semanticSignals = effectiveParsed.semanticSignals!
-            const entities = structuredKeyEvents.flatMap((event) => event.entities ?? [])
-            memoryLifecycle.setAISemanticAnalysis(
-              roundSequence,
-              effectiveParsed.importance!,
-              effectiveParsed.arcStatus!,
-              semanticSignals,
-              entities,
-              acceptedHistoricalEventIds,
-            )
-            coreMemory.recordRelationshipUpdates(
-              semanticSignals.relationshipUpdates,
-              roundSequence,
-              this.worldSetting?.contextId,
-              acceptedHistoricalEventIds,
-            )
-            foreshadowing.resolveForeshadowing(
-              semanticSignals.resolvedForeshadowingIds,
-              narrative,
-              roundSequence,
-              this.worldSetting?.contextId,
-              acceptedHistoricalEventIds,
-            )
-
-            for (const causalId of this.pendingNarrativeCausalEventIds) {
-              const resolutionEventId = historicalPlan?.causalResolutionEventIds[causalId]
-              if (!resolutionEventId) {
-                throw new Error(`到期因果 ${causalId} 缺少已提交的历史结果事件`)
-              }
-              causalDelay.commitCausalTriggers(
-                [causalId],
-                roundSequence,
-                effectiveParsed.digest,
-                {
-                  currentTotalDays: this.state.round.totalDays,
-                  resolutionEventId,
-                },
-              )
-            }
-            this.pendingNarrativeCausalEventIds = []
-          }
-        } catch (error) {
-          rollbackDependentMeta(error instanceof Error ? error.message : String(error))
+      let acceptedHistoricalEventIds: string[] = []
+      if (historicalPlan && ledger) {
+        const historicalCommit = ledger.commitBatch(
+          historicalPlan.batch,
+          this.buildRoundContext(),
+        )
+        if (
+          !historicalCommit.ok
+          || historicalCommit.eventIds.length !== historicalPlan.eventIds.length
+          || historicalPlan.eventIds.some((eventId) => !historicalCommit.eventIds.includes(eventId))
+        ) {
+          throw new Error(historicalCommit.errors.join('；') || '历史批次提交结果不完整')
         }
+        acceptedHistoricalEventIds = [...historicalCommit.eventIds]
+      }
+
+      if (parsed.semanticSignals) {
+        plotStructure.recordNarrativeSignals(parsed.semanticSignals, acceptedHistoricalEventIds)
+      }
+      foreshadowing.detectForeshadowing(
+        roundSequence,
+        this.characterState?.age ?? 0,
+        parsed.foreshadowing,
+        this.worldSetting?.contextId,
+        acceptedHistoricalEventIds,
+      )
+      for (const [index, item] of (parsed.deferredCausality ?? []).entries()) {
+        causalDelay.recordCausalEvent(
+          item.type,
+          item.severity,
+          roundSequence,
+          ageAtRound,
+          item.description,
+          item.relatedPerson,
+          item.relatedFaction,
+          {
+            scope: this.worldSetting?.contextId ? 'context' : 'global',
+            contextId: this.worldSetting?.contextId,
+            createdTotalDays: this.state.round.totalDays,
+            originEventId: historicalPlan?.deferredEventIds[index],
+          },
+        )
+      }
+      for (const creation of parsed.creations ?? []) {
+        if (!this.state.characterCreations.some((existing) => existing.name === creation.name)) {
+          this.state.characterCreations.push({
+            name: creation.name,
+            description: creation.description,
+            category: creation.category as CharacterCreation['category'],
+            confirmedRound: this.state.totalRounds,
+          })
+        }
+      }
+
+      if (parsed.semanticSignals) {
+        if (!parsed.importance || !parsed.arcStatus) {
+          throw new Error('语义信号缺少重要程度或情节状态')
+        }
+        const entities = structuredKeyEvents.flatMap((event) => event.entities ?? [])
+        memoryLifecycle.setAISemanticAnalysis(
+          roundSequence,
+          parsed.importance,
+          parsed.arcStatus,
+          parsed.semanticSignals,
+          entities,
+          acceptedHistoricalEventIds,
+        )
+        coreMemory.recordRelationshipUpdates(
+          parsed.semanticSignals.relationshipUpdates,
+          roundSequence,
+          this.worldSetting?.contextId,
+          acceptedHistoricalEventIds,
+        )
+        foreshadowing.resolveForeshadowing(
+          parsed.semanticSignals.resolvedForeshadowingIds,
+          narrative,
+          roundSequence,
+          this.worldSetting?.contextId,
+          acceptedHistoricalEventIds,
+        )
+        for (const causalId of this.pendingNarrativeCausalEventIds) {
+          const resolutionEventId = historicalPlan?.causalResolutionEventIds[causalId]
+          if (!resolutionEventId) {
+            throw new Error(`到期因果 ${causalId} 缺少已提交的历史结果事件`)
+          }
+          causalDelay.commitCausalTriggers(
+            [causalId],
+            roundSequence,
+            digest,
+            {
+              currentTotalDays: this.state.round.totalDays,
+              resolutionEventId,
+            },
+          )
+        }
+        this.pendingNarrativeCausalEventIds = []
       }
 
       digestLedger.record({
         round: roundSequence,
         contextId: this.worldSetting?.contextId,
         memoryScope: this.worldSetting?.contextId ? 'context' : 'global',
-        importance: structuredDataAccepted ? effectiveParsed.importance : undefined,
-        digest: effectiveParsed.digest,
-        keyEvents: structuredDataAccepted ? structuredKeyEvents : [],
+        importance: parsed.importance,
+        digest,
+        keyEvents: structuredKeyEvents,
       })
-    }
+      memoryLifecycle.scoreImportance(
+        narrative,
+        roundSequence,
+        this.state.round.year,
+        this.worldSetting?.contextId,
+      )
 
-    const transitionAudit: NarrativeTransitionAuditSnapshot = {
-      schemaVersion: 1,
-      round: this.state.totalRounds,
-      narrativeId: transitionAuditId,
-      validatedWritePath: true,
-      interceptorPassed: !interceptorOutcome.blocked,
-      intentValidationPassed: intentResolutionError === undefined,
-      historicalCommitPassed,
-      structuredDataPresent: effectiveParsed.structuredDataPresent === true,
-      structuredDataAccepted,
-      requestedChangeCount: effectiveParsed.changes.length,
-      committedChangeCount: committedChanges.length,
-      rejectedChangeCount: commitResult.rejected.length,
-      trusted: !interceptorOutcome.blocked
-        && intentResolutionError === undefined
-        && historicalCommitPassed
-        && commitResult.rejected.length === 0,
-      validationClean: !interceptorOutcome.blocked
-        && intentResolutionError === undefined
-        && historicalCommitPassed
-        && commitResult.rejected.length === 0
-        && effectiveParsed.metadataRejected !== true,
-      reasons: [
-        ...(interceptorOutcome.blocked && interceptorOutcome.blockReason ? [interceptorOutcome.blockReason] : []),
-        ...(intentResolutionError ? [intentResolutionError] : []),
-        ...transitionAuditReasons,
-      ],
-    }
-    this.recordSystemDiagnostic(
-      'round-commit',
-      'transition-audited',
-      transitionAudit.trusted && transitionAudit.validationClean ? 'ok' : 'warning',
-      { ...transitionAudit },
-    )
-
-    const committedIntentResolution = hasValidatedSemanticMetadata
-      && focusedIntentBeforeCommit
-      && effectiveParsed.intentResolution
-      ? this.commitFocusedBranchIntentResolution(effectiveParsed.intentResolution)
-      : undefined
-
-    // 重复率是本轮正文提交后的只读质量观测。它和正文写入同一引擎状态，
-    // 可随存档恢复；任何观测失败都不得阻塞玩家故事。
-    const repetitionMetric = narrative
-      ? calculateNarrativeRepetitionMetric({
-          round: this.state.totalRounds,
-          text: narrative,
-          recentHistory: this.state.narrativeHistory.map((entry, index) => ({
-            round: Math.max(1, this.state.totalRounds - this.state.narrativeHistory.length + index),
-            text: entry.text,
-          })),
-          windowSize: 5,
-        })
-      : undefined
-    const storyRepetitionStats = repetitionMetric
-      ? summarizeNarrativeRepetitionMetrics([
-          ...this.state.narrativeHistory
-            .map((entry) => entry.repetitionMetric)
-            .filter((metric): metric is NonNullable<typeof metric> => Boolean(metric)),
-          repetitionMetric,
-        ])
-      : this.state.storyRepetitionStats
-
-    // 更新叙事历史：完整保存，不按字符、轮数或容量移除旧故事。
-    this.state.currentNarrative = narrative
-    if (narrative) {
-      this.lastNarrativeText = narrative
-      const branchMeta = hasValidatedSemanticMetadata
-        ? this.resolveBranchFromParsed(effectiveParsed)
-        : { isBranchPoint: false as const }
-      if (branchMeta.isBranchPoint) {
-        this.lastBranchTotalRound = this.state.totalRounds
+      const committedIntentResolution = focusedIntentBeforeCommit && parsed.intentResolution
+        ? this.commitFocusedBranchIntentResolution(parsed.intentResolution)
+        : undefined
+      if (focusedIntentBeforeCommit && !committedIntentResolution) {
+        throw new Error('命运意图判定未能提交')
       }
-      committedNarrativeId = transitionAuditId
+
+      const repetitionMetric = calculateNarrativeRepetitionMetric({
+        round: this.state.totalRounds,
+        text: narrative,
+        recentHistory: this.state.narrativeHistory.map((entry, index) => ({
+          round: Math.max(1, this.state.totalRounds - this.state.narrativeHistory.length + index),
+          text: entry.text,
+        })),
+        windowSize: 5,
+      })
+      const storyRepetitionStats = summarizeNarrativeRepetitionMetrics([
+        ...this.state.narrativeHistory
+          .map((entry) => entry.repetitionMetric)
+          .filter((metric): metric is NonNullable<typeof metric> => Boolean(metric)),
+        repetitionMetric,
+      ])
+      const transitionAuditId = `narrative-${this.state.lifeRunId}-${this.state.totalRounds}`
+      const transitionAudit: NarrativeTransitionAuditSnapshot = {
+        schemaVersion: 1,
+        round: this.state.totalRounds,
+        narrativeId: transitionAuditId,
+        validatedWritePath: true,
+        interceptorPassed: true,
+        intentValidationPassed: true,
+        historicalCommitPassed: true,
+        structuredDataPresent: true,
+        structuredDataAccepted: true,
+        requestedChangeCount: parsed.changes.length,
+        committedChangeCount: commitResult.committed.length,
+        rejectedChangeCount: 0,
+        trusted: true,
+        validationClean: true,
+        reasons: [],
+      }
+      const branchMeta = this.resolveBranchFromParsed(parsed)
+
+      this.state.currentNarrative = narrative
+      this.lastNarrativeText = narrative
       this.state.narrativeHistory.push({
-        id: committedNarrativeId,
+        id: transitionAuditId,
         text: narrative,
         isComplete: true,
         timestamp: Date.now(),
@@ -4142,14 +3425,9 @@ export class OrchestratorSystem extends BaseSubsystem {
         totalDays: this.state.round.totalDays,
         displayAge: ageAtRound,
         displayTimeLabel,
-        ...(committedIntentResolution
-          ? { intentResolution: committedIntentResolution }
-          : {}),
-        ...(repetitionMetric ? { repetitionMetric } : {}),
-        transitionAudit: {
-          ...transitionAudit,
-          narrativeId: committedNarrativeId,
-        },
+        ...(committedIntentResolution ? { intentResolution: committedIntentResolution } : {}),
+        repetitionMetric,
+        transitionAudit,
         ...(branchMeta.isBranchPoint
           ? {
               isBranchPoint: true,
@@ -4160,59 +3438,42 @@ export class OrchestratorSystem extends BaseSubsystem {
       })
       this.state.storyRepetitionStats = storyRepetitionStats
       this.lastNarratedTimeStep = { ...this.state.timeStep }
-    }
-    if (!this.isPreviewExecution()) {
       this.syncBranchIntentProjectionToEngineStore()
-    }
-
-    // commit 已修改子系统私有状态；立即刷新快照，确保 UI 同步与本轮自动存档不是上一轮数据。
-    if (committedChanges.length > 0 || structuredDataAccepted || acceptedHistoricalEventIds.length > 0) {
       this.collectSubsystemStates(false, false)
+
+      this.recordSystemDiagnostic('round-commit', 'transition-audited', 'ok', {
+        ...transitionAudit,
+      })
+      this.setRoundAdoption({
+        narrativeAdopted: true,
+        structuredDataPresent: true,
+        structuredDataAccepted: true,
+        requestedChangeCount: parsed.changes.length,
+        committedChangeCount: commitResult.committed.length,
+        rejectedChangeCount: 0,
+        rejectedReasons: [],
+        narrativeId: transitionAuditId,
+        narrativeChars: narrative.length,
+      })
+
+      const result: RoundResult = {
+        narrative,
+        changes: commitResult.committed.map((change) => ({
+          id: change.id,
+          description: change.description,
+          changes: change.changes,
+        })),
+        notableEvents: parsed.notableEvents,
+        intentResolution: committedIntentResolution,
+      }
+      eventBus.emit('mod-engine:round-complete', result)
+      this.publishSimulationSnapshot()
+      this.runCompressionPipeline()
+      return result
+    } catch (error) {
+      this.restorePreviewSnapshot(commitSnapshot)
+      throw error
     }
-
-    this.setRoundAdoption({
-      narrativeAdopted: Boolean(narrative),
-      structuredDataPresent: effectiveParsed.structuredDataPresent === true,
-      structuredDataAccepted,
-      requestedChangeCount: effectiveParsed.changes.length,
-      committedChangeCount: committedChanges.length,
-      rejectedChangeCount: commitResult.rejected.length,
-      rejectedReasons: [
-        ...commitResult.rejected.map((item) => item.reason),
-        ...transitionAuditReasons,
-      ],
-      narrativeId: committedNarrativeId,
-      narrativeChars: narrative.length,
-    })
-
-    // 提取结构化世界方向（来自 META 的 direction 字段；MVP 阶段仅透传，不回写世界目标）
-    const worldDirection: RoundResult['direction'] =
-      hasValidatedSemanticMetadata
-      && effectiveParsed.direction
-      && typeof effectiveParsed.direction === 'object'
-      && !Array.isArray(effectiveParsed.direction)
-        ? (effectiveParsed.direction as Record<string, { direction?: string; magnitude?: number }>)
-        : undefined
-
-    // 触发回合完成事件
-    const result: RoundResult = {
-      narrative,
-      changes: committedChanges.map((c) => ({
-        id: c.id,
-        description: c.description,
-        changes: c.changes,
-      })),
-      notableEvents: structuredDataAccepted ? effectiveParsed.notableEvents : [],
-      direction: worldDirection,
-      intentResolution: committedIntentResolution,
-    }
-    eventBus.emit('mod-engine:round-complete', result)
-    this.publishSimulationSnapshot()
-
-    // 检查是否需要压缩（Phase 6：AI L1/L2/L3 时间轴管线）
-    this.runCompressionPipeline()
-
-    return result
   }
 
   // === NarrativeStage 阶段机（#13: 吸收 Factorio Story Script） ===
@@ -4313,12 +3574,11 @@ export class OrchestratorSystem extends BaseSubsystem {
   ): Promise<void> {
     if (stages.length === 0) return
 
-    for (let i = 0; i < stages.length; i++) {
+    for (let i = 0; i < stages.length; i += 1) {
       const stage = stages[i]
       let roundCount = 0
       const stageStartedAt = performance.now()
-      let stageStatus: NarrativeDiagnosticPhase['status'] = 'completed'
-      let stageError: NarrativeDiagnosticPhase['error'] | undefined
+      let failurePoint: 'onEnter' | 'onUpdate' | 'shouldProceed' | 'onExit' | 'maxRounds' | undefined
       logger.debug('orchestrator-stage', 'stage-enter', {
         stage: stage.name,
         index: i,
@@ -4326,110 +3586,58 @@ export class OrchestratorSystem extends BaseSubsystem {
         round: this.state.totalRounds,
       })
 
-      // onEnter: 进入阶段时执行一次
       try {
+        failurePoint = 'onEnter'
         await stage.onEnter?.(context)
-      } catch (e) {
-        stageStatus = 'failed'
-        stageError = {
-          name: e instanceof Error ? e.name : undefined,
-          message: e instanceof Error ? e.message : String(e),
-          stack: e instanceof Error ? e.stack : undefined,
+
+        while (true) {
+          roundCount += 1
+          const maxRounds = stage.maxRounds ?? 100
+          if (roundCount > maxRounds) {
+            failurePoint = 'maxRounds'
+            throw new Error(`阶段 "${stage.name}" 超过 maxRounds=${maxRounds}`)
+          }
+
+          failurePoint = 'onUpdate'
+          await stage.onUpdate?.(context)
+
+          failurePoint = 'shouldProceed'
+          const shouldProceed = stage.shouldProceed
+            ? await stage.shouldProceed(context)
+            : true
+          if (shouldProceed) break
         }
-        logger.error('orchestrator-stage', 'stage-onEnter-failed', e)
-        console.error(`[Orchestrator] 阶段 "${stage.name}" onEnter 失败:`, e)
+
+        failurePoint = 'onExit'
+        await stage.onExit?.(context)
+        failurePoint = undefined
         logger.debug('orchestrator-stage', 'stage-exit', {
           stage: stage.name,
           index: i,
-          reason: 'onEnter-failed',
+          rounds: roundCount,
         })
         this.pushDiagnosticPhase({
           name: stage.name,
-          status: stageStatus,
+          status: 'completed',
           durationMs: Math.max(0, Math.round(performance.now() - stageStartedAt)),
-          details: { index: i, iterations: 0, failurePoint: 'onEnter' },
-          ...(stageError ? { error: stageError } : {}),
+          details: { index: i, iterations: roundCount },
         })
-        continue
+      } catch (error) {
+        const stageError: NarrativeDiagnosticPhase['error'] = {
+          name: error instanceof Error ? error.name : undefined,
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        }
+        logger.error('orchestrator-stage', 'stage-failed', error)
+        this.pushDiagnosticPhase({
+          name: stage.name,
+          status: 'failed',
+          durationMs: Math.max(0, Math.round(performance.now() - stageStartedAt)),
+          details: { index: i, iterations: roundCount, failurePoint },
+          error: stageError,
+        })
+        throw error
       }
-
-      // 循环执行当前阶段直到 shouldProceed 返回 true 或达到 maxRounds
-      while (true) {
-        roundCount++
-
-        // maxRounds 自动死循环检测
-        const maxRounds = stage.maxRounds ?? 100
-        if (roundCount > maxRounds) {
-          logger.warn('orchestrator-stage', 'stage-max-rounds-exceeded', {
-            stage: stage.name,
-            index: i,
-            roundCount,
-            maxRounds,
-          })
-          console.warn(
-            `[Orchestrator] 阶段 "${stage.name}" 超过 maxRounds=${maxRounds}，强制推进`,
-          )
-          break
-        }
-
-        // onUpdate: 每轮执行
-        try {
-          await stage.onUpdate?.(context)
-        } catch (e) {
-          stageStatus = stageStatus === 'completed' ? 'warning' : stageStatus
-          stageError ??= {
-            name: e instanceof Error ? e.name : undefined,
-            message: e instanceof Error ? e.message : String(e),
-            stack: e instanceof Error ? e.stack : undefined,
-          }
-          logger.error('orchestrator-stage', 'stage-onUpdate-failed', e)
-          console.error(`[Orchestrator] 阶段 "${stage.name}" onUpdate 失败:`, e)
-        }
-
-        // shouldProceed: 判断是否可前进
-        try {
-          const shouldProceed = stage.shouldProceed
-            ? await stage.shouldProceed(context)
-            : true // 无 shouldProceed 的阶段只执行一次 onUpdate 就推进
-          if (shouldProceed) break
-          } catch (e) {
-            stageStatus = 'failed'
-            stageError = {
-              name: e instanceof Error ? e.name : undefined,
-              message: e instanceof Error ? e.message : String(e),
-              stack: e instanceof Error ? e.stack : undefined,
-            }
-          logger.error('orchestrator-stage', 'stage-shouldProceed-failed', e)
-          console.error(`[Orchestrator] 阶段 "${stage.name}" shouldProceed 失败:`, e)
-          break
-        }
-      }
-
-      // onExit: 离开阶段时执行一次
-      try {
-        await stage.onExit?.(context)
-      } catch (e) {
-        stageStatus = stageStatus === 'failed' ? 'failed' : 'warning'
-        stageError ??= {
-          name: e instanceof Error ? e.name : undefined,
-          message: e instanceof Error ? e.message : String(e),
-          stack: e instanceof Error ? e.stack : undefined,
-        }
-        logger.error('orchestrator-stage', 'stage-onExit-failed', e)
-        console.error(`[Orchestrator] 阶段 "${stage.name}" onExit 失败:`, e)
-      }
-      logger.debug('orchestrator-stage', 'stage-exit', {
-        stage: stage.name,
-        index: i,
-        rounds: roundCount,
-      })
-      this.pushDiagnosticPhase({
-        name: stage.name,
-        status: stageStatus,
-        durationMs: Math.max(0, Math.round(performance.now() - stageStartedAt)),
-        details: { index: i, iterations: roundCount },
-        ...(stageError ? { error: stageError } : {}),
-      })
     }
   }
 
@@ -4491,27 +3699,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.lastSessionId = sessionId
     // 每次执行都从空结果开始，避免预览/HMR 后沿用上一轮完整响应。
     this.lastExecutedFullContent = null
-    // 注入 AI 配置 + 世界观信息到 adaptation 管线
-    const { customKey, provider, customUrl, customModel } = useSettingsStore.getState()
-    const adaptationModel = customModel || effectiveAiConfig.model
-    if (!this.isPreviewExecution()) {
-      adaptationManager.setAiConfig(
-        { ...effectiveAiConfig, model: adaptationModel },
-        sessionId,
-        {
-          providerId: provider,
-          apiKey: customKey || undefined,
-          customBaseUrl: customUrl || undefined,
-          customModel: adaptationModel,
-        },
-      )
-      if (this.worldSetting) {
-        const config = this.worldSetting.config
-        const essenceTag = typeof config.essenceTag === 'string' ? config.essenceTag : this.worldSetting.description
-        adaptationManager.setWorldviewText(essenceTag, this.worldSetting.description)
-      }
-    }
-
     const context = this.buildRoundContext()
 
     // Instrument: onRoundStart
@@ -4520,11 +3707,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
     const roundT0 = performance.now()
 
-    // 预生成在临时快照内运行，不得覆盖上一真实回合的提交令牌。
-    // 否则两次 AI 调用的重复修复候选会在预生成期间被误判为跨轮结果。
-    const roundExecutionToken = this.isPreviewExecution()
-      ? undefined
-      : this.beginRoundExecution()
     try {
       // 使用阶段机驱动回合管线
       await this.runStageMachine(stages, context)
@@ -4552,28 +3734,13 @@ export class OrchestratorSystem extends BaseSubsystem {
 
       // 构建结果（从阶段机执行后的状态中提取）
       const result: RoundResult = {
-        narrative: this.state.currentNarrative || this.buildFallbackNarrativeFromState(),
+        narrative: this.state.currentNarrative,
         changes: [],
         notableEvents: this.lastNotableEvents ?? [],
       }
-
-      // 后台异步适配（不阻塞主叙事流）：将子系统硬编码 summary 适配为世界观贴切的叙事文本
-      const pendingStates = Object.entries(this.lastSubsystemStates)
-        .filter(([id]) => id !== this.id && isMvpPromptSubsystem(id))
-        .map(([id, s]) => ({ id, summary: s.summary }))
-      if (!this.isPreviewExecution()) {
-        adaptationManager.adaptPending(pendingStates).catch((err) => {
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('[Adaptation] 后台适配异常:', (err as Error)?.message ?? err)
-          }
-        })
-      }
-
-      if (roundExecutionToken) this.commitRoundExecution(roundExecutionToken)
       this.finishRoundDiagnostic('completed')
       return result
     } catch (error) {
-      if (roundExecutionToken) this.abortRoundExecution(roundExecutionToken)
       this.finishRoundDiagnostic('failed', error)
       throw error
     }

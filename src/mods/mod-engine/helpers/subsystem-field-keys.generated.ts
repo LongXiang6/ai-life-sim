@@ -38,7 +38,8 @@ export const SUBSYSTEM_FIELD_REGISTRY_KEYS = [
   "work",
   "economy",
   "reputation",
-  "relationship",
+  "npc-system",
+  "relationship-system",
   "market",
   "population",
   "cultivation",
@@ -122,9 +123,36 @@ export const SUBSYSTEM_ZOD_FIELD_KEYS: Record<string, readonly string[]> = {
     "addReputation",
     "dimension"
   ],
-  "relationship": [
-    "addRelation",
-    "affinityDelta"
+  "npc-system": [
+    "displayName",
+    "creationSource",
+    "stableTraits",
+    "localName",
+    "stance",
+    "role",
+    "localRuleModifiers",
+    "description",
+    "targetEntityIds",
+    "behaviorOperation",
+    "spatialNodeId",
+    "summary",
+    "emotion",
+    "relatedEntityIds",
+    "sourceMemoryIds"
+  ],
+  "relationship-system": [
+    "toEntityId",
+    "categoryTags",
+    "affinity",
+    "trust",
+    "bond",
+    "conflict",
+    "affinityDelta",
+    "trustDelta",
+    "bondDelta",
+    "conflictDelta",
+    "scopeKind",
+    "scopeContextIds"
   ],
   "market": [
     "activityLevel",

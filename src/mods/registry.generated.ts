@@ -20,6 +20,7 @@ import modPagesManifest from './mod-pages/manifest'
 import modPoliticsManifest from './mod-politics/manifest'
 import modPowerSystemManifest from './mod-power-system/manifest'
 import modSettingsManifest from './mod-settings/manifest'
+import modSocialManifest from './mod-social/manifest'
 import modTechLevelManifest from './mod-tech-level/manifest'
 import modUiManifest from './mod-ui/manifest'
 import modWorldManifest from './mod-world/manifest'
@@ -40,6 +41,7 @@ export const MOD_REGISTRY: ModManifest[] = [
   modPoliticsManifest,
   modPowerSystemManifest,
   modSettingsManifest,
+  modSocialManifest,
   modTechLevelManifest,
   modUiManifest,
   modWorldManifest,

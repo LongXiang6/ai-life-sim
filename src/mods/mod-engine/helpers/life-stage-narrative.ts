@@ -79,7 +79,7 @@ export function buildLifeStageNarrativeHint(
   const stages: Record<LifeStageId, string> = {
     infant: isTransmigrator
       ? '穿越觉醒期：角色携带前世记忆苏醒，以成人心智适应新身体/新世界'
-      : '幼儿期（0-3岁）：仅通过感官认知世界，行动能力有限，叙事须符合该年龄段',
+      : '幼儿期（0-3岁）：镜头只呈现当下感官、简单动作、短句理解和直接回应，认知与身体能力须符合具体年龄',
     child: isTransmigrator
       ? '适应期：角色迅速理解新世界的规则和环境'
       : '儿童期（3-12岁）：启蒙与家庭关系为主，叙事须符合该年龄段',
@@ -97,6 +97,6 @@ export function buildLifeStageNarrativeHint(
   return [
     '【生命阶段叙事约束】',
     `当前 ${currentAge} 岁 · ${stageText}`,
-    '叙事场景、行为能力与对话复杂度须严格匹配当前年龄，禁止写成其他年龄段。',
+    '叙事场景、行为能力、认知与对话复杂度须严格匹配当前年龄。',
   ].join('\n')
 }

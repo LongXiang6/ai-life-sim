@@ -25,7 +25,7 @@ const bundleText = collectFiles(staticRoot)
   .join('\n')
 
 for (const forbidden of [
-  '你是人生模拟器的主叙事引擎',
+  '受世界事实与模拟规则约束的世界叙事演算者',
   '获得新能力、资源或地位不会自动触发官方或机构审查',
   '你撞开仓房木门，把林舟的铜扣递给阿禾',
   '提示词预览',

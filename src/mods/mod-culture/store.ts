@@ -10,7 +10,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 import type {
-  ReputationState, RelationshipState, FamilyState,
+  ReputationState, FamilyState,
   EducationState, CultureState, ArtState,
   DiscipleState, PersonalAbilityState, AchievementState, WorksState,
   CultureSummary,
@@ -31,10 +31,6 @@ function createInitialReputation(): ReputationState {
     dimensions[d] = { dimension: d, value: 0, source: '初始', lastChanged: '开局' }
   }
   return { dimensions, globalReputation: 0, fame: 0 }
-}
-
-function createInitialRelationship(): RelationshipState {
-  return { relationships: {} }
 }
 
 function createInitialFamily(): FamilyState {
@@ -107,7 +103,6 @@ function createInitialWorks(): WorksState {
 
 interface CultureStore {
   reputation: ReputationState
-  relationship: RelationshipState
   family: FamilyState
   education: EducationState
   culture: CultureState
@@ -120,7 +115,6 @@ interface CultureStore {
   getSummary: () => CultureSummary
 
   setReputation: (s: Partial<ReputationState>) => void
-  setRelationship: (s: Partial<RelationshipState>) => void
   setFamily: (s: Partial<FamilyState>) => void
   setEducation: (s: Partial<EducationState>) => void
   setCulture: (s: Partial<CultureState>) => void
@@ -137,7 +131,6 @@ export const useCultureStore = create<CultureStore>()(
   persist(
     (set, get) => ({
       reputation: createInitialReputation(),
-      relationship: createInitialRelationship(),
       family: createInitialFamily(),
       education: createInitialEducation(),
       culture: createInitialCulture(),
@@ -151,7 +144,6 @@ export const useCultureStore = create<CultureStore>()(
         const s = get()
         return {
           reputation: s.reputation,
-          relationship: s.relationship,
           family: s.family,
           education: s.education,
           culture: s.culture,
@@ -164,7 +156,6 @@ export const useCultureStore = create<CultureStore>()(
       },
 
       setReputation: (partial) => set((s) => ({ reputation: { ...s.reputation, ...partial } })),
-      setRelationship: (partial) => set((s) => ({ relationship: { ...s.relationship, ...partial } })),
       setFamily: (partial) => set((s) => ({ family: { ...s.family, ...partial } })),
       setEducation: (partial) => set((s) => ({ education: { ...s.education, ...partial } })),
       setCulture: (partial) => set((s) => ({ culture: { ...s.culture, ...partial } })),
@@ -176,7 +167,6 @@ export const useCultureStore = create<CultureStore>()(
 
       reset: () => set({
         reputation: createInitialReputation(),
-        relationship: createInitialRelationship(),
         family: createInitialFamily(),
         education: createInitialEducation(),
         culture: createInitialCulture(),
@@ -192,7 +182,7 @@ export const useCultureStore = create<CultureStore>()(
       version: 1,
       migrate: (persistedState: unknown, _version: number) => persistedState as CultureStore,
       partialize: (state) => {
-        const { getSummary: _a, setReputation: _b, setRelationship: _c, setFamily: _d, setEducation: _e, setCulture: _f, setArt: _g, setDisciple: _h, setPersonalAbility: _i, setAchievement: _j, setWorks: _k, reset: _l, ...rest } = state
+        const { getSummary: _a, setReputation: _b, setFamily: _c, setEducation: _d, setCulture: _e, setArt: _f, setDisciple: _g, setPersonalAbility: _h, setAchievement: _i, setWorks: _j, reset: _k, ...rest } = state
         return rest
       },
     },

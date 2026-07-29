@@ -32,11 +32,6 @@ export type {
   WorksEntry,
   WorkCategory,
   WorkStatus,
-  RelationshipState,
-  RelationshipEntry,
-  RelationshipType,
-  BondType,
-  AllyArchetype,
   FamilyState,
   FamilyMember,
   FamilyRole,
@@ -61,7 +56,6 @@ export type { CultureCalendarNarrativeInput } from './calendar-context'
 // Hooks
 export {
   useReputation,
-  useRelationship,
   useFamily,
   useEducation,
   useCulture,

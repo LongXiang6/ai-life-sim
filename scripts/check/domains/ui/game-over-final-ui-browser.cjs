@@ -91,9 +91,9 @@ function seedPage(page) {
       state: { patterns: [fixtureMythic] },
     }))
     localStorage.setItem('mod-engine:persist:engine-state', JSON.stringify({
-      version: 2,
+      version: 5,
       state: {
-        status: 'complete', totalRounds: 3, currentNarrative: '', streamingNarrative: '', narrativeError: null,
+        status: 'complete', totalRounds: 3, currentNarrative: '', narrativeError: null,
         narrativeHistory: [
           { id: 'record-1', text: '你第一次接过灯塔值守簿，记下了改变航路的异常潮汐。', isComplete: true, timestamp: 1, displayAge: 18, displayTimeLabel: '潮历18年' },
           { id: 'record-2', text: '你选择公开旧海图，并与邻岛建立了新的航行契约。', isComplete: true, timestamp: 2, displayAge: 41, displayTimeLabel: '潮历41年', resolvedChoice: '公开旧海图' },
@@ -101,11 +101,11 @@ function seedPage(page) {
         ],
         compressedSummaries: { summaries: [] },
         compressionStats: { l1Count: 0, l2Count: 0, l3Count: 0, lastAt: 0 },
-        resolvedBranches: {}, forceBranchNext: false, branchRepairPending: false,
+        resolvedBranches: {}, forceBranchNext: false,
       },
     }))
     localStorage.setItem('mod-settings:store', JSON.stringify({
-      version: 7,
+      version: 11,
       state: { provider: 'managed', customKey: '', customUrl: '', customModel: 'LongCat-2.0', preGenerateRounds: 0, reduceMotion: true, theme: 'minimal-white' },
     }))
   }, mythic)

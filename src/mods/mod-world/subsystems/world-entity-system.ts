@@ -7,7 +7,15 @@
  * B2.3+：如果已注入 AI 服务，调用 AI 生成，解析 JSON + 拼写容错。
  */
 
-import type { SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
+import type {
+  EntityReference,
+  EntityReferenceDirectoryPersistenceState,
+  EntityReferenceKind,
+  GlobalEntityId,
+  RoundContext,
+  SubSystemChanges,
+  SubSystemState,
+} from '@/foundation'
 import { BaseSubsystem, eventBus, saveStore } from '@/core'
 
 import type { WorldConfig, AnyWorldEntity, RegionData, EntityCountRange } from '../types'
@@ -27,6 +35,14 @@ import {
 /** 内部状态 */
 interface InternalState {
   entities: AnyWorldEntity[],
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+}
+
+function cloneEntityReference(reference: EntityReference): EntityReference {
+  return structuredClone(reference)
 }
 
 // ==================== 降级实体：按世界观标签分化 ====================
@@ -567,6 +583,187 @@ export class WorldEntitySystem extends BaseSubsystem {
     return this.getEntities().filter((e) => e.type === type) as T[]
   }
 
+  // ========== P2 entity-reference directory ==========
+
+  registerEntityReference(reference: EntityReference): EntityReference {
+    const validated = this.validateEntityReference(reference)
+    useWorldStore.getState().registerEntityReference(validated)
+    return this.assertEntityReference(validated.entityId)
+  }
+
+  getEntityReference(entityId: GlobalEntityId): EntityReference | undefined {
+    const reference = useWorldStore.getState().entityReferences[entityId]
+    return reference ? cloneEntityReference(reference) : undefined
+  }
+
+  listEntityReferences(): EntityReference[] {
+    return Object.values(useWorldStore.getState().entityReferences).map(cloneEntityReference)
+  }
+
+  assertEntityReference(
+    entityId: GlobalEntityId,
+    allowedKinds?: readonly EntityReferenceKind[],
+  ): EntityReference {
+    const reference = this.getEntityReference(entityId)
+    if (!reference) throw new Error(`实体引用不存在：${entityId}`)
+    if (allowedKinds && !allowedKinds.includes(reference.kind)) {
+      throw new Error(`实体引用 ${entityId} 的种类不符合要求`)
+    }
+    return reference
+  }
+
+  capturePersistenceState(): EntityReferenceDirectoryPersistenceState {
+    this.ensureEntityDirectoryValidated()
+    return { schemaVersion: 1, entries: this.listEntityReferences() }
+  }
+
+  restorePersistenceState(snapshot: unknown): void {
+    if (snapshot === undefined) {
+      useWorldStore.getState().replaceEntityReferences([])
+      this.rebuildOrganizationDirectory()
+      return
+    }
+    const entries = this.validateEntityDirectorySnapshot(snapshot)
+    useWorldStore.getState().replaceEntityReferences(entries)
+  }
+
+  capturePreviewState(): EntityReferenceDirectoryPersistenceState {
+    return this.capturePersistenceState()
+  }
+
+  restorePreviewState(snapshot: unknown): void {
+    this.restorePersistenceState(snapshot)
+  }
+
+  private ensureEntityDirectoryValidated(): void {
+    this.validateEntityDirectorySnapshot({
+      schemaVersion: 1,
+      entries: this.listEntityReferences(),
+    })
+  }
+
+  private validateEntityDirectorySnapshot(snapshot: unknown): EntityReference[] {
+    if (!isPlainRecord(snapshot) || snapshot.schemaVersion !== 1 || !Array.isArray(snapshot.entries)) {
+      throw new Error('实体引用目录快照必须是 schemaVersion: 1 的完整条目数组')
+    }
+    const unknownSnapshotKeys = Object.keys(snapshot).filter((key) => key !== 'schemaVersion' && key !== 'entries')
+    if (unknownSnapshotKeys.length > 0) throw new Error(`实体引用目录快照包含未知字段：${unknownSnapshotKeys.join('、')}`)
+    const contexts = useWorldStore.getState().contexts
+    const entries: EntityReference[] = []
+    const ids = new Set<string>()
+    for (const [index, raw] of snapshot.entries.entries()) {
+      if (!isPlainRecord(raw)) throw new Error(`实体引用 entries[${index}] 必须是对象`)
+      const unknownEntryKeys = Object.keys(raw).filter((key) => !['entityId', 'kind', 'displayName', 'contextIds', 'registeredAtTotalDays'].includes(key))
+      if (unknownEntryKeys.length > 0) throw new Error(`实体引用 entries[${index}] 包含未知字段：${unknownEntryKeys.join('、')}`)
+      const entityId = typeof raw.entityId === 'string' ? raw.entityId.trim() : ''
+      const displayName = typeof raw.displayName === 'string' ? raw.displayName.trim() : ''
+      const kind = raw.kind
+      const contextIds = raw.contextIds
+      const registeredAtTotalDays = raw.registeredAtTotalDays
+      if (!entityId || ids.has(entityId)) throw new Error(`实体引用 ID 非法或重复：${entityId || index}`)
+      if (!displayName) throw new Error(`实体引用 ${entityId} 缺少显示标签`)
+      if (kind !== 'player' && kind !== 'npc' && kind !== 'organization') {
+        throw new Error(`实体引用 ${entityId} 的种类无效`)
+      }
+      if (!Array.isArray(contextIds) || contextIds.length === 0
+        || contextIds.some((id) => typeof id !== 'string' || !id.trim())) {
+        throw new Error(`实体引用 ${entityId} 的可见上下文无效`)
+      }
+      if (new Set(contextIds).size !== contextIds.length) {
+        throw new Error(`实体引用 ${entityId} 含重复可见上下文`)
+      }
+      if (contextIds.some((contextId) => !contexts[contextId])) {
+        throw new Error(`实体引用 ${entityId} 引用了不存在的上下文`)
+      }
+      if (!Number.isInteger(registeredAtTotalDays) || (registeredAtTotalDays as number) < 0) {
+        throw new Error(`实体引用 ${entityId} 的登记时间无效`)
+      }
+      ids.add(entityId)
+      entries.push({
+        entityId,
+        displayName,
+        kind,
+        contextIds: [...contextIds] as string[],
+        registeredAtTotalDays: registeredAtTotalDays as number,
+      })
+    }
+
+    const byId = new Map(entries.map((entry) => [entry.entityId, entry]))
+    for (const instance of Object.values(contexts)) {
+      for (const entity of instance.entities) {
+        const entry = byId.get(entity.id)
+        if (!entry || entry.kind !== 'organization' || !entry.contextIds.includes(instance.record.id)) {
+          throw new Error(`世界实体 ${entity.id} 未在实体引用目录中完整登记`)
+        }
+      }
+      for (const [entityId, location] of Object.entries(instance.spatialGraph.entityLocations)) {
+        const entry = byId.get(entityId)
+        if (!entry || !entry.contextIds.includes(instance.record.id)) {
+          throw new Error(`已定位实体 ${entityId} 未在实体引用目录中登记当前上下文`)
+        }
+        if (location.entityId !== entityId || location.contextId !== instance.record.id) {
+          throw new Error(`实体 ${entityId} 的空间位置端点不一致`)
+        }
+        if (!instance.spatialGraph.nodes[location.nodeId]) {
+          throw new Error(`实体 ${entityId} 的空间位置引用未知节点`)
+        }
+      }
+    }
+    return entries
+  }
+
+  private validateEntityReference(reference: EntityReference): EntityReference {
+    if (!isPlainRecord(reference)) throw new Error('实体引用必须是对象')
+    const unknownKeys = Object.keys(reference).filter((key) => !['entityId', 'kind', 'displayName', 'contextIds', 'registeredAtTotalDays'].includes(key))
+    if (unknownKeys.length > 0) throw new Error(`实体引用包含未知字段：${unknownKeys.join('、')}`)
+    const entityId = typeof reference.entityId === 'string' ? reference.entityId.trim() : ''
+    const displayName = typeof reference.displayName === 'string' ? reference.displayName.trim() : ''
+    if (!entityId) throw new Error('实体引用缺少稳定实体 ID')
+    if (!displayName) throw new Error(`实体引用 ${entityId} 缺少显示标签`)
+    if (reference.kind !== 'player' && reference.kind !== 'npc' && reference.kind !== 'organization') {
+      throw new Error(`实体引用 ${entityId} 的种类无效`)
+    }
+    if (!Array.isArray(reference.contextIds) || reference.contextIds.length === 0) {
+      throw new Error(`实体引用 ${entityId} 必须声明至少一个可见上下文`)
+    }
+    const contextIds = reference.contextIds.map((contextId) => contextId.trim())
+    if (contextIds.some((contextId) => !contextId)) {
+      throw new Error(`实体引用 ${entityId} 含空上下文 ID`)
+    }
+    if (new Set(contextIds).size !== contextIds.length) {
+      throw new Error(`实体引用 ${entityId} 含重复可见上下文`)
+    }
+    const contexts = useWorldStore.getState().contexts
+    for (const contextId of contextIds) {
+      if (!contexts[contextId]) throw new Error(`实体引用 ${entityId} 引用了不存在的上下文：${contextId}`)
+    }
+    if (!Number.isInteger(reference.registeredAtTotalDays) || reference.registeredAtTotalDays < 0) {
+      throw new Error(`实体引用 ${entityId} 的登记时间无效`)
+    }
+    return {
+      entityId,
+      kind: reference.kind,
+      displayName,
+      contextIds,
+      registeredAtTotalDays: reference.registeredAtTotalDays,
+    }
+  }
+
+  private rebuildOrganizationDirectory(): void {
+    const state = useWorldStore.getState()
+    for (const instance of Object.values(state.contexts)) {
+      for (const entity of instance.entities) {
+        state.registerEntityReference({
+          entityId: entity.id,
+          kind: 'organization',
+          displayName: entity.name,
+          contextIds: [instance.record.id],
+          registeredAtTotalDays: instance.record.createdAtGlobalDay,
+        })
+      }
+    }
+  }
+
   // ========== 持久化 ==========
 
   saveEntities(worldCode: number): void {
@@ -591,6 +788,7 @@ export class WorldEntitySystem extends BaseSubsystem {
   // ========== ISubSystem 接口 ==========
 
   collectState(context: RoundContext): SubSystemState {
+    this.ensureEntityDirectoryValidated()
     const instance = useWorldStore.getState().contexts[context.contextId]
     const entities = instance?.entities ?? this.state.entities
     const count = entities.length
@@ -600,7 +798,11 @@ export class WorldEntitySystem extends BaseSubsystem {
     return {
       id: this.id,
       summary,
-      data: { contextId: context.contextId, entities: structuredClone(entities) },
+      data: {
+        contextId: context.contextId,
+        entities: structuredClone(entities),
+        entityReferenceCount: this.listEntityReferences().length,
+      },
     }
   }
 

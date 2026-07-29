@@ -111,8 +111,8 @@
   font-size: 8px;
 }
 
-.wordCountControl input {
-  width: 86px;
+.wordCountControl select {
+  width: 104px;
   min-height: 30px;
   margin-left: auto;
   padding: 0 7px;
@@ -123,15 +123,8 @@
   color: #28324b;
   font: inherit;
   font-size: 9px;
-  text-align: right;
 }
 
-.wordCountControl input:focus {
+.wordCountControl select:focus {
   border-color: #7382bb;
-}
-
-.wordCountControl b {
-  color: #929bb0;
-  font-size: 7px;
-  font-weight: 600;
 }

@@ -55,7 +55,7 @@ async function main() {
 
     await dialog.getByRole('tab', { name: '更新日志', exact: true }).click()
     await dialog.getByText(appVersion, { exact: true }).waitFor()
-    const changelogVisible = await dialog.getByText('新增任务完成后的游戏版本递增与更新日志记录流程。', { exact: true }).isVisible()
+    const changelogVisible = await dialog.locator('.help-changelog-section').filter({ hasText: appVersion }).count() === 1
     await page.screenshot({ path: path.join(reportDir, `help-c3-changelog-${width}.png`), fullPage: false })
 
     const checks = [

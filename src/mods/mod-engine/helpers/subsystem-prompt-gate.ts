@@ -7,7 +7,7 @@
 import type { ModManifest, RoundContext, SubSystemState } from '@/foundation'
 
 import {
-  isMvpNarrativeChangeSubsystem,
+  isMvpSystemInstructionSubsystem,
   isMvpPromptSubsystem,
 } from './mvp-runtime-policy'
 
@@ -31,7 +31,6 @@ const PERSONAL_LAYER_IDS = new Set([
   'family',
   'education',
   'work',
-  'relationship',
   'marriage',
   'settlement',
   'item',
@@ -53,6 +52,8 @@ const PERSONAL_LAYER_IDS = new Set([
   'culture',
   'art',
   'language-naming',
+  'npc-system',
+  'relationship-system',
 ])
 
 /** 本地环境：所在区域、气候、法律、生态、资源等 */
@@ -119,7 +120,7 @@ export function isSubsystemDataEnabled(data: unknown): boolean {
   return true
 }
 
-/** 子系统是否允许出现在 memorySummary / subsystemGuideText 的叙事注入通道 */
+/** 子系统是否允许进入叙事状态投影或第二次结算状态输入 */
 export function isSubsystemOpenForPrompt(state: SubSystemState | undefined, subsystemId = state?.id): boolean {
   if (subsystemId && !isMvpPromptSubsystem(subsystemId)) return false
   if (!state?.summary?.trim()) return false
@@ -230,19 +231,19 @@ export function dedupeSummariesAgainstMemory(
     .filter((line) => line.length > 0 && !memorySet.has(line))
 }
 
-/** 叙事 changes 提交门控：未启用子系统拒绝写入 */
-export function getNarrativeChangeBlockReason(
+/** System-instruction commit gate: inactive systems reject writes. */
+export function getSystemInstructionBlockReason(
   subsystemId: string,
   changes: Record<string, unknown>,
   context: RoundContext,
 ): string | null {
-  if (!isMvpNarrativeChangeSubsystem(subsystemId)) {
-    return `子系统 "${subsystemId}" 不在当前 MVP 叙事写入白名单，拒绝 narrative 变更`
+  if (!isMvpSystemInstructionSubsystem(subsystemId)) {
+    return `子系统 "${subsystemId}" 不在当前 MVP 系统指令白名单，拒绝提交`
   }
 
   const state = context.subsystemStates[subsystemId]
   if (state && !isSubsystemOpenForPrompt(state, subsystemId)) {
-    return `子系统 "${subsystemId}" 在本局未启用或未就绪，拒绝 narrative 变更`
+    return `子系统 "${subsystemId}" 在本局未启用或未就绪，拒绝系统指令`
   }
 
   if (NO_AI_ENABLED_TOGGLE.has(subsystemId) && typeof changes.enabled !== 'undefined') {
@@ -261,7 +262,7 @@ export function buildNarrativeCoherenceHeader(
   parts.push('世界基调以同条消息“世界设定”中的世界描述为准，禁止在此重复展开世界观全文。')
   const powerTag = config.powerSystemTag as string | undefined
   if (powerTag === 'none') {
-    parts.push('本局无超自然力量体系；不得将未出现在【当前状态】中的超常能力写为已成立事实。')
+    parts.push('基础力量体系为“无”；超常内容只采用【世界设定】【命格天赋】或【当前状态】已经明确成立的事实。')
   } else if (powerTag) {
     const powerLabel: Record<string, string> = {
       cultivation: '修炼体系',
@@ -274,7 +275,7 @@ export function buildNarrativeCoherenceHeader(
     parts.push(`力量体系：${powerLabel[powerTag] ?? '按世界设定运行'}；仅使用【当前状态】中已出现的能力与设定。`)
   }
   parts.push(`角色当前年龄 ${characterAge} 岁；叙事细节须与此匹配。`)
-  parts.push('状态变更仅可提交“状态变更指南”中列出的中文系统与字段。')
+  parts.push('系统指令仅可提交“系统指令指南”中列出的中文系统与字段。')
   return parts.join('\n')
 }
 

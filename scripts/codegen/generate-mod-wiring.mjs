@@ -68,16 +68,6 @@ function parseManifestEvents(manifestContent) {
  * @param {string} manifestContent
  * @returns {string[]}
  */
-function parseManifestPrompts(manifestContent) {
-  const match = manifestContent.match(/prompts:\s*\[([\s\S]*?)\]/)
-  if (!match) return []
-  return [...match[1].matchAll(/'([\w-]+)'/g)].map((m) => m[1])
-}
-
-/**
- * @param {string} manifestContent
- * @returns {string[]}
- */
 function parseManifestStores(manifestContent) {
   const match = manifestContent.match(/stores:\s*\[([\s\S]*?)\]/)
   if (!match) return []
@@ -683,54 +673,6 @@ function parseSubsystemFieldRegistry(content) {
 }
 
 /**
- * 从 manifest.prompts 自动生成 ADAPTATION_PROMPT_MAP
- * 约定：prompt 名称 = 'adaptation-{subsystemId}-prompt'
- *       导出名 = 'adaptation{PascalCase(subsystemId)}Prompt'
- * @param {string[]} modDirs
- * @param {Map<string, string[]>} modToPromptNames
- * @returns {string}
- */
-function generateAdaptationPromptRegistry(modDirs, modToPromptNames) {
-  const imports = []
-  const entries = []
-
-  for (const modName of modDirs) {
-    const promptNames = modToPromptNames.get(modName) ?? []
-    const adaptationPrompts = promptNames.filter((p) => p.startsWith('adaptation-'))
-
-    for (const promptName of adaptationPrompts) {
-      // 提取 subsystemId：'adaptation-cultivation-prompt' → 'cultivation'
-      let subsystemId = promptName.slice('adaptation-'.length)
-      if (subsystemId.endsWith('-prompt')) {
-        subsystemId = subsystemId.slice(0, -'-prompt'.length)
-      }
-
-      // kebab → PascalCase
-      const pascalCase = subsystemId
-        .split('-')
-        .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
-        .join('')
-      const exportName = `adaptation${pascalCase}Prompt`
-
-      imports.push(`import { ${exportName} } from '@/mods/${modName}/prompts/${promptName}'`)
-      entries.push(`  '${subsystemId}': ${exportName}`)
-    }
-  }
-
-  return `${GENERATED_BANNER}
-
-import type { PromptTemplate } from '@/foundation'
-
-${imports.join('\n')}
-
-/** 子系统 ID → adaptation PromptTemplate 映射（由 manifest.prompts 自动生成，勿手动编辑） */
-export const ADAPTATION_PROMPT_MAP: Record<string, PromptTemplate> = {
-${entries.join(',\n')}
-}
-`
-}
-
-/**
  * 从 manifest.stores 自动生成全量 store 导出
  * @param {string[]} modDirs
  * @param {Map<string, string[]>} modToStoreNames
@@ -918,8 +860,6 @@ function main() {
   let engineManifestClasses = []
   /** @type {Map<string, string>} */
   const engineSingletons = new Map()
-  /** @type {Map<string, string[]>} 记录各 MOD manifest.prompts 字段内容 */
-  const modToPromptNames = new Map()
   /** @type {Map<string, string[]>} 记录各 MOD manifest.stores 字段内容 */
   const modToStoreNames = new Map()
   /** @type {Map<string, { emits: string[], listens: string[] }>} */
@@ -932,8 +872,6 @@ function main() {
     if (!manifestContent) continue
 
     const subsystems = parseManifestSubsystems(manifestContent)
-    const promptNames = parseManifestPrompts(manifestContent)
-    if (promptNames.length > 0) modToPromptNames.set(modName, promptNames)
     const storeNames = parseManifestStores(manifestContent)
     if (storeNames.length > 0) modToStoreNames.set(modName, storeNames)
     const events = parseManifestEvents(manifestContent)
@@ -1020,7 +958,6 @@ function main() {
     [path.join(ROOT, 'src', 'core', 'mod-loader', 'remote-contracts.generated.ts'), generateRemoteContracts(remoteContracts)],
     [path.join(ROOT, 'src', 'core', 'mod-loader', 'compat-importers.generated.ts'), generateCompatImporters(compatMap)],
     [path.join(ROOT, 'src', 'core', 'mod-loader', 'migration-importers.generated.ts'), generateMigrationImporters(migrationMap)],
-    [path.join(MODS_DIR, 'mod-engine', 'helpers', 'adaptation-prompt-registry.generated.ts'), generateAdaptationPromptRegistry(modDirs, modToPromptNames)],
     [path.join(MODS_DIR, 'mod-engine', 'bootstrap', 'all-stores.generated.ts'), generateAllStores(modDirs, modToStoreNames)],
     [path.join(MODS_DIR, 'mod-engine', 'bootstrap', 'events.generated.ts'), generateEventsConstants(modDirs, modToEvents)],
   ]

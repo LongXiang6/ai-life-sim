@@ -1,6 +1,6 @@
 /**
  * @module store.ts
- * @description 引擎 Zustand Store —— 全局暴露引擎状态（含压缩统计 + 流式叙事）
+ * @description 引擎 Zustand Store —— 全局暴露已提交的引擎状态与回合错误
  * @mod mod-engine
  */
 
@@ -30,9 +30,7 @@ import type { NPCInteractionRecord, } from './subsystems/core-memory-system'
 import type { LegendaryEncounterProjection } from '@/core/player-content/player-content-contract'
 
 interface EngineStore extends EngineState {
-  /** 流式叙事实时内容（正在流式传输中的文本） */
-  streamingNarrative: string
-  /** 流式叙事错误信息 */
+  /** 整轮叙事或结算错误信息 */
   narrativeError: string | null
 
   setStatus: (status: SimulationStatus) => void
@@ -43,10 +41,6 @@ interface EngineStore extends EngineState {
   setCompressionStats: (stats: CompressionStats) => void
   setCompressedSummaries: (summaries: CompressedSummaries) => void
 
-  /** 追加流式叙事片段 */
-  appendStreamingChunk: (chunk: string) => void
-  /** 流式叙事完成（将 streamingNarrative 写入 currentNarrative） */
-  finalizeNarrative: () => void
   /** 设置叙事错误 */
   setNarrativeError: (error: string | null) => void
 
@@ -60,9 +54,6 @@ interface EngineStore extends EngineState {
   /** 下轮强制分叉（更多 → 分支） */
   forceBranchNext: boolean
   setForceBranchNext: (value: boolean) => void
-  /** 强制分支的条件 META 正在后台补全；不持久化，避免恢复时伪装为仍在请求。 */
-  branchRepairPending: boolean
-  setBranchRepairPending: (value: boolean) => void
   /** 已解决的分叉：叙事片段 id → 玩家选择文本 */
   resolvedBranches: Record<string, string>
   resolveBranch: (id: string, choice: string) => void
@@ -106,11 +97,9 @@ const initialState = {
   compressionStats: { l1Count: 0, l2Count: 0, l3Count: 0, lastAt: 0, },
   compressedSummaries: { summaries: [], } as CompressedSummaries,
   lastAutoSaveRound: 0,
-  streamingNarrative: '',
   narrativeError: null as string | null,
   coreMemoryNpcMap: {} as Record<string, NPCInteractionRecord[]>,
   forceBranchNext: false,
-  branchRepairPending: false,
   resolvedBranches: {} as Record<string, string>,
   branchIntents: [] as BranchIntentState[],
   archivedBranchIntents: [] as BranchIntentState[],
@@ -218,16 +207,6 @@ export const useEngineStore = create<EngineStore>()(
 
       setCompressedSummaries: (summaries,) => set({ compressedSummaries: summaries, },),
 
-      appendStreamingChunk: (chunk,) =>
-        set((state,) => ({
-          streamingNarrative: state.streamingNarrative + chunk,
-        }),),
-
-      finalizeNarrative: () =>
-        set((state,) => ({
-          currentNarrative: state.streamingNarrative,
-        }),),
-
       setNarrativeError: (error,) => set({ narrativeError: error, },),
 
       setLastAutoSaveRound: (round,) => set({ lastAutoSaveRound: round, },),
@@ -235,8 +214,6 @@ export const useEngineStore = create<EngineStore>()(
       setCoreMemoryNpcMap: (map,) => set({ coreMemoryNpcMap: map, },),
 
       setForceBranchNext: (forceBranchNext,) => set({ forceBranchNext, },),
-
-      setBranchRepairPending: (branchRepairPending,) => set({ branchRepairPending, },),
 
       resolveBranch: (id, choice,) =>
         set((state,) => {
@@ -294,7 +271,7 @@ export const useEngineStore = create<EngineStore>()(
         migrateEnginePersistedState(persistedState, version) as unknown as EngineStore
       ),
       partialize: (state,) => {
-        const { setStatus: _a, appendNarrative: _b, setCurrentNarrative: _c, advanceRound: _d, setCompressionStats: _e, setCompressedSummaries: _f, appendStreamingChunk: _g, finalizeNarrative: _h, setNarrativeError: _i, setLastAutoSaveRound: _j, setCoreMemoryNpcMap: _n, setForceBranchNext: _fb, branchRepairPending: _brp, setBranchRepairPending: _sbrp, resolveBranch: _rb, setBranchIntentProjection: _bip, setLegendaryEncounterSelection: _les, markLegendaryEncounterInjected: _lei, reset: _o, ...rest } = state
+        const { setStatus: _a, appendNarrative: _b, setCurrentNarrative: _c, advanceRound: _d, setCompressionStats: _e, setCompressedSummaries: _f, setNarrativeError: _i, setLastAutoSaveRound: _j, setCoreMemoryNpcMap: _n, setForceBranchNext: _fb, resolveBranch: _rb, setBranchIntentProjection: _bip, setLegendaryEncounterSelection: _les, markLegendaryEncounterInjected: _lei, reset: _o, ...rest } = state
         return rest
       },
     },

@@ -157,6 +157,8 @@ export type CachePoolType = 'narrative' | 'summary' | 'worldInit' | 'fate' | 'lo
 export type InternalCachePool =
   | 'narrative-main'
   | 'narrative-repair'
+  | 'narrative-settlement'
+  | 'narrative-settlement-repair'
   | 'summary-L1'
   | 'summary-L2'
   | 'summary-L3'
@@ -176,6 +178,8 @@ export function resolveInternalCachePool(
   if (kind === 'summary-compress-l2') return 'summary-L2'
   if (kind === 'summary-compress-l3') return 'summary-L3'
   if (kind === 'narrative-main' || kind === 'immersion-warmup') return 'narrative-main'
+  if (kind === 'narrative-settlement') return 'narrative-settlement'
+  if (kind === 'narrative-settlement-format-repair') return 'narrative-settlement-repair'
   if (kind.startsWith('narrative-')) return 'narrative-repair'
   if (pool === 'summary') return 'summary-L1'
   if (pool === 'worldInit') return 'world-init'
@@ -899,10 +903,10 @@ async function validateWithRetry(
   try {
     parsed = JSON.parse(content)
   } catch (jsonError) {
-    // JSON.parse 失败 → 先尝试 parseAIJSON 多层容错修复
+    // JSON.parse 失败 → 尝试从完整响应中无损识别唯一 JSON
     const repaired = parseAIJSON(content)
     if (repaired !== null) {
-      logger.warnRaw('ai-client', '原始 JSON 解析失败，通过 parseAIJSON 修复成功', '')
+      logger.warnRaw('ai-client', '原始 JSON 解析失败，通过完整 JSON 兼容解析成功', '')
       parsed = repaired
     } else if (callContext.options.strictSchema) {
       // 修复失败 → 重试一次再严格抛错

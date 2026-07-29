@@ -4,7 +4,7 @@
  * @mod core
  */
 
-import { callAI, callAIStreamDegraded } from './ai-client'
+import { callAI } from './ai-client'
 import type { AICallOptions } from './ai-client'
 import type { ZodSchema } from 'zod'
 
@@ -17,17 +17,9 @@ export interface PromptTemplateLike {
 }
 
 /**
- * 薄包装选项：AICallOptions 超集，增加 streaming 标记和 fallbackText
- * 其余字段透传给 callAI / callAIStreamDegraded
+ * 薄包装选项：当前 PromptTemplate 调用统一走完整响应。
  */
-export interface UnifiedCallOptions extends AICallOptions {
-  /** 是否走流式 + 降级链路（callAIStreamDegraded） */
-  streaming?: boolean
-  /** 仅 streaming 模式：降级兜底文本（callAIStreamDegraded 的第三个参数） */
-  fallbackText?: string
-  /** S3 对话模式：预构建的消息数组（透传给 callAIStreamDegraded） */
-  messages?: Array<{ role: string; content: string }>
-}
+export type UnifiedCallOptions = AICallOptions
 
 /**
  * 统一 AI 调用入口 —— 自动从 PromptTemplate 提取 systemPrompt / jsonMode / outputSchema。
@@ -40,22 +32,13 @@ export async function callAIWithPromptTemplate(
   userPrompt: string,
   options: UnifiedCallOptions,
 ): Promise<string> {
-  const { streaming, fallbackText, ...restOptions } = options
-
   const commonOpts = {
-    ...restOptions,
+    ...options,
+    apiKey: options.apiKey,
     serverPromptAssetId: promptTemplate.serverPromptAssetId,
     jsonMode: promptTemplate.outputFormat === 'json' ? true : undefined,
     outputSchema: promptTemplate.outputSchema,
   }
 
-  if (streaming) {
-    return callAIStreamDegraded(
-      promptTemplate.systemPrompt,
-      userPrompt,
-      fallbackText ?? '',
-      commonOpts,
-    )
-  }
   return callAI(promptTemplate.systemPrompt, userPrompt, commonOpts)
 }

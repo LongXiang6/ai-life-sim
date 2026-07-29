@@ -30,7 +30,9 @@ function assertOk(condition, message) {
 }
 
 assertOk(resolveInternalCachePool('narrative', 'narrative-main') === 'narrative-main', 'main narrative must have its own internal cache pool')
-assertOk(resolveInternalCachePool('narrative', 'narrative-data-repair') === 'narrative-repair', 'all narrative repair calls must share the repair protocol pool')
+assertOk(resolveInternalCachePool('narrative', 'narrative-format-repair') === 'narrative-repair', 'first-call format repair must use the narrative repair pool')
+assertOk(resolveInternalCachePool('narrative', 'narrative-settlement') === 'narrative-settlement', 'normal settlement must have its own internal cache pool')
+assertOk(resolveInternalCachePool('narrative', 'narrative-settlement-format-repair') === 'narrative-settlement-repair', 'settlement format repair must not pollute normal settlement statistics')
 assertOk(resolveInternalCachePool('summary', 'summary-compress-L1') === 'summary-L1', 'L1 summaries must remain separate')
 assertOk(resolveInternalCachePool('summary', 'summary-compress-L2') === 'summary-L2', 'L2 summaries must remain separate')
 assertOk(resolveInternalCachePool('summary', 'summary-compress-L3') === 'summary-L3', 'L3 summaries must remain separate')

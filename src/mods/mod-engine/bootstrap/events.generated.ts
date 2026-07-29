@@ -27,7 +27,6 @@ export const EVENTS = {
   MOD_CULTURE_TECH_ADVANCE: 'mod-culture:tech-advance',
   MOD_CULTURE_REPUTATION_MILESTONE: 'mod-culture:reputation-milestone',
   MOD_CULTURE_ACHIEVEMENT_UNLOCKED: 'mod-culture:achievement-unlocked',
-  MOD_CULTURE_RELATIONSHIP_CHANGE: 'mod-culture:relationship-change',
   MOD_CULTURE_FAMILY_BIRTH: 'mod-culture:family-birth',
   MOD_CULTURE_FAMILY_DEATH: 'mod-culture:family-death',
   MOD_CULTURE_DISCIPLE_JOINED: 'mod-culture:disciple-joined',
@@ -43,7 +42,6 @@ export const EVENTS = {
   // mod-engine
   MOD_ENGINE_ROUND_START: 'mod-engine:round-start',
   MOD_ENGINE_POST_NARRATIVE_NOTIFICATION: 'mod-engine:post-narrative-notification',
-  MOD_ENGINE_NARRATIVE_STREAM: 'mod-engine:narrative-stream',
   MOD_ENGINE_NARRATIVE_COMPRESSED: 'mod-engine:narrative-compressed',
   CORE_ALL_MODS_LOADED: 'core:all-mods-loaded',
   // mod-environment-ecology
@@ -51,12 +49,6 @@ export const EVENTS = {
   MOD_ENVIRONMENT_ECOLOGY_RESOURCE_DEPLETED: 'mod-environment-ecology:resource-depleted',
   MOD_ENVIRONMENT_ECOLOGY_SPECIES_EXTINCT: 'mod-environment-ecology:species-extinct',
   MOD_ENVIRONMENT_ECOLOGY_POLLUTION_CRITICAL: 'mod-environment-ecology:pollution-critical',
-  // mod-npc
-  MOD_NPC_NPC_CREATED: 'mod-npc:npc-created',
-  MOD_NPC_NPC_DIED: 'mod-npc:npc-died',
-  MOD_NPC_BEHAVIOR_TRIGGERED: 'mod-npc:behavior-triggered',
-  MOD_NPC_MEMORY_CREATED: 'mod-npc:memory-created',
-  MOD_NPC_RELATION_CHANGED: 'mod-npc:relation-changed',
   // mod-politics
   MOD_POLITICS_STRATUM_CHANGE: 'mod-politics:stratum-change',
   MOD_POLITICS_FACTION_EMERGED: 'mod-politics:faction-emerged',

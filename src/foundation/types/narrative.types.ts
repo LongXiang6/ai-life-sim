@@ -66,32 +66,24 @@ export interface PromptContext {
   characterStatusView: Record<string, unknown>,
   /** 子系统状态摘要（各子系统 summary 字符串数组） */
   subsystemSummaries: string[],
-  /** 用户自定义指令 */
-  userInstruction?: string,
-  /** 历史叙事 */
-  narrativeHistory: string[],
+  /** 本轮系统引导来源：本地编译器负责排序、去重后发送 */
+  roundSystemGuidanceText?: string,
+  /** 玩家原始分支意图投影；与系统引导分段发送且不在编译时改写 */
+  playerBranchIntent?: Record<string, unknown>,
   /** 事件注入文本（本轮检测到的系统事件，含生命周期状态） */
   eventInjectionText?: string,
   /** 大步进时间桥接摘要（year×N 中间年份断层补全） */
   timeBridgeSummary?: string,
   /** 系统变化摘要（与前轮对比的缩写快照差异） */
   systemChangeSummary?: string,
-  /** 世界自定义文本（玩家设定的宏观维度注入，仅静态部分） */
-  worldCustomizeText?: string,
   /** 叙事引导文本（每轮动态变化：连贯性/生命阶段/原型/寿命/影响力/滑动窗口/NPC网络） */
   narrativeGuidanceText?: string,
   /** 世界观标签文本 */
   worldTagsText?: string,
   /** 世界规则文本（根据世界观本质动态注入的叙事规则） */
   worldRules?: string,
-  /** 压缩成功后才更新的长期记忆覆盖层 */
-  longTermMemory?: string,
-  /** 按本轮相关性装载的核心记忆、检索命中与摘要账本 */
-  relevantMemory?: string,
-  /** 最近完整叙事原文；只继承事实，不作为文风样本 */
-  recentNarrativeMemory?: string,
-  /** 核心记忆（关键事件摘要，不受滚动窗口限制） */
-  coreMemory?: string,
+  /** 主叙事唯一记忆投影：按时间阶段排序，每个事件独立换行。 */
+  timelineMemory?: string,
   /** 叙事风格（从用户设置读取，如：默认/史诗/写实/诗意） */
   narrativeStyle?: string,
   /** Step 0 叙事语气提示（校准 styleGuide.narrativeTone 映射，≤30 字） */
@@ -110,14 +102,8 @@ export interface PromptContext {
   causalChainHint?: string,
   /** 当前叙事时间（对齐废弃项目「时间」字段，如 "1991年 · 春"） */
   currentTime?: string,
-  /** 角色命格/天赋描述（首轮注入，辅助 AI 叙事贴合角色特质） */
+  /** 已装备轮回天赋与普通命格的有序规则文本 */
   talents?: string,
-  /** 原创保护文本（角色已创造内容的硬约束，作为慢变连续性事实注入记忆层前缀） */
-  creationProtectionText?: string,
-  /** 子系统变更字段指南（从 System Prompt 移出的 subsystemGuide，动态注入 User Prompt） */
-  subsystemGuideText?: string,
-  /** 本轮只允许 AI 返回的源变化与条件结构化结果。 */
-  changeRequirementsText?: string,
   /** 时间描写引导（totalRounds > 0 时注入，指导 AI 避免"这一年"开头） */
   timeGuideText?: string,
   /** 力量体系预设（叙事分层格式：当前可达范围完整说明，更高阶只提供边界名称） */

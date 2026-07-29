@@ -1,6 +1,6 @@
 {
   "name": "ai-life-sim",
-  "version": "5.5.0",
+  "version": "5.5.9",
   "private": true,
   "scripts": {
     "dev": "node scripts/codegen/generate-mod-wiring.mjs && next dev --turbopack",
@@ -30,7 +30,7 @@
     "test:account-cloud:browser": "node scripts/check/domains/ui/account-cloud-browser.cjs",
     "test:compression-runtime": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/compression-runtime-smoke.mjs",
     "test:narrative-memory": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-round-archive-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-memory-store-smoke.mjs",
-    "test:narrative-protocol": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-repetition-smoke.mjs",
+    "test:narrative-protocol": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs",
     "test:narrative-repetition-metrics": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-repetition-metrics-smoke.mjs",
     "test:narrative-opening:live": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-opening-live-eval.mjs",
     "test:ai-proxy": "node scripts/check/domains/narrative/ai-proxy-observability-regression.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/deepseek-request-contract-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/stream-response-smoke.mjs && node scripts/check/domains/narrative/protected-prompt-assets-regression.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/server-log-store-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/diagnostic-player-code-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/ai-error-translation-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/cache-stats-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/log-analytics-smoke.mjs",
@@ -41,6 +41,7 @@
     "test:historical-event-prompt": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/historical-event-prompt-projection-smoke.mjs",
     "test:historical-event-p1": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/mod/historical-event-p1-smoke.mjs && npm run test:historical-event-prompt",
     "test:history-causality-p1": "npm run test:historical-event-p1",
+    "test:npc-social-p2": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/mod/npc-social-p2-smoke.mjs",
     "test:release-cleanup": "node scripts/check/domains/narrative/release-cleanup-smoke.mjs",
     "test:managed-ai-default": "node scripts/check/domains/narrative/managed-ai-default-regression.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/managed-sse-aggregation-smoke.mjs",
     "test:loader": "node scripts/check/domains/structural/test-mod-loader.mjs",

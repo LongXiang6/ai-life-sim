@@ -32,6 +32,7 @@ import {
 } from '../../../../src/mods/mod-engine/helpers/narrative-calendar.ts'
 import { projectWorldSettingForNarrativeAI } from '../../../../src/mods/mod-engine/helpers/narrative-ai-input-view.ts'
 import { filterNarrativeRecordsForPrompt } from '../../../../src/mods/mod-engine/helpers/narrative-context-scope.ts'
+import { formatNarrativeTimelineForPrompt } from '../../../../src/mods/mod-engine/helpers/timeline-memory.ts'
 import {
   buildCanonicalCalendarNarrativeHint,
   buildTimeScaleNarrativeHint,
@@ -43,7 +44,7 @@ import {
 } from '../../../../src/mods/mod-engine/helpers/save-restore.ts'
 import {
   MVP_EXTERNAL_RUNTIME_SUBSYSTEM_IDS,
-  MVP_NARRATIVE_CHANGE_SUBSYSTEM_IDS,
+  MVP_SYSTEM_INSTRUCTION_SUBSYSTEM_IDS,
 } from '../../../../src/mods/mod-engine/helpers/mvp-runtime-policy.ts'
 import { SUBSYSTEM_FIELD_CONTRACTS } from '../../../../src/mods/mod-engine/helpers/subsystem-field-registry.ts'
 import { useGlobalStore } from '../../../../src/core/global-store/global-store.ts'
@@ -495,8 +496,9 @@ assertOk(aiWorldView.当前模拟范围 === '当前完整模拟', 'AI world view
 assertOk(!aiWorldView.当前世界能力.includes('technology'), 'AI capability enum values must not leak English protocol values')
 
 assertOk(
-  [...MVP_NARRATIVE_CHANGE_SUBSYSTEM_IDS].join(',') === 'character-base,lifespan,luck,morality',
-  'P0 must not expand the four-system main-narrative write allowlist',
+  [...MVP_SYSTEM_INSTRUCTION_SUBSYSTEM_IDS].join(',')
+    === 'character-base,lifespan,luck,morality,npc-system,relationship-system',
+  'P2 must keep the main-narrative system-instruction allowlist at the exact six owning systems',
 )
 assertOk(SUBSYSTEM_FIELD_CONTRACTS['context-transition'].aiAuthority === 'proposal', 'context transition must be proposal-only for AI')
 assertOk(SUBSYSTEM_FIELD_CONTRACTS['simulation-scope-policy'].aiAuthority === 'read-only', 'simulation scope must be AI read-only')
@@ -814,9 +816,13 @@ assertOk(
     === '当前当地完整故事|全局身份故事|跨界旅行故事',
   'recent complete narratives must include current/global/travel scopes and exclude unrelated or closed local stories',
 )
-const scopedMemory = memoryLifecycle.buildRichPrompt(
-  '',
-  visibleNarratives.map((entry) => entry.text),
+const scopedMemory = memoryLifecycle.buildNarrativeTimelineProjection(
+  visibleNarratives.map((entry, index) => ({
+    timeSpan: `第${index + 5}轮`,
+    occurrenceTime: `第${index + 5}轮`,
+    text: entry.text,
+    sortRound: index + 5,
+  })),
   {
     summaries: [
       { level: 1, startRound: 1, endRound: 1, content: '当前当地摘要', contextIds: [second.record.id] },
@@ -828,20 +834,20 @@ const scopedMemory = memoryLifecycle.buildRichPrompt(
   second.record.id,
   closedContextIds,
 )
-const scopedLongTermMemory = memoryLifecycle.formatLongTermMemoryForInjection(scopedMemory)
-const scopedRecentMemory = memoryLifecycle.formatRecentNarrativesForInjection(scopedMemory)
+const scopedTimelineMemory = formatNarrativeTimelineForPrompt(scopedMemory.timelineEntries)
 assertOk(
-  scopedLongTermMemory.includes('当前当地摘要')
-    && scopedLongTermMemory.includes('全局摘要')
-    && !scopedLongTermMemory.includes('无关当地摘要')
-    && !scopedLongTermMemory.includes('关闭世界摘要'),
+  scopedTimelineMemory.includes('当前当地摘要')
+    && scopedTimelineMemory.includes('全局摘要')
+    && !scopedTimelineMemory.includes('无关当地摘要')
+    && !scopedTimelineMemory.includes('关闭世界摘要'),
   'summary memory injection must exclude unrelated and closed local context content without deleting it',
 )
 assertOk(
-  scopedRecentMemory.includes('当前当地完整故事')
-    && scopedRecentMemory.includes('全局身份故事')
-    && scopedRecentMemory.includes('跨界旅行故事')
-    && !scopedRecentMemory.includes('无关当地完整故事'),
+  scopedTimelineMemory.includes('当前当地完整故事')
+    && scopedTimelineMemory.includes('全局身份故事')
+    && scopedTimelineMemory.includes('跨界旅行故事')
+    && !scopedTimelineMemory.includes('无关当地完整故事')
+    && scopedTimelineMemory.includes('【时间阶段：第1轮】\n- [第1轮]'),
   'recent memory injection must preserve only the scoped complete narrative selection',
 )
 

@@ -91,3 +91,34 @@ export type {
   HistoricalEventCandidateQuery,
   HistoricalCausalCommitmentInput,
 } from './historical-event.contract'
+
+export type {
+  EntityReferenceKind,
+  EntityReference,
+  EntityReferenceDirectoryPersistenceState,
+  NpcAvailability,
+  NpcIdentity,
+  NpcContextState,
+  NpcGoalStatus,
+  NpcGoal,
+  NpcBehaviorRecord,
+  NpcMemorySourceKind,
+  NpcMemory,
+  NpcMemoryCompression,
+  NpcSystemPersistenceState,
+  NpcSystemInstructionOperation,
+  RelationshipScopeKind,
+  RelationshipScope,
+  RelationshipStatus,
+  RelationshipRecord,
+  RelationshipTransitionOperation,
+  RelationshipTransition,
+  RelationshipSystemPersistenceState,
+  NpcSystemInstruction,
+  RelationshipSystemInstruction,
+} from './npc-social.contract'
+
+export {
+  NPC_SYSTEM_OPERATION_FIELDS,
+  RELATIONSHIP_SYSTEM_OPERATION_FIELDS,
+} from './npc-social.contract'

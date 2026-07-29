@@ -9,8 +9,7 @@ import ts from 'typescript'
 import { getProjectRoot } from '../../lib/project-root.mjs'
 
 import { PreGenActivityState } from '../../../../src/mods/mod-engine/helpers/pre-gen-activity-state.ts'
-import { isEligibleNarrativeBranch } from '../../../../src/mods/mod-engine/helpers/narrative-branch-policy.ts'
-import { extractTaggedMetaEnvelope } from '../../../../src/mods/mod-engine/helpers/tagged-meta-envelope.ts'
+import { parseNarrativeResponseEnvelope } from '../../../../src/mods/mod-engine/helpers/tagged-meta-envelope.ts'
 import {
   buildCanonicalCalendarNarrativeHint,
   buildTimeScaleNarrativeHint,
@@ -18,19 +17,27 @@ import {
 import { normalizeNarrativeParagraphs } from '../../../../src/mods/mod-engine/helpers/normalize-narrative-paragraphs.ts'
 import {
   DEFAULT_WORD_COUNT_TARGET,
-  NARRATIVE_WORD_COUNT_DEFAULT_MAX,
   buildWordCountInstruction,
   computeNarrativeMaxTokens,
+  resolveNarrativeWordCountRange,
 } from '../../../../src/mods/mod-engine/constants/narrative-config.ts'
+import { buildLifeStageNarrativeHint } from '../../../../src/mods/mod-engine/helpers/life-stage-narrative.ts'
+import { buildNarrativeCoherenceHeader } from '../../../../src/mods/mod-engine/helpers/subsystem-prompt-gate.ts'
+import {
+  NARRATIVE_WORD_COUNT_TARGETS,
+  resolveNarrativeWordCountTarget,
+} from '../../../../src/foundation/constants/narrative-word-count.ts'
 import {
   AI_PROVIDERS,
   DEFAULT_AI_MODEL,
   DEFAULT_AI_PROVIDER_ID,
 } from '../../../../src/core/ai-service/provider-config.ts'
 import {
-  NarrativeAIResponseSchema,
-  translateNarrativeAIResponse,
+  NarrativeAIBranchSchema,
+  NarrativeAISettlementDataSchema,
+  translateNarrativeAISettlement,
 } from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
+import { NarrativeRoundMetadataSchema } from '../../../../src/mods/mod-engine/helpers/narrative-semantic-signals.ts'
 import {
   rejectsFutureDestinyPatternContent,
 } from '../../../../src/mods/mod-character/utils/destiny-pattern-content-quality.ts'
@@ -71,6 +78,37 @@ function assertSame(actual, expected, message) {
 
 function assertIncludes(actual, expected, message) {
   assertOk(actual.includes(expected), `${message} (missing=${expected})`)
+}
+
+function assertThrows(action, message) {
+  try {
+    action()
+    assertOk(false, message)
+  } catch {
+    // Expected rejection.
+  }
+}
+
+function isEligibleNarrativeBranch(candidate) {
+  return NarrativeRoundMetadataSchema.safeParse({
+    branch: candidate.branch,
+    branchTitle: '命运抉择',
+    branchOptions: candidate.branchOptions,
+    importance: candidate.importance,
+    arcStatus: 'ongoing',
+    semanticSignals: {
+      eventType: 'relationship',
+      conflictIntensity: 20,
+      tensionDelta: 2,
+      actionScale: 'medium',
+      impactScope: 'relationship',
+      registerReason: '选择会改变长期轨迹。',
+      arcType: 'relationship',
+      relationshipUpdates: [],
+      resolvedForeshadowingIds: [],
+      ...candidate.semanticSignals,
+    },
+  }).success
 }
 
 function compactNarrative(text) {
@@ -297,40 +335,36 @@ activity.finish(generation)
 assertOk(!activity.isActive(), 'pre-gen finish must release the single-writer gate')
 assertOk(!activity.isRunning(), 'pre-gen finish must release the background execution state')
 
-const validEnvelope = extractTaggedMetaEnvelope(
-  '⟦正文⟧\n第一段。\n\n第二段。\n⟦摘要⟧\n本轮完成了一件事。\n⟦数据⟧\n{"重要程度":"普通","情节状态":"进行中","语义信号":{"事件类型":"日常","冲突强度":10,"张力变化":0,"行动规模":"小","不可逆":false,"影响范围":"个人","叙事语域":"生活","语域理由":"日常事件。","情节类型":"无"}}\n⟦结束⟧',
-)
-assertSame(validEnvelope?.narrative, '第一段。\n\n第二段。', 'valid tagged envelope narrative')
-assertSame(validEnvelope?.summary, '本轮完成了一件事。', 'valid tagged envelope summary')
-assertOk(validEnvelope?.dataPresent === true, 'valid tagged envelope must expose the optional data section')
-
-const minimumEnvelope = extractTaggedMetaEnvelope(
-  '⟦正文⟧\n完整正文第一段。\n\n完整正文第二段。\n⟦摘要⟧\n含有{括号}的摘要。\n⟦结束⟧',
-)
-assertOk(
-  minimumEnvelope?.narrative.includes('完整正文第二段。')
-    && minimumEnvelope.summary === '含有{括号}的摘要。'
-    && minimumEnvelope.dataPresent === false,
-  'minimum body-summary output must parse without a data section',
+const validEnvelope = parseNarrativeResponseEnvelope('⟦正文⟧第一段。\n\n第二段。')
+assertSame(validEnvelope.narrative, '第一段。\n\n第二段。', 'valid tagged narrative body')
+assertSame(
+  parseNarrativeResponseEnvelope('正文。').narrative,
+  '正文。',
+  'a complete plain narrative must be usable without a format retry',
 )
 
-const malformedDataEnvelope = extractTaggedMetaEnvelope(
-  '⟦正文⟧\n正文仍然完整。\n⟦摘要⟧\n摘要仍然完整。\n⟦数据⟧\n{"状态变更": [}\n⟦结束⟧',
-)
-assertSame(
-  malformedDataEnvelope?.narrative,
-  '正文仍然完整。',
-  'malformed optional data must not destroy the extracted narrative',
-)
-assertSame(
-  malformedDataEnvelope?.summary,
-  '摘要仍然完整。',
-  'malformed optional data must not destroy the extracted summary',
+const minimumEnvelope = parseNarrativeResponseEnvelope(
+  `⟦正文⟧完整正文第一段。\n\n完整正文第二段。\n\n⟦分支⟧${JSON.stringify({
+    标题: '选择去向',
+    选项: ['留下', '迁居'],
+  })}`,
 )
 assertOk(
-  extractTaggedMetaEnvelope('⟦正文⟧\n正文。\n⟦摘要⟧\n摘要。') === null,
-  'missing deterministic end marker must not be accepted as complete output',
+  minimumEnvelope.narrative.includes('完整正文第二段。')
+    && minimumEnvelope.branch?.选项.length === 2,
+  'first response must parse complete body plus an optional compact branch',
 )
+for (const invalidFirstResponse of [
+  '⟦正文⟧',
+  '⟦正文⟧正文。\n\n⟦摘要⟧旧摘要',
+  '⟦正文⟧正文。\n\n⟦数据⟧{}',
+  '⟦正文⟧正文。\n\n⟦结束⟧',
+]) {
+  assertThrows(
+    () => parseNarrativeResponseEnvelope(invalidFirstResponse),
+    `strict first response must reject legacy or malformed content: ${invalidFirstResponse}`,
+  )
+}
 
 assertOk(
   rejectsFutureDestinyPatternContent({ description: '1999年深秋，你路过一间旧书店。' }),
@@ -530,7 +564,7 @@ const mythicLibrarySrc = readRel('src/mods/mod-character/mythic-library-store.ts
 const talentDrawPageSrc = readRel('src/mods/mod-pages/pages/talent-draw/page.tsx')
 const talentDrawCssSrc = readRel('src/mods/mod-pages/pages/talent-draw/TalentDraw.module.css')
 const preGenSrc = readRel('src/mods/mod-engine/helpers/pre-gen-queue.ts')
-const branchPolicySrc = readRel('src/mods/mod-engine/helpers/narrative-branch-policy.ts')
+const narrativeSignalsSrc = readRel('src/mods/mod-engine/helpers/narrative-semantic-signals.ts')
 const hooksSrc = readRel('src/mods/mod-engine/hooks.ts')
 const orchestratorSrc = readRel('src/mods/mod-engine/subsystems/orchestrator-system.ts')
 const timeScaleSrc = readRel('src/mods/mod-engine/helpers/time-scale-narrative.ts')
@@ -539,7 +573,7 @@ const narrativeHintsSrc = readRel('src/mods/mod-engine/helpers/narrative-hints.t
 const narrativeCalendarSrc = readRel('src/mods/mod-engine/helpers/narrative-calendar.ts')
 const narrativePromptSrc = readRel('src/mods/mod-engine/prompts/narrative-prompt.ts')
 const narrativePromptComponentsSrc = readRel('src/mods/mod-engine/server/narrative-system-prompt.ts')
-const narrativeInterceptorSrc = readRel('src/mods/mod-engine/helpers/narrative-interceptor-pipeline.ts')
+const roundCommitBusSrc = readRel('src/mods/mod-engine/helpers/round-commit-bus.ts')
 const powerContextSrc = readRel('src/mods/mod-world/utils/world-init-prompt-vars.ts')
 const timelineCssSrc = readRel('src/mods/mod-ui/components/organisms/NarrativeTimeline.module.css')
 const timelineTsxSrc = readRel('src/mods/mod-ui/components/organisms/NarrativeTimeline.tsx')
@@ -577,38 +611,61 @@ assertSame(
 )
 
 assertSame(DEFAULT_WORD_COUNT_TARGET, 200, 'new and reset games must default to about 200 narrative characters')
-assertSame(NARRATIVE_WORD_COUNT_DEFAULT_MAX, 200, 'legacy narrative default alias must follow the single authority')
-assertSame(computeNarrativeMaxTokens(50), 1088, 'disabled reasoning must budget story, envelope and variance for a 50-character target')
-assertSame(computeNarrativeMaxTokens(200), 1152, 'disabled reasoning must budget story, envelope and variance for the default target')
+assertSame(
+  NARRATIVE_WORD_COUNT_TARGETS.join(','),
+  '50,100,150,200,250,300,400,500,600,700,800,1000,1200,1500,1800,2000',
+  'narrative length must expose exactly the sixteen fixed player choices',
+)
+assertSame(resolveNarrativeWordCountTarget(777), 200, 'non-contract length values must not enter narrative runtime state')
+assertSame(resolveNarrativeWordCountRange(200).preferredMin, 160, 'the 200-character option must expose a focused lower guidance bound')
+assertSame(resolveNarrativeWordCountRange(200).preferredMax, 240, 'the 200-character option must expose a focused upper guidance bound')
+assertSame(computeNarrativeMaxTokens(50), 512, 'the 50-character option must reserve a complete story and optional branch envelope')
+assertSame(computeNarrativeMaxTokens(200), 640, 'the default option must use the first-call-only completion budget')
 assertSame(
   computeNarrativeMaxTokens(200, { reasoningEffort: 'auto' }),
-  2176,
+  1664,
   'automatic reasoning must include the startup reasoning allowance',
 )
 assertSame(
   computeNarrativeMaxTokens(200, { reasoningEffort: 'max' }),
-  5248,
+  4736,
   'maximum reasoning must include the larger startup reasoning allowance',
 )
 assertOk(
-  [50, 200, 777].every((target) => computeNarrativeMaxTokens(target, { reasoningEffort: 'high' }) % 64 === 0),
+  NARRATIVE_WORD_COUNT_TARGETS.every((target) => computeNarrativeMaxTokens(target, { reasoningEffort: 'high' }) % 64 === 0),
   'every narrative completion budget must be rounded up to a 64-token boundary',
 )
-assertIncludes(buildWordCountInstruction(200), '玩家偏好约200字', 'word-count prompt must reflect the 200-character default as a soft preference')
 assertOk(
-  buildWordCountInstruction(200).includes('不是硬上限、硬下限或重写条件')
-    && buildWordCountInstruction(200).includes('文笔、人物代入、现场感')
-    && buildWordCountInstruction(200).includes('不要为了凑字重复环境意象'),
-  'the 200-character target must guide rhythm without becoming a length gate',
+  new Set(NARRATIVE_WORD_COUNT_TARGETS.map((target) => buildWordCountInstruction(target))).size === 16
+    && buildWordCountInstruction(200).includes('2至3个短段、4至6个短句')
+    && buildWordCountInstruction(200).endsWith('正文全部段落合计写成160-240字，中心约200字。'),
+  'every length option must select distinct density guidance and define the whole-body target range',
+)
+assertOk(
+  buildLifeStageNarrativeHint('infant', 100, 0, 2).includes('当下感官、简单动作、短句理解和直接回应'),
+  'infant guidance must keep cognition and viewpoint at the concrete current age',
+)
+assertOk(
+  buildNarrativeCoherenceHeader({ powerSystemTag: 'none' }, 2)?.includes('【世界设定】【命格天赋】或【当前状态】'),
+  'a no-base-power world must still preserve supernatural facts explicitly established by world, talent, or state',
 )
 assertOk(
   !narrativeQualitySrc.includes('retryMin')
     && !narrativeQualitySrc.includes('retryMax')
-    && narrativeQualitySrc.includes('字数偏离只作为提示'),
+    && narrativeQualitySrc.includes('lengthAdvisory'),
   'narrative length must not be implemented as a retry or rejection gate',
 )
+const chineseInstruction = {
+  系统: '基础属性',
+  目标对象: 'player:current',
+  目标上下文: 'context:current',
+  操作: '增量',
+  说明: '你完成了心智训练。',
+  变更: { 心智变化: 1 },
+  依据事件: [],
+}
 const chineseMetadata = {
-  状态变更: [{ 系统: '基础属性', 说明: '你完成了心智训练。', 变更: { 心智变化: 1 } }],
+  摘要: '你在压力下完成了一次心智训练。',
   重要程度: '普通',
   关键事件: [{ 内容: '你完成了心智训练。', 重要度: 45, 涉及实体: ['你'] }],
   情节状态: '进行中',
@@ -625,26 +682,25 @@ const chineseMetadata = {
   },
 }
 assertOk(
-  NarrativeAIResponseSchema.safeParse(chineseMetadata).success
-    && translateNarrativeAIResponse(
+  NarrativeAISettlementDataSchema.safeParse(chineseMetadata).success
+    && translateNarrativeAISettlement(
+      [chineseInstruction],
       chineseMetadata,
-      '你在压力下完成了一次心智训练。',
+      { allowedEvidenceEventIds: [], allowedSubsystemIds: ['character-base'] },
     ).changes[0]?.changes.mindDelta === 1,
-  'Chinese system and field names must pass the AI schema and translate to the internal field contract',
+  'second-call Chinese system and field names must translate to the internal field contract',
 )
 assertOk(
-  !NarrativeAIResponseSchema.safeParse({
+  !NarrativeAISettlementDataSchema.safeParse({
     ...chineseMetadata,
     changes: [{ id: 'character-base', description: 'legacy', mindDelta: 1 }],
   }).success,
   'English legacy change fields must not be accepted alongside the Chinese protocol',
 )
 assertOk(
-  !NarrativeAIResponseSchema.safeParse({
-    ...chineseMetadata,
-    命运分支: true,
-    分支标题: '去向未定',
-    分支选项: [
+  !NarrativeAIBranchSchema.safeParse({
+    标题: '去向未定',
+    选项: [
       { 标题: '留下', 说明: '继续留在原地' },
       { 标题: '迁居', 说明: '随照料者离开' },
     ],
@@ -658,8 +714,8 @@ assertOk(settingsPersistenceVersion >= 11, 'settings persistence must include re
 const migrateSettings = loadPersistMigration(settingsStoreSrc)
 assertSame(
   migrateSettings({ wordCountTarget: 400, theme: 'minimal-white' }, 2).wordCountTarget,
-  200,
-  'persisted version-2 old default 400 must migrate to the new default 200',
+  400,
+  'a current fixed length option must remain unchanged by unrelated settings migrations',
 )
 assertSame(
   migrateSettings({ wordCountTarget: 300, theme: 'minimal-white' }, 2).wordCountTarget,
@@ -751,20 +807,20 @@ assertOk(!destinyPromptSrc.includes('第一次踩上'), 'destiny prompt must not
 assertOk(/稳定|先天|固有/.test(destinyPromptSrc) && /禁止.*年份|严禁.*年份/.test(destinyPromptSrc), 'destiny prompt must require timeless traits')
 assertOk(destinyPromptSrc.includes('JSON顶层数组') && !destinyPromptSrc.includes('{"patterns"'), 'destiny prompt must match the top-level array Zod contract')
 assertOk(
-  /DESTINY_PATTERN_PROMPT_VERSION\s*=\s*'3\.4\.0'/.test(destinyPromptSrc)
+  /DESTINY_PATTERN_PROMPT_VERSION\s*=\s*'3\.5\.0'/.test(destinyPromptSrc)
     && /version:\s*DESTINY_PATTERN_PROMPT_VERSION/.test(destinyPromptSrc),
-  'destiny prompt contract change must bump its version',
+  'destiny prompt and registered template must share version 3.5.0',
 )
 assertOk(
-  /polarity：positive\/mixed/.test(destinyPromptSrc)
-    && !/z\.enum\(\['positive', 'negative', 'mixed'\]\)/.test(destinyPromptSrc),
-  'destiny prompt and schema must reject purely negative candidates',
+  destinyPromptSrc.includes('极性：正向/混合')
+    && /polarity:\s*z\.enum\(\['positive', 'mixed'\]\)/.test(destinyPromptSrc),
+  'destiny prompt Chinese values and internal polarity schema must remain aligned',
 )
 assertOk(
-  /正好\$\{DESTINY_PATTERN_TARGET_POSITIVE_COUNT\}条 positive/.test(destinyPromptSrc)
+  /正好\$\{DESTINY_PATTERN_TARGET_POSITIVE_COUNT\}条“正向”/.test(destinyPromptSrc)
     && /不得为了“平衡”统一补写副作用/.test(destinyPromptSrc)
     && /positiveCount < DESTINY_PATTERN_MIN_POSITIVE_COUNT/.test(destinyPromptSrc),
-  'destiny batches must be positive-majority instead of turning every candidate into a tradeoff',
+  'destiny prompt and schema must share the current batch polarity contract',
 )
 const makeDestinyPattern = (index, polarity) => ({
   name: `命格${index}`,
@@ -793,18 +849,19 @@ assertOk(
 )
 assertOk(!destinyPromptSrc.includes('resources:'), 'destiny output schema must reject the removed resources attribute')
 assertOk(
-  destinyPromptSrc.includes('physique/mind/talentAptitude/charisma'),
-  'destiny prompt must name the only four allowed attrBonus keys instead of relying on post-response rejection',
+  destinyPromptSrc.includes('只允许 体魄/心智/悟性/魅力')
+    && /attrBonus:\s*z\.object\(\{[\s\S]*physique:[\s\S]*mind:[\s\S]*talentAptitude:[\s\S]*charisma:[\s\S]*\}\)\.strict\(\)/.test(destinyPromptSrc),
+  'destiny prompt Chinese attribute names must map to the strict four-key internal schema',
 )
 assertOk(destinyPromptSrc.includes('systemModifiers: destinyPatternSystemModifiersSchema.optional()'), 'destiny schema must accept validated system modifiers')
-assertOk(/legendary允许轻度概念规则/.test(destinyPromptSrc), 'legendary destiny patterns must support bounded conceptual rules')
+assertOk(destinyPromptSrc.includes('传说允许轻度概念规则'), 'legendary destiny patterns must support the current conceptual-rule tier')
 assertOk(
-  /不得自动获胜/.test(destinyPromptSrc)
-    && /条件、概率、有限触发或可被对抗/.test(destinyPromptSrc)
-    && /positive 的边界用于防止万能化，不得被写成强制负面回报/.test(destinyPromptSrc),
-  'legendary conceptual rules must preserve agency without forcing every positive rule to carry a drawback',
+  destinyPromptSrc.includes('条件、概率、有限触发或可被对抗')
+    && destinyPromptSrc.includes('混合还可以包含有限代价')
+    && destinyPromptSrc.includes('正向必须是清楚可用的正向特质'),
+  'conceptual rules and polarity semantics must match the current prompt contract',
 )
-assertOk(/effect写成叙事引擎可持续遵守的规则/.test(destinyPromptSrc), 'destiny effect must remain a narrative rule instead of only numeric modifiers')
+assertOk(/效果写成叙事引擎可持续遵守的规则/.test(destinyPromptSrc), 'destiny effect must remain a narrative rule instead of only numeric modifiers')
 assertOk(/validatePatternSystemModifiers\(input\.systemModifiers, rarity\)/.test(destinySystemSrc), 'external AI destiny injection must validate system modifiers')
 assertOk(/version:\s*4/.test(characterStoreSrc), 'character persistence must include the stable character ID and dual mythic-slot migration')
 assertOk(
@@ -998,17 +1055,17 @@ assertOk(orchestratorSrc.includes('currentTime: narrativeTime.timeLabel'), 'AI c
 const mayIndex = 4
 const monthAfterSeasonStep = (mayIndex + 3) % 12
 assertSame(Math.floor(((monthAfterSeasonStep + 10) % 12) / 3), 1, 'month->season must land in the following solar season')
-assertOk(/candidate\.importance\s*===\s*'HIGH'/.test(branchPolicySrc), 'ordinary branch points must require HIGH importance')
+assertOk(narrativeSignalsSrc.includes("metadata.importance !== 'HIGH'"), 'branch metadata must require HIGH importance')
 assertOk(narrativePromptComponentsSrc.includes('身份、核心关系、长期目标、关键资源、阵营、存亡等不可逆轨迹'), 'branch prompt must define fate-changing impact dimensions')
-assertOk(/version:\s*'4\.7\.0'/.test(narrativePromptSrc), 'four-layer narrative and data-repair contract must use version 4.7.0')
+assertOk(/version:\s*'5\.7\.0'/.test(narrativePromptSrc), 'pure narrative contract must use version 5.7.0')
 assertOk(
-  /semanticSignals\?\.irreversible\s*===\s*true/.test(branchPolicySrc)
-    && /narrativeRegister\s*===\s*'fate'/.test(branchPolicySrc),
+  narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
+    && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),
   'branch eligibility must require an irreversible fate or legacy semantic signal',
 )
 assertOk(
   narrativePromptComponentsSrc.includes('正文全程用第二人称“你”')
-    && narrativePromptComponentsSrc.includes('至少保留一个可感知现场')
+    && narrativePromptComponentsSrc.includes('用一个可感知现场承载主线')
     && narrativePromptComponentsSrc.includes('不写全知旁白、第三人称传记或编年报告'),
   'narrative prompt must preserve second-person viewpoint, scene-level immersion, and anti-biography constraints',
 )
@@ -1019,10 +1076,11 @@ assertOk(
 )
 assertOk(
   narrativePromptComponentsSrc.includes('专属、独有、唯一、血脉限定、异界来源或角色自创')
-    && narrativePromptComponentsSrc.includes('不得改写为当地常见能力、制式技术、药剂激活、机构授予或他人同源能力')
-    && narrativeResponseQualitySrc.includes('不得无因果直接跳过数周或数月')
+    && narrativePromptComponentsSrc.includes('遗迹发现、古人传承、秘境所得、他人遗留或他人同源能力')
+    && narrativePromptComponentsSrc.includes('角色自创内容的后续发展必须来自角色自身')
+    && narrativeResponseQualitySrc.includes('不得无因果跳过数周或数月')
     && narrativeResponseQualitySrc.includes('isOpeningRound'),
-  'fixed ownership and dynamic first-round origin rules must remain independently live',
+  'fixed ownership rules and the triggered first-round condition must remain independently live',
 )
 assertOk(
   !narrativeHintsSrc.includes('INFORMATION_PRIORITY_RULE')
@@ -1030,10 +1088,10 @@ assertOk(
   'the retired attribute-over-background opening priority must not be injected',
 )
 assertOk(timeScaleSrc.includes('3—5月春季、6—8月夏季、9—11月秋季、12—2月冬季'), 'dynamic time guidance must define the canonical solar season mapping')
-assertOk(!/narrative:\s*parsed\.narrative\.slice\(/.test(narrativeInterceptorSrc), 'narrative interceptor must never hard-truncate the story')
-assertOk(!narrativeInterceptorSrc.includes('trimIncompleteNarrativeTail'), 'incomplete narrative tails must be preserved instead of deleted')
+assertOk(!/commit\.changes\.slice\(/.test(roundCommitBusSrc), 'round commit must never partially truncate structured changes')
+assertOk(roundCommitBusSrc.includes('narrative 预检失败，整包拒绝'), 'invalid narrative changes must be rejected as one complete package')
 assertOk(timelineTsxSrc.includes('splitNarrativeParagraphs(entry.text)'), 'timeline must render every natural narrative paragraph')
-assertOk(timelineTsxSrc.includes('splitNarrativeParagraphs(streamingText)'), 'streaming timeline must use the same paragraph contract')
+assertOk(!timelineTsxSrc.includes('streamingText'), 'timeline must render only fully committed narrative entries')
 assertOk(orchestratorSrc.includes('buildPowerCeilingPresetsForNarrative'), 'narrative prompt must use the power context helper')
 assertOk(!powerContextSrc.includes("split('。')[0]"), 'power context must preserve complete descriptions above the current ceiling')
 assertOk(/powerSystemTag[\s\S]{0,180}none/.test(orchestratorSrc), 'non-supernatural worlds must omit irrelevant power presets')

@@ -6,9 +6,12 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import {
+  CHANGELOG_VERSIONS_PER_CHUNK,
   formatShanghaiTimestamp,
   incrementReleaseVersion,
+  parseChangelogEntries,
   parseChangelogHeader,
+  validatePlayerFacingChangelogBullet,
 } from './game-update-contract.mjs'
 
 const scriptRoot = path.dirname(fileURLToPath(import.meta.url))
@@ -62,7 +65,23 @@ function validateSummaries(summaries) {
   for (const summary of summaries) {
     if (!summary.trim() || /[\r\n]/.test(summary)) throw new Error('summary must be one non-empty line')
     if ([...summary.trim()].length > 80) throw new Error(`summary exceeds 80 characters: ${summary}`)
+    validatePlayerFacingChangelogBullet(summary)
   }
+}
+
+function formatChangelogEntry({ version, timestamp, category, summaries }) {
+  return `${[
+    '---',
+    `Version: ${version}`,
+    `Date: ${timestamp}`,
+    '',
+    `${category}:`,
+    ...summaries.map((summary) => `  - ${summary.trim()}`),
+  ].join('\r\n')}\r\n`
+}
+
+function normalizeChangelogContent(content) {
+  return `${content.replace(/\r\n?/gu, '\n').trim().replaceAll('\n', '\r\n')}\r\n`
 }
 
 function buildMutation({ summaries, category, timestamp }) {
@@ -79,7 +98,12 @@ function buildMutation({ summaries, category, timestamp }) {
   const latestChunk = chunks.at(-1)
   if (!latestChunk) throw new Error('no public changelog chunks found')
   const latestPath = path.join(paths.publicRoot, latestChunk.name)
-  const latestHeader = parseChangelogHeader(fs.readFileSync(latestPath, 'utf8'), latestChunk.name)
+  const latestContent = fs.readFileSync(latestPath, 'utf8')
+  const latestEntries = parseChangelogEntries(latestContent, latestChunk.name)
+  const latestHeader = parseChangelogHeader(latestContent, latestChunk.name)
+  if (latestEntries.length > CHANGELOG_VERSIONS_PER_CHUNK) {
+    throw new Error(`${latestChunk.name} exceeds ${CHANGELOG_VERSIONS_PER_CHUNK} versions`)
+  }
 
   const synchronizedVersions = [
     ['package-lock root', packageLock.version],
@@ -101,38 +125,36 @@ function buildMutation({ summaries, category, timestamp }) {
   }
 
   const nextVersion = incrementReleaseVersion(currentVersion)
-  const nextChunkIndex = latestChunk.index + 1
-  const nextChunkPath = path.join(paths.publicRoot, `changelog-${nextChunkIndex}.txt`)
-  if (fs.existsSync(nextChunkPath)) throw new Error(`next changelog already exists: ${path.basename(nextChunkPath)}`)
+  const startsNewChunk = latestEntries.length === CHANGELOG_VERSIONS_PER_CHUNK
+  const targetChunkIndex = startsNewChunk ? latestChunk.index + 1 : latestChunk.index
+  const targetChunkPath = path.join(paths.publicRoot, `changelog-${targetChunkIndex}.txt`)
+  if (startsNewChunk && fs.existsSync(targetChunkPath)) {
+    throw new Error(`next changelog already exists: ${path.basename(targetChunkPath)}`)
+  }
 
   packageJson.version = nextVersion
   packageLock.version = nextVersion
   if (!packageLock.packages?.['']) throw new Error('package-lock workspace root is missing')
   packageLock.packages[''].version = nextVersion
 
-  const changelog = [
-    '---',
-    `Version: ${nextVersion}`,
-    `Date: ${timestamp}`,
-    '',
-    `${category}:`,
-    ...summaries.map((summary) => `  - ${summary.trim()}`),
-    '',
-  ].join('\r\n')
+  const nextEntry = formatChangelogEntry({ version: nextVersion, timestamp, category, summaries })
+  const changelog = startsNewChunk
+    ? nextEntry
+    : `${nextEntry}\r\n${normalizeChangelogContent(latestContent)}`
 
   return {
     currentVersion,
     nextVersion,
-    nextChunkIndex,
-    nextChunkPath,
+    targetChunkIndex,
+    targetChunkPath,
     files: new Map([
       [paths.package, serializeJson(packageJson, packageText)],
       [paths.packageLock, serializeJson(packageLock, packageLockText)],
       [paths.engineVersion, replaceRequired(engineText, `ENGINE_VERSION = '${currentVersion}'`, `ENGINE_VERSION = '${nextVersion}'`, 'src/core/version.ts')],
       [paths.help, replaceRequired(helpText, `当前版本：**${currentVersion}**。`, `当前版本：**${nextVersion}**。`, 'public/help.md')],
       [paths.readme, replaceRequired(readmeText, `当前版本：**${currentVersion}**。`, `当前版本：**${nextVersion}**。`, 'README.md')],
-      [paths.changelogIndex, `${JSON.stringify({ latestChunk: nextChunkIndex }, null, 2)}\r\n`],
-      [nextChunkPath, changelog],
+      [paths.changelogIndex, `${JSON.stringify({ latestChunk: targetChunkIndex }, null, 2)}\r\n`],
+      [targetChunkPath, changelog],
     ]),
   }
 }
@@ -158,6 +180,10 @@ function runSelfTest() {
   assert.equal(incrementReleaseVersion('5.0.9'), '5.1.0')
   assert.equal(incrementReleaseVersion('5.9.9'), '6.0.0')
   assert.match(formatShanghaiTimestamp(new Date('2026-07-18T07:08:09Z')), /^2026-07-18 15:08:09$/)
+  const entries = parseChangelogEntries('---\nVersion: 5.0.2\nDate: 2026-07-18 17:00:00\n\n更新:\n  - 新故事更顺畅。\n---\nVersion: 5.0.1\nDate: 2026-07-18 16:00:00\n\n更新:\n  - 开局更稳定。\n')
+  assert.deepEqual(entries.map((entry) => entry.version), ['5.0.2', '5.0.1'])
+  assert.throws(() => validatePlayerFacingChangelogBullet('优化 Prompt 缓存命中。'), /internal implementation details/)
+  assert.throws(() => validatePlayerFacingChangelogBullet('完成部署并更新 src/example.ts。'), /internal implementation details/)
   console.log('[record-game-update:self-test] PASS')
 }
 
@@ -189,7 +215,7 @@ try {
     previousVersion: mutation.currentVersion,
     version: mutation.nextVersion,
     timestamp,
-    changelog: path.relative(projectRoot, mutation.nextChunkPath).replaceAll('\\', '/'),
+    changelog: path.relative(projectRoot, mutation.targetChunkPath).replaceAll('\\', '/'),
   }
   if (args.includes('--json')) console.log(JSON.stringify(result, null, 2))
   else console.log(`[record-game-update] ${result.previousVersion} -> ${result.version} | ${result.timestamp} | ${result.changelog}`)

@@ -7,12 +7,11 @@
  *   - 加载默认阶段配置（从 mvp-stages-config.default.json 静态导入）
  *   - Zod schema 校验确保配置数据完整性
  *   - 按 currentStage 解析当前阶段的运行时/提示/叙事写入子系统集合
- *   - 集中提供 allowedSubsystemsText，并从字段契约生成 subsystemGuide
+ *   - 提供活动运行、Prompt 与结算可写子系统集合
  */
 
 import defaultConfigJson from './mvp-stages-config.default.json'
 import { z } from 'zod'
-import { buildSubsystemGuide } from './subsystem-field-registry'
 
 // ============================================================
 // Zod Schema 定义
@@ -24,10 +23,7 @@ const MvpStageSchema = z.object({
     external: z.array(z.string()),
     engine: z.array(z.string()),
   }),
-  narrativeChange: z.array(z.string()),
-  allowedSubsystemsText: z.string(),
-  /** @deprecated 字段指南从 subsystem-field-registry.ts 契约派生；旧配置保留兼容但不再读取 */
-  subsystemGuide: z.string().optional(),
+  systemInstruction: z.array(z.string()),
 })
 
 export const MvpStagesConfigSchema = z.object({
@@ -94,30 +90,11 @@ export class MvpStageLoader {
     return new Set([...stage.runtime.external, ...stage.runtime.engine])
   }
 
-  /** 允许叙事 AI 写入 changes 的子系统集合 */
-  getNarrativeChangeSubsystems(): Set<string> {
-    return new Set(this.getCurrentStageConfig().narrativeChange)
+  /** 允许叙事 AI 提交系统指令的子系统集合 */
+  getSystemInstructionSubsystems(): Set<string> {
+    return new Set(this.getCurrentStageConfig().systemInstruction)
   }
 
-  /** 可变更子系统提示文本 */
-  getAllowedSubsystemsText(): string {
-    return this.getCurrentStageConfig().allowedSubsystemsText
-  }
-
-  /** 子系统变更字段指南文本 */
-  getSubsystemGuide(): string {
-    const stage = this.getCurrentStageConfig()
-    const guide = buildSubsystemGuide(stage.narrativeChange)
-    return [
-      guide,
-      '---',
-      'MVP 提交规则：',
-      '  仅当叙事确实改变基础属性、寿命、气运或善恶时写状态变更；普通剧情省略整个字段。',
-      '  属性变更示例：{"id":"character-base","description":"勤修苦练，体魄增强","changes":{"physiqueDelta":2}}',
-      '  年龄由时间推进与起始年龄派生，禁止写 lifespan.age；只有明确减寿/增寿事件才写 lifespanDelta。',
-      '  未列入上方字段指南的模拟系统当前延后，禁止写入。',
-    ].join('\n')
-  }
 }
 
 /** 全局单例 */

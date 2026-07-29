@@ -15,7 +15,6 @@ export default defineMod({
   consumes: [],
   featureFlags: {
     aiNarrative: true,
-    aiStreaming: true,
     eventBus: true,
     persistStore: true,
   },
@@ -24,7 +23,7 @@ export default defineMod({
   serverOnlyPublicEntries: ['server-prompt-assets.ts'],
   stores: ['useEngineStore'],
   events: {
-    emits: ['mod-engine:round-start', 'mod-engine:round-complete', 'mod-engine:post-narrative-notification', 'mod-engine:narrative-stream', 'mod-engine:narrative-compressed', 'mod-character:died'],
+    emits: ['mod-engine:round-start', 'mod-engine:round-complete', 'mod-engine:post-narrative-notification', 'mod-engine:narrative-compressed', 'mod-character:died'],
     listens: ['core:all-mods-loaded'],
   },
   campaignHooks: {
@@ -36,6 +35,7 @@ export default defineMod({
       'cross-domain',
       'assemble-prompt',
       'ai-narration',
+      'ai-settlement',
       'post-processing',
       'epilogue-check',
       'compress-save',

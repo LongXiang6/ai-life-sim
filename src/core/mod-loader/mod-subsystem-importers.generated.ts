@@ -32,19 +32,18 @@ export const MOD_SUBSYSTEM_IMPORTERS: Record<string, () => Promise<Record<string
     return { ...m0, ...m1, ...m2, ...m3, ...m4, ...m5, ...m6, ...m7, ...m8 }
   },
   'mod-culture': async () => {
-    const [m0, m1, m2, m3, m4, m5, m6, m7, m8, m9] = await Promise.all([
+    const [m0, m1, m2, m3, m4, m5, m6, m7, m8] = await Promise.all([
     import('@/mods/mod-culture/subsystems/culture-system'),
     import('@/mods/mod-culture/subsystems/art-system'),
     import('@/mods/mod-culture/subsystems/education-system'),
     import('@/mods/mod-culture/subsystems/reputation-system'),
     import('@/mods/mod-culture/subsystems/achievement-system'),
     import('@/mods/mod-culture/subsystems/works-system'),
-    import('@/mods/mod-culture/subsystems/relationship-system'),
     import('@/mods/mod-culture/subsystems/family-system'),
     import('@/mods/mod-culture/subsystems/disciple-system'),
     import('@/mods/mod-culture/subsystems/personal-ability-system'),
     ])
-    return { ...m0, ...m1, ...m2, ...m3, ...m4, ...m5, ...m6, ...m7, ...m8, ...m9 }
+    return { ...m0, ...m1, ...m2, ...m3, ...m4, ...m5, ...m6, ...m7, ...m8 }
   },
   'mod-economy': async () => {
     const [m0, m1, m2, m3, m4] = await Promise.all([
@@ -73,12 +72,10 @@ export const MOD_SUBSYSTEM_IMPORTERS: Record<string, () => Promise<Record<string
     return { ...m0 }
   },
   'mod-npc': async () => {
-    const [m0, m1, m2] = await Promise.all([
-    import('@/mods/mod-npc/subsystems/npc-attribute-system'),
-    import('@/mods/mod-npc/subsystems/npc-behavior-system'),
-    import('@/mods/mod-npc/subsystems/npc-memory-system'),
+    const [m0] = await Promise.all([
+    import('@/mods/mod-npc/subsystems/npc-system'),
     ])
-    return { ...m0, ...m1, ...m2 }
+    return { ...m0 }
   },
   'mod-politics': async () => {
     const [m0, m1, m2, m3, m4, m5, m6] = await Promise.all([
@@ -106,6 +103,12 @@ export const MOD_SUBSYSTEM_IMPORTERS: Record<string, () => Promise<Record<string
     import('@/mods/mod-power-system/subsystems/skill-system'),
     ])
     return { ...m0, ...m1, ...m2, ...m3, ...m4, ...m5, ...m6, ...m7, ...m8, ...m9 }
+  },
+  'mod-social': async () => {
+    const [m0] = await Promise.all([
+    import('@/mods/mod-social/subsystems/relationship-system'),
+    ])
+    return { ...m0 }
   },
   'mod-tech-level': async () => {
     const [m0, m1] = await Promise.all([

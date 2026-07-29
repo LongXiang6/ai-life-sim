@@ -108,17 +108,22 @@ digestLedger.record({
   digest: '你在渡口救下孩子。',
   keyEvents: [{ text: '你救下失散的孩子', importance: 92, entities: ['孩子', '渡口'] }],
 })
-const weightedLines = digestLedger.selectForPrompt(2)
+const timelineEvents = digestLedger.selectForNarrativeTimeline(2)
 assertOk(
-  weightedLines.some((line) => line.includes('你救下失散的孩子') && line.includes('92')),
-  'high-importance events must remain individually visible to the narrative prompt',
+  timelineEvents.some((event) => event.text.includes('你救下失散的孩子'))
+    && timelineEvents.every((event) => (
+      !Object.hasOwn(event, 'effective')
+      && !Object.hasOwn(event, 'weight')
+      && !Object.hasOwn(event, 'importance')
+    )),
+  'high-importance events must remain visible without exposing internal weights to the narrative prompt',
 )
 assertOk(
-  !weightedLines.some((line) => line.includes('你整理了屋舍')),
+  !timelineEvents.some((event) => event.text.includes('你整理了屋舍')),
   'low-value events must leave the always-on prompt while remaining in the ledger',
 )
 assertOk(
-  digestLedger.selectForPrompt(2, undefined, undefined, { excludeRoundsAtOrAfter: 1 }).length === 0,
+  digestLedger.selectForNarrativeTimeline(2, undefined, undefined, { excludeRoundsAtOrAfter: 1 }).length === 0,
   'events already covered by the recent full-text window must not be sent twice',
 )
 assertOk(
@@ -136,10 +141,10 @@ assertOk(
   digestLedger.getEntries().length === 522,
   'long-session digest ledger must retain every recorded round instead of applying a capacity cut',
 )
-const longSessionProjection = digestLedger.selectForPrompt(522)
+const longSessionProjection = digestLedger.selectForNarrativeTimeline(522)
 assertOk(
-  longSessionProjection.some((line) => line.includes('你救下失散的孩子'))
-    && !longSessionProjection.some((line) => line.includes('第522轮事件')),
+  longSessionProjection.some((event) => event.text.includes('你救下失散的孩子'))
+    && !longSessionProjection.some((event) => event.text.includes('第522轮事件')),
   'long-session prompt projection must retain locked events without accumulating low-value daily details',
 )
 
@@ -201,10 +206,12 @@ const memorySource = fs.readFileSync(
 assertOk(
   orchestratorSource.includes('selectNarrativeHistoryForPrompt(RECENT_NARRATIVE_WINDOW)')
     && orchestratorSource.includes('filterNarrativeRecordsForPrompt(')
-    && orchestratorSource.includes('return visible.slice(-limit)')
-    && memorySource.includes('recentNarratives: [...recentNarratives]')
+    && orchestratorSource.includes('.filter(({ entry }) => visibleEntries.has(entry))')
+    && orchestratorSource.includes('.slice(-limit)')
+    && memorySource.includes('buildNarrativeTimelineProjection(')
+    && memorySource.includes('...recentNarratives')
     && memorySource.includes('selectLeafSummaries'),
-  'production memory assembly must preserve the caller-provided raw window and use hierarchical leaf summaries',
+  'production memory projection must preserve the caller-provided raw window and use hierarchical leaf summaries',
 )
 assertOk(
   summaryPromptSource.includes('eventRecords')
@@ -247,7 +254,8 @@ assertOk(
   memorySource.includes('coveredRanges')
     && memorySource.includes('summary.startRound >= range.start')
     && memorySource.includes('summary.endRound <= range.end')
-    && memorySource.includes('visibleByLevel.set'),
+    && memorySource.includes('byLevel.set')
+    && memorySource.includes('projectSummaryToNarrativeTimeline('),
   'leaf-summary assembly must replace only fully covered lower levels and retain uncovered summaries',
 )
 

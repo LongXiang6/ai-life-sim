@@ -1,16 +1,13 @@
 /**
  * @module narrative-prompt.ts
- * @description 主叙事 Prompt 客户端契约 —— 服务端固定资产 + 浏览器三层动态上下文
+ * @description 主叙事 Prompt 客户端契约 —— 服务端固定资产 + 浏览器三段动态上下文
  * @mod mod-engine
  *
  * 固定提示词由服务端资产注册表编译和注入；浏览器只按“全局信息、记忆、
- * 本轮引导、变化要求”计算动态消息。AI 可见字段与枚举统一使用中文，解析后由严格
- * 转译层恢复内部稳定契约。
+ * 本轮引导”计算动态消息。第一次调用不接收系统写入契约。
  */
 
 import type { PromptTemplate } from '@/foundation'
-
-import { NarrativeAIResponseSchema } from '../helpers/narrative-ai-protocol'
 
 /** 世界本质标签的轻量参考；具体世界设定始终优先。 */
 export const WORLD_RULES: Record<string, string> = {
@@ -29,8 +26,7 @@ export const WORLD_RULES: Record<string, string> = {
 }
 
 /** 公开 ID 只用于请求服务端资产；不包含任何固定 Prompt 文本。 */
-export const NARRATIVE_SERVER_PROMPT_ASSET_ID = 'mod-engine:narrative:4.7.0'
-export const NARRATIVE_REPAIR_SERVER_PROMPT_ASSET_ID = 'mod-engine:narrative-repair:1.0.0'
+export const NARRATIVE_SERVER_PROMPT_ASSET_ID = 'mod-engine:narrative:5.7.0'
 
 /**
  * 世界观参考注入函数。
@@ -43,25 +39,16 @@ export function getWorldRules(essenceTag?: string): string {
     .map((tag) => WORLD_RULES[tag])
     .filter((rule): rule is string => Boolean(rule))
   if (rules.length === 0) return ''
-  return `【标签参考；具体世界设定与玩家设定优先】\n${rules.join('\n')}`
+  return `【标签参考；具体世界设定优先】\n${rules.join('\n')}`
 }
 
 export const narrativePrompt: PromptTemplate = {
   name: 'narrative',
-  version: '4.7.0',
+  version: '5.7.0',
   mod: 'mod-engine',
   systemPrompt: '',
   serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID,
-  userPromptTemplate: '主叙事用户消息由统一编译器装配为“全局信息、记忆、本轮引导、变化要求”四层。',
+  userPromptTemplate: '主叙事用户消息由统一编译器装配为“全局信息、记忆、本轮引导”三段。',
   variables: [],
   outputFormat: 'text',
-  outputSchema: NarrativeAIResponseSchema,
 }
-
-/** 当主 AI 完全不可用时的纯文本降级 Prompt。 */
-export const FALLBACK_NARRATIVE_PROMPT = `你是一个重视文笔与代入感的叙事助手。根据角色年龄与世界观，写一件具体、完整且让玩家想知道后续的小事。
-
-角色年龄：{{age}}岁
-世界观：{{worldview}}
-
-要求：自然篇幅，不以字数或段落数量为目标；全程以第二人称“你”指代角色；至少写一个角色当时可感知的现场、一个具体动作或对话、一个变化及其直接后果；变化可以是机会、发现、掌握、认可、关系变化、休整、成功或合理冲突，不要求制造阻力；保持世界观中立，不默认机构审查、被针对或贫困羞辱模板；玩家明确的专属、唯一或异界来源设定不得改写成当地通用能力；首轮若涉及穿越、召唤、转生、觉醒或初到异地，必须交代触发过程或抵达后的直接后果，不得直接跳过数周数月；不写第三人称传记、年度总结或全知旁白；不要输出结构化数据。`

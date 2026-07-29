@@ -90,23 +90,11 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
 // ============================================================
 
 export {
-  USE_LEGACY_SEGMENTED_PROMPT,
   USE_AI_SUMMARY_COMPRESSION,
-  KV_TWO_USER_SEGMENTS,
   OMIT_EMPTY_PROMPT_FIELDS,
-  DEDUP_NARRATIVE_HISTORY,
-  KV_MESSAGE_STRATEGY,
   BRIDGE_SUMMARY_MIN_TICKS,
-  KV_CONVERSATION_WINDOW,
   EXPERIMENTAL_TIME_STEPS_UI,
 } from '@/core/ai-service/prompt-flags'
-export type { KVMessageStrategy } from '@/core/ai-service/prompt-flags'
-
-/**
- * 沉浸模式（Two-pass API）开关 —— 蓝图 F5，默认关闭
- * true 时：先注入记忆做理解，再生成叙事（成本约 2×）
- */
-export const IMMERSION_TWO_PASS_ENABLED = false
 
 // ============================================================
 // 时间步进配置（E12 对齐废弃项目 9 档）

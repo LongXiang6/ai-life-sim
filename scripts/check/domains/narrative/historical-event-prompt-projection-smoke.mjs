@@ -6,10 +6,6 @@
 import { buildSegmentedPrompt } from '../../../../src/core/ai-service/prompt-builder.ts'
 import { useCharacterStore } from '../../../../src/mods/mod-character/store.ts'
 import { useEngineStore } from '../../../../src/mods/mod-engine/store.ts'
-import {
-  adaptationManager,
-  bypassWorldviewAdaptation,
-} from '../../../../src/mods/mod-engine/subsystems/adaptation-manager-system.ts'
 import { orchestrator } from '../../../../src/mods/mod-engine/subsystems/orchestrator-system.ts'
 import {
   HISTORICAL_EVENT_LEDGER_ID,
@@ -227,22 +223,21 @@ const promptContext = orchestrator.assemblePromptContext()
 const historicalProjection = promptContext.subsystemSummaries.find((summary) => (
   summary.includes('【历史事件账本：当前待续事实】')
 ))
-const compiledPrompt = buildSegmentedPrompt(narrativePrompt, promptContext).full
+const compiledSegments = buildSegmentedPrompt(narrativePrompt, promptContext)
+const compiledPrompt = compiledSegments.full
+const compiledRoundInput = JSON.parse(
+  compiledSegments.userSegments[2].slice('⟦本轮引导⟧'.length),
+)
 
 assertOk(
-  bypassWorldviewAdaptation(HISTORICAL_EVENT_LEDGER_ID),
-  'historical-event-ledger must be explicitly excluded from worldview adaptation',
+  Boolean(historicalProjection)
+    && Array.isArray(compiledRoundInput.当前状态)
+    && compiledRoundInput.当前状态.includes(historicalProjection),
+  'deterministic historical projection must enter the first narrative input byte-for-byte without an adaptation call',
 )
 assertOk(
-  adaptationManager.getAdaptedSummaries([{
-    id: HISTORICAL_EVENT_LEDGER_ID,
-    summary: historicalProjection ?? '',
-  }]).get(HISTORICAL_EVENT_LEDGER_ID) === historicalProjection,
-  'deterministic historical projection must remain byte-for-byte unchanged through adaptation manager',
-)
-assertOk(
-  narrativePrompt.version === '4.7.0',
-  'historical Prompt input semantics must use narrative Prompt 4.7.0',
+  narrativePrompt.version === '5.7.0',
+  'historical Prompt input semantics must use pure narrative Prompt 5.7.0',
 )
 assertOk(
   Boolean(historicalProjection)

@@ -19,20 +19,8 @@ import { useSettingsStore } from '@/mods/mod-settings'
 import { orchestrator } from '../subsystems/orchestrator-system'
 import { useEngineStore } from '../store'
 import { computeNarrativeMaxTokens, DEFAULT_WORD_COUNT_TARGET } from '../constants/narrative-config'
-import { isEligibleNarrativeBranch } from './narrative-branch-policy'
-import {
-  canContinueWithNarrativeBody,
-  inspectNarrativeResponseQuality,
-} from './narrative-response-quality'
-import {
-  type NarrativeRoundMetadata,
-} from './narrative-semantic-signals'
-import {
-  parseNarrativeAIDataJson,
-  translateNarrativeAIResponse,
-} from './narrative-ai-protocol'
+import { inspectNarrativeResponseQuality } from './narrative-response-quality'
 import { PreGenActivityState } from './pre-gen-activity-state'
-import { extractTaggedMetaEnvelope } from './tagged-meta-envelope'
 
 export interface PreGenCachedRound {
   fullContent: string
@@ -254,21 +242,6 @@ export function getPreGenQueueLength(): number {
 
 
 
-function parsePreGenMetadata(content: string): NarrativeRoundMetadata | null {
-  try {
-    const envelope = extractTaggedMetaEnvelope(content)
-    if (!envelope?.dataPresent) return null
-    return translateNarrativeAIResponse(
-      parseNarrativeAIDataJson(envelope.dataSection ?? ''),
-      envelope.summary,
-    )
-  } catch {
-    return null
-  }
-}
-
-
-
 /** 空闲时后台填充下一轮预生成队列（历史正数设置统一视为开启） */
 
 export async function fillPreGenQueue(
@@ -330,8 +303,6 @@ export async function fillPreGenQueue(
 
     const snapshot = orchestrator.capturePreviewSnapshot()
     const signature = buildPreGenSignature(promptTemplate)
-    const expectedIntentId = snapshot.orchestrator.focusedBranchIntentId ?? null
-
     try {
       // 快照恢复必须包含在预览单写者门内。否则取消后真实回合可能已经开始，
       // 旧预览再恢复快照会覆盖主回合的时间线与子系统状态。
@@ -346,24 +317,13 @@ export async function fillPreGenQueue(
 
           const wordCountTarget = useSettingsStore.getState().wordCountTarget
             ?? DEFAULT_WORD_COUNT_TARGET
-          const responseQuality = inspectNarrativeResponseQuality(fullContent, wordCountTarget, expectedIntentId)
-          if (
-            !responseQuality.valid
-            && !canContinueWithNarrativeBody(responseQuality, expectedIntentId)
-          ) {
+          const responseQuality = inspectNarrativeResponseQuality(fullContent, wordCountTarget)
+          if (!responseQuality.valid || !responseQuality.parsed) {
             console.info('[PreGen] 预生成响应未通过协议或段落结构门禁，已放弃缓存:', responseQuality.reason)
             return
           }
 
-          // 普通轮允许正文+摘要作为最低成功；有效数据区仍用于预判命运分支。
-          // 当前命运意图缺失条件 META 时仍可缓存完整正文；主推进会保持意图待处理，
-          // 不把未验证的判定写入状态。
-          const metadata = parsePreGenMetadata(fullContent)
-          const isBranchPoint = metadata ? isEligibleNarrativeBranch(metadata) : false
-          if (isBranchPoint && orchestrator.isBranchCoolingDownForNextRound()) {
-            // 分支是强交互事件。冷却期内丢弃预生成分支，改由主推进用最新玩家选择现场生成。
-            return
-          }
+          const isBranchPoint = responseQuality.parsed.branch === true
 
           preGenQueue.push({
             fullContent,

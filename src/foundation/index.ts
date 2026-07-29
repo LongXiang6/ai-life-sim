@@ -114,6 +114,13 @@ export {
 } from './types'
 export { AVAILABLE_TIME_STEPS, PRIMARY_TIME_STEPS, encodeTimeStepKey, decodeTimeStepKey, findTimeStepOption } from './constants/time-steps'
 export type { TimeStepOption } from './constants/time-steps'
+export {
+  NARRATIVE_WORD_COUNT_TARGETS,
+  DEFAULT_WORD_COUNT_TARGET,
+  isNarrativeWordCountTarget,
+  resolveNarrativeWordCountTarget,
+} from './constants/narrative-word-count'
+export type { NarrativeWordCountTarget } from './constants/narrative-word-count'
 
 export type {
   WorldContextId,
@@ -140,6 +147,37 @@ export type {
   WorldContextRegistryContract,
   ContextCapabilityProfileContract,
   SimulationScopePolicyContract,
+} from './subsystem-contracts'
+
+export type {
+  EntityReferenceKind,
+  EntityReference,
+  EntityReferenceDirectoryPersistenceState,
+  NpcAvailability,
+  NpcIdentity,
+  NpcContextState,
+  NpcGoalStatus,
+  NpcGoal,
+  NpcBehaviorRecord,
+  NpcMemorySourceKind,
+  NpcMemory,
+  NpcMemoryCompression,
+  NpcSystemPersistenceState,
+  NpcSystemInstructionOperation,
+  RelationshipScopeKind,
+  RelationshipScope,
+  RelationshipStatus,
+  RelationshipRecord,
+  RelationshipTransitionOperation,
+  RelationshipTransition,
+  RelationshipSystemPersistenceState,
+  NpcSystemInstruction,
+  RelationshipSystemInstruction,
+} from './subsystem-contracts'
+
+export {
+  NPC_SYSTEM_OPERATION_FIELDS,
+  RELATIONSHIP_SYSTEM_OPERATION_FIELDS,
 } from './subsystem-contracts'
 
 export type {

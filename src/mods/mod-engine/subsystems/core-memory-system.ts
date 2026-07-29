@@ -1,22 +1,18 @@
 /**
  * @module core-memory-system.ts
- * @description 核心记忆系统 —— 管理不应被遗忘的关键事件、伏笔上下文和 NPC 关系网
+ * @description 核心记忆系统 —— 管理关键关系事实与玩家原创事实投影
  * @mod mod-engine
  *
- * 设计理念：
- *   旧版 memoryLifecycle 的固定条数选取曾导致“均匀遗忘”——
- *   关键事件和琐碎事件被同等对待。本系统维护一组"永久记忆"：
- *   1. 关键事件摘要（HIGH 重要性条目，来自 searchIndex）
- *   2. NPC 关系网记忆（首次相遇 + 关键互动）
- *
- * 这些记忆不受 buildRichPrompt 的滚动窗口限制，在 Prompt 中分层注入。
+ * NPC 互动继续作为当前关系网络投影；玩家原创内容按真实时间与年龄进入
+ * 统一故事时间轴。内部事实不通过权重标签或独立原创保护字段发送给故事 AI。
  */
 
 import type { SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
 import { BaseSubsystem } from '@/core'
-import { memoryLifecycle } from './memory-lifecycle-system'
-import { summaryCompressor } from './summary-compressor-system'
 import { useEngineStore } from '../store'
+import type { CharacterCreation } from '../types'
+import { AI_CREATION_CATEGORIES } from '../helpers/narrative-ai-protocol'
+import type { NarrativeTimelineEntry } from '../helpers/timeline-memory'
 import type { NarrativeRelationshipUpdate } from '../helpers/narrative-semantic-signals'
 import {
   isNarrativeRecordVisible,
@@ -41,16 +37,6 @@ export interface NPCInteractionRecord {
   historicalEventIds?: string[]
 }
 
-/** 关键事件记忆条目 */
-interface CoreMemoryEntry {
-  rounds: string
-  importance: 'HIGH'
-  content: string
-  contextIds?: string[]
-  memoryScopes?: NarrativeMemoryScope[]
-  historicalEventIds?: string[]
-}
-
 function normalizeHistoricalEventIds(ids?: readonly string[]): string[] {
   return [...new Set((ids ?? []).map((id) => id.trim()).filter(Boolean))]
 }
@@ -66,11 +52,11 @@ const INTERACTION_LABELS: Record<string, string> = {
   other: '重要互动',
 }
 
-/** 关键事件摘要最大条目数 */
-const MAX_CORE_EVENTS = 15
-
-/** 完整保留的最近条目数（超出部分合并为摘要） */
-const KEEP_RECENT_EVENTS = 12
+export interface CoreMemoryRoundTime {
+  displayTimeLabel?: string
+  displayAge?: number
+  totalDays?: number
+}
 
 // ============================================================
 // CoreMemorySystem
@@ -203,17 +189,27 @@ export class CoreMemorySystem extends BaseSubsystem {
     this.syncToStore()
   }
 
-  /** 构建核心记忆文本（关键事件摘要） */
-  buildCoreMemory(view: NarrativeScopeView = {}): string {
-    const entries = this.collectHighImportanceEntries(view)
-    if (entries.length === 0) return ''
-
-    const lines: string[] = ['【关键事件记忆】以下事件对角色至关重要，请在叙事中保持一致性。']
-    for (const entry of entries) {
-      lines.push(`- [第${entry.rounds}轮] ${entry.content}`)
-    }
-
-    return lines.length > 1 ? lines.join('\n') : ''
+  /** 将玩家角色的原创事实投影到统一时间轴，不发送内部权重标签。 */
+  buildCreationTimelineEntries(
+    characterCreations: readonly CharacterCreation[] = [],
+    resolveRoundTime?: (round: number) => CoreMemoryRoundTime | undefined,
+  ): NarrativeTimelineEntry[] {
+    return characterCreations.map((creation) => {
+      const time = resolveRoundTime?.(creation.confirmedRound)
+      const roundLabel = `第${creation.confirmedRound}轮`
+      const occurrenceParts = [
+        time?.displayTimeLabel ?? roundLabel,
+        time?.displayAge === undefined ? undefined : `角色${time.displayAge}岁`,
+      ].filter((part): part is string => Boolean(part))
+      const category = AI_CREATION_CATEGORIES.internalToAI[creation.category] ?? '其他'
+      return {
+        timeSpan: time?.displayTimeLabel ?? roundLabel,
+        occurrenceTime: occurrenceParts.join(' · '),
+        text: `玩家角色亲自开创[玩家原创·${category}] ${creation.name}：${creation.description}`,
+        sortRound: creation.confirmedRound,
+        sortTotalDays: time?.totalDays,
+      }
+    })
   }
 
   /** 构建 NPC 关系网文本 */
@@ -239,145 +235,6 @@ export class CoreMemorySystem extends BaseSubsystem {
     }
 
     return lines.length > 1 ? lines.join('\n') : ''
-  }
-
-  // === 私有方法 ===
-
-  /** 从 searchIndex 中收集所有 HIGH 重要性条目 */
-  private collectHighImportanceEntries(view: NarrativeScopeView): CoreMemoryEntry[] {
-    const index = memoryLifecycle.getSearchIndex()
-    if (index.length === 0) return []
-
-    // 按 startRound 升序排列（最早事件在前）
-    const sorted = index
-      .filter((e) => e.maxImportance === 'HIGH')
-      .filter((entry) => {
-        const scopes = entry.memoryScopes ?? []
-        return scopes.length > 0
-          ? scopes.some((scope) => isNarrativeRecordVisible(
-              { contextIds: entry.contextIds, scope },
-              view,
-            ))
-          : isNarrativeRecordVisible({ contextIds: entry.contextIds }, view)
-      })
-      .sort((a, b) => a.startRound - b.startRound)
-
-    if (sorted.length === 0) return []
-
-    // 未超过上限：全部保留为完整条目
-    if (sorted.length <= MAX_CORE_EVENTS) {
-      return sorted.map((entry) => ({
-        rounds: `${entry.startRound}-${entry.endRound}`,
-        importance: 'HIGH' as const,
-        content: entry.content,
-        contextIds: entry.contextIds,
-        memoryScopes: entry.memoryScopes,
-        historicalEventIds: entry.historicalEventIds,
-      }))
-    }
-
-    // 超过上限：最近 KEEP_RECENT_EVENTS 条完整保留，其余合并为摘要
-    const overflow = sorted.slice(0, sorted.length - KEEP_RECENT_EVENTS)
-    const recent = sorted.slice(-KEEP_RECENT_EVENTS)
-
-    // 用 summaryCompressor 的 AI 压缩摘要替代硬截断
-    const overflowStart = overflow[0].startRound
-    const overflowEnd = overflow[overflow.length - 1].endRound
-    const mergedContent = this.buildMergedSummary(overflow, view)
-    if (!mergedContent) {
-      return sorted.map((entry) => ({
-        rounds: `${entry.startRound}-${entry.endRound}`,
-        importance: 'HIGH' as const,
-        content: entry.content,
-        contextIds: entry.contextIds,
-        memoryScopes: entry.memoryScopes,
-        historicalEventIds: entry.historicalEventIds,
-      }))
-    }
-
-    const overflowHistoricalEventIds = normalizeHistoricalEventIds(
-      overflow.flatMap((entry) => entry.historicalEventIds ?? []),
-    )
-    const mergedEntry: CoreMemoryEntry = {
-      rounds: `${overflowStart}-${overflowEnd}`,
-      importance: 'HIGH',
-      content: mergedContent,
-      historicalEventIds: overflowHistoricalEventIds.length > 0
-        ? overflowHistoricalEventIds
-        : undefined,
-    }
-
-    const recentEntries: CoreMemoryEntry[] = recent.map((entry) => ({
-      rounds: `${entry.startRound}-${entry.endRound}`,
-      importance: 'HIGH' as const,
-      content: entry.content,
-      contextIds: entry.contextIds,
-      memoryScopes: entry.memoryScopes,
-      historicalEventIds: entry.historicalEventIds,
-    }))
-
-    return [mergedEntry, ...recentEntries]
-  }
-
-  /** 用已有 AI 压缩摘要构建合并文本（禁止硬截断） */
-  private buildMergedSummary(
-    entries: Array<{ startRound: number; endRound: number }>,
-    view: NarrativeScopeView,
-  ): string | null {
-    if (entries.length === 0) return null
-    const startRound = entries[0].startRound
-    const endRound = entries[entries.length - 1].endRound
-    const eventCount = entries.length
-    const { summaries } = summaryCompressor.getSummaries()
-    if (summaries.length === 0) {
-      return null
-    }
-
-    // 筛选覆盖溢出区间的摘要：L2 优先（16轮跨度），L3 不足时 L1 兜底
-    const relevant = summaries
-      .filter((s) => {
-        // 与 [startRound, endRound] 有交集
-        return s.endRound >= startRound
-          && s.startRound <= endRound
-          && isNarrativeRecordVisible({ contextIds: s.contextIds }, view)
-      })
-      .sort((a, b) => {
-        // 层级优先：低层级（更详细）在前
-        if (a.level !== b.level) return a.level - b.level
-        // 同层级按时间排列
-        return a.startRound - b.startRound
-      })
-
-    if (relevant.length === 0) {
-      // L2/L3 均不可用：尝试 L1 摘要兜底（每 4 轮生成，最早可用）
-      const l1Summaries = summaries.filter((s) => (
-        s.level === 1 && isNarrativeRecordVisible({ contextIds: s.contextIds }, view)
-      ))
-      if (l1Summaries.length > 0) {
-        // 使用所有覆盖溢出区间的 L1 摘要拼接
-        const l1Relevant = l1Summaries
-          .filter((s) => s.endRound >= startRound && s.startRound <= endRound)
-          .sort((a, b) => a.startRound - b.startRound)
-        if (l1Relevant.length > 0) {
-          const lines = l1Relevant.map(
-            (s) => `[L1·第${s.startRound}-${s.endRound}轮] ${s.content}`,
-          )
-          return `【早期关键事件合辑·${eventCount}条（L1摘要）】\n${lines.join('\n')}`
-        }
-      }
-      return null
-    }
-
-    const fullyCovered = entries.every((entry) => relevant.some(
-      (summary) => summary.startRound <= entry.startRound && summary.endRound >= entry.endRound,
-    ))
-    if (!fullyCovered) {
-      return null
-    }
-
-    // 逐条拼接（每段已经是 AI 生成的完整段落，不做字符截断）
-    const lines = relevant.map((s) => `[L${s.level}·${s.startRound}-${s.endRound}轮] ${s.content}`)
-    return `【早期关键事件合辑·${eventCount}条】\n${lines.join('\n')}`
   }
 
   /** 将 npcMap 同步到持久化 store（每次叙事更新后调用） */

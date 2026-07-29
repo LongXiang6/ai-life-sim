@@ -2,18 +2,16 @@
 
 import { useState } from 'react'
 
+import {
+  isNarrativeWordCountTarget,
+  NARRATIVE_WORD_COUNT_TARGETS,
+} from '@/foundation'
+
 import { useSettingsStore } from '../store'
 
 import styles from './SettingsTabNarrative.module.css'
 
 const STYLE_PLACEHOLDER = '例如：采用克制、具体的第二人称叙事；多写行动和对话，少用总结性评价；保持人物反应与既有事实连续。'
-
-function normalizeWordCount(value: string, fallback: number): number {
-  const parsed = Number(value)
-  return Number.isFinite(parsed)
-    ? Math.min(5000, Math.max(50, Math.round(parsed)))
-    : fallback
-}
 
 export function SettingsTabNarrative() {
   const {
@@ -25,16 +23,9 @@ export function SettingsTabNarrative() {
     setWordCountTarget,
   } = useSettingsStore()
   const [styleDraft, setStyleDraft] = useState<string | null>(null)
-  const [wordCountDraft, setWordCountDraft] = useState<string | null>(null)
 
   const currentStyleDraft = styleDraft ?? narrativeStyleText
-  const currentWordCountDraft = wordCountDraft ?? String(wordCountTarget)
   const styleDirty = styleDraft !== null && styleDraft !== narrativeStyleText
-  const commitWordCount = () => {
-    const next = normalizeWordCount(currentWordCountDraft, wordCountTarget)
-    setWordCountTarget(next)
-    setWordCountDraft(null)
-  }
 
   return (
     <div className={styles.tabRoot}>
@@ -91,23 +82,17 @@ export function SettingsTabNarrative() {
         <div className={styles.wordCountBody}>
           <label className={styles.wordCountControl}>
             <span>目标字数</span>
-            <input
-              type="number"
-              min={50}
-              max={5000}
-              step={50}
-              value={currentWordCountDraft}
-              onChange={(event) => setWordCountDraft(event.target.value)}
-              onBlur={commitWordCount}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault()
-                  commitWordCount()
-                  event.currentTarget.blur()
-                }
+            <select
+              value={wordCountTarget}
+              onChange={(event) => {
+                const target = Number(event.target.value)
+                if (isNarrativeWordCountTarget(target)) setWordCountTarget(target)
               }}
-            />
-            <b>字</b>
+            >
+              {NARRATIVE_WORD_COUNT_TARGETS.map((target) => (
+                <option key={target} value={target}>{target.toLocaleString('zh-CN')} 字</option>
+              ))}
+            </select>
           </label>
         </div>
       </section>

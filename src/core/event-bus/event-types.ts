@@ -17,7 +17,6 @@ export const CoreEvents = {
 export const EngineEvents = {
   ROUND_START: 'mod-engine:round-start',
   ROUND_COMPLETE: 'mod-engine:round-complete',
-  NARRATIVE_STREAM: 'mod-engine:narrative-stream',
 } as const
 
 /** 世界事件 */

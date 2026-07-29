@@ -58,16 +58,16 @@ export const REQUIRED_CONTEXT_SUBSYSTEM_IDS = [
   ...CURRENT_WORLD_SUBSYSTEM_IDS,
 ] as const
 
-/**
- * Capability-gated system membership remains empty through P1. Later phases may add
- * systems here only after their runtime contracts are approved.
- */
+/** Capability-gated runtime membership. */
 export const CONTEXT_CAPABILITY_SUBSYSTEM_POLICY: Readonly<
   Record<ContextCapability, { enabledSubsystemIds: readonly string[]; backgroundSubsystemIds: readonly string[] }>
 > = {
   life: { enabledSubsystemIds: [], backgroundSubsystemIds: [] },
   space: { enabledSubsystemIds: [], backgroundSubsystemIds: [] },
-  npc: { enabledSubsystemIds: [], backgroundSubsystemIds: [] },
+  npc: {
+    enabledSubsystemIds: ['npc-system', 'relationship-system'],
+    backgroundSubsystemIds: ['npc-system', 'relationship-system'],
+  },
   economy: { enabledSubsystemIds: [], backgroundSubsystemIds: [] },
   politics: { enabledSubsystemIds: [], backgroundSubsystemIds: [] },
   technology: { enabledSubsystemIds: [], backgroundSubsystemIds: [] },

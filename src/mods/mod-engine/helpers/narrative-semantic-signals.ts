@@ -118,6 +118,11 @@ export const NarrativeDeferredCausalitySchema = z.object({
   relatedFaction: z.string().min(1).optional(),
 }).strict()
 
+const NarrativeNonBlankStringSchema = z.string().refine(
+  (value) => value.trim().length > 0,
+  '文本不能为空白',
+)
+
 /**
  * 主叙事摘要是可选的轻量索引；其余结构化数据按需出现。
  * 语义核心、命运分支和命运意图仍分别作为不可拆散的条件契约。
@@ -132,8 +137,8 @@ export const NarrativeRoundMetadataSchema = z.object({
   arcStatus: z.enum(['start', 'ongoing', 'end']).optional(),
   semanticSignals: NarrativeSemanticSignalsSchema.optional(),
   branch: z.boolean().optional(),
-  branchTitle: z.string().min(1).optional(),
-  branchOptions: z.array(z.string().min(1)).min(2).max(4).optional(),
+  branchTitle: NarrativeNonBlankStringSchema.optional(),
+  branchOptions: z.array(NarrativeNonBlankStringSchema).min(2).max(4).optional(),
   intentResolution: NarrativeIntentResolutionSchema.optional(),
   deferredCausality: z.array(NarrativeDeferredCausalitySchema).optional(),
 }).strict().superRefine((metadata, context) => {
@@ -167,74 +172,35 @@ export const NarrativeRoundMetadataSchema = z.object({
       message: '命运分支或命运意图判定必须同时提交完整语义核心',
     })
   }
+  if (metadata.branch) {
+    if (metadata.importance !== 'HIGH') {
+      context.addIssue({ code: 'custom', path: ['importance'], message: '命运分支的重要程度必须为高' })
+    }
+    if (metadata.semanticSignals?.irreversible !== true) {
+      context.addIssue({ code: 'custom', path: ['semanticSignals', 'irreversible'], message: '命运分支必须是不可逆变化' })
+    }
+    if (
+      metadata.semanticSignals
+      && metadata.semanticSignals.narrativeRegister !== 'fate'
+      && metadata.semanticSignals.narrativeRegister !== 'legacy'
+    ) {
+      context.addIssue({ code: 'custom', path: ['semanticSignals', 'narrativeRegister'], message: '命运分支必须使用命运或传承语域' })
+    }
+  }
 })
 
 /** 标签信封 META 的完整运行时 Schema；预生成与主叙事质量门禁共用。 */
 export const NarrativeResponseSchema = NarrativeRoundMetadataSchema.extend({
   changes: z.array(z.object({
-    id: z.string(),
-    description: z.string(),
+    id: z.string().min(1),
+    targetObjectId: z.string().min(1),
+    targetContextId: z.string().min(1),
+    operation: z.string().min(1),
+    evidenceEventIds: z.array(z.string().min(1)),
+    description: z.string().min(1),
     changes: z.record(z.string(), z.unknown()),
   }).strict()),
 }).strict()
-
-/**
- * 仅做协议形状兼容，不判断正文语义或改写字段值。
- *
- * 某些模型会把约定的
- *   { id, description, changes: { physiqueDelta: 1 } }
- * 误写成
- *   { id, description, physiqueDelta: 1 }
- * 这里把同级字段机械收回 changes 对象，随后仍交给同一份严格 Schema
- * 和字段白名单校验；无法明确归类的内容不做猜测，继续让 Schema 拒绝。
- */
-export function normalizeNarrativeResponseMetadata(raw: unknown): unknown {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return raw
-
-  const record = raw as Record<string, unknown>
-  let normalized = false
-
-  let changes = record.changes
-  if (Array.isArray(record.changes)) {
-    changes = record.changes.map((entry) => {
-      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return entry
-
-      const item = entry as Record<string, unknown>
-      if (item.changes && typeof item.changes === 'object' && !Array.isArray(item.changes)) {
-        return item
-      }
-
-      const { id, description, ...flatChanges } = item
-      if (Object.keys(flatChanges).length === 0) return item
-
-      normalized = true
-      return { id, description, changes: flatChanges }
-    })
-  }
-
-  // 结构兼容：模型有时把约定的字符串选项写成
-  //   {title:"...", description:"..."}
-  // 对象。分支在通过 Schema 后仍以字符串数组作为唯一运行时契约；这里只做
-  // 协议层的机械拼接，不从正文推断或创造分支语义。
-  if (Array.isArray(record.branchOptions)) {
-    const branchOptions = record.branchOptions.map((option) => {
-      if (!option || typeof option !== 'object' || Array.isArray(option)) return option
-
-      const item = option as Record<string, unknown>
-      const title = typeof item.title === 'string' ? item.title.trim() : ''
-      const description = typeof item.description === 'string' ? item.description.trim() : ''
-      if (!title && !description) return option
-
-      normalized = true
-      if (title && description) return `${title}：${description}`
-      return title || description
-    })
-
-    return normalized ? { ...record, changes, branchOptions } : raw
-  }
-
-  return normalized ? { ...record, changes } : raw
-}
 
 export type NarrativeSemanticSignals = z.infer<typeof NarrativeSemanticSignalsSchema>
 export type NarrativeRelationshipUpdate = NarrativeSemanticSignals['relationshipUpdates'][number]

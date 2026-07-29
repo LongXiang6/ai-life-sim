@@ -228,7 +228,7 @@ async function main() {
     if (!reloadVerified && after.narrativeHistory.length >= Math.min(10, targetRounds)) {
       await waitForNextSimulationControl(page)
       const stableBeforeReload = await readEngineState(page)
-      if (!stableBeforeReload.branchRepairPending && await page.$('input[type="radio"]') === null) {
+      if (await page.$('input[type="radio"]') === null) {
         reloadRound = stableBeforeReload.narrativeHistory.length
         const lifeRunId = stableBeforeReload.lifeRunId
         await page.reload({ waitUntil: 'domcontentloaded' })
@@ -287,7 +287,7 @@ async function main() {
     route: await page.evaluate(() => location.pathname),
     proxyRequestCount: proxyRequests.length,
     mainNarrativeRequests: proxyRequests.filter((request) => request.promptAsset.includes('mod-engine:narrative:')).length,
-    branchRepairRequests: proxyRequests.filter((request) => request.promptAsset.includes('narrative-branch-repair')).length,
+    settlementRequests: proxyRequests.filter((request) => request.promptAsset.includes('mod-engine:narrative-settlement:')).length,
     narrativeEntries: persisted.engine.narrativeHistory?.length || 0,
     incompleteNarrativeRounds: narrativeRounds.filter((entry) => entry.chars < 20).map((entry) => entry.round),
     missingRepetitionMetricRounds: narrativeRounds.filter((entry) => !entry.repetition).map((entry) => entry.round),
@@ -301,7 +301,6 @@ async function main() {
     committedIntentResolutions: narrativeRounds.filter((entry) => entry.intentResolution).length,
     activeBranchIntents: persisted.engine.branchIntents?.length || 0,
     archivedBranchIntents: persisted.engine.archivedBranchIntents?.length || 0,
-    branchRepairPending: persisted.engine.branchRepairPending === true,
     forceBranchNext: persisted.engine.forceBranchNext === true,
     reloadVerified,
     reloadRound,
@@ -331,7 +330,8 @@ async function main() {
     || !result.branchObserved
     || !result.branchResolved
     || result.committedIntentResolutions === 0
-    || result.branchRepairPending
+    || result.mainNarrativeRequests < targetRounds
+    || result.settlementRequests < targetRounds
     || result.forceBranchNext
     || !result.reloadVerified
     || result.lastAutoSaveRound < targetRounds

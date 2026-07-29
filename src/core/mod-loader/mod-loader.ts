@@ -24,7 +24,6 @@ import {
  */
 export const ENGINE_FEATURE_FLAGS = {
   aiNarrative: true,
-  aiStreaming: true,
   eventBus: true,
   persistStore: true,
 } as const

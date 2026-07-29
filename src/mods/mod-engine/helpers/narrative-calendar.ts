@@ -21,7 +21,6 @@ const CANONICAL_DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
 export {
   computeNarrativeMaxTokens,
-  NARRATIVE_WORD_COUNT_DEFAULT_MAX,
 } from '../constants/narrative-config'
 
 export function readEraStartYearFromConfig(config: Record<string, unknown> | undefined): number {

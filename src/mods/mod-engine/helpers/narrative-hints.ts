@@ -8,7 +8,7 @@
  *   - D:\AI\废弃项目\src\lib\prompts\narrative\life-sim-lifecycle.ts（lifespan）
  *
  * 职责：根据当前回合状态生成 mandatory（必遵）与 optional（参考）两类 hint，
- * 由 orchestrator 注入 PromptContext.userInstruction → AI user prompt 的 instruction 字段。
+ * 由 orchestrator 注入 PromptContext.roundSystemGuidanceText，再由本地引导编译器投影到 AI 输入。
  */
 
 import type { LifeStageId } from '@/mods/mod-character'
@@ -22,7 +22,6 @@ export interface NarrativeHintInput {
   startingAge: number
   round: number
   recentEvents: Array<{ narrative?: string; age: number }>
-  lastPlayerChoice?: string
   forceBranch: boolean
   branchJustResolved: boolean
   consecutiveSameGoalRounds: number
@@ -46,7 +45,7 @@ function hintForceBranch(input: NarrativeHintInput): string[] {
     const agency = input.currentAge < 6
       ? '角色尚无成人式自主能力：把选择写成照料者、监护人或所处环境替角色作出的家庭层面决定；选项仍须是会长期改变你的核心关系、身份、居所、照料安排或关键机会的不同后果，不能把婴儿的本能反应伪装成选择。'
       : '选项必须是角色在当前能力与处境下确实能作出的选择，不能把日常动作、拖延或不同措辞伪装成不同人生方向。'
-    hints.push(`必须生成合格命运分支：“命运分支”为真，提供“分支标题”与二至四个不同长期后果的“分支选项”；“重要程度”为高、“不可逆”为真、“叙事语域”为命运，高潮收束可以为传承。${agency}`)
+    hints.push(`本轮围绕会长期改变身份、核心关系、居所、目标或关键机会的选择现场推进，并尽量提供二至四个不同方向。${agency}若高优先级事实不支持真实分叉，仍须完整写完正文。`)
   }
   if (input.currentAge === 3 && input.startingAge === 0) {
     hints.push('3岁节点如生成分支，仍须是照料、归属、居所或关键机会等不可逆的家庭层面命运转折；普通玩耍和短暂偏好不得生成命运分支。')
@@ -59,37 +58,7 @@ function hintForceBranch(input: NarrativeHintInput): string[] {
   return hints
 }
 
-// --- 2. 分支解决 + 玩家选择 ---
-function hintBranchResolved(input: NarrativeHintInput): string[] {
-  const hints: string[] = []
-  if (input.branchJustResolved) {
-    hints.push(
-      '上轮玩家做出重要选择。叙事不应违背该方向。结果由角色实力、环境和运气决定，可以成功或取得阶段进展，也可以因真实条件失败、转折或付出代价；不得为了制造阻力压低已满足条件的行动',
-    )
-  }
-  if (input.lastPlayerChoice) {
-    const choiceLabel =
-      input.currentAge < 6
-        ? `家庭层面选择"${input.lastPlayerChoice}"`
-        : `玩家选择了"${input.lastPlayerChoice}"`
-    if (input.branchJustResolved) {
-      hints.push(
-        `${choiceLabel}。请结合世界规则、角色能力、资源和本轮时间跨度判断行动规模：小型行动可在本轮完成；中大型目标只呈现当前阶段的行动、进展、必要阻碍与后果，并在“语义信号”的“行动规模”中同步记录。`,
-      )
-    } else if (!input.branchJustResolved) {
-      const progressLabel =
-        input.currentAge < 6
-          ? `家庭持续推进：${input.lastPlayerChoice}`
-          : `持续推进：${input.lastPlayerChoice}`
-      hints.push(
-        `${progressLabel}。根据前序因果写出进展、具体问题、意外收获或人际关系变化；不要为延长目标重复制造同类阻碍`,
-      )
-    }
-  }
-  return hints
-}
-
-// --- 3. 场景跳跃（根据 timeStep.unit 生成粒度匹配的跳转提示） ---
+// --- 2. 场景跳跃（根据 timeStep.unit 生成粒度匹配的跳转提示） ---
 function hintSceneJump(input: NarrativeHintInput): string[] {
   const hints: string[] = []
   const prevEvent = input.recentEvents[input.recentEvents.length - 1]
@@ -141,7 +110,7 @@ function hintSceneJump(input: NarrativeHintInput): string[] {
   return hints
 }
 
-// --- 4. 寿命提醒 ---
+// --- 3. 寿命提醒 ---
 function hintLifespanReminder(input: NarrativeHintInput): string[] {
   const hints: string[] = []
   const maxAge = input.maxAge
@@ -175,7 +144,6 @@ export function buildNarrativeHints(input: NarrativeHintInput): NarrativeHints {
       ...hintLifespanReminder(input),
     ],
     optional: [
-      ...hintBranchResolved(input),
       ...hintSceneJump(input),
     ],
   }

@@ -41,7 +41,6 @@ export {
 } from './constants'
 export {
   NARRATIVE_STYLE_PROMPTS,
-  WORD_COUNT_RANGES,
   DEFAULT_WORD_COUNT_TARGET,
   COMPACT_JSON_KEY_MAP,
   buildWordCountInstruction,

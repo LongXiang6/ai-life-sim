@@ -17,6 +17,12 @@ export const MOD_SECONDARY_API_IMPORTERS: Record<string, readonly (() => Promise
   'mod-history-dynamics': [
     () => import('@/mods/mod-history-dynamics/historical-event-api') as Promise<Record<string, unknown>>,
   ],
+  'mod-npc': [
+    () => import('@/mods/mod-npc/npc-system-api') as Promise<Record<string, unknown>>,
+  ],
+  'mod-social': [
+    () => import('@/mods/mod-social/relationship-system-api') as Promise<Record<string, unknown>>,
+  ],
   'mod-world': [
     () => import('@/mods/mod-world/world-init-api') as Promise<Record<string, unknown>>,
     () => import('@/mods/mod-world/world-context-api') as Promise<Record<string, unknown>>,

@@ -20,6 +20,14 @@ export interface SubSystemState {
 export interface SubSystemChanges {
   /** 子系统 ID */
   id: string
+  /** Unified system-instruction stable target object. Manual internal commits may omit it. */
+  targetObjectId?: string
+  /** Unified system-instruction target context. */
+  targetContextId?: string
+  /** Owning-system operation name. */
+  operation?: string
+  /** Accepted historical evidence IDs supporting this instruction. */
+  evidenceEventIds?: string[]
   /** 变更描述文本 */
   description: string
   /** 结构化变更数据 */

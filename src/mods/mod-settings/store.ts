@@ -15,8 +15,12 @@ import {
   DEFAULT_AI_MODEL,
   DEFAULT_AI_PROVIDER_ID,
 } from '@/core/ai-service'
-import { DEFAULT_WORD_COUNT_TARGET } from '@/mods/mod-engine'
-import type { ReasoningEffort } from '@/foundation'
+import {
+  DEFAULT_WORD_COUNT_TARGET,
+  resolveNarrativeWordCountTarget,
+  type NarrativeWordCountTarget,
+  type ReasoningEffort,
+} from '@/foundation'
 
 /** 叙事风格 */
 export type NarrativeStyle = 'default' | 'epic' | 'realistic' | 'poetic'
@@ -137,8 +141,8 @@ interface SettingsState {
   narrativeStyleText: string
   /** 每次保存不同的生效文风时递增。 */
   narrativeStyleVersion: number
-  /** 大致字数目标 */
-  wordCountTarget: number
+  /** 固定档位的正文目标字数。 */
+  wordCountTarget: NarrativeWordCountTarget
   /** 叙事显示模式 */
   streamingMode: StreamingMode
   /** 长叙事使用更舒展的段落行距 */
@@ -166,7 +170,7 @@ interface SettingsState {
   setNarrativeStyle: (style: NarrativeStyle) => void
   saveNarrativeStyleText: (styleText: string) => void
   restoreDefaultNarrativeStyle: () => void
-  setWordCountTarget: (target: number) => void
+  setWordCountTarget: (target: NarrativeWordCountTarget) => void
   setStreamingMode: (mode: StreamingMode) => void
   setComfortableParagraphs: (enabled: boolean) => void
   setReduceMotion: (enabled: boolean) => void
@@ -222,12 +226,6 @@ export const useSettingsStore = create<SettingsState>()(
         migrate: (persistedState: unknown, version: number) => {
           const state = persistedState as Partial<SettingsState>
           const migrated = { ...state }
-          if (version < 2 && state?.wordCountTarget === 500) {
-            migrated.wordCountTarget = DEFAULT_WORD_COUNT_TARGET
-          }
-          if (version < 3 && state?.wordCountTarget === 400) {
-            migrated.wordCountTarget = DEFAULT_WORD_COUNT_TARGET
-          }
           if (version < 5) {
             const hasExplicitModelConfig = Boolean(
               state.customKey?.trim()
@@ -290,6 +288,14 @@ export const useSettingsStore = create<SettingsState>()(
         partialize: (state,) => {
           const { setProvider: _sp, setCustomKey: _sck, setCustomUrl: _scu, setCustomModel: _scm, setTemperature: _st, setTopP: _stp, setMaxTokens: _smt, setReasoningEffort: _sre, setTalentThinkingIntensity: _stti, setAiTalentGeneration: _satg, setPreGenerateRounds: _spgr, setStorySeed: _sss, setNarrativeStyle: _sns, saveNarrativeStyleText: _snst, restoreDefaultNarrativeStyle: _rdns, setWordCountTarget: _swct, setStreamingMode: _ssm, setComfortableParagraphs: _scp, setReduceMotion: _srm, setTheme: _sth, ...rest } = state
           return rest
+        },
+        merge: (persistedState, currentState) => {
+          const persisted = persistedState as Partial<SettingsState>
+          return {
+            ...currentState,
+            ...persisted,
+            wordCountTarget: resolveNarrativeWordCountTarget(persisted.wordCountTarget),
+          }
         },
       },
     ),

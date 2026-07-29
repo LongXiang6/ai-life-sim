@@ -33,7 +33,7 @@ export function HelpChangelogContent({
         </div>
       )}
       {!hasMore && htmls.length > 0 && maxChunk > 1 && (
-        <p className={styles.endText}>已加载全部 {maxChunk} 个分片</p>
+        <p className={styles.endText}>已加载全部历史版本</p>
       )}
     </div>
   )

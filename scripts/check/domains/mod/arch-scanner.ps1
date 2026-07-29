@@ -41,7 +41,7 @@ if (Test-Path $runtimePolicyPath) {
     foreach ($id in @($runtimeStage.runtime.external) + @($runtimeStage.runtime.engine)) {
       [void]$Script:ActiveRuntimeSubsystemIds.Add([string]$id)
     }
-    foreach ($id in @($runtimeStage.narrativeChange)) {
+    foreach ($id in @($runtimeStage.systemInstruction)) {
       [void]$Script:NarrativeWritableSubsystemIds.Add([string]$id)
     }
     $Script:RuntimePolicyLoaded = $true
@@ -210,11 +210,12 @@ foreach ($modDir in $modDirs) {
       if (-not $pc) { continue }
       $pfRel = "src/mods/${modName}/prompts/$($pf.Name)"
       $e1AllOk = $true
-      if ($pc -notmatch "outputFormat:\s*'(json|text|markdown)'") {
+      $outputFormatMatch = [regex]::Match($pc, "outputFormat:\s*'(json|text|markdown)'")
+      if (-not $outputFormatMatch.Success) {
         Fail "E1-PROMPT-FORMAT" $pfRel "" "Prompt              outputFormat   'json'|'text'|'markdown'   "
         $e1AllOk = $false
       }
-      if ($pc -notmatch 'outputSchema:') {
+      if ($outputFormatMatch.Success -and $outputFormatMatch.Groups[1].Value -eq 'json' -and $pc -notmatch 'outputSchema:') {
         Fail "E1-PROMPT-SCHEMA" $pfRel "" "Prompt              outputSchema   Zod          "
         $e1AllOk = $false
       }
@@ -258,7 +259,7 @@ foreach ($modDir in $modDirs) {
         }
       }
       if ($e1AllOk) {
-        Pass "E1-PROMPT" $pfRel "Prompt                      outputFormat + outputSchema + name + version   "
+        Pass "E1-PROMPT" $pfRel "Prompt                      outputFormat + JSON outputSchema + name + version   "
       }
     }
   }

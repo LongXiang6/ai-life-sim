@@ -1,45 +1,29 @@
 /**
  * @module memory-lifecycle-system.ts
- * @description 记忆生命周期系统 —— 三层记忆分离 + 重要度分层 + 事件闭环驱动 + 事件聚合
+ * @description 记忆生命周期系统 —— 内部事件计算、压缩索引与故事时间轴投影
  * @mod mod-engine
  *
- * 四方案融合设计：
- *   A. 三层记忆分离：状态卡(始终在)+叙事窗(L0近期)+L3历史轴，L1-L3按覆盖关系注入或检索
- *   B. 重要度分层：消费 AI 的 HIGH/NORMAL/LOW，差异化压缩保留
- *   C. 事件闭环驱动：消费 AI 的 arcStatus/arcType，避免语义断裂
- *   D. 事件聚合（合并自 span-event-aggregator）：严重度排序 + 因果链合并，完整保留当前事件
- *
- * 架构：
- *   AI META → 重要度/事件弧/实体 → L0 标记 → 事件聚合 → 差异化压缩 → 检索索引 → Prompt注入
- *
- * 每轮Prompt注入内容（精简到极致）：
- *   1. 状态卡（subsystem summaries，结构化当前状态）
- *   2. 固定最近4轮L0原文（与一个L1摘要块对齐）
- *   3. L3历史时间轴（长期记忆框架）
- *   4. 检索命中摘要（L1-L3 中按 AI 标注实体匹配，"突然想起来的往事"）
- *   5. 聚合事件（严重事件优先，因果链合并，不做固定条数淘汰）
- *
- * AI 重要性约定：
- *   HIGH   = 死亡/战斗/突破/背叛/结婚/生子/重大转折
- *   NORMAL = 人际关系变化/职业变动/旅行/学习/普通事件
- *   LOW    = 日常流水/重复训练/闲逛/无事发生
- *
- * 事件聚合规则（原 span-event-aggregator）：
- *   严重度排序：critical > major > normal > color
- *   因果链合并：将因果相关的事件合并为一条
- *   完整保留：不得按严重度、比例或固定条数删除事件
- *
- * 长局上下文通过分层语义摘要、覆盖区间与实体检索组织；原始事件和索引不做容量淘汰。
+ * 内部数据保留事件重要度、闭环、来源、层级、权重、衰减和检索索引。
+ * 故事侧只取得可见叶子摘要、检索命中和近期完整经历的统一时间轴条目；
+ * 当前状态由所属系统单独投影，不混入记忆段。
  */
 
-import type { SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
+import type {
+  CompressedSummaryItem,
+  SubSystemState,
+  SubSystemChanges,
+  RoundContext,
+} from '@/foundation'
 import { BaseSubsystem } from '@/core'
 import type { NarrativeSemanticSignals } from '../helpers/narrative-semantic-signals'
 import {
   isNarrativeRecordVisible,
   type NarrativeMemoryScope,
 } from '../helpers/narrative-context-scope'
-import { formatSummaryForPrompt } from '../helpers/timeline-memory'
+import {
+  projectSummaryToNarrativeTimeline,
+  type NarrativeTimelineEntry,
+} from '../helpers/timeline-memory'
 
 // ============================================================
 // 类型定义
@@ -101,6 +85,8 @@ export interface IndexEntry {
   endRound: number
   /** 摘要内容 */
   content: string
+  /** 故事 AI 可见的时间+事件投影；不包含内部计算字段。 */
+  narrativeTimelineEntries: NarrativeTimelineEntry[]
   /** 索引实体 */
   tags: string[]
   /** 最高重要度 */
@@ -177,24 +163,10 @@ export interface CompressionDecision {
   taggedEvents: TaggedEvent[],
 }
 
-/** 富Prompt注入内容（叶子摘要层级+L0，适配长上下文） */
-export interface RichPromptContext {
-  /** 状态卡 */
-  stateCard: string
-  /** 最近完整原文窗口（覆盖延迟 L1 尚未形成摘要的区间） */
-  recentNarratives: string[]
-  /** L1 近距离叶子摘要 */
-  l1Summaries: string[]
-  /** L2 中距离叶子摘要 */
-  l2Summary: string
-  /** L3 远距离叶子摘要 */
-  l3Summary: string
-  /** 兼容旧消费者；三层方案不再产生 L4。 */
-  l4Summary: string
-  /** L3 长期历史时间轴 */
-  historyOutline: string
-  /** 检索命中（从三层结构化实体匹配） */
-  retrievalHits: string[],
+/** 故事 AI 可见的统一时间轴记忆候选。 */
+export interface NarrativeTimelineProjection {
+  /** 叶子摘要、检索命中与近期完整经历的统一时间轴投影。 */
+  timelineEntries: NarrativeTimelineEntry[]
 }
 
 /** 每个重要度级别的保留比例 */
@@ -632,6 +604,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
     startRound: number,
     endRound: number,
     content: string,
+    narrativeTimelineEntries: readonly NarrativeTimelineEntry[],
     events: TaggedEvent[],
   ): void {
     // 汇总 AI 标注的结构化实体
@@ -651,6 +624,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
       startRound,
       endRound,
       content,
+      narrativeTimelineEntries: structuredClone([...narrativeTimelineEntries]),
       tags: [...allTags,],
       maxImportance,
       contextIds: [...new Set(events.map((event) => event.contextId).filter((id): id is string => Boolean(id)))],
@@ -672,6 +646,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
     startRound: number,
     endRound: number,
     content: string,
+    narrativeTimelineEntries: readonly NarrativeTimelineEntry[],
   ): void {
     const overlapping = this.searchIndex.filter(
       (entry) => entry.startRound <= endRound && entry.endRound >= startRound,
@@ -693,6 +668,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
       startRound,
       endRound,
       content,
+      narrativeTimelineEntries: structuredClone([...narrativeTimelineEntries]),
       tags: [...tags],
       maxImportance,
       contextIds,
@@ -735,7 +711,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
     _queryText: string,
     currentContextId?: string,
     closedContextIds?: ReadonlySet<string>,
-  ): string[] {
+  ): NarrativeTimelineEntry[] {
     if (this.searchIndex.length === 0) return []
     const latestRound = this.aiEntityMap.size > 0
       ? Math.max(...this.aiEntityMap.keys())
@@ -799,84 +775,61 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
     // 由叶子摘要覆盖历史，或在后续实体再次出现时召回。
     results.sort((a, b,) => b.score - a.score,)
 
-    const hits = results.map(
-      (r,) => `[记忆回溯：${r.entry.startRound}-${r.entry.endRound}轮] ${r.entry.content}`,
-    )
+    const hits = results.flatMap((result) => result.entry.narrativeTimelineEntries.map((entry) => ({
+      ...entry,
+      text: result.entry.contextIds?.length
+        ? `【发生上下文：${result.entry.contextIds.join('、')}】\n${entry.text}`
+        : entry.text,
+    })))
 
     this.stats.totalRetrievals += hits.length
     return hits
   }
 
   // ============================================================
-  // 核心方法4：富Prompt组装（L1/L2/L3 + L0）
+  // 核心方法4：故事时间轴投影
   // ============================================================
 
   /**
-   * 构建富Prompt上下文
+   * 构建故事 AI 的时间轴候选；层级与权重只参与本地选择，不进入结果。
    *
-   * 注入策略（DS V4 1M上下文，可以放宽）：
-   *   1. 状态卡 → 当前角色/世界状态（每轮更新）
-   *   2. L3 → 一生纵览（最远框架）
-   *   3. L2 → 中距离记忆
-   *   4. L1 → 近距离记忆
-   *   5. 检索命中 → 按需注入
-   *   6. L0 → 最近4轮原文（短期完整记忆）
-   *
-   * 共3个压缩层级 + L0原文 + 状态卡 + 检索命中
-   *
-   * @param subsystemSummaries 子系统状态文本
    * @param recentNarratives 最近原始叙事
    * @param compressedSummaries 压缩摘要全量数据
-   * @returns 富Prompt上下文
+   * @returns 统一时间轴投影
    */
-  buildRichPrompt(
-    subsystemSummaries: string,
-    recentNarratives: string[],
-    compressedSummaries: {
-      summaries: Array<{
-        level: number
-        startRound: number
-        endRound: number
-        content: string
-        contextIds?: string[]
-        memoryEvents?: Parameters<typeof formatSummaryForPrompt>[0]['memoryEvents']
-      }>,
-    },
+  buildNarrativeTimelineProjection(
+    recentNarratives: NarrativeTimelineEntry[],
+    compressedSummaries: { summaries: CompressedSummaryItem[] },
     currentContextId?: string,
     closedContextIds?: ReadonlySet<string>,
     currentRound = 0,
-  ): RichPromptContext {
+  ): NarrativeTimelineProjection {
     // 检索命中
     const queryText = recentNarratives.length > 0
-      ? recentNarratives[recentNarratives.length - 1]
+      ? recentNarratives[recentNarratives.length - 1].text
       : ''
     const retrievalHits = this.retrieveFromIndex(queryText, currentContextId, closedContextIds)
 
     // 只注入没有被更高层摘要覆盖的叶子摘要。所有摘要仍完整保存在存储和
     // 检索索引中，这里是语义压缩后的无损覆盖选择，不是固定条数截断。
     const summaries = compressedSummaries.summaries
-    const visibleByLevel = this.selectLeafSummaries(summaries, currentContextId, closedContextIds, currentRound)
+    const leafTimeline = this.selectLeafSummaries(summaries, currentContextId, closedContextIds, currentRound)
 
     return {
-      stateCard: subsystemSummaries,
-      recentNarratives: [...recentNarratives],
-      l1Summaries: visibleByLevel.get(1) ?? [],
-      l2Summary: (visibleByLevel.get(2) ?? []).join('\n'),
-      l3Summary: (visibleByLevel.get(3) ?? []).join('\n'),
-      l4Summary: '',
-      historyOutline: '',
-      retrievalHits,
+      timelineEntries: [
+        ...leafTimeline,
+        ...retrievalHits,
+        ...recentNarratives,
+      ],
     }
   }
 
-  private selectLeafSummaries(summaries: Array<{
-    level: number
-    startRound: number
-    endRound: number
-    content: string
-    contextIds?: string[]
-    memoryEvents?: Parameters<typeof formatSummaryForPrompt>[0]['memoryEvents']
-  }>, currentContextId?: string, closedContextIds?: ReadonlySet<string>, currentRound = 0): Map<number, string[]> {
+  private selectLeafSummaries(
+    summaries: CompressedSummaryItem[],
+    currentContextId?: string,
+    closedContextIds?: ReadonlySet<string>,
+    currentRound = 0,
+  ): NarrativeTimelineEntry[] {
     const byLevel = new Map<number, typeof summaries>()
     for (const summary of summaries) {
       if (!isNarrativeRecordVisible(
@@ -889,7 +842,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
     }
 
     const coveredRanges: Array<{ start: number; end: number }> = []
-    const visibleByLevel = new Map<number, string[]>()
+    const timelineEntries: NarrativeTimelineEntry[] = []
     const levels = [...byLevel.keys()].sort((a, b) => b - a)
     for (const level of levels) {
       const visible = (byLevel.get(level) ?? [])
@@ -902,83 +855,19 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
       for (const summary of visible) {
         coveredRanges.push({ start: summary.startRound, end: summary.endRound })
       }
-      visibleByLevel.set(level, visible.map((summary) => {
+      for (const summary of visible) {
         const contextIds = summary.contextIds ?? []
-        if (contextIds.length === 0) return formatSummaryForPrompt(summary, currentRound)
-        const currentMark = currentContextId && contextIds.includes(currentContextId) ? '·含当前' : ''
-        return `【上下文=${contextIds.join('、')}${currentMark}】${formatSummaryForPrompt(summary, currentRound)}`
-      }))
+        const contextLabel = contextIds.length > 0
+          ? `【发生上下文：${contextIds.join('、')}${currentContextId && contextIds.includes(currentContextId) ? '·当前' : ''}】\n`
+          : ''
+        timelineEntries.push(...projectSummaryToNarrativeTimeline(summary, currentRound).map((entry) => ({
+          ...entry,
+          text: `${contextLabel}${entry.text}`,
+        })))
+      }
     }
 
-    return visibleByLevel
-  }
-
-  /**
-   * 格式化低频变化的长期记忆覆盖层。
-   * 这里只包含已经建立覆盖关系的 L1—L3 摘要，因此仅在压缩成功时变化，
-   * 可以稳定放在记忆消息的前缀。
-   */
-  formatLongTermMemoryForInjection(context: RichPromptContext): string {
-    const parts: string[] = []
-
-    if (context.l3Summary) {
-      parts.push('【L3长期时间轴】', context.l3Summary)
-    }
-    if (context.l2Summary) {
-      parts.push('【中距记忆】', context.l2Summary)
-    }
-    if (context.l1Summaries.length > 0) {
-      parts.push('【近期摘要】', context.l1Summaries.join('\n---\n'))
-    }
-
-    return parts.join('\n')
-  }
-
-  /** 只格式化本轮检索命中的相关往事；未命中时不注入占位文字。 */
-  formatRetrievedMemoryForInjection(context: RichPromptContext): string {
-    if (context.retrievalHits.length === 0) return ''
-    return ['【相关往事】', ...context.retrievalHits].join('\n')
-  }
-
-  /** 只格式化近期完整原文，作为事实连续性而非文风示例。 */
-  formatRecentNarrativesForInjection(context: RichPromptContext): string {
-    if (context.recentNarratives.length === 0) return ''
-    return [
-      '【近期完整经历】',
-      '以下内容是已经发生的完整事实，只继承人物、关系、因果和线索；不得模仿其中的人称、措辞或段落结构。',
-      ...context.recentNarratives.map((narrative, index) => `${index + 1}. ${narrative}`),
-    ].join('\n')
-  }
-
-  /**
-   * 将富Prompt上下文格式化为兼容旧消费者的完整注入文本
-   *
-   * 顺序设计原则：
-   *   - 历史框架在前 → AI先建立"时代认知"
-   *   - 状态在中 → 然后理解"当前处境"
-   *   - 近期记忆在后 → 最后参考"最近发生了什么"
-   *   - 检索命中穿插 → "突然想起来的往事"
-   */
-  formatRichPromptForInjection(context: RichPromptContext,): string {
-    const parts: string[] = []
-
-    const longTerm = this.formatLongTermMemoryForInjection(context)
-    if (longTerm) parts.push(longTerm)
-
-    // 5. 状态卡（当前角色/世界状态）
-    if (context.stateCard) {
-      parts.push('',)
-      parts.push('【当前状态】',)
-      parts.push(context.stateCard,)
-    }
-
-    const retrieved = this.formatRetrievedMemoryForInjection(context)
-    if (retrieved) parts.push('', retrieved)
-
-    const recent = this.formatRecentNarrativesForInjection(context)
-    if (recent) parts.push('', recent)
-
-    return parts.join('\n',)
+    return timelineEntries
   }
 
   // ============================================================

@@ -32,7 +32,6 @@ import {
 import {
   SUMMARY_INTERVAL,
   COMPRESS_L1_DELAY_BLOCKS,
-  RECENT_NARRATIVE_WINDOW,
   COMPRESS_L2_MERGE_COUNT,
   COMPRESS_L3_MERGE_COUNT,
   COMPRESS_L2_MERGE_INTERVAL,
@@ -565,20 +564,6 @@ export class SummaryCompressorSystem extends BaseSubsystem {
       if (pool) direction = pool[Math.floor(Math.random() * pool.length)]
     }
     return direction ?? '日常/生活'
-  }
-
-  buildPromptHistory(recentNarratives: string[], currentAge?: number): string {
-    const parts: string[] = []
-    if (currentAge !== undefined) parts.push(`【角色当前年龄】${currentAge}岁`)
-    const summaries = [...this.compressedSummaries.summaries]
-      .sort((a, b) => b.level - a.level || a.startRound - b.startRound)
-    for (const level of [3, 2, 1] as const) {
-      const visible = summaries.filter((summary) => summary.level === level)
-      if (visible.length === 0) continue
-      parts.push(`【L${level}时间轴】\n${visible.map((summary) => formatSummaryForPrompt(summary, Number.MAX_SAFE_INTEGER)).join('\n')}`)
-    }
-    if (recentNarratives.length > 0) parts.push(`【最近四轮完整叙事】\n${recentNarratives.slice(-RECENT_NARRATIVE_WINDOW).join('\n---\n')}`)
-    return parts.join('\n\n')
   }
 
   collectState(_context: RoundContext): SubSystemState {

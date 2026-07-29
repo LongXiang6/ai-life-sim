@@ -2,7 +2,7 @@
   "currentStage": "mvp",
   "stages": {
     "mvp": {
-      "description": "MVP 可玩路径加 P0 多世界基础与 P1 历史事件账本：当前上下文运行角色与叙事核心，世界上下文、能力、空间、切换、范围、初始化和历史事实常驻；P2 以后的模拟系统仍延后。",
+      "description": "MVP 可玩路径加 P0 多世界基础、P1 历史事件账本与 P2 NPC 社会基础：当前上下文运行角色、NPC、关系和叙事核心，后台 NPC 仅按能力画像低频聚合。",
       "runtime": {
         "external": [
           "world-context-registry",
@@ -12,12 +12,14 @@
           "simulation-scope-policy",
           "world-init",
           "historical-event-ledger",
+          "world-entity",
+          "relationship-system",
+          "npc-system",
           "character-base",
           "destiny-pattern",
           "lifespan",
           "luck",
-          "morality",
-          "world-entity"
+          "morality"
         ],
         "engine": [
           "time",
@@ -34,13 +36,14 @@
           "core-memory"
         ]
       },
-      "narrativeChange": [
+      "systemInstruction": [
         "character-base",
         "lifespan",
         "luck",
-        "morality"
-      ],
-      "allowedSubsystemsText": "可变更子系统仅下列ID，禁止自编：character-base lifespan luck morality"
+        "morality",
+        "npc-system",
+        "relationship-system"
+      ]
     }
   }
 }

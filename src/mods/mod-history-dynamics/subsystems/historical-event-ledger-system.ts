@@ -5,7 +5,7 @@
  * 非职责：不创作正文、不随机触发题材事件、不替代 causal-delay 的叙事承诺兑现。
  * 输入：显式事件批次、候选、因果边、RoundContext 与 P0 世界/空间真源。
  * 输出与写入：当前/global/travel 相关事件视图；Store v2 六类 append-only 状态。
- * AI 参与：event-input；不加入旧 narrativeChange 白名单。
+ * AI 参与：event-input；不加入旧 systemInstruction 白名单。
  * 状态权威：Foundation provider-owned contract + useHistoryDynamicsStore。
  * 持久化权威：capturePersistenceState/restorePersistenceState 与 Store v2。
  * 运行存活：manifest 仅声明 HistoricalEventLedgerSystem；P1 runtime policy 由引擎登记。

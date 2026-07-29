@@ -27,10 +27,11 @@ const REQUIRED_GENERATED = [
 ]
 
 const ORCHESTRATOR_REQUIRED_CALLS = [
-  'buildCoreMemory',
+  'buildCreationTimelineEntries',
+  'buildNPCNetworkText',
   'buildForeshadowingText',
   'detectForeshadowing',
-  'buildRichPrompt',
+  'buildNarrativeTimelineProjection',
   'assemblePromptContext',
 ]
 

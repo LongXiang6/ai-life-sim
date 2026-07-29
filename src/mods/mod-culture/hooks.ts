@@ -12,10 +12,6 @@ export function useReputation() {
   return useCultureStore((s) => s.reputation)
 }
 
-export function useRelationship() {
-  return useCultureStore((s) => s.relationship)
-}
-
 export function useFamily() {
   return useCultureStore((s) => s.family)
 }

@@ -13,6 +13,15 @@
       "engine-api",
       "server-prompt-assets"
     ],
+    "mod-history-dynamics": [
+      "historical-event-api"
+    ],
+    "mod-npc": [
+      "npc-system-api"
+    ],
+    "mod-social": [
+      "relationship-system-api"
+    ],
     "mod-world": [
       "world-init-api"
     ]
@@ -41,8 +50,7 @@
   "generatedPublicBoundaryExceptions": [
     "src/core/mod-loader/",
     "src/mods/registry.generated.ts",
-    "src/mods/mod-engine/bootstrap/",
-    "src/mods/mod-engine/helpers/adaptation-prompt-registry.generated.ts"
+    "src/mods/mod-engine/bootstrap/"
   ],
   "allowedCrossModDeepImports": [],
   "storeRegistryPublicBoundaryExceptions": [

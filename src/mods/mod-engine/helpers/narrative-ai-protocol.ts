@@ -1,6 +1,6 @@
 /**
  * @module narrative-ai-protocol.ts
- * @description 主叙事 AI 全中文协议信封、外部 Schema 与内部契约严格转译
+ * @description 叙事与结算 AI 的中文协议、Schema 与内部契约严格转译
  * @mod mod-engine
  *
  * AI 只接触本文件声明的中文字段和值；内部运行态继续使用稳定英文标识。
@@ -8,20 +8,19 @@
  */
 
 import { z } from 'zod'
+import type { SubSystemChanges } from '@/foundation'
+import { parseAIJSON } from '@/core/ai-service/parse-ai-json'
 
-import { MVP_NARRATIVE_CHANGE_SUBSYSTEM_IDS } from './mvp-runtime-policy'
 import {
   NarrativeResponseSchema,
   type NarrativeRoundMetadata,
 } from './narrative-semantic-signals'
-import { translateNarrativeAIChangeToInternal } from './subsystem-field-registry'
+import { translateNarrativeAISystemInstructionToInternal } from './subsystem-field-registry'
 
 export const NARRATIVE_BODY_TAG = '⟦正文⟧'
-export const NARRATIVE_SUMMARY_TAG = '⟦摘要⟧'
+export const NARRATIVE_BRANCH_TAG = '⟦分支⟧'
+export const NARRATIVE_SYSTEM_TAG_PREFIX = '⟦系统'
 export const NARRATIVE_DATA_TAG = '⟦数据⟧'
-export const NARRATIVE_END_TAG = '⟦结束⟧'
-export const NARRATIVE_ANNOTATION_OPEN = '⟪'
-export const NARRATIVE_ANNOTATION_CLOSE = '⟫'
 
 function createEnumTranslator<const TInternal extends string, const TAI extends string>(
   pairs: readonly (readonly [TInternal, TAI])[],
@@ -218,8 +217,8 @@ const NarrativeAIRelationshipUpdateSchema = z.object({
 
 const NarrativeAISemanticSignalsSchema = z.object({
   事件类型: AI_EVENT_TYPES.schema,
-  冲突强度: z.coerce.number().int().min(0).max(100),
-  张力变化: z.coerce.number().int().min(-10).max(15),
+  冲突强度: z.number().int().min(0).max(100),
+  张力变化: z.number().int().min(-10).max(15),
   行动规模: AI_ACTION_SCALES.schema,
   不可逆: z.boolean(),
   影响范围: AI_IMPACT_SCOPES.schema,
@@ -240,7 +239,7 @@ const NarrativeAISemanticSignalsSchema = z.object({
 
 const NarrativeAIKeyEventSchema = z.object({
   内容: z.string().min(1),
-  重要度: z.coerce.number().min(0).max(100),
+  重要度: z.number().min(0).max(100),
   涉及实体: z.array(z.string().min(1)).min(1).optional(),
 }).strict()
 
@@ -253,7 +252,7 @@ const NarrativeAICreationSchema = z.object({
 const NarrativeAIForeshadowingSchema = z.object({
   类型: AI_FORESHADOWING_TYPES.schema,
   说明: z.string().min(1),
-  优先级: z.coerce.number().min(1).max(10),
+  优先级: z.number().min(1).max(10),
 }).strict()
 
 const NarrativeAIIntentResolutionSchema = z.object({
@@ -262,7 +261,7 @@ const NarrativeAIIntentResolutionSchema = z.object({
   执行方式: AI_INTENT_EXECUTION_MODES.schema,
   状态: AI_INTENT_STATUSES.schema,
   风险等级: AI_INTENT_RISK_LEVELS.schema,
-  进度: z.coerce.number().min(0).max(100),
+  进度: z.number().min(0).max(100),
   阻碍: z.array(z.string().min(1)).min(1).optional(),
   前置条件: z.array(z.string().min(1)).min(1).optional(),
   代价: z.array(z.string().min(1)).min(1).optional(),
@@ -271,13 +270,14 @@ const NarrativeAIIntentResolutionSchema = z.object({
   下一步: z.string().min(1).optional(),
 }).strict()
 
-const NarrativeAIChangeSchema = z.object({
+export const NarrativeAISystemInstructionSchema = z.object({
   系统: z.string().min(1),
+  目标对象: z.string().min(1),
+  目标上下文: z.string().min(1),
+  操作: z.string().min(1),
   说明: z.string().min(1),
-  变更: z.record(z.string(), z.unknown()).refine(
-    (changes) => Object.keys(changes).length > 0,
-    '变更对象不能为空',
-  ),
+  变更: z.record(z.string(), z.unknown()),
+  依据事件: z.array(z.string().min(1)),
 }).strict()
 
 const NarrativeAIDeferredCausalitySchema = z.object({
@@ -288,9 +288,20 @@ const NarrativeAIDeferredCausalitySchema = z.object({
   相关势力: z.string().min(1).optional(),
 }).strict()
 
-/** 主叙事 AI 唯一可接受的中文数据区协议；摘要由独立可选区承载。 */
-export const NarrativeAIResponseSchema = z.object({
-  状态变更: z.array(NarrativeAIChangeSchema).min(1).optional(),
+/** 第一次调用唯一可返回的玩家可见分支。 */
+const NarrativeAINonBlankStringSchema = z.string().refine(
+  (value) => value.trim().length > 0,
+  '文本不能为空白',
+)
+
+export const NarrativeAIBranchSchema = z.object({
+  标题: NarrativeAINonBlankStringSchema,
+  选项: z.array(NarrativeAINonBlankStringSchema).min(2).max(4),
+}).strict()
+
+/** 第二次调用的机器数据；系统操作通过独立的 ⟦系统N⟧ 分段返回。 */
+export const NarrativeAISettlementDataSchema = z.object({
+  摘要: z.string().min(1),
   长期事件: z.array(z.string().min(1)).min(1).optional(),
   原创内容: z.array(NarrativeAICreationSchema).min(1).optional(),
   新伏笔: z.array(NarrativeAIForeshadowingSchema).min(1).optional(),
@@ -298,510 +309,123 @@ export const NarrativeAIResponseSchema = z.object({
   关键事件: z.array(NarrativeAIKeyEventSchema).min(1).optional(),
   情节状态: AI_ARC_STATUSES.schema.optional(),
   语义信号: NarrativeAISemanticSignalsSchema.optional(),
-  命运分支: z.literal(true).optional(),
-  分支标题: z.string().min(1).optional(),
-  分支选项: z.array(z.string().min(1)).min(2).max(4).optional(),
   命运意图判定: NarrativeAIIntentResolutionSchema.optional(),
   新延迟因果: z.array(NarrativeAIDeferredCausalitySchema).min(1).optional(),
 }).strict().superRefine((data, context) => {
-  if (Object.keys(data).length === 0) {
-    context.addIssue({ code: 'custom', message: '没有结构化信息时应省略整个数据区' })
-  }
-
   const semanticCore = [data.重要程度, data.情节状态, data.语义信号]
   const semanticCoreCount = semanticCore.filter((value) => value !== undefined).length
   if (semanticCoreCount > 0 && semanticCoreCount < semanticCore.length) {
     context.addIssue({ code: 'custom', message: '重要程度、情节状态与语义信号必须同时提交或同时省略' })
   }
 
-  const branchFields = [data.命运分支, data.分支标题, data.分支选项]
-  const branchFieldCount = branchFields.filter((value) => value !== undefined).length
-  if (branchFieldCount > 0 && branchFieldCount < branchFields.length) {
-    context.addIssue({ code: 'custom', message: '命运分支、分支标题与分支选项必须同时提交或同时省略' })
-  }
-
-  if ((data.命运分支 || data.命运意图判定) && semanticCoreCount !== semanticCore.length) {
+  if (data.命运意图判定 && semanticCoreCount !== semanticCore.length) {
     context.addIssue({ code: 'custom', message: '命运分支或命运意图判定必须同时提交完整语义核心' })
-  }
-  if (data.命运分支) {
-    if (data.重要程度 !== '高') {
-      context.addIssue({ code: 'custom', path: ['重要程度'], message: '命运分支必须对应高重要程度' })
-    }
-    if (data.语义信号?.不可逆 !== true) {
-      context.addIssue({ code: 'custom', path: ['语义信号', '不可逆'], message: '命运分支必须对应不可逆变化' })
-    }
-    if (data.语义信号?.叙事语域 === '生活') {
-      context.addIssue({ code: 'custom', path: ['语义信号', '叙事语域'], message: '命运分支不得使用生活语域' })
-    }
   }
 })
 
-export type NarrativeAIResponse = z.infer<typeof NarrativeAIResponseSchema>
+export type NarrativeAISettlementData = z.infer<typeof NarrativeAISettlementDataSchema>
+export type NarrativeAIBranch = z.infer<typeof NarrativeAIBranchSchema>
+export type NarrativeAISystemInstruction = z.infer<typeof NarrativeAISystemInstructionSchema>
 
-/**
- * 仅修复 AI 把 JSON 语法引号/分隔符写成中文全角形式的协议错误。
- * 不丢数组项、不提取局部对象，也不改写字符串内部的中文引号。
- */
-export function normalizeNarrativeAIJsonSyntax(source: string): string {
-  let output = ''
-  let inAsciiString = false
-  let inCurlyString = false
-  let escaped = false
-
-  const nextNonWhitespace = (from: number): string | undefined => {
-    for (let index = from; index < source.length; index++) {
-      if (!/\s/u.test(source[index]!)) return source[index]
-    }
-    return undefined
-  }
-
-  for (let index = 0; index < source.length; index++) {
-    const char = source[index]!
-
-    if (inAsciiString) {
-      output += char
-      if (escaped) {
-        escaped = false
-      } else if (char === '\\') {
-        escaped = true
-      } else if (char === '"') {
-        inAsciiString = false
-      }
-      continue
-    }
-
-    if (inCurlyString) {
-      if (char === '”' && [':', ',', '}', ']'].includes(nextNonWhitespace(index + 1) ?? '')) {
-        output += '"'
-        inCurlyString = false
-      } else if (char === '"') {
-        output += '\\"'
-      } else {
-        output += char
-      }
-      continue
-    }
-
-    if (char === '"') {
-      output += char
-      inAsciiString = true
-    } else if (char === '“') {
-      output += '"'
-      inCurlyString = true
-    } else if (char === '，') {
-      output += ','
-    } else if (char === '：') {
-      output += ':'
-    } else {
-      output += char
-    }
-  }
-
-  return output
+/** 读取唯一完整 JSON；字段和值仍由所属严格 Schema 校验。 */
+export function parseNarrativeAIJson(source: string): unknown {
+  const parsed = parseAIJSON(source)
+  if (parsed === null) throw new Error('协议段缺少唯一、完整且可解析的 JSON')
+  return parsed
 }
 
-/**
- * 只复原能够由结构栈唯一判定的一个缺失最外层 `}`。模型偶尔会正确关闭
- * 最后一个嵌套对象，却漏掉包裹数据区的根对象；此处不猜字段、不重排数组，
- * 遇到任何字符串未闭合、括号错配或多层缺失都保持原样交给严格 JSON 解析拒绝。
- */
-function restoreSingleMissingRootObjectBrace(source: string): string {
-  if (!source.startsWith('{') || !source.endsWith('}')) return source
-
-  const stack: Array<'{' | '['> = []
-  let inString = false
-  let escaped = false
-  for (const char of source) {
-    if (inString) {
-      if (escaped) {
-        escaped = false
-      } else if (char === '\\') {
-        escaped = true
-      } else if (char === '"') {
-        inString = false
-      }
-      continue
-    }
-
-    if (char === '"') {
-      inString = true
-      continue
-    }
-    if (char === '{' || char === '[') {
-      stack.push(char)
-      continue
-    }
-    if (char !== '}' && char !== ']') continue
-
-    const expectedOpening = char === '}' ? '{' : '['
-    if (stack.at(-1) !== expectedOpening) return source
-    stack.pop()
-  }
-
-  return !inString && stack.length === 1 && stack[0] === '{'
-    ? `${source}}`
-    : source
+export interface TranslateNarrativeAISettlementOptions {
+  allowedEvidenceEventIds: readonly string[]
+  allowedSubsystemIds: readonly string[]
 }
 
-/**
- * 删除标准示例中可能被模型误复制的 `⟪说明⟫`。
- * 仅处理 JSON 字符串外的完整注释，不使用正则，也不改写字符串内容。
- */
-export function stripNarrativeAIAnnotations(source: string): string {
-  let output = ''
-  let inString = false
-  let escaped = false
-
-  for (let index = 0; index < source.length; index++) {
-    const char = source[index]!
-
-    if (inString) {
-      output += char
-      if (escaped) {
-        escaped = false
-      } else if (char === '\\') {
-        escaped = true
-      } else if (char === '"') {
-        inString = false
-      }
-      continue
-    }
-
-    if (char === '"') {
-      output += char
-      inString = true
-      continue
-    }
-
-    if (char === NARRATIVE_ANNOTATION_OPEN) {
-      const closeIndex = source.indexOf(NARRATIVE_ANNOTATION_CLOSE, index + 1)
-      if (closeIndex < 0) {
-        throw new Error('数据区包含未闭合的示例说明')
-      }
-      index = closeIndex
-      continue
-    }
-
-    output += char
-  }
-
-  return output
+export type NarrativeAISettlement = NarrativeRoundMetadata & {
+  changes: SubSystemChanges[]
 }
 
-export async function parseNarrativeAIDataJson(
-  source: string,
-  context?: { source?: string; worldType?: string; roundNumber?: number },
-): Promise<unknown> {
-  const { globalRepairPipeline } = await import('./repair-pipeline')
-  const { recordRepairAttempt } = await import('./repair-analytics')
+/** 第二次调用的中文分段整包转译为内部运行契约。 */
+export function translateNarrativeAISettlement(
+  rawInstructions: readonly unknown[],
+  rawData: unknown,
+  options: TranslateNarrativeAISettlementOptions,
+): NarrativeAISettlement {
+  const instructions = z.array(NarrativeAISystemInstructionSchema).parse(rawInstructions)
+  const data = NarrativeAISettlementDataSchema.parse(rawData)
+  const allowedEvidenceIds = new Set(options.allowedEvidenceEventIds)
 
-  const repairContext = {
-    source: context?.source ?? 'narrative-data',
-    timestamp: Date.now(),
-    worldType: context?.worldType,
-    roundNumber: context?.roundNumber,
-  }
-
-  const metrics = await globalRepairPipeline.repairWithMetrics(source.trim(), repairContext)
-
-  // 记录修复指标
-  if (metrics.stages.some(s => s.applied)) {
-    recordRepairAttempt(metrics)
-  }
-
-  if (!metrics.finalSuccess) {
-    throw new Error('数据区必须且只能包含一个完整对象')
-  }
-
-  return JSON.parse(metrics.finalResult!)
-}
-
-/**
- * 模型有时会把“没有变化”写成空数组。空数组不携带语义，进入严格 Schema
- * 前将其视为省略；不会补字段、猜测状态或改写任何故事文本。分支选项仍保留
- * 严格的最小数量门禁，避免把无效分支当成合法分支。
- */
-function omitEmptyNarrativeAIOptionals(raw: unknown): unknown {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return raw
-
-  const source = raw as Record<string, unknown>
-  const output: Record<string, unknown> = { ...source }
-  const normalizeAlias = (
-    value: unknown,
-    aliases: Record<string, string>,
-  ): unknown => typeof value === 'string' ? aliases[value.trim()] ?? value : value
-  const normalizeHumanScore = (
-    value: unknown,
-    aliases: Record<string, number>,
-  ): unknown => {
-    if (typeof value !== 'string') return value
-    const normalized = value.trim()
-    if (/^\d+(?:\.\d+)?$/u.test(normalized)) return Number(normalized)
-    return aliases[normalized] ?? value
-  }
-
-  if (output.重要程度 !== undefined) {
-    output.重要程度 = normalizeAlias(output.重要程度, {
-      中: '普通',
-      中等: '普通',
-      一般: '普通',
-    })
-  }
-  if (output.情节状态 !== undefined) {
-    output.情节状态 = normalizeAlias(output.情节状态, {
-      推进中: '进行中',
-      进展中: '进行中',
-      进行: '进行中',
-      已完成: '结束',
-      完成: '结束',
-    })
-  }
-  // “没有分支”偶尔会被模型写成 false；协议语义是省略三项，
-  // 仅在没有其它分支字段时将其归一为省略。若同时带标题或选项，继续交给
-  // 严格 Schema 拒绝不一致的分支包。
-  if (output.命运分支 === false
-    && output.分支标题 === undefined
-    && output.分支选项 === undefined) {
-    delete output.命运分支
-  }
-  if (output.命运意图判定
-    && typeof output.命运意图判定 === 'object'
-    && !Array.isArray(output.命运意图判定)
-    && Object.keys(output.命运意图判定 as Record<string, unknown>).length === 0) {
-    // 标准示例的条件对象偶尔被原样复制为空对象；空对象不代表判定结果。
-    delete output.命运意图判定
-  }
-  const optionalArrayKeys = [
-    '状态变更',
-    '长期事件',
-    '原创内容',
-    '新伏笔',
-    '关键事件',
-    '新延迟因果',
-  ] as const
-  for (const key of optionalArrayKeys) {
-    if (Array.isArray(output[key]) && output[key].length === 0) delete output[key]
-  }
-
-  // 可选描述项偶尔出现近义枚举（如“隐藏信息”“怀疑”）。这些字段不会直接
-  // 驱动数值写入，统一归入“其他”并保留原说明，避免一条近义词拖垮整轮叙事。
-  if (Array.isArray(output.原创内容)) {
-    output.原创内容 = output.原创内容.map((item) => {
-      if (!item || typeof item !== 'object' || Array.isArray(item)) return item
-      const normalized = { ...(item as Record<string, unknown>) }
-      if (typeof normalized.类别 === 'string'
-        && !AI_CREATION_CATEGORIES.aiValues.includes(normalized.类别 as never)) {
-        normalized.类别 = '其他'
-      }
-      return normalized
-    })
-  }
-  if (Array.isArray(output.新伏笔)) {
-    output.新伏笔 = output.新伏笔.map((item) => {
-      if (!item || typeof item !== 'object' || Array.isArray(item)) return item
-      const normalized = { ...(item as Record<string, unknown>) }
-      normalized.优先级 = normalizeHumanScore(normalized.优先级, {
-        极高: 10,
-        高: 8,
-        中: 5,
-        中等: 5,
-        低: 2,
-      })
-      if (typeof normalized.类型 === 'string'
-        && !AI_FORESHADOWING_TYPES.aiValues.includes(normalized.类型 as never)) {
-        normalized.类型 = '其他'
-      }
-      return normalized
-    })
-  }
-  if (Array.isArray(output.关键事件)) {
-    output.关键事件 = output.关键事件.map((item) => {
-      if (!item || typeof item !== 'object' || Array.isArray(item)) return item
-      const normalized = { ...(item as Record<string, unknown>) }
-      normalized.重要度 = normalizeHumanScore(normalized.重要度, {
-        极高: 100,
-        高: 80,
-        中: 50,
-        中等: 50,
-        低: 20,
-      })
-      return normalized
-    })
-  }
-
-  const semantic = output.语义信号
-  if (semantic && typeof semantic === 'object' && !Array.isArray(semantic)) {
-    const normalizedSemantic = { ...(semantic as Record<string, unknown>) }
-    normalizedSemantic.事件类型 = normalizeAlias(normalizedSemantic.事件类型, {
-      生活: '日常',
-      成长: '成就',
-      机会: '发现',
-      机遇: '发现',
-      信息获取: '发现',
-      情报获取: '发现',
-      获取信息: '发现',
-      情报: '发现',
-      信号: '发现',
-      线索: '发现',
-      探索: '发现',
-      调查: '发现',
-    })
-    normalizedSemantic.行动规模 = normalizeAlias(normalizedSemantic.行动规模, {
-      微小: '小',
-      小型: '小',
-      中型: '中',
-      大型: '大',
-    })
-    normalizedSemantic.影响范围 = normalizeAlias(normalizedSemantic.影响范围, {
-      家庭: '关系圈',
-      家庭圈: '关系圈',
-      社交圈: '关系圈',
-      个人能力: '个人',
-    })
-    normalizedSemantic.叙事语域 = normalizeAlias(normalizedSemantic.叙事语域, {
-      日常: '生活',
-    })
-    normalizedSemantic.情节类型 = normalizeAlias(normalizedSemantic.情节类型, {
-      日常: '无',
-      成长: '人生阶段',
-      探索: '旅程',
-      调查: '任务',
-      情报: '任务',
-      收集情报: '任务',
-    })
-    for (const key of ['关系变化', '已回收伏笔编号'] as const) {
-      if (Array.isArray(normalizedSemantic[key]) && normalizedSemantic[key].length === 0) {
-        delete normalizedSemantic[key]
-      }
+  for (const instruction of instructions) {
+    const unknownEvidenceIds = instruction.依据事件.filter((eventId) => !allowedEvidenceIds.has(eventId))
+    if (unknownEvidenceIds.length > 0) {
+      throw new Error(`依据事件未在本次结算输入中提供：${unknownEvidenceIds.join('、')}`)
     }
-    if (Array.isArray(normalizedSemantic.关系变化)) {
-      normalizedSemantic.关系变化 = normalizedSemantic.关系变化.map((item) => {
-        if (!item || typeof item !== 'object' || Array.isArray(item)) return item
-        const normalized = { ...(item as Record<string, unknown>) }
-        if (typeof normalized.类型 === 'string'
-          && !AI_RELATIONSHIP_TYPES.aiValues.includes(normalized.类型 as never)) {
-          normalized.类型 = '其他'
-        }
-        return normalized
-      })
-    }
-    output.语义信号 = normalizedSemantic
   }
 
-  const intent = output.命运意图判定
-  if (intent && typeof intent === 'object' && !Array.isArray(intent)) {
-    const normalizedIntent = { ...(intent as Record<string, unknown>) }
-    normalizedIntent.可行性 = normalizeAlias(normalizedIntent.可行性, {
-      可行: '可执行',
-      可完成: '可执行',
-      不可行: '不可能',
-    })
-    normalizedIntent.执行方式 = normalizeAlias(normalizedIntent.执行方式, {
-      立即: '立即执行',
-      阶段性推进: '逐步执行',
-      持续推进: '逐步执行',
-      延后: '延后执行',
-    })
-    normalizedIntent.状态 = normalizeAlias(normalizedIntent.状态, {
-      进展中: '推进中',
-      进行中: '推进中',
-      完成: '成功',
-      已完成: '成功',
-      部分完成: '部分成功',
-    })
-    normalizedIntent.风险等级 = normalizeAlias(normalizedIntent.风险等级, {
-      一般: '中',
-      较高: '高',
-      很高: '极高',
-    })
-    normalizedIntent.进度 = normalizeHumanScore(normalizedIntent.进度, { 无: 0 })
-    for (const key of ['阻碍', '前置条件', '代价'] as const) {
-      if (typeof normalizedIntent[key] === 'string' && normalizedIntent[key].trim()) {
-        normalizedIntent[key] = [normalizedIntent[key]]
-      }
-      if (Array.isArray(normalizedIntent[key]) && normalizedIntent[key].length === 0) {
-        delete normalizedIntent[key]
-      }
-    }
-    output.命运意图判定 = normalizedIntent
-  }
-
-  return output
-}
-
-/**
- * 中文协议整包转译为内部运行契约。任何未知系统/字段/枚举都会抛错，
- * 调用方必须保留原始数据区并让全部结构化状态失效。
- */
-export function translateNarrativeAIResponse(raw: unknown, digest?: string): NarrativeRoundMetadata & {
-  changes: Array<{ id: string; description: string; changes: Record<string, unknown> }>
-} {
-  const ai = NarrativeAIResponseSchema.parse(omitEmptyNarrativeAIOptionals(raw))
-  const translated = {
-    changes: (ai.状态变更 ?? []).map((change) => translateNarrativeAIChangeToInternal({
+  const translated: NarrativeAISettlement = {
+    changes: instructions.map((change) => translateNarrativeAISystemInstructionToInternal({
       systemName: change.系统,
+      operation: change.操作,
+      targetObjectId: change.目标对象,
+      targetContextId: change.目标上下文,
+      evidenceEventIds: change.依据事件,
       description: change.说明,
       fields: change.变更,
-    }, MVP_NARRATIVE_CHANGE_SUBSYSTEM_IDS)),
-    notableEvents: ai.长期事件,
-    creations: ai.原创内容?.map((item) => ({
+    }, options.allowedSubsystemIds)),
+    digest: data.摘要,
+    notableEvents: data.长期事件,
+    creations: data.原创内容?.map((item) => ({
       name: item.名称,
       description: item.说明,
       category: AI_CREATION_CATEGORIES.toInternal(item.类别),
     })),
-    foreshadowing: ai.新伏笔?.map((item) => ({
+    foreshadowing: data.新伏笔?.map((item) => ({
       type: AI_FORESHADOWING_TYPES.toInternal(item.类型),
       description: item.说明,
       priority: item.优先级,
     })),
-    importance: ai.重要程度 ? AI_IMPORTANCE_LEVELS.toInternal(ai.重要程度) : undefined,
-    ...(digest?.trim() ? { digest: digest.trim() } : {}),
-    keyEvents: ai.关键事件?.map((event) => ({
+    importance: data.重要程度 ? AI_IMPORTANCE_LEVELS.toInternal(data.重要程度) : undefined,
+    keyEvents: data.关键事件?.map((event) => ({
       text: event.内容,
       importance: event.重要度,
       entities: event.涉及实体,
     })),
-    arcStatus: ai.情节状态 ? AI_ARC_STATUSES.toInternal(ai.情节状态) : undefined,
-    semanticSignals: ai.语义信号
+    arcStatus: data.情节状态 ? AI_ARC_STATUSES.toInternal(data.情节状态) : undefined,
+    semanticSignals: data.语义信号
       ? {
-          eventType: AI_EVENT_TYPES.toInternal(ai.语义信号.事件类型),
-          conflictIntensity: ai.语义信号.冲突强度,
-          tensionDelta: ai.语义信号.张力变化,
-          actionScale: AI_ACTION_SCALES.toInternal(ai.语义信号.行动规模),
-          irreversible: ai.语义信号.不可逆,
-          impactScope: AI_IMPACT_SCOPES.toInternal(ai.语义信号.影响范围),
-          narrativeRegister: AI_NARRATIVE_REGISTERS.toInternal(ai.语义信号.叙事语域),
-          registerReason: ai.语义信号.语域理由,
-          arcType: AI_ARC_TYPES.toInternal(ai.语义信号.情节类型),
-          relationshipUpdates: (ai.语义信号.关系变化 ?? []).map((update) => ({
+          eventType: AI_EVENT_TYPES.toInternal(data.语义信号.事件类型),
+          conflictIntensity: data.语义信号.冲突强度,
+          tensionDelta: data.语义信号.张力变化,
+          actionScale: AI_ACTION_SCALES.toInternal(data.语义信号.行动规模),
+          irreversible: data.语义信号.不可逆,
+          impactScope: AI_IMPACT_SCOPES.toInternal(data.语义信号.影响范围),
+          narrativeRegister: AI_NARRATIVE_REGISTERS.toInternal(data.语义信号.叙事语域),
+          registerReason: data.语义信号.语域理由,
+          arcType: AI_ARC_TYPES.toInternal(data.语义信号.情节类型),
+          relationshipUpdates: (data.语义信号.关系变化 ?? []).map((update) => ({
             name: update.姓名,
             type: AI_RELATIONSHIP_TYPES.toInternal(update.类型),
             summary: update.说明,
           })),
-          resolvedForeshadowingIds: (ai.语义信号.已回收伏笔编号 ?? [])
+          resolvedForeshadowingIds: (data.语义信号.已回收伏笔编号 ?? [])
             .map(fromNarrativeAIForeshadowingId),
         }
       : undefined,
-    branch: ai.命运分支,
-    branchTitle: ai.分支标题,
-    branchOptions: ai.分支选项,
-    intentResolution: ai.命运意图判定
+    intentResolution: data.命运意图判定
       ? {
-          intentId: fromNarrativeAIIntentId(ai.命运意图判定.意图编号),
-          feasibility: AI_INTENT_FEASIBILITIES.toInternal(ai.命运意图判定.可行性),
-          executionMode: AI_INTENT_EXECUTION_MODES.toInternal(ai.命运意图判定.执行方式),
-          status: AI_INTENT_STATUSES.toInternal(ai.命运意图判定.状态),
-          riskLevel: AI_INTENT_RISK_LEVELS.toInternal(ai.命运意图判定.风险等级),
-          progress: ai.命运意图判定.进度,
-          blockers: ai.命运意图判定.阻碍 ?? [],
-          prerequisites: ai.命运意图判定.前置条件 ?? [],
-          costs: ai.命运意图判定.代价 ?? [],
-          timeHorizon: ai.命运意图判定.预计耗时,
-          reason: ai.命运意图判定.判定理由,
-          nextStep: ai.命运意图判定.下一步,
+          intentId: fromNarrativeAIIntentId(data.命运意图判定.意图编号),
+          feasibility: AI_INTENT_FEASIBILITIES.toInternal(data.命运意图判定.可行性),
+          executionMode: AI_INTENT_EXECUTION_MODES.toInternal(data.命运意图判定.执行方式),
+          status: AI_INTENT_STATUSES.toInternal(data.命运意图判定.状态),
+          riskLevel: AI_INTENT_RISK_LEVELS.toInternal(data.命运意图判定.风险等级),
+          progress: data.命运意图判定.进度,
+          blockers: data.命运意图判定.阻碍 ?? [],
+          prerequisites: data.命运意图判定.前置条件 ?? [],
+          costs: data.命运意图判定.代价 ?? [],
+          timeHorizon: data.命运意图判定.预计耗时,
+          reason: data.命运意图判定.判定理由,
+          nextStep: data.命运意图判定.下一步,
         }
       : undefined,
-    deferredCausality: ai.新延迟因果?.map((item) => ({
+    deferredCausality: data.新延迟因果?.map((item) => ({
       type: AI_DEFERRED_CAUSAL_TYPES.toInternal(item.类型),
       severity: AI_DEFERRED_CAUSAL_SEVERITIES.toInternal(item.严重程度),
       description: item.已成立事实,
@@ -813,11 +437,11 @@ export function translateNarrativeAIResponse(raw: unknown, digest?: string): Nar
   return NarrativeResponseSchema.parse(translated)
 }
 
-/** 仅在一次格式修复调用中加载的最小提醒，不重复标准示例字段清单。 */
-export function buildNarrativeAIProtocolRepairReminder(): string[] {
+/** 第一次调用格式修复使用的最小提醒。 */
+export function buildNarrativeAIProtocolRepairReminder(requestBranch = false): string[] {
   return [
-    '按系统提示词末尾的唯一标准示例重写；正式输出不要复制示例说明。',
-    '没有内容的结构化字段直接省略，不输出空数组、空对象、空字符串或 null。',
-    `至少完整返回 ${NARRATIVE_BODY_TAG} 与 ${NARRATIVE_END_TAG}；${NARRATIVE_SUMMARY_TAG} 只在有高价值事实索引时输出。`,
+    '参照系统提示词末尾的唯一 content 返回结构示例，重写完整最终结果。',
+    `content 直接以 ${NARRATIVE_BODY_TAG} 紧接完整正文开始${requestBranch ? `；高优先级事实允许真实分叉时，再空一行写 ${NARRATIVE_BRANCH_TAG}单行JSON` : `；确有命运抉择时，再空一行写 ${NARRATIVE_BRANCH_TAG}单行JSON`}。`,
+    '正文自然段之间空一行；正文和可选分支构成完整 content，摘要、系统操作和机器数据留给后续结算调用。',
   ]
 }

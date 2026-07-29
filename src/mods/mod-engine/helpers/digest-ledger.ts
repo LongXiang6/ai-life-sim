@@ -20,8 +20,9 @@
  *      低分事件，按 chainFactor 提升其 adjustedImportance（前置事件被"追认"重要）。
  *   2. 时间衰减（effectiveImportance）：查询时按 age 衰减，越低分衰减越快；
  *      ≥ LOCK_THRESHOLD 的事件永不衰减（刻骨铭心）。
- *   3. 语义卸载（selectForPrompt）：注入 prompt 时保留全部高权事件；低分旧事
- *      退出常驻投影，仍完整保存在账本、原始历史和摘要检索中。
+ *   3. 语义卸载（selectForNarrativeTimeline）：故事投影保留全部高权事件；低分旧事
+ *      退出常驻投影，仍完整保存在账本、原始历史和摘要检索中。故事侧只取得轮次、
+ *      上下文和事件文本，不取得内部有效权重。
  */
 
 import {
@@ -282,12 +283,12 @@ export class DigestLedger {
    *   4. 可排除近期完整原文已覆盖的轮次，避免同一事实重复发送。
    *   5. 不设置固定条目上限；高价值事件始终按语义权重保留。
    */
-  selectForPrompt(
+  selectForNarrativeTimeline(
     currentRound: number,
     currentContextId?: string,
     closedContextIds?: ReadonlySet<string>,
     options?: { excludeRoundsAtOrAfter?: number },
-  ): string[] {
+  ): Array<{ round: number; contextId?: string; text: string }> {
     if (this.entries.length === 0) return []
 
     interface Scored {
@@ -316,12 +317,16 @@ export class DigestLedger {
 
     const kept = scored.filter((s) => s.effective >= FOLD_THRESHOLD)
 
-    // 高分逐条完整保留，并按时间顺序注入。
-    const keptLines = kept
+    // 故事侧只获得时间锚点和事件；有效权重仅留在本系统内部用于选择。
+    const keptEvents = kept
       .sort((a, b) => a.round - b.round)
-      .map((s) => `[${s.round}轮${s.contextId ? `·上下文=${s.contextId}` : ''}·${s.effective}] ${s.text}`)
+      .map((event) => ({
+        round: event.round,
+        contextId: event.contextId,
+        text: event.text,
+      }))
 
-    return keptLines
+    return keptEvents
   }
 
   /** 拼合近 N 轮 digest 为一段（供"近期精简"注入） */

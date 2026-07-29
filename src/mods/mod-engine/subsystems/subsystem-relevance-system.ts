@@ -36,7 +36,6 @@ const AGE_THRESHOLDS: Record<string, { minAge?: number; maxAge?: number }> = {
   
   // 成年期相关
   'work': { minAge: 16, },
-  'relationship': { minAge: 14, },
   'marriage': { minAge: 16, },
   
   // 中老年相关
@@ -96,9 +95,9 @@ const INFLUENCE_SCOPE_SYSTEMS: Record<InfluenceScope, string[]> = {
     'health', 'family', 'education', 'work', 'character-base',
     'morality', 'luck', 'lifespan', 'faith',
   ],
-  // 强者：城镇级别（+ 经济、声望、关系）
+  // 强者：城镇级别（+ 经济、声望）
   town: [
-    'economy', 'reputation', 'relationship', 'marriage',
+    'economy', 'reputation', 'marriage',
     'market', 'settlement', 'population',
   ],
   // 大能：区域级别（+ 势力、国家、生态）

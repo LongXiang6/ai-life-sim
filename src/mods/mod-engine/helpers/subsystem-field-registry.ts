@@ -8,11 +8,15 @@
  * 维护：新增子系统时在此注册一个条目即可，无需改 Prompt 模板。
  *
  * Zod 校验：SUBSYSTEM_CHANGE_SCHEMAS 用于验证 AI 返回的 changes，
- * 契约外字段与类型/范围不合法项均拒绝；消费方必须整包拒绝本轮 AI 状态变更。
+ * 契约外字段与类型/范围不合法项均拒绝；消费方必须整包拒绝本轮 AI 系统指令。
  */
 
 import { z } from 'zod'
-import type { SubSystemChanges } from '@/foundation'
+import {
+  NPC_SYSTEM_OPERATION_FIELDS,
+  RELATIONSHIP_SYSTEM_OPERATION_FIELDS,
+  type SubSystemChanges,
+} from '@/foundation'
 
 // ============================================================
 // 类型定义
@@ -34,6 +38,10 @@ export interface SubsystemFieldContract {
   allowedScopes?: Array<'global' | 'active-context' | 'explicit-context'>
   /** 该系统登记的标准操作族 */
   operations?: string[]
+  /** Internal operation name to the single Chinese protocol operation label. */
+  operationLabels?: Record<string, string>
+  /** Exact internal payload keys accepted by each operation. */
+  operationFields?: Record<string, readonly string[]>
   /** 主叙事 AI 协议中的唯一中文系统名；未声明时禁止向 AI 开放 */
   aiName?: string
   /** 字段契约：key=字段名，description 用于 Prompt，schema 用于运行时校验 */
@@ -56,16 +64,8 @@ const ailmentEntry = z.object({
   rounds: z.coerce.number().min(0).optional(),
 })
 
-/** 关系条目 */
-const relationEntry = z.object({
-  name: z.string(),
-  type: z.string().optional(),
-  reason: z.string().optional(),
-  affinity: z.coerce.number().optional(),
-})
-
 export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> = {
-  // ── P0 多世界基础（不扩大 narrativeChange 白名单）────────────
+  // ── P0 多世界基础（不扩大 systemInstruction 白名单）────────────
   'world-context-registry': {
     label: '世界上下文注册表',
     aiName: '世界上下文',
@@ -150,26 +150,29 @@ export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> =
     aiAuthority: 'validated-write',
     allowedScopes: ['global'],
     operations: ['增量'],
+    operationFields: {
+      增量: ['physiqueDelta', 'mindDelta', 'talentAptitudeDelta', 'charismaDelta'],
+    },
     fields: {
       physiqueDelta: {
         aiName: '体魄变化',
         description: '整数；正为增长，负为下降；建议单轮不超过2，协议范围为-8至8',
-        schema: z.coerce.number().min(-8).max(8).optional(),
+        schema: z.number().int().min(-8).max(8).optional(),
       },
       mindDelta: {
         aiName: '心智变化',
         description: '整数；正为增长，负为下降；建议单轮不超过2，协议范围为-8至8',
-        schema: z.coerce.number().min(-8).max(8).optional(),
+        schema: z.number().int().min(-8).max(8).optional(),
       },
       talentAptitudeDelta: {
         aiName: '悟性变化',
         description: '整数；正为增长，负为下降；建议单轮不超过2，协议范围为-8至8',
-        schema: z.coerce.number().min(-8).max(8).optional(),
+        schema: z.number().int().min(-8).max(8).optional(),
       },
       charismaDelta: {
         aiName: '魅力变化',
         description: '整数；正为增长，负为下降；建议单轮不超过2，协议范围为-8至8',
-        schema: z.coerce.number().min(-8).max(8).optional(),
+        schema: z.number().int().min(-8).max(8).optional(),
       },
     },
   },
@@ -204,16 +207,20 @@ export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> =
     aiAuthority: 'validated-write',
     allowedScopes: ['global', 'active-context'],
     operations: ['增量', '设值'],
+    operationFields: {
+      增量: ['lifespanDelta'],
+      设值: ['maxAge'],
+    },
     fields: {
       maxAge: {
         aiName: '最大寿命',
         description: '最大寿命绝对值，单位为年；当前年龄由时间系统派生，禁止提交年龄',
-        schema: z.coerce.number().min(0).optional(),
+        schema: z.number().int().min(1).optional(),
       },
       lifespanDelta: {
         aiName: '最大寿命变化',
         description: '最大寿命增量（年；负=减寿，正=增寿；仅叙事明确影响寿命时填写）',
-        schema: z.coerce.number().min(-1000).max(1000).optional(),
+        schema: z.number().int().min(-1000).max(1000).optional(),
       },
     },
   },
@@ -223,11 +230,12 @@ export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> =
     aiAuthority: 'validated-write',
     allowedScopes: ['global'],
     operations: ['增量'],
+    operationFields: { 增量: ['delta'] },
     fields: {
       delta: {
         aiName: '道德变化',
         description: '善恶变化量（整数；+1=趋善，-1=趋恶；单次仅重大行为可写）',
-        schema: z.coerce.number().min(-1).max(1).optional(),
+        schema: z.number().int().min(-1).max(1).optional(),
       },
     },
   },
@@ -237,11 +245,12 @@ export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> =
     aiAuthority: 'validated-write',
     allowedScopes: ['global', 'active-context'],
     operations: ['设值'],
+    operationFields: { 设值: ['luck'] },
     fields: {
       luck: {
         aiName: '气运绝对值',
         description: '气运绝对值（-10~+10；仅重大人生转折可设置，通常每次变化≤1）',
-        schema: z.coerce.number().min(-10).max(10).optional(),
+        schema: z.number().int().min(-10).max(10).optional(),
       },
     },
   },
@@ -357,17 +366,64 @@ export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> =
       },
     },
   },
-  'relationship': {
-    label: '关系',
+  'npc-system': {
+    label: 'NPC 系统',
+    aiName: 'NPC系统',
+    aiAuthority: 'validated-write',
+    allowedScopes: ['active-context', 'explicit-context'],
+    operations: ['create-identity', 'set-context-state', 'set-goal', 'record-behavior', 'record-memory'],
+    operationLabels: {
+      'create-identity': '创建身份',
+      'set-context-state': '设置当地状态',
+      'set-goal': '设定目标',
+      'record-behavior': '记录行为',
+      'record-memory': '记录记忆',
+    },
+    operationFields: NPC_SYSTEM_OPERATION_FIELDS,
     fields: {
-      addRelation: {
-        description: '新增关系 [{name, type, affinity}]',
-        schema: z.array(relationEntry).optional(),
-      },
-      affinityDelta: {
-        description: '好感变化（±值）',
-        schema: z.coerce.number().optional(),
-      },
+      displayName: { aiName: '显示名', description: 'NPC 显示名', schema: z.string().min(1).optional() },
+      creationSource: { aiName: '创建来源', description: '身份创建来源说明', schema: z.string().min(1).optional() },
+      stableTraits: { aiName: '稳定特质', description: '稳定特质标签数组', schema: z.array(z.string().min(1)).optional() },
+      localName: { aiName: '当地称呼', description: '当前上下文中的称呼', schema: z.string().optional() },
+      stance: { aiName: '立场', description: '当前上下文立场', schema: z.string().optional() },
+      role: { aiName: '角色', description: '当前上下文角色', schema: z.string().optional() },
+      localRuleModifiers: { aiName: '当地规则修正', description: '当地规则修正数字表', schema: z.record(z.string(), z.number()).optional() },
+      description: { aiName: '目标描述', description: 'NPC 目标描述', schema: z.string().min(1).optional() },
+      targetEntityIds: { aiName: '目标实体', description: '已登记的全局实体 ID 数组', schema: z.array(z.string().min(1)).optional() },
+      behaviorOperation: { aiName: '行为操作', description: '行为类型', schema: z.string().min(1).optional() },
+      spatialNodeId: { aiName: '空间节点', description: '已登记的当前上下文空间节点 ID', schema: z.string().min(1).optional() },
+      summary: { aiName: '主观摘要', description: 'NPC 主观记忆摘要', schema: z.string().min(1).optional() },
+      emotion: { aiName: '情绪值', description: '整数情绪值（-10 至 10）', schema: z.number().int().min(-10).max(10).optional() },
+      relatedEntityIds: { aiName: '关联实体', description: '已登记的关联实体 ID 数组', schema: z.array(z.string().min(1)).optional() },
+      sourceMemoryIds: { aiName: '来源记忆', description: '已有来源记忆 ID 数组', schema: z.array(z.string().min(1)).optional() },
+    },
+  },
+  'relationship-system': {
+    label: '通用关系系统',
+    aiName: '通用关系系统',
+    aiAuthority: 'validated-write',
+    allowedScopes: ['active-context', 'explicit-context'],
+    operations: ['establish', 'adjust', 'end', 'scope-change'],
+    operationLabels: {
+      establish: '建立',
+      adjust: '调整',
+      end: '解除',
+      'scope-change': '变更作用域',
+    },
+    operationFields: RELATIONSHIP_SYSTEM_OPERATION_FIELDS,
+    fields: {
+      toEntityId: { aiName: '目标实体', description: '已登记的目标实体 ID（建立关系时必填）', schema: z.string().min(1).optional() },
+      categoryTags: { aiName: '关系类别', description: '中性关系类别标签数组', schema: z.array(z.string().min(1)).optional() },
+      affinity: { aiName: '好感', description: '整数初始好感（-100 至 100）', schema: z.number().int().min(-100).max(100).optional() },
+      trust: { aiName: '信任', description: '整数初始信任（0 至 100）', schema: z.number().int().min(0).max(100).optional() },
+      bond: { aiName: '羁绊', description: '整数初始羁绊（0 至 100）', schema: z.number().int().min(0).max(100).optional() },
+      conflict: { aiName: '冲突', description: '整数初始冲突（0 至 100）', schema: z.number().int().min(0).max(100).optional() },
+      affinityDelta: { aiName: '好感变化', description: '整数好感变化量', schema: z.number().int().optional() },
+      trustDelta: { aiName: '信任变化', description: '整数信任变化量', schema: z.number().int().optional() },
+      bondDelta: { aiName: '羁绊变化', description: '整数羁绊变化量', schema: z.number().int().optional() },
+      conflictDelta: { aiName: '冲突变化', description: '整数冲突变化量', schema: z.number().int().optional() },
+      scopeKind: { aiName: '作用域类型', description: 'global/context/cross-context', schema: z.enum(['global', 'context', 'cross-context']).optional() },
+      scopeContextIds: { aiName: '作用域上下文', description: '稳定上下文 ID 数组', schema: z.array(z.string().min(1)).optional() },
     },
   },
   'market': {
@@ -481,6 +537,8 @@ export const SUBSYSTEM_CHANGE_SCHEMAS: Record<string, z.ZodObject<z.ZodRawShape>
 export interface NarrativeAISubsystemContract {
   internalId: string
   aiName: string
+  operations: Record<string, string>
+  operationFields: Record<string, string[]>
   fields: Record<string, {
     internalName: string
     aiName: string
@@ -513,9 +571,29 @@ export function getNarrativeAISubsystemContract(internalId: string): NarrativeAI
     }
   }
 
+  const operationFields: NarrativeAISubsystemContract['operationFields'] = {}
+  for (const [operation, internalFieldNames] of Object.entries(contract.operationFields ?? {})) {
+    if (!(contract.operations ?? []).includes(operation)) {
+      throw new Error(`子系统 ${internalId} 的字段契约引用未知操作 ${operation}`)
+    }
+    operationFields[operation] = internalFieldNames.map((internalFieldName) => {
+      const field = contract.fields[internalFieldName]
+      if (!field?.aiName) {
+        throw new Error(`子系统 ${internalId}.${operation} 引用未知或无中文名字段 ${internalFieldName}`)
+      }
+      return field.aiName
+    })
+  }
+
   return {
     internalId,
     aiName: contract.aiName,
+    operations: Object.fromEntries(
+      Object.entries(contract.operationLabels
+        ?? Object.fromEntries((contract.operations ?? []).map((operation) => [operation, operation])))
+        .map(([internalName, aiName]) => [internalName, aiName]),
+    ),
+    operationFields,
     fields,
   }
 }
@@ -527,8 +605,12 @@ export function getNarrativeAISubsystemContracts(
 }
 
 /** 将 AI 中文系统名与字段名严格转回内部运行契约；未知项由调用方整包拒绝。 */
-export function translateNarrativeAIChangeToInternal(input: {
+export function translateNarrativeAISystemInstructionToInternal(input: {
   systemName: string
+  operation: string
+  targetObjectId: string
+  targetContextId: string
+  evidenceEventIds?: string[]
   description: string
   fields: Record<string, unknown>
 }, allowedSubsystemIds: Iterable<string>): SubSystemChanges {
@@ -538,30 +620,58 @@ export function translateNarrativeAIChangeToInternal(input: {
     throw new Error(`未知或本轮不可写的中文子系统：${input.systemName}`)
   }
 
+  const operation = contract.operations
+    ? Object.entries(contract.operations).find(([, aiName]) => aiName === input.operation)?.[0]
+    : input.operation
+  if (!operation || (SUBSYSTEM_FIELD_CONTRACTS[contract.internalId].operations
+    && !SUBSYSTEM_FIELD_CONTRACTS[contract.internalId].operations?.includes(operation))) {
+    throw new Error(`子系统 ${input.systemName} 含未知标准操作：${input.operation}`)
+  }
+
   const changes: Record<string, unknown> = {}
+  const allowedOperationFields = contract.operationFields[operation]
   for (const [aiName, value] of Object.entries(input.fields)) {
     const field = contract.fields[aiName]
     if (!field) {
       throw new Error(`子系统 ${input.systemName} 含未知中文字段：${aiName}`)
+    }
+    if (allowedOperationFields && !allowedOperationFields.includes(aiName)) {
+      throw new Error(`子系统 ${input.systemName} 的操作 ${input.operation} 不接受字段：${aiName}`)
     }
     changes[field.internalName] = value
   }
 
   return {
     id: contract.internalId,
+    targetObjectId: input.targetObjectId,
+    targetContextId: input.targetContextId,
+    operation,
+    evidenceEventIds: [...(input.evidenceEventIds ?? [])],
     description: input.description,
     changes,
   }
 }
 
 /**
- * 根据当前阶段的 narrativeChange 白名单生成给 AI 的字段指南。
+ * 根据当前阶段的 systemInstruction 白名单生成给 AI 的字段指南。
  */
 export function buildSubsystemGuide(subsystemIds: Iterable<string>): string {
   const lines: string[] = []
   for (const contract of getNarrativeAISubsystemContracts(subsystemIds)) {
     lines.push(`${contract.aiName}：`)
-    lines.push(`  “变更”对象只允许键：${Object.values(contract.fields).map((field) => `“${field.aiName}”`).join('、')}`)
+    const operationLabels = Object.values(contract.operations)
+    if (operationLabels.length > 0) lines.push(`  标准操作只允许：${operationLabels.map((operation) => `“${operation}”`).join('、')}`)
+    if (Object.keys(contract.operationFields).length > 0) {
+      for (const [operation, aiName] of Object.entries(contract.operations)) {
+        const allowedFields = contract.operationFields[operation]
+        if (!allowedFields) continue
+        lines.push(allowedFields.length > 0
+          ? `  操作“${aiName}”的“变更”对象只允许键：${allowedFields.map((field) => `“${field}”`).join('、')}`
+          : `  操作“${aiName}”的“变更”必须是空对象。`)
+      }
+    } else {
+      lines.push(`  “变更”对象只允许键：${Object.values(contract.fields).map((field) => `“${field.aiName}”`).join('、')}`)
+    }
     for (const field of Object.values(contract.fields)) {
       lines.push(`  ${field.aiName}：${field.description}`)
     }
@@ -586,6 +696,22 @@ export function validateChange(
     }
     console.warn(`[Validator] 未知子系统 "${change.id}"，变更被丢弃:`, change.description)
     return null
+  }
+
+  const contract = SUBSYSTEM_FIELD_CONTRACTS[change.id]
+  const allowedOperationFields = change.operation
+    ? contract.operationFields?.[change.operation]
+    : undefined
+  if (contract.operationFields && !allowedOperationFields) {
+    console.warn(`[Validator] ${change.id} 含未知或缺失操作：${change.operation ?? ''}`)
+    return null
+  }
+  if (allowedOperationFields) {
+    const unexpectedFields = Object.keys(change.changes).filter((field) => !allowedOperationFields.includes(field))
+    if (unexpectedFields.length > 0) {
+      console.warn(`[Validator] ${change.id}.${change.operation} 含不适用字段：${unexpectedFields.join('、')}`)
+      return null
+    }
   }
 
   const result = schema.safeParse(change.changes)

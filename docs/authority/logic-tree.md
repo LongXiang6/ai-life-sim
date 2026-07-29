@@ -33,8 +33,8 @@
 ## 核心叙事回合
 
 - **目标**：在一次玩家推进中完成时间与本地模拟、上下文组装、AI 叙事、合法状态提交、故事展示和后续持久化。
-- **当前机制**：页面通过引擎 Hook 发起回合；Orchestrator 串行等待预生成释放单写者后，运行默认 Campaign 的声明式阶段机。组装器把动态 AI 输入固定为全局信息、记忆、本轮引导、变化要求四部分，只发送必要叙事事实和本轮可写源变化；本地关联 ID、人口/科技底层进度和可推导连锁值不进入消息正文。AI 完整响应经过协议解析、定向修复和原子提交，再把故事与状态投影同步给 `EngineStore` 和页面；回合成功后由调用链触发自动存档与下一段预生成。
-- **当前机制补充**：响应提交后异步触发 `summary-compressor`。它按 L1=4、L2=16、L3=64 的四倍时间轴规则延迟压缩，并把每个存档的原始 L1 与结构化时间轴写入独立明文 SQLite；主叙事只消费压缩系统公开的最近 4 轮完整正文、已完成摘要和按需检索命中。所有核心叙事调用都经过 `/api/proxy`；代理按 `lifeRunId + round` 被动把实际上游请求与响应逐字追加到同一轮 TXT，不另发日志请求。每条采用正文保存逐轮迁移审计；成功回合在后台压缩和自动存档完成后只发送一次 outcome，失败回合也只发送一次，用于固化阶段、质量、采用、提交和失败证据。
+- **当前机制**：页面通过引擎 Hook 发起回合；Orchestrator 串行等待预生成释放单写者后，运行默认 Campaign 的声明式阶段机。第一次 AI 调用只接收 `全局信息/记忆/本轮引导` 三条动态消息；全局和本轮引导保持单行 JSON，记忆按时间阶段组织并用真实换行逐项列出发生时间与事件。本轮引导由本地无状态编译器把系统来源稳定排序、精确去重，并把玩家原始分支独立投影后再发送，不增加 AI 调用或长度截断；正文先按末尾字数要求选择可完整收束的事件规模。第一次返回完整正文与可选分支；第二次调用接收同回合每个活动可写系统的一行完整相关状态、回合上下文和第一次完整响应，再返回全部系统源变化及机器数据。第一次负责故事及玩家分支，第二次只按故事中已发生的事实结算，不续写或重新裁决。两次响应、严格校验和原子提交全部成功后，故事与状态才同步到 `EngineStore` 和页面；任一步失败则完整回滚且不显示正文。回合成功后先完成压缩、自动存档和 outcome 固化，再启动只缓存下一轮第一次响应的预生成；预览不写入真实回合诊断。
+- **当前机制补充**：响应提交后异步触发 `summary-compressor`。它按 L1=4、L2=16、L3=64 的四倍时间轴规则延迟压缩，并把每个存档的原始 L1 与结构化时间轴写入独立明文 SQLite；内部档案完整保留来源、权重、衰减、遗忘与原始压缩结果，主叙事只消费压缩系统公开的“时间 + 事件”派生投影，不接收层级或计算字段。所有核心叙事调用都经过 `/api/proxy`；代理按 `lifeRunId + round` 被动把实际上游请求与响应逐字追加到同一轮 TXT，不另发日志请求。每条采用正文保存逐轮迁移审计；成功回合在后台压缩和自动存档完成后只发送一次 outcome，失败回合也只发送一次，用于固化阶段、质量、采用、提交和失败证据。
 - **权责边界**：页面不解析或提交 AI 状态；AI 不直接修改 Store；Orchestrator 只通过活动子系统的契约写入所属状态。
 - **实时源**：`src/mods/mod-pages/pages/game-story/`、`src/mods/mod-engine/hooks.ts`、`src/mods/mod-engine/subsystems/orchestrator-system.ts`、`src/mods/mod-engine/campaigns/default/index.ts`。完整阶段与事务见 [核心模拟](core-simulation.md)。
 
@@ -49,7 +49,7 @@
 ## 结构化 AI 写入
 
 - **目标**：把 AI 输出限制为可解析、可校验、可归属和可回滚的状态变更，不从自由正文推断业务事实。
-- **当前机制**：响应使用中文标签信封；正文必需，摘要和数据区按协议可选。数据区先经 Schema 翻译，再校验子系统 ID、字段、作用域和操作权限；只有当前运行清单中标记为可叙事变更的所属系统可以接受写入。正文/摘要成立而数据失败时，本地保留二者原字节，只把字段路径、当前值、标准规则和合法示例交给数据修复调用；最多两次仍失败则整包拒绝结构化变化，不循环改写故事。
+- **当前机制**：第一次固定 Prompt 以明确起止边界提供唯一 `content` 标准示例，并用正向字段职责说明 DeepSeek 的推理由 `reasoning_content` 承载、最终玩家可见结果由 `content` 承载。第一次规范响应为 `⟦正文⟧` 与可选 `⟦分支⟧`，完整纯正文、成对围栏、说明前缀、标签空白和完整多行分支 JSON 也可无损识别；第二次规范响应为连续 `⟦系统N⟧` 单行操作和最后唯一 `⟦数据⟧`，并兼容分段换行与完整 JSON 的常见格式差异，均不使用结束字段。每条系统操作固定声明 `系统/目标对象/目标上下文/操作/说明/变更/依据事件`，经中文 Schema 转译后校验活动白名单、能力、目标、上下文、操作及该操作的精确字段集；当前可写系统为 `character-base`、`lifespan`、`luck`、`morality`、`npc-system`、`relationship-system`。关系解除以空“变更”对象表达，其他同系统字段不能夹带到不适用操作。解析不采用补括号、舍弃残缺内容或部分对象重组；两类格式错误各自最多复用原 Prompt 资产和原输入修复两次，仍失败、任一系统拒绝或任一历史依赖失败都会使正文与结构化变化一起回滚。
 - **权责边界**：字段合同由 `subsystem-field-registry.ts` 和生成的字段键共同定义，所属子系统负责预检和提交。Prompt、解析器、页面或历史文档不得建立第二份字段合同。
 - **实时源**：`src/mods/mod-engine/helpers/narrative-ai-protocol.ts`、`tagged-meta-envelope.ts`、`subsystem-field-registry.ts`、`narrative-change-bundle.ts`、`src/mods/mod-engine/subsystems/narrative-parser-system.ts`。
 
@@ -59,6 +59,14 @@
 - **当前机制**：有效结构化数据被组装为历史事务批次；`historical-event-ledger` 先预检再提交。剧情结构、伏笔、延迟因果、关系和记忆引用已提交的事件 ID，并绑定核心回合的规范时间锚点；任一依赖步骤失败时，依赖的结构化副作用整包回滚。
 - **权责边界**：历史账本拥有事实与证据；Orchestrator 拥有执行顺序；延迟因果和记忆系统拥有各自投影。账本不拥有正文或其他系统状态。
 - **实时源**：`src/mods/mod-history-dynamics/`、`src/foundation/subsystem-contracts/historical-event.contract.ts`、`src/mods/mod-engine/subsystems/orchestrator-system.ts`、`src/mods/mod-engine/helpers/event-lifecycle-tracker.ts`。
+
+## NPC 与社会关系
+
+- **目标**：让人物在多世界中拥有可恢复的连续身份、当地状态、目标、行动、独立主观记忆和明确作用域关系，同时不复制位置、历史或玩家记忆真源。
+- **当前机制**：角色恢复时由 `world-entity` 登记玩家引用并通过 `spatial-graph` 放置位置；NPC 创建前必须已有 `npc` 实体引用。`npc-system` 以稳定实体 ID 保存身份、当地状态、目标、行为和主观记忆，年龄只从规范总天数派生；`relationship-system` 保存人物或组织之间的有向边以及建立、调整、解除、作用域改变的追加式迁移。活动上下文执行完整规则，后台上下文仅在能力画像允许时生成确定性低频聚合，休眠和关闭上下文冻结，重新进入时只生成一次可追踪追赶记录。
+- **Prompt 投影**：NPC 视图从玩家同场实体开始，扩展到与同场实体直接相连的一跳关系端点，再选取活动目标及同场、相关或最近同一规范时间批次的行为和记忆；关系视图只包含至少一个端点在当前场景且作用域适用于当前上下文的边。所有选择都是完整 Store 的派生视图，不设置固定条数或删除源记录。
+- **权责边界**：实体引用归 `world-entity`，位置归 `spatial-graph`，NPC 私有状态归 `npc-system`，关系图归 `relationship-system`，已成立证据归 `historical-event-ledger`。编排器只协调预检、快照、提交和回滚；缺少 P2 存档快照时初始化空状态，不解释旧 NPC/关系载荷。
+- **实时源**：`src/foundation/subsystem-contracts/npc-social.contract.ts`、`src/mods/mod-world/subsystems/world-entity-system.ts`、`src/mods/mod-npc/`、`src/mods/mod-social/`、`src/mods/mod-engine/helpers/round-commit-bus.ts`。
 
 ## 世界上下文与切换
 
@@ -70,7 +78,7 @@
 ## 存档与恢复
 
 - **目标**：保存完整可恢复的本局事实，并在坏快照或不一致上下文下保持原运行态不被部分覆盖。
-- **当前机制**：自动保存从 Engine、Character、World、Orchestrator 和活动所属系统统一收集快照；手动本地或云端保存由引擎边界先取消预生成、等待预览清理与后台压缩提交，再收集同一载荷。恢复先验证载荷并检查运行成员，再取消在途预生成并等待单写者释放，随后迁移、写入核心 Store、恢复 Orchestrator 和所属系统。任一步失败则恢复进入函数前的核心快照，不切换到模拟页。
+- **当前机制**：自动保存从 Engine、Character、World、Orchestrator 和活动所属系统统一收集快照；实体目录、NPC 和关系状态只进入各 owning system 的封闭版本快照，不在 World 通用快照或浏览器持久 Store 重复保存。手动本地或云端保存由引擎边界先取消预生成、等待预览清理与后台压缩提交，再收集同一载荷。恢复先验证载荷并检查运行成员，再取消在途预生成并等待单写者释放，随后写入核心 Store、恢复 Orchestrator 和所属系统；P2 快照缺失时清空对应新 Store，未知字段或断开的跨 Store 引用使加载失败。任一步失败则恢复进入函数前的核心快照，不切换到模拟页。
 - **权责边界**：`save-restore.ts` 负责收集和恢复顺序，`src/core/storage/` 负责槽位与序列化，各 Store/子系统负责自身字段合法性。页面不拼装第二份存档载荷。
 - **实时源**：`src/mods/mod-engine/helpers/save-restore.ts`、`src/core/storage/`、所属 Store 的快照方法、`src/mods/mod-engine/hooks.ts`。
 
@@ -102,4 +110,4 @@
 - **目标**：在用户明确要求发布时完成可验证、可切换和可回滚的生产更新。
 - **当前机制**：先完成请求范围内的验证，再按生产操作说明执行归档、上传、构建、健康检查、原子切换、服务重启、清理或回滚；实际命令和服务器路径只保存在独立操作说明中。
 - **权责边界**：本节描述逻辑，不授权发布。未收到用户明确发布要求时，不改变生产状态。
-- **实时源**：`D:\AI\.agents\skills\ai-life-sim\references\production-operations.md`、`scripts/ops/`、`scripts/release/`。
+- **实时源**：`D:\AI\.agents\skills\ai-life-sim\references\production-deployment.md`、`D:\AI\.agents\skills\ai-life-sim\references\production-recovery.md`、`scripts/ops/`、`scripts/release/`。

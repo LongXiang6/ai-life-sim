@@ -7,7 +7,12 @@
  * 移植原则：用新项目 MOD 架构重新实现，常量归入 mod-engine/constants
  */
 
-import type { ReasoningEffort } from '@/foundation'
+import {
+  DEFAULT_WORD_COUNT_TARGET,
+  resolveNarrativeWordCountTarget,
+  type NarrativeWordCountTarget,
+  type ReasoningEffort,
+} from '@/foundation'
 import {
   computeNarrativeTokenBudget,
   getNarrativeTokenCalibration,
@@ -27,37 +32,6 @@ export const NARRATIVE_STYLE_PROMPTS: Record<NarrativeStyleId, string> = {
   realistic: '【叙事风格：写实】以现实约束、社会规则、人物动机和具体阻力推动剧情。多写行动、对话、手续、资源限制和关系反应；少用报告腔、抒情作文和无因巧合。',
   poetic: '【叙事风格：诗意】意象服务剧情压力和人物选择。可以语言凝练、有画面感，但每段仍尽量推进事件、阻力或后果；少写成散文化独白或纯情绪描写。',
 }
-
-// ============================================================
-// 字数范围（8 档）
-// ============================================================
-
-/** 字数范围选项 */
-export interface WordCountRange {
-  min: number
-  max: number
-  label: string,
-}
-
-export const WORD_COUNT_RANGES: WordCountRange[] = [
-  { min: 50, max: 150, label: '极简（50-150字）', },
-  { min: 100, max: 300, label: '简短（100-300字）', },
-  { min: 200, max: 500, label: '标准（200-500字）', },
-  { min: 300, max: 800, label: '详细（300-800字）', },
-  { min: 500, max: 1000, label: '丰富（500-1000字）', },
-  { min: 800, max: 1500, label: '长篇（800-1500字）', },
-  { min: 1000, max: 2000, label: '史诗（1000-2000字）', },
-  { min: 1500, max: 3000, label: '巨著（1500-3000字）', },
-]
-
-// ============================================================
-// 压缩系统参数
-// ============================================================
-
-/**
- * @deprecated 压缩调度的唯一来源是 `../constants.ts`；此兼容导出保持同一数值。
- */
-export const SUMMARY_INTERVAL = 4
 
 // ============================================================
 // 紧凑 JSON 键名映射（用于压缩 Prompt 中的 JSON 字段名）
@@ -82,46 +56,54 @@ export const COMPACT_JSON_KEY_MAP: Record<string, string> = {
 // 辅助函数
 // ============================================================
 
-/**
- * 默认每轮叙事字数目标 —— 单一来源常量
- * 所有 wordCountTarget 回退值与 store 初始值均从此派生；它不是输出上限。
- * 改动此处即可全局生效，无需在多个文件中手动同步
- */
-export const DEFAULT_WORD_COUNT_TARGET = 200
-
 export interface NarrativeWordCountRange {
-  target: number
+  target: NarrativeWordCountTarget
   preferredMin: number
   preferredMax: number
 }
 
-export function resolveNarrativeWordCountRange(target: number): NarrativeWordCountRange {
-  const normalizedTarget = Number.isFinite(target)
-    ? Math.max(50, Math.round(target))
-    : DEFAULT_WORD_COUNT_TARGET
+export function resolveNarrativeWordCountRange(target: unknown): NarrativeWordCountRange {
+  const normalizedTarget = resolveNarrativeWordCountTarget(target)
   return {
     target: normalizedTarget,
-    preferredMin: Math.max(50, Math.floor(normalizedTarget * 0.75)),
-    preferredMax: Math.max(50, Math.ceil(normalizedTarget * 1.3)),
+    preferredMin: Math.max(1, Math.floor(normalizedTarget * 0.8)),
+    preferredMax: Math.ceil(normalizedTarget * 1.2),
   }
+}
+
+const NARRATIVE_DETAIL_INSTRUCTIONS: Record<NarrativeWordCountTarget, string> = {
+  50: '写成一个短段、1至2个短句：一个感官或动作，加一个直接结果。',
+  100: '写成1至2个短段、2至3个短句：一个现场锚点、一个关键行动和立即结果。',
+  150: '写成2个短段、3至4个短句：交代必要现场、行动或回应和直接后果。',
+  200: '写成2至3个短段、4至6个短句：一个感官锚点、一组关键行动或对话、一个直接结果；不追加第二组环境描写或后续铺垫。',
+  250: '写成2至3个短段、5至7句：围绕一个核心事件，可加入少量对话或环境细节，并形成明确新局面。',
+  300: '写成3至4个短段、6至8句：用一个场景写清事件起因、关键推进和后果。',
+  400: '充分展开一个主事件及其关联变化，用对话、动作和环境共同推动因果。',
+  500: '形成完整场景，分阶段呈现压力、选择、行动、关系回应和后续牵引。',
+  600: '围绕中心事件安排两到三个连续节拍，兼顾人物反应、环境变化与代价。',
+  700: '展开多节拍事件，让行动、对话、内在判断和外部后果相互推进。',
+  800: '细致呈现完整事件链，允许次要人物或局部转折，但始终服务本轮主线。',
+  1000: '以章节级密度展开主事件、关键互动、局部转折及其直接和延迟后果。',
+  1200: '写成完整章节，充分铺陈现场、冲突升级、人物抉择、代价与余波。',
+  1500: '写成长章节，以多个连续场景推进同一因果主线，并完成关键人物弧光变化。',
+  1800: '写成层次完整的长章节，容纳多场景推进、关系变化、转折和明确收束。',
+  2000: '写成充分展开的长章节，完整覆盖主事件链、人物群像反应、代价、余波与下一局面。',
 }
 
 /**
  * 根据大致字数生成 Prompt 字数约束文本
  */
-export function buildWordCountInstruction(target: number): string {
-  const { target: normalizedTarget } = resolveNarrativeWordCountRange(target)
+export function buildWordCountInstruction(target: NarrativeWordCountTarget): string {
+  const {
+    target: normalizedTarget,
+    preferredMin,
+    preferredMax,
+  } = resolveNarrativeWordCountRange(target)
   return [
-    `【篇幅提示：玩家偏好约${normalizedTarget}字】仅用于把握节奏，不是硬上限、硬下限或重写条件。`,
-    '核心优先级：文笔、人物代入、现场感、因果推进和让玩家想继续下一轮，均高于字数精确度。',
-    '根据事件需要自然展开或收束；不要为了凑字重复环境意象，也不要为了压字删掉关键行动、对话、阻力、代价或后果。',
-    '完整性要求：围绕本轮事件完成可见后果、新局面或下一轮牵引，正文末尾避免停在未说完的引出句。',
-    '文字规范：使用常用简体中文，避免生僻字、异体字、日文新字体或繁体字混入。',
+    NARRATIVE_DETAIL_INSTRUCTIONS[normalizedTarget],
+    `正文全部段落合计写成${preferredMin}-${preferredMax}字，中心约${normalizedTarget}字。`,
   ].join('\n')
 }
-
-/** 废弃项目 NARRATIVE_WORD_COUNT_DEFAULT_MAX */
-export const NARRATIVE_WORD_COUNT_DEFAULT_MAX = DEFAULT_WORD_COUNT_TARGET
 
 export interface NarrativeMaxTokenOptions {
   reasoningEffort?: ReasoningEffort
@@ -134,12 +116,10 @@ export interface NarrativeMaxTokenOptions {
  * 同 Provider/模型/模式积累至少 8 个真实样本后使用 P95 校准。
  */
 export function computeNarrativeMaxTokens(
-  wordCountTarget: number,
+  wordCountTarget: NarrativeWordCountTarget,
   options: NarrativeMaxTokenOptions = {},
 ): number {
-  const normalizedTarget = Number.isFinite(wordCountTarget)
-    ? Math.max(50, Math.round(wordCountTarget))
-    : DEFAULT_WORD_COUNT_TARGET
+  const normalizedTarget = resolveNarrativeWordCountTarget(wordCountTarget)
   const reasoningEffort = options.reasoningEffort ?? 'disabled'
   const calibration = options.providerId && options.model
     ? getNarrativeTokenCalibration({
@@ -154,6 +134,8 @@ export function computeNarrativeMaxTokens(
     calibration,
   })
 }
+
+export { DEFAULT_WORD_COUNT_TARGET }
 
 /**
  * 根据叙事风格生成 Prompt 风格指令

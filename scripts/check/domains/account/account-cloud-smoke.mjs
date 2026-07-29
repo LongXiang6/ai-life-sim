@@ -44,6 +44,12 @@ const settings = {
   theme: 'minimal-white',
 }
 
+assert.equal(
+  contract.CloudSettingsSchema.safeParse({ ...settings, wordCountTarget: 777 }).success,
+  false,
+  'cloud settings must reject narrative lengths outside the fixed option contract',
+)
+
 const longBackground = `玩家原创背景：${'完整保留，不得截断。'.repeat(1500)}`
 const characterDraft = {
   schemaVersion: 1,

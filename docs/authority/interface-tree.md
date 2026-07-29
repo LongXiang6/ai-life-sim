@@ -45,7 +45,7 @@
 | 命格抽取与选择 | 生成有效候选并完成普通命格选择；轮回天赋保持独立 | 页面负责请求状态、候选展示和选择交互，确认结果进入角色链路 | `src/mods/mod-pages/pages/talent-draw/`、`src/mods/mod-character/`；生成协议由叙事/AI 链路所有 |
 | 属性分配 | 调整并确认玩家可见的基础属性，命格修正保持独立 | 页面操作创建期基础值，确认后通过 `character-base` 所属公开状态提交 | `src/mods/mod-pages/pages/attribute-alloc/`；后续叙事写入仍受核心模拟字段契约限制 |
 | 命运预览 | 在正式模拟前完成最后核对并进入第一轮 | 页面汇总已确认的世界、角色和命格信息，确认后启动模拟 | `src/mods/mod-pages/pages/fate-preview/`；不复制所属系统状态 |
-| 核心故事 | 展示故事、流式状态、分支选择、错误和继续推进 | 页面调用引擎回合入口并消费 `EngineStore` 投影；分支结果由引擎提交 | `src/mods/mod-pages/pages/game-story/`；详细机制见 [核心模拟](core-simulation.md) |
+| 核心故事 | 展示故事、分支选择、错误和继续推进 | 页面调用引擎回合入口并消费原子提交后的 `EngineStore` 投影；分支结果由引擎提交。玩家请求强制分叉后，即使 AI 没有返回预设选项，下一轮正文完成时也会出现自定义叙事引导输入框 | `src/mods/mod-pages/pages/game-story/`；页面不展示未结算流式正文，详细机制见 [核心模拟](core-simulation.md) |
 | 人生结算 | 展示本局结果、人生记录、评分、轮回结果和新人生入口 | 页面读取已完成的引擎与角色结果，使用逐轮迁移审计组装完整评分输入，消费核心评分结果与第二人称评语，并执行分享、战绩同步、画像资格请求、轮回选择或重新开始；页面不把迁移状态硬编码为可信 | `src/mods/mod-pages/pages/game-over/`、`src/core/scoring/`、`src/mods/mod-character/mythic-library-store.ts`；结算页不建立第二套评分公式，服务端仍会独立复算资格 |
 
 `src/mods/mod-pages/pages/world-build/` 仅将旧路由重定向到世界配置，不是第二套世界创建界面。
@@ -58,8 +58,8 @@
 | 账号与云端 | 提供可选登录、账号内容和云端数据操作 | 页面通过账号客户端状态和账号 API 获取或提交账号拥有的数据 | `src/mods/mod-pages/pages/account/`、`src/core/account/`；本地存档与账号数据不互相冒充所有者 |
 | 排行榜 | 查看分数超过 97 的账号最佳人生 | 页面读取服务端只读投影，按分数、轮数、完成时间和记录 ID 的稳定顺序展示用户名、角色、世界、维度、大事、第二人称评语及可用画像 | `src/mods/mod-pages/pages/leaderboard/`、`src/core/player-content/`；页面不复制完整故事、存档或评分计算 |
 | 邮箱 | 查看当前账号的满分画像邮件并标记已读 | 页面只读取当前登录账号邮件，按需打开受控画像资产；未登录、处理中、失败和空邮箱各有明确状态 | `src/mods/mod-pages/pages/mailbox/`、账号邮箱 API、`src/core/player-content/portrait-mail-service.ts`；页面不拥有邮件或画像任务状态 |
-| 设置 | 调整阅读界面、叙事偏好、模型调用并查看自己的数据统计 | 独立路由页面（`/settings`），固定四个 Tab：`阅读与界面 / 叙事偏好 / 模型与调用 / 数据统计`。支持作为 Modal 弹窗或独立页面渲染（`isPage`），在 `final-flow` 动态画布下支持多端响应式居中缩放与子选项卡纵向内滚动。Tab 栏使用隐藏滚动条的原生横向滚动，激活项在点击或键盘切换后自动滚入可见区域。叙事文风编辑稿经“保存当前风格”生效，可“恢复默认”；思考模式为关闭、自动、深入、最大；统计页展示 Token 与费用数据。 | `src/mods/mod-pages/pages/settings/`、`src/mods/mod-settings/`；不显示原始 Prompt、其他用户、设备来源或管理者入口，请求与计费计算由 AI 服务负责 |
-| 游戏说明 | 查看游戏流程与更新日志说明 | 独立路由页面（`/help`），展示新手引导章集与版本变更。支持独立页面（`/help`）与弹窗两种模式。 | `src/mods/mod-pages/pages/help/`、`src/mods/mod-ui/` |
+| 设置 | 调整阅读界面、叙事偏好、模型调用并查看自己的数据统计 | 独立路由页面（`/settings`），固定四个 Tab：`阅读与界面 / 叙事偏好 / 模型与调用 / 数据统计`。支持作为 Modal 弹窗或独立页面渲染（`isPage`），在 `final-flow` 动态画布下支持多端响应式居中缩放与子选项卡纵向内滚动。Tab 栏使用隐藏滚动条的原生横向滚动，激活项在点击或键盘切换后自动滚入可见区域。叙事文风编辑稿经“保存当前风格”生效，可“恢复默认”；正文目标使用 50 至 2000 的 16 档下拉单选；思考模式为关闭、自动、深入、最大；统计页展示 Token 与费用数据。 | `src/mods/mod-pages/pages/settings/`、`src/mods/mod-settings/`；不显示原始 Prompt、其他用户、设备来源或管理者入口，请求与计费计算由 AI 服务负责 |
+| 游戏说明 | 查看游戏流程与更新日志说明 | 独立路由页面（`/help`），展示新手引导章集与版本变更，支持独立页面与弹窗两种模式。更新日志在每个文本资源内按新到旧保存最多 10 个版本，当前资源满 10 个后创建下一资源；页面先加载最新资源并按需继续加载历史版本，不向玩家展示资源分片信息。 | `src/mods/mod-pages/pages/help/`、`src/mods/mod-ui/`、`public/changelog-index.json` 与 `public/changelog-*.txt`；版本记录器拥有写入和轮换规则，页面只负责读取与展示 |
 | 反馈 | 提交玩家描述并展示提交状态 | 页面静默构建完整诊断请求，经 API 明文保存后返回反馈编号 | `src/mods/mod-pages/pages/feedback/`、`src/core/logger/` 和反馈 API；不设置诊断同意步骤，具体链路见 [逻辑体系](logic-tree.md#诊断与反馈) |
 
 ## 开发辅助界面

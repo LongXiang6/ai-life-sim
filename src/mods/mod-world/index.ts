@@ -89,6 +89,20 @@ export type { CustomWorldInput } from './utils/preset-to-config'
 // Store
 export { useWorldStore } from './store'
 export { sanitizeWorldStateSnapshot } from './utils/world-state-migration'
+export {
+  listWorldContexts,
+  getCurrentWorldContext,
+  registerWorldEntityReference,
+  getWorldEntityReference,
+  listWorldEntityReferences,
+  assertWorldEntityReference,
+  contextHasCapability,
+  canRunBackgroundWorldSubsystem,
+  assertWorldSpatialNode,
+  assertWorldEntityLocation,
+  listCoLocatedWorldEntityIds,
+  moveWorldEntityLocation,
+} from './world-context-api'
 
 // Hooks
 export { useWorld, useWorldEntities, useWorldTime } from './hooks'

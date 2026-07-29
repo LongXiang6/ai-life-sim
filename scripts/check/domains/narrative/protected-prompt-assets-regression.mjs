@@ -17,18 +17,12 @@ function assertOk(condition, message) {
   failed++
 }
 
-const promptContract = read('src/mods/mod-engine/prompts/narrative-prompt.ts')
+const narrativeContract = read('src/mods/mod-engine/prompts/narrative-prompt.ts')
+const settlementContract = read('src/mods/mod-engine/prompts/narrative-settlement-prompt.ts')
 const clientComponents = read('src/mods/mod-engine/prompts/narrative-prompt-components.ts')
 const clientProtocol = read('src/mods/mod-engine/helpers/narrative-ai-protocol.ts')
-const serverPrompt = read('src/mods/mod-engine/server/narrative-system-prompt.ts')
-const repairServerPrompt = read('src/mods/mod-engine/server/narrative-repair-system-prompt.ts')
-const branchRepairContract = read('src/mods/mod-engine/prompts/narrative-branch-repair-prompt.ts')
-const branchRepairServerPrompt = read('src/mods/mod-engine/server/narrative-branch-repair-system-prompt.ts')
-const dataRepairContract = read('src/mods/mod-engine/prompts/narrative-data-repair-prompt.ts')
-const dataRepairServerPrompt = read('src/mods/mod-engine/server/narrative-data-repair-system-prompt.ts')
-const repetitionRepairContract = read('src/mods/mod-engine/prompts/narrative-repetition-repair-prompt.ts')
-const repetitionRepairServerPrompt = read('src/mods/mod-engine/server/narrative-repetition-repair-system-prompt.ts')
-const repetitionAuditServerPrompt = read('src/mods/mod-engine/server/narrative-repetition-audit-system-prompt.ts')
+const narrativeServerPrompt = read('src/mods/mod-engine/server/narrative-system-prompt.ts')
+const settlementServerPrompt = read('src/mods/mod-engine/server/narrative-settlement-system-prompt.ts')
 const serverEntry = read('src/mods/mod-engine/server-prompt-assets.ts')
 const manifest = read('src/mods/mod-engine/manifest.ts')
 const generatedSecondary = read('src/core/mod-loader/mod-secondary-api-importers.generated.ts')
@@ -39,77 +33,43 @@ const settingsModal = read('src/mods/mod-settings/components/SettingsModal.tsx')
 const settingsIndex = read('src/mods/mod-settings/index.ts')
 
 assertOk(
-  promptContract.includes("version: '4.7.0'")
-    && promptContract.includes("systemPrompt: ''")
-    && promptContract.includes('serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID'),
-  'browser PromptTemplate must carry only the server asset ID',
+  narrativeContract.includes("version: '5.7.0'")
+    && narrativeContract.includes("systemPrompt: ''")
+    && narrativeContract.includes("'mod-engine:narrative:5.7.0'")
+    && narrativeContract.includes('serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID'),
+  'browser narrative PromptTemplate must carry only the 5.7.0 server asset ID',
 )
 assertOk(
-  branchRepairContract.includes('narrativeBranchRepairOutputSchema')
-    && branchRepairContract.includes("'mod-engine:narrative-branch-repair:1.0.0'")
-    && branchRepairServerPrompt.includes('COMPILED_NARRATIVE_BRANCH_REPAIR_SYSTEM_PROMPT')
-    && branchRepairServerPrompt.includes('不得输出 markdown、正文、摘要、解释、语义信号、状态变更或任何额外字段')
-    && serverEntry.includes('NARRATIVE_BRANCH_REPAIR_SERVER_PROMPT_ASSET_ID'),
-  'player-forced branch repair must use a protected branch-only JSON asset',
+  settlementContract.includes("version: '1.1.0'")
+    && settlementContract.includes("systemPrompt: ''")
+    && settlementContract.includes("'mod-engine:narrative-settlement:1.1.0'")
+    && settlementContract.includes('serverPromptAssetId: NARRATIVE_SETTLEMENT_SERVER_PROMPT_ASSET_ID'),
+  'browser settlement PromptTemplate must carry only the 1.1.0 server asset ID',
 )
 assertOk(
-  repetitionRepairContract.includes("'mod-engine:narrative-repetition-repair:1.0.0'")
-    && repetitionRepairContract.includes("'mod-engine:narrative-repetition-audit:1.1.0'")
-    && repetitionRepairContract.includes('parseNarrativeRepetitionRepairOutput')
-    && repetitionRepairContract.includes('parseNarrativeRepetitionAuditOutput')
-    && repetitionRepairContract.includes('事实一致: z.boolean()')
-    && repetitionRepairContract.includes('完整覆盖: z.boolean()')
-    && repetitionRepairContract.includes('覆盖证据: z.array(')
-    && repetitionRepairContract.includes('冲突: z.array(')
-    && repetitionRepairContract.includes('遗漏: z.array(')
-    && !repetitionRepairContract.includes('冲突事实'),
-  'repetition repair and fact audit must expose independent narrow client contracts',
-)
-assertOk(
-  repetitionRepairServerPrompt.includes('COMPILED_NARRATIVE_REPETITION_REPAIR_SYSTEM_PROMPT')
-    && repetitionRepairServerPrompt.includes('不得输出摘要、数据区、markdown、解释或思考过程')
-    && repetitionAuditServerPrompt.includes('COMPILED_NARRATIVE_REPETITION_AUDIT_SYSTEM_PROMPT')
-    && repetitionAuditServerPrompt.includes('{"事实一致":true,"完整覆盖":true,"覆盖证据":[')
-    && repetitionAuditServerPrompt.includes('任何源故事细节都不能仅因“不影响当前场景”而省略')
-    && repetitionAuditServerPrompt.includes('任何额外字段')
-    && serverEntry.includes('NARRATIVE_REPETITION_REPAIR_SERVER_PROMPT_ASSET_ID')
-    && serverEntry.includes('NARRATIVE_REPETITION_AUDIT_SERVER_PROMPT_ASSET_ID'),
-  'repetition rewriting and fact consistency audit must use registered protected server assets',
-)
-assertOk(
-  repairServerPrompt.includes('COMPILED_NARRATIVE_REPAIR_SYSTEM_PROMPT')
-    && repairServerPrompt.includes('buildNarrativeAIProtocolStandardExample')
-    && serverEntry.includes('NARRATIVE_REPAIR_SERVER_PROMPT_ASSET_ID'),
-  'the compact repair asset must remain server-owned and reuse the single protocol source',
-)
-assertOk(
-  dataRepairContract.includes("'mod-engine:narrative-data-repair:1.0.0'")
-    && dataRepairContract.includes("outputFormat: 'json'")
-    && dataRepairContract.includes('outputSchema: NarrativeDataRepairObjectSchema')
-    && dataRepairServerPrompt.includes('COMPILED_NARRATIVE_DATA_REPAIR_SYSTEM_PROMPT')
-    && dataRepairServerPrompt.includes('最终只能返回一个完整 JSON 对象')
-    && dataRepairServerPrompt.includes('禁止正文、摘要、分区标签')
-    && serverEntry.includes('NARRATIVE_DATA_REPAIR_SERVER_PROMPT_ASSET_ID'),
-  'valid narrative bodies must use a protected data-only repair asset with an object gate and caller-owned precise validation',
-)
-assertOk(
-  serverPrompt.includes('你是人生模拟器的主叙事引擎')
-    && serverPrompt.includes('buildNarrativeAIProtocolStandardExample')
-    && serverPrompt.includes('player-setting-ownership')
-    && serverPrompt.includes('COMPILED_NARRATIVE_SYSTEM_PROMPT'),
+  narrativeServerPrompt.includes('受世界事实与模拟规则约束的世界叙事演算者')
+    && narrativeServerPrompt.includes('buildNarrativeAIProtocolStandardExample')
+    && narrativeServerPrompt.includes('player-setting-ownership')
+    && narrativeServerPrompt.includes('narrative-length-control')
+    && narrativeServerPrompt.includes('正文全部段落合计的篇幅区间和结构密度')
+    && narrativeServerPrompt.includes('世界观、已激活模组规则与确定性模拟逻辑')
+    && narrativeServerPrompt.includes('COMPILED_NARRATIVE_SYSTEM_PROMPT'),
   'server Prompt owner must retain the fixed narrative asset and standard example',
 )
 assertOk(
-  !serverPrompt.includes("id: 'first-round-origin'")
-    && !serverPrompt.includes("id: 'time-serves-story'"),
-  'opening-origin and time-scale rules must be dynamically loaded instead of remaining in every fixed request',
+  settlementServerPrompt.includes('你是人生模拟器的回合结算引擎')
+    && settlementServerPrompt.includes('buildNarrativeSettlementSystemContractLines')
+    && settlementServerPrompt.includes('buildNarrativeSettlementDataContractLine')
+    && settlementServerPrompt.includes('buildNarrativeSettlementStandardExample')
+    && settlementServerPrompt.includes('COMPILED_NARRATIVE_SETTLEMENT_SYSTEM_PROMPT'),
+  'server Prompt owner must derive and retain the fixed settlement contract and example',
 )
+
 for (const secretMarker of [
-  '你是人生模拟器的主叙事引擎',
+  '受世界事实与模拟规则约束的世界叙事演算者',
   '获得新能力、资源或地位不会自动触发官方或机构审查',
-  '你撞开仓房木门，把林舟的铜扣递给阿禾',
-  '你是主叙事重复正文的后台改写器',
-  '你是独立的叙事事实一致性审计器',
+  '你是人生模拟器的回合结算引擎',
+  '标准返回示例：',
 ]) {
   assertOk(
     !clientComponents.includes(secretMarker) && !clientProtocol.includes(secretMarker),
@@ -118,23 +78,41 @@ for (const secretMarker of [
 }
 assertOk(
   !clientProtocol.includes('buildNarrativeAIProtocolBaseRules')
-    && !clientProtocol.includes('buildNarrativeAIProtocolStandardExample'),
-  'browser protocol owner must keep only Schema, parsing, translation and repair reminders',
+    && !clientProtocol.includes('buildNarrativeAIProtocolStandardExample')
+    && !clientProtocol.includes('buildNarrativeSettlementStandardExample'),
+  'browser protocol owner must keep only Schema, strict translation and compact repair reminders',
 )
 assertOk(
   serverEntry.includes("import 'server-only'")
     && serverEntry.includes('resolveModEngineServerPromptAsset')
-    && serverEntry.includes("'mod-engine:narrative:4.5.2'")
-    && serverEntry.includes("'mod-engine:narrative:4.6.0'")
-    && serverEntry.includes('LEGACY_SERVER_PROMPT_ASSET_ALIASES')
-    && serverEntry.includes('canonicalAssetId'),
-  'server Prompt public entry must carry the server-only hard gate and exact release migration',
+    && serverEntry.includes('NARRATIVE_SERVER_PROMPT_ASSET_ID')
+    && serverEntry.includes('NARRATIVE_SETTLEMENT_SERVER_PROMPT_ASSET_ID')
+    && !serverEntry.includes('LEGACY_SERVER_PROMPT_ASSET_ALIASES')
+    && !serverEntry.includes('canonicalAssetId'),
+  'server Prompt entry must expose exactly the two current protected assets without migration aliases',
 )
 assertOk(
-  !serverEntry.includes('startsWith(')
+  (serverEntry.match(/systemPrompt:/gu) ?? []).length === 3
+    && !serverEntry.includes('startsWith(')
     && !serverEntry.includes('includes(assetId'),
-  'server Prompt migration must not widen the protected asset whitelist by prefix or substring',
+  'server Prompt whitelist must stay exact rather than accepting prefix or substring matches',
 )
+
+for (const retiredPath of [
+  'src/mods/mod-engine/campaigns/default/prompts/system-prompt.ts',
+  'src/mods/mod-engine/server/narrative-repair-system-prompt.ts',
+  'src/mods/mod-engine/server/narrative-data-repair-system-prompt.ts',
+  'src/mods/mod-engine/server/narrative-branch-repair-system-prompt.ts',
+  'src/mods/mod-engine/server/narrative-repetition-repair-system-prompt.ts',
+  'src/mods/mod-engine/server/narrative-repetition-audit-system-prompt.ts',
+  'src/mods/mod-engine/prompts/narrative-data-repair-prompt.ts',
+  'src/mods/mod-engine/prompts/narrative-branch-repair-prompt.ts',
+  'src/mods/mod-engine/prompts/narrative-repetition-repair-prompt.ts',
+  'src/mods/mod-engine/prompts/components/registry.ts',
+]) {
+  assertOk(!fs.existsSync(path.join(root, retiredPath)), `retired Prompt asset remains: ${retiredPath}`)
+}
+
 assertOk(
   manifest.includes("serverOnlyPublicEntries: ['server-prompt-assets.ts']")
     && !/secondaryPublicEntries:\s*\[[^\]]*server-prompt-assets/s.test(manifest)

@@ -10,6 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { clearGameProgressFromLocalStorage, opfsStorage, safeCleanupReload } from '@/core'
 import { clamp } from '@/core/shared'
+import { isNarrativeWordCountTarget } from '@/foundation'
 import { useFontStore } from '@/core/theme/font-store'
 
 import {
@@ -207,7 +208,12 @@ export function SettingsTabTheme() {
                 : settings.narrativeStyleText ? 1 : 0,
             })
           }
-          if (typeof settings.wordCountTarget === 'number') setWordCountTarget(Math.max(50, settings.wordCountTarget))
+          if ('wordCountTarget' in settings) {
+            if (!isNarrativeWordCountTarget(settings.wordCountTarget)) {
+              throw new Error('叙事目标字数不是当前固定档位')
+            }
+            setWordCountTarget(settings.wordCountTarget)
+          }
           if (typeof settings.streamingMode === 'string') setStreamingMode(settings.streamingMode)
           if (typeof settings.comfortableParagraphs === 'boolean') setComfortableParagraphs(settings.comfortableParagraphs)
           if (typeof settings.reduceMotion === 'boolean') setReduceMotion(settings.reduceMotion)

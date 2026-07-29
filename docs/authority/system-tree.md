@@ -94,7 +94,7 @@ TimeSystem
 |---|---|---|---|
 | App 路由 | 把 URL 和 API 请求交给已注册页面或服务 | Next.js 动态页面入口加载 MOD 页面，`src/app/api/` 承接服务端接口 | `src/app/`；不拥有业务状态 |
 | MOD 加载器 | 解析依赖、启动生命周期并冻结可用运行时 | 读取生成的注册表，按依赖图加载 Control 和公共能力 | `src/core/mod-loader/`、`src/mods/registry.generated.ts`；不替业务系统保存状态 |
-| AI 服务 | 统一模型目标、请求、缓存观测、流式响应、用量、费用、错误和服务端边界 | 调用方提交模型配置与分段 Prompt；服务端用可信账号或设备来源生成 DeepSeek `user_id`，内部另按 `narrative-main`、`narrative-repair`、`summary-L1/L2/L3`、`world-init`、`fate-talent`、`low-frequency`、`adaptation`、`connectivity-test` 等池统计缓存和费用。DeepSeek 思考模式映射为关闭、自动、深入、最大；正文 Token 上限由目标字数、信封、波动和同模型/模式 P95 思考量计算并最终取整 | `src/core/ai-service/`、`src/app/api/proxy/`、`src/app/api/ai-usage/`；偏好由 `mod-settings` 所有，AI 服务不拥有故事或业务状态 |
+| AI 服务 | 统一 Provider 能力、模型目标、请求参数、响应终态、账号并发、按调用系统隔离的 DeepSeek 缓存归属、流式响应、用量、费用、错误和服务端边界 | 调用方提交模型配置与分段 Prompt；当前已登记 DeepSeek V4 模型和价格，完成思考参数映射、思考时移除无效采样参数、流式最终 usage、SSE 保活忽略、错误转译及内部 `InternalCachePool` 统计。尚未完成的差距是：池标识未传到代理，源码仍有退役模型名，DeepSeek 仍收到未声明的 `seed`，非流式 200 未完整校验失败终态，浏览器与代理总超时不统一，账号级并发调度未建立 | `src/core/ai-service/`、`src/app/api/proxy/`、`src/app/api/ai-usage/`；Provider 适配层拥有能力白名单、参数和终态解释，代理拥有最终 `user_id`、上游传输与账号调度，完整契约见 `PD-039`、`PD-040`；偏好由 `mod-settings` 所有，AI 服务不拥有故事或业务状态 |
 | 本地存储 | 保存槽位、快照、序列化、迁移数据和存档级时间轴记忆 | 存储管理器接收引擎统一收集的载荷并读写本地持久层；时间轴记忆库与压缩系统共用 `narrative-memory-policy.ts` 的确定性整数衰减策略，避免持久化查询与叙事投影采用不同算法 | `src/core/storage/`；各业务字段仍由所属 Store/子系统解释，压缩层级和摘要内容由 `summary-compressor` 所有 |
 | 账号与玩家内容 | 管理账号身份、云端设置、排行、邮箱、画像任务、传奇投影和账号持久化 | 账号数据库拥有身份与长期数据；登录/注册时按 `recordId` 合并游客与云端人生记录。玩家内容数据库按账号保存最佳合格人生、画像任务、邮件和跨局传奇决策；它通过核心评分公共函数复算资格，但不拥有或复制评分公式。画像由幂等后台 worker 最多尝试 3 次，邮箱暴露处理中、失败和完成状态。排行榜/邮箱默认可用，绘图 Provider 仍需服务端显式配置 | `src/core/account/`、`src/core/player-content/` 和账号/排行榜/传奇 API；不接管匿名本地运行态，所有投影以账号、记录或目标人生键保持幂等 |
 | 结算评分 | 对所有世界生成可复算、可审计的统一结算结果 | 世界初始化固化 3-6 个维度的 `scoringProfile`；`life-scoring.ts` 只消费本地结构化证据，完整人生在原始分低于 90 时映射到 70-89，90 起正常取整，100 需额外通过全部完整性门禁。每轮正文保存迁移审计，人生记录固化完整评分输入；服务端通过同一函数复算并逐项比较结果后才允许排行、画像或传奇投影。AI 只提出受限维度定义和生成第二人称评语，不决定分数 | `src/core/scoring/`、`src/foundation/types/scoring.types.ts`、`src/mods/mod-world/scoring-profile.ts`、`world-scoring-profile-generation.ts`；页面、排行榜、邮箱和画像不建立第二套评分公式 |
@@ -110,10 +110,12 @@ TimeSystem
 | `mod-ui` | 提供跨页面共用的组件、动作栏、弹层和界面原语 | 由页面按需组合共享组件与 UI Store | `src/mods/mod-ui/`、`src/app/globals.css`；不拥有业务状态 |
 | `mod-engine` | 编排活动子系统、时间、Prompt、AI 回合、提交和引擎状态 | 运行声明式阶段机，并把合法变更提交给所属系统 | `src/mods/mod-engine/`；详细机制见 [核心模拟](core-simulation.md) |
 | `summary-compressor`（`mod-engine` 内部） | 生成三层时间轴摘要并维护记忆生命周期 | L1=4 轮，L2=16 轮，L3=64 轮；AI 只生成带来源覆盖的时间段事件，本地计算权重衰减、遗忘和高层原样携带 | `src/mods/mod-engine/subsystems/summary-compressor-system.ts`、`src/mods/mod-engine/helpers/timeline-memory.ts`；不拥有核心叙事正文 |
-| `mod-world` | 管理世界/上下文注册、当前投影、空间、切换、初始化和世界实体 | 当前 MVP 激活世界上下文相关子系统，Store 保存世界投影 | `src/mods/mod-world/`；不拥有页面呈现或叙事阶段顺序 |
+| `mod-world` | 管理世界/上下文注册、当前投影、空间、切换、初始化、世界实体与全局实体引用目录 | 当前 MVP 激活世界上下文相关子系统；`world-entity` 为玩家、NPC 和组织登记稳定实体引用，`spatial-graph` 仍唯一拥有位置 | `src/mods/mod-world/`、`src/foundation/subsystem-contracts/world-context.contract.ts`、`npc-social.contract.ts`；不拥有 NPC 档案、社会关系、页面呈现或叙事阶段顺序 |
 | `mod-character` | 管理基础属性、命格、寿命、气运、道德及角色生命周期 | 当前 MVP 激活 `character-base`、`destiny-pattern`、`lifespan`、`luck`、`morality`；角色 Store 承接投影 | `src/mods/mod-character/`；不拥有标准时间和叙事编排 |
 | `mod-history-dynamics` | 保存可审计的历史事实、证据、迁移、转变和因果边 | 当前 MVP 激活追加式 `historical-event-ledger`，叙事提交以批次预检和提交 | `src/mods/mod-history-dynamics/`、`src/foundation/subsystem-contracts/historical-event.contract.ts`；不拥有叙事正文或其他系统状态 |
-| `mod-settings` | 保存阅读界面、叙事偏好、模型调用和玩家自己的统计投影 | Store 保存四 Tab 对应偏好；自定义文风使用编辑稿与已生效版本分离，思考模式保存四档枚举，数据统计只读取 AI 服务在本浏览器形成的缓存、Token、费用和余额投影，不注册引擎子系统 | `src/mods/mod-settings/`；不拥有请求传输、服务端日志、其他玩家数据或管理者查看能力 |
+| `mod-social` | 保存跨人物与组织的通用有向关系、作用域和追加式关系迁移 | 当前 MVP 激活唯一 `relationship-system`；关系端点必须来自实体目录，作用域为全局、单上下文或显式跨上下文 | `src/mods/mod-social/`、`src/foundation/subsystem-contracts/npc-social.contract.ts`；不拥有实体身份、位置、NPC 私有记忆或文化专项关系语义 |
+| `mod-npc` | 保存 NPC 连续身份、当地状态、目标、行为记录和独立主观记忆 | 当前 MVP 激活唯一 `npc-system`；年龄从规范时间派生，当前相关投影只包含玩家同场实体、一跳关系端点及其相关记录，后台按能力画像低频聚合 | `src/mods/mod-npc/`、`src/foundation/subsystem-contracts/npc-social.contract.ts`；不拥有玩家角色、空间位置、关系图、历史事实或叙事编排 |
+| `mod-settings` | 保存阅读界面、叙事偏好、模型调用和玩家自己的统计投影 | Store 保存四 Tab 对应偏好；自定义文风使用编辑稿与已生效版本分离，正文目标保存为 50 至 2000 的 16 个固定档位，思考模式保存四档枚举，数据统计只读取 AI 服务在本浏览器形成的缓存、Token、费用和余额投影，不注册引擎子系统 | `src/mods/mod-settings/`；不拥有请求传输、Token 预算、服务端日志、其他玩家数据或管理者查看能力 |
 | `mod-difficulty` | 保存难度及灾害、敌人、压制、遭遇和成本参数 | Store 向实际计算所有者提供参数，不注册引擎子系统 | `src/mods/mod-difficulty/`；不复制消费者的计算 |
 | `mod-world-map` | 渲染地图、地形、势力、资源覆盖并处理缩放和平移 | Canvas/Store 由当前调用页面驱动，不注册引擎子系统 | `src/mods/mod-world-map/`；基础地图事实由 `mod-base-universe` 所有 |
 
@@ -128,8 +130,7 @@ TimeSystem
 | `mod-power-system` | 战力、修炼、怪物、遭遇、信仰、异常、材料和技能 | `src/mods/mod-power-system/`；不接管角色或世界状态 |
 | `mod-economy` | 经济、货币、职业、物品、库存、聚落和人口 | `src/mods/mod-economy/`；不接管政治或世界状态 |
 | `mod-politics` | 阶层、派系、国家关系、法律、冲突、语言和价值观 | `src/mods/mod-politics/`；不接管经济或世界状态 |
-| `mod-culture` | 文化、艺术、教育、声望、成就、关系、家庭和个人能力 | `src/mods/mod-culture/`；不接管角色与世界的所属状态 |
-| `mod-npc` | NPC 属性、独立记忆、行为、关系和生命周期 | `src/mods/mod-npc/`；不接管玩家角色或叙事编排 |
+| `mod-culture` | 文化、艺术、教育、声望、成就、家庭和个人能力 | `src/mods/mod-culture/`；不拥有通用关系图，也不接管角色与世界的所属状态 |
 | `mod-tech-level` | 工业层级、资源分布效应、文化技术和意识趋势 | `src/mods/mod-tech-level/`；不接管基础世界、资源或文化状态 |
 
 ## 唯一实时源

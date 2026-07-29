@@ -28,7 +28,8 @@ const narrativeMeta = {
 }
 
 const fixtureSummary = '你抵达陌生城市，在旧书店发现一份能连接生活与人际的工作机会。'
-const fixtureResponse = `⟦正文⟧\n${narrativeParagraphs.join('\n\n')}\n⟦摘要⟧\n${fixtureSummary}\n⟦数据⟧\n${JSON.stringify(narrativeMeta)}\n⟦结束⟧`
+const narrativeResponse = `⟦正文⟧${narrativeParagraphs.join('\n\n')}`
+const settlementResponse = `⟦数据⟧${JSON.stringify({ 摘要: fixtureSummary, ...narrativeMeta })}`
 
 function unavailable(message) {
   console.error(`[character-first-narrative-browser] UNAVAILABLE: ${message}`)
@@ -60,6 +61,7 @@ async function main() {
   const consoleErrors = []
   const visitedPaths = []
   let proxyPostCount = 0
+  const promptAssets = []
   let managedRequestWithoutClientKey = false
 
   page.on('console', (message) => {
@@ -79,6 +81,11 @@ async function main() {
 
     proxyPostCount += 1
     const body = request.postDataJSON()
+    const promptAsset = String(body.prompt_asset || '')
+    promptAssets.push(promptAsset)
+    const fixtureResponse = promptAsset.includes('mod-engine:narrative-settlement:')
+      ? settlementResponse
+      : narrativeResponse
     if (body.providerId === 'managed' && body.model === 'LongCat-2.0' && body.apiKey === undefined) {
       managedRequestWithoutClientKey = true
     }
@@ -102,7 +109,7 @@ async function main() {
   await page.addInitScript(({ fixtureWorldCode }) => {
     localStorage.clear()
     localStorage.setItem('mod-world:persist:world-state', JSON.stringify({
-      version: 4,
+      version: 5,
       state: {
         worldConfig: {
           name: '现代地球',
@@ -140,7 +147,7 @@ async function main() {
       },
     }))
     localStorage.setItem('mod-settings:store', JSON.stringify({
-      version: 7,
+      version: 11,
       state: {
         provider: 'managed',
         customKey: '',
@@ -199,23 +206,29 @@ async function main() {
   await page.getByRole('heading', { name: '选择命格' }).waitFor()
 
   await page.getByRole('button', { name: /轮回天赋槽1/ }).click()
-  await page.getByRole('button', { name: '未熄之诺' }).click()
+  await page.getByRole('button', { name: '未熄之诺' }).evaluate((button) => button.click())
+  await page.getByRole('dialog').waitFor({ state: 'detached' })
   await page.getByRole('button', { name: /轮回天赋槽2/ }).click()
-  await page.getByRole('button', { name: '回声拾光' }).click()
+  await page.getByRole('button', { name: '回声拾光' }).evaluate((button) => button.click())
+  await page.getByRole('dialog').waitFor({ state: 'detached' })
 
   for (let index = 0; index < 3; index += 1) {
-    await page.getByRole('button', { name: /，选择普通命格$/ }).first().click()
+    await page.getByRole('button', { name: /，选择普通命格$/ }).first().evaluate((button) => button.click())
+    await page.waitForFunction(
+      (count) => document.querySelectorAll('button[aria-pressed="true"][aria-label$="，已选择"]').length === count,
+      index + 1,
+    )
   }
   await waitForEnabled(page, '确认命格')
   await page.getByRole('button', { name: /确认命格/ }).click()
   await page.waitForURL('**/attribute-alloc')
-  await page.getByRole('heading', { name: '分配属性' }).waitFor()
+  await page.getByRole('heading', { name: '属性分配' }).waitFor()
 
   for (let index = 0; index < 10; index += 1) {
-    await page.getByRole('button', { name: '增加体魄' }).click()
+    await page.getByRole('button', { name: '提高体魄' }).click()
   }
   for (let index = 0; index < 5; index += 1) {
-    await page.getByRole('button', { name: '增加心智' }).click()
+    await page.getByRole('button', { name: '提高心智' }).click()
   }
   await page.getByRole('button', { name: /确认属性/ }).click()
   await page.waitForURL('**/fate-preview')
@@ -227,7 +240,20 @@ async function main() {
 
   await waitForEnabled(page, '轻触，让岁月流转', 60000)
   await page.getByRole('button', { name: /轻触，让岁月流转/ }).click()
-  await page.getByText(narrativeParagraphs[0], { exact: true }).waitFor({ timeout: 60000 })
+  try {
+    await page.getByText(narrativeParagraphs[0], { exact: true }).waitFor({ timeout: 60000 })
+  } catch (error) {
+    const failedState = await page.evaluate(() => {
+      const engine = JSON.parse(localStorage.getItem('mod-engine:persist:engine-state') || '{}').state || {}
+      return {
+        narrativeError: engine.narrativeError,
+        narrativeEntries: engine.narrativeHistory?.length ?? 0,
+        visibleText: document.body.textContent?.slice(-1200),
+      }
+    })
+    console.error(JSON.stringify({ proxyPostCount, promptAssets, consoleErrors, failedState }, null, 2))
+    throw error
+  }
   for (const paragraph of narrativeParagraphs) {
     await page.getByText(paragraph, { exact: true }).waitFor()
   }
@@ -257,13 +283,16 @@ async function main() {
     failures.push(`15-point base attributes were not persisted: ${JSON.stringify(base)}`)
   }
   if ((persistedState.engine.narrativeHistory?.length ?? 0) < 1) failures.push('first narrative was not committed to engine history')
-  if (proxyPostCount !== 1) failures.push(`expected one main proxy POST, observed ${proxyPostCount}`)
+  if (proxyPostCount !== 2) failures.push(`expected one narrative and one settlement proxy POST, observed ${proxyPostCount}`)
+  if (promptAssets.filter((asset) => asset.includes('mod-engine:narrative:')).length !== 1) failures.push('first narrative prompt asset was not requested exactly once')
+  if (promptAssets.filter((asset) => asset.includes('mod-engine:narrative-settlement:')).length !== 1) failures.push('settlement prompt asset was not requested exactly once')
   if (consoleErrors.length > 0) failures.push(`console errors: ${consoleErrors.join(' | ')}`)
 
   console.log(JSON.stringify({
     status: failures.length === 0 ? 'pass' : 'fail',
     visitedPaths,
     proxyPostCount,
+    promptAssets,
     narrativeParagraphs: narrativeParagraphs.length,
     persistedDestinyPatterns: persistedState.character.destinyPatterns?.patterns?.length ?? 0,
     persistedNarrativeEntries: persistedState.engine.narrativeHistory?.length ?? 0,

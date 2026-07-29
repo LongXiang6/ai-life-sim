@@ -63,10 +63,11 @@ function syncFit(fit: HTMLElement) {
   const design = getDesignSize(fit)
   const isMobile = width < MOBILE_BREAKPOINT
 
-  // Always apply numeric scale regardless of mobile or desktop
   const widthRatio = width / design.width
   const heightRatio = height / design.height
-  const scale = Math.min(widthRatio, heightRatio)
+  // Mobile: width-first scaling — fill viewport width, allow vertical scroll.
+  // Desktop: fit both axes to avoid overflow in non-scrolling frames.
+  const scale = isMobile ? widthRatio : Math.min(widthRatio, heightRatio)
   if (!Number.isFinite(scale) || scale <= 0) return
 
   const bottomBar = canvas.querySelector<HTMLElement>('[data-flow-bottom-bar]')

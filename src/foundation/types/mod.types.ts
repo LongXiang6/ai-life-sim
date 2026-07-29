@@ -98,8 +98,6 @@ export interface ModDependency {
 export interface ModFeatureFlags {
   /** 需要 AI 叙事能力 */
   aiNarrative?: boolean
-  /** 需要流式 AI 响应 */
-  aiStreaming?: boolean
   /** 需要事件总线 */
   eventBus?: boolean
   /** 需要持久化存储 */

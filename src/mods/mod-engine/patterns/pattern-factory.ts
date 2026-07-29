@@ -62,7 +62,6 @@ export class PatternFactory implements IPatternFactory {
    * 创建解析策略模式集合
    */
   createParsingPatterns(): IPattern[] {
-    // 解析策略模式在 parse-strategies.ts 中独立实现
     // 未来可迁移到模式管理层
     return []
   }

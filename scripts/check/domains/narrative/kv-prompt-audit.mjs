@@ -6,7 +6,7 @@ import path from 'node:path'
 import ts from 'typescript'
 import { getProjectRoot } from '../../lib/project-root.mjs'
 import { buildSegmentedPrompt } from '../../../../src/core/ai-service/prompt-builder.ts'
-import { buildMvpSubsystemGuide } from '../../../../src/mods/mod-engine/helpers/mvp-runtime-policy.ts'
+import { compileNarrativeGuidance } from '../../../../src/core/ai-service/narrative-guidance-compiler.ts'
 import { narrativePrompt as liveNarrativePrompt } from '../../../../src/mods/mod-engine/prompts/narrative-prompt.ts'
 import {
   COMPILED_NARRATIVE_SYSTEM_PROMPT,
@@ -31,6 +31,10 @@ const campaign = fs.readFileSync(
   path.join(root, 'src/mods/mod-engine/campaigns/default/index.ts'),
   'utf8',
 )
+const settlementContext = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/helpers/narrative-settlement-context.ts'),
+  'utf8',
+)
 const orchestrator = fs.readFileSync(
   path.join(root, 'src/mods/mod-engine/subsystems/orchestrator-system.ts'),
   'utf8',
@@ -39,6 +43,18 @@ const memoryLifecycle = fs.readFileSync(
   path.join(root, 'src/mods/mod-engine/subsystems/memory-lifecycle-system.ts'),
   'utf8',
 )
+const coreMemory = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/subsystems/core-memory-system.ts'),
+  'utf8',
+)
+const narrativeHints = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/helpers/narrative-hints.ts'),
+  'utf8',
+)
+const narrativeIOSample = fs.readFileSync(
+  path.join(root, 'docs/reference/ai-narrative-io-proposed-segmented.txt'),
+  'utf8',
+).replace(/\r\n/gu, '\n').trimEnd()
 const summaryCompressor = fs.readFileSync(
   path.join(root, 'src/mods/mod-engine/subsystems/summary-compressor-system.ts'),
   'utf8',
@@ -105,10 +121,7 @@ function compileStandaloneFunction(sourceText, fileName, functionName, environme
 
 const requiredContextFields = [
   'calibrationSummary',
-  'longTermMemory',
-  'relevantMemory',
-  'recentNarrativeMemory',
-  'coreMemory',
+  'timelineMemory',
   'eventInjectionText',
   'timeBridgeSummary',
   'narrativeToneHint',
@@ -116,7 +129,6 @@ const requiredContextFields = [
   'characterProfileView',
   'characterStatusView',
   'worldNarrativeView',
-  'changeRequirementsText',
 ]
 
 for (const key of requiredContextFields) {
@@ -131,8 +143,8 @@ if (!promptBuilder.includes('buildNarrativeUserJson')) {
   failed++
 }
 
-if (!promptBuilder.includes('getNarrativeUserSegments')) {
-  console.error('FAIL: getNarrativeUserSegments not found')
+if (!promptBuilder.includes('userSegments: [string, string, string]')) {
+  console.error('FAIL: fixed three-message tuple not found')
   failed++
 }
 
@@ -141,8 +153,8 @@ if (campaign.includes('segments.stablePrefix, segments.variableSuffix')) {
   failed++
 }
 
-if (!campaign.includes('getNarrativeUserSegments')) {
-  console.error('FAIL: campaign not using getNarrativeUserSegments')
+if (!campaign.includes('userSegments: segments.userSegments')) {
+  console.error('FAIL: campaign not using the fixed three narrative messages')
   failed++
 }
 
@@ -196,6 +208,8 @@ const runtimeNarrativeContextFields = [
   'narrativeToneHint',
   'timeBridgeSummary',
   'causalChainHint',
+  'roundSystemGuidanceText',
+  'playerBranchIntent',
   'timeGuideText',
   'narrativeGuidanceText',
 ]
@@ -206,13 +220,13 @@ for (const variable of runtimeNarrativeContextFields) {
   }
 }
 
-if (!promptBuilder.includes('buildConversationMessages')) {
-  console.error('FAIL: buildConversationMessages / S3 not wired')
+if (promptBuilder.includes('buildConversationMessages')) {
+  console.error('FAIL: removed conversation-message strategy remains wired')
   failed++
 }
 
-if (!promptBuilder.includes('KV_MESSAGE_STRATEGY')) {
-  console.error('FAIL: KV_MESSAGE_STRATEGY not used')
+if (promptBuilder.includes('KV_MESSAGE_STRATEGY')) {
+  console.error('FAIL: removed dynamic KV message strategy remains wired')
   failed++
 }
 
@@ -227,10 +241,8 @@ if (lifespanSystem.includes('lastNarrativeText')) {
 }
 
 for (const [name, requiredKeys] of [
-  ['GLOBAL_JSON_KEYS', ['世界设定', '角色档案']],
-  ['MEMORY_JSON_KEYS', ['长期记忆', '核心记忆', '相关往事', '近期完整经历']],
-  ['ROUND_JSON_KEYS', ['当前时间', '角色现状', '本轮触发事项', '本轮导演提示']],
-  ['CHANGE_REQUIREMENT_JSON_KEYS', ['可写状态字段', '本轮结构化要求']],
+  ['GLOBAL_JSON_KEYS', ['世界设定', '角色档案', '命格天赋']],
+  ['ROUND_JSON_KEYS', ['当前时间', '角色现状', '本轮触发事项', '系统引导', '玩家自定义分支', '字数要求']],
 ]) {
   const match = promptBuilder.match(new RegExp(`const ${name} = \\[([\\s\\S]*?)\\] as const`))
   assertOk(Boolean(match), `${name} must remain an explicit ordered layer`)
@@ -238,14 +250,22 @@ for (const [name, requiredKeys] of [
     assertOk(match?.[1]?.includes(`'${key}'`), `${name} missing ${key}`)
   }
 }
+const globalKeysBlock = promptBuilder.match(/const GLOBAL_JSON_KEYS = \[([\s\S]*?)\] as const/)?.[1] ?? ''
+const roundKeysBlock = promptBuilder.match(/const ROUND_JSON_KEYS = \[([\s\S]*?)\] as const/)?.[1] ?? ''
+assertOk(
+  !globalKeysBlock.includes("'字数要求'")
+    && !globalKeysBlock.includes("'玩家自定义'")
+    && roundKeysBlock.lastIndexOf("'字数要求'") > roundKeysBlock.lastIndexOf("'玩家自定义分支'"),
+  'raw player settings must stay removed while word-count guidance remains the final dynamic field',
+)
 assertOk(
   promptBuilder.indexOf('全局信息: pickJsonKeys')
-    < promptBuilder.indexOf('记忆: pickJsonKeys')
-    && promptBuilder.indexOf('记忆: pickJsonKeys')
+    < promptBuilder.indexOf('记忆: context.timelineMemory')
+    && promptBuilder.indexOf('记忆: context.timelineMemory')
       < promptBuilder.indexOf('本轮引导: pickJsonKeys')
-    && promptBuilder.indexOf('本轮引导: pickJsonKeys')
-      < promptBuilder.indexOf('变化要求: pickJsonKeys'),
-  'four-layer assembly must remain global information -> memory -> round guidance -> change requirements',
+    && !promptBuilder.includes('变化要求: pickJsonKeys')
+    && promptBuilder.includes('userSegments: [string, string, string]'),
+  'first-call assembly must remain global information -> memory -> round guidance with no write contract layer',
 )
 const timeScaleNarrative = fs.readFileSync(
   path.join(root, 'src/mods/mod-engine/helpers/time-scale-narrative.ts'),
@@ -264,52 +284,151 @@ const cacheLayerBaseContext = {
   characterProfileView: { 姓名: '测试角色', 性别: '女', 背景: '稳定背景' },
   characterStatusView: { 年龄: 18 },
   subsystemSummaries: ['【基础属性】体魄0'],
-  narrativeHistory: [],
   currentTime: '测试历 1 年',
-  creationProtectionText: '原创事实甲',
+  timelineMemory: '【时间轴记忆】\n【时间阶段：测试历1年】\n- [测试历1年] 玩家角色亲自开创[玩家原创·其他] 原创事实甲',
+  wordCountInstruction: '本轮正文目标约200个汉字。',
 }
 const cacheLayerChangedContext = {
   ...cacheLayerBaseContext,
   currentTime: '测试历 2 年',
-  creationProtectionText: '原创事实甲\n原创事实乙',
+  timelineMemory: '【时间轴记忆】\n【时间阶段：测试历1年】\n- [测试历1年] 玩家角色亲自开创[玩家原创·其他] 原创事实甲\n\n【时间阶段：测试历2年】\n- [测试历2年] 原创事实乙',
+  wordCountInstruction: '本轮正文目标约500个汉字。',
 }
 const cacheLayerBefore = buildSegmentedPrompt(liveNarrativePrompt, cacheLayerBaseContext)
 const cacheLayerAfter = buildSegmentedPrompt(liveNarrativePrompt, cacheLayerChangedContext)
 assertOk(
   cacheLayerBefore.userSegments?.[0] === cacheLayerAfter.userSegments?.[0],
-  'dynamic time and creation protection must not invalidate the stable global cache message',
+  'dynamic time and permanent creation memory must not invalidate the stable global cache message',
 )
 assertOk(
   cacheLayerBefore.userSegments?.[1] !== cacheLayerAfter.userSegments?.[1]
     && cacheLayerBefore.userSegments?.[2] !== cacheLayerAfter.userSegments?.[2],
-  'creation protection must remain in memory while current time remains in round guidance',
-)
-
-if (!promptBuilder.includes('buildRoundDirectorHint')) {
-  console.error('FAIL: round director hint builder missing')
-  failed++
-}
-
-const buildRoundDirectorHint = compileStandaloneFunction(
-  promptBuilder,
-  'prompt-builder.ts',
-  'buildRoundDirectorHint',
-)
-const migratedHistoryHint = buildRoundDirectorHint?.({
-  timeGuideText: '时间提示',
-  narrativeGuidanceText: '剧情提示',
-}) ?? ''
-assertOk(
-  migratedHistoryHint === '时间提示\n\n剧情提示'
-    && !migratedHistoryHint.includes('仅在“正文”中，全程以第二人称“你”指代玩家角色。'),
-  'browser round guidance must keep only dynamic facts and avoid duplicating protected fixed rules',
+  'permanent creation ownership must remain in timeline memory while time and length remain in round guidance',
 )
 assertOk(
-  narrativeSystemPrompt.includes('历史原文只继承事实，不能成为本轮的人称、措辞或段落样本')
+    !promptBuilder.includes('creationProtectionText')
+    && !promptBuilder.includes("'原创保护'")
+    && orchestrator.includes('coreMemory.buildCreationTimelineEntries('),
+  'player creations must use the core-memory projection without a dedicated prompt field',
+)
+assertOk(
+  orchestrator.includes('memoryLifecycle.buildNarrativeTimelineProjection(')
+    && !orchestrator.includes('getCompressedNarrativeHistory(')
+    && !memoryLifecycle.includes('formatRichPromptForInjection(')
+    && !memoryLifecycle.includes('stateCard:'),
+  'narrative memory must have one timeline-only projection path without the retired mixed-state formatter',
+)
+
+const compiledGuidance = compileNarrativeGuidance({
+  roundSystemGuidanceText: '系统提示甲',
+  timeGuideText: '系统提示甲',
+  narrativeGuidanceText: '系统提示乙',
+  playerBranchIntent: { 当前意图: { 玩家选择: '保留  原始空格' } },
+})
+assertOk(
+  JSON.stringify(compiledGuidance.systemGuidance) === JSON.stringify(['系统提示甲', '系统提示乙'])
+    && compiledGuidance.playerBranchIntent?.当前意图?.玩家选择 === '保留  原始空格'
+    && !fs.readFileSync(path.join(root, 'src/core/ai-service/narrative-guidance-compiler.ts'), 'utf8').includes('.slice('),
+  'local guidance compiler must sort, dedupe exact system text, preserve player input, and avoid length truncation',
+)
+assertOk(
+  narrativeSystemPrompt.includes('记忆、摘要与近期历史原文只提供已经成立的事实')
     && narrativeSystemPrompt.includes('正文全程用第二人称“你”')
-    && memoryLifecycle.includes('以下内容是已经发生的完整事实')
-    && memoryLifecycle.includes('不得模仿其中的人称、措辞或段落结构'),
-  'server fixed authority and memory projection must keep legacy narrative factual rather than stylistic',
+    && !memoryLifecycle.includes('不得模仿其中的人称、措辞或段落结构'),
+  'server fixed authority alone must define how narrative memory is used',
+)
+for (const [source, duplicatedRule] of [
+  [coreMemory, '以下内容由玩家角色亲自开创'],
+  [coreMemory, '不得改写为遗迹发现'],
+  [orchestrator, '跨世界概念能力·每轮遵守'],
+  [orchestrator, '受世界合理性约束·每轮遵守'],
+  [orchestrator, '本轮必须处理“玩家自定义分支”中的当前意图'],
+  [narrativeHints, '固定事实优先级与三级合理性规则'],
+]) {
+  assertOk(!source.includes(duplicatedRule), `dynamic narrative input must not repeat fixed rule: ${duplicatedRule}`)
+}
+const exactSampleContext = {
+  worldNarrativeView: {
+    当前上下文类型: '世界',
+    当前模拟范围: '当前完整模拟',
+    当前世界能力: ['生命', '空间', '个体角色'],
+    世界名称: '临海北湾',
+    世界描述: '旧桥连接港区与北岸，现实物理与社会因果有效。',
+    当前历法: '公历',
+  },
+  worldRules: '【标签参考；具体世界设定优先】\n默认遵循现实物理与社会因果；除非世界设定明确允许，不引入超自然事实。',
+  modWorldRules: 'NPC 与关系只通过已登记实体和公开契约运行。',
+  worldTagsText: 'modern,coastal-city',
+  calibrationSummary: '现实世界校准：不引入超自然力量。',
+  powerCeilingPresets: '无超自然力量体系。',
+  talents: '【轮回天赋】未熄之诺（承诺）：真诚许下的承诺更难被世界轻易抹去。\n【普通命格】潮声：能从潮声中辨认环境变化，但不会给出确定答案。',
+  characterProfileView: {
+    姓名: '林舟',
+    性别: '男',
+    背景: '27岁，住在北湾港区，正在寻找失联的阿禾。',
+  },
+  narrativeStyle: '写实',
+  narrativeToneHint: '克制而温暖',
+  timelineMemory: [
+    '【时间轴记忆】',
+    '【时间阶段：2023年1月】',
+    '- [2023年1月 · 角色24岁] 【发生上下文：临海北湾】',
+    '  你与阿禾共同经营北湾修船铺。',
+    '',
+    '【时间阶段：2023年6月2日】',
+    '- [2023年6月2日 · 角色24岁] 【发生上下文：临海北湾】',
+    '  阿禾在港口事故中救过你。',
+    '',
+    '【时间阶段：2026年8月12日】',
+    '- [2026年8月12日 · 角色27岁] 玩家角色亲自开创[玩家原创·物品] 潮声罗盘：只能辨认海潮方向。',
+    '',
+    '【时间阶段：2026年9月17日 · 秋 · 18:20】',
+    '- [2026年9月17日 · 秋 · 18:20 · 角色27岁] 【发生上下文：临海北湾】',
+    '  你发现巡船正在搜查北岸，旧桥仍是你与阿禾约定重逢的地点。',
+  ].join('\n'),
+  currentTime: '2026年9月18日 · 秋 · 18:40',
+  characterStatusView: { 年龄: 27 },
+  subsystemSummaries: ['阿禾位于旧桥北端', '你与阿禾的关系在当前世界生效'],
+  systemChangeSummary: '上一轮没有已提交的数值变化。',
+  plotStructureText: '当前阶段：寻找阿禾并重建信任。',
+  foreshadowingText: '暂无本轮必须回收的伏笔。',
+  eventInjectionText: '已接受事件 event:accepted-123：你在旧桥救下阿禾。',
+  timeBridgeSummary: '本轮没有跨年跳跃。',
+  causalChainHint: '巡船搜索路线因救援改变。',
+  roundSystemGuidanceText: '推进1天，围绕同一现场写出行动、回应与直接后果。',
+  narrativeGuidanceText: '写救援后的现场、关系回应和新的航向。',
+  playerBranchIntent: {
+    当前意图: {
+      意图编号: '命运分支:north-route',
+      分支编号: 'north-route',
+      玩家选择: '驶入海雾寻找北岸航道',
+      建立轮次: 4,
+      更新轮次: 4,
+    },
+  },
+  wordCountInstruction: '写成一个短段、1至2个短句：一个感官或动作，加一个直接结果。\n正文全部段落合计写成40-60字，中心约50字。',
+}
+const exactSampleDynamicInput = buildSegmentedPrompt(
+  liveNarrativePrompt,
+  exactSampleContext,
+).full
+const sampleDynamicMarker = narrativeIOSample.indexOf('\n⟦全局信息⟧')
+const sampleFixedPrefix = sampleDynamicMarker >= 0
+  ? narrativeIOSample.slice(0, sampleDynamicMarker)
+  : ''
+const sampleDynamicInput = sampleDynamicMarker >= 0
+  ? narrativeIOSample.slice(sampleDynamicMarker + 1)
+  : ''
+assertOk(
+  sampleFixedPrefix === COMPILED_NARRATIVE_SYSTEM_PROMPT
+    && sampleDynamicInput === exactSampleDynamicInput
+    && sampleDynamicInput.split('\n').filter((line) => /^⟦(?:全局信息|记忆|本轮引导)⟧/u.test(line)).length === 3
+    && sampleDynamicInput.includes('⟦记忆⟧【时间轴记忆】\n【时间阶段：')
+    && sampleDynamicInput.includes('\n\n【时间阶段：2026年8月12日】\n- ')
+    && !/weight|权重|sourceEventIds|currentWeight|衰减|L[123]时间轴/iu.test(sampleDynamicInput)
+    && !sampleDynamicInput.includes('以下内容由玩家角色亲自开创')
+    && !sampleDynamicInput.includes('最终玩家可见结果完整写入 content'),
+  'the exact I/O sample must byte-match the compiled messages and keep chronological rule-free memory lines',
 )
 
 const wordCountStart = orchestrator.indexOf('wordCountInstruction:')
@@ -342,26 +461,6 @@ assertOk(
   'MOD world rules must include only active runtime providers, preserve order, and dedupe text',
 )
 
-const activeGuide = buildMvpSubsystemGuide([
-  'morality',
-  'character-base',
-  'inactive-system',
-  'lifespan',
-]) ?? ''
-assertOk(
-  activeGuide.includes('本轮可变更系统仅限：基础属性、寿命、道德')
-    && activeGuide.includes('体魄变化')
-    && activeGuide.includes('最大寿命')
-    && activeGuide.includes('道德变化')
-    && !activeGuide.includes('inactive-system')
-    && !activeGuide.includes('气运绝对值'),
-  'subsystem guide must expose the stable-order Chinese intersection of active writable systems',
-)
-assertOk(
-  buildMvpSubsystemGuide(['inactive-system']) === '',
-  'no writable active subsystem must produce no subsystem guide',
-)
-
 const formatEquippedMythicPatternForPrompt = compileStandaloneFunction(
   orchestrator,
   'orchestrator-system.ts',
@@ -381,28 +480,30 @@ assertOk(
   formatEquippedMythicPatternForPrompt?.([
     { name: '未熄之诺', concept: '承诺', effect: '真诚许下的承诺更难被世界轻易抹去。' },
     { name: '回声', concept: '记忆', effect: '重要关系会留下可追溯的回声。' },
-  ]) === '【已装备轮回天赋·每轮遵守】未熄之诺（承诺）：真诚许下的承诺更难被世界轻易抹去。\n回声（记忆）：重要关系会留下可追溯的回声。',
-  'multiple equipped mythic effects must be formatted as explicit per-round narrative rules',
+  ]) === '【轮回天赋】未熄之诺（承诺）：真诚许下的承诺更难被世界轻易抹去。\n回声（记忆）：重要关系会留下可追溯的回声。',
+  'multiple equipped mythic effects must retain their facts under a rule-free dynamic label',
 )
 assertOk(
   formatDestinyPatternsForPrompt?.([], false) === undefined
     && formatDestinyPatternsForPrompt?.([
       { name: '潮声', description: '能从潮声中辨认远方变化。', effect: '潮声会提示环境变化，但不会给出确定答案。' },
-    ], false) === '【普通命格·每轮遵守】潮声：潮声会提示环境变化，但不会给出确定答案。'
+    ], false) === '【普通命格】潮声：潮声会提示环境变化，但不会给出确定答案。'
     && formatDestinyPatternsForPrompt?.([
       { name: '潮声', description: '能从潮声中辨认远方变化。', effect: '潮声会提示环境变化，但不会给出确定答案。' },
     ], true)?.includes('特质说明：能从潮声中辨认远方变化。'),
-  'ordinary destiny effects must stay compact but remain explicit per-round rules, with descriptions added only at opening',
+  'ordinary destiny effects must stay compact and factual, with descriptions added only at opening',
 )
 assertOk(
   orchestrator.includes('useCharacterStore.getState().equippedMythicPatterns')
     && orchestrator.includes('const destinyPatternText = formatDestinyPatternsForPrompt(')
-    && orchestrator.includes("talents: [destinyPatternText, mythicPatternText].filter(Boolean).join('\\n') || undefined"),
-  'ordinary and equipped mythic effects must both be injected every round',
+    && orchestrator.includes("talents: [mythicPatternText, destinyPatternText].filter(Boolean).join('\\n') || undefined"),
+  'equipped mythic effects must precede ordinary destiny effects in the single compact talent field',
 )
 assertOk(
-  narrativeSystemPrompt.includes('普通命格与已装备轮回天赋效果每轮持续生效'),
-  'system prompt must define ordinary and mythic effects as persistent rules while keeping mythic inheritance narrative-only',
+  narrativeSystemPrompt.includes('已装备轮回天赋 > 世界内合理性 > 普通命格')
+    && narrativeSystemPrompt.includes('轮回天赋是跨世界生效的概念性能力')
+    && narrativeSystemPrompt.includes('普通命格只有在世界内因果合理时生效'),
+  'system prompt must distinguish mythic cross-world authority from reasonableness-bound ordinary talents',
 )
 
 assertOk(
@@ -411,9 +512,12 @@ assertOk(
   'orchestrator must not aggregate worldRules from every loaded manifest',
 )
 assertOk(
-  orchestrator.includes('buildMvpSubsystemGuide(promptOpenIds)')
-    && !orchestrator.includes('assembled.subsystemGuideText = SUBSYSTEM_GUIDE'),
-  'orchestrator must inject a guide derived from the systems open in this round',
+  !orchestrator.includes('subsystemGuideText:')
+    && !orchestrator.includes('changeRequirementsText:')
+    && campaign.includes('buildNarrativeSettlementPromptInput({')
+    && settlementContext.includes('⟦可写系统:${contract.aiName}⟧')
+    && settlementContext.includes('stateLines.join(\'\\n\')'),
+  'write contracts and active system state must belong only to the second settlement call',
 )
 for (const inactiveConnection of [
   'buildEconomyTierRules',
@@ -426,7 +530,7 @@ for (const inactiveConnection of [
   )
 }
 assertOk(
-  liveNarrativePrompt.version === '4.7.0'
+  liveNarrativePrompt.version === '5.7.0'
     && liveNarrativePrompt.systemPrompt === ''
     && !narrativeSystemPrompt.includes('examples: ['),
   'optimized prompt must be versioned and keep one governed standard example instead of duplicate examples',
@@ -434,7 +538,7 @@ assertOk(
 assertOk(
   narrativeSystemPrompt.includes('正文全程用第二人称“你”')
     && narrativeSystemPrompt.includes('不写全知旁白、第三人称传记或编年报告')
-    && narrativeSystemPrompt.includes('至少保留一个可感知现场')
+    && narrativeSystemPrompt.includes('用一个可感知现场承载主线')
     && narrativeSystemPrompt.includes('娱乐性、代入感和继续游玩的意愿')
     && NARRATIVE_SYSTEM_COMPONENTS.some((component) => component.kind === '示例'),
   'main narrative components must lock second-person viewpoint and scene-level immersion',
@@ -442,8 +546,8 @@ assertOk(
 assertOk(
   narrativeSystemPrompt.includes('连续推进同一因果主线')
     && narrativeSystemPrompt.includes('互不相干的生活切片')
-    && timeScaleNarrative.includes('正文段落数量自由')
-    && timeScaleNarrative.includes('拼接互不相干的事件或生活切片'),
+    && timeScaleNarrative.includes('正文必须沿同一时间跨度内的因果主线推进')
+    && timeScaleNarrative.includes('不拼接互不相干的事件或生活切片'),
   'main narrative prompt must reject annual disconnected-life-slice output while retaining one causal storyline',
 )
 assertOk(

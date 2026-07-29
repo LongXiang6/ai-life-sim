@@ -43,40 +43,60 @@ function walkSourceFiles(dir) {
 
 const activeSubsystems = [
   {
+    id: 'world-entity',
+    className: 'WorldEntitySystem',
+    file: 'src/mods/mod-world/subsystems/world-entity-system.ts',
+    previewMutable: false,
+    requiresCollectedStateHydration: true,
+  },
+  {
+    id: 'relationship-system',
+    className: 'RelationshipSystem',
+    file: 'src/mods/mod-social/subsystems/relationship-system.ts',
+    previewMutable: true,
+    requiresCollectedStateHydration: false,
+  },
+  {
+    id: 'npc-system',
+    className: 'NpcSystem',
+    file: 'src/mods/mod-npc/subsystems/npc-system.ts',
+    previewMutable: true,
+    requiresCollectedStateHydration: false,
+  },
+  {
     id: 'character-base',
     className: 'CharacterBaseSystem',
     file: 'src/mods/mod-character/subsystems/character-base-system.ts',
     previewMutable: true,
+    requiresCollectedStateHydration: true,
   },
   {
     id: 'destiny-pattern',
     className: 'DestinyPatternSystem',
     file: 'src/mods/mod-character/subsystems/destiny-pattern-system.ts',
     previewMutable: false,
+    requiresCollectedStateHydration: true,
   },
   {
     id: 'lifespan',
     className: 'LifespanSystem',
     file: 'src/mods/mod-character/subsystems/lifespan-system.ts',
     previewMutable: true,
+    requiresCollectedStateHydration: true,
   },
   {
     id: 'luck',
     className: 'LuckSystem',
     file: 'src/mods/mod-character/subsystems/luck-system.ts',
     previewMutable: true,
+    requiresCollectedStateHydration: true,
   },
   {
     id: 'morality',
     className: 'MoralitySystem',
     file: 'src/mods/mod-character/subsystems/morality-system.ts',
     previewMutable: true,
-  },
-  {
-    id: 'world-entity',
-    className: 'WorldEntitySystem',
-    file: 'src/mods/mod-world/subsystems/world-entity-system.ts',
-    previewMutable: false,
+    requiresCollectedStateHydration: true,
   },
 ]
 
@@ -95,7 +115,7 @@ const mvpConfig = JSON.parse(read('src/mods/mod-engine/helpers/mvp-stages-config
 const externalRuntime = mvpConfig?.stages?.mvp?.runtime?.external ?? []
 assertOk(
   JSON.stringify(externalRuntime) === JSON.stringify(expectedExternalRuntime),
-  'MVP external runtime whitelist must keep the six P0 systems, P1 ledger, and six existing systems in canonical order',
+  'MVP external runtime whitelist must keep P0, P1 and P2 systems in canonical order',
 )
 assertOk(!externalRuntime.includes('health'), 'health must remain inactive in the MVP runtime whitelist')
 assertOk(
@@ -108,8 +128,10 @@ for (const subsystem of activeSubsystems) {
   const source = read(subsystem.file)
   const getterName = `get${subsystem.className}`
   assertIncludes(source, `export function ${getterName}()`, `${subsystem.id} must export a lazy runtime getter`)
-  assertIncludes(source, 'hydrateFromStore()', `${subsystem.id} must hydrate creation/persisted Store data`)
-  assertIncludes(source, 'restoreCollectedState(', `${subsystem.id} must restore orchestrator collected data`)
+  if (subsystem.requiresCollectedStateHydration) {
+    assertIncludes(source, 'hydrateFromStore()', `${subsystem.id} must hydrate creation/persisted Store data`)
+    assertIncludes(source, 'restoreCollectedState(', `${subsystem.id} must restore orchestrator collected data`)
+  }
   if (subsystem.previewMutable) {
     assertIncludes(source, 'capturePreviewState()', `${subsystem.id} must capture preview-mutated private state`)
     assertIncludes(source, 'restorePreviewState(', `${subsystem.id} must restore preview-mutated private state`)
@@ -191,7 +213,7 @@ assertOk(
   'both normal preview restore and invalidated-preview reconcile must restore external private state',
 )
 assertOk(
-  /if \(committedChanges\.length > 0 \|\| structuredDataAccepted \|\| acceptedHistoricalEventIds\.length > 0\) \{\s*this\.collectSubsystemStates\(false, false\)/s.test(orchestrator),
+  /this\.syncBranchIntentProjectionToEngineStore\(\)\s*this\.collectSubsystemStates\(false, false\)/s.test(orchestrator),
   'narrative commit must refresh lastSubsystemStates in the same round without duplicating relevance',
 )
 assertOk(
@@ -209,7 +231,7 @@ assertIncludes(
 assertIncludes(orchestrator, 'coreMemory.hydrateFromStore()', 'read/refresh restore must hydrate core-memory private state')
 for (const [pattern, label] of [
   [/memoryLifecycle\.setAISemanticAnalysis\(\s*roundSequence,/, 'memoryLifecycle.setAISemanticAnalysis'],
-  [/coreMemory\.recordRelationshipUpdates\(\s*semanticSignals\.relationshipUpdates,\s*roundSequence,/, 'coreMemory.recordRelationshipUpdates'],
+  [/coreMemory\.recordRelationshipUpdates\(\s*parsed\.semanticSignals\.relationshipUpdates,\s*roundSequence,/, 'coreMemory.recordRelationshipUpdates'],
   [/foreshadowing\.detectForeshadowing\(\s*roundSequence,/, 'foreshadowing.detectForeshadowing'],
   [/round:\s*roundSequence,/, 'round: roundSequence'],
   [/const roundSequence = this\.state\.totalRounds/, 'const roundSequence = this.state.totalRounds'],
@@ -247,7 +269,7 @@ assertOk(
   !orchestrator.includes('s.endRound >= this.state.totalRounds - 10'),
   'the first delayed L1 summary must not be excluded by a moving recent-round filter',
 )
-assertIncludes(orchestrator, 'this.hydrateFromEngineStore(snap.orchestrator.state.timeStep, true)', 'invalidated preview restore must preserve legitimate adaptation cache')
+assertIncludes(orchestrator, 'this.hydrateFromEngineStore(snap.orchestrator.state.timeStep)', 'invalidated preview restore must reconcile from the authoritative EngineStore')
 assertOk(
   orchestrator.includes("if (this.state.status !== 'running' && this.state.status !== 'complete') {")
     && orchestrator.includes("reason: 'invalid-engine-status'")
@@ -373,11 +395,15 @@ for (const expected of [
 
 const preGen = read('src/mods/mod-engine/helpers/pre-gen-queue.ts')
 assertIncludes(preGen, "if (useEngineStore.getState().status === 'complete') return", 'terminal timelines must not start another background preview')
-assertIncludes(preGen, 'if (!envelope?.dataPresent) return null', 'pre-generated ordinary rounds may omit optional data without losing body-summary cacheability')
-assertIncludes(preGen, 'parseNarrativeAIDataJson(envelope.dataSection ?? \'\')', 'pre-generated data must use the same strict Chinese protocol parser')
-assertIncludes(preGen, 'envelope.summary', 'pre-generated structured translation must use the independently extracted summary')
-assertIncludes(preGen, 'inspectNarrativeResponseQuality(fullContent, wordCountTarget, expectedIntentId)', 'pre-generated rounds must also pass the active protocol, paragraph and branch-intent gate')
-assertIncludes(preGen, 'const isBranchPoint = metadata ? isEligibleNarrativeBranch(metadata) : false', 'minimum body-summary pre-generation may cache as a non-branch while valid data still drives branch detection')
+assertIncludes(preGen, 'inspectNarrativeResponseQuality(fullContent, wordCountTarget)', 'pre-generated rounds must pass the same strict first-response protocol gate')
+assertIncludes(preGen, 'const isBranchPoint = responseQuality.parsed.branch === true', 'pre-generated branch detection must use only the strictly parsed first response')
+assertIncludes(preGen, 'fullContent,\n            isBranchPoint,\n            signature,', 'pre-generation must cache the complete first response without synthesizing settlement data')
+assertOk(
+  !preGen.includes('parseNarrativeSettlementEnvelope')
+    && !preGen.includes('translateNarrativeAISettlement')
+    && !preGen.includes('handleNarrativeResponse('),
+  'preview generation must not run or commit the second settlement responsibility',
+)
 assertOk(
   !/void\s+fillPreGenQueue\(promptTemplate,\s*sessionId\)/.test(preGen),
   'pre-generation failure paths must not recursively retry without a budget or backoff',
@@ -402,50 +428,80 @@ assertOk(
 assertOk(
   orchestrator.includes('this.pendingNarrativeCausalEventIds = triggeredCausality.triggeredEvents.map')
     && orchestrator.indexOf('causalDelay.commitCausalTriggers(')
-      > orchestrator.indexOf('const hasValidatedSemanticMetadata'),
+      > orchestrator.indexOf('if (parsed.semanticSignals)'),
   'orchestrator must confirm due causality only inside the validated semantic commit path',
 )
 const campaignQuality = read('src/mods/mod-engine/campaigns/default/index.ts')
-assertIncludes(campaignQuality, 'inspectNarrativeResponseQuality(', 'main and preview generation must inspect the full response before commit')
-assertIncludes(campaignQuality, 'buildNarrativeRepairInstruction(', 'an invalid protocol or conditional response must receive one targeted repair attempt')
-assertIncludes(campaignQuality, '【上一版完整输出；唯一剧情事实来源】', 'the repair must include the rejected draft')
-const formatRepairStart = campaignQuality.indexOf('const runTargetedRepair')
-const formatRepairEnd = campaignQuality.indexOf('const previousContent = ctx._fullContent', formatRepairStart)
-const formatRepairBlock = campaignQuality.slice(formatRepairStart, formatRepairEnd)
+assertIncludes(campaignQuality, "name: 'ai-narration'", 'Campaign must declare the first pure narrative stage')
+assertIncludes(campaignQuality, "name: 'ai-settlement'", 'Campaign must declare the second settlement stage')
+assertIncludes(campaignQuality, 'inspectNarrativeResponseQuality(', 'main and preview generation must inspect the complete first response')
+assertIncludes(campaignQuality, 'inspectNarrativeSettlementQuality({', 'real rounds must inspect the complete second response before commit')
 assertOk(
-  formatRepairStart >= 0
-    && formatRepairEnd > formatRepairStart
-    && formatRepairBlock.includes('NARRATIVE_REPAIR_SERVER_PROMPT_ASSET_ID') === false
-    && !formatRepairBlock.includes('segments.full')
-    && !formatRepairBlock.includes('segments.messages')
-    && !formatRepairBlock.includes('getNarrativeUserSegments(segments)'),
-  'format repair must not resend the full global, memory and round Prompt layers',
+  campaignQuality.includes('const MAX_FORMAT_REPAIR_ATTEMPTS = 2')
+    && campaignQuality.match(/repairAttempts < MAX_FORMAT_REPAIR_ATTEMPTS/gu)?.length === 2
+    && campaignQuality.includes('callAIWithPromptTemplate(promptTemplate, segments.full, {')
+    && campaignQuality.includes('callAIWithPromptTemplate(narrativeSettlementPrompt, joinedInput, {'),
+  'each response type must reuse its original asset and dynamic messages for at most two format repairs',
 )
-assertIncludes(campaignQuality, 'serverPromptAssetId: NARRATIVE_REPAIR_SERVER_PROMPT_ASSET_ID', 'format repair must use the dedicated compact server asset')
-assertIncludes(campaignQuality, 'prefetched,\n            wordCountTarget,\n            expectedIntentId,\n            requireBranch,', 'cached narrative must pass the same conditional gate again at the main-round consumption boundary')
-assertIncludes(campaignQuality, 'ctx._fullContent = undefined', 'a twice-rejected response must not reach post-processing')
+assertIncludes(campaignQuality, '⟦上一版叙事响应⟧${response}', 'first-response repair must retain the complete rejected response')
+assertIncludes(campaignQuality, 'buildNarrativeSettlementRepairInstruction(quality, response)', 'settlement repair must retain and repair the complete rejected settlement')
+const qualityOrchestrator = read('src/mods/mod-engine/subsystems/orchestrator-system.ts')
+assertOk(
+  campaignQuality.includes('const requestBranch = useEngineStore.getState().forceBranchNext')
+    && !campaignQuality.includes('inspectNarrativeResponseQuality(response, wordCountTarget, requestBranch)')
+    && qualityOrchestrator.includes("branchTitle: '由你决定下一步'")
+    && qualityOrchestrator.includes('branchOptions: []'),
+  'forced branching must request AI options but commit a custom-input branch point when a complete response omits them',
+)
+assertIncludes(campaignQuality, 'if (orchestrator.isPreviewExecution()) return', 'preview execution must stop before the settlement stage')
+assertIncludes(campaignQuality, 'if (!ctx._settledNarrative)', 'a missing or twice-rejected settlement must not reach post-processing')
 const roundHooks = read('src/mods/mod-engine/hooks.ts')
 assertIncludes(roundHooks, 'const roundSnapshot = orchestrator.capturePreviewSnapshot()', 'real rounds must capture the complete runtime rollback point before advancing time')
 assertIncludes(roundHooks, 'orchestrator.restorePreviewSnapshot(roundSnapshot)', 'failed narrative rounds must roll back time, Store state, and subsystem state')
-assertIncludes(roundHooks, 'if (roundSucceeded)', 'failed rounds must not immediately start a background preview retry')
-const qualityOrchestrator = read('src/mods/mod-engine/subsystems/orchestrator-system.ts')
-assertIncludes(qualityOrchestrator, "private rawNarrativeStream = ''", 'streaming must retain the raw protocol outside the visible narrative state')
-assertIncludes(qualityOrchestrator, 'narrativeParser.parsePartial(this.rawNarrativeStream)', 'streaming must project only the narrative body before notifying the UI')
-assertIncludes(qualityOrchestrator, 'const delta = visibleNarrative.slice(previous.length)', 'streaming UI updates must contain only newly visible narrative text')
+const successfulFinalizationIndex = roundHooks.indexOf('queueRoundFinalization(async () => {')
+const successfulOutcomeIndex = roundHooks.indexOf('postNarrativeRoundOutcome(report)', successfulFinalizationIndex)
+const nextPreviewIndex = roundHooks.indexOf('fillPreGenQueue(narrativePrompt', successfulFinalizationIndex)
+assertOk(
+  successfulFinalizationIndex >= 0
+    && successfulOutcomeIndex > successfulFinalizationIndex
+    && nextPreviewIndex > successfulOutcomeIndex,
+  'the next preview must start only after the real round outcome snapshot is finalized',
+)
+assertOk(
+  (qualityOrchestrator.match(/this\.isPreviewExecution\(\) \|\| !this\.roundDiagnostic/g) ?? []).length >= 6
+    && qualityOrchestrator.includes('if (this.isPreviewExecution()) return\n    const report = this.roundDiagnostic?.report'),
+  'preview execution must not append phases, quality, adoption, persistence, or system events to the real-round diagnostic',
+)
 assertIncludes(qualityOrchestrator, 'this.lastExecutedFullContent = null', 'every execution must clear stale full-content state before running stages')
 assertIncludes(qualityOrchestrator, '本轮未推进，请重新尝试', 'missing gated content must abort the round with an actionable retry error')
 assertIncludes(qualityOrchestrator, 'characterStoreRuntime', 'preview snapshots must include the externally stored character age')
-assertIncludes(qualityOrchestrator, "rejection.name = 'NarrativeGenerationRejectedError'", 'expected quality rejection must be distinguishable from an unexpected runtime error')
-assertIncludes(roundHooks, "err.name === 'NarrativeGenerationRejectedError'", 'handled quality rejection must not be reported as an unexpected console error')
+assertOk(
+  !qualityOrchestrator.includes('rawNarrativeStream')
+    && !qualityOrchestrator.includes('parsePartial(')
+    && !qualityOrchestrator.includes('streamingNarrative'),
+  'uncommitted first-response text must never stream into player-visible state',
+)
+assertIncludes(campaignQuality, "error.name = 'NarrativeGenerationRejectedError'", 'first-response rejection must be distinguishable from an unexpected runtime error')
+assertIncludes(campaignQuality, "error.name = 'NarrativeSettlementRejectedError'", 'settlement rejection must be distinguishable from an unexpected runtime error')
+assertIncludes(roundHooks, "err.name === 'NarrativeGenerationRejectedError'", 'handled narrative rejection must not be reported as an unexpected console error')
+assertIncludes(roundHooks, "|| err.name === 'NarrativeSettlementRejectedError'", 'handled settlement rejection must not be reported as an unexpected console error')
 const waitCompressionIndex = preGen.indexOf('await orchestrator.waitForBackgroundCompression()')
 const previewSnapshotIndex = preGen.indexOf('const snapshot = orchestrator.capturePreviewSnapshot()')
 assertOk(
   waitCompressionIndex >= 0 && previewSnapshotIndex > waitCompressionIndex,
   'pre-generation must await the previous real-round compression before capturing a rollback snapshot',
 )
+assertOk(!preGen.includes('streamingNarrative'), 'pre-generation must not own obsolete streaming UI state')
+const worldEntitySystem = read('src/mods/mod-world/subsystems/world-entity-system.ts')
+const worldEntityHydrationStart = worldEntitySystem.indexOf('hydrateFromStore(): void')
+const worldEntityHydrationEnd = worldEntitySystem.indexOf('restoreCollectedState(', worldEntityHydrationStart)
+const worldEntityHydrationBlock = worldEntitySystem.slice(worldEntityHydrationStart, worldEntityHydrationEnd)
 assertOk(
-  !/finally \{[\s\S]{0,240}useEngineStore\.setState\(\{ streamingNarrative: '' \}\)/.test(preGen),
-  'pre-generation cleanup must not overwrite the Store state restored by the preview snapshot',
+  worldEntityHydrationStart >= 0
+    && worldEntityHydrationEnd > worldEntityHydrationStart
+    && !worldEntityHydrationBlock.includes('ensureEntityDirectoryValidated')
+    && !worldEntitySystem.includes('entityDirectoryHydrationError'),
+  'bootstrap hydration must not persist a transient entity-directory error before player context registration and owning-snapshot restore',
 )
 for (const setting of [
   'settings.provider',
@@ -454,7 +510,8 @@ for (const setting of [
   'settings.temperature',
   'settings.wordCountTarget',
   'settings.storySeed',
-  'settings.narrativeStyle',
+  'settings.narrativeStyleText',
+  'settings.narrativeStyleVersion',
 ]) {
   assertIncludes(preGen, setting, `pre-generation signature must invalidate on setting change: ${setting}`)
 }
@@ -529,20 +586,20 @@ assertIncludes(
   'orchestrator.collectAllSubsystemStates(false)',
   'the post-linkage collection must not duplicate relevance history',
 )
-assertIncludes(campaign, 'const normalizedStorySeed = storySeed.trim() || undefined', 'campaign must normalize the configured story seed')
+assertIncludes(campaign, 'settings.storySeed.trim()', 'campaign must normalize the configured story seed')
 assertIncludes(
   campaign,
-  '...(normalizedStorySeed ? { storySeed: normalizedStorySeed } : {})',
+  '...(settings.storySeed.trim() ? { storySeed: settings.storySeed.trim() } : {})',
   'the shared main-narrative call options must carry storySeed for real and preview rounds',
 )
 assertIncludes(
-  campaign,
-  "const useStream = !orchestrator.isPreviewExecution()",
-  'pre-generation must be forced non-streaming even when the player enables streaming mode',
+  preGen,
+  'stream: false',
+  'pre-generation must always request a complete non-streaming first response',
 )
 assertOk(
-  /memoryLifecycle\.scoreImportance\(\s*result\.narrative,\s*state\.totalRounds,\s*state\.round\.year,\s*_ctx\.contextId/.test(campaign),
-  'campaign memory scoring must keep roundSequence distinct from calendar year and attach the current context',
+  /memoryLifecycle\.scoreImportance\(\s*narrative,\s*roundSequence,\s*this\.state\.round\.year,\s*this\.worldSetting\?\.contextId/.test(orchestrator),
+  'orchestrator memory scoring must keep roundSequence distinct from calendar year and attach the current context',
 )
 
 const plotStructure = read('src/mods/mod-engine/subsystems/plot-structure-system.ts')
@@ -566,16 +623,9 @@ assertOk(
   'plot phase duration must not retain a parallel round counter',
 )
 
-const adaptationManager = read('src/mods/mod-engine/subsystems/adaptation-manager-system.ts')
-assertIncludes(adaptationManager, 'private generation = 0', 'adaptation manager must version asynchronous writes across timeline resets')
-assertIncludes(adaptationManager, 'if (generation !== this.generation) return', 'stale adaptation results must not write into a new timeline')
-assertIncludes(adaptationManager, 'this.generation++', 'clearing adaptation state must invalidate in-flight results')
-assertIncludes(adaptationManager, 'private inFlight = new Map<string, Promise<string>>()', 'adaptation must deduplicate identical in-flight work')
-assertIncludes(adaptationManager, 'Promise.race([this.adaptOne(pending), timeout])', 'adaptation timeout must race the actual AI request')
-assertIncludes(adaptationManager, 'const cacheKey = this.buildCacheKey(s.id, s.summary)', 'adaptation cache must include the active route/world signature')
 assertOk(
-  !/this\.adaptOne\(p\)[\s\S]{0,500}Promise\.race\(\[result, timeout\]\)/.test(adaptationManager),
-  'adaptation timeout must not be attached after adaptOne has already settled',
+  !fs.existsSync(path.join(root, 'src/mods/mod-engine/subsystems/adaptation-manager-system.ts')),
+  'the removed extra AI adaptation call must not retain a subsystem implementation',
 )
 
 if (failed > 0) process.exit(1)

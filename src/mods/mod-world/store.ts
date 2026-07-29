@@ -17,7 +17,13 @@ import type {
   WorldContextInstance,
   WorldInitAIStatus,
 } from './types'
-import type { ContextTransitionRecord, SimulationScope, SpatialEdge } from '@/foundation'
+import type {
+  ContextTransitionRecord,
+  EntityReference,
+  GlobalEntityId,
+  SimulationScope,
+  SpatialEdge,
+} from '@/foundation'
 import {
   deriveCapabilityProfile,
   normalizeWorldEntitiesForContext,
@@ -41,6 +47,8 @@ interface WorldStore {
   crossContextEdges: Record<string, SpatialEdge>
   /** 完整切换审计记录；不得按固定容量删除 */
   transitionHistory: ContextTransitionRecord[]
+  /** P2 global entity-reference directory; business state remains with each owner. */
+  entityReferences: Record<GlobalEntityId, EntityReference>
 
   /** 当前世界配置 */
   worldConfig: WorldConfig | null
@@ -83,6 +91,8 @@ interface WorldStore {
   replaceContext: (instance: WorldContextInstance) => void
   setCrossContextEdge: (edge: SpatialEdge) => void
   recordTransition: (record: ContextTransitionRecord) => void
+  registerEntityReference: (reference: EntityReference) => void
+  replaceEntityReferences: (references: EntityReference[]) => void
   /** 生成并设置新的世界编码 */
   generateAndSetWorldCode: () => number
   /** 回收当前世界编码（清除 store 中的编码） */
@@ -95,6 +105,7 @@ const initialState = {
   currentContextId: null as string | null,
   crossContextEdges: {} as Record<string, SpatialEdge>,
   transitionHistory: [] as ContextTransitionRecord[],
+  entityReferences: {} as Record<GlobalEntityId, EntityReference>,
   worldConfig: null as WorldConfig | null,
   entities: [] as AnyWorldEntity[],
   initialized: false,
@@ -106,6 +117,61 @@ const initialState = {
   calibration: null as WorldCalibration | null,
   destinyPatternModifiers: {} as Partial<Record<FormulaModifierKey, number>>,
   worldInitAIStatus: null as WorldInitAIStatus | null,
+}
+
+function normalizeEntityReference(reference: EntityReference): EntityReference {
+  if (!reference.entityId.trim()) throw new Error('实体引用缺少稳定实体 ID')
+  if (!reference.displayName.trim()) throw new Error(`实体引用 ${reference.entityId} 缺少显示标签`)
+  if (!['player', 'npc', 'organization'].includes(reference.kind)) {
+    throw new Error(`实体引用 ${reference.entityId} 的种类无效`)
+  }
+  if (!Number.isInteger(reference.registeredAtTotalDays) || reference.registeredAtTotalDays < 0) {
+    throw new Error(`实体引用 ${reference.entityId} 的登记时间无效`)
+  }
+  const contextIds = [...new Set(reference.contextIds)]
+  if (contextIds.some((contextId) => !contextId.trim())) {
+    throw new Error(`实体引用 ${reference.entityId} 含空上下文 ID`)
+  }
+  return {
+    ...structuredClone(reference),
+    contextIds,
+  }
+}
+
+function mergeEntityReference(
+  directory: Record<GlobalEntityId, EntityReference>,
+  reference: EntityReference,
+): Record<GlobalEntityId, EntityReference> {
+  const normalized = normalizeEntityReference(reference)
+  const existing = directory[normalized.entityId]
+  if (existing && existing.kind !== normalized.kind) {
+    throw new Error(`实体引用 ${normalized.entityId} 的种类冲突`)
+  }
+  return {
+    ...directory,
+    [normalized.entityId]: {
+      ...normalized,
+      contextIds: [...new Set([...(existing?.contextIds ?? []), ...normalized.contextIds])],
+      registeredAtTotalDays: existing?.registeredAtTotalDays ?? normalized.registeredAtTotalDays,
+    },
+  }
+}
+
+function mergeContextOrganizations(
+  directory: Record<GlobalEntityId, EntityReference>,
+  instance: WorldContextInstance,
+): Record<GlobalEntityId, EntityReference> {
+  let next = directory
+  for (const entity of instance.entities) {
+    next = mergeEntityReference(next, {
+      entityId: entity.id,
+      kind: 'organization',
+      displayName: entity.name,
+      contextIds: [instance.record.id],
+      registeredAtTotalDays: instance.record.createdAtGlobalDay,
+    })
+  }
+  return next
 }
 
 function updateCurrentContext(
@@ -169,8 +235,15 @@ export const useWorldStore = create<WorldStore>()(
         const normalized = instance
           ? normalizeWorldEntitiesForContext(instance.record.id, entities, instance.regions)
           : entities
+        const entityReferences = instance
+          ? mergeContextOrganizations(s.entityReferences, {
+              ...instance,
+              entities: normalized,
+            })
+          : s.entityReferences
         return {
           entities: normalized,
+          entityReferences,
           ...updateCurrentContext(s, (current) => {
             const entityLocations = { ...current.spatialGraph.entityLocations }
             for (const previousEntity of current.entities) delete entityLocations[previousEntity.id]
@@ -265,7 +338,8 @@ export const useWorldStore = create<WorldStore>()(
           lifecycle: lifecycleForScope(makeActive ? 'active' : instance.scope.scope),
         }
         const contexts = { ...s.contexts, [instance.record.id]: instance }
-        if (!makeActive) return { contexts }
+        const entityReferences = mergeContextOrganizations(s.entityReferences, instance)
+        if (!makeActive) return { contexts, entityReferences }
 
         contexts[instance.record.id] = {
           ...instance,
@@ -274,6 +348,7 @@ export const useWorldStore = create<WorldStore>()(
         }
         return {
           contexts,
+          entityReferences,
           currentContextId: instance.record.id,
           ...projectWorldContextInstance(contexts[instance.record.id]),
         }
@@ -291,9 +366,10 @@ export const useWorldStore = create<WorldStore>()(
         }
         next.record.lifecycle = lifecycleForScope(next.scope.scope)
         const contexts = { ...s.contexts, [next.record.id]: next }
+        const entityReferences = mergeContextOrganizations(s.entityReferences, next)
         return instance.record.id === s.currentContextId
-          ? { contexts, ...projectWorldContextInstance(next) }
-          : { contexts }
+          ? { contexts, entityReferences, ...projectWorldContextInstance(next) }
+          : { contexts, entityReferences }
       }),
       setCrossContextEdge: (edge) => set((s) => ({
         crossContextEdges: { ...s.crossContextEdges, [edge.id]: structuredClone(edge) },
@@ -301,6 +377,19 @@ export const useWorldStore = create<WorldStore>()(
       recordTransition: (record) => set((s) => ({
         transitionHistory: [...s.transitionHistory, structuredClone(record)],
       })),
+      registerEntityReference: (reference) => set((s) => ({
+        entityReferences: mergeEntityReference(s.entityReferences, reference),
+      })),
+      replaceEntityReferences: (references) => set(() => {
+        const entityReferences: Record<GlobalEntityId, EntityReference> = {}
+        for (const reference of references) {
+          if (entityReferences[reference.entityId]) {
+            throw new Error(`实体引用目录存在重复 ID：${reference.entityId}`)
+          }
+          entityReferences[reference.entityId] = normalizeEntityReference(reference)
+        }
+        return { entityReferences }
+      }),
       generateAndSetWorldCode: () => {
         const code = generateWorldCode()
         set((s) => ({
@@ -342,8 +431,10 @@ export const useWorldStore = create<WorldStore>()(
         const {
           setWorldConfig: _a, setEntities: _b, setInitialized: _c, setWorldCode: _d,
           setCurrentYear: _e, setWorldTags: _f, setEraStartYear: _g, setEraName: _g2, setCalibration: _h2,
+          entityReferences: _entityReferences,
           setWorldInitAIStatus: _h, registerContext: _l, replaceContext: _m,
           setCrossContextEdge: _p, recordTransition: _q,
+          registerEntityReference: _r, replaceEntityReferences: _s,
           generateAndSetWorldCode: _i, recycleWorldCode: _j, reset: _k,
           ...rest
         } = state

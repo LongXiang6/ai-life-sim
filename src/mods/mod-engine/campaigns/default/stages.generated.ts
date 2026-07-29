@@ -14,6 +14,7 @@ export const DEFAULT_CAMPAIGN_STAGE_NAMES = [
   "cross-domain",
   "assemble-prompt",
   "ai-narration",
+  "ai-settlement",
   "post-processing",
   "epilogue-check",
   "compress-save"

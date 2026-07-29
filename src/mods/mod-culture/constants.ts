@@ -1,6 +1,6 @@
 /**
  * @module constants.ts
- * @description mod-culture 常量 —— 声望/关系/家族/教育/文化/艺术/弟子/个人能力/成就/著作
+ * @description mod-culture 常量 —— 声望/家族/教育/文化/艺术/弟子/个人能力/成就/著作
  * @mod mod-culture
  */
 
@@ -10,7 +10,6 @@ import type {
   EducationQuality,
   CulturalValue,
   ArtForm,
-  RelationshipType,
   FamilyRole,
   SpouseStatus,
   AchievementRarity,
@@ -61,141 +60,7 @@ export function getReputationRank(value: number): string {
 }
 
 // ============================================================
-// §2 关系常量
-// ============================================================
-
-/** 关系类型标签 */
-export const RELATIONSHIP_LABELS: Record<RelationshipType, string> = {
-  friend: '朋友',
-  enemy: '敌人',
-  rival: '对手',
-  mentor: '导师',
-  student: '弟子',
-  lover: '恋人',
-  spouse: '配偶',
-  family: '亲属',
-  ally: '盟友',
-  neutral: '中立',
-}
-
-/** 好感度自然衰减/年（距离上次互动） */
-export const AFFINITY_DECAY_PER_YEAR = 2
-
-/** 好感度范围 */
-export const AFFINITY_RANGE = { min: -100, max: 100 }
-
-/** 羁绊类型标签 */
-export const BOND_TYPE_LABELS: Record<string, string> = {
-  oath_of_brotherhood: '结义',
-  master_disciple: '师徒',
-  life_saving_debt: '救命之恩',
-  sworn_enemy: '血仇',
-  political_marriage: '政治婚姻',
-  blood_pact: '血盟',
-  fate_bond: '命运纽带',
-  mutual_benefit: '互利',
-}
-
-/** 好感度 → 关系状态标签映射 */
-export const RELATIONSHIP_STATUS_THRESHOLDS: { threshold: number; label: string; description: string }[] = [
-  { threshold: 80, label: '友谊深厚', description: '莫逆之交，肝胆相照' },
-  { threshold: 50, label: '相谈甚欢', description: '志趣相投，交往密切' },
-  { threshold: 20, label: '点头之交', description: '偶有往来，尚未深交' },
-  { threshold: -20, label: '萍水相逢', description: '素未谋面，互不相识' },
-  { threshold: -50, label: '话不投机', description: '观点相左，少有往来' },
-  { threshold: -80, label: '势如水火', description: '针锋相对，互不相容' },
-  { threshold: -Infinity, label: '不共戴天', description: '血海深仇，你死我活' },
-]
-
-/** 将好感度映射为关系状态标签
- * @param affinity 好感度数值
- * @returns 关系状态标签及描述
- */
-export function getRelationshipStatus(affinity: number): { label: string; description: string } {
-  for (const s of RELATIONSHIP_STATUS_THRESHOLDS) {
-    if (affinity >= s.threshold) return { label: s.label, description: s.description }
-  }
-  return { label: '不共戴天', description: '血海深仇，你死我活' }
-}
-
-/** 盟友原型定义（8 种） */
-export const ALLY_PROTOTYPES: import('./types').AllyArchetype[] = [
-  {
-    id: 'loyal_companion',
-    name: '忠勇之士',
-    personality: '性情耿直，重情重义，愿为主公赴汤蹈火',
-    initialAffinity: 60,
-    preferredLifeStages: ['青年', '中年'],
-    worldviewWeights: { historical: 0.8, wuxia: 0.9, cultivation: 0.7, xuanhuan: 0.7, western_fantasy: 0.8, scifi: 0.6, post_apocalyptic: 0.9, mythology: 0.7 },
-    narrativeHook: '曾在危难之际出手相助，从此誓死追随',
-  },
-  {
-    id: 'mysterious_senior',
-    name: '神秘前辈',
-    personality: '深不可测，行踪飘忽，看似冷漠却暗中关照',
-    initialAffinity: 40,
-    preferredLifeStages: ['少年', '青年'],
-    worldviewWeights: { historical: 0.5, wuxia: 0.8, cultivation: 0.9, xuanhuan: 0.9, western_fantasy: 0.7, scifi: 0.4, post_apocalyptic: 0.3, mythology: 0.8 },
-    narrativeHook: '总在关键时刻现身，留下意味深长的指点后飘然离去',
-  },
-  {
-    id: 'fierce_rival',
-    name: '宿敌',
-    personality: '实力相当，亦敌亦友，互相成就也互相折磨',
-    initialAffinity: -30,
-    preferredLifeStages: ['少年', '青年', '中年'],
-    worldviewWeights: { historical: 0.7, wuxia: 0.9, cultivation: 0.8, xuanhuan: 0.8, western_fantasy: 0.7, scifi: 0.6, post_apocalyptic: 0.7, mythology: 0.7 },
-    narrativeHook: '命中注定的对手——你曾败于他手，但那场失败让你脱胎换骨',
-  },
-  {
-    id: 'childhood_friend',
-    name: '青梅竹马',
-    personality: '温柔体贴，知根知底，是世间最了解你的人',
-    initialAffinity: 80,
-    preferredLifeStages: ['童年', '少年'],
-    worldviewWeights: { historical: 0.8, wuxia: 0.8, cultivation: 0.7, xuanhuan: 0.6, western_fantasy: 0.8, scifi: 0.7, post_apocalyptic: 0.6, mythology: 0.6 },
-    narrativeHook: '自幼一起长大的挚友，你们之间有数不清的共同回忆',
-  },
-  {
-    id: 'wise_mentor',
-    name: '睿智导师',
-    personality: '学识渊博，循循善诱，望你青出于蓝而胜于蓝',
-    initialAffinity: 65,
-    preferredLifeStages: ['少年', '青年'],
-    worldviewWeights: { historical: 0.9, wuxia: 0.8, cultivation: 0.8, xuanhuan: 0.7, western_fantasy: 0.9, scifi: 0.8, post_apocalyptic: 0.5, mythology: 0.7 },
-    narrativeHook: '慧眼识珠，收你为徒，倾囊相授毕生所学',
-  },
-  {
-    id: 'devoted_servant',
-    name: '忠仆',
-    personality: '忠心耿耿，任劳任怨，为主人可以牺牲一切',
-    initialAffinity: 90,
-    preferredLifeStages: ['中年', '老年'],
-    worldviewWeights: { historical: 0.7, wuxia: 0.6, cultivation: 0.5, xuanhuan: 0.5, western_fantasy: 0.7, scifi: 0.3, post_apocalyptic: 0.8, mythology: 0.5 },
-    narrativeHook: '世代侍奉家族的忠仆，见证了你从小到大的成长',
-  },
-  {
-    id: 'stalwart_ally',
-    name: '铁杆盟友',
-    personality: '志同道合，利益一致，可托付后背的可靠伙伴',
-    initialAffinity: 50,
-    preferredLifeStages: ['青年', '中年', '老年'],
-    worldviewWeights: { historical: 0.8, wuxia: 0.7, cultivation: 0.6, xuanhuan: 0.6, western_fantasy: 0.8, scifi: 0.9, post_apocalyptic: 0.8, mythology: 0.6 },
-    narrativeHook: '在一次关键行动中与你并肩作战，结下深厚情谊',
-  },
-  {
-    id: 'reformed_villain',
-    name: '洗白反派',
-    personality: '曾经敌对，被你的气度折服后改邪归正，亦正亦邪',
-    initialAffinity: 20,
-    preferredLifeStages: ['青年', '中年'],
-    worldviewWeights: { historical: 0.5, wuxia: 0.7, cultivation: 0.7, xuanhuan: 0.7, western_fantasy: 0.6, scifi: 0.5, post_apocalyptic: 0.6, mythology: 0.6 },
-    narrativeHook: '曾是不共戴天的仇敌，却被你的宽容与气度感化，弃暗投明',
-  },
-]
-
-// ============================================================
-// §3 家族常量
+// §2 家族常量
 // ============================================================
 
 /** 家族角色标签 */

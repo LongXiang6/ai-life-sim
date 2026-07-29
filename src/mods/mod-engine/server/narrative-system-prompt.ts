@@ -6,63 +6,37 @@
 
 import {
   NARRATIVE_BODY_TAG,
-  NARRATIVE_DATA_TAG,
-  NARRATIVE_END_TAG,
-  NARRATIVE_SUMMARY_TAG,
+  NARRATIVE_BRANCH_TAG,
 } from '../helpers/narrative-ai-protocol'
 import type { NarrativePromptComponent } from '../helpers/narrative-prompt-component-types'
 
 /** 固定 System Prompt 的唯一基础协议；只保留影响成功率的规则。 */
 export function buildNarrativeAIProtocolBaseRules(): string[] {
   return [
-    `最终按 ${NARRATIVE_BODY_TAG}、可选 ${NARRATIVE_SUMMARY_TAG}、可选 ${NARRATIVE_DATA_TAG}、${NARRATIVE_END_TAG} 的顺序输出；每个标记独占一行，禁止代码块、额外标题和解释。`,
-    '正文必须是非空、完整的中文剧情；段落数量自由。摘要只在能提供高价值事实索引时输出，不能写评价或未来写作指令。',
-    '数据只记录本轮确实成立的结构化结果；无内容、无变化时省略整个字段，禁止空数组、空对象、空字符串和 null。',
-    '数据区不是字段清单，不要照抄示例；数值变化为0时省略该项，没有命运分支时省略分支三项而不是输出 false。',
-    '数据字段只使用中文协议 Schema：状态变更、长期事件、原创内容、新伏笔、重要程度、关键事件、情节状态、语义信号、命运分支、分支标题、分支选项、命运意图判定、新延迟因果。',
-    '数组字段形状固定：长期事件是字符串数组；原创内容每项只含名称、说明、类别；新伏笔每项只含类型、说明、优先级；关键事件每项只含内容、重要度和可选涉及实体。禁止用单个对象或字符串代替数组。',
-    '语义信号一旦输出就必须完整包含事件类型、冲突强度、张力变化、行动规模、不可逆、影响范围、叙事语域、语域理由、情节类型；只能使用标准示例与中文 Schema 已列的键和值，无法完整提交时省略整个语义核心。',
-    '省略字段表示本轮未提交该类结构化信息，不表示确认没有变化；本地不会从正文猜测缺失状态。',
-    '没有当前命运意图时，省略“命运意图判定”；标准示例中的条件字段不得照抄。',
-    '不得为字数、格式或数组数量删短正文、摘要或剧情事实；需要凝练时保持全部事实可追踪。',
-    '一旦输出数据区，所有已输出字段必须整包合法；禁止新增近义字段、英文键或只提交合法部分。',
-    '最低合法结果是非空完整正文与结束标记；存在当前命运意图或强制命运分支时，相关结构化字段仍为条件必填。',
-    '生成前只做三项短检查：当前主线、已成立事实、输出终态；不要输出思考过程或 reasoning_content。',
+    `最终玩家可见结果完整写入 content；content 直接以 ${NARRATIVE_BODY_TAG} 开始，确有玩家命运抉择时再追加 ${NARRATIVE_BRANCH_TAG}单行JSON。`,
+    '正文写成非空、完整的中文剧情，按叙事需要自然分段；段落之间空一行，正文与分支之间也空一行。',
+    '分支对象只写“标题”和“选项”；选项是二至四个可立即选择的行动、立场或方向。本轮无真正的命运抉择时，content 仅写正文。',
+    '正文和可选分支构成 content 的全部玩家可见内容；摘要、系统操作和机器数据由后续结算调用承载。结尾写完整，分支场景停在玩家作出决定之前。',
+    `生成前只检查当前主线、已成立事实和输出终态。按响应字段职责组织结果：思考模式启用时，推理过程由 reasoning_content 承载；最终玩家可见结果完整写入 content，content 直接以 ${NARRATIVE_BODY_TAG} 开始。`,
   ]
 }
 
-/** 唯一紧凑标准示例；条件字段只用于说明形状，普通轮不要照抄。 */
+/** 第一次调用唯一紧凑标准示例。 */
 export function buildNarrativeAIProtocolStandardExample(): string {
-  const data = {
-    重要程度: '高',
-    情节状态: '进行中',
-    语义信号: {
-      事件类型: '冲突',
-      冲突强度: 60,
-      张力变化: 3,
-      行动规模: '中',
-      不可逆: true,
-      影响范围: '关系圈',
-      叙事语域: '命运',
-      语域理由: '救援改变了关系与追捕风险',
-      情节类型: '任务',
-    },
-    命运分支: true,
-    分支标题: '决定航向',
-    分支选项: ['驶入海雾', '转向旧礁群'],
-    命运意图判定: {
-      意图编号: '命运分支:带阿禾离开',
-      可行性: '有条件',
-      执行方式: '逐步执行',
-      状态: '推进中',
-      风险等级: '高',
-      进度: 65,
-      预计耗时: '多个节点',
-      判定理由: '已救人但仍需处理追击',
-      下一步: '处理追击',
-    },
-  }
-  return `${NARRATIVE_BODY_TAG}\n你撞开仓门救出阿禾，巡船的灯越过礁石；你们仍要决定航向。\n\n你把缆绳递给同伴，船头转入雾中，新的后果已经出现。\n${NARRATIVE_SUMMARY_TAG}\n本轮救人并改变了逃离方向。\n${NARRATIVE_DATA_TAG}\n${JSON.stringify(data)}\n${NARRATIVE_END_TAG}`
+  return `${NARRATIVE_BODY_TAG}此处填写完整正文；实际段落数量和篇幅以本轮要求为准。\n\n如需分段，此处填写后续段落。\n\n${NARRATIVE_BRANCH_TAG}${JSON.stringify({
+    标题: '此处填写分支标题',
+    选项: ['此处填写选项一', '此处填写选项二'],
+  })}`
+}
+
+/** 用清晰边界包裹可直接解析的 content 示例，避免把后续 user 消息误当输出。 */
+export function buildNarrativeAIProtocolPromptExample(): string {
+  return [
+    '【content 返回结构示例开始；示例中的空行就是实际换行位置】',
+    buildNarrativeAIProtocolStandardExample(),
+    '【content 返回结构示例结束】',
+    `后续 ${'⟦全局信息⟧'}、${'⟦记忆⟧'}、${'⟦本轮引导⟧'} 均是本轮输入，不属于 content。`,
+  ].join('\n')
 }
 
 /** 固定前缀只包含真正全局常驻规则；开场、年龄、意图和修复细则仍按条件由浏览器提供动态事实。 */
@@ -80,8 +54,8 @@ const NARRATIVE_SYSTEM_COMPONENT_DEFINITIONS: readonly Omit<
     dependsOn: [],
     exitWhen: '永不退出',
     content: [
-      '你是人生模拟器的主叙事引擎。选择本轮最值得发生的一件事，以娱乐性、代入感和继续游玩的意愿为目标写中文剧情。',
-      '文笔、人物声音、现场、因果推进、后果和后续牵引优先于字数；遵守本轮玩家指令，不替玩家做未选择的决定。',
+      '你是受世界事实与模拟规则约束的世界叙事演算者，也是将玩家这一段人生写成中文故事的作者。按本轮字数要求选择最值得发生且能完整收束的一件事，以娱乐性、代入感和继续游玩的意愿为目标写中文剧情。',
+      '让文笔、人物声音、现场、因果推进、后果和后续牵引都服务于选定的事件规模；在不违背事实优先级的前提下处理本轮引导与玩家选择，不替玩家做未选择的决定。',
     ],
   },
   {
@@ -91,11 +65,14 @@ const NARRATIVE_SYSTEM_COMPONENT_DEFINITIONS: readonly Omit<
     lifecycle: '全局常驻',
     authority: '世界与协议',
     order: 20,
-    dependsOn: ['世界设定', '当前状态', '记忆'],
+    dependsOn: ['世界设定', '模组世界规则', '命格天赋', '记忆', '当前状态', '本轮引导'],
     exitWhen: '永不退出',
     content: [
-      '事实优先级：更具体、更新的玩家设定 > 世界与模组规则 > 当前状态、记忆和近期经历。',
-      '不得引入尚未成立的能力、关系或资源；普通命格与已装备轮回天赋效果每轮持续生效，但不能绕过条件、代价、死亡、世界规则或玩家选择。',
+      '发生冲突时严格按以下优先级裁决：世界观、已激活模组规则与确定性模拟逻辑 > 已装备轮回天赋 > 世界内合理性 > 普通命格 > 记忆 > 当前状态 > 本轮引导 > 玩家自定义分支内容。低优先级只能在不违背高优先级时生效。',
+      '世界观是全部剧情发展的基石。轮回天赋是跨世界生效的概念性能力，按自身描述持续生效，但不能超出描述或改写世界硬规则与确定性逻辑；普通命格只有在世界内因果合理时生效。',
+      '玩家自定义分支内容必须完整作为待评估方向读取，不得静默过滤、隐藏或替换：合理则沿该方向执行，不得为了制造阻力压低已经满足条件的行动；一般不合理则写出真实尝试并以可信失败或受阻收束；极端不合理或直接违背高优先级事实时，只能写成梦境、幻想或尚未落地的念头。',
+      '“本轮引导”中的“系统引导”是有序约束；“玩家自定义分支”保留玩家原始意图。“当前意图”必须在本轮处理：小型行动可以完成，中大型目标推进一个明确阶段，失败须产生可信后果，受阻须呈现解除条件。“其他未完成意图”只保持连续性，除非正文确实触及，不得静默删除或直接宣告终态。',
+      '不得引入尚未成立的能力、关系或资源；任何天赋都不能绕过自身条件、代价、死亡或已经成立的玩家选择。',
     ],
   },
   {
@@ -108,8 +85,8 @@ const NARRATIVE_SYSTEM_COMPONENT_DEFINITIONS: readonly Omit<
     dependsOn: ['角色档案', '世界设定', '记忆'],
     exitWhen: '永不退出',
     content: [
-      '玩家明确写为专属、独有、唯一、血脉限定、异界来源或角色自创的能力、物品、身份与规则，属于该角色的连续性事实。除非玩家明确允许共享，或前序剧情已经建立复制、传承、窃取等直接因果，不得改写为当地常见能力、制式技术、药剂激活、机构授予或他人同源能力。',
-      '当地人物可以基于自身知识误解其来源，但叙事真相、实际归属与能力边界不得被偷换；名称相似也不能自动证明当地存在同一来源。',
+      '玩家明确写为专属、独有、唯一、血脉限定、异界来源或角色自创的能力、物品、身份与规则，属于该角色的连续性事实。除非玩家明确允许共享，或前序剧情已经建立复制、传承、窃取等直接因果，不得改写为当地常见能力、制式技术、药剂激活、机构授予、遗迹发现、古人传承、秘境所得、他人遗留或他人同源能力。',
+      '角色自创内容的后续发展必须来自角色自身的使用、完善、突破或主动传授。当地人物可以基于自身知识误解其来源，但叙事真相、实际归属与能力边界不得被偷换；名称相似也不能自动证明当地存在同一来源。',
     ],
   },
   {
@@ -122,8 +99,8 @@ const NARRATIVE_SYSTEM_COMPONENT_DEFINITIONS: readonly Omit<
     dependsOn: ['本轮引导'],
     exitWhen: '永不退出',
     content: [
-      '正文段落数量自由，按故事需要自然分段；变化起点、行动与发展、后果与新局面应连续推进同一因果主线。',
-      '至少保留一个可感知现场、具体动作或对话、人物回应和可见后果；平静轮可由休整、掌握、认可、关系回暖或成功兑现形成变化。',
+      '正文按事件规模自然分段，具体节拍数量服从字数档；变化起点、关键行动或回应、直接后果应连续推进同一因果主线。',
+      '用一个可感知现场承载主线，按字数档只保留必要的动作、对话、人物回应和结果；平静轮可由休整、掌握、认可、关系回暖或成功兑现形成变化。',
       '若本轮按年或更长跨度推进，正文仍只选择一个代表性现场；跨季只作简短过渡，不得拼接成逐季年表。',
       '禁止流水账、年度报告、空泛感悟、同义反复、互不相干的生活切片和为凑字堆景物；结尾必须完整。',
     ],
@@ -155,7 +132,21 @@ const NARRATIVE_SYSTEM_COMPONENT_DEFINITIONS: readonly Omit<
     exitWhen: '永不退出',
     content: [
       '正文全程用第二人称“你”；除直接称呼或消歧外，不用姓名、他、她、主角或角色作叙事主语。',
-      '镜头只写你能感知、回忆或合理推断的内容，不写全知旁白、第三人称传记或编年报告；历史原文只继承事实，不能成为本轮的人称、措辞或段落样本。',
+      '镜头只写你能感知、回忆或合理推断的内容，不写全知旁白、第三人称传记或编年报告；记忆、摘要与近期历史原文只提供已经成立的事实，不能成为本轮的人称、措辞、文风或段落样本。',
+    ],
+  },
+  {
+    id: 'narrative-length-control',
+    title: '篇幅与完整性',
+    kind: '写作规则',
+    lifecycle: '全局常驻',
+    authority: '剧情引导',
+    order: 50,
+    dependsOn: ['本轮引导'],
+    exitWhen: '永不退出',
+    content: [
+      '“本轮引导”末尾的“字数要求”规定正文全部段落合计的篇幅区间和结构密度。先选择能在该区间内自然收束的单一事件；短档减少人物、镜头、对话和环境细节，长档再增加连续节拍。',
+      '短档让一个细节同时建立现场与世界氛围，让一个动作或一句对话推进事件，再以一个直接结果收束；通过缩小事件而不是省略关键因果控制篇幅，不同义重复，不在句中截断。',
     ],
   },
   {
@@ -179,7 +170,7 @@ const NARRATIVE_SYSTEM_COMPONENT_DEFINITIONS: readonly Omit<
     lifecycle: '全局常驻',
     authority: '玩家意图',
     order: 70,
-    dependsOn: ['语义信号', '分支冷却'],
+    dependsOn: ['本轮引导'],
     exitWhen: '永不退出',
     content: [
       '命运分支只用于改变身份、核心关系、长期目标、关键资源、阵营、存亡等不可逆轨迹的高重要度抉择。',
@@ -204,9 +195,9 @@ const NARRATIVE_SYSTEM_COMPONENT_DEFINITIONS: readonly Omit<
     lifecycle: '全局常驻',
     authority: '世界与协议',
     order: 90,
-    dependsOn: ['基础输出约束', '中文字段指南'],
+    dependsOn: ['基础输出约束'],
     exitWhen: '永不退出',
-    content: buildNarrativeAIProtocolStandardExample(),
+    content: buildNarrativeAIProtocolPromptExample(),
   },
 ] as const
 
@@ -240,18 +231,3 @@ export function compileNarrativeSystemPrompt(
 export const COMPILED_NARRATIVE_SYSTEM_PROMPT = compileNarrativeSystemPrompt(
   NARRATIVE_SYSTEM_COMPONENTS,
 )
-
-/**
- * 使用组件注册中心动态组装系统提示词
- * 支持按 Campaign 和 MOD 定制组件
- */
-export async function compileDynamicSystemPrompt(
-  campaignId: string = 'default',
-  activeModIds: string[] = [],
-): Promise<string> {
-  const { getComponentsForContext, compileComponentsToSystemPrompt } = await import(
-    '../prompts/components/registry'
-  )
-  const components = getComponentsForContext(campaignId, activeModIds)
-  return compileComponentsToSystemPrompt(components)
-}

@@ -730,7 +730,7 @@ assertOk(
     && gameStoryPageSrc.includes('void runNarrativeAttempt()')
     && gameStoryPageSrc.includes('autoRetryGenerationRef.current += 1')
     && gameStoryPageSrc.includes('setAutoRetryAttempt(attemptIndex + 1)')
-    && gameStoryPageSrc.includes('advanceBlocked={!isRuntimeReady || hasUnresolvedBranch || branchRepairPending}')
+    && gameStoryPageSrc.includes('advanceBlocked={!isRuntimeReady || hasUnresolvedBranch}')
     && gameStoryPageSrc.includes('advanceText={narrativeAdvanceText}')
     && gameStoryPageSrc.includes('advanceHint={narrativeAdvanceHint}')
     && !gameStoryPageSrc.includes('handleNarrativeRetry'),

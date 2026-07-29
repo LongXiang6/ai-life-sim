@@ -238,8 +238,8 @@ assertOk(
   'final fate preview must visibly display the starting age',
 )
 assertOk(
-  orchestratorSourceText.includes('narrative = this.buildFallbackNarrativeFromState()'),
-  'blocked or empty AI output must use the canonical age-aware orchestrator fallback',
+  !orchestratorSourceText.includes('buildFallbackNarrativeFromState'),
+  'failed or empty AI output must not synthesize local narrative outside the atomic two-call pipeline',
 )
 assertOk(
   !orchestratorSourceText.includes('narrativeParser.buildFallbackNarrative(this.state.round.year'),

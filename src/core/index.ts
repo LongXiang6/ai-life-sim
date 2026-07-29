@@ -69,8 +69,8 @@ export { useGlobalStore } from './global-store'
 export type { GlobalState, GamePhase } from './global-store'
 
 // AI 服务
-export { callAI, callAIConversation, callAIStream, callAIStreamConversation, callAIDegraded, callAIStreamDegraded, handleStream, buildPrompt, buildSegmentedPrompt, buildNarrativeUserJson, getNarrativeUserSegments, buildConversationMessages, recordRoundCacheMetrics, getRoundCacheMetrics, callAIWithPromptTemplate, isAiCredentialError, parseAIJSON } from './ai-service'
-export type { AICallOptions, CachePoolType, InternalCachePool, CacheHitInfo, PromptSegments, RoundCacheMetrics, ChatMessage, KVMessageStrategy, AICallLogContext, AICallUsageSnapshot, UnifiedCallOptions, PromptTemplateLike } from './ai-service'
+export { callAI, callAIConversation, callAIStream, callAIStreamConversation, callAIDegraded, callAIStreamDegraded, handleStream, buildSegmentedPrompt, buildNarrativeUserJson, computeNarrativeSettlementTokenBudget, recordRoundCacheMetrics, getRoundCacheMetrics, callAIWithPromptTemplate, isAiCredentialError, parseAIJSON } from './ai-service'
+export type { AICallOptions, CachePoolType, InternalCachePool, CacheHitInfo, PromptSegments, RoundCacheMetrics, AICallLogContext, AICallUsageSnapshot, UnifiedCallOptions, PromptTemplateLike } from './ai-service'
 
 // 存储服务
 export { configStore, saveStore, cacheStore, tempStore, opfsStorage, saveManager, clearGameProgressFromLocalStorage, flushOpfsQueueNow, safeCleanupReload } from './storage'

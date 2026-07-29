@@ -10,6 +10,7 @@ import {
   inspectNarrativeResponseQuality,
 } from '../../../../src/mods/mod-engine/helpers/narrative-response-quality.ts'
 import { buildTimeScaleNarrativeHint } from '../../../../src/mods/mod-engine/helpers/time-scale-narrative.ts'
+import { parseNarrativeResponseEnvelope } from '../../../../src/mods/mod-engine/helpers/tagged-meta-envelope.ts'
 import {
   compileNarrativeDynamicComponents,
   createNarrativeRepairComponent,
@@ -76,12 +77,11 @@ function readLocalEnv(name) {
 }
 
 function extractBody(content) {
-  const start = content.indexOf('⟦正文⟧')
-  const summary = content.indexOf('⟦摘要⟧', start + 1)
-  const terminal = content.indexOf('⟦结束⟧', start + 1)
-  const end = summary >= 0 && (terminal < 0 || summary < terminal) ? summary : terminal
-  if (start < 0 || end < 0) return undefined
-  return content.slice(start + '⟦正文⟧'.length, end).trim()
+  try {
+    return parseNarrativeResponseEnvelope(content).narrative
+  } catch {
+    return undefined
+  }
 }
 
 function buildMessages(testCase) {
@@ -90,8 +90,9 @@ function buildMessages(testCase) {
     characterProfileView: testCase.character,
     characterStatusView: testCase.character,
     currentTime: '当前纪年 · 春 · 4月',
-    narrativeHistory: testCase.history ? [testCase.history] : [],
-    recentNarrativeMemory: testCase.history || undefined,
+    timelineMemory: testCase.history
+      ? `【时间轴记忆】\n【时间阶段：前情】\n- [前情] ${testCase.history}`
+      : undefined,
     narrativeGuidanceText: testCase.guidance,
     timeGuideText: buildTimeScaleNarrativeHint({ unit: 'year', value: 1 }),
     wordCountInstruction: '篇幅约200字，只作节奏参考；剧情需要时可以自然超出。',
@@ -162,7 +163,7 @@ async function runCase(apiKey, testCase) {
     }
     if (!body) {
       console.error(JSON.stringify({ id: testCase.id, malformedContent: content }, null, 2))
-      throw new Error('Narrative envelope is missing body or digest markers after one application-equivalent repair')
+      throw new Error('Narrative response still violates the strict first-call protocol after one application-equivalent repair')
     }
     const forbiddenHits = testCase.forbidden.filter((term) => body.includes(term))
     const expectedHits = testCase.expectedAny.filter((term) => body.includes(term))

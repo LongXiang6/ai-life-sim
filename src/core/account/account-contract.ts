@@ -1,5 +1,10 @@
 import { z } from 'zod'
 
+import {
+  isNarrativeWordCountTarget,
+  type NarrativeWordCountTarget,
+} from '@/foundation'
+
 export const ACCOUNT_SESSION_COOKIE = 'ai_life_session'
 export const ACCOUNT_RETENTION_DAYS = 30
 export const ACCOUNT_MAX_SLOTS = 10
@@ -43,6 +48,11 @@ const CloudThemeSchema = z.enum([
   'cyber-neon',
 ]).transform(() => 'minimal-white' as const)
 
+const NarrativeWordCountTargetSchema = z.custom<NarrativeWordCountTarget>(
+  isNarrativeWordCountTarget,
+  '叙事目标字数必须使用当前固定档位',
+)
+
 export const CloudSettingsSchema = z.object({
   provider: z.string().min(1).max(64),
   customUrl: z.string().max(2048),
@@ -58,7 +68,7 @@ export const CloudSettingsSchema = z.object({
   narrativeStyle: z.enum(['default', 'epic', 'realistic', 'poetic']),
   narrativeStyleText: z.string().default(''),
   narrativeStyleVersion: z.number().int().nonnegative().default(0),
-  wordCountTarget: z.number().int().min(50).max(5000),
+  wordCountTarget: NarrativeWordCountTargetSchema,
   streamingMode: z.enum(['off', 'stream']),
   comfortableParagraphs: z.boolean(),
   reduceMotion: z.boolean(),

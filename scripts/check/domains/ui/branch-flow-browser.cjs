@@ -26,18 +26,49 @@ const branchMeta = {
     语域理由: '家族印记的归属会永久改变角色的长期关系与身份轨迹',
     情节类型: '任务',
   },
-  命运分支: true,
-  分支标题: '你愿意让这份印记指向哪条道路？',
-  分支选项: ['交给守约者，承担旧盟约的责任', '带走印记，独自寻找新的道路'],
 }
 
-function envelope(paragraphs, summary, metadata) {
-  return `⟦正文⟧\n${paragraphs.join('\n\n')}\n⟦摘要⟧\n${summary}\n⟦数据⟧\n${JSON.stringify(metadata)}\n⟦结束⟧`
+function narrativeResponse(paragraphs, branch) {
+  return `⟦正文⟧${paragraphs.join('\n\n')}${branch ? `\n\n⟦分支⟧${JSON.stringify(branch)}` : ''}`
 }
 
-const responses = [
-  envelope(firstParagraphs, '家族印记带来一项不可逆的长期抉择。', branchMeta),
-  envelope(secondParagraphs, '你选择守约者，新的同盟已经建立。', {
+function settlementResponse(summary, metadata, intentId) {
+  const data = {
+    摘要: summary,
+    ...metadata,
+    ...(intentId
+      ? {
+          命运意图判定: {
+            意图编号: intentId,
+            可行性: '可执行',
+            执行方式: '立即执行',
+            状态: '成功',
+            风险等级: '低',
+            进度: 100,
+            预计耗时: '本轮',
+            判定理由: '你已把印记交给守约者并建立新的同盟。',
+            下一步: '在后续行动中巩固同盟。',
+          },
+        }
+      : {}),
+  }
+  return `⟦数据⟧${JSON.stringify(data)}`
+}
+
+function readIntentId(body) {
+  const prompt = (body.messages ?? []).map((message) => String(message.content ?? '')).join('\n')
+  const intentId = prompt.match(/意图编号必须严格等于 (命运分支:[^；"\\\s]+)/u)?.[1]
+  if (!intentId) throw new Error('第二轮结算输入缺少当前命运分支编号')
+  return intentId
+}
+
+const narrativeResponses = [
+  narrativeResponse(firstParagraphs),
+  narrativeResponse(secondParagraphs),
+]
+const settlementFixtures = [
+  ['家族印记带来一项不可逆的长期抉择。', branchMeta],
+  ['你选择守约者，新的同盟已经建立。', {
     重要程度: '普通',
     关键事件: [{ 内容: '你将印记交给守约者并建立新的同盟', 重要度: 72, 涉及实体: ['守约者'] }],
     情节状态: '进行中',
@@ -45,38 +76,25 @@ const responses = [
       事件类型: '关系',
       冲突强度: 20,
       张力变化: 4,
-      行动规模: '个人',
+      行动规模: '中',
       不可逆: false,
       影响范围: '个人',
       叙事语域: '生活',
       语域理由: '新同盟进入日常相处阶段',
       情节类型: '人生阶段',
     },
-  }),
+  }],
 ]
 
-const useBranchRepairFixture = process.env.FORCED_BRANCH_REPAIR_FIXTURE === '1'
-const useCustomChoiceFixture = process.env.BRANCH_CUSTOM_CHOICE === '1'
 const useUnavailableApiFixture = process.env.UNAVAILABLE_API_FIXTURE === '1'
 const useLongCustomNameFixture = process.env.LONG_CUSTOM_NAME_FIXTURE === '1'
 const customChoiceFixture = '把印记交给守约者前，先请守约者说明旧盟约的代价'
-const bodyOnlyFirstResponse = [
-  '⟦正文⟧',
-  firstParagraphs.join('\n\n'),
-  '⟦摘要⟧',
-  '家族印记把你带到一个必须作出长期决定的现场。',
-  '⟦结束⟧',
-].join('\n')
-const branchRepairResponse = JSON.stringify({
-  分支标题: '你愿意让这份印记指向哪条道路？',
-  分支选项: ['交给守约者，承担旧盟约的责任', '带走印记，独自寻找新的道路'],
-})
 
 function seedPage(page) {
   return page.evaluateOnNewDocument((fixtureWorldCode) => {
     localStorage.clear()
     localStorage.setItem('mod-world:persist:world-state', JSON.stringify({
-      version: 4,
+      version: 5,
       state: {
         worldConfig: {
           name: '现代地球', eraName: '公元', eraStartYear: 2000, essenceTag: 'modern',
@@ -90,7 +108,7 @@ function seedPage(page) {
           tagsGenerated: true, configGenerated: true, entitiesGenerated: true, retryCount: 0, maxRetries: 3, errors: [] },
       },
     }))
-    localStorage.setItem('mod-settings:store', JSON.stringify({ version: 7, state: {
+    localStorage.setItem('mod-settings:store', JSON.stringify({ version: 11, state: {
       provider: 'managed', customKey: '', customUrl: '', customModel: 'LongCat-2.0', temperature: 0.8,
       topP: 0.8, maxTokens: 4096, reasoningEffort: 'disabled', talentThinkingIntensity: 'disabled',
       aiTalentGeneration: false, preGenerateRounds: 0, storySeed: '20260723', narrativeStyle: 'default',
@@ -190,8 +208,8 @@ async function main() {
   const consoleErrors = []
   const nativeDialogs = []
   const requests = []
-  let responseIndex = 0
-  let mainNarrativeRequestCount = 0
+  let narrativeResponseIndex = 0
+  let settlementResponseIndex = 0
   const screenshotDir = process.env.UI_SCREENSHOT_DIR
   if (screenshotDir) fs.mkdirSync(screenshotDir, { recursive: true })
   const capture = async (name) => {
@@ -211,14 +229,12 @@ async function main() {
     requests.push(body)
     const promptAsset = String(body.prompt_asset || '')
     let content
-    if (useBranchRepairFixture && promptAsset.includes('narrative-branch-repair')) {
-      content = branchRepairResponse
-    } else if (useBranchRepairFixture && promptAsset.includes('mod-engine:narrative:')) {
-      content = mainNarrativeRequestCount++ === 0
-        ? bodyOnlyFirstResponse
-        : responses[1]
+    if (promptAsset.includes('mod-engine:narrative-settlement:')) {
+      const index = Math.min(settlementResponseIndex++, settlementFixtures.length - 1)
+      const [summary, metadata] = settlementFixtures[index]
+      content = settlementResponse(summary, metadata, index === 1 ? readIntentId(body) : undefined)
     } else {
-      content = responses[Math.min(responseIndex++, responses.length - 1)]
+      content = narrativeResponses[Math.min(narrativeResponseIndex++, narrativeResponses.length - 1)]
     }
     if (body.stream) {
       const event = JSON.stringify({ choices: [{ delta: { content }, finish_reason: 'stop' }] })
@@ -338,9 +354,8 @@ async function main() {
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('开始人生'))?.click())
   await page.waitForFunction(() => location.pathname.endsWith('/game-story'))
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('轻触，让岁月流转') && !button.disabled), { timeout: 60000 })
-  if (useBranchRepairFixture) {
-    await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('强制下一轮分支') && !button.disabled)?.click())
-  }
+  await page.click('button[aria-label="强制下一轮分支"]')
+  await page.waitForFunction(() => document.body.textContent?.includes('已请求命运分叉'))
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('轻触，让岁月流转'))?.click())
   try {
     await page.waitForFunction((paragraph) => document.body.textContent?.includes(paragraph), { timeout: 60000 }, firstParagraphs[0])
@@ -348,28 +363,13 @@ async function main() {
     console.error('NARRATIVE_TIMEOUT', await page.evaluate(() => ({ path: location.pathname, text: document.body.innerText.slice(-5000), buttons: [...document.querySelectorAll('button')].map((button) => ({ text: button.textContent, disabled: button.disabled })) })))
     throw error
   }
-  // A forced branch may arrive in a separate background response after the
-  // complete body is already visible; wait for the branch control itself.
-  await page.waitForSelector('input[type="radio"]', { timeout: 60000 })
-  const option = await page.$('input[type="radio"]')
-  if (!option) {
-    console.error('BRANCH_RADIO_MISSING', await page.evaluate(() => ({
-      text: document.body.innerText.slice(-2800),
-      requests: window.__branchRequests,
-      inputs: [...document.querySelectorAll('input')].map((input) => ({ type: input.type, checked: input.checked, name: input.name })),
-      buttons: [...document.querySelectorAll('button')].map((button) => ({ text: button.textContent?.trim(), disabled: button.disabled })),
-    })))
-    throw new Error('branch radio was not rendered')
-  }
-  let selectedAfterClick
-  if (useCustomChoiceFixture) {
-    await page.focus('textarea[placeholder="也可以写下你的做法……"]')
-    await page.keyboard.type(customChoiceFixture)
-    selectedAfterClick = await page.$eval('textarea[placeholder="也可以写下你的做法……"]', (node) => node.value)
-  } else {
-    await option.click()
-    selectedAfterClick = await page.$eval('input[type="radio"]', (node) => node.checked)
-  }
+  // 即使 AI 未返回分支，强制分叉也必须提交一个仅含自定义输入的分叉点。
+  await page.waitForSelector('textarea[placeholder="也可以写下你的做法……"]', { timeout: 60000 })
+  const radioCount = await page.$$eval('input[type="radio"]', (nodes) => nodes.length)
+  if (radioCount !== 0) throw new Error(`forced custom-only branch unexpectedly rendered ${radioCount} radio options`)
+  await page.focus('textarea[placeholder="也可以写下你的做法……"]')
+  await page.keyboard.type(customChoiceFixture)
+  const selectedAfterClick = await page.$eval('textarea[placeholder="也可以写下你的做法……"]', (node) => node.value)
   await page.waitForFunction(() => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes('确认选择') && !button.disabled), { timeout: 60000 })
   await page.evaluate(() => [...document.querySelectorAll('button')].find((button) => button.textContent?.includes('确认选择'))?.click())
   await page.waitForFunction(() => !document.body.textContent?.includes('确认选择') || document.body.textContent?.includes('你的选择：'), { timeout: 60000 })
@@ -394,7 +394,12 @@ async function main() {
   const result = {
     selectedAfterClick,
     requestCount: requests.length,
+    narrativeRequestCount: requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative:')).length,
+    settlementRequestCount: requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative-settlement:')).length,
     requestChoices: requests.map((request) => request.messages?.map((message) => message.content).join('\n').includes('交给守约者')),
+    firstNarrativeRequestedBranch: requests.find((request) => String(request.prompt_asset || '').includes('mod-engine:narrative:'))
+      ?.messages?.map((message) => message.content).join('\n').includes('正文停在玩家需要作出选择的现场'),
+    radioCount,
     resolvedChoice: stored.narrativeHistory?.[0]?.resolvedChoice,
     narrativeEntries: stored.narrativeHistory?.length,
     repetitionMetricRounds: stored.narrativeHistory?.map((entry) => entry.repetitionMetric?.round),
@@ -403,22 +408,25 @@ async function main() {
     repetitionRoundsVisible: repetitionRoundsText.includes('第1轮') && repetitionRoundsText.includes('第2轮'),
     consoleErrors,
   }
-  if (useBranchRepairFixture) {
-    result.branchRepairRequestCount = requests.filter((request) => String(request.prompt_asset || '').includes('narrative-branch-repair')).length
-    result.branchRepairTitleRendered = await page.evaluate(() => document.body.textContent?.includes('你愿意让这份印记指向哪条道路？'))
-    result.bodyPreserved = await page.evaluate((paragraph) => document.body.textContent?.includes(paragraph), firstParagraphs[0])
-  }
   console.log(JSON.stringify(result, null, 2))
   await browser.close()
-  const expectedChoice = useCustomChoiceFixture ? customChoiceFixture : '交给守约者，承担旧盟约的责任'
-  const repairPass = !useBranchRepairFixture
-    || (result.branchRepairRequestCount === 1 && result.branchRepairTitleRendered && result.bodyPreserved && result.requestCount >= 3)
-  const choicePass = useCustomChoiceFixture ? selectedAfterClick === customChoiceFixture : selectedAfterClick === true
+  const expectedChoice = customChoiceFixture
+  const choicePass = selectedAfterClick === customChoiceFixture
   const repetitionPass = JSON.stringify(result.repetitionMetricRounds) === '[1,2]'
     && result.repetitionSummaryRounds === 2
     && result.repetitionSummaryMeasuredRounds === 1
     && result.repetitionRoundsVisible
-  if (!choicePass || result.resolvedChoice !== expectedChoice || result.requestCount < 2 || result.consoleErrors.length > 0 || !repairPass || !repetitionPass) process.exit(1)
+  if (
+    !choicePass
+    || result.radioCount !== 0
+    || result.firstNarrativeRequestedBranch !== true
+    || result.resolvedChoice !== expectedChoice
+    || result.requestCount !== 4
+    || result.narrativeRequestCount !== 2
+    || result.settlementRequestCount !== 2
+    || result.consoleErrors.length > 0
+    || !repetitionPass
+  ) process.exit(1)
 }
 
 main().catch((error) => { console.error(error); process.exit(1) })

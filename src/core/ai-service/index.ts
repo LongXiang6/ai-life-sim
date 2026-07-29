@@ -13,26 +13,22 @@ export { applyKvPromptOrder } from './kv-prompt-order'
 export type { KvPromptOrderResult } from './kv-prompt-order'
 export { parseAIJSON } from './parse-ai-json'
 export { handleStream } from './stream-handler'
-export { buildPrompt, buildSegmentedPrompt, buildNarrativeUserJson, getNarrativeUserSegments } from './prompt-builder'
-export type { PromptSegments, PromptSegmentStrategy, BuildNarrativeUserJsonOptions } from './prompt-builder'
-export { buildConversationMessages } from './conversation-messages'
-export type { ChatMessage, ConversationBuildOptions } from './conversation-messages'
+export { buildSegmentedPrompt, buildNarrativeUserJson } from './prompt-builder'
+export type { PromptSegments, PromptSegmentStrategy } from './prompt-builder'
 export {
-  USE_LEGACY_SEGMENTED_PROMPT,
   USE_AI_SUMMARY_COMPRESSION,
-  KV_TWO_USER_SEGMENTS,
   OMIT_EMPTY_PROMPT_FIELDS,
-  DEDUP_NARRATIVE_HISTORY,
-  KV_MESSAGE_STRATEGY,
   BRIDGE_SUMMARY_MIN_TICKS,
-  KV_CONVERSATION_WINDOW,
   EXPERIMENTAL_TIME_STEPS_UI,
 } from './prompt-flags'
-export type { KVMessageStrategy } from './prompt-flags'
 export { getAiUsageStats, resetAiUsageStats, formatNanoYuan, DEEPSEEK_PRICE_VERSION, DEEPSEEK_PRICE_SOURCE, getNarrativeTokenCalibration } from './usage-stats'
 export type { AiUsageAggregate, AiUsageContext, AiUsageStatsSnapshot, NarrativeTokenCalibrationSample } from './usage-stats'
-export { computeNarrativeTokenBudget } from './narrative-token-budget'
-export type { NarrativeTokenBudgetCalibration, NarrativeTokenBudgetInput } from './narrative-token-budget'
+export { computeNarrativeSettlementTokenBudget, computeNarrativeTokenBudget } from './narrative-token-budget'
+export type {
+  NarrativeSettlementTokenBudgetInput,
+  NarrativeTokenBudgetCalibration,
+  NarrativeTokenBudgetInput,
+} from './narrative-token-budget'
 export { fetchDeepSeekBalance } from './deepseek-balance-client'
 export type { DeepSeekBalanceInfo, DeepSeekBalanceSnapshot } from './deepseek-balance-client'
 export { diagnoseApiError, diagnoseProxyError, formatApiErrorForUser } from './api-error'

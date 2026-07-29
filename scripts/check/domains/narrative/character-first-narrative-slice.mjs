@@ -82,7 +82,7 @@ check(
   () => requireFragments('src/mods/mod-pages/pages/talent-draw/page.tsx', [
     'generateFromPresets(100)',
     'DESTINY_PATTERN_SELECT_COUNT',
-    'getDestinyPatternSystem().selectPatterns',
+    'destinySystem.selectPatterns(selectedIds, committedPool)',
     'store.setDestinyPatterns({',
     'patterns: selectedPatterns,',
     "router.push('/attribute-alloc')",
@@ -135,17 +135,18 @@ check(
 check(
   'V7',
   'Product/Simulation/AIEnvelope',
-  'Does the live narrative path use the proxy and a flexible body-plus-optional-summary protocol?',
+  'Does the live narrative path use the proxy and the strict two-call protocol?',
   () => {
-    requireFragments('src/core/ai-service/ai-client.ts', ["fetchWithTimeout('/api/proxy'", 'fetchAIStreamResponse'])
+    requireFragments('src/core/ai-service/ai-client.ts', ["fetchWithTimeout('/api/proxy'"])
     requireFragments('src/mods/mod-engine/helpers/narrative-response-quality.ts', [
-      'parseNarrativeAIDataJson(envelope.dataSection ?? \'\')',
-      'envelope.summary',
-      'paragraphCount: paragraphs.length',
+      'narrativeParser.parse(content)',
+      'parseNarrativeSettlementEnvelope(input.content)',
+      'translateNarrativeAISettlement(',
+      'combineNarrativeAndSettlement(input.narrative, settlement)',
     ])
     return requireFragments('src/mods/mod-engine/helpers/narrative-ai-protocol.ts', [
-      'export const NarrativeAIResponseSchema',
-      '状态变更: z.array(NarrativeAIChangeSchema).min(1).optional()',
+      'export const NarrativeAISettlementDataSchema',
+      'export const NarrativeAISystemInstructionSchema',
       '语义信号: NarrativeAISemanticSignalsSchema.optional()',
       '新延迟因果: z.array(NarrativeAIDeferredCausalitySchema).min(1).optional()',
     ])
@@ -180,9 +181,9 @@ check(
   () => {
     const stores = [
       ['src/mods/mod-world/store.ts', "name: 'mod-world:persist:world-state'", 'version: 6'],
-      ['src/mods/mod-settings/store.ts', "name: 'mod-settings:store'", 'version: 8'],
+      ['src/mods/mod-settings/store.ts', "name: 'mod-settings:store'", 'version: 11'],
       ['src/mods/mod-character/store.ts', "name: 'mod-character:persist:character-state'", 'version: 4'],
-      ['src/mods/mod-engine/store.ts', "name: 'mod-engine:persist:engine-state'", 'version: 2'],
+      ['src/mods/mod-engine/store.ts', "name: 'mod-engine:persist:engine-state'", 'ENGINE_STORE_SCHEMA_VERSION = 5'],
     ]
     for (const [relativePath, name, version] of stores) requireFragments(relativePath, [name, version])
     return `${stores.length} persisted store contracts present`

@@ -20,7 +20,12 @@ import {
   migrateHistoryDynamicsState,
   useHistoryDynamicsStore,
 } from '../../../../src/mods/mod-history-dynamics/store.ts'
+import {
+  combineNarrativeAndSettlement,
+  narrativeParser,
+} from '../../../../src/mods/mod-engine/subsystems/narrative-parser-system.ts'
 import { orchestrator } from '../../../../src/mods/mod-engine/subsystems/orchestrator-system.ts'
+import { translateNarrativeAISettlement } from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
 import { causalDelay } from '../../../../src/mods/mod-engine/subsystems/causal-delay-system.ts'
 import { memoryLifecycle } from '../../../../src/mods/mod-engine/subsystems/memory-lifecycle-system.ts'
 import { plotStructure } from '../../../../src/mods/mod-engine/subsystems/plot-structure-system.ts'
@@ -35,7 +40,10 @@ import {
   collectGameSavePayload,
   ensureOrchestratorContextFromStores,
 } from '../../../../src/mods/mod-engine/helpers/save-restore.ts'
-import { MVP_EXTERNAL_RUNTIME_SUBSYSTEM_IDS } from '../../../../src/mods/mod-engine/helpers/mvp-runtime-policy.ts'
+import {
+  isMvpSystemInstructionSubsystem,
+  MVP_EXTERNAL_RUNTIME_SUBSYSTEM_IDS,
+} from '../../../../src/mods/mod-engine/helpers/mvp-runtime-policy.ts'
 import { useGlobalStore } from '../../../../src/core/global-store/global-store.ts'
 
 let failed = 0
@@ -50,15 +58,20 @@ function sameStringSet(left, right) {
   return JSON.stringify([...new Set(left)].sort()) === JSON.stringify([...new Set(right)].sort())
 }
 
-function narrativeEnvelope(body, digest, data) {
-  return [
-    '⟦正文⟧',
-    body,
-    '⟦摘要⟧',
-    digest,
-    ...(data === undefined ? [] : ['⟦数据⟧', JSON.stringify(data)]),
-    '⟦结束⟧',
-  ].join('\n')
+function parsedNarrative(body, digest, data = {}) {
+  const { 系统指令: systemInstructions = [], ...settlementData } = data
+  const allowedEvidenceEventIds = systemInstructions.flatMap((instruction) => instruction.依据事件 ?? [])
+  const narrative = narrativeParser.parse(`⟦正文⟧${body}`)
+  const settlement = translateNarrativeAISettlement(
+    systemInstructions,
+    { 摘要: digest, ...settlementData },
+    {
+      allowedEvidenceEventIds,
+      allowedSubsystemIds: [...MVP_EXTERNAL_RUNTIME_SUBSYSTEM_IDS]
+        .filter(isMvpSystemInstructionSubsystem),
+    },
+  )
+  return combineNarrativeAndSettlement(narrative, settlement)
 }
 
 function fixtureContext(contextId, name, entityId, nodeId, capabilities, scope) {
@@ -1156,7 +1169,6 @@ useEngineStore.setState({
   compressedSummaries: { summaries: [] },
   lastAutoSaveRound: 0,
   characterCreations: [],
-  streamingNarrative: '',
   narrativeError: null,
 })
 orchestrator.hydrateFromEngineStore()
@@ -1191,10 +1203,14 @@ orchestrator.setContext({
 
 const mainDigest = '你救下林舟、与他结盟，并承诺三十天后护送他离港。'
 const mainData = {
-  状态变更: [{
+  系统指令: [{
     系统: '道德',
+    目标对象: entityA,
+    目标上下文: contextA,
+    操作: '增量',
     说明: '你冒险保护了林舟。',
     变更: { 道德变化: 1 },
+    依据事件: [],
   }],
   原创内容: [{
     名称: '潮汐结绳',
@@ -1238,7 +1254,7 @@ const mainBody = [
   '港口钟声落下第三响，你承诺三十天后回来护送他穿过封锁。',
 ].join('\n\n')
 const mainResult = orchestrator.handleNarrativeResponse(
-  narrativeEnvelope(mainBody, mainDigest, mainData),
+  parsedNarrative(mainBody, mainDigest, mainData),
 )
 const mainLedgerEvents = ledger.queryEvents()
 const acceptedMainEventIds = mainLedgerEvents.map((event) => event.eventId)
@@ -1304,7 +1320,7 @@ assertOk(
 )
 const ledgerCountBeforeBodyOnly = ledger.queryEvents().length
 const bodyOnlyDigest = '你听见港口钟声，但这一轮没有提交完整的结构化兑现结果。'
-const bodyOnlyResult = orchestrator.handleNarrativeResponse(narrativeEnvelope(
+const bodyOnlyResult = orchestrator.handleNarrativeResponse(parsedNarrative(
   [
     '钟声从雾里传来，你停在通往码头的石阶上。',
     '林舟的船影仍在远处，眼前的巡逻迫使你先藏进仓房。',
@@ -1322,7 +1338,7 @@ assertOk(
 )
 
 const resolutionDigest = '你按期护送林舟穿过封锁，三十天前的承诺正式兑现。'
-const resolutionResult = orchestrator.handleNarrativeResponse(narrativeEnvelope(
+const resolutionResult = orchestrator.handleNarrativeResponse(parsedNarrative(
   [
     '你从仓房后门冲向码头，林舟已经解开最后一根缆绳。',
     '巡逻船合围之前，你掌舵穿过暗礁水道，让载着众人的船驶出封锁。',
@@ -1390,9 +1406,9 @@ const originalResolveForeshadowing = foreshadowing.resolveForeshadowing
 foreshadowing.resolveForeshadowing = () => {
   throw new Error('injected downstream continuity failure')
 }
-let rollbackResult
+let rollbackError
 try {
-  rollbackResult = orchestrator.handleNarrativeResponse(narrativeEnvelope(
+  orchestrator.handleNarrativeResponse(parsedNarrative(
     [
       '你在外海发现一座没有航标的小岛，并记下了潮汐入口。',
       '林舟提议立刻登岛，你则先把受伤的水手安置到安全船舱。',
@@ -1400,10 +1416,14 @@ try {
     ].join('\n\n'),
     failureDigest,
     {
-      状态变更: [{
+      系统指令: [{
         系统: '道德',
+        目标对象: entityA,
+        目标上下文: contextA,
+        操作: '增量',
         说明: '你优先保护受伤水手。',
         变更: { 道德变化: 1 },
+        依据事件: [],
       }],
       原创内容: [{
         名称: '外海潮图',
@@ -1442,6 +1462,8 @@ try {
       }],
     },
   ))
+} catch (error) {
+  rollbackError = error
 } finally {
   foreshadowing.resolveForeshadowing = originalResolveForeshadowing
 }
@@ -1458,13 +1480,13 @@ assertOk(
   'injected downstream failure must roll back ordinary changes, ledger, causal, plot, foreshadowing, memory, core memory, and creations',
 )
 assertOk(
-  rollbackResult.changes.length === 0
-    && rollbackResult.narrative.includes('所有后续影响必须等待完整提交')
-    && orchestrator.getState().narrativeHistory.length === rollbackHistoryLength + 1
-    && digestLedger.getEntries().some((entry) => entry.round === 5 && entry.digest === failureDigest)
+  rollbackError instanceof Error
+    && rollbackError.message === 'injected downstream continuity failure'
+    && orchestrator.getState().narrativeHistory.length === rollbackHistoryLength
+    && !digestLedger.getEntries().some((entry) => entry.round === 5 && entry.digest === failureDigest)
     && !orchestrator.getState().characterCreations.some((creation) => creation.name === '外海潮图')
     && !causalDelay.getCausalEvents().some((event) => event.description === '获救水手承诺未来归还修船物资。'),
-  'rollback must retain accepted body and digest while exposing no committed dependent META',
+  'downstream failure must reject the complete round without exposing body, digest, or dependent META',
 )
 
 // 真实 applyGameSave：账本 v2 恢复失败时 engine/character/world/orchestrator/ledger 整包回滚。
