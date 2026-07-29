@@ -13,7 +13,6 @@
 import './globals.css'
 
 import { ThemeProvider } from '@/core/theme'
-import { FinalFlowScaleRuntime } from '@/mods/mod-ui'
 
 import { InitMods } from './_components/init-mods'
 import { PreferenceEffects } from './_components/preference-effects'
@@ -37,7 +36,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="zh-CN" suppressHydrationWarning>
       <body>
         <ThemeProvider>
-          <FinalFlowScaleRuntime />
           <PreferenceEffects />
           <StorageInit>
             <InitMods>

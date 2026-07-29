@@ -36,8 +36,8 @@ export function WorldCustomizeMobile() {
 
   return (
     <div className="final-flow-frame">
-      <div className="final-flow-design-fit">
-        <div className="final-flow-design-canvas">
+      <div className="flow-responsive-viewport">
+        <div className="flow-responsive-layout">
           {logic.conflictModal}
           <main className={styles.page} aria-busy={logic.isSaving}>
             <div className={styles.container}>

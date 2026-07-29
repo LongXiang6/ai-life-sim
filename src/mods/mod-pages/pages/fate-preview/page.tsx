@@ -319,8 +319,8 @@ function FatePreviewContent() {
 
   return (
     <div className="final-flow-frame">
-      <div className="final-flow-design-fit">
-        <div className="final-flow-design-canvas">
+      <div className="flow-responsive-viewport">
+        <div className="flow-responsive-layout">
           <main className={`${styles.page} final-flow-page-surface`}>
             <div className={styles.paper}>
           <header className={styles.header}>

@@ -269,8 +269,8 @@ export function HelpModal({ visible, onClose, isPage }: HelpModalProps) {
       aria-modal="true"
       aria-label="说明"
     >
-      <div className="final-flow-design-fit final-flow-design-fit--330">
-        <div className="final-flow-design-canvas">
+      <div className="flow-responsive-viewport">
+        <div className="flow-responsive-layout">
           {modalNode}
         </div>
       </div>

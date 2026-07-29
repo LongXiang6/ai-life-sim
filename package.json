@@ -1,6 +1,6 @@
 {
   "name": "ai-life-sim",
-  "version": "5.5.9",
+  "version": "5.6.0",
   "private": true,
   "scripts": {
     "dev": "node scripts/codegen/generate-mod-wiring.mjs && next dev --turbopack",
@@ -24,6 +24,7 @@
     "test:creation-first-narrative:browser": "node scripts/check/domains/ui/character-first-narrative-browser.cjs",
     "test:branch-flow:browser": "node scripts/check/domains/ui/branch-flow-browser.cjs",
     "test:game-over-ui:browser": "node scripts/check/domains/ui/game-over-final-ui-browser.cjs",
+    "test:responsive-viewport:browser": "node scripts/check/domains/ui/responsive-viewport-browser.cjs",
     "test:new-life-isolation": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/ui/new-life-isolation-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/autosave-lifecycle-smoke.mjs",
     "test:account-cloud": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/account-cloud-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/player-content-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/operations-dashboard-smoke.mjs && node scripts/check/domains/account/data-viewer-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/character-draft-persistence-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/account-cleanup-ops-smoke.mjs",
     "test:data-viewer": "node scripts/check/domains/account/data-viewer-smoke.mjs",

@@ -69,8 +69,8 @@ export default function SaveManagerPage() {
 
   return (
     <div className="final-flow-frame">
-      <div className="final-flow-design-fit">
-        <div className="final-flow-design-canvas">
+      <div className="flow-responsive-viewport">
+        <div className="flow-responsive-layout">
           <div className={styles.container}>
             <div className={`${styles.frame} final-flow-page-surface`}>
         <header className={styles.header}>

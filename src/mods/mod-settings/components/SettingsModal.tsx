@@ -264,8 +264,8 @@ export function SettingsModal({ open, onClose, initialTab, isPage }: SettingsMod
       className={styles.overlay}
       onClick={onClose}
     >
-      <div className="final-flow-design-fit final-flow-design-fit--330">
-        <div className="final-flow-design-canvas">
+      <div className="flow-responsive-viewport">
+        <div className="flow-responsive-layout">
           {content}
         </div>
       </div>

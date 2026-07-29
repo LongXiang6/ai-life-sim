@@ -905,8 +905,8 @@ function TalentDrawContent() {
   return (
     <PageErrorBoundary message="命格抽取页面出现错误">
       <div className="final-flow-frame">
-        <div className="final-flow-design-fit">
-          <div className="final-flow-design-canvas">
+        <div className="flow-responsive-viewport">
+          <div className="flow-responsive-layout">
             <main className={styles.page} data-phase={phase}>
             <article className={styles.book} aria-labelledby="talent-page-title">
           <div className={cn(styles.screen, phase !== 'selecting' && styles.screenDraw, 'final-flow-page-surface')}>

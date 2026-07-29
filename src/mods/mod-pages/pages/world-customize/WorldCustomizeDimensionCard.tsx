@@ -32,7 +32,7 @@ export function WorldCustomizeDimensionCard({ field, onModeChange, onValueChange
 
   const measureChoiceLayout = useCallback((): ChoiceLayout | null => {
     const trigger = triggerRef.current
-    const canvas = trigger?.closest<HTMLElement>('.final-flow-design-canvas')
+    const canvas = trigger?.closest<HTMLElement>('.flow-responsive-layout')
     if (!trigger || !canvas) return null
 
     const canvasRect = canvas.getBoundingClientRect()

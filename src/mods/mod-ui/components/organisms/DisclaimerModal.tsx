@@ -113,8 +113,8 @@ export function DisclaimerModal({ visible, onAccept, onClose }: DisclaimerModalP
 
   return createPortal(
     <div className={styles.overlay}>
-      <div className="final-flow-design-fit final-flow-design-fit--330">
-        <div className="final-flow-design-canvas">
+      <div className="flow-responsive-viewport">
+        <div className="flow-responsive-layout">
           <div
             ref={frameRef}
             className={styles.frame}

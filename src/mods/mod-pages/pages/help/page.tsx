@@ -18,8 +18,8 @@ export default function HelpPage() {
 
   return (
     <div className="final-flow-frame">
-      <div className="final-flow-design-fit final-flow-design-fit--330">
-        <div className="final-flow-design-canvas">
+      <div className="flow-responsive-viewport">
+        <div className="flow-responsive-layout">
           <main className="final-flow-page-surface" style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
             <HelpModal visible={true} onClose={handleClose} isPage={true} />
             <BottomActionBar

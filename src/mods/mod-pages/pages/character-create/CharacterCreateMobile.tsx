@@ -27,8 +27,8 @@ export function CharacterCreateMobile() {
 
   return (
     <div className="final-flow-frame">
-      <div className="final-flow-design-fit">
-        <div className="final-flow-design-canvas">
+      <div className="flow-responsive-viewport">
+        <div className="flow-responsive-layout">
           <main className={styles.page}>
             <div className={styles.container}>
               <div className={`${styles.paper} final-flow-page-surface`}>

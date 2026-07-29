@@ -43,8 +43,8 @@ export default function MailboxPage() {
 
   return (
     <div className="final-flow-frame">
-      <div className="final-flow-design-fit">
-        <div className="final-flow-design-canvas">
+      <div className="flow-responsive-viewport">
+        <div className="flow-responsive-layout">
           <main className={`${styles.page} final-flow-page-surface`}>
             <div className={styles.screen}>
               <div className={styles.meta} aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>附 · 邮箱</span></div>

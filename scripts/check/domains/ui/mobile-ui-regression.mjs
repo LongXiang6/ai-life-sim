@@ -66,6 +66,7 @@ const settingsModelCssSrc = readRel('src/mods/mod-settings/components/SettingsTa
 const settingsThemeSrc = readRel('src/mods/mod-settings/components/SettingsTabTheme.tsx')
 const settingsStoreSrc = readRel('src/mods/mod-settings/store.ts')
 const preferenceEffectsSrc = readRel('src/app/_components/preference-effects.tsx')
+const rootLayoutSrc = readRel('src/app/layout.tsx')
 const globalCssSrc = readRel('src/app/globals.css')
 const themeStoreSrc = readRel('src/core/theme/theme-store.ts')
 const settingsParamCardSrc = readRel('src/mods/mod-settings/components/SettingsParamCard.tsx')
@@ -201,10 +202,10 @@ assertOk(
 )
 assertOk(!/[🎮⚙️📖]/u.test(welcomeViewSrc), 'welcome actions must not use the rejected emoji icon treatment')
 assertOk(
-  welcomePageSrc.includes('final-flow-design-fit--430')
-    && globalCssSrc.includes('.final-flow-design-fit--430')
-    && globalCssSrc.includes('.final-flow-design-canvas'),
-  'welcome must use the approved 430×932 final-flow design canvas instead of a page-owned 100dvh shell',
+  welcomePageSrc.includes('flow-responsive-viewport')
+    && welcomePageSrc.includes('flow-responsive-layout')
+    && !welcomePageSrc.includes('final-flow-design-fit'),
+  'welcome must use the shared native viewport layout without a fixed-size design canvas',
 )
 
 assertOk(!/[🎨🤖🔌📝⚙️]/u.test(settingsModalSrc), 'approved settings tabs and title must not use emoji icons')
@@ -229,10 +230,10 @@ assertOk(
 assertOk(settingsModalCssSrc.includes('flex: 0 0 auto'), 'settings tabs must keep the approved compact horizontal sizing')
 assertOk(/\.tabActive\s*\{[^}]*background:\s*#fff;[^}]*color:\s*#7382bb;/s.test(settingsModalCssSrc), 'active settings tab must use the approved white-on-accent navigation treatment')
 assertOk(
-  settingsModalSrc.includes('final-flow-design-fit--330')
-    || settingsModalCssSrc.includes('final-flow-design-fit--330')
-    || globalCssSrc.includes('.final-flow-design-fit--330'),
-  'mobile settings sheet must use the approved 330×715 final-flow canvas',
+  settingsModalSrc.includes('flow-responsive-viewport')
+    && settingsModalSrc.includes('flow-responsive-layout')
+    && !settingsModalSrc.includes('final-flow-design-fit'),
+  'mobile settings must use the shared native viewport layout without canvas scaling',
 )
 assertOk(settingsModalSrc.includes('aria-label="关闭设置"') && settingsModalSrc.includes('>×</button>'), 'settings modal must use the shared accessible circular close control')
 assertOk(
@@ -335,10 +336,10 @@ assertOk(
 )
 assertOk(helpModalCssSrc.includes('border-radius: 50%'), 'help close control must remain circular')
 assertOk(
-  helpModalSrc.includes('final-flow-design-fit--330')
-    || helpModalCssSrc.includes('final-flow-design-fit--330')
-    || globalCssSrc.includes('.final-flow-design-fit--330'),
-  'mobile help sheet must use the approved 330×715 final-flow canvas',
+  helpModalSrc.includes('flow-responsive-viewport')
+    && helpModalSrc.includes('flow-responsive-layout')
+    && !helpModalSrc.includes('final-flow-design-fit'),
+  'mobile help must use the shared native viewport layout without canvas scaling',
 )
 assertOk(helpModalSrc.trimEnd().split('\n').length <= 280, 'help modal component must stay at or below the 280-line UI limit')
 
@@ -387,10 +388,10 @@ assertOk(
   'WF2 floating bottom bar must use the approved unified 52/48/38 creation-flow hierarchy',
 )
 assertOk(
-  worldSelectMobileSrc.includes('final-flow-design-fit')
-    && bottomActionBarCssSrc.includes('position: absolute')
+  worldSelectMobileSrc.includes('flow-responsive-viewport')
+    && worldSelectMobileSrc.includes('flow-responsive-layout')
     && bottomActionBarSrc.includes('data-flow-bottom-bar'),
-  'WF2 world select must use the final-flow canvas with an absolute canvas-contained bottom bar',
+  'WF2 world select must use the native responsive viewport with a shared viewport-anchored bottom bar',
 )
 assertOk(
   worldSelectMainGridSrc.includes('event.stopPropagation()')
@@ -570,22 +571,26 @@ assertOk(
 assertOk(!fatePreviewPageSrc.includes('maxWidth='), 'fate preview bottom bar must inherit the shared content-width token')
 assertOk(
   globalCssSrc.includes('.final-flow-frame')
-    && globalCssSrc.includes('.final-flow-design-fit')
-    && globalCssSrc.includes('.final-flow-design-canvas')
-    && globalCssSrc.includes('.final-flow-design-fit--430')
-    && globalCssSrc.includes('.final-flow-design-fit--330')
-    && globalCssSrc.includes('.final-flow-design-fit--390')
+    && globalCssSrc.includes('.flow-responsive-viewport')
+    && globalCssSrc.includes('.flow-responsive-layout')
+    && globalCssSrc.includes('height: 100dvh')
+    && globalCssSrc.includes('--final-flow-inline-unit: clamp(3.2px, 1vw, 4.3px)')
+    && globalCssSrc.includes('--final-flow-block-unit: clamp(6.4px, 1dvh, 9.32px)')
+    && globalCssSrc.includes('-webkit-text-size-adjust: 100%')
+    && !globalCssSrc.includes('.final-flow-design-fit')
+    && !globalCssSrc.includes('.final-flow-design-canvas')
     && !globalCssSrc.includes('--non-simulation-ui-desktop-scale')
+    && finalFlowScaleRuntimeSrc === ''
+    && !rootLayoutSrc.includes('FinalFlowScaleRuntime')
     && mobileBaseCssSrc === '',
-  'runtime pages must use the final-flow design-canvas scale model and must not restore the deleted mobile/base.css desktop zoom shell',
+  'runtime pages must use the native viewport contract and must not restore fixed-canvas or desktop zoom scaling',
 )
 assertOk(
-  finalFlowScaleRuntimeSrc.includes("querySelector<HTMLElement>('[data-flow-bottom-bar]')")
-    && finalFlowScaleRuntimeSrc.includes('visibleDesignHeight')
-    && finalFlowScaleRuntimeSrc.includes('data-final-flow-mobile-height-fit')
-    && globalCssSrc.includes(".final-flow-design-canvas[data-final-flow-mobile-height-fit='true'] > main")
-    && globalCssSrc.includes("[data-final-flow-height-owner='true']"),
-  'short mobile final-flow canvases must keep shared bottom actions inside the visible height while page content remains scrollable',
+  globalCssSrc.includes('position: fixed !important')
+    && globalCssSrc.includes('env(safe-area-inset-bottom')
+    && !globalCssSrc.includes('data-final-flow-mobile-height-fit')
+    && !globalCssSrc.includes('data-final-flow-height-owner'),
+  'mobile bottom actions must anchor to the safe viewport without runtime height back-calculation',
 )
 assertOk(
   welcomePageSrc.includes('final-flow-frame')
@@ -596,7 +601,7 @@ assertOk(
     && fatePreviewPageSrc.includes('final-flow-frame')
     && gameStoryPageSrc.includes('final-flow-frame')
     && gameOverPageSrc.includes('final-flow-frame'),
-  'all primary flow pages must wrap content in the shared final-flow phone frame',
+  'all primary flow pages must wrap content in the shared final-flow viewport frame',
 )
 assertOk(
   [worldSelectCssSrc, worldCustomizeCssSrc, characterCreateCssSrc, talentDrawCssSrc, fatePreviewCssSrc, settingsModalCssSrc, helpModalCssSrc]

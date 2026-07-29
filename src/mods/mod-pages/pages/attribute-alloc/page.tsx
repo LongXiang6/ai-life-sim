@@ -119,8 +119,8 @@ function AttributeAllocContent() {
 
   return (
     <div className="final-flow-frame">
-      <div className="final-flow-design-fit">
-        <div className={`final-flow-design-canvas ${styles.flowCanvas}`}>
+      <div className="flow-responsive-viewport">
+        <div className={`flow-responsive-layout ${styles.flowCanvas}`}>
           <main className={`${styles.page} final-flow-page-surface`}>
             <div className={styles.screen}>
           <header className={styles.header}>

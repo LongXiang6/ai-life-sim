@@ -472,8 +472,8 @@ export default function GamePage() {
   if (flowGuard) {
     return (
       <div className="final-flow-frame">
-        <div className="final-flow-design-fit final-flow-design-fit--390">
-          <div className="final-flow-design-canvas">
+        <div className="flow-responsive-viewport">
+          <div className="flow-responsive-layout">
             <div className={styles.root}>
               <div className={styles.guardShell}>
                 <div className={styles.guardCard}>
@@ -494,8 +494,8 @@ export default function GamePage() {
 
   return (
     <div className="final-flow-frame">
-      <div className="final-flow-design-fit final-flow-design-fit--390">
-        <div className="final-flow-design-canvas">
+      <div className="flow-responsive-viewport">
+        <div className="flow-responsive-layout">
           <div className={styles.root}>
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
       <SaveDialog

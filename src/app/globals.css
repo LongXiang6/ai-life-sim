@@ -27,14 +27,18 @@
 }
 
 html, body, #__next {
+  width: 100%;
   height: 100%;
+  min-width: 0;
   overflow: hidden;
 }
 
 html {
   -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  text-size-adjust: 100%;
 }
 
 body {
@@ -44,38 +48,55 @@ body {
   line-height: 1.6;
   color: var(--color-text-primary);
   background: var(--color-bg);
+  overscroll-behavior: none;
   transition: background 0.3s ease, color 0.3s ease;
 }
 
 /*
- * Final runtime viewport.
- *
- * The solution-library phone element is a visual reference only. Runtime
- * pages keep the approved design canvas, but the outer viewport itself is
- * never rendered as a device shell.
+ * Native runtime viewport. Pages occupy the browser viewport directly: horizontal
+ * sizing follows the available width and vertical sizing follows the dynamic
+ * visible height. No page-level transform or design-canvas scaling is used.
  */
 .final-flow-frame {
   position: relative;
   isolation: isolate;
   display: grid;
   width: 100%;
-  height: 100%;
+  height: 100vh;
+  height: 100dvh;
   min-width: 0;
-  min-height: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
   margin: 0;
   overflow: hidden;
-  place-items: center;
+  place-items: stretch;
   background:
     linear-gradient(135deg, rgba(255, 215, 95, 0.07), rgba(255, 215, 95, 0) 32%),
     linear-gradient(#fafbff, #f3f5f9);
   color-scheme: light;
-  /* Establish the containing block used by flow sheets and action bars. */
-  transform: translateZ(0);
 }
 
-.final-flow-frame > * {
+.flow-responsive-viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
   min-width: 0;
+  min-height: 0;
   max-width: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+.flow-responsive-layout {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  --final-flow-inline-unit: clamp(3.2px, 1vw, 4.3px);
+  --final-flow-block-unit: clamp(6.4px, 1vh, 9.32px);
+  --final-flow-block-unit: clamp(6.4px, 1dvh, 9.32px);
 }
 
 .final-flow-frame .flow-page-scroll {
@@ -109,109 +130,27 @@ body {
   box-shadow: none !important;
 }
 
-/*
- * Most approved flow screens use a 320 x 694 design canvas. Keep that canvas
- * intact and derive one uniform scale from the available frame, matching the
- * solution-library renderer on every phone aspect ratio.
- */
-.final-flow-design-fit {
-  position: relative;
-  width: 320px;
+.flow-responsive-layout > * {
   max-width: 100%;
-  max-height: 100%;
-  aspect-ratio: 320 / 694;
-}
-
-.final-flow-design-canvas {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 320px;
-  height: 694px;
-  overflow: hidden;
-  --final-flow-inline-unit: 3.2px;
-  --final-flow-block-unit: 6.94px;
-}
-
-.final-flow-design-fit--430 {
-  width: 430px;
-  aspect-ratio: 430 / 932;
-}
-
-.final-flow-design-fit--430 > .final-flow-design-canvas {
-  width: 430px;
-  height: 932px;
-  --final-flow-inline-unit: 4.3px;
-  --final-flow-block-unit: 9.32px;
-}
-
-.final-flow-design-fit--330 {
-  width: 330px;
-  aspect-ratio: 330 / 715;
-}
-
-.final-flow-design-fit--330 > .final-flow-design-canvas {
-  width: 330px;
-  height: 715px;
-  --final-flow-inline-unit: 3.3px;
-  --final-flow-block-unit: 7.15px;
-}
-
-.final-flow-design-fit--390 {
-  width: 390px;
-  aspect-ratio: 390 / 844;
-}
-
-.final-flow-design-fit--390 > .final-flow-design-canvas {
-  width: 390px;
-  height: 844px;
-  --final-flow-inline-unit: 3.9px;
-  --final-flow-block-unit: 8.44px;
-}
-
-.final-flow-design-canvas > * {
-  max-width: none;
-}
-
-.final-flow-design-canvas[data-final-flow-mobile-height-fit='true'] > main,
-.final-flow-design-canvas[data-final-flow-mobile-height-fit='true'] [data-final-flow-height-owner='true'] {
-  height: var(--final-flow-visible-height) !important;
-  min-height: 0 !important;
 }
 
 /*
- * On a real phone the visible browser height is often shorter than the
- * approved design canvas. Keep the canvas width exact; pages with a shared
- * bottom action bar use the runtime-computed visible height so their content
- * scrolls above an always-reachable bar. Other canvases retain outer scrolling.
+ * Shared bottom actions are anchored to the real mobile viewport. Each page
+ * owns only its content scrolling and keeps enough bottom padding for the bar.
  */
 @media (max-width: 47.99rem) {
-  .final-flow-frame {
-    display: flex;
-    height: 100dvh;
-    min-height: 100dvh;
-    align-items: center;
-    justify-content: center;
-    overflow-x: hidden;
-    overflow-y: auto;
-    overscroll-behavior-y: contain;
-    -webkit-overflow-scrolling: touch;
-  }
-
   .final-flow-frame [data-flow-bottom-bar] {
     position: fixed !important;
-    bottom: calc(12px + env(safe-area-inset-bottom, 0));
-    left: 16px;
-    right: 16px;
+    bottom: max(12px, env(safe-area-inset-bottom, 0px));
+    left: max(16px, env(safe-area-inset-left, 0px));
+    right: max(16px, env(safe-area-inset-right, 0px));
     z-index: 100;
   }
 }
 
 @media (min-width: 48rem) {
-  .final-flow-frame {
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
+  .flow-responsive-viewport {
+    width: min(100%, 30rem);
   }
 }
 

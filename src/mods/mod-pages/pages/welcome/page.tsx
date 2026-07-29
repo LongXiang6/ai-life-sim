@@ -158,8 +158,8 @@ export default function WelcomePage() {
 
   return (
     <div className="final-flow-frame">
-      <div className="final-flow-design-fit final-flow-design-fit--430">
-        <div className="final-flow-design-canvas">
+      <div className="flow-responsive-viewport">
+        <div className="flow-responsive-layout">
           <WelcomeView
             onStartNewGame={handleStartNewGame}
             saves={saves}
