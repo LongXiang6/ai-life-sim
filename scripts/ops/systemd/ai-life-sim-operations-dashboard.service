@@ -19,7 +19,9 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadOnlyPaths=/var/log/ai-life-sim /var/lib/ai-life-sim
+# Read-only WAL clients still need to create SQLite -wal/-shm sidecars.
+ReadWritePaths=/var/lib/ai-life-sim
+ReadOnlyPaths=/var/log/ai-life-sim /var/lib/ai-life-sim/accounts.sqlite /var/lib/ai-life-sim/player-content.sqlite
 
 [Install]
 WantedBy=multi-user.target

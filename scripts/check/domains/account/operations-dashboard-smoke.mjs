@@ -206,6 +206,11 @@ try {
   assert.equal((await apiResponse.json()).accounts.registered, 1)
   assert.match(dashboardService, /--host 127\.0\.0\.1 --port 4317/u)
   assert.match(dashboardService, /ProtectSystem=strict/u)
+  assert.match(dashboardService, /^ReadWritePaths=\/var\/lib\/ai-life-sim$/mu)
+  assert.match(
+    dashboardService,
+    /^ReadOnlyPaths=\/var\/log\/ai-life-sim \/var\/lib\/ai-life-sim\/accounts\.sqlite \/var\/lib\/ai-life-sim\/player-content\.sqlite$/mu,
+  )
   assert.doesNotMatch(dashboardService, /0\.0\.0\.0/u)
 
   const dashboardScriptPath = fileURLToPath(new URL('../../../ops/operations-dashboard.mjs', import.meta.url))
