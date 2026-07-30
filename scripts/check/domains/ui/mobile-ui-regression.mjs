@@ -692,6 +692,27 @@ assertOk(
 )
 assertOk(worldCustomizeMobileSrc.trimEnd().split('\n').length <= 200, 'world customization mobile composer must stay at or below the 200-line UI limit')
 
+const informationPanelStart = gameStoryPageSrc.indexOf('id="current-information-panel"')
+const informationActionsStart = gameStoryPageSrc.indexOf('className={styles.moreActions}', informationPanelStart)
+const informationLedgerStart = gameStoryPageSrc.indexOf('className={styles.ledgerDisclosure}', informationPanelStart)
+assertOk(
+  informationPanelStart >= 0
+    && informationActionsStart > informationPanelStart
+    && informationLedgerStart > informationActionsStart
+    && ['手动存档', '反馈与建议', '返回主界面'].every((label) => (
+      gameStoryPageSrc.indexOf(label, informationActionsStart) < informationLedgerStart
+    )),
+  'game story current-information actions must open at the top before the long ledger',
+)
+assertOk(
+  hasCssDeclaration(gameStoryCssSrc, 'infoPanel', 'top', '100%')
+    && hasCssDeclaration(gameStoryCssSrc, 'infoPanel', 'bottom', 'calc(100% - 100dvh + env(safe-area-inset-bottom, 0px))')
+    && hasCssDeclaration(gameStoryCssSrc, 'infoPanel', 'overflow-y', 'auto')
+    && hasCssDeclaration(gameStoryCssSrc, 'infoPanel', 'overscroll-behavior', 'contain')
+    && hasCssDeclaration(gameStoryCssSrc, 'infoPanel', '-webkit-overflow-scrolling', 'touch'),
+  'game story current-information panel must stay inside the dynamic viewport and own touch scrolling',
+)
+
 assertOk(
   gameStoryPageSrc.includes('const includeCreationPatternBonus = totalRounds === 0')
     && gameStoryPageSrc.includes('includeCreationPatternBonus ? (patternBonus[k] ?? 0) : 0'),

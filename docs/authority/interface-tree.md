@@ -45,7 +45,7 @@
 | 命格抽取与选择 | 生成有效候选并完成普通命格选择；轮回天赋保持独立 | 页面负责请求状态、候选展示和选择交互，确认结果进入角色链路 | `src/mods/mod-pages/pages/talent-draw/`、`src/mods/mod-character/`；生成协议由叙事/AI 链路所有 |
 | 属性分配 | 调整并确认玩家可见的基础属性，命格修正保持独立 | 页面操作创建期基础值，确认后通过 `character-base` 所属公开状态提交 | `src/mods/mod-pages/pages/attribute-alloc/`；后续叙事写入仍受核心模拟字段契约限制 |
 | 命运预览 | 在正式模拟前完成最后核对并进入第一轮 | 页面汇总已确认的世界、角色和命格信息，确认后启动模拟 | `src/mods/mod-pages/pages/fate-preview/`；不复制所属系统状态 |
-| 核心故事 | 展示故事、分支选择、错误和继续推进 | 页面调用引擎回合入口并消费原子提交后的 `EngineStore` 投影；分支结果由引擎提交。玩家请求强制分叉后，即使 AI 没有返回预设选项，下一轮正文完成时也会出现自定义叙事引导输入框 | `src/mods/mod-pages/pages/game-story/`；页面不展示未结算流式正文，详细机制见 [核心模拟](core-simulation.md) |
+| 核心故事 | 展示故事、分支选择、错误和继续推进 | 页面调用引擎回合入口并消费原子提交后的 `EngineStore` 投影；分支结果由引擎提交。玩家请求强制分叉后，即使 AI 没有返回预设选项，下一轮正文完成时也会出现自定义叙事引导输入框。“当前信息”展开面板受动态视口与底部安全区约束并独立滚动，手动存档、反馈与返回主界面三个操作位于面板顶部，打开即可触达 | `src/mods/mod-pages/pages/game-story/`；页面不展示未结算流式正文，详细机制见 [核心模拟](core-simulation.md) |
 | 人生结算 | 展示本局结果、人生记录、评分、轮回结果和新人生入口 | 页面读取已完成的引擎与角色结果，使用逐轮迁移审计组装完整评分输入，消费核心评分结果与第二人称评语，并执行分享、战绩同步、画像资格请求、轮回选择或重新开始；页面不把迁移状态硬编码为可信 | `src/mods/mod-pages/pages/game-over/`、`src/core/scoring/`、`src/mods/mod-character/mythic-library-store.ts`；结算页不建立第二套评分公式，服务端仍会独立复算资格 |
 
 `src/mods/mod-pages/pages/world-build/` 仅将旧路由重定向到世界配置，不是第二套世界创建界面。

@@ -391,6 +391,41 @@ async function main() {
     '[aria-label="近五轮词语重复率"]',
     (node) => node.textContent || '',
   )
+  await capture('information-panel-top')
+  const informationPanel = await page.$eval('[aria-label="当前信息"]', (panel) => {
+    const labels = ['手动存档', '反馈与建议', '返回主界面']
+    const actionButtons = labels.map((label) => (
+      [...panel.querySelectorAll('button')].find((button) => button.textContent?.trim() === label)
+    ))
+    const actionGroup = actionButtons[0]?.parentElement
+    const ledger = panel.querySelector('details')
+    const panelRect = panel.getBoundingClientRect()
+    const actionRects = actionButtons.map((button) => button?.getBoundingClientRect())
+    const actionsVisibleAtOpen = actionRects.every((rect) => (
+      rect && rect.top >= panelRect.top - 1 && rect.bottom <= Math.min(panelRect.bottom, innerHeight) + 1
+    ))
+    const actionsBeforeLedger = Boolean(
+      actionGroup
+      && ledger
+      && (actionGroup.compareDocumentPosition(ledger) & Node.DOCUMENT_POSITION_FOLLOWING),
+    )
+
+    panel.scrollTop = panel.scrollHeight
+    const maxScrollTop = Math.max(0, panel.scrollHeight - panel.clientHeight)
+
+    return {
+      viewportHeight: innerHeight,
+      top: Math.round(panelRect.top),
+      bottom: Math.round(panelRect.bottom),
+      clientHeight: panel.clientHeight,
+      scrollHeight: panel.scrollHeight,
+      viewportContained: panelRect.top >= -1 && panelRect.bottom <= innerHeight + 1,
+      actionsVisibleAtOpen,
+      actionsBeforeLedger,
+      bottomReachable: panel.scrollTop >= maxScrollTop - 1,
+    }
+  })
+  await capture('information-panel-bottom')
   const result = {
     selectedAfterClick,
     requestCount: requests.length,
@@ -398,7 +433,7 @@ async function main() {
     settlementRequestCount: requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative-settlement:')).length,
     requestChoices: requests.map((request) => request.messages?.map((message) => message.content).join('\n').includes('交给守约者')),
     firstNarrativeRequestedBranch: requests.find((request) => String(request.prompt_asset || '').includes('mod-engine:narrative:'))
-      ?.messages?.map((message) => message.content).join('\n').includes('正文停在玩家需要作出选择的现场'),
+      ?.messages?.map((message) => message.content).join('\n').includes('本轮围绕会长期改变身份、核心关系、居所、目标或关键机会的选择现场推进'),
     radioCount,
     resolvedChoice: stored.narrativeHistory?.[0]?.resolvedChoice,
     narrativeEntries: stored.narrativeHistory?.length,
@@ -406,6 +441,7 @@ async function main() {
     repetitionSummaryRounds: stored.storyRepetitionStats?.rounds,
     repetitionSummaryMeasuredRounds: stored.storyRepetitionStats?.measuredRounds,
     repetitionRoundsVisible: repetitionRoundsText.includes('第1轮') && repetitionRoundsText.includes('第2轮'),
+    informationPanel,
     consoleErrors,
   }
   console.log(JSON.stringify(result, null, 2))
@@ -426,6 +462,10 @@ async function main() {
     || result.settlementRequestCount !== 2
     || result.consoleErrors.length > 0
     || !repetitionPass
+    || !result.informationPanel.viewportContained
+    || !result.informationPanel.actionsVisibleAtOpen
+    || !result.informationPanel.actionsBeforeLedger
+    || !result.informationPanel.bottomReachable
   ) process.exit(1)
 }
 

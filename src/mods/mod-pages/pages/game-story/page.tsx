@@ -647,6 +647,28 @@ export default function GamePage() {
                   </button>
                 </div>
 
+                <section className={styles.moreActions}>
+                  <div className={styles.sectionLine}>
+                    <strong>更多</strong>
+                    <small>当前章节</small>
+                  </div>
+                  <div className={styles.moreActionRow}>
+                    <button
+                      type="button"
+                      disabled={!isRuntimeReady || isAdvancing}
+                      title={!isRuntimeReady ? `${runtimeBlockedText}，暂时不能保存` : isAdvancing ? '故事生成完成后才能保存' : undefined}
+                      onClick={() => {
+                        setShowWorldPanel(false)
+                        setShowSaveDialog(true)
+                      }}
+                    >
+                      手动存档
+                    </button>
+                    <button type="button" onClick={() => router.push('/feedback')}>反馈与建议</button>
+                    <button type="button" onClick={() => router.push('/welcome')}>返回主界面</button>
+                  </div>
+                </section>
+
               <section className={styles.currentBlock}>
                 <div className={styles.identityIndex}>
                   <span>{characterName} · {genderLabel} · {raceInfo.name}</span>
@@ -721,27 +743,6 @@ export default function GamePage() {
                 </details>
               </div>
 
-                <section className={styles.moreActions}>
-                  <div className={styles.sectionLine}>
-                    <strong>更多</strong>
-                    <small>当前章节</small>
-                  </div>
-                  <div className={styles.moreActionRow}>
-                    <button
-                      type="button"
-                      disabled={!isRuntimeReady || isAdvancing}
-                      title={!isRuntimeReady ? `${runtimeBlockedText}，暂时不能保存` : isAdvancing ? '故事生成完成后才能保存' : undefined}
-                      onClick={() => {
-                        setShowWorldPanel(false)
-                        setShowSaveDialog(true)
-                      }}
-                    >
-                      手动存档
-                    </button>
-                    <button type="button" onClick={() => router.push('/feedback')}>反馈与建议</button>
-                    <button type="button" onClick={() => router.push('/welcome')}>返回主界面</button>
-                  </div>
-                </section>
               </div>
             </section>
           )}
