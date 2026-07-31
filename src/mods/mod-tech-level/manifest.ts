@@ -8,13 +8,13 @@ import { defineMod } from '@/core'
 
 export default defineMod({
   name: 'mod-tech-level',
-  version: '1.0.0',
-  description: '科技水平：产业判定与资源分布、文化技术与思潮演化',
+  order: 480,
+  version: '2.0.0',
+  description: '按上下文运行的知识领域、研究能力、技术应用与思想传播',
   dependencies: ['mod-engine', 'mod-world'],
-  provides: ['tech-level', 'industry', 'culture-tech'],
+  provides: ['tech-level', 'culture-tech'],
   consumes: [],
   subsystems: [
-    'IndustrySystem',
     'CultureTechSystem',
   ],
   stores: ['useTechLevelStore'],

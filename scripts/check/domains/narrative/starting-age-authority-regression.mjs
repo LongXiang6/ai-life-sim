@@ -6,19 +6,24 @@ import fs from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
 import { getProjectRoot } from '../../lib/project-root.mjs'
+import {
+  CHARACTER_DAYS_PER_YEAR,
+  resolveCharacterAgeDays,
+  resolveInitialAgeAnchorTotalDays,
+} from '../../../../src/foundation/subsystem-contracts/life-cycle.contract.ts'
 
 const root = getProjectRoot(import.meta.url)
 const pagePath = path.join(root, 'src/mods/mod-pages/pages/fate-preview/page.tsx')
 const characterCreatePath = path.join(root, 'src/mods/mod-pages/pages/character-create/useCharacterCreateLogic.ts')
 const characterConstantsPath = path.join(root, 'src/mods/mod-character/constants.ts')
 const orchestratorPath = path.join(root, 'src/mods/mod-engine/subsystems/orchestrator-system.ts')
-const lifeStagePath = path.join(root, 'src/mods/mod-engine/helpers/life-stage-narrative.ts')
+const lifecyclePath = path.join(root, 'src/mods/mod-character/subsystems/lifecycle-system.ts')
 const domainsPath = path.join(root, 'scripts/check/domains.mjs')
 const sourceText = fs.readFileSync(pagePath, 'utf8')
 const characterCreateSourceText = fs.readFileSync(characterCreatePath, 'utf8')
 const characterConstantsSourceText = fs.readFileSync(characterConstantsPath, 'utf8')
 const orchestratorSourceText = fs.readFileSync(orchestratorPath, 'utf8')
-const lifeStageSourceText = fs.readFileSync(lifeStagePath, 'utf8')
+const lifecycleSourceText = fs.readFileSync(lifecyclePath, 'utf8')
 const domainsSourceText = fs.readFileSync(domainsPath, 'utf8')
 const sourceFile = ts.createSourceFile(pagePath, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
 const characterCreateSourceFile = ts.createSourceFile(
@@ -28,20 +33,6 @@ const characterCreateSourceFile = ts.createSourceFile(
   true,
   ts.ScriptKind.TS,
 )
-
-const lifeStageJs = ts.transpileModule(lifeStageSourceText, {
-  compilerOptions: {
-    module: ts.ModuleKind.CommonJS,
-    target: ts.ScriptTarget.ES2022,
-  },
-  fileName: lifeStagePath,
-}).outputText
-const lifeStageModule = { exports: {} }
-const loadLifeStageModule = new Function('exports', 'module', `${lifeStageJs}\nreturn module.exports`)
-const {
-  buildLifeStageNarrativeHint,
-  resolveLifeStageFromAge,
-} = loadLifeStageModule(lifeStageModule.exports, lifeStageModule)
 
 let failed = 0
 
@@ -102,9 +93,8 @@ const handleBody = handleStartLife?.initializer?.getText(sourceFile) ?? ''
 const raceCatalog = {
   human: {
     name: '人类',
-    baseMaxAge: 100,
-    goldenAgeRatio: [0.18, 0.4],
-    decayMultiplier: 1,
+    baseLifespanYears: 100,
+    clockMode: 'aging',
   },
 }
 const buildConfirmedRaceLifespan = compileStandaloneFunction(
@@ -123,15 +113,6 @@ const hasConfirmedCharacter = compileStandaloneFunction(
   { RACE_LIFESPAN: raceCatalog, Number, Boolean },
 )
 
-const setContextCall = handleStartLife && findDescendant(handleStartLife, (node) =>
-  isNamedCall(node, 'orchestrator', 'setContext'),
-)
-const characterArgument = setContextCall?.arguments[1]
-const ageProperty = characterArgument && ts.isObjectLiteralExpression(characterArgument)
-  ? characterArgument.properties.find((property) =>
-      ts.isPropertyAssignment(property) && property.name.getText(sourceFile) === 'age')
-  : undefined
-
 const setStateCall = handleStartLife && findDescendant(handleStartLife, (node) =>
   isNamedCall(node, 'useCharacterStore', 'setState'),
 )
@@ -146,22 +127,22 @@ const applyRoundChangesCall = handleStartLife && findDescendant(handleStartLife,
 )
 const manualChangesArgument = applyRoundChangesCall?.arguments[0]
 const manualChangesText = manualChangesArgument?.getText(sourceFile) ?? ''
+const ageSyncIndex = handleBody.indexOf('useCharacterStore.setState({ age: startingAge })')
+const contextSyncIndex = handleBody.indexOf('ensureOrchestratorContextFromStores()')
+const creationCommitIndex = handleBody.indexOf('orchestrator.applyRoundChanges(')
 
 assertOk(!!startingAgeDeclaration, 'fate preview must read canonical characterBase.startingAge')
 const customRace = buildConfirmedRaceLifespan?.('星鲸族', 880)
 assertOk(
   customRace?.name === '星鲸族'
-    && customRace?.baseMaxAge === 880
-    && customRace?.goldenAgeRatio?.[0] === raceCatalog.human.goldenAgeRatio[0]
-    && customRace?.decayMultiplier === raceCatalog.human.decayMultiplier,
-  'custom races must be committed into the existing structured lifespan shape with the confirmed maxAge',
+    && customRace?.baseLifespanYears === 880
+    && customRace?.clockMode === 'aging',
+  'custom races must be committed into the current structured lifespan draft',
 )
 const customLifespan = {
-  maxAge: 880,
-  baseMaxAge: 880,
+  raceId: '星鲸族',
   race: customRace,
-  breakthroughs: [],
-  breakthroughChance: 0.3,
+  maximumLifespanYears: 880,
 }
 assertOk(
   resolvePreviewRaceInfo?.('星鲸族', customLifespan)?.name === '星鲸族',
@@ -197,14 +178,12 @@ assertOk(
 )
 assertOk(
   (characterCreateSourceText.match(/buildConfirmedRaceLifespan\(race, maxAge\)/g) ?? []).length >= 2
-    && (characterCreateSourceText.match(/setLifespan\(\{ race: confirmedRace, maxAge, baseMaxAge: confirmedRace\.baseMaxAge \}\)/g) ?? []).length >= 2,
-  'both forward confirmation and backward preservation must write the structured race/lifespan snapshot',
+    && (characterCreateSourceText.match(/setLifespanDraft\(\{ raceId: race, race: confirmedRace, maximumLifespanYears: maxAge \}\)/g) ?? []).length >= 2,
+  'both forward confirmation and backward preservation must write the current lifespan draft',
 )
 assertOk(
-  !!ageProperty
-    && ts.isPropertyAssignment(ageProperty)
-    && ageProperty.initializer.getText(sourceFile) === 'startingAge',
-  'handleStartLife must pass startingAge to orchestrator.setContext',
+  ageSyncIndex >= 0 && contextSyncIndex > ageSyncIndex && creationCommitIndex > contextSyncIndex,
+  'handleStartLife must write startingAge before the engine restores context and before owner commits',
 )
 assertOk(
   !!storeAgeProperty
@@ -217,17 +196,29 @@ assertOk(
     && /changes:\s*\{[^}]*\bstartingAge\b[^}]*\}/s.test(manualChangesText),
   'handleStartLife must sync startingAge to the character-base subsystem through orchestrator',
 )
+assertOk(
+  /id:\s*'lifespan'/.test(manualChangesText)
+    && /operation:\s*'set-rule'/.test(manualChangesText)
+    && /maximumLifespanDays/.test(manualChangesText),
+  'handleStartLife must commit the current lifespan rule through orchestrator',
+)
 assertOk(!/\bage\s*:\s*0\b/.test(handleBody), 'handleStartLife must not hard-reset any age field to 0')
 assertOk(
   handleBody.includes('if (!characterConfirmed || !destinyPatternsConfirmed || !aiComplete) return'),
   'handleStartLife must enforce creation and 4/4 world-initialization prerequisites even if invoked outside the disabled button',
 )
 assertOk(
+  handleBody.includes('if (!allModsLoaded)')
+    && handleBody.includes('commitResult.rejected.length > 0')
+    && handleBody.includes('commitResult.committed.length !== 3'),
+  'handleStartLife must wait for the complete MOD runtime and reject incomplete creation commits before navigation',
+)
+assertOk(
   sourceText.includes('selectedPatterns.length === DESTINY_PATTERN_SELECT_COUNT')
     && sourceText.includes("worldInitAIStatus?.status === 'complete'")
     && sourceText.includes('WORLD_INIT_STEPS.every')
-    && sourceText.includes('confirmDisabled={Boolean(creationGateReason) || !aiComplete}'),
-  'fate preview must require exactly 3 patterns plus a complete four-step world initialization before start',
+    && sourceText.includes('confirmDisabled={Boolean(creationGateReason || runtimeGateReason) || !aiComplete}'),
+  'fate preview must require exactly 3 patterns, a complete four-step world initialization, and a ready MOD runtime before start',
 )
 assertOk(
   /export const DESTINY_PATTERN_SELECT_COUNT = 3\b/.test(characterConstantsSourceText),
@@ -245,39 +236,18 @@ assertOk(
   !orchestratorSourceText.includes('narrativeParser.buildFallbackNarrative(this.state.round.year'),
   'fallback narrative must never treat the simulation round year as character age',
 )
+const firstRoundAnchor = resolveInitialAgeAnchorTotalDays(CHARACTER_DAYS_PER_YEAR)
 assertOk(
-  resolveLifeStageFromAge(18, 80, 18) === 'young_adult'
-    && resolveLifeStageFromAge(20, 80, 18) === 'young_adult'
-    && resolveLifeStageFromAge(21, 80, 18) === 'adult',
-  'an age-18 start with maxAge 80 must have a monotonic 18-20 young-adult stage followed by adulthood',
+  resolveCharacterAgeDays(18, CHARACTER_DAYS_PER_YEAR, firstRoundAnchor) === 18 * CHARACTER_DAYS_PER_YEAR
+    && resolveCharacterAgeDays(18, CHARACTER_DAYS_PER_YEAR * 3, firstRoundAnchor) === 20 * CHARACTER_DAYS_PER_YEAR,
+  'character age must derive from starting age plus elapsed canonical days without aging before the first narrative',
 )
 assertOk(
-  resolveLifeStageFromAge(18, 80, 0) === 'young_adult',
-  'a birth-start character must not skip young adulthood merely because 20% of maxAge is below 18',
+  lifecycleSourceText.includes("lifespan.clockMode === 'external'")
+    && lifecycleSourceText.includes("lifespan.clockMode === 'cyclic'")
+    && lifecycleSourceText.includes("stage('lifespan-limit'"),
+  'lifecycle-system must own external, cyclic, and aging lifespan boundaries',
 )
-const age18Hint = buildLifeStageNarrativeHint('young_adult', 80, 18, 18)
-const age21Hint = buildLifeStageNarrativeHint('adult', 80, 18, 21)
-assertOk(
-  age18Hint.includes('青年期（18-20岁）') && !age18Hint.includes('18-16岁'),
-  'life-stage prompt must never emit an inverted young-adult age range',
-)
-assertOk(
-  age21Hint.includes('成年期（21-39岁）'),
-  'life-stage prompt labels must match the same exclusive boundaries used by stage resolution',
-)
-for (const [maxAge, startingAge, currentAge] of [[80, 0, 18], [80, 18, 18], [80, 30, 30]]) {
-  const hint = buildLifeStageNarrativeHint(
-    resolveLifeStageFromAge(currentAge, maxAge, startingAge),
-    maxAge,
-    startingAge,
-    currentAge,
-  )
-  const range = hint.match(/（(\d+)-(\d+)岁）/)
-  assertOk(
-    !range || Number(range[1]) <= Number(range[2]),
-    `life-stage prompt range must be monotonic for maxAge=${maxAge}, startingAge=${startingAge}`,
-  )
-}
 assertOk(
   domainsSourceText.includes("'scripts/check/domains/narrative/starting-age-authority-regression.mjs'"),
   'narrative gate must execute the starting-age authority regression',
@@ -295,8 +265,9 @@ assertOk(
   'orchestrator changes must trigger the narrative starting-age gate',
 )
 assertOk(
-  domainsSourceText.includes("'src/mods/mod-engine/helpers/life-stage-narrative.ts'"),
-  'life-stage helper changes must trigger the narrative starting-age gate',
+  domainsSourceText.includes("'src/mods/mod-engine/helpers/lifecycle-narrative.ts'")
+    && domainsSourceText.includes("'src/foundation/subsystem-contracts/life-cycle.contract.ts'"),
+  'lifecycle narrative and age-contract changes must trigger the narrative starting-age gate',
 )
 
 if (failed === 0) {

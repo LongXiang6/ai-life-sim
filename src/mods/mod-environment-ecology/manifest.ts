@@ -8,9 +8,10 @@ import { defineMod } from '@/core'
 
 export default defineMod({
   name: 'mod-environment-ecology',
-  version: '1.0.0',
-  description: '环境生态：气候系统、地理系统、生态系统、自然资源与污染管理',
-  dependencies: ['mod-engine', 'mod-world'],
+  order: 430,
+  version: '2.0.0',
+  description: '按世界上下文运行的地理与自然资源系统，以及后续环境生态能力',
+  dependencies: ['mod-engine', 'mod-world', 'mod-history-dynamics'],
   provides: [
     'environment-ecology',
     'climate',
@@ -19,7 +20,7 @@ export default defineMod({
     'natural-resource',
     'pollution',
   ],
-  consumes: [],
+  consumes: ['spatial-graph', 'historical-event-ledger'],
   subsystems: [
     'ClimateSystem',
     'GeographySystem',
@@ -27,6 +28,7 @@ export default defineMod({
     'NaturalResourceSystem',
     'PollutionSystem',
   ],
+  secondaryPublicEntries: ['environment-simulation-api.ts'],
   stores: ['useEnvironmentEcologyStore'],
   events: {
     emits: [

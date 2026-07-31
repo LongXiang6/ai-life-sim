@@ -1,4 +1,4 @@
-export type GameOverAchievementKind = 'choice' | 'breakthrough'
+export type GameOverAchievementKind = 'choice' | 'lifespan-adjustment'
 
 export interface GameOverAchievement {
   id: string
@@ -17,10 +17,10 @@ export interface GameOverNarrativeFact {
   displayAge?: number
 }
 
-export interface GameOverBreakthroughFact {
-  pathway: string
-  year: number
-  yearsGained: number
+export interface GameOverLifespanAdjustmentFact {
+  adjustmentId: string
+  occurredAtTotalDays: number
+  deltaDays: number
   description: string
 }
 
@@ -34,7 +34,7 @@ export interface ReincarnationStrengthTier {
 
 export function buildGameOverAchievements(
   narratives: readonly GameOverNarrativeFact[],
-  breakthroughs: readonly GameOverBreakthroughFact[],
+  lifespanAdjustments: readonly GameOverLifespanAdjustmentFact[],
 ): GameOverAchievement[] {
   const choices = narratives.flatMap((entry, index) => {
     const choice = entry.resolvedChoice?.trim()
@@ -51,14 +51,16 @@ export function buildGameOverAchievements(
       weight: 30,
     }]
   })
-  const lifespan = breakthroughs.map((entry, index) => ({
-    id: `breakthrough-${entry.pathway}-${entry.year}-${index}`,
-    kind: 'breakthrough' as const,
-    title: entry.description.trim() || '寿命突破',
-    detail: `延展 ${entry.yearsGained} 年生命上限`,
-    timeLabel: `第 ${entry.year} 年`,
-    weight: 50 + Math.max(0, entry.yearsGained),
-  }))
+  const lifespan = lifespanAdjustments
+    .filter((entry) => entry.deltaDays > 0)
+    .map((entry) => ({
+      id: entry.adjustmentId,
+      kind: 'lifespan-adjustment' as const,
+      title: entry.description.trim() || '寿命上限延展',
+      detail: `延展 ${entry.deltaDays} 天生命上限`,
+      timeLabel: `第 ${Math.floor(entry.occurredAtTotalDays / 365)} 年`,
+      weight: 50 + Math.max(0, Math.round(entry.deltaDays / 365)),
+    }))
   return [...choices, ...lifespan]
 }
 

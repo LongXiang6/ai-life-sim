@@ -1,8 +1,24 @@
 /**
  * @module types.ts
- * @description MOD 类型定义 —— 角色系统（4 基础属性 + 命格 + 健康 + 寿命 + 生命阶段 + 年龄衰减 + 善恶值）
+ * @description MOD 类型定义 —— 角色系统（基础属性、命格、UI 投影与善恶值）
  * @mod mod-character
  */
+
+import type {
+  BiologicalClockMode,
+  DeathOutcome,
+  HealthCondition,
+  LifespanAdjustment,
+  LifecycleStageDefinition,
+} from '@/foundation'
+
+export type {
+  LuckNarrativeDirection,
+  LuckNarrativeGuidance,
+  LuckModifiers,
+  LuckState,
+  LuckPersistenceState,
+} from '@/foundation'
 
 // ============================================================
 // 基础属性（4 项）
@@ -10,7 +26,7 @@
 
 /** 4 项基础属性（luck -> LuckSystem, reputation -> ReputationSystem, health -> HealthSystem, morality -> MoralitySystem） */
 export interface BaseAttributes {
-  /** 体魄：影响 HP 恢复、体力上限、抗病 */
+  /** 体魄：影响生命恢复、体力上限、抗病 */
   physique: number
   /** 心智：影响学习效率、技能上限、谋略 */
   mind: number
@@ -20,7 +36,7 @@ export interface BaseAttributes {
   charisma: number
 }
 
-/** 属性修正（来自命格 / 伤病 / 衰减的叠加） */
+/** 属性修正（来自命格、生命周期、伤病与上下文规则的叠加） */
 export interface AttributeModifiers {
   physique: number
   mind: number
@@ -34,7 +50,7 @@ export interface CharacterBaseState {
   base: BaseAttributes
   /** 当前属性（= base + modifiers，按超凡属性规则钳制） */
   current: BaseAttributes
-  /** 聚合修正值（命格 bonus + 伤病 effects + 衰减 modifiers） */
+  /** 聚合修正值（命格、生命周期、伤病及上下文修正） */
   modifiers: AttributeModifiers
   /** 当地世界、种族或状态规则按 contextId/sourceId 分区，不污染其他世界 */
   contextModifiers: Record<string, Record<string, Partial<AttributeModifiers>>>
@@ -125,177 +141,51 @@ export interface DestinyPatternState {
 }
 
 // ============================================================
-// 健康伤病（对齐废弃项目 HealthStatus）
+// 创建草稿与运行时 UI 投影
 // ============================================================
 
-/** 疾病 */
-export interface Disease {
-  id: string
-  name: string
-  /** 严重度 1-10 */
-  severity: number
-  /** 剩余持续轮次 */
-  remainingRounds: number
-  /** 对属性的影响 */
-  attrEffects: Partial<AttributeModifiers>
-  /** 是否传染 */
-  contagious: boolean
-  /** 治愈条件描述 */
-  cureCondition: string,
-}
-
-/** 伤势 */
-export interface Injury {
-  id: string
-  name: string
-  /** 受伤部位 */
-  bodyPart: string
-  /** 严重度 1-10 */
-  severity: number
-  /** 剩余恢复轮次 */
-  remainingRecoveryRounds: number
-  /** 对属性的影响 */
-  attrEffects: Partial<AttributeModifiers>
-  /** 是否留下永久疤痕 */
-  permanentScar: boolean,
-}
-
-/** 健康子系统状态 */
-export interface HealthState {
-  /** 生命值 0-100，归零 = 死亡 */
-  hp: number
-  /** 最大生命值 */
-  maxHp: number
-  /** 体力 0-100 */
-  stamina: number
-  /** 精神 0-100（初始 80，向 50 自然漂移，受魅力修正） */
-  spirit: number
-  /** 活跃疾病列表 */
-  diseases: Disease[]
-  /** 活跃伤势列表 */
-  injuries: Injury[]
-  /** 是否已死亡 */
-  isDead: boolean
-  /** 死亡原因 */
-  deathCause?: string
-}
-
-// ============================================================
-// 寿命（对齐废弃项目 LifespanConfig + BreakthroughCondition）
-// ============================================================
-
-/** 种族寿命配置 */
+/** 角色创建使用的结构化种族目录；运行时真源由 LifespanSystem 持有。 */
 export interface RaceLifespanConfig {
-  /** 种族名称 */
   name: string
-  /** 基础最大寿命 */
-  baseMaxAge: number
-  /** 黄金年龄占比（如 [0.18, 0.40] = 18%~40% 寿命为黄金年龄） */
-  goldenAgeRatio: [number, number]
-  /** 衰减速率乘数（1.0 = 标准人类速率） */
-  decayMultiplier: number
-  /** 可超凡属性的物种基准线。未设置时默认 0，等同现状 */
-  attrBaselines?: Partial<Record<'physique' | 'mind' | 'talentAptitude' | 'charisma', number>>,
+  baseLifespanYears: number
+  clockMode: BiologicalClockMode
+  attrBaselines?: Partial<AttributeModifiers>
 }
 
-/** 突破途径 */
-export type BreakthroughPathway =
-  | 'rareElixir'
-  | 'cultivation'
-  | 'divineBlessing'
-  | 'forbiddenRitual'
-  | 'techEnhancement'
-  | 'ancientArtifact'
-
-/** 突破记录 */
-export interface BreakthroughRecord {
-  pathway: BreakthroughPathway
-  year: number
-  /** 增加的年数 */
-  yearsGained: number
-  description: string,
-}
-
-/** 寿命子系统状态 */
-export interface LifespanState {
-  /** 当前最大寿命 */
-  maxAge: number
-  /** 基础最大寿命（不含突破加成） */
-  baseMaxAge: number
-  /** 当前种族配置 */
+export interface LifespanDraftState {
+  raceId: string
   race: RaceLifespanConfig
-  /** 突破记录列表 */
-  breakthroughs: BreakthroughRecord[]
-  /** 当前突破概率（每次突破后递减） */
-  breakthroughChance: number,
+  maximumLifespanYears: number
 }
 
-// ============================================================
-// 生命阶段（对齐废弃项目 getLifeStageFromAge）
-// ============================================================
+/** 非持久 UI 投影；不得作为健康运行态恢复来源。 */
+export interface HealthProjection {
+  entityId?: string
+  vitality: number
+  maxVitality: number
+  stamina: number
+  spirit: number
+  alive: boolean
+  conditions: HealthCondition[]
+  death?: DeathOutcome
+}
 
-/** 8 个生命阶段 */
-export type LifeStageId =
-  | 'infant'
-  | 'child'
-  | 'teenager'
-  | 'young_adult'
-  | 'adult'
-  | 'middle_age'
-  | 'elder'
-  | 'deceased'
-
-/** 生命阶段配置 */
-export interface LifeStageConfig {
-  id: LifeStageId
-  /** AI 适配后的显示名称 */
+/** 非持久 UI 投影；完整寿命状态保存在 owning-system 快照。 */
+export interface LifespanProjection {
+  entityId?: string
+  raceId: string
   displayName: string
-  /** 年龄范围（基于种族最大寿命比例或绝对年龄） */
-  ageRange: [number, number]
-  /** 阶段系数（对齐废弃项目 vitality/learning/social） */
-  coefficients: {
-    /** 活力系数（影响体魄 / 体力相关） */
-    vitality: number
-    /** 学习效率系数 */
-    learning: number
-    /** 社交系数 */
-    social: number,
-  }
-  /** 该阶段易触发的事件关键词 */
-  eventPool: string[]
-  /** 该阶段规避的事件关键词 */
-  avoidancePool: string[],
+  clockMode: BiologicalClockMode
+  baseLifespanDays: number
+  maximumLifespanDays: number
+  adjustments: LifespanAdjustment[]
 }
 
-/** 生命阶段子系统状态 */
-export interface LifeStageState {
-  /** 当前阶段 ID */
-  currentStage: LifeStageId
-  /** 8 个阶段的完整配置（含 AI 适配后的名称） */
-  stages: Record<LifeStageId, LifeStageConfig>
-  /** 是否已完成 AI 适配初始化 */
-  adapted: boolean,
-}
-
-// ============================================================
-// 年龄衰减（对齐废弃项目 AgeDecayConfig）
-// ============================================================
-
-/** 衰减子系统状态 */
-export interface AttributeDecayState {
-  /** 四属性当前修正值（钳制 [-10, 10]） */
-  modifiers: {
-    physique: number
-    mind: number
-    talentAptitude: number
-    charisma: number,
-  }
-  /** 黄金年龄区间 [start, end]（按 maxAge 比例缩放） */
-  goldenAgeRange: [number, number]
-  /** 是否已在衰减阶段 */
-  isDecaying: boolean
-  /** 当前寿命阶段提示文本 */
-  stageHint: string,
+/** 非持久 UI 投影；阶段和属性修正均由 LifecycleSystem 当前值派生。 */
+export interface LifecycleProjection {
+  entityId?: string
+  ageDays: number
+  currentStage?: LifecycleStageDefinition
 }
 
 // ============================================================
@@ -326,7 +216,7 @@ export interface MoralityState {
 // 角色汇总
 // ============================================================
 
-/** 角色完整信息（聚合 7 个子系统） */
+/** 角色当前 UI 汇总；运行时 owning state 不在此处持久化。 */
 export interface CharacterSummary {
   name: string
   gender: string
@@ -334,82 +224,12 @@ export interface CharacterSummary {
   startingAge: number
   base: CharacterBaseState
   destinyPatterns: DestinyPatternState
-  health: HealthState
-  lifespan: LifespanState
-  lifeStage: LifeStageState
-  decay: AttributeDecayState
+  health: HealthProjection
+  lifespan: LifespanProjection
+  lifecycle: LifecycleProjection
   morality: MoralityState,
 }
 
 // ============================================================
-// 死后尾声（对齐废弃项目 post-death-epilogue-system）
+// 气运（隐藏基础属性，用户不可见；随机方向由本地 owning system 产生）
 // ============================================================
-
-// ============================================================
-// 气运（隐藏基础属性，用户不可见，仅 AI 叙事可读写；对齐废弃项目 luck-system.ts）
-// ============================================================
-
-/** 气运修正系数（气运值 → 四项全局系数） */
-export interface LuckModifiers {
-  /** 疾病回避概率修正（每点 +3%） */
-  diseaseAvoidance: number
-  /** 死亡回避概率修正（每点 +2%） */
-  deathAvoidChance: number
-  /** 叙事事件权重偏移（每点 +5%） */
-  eventWeightBias: number
-  /** 衰老加速修正（每点 -1%） */
-  ageDecayModifier: number
-}
-
-/** 气运子系统状态 */
-export interface LuckState {
-  /** 气运值（-10~+10，0 为普通；负值不祥，正值走运） */
-  luck: number
-  /** 气运修正系数 */
-  modifiers: LuckModifiers
-  /** 大幅变化通知剩余轮数 */
-  luckNotificationRounds: number
-  /** 大幅变化通知文本 */
-  luckNotificationText: string
-}
-
-// ============================================================
-// 死因类型
-// ============================================================
-
-/** 7 种死因（对齐废弃项目 death-constants.ts） */
-export type DeathCause =
-  | 'old_age'
-  | 'illness'
-  | 'battle'
-  | 'accident'
-  | 'murder'
-  | 'catastrophe'
-  | 'unknown'
-
-/** 死后尾声子系统状态 */
-export interface PostDeathEpilogueState {
-  /** 是否已生成尾声 */
-  hasEpilogue: boolean
-  /** AI 生成的尾声文本 */
-  epilogueText: string
-  /** 生成时间戳 */
-  generatedAt: number
-  /** 角色名 */
-  characterName: string
-  /** 享年 */
-  finalAge: number
-  /** 世界名称 */
-  worldName: string
-  /** 死因（从 health subsystem 提取，供导出格式使用） */
-  deathCause?: string
-  /** 角色性别（从 UI 选择传入） */
-  gender?: string
-  /** 角色种族（从 lifespan subsystem 提取） */
-  race?: string
-  /** 角色背景（从 UI 选择传入） */
-  background?: string
-  /** 一生事件总数（供导出页脚统计） */
-  eventCount?: number
-}
-

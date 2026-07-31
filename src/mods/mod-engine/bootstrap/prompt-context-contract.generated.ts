@@ -31,7 +31,7 @@ export const PROMPT_CONTEXT_FIELDS = [
   "currentTime",
   "talents",
   "timeGuideText",
-  "powerCeilingPresets"
+  "powerFramework"
 ] as const
 
 /** narrative-prompt 模板 variables[] */

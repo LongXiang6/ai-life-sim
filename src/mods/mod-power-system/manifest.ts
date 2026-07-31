@@ -8,10 +8,11 @@ import { defineMod } from '@/core'
 
 export default defineMod({
   name: 'mod-power-system',
+  order: 500,
   version: '1.0.0',
-  description: '力量体系：战力24阶、修炼体系、怪物生态、气运修正、机缘奇遇、信仰、至尊物品、神明干预、异常现象、特殊材料。元控制：各子系统均含 enabled 开关，由 AI 根据世界观自动启用/禁用',
+  description: '世界观插件：通用力量框架、修炼、怪物生态、机缘候选、信仰、神明干预与异常现象；只在上下文能力画像启用时运行',
   dependencies: ['mod-engine', 'mod-base-universe', 'mod-world'],
-  provides: ['power-system', 'combat-power', 'cultivation', 'monster', 'fortune-encounter', 'faith', 'supreme-item', 'divine-intervention', 'anomaly-phenomena', 'special-material', 'skill'],
+  provides: ['power-system', 'combat-power', 'cultivation', 'monster', 'fortune-encounter', 'faith', 'divine-intervention', 'anomaly-phenomena'],
   consumes: [],
   subsystems: [
     'CombatPowerSystem',
@@ -19,11 +20,8 @@ export default defineMod({
     'MonsterSystem',
     'FortuneEncounterSystem',
     'FaithSystem',
-    'SupremeItemSystem',
     'DivineInterventionSystem',
     'AnomalyPhenomenaSystem',
-    'SpecialMaterialSystem',
-    'SkillSystem',
   ],
   stores: ['usePowerSystemStore'],
   events: {
@@ -35,11 +33,8 @@ export default defineMod({
       'mod-power-system:luck-changed',
       'mod-power-system:fortune-encounter-triggered',
       'mod-power-system:faith-changed',
-      'mod-power-system:supreme-item-obtained',
-      'mod-power-system:supreme-item-awakened',
       'mod-power-system:divine-intervention-triggered',
       'mod-power-system:anomaly-zone-appeared',
-      'mod-power-system:material-discovered',
     ],
     listens: ['mod-engine:round-complete'],
   },

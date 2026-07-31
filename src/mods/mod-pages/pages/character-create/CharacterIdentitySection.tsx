@@ -61,7 +61,7 @@ export function CharacterIdentitySection({ logic }: { logic: UseCharacterCreateL
               aria-pressed={logic.customRaces.includes(logic.race)}
             >自定义种族</button>
           </div>
-          <p className={styles.groupCaption}>{logic.raceInfo ? `${logic.raceInfo.name} · 基础寿命 ${logic.raceInfo.baseMaxAge} 年` : logic.getRaceDisplayName(logic.race)}</p>
+          <p className={styles.groupCaption}>{logic.raceInfo ? `${logic.raceInfo.name} · 基础寿命 ${logic.raceInfo.baseLifespanYears} 年` : logic.getRaceDisplayName(logic.race)}</p>
           {logic.showCustomRace && <div className={styles.inlinePanel}><div className={styles.inlineInputRow}><input value={logic.customRaceInput} placeholder={logic.LABELS.customRacePlaceholder} onChange={(event) => logic.setCustomRaceInput(event.target.value)} /><button type="button" onClick={logic.handleAddCustomRace}>添加</button></div></div>}
           {logic.showRaceCatalog && <div className={styles.inlinePanel}><input className={styles.searchInput} value={logic.raceSearch} placeholder={logic.LABELS.raceSearchPlaceholder} onChange={(event) => logic.setRaceSearch(event.target.value)} /><div className={styles.catalogGrid}>{logic.raceCatalogOptions.map((race) => <button type="button" key={race.id} className={logic.race === race.id ? styles.catalogOptionActive : ''} aria-pressed={logic.race === race.id} onClick={() => { logic.setRace(race.id); logic.setShowRaceCatalog(false) }}>{race.name}</button>)}</div></div>}
         </div>

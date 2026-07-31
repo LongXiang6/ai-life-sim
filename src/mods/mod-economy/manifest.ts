@@ -9,6 +9,7 @@ import { defineMod } from '@/core'
 
 export default defineMod({
   name: 'mod-economy',
+  order: 450,
   version: '1.0.0',
   description: '经济系统：经济/货币、工作/职业、物品/库存、定居点、人口',
   dependencies: ['mod-world', '~mod-politics'],

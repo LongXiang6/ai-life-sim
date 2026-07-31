@@ -1,5 +1,5 @@
 /**
- * 叙事 5.0：第一次纯叙事 + 第二次严格结算的中文分段协议回归。
+ * 叙事协议：第一次纯叙事 + 后台数据分析与事件识别的中文分段回归。
  */
 
 import {
@@ -20,12 +20,15 @@ import {
 import {
   buildNarrativeRepairInstruction,
   buildNarrativeRoundOutputContract,
+  buildNarrativeEventRecognitionRepairInstruction,
   buildNarrativeSettlementRepairInstruction,
+  inspectNarrativeEventRecognitionQuality,
   inspectNarrativeResponseQuality,
   inspectNarrativeSettlementQuality,
 } from '../../../../src/mods/mod-engine/helpers/narrative-response-quality.ts'
 import {
   parseNarrativeResponseEnvelope,
+  parseNarrativeEventRecognitionEnvelope,
   parseNarrativeSettlementEnvelope,
 } from '../../../../src/mods/mod-engine/helpers/tagged-meta-envelope.ts'
 import {
@@ -38,6 +41,10 @@ import {
   NARRATIVE_SERVER_PROMPT_ASSET_ID,
   narrativePrompt,
 } from '../../../../src/mods/mod-engine/prompts/narrative-prompt.ts'
+import {
+  NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID,
+  narrativeEventRecognitionPrompt,
+} from '../../../../src/mods/mod-engine/prompts/narrative-event-recognition-prompt.ts'
 import {
   NARRATIVE_SETTLEMENT_SERVER_PROMPT_ASSET_ID,
   narrativeSettlementPrompt,
@@ -52,6 +59,10 @@ import {
   formatSummaryForPrompt,
   projectSummaryToNarrativeTimeline,
 } from '../../../../src/mods/mod-engine/helpers/timeline-memory.ts'
+import {
+  COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT,
+  buildNarrativeEventRecognitionStandardExample,
+} from '../../../../src/mods/mod-engine/server/narrative-event-recognition-system-prompt.ts'
 import {
   COMPILED_NARRATIVE_SETTLEMENT_SYSTEM_PROMPT,
   buildNarrativeSettlementDataContractLine,
@@ -587,17 +598,67 @@ assertOk(
   'normal rounds must add only triggered branch or opening conditions and otherwise repeat no fixed protocol',
 )
 
+const eventRecognitionExample = buildNarrativeEventRecognitionStandardExample()
+const eventRecognitionEnvelope = parseNarrativeEventRecognitionEnvelope(eventRecognitionExample)
+const eventRecognitionQuality = inspectNarrativeEventRecognitionQuality({
+  content: eventRecognitionExample,
+  currentContextId: 'ctx-protocol',
+  currentTotalDays: 1000,
+  existingCandidates: [],
+})
+assertOk(
+  Array.isArray(eventRecognitionEnvelope.data.事件)
+    && eventRecognitionQuality.valid
+    && eventRecognitionQuality.candidates?.length === 1
+    && eventRecognitionQuality.candidates[0].scope.kind === 'context'
+    && eventRecognitionQuality.candidates[0].scope.contextIds[0] === 'ctx-protocol'
+    && eventRecognitionQuality.candidates[0].schedule?.dueTotalDays === 1030,
+  'event recognition must parse the unique future-event segment and anchor delays to canonical total days',
+)
+const emptyEventRecognition = inspectNarrativeEventRecognitionQuality({
+  content: '⟦待触发事件⟧{"事件":[]}',
+  currentContextId: 'ctx-protocol',
+  currentTotalDays: 1000,
+  existingCandidates: [],
+})
+assertOk(
+  emptyEventRecognition.valid && emptyEventRecognition.candidates?.length === 0,
+  'event recognition must accept one explicit empty candidate set when the story establishes no future trigger',
+)
+const eventRecognitionFailure = inspectNarrativeEventRecognitionQuality({
+  content: '旧事件识别格式',
+  currentContextId: 'ctx-protocol',
+  currentTotalDays: 1000,
+  existingCandidates: [],
+})
+const originalEventRecognitionFailure = '旧事件识别格式\n以及完整原文'
+const eventRecognitionRepair = buildNarrativeEventRecognitionRepairInstruction(
+  eventRecognitionFailure,
+  originalEventRecognitionFailure,
+)
+assertOk(
+  eventRecognitionRepair.includes(eventRecognitionFailure.reason)
+    && eventRecognitionRepair.includes(originalEventRecognitionFailure)
+    && eventRecognitionRepair.includes('系统提示词末尾的唯一事件识别示例')
+    && eventRecognitionRepair.includes('空事件数组'),
+  'event-recognition repair must retain the rejected response and reuse the fixed positive example',
+)
+
 assertOk(
   narrativePrompt.version === '5.8.0'
     && narrativePrompt.serverPromptAssetId === NARRATIVE_SERVER_PROMPT_ASSET_ID
     && narrativeSettlementPrompt.version === '1.1.0'
     && narrativeSettlementPrompt.serverPromptAssetId === NARRATIVE_SETTLEMENT_SERVER_PROMPT_ASSET_ID
+    && narrativeEventRecognitionPrompt.version === '1.0.0'
+    && narrativeEventRecognitionPrompt.serverPromptAssetId === NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('⟦结束⟧')
     && !COMPILED_NARRATIVE_SETTLEMENT_SYSTEM_PROMPT.includes('⟦结束⟧')
+    && !COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT.includes('⟦结束⟧')
+    && COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT.includes('尚未发生且需要未来条件才能触发')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('角色自创内容的后续发展必须来自角色自身')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('记忆只提供已经成立的事实')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('本轮必须从当前时间与引导产生新的变化和结果'),
-  'the live prompts must expose only the two versioned assets and no ending tag',
+  'the live prompts must expose the three versioned assets and no ending tag',
 )
 
 if (failed > 0) process.exit(1)

@@ -9,6 +9,7 @@ import { runtimeRegistry } from '@/core/mod-loader/runtime-registry'
 import { saveManager } from '@/core/storage/save-manager'
 import { sanitizeCharacterStateSnapshot, useCharacterStore } from '@/mods/mod-character'
 import {
+  repairWorldEntityReferenceDirectory,
   registerWorldEntityReference,
   sanitizeWorldStateSnapshot,
   useWorldStore,
@@ -101,6 +102,15 @@ function buildWorldSaveSnapshot(): Record<string, unknown> {
   return world
 }
 
+function buildCharacterSaveSnapshot(): Record<string, unknown> {
+  const character = serializeStoreSnapshot(useCharacterStore.getState())
+  delete character.lifespanDraft
+  delete character.health
+  delete character.lifespan
+  delete character.lifecycle
+  return character
+}
+
 function buildEngineSaveSnapshot(): Record<string, unknown> {
   const store = useEngineStore.getState()
   const o = orchestrator.getState()
@@ -156,11 +166,13 @@ export async function applyGameSave(data: Record<string, unknown>): Promise<void
   assertPreGenIdle('加载存档')
   assertCompressionIdle('加载存档')
   const savedTerminal = core.engine.status === 'complete'
+  // 浏览器 Store 可能尚未水合 world-entity 的目录；预览快照只保存回滚所需
+  // 的运行态，正式目标存档仍在 restoreSnapshot() 中执行严格持久化校验。
   const previous = {
     engine: useEngineStore.getState(),
     character: useCharacterStore.getState(),
     world: useWorldStore.getState(),
-    orchestrator: orchestrator.captureSnapshot(),
+    orchestrator: orchestrator.capturePreviewSnapshot(),
   }
   orchestrator.invalidatePendingLifeOperations()
   let restoredOrchestratorSnapshot = false
@@ -256,7 +268,7 @@ export async function applyGameSave(data: Record<string, unknown>): Promise<void
     try {
       useCharacterStore.setState(previous.character, true)
       useWorldStore.setState(previous.world, true)
-      orchestrator.restoreSnapshot(previous.orchestrator)
+      orchestrator.restorePreviewSnapshot(previous.orchestrator)
       useEngineStore.setState(previous.engine, true)
       ensureOrchestratorContextFromStores()
     } catch (rollbackError) {
@@ -270,11 +282,12 @@ export async function applyGameSave(data: Record<string, unknown>): Promise<void
  * 自动保存调用点位于 hooks.ts advanceRound 中 executeRoundV2 之后、
  * fillPreGenQueue 之前，因此快照中不包含未消费的预生成缓存。 */
 export function collectGameSavePayload(): Record<string, unknown> {
+  ensureOrchestratorContextFromStores()
   syncSubsystemStoresFromStates(orchestrator.getSubsystemStateSnapshot())
 
   return {
     engine: buildEngineSaveSnapshot(),
-    character: serializeStoreSnapshot(useCharacterStore.getState()),
+    character: buildCharacterSaveSnapshot(),
     world: buildWorldSaveSnapshot(),
     orchestrator: serializeStoreSnapshot(orchestrator.captureSnapshot()),
   }
@@ -346,6 +359,10 @@ export function ensureOrchestratorContextFromStores(): boolean {
         },
       },
     })
+  }
+  const directoryRepair = repairWorldEntityReferenceDirectory()
+  if (directoryRepair.fallbackEntityIds.length > 0) {
+    console.warn('[save-restore] 从空间图恢复了缺失的实体引用目录项:', directoryRepair.fallbackEntityIds)
   }
   const worldTagsText = worldState.worldTags.length > 0
     ? worldState.worldTags.join('、')

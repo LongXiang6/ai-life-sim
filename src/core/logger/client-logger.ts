@@ -74,6 +74,24 @@ function rememberDiagnosticEntry(entry: ClientDiagnosticEntry): void {
   }
 }
 
+function enrichDiagnosticEntry(entry: ClientDiagnosticEntry): ClientDiagnosticEntry {
+  return {
+    eventType: 'log',
+    ...entry,
+    context: {
+      ...(typeof location !== 'undefined' ? { path: location.pathname, url: location.href } : {}),
+      ...(typeof navigator !== 'undefined' ? { userAgent: navigator.userAgent } : {}),
+      diagnosticSessionId: getDiagnosticSessionId(),
+      diagnosticCode: getCachedDiagnosticPlayerCode(),
+      ...entry.context,
+    },
+  }
+}
+
+function rememberLocalDiagnostic(entry: ClientDiagnosticEntry): void {
+  rememberDiagnosticEntry(enrichDiagnosticEntry(entry))
+}
+
 export function getRecentClientDiagnostics(): ClientDiagnosticEntry[] {
   return recentDiagnosticEntries.map((entry) => structuredClone(entry))
 }
@@ -108,17 +126,7 @@ function shouldLog(level: LogLevel): boolean {
 
 /** 发送日志到服务端 */
 function sendToServer(entry: ClientDiagnosticEntry): void {
-  const enriched: ClientDiagnosticEntry = {
-    eventType: 'log',
-    ...entry,
-    context: {
-      ...(typeof location !== 'undefined' ? { path: location.pathname, url: location.href } : {}),
-      ...(typeof navigator !== 'undefined' ? { userAgent: navigator.userAgent } : {}),
-      diagnosticSessionId: getDiagnosticSessionId(),
-      diagnosticCode: getCachedDiagnosticPlayerCode(),
-      ...entry.context,
-    },
-  }
+  const enriched = enrichDiagnosticEntry(entry)
   rememberDiagnosticEntry(enriched)
   const payload = JSON.stringify(enriched)
   if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
@@ -253,7 +261,7 @@ export const logger = {
   debug(module: string, message: string, ...args: unknown[]): void {
     if (!shouldLog('debug')) return
     writeConsole('debug', `[${module}] ${message}`, ...args)
-    sendToServer({
+    rememberLocalDiagnostic({
       level: 'debug',
       module,
       message,
@@ -265,7 +273,7 @@ export const logger = {
   info(module: string, message: string, ...args: unknown[]): void {
     if (!shouldLog('info')) return
     writeConsole('info', `[${module}] ${message}`, ...args)
-    sendToServer({
+    rememberLocalDiagnostic({
       level: 'info',
       module,
       message,

@@ -35,7 +35,7 @@ const activeFiles = {
   orchestrator: read('src/mods/mod-engine/subsystems/orchestrator-system.ts'),
   campaign: read('src/mods/mod-engine/campaigns/default/index.ts'),
   hints: read('src/mods/mod-engine/helpers/narrative-hints.ts'),
-  archetypes: read('src/mods/mod-engine/helpers/life-stage-archetypes.ts'),
+  lifecycleNarrative: read('src/mods/mod-engine/helpers/lifecycle-narrative.ts'),
   parser: read('src/mods/mod-engine/subsystems/narrative-parser-system.ts'),
   prompt: read('src/mods/mod-engine/prompts/narrative-prompt.ts'),
   promptComponents: read('src/mods/mod-engine/server/narrative-system-prompt.ts'),
@@ -74,7 +74,7 @@ const forbiddenByFile = {
     'sideQuestPatterns',
     'hasDisease',
   ],
-  archetypes: [
+  lifecycleNarrative: [
     'BATTLE_KEYWORDS',
     'isLastEventConflict',
     'countConsecutiveConflictRounds',
@@ -172,12 +172,12 @@ for (const call of [
 
 assertIncludes(
   activeFiles.lifespan,
-  'typeof ch.lifespanDelta ===',
-  'lifespan must consume structured lifespanDelta',
+  'LIFESPAN_SYSTEM_OPERATION_FIELDS',
+  'lifespan must enforce its current operation-level field contract',
 )
 assertIncludes(
   activeFiles.fatePreview,
-  'maxAge: lifespan.maxAge',
+  'maximumLifespanDays: Math.round(lifespan.maximumLifespanYears * 365)',
   'fate preview must commit the explicit character-creation lifespan',
 )
 assertIncludes(

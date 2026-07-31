@@ -10,6 +10,7 @@
  */
 
 import type { WorldConfig } from '@/mods/mod-world'
+import { formatPowerFrameworkForPrompt } from '@/mods/mod-world'
 
 import {
   DESTINY_PATTERN_PERSONAL_MODIFIERS,
@@ -18,7 +19,7 @@ import {
 export interface ResolvedDestinyPatternWorldMeta {
   powerSystemTag: string
   civilizationStage: string
-  powerCeiling: number
+  powerFramework?: string
   personalModifierFields: Record<string, string>
 }
 
@@ -34,7 +35,7 @@ export function resolveDestinyPatternPromptWorldMeta(
   // 优先级：AI/用户设定 > 默认值
   const powerSystemTag = config?.powerSystemTag ?? 'none'
   const civilizationStage = config?.civilizationStage ?? 'unknown'
-  const powerCeiling = config?.powerCeiling ?? 5
+  const powerFramework = formatPowerFrameworkForPrompt(config?.powerFramework)
 
   // 统一注入所有个人向字段，不再做世界观判断
   const personalModifierFields = { ...DESTINY_PATTERN_PERSONAL_MODIFIERS }
@@ -42,7 +43,7 @@ export function resolveDestinyPatternPromptWorldMeta(
   return {
     powerSystemTag,
     civilizationStage,
-    powerCeiling,
+    powerFramework,
     personalModifierFields,
   }
 }

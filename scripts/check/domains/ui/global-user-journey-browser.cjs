@@ -243,7 +243,7 @@ async function main() {
     }}))
     localStorage.setItem('mod-world:persist:world-state', JSON.stringify({ version: 6, state: {
       worldConfig: { name: '现代地球', eraName: '公元', eraStartYear: 2000, essenceTag: 'modern', powerSystemTag: 'none',
-        powerCeiling: 8, spatialForm: 'plane', civilizationStage: 'modern', difficulty: 'normal',
+        powerFramework: { id: 'fixture:power', label: '无超常力量体系', enabled: false, progression: 'bounded', ranks: [], source: 'world-default' }, spatialForm: 'plane', civilizationStage: 'modern', difficulty: 'normal',
         description: '2000年的现代世界，科技与互联网正在改变日常生活。', worldType: 'materialist' },
       entities: [], initialized: true, worldCode: 1, currentYear: 2000, worldTags: ['现代', '现实'], eraStartYear: 2000,
       eraName: '公元', calibration: null, destinyPatternModifiers: {},

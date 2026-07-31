@@ -25,8 +25,5 @@ export const lifecycle: ModLifecycle = {
 
     const { orchestrator } = await import('../subsystems/orchestrator-system')
     runtimeRegistry.recordActiveSubsystems(orchestrator.getSubsystemBindings())
-
-    const { simulationBridge } = await import('../simulation/simulation-bridge')
-    simulationBridge.initWorker()
   },
 }

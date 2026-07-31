@@ -25,55 +25,40 @@ const PERSONAL_LAYER_IDS = new Set([
   'character-base',
   'health',
   'lifespan',
+  'lifecycle-system',
   'morality',
   'luck',
   'faith',
-  'family',
   'education',
   'work',
-  'marriage',
   'settlement',
   'item',
-  'skill',
+  'growth-system',
   'destiny-pattern',
-  'personal-ability',
-  'disciple',
   'works',
   'achievement',
   'combat-power',
   'cultivation',
-  'post-death-epilogue',
-  'life-stage',
-  'attribute-decay',
   'fortune-encounter',
-  'special-material',
-  'supreme-item',
   'reputation',
   'culture',
   'art',
-  'language-naming',
   'npc-system',
   'relationship-system',
 ])
 
 /** 本地环境：所在区域、气候、法律、生态、资源等 */
 const LOCAL_LAYER_IDS = new Set([
-  'world-map',
   'climate',
   'pollution',
   'natural-resource',
   'ecology',
-  'terrain',
   'geography',
   'legal',
   'social-stratification',
-  'social-values',
   'monster',
-  'market',
   'economy',
   'population',
-  'industry',
-  'agriculture',
 ])
 
 /** 其余 isRelevant 且开放的子系统默认归入世界背景 */
@@ -260,19 +245,11 @@ export function buildNarrativeCoherenceHeader(
 ): string | undefined {
   const parts: string[] = ['【叙事一致性】']
   parts.push('世界基调以同条消息“世界设定”中的世界描述为准，禁止在此重复展开世界观全文。')
-  const powerTag = config.powerSystemTag as string | undefined
-  if (powerTag === 'none') {
+  const powerFramework = config.powerFramework as { enabled?: boolean; label?: string } | undefined
+  if (!powerFramework?.enabled) {
     parts.push('基础力量体系为“无”；超常内容只采用【世界设定】【命格天赋】或【当前状态】已经明确成立的事实。')
-  } else if (powerTag) {
-    const powerLabel: Record<string, string> = {
-      cultivation: '修炼体系',
-      martial: '武学体系',
-      technology: '科技体系',
-      magic: '魔法体系',
-      faith: '信仰体系',
-      mixed: '混合体系',
-    }
-    parts.push(`力量体系：${powerLabel[powerTag] ?? '按世界设定运行'}；仅使用【当前状态】中已出现的能力与设定。`)
+  } else {
+    parts.push(`力量体系：${powerFramework.label ?? '按世界设定运行'}；仅使用【当前状态】中已出现的能力与设定。`)
   }
   parts.push(`角色当前年龄 ${characterAge} 岁；叙事细节须与此匹配。`)
   parts.push('系统指令仅可提交“系统指令指南”中列出的中文系统与字段。')

@@ -8,9 +8,9 @@ import type { AnyWorldEntity, WorldConfig, WorldContextInstance, WorldTagsV2 } f
 import { WORLDVIEW_TAG_DEFAULTS } from '../constants/world-tag-defaults'
 import {
   assertValidWorldContextHierarchy,
+  alignCapabilityProfileRuntimeMembership,
   buildWorldContextInstance,
   createWorldContextId,
-  REQUIRED_CONTEXT_SUBSYSTEM_IDS,
 } from './world-context-runtime'
 
 const SCP_PRESET_NAME = 'SCP基金会'
@@ -121,13 +121,7 @@ export function sanitizeWorldStateSnapshot(value: unknown): Record<string, unkno
     const contexts = structuredClone(existingContexts) as Record<string, WorldContextInstance>
     for (const [contextId, instance] of Object.entries(contexts)) {
       if (!instance?.record || !instance.scope) continue
-      instance.capabilityProfile = {
-        ...instance.capabilityProfile,
-        enabledSubsystemIds: [...new Set([
-          ...REQUIRED_CONTEXT_SUBSYSTEM_IDS,
-          ...(instance.capabilityProfile?.enabledSubsystemIds ?? []),
-        ])],
-      }
+      instance.capabilityProfile = alignCapabilityProfileRuntimeMembership(instance.capabilityProfile)
       if (contextId === currentContextId) {
         instance.scope.scope = 'active'
         instance.record.lifecycle = 'open'

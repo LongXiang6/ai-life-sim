@@ -6,6 +6,9 @@
 
 // 统一使用 shared/ 的 clamp 替代内联 Math.max/Math.min
 import { clamp } from '@/core/shared'
+import {
+  formatChineseMagnitude,
+} from '@/foundation'
 import type {
   WorldConfig,
   WorldCalibration,
@@ -17,13 +20,10 @@ import type {
 
 import { ENTITY_GENERATION_COUNTS, WORLDVIEW_STYLE_HINTS } from '../constants'
 import { shouldUseGenericSimulationPools } from './world-pool-selectors'
+import { buildDefaultWorldScale, clampWorldScale } from './world-scale-calibration'
 
 export const MODIFIER_MIN = 0.01
 export const MODIFIER_MAX = 100
-
-export const DEFAULT_ECONOMY_TIER_RATIOS: [number, number, number, number, number] = [
-  0.25, 0.45, 0.65, 0.85, 1.0,
-]
 
 const VALID_STRATEGIES: EventDistributionStrategy[] = [
   'balanced', 'prehistoric', 'political', 'cosmic_epic', 'apocalyptic', 'mystical',
@@ -34,29 +34,19 @@ const VALID_MAP_TEMPLATES: MapTemplateId[] = [
   'plane', 'starSystems', 'flatDiscWorld', 'void',
 ]
 
-const CIV_POPULATION_BASE: Record<string, number> = {
-  primitive: 50,
-  ancient: 200,
-  medieval: 1000,
-  renaissance: 3000,
-  industrial: 10000,
-  modern: 50000,
-  information: 100000,
-  space: 500000,
-}
-
 /** L2 公式字段全集（审计 / 文档用） */
 export const FORMULA_KEYS: (keyof WorldCalibrationFormulas)[] = [
   'populationModifier', 'developmentModifier', 'impactRangeModifier',
   'birthRateModifier', 'fertilityModifier', 'deathRateModifier', 'inflationModifier', 'tradeMultiplierModifier',
-  'hpRecoveryModifier', 'staminaRecoveryModifier', 'lifespanModifier', 'attributeDecayModifier',
-  'breakthroughChanceModifier', 'cultivationSpeedModifier', 'bottleneckModifier',
+  'vitalityRecoveryModifier', 'staminaRecoveryModifier', 'spiritRecoveryModifier',
+  'conditionProgressionModifier', 'lifespanModifier',
+  'cultivationSpeedModifier', 'bottleneckModifier',
   'monsterThreatModifier', 'monsterSpawnModifier', 'luckPointModifier',
   'socialMobilityModifier', 'factionEmergenceModifier', 'warFrequencyModifier',
   'warDamageModifier', 'legalEnforcementModifier', 'ecologyRecoveryModifier',
   'pollutionDecayModifier', 'resourceConsumptionModifier', 'disasterFrequencyModifier',
   'techProgressModifier', 'techBreakthroughModifier', 'industryProductivityModifier',
-  'economyModifier', 'crossDomainEffectModifier', 'eventDistributionStrategy',
+  'economyModifier', 'eventDistributionStrategy',
   'migrationRateModifier', 'literacyGrowthModifier', 'incomeModifier',
   'conflictEscalationModifier', 'devotionGainModifier', 'causalCaptureRate',
 ]
@@ -95,20 +85,6 @@ function normalizeMapTemplate(value: unknown): MapTemplateId | undefined {
   return undefined
 }
 
-function normalizeEconomyTierRatios(
-  ratios: unknown,
-): [number, number, number, number, number] | undefined {
-  if (!Array.isArray(ratios) || ratios.length !== 5) return undefined
-  const nums = ratios.map((v) => (typeof v === 'number' && Number.isFinite(v) ? v : NaN))
-  if (nums.some((n) => Number.isNaN(n))) return undefined
-  const sorted = [...nums].sort((a, b) => a - b)
-  if (sorted[4]! > 1.0 + 0.001) return undefined
-  for (let i = 1; i < 5; i++) {
-    if (sorted[i]! <= sorted[i - 1]!) return undefined
-  }
-  return sorted as [number, number, number, number, number]
-}
-
 function clampFormulas(raw: WorldCalibrationFormulas | undefined): WorldCalibrationFormulas | undefined {
   if (!raw || typeof raw !== 'object') return undefined
 
@@ -134,9 +110,6 @@ function clampFormulas(raw: WorldCalibrationFormulas | undefined): WorldCalibrat
     }
   }
 
-  const ratios = normalizeEconomyTierRatios(flat.economyTierRatios)
-  if (ratios) out.economyTierRatios = ratios
-
   return Object.keys(out).length > 0 ? out : undefined
 }
 
@@ -148,7 +121,6 @@ export function buildDefaultCalibration(config: WorldConfig): WorldCalibration {
   }
 
   if (config.civilizationStage === 'primitive') {
-    formulas.populationModifier = 0.6
     formulas.techProgressModifier = 0.3
     formulas.birthRateModifier = 0.75
     formulas.socialMobilityModifier = 1.2
@@ -156,7 +128,6 @@ export function buildDefaultCalibration(config: WorldConfig): WorldCalibration {
     formulas.literacyGrowthModifier = 0.5
     formulas.conflictEscalationModifier = 0.5
   } else if (config.civilizationStage === 'space') {
-    formulas.populationModifier = 1.5
     formulas.techProgressModifier = 2.5
     formulas.industryProductivityModifier = 2.0
     formulas.migrationRateModifier = 1.4
@@ -175,10 +146,12 @@ export function buildDefaultCalibration(config: WorldConfig): WorldCalibration {
     formulas.birthRateModifier = 0.65
     formulas.deathRateModifier = 1.8
     formulas.monsterThreatModifier = 2.5
-    formulas.hpRecoveryModifier = 0.5
+    formulas.vitalityRecoveryModifier = 0.5
+    formulas.conditionProgressionModifier = 1.5
     formulas.disasterFrequencyModifier = 2.0
     formulas.resourceConsumptionModifier = 1.5
     formulas.incomeModifier = 0.6
+    formulas.populationModifier = 0.01
   }
   if (config.essenceTag === 'postApocalyptic') {
     formulas.fertilityModifier = 0.7
@@ -216,17 +189,17 @@ export function buildDefaultCalibration(config: WorldConfig): WorldCalibration {
   if (config.difficulty === 'hard') {
     formulas.disasterFrequencyModifier = clampModifier((formulas.disasterFrequencyModifier ?? 1) * 1.2)
   } else if (config.difficulty === 'nightmare') {
-    formulas.hpRecoveryModifier = clampModifier((formulas.hpRecoveryModifier ?? 1) * 0.7)
+    formulas.vitalityRecoveryModifier = clampModifier((formulas.vitalityRecoveryModifier ?? 1) * 0.7)
+    formulas.spiritRecoveryModifier = clampModifier((formulas.spiritRecoveryModifier ?? 1) * 0.8)
+    formulas.conditionProgressionModifier = clampModifier((formulas.conditionProgressionModifier ?? 1) * 1.2)
     formulas.monsterThreatModifier = clampModifier((formulas.monsterThreatModifier ?? 1) * 1.4)
   } else if (config.difficulty === 'hell') {
-    formulas.hpRecoveryModifier = 0.4
+    formulas.vitalityRecoveryModifier = 0.4
+    formulas.staminaRecoveryModifier = 0.7
+    formulas.spiritRecoveryModifier = 0.6
+    formulas.conditionProgressionModifier = 1.5
     formulas.deathRateModifier = clampModifier((formulas.deathRateModifier ?? 1) * 1.5)
     formulas.monsterThreatModifier = 2.0
-  }
-
-  let populationBase = CIV_POPULATION_BASE[config.civilizationStage]
-  if (config.essenceTag === 'postApocalyptic' || config.essenceTag === 'survivalHorror') {
-    populationBase = Math.min(populationBase ?? 500, 500)
   }
 
   return {
@@ -243,9 +216,9 @@ export function buildDefaultCalibration(config: WorldConfig): WorldCalibration {
         : (WORLDVIEW_STYLE_HINTS[config.essenceTag] ?? undefined),
     },
     world: {
-      populationBase,
       mapTemplate: inferMapTemplate(config),
     },
+    scale: buildDefaultWorldScale(config),
     formulas,
   }
 }
@@ -298,6 +271,7 @@ export function clampCalibration(
     styleGuide: input.styleGuide ? { ...base.styleGuide, ...input.styleGuide } : base.styleGuide,
     entities: input.entities,
     world: input.world ? { ...base.world, ...input.world } : base.world,
+    scale: clampWorldScale(input.scale, base.scale),
     formulas: {
       ...base.formulas,
       ...clampFormulas(input.formulas),
@@ -316,9 +290,6 @@ export function clampCalibration(
 
   if (merged.world?.mapTemplate) {
     merged.world.mapTemplate = normalizeMapTemplate(merged.world.mapTemplate) ?? base.world?.mapTemplate
-  }
-  if (merged.world?.populationBase !== undefined) {
-    merged.world.populationBase = Math.max(1, Math.round(merged.world.populationBase))
   }
   if (merged.world?.regionCount !== undefined) {
     merged.world.regionCount = Math.max(1, Math.min(30, Math.round(merged.world.regionCount)))
@@ -372,7 +343,10 @@ const SUMMARY_MODIFIER_LABELS: Partial<Record<keyof WorldCalibrationFormulas, st
   fertilityModifier: '家族生育',
   deathRateModifier: '死亡率',
   warFrequencyModifier: '战争频率',
-  hpRecoveryModifier: '生命恢复',
+  vitalityRecoveryModifier: '生命恢复',
+  staminaRecoveryModifier: '体力恢复',
+  spiritRecoveryModifier: '精神恢复',
+  conditionProgressionModifier: '伤病进展',
   incomeModifier: '职业收入',
   disasterFrequencyModifier: '灾难频率',
   inflationModifier: '通胀',
@@ -412,13 +386,11 @@ export function formatCalibrationSummary(cal: WorldCalibration): string {
     }
     parts.push(`事件策略=${strategyLabels[strategy] ?? '按世界设定分布'}`)
   }
-  if (cal.world?.populationBase) {
-    parts.push(`人口基数=${cal.world.populationBase}`)
-  }
+  parts.push(`人口=${formatChineseMagnitude(cal.scale.populationTotal)}`)
 
   if (f) {
     for (const key of FORMULA_KEYS) {
-      if (key === 'eventDistributionStrategy' || key === 'economyTierRatios') continue
+      if (key === 'eventDistributionStrategy') continue
       const label = SUMMARY_MODIFIER_LABELS[key]
       if (!label) continue
       const val = f[key]

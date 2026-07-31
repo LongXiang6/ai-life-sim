@@ -132,6 +132,16 @@ assert(
     && /kind: 'story_repetition'/.test(engineHooks),
   'system quality metrics may remain without being classified as user operations',
 )
+const debugLoggerMethod = clientLogger.match(/debug\(module:[\s\S]*?\n  },\n\n  info\(/)?.[0] ?? ''
+const infoLoggerMethod = clientLogger.match(/info\(module:[\s\S]*?\n  },\n\n  warn\(/)?.[0] ?? ''
+assert(
+  debugLoggerMethod.includes('rememberLocalDiagnostic({')
+    && infoLoggerMethod.includes('rememberLocalDiagnostic({')
+    && !debugLoggerMethod.includes('sendToServer({')
+    && !infoLoggerMethod.includes('sendToServer({')
+    && /reportUsageMetric[\s\S]{0,360}sendToServer\(\{/.test(clientLogger),
+  'debug/info diagnostics must stay local while explicit quality metrics remain server-reported',
+)
 assert(
   /appendServerLogEntry/.test(debugLogRoute)
     && /queryServerLogEntries/.test(debugLogRoute)
@@ -148,9 +158,11 @@ assert(
   'database viewer must show plaintext content and registered/anonymous identity',
 )
 assert(
-  !/consent|附带诊断|玩家编号|ensureDiagnosticPlayerCode/.test(feedbackPage + feedbackContract)
+  !/consent|附带诊断|玩家编号/.test(feedbackPage + feedbackContract)
+    && /ensureDiagnosticPlayerCode/.test(feedbackPage)
+    && /diagnostics/.test(feedbackPage + feedbackContract)
     && !/redact|excludedTerms|delete safeSettings/.test(feedbackBuilder),
-  'feedback must submit silently without consent UI or redaction',
+  'feedback must silently initialize diagnostic identity and submit without consent UI or redaction',
 )
 assert(
   !fs.existsSync(path.join(root, 'src/core/logger/redact-sensitive-data.ts'))

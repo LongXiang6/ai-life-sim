@@ -8,15 +8,15 @@ import { defineMod } from '@/core'
 
 export default defineMod({
   name: 'mod-base-universe',
-  version: '1.0.0',
-  description: '基础宇宙设定：天象、纪元、世界地图、命运预言、神创世界',
-  dependencies: ['mod-engine'],
-  provides: ['base-universe', 'celestial', 'era', 'world-map-data', 'fate-prophecy', 'divine-creation'],
+  order: 440,
+  version: '2.0.0',
+  description: '按上下文运行的自然天象、当地纪元，以及可选的预言与神祇插件',
+  dependencies: ['mod-engine', 'mod-world', 'mod-history-dynamics'],
+  provides: ['base-universe', 'celestial', 'era', 'fate-prophecy', 'divine-creation'],
   consumes: [],
   subsystems: [
     'CelestialSystem',
     'EraSystem',
-    'WorldMapSystem',
     'FateProphecySystem',
     'DivineCreationSystem',
   ],
@@ -25,7 +25,6 @@ export default defineMod({
     emits: [
       'mod-base-universe:celestial-phase-changed',
       'mod-base-universe:era-changed',
-      'mod-base-universe:map-updated',
       'mod-base-universe:prophecy-fulfilled',
       'mod-base-universe:prophecy-broken',
       'mod-base-universe:deity-emerged',

@@ -33,6 +33,8 @@ assertOk(resolveInternalCachePool('narrative', 'narrative-main') === 'narrative-
 assertOk(resolveInternalCachePool('narrative', 'narrative-format-repair') === 'narrative-repair', 'first-call format repair must use the narrative repair pool')
 assertOk(resolveInternalCachePool('narrative', 'narrative-settlement') === 'narrative-settlement', 'normal settlement must have its own internal cache pool')
 assertOk(resolveInternalCachePool('narrative', 'narrative-settlement-format-repair') === 'narrative-settlement-repair', 'settlement format repair must not pollute normal settlement statistics')
+assertOk(resolveInternalCachePool('narrative', 'narrative-event-recognition') === 'narrative-event-recognition', 'event recognition must have its own internal cache pool')
+assertOk(resolveInternalCachePool('narrative', 'narrative-event-recognition-format-repair') === 'narrative-event-recognition-repair', 'event-recognition repair must not pollute normal recognition statistics')
 assertOk(resolveInternalCachePool('summary', 'summary-compress-L1') === 'summary-L1', 'L1 summaries must remain separate')
 assertOk(resolveInternalCachePool('summary', 'summary-compress-L2') === 'summary-L2', 'L2 summaries must remain separate')
 assertOk(resolveInternalCachePool('summary', 'summary-compress-L3') === 'summary-L3', 'L3 summaries must remain separate')

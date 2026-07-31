@@ -10,11 +10,14 @@ import {
   NARRATIVE_BODY_TAG,
   NARRATIVE_BRANCH_TAG,
   NARRATIVE_DATA_TAG,
+  NARRATIVE_EVENT_CANDIDATES_TAG,
   NarrativeAIBranchSchema,
+  NarrativeAIEventRecognitionDataSchema,
   NarrativeAISettlementDataSchema,
   NarrativeAISystemInstructionSchema,
   parseNarrativeAIJson,
   type NarrativeAIBranch,
+  type NarrativeAIEventRecognitionData,
   type NarrativeAISettlementData,
   type NarrativeAISystemInstruction,
 } from './narrative-ai-protocol'
@@ -27,6 +30,10 @@ export interface NarrativeResponseEnvelope {
 export interface NarrativeSettlementEnvelope {
   systemInstructions: NarrativeAISystemInstruction[]
   data: NarrativeAISettlementData
+}
+
+export interface NarrativeEventRecognitionEnvelope {
+  data: NarrativeAIEventRecognitionData
 }
 
 interface SettlementTag {
@@ -166,9 +173,34 @@ export function parseNarrativeSettlementEnvelope(content: string): NarrativeSett
   return { systemInstructions, data }
 }
 
+/** 事件识别调用只接受唯一待触发事件段及其完整 JSON。 */
+export function parseNarrativeEventRecognitionEnvelope(
+  content: string,
+): NarrativeEventRecognitionEnvelope {
+  const normalized = normalizeResponse(content)
+  if (!normalized) throw new Error('事件识别响应不能为空')
+
+  const tags = [...normalized.matchAll(/⟦待触发事件⟧/gu)]
+  if (tags.length !== 1) {
+    throw new Error(`事件识别响应必须包含唯一 ${NARRATIVE_EVENT_CANDIDATES_TAG} 分段`)
+  }
+  const reservedTags = collectReservedTags(normalized)
+  if (reservedTags.length !== 1 || reservedTags[0] !== NARRATIVE_EVENT_CANDIDATES_TAG) {
+    throw new Error('事件识别响应包含当前协议无法识别的分段')
+  }
+
+  const tag = tags[0]
+  const source = normalized.slice((tag.index ?? 0) + NARRATIVE_EVENT_CANDIDATES_TAG.length).trim()
+  if (!source) throw new Error(`${NARRATIVE_EVENT_CANDIDATES_TAG} 后缺少完整 JSON`)
+  return {
+    data: NarrativeAIEventRecognitionDataSchema.parse(parseNarrativeAIJson(source)),
+  }
+}
+
 export const SEGMENTED_NARRATIVE_PROTOCOL = {
   body: NARRATIVE_BODY_TAG,
   branch: NARRATIVE_BRANCH_TAG,
   systemPrefix: '⟦系统N⟧',
   data: NARRATIVE_DATA_TAG,
+  eventCandidates: NARRATIVE_EVENT_CANDIDATES_TAG,
 } as const

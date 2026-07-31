@@ -17,7 +17,7 @@ export const FATE_STABLE_USER_KEYS = [
   'powerSystemTag',
   'civilizationStage',
   'spatialForm',
-  'powerCeiling',
+  'powerFramework',
   'personalModifierFields',
 ] as const
 

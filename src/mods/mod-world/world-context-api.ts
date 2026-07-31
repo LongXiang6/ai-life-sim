@@ -68,6 +68,11 @@ export function listWorldEntityReferences(): EntityReference[] {
   return getWorldEntitySystem().listEntityReferences()
 }
 
+/** 刷新恢复窗口中，从世界上下文与空间图重建缺失的实体目录投影。 */
+export function repairWorldEntityReferenceDirectory(): { fallbackEntityIds: string[] } {
+  return getWorldEntitySystem().repairEntityReferenceDirectory()
+}
+
 export function assertWorldEntityReference(
   entityId: string,
   allowedKinds?: readonly EntityReferenceKind[],

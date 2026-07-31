@@ -6,7 +6,20 @@
 
 export { cn } from './cn'
 export { parseJSON } from './parse-json'
-export { clamp } from './format-number'
+export { formatNumber, clamp } from './format-number'
+export {
+  normalizeDecimalInteger,
+  decimalIntegerToBigInt,
+  decimalIntegerToSafeNumber,
+  compareDecimalIntegers,
+  addDecimalIntegers,
+  subtractDecimalIntegers,
+  multiplyDecimalInteger,
+  annualRateDelta,
+  allocateDecimalInteger,
+  formatChineseMagnitude,
+} from './decimal-integer'
+export type { DecimalInteger } from './decimal-integer'
 export { getRoundSequence } from './round-advance'
 export { parseChineseNumber } from './cn-number'
 export { extractDynamicAttrsFromNarrative } from './extract-dynamic-attrs'
@@ -25,6 +38,13 @@ export {
 export type { EstimateTokenBudgetOptions } from './estimate-token-budget'
 export { formatEraYear } from './format-time'
 export type { EraEntry } from './format-time'
+export {
+  compareExecutionNodes,
+  createExecutionOutcomeCodes,
+  resolveExecutionOrder,
+  runExecutionSequence,
+  executionSequenceError,
+} from './execution-sequence'
 
 // 通用数值/随机工具（原 utils.ts，统一后归入 barrel）
 export const ROUND_DECIMALS = 4

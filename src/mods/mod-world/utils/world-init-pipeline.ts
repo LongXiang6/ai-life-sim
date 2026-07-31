@@ -2,25 +2,30 @@
  * @module world-init-pipeline.ts
  * @description 世界初始化 AI Pipeline —— 可扩展步骤注册表
  *
- * ## 默认步骤（createDefaultWorldInitSteps）— 勿拆回多步维度/校准/标签
- * 1. dimension-calibration — 单次 AI：dimensions + calibration + W02 + worldTags
- *    （world-dimension-calibration-prompt；trigger: pipeline:dimension-calibration）
- * 2. tags-fallback — 仅当合并步未返回 worldTags
- * 3. entities — 具名实体（含 mapRegions）
- *
- * Fallback：缓存命中但缺 W02 → world-calibration-prompt（pipeline:calibration-fallback）
+ * ## 默认执行图（createDefaultWorldInitSteps）
+ * prepare-world-init → dimension-calibration → tags-fallback（可选跳过）
+ * → entities → finalize-world-init。
+ * 维度校准仍是单次 AI：dimensions + calibration + W02 + worldTags；缓存缺少
+ * W02 时在该节点内部执行已声明的校准补全动作，不改变节点顺序或终态条件。
  * @mod mod-world
  */
 
 import { callAI } from '@/core'
 
-import type { AIModelConfig } from '@/foundation'
+import {
+  createExecutionOutcomeCodes,
+  runExecutionSequence,
+} from '@/foundation'
+import type {
+  AIModelConfig,
+  ExecutionNodeSignal,
+  ExecutionPhase,
+} from '@/foundation'
 import type { ZodSchema } from 'zod'
 
 import { useSettingsStore } from '@/mods/mod-settings'
 import { useWorldStore } from '../store'
-import type { WorldConfig, AnyWorldEntity, Settlement, WorldInitAIStatus } from '../types'
-import { useWorldMapStore, type MarkerLayer } from '@/mods/mod-world-map'
+import type { WorldConfig, WorldInitAIStatus } from '../types'
 import {
   worldTagsPrompt,
   worldEntityPrompt,
@@ -46,6 +51,7 @@ import {
   CIVILIZATION_ZH_MAP,
   SPATIAL_FORM_ZH_MAP,
 } from './world-config-mapping'
+import { materializePowerFramework } from './power-framework'
 import type { WorldInitPipelineBudgets } from './world-init-budgets'
 import { bumpTokenBudgetForRetry } from './world-init-budgets'
 import {
@@ -92,34 +98,12 @@ function commitWorldTags(config: WorldConfig, tags: string[]): string[] {
   return filtered
 }
 
-/** 将实体（settlements/nations/capitals）同步为地图标记层 */
-export function syncEntitiesToMapMarkers(entities: AnyWorldEntity[]): void {
-  try {
-    const settlements = entities.filter(
-      (e) => e.type === 'settlement',
-    ) as Settlement[]
-
-    const markers: MarkerLayer[] = settlements.map((s) => ({
-      type: s.tier === 'metropolis' ? 'capital' : 'city',
-      regionId: s.regionId ?? '',
-      label: s.name,
-      icon: s.tier === 'metropolis' ? '🏙️' : s.tier === 'city' ? '🏰' : '🏘️',
-      color: undefined,
-    }))
-
-    if (markers.length > 0) {
-      useWorldMapStore.getState().setMarkers(markers)
-      console.info(`[mod-world] 已将 ${markers.length} 个定居点同步为地图标记`)
-    }
-  } catch (err) {
-    console.warn('[mod-world] 同步地图标记失败:', err)
-  }
-}
-
 export type { WorldInitPipelineBudgets } from './world-init-budgets'
 
 export const MAX_AI_RETRIES = 3
 export const RETRY_DELAY_MS = 2000
+const WORLD_INIT_OWNER = 'mod-world'
+const WORLD_INIT_FAILURE_TARGET = 'mod-world'
 
 export interface WorldInitPipelineResult {
   calibrationGenerated: boolean
@@ -156,10 +140,15 @@ export interface WorldInitPipelineContext {
 export interface WorldInitStep {
   id: string
   label: string
-  shouldSkip?: (ctx: WorldInitPipelineContext) => boolean
-  run: (ctx: WorldInitPipelineContext) => Promise<void>
-  /** 失败是否阻塞最终 status=complete（默认 true） */
-  critical?: boolean
+  phase: ExecutionPhase
+  dependsOn: readonly string[]
+  order: number
+  owner: string
+  failureTarget: string
+  optional?: boolean
+  timeoutMs?: number
+  shouldSkip?: (ctx: WorldInitPipelineContext) => boolean | Promise<boolean>
+  run: (ctx: WorldInitPipelineContext) => Promise<ExecutionNodeSignal | undefined>
 }
 
 function sleep(ms: number): Promise<void> {
@@ -225,15 +214,14 @@ function coherenceGuardFromConfig(config: WorldConfig): CoherenceGuardContext {
   return { worldDescription: config.description, worldType: config.worldType }
 }
 
-async function withRetry(
+async function withRetry<T>(
   name: string,
-  fn: () => Promise<unknown>,
+  fn: () => Promise<T>,
   errors: string[],
-): Promise<boolean> {
+): Promise<T | undefined> {
   for (let attempt = 1; attempt <= MAX_AI_RETRIES; attempt++) {
     try {
-      await fn()
-      return true
+      return await fn()
     } catch (err) {
       const msg = `${name} 第 ${attempt}/${MAX_AI_RETRIES} 次失败: ${String(err)}`
       console.warn(`[mod-world] ${msg}`)
@@ -241,11 +229,11 @@ async function withRetry(
         await sleep(RETRY_DELAY_MS)
       } else {
         errors.push(msg)
-        return false
+        return undefined
       }
     }
   }
-  return false
+  return undefined
 }
 
 interface WorldInitAICallOpts {
@@ -375,7 +363,7 @@ async function callWorldInitAIResilient(
           retrySuffix = [
             '【修正】上次输出未通过校验，请严格按 outputExample 重写：',
             String(err),
-            'dimensions.powerCeiling 必须为整数；metadata 用 camelCase 英文 tag；',
+            'dimensions.powerFramework 必须是当前世界的具名阶位提议；metadata 用 camelCase 英文 tag；',
             'aiDetailedParameters 为扁平 43 字段，禁止嵌套 worldview/sociology。',
           ].join('\n')
           budget = bumpTokenBudgetForRetry(budget)
@@ -431,8 +419,14 @@ function applyDimensionInferenceToConfig(
     const mapped = SPATIAL_FORM_ZH_MAP[inferred.spatialForm]
     if (mapped) config.spatialForm = mapped
   }
-  if (isDimensionAIMode(modes, 'powerCeiling')) {
-    config.powerCeiling = inferred.powerCeiling
+  if (isDimensionAIMode(modes, 'powerFramework')) {
+    const store = useWorldStore.getState()
+    const contextId = store.currentContextId ?? `world-${store.worldCode || 'pending'}`
+    config.powerFramework = materializePowerFramework(inferred.powerFramework, {
+      contextId,
+      powerSystemTag: config.powerSystemTag,
+      source: 'world-ai',
+    })
   }
 
   // 魔法等外部能量体系：仅在 AI 模式下且标签为西式奇幻兼容值时做兜底映射（不覆盖 AI 明确判定）
@@ -586,6 +580,11 @@ function buildDimensionCalibrationStep(): WorldInitStep {
   return {
     id: 'dimension-calibration',
     label: '维度推断与校准',
+    phase: 'execute',
+    dependsOn: ['prepare-world-init'],
+    order: 100,
+    owner: WORLD_INIT_OWNER,
+    failureTarget: WORLD_INIT_FAILURE_TARGET,
     run: async (ctx) => {
       const modes = ctx.config._dimensionModes ?? {}
       const needInference = shouldRunDimensionInference(modes)
@@ -596,7 +595,7 @@ function buildDimensionCalibrationStep(): WorldInitStep {
           await runCalibrationW02Fallback(ctx)
         }
         finalizeAnchorYear(ctx)
-        return
+        return { status: 'succeeded' }
       }
 
       syncCtxPromptVars(ctx)
@@ -638,10 +637,15 @@ function buildDimensionCalibrationStep(): WorldInitStep {
         essenceTag: ctx.config.essenceTag,
         civilizationStage: ctx.config.civilizationStage,
         spatialForm: ctx.config.spatialForm,
-        powerCeiling: ctx.config.powerCeiling,
+        powerFramework: {
+          label: ctx.config.powerFramework.label,
+          progression: ctx.config.powerFramework.progression,
+          rankCount: ctx.config.powerFramework.ranks.length,
+        },
         worldType: ctx.config.worldType,
         tags: ctx.rawTags?.length ?? 0,
       })
+      return { status: 'succeeded' }
     },
   }
 }
@@ -650,6 +654,12 @@ function buildTagsFallbackStep(): WorldInitStep {
   return {
     id: 'tags-fallback',
     label: '标签生成',
+    phase: 'execute',
+    dependsOn: ['dimension-calibration'],
+    order: 200,
+    owner: WORLD_INIT_OWNER,
+    failureTarget: WORLD_INIT_FAILURE_TARGET,
+    optional: true,
     shouldSkip: (ctx) => ctx.tagsGenerated,
     run: async (ctx) => {
       const store = useWorldStore.getState()
@@ -669,6 +679,7 @@ function buildTagsFallbackStep(): WorldInitStep {
       syncCtxPromptVars(ctx)
       const cal = store.calibration
       if (cal) saveCachedWorldCalibration(ctx.worldCode, ctx.initFingerprint, cal, filtered)
+      return { status: 'succeeded' }
     },
   }
 }
@@ -677,6 +688,11 @@ function buildEntitiesStep(): WorldInitStep {
   return {
     id: 'entities',
     label: '实体生成',
+    phase: 'transition',
+    dependsOn: ['tags-fallback'],
+    order: 300,
+    owner: WORLD_INIT_OWNER,
+    failureTarget: WORLD_INIT_FAILURE_TARGET,
     run: async (ctx) => {
       const store = useWorldStore.getState()
       const activeCalibration = store.calibration ?? buildDefaultCalibration(ctx.config)
@@ -698,14 +714,13 @@ function buildEntitiesStep(): WorldInitStep {
       if (shouldSkipEntityAIGeneration(activeCalibration)) {
         store.setEntities([])
         ctx.entitiesGenerated = true
-        syncEntitiesToMapMarkers([])
         console.info('[mod-world] 实体层全禁用（calibration entities 0-0），跳过 AI 实体生成')
-        return
+        return { status: 'succeeded' }
       }
       const ents = await ctx.entitySystem.generateEntities(ctx.config)
       store.setEntities(ents)
-      syncEntitiesToMapMarkers(ents)
       ctx.entitiesGenerated = true
+      return { status: 'succeeded' }
     },
   }
 }
@@ -713,9 +728,45 @@ function buildEntitiesStep(): WorldInitStep {
 /** 默认 Pipeline（维度+校准单次→标签 fallback→实体） */
 export function createDefaultWorldInitSteps(): WorldInitStep[] {
   return [
+    {
+      id: 'prepare-world-init',
+      label: '准备世界初始化',
+      phase: 'prepare',
+      dependsOn: [],
+      order: 0,
+      owner: WORLD_INIT_OWNER,
+      failureTarget: WORLD_INIT_FAILURE_TARGET,
+      run: async (ctx) => {
+        if (!ctx.config.name.trim() || !ctx.config.description.trim()) {
+          return { status: 'failed', message: '世界配置缺少名称或描述' }
+        }
+        if (!ctx.initFingerprint.trim()) {
+          return { status: 'failed', message: '世界初始化缺少稳定指纹' }
+        }
+        return { status: 'succeeded' }
+      },
+    },
     buildDimensionCalibrationStep(),
     buildTagsFallbackStep(),
     buildEntitiesStep(),
+    {
+      id: 'finalize-world-init',
+      label: '完成世界初始化',
+      phase: 'finalize',
+      dependsOn: ['entities'],
+      order: 400,
+      owner: WORLD_INIT_OWNER,
+      failureTarget: WORLD_INIT_FAILURE_TARGET,
+      run: async (ctx) => {
+        const complete = ctx.calibrationGenerated
+          && ctx.tagsGenerated
+          && ctx.configGenerated
+          && ctx.entitiesGenerated
+        return complete
+          ? { status: 'succeeded' }
+          : { status: 'failed', message: '世界初始化结束前置条件未满足' }
+      },
+    },
   ]
 }
 
@@ -780,9 +831,11 @@ function updatePipelineStatus(
   ctx: WorldInitPipelineContext,
   baseStatus: WorldInitAIStatus,
   stepTimers: Record<string, { start: number; end?: number }>,
+  status: WorldInitAIStatus['status'] = baseStatus.status,
 ): void {
   useWorldStore.getState().setWorldInitAIStatus({
     ...baseStatus,
+    status,
     currentStep: ctx.currentStep,
     stepTimers: { ...stepTimers },
     calibrationGenerated: ctx.calibrationGenerated,
@@ -817,29 +870,84 @@ export async function runWorldInitPipeline(
 
   console.info(`[mod-world] Pipeline 开始: 世界 "${ctx.config.name}"（编码 ${ctx.worldCode}，${steps.length} 步）`)
 
-  for (const step of steps) {
-    if (step.shouldSkip?.(ctx)) continue
+  const labels = new Map(steps.map((step) => [step.id, step.label]))
+  const nodes = steps.map((step) => ({
+    id: step.id,
+    owner: step.owner,
+    failureTarget: step.failureTarget,
+    phase: step.phase,
+    dependsOn: step.dependsOn,
+    order: step.order,
+    optional: step.optional,
+    timeoutMs: step.timeoutMs,
+    shouldSkip: step.shouldSkip,
+    outcomes: createExecutionOutcomeCodes('world-init', step.id),
+    run: async (pipelineContext: WorldInitPipelineContext) => {
+      const signal = await withRetry(step.label, async () => {
+        const result = await step.run(pipelineContext)
+        if (result === undefined) {
+          throw new Error(`步骤 "${step.id}" 返回但未提供状态码`)
+        }
+        return result
+      }, pipelineContext.errors)
+      if (signal === undefined) {
+        return {
+          status: 'failed' as const,
+          message: pipelineContext.errors.at(-1) ?? `${step.label} 执行失败`,
+        }
+      }
+      return signal
+    },
+  }))
 
-    ctx.currentStep = step.label
-    // 记录步骤开始时间（API 调用真正开始前）
-    stepTimers[step.label] = { start: Date.now() }
-    updatePipelineStatus(ctx, baseStatus, stepTimers)
+  const sequenceResult = await runExecutionSequence({
+    flowId: 'world-init',
+    executionId: `world-init:${ctx.worldCode}:${ctx.initFingerprint}:${Date.now()}`,
+    owner: WORLD_INIT_OWNER,
+    context: ctx,
+    nodes,
+    onEvent: (event) => {
+      const label = labels.get(event.nodeId) ?? event.nodeId
+      ctx.currentStep = label
+      if (event.status === 'running') {
+        stepTimers[label] = { start: Date.now() }
+        updatePipelineStatus(ctx, baseStatus, stepTimers, 'running')
+        return
+      }
+      if (
+        event.status === 'succeeded'
+        || event.status === 'skipped'
+        || event.status === 'failed'
+        || event.status === 'blocked'
+        || event.status === 'cancelled'
+        || event.status === 'timed-out'
+        || event.status === 'missing-status'
+        || event.status === 'invalid-status'
+        || event.status === 'duplicate-status'
+      ) {
+        stepTimers[label] = {
+          ...(stepTimers[label] ?? { start: event.at }),
+          end: event.at,
+        }
+        const failed = event.status !== 'succeeded' && event.status !== 'skipped'
+        if (failed && event.message && !ctx.errors.includes(event.message)) {
+          ctx.errors.push(event.message)
+        }
+        updatePipelineStatus(ctx, baseStatus, stepTimers, failed ? 'failed' : 'running')
+      }
+    },
+  })
 
-    const ok = await withRetry(step.label, () => step.run(ctx), ctx.errors)
-
-    // 记录步骤结束时间
-    stepTimers[step.label] = { ...stepTimers[step.label], end: Date.now() }
-
-    if (!ok && step.critical !== false && step.id === 'dimension-calibration' && !ctx.calibrationGenerated) {
-      useWorldStore.getState().setCalibration(buildDefaultCalibration(ctx.config))
-      ctx.calibrationGenerated = true
-    }
-
-    updatePipelineStatus(ctx, baseStatus, stepTimers)
-  }
-
-  const allOk = ctx.calibrationGenerated && ctx.tagsGenerated && ctx.configGenerated
+  const allOk = sequenceResult.status === 'succeeded'
+    && ctx.calibrationGenerated
+    && ctx.tagsGenerated
+    && ctx.configGenerated
     && ctx.entitiesGenerated
+
+  if (!allOk && sequenceResult.failure) {
+    const message = `${sequenceResult.failure.code}: ${sequenceResult.failure.message}`
+    if (!ctx.errors.includes(message)) ctx.errors.push(message)
+  }
 
   useWorldStore.getState().setWorldInitAIStatus({
     status: allOk ? 'complete' : 'failed',

@@ -31,7 +31,7 @@ export type WorldDimensionCalibrationOutput = z.infer<typeof worldDimensionCalib
 
 export const worldDimensionCalibrationPrompt: PromptTemplate = {
   name: 'world-dimension-calibration',
-  version: '1.1.0',
+  version: '2.0.0',
   mod: 'mod-world',
 
   systemPrompt: stringifyPrompt({
@@ -58,7 +58,7 @@ export const worldDimensionCalibrationPrompt: PromptTemplate = {
         label: '世界空间形态',
         options: ['位面', '宇宙', '位面晶壁群系', '多元宇宙群系', '诸天万界'],
       },
-      powerCeiling: { label: '力量上限', description: '1-24 阶，对照 powerCeilingPresets' },
+      powerFramework: { label: '力量框架', description: '为当前世界定义具名阶位、边界描述和有限/开放进阶规则' },
       worldType: {
         label: '世界类型',
         options: ['materialist', 'idealist', 'mixed'],
@@ -66,7 +66,7 @@ export const worldDimensionCalibrationPrompt: PromptTemplate = {
     },
     dimensionInferenceRules: [
       'worldDescription 为最高优先级',
-      'powerCeiling 对照 powerCeilingPresets 选最匹配阶位',
+      'powerFramework 只描述当前世界的真实力量层次；不得套用跨世界固定阶位表',
       '魔法/巫师体系→powerSystem=魔法，勿标修仙；科技主导→materialist',
       '标签必须从 options 选取，不得自造中文维度名',
       'dimensionChoices 中 adaptive/custom 维度：dimensions 输出须与用户选择一致',
@@ -78,10 +78,11 @@ export const worldDimensionCalibrationPrompt: PromptTemplate = {
       'worldTags：完整覆盖 worldDescription 中实际成立的氛围标签，去重但不得因固定条数省略',
       'styleGuide.worldviewStyleHint 写在 calibration.styleGuide 内，禁止根级 worldviewStyleHint',
       'calibration.metadata 仅含 essenceTag/civilizationStage/powerSystemTag/spatialForm/difficulty（camelCase 英文 tag，禁止 snake_case）',
-      'dimensions.powerCeiling 必须为整数 1-24，禁止字符串',
+      'powerFramework.ranks 必须按世界观实际需要生成连续阶位；机器 ID 由系统生成，不在 AI 输出中填写',
       'timeline.eraStartYear：若描述含公元年（如 1991年）写入 calibration.timeline.eraStartYear',
       '禁止回写 worldDescription 全文；禁止 markdown 代码块',
       'formulas modifier 默认 1.0，仅输出偏离 ±20% 以上的项',
+      'scale 中的大整数全部使用不含逗号的十进制字符串；人口总量以整个上下文而非单个地区为语义，并与文明时代、空间范围和世界描述一致',
       '不适用的模拟层 entities 设 { min: 0, max: 0 }',
     ],
     aiDetailedParametersFields: WORLD_CONFIG_AI_FIELD_KEYS.join(', '),
@@ -91,7 +92,15 @@ export const worldDimensionCalibrationPrompt: PromptTemplate = {
         worldviewEssence: '混合',
         civilizationStage: '现代',
         spatialForm: '宇宙',
-        powerCeiling: 8,
+        powerFramework: {
+          label: '城市魔法阶序',
+          progression: 'bounded',
+          ranks: [
+            { label: '学徒', description: '能够安全完成基础术式' },
+            { label: '施法者', description: '能够独立完成稳定法术' },
+            { label: '高阶法师', description: '能够影响大型事件' },
+          ],
+        },
         worldType: 'mixed',
       },
       calibration: {
@@ -105,6 +114,13 @@ export const worldDimensionCalibrationPrompt: PromptTemplate = {
         styleGuide: { worldviewStyleHint: '符合 worldDescription 的事件风格一句话' },
         timeline: { eraStartYear: 1991 },
         entities: { settlementCount: { min: 2, max: 8 } },
+        scale: {
+          populationTotal: '8200000000',
+          populationCarryingCapacity: '12000000000',
+          annualEconomicOutput: '147600000000000',
+          moneySupply: '110000000000000',
+          monetaryMode: 'currency',
+        },
         formulas: { warFrequencyModifier: 1.2 },
       },
       aiDetailedParameters: {
@@ -112,7 +128,7 @@ export const worldDimensionCalibrationPrompt: PromptTemplate = {
         averageTemperature: 15,
         techLevel: 5,
         inflationRate: 0.03,
-        powerCeiling: 8,
+        powerHierarchyComplexity: 40,
         overallMood: '紧张',
         mysteryLevel: 60,
         note: '其余 43 字段均必填，见 aiDetailedParametersFields',
@@ -133,16 +149,15 @@ export const worldDimensionCalibrationPrompt: PromptTemplate = {
     powerSystemTag: '{{powerSystemTag}}',
     spatialForm: '{{spatialForm}}',
     civilizationStage: '{{civilizationStage}}',
-    powerCeiling: '{{powerCeiling}}',
+    powerFramework: '{{powerFramework}}',
     difficulty: '{{difficulty}}',
     dimensionChoices: '{{dimensionChoices}}',
-    powerCeilingPresets: '{{powerCeilingPresets}}',
   }),
 
   variables: [
     'worldName', 'essenceTag', 'powerSystemTag', 'spatialForm',
-    'civilizationStage', 'powerCeiling', 'difficulty', 'worldDescription',
-    'dimensionChoices', 'powerCeilingPresets',
+    'civilizationStage', 'powerFramework', 'difficulty', 'worldDescription',
+    'dimensionChoices',
     'coherenceHint', 'coherenceNote', 'worldType',
   ],
 

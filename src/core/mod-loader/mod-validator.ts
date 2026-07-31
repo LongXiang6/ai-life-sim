@@ -34,7 +34,7 @@ export function validateDirectoryName(dirName: string): ValidationResult {
  * 校验 manifest 完整性 V2
  *
  * 与 v1 相比：
- *   - 不再校验 loadOrder 范围（加载器已忽略此字段）
+ *   - 校验显式 order，加载器用它处理同一依赖层排序
  *   - 支持 `~/?/!` 依赖前缀
  *   - 新增 Feature Flags 校验（如有）
  *
@@ -60,6 +60,10 @@ export function validateManifest(
   // semver 格式
   if (!/^\d+\.\d+\.\d+/.test(manifest.version)) {
     errors.push(`manifest.version "${manifest.version}" 不符合 semver 格式`)
+  }
+
+  if (!Number.isInteger(manifest.order)) {
+    errors.push(`manifest.order "${String(manifest.order)}" 必须为整数`)
   }
 
   // 依赖检查（与 parseDependency 共用前缀解析逻辑）

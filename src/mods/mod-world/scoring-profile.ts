@@ -13,7 +13,7 @@ export const SCORING_EVIDENCE_KINDS = [
   'attributes',
   'journey',
   'choices',
-  'breakthroughs',
+  'lifespan-adjustments',
   'achievements',
   'completion',
 ] as const satisfies readonly ScoringEvidenceKind[]
@@ -109,10 +109,10 @@ export function buildFallbackWorldScoringProfile(
       : ['自我成长', '人生抉择', '历程完成', '留下回响']
   const curves: ScoringCurveId[] = ['growth', 'agency', 'journey', 'impact']
   const evidence: ScoringEvidenceKind[][] = [
-    ['attributes', 'breakthroughs'],
+    ['attributes', 'lifespan-adjustments'],
     ['choices', 'achievements'],
     ['journey', 'completion'],
-    ['achievements', 'choices', 'breakthroughs'],
+    ['achievements', 'choices', 'lifespan-adjustments'],
   ]
   return {
     profileVersion: 1,

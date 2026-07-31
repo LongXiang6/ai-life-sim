@@ -44,18 +44,6 @@ interface InternalState {
   snapshot: WorldSnapshot | null,
 }
 
-/** 文明阶段 → 人口基数 */
-const CIV_POPULATION_BASE: Record<string, number> = {
-  primitive: 50,
-  ancient: 200,
-  medieval: 1000,
-  renaissance: 3000,
-  industrial: 10000,
-  modern: 50000,
-  information: 100000,
-  space: 500000,
-}
-
 /** 文明阶段 → 开发度基础范围 */
 const CIV_DEVELOPMENT_RANGE: Record<string, [number, number]> = {
   primitive: [1, 15],
@@ -68,21 +56,17 @@ const CIV_DEVELOPMENT_RANGE: Record<string, [number, number]> = {
   space: [80, 100],
 }
 
-/**
- * 地形 → 人口修正系数
- *
- * 平原最宜居住，冻土/荒漠最不宜居
- */
-const TERRAIN_POPULATION_MULTIPLIER: Record<string, number> = {
-  plains: 1.5,
-  forest: 1.2,
-  savanna: 0.8,
-  rainforest: 0.7,
-  desert: 0.3,
-  tundra: 0.2,
-  ethereal: 1.0,
-  space: 1.0,
-  void: 1.0,
+/** 地形只修正开发条件；人口事实由 P6 population 唯一拥有。 */
+const TERRAIN_DEVELOPMENT_OFFSET: Record<string, number> = {
+  plains: 5,
+  forest: 1,
+  savanna: -2,
+  rainforest: -4,
+  desert: -8,
+  tundra: -10,
+  ethereal: 0,
+  space: 3,
+  void: 0,
 }
 
 /** 天圆地方环名称 */
@@ -201,17 +185,6 @@ export class WorldInitSystem extends BaseSubsystem {
 
   // ========== 工具方法 ==========
 
-  private getPopulationBase(
-    config: WorldConfig,
-    calibration: ReturnType<typeof useWorldStore.getState>['calibration'],
-  ): number {
-    const base = calibration?.world?.populationBase
-      ?? CIV_POPULATION_BASE[config.civilizationStage]
-      ?? 500
-    const mod = clampModifier(calibration?.formulas?.populationModifier ?? 1.0)
-    return Math.max(1, Math.round(base * mod))
-  }
-
   private getDevelopmentRange(
     config: WorldConfig,
     calibration: ReturnType<typeof useWorldStore.getState>['calibration'],
@@ -227,36 +200,17 @@ export class WorldInitSystem extends BaseSubsystem {
     ]
   }
 
-  /**
-   * 计算区域人口
-   *
-   * 公式：人口基数 × 地形系数 × 随机扰动
-   */
-  private calcPopulation(populationBase: number, terrainTag: string): number {
-    const multiplier = TERRAIN_POPULATION_MULTIPLIER[terrainTag] ?? 1.0
-    const jitter = 0.5 + Math.random() * 1.0 // 0.5 ~ 1.5
-    return Math.round(populationBase * multiplier * jitter)
-  }
-
-  /**
-   * 计算区域开发度
-   *
-   * 开发度与人口正相关：
-   * - 以 civilizationStage 为基准范围
-   * - 人口超出 base × 1.3 → 接近范围上限
-   * - 人口低于 base × 0.5 → 接近范围下限
-   */
+  /** 世界初始化只拥有开发条件；人口规模在 P6 按这些条件分配。 */
   private calcDevelopmentLevel(
     devRange: [number, number],
-    population: number,
-    populationBase: number,
+    terrainTag: string,
   ): number {
     const [devMin, devMax] = devRange
-    const ratio = population / (populationBase || 1)
-    // ratio=0.5 → devMin+15%, ratio=1.0 → devMin+50%, ratio=1.5 → devMin+85%
-    const clampedRatio = Math.max(0.3, Math.min(2.0, ratio))
-    const factor = (clampedRatio - 0.3) / 1.7 // 0.0 ~ 1.0
-    return Math.round(devMin + factor * (devMax - devMin))
+    return clamp(
+      Math.round((devMin + devMax) / 2 + (TERRAIN_DEVELOPMENT_OFFSET[terrainTag] ?? 0)),
+      0,
+      100,
+    )
   }
 
   private baseTemperature(yRatio: number): number {
@@ -293,7 +247,6 @@ export class WorldInitSystem extends BaseSubsystem {
     calibration: ReturnType<typeof useWorldStore.getState>['calibration'],
   ): RegionData[] {
     const regions: RegionData[] = []
-    const populationBase = this.getPopulationBase(config, calibration)
     const devRange = this.getDevelopmentRange(config, calibration)
 
     for (let i = 0; i < template.regionCount; i++) {
@@ -312,8 +265,7 @@ export class WorldInitSystem extends BaseSubsystem {
         100,
       )
       const terrainTag = this.pickTerrain(temperature, humidity)
-      const population = this.calcPopulation(populationBase, terrainTag)
-      const developmentLevel = this.calcDevelopmentLevel(devRange, population, populationBase)
+      const developmentLevel = this.calcDevelopmentLevel(devRange, terrainTag)
 
       regions.push({
         id: `${config.name}-region-${i}`,
@@ -323,7 +275,6 @@ export class WorldInitSystem extends BaseSubsystem {
         humidity,
         terrainTag,
         resourceDistribution: {},
-        population,
         developmentLevel,
       })
     }
@@ -346,7 +297,6 @@ export class WorldInitSystem extends BaseSubsystem {
     calibration: ReturnType<typeof useWorldStore.getState>['calibration'],
   ): RegionData[] {
     const regions: RegionData[] = []
-    const populationBase = this.getPopulationBase(config, calibration)
     const devRange = this.getDevelopmentRange(config, calibration)
     const count = template.regionCount
 
@@ -358,8 +308,7 @@ export class WorldInitSystem extends BaseSubsystem {
       const name = FLAT_DISC_RING_NAMES[i] ?? `第${i + 1}环`
 
       const terrainTag = this.pickTerrain(temperature, humidity)
-      const population = this.calcPopulation(populationBase, terrainTag)
-      const developmentLevel = this.calcDevelopmentLevel(devRange, population, populationBase)
+      const developmentLevel = this.calcDevelopmentLevel(devRange, terrainTag)
 
       regions.push({
         id: `${config.name}-region-${i}`,
@@ -369,7 +318,6 @@ export class WorldInitSystem extends BaseSubsystem {
         humidity,
         terrainTag,
         resourceDistribution: {},
-        population,
         developmentLevel,
       })
     }
@@ -386,7 +334,6 @@ export class WorldInitSystem extends BaseSubsystem {
     calibration: ReturnType<typeof useWorldStore.getState>['calibration'],
   ): RegionData[] {
     const regions: RegionData[] = []
-    const populationBase = this.getPopulationBase(config, calibration)
     const devRange = this.getDevelopmentRange(config, calibration)
 
     for (let i = 0; i < template.regionCount; i++) {
@@ -395,8 +342,7 @@ export class WorldInitSystem extends BaseSubsystem {
       const temperature = 15 + this.jitter(10)
       const humidity = 50 + this.jitter(20)
       const terrainTag = 'ethereal'
-      const population = this.calcPopulation(populationBase, terrainTag)
-      const developmentLevel = this.calcDevelopmentLevel(devRange, population, populationBase)
+      const developmentLevel = this.calcDevelopmentLevel(devRange, terrainTag)
 
       regions.push({
         id: `${config.name}-region-${i}`,
@@ -406,7 +352,6 @@ export class WorldInitSystem extends BaseSubsystem {
         humidity,
         terrainTag,
         resourceDistribution: {},
-        population,
         developmentLevel,
       })
     }
@@ -423,7 +368,6 @@ export class WorldInitSystem extends BaseSubsystem {
     calibration: ReturnType<typeof useWorldStore.getState>['calibration'],
   ): RegionData[] {
     const regions: RegionData[] = []
-    const populationBase = this.getPopulationBase(config, calibration) * 100
     const devRange = this.getDevelopmentRange(config, calibration)
 
     for (let i = 0; i < template.regionCount; i++) {
@@ -431,8 +375,7 @@ export class WorldInitSystem extends BaseSubsystem {
       const temperature = 20 + this.jitter(15)
       const humidity = 50 + this.jitter(30)
       const terrainTag = 'space'
-      const population = this.calcPopulation(populationBase, terrainTag)
-      const developmentLevel = this.calcDevelopmentLevel(devRange, population, populationBase)
+      const developmentLevel = this.calcDevelopmentLevel(devRange, terrainTag)
 
       regions.push({
         id: `${config.name}-region-${i}`,
@@ -442,7 +385,6 @@ export class WorldInitSystem extends BaseSubsystem {
         humidity,
         terrainTag,
         resourceDistribution: {},
-        population,
         developmentLevel,
       })
     }
@@ -456,10 +398,8 @@ export class WorldInitSystem extends BaseSubsystem {
   private generateAbstractRegions(
     config: WorldConfig,
     _template: typeof MAP_TEMPLATES[keyof typeof MAP_TEMPLATES],
-    calibration: ReturnType<typeof useWorldStore.getState>['calibration'],
+    _calibration: ReturnType<typeof useWorldStore.getState>['calibration'],
   ): RegionData[] {
-    const populationBase = this.getPopulationBase(config, calibration)
-
     return [{
       id: `${config.name}-origin`,
       name: '原点',
@@ -468,7 +408,6 @@ export class WorldInitSystem extends BaseSubsystem {
       humidity: 50,
       terrainTag: 'void',
       resourceDistribution: {},
-      population: Math.round(populationBase),
       developmentLevel: 50,
     }]
   }

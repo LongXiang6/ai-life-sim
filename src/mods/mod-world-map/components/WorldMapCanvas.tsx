@@ -1,191 +1,117 @@
 'use client'
 
-/**
- * @module WorldMapCanvas
- * @description 世界地图 Canvas 渲染组件 —— 六边形地块 + 标记层 + 缩放/平移
- * @mod mod-world-map
- */
-
-import { useRef, useEffect, useCallback, useState } from 'react'
-
-import type { WorldRegion } from '@/mods/mod-base-universe'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { MapProjection, MapProjectionNode } from '@/foundation'
 import { useWorldMapStore } from '../store'
-import { computeRenderData, renderMap, hitTestHex, buildFactionColors } from '../utils/map-renderer'
-import type { RegionRenderData, MarkerLayer, FactionColorMap } from '../types'
+import { computeRenderData, hitTestNode, renderMap } from '../utils/map-renderer'
 import styles from './WorldMapCanvas.module.css'
 
 export interface WorldMapCanvasProps {
-  /** 区域数据 */
-  regions: WorldRegion[]
-  /** 标记层 */
-  markers?: MarkerLayer[]
-  /** 选中区域回调 */
-  onRegionSelect?: (region: WorldRegion | null) => void
-  /** 自定义类名 */
+  projection: MapProjection | null
+  onNodeSelect?: (node: MapProjectionNode | null) => void
   className?: string
 }
 
-/** 世界地图 Canvas 渲染组件 —— 六边形地块 + 标记层 + 缩放/平移
- * @param regions 区域数据
- * @param markers 标记层数组
- * @param onRegionSelect 选中区域回调
- * @param className 自定义类名
- */
-export function WorldMapCanvas({ regions, markers: externalMarkers, onRegionSelect, className }: WorldMapCanvasProps) {
+export function WorldMapCanvas({ projection, onNodeSelect, className }: WorldMapCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const renderDataRef = useRef<RegionRenderData[]>([])
-  const factionColorsRef = useRef<FactionColorMap>({})
-  const rafRef = useRef<number>(0)
+  const pointerRef = useRef<{ x: number; y: number; moved: boolean } | null>(null)
+  const [panelInfo, setPanelInfo] = useState<MapProjectionNode | null>(null)
+  const config = useWorldMapStore((state) => state.config)
+  const interaction = useWorldMapStore((state) => state.interaction)
+  const setConfig = useWorldMapStore((state) => state.setConfig)
 
-  const [panelInfo, setPanelInfo] = useState<WorldRegion | null>(null)
-
-  const config = useWorldMapStore((s) => s.config)
-  const interaction = useWorldMapStore((s) => s.interaction)
-  const internalMarkers = useWorldMapStore((s) => s.markers)
-  const setConfig = useWorldMapStore((s) => s.setConfig)
-  const panBy = useWorldMapStore((s) => s.panBy)
-  const setHoveredRegion = useWorldMapStore((s) => s.setHoveredRegion)
-  const setSelectedRegion = useWorldMapStore((s) => s.setSelectedRegion)
-  const setDragging = useWorldMapStore((s) => s.setDragging)
-  const setDragStart = useWorldMapStore((s) => s.setDragStart)
-
-  const allMarkers = [...internalMarkers, ...(externalMarkers ?? [])]
-
-  // 更新画布尺寸
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
-    const rect = container.getBoundingClientRect()
-    if (rect.width !== config.canvasWidth || rect.height !== config.canvasHeight) {
-      setConfig({ canvasWidth: rect.width, canvasHeight: rect.height })
-    }
-  }, [setConfig, config.canvasWidth, config.canvasHeight])
-
-  // 构建势力颜色
-  useEffect(() => {
-    if (regions.length === 0) return
-    const factions = [...new Set(regions.map((r) => r.ownerFaction).filter(Boolean))] as string[]
-    factionColorsRef.current = buildFactionColors(factions)
-  }, [regions])
-
-  // 渲染循环
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-
-    canvas.width = config.canvasWidth * window.devicePixelRatio
-    canvas.height = config.canvasHeight * window.devicePixelRatio
-    canvas.style.width = `${config.canvasWidth}px`
-    canvas.style.height = `${config.canvasHeight}px`
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio)
-
-    renderDataRef.current = computeRenderData(regions, config, factionColorsRef.current)
-
-    cancelAnimationFrame(rafRef.current)
-    rafRef.current = requestAnimationFrame(() => {
-      if (!ctx) return
-      renderMap(
-        ctx,
-        renderDataRef.current,
-        config,
-        allMarkers,
-        interaction.hoveredRegionId,
-        interaction.selectedRegionId,
-      )
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry) return
+      const width = Math.max(1, Math.round(entry.contentRect.width))
+      const height = Math.max(1, Math.round(entry.contentRect.height))
+      useWorldMapStore.getState().setConfig({ canvasWidth: width, canvasHeight: height })
     })
-
-    return () => cancelAnimationFrame(rafRef.current)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [regions, config, interaction.hoveredRegionId, interaction.selectedRegionId, allMarkers.length])
-
-  // 鼠标滚轮缩放
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault()
-    if (e.deltaY < 0) {
-      useWorldMapStore.getState().zoomIn()
-    } else {
-      useWorldMapStore.getState().zoomOut()
-    }
+    observer.observe(container)
+    return () => observer.disconnect()
   }, [])
 
-  // 鼠标按下（开始拖拽 / 选择）
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  const renderData = useMemo(() => (
+    projection ? computeRenderData(projection, config) : []
+  ), [projection, config])
+
+  useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas) return
+    if (!canvas || !projection) return
+    const context = canvas.getContext('2d')
+    if (!context) return
+    const ratio = window.devicePixelRatio || 1
+    canvas.width = Math.max(1, Math.round(config.canvasWidth * ratio))
+    canvas.height = Math.max(1, Math.round(config.canvasHeight * ratio))
+    canvas.style.width = `${config.canvasWidth}px`
+    canvas.style.height = `${config.canvasHeight}px`
+    context.setTransform(ratio, 0, 0, ratio, 0, 0)
+    renderMap(
+      context,
+      projection,
+      renderData,
+      config,
+      interaction.hoveredNodeId,
+      interaction.selectedNodeId,
+    )
+  }, [projection, renderData, config, interaction.hoveredNodeId, interaction.selectedNodeId])
 
-    const rect = canvas.getBoundingClientRect()
-    const mx = e.clientX - rect.left
-    const my = e.clientY - rect.top
+  const pointFor = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top }
+  }, [])
 
-    // 命中检测
-    const hit = renderDataRef.current.find((rd) => hitTestHex(mx, my, rd))
+  const hitAt = useCallback((x: number, y: number) => (
+    renderData.find((item) => hitTestNode(x, y, item))
+  ), [renderData])
 
-    if (hit) {
-      // 延迟设置拖拽（如果短按就是选择）
-      setDragStart(mx, my)
-      setTimeout(() => {
-        const state = useWorldMapStore.getState()
-        if (!state.interaction.isDragging) {
-          const regionId = hit.region.id
-          const newSelected = state.interaction.selectedRegionId === regionId ? null : regionId
-          setSelectedRegion(newSelected)
-          if (newSelected) {
-            setPanelInfo(hit.region)
-            onRegionSelect?.(hit.region)
-          } else {
-            setPanelInfo(null)
-            onRegionSelect?.(null)
-          }
-        }
-      }, 150)
-    } else {
-      setDragStart(mx, my)
-      setDragging(true)
-    }
-  }, [setDragStart, setDragging, setSelectedRegion, onRegionSelect])
+  const handleMouseDown = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
+    const point = pointFor(event)
+    pointerRef.current = { ...point, moved: false }
+    const store = useWorldMapStore.getState()
+    store.setDragStart(point.x, point.y)
+    store.setDragging(true)
+  }, [pointFor])
 
-  // 鼠标移动
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const rect = canvas.getBoundingClientRect()
-    const mx = e.clientX - rect.left
-    const my = e.clientY - rect.top
-
-    const state = useWorldMapStore.getState()
-
-    if (state.interaction.isDragging) {
-      const dx = mx - state.interaction.dragStartX
-      const dy = my - state.interaction.dragStartY
-      if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
-        panBy(dx, dy)
-        setDragStart(mx, my)
+  const handleMouseMove = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
+    const point = pointFor(event)
+    const pointer = pointerRef.current
+    if (pointer) {
+      const dx = point.x - pointer.x
+      const dy = point.y - pointer.y
+      if (Math.abs(dx) + Math.abs(dy) > 1) {
+        pointer.moved = true
+        useWorldMapStore.getState().panBy(dx, dy)
+        pointer.x = point.x
+        pointer.y = point.y
       }
-    } else {
-      // 悬停检测
-      const hit = renderDataRef.current.find((rd) => hitTestHex(mx, my, rd))
-      setHoveredRegion(hit?.region.id ?? null)
+      return
     }
-  }, [panBy, setDragStart, setHoveredRegion])
+    useWorldMapStore.getState().setHoveredNode(hitAt(point.x, point.y)?.node.nodeId ?? null)
+  }, [hitAt, pointFor])
 
-  // 鼠标松开
-  const handleMouseUp = useCallback(() => {
-    setDragging(false)
-  }, [setDragging])
+  const finishPointer = useCallback((event?: React.MouseEvent<HTMLCanvasElement>) => {
+    const pointer = pointerRef.current
+    pointerRef.current = null
+    const store = useWorldMapStore.getState()
+    store.setDragging(false)
+    if (!event || !pointer || pointer.moved) return
+    const point = pointFor(event)
+    const hit = hitAt(point.x, point.y)?.node ?? null
+    const selected = hit && store.interaction.selectedNodeId !== hit.nodeId ? hit : null
+    store.setSelectedNode(selected?.nodeId ?? null)
+    setPanelInfo(selected)
+    onNodeSelect?.(selected)
+  }, [hitAt, onNodeSelect, pointFor])
 
-  // 鼠标离开
-  const handleMouseLeave = useCallback(() => {
-    setDragging(false)
-    setHoveredRegion(null)
-  }, [setDragging, setHoveredRegion])
-
-  const handleResetView = useCallback(() => {
-    useWorldMapStore.getState().resetView()
+  const handleWheel = useCallback((event: React.WheelEvent<HTMLCanvasElement>) => {
+    event.preventDefault()
+    const store = useWorldMapStore.getState()
+    if (event.deltaY < 0) store.zoomIn()
+    else store.zoomOut()
   }, [])
 
   return (
@@ -196,84 +122,48 @@ export function WorldMapCanvas({ regions, markers: externalMarkers, onRegionSele
         onWheel={handleWheel}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseLeave}
+        onMouseUp={finishPointer}
+        onMouseLeave={() => {
+          finishPointer()
+          useWorldMapStore.getState().setHoveredNode(null)
+        }}
       />
 
-      {/* 控制栏 */}
       <div className={styles.controls}>
-        <button className={styles.controlBtn} onClick={() => useWorldMapStore.getState().zoomIn()} title="放大">
-          +
-        </button>
-        <button className={styles.controlBtn} onClick={() => useWorldMapStore.getState().zoomOut()} title="缩小">
-          −
-        </button>
-        <button className={styles.controlBtn} onClick={handleResetView} title="重置视图">
-          ⟳
-        </button>
+        <button className={styles.controlBtn} onClick={() => useWorldMapStore.getState().zoomIn()} title="放大" aria-label="放大">+</button>
+        <button className={styles.controlBtn} onClick={() => useWorldMapStore.getState().zoomOut()} title="缩小" aria-label="缩小">-</button>
+        <button className={styles.controlBtn} onClick={() => useWorldMapStore.getState().resetView()} title="重置视图" aria-label="重置视图">↺</button>
         <span className={styles.zoomLabel}>{Math.round(config.zoom * 100)}%</span>
       </div>
 
-      {/* 图例 */}
       <div className={styles.legend}>
-        <span className={styles.legendTitle}>地形</span>
-        {[['plain', '平原'], ['forest', '森林'], ['mountain', '山脉'], ['desert', '沙漠'], ['ocean', '海洋']].map(([key, label]) => (
-          <div key={key} className={styles.legendItem}>
-            <span
-              className={styles.legendColor}
-              style={{ background: key === 'plain' ? '#7ec87e' : key === 'forest' ? '#2d7d2d' : key === 'mountain' ? '#8b8b83' : key === 'desert' ? '#e8d5a3' : '#4a90d9' }}
-            />
-            <span className={styles.legendLabel}>{label}</span>
-          </div>
-        ))}
+        <label className={styles.legendItem}>
+          <input type="checkbox" checked={config.showTerrain} onChange={(event) => setConfig({ showTerrain: event.target.checked })} />
+          <span className={styles.legendLabel}>地形</span>
+        </label>
+        <label className={styles.legendItem}>
+          <input type="checkbox" checked={config.showResources} onChange={(event) => setConfig({ showResources: event.target.checked })} />
+          <span className={styles.legendLabel}>资源</span>
+        </label>
+        <label className={styles.legendItem}>
+          <input type="checkbox" checked={config.showEntities} onChange={(event) => setConfig({ showEntities: event.target.checked })} />
+          <span className={styles.legendLabel}>实体</span>
+        </label>
       </div>
 
-      {/* 区域信息面板 */}
       {panelInfo && (
         <div className={styles.infoPanel}>
           <h3 className={styles.infoTitle}>{panelInfo.name}</h3>
-          <div className={styles.infoRow}>
-            <span className={styles.infoLabel}>地形</span>
-            <span>{panelInfo.terrain}</span>
-          </div>
-          {panelInfo.directionLabel && (
-            <div className={styles.infoRow}>
-              <span className={styles.infoLabel}>方位</span>
-              <span>{panelInfo.directionLabel}</span>
-            </div>
-          )}
-          {panelInfo.ownerFaction && (
-            <div className={styles.infoRow}>
-              <span className={styles.infoLabel}>势力</span>
-              <span>{panelInfo.ownerFaction}</span>
-            </div>
-          )}
-          <div className={styles.infoRow}>
-            <span className={styles.infoLabel}>人口</span>
-            <span>{panelInfo.population.toLocaleString()}</span>
-          </div>
-          <div className={styles.infoRow}>
-            <span className={styles.infoLabel}>开发度</span>
-            <span>{panelInfo.development}%</span>
-          </div>
-          <div className={styles.infoRow}>
-            <span className={styles.infoLabel}>气温</span>
-            <span>{panelInfo.temperature}°C</span>
-          </div>
-          <div className={styles.infoRow}>
-            <span className={styles.infoLabel}>湿度</span>
-            <span>{panelInfo.humidity}%</span>
-          </div>
+          <div className={styles.infoRow}><span className={styles.infoLabel}>地形</span><span>{panelInfo.geography?.terrainClass ?? '未知'}</span></div>
+          <div className={styles.infoRow}><span className={styles.infoLabel}>资源</span><span>{panelInfo.resources.length}</span></div>
+          <div className={styles.infoRow}><span className={styles.infoLabel}>实体</span><span>{panelInfo.entityIds.length}</span></div>
+          {panelInfo.isCurrentLocation && <div className={styles.currentLocation}>当前位置</div>}
         </div>
       )}
 
-      {/* 无数据提示 */}
-      {regions.length === 0 && (
-        <div className={styles.empty}>
-          <p>暂无世界数据</p>
-          <p className={styles.emptyHint}>请先在创建世界中生成区域数据</p>
-        </div>
-      )}
+      {!projection || projection.nodes.length === 0 ? (
+        <div className={styles.empty}>暂无空间数据</div>
+      ) : null}
     </div>
   )
 }

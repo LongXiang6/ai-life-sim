@@ -356,7 +356,7 @@ const exactSampleContext = {
   modWorldRules: '<模组世界规则>',
   worldTagsText: '<世界标签>',
   calibrationSummary: '<世界校准>',
-  powerCeilingPresets: '<力量体系>',
+  powerFramework: '<力量体系>',
   talents: '<命格天赋>',
   characterProfileView: {
     字段名称: '<角色档案字段值>',

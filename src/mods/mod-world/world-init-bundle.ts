@@ -24,6 +24,7 @@ import {
   getWorldEntitySystem,
 } from './world-init-bundle-deps'
 import type { WorldConfig, WorldInitAIStatus, WorldSnapshot } from './types'
+import { assertValidPowerFramework, materializePowerFramework } from './utils/power-framework'
 import {
   buildFallbackWorldScoringProfile,
   isCompleteWorldScoringProfile,
@@ -33,7 +34,6 @@ import {
   createWorldInitPipelineContext,
   injectWorldInitOrchestratorContext,
   runWorldInitPipeline,
-  syncEntitiesToMapMarkers,
 } from './utils/world-init-pipeline'
 import { buildWorldInitPipelineBudgets } from './utils/world-init-budgets'
 import { isWorldInitAIAvailable } from './utils/world-init-fallback'
@@ -134,12 +134,20 @@ export async function commitWorldInitialization(
   const previousContextId = store.currentContextId
   const previousInstance = store.contexts[contextId]
   const coherentConfig = applyCoherenceToWorldConfig(config)
-  const resolvedConfig = isCompleteWorldScoringProfile(coherentConfig.scoringProfile)
-    && coherentConfig.scoringProfile.worldId === contextId
-    ? coherentConfig
+  if (!coherentConfig.powerFramework) throw new Error('世界配置缺少已定义的力量框架')
+  const framework = materializePowerFramework(coherentConfig.powerFramework, {
+    contextId,
+    powerSystemTag: coherentConfig.powerSystemTag,
+    source: coherentConfig.powerFramework.source,
+  })
+  assertValidPowerFramework(framework)
+  const coherentConfigWithFramework = { ...coherentConfig, powerFramework: framework }
+  const resolvedConfig = isCompleteWorldScoringProfile(coherentConfigWithFramework.scoringProfile)
+    && coherentConfigWithFramework.scoringProfile.worldId === contextId
+    ? coherentConfigWithFramework
     : {
-        ...coherentConfig,
-        scoringProfile: buildFallbackWorldScoringProfile(coherentConfig, contextId),
+        ...coherentConfigWithFramework,
+        scoringProfile: buildFallbackWorldScoringProfile(coherentConfigWithFramework, contextId),
         _scoringProfileSource: 'fallback' as const,
       }
   const parentContextId = options?.parentContextId ?? previousInstance?.record.parentContextId
@@ -225,7 +233,6 @@ export async function commitWorldInitialization(
       : await entitySystem.generateEntities(resolvedConfig)
     store.setEntities(entities)
     entities = useWorldStore.getState().entities
-    syncEntitiesToMapMarkers(entities)
   }
 
   const formattedTags = formatWorldTagsText(snapshot.tags)

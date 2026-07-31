@@ -10,7 +10,7 @@
 
 
 
-import type { AIModelConfig, PromptTemplate, TimeStep } from '@/foundation'
+import type { AIModelConfig, LuckNarrativeGuidance, PromptTemplate, TimeStep } from '@/foundation'
 import { encodeTimeStepKey } from '@/foundation'
 import { DEFAULT_AI_MODEL } from '@/core/ai-service'
 
@@ -26,6 +26,7 @@ export interface PreGenCachedRound {
   fullContent: string
   isBranchPoint: boolean
   signature: string
+  luckGuidance: LuckNarrativeGuidance
 }
 
 export interface PreGenQueueStatus {
@@ -65,12 +66,14 @@ function buildPreGenSignature(promptTemplate: PromptTemplate): string {
   const state = useEngineStore.getState()
   const settings = useSettingsStore.getState()
   const lastEntry = state.narrativeHistory[state.narrativeHistory.length - 1]
+  const luckState = orchestrator.getSubsystemStateSnapshot().luck?.data ?? null
   return [
     encodeTimeStepKey(state.timeStep),
     state.totalRounds,
     state.narrativeHistory.length,
     lastEntry?.id ?? '',
     state.round.totalDays,
+    JSON.stringify(luckState),
     settings.provider,
     settings.customUrl,
     settings.customModel,
@@ -278,6 +281,11 @@ export async function fillPreGenQueue(
 
   const gen = preGenActivity.begin()
   try {
+    // 预生成可能由后台调度器直接启动，不一定经过页面推进入口；
+    // 先水合世界上下文与实体目录，避免刷新后的 Store 投影阻断预览收集。
+    const { ensureOrchestratorContextFromStores } = await import('./save-restore')
+    if (!ensureOrchestratorContextFromStores()) return
+
     notifyPreGenListeners()
 
     // 上一真实回合的异步摘要压缩可能仍在提交。预生成快照必须等它完成，
@@ -314,6 +322,11 @@ export async function fillPreGenQueue(
 
           const fullContent = orchestrator.getLastExecutedFullContent()
           if (!fullContent?.trim()) return
+          const luckGuidance = orchestrator.getLastNarrativeLuckGuidance()
+          if (!luckGuidance) {
+            console.info('[PreGen] 预生成缺少本地气运引导，已放弃缓存')
+            return
+          }
 
           const wordCountTarget = useSettingsStore.getState().wordCountTarget
             ?? DEFAULT_WORD_COUNT_TARGET
@@ -329,6 +342,7 @@ export async function fillPreGenQueue(
             fullContent,
             isBranchPoint,
             signature,
+            luckGuidance,
           })
         } finally {
           if (preGenActivity.isCurrent(gen)) {

@@ -17,8 +17,6 @@ import {
   computeAtceRecommendation,
 } from './atce-signals.mjs'
 
-const isWin = process.platform === 'win32'
-
 /** @param {string} text */
 function extractFailLines(text) {
   return text
@@ -94,7 +92,6 @@ export function runDomain(domainId, opts) {
       cwd: opts.projectRoot,
       env,
       encoding: 'utf8',
-      shell: isWin,
     })
 
     const stdout = result.stdout ?? ''

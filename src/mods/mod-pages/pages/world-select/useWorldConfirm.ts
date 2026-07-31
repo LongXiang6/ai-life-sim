@@ -10,7 +10,7 @@ import { useCallback, useRef } from 'react'
 
 import { useRouter } from 'next/navigation'
 
-import { useGlobalStore, configStore } from '@/core'
+import { useGlobalStore } from '@/core'
 
 import { buildOrchestratorWorldSetting, orchestrator } from '@/mods/mod-engine/engine-api'
 import { useCharacterStore } from '@/mods/mod-character'
@@ -93,9 +93,6 @@ export function useWorldConfirm() {
     )
 
     if (typeof window !== 'undefined') {
-      try {
-        configStore.set('mod-power-system', 'power-ceiling', String(config.powerCeiling))
-      } catch { /* 存储不可用 */ }
     }
 
     router.push('/new-game/world-customize')

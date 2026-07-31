@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation'
 
 import { useGlobalStore, configStore } from '@/core'
 
-import { buildOrchestratorWorldSetting, orchestrator } from '@/mods/mod-engine/engine-api'
+import { ensureOrchestratorContextFromStores, orchestrator } from '@/mods/mod-engine/engine-api'
 import { useCharacterStore, randomName } from '@/mods/mod-character'
 import { useSettingsStore } from '@/mods/mod-settings'
 import { useWorldStore } from '@/mods/mod-world'
@@ -28,7 +28,7 @@ import {
   ATTRIBUTE_NAMES,
   RACE_LIFESPAN,
 } from '@/mods/mod-character'
-import type { BaseAttributes, LifespanState, RaceLifespanConfig } from '@/mods/mod-character'
+import type { BaseAttributes, LifespanDraftState, RaceLifespanConfig } from '@/mods/mod-character'
 
 import styles from './FatePreview.module.css'
 import { resolveWorldDimensionLabels } from '../../helpers/world-dimension-labels'
@@ -58,7 +58,7 @@ function resolveDisplayName(rawName: string, gender: string): string {
   return randomName(resolveRandomNameGender(gender))
 }
 
-function resolvePreviewRaceInfo(race: string, lifespan: LifespanState): RaceLifespanConfig {
+function resolvePreviewRaceInfo(race: string, lifespan: LifespanDraftState): RaceLifespanConfig {
   const catalogRace = RACE_LIFESPAN[race]
   if (catalogRace) return catalogRace
   if (lifespan.race?.name === race) return lifespan.race
@@ -67,7 +67,9 @@ function resolvePreviewRaceInfo(race: string, lifespan: LifespanState): RaceLife
   return {
     ...fallbackRace,
     name: race.trim() || fallbackRace.name || '未知',
-    baseMaxAge: lifespan.maxAge > 0 ? lifespan.maxAge : fallbackRace.baseMaxAge,
+    baseLifespanYears: lifespan.maximumLifespanYears > 0
+      ? lifespan.maximumLifespanYears
+      : fallbackRace.baseLifespanYears,
   }
 }
 
@@ -75,20 +77,20 @@ function hasConfirmedCharacter(
   name: string,
   race: string,
   startingAge: number,
-  lifespan: LifespanState,
+  lifespan: LifespanDraftState,
 ): boolean {
   const expectedRaceName = RACE_LIFESPAN[race]?.name ?? race.trim()
   return Boolean(
     name.trim()
     && expectedRaceName
     && lifespan.race?.name === expectedRaceName
-    && Number.isFinite(lifespan.maxAge)
-    && lifespan.maxAge > 0
-    && Number.isFinite(lifespan.baseMaxAge)
-    && lifespan.baseMaxAge > 0
+    && Number.isFinite(lifespan.maximumLifespanYears)
+    && lifespan.maximumLifespanYears > 0
+    && Number.isFinite(lifespan.race.baseLifespanYears)
+    && lifespan.race.baseLifespanYears > 0
     && Number.isFinite(startingAge)
     && startingAge >= 0
-    && startingAge < lifespan.maxAge
+    && startingAge < lifespan.maximumLifespanYears
   )
 }
 
@@ -158,7 +160,7 @@ function FatePreviewContent() {
   const characterBase = useCharacterStore((s) => s.characterBase)
   const destinyPatterns = useCharacterStore((s) => s.destinyPatterns)
   const equippedMythicPatterns = useCharacterStore((s) => s.equippedMythicPatterns)
-  const lifespan = useCharacterStore((s) => s.lifespan)
+  const lifespan = useCharacterStore((s) => s.lifespanDraft)
   const talents = useCharacterStore((s) => s.talents)
 
   const worldConfig = useWorldStore((s) => s.worldConfig)
@@ -166,6 +168,7 @@ function FatePreviewContent() {
   const worldInitialized = useWorldStore((s) => s.initialized)
   const worldInitAIStatus = useWorldStore((s) => s.worldInitAIStatus)
   const setGamePhase = useGlobalStore((s) => s.setGamePhase)
+  const allModsLoaded = useGlobalStore((s) => s.allModsLoaded)
 
   const genderLabel = GENDER_LABELS[gender] ?? gender
   const startingAge = characterBase.startingAge
@@ -173,6 +176,7 @@ function FatePreviewContent() {
   const settingsStorySeed = useSettingsStore((s) => s.storySeed)
   const setSettingsStorySeed = useSettingsStore((s) => s.setStorySeed)
   const [storySeed, _setStorySeed] = useState(savedFp?.storySeed ?? settingsStorySeed ?? '')
+  const [startError, setStartError] = useState<string | null>(null)
 
   const setStorySeed = useCallback((v: string) => {
     _setStorySeed(v)
@@ -188,6 +192,8 @@ function FatePreviewContent() {
     : !destinyPatternsConfirmed
       ? `当前已确认 ${selectedPatterns.length} 条命格；开始人生前必须恰好确认 ${DESTINY_PATTERN_SELECT_COUNT} 条。`
       : null
+  const runtimeGateReason = allModsLoaded ? null : '核心模拟系统正在加载，请稍候。'
+  const startNotice = startError ?? creationGateReason ?? runtimeGateReason
   const localWorldReady = worldInitialized && !!worldConfig && worldCode > 0
   const initStepsComplete = Boolean(
     worldInitAIStatus
@@ -226,14 +232,17 @@ function FatePreviewContent() {
   /** 开始人生 */
   const handleStartLife = useCallback(() => {
     if (!characterConfirmed || !destinyPatternsConfirmed || !aiComplete) return
+    if (!allModsLoaded) {
+      setStartError('核心模拟系统尚未加载完成，请稍候再试。')
+      return
+    }
     if (!worldConfig) return
+    setStartError(null)
 
     const displayName = resolveDisplayName(name, gender)
     if (displayName !== name.trim()) {
       useCharacterStore.getState().setName(displayName)
     }
-    const eraStartYear = useWorldStore.getState().eraStartYear
-    const worldSetting = buildOrchestratorWorldSetting(worldConfig, { eraStartYear: eraStartYear || undefined })
 
     const confirmedBase = { ...characterBase.base }
     useCharacterStore.getState().setCharacterBase({
@@ -243,29 +252,21 @@ function FatePreviewContent() {
       contextModifiers: {},
     })
 
-    const patternSummaries = selectedPatterns.map((p) => ({
-      name: p.name,
-      description: p.description,
-      effect: p.effect,
-      rarity: p.rarity,
-      polarity: p.polarity,
-    }))
-
-    orchestrator.setContext(
-      worldSetting,
-      {
-        characterId: useCharacterStore.getState().ensureCharacterId(),
-        name: displayName,
-        age: startingAge,
-        gender,
-        background: useCharacterStore.getState().background || `${displayName}，来自${worldConfig?.name ?? '未知世界'}的穿越者`,
-        attributes: confirmedBase as unknown as Record<string, unknown>,
-        destinyPatterns: patternSummaries,
-      },
-    )
+    const characterId = useCharacterStore.getState().ensureCharacterId()
+    // 起始年龄先写入 owning Store，再由引擎公共入口建立实体目录、空间位置和完整运行上下文。
+    useCharacterStore.setState({ age: startingAge })
+    if (!ensureOrchestratorContextFromStores()) {
+      setStartError('无法建立当前世界与角色的模拟上下文，请返回世界配置重新确认。')
+      return
+    }
+    const targetContextId = useWorldStore.getState().currentContextId
+    if (!targetContextId) {
+      setStartError('当前世界缺少有效的模拟上下文，请返回世界配置重新确认。')
+      return
+    }
 
     // 首轮叙事会从 character-base 子系统派生年龄；经编排器提交总线同步同一个创建结果，避免首轮回写旧年龄。
-    orchestrator.applyRoundChanges([
+    const commitResult = orchestrator.applyRoundChanges([
       {
         id: 'character-base',
         description: '角色创建完成，以玩家确认的基础属性和起始年龄进入叙事',
@@ -278,22 +279,35 @@ function FatePreviewContent() {
       },
       {
         id: 'lifespan',
+        targetObjectId: characterId,
+        targetContextId,
+        operation: 'set-rule',
+        evidenceEventIds: [],
         description: '角色创建完成，写入玩家确认的种族与寿命',
         changes: {
           raceId: race,
-          worldName: worldConfig?.name ?? '',
-          maxAge: lifespan.maxAge,
+          raceDisplayName: lifespan.race.name,
+          clockMode: lifespan.race.clockMode,
+          baseLifespanDays: Math.round(lifespan.race.baseLifespanYears * 365),
+          maximumLifespanDays: Math.round(lifespan.maximumLifespanYears * 365),
+          attrBaselines: lifespan.race.attrBaselines ?? {},
         },
       },
     ], 'manual')
-
-    // 角色创建写入的 startingAge 是开局年龄单一来源；这里只同步当前年龄，不重新推导或覆盖。
-    useCharacterStore.setState({ age: startingAge })
+    if (commitResult.rejected.length > 0 || commitResult.committed.length !== 3) {
+      const rejectedReasons = commitResult.rejected
+        .map((item) => `${item.change.id || '未知系统'}：${item.reason}`)
+        .join('；')
+      setStartError(
+        `角色创建状态未能完整提交：${rejectedReasons || `仅完成 ${commitResult.committed.length} / 3 项写入`}`,
+      )
+      return
+    }
     setSettingsStorySeed(storySeed)
 
     setGamePhase('simulation')
     router.push('/game-story')
-  }, [aiComplete, characterBase.base, characterConfirmed, destinyPatternsConfirmed, name, gender, race, startingAge, lifespan.maxAge, worldConfig, setGamePhase, router, selectedPatterns, setSettingsStorySeed, storySeed])
+  }, [aiComplete, allModsLoaded, characterBase.base, characterConfirmed, destinyPatternsConfirmed, name, gender, race, startingAge, lifespan, worldConfig, setGamePhase, router, selectedPatterns, setSettingsStorySeed, storySeed])
 
   const attrKeys = ['physique', 'mind', 'talentAptitude', 'charisma'] as const
 
@@ -348,7 +362,7 @@ function FatePreviewContent() {
               </div>
             </div>
             <div className={styles.stats}>
-              <div><b>{lifespan.maxAge > 0 ? lifespan.maxAge : raceInfo.baseMaxAge} 年</b><span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">⏳</span>预期寿命</span></div>
+              <div><b>{lifespan.maximumLifespanYears > 0 ? lifespan.maximumLifespanYears : raceInfo.baseLifespanYears} 年</b><span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">⏳</span>预期寿命</span></div>
               <div><b>{worldDimensionLabels?.powerSystem ?? '待确认'}</b><span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">⚡</span>力量体系</span></div>
               <div><b>{worldDimensionLabels?.spatialForm ?? '待确认'}</b><span><span className="semantic-emoji" data-semantic-emoji aria-hidden="true">🗺️</span>世界空间</span></div>
             </div>
@@ -434,7 +448,7 @@ function FatePreviewContent() {
               <strong id="world-init-title">世界初始化</strong>
               <span aria-live="polite">{aiProgress} / 4 完成</span>
             </div>
-            {creationGateReason && <p className={styles.gateNotice} role="alert">{creationGateReason}</p>}
+            {startNotice && <p className={styles.gateNotice} role="alert">{startNotice}</p>}
             <div className={styles.initStepList}>
               {WORLD_INIT_STEPS.map((step) => {
                 const done = worldInitAIStatus ? step.doneFlag(worldInitAIStatus) : false
@@ -470,11 +484,11 @@ function FatePreviewContent() {
         onBack={() => router.push(!characterConfirmed ? '/new-game/character-create' : '/attribute-alloc')}
         backTitle={!characterConfirmed ? '返回确认角色' : '返回确认属性'}
         onConfirm={handleStartLife}
-        confirmText={creationGateReason ? '创建信息未完成' : aiComplete ? '开始人生' : aiFailed ? '初始化失败' : (aiIsRunning ? '请等待…' : '等待世界初始化')}
+        confirmText={creationGateReason ? '创建信息未完成' : runtimeGateReason ? '加载模拟系统' : aiComplete ? '开始人生' : aiFailed ? '初始化失败' : (aiIsRunning ? '请等待…' : '等待世界初始化')}
         confirmNumber="08"
-        confirmDescription={creationGateReason ?? (aiComplete ? '所有起点已确认 · 开启人生' : aiFailed ? '请返回世界配置重新确认' : aiIsRunning ? `世界初始化 ${aiProgress} / 4` : '等待世界初始化完成')}
-        confirmDisabled={Boolean(creationGateReason) || !aiComplete}
-        confirmTitle={creationGateReason ?? (!aiComplete ? aiFailed ? '世界初始化失败，请返回世界配置重新确认' : '等待世界初始化完成' : '开始人生')}
+        confirmDescription={creationGateReason ?? runtimeGateReason ?? (aiComplete ? '所有起点已确认 · 开启人生' : aiFailed ? '请返回世界配置重新确认' : aiIsRunning ? `世界初始化 ${aiProgress} / 4` : '等待世界初始化完成')}
+        confirmDisabled={Boolean(creationGateReason || runtimeGateReason) || !aiComplete}
+        confirmTitle={creationGateReason ?? runtimeGateReason ?? (!aiComplete ? aiFailed ? '世界初始化失败，请返回世界配置重新确认' : '等待世界初始化完成' : '开始人生')}
           />
         </div>
       </div>

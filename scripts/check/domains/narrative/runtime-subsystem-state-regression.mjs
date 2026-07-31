@@ -64,6 +64,41 @@ const activeSubsystems = [
     requiresCollectedStateHydration: false,
   },
   {
+    id: 'geography',
+    className: 'GeographySystem',
+    file: 'src/mods/mod-environment-ecology/subsystems/geography-system.ts',
+    previewMutable: true,
+    requiresCollectedStateHydration: false,
+  },
+  {
+    id: 'natural-resource',
+    className: 'NaturalResourceSystem',
+    file: 'src/mods/mod-environment-ecology/subsystems/natural-resource-system.ts',
+    previewMutable: true,
+    requiresCollectedStateHydration: false,
+  },
+  {
+    id: 'growth-system',
+    className: 'GrowthSystem',
+    file: 'src/mods/mod-progression/subsystems/growth-system.ts',
+    previewMutable: true,
+    requiresCollectedStateHydration: false,
+  },
+  {
+    id: 'achievement',
+    className: 'AchievementSystem',
+    file: 'src/mods/mod-progression/subsystems/achievement-system.ts',
+    previewMutable: true,
+    requiresCollectedStateHydration: false,
+  },
+  {
+    id: 'reputation',
+    className: 'ReputationSystem',
+    file: 'src/mods/mod-progression/subsystems/reputation-system.ts',
+    previewMutable: true,
+    requiresCollectedStateHydration: false,
+  },
+  {
     id: 'character-base',
     className: 'CharacterBaseSystem',
     file: 'src/mods/mod-character/subsystems/character-base-system.ts',
@@ -82,14 +117,29 @@ const activeSubsystems = [
     className: 'LifespanSystem',
     file: 'src/mods/mod-character/subsystems/lifespan-system.ts',
     previewMutable: true,
-    requiresCollectedStateHydration: true,
+    requiresCollectedStateHydration: false,
+  },
+  {
+    id: 'lifecycle-system',
+    className: 'LifecycleSystem',
+    file: 'src/mods/mod-character/subsystems/lifecycle-system.ts',
+    previewMutable: true,
+    requiresCollectedStateHydration: false,
+  },
+  {
+    id: 'health',
+    className: 'HealthSystem',
+    file: 'src/mods/mod-character/subsystems/health-system.ts',
+    previewMutable: true,
+    requiresCollectedStateHydration: false,
   },
   {
     id: 'luck',
     className: 'LuckSystem',
     file: 'src/mods/mod-character/subsystems/luck-system.ts',
     previewMutable: true,
-    requiresCollectedStateHydration: true,
+    requiresCollectedStateHydration: false,
+    requiresPersistentSnapshot: true,
   },
   {
     id: 'morality',
@@ -108,19 +158,25 @@ const expectedExternalRuntime = [
   'simulation-scope-policy',
   'world-init',
   'historical-event-ledger',
-  ...activeSubsystems.map(({ id }) => id),
+  'world-entity', 'relationship-system', 'npc-system', 'geography', 'natural-resource',
+  'climate', 'ecology', 'pollution', 'growth-system', 'achievement', 'reputation',
+  'character-base', 'destiny-pattern', 'lifespan', 'lifecycle-system', 'health', 'luck',
+  'morality', 'celestial', 'era', 'fate-prophecy', 'divine-creation', 'economy',
+  'population', 'settlement', 'work', 'item', 'culture', 'art', 'education', 'works',
+  'social-stratification', 'faction-dynamics', 'legal', 'conflict-cycle', 'culture-tech',
+  'combat-power', 'cultivation', 'monster', 'fortune-encounter', 'faith',
+  'divine-intervention', 'anomaly-phenomena',
 ]
 
 const mvpConfig = JSON.parse(read('src/mods/mod-engine/helpers/mvp-stages-config.default.json'))
-const externalRuntime = mvpConfig?.stages?.mvp?.runtime?.external ?? []
+const externalRuntime = mvpConfig?.stages?.[mvpConfig.currentStage]?.runtime?.external ?? []
 assertOk(
   JSON.stringify(externalRuntime) === JSON.stringify(expectedExternalRuntime),
-  'MVP external runtime whitelist must keep P0, P1 and P2 systems in canonical order',
+  'current external runtime whitelist must keep P0-P8 systems in canonical order',
 )
-assertOk(!externalRuntime.includes('health'), 'health must remain inactive in the MVP runtime whitelist')
 assertOk(
-  !externalRuntime.includes('post-death-epilogue'),
-  'post-death-epilogue must remain inactive in the MVP runtime whitelist',
+  externalRuntime.includes('health') && externalRuntime.includes('lifecycle-system'),
+  'P5 health and lifecycle owners must be active in the MVP runtime whitelist',
 )
 
 const sourceFiles = walkSourceFiles(path.join(root, 'src'))
@@ -131,6 +187,10 @@ for (const subsystem of activeSubsystems) {
   if (subsystem.requiresCollectedStateHydration) {
     assertIncludes(source, 'hydrateFromStore()', `${subsystem.id} must hydrate creation/persisted Store data`)
     assertIncludes(source, 'restoreCollectedState(', `${subsystem.id} must restore orchestrator collected data`)
+  }
+  if (subsystem.requiresPersistentSnapshot) {
+    assertIncludes(source, 'capturePersistenceState()', `${subsystem.id} must expose its owning persistence snapshot`)
+    assertIncludes(source, 'restorePersistenceState(', `${subsystem.id} must restore its owning persistence snapshot`)
   }
   if (subsystem.previewMutable) {
     assertIncludes(source, 'capturePreviewState()', `${subsystem.id} must capture preview-mutated private state`)
@@ -199,6 +259,7 @@ assertIncludes(worldBundle, 'entitySystem.reset()', 'starting a world must clear
 assertIncludes(worldPipeline, 'const entitySystem = getWorldEntitySystem()', 'world AI pipeline must use the runtime entity singleton')
 
 const orchestrator = read('src/mods/mod-engine/subsystems/orchestrator-system.ts')
+const engineHooks = read('src/mods/mod-engine/hooks.ts')
 for (const expected of [
   'subsystemPreviewStates: Record<string, unknown>',
   'subsystemPreviewStates: this.captureSubsystemPreviewStates()',
@@ -213,8 +274,21 @@ assertOk(
   'both normal preview restore and invalidated-preview reconcile must restore external private state',
 )
 assertOk(
-  /this\.syncBranchIntentProjectionToEngineStore\(\)\s*this\.collectSubsystemStates\(false, false\)/s.test(orchestrator),
+  /this\.lastNarratedTimeStep = \{ \.\.\.this\.state\.timeStep \}\s*this\.collectSubsystemStates\(false, false\)/s.test(orchestrator),
   'narrative commit must refresh lastSubsystemStates in the same round without duplicating relevance',
+)
+assertOk(
+  !/this\.lastNarratedTimeStep = \{ \.\.\.this\.state\.timeStep \}[\s\S]{0,160}this\.syncBranchIntentProjectionToEngineStore\(\)/.test(orchestrator),
+  'narrative settlement must not validate the branch projection before EngineStore receives the committed history',
+)
+const historySyncIndex = engineHooks.indexOf('narrativeHistory: mergedHistory')
+const projectionSyncIndex = engineHooks.indexOf(
+  'useEngineStore.getState().setBranchIntentProjection({',
+  historySyncIndex,
+)
+assertOk(
+  historySyncIndex >= 0 && projectionSyncIndex > historySyncIndex,
+  'the unified Store sync must persist narrative history before validating the derived branch projection',
 )
 assertOk(
   !/source === 'manual'[\s\S]*?this\.collectSubsystemStates\(false, false\)/.test(orchestrator),
@@ -312,10 +386,10 @@ assertIncludes(
 
 const lifespan = read('src/mods/mod-character/subsystems/lifespan-system.ts')
 assertOk(!lifespan.includes('getLifecycleStageLabel'), 'lifespan summary must not inject a second fixed human life-stage authority')
-assertOk(!/当前年龄 \$\{age\} \$\{stageLabel\}/.test(lifespan), 'lifespan summary must leave stage wording to the canonical life-stage helper')
+assertOk(!/当前年龄 \$\{age\} \$\{stageLabel\}/.test(lifespan), 'lifespan summary must leave stage wording to lifecycle-system')
 
 const sync = read('src/mods/mod-engine/helpers/subsystem-store-sync.ts')
-for (const id of ['character-base', 'destiny-pattern', 'lifespan', 'morality', 'world-entity', 'luck']) {
+for (const id of ['character-base', 'destiny-pattern', 'lifespan', 'lifecycle-system', 'health', 'morality', 'world-entity', 'luck']) {
   assertIncludes(sync, `'${id}'`, `Store synchronization must include ${id}`)
 }
 assertIncludes(sync, 'useCharacterStore.setState(', 'runtime state must sync to the character Store')
@@ -349,7 +423,11 @@ assertIncludes(saveRestore, "assertCompressionIdle('手动存档')", 'manual sav
 assertIncludes(saveRestore, 'useCharacterStore.setState(previous.character, true)', 'failed core restore must roll character Store back atomically')
 assertIncludes(saveRestore, 'useWorldStore.setState(previous.world, true)', 'failed core restore must roll world Store back atomically')
 assertIncludes(saveRestore, 'useEngineStore.setState(previous.engine, true)', 'failed core restore must roll engine Store back atomically')
-assertIncludes(saveRestore, 'orchestrator.restoreSnapshot(previous.orchestrator)', 'failed core restore must roll the runtime singleton back atomically')
+assertIncludes(
+  saveRestore,
+  'orchestrator.restorePreviewSnapshot(previous.orchestrator)',
+  'failed core restore must roll the runtime singleton back atomically from the non-persistent preview snapshot',
+)
 assertIncludes(saveRestore, "const savedContextId = (data.orchestrator as { worldContextId?: unknown }).worldContextId", 'save restore must read the orchestrator world-context identity')
 assertIncludes(saveRestore, "savedContextId !== restoredWorld.currentContextId", 'save restore must reject a world/orchestrator context mismatch before entering simulation')
 const worldMigrationIndex = saveRestore.indexOf('const migratedWorld = sanitizeWorldStateSnapshot(core.world)')
@@ -402,7 +480,7 @@ assertOk(
   !preGen.includes('parseNarrativeSettlementEnvelope')
     && !preGen.includes('translateNarrativeAISettlement')
     && !preGen.includes('handleNarrativeResponse('),
-  'preview generation must not run or commit the second settlement responsibility',
+  'preview generation must not run or commit data analysis or event recognition',
 )
 assertOk(
   !/void\s+fillPreGenQueue\(promptTemplate,\s*sessionId\)/.test(preGen),
@@ -433,18 +511,28 @@ assertOk(
 )
 const campaignQuality = read('src/mods/mod-engine/campaigns/default/index.ts')
 assertIncludes(campaignQuality, "name: 'ai-narration'", 'Campaign must declare the first pure narrative stage')
-assertIncludes(campaignQuality, "name: 'ai-settlement'", 'Campaign must declare the second settlement stage')
+assertIncludes(campaignQuality, "name: 'publish-narrative'", 'Campaign must publish the accepted story before background analysis')
+assertIncludes(campaignQuality, "name: 'ai-data-analysis'", 'Campaign must declare the background data-analysis stage')
+assertIncludes(campaignQuality, "name: 'ai-event-recognition'", 'Campaign must declare the background event-recognition stage')
+assertOk(
+  campaignQuality.match(/parallelGroup: 'narrative-background-analysis'/gu)?.length === 2
+    && campaignQuality.includes("dependsOn: ['ai-data-analysis', 'ai-event-recognition']"),
+  'data analysis and event recognition must run in one explicit parallel group before post-processing',
+)
 assertIncludes(campaignQuality, 'inspectNarrativeResponseQuality(', 'main and preview generation must inspect the complete first response')
 assertIncludes(campaignQuality, 'inspectNarrativeSettlementQuality({', 'real rounds must inspect the complete second response before commit')
+assertIncludes(campaignQuality, 'inspectNarrativeEventRecognitionQuality({', 'real rounds must strictly inspect the future-event response before commit')
 assertOk(
   campaignQuality.includes('const MAX_FORMAT_REPAIR_ATTEMPTS = 2')
-    && campaignQuality.match(/repairAttempts < MAX_FORMAT_REPAIR_ATTEMPTS/gu)?.length === 2
+    && campaignQuality.match(/repairAttempts < MAX_FORMAT_REPAIR_ATTEMPTS/gu)?.length === 3
     && campaignQuality.includes('callAIWithPromptTemplate(promptTemplate, segments.full, {')
-    && campaignQuality.includes('callAIWithPromptTemplate(narrativeSettlementPrompt, joinedInput, {'),
+    && campaignQuality.includes('callAIWithPromptTemplate(narrativeSettlementPrompt, joinedInput, {')
+    && campaignQuality.includes('callAIWithPromptTemplate(narrativeEventRecognitionPrompt, joinedInput, {'),
   'each response type must reuse its original asset and dynamic messages for at most two format repairs',
 )
 assertIncludes(campaignQuality, '⟦上一版叙事响应⟧${response}', 'first-response repair must retain the complete rejected response')
 assertIncludes(campaignQuality, 'buildNarrativeSettlementRepairInstruction(quality, response)', 'settlement repair must retain and repair the complete rejected settlement')
+assertIncludes(campaignQuality, 'buildNarrativeEventRecognitionRepairInstruction(quality, response)', 'event-recognition repair must retain and repair the complete rejected response')
 const qualityOrchestrator = read('src/mods/mod-engine/subsystems/orchestrator-system.ts')
 assertOk(
   campaignQuality.includes('const requestBranch = useEngineStore.getState().forceBranchNext')
@@ -453,11 +541,13 @@ assertOk(
     && qualityOrchestrator.includes('branchOptions: []'),
   'forced branching must request AI options but commit a custom-input branch point when a complete response omits them',
 )
-assertIncludes(campaignQuality, 'if (orchestrator.isPreviewExecution()) return', 'preview execution must stop before the settlement stage')
+assertIncludes(campaignQuality, 'if (orchestrator.isPreviewExecution()) return', 'preview execution must stop before player publication and both background AI stages')
 assertIncludes(campaignQuality, 'if (!ctx._settledNarrative)', 'a missing or twice-rejected settlement must not reach post-processing')
+assertIncludes(campaignQuality, 'if (!ctx._recognizedEventCandidates)', 'a missing or twice-rejected event candidate set must not reach post-processing')
 const roundHooks = read('src/mods/mod-engine/hooks.ts')
 assertIncludes(roundHooks, 'const roundSnapshot = orchestrator.capturePreviewSnapshot()', 'real rounds must capture the complete runtime rollback point before advancing time')
 assertIncludes(roundHooks, 'orchestrator.restorePreviewSnapshot(roundSnapshot)', 'failed narrative rounds must roll back time, Store state, and subsystem state')
+assertIncludes(roundHooks, "'failed',\n          executionError.executionCode", 'failed background work must retain the published body with the exact terminal status code')
 const successfulFinalizationIndex = roundHooks.indexOf('queueRoundFinalization(async () => {')
 const successfulOutcomeIndex = roundHooks.indexOf('postNarrativeRoundOutcome(report)', successfulFinalizationIndex)
 const nextPreviewIndex = roundHooks.indexOf('fillPreGenQueue(narrativePrompt', successfulFinalizationIndex)
@@ -563,6 +653,8 @@ assertIncludes(
 )
 
 const gameStory = read('src/mods/mod-pages/pages/game-story/page.tsx')
+const engineStore = read('src/mods/mod-engine/store.ts')
+const narrativeTimeline = read('src/mods/mod-ui/components/organisms/NarrativeTimeline.tsx')
 assertIncludes(gameStory, 'runtimeReadiness,', 'the story page must consume engine-owned runtime readiness')
 assertOk(!gameStory.includes('allModsLoaded'), 'the story page must not gate simulation controls on loader UI state alone')
 assertIncludes(gameStory, '核心系统未完整加载', 'the story page must distinguish incomplete registration from normal initialization')
@@ -575,16 +667,31 @@ assertOk(
   !gameStory.includes('disabled={!isRuntimeReady || isAdvancing || preGenStatus.isActive}'),
   'background pre-generation alone must not disable the manual-save entry',
 )
+assertOk(
+  engineStore.includes('pendingNarrative: PendingNarrative | null')
+    && engineStore.includes('pendingNarrative: _pn')
+    && engineStore.includes('updatePendingNarrative: _upn')
+    && engineStore.includes('clearPendingNarrative: _cpn'),
+  'the published story projection must stay non-persistent and expose explicit pending, committing, and failed transitions',
+)
+assertOk(
+  gameStory.includes('pendingNarrative.roundSequence > totalRounds')
+    && gameStory.includes('showGenerationCursor={isAdvancing && !hasVisiblePendingNarrative}')
+    && gameStory.includes('正文已生成，但本轮未完成结算')
+    && narrativeTimeline.includes('if (showGenerationCursor)')
+    && narrativeTimeline.includes('const canTapAdvance = showAdvance && !advanceBlocked && !isGenerating'),
+  'the story page must show accepted prose immediately, remove the generation cursor, keep controls blocked, and retain failed prose feedback',
+)
 
 const campaign = read('src/mods/mod-engine/campaigns/default/index.ts')
 assertOk(
   (campaign.match(/orchestrator\.collectAllSubsystemStates\(\)/g) ?? []).length >= 1,
   'the first campaign collection must still record relevance',
 )
-assertIncludes(
-  campaign,
-  'orchestrator.collectAllSubsystemStates(false)',
-  'the post-linkage collection must not duplicate relevance history',
+assertOk(
+  !campaign.includes('orchestrator.collectAllSubsystemStates(false)')
+    && orchestrator.includes('this.collectSubsystemStates(false, false)'),
+  'post-commit state refresh must stay inside the orchestrator without duplicating relevance history',
 )
 assertIncludes(campaign, 'settings.storySeed.trim()', 'campaign must normalize the configured story seed')
 assertIncludes(

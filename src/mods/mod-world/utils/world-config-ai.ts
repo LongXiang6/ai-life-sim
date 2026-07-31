@@ -27,7 +27,7 @@ const FLAT_FIELD_MARKERS = [
   'literacyRate',
   'governmentType',
   'inflationRate',
-  'powerCeiling',
+  'powerHierarchyComplexity',
   'overallMood',
 ] as const
 

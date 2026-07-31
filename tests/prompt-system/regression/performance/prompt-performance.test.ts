@@ -17,7 +17,7 @@ describe('Repair Pipeline Performance', () => {
     }
 
     const start = performance.now()
-    const metrics = await pipeline.repairWithMetrics(input, context)
+    await pipeline.repairWithMetrics(input, context)
     const duration = performance.now() - start
 
     expect(duration).toBeLessThan(50)
@@ -54,7 +54,7 @@ describe('Repair Pipeline Performance', () => {
     }
 
     const start = performance.now()
-    const metrics = await pipeline.repairWithMetrics(input, context)
+    await pipeline.repairWithMetrics(input, context)
     const duration = performance.now() - start
 
     expect(duration).toBeLessThan(100)

@@ -14,6 +14,9 @@ export const MOD_SECONDARY_API_IMPORTERS: Record<string, readonly (() => Promise
   'mod-engine': [
     () => import('@/mods/mod-engine/engine-api') as Promise<Record<string, unknown>>,
   ],
+  'mod-environment-ecology': [
+    () => import('@/mods/mod-environment-ecology/environment-simulation-api') as Promise<Record<string, unknown>>,
+  ],
   'mod-history-dynamics': [
     () => import('@/mods/mod-history-dynamics/historical-event-api') as Promise<Record<string, unknown>>,
   ],

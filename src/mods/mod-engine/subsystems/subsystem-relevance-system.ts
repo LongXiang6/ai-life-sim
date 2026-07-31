@@ -11,15 +11,11 @@
  *   1. 年龄过滤：根据角色年龄决定哪些系统相关
  *   2. 阶层过滤：根据社会阶层决定哪些系统相关
  *   3. 势力过滤：根据所属势力决定哪些系统相关
- *   4. 影响力过滤：根据角色力量等级决定叙事因果影响范围（个人/区域/世界）
+ *   4. 影响力过滤：根据当前世界力量框架的相对进度决定叙事因果影响范围
  *   5. 始终相关：某些系统始终需要（如健康、寿命）
  *
- * 影响力维度（第五维）：
- *   角色的力量等级越高，其叙事因果的影响范围越大。
- *   - 凡人（力量 0-30）：只关注个人和家庭级别的信息
- *   - 强者（力量 31-70）：关注城镇和区域级别的信息
- *   - 大能（力量 71-90）：关注大陆和国家级别的信息
- *   - 至强者（力量 91+）：关注世界和宇宙级别的信息
+ * 影响力维度不使用跨世界固定阶位。力量系统只在本世界框架内计算相对进度，
+ * 再将相对进度映射到叙事作用范围。
  */
 
 import type { ISubSystem, RoundContext, SubSystemState, SubSystemChanges, } from '@/foundation'
@@ -32,16 +28,10 @@ import type { ISubSystem, RoundContext, SubSystemState, SubSystemChanges, } from
 const AGE_THRESHOLDS: Record<string, { minAge?: number; maxAge?: number }> = {
   // 儿童期相关
   'education': { minAge: 3, maxAge: 25, },
-  'family': { minAge: 0, maxAge: 20, },
-  
   // 成年期相关
   'work': { minAge: 16, },
-  'marriage': { minAge: 16, },
-  
   // 中老年相关
   'health': { minAge: 40, },
-  'retirement': { minAge: 55, },
-  
   // 修炼相关（视世界观而定）
   'cultivation': { minAge: 5, },
   'combat-power': { minAge: 10, },
@@ -52,14 +42,13 @@ const CLASS_RELEVANT_SYSTEMS: Record<string, string[]> = {
   'noble': ['faction-dynamics', 'reputation', 'economy', 'legal',],
   'commoner': ['economy', 'work', 'health',],
   'peasant': ['economy', 'health', 'population',],
-  'merchant': ['economy', 'market', 'reputation',],
+  'merchant': ['economy', 'reputation',],
   'cultivator': ['cultivation', 'combat-power', 'luck',],
 }
 
 /** 势力相关子系统 */
 const FACTION_RELEVANT_SYSTEMS: Record<string, string[]> = {
-  'faction-dynamics': ['reputation', 'power', 'economy',],
-  'nation-relation': ['reputation', 'power', 'military',],
+  'faction-dynamics': ['reputation', 'economy',],
 }
 
 /** 始终相关的子系统（不受过滤影响） */
@@ -67,6 +56,7 @@ const ALWAYS_RELEVANT = [
   'character-base',
   'health',
   'lifespan',
+  'lifecycle-system',
   'morality',
   'luck',
   'historical-event-ledger',
@@ -79,51 +69,41 @@ const ALWAYS_RELEVANT = [
 /** 影响力等级 */
 export type InfluenceScope = 'personal' | 'town' | 'region' | 'continent' | 'world'
 
-/** 影响力等级阈值（基于角色总力量值） */
-const INFLUENCE_THRESHOLDS: Record<InfluenceScope, { minPower: number; label: string }> = {
-  personal:  { minPower: 0,  label: '凡人', },
-  town:      { minPower: 31, label: '强者', },
-  region:    { minPower: 71, label: '大能', },
-  continent: { minPower: 91, label: '至强者', },
-  world:     { minPower: 121, label: '超凡入圣', },
+/** 影响力等级阈值（基于本世界相对进度分数） */
+const INFLUENCE_THRESHOLDS: Record<InfluenceScope, { minScore: number; label: string }> = {
+  personal:  { minScore: 0, label: '个人', },
+  town:      { minScore: 25, label: '聚落', },
+  region:    { minScore: 50, label: '区域', },
+  continent: { minScore: 75, label: '大范围', },
+  world:     { minScore: 90, label: '世界', },
 }
 
 /** 各影响力等级对应的子系统（按范围递进） */
 const INFLUENCE_SCOPE_SYSTEMS: Record<InfluenceScope, string[]> = {
-  // 凡人：个人和家庭级别
+  // 个人范围
   personal: [
-    'health', 'family', 'education', 'work', 'character-base',
-    'morality', 'luck', 'lifespan', 'faith',
+    'health', 'education', 'work', 'character-base',
+    'morality', 'luck', 'lifespan', 'lifecycle-system', 'faith',
   ],
-  // 强者：城镇级别（+ 经济、声望）
+  // 聚落范围（+经济、声望）
   town: [
-    'economy', 'reputation', 'marriage',
-    'market', 'settlement', 'population',
+    'economy', 'reputation', 'settlement', 'population',
   ],
-  // 大能：区域级别（+ 势力、国家、生态）
+  // 区域范围（+政治、生态）
   region: [
-    'faction-dynamics', 'nation-relation', 'legal',
-    'ecology', 'climate', 'terrain', 'military',
+    'faction-dynamics', 'legal',
+    'ecology', 'climate', 'geography',
   ],
-  // 至强者：大陆级别（+ 文明、历史、科技）
+  // 大范围（+文明、历史、科技）
   continent: [
-    'culture-tech', 'social-stratification',
-    'trade-route', 'disaster',
+    'culture-tech', 'social-stratification', 'art', 'works', 'conflict-cycle',
   ],
-  // 超凡入圣：世界/宇宙级别
+  // 世界范围
   world: [
-    'world-map', 'divine-realm', 'cosmic-phenomena',
-    'realm-barrier', 'celestial-cycle',
+    'spatial-graph', 'natural-resource', 'celestial',
+    'fate-prophecy', 'divine-creation', 'historical-event-ledger',
   ],
 }
-
-/** 力量值来源子系统 ID（按优先级） */
-const POWER_SOURCE_SUBSYSTEMS = [
-  'cultivation',   // 修仙境界
-  'combat-power',  // 战力
-  'faith',         // 信仰（神明赐予）
-  'luck',          // 气运
-]
 
 /** 滑动窗口大小（保留最近几轮数据） */
 const SLIDING_WINDOW_SIZE = 3
@@ -269,7 +249,10 @@ export class SubsystemRelevanceSystem implements ISubSystem {
     // 年龄过滤
     const ageThreshold = AGE_THRESHOLDS[subsystemId]
     if (ageThreshold) {
-      const characterAge = context.round.year
+      const lifecycleData = context.subsystemStates['lifecycle-system']?.data as {
+        entity?: { ageDays?: number }
+      } | undefined
+      const characterAge = Math.floor((lifecycleData?.entity?.ageDays ?? 0) / 365)
       if (ageThreshold.minAge && characterAge < ageThreshold.minAge) {
         return false
       }
@@ -303,8 +286,8 @@ export class SubsystemRelevanceSystem implements ISubSystem {
     }
 
     // 影响力过滤（第五维）：角色力量等级决定可访问的子系统范围
-    const totalPower = this.calculateTotalPower(context.subsystemStates,)
-    const scope = this.getInfluenceScope(totalPower,)
+    const influenceScore = this.calculateInfluenceScore(context.subsystemStates,)
+    const scope = this.getInfluenceScope(influenceScore,)
     const allowedSystems = this.getInfluenceAllowedSystems(scope,)
     if (!allowedSystems.has(subsystemId,)) {
       return false
@@ -443,62 +426,42 @@ export class SubsystemRelevanceSystem implements ISubSystem {
   // ============================================================
 
   /**
-   * 计算角色的总力量值（从各力量来源子系统提取）
-   *
-   * @param subsystemStates 所有子系统状态
-   * @returns 总力量值（0-200+）
+   * 计算角色在当前世界框架中的相对影响力分数（0-100）。
+   * 不同世界只比较各自框架内的进度，不比较固定阶位或跨世界绝对战力。
    */
-  calculateTotalPower(subsystemStates: Record<string, SubSystemState>,): number {
-    let totalPower = 0
-
-    for (const subId of POWER_SOURCE_SUBSYSTEMS) {
-      const state = subsystemStates[subId]
-      if (!state?.data) continue
-
-      const data = state.data as Record<string, unknown>
-
-      switch (subId) {
-        case 'cultivation': {
-          // 修炼境界：realm 数值 × 10
-          const realm = (data.realm as number) ?? 0
-          totalPower += realm * 10
-          break
-        }
-        case 'combat-power': {
-          // 战力：rank 数值 × 3
-          const rank = (data.rank as number) ?? 0
-          totalPower += rank * 3
-          break
-        }
-        case 'faith': {
-          // 信仰：devotionLevel × 0.5
-          const devotionLevel = (data.devotionLevel as number) ?? 0
-          totalPower += Math.round(devotionLevel * 0.5,)
-          break
-        }
-        case 'luck': {
-          // 气运：读取 LuckSystem.collectState() 暴露的 luck 绝对值，避免沿用旧 bonus 字段。
-          const luck = (data.luck as number) ?? 0
-          totalPower += luck
-          break
-        }
-      }
-    }
-
-    return totalPower
+  calculateInfluenceScore(subsystemStates: Record<string, SubSystemState>,): number {
+    const combat = subsystemStates['combat-power']?.data as {
+      framework?: { enabled?: boolean; ranks?: Array<{ index?: number }> }
+      rankIndex?: number
+      subStage?: number
+    } | undefined
+    const ranks = Array.isArray(combat?.framework?.ranks) ? combat.framework.ranks : []
+    const rankIndex = typeof combat?.rankIndex === 'number' ? combat.rankIndex : 0
+    const subStage = typeof combat?.subStage === 'number' ? combat.subStage : 1
+    const rankProgress = combat?.framework?.enabled && ranks.length > 0
+      ? ((Math.max(0, rankIndex - 1) + Math.max(0, Math.min(5, subStage) - 1) / 5) / ranks.length) * 100
+      : 0
+    const cultivation = subsystemStates['cultivation']?.data as { realmIndex?: number } | undefined
+    const cultivationProgress = typeof cultivation?.realmIndex === 'number' && ranks.length > 0
+      ? (Math.max(0, cultivation.realmIndex - 1) / ranks.length) * 100
+      : 0
+    const faith = subsystemStates['faith']?.data as { devotionLevel?: number } | undefined
+    const faithProgress = typeof faith?.devotionLevel === 'number'
+      ? Math.max(0, Math.min(100, faith.devotionLevel))
+      : 0
+    const luck = subsystemStates['luck']?.data as { luck?: number } | undefined
+    const luckProgress = typeof luck?.luck === 'number'
+      ? Math.max(0, Math.min(100, (luck.luck + 10) * 5))
+      : 0
+    return Math.round(Math.max(rankProgress, cultivationProgress, faithProgress, luckProgress))
   }
 
-  /**
-   * 根据力量值确定影响力等级
-   *
-   * @param totalPower 角色总力量值
-   * @returns 影响力等级
-   */
-  getInfluenceScope(totalPower: number,): InfluenceScope {
-    if (totalPower >= INFLUENCE_THRESHOLDS.world.minPower) return 'world'
-    if (totalPower >= INFLUENCE_THRESHOLDS.continent.minPower) return 'continent'
-    if (totalPower >= INFLUENCE_THRESHOLDS.region.minPower) return 'region'
-    if (totalPower >= INFLUENCE_THRESHOLDS.town.minPower) return 'town'
+  /** 根据本世界相对影响力分数确定作用范围。 */
+  getInfluenceScope(influenceScore: number,): InfluenceScope {
+    if (influenceScore >= INFLUENCE_THRESHOLDS.world.minScore) return 'world'
+    if (influenceScore >= INFLUENCE_THRESHOLDS.continent.minScore) return 'continent'
+    if (influenceScore >= INFLUENCE_THRESHOLDS.region.minScore) return 'region'
+    if (influenceScore >= INFLUENCE_THRESHOLDS.town.minScore) return 'town'
     return 'personal'
   }
 
@@ -526,13 +489,13 @@ export class SubsystemRelevanceSystem implements ISubSystem {
   /**
    * 构建影响力信息文本（用于注入 Prompt）
    *
-   * @param totalPower 角色总力量值
+   * @param influenceScore 相对影响力分数
    * @param scope 影响力等级
    * @returns 影响力信息文本
    */
-  buildInfluenceText(totalPower: number, scope: InfluenceScope,): string {
+  buildInfluenceText(influenceScore: number, scope: InfluenceScope,): string {
     const threshold = INFLUENCE_THRESHOLDS[scope]
-    return `【角色影响力】等级：${threshold.label}（力量值：${totalPower}）`
+    return `【角色影响力】范围：${threshold.label}（本世界相对进度：${influenceScore}/100）`
   }
 }
 

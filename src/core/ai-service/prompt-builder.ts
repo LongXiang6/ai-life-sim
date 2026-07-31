@@ -88,7 +88,7 @@ export function buildNarrativeUserJson(context: PromptContext): Record<string, u
     世界标签: context.worldTagsText,
     世界校准: context.calibrationSummary,
     世界设定: context.worldNarrativeView,
-    力量体系: context.powerCeilingPresets,
+    力量体系: context.powerFramework,
     叙事风格: context.narrativeStyle,
     叙事基调: context.narrativeToneHint,
     角色档案: context.characterProfileView,

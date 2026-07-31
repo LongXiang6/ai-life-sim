@@ -2,7 +2,7 @@ export type ScoringEvidenceKind =
   | 'attributes'
   | 'journey'
   | 'choices'
-  | 'breakthroughs'
+  | 'lifespan-adjustments'
   | 'achievements'
   | 'completion'
 
@@ -53,7 +53,7 @@ export interface LifeScoringAuditSnapshot {
   committedRounds: number
   narrativeIds: string[]
   resolvedChoiceCount: number
-  breakthroughCount: number
+  lifespanAdjustmentCount: number
   achievementIds: string[]
   completed: boolean
   terminalCommitted: boolean

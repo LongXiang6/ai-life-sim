@@ -4,7 +4,7 @@
  * @mod mod-environment-ecology
  */
 
-import type { ClimateZone, TerrainType, DisasterType, NaturalResourceType, PollutionLevel, SeasonEffect, SpecialSeason, SpeciesTemplate, IndustryType, } from './types'
+import type { ClimateZone, DisasterType, PollutionLevel, SeasonEffect, SpecialSeason, SpeciesTemplate, IndustryType, } from './types'
 
 // ============================================================
 // §0 通用工具（已迁移至 utils.ts）
@@ -121,73 +121,6 @@ export const WORLD_SPECIAL_SEASONS: Record<string, readonly SpecialSeason[]> = {
 } as const
 
 // ============================================================
-// §2 地理常量
-// ============================================================
-
-/** 地形中文标签 */
-export const TERRAIN_LABELS: Record<TerrainType, string> = {
-  plain: '平原',
-  mountain: '山脉',
-  desert: '沙漠',
-  forest: '森林',
-  tundra: '冻土',
-  ocean: '海洋',
-  swamp: '沼泽',
-  volcanic: '火山',
-  underground: '地下',
-  skyIsland: '空岛',
-}
-
-/** 地形行军难度 */
-export const TERRAIN_MARCH_DIFFICULTY: Record<TerrainType, number> = {
-  plain: 10,
-  mountain: 85,
-  desert: 55,
-  forest: 40,
-  tundra: 60,
-  ocean: 90,
-  swamp: 70,
-  volcanic: 75,
-  underground: 65,
-  skyIsland: 95,
-}
-
-/** 地形基础海拔 */
-export const TERRAIN_ELEVATION: Record<TerrainType, number> = {
-  plain: 100,
-  mountain: 3000,
-  desert: 500,
-  forest: 300,
-  tundra: 200,
-  ocean: -500,
-  swamp: 50,
-  volcanic: 2000,
-  underground: -200,
-  skyIsland: 5000,
-}
-
-/** 板块活动概率/年 */
-export const TECTONIC_ACTIVITY_PROBABILITY = 0.05
-
-/** 气候带迁移速率 */
-export const CLIMATE_SHIFT_RATE = 0.1
-
-/** 洪水→平原变沼泽概率 */
-export const FLOOD_TO_SWAMP_CHANCE = 0.2
-
-/** 火山喷发→地形变火山概率 */
-export const VOLCANIC_ERUPTION_TERRAIN_CHANCE = 0.3
-
-/** 人类活动→森林/沼泽变平原概率（每年） */
-export const HUMAN_ACTIVITY_TERRAIN_CHANCE = 0.02
-
-/** 陨石撞击→变火山概率（每年，选一个区域判定） */
-export const METEOR_STRIKE_PROBABILITY = 0.005
-
-/** 陨石撞击→该区域变火山概率 */
-export const METEOR_TO_VOLCANIC_CHANCE = 0.5
-
-// ============================================================
 // §3 生态常量
 // ============================================================
 
@@ -284,59 +217,6 @@ export const OVEREXPLOITATION_WARNING_YEARS = 3
 /** 外部因素影响系数 */
 export const EXTERNAL_DISASTER_PENALTY = 0.5
 export const EXTERNAL_POPULATION_PRESSURE_FACTOR = 0.01
-
-// ============================================================
-// §4 自然资源常量
-// ============================================================
-
-/** 资源类型中文标签 */
-export const RESOURCE_TYPE_LABELS: Record<NaturalResourceType, string> = {
-  mineral: '矿产',
-  forest: '森林',
-  water: '水源',
-  farmland: '耕地',
-  energy: '能源',
-  special: '特殊资源',
-}
-
-/** 资源初始储量 */
-export const INITIAL_RESOURCE_RESERVES: Record<NaturalResourceType, number> = {
-  mineral: 80,
-  forest: 75,
-  water: 70,
-  farmland: 65,
-  energy: 60,
-  special: 30,
-}
-
-/** 基础再生速率 */
-export const BASE_REGENERATION_RATE: Record<NaturalResourceType, number> = {
-  mineral: 0.1,
-  forest: 2.0,
-  water: 1.5,
-  farmland: 1.0,
-  energy: 0.5,
-  special: 0.2,
-}
-
-/** 基础消耗速率 */
-export const BASE_CONSUMPTION_RATE: Record<NaturalResourceType, number> = {
-  mineral: 1.5,
-  forest: 1.0,
-  water: 2.0,
-  farmland: 1.5,
-  energy: 1.0,
-  special: 0.1,
-}
-
-/** 资源耗尽阈值 */
-export const RESOURCE_DEPLETION_THRESHOLD = 10
-
-/** 过度开发阈值：储量超过此值时消耗速率 ×1.5 */
-export const OVEREXPLOITATION_THRESHOLD = 80
-
-/** 低储量阈值：储量低于此值时再生速率 ×0.8 */
-export const LOW_RESERVE_THRESHOLD = 30
 
 // ============================================================
 // §5 污染常量

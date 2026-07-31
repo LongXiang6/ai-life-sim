@@ -10,6 +10,7 @@ import { defineMod } from '@/core'
 
 export default defineMod({
   name: 'mod-npc',
+  order: 410,
   version: '2.0.0',
   description: 'NPC 连续身份、当地状态、目标、行为记录和独立主观记忆',
   dependencies: ['mod-engine', 'mod-world', 'mod-social', 'mod-history-dynamics'],

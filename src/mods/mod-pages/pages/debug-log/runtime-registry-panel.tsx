@@ -9,7 +9,6 @@
 import { useEffect, useState } from 'react'
 
 import { runtimeRegistry } from '@/core'
-import { simulationBridge } from '@/mods/mod-engine'
 
 export function RuntimeRegistryPanel() {
   const [, setTick] = useState(0)
@@ -47,9 +46,6 @@ export function RuntimeRegistryPanel() {
         {String(snapshot.modCount)} MOD ·{' '}
         {String(snapshot.subsystemCount)} 子系统
         <span className="text-[var(--color-text-tertiary)] ml-2">（每 2s 自动刷新）</span>
-        <span className="ml-3 text-xs">
-          Worker: {simulationBridge.isWorkerActive() ? '✅ 活跃' : '— 主线程降级'}
-        </span>
       </div>
 
       <section className="rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4">

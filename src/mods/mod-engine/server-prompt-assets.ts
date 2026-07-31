@@ -7,7 +7,9 @@
 import 'server-only'
 
 import { NARRATIVE_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-prompt'
+import { NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-event-recognition-prompt'
 import { NARRATIVE_SETTLEMENT_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-settlement-prompt'
+import { COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT } from './server/narrative-event-recognition-system-prompt'
 import { COMPILED_NARRATIVE_SETTLEMENT_SYSTEM_PROMPT } from './server/narrative-settlement-system-prompt'
 import { COMPILED_NARRATIVE_SYSTEM_PROMPT } from './server/narrative-system-prompt'
 
@@ -24,6 +26,10 @@ const SERVER_PROMPT_ASSETS: Readonly<Record<string, ServerPromptAsset>> = {
   [NARRATIVE_SETTLEMENT_SERVER_PROMPT_ASSET_ID]: {
     id: NARRATIVE_SETTLEMENT_SERVER_PROMPT_ASSET_ID,
     systemPrompt: COMPILED_NARRATIVE_SETTLEMENT_SYSTEM_PROMPT,
+  },
+  [NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID]: {
+    id: NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID,
+    systemPrompt: COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT,
   },
 }
 

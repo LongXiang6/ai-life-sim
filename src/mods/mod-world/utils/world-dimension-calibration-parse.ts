@@ -155,7 +155,7 @@ export function getDimensionCalibrationDiagnostics(raw: string): DimensionCalibr
         worldviewEssence: String(dimNorm.worldviewEssence ?? '混合'),
         civilizationStage: String(dimNorm.civilizationStage ?? '现代'),
         spatialForm: String(dimNorm.spatialForm ?? '宇宙'),
-        powerCeiling: coerceDisplayInt(dimNorm.powerCeiling, 8),
+        powerFramework: (dimNorm.powerFramework as DimensionInferenceOutput['powerFramework']) ?? null,
         worldType: 'mixed' as const,
       },
     )
@@ -183,15 +183,6 @@ export function getDimensionCalibrationDiagnostics(raw: string): DimensionCalibr
     w02Parsed,
     worldTagsCount,
   }
-}
-
-function coerceDisplayInt(value: unknown, fallback: number): number {
-  if (typeof value === 'number' && Number.isFinite(value)) return Math.round(value)
-  if (typeof value === 'string') {
-    const n = parseInt(value, 10)
-    if (Number.isFinite(n)) return n
-  }
-  return fallback
 }
 
 export function formatDimensionCalibrationDiagnostics(d: DimensionCalibrationDiagnostics): string {

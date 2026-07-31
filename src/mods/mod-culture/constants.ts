@@ -1,114 +1,18 @@
 /**
  * @module constants.ts
- * @description mod-culture 常量 —— 声望/家族/教育/文化/艺术/弟子/个人能力/成就/著作
+ * @description mod-culture 常量 —— 教育、文化、艺术与作品
  * @mod mod-culture
  */
 
 import type {
-  ReputationDimension,
   EducationSystemType,
   EducationQuality,
   CulturalValue,
   ArtForm,
-  FamilyRole,
-  SpouseStatus,
-  AchievementRarity,
-  Achievement,
   CustomCategory,
-  DiscipleStatus,
 } from './types'
 
 export { round, clamp, pickRandom, randomInt, ROUND_DECIMALS } from './utils'
-
-// ============================================================
-// §1 声望常量
-// ============================================================
-
-/** 声望维度标签 */
-export const REPUTATION_LABELS: Record<ReputationDimension, string> = {
-  military: '武勋',
-  political: '政绩',
-  academic: '学术',
-  economic: '财富',
-  moral: '道德',
-  religious: '信仰',
-}
-
-/** 声望范围 */
-export const REPUTATION_RANGE = { min: -100, max: 100 }
-
-/** 声望数值 → 等级标签映射（降序排列，首项为最高级） */
-export const REPUTATION_RANK_THRESHOLDS: { threshold: number; label: string }[] = [
-  { threshold: 80, label: '崇敬' },
-  { threshold: 60, label: '尊敬' },
-  { threshold: 20, label: '友好' },
-  { threshold: -20, label: '中立' },
-  { threshold: -60, label: '冷淡' },
-  { threshold: -80, label: '敌对' },
-  { threshold: -Infinity, label: '仇视' },
-]
-
-/** 将声望数值映射为等级标签
- * @param value 声望数值
- * @returns 声望等级标签
- */
-export function getReputationRank(value: number): string {
-  for (const rank of REPUTATION_RANK_THRESHOLDS) {
-    if (value >= rank.threshold) return rank.label
-  }
-  return '仇视'
-}
-
-// ============================================================
-// §2 家族常量
-// ============================================================
-
-/** 家族角色标签 */
-export const FAMILY_ROLE_LABELS: Record<FamilyRole, string> = {
-  spouse: '配偶',
-  child: '子女',
-  parent: '父母',
-  sibling: '兄弟姐妹',
-  cousin: '堂表亲',
-  ancestor: '先祖',
-}
-
-/** 最大子女数 */
-export const MAX_CHILDREN = 6
-
-/** 生育概率/年 */
-export const BIRTH_PROBABILITY = 0.08
-
-/** 配偶关系状态标签 */
-export const SPOUSE_STATUS_LABELS: Record<SpouseStatus, string> = {
-  happy: '幸福',
-  strained: '紧张',
-  estranged: '疏远',
-  widowed: '丧偶',
-}
-
-/** 婚姻满意度年衰减量 */
-export const MARRIAGE_SATISFACTION_DECAY = 2
-
-/** 婚姻冲突财富阈值（低于此值冲突概率增加） */
-export const MARRIAGE_CONFLICT_WEALTH_THRESHOLD = 300
-
-/** 婚姻修复概率/年（wealth > 阈值时） */
-export const MARRIAGE_REPAIR_PROBABILITY = 0.15
-
-/** 婚姻修复量 */
-export const MARRIAGE_REPAIR_AMOUNT = 3
-
-/** 子女里程碑年龄 */
-export const MILESTONE_SCHOOL_AGE = 7
-export const MILESTONE_ADULT_AGE = 18
-export const MILESTONE_MARRIAGE_AGE = 20
-
-/** 子女成年后每年婚嫁概率 */
-export const CHILD_MARRIAGE_PROBABILITY = 0.08
-
-/** 子女婚嫁后独立概率 */
-export const CHILD_INDEPENDENT_PROBABILITY = 0.15
 
 // ============================================================
 // §4 教育常量
@@ -116,11 +20,12 @@ export const CHILD_INDEPENDENT_PROBABILITY = 0.15
 
 /** 教育制度标签 */
 export const EDUCATION_SYSTEM_LABELS: Record<EducationSystemType, string> = {
-  private: '私塾',
-  public: '官学',
+  oral: '口述传承',
+  household: '家庭传承',
+  school: '学校教育',
+  network: '网络教育',
   religious: '寺院教育',
   guild: '行会教育',
-  academy: '学院',
 }
 
 /** 教育机构名池 */
@@ -391,167 +296,6 @@ export const STYLE_CHINESE_LABELS: Record<string, string> = {
   wasteland_aesthetic: '废土美学',
   new_age: '新纪元艺术',
 }
-
-// ============================================================
-// §7 弟子常量
-// ============================================================
-
-/** 初始弟子容量 */
-export const INITIAL_DISCIPLE_CAPACITY = 3
-
-/** 最大弟子容量 */
-export const MAX_DISCIPLE_CAPACITY = 12
-
-/** 弟子名池 */
-export const DISCIPLE_NAME_PREFIXES: readonly string[] = [
-  '青', '云', '风', '雨', '雷', '电', '山', '海', '天', '地',
-  '明', '暗', '晨', '夕', '春', '夏', '秋', '冬', '龙', '凤',
-]
-
-/** 弟子阶段中文标签 */
-export const DISCIPLE_STATUS_LABELS: Record<DiscipleStatus, string> = {
-  apprentice: '入门',
-  mature: '出师',
-  famous: '名扬',
-  deceased: '已故',
-  departed: '远离',
-}
-
-// ============================================================
-// §8 个人能力常量
-// ============================================================
-
-/** 基础技能容量 */
-export const BASE_SKILL_CAP = 10
-
-/** 技能衰退基础速率 */
-export const BASE_SKILL_DECAY = 0.5
-
-/** 知识遗忘基础速率 */
-export const BASE_KNOWLEDGE_FORGET_RATE = 0.03
-
-/** 默认技能名池 */
-export const DEFAULT_SKILL_NAMES: readonly string[] = [
-  '剑术', '弓术', '骑术', '医术', '书法', '绘画', '音律',
-  '棋艺', '厨艺', '园艺', '锻造', '制陶', '纺织', '酿酒',
-  '占卜', '炼丹', '阵法', '符箓', '机关术', '驯兽',
-]
-
-/** 技能等级 → 叙事标签映射 */
-export const SKILL_LEVEL_LABELS: { threshold: number; label: string }[] = [
-  { threshold: 10, label: '传奇' },
-  { threshold: 8, label: '大师' },
-  { threshold: 6, label: '精通' },
-  { threshold: 4, label: '熟练' },
-  { threshold: 1, label: '初学者' },
-  { threshold: -Infinity, label: '未入门' },
-]
-
-/** 根据等级获取技能叙事标签
- * @param level 技能等级数值
- * @returns 技能等级叙事标签
- */
-export function getSkillLevelLabel(level: number): string {
-  for (const entry of SKILL_LEVEL_LABELS) {
-    if (level >= entry.threshold) return entry.label
-  }
-  return '未入门'
-}
-
-/** 知识类别中文标签 */
-export const KNOWLEDGE_CATEGORY_LABELS: Record<string, string> = {
-  location: '地点',
-  person: '人物',
-  item: '物品',
-  event: '事件',
-  secret: '秘密',
-  skill: '技能',
-}
-
-/** 知识准确度标签阈值 */
-export const KNOWLEDGE_ACCURACY_LABELS: { threshold: number; label: string }[] = [
-  { threshold: 86, label: '精准' },
-  { threshold: 61, label: '准确' },
-  { threshold: 31, label: '大体正确' },
-  { threshold: 0, label: '模糊' },
-]
-
-/** 根据准确度获取知识标签
- * @param accuracy 知识准确度数值
- * @returns 知识准确度标签
- */
-export function getKnowledgeAccuracyLabel(accuracy: number): string {
-  for (const entry of KNOWLEDGE_ACCURACY_LABELS) {
-    if (accuracy >= entry.threshold) return entry.label
-  }
-  return '模糊'
-}
-
-/** 角色基础属性键列表 */
-export const ATTRIBUTE_KEYS: readonly string[] = [
-  'physique',   // 体质 — 影响体能类技能学习速率
-  'intelligence', // 智力 — 影响学术类技能学习速率
-  'talent',     // 悟性 — 影响所有技能学习速率
-]
-
-/** 属性中文标签 */
-export const ATTRIBUTE_LABELS: Record<string, string> = {
-  physique: '体质',
-  intelligence: '智力',
-  talent: '悟性',
-}
-
-/** 基础属性默认值 */
-export const DEFAULT_ATTRIBUTE_VALUES: Record<string, number> = {
-  physique: 50,
-  intelligence: 50,
-  talent: 50,
-}
-
-// ============================================================
-// §9 成就常量
-// ============================================================
-
-/** 成就模板（含运行时评测函数） */
-export interface AchievementTemplate {
-  id: string
-  name: string
-  description: string
-  points: number
-  category: Achievement['category']
-  rarity: AchievementRarity
-  icon: string
-  evaluate: (conditions: Record<string, number | boolean>) => boolean
-}
-
-/** 预设成就池（18 条，含稀有度/图标/条件函数） */
-export const ACHIEVEMENT_TEMPLATES: AchievementTemplate[] = [
-  // ── 经济（3） ──
-  { id: 'first_trade', name: '第一桶金', description: '完成第一次贸易', points: 10, category: 'economic', rarity: 'common', icon: '💰', evaluate: (c) => c.firstTrade === true },
-  { id: 'wealth_1000', name: '小富即安', description: '积累 1000 财富', points: 20, category: 'economic', rarity: 'common', icon: '📈', evaluate: (c) => typeof c.wealth === 'number' && c.wealth >= 1000 },
-  { id: 'wealth_10000', name: '富甲一方', description: '积累 10000 财富', points: 50, category: 'economic', rarity: 'rare', icon: '👑', evaluate: (c) => typeof c.wealth === 'number' && c.wealth >= 10000 },
-  // ── 社会（3） ──
-  { id: 'friend_5', name: '广交友', description: '拥有 5 个朋友', points: 10, category: 'social', rarity: 'common', icon: '🤝', evaluate: (c) => typeof c.friendCount === 'number' && c.friendCount >= 5 },
-  { id: 'noble_rank', name: '加官进爵', description: '晋升贵族阶层', points: 30, category: 'social', rarity: 'rare', icon: '🏅', evaluate: (c) => c.isNoble === true },
-  { id: 'social_butterfly', name: '社交达人', description: '拥有 20 个朋友', points: 30, category: 'relationship', rarity: 'rare', icon: '🦋', evaluate: (c) => typeof c.friendCount === 'number' && c.friendCount >= 20 },
-  // ── 个人（5） ──
-  { id: 'marriage', name: '琴瑟和鸣', description: '缔结婚姻', points: 15, category: 'personal', rarity: 'common', icon: '💍', evaluate: (c) => c.isMarried === true },
-  { id: 'first_child', name: '为人父母', description: '第一个子女出生', points: 15, category: 'personal', rarity: 'common', icon: '👶', evaluate: (c) => c.hasChild === true },
-  { id: 'skill_master', name: '一技之长', description: '任意技能达到 50 级', points: 20, category: 'skill', rarity: 'rare', icon: '🔧', evaluate: (c) => typeof c.maxSkillLevel === 'number' && c.maxSkillLevel >= 50 },
-  { id: 'jack_of_all', name: '无所不通', description: '5 个技能达到 50 级', points: 40, category: 'skill', rarity: 'epic', icon: '📚', evaluate: (c) => typeof c.skillsAbove50 === 'number' && c.skillsAbove50 >= 5 },
-  { id: 'centenarian', name: '百岁老人', description: '年龄达到 100', points: 30, category: 'personal', rarity: 'rare', icon: '🕯️', evaluate: (c) => typeof c.age === 'number' && c.age >= 100 },
-  // ── 战斗（3） ──
-  { id: 'battle_hardened', name: '万人敌', description: '累计 50 场战斗胜利', points: 30, category: 'combat', rarity: 'rare', icon: '⚔️', evaluate: (c) => typeof c.battlesWon === 'number' && c.battlesWon >= 50 },
-  { id: 'legendary_warrior', name: '不败战神', description: '累计 100 场战斗胜利', points: 50, category: 'combat', rarity: 'epic', icon: '🛡️', evaluate: (c) => typeof c.battlesWon === 'number' && c.battlesWon >= 100 },
-  // ── 探索（1） ──
-  { id: 'capital_visit', name: '入京', description: '造访都城', points: 10, category: 'exploration', rarity: 'common', icon: '🏰', evaluate: (c) => c.visitedCapital === true },
-  // ── 文化（1） ──
-  { id: 'cultural_patron', name: '文教兴邦', description: '文化繁荣度达到 80', points: 40, category: 'culture', rarity: 'epic', icon: '📖', evaluate: (c) => typeof c.cultureProsperity === 'number' && c.cultureProsperity >= 80 },
-  // ── 生存 / 特殊（2） ──
-  { id: 'survivor', name: '绝处逢生', description: '在濒死危机中存活', points: 25, category: 'survival', rarity: 'rare', icon: '🌱', evaluate: (c) => c.hasSurvivedCrisis === true },
-  { id: 'millennium', name: '千年之约', description: '年龄达到 1000', points: 60, category: 'personal', rarity: 'epic', icon: '⏳', evaluate: (c) => typeof c.age === 'number' && c.age >= 1000 },
-  { id: 'immortal', name: '不朽传说', description: '年龄达到 10000', points: 100, category: 'personal', rarity: 'legendary', icon: '🌟', evaluate: (c) => typeof c.age === 'number' && c.age >= 10000 },
-]
 
 // ============================================================
 // §10 著作常量

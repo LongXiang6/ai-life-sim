@@ -41,6 +41,12 @@ export function readBirthEraYearFromConfig(config: Record<string, unknown> | und
 
 /** 角色当前年龄（与 lifespan 子系统公式一致） */
 export function resolveCharacterAgeFromContext(context: RoundContext): number {
+  const lifecycle = context.subsystemStates?.['lifecycle-system']?.data as {
+    entity?: { ageDays?: unknown }
+  } | undefined
+  if (typeof lifecycle?.entity?.ageDays === 'number' && Number.isFinite(lifecycle.entity.ageDays)) {
+    return Math.floor(Math.max(0, lifecycle.entity.ageDays) / 365)
+  }
   const baseState = context.subsystemStates?.['character-base']?.data
   const startingAge = (baseState && typeof baseState === 'object' && 'startingAge' in baseState)
     ? (baseState as Record<string, unknown>).startingAge as number

@@ -8,6 +8,7 @@ import { defineMod } from '@/core'
 
 export default defineMod({
   name: 'mod-engine',
+  order: 100,
   version: '1.0.0',
   description: 'AI 人生模拟器核心引擎',
   dependencies: [],
@@ -28,14 +29,16 @@ export default defineMod({
   },
   campaignHooks: {
     stages: [
+      'prepare-round',
       'advance-time',
       'subsystem-advance',
       'collect-states',
       'event-lifecycle',
-      'cross-domain',
       'assemble-prompt',
       'ai-narration',
-      'ai-settlement',
+      'publish-narrative',
+      'ai-data-analysis',
+      'ai-event-recognition',
       'post-processing',
       'epilogue-check',
       'compress-save',

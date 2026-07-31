@@ -1,6 +1,6 @@
 /**
  * @module validate-narrative-wiring.mjs
- * @description 双调用叙事与结算管线的静态接线验证
+ * @description 故事即时发布、后台双 AI 分析与原子提交的静态接线验证
  */
 
 import fs from 'node:fs'
@@ -48,8 +48,10 @@ for (const [file, method] of [
 
 const promptBuilder = read('src/core/ai-service/prompt-builder.ts')
 const narrativePrompt = read('src/mods/mod-engine/prompts/narrative-prompt.ts')
+const eventRecognitionPrompt = read('src/mods/mod-engine/prompts/narrative-event-recognition-prompt.ts')
 const settlementPrompt = read('src/mods/mod-engine/prompts/narrative-settlement-prompt.ts')
 const narrativeServerAsset = read('src/mods/mod-engine/server/narrative-system-prompt.ts')
+const eventRecognitionServerAsset = read('src/mods/mod-engine/server/narrative-event-recognition-system-prompt.ts')
 const settlementServerAsset = read('src/mods/mod-engine/server/narrative-settlement-system-prompt.ts')
 const serverPromptAssets = read('src/mods/mod-engine/server-prompt-assets.ts')
 const campaign = read('src/mods/mod-engine/campaigns/default/index.ts')
@@ -59,6 +61,12 @@ const envelope = read('src/mods/mod-engine/helpers/tagged-meta-envelope.ts')
 for (const field of ['timelineMemory', '本轮可回收伏笔']) {
   assertOk(promptBuilder.includes(field), `prompt-builder 缺少叙事记忆字段 ${field}`)
 }
+assertOk(
+  eventRecognitionPrompt.includes("version: '1.0.0'")
+    && eventRecognitionPrompt.includes("'mod-engine:narrative-event-recognition:1.0.0'")
+    && eventRecognitionPrompt.includes('serverPromptAssetId: NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID'),
+  '事件识别调用必须接入唯一 1.0.0 受保护资产',
+)
 assertOk(
   promptBuilder.includes('userSegments: [string, string, string]')
     && promptBuilder.includes('⟦全局信息⟧')
@@ -98,29 +106,48 @@ assertOk(
   '结算资产必须从活动系统契约派生系统行、数据契约和标准示例',
 )
 assertOk(
+  eventRecognitionServerAsset.includes('COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT')
+    && eventRecognitionServerAsset.includes('buildNarrativeEventRecognitionContractLine')
+    && eventRecognitionServerAsset.includes('buildNarrativeEventRecognitionStandardExample')
+    && eventRecognitionServerAsset.includes('尚未发生且需要未来条件才能触发'),
+  '事件识别资产必须只登记未来待触发事项并提供唯一标准示例',
+)
+assertOk(
   serverPromptAssets.includes('NARRATIVE_SERVER_PROMPT_ASSET_ID')
     && serverPromptAssets.includes('NARRATIVE_SETTLEMENT_SERVER_PROMPT_ASSET_ID')
+    && serverPromptAssets.includes('NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID')
     && !/NARRATIVE_(?:DATA|BRANCH|REPETITION|REPAIR)_SERVER_PROMPT_ASSET_ID/u.test(serverPromptAssets),
-  '服务端注册表必须只保留主叙事和结算两份资产',
+  '服务端注册表必须只保留主叙事、数据分析和事件识别三份资产',
 )
 assertOk(
   campaign.includes("name: 'ai-narration'")
-    && campaign.includes("name: 'ai-settlement'")
+    && campaign.includes("name: 'publish-narrative'")
+    && campaign.includes("name: 'ai-data-analysis'")
+    && campaign.includes("name: 'ai-event-recognition'")
+    && campaign.match(/parallelGroup: 'narrative-background-analysis'/gu)?.length === 2
+    && campaign.includes("dependsOn: ['ai-data-analysis', 'ai-event-recognition']")
     && campaign.includes('buildNarrativeSettlementPromptInput')
     && campaign.includes('inspectNarrativeSettlementQuality')
+    && campaign.includes('buildNarrativeEventRecognitionPromptInput')
+    && campaign.includes('inspectNarrativeEventRecognitionQuality')
     && campaign.includes('narrativeSettlementPrompt')
-    && manifest.includes("'ai-settlement'"),
-  '默认 Campaign 与 Manifest 必须声明并执行串行结算阶段',
+    && campaign.includes('narrativeEventRecognitionPrompt')
+    && manifest.includes("'publish-narrative'")
+    && manifest.includes("'ai-data-analysis'")
+    && manifest.includes("'ai-event-recognition'"),
+  '默认 Campaign 与 Manifest 必须声明正文发布、后台并行分析和双分支汇合',
 )
 assertOk(
   campaign.includes('buildNarrativeRepairInstruction')
     && campaign.includes('buildNarrativeSettlementRepairInstruction')
-    && campaign.match(/repairAttempts < MAX_FORMAT_REPAIR_ATTEMPTS/gu)?.length === 2,
-  '两类格式修复必须分别复用原调用资产并保持有界尝试',
+    && campaign.includes('buildNarrativeEventRecognitionRepairInstruction')
+    && campaign.match(/repairAttempts < MAX_FORMAT_REPAIR_ATTEMPTS/gu)?.length === 3,
+  '三类格式修复必须分别复用原调用资产并保持有界尝试',
 )
 assertOk(
   envelope.includes('parseNarrativeResponseEnvelope')
     && envelope.includes('parseNarrativeSettlementEnvelope')
+    && envelope.includes('parseNarrativeEventRecognitionEnvelope')
     && envelope.includes('连续系统编号、唯一末尾数据段及全部 Schema 仍保持严格')
     && envelope.includes('叙事响应缺少可识别的完整正文'),
   '解析器必须兼容完整响应的格式差异，同时保持结算编号和 Schema 严格',
@@ -144,4 +171,4 @@ if (failed > 0) {
   process.exit(1)
 }
 
-console.log('[OK] 双调用叙事与结算接线验证通过')
+console.log('[OK] 故事即时发布与后台双 AI 分析接线验证通过')

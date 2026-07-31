@@ -5,7 +5,7 @@
  */
 
 import type { RoundContext, SubSystemState, SubSystemChanges } from '@/foundation'
-import type { BaseAttributes, AttributeModifiers, CharacterBaseState, RaceLifespanConfig } from '../types'
+import type { BaseAttributes, AttributeModifiers, CharacterBaseState } from '../types'
 
 import {
   MIN_ATTRIBUTE_VALUE,
@@ -25,7 +25,7 @@ export class CharacterBaseSystem extends BaseSubsystem {
   readonly id = 'character-base' as const
   readonly mod = 'mod-character' as const
   readonly label = '基础属性' as const
-  readonly description = '管理从零起步、由叙事结构化修改的 4 项基础属性，并聚合种族 / 命格 / 伤病 / 衰减修正与显式起始年龄' as const
+  readonly description = '管理从零起步、由叙事结构化修改的 4 项基础属性，并聚合种族、命格、生命周期、伤病与上下文修正' as const
 
   private state: CharacterBaseState = {
     base: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
@@ -148,6 +148,11 @@ export class CharacterBaseSystem extends BaseSubsystem {
     return { ...this.state.current }
   }
 
+  /** 生命周期初始化只读取该规范起始年龄，不从页面年龄或回合年份反推。 */
+  getStartingAge(): number {
+    return this.state.startingAge
+  }
+
   setContextModifier(
     contextId: string,
     sourceId: string,
@@ -179,10 +184,12 @@ export class CharacterBaseSystem extends BaseSubsystem {
     // 物种基准线（current = 叙事基础值 + speciesBaseline + 其他 modifiers）
     const lifespan = context.subsystemStates['lifespan']
     if (lifespan?.data) {
-      const race = (lifespan.data as Record<string, unknown>).race as RaceLifespanConfig | undefined
-      if (race?.attrBaselines) {
+      const profile = (lifespan.data as Record<string, unknown>).profile as {
+        attrBaselines?: Partial<AttributeModifiers>
+      } | undefined
+      if (profile?.attrBaselines) {
         for (const key of ['physique', 'mind', 'talentAptitude', 'charisma'] as const) {
-          const baseline = race.attrBaselines[key]
+          const baseline = profile.attrBaselines[key]
           if (typeof baseline === 'number') {
             modifiers[key] += baseline
           }
@@ -210,28 +217,30 @@ export class CharacterBaseSystem extends BaseSubsystem {
     // 伤病修正
     const health = context.subsystemStates['health']
     if (health?.data) {
-      const diseases = (health.data as Record<string, unknown>).diseases as Array<{ attrEffects?: Partial<AttributeModifiers> }> | undefined
-      const injuries = (health.data as Record<string, unknown>).injuries as Array<{ attrEffects?: Partial<AttributeModifiers> }> | undefined
-      const allAffects = [...(diseases ?? []), ...(injuries ?? [])]
-      for (const item of allAffects) {
-        if (item.attrEffects) {
+      const conditions = (health.data as Record<string, unknown>).conditions as Array<{
+        attributeModifiers?: Partial<AttributeModifiers>
+      }> | undefined
+      for (const item of conditions ?? []) {
+        if (item.attributeModifiers) {
           for (const key of ATTR_KEYS) {
-            if (typeof item.attrEffects[key] === 'number') {
-              modifiers[key] += item.attrEffects[key]!
+            if (typeof item.attributeModifiers[key] === 'number') {
+              modifiers[key] += item.attributeModifiers[key]!
             }
           }
         }
       }
     }
 
-    // 衰减修正
-    const decay = context.subsystemStates['attribute-decay']
-    if (decay?.data) {
-      const dm = (decay.data as Record<string, unknown>).modifiers as Partial<AttributeModifiers> | undefined
-      if (dm) {
+    // 生命周期修正是当前阶段派生值，不按轮累计。
+    const lifecycle = context.subsystemStates['lifecycle-system']
+    if (lifecycle?.data) {
+      const entity = (lifecycle.data as Record<string, unknown>).entity as {
+        attributeModifiers?: Partial<AttributeModifiers>
+      } | undefined
+      if (entity?.attributeModifiers) {
         for (const key of ['physique', 'mind', 'talentAptitude', 'charisma'] as const) {
-          if (typeof dm[key] === 'number') {
-            modifiers[key] += dm[key]!
+          if (typeof entity.attributeModifiers[key] === 'number') {
+            modifiers[key] += entity.attributeModifiers[key]!
           }
         }
       }

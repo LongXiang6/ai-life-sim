@@ -23,8 +23,13 @@ export {
 } from './prompt-flags'
 export { getAiUsageStats, resetAiUsageStats, formatNanoYuan, DEEPSEEK_PRICE_VERSION, DEEPSEEK_PRICE_SOURCE, getNarrativeTokenCalibration } from './usage-stats'
 export type { AiUsageAggregate, AiUsageContext, AiUsageStatsSnapshot, NarrativeTokenCalibrationSample } from './usage-stats'
-export { computeNarrativeSettlementTokenBudget, computeNarrativeTokenBudget } from './narrative-token-budget'
+export {
+  computeNarrativeEventRecognitionTokenBudget,
+  computeNarrativeSettlementTokenBudget,
+  computeNarrativeTokenBudget,
+} from './narrative-token-budget'
 export type {
+  NarrativeEventRecognitionTokenBudgetInput,
   NarrativeSettlementTokenBudgetInput,
   NarrativeTokenBudgetCalibration,
   NarrativeTokenBudgetInput,

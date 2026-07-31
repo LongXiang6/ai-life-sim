@@ -25,7 +25,7 @@ const DESTINY_PATTERN_SYSTEM_PROMPT = `你是命格、天赋与人格特质生�
 - 效果：至少10字，概括实际影响。
 - 属性加成：只允许 体魄/心智/悟性/魅力，只写非零项。普通仅单属性±1；精良总量≤2；稀有≤3；史诗≤5；传说≤7。
 - 模拟系数：可选的模拟系数对象。普通/精良省略；稀有最多1个个人字段、0.95-1.08；史诗最多2个个人字段和1个世界字段、0.90-1.15；传说最多2个个人字段和2个世界字段、0.85-1.20。
-  个人字段名只允许使用以下中文名称：气运获取/生命恢复/体力恢复/寿命突破/成长系数/修炼瓶颈/职业收入/家族生育/虔诚获取/寿命上限/属性衰减。
+  个人字段名只允许使用以下中文名称：气运获取/生命恢复/体力恢复/精神恢复/伤病进展/成长系数/修炼瓶颈/职业收入/家族生育/虔诚获取/寿命上限。
   世界字段名只允许使用以下中文名称：宏观人口出生/宏观死亡率/战争频率/科技进度/灾害频率/怪物威胁/阶层流动/人口迁移/宏观经济/势力涌现。
 
 硬性语义：
@@ -45,16 +45,16 @@ const DESTINY_PATTERN_SYSTEM_PROMPT = `你是命格、天赋与人格特质生�
 
 const destinyPatternSystemModifiersSchema = z.object({
   luckPointModifier: z.coerce.number().optional(),
-  hpRecoveryModifier: z.coerce.number().optional(),
+  vitalityRecoveryModifier: z.coerce.number().optional(),
   staminaRecoveryModifier: z.coerce.number().optional(),
-  breakthroughChanceModifier: z.coerce.number().optional(),
+  spiritRecoveryModifier: z.coerce.number().optional(),
+  conditionProgressionModifier: z.coerce.number().optional(),
   cultivationSpeedModifier: z.coerce.number().optional(),
   bottleneckModifier: z.coerce.number().optional(),
   incomeModifier: z.coerce.number().optional(),
   fertilityModifier: z.coerce.number().optional(),
   devotionGainModifier: z.coerce.number().optional(),
   lifespanModifier: z.coerce.number().optional(),
-  attributeDecayModifier: z.coerce.number().optional(),
   birthRateModifier: z.coerce.number().optional(),
   deathRateModifier: z.coerce.number().optional(),
   warFrequencyModifier: z.coerce.number().optional(),
@@ -118,16 +118,16 @@ const ATTR_MAP: Record<string, string> = {
 }
 const MODIFIER_MAP: Record<string, string> = {
   '气运获取': 'luckPointModifier',
-  '生命恢复': 'hpRecoveryModifier',
+  '生命恢复': 'vitalityRecoveryModifier',
   '体力恢复': 'staminaRecoveryModifier',
-  '寿命突破': 'breakthroughChanceModifier',
+  '精神恢复': 'spiritRecoveryModifier',
+  '伤病进展': 'conditionProgressionModifier',
   '成长系数': 'cultivationSpeedModifier',
   '修炼瓶颈': 'bottleneckModifier',
   '职业收入': 'incomeModifier',
   '家族生育': 'fertilityModifier',
   '虔诚获取': 'devotionGainModifier',
   '寿命上限': 'lifespanModifier',
-  '属性衰减': 'attributeDecayModifier',
   '宏观人口出生': 'birthRateModifier',
   '宏观死亡率': 'deathRateModifier',
   '战争频率': 'warFrequencyModifier',

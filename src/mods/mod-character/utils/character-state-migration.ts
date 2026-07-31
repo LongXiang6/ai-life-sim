@@ -10,10 +10,21 @@ import type {
   CharacterBaseState,
   DestinyPattern,
   DestinyPatternState,
+  HealthProjection,
+  LifespanDraftState,
+  LifespanProjection,
+  LifecycleProjection,
   MythicPattern,
   MythicPatternCandidate,
 } from '../types'
-import { MYTHIC_PATTERN_SELECT_COUNT } from '../constants'
+import {
+  DEFAULT_MAX_VITALITY,
+  DEFAULT_SPIRIT,
+  DEFAULT_STAMINA,
+  DEFAULT_VITALITY,
+  MYTHIC_PATTERN_SELECT_COUNT,
+  RACE_LIFESPAN,
+} from '../constants'
 
 const BASE_ATTRIBUTE_KEYS = ['physique', 'mind', 'talentAptitude', 'charisma'] as const
 
@@ -148,6 +159,61 @@ export function sanitizeMythicPatternCandidate(value: unknown): MythicPatternCan
   }
 }
 
+function initialHealthProjection(): HealthProjection {
+  return {
+    vitality: DEFAULT_VITALITY,
+    maxVitality: DEFAULT_MAX_VITALITY,
+    stamina: DEFAULT_STAMINA,
+    spirit: DEFAULT_SPIRIT,
+    alive: true,
+    conditions: [],
+  }
+}
+
+function initialLifespanProjection(): LifespanProjection {
+  const human = RACE_LIFESPAN.human!
+  return {
+    raceId: 'human',
+    displayName: human.name,
+    clockMode: human.clockMode,
+    baseLifespanDays: human.baseLifespanYears * 365,
+    maximumLifespanDays: human.baseLifespanYears * 365,
+    adjustments: [],
+  }
+}
+
+function initialLifecycleProjection(): LifecycleProjection {
+  return { ageDays: 0 }
+}
+
+function sanitizeLifespanDraft(value: unknown, fallbackRaceId: unknown): LifespanDraftState {
+  const record = isRecord(value) ? value : {}
+  const raceRecord = isRecord(record.race) ? record.race : {}
+  const raceId = typeof record.raceId === 'string' && record.raceId.trim()
+    ? record.raceId.trim()
+    : typeof fallbackRaceId === 'string' && RACE_LIFESPAN[fallbackRaceId]
+      ? fallbackRaceId
+      : 'human'
+  const catalogRace = RACE_LIFESPAN[raceId] ?? RACE_LIFESPAN.human!
+  const clockMode = ['aging', 'ageless', 'cyclic', 'external'].includes(String(raceRecord.clockMode))
+    ? raceRecord.clockMode as LifespanDraftState['race']['clockMode']
+    : catalogRace.clockMode
+  const baseLifespanYears = finiteNumber(raceRecord.baseLifespanYears, catalogRace.baseLifespanYears)
+  const maximumLifespanYears = finiteNumber(record.maximumLifespanYears, baseLifespanYears)
+  return {
+    raceId,
+    race: {
+      name: typeof raceRecord.name === 'string' && raceRecord.name.trim()
+        ? raceRecord.name.trim()
+        : catalogRace.name,
+      baseLifespanYears: Math.max(1, Math.round(baseLifespanYears)),
+      clockMode,
+      attrBaselines: sanitizeAttrBonus(raceRecord.attrBaselines ?? catalogRace.attrBaselines),
+    },
+    maximumLifespanYears: Math.max(1, Math.round(maximumLifespanYears)),
+  }
+}
+
 export function sanitizeMythicPattern(value: unknown): MythicPattern | null {
   const candidate = sanitizeMythicPatternCandidate(value)
   if (!candidate || !isRecord(value) || typeof value.id !== 'string' || !isRecord(value.source)) return null
@@ -171,8 +237,8 @@ export function sanitizeMythicPattern(value: unknown): MythicPattern | null {
 
 /**
  * 清洗 Zustand persist 或 OPFS 角色快照。
- * v1 的 resources 会在 characterBase、普通命格与旧 talents 中被移除；
- * 新增神话字段在旧数据中补成空态。
+ * 角色创建草稿会保留；健康、寿命和生命周期运行投影始终重置，
+ * 后续只从 Orchestrator owning-system 快照同步。
  */
 export function sanitizeCharacterStateSnapshot(value: unknown): Record<string, unknown> {
   const record = isRecord(value) ? value : {}
@@ -198,15 +264,28 @@ export function sanitizeCharacterStateSnapshot(value: unknown): Record<string, u
 
   // The singular field was the old persistence shape. Remove it after migration
   // so the array remains the only durable source of equipped reincarnation rules.
-  const { equippedMythicPattern: _legacyEquipped, ...recordWithoutLegacyMythic } = record
+  const {
+    equippedMythicPattern: _legacyEquipped,
+    health: _runtimeHealth,
+    lifespan: _runtimeLifespan,
+    lifecycle: _runtimeLifecycle,
+    lifeStage: _legacyLifeStage,
+    decay: _legacyDecay,
+    lifespanDraft: _lifespanDraft,
+    ...recordWithoutRuntimeLifeState
+  } = record
 
   return {
-    ...recordWithoutLegacyMythic,
+    ...recordWithoutRuntimeLifeState,
     characterId: typeof record.characterId === 'string' && record.characterId.trim()
       ? record.characterId.trim()
       : createGlobalCharacterId(),
     characterBase: sanitizeCharacterBaseState(record.characterBase),
     destinyPatterns: sanitizeDestinyPatternState(record.destinyPatterns),
+    lifespanDraft: sanitizeLifespanDraft(record.lifespanDraft, record.race),
+    health: initialHealthProjection(),
+    lifespan: initialLifespanProjection(),
+    lifecycle: initialLifecycleProjection(),
     talents,
     mythicCandidates,
     equippedMythicPatterns,

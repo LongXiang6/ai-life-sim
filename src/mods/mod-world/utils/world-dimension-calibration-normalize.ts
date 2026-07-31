@@ -11,32 +11,54 @@ import {
   mapWorldviewEssenceZhToTag,
   SPATIAL_FORM_ZH_MAP,
 } from './world-config-mapping'
+import { createDefaultPowerFramework } from './power-framework'
 
 const METADATA_TAG_KEYS = ['essenceTag', 'civilizationStage', 'powerSystemTag', 'spatialForm'] as const
 
-function coerceInt(value: unknown, fallback: number): number {
-  if (typeof value === 'number' && Number.isFinite(value)) return Math.round(value)
-  if (typeof value === 'string') {
-    const n = parseInt(value.replace(/[^\d-]/g, ''), 10)
-    if (Number.isFinite(n)) return n
+function normalizePowerFramework(raw: unknown, powerSystem: string): Record<string, unknown> | null {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    const value = raw as Record<string, unknown>
+    const ranks = Array.isArray(value.ranks)
+      ? value.ranks
+        .filter((rank): rank is Record<string, unknown> => (
+          typeof rank === 'object' && rank !== null && !Array.isArray(rank)
+        ))
+        .map((rank) => ({
+          label: typeof rank.label === 'string' ? rank.label.trim() : '',
+          description: typeof rank.description === 'string' ? rank.description.trim() : '',
+        }))
+        .filter((rank) => rank.label && rank.description)
+      : []
+    if (ranks.length > 0) {
+      return {
+        label: typeof value.label === 'string' && value.label.trim() ? value.label.trim() : '世界力量体系',
+        progression: value.progression === 'open' ? 'open' : 'bounded',
+        ranks,
+      }
+    }
   }
-  return fallback
+  const fallback = createDefaultPowerFramework(powerSystem)
+  if (!fallback.enabled) return null
+  return {
+    label: fallback.label,
+    progression: fallback.progression,
+    ranks: fallback.ranks.map(({ label, description }) => ({ label, description })),
+  }
 }
 
-/** 修复 dimensions 常见类型错误（如 powerCeiling 字符串） */
+/** 修复 dimensions 常见结构错误，并为缺失框架生成世界观默认提议。 */
 export function normalizeDimensionsPayload(payload: unknown): Record<string, unknown> | null {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null
   const raw = payload as Record<string, unknown>
-  const powerCeiling = coerceInt(raw.powerCeiling, 8)
-  const clampedCeiling = Math.min(24, Math.max(1, powerCeiling))
+  const powerSystem = typeof raw.powerSystem === 'string' ? raw.powerSystem : '混合'
 
   return {
     ...raw,
-    powerSystem: typeof raw.powerSystem === 'string' ? raw.powerSystem : '混合',
+    powerSystem,
     worldviewEssence: typeof raw.worldviewEssence === 'string' ? raw.worldviewEssence : '混合',
     civilizationStage: typeof raw.civilizationStage === 'string' ? raw.civilizationStage : '现代',
     spatialForm: typeof raw.spatialForm === 'string' ? raw.spatialForm : '宇宙',
-    powerCeiling: clampedCeiling,
+    powerFramework: normalizePowerFramework(raw.powerFramework, powerSystem),
     worldType: raw.worldType === 'materialist' || raw.worldType === 'idealist' || raw.worldType === 'mixed'
       ? raw.worldType
       : 'mixed',

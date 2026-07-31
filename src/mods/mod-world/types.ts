@@ -7,11 +7,13 @@
 import type { WorldAIDetailedParameters } from './prompts/world-config-prompt'
 import type {
   ContextCapabilityProfile,
+  PowerFrameworkDefinition,
   SimulationScopeRecord,
   SpatialEdge,
   SpatialGraphContract,
   WorldContextRecord,
   WorldScoringProfile,
+  WorldScaleCalibration,
 } from '@/foundation'
 
 /** AI 世界初始化状态 */
@@ -84,11 +86,12 @@ export interface WorldCalibration {
     tradeRouteCount?: EntityCountRange
   }
   world?: {
-    populationBase?: number
     developmentRange?: { min: number; max: number }
     mapTemplate?: MapTemplateId
     regionCount?: number
   }
+  /** 现实基线与架空校准后的明确数量级；大整数一律为十进制字符串。 */
+  scale: WorldScaleCalibration
   formulas?: WorldCalibrationFormulas
 }
 
@@ -102,11 +105,11 @@ export interface WorldCalibrationFormulas {
   deathRateModifier?: number
   inflationModifier?: number
   tradeMultiplierModifier?: number
-  hpRecoveryModifier?: number
+  vitalityRecoveryModifier?: number
   staminaRecoveryModifier?: number
+  spiritRecoveryModifier?: number
+  conditionProgressionModifier?: number
   lifespanModifier?: number
-  attributeDecayModifier?: number
-  breakthroughChanceModifier?: number
   cultivationSpeedModifier?: number
   bottleneckModifier?: number
   monsterThreatModifier?: number
@@ -125,8 +128,6 @@ export interface WorldCalibrationFormulas {
   techBreakthroughModifier?: number
   industryProductivityModifier?: number
   economyModifier?: number
-  economyTierRatios?: [number, number, number, number, number]
-  crossDomainEffectModifier?: number
   eventDistributionStrategy?: EventDistributionStrategy
   migrationRateModifier?: number
   literacyGrowthModifier?: number
@@ -139,7 +140,7 @@ export interface WorldCalibrationFormulas {
 /** 可数值叠加的公式 modifier 键（排除 enum / tuple 字段） */
 export type FormulaModifierKey = Exclude<
   keyof WorldCalibrationFormulas,
-  'eventDistributionStrategy' | 'economyTierRatios'
+  'eventDistributionStrategy'
 >
 
 /** 世界配置（用户创建世界时提交的 5 个维度参数） */
@@ -154,8 +155,8 @@ export interface WorldConfig {
   essenceTag: string
   /** 力量体系标签（如 cultivation/technology/magic） */
   powerSystemTag: string
-  /** 力量等级上限（1-24，由空间形态自动限制） */
-  powerCeiling: number
+  /** 世界创建时固化的具名力量比较框架；无力量世界使用 enabled=false。 */
+  powerFramework: PowerFrameworkDefinition
   /** 空间形态标签（如 plane/universe/crystalSphere/multiverse/omniverse） */
   spatialForm: string
   /** 文明阶段标签（如 primitive/medieval/industrial/space） */
@@ -205,8 +206,7 @@ export interface Nation extends WorldEntity {
   type: 'nation'
   capital: string
   /** 国家稳定度 0-100 */
-  stability: number
-  population: number,
+  stability: number,
 }
 
 /** 势力 */
@@ -233,7 +233,6 @@ export interface NobleHouse extends WorldEntity {
 export interface Settlement extends WorldEntity {
   type: 'settlement'
   tier: 'village' | 'town' | 'city' | 'metropolis'
-  population: number
   developmentLevel: number,
 }
 
@@ -269,8 +268,6 @@ export interface RegionData {
   terrainTag: string
   /** 资源分布 */
   resourceDistribution: Record<string, number>
-  /** 人口 */
-  population: number
   /** 开发度 0-100 */
   developmentLevel: number,
 }

@@ -1,5 +1,6 @@
 import { BaseSubsystem } from '@/core/subsystem-base'
 import type {
+  EntityReference,
   NpcBehaviorRecord,
   NpcContextState,
   NpcGoal,
@@ -17,9 +18,11 @@ import {
   assertWorldSpatialNode,
   canRunBackgroundWorldSubsystem,
   contextHasCapability,
+  getWorldEntityReference,
   listCoLocatedWorldEntityIds,
   listWorldContexts,
   moveWorldEntityLocation,
+  registerWorldEntityReference,
 } from '@/mods/mod-world'
 import { getRelationshipSystem } from '@/mods/mod-social/relationship-system-api'
 
@@ -100,8 +103,85 @@ function assertNpcContext(npcId: string, contextId: string, label: string): void
   }
 }
 
-function assertEntityVisibleInContext(entityId: string, contextId: string, label: string): void {
-  const reference = assertWorldEntityReference(entityId)
+function plannedNpcReferenceForEntityId(
+  entityId: string,
+  context: RoundContext,
+  packageChanges?: readonly SubSystemChanges[],
+): EntityReference | undefined {
+  const candidates = (packageChanges ?? []).filter((item) => (
+    item.id === 'npc-system'
+      && item.operation === 'create-identity'
+      && item.targetObjectId === entityId
+      && item.targetContextId === context.contextId
+  ))
+  if (candidates.length === 0) return undefined
+  if (candidates.length > 1) throw new Error(`同一回合重复创建 NPC 身份：${entityId}`)
+  const candidate = candidates[0]
+  const displayName = typeof candidate.changes.displayName === 'string'
+    ? candidate.changes.displayName.trim()
+    : ''
+  if (!displayName) throw new Error(`新建 NPC 必须提供显示名：${entityId}`)
+  return {
+    entityId,
+    kind: 'npc',
+    displayName,
+    contextIds: [context.contextId],
+    registeredAtTotalDays: context.totalDays,
+  }
+}
+
+function plannedNpcReference(
+  changes: SubSystemChanges,
+  context: RoundContext,
+  packageChanges?: readonly SubSystemChanges[],
+): EntityReference | undefined {
+  return plannedNpcReferenceForEntityId(
+    changes.targetObjectId as string,
+    context,
+    packageChanges ?? [changes],
+  )
+}
+
+function resolveNpcReference(
+  changes: SubSystemChanges,
+  context: RoundContext,
+  packageChanges?: readonly SubSystemChanges[],
+): EntityReference {
+  const entityId = changes.targetObjectId as string
+  const existing = getWorldEntityReference(entityId)
+  if (existing) {
+    if (existing.kind !== 'npc') throw new Error(`实体引用 ${entityId} 的种类不符合 NPC 要求`)
+    return existing
+  }
+  const planned = plannedNpcReferenceForEntityId(entityId, context, packageChanges ?? [changes])
+  if (!planned) throw new Error(`实体引用不存在：${entityId}`)
+  return planned
+}
+
+function resolveEntityReference(
+  entityId: string,
+  changes: SubSystemChanges,
+  context: RoundContext,
+  packageChanges?: readonly SubSystemChanges[],
+): EntityReference {
+  const existing = getWorldEntityReference(entityId)
+  if (existing) return existing
+  const planned = plannedNpcReferenceForEntityId(entityId, context, packageChanges ?? [changes])
+  if (planned?.entityId === entityId) return planned
+  throw new Error(`实体引用不存在：${entityId}`)
+}
+
+function assertEntityVisibleInContext(
+  entityId: string,
+  contextId: string,
+  label: string,
+  changes?: SubSystemChanges,
+  context?: RoundContext,
+  packageChanges?: readonly SubSystemChanges[],
+): void {
+  const reference = changes && context
+    ? resolveEntityReference(entityId, changes, context, packageChanges)
+    : assertWorldEntityReference(entityId)
   if (!reference.contextIds.includes(contextId)) {
     throw new Error(`${label}不在上下文 ${contextId} 可见范围`)
   }
@@ -472,13 +552,17 @@ export class NpcSystem extends BaseSubsystem {
     if (appended.length > 0) useNpcSystemStore.setState({ behaviorRecords: [...state.behaviorRecords, ...appended] })
   }
 
-  preflightChanges(changes: SubSystemChanges, context: RoundContext): void {
+  preflightChanges(
+    changes: SubSystemChanges,
+    context: RoundContext,
+    packageChanges?: readonly SubSystemChanges[],
+  ): void {
     if (changes.id !== this.id) throw new Error('NPC 系统指令目标不匹配')
     if (!changes.targetObjectId || !changes.targetContextId || changes.targetContextId !== context.contextId) throw new Error('NPC 系统指令缺少当前稳定目标或上下文')
     if (!changes.operation || !NPC_OPERATIONS.has(changes.operation)) throw new Error('NPC 系统指令操作无效')
     if (!contextHasCapability(context.contextId, 'npc')) throw new Error('目标上下文未启用 NPC 能力')
     requireString(changes.description, 'NPC 系统指令说明')
-    const npc = assertWorldEntityReference(changes.targetObjectId, ['npc'])
+    const npc = resolveNpcReference(changes, context, packageChanges)
     if (!npc.contextIds.includes(context.contextId)) throw new Error('NPC 不在目标上下文可见范围')
     const evidenceIds = changes.evidenceEventIds ?? []
     if (changes.operation === 'record-memory' && evidenceIds.length === 0) throw new Error('NPC 记忆必须引用历史事件')
@@ -508,17 +592,38 @@ export class NpcSystem extends BaseSubsystem {
     if (changes.operation === 'set-goal') {
       if (typeof payload.description !== 'string' || !payload.description.trim()) throw new Error('NPC 目标缺少描述')
       const targetEntityIds = stringList(payload.targetEntityIds)
-      targetEntityIds.forEach((entityId) => assertEntityVisibleInContext(entityId, context.contextId, `NPC 目标实体 ${entityId}`))
+      targetEntityIds.forEach((entityId) => assertEntityVisibleInContext(
+        entityId,
+        context.contextId,
+        `NPC 目标实体 ${entityId}`,
+        changes,
+        context,
+        packageChanges,
+      ))
     }
     if (changes.operation === 'record-behavior') {
       if (payload.behaviorOperation !== undefined) requireString(payload.behaviorOperation, 'NPC 行为操作')
-      stringList(payload.targetEntityIds).forEach((entityId) => assertEntityVisibleInContext(entityId, context.contextId, `NPC 行为目标 ${entityId}`))
+      stringList(payload.targetEntityIds).forEach((entityId) => assertEntityVisibleInContext(
+        entityId,
+        context.contextId,
+        `NPC 行为目标 ${entityId}`,
+        changes,
+        context,
+        packageChanges,
+      ))
       if (payload.spatialNodeId) assertWorldSpatialNode(context.contextId, String(payload.spatialNodeId))
     }
     if (changes.operation === 'record-memory') {
       if (typeof payload.summary !== 'string' || !payload.summary.trim()) throw new Error('NPC 记忆缺少主观摘要')
       if (payload.emotion !== undefined) requireFiniteNumber(payload.emotion, 'NPC 记忆情绪值', -10, 10)
-      stringList(payload.relatedEntityIds).forEach((entityId) => assertEntityVisibleInContext(entityId, context.contextId, `NPC 记忆关联实体 ${entityId}`))
+      stringList(payload.relatedEntityIds).forEach((entityId) => assertEntityVisibleInContext(
+        entityId,
+        context.contextId,
+        `NPC 记忆关联实体 ${entityId}`,
+        changes,
+        context,
+        packageChanges,
+      ))
       const sourceMemoryIds = stringList(payload.sourceMemoryIds)
       const state = useNpcSystemStore.getState()
       for (const memoryId of sourceMemoryIds) {
@@ -545,6 +650,11 @@ export class NpcSystem extends BaseSubsystem {
     const evidenceEventIds = [...(changes.evidenceEventIds ?? [])]
     if (operation === 'create-identity') {
       if (state.identities.some((item) => item.npcId === npcId)) throw new Error(`NPC 身份已存在：${npcId}`)
+      if (!getWorldEntityReference(npcId)) {
+        const planned = plannedNpcReference(changes, context)
+        if (!planned) throw new Error(`新建 NPC 缺少可登记的实体引用：${npcId}`)
+        registerWorldEntityReference(planned)
+      }
       const identity: NpcIdentity = {
         npcId,
         displayName: typeof payload.displayName === 'string' ? payload.displayName : assertWorldEntityReference(npcId).displayName,

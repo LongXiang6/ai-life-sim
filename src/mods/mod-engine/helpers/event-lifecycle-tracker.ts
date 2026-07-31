@@ -49,18 +49,17 @@ export interface DetectionStates {
   climateState?: { activeDisasters?: Array<{ type: string }> }
   populationState?: { total?: number; growthRate?: number; migrationDirection?: string; consecutiveDeclineYears?: number; consecutiveGrowthYears?: number }
   ecosystemState?: { biodiversity?: number; currentPhase?: string; overexploitationYears?: number }
-  nationState?: { relations?: Array<{ status: string }> }
-  nobleHouseState?: { houses?: Array<{ name: string; prosperity: number }> }
+  politicalState?: { relations?: Array<{ status: string }> }
   tradeRouteState?: { globalTradeMultiplier?: number; routes?: Array<{ status?: string }> }
   cultureTechState?: { techProgress?: number; techLevel?: number; activeEvents?: string[] }
   economyState?: { currency?: Record<string, number>; debts?: Array<{ amount: number }> }
   // === 角色驱动事件字段（key 对应子系统 id） ===
-  health?: { hp?: number; isDead?: boolean }
+  health?: { vitality?: number; maxVitality?: number; alive?: boolean }
   morality?: { value?: number; level?: string }
   'combat-power'?: { mainStage?: number; powerValue?: number }
-  lifespan?: { maxAge?: number }
-  'character-base'?: { age?: number }
-  reputation?: { fame?: number; globalReputation?: number }
+  lifespan?: { profile?: { maximumLifespanDays?: number; clockMode?: string } }
+  'lifecycle-system'?: { entity?: { ageDays?: number } }
+  reputation?: { score?: number }
   faith?: { devotionLevel?: number }
   luck?: { luck?: number }
 }
@@ -163,37 +162,22 @@ function detectRawEvents(states: DetectionStates): {
     }
   }
 
-  // 6. 国家关系事件
-  const nation = states.nationState
-  if (nation) {
-    const warRelations = nation.relations?.filter((r) => r.status === 'WAR') || []
+  // 6. 政治实体与冲突事件
+  const political = states.politicalState
+  if (political) {
+    const warRelations = political.relations?.filter((r) => r.status === 'WAR') || []
     if (warRelations.length > 0) {
       rawEvents.push({ eventType: '边境冲突', severity: 0.7, dataChange: `${warRelations.length}条战线`, statusDesc: '烽火连天，征兵令下达至各城镇' })
-      thresholds['边境冲突'] = () => (states.nationState?.relations || []).filter((r) => r.status === 'WAR').length === 0
+      thresholds['边境冲突'] = () => (states.politicalState?.relations || []).filter((r) => r.status === 'WAR').length === 0
     }
-    const tensionRelations = nation.relations?.filter((r) => r.status === 'HOSTILE') || []
+    const tensionRelations = political.relations?.filter((r) => r.status === 'HOSTILE') || []
     if (tensionRelations.length >= 2) {
       rawEvents.push({ eventType: '国际紧张', severity: 0.4, dataChange: `${tensionRelations.length}国关系紧张`, statusDesc: '外交摩擦频发，贸易受限' })
-      thresholds['国际紧张'] = () => (states.nationState?.relations || []).filter((r) => r.status === 'HOSTILE').length < 2
+      thresholds['国际紧张'] = () => (states.politicalState?.relations || []).filter((r) => r.status === 'HOSTILE').length < 2
     }
   }
 
-  // 7. 贵族家族事件
-  const noble = states.nobleHouseState
-  if (noble && noble.houses && noble.houses.length > 0) {
-    const declining = noble.houses.filter((h) => h.prosperity < 20)
-    if (declining.length >= 2) {
-      rawEvents.push({ eventType: '世家没落', severity: 0.4, dataChange: `${declining.length}个家族衰落`, statusDesc: '老牌世家凋零，地方权力格局重组' })
-      thresholds['世家没落'] = () => (states.nobleHouseState?.houses || []).filter((h) => h.prosperity < 20).length < 2
-    }
-    const rising = noble.houses.filter((h) => h.prosperity >= 80)
-    if (rising.length > 0) {
-      rawEvents.push({ eventType: '家族崛起', severity: 0.3, dataChange: `${rising[0].name}势力增强`, statusDesc: `${rising[0].name}声望日隆，门客络绎不绝` })
-      thresholds['家族崛起'] = () => (states.nobleHouseState?.houses || []).filter((h) => h.prosperity >= 80).length === 0
-    }
-  }
-
-  // 8. 贸易路线事件
+  // 7. 贸易路线事件
   const trade = states.tradeRouteState
   if (trade) {
     if ((trade.globalTradeMultiplier ?? 1) <= 0.5) {
@@ -207,7 +191,7 @@ function detectRawEvents(states: DetectionStates): {
     }
   }
 
-  // 9. 文化科技事件
+  // 8. 文化科技事件
   const culture = states.cultureTechState
   if (culture) {
     if ((culture.techProgress ?? 0) >= 90) {
@@ -221,7 +205,7 @@ function detectRawEvents(states: DetectionStates): {
     }
   }
 
-  // 10. 角色经济事件
+  // 9. 角色经济事件
   const roleEcon = states.economyState
   if (roleEcon) {
     const money = Number(roleEcon.currency?.['money'] ?? roleEcon.currency?.['金钱'] ?? 0)
@@ -236,21 +220,26 @@ function detectRawEvents(states: DetectionStates): {
     }
   }
 
-  // === 角色驱动事件维度（11-14） ===
+  // === 角色驱动事件维度（10-13） ===
 
-  // 11. 英雄陨落 — HP 极低且具备一定战力时触发（蓝图: HP<20 且战力>50）
+  // 11. 生命垂危：当前仍存活、生命状态低于 20%，且具备一定战力。
   const health = states.health
   const combatPower11 = states['combat-power']
-  const hasCombatPower = (combatPower11?.mainStage ?? 0) >= 4  // mainStage ≥ 4 ≈ 战力>50
-  if (health && !health.isDead && hasCombatPower) {
-    if ((health.hp ?? 100) < 20) {
+  const hasCombatPower = (combatPower11?.mainStage ?? 0) >= 4
+  const vitalityRatio = (health?.vitality ?? 100) / Math.max(1, health?.maxVitality ?? 100)
+  if (health && health.alive !== false && hasCombatPower) {
+    if (vitalityRatio < 0.2) {
       rawEvents.push({
-        eventType: '英雄陨落',
+        eventType: '生命垂危',
         severity: 0.7,
-        dataChange: `HP ${health.hp} | 战力 ${combatPower11?.mainStage}阶`,
+        dataChange: `生命 ${health.vitality}/${health.maxVitality} | 战力 ${combatPower11?.mainStage}阶`,
         statusDesc: '英雄气若游丝，命悬一线，天下震动',
       })
-      thresholds['英雄陨落'] = () => (states.health?.hp ?? 100) >= 50
+      thresholds['生命垂危'] = () => {
+        const current = states.health
+        return current?.alive === false
+          || (current?.vitality ?? 100) / Math.max(1, current?.maxVitality ?? 100) >= 0.5
+      }
     }
   }
 
@@ -277,25 +266,31 @@ function detectRawEvents(states: DetectionStates): {
     }
   }
 
-  // 13. 继承动荡 — HP 低且寿命将尽时触发
+  // 13. 继承动荡：衰老生物钟下生命低迷且寿命边界临近。
   const lifespan = states.lifespan
-  const charBase = states['character-base']
-  if (health && lifespan && charBase) {
-    const hp = health.hp ?? 100
-    const maxAge = lifespan.maxAge ?? 100
-    const age = charBase.age ?? 0
-    if (!health.isDead && hp < 30 && age > 0 && (maxAge - age) < 5) {
+  const lifecycle = states['lifecycle-system']
+  const maximumLifespanDays = lifespan?.profile?.maximumLifespanDays
+  const ageDays = lifecycle?.entity?.ageDays
+  if (health && maximumLifespanDays !== undefined && ageDays !== undefined) {
+    const currentVitalityRatio = (health.vitality ?? 100) / Math.max(1, health.maxVitality ?? 100)
+    const remainingDays = maximumLifespanDays - ageDays
+    if (health.alive !== false && lifespan?.profile?.clockMode === 'aging' && currentVitalityRatio < 0.3 && ageDays > 0 && remainingDays < 5 * 365) {
       rawEvents.push({
         eventType: '继承动荡',
         severity: 0.6,
-        dataChange: `寿命剩余 ${maxAge - age} 年 | HP ${hp}`,
+        dataChange: `寿命剩余 ${Math.max(0, Math.ceil(remainingDays / 365))} 年 | 生命 ${health.vitality}/${health.maxVitality}`,
         statusDesc: '大限将至，各方势力蠢蠢欲动，继承权之争一触即发',
       })
       thresholds['继承动荡'] = () => {
-        const h = states.health?.hp ?? 100
-        const la = states.lifespan?.maxAge ?? 100
-        const a = (states as Record<string, unknown>)['character-base'] as { age?: number } | undefined
-        return h >= 50 || (la - (a?.age ?? 0)) >= 10
+        const currentHealth = states.health
+        const currentMaximum = states.lifespan?.profile?.maximumLifespanDays
+        const currentAge = states['lifecycle-system']?.entity?.ageDays
+        const recovered = (currentHealth?.vitality ?? 100) / Math.max(1, currentHealth?.maxVitality ?? 100) >= 0.5
+        return currentHealth?.alive === false
+          || recovered
+          || currentMaximum === undefined
+          || currentAge === undefined
+          || currentMaximum - currentAge >= 10 * 365
       }
     }
   }

@@ -19,6 +19,7 @@ export const MOD_API_IMPORTERS: Record<string, () => Promise<Record<string, unkn
   'mod-pages': () => import('@/mods/mod-pages') as Promise<Record<string, unknown>>,
   'mod-politics': () => import('@/mods/mod-politics') as Promise<Record<string, unknown>>,
   'mod-power-system': () => import('@/mods/mod-power-system') as Promise<Record<string, unknown>>,
+  'mod-progression': () => import('@/mods/mod-progression') as Promise<Record<string, unknown>>,
   'mod-settings': () => import('@/mods/mod-settings') as Promise<Record<string, unknown>>,
   'mod-social': () => import('@/mods/mod-social') as Promise<Record<string, unknown>>,
   'mod-tech-level': () => import('@/mods/mod-tech-level') as Promise<Record<string, unknown>>,

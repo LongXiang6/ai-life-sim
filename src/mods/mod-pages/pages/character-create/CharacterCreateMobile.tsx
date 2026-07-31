@@ -20,7 +20,7 @@ export function CharacterCreateMobile() {
   const logic = useCharacterCreateLogic()
   const worldName = useWorldStore((state) => state.worldConfig?.name ?? '当前世界')
   const lifespanDisplay = logic.computedLifespan
-    ?? (logic.manualLifespan ? Number.parseInt(logic.manualLifespan, 10) : logic.raceInfo?.baseMaxAge)
+    ?? (logic.manualLifespan ? Number.parseInt(logic.manualLifespan, 10) : logic.raceInfo?.baseLifespanYears)
     ?? '自动'
   const startingAgeDisplay = logic.computedStartingAge
     ?? (logic.manualStartingAge ? Number.parseInt(logic.manualStartingAge, 10) : 0)

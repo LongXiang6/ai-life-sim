@@ -18,6 +18,12 @@ export interface NarrativeSettlementTokenBudgetInput {
   reasoningEffort: ReasoningEffort
 }
 
+export interface NarrativeEventRecognitionTokenBudgetInput {
+  narrativeCharacters: number
+  existingCandidateCount: number
+  reasoningEffort: ReasoningEffort
+}
+
 function roundUp(value: number, step: number): number {
   return Math.ceil(Math.max(0, value) / step) * step
 }
@@ -53,4 +59,21 @@ export function computeNarrativeSettlementTokenBudget(
     )
 
   return roundUp(512 + operationTokens + metadataTokens + reasoningTokens, 64)
+}
+
+/** 事件识别按实际正文和完整既有候选规模分配独立输出与推理预算。 */
+export function computeNarrativeEventRecognitionTokenBudget(
+  input: NarrativeEventRecognitionTokenBudgetInput,
+): number {
+  const narrativeTokens = Math.ceil(Math.max(0, input.narrativeCharacters) * 0.8)
+  const existingCandidateTokens = Math.max(0, Math.round(input.existingCandidateCount)) * 128
+  const eventTokens = Math.max(768, narrativeTokens)
+  const reasoningTokens = input.reasoningEffort === 'disabled'
+    ? 0
+    : Math.max(
+      input.reasoningEffort === 'max' ? 4096 : 1024,
+      Math.ceil(narrativeTokens * (input.reasoningEffort === 'max' ? 2 : 1)),
+    )
+
+  return roundUp(512 + existingCandidateTokens + eventTokens + reasoningTokens, 64)
 }

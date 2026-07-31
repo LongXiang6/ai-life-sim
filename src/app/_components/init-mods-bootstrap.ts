@@ -24,6 +24,8 @@ import { runSettingsStage } from '@/core/mod-loader/settings-stage'
 import { remote } from '@/core/remote-interface/remote-interface'
 import { configStore } from '@/core/storage'
 import { autoMigrateFromDir } from '@/core/store-migration/migration-runner'
+import { executionSequenceError } from '@/foundation'
+import type { ExecutionSequenceResult } from '@/foundation'
 
 export interface ModBootstrapOptions {
   setModRoutesReady: (ready: boolean) => void
@@ -59,6 +61,20 @@ function buildModContext(result: ReturnType<typeof loadMods>) {
     },
     mods: result.modsTable,
   }
+}
+
+function reportExecutionFailure(label: string, result: ExecutionSequenceResult): void {
+  const failure = result.failure
+  console.error(
+    `[InitMods] ${label}失败 [${failure?.code ?? result.code}]`,
+    {
+      executionId: result.executionId,
+      nodeId: failure?.nodeId,
+      owner: failure?.owner,
+      failureTarget: failure?.failureTarget,
+    },
+    executionSequenceError(result),
+  )
 }
 
 /** 执行完整 MOD 引导（Settings → Prototype → 迁移 → lifecycle → onLoad → freeze） */
@@ -143,15 +159,12 @@ export async function runModBootstrap(options: ModBootstrapOptions): Promise<voi
   }
 
   const modContext = buildModContext(result)
-  const lifecycleErrors = await invokeModLifecycles(modContext)
+  const lifecycleResult = await invokeModLifecycles(modContext)
 
   if (isCancelled()) return
 
-  for (const err of lifecycleErrors) {
-    console.error('[InitMods] 生命周期错误:', err)
-  }
-
-  if (lifecycleErrors.length > 0) {
+  if (lifecycleResult.status !== 'succeeded') {
+    reportExecutionFailure('生命周期', lifecycleResult)
     return
   }
 
@@ -199,7 +212,7 @@ export async function runModBootstrap(options: ModBootstrapOptions): Promise<voi
         ? 'mod_removed'
         : 'mod_version_changed'
 
-    const configErrors = await notifyConfigurationChanged(
+    const configurationResult = await notifyConfigurationChanged(
       {
         reason,
         addedMods: addedMods.length > 0 ? addedMods : undefined,
@@ -208,18 +221,18 @@ export async function runModBootstrap(options: ModBootstrapOptions): Promise<voi
       },
       modContext,
     )
-    for (const err of configErrors) {
-      console.error('[InitMods] onConfigurationChanged 错误:', err)
+    if (configurationResult.status !== 'succeeded') {
+      reportExecutionFailure('配置变更', configurationResult)
+      return
     }
   }
 
   configStore.set('app', MODS_SNAPSHOT_KEY, JSON.stringify(currSnapshot))
 
-  const onLoadErrors = await invokeModOnLoad(modContext)
-  if (onLoadErrors.length > 0) {
-    for (const err of onLoadErrors) {
-      console.error('[InitMods] onLoad 错误:', err)
-    }
+  const onLoadResult = await invokeModOnLoad(modContext)
+  if (onLoadResult.status !== 'succeeded') {
+    reportExecutionFailure('存档加载钩子', onLoadResult)
+    return
   }
 
   runtimeRegistry.freeze({

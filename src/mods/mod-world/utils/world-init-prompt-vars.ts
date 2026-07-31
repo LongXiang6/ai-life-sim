@@ -8,53 +8,18 @@ import type { WorldCalibration, WorldConfig, RegionData } from '../types'
 import { formatCalibrationSummary } from './calibration-clamp'
 import { buildWorldCoherenceHint } from './world-coherence-hints'
 import { buildCoherenceNote } from './world-coherence-inference'
-import {
-  UNIT_NAMES,
-  RATING_DESCRIPTIONS,
-  TRUE_INFINITE_DESCRIPTION,
-} from '@/mods/mod-power-system'
+import { formatPowerFrameworkForPrompt } from './power-framework'
 
 // ==================== 维度选择格式化 ====================
 
 /**
- * 力量上限预设文本（引用 mod-power-system 权威定义，不做重复）
- * 1-24 阶 + 单位名 + 描述，供 AI prompt 使用
+ * 只投影当前世界已固化的力量框架，不发送跨世界固定阶位表。
  */
-export function buildPowerCeilingPresets(): string {
-  const lines: string[] = []
-  for (let i = 1; i <= 24; i++) {
-    const unit = UNIT_NAMES[i] ? `【${UNIT_NAMES[i]}级】` : ''
-    const desc = i === 24 ? TRUE_INFINITE_DESCRIPTION : (RATING_DESCRIPTIONS[i] ?? '')
-    lines.push(`${i}阶${unit}：${desc}`)
-  }
-  return lines.join('\n')
-}
-
-/**
- * 力量体系预设（叙事精简格式）
- *
- * 明确当前世界上限，并保留 1-24 阶的名称与边界描述。高阶边界不截断，
- * 每阶只携带区分相邻阶段所需的最小语义。
- *
- * @param currentCeiling - 当前世界战力天花板
- */
-export function buildPowerCeilingPresetsForNarrative(currentCeiling: number): string {
-  const ceiling = Math.max(1, Math.min(23, Math.round(currentCeiling)))
-  const ceilingUnit = UNIT_NAMES[ceiling]
-  const lines: string[] = [`当前世界可达上限：${ceiling}阶【${ceilingUnit}级】`, '完整阶位标尺：']
-  for (let i = 1; i <= 24; i++) {
-    const unit = UNIT_NAMES[i] ? `【${UNIT_NAMES[i]}级】` : ''
-    const desc = i === 24 ? TRUE_INFINITE_DESCRIPTION : (RATING_DESCRIPTIONS[i] ?? '')
-    lines.push(`${i}阶${unit}：${desc}`)
-  }
-  return lines.join('\n')
-}
-
 /** 维度字段中文名映射 */
 const DIMENSION_KEY_LABELS: Record<string, string> = {
   powerSystem: '力量体系',
+  powerFramework: '力量框架',
   worldviewEssence: '世界观本质',
-  powerCeiling: '力量上限',
   universeScale: '世界空间形态',
   civilizationStage: '文明阶段',
 }
@@ -62,8 +27,8 @@ const DIMENSION_KEY_LABELS: Record<string, string> = {
 /** 维度字段选项映射（预设选项） */
 const DIMENSION_KEY_OPTIONS: Record<string, string[]> = {
   powerSystem: ['无', '修仙', '魔法', '灵能', '科技', '异能', '混合'],
+  powerFramework: ['有限体系', '开放进阶'],
   worldviewEssence: ['唯物主义', '唯心主义', '唯物修仙', '唯心修仙', '混合'],
-  powerCeiling: [], // 动态生成
   universeScale: ['位面', '宇宙', '位面晶壁群系', '多元宇宙群系', '诸天万界'],
   civilizationStage: ['原始', '古代', '中世纪', '近代', '现代', '未来'],
 }
@@ -76,8 +41,10 @@ export function buildDimensionChoicesText(config: WorldConfig): string {
 
   const currentValues: Record<string, string> = {
     powerSystem: config.powerSystemTag,
+    powerFramework: config.powerFramework.enabled
+      ? config.powerFramework.progression === 'open' ? '开放进阶' : '有限体系'
+      : '无',
     worldviewEssence: config.essenceTag,
-    powerCeiling: String(config.powerCeiling),
     universeScale: config.spatialForm,
     civilizationStage: config.civilizationStage,
   }
@@ -109,9 +76,7 @@ export function buildDimensionOptionsText(): string {
   for (const key of Object.keys(DIMENSION_KEY_LABELS)) {
     const label = DIMENSION_KEY_LABELS[key]
     const opts = DIMENSION_KEY_OPTIONS[key]
-    if (key === 'powerCeiling') {
-      lines.push(`${label} 可选预设：1-24 阶（详见力量上限预设表）`)
-    } else if (opts.length > 0) {
+    if (opts.length > 0) {
       lines.push(`${label} 可选值：${opts.join('、')}`)
     }
   }
@@ -158,7 +123,6 @@ export function formatRegionsForPrompt(regions: RegionData[]): string {
     `- regionId="${r.id}"`,
     `名称=${r.name}`,
     `地形=${r.terrainTag}`,
-    `人口=${r.population}`,
     `开发度=${r.developmentLevel}`,
     `模板=${r.templateType}`,
   ].join(' ')).join('\n')
@@ -186,7 +150,7 @@ export function buildWorldInitPromptVars(
     civilizationStage: config.civilizationStage,
     spatialForm: config.spatialForm,
     worldDescription: description,
-    powerCeiling: String(config.powerCeiling),
+    powerFramework: formatPowerFrameworkForPrompt(config.powerFramework) ?? '（无超常力量框架）',
     difficulty: config.difficulty,
     worldType: config.worldType ?? 'idealist',
     existingEntities: options?.extra?.existingEntities ?? '',
@@ -198,7 +162,6 @@ export function buildWorldInitPromptVars(
     coherenceNote: buildCoherenceNote(before, config),
     dimensionChoices: buildDimensionChoicesText(config),
     dimensionOptions: buildDimensionOptionsText(),
-    powerCeilingPresets: buildPowerCeilingPresets(),
     ...options?.extra,
   }
 }

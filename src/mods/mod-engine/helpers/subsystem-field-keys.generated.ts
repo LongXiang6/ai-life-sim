@@ -28,19 +28,17 @@ export const SUBSYSTEM_FIELD_REGISTRY_KEYS = [
   "foreshadowing",
   "core-memory",
   "character-base",
+  "growth-system",
   "health",
   "lifespan",
   "morality",
-  "luck",
   "faith",
-  "family",
   "education",
   "work",
   "economy",
   "reputation",
   "npc-system",
   "relationship-system",
-  "market",
   "population",
   "cultivation",
   "combat-power"
@@ -74,30 +72,48 @@ export const SUBSYSTEM_ZOD_FIELD_KEYS: Record<string, readonly string[]> = {
     "talentAptitudeDelta",
     "charismaDelta"
   ],
+  "growth-system": [
+    "name",
+    "category",
+    "description",
+    "scopeKind",
+    "scopeContextIds",
+    "potentialCap",
+    "experienceDelta",
+    "useCountDelta",
+    "potential",
+    "learningConstraints",
+    "potentialDelta",
+    "abilityStatus"
+  ],
   "health": [
-    "hpDelta",
+    "vitalityDelta",
     "staminaDelta",
     "spiritDelta",
-    "addDiseases",
-    "addInjuries"
+    "conditionKind",
+    "conditionName",
+    "bodyPart",
+    "severity",
+    "recoveryDays",
+    "attributeModifiers",
+    "conditionTags",
+    "resolution"
   ],
   "lifespan": [
-    "maxAge",
-    "lifespanDelta"
+    "maximumDaysDelta",
+    "raceId",
+    "raceDisplayName",
+    "clockMode",
+    "baseLifespanDays",
+    "maximumLifespanDays",
+    "attrBaselines"
   ],
   "morality": [
     "delta"
   ],
-  "luck": [
-    "luck"
-  ],
   "faith": [
     "devotionLevel",
     "delta"
-  ],
-  "family": [
-    "status",
-    "members"
   ],
   "education": [
     "level",
@@ -116,12 +132,11 @@ export const SUBSYSTEM_ZOD_FIELD_KEYS: Record<string, readonly string[]> = {
     "socialClass"
   ],
   "reputation": [
-    "fame",
-    "delta",
-    "addFame",
-    "setFame",
-    "addReputation",
-    "dimension"
+    "scopeKind",
+    "evaluatorEntityId",
+    "scopeContextId",
+    "dimension",
+    "delta"
   ],
   "npc-system": [
     "displayName",
@@ -154,22 +169,19 @@ export const SUBSYSTEM_ZOD_FIELD_KEYS: Record<string, readonly string[]> = {
     "scopeKind",
     "scopeContextIds"
   ],
-  "market": [
-    "activityLevel",
-    "trend"
-  ],
   "population": [
     "total",
     "growthRate",
     "migrationDirection"
   ],
   "cultivation": [
-    "realm",
-    "cultivationProgress",
-    "bottleneck"
+    "penaltyDelta",
+    "talentTags",
+    "realmIndex"
   ],
   "combat-power": [
-    "rank",
-    "delta"
+    "progressDelta",
+    "rankId",
+    "label"
   ]
 } as const

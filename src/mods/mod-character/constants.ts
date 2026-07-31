@@ -4,7 +4,14 @@
  * @mod mod-character
  */
 
-import type { BaseAttributes, DestinyPattern, DestinyPatternRarity, DestinyPatternPolarity, RaceLifespanConfig, LifeStageId, LifeStageConfig, MoralityLevel, BreakthroughPathway, DeathCause, } from './types'
+import type {
+  BaseAttributes,
+  DestinyPattern,
+  DestinyPatternPolarity,
+  DestinyPatternRarity,
+  MoralityLevel,
+  RaceLifespanConfig,
+} from './types'
 
 export { TRANSMIGRATOR_KEYWORDS } from '@/core/shared'
 
@@ -189,22 +196,22 @@ export const DESTINY_PATTERN_POLARITY_CONFIG: Record<DestinyPatternPolarity, { l
  *
  * benefitDirection:
  *   'higher' → 数值越大对玩家/世界越有利（绿色=好，红色=坏）
- *   'lower'  → 数值越小越有利（红色=好，绿色=坏）—— 如属性衰减、修炼瓶颈、死亡率、灾害频率等
+ *   'lower'  → 数值越小越有利（红色=好，绿色=坏）—— 如伤病进展、修炼瓶颈、死亡率、灾害频率等
  */
 
 /** 个人向模拟系数元数据 */
 export const DESTINY_PATTERN_PERSONAL_MODIFIER_META: Record<string, { label: string; benefitDirection: 'higher' | 'lower' }> = {
   luckPointModifier: { label: '气运获取', benefitDirection: 'higher' },
-  hpRecoveryModifier: { label: '生命恢复', benefitDirection: 'higher' },
+  vitalityRecoveryModifier: { label: '生命恢复', benefitDirection: 'higher' },
   staminaRecoveryModifier: { label: '体力恢复', benefitDirection: 'higher' },
-  breakthroughChanceModifier: { label: '寿命突破', benefitDirection: 'higher' },
+  spiritRecoveryModifier: { label: '精神恢复', benefitDirection: 'higher' },
+  conditionProgressionModifier: { label: '伤病进展', benefitDirection: 'lower' },
   cultivationSpeedModifier: { label: '修炼/战力成长', benefitDirection: 'higher' },
   bottleneckModifier: { label: '修炼瓶颈', benefitDirection: 'lower' },
   incomeModifier: { label: '职业收入', benefitDirection: 'higher' },
   fertilityModifier: { label: '家族生育', benefitDirection: 'higher' },
   devotionGainModifier: { label: '虔诚获取', benefitDirection: 'higher' },
   lifespanModifier: { label: '寿命上限', benefitDirection: 'higher' },
-  attributeDecayModifier: { label: '属性衰减', benefitDirection: 'lower' },
 } as const
 
 /** 个人向 label 映射（向后兼容） */
@@ -293,92 +300,23 @@ export const PRESET_DESTINY_PATTERNS: Omit<DestinyPattern, 'id'>[] = [
 ]
 
 // ============================================================
-// 健康伤病（对齐废弃项目 advanceHealthRound）
+// 健康初值
 // ============================================================
 
-/** 默认最大生命值 */
-export const DEFAULT_MAX_HP = 100
+/** 默认生命状态值。运行时变化与恢复规则由 HealthSystem 独占。 */
+export const DEFAULT_MAX_VITALITY = 100
+export const DEFAULT_VITALITY = DEFAULT_MAX_VITALITY
 
 /** 默认体力 */
 export const DEFAULT_STAMINA = 100
 
-/** 默认精神（对齐废弃项目 mentalState 初始值 80） */
+/** 默认精神 */
 export const DEFAULT_SPIRIT = 80
 
-/** 精神平衡点（向此值漂移） */
-export const SPIRIT_BALANCE_POINT = 50
-
-/** 精神漂移基础速率 + 魅力加成 */
-export const SPIRIT_DRIFT_RATE_BASE = 1
-export const SPIRIT_CHARISMA_BONUS = 0.1
-
-/** 体力恢复 = max(1, round(体魄 * 2 * diffMult)) */
-export const STAMINA_PHYSIQUE_MULTIPLIER = 2
-
-/** HP 恢复（对齐废弃项目低 HP 分级惩罚） */
-export const HP_RECOVERY_PHYSIQUE_MULT = 0.3
-export const HP_RECOVERY_PHYSIQUE_MULT_SAFE = 0.8
-export const HP_LOW_PENALTY_THRESHOLD_1 = 15
-export const HP_LOW_PENALTY_THRESHOLD_2 = 25
-export const HP_LOW_PENALTY_MULT_1 = 0.5
-export const HP_LOW_PENALTY_MULT_2 = 0.6
-
-// ============================================================
-// 伤病严重度标签（10 级，对齐废弃项目 health-config.ts）
-// ============================================================
-
-/** 伤势严重度 10 级中文标签 */
-export const INJURY_SEVERITY_LABELS: string[] = [
-  '擦伤', '轻伤', '中度伤', '重伤', '危急',
-  '致残', '濒死', '致命', '毁灭性', '无法治愈',
-]
-
-/** 疾病严重度 10 级中文标签 */
-export const ILLNESS_SEVERITY_LABELS: string[] = [
-  '轻微不适', '感冒', '发烧', '慢性病', '急性病',
-  '重病', '危重病', '绝症', '瘟疫', '致命瘟疫',
-]
-
-// ============================================================
-// 恢复速率自动计算表（对齐废弃项目 RECOVERY_BASE_RATES）
-// ============================================================
-
-/** 10 级恢复基础轮次表（severity 1→1轮 / 5→9轮 / 10→40轮） */
-export const RECOVERY_BASE_RATES: Record<number, number> = {
-  1: 1, 2: 2, 3: 4, 4: 6, 5: 9,
-  6: 13, 7: 18, 8: 24, 9: 31, 10: 40,
-}
-
-// ============================================================
-// 健康/精神状态文字标签（对齐废弃项目 getHealthStatusLabel / getMentalStateLabel）
-// ============================================================
-
-// ============================================================
-// 重伤联动（对齐废弃项目重伤时精神加速恶化）
-// ============================================================
-
-/** 重伤时精神恶化倍率（HP < 15 时精神漂移速率 × 2） */
-export const CRITICAL_HP_MENTAL_DECAY_MULT = 2
-
-/** 重伤阈值（HP 低于此值触发精神加速恶化） */
-export const CRITICAL_HP_MENTAL_THRESHOLD = 15
-
-// ============================================================
-// 添加伤病自动扣血（对齐废弃项目 addInjury/addIllness）
-// ============================================================
-
-/** 添加伤病时自动扣血乘数（HP -= severity × 1.5） */
-export const AUTO_INJURY_DAMAGE_MULTIPLIER = 1.5
-
-// ============================================================
-// 寿命（对齐废弃项目 lifespan-config.ts + lifespan-breakthrough-config.ts）
-// ============================================================
-
-/** 基准人类寿命 */
-export const BASE_HUMAN_LIFESPAN = 90
-
-/** 最大寿命上限（对齐废弃项目硬上限） */
-export const MAX_LIFESPAN_CAP = 300
+/** 默认当地恢复规则，所有速率均按天解释。 */
+export const DEFAULT_HEALTH_RECOVERY_PER_DAY = 1
+export const DEFAULT_STAMINA_RECOVERY_PER_DAY = 4
+export const DEFAULT_SPIRIT_RECOVERY_PER_DAY = 2
 
 /**
  * 种族寿命表（对齐废弃项目 RACE_LIFESPAN，55 种族）
@@ -392,215 +330,79 @@ export const MAX_LIFESPAN_CAP = 300
  */
 export const RACE_LIFESPAN: Record<string, RaceLifespanConfig> = {
   // ---- 人类及亚种（对照组，无基准线）----
-  human:    { name: '人类',   baseMaxAge: 100, goldenAgeRatio: [0.18, 0.40,], decayMultiplier: 1.0, },
-  halfling: { name: '半身人', baseMaxAge: 100, goldenAgeRatio: [0.18, 0.40,], decayMultiplier: 1.0, attrBaselines: { charisma: 1, physique: -1, }, },
+  human:    { name: '人类',   baseLifespanYears: 100, clockMode: 'aging', },
+  halfling: { name: '半身人', baseLifespanYears: 100, clockMode: 'aging', attrBaselines: { charisma: 1, physique: -1, }, },
 
   // ---- 精灵亚种（长寿善法，心智/悟性/魅力偏高，体魄偏弱）----
-  elf:          { name: '精灵',     baseMaxAge: 1000, goldenAgeRatio: [0.05, 0.30,], decayMultiplier: 0.1,  attrBaselines: { mind: 2, talentAptitude: 2, charisma: 2, physique: -1, }, },
-  highElf:      { name: '高等精灵',  baseMaxAge: 3000, goldenAgeRatio: [0.03, 0.25,], decayMultiplier: 0.05, attrBaselines: { mind: 4, talentAptitude: 4, charisma: 3, }, },
-  nightElf:     { name: '暗夜精灵',  baseMaxAge: 1500, goldenAgeRatio: [0.04, 0.28,], decayMultiplier: 0.08, attrBaselines: { mind: 2, talentAptitude: 3, charisma: 2, }, },
-  bloodElf:     { name: '血精灵',   baseMaxAge: 800,  goldenAgeRatio: [0.06, 0.32,], decayMultiplier: 0.12, attrBaselines: { mind: 2, talentAptitude: 3, charisma: 3, }, },
-  darkelf:      { name: '暗精灵',   baseMaxAge: 800,  goldenAgeRatio: [0.06, 0.30,], decayMultiplier: 0.15, attrBaselines: { mind: 2, talentAptitude: 2, charisma: 2, }, },
+  elf:          { name: '精灵',     baseLifespanYears: 1000, clockMode: 'aging',  attrBaselines: { mind: 2, talentAptitude: 2, charisma: 2, physique: -1, }, },
+  highElf:      { name: '高等精灵',  baseLifespanYears: 3000, clockMode: 'aging', attrBaselines: { mind: 4, talentAptitude: 4, charisma: 3, }, },
+  nightElf:     { name: '暗夜精灵',  baseLifespanYears: 1500, clockMode: 'aging', attrBaselines: { mind: 2, talentAptitude: 3, charisma: 2, }, },
+  bloodElf:     { name: '血精灵',   baseLifespanYears: 800,  clockMode: 'aging', attrBaselines: { mind: 2, talentAptitude: 3, charisma: 3, }, },
+  darkelf:      { name: '暗精灵',   baseLifespanYears: 800,  clockMode: 'aging', attrBaselines: { mind: 2, talentAptitude: 2, charisma: 2, }, },
 
   // ---- 矮人（坚韧强壮，体魄高，魅力略低）----
-  dwarf: { name: '矮人', baseMaxAge: 350, goldenAgeRatio: [0.10, 0.35,], decayMultiplier: 0.3, attrBaselines: { physique: 3, charisma: -1, }, },
+  dwarf: { name: '矮人', baseLifespanYears: 350, clockMode: 'aging', attrBaselines: { physique: 3, charisma: -1, }, },
 
   // ---- 兽人/哥布林（体魄强，心智/悟性/魅力偏低）----
-  orc:      { name: '兽人',   baseMaxAge: 80,  goldenAgeRatio: [0.15, 0.35,], decayMultiplier: 1.2, attrBaselines: { physique: 4, mind: -1, charisma: -2, }, },
-  halfOrc:  { name: '半兽人',  baseMaxAge: 60,  goldenAgeRatio: [0.17, 0.37,], decayMultiplier: 1.4, attrBaselines: { physique: 2, charisma: -1, }, },
-  goblin:   { name: '哥布林',  baseMaxAge: 50,  goldenAgeRatio: [0.20, 0.40,], decayMultiplier: 1.8, attrBaselines: { physique: -1, charisma: -3, talentAptitude: 1, }, },
-  beastman: { name: '兽人（兽化）', baseMaxAge: 70, goldenAgeRatio: [0.15, 0.35,], decayMultiplier: 1.3, attrBaselines: { physique: 3, charisma: -1, }, },
-  gnome:    { name: '地精',   baseMaxAge: 60,  goldenAgeRatio: [0.18, 0.40,], decayMultiplier: 1.6, attrBaselines: { mind: 2, talentAptitude: 2, physique: -2, }, },
-  gnomeDeep:{ name: '侏儒',   baseMaxAge: 150, goldenAgeRatio: [0.15, 0.35,], decayMultiplier: 0.8, attrBaselines: { mind: 2, talentAptitude: 1, physique: -1, }, },
+  orc:      { name: '兽人',   baseLifespanYears: 80,  clockMode: 'aging', attrBaselines: { physique: 4, mind: -1, charisma: -2, }, },
+  halfOrc:  { name: '半兽人',  baseLifespanYears: 60,  clockMode: 'aging', attrBaselines: { physique: 2, charisma: -1, }, },
+  goblin:   { name: '哥布林',  baseLifespanYears: 50,  clockMode: 'aging', attrBaselines: { physique: -1, charisma: -3, talentAptitude: 1, }, },
+  beastman: { name: '兽人（兽化）', baseLifespanYears: 70, clockMode: 'aging', attrBaselines: { physique: 3, charisma: -1, }, },
+  gnome:    { name: '地精',   baseLifespanYears: 60,  clockMode: 'aging', attrBaselines: { mind: 2, talentAptitude: 2, physique: -2, }, },
+  gnomeDeep:{ name: '侏儒',   baseLifespanYears: 150, clockMode: 'aging', attrBaselines: { mind: 2, talentAptitude: 1, physique: -1, }, },
 
   // ---- 龙族（顶级种族，体魄/心智/威仪极高）----
-  dragon:    { name: '龙族',  baseMaxAge: 50000, goldenAgeRatio: [0.01, 0.20,], decayMultiplier: 0.01, attrBaselines: { physique: 8, mind: 6, talentAptitude: 6, charisma: 6, }, },
-  dragonkin: { name: '龙裔',  baseMaxAge: 1500,  goldenAgeRatio: [0.10, 0.35,], decayMultiplier: 0.3,  attrBaselines: { physique: 4, mind: 2, charisma: 3, }, },
-  halfDragon:{ name: '半龙',  baseMaxAge: 500,   goldenAgeRatio: [0.12, 0.38,], decayMultiplier: 0.5,  attrBaselines: { physique: 3, charisma: 2, }, },
+  dragon:    { name: '龙族',  baseLifespanYears: 50000, clockMode: 'aging', attrBaselines: { physique: 8, mind: 6, talentAptitude: 6, charisma: 6, }, },
+  dragonkin: { name: '龙裔',  baseLifespanYears: 1500,  clockMode: 'aging',  attrBaselines: { physique: 4, mind: 2, charisma: 3, }, },
+  halfDragon:{ name: '半龙',  baseLifespanYears: 500,   clockMode: 'aging',  attrBaselines: { physique: 3, charisma: 2, }, },
 
   // ---- 仙神（顶级种族，悟性/心智/威仪极高）----
-  immortal: { name: '仙人',  baseMaxAge: 10000,  goldenAgeRatio: [0, 0,],       decayMultiplier: 0,     attrBaselines: { talentAptitude: 6, mind: 5, charisma: 4, physique: 3, }, },
-  divine:   { name: '神族',  baseMaxAge: 100000, goldenAgeRatio: [0.005, 0.15,], decayMultiplier: 0.001, attrBaselines: { physique: 6, mind: 7, talentAptitude: 8, charisma: 7, }, },
-  celestial:{ name: '仙族',  baseMaxAge: 50000,  goldenAgeRatio: [0.005, 0.15,], decayMultiplier: 0.001, attrBaselines: { talentAptitude: 7, mind: 6, charisma: 6, physique: 4, }, },
+  immortal: { name: '仙人',  baseLifespanYears: 10000,  clockMode: 'ageless',     attrBaselines: { talentAptitude: 6, mind: 5, charisma: 4, physique: 3, }, },
+  divine:   { name: '神族',  baseLifespanYears: 100000, clockMode: 'aging', attrBaselines: { physique: 6, mind: 7, talentAptitude: 8, charisma: 7, }, },
+  celestial:{ name: '仙族',  baseLifespanYears: 50000,  clockMode: 'aging', attrBaselines: { talentAptitude: 7, mind: 6, charisma: 6, physique: 4, }, },
 
   // ---- 魔族/妖族/鬼族（强大偏邪，体魄/威仪高，视亚种而定）----
-  demon:  { name: '魔族', baseMaxAge: 3000, goldenAgeRatio: [0.03, 0.20,], decayMultiplier: 0.03, attrBaselines: { physique: 5, mind: 3, charisma: 4, }, },
-  monster:{ name: '妖族', baseMaxAge: 2000, goldenAgeRatio: [0.04, 0.25,], decayMultiplier: 0.05, attrBaselines: { physique: 4, talentAptitude: 3, charisma: 2, }, },
-  ghost:  { name: '鬼族', baseMaxAge: 5000, goldenAgeRatio: [0.02, 0.20,], decayMultiplier: 0.02, attrBaselines: { mind: 3, talentAptitude: 3, physique: -3, charisma: -2, }, },
+  demon:  { name: '魔族', baseLifespanYears: 3000, clockMode: 'aging', attrBaselines: { physique: 5, mind: 3, charisma: 4, }, },
+  monster:{ name: '妖族', baseLifespanYears: 2000, clockMode: 'aging', attrBaselines: { physique: 4, talentAptitude: 3, charisma: 2, }, },
+  ghost:  { name: '鬼族', baseLifespanYears: 5000, clockMode: 'aging', attrBaselines: { mind: 3, talentAptitude: 3, physique: -3, charisma: -2, }, },
 
   // ---- 不死族（无生机，体魄视形态而定，魅力多为负）----
-  undead:  { name: '不死族', baseMaxAge: 999999, goldenAgeRatio: [0, 0,], decayMultiplier: 0, attrBaselines: { physique: 2, charisma: -3, }, },
-  undeadZombie:{ name: '僵尸', baseMaxAge: 5000, goldenAgeRatio: [0, 0,], decayMultiplier: 0, attrBaselines: { physique: 3, mind: -5, talentAptitude: -4, charisma: -5, }, },
-  undeadLich:  { name: '亡灵', baseMaxAge: 10000, goldenAgeRatio: [0, 0,], decayMultiplier: 0, attrBaselines: { mind: 5, talentAptitude: 5, physique: -2, charisma: -3, }, },
+  undead:  { name: '不死族', baseLifespanYears: 999999, clockMode: 'ageless', attrBaselines: { physique: 2, charisma: -3, }, },
+  undeadZombie:{ name: '僵尸', baseLifespanYears: 5000, clockMode: 'ageless', attrBaselines: { physique: 3, mind: -5, talentAptitude: -4, charisma: -5, }, },
+  undeadLich:  { name: '亡灵', baseLifespanYears: 10000, clockMode: 'ageless', attrBaselines: { mind: 5, talentAptitude: 5, physique: -2, charisma: -3, }, },
 
   // ---- 吸血鬼/狼人（魅力/体魄突出）----
-  vampire:     { name: '吸血鬼',  baseMaxAge: 5000,  goldenAgeRatio: [0.02, 0.20,], decayMultiplier: 0.01,  attrBaselines: { charisma: 5, physique: 4, mind: 3, }, },
-  halfVampire: { name: '半吸血鬼', baseMaxAge: 500,   goldenAgeRatio: [0.10, 0.35,], decayMultiplier: 0.3,   attrBaselines: { charisma: 3, physique: 2, }, },
-  bloodline:   { name: '血族',    baseMaxAge: 10000, goldenAgeRatio: [0.01, 0.15,], decayMultiplier: 0.005, attrBaselines: { charisma: 6, physique: 5, mind: 4, }, },
-  werewolf:    { name: '狼人',    baseMaxAge: 150,   goldenAgeRatio: [0.15, 0.38,], decayMultiplier: 0.8,   attrBaselines: { physique: 5, mind: -1, }, },
+  vampire:     { name: '吸血鬼',  baseLifespanYears: 5000,  clockMode: 'aging',  attrBaselines: { charisma: 5, physique: 4, mind: 3, }, },
+  halfVampire: { name: '半吸血鬼', baseLifespanYears: 500,   clockMode: 'aging',   attrBaselines: { charisma: 3, physique: 2, }, },
+  bloodline:   { name: '血族',    baseLifespanYears: 10000, clockMode: 'aging', attrBaselines: { charisma: 6, physique: 5, mind: 4, }, },
+  werewolf:    { name: '狼人',    baseLifespanYears: 150,   clockMode: 'aging',   attrBaselines: { physique: 5, mind: -1, }, },
 
   // ---- 天使/恶魔（顶级种族，威仪/心智极高）----
-  angel:     { name: '天使',   baseMaxAge: 50000, goldenAgeRatio: [0.005, 0.15,], decayMultiplier: 0.001, attrBaselines: { charisma: 8, mind: 6, talentAptitude: 6, physique: 5, }, },
-  fallenAngel:{ name: '堕天使', baseMaxAge: 30000, goldenAgeRatio: [0.005, 0.15,], decayMultiplier: 0.002, attrBaselines: { charisma: 6, physique: 6, mind: 5, talentAptitude: 5, }, },
-  archdemon: { name: '恶魔',   baseMaxAge: 10000, goldenAgeRatio: [0.01, 0.18,],  decayMultiplier: 0.005, attrBaselines: { physique: 7, mind: 5, charisma: 5, }, },
+  angel:     { name: '天使',   baseLifespanYears: 50000, clockMode: 'aging', attrBaselines: { charisma: 8, mind: 6, talentAptitude: 6, physique: 5, }, },
+  fallenAngel:{ name: '堕天使', baseLifespanYears: 30000, clockMode: 'aging', attrBaselines: { charisma: 6, physique: 6, mind: 5, talentAptitude: 5, }, },
+  archdemon: { name: '恶魔',   baseLifespanYears: 10000, clockMode: 'aging', attrBaselines: { physique: 7, mind: 5, charisma: 5, }, },
 
   // ---- 妖精/人鱼/巨人 ----
-  fairy:   { name: '妖精', baseMaxAge: 300, goldenAgeRatio: [0.12, 0.35,], decayMultiplier: 0.5, attrBaselines: { charisma: 3, talentAptitude: 2, physique: -3, }, },
-  merfolk: { name: '人鱼', baseMaxAge: 250, goldenAgeRatio: [0.10, 0.35,], decayMultiplier: 0.4, attrBaselines: { charisma: 4, mind: 1, }, },
-  giant:   { name: '巨人', baseMaxAge: 300, goldenAgeRatio: [0.10, 0.35,], decayMultiplier: 0.6, attrBaselines: { physique: 6, mind: -2, talentAptitude: -1, }, },
+  fairy:   { name: '妖精', baseLifespanYears: 300, clockMode: 'aging', attrBaselines: { charisma: 3, talentAptitude: 2, physique: -3, }, },
+  merfolk: { name: '人鱼', baseLifespanYears: 250, clockMode: 'aging', attrBaselines: { charisma: 4, mind: 1, }, },
+  giant:   { name: '巨人', baseLifespanYears: 300, clockMode: 'aging', attrBaselines: { physique: 6, mind: -2, talentAptitude: -1, }, },
 
   // ---- AI / 机械 / 数字生命（心智/悟性高，魅力低，体魄视形态）----
-  aiEntity:      { name: 'AI 意识体',  baseMaxAge: 50000,  goldenAgeRatio: [0, 0,], decayMultiplier: 0,   attrBaselines: { mind: 6, talentAptitude: 5, charisma: -2, }, },
-  android:       { name: '仿生人',     baseMaxAge: 300,    goldenAgeRatio: [0.05, 0.30,], decayMultiplier: 0.3, attrBaselines: { physique: 3, mind: 2, charisma: 1, }, },
-  cyborg:        { name: '机械改造人',  baseMaxAge: 200,    goldenAgeRatio: [0.10, 0.40,], decayMultiplier: 0.5, attrBaselines: { physique: 4, mind: 1, charisma: -1, }, },
-  machineLife:   { name: '机械生命',   baseMaxAge: 100000, goldenAgeRatio: [0, 0,],       decayMultiplier: 0, attrBaselines: { physique: 5, mind: 4, talentAptitude: 2, charisma: -3, }, },
-  digitalLife:   { name: '数字生命',   baseMaxAge: 100000, goldenAgeRatio: [0, 0,],       decayMultiplier: 0, attrBaselines: { mind: 6, talentAptitude: 4, physique: -2, charisma: -2, }, },
+  aiEntity:      { name: 'AI 意识体',  baseLifespanYears: 50000,  clockMode: 'ageless',   attrBaselines: { mind: 6, talentAptitude: 5, charisma: -2, }, },
+  android:       { name: '仿生人',     baseLifespanYears: 300,    clockMode: 'aging', attrBaselines: { physique: 3, mind: 2, charisma: 1, }, },
+  cyborg:        { name: '机械改造人',  baseLifespanYears: 200,    clockMode: 'aging', attrBaselines: { physique: 4, mind: 1, charisma: -1, }, },
+  machineLife:   { name: '机械生命',   baseLifespanYears: 100000, clockMode: 'ageless', attrBaselines: { physique: 5, mind: 4, talentAptitude: 2, charisma: -3, }, },
+  digitalLife:   { name: '数字生命',   baseLifespanYears: 100000, clockMode: 'ageless', attrBaselines: { mind: 6, talentAptitude: 4, physique: -2, charisma: -2, }, },
 
   // ---- 其他科幻/奇幻 ----
-  clone:        { name: '克隆体',   baseMaxAge: 80,  goldenAgeRatio: [0.15, 0.35,], decayMultiplier: 1.2, },
-  alienHybrid:  { name: '外星混血', baseMaxAge: 200, goldenAgeRatio: [0.10, 0.35,], decayMultiplier: 0.7, attrBaselines: { mind: 2, talentAptitude: 2, }, },
-  alien:        { name: '外星人',   baseMaxAge: 500, goldenAgeRatio: [0.08, 0.30,], decayMultiplier: 0.5, attrBaselines: { mind: 3, talentAptitude: 3, charisma: -1, }, },
-  elemental:    { name: '元素生物', baseMaxAge: 100000, goldenAgeRatio: [0, 0,], decayMultiplier: 0, attrBaselines: { physique: 4, talentAptitude: 3, charisma: -2, }, },
-  energyBeing:  { name: '能量体',   baseMaxAge: 100000, goldenAgeRatio: [0, 0,], decayMultiplier: 0, attrBaselines: { mind: 5, talentAptitude: 4, physique: -3, charisma: -3, }, },
-  alchemyGolem: { name: '炼金造物', baseMaxAge: 500, goldenAgeRatio: [0.05, 0.30,], decayMultiplier: 0.2, attrBaselines: { physique: 4, mind: -2, charisma: -3, }, },
-  magicBeast:   { name: '魔法生物', baseMaxAge: 1000, goldenAgeRatio: [0.05, 0.30,], decayMultiplier: 0.1, attrBaselines: { physique: 3, talentAptitude: 3, }, },
+  clone:        { name: '克隆体',   baseLifespanYears: 80,  clockMode: 'aging', },
+  alienHybrid:  { name: '外星混血', baseLifespanYears: 200, clockMode: 'aging', attrBaselines: { mind: 2, talentAptitude: 2, }, },
+  alien:        { name: '外星人',   baseLifespanYears: 500, clockMode: 'aging', attrBaselines: { mind: 3, talentAptitude: 3, charisma: -1, }, },
+  elemental:    { name: '元素生物', baseLifespanYears: 100000, clockMode: 'ageless', attrBaselines: { physique: 4, talentAptitude: 3, charisma: -2, }, },
+  energyBeing:  { name: '能量体',   baseLifespanYears: 100000, clockMode: 'ageless', attrBaselines: { mind: 5, talentAptitude: 4, physique: -3, charisma: -3, }, },
+  alchemyGolem: { name: '炼金造物', baseLifespanYears: 500, clockMode: 'aging', attrBaselines: { physique: 4, mind: -2, charisma: -3, }, },
+  magicBeast:   { name: '魔法生物', baseLifespanYears: 1000, clockMode: 'aging', attrBaselines: { physique: 3, talentAptitude: 3, }, },
 }
-
-/** 世界观寿命修正映射表（对齐废弃项目 LIFESPAN_WORLD_MAP，44 世界观） */
-export const LIFESPAN_WORLD_MAP: Record<string, number> = {
-  '修仙世界': 300, '洪荒神话': 300, '玄幻大陆': 300,
-  '龙与地下城': 300, '奥术大陆': 200, '英灵纪元': 200,
-  '星际战锤': 200, '星穹铁道': 200, '黑暗森林': 200,
-  '赛博朋克': 130, '文明纪元': 200, '西方奇幻': 300,
-  '武侠江湖': 120, '忍者战国': 120, '海盗大航海': 100,
-  '克苏鲁迷踪': 100, '维多利亚英伦': 100, '鬼灭之刃': 100,
-  '龙血学院': 200, '斗罗大陆': 300, '精灵训练师': 150,
-  '忍界风云': 120, '泰拉大陆': 200, '七神纪行': 300,
-  '东方幻想乡': 300, '蛊师天下': 200, '序列之主': 300,
-  '星海科幻': 200, '咒灵之战': 300, '武道割据': 200,
-  '战锤40K': 200, '哈利波特': 150, '中土世界': 300,
-  '漫威宇宙': 200, 'DC宇宙': 200, '死神境界': 300,
-  '艾尔登法环': 300, '黑神话悟空': 300, '完美世界': 300,
-  '斗气大陆': 300, '大主宰': 300, '牧神记': 300,
-  '后室': 20,
-}
-
-/** 背景关键词寿命加成（对齐废弃项目 LIFESPAN_BG_BONUS_KEYWORDS） */
-export const LIFESPAN_BG_BONUS_KEYWORDS: Record<string, number> = {
-  '长生': 5000, '不死': 50000, '永生': 100000, '不朽': 100000,
-  '系统无限寿命': 100000, '寿命无限': 100000, '寿命锁定': 100000,
-  '寿元无限': 100000, '不老': 3000, '冻龄': 2000,
-}
-
-/** 开始检查突破的年龄比例阈值（age/maxAge > 0.85） */
-export const BREAKTHROUGH_AGE_RATIO = 0.85
-
-/** 突破基础概率 */
-export const BREAKTHROUGH_BASE_CHANCE = 0.30
-
-/** 每次突破后概率递减乘数 */
-export const BREAKTHROUGH_DECAY_MULTIPLIER = 1.5
-
-/** 6 种突破途径（对齐废弃项目 BreakthroughCondition） */
-export const BREAKTHROUGH_PATHWAYS: Array<{
-  pathway: BreakthroughPathway
-  label: string
-  description: string
-  requiredLuck: number
-  requiredWealth: number
-  requiredReputation: number
-  yearsGained: number
-}> = [
-  {
-    pathway: 'rareElixir', label: '延寿丹药', description: '服用传说中的延寿仙丹',
-    requiredLuck: 5, requiredWealth: 5000, requiredReputation: 30, yearsGained: 50,
-  },
-  {
-    pathway: 'cultivation', label: '修为突破', description: '修行突破境界，生命层次跃升',
-    requiredLuck: 6, requiredWealth: 2000, requiredReputation: 40, yearsGained: 80,
-  },
-  {
-    pathway: 'divineBlessing', label: '神祇赐福', description: '获得神灵或超凡存在的寿命赐福',
-    requiredLuck: 8, requiredWealth: 0, requiredReputation: 50, yearsGained: 100,
-  },
-  {
-    pathway: 'forbiddenRitual', label: '禁忌仪式', description: '通过献祭或禁忌仪式强行延寿',
-    requiredLuck: 4, requiredWealth: 3000, requiredReputation: -10, yearsGained: 60,
-  },
-  {
-    pathway: 'techEnhancement', label: '科技改造', description: '通过尖端科技改造延长生命',
-    requiredLuck: 3, requiredWealth: 10000, requiredReputation: 20, yearsGained: 40,
-  },
-  {
-    pathway: 'ancientArtifact', label: '远古神器', description: '使用蕴含生命力的远古神器',
-    requiredLuck: 7, requiredWealth: 1000, requiredReputation: 25, yearsGained: 70,
-  },
-]
-
-/** 减寿关键词组及减少年数（对齐废弃项目 LIFESPAN_LOSS_EVENTS，支持多关键词匹配 + note 说明） */
-export const LIFESPAN_REDUCTION_KEYWORDS: Array<{ keywords: string[]; yearsLost: number; note: string }> = [
-  { keywords: ['重伤濒死', '丹田破碎', '经脉尽断',], yearsLost: 30, note: '重伤损及寿元根基', },
-  { keywords: ['诅咒', '寿命诅咒', '寿元被夺',], yearsLost: 50, note: '被诅咒掠夺寿命', },
-  { keywords: ['献祭寿命', '折寿', '燃烧寿元',], yearsLost: 20, note: '主动献祭或燃烧寿命', },
-  { keywords: ['中毒', '慢性毒', '深入骨髓',], yearsLost: 10, note: '毒素侵蚀寿命', },
-  { keywords: ['天劫', '雷劫', '渡劫失败',], yearsLost: 40, note: '天劫反噬折损寿元', },
-  { keywords: ['走火入魔', '心魔反噬',], yearsLost: 25, note: '走火入魔损害根基', },
-]
-
-// ============================================================
-// 生命阶段（对齐废弃项目 getLifeStageFromAge）
-// ============================================================
-
-/** 8 个生命阶段基础配置（AI 适配前，系数对齐废弃项目 vitality/learning/social） */
-export const DEFAULT_LIFE_STAGES: Record<LifeStageId, Omit<LifeStageConfig, 'displayName' | 'eventPool' | 'avoidancePool'>> = {
-  infant:       { id: 'infant',       ageRange: [0, 3,],   coefficients: { vitality: 0.3,  learning: 0.2, social: 0.1, }, },
-  child:        { id: 'child',        ageRange: [3, 12,],  coefficients: { vitality: 0.6,  learning: 1.8, social: 0.8, }, },
-  teenager:     { id: 'teenager',     ageRange: [12, 18,], coefficients: { vitality: 0.9,  learning: 1.5, social: 1.0, }, },
-  young_adult:  { id: 'young_adult',  ageRange: [0, 0,],   coefficients: { vitality: 1.1,  learning: 1.2, social: 1.2, }, },
-  adult:        { id: 'adult',        ageRange: [0, 0,],   coefficients: { vitality: 1.0,  learning: 0.9, social: 1.0, }, },
-  middle_age:   { id: 'middle_age',   ageRange: [0, 0,],   coefficients: { vitality: 0.85, learning: 0.6, social: 0.9, }, },
-  elder:        { id: 'elder',        ageRange: [0, 0,],   coefficients: { vitality: 0.5,  learning: 0.3, social: 0.6, }, },
-  deceased:     { id: 'deceased',     ageRange: [0, 0,],   coefficients: { vitality: 0,    learning: 0,   social: 0, }, },
-}
-
-/** 生命阶段硬编码默认术语（AI 适配失败时使用） */
-export const DEFAULT_STAGE_DISPLAY_NAMES: Record<LifeStageId, string> = {
-  infant: '婴儿',
-  child: '儿童',
-  teenager: '少年',
-  young_adult: '青年',
-  adult: '壮年',
-  middle_age: '中年',
-  elder: '老年',
-  deceased: '已故',
-}
-
-// ============================================================
-// 年龄衰减（对齐废弃项目 age-decay-config.ts + age-decay-system.ts）
-// ============================================================
-
-/** 默认黄金年龄（human 绝对年龄） */
-export const DEFAULT_PRIME_AGE_START = 18
-export const DEFAULT_PRIME_AGE_END = 40
-
-/** 按种族区分的衰减速率（对齐废弃项目 AGE_DECAY_RATES） */
-export const AGE_DECAY_RATES: Record<string, Record<string, number>> = {
-  human:    { physique: -0.3,  mind: -0.1,  talentAptitude: -0.15, charisma: -0.2, },
-  elf:      { physique: -0.05, mind: -0.05, talentAptitude: -0.05, charisma: -0.05, },
-  dragon:   { physique: -0.01, mind: -0.01, talentAptitude: -0.01, charisma: -0.01, },
-  immortal: { physique: 0,     mind: 0,     talentAptitude: 0,     charisma: 0, },
-}
-
-/** 黄金年龄前增长率（对齐废弃项目 AGE_GROWTH_RATES，human 基准） */
-export const AGE_GROWTH_RATES: Record<string, Record<string, number>> = {
-  human: { physique: 0.5, mind: 0.3, talentAptitude: 0.2, charisma: 0.3, },
-}
-
-/** 心智经验补偿速率（对齐废弃项目，每年额外 +0.05） */
-export const MIND_EXPERIENCE_BONUS = 0.05
-
-/** 衰减修正钳制范围 */
-export const DECAY_CLAMP_RANGE: [number, number] = [-10, 10,]
 
 // ============================================================
 // 善恶值（对齐废弃项目 extractMoralityChanges）
@@ -646,10 +448,6 @@ export const MORALITY_DELTA_CLAMP: [number, number] = [-10, 10,]
 export const STORAGE_KEYS = {
   CHARACTER: 'mod-character:character',
   DESTINY_PATTERNS: 'mod-character:destiny-patterns',
-  HEALTH: 'mod-character:health',
-  LIFESPAN: 'mod-character:lifespan',
-  LIFE_STAGE: 'mod-character:life-stage',
-  DECAY: 'mod-character:decay',
   MORALITY: 'mod-character:morality',
   LUCK: 'mod-character:luck',
 } as const
@@ -667,30 +465,18 @@ export const LUCK_DEATH_AVOID_CHANCE_PER_POINT = 0.02
 /** 每点气运向有利叙事方向偏移权重 */
 export const LUCK_EVENT_WEIGHT_PER_POINT = 0.05
 
-/** 每点气运减缓衰老速率 */
-export const LUCK_AGE_DECAY_MODIFIER_PER_POINT = 0.01
-
 /** 气运值范围（隐藏基础属性，与显性属性统一为 -10~+10；0 为常人无特殊气运） */
 export const MIN_LUCK = -10
 export const MAX_LUCK = 10
 
-/** 气运单次变化达到该幅度时触发"大幅变化"通知 */
-export const LUCK_MAJOR_CHANGE_THRESHOLD = 3
+/** 新人生只在本地随机生成的初始气运范围。 */
+export const INITIAL_LUCK_MIN = -3
+export const INITIAL_LUCK_MAX = 3
 
-/** 气运大幅变化通知持续的轮数 */
-export const LUCK_NOTIFICATION_DURATION = 5
+/** 零气运时三个叙事方向的基准概率。 */
+export const BASE_BAD_LUCK_DIRECTION_PERCENT = 25
+export const BASE_NEUTRAL_LUCK_DIRECTION_PERCENT = 50
+export const BASE_GOOD_LUCK_DIRECTION_PERCENT = 25
 
-// ============================================================
-// 死因推断（对齐废弃项目 death-constants.ts）
-// ============================================================
-
-/** 7 种死因中文标签 */
-export const DEATH_CAUSE_LABELS: Record<DeathCause, string> = {
-  old_age: '寿终正寝',
-  illness: '疾病缠身',
-  battle: '战死沙场',
-  accident: '意外身亡',
-  murder: '惨遭杀害',
-  catastrophe: '天灾降临',
-  unknown: '死因不明',
-}
+/** 每点气运向对应好/坏方向转移的概率百分点。 */
+export const LUCK_DIRECTION_PERCENT_PER_POINT = 5

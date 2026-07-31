@@ -34,7 +34,6 @@ export {
   resolveNarrativeToneHint,
   buildTimeBridgeSummary,
   extractBridgeSnapshot,
-  WorldEventBus,
   globalDeadLoopDetector,
   sanitizeSubSystemState,
   clampNumber,
@@ -49,14 +48,13 @@ export {
   isMvpRuntimeSubsystem,
   resolveTimeStep,
   mapSubsystemStatesToDetectionStates,
-  buildLifeStageNarrativeHint,
-  resolveLifeStageFromAge,
+  buildLifecycleNarrativeHint,
+  generateLifecycleArchetypeHint,
+  buildLifecycleLifespanReminder,
   normalizeNarrativeParagraphs,
   buildNarrativeHints,
   type BridgeSnapshot,
   type EventLifecycleTracker,
-  type DomainEvent,
-  type SubsystemInstruction,
   type NarrativeHintInput,
 } from './helpers/orchestrator-pipeline-support'
 
@@ -94,8 +92,6 @@ export {
 } from './helpers/narrative-calendar'
 
 export { buildTimeScaleNarrativeHint } from './helpers/time-scale-narrative'
-
-export { generateArchetypeHint, buildLifespanReminder } from './helpers/life-stage-archetypes'
 
 export { collectGameSavePayload } from './helpers/save-restore'
 

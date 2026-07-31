@@ -10,8 +10,8 @@
   height: 100%;
   min-height: 400px;
   overflow: hidden;
-  background: #1a1a2e;
-  border-radius: 12px;
+  background: #171918;
+  border-radius: 8px;
   cursor: grab;
 }
 
@@ -42,7 +42,7 @@
   height: 32px;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 6px;
-  background: rgba(30, 30, 50, 0.85);
+  background: rgba(31, 34, 32, 0.92);
   color: #ffffff;
   font-size: 16px;
   cursor: pointer;
@@ -53,7 +53,7 @@
 }
 
 .controlBtn:hover {
-  background: rgba(60, 60, 90, 0.9);
+  background: rgba(65, 72, 67, 0.95);
 }
 
 .zoomLabel {
@@ -69,7 +69,7 @@
   position: absolute;
   bottom: 12px;
   left: 12px;
-  background: rgba(30, 30, 50, 0.85);
+  background: rgba(31, 34, 32, 0.92);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 8px;
   padding: 10px 14px;
@@ -79,25 +79,10 @@
   gap: 4px;
 }
 
-.legendTitle {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
-  margin-bottom: 2px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
 .legendItem {
   display: flex;
   align-items: center;
   gap: 8px;
-}
-
-.legendColor {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  flex-shrink: 0;
 }
 
 .legendLabel {
@@ -112,9 +97,9 @@
   bottom: 12px;
   right: 12px;
   width: 200px;
-  background: rgba(30, 30, 50, 0.9);
+  background: rgba(31, 34, 32, 0.94);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 14px 16px;
   z-index: 10;
   backdrop-filter: blur(8px);
@@ -123,7 +108,7 @@
 .infoTitle {
   font-size: 14px;
   font-weight: 600;
-  color: #f1c40f;
+  color: #f2bd55;
   margin: 0 0 10px 0;
 }
 
@@ -138,6 +123,13 @@
 
 .infoLabel {
   color: rgba(255, 255, 255, 0.5);
+}
+
+.currentLocation {
+  margin-top: 8px;
+  color: #f2bd55;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 /* ── 空状态 ── */
@@ -155,7 +147,16 @@
   pointer-events: none;
 }
 
-.emptyHint {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.25);
+@media (max-width: 520px) {
+  .legend {
+    right: 12px;
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  .infoPanel {
+    right: 12px;
+    bottom: 64px;
+    width: min(200px, calc(100% - 24px));
+  }
 }

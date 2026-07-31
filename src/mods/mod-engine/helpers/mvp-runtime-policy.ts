@@ -14,7 +14,11 @@ import { mvpStageLoader } from './mvp-stage-loader'
 
 export const MVP_EXTERNAL_RUNTIME_SUBSYSTEM_IDS = mvpStageLoader.getExternalRuntimeSubsystems()
 
+export const MVP_EXTERNAL_RUNTIME_SUBSYSTEM_ORDER = mvpStageLoader.getExternalRuntimeSubsystemOrder()
+
 export const MVP_ENGINE_RUNTIME_SUBSYSTEM_IDS = mvpStageLoader.getEngineRuntimeSubsystems()
+
+export const MVP_ENGINE_RUNTIME_SUBSYSTEM_ORDER = mvpStageLoader.getEngineRuntimeSubsystemOrder()
 
 export const MVP_PROMPT_SUBSYSTEM_IDS = mvpStageLoader.getPromptSubsystems()
 
@@ -65,4 +69,12 @@ export function isMvpSystemInstructionSubsystem(subsystemId: string): boolean {
 export function shouldApplyMvpCommit(source: string, subsystemId: string): boolean {
   if (source === 'manual') return true
   return isMvpSystemInstructionSubsystem(subsystemId)
+}
+
+export function getMvpRuntimeSubsystemOrder(subsystemId: string): number {
+  const externalIndex = MVP_EXTERNAL_RUNTIME_SUBSYSTEM_ORDER.indexOf(subsystemId)
+  if (externalIndex >= 0) return externalIndex
+  const engineIndex = MVP_ENGINE_RUNTIME_SUBSYSTEM_ORDER.indexOf(subsystemId)
+  if (engineIndex >= 0) return MVP_EXTERNAL_RUNTIME_SUBSYSTEM_ORDER.length + engineIndex
+  throw new Error(`[MvpStageConfig] 未声明活动子系统顺序: ${subsystemId}`)
 }

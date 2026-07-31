@@ -24,8 +24,9 @@ export const PROFILES = {
   },
   full: {
     label: '全量',
-    domainIds: ['wiring', 'loader', 'mod', 'calibration', 'narrative', 'ui'],
+    domainIds: ['wiring', 'loader', 'account', 'mod', 'calibration', 'narrative', 'ui'],
   },
+  account: { label: 'Account / persistence', domainIds: ['account'] },
   ui: { label: 'UI', domainIds: ['ui'] },
   mod: { label: 'MOD 架构', domainIds: ['mod'] },
   narrative: { label: '叙事', domainIds: ['narrative'] },

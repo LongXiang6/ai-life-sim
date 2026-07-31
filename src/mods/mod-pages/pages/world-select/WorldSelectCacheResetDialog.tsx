@@ -55,7 +55,7 @@ export function WorldSelectCacheResetDialog({ logic }: { logic: WorldSelectLogic
       >
         <h2 id="world-cache-reset-title">重置「{dialog.worldName}」的生成内容？</h2>
         <p id="world-cache-reset-description">
-          将只清除该世界的命格候选、初始化校准、实体、地图与创建流程缓存。不会删除世界、存档或其他世界的数据。
+          将只清除该世界的命格候选、初始化校准、实体与创建流程缓存。不会删除世界、存档或其他世界的数据。
         </p>
         <div className={styles.cacheDialogActions}>
           <button ref={cancelButtonRef} type="button" onClick={logic.handleCancelClearWorldCache}>取消</button>

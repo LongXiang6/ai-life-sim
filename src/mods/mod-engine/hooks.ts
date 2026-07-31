@@ -281,6 +281,7 @@ export function useSimulationAdvance() {
 
     isAdvancingRef.current = true
     setIsAdvancing(true)
+    useEngineStore.getState().clearPendingNarrative()
     useEngineStore.setState({ narrativeError: null })
 
     // 预生成关闭时也要等待上一轮摘要压缩提交，避免两个真实回合并发改写同一压缩器。
@@ -329,7 +330,7 @@ export function useSimulationAdvance() {
     orchestrator.start()
 
     if (cached?.fullContent) {
-      orchestrator.setPrefetchedNarrative(cached.fullContent)
+      orchestrator.setPrefetchedNarrative(cached.fullContent, cached.luckGuidance)
       if (cached.isBranchPoint) clearPreGenQueue()
     }
 
@@ -340,7 +341,9 @@ export function useSimulationAdvance() {
         worldCode ? `sim-${worldCode}` : undefined,
       )
       // 自动保存与回合 outcome 只在同一轮最终状态稳定后各执行一次；不记录点击、导航或输入过程。
+      const completedExecutionId = useEngineStore.getState().pendingNarrative?.executionId
       syncOrchestratorToEngineStore()
+      useEngineStore.getState().clearPendingNarrative(completedExecutionId)
       const completedState = useEngineStore.getState()
       const repetition = completedState.narrativeHistory[completedState.narrativeHistory.length - 1]?.repetitionMetric
       if (repetition) {
@@ -359,6 +362,7 @@ export function useSimulationAdvance() {
         && (
           err.name === 'NarrativeGenerationRejectedError'
           || err.name === 'NarrativeSettlementRejectedError'
+          || err.name === 'NarrativeEventRecognitionRejectedError'
         )
       const logRoundFailure = expectedQualityRejection ? logger.warn : logger.error
       logRoundFailure('simulation', '回合执行失败', err)
@@ -373,9 +377,21 @@ export function useSimulationAdvance() {
           await postNarrativeRoundOutcome(failedReport)
         })
       }
-      useEngineStore.getState().setNarrativeError(
-        err instanceof Error ? err.message : '叙事生成失败',
-      )
+      const errorMessage = err instanceof Error ? err.message : '叙事生成失败'
+      const executionError = err as Error & {
+        executionCode?: string
+        executionId?: string
+      }
+      const pendingNarrative = useEngineStore.getState().pendingNarrative
+      if (pendingNarrative) {
+        useEngineStore.getState().updatePendingNarrative(
+          pendingNarrative.executionId,
+          'failed',
+          executionError.executionCode ?? 'narrative-round:failed',
+          errorMessage,
+        )
+      }
+      useEngineStore.getState().setNarrativeError(errorMessage)
     } finally {
       syncOrchestratorToEngineStore()
       const runtimeStatus = orchestrator.getState().status

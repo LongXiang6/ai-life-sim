@@ -31,11 +31,10 @@ export const WORLD_INIT_STABLE_USER_KEYS = [
   'worldTags',
   'calibrationSummary',
   'worldviewStyleHint',
-  'powerCeiling',
+  'powerFramework',
   'difficulty',
   'dimensionChoices',
   'dimensionOptions',
-  'powerCeilingPresets',
 ] as const
 
 /** 实体步变长字段 */

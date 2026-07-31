@@ -1,301 +1,369 @@
-/**
- * @module NaturalResourceSystem
- * @description 自然资源子系统：世界级宏观资源储量、再生速率、消耗速率、危机警报
- * @mod mod-environment-ecology
- */
-import { getRoundSequence } from '@/foundation'
+/** P3 natural-resource owner: node-scoped quantities with deterministic day-based advance. */
 
-import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
-
-import { extractDynamicAttrsFromNarrative } from '@/foundation'
-
-import type { AttrTagMap } from '@/foundation'
-import type { NaturalResourceState, NaturalResourceType, ResourceMetrics } from '../types'
-
-import {
-  INITIAL_RESOURCE_RESERVES,
-  BASE_REGENERATION_RATE,
-  BASE_CONSUMPTION_RATE,
-  RESOURCE_DEPLETION_THRESHOLD,
-  OVEREXPLOITATION_THRESHOLD,
-  LOW_RESERVE_THRESHOLD,
-  RESOURCE_TYPE_LABELS,
-} from '../constants'
-import {
-  round,
-  clamp,
-} from '../utils'
-
+import { BaseSubsystem } from '@/core'
+import type {
+  NaturalResourceDeposit,
+  NaturalResourceDepositInput,
+  NaturalResourcePersistenceState,
+  NaturalResourceTransaction,
+  NaturalResourceTransactionInput,
+  ResourceDepositStatus,
+  RoundContext,
+  SubSystemChanges,
+  SubSystemState,
+} from '@/foundation'
+import { getHistoricalEvent } from '@/mods/mod-history-dynamics/historical-event-api'
 import { getFormulaModifier } from '@/mods/mod-world'
+import {
+  assertWorldSpatialNode,
+  contextHasCapability,
+  listWorldContexts,
+} from '@/mods/mod-world'
 
-/** 不可再生资源 */
-const NON_RENEWABLE: readonly NaturalResourceType[] = ['mineral', 'energy', 'special']
-
-const RESOURCE_TAG_MAP: AttrTagMap = {
-  '资源': 'totalReserves', '矿产': 'totalReserves', '能源': 'totalReserves',
-  '消耗': 'consumptionRate', '再生': 'regenerationRate',
+function clone<T>(value: T): T {
+  return structuredClone(value)
 }
 
-export class NaturalResourceSystem implements ISubSystem {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function requireString(value: unknown, label: string): string {
+  if (typeof value !== 'string' || !value.trim()) throw new Error(`${label} 必须是非空字符串`)
+  return value.trim()
+}
+
+function requireFinite(value: unknown, label: string, min = -Infinity): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < min) throw new Error(`${label} 数值无效`)
+  return value
+}
+
+function requireTotalDays(value: unknown, label: string): number {
+  const result = requireFinite(value, label, 0)
+  if (!Number.isInteger(result)) throw new Error(`${label} 必须是非负整数`)
+  return result
+}
+
+function stringList(value: unknown, label: string): string[] {
+  if (!Array.isArray(value) || value.some((item) => typeof item !== 'string' || !item.trim())) {
+    throw new Error(`${label} 必须是非空字符串数组`)
+  }
+  return [...new Set(value.map((item) => (item as string).trim()))]
+}
+
+function statusFor(quantity: number, capacity: number): ResourceDepositStatus {
+  if (quantity <= 0) return 'depleted'
+  return quantity / capacity <= 0.2 ? 'strained' : 'available'
+}
+
+function depositId(contextId: string, nodeId: string, resourceTypeId: string): string {
+  return `resource:${encodeURIComponent(contextId)}:${encodeURIComponent(nodeId)}:${encodeURIComponent(resourceTypeId)}`
+}
+
+function validateEvidence(eventIds: readonly string[], contextId: string): void {
+  for (const eventId of eventIds) {
+    const event = getHistoricalEvent(eventId)
+    if (!event || (event.status !== 'occurred' && event.status !== 'resolved')) {
+      throw new Error(`资源变化依据不是已发生或已解决的历史事件：${eventId}`)
+    }
+    if (event.scope.kind !== 'global' && !event.scope.contextIds.includes(contextId)) {
+      throw new Error(`资源变化依据不属于目标上下文：${eventId}`)
+    }
+  }
+}
+
+function normalizeDeposit(value: unknown, index: number): NaturalResourceDeposit {
+  if (!isRecord(value)) throw new Error(`deposits[${index}] 必须是对象`)
+  const contextId = requireString(value.contextId, `deposits[${index}].contextId`)
+  const nodeId = requireString(value.nodeId, `deposits[${index}].nodeId`)
+  assertWorldSpatialNode(contextId, nodeId)
+  const quantity = requireFinite(value.quantity, `deposits[${index}].quantity`, 0)
+  const capacity = requireFinite(value.capacity, `deposits[${index}].capacity`, Number.EPSILON)
+  if (quantity > capacity) throw new Error(`deposits[${index}] 储量超过容量`)
+  const expectedStatus = statusFor(quantity, capacity)
+  if (value.status !== expectedStatus) throw new Error(`deposits[${index}] 危机状态与储量不一致`)
+  return {
+    depositId: requireString(value.depositId, `deposits[${index}].depositId`),
+    contextId,
+    nodeId,
+    resourceTypeId: requireString(value.resourceTypeId, `deposits[${index}].resourceTypeId`),
+    displayName: requireString(value.displayName, `deposits[${index}].displayName`),
+    unit: requireString(value.unit, `deposits[${index}].unit`),
+    quantity,
+    capacity,
+    renewable: typeof value.renewable === 'boolean' ? value.renewable : (() => { throw new Error(`deposits[${index}].renewable 无效`) })(),
+    regenerationPerDay: requireFinite(value.regenerationPerDay, `deposits[${index}].regenerationPerDay`, 0),
+    baselineConsumptionPerDay: requireFinite(value.baselineConsumptionPerDay, `deposits[${index}].baselineConsumptionPerDay`, 0),
+    status: expectedStatus,
+    traitTags: stringList(value.traitTags, `deposits[${index}].traitTags`),
+    sourceEventIds: stringList(value.sourceEventIds, `deposits[${index}].sourceEventIds`),
+    updatedAtTotalDays: requireTotalDays(value.updatedAtTotalDays, `deposits[${index}].updatedAtTotalDays`),
+  }
+}
+
+function validatePersistenceState(value: unknown): NaturalResourcePersistenceState {
+  if (!isRecord(value) || value.schemaVersion !== 1 || !Array.isArray(value.deposits) || !Array.isArray(value.transactions) || !isRecord(value.lastAdvancedTotalDaysByContext)) {
+    throw new Error('自然资源持久化快照结构无效')
+  }
+  const deposits = value.deposits.map(normalizeDeposit)
+  const depositsById = new Map<string, NaturalResourceDeposit>()
+  for (const deposit of deposits) {
+    if (depositsById.has(deposit.depositId)) throw new Error(`资源矿藏 ID 重复：${deposit.depositId}`)
+    depositsById.set(deposit.depositId, deposit)
+  }
+  const transactionIds = new Set<string>()
+  const transactions = value.transactions.map((item, index): NaturalResourceTransaction => {
+    if (!isRecord(item)) throw new Error(`transactions[${index}] 必须是对象`)
+    const transactionId = requireString(item.transactionId, `transactions[${index}].transactionId`)
+    if (transactionIds.has(transactionId)) throw new Error(`资源交易 ID 重复：${transactionId}`)
+    transactionIds.add(transactionId)
+    const id = requireString(item.depositId, `transactions[${index}].depositId`)
+    const deposit = depositsById.get(id)
+    if (!deposit) throw new Error(`资源交易引用未知矿藏：${id}`)
+    const source = item.source
+    if (!['initialization', 'regeneration', 'consumption', 'event'].includes(String(source))) {
+      throw new Error(`transactions[${index}].source 无效`)
+    }
+    return {
+      transactionId,
+      depositId: id,
+      contextId: deposit.contextId,
+      nodeId: deposit.nodeId,
+      delta: requireFinite(item.delta, `transactions[${index}].delta`),
+      reason: requireString(item.reason, `transactions[${index}].reason`),
+      occurredAtTotalDays: requireTotalDays(item.occurredAtTotalDays, `transactions[${index}].occurredAtTotalDays`),
+      evidenceEventIds: stringList(item.evidenceEventIds, `transactions[${index}].evidenceEventIds`),
+      source: source as NaturalResourceTransaction['source'],
+    }
+  })
+  const lastAdvancedTotalDaysByContext = Object.fromEntries(
+    Object.entries(value.lastAdvancedTotalDaysByContext).map(([contextId, totalDays]) => [
+      requireString(contextId, '资源推进上下文 ID'),
+      requireTotalDays(totalDays, `资源推进时间 ${contextId}`),
+    ]),
+  )
+  return { schemaVersion: 1, deposits, transactions, lastAdvancedTotalDaysByContext }
+}
+
+export class NaturalResourceSystem extends BaseSubsystem {
   readonly id = 'natural-resource' as const
   readonly mod = 'mod-environment-ecology' as const
-  readonly label = '自然资源' as const
-  readonly description = '管理世界级宏观资源储量、再生速率、消耗速率与危机警报' as const
+  readonly label = '自然资源系统' as const
+  readonly description = '按世界上下文和空间节点拥有资源分布、储量、再生、消耗与耗竭状态' as const
 
-  private state: NaturalResourceState = this.createInitialState()
-  private _lastProcessedRound = -1
-  private _worldview = 'default'
+  private state: NaturalResourcePersistenceState = {
+    schemaVersion: 1,
+    deposits: [],
+    transactions: [],
+    lastAdvancedTotalDaysByContext: {},
+  }
 
-  private createInitialState(worldview?: string): NaturalResourceState {
-    const resources = {} as Record<NaturalResourceType, ResourceMetrics>
-    const types: NaturalResourceType[] = ['mineral', 'forest', 'water', 'farmland', 'energy', 'special']
+  advance(context: RoundContext): void {
+    this.initializeFromWorldContexts(context.totalDays)
+    for (const instance of listWorldContexts()) {
+      const contextId = instance.record.id
+      if (!contextHasCapability(contextId, 'space')) continue
+      const previous = this.state.lastAdvancedTotalDaysByContext[contextId] ?? context.totalDays
+      const elapsedGlobalDays = Math.max(0, context.totalDays - previous)
+      const canAdvance = instance.scope.scope === 'active'
+        || (instance.scope.scope === 'background' && !instance.record.localCalendar.pausedWhenInactive)
+      const elapsedDays = canAdvance
+        ? elapsedGlobalDays * instance.record.localCalendar.timeScale
+        : 0
+      if (elapsedDays > 0) this.advanceContext(contextId, elapsedDays, context.totalDays)
+      this.state.lastAdvancedTotalDaysByContext[contextId] = context.totalDays
+    }
+  }
 
-    for (const type of types) {
-      let base = INITIAL_RESOURCE_RESERVES[type]
-
-      if (worldview === 'cultivation' && type === 'special') {
-        base += 20
-      } else if (worldview === 'post-apocalyptic') {
-        base -= 30
-      } else if (worldview === 'sci-fi' && type === 'energy') {
-        base += 10
-      }
-
-      resources[type] = {
-        type,
-        totalReserves: clamp(base, 0, 100),
-        regenerationRate: BASE_REGENERATION_RATE[type],
-        consumptionRate: BASE_CONSUMPTION_RATE[type],
-        renewable: !NON_RENEWABLE.includes(type),
+  private initializeFromWorldContexts(totalDays: number): void {
+    const known = new Set(this.state.deposits.map((deposit) => deposit.depositId))
+    for (const instance of listWorldContexts()) {
+      if (!contextHasCapability(instance.record.id, 'space')) continue
+      this.state.lastAdvancedTotalDaysByContext[instance.record.id] ??= totalDays
+      for (const region of instance.regions) {
+        for (const [resourceTypeId, rawQuantity] of Object.entries(region.resourceDistribution ?? {})) {
+          if (typeof rawQuantity !== 'number' || !Number.isFinite(rawQuantity) || rawQuantity <= 0) continue
+          const id = depositId(instance.record.id, region.id, resourceTypeId)
+          if (known.has(id)) continue
+          const quantity = Math.max(0, rawQuantity)
+          const deposit: NaturalResourceDeposit = {
+            depositId: id,
+            contextId: instance.record.id,
+            nodeId: region.id,
+            resourceTypeId,
+            displayName: resourceTypeId,
+            unit: 'relative-unit',
+            quantity,
+            capacity: Math.max(1, quantity),
+            renewable: false,
+            regenerationPerDay: 0,
+            baselineConsumptionPerDay: 0,
+            status: statusFor(quantity, Math.max(1, quantity)),
+            traitTags: [],
+            sourceEventIds: [],
+            updatedAtTotalDays: totalDays,
+          }
+          this.state.deposits.push(deposit)
+          this.state.transactions.push({
+            transactionId: `resource-init:${encodeURIComponent(id)}:${totalDays}`,
+            depositId: id,
+            contextId: deposit.contextId,
+            nodeId: deposit.nodeId,
+            delta: quantity,
+            reason: '世界初始化结构化资源分布',
+            occurredAtTotalDays: totalDays,
+            evidenceEventIds: [],
+            source: 'initialization',
+          })
+          known.add(id)
+        }
       }
     }
+  }
 
-    return {
-      resources,
-      alarms: [],
+  private advanceContext(contextId: string, elapsedDays: number, totalDays: number): void {
+    const consumptionModifier = getFormulaModifier('resourceConsumptionModifier', 1, contextId)
+    for (let index = 0; index < this.state.deposits.length; index++) {
+      const current = this.state.deposits[index]
+      if (current.contextId !== contextId) continue
+      const regeneration = current.renewable ? current.regenerationPerDay * elapsedDays : 0
+      const consumption = current.baselineConsumptionPerDay * elapsedDays * consumptionModifier
+      const nextQuantity = Math.max(0, Math.min(current.capacity, current.quantity + regeneration - consumption))
+      const delta = nextQuantity - current.quantity
+      if (delta === 0) continue
+      const next = { ...current, quantity: nextQuantity, status: statusFor(nextQuantity, current.capacity), updatedAtTotalDays: totalDays }
+      this.state.deposits[index] = next
+      this.state.transactions.push({
+        transactionId: `resource-advance:${encodeURIComponent(current.depositId)}:${totalDays}`,
+        depositId: current.depositId,
+        contextId,
+        nodeId: current.nodeId,
+        delta,
+        reason: '按规范经过天数结算再生与基础消耗',
+        occurredAtTotalDays: totalDays,
+        evidenceEventIds: [],
+        source: delta > 0 ? 'regeneration' : 'consumption',
+      })
     }
   }
 
   collectState(context: RoundContext): SubSystemState {
-    if (getRoundSequence(context) === this._lastProcessedRound) {
-      return {
-        id: this.id,
-        summary: this.getSummaryText(),
-        data: structuredClone(this.state as unknown as Record<string, unknown>),
-      }
-    }
-    this._lastProcessedRound = getRoundSequence(context)
-
-    // 每回合更新所有资源储量
-    this.updateAllResources(context)
-
-    // 检查警报
-    this.checkAlarms()
-
+    const deposits = this.listDeposits(context.contextId)
+    const strained = deposits.filter((deposit) => deposit.status !== 'available')
     return {
       id: this.id,
-      summary: this.getSummaryText(),
-      data: structuredClone(this.state as unknown as Record<string, unknown>),
+      summary: deposits.length === 0 ? '' : `【${this.label}】${deposits.length} 处节点资源；紧张 ${strained.filter((item) => item.status === 'strained').length}；耗竭 ${strained.filter((item) => item.status === 'depleted').length}`,
+      data: { contextId: context.contextId, deposits },
     }
   }
 
-  applyChanges(changes: SubSystemChanges, context: RoundContext): void {
-    if (!changes || typeof changes !== 'object') {
-      throw new Error(`[${this.id}] Invalid changes: expected object`)
-    }
-    if (changes.id !== this.id) {
-      throw new Error(`[${this.id}] Changes ID mismatch`)
-    }
-    if (!changes.changes || typeof changes.changes !== 'object' || Array.isArray(changes.changes)) {
-      throw new Error(`[${this.id}] Invalid changes.changes: expected plain object`)
-    }
-    if (!changes.description || changes.description.trim() === '') {
-      throw new Error(`[${this.id}] Missing changes.description`)
-    }
-    const c = changes.changes as Record<string, unknown>
-
-    // 设置世界观（影响初始储量）
-    if (typeof c.worldview === 'string') {
-      this._worldview = c.worldview
-    }
-
-    // 推进年份
-    if (typeof c.yearsAdvanced === 'number') {
-      for (let i = 0; i < c.yearsAdvanced; i++) {
-        this.updateAllResources(context)
-      }
-      this.checkAlarms()
-    }
-
-    // 设置特定资源储量
-    if (c.setReserves && typeof c.setReserves === 'object') {
-      const reserves = c.setReserves as Record<string, unknown>
-      for (const [type, value] of Object.entries(reserves)) {
-        if (this.state.resources[type as NaturalResourceType] && typeof value === 'number') {
-          this.state.resources[type as NaturalResourceType].totalReserves = clamp(value, 0, 100)
-        }
-      }
-    }
-
-    // 调整消耗速率
-    if (c.adjustConsumptionRate && typeof c.adjustConsumptionRate === 'object') {
-      const rates = c.adjustConsumptionRate as Record<string, unknown>
-      for (const [type, value] of Object.entries(rates)) {
-        if (this.state.resources[type as NaturalResourceType] && typeof value === 'number') {
-          this.state.resources[type as NaturalResourceType].consumptionRate = clamp(value, 0, Infinity)
-        }
-      }
-    }
-
-    // 调整再生速率
-    if (c.adjustRegenerationRate && typeof c.adjustRegenerationRate === 'object') {
-      const rates = c.adjustRegenerationRate as Record<string, unknown>
-      for (const [type, value] of Object.entries(rates)) {
-        if (this.state.resources[type as NaturalResourceType] && typeof value === 'number') {
-          this.state.resources[type as NaturalResourceType].regenerationRate = clamp(value, 0, Infinity)
-        }
-      }
-    }
-
-    // P2 降级：AI JSON 未显式声明资源变化时，从 description 中补偿提取
-    const hasExplicit = typeof c.yearsAdvanced === 'number' || c.setReserves || c.adjustConsumptionRate || c.adjustRegenerationRate
-    if (!hasExplicit) {
-      const extracted = extractDynamicAttrsFromNarrative(changes.description, RESOURCE_TAG_MAP)
-      if (extracted) {
-        if (typeof extracted.totalReserves === 'number') {
-          for (const type of Object.keys(this.state.resources) as NaturalResourceType[]) {
-            this.state.resources[type].totalReserves = clamp(
-              this.state.resources[type].totalReserves + extracted.totalReserves, 0, 100,
-            )
-          }
-        }
-        if (typeof extracted.consumptionRate === 'number') {
-          for (const type of Object.keys(this.state.resources) as NaturalResourceType[]) {
-            this.state.resources[type].consumptionRate = clamp(this.state.resources[type].consumptionRate + extracted.consumptionRate, 0, Infinity)
-          }
-        }
-        if (typeof extracted.regenerationRate === 'number') {
-          for (const type of Object.keys(this.state.resources) as NaturalResourceType[]) {
-            this.state.resources[type].regenerationRate = clamp(this.state.resources[type].regenerationRate + extracted.regenerationRate, 0, Infinity)
-          }
-        }
-      }
-    }
+  applyChanges(changes: SubSystemChanges, _context: RoundContext): void {
+    void changes
+    throw new Error('[natural-resource] 只接受拥有系统校验后的资源事件，不接受叙事 AI 直接写入')
   }
 
-  // ─── 内部推进逻辑 ───
-
-  private updateAllResources(context?: RoundContext): void {
-    const types: NaturalResourceType[] = ['mineral', 'forest', 'water', 'farmland', 'energy', 'special']
-    const climateStability = this.getClimateStability(context)
-
-    for (const type of types) {
-      const res = this.state.resources[type]
-
-      // 气候-资源联动：气候不稳定时森林/水源消耗加速
-      let effectiveConsumption = res.consumptionRate * getFormulaModifier('resourceConsumptionModifier')
-      if (climateStability < 60 && (type === 'forest' || type === 'water')) {
-        effectiveConsumption *= 1 + (60 - climateStability) / 100
-      }
-
-      // 过度开发加速：储量 > OVEREXPLOITATION_THRESHOLD 时消耗速率 ×1.5
-      const effectiveRegeneration = res.regenerationRate
-      if (res.totalReserves > OVEREXPLOITATION_THRESHOLD) {
-        effectiveConsumption *= 1.5
-      }
-
-      // 储量变更 = 再生 - 消耗
-      const netChange = effectiveRegeneration - effectiveConsumption
-      res.totalReserves = round(clamp(res.totalReserves + netChange, 0, 100))
-
-      // 再生速率微小随机波动 ±5%
-      const fluctuation = 1 + (Math.random() - 0.5) * 0.1
-      res.regenerationRate = round(
-        clamp(BASE_REGENERATION_RATE[type] * fluctuation, 0, Infinity),
-      )
-
-      // 低储量时再生速率打 8 折（低品位矿难再生）
-      if (res.totalReserves < LOW_RESERVE_THRESHOLD) {
-        res.regenerationRate = round(res.regenerationRate * 0.8)
-      }
+  registerDeposit(input: NaturalResourceDepositInput): NaturalResourceDeposit {
+    assertWorldSpatialNode(input.contextId, input.nodeId)
+    if (!Number.isInteger(input.totalDays) || input.totalDays < 0) throw new Error('资源登记时间无效')
+    if (input.evidenceEventIds?.length) validateEvidence(input.evidenceEventIds, input.contextId)
+    const id = input.depositId?.trim() || depositId(input.contextId, input.nodeId, input.resourceTypeId)
+    if (this.state.deposits.some((deposit) => deposit.depositId === id)) throw new Error(`资源矿藏已存在：${id}`)
+    const capacity = requireFinite(input.capacity, '资源容量', Number.EPSILON)
+    const quantity = requireFinite(input.quantity, '资源储量', 0)
+    if (quantity > capacity) throw new Error('资源储量不能超过容量')
+    const deposit: NaturalResourceDeposit = {
+      depositId: id,
+      contextId: input.contextId,
+      nodeId: input.nodeId,
+      resourceTypeId: requireString(input.resourceTypeId, '资源类型'),
+      displayName: requireString(input.displayName, '资源显示名'),
+      unit: requireString(input.unit, '资源单位'),
+      quantity,
+      capacity,
+      renewable: input.renewable,
+      regenerationPerDay: requireFinite(input.regenerationPerDay ?? 0, '每日再生', 0),
+      baselineConsumptionPerDay: requireFinite(input.baselineConsumptionPerDay ?? 0, '每日基础消耗', 0),
+      status: statusFor(quantity, capacity),
+      traitTags: [...new Set(input.traitTags ?? [])],
+      sourceEventIds: [...new Set(input.evidenceEventIds ?? [])],
+      updatedAtTotalDays: input.totalDays,
     }
+    this.state.deposits.push(deposit)
+    this.state.transactions.push({
+      transactionId: `resource-init:${encodeURIComponent(id)}:${input.totalDays}`,
+      depositId: id,
+      contextId: input.contextId,
+      nodeId: input.nodeId,
+      delta: quantity,
+      reason: '登记空间节点资源',
+      occurredAtTotalDays: input.totalDays,
+      evidenceEventIds: [...(input.evidenceEventIds ?? [])],
+      source: 'initialization',
+    })
+    return clone(deposit)
   }
 
-  /** 从气候子系统数据推导气候稳定性（0-100），无气候数据则降级为 100 */
-  private getClimateStability(context?: RoundContext): number {
-    if (!context) return 100
-
-    const climateData = context.subsystemStates['climate']?.data as Record<string, unknown> | undefined
-    if (!climateData) return 100
-
-    let stability = 100
-
-    const activeDisasters = climateData['activeDisasters'] as unknown[] | undefined
-    if (Array.isArray(activeDisasters)) {
-      stability -= activeDisasters.length * 15
+  recordTransaction(input: NaturalResourceTransactionInput): NaturalResourceDeposit {
+    const index = this.state.deposits.findIndex((deposit) => deposit.depositId === input.depositId)
+    if (index < 0) throw new Error(`资源矿藏不存在：${input.depositId}`)
+    const current = this.state.deposits[index]
+    if (input.evidenceEventIds.length === 0) throw new Error('资源事件变化必须引用已发生的历史事件')
+    validateEvidence(input.evidenceEventIds, current.contextId)
+    if (!Number.isInteger(input.totalDays) || input.totalDays < current.updatedAtTotalDays) throw new Error('资源事件时间无效或倒退')
+    const nextQuantity = Math.max(0, Math.min(current.capacity, current.quantity + requireFinite(input.delta, '资源变化量')))
+    const actualDelta = nextQuantity - current.quantity
+    const next: NaturalResourceDeposit = {
+      ...current,
+      quantity: nextQuantity,
+      status: statusFor(nextQuantity, current.capacity),
+      sourceEventIds: [...new Set([...current.sourceEventIds, ...input.evidenceEventIds])],
+      updatedAtTotalDays: input.totalDays,
     }
-
-    const tempOffset = climateData['temperatureOffset'] as number | undefined
-    if (typeof tempOffset === 'number' && Math.abs(tempOffset) > 10) {
-      stability -= (Math.abs(tempOffset) - 10) * 2
-    }
-
-    const humidity = climateData['humidity'] as number | undefined
-    if (typeof humidity === 'number') {
-      if (humidity < 20) stability -= (20 - humidity) * 0.5
-      if (humidity > 80) stability -= (humidity - 80) * 0.5
-    }
-
-    return clamp(stability, 0, 100)
+    this.state.deposits[index] = next
+    this.state.transactions.push({
+      transactionId: `resource-event:${encodeURIComponent(current.depositId)}:${input.totalDays}:${this.state.transactions.length}`,
+      depositId: current.depositId,
+      contextId: current.contextId,
+      nodeId: current.nodeId,
+      delta: actualDelta,
+      reason: requireString(input.reason, '资源变化原因'),
+      occurredAtTotalDays: input.totalDays,
+      evidenceEventIds: [...input.evidenceEventIds],
+      source: 'event',
+    })
+    return clone(next)
   }
 
-  private checkAlarms(): void {
-    const newAlarms: string[] = []
-    const types: NaturalResourceType[] = ['mineral', 'forest', 'water', 'farmland', 'energy', 'special']
-
-    for (const type of types) {
-      const res = this.state.resources[type]
-      const label = RESOURCE_TYPE_LABELS[type] ?? type
-
-      if (res.totalReserves < RESOURCE_DEPLETION_THRESHOLD) {
-        newAlarms.push(`${label}资源濒临枯竭（储量${res.totalReserves.toFixed(0)}）`)
-      } else if (res.totalReserves < RESOURCE_DEPLETION_THRESHOLD * 2) {
-        newAlarms.push(`${label}资源储量偏低（储量${res.totalReserves.toFixed(0)}）`)
-      }
-    }
-
-    this.state.alarms = newAlarms
+  listDeposits(contextId: string, nodeId?: string): NaturalResourceDeposit[] {
+    return clone(this.state.deposits.filter((deposit) => deposit.contextId === contextId && (!nodeId || deposit.nodeId === nodeId)))
   }
 
-  // ─── 领域方法 ───
-
-  /** 获取指定资源的储量 */
-  getReserves(type: NaturalResourceType): number {
-    return this.state.resources[type]?.totalReserves ?? 0
+  capturePersistenceState(): NaturalResourcePersistenceState {
+    return validatePersistenceState(clone(this.state))
   }
 
-  /** 获取所有资源指标 */
-  getAllResources(): Record<NaturalResourceType, ResourceMetrics> {
-    return this.state.resources
+  restorePersistenceState(snapshot: unknown): void {
+    this.state = snapshot === undefined
+      ? { schemaVersion: 1, deposits: [], transactions: [], lastAdvancedTotalDaysByContext: {} }
+      : validatePersistenceState(snapshot)
   }
 
-  /** 获取当前警报 */
-  getAlarms(): string[] {
-    return this.state.alarms
+  capturePreviewState(): NaturalResourcePersistenceState {
+    return this.capturePersistenceState()
   }
 
-  private getSummaryText(): string {
-    const mineral = this.state.resources['mineral']?.totalReserves.toFixed(0) ?? '0'
-    const forest = this.state.resources['forest']?.totalReserves.toFixed(0) ?? '0'
-    const water = this.state.resources['water']?.totalReserves.toFixed(0) ?? '0'
-    const farmland = this.state.resources['farmland']?.totalReserves.toFixed(0) ?? '0'
-    const energy = this.state.resources['energy']?.totalReserves.toFixed(0) ?? '0'
-    return `【${this.label}】矿产 ${mineral} · 森林 ${forest} · 水源 ${water} · 耕地 ${farmland} · 能源 ${energy} · 警报 ${this.state.alarms.length}`
+  restorePreviewState(snapshot: unknown): void {
+    this.restorePersistenceState(snapshot)
   }
 
   reset(): void {
-    this.state = this.createInitialState(this._worldview)
-    this._lastProcessedRound = -1
-    this._worldview = 'default'
+    this.state = { schemaVersion: 1, deposits: [], transactions: [], lastAdvancedTotalDaysByContext: {} }
   }
+}
+
+let runtimeNaturalResourceSystem: NaturalResourceSystem | undefined
+
+export function getNaturalResourceSystem(): NaturalResourceSystem {
+  runtimeNaturalResourceSystem ??= new NaturalResourceSystem()
+  return runtimeNaturalResourceSystem
 }

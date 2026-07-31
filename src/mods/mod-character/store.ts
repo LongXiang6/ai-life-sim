@@ -1,43 +1,39 @@
 'use client'
 
-/**
- * @module store.ts
- * @description 角色系统 Zustand Store
- * @mod mod-character
- */
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
-import { create, } from 'zustand'
-import { persist, } from 'zustand/middleware'
-
+import type { TalentPreset } from './prompts/talent-presets'
 import type {
   CharacterBaseState,
-  DestinyPatternState,
-  HealthState,
-  LifespanState,
-  LifeStageState,
-  AttributeDecayState,
-  MoralityState,
   CharacterSummary,
+  DestinyPatternState,
+  HealthProjection,
+  LifespanDraftState,
+  LifespanProjection,
+  LifecycleProjection,
+  MoralityState,
   MythicPattern,
   MythicPatternCandidate,
 } from './types'
-import type { TalentPreset, } from './prompts/talent-presets'
-
 import {
-  DEFAULT_LIFE_STAGES,
-  DEFAULT_STAGE_DISPLAY_NAMES,
+  DEFAULT_MAX_VITALITY,
+  DEFAULT_SPIRIT,
+  DEFAULT_STAMINA,
+  DEFAULT_VITALITY,
   MYTHIC_PATTERN_SELECT_COUNT,
+  RACE_LIFESPAN,
 } from './constants'
+import {
+  createGlobalCharacterId,
+  sanitizeCharacterStateSnapshot,
+} from './utils/character-state-migration'
 
-import type { LifeStageId, LifeStageConfig, } from './types'
-import { createGlobalCharacterId, sanitizeCharacterStateSnapshot } from './utils/character-state-migration'
-
-/** 天赋池缓存键（按世界编码隔离） */
-function destinyPoolCacheKey(worldCode: number,): string {
+function destinyPoolCacheKey(worldCode: number): string {
   return `mod-character:destiny-pool:${worldCode}`
 }
 
-function talentPoolCacheKey(worldCode: number,): string {
+function talentPoolCacheKey(worldCode: number): string {
   return `mod-character:talent-pool:${worldCode}`
 }
 
@@ -50,61 +46,77 @@ function normalizeEquippedMythicPatterns(patterns: readonly MythicPattern[]): My
   }).slice(0, MYTHIC_PATTERN_SELECT_COUNT)
 }
 
-function buildDefaultStages(): Record<LifeStageId, LifeStageConfig> {
-  const stages = {} as Record<LifeStageId, LifeStageConfig>
-  const ids: LifeStageId[] = ['infant', 'child', 'teenager', 'young_adult', 'adult', 'middle_age', 'elder', 'deceased',]
-  for (const id of ids) {
-    const def = DEFAULT_LIFE_STAGES[id]!
-    stages[id] = {
-      ...def,
-      displayName: DEFAULT_STAGE_DISPLAY_NAMES[id] ?? id,
-      eventPool: [],
-      avoidancePool: [],
-    }
-  }
-  return stages
-}
+const HUMAN_RACE = RACE_LIFESPAN.human!
+
+const initialCharacterBase = (): CharacterBaseState => ({
+  base: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
+  current: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
+  modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
+  contextModifiers: {},
+  startingAge: 0,
+})
+
+const initialDestinyPatterns = (): DestinyPatternState => ({
+  candidates: [],
+  patterns: [],
+  rarityCount: { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0 },
+})
+
+const initialLifespanDraft = (): LifespanDraftState => ({
+  raceId: 'human',
+  race: structuredClone(HUMAN_RACE),
+  maximumLifespanYears: HUMAN_RACE.baseLifespanYears,
+})
+
+const initialHealth = (): HealthProjection => ({
+  vitality: DEFAULT_VITALITY,
+  maxVitality: DEFAULT_MAX_VITALITY,
+  stamina: DEFAULT_STAMINA,
+  spirit: DEFAULT_SPIRIT,
+  alive: true,
+  conditions: [],
+})
+
+const initialLifespan = (): LifespanProjection => ({
+  raceId: 'human',
+  displayName: HUMAN_RACE.name,
+  clockMode: HUMAN_RACE.clockMode,
+  baseLifespanDays: HUMAN_RACE.baseLifespanYears * 365,
+  maximumLifespanDays: HUMAN_RACE.baseLifespanYears * 365,
+  adjustments: [],
+})
+
+const initialLifecycle = (): LifecycleProjection => ({ ageDays: 0 })
+const initialMorality = (): MoralityState => ({ value: 0, level: 'balanced', roundDelta: 0 })
 
 interface CharacterStore {
-  /** 存档内稳定的全局角色实体 ID */
   characterId: string
   name: string
   gender: 'male' | 'female'
-  /** 种族 key（对应 RACE_LIFESPAN 的 key） */
   race: string
-  /** 背景 key */
   background: string
-  /** 种族由来说明（AI 生成，非人类种族时填充） */
   raceOrigin: string
   age: number
 
   characterBase: CharacterBaseState
   destinyPatterns: DestinyPatternState
-  health: HealthState
-  lifespan: LifespanState
-  lifeStage: LifeStageState
-  decay: AttributeDecayState
+  lifespanDraft: LifespanDraftState
+  health: HealthProjection
+  lifespan: LifespanProjection
+  lifecycle: LifecycleProjection
   morality: MoralityState
 
   talents: TalentPreset[]
-
-  /** 本局结算生成的三个轮回天赋候选。 */
   mythicCandidates: MythicPatternCandidate[]
-  /** 本局从跨局总库选择携带的独立轮回天赋；最多两个，数组是唯一状态真源。 */
   equippedMythicPatterns: MythicPattern[]
-  /** 本局结算已封存到总库的轮回天赋 ID；用于防止重复入库。 */
   sealedMythicPatternId: string | null
 
-  /** 当前世界编码（用于天赋池隔离） */
   worldCode: number
-  /** 命格池缓存键（按世界编码隔离） */
   destinyPoolCacheKey: string
-  /** 天赋池缓存键（按世界编码隔离） */
   talentPoolCacheKey: string
 
   getSummary: () => CharacterSummary
   ensureCharacterId: () => string
-
   setName: (name: string) => void
   setGender: (gender: 'male' | 'female') => void
   setAge: (age: number) => void
@@ -113,94 +125,57 @@ interface CharacterStore {
   setRaceOrigin: (origin: string) => void
   setCharacterBase: (state: Partial<CharacterBaseState>) => void
   setDestinyPatterns: (state: Partial<DestinyPatternState>) => void
-  setHealth: (state: Partial<HealthState>) => void
-  setLifespan: (state: Partial<LifespanState>) => void
-  setLifeStage: (state: Partial<LifeStageState>) => void
-  setDecay: (state: Partial<AttributeDecayState>) => void
+  setLifespanDraft: (state: LifespanDraftState) => void
+  setHealth: (state: Partial<HealthProjection>) => void
+  setLifespan: (state: Partial<LifespanProjection>) => void
+  setLifecycle: (state: Partial<LifecycleProjection>) => void
   setMorality: (state: Partial<MoralityState>) => void
   setTalents: (talents: TalentPreset[]) => void
   setMythicCandidates: (patterns: MythicPatternCandidate[]) => void
   setEquippedMythicPatterns: (patterns: MythicPattern[]) => void
-  /** 兼容旧调用方：单槽写入会被规范化为最多一个数组元素。 */
-  setEquippedMythicPattern: (pattern: MythicPattern | null) => void
   setSealedMythicPatternId: (id: string | null) => void
   setWorldCode: (code: number) => void
-
-  reset: () => void,
+  reset: () => void
 }
-
-const initialCharacterBase: CharacterBaseState = {
-  base: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0, },
-  current: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0, },
-  modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0, },
-  contextModifiers: {},
-  startingAge: 0,
-}
-
-const initialDestinyPatterns: DestinyPatternState = {
-  candidates: [],
-  patterns: [],
-  rarityCount: { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0, },
-}
-
-const initialHealth: HealthState = {
-  hp: 100, maxHp: 100, stamina: 100, spirit: 80,
-  diseases: [], injuries: [], isDead: false,
-}
-
-const initialLifespan: LifespanState = {
-  maxAge: 100, baseMaxAge: 100,
-  race: { name: '人类', baseMaxAge: 100, goldenAgeRatio: [0.18, 0.40,], decayMultiplier: 1.0, },
-  breakthroughs: [], breakthroughChance: 0.30,
-}
-
-const initialLifeStage: LifeStageState = {
-  currentStage: 'infant',
-  stages: buildDefaultStages(),
-  adapted: false,
-}
-
-const initialDecay: AttributeDecayState = {
-  modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0, },
-  goldenAgeRange: [18, 40,], isDecaying: false, stageHint: '幼年',
-}
-
-const initialMorality: MoralityState = { value: 0, level: 'balanced', roundDelta: 0, }
 
 export const useCharacterStore = create<CharacterStore>()(
   persist(
-    (set, get,) => ({
+    (set, get) => ({
       characterId: '',
-      name: '', gender: 'male', race: 'human', background: 'commoner', raceOrigin: '', age: 0,
-      characterBase: initialCharacterBase,
-      destinyPatterns: initialDestinyPatterns,
-      health: initialHealth,
-      lifespan: initialLifespan,
-      lifeStage: initialLifeStage,
-      decay: initialDecay,
-      morality: initialMorality,
+      name: '',
+      gender: 'male',
+      race: 'human',
+      background: 'commoner',
+      raceOrigin: '',
+      age: 0,
+      characterBase: initialCharacterBase(),
+      destinyPatterns: initialDestinyPatterns(),
+      lifespanDraft: initialLifespanDraft(),
+      health: initialHealth(),
+      lifespan: initialLifespan(),
+      lifecycle: initialLifecycle(),
+      morality: initialMorality(),
       talents: [],
       mythicCandidates: [],
       equippedMythicPatterns: [],
       sealedMythicPatternId: null,
       worldCode: 0,
-      destinyPoolCacheKey: destinyPoolCacheKey(0,),
-      talentPoolCacheKey: talentPoolCacheKey(0,),
+      destinyPoolCacheKey: destinyPoolCacheKey(0),
+      talentPoolCacheKey: talentPoolCacheKey(0),
 
       getSummary: () => {
-        const s = get()
+        const state = get()
         return {
-          name: s.name,
-          gender: s.gender,
-          age: s.age,
-          startingAge: s.characterBase.startingAge,
-          base: s.characterBase,
-          destinyPatterns: s.destinyPatterns,
-          health: s.health,
-          lifespan: s.lifespan,
-          lifeStage: s.lifeStage,
-          decay: s.decay,
-          morality: s.morality,
+          name: state.name,
+          gender: state.gender,
+          age: state.age,
+          startingAge: state.characterBase.startingAge,
+          base: state.characterBase,
+          destinyPatterns: state.destinyPatterns,
+          health: state.health,
+          lifespan: state.lifespan,
+          lifecycle: state.lifecycle,
+          morality: state.morality,
         }
       },
 
@@ -212,67 +187,97 @@ export const useCharacterStore = create<CharacterStore>()(
         return characterId
       },
 
-      setName: (name,) => set((state) => ({
+      setName: (name) => set((state) => ({
         name,
         characterId: state.characterId || createGlobalCharacterId(),
-      }),),
-      setGender: (gender,) => set({ gender, },),
-      setAge: (age,) => set({ age, },),
-      setRace: (race,) => set({ race, },),
-      setBackground: (background,) => set({ background, },),
-      setRaceOrigin: (raceOrigin,) => set({ raceOrigin, },),
-      setCharacterBase: (partial,) => set((s,) => ({ characterBase: { ...s.characterBase, ...partial, }, }),),
-      setDestinyPatterns: (partial,) => set((s,) => ({ destinyPatterns: { ...s.destinyPatterns, ...partial, }, }),),
-      setHealth: (partial,) => set((s,) => ({ health: { ...s.health, ...partial, }, }),),
-      setLifespan: (partial,) => set((s,) => ({ lifespan: { ...s.lifespan, ...partial, }, }),),
-      setLifeStage: (partial,) => set((s,) => ({ lifeStage: { ...s.lifeStage, ...partial, }, }),),
-      setDecay: (partial,) => set((s,) => ({ decay: { ...s.decay, ...partial, }, }),),
-      setMorality: (partial,) => set((s,) => ({ morality: { ...s.morality, ...partial, }, }),),
-      setTalents: (talents,) => set({ talents, },),
-      setMythicCandidates: (mythicCandidates,) => set({ mythicCandidates, sealedMythicPatternId: null, },),
-      setEquippedMythicPatterns: (equippedMythicPatterns,) => set({ equippedMythicPatterns: normalizeEquippedMythicPatterns(equippedMythicPatterns), },),
-      setEquippedMythicPattern: (pattern,) => set({ equippedMythicPatterns: pattern ? [pattern] : [], },),
-      setSealedMythicPatternId: (sealedMythicPatternId,) => set({ sealedMythicPatternId, },),
-      setWorldCode: (code,) => set({
+      })),
+      setGender: (gender) => set({ gender }),
+      setAge: (age) => set({ age }),
+      setRace: (race) => set({ race }),
+      setBackground: (background) => set({ background }),
+      setRaceOrigin: (raceOrigin) => set({ raceOrigin }),
+      setCharacterBase: (partial) => set((state) => ({ characterBase: { ...state.characterBase, ...partial } })),
+      setDestinyPatterns: (partial) => set((state) => ({ destinyPatterns: { ...state.destinyPatterns, ...partial } })),
+      setLifespanDraft: (lifespanDraft) => set({ lifespanDraft: structuredClone(lifespanDraft) }),
+      setHealth: (partial) => set((state) => ({ health: { ...state.health, ...partial } })),
+      setLifespan: (partial) => set((state) => ({ lifespan: { ...state.lifespan, ...partial } })),
+      setLifecycle: (partial) => set((state) => ({ lifecycle: { ...state.lifecycle, ...partial } })),
+      setMorality: (partial) => set((state) => ({ morality: { ...state.morality, ...partial } })),
+      setTalents: (talents) => set({ talents }),
+      setMythicCandidates: (mythicCandidates) => set({ mythicCandidates, sealedMythicPatternId: null }),
+      setEquippedMythicPatterns: (equippedMythicPatterns) => set({
+        equippedMythicPatterns: normalizeEquippedMythicPatterns(equippedMythicPatterns),
+      }),
+      setSealedMythicPatternId: (sealedMythicPatternId) => set({ sealedMythicPatternId }),
+      setWorldCode: (code) => set({
         worldCode: code,
-        destinyPoolCacheKey: destinyPoolCacheKey(code,),
-        talentPoolCacheKey: talentPoolCacheKey(code,),
-      },),
+        destinyPoolCacheKey: destinyPoolCacheKey(code),
+        talentPoolCacheKey: talentPoolCacheKey(code),
+      }),
 
       reset: () => set({
         characterId: '',
-        name: '', gender: 'male', race: 'human', background: 'commoner', raceOrigin: '', age: 0,
-        characterBase: { ...initialCharacterBase, },
-        destinyPatterns: initialDestinyPatterns,
-        health: initialHealth,
-        lifespan: initialLifespan,
-        lifeStage: initialLifeStage,
-        decay: initialDecay,
-        morality: initialMorality,
+        name: '',
+        gender: 'male',
+        race: 'human',
+        background: 'commoner',
+        raceOrigin: '',
+        age: 0,
+        characterBase: initialCharacterBase(),
+        destinyPatterns: initialDestinyPatterns(),
+        lifespanDraft: initialLifespanDraft(),
+        health: initialHealth(),
+        lifespan: initialLifespan(),
+        lifecycle: initialLifecycle(),
+        morality: initialMorality(),
         talents: [],
         mythicCandidates: [],
         equippedMythicPatterns: [],
         sealedMythicPatternId: null,
-      },),
+      }),
     }),
     {
       name: 'mod-character:persist:character-state',
-      version: 4,
-      migrate: (persistedState: unknown, _version: number) => {
-        // 结构完整性校验：防止损坏数据导致白屏
+      version: 5,
+      migrate: (persistedState: unknown) => {
         if (typeof persistedState !== 'object' || persistedState === null || Array.isArray(persistedState)) {
           console.warn('[CharacterStore] migrate: 数据格式异常，使用默认状态')
           return undefined as unknown as CharacterStore
         }
         return sanitizeCharacterStateSnapshot(persistedState) as unknown as CharacterStore
       },
-      partialize: (state,) => {
-        const { getSummary: _a, ensureCharacterId: _a2, setName: _b, setGender: _c, setAge: _d, setRace: _e, setBackground: _f, setRaceOrigin: _g, setCharacterBase: _h, setDestinyPatterns: _i, setHealth: _j, setLifespan: _k, setLifeStage: _l, setDecay: _m, setMorality: _n, setTalents: _o, setMythicCandidates: _p, setEquippedMythicPatterns: _q, setEquippedMythicPattern: _q2, setSealedMythicPatternId: _r, setWorldCode: _s, reset: _t, ...rest } = state
-        return rest
+      partialize: (state) => {
+        const {
+          getSummary: _getSummary,
+          ensureCharacterId: _ensureCharacterId,
+          setName: _setName,
+          setGender: _setGender,
+          setAge: _setAge,
+          setRace: _setRace,
+          setBackground: _setBackground,
+          setRaceOrigin: _setRaceOrigin,
+          setCharacterBase: _setCharacterBase,
+          setDestinyPatterns: _setDestinyPatterns,
+          setLifespanDraft: _setLifespanDraft,
+          setHealth: _setHealth,
+          setLifespan: _setLifespan,
+          setLifecycle: _setLifecycle,
+          setMorality: _setMorality,
+          setTalents: _setTalents,
+          setMythicCandidates: _setMythicCandidates,
+          setEquippedMythicPatterns: _setEquippedMythicPatterns,
+          setSealedMythicPatternId: _setSealedMythicPatternId,
+          setWorldCode: _setWorldCode,
+          reset: _reset,
+          health: _health,
+          lifespan: _lifespan,
+          lifecycle: _lifecycle,
+          ...persisted
+        } = state
+        return persisted
       },
     },
   ),
 )
 
-/** Manifest stores 统一从 store.ts 生成 wiring；跨局总库仍由独立文件持久化。 */
 export { useMythicLibraryStore } from './mythic-library-store'

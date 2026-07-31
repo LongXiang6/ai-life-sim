@@ -11,17 +11,18 @@ import { defineMod } from '@/core'
 
 export default defineMod({
   name: 'mod-world-map',
-  version: '1.0.0',
-  description: '可视化世界地图：Canvas 渲染地形着色、势力标识、资源覆盖层，支持缩放/平移',
-  dependencies: ['mod-base-universe', 'mod-ui'],
-  provides: ['world-map-renderer'],
-  consumes: ['base-universe', 'world-map-data'],
+  order: 800,
+  version: '2.0.0',
+  description: '将空间关系、地理、资源与实体位置投影为地图、星图或场景导航视图',
+  dependencies: ['mod-engine', 'mod-world', 'mod-environment-ecology', 'mod-ui'],
+  provides: ['world-map-renderer', 'map-projection'],
+  consumes: ['spatial-graph', 'geography', 'natural-resource', 'world-entity'],
   subsystems: [],
   stores: ['useWorldMapStore'],
   prompts: [],
   events: {
     emits: [
-      'mod-world-map:region-selected',
+      'mod-world-map:node-selected',
       'mod-world-map:view-changed',
     ],
     listens: ['mod-engine:round-complete'],

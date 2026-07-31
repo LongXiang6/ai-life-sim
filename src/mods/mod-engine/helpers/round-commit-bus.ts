@@ -12,13 +12,11 @@ import type { ISubSystem, SubSystemChanges, RoundContext } from '@/foundation'
 
 import { deepSanitize } from './system-safety'
 import { validateChange } from './subsystem-field-registry'
-import { validateCrossDomainChange } from './cross-domain-change-validator'
 import { getSystemInstructionBlockReason } from './subsystem-prompt-gate'
 import { shouldApplyMvpCommit } from './mvp-runtime-policy'
 
 export type RoundCommitSource =
   | 'narrative'
-  | 'cross-domain'
   | 'post-narrative'
   | 'world-direction'
   | 'manual'
@@ -43,6 +41,48 @@ const SCHEMA_VALIDATED_SOURCES: ReadonlySet<RoundCommitSource> = new Set([
   'narrative',
   'post-narrative',
 ])
+
+const ENTITY_ID_FIELDS: ReadonlySet<string> = new Set([
+  'entityId',
+  'npcId',
+  'characterId',
+  'targetEntityId',
+  'toEntityId',
+  'fromEntityId',
+])
+
+const ENTITY_ID_LIST_FIELDS: ReadonlySet<string> = new Set([
+  'targetEntityIds',
+  'relatedEntityIds',
+])
+
+function resolvePlayerEntityAlias(value: unknown, context: RoundContext): unknown {
+  return value === 'player:current' && context.characterId ? context.characterId : value
+}
+
+/** 将 Prompt 层唯一允许的当前玩家别名收口到真实稳定实体 ID。 */
+function normalizeEntityAliases(
+  change: SubSystemChanges,
+  context: RoundContext,
+): SubSystemChanges {
+  const payload = { ...(change.changes ?? {}) }
+  for (const [key, value] of Object.entries(payload)) {
+    if (ENTITY_ID_FIELDS.has(key)) {
+      payload[key] = resolvePlayerEntityAlias(value, context)
+    } else if (ENTITY_ID_LIST_FIELDS.has(key) && Array.isArray(value)) {
+      payload[key] = value.map((item) => resolvePlayerEntityAlias(item, context))
+    }
+  }
+  return {
+    ...change,
+    targetObjectId: resolvePlayerEntityAlias(change.targetObjectId, context) as string | undefined,
+    changes: payload,
+  }
+}
+
+function isNpcIdentityCreation(change: SubSystemChanges): boolean {
+  return change.id === 'npc-system' && change.operation === 'create-identity'
+}
 
 export class RoundCommitBus {
   constructor(
@@ -80,14 +120,7 @@ export class RoundCommitBus {
       }
 
       let change = raw
-      if (commit.source === 'cross-domain') {
-        const validated = validateCrossDomainChange(raw)
-        if (!validated) {
-          rejected.push({ change: raw, reason: 'cross-domain schema 校验失败' })
-          continue
-        }
-        change = validated
-      } else if (SCHEMA_VALIDATED_SOURCES.has(commit.source)) {
+      if (SCHEMA_VALIDATED_SOURCES.has(commit.source)) {
         const validated = validateChange(raw, {
           allowUnknownSubsystem: commit.source === 'post-narrative',
         })
@@ -97,6 +130,8 @@ export class RoundCommitBus {
         }
         change = validated
       }
+
+      change = normalizeEntityAliases(change, context)
 
       if (commit.source === 'narrative') {
         if (!change.targetObjectId || !change.targetContextId || !change.operation) {
@@ -140,11 +175,15 @@ export class RoundCommitBus {
     // Owning systems preflight the complete instruction package before any write.
     for (const change of prepared) {
       const subsystem = this.resolveSubsystem(change.id) as ISubSystem & {
-        preflightChanges?: (value: SubSystemChanges, valueContext: RoundContext) => void
+        preflightChanges?: (
+          value: SubSystemChanges,
+          valueContext: RoundContext,
+          packageChanges?: readonly SubSystemChanges[],
+        ) => void
       }
       if (!subsystem.preflightChanges) continue
       try {
-        subsystem.preflightChanges(change, context)
+        subsystem.preflightChanges(change, context, prepared)
       } catch (error) {
         rejected.push({
           change,
@@ -157,7 +196,13 @@ export class RoundCommitBus {
       return { committed: [], rejected }
     }
 
-    for (const change of prepared) {
+    // 创建身份必须先于同包中依赖该身份的操作；排序是显式契约，
+    // 不依赖模型返回数组的自然顺序。
+    const applyOrder = [...prepared].sort((left, right) => (
+      Number(isNpcIdentityCreation(right)) - Number(isNpcIdentityCreation(left))
+    ))
+
+    for (const change of applyOrder) {
       try {
         this.applyChange(change, context)
         committed.push(change)

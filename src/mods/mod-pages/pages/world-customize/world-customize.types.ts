@@ -4,12 +4,6 @@
  * @mod mod-pages
  */
 
-import {
-  RATING_DESCRIPTIONS,
-  TRUE_INFINITE_DESCRIPTION,
-  UNIT_NAMES,
-} from '@/mods/mod-power-system'
-
 /** 字段大类 */
 export type FieldCategory = 'macro'
 
@@ -55,39 +49,8 @@ export const CATEGORY_LABELS: Record<FieldCategory, string> = {
   macro: '宇宙基础设定',
 }
 
-/** 生成力量上限选项（1-24阶）。页面只产出世界配置，不依赖力量系统运行时。 */
-function buildPowerCeilingOptions(maxLevel: number): string[] {
-  const result: string[] = []
-  const max = Math.min(Math.max(maxLevel, 1), 24)
-  for (let i = 1; i <= max; i++) {
-    result.push(`${i}阶`)
-  }
-  return result
-}
-
-function buildPowerCeilingOptionDetails(maxLevel: number): Record<string, {
-  title: string
-  description: string
-}> {
-  return Object.fromEntries(buildPowerCeilingOptions(maxLevel).map((option) => {
-    const level = Number.parseInt(option, 10)
-    const unit = UNIT_NAMES[level] ?? ''
-    const description = level === 24
-      ? TRUE_INFINITE_DESCRIPTION
-      : RATING_DESCRIPTIONS[level] ?? ''
-
-    return [option, {
-      title: unit ? `${option} · ${unit}级` : option,
-      description,
-    }]
-  }))
-}
-
-/** 宏观维度字段配置表（动态生成力量上限选项）
- * @param maxPowerCeiling 最大力量上限等级（默认 24）
- * @returns 字段定义数组
- */
-export function buildFieldDefs(maxPowerCeiling = 24): Array<Omit<EditableField, 'playerValue' | 'mode' | 'customValue'>> {
+/** 宏观维度字段配置表。力量字段只选择边界规则，具体阶位由世界框架固化。 */
+export function buildFieldDefs(): Array<Omit<EditableField, 'playerValue' | 'mode' | 'customValue'>> {
   return [
     {
       key: 'universeScale',
@@ -114,13 +77,16 @@ export function buildFieldDefs(maxPowerCeiling = 24): Array<Omit<EditableField, 
       description: '决定世界的力量来源和修炼方式',
     },
     {
-      key: 'powerCeiling',
+      key: 'powerFramework',
       category: 'macro',
-      label: '力量上限',
-      options: buildPowerCeilingOptions(maxPowerCeiling),
-      optionDetails: buildPowerCeilingOptionDetails(maxPowerCeiling),
+      label: '力量框架',
+      options: ['有限体系', '开放进阶'],
+      optionDetails: {
+        '有限体系': { title: '有限体系', description: '当前世界的最高阶位就是可达边界。' },
+        '开放进阶': { title: '开放进阶', description: '当前阶位之后可由世界内事实继续定义。' },
+      },
       icon: '🏔️',
-      description: '决定世界力量体系的天花板',
+      description: '决定世界力量阶位是否有固定边界',
     },
   ]
 }

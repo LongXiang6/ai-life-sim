@@ -20,16 +20,18 @@ export function getWorldCalibration(): WorldCalibration | null {
 export function getFormulaModifier(
   key: keyof WorldCalibrationFormulas,
   defaultValue = 1.0,
+  contextId?: string,
 ): number {
   const state = useWorldStore.getState()
-  const cal = state.calibration
+  const context = contextId ? state.contexts[contextId] : undefined
+  const cal = contextId ? context?.calibration : state.calibration
   const raw = cal?.formulas?.[key]
   let base = defaultValue
   if (typeof raw === 'number' && Number.isFinite(raw)) {
     base = clampModifier(raw)
   }
 
-  const patternMod = state.destinyPatternModifiers?.[key as FormulaModifierKey]
+  const patternMod = (contextId ? context?.destinyPatternModifiers : state.destinyPatternModifiers)?.[key as FormulaModifierKey]
   if (typeof patternMod === 'number' && Number.isFinite(patternMod)) {
     return clampModifier(base * patternMod)
   }

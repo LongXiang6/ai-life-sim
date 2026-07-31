@@ -15,6 +15,8 @@ import type {
   SettlementTierHint,
 } from './types'
 
+import type { DecimalInteger } from '@/foundation'
+
 // 工具函数 Re-export
 export { round, clamp, pickRandom, calculateItemPrice, calculateItemTier, getItemEconomicTier } from './utils'
 
@@ -60,7 +62,7 @@ export const MARKET_PHASE_ORDER: readonly MarketCyclePhase[] = [
 ]
 
 /** 初始玩家财富 */
-export const INITIAL_WEALTH = 100
+export const INITIAL_WEALTH: DecimalInteger = '100'
 
 /** 税率范围 */
 export const TAX_RANGE = { min: 0, max: 50 } as const
@@ -149,12 +151,12 @@ export const SETTLEMENT_TYPE_LABELS: Record<SettlementType, string> = {
 
 /** 定居点类型人口范围 */
 export const SETTLEMENT_POPULATION_RANGE: Record<SettlementType, [number, number]> = {
-  village: [50, 500],
-  town: [500, 5000],
-  city: [5000, 50000],
-  capital: [50000, 500000],
-  fortress: [100, 2000],
-  monastery: [20, 200],
+  village: [50, 2_000],
+  town: [2_000, 20_000],
+  city: [20_000, 500_000],
+  capital: [100_000, 20_000_000],
+  fortress: [100, 20_000],
+  monastery: [10, 5_000],
 }
 
 // ============================================================
@@ -286,88 +288,88 @@ export const WORLDVIEW_ITEM_CATEGORIES: Record<string, ItemCategory[]> = {
 
 /** 世界观物品模板池（预设物品，AI 可基于此添加） */
 export const WORLDVIEW_ITEM_POOLS: Record<string, Array<{
-  name: string; category: ItemCategory; quality: ItemQuality; value: number; description: string; narrativeEffect?: string; powerStageHint?: number
+  name: string; category: ItemCategory; quality: ItemQuality; value: number; description: string; narrativeEffect?: string; economicTierHint?: number
 }>> = {
   // ── 通用 ──
   default: [
-    { name: '干粮', category: 'consumable', quality: 'common', value: 1, description: '最基本的口粮', narrativeEffect: '回复体力', powerStageHint: 1 },
-    { name: '水囊', category: 'consumable', quality: 'common', value: 1, description: '装水的皮囊', narrativeEffect: '解渴', powerStageHint: 1 },
-    { name: '火把', category: 'consumable', quality: 'common', value: 1, description: '照明用的火把', narrativeEffect: '照亮黑暗', powerStageHint: 1 },
-    { name: '麻绳', category: 'material', quality: 'common', value: 2, description: '结实的麻绳', narrativeEffect: '攀爬/捆绑', powerStageHint: 1 },
-    { name: '布匹', category: 'material', quality: 'common', value: 3, description: '普通布料', narrativeEffect: '制作衣物', powerStageHint: 1 },
-    { name: '草药', category: 'consumable', quality: 'common', value: 2, description: '基础疗伤草药', narrativeEffect: '回复少量生命', powerStageHint: 1 },
-    { name: '铜钱', category: 'treasure', quality: 'common', value: 1, description: '通用货币', narrativeEffect: '购买物品', powerStageHint: 1 },
+    { name: '干粮', category: 'consumable', quality: 'common', value: 1, description: '最基本的口粮', narrativeEffect: '回复体力', economicTierHint: 1 },
+    { name: '水囊', category: 'consumable', quality: 'common', value: 1, description: '装水的皮囊', narrativeEffect: '解渴', economicTierHint: 1 },
+    { name: '火把', category: 'consumable', quality: 'common', value: 1, description: '照明用的火把', narrativeEffect: '照亮黑暗', economicTierHint: 1 },
+    { name: '麻绳', category: 'material', quality: 'common', value: 2, description: '结实的麻绳', narrativeEffect: '攀爬/捆绑', economicTierHint: 1 },
+    { name: '布匹', category: 'material', quality: 'common', value: 3, description: '普通布料', narrativeEffect: '制作衣物', economicTierHint: 1 },
+    { name: '草药', category: 'consumable', quality: 'common', value: 2, description: '基础疗伤草药', narrativeEffect: '回复少量生命', economicTierHint: 1 },
+    { name: '铜钱', category: 'treasure', quality: 'common', value: 1, description: '通用货币', narrativeEffect: '购买物品', economicTierHint: 1 },
   ],
   // ── historical ──
   historical: [
-    { name: '青铜剑', category: 'weapon', quality: 'common', value: 10, description: '青铜铸造的短剑', narrativeEffect: '近战攻击+2', powerStageHint: 1 },
-    { name: '铁甲', category: 'armor', quality: 'common', value: 15, description: '铁片编制铠甲', narrativeEffect: '防御+3', powerStageHint: 1 },
-    { name: '竹简', category: 'material', quality: 'common', value: 3, description: '刻有文字的竹简', narrativeEffect: '知识+1', powerStageHint: 1 },
-    { name: '玉佩', category: 'accessory', quality: 'uncommon', value: 20, description: '温润玉佩', narrativeEffect: '魅力+1', powerStageHint: 1 },
-    { name: '孙子兵法', category: 'quest', quality: 'rare', value: 50, description: '兵法奇书', narrativeEffect: '谋略+5', powerStageHint: 1 },
-    { name: '传国玉玺', category: 'treasure', quality: 'legendary', value: 1000, description: '皇权象征', narrativeEffect: '号令天下', powerStageHint: 1 },
+    { name: '青铜剑', category: 'weapon', quality: 'common', value: 10, description: '青铜铸造的短剑', narrativeEffect: '近战攻击+2', economicTierHint: 1 },
+    { name: '铁甲', category: 'armor', quality: 'common', value: 15, description: '铁片编制铠甲', narrativeEffect: '防御+3', economicTierHint: 1 },
+    { name: '竹简', category: 'material', quality: 'common', value: 3, description: '刻有文字的竹简', narrativeEffect: '知识+1', economicTierHint: 1 },
+    { name: '玉佩', category: 'accessory', quality: 'uncommon', value: 20, description: '温润玉佩', narrativeEffect: '魅力+1', economicTierHint: 1 },
+    { name: '孙子兵法', category: 'quest', quality: 'rare', value: 50, description: '兵法奇书', narrativeEffect: '谋略+5', economicTierHint: 1 },
+    { name: '传国玉玺', category: 'treasure', quality: 'legendary', value: 1000, description: '皇权象征', narrativeEffect: '号令天下', economicTierHint: 1 },
   ],
   // ── wuxia ──
   wuxia: [
-    { name: '长剑', category: 'weapon', quality: 'common', value: 8, description: '三尺青锋', narrativeEffect: '剑法+2', powerStageHint: 2 },
-    { name: '飞镖', category: 'weapon', quality: 'common', value: 3, description: '暗器飞镖', narrativeEffect: '远程攻击+1', powerStageHint: 1 },
-    { name: '夜行衣', category: 'armor', quality: 'uncommon', value: 15, description: '便于潜行的黑衣', narrativeEffect: '潜行+3', powerStageHint: 2 },
-    { name: '金疮药', category: 'consumable', quality: 'common', value: 5, description: '疗伤圣药', narrativeEffect: '回复大量生命', powerStageHint: 2 },
-    { name: '易容面具', category: 'accessory', quality: 'rare', value: 30, description: '精妙的人皮面具', narrativeEffect: '伪装+4', powerStageHint: 2 },
-    { name: '武林秘籍', category: 'quest', quality: 'epic', value: 100, description: '失传的武林绝学', narrativeEffect: '武功+10', powerStageHint: 3 },
+    { name: '长剑', category: 'weapon', quality: 'common', value: 8, description: '三尺青锋', narrativeEffect: '剑法+2', economicTierHint: 2 },
+    { name: '飞镖', category: 'weapon', quality: 'common', value: 3, description: '暗器飞镖', narrativeEffect: '远程攻击+1', economicTierHint: 1 },
+    { name: '夜行衣', category: 'armor', quality: 'uncommon', value: 15, description: '便于潜行的黑衣', narrativeEffect: '潜行+3', economicTierHint: 2 },
+    { name: '金疮药', category: 'consumable', quality: 'common', value: 5, description: '疗伤圣药', narrativeEffect: '回复大量生命', economicTierHint: 2 },
+    { name: '易容面具', category: 'accessory', quality: 'rare', value: 30, description: '精妙的人皮面具', narrativeEffect: '伪装+4', economicTierHint: 2 },
+    { name: '武林秘籍', category: 'quest', quality: 'epic', value: 100, description: '失传的武林绝学', narrativeEffect: '武功+10', economicTierHint: 3 },
   ],
   // ── cultivation ──
   cultivation: [
-    { name: '飞剑', category: 'weapon', quality: 'rare', value: 50, description: '御剑飞行/攻敌', narrativeEffect: '攻击+8, 飞行', powerStageHint: 4 },
-    { name: '炼丹炉', category: 'treasure', quality: 'uncommon', value: 40, description: '炼丹法器', narrativeEffect: '丹药品质+2', powerStageHint: 3 },
-    { name: '灵石', category: 'material', quality: 'common', value: 10, description: '蕴含灵气的石头', narrativeEffect: '修炼加速', powerStageHint: 2 },
-    { name: '筑基丹', category: 'consumable', quality: 'rare', value: 60, description: '筑基突破丹药', narrativeEffect: '突破筑基期', powerStageHint: 3 },
-    { name: '储物袋', category: 'accessory', quality: 'uncommon', value: 30, description: '空间法器', narrativeEffect: '背包容量+10', powerStageHint: 3 },
-    { name: '上古法宝', category: 'treasure', quality: 'legendary', value: 500, description: '上古大能遗留的法宝', narrativeEffect: '战力+20', powerStageHint: 7 },
-    { name: '灵草', category: 'material', quality: 'common', value: 5, description: '蕴含灵气的草药', narrativeEffect: '炼丹材料', powerStageHint: 2 },
+    { name: '飞剑', category: 'weapon', quality: 'rare', value: 50, description: '御剑飞行/攻敌', narrativeEffect: '攻击+8, 飞行', economicTierHint: 4 },
+    { name: '炼丹炉', category: 'treasure', quality: 'uncommon', value: 40, description: '炼丹法器', narrativeEffect: '丹药品质+2', economicTierHint: 3 },
+    { name: '灵石', category: 'material', quality: 'common', value: 10, description: '蕴含灵气的石头', narrativeEffect: '修炼加速', economicTierHint: 2 },
+    { name: '筑基丹', category: 'consumable', quality: 'rare', value: 60, description: '筑基突破丹药', narrativeEffect: '突破筑基期', economicTierHint: 3 },
+    { name: '储物袋', category: 'accessory', quality: 'uncommon', value: 30, description: '空间法器', narrativeEffect: '背包容量+10', economicTierHint: 3 },
+    { name: '上古法宝', category: 'treasure', quality: 'legendary', value: 500, description: '上古大能遗留的法宝', narrativeEffect: '战力+20', economicTierHint: 7 },
+    { name: '灵草', category: 'material', quality: 'common', value: 5, description: '蕴含灵气的草药', narrativeEffect: '炼丹材料', economicTierHint: 2 },
   ],
   // ── xuanhuan ──
   xuanhuan: [
-    { name: '魂器', category: 'weapon', quality: 'rare', value: 60, description: '灵魂绑定武器', narrativeEffect: '灵魂攻击+10', powerStageHint: 5 },
-    { name: '妖兽内丹', category: 'material', quality: 'uncommon', value: 25, description: '妖兽修炼精华', narrativeEffect: '炼化吸收+5', powerStageHint: 4 },
-    { name: '灵符', category: 'consumable', quality: 'common', value: 5, description: '蕴含术法的符箓', narrativeEffect: '法术+2', powerStageHint: 2 },
-    { name: '轮回盘', category: 'treasure', quality: 'epic', value: 200, description: '参悟轮回的秘宝', narrativeEffect: '悟道+10', powerStageHint: 6 },
-    { name: '星辰砂', category: 'material', quality: 'rare', value: 50, description: '蕴含星辰之力的砂砾', narrativeEffect: '炼器材料+8', powerStageHint: 5 },
+    { name: '魂器', category: 'weapon', quality: 'rare', value: 60, description: '灵魂绑定武器', narrativeEffect: '灵魂攻击+10', economicTierHint: 5 },
+    { name: '妖兽内丹', category: 'material', quality: 'uncommon', value: 25, description: '妖兽修炼精华', narrativeEffect: '炼化吸收+5', economicTierHint: 4 },
+    { name: '灵符', category: 'consumable', quality: 'common', value: 5, description: '蕴含术法的符箓', narrativeEffect: '法术+2', economicTierHint: 2 },
+    { name: '轮回盘', category: 'treasure', quality: 'epic', value: 200, description: '参悟轮回的秘宝', narrativeEffect: '悟道+10', economicTierHint: 6 },
+    { name: '星辰砂', category: 'material', quality: 'rare', value: 50, description: '蕴含星辰之力的砂砾', narrativeEffect: '炼器材料+8', economicTierHint: 5 },
   ],
   // ── western_fantasy ──
   western_fantasy: [
-    { name: '长剑', category: 'weapon', quality: 'common', value: 10, description: '精钢长剑', narrativeEffect: '攻击+3', powerStageHint: 2 },
-    { name: '魔法杖', category: 'weapon', quality: 'uncommon', value: 30, description: '施法媒介', narrativeEffect: '魔力+5', powerStageHint: 3 },
-    { name: '锁子甲', category: 'armor', quality: 'common', value: 20, description: '铁环编成的铠甲', narrativeEffect: '防御+4', powerStageHint: 2 },
-    { name: '魔法药水', category: 'consumable', quality: 'common', value: 8, description: '恢复魔法的药水', narrativeEffect: '回复魔力', powerStageHint: 2 },
-    { name: '龙鳞', category: 'material', quality: 'epic', value: 100, description: '真龙之鳞', narrativeEffect: '锻造传说装备', powerStageHint: 5 },
-    { name: '圣杯', category: 'treasure', quality: 'legendary', value: 500, description: '传说圣物', narrativeEffect: '治愈一切', powerStageHint: 6 },
+    { name: '长剑', category: 'weapon', quality: 'common', value: 10, description: '精钢长剑', narrativeEffect: '攻击+3', economicTierHint: 2 },
+    { name: '魔法杖', category: 'weapon', quality: 'uncommon', value: 30, description: '施法媒介', narrativeEffect: '魔力+5', economicTierHint: 3 },
+    { name: '锁子甲', category: 'armor', quality: 'common', value: 20, description: '铁环编成的铠甲', narrativeEffect: '防御+4', economicTierHint: 2 },
+    { name: '魔法药水', category: 'consumable', quality: 'common', value: 8, description: '恢复魔法的药水', narrativeEffect: '回复魔力', economicTierHint: 2 },
+    { name: '龙鳞', category: 'material', quality: 'epic', value: 100, description: '真龙之鳞', narrativeEffect: '锻造传说装备', economicTierHint: 5 },
+    { name: '圣杯', category: 'treasure', quality: 'legendary', value: 500, description: '传说圣物', narrativeEffect: '治愈一切', economicTierHint: 6 },
   ],
   // ── scifi ──
   scifi: [
-    { name: '激光枪', category: 'weapon', quality: 'common', value: 20, description: '标准能量武器', narrativeEffect: '远程攻击+5', powerStageHint: 3 },
-    { name: '能量护盾', category: 'armor', quality: 'uncommon', value: 35, description: '便携能量护盾', narrativeEffect: '防御+8', powerStageHint: 3 },
-    { name: '医疗喷雾', category: 'consumable', quality: 'common', value: 10, description: '纳米医疗喷雾', narrativeEffect: '快速治疗', powerStageHint: 2 },
-    { name: '全息芯片', category: 'accessory', quality: 'uncommon', value: 25, description: '存储全息信息', narrativeEffect: '知识+3', powerStageHint: 2 },
-    { name: '反物质电池', category: 'material', quality: 'epic', value: 80, description: '高效能源', narrativeEffect: '能量+15', powerStageHint: 4 },
-    { name: '外星遗物', category: 'treasure', quality: 'legendary', value: 1000, description: '未知文明遗物', narrativeEffect: '科技飞跃', powerStageHint: 7 },
+    { name: '激光枪', category: 'weapon', quality: 'common', value: 20, description: '标准能量武器', narrativeEffect: '远程攻击+5', economicTierHint: 3 },
+    { name: '能量护盾', category: 'armor', quality: 'uncommon', value: 35, description: '便携能量护盾', narrativeEffect: '防御+8', economicTierHint: 3 },
+    { name: '医疗喷雾', category: 'consumable', quality: 'common', value: 10, description: '纳米医疗喷雾', narrativeEffect: '快速治疗', economicTierHint: 2 },
+    { name: '全息芯片', category: 'accessory', quality: 'uncommon', value: 25, description: '存储全息信息', narrativeEffect: '知识+3', economicTierHint: 2 },
+    { name: '反物质电池', category: 'material', quality: 'epic', value: 80, description: '高效能源', narrativeEffect: '能量+15', economicTierHint: 4 },
+    { name: '外星遗物', category: 'treasure', quality: 'legendary', value: 1000, description: '未知文明遗物', narrativeEffect: '科技飞跃', economicTierHint: 7 },
   ],
   // ── post_apocalyptic ──
   post_apocalyptic: [
-    { name: '生锈砍刀', category: 'weapon', quality: 'common', value: 5, description: '锈迹斑斑的砍刀', narrativeEffect: '攻击+2', powerStageHint: 1 },
-    { name: '防弹背心', category: 'armor', quality: 'uncommon', value: 20, description: '轻度防弹', narrativeEffect: '防御+5', powerStageHint: 2 },
-    { name: '净化水', category: 'consumable', quality: 'common', value: 5, description: '干净饮用水', narrativeEffect: '解渴/防疾病', powerStageHint: 1 },
-    { name: '罐头食品', category: 'consumable', quality: 'common', value: 3, description: '保质期内的罐头', narrativeEffect: '充饥', powerStageHint: 1 },
-    { name: '废铁', category: 'material', quality: 'common', value: 1, description: '可回收金属', narrativeEffect: '建造材料', powerStageHint: 1 },
-    { name: '核能电池', category: 'treasure', quality: 'epic', value: 60, description: '持久能源', narrativeEffect: '能源+20', powerStageHint: 3 },
+    { name: '生锈砍刀', category: 'weapon', quality: 'common', value: 5, description: '锈迹斑斑的砍刀', narrativeEffect: '攻击+2', economicTierHint: 1 },
+    { name: '防弹背心', category: 'armor', quality: 'uncommon', value: 20, description: '轻度防弹', narrativeEffect: '防御+5', economicTierHint: 2 },
+    { name: '净化水', category: 'consumable', quality: 'common', value: 5, description: '干净饮用水', narrativeEffect: '解渴/防疾病', economicTierHint: 1 },
+    { name: '罐头食品', category: 'consumable', quality: 'common', value: 3, description: '保质期内的罐头', narrativeEffect: '充饥', economicTierHint: 1 },
+    { name: '废铁', category: 'material', quality: 'common', value: 1, description: '可回收金属', narrativeEffect: '建造材料', economicTierHint: 1 },
+    { name: '核能电池', category: 'treasure', quality: 'epic', value: 60, description: '持久能源', narrativeEffect: '能源+20', economicTierHint: 3 },
   ],
   // ── mythology ──
   mythology: [
-    { name: '神剑', category: 'weapon', quality: 'epic', value: 200, description: '诸神铸造的神器', narrativeEffect: '神性攻击+15', powerStageHint: 7 },
-    { name: '金苹果', category: 'consumable', quality: 'legendary', value: 500, description: '众神之果', narrativeEffect: '永生/神力', powerStageHint: 8 },
-    { name: '神盾', category: 'armor', quality: 'epic', value: 180, description: '天神盾牌', narrativeEffect: '防御+15', powerStageHint: 7 },
-    { name: '神器碎片', category: 'material', quality: 'rare', value: 50, description: '破碎神器的残片', narrativeEffect: '蕴含神力', powerStageHint: 6 },
-    { name: '神力护符', category: 'accessory', quality: 'epic', value: 150, description: '附有神力的护符', narrativeEffect: '神力+10', powerStageHint: 6 },
+    { name: '神剑', category: 'weapon', quality: 'epic', value: 200, description: '诸神铸造的神器', narrativeEffect: '神性攻击+15', economicTierHint: 7 },
+    { name: '金苹果', category: 'consumable', quality: 'legendary', value: 500, description: '众神之果', narrativeEffect: '永生/神力', economicTierHint: 8 },
+    { name: '神盾', category: 'armor', quality: 'epic', value: 180, description: '天神盾牌', narrativeEffect: '防御+15', economicTierHint: 7 },
+    { name: '神器碎片', category: 'material', quality: 'rare', value: 50, description: '破碎神器的残片', narrativeEffect: '蕴含神力', economicTierHint: 6 },
+    { name: '神力护符', category: 'accessory', quality: 'epic', value: 150, description: '附有神力的护符', narrativeEffect: '神力+10', economicTierHint: 6 },
   ],
 }
 
@@ -376,7 +378,7 @@ export const WORLDVIEW_ITEM_POOLS: Record<string, Array<{
  * @returns 物品模板池数组
  */
 export function getItemPoolForWorldview(worldview: string): Array<{
-  name: string; category: ItemCategory; quality: ItemQuality; value: number; description: string; narrativeEffect?: string; powerStageHint?: number
+  name: string; category: ItemCategory; quality: ItemQuality; value: number; description: string; narrativeEffect?: string; economicTierHint?: number
 }> {
   return WORLDVIEW_ITEM_POOLS[worldview] ?? WORLDVIEW_ITEM_POOLS.default
 }
@@ -428,7 +430,7 @@ export const ITEM_LOSE_VERBS = [
 // ============================================================
 
 /** 初始总人口 */
-export const INITIAL_POPULATION = 1000000
+export const INITIAL_POPULATION: DecimalInteger = '1000000'
 
 /** 基础年出生率 */
 export const BASE_BIRTH_RATE = 0.03
@@ -437,7 +439,7 @@ export const BASE_BIRTH_RATE = 0.03
 export const BASE_DEATH_RATE = 0.025
 
 /** 最大移民人数 */
-export const MAX_MIGRATION_AMOUNT = 10000
+export const MAX_MIGRATION_AMOUNT: DecimalInteger = '10000'
 
 /** 世界观分层种族池（key = worldview，value = 可选种族列表） */
 export const WORLDVIEW_RACE_POOLS: Record<string, RacePoolEntry[]> = {

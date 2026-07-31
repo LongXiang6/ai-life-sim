@@ -205,7 +205,7 @@ orchestrator.setContext({
     difficulty: 'normal',
     essenceTag: 'mixed',
     powerSystemTag: 'none',
-    powerCeiling: 1,
+    powerFramework: { id: 'fixture:power', label: '无超常力量体系', enabled: false, progression: 'bounded', ranks: [], source: 'world-default' },
     eraStartYear: 1,
   },
 }, {

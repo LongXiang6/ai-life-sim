@@ -10,7 +10,6 @@ export const EVENTS = {
   // mod-base-universe
   MOD_BASE_UNIVERSE_CELESTIAL_PHASE_CHANGED: 'mod-base-universe:celestial-phase-changed',
   MOD_BASE_UNIVERSE_ERA_CHANGED: 'mod-base-universe:era-changed',
-  MOD_BASE_UNIVERSE_MAP_UPDATED: 'mod-base-universe:map-updated',
   MOD_BASE_UNIVERSE_PROPHECY_FULFILLED: 'mod-base-universe:prophecy-fulfilled',
   MOD_BASE_UNIVERSE_PROPHECY_BROKEN: 'mod-base-universe:prophecy-broken',
   MOD_BASE_UNIVERSE_DEITY_EMERGED: 'mod-base-universe:deity-emerged',
@@ -19,18 +18,10 @@ export const EVENTS = {
   // mod-character
   MOD_CHARACTER_CREATED: 'mod-character:created',
   MOD_CHARACTER_DIED: 'mod-character:died',
-  MOD_CHARACTER_STAGE_CHANGED: 'mod-character:stage-changed',
-  MOD_CHARACTER_BREAKTHROUGH: 'mod-character:breakthrough',
   // mod-culture
   MOD_CULTURE_FESTIVAL_TRIGGERED: 'mod-culture:festival-triggered',
   MOD_CULTURE_MASTERPIECE_CREATED: 'mod-culture:masterpiece-created',
   MOD_CULTURE_TECH_ADVANCE: 'mod-culture:tech-advance',
-  MOD_CULTURE_REPUTATION_MILESTONE: 'mod-culture:reputation-milestone',
-  MOD_CULTURE_ACHIEVEMENT_UNLOCKED: 'mod-culture:achievement-unlocked',
-  MOD_CULTURE_FAMILY_BIRTH: 'mod-culture:family-birth',
-  MOD_CULTURE_FAMILY_DEATH: 'mod-culture:family-death',
-  MOD_CULTURE_DISCIPLE_JOINED: 'mod-culture:disciple-joined',
-  MOD_CULTURE_SKILL_MASTERED: 'mod-culture:skill-mastered',
   // mod-difficulty
   MOD_DIFFICULTY_CHANGED: 'mod-difficulty:changed',
   // mod-economy
@@ -52,11 +43,9 @@ export const EVENTS = {
   // mod-politics
   MOD_POLITICS_STRATUM_CHANGE: 'mod-politics:stratum-change',
   MOD_POLITICS_FACTION_EMERGED: 'mod-politics:faction-emerged',
-  MOD_POLITICS_WAR_DECLARED: 'mod-politics:war-declared',
+  MOD_POLITICS_CONFLICT_TRANSITIONED: 'mod-politics:conflict-transitioned',
   MOD_POLITICS_LAW_ENACTED: 'mod-politics:law-enacted',
   MOD_POLITICS_CONFLICT_ESCALATED: 'mod-politics:conflict-escalated',
-  MOD_POLITICS_LANGUAGE_EVOLVED: 'mod-politics:language-evolved',
-  MOD_POLITICS_VALUE_SHIFT: 'mod-politics:value-shift',
   // mod-power-system
   MOD_POWER_SYSTEM_STAGE_BREAKTHROUGH: 'mod-power-system:stage-breakthrough',
   MOD_POWER_SYSTEM_CULTIVATION_BOTTLENECK: 'mod-power-system:cultivation-bottleneck',
@@ -65,11 +54,8 @@ export const EVENTS = {
   MOD_POWER_SYSTEM_LUCK_CHANGED: 'mod-power-system:luck-changed',
   MOD_POWER_SYSTEM_FORTUNE_ENCOUNTER_TRIGGERED: 'mod-power-system:fortune-encounter-triggered',
   MOD_POWER_SYSTEM_FAITH_CHANGED: 'mod-power-system:faith-changed',
-  MOD_POWER_SYSTEM_SUPREME_ITEM_OBTAINED: 'mod-power-system:supreme-item-obtained',
-  MOD_POWER_SYSTEM_SUPREME_ITEM_AWAKENED: 'mod-power-system:supreme-item-awakened',
   MOD_POWER_SYSTEM_DIVINE_INTERVENTION_TRIGGERED: 'mod-power-system:divine-intervention-triggered',
   MOD_POWER_SYSTEM_ANOMALY_ZONE_APPEARED: 'mod-power-system:anomaly-zone-appeared',
-  MOD_POWER_SYSTEM_MATERIAL_DISCOVERED: 'mod-power-system:material-discovered',
   // mod-tech-level
   MOD_TECH_LEVEL_INDUSTRY_SHIFT: 'mod-tech-level:industry-shift',
   MOD_TECH_LEVEL_TECH_BREAKTHROUGH: 'mod-tech-level:tech-breakthrough',
@@ -82,6 +68,6 @@ export const EVENTS = {
   MOD_WORLD_CONTEXT_ARRIVED: 'mod-world:context-arrived',
   MOD_WORLD_CONTEXT_TRANSITION_ROLLED_BACK: 'mod-world:context-transition-rolled-back',
   // mod-world-map
-  MOD_WORLD_MAP_REGION_SELECTED: 'mod-world-map:region-selected',
+  MOD_WORLD_MAP_NODE_SELECTED: 'mod-world-map:node-selected',
   MOD_WORLD_MAP_VIEW_CHANGED: 'mod-world-map:view-changed',
 } as const

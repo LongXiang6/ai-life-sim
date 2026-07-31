@@ -120,7 +120,7 @@ export interface PatternModifierDisplayItem {
 /**
  * 格式化命格 systemModifiers 为 UI 展示条目
  * 结合 benefitDirection 计算 isBeneficial，用于准确着色
- * （例如 attributeDecayModifier=0.92 在数值上是 -8%，但对玩家有利，应显示绿色而非红色）
+ * （例如 conditionProgressionModifier=0.92 在数值上是 -8%，但对玩家有利，应显示绿色而非红色）
  */
 export function formatPatternSystemModifiersForDisplay(
   modifiers?: Partial<Record<string, number>>,

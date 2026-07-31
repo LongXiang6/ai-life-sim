@@ -11,7 +11,6 @@ import { useRouter } from 'next/navigation'
 
 import {
   useCharacterStore, RACE_LIFESPAN, randomName,
-  MAX_LIFESPAN_CAP, BASE_HUMAN_LIFESPAN,
   filterDigitsOnly,
 } from '@/mods/mod-character'
 import type { BaseAttributes, RaceLifespanConfig } from '@/mods/mod-character'
@@ -57,15 +56,12 @@ const BG_PRESET_ICONS: Record<string, string> = {
 /** 角色创建阶段只使用显式覆盖或结构化种族寿命。 */
 function computeMaxAge(race: string, manualOverride?: number): number {
   if (manualOverride && manualOverride > 0) {
-    return Math.min(manualOverride, MAX_LIFESPAN_CAP)
+    return Math.min(Math.round(manualOverride), Math.floor(Number.MAX_SAFE_INTEGER / 365))
   }
 
-  const raceInfo = RACE_LIFESPAN[race]
-  let maxAge = BASE_HUMAN_LIFESPAN
-
-  if (raceInfo && raceInfo.baseMaxAge > maxAge) maxAge = raceInfo.baseMaxAge
-
-  return Math.min(Math.max(maxAge, 1), MAX_LIFESPAN_CAP)
+  return Math.max(1, Math.round(
+    RACE_LIFESPAN[race]?.baseLifespanYears ?? RACE_LIFESPAN.human!.baseLifespanYears,
+  ))
 }
 
 /** 将目录种族或玩家自定义种族统一写成 Character Store 已有的结构化寿命形状。 */
@@ -77,7 +73,7 @@ function buildConfirmedRaceLifespan(race: string, maxAge: number): RaceLifespanC
   return {
     ...humanDefaults,
     name: race.trim() || '自定义种族',
-    baseMaxAge: maxAge,
+    baseLifespanYears: maxAge,
   }
 }
 
@@ -170,7 +166,6 @@ export const LABELS = {
 
   // 其他
   raceInfoPrefix: '基础寿命' as const,
-  raceInfoDecay: '衰减倍率' as const,
   raceInfoYearUnit: '年' as const,
   charCountSeparator: '/' as const,
 
@@ -286,7 +281,7 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
   const setGender = store((s) => s.setGender)
   const setAge = store((s) => s.setAge)
   const setCharacterBase = store((s) => s.setCharacterBase)
-  const setLifespan = store((s) => s.setLifespan)
+  const setLifespanDraft = store((s) => s.setLifespanDraft)
 
   // 检测是否为原始社会
   const eraStartYear = useWorldStore((s) => s.eraStartYear)
@@ -508,13 +503,13 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
     })
 
     const confirmedRace = buildConfirmedRaceLifespan(race, maxAge)
-    setLifespan({ race: confirmedRace, maxAge, baseMaxAge: confirmedRace.baseMaxAge })
+    setLifespanDraft({ raceId: race, race: confirmedRace, maximumLifespanYears: maxAge })
 
     store.getState().setRace(race)
     store.getState().setBackground(background)
 
     router.push('/talent-draw')
-  }, [name, nameError, gender, race, setName, setGender, setAge, setCharacterBase, setLifespan, background, attributes, router, setNameError, store, resolveAgeSetup, ageSetupPreview.error])
+  }, [name, nameError, gender, race, setName, setGender, setAge, setCharacterBase, setLifespanDraft, background, attributes, router, setNameError, store, resolveAgeSetup, ageSetupPreview.error])
 
   const handleBack = useCallback(() => {
     setGender(gender)
@@ -530,9 +525,9 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
       startingAge,
     })
     const confirmedRace = buildConfirmedRaceLifespan(race, maxAge)
-    setLifespan({ race: confirmedRace, maxAge, baseMaxAge: confirmedRace.baseMaxAge })
+    setLifespanDraft({ raceId: race, race: confirmedRace, maximumLifespanYears: maxAge })
     router.push('/new-game/world-customize')
-  }, [gender, race, attributes, background, router, setGender, setAge, setCharacterBase, setLifespan, store, resolveAgeSetup])
+  }, [gender, race, attributes, background, router, setGender, setAge, setCharacterBase, setLifespanDraft, store, resolveAgeSetup])
 
   return {
     // 表单

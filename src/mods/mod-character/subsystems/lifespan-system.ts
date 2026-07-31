@@ -1,325 +1,308 @@
-/**
- * @module lifespan-system.ts
- * @description 寿命子系统
- * @mod mod-character
- */
-import { getRoundSequence } from '@/foundation'
-
-import type { RoundContext, SubSystemState, SubSystemChanges } from '@/foundation'
-import type { LifespanState, BreakthroughRecord, RaceLifespanConfig } from '../types'
-
-import {
-  RACE_LIFESPAN,
-  MAX_LIFESPAN_CAP,
-  BASE_HUMAN_LIFESPAN,
-  LIFESPAN_WORLD_MAP,
-  BREAKTHROUGH_AGE_RATIO,
-  BREAKTHROUGH_BASE_CHANCE,
-  BREAKTHROUGH_DECAY_MULTIPLIER,
-  BREAKTHROUGH_PATHWAYS,
-} from '../constants'
-import { round } from '../utils'
 import { BaseSubsystem } from '@/core'
-import { clamp } from '@/core/shared'
+import {
+  CHARACTER_DAYS_PER_YEAR,
+  LIFESPAN_SYSTEM_OPERATION_FIELDS,
+  type LifespanAdjustment,
+  type LifespanRuleProfile,
+  type LifespanSystemInstructionOperation,
+  type LifespanSystemPersistenceState,
+  type RoundContext,
+  type SubSystemChanges,
+  type SubSystemState,
+} from '@/foundation'
+import { getHistoricalEvent } from '@/mods/mod-history-dynamics/historical-event-api'
+import { getFormulaModifier } from '@/mods/mod-world'
 
-import { getFormulaModifier, useWorldStore } from '@/mods/mod-world'
+import { RACE_LIFESPAN } from '../constants'
 import { useCharacterStore } from '../store'
+import {
+  assertEntityVisible,
+  assertKnownKeys,
+  clone,
+  isRecord,
+  requireAttributeModifiers,
+  requireClockMode,
+  requireInteger,
+  requireString,
+  requireStringList,
+  validateEvidence,
+} from './life-cycle-validation'
+
+const OPERATIONS = new Set<LifespanSystemInstructionOperation>(['adjust-maximum', 'set-rule'])
+const PROFILE_SOURCES = new Set<LifespanRuleProfile['source']>([
+  'character-creation',
+  'world-rule',
+  'confirmed-event',
+])
+
+function validateStoredEvidence(value: unknown, label: string): string[] {
+  const eventIds = requireStringList(value, label)
+  for (const eventId of eventIds) {
+    const event = getHistoricalEvent(eventId)
+    if (!event || (event.status !== 'occurred' && event.status !== 'resolved')) {
+      throw new Error(`${label}引用的历史事件不存在或尚未发生：${eventId}`)
+    }
+  }
+  return eventIds
+}
+
+function validateProfile(value: unknown, index: number): LifespanRuleProfile {
+  if (!isRecord(value)) throw new Error(`profiles[${index}]必须是对象`)
+  assertKnownKeys(value, [
+    'entityId', 'raceId', 'displayName', 'clockMode', 'baseLifespanDays',
+    'maximumLifespanDays', 'attrBaselines', 'source', 'sourceEventIds',
+    'updatedAtTotalDays',
+  ], `profiles[${index}]`)
+  const entityId = requireString(value.entityId, `profiles[${index}].entityId`)
+  const source = requireString(value.source, `profiles[${index}].source`) as LifespanRuleProfile['source']
+  if (!PROFILE_SOURCES.has(source)) throw new Error(`profiles[${index}].source 无效`)
+  return {
+    entityId,
+    raceId: requireString(value.raceId, `profiles[${index}].raceId`),
+    displayName: requireString(value.displayName, `profiles[${index}].displayName`),
+    clockMode: requireClockMode(value.clockMode, `profiles[${index}].clockMode`),
+    baseLifespanDays: requireInteger(value.baseLifespanDays, `profiles[${index}].baseLifespanDays`, 1, Number.MAX_SAFE_INTEGER),
+    maximumLifespanDays: requireInteger(value.maximumLifespanDays, `profiles[${index}].maximumLifespanDays`, 1, Number.MAX_SAFE_INTEGER),
+    attrBaselines: requireAttributeModifiers(value.attrBaselines, `profiles[${index}].attrBaselines`),
+    source,
+    sourceEventIds: validateStoredEvidence(value.sourceEventIds, `profiles[${index}].sourceEventIds`),
+    updatedAtTotalDays: requireInteger(value.updatedAtTotalDays, `profiles[${index}].updatedAtTotalDays`, 0, Number.MAX_SAFE_INTEGER),
+  }
+}
+
+function validateAdjustment(value: unknown, index: number): LifespanAdjustment {
+  if (!isRecord(value)) throw new Error(`adjustments[${index}]必须是对象`)
+  assertKnownKeys(value, [
+    'adjustmentId', 'entityId', 'deltaDays', 'operation', 'description',
+    'occurredAtTotalDays', 'evidenceEventIds',
+  ], `adjustments[${index}]`)
+  const operation = requireString(value.operation, `adjustments[${index}].operation`) as LifespanSystemInstructionOperation
+  if (!OPERATIONS.has(operation)) throw new Error(`adjustments[${index}].operation 无效`)
+  return {
+    adjustmentId: requireString(value.adjustmentId, `adjustments[${index}].adjustmentId`),
+    entityId: requireString(value.entityId, `adjustments[${index}].entityId`),
+    deltaDays: requireInteger(value.deltaDays, `adjustments[${index}].deltaDays`, -Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER),
+    operation,
+    description: requireString(value.description, `adjustments[${index}].description`),
+    occurredAtTotalDays: requireInteger(value.occurredAtTotalDays, `adjustments[${index}].occurredAtTotalDays`, 0, Number.MAX_SAFE_INTEGER),
+    evidenceEventIds: validateStoredEvidence(value.evidenceEventIds, `adjustments[${index}].evidenceEventIds`),
+  }
+}
+
+function validatePersistenceState(value: unknown): LifespanSystemPersistenceState {
+  if (!isRecord(value)) throw new Error('寿命持久化快照必须是对象')
+  assertKnownKeys(value, ['schemaVersion', 'profiles', 'adjustments'], '寿命持久化快照')
+  if (value.schemaVersion !== 1 || !Array.isArray(value.profiles) || !Array.isArray(value.adjustments)) {
+    throw new Error('寿命持久化快照结构无效')
+  }
+  const profiles = value.profiles.map(validateProfile)
+  const adjustments = value.adjustments.map(validateAdjustment)
+  if (new Set(profiles.map((item) => item.entityId)).size !== profiles.length) {
+    throw new Error('寿命人物档案重复')
+  }
+  if (new Set(adjustments.map((item) => item.adjustmentId)).size !== adjustments.length) {
+    throw new Error('寿命调整 ID 重复')
+  }
+  const profileIds = new Set(profiles.map((item) => item.entityId))
+  if (adjustments.some((item) => !profileIds.has(item.entityId))) {
+    throw new Error('寿命调整引用未知人物档案')
+  }
+  return { schemaVersion: 1, profiles, adjustments }
+}
+
+function validatePayload(
+  operation: LifespanSystemInstructionOperation,
+  value: unknown,
+): Record<string, unknown> {
+  if (!isRecord(value)) throw new Error('寿命系统指令变更必须是对象')
+  assertKnownKeys(value, LIFESPAN_SYSTEM_OPERATION_FIELDS[operation], `寿命操作 ${operation}`)
+  return value
+}
 
 export class LifespanSystem extends BaseSubsystem {
   readonly id = 'lifespan' as const
   readonly mod = 'mod-character' as const
-  readonly label = '寿命' as const
-  readonly description = '按显式世界与种族配置计算最大寿命，管理突破并落地结构化寿命增减' as const
+  readonly label = '寿命规则' as const
+  readonly description = '按人物实体拥有显式生物钟、种族基线、寿命上限与有历史依据的寿命调整' as const
 
-  private state: LifespanState = {
-    maxAge: 100,
-    baseMaxAge: 100,
-    race: { ...RACE_LIFESPAN.human! },
-    breakthroughs: [],
-    breakthroughChance: BREAKTHROUGH_BASE_CHANCE,
+  private state: LifespanSystemPersistenceState = {
+    schemaVersion: 1,
+    profiles: [],
+    adjustments: [],
   }
 
-  /** 当前世界观名称（用于寿命计算，来自 applyChanges） */
-  private worldName = ''
-  /** 上次处理突破检查的轮次（Round 2 collectStateUpdate） */
-  private _lastProcessedRound = -1
+  advance(context: RoundContext): void {
+    this.ensureCharacterCreationProfile(context)
+  }
 
-  /** 本轮减寿 UI 提示（collectStateUpdate 写入 summary 后清空） */
-  private _pendingReductionNote: string | null = null
   collectState(context: RoundContext): SubSystemState {
-    const age = this.getCharacterAge(context)
-    const s = this.state
-
+    this.ensureCharacterCreationProfile(context)
+    const profile = this.getProfile(context.characterId)
+    const adjustments = this.listAdjustments(context.characterId)
+    const maximumYears = profile ? Math.round(profile.maximumLifespanDays / CHARACTER_DAYS_PER_YEAR) : 0
     return {
       id: this.id,
-      summary: `【${this.label}】${s.race.name} | 当前年龄 ${age} / 最大寿命 ${s.maxAge} | 突破次数：${s.breakthroughs.length} | 突破概率：${Math.round(s.breakthroughChance * 100)}%`,
+      summary: profile
+        ? `【${this.label}】${profile.displayName}；生物钟 ${profile.clockMode}；寿命上限 ${maximumYears} 年；已确认调整 ${adjustments.length} 次`
+        : '',
       data: structuredClone({
-        contextId: context.contextId,
-        maxAge: s.maxAge,
-        baseMaxAge: s.baseMaxAge,
-        race: s.race,
-        breakthroughs: s.breakthroughs,
-        breakthroughChance: s.breakthroughChance,
+        entityId: context.characterId,
+        profile,
+        adjustments,
       }),
     }
   }
 
-  /** Round 2：读取 luck/wealth/reputation/faith 后判定寿命突破 */
-  collectStateUpdate(context: RoundContext): SubSystemState | null {
-    if (getRoundSequence(context) === this._lastProcessedRound) return null
-    this._lastProcessedRound = getRoundSequence(context)
+  preflightChanges(changes: SubSystemChanges, context: RoundContext): void {
+    if (!changes || changes.id !== this.id) throw new Error('寿命系统指令目标不匹配')
+    if (!changes.description?.trim()) throw new Error('寿命系统指令说明不能为空')
+    if (changes.targetContextId !== context.contextId) throw new Error('寿命系统目标上下文不是当前上下文')
+    const operation = changes.operation as LifespanSystemInstructionOperation
+    if (!OPERATIONS.has(operation)) throw new Error(`寿命系统操作无效：${changes.operation ?? ''}`)
+    const payload = validatePayload(operation, changes.changes)
+    const targetObjectId = requireString(changes.targetObjectId, '寿命目标对象')
+    assertEntityVisible(targetObjectId, context.contextId)
+    validateEvidence(changes.evidenceEventIds, context.contextId, '寿命依据事件')
 
-    const age = this.getCharacterAge(context)
-    this.checkBreakthrough(age, context)
-
-    const s = this.state
-    const reductionHint = this._pendingReductionNote ? ` | 减寿：${this._pendingReductionNote}` : ''
-    this._pendingReductionNote = null
-    return {
-      id: this.id,
-      summary: `【${this.label}】${s.race.name} | 当前年龄 ${age} / 最大寿命 ${s.maxAge} | 突破次数：${s.breakthroughs.length} | 突破概率：${Math.round(s.breakthroughChance * 100)}%${reductionHint}`,
-      data: structuredClone({
-        contextId: context.contextId,
-        maxAge: s.maxAge,
-        baseMaxAge: s.baseMaxAge,
-        race: s.race,
-        breakthroughs: s.breakthroughs,
-        breakthroughChance: s.breakthroughChance,
-      }),
+    if (operation === 'set-rule') {
+      requireString(payload.raceId, '种族 ID')
+      requireString(payload.raceDisplayName, '种族显示名')
+      requireClockMode(payload.clockMode, '生物钟模式')
+      requireInteger(payload.baseLifespanDays, '基础寿命天数', 1, Number.MAX_SAFE_INTEGER)
+      requireInteger(payload.maximumLifespanDays, '寿命上限天数', 1, Number.MAX_SAFE_INTEGER)
+      requireAttributeModifiers(payload.attrBaselines, '种族属性基线')
+      return
     }
+
+    const profile = this.state.profiles.find((item) => item.entityId === targetObjectId)
+    if (!profile) throw new Error(`寿命人物档案不存在：${targetObjectId}`)
+    const delta = requireInteger(payload.maximumDaysDelta, '寿命上限变化天数', -Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER)
+    if (delta === 0) throw new Error('寿命上限变化不能为 0')
+    requireInteger(profile.maximumLifespanDays + delta, '调整后寿命上限天数', 1, Number.MAX_SAFE_INTEGER)
   }
 
-  applyChanges(changes: SubSystemChanges, _context: RoundContext): void {
-    if (!changes || typeof changes !== 'object') return
-    if (changes.id !== this.id) return
-    if (!changes.changes || typeof changes.changes !== 'object' || Array.isArray(changes.changes)) return
-    if (!changes.description || changes.description.trim() === '') return
-    const ch = changes.changes
-
-    let needRecompute = false
-
-    // 记录世界观名称（参与三维度计算）
-    if (typeof ch.worldName === 'string') {
-      this.worldName = ch.worldName
-      needRecompute = true
+  applyChanges(changes: SubSystemChanges, context: RoundContext): void {
+    if (!changes || typeof changes !== 'object') throw new Error('寿命系统指令必须是对象')
+    if (changes.id !== this.id) throw new Error('寿命系统指令目标不匹配')
+    if (!changes.changes || typeof changes.changes !== 'object' || Array.isArray(changes.changes)) {
+      throw new Error('寿命系统指令变更必须是对象')
     }
+    if (!changes.description || changes.description.trim() === '') throw new Error('寿命系统指令说明不能为空')
+    const payload = changes.changes
+    this.preflightChanges(changes, context)
+    const operation = changes.operation as LifespanSystemInstructionOperation
+    const targetObjectId = changes.targetObjectId as string
+    const evidenceEventIds = [...(changes.evidenceEventIds ?? [])]
 
-    // 设置种族
-    if (typeof ch.raceId === 'string' && RACE_LIFESPAN[ch.raceId]) {
-      this.state.race = { ...RACE_LIFESPAN[ch.raceId]! }
-      needRecompute = true
-    }
-
-    // 当显式世界观/种族变更时，重新计算基础寿命。
-    if (needRecompute) {
-      const newMaxAge = this.computeMaxAge(this.worldName, this.state.race)
-      this.state.baseMaxAge = newMaxAge
-      this.state.maxAge = newMaxAge
-      this.state.breakthroughChance = round(
-        BREAKTHROUGH_BASE_CHANCE * getFormulaModifier('breakthroughChanceModifier'),
-        4,
-      )
-    }
-
-    // 直接设置 maxAge（手动覆盖，优先级最高）
-    if (typeof ch.maxAge === 'number') {
-      this.state.maxAge = round(clamp(ch.maxAge, 1, MAX_LIFESPAN_CAP))
-    }
-
-    // 结构化寿命增量：减寿/增寿由 LifespanSystem 自己落地，编排器不得二次计算 maxAge。
-    if (typeof ch.lifespanDelta === 'number') {
-      this.state.maxAge = round(clamp(this.state.maxAge + ch.lifespanDelta, 1, MAX_LIFESPAN_CAP))
-      if (ch.lifespanDelta < 0) {
-        this._pendingReductionNote = `结构化寿命变化（${ch.lifespanDelta}年）`
+    if (operation === 'set-rule') {
+      const existingIndex = this.state.profiles.findIndex((item) => item.entityId === targetObjectId)
+      const previousMaximum = existingIndex < 0 ? 0 : this.state.profiles[existingIndex].maximumLifespanDays
+      const profile: LifespanRuleProfile = {
+        entityId: targetObjectId,
+        raceId: (payload.raceId as string).trim(),
+        displayName: (payload.raceDisplayName as string).trim(),
+        clockMode: payload.clockMode as LifespanRuleProfile['clockMode'],
+        baseLifespanDays: payload.baseLifespanDays as number,
+        maximumLifespanDays: payload.maximumLifespanDays as number,
+        attrBaselines: clone(payload.attrBaselines as LifespanRuleProfile['attrBaselines']),
+        source: evidenceEventIds.length > 0 ? 'confirmed-event' : 'character-creation',
+        sourceEventIds: evidenceEventIds,
+        updatedAtTotalDays: context.totalDays,
       }
-    }
-
-    // 应用 AI 适配
-    if (ch.adaptedRace && typeof ch.adaptedRace === 'object') {
-      const ar = ch.adaptedRace as Partial<RaceLifespanConfig>
-      this.state.race = {
-        ...this.state.race,
-        name: ar.name ?? this.state.race.name,
-        baseMaxAge: typeof ar.baseMaxAge === 'number'
-          ? Math.min(ar.baseMaxAge, this.state.race.baseMaxAge * 2)
-          : this.state.race.baseMaxAge,
+      if (existingIndex < 0) this.state.profiles.push(profile)
+      else this.state.profiles[existingIndex] = profile
+      if (previousMaximum > 0 && previousMaximum !== profile.maximumLifespanDays) {
+        this.recordAdjustment(targetObjectId, profile.maximumLifespanDays - previousMaximum, operation, changes, context)
       }
-      this.state.baseMaxAge = this.state.race.baseMaxAge
-      this.state.maxAge = Math.min(this.state.race.baseMaxAge, MAX_LIFESPAN_CAP)
+      return
     }
 
-    // 添加突破记录
-    if (Array.isArray(ch.addBreakthroughs)) {
-      for (const br of ch.addBreakthroughs as BreakthroughRecord[]) {
-        this.state.breakthroughs.push(br)
-        this.state.maxAge = round(Math.min(this.state.maxAge + br.yearsGained, MAX_LIFESPAN_CAP))
-      }
+    const profileIndex = this.state.profiles.findIndex((item) => item.entityId === targetObjectId)
+    const current = this.state.profiles[profileIndex]
+    const deltaDays = payload.maximumDaysDelta as number
+    this.state.profiles[profileIndex] = {
+      ...current,
+      maximumLifespanDays: current.maximumLifespanDays + deltaDays,
+      source: evidenceEventIds.length > 0 ? 'confirmed-event' : current.source,
+      sourceEventIds: [...new Set([...current.sourceEventIds, ...evidenceEventIds])],
+      updatedAtTotalDays: context.totalDays,
     }
+    this.recordAdjustment(targetObjectId, deltaDays, operation, changes, context)
   }
 
-  reset(): void {
-    this.state = {
-      maxAge: 100,
-      baseMaxAge: 100,
-      race: { ...RACE_LIFESPAN.human! },
-      breakthroughs: [],
-      breakthroughChance: BREAKTHROUGH_BASE_CHANCE,
-    }
-    this.worldName = ''
-    this._lastProcessedRound = -1
-    this._pendingReductionNote = null
+  getProfile(entityId: string): LifespanRuleProfile | undefined {
+    const profile = this.state.profiles.find((item) => item.entityId === entityId)
+    return profile ? clone(profile) : undefined
   }
 
-  /** 从创建/持久化 Store 水合寿命权威。 */
-  hydrateFromStore(): void {
-    this.restoreCollectedState(useCharacterStore.getState().lifespan)
-    this.worldName = useWorldStore.getState().worldConfig?.name ?? this.worldName
+  listAdjustments(entityId: string): LifespanAdjustment[] {
+    return clone(this.state.adjustments.filter((item) => item.entityId === entityId))
   }
 
-  /** 从 orchestrator collectState().data 恢复私有寿命状态。 */
-  restoreCollectedState(snapshot: unknown): void {
-    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
-    const value = snapshot as Partial<LifespanState>
-    if (
-      typeof value.maxAge !== 'number'
-      || typeof value.baseMaxAge !== 'number'
-      || !value.race
-      || !Array.isArray(value.breakthroughs)
-      || typeof value.breakthroughChance !== 'number'
-    ) return
-    this.state = structuredClone({
-      maxAge: value.maxAge,
-      baseMaxAge: value.baseMaxAge,
-      race: value.race,
-      breakthroughs: value.breakthroughs,
-      breakthroughChance: value.breakthroughChance,
-    })
-    this.worldName = useWorldStore.getState().worldConfig?.name ?? ''
-    this._lastProcessedRound = -1
-    this._pendingReductionNote = null
+  capturePersistenceState(): LifespanSystemPersistenceState {
+    return validatePersistenceState(clone(this.state))
   }
 
-  capturePreviewState(): unknown {
-    return structuredClone({
-      state: this.state,
-      worldName: this.worldName,
-      lastProcessedRound: this._lastProcessedRound,
-      pendingReductionNote: this._pendingReductionNote,
-    })
+  restorePersistenceState(snapshot: unknown): void {
+    this.state = snapshot === undefined
+      ? { schemaVersion: 1, profiles: [], adjustments: [] }
+      : validatePersistenceState(snapshot)
+  }
+
+  capturePreviewState(): LifespanSystemPersistenceState {
+    return this.capturePersistenceState()
   }
 
   restorePreviewState(snapshot: unknown): void {
-    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
-    const value = snapshot as {
-      state?: LifespanState
-      worldName?: string
-      lastProcessedRound?: number
-      pendingReductionNote?: string | null
-    }
-    this.restoreCollectedState(value.state)
-    if (typeof value.worldName === 'string') this.worldName = value.worldName
-    if (typeof value.lastProcessedRound === 'number') this._lastProcessedRound = value.lastProcessedRound
-    if (typeof value.pendingReductionNote === 'string' || value.pendingReductionNote === null) {
-      this._pendingReductionNote = value.pendingReductionNote
-    }
+    this.restorePersistenceState(snapshot)
   }
 
-  // -------- 内部方法 --------
-
-  /**
-   * 初始寿命只使用显式世界配置和结构化种族配置。
-   * 背景是自由文本，不参与本地语义推断。
-   */
-  private computeMaxAge(worldName: string, race: RaceLifespanConfig): number {
-    let maxAge = BASE_HUMAN_LIFESPAN
-
-    // 维度 1：世界观修正
-    const worldLifespan = LIFESPAN_WORLD_MAP[worldName] ?? BASE_HUMAN_LIFESPAN
-    if (worldLifespan > maxAge) maxAge = worldLifespan
-
-    // 维度 2：种族基础寿命
-    if (race.baseMaxAge > maxAge) maxAge = race.baseMaxAge
-
-    return Math.min(Math.round(Math.max(maxAge, 1) * getFormulaModifier('lifespanModifier')), MAX_LIFESPAN_CAP)
+  reset(): void {
+    this.state = { schemaVersion: 1, profiles: [], adjustments: [] }
   }
 
-  private checkBreakthrough(age: number, context: RoundContext): void {
-    const s = this.state
-    if (s.maxAge <= 0 || age / s.maxAge <= BREAKTHROUGH_AGE_RATIO) return
-
-    const { luck, wealth, reputation, faithBonus } = this.readBreakthroughContext(context)
-    const rollChance = s.breakthroughChance * faithBonus
-
-    if (Math.random() < rollChance) {
-      const eligible = BREAKTHROUGH_PATHWAYS.filter((p) =>
-        luck >= p.requiredLuck
-        && wealth >= p.requiredWealth
-        && reputation >= p.requiredReputation,
-      )
-
-      if (eligible.length === 0) return
-
-      const pathway = eligible[Math.floor(Math.random() * eligible.length)]!
-      const br: BreakthroughRecord = {
-        pathway: pathway.pathway,
-        year: age,
-        yearsGained: pathway.yearsGained,
-        description: `${pathway.label}——${pathway.description}`,
-      }
-
-      s.breakthroughs.push(br)
-      s.maxAge = round(Math.min(s.maxAge + pathway.yearsGained, MAX_LIFESPAN_CAP))
-      s.breakthroughChance = round(s.breakthroughChance / BREAKTHROUGH_DECAY_MULTIPLIER)
-    }
+  private ensureCharacterCreationProfile(context: RoundContext): void {
+    if (!context.characterId || this.state.profiles.some((item) => item.entityId === context.characterId)) return
+    const draft = useCharacterStore.getState().lifespanDraft
+    const race = draft?.race ?? RACE_LIFESPAN.human
+    if (!race) throw new Error('角色创建缺少有效种族寿命规则')
+    const maximumYears = draft?.maximumLifespanYears ?? race.baseLifespanYears
+    const lifespanModifier = getFormulaModifier('lifespanModifier', 1, context.contextId)
+    this.state.profiles.push({
+      entityId: context.characterId,
+      raceId: draft?.raceId || 'human',
+      displayName: race.name,
+      clockMode: race.clockMode,
+      baseLifespanDays: Math.max(1, Math.round(race.baseLifespanYears * CHARACTER_DAYS_PER_YEAR)),
+      maximumLifespanDays: Math.max(1, Math.round(maximumYears * CHARACTER_DAYS_PER_YEAR * lifespanModifier)),
+      attrBaselines: clone(race.attrBaselines ?? {}),
+      source: 'character-creation',
+      sourceEventIds: [],
+      updatedAtTotalDays: context.totalDays,
+    })
   }
 
-  private readBreakthroughContext(context: RoundContext): {
-    luck: number
-    wealth: number
-    reputation: number
-    faithBonus: number
-  } {
-    const luck = (context.subsystemStates['luck']?.data as { luck?: number } | undefined)?.luck ?? 0
-
-    const economyData = context.subsystemStates['economy']?.data as {
-      currency?: { playerWealth?: number }
-      wealth?: number
-    } | undefined
-    const wealth = economyData?.currency?.playerWealth ?? economyData?.wealth ?? 0
-
-    const repData = context.subsystemStates['reputation']?.data as {
-      fame?: number
-      score?: number
-    } | undefined
-    const reputation = repData?.fame ?? repData?.score ?? 0
-
-    const faithData = context.subsystemStates['faith']?.data as {
-      breakthroughBonus?: number
-      faithName?: string | null
-    } | undefined
-    const faithBonus = faithData?.faithName
-      ? (faithData.breakthroughBonus ?? 1)
-      : 1
-
-    return { luck, wealth, reputation, faithBonus }
-  }
-
-  /**
-   * 获取角色当前的实际年龄 = 起始年龄 + 已过年数
-   * startingAge 从 CharacterBaseSystem 的显式字段读取。
-   */
-  private getCharacterAge(context: RoundContext): number {
-    const baseState = context.subsystemStates?.['character-base']?.data
-    const startingAge = (baseState && typeof baseState === 'object' && 'startingAge' in baseState)
-      ? (baseState as Record<string, unknown>).startingAge as number
-      : 0
-    return (startingAge ?? 0) + clamp(context.round.year - 1, 0, Infinity)
+  private recordAdjustment(
+    entityId: string,
+    deltaDays: number,
+    operation: LifespanSystemInstructionOperation,
+    changes: SubSystemChanges,
+    context: RoundContext,
+  ): void {
+    this.state.adjustments.push({
+      adjustmentId: `lifespan-adjustment:${encodeURIComponent(entityId)}:${context.totalDays}:${this.state.adjustments.length}`,
+      entityId,
+      deltaDays,
+      operation,
+      description: changes.description.trim(),
+      occurredAtTotalDays: context.totalDays,
+      evidenceEventIds: [...(changes.evidenceEventIds ?? [])],
+    })
   }
 }
 
 let runtimeLifespanSystem: LifespanSystem | undefined
 
-/** Loader 与引擎共享的懒加载寿命单例。 */
 export function getLifespanSystem(): LifespanSystem {
   runtimeLifespanSystem ??= new LifespanSystem()
   return runtimeLifespanSystem

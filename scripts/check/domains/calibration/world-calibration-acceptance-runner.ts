@@ -9,6 +9,7 @@ import assert from 'node:assert/strict'
 import {
   buildDefaultCalibration,
 } from '@/mods/mod-world/utils/calibration-clamp'
+import { decimalIntegerToBigInt, multiplyDecimalInteger } from '@/foundation'
 
 import { baseConfig, formula } from './world-calibration-test-helpers'
 
@@ -21,8 +22,8 @@ function testPrehistoricPrimitive() {
 
   assert.equal(strategy, 'prehistoric', 'strategy 应为 prehistoric')
   assert.ok(
-    (cal.world?.populationBase ?? Infinity) <= 500,
-    `populationBase 应 ≤500，实际 ${cal.world?.populationBase}`,
+    decimalIntegerToBigInt(cal.scale.populationTotal) === BigInt(1_000_000),
+    `史前上下文人口基线应为100万，实际 ${cal.scale.populationTotal}`,
   )
   assert.ok(
     formula(cal, 'birthRateModifier') < 0.8,
@@ -59,8 +60,8 @@ function testPostApocalyptic() {
 
   assert.equal(strategy, 'apocalyptic', 'strategy 应为 apocalyptic')
   assert.ok(
-    (cal.world?.populationBase ?? Infinity) <= 500,
-    `populationBase 应偏低（≤500），实际 ${cal.world?.populationBase}`,
+    multiplyDecimalInteger(cal.scale.populationTotal, Math.round(formula(cal, 'populationModifier') * 10_000), 10_000) === '82000000',
+    `现代灾后世界默认人口应按1%幸存比例得到8200万，实际基线 ${cal.scale.populationTotal}`,
   )
   assert.ok(formula(cal, 'deathRateModifier') > 1, 'deathRateModifier 应 >1')
   assert.ok(formula(cal, 'monsterThreatModifier') > 1, 'monsterThreatModifier 应 >1')
@@ -86,8 +87,8 @@ function testScifiSpace() {
   )
 
   assert.ok(
-    (cal.world?.populationBase ?? 0) >= 500_000,
-    `populationBase 应 ≥500000，实际 ${cal.world?.populationBase}`,
+    decimalIntegerToBigInt(cal.scale.populationTotal) >= BigInt(100_000_000_000),
+    `星际上下文人口应至少为1000亿，实际 ${cal.scale.populationTotal}`,
   )
   assert.equal(cal.world?.mapTemplate, 'starSystems', 'mapTemplate 应为 starSystems')
   assert.ok(

@@ -63,40 +63,6 @@ function testInvalidEnumFallback() {
   assert.equal(clamped.world?.mapTemplate, 'flatDiscWorld', '非法 mapTemplate 回退 inferMapTemplate')
 }
 
-/** 非法 economyTierRatios（末项 >1.0）丢弃 */
-function testRejectInvalidEconomyTierRatios() {
-  const config = baseConfig({ civilizationStage: 'space', essenceTag: 'scifi' })
-  const { clamped } = simulateAiCalibrationPath(
-    { formulas: { economyTierRatios: [0.2, 0.4, 0.6, 0.8, 1.2] } },
-    config,
-  )
-
-  assert.equal(clamped.formulas?.economyTierRatios, undefined, '末项>1.0 的 ratios 应丢弃')
-}
-
-/** 非单调输入会被排序后接受（实现行为） */
-function testSortNonMonotonicEconomyTierRatios() {
-  const config = baseConfig()
-  const { clamped } = simulateAiCalibrationPath(
-    { formulas: { economyTierRatios: [0.9, 0.2, 0.5, 0.7, 1.0] } },
-    config,
-  )
-
-  assert.deepEqual(clamped.formulas?.economyTierRatios, [0.2, 0.5, 0.7, 0.9, 1.0])
-}
-
-/** 合法 economyTierRatios 写入 */
-function testAcceptValidEconomyTierRatios() {
-  const config = baseConfig()
-  const ratios = [0.2, 0.4, 0.6, 0.8, 1.0] as const
-  const { clamped } = simulateAiCalibrationPath(
-    { formulas: { economyTierRatios: [...ratios] } },
-    config,
-  )
-
-  assert.deepEqual(clamped.formulas?.economyTierRatios, ratios)
-}
-
 /** entities 范围 clamp + min≤max 修正 */
 function testEntityRangeClamp() {
   const config = baseConfig()
@@ -120,7 +86,7 @@ function testNullRawFallback() {
   const { clamped } = simulateAiCalibrationPath(null, config)
 
   assert.equal(clamped.formulas?.eventDistributionStrategy, 'prehistoric')
-  assert.equal(clamped.world?.populationBase, 50)
+  assert.equal(clamped.scale.populationTotal, '1000000')
 }
 
 /** §15 场景：mock AI 稀疏 JSON（修仙） */
@@ -169,9 +135,12 @@ function testAiPathScifiSpaceScenario() {
 
   const mockAiOutput = {
     world: {
-      populationBase: 800_000,
       mapTemplate: 'starSystems',
       regionCount: 12,
+    },
+    scale: {
+      populationTotal: '800000000000',
+      annualEconomicOutput: '64000000000000000',
     },
     formulas: {
       techProgressModifier: 3.0,
@@ -182,7 +151,8 @@ function testAiPathScifiSpaceScenario() {
 
   const { zodOk, clamped } = simulateAiCalibrationPath(mockAiOutput, config)
   assert.equal(zodOk, true)
-  assert.equal(clamped.world?.populationBase, 800_000)
+  assert.equal(clamped.scale.populationTotal, '800000000000')
+  assert.equal(clamped.scale.annualEconomicOutput, '64000000000000000')
   assert.equal(clamped.world?.mapTemplate, 'starSystems')
   assert.ok(formula(clamped, 'techProgressModifier') > 2.0)
   assert.ok(formula(clamped, 'industryProductivityModifier') > 1.5)
@@ -277,9 +247,6 @@ function main() {
   testModifierClampWhenZodRejects()
   testModifierClampLowBound()
   testInvalidEnumFallback()
-  testRejectInvalidEconomyTierRatios()
-  testSortNonMonotonicEconomyTierRatios()
-  testAcceptValidEconomyTierRatios()
   testEntityRangeClamp()
   testNullRawFallback()
   testAiPathCultivationScenario()

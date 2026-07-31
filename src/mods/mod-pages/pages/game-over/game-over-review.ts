@@ -45,7 +45,7 @@ export function buildLocalEndingReview(input: EndingReviewInput): EndingReview {
     !best || current.weight > best.weight ? current : best
   ), null)
   const perspective = input.achievements.filter((item) => item.kind === 'choice').length
-    >= input.achievements.filter((item) => item.kind === 'breakthrough').length
+    >= input.achievements.filter((item) => item.kind === 'lifespan-adjustment').length
     ? 'micro' as const
     : 'macro' as const
   const achievementText = featured

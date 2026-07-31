@@ -70,7 +70,7 @@ check(
     'setAge(startingAge)',
     'setCharacterBase({',
     'startingAge,',
-    'setLifespan({ race: confirmedRace, maxAge, baseMaxAge: confirmedRace.baseMaxAge })',
+    'setLifespanDraft({ raceId: race, race: confirmedRace, maximumLifespanYears: maxAge })',
     "router.push('/talent-draw')",
   ]),
 )
@@ -105,13 +105,15 @@ check(
 check(
   'V5',
   'Product/OpeningFlow/FatePreviewHandoff',
-  'Does fate preview gate complete creation, set orchestrator context, commit owner state, and navigate?',
+  'Does fate preview gate complete creation, restore the engine-owned context, commit owner state, and navigate?',
   () => requireFragments('src/mods/mod-pages/pages/fate-preview/page.tsx', [
     'const characterConfirmed = hasConfirmedCharacter',
     'selectedPatterns.length === DESTINY_PATTERN_SELECT_COUNT',
     "worldInitAIStatus?.status === 'complete'",
-    'orchestrator.setContext(',
-    'orchestrator.applyRoundChanges([',
+    'const allModsLoaded = useGlobalStore',
+    'ensureOrchestratorContextFromStores()',
+    'const commitResult = orchestrator.applyRoundChanges([',
+    'commitResult.rejected.length > 0',
     'const confirmedBase = { ...characterBase.base }',
     "id: 'character-base'",
     "id: 'destiny-pattern'",
@@ -182,7 +184,7 @@ check(
     const stores = [
       ['src/mods/mod-world/store.ts', "name: 'mod-world:persist:world-state'", 'version: 6'],
       ['src/mods/mod-settings/store.ts', "name: 'mod-settings:store'", 'version: 11'],
-      ['src/mods/mod-character/store.ts', "name: 'mod-character:persist:character-state'", 'version: 4'],
+      ['src/mods/mod-character/store.ts', "name: 'mod-character:persist:character-state'", 'version: 5'],
       ['src/mods/mod-engine/store.ts', "name: 'mod-engine:persist:engine-state'", 'ENGINE_STORE_SCHEMA_VERSION = 5'],
     ]
     for (const [relativePath, name, version] of stores) requireFragments(relativePath, [name, version])

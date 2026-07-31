@@ -12,6 +12,11 @@ import { loadMods } from '@/core/mod-loader/mod-loader'
 import { selectRemoteApiExports } from '@/core/mod-loader/mod-lifecycle'
 import { validateRemoteContracts } from '@/core/mod-loader/validate-remote-contracts'
 import { remote } from '@/core/remote-interface/remote-interface'
+import {
+  createExecutionOutcomeCodes,
+  runExecutionSequence,
+} from '@/foundation'
+import type { ExecutionSequenceNode } from '@/foundation'
 
 function testParseDependency() {
   const softCompact = parseDependency('~mod-politics')
@@ -33,6 +38,7 @@ function testMutualSoftDependencies() {
   const manifests: ModManifest[] = [
     {
       name: 'mod-world',
+      order: 100,
       version: '1.0.0',
       description: 'world',
       dependencies: [],
@@ -41,6 +47,7 @@ function testMutualSoftDependencies() {
     },
     {
       name: 'mod-economy',
+      order: 200,
       version: '1.0.0',
       description: 'economy',
       dependencies: ['mod-world', '~mod-politics'],
@@ -49,6 +56,7 @@ function testMutualSoftDependencies() {
     },
     {
       name: 'mod-politics',
+      order: 300,
       version: '1.0.0',
       description: 'politics',
       dependencies: ['mod-world', '~mod-economy'],
@@ -82,6 +90,7 @@ function testExplicitRemoteApiAllowlist() {
 
   const manifest: ModManifest = {
     name: 'mod-remote-regression',
+    order: 100,
     version: '1.0.0',
     description: 'remote regression fixture',
     dependencies: [],
@@ -101,11 +110,193 @@ function testExplicitRemoteApiAllowlist() {
   assert.deepEqual(validateRemoteContracts([manifest]), [])
 }
 
-function main() {
+function executionNode(
+  id: string,
+  phase: ExecutionSequenceNode['phase'],
+  order: number,
+  dependsOn: string[],
+  run: ExecutionSequenceNode['run'],
+): ExecutionSequenceNode {
+  return {
+    id,
+    owner: 'test-runner',
+    failureTarget: 'test-runner',
+    phase,
+    dependsOn,
+    order,
+    outcomes: createExecutionOutcomeCodes('execution-contract', id),
+    run,
+  }
+}
+
+async function testExecutionSequenceContract() {
+  const ordered = await runExecutionSequence({
+    flowId: 'execution-contract',
+    executionId: 'execution-contract:ordered',
+    owner: 'test-runner',
+    context: {},
+    nodes: [
+      executionNode('prepare', 'prepare', 0, [], () => ({ status: 'succeeded' })),
+      executionNode('second', 'execute', 20, ['prepare'], () => ({ status: 'succeeded' })),
+      executionNode('first', 'execute', 10, ['prepare'], () => ({ status: 'succeeded' })),
+      executionNode('transition', 'transition', 0, ['first', 'second'], () => ({ status: 'succeeded' })),
+      executionNode('finalize', 'finalize', 0, ['transition'], () => ({ status: 'succeeded' })),
+    ],
+  })
+  assert.equal(ordered.status, 'succeeded')
+  assert.deepEqual(ordered.order, ['prepare', 'first', 'second', 'transition', 'finalize'])
+
+  let activeParallelNodes = 0
+  let maxParallelNodes = 0
+  const parallel = await runExecutionSequence({
+    flowId: 'execution-contract',
+    executionId: 'execution-contract:parallel',
+    owner: 'test-runner',
+    context: {},
+    nodes: [
+      executionNode('prepare', 'prepare', 0, [], () => ({ status: 'succeeded' })),
+      {
+        ...executionNode('parallel-left', 'execute', 10, ['prepare'], async () => {
+          activeParallelNodes += 1
+          maxParallelNodes = Math.max(maxParallelNodes, activeParallelNodes)
+          await new Promise((resolve) => setTimeout(resolve, 25))
+          activeParallelNodes -= 1
+          return { status: 'succeeded' as const }
+        }),
+        parallelGroup: 'parallel-pair',
+      },
+      {
+        ...executionNode('parallel-right', 'execute', 10, ['prepare'], async () => {
+          activeParallelNodes += 1
+          maxParallelNodes = Math.max(maxParallelNodes, activeParallelNodes)
+          await new Promise((resolve) => setTimeout(resolve, 5))
+          activeParallelNodes -= 1
+          return { status: 'succeeded' as const }
+        }),
+        parallelGroup: 'parallel-pair',
+      },
+      executionNode(
+        'transition',
+        'transition',
+        0,
+        ['parallel-left', 'parallel-right'],
+        () => ({ status: 'succeeded' }),
+      ),
+      executionNode('finalize', 'finalize', 0, ['transition'], () => ({ status: 'succeeded' })),
+    ],
+  })
+  assert.equal(parallel.status, 'succeeded')
+  assert.equal(maxParallelNodes, 2)
+  assert.deepEqual(parallel.order, ['prepare', 'parallel-left', 'parallel-right', 'transition', 'finalize'])
+  assert.deepEqual(
+    parallel.records.map((record) => record.nodeId),
+    ['prepare', 'parallel-left', 'parallel-right', 'transition', 'finalize'],
+  )
+
+  const parallelFailure = await runExecutionSequence({
+    flowId: 'execution-contract',
+    executionId: 'execution-contract:parallel-failure',
+    owner: 'test-runner',
+    context: {},
+    nodes: [
+      executionNode('prepare', 'prepare', 0, [], () => ({ status: 'succeeded' })),
+      {
+        ...executionNode('parallel-failed', 'execute', 10, ['prepare'], async () => {
+          await new Promise((resolve) => setTimeout(resolve, 5))
+          return { status: 'failed' as const, message: 'expected parallel failure' }
+        }),
+        parallelGroup: 'parallel-failure-pair',
+      },
+      {
+        ...executionNode('parallel-succeeded', 'execute', 10, ['prepare'], async () => {
+          await new Promise((resolve) => setTimeout(resolve, 20))
+          return { status: 'succeeded' as const }
+        }),
+        parallelGroup: 'parallel-failure-pair',
+      },
+      executionNode(
+        'finalize',
+        'finalize',
+        0,
+        ['parallel-failed', 'parallel-succeeded'],
+        () => ({ status: 'succeeded' }),
+      ),
+    ],
+  })
+  assert.equal(parallelFailure.status, 'failed')
+  assert.equal(parallelFailure.failure?.nodeId, 'parallel-failed')
+  assert.deepEqual(
+    parallelFailure.records.map((record) => [record.nodeId, record.status]),
+    [
+      ['prepare', 'succeeded'],
+      ['parallel-failed', 'failed'],
+      ['parallel-succeeded', 'succeeded'],
+    ],
+  )
+
+  const missing = await runExecutionSequence({
+    flowId: 'execution-contract',
+    executionId: 'execution-contract:missing',
+    owner: 'test-runner',
+    context: {},
+    nodes: [
+      executionNode('prepare', 'prepare', 0, [], () => ({ status: 'succeeded' })),
+      executionNode('execute', 'execute', 0, ['prepare'], () => undefined),
+      executionNode('finalize', 'finalize', 0, ['execute'], () => ({ status: 'succeeded' })),
+    ],
+  })
+  assert.equal(missing.status, 'failed')
+  assert.equal(missing.failure?.status, 'missing-status')
+  assert.equal(missing.failure?.failureTarget, 'test-runner')
+
+  const invalid = await runExecutionSequence({
+    flowId: 'execution-contract',
+    executionId: 'execution-contract:invalid',
+    owner: 'test-runner',
+    context: {},
+    nodes: [
+      executionNode('prepare', 'prepare', 0, [], () => ({ status: 'succeeded' })),
+      executionNode('execute', 'execute', 0, ['prepare'], (ctx, runtime) => ({
+        status: 'succeeded',
+        code: `${runtime.flowId}:execute:wrong`,
+        value: ctx,
+      })),
+      executionNode('finalize', 'finalize', 0, ['execute'], () => ({ status: 'succeeded' })),
+    ],
+  })
+  assert.equal(invalid.status, 'failed')
+  assert.equal(invalid.failure?.status, 'invalid-status')
+
+  const timedOut = await runExecutionSequence({
+    flowId: 'execution-contract',
+    executionId: 'execution-contract:timeout',
+    owner: 'test-runner',
+    context: {},
+    nodes: [
+      executionNode('prepare', 'prepare', 0, [], () => ({ status: 'succeeded' })),
+      {
+        ...executionNode('execute', 'execute', 0, ['prepare'], async () => {
+          await new Promise((resolve) => setTimeout(resolve, 30))
+          return { status: 'succeeded' as const }
+        }),
+        timeoutMs: 5,
+      },
+      executionNode('finalize', 'finalize', 0, ['execute'], () => ({ status: 'succeeded' })),
+    ],
+  })
+  assert.equal(timedOut.status, 'failed')
+  assert.equal(timedOut.failure?.status, 'timed-out')
+}
+
+async function main() {
   testParseDependency()
   testMutualSoftDependencies()
   testExplicitRemoteApiAllowlist()
+  await testExecutionSequenceContract()
   console.log('[OK] mod-loader regression tests passed')
 }
 
-main()
+main().catch((error) => {
+  console.error(error)
+  process.exitCode = 1
+})

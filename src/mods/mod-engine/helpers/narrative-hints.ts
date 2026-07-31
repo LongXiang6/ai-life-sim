@@ -11,14 +11,12 @@
  * 由 orchestrator 注入 PromptContext.roundSystemGuidanceText，再由本地引导编译器投影到 AI 输入。
  */
 
-import type { LifeStageId } from '@/mods/mod-character'
 import type { TimeStep } from '@/foundation'
 
 // ═══════════════════ 类型定义 ═══════════════════
 
 export interface NarrativeHintInput {
   currentAge: number
-  maxAge: number
   startingAge: number
   round: number
   recentEvents: Array<{ narrative?: string; age: number }>
@@ -28,7 +26,6 @@ export interface NarrativeHintInput {
   /** 当前时间步进（替代旧 timeSkipYears，支持多粒度文本生成） */
   timeStep: TimeStep
   narrativeStyle?: string
-  lifeStage: LifeStageId
 }
 
 export interface NarrativeHints {
@@ -110,30 +107,6 @@ function hintSceneJump(input: NarrativeHintInput): string[] {
   return hints
 }
 
-// --- 3. 寿命提醒 ---
-function hintLifespanReminder(input: NarrativeHintInput): string[] {
-  const hints: string[] = []
-  const maxAge = input.maxAge
-  const currentAge = input.currentAge
-  if (maxAge <= 0) return hints
-  const pct = currentAge / maxAge
-
-  if (pct >= 0.85) {
-    hints.push(
-      `【寿命警告】角色逼近寿命上限(${maxAge}岁)，当前${currentAge}岁，步入暮年后健康每况愈下。若健康值极低（重病/重伤缠身），叙事可自然走向生命终点——衰老本身不强制结局，但严重疾病足以致命。`,
-    )
-  } else if (pct >= 0.5) {
-    hints.push(
-      `【寿命提醒】角色预期寿命${maxAge}岁，当前${currentAge}岁，距老年尚早。除非遭遇致命危机或健康值严重下降，不得以年迈为由结束生命。`,
-    )
-  } else if (pct < 0.1 && currentAge <= 3 && currentAge > 0) {
-    hints.push(
-      `【寿命提醒】角色预期寿命${maxAge}岁，当前${currentAge}岁，非常年轻，严禁以年龄为由触发结局。`,
-    )
-  }
-  return hints
-}
-
 // ═══════════════════ 主入口 ═══════════════════
 
 /** 构建本轮叙事动态 hints（mandatory + optional 两类） */
@@ -141,7 +114,6 @@ export function buildNarrativeHints(input: NarrativeHintInput): NarrativeHints {
   return {
     mandatory: [
       ...hintForceBranch(input),
-      ...hintLifespanReminder(input),
     ],
     optional: [
       ...hintSceneJump(input),

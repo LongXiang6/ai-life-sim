@@ -9,17 +9,54 @@
  *   - index.ts Remote → MOD_API_IMPORTERS（onInit 完成后批量注册）
  */
 
-import type { ModContext, ModLifecycle, ModLifecycleV2, ConfigurationChangedData } from '@/foundation'
+import {
+  createExecutionOutcomeCodes,
+  runExecutionSequence,
+} from '@/foundation'
+import type {
+  ConfigurationChangedData,
+  ExecutionNodeSignal,
+  ExecutionSequenceNode,
+  ExecutionSequenceResult,
+  ModContext,
+  ModLifecycleV2,
+  ModManifest,
+} from '@/foundation'
 
 import { modRegistry } from './mod-registry'
 import { remote } from '../remote-interface/remote-interface'
 import { isInstrumentEnabled, getInstrumentHooks } from '../instrument/instrument-mode'
 import { createStorageNamespace } from '../storage-namespace'
 import { validateRemoteContracts } from './validate-remote-contracts'
-import { COMPAT_IMPORTERS } from './compat-importers.generated'
 import { MOD_CONTROL_IMPORTERS } from './mod-control-importers.generated'
 import { MOD_API_IMPORTERS } from './mod-importers.generated'
 import { MOD_SECONDARY_API_IMPORTERS } from './mod-secondary-api-importers.generated'
+import { parseDependency } from './dependency-resolver'
+
+const LIFECYCLE_OWNER = 'core-mod-loader'
+
+function createExecutionId(flowId: string): string {
+  const suffix = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`
+  return `${flowId}:${suffix}`
+}
+
+function buildPerModContext(name: string, context: ModContext): ModContext {
+  return {
+    ...context,
+    getStorage: <T extends Record<string, unknown> = Record<string, unknown>>() =>
+      createStorageNamespace<T>(name, context.storage),
+  }
+}
+
+function getOrderedManifests(): ModManifest[] {
+  return modRegistry.getLoadOrder().map((name) => {
+    const manifest = modRegistry.get(name)?.manifest
+    if (!manifest) {
+      throw new Error(`[mod-lifecycle] 加载顺序包含未注册 MOD: ${name}`)
+    }
+    return manifest
+  })
+}
 
 /**
  * Factorio control.lua 等价 — lifecycle 窄入口
@@ -72,28 +109,142 @@ export function selectRemoteApiExports(
  */
 async function registerModRemoteApis(order: string[]): Promise<void> {
   for (const name of order) {
-    try {
-      const declaredRemoteApi = modRegistry.get(name)?.manifest.remoteApi
-      if (declaredRemoteApi?.length === 0) {
-        remote.autoRegister(name, {})
-        continue
-      }
-
-      const merged: Record<string, unknown> = { ...(await getModApiImporter(name)()) }
-
-      const secondaryImporters = MOD_SECONDARY_API_IMPORTERS[name]
-      if (secondaryImporters) {
-        for (const importSecondary of secondaryImporters) {
-          Object.assign(merged, await importSecondary())
-        }
-      }
-
-      remote.autoRegister(name, selectRemoteApiExports(merged, declaredRemoteApi))
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      console.warn(`[mod-lifecycle] ${name} Remote 注册跳过: ${msg}`)
+    const declaredRemoteApi = modRegistry.get(name)?.manifest.remoteApi
+    if (declaredRemoteApi?.length === 0) {
+      remote.autoRegister(name, {})
+      continue
     }
+
+    const merged: Record<string, unknown> = { ...(await getModApiImporter(name)()) }
+
+    const secondaryImporters = MOD_SECONDARY_API_IMPORTERS[name]
+    if (secondaryImporters) {
+      for (const importSecondary of secondaryImporters) {
+        Object.assign(merged, await importSecondary())
+      }
+    }
+
+    remote.autoRegister(name, selectRemoteApiExports(merged, declaredRemoteApi))
   }
+}
+
+type ModHookName = 'onInit' | 'onLoad' | 'onConfigurationChanged'
+
+interface RunModHookSequenceOptions {
+  flowId: string
+  hook: ModHookName
+  context: ModContext
+  configurationData?: ConfigurationChangedData
+  transition?: (manifests: readonly ModManifest[]) => void | Promise<void>
+  finalize?: (manifests: readonly ModManifest[]) => void | Promise<void>
+}
+
+function hookSignal(status: 'succeeded' | 'skipped', message?: string): ExecutionNodeSignal {
+  return { status, ...(message ? { message } : {}) }
+}
+
+async function runModHookSequence(
+  options: RunModHookSequenceOptions,
+): Promise<ExecutionSequenceResult> {
+  const manifests = getOrderedManifests()
+  const manifestNames = new Set(manifests.map((manifest) => manifest.name))
+  const prepareId = 'prepare-mod-hooks'
+  const transitionId = 'accept-mod-hooks'
+  const finalizeId = 'finalize-mod-hooks'
+
+  const nodes: ExecutionSequenceNode<ModContext>[] = [
+    {
+      id: prepareId,
+      owner: LIFECYCLE_OWNER,
+      failureTarget: LIFECYCLE_OWNER,
+      phase: 'prepare',
+      dependsOn: [],
+      order: 0,
+      outcomes: createExecutionOutcomeCodes(options.flowId, prepareId),
+      run: () => hookSignal('succeeded'),
+    },
+    ...manifests.map((manifest): ExecutionSequenceNode<ModContext> => ({
+      id: manifest.name,
+      owner: manifest.name,
+      failureTarget: LIFECYCLE_OWNER,
+      phase: 'execute',
+      dependsOn: [
+        prepareId,
+        ...manifest.dependencies
+          .map((dependency) => parseDependency(dependency))
+          .filter((dependency) => dependency.affectsLoadOrder && manifestNames.has(dependency.name))
+          .map((dependency) => dependency.name),
+      ],
+      order: manifest.order,
+      outcomes: createExecutionOutcomeCodes(options.flowId, manifest.name),
+      optional: true,
+      run: async (context) => {
+        const mod = await getModControlImporter(manifest.name)()
+        const lifecycle = mod.lifecycle as ModLifecycleV2 | undefined
+        const perModContext = buildPerModContext(manifest.name, context)
+
+        if (options.hook === 'onInit') {
+          if (!lifecycle?.onInit) return hookSignal('skipped', '未声明 onInit')
+          if (isInstrumentEnabled()) getInstrumentHooks().onBeforeInit?.(manifest.name)
+          const startedAt = performance.now()
+          await lifecycle.onInit(perModContext)
+          if (isInstrumentEnabled()) {
+            getInstrumentHooks().onAfterInit?.(manifest.name, performance.now() - startedAt)
+          }
+          return hookSignal('succeeded')
+        }
+
+        if (options.hook === 'onLoad') {
+          if (!lifecycle?.onLoad) return hookSignal('skipped', '未声明 onLoad')
+          await lifecycle.onLoad(perModContext)
+          return hookSignal('succeeded')
+        }
+
+        if (!lifecycle?.onConfigurationChanged) {
+          return hookSignal('skipped', '未声明 onConfigurationChanged')
+        }
+        if (!options.configurationData) {
+          throw new Error('[mod-lifecycle] 配置变更节点缺少 ConfigurationChangedData')
+        }
+        await lifecycle.onConfigurationChanged(options.configurationData)
+        return hookSignal('succeeded')
+      },
+    })),
+    {
+      id: transitionId,
+      owner: LIFECYCLE_OWNER,
+      failureTarget: LIFECYCLE_OWNER,
+      phase: 'transition',
+      dependsOn: manifests.length > 0 ? manifests.map((manifest) => manifest.name) : [prepareId],
+      order: 0,
+      outcomes: createExecutionOutcomeCodes(options.flowId, transitionId),
+      run: async () => {
+        await options.transition?.(manifests)
+        return hookSignal('succeeded')
+      },
+    },
+    {
+      id: finalizeId,
+      owner: LIFECYCLE_OWNER,
+      failureTarget: LIFECYCLE_OWNER,
+      phase: 'finalize',
+      dependsOn: [transitionId],
+      order: 0,
+      outcomes: createExecutionOutcomeCodes(options.flowId, finalizeId),
+      run: async () => {
+        await options.finalize?.(manifests)
+        return hookSignal('succeeded')
+      },
+    },
+  ]
+
+  return runExecutionSequence({
+    flowId: options.flowId,
+    executionId: createExecutionId(options.flowId),
+    owner: LIFECYCLE_OWNER,
+    context: options.context,
+    nodes,
+  })
 }
 
 /**
@@ -104,73 +255,23 @@ async function registerModRemoteApis(order: string[]): Promise<void> {
  */
 export async function invokeModLifecycles(
   context: ModContext,
-): Promise<string[]> {
-  const errors: string[] = []
-  const order = modRegistry.getLoadOrder()
-
-  for (const name of order) {
-    try {
-      const importer = getModControlImporter(name)
-
-      if (isInstrumentEnabled()) {
-        getInstrumentHooks().onBeforeInit?.(name)
-      }
-      const t0 = performance.now()
-
-      const mod = await importer()
-      const lifecycle = mod.lifecycle as ModLifecycle | undefined
-
-      const perModContext: ModContext = {
-        ...context,
-        getStorage: <T extends Record<string, unknown> = Record<string, unknown>>() =>
-          createStorageNamespace<T>(name, context.storage),
-      }
-
-      if (lifecycle?.onInit) {
-        await lifecycle.onInit(perModContext)
-      }
-
-      if (isInstrumentEnabled()) {
-        getInstrumentHooks().onAfterInit?.(name, performance.now() - t0)
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      errors.push(`MOD "${name}" onInit 失败: ${msg}`)
-    }
-  }
-
-  if (errors.length === 0) {
-    await registerModRemoteApis(order)
-  }
-
-  await scanCompatibilityDirs(order)
-
-  if (process.env.NODE_ENV === 'development') {
-    const manifests = order
-      .map((name) => modRegistry.get(name)?.manifest)
-      .filter((m): m is NonNullable<typeof m> => m !== undefined)
-    for (const issue of validateRemoteContracts(manifests)) {
-      const label = issue.kind === 'missing' ? '未注册' : '未声明'
-      console.warn(
-        `[RemoteContract] MOD "${issue.mod}" 函数 "${issue.functionName}" ${label}（manifest.remoteApi / codegen 与 remote 不一致）`,
-      )
-    }
-
-    // consumes 校验：确保 manifest.consumes 中的能力由已加载的 MOD 提供
-    const availableCaps = modRegistry.getAvailableCapabilities()
-    for (const manifest of manifests) {
-      if (!manifest.consumes?.length) continue
-      for (const cap of manifest.consumes) {
-        if (!availableCaps.has(cap)) {
-          console.warn(
-            `[ModLoader] MOD "${manifest.name}" consumes "${cap}" 但无已加载的 MOD 提供此能力`,
-          )
-        }
-      }
-    }
-  }
-
-  return errors
+): Promise<ExecutionSequenceResult> {
+  return runModHookSequence({
+    flowId: 'mod-initialization',
+    hook: 'onInit',
+    context,
+    transition: async (manifests) => {
+      await registerModRemoteApis(manifests.map((manifest) => manifest.name))
+    },
+    finalize: (manifests) => {
+      const issues = validateRemoteContracts([...manifests])
+      if (issues.length === 0) return
+      const summary = issues
+        .map((issue) => `${issue.mod}/${issue.functionName}:${issue.kind}`)
+        .join(', ')
+      throw new Error(`[RemoteContract] Remote 契约未收口: ${summary}`)
+    },
+  })
 }
 
 /**
@@ -179,54 +280,12 @@ export async function invokeModLifecycles(
  * @param context - MOD 上下文
  * @returns 错误列表
  */
-export async function invokeModOnLoad(context: ModContext): Promise<string[]> {
-  const errors: string[] = []
-  const order = modRegistry.getLoadOrder()
-
-  for (const name of order) {
-    try {
-      const mod = await getModControlImporter(name)()
-      const lifecycle = mod.lifecycle as ModLifecycleV2 | undefined
-
-      const perModContext: ModContext = {
-        ...context,
-        getStorage: <T extends Record<string, unknown> = Record<string, unknown>>() =>
-          createStorageNamespace<T>(name, context.storage),
-      }
-
-      if (lifecycle?.onLoad) {
-        await lifecycle.onLoad(perModContext)
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      errors.push(`MOD "${name}" onLoad 失败: ${msg}`)
-    }
-  }
-
-  return errors
-}
-
-/** 扫描兼容性子目录 */
-async function scanCompatibilityDirs(order: string[]): Promise<void> {
-  for (const modName of order) {
-    const compatMap = COMPAT_IMPORTERS[modName]
-    if (!compatMap) continue
-
-    for (const otherName of order) {
-      if (modName === otherName) continue
-      const importer = compatMap[otherName]
-      if (!importer) continue
-
-      try {
-        const compat = await importer()
-        if (typeof compat.applyCompatibility === 'function') {
-          await compat.applyCompatibility()
-        }
-      } catch {
-        // 兼容文件加载失败，静默跳过
-      }
-    }
-  }
+export async function invokeModOnLoad(context: ModContext): Promise<ExecutionSequenceResult> {
+  return runModHookSequence({
+    flowId: 'mod-state-load',
+    hook: 'onLoad',
+    context,
+  })
 }
 
 /**
@@ -238,24 +297,11 @@ async function scanCompatibilityDirs(order: string[]): Promise<void> {
 export async function notifyConfigurationChanged(
   data: ConfigurationChangedData,
   context: ModContext,
-): Promise<string[]> {
-  const errors: string[] = []
-  const order = modRegistry.getLoadOrder()
-
-  for (const name of order) {
-    try {
-      const mod = await getModControlImporter(name)()
-      const lifecycle = mod.lifecycle as ModLifecycleV2 | undefined
-      if (lifecycle?.onConfigurationChanged) {
-        await lifecycle.onConfigurationChanged(data)
-      } else if (lifecycle?.onInit) {
-        await lifecycle.onInit(context)
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e)
-      errors.push(`MOD "${name}" onConfigurationChanged 失败: ${msg}`)
-    }
-  }
-
-  return errors
+): Promise<ExecutionSequenceResult> {
+  return runModHookSequence({
+    flowId: 'mod-configuration-change',
+    hook: 'onConfigurationChanged',
+    context,
+    configurationData: data,
+  })
 }

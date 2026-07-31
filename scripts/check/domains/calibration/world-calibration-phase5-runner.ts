@@ -1,27 +1,23 @@
 /**
  * @module world-calibration-phase5-runner.ts
- * @description Phase 5 验收 —— faith→cultivation Round2、family×birthRate（纯逻辑，不加载子系统模块）
+ * @description Phase 5 验收 —— 跨域校准、规范年龄与 P5 健康/寿命规则
  */
 
 import assert from 'node:assert/strict'
 
 import {
   buildDefaultCalibration,
-  clampModifier,
+  FORMULA_KEYS,
   formatCalibrationSummary,
   getWorldviewStyleHint,
 } from '@/mods/mod-world/utils/calibration-clamp'
 
 import { EDUCATION_INNOVATION_MOD } from '@/mods/mod-culture/constants'
-import { TECH_BREAKTHROUGH_PROBABILITY } from '@/mods/mod-tech-level/constants'
-import { BREAKTHROUGH_PATHWAYS } from '@/mods/mod-character/constants'
+import { DEFAULT_KNOWLEDGE_DOMAINS } from '@/mods/mod-tech-level/constants'
+import { CHARACTER_DAYS_PER_YEAR, resolveCharacterAgeDays } from '@/foundation'
 import { formatAdaptationCalibrationBlock } from '@/mods/mod-world/utils/adaptation-prompt-calibration'
 
 import { baseConfig, formula } from './world-calibration-test-helpers'
-
-const BIRTH_PROBABILITY = 0.08
-const EFFECTIVE_BIRTH_MIN = 0.001
-const EFFECTIVE_BIRTH_MAX = 0.5
 
 /** 与 faith-system.getFaithBreakthroughBonus 一致 */
 function computeFaithBreakthroughBonus(devotionLevel: number, devotionGainModifier: number): number {
@@ -32,12 +28,6 @@ function computeFaithBreakthroughBonus(devotionLevel: number, devotionGainModifi
 function applyFaithBreakthroughBonus(chance: number, faithBonus: number): number {
   if (faithBonus === 1 || chance <= 0) return chance
   return Math.min(Math.max(chance * faithBonus, 0), 1)
-}
-
-/** 与 family-system._effectiveBirthProbability 一致 */
-function effectiveBirthProbability(fertilityModifier: number): number {
-  const mod = clampModifier(fertilityModifier)
-  return Math.min(Math.max(BIRTH_PROBABILITY * mod, EFFECTIVE_BIRTH_MIN), EFFECTIVE_BIRTH_MAX)
 }
 
 function testFaithBonusFormula() {
@@ -60,31 +50,6 @@ function testCultivationRound2NoFaith() {
   assert.equal(applyFaithBreakthroughBonus(baseChance, 1), baseChance)
 }
 
-function testFamilyEffectiveBirthPrimitive() {
-  const cal = buildDefaultCalibration(
-    baseConfig({ civilizationStage: 'primitive', essenceTag: 'historical' }),
-  )
-  const fertilityMod = formula(cal, 'fertilityModifier')
-  const effective = effectiveBirthProbability(fertilityMod)
-
-  assert.equal(fertilityMod, 1, 'primitive 默认 fertilityModifier 应为 1.0')
-  assert.ok(
-    Math.abs(effective - BIRTH_PROBABILITY) < 0.001,
-    `primitive 有效生育率应 ≈0.08，实际 ${effective}`,
-  )
-}
-
-function testFamilyEffectiveBirthPostApocalyptic() {
-  const cal = buildDefaultCalibration(
-    baseConfig({ essenceTag: 'postApocalyptic', civilizationStage: 'modern' }),
-  )
-  const fertilityMod = formula(cal, 'fertilityModifier')
-  const effective = effectiveBirthProbability(fertilityMod)
-
-  assert.ok(fertilityMod < 1, `postApocalyptic fertilityModifier 应 <1，实际 ${fertilityMod}`)
-  assert.ok(effective < BIRTH_PROBABILITY, `有效生育率应低于 0.08，实际 ${effective}`)
-}
-
 function testFormatCalibrationSummaryRich() {
   const cal = buildDefaultCalibration(
     baseConfig({ essenceTag: 'cultivation', civilizationStage: 'medieval' }),
@@ -101,34 +66,36 @@ function testEducationInnovationModLevels() {
   assert.ok(EDUCATION_INNOVATION_MOD.advanced > EDUCATION_INNOVATION_MOD.basic)
 }
 
-/** 与 culture-tech advanceCultureTech 中 baseProgress 乘数一致 */
-function testCultureTechProgressScalesWithInnovation() {
-  const techMod = 1.0
-  const base = 0.05 * techMod * EDUCATION_INNOVATION_MOD.basic
-  const scaled = 0.05 * techMod * EDUCATION_INNOVATION_MOD.advanced
-  assert.ok(scaled > base, '高 innovationMod 应提高进度增量')
-  assert.ok(Math.abs(scaled / base - 2) < 0.001)
+function testCultureTechUsesComposableDomains() {
+  assert.ok(DEFAULT_KNOWLEDGE_DOMAINS.length >= 8)
+  assert.ok(DEFAULT_KNOWLEDGE_DOMAINS.includes('food'))
+  assert.ok(DEFAULT_KNOWLEDGE_DOMAINS.includes('information'))
+  assert.ok(DEFAULT_KNOWLEDGE_DOMAINS.includes('space'))
 }
 
-/** 与思潮触发概率一致 */
-function testCultureTechTrendProbabilityScalesWithInnovation() {
-  const breakthroughMod = 1.0
-  const baseP = TECH_BREAKTHROUGH_PROBABILITY * breakthroughMod * EDUCATION_INNOVATION_MOD.basic
-  const highP = TECH_BREAKTHROUGH_PROBABILITY * breakthroughMod * EDUCATION_INNOVATION_MOD.advanced
-  assert.ok(highP > baseP)
-  assert.ok(Math.abs(highP / baseP - 2) < 0.001)
+function testCanonicalCharacterAgeUsesTotalDays() {
+  const startingAge = 18
+  const anchor = CHARACTER_DAYS_PER_YEAR
+  assert.equal(resolveCharacterAgeDays(startingAge, anchor, anchor), 18 * CHARACTER_DAYS_PER_YEAR)
+  assert.equal(resolveCharacterAgeDays(startingAge, anchor + 730, anchor), 20 * CHARACTER_DAYS_PER_YEAR)
 }
 
-function testLifespanPathwayEligibility() {
-  const eligible = BREAKTHROUGH_PATHWAYS.filter((p) =>
-    8 >= p.requiredLuck && 10000 >= p.requiredWealth && 50 >= p.requiredReputation,
+function testP5HealthCalibrationFields() {
+  const cal = buildDefaultCalibration(
+    baseConfig({ essenceTag: 'postApocalyptic', civilizationStage: 'modern' }),
   )
-  assert.ok(eligible.length > 0, '高 luck/wealth/reputation 应至少一条途径')
+  assert.ok(formula(cal, 'vitalityRecoveryModifier') < 1, '灾后世界应降低生命恢复')
+  assert.ok(formula(cal, 'conditionProgressionModifier') > 1, '灾后世界应延长伤病进展')
+  assert.ok(FORMULA_KEYS.includes('spiritRecoveryModifier'), 'P5 校准应声明精神恢复')
+  assert.ok(!FORMULA_KEYS.includes('breakthroughChanceModifier' as never), '不得保留随机寿命突破字段')
+  assert.ok(!FORMULA_KEYS.includes('attributeDecayModifier' as never), '不得保留旧属性衰减字段')
+}
 
-  const none = BREAKTHROUGH_PATHWAYS.filter((p) =>
-    0 >= p.requiredLuck && 0 >= p.requiredWealth && 0 >= p.requiredReputation,
+function testLifespanCalibrationUsesExplicitMaximum() {
+  const cal = buildDefaultCalibration(
+    baseConfig({ essenceTag: 'cultivation', civilizationStage: 'medieval' }),
   )
-  assert.equal(none.length, 0, '零资源时不应有条途径（需先积累子系统状态）')
+  assert.equal(formula(cal, 'lifespanModifier'), 1.5)
 }
 
 function testAdaptationCalibrationBlock() {
@@ -150,16 +117,15 @@ function main() {
   testFaithBonusNoFaith()
   testCultivationRound2FaithMultiply()
   testCultivationRound2NoFaith()
-  testFamilyEffectiveBirthPrimitive()
-  testFamilyEffectiveBirthPostApocalyptic()
   testFormatCalibrationSummaryRich()
   testEducationInnovationModLevels()
-  testCultureTechProgressScalesWithInnovation()
-  testCultureTechTrendProbabilityScalesWithInnovation()
-  testLifespanPathwayEligibility()
+  testCultureTechUsesComposableDomains()
+  testCanonicalCharacterAgeUsesTotalDays()
+  testP5HealthCalibrationFields()
+  testLifespanCalibrationUsesExplicitMaximum()
   testAdaptationCalibrationBlock()
   testGetWorldviewStyleHintPrefersCalibration()
-  console.log('[OK] world-calibration Phase 5 — 13 cases passed')
+  console.log('[OK] world-calibration Phase 5 — 12 cases passed')
 }
 
 main()

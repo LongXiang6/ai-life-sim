@@ -25,7 +25,7 @@ function seedPage(page) {
     localStorage.setItem('ai-life-sim:disclaimer-accepted', '2.3.0')
     localStorage.setItem('mod-world:persist:world-state', JSON.stringify({ version: 4, state: {
       worldConfig: { name: '现代地球', eraName: '公元', eraStartYear: 2000, essenceTag: 'modern', powerSystemTag: 'none',
-        powerCeiling: 8, spatialForm: 'plane', civilizationStage: 'modern', difficulty: 'normal', description: 'DeepSeek 全流程真实测试世界。', worldType: 'materialist' },
+        powerFramework: { id: 'fixture:power', label: '无超常力量体系', enabled: false, progression: 'bounded', ranks: [], source: 'world-default' }, spatialForm: 'plane', civilizationStage: 'modern', difficulty: 'normal', description: 'DeepSeek 全流程真实测试世界。', worldType: 'materialist' },
       entities: [], initialized: true, worldCode: fixtureWorldCode, currentYear: 2000, worldTags: ['现代', '现实'], eraStartYear: 2000, eraName: '公元',
       calibration: null, destinyPatternModifiers: {},
       worldInitAIStatus: { status: 'complete', currentStep: '完成', calibrationGenerated: true, tagsGenerated: true, configGenerated: true,

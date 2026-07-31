@@ -353,7 +353,7 @@ assertOk(mapperSrc.includes('marketState'), 'detection-state-mapper missing mark
 assertOk(campaignSrc.includes('orchestrator.advanceTime()'), 'campaign must advance time through orchestrator')
 assertOk(
   !campaignSrc.includes('if (ctx._eventInjectionText)'),
-  'campaign cross-domain must not be guarded by eventInjectionText',
+  'campaign time advancement must not be guarded by eventInjectionText',
 )
 
 assertOk(
@@ -375,7 +375,7 @@ assertOk(
 assertOk(
   campaignCode.includes('orchestrator.isPreviewExecution()')
     && campaignCode.includes('orchestrator.advanceAllSubsystems()')
-    && campaignCode.includes('orchestrator.executeCrossDomainLinkage()')
+    && campaignCode.includes('orchestrator.handleNarrativeResponse')
     && campaignCode.includes('orchestrator.checkAndTriggerEpilogue(aiConfig, sessionId)'),
   'campaign preview execution must skip real side-effect stages',
 )

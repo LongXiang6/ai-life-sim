@@ -1,36 +1,10 @@
-/**
- * @module index.ts
- * @description MOD 公共 API 导出 —— 可视化世界地图
- * @mod mod-world-map
- */
+/** Public map projection and rendering API. */
 
-// 类型
-export type {
-  MapRenderConfig,
-  RegionRenderData,
-  MarkerLayer,
-  FactionColorMap,
-  MapInteraction,
-  TerrainColorMap,
-} from './types'
-
-// 常量
-export {
-  DEFAULT_TERRAIN_COLORS,
-  FACTION_COLORS,
-} from './types'
-
-// 组件
+export type { MapProjection, MapProjectionNode, MapProjectionRequest } from '@/foundation'
+export type { MapRenderConfig, NodeRenderData, MapInteraction, TerrainColorMap } from './types'
+export { DEFAULT_TERRAIN_COLORS } from './types'
+export { projectWorldMap } from './map-projection'
 export { WorldMapCanvas } from './components/WorldMapCanvas'
 export type { WorldMapCanvasProps } from './components/WorldMapCanvas'
-
-// Store
 export { useWorldMapStore } from './store'
-
-// 工具
-export {
-  computeRenderData,
-  renderMap,
-  hitTestHex,
-  buildFactionColors,
-} from './utils/map-renderer'
+export { computeRenderData, renderMap, hitTestNode } from './utils/map-renderer'

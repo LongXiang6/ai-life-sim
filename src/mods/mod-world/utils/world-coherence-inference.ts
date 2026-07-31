@@ -26,7 +26,6 @@ const COHERENCE_FIELD_LABELS: Record<string, string> = {
   powerSystemTag: '力量体系',
   civilizationStage: '文明阶段',
   spatialForm: '空间形态',
-  powerCeiling: '力量上限',
 }
 
 export interface WorldCoherenceInference {
@@ -43,7 +42,7 @@ export interface WorldCoherenceInference {
 }
 
 export interface CoherenceFieldChange {
-  field: keyof WorldConfig | 'powerCeiling'
+  field: keyof WorldConfig
   label: string
   from: string | number
   to: string | number
@@ -113,8 +112,8 @@ export function configConflictsWithPrehistoric(config: WorldConfig): boolean {
 }
 
 function diffCoherenceFields(before: WorldConfig, after: WorldConfig): CoherenceFieldChange[] {
-  const keys: Array<keyof WorldConfig | 'powerCeiling'> = [
-    'essenceTag', 'powerSystemTag', 'civilizationStage', 'spatialForm', 'powerCeiling',
+  const keys: Array<keyof WorldConfig> = [
+    'essenceTag', 'powerSystemTag', 'civilizationStage', 'spatialForm',
   ]
   const changes: CoherenceFieldChange[] = []
   for (const key of keys) {
@@ -213,12 +212,6 @@ export function applyCoherenceToWorldConfig(
   }
   if (!locks.spatialForm && !next.spatialForm && inference.suggestedSpatialForm) {
     next.spatialForm = inference.suggestedSpatialForm
-  }
-
-  // 若史前+平面+力量上限过高，在 AI 未显式设定 powerCeiling 时才修正
-  if (!locks.spatialForm && next.powerCeiling > 8 && next.spatialForm === 'plane'
-    && !config.powerCeiling) {
-    next.powerCeiling = 8
   }
 
   // 标记潜在冲突（供 UI 展示），不做强制覆盖

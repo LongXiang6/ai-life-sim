@@ -67,7 +67,7 @@ function worldConfig(name, overrides = {}) {
     eraStartYear: 1,
     essenceTag: 'mixed',
     powerSystemTag: 'none',
-    powerCeiling: 1,
+    powerFramework: { id: 'fixture:power', label: '无超常力量体系', enabled: false, progression: 'bounded', ranks: [], source: 'world-default' },
     spatialForm: 'plane',
     civilizationStage: 'modern',
     difficulty: 'normal',
@@ -497,8 +497,8 @@ assertOk(!aiWorldView.当前世界能力.includes('technology'), 'AI capability 
 
 assertOk(
   [...MVP_SYSTEM_INSTRUCTION_SUBSYSTEM_IDS].join(',')
-    === 'character-base,lifespan,luck,morality,npc-system,relationship-system',
-  'P2 must keep the main-narrative system-instruction allowlist at the exact six owning systems',
+    === 'character-base,lifespan,health,morality,growth-system,reputation,npc-system,relationship-system',
+  'main-narrative system-instruction allowlist must match the eight active owning systems',
 )
 assertOk(SUBSYSTEM_FIELD_CONTRACTS['context-transition'].aiAuthority === 'proposal', 'context transition must be proposal-only for AI')
 assertOk(SUBSYSTEM_FIELD_CONTRACTS['simulation-scope-policy'].aiAuthority === 'read-only', 'simulation scope must be AI read-only')
@@ -876,6 +876,41 @@ const savedCurrentContextId = fullSavePayload.world.currentContextId
 const savedContextCount = Object.keys(fullSavePayload.world.contexts).length
 const savedTransitionCount = fullSavePayload.world.transitionHistory.length
 const savedNestedClock = JSON.stringify(fullSavePayload.world.contexts[nestedScene.record.id].record.localClock)
+const staleEntityId = `${savedCurrentContextId}:character:stale-after-refresh`
+const staleContext = useWorldStore.getState().contexts[savedCurrentContextId]
+useWorldStore.setState((state) => ({
+  entityReferences: {},
+  contexts: {
+    ...state.contexts,
+    [savedCurrentContextId]: {
+      ...staleContext,
+      spatialGraph: {
+        ...staleContext.spatialGraph,
+        entityLocations: {
+          ...staleContext.spatialGraph.entityLocations,
+          [staleEntityId]: {
+            entityId: staleEntityId,
+            contextId: savedCurrentContextId,
+            nodeId: staleContext.record.rootSpatialNodeId,
+            updatedAtGlobalDay: 0,
+          },
+        },
+      },
+    },
+  },
+}))
+let refreshProjectionRestoreFailed = false
+try {
+  await applyGameSave(fullSavePayload)
+} catch {
+  refreshProjectionRestoreFailed = true
+}
+assertOk(!refreshProjectionRestoreFailed, 'save restore must tolerate a refreshed browser projection whose entity directory has not hydrated yet')
+assertOk(
+  !useWorldStore.getState().contexts[savedCurrentContextId].spatialGraph.entityLocations[staleEntityId]
+    && Boolean(useWorldStore.getState().entityReferences[useCharacterStore.getState().characterId]),
+  'successful save restore must replace the stale spatial projection and hydrate the target entity directory from the owning snapshot',
+)
 useWorldStore.setState((state) => ({
   worldConfig: { ...state.worldConfig, name: '污染后的世界投影' },
   contexts: {

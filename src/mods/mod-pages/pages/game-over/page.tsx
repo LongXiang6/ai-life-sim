@@ -149,7 +149,7 @@ export default function GameOverPage() {
   const talentAptitude = useCharacterStore((s) => s.characterBase.current.talentAptitude)
   const charisma = useCharacterStore((s) => s.characterBase.current.charisma)
   const morality = useCharacterStore((s) => s.morality)
-  const lifespanBreakthroughs = useCharacterStore((s) => s.lifespan.breakthroughs)
+  const lifespanAdjustments = useCharacterStore((s) => s.lifespan.adjustments)
   const regularPatterns = useCharacterStore((s) => s.destinyPatterns.patterns)
   const mythicCandidates = useCharacterStore((s) => s.mythicCandidates)
   const sealedMythicPatternId = useCharacterStore((s) => s.sealedMythicPatternId)
@@ -170,7 +170,8 @@ export default function GameOverPage() {
   const narrativeError = useEngineStore((s) => s.narrativeError)
   const status = useEngineStore((s) => s.status)
   const preGenStatus = usePreGenQueueStatus()
-  const isDead = useCharacterStore((s) => s.health.isDead)
+  const isDead = useCharacterStore((s) => !s.health.alive)
+  const death = useCharacterStore((s) => s.health.death)
   const [activeDimensionIndex, setActiveDimensionIndex] = useState(0)
   const [confirmingNewLife, setConfirmingNewLife] = useState(false)
   const [activeMythicIndex, setActiveMythicIndex] = useState(0)
@@ -195,8 +196,8 @@ export default function GameOverPage() {
   )
 
   const achievements = useMemo(
-    () => buildGameOverAchievements(narrativeHistory, lifespanBreakthroughs),
-    [lifespanBreakthroughs, narrativeHistory],
+    () => buildGameOverAchievements(narrativeHistory, lifespanAdjustments),
+    [lifespanAdjustments, narrativeHistory],
   )
   const worldName = worldConfig?.name ?? '未知世界'
   const scoringProfile = useMemo(() => (
@@ -225,7 +226,7 @@ export default function GameOverPage() {
       committedRounds: totalRounds,
       narrativeIds: scoringNarrativeIds,
       resolvedChoiceCount: achievements.filter((item) => item.kind === 'choice').length,
-      breakthroughCount: lifespanBreakthroughs.length,
+      lifespanAdjustmentCount: lifespanAdjustments.filter((adjustment) => adjustment.deltaDays > 0).length,
       achievementIds: achievements.map((item) => item.id),
       completed: canViewGameOver,
       terminalCommitted: canViewGameOver
@@ -236,7 +237,7 @@ export default function GameOverPage() {
         || transitionAudits.some((audit) => !audit.validationClean),
       transitionAudits,
     }
-  }, [achievements, canViewGameOver, lifeRunId, lifespanBreakthroughs.length, narrativeError, narrativeHistory.length, scoringNarrativeIds, totalRounds, transitionAudits])
+  }, [achievements, canViewGameOver, lifeRunId, lifespanAdjustments, narrativeError, narrativeHistory.length, scoringNarrativeIds, totalRounds, transitionAudits])
   const scoreResult = useMemo(() => calculateLifeScore({
     profile: scoringProfile,
     lifeRunId: scoringAudit.lifeRunId,
@@ -245,7 +246,7 @@ export default function GameOverPage() {
     committedRounds: scoringAudit.committedRounds,
     narrativeIds: scoringAudit.narrativeIds,
     resolvedChoiceCount: scoringAudit.resolvedChoiceCount,
-    breakthroughCount: scoringAudit.breakthroughCount,
+    lifespanAdjustmentCount: scoringAudit.lifespanAdjustmentCount,
     achievementIds: scoringAudit.achievementIds,
     completed: scoringAudit.completed,
     terminalCommitted: scoringAudit.terminalCommitted,
@@ -278,7 +279,17 @@ export default function GameOverPage() {
     dimensions: scoreResult.dimensions,
     achievements,
   }), [achievements, characterAge, characterName, isDead, lifeRunId, narrativeHistory.length, overallScore, scoreResult.dimensions, worldName])
-  const effectiveEndingReview = endingReview ?? localEndingReview
+  const committedEpilogueReview = useMemo<EndingReview | null>(() => {
+    const epilogueText = death?.epilogueText?.trim()
+    if (!isDead || death?.epilogueStatus !== 'ready' || !epilogueText) return null
+    return {
+      perspective: 'micro',
+      review: epilogueText,
+      evidenceIds: [death.historicalEventId],
+      source: 'ai',
+    }
+  }, [death, isDead])
+  const effectiveEndingReview = committedEpilogueReview ?? endingReview ?? localEndingReview
   const lifeSummary = effectiveEndingReview.review
   const lifeRecords = useMemo(() => selectLifeRecords(narrativeHistory), [narrativeHistory])
   const firstRecordedAge = useMemo(
@@ -565,11 +576,16 @@ export default function GameOverPage() {
   }, [canViewGameOver, narrativeHistory.length, router])
 
   useEffect(() => {
-    if (!canViewGameOver || endingReviewRequestedRef.current === lifeRunId) return
-    endingReviewRequestedRef.current = lifeRunId
+    const requestKey = `${lifeRunId}:${committedEpilogueReview ? 'committed-epilogue' : 'score-review'}`
+    if (!canViewGameOver || endingReviewRequestedRef.current === requestKey) return
+    endingReviewRequestedRef.current = requestKey
     let active = true
     queueMicrotask(() => {
       if (!active) return
+      if (committedEpilogueReview) {
+        setEndingReviewReady(true)
+        return
+      }
       setEndingReview(localEndingReview)
       setEndingReviewReady(false)
       void generateEndingReview({
@@ -589,7 +605,7 @@ export default function GameOverPage() {
       })
     })
     return () => { active = false }
-  }, [achievements, canViewGameOver, characterAge, characterName, isDead, lifeRunId, localEndingReview, narrativeHistory.length, overallScore, scoreResult.dimensions, worldName])
+  }, [achievements, canViewGameOver, characterAge, characterName, committedEpilogueReview, isDead, lifeRunId, localEndingReview, narrativeHistory.length, overallScore, scoreResult.dimensions, worldName])
 
   useEffect(() => {
     if (!canViewGameOver || mythicCandidates.length === 3 || sealedMythicPatternId) return
@@ -751,11 +767,11 @@ export default function GameOverPage() {
               <div className={styles.achievementList}>
                 {achievements.map((achievement) => (
                   <article key={achievement.id} className={styles.achievement}>
-                    <span aria-hidden="true">{achievement.kind === 'breakthrough' ? '破' : '择'}</span>
+                    <span aria-hidden="true">{achievement.kind === 'lifespan-adjustment' ? '寿' : '择'}</span>
                     <div>
                       <div className={styles.achievementMeta}>
                         <small>{achievement.timeLabel}</small>
-                        <small>{achievement.kind === 'breakthrough' ? '生命突破' : '命运抉择'}</small>
+                        <small>{achievement.kind === 'lifespan-adjustment' ? '寿命调整' : '命运抉择'}</small>
                       </div>
                       <h3>{achievement.title}</h3>
                       <p>{achievement.detail}</p>

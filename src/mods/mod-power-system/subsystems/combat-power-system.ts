@@ -1,310 +1,114 @@
-/**
- * @module CombatPowerSystem
- * @description 战力子系统：23 阶可达体系 + 动态无限阶 + 修炼衰减 + 突破 + 顿悟 + AI 名称适配
- * @mod mod-power-system
- */
-import { getRoundSequence } from '@/foundation'
+import { BaseSubsystem } from '@/core'
+import type { RoundContext, SubSystemChanges, SubSystemState } from '@/foundation'
+import { assertValidPowerFramework, contextHasCapability } from '@/mods/mod-world'
+import type { CombatPowerPersistenceState, CombatPowerState, PowerFrameworkDefinition, PowerRankDefinition, SubStageIndex } from '../types'
+import { BASE_POWER_GAIN, INSIGHT_DURATION, INSIGHT_MULTIPLIER, SUB_STAGE_THRESHOLDS } from '../constants'
+import { formatCombatPower } from '../utils'
+import { assertContext, assertEvidence, clone, worldConfig } from './p8-runtime'
 
-import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
-import type { CombatPowerState, SubStageIndex } from '../types'
-import { configStore } from '@/core'
+function readFramework(context: RoundContext): PowerFrameworkDefinition {
+  const framework = worldConfig(context.contextId)?.powerFramework
+  if (!framework) throw new Error(`世界 ${context.contextId} 缺少力量框架`)
+  assertValidPowerFramework(framework)
+  return clone(framework)
+}
 
-import {
-  RATING_DESCRIPTIONS,
-  INSIGHT_MULTIPLIER,
-  INSIGHT_DURATION,
-  MAX_POWER_CEILING,
-  MAX_REACHABLE_STAGE,
-  MONSTER_MODIFIER_MIN,
-  MONSTER_MODIFIER_MAX,
-  generateNextStage,
-} from '../constants'
-import {
-  getStageDecay,
-  getSubStageThreshold,
-  getUnitName,
-  getSubStageLabel,
-  formatCombatPower,
-  isUltimateStage,
-  isBeyondReachable,
-  round,
-  clamp,
-} from '../utils'
+function createState(context: RoundContext): CombatPowerState {
+  const framework = readFramework(context)
+  const first = framework.ranks[0]
+  return { contextId: context.contextId, characterId: context.characterId, initialized: framework.enabled, framework, rankId: first?.id ?? '', rankIndex: first?.index ?? 0, rankLabel: first?.label ?? '', subStage: 1, progress: 0, insightDaysRemaining: 0, stageNames: {}, updatedAtTotalDays: context.totalDays }
+}
 
-import { getFormulaModifier } from '@/mods/mod-world'
-
-export class CombatPowerSystem implements ISubSystem {
+export class CombatPowerSystem extends BaseSubsystem {
   readonly id = 'combat-power' as const
   readonly mod = 'mod-power-system' as const
-  readonly label = '战力体系' as const
-  readonly description = '23 阶可达体系 + 动态无限阶，管理修炼推进、衰减、突破与阶段名称映射' as const
+  readonly label = '通用力量框架' as const
+  readonly description = '消费世界定义的力量阶位并按当地时间推进，不预设跨世界阶位数量' as const
+  private states: Record<string, CombatPowerState> = {}
 
-  private state: CombatPowerState = this.createInitialState()
-  private _lastProcessedRound = -1
+  private ensure(context: RoundContext): CombatPowerState { return this.states[context.contextId] ??= createState(context) }
 
-  private createInitialState(): CombatPowerState {
-    // 尝试从 localStorage 加载玩家预设的力量上限
-    const storedCeiling = this.loadStoredPowerCeiling()
-    return {
-      initialized: false,
-      mainStage: 1,
-      subStage: 1 as SubStageIndex,
-      powerValue: 1,
-      combatSkills: {},
-      powerCeiling: storedCeiling ?? MAX_POWER_CEILING,
-      powerCeilingLabel: `${storedCeiling ?? MAX_POWER_CEILING}阶`,
-      insightRemaining: 0,
-      stageNames: {},
+  advance(context: RoundContext): void {
+    const state = this.ensure(context)
+    if (!contextHasCapability(context.contextId, 'supernatural') || !state.framework.enabled || context.daysPassed <= 0) { state.updatedAtTotalDays = context.totalDays; return }
+    const cultivation = context.subsystemStates.cultivation?.data as { trainingBonus?: number } | undefined
+    const trainingBonus = typeof cultivation?.trainingBonus === 'number' ? cultivation.trainingBonus : 1
+    const decay = 1 / (1 + Math.max(0, state.rankIndex - 1) * 0.18)
+    const insight = state.insightDaysRemaining > 0 ? INSIGHT_MULTIPLIER : 1
+    state.progress += context.daysPassed / 365 * BASE_POWER_GAIN * trainingBonus * decay * insight
+    state.insightDaysRemaining = Math.max(0, state.insightDaysRemaining - context.daysPassed)
+    while (state.progress >= SUB_STAGE_THRESHOLDS[5]) {
+      state.progress -= SUB_STAGE_THRESHOLDS[5]
+      const next = state.framework.ranks.find((rank) => rank.index === state.rankIndex + 1)
+      if (!next) {
+        if (state.framework.progression !== 'open') { state.progress = SUB_STAGE_THRESHOLDS[5] - 1; break }
+        const rank: PowerRankDefinition = { id: `${state.framework.id}:open-${state.rankIndex + 1}`, index: state.rankIndex + 1, label: `开放进阶${state.rankIndex + 1}`, description: '开放力量框架新增的阶位，具体效果由世界规则解释' }
+        state.framework.ranks.push(rank)
+        state.framework.ranks.sort((a, b) => a.index - b.index)
+      }
+      const promoted = state.framework.ranks.find((rank) => rank.index === state.rankIndex + 1)
+      if (!promoted) break
+      state.rankIndex = promoted.index; state.rankId = promoted.id; state.rankLabel = state.stageNames[promoted.id] ?? promoted.label
+      state.subStage = 1; state.insightDaysRemaining = INSIGHT_DURATION
     }
-  }
-
-  /** 从持久化加载玩家预设的力量上限 */
-  private loadStoredPowerCeiling(): number | null {
-    if (typeof window === 'undefined') return null
-    try {
-      const raw = configStore.get<string>('mod-power-system', 'power-ceiling')
-      if (!raw) return null
-      const value = Number(raw)
-      return Number.isFinite(value) && value >= 1 && value <= MAX_POWER_CEILING ? value : null
-    } catch {
-      return null
-    }
+    state.subStage = Math.max(1, Math.min(5, Math.floor(state.progress / 2000) + 1)) as SubStageIndex
+    state.updatedAtTotalDays = context.totalDays
   }
 
   collectState(context: RoundContext): SubSystemState {
-    if (getRoundSequence(context) === this._lastProcessedRound) {
-      return {
-        id: this.id,
-        summary: `【${this.label}】${formatCombatPower(this.state.mainStage, this.state.subStage, this.state.powerValue)}`,
-        data: structuredClone(this.state as unknown as Record<string, unknown>),
-      }
-    }
-    this._lastProcessedRound = getRoundSequence(context)
-
-    const stageName = this.state.stageNames[this.state.mainStage]
-      ?? getUnitName(this.state.mainStage)
-    const subLabel = getSubStageLabel(this.state.subStage)
-    const displayPower = formatCombatPower(this.state.mainStage, this.state.subStage, this.state.powerValue)
-
-    const summaryParts: string[] = [`战力：${displayPower}`]
-    if (stageName && stageName !== getUnitName(this.state.mainStage)) {
-      summaryParts.push(`（${stageName}·${subLabel}）`)
-    }
-    if (this.state.insightRemaining > 0) {
-      summaryParts.push(`顿悟中（剩 ${this.state.insightRemaining} 次）`)
-    }
-    if (isUltimateStage(this.state.mainStage)) {
-      summaryParts.push('终极境界，修炼几近失效')
-    }
-    if (isBeyondReachable(this.state.mainStage)) {
-      const stage = generateNextStage(this.state.mainStage - 1)
-      summaryParts.push(`动态无限阶：${stage.name}`)
-    }
-
-    return {
-      id: this.id,
-      summary: `【${this.label}】${summaryParts.join(' | ')}`,
-      data: structuredClone(this.state as unknown as Record<string, unknown>),
-    }
+    const state = this.ensure(context)
+    if (!contextHasCapability(context.contextId, 'supernatural')) return { id: this.id, summary: '', data: structuredClone(state) }
+    return { id: this.id, summary: `【力量】${formatCombatPower(state.rankLabel, state.subStage, state.progress)}；体系 ${state.framework.label}`, data: structuredClone(state) }
   }
 
-  applyChanges(changes: SubSystemChanges, _context: RoundContext): void {
-    if (!changes || typeof changes !== 'object') {
-      throw new Error(`[${this.id}] Invalid changes: expected object`)
-    }
-    if (changes.id !== this.id) {
-      throw new Error(`[${this.id}] Changes ID mismatch`)
-    }
-    if (!changes.changes || typeof changes.changes !== 'object' || Array.isArray(changes.changes)) {
-      throw new Error(`[${this.id}] Invalid changes.changes: expected plain object`)
-    }
-    if (!changes.description || changes.description.trim() === '') {
-      throw new Error(`[${this.id}] Missing changes.description`)
-    }
-
-    const c = changes.changes as Record<string, unknown>
-
-    // ——— AI 适配分支：阶段名称映射 ———
-    if (c.adaptationType === 'stage-names' && c.stageNames && typeof c.stageNames === 'object') {
-      const names = c.stageNames as Record<string, unknown>
-      const parsedNames: Record<number, string> = {}
-      for (const [key, value] of Object.entries(names)) {
-        const stageNum = parseInt(key, 10)
-        if (!isNaN(stageNum) && typeof value === 'string' && value.trim() !== '') {
-          parsedNames[stageNum] = value.trim()
-        }
-      }
-      if (Object.keys(parsedNames).length > 0) {
-        this.state.stageNames = { ...this.state.stageNames, ...parsedNames }
-      }
-      return
-    }
-
-    // ——— 力量上限设置 ———
-    if (typeof c.powerCeiling === 'number') {
-      this.state.powerCeiling = clamp(c.powerCeiling, 1, MAX_REACHABLE_STAGE)
-      this.state.powerCeilingLabel = `${this.state.powerCeiling}阶`
-    }
-
-    // ——— 修炼推进（advance） ———
-    if (typeof c.baseGain === 'number') {
-      this.advancePowerValue(c.baseGain)
-    }
-
-    // ——— 突破事件 ———
-    if (typeof c.breakthroughPower === 'number') {
-      this.breakthrough(c.breakthroughPower)
-    }
-
-    // ——— 直接设置状态 ———
-    if (typeof c.mainStage === 'number') this.state.mainStage = clamp(c.mainStage, 1, MAX_POWER_CEILING)
-    if (typeof c.subStage === 'number') this.state.subStage = clamp(c.subStage, 1, 5) as SubStageIndex
-    if (typeof c.powerValue === 'number') this.state.powerValue = clamp(c.powerValue, 1, 9999)
-    if (c.combatSkills && typeof c.combatSkills === 'object') {
-      this.state.combatSkills = { ...c.combatSkills } as Record<string, number>
-    }
-    if (typeof c.initialized === 'boolean') this.state.initialized = c.initialized
+  applyChanges(changes: SubSystemChanges, context: RoundContext): void {
+    if (changes.id !== this.id) throw new Error('力量指令目标不匹配')
+    assertContext(changes, context, '力量')
+    const state = this.ensure(context)
+    const operation = changes.operation ?? 'adjust-progress'
+    if (operation === 'adjust-progress') {
+      if (typeof changes.changes.progressDelta !== 'number') throw new Error('力量进度变化缺少数值')
+      state.progress = Math.max(0, Math.min(SUB_STAGE_THRESHOLDS[5] - 1, state.progress + Math.round(changes.changes.progressDelta)))
+    } else if (operation === 'set-rank') {
+      assertEvidence(changes.evidenceEventIds ?? [], context.contextId, '力量')
+      const rankId = typeof changes.changes.rankId === 'string' ? changes.changes.rankId : ''
+      const rank = state.framework.ranks.find((item) => item.id === rankId)
+      if (!rank) throw new Error(`力量阶位不存在：${rankId}`)
+      state.rankId = rank.id; state.rankIndex = rank.index; state.rankLabel = state.stageNames[rank.id] ?? rank.label
+      state.subStage = 1; state.progress = 0
+    } else if (operation === 'rename-rank') {
+      assertEvidence(changes.evidenceEventIds ?? [], context.contextId, '力量')
+      const rankId = typeof changes.changes.rankId === 'string' ? changes.changes.rankId : ''
+      const label = typeof changes.changes.label === 'string' ? changes.changes.label.trim() : ''
+      if (!rankId || !label) throw new Error('力量阶位命名输入无效')
+      state.stageNames[rankId] = label
+      if (state.rankId === rankId) state.rankLabel = label
+    } else throw new Error(`未知力量操作：${operation}`)
+    state.updatedAtTotalDays = context.totalDays
   }
 
-  // ─── 内部修炼推进逻辑 ───
-
-  private advancePowerValue(baseGain: number): void {
-    if (isBeyondReachable(this.state.mainStage)) {
-      // 动态无限阶：修炼仍有效，但衰减趋近于 0
-    }
-
-    const decay = getStageDecay(this.state.mainStage)
-    let effectiveGain = baseGain * decay * getFormulaModifier('cultivationSpeedModifier')
-
-    if (this.state.insightRemaining > 0) {
-      effectiveGain *= INSIGHT_MULTIPLIER
-      this.state.insightRemaining -= 1
-    }
-
-    this.state.powerValue += effectiveGain
-
-    while (this.state.powerValue >= getSubStageThreshold(this.state.subStage) && this.state.subStage < 5) {
-      this.state.subStage = (this.state.subStage + 1) as SubStageIndex
-      this.state.insightRemaining = INSIGHT_DURATION
-    }
-
-    // 固定阶位突破（1→23）
-    while (this.state.powerValue >= 10000 && this.state.mainStage < MAX_REACHABLE_STAGE) {
-      this.state.mainStage += 1
-      this.state.subStage = 1 as SubStageIndex
-      this.state.powerValue -= 10000
-      this.state.insightRemaining = INSIGHT_DURATION
-    }
-
-    // 动态无限阶突破（23→24→25→...）
-    while (this.state.powerValue >= 10000 && this.state.mainStage >= MAX_REACHABLE_STAGE) {
-      this.state.mainStage += 1
-      this.state.subStage = 1 as SubStageIndex
-      this.state.powerValue -= 10000
-      this.state.insightRemaining = INSIGHT_DURATION
-    }
-
-    if (this.state.powerValue < 1) this.state.powerValue = 1
-    this.state.initialized = true
-  }
-
-  private breakthrough(eventPower: number): void {
-    if (isBeyondReachable(this.state.mainStage)) {
-      // 动态无限阶仍可突破
-    }
-
-    this.state.powerValue += eventPower
-
-    while (this.state.powerValue >= getSubStageThreshold(this.state.subStage) && this.state.subStage < 5) {
-      this.state.subStage = (this.state.subStage + 1) as SubStageIndex
-      this.state.insightRemaining = INSIGHT_DURATION
-    }
-
-    while (this.state.powerValue >= 10000 && this.state.mainStage < MAX_REACHABLE_STAGE) {
-      this.state.mainStage += 1
-      this.state.subStage = 1 as SubStageIndex
-      this.state.powerValue -= 10000
-      this.state.insightRemaining = INSIGHT_DURATION
-    }
-
-    // 动态无限阶突破
-    while (this.state.powerValue >= 10000 && this.state.mainStage >= MAX_REACHABLE_STAGE) {
-      this.state.mainStage += 1
-      this.state.subStage = 1 as SubStageIndex
-      this.state.powerValue -= 10000
-      this.state.insightRemaining = INSIGHT_DURATION
-    }
-
-    if (this.state.powerValue < 1) this.state.powerValue = 1
-    this.state.initialized = true
-  }
-
-  // ─── 领域方法 ───
-
-  /** 战力比较：-1 = b胜, 0 = 平局, 1 = a胜 */
   comparePower(a: CombatPowerState, b: CombatPowerState): number {
-    if (isBeyondReachable(a.mainStage) && !isBeyondReachable(b.mainStage)) return 1
-    if (isBeyondReachable(b.mainStage) && !isBeyondReachable(a.mainStage)) return -1
-
-    if (a.mainStage !== b.mainStage) return a.mainStage - b.mainStage
-    if (a.subStage !== b.subStage) {
-      const ratio = Math.pow(2.0, a.subStage - b.subStage)
-      return round(ratio * a.powerValue - b.powerValue)
-    }
-    return a.powerValue - b.powerValue
+    if (a.framework.id !== b.framework.id) throw new Error('不同世界力量框架不能直接比较')
+    return (a.rankIndex - b.rankIndex) || (a.subStage - b.subStage) || (a.progress - b.progress)
   }
 
-  /** 计算对战怪物修正系数 0.3-2.0 */
-  getCombatPowerVsMonsterModifier(monsterThreat: number): number {
-    const safeThreat = Math.max(monsterThreat, 0.5)
-    const effectiveLevel = this.state.mainStage + (this.state.subStage - 1) * 0.25
-    const ratio = effectiveLevel / safeThreat
-    return round(clamp(ratio, MONSTER_MODIFIER_MIN, MONSTER_MODIFIER_MAX), 2)
+  getCombatPowerVsMonsterModifier(monsterThreat: number, state?: CombatPowerState): number {
+    const current = state ?? Object.values(this.states)[0]
+    if (!current) return 1
+    const relativeRank = current.rankIndex / Math.max(1, current.framework.ranks.length)
+    return Math.max(0.3, Math.min(2, (relativeRank * 5 + current.subStage / 5) / Math.max(1, monsterThreat / 20)))
   }
 
-  /** 格式化战力为 AI prompt 文本 */
-  formatForPrompt(): string {
-    const lines: string[] = []
-    lines.push('【战力评估】')
-    lines.push(`战力评级：${formatCombatPower(this.state.mainStage, this.state.subStage, this.state.powerValue)}`)
-    lines.push(`主阶段：${this.state.mainStage}阶（${getUnitName(this.state.mainStage)}）`)
-    lines.push(`子阶段：${getSubStageLabel(this.state.subStage)}`)
-    lines.push(`进度值：${Math.round(this.state.powerValue)}`)
-
-    const desc = RATING_DESCRIPTIONS[this.state.mainStage]
-    if (desc) lines.push(`战力表现：${desc}`)
-    if (this.state.powerCeilingLabel) lines.push(`世界力量上限：${this.state.powerCeilingLabel}`)
-
-    if (isBeyondReachable(this.state.mainStage)) {
-      const stage = generateNextStage(this.state.mainStage - 1)
-      lines.push(`动态阶位：${stage.name}`)
-      lines.push(`修炼衰减：${(stage.decay * 100).toFixed(3)}%`)
-    }
-
-    const stageName = this.state.stageNames[this.state.mainStage]
-    if (stageName) lines.push(`阶段名称：${stageName}（AI 适配）`)
-
-    const entries = Object.entries(this.state.combatSkills)
-    if (entries.length > 0) {
-      lines.push('战斗技能：')
-      for (const [name, level] of entries) lines.push(`  - ${name}：Lv.${level}`)
-    }
-
-    if (this.state.insightRemaining > 0) {
-      lines.push(`当前状态：顿悟中（剩余 ${this.state.insightRemaining} 次修炼加速）`)
-    }
-    if (isUltimateStage(this.state.mainStage)) {
-      lines.push('【终极提示】此角色已达终极境界，修炼几近失效。力量增长主要通过突破事件（奇遇/天劫/道劫）驱动。')
-    }
-    if (isBeyondReachable(this.state.mainStage)) {
-      lines.push('【无限方向】此角色已超越所有已知阶位，进入动态无限。修炼永不停止，但真正的"无限"永远在前方。')
-    }
-
-    return lines.join('\n')
+  capturePersistenceState(): CombatPowerPersistenceState { return { schemaVersion: 1, contexts: clone(this.states) } }
+  restorePersistenceState(snapshot: unknown): void {
+    if (snapshot === undefined) { this.states = {}; return }
+    const value = snapshot as CombatPowerPersistenceState
+    if (value.schemaVersion !== 1 || !value.contexts || typeof value.contexts !== 'object') throw new Error('力量持久化快照无效')
+    this.states = clone(value.contexts)
   }
-
-  reset(): void {
-    this.state = this.createInitialState()
-    this._lastProcessedRound = -1
-  }
+  capturePreviewState(): CombatPowerPersistenceState { return this.capturePersistenceState() }
+  restorePreviewState(snapshot: unknown): void { this.restorePersistenceState(snapshot) }
+  reset(): void { this.states = {} }
 }
+
+export const combatPowerSystem = new CombatPowerSystem()

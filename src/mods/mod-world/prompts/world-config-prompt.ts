@@ -62,7 +62,7 @@ export const worldConfigOutputSchema = z.object({
   inflationRate: nanSafeNumber,
   powerSource: z.string(),
   powerAccessibility: nanSafeNumber,
-  powerCeiling: nanSafeNumber,
+  powerHierarchyComplexity: nanSafeNumber,
   breakthroughDifficulty: nanSafeNumber,
   powerImbalance: nanSafeNumber,
   forbiddenTechniques: nanSafeNumber,
@@ -116,7 +116,7 @@ export const worldConfigPrompt: PromptTemplate = {
       civilization: {
         label: '文明参数（8 个）',
         fields: {
-          techLevel: { label: '科技/修炼水平', range: [1, 24], description: '与力量上限一致' },
+          techLevel: { label: '科技/工艺成熟度', range: [0, 100] },
           populationScale: { label: '人口规模', values: ['百千', '百万', '千万', '亿', '十亿'] },
           urbanizationRate: { label: '城市化率', range: [0, 100] },
           literacyRate: { label: '教育普及度', range: [0, 100] },
@@ -153,7 +153,7 @@ export const worldConfigPrompt: PromptTemplate = {
         fields: {
           powerSource: { label: '力量来源', values: ['灵气', '魔力', '科技', '肉体', '信仰', '血脉'] },
           powerAccessibility: { label: '力量获取难度', range: [0, 100], description: '越低越难' },
-          powerCeiling: { label: '力量上限', range: [1, 24], description: '与用户设定一致' },
+          powerHierarchyComplexity: { label: '力量层次复杂度', range: [0, 100], description: '当前世界力量层次的细分程度' },
           breakthroughDifficulty: { label: '突破难度', range: [0, 100] },
           powerImbalance: { label: '力量不均衡度', range: [0, 100], description: '强者与弱者差距' },
           forbiddenTechniques: { label: '禁术/禁忌力量数量', range: [0, 50] },
@@ -188,7 +188,7 @@ export const worldConfigPrompt: PromptTemplate = {
     powerSystemTag: '{{powerSystemTag}}',
     spatialForm: '{{spatialForm}}',
     civilizationStage: '{{civilizationStage}}',
-    powerCeiling: '{{powerCeiling}}',
+    powerFramework: '{{powerFramework}}',
     worldDescription: '{{worldDescription}}',
     coherenceHint: '{{coherenceHint}}',
     coherenceNote: '{{coherenceNote}}',
@@ -197,7 +197,7 @@ export const worldConfigPrompt: PromptTemplate = {
 
   variables: [
     'worldName', 'essenceTag', 'powerSystemTag', 'spatialForm', 'civilizationStage',
-    'powerCeiling', 'worldDescription', 'coherenceHint', 'coherenceNote', 'worldType',
+    'powerFramework', 'worldDescription', 'coherenceHint', 'coherenceNote', 'worldType',
   ],
 
   outputFormat: 'json',

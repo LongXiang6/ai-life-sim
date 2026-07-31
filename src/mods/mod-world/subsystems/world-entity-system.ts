@@ -48,18 +48,18 @@ function cloneEntityReference(reference: EntityReference): EntityReference {
 // ==================== 降级实体：按世界观标签分化 ====================
 
 interface EntitySet {
-  nations: Array<{ id: string; name: string; capital: string; stability: number; population: number; description: string }>
+  nations: Array<{ id: string; name: string; capital: string; stability: number; description: string }>
   factions: Array<{ id: string; name: string; factionType: 'military' | 'religious' | 'merchant' | 'academic' | 'political'; power: number; joinRequirement: string; description: string }>
   nobleHouses: Array<{ id: string; name: string; homeRegion: string; rank: 'duke' | 'marquis' | 'earl' | 'count' | 'baron'; influence: number; description: string }>
-  settlements: Array<{ id: string; name: string; tier: 'village' | 'town' | 'city' | 'metropolis'; population: number; developmentLevel: number; description: string }>
+  settlements: Array<{ id: string; name: string; tier: 'village' | 'town' | 'city' | 'metropolis'; developmentLevel: number; description: string }>
   tradeRoutes: Array<{ id: string; name: string; fromSettlementId: string; toSettlementId: string; description: string }>,
 }
 
 /** 仙侠/东方玄幻 — 王朝/仙门/世家体系 */
 const XIANXIA_ENTITIES: EntitySet = {
   nations: [
-    { id: 'nation-0', name: '天玄王朝', capital: '帝京', stability: 75, population: 10_000_000, description: '统御九州千年的修仙帝国，皇族血脉传承上古道统', },
-    { id: 'nation-1', name: '苍云古国', capital: '云都', stability: 60, population: 4_000_000, description: '位于西北边陲的古老国度，以炼器术闻名天下', },
+    { id: 'nation-0', name: '天玄王朝', capital: '帝京', stability: 75, description: '统御九州千年的修仙帝国，皇族血脉传承上古道统', },
+    { id: 'nation-1', name: '苍云古国', capital: '云都', stability: 60, description: '位于西北边陲的古老国度，以炼器术闻名天下', },
   ],
   factions: [
     { id: 'faction-0', name: '青云剑宗', factionType: 'military', power: 85, joinRequirement: '剑意入门，通过九重剑阁试炼', description: '天下第一剑修门派，镇守南疆妖域千年', },
@@ -71,8 +71,8 @@ const XIANXIA_ENTITIES: EntitySet = {
     { id: 'noble-1', name: '凤家', homeRegion: '', rank: 'marquis', influence: 75, description: '以医术和阵法闻名的古老世家', },
   ],
   settlements: [
-    { id: 'settlement-0', name: '青石镇', tier: 'town', population: 3000, developmentLevel: 25, description: '灵脉余脉上的小镇，往来散修歇脚之处', },
-    { id: 'settlement-1', name: '流云城', tier: 'city', population: 80000, developmentLevel: 70, description: '依山而建的修仙大城，云海中若隐若现', },
+    { id: 'settlement-0', name: '青石镇', tier: 'town', developmentLevel: 25, description: '灵脉余脉上的小镇，往来散修歇脚之处', },
+    { id: 'settlement-1', name: '流云城', tier: 'city', developmentLevel: 70, description: '依山而建的修仙大城，云海中若隐若现', },
   ],
   tradeRoutes: [
     { id: 'trade-0', name: '灵脉商道', fromSettlementId: 'settlement-0', toSettlementId: 'settlement-1', description: '连接青石镇与流云城的灵石运输要道', },
@@ -82,8 +82,8 @@ const XIANXIA_ENTITIES: EntitySet = {
 /** 西方奇幻 — 王国/骑士团/法师塔/贵族领 */
 const FANTASY_ENTITIES: EntitySet = {
   nations: [
-    { id: 'nation-0', name: '艾泽兰王国', capital: '王冠城', stability: 70, population: 3_000_000, description: '雄踞大陆中央的人类王国，狮鹫军团威名远扬', },
-    { id: 'nation-1', name: '北境诸邦', capital: '霜石堡', stability: 55, population: 1_500_000, description: '蛮族与矮人共治的北方联盟', },
+    { id: 'nation-0', name: '艾泽兰王国', capital: '王冠城', stability: 70, description: '雄踞大陆中央的人类王国，狮鹫军团威名远扬', },
+    { id: 'nation-1', name: '北境诸邦', capital: '霜石堡', stability: 55, description: '蛮族与矮人共治的北方联盟', },
   ],
   factions: [
     { id: 'faction-0', name: '晨光骑士团', factionType: 'military', power: 75, joinRequirement: '通过骑士试炼，宣誓七美德誓言', description: '守护圣光信仰的骑士修道会', },
@@ -95,8 +95,8 @@ const FANTASY_ENTITIES: EntitySet = {
     { id: 'noble-1', name: '银叶家族', homeRegion: '', rank: 'marquis', influence: 65, description: '掌握银叶森林的精灵混血贵族', },
   ],
   settlements: [
-    { id: 'settlement-0', name: '边境村', tier: 'village', population: 800, developmentLevel: 15, description: '王国最南端的农耕村庄', },
-    { id: 'settlement-1', name: '王冠城', tier: 'metropolis', population: 120000, developmentLevel: 85, description: '大陆最繁华的都城，圣光大教堂所在地', },
+    { id: 'settlement-0', name: '边境村', tier: 'village', developmentLevel: 15, description: '王国最南端的农耕村庄', },
+    { id: 'settlement-1', name: '王冠城', tier: 'metropolis', developmentLevel: 85, description: '大陆最繁华的都城，圣光大教堂所在地', },
   ],
   tradeRoutes: [
     { id: 'trade-0', name: '黄金商路', fromSettlementId: 'settlement-0', toSettlementId: 'settlement-1', description: '贯通南北的贸易干道，商队络绎不绝', },
@@ -106,8 +106,8 @@ const FANTASY_ENTITIES: EntitySet = {
 /** 科幻未来 — 星系联邦/巨企/舰队 */
 const SCIFI_ENTITIES: EntitySet = {
   nations: [
-    { id: 'nation-0', name: '星际联邦', capital: '地球', stability: 65, population: 5_000_000_000, description: '以太阳系为核心的银河政治联合体', },
-    { id: 'nation-1', name: '自由星系联盟', capital: '新坦率', stability: 45, population: 800_000_000, description: '由独立殖民星系组成的松散联盟', },
+    { id: 'nation-0', name: '星际联邦', capital: '地球', stability: 65, description: '以太阳系为核心的银河政治联合体', },
+    { id: 'nation-1', name: '自由星系联盟', capital: '新坦率', stability: 45, description: '由独立殖民星系组成的松散联盟', },
   ],
   factions: [
     { id: 'faction-0', name: '星际矿业集团', factionType: 'merchant', power: 90, joinRequirement: '通过企业入职筛选，签署五年合同', description: '垄断银河系稀有矿藏开采的超级企业', },
@@ -116,8 +116,8 @@ const SCIFI_ENTITIES: EntitySet = {
   ],
   nobleHouses: [],
   settlements: [
-    { id: 'settlement-0', name: '空间站α', tier: 'city', population: 50000, developmentLevel: 90, description: '地球轨道上的巨型枢纽空间站', },
-    { id: 'settlement-1', name: '火星殖民地', tier: 'town', population: 20000, developmentLevel: 60, description: '人类首个地外行星自治城市', },
+    { id: 'settlement-0', name: '空间站α', tier: 'city', developmentLevel: 90, description: '地球轨道上的巨型枢纽空间站', },
+    { id: 'settlement-1', name: '火星殖民地', tier: 'town', developmentLevel: 60, description: '人类首个地外行星自治城市', },
   ],
   tradeRoutes: [
     { id: 'trade-0', name: '星际贸易航线', fromSettlementId: 'settlement-0', toSettlementId: 'settlement-1', description: '地球-火星常规跃迁航道', },
@@ -127,7 +127,7 @@ const SCIFI_ENTITIES: EntitySet = {
 /** 末日废土 — 聚居地/掠夺者/商队 */
 const POST_APOCALYPTIC_ENTITIES: EntitySet = {
   nations: [
-    { id: 'nation-0', name: '新秩序军', capital: '铁堡', stability: 40, population: 500_000, description: '从废墟中崛起的军事政权，试图重建文明秩序', },
+    { id: 'nation-0', name: '新秩序军', capital: '铁堡', stability: 40, description: '从废墟中崛起的军事政权，试图重建文明秩序', },
   ],
   factions: [
     { id: 'faction-0', name: '掠夺者帮', factionType: 'military', power: 70, joinRequirement: '证明自己能守住一罐汽油', description: '荒野上最凶残的掠夺者联盟', },
@@ -135,8 +135,8 @@ const POST_APOCALYPTIC_ENTITIES: EntitySet = {
   ],
   nobleHouses: [],
   settlements: [
-    { id: 'settlement-0', name: '废土营地', tier: 'village', population: 200, developmentLevel: 10, description: '由幸存者自发组建的简陋聚居点', },
-    { id: 'settlement-1', name: '铁堡', tier: 'town', population: 15000, developmentLevel: 40, description: '拥有钢铁围墙的防御性城镇', },
+    { id: 'settlement-0', name: '废土营地', tier: 'village', developmentLevel: 10, description: '由幸存者自发组建的简陋聚居点', },
+    { id: 'settlement-1', name: '铁堡', tier: 'town', developmentLevel: 40, description: '拥有钢铁围墙的防御性城镇', },
   ],
   tradeRoutes: [
     { id: 'trade-0', name: '废土商路', fromSettlementId: 'settlement-0', toSettlementId: 'settlement-1', description: '废土商队踏出的危险贸易路线', },
@@ -146,8 +146,8 @@ const POST_APOCALYPTIC_ENTITIES: EntitySet = {
 /** 默认通用（fallback of fallback） */
 const GENERIC_ENTITIES: EntitySet = {
   nations: [
-    { id: 'nation-0', name: '大陆帝国', capital: '帝都', stability: 75, population: 5_000_000, description: '统一大陆千年的中央帝国', },
-    { id: 'nation-1', name: '北方联盟', capital: '联盟城', stability: 60, population: 2_000_000, description: '由北方诸邦组成的军事同盟', },
+    { id: 'nation-0', name: '大陆帝国', capital: '帝都', stability: 75, description: '统一大陆千年的中央帝国', },
+    { id: 'nation-1', name: '北方联盟', capital: '联盟城', stability: 60, description: '由北方诸邦组成的军事同盟', },
   ],
   factions: [
     { id: 'faction-0', name: '光明教团', factionType: 'religious', power: 70, joinRequirement: '通过洗礼仪式，宣誓信仰誓言', description: '信奉光明的宗教组织，拥有广泛的信徒基础', },
@@ -157,8 +157,8 @@ const GENERIC_ENTITIES: EntitySet = {
     { id: 'noble-0', name: '龙血世家', homeRegion: '', rank: 'duke', influence: 80, description: '远古龙裔血脉后裔，世袭帝国公爵', },
   ],
   settlements: [
-    { id: 'settlement-0', name: '起始村', tier: 'village', population: 500, developmentLevel: 15, description: '冒险者旅途开始的宁静村庄', },
-    { id: 'settlement-1', name: '商港城', tier: 'city', population: 50000, developmentLevel: 70, description: '繁忙的港口贸易城市', },
+    { id: 'settlement-0', name: '起始村', tier: 'village', developmentLevel: 15, description: '冒险者旅途开始的宁静村庄', },
+    { id: 'settlement-1', name: '商港城', tier: 'city', developmentLevel: 70, description: '繁忙的港口贸易城市', },
   ],
   tradeRoutes: [
     { id: 'trade-0', name: '黄金商路', fromSettlementId: 'settlement-0', toSettlementId: 'settlement-1', description: '连接起始村与商港城的主要商道', },
@@ -172,8 +172,8 @@ const ENTITY_SETS: Record<string, EntitySet> = {
   wuxia: {
     ...XIANXIA_ENTITIES,
     settlements: [
-      { id: 'settlement-0', name: '江南小镇', tier: 'town', population: 5000, developmentLevel: 30, description: '宁静的江南水乡' },
-      { id: 'settlement-1', name: '京城', tier: 'city', population: 200000, developmentLevel: 80, description: '繁华的帝国都城' },
+      { id: 'settlement-0', name: '江南小镇', tier: 'town', developmentLevel: 30, description: '宁静的江南水乡' },
+      { id: 'settlement-1', name: '京城', tier: 'city', developmentLevel: 80, description: '繁华的帝国都城' },
     ],
   },
   westernFantasy: FANTASY_ENTITIES,
@@ -330,8 +330,8 @@ export class WorldEntitySystem extends BaseSubsystem {
     }
 
     const sortedRegionIndices = this.regions
-      .map((r, i) => ({ index: i, population: r.population, }))
-      .sort((a, b) => b.population - a.population)
+      .map((region, index) => ({ index, developmentLevel: region.developmentLevel }))
+      .sort((a, b) => b.developmentLevel - a.developmentLevel)
 
     const assignedSettlementIds: string[] = []
     const settlementEntities = trimmedSet.settlements.map((s, i) => ({
@@ -447,10 +447,10 @@ export class WorldEntitySystem extends BaseSubsystem {
       // 解析 JSON
       const parsed = parseAIJSON<{
         systemApplicability?: Partial<Record<'nations' | 'factions' | 'nobleHouses' | 'settlements' | 'tradeRoutes', boolean>>
-        nations: Array<{ name: string; capital: string; stability: number; population: number; regionId?: string; description: string }>
+        nations: Array<{ name: string; capital: string; stability: number; regionId?: string; description: string }>
         factions: Array<{ name: string; factionType: string; power: number; regionId?: string; description: string; joinRequirement: string }>
         nobleHouses: Array<{ name: string; rank: string; influence: number; regionId?: string; description: string }>
-        settlements: Array<{ name: string; tier: string; population: number; developmentLevel: number; regionId?: string; description: string }>
+        settlements: Array<{ name: string; tier: string; developmentLevel: number; regionId?: string; description: string }>
         tradeRoutes: Array<{ name: string; fromSettlementId: string; toSettlementId: string; prosperity: number }>,
         nobles?: Array<{ name: string; rank: string; influence: number; regionId?: string; description: string }>,
       }>(response)
@@ -478,7 +478,6 @@ export class WorldEntitySystem extends BaseSubsystem {
             type: 'nation',
             capital: n.capital ?? '',
             stability: n.stability ?? 50,
-            population: n.population ?? 1000000,
             description: n.description ?? '',
             regionId: this.resolveRegionId(n.regionId, entities.length),
             attributes: {},
@@ -527,7 +526,6 @@ export class WorldEntitySystem extends BaseSubsystem {
             name: s.name,
             type: 'settlement',
             tier: (s.tier ?? 'town') as 'village' | 'town' | 'city' | 'metropolis',
-            population: s.population ?? 5000,
             developmentLevel: s.developmentLevel ?? 30,
             description: s.description ?? '',
             regionId: this.resolveRegionId(s.regionId, entities.length),
@@ -628,11 +626,73 @@ export class WorldEntitySystem extends BaseSubsystem {
   }
 
   capturePreviewState(): EntityReferenceDirectoryPersistenceState {
-    return this.capturePersistenceState()
+    // 预览/回滚快照必须能够保存刷新后尚未水合的浏览器投影；
+    // 正式存档仍由 capturePersistenceState() 执行完整目录与空间一致性校验。
+    return { schemaVersion: 1, entries: this.listEntityReferences() }
   }
 
   restorePreviewState(snapshot: unknown): void {
-    this.restorePersistenceState(snapshot)
+    if (!isPlainRecord(snapshot) || snapshot.schemaVersion !== 1 || !Array.isArray(snapshot.entries)) {
+      throw new Error('实体引用预览快照必须是 schemaVersion: 1 的条目数组')
+    }
+    useWorldStore.getState().replaceEntityReferences(
+      snapshot.entries.map((entry) => cloneEntityReference(entry as EntityReference)),
+    )
+  }
+
+  /**
+   * 从当前世界上下文与空间位置重建目录投影。
+   *
+   * 组织实体有世界 Store 的完整所有权；其他已知引用由调用方先通过
+   * registerEntityReference 注入。刷新后若只剩空间位置而没有 NPC 目录项，
+   * 使用稳定实体 ID 作为技术显示标签完成可验证的恢复，正式存档载荷仍需
+   * 通过严格目录快照校验才能被接受。
+   */
+  repairEntityReferenceDirectory(): { fallbackEntityIds: string[] } {
+    const state = useWorldStore.getState()
+    const fallbackEntityIds: string[] = []
+
+    for (const instance of Object.values(state.contexts)) {
+      for (const entity of instance.entities) {
+        this.registerEntityReference({
+          entityId: entity.id,
+          kind: 'organization',
+          displayName: entity.name,
+          contextIds: [instance.record.id],
+          registeredAtTotalDays: instance.record.createdAtGlobalDay,
+        })
+      }
+    }
+
+    for (const instance of Object.values(state.contexts)) {
+      for (const [entityId, location] of Object.entries(instance.spatialGraph.entityLocations)) {
+        const existing = this.getEntityReference(entityId)
+        if (existing) {
+          if (!existing.contextIds.includes(instance.record.id)) {
+            this.registerEntityReference({
+              ...existing,
+              contextIds: [...existing.contextIds, instance.record.id],
+            })
+          }
+          continue
+        }
+
+        // 空间图只保存稳定端点 ID，不拥有 NPC 显示名；在刷新恢复窗口中
+        // 先登记技术标签，待 owning NPC 快照恢复后由其正式目录覆盖。
+        this.registerEntityReference({
+          entityId,
+          kind: 'npc',
+          displayName: `实体 ${entityId}`,
+          contextIds: [instance.record.id],
+          registeredAtTotalDays: Number.isInteger(location.updatedAtGlobalDay)
+            ? location.updatedAtGlobalDay
+            : instance.record.createdAtGlobalDay,
+        })
+        fallbackEntityIds.push(entityId)
+      }
+    }
+
+    return { fallbackEntityIds }
   }
 
   private ensureEntityDirectoryValidated(): void {

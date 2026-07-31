@@ -1,6 +1,6 @@
 /**
  * @module store.ts
- * @description 引擎 Zustand Store —— 全局暴露已提交的引擎状态与回合错误
+ * @description 引擎 Zustand Store —— 暴露已提交状态、即时正文投影与回合错误
  * @mod mod-engine
  */
 
@@ -29,9 +29,25 @@ import type { CompressedSummaries, } from '@/foundation'
 import type { NPCInteractionRecord, } from './subsystems/core-memory-system'
 import type { LegendaryEncounterProjection } from '@/core/player-content/player-content-contract'
 
+export type PendingNarrativeStatus = 'pending' | 'committing' | 'failed'
+
+/** 故事已返回但整轮尚未原子提交的非持久化页面投影。 */
+export interface PendingNarrative {
+  executionId: string
+  roundSequence: number
+  text: string
+  timestamp: number
+  status: PendingNarrativeStatus
+  statusCode: string
+  error?: string
+}
+
 interface EngineStore extends EngineState {
   /** 整轮叙事或结算错误信息 */
   narrativeError: string | null
+
+  /** 正文即时展示投影；不进入存档或 Zustand 持久化。 */
+  pendingNarrative: PendingNarrative | null
 
   setStatus: (status: SimulationStatus) => void
   setTimeStep: (step: EngineState['timeStep']) => void
@@ -43,6 +59,14 @@ interface EngineStore extends EngineState {
 
   /** 设置叙事错误 */
   setNarrativeError: (error: string | null) => void
+  setPendingNarrative: (pending: PendingNarrative) => void
+  updatePendingNarrative: (
+    executionId: string,
+    status: PendingNarrativeStatus,
+    statusCode: string,
+    error?: string,
+  ) => void
+  clearPendingNarrative: (executionId?: string) => void
 
   /** 设置上次自动保存的回合数 */
   setLastAutoSaveRound: (round: number) => void
@@ -98,6 +122,7 @@ const initialState = {
   compressedSummaries: { summaries: [], } as CompressedSummaries,
   lastAutoSaveRound: 0,
   narrativeError: null as string | null,
+  pendingNarrative: null as PendingNarrative | null,
   coreMemoryNpcMap: {} as Record<string, NPCInteractionRecord[]>,
   forceBranchNext: false,
   resolvedBranches: {} as Record<string, string>,
@@ -209,6 +234,27 @@ export const useEngineStore = create<EngineStore>()(
 
       setNarrativeError: (error,) => set({ narrativeError: error, },),
 
+      setPendingNarrative: (pending) => set({ pendingNarrative: { ...pending } }),
+
+      updatePendingNarrative: (executionId, status, statusCode, error) => set((state) => {
+        if (state.pendingNarrative?.executionId !== executionId) return {}
+        const { error: _previousError, ...pending } = state.pendingNarrative
+        return {
+          pendingNarrative: {
+            ...pending,
+            status,
+            statusCode,
+            ...(error ? { error } : {}),
+          },
+        }
+      }),
+
+      clearPendingNarrative: (executionId) => set((state) => (
+        executionId && state.pendingNarrative?.executionId !== executionId
+          ? {}
+          : { pendingNarrative: null }
+      )),
+
       setLastAutoSaveRound: (round,) => set({ lastAutoSaveRound: round, },),
 
       setCoreMemoryNpcMap: (map,) => set({ coreMemoryNpcMap: map, },),
@@ -271,7 +317,7 @@ export const useEngineStore = create<EngineStore>()(
         migrateEnginePersistedState(persistedState, version) as unknown as EngineStore
       ),
       partialize: (state,) => {
-        const { setStatus: _a, appendNarrative: _b, setCurrentNarrative: _c, advanceRound: _d, setCompressionStats: _e, setCompressedSummaries: _f, setNarrativeError: _i, setLastAutoSaveRound: _j, setCoreMemoryNpcMap: _n, setForceBranchNext: _fb, resolveBranch: _rb, setBranchIntentProjection: _bip, setLegendaryEncounterSelection: _les, markLegendaryEncounterInjected: _lei, reset: _o, ...rest } = state
+        const { setStatus: _a, appendNarrative: _b, setCurrentNarrative: _c, advanceRound: _d, setCompressionStats: _e, setCompressedSummaries: _f, setNarrativeError: _i, pendingNarrative: _pn, setPendingNarrative: _spn, updatePendingNarrative: _upn, clearPendingNarrative: _cpn, setLastAutoSaveRound: _j, setCoreMemoryNpcMap: _n, setForceBranchNext: _fb, resolveBranch: _rb, setBranchIntentProjection: _bip, setLegendaryEncounterSelection: _les, markLegendaryEncounterInjected: _lei, reset: _o, ...rest } = state
         return rest
       },
     },

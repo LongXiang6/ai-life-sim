@@ -34,7 +34,10 @@ import {
 function createInitialEconomy(): EconomyState {
   return {
     initialized: false,
-    currency: { type: DEFAULT_CURRENCY, name: '金币', playerWealth: INITIAL_WEALTH, totalCirculation: 100000, inflation: 0, stabilityIndex: 50 },
+    annualEconomicOutput: '0',
+    roundEconomicOutput: '0',
+    production: { primarySector: 'agriculture', sectorShares: { agriculture: 1 }, productivityIndex: 100, technologyAdoption: 0, updatedAtTotalDays: 0 },
+    currency: { type: DEFAULT_CURRENCY, name: '金币', playerWealth: INITIAL_WEALTH, totalCirculation: '100000', inflation: 0, stabilityIndex: 50 },
     tradeRoutes: [],
     marketPhase: 'normal',
     marketCycleProgress: 0,
@@ -64,7 +67,7 @@ function createInitialWork(): WorkState {
   return {
     profession: 'farmer',
     professionLevel: 1,
-    income: 5,
+    income: '5',
     satisfaction: 50,
     promotionProgress: 0,
     careerHistory: [],
@@ -84,6 +87,7 @@ function createInitialItem(): ItemState {
 function createInitialPopulation(): PopulationState {
   return {
     totalPopulation: INITIAL_POPULATION,
+    carryingCapacity: '2000000',
     races: [{ name: '人类', ratio: 1, growthRate: 0.01, integration: 100, tension: 0 }],
     birthRate: BASE_BIRTH_RATE,
     deathRate: BASE_DEATH_RATE,
@@ -96,6 +100,12 @@ function createInitialPopulation(): PopulationState {
     recentPopulationEvents: [],
   }
 }
+
+export function createInitialEconomyState(): EconomyState { return createInitialEconomy() }
+export function createInitialSettlementState(): SettlementState { return createInitialSettlement() }
+export function createInitialWorkState(): WorkState { return createInitialWork() }
+export function createInitialItemState(): ItemState { return createInitialItem() }
+export function createInitialPopulationState(): PopulationState { return createInitialPopulation() }
 
 // ─── Store 接口 ───
 

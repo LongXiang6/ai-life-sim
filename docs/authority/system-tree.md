@@ -53,7 +53,9 @@ TimeSystem
 
 - 每个 MOD 的声明源是所属 `manifest.ts`，生命周期源是 `_internal/control.ts`，公共调用从所属 `index.ts` 或已声明公共入口进入。
 - `scripts/codegen/generate-mod-wiring.mjs` 从 Manifest 自动生成 MOD 导入、子系统导入、别名、事件、Store、Prompt 和阶段接线；生成文件是派生结果，不是手工权威源。
-- MOD 加载器按依赖图排序并执行生命周期；业务子系统再由 `registerAllSubsystems()` 按排序后的 Manifest 自动注册。
+- MOD 加载器先全量校验，再按硬依赖拓扑、Manifest 显式 `order`、ASCII 机器标识的固定决胜顺序执行；生命周期、Remote 注册、配置变更和 `onLoad` 都由公共执行序契约发布 `ready/running/终结` 状态，失败立即返回 `core-mod-loader`，不继续冻结运行时。
+- 业务子系统由 `registerAllSubsystems()` 先按 Manifest 解析实例，再按 `mvp-stages-config.default.json` 当前活动清单的数组顺序原子接线；缺失、重复或未声明的活动成员在替换 Orchestrator 前失败。
+- 回合阶段与世界初始化步骤都声明 `prepare -> execute -> transition -> finalize`、硬依赖、`order`、所有者和故障接收者；未收到状态码、非法状态码、超时或终止性失败不会释放后续节点。同阶段、同依赖、同 `order` 的无冲突节点只有声明同一 `parallelGroup` 才并发，组内结果按确定性顺序记录，任一失败时仍等待同组终态后向流程所有者返回唯一失败。
 - 是否参与当前核心模拟由 `src/mods/mod-engine/helpers/mvp-stages-config.default.json` 决定；目录、类或 Manifest 存在不等于已经激活。
 - Store 或子系统拥有业务状态，页面和聚合器只消费投影；跨系统写入必须经过公共契约。
 - 所有者自行完成能够在系统内部完成的计算、校验、状态写入、持久化和自动接线；调用方不复制这些职责。
@@ -94,7 +96,7 @@ TimeSystem
 |---|---|---|---|
 | App 路由 | 把 URL 和 API 请求交给已注册页面或服务 | Next.js 动态页面入口加载 MOD 页面，`src/app/api/` 承接服务端接口 | `src/app/`；不拥有业务状态 |
 | MOD 加载器 | 解析依赖、启动生命周期并冻结可用运行时 | 读取生成的注册表，按依赖图加载 Control 和公共能力 | `src/core/mod-loader/`、`src/mods/registry.generated.ts`；不替业务系统保存状态 |
-| AI 服务 | 统一 Provider 能力、模型目标、请求参数、响应终态、账号并发、按调用系统隔离的 DeepSeek 缓存归属、流式响应、用量、费用、错误和服务端边界 | 调用方提交模型配置与分段 Prompt；当前已登记 DeepSeek V4 模型和价格，完成思考参数映射、思考时移除无效采样参数、流式最终 usage、SSE 保活忽略、错误转译及内部 `InternalCachePool` 统计。尚未完成的差距是：池标识未传到代理，源码仍有退役模型名，DeepSeek 仍收到未声明的 `seed`，非流式 200 未完整校验失败终态，浏览器与代理总超时不统一，账号级并发调度未建立 | `src/core/ai-service/`、`src/app/api/proxy/`、`src/app/api/ai-usage/`；Provider 适配层拥有能力白名单、参数和终态解释，代理拥有最终 `user_id`、上游传输与账号调度，完整契约见 `PD-039`、`PD-040`；偏好由 `mod-settings` 所有，AI 服务不拥有故事或业务状态 |
+| AI 服务 | 统一 Provider 能力、模型目标、请求参数、响应终态、账号并发、按调用系统隔离的 DeepSeek 缓存归属、流式响应、用量、费用、错误和服务端边界 | 调用方提交模型配置与分段 Prompt；当前为主叙事、主叙事修复、数据分析、数据分析修复、事件识别、事件识别修复分别登记独立 `InternalCachePool`，三类调用各自计算 Token 预算。已完成思考参数映射、思考时移除无效采样参数、流式最终 usage、SSE 保活忽略和错误转译。尚未完成的差距是：池标识未传到代理，源码仍有退役模型名，DeepSeek 仍收到未声明的 `seed`，非流式 200 未完整校验失败终态，浏览器与代理总超时不统一，账号级并发调度未建立 | `src/core/ai-service/`、`src/app/api/proxy/`、`src/app/api/ai-usage/`；Provider 适配层拥有能力白名单、参数和终态解释，代理拥有最终 `user_id`、上游传输与账号调度，完整契约见 `PD-039`、`PD-040`；偏好由 `mod-settings` 所有，AI 服务不拥有故事或业务状态 |
 | 本地存储 | 保存槽位、快照、序列化、迁移数据和存档级时间轴记忆 | 存储管理器接收引擎统一收集的载荷并读写本地持久层；时间轴记忆库与压缩系统共用 `narrative-memory-policy.ts` 的确定性整数衰减策略，避免持久化查询与叙事投影采用不同算法 | `src/core/storage/`；各业务字段仍由所属 Store/子系统解释，压缩层级和摘要内容由 `summary-compressor` 所有 |
 | 账号与玩家内容 | 管理账号身份、云端设置、排行、邮箱、画像任务、传奇投影和账号持久化 | 账号数据库拥有身份与普通长期数据；玩家内容数据库拥有常开排行榜、账号/诊断收件身份、邮件、稀疏收件状态、邮件天赋所有权、画像任务和跨局传奇决策。开发者广播只保存一份，列表用索引和稳定游标分页；邮件三天后不再可读并由五分钟机会清理与十五分钟定时清理回收。轮回天赋在托管、接受或退回时更新邮件所有权与账号投影，账号同步反向对账以防旧客户端恢复已寄出项。画像 worker 最多尝试 3 次，只有成功资产才成为邮件；绘图 Provider 仍需独立配置 | `src/core/account/`、`src/core/player-content/`、账号/排行榜/邮箱/传奇 API 与 `scripts/ops/send-player-mail.mjs`；页面不拥有邮件或可转移天赋事实，核心评分仍是排行资格的唯一计算所有者 |
 | 结算评分 | 对所有世界生成可复算、可审计的统一结算结果 | 世界初始化固化 3-6 个维度的 `scoringProfile`；`life-scoring.ts` 只消费本地结构化证据，完整人生在原始分低于 90 时映射到 70-89，90 起正常取整，100 需额外通过全部完整性门禁。每轮正文保存迁移审计，人生记录固化完整评分输入；服务端通过同一函数复算并逐项比较结果后才允许排行、画像或传奇投影。AI 只提出受限维度定义和生成第二人称评语，不决定分数 | `src/core/scoring/`、`src/foundation/types/scoring.types.ts`、`src/mods/mod-world/scoring-profile.ts`、`world-scoring-profile-generation.ts`；页面、排行榜、邮箱和画像不建立第二套评分公式 |
@@ -104,20 +106,24 @@ TimeSystem
 
 ## 业务 MOD
 
+当前 `mvp-stages-config.default.json` 的 P8 活动清单包含 50 个外部业务成员和 12 个引擎成员；P6-P8 成员均已完成声明、生成接线和现行回合接入，实际推进由上下文能力画像与模拟范围控制。
+
 | MOD | 要达到的目标 | 当前运行机制 | 权责边界与实时源 |
 |---|---|---|---|
 | `mod-pages` | 组合路由页面和页面内交互 | 页面经动态路由加载并调用其他 MOD 公共 API | `src/mods/mod-pages/`；只拥有页面临时状态，界面细节见 [界面体系](interface-tree.md) |
 | `mod-ui` | 提供跨页面共用的组件、动作栏、弹层和界面原语 | 由页面按需组合共享组件与 UI Store | `src/mods/mod-ui/`、`src/app/globals.css`；不拥有业务状态 |
 | `mod-engine` | 编排活动子系统、时间、Prompt、AI 回合、提交和引擎状态 | 运行声明式阶段机，并把合法变更提交给所属系统 | `src/mods/mod-engine/`；详细机制见 [核心模拟](core-simulation.md) |
 | `summary-compressor`（`mod-engine` 内部） | 生成三层时间轴摘要并维护记忆生命周期 | L1=4 轮，L2=16 轮，L3=64 轮；AI 只生成带来源覆盖的时间段事件，本地计算权重衰减、遗忘和高层原样携带 | `src/mods/mod-engine/subsystems/summary-compressor-system.ts`、`src/mods/mod-engine/helpers/timeline-memory.ts`；不拥有核心叙事正文 |
-| `mod-world` | 管理世界/上下文注册、当前投影、空间、切换、初始化、世界实体与全局实体引用目录 | 当前 MVP 激活世界上下文相关子系统；`world-entity` 为玩家、NPC 和组织登记稳定实体引用，`spatial-graph` 仍唯一拥有位置 | `src/mods/mod-world/`、`src/foundation/subsystem-contracts/world-context.contract.ts`、`npc-social.contract.ts`；不拥有 NPC 档案、社会关系、页面呈现或叙事阶段顺序 |
-| `mod-character` | 管理基础属性、命格、寿命、气运、道德及角色生命周期 | 当前 MVP 激活 `character-base`、`destiny-pattern`、`lifespan`、`luck`、`morality`；角色 Store 承接投影 | `src/mods/mod-character/`；不拥有标准时间和叙事编排 |
-| `mod-history-dynamics` | 保存可审计的历史事实、证据、迁移、转变和因果边 | 当前 MVP 激活追加式 `historical-event-ledger`，叙事提交以批次预检和提交 | `src/mods/mod-history-dynamics/`、`src/foundation/subsystem-contracts/historical-event.contract.ts`；不拥有叙事正文或其他系统状态 |
+| `mod-world` | 管理世界/上下文注册、当前投影、空间、切换、初始化、世界实体与全局实体引用目录 | 当前 MVP 激活世界上下文相关子系统；`world-entity` 为玩家、NPC 和组织登记稳定实体引用，刷新恢复窗口可从组织实体、已知引用和空间端点重建临时目录，正式 owning snapshot 仍严格校验；`spatial-graph` 仍唯一拥有位置 | `src/mods/mod-world/`、`src/foundation/subsystem-contracts/world-context.contract.ts`、`npc-social.contract.ts`；不拥有 NPC 档案、社会关系、页面呈现或叙事阶段顺序 |
+| `mod-character` | 管理基础属性、命格、寿命、生命周期、健康、气运、道德及死亡后的条件收束 | 当前 MVP 激活 `character-base`、`destiny-pattern`、`lifespan`、`lifecycle-system`、`health`、`luck`、`morality`。`luck` 开局本地随机 `-3..3`，每轮生成前按每点 `5%` 偏向投掷坏/无干扰/好方向并保存低优先级叙事引导，不接受 AI 写入；寿命按天保存生物钟规则；生命周期从规范 `totalDays` 派生年龄、阶段和属性修正；健康独占生命、体力、精神、伤病、死亡事实和尾声，页面 Store 只承接当前投影 | `src/mods/mod-character/`、`src/foundation/types/luck.types.ts`、`src/foundation/subsystem-contracts/life-cycle.contract.ts`；不拥有标准时间、历史事实或叙事编排，死亡必须绑定账本中的专属事件后才能持久化 |
+| `mod-history-dynamics` | 保存可审计的历史事实、证据、迁移、转变、因果边和未来事件候选 | 当前 MVP 激活追加式 `historical-event-ledger`：已发生事实使用批次预检与提交；尚未发生但具备未来触发条件的事项使用候选审计登记为 `available`，后续只有 owning system 可接受、拒绝、过期或提升为正式事件。事件识别调用只提交候选输入，不分配稳定 ID、不直接写历史事实 | `src/mods/mod-history-dynamics/`、`src/foundation/subsystem-contracts/historical-event.contract.ts`；不拥有叙事正文或其他系统状态，页面与 Orchestrator 不建立第二候选 Store |
 | `mod-social` | 保存跨人物与组织的通用有向关系、作用域和追加式关系迁移 | 当前 MVP 激活唯一 `relationship-system`；关系端点必须来自实体目录，作用域为全局、单上下文或显式跨上下文 | `src/mods/mod-social/`、`src/foundation/subsystem-contracts/npc-social.contract.ts`；不拥有实体身份、位置、NPC 私有记忆或文化专项关系语义 |
-| `mod-npc` | 保存 NPC 连续身份、当地状态、目标、行为记录和独立主观记忆 | 当前 MVP 激活唯一 `npc-system`；年龄从规范时间派生，当前相关投影只包含玩家同场实体、一跳关系端点及其相关记录，后台按能力画像低频聚合 | `src/mods/mod-npc/`、`src/foundation/subsystem-contracts/npc-social.contract.ts`；不拥有玩家角色、空间位置、关系图、历史事实或叙事编排 |
+| `mod-npc` | 保存 NPC 连续身份、当地状态、目标、行为记录和独立主观记忆 | 当前 MVP 激活唯一 `npc-system`；年龄从规范时间派生，当前相关投影只包含玩家同场实体、一跳关系端点及其相关记录，后台按能力画像低频聚合；创建身份时可在同一回合声明计划实体引用，由 owning system 在应用阶段登记 | `src/mods/mod-npc/`、`src/foundation/subsystem-contracts/npc-social.contract.ts`；不拥有玩家角色、空间位置、关系图、历史事实或叙事编排 |
+| `mod-environment-ecology` | 保存按世界上下文和空间节点分区的地理、气候、生态、污染与自然资源事实 | 当前运行清单激活 `geography`、`natural-resource`、`climate`、`ecology`、`pollution`；每个系统按上下文封闭快照推进并由各自能力画像决定是否有有效状态 | `src/mods/mod-environment-ecology/`、`src/foundation/subsystem-contracts/spatial-environment.contract.ts`；不拥有空间关系、世界身份、经济库存或地图 UI |
+| `mod-progression` | 统一管理通用成长、历史事实成就和作用域化社会评价 | 当前 MVP 激活 `growth-system`、`achievement`、`reputation`。成长统一保存技能和稳定能力；成就只查询已提交历史事件；声望区分评价人物、上下文和全局评价域。`growth-system` 与 `reputation` 进入现行七字段系统指令，成就由本地事实验证 | `src/mods/mod-progression/`、`src/foundation/subsystem-contracts/progression.contract.ts`；不写角色基础属性、不把正文当历史事实，也不让某个上下文的成长或评价泄漏到其他上下文 |
 | `mod-settings` | 保存阅读界面、叙事偏好、模型调用和玩家自己的统计投影 | Store 保存四 Tab 对应偏好；自定义文风使用编辑稿与已生效版本分离，正文目标保存为 50 至 2000 的 16 个固定档位，思考模式保存四档枚举，数据统计只读取 AI 服务在本浏览器形成的缓存、Token、费用和余额投影，不注册引擎子系统 | `src/mods/mod-settings/`；不拥有请求传输、Token 预算、服务端日志、其他玩家数据或管理者查看能力 |
 | `mod-difficulty` | 保存难度及灾害、敌人、压制、遭遇和成本参数 | Store 向实际计算所有者提供参数，不注册引擎子系统 | `src/mods/mod-difficulty/`；不复制消费者的计算 |
-| `mod-world-map` | 渲染地图、地形、势力、资源覆盖并处理缩放和平移 | Canvas/Store 由当前调用页面驱动，不注册引擎子系统 | `src/mods/mod-world-map/`；基础地图事实由 `mod-base-universe` 所有 |
+| `mod-world-map` | 把当前上下文投影为地图、星图、位面图或场景导航，并处理缩放、平移和页面选择 | 页面按需调用 `projectWorldMap()`，从空间图、地理、资源和实体位置生成脱离源引用的读取模型；Canvas/Store 只保存显示交互，不注册引擎子系统 | `src/mods/mod-world-map/`、`src/mods/mod-world-map/map-projection.ts`；空间事实归 `mod-world`，地理与资源归 `mod-environment-ecology`，修改投影不能反写任何 owning system |
 
 ## 扩展模拟 MOD
 
@@ -125,13 +131,12 @@ TimeSystem
 
 | MOD | 系统目标 | 所有权边界与实时源 |
 |---|---|---|
-| `mod-base-universe` | 天体、时代、基础地图、命运预言和创世 | `src/mods/mod-base-universe/`；不拥有当前上下文、地图呈现或叙事编排 |
-| `mod-environment-ecology` | 气候、地理、生态、自然资源和污染 | `src/mods/mod-environment-ecology/`；不拥有世界身份和地图 UI |
-| `mod-power-system` | 战力、修炼、怪物、遭遇、信仰、异常、材料和技能 | 数值子系统当前未列入 MVP 运行清单，不参与每轮状态推进；其 `1-24` 阶名称和边界作为世界力量设定的只读参考，经 `mod-world` 和 Orchestrator 投影到有力量体系世界的主叙事输入。`src/mods/mod-power-system/`；不接管角色或世界状态 |
-| `mod-economy` | 经济、货币、职业、物品、库存、聚落和人口 | `src/mods/mod-economy/`；不接管政治或世界状态 |
-| `mod-politics` | 阶层、派系、国家关系、法律、冲突、语言和价值观 | `src/mods/mod-politics/`；不接管经济或世界状态 |
-| `mod-culture` | 文化、艺术、教育、声望、成就、家庭和个人能力 | `src/mods/mod-culture/`；不拥有通用关系图，也不接管角色与世界的所属状态 |
-| `mod-tech-level` | 工业层级、资源分布效应、文化技术和意识趋势 | `src/mods/mod-tech-level/`；不接管基础世界、资源或文化状态 |
+| `mod-base-universe` | 天体、时代、命运预言和创世扩展 | 当前运行清单激活 `celestial`、`era`、`fate-prophecy`、`divine-creation`；旧 `world-map` 已删除，不拥有当前上下文、地理、资源、地图呈现或叙事编排 |
+| `mod-power-system` | 世界力量框架上的战力、修炼、怪物、遭遇、信仰、干预和异常插件 | 当前运行清单激活 `combat-power`、`cultivation`、`monster`、`fortune-encounter`、`faith`、`divine-intervention`、`anomaly-phenomena`。力量框架由 `mod-world` 在创建时固化，P8 不使用固定阶位表；特殊材料与至尊物品已并入 `natural-resource`/`item`，不独立拥有库存。`src/mods/mod-power-system/`；不接管角色基础属性、通用成长、经济或世界配置真源 |
+| `mod-economy` | 经济、货币、职业、物品、库存、聚落和人口 | 当前运行清单激活 `economy`、`population`、`settlement`、`work`、`item`；经济拥有生产结构、货币存量、市场周期与物品价格，资源储量仍归环境系统 | `src/mods/mod-economy/`；不接管政治、资源储量或世界身份 |
+| `mod-politics` | 社会结构、派系实体、法律与冲突 | 当前运行清单激活 `social-stratification`、`faction-dynamics`、`legal`、`conflict-cycle`；国家只是政治实体类型，不保留独立国家外交系统 | `src/mods/mod-politics/`；不接管经济、关系图或世界状态 |
+| `mod-culture` | 文化、艺术、教育和作品 | 当前运行清单激活 `culture`、`art`、`education`、`works`；家庭、师徒、社会价值和语言命名作为通用关系、生命周期、文化或页面服务语义，不建立同名模拟所有者 | `src/mods/mod-culture/`；不拥有通用成长、评价、关系图，也不接管角色与世界的所属状态 |
+| `mod-tech-level` | 文化技术领域、知识扩散和技术采纳 | 当前运行清单激活 `culture-tech`；产业生产率和技术采纳由 `economy.production` 拥有，资源分布仍归 `natural-resource` | `src/mods/mod-tech-level/`；不接管基础世界、资源储量或经济状态 |
 
 ## 唯一实时源
 

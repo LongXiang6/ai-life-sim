@@ -46,6 +46,8 @@ const CURRENT_WORLD_SUBSYSTEM_IDS = [
   'luck',
   'morality',
   'historical-event-ledger',
+  'celestial',
+  'era',
 ] as const
 
 /**
@@ -63,15 +65,30 @@ export const CONTEXT_CAPABILITY_SUBSYSTEM_POLICY: Readonly<
   Record<ContextCapability, { enabledSubsystemIds: readonly string[]; backgroundSubsystemIds: readonly string[] }>
 > = {
   life: { enabledSubsystemIds: [], backgroundSubsystemIds: [] },
-  space: { enabledSubsystemIds: [], backgroundSubsystemIds: [] },
+  space: {
+    enabledSubsystemIds: ['geography', 'natural-resource', 'climate', 'ecology', 'pollution'],
+    backgroundSubsystemIds: ['geography', 'natural-resource', 'climate', 'ecology', 'pollution'],
+  },
   npc: {
     enabledSubsystemIds: ['npc-system', 'relationship-system'],
     backgroundSubsystemIds: ['npc-system', 'relationship-system'],
   },
-  economy: { enabledSubsystemIds: [], backgroundSubsystemIds: [] },
-  politics: { enabledSubsystemIds: [], backgroundSubsystemIds: [] },
-  technology: { enabledSubsystemIds: [], backgroundSubsystemIds: [] },
-  supernatural: { enabledSubsystemIds: [], backgroundSubsystemIds: [] },
+  economy: {
+    enabledSubsystemIds: ['economy', 'population', 'settlement', 'work', 'item'],
+    backgroundSubsystemIds: ['economy', 'population', 'settlement', 'work', 'item'],
+  },
+  politics: {
+    enabledSubsystemIds: ['social-stratification', 'faction-dynamics', 'legal', 'conflict-cycle'],
+    backgroundSubsystemIds: ['social-stratification', 'faction-dynamics', 'legal', 'conflict-cycle'],
+  },
+  technology: {
+    enabledSubsystemIds: ['culture', 'art', 'education', 'works', 'culture-tech'],
+    backgroundSubsystemIds: ['culture', 'art', 'education', 'works', 'culture-tech'],
+  },
+  supernatural: {
+    enabledSubsystemIds: ['fate-prophecy', 'divine-creation', 'combat-power', 'cultivation', 'monster', 'fortune-encounter', 'faith', 'divine-intervention', 'anomaly-phenomena'],
+    backgroundSubsystemIds: ['fate-prophecy', 'divine-creation', 'combat-power', 'cultivation', 'monster', 'fortune-encounter', 'faith', 'divine-intervention', 'anomaly-phenomena'],
+  },
 }
 
 const KNOWN_LIFE_ESSENCE_TAGS = new Set([
@@ -128,6 +145,24 @@ const VALID_CONTEXT_CAPABILITIES = new Set<ContextCapability>([
   'technology',
   'supernatural',
 ])
+
+export function alignCapabilityProfileRuntimeMembership(
+  profile: ContextCapabilityProfile,
+): ContextCapabilityProfile {
+  const capabilities = normalizeConfirmedCapabilities(profile.capabilities)
+  const policies = capabilities.map((capability) => CONTEXT_CAPABILITY_SUBSYSTEM_POLICY[capability])
+  return {
+    ...profile,
+    capabilities,
+    enabledSubsystemIds: mergeUniqueIds(
+      REQUIRED_CONTEXT_SUBSYSTEM_IDS,
+      ...policies.map((policy) => policy.enabledSubsystemIds),
+    ),
+    backgroundSubsystemIds: mergeUniqueIds(
+      ...policies.map((policy) => policy.backgroundSubsystemIds),
+    ),
+  }
+}
 
 function safeSegment(value: string): string {
   const normalized = value.trim().replace(/[^a-zA-Z0-9_-]+/g, '-').replace(/^-+|-+$/g, '')
@@ -237,22 +272,13 @@ export function deriveCapabilityProfile(
     if (supernatural) capabilities.add('supernatural')
   }
 
-  const capabilityPolicies = [...capabilities].map(
-    (capability) => CONTEXT_CAPABILITY_SUBSYSTEM_POLICY[capability],
-  )
-
-  return {
+  return alignCapabilityProfileRuntimeMembership({
     contextId,
     capabilities: [...capabilities],
-    enabledSubsystemIds: mergeUniqueIds(
-      REQUIRED_CONTEXT_SUBSYSTEM_IDS,
-      ...capabilityPolicies.map((policy) => policy.enabledSubsystemIds),
-    ),
-    backgroundSubsystemIds: mergeUniqueIds(
-      ...capabilityPolicies.map((policy) => policy.backgroundSubsystemIds),
-    ),
+    enabledSubsystemIds: [],
+    backgroundSubsystemIds: [],
     derivedFrom: confirmedCapabilities ? 'confirmed-facts' : derivedFrom,
-  }
+  })
 }
 
 export function assertValidWorldContextHierarchy(

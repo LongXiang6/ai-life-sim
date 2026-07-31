@@ -4,12 +4,16 @@ const fs = require('node:fs')
 const baseUrl = process.env.UI_BASE_URL || 'http://localhost:3000'
 const chromePath = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
 const worldCode = 202607230001
+const usePreGenFixture = process.argv.includes('--pre-gen')
 const firstParagraphs = [
   '城门外的风压过旷野，你握住那枚家族留下的印记，知道今天必须决定它将被交给谁。',
   '印记的纹路在掌心发热，旧盟约与新道路同时向你敞开，任何一个选择都会改变往后的生活。',
 ]
 const secondParagraphs = [
   '你把印记交给了守约者。新的同盟从这一刻开始，往后的每一步都将留下清晰的回声。',
+]
+const thirdParagraphs = [
+  '新盟约稳定下来后，两条通往不同人生的道路同时摆在你面前，你需要亲自决定下一步。',
 ]
 const branchMeta = {
   重要程度: '高',
@@ -65,6 +69,10 @@ function readIntentId(body) {
 const narrativeResponses = [
   narrativeResponse(firstParagraphs),
   narrativeResponse(secondParagraphs),
+  narrativeResponse(thirdParagraphs, {
+    标题: '选择新的道路',
+    选项: ['留在此地巩固同盟', '前往远方追寻线索'],
+  }),
 ]
 const settlementFixtures = [
   ['家族印记带来一项不可逆的长期抉择。', branchMeta],
@@ -84,6 +92,22 @@ const settlementFixtures = [
       情节类型: '人生阶段',
     },
   }],
+  ['新同盟稳定后，你来到需要亲自选择的道路分岔口。', {
+    重要程度: '高',
+    关键事件: [{ 内容: '两条长期道路同时出现并等待你的选择', 重要度: 90, 涉及实体: ['守约者'] }],
+    情节状态: '开始',
+    语义信号: {
+      事件类型: '冲突',
+      冲突强度: 64,
+      张力变化: 10,
+      行动规模: '大',
+      不可逆: true,
+      影响范围: '个人',
+      叙事语域: '命运',
+      语域理由: '道路选择会改变长期目标和居所',
+      情节类型: '任务',
+    },
+  }],
 ]
 
 const useUnavailableApiFixture = process.env.UNAVAILABLE_API_FIXTURE === '1'
@@ -91,14 +115,14 @@ const useLongCustomNameFixture = process.env.LONG_CUSTOM_NAME_FIXTURE === '1'
 const customChoiceFixture = '把印记交给守约者前，先请守约者说明旧盟约的代价'
 
 function seedPage(page) {
-  return page.evaluateOnNewDocument((fixtureWorldCode) => {
+  return page.evaluateOnNewDocument((fixtureWorldCode, preGenerateRounds) => {
     localStorage.clear()
     localStorage.setItem('mod-world:persist:world-state', JSON.stringify({
       version: 5,
       state: {
         worldConfig: {
           name: '现代地球', eraName: '公元', eraStartYear: 2000, essenceTag: 'modern',
-          powerSystemTag: 'none', powerCeiling: 8, spatialForm: 'plane', civilizationStage: 'modern',
+          powerSystemTag: 'none', powerFramework: { id: 'fixture:power', label: '无超常力量体系', enabled: false, progression: 'bounded', ranks: [], source: 'world-default' }, spatialForm: 'plane', civilizationStage: 'modern',
           difficulty: 'normal', description: '分支按钮真实链路夹具。', worldType: 'materialist',
         },
         entities: [], initialized: true, worldCode: fixtureWorldCode, currentYear: 2000,
@@ -111,14 +135,14 @@ function seedPage(page) {
     localStorage.setItem('mod-settings:store', JSON.stringify({ version: 11, state: {
       provider: 'managed', customKey: '', customUrl: '', customModel: 'LongCat-2.0', temperature: 0.8,
       topP: 0.8, maxTokens: 4096, reasoningEffort: 'disabled', talentThinkingIntensity: 'disabled',
-      aiTalentGeneration: false, preGenerateRounds: 0, storySeed: '20260723', narrativeStyle: 'default',
+      aiTalentGeneration: false, preGenerateRounds, storySeed: '20260723', narrativeStyle: 'default',
       wordCountTarget: 200, streamingMode: 'off', comfortableParagraphs: true, reduceMotion: true, theme: 'minimal-white',
     }}))
     localStorage.setItem('mod-character:persist:mythic-library', JSON.stringify({ version: 2, state: { patterns: [
       { id: 'fixture-mythic-1', name: '未熄之诺', concept: '承诺', effect: '重要承诺会留下可追溯的行动方向。', acquiredAt: 1, source: { worldName: '夹具世界', characterName: '旧角色' } },
       { id: 'fixture-mythic-2', name: '回声拾光', concept: '记忆', effect: '重要关系会保留可回到现场的线索。', acquiredAt: 2, source: { worldName: '夹具世界', characterName: '旧角色' } },
     ] } }))
-  }, worldCode)
+  }, worldCode, usePreGenFixture ? 1 : 0)
 }
 
 async function assertCreationUiContract(page, expected) {
@@ -381,6 +405,77 @@ async function main() {
       return false
     }
   }, { timeout: 60000 })
+  let preGenEvidence = null
+  if (usePreGenFixture) {
+    const requestDeadline = Date.now() + 60000
+    while (
+      Date.now() < requestDeadline
+      && requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative:')).length < 3
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+    try {
+      await page.click('button[aria-label="展开当前信息"]')
+      await page.waitForFunction(() => [...document.querySelectorAll('summary small')].some(
+        (node) => node.textContent?.includes('下一段已准备'),
+      ), { timeout: 60000 })
+      await page.click('button[aria-label="收起当前信息"]')
+    } catch (error) {
+      console.error('PREGEN_READY_TIMEOUT', await page.evaluate(() => ({
+        bodyTail: document.body.innerText.slice(-2500),
+        settings: JSON.parse(localStorage.getItem('mod-settings:store') || '{}').state || {},
+        engine: JSON.parse(localStorage.getItem('mod-engine:persist:engine-state') || '{}').state || {},
+      })), {
+        requestCount: requests.length,
+        narrativeRequestCount: requests.filter(
+          (request) => String(request.prompt_asset || '').includes('mod-engine:narrative:'),
+        ).length,
+        settlementRequestCount: requests.filter(
+          (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-settlement:'),
+        ).length,
+      })
+      throw error
+    }
+    const narrativeBeforeConsume = requests.filter(
+      (request) => String(request.prompt_asset || '').includes('mod-engine:narrative:'),
+    )
+    const settlementBeforeConsume = requests.filter(
+      (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-settlement:'),
+    )
+    const previewPrompt = (narrativeBeforeConsume.at(-1)?.messages ?? [])
+      .map((message) => String(message.content ?? ''))
+      .join('\n')
+    const guidanceRoll = previewPrompt.match(/本地投掷 ([0-9.]+)\/100/u)?.[1] ?? null
+
+    await page.waitForFunction(() => [...document.querySelectorAll('button')].some(
+      (button) => button.textContent?.includes('轻触，让岁月流转') && !button.disabled,
+    ))
+    await page.evaluate(() => [...document.querySelectorAll('button')].find(
+      (button) => button.textContent?.includes('轻触，让岁月流转') && !button.disabled,
+    )?.click())
+    await page.waitForFunction((paragraph) => document.body.textContent?.includes(paragraph), { timeout: 60000 }, thirdParagraphs[0])
+    await page.waitForFunction(() => {
+      try {
+        const state = JSON.parse(localStorage.getItem('mod-engine:persist:engine-state') || '{}').state || {}
+        return (state.narrativeHistory?.length || 0) >= 3
+      } catch {
+        return false
+      }
+    }, { timeout: 60000 })
+
+    preGenEvidence = {
+      readyBeforeConsume: true,
+      guidanceRoll,
+      narrativeRequestsBeforeConsume: narrativeBeforeConsume.length,
+      settlementRequestsBeforeConsume: settlementBeforeConsume.length,
+      narrativeRequestsAfterConsume: requests.filter(
+        (request) => String(request.prompt_asset || '').includes('mod-engine:narrative:'),
+      ).length,
+      settlementRequestsAfterConsume: requests.filter(
+        (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-settlement:'),
+      ).length,
+    }
+  }
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('mod-engine:persist:engine-state') || '{}').state || {})
   await page.click('button[aria-label="展开当前信息"]')
   await page.waitForFunction(() => (
@@ -441,6 +536,7 @@ async function main() {
     repetitionSummaryRounds: stored.storyRepetitionStats?.rounds,
     repetitionSummaryMeasuredRounds: stored.storyRepetitionStats?.measuredRounds,
     repetitionRoundsVisible: repetitionRoundsText.includes('第1轮') && repetitionRoundsText.includes('第2轮'),
+    preGenEvidence,
     informationPanel,
     consoleErrors,
   }
@@ -448,20 +544,32 @@ async function main() {
   await browser.close()
   const expectedChoice = customChoiceFixture
   const choicePass = selectedAfterClick === customChoiceFixture
-  const repetitionPass = JSON.stringify(result.repetitionMetricRounds) === '[1,2]'
-    && result.repetitionSummaryRounds === 2
-    && result.repetitionSummaryMeasuredRounds === 1
+  const expectedMetricRounds = usePreGenFixture ? '[1,2,3]' : '[1,2]'
+  const expectedRoundCount = usePreGenFixture ? 3 : 2
+  const repetitionPass = JSON.stringify(result.repetitionMetricRounds) === expectedMetricRounds
+    && result.repetitionSummaryRounds === expectedRoundCount
+    && result.repetitionSummaryMeasuredRounds === expectedRoundCount - 1
     && result.repetitionRoundsVisible
+  const preGenPass = !usePreGenFixture || (
+    result.preGenEvidence?.readyBeforeConsume === true
+    && result.preGenEvidence?.guidanceRoll !== null
+    && result.preGenEvidence?.narrativeRequestsBeforeConsume === 3
+    && result.preGenEvidence?.settlementRequestsBeforeConsume === 2
+    && result.preGenEvidence?.narrativeRequestsAfterConsume === 3
+    && result.preGenEvidence?.settlementRequestsAfterConsume === 3
+  )
   if (
     !choicePass
     || result.radioCount !== 0
     || result.firstNarrativeRequestedBranch !== true
     || result.resolvedChoice !== expectedChoice
-    || result.requestCount !== 4
-    || result.narrativeRequestCount !== 2
-    || result.settlementRequestCount !== 2
+    || result.requestCount !== (usePreGenFixture ? 6 : 4)
+    || result.narrativeRequestCount !== expectedRoundCount
+    || result.settlementRequestCount !== expectedRoundCount
+    || result.narrativeEntries !== expectedRoundCount
     || result.consoleErrors.length > 0
     || !repetitionPass
+    || !preGenPass
     || !result.informationPanel.viewportContained
     || !result.informationPanel.actionsVisibleAtOpen
     || !result.informationPanel.actionsBeforeLedger

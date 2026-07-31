@@ -48,14 +48,31 @@ export class MvpStageLoader {
   constructor() {
     const result = MvpStagesConfigSchema.safeParse(defaultConfigJson)
     if (!result.success) {
-      console.error(
-        '[MvpStageConfig] 默认阶段配置校验失败:',
-        result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`),
-      )
-      // 降级：强制类型转换（不阻塞启动）
-      this.config = defaultConfigJson as MvpStagesConfig
-    } else {
-      this.config = result.data
+      const details = result.error.issues.map((issue) => (
+        `${issue.path.join('.')}: ${issue.message}`
+      )).join('; ')
+      throw new Error(`[MvpStageConfig] 默认阶段配置校验失败: ${details}`)
+    }
+    this.config = result.data
+    this.assertUniqueRuntimeIds()
+  }
+
+  private assertUniqueRuntimeIds(): void {
+    for (const [stageName, stage] of Object.entries(this.config.stages)) {
+      const stageSeen = new Set<string>()
+      for (const [group, ids] of Object.entries(stage.runtime)) {
+        const seen = new Set<string>()
+        for (const id of ids) {
+          if (seen.has(id)) {
+            throw new Error(`[MvpStageConfig] ${stageName}.runtime.${group} 子系统重复: ${id}`)
+          }
+          seen.add(id)
+          if (stageSeen.has(id)) {
+            throw new Error(`[MvpStageConfig] ${stageName}.runtime 子系统跨组重复: ${id}`)
+          }
+          stageSeen.add(id)
+        }
+      }
     }
   }
 
@@ -76,12 +93,20 @@ export class MvpStageLoader {
 
   /** 外部 MOD 运行时子系统集合 */
   getExternalRuntimeSubsystems(): Set<string> {
-    return new Set(this.getCurrentStageConfig().runtime.external)
+    return new Set(this.getExternalRuntimeSubsystemOrder())
+  }
+
+  getExternalRuntimeSubsystemOrder(): readonly string[] {
+    return [...this.getCurrentStageConfig().runtime.external]
   }
 
   /** 引擎内部运行时子系统集合 */
   getEngineRuntimeSubsystems(): Set<string> {
-    return new Set(this.getCurrentStageConfig().runtime.engine)
+    return new Set(this.getEngineRuntimeSubsystemOrder())
+  }
+
+  getEngineRuntimeSubsystemOrder(): readonly string[] {
+    return [...this.getCurrentStageConfig().runtime.engine]
   }
 
   /** 允许进入 Prompt 的子系统集合（external + engine 合并） */

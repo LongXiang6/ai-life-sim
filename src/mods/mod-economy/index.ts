@@ -29,6 +29,11 @@ export type {
   RacePoolEntry,
   MigrationFlow,
   EconomyStoreSummary,
+  EconomyPersistenceState,
+  SettlementPersistenceState,
+  WorkPersistenceState,
+  ItemPersistenceState,
+  PopulationPersistenceState,
 } from './types'
 
 // Store

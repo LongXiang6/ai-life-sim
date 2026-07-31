@@ -27,10 +27,12 @@ import { getNarrativeAISubsystemContracts } from '../helpers/subsystem-field-reg
 
 const TARGET_RULES: Readonly<Record<string, string>> = {
   'character-base': 'player:current',
-  lifespan: 'player:current',
-  luck: 'player:current',
+  lifespan: '使用输入中的当前人物稳定实体 ID',
+  health: '调整生命状态或新增伤病时使用人物稳定实体 ID；解决伤病时使用输入状态中的伤病 ID',
   morality: 'player:current',
-  'npc-system': '使用输入状态中已有的稳定 NPC 实体 ID；创建身份时使用已登记的 NPC 实体 ID',
+  'growth-system': '学习技能或获得能力时使用人物稳定实体 ID；练习技能或调整能力时使用输入状态中的技能或能力 ID',
+  reputation: '使用被评价人物的稳定实体 ID；当前玩家使用输入中的角色实体 ID',
+  'npc-system': '使用输入状态中已有的稳定 NPC 实体 ID；创建身份时可提交本轮新建的稳定 NPC 实体 ID，并在变更中提供显示名，由 NPC 系统登记',
   'relationship-system': '建立关系时使用起点实体 ID；调整、解除或变更作用域时使用输入状态中的关系 ID',
 }
 

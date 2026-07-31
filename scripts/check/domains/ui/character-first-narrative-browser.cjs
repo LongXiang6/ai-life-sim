@@ -117,7 +117,7 @@ async function main() {
           eraStartYear: 2000,
           essenceTag: 'modern',
           powerSystemTag: 'none',
-          powerCeiling: 8,
+          powerFramework: { id: 'fixture:power', label: '无超常力量体系', enabled: false, progression: 'bounded', ranks: [], source: 'world-default' },
           spatialForm: 'plane',
           civilizationStage: 'modern',
           difficulty: 'normal',

@@ -128,8 +128,6 @@ export interface ISubSystem {
   powerContribution?: (data: Record<string, unknown>) => number
   /** 世界方向映射：key=方向域, field=影响的字段名, formula=修正公式 */
   worldDirectionMapping?: Record<string, { field: string; formula: string }>
-  /** 跨域联动动作：key=动作名, value=默认参数（引擎匹配触发后从目标子系统获取参数） */
-  crossDomainActions?: Record<string, Record<string, unknown>>
 
   // ============================================================
   // 生命周期方法

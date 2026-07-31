@@ -36,7 +36,6 @@ const targetKeys = [
   `ai-life-sim:mod-character:cache:destiny-pool:retired-version:${targetWorldCode}`,
   `ai-life-sim:mod-world:save:0:init-cal:${targetWorldCode}`,
   `ai-life-sim:mod-world:save:0:entities:${targetWorldCode}`,
-  `ai-life-sim:mod-base-universe:save:0:world-map:${targetWorldCode}`,
   `ai-life-sim:mod-pages:config:talent-draw:${targetWorldCode}`,
   `ai-life-sim:mod-pages:config:fate-preview:${targetWorldCode}`,
   `ai-life-sim:mod-pages:config:attribute-alloc:${targetWorldCode}`,

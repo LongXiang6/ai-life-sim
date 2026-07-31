@@ -13,7 +13,14 @@ export const dimensionInferenceOutputSchema = z.object({
   worldviewEssence: z.string(),
   civilizationStage: z.string(),
   spatialForm: z.string(),
-  powerCeiling: z.coerce.number().int().min(1).max(24),
+  powerFramework: z.object({
+    label: z.string().min(1).max(80),
+    progression: z.enum(['bounded', 'open']),
+    ranks: z.array(z.object({
+      label: z.string().min(1).max(40),
+      description: z.string().min(1).max(240),
+    })).min(1).max(16),
+  }).nullable(),
   worldType: z.enum(['materialist', 'idealist', 'mixed']),
 })
 

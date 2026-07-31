@@ -7,13 +7,14 @@ import type { WorldConfig, WorldCalibrationFormulas } from '@/mods/mod-world/typ
 
 import { worldCalibrationOutputSchema } from '@/mods/mod-world/prompts/world-calibration-prompt'
 import { clampCalibration } from '@/mods/mod-world/utils/calibration-clamp'
+import { createDefaultPowerFramework } from '@/mods/mod-world/utils/power-framework'
 
 export function baseConfig(overrides: Partial<WorldConfig> = {}): WorldConfig {
   return {
     name: '测试世界',
     essenceTag: 'historical',
     powerSystemTag: 'none',
-    powerCeiling: 5,
+    powerFramework: createDefaultPowerFramework('none', { contextId: 'test' }),
     spatialForm: 'universe',
     civilizationStage: 'medieval',
     difficulty: 'normal',

@@ -8,6 +8,7 @@ import { defineMod } from '@/core'
 
 export default defineMod({
   name: 'mod-ui',
+  order: 110,
   version: '1.0.0',
   description: '通用 UI 组件库（Button / Modal / Card 等），支持桌面端和移动端适配',
   dependencies: [],

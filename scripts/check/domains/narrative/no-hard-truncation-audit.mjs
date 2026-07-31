@@ -13,8 +13,7 @@ register('../../lib/typescript-loader.mjs', import.meta.url)
 const { mapRawNarrativeChanges } = await import('../../../../src/mods/mod-engine/helpers/narrative-change-bundle.ts')
 const { validateRoundChanges } = await import('../../../../src/mods/mod-engine/helpers/subsystem-field-registry.ts')
 const { requireCompletedSummaryContent } = await import('../../../../src/mods/mod-engine/helpers/summary-coverage.ts')
-const { buildPowerCeilingPresetsForNarrative } = await import('../../../../src/mods/mod-world/utils/world-init-prompt-vars.ts')
-const { RATING_DESCRIPTIONS, TRUE_INFINITE_DESCRIPTION, UNIT_NAMES } = await import('../../../../src/mods/mod-power-system/constants.ts')
+const { formatPowerFrameworkForPrompt } = await import('../../../../src/mods/mod-world/utils/power-framework.ts')
 
 const root = getProjectRoot(import.meta.url)
 let failed = 0
@@ -50,8 +49,8 @@ const timeBridge = read('src/mods/mod-engine/helpers/time-bridge-summary.ts')
 const historicalPromptProjection = read('src/mods/mod-engine/helpers/historical-event-prompt-projection.ts')
 const calibration = read('src/mods/mod-world/utils/calibration-clamp.ts')
 const powerContext = read('src/mods/mod-world/utils/world-init-prompt-vars.ts')
-const crossDomain = read('src/mods/mod-engine/helpers/cross-domain-rules.ts')
-const postDeath = read('src/mods/mod-character/subsystems/post-death-epilogue-system.ts')
+const campaign = read('src/mods/mod-engine/campaigns/default/index.ts')
+const health = read('src/mods/mod-character/subsystems/health-system.ts')
 const memoryEngine = read('src/mods/mod-engine/subsystems/memory-engine-system.ts')
 const forgetting = read('src/mods/mod-engine/subsystems/memory-forgetting-system.ts')
 const eventLifecycle = read('src/mods/mod-engine/helpers/event-lifecycle-tracker.ts')
@@ -60,7 +59,9 @@ const narrativePrompt = read('src/mods/mod-engine/prompts/narrative-prompt.ts')
 const narrativeSignals = read('src/mods/mod-engine/helpers/narrative-semantic-signals.ts')
 const subsystemRelevance = read('src/mods/mod-engine/subsystems/subsystem-relevance-system.ts')
 const geography = read('src/mods/mod-environment-ecology/subsystems/geography-system.ts')
-const nationRelation = read('src/mods/mod-politics/subsystems/nation-relation-system.ts')
+const growth = read('src/mods/mod-progression/subsystems/growth-system.ts')
+const reputation = read('src/mods/mod-progression/subsystems/reputation-system.ts')
+const factionDynamics = read('src/mods/mod-politics/subsystems/faction-dynamics-system.ts')
 const npcStore = read('src/mods/mod-npc/store.ts')
 const npcSystem = read('src/mods/mod-npc/subsystems/npc-system.ts')
 const relationshipSystem = read('src/mods/mod-social/subsystems/relationship-system.ts')
@@ -68,7 +69,7 @@ const npcContract = read('src/foundation/subsystem-contracts/npc-social.contract
 const celestial = read('src/mods/mod-base-universe/subsystems/celestial-system.ts')
 const celestialConstants = read('src/mods/mod-base-universe/constants.ts')
 const era = read('src/mods/mod-base-universe/subsystems/era-system.ts')
-const worldMap = read('src/mods/mod-base-universe/subsystems/world-map-system.ts')
+const mapProjection = read('src/mods/mod-world-map/map-projection.ts')
 const culture = read('src/mods/mod-culture/subsystems/culture-system.ts')
 const art = read('src/mods/mod-culture/subsystems/art-system.ts')
 const causalConstants = read('src/mods/mod-history-dynamics/constants.ts')
@@ -181,9 +182,12 @@ assertOk(
 )
 const rollbackOwners = {
   'character-base': read('src/mods/mod-character/subsystems/character-base-system.ts'),
+  health,
   lifespan: read('src/mods/mod-character/subsystems/lifespan-system.ts'),
   luck: read('src/mods/mod-character/subsystems/luck-system.ts'),
   morality: read('src/mods/mod-character/subsystems/morality-system.ts'),
+  'growth-system': growth,
+  reputation,
   'npc-system': npcSystem,
   'relationship-system': relationshipSystem,
 }
@@ -203,27 +207,32 @@ assertOk(
 )
 reject(calibration, /SUMMARY_MAX_LEN|joined\.slice\(/, 'calibration summary must not be cut by character count')
 reject(powerContext, /split\(['"]。['"]\)\[0\]/, 'power context must not derive compact tiers by cutting source descriptions at runtime')
-const powerNarrativeProjection = buildPowerCeilingPresetsForNarrative(8)
-const firstTierPowerNarrativeProjection = buildPowerCeilingPresetsForNarrative(1)
-const powerTierLines = powerNarrativeProjection.split('\n').filter((line) => /^\d+阶/u.test(line))
+const powerNarrativeProjection = formatPowerFrameworkForPrompt({
+  id: 'audit:power',
+  label: '审计力量体系',
+  enabled: true,
+  progression: 'bounded',
+  source: 'world-default',
+  ranks: [
+    { id: 'audit:power:rank:1', index: 1, label: '初阶', description: '可重复运用基础力量' },
+    { id: 'audit:power:rank:2', index: 2, label: '中阶', description: '能够稳定影响局部环境' },
+  ],
+})
+const powerTierLines = powerNarrativeProjection?.split('\n').filter((line) => /^\d+\./u.test(line)) ?? []
 assertOk(
-  powerNarrativeProjection.startsWith('当前世界可达上限：8阶【穰级】\n完整阶位标尺：')
-    && firstTierPowerNarrativeProjection.startsWith('当前世界可达上限：1阶【尘级】\n完整阶位标尺：')
-    && powerTierLines.length === 24
-    && powerTierLines.every((line, index) => line.startsWith(`${index + 1}阶【${UNIT_NAMES[index + 1]}级】：`))
-    && Object.keys(RATING_DESCRIPTIONS).length === 23
-    && Object.values(RATING_DESCRIPTIONS).every((description) => description.length <= 32)
-    && TRUE_INFINITE_DESCRIPTION.length <= 32,
-  'narrative power context must transmit the current ceiling and all 24 named boundaries in the curated compact contract',
+  powerNarrativeProjection?.startsWith('审计力量体系（有限体系；最高阶位就是当前世界可达边界）')
+    && powerTierLines.length === 2
+    && powerTierLines.every((line, index) => line.startsWith(`${index + 1}. `)),
+  'narrative power context must transmit the current world framework without a fixed cross-world tier table',
 )
 assertOk(
-  orchestrator.includes("powerSystemTag === 'none' || !Number.isFinite(powerCeiling) || powerCeiling < 1")
-    && !orchestrator.includes('powerCeiling <= 1'),
-  'every valid power-enabled world, including a first-tier ceiling, must inject the complete power scale',
+  orchestrator.includes('config.powerFramework')
+    && !orchestrator.includes(['power', 'CeilingPresets'].join('')),
+  'every valid world must inject its materialized power framework and never read a fixed ceiling',
 )
-reject(crossDomain, /eventHistory\s*=\s*this\.eventHistory\.slice\(-500\)/, 'cross-domain event history must not discard old events by capacity')
-reject(postDeath, /narrativeHistory\.slice\(|deathNarratives\.slice\(/, 'death and epilogue narrative must not use fixed-count life-history cuts')
-reject(postDeath, /总字数\s*\d+\s*[-—]\s*\d+\s*字/, 'death and epilogue Prompts must not impose fixed character ranges')
+assertOk(!campaign.includes('cross-domain'), 'default campaign must not retain the removed cross-domain stage')
+reject(health, /narrativeHistory\.slice\(|deathNarratives\.slice\(/, 'death and epilogue narrative must not use fixed-count life-history cuts')
+reject(health, /总字数\s*\d+\s*[-—]\s*\d+\s*字/, 'death and epilogue Prompts must not impose fixed character ranges')
 reject(memoryEngine, /majorEvents\.slice\(-3\)|relationships\.shift\(|majorEvents\.shift\(/, 'memory archive must retain complete relationships and major events')
 reject(forgetting, /causalEvents\.shift\(/, 'causal protection marks must not be evicted by capacity')
 reject(eventLifecycle, /activeDisasters\.slice\(/, 'event lifecycle must not ignore disasters after a fixed count')
@@ -238,7 +247,7 @@ assertOk(
 reject(narrativeSignals, /maxLength|maxItems|z\.string\(\)(?:\.min\([^)]*\))?\.max\(|relationshipUpdates:[\s\S]{0,180}\.strict\(\)\)\.max\(|resolvedForeshadowingIds:[^\n]*\.max\(|notableEvents:[^\n]*\.max\(|creations:[^\n]*\.max\(|foreshadowing:[^\n]*\.max\(|keyEvents:[^\n]*\.max\(/, 'narrative Schema must not reject complete semantic text or arrays by fixed size')
 reject(subsystemRelevance, /stateHistory\[subsystemId\]\.shift\(|this\.changeRecords\s*=\s*this\.changeRecords\.filter/, 'subsystem relevance must retain complete state and change history behind its recent read window')
 reject(geography, /tectonicEvents\.slice\(|recentlyChanged[\s\S]{0,100}\.slice\(/, 'geography must retain all tectonic and changed-region facts')
-reject(nationRelation, /recentEvents\.shift\(|recentEvents\s*=\s*rel\.recentEvents\.slice\(|allEvents\.slice\(/, 'nation relations must retain and expose complete diplomatic event history')
+reject(factionDynamics, /events\.shift\(|events\s*=\s*.*\.slice\(/, 'political entity history must retain complete relation evidence')
 reject(npcStore, /\bmaxNPCs:\s*number|initialState[\s\S]{0,120}maxNPCs|Object\.keys\(npcs\)\.length[^\n]*maxNPCs|recentBehaviors[^\n]*\.slice\(|recentGlobalEvents[^\n]*\.slice\(|personality\.traits\.slice\(|recentEvents:\s*recentGlobalEvents\.slice\(/, 'NPC store must not reject people or cap behavior, event, or trait semantics')
 reject(npcSystem, /memories:[^\n]*\.slice\(|memoryCompressions:[^\n]*\.slice\(|sourceMemoryIds[^\n]*\.slice\(|MEMORY_RETENTION\.trivial\s*\*\s*2[\s\S]{0,120}continue/, 'NPC memory must use complete storage and traceable semantic compression without fixed cuts or silent age deletion')
 assertOk(npcSystem.includes('memoryCompressions') && npcSystem.includes('sourceMemoryIds'), 'NPC memory state must preserve traceable source IDs and complete compression evidence')
@@ -246,7 +255,7 @@ reject(npcContract, /MEMORY_SUMMARY_LIMITS|最多保留\s*20/, 'NPC contracts mu
 reject(celestial, /CELESTIAL_HISTORY_MAX|history\s*=\s*history\.slice\(/, 'celestial history must not be capacity-truncated')
 reject(celestialConstants, /CELESTIAL_HISTORY_MAX/, 'base-universe constants must not define a celestial history cap')
 reject(era, /history\.length\s*>\s*20|history\s*=\s*this\._state\.history\.slice\(/, 'era history must retain every era transition')
-reject(worldMap, /resources[\s\S]{0,160}\.slice\(0,\s*4\)|neighborNames[\s\S]{0,120}\.slice\(0,\s*4\)|sorted\.slice\(0,\s*5\)|notable\.slice\(0,\s*3\)/, 'world-map Prompt summaries must cover every resource, neighbor, faction, and notable relation')
+reject(mapProjection, /\.slice\(|\.splice\(/, 'map projection must not discard spatial nodes, edges, or resource overlays')
 reject(culture, /\.slice\(0,\s*3\)/, 'culture Prompt context must not reduce values to a fixed top three')
 reject(art, /getTopWorks|\.slice\(0,\s*limit\)|getTopWorks\(3\)|currentStyles\.length\s*<\s*\d+|currentStyles\.splice\(/, 'art state and Prompt context must preserve all styles and notable works')
 reject(causalConstants, /MAX_CAUSAL_QUEUE_SIZE/, 'causal history must not define a fixed pending-queue capacity')

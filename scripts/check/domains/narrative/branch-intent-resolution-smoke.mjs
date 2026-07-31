@@ -279,8 +279,8 @@ assertOk(
     && campaignSource.includes('buildSettlementBranchIntentInstruction(')
     && campaignSource.includes('expectedIntentId: focusedIntent?.intentId')
     && campaignSource.includes('buildNarrativeSettlementPromptInput({')
-    && campaignSource.includes("name: 'ai-settlement'"),
-  'the active intent must be evaluated in the normal second settlement call',
+    && campaignSource.includes("name: 'ai-data-analysis'"),
+  'the active intent must be evaluated in the background data-analysis call',
 )
 assertOk(
   orchestratorSource.includes('buildNarrativeBranchIntentProjection(')

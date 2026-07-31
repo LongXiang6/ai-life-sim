@@ -21,7 +21,7 @@ import {
   computeNarrativeMaxTokens,
   resolveNarrativeWordCountRange,
 } from '../../../../src/mods/mod-engine/constants/narrative-config.ts'
-import { buildLifeStageNarrativeHint } from '../../../../src/mods/mod-engine/helpers/life-stage-narrative.ts'
+import { buildLifecycleNarrativeHint } from '../../../../src/mods/mod-engine/helpers/lifecycle-narrative.ts'
 import { buildNarrativeCoherenceHeader } from '../../../../src/mods/mod-engine/helpers/subsystem-prompt-gate.ts'
 import {
   NARRATIVE_WORD_COUNT_TARGETS,
@@ -421,7 +421,7 @@ for (const legacyPowerSystemTag of ['none', 'technology']) {
       description: legacyScpDescription,
       essenceTag: 'modern',
       powerSystemTag: legacyPowerSystemTag,
-      powerCeiling: 8,
+      powerFramework: { id: 'fixture:power', label: '无超常力量体系', enabled: false, progression: 'bounded', ranks: [], source: 'world-default' },
       spatialForm: 'plane',
       civilizationStage: 'modern',
       difficulty: 'hard',
@@ -430,7 +430,7 @@ for (const legacyPowerSystemTag of ['none', 'technology']) {
         universeScale: '位面',
         worldviewEssence: '唯物主义',
         powerSystem: '科技体系',
-        powerCeiling: '8阶',
+        powerFramework: '无超常力量体系',
       },
     },
     calibration: {
@@ -483,7 +483,7 @@ const legacyScpWithoutTags = sanitizeWorldStateSnapshot({
     description: legacyScpDescription,
     essenceTag: 'modern',
     powerSystemTag: 'technology',
-    powerCeiling: 8,
+    powerFramework: { id: 'fixture:power', label: '无超常力量体系', enabled: false, progression: 'bounded', ranks: [], source: 'world-default' },
     spatialForm: 'plane',
     civilizationStage: 'modern',
     difficulty: 'normal',
@@ -498,7 +498,7 @@ const ordinaryModernWorld = {
     description: '普通现代社会。',
     essenceTag: 'modern',
     powerSystemTag: 'none',
-    powerCeiling: 8,
+    powerFramework: { id: 'fixture:power', label: '无超常力量体系', enabled: false, progression: 'bounded', ranks: [], source: 'world-default' },
     spatialForm: 'plane',
     civilizationStage: 'modern',
     difficulty: 'normal',
@@ -574,7 +574,7 @@ const narrativeCalendarSrc = readRel('src/mods/mod-engine/helpers/narrative-cale
 const narrativePromptSrc = readRel('src/mods/mod-engine/prompts/narrative-prompt.ts')
 const narrativePromptComponentsSrc = readRel('src/mods/mod-engine/server/narrative-system-prompt.ts')
 const roundCommitBusSrc = readRel('src/mods/mod-engine/helpers/round-commit-bus.ts')
-const powerContextSrc = readRel('src/mods/mod-world/utils/world-init-prompt-vars.ts')
+const powerContextSrc = readRel('src/mods/mod-world/utils/power-framework.ts')
 const timelineCssSrc = readRel('src/mods/mod-ui/components/organisms/NarrativeTimeline.module.css')
 const timelineTsxSrc = readRel('src/mods/mod-ui/components/organisms/NarrativeTimeline.tsx')
 const cultureIndexSrc = readRel('src/mods/mod-culture/index.ts')
@@ -642,8 +642,15 @@ assertOk(
   'every length option must select distinct density guidance and define the whole-body target range',
 )
 assertOk(
-  buildLifeStageNarrativeHint('infant', 100, 0, 2).includes('当下感官、简单动作、短句理解和直接回应'),
-  'infant guidance must keep cognition and viewpoint at the concrete current age',
+  buildLifecycleNarrativeHint(
+    { ageDays: 730 },
+    {
+      displayName: '早期生命',
+      description: '身体与心智仍在形成。',
+      coefficients: { vitality: 0.6, learning: 1.4, social: 0.7 },
+    },
+  ).includes('场景、行为能力、认知和对话复杂度必须符合当前阶段事实'),
+  'lifecycle guidance must bind cognition and behavior to the owning stage definition',
 )
 assertOk(
   buildNarrativeCoherenceHeader({ powerSystemTag: 'none' }, 2)?.includes('【世界设定】【命格天赋】或【当前状态】'),
@@ -863,7 +870,11 @@ assertOk(
 )
 assertOk(/效果写成叙事引擎可持续遵守的规则/.test(destinyPromptSrc), 'destiny effect must remain a narrative rule instead of only numeric modifiers')
 assertOk(/validatePatternSystemModifiers\(input\.systemModifiers, rarity\)/.test(destinySystemSrc), 'external AI destiny injection must validate system modifiers')
-assertOk(/version:\s*4/.test(characterStoreSrc), 'character persistence must include the stable character ID and dual mythic-slot migration')
+assertOk(
+  /version:\s*5/.test(characterStoreSrc)
+    && ['health: _health', 'lifespan: _lifespan', 'lifecycle: _lifecycle'].every((field) => characterStoreSrc.includes(field)),
+  'character persistence must retain identity and mythic migration while excluding owning-system runtime projections',
+)
 assertOk(
   ['mythicCandidates', 'equippedMythicPatterns', 'setEquippedMythicPatterns', 'sealedMythicPatternId'].every((field) => characterStoreSrc.includes(field)),
   'character store must persist current-life mythic candidates, two equipped slots, and sealed identity',
@@ -1092,9 +1103,17 @@ assertOk(!/commit\.changes\.slice\(/.test(roundCommitBusSrc), 'round commit must
 assertOk(roundCommitBusSrc.includes('narrative 预检失败，整包拒绝'), 'invalid narrative changes must be rejected as one complete package')
 assertOk(timelineTsxSrc.includes('splitNarrativeParagraphs(entry.text)'), 'timeline must render every natural narrative paragraph')
 assertOk(!timelineTsxSrc.includes('streamingText'), 'timeline must render only fully committed narrative entries')
-assertOk(orchestratorSrc.includes('buildPowerCeilingPresetsForNarrative'), 'narrative prompt must use the power context helper')
+assertOk(
+  orchestratorSrc.includes('formatPowerFrameworkForPrompt')
+    && orchestratorSrc.includes('config.powerFramework'),
+  'narrative prompt must use the current world-owned power framework helper',
+)
 assertOk(!powerContextSrc.includes("split('。')[0]"), 'power context must preserve complete descriptions above the current ceiling')
-assertOk(/powerSystemTag[\s\S]{0,180}none/.test(orchestratorSrc), 'non-supernatural worlds must omit irrelevant power presets')
+assertOk(
+  powerContextSrc.includes("if (!framework?.enabled || framework.ranks.length === 0) return undefined")
+    && orchestratorSrc.includes('config.powerFramework'),
+  'non-supernatural worlds must omit an irrelevant power framework from the narrative context',
+)
 assertOk(cultureIndexSrc.includes('buildCultureCalendarNarrativeContext'), 'mod-culture must expose the calendar adapter')
 
 assertOk(!timelineCssSrc.includes('.entryLatest'), 'latest narrative must not have a special background rule')

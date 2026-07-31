@@ -4,7 +4,15 @@
  * @mod mod-engine
  */
 
-import type { SubSystemState } from '@/foundation'
+import type {
+  EntityLifecycleState,
+  HealthCondition,
+  DeathOutcome,
+  LifespanAdjustment,
+  LifespanRuleProfile,
+  LifecycleStageDefinition,
+  SubSystemState,
+} from '@/foundation'
 import { useCharacterStore } from '@/mods/mod-character'
 import { useEconomyStore } from '@/mods/mod-economy'
 import { usePoliticsStore } from '@/mods/mod-politics'
@@ -22,13 +30,62 @@ export function syncSubsystemStoresFromStates(states: Record<string, SubSystemSt
 
   const characterBase = dataOf<Record<string, unknown>>(states, 'character-base')
   const destinyPatterns = dataOf<Record<string, unknown>>(states, 'destiny-pattern')
-  const lifespan = dataOf<Record<string, unknown>>(states, 'lifespan')
+  const lifespan = dataOf<{
+    profile?: LifespanRuleProfile
+    adjustments?: LifespanAdjustment[]
+  }>(states, 'lifespan')
+  const lifecycle = dataOf<{
+    entity?: EntityLifecycleState
+    currentStage?: LifecycleStageDefinition
+  }>(states, 'lifecycle-system')
+  const health = dataOf<{
+    entityId?: string
+    vitality?: number
+    maxVitality?: number
+    stamina?: number
+    spirit?: number
+    alive?: boolean
+    conditions?: HealthCondition[]
+    death?: DeathOutcome
+  }>(states, 'health')
   const morality = dataOf<Record<string, unknown>>(states, 'morality')
-  if (characterBase || destinyPatterns || lifespan || morality) {
+  if (characterBase || destinyPatterns || lifespan?.profile || lifecycle?.entity || health || morality) {
     useCharacterStore.setState((prev) => ({
       characterBase: characterBase ? { ...prev.characterBase, ...characterBase } : prev.characterBase,
       destinyPatterns: destinyPatterns ? { ...prev.destinyPatterns, ...destinyPatterns } : prev.destinyPatterns,
-      lifespan: lifespan ? { ...prev.lifespan, ...lifespan } : prev.lifespan,
+      lifespan: lifespan?.profile
+        ? {
+            entityId: lifespan.profile.entityId,
+            raceId: lifespan.profile.raceId,
+            displayName: lifespan.profile.displayName,
+            clockMode: lifespan.profile.clockMode,
+            baseLifespanDays: lifespan.profile.baseLifespanDays,
+            maximumLifespanDays: lifespan.profile.maximumLifespanDays,
+            adjustments: structuredClone(lifespan.adjustments ?? []),
+          }
+        : prev.lifespan,
+      lifecycle: lifecycle?.entity
+        ? {
+            entityId: lifecycle.entity.entityId,
+            ageDays: lifecycle.entity.ageDays,
+            ...(lifecycle.currentStage
+              ? { currentStage: structuredClone(lifecycle.currentStage) }
+              : {}),
+          }
+        : prev.lifecycle,
+      health: health
+        ? {
+            ...prev.health,
+            ...(health.entityId ? { entityId: health.entityId } : {}),
+            ...(typeof health.vitality === 'number' ? { vitality: health.vitality } : {}),
+            ...(typeof health.maxVitality === 'number' ? { maxVitality: health.maxVitality } : {}),
+            ...(typeof health.stamina === 'number' ? { stamina: health.stamina } : {}),
+            ...(typeof health.spirit === 'number' ? { spirit: health.spirit } : {}),
+            ...(typeof health.alive === 'boolean' ? { alive: health.alive } : {}),
+            conditions: structuredClone(health.conditions ?? []),
+            ...(health.death ? { death: structuredClone(health.death) } : { death: undefined }),
+          }
+        : prev.health,
       morality: morality ? { ...prev.morality, ...morality } : prev.morality,
     }))
   }
@@ -59,46 +116,31 @@ export function syncSubsystemStoresFromStates(states: Record<string, SubSystemSt
   const cultivation = dataOf<Record<string, unknown>>(states, 'cultivation')
   const fortuneEncounter = dataOf<Record<string, unknown>>(states, 'fortune-encounter')
   const faith = dataOf<Record<string, unknown>>(states, 'faith')
-  const supremeItem = dataOf<Record<string, unknown>>(states, 'supreme-item')
   const divineIntervention = dataOf<Record<string, unknown>>(states, 'divine-intervention')
-  const anomaly = dataOf<{ zones?: unknown[]; globalInstability?: number }>(states, 'anomaly-phenomena')
-  const material = dataOf<{ materials?: unknown[]; activeCategory?: string }>(states, 'special-material')
-  const skill = dataOf<{ skills?: unknown[]; lastAcquiredSkillId?: string | null }>(states, 'skill')
-  if (combatPower || monster || luck || cultivation || fortuneEncounter || faith || supremeItem || divineIntervention || anomaly || material || skill) {
+  const anomaly = dataOf<Record<string, unknown>>(states, 'anomaly-phenomena')
+  if (combatPower || monster || luck || cultivation || fortuneEncounter || faith || divineIntervention || anomaly) {
     usePowerSystemStore.setState((prev) => ({
-      combatPower: combatPower ? { ...prev.combatPower, ...combatPower } : prev.combatPower,
-      monster: monster ? { ...prev.monster, ...monster } : prev.monster,
-      luck: luck ? { ...prev.luck, ...luck } : prev.luck,
-      cultivation: cultivation ? { ...prev.cultivation, ...cultivation } : prev.cultivation,
-      fortuneEncounter: fortuneEncounter ? { ...prev.fortuneEncounter, ...fortuneEncounter } : prev.fortuneEncounter,
-      faith: faith ? { ...prev.faith, ...faith } : prev.faith,
-      supremeItem: supremeItem ? { ...prev.supremeItem, ...supremeItem } : prev.supremeItem,
-      divineIntervention: divineIntervention ? { ...prev.divineIntervention, ...divineIntervention } : prev.divineIntervention,
-      anomalyZones: Array.isArray(anomaly?.zones) ? anomaly.zones as typeof prev.anomalyZones : prev.anomalyZones,
-      anomalyGlobalInstability: typeof anomaly?.globalInstability === 'number' ? anomaly.globalInstability : prev.anomalyGlobalInstability,
-      materials: Array.isArray(material?.materials) ? material.materials as typeof prev.materials : prev.materials,
-      materialActiveCategory: typeof material?.activeCategory === 'string' ? material.activeCategory as typeof prev.materialActiveCategory : prev.materialActiveCategory,
-      skills: Array.isArray(skill?.skills) ? skill.skills as typeof prev.skills : prev.skills,
-      lastAcquiredSkillId: typeof skill?.lastAcquiredSkillId === 'string' || skill?.lastAcquiredSkillId === null ? skill.lastAcquiredSkillId : prev.lastAcquiredSkillId,
+      combatPower: combatPower ? structuredClone(combatPower) as unknown as typeof prev.combatPower : prev.combatPower,
+      monster: monster ? structuredClone(monster) as unknown as typeof prev.monster : prev.monster,
+      luck: luck ? structuredClone(luck) as unknown as typeof prev.luck : prev.luck,
+      cultivation: cultivation ? structuredClone(cultivation) as unknown as typeof prev.cultivation : prev.cultivation,
+      fortuneEncounter: fortuneEncounter ? structuredClone(fortuneEncounter) as unknown as typeof prev.fortuneEncounter : prev.fortuneEncounter,
+      faith: faith ? structuredClone(faith) as unknown as typeof prev.faith : prev.faith,
+      divineIntervention: divineIntervention ? structuredClone(divineIntervention) as unknown as typeof prev.divineIntervention : prev.divineIntervention,
+      anomaly: anomaly ? structuredClone(anomaly) as unknown as typeof prev.anomaly : prev.anomaly,
     }))
   }
 
   const socialStratification = dataOf<Record<string, unknown>>(states, 'social-stratification')
   const faction = dataOf<Record<string, unknown>>(states, 'faction-dynamics')
-  const nationRelation = dataOf<Record<string, unknown>>(states, 'nation-relation')
   const legal = dataOf<Record<string, unknown>>(states, 'legal')
   const conflictCycle = dataOf<Record<string, unknown>>(states, 'conflict-cycle')
-  const languageNaming = dataOf<Record<string, unknown>>(states, 'language-naming')
-  const socialValues = dataOf<Record<string, unknown>>(states, 'social-values')
-  if (socialStratification || faction || nationRelation || legal || conflictCycle || languageNaming || socialValues) {
+  if (socialStratification || faction || legal || conflictCycle) {
     usePoliticsStore.setState((prev) => ({
       socialStratification: socialStratification ? { ...prev.socialStratification, ...socialStratification } : prev.socialStratification,
       faction: faction ? { ...prev.faction, ...faction } : prev.faction,
-      nationRelation: nationRelation ? { ...prev.nationRelation, ...nationRelation } : prev.nationRelation,
       legal: legal ? { ...prev.legal, ...legal } : prev.legal,
       conflictCycle: conflictCycle ? { ...prev.conflictCycle, ...conflictCycle } : prev.conflictCycle,
-      languageNaming: languageNaming ? { ...prev.languageNaming, ...languageNaming } : prev.languageNaming,
-      socialValues: socialValues ? { ...prev.socialValues, ...socialValues } : prev.socialValues,
     }))
   }
 }

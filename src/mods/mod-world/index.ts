@@ -95,6 +95,7 @@ export {
   registerWorldEntityReference,
   getWorldEntityReference,
   listWorldEntityReferences,
+  repairWorldEntityReferenceDirectory,
   assertWorldEntityReference,
   contextHasCapability,
   canRunBackgroundWorldSubsystem,
@@ -124,12 +125,16 @@ export {
   getWorldviewStyleHint,
   FORMULA_KEYS,
   inferMapTemplate,
-  DEFAULT_ECONOMY_TIER_RATIOS,
   MODIFIER_MIN,
   MODIFIER_MAX,
 } from './utils/calibration-clamp'
 
 export { getWorldCalibration, getFormulaModifier } from './utils/calibration-access'
+export {
+  buildDefaultWorldScale,
+  clampWorldScale,
+  getCivilizationScaleBaseline,
+} from './utils/world-scale-calibration'
 
 export { formatAdaptationCalibrationBlock, fillAdaptationPrompt } from './utils/adaptation-prompt-calibration'
 
@@ -177,9 +182,13 @@ export {
 
 export {
   buildWorldInitPromptVars,
-  buildPowerCeilingPresets,
-  buildPowerCeilingPresetsForNarrative,
 } from './utils/world-init-prompt-vars'
+export {
+  createDefaultPowerFramework,
+  materializePowerFramework,
+  assertValidPowerFramework,
+  formatPowerFrameworkForPrompt,
+} from './utils/power-framework'
 export { buildWorldInitPipelineBudgets } from './utils/world-init-budgets'
 export type { WorldInitPipelineBudgets } from './utils/world-init-budgets'
 

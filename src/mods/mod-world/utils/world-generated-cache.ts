@@ -13,7 +13,6 @@ const DESTINY_POOL_CACHE_PREFIX = 'mod-character:cache:destiny-pool:'
 const CACHE_KEY_PATTERNS: RegExp[] = [
   /^mod-world:save:0:init-cal:(\d+)/,
   /^mod-world:save:0:entities:(\d+)/,
-  /^mod-base-universe:save:0:world-map:(\d+)/,
   /^mod-pages:config:(?:talent-draw|fate-preview|attribute-alloc|character-create-form):(\d+)/,
 ]
 
@@ -66,7 +65,7 @@ export function hasWorldGeneratedCache(worldCode: number): boolean {
 }
 
 /**
- * 清空指定 worldCode 下全部 AI 生成缓存（命格池 / 初始化校准 / 实体 / 地图 / 流程页状态）
+ * 清空指定 worldCode 下全部 AI 生成缓存（命格池 / 初始化校准 / 实体 / 流程页状态）
  */
 export function clearWorldGeneratedCache(worldCode: number): void {
   if (!worldCode || typeof window === 'undefined') return
@@ -93,7 +92,6 @@ export function clearWorldGeneratedCache(worldCode: number): void {
 
   try {
     saveStore.remove('mod-world', 0, `entities:${worldCode}`)
-    saveStore.remove('mod-base-universe', 0, `world-map:${worldCode}`)
   } catch {
     /* ignore */
   }

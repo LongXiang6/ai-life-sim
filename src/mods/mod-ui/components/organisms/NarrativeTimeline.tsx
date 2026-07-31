@@ -37,6 +37,9 @@ export interface NarrativeTimelineProps {
   advanceBlocked?: boolean
   advanceBlockedText?: string
   isGenerating?: boolean
+  showGenerationCursor?: boolean
+  generatingText?: string
+  generatingHint?: string
   hasEndingEvent?: boolean
   onAdvance?: () => void
   onGoToGameOver?: () => void
@@ -68,6 +71,9 @@ export function NarrativeTimeline({
   advanceBlocked = false,
   advanceBlockedText = '✔ 请先选择命运',
   isGenerating = false,
+  showGenerationCursor = isGenerating,
+  generatingText = '命书正在续写……',
+  generatingHint = '下一段人生正在生成',
   hasEndingEvent = false,
   onAdvance,
   onGoToGameOver,
@@ -274,7 +280,7 @@ export function NarrativeTimeline({
       )
     }
 
-    if (isGenerating) {
+    if (showGenerationCursor) {
       nodes.push(
         <div key="stream-divider">
           <div className={styles.separator}>
@@ -296,16 +302,16 @@ export function NarrativeTimeline({
     }
 
     return nodes
-  }, [renderStart, entries, isGenerating, unresolvedBranchIndex, branchTitle, branchOptions, selectedBranchOptionId, branchCustomText, onBranchSelect, onBranchConfirm, onBranchCancel, onCustomInputChange])
+  }, [renderStart, entries, isGenerating, showGenerationCursor, unresolvedBranchIndex, branchTitle, branchOptions, selectedBranchOptionId, branchCustomText, onBranchCancel, onCustomInputChange, handleBranchConfirmClick, handleBranchOptionSelect])
 
   const canTapAdvance = showAdvance && !advanceBlocked && !isGenerating
   const advanceTitle = isGenerating
-    ? '命书正在续写……'
+    ? generatingText
     : advanceBlocked
       ? advanceBlockedText
       : advanceText
   const computedAdvanceHint = isGenerating
-    ? '下一段人生正在生成'
+    ? generatingHint
     : advanceBlocked
       ? '当前故事仍在等待处理'
       : advanceHint
@@ -351,7 +357,7 @@ export function NarrativeTimeline({
             <span className={styles.timelineHeaderRound}>第 {turnCount} 轮</span>
           </div>
 
-          {entries.length === 0 && !isGenerating && (
+          {entries.length === 0 && !showGenerationCursor && (
             <div className={styles.emptyState}>
               <div className={styles.emptyIcon}>卷首</div>
               <p>这一生尚未落笔</p>

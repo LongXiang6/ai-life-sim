@@ -81,7 +81,7 @@ function fixtureContext(contextId, name, entityId, nodeId, capabilities, scope) 
     eraStartYear: 1,
     essenceTag: 'mixed',
     powerSystemTag: 'none',
-    powerCeiling: 1,
+    powerFramework: { id: 'fixture:power', label: '无超常力量体系', enabled: false, progression: 'bounded', ranks: [], source: 'world-default' },
     spatialForm: 'plane',
     civilizationStage: 'modern',
     difficulty: 'normal',
@@ -1189,7 +1189,7 @@ orchestrator.setContext({
     difficulty: 'normal',
     essenceTag: 'mixed',
     powerSystemTag: 'none',
-    powerCeiling: 1,
+    powerFramework: { id: 'fixture:power', label: '无超常力量体系', enabled: false, progression: 'bounded', ranks: [], source: 'world-default' },
     eraStartYear: 1,
   },
 }, {
@@ -1255,9 +1255,25 @@ const mainBody = [
 ].join('\n\n')
 const mainResult = orchestrator.handleNarrativeResponse(
   parsedNarrative(mainBody, mainDigest, mainData),
+  [{
+    eventType: 'promise-fulfillment',
+    title: '三十天后护送林舟离港',
+    description: '护送承诺已经成立，但护送行动尚未发生。',
+    scope: { kind: 'context', contextIds: [contextA] },
+    participants: [{ label: '林舟', contextId: contextA, role: 'related-person' }],
+    locations: [{ label: '无潮港', contextId: contextA, role: 'related-location' }],
+    triggerConditionLabel: '三十天后返回无潮港并与林舟会合。',
+    requiredCapabilities: ['life'],
+    tags: ['承诺', '护送'],
+  }],
 )
 const mainLedgerEvents = ledger.queryEvents()
 const acceptedMainEventIds = mainLedgerEvents.map((event) => event.eventId)
+const mainCandidateAudit = ledger.queryCandidates({
+  statuses: ['available'],
+  latestOnly: true,
+}).find((audit) => audit.candidate.title === '三十天后护送林舟离港')
+const mainNarrativeId = orchestrator.getState().narrativeHistory.at(-1)?.id
 const deferredLedgerEvent = mainLedgerEvents.find((event) => event.tags.includes('deferred-causality'))
 const registeredCausal = causalDelay.getCausalEvents().find((event) => (
   event.description === '三十天后护送林舟离开无潮港。'
@@ -1273,6 +1289,13 @@ const plantedMainForeshadowing = foreshadowing.getState().active.find((record) =
   record.description === '无潮港的钟声将见证护送承诺。'
 ))
 const mainNpcInteraction = coreMemory.getNpcMap().get('林舟')?.find((record) => record.round === 3)
+assertOk(
+  mainCandidateAudit?.status === 'available'
+    && mainCandidateAudit.candidate.metadata.recognition?.roundSequence === 3
+    && mainCandidateAudit.candidate.metadata.recognition?.narrativeId === mainNarrativeId
+    && JSON.stringify(mainCandidateAudit.candidate.metadata.recognition?.historicalEventIds) === JSON.stringify(acceptedMainEventIds),
+  'recognized future event must register as an available candidate bound to the round narrative and committed history ids',
+)
 
 assertOk(mainResult.changes.length === 1 && mainResult.changes[0]?.id === 'morality', 'valid Chinese META must commit ordinary subsystem changes')
 assertOk(mainLedgerEvents.length === 2, 'key event plus deferred causality must become one atomic historical batch')
@@ -1327,7 +1350,7 @@ const bodyOnlyResult = orchestrator.handleNarrativeResponse(parsedNarrative(
     '你记得承诺已经到期，却还没有完成护送。',
   ].join('\n\n'),
   bodyOnlyDigest,
-))
+), [])
 const causalAfterBodyOnly = causalDelay.getCausalEvents().find((event) => event.id === registeredCausal?.id)
 assertOk(
   bodyOnlyResult.narrative.includes('你记得承诺已经到期')
@@ -1365,7 +1388,7 @@ const resolutionResult = orchestrator.handleNarrativeResponse(parsedNarrative(
       情节类型: '任务',
     },
   },
-))
+), [])
 const resolvedCausal = causalDelay.getCausalEvents().find((event) => event.id === registeredCausal?.id)
 const resolutionLedgerEvent = resolvedCausal?.resolutionEventId
   ? ledger.getEvent(resolvedCausal.resolutionEventId)
@@ -1461,7 +1484,16 @@ try {
         相关人物: '获救水手',
       }],
     },
-  ))
+  ), [{
+    eventType: 'future-debt',
+    title: '获救水手归还修船物资',
+    description: '水手已经许诺归还物资，但归还尚未发生。',
+    scope: { kind: 'context', contextIds: [contextA] },
+    participants: [{ label: '获救水手', contextId: contextA, role: 'related-person' }],
+    triggerConditionLabel: '获救水手再次抵达无潮港并备齐修船物资。',
+    requiredCapabilities: ['life'],
+    tags: ['债务', '修船物资'],
+  }])
 } catch (error) {
   rollbackError = error
 } finally {

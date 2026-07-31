@@ -9,6 +9,7 @@ import type { DifficultyLevel } from '@/foundation'
 import type { PresetWorld, WorldCategory } from '../constants/presets'
 import type { WorldConfig } from '../types'
 import { isWorldInitAIAvailable } from './world-init-fallback'
+import { createDefaultPowerFramework } from './power-framework'
 
 const CATEGORY_ESSENCE: Record<WorldCategory, string> = {
   cultivation: 'cultivation',
@@ -91,10 +92,6 @@ function inferCivilizationFromPreset(preset: PresetWorld): string {
   return CATEGORY_CIVILIZATION[preset.category] ?? 'medieval'
 }
 
-function inferPowerCeiling(spatialForm: string): number {
-  return spatialForm === 'universe' ? 12 : 8
-}
-
 /** 预设世界 → WorldConfig
  * @param preset 预设世界对象
  * @param difficulty 难度等级
@@ -117,7 +114,7 @@ export function buildWorldConfigFromPreset(
     name: preset.name,
     essenceTag,
     powerSystemTag,
-    powerCeiling: inferPowerCeiling(spatialForm),
+    powerFramework: createDefaultPowerFramework(powerSystemTag, { source: 'world-default' }),
     spatialForm,
     civilizationStage: inferCivilizationFromPreset(preset),
     difficulty,
@@ -176,7 +173,7 @@ export function buildWorldConfigFromCustom(
     name: input.name,
     essenceTag,
     powerSystemTag,
-    powerCeiling: inferPowerCeiling(spatialForm),
+    powerFramework: createDefaultPowerFramework(powerSystemTag, { source: 'world-default' }),
     spatialForm,
     civilizationStage: essenceTag === 'modern' || essenceTag === 'scifi' ? 'modern' : 'medieval',
     difficulty,

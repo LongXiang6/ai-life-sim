@@ -20,6 +20,7 @@ import {
   SPATIAL_FORM_ZH_MAP,
   COHERENCE_LOCK_FIELD_MAP,
   formatCalibrationSummary,
+  createDefaultPowerFramework,
 } from '@/mods/mod-world'
 import { commitWorldInitialization } from '@/mods/mod-world/world-init-api'
 import type { WorldConfig } from '@/mods/mod-world'
@@ -32,7 +33,7 @@ const DIMENSION_FIELD_KEYS = [
   'universeScale',
   'worldviewEssence',
   'powerSystem',
-  'powerCeiling',
+  'powerFramework',
 ] as const
 
 const COHERENCE_LOCKABLE_KEYS = new Set(Object.keys(COHERENCE_LOCK_FIELD_MAP))
@@ -80,36 +81,15 @@ interface SavedFieldsState {
   coherenceLocks?: Record<string, boolean>
 }
 
-const SPATIAL_FORM_CEILING: Record<string, number> = {
-  位面: 8,
-  宇宙: 12,
-  位面晶壁群系: 18,
-  多元宇宙群系: 21,
-  诸天万界: 23,
-}
-
 function resolveWorldConfig(
   baseFields: EditableField[],
   worldDescription: string,
   coherenceLocks: Record<string, boolean>,
   existingConfig?: WorldConfig | null,
-  aiDecision?: {
-    universeScale: string
-    worldviewEssence: string
-    powerSystem: string
-    powerCeiling: number
-  },
 ): WorldConfig {
   const getEffectiveValue = (key: string): string => {
     const field = baseFields.find((f) => f.key === key)
     if (!field) return ''
-    if (field.mode === 'ai' && aiDecision) {
-      if (key === 'powerCeiling') return `${aiDecision.powerCeiling}阶`
-      if (key === 'universeScale') return aiDecision.universeScale
-      if (key === 'worldviewEssence') return aiDecision.worldviewEssence
-      if (key === 'powerSystem') return aiDecision.powerSystem
-      return ''
-    }
     if (field.mode === 'custom' && field.customValue) return field.customValue
     if (field.mode === 'adaptive' && field.playerValue) return field.playerValue
     return ''
@@ -124,10 +104,10 @@ function resolveWorldConfig(
     ? mapWorldviewEssenceZhToTag(worldviewVal)
     : existingConfig?.essenceTag ?? 'modern'
 
-  const powerCeilingVal = getEffectiveValue('powerCeiling')
-  const powerCeilingNum = powerCeilingVal
-    ? parseInt(powerCeilingVal.match(/^(\d+)/)?.[1] ?? '8') || 8
-    : existingConfig?.powerCeiling ?? 8
+  const powerFrameworkVal = getEffectiveValue('powerFramework')
+  const progression = powerFrameworkVal.includes('开放')
+    ? 'open' as const
+    : existingConfig?.powerFramework?.progression ?? 'bounded'
 
   const spatialVal = getEffectiveValue('universeScale')
   const spatialForm = spatialVal
@@ -155,7 +135,13 @@ function resolveWorldConfig(
     spatialForm,
     essenceTag,
     powerSystemTag,
-    powerCeiling: powerCeilingNum,
+    powerFramework: createDefaultPowerFramework(powerSystemTag, {
+      progression,
+      source: 'world-custom',
+      label: baseFields.find((field) => field.key === 'powerFramework')?.mode === 'custom' && powerFrameworkVal
+        ? powerFrameworkVal
+        : undefined,
+    }),
     civilizationStage,
     difficulty: existingConfig?.difficulty ?? 'normal',
     worldType: existingConfig?.worldType,
@@ -245,7 +231,7 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
   }, [])
 
   const baseFields = useMemo(() => {
-    return buildFieldDefs(24).map((def) => ({
+    return buildFieldDefs().map((def) => ({
       ...def,
       playerValue: fieldValues[def.key] ?? '',
       mode: normalizeFieldMode(fieldModes[def.key]),
@@ -285,25 +271,9 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
     setFieldValues((prev) => {
       const next = { ...prev, [key]: value }
       persist(fieldModes, next, customValues, worldDescription, coherenceLocks)
-      if (key === 'universeScale') {
-        const maxCeiling = SPATIAL_FORM_CEILING[value] ?? 24
-        const currentCeilingMatch = fieldValues['powerCeiling']?.match(/^(\d+)/)
-        if (currentCeilingMatch) {
-          const currentCeiling = parseInt(currentCeilingMatch[1])
-          if (currentCeiling > maxCeiling) {
-            setTimeout(() => {
-              setFieldValues((fv) => {
-                const updated = { ...fv, powerCeiling: '' }
-                persist(fieldModes, updated, customValues, worldDescription, coherenceLocks)
-                return updated
-              })
-            }, 0)
-          }
-        }
-      }
       return next
     })
-  }, [fieldModes, fieldValues, customValues, worldDescription, coherenceLocks, persist])
+  }, [fieldModes, customValues, worldDescription, coherenceLocks, persist])
 
   const setCustomValue = useCallback((key: string, value: string) => {
     setCustomValues((prev) => {
@@ -352,10 +322,6 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
 
     setWorldConfig(activeConfig)
     setInitialized(true)
-    try {
-      configStore.set('mod-power-system', 'power-ceiling', String(activeConfig.powerCeiling))
-    } catch { /* 存储不可用 */ }
-
     const { calibration } = useWorldStore.getState()
 
     orchestrator.setContext(

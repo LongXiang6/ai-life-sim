@@ -1,6 +1,6 @@
 /**
  * @module orchestrator-system.ts
- * @description 引擎编排子系统 —— 协调本地模拟、两次串行 AI 调用与原子提交
+ * @description 引擎编排子系统 —— 协调本地模拟、故事后并行 AI 分析与原子提交
  * @mod mod-engine
  *
  * 默认 Campaign 负责声明阶段顺序；本系统只提供上下文、状态快照、
@@ -9,7 +9,21 @@
 
 import { BaseSubsystem, eventBus } from '@/core'
 import { isInstrumentEnabled, getInstrumentHooks } from '@/core/instrument/instrument-mode'
-import type { NarrativeStage, YearEvent } from '@/foundation'
+import {
+  createExecutionOutcomeCodes,
+  executionSequenceError,
+  runExecutionSequence,
+} from '@/foundation'
+import { getMvpRuntimeSubsystemOrder } from '../helpers/mvp-runtime-policy'
+import type {
+  EntityLifecycleState,
+  LifecycleStageDefinition,
+  LifespanRuleProfile,
+  PendingDeathFact,
+  NarrativeStage,
+  YearEvent,
+  PowerFrameworkDefinition,
+} from '@/foundation'
 import { saveManager } from '@/core/storage/save-manager'
 import {
   DEFAULT_ENGINE_CONFIG,
@@ -20,20 +34,19 @@ import {
   resolveNarrativeToneHint,
   buildTimeBridgeSummary,
   extractBridgeSnapshot,
-  WorldEventBus,
   globalDeadLoopDetector,
   sanitizeSubSystemState,
   buildNarrativeCoherenceHeader,
   buildNarrativeWorldRules,
   collectActiveModWorldRules,
   isSubsystemOpenForPrompt,
-  isMvpSystemInstructionSubsystem,
   isMvpRuntimeSubsystem,
   resolveTimeStep,
   shouldAlignTimeStepTransition,
   mapSubsystemStatesToDetectionStates,
-  buildLifeStageNarrativeHint,
-  resolveLifeStageFromAge,
+  buildLifecycleNarrativeHint,
+  generateLifecycleArchetypeHint,
+  buildLifecycleLifespanReminder,
   buildNarrativeHints,
   RoundCommitBus,
   buildNarrativeTimeContext,
@@ -42,8 +55,6 @@ import {
   readBirthEraYearFromConfig,
   resolveCalendarEraYear,
   buildTimeScaleNarrativeHint,
-  generateArchetypeHint,
-  buildLifespanReminder,
   collectGameSavePayload,
   computeNarrativeMaxTokens,
   DEFAULT_WORD_COUNT_TARGET,
@@ -64,8 +75,6 @@ import {
   useEngineStore,
   type BridgeSnapshot,
   type EventLifecycleTracker,
-  type DomainEvent,
-  type SubsystemInstruction,
   type NarrativeHintInput,
   type RoundCommitSource,
   type RoundCommitResult,
@@ -102,7 +111,7 @@ import { getDestinyPatternSystem } from '@/mods/mod-character/destiny-pattern-ac
 import { useCharacterStore } from '@/mods/mod-character'
 
 import {
-  buildPowerCeilingPresetsForNarrative,
+  formatPowerFrameworkForPrompt,
   formatCalibrationSummary,
   useWorldStore,
   type WorldCalibration,
@@ -149,6 +158,10 @@ import {
 import type {
   HistoricalEventCommitBatch,
   HistoricalEventCommitResult,
+  HistoricalEventCandidateAudit,
+  HistoricalEventCandidateInput,
+  HistoricalEventCandidateQuery,
+  HistoricalEventCandidateSubmission,
   HistoricalCausalEdgeInput,
   HistoricalEventCreateInput,
   HistoricalEventEvidenceInput,
@@ -167,6 +180,9 @@ import type {
   PromptTemplate,
   AIModelConfig,
   ModManifest,
+  LuckNarrativeGuidance,
+  ExecutionPhase,
+  ExecutionSequenceNode,
 } from '@/foundation'
 
 // Uses pattern matching via patternManager; USE_PATTERN_MANAGER feature flag managed centrally
@@ -236,6 +252,20 @@ function resolveRestoredAutoSaveRound(
   return restoredTotal
 }
 
+function formatLuckNarrativeGuidance(guidance: LuckNarrativeGuidance): string {
+  const directionText: Record<LuckNarrativeGuidance['direction'], string> = {
+    bad: '坏方向：可轻微增加阻力、代价或不利巧合',
+    neutral: '无干扰：不施加好运或厄运方向，按既有因果自然推进',
+    good: '好方向：可轻微增加机会、转机或有利巧合',
+  }
+  return [
+    '【低优先级运气方向】',
+    `本地投掷 ${guidance.roll.toFixed(2)}/100，落入${directionText[guidance.direction]}。`,
+    `区间概率：坏 ${guidance.badProbabilityPercent}%、无干扰 ${guidance.neutralProbabilityPercent}%、好 ${guidance.goodProbabilityPercent}%（当前气运 ${guidance.luck}）。`,
+    '这只是叙事倾向，不是必然结果；不得强制成功或失败，不得改写玩家选择、世界硬规则或已经成立的事实。',
+  ].join('\n')
+}
+
 /** 预生成/快照：编排器可恢复状态 */
 export interface OrchestratorSnapshot {
   /** 保存时当前世界上下文，用于与 world Store 交叉校验 */
@@ -249,7 +279,6 @@ export interface OrchestratorSnapshot {
   prevBridgeSnapshot: BridgeSnapshot
   /** 本次叙事开始前的时间节点；用于给 Prompt 提供真实的起止窗口。 */
   previousNarrativeRound?: RoundInfo
-  totalBreakthroughs: number
   timeRound: RoundInfo
   lastNarratedTimeStep?: TimeStep
   /** 当前叙事是否处于粗→细切换后的首轮边界对齐桥接。 */
@@ -269,6 +298,8 @@ export interface OrchestratorSnapshot {
   /** 终态/被新目标替代的意图历史；只用于连续性审计，不进入活动主线 Prompt。 */
   archivedBranchIntents?: BranchIntentState[]
   prefetchedNarrativeContent?: string | null
+  prefetchedLuckGuidance?: LuckNarrativeGuidance | null
+  lastNarrativeLuckGuidance?: LuckNarrativeGuidance | null
   digestLedgerSnapshot?: DigestLedgerSnapshot
   /** 不由 EngineState 或外部 Store 单独拥有的内部叙事系统状态 */
   engineSubsystemStates?: Record<string, unknown>
@@ -301,6 +332,14 @@ type RuntimeManagedSubsystem = ISubSystem & {
   capturePersistenceState?: () => unknown
   restorePersistenceState?: (snapshot: unknown) => void
   importLegacyCollectedStates?: (states: Record<string, SubSystemState>) => boolean
+  onHistoricalEventsCommitted?: (eventIds: string[], context: RoundContext) => void
+}
+
+type LuckNarrativeRuntime = ISubSystem & {
+  prepareNarrativeGuidance: (
+    context: RoundContext,
+    prefetched?: LuckNarrativeGuidance,
+  ) => LuckNarrativeGuidance
 }
 
 type HistoricalEventLedgerRuntime = ISubSystem & {
@@ -312,6 +351,13 @@ type HistoricalEventLedgerRuntime = ISubSystem & {
     batch: HistoricalEventCommitBatch,
     context: RoundContext | HistoricalEventValidationContext,
   ) => HistoricalEventCommitResult
+  submitCandidates: (
+    submission: HistoricalEventCandidateSubmission,
+    context: RoundContext | HistoricalEventValidationContext,
+  ) => HistoricalEventCandidateAudit[]
+  queryCandidates: (
+    query?: HistoricalEventCandidateQuery,
+  ) => HistoricalEventCandidateAudit[]
   getEvent: (eventId: string) => HistoricalEventView | undefined
 }
 
@@ -330,7 +376,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   readonly id = 'orchestrator' as const
   readonly mod = 'mod-engine' as const
   readonly label = '模拟编排器' as const
-  readonly description = '引擎核心编排器，协调本地模拟、AI 叙事生成、事件追踪、跨域联动、叙事后处理全流程' as const
+  readonly description = '引擎核心编排器，协调本地模拟、AI 叙事生成、事件追踪、跨系统事务协调、叙事后处理全流程' as const
 
   private state: EngineState = {
     lifeRunId: createNarrativeLifeRunId(),
@@ -363,17 +409,11 @@ export class OrchestratorSystem extends BaseSubsystem {
   /** 事件生命周期追踪器 */
   private eventLifecycle: EventLifecycleTracker = {}
 
-  /** 跨域联动事件总线 */
-  private worldEventBus: WorldEventBus = new WorldEventBus()
-
-  /** P3: AI 上轮输出的 notableEvents（作为跨域联动补充触发源） */
+  /** 最近一次叙事结算返回的显著事件。 */
   private lastNotableEvents: string[] = []
 
   /** 已加载 MOD 清单；组装 Prompt 时再按实际运行绑定过滤规则。 */
   private modManifests: ModManifest[] = []
-
-  /** @deprecated 寿命突破次数由 LifespanSystem.breakthroughs 派生，保留旧快照字段避免读档结构抖动 */
-  private totalBreakthroughs = 0
 
   /** Phase 6：压缩管线所需 AI 配置（executeRoundV2 注入） */
   private lastAiConfig: AIModelConfig | null = null
@@ -433,6 +473,10 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   /** 预生成缓存：跳过 AI 叙事阶段 */
   private prefetchedNarrativeContent: string | null = null
+  /** 预生成与正式回合共享的本地气运引导。 */
+  private prefetchedLuckGuidance: LuckNarrativeGuidance | null = null
+  /** 最近一次第一次叙事调用实际采用的本地气运引导。 */
+  private lastNarrativeLuckGuidance: LuckNarrativeGuidance | null = null
 
   /** 最近一次 AI 原始 JSON 输出（预生成队列用） */
   private lastExecutedFullContent: string | null = null
@@ -758,9 +802,12 @@ export class OrchestratorSystem extends BaseSubsystem {
       return
     }
     if (this.subsystems.some((s) => s.id === subsystem.id)) {
-      return
+      throw new Error(`[Orchestrator] 子系统标识重复: ${subsystem.id}`)
     }
     this.subsystems.push(subsystem)
+    this.subsystems.sort((left, right) => (
+      getMvpRuntimeSubsystemOrder(left.id) - getMvpRuntimeSubsystemOrder(right.id)
+    ))
     try {
       this.asRuntimeManaged(subsystem).hydrateFromStore?.()
     } catch (error) {
@@ -847,6 +894,10 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   /** 叙事用年龄：按绝对天数计算，细粒度回合不会错误增加整岁。 */
   private computeNarrativeAge(context: RoundContext): number {
+    const lifecycle = context.subsystemStates?.['lifecycle-system']?.data as {
+      entity?: EntityLifecycleState
+    } | undefined
+    if (lifecycle?.entity) return Math.floor(lifecycle.entity.ageDays / 365)
     const baseState = context.subsystemStates?.['character-base']?.data
     const startingAge = (baseState && typeof baseState === 'object' && 'startingAge' in baseState)
       ? (baseState as Record<string, unknown>).startingAge as number
@@ -879,13 +930,13 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   /** 本地模拟推进所有子系统（供 stage 闭包使用） */
-  advanceAllSubsystems(): void {
-    this.advanceSubsystems(this.buildRoundContext())
+  async advanceAllSubsystems(): Promise<void> {
+    await this.advanceSubsystems(this.buildRoundContext())
   }
 
   /** 三回合收集所有子系统状态（供 stage 闭包使用） */
-  collectAllSubsystemStates(recordRelevance = true): void {
-    this.collectSubsystemStates(false, recordRelevance)
+  async collectAllSubsystemStates(recordRelevance = true): Promise<void> {
+    await this.collectSubsystemStates(false, recordRelevance)
   }
 
   /** 获取事件检测所需的状态快照（供 stage 闭包使用） */
@@ -906,11 +957,6 @@ export class OrchestratorSystem extends BaseSubsystem {
   /** 设置上轮 notableEvents（供 stage 闭包使用） */
   setLastNotableEvents(events: string[]): void {
     this.lastNotableEvents = events
-  }
-
-  /** 执行跨域联动（供 stage 闭包使用，无参版本） */
-  async executeCrossDomainLinkage(): Promise<void> {
-    await this._executeCrossDomainLinkage(this.buildRoundContext())
   }
 
   setLastPlayerChoice(choice: string): void {
@@ -989,14 +1035,46 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.syncBranchIntentProjectionToEngineStore()
   }
 
-  setPrefetchedNarrative(content: string | null): void {
+  setPrefetchedNarrative(
+    content: string | null,
+    luckGuidance?: LuckNarrativeGuidance,
+  ): void {
     this.prefetchedNarrativeContent = content?.trim() ? content : null
+    this.prefetchedLuckGuidance = this.prefetchedNarrativeContent && luckGuidance
+      ? structuredClone(luckGuidance)
+      : null
   }
 
   consumePrefetchedNarrative(): string | null {
     const content = this.prefetchedNarrativeContent
     this.prefetchedNarrativeContent = null
+    this.prefetchedLuckGuidance = null
     return content
+  }
+
+  getLastNarrativeLuckGuidance(): LuckNarrativeGuidance | null {
+    return this.lastNarrativeLuckGuidance
+      ? structuredClone(this.lastNarrativeLuckGuidance)
+      : null
+  }
+
+  private prepareLuckNarrativeGuidance(
+    context: RoundContext,
+  ): LuckNarrativeGuidance | undefined {
+    const subsystem = this.subsystems.find((item) => item.id === 'luck') as LuckNarrativeRuntime | undefined
+    if (!subsystem?.prepareNarrativeGuidance) {
+      if (this.prefetchedLuckGuidance) {
+        throw new Error('预生成包含气运引导，但气运系统未注册')
+      }
+      this.lastNarrativeLuckGuidance = null
+      return undefined
+    }
+    const guidance = subsystem.prepareNarrativeGuidance(
+      context,
+      this.prefetchedLuckGuidance ?? undefined,
+    )
+    this.lastNarrativeLuckGuidance = structuredClone(guidance)
+    return guidance
   }
 
   getLastExecutedFullContent(): string | null {
@@ -1042,7 +1120,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
   }
 
-  captureSnapshot(): OrchestratorSnapshot {
+  captureSnapshot(includePersistentSubsystemStates = true): OrchestratorSnapshot {
     return structuredClone({
       worldContextId: this.worldSetting?.contextId,
       state: this.state,
@@ -1053,7 +1131,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       prevRoundYear: this.prevRoundYear,
       prevBridgeSnapshot: this.prevBridgeSnapshot,
       previousNarrativeRound: this.previousNarrativeRound,
-      totalBreakthroughs: this.totalBreakthroughs,
       timeRound: timeSystem.exportRound(),
       lastNarratedTimeStep: this.lastNarratedTimeStep,
       lastTimeStepAlignment: this.lastTimeStepAlignment,
@@ -1068,9 +1145,13 @@ export class OrchestratorSystem extends BaseSubsystem {
       focusedBranchIntentId: this.focusedBranchIntentId,
       archivedBranchIntents: this.archivedBranchIntents,
       prefetchedNarrativeContent: this.prefetchedNarrativeContent,
+      prefetchedLuckGuidance: this.prefetchedLuckGuidance,
+      lastNarrativeLuckGuidance: this.lastNarrativeLuckGuidance,
       digestLedgerSnapshot: digestLedger.toSnapshot(),
       engineSubsystemStates: this.captureInternalSubsystemStates(),
-      persistentSubsystemStates: this.capturePersistentSubsystemStates(),
+      ...(includePersistentSubsystemStates
+        ? { persistentSubsystemStates: this.capturePersistentSubsystemStates() }
+        : {}),
     })
   }
 
@@ -1088,7 +1169,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     const engineStore = useEngineStore.getState()
     const characterStore = useCharacterStore.getState()
     return {
-      orchestrator: this.captureSnapshot(),
+      orchestrator: this.captureSnapshot(false),
       pendingTimeStepAlignmentFromUnit: this.pendingTimeStepAlignmentFromUnit,
       pendingTimeStepAlignmentFromValue: this.pendingTimeStepAlignmentFromValue,
       characterStoreRuntime: {
@@ -1103,13 +1184,18 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   /** 恢复预览会改写、但 EngineStore 不保存的 orchestrator 运行态。 */
-  private restoreSnapshotRuntimeState(snap: OrchestratorSnapshot): void {
+  private restoreSnapshotRuntimeState(
+    snap: OrchestratorSnapshot,
+    restorePersistentSubsystemStates = true,
+  ): void {
     this.lastSubsystemStates = structuredClone(snap.lastSubsystemStates ?? {})
-    this.restorePersistentSubsystemStates(
-      snap.persistentSubsystemStates,
-      this.lastSubsystemStates,
-    )
-    this.restoreSubsystemsFromCollectedStates(this.lastSubsystemStates)
+    if (restorePersistentSubsystemStates) {
+      this.restorePersistentSubsystemStates(
+        snap.persistentSubsystemStates,
+        this.lastSubsystemStates,
+      )
+      this.restoreSubsystemsFromCollectedStates(this.lastSubsystemStates)
+    }
     this.eventLifecycle = structuredClone(snap.eventLifecycle ?? {})
     this.lastNotableEvents = [...(snap.lastNotableEvents ?? [])]
     this.prevAbbreviationSnapshot = { ...(snap.prevAbbreviationSnapshot ?? {}) }
@@ -1118,7 +1204,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.previousNarrativeRound = {
       ...(snap.previousNarrativeRound ?? snap.state.round ?? this.state.round),
     }
-    this.totalBreakthroughs = snap.totalBreakthroughs ?? 0
     this.lastNarratedTimeStep = { ...(snap.lastNarratedTimeStep ?? this.state.timeStep) }
     this.lastTimeStepAlignment = snap.lastTimeStepAlignment
       ? { ...snap.lastTimeStepAlignment }
@@ -1168,11 +1253,17 @@ export class OrchestratorSystem extends BaseSubsystem {
       this.focusMostRecentlyUpdatedBranchIntent()
     }
     this.prefetchedNarrativeContent = snap.prefetchedNarrativeContent ?? null
+    this.prefetchedLuckGuidance = snap.prefetchedLuckGuidance
+      ? structuredClone(snap.prefetchedLuckGuidance)
+      : null
+    this.lastNarrativeLuckGuidance = snap.lastNarrativeLuckGuidance
+      ? structuredClone(snap.lastNarrativeLuckGuidance)
+      : null
     digestLedger.loadSnapshot(snap.digestLedgerSnapshot)
     this.restoreInternalSubsystemStates(snap.engineSubsystemStates)
   }
 
-  restoreSnapshot(snap: OrchestratorSnapshot): void {
+  restoreSnapshot(snap: OrchestratorSnapshot, restorePersistentSubsystemStates = true): void {
     const clonedState = structuredClone(snap.state) as unknown
     const rawState = clonedState && typeof clonedState === 'object' && !Array.isArray(clonedState)
       ? clonedState as Partial<EngineState> & {
@@ -1205,7 +1296,10 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
     this.state = restored
     this.narrativeMemoryRecall = []
-    this.restoreSnapshotRuntimeState({ ...snap, state: restored })
+    this.restoreSnapshotRuntimeState(
+      { ...snap, state: restored },
+      restorePersistentSubsystemStates,
+    )
     // 旧存档可能保留了按旧规则计算的 season；以月份重新推导当前节点，
     // 但不改写历史叙事条目的时间标签。
     timeSystem.importRound(snap.timeRound ?? this.state.round)
@@ -1229,7 +1323,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   restorePreviewSnapshot(snap: OrchestratorPreviewSnapshot): void {
-    this.restoreSnapshot(snap.orchestrator)
+    this.restoreSnapshot(snap.orchestrator, false)
     this.pendingTimeStepAlignmentFromUnit = snap.pendingTimeStepAlignmentFromUnit
     this.pendingTimeStepAlignmentFromValue = snap.pendingTimeStepAlignmentFromValue
     this.restoreSubsystemPreviewStates(snap.subsystemPreviewStates)
@@ -1248,7 +1342,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       this.reset()
       return
     }
-    this.restoreSnapshotRuntimeState(snap.orchestrator)
+    this.restoreSnapshotRuntimeState(snap.orchestrator, false)
     this.restoreSubsystemPreviewStates(snap.subsystemPreviewStates)
     this.hydrateFromEngineStore(snap.orchestrator.state.timeStep)
   }
@@ -1316,24 +1410,85 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   // === 本地模拟推进 ===
 
+  private async runSubsystemExecutionSequence(
+    flowId: string,
+    phase: ExecutionPhase,
+    context: RoundContext,
+    subsystems: readonly ISubSystem[],
+    run: (subsystem: ISubSystem) => void,
+  ): Promise<void> {
+    if (subsystems.length === 0) return
+
+    const prepareId = `${flowId}-prepare`
+    const finalizeId = `${flowId}-finalize`
+    const nodes: ExecutionSequenceNode<RoundContext>[] = [
+      {
+        id: prepareId,
+        owner: 'mod-engine',
+        failureTarget: 'mod-engine',
+        phase: 'prepare',
+        dependsOn: [],
+        order: 0,
+        outcomes: createExecutionOutcomeCodes(flowId, prepareId),
+        run: () => ({ status: 'succeeded' }),
+      },
+      ...subsystems.map((subsystem, index): ExecutionSequenceNode<RoundContext> => ({
+        id: `${flowId}-${subsystem.id}`,
+        owner: subsystem.mod,
+        failureTarget: 'mod-engine',
+        phase,
+        dependsOn: [index === 0 ? prepareId : `${flowId}-${subsystems[index - 1].id}`],
+        order: index,
+        outcomes: createExecutionOutcomeCodes(flowId, `${flowId}-${subsystem.id}`),
+        run: () => {
+          run(subsystem)
+          return { status: 'succeeded' }
+        },
+      })),
+      {
+        id: finalizeId,
+        owner: 'mod-engine',
+        failureTarget: 'mod-engine',
+        phase: 'finalize',
+        dependsOn: [`${flowId}-${subsystems.at(-1)!.id}`],
+        order: 0,
+        outcomes: createExecutionOutcomeCodes(flowId, finalizeId),
+        run: () => ({ status: 'succeeded' }),
+      },
+    ]
+
+    const result = await runExecutionSequence({
+      flowId,
+      executionId: `${flowId}:${this.state.lifeRunId}:${this.state.totalRounds}:${Date.now()}`,
+      owner: 'mod-engine',
+      context,
+      nodes,
+    })
+    if (result.status !== 'succeeded') {
+      throw executionSequenceError(result)
+    }
+  }
+
   /**
    * 本地模拟推进（非 AI 叙事回合的纯规则计算）
    *
    * 遍历所有子系统，调用其 advance() 方法执行本地数值推演。
    * 不调 AI，仅做纯数值计算。
    */
-  private advanceSubsystems(context: RoundContext): void {
-    for (const sub of this.subsystems) {
-      if (sub.id === this.id) continue
-      if (!isMvpRuntimeSubsystem(sub.id)) continue
-      if (!this.isSubsystemEnabledForCurrentContext(sub.id)) continue
-      if (!sub.advance) continue
-      try {
-        sub.advance(context)
-      } catch (e) {
-        console.error(`[Orchestrator] 子系统 ${sub.id} 本地推进失败:`, e)
-      }
-    }
+  private async advanceSubsystems(context: RoundContext): Promise<void> {
+    const runnable = this.subsystems.filter((sub) => (
+      sub.id !== this.id
+      && isMvpRuntimeSubsystem(sub.id)
+      && this.isSubsystemEnabledForCurrentContext(sub.id)
+      && typeof sub.advance === 'function'
+    ))
+    await this.runSubsystemExecutionSequence(
+      'subsystem-advance',
+      'execute',
+      context,
+      runnable,
+      (subsystem) => subsystem.advance!(context),
+    )
   }
 
   // === 子系统状态收集（V2 三回合加载） ===
@@ -1359,11 +1514,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     // 这两项是 mod-engine 内部叙事运行态，不进入外部子系统状态卡，
     // 但必须随每个真实/预生成回合推进，才能让阶段与伏笔计时保持有效。
     for (const subsystem of [plotStructure, foreshadowing]) {
-      try {
-        subsystem.collectState(context)
-      } catch (error) {
-        console.error(`[Orchestrator] 内部叙事系统 ${subsystem.id} 推进失败:`, error)
-      }
+      subsystem.collectState(context)
     }
 
     const allSubs = this.subsystems.filter((s) =>
@@ -1374,36 +1525,30 @@ export class OrchestratorSystem extends BaseSubsystem {
 
     // === Round 1: 标准收集 (data.lua) ===
     for (const sub of allSubs) {
-      try {
-        // Instrument: onBeforeCollectState
-        if (isInstrumentEnabled()) {
-          getInstrumentHooks().onBeforeCollectState?.(sub.id, this.state.round.year)
-        }
-        const t0 = performance.now()
-
-        const state = sub.collectState(context)
-        const sanitized = sanitizeSubSystemState(state, `sub.${sub.id}`)
-
-        // Instrument: onAfterCollectState
-        if (isInstrumentEnabled()) {
-          getInstrumentHooks().onAfterCollectState?.(
-            sub.id,
-            performance.now() - t0,
-            JSON.stringify(sanitized.result).length,
-          )
-        }
-
-        if (!sanitized.report.passed) {
-          console.warn(`[Orchestrator] 子系统 ${sub.id} 状态安全校验未通过:`, sanitized.report.errors)
-        }
-        states[state.id] = sanitized.result as SubSystemState
-
-        // 记录状态到滑动窗口（供 SubsystemRelevanceSystem 过滤使用）
-        if (!this.isPreviewExecution() && recordRelevance) {
-          subsystemRelevance.recordState(sub.id, sanitized.result as SubSystemState, this.state.totalRounds)
-        }
-      } catch (e) {
-        console.error(`[Orchestrator] Round1 收集 ${sub.id} 状态失败:`, e)
+      if (isInstrumentEnabled()) {
+        getInstrumentHooks().onBeforeCollectState?.(sub.id, this.state.round.year)
+      }
+      const t0 = performance.now()
+      const state = sub.collectState(context)
+      if (state.id !== sub.id) {
+        throw Error(`[Orchestrator] 子系统 ${sub.id} 返回了错误状态所有者 ${state.id}`)
+      }
+      const sanitized = sanitizeSubSystemState(state, `sub.${sub.id}`)
+      if (isInstrumentEnabled()) {
+        getInstrumentHooks().onAfterCollectState?.(
+          sub.id,
+          performance.now() - t0,
+          JSON.stringify(sanitized.result).length,
+        )
+      }
+      if (!sanitized.report.passed) {
+        throw Error(
+          `[Orchestrator] 子系统 ${sub.id} 状态安全校验未通过: ${sanitized.report.errors.join('; ')}`,
+        )
+      }
+      states[state.id] = sanitized.result as SubSystemState
+      if (!this.isPreviewExecution() && recordRelevance) {
+        subsystemRelevance.recordState(sub.id, sanitized.result as SubSystemState, this.state.totalRounds)
       }
     }
 
@@ -1414,20 +1559,23 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
 
     // === Round 2: 跨系统修改 (data-updates.lua) ===
-    for (const sub of allSubs) {
+    const updateSubs = allSubs.filter((sub) => (
+      typeof (sub as { collectStateUpdate?: unknown }).collectStateUpdate === 'function'
+    ))
+    for (const sub of updateSubs) {
       const subV2 = sub as { collectStateUpdate?: (ctx: RoundContext) => SubSystemState | null }
-      if (typeof subV2.collectStateUpdate !== 'function') continue
-      try {
-        const update = subV2.collectStateUpdate(round1Context)
-        if (update) {
-          const sanitized = sanitizeSubSystemState(update, `sub.${sub.id}.update`)
-          if (sanitized.report.passed) {
-            states[update.id] = { ...states[update.id], ...sanitized.result } as SubSystemState
-          }
-        }
-      } catch (e) {
-        console.error(`[Orchestrator] Round2 收集 ${sub.id} 更新失败:`, e)
+      const update = subV2.collectStateUpdate!(round1Context)
+      if (!update) continue
+      if (update.id !== sub.id) {
+        throw Error(`[Orchestrator] 子系统 ${sub.id} Round2 返回了错误状态所有者 ${update.id}`)
       }
+      const sanitized = sanitizeSubSystemState(update, `sub.${sub.id}.update`)
+      if (!sanitized.report.passed) {
+        throw Error(
+          `[Orchestrator] 子系统 ${sub.id} Round2 状态校验未通过: ${sanitized.report.errors.join('; ')}`,
+        )
+      }
+      states[update.id] = { ...states[update.id], ...sanitized.result } as SubSystemState
     }
 
     // 更新 context 以反映 Round 2 结果
@@ -1437,20 +1585,23 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
 
     // === Round 3: 全局一致性修复 (data-final-fixes.lua) ===
-    for (const sub of allSubs) {
+    const fixSubs = allSubs.filter((sub) => (
+      typeof (sub as { collectStateFinalFix?: unknown }).collectStateFinalFix === 'function'
+    ))
+    for (const sub of fixSubs) {
       const subV2 = sub as { collectStateFinalFix?: (ctx: RoundContext) => SubSystemState | null }
-      if (typeof subV2.collectStateFinalFix !== 'function') continue
-      try {
-        const fix = subV2.collectStateFinalFix(round2Context)
-        if (fix) {
-          const sanitized = sanitizeSubSystemState(fix, `sub.${sub.id}.fix`)
-          if (sanitized.report.passed) {
-            states[fix.id] = sanitized.result as SubSystemState
-          }
-        }
-      } catch (e) {
-        console.error(`[Orchestrator] Round3 收集 ${sub.id} 修复失败:`, e)
+      const fix = subV2.collectStateFinalFix!(round2Context)
+      if (!fix) continue
+      if (fix.id !== sub.id) {
+        throw Error(`[Orchestrator] 子系统 ${sub.id} Round3 返回了错误状态所有者 ${fix.id}`)
       }
+      const sanitized = sanitizeSubSystemState(fix, `sub.${sub.id}.fix`)
+      if (!sanitized.report.passed) {
+        throw Error(
+          `[Orchestrator] 子系统 ${sub.id} Round3 状态校验未通过: ${sanitized.report.errors.join('; ')}`,
+        )
+      }
+      states[fix.id] = sanitized.result as SubSystemState
     }
 
     this.lastSubsystemStates = states
@@ -1554,26 +1705,22 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   private async _checkAndTriggerEpilogue(aiConfig: AIModelConfig, sessionId?: string): Promise<void> {
     try {
-      const healthSub = this.subsystems.find((s) => s.id === 'health')
-      if (!healthSub) return
-
-      const context = this.buildRoundContext()
-      const healthState = healthSub.collectState(context)
-      const hData = healthState.data as { isDead?: boolean }
-      if (!hData?.isDead) return
-
-      const epilogueSub = this.subsystems.find((s) => s.id === 'post-death-epilogue') as unknown as {
-        hasEpilogue: () => boolean
+      const healthSub = this.subsystems.find((s) => s.id === 'health') as (ISubSystem & {
+        hasEpilogue: (entityId: string) => boolean
         generateEpilogue: (
           ctx: RoundContext,
           config: AIModelConfig,
           history: string[],
           sid?: string,
         ) => Promise<string>
-      } | undefined
-      if (!epilogueSub) return
+      }) | undefined
+      if (!healthSub) return
 
-      if (epilogueSub.hasEpilogue()) return
+      const context = this.buildRoundContext()
+      const healthState = healthSub.collectState(context)
+      const hData = healthState.data as { alive?: boolean; death?: unknown }
+      if (hData?.alive !== false || !hData.death) return
+      if (healthSub.hasEpilogue(context.characterId)) return
 
       const freshContext = this.buildRoundContext()
       const firstRound = Math.max(
@@ -1587,9 +1734,9 @@ export class OrchestratorSystem extends BaseSubsystem {
         )
       ))
 
-      await epilogueSub.generateEpilogue(freshContext, aiConfig, narrativeHistory, sessionId)
+      await healthSub.generateEpilogue(freshContext, aiConfig, narrativeHistory, sessionId)
         .then((epilogueText) => {
-          // console.log(`[Orchestrator] 死后尾声已生成（${epilogueText.length} 字符）`)
+          this.collectSubsystemStates(false, false)
           eventBus.emit('mod-character:died', { epilogueGenerated: true, length: epilogueText.length })
         })
         .catch((e) => {
@@ -2043,11 +2190,11 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   collectState(_context: RoundContext): SubSystemState {
     const lifecycleCount = Object.keys(this.eventLifecycle).length
-    const lifespanData = this.lastSubsystemStates?.['lifespan']?.data as { breakthroughs?: unknown[] } | undefined
-    const breakthroughCount = lifespanData?.breakthroughs?.length ?? this.totalBreakthroughs
+    const lifespanData = this.lastSubsystemStates?.['lifespan']?.data as { adjustments?: unknown[] } | undefined
+    const lifespanAdjustmentCount = lifespanData?.adjustments?.length ?? 0
     return {
       id: this.id,
-      summary: `【${this.label}】${this.state.status} | 第 ${this.state.totalRounds} 回合 | 第${this.state.round.year}年 | 事件追踪×${lifecycleCount} | 压缩 L1×${this.state.compressionStats.l1Count} | 突破×${breakthroughCount}`,
+      summary: `【${this.label}】${this.state.status} | 第 ${this.state.totalRounds} 回合 | 第${this.state.round.year}年 | 事件追踪×${lifecycleCount} | 压缩 L1×${this.state.compressionStats.l1Count} | 寿命调整×${lifespanAdjustmentCount}`,
       data: structuredClone(this.state) as unknown as Record<string, unknown>,
     }
   }
@@ -2099,7 +2246,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
     this.lastSubsystemStates = {}
     this.eventLifecycle = {}
-    this.totalBreakthroughs = 0
     this.prevAbbreviationSnapshot = {}
     this.prevRoundYear = 0
     this.prevBridgeSnapshot = {}
@@ -2130,9 +2276,10 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.consecutiveSameGoalRounds = 0
     this.branchJustResolved = false
     this.prefetchedNarrativeContent = null
+    this.prefetchedLuckGuidance = null
+    this.lastNarrativeLuckGuidance = null
     this.worldSetting = null
     this.characterState = null
-    this.worldEventBus.reset()
     summaryCompressor.reset()
     memoryEngine.reset()
     memoryLifecycle.reset()
@@ -2242,7 +2389,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     if (this.state.status !== 'complete') this.start()
   }
 
-  // === 跨域联动 ===
+  // === 跨系统事务协调 ===
 
   /**
    * 从子系统状态中提取事件检测所需的状态快照
@@ -2255,107 +2402,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     return mapSubsystemStatesToDetectionStates(raw) as Record<string, unknown>
   }
 
-  /**
-   * 按 WorldCalibration.crossDomainEffectModifier 缩放跨域规则产出的数值参数
-   * （在 orchestrator 侧注入，避免 mod-engine → mod-world 循环依赖）
-   */
-  private _applyCrossDomainEffectModifier(instructions: SubsystemInstruction[]): void {
-    const calRaw = this.worldSetting?.config?._calibration as
-      | { formulas?: { crossDomainEffectModifier?: number } }
-      | undefined
-    const modifier = calRaw?.formulas?.crossDomainEffectModifier ?? 1
-    if (modifier === 1) return
-
-    for (const inst of instructions) {
-      for (const [key, value] of Object.entries(inst.params)) {
-        if (typeof value === 'number') {
-          inst.params[key] = value * modifier
-        }
-      }
-    }
-  }
-
-  /**
-   * 执行跨域联动：将事件检测结果转为 DomainEvent 并通过 EventBus 分发
-   */
-  private async _executeCrossDomainLinkage(_context: RoundContext): Promise<void> {
-    try {
-      const eventId = `round-${this.state.totalRounds}-${Date.now()}`
-      const domainEvent: DomainEvent = {
-        id: eventId,
-        type: 'SYSTEM_EVENT_BATCH',
-        sourceCategory: 'orchestrator',
-        severity: 'normal',
-        description: Object.keys(this.eventLifecycle)
-          .filter((k) => this.eventLifecycle[k].status === 'new' || this.eventLifecycle[k].status === 'ongoing')
-          .join('、'),
-        context: { valueChanges: {}, round: this.state.totalRounds },
-        eraYear: this.state.round.year,
-      }
-
-      const detectionStates = this.extractDetectionStates()
-      let cooldowns = this.worldEventBus.getCooldowns()
-      const instructions: SubsystemInstruction[] = []
-
-      this.worldEventBus.recordEvent(domainEvent)
-      const mainEval = await simulationBridge.evalCrossDomain({
-        event: domainEvent,
-        subsystemStates: detectionStates,
-        round: this.state.totalRounds,
-        cooldowns,
-      })
-      cooldowns = mainEval.cooldowns
-      instructions.push(...mainEval.instructions)
-
-      for (const notableEvent of this.lastNotableEvents) {
-        const aiEvent: DomainEvent = {
-          id: `${eventId}-ai-${notableEvent.slice(0, 8)}`,
-          type: 'AI_NOTABLE_EVENT',
-          sourceCategory: 'ai-narrative',
-          severity: 'major',
-          description: notableEvent,
-          context: { valueChanges: {}, round: this.state.totalRounds },
-          eraYear: this.state.round.year,
-        }
-        this.worldEventBus.recordEvent(aiEvent)
-        const aiEval = await simulationBridge.evalCrossDomain({
-          event: aiEvent,
-          subsystemStates: detectionStates,
-          round: this.state.totalRounds,
-          cooldowns,
-        })
-        cooldowns = aiEval.cooldowns
-        instructions.push(...aiEval.instructions)
-      }
-
-      this.worldEventBus.setCooldowns(cooldowns)
-
-      if (instructions.length > 0) {
-        const mvpInstructions = instructions.filter((inst) =>
-          isMvpSystemInstructionSubsystem(inst.targetSystemId),
-        )
-        if (mvpInstructions.length === 0) return
-
-        for (const inst of mvpInstructions) {
-          if (inst.namedAction) {
-            const target = this.subsystems.find((s) => s.id === inst.targetSystemId)
-            const actions = target?.crossDomainActions
-            if (actions?.[inst.namedAction]) {
-              inst.params = { ...actions[inst.namedAction], ...inst.params } as Record<string, unknown>
-            }
-          }
-        }
-        this._applyCrossDomainEffectModifier(mvpInstructions)
-        const rawChanges = WorldEventBus.toSubSystemChanges(mvpInstructions, eventId)
-        const changes = await simulationBridge.validateCrossDomainChanges(rawChanges)
-        this.applyRoundChanges(changes, 'cross-domain')
-      }
-    } catch (e) {
-      console.error('[Orchestrator] 跨域联动执行失败:', e)
-    }
-  }
-
-  /** 发布 SimulationSnapshot 供 UI 订阅（Worker 解耦层） */
+  /** 发布 SimulationSnapshot 供 UI 订阅。 */
   publishSimulationSnapshot(): void {
     const summaries: Record<string, string> = {}
     for (const [id, state] of Object.entries(this.lastSubsystemStates)) {
@@ -2385,6 +2432,7 @@ export class OrchestratorSystem extends BaseSubsystem {
 
     // 各子系统 summary 文本（经 SubsystemRelevanceSystem 五维过滤 + 滑动窗口）
     const context = this.buildRoundContext()
+    const luckNarrativeGuidance = this.prepareLuckNarrativeGuidance(context)
     const syncedCharacter = this.syncCharacterStateForPrompt(context)
     const narrativeTime = buildNarrativeTimeContext(context, this.worldSetting)
     const promptScopeView = this.getNarrativeScopeView()
@@ -2425,26 +2473,30 @@ export class OrchestratorSystem extends BaseSubsystem {
     const config = this.worldSetting?.config ?? {}
     const coherenceHeader = buildNarrativeCoherenceHeader(config, syncedCharacter.age)
 
-    const lifespanData = this.lastSubsystemStates?.['lifespan']?.data as { maxAge?: number } | undefined
+    const lifespanData = this.lastSubsystemStates?.['lifespan']?.data as {
+      profile?: LifespanRuleProfile
+    } | undefined
+    const lifecycleData = this.lastSubsystemStates?.['lifecycle-system']?.data as {
+      entity?: EntityLifecycleState
+      currentStage?: LifecycleStageDefinition
+    } | undefined
     const baseData = this.lastSubsystemStates?.['character-base']?.data as { startingAge?: number } | undefined
-    const maxAge = lifespanData?.maxAge ?? 100
     const startingAge = baseData?.startingAge ?? 0
     const isOpeningNarrativeRound = this.state.narrativeHistory.length === 0
     const isBirthOpeningRound = isOpeningNarrativeRound && startingAge === 0 && syncedCharacter.age === 0
-    const lifeStageHint = buildLifeStageNarrativeHint(
-      resolveLifeStageFromAge(syncedCharacter.age, maxAge, startingAge),
-      maxAge,
-      startingAge,
-      syncedCharacter.age,
+    const lifeStageHint = buildLifecycleNarrativeHint(
+      lifecycleData?.entity,
+      lifecycleData?.currentStage,
     )
-    // 叙事类型引导：按生命阶段限制可选叙事类型（婴儿禁战斗、老年禁探险）
-    const archetypeHint = generateArchetypeHint(
-      resolveLifeStageFromAge(syncedCharacter.age, maxAge, startingAge),
-      'normal',
+    const archetypeHint = generateLifecycleArchetypeHint(
+      lifecycleData?.currentStage,
+      context.difficulty,
       plotStructure.getConsecutiveConflictRounds(),
     )
-    // 寿命提醒：告知 AI 角色当前寿命阶段约束
-    const lifespanReminder = buildLifespanReminder(maxAge, syncedCharacter.age)
+    const lifespanReminder = buildLifecycleLifespanReminder(
+      lifespanData?.profile,
+      lifecycleData?.entity,
+    )
 
     // 按生命周期和顺序装配动态写作组件；未触发组件不进入本轮消息。
     const dynamicGuidanceSources: Array<{
@@ -2455,7 +2507,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       authority: NarrativePromptComponent['authority']
     }> = [
       { id: 'round-coherence', content: coherenceHeader, order: 10, kind: '硬限制', authority: '世界与协议' },
-      { id: 'life-stage', content: lifeStageHint, order: 20, kind: '硬限制', authority: '当前事实' },
+      { id: 'lifecycle', content: lifeStageHint, order: 20, kind: '硬限制', authority: '当前事实' },
       { id: 'event-archetype', content: archetypeHint, order: 30, kind: '写作规则', authority: '剧情引导' },
       { id: 'lifespan-reminder', content: lifespanReminder, order: 40, kind: '硬限制', authority: '当前事实' },
       { id: 'influence-boundary', content: influenceText, order: 50, kind: '硬限制', authority: '当前事实' },
@@ -2514,7 +2566,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       })
       : undefined
 
-    const roundGuidance = this.buildRoundGuidanceInput()
+    const roundGuidance = this.buildRoundGuidanceInput(luckNarrativeGuidance)
     const mythicPatternText = formatEquippedMythicPatternForPrompt(
       useCharacterStore.getState().equippedMythicPatterns,
     )
@@ -2530,12 +2582,9 @@ export class OrchestratorSystem extends BaseSubsystem {
     const characterNarrativeView = projectCharacterForNarrativeAI(syncedCharacter)
     const timelineMemory = this.buildPromptTimelineMemory()
 
-    // 非超凡世界不重复发送无关的 24 阶力量表；有力量体系时使用现有叙事精简格式。
-    const powerSystemTag = typeof config.powerSystemTag === 'string' ? config.powerSystemTag : ''
-    const powerCeiling = Number(config.powerCeiling)
-    const powerCeilingPresets = powerSystemTag === 'none' || !Number.isFinite(powerCeiling) || powerCeiling < 1
-      ? undefined
-      : buildPowerCeilingPresetsForNarrative(powerCeiling)
+    const powerFramework = formatPowerFrameworkForPrompt(
+      config.powerFramework as PowerFrameworkDefinition | undefined,
+    )
     const timeScaleHint = buildTimeScaleNarrativeHint(this.state.timeStep, {
       usesCanonicalSolarSeasons: narrativeTime.usesCanonicalSolarSeasons,
       calendarName: narrativeTime.calendarName,
@@ -2609,7 +2658,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       calibrationSummary: narrativeCalibrationSummary,
       roundSystemGuidanceText: roundGuidance.roundSystemGuidanceText,
       playerBranchIntent: roundGuidance.playerBranchIntent,
-      powerCeilingPresets,
+      powerFramework,
     }
 
     if (isOpeningNarrativeRound) {
@@ -2720,9 +2769,9 @@ export class OrchestratorSystem extends BaseSubsystem {
    * 构建角色影响力文本（五维过滤：力量等级 → 叙事因果影响范围）
    */
   private buildInfluenceText(): string | undefined {
-    const totalPower = subsystemRelevance.calculateTotalPower(this.lastSubsystemStates)
-    const scope = subsystemRelevance.getInfluenceScope(totalPower)
-    return subsystemRelevance.buildInfluenceText(totalPower, scope)
+    const influenceScore = subsystemRelevance.calculateInfluenceScore(this.lastSubsystemStates)
+    const scope = subsystemRelevance.getInfluenceScope(influenceScore)
+    return subsystemRelevance.buildInfluenceText(influenceScore, scope)
   }
 
   /** 获取所有子系统的状态上下文字符串（供外部 UI Panel 使用） */
@@ -2774,7 +2823,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     } as unknown as import('@/foundation').WorldSetting
   }
 
-  private buildRoundGuidanceInput(): {
+  private buildRoundGuidanceInput(luckNarrativeGuidance?: LuckNarrativeGuidance): {
     roundSystemGuidanceText?: string
     playerBranchIntent?: Record<string, unknown>
   } {
@@ -2814,6 +2863,14 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
     if (hints.optional.length > 0) {
       addComponent('optional-round-hints', `【本轮参考建议】${hints.optional.join('。')}`, '写作规则', '剧情引导')
+    }
+    if (luckNarrativeGuidance) {
+      addComponent(
+        'luck-narrative-guidance',
+        formatLuckNarrativeGuidance(luckNarrativeGuidance),
+        '写作规则',
+        '剧情引导',
+      )
     }
 
     const focusedIntent = this.getFocusedBranchIntentRuntime()
@@ -2857,15 +2914,12 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   /** 构建 NarrativeHintInput（从当前 orchestrator 状态收集数据） */
   private buildHintInput(): NarrativeHintInput {
-    const lifespanData = this.lastSubsystemStates?.['lifespan']?.data as { maxAge?: number } | undefined
     const baseData = this.lastSubsystemStates?.['character-base']?.data as { startingAge?: number } | undefined
-    const maxAge = lifespanData?.maxAge ?? 100
     const startingAge = baseData?.startingAge ?? 0
     const currentAge = this.computeNarrativeAge(this.buildRoundContext())
 
     return {
       currentAge,
-      maxAge,
       startingAge,
       round: this.state.totalRounds,
       recentEvents: this.buildYearEvents().map(e => ({ narrative: e.narrative, age: e.age })),
@@ -2875,7 +2929,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       consecutiveSameGoalRounds: this.consecutiveSameGoalRounds,
       timeStep: this.state.timeStep,
       narrativeStyle: this.getNarrativeStyle(),
-      lifeStage: resolveLifeStageFromAge(currentAge, maxAge, startingAge),
     }
   }
 
@@ -2943,11 +2996,49 @@ export class OrchestratorSystem extends BaseSubsystem {
     if (
       typeof candidate.preflightBatch !== 'function'
       || typeof candidate.commitBatch !== 'function'
+      || typeof candidate.submitCandidates !== 'function'
+      || typeof candidate.queryCandidates !== 'function'
       || typeof candidate.getEvent !== 'function'
     ) {
       return undefined
     }
     return subsystem as HistoricalEventLedgerRuntime
+  }
+
+  /** 读取当前上下文相关的全部可用候选；公开查询上限只限制单页，不截断完整集合。 */
+  getAvailableHistoricalEventCandidates(): HistoricalEventCandidateAudit[] {
+    const ledger = this.getHistoricalEventLedgerRuntime()
+    if (!ledger) throw new Error('historical-event-ledger 未注册或公开契约不完整')
+
+    const context = this.buildRoundContext()
+    const candidates: HistoricalEventCandidateAudit[] = []
+    const pageSize = 500
+    let offset = 0
+    while (true) {
+      const page = ledger.queryCandidates({
+        contextId: context.contextId,
+        statuses: ['available'],
+        latestOnly: true,
+        offset,
+        limit: pageSize,
+      })
+      candidates.push(...page)
+      if (page.length < pageSize) break
+      offset += page.length
+    }
+
+    return candidates.sort((left, right) => left.candidateId.localeCompare(right.candidateId))
+  }
+
+  /** 历史事实成为最终账本后，通知依赖真实事件 ID 的 owning systems。 */
+  private notifyHistoricalEventsCommitted(
+    eventIds: readonly string[],
+    context: RoundContext,
+  ): void {
+    const committedIds = [...eventIds]
+    for (const subsystem of this.subsystems) {
+      this.asRuntimeManaged(subsystem).onHistoricalEventsCommitted?.(committedIds, context)
+    }
   }
 
   private getCurrentHistoricalScope(): HistoricalEventScope {
@@ -2971,6 +3062,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     ledger: HistoricalEventLedgerRuntime,
     parsed: ParsedNarrative,
     keyEvents: Array<{ text: string; importance: number; entities?: string[] }>,
+    pendingDeath?: PendingDeathFact,
   ): HistoricalNarrativeTransactionPlan | undefined {
     const context = this.buildRoundContext()
     const scope = this.getCurrentHistoricalScope()
@@ -2993,6 +3085,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       input: Omit<HistoricalEventCreateInput, 'eventId'>,
       evidenceDescription: string,
       payload: unknown,
+      evidenceKind: HistoricalEventEvidenceInput['kind'] = 'narrative',
     ): { eventId: string; evidenceId: string } => {
       const eventId = createHistoricalTransactionId('event')
       const evidenceId = createHistoricalTransactionId('evidence')
@@ -3000,7 +3093,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       evidence.push({
         evidenceId,
         eventId,
-        kind: 'narrative',
+        kind: evidenceKind,
         description: evidenceDescription,
         sourceId,
         contextId: context.contextId || undefined,
@@ -3048,6 +3141,28 @@ export class OrchestratorSystem extends BaseSubsystem {
         digest: parsed.digest,
         semanticSignals: parsed.semanticSignals,
       })
+      narrativeFactEventIds.push(appended.eventId)
+    }
+
+    if (pendingDeath) {
+      const appended = appendEvent({
+        eventType: 'character-death',
+        title: '人物离世',
+        description: pendingDeath.causeLabel,
+        scope,
+        status: 'occurred',
+        participants: [{
+          entityId: pendingDeath.entityId,
+          contextId: pendingDeath.contextId,
+          role: 'deceased',
+        }],
+        tags: ['character-death', pendingDeath.causeKind],
+        metadata: {
+          causeKind: pendingDeath.causeKind,
+          finalAgeDays: pendingDeath.finalAgeDays,
+          occurredAtTotalDays: pendingDeath.occurredAtTotalDays,
+        },
+      }, '健康系统在本轮原子提交中确认人物死亡', pendingDeath, 'system-commit')
       narrativeFactEventIds.push(appended.eventId)
     }
 
@@ -3182,7 +3297,10 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
   }
 
-  handleNarrativeResponse(parsed: ParsedNarrative): RoundResult {
+  handleNarrativeResponse(
+    parsed: ParsedNarrative,
+    eventCandidates: readonly HistoricalEventCandidateInput[],
+  ): RoundResult {
     const commitSnapshot = this.capturePreviewSnapshot()
     try {
       const narrative = parsed.narrative
@@ -3215,6 +3333,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       }
 
       const roundSequence = this.state.totalRounds
+      const transitionAuditId = `narrative-${this.state.lifeRunId}-${roundSequence}`
       const ageAtRound = this.computeNarrativeAge(this.buildRoundContext())
       const displayTimeLabel = buildNarrativeTimeContext(
         this.buildRoundContext(),
@@ -3222,15 +3341,21 @@ export class OrchestratorSystem extends BaseSubsystem {
       ).timeLabel
       const structuredKeyEvents = parsed.keyEvents ?? []
       const ledger = this.getHistoricalEventLedgerRuntime()
+      const healthRuntime = this.subsystems.find((item) => item.id === 'health') as (ISubSystem & {
+        getPendingDeath: (entityId: string) => PendingDeathFact | undefined
+      }) | undefined
+      const pendingDeath = healthRuntime?.getPendingDeath(this.buildRoundContext().characterId)
       const historicalInputRequired = structuredKeyEvents.length > 0
         || parsed.semanticSignals !== undefined
         || (parsed.deferredCausality?.length ?? 0) > 0
+        || pendingDeath !== undefined
+        || eventCandidates.length > 0
       if (historicalInputRequired && !ledger) {
         throw new Error('historical-event-ledger 未注册或公开契约不完整')
       }
 
       const historicalPlan = ledger
-        ? this.buildHistoricalNarrativeTransactionPlan(ledger, parsed, structuredKeyEvents)
+        ? this.buildHistoricalNarrativeTransactionPlan(ledger, parsed, structuredKeyEvents, pendingDeath)
         : undefined
       if (historicalPlan && ledger) {
         const preflight = ledger.preflightBatch(historicalPlan.batch, this.buildRoundContext())
@@ -3241,9 +3366,10 @@ export class OrchestratorSystem extends BaseSubsystem {
 
       let acceptedHistoricalEventIds: string[] = []
       if (historicalPlan && ledger) {
+        const historicalCommitContext = this.buildRoundContext()
         const historicalCommit = ledger.commitBatch(
           historicalPlan.batch,
-          this.buildRoundContext(),
+          historicalCommitContext,
         )
         if (
           !historicalCommit.ok
@@ -3253,6 +3379,40 @@ export class OrchestratorSystem extends BaseSubsystem {
           throw new Error(historicalCommit.errors.join('；') || '历史批次提交结果不完整')
         }
         acceptedHistoricalEventIds = [...historicalCommit.eventIds]
+        this.notifyHistoricalEventsCommitted(acceptedHistoricalEventIds, historicalCommitContext)
+      }
+
+      if (eventCandidates.length > 0 && ledger) {
+        const candidateContext = this.buildRoundContext()
+        const submission = ledger.submitCandidates({
+          source: {
+            kind: 'narrative',
+            sourceId: `narrative-event-recognition:${candidateContext.contextId}:${roundSequence}:${candidateContext.totalDays}`,
+            description: '故事正文返回后由独立事件识别调用登记的未来待触发事项',
+          },
+          candidates: eventCandidates.map((candidate) => ({
+            ...structuredClone(candidate),
+            metadata: {
+              ...(candidate.metadata ?? {}),
+              recognition: {
+                schemaVersion: 1,
+                lifeRunId: this.state.lifeRunId,
+                executionId: `narrative-round:${this.state.lifeRunId}:${roundSequence}:real`,
+                roundSequence,
+                contextId: candidateContext.contextId,
+                totalDays: candidateContext.totalDays,
+                narrativeId: transitionAuditId,
+                historicalEventIds: [...acceptedHistoricalEventIds],
+              },
+            },
+          })),
+        }, candidateContext)
+        if (
+          submission.length !== eventCandidates.length
+          || submission.some((audit) => audit.status !== 'available')
+        ) {
+          throw new Error('待触发事件候选未能完整注册')
+        }
       }
 
       if (parsed.semanticSignals) {
@@ -3374,7 +3534,6 @@ export class OrchestratorSystem extends BaseSubsystem {
           .filter((metric): metric is NonNullable<typeof metric> => Boolean(metric)),
         repetitionMetric,
       ])
-      const transitionAuditId = `narrative-${this.state.lifeRunId}-${this.state.totalRounds}`
       const transitionAudit: NarrativeTransitionAuditSnapshot = {
         schemaVersion: 1,
         round: this.state.totalRounds,
@@ -3419,7 +3578,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       })
       this.state.storyRepetitionStats = storyRepetitionStats
       this.lastNarratedTimeStep = { ...this.state.timeStep }
-      this.syncBranchIntentProjectionToEngineStore()
       this.collectSubsystemStates(false, false)
 
       this.recordSystemDiagnostic('round-commit', 'transition-audited', 'ok', {
@@ -3540,12 +3698,12 @@ export class OrchestratorSystem extends BaseSubsystem {
   /**
    * 执行叙事阶段机
    *
-   * 按 stages 数组顺序逐阶段执行。每阶段支持：
+   * 按阶段声明的执行图逐阶段执行。每阶段支持：
    *   - onEnter: 进入阶段时执行一次
    *   - onUpdate: 每轮执行
    *   - shouldProceed: 判断是否可前进（返回 true → 进入下一阶段）
    *   - onExit: 离开阶段时执行一次
-   *   - maxRounds: 超时自动推进（替代手动 deadLoopDetector）
+   *   - maxRounds: 阶段执行次数上限，超限进入失败终态
    *
    * 吸收 Factorio Story Script 的 init→update→condition→action 模型。
    */
@@ -3554,71 +3712,92 @@ export class OrchestratorSystem extends BaseSubsystem {
     context: RoundContext,
   ): Promise<void> {
     if (stages.length === 0) return
+    const executionRoundSequence = (context.roundSequence ?? this.state.totalRounds) + 1
 
-    for (let i = 0; i < stages.length; i += 1) {
-      const stage = stages[i]
-      let roundCount = 0
-      const stageStartedAt = performance.now()
-      let failurePoint: 'onEnter' | 'onUpdate' | 'shouldProceed' | 'onExit' | 'maxRounds' | undefined
-      logger.debug('orchestrator-stage', 'stage-enter', {
-        stage: stage.name,
-        index: i,
-        total: stages.length,
-        round: this.state.totalRounds,
-      })
+    const nodes = stages.map((stage, index) => ({
+      id: stage.name,
+      owner: stage.owner,
+      failureTarget: stage.failureTarget,
+      phase: stage.phase,
+      dependsOn: stage.dependsOn,
+      order: stage.order,
+      parallelGroup: stage.parallelGroup,
+      outcomes: createExecutionOutcomeCodes('narrative-round', stage.name),
+      run: async (stageContext: RoundContext) => {
+        let roundCount = 0
+        const stageStartedAt = performance.now()
+        let failurePoint: 'onEnter' | 'onUpdate' | 'shouldProceed' | 'onExit' | 'maxRounds' | undefined
+        logger.debug('orchestrator-stage', 'stage-enter', {
+          stage: stage.name,
+          index,
+          total: stages.length,
+          round: this.state.totalRounds,
+        })
 
-      try {
-        failurePoint = 'onEnter'
-        await stage.onEnter?.(context)
+        try {
+          failurePoint = 'onEnter'
+          await stage.onEnter?.(stageContext)
 
-        while (true) {
-          roundCount += 1
-          const maxRounds = stage.maxRounds ?? 100
-          if (roundCount > maxRounds) {
-            failurePoint = 'maxRounds'
-            throw new Error(`阶段 "${stage.name}" 超过 maxRounds=${maxRounds}`)
+          while (true) {
+            roundCount += 1
+            const maxRounds = stage.maxRounds ?? 100
+            if (roundCount > maxRounds) {
+              failurePoint = 'maxRounds'
+              throw new Error(`阶段 "${stage.name}" 超过 maxRounds=${maxRounds}`)
+            }
+
+            failurePoint = 'onUpdate'
+            await stage.onUpdate?.(stageContext)
+
+            failurePoint = 'shouldProceed'
+            const shouldProceed = stage.shouldProceed
+              ? await stage.shouldProceed(stageContext)
+              : true
+            if (shouldProceed) break
           }
 
-          failurePoint = 'onUpdate'
-          await stage.onUpdate?.(context)
-
-          failurePoint = 'shouldProceed'
-          const shouldProceed = stage.shouldProceed
-            ? await stage.shouldProceed(context)
-            : true
-          if (shouldProceed) break
+          failurePoint = 'onExit'
+          await stage.onExit?.(stageContext)
+          logger.debug('orchestrator-stage', 'stage-exit', {
+            stage: stage.name,
+            index,
+            rounds: roundCount,
+          })
+          this.pushDiagnosticPhase({
+            name: stage.name,
+            status: 'completed',
+            durationMs: Math.max(0, Math.round(performance.now() - stageStartedAt)),
+            details: { index, iterations: roundCount },
+          })
+          return { status: 'succeeded' as const }
+        } catch (error) {
+          const stageError: NarrativeDiagnosticPhase['error'] = {
+            name: error instanceof Error ? error.name : undefined,
+            message: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+          }
+          logger.error('orchestrator-stage', 'stage-failed', error)
+          this.pushDiagnosticPhase({
+            name: stage.name,
+            status: 'failed',
+            durationMs: Math.max(0, Math.round(performance.now() - stageStartedAt)),
+            details: { index, iterations: roundCount, failurePoint },
+            error: stageError,
+          })
+          throw error
         }
+      },
+    }))
 
-        failurePoint = 'onExit'
-        await stage.onExit?.(context)
-        failurePoint = undefined
-        logger.debug('orchestrator-stage', 'stage-exit', {
-          stage: stage.name,
-          index: i,
-          rounds: roundCount,
-        })
-        this.pushDiagnosticPhase({
-          name: stage.name,
-          status: 'completed',
-          durationMs: Math.max(0, Math.round(performance.now() - stageStartedAt)),
-          details: { index: i, iterations: roundCount },
-        })
-      } catch (error) {
-        const stageError: NarrativeDiagnosticPhase['error'] = {
-          name: error instanceof Error ? error.name : undefined,
-          message: error instanceof Error ? error.message : String(error),
-          stack: error instanceof Error ? error.stack : undefined,
-        }
-        logger.error('orchestrator-stage', 'stage-failed', error)
-        this.pushDiagnosticPhase({
-          name: stage.name,
-          status: 'failed',
-          durationMs: Math.max(0, Math.round(performance.now() - stageStartedAt)),
-          details: { index: i, iterations: roundCount, failurePoint },
-          error: stageError,
-        })
-        throw error
-      }
+    const result = await runExecutionSequence({
+      flowId: 'narrative-round',
+      executionId: `narrative-round:${this.state.lifeRunId}:${executionRoundSequence}:${this.isPreviewExecution() ? 'preview' : 'real'}`,
+      owner: 'mod-engine',
+      context,
+      nodes,
+    })
+    if (result.status !== 'succeeded') {
+      throw executionSequenceError(result)
     }
   }
 
@@ -3680,6 +3859,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.lastSessionId = sessionId
     // 每次执行都从空结果开始，避免预览/HMR 后沿用上一轮完整响应。
     this.lastExecutedFullContent = null
+    this.lastNarrativeLuckGuidance = null
     const context = this.buildRoundContext()
 
     // Instrument: onRoundStart

@@ -122,3 +122,99 @@ export {
   NPC_SYSTEM_OPERATION_FIELDS,
   RELATIONSHIP_SYSTEM_OPERATION_FIELDS,
 } from './npc-social.contract'
+
+export type {
+  TerrainClass,
+  NodeGeographyRecord,
+  GeographyChangeRecord,
+  GeographyPersistenceState,
+  GeographyMutationInput,
+  ResourceDepositStatus,
+  NaturalResourceDeposit,
+  NaturalResourceTransaction,
+  NaturalResourcePersistenceState,
+  NaturalResourceDepositInput,
+  NaturalResourceTransactionInput,
+  MapProjectionKind,
+  MapProjectionVisibility,
+  MapProjectionNode,
+  MapProjectionEdge,
+  MapProjection,
+  MapProjectionRequest,
+} from './spatial-environment.contract'
+
+export type {
+  ProgressionScopeKind,
+  ProgressionScope,
+  SkillMastery,
+  GrowthSkill,
+  AbilityStatus,
+  StableAbility,
+  GrowthRecord,
+  GrowthSystemPersistenceState,
+  GrowthSystemInstructionOperation,
+  AchievementScopeKind,
+  AchievementEventCriteria,
+  AchievementDefinition,
+  AchievementProgress,
+  AchievementUnlock,
+  AchievementSystemPersistenceState,
+  ReputationScopeKind,
+  ReputationScope,
+  ReputationEvaluation,
+  ReputationChangeRecord,
+  ReputationSystemPersistenceState,
+  ReputationSystemInstructionOperation,
+} from './progression.contract'
+
+export {
+  GROWTH_SYSTEM_OPERATION_FIELDS,
+  REPUTATION_SYSTEM_OPERATION_FIELDS,
+} from './progression.contract'
+
+export type {
+  CharacterAttributeKey,
+  CharacterAttributeModifiers,
+  BiologicalClockMode,
+  LifespanRuleProfile,
+  LifespanAdjustment,
+  LifespanSystemPersistenceState,
+  LifespanSystemInstructionOperation,
+  LifecycleNarrativeArchetype,
+  LifecycleStageDefinition,
+  LifecycleRuleProfile,
+  EntityLifecycleState,
+  LifecycleTransitionRecord,
+  LifecycleSystemPersistenceState,
+  HealthConditionKind,
+  HealthConditionStatus,
+  HealthCondition,
+  ContextHealthRule,
+  DeathCauseKind,
+  PendingDeathFact,
+  DeathOutcome,
+  EntityHealthState,
+  HealthSystemPersistenceState,
+  HealthSystemInstructionOperation,
+} from './life-cycle.contract'
+
+export {
+  CHARACTER_DAYS_PER_YEAR,
+  resolveCharacterAgeDays,
+  resolveInitialAgeAnchorTotalDays,
+  LIFESPAN_SYSTEM_OPERATION_FIELDS,
+  HEALTH_SYSTEM_OPERATION_FIELDS,
+} from './life-cycle.contract'
+
+export type {
+  MonetaryMode,
+  WorldScaleCalibration,
+} from './world-scale.contract'
+
+export type {
+  PowerFrameworkProgression,
+  PowerFrameworkSource,
+  PowerRankDefinition,
+  PowerFrameworkDefinition,
+  PowerFrameworkProposal,
+} from './power-framework.contract'

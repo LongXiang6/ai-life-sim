@@ -8,6 +8,7 @@ import { defineMod } from '@/core'
 
 export default defineMod({
   name: 'mod-history-dynamics',
+  order: 300,
   version: '2.0.0',
   description: '跨世界历史事件、证据、候选审计与因果图的唯一事实账本',
   dependencies: ['mod-engine', 'mod-world'],

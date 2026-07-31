@@ -21,12 +21,22 @@ const verbose = process.argv.includes('--verbose')
 const quiet = !verbose
 const errorOnly = process.argv.includes('--error-only') || quiet
 
+/** Resolve Windows npm shims to the current Node runtime without a shell. */
+function resolveInvocation(cmd, args) {
+  if (!isWin || (cmd !== 'npm' && cmd !== 'npx')) {
+    return { command: cmd, args }
+  }
+  const cliName = cmd === 'npm' ? 'npm-cli.js' : 'npx-cli.js'
+  const cliPath = join(dirname(process.execPath), 'node_modules', 'npm', 'bin', cliName)
+  return { command: process.execPath, args: [cliPath, ...args] }
+}
+
 /** @returns {Promise<{name:string, code:number|null, signal:string|null, stdout:string, stderr:string}>} */
 function spawnAsync(name, cmd, args, opts = {}) {
   return new Promise((resolve) => {
-    const child = spawn(cmd, args, {
+    const invocation = resolveInvocation(cmd, args)
+    const child = spawn(invocation.command, invocation.args, {
       cwd: projectRoot,
-      shell: isWin,
       stdio: 'pipe',
       ...opts,
     })

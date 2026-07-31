@@ -8,7 +8,11 @@
  */
 
 import { z } from 'zod'
-import type { SubSystemChanges } from '@/foundation'
+import type {
+  ContextCapability,
+  HistoricalEventCandidateInput,
+  SubSystemChanges,
+} from '@/foundation'
 import { parseAIJSON } from '@/core/ai-service/parse-ai-json'
 
 import {
@@ -21,6 +25,7 @@ export const NARRATIVE_BODY_TAG = '⟦正文⟧'
 export const NARRATIVE_BRANCH_TAG = '⟦分支⟧'
 export const NARRATIVE_SYSTEM_TAG_PREFIX = '⟦系统'
 export const NARRATIVE_DATA_TAG = '⟦数据⟧'
+export const NARRATIVE_EVENT_CANDIDATES_TAG = '⟦待触发事件⟧'
 
 function createEnumTranslator<const TInternal extends string, const TAI extends string>(
   pairs: readonly (readonly [TInternal, TAI])[],
@@ -167,6 +172,21 @@ export const AI_DEFERRED_CAUSAL_SEVERITIES = createEnumTranslator([
   ['normal', '普通'],
   ['major', '重大'],
   ['critical', '关键'],
+] as const)
+
+export const AI_EVENT_CANDIDATE_SCOPES = createEnumTranslator([
+  ['context', '当前上下文'],
+  ['global', '全局'],
+] as const)
+
+export const AI_CONTEXT_CAPABILITIES = createEnumTranslator([
+  ['life', '生命'],
+  ['space', '空间'],
+  ['npc', '人物'],
+  ['economy', '经济'],
+  ['politics', '政治'],
+  ['technology', '科技'],
+  ['supernatural', '超自然'],
 ] as const)
 
 export function toNarrativeAIIntentId(internalId: string): string {
@@ -323,9 +343,43 @@ export const NarrativeAISettlementDataSchema = z.object({
   }
 })
 
+const NarrativeAIEventCandidateSchema = z.object({
+  类型: z.string().min(1),
+  标题: z.string().min(1),
+  说明: z.string().min(1),
+  作用域: AI_EVENT_CANDIDATE_SCOPES.schema,
+  触发条件: z.string().min(1),
+  延迟天数: z.number().int().min(1).optional(),
+  相关人物: z.array(z.string().min(1)).min(1).optional(),
+  相关地点: z.array(z.string().min(1)).min(1).optional(),
+  所需能力: z.array(AI_CONTEXT_CAPABILITIES.schema).min(1).optional(),
+  标签: z.array(z.string().min(1)).min(1).optional(),
+}).strict().superRefine((candidate, context) => {
+  const duplicateFields: Array<[string, readonly string[] | undefined]> = [
+    ['相关人物', candidate.相关人物],
+    ['相关地点', candidate.相关地点],
+    ['所需能力', candidate.所需能力],
+    ['标签', candidate.标签],
+  ]
+  for (const [field, values] of duplicateFields) {
+    if (values && new Set(values).size !== values.length) {
+      context.addIssue({ code: 'custom', path: [field], message: `${field} 不得包含重复项` })
+    }
+  }
+  if (candidate.作用域 === '全局' && (candidate.所需能力?.length ?? 0) > 0) {
+    context.addIssue({ code: 'custom', path: ['所需能力'], message: '全局候选不得声明上下文能力' })
+  }
+})
+
+/** 事件识别调用只返回尚未发生、等待条件满足的候选。 */
+export const NarrativeAIEventRecognitionDataSchema = z.object({
+  事件: z.array(NarrativeAIEventCandidateSchema),
+}).strict()
+
 export type NarrativeAISettlementData = z.infer<typeof NarrativeAISettlementDataSchema>
 export type NarrativeAIBranch = z.infer<typeof NarrativeAIBranchSchema>
 export type NarrativeAISystemInstruction = z.infer<typeof NarrativeAISystemInstructionSchema>
+export type NarrativeAIEventRecognitionData = z.infer<typeof NarrativeAIEventRecognitionDataSchema>
 
 /** 读取唯一完整 JSON；字段和值仍由所属严格 Schema 校验。 */
 export function parseNarrativeAIJson(source: string): unknown {
@@ -435,6 +489,83 @@ export function translateNarrativeAISettlement(
   }
 
   return NarrativeResponseSchema.parse(translated)
+}
+
+export interface TranslateNarrativeAIEventRecognitionOptions {
+  currentContextId: string
+  currentTotalDays: number
+}
+
+/** 将事件识别结果转成历史事件账本拥有的候选输入，不在此分配稳定候选 ID。 */
+export function translateNarrativeAIEventRecognition(
+  rawData: unknown,
+  options: TranslateNarrativeAIEventRecognitionOptions,
+): HistoricalEventCandidateInput[] {
+  const data = NarrativeAIEventRecognitionDataSchema.parse(rawData)
+  const currentContextId = options.currentContextId.trim()
+  if (!currentContextId) throw new Error('事件识别缺少当前上下文')
+  if (!Number.isSafeInteger(options.currentTotalDays) || options.currentTotalDays < 0) {
+    throw new Error('事件识别的当前规范天数无效')
+  }
+
+  return data.事件.map((candidate) => {
+    const scopeKind = AI_EVENT_CANDIDATE_SCOPES.toInternal(candidate.作用域)
+    const dueTotalDays = candidate.延迟天数 === undefined
+      ? undefined
+      : options.currentTotalDays + candidate.延迟天数
+    if (dueTotalDays !== undefined && !Number.isSafeInteger(dueTotalDays)) {
+      throw new Error(`待触发事件“${candidate.标题}”的到期天数超出规范范围`)
+    }
+    const requiredCapabilities = (candidate.所需能力 ?? [])
+      .map((capability) => AI_CONTEXT_CAPABILITIES.toInternal(capability))
+      .sort() as ContextCapability[]
+
+    return {
+      eventType: candidate.类型.trim(),
+      title: candidate.标题.trim(),
+      description: candidate.说明.trim(),
+      scope: scopeKind === 'context'
+        ? { kind: 'context', contextIds: [currentContextId] }
+        : { kind: 'global', contextIds: [] },
+      participants: (candidate.相关人物 ?? []).map((label) => ({
+        label: label.trim(),
+        ...(scopeKind === 'context' ? { contextId: currentContextId } : {}),
+        role: 'related-person',
+      })),
+      locations: (candidate.相关地点 ?? []).map((label) => ({
+        label: label.trim(),
+        ...(scopeKind === 'context' ? { contextId: currentContextId } : {}),
+        role: 'related-location',
+      })),
+      ...(dueTotalDays === undefined ? {} : { schedule: { dueTotalDays } }),
+      triggerConditionLabel: candidate.触发条件.trim(),
+      requiredCapabilities,
+      tags: (candidate.标签 ?? []).map((tag) => tag.trim()),
+    }
+  })
+}
+
+function normalizeCandidateFingerprintText(value: string | undefined): string {
+  return value?.trim().replace(/\s+/gu, ' ').toLocaleLowerCase() ?? ''
+}
+
+/** 用于识别同一候选是否已经注册；不替代账本的稳定 ID。 */
+export function buildNarrativeEventCandidateFingerprint(
+  candidate: Pick<
+    HistoricalEventCandidateInput,
+    'eventType' | 'title' | 'description' | 'scope' | 'triggerConditionLabel'
+  >,
+): string {
+  return JSON.stringify({
+    eventType: normalizeCandidateFingerprintText(candidate.eventType),
+    title: normalizeCandidateFingerprintText(candidate.title),
+    description: normalizeCandidateFingerprintText(candidate.description),
+    scope: {
+      kind: candidate.scope.kind,
+      contextIds: [...candidate.scope.contextIds].sort(),
+    },
+    triggerConditionLabel: normalizeCandidateFingerprintText(candidate.triggerConditionLabel),
+  })
 }
 
 /** 第一次调用格式修复使用的最小提醒。 */

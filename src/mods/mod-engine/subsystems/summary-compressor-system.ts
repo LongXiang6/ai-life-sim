@@ -18,9 +18,6 @@ import type {
   CompressedSummaries,
   CompressedSummaryItem,
   CompressedMemoryEvent,
-  LongTermMemory,
-  LifeStage,
-  NarrativeDirection,
   AIModelConfig,
 } from '@/foundation'
 import { BaseSubsystem, callAI } from '@/core'
@@ -520,50 +517,6 @@ export class SummaryCompressorSystem extends BaseSubsystem {
     terms: readonly string[],
   ) {
     return searchNarrativeMemory(lifeRunId, currentRound, terms)
-  }
-
-  determineLocalDirection(
-    _events: YearEvent[],
-    memory: LongTermMemory,
-    dynamicAttrs: Record<string, number>,
-    forceBranch: boolean,
-    lifeStage: LifeStage,
-    lastPlayerChoice?: string,
-    _worldview?: string,
-  ): NarrativeDirection {
-    let direction: NarrativeDirection = null
-    if (lastPlayerChoice) {
-      if (/战斗|攻击|征服|入侵/.test(lastPlayerChoice)) direction = '战斗/征服'
-      else if (/经商|买卖|交易|积累|赚钱/.test(lastPlayerChoice)) direction = '经商/积累'
-      else if (/修炼|练功|突破|境界/.test(lastPlayerChoice)) direction = '修炼/突破'
-      else if (/结盟|结交|社交|和谈/.test(lastPlayerChoice)) direction = '社交/结盟'
-      else if (/探索|冒险|秘境|发现/.test(lastPlayerChoice)) direction = '探索/冒险'
-      else if (/建设|经营|发展|管理/.test(lastPlayerChoice)) direction = '经营/建设'
-      else if (/学习|研究|知识/.test(lastPlayerChoice)) direction = '学习/研究'
-    }
-    if (direction === null && memory.faction && memory.faction.rank >= 5) direction = '经营/建设'
-    if (direction === null) {
-      if ((dynamicAttrs.wealth ?? 0) < -5) direction = '经商/积累'
-      else if ((dynamicAttrs.fame ?? 0) < -3) direction = '社交/结盟'
-    }
-    if (direction === null && forceBranch) {
-      const pools: NarrativeDirection[] = ['战斗/征服', '探索/冒险', '社交/结盟']
-      direction = pools[Math.floor(Math.random() * pools.length)]
-    }
-    if (direction === null) {
-      const pools: Record<string, NarrativeDirection[]> = {
-        infant: ['日常/生活'],
-        child: ['学习/研究', '日常/生活'],
-        teenager: ['学习/研究', '社交/结盟', '探索/冒险'],
-        young_adult: ['战斗/征服', '经商/积累', '社交/结盟', '探索/冒险', '经营/建设'],
-        adult: ['经营/建设', '经商/积累', '社交/结盟', '战斗/征服'],
-        middle_age: ['经营/建设', '社交/结盟', '学习/研究', '日常/生活'],
-        elder: ['日常/生活', '学习/研究', '社交/结盟'],
-      }
-      const pool = pools[lifeStage]
-      if (pool) direction = pool[Math.floor(Math.random() * pool.length)]
-    }
-    return direction ?? '日常/生活'
   }
 
   collectState(_context: RoundContext): SubSystemState {

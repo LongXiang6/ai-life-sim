@@ -8,6 +8,7 @@
 
 import type { ZodSchema } from 'zod'
 import type { ContextCapabilityProfile, SimulationScope, WorldContextKind } from '../subsystem-contracts'
+import type { ExecutionPhase } from './execution-sequence.types'
 
 /** 世界设定 */
 export interface WorldSetting {
@@ -106,8 +107,8 @@ export interface PromptContext {
   talents?: string,
   /** 时间描写引导（totalRounds > 0 时注入，指导 AI 避免"这一年"开头） */
   timeGuideText?: string,
-  /** 力量体系预设（叙事分层格式：当前可达范围完整说明，更高阶只提供边界名称） */
-  powerCeilingPresets?: string,
+  /** 当前世界力量框架的只读投影；不含跨世界固定阶位表。 */
+  powerFramework?: string,
 }
 
 /**
@@ -236,17 +237,6 @@ export interface CompressedSummaryItem {
 export interface CompressedSummaries {
   summaries: CompressedSummaryItem[],
 }
-
-/** 生命阶段（来源: life-sim-types.ts） */
-export type LifeStage =
-  | 'infant'
-  | 'child'
-  | 'teenager'
-  | 'young_adult'
-  | 'adult'
-  | 'middle_age'
-  | 'elder'
-  | 'deceased'
 
 /** 死亡原因 */
 export interface DeathCause {
@@ -399,23 +389,41 @@ export interface NarrativeStage {
   /** 阶段名称 */
   name: string
 
+  /** 执行图阶段；阶段屏障不得逆向依赖。 */
+  phase: ExecutionPhase
+
+  /** 硬依赖阶段名称。 */
+  dependsOn: readonly string[]
+
+  /** 同一依赖层的显式顺序。 */
+  order: number
+
+  /** 同阶段、同依赖层、同 order 的显式并行组。 */
+  parallelGroup?: string
+
+  /** 阶段实现与诊断的唯一所有者。 */
+  owner: string
+
+  /** 阶段故障的唯一接收者。 */
+  failureTarget: string
+
   /** 进入阶段时执行一次 */
-  onEnter?: (ctx: import('./subsystem.types').RoundContext) => void
+  onEnter?: (ctx: import('./subsystem.types').RoundContext) => void | Promise<void>
 
   /** 每轮执行 */
-  onUpdate?: (ctx: import('./subsystem.types').RoundContext) => void
+  onUpdate?: (ctx: import('./subsystem.types').RoundContext) => void | Promise<void>
 
   /** 判断阶段是否完成（返回 true → 进入下一阶段） */
-  shouldProceed?: (ctx: import('./subsystem.types').RoundContext) => boolean
+  shouldProceed?: (ctx: import('./subsystem.types').RoundContext) => boolean | Promise<boolean>
 
   /** 离开阶段时执行一次 */
-  onExit?: (ctx: import('./subsystem.types').RoundContext) => void
+  onExit?: (ctx: import('./subsystem.types').RoundContext) => void | Promise<void>
 
   /**
-   * 可选：超时后强制推进
+   * 可选：阶段执行次数上限；超过后进入失败终态
    *
    * 替代手动 deadLoopDetector 计数器。当 onUpdate 执行次数达到 maxRounds
-   * 且 shouldProceed 未返回 true 时，引擎自动调用 onExit 并进入下一阶段。
+   * 且 shouldProceed 未返回 true 时，引擎终止当前执行实例，不猜测成功。
    */
   maxRounds?: number
 }
@@ -424,11 +432,11 @@ export interface NarrativeStage {
  * 叙事阶段机
  *
  * 自动管理阶段流转：
- *   1. 按 stages 数组顺序逐阶段执行
+ *   1. 按阶段声明的执行图顺序逐阶段执行
  *   2. 每轮调用当前阶段的 onUpdate()
  *   3. 检查 shouldProceed() → true → 调用 onExit() → 进入下一阶段
  *   4. 支持 jumpTo(stageName) 跳转到其他分支
- *   5. 自动检查 maxRounds 防止死循环
+ *   5. 自动检查 maxRounds 防止死循环，超限进入失败终态
  */
 export interface NarrativeStageMachine {
   /** 阶段数组（顺序执行） */

@@ -1,218 +1,274 @@
-/**
- * @module LuckSystem
- * @description 气运子系统（隐藏基础属性，用户不可见）：运气值 → 四项全局修正系数，供 AI 读写与 CelestialSystem 等引用
- * @mod mod-character
- */
-
-import { getRoundSequence } from '@/foundation'
-import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
-import type { LuckState, LuckModifiers } from '../types'
-
+import { BaseSubsystem } from '@/core'
+import type {
+  LuckNarrativeDirection,
+  LuckNarrativeGuidance,
+  LuckModifiers,
+  LuckPersistenceState,
+  LuckState,
+  RoundContext,
+  SubSystemChanges,
+  SubSystemState,
+} from '@/foundation'
 import {
+  BASE_BAD_LUCK_DIRECTION_PERCENT,
+  BASE_GOOD_LUCK_DIRECTION_PERCENT,
+  BASE_NEUTRAL_LUCK_DIRECTION_PERCENT,
+  INITIAL_LUCK_MAX,
+  INITIAL_LUCK_MIN,
+  LUCK_DIRECTION_PERCENT_PER_POINT,
   LUCK_DISEASE_AVOIDANCE_PER_POINT,
   LUCK_DEATH_AVOID_CHANCE_PER_POINT,
   LUCK_EVENT_WEIGHT_PER_POINT,
-  LUCK_AGE_DECAY_MODIFIER_PER_POINT,
-  MIN_LUCK,
   MAX_LUCK,
-  LUCK_MAJOR_CHANGE_THRESHOLD,
-  LUCK_NOTIFICATION_DURATION,
+  MIN_LUCK,
 } from '../constants'
-import { round } from '../utils'
-import { clamp } from '@/core/shared'
-
 import { getFormulaModifier } from '@/mods/mod-world'
-import { usePowerSystemStore } from '@/mods/mod-power-system'
 
-const ZERO_LUCK_MODIFIERS: LuckModifiers = {
-  diseaseAvoidance: 0,
-  deathAvoidChance: 0,
-  eventWeightBias: 0,
-  ageDecayModifier: 0,
+export interface LuckDirectionProbabilities {
+  badProbabilityPercent: number
+  neutralProbabilityPercent: number
+  goodProbabilityPercent: number
 }
 
-export class LuckSystem implements ISubSystem {
+function clampLuck(value: number): number {
+  return Math.max(MIN_LUCK, Math.min(MAX_LUCK, Math.round(value)))
+}
+
+function normalizeRandomUnit(value: number): number {
+  if (!Number.isFinite(value)) return 0
+  return Math.max(0, Math.min(0.999999999, value))
+}
+
+/** 本地随机源；不读取 AI、Prompt 或任何玩家可写 Store。 */
+function localRandomUnit(): number {
+  const cryptoSource = globalThis.crypto
+  if (cryptoSource?.getRandomValues) {
+    const bucket = new Uint32Array(1)
+    cryptoSource.getRandomValues(bucket)
+    return bucket[0] / 0x1_0000_0000
+  }
+  return Math.random()
+}
+
+function roundPercent(value: number): number {
+  return Number(value.toFixed(2))
+}
+
+function rollPercentFromUnit(randomUnit: number): number {
+  return Math.floor(normalizeRandomUnit(randomUnit) * 10000) / 100
+}
+
+export function rollInitialLuck(randomUnit = localRandomUnit()): number {
+  const range = INITIAL_LUCK_MAX - INITIAL_LUCK_MIN + 1
+  return INITIAL_LUCK_MIN + Math.floor(normalizeRandomUnit(randomUnit) * range)
+}
+
+/**
+ * 将气运映射到坏/无干扰/好三个区间。
+ * 零气运为 25/50/25；每点从中性区和相反方向各转移 2.5 个百分点，
+ * 因而 +10 为 0/25/75，-10 为 75/25/0。
+ */
+export function resolveLuckDirectionProbabilities(luck: number): LuckDirectionProbabilities {
+  const value = clampLuck(luck)
+  const directionBias = Math.abs(value) * LUCK_DIRECTION_PERCENT_PER_POINT
+  const oppositeShift = directionBias / 2
+  if (value >= 0) {
+    return {
+      badProbabilityPercent: roundPercent(BASE_BAD_LUCK_DIRECTION_PERCENT - oppositeShift),
+      neutralProbabilityPercent: roundPercent(BASE_NEUTRAL_LUCK_DIRECTION_PERCENT - oppositeShift),
+      goodProbabilityPercent: roundPercent(BASE_GOOD_LUCK_DIRECTION_PERCENT + directionBias),
+    }
+  }
+  return {
+    badProbabilityPercent: roundPercent(BASE_BAD_LUCK_DIRECTION_PERCENT + directionBias),
+    neutralProbabilityPercent: roundPercent(BASE_NEUTRAL_LUCK_DIRECTION_PERCENT - oppositeShift),
+    goodProbabilityPercent: roundPercent(BASE_GOOD_LUCK_DIRECTION_PERCENT - oppositeShift),
+  }
+}
+
+export function classifyLuckDirection(
+  luck: number,
+  rollPercent: number,
+): LuckNarrativeDirection {
+  const probabilities = resolveLuckDirectionProbabilities(luck)
+  const roll = Math.max(0, Math.min(99.999999, Number.isFinite(rollPercent) ? rollPercent : 0))
+  if (roll < probabilities.badProbabilityPercent) return 'bad'
+  if (roll < probabilities.badProbabilityPercent + probabilities.neutralProbabilityPercent) return 'neutral'
+  return 'good'
+}
+
+export function createLuckNarrativeGuidance(
+  luck: number,
+  generatedAtRound: number,
+  generatedAtTotalDays: number,
+  randomUnit = localRandomUnit(),
+): LuckNarrativeGuidance {
+  const normalizedLuck = clampLuck(luck)
+  const probabilities = resolveLuckDirectionProbabilities(normalizedLuck)
+  const roll = rollPercentFromUnit(randomUnit)
+  return {
+    direction: classifyLuckDirection(normalizedLuck, roll),
+    roll,
+    ...probabilities,
+    luck: normalizedLuck,
+    generatedAtRound,
+    generatedAtTotalDays,
+  }
+}
+
+function buildModifiers(luck: number): LuckModifiers {
+  const value = clampLuck(luck)
+  const factor = getFormulaModifier('luckPointModifier', 1)
+  return {
+    diseaseAvoidance: Number((value * LUCK_DISEASE_AVOIDANCE_PER_POINT * factor).toFixed(4)),
+    deathAvoidChance: Number((value * LUCK_DEATH_AVOID_CHANCE_PER_POINT * factor).toFixed(4)),
+    eventWeightBias: Number((value * LUCK_EVENT_WEIGHT_PER_POINT * factor).toFixed(4)),
+  }
+}
+
+function createState(context: RoundContext): LuckState {
+  const luck = rollInitialLuck()
+  return {
+    contextId: context.contextId,
+    luck,
+    modifiers: buildModifiers(luck),
+    luckNotificationRounds: 0,
+    luckNotificationText: '',
+    narrativeGuidance: null,
+  }
+}
+
+function isSameGuidanceRound(guidance: LuckNarrativeGuidance, context: RoundContext): boolean {
+  return guidance.generatedAtRound === (context.roundSequence ?? 0)
+    && guidance.generatedAtTotalDays === context.totalDays
+}
+
+function validateGuidance(
+  guidance: LuckNarrativeGuidance,
+  state: LuckState,
+  context: RoundContext,
+): void {
+  if (!isSameGuidanceRound(guidance, context)) {
+    throw new Error('气运引导与当前回合时间线不一致')
+  }
+  if (guidance.luck !== state.luck) {
+    throw new Error('气运引导与当前气运点数不一致')
+  }
+  if (!Number.isFinite(guidance.roll) || guidance.roll < 0 || guidance.roll >= 100) {
+    throw new Error('气运引导随机刻度无效')
+  }
+  const expected = resolveLuckDirectionProbabilities(state.luck)
+  if (
+    guidance.badProbabilityPercent !== expected.badProbabilityPercent
+    || guidance.neutralProbabilityPercent !== expected.neutralProbabilityPercent
+    || guidance.goodProbabilityPercent !== expected.goodProbabilityPercent
+    || classifyLuckDirection(state.luck, guidance.roll) !== guidance.direction
+  ) {
+    throw new Error('气运引导区间数据无效')
+  }
+}
+
+export class LuckSystem extends BaseSubsystem {
   readonly id = 'luck' as const
   readonly mod = 'mod-character' as const
   readonly label = '气运' as const
-  readonly description = '运气值 → 四项全局修正系数：疾病躲避、死亡回避、事件权重偏移、衰老衰减' as const
+  readonly description = '按角色所在上下文保存本地气运点数与叙事方向引导，不读取超凡插件 Store' as const
+  private states: Record<string, LuckState> = {}
 
-  private state: LuckState = this.createInitialState()
-  private _lastProcessedRound = -1
-
-  private createInitialState(): LuckState {
-    return {
-      luck: 0,
-      modifiers: { ...ZERO_LUCK_MODIFIERS },
-      luckNotificationRounds: 0,
-      luckNotificationText: '',
-    }
+  private ensure(context: RoundContext): LuckState {
+    return this.states[context.contextId] ??= createState(context)
   }
 
-  private computeModifiers(luck: number): LuckModifiers {
-    const clampedLuck = clamp(luck, MIN_LUCK, MAX_LUCK)
-    const mod = getFormulaModifier('luckPointModifier')
-    return {
-      diseaseAvoidance: round(clampedLuck * LUCK_DISEASE_AVOIDANCE_PER_POINT * mod, 4),
-      deathAvoidChance: round(clampedLuck * LUCK_DEATH_AVOID_CHANCE_PER_POINT * mod, 4),
-      eventWeightBias: round(clampedLuck * LUCK_EVENT_WEIGHT_PER_POINT * mod, 4),
-      ageDecayModifier: round(clampedLuck * LUCK_AGE_DECAY_MODIFIER_PER_POINT * mod, 4),
-    }
+  advance(context: RoundContext): void {
+    const state = this.ensure(context)
+    state.modifiers = buildModifiers(state.luck)
+    state.luckNotificationRounds = Math.max(0, state.luckNotificationRounds - 1)
   }
 
   collectState(context: RoundContext): SubSystemState {
-    const currentRound = getRoundSequence(context)
-    if (currentRound !== this._lastProcessedRound) {
-      this._lastProcessedRound = currentRound
-      // 天象跨域效果与通知衰减每个真实回合只执行一次；重复 collect/预生成不得重复消费。
-      this._applyCelestialLuckEffect(context)
-      if (this.state.luckNotificationRounds > 0) {
-        this.state.luckNotificationRounds--
-      }
-    }
-
+    const state = this.ensure(context)
     return {
       id: this.id,
-      summary: `【${this.label}】${this.state.luck} 点（${MIN_LUCK}~${MAX_LUCK}）${this.getModifierSummary()}`,
-      data: structuredClone({ ...this.state, contextId: context.contextId }),
+      summary: `【气运】${state.luck}（${MIN_LUCK}~${MAX_LUCK}）`,
+      data: { ...structuredClone(state), contextId: context.contextId },
     }
+  }
+
+  /** 在第一次叙事调用前本地只投掷一次；预生成可传入已缓存的同一结果。 */
+  prepareNarrativeGuidance(
+    context: RoundContext,
+    prefetched?: LuckNarrativeGuidance,
+  ): LuckNarrativeGuidance {
+    const state = this.ensure(context)
+    if (prefetched) {
+      validateGuidance(prefetched, state, context)
+      state.narrativeGuidance = structuredClone(prefetched)
+      return structuredClone(prefetched)
+    }
+    if (state.narrativeGuidance && isSameGuidanceRound(state.narrativeGuidance, context)) {
+      return structuredClone(state.narrativeGuidance)
+    }
+    const guidance = createLuckNarrativeGuidance(
+      state.luck,
+      context.roundSequence ?? 0,
+      context.totalDays,
+    )
+    state.narrativeGuidance = guidance
+    return structuredClone(guidance)
+  }
+
+  getNarrativeGuidance(contextId: string): LuckNarrativeGuidance | null {
+    const guidance = this.states[contextId]?.narrativeGuidance
+    return guidance ? structuredClone(guidance) : null
   }
 
   applyChanges(changes: SubSystemChanges, _context: RoundContext): void {
-    if (!changes || typeof changes !== 'object') {
-      throw new Error(`[${this.id}] Invalid changes: expected object`)
-    }
-    if (changes.id !== this.id) {
-      throw new Error(`[${this.id}] Changes ID mismatch`)
-    }
-    if (!changes.changes || typeof changes.changes !== 'object' || Array.isArray(changes.changes)) {
-      throw new Error(`[${this.id}] Invalid changes.changes: expected plain object`)
-    }
-    if (!changes.description || changes.description.trim() === '') {
-      throw new Error(`[${this.id}] Missing changes.description`)
-    }
+    throw new Error(`[${changes.id}] 气运由本地随机系统维护，叙事系统不得直接写入`)
+  }
 
-    const c = changes.changes as Record<string, unknown>
+  getModifiers(contextId?: string): LuckModifiers {
+    return structuredClone(
+      this.states[contextId ?? Object.keys(this.states)[0]]?.modifiers ?? buildModifiers(0),
+    )
+  }
 
-    // ——— AI 适配分支：气运初始值 ———
-    if (c.adaptationType === 'luck-value' && typeof c.luck === 'number') {
-      this._applyLuckChange(c.luck)
+  formatForPrompt(context?: RoundContext): string {
+    const state = this.states[context?.contextId ?? Object.keys(this.states)[0]]
+    return state
+      ? `气运状态：${state.luck}；疾病回避 ${Math.round(state.modifiers.diseaseAvoidance * 100)}%`
+      : '气运状态：普通'
+  }
+
+  capturePersistenceState(): LuckPersistenceState {
+    return { schemaVersion: 1, contexts: structuredClone(this.states) }
+  }
+
+  restorePersistenceState(snapshot: unknown): void {
+    if (snapshot === undefined) {
+      this.states = {}
       return
     }
-
-    // ——— 直接设置运气值 ———
-    if (typeof c.luck === 'number') {
-      this._applyLuckChange(c.luck)
+    const value = snapshot as LuckPersistenceState
+    if (value.schemaVersion !== 1 || !value.contexts || typeof value.contexts !== 'object') {
+      throw new Error('气运持久化快照无效')
     }
+    this.states = structuredClone(value.contexts)
   }
 
-  // ─── 领域方法 ───
-
-  /** 获取当前气运修正系数 */
-  getModifiers(): LuckModifiers {
-    return { ...this.state.modifiers }
-  }
-
-  /** 格式化气运为 AI prompt 文本 */
-  formatForPrompt(): string {
-    const parts: string[] = []
-    const m = this.state.modifiers
-    if (m.diseaseAvoidance > 0.05) parts.push(`疾病回避+${Math.round(m.diseaseAvoidance * 100)}%`)
-    if (m.deathAvoidChance > 0.02) parts.push(`死亡回避+${Math.round(m.deathAvoidChance * 100)}%`)
-    if (m.ageDecayModifier > 0.01) parts.push(`衰老加速+${Math.round(m.ageDecayModifier * 100)}%`)
-    if (parts.length === 0) parts.push('运势平平')
-
-    // 附加大幅变化通知
-    if (this.state.luckNotificationRounds > 0 && this.state.luckNotificationText) {
-      parts.push(this.state.luckNotificationText)
-    }
-
-    return `运气状态：${parts.join('、')}`
-  }
-
-  /** 应用运气变更并检测大幅变化 */
-  private _applyLuckChange(rawLuck: number): void {
-    const newLuck = clamp(rawLuck, MIN_LUCK, MAX_LUCK)
-    const oldLuck = this.state.luck
-    this.state.luck = newLuck
-    this.state.modifiers = this.computeModifiers(newLuck)
-
-    const diff = newLuck - oldLuck
-    if (Math.abs(diff) >= LUCK_MAJOR_CHANGE_THRESHOLD) {
-      this.state.luckNotificationRounds = LUCK_NOTIFICATION_DURATION
-      this.state.luckNotificationText = diff > 0 ? '气运大幅上升' : '气运急转直下'
-    }
-  }
-
-  private getModifierSummary(): string {
-    const m = this.state.modifiers
-    const parts: string[] = []
-    if (m.diseaseAvoidance > 0) parts.push(`疾病回避+${Math.round(m.diseaseAvoidance * 100)}%`)
-    if (m.deathAvoidChance > 0) parts.push(`死亡回避+${Math.round(m.deathAvoidChance * 100)}%`)
-    if (m.eventWeightBias !== 0) parts.push(`机遇偏移${m.eventWeightBias > 0 ? '+' : ''}${Math.round(m.eventWeightBias * 100)}%`)
-    return parts.length > 0 ? ` | ${parts.join('、')}` : ''
-  }
-
-  /** 读取天象跨域效果 → 应用于运势值 */
-  private _applyCelestialLuckEffect(context: RoundContext): void {
-    const celestial = context.subsystemStates['celestial']
-    if (!celestial?.data) return
-    const data = celestial.data as Record<string, unknown>
-    const crossEffects = data.crossEffects as Array<{ targetSystem: string; effectType: string; value: number }> | undefined
-    if (!crossEffects || !Array.isArray(crossEffects)) return
-
-    for (const effect of crossEffects) {
-      if (effect.targetSystem === 'luck' && effect.effectType === 'luck_boost') {
-        const newLuck = clamp(this.state.luck + effect.value, MIN_LUCK, MAX_LUCK)
-        this.state.luck = newLuck
-        this.state.modifiers = this.computeModifiers(newLuck)
-      }
-    }
-  }
-
-  reset(): void {
-    this.state = this.createInitialState()
-    this._lastProcessedRound = -1
-  }
-
-  hydrateFromStore(): void {
-    this.restoreCollectedState(usePowerSystemStore.getState().luck)
-  }
-
-  restoreCollectedState(snapshot: unknown): void {
-    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
-    const value = snapshot as Partial<LuckState>
-    if (
-      typeof value.luck !== 'number'
-      || !value.modifiers
-      || typeof value.luckNotificationRounds !== 'number'
-      || typeof value.luckNotificationText !== 'string'
-    ) return
-    this.state = structuredClone({
-      luck: value.luck,
-      modifiers: value.modifiers,
-      luckNotificationRounds: value.luckNotificationRounds,
-      luckNotificationText: value.luckNotificationText,
-    })
-    this._lastProcessedRound = -1
-  }
-
-  capturePreviewState(): unknown {
-    return structuredClone({ state: this.state, lastProcessedRound: this._lastProcessedRound })
+  capturePreviewState(): LuckPersistenceState {
+    return this.capturePersistenceState()
   }
 
   restorePreviewState(snapshot: unknown): void {
-    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
-    const value = snapshot as { state?: LuckState; lastProcessedRound?: number }
-    this.restoreCollectedState(value.state)
-    if (typeof value.lastProcessedRound === 'number') this._lastProcessedRound = value.lastProcessedRound
+    this.restorePersistenceState(snapshot)
+  }
+
+  reset(): void {
+    this.states = {}
   }
 }
 
 let runtimeLuckSystem: LuckSystem | undefined
-
-/** Loader 与引擎共享的懒加载气运单例。 */
 export function getLuckSystem(): LuckSystem {
-  runtimeLuckSystem ??= new LuckSystem()
-  return runtimeLuckSystem
+  return runtimeLuckSystem ??= new LuckSystem()
 }

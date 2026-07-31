@@ -53,7 +53,7 @@ function worldConfig(name) {
     eraStartYear: 1,
     essenceTag: 'mixed',
     powerSystemTag: 'none',
-    powerCeiling: 1,
+    powerFramework: { id: 'fixture:power', label: '无超常力量体系', enabled: false, progression: 'bounded', ranks: [], source: 'world-default' },
     spatialForm: 'plane',
     civilizationStage: 'modern',
     difficulty: 'normal',
@@ -178,6 +178,7 @@ const npcC = `${contextC}:character:dormant`
 const npcD = `${contextD}:character:closed`
 const npcAtomic = `${contextA}:character:atomic`
 const npcRemote = `${contextA}:character:remote`
+const npcPlanned = `${contextA}:character:planned`
 const organizationA = `${contextA}:entity:organization`
 const remoteNodeId = `${contextA}:space:remote`
 
@@ -534,6 +535,33 @@ assertOk(
   'mixed valid and invalid P2 instructions must make zero writes after package preflight',
 )
 
+const plannedPackageResult = roundCommitBus.commit({
+  source: 'narrative',
+  changes: [
+    relationshipChange('player:current', contextA, 'establish', {
+      toEntityId: npcPlanned,
+      scopeKind: 'context',
+      scopeContextIds: [contextA],
+      categoryTags: ['同回合创建'],
+    }, '创建后立即建立关系'),
+    npcChange(npcPlanned, contextA, 'create-identity', {
+      displayName: '同回合人物',
+      creationSource: '同回合依赖回归',
+      stableTraits: ['可追踪'],
+    }, '登记同回合创建身份'),
+  ],
+}, contextA365)
+assertOk(
+  plannedPackageResult.rejected.length === 0
+    && plannedPackageResult.committed.length === 2
+    && useNpcSystemStore.getState().identities.some((identity) => identity.npcId === npcPlanned)
+    && assertWorldEntityReference(npcPlanned, ['npc']).displayName === '同回合人物'
+    && relationshipSystem.capturePersistenceState().relationships.some((relationship) => (
+      relationship.fromEntityId === playerId && relationship.toEntityId === npcPlanned
+    )),
+  'one narrative package must allow an unregistered NPC create followed by a same-round relationship, including player:current alias resolution',
+)
+
 const entitySnapshot = entitySystem.capturePersistenceState()
 const relationshipSnapshot = relationshipSystem.capturePersistenceState()
 const npcSnapshot = npcSystem.capturePersistenceState()
@@ -731,7 +759,8 @@ const mvpConfig = JSON.parse(fs.readFileSync(path.join(
   root,
   'src/mods/mod-engine/helpers/mvp-stages-config.default.json',
 ), 'utf8'))
-const externalRuntimeOrder = mvpConfig.stages.mvp.runtime.external
+const activeStage = mvpConfig.stages[mvpConfig.currentStage] ?? mvpConfig.stages.mvp
+const externalRuntimeOrder = activeStage.runtime.external
 assertOk(
   externalRuntimeOrder.indexOf('historical-event-ledger')
     < externalRuntimeOrder.indexOf('world-entity')

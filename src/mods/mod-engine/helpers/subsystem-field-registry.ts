@@ -13,8 +13,12 @@
 
 import { z } from 'zod'
 import {
+  GROWTH_SYSTEM_OPERATION_FIELDS,
+  HEALTH_SYSTEM_OPERATION_FIELDS,
+  LIFESPAN_SYSTEM_OPERATION_FIELDS,
   NPC_SYSTEM_OPERATION_FIELDS,
   RELATIONSHIP_SYSTEM_OPERATION_FIELDS,
+  REPUTATION_SYSTEM_OPERATION_FIELDS,
   type SubSystemChanges,
 } from '@/foundation'
 
@@ -57,12 +61,14 @@ export interface SubsystemFieldContract {
 // 子系统字段契约（唯一真源：字段说明 + Zod schema）
 // ============================================================
 
-/** 伤病/疾病条目 */
-const ailmentEntry = z.object({
-  name: z.string(),
-  severity: z.coerce.number().min(1).max(10),
-  rounds: z.coerce.number().min(0).optional(),
-})
+const characterAttributeModifiers = z.object({
+  physique: z.number().int().optional(),
+  mind: z.number().int().optional(),
+  talentAptitude: z.number().int().optional(),
+  charisma: z.number().int().optional(),
+}).strict()
+
+const decimalIntegerSchema = z.string().regex(/^(0|[1-9]\d*)$/u, '必须是非负十进制整数字符串')
 
 export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> = {
   // ── P0 多世界基础（不扩大 systemInstruction 白名单）────────────
@@ -176,29 +182,78 @@ export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> =
       },
     },
   },
+  'growth-system': {
+    label: '通用成长',
+    aiName: '通用成长',
+    aiAuthority: 'validated-write',
+    allowedScopes: ['active-context', 'explicit-context'],
+    operations: ['learn-skill', 'practice-skill', 'gain-ability', 'adjust-ability'],
+    operationLabels: {
+      'learn-skill': '学习技能',
+      'practice-skill': '练习技能',
+      'gain-ability': '获得能力',
+      'adjust-ability': '调整能力',
+    },
+    operationFields: GROWTH_SYSTEM_OPERATION_FIELDS,
+    fields: {
+      name: { aiName: '名称', description: '新技能或能力的非空名称', schema: z.string().min(1).max(60).optional() },
+      category: { aiName: '类别', description: '技能所属的中性类别', schema: z.string().min(1).max(60).optional() },
+      description: { aiName: '描述', description: '已经在本轮叙事中成立的技能或能力说明', schema: z.string().min(1).max(300).optional() },
+      scopeKind: { aiName: '作用域类型', description: 'global 或 context；跨世界稳定能力使用 global，当地知识或技巧使用 context', schema: z.enum(['global', 'context']).optional() },
+      scopeContextIds: { aiName: '作用域上下文', description: 'context 时只填当前稳定上下文 ID；global 时为空数组', schema: z.array(z.string().min(1)).max(1).optional() },
+      potentialCap: { aiName: '技能潜力上限', description: '正整数经验上限，普通技能建议 100', schema: z.number().int().min(1).max(100000).optional() },
+      experienceDelta: { aiName: '经验变化', description: '本轮实际练习带来的正整数经验变化', schema: z.number().int().min(1).max(10000).optional() },
+      useCountDelta: { aiName: '使用次数变化', description: '本轮实际使用次数的正整数变化', schema: z.number().int().min(1).max(1000).optional() },
+      potential: { aiName: '能力潜力', description: '能力潜力整数，范围 0 至 100', schema: z.number().int().min(0).max(100).optional() },
+      learningConstraints: { aiName: '学习约束', description: '能力明确存在的学习或使用约束数组', schema: z.array(z.string().min(1)).optional() },
+      potentialDelta: { aiName: '潜力变化', description: '能力潜力整数变化，调整后仍须位于 0 至 100', schema: z.number().int().min(-100).max(100).optional() },
+      abilityStatus: { aiName: '能力状态', description: 'latent、active 或 lost', schema: z.enum(['latent', 'active', 'lost']).optional() },
+    },
+  },
   'health': {
     label: '健康',
+    aiName: '健康',
+    aiAuthority: 'validated-write',
+    allowedScopes: ['active-context', 'explicit-context'],
+    operations: ['adjust-vitals', 'add-condition', 'resolve-condition'],
+    operationLabels: {
+      'adjust-vitals': '调整状态',
+      'add-condition': '新增伤病',
+      'resolve-condition': '解决伤病',
+    },
+    operationFields: HEALTH_SYSTEM_OPERATION_FIELDS,
     fields: {
-      hpDelta: {
-        description: '生命值变化（正=恢复，负=受伤，范围 -50~+20）',
-        schema: z.coerce.number().min(-50).max(20).optional(),
+      vitalityDelta: {
+        aiName: '生命状态变化',
+        description: '整数；本轮明确事实造成的生命状态变化，正为恢复、负为损伤',
+        schema: z.number().int().min(-100000).max(100000).optional(),
       },
       staminaDelta: {
-        description: '体力变化量',
-        schema: z.coerce.number().optional(),
+        aiName: '体力变化',
+        description: '整数；本轮明确事实造成的体力变化',
+        schema: z.number().int().min(-100000).max(100000).optional(),
       },
       spiritDelta: {
-        description: '精神变化量',
-        schema: z.coerce.number().optional(),
+        aiName: '精神变化',
+        description: '整数；本轮明确事实造成的精神变化',
+        schema: z.number().int().min(-100000).max(100000).optional(),
       },
-      addDiseases: {
-        description: '新增疾病 [{name, severity}]',
-        schema: z.array(ailmentEntry).optional(),
+      conditionKind: {
+        aiName: '伤病类型',
+        description: 'disease、injury、systemic 或 other',
+        schema: z.enum(['disease', 'injury', 'systemic', 'other']).optional(),
       },
-      addInjuries: {
-        description: '新增伤势 [{name, severity}]',
-        schema: z.array(ailmentEntry).optional(),
+      conditionName: {
+        aiName: '伤病名称',
+        description: '本轮已经成立的非空伤病名称',
+        schema: z.string().trim().min(1).max(100).optional(),
       },
+      bodyPart: { aiName: '身体部位', description: '可选的明确受影响部位', schema: z.string().trim().min(1).max(60).optional() },
+      severity: { aiName: '严重度', description: '整数 1 至 10', schema: z.number().int().min(1).max(10).optional() },
+      recoveryDays: { aiName: '恢复天数', description: '正整数；伤病按规范天数恢复', schema: z.number().int().min(1).optional() },
+      attributeModifiers: { aiName: '属性修正', description: '伤病存续期间对体魄、心智、悟性、魅力的整数修正对象', schema: characterAttributeModifiers.optional() },
+      conditionTags: { aiName: '伤病标签', description: '描述伤病机制的非空标签数组', schema: z.array(z.string().trim().min(1)).optional() },
+      resolution: { aiName: '解决说明', description: '伤病已被解决的事实说明', schema: z.string().trim().min(1).max(300).optional() },
     },
   },
   'lifespan': {
@@ -206,22 +261,24 @@ export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> =
     aiName: '寿命',
     aiAuthority: 'validated-write',
     allowedScopes: ['global', 'active-context'],
-    operations: ['增量', '设值'],
-    operationFields: {
-      增量: ['lifespanDelta'],
-      设值: ['maxAge'],
+    operations: ['adjust-maximum', 'set-rule'],
+    operationLabels: {
+      'adjust-maximum': '调整上限',
+      'set-rule': '设置规则',
     },
+    operationFields: LIFESPAN_SYSTEM_OPERATION_FIELDS,
     fields: {
-      maxAge: {
-        aiName: '最大寿命',
-        description: '最大寿命绝对值，单位为年；当前年龄由时间系统派生，禁止提交年龄',
-        schema: z.number().int().min(1).optional(),
+      maximumDaysDelta: {
+        aiName: '寿命上限天数变化',
+        description: '非零整数；只在已确认事件明确改变寿命上限时填写，正为增加、负为减少',
+        schema: z.number().int().min(-Number.MAX_SAFE_INTEGER).max(Number.MAX_SAFE_INTEGER).refine((value) => value !== 0).optional(),
       },
-      lifespanDelta: {
-        aiName: '最大寿命变化',
-        description: '最大寿命增量（年；负=减寿，正=增寿；仅叙事明确影响寿命时填写）',
-        schema: z.number().int().min(-1000).max(1000).optional(),
-      },
+      raceId: { aiName: '种族规则ID', description: '稳定的 ASCII 种族或形态规则 ID', schema: z.string().trim().min(1).max(100).optional() },
+      raceDisplayName: { aiName: '种族显示名', description: '种族或形态的显示名称', schema: z.string().trim().min(1).max(100).optional() },
+      clockMode: { aiName: '生物钟模式', description: 'aging、ageless、cyclic 或 external', schema: z.enum(['aging', 'ageless', 'cyclic', 'external']).optional() },
+      baseLifespanDays: { aiName: '基础寿命天数', description: '正整数；规则的基础寿命，单位为规范天', schema: z.number().int().min(1).optional() },
+      maximumLifespanDays: { aiName: '寿命上限天数', description: '正整数；规则的当前寿命上限，单位为规范天', schema: z.number().int().min(1).optional() },
+      attrBaselines: { aiName: '属性基线', description: '种族或形态对体魄、心智、悟性、魅力的整数基线对象', schema: characterAttributeModifiers.optional() },
     },
   },
   'morality': {
@@ -239,21 +296,6 @@ export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> =
       },
     },
   },
-  'luck': {
-    label: '气运',
-    aiName: '气运',
-    aiAuthority: 'validated-write',
-    allowedScopes: ['global', 'active-context'],
-    operations: ['设值'],
-    operationFields: { 设值: ['luck'] },
-    fields: {
-      luck: {
-        aiName: '气运绝对值',
-        description: '气运绝对值（-10~+10；仅重大人生转折可设置，通常每次变化≤1）',
-        schema: z.number().int().min(-10).max(10).optional(),
-      },
-    },
-  },
   'faith': {
     label: '信仰',
     fields: {
@@ -263,19 +305,6 @@ export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> =
       },
       delta: {
         description: '虔诚变化量',
-        schema: z.coerce.number().optional(),
-      },
-    },
-  },
-  'family': {
-    label: '家庭',
-    fields: {
-      status: {
-        description: '家庭状态（stable/conflict/dispersed/reunited）',
-        schema: z.enum(['stable', 'conflict', 'dispersed', 'reunited']).optional(),
-      },
-      members: {
-        description: '家庭成员数量变化',
         schema: z.coerce.number().optional(),
       },
     },
@@ -305,8 +334,8 @@ export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> =
         schema: z.string().optional(),
       },
       income: {
-        description: '收入',
-        schema: z.coerce.number().optional(),
+        description: '本轮收入；使用非负十进制整数字符串，避免大数精度丢失',
+        schema: decimalIntegerSchema.optional(),
       },
       promotion: {
         description: '是否晋升',
@@ -320,8 +349,8 @@ export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> =
     label: '经济',
     fields: {
       wealth: {
-        description: '财富变化量',
-        schema: z.coerce.number().optional(),
+        description: '财富绝对值；使用非负十进制整数字符串，避免大数精度丢失',
+        schema: decimalIntegerSchema.optional(),
       },
       priceIndex: {
         description: '物价指数（100=正常）',
@@ -338,32 +367,19 @@ export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> =
     },
   },
   'reputation': {
-    label: '声望',
+    label: '分域声望',
+    aiName: '分域声望',
+    aiAuthority: 'validated-write',
+    allowedScopes: ['active-context', 'explicit-context'],
+    operations: ['adjust'],
+    operationLabels: { adjust: '调整' },
+    operationFields: REPUTATION_SYSTEM_OPERATION_FIELDS,
     fields: {
-      fame: {
-        description: '声望值（0-100）',
-        schema: z.coerce.number().min(0).max(100).optional(),
-      },
-      delta: {
-        description: '声望变化量',
-        schema: z.coerce.number().optional(),
-      },
-      addFame: {
-        description: '知名度增量（±值）',
-        schema: z.coerce.number().optional(),
-      },
-      setFame: {
-        description: '设置知名度绝对值',
-        schema: z.coerce.number().optional(),
-      },
-      addReputation: {
-        description: '维度声望增量（需配合 dimension）',
-        schema: z.coerce.number().optional(),
-      },
-      dimension: {
-        description: '维度：military/political/academic/economic/moral/religious',
-        schema: z.string().optional(),
-      },
+      scopeKind: { aiName: '评价域类型', description: 'entity、context 或 global', schema: z.enum(['entity', 'context', 'global']).optional() },
+      evaluatorEntityId: { aiName: '评价实体', description: 'entity 评价域必填；使用已登记且在当前上下文可见的稳定实体 ID', schema: z.string().min(1).optional() },
+      scopeContextId: { aiName: '评价上下文', description: 'context 评价域使用当前稳定上下文 ID', schema: z.string().min(1).optional() },
+      dimension: { aiName: '评价维度', description: '本轮事实实际影响的中性评价维度', schema: z.string().min(1).max(60).optional() },
+      delta: { aiName: '评价变化', description: '非零整数变化，调整后维度分数须位于 -100 至 100', schema: z.number().int().min(-100).max(100).optional() },
     },
   },
   'npc-system': {
@@ -426,25 +442,12 @@ export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> =
       scopeContextIds: { aiName: '作用域上下文', description: '稳定上下文 ID 数组', schema: z.array(z.string().min(1)).optional() },
     },
   },
-  'market': {
-    label: '市场',
-    fields: {
-      activityLevel: {
-        description: '市场活跃度（0-1）',
-        schema: z.coerce.number().min(0).max(1).optional(),
-      },
-      trend: {
-        description: '市场趋势（bullish/bearish/stable）',
-        schema: z.enum(['bullish', 'bearish', 'stable']).optional(),
-      },
-    },
-  },
   'population': {
     label: '人口',
     fields: {
       total: {
-        description: '人口变化量',
-        schema: z.coerce.number().optional(),
+        description: '人口绝对值；使用非负十进制整数字符串，避免百万、百亿及更大数量丢失精度',
+        schema: decimalIntegerSchema.optional(),
       },
       growthRate: {
         description: '增长率',
@@ -458,31 +461,63 @@ export const SUBSYSTEM_FIELD_CONTRACTS: Record<string, SubsystemFieldContract> =
   },
   'cultivation': {
     label: '修炼',
+    aiName: '修炼',
+    aiAuthority: 'validated-write',
+    allowedScopes: ['active-context', 'explicit-context'],
+    operations: ['adjust-bottleneck', 'set-talents', 'record-breakthrough'],
+    operationLabels: {
+      'adjust-bottleneck': '调整瓶颈',
+      'set-talents': '设置训练天赋',
+      'record-breakthrough': '记录突破',
+    },
+    operationFields: {
+      'adjust-bottleneck': ['penaltyDelta'],
+      'set-talents': ['talentTags'],
+      'record-breakthrough': [],
+    },
     fields: {
-      realm: {
-        description: '修炼境界（1-9：炼气→大乘）',
-        schema: z.coerce.number().min(1).max(9).optional(),
+      penaltyDelta: {
+        description: '瓶颈惩罚变化量（-100 至 100）',
+        schema: z.number().int().min(-100).max(100).optional(),
       },
-      cultivationProgress: {
-        description: '修炼进度（0-100）',
-        schema: z.coerce.number().min(0).max(100).optional(),
+      talentTags: {
+        description: '训练天赋标签数组；只使用角色已存在的标签',
+        schema: z.array(z.string().min(1)).optional(),
       },
-      bottleneck: {
-        description: '瓶颈（physique/mind/comprehension/none）',
-        schema: z.enum(['physique', 'mind', 'comprehension', 'none']).optional(),
+      realmIndex: {
+        description: '当前世界框架中的阶位索引，只读投影，不接受叙事写入',
+        schema: z.number().int().min(0).optional(),
       },
     },
   },
   'combat-power': {
     label: '战力',
+    aiName: '力量',
+    aiAuthority: 'validated-write',
+    allowedScopes: ['active-context', 'explicit-context'],
+    operations: ['adjust-progress', 'set-rank', 'rename-rank'],
+    operationLabels: {
+      'adjust-progress': '调整力量进度',
+      'set-rank': '设置世界阶位',
+      'rename-rank': '重命名世界阶位',
+    },
+    operationFields: {
+      'adjust-progress': ['progressDelta'],
+      'set-rank': ['rankId'],
+      'rename-rank': ['rankId', 'label'],
+    },
     fields: {
-      rank: {
-        description: '战力等级（0-100）',
-        schema: z.coerce.number().min(0).max(100).optional(),
+      progressDelta: {
+        description: '当前世界阶位内的力量进度变化量',
+        schema: z.number().int().optional(),
       },
-      delta: {
-        description: '战力变化量',
-        schema: z.coerce.number().optional(),
+      rankId: {
+        description: '当前世界力量框架中已存在的阶位 ID',
+        schema: z.string().min(1).optional(),
+      },
+      label: {
+        description: '当前世界阶位的新显示名称',
+        schema: z.string().min(1).max(80).optional(),
       },
     },
   },

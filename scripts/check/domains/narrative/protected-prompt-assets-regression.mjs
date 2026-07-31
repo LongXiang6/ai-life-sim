@@ -18,10 +18,12 @@ function assertOk(condition, message) {
 }
 
 const narrativeContract = read('src/mods/mod-engine/prompts/narrative-prompt.ts')
+const eventRecognitionContract = read('src/mods/mod-engine/prompts/narrative-event-recognition-prompt.ts')
 const settlementContract = read('src/mods/mod-engine/prompts/narrative-settlement-prompt.ts')
 const clientComponents = read('src/mods/mod-engine/prompts/narrative-prompt-components.ts')
 const clientProtocol = read('src/mods/mod-engine/helpers/narrative-ai-protocol.ts')
 const narrativeServerPrompt = read('src/mods/mod-engine/server/narrative-system-prompt.ts')
+const eventRecognitionServerPrompt = read('src/mods/mod-engine/server/narrative-event-recognition-system-prompt.ts')
 const settlementServerPrompt = read('src/mods/mod-engine/server/narrative-settlement-system-prompt.ts')
 const serverEntry = read('src/mods/mod-engine/server-prompt-assets.ts')
 const manifest = read('src/mods/mod-engine/manifest.ts')
@@ -33,11 +35,25 @@ const settingsModal = read('src/mods/mod-settings/components/SettingsModal.tsx')
 const settingsIndex = read('src/mods/mod-settings/index.ts')
 
 assertOk(
+  eventRecognitionContract.includes("version: '1.0.0'")
+    && eventRecognitionContract.includes("systemPrompt: ''")
+    && eventRecognitionContract.includes("'mod-engine:narrative-event-recognition:1.0.0'")
+    && eventRecognitionContract.includes('serverPromptAssetId: NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID'),
+  'browser event-recognition PromptTemplate must carry only the 1.0.0 server asset ID',
+)
+assertOk(
   narrativeContract.includes("version: '5.8.0'")
     && narrativeContract.includes("systemPrompt: ''")
     && narrativeContract.includes("'mod-engine:narrative:5.8.0'")
     && narrativeContract.includes('serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID'),
   'browser narrative PromptTemplate must carry only the 5.8.0 server asset ID',
+)
+assertOk(
+  eventRecognitionServerPrompt.includes('你是人生模拟器的待触发事件识别器')
+    && eventRecognitionServerPrompt.includes('buildNarrativeEventRecognitionContractLine')
+    && eventRecognitionServerPrompt.includes('buildNarrativeEventRecognitionStandardExample')
+    && eventRecognitionServerPrompt.includes('COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT'),
+  'server Prompt owner must retain the fixed future-event recognition contract and example',
 )
 assertOk(
   settlementContract.includes("version: '1.1.0'")
@@ -71,6 +87,7 @@ for (const secretMarker of [
   '受世界事实与模拟规则约束的世界叙事演算者',
   '获得新能力、资源或地位不会自动触发官方或机构审查',
   '你是人生模拟器的回合结算引擎',
+  '你是人生模拟器的待触发事件识别器',
   '标准返回示例：',
 ]) {
   assertOk(
@@ -89,12 +106,13 @@ assertOk(
     && serverEntry.includes('resolveModEngineServerPromptAsset')
     && serverEntry.includes('NARRATIVE_SERVER_PROMPT_ASSET_ID')
     && serverEntry.includes('NARRATIVE_SETTLEMENT_SERVER_PROMPT_ASSET_ID')
+    && serverEntry.includes('NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID')
     && !serverEntry.includes('LEGACY_SERVER_PROMPT_ASSET_ALIASES')
     && !serverEntry.includes('canonicalAssetId'),
-  'server Prompt entry must expose exactly the two current protected assets without migration aliases',
+  'server Prompt entry must expose exactly the three current protected assets without migration aliases',
 )
 assertOk(
-  (serverEntry.match(/systemPrompt:/gu) ?? []).length === 3
+  (serverEntry.match(/systemPrompt:/gu) ?? []).length === 4
     && !serverEntry.includes('startsWith(')
     && !serverEntry.includes('includes(assetId'),
   'server Prompt whitelist must stay exact rather than accepting prefix or substring matches',

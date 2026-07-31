@@ -1,91 +1,61 @@
-/**
- * @module FaithSystem
- * @description 信仰子系统 —— 虔诚度管理、切换信仰、突破加成（极简~70行）
- * @mod mod-power-system
- */
+import { BaseSubsystem } from '@/core'
+import type { RoundContext, SubSystemChanges, SubSystemState } from '@/foundation'
+import { contextHasCapability } from '@/mods/mod-world'
+import type { FaithPersistenceState, FaithState } from '../types'
+import { assertContext, assertEvidence, clone } from './p8-runtime'
 
-import type { ISubSystem, SubSystemState, SubSystemChanges, RoundContext } from '@/foundation'
-import { getRoundSequence } from '@/foundation'
-import type { FaithState } from '../types'
+function initialState(context: RoundContext): FaithState { return { contextId: context.contextId, subjectEntityId: context.characterId, beliefId: null, devotionLevel: 0, daysInFaith: 0, updatedAtTotalDays: context.totalDays } }
 
-import { getFormulaModifier } from '@/mods/mod-world'
-
-const DEVOTION_MIN = 0
-const DEVOTION_MAX = 100
-const DEVOTION_RESET = 10
-
-export class FaithSystem implements ISubSystem {
+export class FaithSystem extends BaseSubsystem {
   readonly id = 'faith' as const
   readonly mod = 'mod-power-system' as const
-  readonly label = '信仰系统' as const
-  readonly description = '管理角色宗教信仰：虔诚度0-100、自动衰减、切换信仰、突破加成' as const
+  readonly label = '信念关系插件' as const
+  readonly description = '按上下文记录角色信念归属与虔诚度，关系类别仍由 relationship-system 拥有' as const
+  private states: Record<string, FaithState> = {}
+  private ensure(context: RoundContext): FaithState { return this.states[context.contextId] ??= initialState(context) }
 
-  private _state: FaithState = { faithName: null, devotionLevel: 0, yearsInFaith: 0 }
-  private _lastProcessedRound = -1
+  advance(context: RoundContext): void {
+    const state = this.ensure(context)
+    if (!contextHasCapability(context.contextId, 'supernatural')) { state.updatedAtTotalDays = context.totalDays; return }
+    if (state.beliefId) { state.daysInFaith += Math.max(0, context.daysPassed); state.devotionLevel = Math.max(0, Math.round(state.devotionLevel - context.daysPassed / 365 * 2)) }
+    state.updatedAtTotalDays = context.totalDays
+  }
 
   collectState(context: RoundContext): SubSystemState {
-    if (getRoundSequence(context) === this._lastProcessedRound) return this._buildResult()
-    this._lastProcessedRound = getRoundSequence(context)
-    if (this._state.faithName) {
-      this._state.yearsInFaith++
-      const gainMod = getFormulaModifier('devotionGainModifier')
-      const decay = 1 / gainMod
-      this._state.devotionLevel = Math.max(
-        DEVOTION_MIN,
-        Math.round(this._state.devotionLevel - decay),
-      )
-    }
-    return this._buildResult()
+    const state = this.ensure(context)
+    if (!contextHasCapability(context.contextId, 'supernatural')) return { id: this.id, summary: '', data: structuredClone(state) }
+    const bonus = state.beliefId ? 1 + state.devotionLevel / 100 * 0.3 : 1
+    return { id: this.id, summary: state.beliefId ? `【信念】${state.beliefId}；虔诚 ${state.devotionLevel}；突破修正 ×${bonus.toFixed(2)}` : '【信念】未建立归属', data: structuredClone({ ...state, breakthroughBonus: bonus }) }
   }
 
-  applyChanges(changes: SubSystemChanges, _context: RoundContext): void {
-    const { id } = changes;
-    const plain = changes.changes ?? {};
-    const desc = changes.description ?? '';
-    void desc;
-    void changes.changes;
-    if (!changes?.changes || changes.id !== this.id) return
-    const c = changes.changes
-    if (typeof c.faithName !== 'undefined') {
-      this._state = { faithName: c.faithName as string | null, devotionLevel: c.faithName ? DEVOTION_RESET : 0, yearsInFaith: 0 }
-    }
-    if (typeof c.devotionDelta === 'number' && this._state.faithName) {
-      const gainMod = getFormulaModifier('devotionGainModifier')
-      const raw = c.devotionDelta as number
-      const scaled = raw > 0 ? raw * gainMod : raw / gainMod
-      this._state.devotionLevel = Math.max(
-        DEVOTION_MIN,
-        Math.min(DEVOTION_MAX, Math.round(this._state.devotionLevel + scaled)),
-      )
-    }
-    void id; void plain;
+  applyChanges(changes: SubSystemChanges, context: RoundContext): void {
+    if (changes.id !== this.id) throw new Error('信念指令目标不匹配')
+    assertContext(changes, context, '信念')
+    const state = this.ensure(context)
+    const operation = changes.operation ?? 'adjust-devotion'
+    if (operation === 'set-belief') {
+      assertEvidence(changes.evidenceEventIds ?? [], context.contextId, '信念')
+      const beliefId = changes.changes.beliefId
+      if (typeof beliefId !== 'string' || !beliefId.trim()) throw new Error('信念归属无效')
+      state.beliefId = beliefId.trim(); state.devotionLevel = 10; state.daysInFaith = 0
+    } else if (operation === 'adjust-devotion') {
+      const delta = changes.changes.devotionDelta
+      if (typeof delta !== 'number') throw new Error('虔诚变化缺少数值')
+      state.devotionLevel = Math.max(0, Math.min(100, Math.round(state.devotionLevel + delta)))
+    } else if (operation === 'leave-belief') {
+      assertEvidence(changes.evidenceEventIds ?? [], context.contextId, '信念')
+      state.beliefId = null; state.devotionLevel = 0; state.daysInFaith = 0
+    } else throw new Error(`未知信念操作：${operation}`)
+    state.updatedAtTotalDays = context.totalDays
   }
 
-  reset(): void { this._state = { faithName: null, devotionLevel: 0, yearsInFaith: 0 }; this._lastProcessedRound = -1 }
-
-  /** 获取突破概率加成 */
-  getFaithBreakthroughBonus(): number {
-    const gainMod = getFormulaModifier('devotionGainModifier')
-    return 1 + (this._state.devotionLevel / 100) * 0.3 * gainMod
-  }
-
-  /** 虔诚度标签 */
-  getDevotionLabel(): string {
-    const d = this._state.devotionLevel
-    if (d >= 80) return '虔诚至深'
-    if (d >= 50) return '诚心向道'
-    if (d >= 20) return '略有信奉'
-    return '信念淡薄'
-  }
-
-  private _buildResult(): SubSystemState {
-    const s = this._state
-    const breakthroughBonus = s.faithName ? this.getFaithBreakthroughBonus() : 1
-    const data = {
-      ...structuredClone(s as unknown as Record<string, unknown>),
-      breakthroughBonus,
-    }
-    if (!s.faithName) return { id: this.id, summary: '无信仰', data }
-    return { id: this.id, summary: `${s.faithName} | ${this.getDevotionLabel()}(${s.devotionLevel}) | 入教${s.yearsInFaith}年`, data }
-  }
+  getFaithBreakthroughBonus(contextId?: string): number { const state = Object.values(this.states).find((item) => !contextId || item.contextId === contextId); return state?.beliefId ? 1 + state.devotionLevel / 100 * 0.3 : 1 }
+  getDevotionLabel(contextId?: string): string { const value = Object.values(this.states).find((item) => !contextId || item.contextId === contextId)?.devotionLevel ?? 0; return value >= 80 ? '虔诚至深' : value >= 50 ? '坚定' : value >= 20 ? '略有信奉' : '信念淡薄' }
+  capturePersistenceState(): FaithPersistenceState { return { schemaVersion: 1, contexts: clone(this.states) } }
+  restorePersistenceState(snapshot: unknown): void { if (snapshot === undefined) { this.states = {}; return }; const value = snapshot as FaithPersistenceState; if (value.schemaVersion !== 1 || !value.contexts) throw new Error('信念持久化快照无效'); this.states = clone(value.contexts) }
+  capturePreviewState(): FaithPersistenceState { return this.capturePersistenceState() }
+  restorePreviewState(snapshot: unknown): void { this.restorePersistenceState(snapshot) }
+  reset(): void { this.states = {} }
 }
+
+export const faithSystem = new FaithSystem()

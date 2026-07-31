@@ -131,6 +131,14 @@ export default function GamePage() {
     .flatMap((entry) => entry.repetitionMetric ? [entry.repetitionMetric] : [])
     .slice(-5)
   const narrativeError = useEngineStore((s) => s.narrativeError)
+  const pendingNarrative = useEngineStore((s) => s.pendingNarrative)
+  const hasVisiblePendingNarrative = Boolean(
+    pendingNarrative && pendingNarrative.roundSequence > totalRounds,
+  )
+  const projectedNarrativeLength = narrativeHistory.length + (hasVisiblePendingNarrative ? 1 : 0)
+  const displayRoundCount = hasVisiblePendingNarrative
+    ? pendingNarrative?.roundSequence ?? totalRounds
+    : totalRounds
   const lifeRunId = useEngineStore((s) => s.lifeRunId)
   const legendaryEncounterCheckedForLifeRunId = useEngineStore((s) => s.legendaryEncounterCheckedForLifeRunId)
   const setLegendaryEncounterSelection = useEngineStore((s) => s.setLegendaryEncounterSelection)
@@ -215,8 +223,8 @@ export default function GamePage() {
   useEffect(() => {
     const container = narrativeEndRef.current
     if (!container) return
-    if (narrativeHistory.length > prevEventsLenRef.current) {
-      const newEventIdx = narrativeHistory.length - 1
+    if (projectedNarrativeLength > prevEventsLenRef.current) {
+      const newEventIdx = projectedNarrativeLength - 1
       const separatorEl = container.querySelector(`[data-separator-for="${newEventIdx}"]`)
       if (separatorEl) {
         const targetScroll = separatorEl.getBoundingClientRect().top
@@ -228,14 +236,14 @@ export default function GamePage() {
         container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
       }
     }
-    prevEventsLenRef.current = narrativeHistory.length
-  }, [narrativeHistory.length])
+    prevEventsLenRef.current = projectedNarrativeLength
+  }, [projectedNarrativeLength])
 
   const isComplete = status === 'complete'
-  const isDead = health.isDead
+  const isDead = !health.alive
 
   const genderLabel = GENDER_LABELS[gender] ?? gender
-  const raceInfo = RACE_LIFESPAN[race] ?? { name: race, baseMaxAge: 100, decayMultiplier: 1 }
+  const raceInfo = RACE_LIFESPAN[race] ?? { name: race }
 
   const patternBonus = useMemo(() => {
     const bonus: Record<string, number> = {}
@@ -347,12 +355,18 @@ export default function GamePage() {
     ? runtimeBlockedText
     : '完成分支后继续'
   const narrativeAdvanceText = narrativeError && !hasUnresolvedBranch
-    ? '立即重试，继续此段故事'
+    ? hasVisiblePendingNarrative
+      ? '重新尝试本轮'
+      : '立即重试，继续此段故事'
     : '轻触，让岁月流转'
   const narrativeAdvanceHint = narrativeError && !hasUnresolvedBranch
-    ? autoRetryPending
-      ? '正在自动重新尝试；轻触可立即重试'
-      : '自动重试未恢复；轻触可再次尝试'
+    ? hasVisiblePendingNarrative
+      ? autoRetryPending
+        ? '正文已保留，正在自动重新尝试'
+        : '正文已保留，可再次尝试完成本轮'
+      : autoRetryPending
+        ? '正在自动重新尝试；轻触可立即重试'
+        : '自动重试未恢复；轻触可再次尝试'
     : '下一段故事已经准备好'
 
   const activeTimeStepLabel = timeStepOptions.find((o) => o.value === activeTimeStepKey)?.label ?? '年'
@@ -375,8 +389,8 @@ export default function GamePage() {
     }
   }, [showStepMenu])
 
-  const narrativeEntries: NarrativeEntry[] = useMemo(() =>
-    narrativeHistory.map((chunk) => ({
+  const narrativeEntries: NarrativeEntry[] = useMemo(() => {
+    const entries: NarrativeEntry[] = narrativeHistory.map((chunk) => ({
       text: chunk.text,
       timestamp: chunk.timestamp,
       eraLabel: chunk.displayTimeLabel ?? narrativeTimeLabel,
@@ -387,9 +401,15 @@ export default function GamePage() {
       // （历史 fallback `resolvedBranches[index]` 用数组下标，裁剪后会指向错误的分支选择）
       resolvedChoice: chunk.resolvedChoice,
       attrChanges: chunk.attrChanges,
-    })),
-    [narrativeHistory, narrativeTimeLabel, characterAge],
-  )
+    }))
+    if (hasVisiblePendingNarrative && pendingNarrative) {
+      entries.push({
+        text: pendingNarrative.text,
+        timestamp: pendingNarrative.timestamp,
+      })
+    }
+    return entries
+  }, [narrativeHistory, narrativeTimeLabel, characterAge, hasVisiblePendingNarrative, pendingNarrative])
 
   // 构建世界信息面板数据
   const worldSurrounding = useMemo(() => {
@@ -413,11 +433,13 @@ export default function GamePage() {
 
   const worldCharStatus = useMemo(() => {
     const items: Array<{ icon: string; label: string; value: string }> = []
-    items.push({ icon: '❤️', label: '生命', value: `${health.hp}/${health.maxHp}` })
+    items.push({ icon: '❤️', label: '生命', value: `${health.vitality}/${health.maxVitality}` })
     items.push({ icon: '💪', label: '体力', value: String(health.stamina) })
     items.push({ icon: '🧠', label: '精神', value: String(health.spirit) })
-    if (health.diseases.length > 0) items.push({ icon: '🤒', label: '疾病', value: String(health.diseases.length) })
-    if (health.injuries.length > 0) items.push({ icon: '🩹', label: '伤势', value: String(health.injuries.length) })
+    const diseaseCount = health.conditions.filter((condition) => condition.kind === 'disease').length
+    const injuryCount = health.conditions.filter((condition) => condition.kind === 'injury').length
+    if (diseaseCount > 0) items.push({ icon: '🤒', label: '疾病', value: String(diseaseCount) })
+    if (injuryCount > 0) items.push({ icon: '🩹', label: '伤势', value: String(injuryCount) })
     return items
   }, [health])
 
@@ -675,7 +697,7 @@ export default function GamePage() {
                   <small>{worldConfig?.name ?? '未知世界'} · {characterAge}岁 · {narrativeTimeLabel}</small>
                 </div>
                 <div className={styles.attributes}>
-                  <span>生命 <b>{health.hp}/{health.maxHp}</b></span>
+                  <span>生命 <b>{health.vitality}/{health.maxVitality}</b></span>
                 </div>
               </section>
 
@@ -750,10 +772,16 @@ export default function GamePage() {
 
         <div ref={narrativeEndRef} className={styles.reading} role="main">
           <header className={styles.chapterHead}>
-            <small>第 {Math.max(totalRounds, 1)} 回 · 故事进程</small>
+            <small>第 {Math.max(displayRoundCount, 1)} 回 · 故事进程</small>
             <h1>故事进行中</h1>
             <div className={styles.chapterRule}>
-              <span>{!isRuntimeReady ? runtimeBlockedText : isAdvancing ? '命书正在续写' : hasUnresolvedBranch ? '等待你的选择' : forceBranchNext ? '已请求命运分叉' : '岁月流转'}</span>
+              <span>{!isRuntimeReady
+                ? runtimeBlockedText
+                : isAdvancing
+                  ? hasVisiblePendingNarrative ? '正文已生成，正在完成本轮' : '命书正在续写'
+                  : hasUnresolvedBranch
+                    ? '等待你的选择'
+                    : forceBranchNext ? '已请求命运分叉' : '岁月流转'}</span>
             </div>
           </header>
 
@@ -766,7 +794,9 @@ export default function GamePage() {
 
           {narrativeError && (
             <div className={styles.errorNotice} role="alert">
-              <strong>这一段未能写完</strong>
+              <strong>{pendingNarrative?.status === 'failed'
+                ? '正文已生成，但本轮未完成结算'
+                : '这一段未能写完'}</strong>
               <span>{autoRetryPending
                 ? `${narrativeError} 正在自动重新尝试；也可在页面底部立即再试。`
                 : hasUnresolvedBranch
@@ -780,13 +810,16 @@ export default function GamePage() {
           <NarrativeTimeline
             entries={narrativeEntries}
             scrollContainerRef={narrativeEndRef}
-            turnCount={totalRounds}
+            turnCount={displayRoundCount}
             showAdvance={!isDead && !isComplete}
             advanceBlocked={!isRuntimeReady || hasUnresolvedBranch}
             advanceBlockedText={narrativeAdvanceBlockedText}
             advanceText={narrativeAdvanceText}
             advanceHint={narrativeAdvanceHint}
             isGenerating={isAdvancing}
+            showGenerationCursor={isAdvancing && !hasVisiblePendingNarrative}
+            generatingText={hasVisiblePendingNarrative ? '本轮正在完成' : '命书正在续写……'}
+            generatingHint={hasVisiblePendingNarrative ? '故事已返回，正在收束本轮' : '下一段人生正在生成'}
             hasEndingEvent={isDead}
             onAdvance={handleNarrativeAdvance}
             onGoToGameOver={handleGoToGameOver}

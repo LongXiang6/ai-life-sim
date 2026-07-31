@@ -23,11 +23,6 @@ export {
   extractBridgeSnapshot,
   type BridgeSnapshot,
 } from './time-bridge-summary'
-export {
-  WorldEventBus,
-  type DomainEvent,
-  type SubsystemInstruction,
-} from './cross-domain-rules'
 export { globalDeadLoopDetector, deepSanitize, sanitizeSubSystemState, clampNumber } from './system-safety'
 // 激活 shared/ 的叙事 Prompt Key 常量 → 子系统用标准化 key 注入 Prompt 片段
 export { NARRATIVE_PROMPT_KEYS } from '@/core/shared'
@@ -53,14 +48,10 @@ export {
 export { resolveTimeStep } from '../utils/time-step-resolver'
 export { mapSubsystemStatesToDetectionStates } from './detection-state-mapper'
 export {
-  buildLifeStageNarrativeHint,
-  resolveLifeStageFromAge,
-} from './life-stage-narrative'
-export {
-  generateArchetypeHint,
-  buildLifespanReminder,
-  type NarrativeArchetype,
-} from './life-stage-archetypes'
+  buildLifecycleNarrativeHint,
+  generateLifecycleArchetypeHint,
+  buildLifecycleLifespanReminder,
+} from './lifecycle-narrative'
 export { normalizeNarrativeParagraphs } from './normalize-narrative-paragraphs'
 export {
   buildNarrativeHints,

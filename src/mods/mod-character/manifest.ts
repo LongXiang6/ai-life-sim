@@ -8,27 +8,26 @@ import { defineMod } from '@/core'
 
 export default defineMod({
   name: 'mod-character',
+  order: 600,
   version: '1.0.0',
-  description: '角色属性、普通命格、跨局轮回天赋、健康、寿命、生命阶段、年龄衰减、善恶值、气运管理',
+  description: '角色属性、普通命格、跨局轮回天赋、寿命规则、生命周期、健康、善恶值与气运管理',
   dependencies: ['mod-engine', 'mod-power-system', 'mod-world'],
-  provides: ['character', 'character-base', 'destiny-pattern', 'health', 'lifespan', 'life-stage', 'attribute-decay', 'morality', 'luck', 'post-death-epilogue'],
+  provides: ['character', 'character-base', 'destiny-pattern', 'lifespan', 'lifecycle-system', 'health', 'morality', 'luck'],
   consumes: ['engine'],
   secondaryPublicEntries: ['destiny-pattern-access.ts', 'mythic-pattern-access.ts'],
   subsystems: [
     'CharacterBaseSystem',
     'DestinyPatternSystem',
-    'HealthSystem',
     'LifespanSystem',
-    'LifeStageSystem',
-    'AttributeDecaySystem',
+    'LifecycleSystem',
+    'HealthSystem',
     'MoralitySystem',
     'LuckSystem',
-    'PostDeathEpilogueSystem',
   ],
   stores: ['useCharacterStore', 'useMythicLibraryStore'],
   prompts: ['race-origin', 'mythic-pattern'],
   events: {
-    emits: ['mod-character:created', 'mod-character:died', 'mod-character:stage-changed', 'mod-character:breakthrough'],
+    emits: ['mod-character:created', 'mod-character:died'],
     listens: ['mod-engine:round-complete'],
   },
 })

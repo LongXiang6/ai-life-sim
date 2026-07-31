@@ -158,7 +158,7 @@ describe('Repair Pipeline', () => {
       name: 'custom',
       priority: 5,
       canRepair: () => null,
-      repair: (source: string) => ({
+      repair: (_source: string) => ({
         stage: 'custom',
         applied: false,
         changes: [],

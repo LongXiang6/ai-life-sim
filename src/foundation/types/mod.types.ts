@@ -32,6 +32,8 @@ export interface ModCampaignHooks {
 export interface ModManifest {
   /** MOD 名称，必须匹配目录名 mod-{kebab-case} */
   name: string
+  /** 同一依赖层的显式执行顺序；相同值按 name 的 ASCII 升序决胜。 */
+  order: number
   /** 语义化版本号 */
   version: string
   /** 一句话功能描述 */

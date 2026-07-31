@@ -12,48 +12,53 @@ export { randomInt } from '@/core/shared'
 // 战力→经济价值映射
 // ============================================================
 
-import {
-  STAGE_ECONOMIC_TIER,
-  ECONOMIC_TIER_CONFIG,
-} from '@/mods/mod-power-system'
-import type { EconomicTierInfo } from '@/mods/mod-power-system'
+export interface EconomicTierInfo {
+  label: string
+  priceMultiplier: number
+  rarity: string
+  availability: string
+}
+
+export const ECONOMIC_TIER_CONFIG: Record<number, EconomicTierInfo> = {
+  1: { label: '日常', priceMultiplier: 1, rarity: '常见', availability: '普通市场' },
+  2: { label: '专业', priceMultiplier: 5, rarity: '较少见', availability: '专业渠道' },
+  3: { label: '稀缺', priceMultiplier: 20, rarity: '稀缺', availability: '区域中心' },
+  4: { label: '珍贵', priceMultiplier: 100, rarity: '极少见', availability: '特殊渠道' },
+  5: { label: '契约级', priceMultiplier: -1, rarity: '独一无二', availability: '事件或物品契约' },
+}
 
 /**
  * 计算物品在当前世界观中的经济层级
- * @param itemStageHint 物品对应的战力阶位（undefined = 始终凡品）
- * @param worldCeiling  世界天花板
+ * @param economicTierHint 物品的当地经济稀缺层级（1-5，undefined = 日常）
  * @returns 经济层级 1-5
  */
-export function calculateItemTier(itemStageHint: number | undefined, worldCeiling: number): number {
-  if (itemStageHint == null || itemStageHint < 1) return 1
-  return STAGE_ECONOMIC_TIER.calculateTier(itemStageHint, worldCeiling)
+export function calculateItemTier(economicTierHint: number | undefined): number {
+  if (economicTierHint == null || economicTierHint < 1) return 1
+  return Math.max(1, Math.min(5, Math.round(economicTierHint)))
 }
 
 /**
  * 计算物品在当前世界观中的实际价格
  * @param basePrice    物品基础价值
- * @param itemStageHint 物品对应的战力阶位
- * @param worldCeiling  世界天花板
+ * @param economicTierHint 物品的当地经济稀缺层级
  * @returns 实际价格（至尊级返回 -1 表示有价无市）
  */
 export function calculateItemPrice(
   basePrice: number,
-  itemStageHint: number | undefined,
-  worldCeiling: number,
+  economicTierHint: number | undefined,
 ): number {
-  const tier = calculateItemTier(itemStageHint, worldCeiling)
-  const tierInfo = (ECONOMIC_TIER_CONFIG as Record<number, EconomicTierInfo>)[tier]
+  const tier = calculateItemTier(economicTierHint)
+  const tierInfo = ECONOMIC_TIER_CONFIG[tier]
   if (!tierInfo || tierInfo.priceMultiplier < 0) return -1
   return Math.round(basePrice * tierInfo.priceMultiplier)
 }
 
 /**
  * 获取物品的经济层级信息
- * @param itemStageHint 物品对应的战力阶位（undefined = 始终凡品）
- * @param worldCeiling  世界天花板
+ * @param economicTierHint 物品的当地经济稀缺层级
  * @returns 经济层级信息，未找到返回 undefined
  */
-export function getItemEconomicTier(itemStageHint: number | undefined, worldCeiling: number): EconomicTierInfo | undefined {
-  const tier = calculateItemTier(itemStageHint, worldCeiling)
-  return (ECONOMIC_TIER_CONFIG as Record<number, EconomicTierInfo>)[tier]
+export function getItemEconomicTier(economicTierHint: number | undefined): EconomicTierInfo | undefined {
+  const tier = calculateItemTier(economicTierHint)
+  return ECONOMIC_TIER_CONFIG[tier]
 }

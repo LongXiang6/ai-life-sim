@@ -1,11 +1,12 @@
 /**
  * @module campaigns/default/index.ts
- * @description 默认叙事 Campaign：叙事生成后串行执行结构化结算
+ * @description 默认叙事 Campaign：正文即时发布后并行执行数据分析与事件识别
  * @mod mod-engine
  */
 
 import type {
   AIModelConfig,
+  HistoricalEventCandidateInput,
   NarrativeStage,
   PromptTemplate,
   RoundContext,
@@ -13,6 +14,7 @@ import type {
 import {
   buildSegmentedPrompt,
   callAIWithPromptTemplate,
+  computeNarrativeEventRecognitionTokenBudget,
   computeNarrativeSettlementTokenBudget,
   eventBus,
   recordRoundCacheMetrics,
@@ -24,15 +26,20 @@ import { useSettingsStore } from '@/mods/mod-settings'
 import { DEFAULT_WORD_COUNT_TARGET } from '../../constants/narrative-config'
 import { buildEventInjectionText } from '../../helpers/event-lifecycle-tracker'
 import { buildSettlementBranchIntentInstruction } from '../../helpers/branch-intent-resolution'
+import { buildNarrativeEventRecognitionPromptInput } from '../../helpers/narrative-event-recognition-context'
 import { buildNarrativeSettlementPromptInput } from '../../helpers/narrative-settlement-context'
 import {
+  buildNarrativeEventRecognitionRepairInstruction,
   buildNarrativeRepairInstruction,
   buildNarrativeSettlementRepairInstruction,
+  inspectNarrativeEventRecognitionQuality,
   inspectNarrativeResponseQuality,
   inspectNarrativeSettlementQuality,
+  type NarrativeEventRecognitionQuality,
   type NarrativeResponseQuality,
   type NarrativeSettlementQuality,
 } from '../../helpers/narrative-response-quality'
+import { narrativeEventRecognitionPrompt } from '../../prompts/narrative-event-recognition-prompt'
 import { narrativeSettlementPrompt } from '../../prompts/narrative-settlement-prompt'
 import { useEngineStore } from '../../store'
 import {
@@ -41,6 +48,8 @@ import {
 import { orchestrator } from '../../subsystems/orchestrator-system'
 
 const MAX_FORMAT_REPAIR_ATTEMPTS = 2
+const STAGE_OWNER = 'mod-engine'
+const STAGE_FAILURE_TARGET = 'mod-engine'
 
 /** 阶段运行时上下文：只保存本轮两次调用之间的临时值。 */
 export interface StageRuntimeContext extends RoundContext {
@@ -50,13 +59,14 @@ export interface StageRuntimeContext extends RoundContext {
   _narrativeResponse?: string
   _narrativeParsed?: ParsedNarrative
   _settledNarrative?: ParsedNarrative
+  _recognizedEventCandidates?: HistoricalEventCandidateInput[]
   _roundResult?: ReturnType<typeof orchestrator.handleNarrativeResponse>
 }
 
 function buildLegendaryEncounterGuidance(
   encounter: NonNullable<ReturnType<typeof useEngineStore.getState>['legendaryEncounter']>,
 ): string {
-  const representative = encounter.achievements.find((item) => item.kind === 'breakthrough')
+  const representative = encounter.achievements.find((item) => item.kind === 'lifespan-adjustment')
     ?? encounter.achievements[0]
   return [
     '【低优先级异界传闻素材】',
@@ -82,9 +92,15 @@ function settlementRejection(message: string): Error {
   return error
 }
 
+function eventRecognitionRejection(message: string): Error {
+  const error = new Error(message)
+  error.name = 'NarrativeEventRecognitionRejectedError'
+  return error
+}
+
 /**
- * 加载默认 Campaign。预览执行到第一次严格叙事响应后停止；真实回合继续
- * 串行结算，只有合并结果完整提交后才产生玩家可见正文。
+ * 加载默认 Campaign。预览只缓存第一次严格叙事响应；真实回合先发布正文，
+ * 再并行执行数据分析与事件识别，全部成功后进入唯一原子提交。
  */
 export function loadStages(
   aiConfig: AIModelConfig,
@@ -93,7 +109,27 @@ export function loadStages(
 ): NarrativeStage[] {
   const stages: NarrativeStage[] = [
     {
+      name: 'prepare-round',
+      phase: 'prepare',
+      dependsOn: [],
+      order: 0,
+      owner: STAGE_OWNER,
+      failureTarget: STAGE_FAILURE_TARGET,
+      onEnter: () => {
+        const context = orchestrator.getRoundContextSnapshot()
+        if (!context.contextId || !context.characterId) {
+          throw new Error('回合上下文缺少 contextId 或 characterId')
+        }
+      },
+      maxRounds: 1,
+    },
+    {
       name: 'advance-time',
+      phase: 'execute',
+      dependsOn: ['prepare-round'],
+      order: 100,
+      owner: STAGE_OWNER,
+      failureTarget: STAGE_FAILURE_TARGET,
       onEnter: () => {
         if (!orchestrator.isPreviewExecution()) {
           eventBus.emit('mod-engine:round-start', orchestrator.getRound())
@@ -104,20 +140,35 @@ export function loadStages(
     },
     {
       name: 'subsystem-advance',
-      onEnter: () => {
-        if (!orchestrator.isPreviewExecution()) orchestrator.advanceAllSubsystems()
+      phase: 'execute',
+      dependsOn: ['advance-time'],
+      order: 200,
+      owner: STAGE_OWNER,
+      failureTarget: STAGE_FAILURE_TARGET,
+      onEnter: async () => {
+        await orchestrator.advanceAllSubsystems()
       },
       maxRounds: 1,
     },
     {
       name: 'collect-states',
-      onEnter: () => {
-        orchestrator.collectAllSubsystemStates()
+      phase: 'execute',
+      dependsOn: ['subsystem-advance'],
+      order: 300,
+      owner: STAGE_OWNER,
+      failureTarget: STAGE_FAILURE_TARGET,
+      onEnter: async () => {
+        await orchestrator.collectAllSubsystemStates()
       },
       maxRounds: 1,
     },
     {
       name: 'event-lifecycle',
+      phase: 'execute',
+      dependsOn: ['collect-states'],
+      order: 400,
+      owner: STAGE_OWNER,
+      failureTarget: STAGE_FAILURE_TARGET,
       onEnter: (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
         const lifecycle = buildEventInjectionText(
@@ -131,32 +182,12 @@ export function loadStages(
       maxRounds: 1,
     },
     {
-      name: 'cross-domain',
-      onEnter: async (_ctx) => {
-        const ctx = _ctx as StageRuntimeContext
-        if (orchestrator.isPreviewExecution()) return
-
-        const hadMacroEvents = Boolean(ctx._eventInjectionText)
-        await orchestrator.executeCrossDomainLinkage()
-        orchestrator.collectAllSubsystemStates(false)
-        if (!hadMacroEvents) return
-
-        const lifecycle = buildEventInjectionText(
-          orchestrator.getDetectionStates(),
-          orchestrator.getEventLifecycle(),
-          orchestrator.getState().totalRounds,
-        )
-        orchestrator.setEventLifecycle(lifecycle.newLifecycle)
-        if (lifecycle.eventInjectionText) {
-          ctx._eventInjectionText = [ctx._eventInjectionText, lifecycle.eventInjectionText]
-            .filter(Boolean)
-            .join('\n')
-        }
-      },
-      maxRounds: 1,
-    },
-    {
       name: 'assemble-prompt',
+      phase: 'execute',
+      dependsOn: ['event-lifecycle'],
+      order: 500,
+      owner: STAGE_OWNER,
+      failureTarget: STAGE_FAILURE_TARGET,
       onEnter: async (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
         if (!orchestrator.isPreviewExecution()) await orchestrator.refreshNarrativeMemoryRecall()
@@ -187,6 +218,11 @@ export function loadStages(
     },
     {
       name: 'ai-narration',
+      phase: 'execute',
+      dependsOn: ['assemble-prompt'],
+      order: 600,
+      owner: STAGE_OWNER,
+      failureTarget: STAGE_FAILURE_TARGET,
       onUpdate: async (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
         if (!ctx._promptContext) throw narrativeRejection('第一次调用缺少叙事上下文')
@@ -195,9 +231,8 @@ export function loadStages(
         const wordCountTarget = settings.wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET
         const requestBranch = useEngineStore.getState().forceBranchNext
         const activeStyle = orchestrator.getNarrativeStyleSnapshot()
-        const prefetched = ctx._legendaryEncounterInjected
-          ? null
-          : orchestrator.consumePrefetchedNarrative()
+        const cachedNarrative = orchestrator.consumePrefetchedNarrative()
+        const prefetched = ctx._legendaryEncounterInjected ? null : cachedNarrative
         let response: string | undefined
         let quality: NarrativeResponseQuality | undefined
         let source: 'live' | 'prefetched' = 'live'
@@ -314,7 +349,51 @@ export function loadStages(
       maxRounds: 1,
     },
     {
-      name: 'ai-settlement',
+      name: 'publish-narrative',
+      phase: 'execute',
+      dependsOn: ['ai-narration'],
+      order: 650,
+      owner: STAGE_OWNER,
+      failureTarget: STAGE_FAILURE_TARGET,
+      onEnter: (_ctx) => {
+        if (orchestrator.isPreviewExecution()) return
+        const ctx = _ctx as StageRuntimeContext
+        if (!ctx._narrativeParsed) {
+          throw narrativeRejection('正文发布缺少已经严格解析的第一次响应')
+        }
+        const state = orchestrator.getState()
+        const roundContext = orchestrator.getRoundContextSnapshot()
+        const roundSequence = roundContext.roundSequence ?? state.totalRounds
+        useEngineStore.getState().setPendingNarrative({
+          executionId: `narrative-round:${state.lifeRunId}:${roundSequence}:real`,
+          roundSequence,
+          text: ctx._narrativeParsed.narrative,
+          timestamp: Date.now(),
+          status: 'pending',
+          statusCode: 'narrative-round:publish-narrative:running',
+        })
+      },
+      onExit: () => {
+        if (orchestrator.isPreviewExecution()) return
+        const state = orchestrator.getState()
+        const roundSequence = orchestrator.getRoundContextSnapshot().roundSequence ?? state.totalRounds
+        const executionId = `narrative-round:${state.lifeRunId}:${roundSequence}:real`
+        useEngineStore.getState().updatePendingNarrative(
+          executionId,
+          'committing',
+          'narrative-round:publish-narrative:succeeded',
+        )
+      },
+      maxRounds: 1,
+    },
+    {
+      name: 'ai-data-analysis',
+      phase: 'execute',
+      dependsOn: ['publish-narrative'],
+      order: 700,
+      parallelGroup: 'narrative-background-analysis',
+      owner: STAGE_OWNER,
+      failureTarget: STAGE_FAILURE_TARGET,
       onUpdate: async (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
         if (orchestrator.isPreviewExecution()) return
@@ -417,15 +496,128 @@ export function loadStages(
       maxRounds: 1,
     },
     {
+      name: 'ai-event-recognition',
+      phase: 'execute',
+      dependsOn: ['publish-narrative'],
+      order: 700,
+      parallelGroup: 'narrative-background-analysis',
+      owner: STAGE_OWNER,
+      failureTarget: STAGE_FAILURE_TARGET,
+      onUpdate: async (_ctx) => {
+        const ctx = _ctx as StageRuntimeContext
+        if (orchestrator.isPreviewExecution()) return
+        if (!ctx._narrativeResponse || !ctx._narrativeParsed) {
+          throw eventRecognitionRejection('事件识别缺少已经严格解析的第一次响应')
+        }
+
+        const roundContext = orchestrator.getRoundContextSnapshot()
+        const existingCandidates = orchestrator.getAvailableHistoricalEventCandidates()
+        const recognitionInput = buildNarrativeEventRecognitionPromptInput({
+          roundContext,
+          narrativeResponse: ctx._narrativeResponse,
+          existingCandidates,
+        })
+        const settings = useSettingsStore.getState()
+        const model = settings.customModel || aiConfig.model
+        const recognitionMaxTokens = computeNarrativeEventRecognitionTokenBudget({
+          narrativeCharacters: ctx._narrativeParsed.narrative.replace(/\s/gu, '').length,
+          existingCandidateCount: recognitionInput.existingCandidates.length,
+          reasoningEffort: aiConfig.reasoningEffort ?? settings.reasoningEffort,
+        })
+        const joinedInput = recognitionInput.userSegments.join('\n\n')
+        const baseLogContext = {
+          lifeRunId: orchestrator.getState().lifeRunId,
+          round: orchestrator.getState().totalRounds,
+          strategy: 'S4',
+          callKind: 'narrative-event-recognition',
+          pool: 'narrative',
+          model,
+          sessionId,
+          executionKind: 'real',
+          promptVersion: narrativeEventRecognitionPrompt.version,
+        }
+        const callOptions = {
+          config: { ...aiConfig, model, maxTokens: recognitionMaxTokens },
+          pool: 'narrative' as const,
+          strictSchema: true,
+          sessionId,
+          signal: orchestrator.getPreviewAbortSignal(),
+          providerId: settings.provider,
+          customBaseUrl: settings.customUrl || undefined,
+          customModel: model,
+          apiKey: settings.customKey || undefined,
+          userSegments: recognitionInput.userSegments,
+          overrideTemperature: 0,
+          logContext: baseLogContext,
+        }
+
+        let response = await callAIWithPromptTemplate(
+          narrativeEventRecognitionPrompt,
+          joinedInput,
+          callOptions,
+        )
+        let quality: NarrativeEventRecognitionQuality = inspectNarrativeEventRecognitionQuality({
+          content: response,
+          currentContextId: roundContext.contextId,
+          currentTotalDays: roundContext.totalDays,
+          existingCandidates: recognitionInput.existingCandidates,
+        })
+        let repairAttempts = 0
+        while (!quality.valid && repairAttempts < MAX_FORMAT_REPAIR_ATTEMPTS) {
+          repairAttempts += 1
+          response = await callAIWithPromptTemplate(narrativeEventRecognitionPrompt, joinedInput, {
+            ...callOptions,
+            extraUserMessages: [buildNarrativeEventRecognitionRepairInstruction(quality, response)],
+            logContext: {
+              ...baseLogContext,
+              callKind: 'narrative-event-recognition-format-repair',
+            },
+            logMeta: { repairAttempt: repairAttempts },
+          })
+          quality = inspectNarrativeEventRecognitionQuality({
+            content: response,
+            currentContextId: roundContext.contextId,
+            currentTotalDays: roundContext.totalDays,
+            existingCandidates: recognitionInput.existingCandidates,
+          })
+        }
+
+        if (!quality.valid || !quality.candidates) {
+          throw eventRecognitionRejection(
+            `事件识别响应经过 ${repairAttempts} 次格式修复后仍无效：${quality.reason}`,
+          )
+        }
+        ctx._recognizedEventCandidates = quality.candidates
+        logger.info('narrative-quality', 'event-recognition-response-accepted', {
+          round: orchestrator.getState().totalRounds,
+          repairAttempts,
+          existingCandidateCount: recognitionInput.existingCandidates.length,
+          recognizedCandidateCount: quality.candidates.length,
+        })
+      },
+      maxRounds: 1,
+    },
+    {
       name: 'post-processing',
+      phase: 'transition',
+      dependsOn: ['ai-data-analysis', 'ai-event-recognition'],
+      order: 800,
+      owner: STAGE_OWNER,
+      failureTarget: STAGE_FAILURE_TARGET,
       onEnter: (_ctx) => {
         if (orchestrator.isPreviewExecution()) return
         const ctx = _ctx as StageRuntimeContext
         if (!ctx._settledNarrative) {
           throw settlementRejection('结算结果未形成唯一提交候选')
         }
+        if (!ctx._recognizedEventCandidates) {
+          throw eventRecognitionRejection('事件识别结果未形成唯一候选集合')
+        }
 
-        const result = orchestrator.handleNarrativeResponse(ctx._settledNarrative)
+        const result = orchestrator.handleNarrativeResponse(
+          ctx._settledNarrative,
+          ctx._recognizedEventCandidates,
+        )
         if (ctx._legendaryEncounterInjected && result.narrative) {
           const engineState = useEngineStore.getState()
           engineState.markLegendaryEncounterInjected(engineState.totalRounds)
@@ -440,6 +632,11 @@ export function loadStages(
     },
     {
       name: 'epilogue-check',
+      phase: 'transition',
+      dependsOn: ['post-processing'],
+      order: 900,
+      owner: STAGE_OWNER,
+      failureTarget: STAGE_FAILURE_TARGET,
       onEnter: async () => {
         if (!orchestrator.isPreviewExecution()) {
           await orchestrator.checkAndTriggerEpilogue(aiConfig, sessionId)
@@ -449,6 +646,18 @@ export function loadStages(
     },
     {
       name: 'compress-save',
+      phase: 'finalize',
+      dependsOn: ['epilogue-check'],
+      order: 1000,
+      owner: STAGE_OWNER,
+      failureTarget: STAGE_FAILURE_TARGET,
+      onEnter: (_ctx) => {
+        if (orchestrator.isPreviewExecution()) return
+        const ctx = _ctx as StageRuntimeContext
+        if (!ctx._roundResult) {
+          throw settlementRejection('终态收束缺少已提交的回合结果')
+        }
+      },
       maxRounds: 1,
     },
   ]

@@ -1,9 +1,15 @@
-import type { NarrativeWordCountTarget } from '@/foundation'
+import type {
+  HistoricalEventCandidateAudit,
+  HistoricalEventCandidateInput,
+  NarrativeWordCountTarget,
+} from '@/foundation'
 
 import { resolveNarrativeWordCountRange } from '../constants/narrative-config'
 import {
   buildNarrativeAIProtocolRepairReminder,
+  buildNarrativeEventCandidateFingerprint,
   toNarrativeAIIntentId,
+  translateNarrativeAIEventRecognition,
   translateNarrativeAISettlement,
 } from './narrative-ai-protocol'
 import {
@@ -11,7 +17,10 @@ import {
   combineNarrativeAndSettlement,
   type ParsedNarrative,
 } from '../subsystems/narrative-parser-system'
-import { parseNarrativeSettlementEnvelope } from './tagged-meta-envelope'
+import {
+  parseNarrativeEventRecognitionEnvelope,
+  parseNarrativeSettlementEnvelope,
+} from './tagged-meta-envelope'
 
 export interface NarrativeResponseQuality {
   valid: boolean
@@ -26,6 +35,12 @@ export interface NarrativeSettlementQuality {
   valid: boolean
   reason: string
   parsed?: ParsedNarrative
+}
+
+export interface NarrativeEventRecognitionQuality {
+  valid: boolean
+  reason: string
+  candidates?: HistoricalEventCandidateInput[]
 }
 
 function errorMessage(error: unknown): string {
@@ -105,6 +120,39 @@ export function inspectNarrativeSettlementQuality(input: {
   }
 }
 
+/** 事件识别调用必须完整通过标签、中文 Schema、时间锚点和重复候选校验。 */
+export function inspectNarrativeEventRecognitionQuality(input: {
+  content: string
+  currentContextId: string
+  currentTotalDays: number
+  existingCandidates: readonly HistoricalEventCandidateAudit[]
+}): NarrativeEventRecognitionQuality {
+  try {
+    const envelope = parseNarrativeEventRecognitionEnvelope(input.content)
+    const candidates = translateNarrativeAIEventRecognition(envelope.data, {
+      currentContextId: input.currentContextId,
+      currentTotalDays: input.currentTotalDays,
+    })
+    const existingFingerprints = new Set(input.existingCandidates.map((audit) => (
+      buildNarrativeEventCandidateFingerprint(audit.candidate)
+    )))
+    const incomingFingerprints = new Set<string>()
+    for (const candidate of candidates) {
+      const fingerprint = buildNarrativeEventCandidateFingerprint(candidate)
+      if (existingFingerprints.has(fingerprint)) {
+        throw new Error(`待触发事件已经注册：${candidate.title}`)
+      }
+      if (incomingFingerprints.has(fingerprint)) {
+        throw new Error(`事件识别响应重复提交同一候选：${candidate.title}`)
+      }
+      incomingFingerprints.add(fingerprint)
+    }
+    return { valid: true, reason: '', candidates }
+  } catch (error) {
+    return { valid: false, reason: errorMessage(error) }
+  }
+}
+
 /** 第一次调用只追加本轮触发的条件；常驻输出协议由固定 Prompt 拥有。 */
 export function buildNarrativeRoundOutputContract(
   requestBranch = false,
@@ -142,7 +190,21 @@ export function buildNarrativeSettlementRepairInstruction(
     '请依据同一份系统状态、上下文与叙事，参照系统提示词末尾的唯一结算示例重新输出完整结算。',
     `需要修正：${quality.reason}。`,
     '每个系统操作独占一行并从系统1连续编号，最后一行是唯一数据段；返回内容只包含完整结算分段。',
+    '语义信号硬规则：叙事语域为“命运”或“传承”时“不可逆”必须为 true；若正文没有已经成立的不可逆轨迹变化，改用“生活”语域。只修正冲突字段，不改写正文事实。',
     '【上一版结算响应】',
+    originalResponse,
+  ].join('\n')
+}
+
+export function buildNarrativeEventRecognitionRepairInstruction(
+  quality: NarrativeEventRecognitionQuality,
+  originalResponse: string,
+): string {
+  return [
+    '请依据同一份回合上下文、已有候选和最终叙事，参照系统提示词末尾的唯一事件识别示例重新输出完整结果。',
+    `需要修正：${quality.reason}。`,
+    '只输出唯一待触发事件分段；没有新候选时返回空事件数组，不得重复已有候选或把已发生事实登记为待触发事项。',
+    '【上一版事件识别响应】',
     originalResponse,
   ].join('\n')
 }

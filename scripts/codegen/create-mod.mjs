@@ -74,6 +74,7 @@ import { defineMod } from '@/core'
 
 export default defineMod({
   name: '${modName}',
+  order: 500,
   version: '1.0.0',
   description: 'TODO: 一句话描述',
   dependencies: ['mod-engine'],

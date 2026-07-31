@@ -9,7 +9,10 @@ import type { ISubSystem, ModManifest } from '@/foundation'
 import { MOD_SUBSYSTEM_IMPORTERS } from '@/core/mod-loader/mod-subsystem-importers.generated'
 import { SUBSYSTEM_SINGLETON_ALIASES } from './subsystem-aliases.generated'
 import { orchestrator } from '../subsystems/orchestrator-system'
-import { isMvpRuntimeSubsystem } from '../helpers/mvp-runtime-policy'
+import {
+  MVP_EXTERNAL_RUNTIME_SUBSYSTEM_ORDER,
+  isMvpRuntimeSubsystem,
+} from '../helpers/mvp-runtime-policy'
 
 function isSubSystem(value: unknown): value is ISubSystem {
   return (
@@ -60,10 +63,7 @@ function resolveModImporter(modName: string): (() => Promise<Record<string, unkn
  * @returns 成功注册的子系统数量
  */
 export async function registerAllSubsystems(manifests: ModManifest[]): Promise<number> {
-  orchestrator.clearExternalSubsystems()
-  orchestrator.setManifests(manifests)
-
-  let registered = 0
+  const resolved = new Map<string, ISubSystem>()
 
   for (const manifest of manifests) {
     if (manifest.name === 'mod-engine') continue
@@ -71,8 +71,7 @@ export async function registerAllSubsystems(manifests: ModManifest[]): Promise<n
 
     const importer = resolveModImporter(manifest.name)
     if (!importer) {
-      console.warn(`[register-subsystems] 无 import 映射: ${manifest.name}`)
-      continue
+      throw Error(`[register-subsystems] 无 import 映射: ${manifest.name}`)
     }
 
     const modExports = await importer()
@@ -82,17 +81,32 @@ export async function registerAllSubsystems(manifests: ModManifest[]): Promise<n
 
       const instance = resolveSubsystemInstance(modExports, className)
       if (!instance) {
-        console.warn(`[register-subsystems] 未找到子系统 ${manifest.name}/${className}`)
-        continue
+        throw Error(`[register-subsystems] 未找到子系统 ${manifest.name}/${className}`)
       }
       if (!isMvpRuntimeSubsystem(instance.id)) {
         continue
       }
 
-      orchestrator.registerSubsystem(instance)
-      registered++
+      const existing = resolved.get(instance.id)
+      if (existing) {
+        throw Error(
+          `[register-subsystems] 子系统标识重复: ${instance.id} (${existing.mod}, ${instance.mod})`,
+        )
+      }
+      resolved.set(instance.id, instance)
     }
   }
 
-  return registered
+  const missing = MVP_EXTERNAL_RUNTIME_SUBSYSTEM_ORDER.filter((id) => !resolved.has(id))
+  if (missing.length > 0) {
+    throw Error(`[register-subsystems] 活动子系统未完整解析: ${missing.join(', ')}`)
+  }
+
+  orchestrator.clearExternalSubsystems()
+  orchestrator.setManifests(manifests)
+  for (const id of MVP_EXTERNAL_RUNTIME_SUBSYSTEM_ORDER) {
+    orchestrator.registerSubsystem(resolved.get(id)!)
+  }
+
+  return MVP_EXTERNAL_RUNTIME_SUBSYSTEM_ORDER.length
 }

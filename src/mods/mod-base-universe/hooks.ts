@@ -12,7 +12,6 @@ export function useBaseUniverse() {
   return useBaseUniverseStore((s) => ({
     celestial: s.celestial,
     era: s.era,
-    worldMap: s.worldMap,
     fateProphecy: s.fateProphecy,
     divineCreation: s.divineCreation,
   }))

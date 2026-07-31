@@ -8,6 +8,7 @@ import { defineMod } from '@/core'
 
 export default defineMod({
   name: 'mod-world',
+  order: 200,
   version: '1.0.0',
   description: '世界生成与实体管理',
   dependencies: ['mod-engine'],

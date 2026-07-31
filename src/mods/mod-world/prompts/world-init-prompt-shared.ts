@@ -23,10 +23,10 @@ export const worldEntityGeneratorSystemPrompt = stringifyPrompt({
       settlements: 'boolean',
       tradeRoutes: 'boolean',
     },
-    nations: [{ name: '名称', capital: '核心地点', stability: '0-100', population: '数量', regionId: 'mapRegions 中的 regionId', description: '完整描述' }],
+    nations: [{ name: '名称', capital: '核心地点', stability: '0-100', regionId: 'mapRegions 中的 regionId', description: '完整描述' }],
     factions: [{ name: '名称', factionType: 'military/religious/merchant/academic/political', power: '0-100', regionId: 'mapRegions 中的 regionId', description: '完整描述' }],
     nobleHouses: [{ name: '名称', rank: 'duke/marquis/earl/count/baron', influence: '0-100', regionId: 'mapRegions 中的 regionId', description: '完整描述' }],
-    settlements: [{ name: '名称', tier: 'village/town/city/metropolis', population: '数量', developmentLevel: '0-100', regionId: 'mapRegions 中的 regionId（必填）', description: '完整描述' }],
+    settlements: [{ name: '名称', tier: 'village/town/city/metropolis', developmentLevel: '0-100', regionId: 'mapRegions 中的 regionId（必填）', description: '完整描述' }],
     tradeRoutes: [{ name: '路线名称', fromSettlementId: '起点', toSettlementId: '终点', prosperity: '0-100' }],
   },
   generationPrinciples: [

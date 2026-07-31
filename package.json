@@ -1,6 +1,6 @@
 {
   "name": "ai-life-sim",
-  "version": "5.6.3",
+  "version": "5.6.8",
   "private": true,
   "scripts": {
     "dev": "node scripts/codegen/generate-mod-wiring.mjs && next dev --turbopack",
@@ -24,10 +24,11 @@
     "test:creation-first-narrative": "node scripts/check/domains/narrative/character-first-narrative-slice.mjs",
     "test:creation-first-narrative:browser": "node scripts/check/domains/ui/character-first-narrative-browser.cjs",
     "test:branch-flow:browser": "node scripts/check/domains/ui/branch-flow-browser.cjs",
+    "test:pre-gen-luck:browser": "node scripts/check/domains/ui/branch-flow-browser.cjs --pre-gen",
     "test:game-over-ui:browser": "node scripts/check/domains/ui/game-over-final-ui-browser.cjs",
     "test:responsive-viewport:browser": "node scripts/check/domains/ui/responsive-viewport-browser.cjs",
     "test:new-life-isolation": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/ui/new-life-isolation-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/autosave-lifecycle-smoke.mjs",
-    "test:account-cloud": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/account-cloud-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/player-content-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/player-mail-migration-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/player-mail-ops-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/operations-dashboard-smoke.mjs && node scripts/check/domains/account/data-viewer-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/character-draft-persistence-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/account/account-cleanup-ops-smoke.mjs",
+    "test:account-cloud": "node scripts/check/index.mjs account --verbose",
     "test:data-viewer": "node scripts/check/domains/account/data-viewer-smoke.mjs",
     "test:account-cloud:browser": "node scripts/check/domains/ui/account-cloud-browser.cjs",
     "test:compression-runtime": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/compression-runtime-smoke.mjs",
@@ -44,6 +45,7 @@
     "test:historical-event-p1": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/mod/historical-event-p1-smoke.mjs && npm run test:historical-event-prompt",
     "test:history-causality-p1": "npm run test:historical-event-p1",
     "test:npc-social-p2": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/mod/npc-social-p2-smoke.mjs",
+    "test:multi-world-p3-p5": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/mod/multi-world-p3-p5-smoke.mjs",
     "test:release-cleanup": "node scripts/check/domains/narrative/release-cleanup-smoke.mjs",
     "test:managed-ai-default": "node scripts/check/domains/narrative/managed-ai-default-regression.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/managed-sse-aggregation-smoke.mjs",
     "test:loader": "node scripts/check/domains/structural/test-mod-loader.mjs",

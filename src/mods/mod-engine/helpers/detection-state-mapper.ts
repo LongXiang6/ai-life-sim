@@ -13,30 +13,26 @@ function asRecord(data: unknown): Record<string, unknown> | undefined {
   return undefined
 }
 
-function mapNationRelations(data: Record<string, unknown> | undefined): DetectionStates['nationState'] {
-  if (!data || !Array.isArray(data.relations)) return undefined
-  const relations = (data.relations as Array<Record<string, unknown>>).map((r) => {
-    const stance = String(r.stance ?? r.status ?? '').toLowerCase()
-    let status = 'NEUTRAL'
-    if (stance === 'war') status = 'WAR'
-    else if (stance === 'hostile') status = 'HOSTILE'
-    else if (stance === 'ally' || stance === 'friendly') status = 'ALLY'
-    return { status }
-  })
-  return { relations }
-}
-
-function mapNobleHouses(data: Record<string, unknown> | undefined): DetectionStates['nobleHouseState'] {
-  if (!data || !Array.isArray(data.nobleHouses)) return undefined
-  const houses = (data.nobleHouses as Array<Record<string, unknown>>).map((h) => ({
-    name: String(h.name ?? '未知家族'),
-    prosperity: typeof h.prosperity === 'number'
-      ? h.prosperity
-      : typeof h.influence === 'number'
-        ? h.influence
-        : 50,
-  }))
-  return { houses }
+function mapPoliticalRelations(
+  faction: Record<string, unknown> | undefined,
+  conflicts: Record<string, unknown> | undefined,
+): DetectionStates['politicalState'] {
+  const relations: Array<{ status: string }> = []
+  if (faction && Array.isArray(faction.entities)) {
+    for (const entity of faction.entities as Array<Record<string, unknown>>) {
+      const relationMap = asRecord(entity.relations)
+      for (const value of Object.values(relationMap ?? {})) {
+        if (typeof value !== 'number') continue
+        relations.push({ status: value <= -70 ? 'HOSTILE' : value >= 70 ? 'ALLY' : 'NEUTRAL' })
+      }
+    }
+  }
+  if (conflicts && Array.isArray(conflicts.conflicts)) {
+    for (const conflict of conflicts.conflicts as Array<Record<string, unknown>>) {
+      if (conflict.phase !== 'resolved') relations.push({ status: conflict.phase === 'active' ? 'WAR' : 'HOSTILE' })
+    }
+  }
+  return relations.length > 0 ? { relations } : undefined
 }
 
 function mapMarketState(economy: Record<string, unknown> | undefined): DetectionStates['marketState'] {
@@ -150,11 +146,11 @@ export function mapSubsystemStatesToDetectionStates(
     }
   }
 
-  const nationState = mapNationRelations(asRecord(subsystemDataById['nation-relation']))
-  if (nationState) mapped.nationState = nationState
-
-  const nobleHouseState = mapNobleHouses(asRecord(subsystemDataById['social-stratification']))
-  if (nobleHouseState) mapped.nobleHouseState = nobleHouseState
+  const politicalState = mapPoliticalRelations(
+    faction,
+    asRecord(subsystemDataById['conflict-cycle']),
+  )
+  if (politicalState) mapped.politicalState = politicalState
 
   const tradeRouteState = mapTradeRouteState(economy)
   if (tradeRouteState) mapped.tradeRouteState = tradeRouteState
@@ -174,7 +170,7 @@ export function mapSubsystemStatesToDetectionStates(
   if (economyState) mapped.economyState = economyState
 
   const characterIds = [
-    'health', 'morality', 'combat-power', 'lifespan', 'character-base', 'reputation', 'faith', 'luck',
+    'health', 'morality', 'combat-power', 'lifespan', 'lifecycle-system', 'reputation', 'faith', 'luck',
   ] as const
   for (const id of characterIds) {
     const data = asRecord(subsystemDataById[id])

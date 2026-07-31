@@ -1,5 +1,6 @@
 import { BaseSubsystem } from '@/core/subsystem-base'
 import type {
+  EntityReference,
   RelationshipRecord,
   RelationshipScope,
   RelationshipSystemPersistenceState,
@@ -12,8 +13,8 @@ import type {
 import { RELATIONSHIP_SYSTEM_OPERATION_FIELDS } from '@/foundation'
 import { getHistoricalEvent } from '@/mods/mod-history-dynamics/historical-event-api'
 import {
-  assertWorldEntityReference,
   contextHasCapability,
+  getWorldEntityReference,
   getCurrentWorldContext,
   listCoLocatedWorldEntityIds,
   listWorldContexts,
@@ -144,14 +145,45 @@ function relationshipKey(relationship: Pick<RelationshipRecord, 'fromEntityId' |
   return `${relationship.fromEntityId}\u0000${relationship.toEntityId}\u0000${relationship.scope.kind}\u0000${[...relationship.scope.contextIds].sort().join(',')}`
 }
 
+function resolvePackageEntityReference(
+  entityId: string,
+  context: RoundContext | undefined,
+  packageChanges?: readonly SubSystemChanges[],
+): EntityReference {
+  const existing = getWorldEntityReference(entityId)
+  if (existing) return existing
+  if (!context || !packageChanges) throw new Error(`实体引用不存在：${entityId}`)
+  const candidates = packageChanges.filter((item) => (
+    item.id === 'npc-system'
+      && item.operation === 'create-identity'
+      && item.targetObjectId === entityId
+      && item.targetContextId === context.contextId
+  ))
+  if (candidates.length > 1) throw new Error(`同一回合重复创建 NPC 身份：${entityId}`)
+  const candidate = candidates[0]
+  const displayName = typeof candidate?.changes.displayName === 'string'
+    ? candidate.changes.displayName.trim()
+    : ''
+  if (!candidate || !displayName) throw new Error(`实体引用不存在：${entityId}`)
+  return {
+    entityId,
+    kind: 'npc',
+    displayName,
+    contextIds: [context.contextId],
+    registeredAtTotalDays: context.totalDays,
+  }
+}
+
 function validateEndpoints(
   fromEntityId: string,
   toEntityId: string,
   scope: RelationshipScope,
   operationContextId?: string,
+  context?: RoundContext,
+  packageChanges?: readonly SubSystemChanges[],
 ): void {
-  const from = assertWorldEntityReference(fromEntityId)
-  const to = assertWorldEntityReference(toEntityId)
+  const from = resolvePackageEntityReference(fromEntityId, context, packageChanges)
+  const to = resolvePackageEntityReference(toEntityId, context, packageChanges)
   if (from.entityId === to.entityId) throw new Error('关系端点不能指向同一实体')
   const visibleContextIds = scope.kind === 'global'
     ? operationContextId ? [operationContextId] : []
@@ -338,7 +370,11 @@ export class RelationshipSystem extends BaseSubsystem {
     }
   }
 
-  preflightChanges(changes: SubSystemChanges, context: RoundContext): void {
+  preflightChanges(
+    changes: SubSystemChanges,
+    context: RoundContext,
+    packageChanges?: readonly SubSystemChanges[],
+  ): void {
     if (changes.id !== this.id) throw new Error('关系系统指令目标不匹配')
     if (!changes.targetContextId || changes.targetContextId !== context.contextId) throw new Error('关系系统指令上下文必须是当前上下文')
     if (!contextHasCapability(context.contextId, 'npc')) throw new Error('目标上下文未启用 NPC 社会能力')
@@ -350,11 +386,11 @@ export class RelationshipSystem extends BaseSubsystem {
     const payload = changes.changes
     assertOperationPayloadKeys(operation, payload)
     if (operation === 'establish') {
-      const from = assertWorldEntityReference(changes.targetObjectId)
+      const from = resolvePackageEntityReference(changes.targetObjectId, context, packageChanges)
       const toId = typeof payload.toEntityId === 'string' ? payload.toEntityId : ''
       if (!toId || toId === from.entityId) throw new Error('建立关系必须提供不同的目标实体')
       const scope = normalizeScope({ kind: payload.scopeKind, contextIds: payload.scopeContextIds }, context.contextId)
-      validateEndpoints(from.entityId, toId, scope, context.contextId)
+      validateEndpoints(from.entityId, toId, scope, context.contextId, context, packageChanges)
       if (payload.categoryTags !== undefined) requireStringArray(payload.categoryTags, '关系类别')
       optionalBoundedNumber(payload.affinity, '初始好感', -100, 100)
       optionalBoundedNumber(payload.trust, '初始信任', 0, 100)
@@ -385,7 +421,14 @@ export class RelationshipSystem extends BaseSubsystem {
     }
     if (operation === 'scope-change') {
       const scope = normalizeScope({ kind: payload.scopeKind, contextIds: payload.scopeContextIds }, context.contextId)
-      validateEndpoints(relationship.fromEntityId, relationship.toEntityId, scope, context.contextId)
+      validateEndpoints(
+        relationship.fromEntityId,
+        relationship.toEntityId,
+        scope,
+        context.contextId,
+        context,
+        packageChanges,
+      )
       const key = relationshipKey({ ...relationship, scope })
       if (useRelationshipStore.getState().relationships.some((item) => (
         item.relationshipId !== relationship.relationshipId && relationshipKey(item) === key

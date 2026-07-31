@@ -27,6 +27,14 @@ export type {
 } from './mod.types'
 
 export type {
+  LuckNarrativeDirection,
+  LuckNarrativeGuidance,
+  LuckModifiers,
+  LuckState,
+  LuckPersistenceState,
+} from './luck.types'
+
+export type {
   ISubSystem,
   ISubSystemV2,
   ISubSystemV3,
@@ -37,6 +45,26 @@ export type {
   RoundContext,
   TimeStep,
 } from './subsystem.types'
+
+export {
+  EXECUTION_PHASES,
+} from './execution-sequence.types'
+export type {
+  ExecutionPhase,
+  ExecutionNodeSignalStatus,
+  ExecutionRecordStatus,
+  ExecutionOutcomeCodes,
+  ExecutionNodeDescriptor,
+  ExecutionNodeRuntime,
+  ExecutionNodeSignal,
+  ExecutionSequenceNode,
+  ExecutionSequenceEvent,
+  ExecutionNodeRecord,
+  ExecutionSequenceFailure,
+  ExecutionSequenceResult,
+  ResolveExecutionOrderOptions,
+  RunExecutionSequenceOptions,
+} from './execution-sequence.types'
 
 export type {
   AIModelConfig,
@@ -63,7 +91,6 @@ export type {
   CompressedMemoryEvent,
   CompressedSummaryItem,
   CompressedSummaries,
-  LifeStage,
   DeathCause,
   WorldDirectionRecord,
   YearEventKeyEvent,

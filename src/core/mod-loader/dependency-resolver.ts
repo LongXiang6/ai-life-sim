@@ -1,17 +1,17 @@
 /**
  * @module dependency-resolver.ts
- * @description 依赖解析器 V2 —— 深度排序 + `~/?/!` 前缀解析 + 循环依赖检测
+ * @description 依赖解析器 V2 —— 硬依赖拓扑 + 显式 order + 循环依赖检测
  * @mod core
  *
  * 排序优先级（同入度节点）：
  *   1. dependencies 中声明了硬依赖 → 被依赖方先加载（拓扑已保证）
- *   2. 依赖链深度较浅者优先（吸收 Factorio "shorter dependency chains first"）
- *   3. provides/consumes 匹配度高者优先（能力提供方先加载）
- *   4. MOD 名称自然排序（稳定兜底）
+ *   2. 当前已就绪节点按 manifest.order 从小到大
+ *   3. order 相同时按 MOD 名称 ASCII 升序
  *
  * 彻底删除 loadOrder 字段的使用和校验。
  */
 
+import { resolveExecutionOrder } from '@/foundation'
 import type { ModManifest, ModDependency } from '@/foundation'
 
 /** 拓扑排序结果 */
@@ -20,6 +20,8 @@ export interface ResolveResult {
   order: string[],
   /** 循环依赖列表 */
   cycles: string[][],
+  /** 声明错误（重复标识、非法 order 等） */
+  errors: string[],
 }
 
 /**
@@ -73,59 +75,10 @@ export function parseDependency(depStr: string): ModDependency {
 }
 
 /**
- * 计算 MOD 的依赖链深度（递归）
- *
- * 依赖链越浅越优先加载。
- */
-function computeDependencyDepth(
-  modName: string,
-  manifests: ModManifest[],
-  visited: Set<string> = new Set(),
-): number {
-  if (visited.has(modName)) return 0
-  visited.add(modName)
-
-  const manifest = manifests.find((m) => m.name === modName)
-  if (!manifest || manifest.dependencies.length === 0) return 0
-
-  let maxDepth = 0
-  for (const depStr of manifest.dependencies) {
-    const dep = parseDependency(depStr)
-    // 只计算硬依赖的深度（软引用/可选/冲突不计算）
-    if (dep.affectsLoadOrder) {
-      const depth = computeDependencyDepth(dep.name, manifests, visited) + 1
-      if (depth > maxDepth) maxDepth = depth
-    }
-  }
-  return maxDepth
-}
-
-/**
- * 计算两个 MOD 的能力匹配分数
- *
- * 如果 A 提供了 B 消费的能力 → 分数高 → A 先加载（提供者先于消费者）。
- */
-function computeCapabilityMatchScore(
-  a: string,
-  b: string,
-  manifests: ModManifest[],
-): number {
-  const ma = manifests.find((m) => m.name === a)
-  const mb = manifests.find((m) => m.name === b)
-  if (!ma || !mb) return 0
-
-  let score = 0
-  for (const consume of mb.consumes) {
-    if (ma.provides.includes(consume)) score++
-  }
-  return score
-}
-
-/**
  * 解析 MOD 加载顺序 V2
  *
  * 与 v1 相比：
- *   - 使用依赖链深度排序替代 loadOrder
+ *   - 使用显式 order 排序同一依赖层
  *   - 支持 `~/?/!` 前缀解析
  *   - 软引用/可选/冲突声明不影响拓扑排序
  *
@@ -135,85 +88,31 @@ function computeCapabilityMatchScore(
 export function resolveDependenciesV2(
   manifests: ModManifest[],
 ): ResolveResult {
-  const inDegree = new Map<string, number>()
-  const dependents = new Map<string, string[]>()
+  const available = new Set(manifests.map((manifest) => manifest.name))
+  const nodes = manifests.map((manifest) => ({
+    id: manifest.name,
+    owner: 'core-mod-loader',
+    failureTarget: 'core-mod-loader',
+    phase: 'execute' as const,
+    dependsOn: manifest.dependencies
+      .map((dependency) => parseDependency(dependency))
+      .filter((dependency) => dependency.affectsLoadOrder && available.has(dependency.name))
+      .map((dependency) => dependency.name),
+    order: manifest.order,
+  }))
 
-  for (const m of manifests) {
-    inDegree.set(m.name, 0)
-    dependents.set(m.name, [])
-  }
-
-  // 构建依赖图（仅硬依赖参与拓扑排序）
-  for (const m of manifests) {
-    for (const depStr of m.dependencies) {
-      const dep = parseDependency(depStr)
-
-      // 硬依赖 → 参与拓扑排序
-      if (dep.affectsLoadOrder) {
-        if (!dependents.has(dep.name)) {
-          dependents.set(dep.name, [])
-          if (!inDegree.has(dep.name)) {
-            inDegree.set(dep.name, 0)
-          }
-        }
-        dependents.get(dep.name)!.push(m.name)
-        inDegree.set(m.name, (inDegree.get(m.name) ?? 0) + 1)
-      }
+  try {
+    return {
+      order: resolveExecutionOrder(nodes).map((node) => node.id),
+      cycles: [],
+      errors: [],
     }
-  }
-
-  // 拓扑排序：从入度 0（无硬依赖）的节点开始
-  const order: string[] = []
-  const queue: string[] = []
-
-  for (const [name, degree] of inDegree) {
-    if (degree === 0 && manifests.some((m) => m.name === name)) {
-      queue.push(name)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (message.includes('循环依赖')) {
+      const unresolved = message.split(':').at(-1)?.trim().split(' -> ').filter(Boolean) ?? []
+      return { order: [], cycles: unresolved.length > 0 ? [unresolved] : [], errors: [] }
     }
+    return { order: [], cycles: [], errors: [message] }
   }
-
-  while (queue.length > 0) {
-    // 深度排序 + 能力匹配 + 名称兜底
-    queue.sort((a, b) => {
-      // 1. 依赖链深度越浅越优先
-      const depthA = computeDependencyDepth(a, manifests)
-      const depthB = computeDependencyDepth(b, manifests)
-      if (depthA !== depthB) return depthA - depthB
-
-      // 2. provides/consumes 匹配（消费方在后）
-      const scoreA = computeCapabilityMatchScore(a, b, manifests)
-      const scoreB = computeCapabilityMatchScore(b, a, manifests)
-      if (scoreA !== scoreB) return scoreB - scoreA
-
-      // 3. 名称自然排序（稳定兜底）
-      return a.localeCompare(b)
-    })
-
-    const current = queue.shift()!
-    order.push(current)
-
-    // current 已加载 → 所有依赖 current 的 MOD 入度 -1
-    for (const dependent of (dependents.get(current) ?? [])) {
-      const deg = (inDegree.get(dependent) ?? 1) - 1
-      inDegree.set(dependent, deg)
-      if (deg === 0 && manifests.some((m) => m.name === dependent)) {
-        queue.push(dependent)
-      }
-    }
-  }
-
-  // 循环依赖检测
-  const cycles: string[][] = []
-  const loaded = new Set(order)
-  for (const m of manifests) {
-    if (!loaded.has(m.name)) {
-      const unresolvedDeps = m.dependencies
-        .map((d) => parseDependency(d))
-        .filter((d) => d.affectsLoadOrder && !loaded.has(d.name))
-        .map((d) => d.name)
-      cycles.push([m.name, ...unresolvedDeps])
-    }
-  }
-
-  return { order, cycles }
 }

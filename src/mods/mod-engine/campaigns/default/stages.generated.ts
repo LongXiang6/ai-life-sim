@@ -7,14 +7,16 @@
 
 /** 默认 campaign 阶段名（codegen 自 campaigns/default/index.ts） */
 export const DEFAULT_CAMPAIGN_STAGE_NAMES = [
+  "prepare-round",
   "advance-time",
   "subsystem-advance",
   "collect-states",
   "event-lifecycle",
-  "cross-domain",
   "assemble-prompt",
   "ai-narration",
-  "ai-settlement",
+  "publish-narrative",
+  "ai-data-analysis",
+  "ai-event-recognition",
   "post-processing",
   "epilogue-check",
   "compress-save"

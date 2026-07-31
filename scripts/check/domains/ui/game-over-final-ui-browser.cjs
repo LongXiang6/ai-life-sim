@@ -23,11 +23,11 @@ function seedPage(page) {
   return page.evaluateOnNewDocument((fixtureMythic) => {
     localStorage.clear()
     localStorage.setItem('mod-world:persist:world-state', JSON.stringify({
-      version: 4,
+      version: 5,
       state: {
         worldConfig: {
           name: '潮汐城邦', eraName: '潮历', eraStartYear: 1, essenceTag: 'mixed',
-          powerSystemTag: 'tide', powerCeiling: 3, spatialForm: 'islands', civilizationStage: 'city-state',
+          powerSystemTag: 'tide', powerFramework: { id: 'fixture:power', label: '潮汐力量体系', enabled: true, progression: 'bounded', ranks: [{ id: 'fixture:power:rank:1', index: 1, label: '潮息', description: '测试世界基础力量阶位' }], source: 'world-default' }, spatialForm: 'islands', civilizationStage: 'city-state',
           difficulty: 'normal', description: '群岛随潮汐改变航路，灯塔维系城邦之间的契约。', worldType: 'idealist',
         },
         initialized: true,
@@ -68,13 +68,13 @@ function seedPage(page) {
           ],
           rarityCount: { common: 0, fine: 1, rare: 2, epic: 0, legendary: 0 },
         },
-        health: { hp: 0, maxHp: 100, stamina: 0, spirit: 72, diseases: [], injuries: [], isDead: true, deathCause: '寿终' },
+        health: { entityId: 'character_final_ui', vitality: 0, maxVitality: 100, stamina: 0, spirit: 72, alive: false, conditions: [] },
         lifespan: {
-          maxAge: 73, baseMaxAge: 70,
-          race: { name: '人类', baseMaxAge: 70, goldenAgeRatio: [0.18, 0.4], decayMultiplier: 1 },
-          breakthroughs: [{ pathway: 'techEnhancement', year: 54, yearsGained: 3, description: '完成潮汐呼吸辅助装置。' }],
-          breakthroughChance: 0.1,
+          entityId: 'character_final_ui', raceId: 'human', displayName: '人类', clockMode: 'aging',
+          baseLifespanDays: 70 * 365, maximumLifespanDays: 73 * 365,
+          adjustments: [{ adjustmentId: 'lifespan-adjustment:tide-breathing', entityId: 'character_final_ui', deltaDays: 3 * 365, operation: 'adjust-maximum', description: '完成潮汐呼吸辅助装置。', occurredAtTotalDays: 54 * 365, evidenceEventIds: ['event:tide-breathing'] }],
         },
+        lifecycle: { entityId: 'character_final_ui', ageDays: 73 * 365 },
         morality: { value: 34, level: 'good', roundDelta: 0 },
         talents: [],
         mythicCandidates: [fixtureMythic, {
@@ -143,7 +143,8 @@ async function main() {
       scrollWidth: document.documentElement.scrollWidth,
       semanticCount: semantic.length,
       semanticHidden: semantic.every((node) => node.getAttribute('aria-hidden') === 'true'),
-      metricNames: [...document.querySelectorAll('button[aria-label*="查看评语"], button[aria-label*="卓越"], button[aria-label*="出众"]')].map((button) => button.getAttribute('aria-label')),
+      metricNames: [...document.querySelectorAll('section[aria-labelledby="dimensions-title"] button')]
+        .map((button) => button.getAttribute('aria-label')),
       footerVisible: Boolean(footerRect && footerRect.top >= 0 && footerRect.bottom <= window.innerHeight + 1),
       footerHeight: footerRect?.height,
       backSize: backRect ? [backRect.width, backRect.height] : null,
@@ -184,6 +185,7 @@ async function main() {
     || result.semanticCount !== 5
     || !result.semanticHidden
     || result.metricNames.length !== 4
+    || result.metricNames.some((name) => !name)
     || !result.footerVisible
     || !nearScaled(result.backSize?.[0], 38)
     || !nearScaled(result.backSize?.[1], 38)

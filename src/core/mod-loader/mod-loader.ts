@@ -1,12 +1,12 @@
 /**
  * @module mod-loader.ts
- * @description MOD 加载器 V2 —— Phase 0 预扫描 + 依赖解析 + 按序校验注册
+ * @description MOD 加载器 V2 —— 全量预检 + 显式依赖顺序 + 原子注册
  * @mod core
  *
  * 加载流程：
  *   Phase 0: 预扫描 → 构建 mods 预扫描表（所有 MOD onInit 前可用）
- *   Phase 1: 依赖解析 + 深度自动排序（取消 loadOrder）
- *   Phase 2: 按序加载（校验 + 注册 + 能力收集 + 路由 + 事件）
+ *   Phase 1: 依赖解析 + manifest.order 稳定排序
+ *   Phase 2: 全量校验通过后按序注册
  */
 
 import type { ModManifest, ModScanEntry } from '@/foundation'
@@ -66,6 +66,10 @@ export function loadMods(manifests: ModManifest[]): LoadResult {
   // MOD 的 onInit 中可从 context.mods 查询其他 MOD 是否存在
   const modsTable = new Map<string, ModScanEntry>()
   for (const m of manifests) {
+    if (modsTable.has(m.name)) {
+      errors.push(`MOD 标识重复: ${m.name}`)
+      continue
+    }
     modsTable.set(m.name, {
       version: m.version,
       dependencies: m.dependencies,
@@ -74,27 +78,42 @@ export function loadMods(manifests: ModManifest[]): LoadResult {
   }
 
   // === Phase 1: 依赖解析 + 深度排序 ===
-  const { order, cycles } = resolveDependenciesV2(manifests)
+  const { order, cycles, errors: dependencyErrors } = resolveDependenciesV2(manifests)
+  errors.push(...dependencyErrors)
 
-  if (cycles.length > 0) {
+  if (cycles.length > 0 || errors.length > 0) {
     for (const cycle of cycles) {
       errors.push(`循环依赖检测: ${cycle.join(' → ')}`)
     }
     return { loaded: [], errors, cycles, modsTable }
   }
 
-  // === Phase 2: 按序加载 ===
-  const loaded: string[] = []
+  // === Phase 2: 全量校验 ===
   const availableMods = manifests.map((m) => m.name)
   /** 全量能力表（Phase 0 预扫描，供 consumes 校验；避免互消费 MOD 按序加载时误报） */
   const declaredCaps = new Map<string, string>()
   for (const m of manifests) {
     for (const cap of m.provides) {
+      const existing = declaredCaps.get(cap)
+      if (existing) {
+        errors.push(`能力 "${cap}" 重复声明: ${existing} 与 ${m.name}`)
+        continue
+      }
       declaredCaps.set(cap, m.name)
     }
   }
-  const availableCaps = new Map<string, string>()
   const registeredRoutes = new Map<string, string>()
+
+  for (const manifest of manifests) {
+    for (const route of manifest.routes ?? []) {
+      const existing = registeredRoutes.get(route.path)
+      if (existing) {
+        errors.push(`路由 "${route.path}" 重复注册: ${existing} 与 ${manifest.name}`)
+        continue
+      }
+      registeredRoutes.set(route.path, manifest.name)
+    }
+  }
 
   for (const name of order) {
     const manifest = manifests.find((m) => m.name === name)
@@ -128,38 +147,20 @@ export function loadMods(manifests: ModManifest[]): LoadResult {
       }
     }
 
-    // d. 注册到注册表
-    modRegistry.register(manifest)
-
-    // d. 注册能力
-    for (const cap of manifest.provides) {
-      availableCaps.set(cap, name)
-    }
-
-    // e. 注册路由（检测重复 path）
-    if (manifest.routes) {
-      for (const route of manifest.routes) {
-        const existing = registeredRoutes.get(route.path)
-        if (existing) {
-          errors.push(
-            `路由 "${route.path}" 重复注册: ${existing} 与 ${name}（保留先注册的 MOD）`,
-          )
-          continue
-        }
-        registeredRoutes.set(route.path, name)
-        modRegistry.registerRoute(name, route.path, route.page)
-      }
-    }
-
-    // f. 注册事件
-    if (manifest.events) {
-      for (const event of manifest.events.listens) {
-        void event
-      }
-    }
-
-    loaded.push(name)
   }
 
-  return { loaded, errors, cycles: [], modsTable }
+  if (errors.length > 0) {
+    return { loaded: [], errors, cycles: [], modsTable }
+  }
+
+  // === Phase 3: 校验完整通过后原子接线 ===
+  for (const name of order) {
+    const manifest = manifests.find((item) => item.name === name)!
+    modRegistry.register(manifest)
+    for (const route of manifest.routes ?? []) {
+      modRegistry.registerRoute(name, route.path, route.page)
+    }
+  }
+
+  return { loaded: [...order], errors: [], cycles: [], modsTable }
 }

@@ -8,6 +8,7 @@ import { defineMod } from '@/core'
 
 export default defineMod({
   name: 'mod-pages',
+  order: 900,
   version: '1.0.0',
   description: '页面组件 + 路由注册',
   dependencies: ['mod-engine', 'mod-ui', 'mod-world', 'mod-character', 'mod-power-system', 'mod-environment-ecology', 'mod-settings', 'mod-economy', 'mod-politics', 'mod-culture'],
