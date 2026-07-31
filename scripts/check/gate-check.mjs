@@ -126,7 +126,10 @@ async function main() {
   // ── C3: 结构/领域扫描（顺序，依赖前两步通过） ──
   const c3Name = quick ? 'C3 check:quick' : 'C3 check'
   const c3 = await spawnAsync(c3Name, 'npm', ['run', quick ? 'check:quick' : 'check'], {
-    env: quiet ? { CHECK_QUIET: '1' } : {},
+    env: {
+      ...process.env,
+      CHECK_QUIET: quiet ? '1' : '0',
+    },
   })
 
   printStepResult(c3)
