@@ -58,17 +58,72 @@ await fs.mkdir(path.join(roundRoot, lifeRunId), { recursive: true })
 await fs.mkdir(memoryRoot, { recursive: true })
 await fs.mkdir(diagnosticRoot, { recursive: true })
 await fs.writeFile(path.join(roundRoot, lifeRunId, 'round-000009.txt'), roundText, 'utf8')
-await fs.writeFile(path.join(diagnosticRoot, '2026-07-26.jsonl'), `${JSON.stringify({
+const diagnosticTimestamp = Date.now()
+const executionEvent = (input) => ({
   schemaVersion: 1,
-  timestamp: Date.now(),
-  system: 'summary-compressor',
-  event: 'compression-failed',
-  status: 'error',
+  timestamp: diagnosticTimestamp + input.sequence,
+  system: input.owner || 'mod-engine',
+  event: 'execution-node-state',
+  status: input.developmentStatus || 'ok',
   lifeRunId,
   round: 9,
-  details: { level: 'L1' },
-  error: { message: '压缩返回缺少来源' },
-})}\n`, 'utf8')
+  ...(input.durationMs === undefined ? {} : { durationMs: input.durationMs }),
+  ...(input.category ? { category: input.category } : {}),
+  execution: {
+    flowId: 'narrative-round',
+    executionId: input.executionId || 'narrative-round:viewer-smoke:9:real',
+    department: 'mod-engine',
+    subsystem: 'orchestrator-system',
+    component: input.component,
+    phase: input.phase,
+    sequence: input.sequence,
+    status: input.status,
+    code: `narrative-round:${input.component}:${input.status}`,
+    owner: input.owner || 'mod-engine',
+    failureTarget: 'mod-engine',
+    nextNodeIds: input.nextNodeIds || [],
+    terminal: input.terminal,
+  },
+  details: { flowOwner: 'mod-engine' },
+  ...(input.developmentStatus === 'error' ? { error: { message: input.message || '执行失败' } } : {}),
+})
+const diagnosticEvents = [
+  {
+    schemaVersion: 1,
+    timestamp: diagnosticTimestamp,
+    system: 'summary-compressor',
+    event: 'compression-failed',
+    status: 'error',
+    lifeRunId,
+    round: 9,
+    details: { level: 'L1' },
+    error: { message: '压缩返回缺少来源' },
+  },
+  executionEvent({ component: 'prepare-round', phase: 'prepare', sequence: 1, status: 'ready', terminal: false }),
+  executionEvent({ component: 'prepare-round', phase: 'prepare', sequence: 2, status: 'running', terminal: false }),
+  executionEvent({ component: 'prepare-round', phase: 'prepare', sequence: 3, status: 'succeeded', terminal: true, durationMs: 2, nextNodeIds: ['queue-round'] }),
+  executionEvent({ component: 'queue-round', phase: 'ready', sequence: 4, status: 'succeeded', terminal: true, durationMs: 1, nextNodeIds: ['advance-time'] }),
+  executionEvent({ component: 'advance-time', phase: 'execute', sequence: 5, status: 'succeeded', terminal: true, durationMs: 5, nextNodeIds: ['post-processing'] }),
+  executionEvent({ component: 'post-processing', phase: 'transition', sequence: 6, status: 'succeeded', terminal: true, durationMs: 3, nextNodeIds: ['compress-save'] }),
+  executionEvent({ component: 'compress-save', phase: 'finalize', sequence: 7, status: 'succeeded', terminal: true, durationMs: 1 }),
+  executionEvent({
+    component: 'apply-entity-references',
+    phase: 'execute',
+    sequence: 8,
+    status: 'failed',
+    terminal: true,
+    durationMs: 4,
+    developmentStatus: 'error',
+    category: 'entity-directory-missing',
+    executionId: 'narrative-round:viewer-smoke:9:failed',
+    message: '已定位实体未在实体引用目录中登记当前上下文',
+  }),
+]
+await fs.writeFile(
+  path.join(diagnosticRoot, '2026-07-26.jsonl'),
+  `${diagnosticEvents.map((event) => JSON.stringify(event)).join('\n')}\n`,
+  'utf8',
+)
 
 const logs = new Database(logDatabase)
 logs.exec(`
@@ -207,10 +262,19 @@ try {
   assert.equal(listMemoryDatabases(options).saves[0].lifeRunId, lifeRunId)
   assert.equal(queryMemoryRows(options, { lifeRunId, view: 'summaries', page: 1, pageSize: 50 }).entries[0].raw_ai_response, '原始压缩 AI 返回')
   assert.equal(queryMemoryRows(options, { lifeRunId, view: 'events', page: 1, pageSize: 50 }).entries[0].event_text, '完整记忆事件')
-  const diagnostics = queryDevelopmentSystemDiagnostics(options, { query: lifeRunId, status: 'error', page: 1, pageSize: 50 })
+  const diagnostics = queryDevelopmentSystemDiagnostics(options, { system: 'summary-compressor', status: 'error', page: 1, pageSize: 50 })
   assert.equal(diagnostics.total, 1)
   assert.equal(diagnostics.entries[0].system, 'summary-compressor')
   assert.equal(diagnostics.entries[0].error.message, '压缩返回缺少来源')
+  const executionDiagnostics = queryDevelopmentSystemDiagnostics(options, { query: 'narrative-round', page: 1, pageSize: 50 })
+  assert.equal(executionDiagnostics.execution.rawEvents, 8)
+  assert.equal(executionDiagnostics.execution.terminalEvents, 6)
+  assert.equal(executionDiagnostics.execution.failures, 1)
+  assert.equal(executionDiagnostics.execution.byPhase.prepare.events, 3)
+  assert.equal(executionDiagnostics.execution.byPhase.finalize.terminalEvents, 1)
+  assert.equal(executionDiagnostics.execution.hierarchy[0].name, 'mod-engine')
+  assert.equal(executionDiagnostics.execution.hierarchy[0].subsystems[0].name, 'orchestrator-system')
+  assert.equal(executionDiagnostics.incidents.byCategory['entity-directory-missing'], 1)
   assert.ok(inspectDatabaseSchema(options, 'logs').tables.some((table) => table.name === 'log_entries'))
 
   const overview = buildDataOverview(options)
@@ -264,6 +328,8 @@ try {
   assert.doesNotThrow(() => new vm.Script(script))
   assert.match(script, /render = async function renderEnhanced[\s\S]*\nrender\(\);\s*$/u)
   assert.match(script, /metrics = function metricsEnhanced[\s\S]*typeof value === 'number' \? fmt\(value\) : String/u)
+  assert.match(script, /五阶段聚合/u)
+  assert.match(script, /data\.execution\.hierarchy/u)
 
   const apiCall = await fetch(`${baseUrl}/api/ai-calls?q=request-viewer-1`).then((response) => response.json())
   assert.equal(apiCall.entries[0].prompt, prompt)
@@ -272,8 +338,11 @@ try {
   assert.equal(round.content, roundText)
   const chain = await fetch(`${baseUrl}/api/narrative-rounds?lifeRunId=${lifeRunId}`).then((response) => response.json())
   assert.equal(chain.entries[0].exchanges[0].request, prompt)
-  const diagnosticApi = await fetch(`${baseUrl}/api/system-diagnostics?q=${lifeRunId}&status=error`).then((response) => response.json())
+  const diagnosticApi = await fetch(`${baseUrl}/api/system-diagnostics?system=summary-compressor&status=error`).then((response) => response.json())
   assert.equal(diagnosticApi.entries[0].event, 'compression-failed')
+  const executionApi = await fetch(`${baseUrl}/api/system-diagnostics?q=narrative-round`).then((response) => response.json())
+  assert.equal(executionApi.execution.failures, 1)
+  assert.equal(executionApi.execution.byPhase.transition.terminalEvents, 1)
   const query = await fetch(`${baseUrl}/api/query?source=logs&sql=${encodeURIComponent('SELECT request_id FROM log_entries')}`).then((response) => response.json())
   assert.equal(query.rows[0].request_id, 'request-viewer-1')
   const rejectedWrite = await fetch(`${baseUrl}/api/overview`, { method: 'POST' })

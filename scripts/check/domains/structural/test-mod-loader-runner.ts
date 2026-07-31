@@ -16,7 +16,15 @@ import {
   createExecutionOutcomeCodes,
   runExecutionSequence,
 } from '@/foundation'
-import type { ExecutionSequenceNode } from '@/foundation'
+import type { ExecutionFlowRegistration, ExecutionSequenceNode } from '@/foundation'
+
+const EXECUTION_CONTRACT_FLOW: ExecutionFlowRegistration = {
+  flowId: 'execution-contract',
+  owner: 'test-runner',
+  failureTarget: 'test-runner',
+  department: 'test-department',
+  subsystem: 'test-subsystem',
+}
 
 function testParseDependency() {
   const softCompact = parseDependency('~mod-politics')
@@ -124,39 +132,39 @@ function executionNode(
     phase,
     dependsOn,
     order,
-    outcomes: createExecutionOutcomeCodes('execution-contract', id),
+    outcomes: createExecutionOutcomeCodes(EXECUTION_CONTRACT_FLOW.flowId, id),
     run,
   }
 }
 
 async function testExecutionSequenceContract() {
   const ordered = await runExecutionSequence({
-    flowId: 'execution-contract',
+    flow: EXECUTION_CONTRACT_FLOW,
     executionId: 'execution-contract:ordered',
-    owner: 'test-runner',
     context: {},
-    nodes: [
-      executionNode('prepare', 'prepare', 0, [], () => ({ status: 'succeeded' })),
-      executionNode('second', 'execute', 20, ['prepare'], () => ({ status: 'succeeded' })),
-      executionNode('first', 'execute', 10, ['prepare'], () => ({ status: 'succeeded' })),
+      nodes: [
+        executionNode('prepare', 'prepare', 0, [], () => ({ status: 'succeeded' })),
+        executionNode('ready', 'ready', 0, ['prepare'], () => ({ status: 'succeeded' })),
+        executionNode('second', 'execute', 20, ['ready'], () => ({ status: 'succeeded' })),
+        executionNode('first', 'execute', 10, ['ready'], () => ({ status: 'succeeded' })),
       executionNode('transition', 'transition', 0, ['first', 'second'], () => ({ status: 'succeeded' })),
       executionNode('finalize', 'finalize', 0, ['transition'], () => ({ status: 'succeeded' })),
     ],
   })
   assert.equal(ordered.status, 'succeeded')
-  assert.deepEqual(ordered.order, ['prepare', 'first', 'second', 'transition', 'finalize'])
+  assert.deepEqual(ordered.order, ['prepare', 'ready', 'first', 'second', 'transition', 'finalize'])
 
   let activeParallelNodes = 0
   let maxParallelNodes = 0
   const parallel = await runExecutionSequence({
-    flowId: 'execution-contract',
+    flow: EXECUTION_CONTRACT_FLOW,
     executionId: 'execution-contract:parallel',
-    owner: 'test-runner',
     context: {},
-    nodes: [
-      executionNode('prepare', 'prepare', 0, [], () => ({ status: 'succeeded' })),
-      {
-        ...executionNode('parallel-left', 'execute', 10, ['prepare'], async () => {
+      nodes: [
+        executionNode('prepare', 'prepare', 0, [], () => ({ status: 'succeeded' })),
+        executionNode('ready', 'ready', 0, ['prepare'], () => ({ status: 'succeeded' })),
+        {
+          ...executionNode('parallel-left', 'execute', 10, ['ready'], async () => {
           activeParallelNodes += 1
           maxParallelNodes = Math.max(maxParallelNodes, activeParallelNodes)
           await new Promise((resolve) => setTimeout(resolve, 25))
@@ -166,7 +174,7 @@ async function testExecutionSequenceContract() {
         parallelGroup: 'parallel-pair',
       },
       {
-        ...executionNode('parallel-right', 'execute', 10, ['prepare'], async () => {
+          ...executionNode('parallel-right', 'execute', 10, ['ready'], async () => {
           activeParallelNodes += 1
           maxParallelNodes = Math.max(maxParallelNodes, activeParallelNodes)
           await new Promise((resolve) => setTimeout(resolve, 5))
@@ -187,38 +195,45 @@ async function testExecutionSequenceContract() {
   })
   assert.equal(parallel.status, 'succeeded')
   assert.equal(maxParallelNodes, 2)
-  assert.deepEqual(parallel.order, ['prepare', 'parallel-left', 'parallel-right', 'transition', 'finalize'])
+  assert.deepEqual(parallel.order, ['prepare', 'ready', 'parallel-left', 'parallel-right', 'transition', 'finalize'])
   assert.deepEqual(
     parallel.records.map((record) => record.nodeId),
-    ['prepare', 'parallel-left', 'parallel-right', 'transition', 'finalize'],
+    ['prepare', 'ready', 'parallel-left', 'parallel-right', 'transition', 'finalize'],
   )
 
   const parallelFailure = await runExecutionSequence({
-    flowId: 'execution-contract',
+    flow: EXECUTION_CONTRACT_FLOW,
     executionId: 'execution-contract:parallel-failure',
-    owner: 'test-runner',
     context: {},
-    nodes: [
-      executionNode('prepare', 'prepare', 0, [], () => ({ status: 'succeeded' })),
-      {
-        ...executionNode('parallel-failed', 'execute', 10, ['prepare'], async () => {
+      nodes: [
+        executionNode('prepare', 'prepare', 0, [], () => ({ status: 'succeeded' })),
+        executionNode('ready', 'ready', 0, ['prepare'], () => ({ status: 'succeeded' })),
+        {
+          ...executionNode('parallel-failed', 'execute', 10, ['ready'], async () => {
           await new Promise((resolve) => setTimeout(resolve, 5))
           return { status: 'failed' as const, message: 'expected parallel failure' }
         }),
         parallelGroup: 'parallel-failure-pair',
       },
       {
-        ...executionNode('parallel-succeeded', 'execute', 10, ['prepare'], async () => {
+        ...executionNode('parallel-succeeded', 'execute', 10, ['ready'], async () => {
           await new Promise((resolve) => setTimeout(resolve, 20))
           return { status: 'succeeded' as const }
         }),
         parallelGroup: 'parallel-failure-pair',
       },
       executionNode(
+        'transition',
+        'transition',
+        0,
+        ['parallel-failed', 'parallel-succeeded'],
+        () => ({ status: 'succeeded' }),
+      ),
+      executionNode(
         'finalize',
         'finalize',
         0,
-        ['parallel-failed', 'parallel-succeeded'],
+        ['transition'],
         () => ({ status: 'succeeded' }),
       ),
     ],
@@ -229,20 +244,22 @@ async function testExecutionSequenceContract() {
     parallelFailure.records.map((record) => [record.nodeId, record.status]),
     [
       ['prepare', 'succeeded'],
+      ['ready', 'succeeded'],
       ['parallel-failed', 'failed'],
       ['parallel-succeeded', 'succeeded'],
     ],
   )
 
   const missing = await runExecutionSequence({
-    flowId: 'execution-contract',
+    flow: EXECUTION_CONTRACT_FLOW,
     executionId: 'execution-contract:missing',
-    owner: 'test-runner',
     context: {},
-    nodes: [
-      executionNode('prepare', 'prepare', 0, [], () => ({ status: 'succeeded' })),
-      executionNode('execute', 'execute', 0, ['prepare'], () => undefined),
-      executionNode('finalize', 'finalize', 0, ['execute'], () => ({ status: 'succeeded' })),
+      nodes: [
+        executionNode('prepare', 'prepare', 0, [], () => ({ status: 'succeeded' })),
+        executionNode('ready', 'ready', 0, ['prepare'], () => ({ status: 'succeeded' })),
+        executionNode('execute', 'execute', 0, ['ready'], () => undefined),
+        executionNode('transition', 'transition', 0, ['execute'], () => ({ status: 'succeeded' })),
+        executionNode('finalize', 'finalize', 0, ['transition'], () => ({ status: 'succeeded' })),
     ],
   })
   assert.equal(missing.status, 'failed')
@@ -250,42 +267,60 @@ async function testExecutionSequenceContract() {
   assert.equal(missing.failure?.failureTarget, 'test-runner')
 
   const invalid = await runExecutionSequence({
-    flowId: 'execution-contract',
+    flow: EXECUTION_CONTRACT_FLOW,
     executionId: 'execution-contract:invalid',
-    owner: 'test-runner',
     context: {},
-    nodes: [
-      executionNode('prepare', 'prepare', 0, [], () => ({ status: 'succeeded' })),
-      executionNode('execute', 'execute', 0, ['prepare'], (ctx, runtime) => ({
+      nodes: [
+        executionNode('prepare', 'prepare', 0, [], () => ({ status: 'succeeded' })),
+        executionNode('ready', 'ready', 0, ['prepare'], () => ({ status: 'succeeded' })),
+        executionNode('execute', 'execute', 0, ['ready'], (ctx, runtime) => ({
         status: 'succeeded',
         code: `${runtime.flowId}:execute:wrong`,
-        value: ctx,
-      })),
-      executionNode('finalize', 'finalize', 0, ['execute'], () => ({ status: 'succeeded' })),
+          value: ctx,
+        })),
+        executionNode('transition', 'transition', 0, ['execute'], () => ({ status: 'succeeded' })),
+        executionNode('finalize', 'finalize', 0, ['transition'], () => ({ status: 'succeeded' })),
     ],
   })
   assert.equal(invalid.status, 'failed')
   assert.equal(invalid.failure?.status, 'invalid-status')
 
   const timedOut = await runExecutionSequence({
-    flowId: 'execution-contract',
+    flow: EXECUTION_CONTRACT_FLOW,
     executionId: 'execution-contract:timeout',
-    owner: 'test-runner',
     context: {},
-    nodes: [
-      executionNode('prepare', 'prepare', 0, [], () => ({ status: 'succeeded' })),
-      {
-        ...executionNode('execute', 'execute', 0, ['prepare'], async () => {
+      nodes: [
+        executionNode('prepare', 'prepare', 0, [], () => ({ status: 'succeeded' })),
+        executionNode('ready', 'ready', 0, ['prepare'], () => ({ status: 'succeeded' })),
+        {
+        ...executionNode('execute', 'execute', 0, ['ready'], async () => {
           await new Promise((resolve) => setTimeout(resolve, 30))
           return { status: 'succeeded' as const }
         }),
         timeoutMs: 5,
       },
-      executionNode('finalize', 'finalize', 0, ['execute'], () => ({ status: 'succeeded' })),
+      executionNode('transition', 'transition', 0, ['execute'], () => ({ status: 'succeeded' })),
+      executionNode('finalize', 'finalize', 0, ['transition'], () => ({ status: 'succeeded' })),
     ],
   })
   assert.equal(timedOut.status, 'failed')
   assert.equal(timedOut.failure?.status, 'timed-out')
+
+  await assert.rejects(
+    () => runExecutionSequence({
+      flow: EXECUTION_CONTRACT_FLOW,
+      executionId: 'execution-contract:phase-bypass',
+      context: {},
+      nodes: [
+        executionNode('prepare', 'prepare', 0, [], () => ({ status: 'succeeded' })),
+        executionNode('ready', 'ready', 0, ['prepare'], () => ({ status: 'succeeded' })),
+        executionNode('execute', 'execute', 0, ['prepare'], () => ({ status: 'succeeded' })),
+        executionNode('transition', 'transition', 0, ['execute'], () => ({ status: 'succeeded' })),
+        executionNode('finalize', 'finalize', 0, ['transition'], () => ({ status: 'succeeded' })),
+      ],
+    }),
+    /execute 节点 "execute" 必须由 ready 阶段释放/,
+  )
 }
 
 async function main() {

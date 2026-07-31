@@ -4,11 +4,13 @@
 
 核心模拟负责把玩家一次推进转换为连续、可验证、可持久化的世界与人生变化：本地规则先推进，AI 生成玩家可见叙事和受限结构化意图，所属系统校验并提交状态，失败路径不伪装为成功。
 
-核心模拟是系统体系中最重要的运行链路，因此本文件比其他活动权威保留更多机制细节。
+核心模拟是系统体系中最重要的运行链路，因此本文件比其他活动权威保留更多机制细节。它同时是项目运行时的总指挥：每轮确定目标和上下文，向活动 MOD 派发任务，等待各部门逐级回报，再发布唯一终态。
 
 ## 权责边界
 
 - Orchestrator 拥有回合顺序、当前回合状态、叙事历史投影和跨子系统事务协调。
+- 每个核心回合由 Orchestrator 作为总指挥向活动 MOD 派发本轮目标；MOD 作为部门负责人在自己的公共边界内继续委派子系统和组件，并逐级回报状态、结果和证据。
+- 执行器、代码生成器和生命周期加载器只负责五阶段调度、依赖排队、状态校验、快照和诊断；它们不代替业务系统计算或持有业务状态。
 - 每个业务子系统拥有自己的状态、字段校验、预检和提交；Orchestrator 不绕过所有者直接改写其私有 Store。
 - AI 只提交协议内意图，不拥有系统状态；页面只发起回合并消费引擎投影。
 - 历史账本拥有已提交事实，记忆与摘要是派生投影，不能替代完整故事或所属业务状态。
@@ -43,6 +45,7 @@
 3. `mod-engine` 生命周期取得已排序 Manifest，`registerAllSubsystems()` 先解析全部业务实例，再按 MVP 活动清单唯一顺序替换外部成员；不保留首项、不静默跳过缺失实例。
 4. 引擎内部子系统、业务子系统导入、单例别名、Campaign 阶段、Prompt 上下文、字段键、事件和 Store 汇总均由 `scripts/codegen/generate-mod-wiring.mjs` 从声明生成。
 5. 生成文件只反映 Manifest 与源合同，不手工维护第二套接线。运行准备检查同时要求 MOD 已加载、注册表已冻结、活动成员齐全且没有未收口状态。
+6. 可执行流程使用 `src/core/execution/execution-flow-registry.ts` 的中央登记项；发布前 `check:execution` 从真实运行入口构建并验证四类执行图，生成接线漂移与废弃执行机制在同一门禁中失败。
 
 **实时源**：`src/app/_components/init-mods.tsx`、`init-mods-bootstrap.ts`、`src/core/mod-loader/`、`src/mods/mod-engine/_internal/lifecycle.ts`、`src/mods/mod-engine/bootstrap/register-subsystems.ts`、`scripts/codegen/generate-mod-wiring.mjs`。
 
@@ -101,7 +104,8 @@ P6 追加 `economy`、`population`、`settlement`、`work`、`item`；P7 追加 
 ## 回合入口与并发
 
 - 玩家页面通过 `src/mods/mod-engine/hooks.ts` 调用 `executeRoundV2()`；旧的硬编码回合管线不再作为回退。
-- 每次回合先建立 `narrative-round` 执行实例；阶段节点携带稳定状态码、顺序号和故障接收者，流程所有者只在所有必需节点成功或声明跳过后发布终态。
+- 每次回合先建立 `narrative-round` 执行实例，严格经过 `prepare -> ready -> execute -> transition -> finalize`：准备确认快照和入场条件，就绪阶段排队并登记资源，执行阶段运行本地规则与 AI，过渡阶段等待并汇合结果、完成跨系统校验和原子提交，收束阶段只发布一次终态。阶段节点携带稳定状态码、顺序号和故障接收者，流程所有者只在所有必需节点成功或声明跳过后发布终态。
+- `narrative-round`、MOD 生命周期、`world-init` 和 `subsystem-advance` 都从中央流程登记目录取得部门、子系统和故障接收者；每个执行实例的原始 ready/running/终结事件随开发回合诊断保留，聚合器只读取这些事件，不成为业务状态第二所有者。
 - 同阶段、同依赖、同 `order` 的节点只有显式声明同一 `parallelGroup` 才并发；组内同时运行，终态记录仍按确定性阶段顺序汇合，任一成员失败时等待同组成员收口后停止释放后续节点。
 - 真实回合和预生成共享同一个 Orchestrator 单写者。真实回合开始前等待预生成完成快照恢复，防止两个 AI 调用交错提交或回滚。
 - 每次执行重新计算 Token 上限、加载 Campaign 阶段、创建回合上下文和提交令牌；没有阶段、状态不允许推进或已到终局时不执行正常回合。
@@ -113,20 +117,22 @@ P6 追加 `economy`、`population`、`settlement`、`work`、`item`；P7 追加 
 | 顺序 | 阶段 | 当前运行机制 |
 |---|---|---|
 | 1 | `prepare-round` | 校验流程上下文和稳定关联标识，不写业务状态 |
-| 2 | `advance-time` | 发出回合开始事件并推进标准时间；预览执行不发布真实回合事件 |
-| 3 | `subsystem-advance` | 按活动清单顺序推进本地规则；任一子系统失败即返回 Orchestrator，不释放后续阶段 |
-| 4 | `collect-states` | 按三轮收集与校验活动子系统状态，形成后续检测和 Prompt 输入 |
-| 5 | `event-lifecycle` | 根据状态与轮次检测事件生命周期，形成事件注入文本 |
-| 6 | `assemble-prompt` | 只投影第一次叙事所需的世界框架、记忆和本轮引导；系统合同、存档 ID 和派生连锁值不进入第一次调用 |
-| 7 | `ai-narration` | 消费合格预生成或发起第一次非流式 AI 调用；完整正文是最低成功内容，格式失败最多复用原输入修复两次 |
-| 8 | `publish-narrative` | 真实回合把严格正文写入非持久化即时投影；预览跳过，分支在正式提交前不可操作 |
-| 9A | `ai-data-analysis` | 与 9B 同属 `narrative-background-analysis` 并行组；按活动写入契约取得系统操作和机器数据，格式失败最多同资产修复两次 |
-| 9B | `ai-event-recognition` | 与 9A 并行；读取本轮完整叙事和当前上下文全部可用候选，只输出尚未发生且等待未来条件的候选集合，格式失败最多同资产修复两次 |
-| 10 | `post-processing` | 同时等待 9A/9B 成功，把数据分析结果、历史事实和事件候选放入同一快照事务；任一失败整轮业务状态回滚 |
-| 11 | `epilogue-check` | 只消费已绑定历史事件的死亡事实，按需生成并保存尾声 |
-| 12 | `compress-save` | finalize 节点核对回合结果已提交，再由外层完成压缩、存档、outcome 和下一轮预生成 |
+| 2 | `queue-round` | 接收准备结果，按活动成员和硬依赖建立本轮就绪队列，不运行业务动作 |
+| 3 | `advance-time` | 发出回合开始事件并推进标准时间；预览执行不发布真实回合事件 |
+| 4 | `subsystem-advance` | 按活动清单顺序推进本地规则；任一子系统失败即返回 Orchestrator，不释放后续阶段 |
+| 5 | `collect-states` | 按三轮收集与校验活动子系统状态，形成后续检测和 Prompt 输入 |
+| 6 | `event-lifecycle` | 根据状态与轮次检测事件生命周期，形成事件注入文本 |
+| 7 | `assemble-prompt` | 只投影第一次叙事所需的世界框架、记忆和本轮引导；系统合同、存档 ID 和派生连锁值不进入第一次调用 |
+| 8 | `ai-narration` | 消费合格预生成或发起第一次非流式 AI 调用；完整正文是最低成功内容，格式失败最多复用原输入修复两次 |
+| 9 | `publish-narrative` | 真实回合把严格正文写入非持久化即时投影；预览跳过，分支在正式提交前不可操作 |
+| 10A | `ai-data-analysis` | 与 10B 同属 `narrative-background-analysis` 并行组；按活动写入契约取得系统操作和机器数据，格式失败最多同资产修复两次 |
+| 10B | `ai-event-recognition` | 与 10A 并行；读取本轮完整叙事和当前上下文全部可用候选，只输出尚未发生且等待未来条件的候选集合，格式失败最多同资产修复两次 |
+| 11 | `post-processing` | 在 transition 阶段等待 10A/10B，汇合数据分析、历史事实和事件候选并完成同一快照事务；任一失败整轮业务状态回滚 |
+| 12 | `epilogue-check` | 在 transition 阶段只消费已绑定历史事件的死亡事实，按需生成并保存尾声 |
+| 13 | `compress-save` | finalize 节点核对回合结果已提交，再由外层完成压缩、存档、outcome 和下一轮预生成 |
 
 阶段源是 `src/mods/mod-engine/campaigns/default/index.ts`，Manifest 中的阶段声明由代码生成器校验与其一致；公共执行器为 `src/foundation/utils/execution-sequence.ts`。
+执行契约、事故样本和周期复盘规则的实时源是 `src/foundation/types/execution-sequence.types.ts`、`src/foundation/utils/execution-sequence.ts`、`src/core/execution/execution-flow-registry.ts`、`scripts/check/fixtures/execution-incidents.json` 与 `scripts/check/rules/execution-system-review.json`。
 
 ## AI 协议与解析
 

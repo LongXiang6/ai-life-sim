@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "incidents": [
+    {
+      "id": "NP9D55-entity-directory-context",
+      "status": "failed",
+      "message": "已定位实体 character_a9f4d56a-fdb4-4e30-adfe-9c1ffababd9d 未在实体引用目录中登记当前上下文",
+      "expectedCategory": "entity-directory-missing"
+    },
+    {
+      "id": "context-missing",
+      "status": "failed",
+      "message": "世界当前上下文缺失，不能恢复非空历史事件账本",
+      "expectedCategory": "context-missing"
+    },
+    {
+      "id": "dependency-unregistered",
+      "status": "failed",
+      "message": "同包关系指令依赖的 NPC 实体尚未登记",
+      "expectedCategory": "dependency-unregistered"
+    },
+    {
+      "id": "schema-conflict",
+      "status": "failed",
+      "message": "结算语义 Schema 冲突：命运类型与不可逆语义不一致",
+      "expectedCategory": "schema-conflict"
+    },
+    {
+      "id": "timed-out",
+      "status": "timed-out",
+      "message": "节点超过契约时限 5000ms",
+      "expectedCategory": "timed-out"
+    },
+    {
+      "id": "missing-status",
+      "status": "missing-status",
+      "message": "节点返回但未提供状态码",
+      "expectedCategory": "missing-status"
+    },
+    {
+      "id": "invalid-status",
+      "status": "invalid-status",
+      "message": "节点返回未声明状态",
+      "expectedCategory": "invalid-status"
+    },
+    {
+      "id": "duplicate-status",
+      "status": "duplicate-status",
+      "message": "节点返回多个终结状态",
+      "expectedCategory": "duplicate-status"
+    },
+    {
+      "id": "blocked",
+      "status": "blocked",
+      "message": "等待所属系统补齐必需输入",
+      "expectedCategory": "blocked"
+    },
+    {
+      "id": "cancelled",
+      "status": "cancelled",
+      "message": "执行已取消",
+      "expectedCategory": "cancelled"
+    },
+    {
+      "id": "upstream-failure",
+      "status": "failed",
+      "message": "上游生成服务返回失败",
+      "expectedCategory": "upstream-failure"
+    }
+  ]
+}

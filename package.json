@@ -1,6 +1,6 @@
 {
   "name": "ai-life-sim",
-  "version": "5.6.8",
+  "version": "5.6.9",
   "private": true,
   "scripts": {
     "dev": "node scripts/codegen/generate-mod-wiring.mjs && next dev --turbopack",
@@ -49,6 +49,8 @@
     "test:release-cleanup": "node scripts/check/domains/narrative/release-cleanup-smoke.mjs",
     "test:managed-ai-default": "node scripts/check/domains/narrative/managed-ai-default-regression.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/managed-sse-aggregation-smoke.mjs",
     "test:loader": "node scripts/check/domains/structural/test-mod-loader.mjs",
+    "check:execution": "node scripts/check/domains/structural/execution-system-gate.mjs",
+    "check:standardization": "node scripts/check/domains/standardization/standardization-gate.mjs",
     "test:calibration": "node scripts/check/domains/calibration/world-calibration-acceptance.mjs",
     "test:legacy-simulation-probe": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/calibration/legacy-simulation-formula-probe.mjs",
     "test:prompt-wiring": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/kv-prompt-audit.mjs && node scripts/check/domains/narrative/time-bridge-smoke.mjs && node scripts/check/domains/narrative/adaptation-calibration-audit.mjs",

@@ -28,7 +28,9 @@ export interface SafetyReport {
 // 数值范围配置
 // ============================================================
 
-const MAX_RECURSION_DEPTH = 5
+// 业务状态允许数组嵌套对象（例如 worldConfig.scoringProfile.dimensions[].evidenceKinds[]）。
+// 5 层会把合法的世界初始化评分配置误判为危险深度；保留明确上限并单独拦截循环引用。
+const MAX_RECURSION_DEPTH = 12
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 const NUMBER_RANGES: Record<string, { min: number; max: number }> = {
@@ -94,6 +96,7 @@ export function deepSanitize<T>(
   obj: T,
   path: string = 'root',
   depth: number = 0,
+  seen: WeakSet<object> = new WeakSet<object>(),
 ): { result: T; report: SafetyReport } {
   const report: SafetyReport = { passed: true, errors: [], fixedValues: 0 }
 
@@ -116,24 +119,32 @@ export function deepSanitize<T>(
   }
 
   if (typeof obj === 'object') {
+    if (seen.has(obj)) {
+      report.passed = false
+      report.errors.push(`[${path}] 检测到循环引用`)
+      return { result: obj, report }
+    }
+    seen.add(obj)
     if (Array.isArray(obj)) {
       const sanitized = obj.map((item, i) => {
-        const { result, report: subReport } = deepSanitize(item, `${path}[${i}]`, depth + 1)
+        const { result, report: subReport } = deepSanitize(item, `${path}[${i}]`, depth + 1, seen)
         report.errors.push(...subReport.errors)
         report.fixedValues += subReport.fixedValues
         if (!subReport.passed) report.passed = false
         return result
       })
+      seen.delete(obj)
       return { result: sanitized as unknown as T, report }
     }
     const result = {} as Record<string, unknown>
     for (const [key, val] of Object.entries(obj as Record<string, unknown>)) {
-      const { result: sanitized, report: subReport } = deepSanitize(val, `${path}.${key}`, depth + 1)
+      const { result: sanitized, report: subReport } = deepSanitize(val, `${path}.${key}`, depth + 1, seen)
       result[key] = sanitized
       report.errors.push(...subReport.errors)
       report.fixedValues += subReport.fixedValues
       if (!subReport.passed) report.passed = false
     }
+    seen.delete(obj)
     return { result: result as unknown as T, report }
   }
 
@@ -213,4 +224,3 @@ export class GlobalDeadLoopDetector {
 
 /** 全局单例 */
 export const globalDeadLoopDetector = new GlobalDeadLoopDetector()
-

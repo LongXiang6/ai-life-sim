@@ -26,6 +26,7 @@ import type {
 import { useWorldStore } from '../store'
 import type { WorldContextInstance } from '../types'
 import { placeEntityLocationsUniquely } from './spatial-graph-system'
+import { getWorldEntitySystem } from './world-entity-system'
 import {
   createRuntimeId,
   projectWorldContextInstance,
@@ -286,6 +287,28 @@ export class ContextTransitionSystem extends BaseSubsystem {
     })))
     const committedSource = nextContexts[source.record.id]
     const committedTarget = nextContexts[target.record.id]
+    let nextEntityReferences: ReturnType<typeof useWorldStore.getState>['entityReferences']
+    try {
+      nextEntityReferences = getWorldEntitySystem().buildContextTransitionDirectory({
+        movedEntityIds,
+        sourceContextId: source.record.id,
+        targetContextId: target.record.id,
+        actorEntityId: trustedActorEntityId,
+        globalTotalDays,
+      })
+    } catch (error) {
+      const record = transitionRecord({
+        source,
+        target,
+        edge,
+        request,
+        globalTotalDays,
+        status: 'rejected',
+        reason: error instanceof Error ? error.message : String(error),
+      })
+      before.recordTransition(record)
+      return { ok: false, record }
+    }
 
     const committedRecord = transitionRecord({
       source: committedSource,
@@ -297,6 +320,7 @@ export class ContextTransitionSystem extends BaseSubsystem {
     })
     useWorldStore.setState({
       contexts: nextContexts,
+      entityReferences: nextEntityReferences,
       currentContextId: target.record.id,
       transitionHistory: [...before.transitionHistory, committedRecord],
       ...projectWorldContextInstance(committedTarget),

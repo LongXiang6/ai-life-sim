@@ -54,6 +54,7 @@ export type {
   ExecutionNodeSignalStatus,
   ExecutionRecordStatus,
   ExecutionOutcomeCodes,
+  ExecutionFlowRegistration,
   ExecutionNodeDescriptor,
   ExecutionNodeRuntime,
   ExecutionNodeSignal,

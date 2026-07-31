@@ -17,7 +17,7 @@ scripts/
     ├── index.mjs               # npm run check 入口
     ├── gate-check.mjs          # npm run gate-check
     ├── check-format.ps1        # PS 扫描总调度
-    ├── domains.mjs             # 6 域注册
+    ├── domains.mjs             # 7 域注册
     ├── rules/
     │   ├── registry.json       # 规则元数据
     │   └── architecture-rules.json
@@ -28,6 +28,7 @@ scripts/
     │   └── generate-dependency-graph.mjs
     └── domains/
         ├── structural/         # wiring + loader
+        ├── standardization/    # Skill / 文档 / 配置 / 生成物标准化
         ├── mod/                # arch / smart / anomaly PS
         ├── ui/                 # ui / css PS
         ├── narrative/          # 叙事回归
@@ -43,6 +44,7 @@ scripts/
 | `npm run generate:wiring` | `codegen/generate-mod-wiring.mjs` |
 | `npm run mod:create` | `codegen/create-mod.mjs` |
 | `npm run test:loader` | `check/domains/structural/test-mod-loader.mjs` |
+| `npm run check:standardization` | `check/domains/standardization/standardization-gate.mjs` |
 
 ## 开发辅助
 

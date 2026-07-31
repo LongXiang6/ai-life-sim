@@ -3,14 +3,14 @@
  * @description 世界初始化 AI Pipeline —— 可扩展步骤注册表
  *
  * ## 默认执行图（createDefaultWorldInitSteps）
- * prepare-world-init → dimension-calibration → tags-fallback（可选跳过）
+ * prepare-world-init → queue-world-init → dimension-calibration → tags-fallback（可选跳过）
  * → entities → finalize-world-init。
  * 维度校准仍是单次 AI：dimensions + calibration + W02 + worldTags；缓存缺少
  * W02 时在该节点内部执行已声明的校准补全动作，不改变节点顺序或终态条件。
  * @mod mod-world
  */
 
-import { callAI } from '@/core'
+import { callAI, EXECUTION_FLOWS, recordExecutionSequenceResult } from '@/core'
 
 import {
   createExecutionOutcomeCodes,
@@ -581,7 +581,7 @@ function buildDimensionCalibrationStep(): WorldInitStep {
     id: 'dimension-calibration',
     label: '维度推断与校准',
     phase: 'execute',
-    dependsOn: ['prepare-world-init'],
+    dependsOn: ['queue-world-init'],
     order: 100,
     owner: WORLD_INIT_OWNER,
     failureTarget: WORLD_INIT_FAILURE_TARGET,
@@ -746,6 +746,16 @@ export function createDefaultWorldInitSteps(): WorldInitStep[] {
         return { status: 'succeeded' }
       },
     },
+    {
+      id: 'queue-world-init',
+      label: '排队世界初始化',
+      phase: 'ready',
+      dependsOn: ['prepare-world-init'],
+      order: 0,
+      owner: WORLD_INIT_OWNER,
+      failureTarget: WORLD_INIT_FAILURE_TARGET,
+      run: async () => ({ status: 'succeeded', message: '世界初始化步骤已按依赖排队' }),
+    },
     buildDimensionCalibrationStep(),
     buildTagsFallbackStep(),
     buildEntitiesStep(),
@@ -853,6 +863,7 @@ export async function runWorldInitPipeline(
   ctx: WorldInitPipelineContext,
   steps: WorldInitStep[] = createDefaultWorldInitSteps(),
 ): Promise<WorldInitPipelineResult> {
+  const flow = EXECUTION_FLOWS.worldInit
   const allGenFlags = false
   const baseStatus: WorldInitAIStatus = {
     status: 'running',
@@ -881,7 +892,7 @@ export async function runWorldInitPipeline(
     optional: step.optional,
     timeoutMs: step.timeoutMs,
     shouldSkip: step.shouldSkip,
-    outcomes: createExecutionOutcomeCodes('world-init', step.id),
+    outcomes: createExecutionOutcomeCodes(flow.flowId, step.id),
     run: async (pipelineContext: WorldInitPipelineContext) => {
       const signal = await withRetry(step.label, async () => {
         const result = await step.run(pipelineContext)
@@ -901,9 +912,8 @@ export async function runWorldInitPipeline(
   }))
 
   const sequenceResult = await runExecutionSequence({
-    flowId: 'world-init',
-    executionId: `world-init:${ctx.worldCode}:${ctx.initFingerprint}:${Date.now()}`,
-    owner: WORLD_INIT_OWNER,
+    flow,
+    executionId: `${flow.flowId}:${ctx.worldCode}:${ctx.initFingerprint}:${Date.now()}`,
     context: ctx,
     nodes,
     onEvent: (event) => {
@@ -937,6 +947,7 @@ export async function runWorldInitPipeline(
       }
     },
   })
+  recordExecutionSequenceResult(sequenceResult)
 
   const allOk = sequenceResult.status === 'succeeded'
     && ctx.calibrationGenerated

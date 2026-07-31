@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-07-31",
+  "reviewIntervalDays": 90,
+  "requiredFlowIds": [
+    "mod-configuration-change",
+    "mod-initialization",
+    "mod-state-load",
+    "narrative-round",
+    "subsystem-advance",
+    "world-init"
+  ],
+  "requiredIncidentCategories": [
+    "blocked",
+    "cancelled",
+    "context-missing",
+    "dependency-unregistered",
+    "duplicate-status",
+    "entity-directory-missing",
+    "invalid-status",
+    "missing-status",
+    "schema-conflict",
+    "timed-out",
+    "upstream-failure"
+  ],
+  "obsoleteMechanisms": [
+    {
+      "id": "unregistered-execution-call",
+      "paths": [
+        "src/core",
+        "src/mods"
+      ],
+      "pattern": "runExecutionSequence\\s*\\(\\s*\\{\\s*flowId\\s*:",
+      "message": "共享执行器调用必须消费中央 flow 注册项"
+    },
+    {
+      "id": "inline-execution-registration",
+      "paths": [
+        "src/core",
+        "src/mods"
+      ],
+      "pattern": "runExecutionSequence\\s*\\(\\s*\\{[\\s\\S]{0,240}?flow\\s*:\\s*\\{",
+      "message": "禁止在调用点内联第二份流程登记"
+    },
+    {
+      "id": "four-phase-execution-constant",
+      "paths": [
+        "src"
+      ],
+      "pattern": "EXECUTION_PHASES\\s*=\\s*\\[\\s*['\"]prepare['\"]\\s*,\\s*['\"]execute['\"]",
+      "message": "执行阶段必须包含 ready 屏障"
+    },
+    {
+      "id": "hardcoded-round-runner",
+      "paths": [
+        "src/mods/mod-engine"
+      ],
+      "pattern": "(?:async\\s+)?executeRound\\s*\\(",
+      "message": "核心回合只能由声明式阶段机执行"
+    }
+  ]
+}

@@ -8,23 +8,23 @@ export const PROFILES = {
   /** ATCE 必跑：结构性规则（= quick 语义） */
   structural: {
     label: 'ATCE 结构性扫描',
-    domainIds: ['wiring', 'loader'],
+    domainIds: ['standardization', 'wiring', 'loader'],
     atceProfile: true,
   },
   quick: {
     label: 'L1 快速（结构性）',
-    domainIds: ['wiring', 'loader'],
+    domainIds: ['standardization', 'wiring', 'loader'],
     atceProfile: true,
   },
   /** 纯架构重构：不含 UI / 叙事噪声 */
   refactor: {
     label: '架构重构',
-    domainIds: ['wiring', 'loader', 'mod'],
+    domainIds: ['standardization', 'wiring', 'loader', 'mod'],
     atceProfile: true,
   },
   full: {
     label: '全量',
-    domainIds: ['wiring', 'loader', 'account', 'mod', 'calibration', 'narrative', 'ui'],
+    domainIds: ['standardization', 'wiring', 'loader', 'account', 'mod', 'calibration', 'narrative', 'ui'],
   },
   account: { label: 'Account / persistence', domainIds: ['account'] },
   ui: { label: 'UI', domainIds: ['ui'] },

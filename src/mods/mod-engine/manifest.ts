@@ -30,6 +30,7 @@ export default defineMod({
   campaignHooks: {
     stages: [
       'prepare-round',
+      'queue-round',
       'advance-time',
       'subsystem-advance',
       'collect-states',

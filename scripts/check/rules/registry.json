@@ -109,6 +109,15 @@
       ],
       "skillRef": "",
       "refactorHint": "Zustand persist 带 version → localStorage 数据在 obj.state 内。直接读 localStorage.getItem 的代码必须处理 state 包装层，否则字段全部丢失"
+    },
+    "A-19": {
+      "tier": "structural",
+      "atceTrigger": true,
+      "scanners": [
+        "check/domains/structural/execution-system-gate"
+      ],
+      "skillRef": "ai-life-sim/references/project-development.md",
+      "refactorHint": "执行流进入中央注册目录，补齐五阶段、故障回传、唯一终态、真实事故样本和定期复盘"
     }
   },
   "domains": {
@@ -123,6 +132,7 @@
         "A-16",
         "A-17",
         "A-18",
+        "A-19",
         "D-07"
       ]
     },

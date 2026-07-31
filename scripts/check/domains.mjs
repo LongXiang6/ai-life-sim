@@ -10,16 +10,35 @@
 
 /** @type {Record<string, { label: string, group: string, atceTier: string, ruleIds: string[], steps: CheckStep[], triggers: string[] }>} */
 export const DOMAINS = {
+  standardization: {
+    label: '标准化 / 结构契约',
+    group: 'structural',
+    atceTier: 'structural',
+    ruleIds: [],
+    triggers: [
+      'AGENTS.md',
+      'docs/authority/',
+      'scripts/check/rules/standardization.json',
+      'scripts/check/domains/standardization/',
+    ],
+    steps: [
+      { cmd: 'node', args: ['scripts/check/domains/standardization/standardization-gate.mjs'] },
+    ],
+  },
   wiring: {
     label: '接线 / codegen',
     group: 'structural',
     atceTier: 'structural',
-    ruleIds: ['A-01', 'A-02', 'A-13', 'A-14', 'A-15', 'A-16', 'A-17', 'D-07'],
+    ruleIds: ['A-01', 'A-02', 'A-13', 'A-14', 'A-15', 'A-16', 'A-17', 'A-19', 'D-07'],
     triggers: [
       'scripts/check/domains/structural',
       'scripts/codegen/generate-mod-wiring',
       'scripts/check/rules/registry.json',
       'scripts/check/rules/architecture-rules.json',
+      'scripts/check/rules/execution-system-review.json',
+      'scripts/check/fixtures/execution-incidents.json',
+      'src/core/execution/',
+      'src/foundation/utils/execution-sequence.ts',
       'src/mods/registry.generated',
       'src/core/mod-loader/',
       'src/mods/mod-engine/bootstrap/',
@@ -31,7 +50,7 @@ export const DOMAINS = {
       'localStorage.getItem',
     ],
     steps: [
-      { cmd: 'node', args: ['scripts/codegen/generate-mod-wiring.mjs', '--check'] },
+      { cmd: 'node', args: ['scripts/check/domains/structural/execution-system-gate.mjs'] },
       { cmd: 'node', args: ['scripts/check/domains/structural/scan-typescript-wiring.mjs', '--quiet'] },
       { cmd: 'node', args: ['scripts/check/domains/structural/scan-mod-public-boundary.mjs', '--quiet'] },
       { cmd: 'node', args: ['scripts/check/domains/structural/scan-file-import-graph.mjs', '--quiet'] },
@@ -97,6 +116,15 @@ export const DOMAINS = {
           '--loader',
           './scripts/check/lib/typescript-loader.mjs',
           'scripts/check/domains/mod/multi-world-p3-p5-smoke.mjs',
+        ],
+      },
+      {
+        cmd: 'node',
+        args: [
+          '--no-warnings=ExperimentalWarning',
+          '--loader',
+          './scripts/check/lib/typescript-loader.mjs',
+          'scripts/check/domains/mod/world-init-scoring-depth-smoke.mjs',
         ],
       },
     ],

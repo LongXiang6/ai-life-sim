@@ -42,6 +42,7 @@ export {
   compareExecutionNodes,
   createExecutionOutcomeCodes,
   resolveExecutionOrder,
+  validateExecutionFlowContract,
   runExecutionSequence,
   executionSequenceError,
 } from './execution-sequence'

@@ -2,6 +2,7 @@ import { z } from 'zod'
 
 import { assertSameOrigin, jsonNoStore } from '@/core/account/account-http'
 import { appendNarrativeRoundOutcome } from '@/core/logger/narrative-round-archive'
+import { DEVELOPMENT_INCIDENT_CATEGORIES } from '@/core/logger/development-system-diagnostic'
 import { appendDevelopmentSystemEvents } from '@/core/logger/development-system-diagnostic.server'
 import {
   appendServerLogEntry,
@@ -33,6 +34,25 @@ const DevelopmentSystemEventSchema = z.object({
   lifeRunId: z.string().optional(),
   round: z.number().int().positive().optional(),
   durationMs: z.number().finite().nonnegative().optional(),
+  category: z.enum(DEVELOPMENT_INCIDENT_CATEGORIES).optional(),
+  execution: z.object({
+    flowId: z.string().min(1),
+    executionId: z.string().min(1),
+    department: z.string().min(1),
+    subsystem: z.string().min(1),
+    component: z.string().min(1),
+    phase: z.enum(['prepare', 'ready', 'execute', 'transition', 'finalize']),
+    sequence: z.number().int().positive(),
+    status: z.enum([
+      'ready', 'running', 'succeeded', 'skipped', 'blocked', 'failed', 'cancelled',
+      'timed-out', 'missing-status', 'invalid-status', 'duplicate-status',
+    ]),
+    code: z.string().min(1),
+    owner: z.string().min(1),
+    failureTarget: z.string().min(1),
+    nextNodeIds: z.array(z.string()),
+    terminal: z.boolean(),
+  }).strict().optional(),
   details: z.record(z.string(), z.unknown()).optional(),
   error: z.object({
     name: z.string().optional(),

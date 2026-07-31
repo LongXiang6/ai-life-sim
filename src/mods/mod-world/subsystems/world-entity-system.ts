@@ -598,6 +598,60 @@ export class WorldEntitySystem extends BaseSubsystem {
     return Object.values(useWorldStore.getState().entityReferences).map(cloneEntityReference)
   }
 
+  /**
+   * 为上下文切换构造实体目录事务结果。
+   *
+   * 空间位置由 spatial-graph 持有，实体引用目录仍由本系统持有；
+   * 切换提交前必须先把每个移动实体的来源和目标上下文写入同一份
+   * 目录快照，避免位置已经迁移而正式存档校验仍看不到目标上下文。
+   */
+  buildContextTransitionDirectory(input: {
+    movedEntityIds: readonly GlobalEntityId[]
+    sourceContextId: string
+    targetContextId: string
+    actorEntityId: GlobalEntityId
+    globalTotalDays: number
+  }): Record<GlobalEntityId, EntityReference> {
+    const state = useWorldStore.getState()
+    if (!state.contexts[input.sourceContextId] || !state.contexts[input.targetContextId]) {
+      throw new Error('实体目录切换事务引用了不存在的上下文')
+    }
+    if (!Number.isInteger(input.globalTotalDays) || input.globalTotalDays < 0) {
+      throw new Error('实体目录切换事务的规范全局时间无效')
+    }
+
+    const next = structuredClone(state.entityReferences)
+    for (const entityId of [...new Set(input.movedEntityIds)]) {
+      const existing = next[entityId]
+      if (!existing) {
+        // 刷新后仅剩玩家空间端点时，可信 runtime adapter 是唯一可确认其
+        // 玩家身份的来源；其他同行实体必须先由各自 owning system 登记。
+        if (entityId !== input.actorEntityId) {
+          throw new Error(`迁移实体未在实体引用目录中登记：${entityId}`)
+        }
+        next[entityId] = {
+          entityId,
+          kind: 'player',
+          displayName: `实体 ${entityId}`,
+          contextIds: [input.sourceContextId, input.targetContextId],
+          registeredAtTotalDays: input.globalTotalDays,
+        }
+        continue
+      }
+
+      next[entityId] = {
+        ...existing,
+        ...(entityId === input.actorEntityId && existing.kind === 'npc' ? { kind: 'player' as const } : {}),
+        contextIds: [...new Set([
+          ...existing.contextIds,
+          input.sourceContextId,
+          input.targetContextId,
+        ])],
+      }
+    }
+    return next
+  }
+
   assertEntityReference(
     entityId: GlobalEntityId,
     allowedKinds?: readonly EntityReferenceKind[],
@@ -651,10 +705,36 @@ export class WorldEntitySystem extends BaseSubsystem {
   repairEntityReferenceDirectory(): { fallbackEntityIds: string[] } {
     const state = useWorldStore.getState()
     const fallbackEntityIds: string[] = []
+    const directory = structuredClone(state.entityReferences)
+
+    const mergeReference = (reference: EntityReference): void => {
+      const existing = directory[reference.entityId]
+      if (existing && existing.kind !== reference.kind) {
+        // 角色 ID 的稳定前缀是唯一可由刷新窗口确认的业务类型；
+        // 这用于修复旧版本把玩家空间端点误登记为 NPC 的目录。
+        if (reference.entityId.startsWith('character_') && existing.kind === 'npc' && reference.kind === 'player') {
+          directory[reference.entityId] = {
+            ...existing,
+            kind: 'player',
+            displayName: reference.displayName,
+            contextIds: [...new Set([...existing.contextIds, ...reference.contextIds])],
+          }
+          return
+        }
+        throw new Error(`实体引用 ${reference.entityId} 的种类冲突`)
+      }
+      directory[reference.entityId] = existing
+        ? {
+            ...existing,
+            displayName: reference.displayName || existing.displayName,
+            contextIds: [...new Set([...existing.contextIds, ...reference.contextIds])],
+          }
+        : structuredClone(reference)
+    }
 
     for (const instance of Object.values(state.contexts)) {
       for (const entity of instance.entities) {
-        this.registerEntityReference({
+        mergeReference({
           entityId: entity.id,
           kind: 'organization',
           displayName: entity.name,
@@ -666,10 +746,18 @@ export class WorldEntitySystem extends BaseSubsystem {
 
     for (const instance of Object.values(state.contexts)) {
       for (const [entityId, location] of Object.entries(instance.spatialGraph.entityLocations)) {
-        const existing = this.getEntityReference(entityId)
+        const existing = directory[entityId]
         if (existing) {
-          if (!existing.contextIds.includes(instance.record.id)) {
-            this.registerEntityReference({
+          const inferredKind: EntityReferenceKind = entityId.startsWith('character_') ? 'player' : 'npc'
+          if (existing.kind === 'npc' && inferredKind === 'player') {
+            mergeReference({
+              ...existing,
+              kind: 'player',
+              displayName: existing.displayName || `实体 ${entityId}`,
+              contextIds: [...existing.contextIds, instance.record.id],
+            })
+          } else if (!existing.contextIds.includes(instance.record.id)) {
+            mergeReference({
               ...existing,
               contextIds: [...existing.contextIds, instance.record.id],
             })
@@ -679,9 +767,9 @@ export class WorldEntitySystem extends BaseSubsystem {
 
         // 空间图只保存稳定端点 ID，不拥有 NPC 显示名；在刷新恢复窗口中
         // 先登记技术标签，待 owning NPC 快照恢复后由其正式目录覆盖。
-        this.registerEntityReference({
+        mergeReference({
           entityId,
-          kind: 'npc',
+          kind: entityId.startsWith('character_') ? 'player' : 'npc',
           displayName: `实体 ${entityId}`,
           contextIds: [instance.record.id],
           registeredAtTotalDays: Number.isInteger(location.updatedAtGlobalDay)
@@ -691,6 +779,8 @@ export class WorldEntitySystem extends BaseSubsystem {
         fallbackEntityIds.push(entityId)
       }
     }
+
+    useWorldStore.getState().replaceEntityReferences(Object.values(directory))
 
     return { fallbackEntityIds }
   }

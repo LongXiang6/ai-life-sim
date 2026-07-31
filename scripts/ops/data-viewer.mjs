@@ -324,6 +324,101 @@ export function buildDataOverview(options, now = Date.now()) {
   }
 }
 
+const EXECUTION_PHASE_ORDER = ['prepare', 'ready', 'execute', 'transition', 'finalize']
+
+function createExecutionMetric() {
+  return { events: 0, terminalEvents: 0, failures: 0, durationMs: 0, byPhase: {} }
+}
+
+function updateExecutionMetric(metric, execution, durationMs) {
+  metric.events += 1
+  const phase = String(execution.phase ?? 'unknown')
+  const phaseMetric = metric.byPhase[phase] ?? { events: 0, terminalEvents: 0, failures: 0, durationMs: 0 }
+  phaseMetric.events += 1
+  if (execution.terminal === true) {
+    const failed = !['succeeded', 'skipped'].includes(String(execution.status))
+    const duration = Number.isFinite(durationMs) ? Number(durationMs) : 0
+    metric.terminalEvents += 1
+    metric.durationMs += duration
+    phaseMetric.terminalEvents += 1
+    phaseMetric.durationMs += duration
+    if (failed) {
+      metric.failures += 1
+      phaseMetric.failures += 1
+    }
+  }
+  metric.byPhase[phase] = phaseMetric
+}
+
+function aggregateExecutionDiagnostics(entries) {
+  const total = createExecutionMetric()
+  const departmentMap = new Map()
+  for (const entry of entries) {
+    const execution = entry.execution
+    if (!execution || typeof execution !== 'object') continue
+    updateExecutionMetric(total, execution, entry.durationMs)
+    const departmentName = String(execution.department ?? 'unknown')
+    const subsystemName = String(execution.subsystem ?? 'unknown')
+    const componentName = String(execution.component ?? 'unknown')
+    let department = departmentMap.get(departmentName)
+    if (!department) {
+      department = { name: departmentName, ...createExecutionMetric(), subsystemMap: new Map() }
+      departmentMap.set(departmentName, department)
+    }
+    updateExecutionMetric(department, execution, entry.durationMs)
+    let subsystem = department.subsystemMap.get(subsystemName)
+    if (!subsystem) {
+      subsystem = { name: subsystemName, ...createExecutionMetric(), componentMap: new Map() }
+      department.subsystemMap.set(subsystemName, subsystem)
+    }
+    updateExecutionMetric(subsystem, execution, entry.durationMs)
+    let component = subsystem.componentMap.get(componentName)
+    if (!component) {
+      component = { name: componentName, ...createExecutionMetric() }
+      subsystem.componentMap.set(componentName, component)
+    }
+    updateExecutionMetric(component, execution, entry.durationMs)
+  }
+
+  const sortByName = (left, right) => left.name.localeCompare(right.name, 'en')
+  const hierarchy = [...departmentMap.values()].map((department) => ({
+    name: department.name,
+    events: department.events,
+    terminalEvents: department.terminalEvents,
+    failures: department.failures,
+    durationMs: department.durationMs,
+    byPhase: department.byPhase,
+    subsystems: [...department.subsystemMap.values()].map((subsystem) => ({
+      name: subsystem.name,
+      events: subsystem.events,
+      terminalEvents: subsystem.terminalEvents,
+      failures: subsystem.failures,
+      durationMs: subsystem.durationMs,
+      byPhase: subsystem.byPhase,
+      components: [...subsystem.componentMap.values()].map((component) => ({
+        name: component.name,
+        events: component.events,
+        terminalEvents: component.terminalEvents,
+        failures: component.failures,
+        durationMs: component.durationMs,
+        byPhase: component.byPhase,
+      })).sort(sortByName),
+    })).sort(sortByName),
+  })).sort(sortByName)
+
+  return {
+    rawEvents: total.events,
+    terminalEvents: total.terminalEvents,
+    failures: total.failures,
+    durationMs: total.durationMs,
+    byPhase: Object.fromEntries(EXECUTION_PHASE_ORDER.map((phase) => [
+      phase,
+      total.byPhase[phase] ?? { events: 0, terminalEvents: 0, failures: 0, durationMs: 0 },
+    ])),
+    hierarchy,
+  }
+}
+
 export function queryDevelopmentSystemDiagnostics(options, input = {}) {
   const page = positiveInteger(input.page, 1)
   const pageSize = positiveInteger(input.pageSize, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE)
@@ -373,11 +468,16 @@ export function queryDevelopmentSystemDiagnostics(options, input = {}) {
   ))
   const bySystem = {}
   const byStatus = {}
+  const byIncidentCategory = {}
   for (const entry of filtered) {
     const systemName = String(entry.system ?? 'unknown')
     const statusName = String(entry.status ?? 'unknown')
     bySystem[systemName] = (bySystem[systemName] ?? 0) + 1
     byStatus[statusName] = (byStatus[statusName] ?? 0) + 1
+    if (entry.category) {
+      const category = String(entry.category)
+      byIncidentCategory[category] = (byIncidentCategory[category] ?? 0) + 1
+    }
   }
   const offset = (page - 1) * pageSize
   return {
@@ -388,6 +488,11 @@ export function queryDevelopmentSystemDiagnostics(options, input = {}) {
     pageSize,
     bySystem,
     byStatus,
+    incidents: {
+      total: Object.values(byIncidentCategory).reduce((sum, count) => sum + count, 0),
+      byCategory: byIncidentCategory,
+    },
+    execution: aggregateExecutionDiagnostics(filtered),
     entries: filtered.slice(offset, offset + pageSize),
   }
 }
@@ -901,6 +1006,25 @@ async function renderDiagnostics(page = 1) {
     ['正常', data.byStatus.ok || 0, '已完成边界'],
     ['跳过', data.byStatus.skipped || 0, '带原因的预期跳过'],
   ]));
+  main.append(metrics([
+    ['执行原始事件', data.execution.rawEvents || 0, 'ready / running / terminal'],
+    ['终结节点', data.execution.terminalEvents || 0, '唯一状态结果'],
+    ['执行失败', data.execution.failures || 0, '阻塞、取消与错误'],
+    ['事故分类', data.incidents.total || 0, '可复盘故障样本'],
+  ]));
+  const phases = panel('五阶段聚合', 'prepare -> ready -> execute -> transition -> finalize');
+  const phaseTable = node('div', 'table-wrap'); const phaseElement = node('table');
+  phaseElement.innerHTML = '<thead><tr><th>阶段</th><th>原始事件</th><th>终结节点</th><th>失败</th><th>耗时</th></tr></thead>';
+  const phaseBody = node('tbody');
+  ['prepare', 'ready', 'execute', 'transition', 'finalize'].forEach((phase) => { const item = data.execution.byPhase[phase] || {}; const row = node('tr'); [phase, fmt(item.events), fmt(item.terminalEvents), fmt(item.failures), duration(item.durationMs)].forEach((value) => row.append(node('td', '', value))); phaseBody.append(row); });
+  phaseElement.append(phaseBody); phaseTable.append(phaseElement); phases.append(phaseTable); main.append(phases);
+  const hierarchy = panel('公司式执行层级', '部门 / MOD -> 子系统 / 团队 -> 组件节点');
+  const hierarchyTable = node('div', 'table-wrap'); const hierarchyElement = node('table');
+  hierarchyElement.innerHTML = '<thead><tr><th>部门 / MOD</th><th>子系统 / 团队</th><th>组件</th><th>终结节点</th><th>失败</th><th>耗时</th></tr></thead>';
+  const hierarchyBody = node('tbody');
+  data.execution.hierarchy.forEach((department) => department.subsystems.forEach((subsystem) => { const row = node('tr'); [department.name, subsystem.name, subsystem.components.map((component) => component.name).join('\\n'), fmt(subsystem.terminalEvents), fmt(subsystem.failures), duration(subsystem.durationMs)].forEach((value) => row.append(node('td', '', value))); hierarchyBody.append(row); }));
+  if (!hierarchyBody.children.length) { const row = node('tr'); const cell = node('td', 'muted', '暂无执行序诊断'); cell.colSpan = 6; row.append(cell); hierarchyBody.append(row); }
+  hierarchyElement.append(hierarchyBody); hierarchyTable.append(hierarchyElement); hierarchy.append(hierarchyTable); main.append(hierarchy);
   const wrap = panel('诊断事件', fmt(data.total) + ' 条 · ' + data.root);
   const rows = node('div', 'rows');
   data.entries.forEach((entry) => {
@@ -909,7 +1033,7 @@ async function renderDiagnostics(page = 1) {
     const title = node('div', 'row-title');
     title.append(node('strong', '', (entry.system || 'unknown') + ' · ' + (entry.event || 'unknown')), node('span', '', time(entry.timestamp) + (entry.lifeRunId ? ' · ' + entry.lifeRunId : '') + (entry.round ? ' · 第 ' + entry.round + ' 轮' : '')));
     const tags = node('div', 'tags');
-    [String(entry.status || 'unknown').toUpperCase(), entry.durationMs !== undefined ? duration(entry.durationMs) : null, entry.sourceFile || null].filter(Boolean).forEach((value) => tags.append(node('span', 'tag', value)));
+    [String(entry.status || 'unknown').toUpperCase(), entry.category || null, entry.execution ? entry.execution.department + ' / ' + entry.execution.subsystem + ' / ' + entry.execution.phase : null, entry.durationMs !== undefined ? duration(entry.durationMs) : null, entry.sourceFile || null].filter(Boolean).forEach((value) => tags.append(node('span', 'tag', value)));
     summary.append(title, tags);
     const detail = node('div', 'detail'); detail.append(detailBlock('完整诊断事件', json(entry)));
     item.append(summary, detail); rows.append(item);

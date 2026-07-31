@@ -3,6 +3,7 @@ import type {
   ExecutionNodeRecord,
   ExecutionNodeSignal,
   ExecutionNodeSignalStatus,
+  ExecutionFlowRegistration,
   ExecutionOutcomeCodes,
   ExecutionPhase,
   ExecutionRecordStatus,
@@ -16,9 +17,10 @@ import type {
 
 const PHASE_ORDER: Record<ExecutionPhase, number> = {
   prepare: 0,
-  execute: 1,
-  transition: 2,
-  finalize: 3,
+  ready: 1,
+  execute: 2,
+  transition: 3,
+  finalize: 4,
 }
 
 const MACHINE_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
@@ -45,7 +47,10 @@ function assertMachineCode(value: string, label: string): void {
   }
 }
 
-function assertOutcomeCodes(node: ExecutionSequenceNode<unknown>): void {
+function assertOutcomeCodes(
+  flowId: string,
+  node: ExecutionSequenceNode<unknown>,
+): void {
   const entries = Object.entries(node.outcomes)
   const seen = new Set<string>()
   for (const [status, code] of entries) {
@@ -54,6 +59,14 @@ function assertOutcomeCodes(node: ExecutionSequenceNode<unknown>): void {
       throw new Error(`[ExecutionSequence] 节点 "${node.id}" 的状态码重复: ${code}`)
     }
     seen.add(code)
+  }
+  const expected = createExecutionOutcomeCodes(flowId, node.id)
+  for (const [status, code] of Object.entries(expected)) {
+    if (node.outcomes[status as keyof ExecutionOutcomeCodes] !== code) {
+      throw new Error(
+        `[ExecutionSequence] 节点 "${node.id}" 的 ${status} 状态码必须登记为 "${code}"`,
+      )
+    }
   }
 }
 
@@ -84,13 +97,59 @@ function assertMachineId(value: string, label: string): void {
 }
 
 function assertLifecycleShape<T extends ExecutionNodeDescriptor>(nodes: readonly T[]): void {
+  const byId = new Map(nodes.map((node) => [node.id, node]))
   const prepareNodes = nodes.filter((node) => node.phase === 'prepare')
+  const readyNodes = nodes.filter((node) => node.phase === 'ready')
+  const executeNodes = nodes.filter((node) => node.phase === 'execute')
+  const transitionNodes = nodes.filter((node) => node.phase === 'transition')
   const finalizeNodes = nodes.filter((node) => node.phase === 'finalize')
   if (prepareNodes.length === 0) {
     throw new Error('[ExecutionSequence] 执行图缺少 prepare 节点')
   }
+  if (readyNodes.length === 0) {
+    throw new Error('[ExecutionSequence] 执行图缺少 ready 节点（就绪排队阶段）')
+  }
+  if (executeNodes.length === 0) {
+    throw new Error('[ExecutionSequence] 执行图缺少 execute 节点')
+  }
+  if (transitionNodes.length === 0) {
+    throw new Error('[ExecutionSequence] 执行图缺少 transition 节点（阻塞/等待过渡阶段）')
+  }
   if (finalizeNodes.length === 0) {
     throw new Error('[ExecutionSequence] 执行图缺少 finalize 节点')
+  }
+  if (!prepareNodes.some((node) => node.dependsOn.length === 0)) {
+    throw new Error('[ExecutionSequence] prepare 阶段必须包含无依赖的入口节点')
+  }
+  const previousPhase: Partial<Record<ExecutionPhase, ExecutionPhase>> = {
+    ready: 'prepare',
+    execute: 'ready',
+    transition: 'execute',
+    finalize: 'transition',
+  }
+  const reachesPhase = (
+    node: T,
+    targetPhase: ExecutionPhase,
+    visiting: Set<string> = new Set(),
+  ): boolean => {
+    if (node.phase === targetPhase) return true
+    if (visiting.has(node.id)) return false
+    visiting.add(node.id)
+    return node.dependsOn.some((dependency) => {
+      const dependencyNode = byId.get(dependency)
+      return dependencyNode !== undefined && reachesPhase(dependencyNode, targetPhase, visiting)
+    })
+  }
+  for (const node of [...readyNodes, ...executeNodes, ...transitionNodes, ...finalizeNodes]) {
+    const dependencyPhase = previousPhase[node.phase]
+    if (dependencyPhase && !node.dependsOn.some((dependency) => {
+      const dependencyNode = byId.get(dependency)
+      return dependencyNode !== undefined && reachesPhase(dependencyNode, dependencyPhase)
+    })) {
+      throw new Error(
+        `[ExecutionSequence] ${node.phase} 节点 "${node.id}" 必须由 ${dependencyPhase} 阶段释放`,
+      )
+    }
   }
   if (finalizeNodes.some((node) => 'optional' in node && node.optional === true)) {
     throw new Error('[ExecutionSequence] finalize 节点不得为可选')
@@ -108,6 +167,36 @@ function assertLifecycleShape<T extends ExecutionNodeDescriptor>(nodes: readonly
       throw new Error(`[ExecutionSequence] 非 finalize 节点 "${node.id}" 没有后续节点`)
     }
   }
+  const terminalNodes = nodes.filter((node) => (dependents.get(node.id) ?? []).length === 0)
+  if (terminalNodes.length !== 1) {
+    throw new Error(
+      `[ExecutionSequence] 执行图必须有唯一终态节点，当前为 ${terminalNodes.length} 个: ${terminalNodes.map((node) => node.id).join(', ')}`,
+    )
+  }
+}
+
+function assertFlowRegistration(flow: ExecutionFlowRegistration): void {
+  assertMachineId(flow.flowId, '流程标识')
+  assertMachineId(flow.owner, '流程所有者')
+  assertMachineId(flow.failureTarget, '流程故障接收者')
+  assertMachineId(flow.department, '流程部门')
+  assertMachineId(flow.subsystem, '流程子系统')
+}
+
+export function validateExecutionFlowContract<TContext>(
+  flow: ExecutionFlowRegistration,
+  nodes: readonly ExecutionSequenceNode<TContext>[],
+): ExecutionSequenceNode<TContext>[] {
+  assertFlowRegistration(flow)
+  for (const node of nodes) {
+    if (node.failureTarget !== flow.failureTarget) {
+      throw new Error(
+        `[ExecutionSequence] 节点 "${node.id}" 的故障接收者必须为流程登记值 "${flow.failureTarget}"`,
+      )
+    }
+    assertOutcomeCodes(flow.flowId, node as ExecutionSequenceNode<unknown>)
+  }
+  return resolveExecutionOrder(nodes, { requireLifecyclePhases: true })
 }
 
 export function resolveExecutionOrder<T extends ExecutionNodeDescriptor>(
@@ -310,17 +399,11 @@ async function runNodeWithTimeout<TContext>(
 export async function runExecutionSequence<TContext>(
   options: RunExecutionSequenceOptions<TContext>,
 ): Promise<ExecutionSequenceResult> {
-  assertMachineId(options.flowId, '流程标识')
-  assertMachineId(options.owner, '流程所有者')
   if (!options.executionId.trim()) {
     throw new Error('[ExecutionSequence] executionId 不得为空')
   }
 
-  for (const node of options.nodes) {
-    assertOutcomeCodes(node as ExecutionSequenceNode<unknown>)
-  }
-
-  const ordered = resolveExecutionOrder(options.nodes, { requireLifecyclePhases: true })
+  const ordered = validateExecutionFlowContract(options.flow, options.nodes)
   const dependents = new Map(ordered.map((node) => [node.id, [] as string[]]))
   for (const node of ordered) {
     for (const dependency of node.dependsOn) dependents.get(dependency)?.push(node.id)
@@ -348,8 +431,10 @@ export async function runExecutionSequence<TContext>(
     message?: string,
   ): ExecutionSequenceEvent => {
     const event: ExecutionSequenceEvent = {
-      flowId: options.flowId,
+      flowId: options.flow.flowId,
       executionId: options.executionId,
+      department: options.flow.department,
+      subsystem: options.flow.subsystem,
       nodeId: node.id,
       owner: node.owner,
       failureTarget: node.failureTarget,
@@ -432,7 +517,7 @@ export async function runExecutionSequence<TContext>(
         rawSignal = { status: 'skipped' satisfies ExecutionNodeSignalStatus }
       } else {
         rawSignal = await runNodeWithTimeout(node, options.context, {
-          flowId: options.flowId,
+          flowId: options.flow.flowId,
           executionId: options.executionId,
           nodeId: node.id,
           phase: node.phase,
@@ -604,9 +689,11 @@ export async function runExecutionSequence<TContext>(
         ...(firstFailure.cause === undefined ? {} : { cause: firstFailure.cause }),
       }
       return {
-        flowId: options.flowId,
+        flowId: options.flow.flowId,
         executionId: options.executionId,
-        owner: options.owner,
+        owner: options.flow.owner,
+        department: options.flow.department,
+        subsystem: options.flow.subsystem,
         status: firstFailure.status === 'cancelled' ? 'cancelled' : 'failed',
         code: firstFailure.code,
         startedAt,
@@ -622,11 +709,13 @@ export async function runExecutionSequence<TContext>(
 
   const completedAt = Date.now()
   return {
-    flowId: options.flowId,
+    flowId: options.flow.flowId,
     executionId: options.executionId,
-    owner: options.owner,
+    owner: options.flow.owner,
+    department: options.flow.department,
+    subsystem: options.flow.subsystem,
     status: 'succeeded',
-    code: `${options.flowId}:succeeded`,
+    code: `${options.flow.flowId}:succeeded`,
     startedAt,
     completedAt,
     durationMs: Math.max(0, completedAt - startedAt),

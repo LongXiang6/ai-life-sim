@@ -1,6 +1,7 @@
 /** 执行序阶段，位置固定且不得跨阶段逆向依赖。 */
-export const EXECUTION_PHASES = ['prepare', 'execute', 'transition', 'finalize'] as const
+export const EXECUTION_PHASES = ['prepare', 'ready', 'execute', 'transition', 'finalize'] as const
 
+/** `ready` 只建立队列；`transition` 汇合执行结果并承担阻塞/等待与提交过渡。 */
 export type ExecutionPhase = (typeof EXECUTION_PHASES)[number]
 
 /** 节点主动返回的终结状态。 */
@@ -36,7 +37,20 @@ export interface ExecutionOutcomeCodes {
   duplicateStatus: string
 }
 
-/** 任何可排序系统或功能组件都先声明这四项。 */
+/** 所有执行流必须先在项目中央目录登记，再交给共享执行器。 */
+export interface ExecutionFlowRegistration {
+  flowId: string
+  /** 流程迁移与终态发布的唯一所有者。 */
+  owner: string
+  /** 任一终止性故障逐级回传的唯一接收者。 */
+  failureTarget: string
+  /** 公司式层级中的部门；通常是 MOD，也可以是 core。 */
+  department: string
+  /** 部门内部拥有该流程的子系统或团队。 */
+  subsystem: string
+}
+
+/** 任何可排序系统或功能组件都先声明这五项。 */
 export interface ExecutionNodeDescriptor {
   id: string
   /** 节点实现与诊断的唯一所有者。 */
@@ -87,6 +101,8 @@ export interface ExecutionSequenceNode<TContext = unknown, TValue = unknown>
 export interface ExecutionSequenceEvent {
   flowId: string
   executionId: string
+  department: string
+  subsystem: string
   nodeId: string
   owner: string
   failureTarget: string
@@ -131,6 +147,8 @@ export interface ExecutionSequenceResult {
   flowId: string
   executionId: string
   owner: string
+  department: string
+  subsystem: string
   status: 'succeeded' | 'failed' | 'cancelled'
   code: string
   startedAt: number
@@ -147,10 +165,8 @@ export interface ResolveExecutionOrderOptions {
 }
 
 export interface RunExecutionSequenceOptions<TContext> {
-  flowId: string
+  flow: ExecutionFlowRegistration
   executionId: string
-  /** 流程迁移与终态发布的唯一所有者。 */
-  owner: string
   context: TContext
   nodes: readonly ExecutionSequenceNode<TContext>[]
   signal?: AbortSignal

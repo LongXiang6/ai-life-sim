@@ -8,6 +8,7 @@
 /** 默认 campaign 阶段名（codegen 自 campaigns/default/index.ts） */
 export const DEFAULT_CAMPAIGN_STAGE_NAMES = [
   "prepare-round",
+  "queue-round",
   "advance-time",
   "subsystem-advance",
   "collect-states",

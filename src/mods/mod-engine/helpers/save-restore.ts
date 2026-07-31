@@ -336,6 +336,9 @@ export function ensureOrchestratorContextFromStores(): boolean {
   const calibration = worldState.calibration ?? buildDefaultCalibration(worldConfig)
   const characterId = character.characterId || character.ensureCharacterId()
   const currentInstance = worldState.contexts[worldState.currentContextId]
+  // 刷新后仅剩空间端点时先恢复实体目录；尤其要在玩家登记前修复旧版
+  // 把 character_* 误标为 NPC 的条目，否则严格种类契约会阻断当前角色注入。
+  const directoryRepair = repairWorldEntityReferenceDirectory()
   registerWorldEntityReference({
     entityId: characterId,
     kind: 'player',
@@ -360,7 +363,6 @@ export function ensureOrchestratorContextFromStores(): boolean {
       },
     })
   }
-  const directoryRepair = repairWorldEntityReferenceDirectory()
   if (directoryRepair.fallbackEntityIds.length > 0) {
     console.warn('[save-restore] 从空间图恢复了缺失的实体引用目录项:', directoryRepair.fallbackEntityIds)
   }

@@ -7,7 +7,7 @@
  * 严格提交和失败恢复边界，不保留第二条硬编码回合管线。
  */
 
-import { BaseSubsystem, eventBus } from '@/core'
+import { BaseSubsystem, eventBus, EXECUTION_FLOWS } from '@/core'
 import { isInstrumentEnabled, getInstrumentHooks } from '@/core/instrument/instrument-mode'
 import {
   createExecutionOutcomeCodes,
@@ -105,6 +105,7 @@ import type {
 import {
   drainDevelopmentSystemEvents,
   recordDevelopmentSystemEvent,
+  recordExecutionSequenceResult,
   type DevelopmentSystemStatus,
 } from '@/core/logger/development-system-diagnostic'
 import { getDestinyPatternSystem } from '@/mods/mod-character/destiny-pattern-access'
@@ -181,9 +182,8 @@ import type {
   AIModelConfig,
   ModManifest,
   LuckNarrativeGuidance,
-  ExecutionPhase,
-  ExecutionSequenceNode,
 } from '@/foundation'
+import { createSubsystemAdvanceExecutionNodes } from '../helpers/subsystem-execution-flow'
 
 // Uses pattern matching via patternManager; USE_PATTERN_MANAGER feature flag managed centrally
 
@@ -1411,58 +1411,22 @@ export class OrchestratorSystem extends BaseSubsystem {
   // === 本地模拟推进 ===
 
   private async runSubsystemExecutionSequence(
-    flowId: string,
-    phase: ExecutionPhase,
     context: RoundContext,
     subsystems: readonly ISubSystem[],
     run: (subsystem: ISubSystem) => void,
   ): Promise<void> {
-    if (subsystems.length === 0) return
-
-    const prepareId = `${flowId}-prepare`
-    const finalizeId = `${flowId}-finalize`
-    const nodes: ExecutionSequenceNode<RoundContext>[] = [
-      {
-        id: prepareId,
-        owner: 'mod-engine',
-        failureTarget: 'mod-engine',
-        phase: 'prepare',
-        dependsOn: [],
-        order: 0,
-        outcomes: createExecutionOutcomeCodes(flowId, prepareId),
-        run: () => ({ status: 'succeeded' }),
-      },
-      ...subsystems.map((subsystem, index): ExecutionSequenceNode<RoundContext> => ({
-        id: `${flowId}-${subsystem.id}`,
-        owner: subsystem.mod,
-        failureTarget: 'mod-engine',
-        phase,
-        dependsOn: [index === 0 ? prepareId : `${flowId}-${subsystems[index - 1].id}`],
-        order: index,
-        outcomes: createExecutionOutcomeCodes(flowId, `${flowId}-${subsystem.id}`),
-        run: () => {
-          run(subsystem)
-          return { status: 'succeeded' }
-        },
-      })),
-      {
-        id: finalizeId,
-        owner: 'mod-engine',
-        failureTarget: 'mod-engine',
-        phase: 'finalize',
-        dependsOn: [`${flowId}-${subsystems.at(-1)!.id}`],
-        order: 0,
-        outcomes: createExecutionOutcomeCodes(flowId, finalizeId),
-        run: () => ({ status: 'succeeded' }),
-      },
-    ]
+    const flow = EXECUTION_FLOWS.subsystemAdvance
+    const nodes = createSubsystemAdvanceExecutionNodes(flow, subsystems, run)
 
     const result = await runExecutionSequence({
-      flowId,
-      executionId: `${flowId}:${this.state.lifeRunId}:${this.state.totalRounds}:${Date.now()}`,
-      owner: 'mod-engine',
+      flow,
+      executionId: `${flow.flowId}:${this.state.lifeRunId}:${this.state.totalRounds}:${Date.now()}`,
       context,
       nodes,
+    })
+    recordExecutionSequenceResult(result, {
+      lifeRunId: this.state.lifeRunId,
+      round: (context.roundSequence ?? this.state.totalRounds) + 1,
     })
     if (result.status !== 'succeeded') {
       throw executionSequenceError(result)
@@ -1483,8 +1447,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       && typeof sub.advance === 'function'
     ))
     await this.runSubsystemExecutionSequence(
-      'subsystem-advance',
-      'execute',
       context,
       runnable,
       (subsystem) => subsystem.advance!(context),
@@ -3712,6 +3674,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     context: RoundContext,
   ): Promise<void> {
     if (stages.length === 0) return
+    const flow = EXECUTION_FLOWS.narrativeRound
     const executionRoundSequence = (context.roundSequence ?? this.state.totalRounds) + 1
 
     const nodes = stages.map((stage, index) => ({
@@ -3722,7 +3685,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       dependsOn: stage.dependsOn,
       order: stage.order,
       parallelGroup: stage.parallelGroup,
-      outcomes: createExecutionOutcomeCodes('narrative-round', stage.name),
+      outcomes: createExecutionOutcomeCodes(flow.flowId, stage.name),
       run: async (stageContext: RoundContext) => {
         let roundCount = 0
         const stageStartedAt = performance.now()
@@ -3790,11 +3753,14 @@ export class OrchestratorSystem extends BaseSubsystem {
     }))
 
     const result = await runExecutionSequence({
-      flowId: 'narrative-round',
-      executionId: `narrative-round:${this.state.lifeRunId}:${executionRoundSequence}:${this.isPreviewExecution() ? 'preview' : 'real'}`,
-      owner: 'mod-engine',
+      flow,
+      executionId: `${flow.flowId}:${this.state.lifeRunId}:${executionRoundSequence}:${this.isPreviewExecution() ? 'preview' : 'real'}`,
       context,
       nodes,
+    })
+    recordExecutionSequenceResult(result, {
+      lifeRunId: this.state.lifeRunId,
+      round: executionRoundSequence,
     })
     if (result.status !== 'succeeded') {
       throw executionSequenceError(result)
@@ -3805,7 +3771,7 @@ export class OrchestratorSystem extends BaseSubsystem {
    * 使用阶段机执行回合（V2 入口）
    *
    * 始终使用声明式阶段机驱动回合管线。
-   * 不再回退到旧的 executeRound() 硬编码管线。
+   * 不再回退到旧的硬编码回合管线。
    *
    * @param promptTemplate - Prompt 模板
    * @param aiConfig - AI 配置

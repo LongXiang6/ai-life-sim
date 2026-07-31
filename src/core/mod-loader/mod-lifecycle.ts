@@ -15,6 +15,7 @@ import {
 } from '@/foundation'
 import type {
   ConfigurationChangedData,
+  ExecutionFlowRegistration,
   ExecutionNodeSignal,
   ExecutionSequenceNode,
   ExecutionSequenceResult,
@@ -32,6 +33,8 @@ import { MOD_CONTROL_IMPORTERS } from './mod-control-importers.generated'
 import { MOD_API_IMPORTERS } from './mod-importers.generated'
 import { MOD_SECONDARY_API_IMPORTERS } from './mod-secondary-api-importers.generated'
 import { parseDependency } from './dependency-resolver'
+import { EXECUTION_FLOWS } from '../execution'
+import { recordExecutionSequenceResult } from '../logger/development-system-diagnostic'
 
 const LIFECYCLE_OWNER = 'core-mod-loader'
 
@@ -130,8 +133,8 @@ async function registerModRemoteApis(order: string[]): Promise<void> {
 
 type ModHookName = 'onInit' | 'onLoad' | 'onConfigurationChanged'
 
-interface RunModHookSequenceOptions {
-  flowId: string
+export interface RunModHookSequenceOptions {
+  flow: ExecutionFlowRegistration
   hook: ModHookName
   context: ModContext
   configurationData?: ConfigurationChangedData
@@ -147,12 +150,30 @@ async function runModHookSequence(
   options: RunModHookSequenceOptions,
 ): Promise<ExecutionSequenceResult> {
   const manifests = getOrderedManifests()
+  const nodes = createModLifecycleExecutionNodes(options, manifests)
+
+  const result = await runExecutionSequence({
+    flow: options.flow,
+    executionId: createExecutionId(options.flow.flowId),
+    context: options.context,
+    nodes,
+  })
+  recordExecutionSequenceResult(result)
+  return result
+}
+
+export function createModLifecycleExecutionNodes(
+  options: RunModHookSequenceOptions,
+  manifests: readonly ModManifest[],
+): ExecutionSequenceNode<ModContext>[] {
   const manifestNames = new Set(manifests.map((manifest) => manifest.name))
   const prepareId = 'prepare-mod-hooks'
+  const readyId = 'queue-mod-hooks'
+  const executeId = 'complete-mod-hooks'
   const transitionId = 'accept-mod-hooks'
   const finalizeId = 'finalize-mod-hooks'
 
-  const nodes: ExecutionSequenceNode<ModContext>[] = [
+  return [
     {
       id: prepareId,
       owner: LIFECYCLE_OWNER,
@@ -160,8 +181,18 @@ async function runModHookSequence(
       phase: 'prepare',
       dependsOn: [],
       order: 0,
-      outcomes: createExecutionOutcomeCodes(options.flowId, prepareId),
+      outcomes: createExecutionOutcomeCodes(options.flow.flowId, prepareId),
       run: () => hookSignal('succeeded'),
+    },
+    {
+      id: readyId,
+      owner: LIFECYCLE_OWNER,
+      failureTarget: LIFECYCLE_OWNER,
+      phase: 'ready',
+      dependsOn: [prepareId],
+      order: 0,
+      outcomes: createExecutionOutcomeCodes(options.flow.flowId, readyId),
+      run: () => hookSignal('succeeded', 'MOD 生命周期任务已排队'),
     },
     ...manifests.map((manifest): ExecutionSequenceNode<ModContext> => ({
       id: manifest.name,
@@ -169,14 +200,14 @@ async function runModHookSequence(
       failureTarget: LIFECYCLE_OWNER,
       phase: 'execute',
       dependsOn: [
-        prepareId,
+        readyId,
         ...manifest.dependencies
           .map((dependency) => parseDependency(dependency))
           .filter((dependency) => dependency.affectsLoadOrder && manifestNames.has(dependency.name))
           .map((dependency) => dependency.name),
       ],
       order: manifest.order,
-      outcomes: createExecutionOutcomeCodes(options.flowId, manifest.name),
+      outcomes: createExecutionOutcomeCodes(options.flow.flowId, manifest.name),
       optional: true,
       run: async (context) => {
         const mod = await getModControlImporter(manifest.name)()
@@ -211,13 +242,23 @@ async function runModHookSequence(
       },
     })),
     {
+      id: executeId,
+      owner: LIFECYCLE_OWNER,
+      failureTarget: LIFECYCLE_OWNER,
+      phase: 'execute',
+      dependsOn: manifests.length > 0 ? manifests.map((manifest) => manifest.name) : [readyId],
+      order: 1_000_000,
+      outcomes: createExecutionOutcomeCodes(options.flow.flowId, executeId),
+      run: () => hookSignal('succeeded', 'MOD 生命周期执行结果已汇合'),
+    },
+    {
       id: transitionId,
       owner: LIFECYCLE_OWNER,
       failureTarget: LIFECYCLE_OWNER,
       phase: 'transition',
-      dependsOn: manifests.length > 0 ? manifests.map((manifest) => manifest.name) : [prepareId],
+      dependsOn: [executeId],
       order: 0,
-      outcomes: createExecutionOutcomeCodes(options.flowId, transitionId),
+      outcomes: createExecutionOutcomeCodes(options.flow.flowId, transitionId),
       run: async () => {
         await options.transition?.(manifests)
         return hookSignal('succeeded')
@@ -230,21 +271,13 @@ async function runModHookSequence(
       phase: 'finalize',
       dependsOn: [transitionId],
       order: 0,
-      outcomes: createExecutionOutcomeCodes(options.flowId, finalizeId),
+      outcomes: createExecutionOutcomeCodes(options.flow.flowId, finalizeId),
       run: async () => {
         await options.finalize?.(manifests)
         return hookSignal('succeeded')
       },
     },
   ]
-
-  return runExecutionSequence({
-    flowId: options.flowId,
-    executionId: createExecutionId(options.flowId),
-    owner: LIFECYCLE_OWNER,
-    context: options.context,
-    nodes,
-  })
 }
 
 /**
@@ -257,7 +290,7 @@ export async function invokeModLifecycles(
   context: ModContext,
 ): Promise<ExecutionSequenceResult> {
   return runModHookSequence({
-    flowId: 'mod-initialization',
+    flow: EXECUTION_FLOWS.modInitialization,
     hook: 'onInit',
     context,
     transition: async (manifests) => {
@@ -282,7 +315,7 @@ export async function invokeModLifecycles(
  */
 export async function invokeModOnLoad(context: ModContext): Promise<ExecutionSequenceResult> {
   return runModHookSequence({
-    flowId: 'mod-state-load',
+    flow: EXECUTION_FLOWS.modStateLoad,
     hook: 'onLoad',
     context,
   })
@@ -299,7 +332,7 @@ export async function notifyConfigurationChanged(
   context: ModContext,
 ): Promise<ExecutionSequenceResult> {
   return runModHookSequence({
-    flowId: 'mod-configuration-change',
+    flow: EXECUTION_FLOWS.modConfigurationChange,
     hook: 'onConfigurationChanged',
     context,
     configurationData: data,

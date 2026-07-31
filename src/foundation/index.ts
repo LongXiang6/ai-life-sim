@@ -35,6 +35,7 @@ export {
   compareExecutionNodes,
   createExecutionOutcomeCodes,
   resolveExecutionOrder,
+  validateExecutionFlowContract,
   runExecutionSequence,
   executionSequenceError,
 } from './utils'
@@ -117,6 +118,7 @@ export type {
   ExecutionNodeSignalStatus,
   ExecutionRecordStatus,
   ExecutionOutcomeCodes,
+  ExecutionFlowRegistration,
   ExecutionNodeDescriptor,
   ExecutionNodeRuntime,
   ExecutionNodeSignal,

@@ -2,7 +2,7 @@
 
 ## 目标
 
-系统体系负责让代码、状态、计算、接口和目录各有唯一归属。依赖保持 `app -> mods -> core -> foundation`，页面消费公共能力，所属系统保留状态与写入权威；能由声明和生成器完成的接线不再手工重复维护。
+系统体系负责让代码、状态、计算、接口和目录各有唯一归属。依赖保持 `app -> mods -> core -> foundation`，页面消费公共能力，所属系统保留状态与写入权威；能由声明和生成器完成的接线不再手工重复维护。整个项目按公司式金字塔运行：核心模拟是总指挥，MOD 是部门，子系统是课/团队，组件是执行个体。
 
 ## 时间核心原则
 
@@ -49,13 +49,22 @@ TimeSystem
 └─ 公共类型、子系统契约和跨层基础定义
 ```
 
+## 公司式运行层级
+
+- `mod-engine` 的核心模拟回合负责确定本轮目标、时间快照、活动成员和跨部门依赖；它只发布任务、汇总公开结果和发布终态，不拥有外部业务系统的私有状态。
+- 各 MOD 接收核心模拟的任务后，在本部门边界内按自己的公共契约派发给子系统；子系统和组件完成本地计算、校验、写入和持久化，再逐级返回状态码、结果和诊断证据。
+- 自动化层负责 Manifest 加载、依赖拓扑、生成接线、排队、状态校验、快照和重复步骤；自动化是调度基础设施，不是业务部门，不得代替 owning system 作业务判断或持有第二份状态。
+- 所有可标准化流程统一声明稳定 ID、owner、failureTarget、五阶段、硬依赖、`order`、状态码、输入输出和结束前置条件；与总体目标无关或无唯一所有者的机制不得进入活动运行图。
+
 ## 统一运行机制
 
 - 每个 MOD 的声明源是所属 `manifest.ts`，生命周期源是 `_internal/control.ts`，公共调用从所属 `index.ts` 或已声明公共入口进入。
 - `scripts/codegen/generate-mod-wiring.mjs` 从 Manifest 自动生成 MOD 导入、子系统导入、别名、事件、Store、Prompt 和阶段接线；生成文件是派生结果，不是手工权威源。
 - MOD 加载器先全量校验，再按硬依赖拓扑、Manifest 显式 `order`、ASCII 机器标识的固定决胜顺序执行；生命周期、Remote 注册、配置变更和 `onLoad` 都由公共执行序契约发布 `ready/running/终结` 状态，失败立即返回 `core-mod-loader`，不继续冻结运行时。
 - 业务子系统由 `registerAllSubsystems()` 先按 Manifest 解析实例，再按 `mvp-stages-config.default.json` 当前活动清单的数组顺序原子接线；缺失、重复或未声明的活动成员在替换 Orchestrator 前失败。
-- 回合阶段与世界初始化步骤都声明 `prepare -> execute -> transition -> finalize`、硬依赖、`order`、所有者和故障接收者；未收到状态码、非法状态码、超时或终止性失败不会释放后续节点。同阶段、同依赖、同 `order` 的无冲突节点只有声明同一 `parallelGroup` 才并发，组内结果按确定性顺序记录，任一失败时仍等待同组终态后向流程所有者返回唯一失败。
+- 回合阶段、MOD 生命周期和世界初始化步骤都声明 `prepare -> ready -> execute -> transition -> finalize`、硬依赖、`order`、所有者和故障接收者；`ready` 负责排队和资源就绪，`transition` 负责阻塞/等待、依赖汇合、跨系统校验与原子提交。未收到状态码、非法状态码、超时或终止性失败不会释放后续节点。同阶段、同依赖、同 `order` 的无冲突节点只有声明同一 `parallelGroup` 才并发，组内结果按确定性顺序记录，任一失败时仍等待同组终态后向流程所有者返回唯一失败。
+- 活动执行流先在 `src/core/execution/execution-flow-registry.ts` 登记 `flowId/owner/failureTarget/department/subsystem`，共享执行器和结构门禁消费同一登记项；`npm run check:execution` 同时校验真实回合、MOD 生命周期、世界初始化、子系统推进的执行图、状态码、依赖祖先、唯一终态和生成接线漂移，并扫描已废弃的旧接线。
+- 执行器的原始节点状态进入现有开发诊断 JSONL，层级字段固定为部门/MOD → 子系统/团队 → 组件节点，阶段固定为上述五项；数据查看器只对原始事件派生聚合和分类指标，业务状态仍由 owning system 持有。
 - 是否参与当前核心模拟由 `src/mods/mod-engine/helpers/mvp-stages-config.default.json` 决定；目录、类或 Manifest 存在不等于已经激活。
 - Store 或子系统拥有业务状态，页面和聚合器只消费投影；跨系统写入必须经过公共契约。
 - 所有者自行完成能够在系统内部完成的计算、校验、状态写入、持久化和自动接线；调用方不复制这些职责。

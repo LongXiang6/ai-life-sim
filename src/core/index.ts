@@ -90,6 +90,11 @@ export {
 export type { InstrumentHooks, PromptAssemblyReport } from './instrument/instrument-mode'
 
 export {
+  EXECUTION_FLOWS,
+  listExecutionFlowRegistrations,
+} from './execution'
+
+export {
   postNarrativeRoundOutcome,
 } from './logger/narrative-round-diagnostic'
 export type {
@@ -97,6 +102,18 @@ export type {
   NarrativeRoundAdoption,
   NarrativeRoundOutcomeReport,
 } from './logger/narrative-round-diagnostic'
+
+export {
+  DEVELOPMENT_INCIDENT_CATEGORIES,
+  classifyDevelopmentIncident,
+  recordExecutionSequenceResult,
+} from './logger/development-system-diagnostic'
+export type {
+  DevelopmentExecutionEvent,
+  DevelopmentIncidentCategory,
+  DevelopmentSystemEvent,
+  DevelopmentSystemStatus,
+} from './logger/development-system-diagnostic'
 
 // 跨 MOD 公共函数库
 export {

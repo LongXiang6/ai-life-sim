@@ -43,7 +43,7 @@ if (target === 'changed') {
   }
 } else {
   try {
-    const resolved = resolveProfile(target, modName)
+    const resolved = resolveProfile(target, DOMAINS, modName)
     domainIds = resolved.ids
     profile = resolved.profile
   } catch (e) {

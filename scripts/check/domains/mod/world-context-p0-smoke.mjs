@@ -20,6 +20,7 @@ import { closeWorldContext } from '../../../../src/mods/mod-world/world-context-
 import { getWorldContextRegistrySystem } from '../../../../src/mods/mod-world/subsystems/world-context-registry-system.ts'
 import { getSpatialGraphSystem } from '../../../../src/mods/mod-world/subsystems/spatial-graph-system.ts'
 import { getContextTransitionSystem } from '../../../../src/mods/mod-world/subsystems/context-transition-system.ts'
+import { getWorldEntitySystem } from '../../../../src/mods/mod-world/subsystems/world-entity-system.ts'
 import { getSimulationScopePolicySystem } from '../../../../src/mods/mod-world/subsystems/simulation-scope-policy-system.ts'
 import { causalDelay } from '../../../../src/mods/mod-engine/subsystems/causal-delay-system.ts'
 import { foreshadowing } from '../../../../src/mods/mod-engine/subsystems/foreshadowing-system.ts'
@@ -391,6 +392,7 @@ const committed = await transition.transition({
 })
 
 const afterCommit = useWorldStore.getState()
+const worldEntitySystem = getWorldEntitySystem()
 assertOk(committed.ok, 'valid connected transition must commit')
 assertOk(afterCommit.currentContextId === second.record.id, 'committed transition must project the target context')
 assertOk(afterCommit.contexts[migratedContextId].scope.scope === 'background', 'source context must retain the requested background scope')
@@ -400,6 +402,37 @@ assertOk(
   afterCommit.contexts[second.record.id].spatialGraph.entityLocations[actorEntityId]?.nodeId
     === second.record.rootSpatialNodeId,
   'actor global entity location must move to the target root',
+)
+const transitionedActorReference = worldEntitySystem.getEntityReference(actorEntityId)
+assertOk(
+  transitionedActorReference?.kind === 'player'
+    && transitionedActorReference.contextIds.includes(migratedContextId)
+    && transitionedActorReference.contextIds.includes(second.record.id),
+  'context transition must atomically register the trusted player in both source and target directory contexts',
+)
+worldEntitySystem.repairEntityReferenceDirectory()
+assertOk(
+  worldEntitySystem.capturePersistenceState().entries.some((entry) => (
+    entry.entityId === actorEntityId && entry.kind === 'player' && entry.contextIds.includes(second.record.id)
+  )),
+  'a transitioned player directory must pass strict save validation',
+)
+
+// 旧版本刷新修复会把 character_* 空间端点误标为 NPC；新的修复应在
+// 正式目录校验前恢复 player 类型，避免下一次角色注入触发种类冲突。
+useWorldStore.getState().replaceEntityReferences(
+  worldEntitySystem.listEntityReferences().map((entry) => (
+    entry.entityId === actorEntityId ? { ...entry, kind: 'npc' } : entry
+  )),
+)
+worldEntitySystem.repairEntityReferenceDirectory()
+assertOk(
+  worldEntitySystem.getEntityReference(actorEntityId)?.kind === 'player',
+  'refresh directory repair must not classify a character_* endpoint as NPC',
+)
+assertOk(
+  worldEntitySystem.capturePersistenceState().entries.some((entry) => entry.entityId === actorEntityId && entry.kind === 'player'),
+  'repaired player directory must remain save-valid',
 )
 assertOk(
   afterCommit.contexts[migratedContextId].record.localClock.totalLocalDays === 100,
