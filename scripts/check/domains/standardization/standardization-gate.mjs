@@ -270,7 +270,11 @@ function main() {
   const skillRoot = path.resolve(projectRoot, config.skillRoot)
   const skillNames = []
   if (!fs.existsSync(skillRoot)) {
-    fail('STD-SKILL-ROOT', skillRoot, '项目 Skill 根目录不存在')
+    if (config.skillRootRequired !== false) {
+      fail('STD-SKILL-ROOT', skillRoot, '项目 Skill 根目录不存在')
+    } else {
+      console.warn(`[standardization] SKIP — external Skill root is unavailable: ${relative(skillRoot)}`)
+    }
   } else {
     const skillDirs = fs.readdirSync(skillRoot)
       .map((name) => path.join(skillRoot, name))

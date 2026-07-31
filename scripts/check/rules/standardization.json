@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "skillRoot": "../.agents/skills",
+  "skillRootRequired": false,
   "skillNamePattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
   "skillRequiredFiles": [
     "SKILL.md",
