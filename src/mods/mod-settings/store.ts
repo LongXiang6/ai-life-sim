@@ -11,7 +11,7 @@ import { devtools, persist, } from 'zustand/middleware'
 
 import type { ThemeType, } from '@/core/theme/theme-store'
 import {
-  AI_PROVIDERS,
+  DEFAULT_AI_BASE_URL,
   DEFAULT_AI_MODEL,
   DEFAULT_AI_PROVIDER_ID,
 } from '@/core/ai-service'
@@ -53,7 +53,7 @@ export function normalizeReasoningEffort(value: unknown): ReasoningEffort {
 export const DEFAULT_SETTINGS_VALUES = {
   provider: DEFAULT_AI_PROVIDER_ID,
   customKey: '',
-  customUrl: '',
+  customUrl: DEFAULT_AI_BASE_URL,
   customModel: DEFAULT_AI_MODEL,
   temperature: 0.8,
   topP: 0.8,
@@ -80,30 +80,19 @@ export interface ImportedModelSettings {
   customModel: string
 }
 
-/** 导入文件不能把旧托管目标重新写回浏览器；玩家自有的完整配置转为 custom 保留。 */
+/** 导入与迁移只保留玩家自有 API；旧预设统一转成 DeepSeek 填充状态。 */
 export function normalizeImportedModelSettings(value: Record<string, unknown>): ImportedModelSettings {
   const provider = typeof value.provider === 'string' ? value.provider : DEFAULT_AI_PROVIDER_ID
   const customKey = typeof value.customKey === 'string' ? value.customKey.trim() : ''
   const customUrl = typeof value.customUrl === 'string' ? value.customUrl.trim() : ''
   const customModel = typeof value.customModel === 'string' ? value.customModel.trim() : ''
 
-  if (provider === 'custom' || (!AI_PROVIDERS[provider] && customKey && customUrl && customModel)) {
-    return { provider: 'custom', customKey, customUrl, customModel }
-  }
-
-  if (provider !== 'custom' && customKey && customUrl && customModel) {
-    return { provider: 'custom', customKey, customUrl, customModel }
-  }
-
-  const preset = AI_PROVIDERS[provider] ?? AI_PROVIDERS[DEFAULT_AI_PROVIDER_ID]
-  const allowedModel = preset.models.some((model) => model.name === customModel)
-    ? customModel
-    : preset.models[0]?.name ?? DEFAULT_AI_MODEL
+  const hasPlayerOwnedTarget = provider === 'custom' || Boolean(customKey || customUrl)
   return {
-    provider: preset.id,
-    customKey: '',
-    customUrl: '',
-    customModel: allowedModel,
+    provider: DEFAULT_AI_PROVIDER_ID,
+    customKey: hasPlayerOwnedTarget ? customKey : '',
+    customUrl: hasPlayerOwnedTarget && customUrl ? customUrl : DEFAULT_AI_BASE_URL,
+    customModel: hasPlayerOwnedTarget && customModel ? customModel : DEFAULT_AI_MODEL,
   }
 }
 
@@ -184,7 +173,7 @@ export const useSettingsStore = create<SettingsState>()(
         ...DEFAULT_SETTINGS_VALUES,
 
         // 操作
-        setProvider: (provider,) => set({ provider, },),
+        setProvider: () => set({ provider: DEFAULT_AI_PROVIDER_ID, },),
         setCustomKey: (customKey,) => set({ customKey, },),
         setCustomUrl: (customUrl,) => set({ customUrl, },),
         setCustomModel: (customModel,) => set({ customModel, },),
@@ -222,44 +211,10 @@ export const useSettingsStore = create<SettingsState>()(
       }),
       {
         name: 'mod-settings:store',
-        version: 11,
+        version: 12,
         migrate: (persistedState: unknown, version: number) => {
           const state = persistedState as Partial<SettingsState>
           const migrated = { ...state }
-          if (version < 5) {
-            const hasExplicitModelConfig = Boolean(
-              state.customKey?.trim()
-              || state.customUrl?.trim()
-              || state.customModel?.trim()
-              || state.provider === 'custom',
-            )
-            if (!hasExplicitModelConfig) {
-              migrated.provider = DEFAULT_AI_PROVIDER_ID
-              migrated.customKey = ''
-              migrated.customUrl = ''
-              migrated.customModel = DEFAULT_AI_MODEL
-            }
-          }
-          if (version < 8) {
-            const selectedProvider = migrated.provider ?? DEFAULT_AI_PROVIDER_ID
-            const playerKey = migrated.customKey?.trim() ?? ''
-            if (selectedProvider !== 'custom' && playerKey) {
-              // 旧版允许在预设通道填写玩家 Key；升级后统一转为自定义配置并保留玩家数据。
-              migrated.provider = 'custom'
-              migrated.customKey = playerKey
-              migrated.customUrl = migrated.customUrl?.trim() ?? ''
-              migrated.customModel = migrated.customModel?.trim() ?? ''
-            } else if (selectedProvider !== 'custom') {
-              const providerConfig = AI_PROVIDERS[selectedProvider]
-              const existingModel = migrated.customModel?.trim() ?? ''
-              migrated.provider = providerConfig ? selectedProvider : DEFAULT_AI_PROVIDER_ID
-              migrated.customKey = ''
-              migrated.customUrl = ''
-              migrated.customModel = providerConfig?.models.some((model) => model.name === existingModel)
-                ? existingModel
-                : providerConfig?.models[0]?.name ?? DEFAULT_AI_MODEL
-            }
-          }
           if (version < 10) {
             migrated.reasoningEffort = normalizeReasoningEffort(state.reasoningEffort)
             migrated.talentThinkingIntensity = normalizeReasoningEffort(state.talentThinkingIntensity)
@@ -281,6 +236,11 @@ export const useSettingsStore = create<SettingsState>()(
               : migrated.narrativeStyleText ? 1 : 0
             migrated.narrativeStyle = 'default'
           }
+          const modelSettings = normalizeImportedModelSettings(migrated as Record<string, unknown>)
+          migrated.provider = modelSettings.provider
+          migrated.customKey = modelSettings.customKey
+          migrated.customUrl = modelSettings.customUrl
+          migrated.customModel = modelSettings.customModel
           migrated.theme = 'minimal-white'
           return migrated as SettingsState
         },
@@ -291,9 +251,11 @@ export const useSettingsStore = create<SettingsState>()(
         },
         merge: (persistedState, currentState) => {
           const persisted = persistedState as Partial<SettingsState>
+          const modelSettings = normalizeImportedModelSettings(persisted as Record<string, unknown>)
           return {
             ...currentState,
             ...persisted,
+            ...modelSettings,
             wordCountTarget: resolveNarrativeWordCountTarget(persisted.wordCountTarget),
           }
         },
@@ -306,25 +268,12 @@ export const useSettingsStore = create<SettingsState>()(
 /** 是否已配置可用的 API Key（欢迎页 / 世界选择等轻量校验） */
 export function isApiConfigured(): boolean {
   const { provider, customKey, customUrl, customModel } = useSettingsStore.getState()
-  return provider === 'custom' && Boolean(customKey && customUrl && customModel)
+  return provider === DEFAULT_AI_PROVIDER_ID
+    && Boolean(customKey.trim() && customUrl.trim() && customModel.trim())
 }
 
-/** 客户端设置或本地服务端环境任一可用即可开始游戏；不会把服务端密钥暴露到浏览器。 */
+/** 只有玩家自有 API 配置完整时才允许开始游戏。 */
 export async function hasAvailableApiConfiguration(): Promise<boolean> {
   if (typeof window === 'undefined') return false
-  const { provider, customUrl } = useSettingsStore.getState()
-  if (provider === 'custom' && !isApiConfigured()) return false
-  try {
-    const params = new URLSearchParams({ providerId: provider })
-    if (provider === 'custom') params.set('baseUrl', customUrl)
-    const response = await fetch(`/api/proxy?${params.toString()}`, {
-      method: 'GET',
-      cache: 'no-store',
-    })
-    if (!response.ok) return false
-    const result = await response.json() as { configured?: unknown }
-    return result.configured === true
-  } catch {
-    return false
-  }
+  return isApiConfigured()
 }

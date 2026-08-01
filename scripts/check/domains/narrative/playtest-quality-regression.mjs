@@ -13,6 +13,8 @@ import { parseNarrativeResponseEnvelope } from '../../../../src/mods/mod-engine/
 import {
   buildCanonicalCalendarNarrativeHint,
   buildTimeScaleNarrativeHint,
+  getTimeScaleNarrativeProfile,
+  TIME_SCALE_NARRATIVE_PROFILES,
 } from '../../../../src/mods/mod-engine/helpers/time-scale-narrative.ts'
 import { normalizeNarrativeParagraphs } from '../../../../src/mods/mod-engine/helpers/normalize-narrative-paragraphs.ts'
 import {
@@ -28,10 +30,12 @@ import {
   resolveNarrativeWordCountTarget,
 } from '../../../../src/foundation/constants/narrative-word-count.ts'
 import {
-  AI_PROVIDERS,
+  DEFAULT_AI_BASE_URL,
   DEFAULT_AI_MODEL,
   DEFAULT_AI_PROVIDER_ID,
 } from '../../../../src/core/ai-service/provider-config.ts'
+import { AVAILABLE_TIME_STEPS, encodeTimeStepKey } from '../../../../src/foundation/constants/time-steps.ts'
+import { COMPILED_NARRATIVE_SYSTEM_PROMPT } from '../../../../src/mods/mod-engine/server/narrative-system-prompt.ts'
 import {
   NarrativeAIBranchSchema,
   NarrativeAISettlementDataSchema,
@@ -141,16 +145,17 @@ function loadPersistMigration(sourceText) {
     'module',
     'exports',
     'DEFAULT_WORD_COUNT_TARGET',
-    'AI_PROVIDERS',
+    'DEFAULT_AI_BASE_URL',
     'DEFAULT_AI_PROVIDER_ID',
     'DEFAULT_AI_MODEL',
     'normalizeReasoningEffort',
+    'normalizeImportedModelSettings',
     transpiled,
   )(
     module,
     module.exports,
     DEFAULT_WORD_COUNT_TARGET,
-    AI_PROVIDERS,
+    DEFAULT_AI_BASE_URL,
     DEFAULT_AI_PROVIDER_ID,
     DEFAULT_AI_MODEL,
     (value) => ({
@@ -165,6 +170,19 @@ function loadPersistMigration(sourceText) {
       high: 'high',
       max: 'max',
     })[value] ?? 'disabled',
+    (value) => {
+      const provider = typeof value.provider === 'string' ? value.provider : DEFAULT_AI_PROVIDER_ID
+      const customKey = typeof value.customKey === 'string' ? value.customKey.trim() : ''
+      const customUrl = typeof value.customUrl === 'string' ? value.customUrl.trim() : ''
+      const customModel = typeof value.customModel === 'string' ? value.customModel.trim() : ''
+      const hasPlayerOwnedTarget = provider === 'custom' || Boolean(customKey || customUrl)
+      return {
+        provider: DEFAULT_AI_PROVIDER_ID,
+        customKey: hasPlayerOwnedTarget ? customKey : '',
+        customUrl: hasPlayerOwnedTarget && customUrl ? customUrl : DEFAULT_AI_BASE_URL,
+        customModel: hasPlayerOwnedTarget && customModel ? customModel : DEFAULT_AI_MODEL,
+      }
+    },
   )
   return module.exports
 }
@@ -226,20 +244,40 @@ assertParagraphsPreservingContent(
   'five-paragraph narrative',
 )
 
-const threeYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 3 })
-assertIncludes(threeYearHint, '完整覆盖连续3年', 'three-year hint must cover the full span')
-assertIncludes(threeYearHint, '起点阶段', 'three-year hint must narrate the starting phase')
-assertIncludes(threeYearHint, '当前年份', 'three-year hint must land on the target year')
-assertIncludes(threeYearHint, '而非只写目标年份', 'three-year hint must reject target-year-only output')
-
-const tenYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 10 })
-assertIncludes(tenYearHint, '完整覆盖连续10年', 'ten-year hint must cover the full span')
-assertIncludes(tenYearHint, '跨阶段改变', 'ten-year hint must require life/era phase change')
-assertIncludes(tenYearHint, '期间决定性转折', 'ten-year hint must include an intermediate turning point')
+const expectedTimeScaleKeys = AVAILABLE_TIME_STEPS.map(encodeTimeStepKey)
+assertSame(TIME_SCALE_NARRATIVE_PROFILES.length, expectedTimeScaleKeys.length, 'every available time step must own one narrative profile')
+assertSame(new Set(TIME_SCALE_NARRATIVE_PROFILES.map((profile) => profile.key)).size, expectedTimeScaleKeys.length, 'time-scale profile keys must be unique')
+assertSame(new Set(TIME_SCALE_NARRATIVE_PROFILES.map((profile) => profile.id)).size, expectedTimeScaleKeys.length, 'time-scale profile IDs must be unique')
+assertOk(
+  expectedTimeScaleKeys.every((key, index) => TIME_SCALE_NARRATIVE_PROFILES[index]?.key === key),
+  'time-scale profiles must follow the same semantic order as available time steps',
+)
+assertOk(
+  TIME_SCALE_NARRATIVE_PROFILES.every((profile, index, profiles) => index === 0 || profile.macroLevel > profiles[index - 1].macroLevel),
+  'time-scale macro levels must increase strictly from day to millennium',
+)
+for (const option of AVAILABLE_TIME_STEPS) {
+  const profile = getTimeScaleNarrativeProfile(option)
+  const hint = buildTimeScaleNarrativeHint(option)
+  assertSame(profile.key, encodeTimeStepKey(option), `profile key must match ${encodeTimeStepKey(option)}`)
+  assertIncludes(hint, profile.prompt, `${profile.id} prompt must enter the assembled time guidance`)
+}
 
 const oneYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 1 })
-assertIncludes(oneYearHint, '年度单场景视角', 'one-year hint must prioritize one representative scene')
-assertIncludes(oneYearHint, '不得不断换季、换地点或换任务', 'one-year hint must reject season-by-season vignettes')
+assertIncludes(oneYearHint, '年度全景视角', 'one-year hint must use an annual panorama')
+assertIncludes(oneYearHint, '不得把年度压缩成一个现场', 'one-year hint must reject a single-scene annual result')
+assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '日级可用一个可感知现场承载主线', 'fixed prompt must reserve single-scene focus for the daily scale')
+assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '年级及以上依本轮时间尺度用多个阶段节点或时代断点承载同一因果主线', 'fixed prompt must require multi-stage long-span narration')
+assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('若本轮按年或更长跨度推进，正文仍只选择一个代表性现场'), 'fixed prompt must not force annual or longer spans into one scene')
+assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('先选择能在该区间内自然收束的单一事件'), 'word-count guidance must not override long-span narrative scale')
+const tenYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 10 })
+assertIncludes(tenYearHint, '十年转型视角', 'ten-year hint must use decade transformation')
+const fiftyYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 50 })
+assertIncludes(fiftyYearHint, '半世纪历史视角', 'fifty-year hint must use historical perspective')
+assertIncludes(fiftyYearHint, '起点阶段、中段决定性转折和结束格局三个明确时期', 'fifty-year hint must require three explicit historical periods')
+assertIncludes(fiftyYearHint, '大部分篇幅不得停留在结束节点当天或任何单一现场', 'fifty-year hint must not collapse into the ending-day scene')
+const millenniumHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 1000 })
+assertIncludes(millenniumHint, '千年时代与遗产视角', 'millennium hint must use civilizational legacy perspective')
 
 const januaryCalendar = buildCanonicalCalendarNarrativeHint({
   timeStep: { unit: 'day', value: 1 },
@@ -293,7 +331,8 @@ const oneYearCalendar = buildCanonicalCalendarNarrativeHint({
   month: 1,
   day: 1,
 })
-assertIncludes(oneYearCalendar, '正文主体锁定一个代表性现场', 'single-year calendar guidance must not reuse multi-year staging language')
+assertIncludes(oneYearCalendar, '年度推进必须表现年初格局', 'single-year calendar guidance must require annual coverage')
+assertIncludes(oneYearCalendar, '不得压成单一现场', 'single-year calendar guidance must reject a single-scene annual result')
 assertOk(!oneYearCalendar.includes('多年推进必须'), 'single-year calendar guidance must not request a multi-year composition')
 
 const coarseToFineWindow = buildCanonicalCalendarNarrativeHint({
@@ -642,6 +681,12 @@ assertOk(
   'every length option must select distinct density guidance and define the whole-body target range',
 )
 assertOk(
+  buildWordCountInstruction(200).includes('按本轮视角分配必要节点')
+    && !buildWordCountInstruction(200).includes('一个感官锚点')
+    && !buildWordCountInstruction(200).includes('一组关键行动或对话'),
+  'word-count guidance must own density without forcing every time scale into one scene',
+)
+assertOk(
   buildLifecycleNarrativeHint(
     { ageDays: 730 },
     {
@@ -717,7 +762,7 @@ assertOk(
 const settingsPersistenceVersion = Number(
   settingsStoreSrc.match(/name:\s*'mod-settings:store'[\s\S]*?version:\s*(\d+)/)?.[1],
 )
-assertOk(settingsPersistenceVersion >= 11, 'settings persistence must include reasoning and custom-style migrations')
+assertOk(settingsPersistenceVersion >= 12, 'settings persistence must include the player-owned API migration')
 const migrateSettings = loadPersistMigration(settingsStoreSrc)
 assertSame(
   migrateSettings({ wordCountTarget: 400, theme: 'minimal-white' }, 2).wordCountTarget,
@@ -730,30 +775,31 @@ assertSame(
   'persisted explicit non-default word counts must be preserved',
 )
 const migratedManagedDefault = migrateSettings({
-  provider: 'deepseek',
+  provider: 'managed',
   customKey: '',
   customUrl: '',
-  customModel: '',
-}, 4)
-assertSame(migratedManagedDefault.provider, DEFAULT_AI_PROVIDER_ID, 'old empty defaults must migrate to the managed provider')
-assertSame(migratedManagedDefault.customUrl, '', 'managed migration must remove the target URL from browser state')
-assertSame(migratedManagedDefault.customModel, DEFAULT_AI_MODEL, 'managed migration must restore the public default model')
+  customModel: 'LongCat-2.0',
+}, 11)
+assertSame(migratedManagedDefault.provider, DEFAULT_AI_PROVIDER_ID, 'old managed defaults must migrate to the player API provider')
+assertSame(migratedManagedDefault.customUrl, DEFAULT_AI_BASE_URL, 'old managed defaults must receive the DeepSeek preset URL')
+assertSame(migratedManagedDefault.customModel, DEFAULT_AI_MODEL, 'old managed defaults must receive the DeepSeek preset model')
+assertSame(migratedManagedDefault.customKey, '', 'old managed credentials must not enter browser state')
 const migratedPreviousManagedTarget = migrateSettings({
-  provider: DEFAULT_AI_PROVIDER_ID,
+  provider: 'managed',
   customKey: 'player-owned-key',
   customUrl: 'https://dasuapi.com/v1',
   customModel: 'grok-4.5',
-}, 5)
+}, 11)
 assertSame(migratedPreviousManagedTarget.customKey, 'player-owned-key', 'managed target migration must preserve a player-owned key')
 assertSame(migratedPreviousManagedTarget.provider, 'custom', 'older player-owned managed targets must become explicit custom configuration')
 assertSame(migratedPreviousManagedTarget.customUrl, 'https://dasuapi.com/v1', 'older player-owned interface must survive migration')
 assertSame(migratedPreviousManagedTarget.customModel, 'grok-4.5', 'older player-owned model must survive migration')
 const migratedA6ManagedOverride = migrateSettings({
-  provider: DEFAULT_AI_PROVIDER_ID,
+  provider: 'managed-a6',
   customKey: 'player-owned-a6-key',
   customUrl: 'https://player-old-provider.example/v1',
   customModel: 'gpt-5.6-luna',
-}, 6)
+}, 11)
 assertSame(migratedA6ManagedOverride.customKey, 'player-owned-a6-key', 'a6api override migration must preserve the player-owned key')
 assertSame(migratedA6ManagedOverride.provider, 'custom', 'every player-owned preset override must become custom configuration')
 assertSame(migratedA6ManagedOverride.customUrl, 'https://player-old-provider.example/v1', 'player-owned legacy interface must survive migration')
@@ -788,11 +834,11 @@ const migratedCustomStyle = migrateSettings({
 assertSame(migratedCustomStyle.narrativeStyleText, exactCustomStyle, 'saved custom style text must survive migration byte-for-byte')
 assertSame(migratedCustomStyle.narrativeStyleVersion, 7, 'saved custom style version must survive migration')
 assertOk(
-  /export async function hasAvailableApiConfiguration\(\)[\s\S]{0,420}provider === 'custom'[\s\S]{0,260}params\.set\('baseUrl', customUrl\)[\s\S]{0,180}fetch\(`\/api\/proxy\?\$\{params\.toString\(\)\}`/.test(settingsStoreSrc)
-    && /export function GET\(request: Request\): Response[\s\S]{0,420}isRegisteredServerProviderBaseUrl[\s\S]{0,220}hasServerProviderTarget\(providerId\)[\s\S]{0,160}hasServerProviderApiKey\(providerId\)/.test(proxyRouteSrc)
+  /export async function hasAvailableApiConfiguration\(\)[\s\S]{0,180}return isApiConfigured\(\)/.test(settingsStoreSrc)
+    && /providerId !== DEFAULT_AI_PROVIDER_ID[\s\S]{0,260}当前版本只支持玩家自己的 API Key/.test(proxyRouteSrc)
     && /await hasAvailableApiConfiguration\(\)/.test(welcomePageSrc)
     && /await hasAvailableApiConfiguration\(\)/.test(worldConfirmSrc),
-  'a server-side managed key must satisfy the client entry gates without exposing the secret to the browser',
+  'entry gates and proxy routing must require a complete player-owned API configuration',
 )
 
 assertOk(/AI_DESTINY_PATTERN_BATCH_SIZE\s*=\s*10/.test(constantsSrc), 'destiny each AI batch must request 10 items')
@@ -1004,7 +1050,7 @@ assertOk(
   'the destiny page adapter must preserve the subsystem output schema and enforce it for non-streaming calls',
 )
 assertOk(
-  /providerId === 'deepseek'[\s\S]{0,220}reasoningEffort === 'disabled'[\s\S]{0,120}thinking = \{ type: 'disabled' \}/.test(aiClientSrc)
+  /if \(isDeepSeekModel\)[\s\S]{0,220}reasoningEffort === 'disabled'[\s\S]{0,120}thinking = \{ type: 'disabled' \}/.test(aiClientSrc)
     && /proxyBody\.reasoning_effort = reasoningEffort/.test(aiClientSrc)
     && /reasoning_effort:\s*z\.enum\(\['high', 'max'\]\)/.test(proxyRouteSrc)
     && /type: z\.literal\('disabled'\)/.test(proxyRouteSrc),
@@ -1037,21 +1083,21 @@ assertOk(orchestratorSrc.includes('capturePreviewSnapshot'), 'pre-gen snapshots 
 assertOk(/hydrateFromEngineStore\(previousTimeStep\?/.test(orchestratorSrc), 'stale preview hydration must accept the previous time step')
 assertOk(orchestratorSrc.includes('reconcilePreviewSnapshotWithEngineStore'), 'stale preview must reconcile non-store state before hydrating authoritative store state')
 
-assertOk(timeScaleSrc.includes('年度单场景视角'), 'year step must use one representative annual scene')
+assertOk(timeScaleSrc.includes('年度全景视角'), 'year step must use an annual panorama')
 assertOk(
   timeScaleSrc.includes('首句不要使用“这一年”“这一月”“这一天”等泛指时间套语')
     && timeScaleSrc.includes('确需时间锚时使用“当前时间”中的具体纪年、季节、月日'),
   'time guidance must vary openings and use the explicit calendar label when a time anchor is needed',
 )
 assertOk(
-  timeScaleSrc.includes('不得不断换季、换地点或换任务')
-    && timeScaleSrc.includes('同一因果主线')
-    && timeScaleSrc.includes('拼接独立生活切片'),
-  'year-scale guidance must prohibit disconnected vignettes and retain one causal arc',
+  timeScaleSrc.includes('不得把年度压缩成一个现场')
+    && timeScaleSrc.includes('同一时间跨度内的因果主线')
+    && timeScaleSrc.includes('家庭、组织、社会与文明'),
+  'year-scale guidance must expand its lens while retaining one causal arc',
 )
-assertOk(timeScaleSrc.includes('季度中景视角'), 'season step must use quarterly medium perspective')
-assertOk(timeScaleSrc.includes('月度近景视角'), 'month step must use monthly close perspective')
-assertOk(timeScaleSrc.includes('单日生活视角'), 'day step must use daily-life perspective')
+assertOk(timeScaleSrc.includes('季度阶段视角'), 'season step must use quarterly stage perspective')
+assertOk(timeScaleSrc.includes('月度变化视角'), 'month step must use monthly change perspective')
+assertOk(timeScaleSrc.includes('单日现场视角'), 'day step must use daily scene perspective')
 assertOk(/case 'year'[\s\S]{0,120}return eraLabel/.test(narrativeCalendarSrc), 'year label must contain only the year/era')
 assertOk(
   /seasonName/.test(narrativeCalendarSrc)
@@ -1068,7 +1114,7 @@ const monthAfterSeasonStep = (mayIndex + 3) % 12
 assertSame(Math.floor(((monthAfterSeasonStep + 10) % 12) / 3), 1, 'month->season must land in the following solar season')
 assertOk(narrativeSignalsSrc.includes("metadata.importance !== 'HIGH'"), 'branch metadata must require HIGH importance')
 assertOk(narrativePromptComponentsSrc.includes('身份、核心关系、长期目标、关键资源、阵营、存亡等不可逆轨迹'), 'branch prompt must define fate-changing impact dimensions')
-assertOk(/version:\s*'5\.8\.0'/.test(narrativePromptSrc), 'pure narrative contract must use version 5.8.0')
+assertOk(/version:\s*'5\.8\.1'/.test(narrativePromptSrc), 'pure narrative contract must use version 5.8.1')
 assertOk(
   narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
     && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),

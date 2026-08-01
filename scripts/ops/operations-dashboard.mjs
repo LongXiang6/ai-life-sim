@@ -10,6 +10,8 @@ import { fileURLToPath } from 'node:url'
 
 import Database from 'better-sqlite3'
 
+import { logDatabasesExist } from './lib/log-databases.mjs'
+
 const execFileAsync = promisify(execFile)
 const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000
 const DEFAULT_HOST = '127.0.0.1'
@@ -121,7 +123,7 @@ function emptyTraffic() {
 }
 
 async function readTrafficStats(logRoot, now) {
-  if (!fs.existsSync(logRoot)) return emptyTraffic()
+  if (!logDatabasesExist(logRoot)) return emptyTraffic()
   const from = new Date(shanghaiDayStart(now)).toISOString()
   const to = new Date(now).toISOString()
   const { stdout } = await execFileAsync(process.execPath, [

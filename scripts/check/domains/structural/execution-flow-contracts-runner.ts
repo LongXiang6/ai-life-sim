@@ -44,6 +44,40 @@ import type {
   WorldInitPipelineContext,
 } from '@/mods/mod-world/utils/world-init-pipeline'
 
+interface RootCauseChain {
+  directFailure: string
+  precondition: string
+  preconditionCause: string
+  formationMechanism: string
+  preventionGate: string
+}
+
+interface RootCauseEvidence {
+  type: string
+  source: string
+  observation: string
+}
+
+interface RootCauseContract {
+  rootCauseRequiredStatuses: ExecutionRecordStatus[]
+  rootCauseChainFields: string[]
+  rootCauseEvidenceTypes: string[]
+  timeoutEvidenceRequirement?: {
+    quantificationTypes: string[]
+    reproductionTypes: string[]
+  }
+  prohibitedTimeoutPatchPatterns: string[]
+}
+
+interface ExecutionIncidentFixture {
+  id: string
+  status: ExecutionRecordStatus
+  message: string
+  expectedCategory: string
+  rootCauseChain?: RootCauseChain
+  rootCauseEvidence?: RootCauseEvidence[]
+}
+
 const root = process.cwd()
 const review = JSON.parse(fs.readFileSync(
   path.join(root, 'scripts', 'check', 'rules', 'execution-system-review.json'),
@@ -51,17 +85,12 @@ const review = JSON.parse(fs.readFileSync(
 )) as {
   requiredFlowIds: string[]
   requiredIncidentCategories: string[]
-}
+} & RootCauseContract
 const incidentFixtures = JSON.parse(fs.readFileSync(
   path.join(root, 'scripts', 'check', 'fixtures', 'execution-incidents.json'),
   'utf8',
 )) as {
-  incidents: Array<{
-    id: string
-    status: ExecutionRecordStatus
-    message: string
-    expectedCategory: string
-  }>
+  incidents: ExecutionIncidentFixture[]
 }
 
 function validateGraph<TContext>(
@@ -239,6 +268,93 @@ function testIncidentFixtures(): void {
   assert.deepEqual([...categories].sort(), [...review.requiredIncidentCategories].sort())
 }
 
+function validateRootCauseFixture(
+  fixture: ExecutionIncidentFixture,
+  contract: RootCauseContract,
+): string[] {
+  if (!contract.rootCauseRequiredStatuses.includes(fixture.status)) return []
+  const errors: string[] = []
+  const chain = fixture.rootCauseChain
+  if (!chain) {
+    errors.push('missing rootCauseChain')
+    return errors
+  }
+  const fields = contract.rootCauseChainFields
+  if (JSON.stringify([...Object.keys(chain)].sort()) !== JSON.stringify([...fields].sort())) {
+    errors.push('rootCauseChain fields must match the declared contract')
+  }
+  const values = fields.map((field) => chain[field as keyof RootCauseChain])
+  if (values.some((value) => value === undefined || value.trim() === '')) {
+    errors.push('rootCauseChain fields must be non-empty strings')
+  }
+  if (new Set(values).size !== fields.length) {
+    errors.push('rootCauseChain fields must not collapse into the same cause')
+  }
+  if (fixture.status === 'timed-out') {
+    for (const field of fields) {
+      const value = chain[field as keyof RootCauseChain]
+      const pattern = typeof value === 'string'
+        ? contract.prohibitedTimeoutPatchPatterns.find((prohibited) => value.includes(prohibited))
+        : undefined
+      if (pattern) errors.push(`timeout patch-only phrase in ${field}: ${pattern}`)
+    }
+  }
+  const evidence = fixture.rootCauseEvidence ?? []
+  if (evidence.length === 0) errors.push('rootCauseEvidence must not be empty')
+  for (const item of evidence) {
+    if (!contract.rootCauseEvidenceTypes.includes(item.type)) {
+      errors.push(`unsupported root cause evidence type: ${item.type}`)
+    }
+    if (
+      typeof item.source !== 'string' || !item.source.trim()
+      || typeof item.observation !== 'string' || !item.observation.trim()
+    ) {
+      errors.push('rootCauseEvidence source and observation must be non-empty')
+    }
+  }
+  if (fixture.status === 'timed-out' && contract.timeoutEvidenceRequirement) {
+    const { quantificationTypes, reproductionTypes } = contract.timeoutEvidenceRequirement
+    const hasQuantification = evidence.some((item) => quantificationTypes.includes(item.type))
+    const hasReproduction = evidence.some((item) => reproductionTypes.includes(item.type))
+    if (!hasQuantification || !hasReproduction) {
+      errors.push('timed-out rootCauseEvidence must include one quantification type and one reproduction type')
+    }
+  }
+  return errors
+}
+
+function testRootCauseContract(): void {
+  for (const fixture of incidentFixtures.incidents) {
+    const errors = validateRootCauseFixture(fixture, review)
+    assert.deepEqual(errors, [], fixture.id)
+  }
+  const timeoutPatchOnly: ExecutionIncidentFixture = {
+    id: 'timeout-patch-only-negative',
+    status: 'timed-out',
+    message: '节点超过契约时限 5000ms',
+    expectedCategory: 'timed-out',
+    rootCauseChain: {
+      directFailure: '等待时间不足',
+      precondition: '等待时间不足',
+      preconditionCause: '等待时间不足',
+      formationMechanism: '等待时间不足',
+      preventionGate: '提高超时阈值',
+    },
+    rootCauseEvidence: [
+      {
+        type: 'metric',
+        source: 'execution record',
+        observation: 'durationMs 3000ms',
+      },
+    ],
+  }
+  const errors = validateRootCauseFixture(timeoutPatchOnly, review)
+  assert.ok(
+    errors.some((error) => error.includes('timeout patch-only')),
+    'timeout patch-only fixture must be rejected',
+  )
+}
+
 async function testExecutionDiagnostics(): Promise<void> {
   const flow: ExecutionFlowRegistration = {
     flowId: 'diagnostic-contract',
@@ -288,5 +404,6 @@ testWorldInitialization()
 testSubsystemAdvance()
 testNegativeContracts()
 testIncidentFixtures()
+testRootCauseContract()
 await testExecutionDiagnostics()
 console.log('[execution-flow-contracts] PASS')

@@ -283,6 +283,61 @@
 
 .rulesSection {}
 
+.previewSection {
+  margin-top: calc(8 * var(--final-flow-density-px));
+}
+
+.rulePreviewGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: calc(6 * var(--final-flow-density-px));
+}
+
+.rulePreviewItem {
+  display: grid;
+  min-width: 0;
+  min-height: calc(52 * var(--final-flow-density-px));
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: calc(6 * var(--final-flow-density-px));
+  padding: calc(7 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid var(--cf-line);
+  border-radius: calc(9 * var(--final-flow-density-px));
+  background: var(--cf-soft);
+}
+
+.rulePreviewIcon {
+  display: inline-grid;
+  width: 1.1em;
+  place-items: center;
+  color: var(--cf-accent);
+  font-size: calc(11 * var(--final-flow-density-px));
+}
+
+.rulePreviewCopy {
+  min-width: 0;
+}
+
+.rulePreviewCopy strong,
+.rulePreviewCopy small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.rulePreviewCopy strong {
+  color: var(--cf-ink);
+  font-size: calc(8.6 * var(--final-flow-density-px));
+  font-weight: 680;
+  line-height: 1.3;
+}
+
+.rulePreviewCopy small {
+  margin-top: calc(3 * var(--final-flow-density-px));
+  color: var(--cf-muted);
+  font-size: calc(8 * var(--final-flow-density-px));
+  line-height: 1.4;
+}
+
 .sectionHeading {
   display: flex;
   align-items: baseline;

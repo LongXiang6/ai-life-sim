@@ -565,7 +565,6 @@ export class NpcSystem extends BaseSubsystem {
     const npc = resolveNpcReference(changes, context, packageChanges)
     if (!npc.contextIds.includes(context.contextId)) throw new Error('NPC 不在目标上下文可见范围')
     const evidenceIds = changes.evidenceEventIds ?? []
-    if (changes.operation === 'record-memory' && evidenceIds.length === 0) throw new Error('NPC 记忆必须引用历史事件')
     validateEvidence(evidenceIds, context.contextId)
     const payload = changes.changes
     assertOperationPayloadKeys(changes.operation, payload)
@@ -723,19 +722,40 @@ export class NpcSystem extends BaseSubsystem {
       useNpcSystemStore.setState({ behaviorRecords: [...state.behaviorRecords, behavior] })
       return
     }
+    const nextBehaviorRecords = [...state.behaviorRecords]
+    const memorySourceKind: NpcMemory['sourceKind'] = evidenceEventIds.length > 0 ? 'historical-event' : 'behavior'
+    let memorySourceId: string | undefined = evidenceEventIds[0]
+    if (operation === 'record-memory' && memorySourceKind === 'behavior') {
+      const behaviorId = `npc-behavior:${encodeURIComponent(npcId)}:${encodeURIComponent(context.contextId)}:${context.totalDays}:${nextBehaviorRecords.length}`
+      nextBehaviorRecords.push({
+        behaviorId,
+        npcId,
+        contextId: context.contextId,
+        operation: 'memory-source',
+        description: changes.description,
+        targetEntityIds: stringList(payload.relatedEntityIds),
+        occurredAtTotalDays: context.totalDays,
+        historicalEventIds: [],
+        source: 'instruction',
+      })
+      memorySourceId = behaviorId
+    }
     const memory: NpcMemory = {
       memoryId: `npc-memory:${encodeURIComponent(npcId)}:${encodeURIComponent(context.contextId)}:${context.totalDays}:${state.memories.length}`,
       npcId,
       contextId: context.contextId,
-      sourceKind: evidenceEventIds.length > 0 ? 'historical-event' : 'behavior',
-      sourceId: evidenceEventIds[0] ?? `round:${context.roundSequence ?? 0}`,
+      sourceKind: memorySourceKind,
+      sourceId: memorySourceId ?? `round:${context.roundSequence ?? 0}`,
       summary: String(payload.summary),
       emotion: typeof payload.emotion === 'number' ? Math.max(-10, Math.min(10, payload.emotion)) : 0,
       relatedEntityIds: stringList(payload.relatedEntityIds),
       createdAtTotalDays: context.totalDays,
       sourceMemoryIds: stringList(payload.sourceMemoryIds),
     }
-    useNpcSystemStore.setState({ memories: [...state.memories, memory] })
+    useNpcSystemStore.setState({
+      behaviorRecords: nextBehaviorRecords,
+      memories: [...state.memories, memory],
+    })
   }
 
   capturePersistenceState(): NpcSystemPersistenceState {

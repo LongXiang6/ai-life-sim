@@ -62,6 +62,10 @@ try {
     entryType: 'client-log',
     source,
     message: 'delete-before-yesterday',
+    prompt,
+    response,
+    meta,
+    payload: { nested: { password: 'plain-password' } },
   }), 'expired fixture row must be written')
 
   const queried = store.queryServerLogEntries({ requestId: 'request-plain-001' })
@@ -76,9 +80,11 @@ try {
   assert(entry.deviceProvenanceId === source.deviceProvenanceId, 'device provenance ID must be queryable independently from the diagnostic code')
 
   await store.cleanupServerLogsNow(now)
-  assert(store.queryServerLogEntries({}).entries.some((row) => row.id === 'today-entry'), 'today row must be retained')
-  assert(store.queryServerLogEntries({}).entries.some((row) => row.id === 'yesterday-entry'), 'yesterday row must be retained')
-  assert(!store.queryServerLogEntries({}).entries.some((row) => row.id === 'expired-entry'), 'rows before yesterday must be deleted')
+  const retained = store.queryServerLogEntries({})
+  assert(retained.entries.some((row) => row.id === 'today-entry'), 'today row must be retained')
+  assert(retained.entries.some((row) => row.id === 'yesterday-entry'), 'yesterday row must be retained')
+  assert(retained.entries.some((row) => row.id === 'expired-entry'), 'archived rows must remain visible through the public query')
+  assert(retained.total === 3, 'public queries must count hot and archived rows exactly once')
 
   store.closeServerLogDatabaseForTests()
   const database = new Database(databasePath, { readonly: true, fileMustExist: true })
@@ -88,8 +94,66 @@ try {
     assert(raw.meta_json.includes('plain-secret-key') && raw.payload_json.includes('plain-password'), 'SQLite JSON columns must contain exact plaintext values')
     const columns = database.pragma('table_info(log_entries)').map((column) => column.name)
     assert(!columns.some((name) => /ref|hash|cipher|encrypted|compressed/i.test(name)), 'schema must not contain content references, hashes, encryption, or compression columns')
+    assert(!database.prepare('SELECT 1 FROM log_entries WHERE id = ?').get('expired-entry'), 'expired rows must leave the active database after archival')
   } finally {
     database.close()
+  }
+
+  const archiveDatabasePath = path.join(tempRoot, 'logs-archive.sqlite')
+  const archiveDatabase = new Database(archiveDatabasePath, { readonly: true, fileMustExist: true })
+  try {
+    const archived = archiveDatabase.prepare(`
+      SELECT prompt, response, meta_json, payload_json
+      FROM log_entries
+      WHERE id = ?
+    `).get('expired-entry')
+    assert(
+      archived?.prompt === prompt
+        && archived?.response === response
+        && archived?.meta_json.includes('plain-secret-key')
+        && archived?.payload_json.includes('plain-password'),
+      'expired rows must be archived with the exact plaintext columns',
+    )
+  } finally {
+    archiveDatabase.close()
+  }
+
+  assert(await store.appendServerLogEntry({
+    id: 'expired-entry',
+    createdAt: beforeYesterday,
+    entryType: 'client-log',
+    source,
+    message: 'conflicting-hot-copy',
+  }), 'conflicting hot fixture row must be written')
+  let queryError
+  try {
+    store.queryServerLogEntries({})
+  } catch (error) {
+    queryError = error
+  }
+  assert(
+    queryError instanceof Error && /日志归档 ID 冲突：expired-entry/u.test(queryError.message),
+    'public queries must reject same-ID rows with different content',
+  )
+  let cleanupError
+  try {
+    await store.cleanupServerLogsNow(now)
+  } catch (error) {
+    cleanupError = error
+  }
+  assert(
+    cleanupError instanceof Error && /日志归档 ID 冲突：expired-entry/u.test(cleanupError.message),
+    'archive migration must fail explicitly on a same-ID content conflict',
+  )
+  store.closeServerLogDatabaseForTests()
+  const retainedConflict = new Database(databasePath, { readonly: true, fileMustExist: true })
+  try {
+    assert(
+      retainedConflict.prepare('SELECT message FROM log_entries WHERE id = ?').get('expired-entry')?.message === 'conflicting-hot-copy',
+      'failed archive migration must retain the original hot row',
+    )
+  } finally {
+    retainedConflict.close()
   }
 
   const artifacts = await fs.readdir(tempRoot)

@@ -235,9 +235,9 @@ export function useEngine() {
  */
 export function useSimulationAdvance() {
   const [isAdvancing, setIsAdvancing] = useState(false)
-  // Branch confirmation can invoke the callback during the render that closes
-  // out the previous round. Keep the mutex outside React's render snapshots so
-  // that a stale callback cannot silently skip the next request.
+  // Claim the mutex before any asynchronous wait. Branch confirmation and
+  // automatic retries can otherwise queue behind finalization and start a
+  // second real round after the first request releases the lock.
   const isAdvancingRef = useRef(false)
   const allModsLoaded = useGlobalStore((s) => s.allModsLoaded)
   const [runtimeReadiness, setRuntimeReadiness] = useState(getSimulationRuntimeReadiness)
@@ -261,141 +261,148 @@ export function useSimulationAdvance() {
   }, [])
 
   const advanceRound = useCallback(async () => {
-    await waitForRoundFinalization()
     if (isAdvancingRef.current) {
       return
     }
-    const runtimeReadiness = getSimulationRuntimeReadiness()
-    if (!runtimeReadiness.loaderReady) {
-      useEngineStore.getState().setNarrativeError('核心模拟系统仍在初始化，请稍候重试。')
-      return
-    }
-    if (runtimeReadiness.missingSubsystems.length > 0) {
-      console.error(
-        '[useSimulationAdvance] 核心运行时子系统未完整注册:',
-        runtimeReadiness.missingSubsystems,
-      )
-      useEngineStore.getState().setNarrativeError('核心模拟系统未完整加载，请刷新页面后重试。')
-      return
-    }
-
     isAdvancingRef.current = true
     setIsAdvancing(true)
-    useEngineStore.getState().clearPendingNarrative()
-    useEngineStore.setState({ narrativeError: null })
-
-    // 预生成关闭时也要等待上一轮摘要压缩提交，避免两个真实回合并发改写同一压缩器。
-    await orchestrator.waitForBackgroundCompression()
-
-    const {
-      customModel,
-      temperature,
-      reasoningEffort,
-      provider,
-    } = useSettingsStore.getState()
-    // 从单一来源常量取默认字数，与 orchestrator、pre-gen 共享同一常量
-    const wordCountTarget = useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET
-
-    const model = customModel || DEFAULT_AI_MODEL
-    const aiConfig: AIModelConfig = {
-      model,
-      temperature: temperature ?? 0.8,
-      maxTokens: computeNarrativeMaxTokens(wordCountTarget, {
-        reasoningEffort,
-        providerId: provider,
-        model,
-      }),
-      stream: false,
-      reasoningEffort,
-    }
-
-    // 检测时间步长变化，变化时清空旧粒度的预生成队列
-    checkAndClearPreGenOnTimeStepChange(useEngineStore.getState().timeStep)
-
-    const forceBranch = useEngineStore.getState().forceBranchNext
-    let cached = !forceBranch ? shiftPreGenQueue(narrativePrompt) : undefined
-    const shouldWaitForActivePreGen = !cached && !forceBranch && getPreGenQueueStatus().isActive
-    if (shouldWaitForActivePreGen) {
-      cached = await waitForPreGenQueueItem(narrativePrompt)
-      if (!cached) clearPreGenQueue()
-    }
-
-    // orchestrator 是运行时单例。必须等在途预览结束后再同步上下文和步长，
-    // 否则步长切换会在预览 AI 等待期间改写同一份运行态。
-    ensureOrchestratorContextFromStores()
-    orchestrator.setTimeStep(useEngineStore.getState().timeStep)
-    const roundSnapshot = orchestrator.capturePreviewSnapshot()
-
-    // 推进前确保 orchestrator 可执行（避免 pause 后 status=paused 导致空回合）
-    orchestrator.start()
-
-    if (cached?.fullContent) {
-      orchestrator.setPrefetchedNarrative(cached.fullContent, cached.luckGuidance)
-      if (cached.isBranchPoint) clearPreGenQueue()
-    }
-
     try {
-      await orchestrator.executeRoundV2(
-        narrativePrompt,
-        aiConfig,
-        worldCode ? `sim-${worldCode}` : undefined,
-      )
-      // 自动保存与回合 outcome 只在同一轮最终状态稳定后各执行一次；不记录点击、导航或输入过程。
-      const completedExecutionId = useEngineStore.getState().pendingNarrative?.executionId
-      syncOrchestratorToEngineStore()
-      useEngineStore.getState().clearPendingNarrative(completedExecutionId)
-      const completedState = useEngineStore.getState()
-      const repetition = completedState.narrativeHistory[completedState.narrativeHistory.length - 1]?.repetitionMetric
-      if (repetition) {
-        reportStoryRepetitionMetric(completedState.lifeRunId, repetition)
+      await waitForRoundFinalization()
+      const runtimeReadiness = getSimulationRuntimeReadiness()
+      if (!runtimeReadiness.loaderReady) {
+        useEngineStore.getState().setNarrativeError('核心模拟系统仍在初始化，请稍候重试。')
+        return
       }
-      queueRoundFinalization(async () => {
-        await orchestrator.waitForBackgroundCompression()
-        syncOrchestratorToEngineStore()
-        await orchestrator.triggerAutoSave()
-        const report = orchestrator.getLastRoundDiagnostic()
-        if (report) await postNarrativeRoundOutcome(report)
-        void fillPreGenQueue(narrativePrompt, worldCode ? `sim-pregen-${worldCode}` : undefined)
-      })
-    } catch (err) {
-      const expectedQualityRejection = err instanceof Error
-        && (
-          err.name === 'NarrativeGenerationRejectedError'
-          || err.name === 'NarrativeSettlementRejectedError'
-          || err.name === 'NarrativeEventRecognitionRejectedError'
+      if (runtimeReadiness.missingSubsystems.length > 0) {
+        console.error(
+          '[useSimulationAdvance] 核心运行时子系统未完整注册:',
+          runtimeReadiness.missingSubsystems,
         )
-      const logRoundFailure = expectedQualityRejection ? logger.warn : logger.error
-      logRoundFailure('simulation', '回合执行失败', err)
+        useEngineStore.getState().setNarrativeError('核心模拟系统未完整加载，请刷新页面后重试。')
+        return
+      }
+
+      useEngineStore.getState().clearPendingNarrative()
+      useEngineStore.setState({ narrativeError: null })
+
+      // 预生成关闭时也要等待上一轮摘要压缩提交，避免两个真实回合并发改写同一压缩器。
+      await orchestrator.waitForBackgroundCompression()
+
+      const {
+        customModel,
+        temperature,
+        reasoningEffort,
+        provider,
+      } = useSettingsStore.getState()
+      // 从单一来源常量取默认字数，与 orchestrator、pre-gen 共享同一常量
+      const wordCountTarget = useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET
+
+      const model = customModel || DEFAULT_AI_MODEL
+      const aiConfig: AIModelConfig = {
+        model,
+        temperature: temperature ?? 0.8,
+        maxTokens: computeNarrativeMaxTokens(wordCountTarget, {
+          reasoningEffort,
+          providerId: provider,
+          model,
+        }),
+        stream: false,
+        reasoningEffort,
+      }
+
+      // 检测时间步长变化，变化时清空旧粒度的预生成队列
+      checkAndClearPreGenOnTimeStepChange(useEngineStore.getState().timeStep)
+
+      const forceBranch = useEngineStore.getState().forceBranchNext
+      let cached = !forceBranch ? shiftPreGenQueue(narrativePrompt) : undefined
+      const shouldWaitForActivePreGen = !cached && !forceBranch && getPreGenQueueStatus().isActive
+      if (shouldWaitForActivePreGen) {
+        cached = await waitForPreGenQueueItem(narrativePrompt)
+        if (!cached) clearPreGenQueue()
+      }
+
+      // orchestrator 是运行时单例。必须等在途预览结束后再同步上下文和步长，
+      // 否则步长切换会在预览 AI 等待期间改写同一份运行态。
+      ensureOrchestratorContextFromStores()
+      orchestrator.setTimeStep(useEngineStore.getState().timeStep)
+      const roundSnapshot = orchestrator.capturePreviewSnapshot()
+
       try {
-        orchestrator.restorePreviewSnapshot(roundSnapshot)
-      } catch (rollbackError) {
-        logger.error('simulation', '回合回滚失败', rollbackError)
-      }
-      const failedReport = orchestrator.getLastRoundDiagnostic()
-      if (failedReport) {
-        queueRoundFinalization(async () => {
-          await postNarrativeRoundOutcome(failedReport)
-        })
-      }
-      const errorMessage = err instanceof Error ? err.message : '叙事生成失败'
-      const executionError = err as Error & {
-        executionCode?: string
-        executionId?: string
-      }
-      const pendingNarrative = useEngineStore.getState().pendingNarrative
-      if (pendingNarrative) {
-        useEngineStore.getState().updatePendingNarrative(
-          pendingNarrative.executionId,
-          'failed',
-          executionError.executionCode ?? 'narrative-round:failed',
-          errorMessage,
+        // 推进前确保 orchestrator 可执行（避免 pause 后 status=paused 导致空回合）
+        orchestrator.start()
+
+        if (cached?.fullContent) {
+          orchestrator.setPrefetchedNarrative(cached.fullContent, cached.luckGuidance)
+          if (cached.isBranchPoint) clearPreGenQueue()
+        }
+
+        await orchestrator.executeRoundV2(
+          narrativePrompt,
+          aiConfig,
+          worldCode ? `sim-${worldCode}` : undefined,
         )
+        // 自动保存与回合 outcome 只在同一轮最终状态稳定后各执行一次；不记录点击、导航或输入过程。
+        const completedExecutionId = useEngineStore.getState().pendingNarrative?.executionId
+        syncOrchestratorToEngineStore()
+        useEngineStore.getState().clearPendingNarrative(completedExecutionId)
+        const completedState = useEngineStore.getState()
+        const repetition = completedState.narrativeHistory[completedState.narrativeHistory.length - 1]?.repetitionMetric
+        if (repetition) {
+          reportStoryRepetitionMetric(completedState.lifeRunId, repetition)
+        }
+        queueRoundFinalization(async () => {
+          await orchestrator.waitForBackgroundCompression()
+          syncOrchestratorToEngineStore()
+          await orchestrator.triggerAutoSave()
+          const report = orchestrator.getLastRoundDiagnostic()
+          if (report) await postNarrativeRoundOutcome(report)
+          void fillPreGenQueue(narrativePrompt, worldCode ? `sim-pregen-${worldCode}` : undefined)
+        })
+      } catch (err) {
+        const expectedQualityRejection = err instanceof Error
+          && (
+            err.name === 'NarrativeGenerationRejectedError'
+            || err.name === 'NarrativeSettlementRejectedError'
+            || err.name === 'NarrativeEventRecognitionRejectedError'
+          )
+        const logRoundFailure = expectedQualityRejection ? logger.warn : logger.error
+        logRoundFailure('simulation', '回合执行失败', err)
+        try {
+          orchestrator.restorePreviewSnapshot(roundSnapshot)
+        } catch (rollbackError) {
+          logger.error('simulation', '回合回滚失败', rollbackError)
+        }
+        const failedReport = orchestrator.getLastRoundDiagnostic()
+        if (failedReport) {
+          queueRoundFinalization(async () => {
+            await postNarrativeRoundOutcome(failedReport)
+          })
+        }
+        const errorMessage = err instanceof Error ? err.message : '叙事生成失败'
+        const executionError = err as Error & {
+          executionCode?: string
+          executionId?: string
+        }
+        const pendingNarrative = useEngineStore.getState().pendingNarrative
+        if (pendingNarrative) {
+          useEngineStore.getState().updatePendingNarrative(
+            pendingNarrative.executionId,
+            'failed',
+            executionError.executionCode ?? 'narrative-round:failed',
+            errorMessage,
+          )
+        }
+        useEngineStore.getState().setNarrativeError(errorMessage)
+      } finally {
+        syncOrchestratorToEngineStore()
+        const runtimeStatus = orchestrator.getState().status
+        useEngineStore.getState().setStatus(runtimeStatus === 'complete' ? 'complete' : 'idle')
       }
+    } catch (err) {
+      logger.error('simulation', '回合准备失败', err)
+      const errorMessage = err instanceof Error ? err.message : '回合准备失败'
       useEngineStore.getState().setNarrativeError(errorMessage)
     } finally {
-      syncOrchestratorToEngineStore()
-      const runtimeStatus = orchestrator.getState().status
-      useEngineStore.getState().setStatus(runtimeStatus === 'complete' ? 'complete' : 'idle')
       isAdvancingRef.current = false
       setIsAdvancing(false)
     }

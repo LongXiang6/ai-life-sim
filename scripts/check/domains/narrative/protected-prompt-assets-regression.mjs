@@ -42,11 +42,11 @@ assertOk(
   'browser event-recognition PromptTemplate must carry only the 1.0.0 server asset ID',
 )
 assertOk(
-  narrativeContract.includes("version: '5.8.0'")
+  narrativeContract.includes("version: '5.8.1'")
     && narrativeContract.includes("systemPrompt: ''")
-    && narrativeContract.includes("'mod-engine:narrative:5.8.0'")
+    && narrativeContract.includes("'mod-engine:narrative:5.8.1'")
     && narrativeContract.includes('serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID'),
-  'browser narrative PromptTemplate must carry only the 5.8.0 server asset ID',
+  'browser narrative PromptTemplate must carry only the 5.8.1 server asset ID',
 )
 assertOk(
   eventRecognitionServerPrompt.includes('你是人生模拟器的待触发事件识别器')

@@ -42,7 +42,11 @@
   "sortedArrays": {
     "scripts/check/rules/execution-system-review.json": [
       "requiredFlowIds",
-      "requiredIncidentCategories"
+      "requiredIncidentCategories",
+      "rootCauseRequiredStatuses",
+      "rootCauseChainFields",
+      "rootCauseEvidenceTypes",
+      "prohibitedTimeoutPatchPatterns"
     ]
   }
 }

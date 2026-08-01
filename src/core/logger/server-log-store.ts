@@ -191,6 +191,11 @@ export function getServerLogRoot(): string {
   return path.dirname(getServerLogDatabasePath())
 }
 
+/** 旧日志先无损迁入独立归档库，再清出主库，保证完整保留。 */
+export function getServerLogArchiveDatabasePath(): string {
+  return path.join(getServerLogRoot(), 'logs-archive.sqlite')
+}
+
 function enforceDatabaseFilePermissions(databasePath: string): void {
   if (process.platform === 'win32') return
   for (const target of [databasePath, `${databasePath}-wal`, `${databasePath}-shm`]) {
@@ -461,6 +466,80 @@ function buildQueryWhere(query: ServerLogQuery): { clause: string; values: unkno
   }
 }
 
+function quoteSqliteIdentifier(value: string): string {
+  return `"${value.replaceAll('"', '""')}"`
+}
+
+function getLogEntryColumns(database: Database.Database, schema = 'main'): string[] {
+  return (database.pragma(`${schema}.table_info(log_entries)`) as Array<{ name: string }>)
+    .map((column) => column.name)
+}
+
+function assertMatchingLogEntrySchemas(database: Database.Database): string[] {
+  const hotColumns = getLogEntryColumns(database)
+  const archiveColumns = getLogEntryColumns(database, 'archive_logs')
+  if (
+    hotColumns.length !== archiveColumns.length
+    || hotColumns.some((column, index) => column !== archiveColumns[index])
+  ) {
+    throw new Error('日志归档 Schema 与热库不一致')
+  }
+  return hotColumns
+}
+
+function logEntryEqualitySql(columns: string[]): string {
+  return columns.map((column) => (
+    `hot_entry.${quoteSqliteIdentifier(column)} IS archive_entry.${quoteSqliteIdentifier(column)}`
+  )).join(' AND ')
+}
+
+function findLogEntryConflict(
+  database: Database.Database,
+  columns: string[],
+  where = '',
+  values: unknown[] = [],
+): string | undefined {
+  const scope = where ? `${where} AND ` : ''
+  const row = database.prepare(`
+    SELECT hot_entry.id AS id
+    FROM main.log_entries AS hot_entry
+    INNER JOIN archive_logs.log_entries AS archive_entry
+      ON archive_entry.id = hot_entry.id
+    WHERE ${scope}NOT (${logEntryEqualitySql(columns)})
+    ORDER BY hot_entry.id ASC
+    LIMIT 1
+  `).get(...values) as { id: string } | undefined
+  return row?.id
+}
+
+function findUnarchivedLogEntry(
+  database: Database.Database,
+  columns: string[],
+  cutoff: number,
+): string | undefined {
+  const row = database.prepare(`
+    SELECT hot_entry.id AS id
+    FROM main.log_entries AS hot_entry
+    LEFT JOIN archive_logs.log_entries AS archive_entry
+      ON archive_entry.id = hot_entry.id
+    WHERE hot_entry.created_at < ?
+      AND (archive_entry.id IS NULL OR NOT (${logEntryEqualitySql(columns)}))
+    ORDER BY hot_entry.id ASC
+    LIMIT 1
+  `).get(cutoff) as { id: string } | undefined
+  return row?.id
+}
+
+function assertNoLogEntryConflict(
+  database: Database.Database,
+  columns: string[],
+  where = '',
+  values: unknown[] = [],
+): void {
+  const conflictId = findLogEntryConflict(database, columns, where, values)
+  if (conflictId) throw new Error(`日志归档 ID 冲突：${conflictId}`)
+}
+
 export function queryServerLogEntries(query: ServerLogQuery = {}): {
   entries: ServerLogRecord[]
   total: number
@@ -469,21 +548,56 @@ export function queryServerLogEntries(query: ServerLogQuery = {}): {
   const { clause, values } = buildQueryWhere(query)
   const limit = Math.min(Math.max(Math.trunc(query.limit ?? 100), 1), 500)
   const offset = Math.max(Math.trunc(query.offset ?? 0), 0)
-  const rows = database.prepare(`
-    SELECT * FROM log_entries ${clause}
-    ORDER BY created_at DESC, rowid DESC
-    LIMIT ? OFFSET ?
-  `).all(...values, limit, offset) as ServerLogRow[]
-  const countRow = database.prepare(`
-    SELECT COUNT(*) AS count FROM log_entries ${clause}
-  `).get(...values) as { count: number } | undefined
-  const total = Number(countRow?.count ?? 0)
-  return { entries: rows.map(mapRow), total }
-}
+  const archivePath = getServerLogArchiveDatabasePath()
+  if (!fs.existsSync(archivePath)) {
+    const rows = database.prepare(`
+      SELECT * FROM log_entries ${clause}
+      ORDER BY created_at DESC, rowid DESC, id ASC
+      LIMIT ? OFFSET ?
+    `).all(...values, limit, offset) as ServerLogRow[]
+    const countRow = database.prepare(`
+      SELECT COUNT(*) AS count FROM log_entries ${clause}
+    `).get(...values) as { count: number } | undefined
+    return { entries: rows.map(mapRow), total: Number(countRow?.count ?? 0) }
+  }
 
-export function deleteServerLogEntries(query: Omit<ServerLogQuery, 'limit' | 'offset'> = {}): number {
-  const { clause, values } = buildQueryWhere(query)
-  return getServerLogDatabase().prepare(`DELETE FROM log_entries ${clause}`).run(...values).changes
+  database.prepare('ATTACH DATABASE ? AS archive_logs').run(archivePath)
+  try {
+    const columns = assertMatchingLogEntrySchemas(database)
+    assertNoLogEntryConflict(database, columns)
+    const columnList = columns.map(quoteSqliteIdentifier).join(', ')
+    const hotProjection = columns.map((column) => (
+      `hot_entry.${quoteSqliteIdentifier(column)} AS ${quoteSqliteIdentifier(column)}`
+    )).join(', ')
+    const archiveProjection = columns.map((column) => (
+      `archive_entry.${quoteSqliteIdentifier(column)} AS ${quoteSqliteIdentifier(column)}`
+    )).join(', ')
+    const combinedLogs = `
+      WITH combined_logs AS (
+        SELECT ${hotProjection}, hot_entry.rowid AS __log_rowid, 0 AS __log_source_priority
+        FROM main.log_entries AS hot_entry
+        UNION ALL
+        SELECT ${archiveProjection}, archive_entry.rowid AS __log_rowid, 1 AS __log_source_priority
+        FROM archive_logs.log_entries AS archive_entry
+        WHERE NOT EXISTS (
+          SELECT 1 FROM main.log_entries AS hot_entry WHERE hot_entry.id = archive_entry.id
+        )
+      )
+    `
+    const rows = database.prepare(`
+      ${combinedLogs}
+      SELECT ${columnList} FROM combined_logs ${clause}
+      ORDER BY created_at DESC, __log_source_priority ASC, __log_rowid DESC, id ASC
+      LIMIT ? OFFSET ?
+    `).all(...values, limit, offset) as ServerLogRow[]
+    const countRow = database.prepare(`
+      ${combinedLogs}
+      SELECT COUNT(*) AS count FROM combined_logs ${clause}
+    `).get(...values) as { count: number } | undefined
+    return { entries: rows.map(mapRow), total: Number(countRow?.count ?? 0) }
+  } finally {
+    database.exec('DETACH DATABASE archive_logs')
+  }
 }
 
 function getRetentionCutoffMs(now = new Date()): number {
@@ -493,12 +607,64 @@ function getRetentionCutoffMs(now = new Date()): number {
   return startOfToday.getTime()
 }
 
-/** 删除前天及更早的行，只保留昨天和今天。 */
+/** 前天及更早的行先完整迁入归档库，再清出主库；归档失败时保留主库原行。 */
 export async function cleanupServerLogsNow(now = new Date()): Promise<void> {
   const database = getServerLogDatabase()
-  database.prepare('DELETE FROM log_entries WHERE created_at < ?').run(getRetentionCutoffMs(now))
+  const cutoff = getRetentionCutoffMs(now)
+  const expired = database.prepare(`
+    SELECT COUNT(*) AS count
+    FROM log_entries
+    WHERE created_at < ?
+  `).get(cutoff) as { count: number }
+
+  if (expired.count > 0) {
+    const archivePath = getServerLogArchiveDatabasePath()
+    fs.mkdirSync(path.dirname(archivePath), { recursive: true, mode: 0o700 })
+    const archive = new Database(archivePath)
+    try {
+      archive.pragma('journal_mode = WAL')
+      archive.pragma('busy_timeout = 5000')
+      archive.transaction(() => initializeSchema(archive))()
+      enforceDatabaseFilePermissions(archivePath)
+    } finally {
+      archive.close()
+    }
+
+    database.prepare('ATTACH DATABASE ? AS archive_logs').run(archivePath)
+    try {
+      const columns = assertMatchingLogEntrySchemas(database)
+      const columnList = columns.map(quoteSqliteIdentifier).join(', ')
+      database.transaction(() => {
+        assertNoLogEntryConflict(database, columns)
+        database.prepare(`
+          INSERT INTO archive_logs.log_entries (${columnList})
+          SELECT ${columns.map((column) => `hot_entry.${quoteSqliteIdentifier(column)}`).join(', ')}
+          FROM main.log_entries AS hot_entry
+          WHERE hot_entry.created_at < ?
+            AND NOT EXISTS (
+              SELECT 1 FROM archive_logs.log_entries AS archive_entry
+              WHERE archive_entry.id = hot_entry.id
+            )
+        `).run(cutoff)
+        const missingId = findUnarchivedLogEntry(database, columns, cutoff)
+        if (missingId) throw new Error(`日志归档核验失败：${missingId}`)
+      })()
+
+      database.transaction(() => {
+        assertNoLogEntryConflict(database, columns)
+        const missingId = findUnarchivedLogEntry(database, columns, cutoff)
+        if (missingId) throw new Error(`日志归档核验失败：${missingId}`)
+        database.prepare('DELETE FROM log_entries WHERE created_at < ?').run(cutoff)
+      })()
+    } finally {
+      database.exec('DETACH DATABASE archive_logs')
+    }
+  }
+
   database.pragma('wal_checkpoint(PASSIVE)')
   enforceDatabaseFilePermissions(getServerLogDatabasePath())
+  const archivePath = getServerLogArchiveDatabasePath()
+  if (fs.existsSync(archivePath)) enforceDatabaseFilePermissions(archivePath)
 }
 
 let lastCleanupAt = 0

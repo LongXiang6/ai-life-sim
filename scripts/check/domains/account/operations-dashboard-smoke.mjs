@@ -158,6 +158,8 @@ try {
   assert.equal(storedRequest.username, loggedValues.username)
   assert.equal(storedRequest.prompt, loggedValues.story)
   assert.equal(storedRequest.meta.apiKey, loggedValues.key)
+  await logStore.cleanupServerLogsNow(new Date(now + 3 * 24 * 60 * 60 * 1000))
+  assert.equal(logStore.queryServerLogEntries({}).total, 2, 'dashboard source rows must remain queryable after archival')
   logStore.closeServerLogDatabaseForTests()
 
   const options = { logRoot, accountDatabase: accountDatabasePath, playerContentDatabase: playerContentDatabasePath }

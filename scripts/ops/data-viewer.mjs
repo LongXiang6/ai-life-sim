@@ -8,6 +8,13 @@ import { fileURLToPath } from 'node:url'
 
 import Database from 'better-sqlite3'
 
+import {
+  logDatabasesExist,
+  resolveLogArchiveDatabasePath,
+  resolveLogDatabasePath,
+  withReadonlyLogQueryDatabase,
+} from './lib/log-databases.mjs'
+
 const DEFAULT_HOST = '127.0.0.1'
 const DEFAULT_PORT = 4318
 const DEFAULT_PAGE_SIZE = 50
@@ -87,8 +94,18 @@ function withReadonly(databasePath, fallback, read) {
   }
 }
 
+function withReadonlyLogs(databasePath, fallback, read) {
+  if (!logDatabasesExist(databasePath)) return fallback
+  return withReadonlyLogQueryDatabase(databasePath, read)
+}
+
 function tableExists(database, table) {
-  return Boolean(database.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(table))
+  return Boolean(database.prepare(`
+    SELECT 1 FROM sqlite_master WHERE type IN ('table', 'view') AND name = ?
+    UNION ALL
+    SELECT 1 FROM sqlite_temp_master WHERE type IN ('table', 'view') AND name = ?
+    LIMIT 1
+  `).get(table, table))
 }
 
 function columnExists(database, table, column) {
@@ -198,7 +215,7 @@ function aggregateLogWindow(database, from, to) {
     SELECT * FROM log_entries
     WHERE created_at >= ? AND created_at < ?
       AND entry_type IN ('proxy-access', 'proxy-trace', 'narrative-round-commit')
-    ORDER BY created_at ASC, rowid ASC
+    ORDER BY created_at ASC, rowid ASC, id ASC
   `).all(from, to)
   const result = {
     rows: rows.length,
@@ -292,7 +309,7 @@ function listFiles(root, predicate) {
 export function buildDataOverview(options, now = Date.now()) {
   const today = shanghaiDayStart(now)
   const yesterday = today - 24 * 60 * 60 * 1000
-  const logs = withReadonly(options.logDatabase, { available: false }, (database) => {
+  const logs = withReadonlyLogs(options.logDatabase, { available: false }, (database) => {
     if (!tableExists(database, 'log_entries')) return { available: false }
     return {
       available: true,
@@ -534,7 +551,7 @@ function mapLogRow(row) {
 }
 
 export function queryAiCalls(options, input = {}) {
-  return withReadonly(options.logDatabase, { available: false, total: 0, page: 1, pageSize: DEFAULT_PAGE_SIZE, entries: [] }, (database) => {
+  return withReadonlyLogs(options.logDatabase, { available: false, total: 0, page: 1, pageSize: DEFAULT_PAGE_SIZE, entries: [] }, (database) => {
     if (!tableExists(database, 'log_entries')) return { available: false, total: 0, page: 1, pageSize: DEFAULT_PAGE_SIZE, entries: [] }
     const page = positiveInteger(input.page, 1)
     const pageSize = positiveInteger(input.pageSize, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE)
@@ -560,7 +577,7 @@ export function queryAiCalls(options, input = {}) {
     const offset = (page - 1) * pageSize
     const rows = database.prepare(`
       SELECT * FROM log_entries ${where}
-      ORDER BY created_at DESC, rowid DESC LIMIT ? OFFSET ?
+      ORDER BY created_at DESC, rowid DESC, id ASC LIMIT ? OFFSET ?
     `).all(...values, pageSize, offset)
     return { available: true, total, page, pageSize, entries: rows.map(mapLogRow) }
   })
@@ -655,14 +672,14 @@ function readRoundMemoryLinks(options, lifeRunId, round) {
 }
 
 function readRoundOutcome(options, lifeRunId, round) {
-  return withReadonly(options.logDatabase, null, (database) => {
+  return withReadonlyLogs(options.logDatabase, null, (database) => {
     if (!tableExists(database, 'log_entries')) return null
     const pattern = `%${lifeRunId}%`
     const rows = database.prepare(`
       SELECT * FROM log_entries
       WHERE entry_type IN ('narrative-round-commit', 'narrative-round-diagnostic')
         AND round = ? AND (meta_json LIKE ? OR payload_json LIKE ?)
-      ORDER BY created_at ASC, rowid ASC
+      ORDER BY created_at ASC, rowid ASC, id ASC
     `).all(round, pattern, pattern)
     return rows.map(mapLogRow)
   })
@@ -784,7 +801,7 @@ export function queryMemoryRows(options, input) {
 }
 
 export function queryUserLinks(options, input = {}) {
-  return withReadonly(options.logDatabase, { available: false, total: 0, page: 1, pageSize: DEFAULT_PAGE_SIZE, entries: [] }, (database) => {
+  return withReadonlyLogs(options.logDatabase, { available: false, total: 0, page: 1, pageSize: DEFAULT_PAGE_SIZE, entries: [] }, (database) => {
     if (!tableExists(database, 'log_entries')) return { available: false, total: 0, page: 1, pageSize: DEFAULT_PAGE_SIZE, entries: [] }
     const page = positiveInteger(input.page, 1)
     const pageSize = positiveInteger(input.pageSize, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE)
@@ -805,7 +822,8 @@ export function queryUserLinks(options, input = {}) {
         MAX(created_at) AS last_seen_at
       FROM log_entries ${where}
       GROUP BY ${group}
-      ORDER BY last_seen_at DESC, account_id ASC, device_provenance_id ASC
+      ORDER BY last_seen_at DESC, account_id ASC, username ASC, diagnostic_code ASC,
+        device_provenance_id ASC, source_ip ASC, is_registered ASC
       LIMIT ? OFFSET ?
     `).all(...values, pageSize, (page - 1) * pageSize).map((row) => ({
       accountId: row.account_id,
@@ -824,7 +842,7 @@ export function queryUserLinks(options, input = {}) {
 }
 
 function resolveSchemaSource(options, source) {
-  if (source === 'logs') return { label: '日志数据库', databasePath: options.logDatabase }
+  if (source === 'logs') return { label: '日志数据库（热库 + 归档库）', databasePath: options.logDatabase, logUnion: true }
   if (source === 'accounts') return { label: '账号数据库', databasePath: options.accountDatabase }
   if (source === 'player-content') return { label: '玩家内容数据库', databasePath: options.playerContentDatabase }
   if (source.startsWith('memory:')) {
@@ -840,10 +858,12 @@ export function queryReadonlyDatabase(options, input = {}) {
   const sql = String(input.sql ?? '').trim().replace(/;\s*$/u, '')
   const page = positiveInteger(input.page, 1)
   const pageSize = positiveInteger(input.pageSize, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE)
-  if (!sql) return { available: fs.existsSync(resolved.databasePath), source, sql, total: 0, page, pageSize, columns: [], rows: [] }
+  const available = resolved.logUnion ? logDatabasesExist(resolved.databasePath) : fs.existsSync(resolved.databasePath)
+  if (!sql) return { available, source, sql, total: 0, page, pageSize, columns: [], rows: [] }
   if (sql.includes('\0')) throw new Error('查询包含非法字符')
   if (!/^(SELECT|WITH)\b/iu.test(sql)) throw new Error('只允许 SELECT 或以 SELECT 结束的 WITH 查询')
-  return withReadonly(
+  const readDatabase = resolved.logUnion ? withReadonlyLogs : withReadonly
+  return readDatabase(
     resolved.databasePath,
     { available: false, source, sql, total: 0, page, pageSize, columns: [], rows: [] },
     (database) => {
@@ -862,8 +882,14 @@ export function queryReadonlyDatabase(options, input = {}) {
 
 export function inspectDatabaseSchema(options, source = 'logs') {
   const resolved = resolveSchemaSource(options, source)
-  return withReadonly(resolved.databasePath, { available: false, source, label: resolved.label, databasePath: resolved.databasePath, wal: false, tables: [] }, (database) => {
-    const names = database.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name ASC").all()
+  const readDatabase = resolved.logUnion ? withReadonlyLogs : withReadonly
+  return readDatabase(resolved.databasePath, { available: false, source, label: resolved.label, databasePath: resolved.databasePath, wal: false, tables: [] }, (database) => {
+    const names = database.prepare(`
+      SELECT name FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%'
+      UNION
+      SELECT name FROM sqlite_temp_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%'
+      ORDER BY name ASC
+    `).all()
     const tables = names.map(({ name }) => ({
       name,
       rows: Number(database.prepare(`SELECT COUNT(*) AS count FROM "${name}"`).get()?.count ?? 0),
@@ -875,14 +901,18 @@ export function inspectDatabaseSchema(options, source = 'logs') {
         defaultValue: column.dflt_value,
       })),
     }))
+    const databasePaths = resolved.logUnion
+      ? [resolveLogDatabasePath(resolved.databasePath), resolveLogArchiveDatabasePath(resolved.databasePath)]
+      : [resolved.databasePath]
+    const existingPaths = databasePaths.filter((databasePath) => fs.existsSync(databasePath))
     return {
       available: true,
       source,
       label: resolved.label,
-      databasePath: resolved.databasePath,
-      bytes: fs.statSync(resolved.databasePath).size,
-      wal: fs.existsSync(`${resolved.databasePath}-wal`),
-      journalMode: String(database.pragma('journal_mode', { simple: true })),
+      databasePath: existingPaths.join(' + '),
+      bytes: existingPaths.reduce((sum, databasePath) => sum + fs.statSync(databasePath).size, 0),
+      wal: existingPaths.some((databasePath) => fs.existsSync(`${databasePath}-wal`)),
+      journalMode: resolved.logUnion ? 'readonly-union' : String(database.pragma('journal_mode', { simple: true })),
       tables,
     }
   })
@@ -1043,7 +1073,7 @@ async function renderDiagnostics(page = 1) {
 }
 
 let readonlyQueryPage = 1;
-let readonlyQuerySql = 'SELECT * FROM log_entries ORDER BY created_at DESC, rowid DESC';
+let readonlyQuerySql = 'SELECT * FROM log_entries ORDER BY created_at DESC, rowid DESC, id ASC';
 let readonlyQuerySource = 'logs';
 async function renderReadonlyQuery(page = 1) {
   readonlyQueryPage = page;

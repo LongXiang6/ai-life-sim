@@ -117,7 +117,7 @@
         "check/domains/structural/execution-system-gate"
       ],
       "skillRef": "ai-life-sim/references/project-development.md",
-      "refactorHint": "执行流进入中央注册目录，补齐五阶段、故障回传、唯一终态、真实事故样本和定期复盘"
+      "refactorHint": "执行流进入中央注册目录，补齐五阶段、故障回传、唯一终态、真实事故根因链、观测证据和定期复盘"
     }
   },
   "domains": {

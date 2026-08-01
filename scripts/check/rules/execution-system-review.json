@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-07-31",
+  "reviewedAt": "2026-08-01",
   "reviewIntervalDays": 90,
   "requiredFlowIds": [
     "mod-configuration-change",
@@ -22,6 +22,42 @@
     "schema-conflict",
     "timed-out",
     "upstream-failure"
+  ],
+  "rootCauseRequiredStatuses": [
+    "duplicate-status",
+    "failed",
+    "invalid-status",
+    "missing-status",
+    "timed-out"
+  ],
+  "rootCauseChainFields": [
+    "directFailure",
+    "formationMechanism",
+    "precondition",
+    "preconditionCause",
+    "preventionGate"
+  ],
+  "rootCauseEvidenceTypes": [
+    "diagnostic-log",
+    "fault-injection",
+    "metric",
+    "reproduction-trace"
+  ],
+  "timeoutEvidenceRequirement": {
+    "quantificationTypes": [
+      "diagnostic-log",
+      "metric"
+    ],
+    "reproductionTypes": [
+      "fault-injection",
+      "reproduction-trace"
+    ]
+  },
+  "prohibitedTimeoutPatchPatterns": [
+    "增加重试次数",
+    "提高超时阈值",
+    "等待时间不足",
+    "调整等待时间"
   ],
   "obsoleteMechanisms": [
     {

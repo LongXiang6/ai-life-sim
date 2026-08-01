@@ -50,7 +50,7 @@ export interface NarrativeTimelineProps {
   branchOptions?: string[]
   selectedBranchOptionId?: string | null
   branchCustomText?: string
-  onBranchSelect?: (optionId: string) => void
+  onBranchSelect?: (optionId: string | null) => void
   onBranchConfirm?: () => void
   onBranchCancel?: () => void
   onCustomInputChange?: (text: string) => void
@@ -93,18 +93,48 @@ export function NarrativeTimeline({
   const sentinelRef = useRef<HTMLDivElement>(null)
   const scrollRestoreRef = useRef(0)
   const branchTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const [showCustomBranchInput, setShowCustomBranchInput] = useState(false)
+
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- reset the local editor when the branch changes */
+    setShowCustomBranchInput(false)
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [unresolvedBranchIndex])
 
   const handleBranchOptionSelect = useCallback((optionId: string) => {
     // 移动端点击预设选项时，先收起软键盘防止 textarea 焦点干扰点击
     branchTextareaRef.current?.blur()
     onBranchSelect?.(optionId)
-  }, [onBranchSelect])
+    onCustomInputChange?.('')
+    setShowCustomBranchInput(false)
+  }, [onBranchSelect, onCustomInputChange])
+
+  const handleCustomInputChange = useCallback((text: string) => {
+    onCustomInputChange?.(text)
+    if (text.trim() && selectedBranchOptionId !== null && selectedBranchOptionId !== undefined) {
+      onBranchSelect?.(null)
+    }
+  }, [onBranchSelect, onCustomInputChange, selectedBranchOptionId])
 
   const handleBranchConfirmClick = useCallback(() => {
     // 移动端收起软键盘，防止第一次点击被键盘吞掉
     branchTextareaRef.current?.blur()
     onBranchConfirm?.()
   }, [onBranchConfirm])
+
+  const handleBranchCancelClick = useCallback(() => {
+    setShowCustomBranchInput(false)
+    onBranchCancel?.()
+  }, [onBranchCancel])
+
+  const selectedBranchLabel = selectedBranchOptionId !== null && selectedBranchOptionId !== undefined
+    ? branchOptions[Number(selectedBranchOptionId)]
+    : undefined
+  const branchConfirmLabel = selectedBranchLabel
+    ? `确认「${selectedBranchLabel}」`
+    : (branchCustomText ?? '').trim()
+      ? '确认写下做法'
+      : '请先选择'
   const prevTotalRef = useRef(entries.length)
 
   const [renderStart, setRenderStart] = useState(() => clamp(entries.length - WINDOW_SIZE, 0, Infinity))
@@ -239,19 +269,29 @@ export function NarrativeTimeline({
                   ))}
                 </div>
               )}
-              <textarea
-                ref={branchTextareaRef}
-                className={styles.branchCustomInput}
-                placeholder="也可以写下你的做法……"
-                value={branchCustomText ?? ''}
-                onChange={(e) => onCustomInputChange?.(e.target.value)}
-                rows={3}
-              />
+              {(showCustomBranchInput || Boolean((branchCustomText ?? '').trim())) ? (
+                <textarea
+                  ref={branchTextareaRef}
+                  className={styles.branchCustomInput}
+                  placeholder="写下你的做法……"
+                  value={branchCustomText ?? ''}
+                  onChange={(e) => handleCustomInputChange(e.target.value)}
+                  rows={3}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className={styles.branchCustomToggle}
+                  onClick={() => setShowCustomBranchInput(true)}
+                >
+                  写下自己的做法
+                </button>
+              )}
               <div className={styles.branchActions}>
                 <button
                   type="button"
                   className={styles.branchCancelBtn}
-                  onClick={() => onBranchCancel?.()}
+                  onClick={handleBranchCancelClick}
                 >
                   清空
                 </button>
@@ -261,7 +301,7 @@ export function NarrativeTimeline({
                   disabled={isGenerating || ((selectedBranchOptionId === null || selectedBranchOptionId === undefined) && !(branchCustomText ?? '').trim())}
                   onClick={handleBranchConfirmClick}
                 >
-                  确认选择
+                  {branchConfirmLabel}
                 </button>
               </div>
             </div>
@@ -302,7 +342,7 @@ export function NarrativeTimeline({
     }
 
     return nodes
-  }, [renderStart, entries, isGenerating, showGenerationCursor, unresolvedBranchIndex, branchTitle, branchOptions, selectedBranchOptionId, branchCustomText, onBranchCancel, onCustomInputChange, handleBranchConfirmClick, handleBranchOptionSelect])
+  }, [renderStart, entries, isGenerating, showGenerationCursor, unresolvedBranchIndex, branchTitle, branchOptions, selectedBranchOptionId, branchCustomText, showCustomBranchInput, branchConfirmLabel, handleBranchConfirmClick, handleBranchOptionSelect, handleBranchCancelClick, handleCustomInputChange])
 
   const canTapAdvance = showAdvance && !advanceBlocked && !isGenerating
   const advanceTitle = isGenerating

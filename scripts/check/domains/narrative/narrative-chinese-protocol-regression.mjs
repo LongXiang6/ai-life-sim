@@ -645,7 +645,7 @@ assertOk(
 )
 
 assertOk(
-  narrativePrompt.version === '5.8.0'
+  narrativePrompt.version === '5.8.1'
     && narrativePrompt.serverPromptAssetId === NARRATIVE_SERVER_PROMPT_ASSET_ID
     && narrativeSettlementPrompt.version === '1.1.0'
     && narrativeSettlementPrompt.serverPromptAssetId === NARRATIVE_SETTLEMENT_SERVER_PROMPT_ASSET_ID

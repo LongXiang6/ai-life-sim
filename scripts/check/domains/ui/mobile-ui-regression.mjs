@@ -75,6 +75,10 @@ const globalCssSrc = readRel('src/app/globals.css')
 const themeStoreSrc = readRel('src/core/theme/theme-store.ts')
 const settingsParamCardSrc = readRel('src/mods/mod-settings/components/SettingsParamCard.tsx')
 const settingsPresetsSrc = readRel('src/mods/mod-settings/components/SettingsTabPresets.tsx')
+const deepSeekPresetHandler = settingsPresetsSrc.slice(
+  settingsPresetsSrc.indexOf('const handleApplyDeepSeekPreset'),
+  settingsPresetsSrc.indexOf('const handleClearKey'),
+)
 const preGenQueueSrc = readRel('src/mods/mod-engine/helpers/pre-gen-queue.ts')
 const helpModalSrc = readRel('src/mods/mod-ui/components/organisms/HelpModal.tsx')
 const helpFocusTrapSrc = readRel('src/mods/mod-ui/components/organisms/HelpModalFocusTrap.ts')
@@ -304,18 +308,27 @@ assertOk(
   'pre-generation must expose only off/next-round and cap historical positive values at one queued round',
 )
 assertOk(
-  settingsPresetsSrc.includes("setProvider('custom')")
-    && settingsPresetsSrc.includes("provider === 'custom' ? (")
+  settingsPresetsSrc.includes('setProvider(DEFAULT_AI_PROVIDER_ID)')
     && settingsPresetsSrc.includes('setCustomUrl(event.target.value)')
-    && settingsPresetsSrc.includes('setCustomModel(event.target.value)'),
-  'custom API URL or model edits must route real narrative calls through the custom provider',
+    && settingsPresetsSrc.includes('setCustomModel(event.target.value)')
+    && settingsPresetsSrc.includes('apiKey: customKey.trim()'),
+  'API fields must route real narrative calls through the player-owned provider and credentials',
 )
 assertOk(
-  !settingsPresetsSrc.includes('extraParamEnabled')
-    && !settingsPresetsSrc.includes('extraParamName')
-    && settingsPresetsSrc.includes('尚未开放')
-    && settingsPresetsSrc.includes('当前版本不会把额外参数写入 AI 请求'),
-  'unwired custom API parameters must be non-interactive and explicitly marked unavailable',
+  settingsPresetsSrc.includes('填入 DeepSeek 预设')
+    && settingsPresetsSrc.includes('DEEPSEEK_PRESET_BASE_URL')
+    && settingsPresetsSrc.includes('DEEPSEEK_PRESET_MODEL')
+    && settingsPresetsSrc.includes('预设按钮不会覆盖已经输入的 Key')
+    && !deepSeekPresetHandler.includes('setCustomKey('),
+  'DeepSeek preset fill must only replace URL and model while preserving the player key',
+)
+assertOk(
+  !settingsPresetsSrc.includes('免费体验')
+    && !settingsPresetsSrc.includes('预设模型')
+    && !settingsPresetsSrc.includes('vendorGrid')
+    && !settingsModelSrc.includes('生成档位')
+    && !settingsModelSrc.includes('GENERATION_PRESETS'),
+  'model settings must not expose free providers, vendor grids, or generation presets',
 )
 assertOk(
   !settingsPresetsSrc.includes('保存配置')
@@ -721,6 +734,7 @@ assertOk(
 assertOk(
   gameStoryPageSrc.includes('className={styles.barActions}')
     && gameStoryPageSrc.includes('className={styles.stepMenu}')
+    && /className=\{styles\.barActions\}[\s\S]{0,3200}className=\{`\$\{styles\.forceButton\}/.test(gameStoryPageSrc)
     && gameStoryPageSrc.includes('aria-haspopup="listbox"')
     && gameStoryPageSrc.includes('aria-selected={isActive}')
     && gameStoryPageSrc.includes('document.addEventListener(\'pointerdown\', handlePointerDown)')
@@ -728,6 +742,10 @@ assertOk(
     && !gameStoryPageSrc.includes('<strong>推进步长</strong>')
     && !gameStoryPageSrc.includes('className={styles.stepGrid}'),
   'game story must keep the time-step menu in the approved top-bar action group and remove the duplicate info-panel step grid',
+)
+assertOk(
+  !/className=\{styles\.moreActions\}[\s\S]{0,1200}handleForceBranch/.test(gameStoryPageSrc),
+  'game story more-information panel must not contain a duplicate destiny-branch action',
 )
 
 const readingOpeningTag = gameStoryPageSrc.match(/<(?:main|div|section)\b(?=[^>]*className=\{styles\.reading\})[^>]*>/)?.[0] ?? ''
@@ -782,8 +800,8 @@ assertOk(
 )
 assertOk(
   gameStoryPageSrc.includes('getAutoNarrativeRetryDelay')
-    && gameStoryPageSrc.includes('void runNarrativeAttempt()')
-    && gameStoryPageSrc.includes('autoRetryGenerationRef.current += 1')
+    && gameStoryPageSrc.includes('runAutoNarrativeRetryAttempt')
+    && gameStoryPageSrc.includes('invalidateAutoNarrativeRetry(autoRetryGateRef.current)')
     && gameStoryPageSrc.includes('setAutoRetryAttempt(attemptIndex + 1)')
     && gameStoryPageSrc.includes('advanceBlocked={!isRuntimeReady || hasUnresolvedBranch}')
     && gameStoryPageSrc.includes('advanceText={narrativeAdvanceText}')

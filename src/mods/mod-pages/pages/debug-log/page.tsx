@@ -141,21 +141,6 @@ export default function DebugLogPage() {
     return () => window.clearTimeout(timer)
   }, [fetchLogs])
 
-  const handleClear = useCallback(async () => {
-    if (!confirm(`确定要清除“${FILTER_LABELS[filter]}”日志吗？`)) return
-    try {
-      const query = buildFilterQuery(filter)
-      query.delete('limit')
-      const response = await fetch(`/api/debug-log?${query.toString()}`, { method: 'DELETE' })
-      if (!response.ok) throw new Error(`HTTP ${response.status}`)
-      setEntries([])
-      setTotal(0)
-      setExpandedEntry(null)
-    } catch {
-      alert('清除失败')
-    }
-  }, [filter])
-
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text-primary)]">
       <div className="mx-auto max-w-6xl px-4 py-8">
@@ -167,22 +152,13 @@ export default function DebugLogPage() {
             </p>
           </div>
           {view === 'logs' ? (
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => { void fetchLogs() }}
-                className="border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
-              >
-                刷新
-              </button>
-              <button
-                type="button"
-                onClick={() => { void handleClear() }}
-                className="border border-red-500/40 px-3 py-1.5 text-xs text-red-500 transition-colors hover:bg-red-500/10"
-              >
-                清除
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => { void fetchLogs() }}
+              className="border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-text-primary)]"
+            >
+              刷新
+            </button>
           ) : null}
         </div>
 

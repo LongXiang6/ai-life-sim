@@ -39,6 +39,7 @@ const gameStory = read('src/mods/mod-pages/pages/game-story/page.tsx')
 const gameBranch = read('src/mods/mod-pages/pages/game-story/useSimulationBranch.ts')
 const engineHooks = read('src/mods/mod-engine/hooks.ts')
 const inspector = read('scripts/ops/inspect-ai-logs.mjs')
+const logDatabases = read('scripts/ops/lib/log-databases.mjs')
 
 assert(
   /reasoning_effort:\s*z\.enum\(\['high', 'max'\]\)\.optional\(\)/.test(proxy),
@@ -91,9 +92,15 @@ assert(
 )
 assert(
   /setDate\(startOfToday\.getDate\(\) - 1\)/.test(logStore)
+    && /logs-archive\.sqlite/.test(logStore)
+    && /INSERT INTO archive_logs\.log_entries/.test(logStore)
+    && /findUnarchivedLogEntry/.test(logStore)
+    && /assertNoLogEntryConflict/.test(logStore)
     && /DELETE FROM log_entries WHERE created_at < \?/.test(logStore)
+    && /WITH combined_logs AS/.test(logStore)
+    && !/INSERT OR IGNORE INTO archive_logs\.log_entries/.test(logStore)
     && /CLEANUP_INTERVAL_MS = 15 \* 60 \* 1000/.test(logStore),
-  'retention must keep only yesterday and today with startup/interval cleanup',
+  'retention must archive complete rows, reject conflicts, and query hot plus archive data',
 )
 assert(
   /x-real-ip/.test(logSafety)
@@ -145,9 +152,10 @@ assert(
 assert(
   /appendServerLogEntry/.test(debugLogRoute)
     && /queryServerLogEntries/.test(debugLogRoute)
+    && !/deleteServerLogEntries|export async function DELETE/.test(debugLogRoute + logStore)
     && /entryType:\s*'ai-call'/.test(debugLogRoute)
     && /NEXT_PUBLIC_DISABLE_DEBUG_LOG_COLLECTION/.test(debugLogger),
-  'AI debug logs must write and query direct database rows',
+  'AI debug logs must write and query direct database rows without a destructive clear path',
 )
 assert(
   /账号状态/.test(debugLogPage)
@@ -170,10 +178,12 @@ assert(
   'redaction and diagnostic-consent modules must not remain in the logging system',
 )
 assert(
-  /better-sqlite3/.test(inspector)
+  /readLogRows/.test(inspector)
+    && /better-sqlite3/.test(logDatabases)
+    && /日志归档 ID 冲突/.test(logDatabases)
     && /--account-id <id>/.test(inspector)
     && /payload_json/.test(inspector),
-  'private inspector must query plaintext SQLite rows and account identity',
+  'private inspector must query conflict-checked plaintext rows across hot and archive databases',
 )
 
 if (!process.exitCode) console.log('[ai-proxy-observability] PASS')

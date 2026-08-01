@@ -516,7 +516,7 @@ for (const inactiveConnection of [
   )
 }
 assertOk(
-  liveNarrativePrompt.version === '5.8.0'
+  liveNarrativePrompt.version === '5.8.1'
     && liveNarrativePrompt.systemPrompt === ''
     && !narrativeSystemPrompt.includes('examples: ['),
   'optimized prompt must be versioned and keep one governed standard example instead of duplicate examples',
@@ -524,10 +524,15 @@ assertOk(
 assertOk(
   narrativeSystemPrompt.includes('正文全程用第二人称“你”')
     && narrativeSystemPrompt.includes('不写全知旁白、第三人称传记或编年报告')
-    && narrativeSystemPrompt.includes('用一个可感知现场承载主线')
+    && narrativeSystemPrompt.includes('日级可用一个可感知现场承载主线')
+    && narrativeSystemPrompt.includes('年级及以上依本轮时间尺度用多个阶段节点或时代断点承载同一因果主线')
+    && narrativeSystemPrompt.includes('短档通过压缩每个节点而不是删除时间尺度要求的节点控制篇幅')
+    && narrativeSystemPrompt.includes('年级及以上仍须保留起点、阶段变化或转折与结束格局')
+    && !narrativeSystemPrompt.includes('若本轮按年或更长跨度推进，正文仍只选择一个代表性现场')
+    && !narrativeSystemPrompt.includes('先选择能在该区间内自然收束的单一事件')
     && narrativeSystemPrompt.includes('娱乐性、代入感和继续游玩的意愿')
     && NARRATIVE_SYSTEM_COMPONENTS.some((component) => component.kind === '示例'),
-  'main narrative components must lock second-person viewpoint and scene-level immersion',
+  'main narrative components must lock second-person viewpoint and scale-aware scene structure',
 )
 assertOk(
   narrativeSystemPrompt.includes('连续推进同一因果主线')

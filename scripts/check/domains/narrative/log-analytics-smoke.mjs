@@ -126,6 +126,13 @@ try {
     payload: { body: 'PRIVATE_UPSTREAM_BODY_CANARY' },
   })
 
+  await logStore.cleanupServerLogsNow(new Date(now + 3 * 24 * 60 * 60 * 1000))
+  assert.equal(
+    logStore.queryServerLogEntries({}).total,
+    countBeforeAction + 3,
+    'public log queries must retain all rows after they move to the archive database',
+  )
+
   const from = new Date(now - 60_000).toISOString()
   const to = new Date(now + 60_000).toISOString()
   const analysisResult = spawnSync(process.execPath, [

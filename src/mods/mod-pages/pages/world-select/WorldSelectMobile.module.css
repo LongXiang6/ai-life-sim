@@ -623,6 +623,55 @@
 }
 
 /* Saved World Cards */
+.savedToolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: calc(6 * var(--final-flow-density-px));
+  margin-bottom: calc(7 * var(--final-flow-density-px));
+}
+
+.savedSearchField {
+  min-width: 0;
+}
+
+.savedSearchField input {
+  width: 100%;
+  min-height: calc(29 * var(--final-flow-density-px));
+  padding: 0 calc(9 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid #eceef0;
+  border-radius: calc(9 * var(--final-flow-density-px));
+  outline: 0;
+  background: rgba(255, 255, 255, .96);
+  color: var(--ink);
+  font: inherit;
+  font-size: calc(8.5 * var(--final-flow-density-px));
+}
+
+.savedSearchField input::placeholder {
+  color: var(--ink-faint);
+  opacity: 1;
+}
+
+.newWorldButton {
+  min-height: calc(29 * var(--final-flow-density-px));
+  padding: 0 calc(11 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid #cfd7ee;
+  border-radius: calc(9 * var(--final-flow-density-px));
+  background: var(--accent-soft);
+  color: var(--accent);
+  cursor: pointer;
+  font: inherit;
+  font-size: calc(8 * var(--final-flow-density-px));
+  font-weight: 700;
+}
+
+.savedCount {
+  margin: 0 0 calc(6 * var(--final-flow-density-px));
+  color: var(--ink-faint);
+  font-size: calc(7 * var(--final-flow-density-px));
+  line-height: 1.4;
+}
+
 .savedWorldList {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

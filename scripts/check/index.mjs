@@ -54,4 +54,4 @@ if (target === 'changed') {
   }
 }
 
-runCheck({ projectRoot, profile, domainIds, quiet, modName })
+await runCheck({ projectRoot, profile, domainIds, quiet, modName })

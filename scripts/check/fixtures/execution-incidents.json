@@ -5,49 +5,206 @@
       "id": "NP9D55-entity-directory-context",
       "status": "failed",
       "message": "已定位实体 character_a9f4d56a-fdb4-4e30-adfe-9c1ffababd9d 未在实体引用目录中登记当前上下文",
-      "expectedCategory": "entity-directory-missing"
+      "expectedCategory": "entity-directory-missing",
+      "rootCauseChain": {
+        "directFailure": "恢复读取实体目录时发现目标上下文未登记该实体，目录恢复直接失败",
+        "precondition": "恢复必须先在同一事务中登记来源与目标上下文的玩家和 NPC 实体引用，才能重建关系、目标和记忆引用",
+        "preconditionCause": "上下文切换与恢复分别提交空间位置和实体目录，且旧存档 NPC 误分类修复没有在同一事务登记玩家实体",
+        "formationMechanism": "实体目录修复被拆成多个入口，缺少单一事务边界和恢复前后一致性校验",
+        "preventionGate": "上下文切换、恢复、生成、提交共用同一前置检查和原子提交，缺失目录登记时在提交前失败"
+      },
+      "rootCauseEvidence": [
+        {
+          "type": "diagnostic-log",
+          "source": "development-system-diagnostic JSONL entity-directory event",
+          "observation": "恢复事件 category=entity-directory-missing 与目标上下文缺失同时出现"
+        },
+        {
+          "type": "fault-injection",
+          "source": "world-context-p0-smoke.mjs",
+          "observation": "注入缺失目录后恢复失败且不写半成品状态"
+        }
+      ]
     },
     {
       "id": "context-missing",
       "status": "failed",
       "message": "世界当前上下文缺失，不能恢复非空历史事件账本",
-      "expectedCategory": "context-missing"
+      "expectedCategory": "context-missing",
+      "rootCauseChain": {
+        "directFailure": "恢复非空历史事件账本时当前上下文缺失，账本无法确定作用域",
+        "precondition": "历史账本恢复前必须已建立并登记当前上下文",
+        "preconditionCause": "存档加载流程没有把存档中的 contextId 注入世界上下文，旧存档缺少上下文键时未先创建默认上下文",
+        "formationMechanism": "世界上下文初始化和历史账本恢复由不同入口执行，缺少共用的上下文入场检查",
+        "preventionGate": "恢复、生成、提交共用同一上下文前置检查，缺少上下文时先建立并登记再恢复账本"
+      },
+      "rootCauseEvidence": [
+        {
+          "type": "diagnostic-log",
+          "source": "development-system-diagnostic JSONL context-missing event",
+          "observation": "恢复事件在上下文登记前出现，category=context-missing"
+        },
+        {
+          "type": "reproduction-trace",
+          "source": "world-context-p0-smoke.mjs restore trace",
+          "observation": "同一旧存档按恢复入口可稳定复现账本恢复失败"
+        }
+      ]
     },
     {
       "id": "dependency-unregistered",
       "status": "failed",
       "message": "同包关系指令依赖的 NPC 实体尚未登记",
-      "expectedCategory": "dependency-unregistered"
+      "expectedCategory": "dependency-unregistered",
+      "rootCauseChain": {
+        "directFailure": "同包关系指令依赖的 NPC 实体尚未登记，关系结算无法解析端点",
+        "precondition": "同包创建操作必须先登记计划实体引用，关系、目标、行为和记忆引用才能引用该实体",
+        "preconditionCause": "结算入口没有复用同包创建前置检查，关系操作先于实体登记执行",
+        "formationMechanism": "多个结算入口各自校验，未把实体目录登记作为共享前置条件",
+        "preventionGate": "统一同包创建顺序，实体登记先于依赖引用，并在契约断言中固定"
+      },
+      "rootCauseEvidence": [
+        {
+          "type": "diagnostic-log",
+          "source": "development-system-diagnostic JSONL dependency-unregistered event",
+          "observation": "关系操作在实体登记事件之前进入结算"
+        },
+        {
+          "type": "fault-injection",
+          "source": "npc-social-p2-smoke.mjs",
+          "observation": "注入未登记端点后关系结算在提交前失败，不产生半成品关系"
+        }
+      ]
     },
     {
       "id": "schema-conflict",
       "status": "failed",
       "message": "结算语义 Schema 冲突：命运类型与不可逆语义不一致",
-      "expectedCategory": "schema-conflict"
+      "expectedCategory": "schema-conflict",
+      "rootCauseChain": {
+        "directFailure": "结算语义 Schema 冲突：命运类型与不可逆语义不一致，提交被拒绝",
+        "precondition": "命运类型字段和不可逆语义必须由同一 Schema 校验并保持一致性",
+        "preconditionCause": "两个系统分别声明字段含义，没有单一字段契约派生 Schema 与业务校验",
+        "formationMechanism": "字段契约被复制到多个校验入口，语义漂移后没有注册期冲突检测",
+        "preventionGate": "字段声明、Zod Schema 和业务校验从同一契约生成，注册冲突直接失败"
+      },
+      "rootCauseEvidence": [
+        {
+          "type": "diagnostic-log",
+          "source": "development-system-diagnostic JSONL schema-conflict event",
+          "observation": "提交事件包含冲突字段名且未进入业务写入"
+        },
+        {
+          "type": "reproduction-trace",
+          "source": "semantic-authority-audit.mjs",
+          "observation": "同一冲突载荷可稳定复现 Schema 拒绝结果"
+        }
+      ]
     },
     {
       "id": "timed-out",
       "status": "timed-out",
       "message": "节点超过契约时限 5000ms",
-      "expectedCategory": "timed-out"
+      "expectedCategory": "timed-out",
+      "rootCauseChain": {
+        "directFailure": "ai-narration 节点在 5000ms 内未返回终态，执行器把它标记为 timed-out",
+        "precondition": "生成服务必须在代理传输层返回可判定终态的完成标记或失败终态",
+        "preconditionCause": "代理把非流式 200 的空响应体当成未知态继续等待，SSE 聚合缺少完成标记和空闲上限",
+        "formationMechanism": "长响应超过固定时限预算，调用链路没有把排队、传输和解析消耗分开量化，超时常量成为唯一调节点",
+        "preventionGate": "SSE 聚合必须校验完成标记、空闲上限和响应体终态；缺少完成标记的故障注入应直接返回 invalid-status，超时预算按链路分项测量"
+      },
+      "rootCauseEvidence": [
+        {
+          "type": "diagnostic-log",
+          "source": "development-system-diagnostic JSONL and ai-error-translation-smoke.mjs",
+          "observation": "响应事件未出现完成标记，节点在 durationMs 超过 timeoutMs 后被标记为 timed-out"
+        },
+        {
+          "type": "metric",
+          "source": "execution node record durationMs/timeoutMs and proxy response body length",
+          "observation": "durationMs 接近固定超时而非传输峰值，证明是终态缺失而不是单纯慢"
+        },
+        {
+          "type": "fault-injection",
+          "source": "stream-response-smoke.mjs",
+          "observation": "注入缺少完成标记的 SSE 响应后被拒绝，不进入成功路径"
+        }
+      ]
     },
     {
       "id": "missing-status",
       "status": "missing-status",
       "message": "节点返回但未提供状态码",
-      "expectedCategory": "missing-status"
+      "expectedCategory": "missing-status",
+      "rootCauseChain": {
+        "directFailure": "节点返回但未提供状态码，流程所有者无法迁移该节点",
+        "precondition": "每个节点路径都必须返回已声明状态码或抛出可映射错误",
+        "preconditionCause": "run 函数返回类型允许 undefined，部分异步分支提前结束且未触发契约失败",
+        "formationMechanism": "节点注册没有在类型和契约层强制所有路径的终态返回，执行器只能事后补 missing-status",
+        "preventionGate": "注册与负向契约测试强制缺失返回映射为 missing-status，并反馈给 failureTarget"
+      },
+      "rootCauseEvidence": [
+        {
+          "type": "diagnostic-log",
+          "source": "development-system-diagnostic JSONL missing-status event",
+          "observation": "事件缺失 code 且节点没有进入终态记录"
+        },
+        {
+          "type": "fault-injection",
+          "source": "execution-flow-contracts-runner.ts missing case",
+          "observation": "注入 undefined 返回后稳定得到 missing-status 失败终态"
+        }
+      ]
     },
     {
       "id": "invalid-status",
       "status": "invalid-status",
       "message": "节点返回未声明状态",
-      "expectedCategory": "invalid-status"
+      "expectedCategory": "invalid-status",
+      "rootCauseChain": {
+        "directFailure": "节点返回未声明状态码，流程所有者拒绝该结果",
+        "precondition": "节点代码必须使用该节点 outcomes 中登记的代码",
+        "preconditionCause": "实现方在调用点内联手写 code，绕过登记代码派生",
+        "formationMechanism": "状态码契约只校验成功路径，负向测试未覆盖全部错误路径的手写代码",
+        "preventionGate": "负向契约测试强制未声明 code 返回 invalid-status，注册校验拒绝内联状态码"
+      },
+      "rootCauseEvidence": [
+        {
+          "type": "diagnostic-log",
+          "source": "development-system-diagnostic JSONL invalid-status event",
+          "observation": "事件携带未登记 code 且流程进入失败终态"
+        },
+        {
+          "type": "fault-injection",
+          "source": "execution-flow-contracts-runner.ts invalid case",
+          "observation": "注入手写 code 后稳定得到 invalid-status 失败终态"
+        }
+      ]
     },
     {
       "id": "duplicate-status",
       "status": "duplicate-status",
       "message": "节点返回多个终结状态",
-      "expectedCategory": "duplicate-status"
+      "expectedCategory": "duplicate-status",
+      "rootCauseChain": {
+        "directFailure": "节点返回多个终结状态，流程所有者无法确定唯一终态",
+        "precondition": "一次执行实例中每个节点只能返回一个终结状态",
+        "preconditionCause": "实现方在分支中多次返回或返回多信号数组，没有在契约层禁止多终态",
+        "formationMechanism": "执行器对多信号聚合缺少终结数量唯一性断言",
+        "preventionGate": "契约测试断言多终态返回 duplicate-status，节点注册声明唯一终态"
+      },
+      "rootCauseEvidence": [
+        {
+          "type": "diagnostic-log",
+          "source": "development-system-diagnostic JSONL duplicate-status event",
+          "observation": "同一节点事件包含多个终结码且没有可迁移唯一终态"
+        },
+        {
+          "type": "fault-injection",
+          "source": "execution-flow-contracts-runner.ts duplicate contract",
+          "observation": "注入多终态信号后稳定得到 duplicate-status 失败终态"
+        }
+      ]
     },
     {
       "id": "blocked",
@@ -65,7 +222,26 @@
       "id": "upstream-failure",
       "status": "failed",
       "message": "上游生成服务返回失败",
-      "expectedCategory": "upstream-failure"
+      "expectedCategory": "upstream-failure",
+      "rootCauseChain": {
+        "directFailure": "上游生成服务返回失败，节点以 failed 终止并阻止后续节点释放",
+        "precondition": "生成服务错误必须转译为机器状态码并反馈给 failureTarget",
+        "preconditionCause": "错误转译层把部分 HTTP 与传输错误归为通用失败，没有区分 Provider 终态、空响应和通道关闭",
+        "formationMechanism": "服务边界缺少统一错误分类，调用方只能看到 failed 而看不到具体上游原因",
+        "preventionGate": "错误转译测试覆盖 408/504/空响应/通道关闭，分类进入开发诊断并保留原文关联"
+      },
+      "rootCauseEvidence": [
+        {
+          "type": "diagnostic-log",
+          "source": "development-system-diagnostic JSONL and ai-error-translation-smoke.mjs",
+          "observation": "同一 HTTP 状态可稳定转译为统一失败类别且保留原文关联"
+        },
+        {
+          "type": "metric",
+          "source": "proxy error-rate and response-status distribution",
+          "observation": "上游失败与成功比例可量化，且失败事件集中在特定 Provider 错误类别"
+        }
+      ]
     }
   ]
 }

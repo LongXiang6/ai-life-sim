@@ -656,10 +656,7 @@ function TalentDrawContent() {
     } catch (error) {
       if (!completionScheduledRef.current) {
         if (isAiCredentialError(error)) {
-          const hasPlayerKey = Boolean(useSettingsStore.getState().customKey.trim())
-          setErrorMsg(hasPlayerKey
-            ? '当前自定义 API Key 无效或权限不足。请在设置中清空 Key 并恢复免费默认配置，或更换有效 Key 后重试。'
-            : '服务器免费体验通道鉴权失败，已停止重复请求。请稍后重试；若仍失败，请反馈给维护者。')
+          setErrorMsg('当前 API Key 无效、已过期或权限不足。请在设置中检查自己的 Key、接口网址和模型名称后重试。')
         } else {
           setErrorMsg('AI 命格生成失败，请检查网络后重试')
         }

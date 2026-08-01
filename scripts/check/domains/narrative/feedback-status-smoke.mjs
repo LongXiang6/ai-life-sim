@@ -43,6 +43,7 @@ try {
       source_ip TEXT NOT NULL,
       source_id TEXT NOT NULL,
       diagnostic_code TEXT,
+      device_provenance_id TEXT,
       is_registered INTEGER NOT NULL DEFAULT 0,
       account_id TEXT,
       username TEXT,
@@ -87,6 +88,14 @@ try {
       subject: 'test feedback',
     }, null, 2),
   )
+  const archivePath = path.join(root, 'logs-archive.sqlite')
+  database.prepare('ATTACH DATABASE ? AS archive_logs').run(archivePath)
+  database.exec(`
+    CREATE TABLE archive_logs.log_entries AS SELECT * FROM main.log_entries WHERE 0;
+    INSERT INTO archive_logs.log_entries SELECT * FROM main.log_entries;
+    DELETE FROM main.log_entries;
+  `)
+  database.exec('DETACH DATABASE archive_logs')
   database.close()
 
   const initial = JSON.parse(run(statusScript, ['--root', root, '--feedback-id', feedbackId, '--show']))
@@ -113,6 +122,16 @@ try {
 
   const reopened = run(statusScript, ['--root', root, '--feedback-id', feedbackId, '--show'])
   assert(JSON.parse(reopened).status === 'resolved', 'show must derive the latest status')
+
+  const hot = new Database(databasePath, { readonly: true, fileMustExist: true })
+  const archive = new Database(archivePath, { readonly: true, fileMustExist: true })
+  try {
+    assert(hot.prepare("SELECT COUNT(*) AS count FROM log_entries WHERE entry_type = 'feedback-status'").get().count === 2, 'status updates must write only to the active database')
+    assert(archive.prepare("SELECT COUNT(*) AS count FROM log_entries WHERE entry_type = 'feedback'").get().count === 1, 'archived feedback must remain in the archive database')
+  } finally {
+    archive.close()
+    hot.close()
+  }
 } finally {
   fs.rmSync(root, { recursive: true, force: true })
 }

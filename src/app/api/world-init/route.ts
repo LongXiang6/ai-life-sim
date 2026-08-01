@@ -28,15 +28,6 @@
 
 import { randomUUID } from 'crypto'
 import { z } from 'zod'
-import {
-  AI_PROVIDERS,
-  DEFAULT_AI_PROVIDER_ID,
-  getProviderModelCandidates,
-  isServerManagedProvider,
-  shouldTryManagedFallback,
-} from '@/core/ai-service/provider-config'
-import { readServerProviderApiKey } from '@/core/ai-service/server-provider-credentials'
-import { readServerProviderBaseUrl } from '@/core/ai-service/server-provider-targets'
 import type { WorldConfig } from '@/mods/mod-world'
 import {
   buildWorldInitPromptVars,
@@ -83,7 +74,6 @@ type WorldInitJob = {
 // ============================================================
 
 type PipelineOptions = {
-  providerId?: string
   apiKey?: string
   baseUrl?: string
   model?: string
@@ -149,29 +139,15 @@ async function callProviderDirect(
     maxTokens?: number
     temperature?: number
     jsonMode?: boolean
-    providerId?: string
     model?: string
     apiKey?: string
     baseUrl?: string
   },
 ): Promise<string> {
-  const providerId = opts.providerId || DEFAULT_AI_PROVIDER_ID
-  const isCustom = providerId === 'custom'
-  const provider = AI_PROVIDERS[providerId]
-  if (!isCustom && !provider) throw new Error(`未知的 AI Provider: ${providerId}`)
-
-  const apiKey = opts.apiKey || readServerProviderApiKey(providerId)
-  if (!apiKey) throw new Error(`${providerId} API Key 未配置`)
-
-  const baseUrl = isCustom ? opts.baseUrl : readServerProviderBaseUrl(providerId)
-  const model = isCustom ? opts.model : (opts.model || provider?.models[0]?.name)
-  if (!baseUrl || !model) throw new Error(`${providerId} 接口或模型未配置`)
-  if (
-    isServerManagedProvider(providerId)
-    && !provider?.models.some((candidate) => candidate.name === model)
-  ) {
-    throw new Error('免费体验通道不支持该模型，请使用自定义接口')
-  }
+  const apiKey = opts.apiKey?.trim() || ''
+  const baseUrl = opts.baseUrl?.trim().replace(/\/+$/u, '') || ''
+  const model = opts.model?.trim() || ''
+  if (!apiKey || !baseUrl || !model) throw new Error('玩家 API Key、接口或模型未完整配置')
 
   const body: Record<string, unknown> = {
     model,
@@ -188,52 +164,27 @@ async function callProviderDirect(
     body.response_format = { type: 'json_object' }
   }
 
-  const candidates = getProviderModelCandidates(providerId, model)
-  let lastError: Error | undefined
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(AI_TIMEOUT_MS),
+  })
 
-  for (let index = 0; index < candidates.length; index++) {
-    const candidate = candidates[index]
-    body.model = candidate
-    let fallbackAllowed = true
-    try {
-      const response = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(AI_TIMEOUT_MS),
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        lastError = new Error(`${providerId} API ${response.status}: ${errorText.slice(0, 500)}`)
-        fallbackAllowed = shouldTryManagedFallback(response.status)
-        if (index < candidates.length - 1 && fallbackAllowed) continue
-        throw lastError
-      }
-
-      const data = (await response.json()) as {
-        choices?: Array<{ message?: { content?: string } }>
-      }
-      const content = data.choices?.[0]?.message?.content
-
-      if (!content || content.trim() === '') {
-        lastError = new Error(`${providerId} ${candidate} 返回空内容`)
-        if (index < candidates.length - 1) continue
-        throw lastError
-      }
-
-      return content
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error))
-      if (index < candidates.length - 1 && fallbackAllowed) continue
-      throw lastError
-    }
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(`玩家 API ${response.status}: ${errorText.slice(0, 500)}`)
   }
 
-  throw lastError ?? new Error(`${providerId} 没有可用模型`)
+  const data = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string } }>
+  }
+  const content = data.choices?.[0]?.message?.content
+  if (!content || content.trim() === '') throw new Error(`${model} 返回空内容`)
+  return content
 }
 
 // ============================================================
@@ -267,7 +218,7 @@ async function runCalibrationStep(
     const raw = await callProviderDirect(
       worldDimensionCalibrationPrompt.systemPrompt,
       userPrompt,
-      { maxTokens: budgets.dimensionCalibration, temperature: 0.3, jsonMode: true, providerId: opts.providerId, apiKey: opts.apiKey, baseUrl: opts.baseUrl, model: opts.model },
+      { maxTokens: budgets.dimensionCalibration, temperature: 0.3, jsonMode: true, apiKey: opts.apiKey, baseUrl: opts.baseUrl, model: opts.model },
     )
 
     const bundle = parseWorldDimensionCalibrationResponse(raw)
@@ -309,7 +260,7 @@ async function runTagsStep(
     const raw = await callProviderDirect(
       worldTagsPrompt.systemPrompt,
       userPrompt,
-      { maxTokens: budgets.tags, temperature: 0.6, jsonMode: true, providerId: opts.providerId, apiKey: opts.apiKey, baseUrl: opts.baseUrl, model: opts.model },
+      { maxTokens: budgets.tags, temperature: 0.6, jsonMode: true, apiKey: opts.apiKey, baseUrl: opts.baseUrl, model: opts.model },
     )
 
     const tags = parseWorldTagsResponse(raw)
@@ -397,10 +348,9 @@ async function runServerPipeline(
 const PostBodySchema = z.object({
   worldCode: z.number().int().min(0),
   config: z.record(z.string(), z.unknown()),
-  providerId: z.string().optional(),
-  apiKey: z.string().optional(),
-  baseUrl: z.string().optional(),
-  model: z.string().optional(),
+  apiKey: z.string().min(1),
+  baseUrl: z.string().url(),
+  model: z.string().min(1),
 })
 
 export async function POST(request: Request): Promise<Response> {
@@ -415,7 +365,7 @@ export async function POST(request: Request): Promise<Response> {
       )
     }
 
-    const { worldCode, config, providerId, apiKey, baseUrl, model } = parsed.data
+    const { worldCode, config, apiKey, baseUrl, model } = parsed.data
 
     const existing = getLatestJobByWorldCode(worldCode)
     if (existing?.status === 'running') {
@@ -425,7 +375,7 @@ export async function POST(request: Request): Promise<Response> {
       )
     }
 
-    const opts: PipelineOptions = { providerId, apiKey, baseUrl, model }
+    const opts: PipelineOptions = { apiKey, baseUrl, model }
 
     runServerPipeline(config, worldCode, opts).catch((err) => {
       console.error(`[world-init/api] worldCode=${worldCode} 异常:`, err)

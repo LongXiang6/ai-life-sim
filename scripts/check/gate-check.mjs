@@ -123,7 +123,7 @@ async function main() {
     process.exit(1)
   }
 
-  // ── C3: 结构/领域扫描（顺序，依赖前两步通过） ──
+  // ── C3: 结构/领域扫描（域间并行，依赖前两步通过） ──
   const c3Name = quick ? 'C3 check:quick' : 'C3 check'
   const c3 = await spawnAsync(c3Name, 'npm', ['run', quick ? 'check:quick' : 'check'], {
     env: {

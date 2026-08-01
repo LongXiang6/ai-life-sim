@@ -8,7 +8,6 @@ import { z } from 'zod'
 
 import {
   appendServerLogEntry,
-  deleteServerLogEntries,
   getServerRequestSource,
   queryServerLogEntries,
 } from '@/core/logger/server-log-store'
@@ -114,15 +113,4 @@ export async function GET(request: Request): Promise<Response> {
     offset: Number.isFinite(offset) ? offset : 0,
   })
   return Response.json(result)
-}
-
-export async function DELETE(request: Request): Promise<Response> {
-  if (isPublicReadDisabled()) {
-    return Response.json({ error: '调试日志已禁用' }, { status: 403 })
-  }
-  const url = new URL(request.url)
-  const category = url.searchParams.get('category')?.trim() || undefined
-  const entryType = url.searchParams.get('entryType')?.trim() || undefined
-  const deleted = deleteServerLogEntries({ category, entryType })
-  return Response.json({ ok: true, deleted })
 }

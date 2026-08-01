@@ -4,7 +4,7 @@
  * @mod core
  */
 
-export { callAI, callAIConversation, callAIStream, callAIStreamConversation, callAIDegraded, callAIStreamDegraded, getCacheStats, resetCacheStats, recordRoundCacheMetrics, getRoundCacheMetrics, setOnAiError, isAiCredentialError } from './ai-client'
+export { AIResponseTruncatedError, callAI, callAIConversation, callAIStream, callAIStreamConversation, callAIDegraded, callAIStreamDegraded, getCacheStats, resetCacheStats, recordRoundCacheMetrics, getRoundCacheMetrics, setOnAiError, isAiCredentialError, isAiResponseTruncatedError } from './ai-client'
 export type { AICallOptions, CachePoolType, InternalCachePool, CacheHitInfo, CacheStatsFilter, CacheStatsSnapshot, RoundCacheMetrics, AICallLogContext, AICallUsageSnapshot } from './ai-client'
 export { resolveInternalCachePool } from './ai-client'
 export { callAIWithPromptTemplate } from './ai-call-wrapper'
@@ -39,24 +39,13 @@ export type { DeepSeekBalanceInfo, DeepSeekBalanceSnapshot } from './deepseek-ba
 export { diagnoseApiError, diagnoseProxyError, formatApiErrorForUser } from './api-error'
 export type { ApiDiagnostic } from './api-error'
 export {
-  AI_PROVIDERS,
   DEFAULT_AI_PROVIDER_ID,
+  DEFAULT_AI_BASE_URL,
   DEFAULT_AI_MODEL,
-  LEGACY_MANAGED_AI_PROVIDER_ID,
-  LEGACY_MANAGED_AI_MODEL,
-  LEGACY_MANAGED_AI_FALLBACK_MODEL,
-  isServerManagedProvider,
+  DEEPSEEK_API_PRESET,
+  DEEPSEEK_PRESET_BASE_URL,
+  DEEPSEEK_PRESET_MODEL,
   isRegisteredProviderBaseUrl,
-  shouldAggregateManagedNonStream,
   REASONING_EFFORT_OPTIONS,
-  resolveProvider,
-  getProviderIds,
-  getProviderModels,
-} from './provider-config'
-export type {
-  AIProviderConfig,
-  ProviderModel,
-  CustomProviderConfig,
-  ResolvedProvider,
 } from './provider-config'
 export { resolveSeed, generateSeed, saveSeed, loadSeed } from './resolve-seed'

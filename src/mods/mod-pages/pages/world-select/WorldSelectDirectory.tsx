@@ -15,7 +15,7 @@ export function WorldSelectDirectory({
   onRequestCustom: () => void
 }) {
   const L = logic.LABELS
-  const selectedSavedWorld = logic.savedWorlds.find((world) => logic.selectedWorld?.id === world.id)
+  const selectedSavedWorld = logic.filteredSavedWorlds.find((world) => logic.selectedWorld?.id === world.id)
 
   if (source === 'preset') {
     return (
@@ -87,8 +87,32 @@ export function WorldSelectDirectory({
         </div>
       ) : (
         <>
+          <div className={styles.savedToolbar}>
+            <label className={styles.savedSearchField}>
+              <input
+                type="search"
+                value={logic.savedSearch}
+                placeholder="搜索已保存世界"
+                aria-label="搜索已保存世界"
+                onChange={(event) => logic.setSavedSearch(event.target.value)}
+                disabled={logic.isConfirming}
+              />
+            </label>
+            <button
+              type="button"
+              className={styles.newWorldButton}
+              onClick={onRequestCustom}
+              disabled={logic.isConfirming}
+            >
+              新建世界
+            </button>
+          </div>
+          <p className={styles.savedCount} aria-live="polite">
+            已保存 {logic.filteredSavedWorlds.length} 个世界
+            {logic.filteredSavedWorlds.length !== logic.savedWorlds.length ? `（匹配 ${logic.savedSearch.trim()}）` : ''}
+          </p>
           <div className={styles.savedWorldList}>
-            {logic.savedWorlds.map((world) => {
+            {logic.filteredSavedWorlds.map((world) => {
               const selected = logic.selectedWorld?.id === world.id
               return (
                 <button
@@ -101,13 +125,18 @@ export function WorldSelectDirectory({
                 >
                   <span className={styles.savedWorldMain}>
                     <strong>{world.name}</strong>
-                    <small>{world.eraName}{Math.abs(world.eraStartYear)}年 · 最近修改</small>
+                    <small>{world.description || `${world.eraName}${Math.abs(world.eraStartYear)}年`}</small>
                   </span>
                   <span className={styles.savedWorldStatus} aria-hidden="true">已选</span>
                 </button>
               )
             })}
           </div>
+          {logic.filteredSavedWorlds.length === 0 && (
+            <div className={styles.emptyHint}>
+              <p>没有找到与「{logic.savedSearch.trim()}」匹配的已保存世界</p>
+            </div>
+          )}
           {selectedSavedWorld ? (
             <div className={styles.savedActions}>
               <button

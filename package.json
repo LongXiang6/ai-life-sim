@@ -1,6 +1,6 @@
 {
   "name": "ai-life-sim",
-  "version": "5.6.9",
+  "version": "5.7.0",
   "private": true,
   "scripts": {
     "dev": "node scripts/codegen/generate-mod-wiring.mjs && next dev --turbopack",
@@ -36,7 +36,7 @@
     "test:narrative-protocol": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs",
     "test:narrative-repetition-metrics": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-repetition-metrics-smoke.mjs",
     "test:narrative-opening:live": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-opening-live-eval.mjs",
-    "test:ai-proxy": "node scripts/check/domains/narrative/ai-proxy-observability-regression.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/deepseek-request-contract-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/stream-response-smoke.mjs && node scripts/check/domains/narrative/protected-prompt-assets-regression.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/server-log-store-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/diagnostic-player-code-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/ai-error-translation-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/cache-stats-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/log-analytics-smoke.mjs",
+    "test:ai-proxy": "node scripts/check/domains/narrative/ai-proxy-observability-regression.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/deepseek-request-contract-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/ai-response-truncation-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/stream-response-smoke.mjs && node scripts/check/domains/narrative/protected-prompt-assets-regression.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/server-log-store-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/diagnostic-player-code-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/ai-error-translation-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/cache-stats-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/log-analytics-smoke.mjs",
     "test:protected-prompt-bundle": "node scripts/check/domains/narrative/protected-prompt-client-bundle-smoke.mjs",
     "test:player-feedback": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/player-feedback-smoke.mjs && node scripts/check/domains/narrative/feedback-status-smoke.mjs",
     "test:destiny-credential-terminal": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/destiny-credential-terminal-smoke.mjs",
@@ -47,7 +47,7 @@
     "test:npc-social-p2": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/mod/npc-social-p2-smoke.mjs",
     "test:multi-world-p3-p5": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/mod/multi-world-p3-p5-smoke.mjs",
     "test:release-cleanup": "node scripts/check/domains/narrative/release-cleanup-smoke.mjs",
-    "test:managed-ai-default": "node scripts/check/domains/narrative/managed-ai-default-regression.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/managed-sse-aggregation-smoke.mjs",
+    "test:player-api-settings": "node scripts/check/domains/narrative/player-api-settings-regression.mjs",
     "test:loader": "node scripts/check/domains/structural/test-mod-loader.mjs",
     "check:execution": "node scripts/check/domains/structural/execution-system-gate.mjs",
     "check:standardization": "node scripts/check/domains/standardization/standardization-gate.mjs",

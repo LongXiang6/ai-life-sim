@@ -47,7 +47,12 @@ import {
 
 import styles from './GameStory.module.css'
 import { resolveWorldDimensionLabels } from '../../helpers/world-dimension-labels'
-import { getAutoNarrativeRetryDelay } from './narrative-retry-policy'
+import {
+  createAutoNarrativeRetryGate,
+  getAutoNarrativeRetryDelay,
+  invalidateAutoNarrativeRetry,
+  runAutoNarrativeRetryAttempt,
+} from './narrative-retry-policy'
 
 const GENDER_LABELS: Record<string, string> = { male: '男', female: '女' }
 
@@ -146,7 +151,7 @@ export default function GamePage() {
   const preGenStatus = usePreGenQueueStatus()
   const activeTimeStepKey = encodeTimeStepKey(timeStep)
   const [autoRetryAttempt, setAutoRetryAttempt] = useState(0)
-  const autoRetryGenerationRef = useRef(0)
+  const autoRetryGateRef = useRef(createAutoNarrativeRetryGate())
   const [showStepMenu, setShowStepMenu] = useState(false)
   const stepMenuRef = useRef<HTMLDivElement>(null)
   const stepButtonRef = useRef<HTMLButtonElement>(null)
@@ -306,7 +311,7 @@ export default function GamePage() {
   const handleNarrativeAdvance = useCallback(async () => {
     if (narrativeError) {
       // A manual tap takes precedence over a delayed automatic retry.
-      autoRetryGenerationRef.current += 1
+      invalidateAutoNarrativeRetry(autoRetryGateRef.current)
       setAutoRetryAttempt(0)
     }
     await runNarrativeAttempt()
@@ -317,7 +322,7 @@ export default function GamePage() {
       // Keep the counter while an automatic request is in flight. A successful
       // completion clears the error after the request settles and resets it.
       if (!isAdvancing) {
-        autoRetryGenerationRef.current += 1
+        invalidateAutoNarrativeRetry(autoRetryGateRef.current)
         /* eslint-disable react-hooks/set-state-in-effect -- reset local retry budget after a completed request */
         setAutoRetryAttempt(0)
         /* eslint-enable react-hooks/set-state-in-effect */
@@ -331,11 +336,14 @@ export default function GamePage() {
     const retryDelay = getAutoNarrativeRetryDelay(attemptIndex)
     if (retryDelay === null) return
 
-    const generation = autoRetryGenerationRef.current
+    const gate = autoRetryGateRef.current
+    const generation = gate.generation
     const retryTimer = window.setTimeout(() => {
-      if (generation !== autoRetryGenerationRef.current) return
-      setAutoRetryAttempt(attemptIndex + 1)
-      void runNarrativeAttempt()
+      void runAutoNarrativeRetryAttempt(gate, generation, runNarrativeAttempt)
+        .then((started) => {
+          if (!started || generation !== gate.generation) return
+          setAutoRetryAttempt(attemptIndex + 1)
+        })
     }, retryDelay)
 
     return () => window.clearTimeout(retryTimer)
@@ -350,6 +358,26 @@ export default function GamePage() {
       && !hasUnresolvedBranch
       && getAutoNarrativeRetryDelay(autoRetryAttempt) !== null,
   )
+
+  const storyProgressSteps = [
+    { key: 'write', label: '生成正文' },
+    { key: 'finalize', label: '完成本轮' },
+    { key: 'continue', label: '继续人生' },
+  ]
+  const storyProgressActiveIndex = !isRuntimeReady
+    ? 0
+    : isAdvancing
+      ? hasVisiblePendingNarrative ? 1 : 0
+      : hasUnresolvedBranch || narrativeError ? 1 : 2
+  const storyProgressLabel = !isRuntimeReady
+    ? runtimeBlockedText
+    : isAdvancing
+      ? hasVisiblePendingNarrative ? '正文已生成，正在完成本轮' : '正在生成下一段'
+      : hasUnresolvedBranch
+        ? '等待你的选择'
+        : narrativeError
+          ? '本轮未完成，可重试'
+          : forceBranchNext ? '已请求命运分叉' : '岁月流转'
 
   const narrativeAdvanceBlockedText = !isRuntimeReady
     ? runtimeBlockedText
@@ -586,7 +614,7 @@ export default function GamePage() {
                 <button
                   type="button"
                   className={`${styles.forceButton} ${forceBranchNext ? styles.forceButtonActive : ''}`}
-                  aria-label={forceBranchNext ? '取消下一轮强制分支' : '强制下一轮分支'}
+                  aria-label={forceBranchNext ? '取消下一轮命运分叉' : '请求下一轮命运分叉'}
                   aria-pressed={forceBranchNext}
                   disabled={!isRuntimeReady || isDead || isComplete || isAdvancing || hasUnresolvedBranch}
                   onClick={handleForceBranch}
@@ -596,7 +624,7 @@ export default function GamePage() {
                     <circle cx="18" cy="6" r="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
                     <circle cx="6" cy="18" r="3" fill="none" stroke="currentColor" strokeWidth="1.6" />
                   </svg>
-                  <span className={styles.srOnly}>强制下一轮分支</span>
+                  <span className={styles.srOnly}>{forceBranchNext ? '取消下一轮命运分叉' : '请求下一轮命运分叉'}</span>
                 </button>
               </div>
               <button
@@ -775,13 +803,23 @@ export default function GamePage() {
             <small>第 {Math.max(displayRoundCount, 1)} 回 · 故事进程</small>
             <h1>故事进行中</h1>
             <div className={styles.chapterRule}>
-              <span>{!isRuntimeReady
-                ? runtimeBlockedText
-                : isAdvancing
-                  ? hasVisiblePendingNarrative ? '正文已生成，正在完成本轮' : '命书正在续写'
-                  : hasUnresolvedBranch
-                    ? '等待你的选择'
-                    : forceBranchNext ? '已请求命运分叉' : '岁月流转'}</span>
+              <span>{storyProgressLabel}</span>
+            </div>
+            <div className={styles.progressSteps} aria-label="故事进程阶段">
+              {storyProgressSteps.map((step, index) => {
+                const isDone = index < storyProgressActiveIndex
+                const isActive = index === storyProgressActiveIndex
+                return (
+                  <span
+                    key={step.key}
+                    className={`${styles.progressStep} ${isDone ? styles.progressStepDone : ''} ${isActive ? styles.progressStepActive : ''}`}
+                    aria-current={isActive ? 'step' : undefined}
+                  >
+                    <i>{String(index + 1).padStart(2, '0')}</i>
+                    {step.label}
+                  </span>
+                )
+              })}
             </div>
           </header>
 
@@ -819,7 +857,7 @@ export default function GamePage() {
             isGenerating={isAdvancing}
             showGenerationCursor={isAdvancing && !hasVisiblePendingNarrative}
             generatingText={hasVisiblePendingNarrative ? '本轮正在完成' : '命书正在续写……'}
-            generatingHint={hasVisiblePendingNarrative ? '故事已返回，正在收束本轮' : '下一段人生正在生成'}
+            generatingHint={hasVisiblePendingNarrative ? '故事已返回，正在完成本轮' : '下一段人生正在生成'}
             hasEndingEvent={isDead}
             onAdvance={handleNarrativeAdvance}
             onGoToGameOver={handleGoToGameOver}

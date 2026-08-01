@@ -198,6 +198,7 @@ export function useWorldSelectLogic() {
   const [showMore, setShowMore] = useState(false)
   const [showCustom, setShowCustom] = useState(false)
   const [showCustomForm, setShowCustomForm] = useState(false)
+  const [savedSearch, setSavedSearch] = useState('')
 
   // ---- 难度 ----
   const { difficulty, setDifficulty } = useWorldSelectForm(existingWorldConfig?.difficulty ?? 'normal')
@@ -232,6 +233,16 @@ export function useWorldSelectLogic() {
     }),
     [],
   )
+
+  const filteredSavedWorlds = useMemo(() => {
+    const keyword = savedSearch.trim().toLocaleLowerCase('zh-CN')
+    if (!keyword) return savedWorlds
+    return savedWorlds.filter((world) =>
+      [world.name, world.description, world.eraName].some((value) =>
+        value.toLocaleLowerCase('zh-CN').includes(keyword),
+      ),
+    )
+  }, [savedSearch, savedWorlds])
 
   // ---- 难度下拉项 ----
   const difficultyItems = useMemo(
@@ -507,6 +518,8 @@ export function useWorldSelectLogic() {
     newEraEntryName,
     newEraEntryYear,
     savedWorlds,
+    filteredSavedWorlds,
+    savedSearch,
     editingWorldId,
     pendingDeleteWorldId,
     customFeedback,
@@ -526,6 +539,7 @@ export function useWorldSelectLogic() {
     setEraTimelineEntries,
     setNewEraEntryName,
     setNewEraEntryYear,
+    setSavedSearch,
 
     // 业务函数
     handleSelectPreset,

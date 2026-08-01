@@ -7,6 +7,12 @@ import process from 'node:process'
 
 import Database from 'better-sqlite3'
 
+import {
+  logDatabasesExist,
+  readLogRows,
+  resolveLogDatabasePath,
+} from './lib/log-databases.mjs'
+
 const STATUS_LABELS = {
   new: '待处理',
   in_progress: '处理中',
@@ -32,8 +38,7 @@ function defaultDatabasePath() {
 }
 
 function databasePathFromRoot(value) {
-  const resolved = path.resolve(value)
-  return path.extname(resolved).toLowerCase() === '.sqlite' ? resolved : path.join(resolved, 'logs.sqlite')
+  return resolveLogDatabasePath(value)
 }
 
 function printHelp() {
@@ -106,36 +111,39 @@ function parsePayload(value) {
 
 function main() {
   const options = parseArgs(process.argv.slice(2))
-  if (!fs.existsSync(options.database)) throw new Error(`日志数据库不存在：${options.database}`)
+  if (!logDatabasesExist(options.database)) throw new Error(`日志数据库不存在：${options.database}`)
+  const feedback = readLogRows(options.database, {
+    where: "entry_type = 'feedback' AND feedback_id = ?",
+    values: [options.feedbackId],
+  })[0]
+  if (!feedback) throw new Error(`找不到反馈：${options.feedbackId}`)
+
+  const history = readLogRows(options.database, {
+    where: "entry_type = 'feedback-status' AND feedback_id = ?",
+    values: [options.feedbackId],
+  }).sort((left, right) => (
+    left.created_at - right.created_at || String(left.id).localeCompare(String(right.id))
+  )).map((row) => ({ ...parsePayload(row.payload_json), timestamp: row.created_at }))
+  const current = history.at(-1)
+  if (options.show) {
+    console.log(JSON.stringify({
+      feedbackId: options.feedbackId,
+      status: current?.status ?? 'new',
+      statusLabel: STATUS_LABELS[current?.status ?? 'new'],
+      statusUpdatedAt: current?.timestamp ?? null,
+      history: history.length,
+    }, null, 2))
+    return
+  }
+
+  const previousStatus = current?.status ?? 'new'
+  if (previousStatus === options.status) throw new Error(`反馈已经是${STATUS_LABELS[options.status]}`)
+  if (!TRANSITIONS[previousStatus]?.has(options.status)) throw new Error(`不允许从 ${previousStatus} 转为 ${options.status}`)
+  if (options.status === 'duplicate' && options.duplicateOf === options.feedbackId) throw new Error('duplicate-of 不能指向自身')
+  if (!fs.existsSync(options.database)) throw new Error(`活动日志数据库不存在：${options.database}`)
+
   const database = new Database(options.database)
   try {
-    const feedback = database.prepare(`
-      SELECT id FROM log_entries WHERE entry_type = 'feedback' AND feedback_id = ? LIMIT 1
-    `).get(options.feedbackId)
-    if (!feedback) throw new Error(`找不到反馈：${options.feedbackId}`)
-
-    const history = database.prepare(`
-      SELECT created_at, payload_json FROM log_entries
-      WHERE entry_type = 'feedback-status' AND feedback_id = ?
-      ORDER BY created_at ASC, rowid ASC
-    `).all(options.feedbackId).map((row) => ({ ...parsePayload(row.payload_json), timestamp: row.created_at }))
-    const current = history.at(-1)
-    if (options.show) {
-      console.log(JSON.stringify({
-        feedbackId: options.feedbackId,
-        status: current?.status ?? 'new',
-        statusLabel: STATUS_LABELS[current?.status ?? 'new'],
-        statusUpdatedAt: current?.timestamp ?? null,
-        history: history.length,
-      }, null, 2))
-      return
-    }
-
-    const previousStatus = current?.status ?? 'new'
-    if (previousStatus === options.status) throw new Error(`反馈已经是${STATUS_LABELS[options.status]}`)
-    if (!TRANSITIONS[previousStatus]?.has(options.status)) throw new Error(`不允许从 ${previousStatus} 转为 ${options.status}`)
-    if (options.status === 'duplicate' && options.duplicateOf === options.feedbackId) throw new Error('duplicate-of 不能指向自身')
-
     const timestamp = Date.now()
     const event = {
       schemaVersion: 1,

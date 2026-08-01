@@ -17,6 +17,7 @@ import {
   computeNarrativeEventRecognitionTokenBudget,
   computeNarrativeSettlementTokenBudget,
   eventBus,
+  isAiResponseTruncatedError,
   recordRoundCacheMetrics,
 } from '@/core'
 import { logger } from '@/core/logger/client-logger'
@@ -48,6 +49,7 @@ import {
 import { orchestrator } from '../../subsystems/orchestrator-system'
 
 const MAX_FORMAT_REPAIR_ATTEMPTS = 2
+const STRUCTURED_ANALYSIS_REASONING_EFFORT = 'disabled' as const
 const STAGE_OWNER = 'mod-engine'
 const STAGE_FAILURE_TARGET = 'mod-engine'
 
@@ -96,6 +98,30 @@ function eventRecognitionRejection(message: string): Error {
   const error = new Error(message)
   error.name = 'NarrativeEventRecognitionRejectedError'
   return error
+}
+
+async function callStructuredAnalysis(
+  label: string,
+  rejection: (message: string) => Error,
+  promptTemplate: PromptTemplate,
+  userPrompt: string,
+  options: Parameters<typeof callAIWithPromptTemplate>[2],
+): Promise<string> {
+  try {
+    return await callAIWithPromptTemplate(promptTemplate, userPrompt, options)
+  } catch (error) {
+    if (!isAiResponseTruncatedError(error)) throw error
+
+    const rejected = rejection(`${label}响应达到输出上限，已停止本轮收束并保留已生成正文，请重试。`)
+    Object.assign(rejected, {
+      cause: error,
+      finishReason: error.finishReason,
+      maxTokens: error.maxTokens,
+      requestId: error.requestId,
+      responseLength: error.responseLength,
+    })
+    throw rejected
+  }
 }
 
 /**
@@ -431,7 +457,7 @@ export function loadStages(
         const settlementMaxTokens = computeNarrativeSettlementTokenBudget({
           narrativeCharacters: ctx._narrativeParsed.narrative.replace(/\s/gu, '').length,
           activeSubsystemCount: settlementInput.activeSubsystemIds.length,
-          reasoningEffort: aiConfig.reasoningEffort ?? settings.reasoningEffort,
+          reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
         })
         const joinedInput = settlementInput.userSegments.join('\n\n')
         const baseLogContext = {
@@ -446,7 +472,12 @@ export function loadStages(
           promptVersion: narrativeSettlementPrompt.version,
         }
         const callOptions = {
-          config: { ...aiConfig, model, maxTokens: settlementMaxTokens },
+          config: {
+            ...aiConfig,
+            model,
+            maxTokens: settlementMaxTokens,
+            reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
+          },
           pool: 'narrative' as const,
           strictSchema: true,
           sessionId,
@@ -457,10 +488,13 @@ export function loadStages(
           apiKey: settings.customKey || undefined,
           userSegments: settlementInput.userSegments,
           overrideTemperature: 0,
+          reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
           logContext: baseLogContext,
         }
 
-        let response = await callAIWithPromptTemplate(
+        let response = await callStructuredAnalysis(
+          '结算',
+          settlementRejection,
           narrativeSettlementPrompt,
           joinedInput,
           callOptions,
@@ -475,7 +509,7 @@ export function loadStages(
         let repairAttempts = 0
         while (!quality.valid && repairAttempts < MAX_FORMAT_REPAIR_ATTEMPTS) {
           repairAttempts += 1
-          response = await callAIWithPromptTemplate(narrativeSettlementPrompt, joinedInput, {
+          response = await callStructuredAnalysis('结算', settlementRejection, narrativeSettlementPrompt, joinedInput, {
             ...callOptions,
             extraUserMessages: [buildNarrativeSettlementRepairInstruction(quality, response)],
             logContext: {
@@ -532,7 +566,7 @@ export function loadStages(
         const recognitionMaxTokens = computeNarrativeEventRecognitionTokenBudget({
           narrativeCharacters: ctx._narrativeParsed.narrative.replace(/\s/gu, '').length,
           existingCandidateCount: recognitionInput.existingCandidates.length,
-          reasoningEffort: aiConfig.reasoningEffort ?? settings.reasoningEffort,
+          reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
         })
         const joinedInput = recognitionInput.userSegments.join('\n\n')
         const baseLogContext = {
@@ -547,7 +581,12 @@ export function loadStages(
           promptVersion: narrativeEventRecognitionPrompt.version,
         }
         const callOptions = {
-          config: { ...aiConfig, model, maxTokens: recognitionMaxTokens },
+          config: {
+            ...aiConfig,
+            model,
+            maxTokens: recognitionMaxTokens,
+            reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
+          },
           pool: 'narrative' as const,
           strictSchema: true,
           sessionId,
@@ -558,10 +597,13 @@ export function loadStages(
           apiKey: settings.customKey || undefined,
           userSegments: recognitionInput.userSegments,
           overrideTemperature: 0,
+          reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
           logContext: baseLogContext,
         }
 
-        let response = await callAIWithPromptTemplate(
+        let response = await callStructuredAnalysis(
+          '事件识别',
+          eventRecognitionRejection,
           narrativeEventRecognitionPrompt,
           joinedInput,
           callOptions,
@@ -575,7 +617,7 @@ export function loadStages(
         let repairAttempts = 0
         while (!quality.valid && repairAttempts < MAX_FORMAT_REPAIR_ATTEMPTS) {
           repairAttempts += 1
-          response = await callAIWithPromptTemplate(narrativeEventRecognitionPrompt, joinedInput, {
+          response = await callStructuredAnalysis('事件识别', eventRecognitionRejection, narrativeEventRecognitionPrompt, joinedInput, {
             ...callOptions,
             extraUserMessages: [buildNarrativeEventRecognitionRepairInstruction(quality, response)],
             logContext: {

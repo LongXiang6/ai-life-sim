@@ -1,6 +1,6 @@
 /**
  * @module ai-client.ts
- * @description AI 服务客户端 —— 多 Provider API 调用封装
+ * @description AI 服务客户端 —— 玩家自有 API 调用封装
  * @mod core
  *
  * 机制说明：
@@ -11,7 +11,7 @@
  *   5. 重试机制：MAX_RETRY=3, RETRY_DELAY=1500ms，429 限流退避
  *   6. 超时控制：90s AbortController
  *   7. 缓存统计：从 usage 字段提取缓存命中/未命中，累加到 localStorage
- *   8. 多 Provider：通过 resolveProvider() 动态解析 Provider 配置
+ *   8. Provider：所有调用统一使用玩家自己的 OpenAI 兼容 API 配置
  */
 
 import type { AIModelConfig, ReasoningEffort } from '@/foundation'
@@ -30,7 +30,6 @@ import { formatApiErrorForUser } from './api-error'
 import {
   DEFAULT_AI_MODEL,
   DEFAULT_AI_PROVIDER_ID,
-  isServerManagedProvider,
 } from './provider-config'
 import { normalizeAiUsage } from './normalize-ai-usage'
 import { normalizeStorySeed } from './story-seed'
@@ -92,9 +91,32 @@ async function parseRetryAfter(resp: Response): Promise<number | undefined> {
 
 /** 400 等确定性参数错误不做无意义的同请求重试；仅临时故障进入内部退避。 */
 function isRetryableAiError(error: unknown): boolean {
+  if (isAiResponseTruncatedError(error)) return false
   if (error instanceof AIHttpError) return error.status === 408 || error.status === 429 || error.status >= 500
   if (error instanceof Error && error.name === 'AbortError') return false
   return true
+}
+
+/** Provider 已明确耗尽输出预算；保留半截响应仅用于诊断，绝不能交给业务解析或普通重试。 */
+export class AIResponseTruncatedError extends Error {
+  public readonly responseLength: number
+
+  constructor(
+    public readonly content: string,
+    public readonly finishReason: string | undefined,
+    public readonly requestId: string | undefined,
+    public readonly maxTokens: number | undefined,
+    public readonly usage: AICallUsageSnapshot | undefined,
+  ) {
+    const requestSuffix = requestId ? `（请求编号 ${requestId}）` : ''
+    super(`AI 输出达到 max_tokens 长度上限，结果不完整${requestSuffix}`)
+    this.name = 'AIResponseTruncatedError'
+    this.responseLength = content.length
+  }
+}
+
+export function isAiResponseTruncatedError(error: unknown): error is AIResponseTruncatedError {
+  return error instanceof AIResponseTruncatedError
 }
 
 /** 格式化 AI 错误为简短用户消息，包含 API 诊断信息 */
@@ -104,6 +126,9 @@ function formatAiError(e: unknown, status?: number, errorText?: string): string 
   }
   if (e instanceof AIHttpError) {
     return e.message
+  }
+  if (isAiResponseTruncatedError(e)) {
+    return `${e.message}。请重试本轮。`
   }
   if (e instanceof Error) {
     const msg = e.message
@@ -565,17 +590,17 @@ export function buildProxyBody(
 
   // Provider 路由信息
   const providerId = options?.providerId ?? DEFAULT_AI_PROVIDER_ID
-  proxyBody.providerId = providerId
-  if (options?.providerId === undefined) {
-    proxyBody.model = DEFAULT_AI_MODEL
+  if (providerId !== DEFAULT_AI_PROVIDER_ID) {
+    throw new Error('当前版本只支持玩家自有 API 配置')
   }
+  proxyBody.providerId = providerId
 
-  // 推理模式由 Provider 适配层映射，不能把 DeepSeek 私有参数发给未知 Provider。
+  // 推理模式只按玩家填写的模型名称映射，不能把 DeepSeek 私有参数发给未知模型。
   const reasoningEffort = options?.reasoningEffort ?? config.reasoningEffort ?? 'disabled'
   const modelForThinking = (options?.customModel?.trim() || config.model).toLowerCase()
   const isDeepSeekModel = modelForThinking.includes('deepseek')
 
-  if (providerId === 'deepseek' || (providerId === 'custom' && isDeepSeekModel)) {
+  if (isDeepSeekModel) {
     if (reasoningEffort === 'disabled') {
       proxyBody.thinking = { type: 'disabled' }
     } else {
@@ -587,37 +612,21 @@ export function buildProxyBody(
       delete proxyBody.top_p
     }
     if (stream) proxyBody.stream_options = { include_usage: true }
-  } else if (providerId === DEFAULT_AI_PROVIDER_ID) {
-    // LongCat 官方只声明 enabled / disabled，不接收项目内部的预算档位。
-    proxyBody.thinking = reasoningEffort === 'disabled'
-      ? { type: 'disabled' }
-      : { type: 'enabled' }
-  } else if (isServerManagedProvider(providerId)) {
-    // 原托管通道未声明 thinking 契约，不能转发 DeepSeek 风格预算字段。
-    delete proxyBody.thinking
-  } else if (providerId === 'custom') {
+  } else {
     // 未声明能力的自定义模型不能继承项目内部 DeepSeek 预算格式。
     delete proxyBody.thinking
   }
 
-  // 自定义配置
-  if (providerId === 'custom') {
-    if (options?.apiKey) proxyBody.apiKey = options.apiKey
-    if (options?.customBaseUrl) proxyBody.baseUrl = options.customBaseUrl
-    if (options?.customModel) proxyBody.model = options.customModel
-  } else if (options?.apiKey) {
-    // 非自定义 Provider 但覆盖了 API Key
-    proxyBody.apiKey = options.apiKey
-  }
+  if (options?.apiKey) proxyBody.apiKey = options.apiKey
+  if (options?.customBaseUrl) proxyBody.baseUrl = options.customBaseUrl
+  if (options?.customModel) proxyBody.model = options.customModel
 
   return proxyBody
 }
 
 function resolveCacheUsageContext(options: AICallOptions, pool: CachePoolType): AiUsageContext {
   const providerId = options.providerId ?? DEFAULT_AI_PROVIDER_ID
-  const model = options.providerId === undefined
-    ? DEFAULT_AI_MODEL
-    : (options.customModel?.trim() || options.config.model)
+  const model = options.customModel?.trim() || options.config.model || DEFAULT_AI_MODEL
   return {
     providerId,
     model,
@@ -706,6 +715,17 @@ async function executeAiFetchWithRetry(
         durationMs: Math.max(0, Math.round(performance.now() - attemptStartedAt)),
       })
 
+      const maxTokens = resolveMaxTokens(options)
+      if (isTruncatedResponse(usage, maxTokens, finishReason)) {
+        throw new AIResponseTruncatedError(
+          content,
+          finishReason,
+          requestId,
+          maxTokens,
+          usage,
+        )
+      }
+
       if (!isValidAiContent(content)) {
         if (attempt < MAX_RETRY - 1) {
           await logFailedAICall(
@@ -764,6 +784,12 @@ async function executeAiFetchWithRetry(
         throw err
       }
       if (err instanceof AIHttpError) lastRequestId = err.requestId
+      if (isAiResponseTruncatedError(err)) {
+        lastUsage = err.usage ?? lastUsage
+        lastFinishReason = err.finishReason ?? lastFinishReason
+        lastContent = err.content
+        lastRequestId = err.requestId ?? lastRequestId
+      }
       if (attempt < MAX_RETRY - 1 && isRetryableAiError(err)) {
         const retryKind = err instanceof AIHttpError ? `HTTP ${err.status}` : '临时网络错误'
         await logFailedAICall(
@@ -812,7 +838,18 @@ async function executeAiFetchWithRetry(
           lastFinishReason,
           lastContent,
           lastRequestId,
-          { attempt: attempt + 1, maxAttempts: MAX_RETRY, willRetry: false },
+          {
+            attempt: attempt + 1,
+            maxAttempts: MAX_RETRY,
+            willRetry: false,
+            ...(isAiResponseTruncatedError(err)
+              ? {
+                  failureKind: 'response-truncated',
+                  responseLength: err.responseLength,
+                  maxTokens: err.maxTokens ?? resolveMaxTokens(options),
+                }
+              : {}),
+          },
         )
       }
       throw err
@@ -1070,7 +1107,8 @@ async function fetchAIStreamResponse(
     throw new AIHttpError(resp.status, errText, requestId, true)
   }
 
-  const result = await handleStreamResponse(resp, onChunk)
+  const maxTokens = typeof proxyBody.max_tokens === 'number' ? proxyBody.max_tokens : undefined
+  const result = await handleStreamResponse(resp, onChunk, AI_STREAM_IDLE_TIMEOUT_MS, maxTokens)
   if (result.usage) recordCacheUsage(result.usage, cacheContext)
   return { ...result, requestId }
 }
@@ -1282,6 +1320,7 @@ export async function handleStreamResponse(
   response: Response,
   onChunk?: (text: string) => void,
   idleTimeoutMs = AI_STREAM_IDLE_TIMEOUT_MS,
+  maxTokens?: number,
 ): Promise<FetchAIResult> {
   const reader = response.body?.getReader()
   if (!reader) return { content: '' }
@@ -1355,7 +1394,13 @@ export async function handleStreamResponse(
     )
   }
   if (finishReason === 'length') {
-    throw new Error('AI 流式响应达到 max_tokens，正文可能不完整')
+    throw new AIResponseTruncatedError(
+      fullText,
+      finishReason,
+      response.headers.get('x-ai-request-id') ?? undefined,
+      maxTokens,
+      usage,
+    )
   }
   if (!isValidAiContent(fullText)) {
     throw new Error('AI 流式响应为空')

@@ -2,7 +2,7 @@
 
 /**
  * @module SettingsTabPresets.tsx
- * @description "模型调用" Tab —— 预设模型、自定义 API 与连通性测试
+ * @description "模型调用" Tab —— 玩家自有 API 与 DeepSeek 预设填充
  * @mod mod-settings
  */
 
@@ -10,10 +10,10 @@ import { useCallback, useState } from 'react'
 
 import { configStore } from '@/core'
 import {
-  AI_PROVIDERS,
   DEFAULT_AI_MODEL,
   DEFAULT_AI_PROVIDER_ID,
-  isServerManagedProvider,
+  DEEPSEEK_PRESET_BASE_URL,
+  DEEPSEEK_PRESET_MODEL,
 } from '@/core/ai-service'
 
 import { useSettingsStore } from '../store'
@@ -24,7 +24,6 @@ import styles from './SettingsTabPresets.module.css'
 const CONN_STATE_KEY = 'mod-settings:conn-test'
 const CONN_TEST_TIMEOUT = 10000
 const CONN_TEST_ESTIMATED_TOKENS = '≤8'
-const PROVIDER_OPTIONS = Object.values(AI_PROVIDERS)
 
 interface ConnPersistState {
   state: 'idle' | 'connected' | 'failed'
@@ -58,17 +57,15 @@ function saveConnState(state: ConnPersistState): void {
 }
 
 const HELP_DATA: Record<string, string> = {
-  'preset-model': '服务器预设只展示可选模型；目标地址与托管凭据不会进入浏览器配置。',
-  'custom-model': '使用自定义 AI 模型时，需要填入 API Key、兼容 OpenAI 协议的接口地址和模型名称。',
+  'custom-model': '需要填写自己的 API Key、兼容 OpenAI 协议的接口地址和模型名称。DeepSeek 预设只填入网址与模型，不会修改已经输入的 Key。',
 }
 
-function connectionTargetKey(provider: string, customUrl: string): string {
-  return provider === 'custom' ? `custom:${customUrl.trim()}` : `provider:${provider}`
+function connectionTargetKey(customUrl: string): string {
+  return `custom:${customUrl.trim()}`
 }
 
 export function SettingsTabPresets() {
   const {
-    provider,
     customKey,
     customUrl,
     customModel,
@@ -77,17 +74,6 @@ export function SettingsTabPresets() {
     setCustomUrl,
     setCustomModel,
   } = useSettingsStore()
-
-  const initialVendorIndex = PROVIDER_OPTIONS.findIndex((vendor) => vendor.id === provider)
-  const [selectedVendorIdx, setSelectedVendorIdx] = useState<number | null>(
-    initialVendorIndex >= 0 ? initialVendorIndex : null,
-  )
-  const [selectedModelName, setSelectedModelName] = useState<string | null>(() => {
-    if (initialVendorIndex < 0) return null
-    return PROVIDER_OPTIONS[initialVendorIndex].models.some((model) => model.name === customModel)
-      ? customModel
-      : null
-  })
   const [helpOpen, setHelpOpen] = useState<Record<string, boolean>>({})
   const toggleHelp = useCallback((key: string) => {
     setHelpOpen((current) => ({ ...current, [key]: !current[key] }))
@@ -98,7 +84,7 @@ export function SettingsTabPresets() {
     if (!saved) return { state: 'idle', duration: null, tokens: '', testedAt: null }
 
     const store = useSettingsStore.getState()
-    const activeTarget = connectionTargetKey(store.provider, store.customUrl)
+    const activeTarget = connectionTargetKey(store.customUrl)
     const activeModel = store.customModel || DEFAULT_AI_MODEL
     if (saved.testedTarget === activeTarget && saved.testedModel === activeModel) {
       return {
@@ -111,31 +97,6 @@ export function SettingsTabPresets() {
     return { state: 'idle', duration: null, tokens: '', testedAt: null }
   })
 
-  const selectedVendor = selectedVendorIdx === null ? null : PROVIDER_OPTIONS[selectedVendorIdx]
-  const selectedModel = selectedVendor?.models.find((model) => model.name === selectedModelName) ?? null
-  const ownApiSourceVendor = selectedVendor?.baseUrl
-    ? selectedVendor
-    : AI_PROVIDERS[provider]?.baseUrl
-      ? AI_PROVIDERS[provider]
-      : null
-  const ownApiSourceModel = ownApiSourceVendor
-    ? ownApiSourceVendor.models.some((model) => model.name === selectedModelName)
-      ? selectedModelName ?? ownApiSourceVendor.models[0]?.name ?? ''
-      : ownApiSourceVendor.models.some((model) => model.name === customModel)
-        ? customModel
-        : ownApiSourceVendor.models[0]?.name ?? ''
-    : ''
-
-  const handleUseCustomApi = useCallback(() => {
-    setProvider('custom')
-    setCustomKey('')
-    setCustomUrl(ownApiSourceVendor?.baseUrl ?? '')
-    setCustomModel(ownApiSourceModel)
-    setSelectedVendorIdx(null)
-    setSelectedModelName(null)
-    setConnTest({ state: 'idle', duration: null, tokens: '', testedAt: null })
-  }, [ownApiSourceModel, ownApiSourceVendor, setCustomKey, setCustomModel, setCustomUrl, setProvider])
-
   const markConnectionUntested = useCallback((testedTarget: string, testedModel: string) => {
     setConnTest({ state: 'idle', duration: null, tokens: '', testedAt: null })
     saveConnState({
@@ -147,29 +108,24 @@ export function SettingsTabPresets() {
     })
   }, [])
 
-  const handleVendorToggle = useCallback((index: number) => {
-    setSelectedVendorIdx((current) => current === index ? null : index)
-    setSelectedModelName(null)
-  }, [])
+  const handleApplyDeepSeekPreset = useCallback(() => {
+    setProvider(DEFAULT_AI_PROVIDER_ID)
+    setCustomUrl(DEEPSEEK_PRESET_BASE_URL)
+    setCustomModel(DEEPSEEK_PRESET_MODEL)
+    markConnectionUntested(connectionTargetKey(DEEPSEEK_PRESET_BASE_URL), DEEPSEEK_PRESET_MODEL)
+  }, [markConnectionUntested, setCustomModel, setCustomUrl, setProvider])
 
-  const handlePresetSelect = useCallback((index: number, modelName: string) => {
-    const vendor = PROVIDER_OPTIONS[index]
-    setSelectedModelName(modelName)
-    setProvider(vendor.id)
+  const handleClearKey = useCallback(() => {
     setCustomKey('')
-    setCustomModel(modelName)
-    setCustomUrl('')
-    markConnectionUntested(connectionTargetKey(vendor.id, ''), modelName)
-  }, [markConnectionUntested, setCustomKey, setCustomModel, setCustomUrl, setProvider])
+    markConnectionUntested(connectionTargetKey(customUrl), customModel)
+  }, [customModel, customUrl, markConnectionUntested, setCustomKey])
 
   const runConnTest = useCallback(() => {
     setConnTest({ state: 'testing', duration: null, tokens: '', testedAt: null })
-    const providerConfig = AI_PROVIDERS[provider]
-    const testUrl = provider === 'custom' ? customUrl : ''
-    const testTarget = connectionTargetKey(provider, testUrl)
-    const testModel = customModel || providerConfig?.models[0]?.name || DEFAULT_AI_MODEL
+    const testTarget = connectionTargetKey(customUrl)
+    const testModel = customModel || DEFAULT_AI_MODEL
 
-    if (provider === 'custom' && (!customKey || !customUrl || !customModel)) {
+    if (!customKey.trim() || !customUrl.trim() || !customModel.trim()) {
       const testedAt = Date.now()
       setConnTest({ state: 'failed', duration: null, tokens: '', testedAt })
       saveConnState({ state: 'failed', duration: null, testedTarget: testTarget, testedModel: testModel, testedAt })
@@ -182,23 +138,19 @@ export function SettingsTabPresets() {
 
     fetch('/api/proxy', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: testModel,
         messages: [{ role: 'user', content: `ping-${Date.now()}` }],
         max_tokens: 8,
         temperature: 0,
         stream: false,
-        providerId: provider,
-        baseUrl: provider === 'custom' ? testUrl : undefined,
-        apiKey: customKey || undefined,
-        thinking: providerConfig?.supportsThinking
+        providerId: DEFAULT_AI_PROVIDER_ID,
+        baseUrl: customUrl.trim(),
+        apiKey: customKey.trim(),
+        thinking: testModel.toLowerCase().includes('deepseek')
           ? { type: 'disabled' }
-          : (provider === 'custom' && testModel.toLowerCase().includes('deepseek'))
-            ? { type: 'disabled' }
-            : undefined,
+          : undefined,
       }),
       signal: controller.signal,
     })
@@ -242,17 +194,7 @@ export function SettingsTabPresets() {
         setConnTest({ state: 'failed', duration: elapsed, tokens: '0', testedAt })
         saveConnState({ state: 'failed', duration: elapsed, testedTarget: testTarget, testedModel: testModel, testedAt })
       })
-  }, [customKey, customModel, customUrl, provider])
-
-  const handleClearAPIConfig = useCallback(() => {
-    setProvider(DEFAULT_AI_PROVIDER_ID)
-    setCustomKey('')
-    setCustomUrl('')
-    setCustomModel(DEFAULT_AI_MODEL)
-    setSelectedVendorIdx(PROVIDER_OPTIONS.findIndex((vendor) => vendor.id === DEFAULT_AI_PROVIDER_ID))
-    setSelectedModelName(DEFAULT_AI_MODEL)
-    markConnectionUntested(connectionTargetKey(DEFAULT_AI_PROVIDER_ID, ''), DEFAULT_AI_MODEL)
-  }, [markConnectionUntested, setCustomKey, setCustomModel, setCustomUrl, setProvider])
+  }, [customKey, customModel, customUrl])
 
   const connectionLabel = connTest.state === 'connected'
     ? `已连通${connTest.duration !== null ? ` · ${connTest.duration}ms` : ''}${connTest.tokens ? ` · ${connTest.tokens}` : ''}`
@@ -264,204 +206,93 @@ export function SettingsTabPresets() {
 
   return (
     <div className={styles.tabRoot}>
-      <section className={styles.section} aria-labelledby="settings-provider-heading">
-        <div className={styles.sectionLabel}>
-          <h3 id="settings-provider-heading">
-            预设模型
-            <SettingsHelpTooltip
-              helpKey="preset-model"
-              helpOpen={helpOpen}
-              helpData={HELP_DATA}
-              toggleHelp={toggleHelp}
-              width={280}
-            />
-          </h3>
-          <span>先选厂商，再选模型</span>
-        </div>
-        <div className={styles.sectionCard}>
-          <div className={styles.cardBody}>
-            <p className={styles.supportingText}>
-              预设通道只保存 Provider 与模型名称；目标地址和托管凭据由服务器私有解析，不进入浏览器配置。
-            </p>
-            <div className={styles.vendorGrid} role="group" aria-label="模型厂商">
-              {PROVIDER_OPTIONS.map((vendor, index) => (
-                <button
-                  key={vendor.id}
-                  type="button"
-                  className={styles.vendorButton}
-                  title={vendor.notes}
-                  aria-pressed={selectedVendorIdx === index}
-                  aria-expanded={selectedVendorIdx === index}
-                  onClick={() => handleVendorToggle(index)}
-                >
-                  {vendor.name}
-                </button>
-              ))}
-            </div>
-
-            {selectedVendor && selectedVendorIdx !== null && (
-              <div className={styles.modelPicker}>
-                <div className={styles.groupHeading}>
-                  <span>{selectedVendor.name} 模型</span>
-                  <span>{selectedVendor.models.length} 个选项</span>
-                </div>
-                <div className={styles.modelGrid} role="group" aria-label={`${selectedVendor.name} 模型`}>
-                  {selectedVendor.models.map((model) => (
-                    <button
-                      key={model.name}
-                      type="button"
-                      className={styles.modelButton}
-                      title={model.notes}
-                      aria-pressed={selectedModelName === model.name}
-                      onClick={() => handlePresetSelect(selectedVendorIdx, model.name)}
-                    >
-                      {model.label}
-                    </button>
-                  ))}
-                </div>
-
-                {selectedModel?.notes && (
-                  <p className={styles.modelNotes}>{selectedModel.notes}</p>
-                )}
-                {selectedVendor.notes && (
-                  <p className={styles.vendorNotes}>{selectedVendor.notes}</p>
-                )}
-                {selectedVendor.id === 'deepseek' && (
-                  <p className={styles.providerGuide}>
-                    API Key 可在
-                    {' '}<a href="https://platform.deepseek.com" target="_blank" rel="noopener noreferrer">DeepSeek 开放平台</a>{' '}
-                    的「API Keys」页面创建。该厂商适合作为默认测试引擎。
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
       <section className={styles.section} aria-labelledby="settings-custom-model-heading">
         <div className={styles.sectionLabel}>
           <h3 id="settings-custom-model-heading">
-            {provider === 'custom' ? '自己的 API' : '当前预设'}
+            自己的 API
             <SettingsHelpTooltip
               helpKey="custom-model"
               helpOpen={helpOpen}
               helpData={HELP_DATA}
               toggleHelp={toggleHelp}
-              width={280}
+              width={300}
             />
           </h3>
           <span>修改后自动保存</span>
         </div>
         <div className={styles.sectionCard}>
           <div className={styles.cardBody}>
-            {provider === 'custom' ? (
-              <>
-                <p className={styles.supportingText}>
-                  从官方厂商切换时会自动填入接口网址和模型名称；填写自己的 API Key 后即可测试。只有服务器登记的官方目标可运行受保护主叙事。
-                </p>
-                <div className={styles.fieldGrid}>
-                  <label className={styles.field}>
-                    <span>API Key</span>
-                    <input
-                      type="password"
-                      autoComplete="off"
-                      className={styles.presetInput}
-                      placeholder="例如 sk-xxx"
-                      value={customKey}
-                      onChange={(event) => {
-                        setCustomKey(event.target.value)
-                        markConnectionUntested(connectionTargetKey('custom', customUrl), customModel)
-                      }}
-                    />
-                  </label>
-                  <label className={styles.field}>
-                    <span>API 网址</span>
-                    <input
-                      inputMode="url"
-                      className={styles.presetInput}
-                      placeholder="https://example.com/v1"
-                      value={customUrl}
-                      onChange={(event) => {
-                        setCustomUrl(event.target.value)
-                        markConnectionUntested(connectionTargetKey('custom', event.target.value), customModel)
-                      }}
-                    />
-                  </label>
-                  <label className={styles.field}>
-                    <span>模型名称</span>
-                    <input
-                      className={styles.presetInput}
-                      placeholder="例如 deepseek-chat"
-                      value={customModel}
-                      onChange={(event) => {
-                        setCustomModel(event.target.value)
-                        markConnectionUntested(connectionTargetKey('custom', customUrl), event.target.value)
-                      }}
-                    />
-                  </label>
-                </div>
-              </>
-            ) : (
-              <>
-                <p className={styles.supportingText}>
-                  服务器预设模式不显示或保存 API 网址与 Key，只使用当前选中的模型名称。
-                </p>
-                <div className={styles.actionRow}>
-                  <button
-                    type="button"
-                    className={styles.secondaryButton}
-                    onClick={handleUseCustomApi}
-                    title={ownApiSourceVendor
-                      ? `自动填入 ${ownApiSourceVendor.name} 的接口网址和模型名称`
-                      : '打开自定义 API 配置'}
-                  >
-                    使用自己的 API Key
-                  </button>
-                </div>
-              </>
-            )}
+            <div className={styles.presetRow}>
+              <p className={styles.supportingText}>
+                填写自己的 Key、API 网址和模型名称。受保护主叙事当前支持 DeepSeek 官方接口。
+              </p>
+              <button type="button" className={styles.secondaryButton} onClick={handleApplyDeepSeekPreset}>
+                填入 DeepSeek 预设
+              </button>
+            </div>
+            <div className={styles.fieldGrid}>
+              <label className={styles.field}>
+                <span>API Key</span>
+                <input
+                  type="password"
+                  autoComplete="off"
+                  className={styles.presetInput}
+                  placeholder="例如 sk-xxx"
+                  value={customKey}
+                  onChange={(event) => {
+                    setProvider(DEFAULT_AI_PROVIDER_ID)
+                    setCustomKey(event.target.value)
+                    markConnectionUntested(connectionTargetKey(customUrl), customModel)
+                  }}
+                />
+              </label>
+              <label className={styles.field}>
+                <span>API 网址</span>
+                <input
+                  inputMode="url"
+                  className={styles.presetInput}
+                  placeholder="https://example.com/v1"
+                  value={customUrl}
+                  onChange={(event) => {
+                    setProvider(DEFAULT_AI_PROVIDER_ID)
+                    setCustomUrl(event.target.value)
+                    markConnectionUntested(connectionTargetKey(event.target.value), customModel)
+                  }}
+                />
+              </label>
+              <label className={styles.field}>
+                <span>模型名称</span>
+                <input
+                  className={styles.presetInput}
+                  placeholder="例如 deepseek-v4-flash"
+                  value={customModel}
+                  onChange={(event) => {
+                    setProvider(DEFAULT_AI_PROVIDER_ID)
+                    setCustomModel(event.target.value)
+                    markConnectionUntested(connectionTargetKey(customUrl), event.target.value)
+                  }}
+                />
+              </label>
+            </div>
+
+            <p className={styles.providerGuide}>
+              DeepSeek API Key 可在
+              {' '}<a href="https://platform.deepseek.com" target="_blank" rel="noopener noreferrer">DeepSeek 开放平台</a>{' '}
+              创建。预设按钮不会覆盖已经输入的 Key。
+            </p>
 
             <div className={styles.connectionRow} aria-live="polite">
               <div className={styles.configSummary}>
                 <span>配置状态</span>
-                <strong>{provider === 'custom'
-                  ? customKey && customUrl && customModel
-                    ? `自己的 API · ${customModel}`
-                    : '请完整填写 Key、网址和模型'
-                  : `${isServerManagedProvider(provider) ? '服务器免费体验' : '服务器预设'} · ${customModel || DEFAULT_AI_MODEL}`}</strong>
+                <strong>{customKey.trim() && customUrl.trim() && customModel.trim()
+                  ? `自己的 API · ${customModel.trim()}`
+                  : '请完整填写 Key、网址和模型'}</strong>
               </div>
               <div className={styles.connectionStatus} data-state={connTest.state}>
                 <span className={styles.statusDot} aria-hidden="true" />
                 <span>{connectionLabel}</span>
-                <button
-                  type="button"
-                  className={styles.retryButton}
-                  title="重新测试连通性"
-                  disabled={connTest.state === 'testing'}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    runConnTest()
-                  }}
-                >
-                  重测
-                </button>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section className={styles.section} aria-labelledby="settings-extra-params-heading">
-        <div className={styles.sectionLabel}>
-          <h3 id="settings-extra-params-heading">额外请求参数</h3>
-          <span>尚未开放</span>
-        </div>
-        <div className={`${styles.sectionCard} ${styles.mutedCard}`}>
-          <div className={styles.cardBody}>
-            <p className={styles.supportingText}>
-              当前版本不会把额外参数写入 AI 请求，因此暂不展示无效的参数输入控件。
-            </p>
           </div>
         </div>
       </section>
@@ -469,27 +300,23 @@ export function SettingsTabPresets() {
       <section className={styles.section} aria-labelledby="settings-config-actions-heading">
         <div className={styles.sectionLabel}>
           <h3 id="settings-config-actions-heading">配置操作</h3>
-          <span>测试或恢复默认</span>
+          <span>使用玩家自己的凭据</span>
         </div>
-        <div className={styles.sectionCard}>
-          <div className={styles.actionBody}>
-            <p className={styles.supportingText}>
-              测试只验证最短请求，不代表任意自定义地址可接收受保护主叙事；恢复默认会清空本地 Key，并切回服务器免费体验通道。
-            </p>
-            <div className={styles.actionRow}>
-              <button
-                type="button"
-                className={styles.primaryButton}
-                disabled={connTest.state === 'testing'}
-                onClick={runConnTest}
-              >
-                {connTest.state === 'testing' ? '测试中…' : '测试连接'}
-              </button>
-              <button type="button" className={styles.secondaryButton} onClick={handleClearAPIConfig}>
-                恢复默认
-              </button>
-            </div>
-          </div>
+        <div className={styles.actionRow}>
+          <button
+            type="button"
+            className={styles.primaryButton}
+            disabled={connTest.state === 'testing'}
+            onClick={runConnTest}
+          >
+            {connTest.state === 'testing' ? '测试中…' : '测试连接'}
+          </button>
+          <button type="button" className={styles.secondaryButton} onClick={handleApplyDeepSeekPreset}>
+            恢复 DeepSeek 预设
+          </button>
+          <button type="button" className={styles.secondaryButton} onClick={handleClearKey}>
+            清空 Key
+          </button>
         </div>
       </section>
     </div>

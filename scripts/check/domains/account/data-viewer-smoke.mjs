@@ -195,6 +195,14 @@ logs.prepare(`
   JSON.stringify({ lifeRunId, callKind: 'narrative-main' }),
   JSON.stringify({ trace: { lifeRunId, round: 9, callKind: 'narrative-main' } }),
 )
+const logArchiveDatabase = path.join(root, 'logs-archive.sqlite')
+logs.prepare('ATTACH DATABASE ? AS archive_logs').run(logArchiveDatabase)
+logs.exec(`
+  CREATE TABLE archive_logs.log_entries AS SELECT * FROM main.log_entries WHERE 0;
+  INSERT INTO archive_logs.log_entries SELECT * FROM main.log_entries;
+  DELETE FROM main.log_entries;
+`)
+logs.exec('DETACH DATABASE archive_logs')
 logs.close()
 
 const accounts = new Database(accountDatabase)
@@ -277,6 +285,16 @@ try {
   assert.equal(executionDiagnostics.incidents.byCategory['entity-directory-missing'], 1)
   assert.ok(inspectDatabaseSchema(options, 'logs').tables.some((table) => table.name === 'log_entries'))
 
+  const hotLogs = new Database(logDatabase, { readonly: true, fileMustExist: true })
+  const archivedLogs = new Database(logArchiveDatabase, { readonly: true, fileMustExist: true })
+  try {
+    assert.equal(hotLogs.prepare('SELECT COUNT(*) AS count FROM log_entries').get().count, 0)
+    assert.equal(archivedLogs.prepare('SELECT COUNT(*) AS count FROM log_entries').get().count, 3)
+  } finally {
+    archivedLogs.close()
+    hotLogs.close()
+  }
+
   const overview = buildDataOverview(options)
   assert.equal(overview.logs.today.calls, 1)
   assert.equal(overview.logs.today.cacheHitRate, 83.33)
@@ -305,6 +323,7 @@ try {
   assert.equal(readonly.total, 1)
   assert.deepEqual(readonly.columns, ['request_id', 'prompt', 'response'])
   assert.equal(readonly.rows[0].prompt, prompt)
+  assert.equal(readonly.rows[0].response, responseText)
   assert.throws(() => queryReadonlyDatabase(options, {
     source: 'logs',
     sql: 'DELETE FROM log_entries',

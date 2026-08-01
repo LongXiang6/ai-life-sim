@@ -1,9 +1,6 @@
 #!/usr/bin/env node
 
-import fs from 'node:fs'
 import path from 'node:path'
-
-import Database from 'better-sqlite3'
 
 import {
   buildCanonicalStoryRepetitionSet,
@@ -11,6 +8,7 @@ import {
   summarizeStoryRepetitionRows,
 } from './lib/story-repetition-analytics.mjs'
 import { classifyUpstreamError } from './lib/error-classification.mjs'
+import { logDatabasesExist, readLogRows, resolveLogDatabasePath } from './lib/log-databases.mjs'
 
 const DEFAULT_ROOT = process.env.AI_LOG_DB_PATH
   || process.env.AI_LOG_DIR
@@ -93,58 +91,47 @@ function resolveWindow(options, nowMs = Date.now()) {
   return { fromMs, toMs, compareAtMs }
 }
 
-function resolveDatabasePath(root) {
-  const resolved = path.resolve(root)
-  return path.extname(resolved).toLowerCase() === '.sqlite'
-    ? resolved
-    : path.join(resolved, 'logs.sqlite')
-}
-
 function parseJson(value) {
   if (!value) return {}
   try { return JSON.parse(value) } catch { return {} }
 }
 
 function readRecords(root, window, target) {
-  const databasePath = resolveDatabasePath(root)
-  if (!fs.existsSync(databasePath)) throw new Error(`日志数据库不存在：${databasePath}`)
-  const database = new Database(databasePath, { readonly: true, fileMustExist: true })
-  try {
-    const rows = database.prepare(`
-      SELECT * FROM log_entries
-      WHERE created_at >= ? AND created_at < ?
-        AND entry_type IN ('proxy-access', 'client-log', 'quality-metric')
-      ORDER BY created_at ASC, rowid ASC
-    `).all(window.fromMs, window.toMs)
-    for (const row of rows) {
-      const payload = parseJson(row.payload_json)
-      const kind = row.entry_type === 'proxy-access' ? 'access' : 'client'
-      target.push({
-        ...payload,
-        timestamp: payload.timestamp ?? new Date(row.created_at).toISOString(),
-        receivedAt: payload.receivedAt ?? row.created_at,
-        requestId: payload.requestId ?? row.request_id,
-        request_id: payload.request_id ?? row.request_id,
-        sourceIp: row.source_ip,
-        sourceId: row.source_id,
-        diagnosticCode: row.diagnostic_code,
-        deviceProvenanceId: row.device_provenance_id ?? null,
-        accountId: row.account_id,
-        username: row.username,
-        isRegistered: row.is_registered === 1,
-        level: row.level ?? payload.level,
-        module: row.module ?? payload.module,
-        message: row.message ?? payload.message,
-        status: row.status ?? payload.status,
-        provider: row.provider ?? payload.provider,
-        model: row.model ?? payload.model,
-        _kind: kind,
-        _timestamp: row.created_at,
-        _sequence: target.length,
-      })
-    }
-  } finally {
-    database.close()
+  const databasePath = resolveLogDatabasePath(root)
+  if (!logDatabasesExist(databasePath)) throw new Error(`日志数据库不存在：${databasePath}`)
+  const rows = readLogRows(databasePath, {
+    where: `created_at >= ? AND created_at < ?
+      AND entry_type IN ('proxy-access', 'client-log', 'quality-metric')`,
+    values: [window.fromMs, window.toMs],
+  }).sort((left, right) => (
+    left.created_at - right.created_at || String(left.id).localeCompare(String(right.id))
+  ))
+  for (const row of rows) {
+    const payload = parseJson(row.payload_json)
+    const kind = row.entry_type === 'proxy-access' ? 'access' : 'client'
+    target.push({
+      ...payload,
+      timestamp: payload.timestamp ?? new Date(row.created_at).toISOString(),
+      receivedAt: payload.receivedAt ?? row.created_at,
+      requestId: payload.requestId ?? row.request_id,
+      request_id: payload.request_id ?? row.request_id,
+      sourceIp: row.source_ip,
+      sourceId: row.source_id,
+      diagnosticCode: row.diagnostic_code,
+      deviceProvenanceId: row.device_provenance_id ?? null,
+      accountId: row.account_id,
+      username: row.username,
+      isRegistered: row.is_registered === 1,
+      level: row.level ?? payload.level,
+      module: row.module ?? payload.module,
+      message: row.message ?? payload.message,
+      status: row.status ?? payload.status,
+      provider: row.provider ?? payload.provider,
+      model: row.model ?? payload.model,
+      _kind: kind,
+      _timestamp: row.created_at,
+      _sequence: target.length,
+    })
   }
 }
 

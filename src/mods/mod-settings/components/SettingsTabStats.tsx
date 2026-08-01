@@ -103,6 +103,22 @@ export function SettingsTabStats() {
 
   return (
     <div className={styles.tabRoot}>
+      <section className={styles.section} aria-labelledby="settings-experience-heading">
+        <div className={styles.sectionLabel}><h3 id="settings-experience-heading">体验概览</h3><span>当前存档</span></div>
+        <div className={styles.sectionCard}>
+          <div className={styles.metricGrid}>
+            <div><span>已推进轮次</span><strong>{run?.latestRound ?? 0}</strong><small>{run?.latestRound ? `第 ${run.latestRound} 轮` : '尚未开始'}</small></div>
+            <div><span>平均生成等待</span><strong>{formatTokenCount(averageLatency(run?.total))} ms</strong><small>完整响应平均耗时</small></div>
+            <div><span>叙事压缩</span><strong>{compressionStats.lastAt > 0 ? `第 ${compressionStats.lastAt} 轮` : '尚未压缩'}</strong><small>自动整理长故事</small></div>
+            <div><span>缓存命中</span><strong>{cache.hitRate}%</strong><small>减少重复输入费用</small></div>
+          </div>
+          <div className={styles.feedbackRow}>
+            <span>遇到问题或想提出建议？</span>
+            <button type="button" onClick={() => { window.location.href = '/feedback' }}>填写反馈</button>
+          </div>
+        </div>
+      </section>
+
       <section className={styles.section} aria-labelledby="settings-usage-heading">
         <div className={styles.sectionLabel}><h3 id="settings-usage-heading">本轮与存档</h3><span>{model}</span></div>
         <div className={styles.sectionCard}>

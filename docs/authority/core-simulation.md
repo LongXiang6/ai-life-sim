@@ -22,7 +22,8 @@
 - **剧情推进规则**：剧情阶段的持续时间、年龄、到期、延迟因果和世界演化以 `totalDays` 或 `daysPassed` 为主轴；历史事件、玩家选择、状态变化、张力和随机性是条件或修正，不能取代时间轴。`plot-structure` 以阶段起点总天数与已持续天数判定阶段，并按本轮经过天数缩放自然张力漂移；回合序号只保留幂等和审计用途。
 - **其他系统规则**：世界上下文的当地时钟、历史事件的创建/到期时间、记忆生命周期和系统衰减都必须锚定规范时间；系统可以拥有自己的业务状态和派生指标，但不能独立累计全局时间。回合数仅可用于幂等、批处理或性能窗口。
 - **统一链路**：`TimeSystem -> RoundContext -> Orchestrator -> 活动子系统 -> 历史/因果/记忆/世界投影 -> Prompt 与原子提交`。页面选择行动或步长，AI 提出受限意图，二者都不直接写规范时间。
-- **实时源**：`src/mods/mod-engine/subsystems/time-system.ts`、`src/mods/mod-engine/subsystems/orchestrator-system.ts`、`src/foundation/types/subsystem.types.ts`、`src/mods/mod-engine/subsystems/plot-structure-system.ts`、`src/mods/mod-world/utils/world-context-runtime.ts`。
+- **叙事视角**：`day:1`、`month:1`、`season:1`、`year:1`、`year:3`、`year:5`、`year:10`、`year:50`、`year:100`、`year:200`、`year:500`、`year:1000` 各自拥有唯一视角配置与严格递增的宏观层级。日级贴近连续现场，月季级使用代表性节点，年度必须覆盖年初、阶段变化、转折与年末格局，十年至千年逐步扩展到人生阶段、家族、制度、文明和时代遗产；年级及以上不得被压回单一现场。Orchestrator 将该档提示与真实历法窗口共同写入 `timeGuideText`，再由无状态引导编译器按固定顺序进入本轮系统引导。字数配置只拥有段落、句数和篇幅密度，不得指定单一现场、单一事件或一组对话；短档通过压缩各阶段节点控制篇幅，不能删除当前时间尺度要求的起点、转折和结束格局。
+- **实时源**：`src/mods/mod-engine/subsystems/time-system.ts`、`src/mods/mod-engine/subsystems/orchestrator-system.ts`、`src/mods/mod-engine/helpers/time-scale-narrative.ts`、`src/foundation/constants/time-steps.ts`、`src/foundation/types/subsystem.types.ts`、`src/mods/mod-engine/subsystems/plot-structure-system.ts`、`src/mods/mod-world/utils/world-context-runtime.ts`。
 
 ## 核心结构
 
@@ -103,7 +104,7 @@ P6 追加 `economy`、`population`、`settlement`、`work`、`item`；P7 追加 
 
 ## 回合入口与并发
 
-- 玩家页面通过 `src/mods/mod-engine/hooks.ts` 调用 `executeRoundV2()`；旧的硬编码回合管线不再作为回退。
+- 玩家页面通过 `src/mods/mod-engine/hooks.ts` 调用 `executeRoundV2()`；旧的硬编码回合管线不再作为回退。玩家点击、分支确认和错误自动重试共用同一个前置单飞门，互斥锁必须在等待上一轮后台收口前取得并在所有准备/执行终态后释放；自动重试只有在上一尝试完整结束后才推进计数并安排下一次，过期或并发计时器不能排成新的真实回合。
 - 每次回合先建立 `narrative-round` 执行实例，严格经过 `prepare -> ready -> execute -> transition -> finalize`：准备确认快照和入场条件，就绪阶段排队并登记资源，执行阶段运行本地规则与 AI，过渡阶段等待并汇合结果、完成跨系统校验和原子提交，收束阶段只发布一次终态。阶段节点携带稳定状态码、顺序号和故障接收者，流程所有者只在所有必需节点成功或声明跳过后发布终态。
 - `narrative-round`、MOD 生命周期、`world-init` 和 `subsystem-advance` 都从中央流程登记目录取得部门、子系统和故障接收者；每个执行实例的原始 ready/running/终结事件随开发回合诊断保留，聚合器只读取这些事件，不成为业务状态第二所有者。
 - 同阶段、同依赖、同 `order` 的节点只有显式声明同一 `parallelGroup` 才并发；组内同时运行，终态记录仍按确定性阶段顺序汇合，任一成员失败时等待同组成员收口后停止释放后续节点。
@@ -132,7 +133,7 @@ P6 追加 `economy`、`population`、`settlement`、`work`、`item`；P7 追加 
 | 13 | `compress-save` | finalize 节点核对回合结果已提交，再由外层完成压缩、存档、outcome 和下一轮预生成 |
 
 阶段源是 `src/mods/mod-engine/campaigns/default/index.ts`，Manifest 中的阶段声明由代码生成器校验与其一致；公共执行器为 `src/foundation/utils/execution-sequence.ts`。
-执行契约、事故样本和周期复盘规则的实时源是 `src/foundation/types/execution-sequence.types.ts`、`src/foundation/utils/execution-sequence.ts`、`src/core/execution/execution-flow-registry.ts`、`scripts/check/fixtures/execution-incidents.json` 与 `scripts/check/rules/execution-system-review.json`。
+执行契约、事故样本和周期复盘规则的实时源是 `src/foundation/types/execution-sequence.types.ts`、`src/foundation/utils/execution-sequence.ts`、`src/core/execution/execution-flow-registry.ts`、`scripts/check/fixtures/execution-incidents.json` 与 `scripts/check/rules/execution-system-review.json`。事故样本必须携带从直接失效、前置条件、前置条件成因、形成机制到防复发机制的完整根因链，并以诊断日志、指标、故障注入或复现轨迹作为可验证证据；`timed-out` 样本禁止只表述等待时间、超时阈值或重试次数调整，`npm run check:execution` 强制校验上述契约。
 
 ## AI 协议与解析
 
@@ -147,7 +148,7 @@ P6 追加 `economy`、`population`、`settlement`、`work`、`item`；P7 追加 
 
 `narrative-parser` 与 `tagged-meta-envelope.ts` 以完整内容为边界兼容纯正文、规范标签、成对 Markdown 围栏、说明前缀、标签空白和完整多行 JSON；数据分析还兼容系统段之间的单换行、多空行及中文结构标点。解析只采用唯一完整候选，不补括号、不丢弃残缺数组尾部、不从部分对象重组结果；截断 JSON、多个完整候选、未知标签、非连续系统编号、非末尾或重复数据段仍失败。`narrative-ai-protocol.ts` 负责中文 Schema、内部 ID 映射和最终类型转换，业务语义不从正文关键词或页面状态反推。三类格式失败各自最多修复两次，始终复用原服务端 Prompt 资产和原动态输入；正文发布前失败不显示新内容，发布后失败则只保留非持久化失败投影并回滚全部业务状态。
 
-三份固定资产分别是 `mod-engine:narrative:5.8.0`、`mod-engine:narrative-settlement:1.1.0`、`mod-engine:narrative-event-recognition:1.0.0`。第一次固定示例只展示正文标签、真实空行和分支 JSON 结构；具体内容完全由本轮输入与正文规则决定。主叙事身份、事实冲突顺序、轮回天赋边界和篇幅策略保持不变。数据分析的系统合同从活动 `systemInstruction` 注册契约派生，每条操作固定包含 `系统/目标对象/目标上下文/操作/说明/变更/依据事件` 七个中文字段；摘要位于 `⟦数据⟧`，派生属性、规律推进和连锁反应仍由所属本地系统计算。事件识别固定资产只拥有未来候选的定义、唯一中文 Schema 和标准示例，不拥有事件 ID、候选状态或历史事实。
+三份固定资产分别是 `mod-engine:narrative:5.8.1`、`mod-engine:narrative-settlement:1.1.0`、`mod-engine:narrative-event-recognition:1.0.0`。第一次固定示例只展示正文标签、真实空行和分支 JSON 结构；具体内容完全由本轮输入与正文规则决定。主叙事身份、事实冲突顺序和轮回天赋边界保持不变；篇幅规则只控制密度，时间尺度规则独立决定现场、阶段与时代断点。数据分析的系统合同从活动 `systemInstruction` 注册契约派生，每条操作固定包含 `系统/目标对象/目标上下文/操作/说明/变更/依据事件` 七个中文字段；摘要位于 `⟦数据⟧`，派生属性、规律推进和连锁反应仍由所属本地系统计算。事件识别固定资产只拥有未来候选的定义、唯一中文 Schema 和标准示例，不拥有事件 ID、候选状态或历史事实。
 
 有力量体系的世界在创建时由 `mod-world` 固化 `PowerFrameworkDefinition`：框架有稳定 ID、显示名、`bounded/open` 进阶规则和本世界连续阶位；AI 只能提出名称、描述和进阶语义，机器 ID 由系统生成。每轮 `⟦全局信息⟧` 只投影当前世界已固化的框架，禁止跨世界比较或恢复固定阶位表。开放体系只能在运行态追加新阶位，不能回写世界配置真源；无力量世界使用 `enabled=false` 且不发送力量框架。
 

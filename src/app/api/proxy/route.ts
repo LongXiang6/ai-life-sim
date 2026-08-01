@@ -1,6 +1,6 @@
 /**
  * @module route.ts
- * @description AI API 代理路由 —— 动态多 Provider 转发
+ * @description AI API 代理路由 —— 玩家自有 API 转发
  * @mod app
  *
  * 为什么需要代理：
@@ -13,7 +13,7 @@
  *   - SSE 流式透传（stream: true）
  *   - 由服务端可信账号或设备来源分配业务 user_id
  *   - response_format JSON Mode（由客户端传入）
- *   - 动态 Provider 路由（6 家厂商 + 自定义）
+ *   - 玩家自有 OpenAI 兼容 API 路由
  *   - thinking 参数透传（推理强度）
  *   - 代理访问日志（明文 SQLite 记录每次调用）
  *   - 上游错误响应原文保存
@@ -22,28 +22,11 @@
 import { z } from 'zod'
 import { createHash, randomUUID } from 'crypto'
 
+import { DEFAULT_AI_PROVIDER_ID } from '@/core/ai-service/provider-config'
 import {
-  AI_PROVIDERS,
-  DEFAULT_AI_PROVIDER_ID,
-  getProviderModelCandidates,
-  isServerManagedProvider,
-  shouldAggregateManagedNonStream,
-  shouldTryManagedFallback,
-} from '@/core/ai-service/provider-config'
-import {
-  hasServerProviderApiKey,
-  readServerProviderApiKey,
-} from '@/core/ai-service/server-provider-credentials'
-import {
-  hasServerProviderTarget,
   isRegisteredServerProviderBaseUrl,
   isTrustedServerPromptTarget,
-  readServerProviderBaseUrl,
 } from '@/core/ai-service/server-provider-targets'
-import {
-  requestManagedAggregatedCompletion,
-  type ManagedUpstreamAttempt,
-} from '@/core/ai-service/managed-provider-execution'
 import {
   AI_STREAM_IDLE_TIMEOUT_MS,
   readStreamWithIdleTimeout,
@@ -103,7 +86,7 @@ const ProxyRequestSchema = z.object({
   ]).optional(),
   reasoning_effort: z.enum(['high', 'max']).optional(),
   // Provider 路由
-  providerId: z.string().default('deepseek'),
+  providerId: z.string().default(DEFAULT_AI_PROVIDER_ID),
   baseUrl: z.string().url().optional(),
   apiKey: z.string().optional(),
   /** 服务端固定 Prompt 资产；客户端不得同时提交 system 消息。 */
@@ -123,6 +106,13 @@ const ProxyRequestSchema = z.object({
 })
 
 type ProxyRequest = z.infer<typeof ProxyRequestSchema>
+
+interface UpstreamAttempt {
+  model: string
+  status?: number
+  durationMs: number
+  error?: string
+}
 
 // ---- 请求指纹 + 重试追踪（内存缓存，无持久化开销） ----
 
@@ -466,15 +456,12 @@ function getUpstreamHeaderSnapshot(headers: Headers): Record<string, string> {
 
 // ---- 主处理 ----
 
-/** 仅暴露服务端是否已有可用密钥，不返回 Provider、密钥或其他配置细节。 */
+/** 只验证玩家填写的目标是否可用于受保护 Prompt，不读取任何服务端 AI 凭据。 */
 export function GET(request: Request): Response {
   const searchParams = new URL(request.url).searchParams
   const providerId = searchParams.get('providerId') || DEFAULT_AI_PROVIDER_ID
-  const configured = providerId === 'custom'
-    ? isRegisteredServerProviderBaseUrl(searchParams.get('baseUrl') ?? '')
-    : Boolean(AI_PROVIDERS[providerId])
-      && hasServerProviderTarget(providerId)
-      && hasServerProviderApiKey(providerId)
+  const configured = providerId === DEFAULT_AI_PROVIDER_ID
+    && isRegisteredServerProviderBaseUrl(searchParams.get('baseUrl') ?? '')
   return Response.json(
     { configured },
     { headers: { 'Cache-Control': 'no-store' } },
@@ -652,33 +639,16 @@ export async function POST(request: Request): Promise<Response> {
     messageCount = body.messages.length
     promptChars = body.messages.reduce((sum, message) => sum + message.content.length, 0)
 
-    // 3. 解析目标 Provider 配置
-    const providerConfig = AI_PROVIDERS[providerId]
-    const isCustom = providerId === 'custom'
-
-    if (!isCustom && !providerConfig) {
+    // 3. 只接受玩家自有 API 配置
+    if (providerId !== DEFAULT_AI_PROVIDER_ID) {
       await Promise.all([
-        writeCurrentTrace('response', { status: 400, error: 'Unknown provider' }),
-        writeCurrentAccessLog(400, 'Unknown provider'),
+        writeCurrentTrace('response', { status: 400, error: 'Player API required' }),
+        writeCurrentAccessLog(400, 'Player API required'),
       ])
-      return jsonWithRequestId(requestId, { error: '未知的 AI Provider' }, 400)
+      return jsonWithRequestId(requestId, { error: '当前版本只支持玩家自己的 API Key' }, 400)
     }
 
-    if (
-      isServerManagedProvider(providerId)
-      && !providerConfig.models.some((candidate) => candidate.name === body.model)
-    ) {
-      await Promise.all([
-        writeCurrentTrace('response', { status: 400, error: 'Managed model not allowed' }),
-        writeCurrentAccessLog(400, 'Managed model not allowed'),
-      ])
-      return jsonWithRequestId(requestId, { error: '免费体验通道不支持该模型，请使用自定义接口' }, 400)
-    }
-
-    // 确定 baseUrl
-    const baseUrl = isCustom
-      ? (body.baseUrl || '')
-      : readServerProviderBaseUrl(providerId)
+    const baseUrl = body.baseUrl || ''
 
     let upstreamMessages = body.messages
     if (body.prompt_asset) {
@@ -706,7 +676,7 @@ export async function POST(request: Request): Promise<Response> {
         ])
         return jsonWithRequestId(
           requestId,
-          { error: '受保护的主叙事不能发送到任意自定义接口；请选择官方厂商预设，可继续使用自己的 API Key' },
+          { error: '受保护的主叙事当前只支持 DeepSeek 官方接口；请填入 DeepSeek 预设并使用自己的 API Key' },
           400,
         )
       }
@@ -730,8 +700,7 @@ export async function POST(request: Request): Promise<Response> {
       request: buildTraceRequest(body, upstreamMessages),
     })
 
-    // 确定 API Key：请求体传入 > 服务端 env
-    const apiKey = body.apiKey || readServerProviderApiKey(providerId)
+    const apiKey = body.apiKey || ''
 
     if (!baseUrl) {
       await Promise.all([
@@ -757,11 +726,9 @@ export async function POST(request: Request): Promise<Response> {
 
     if (body.temperature !== undefined) forwardBody.temperature = body.temperature
     if (body.max_tokens !== undefined) forwardBody.max_tokens = body.max_tokens
-    const aggregateManagedStream = shouldAggregateManagedNonStream(providerId) && !isStream
-    if (body.stream !== undefined) forwardBody.stream = aggregateManagedStream ? true : body.stream
+    if (body.stream !== undefined) forwardBody.stream = body.stream
     if (body.response_format !== undefined) forwardBody.response_format = body.response_format
-    const isDeepSeekTarget = providerId === 'deepseek'
-      || (providerId === 'custom' && body.model.toLowerCase().includes('deepseek'))
+    const isDeepSeekTarget = body.model.toLowerCase().includes('deepseek')
     const trustedUserId = source.accountId
       ?? source.deviceProvenanceId
       ?? source.diagnosticCode
@@ -776,7 +743,7 @@ export async function POST(request: Request): Promise<Response> {
     // thinking 参数透传；自定义 DeepSeek 模型需要确保 thinking 格式正确。
     if (body.thinking !== undefined) {
       const normalizedModel = body.model.toLowerCase()
-      if (providerId === 'custom' && normalizedModel.includes('deepseek') && body.thinking && 'budget_tokens' in body.thinking && !('type' in body.thinking)) {
+      if (normalizedModel.includes('deepseek') && body.thinking && 'budget_tokens' in body.thinking && !('type' in body.thinking)) {
         forwardBody.thinking = { type: 'enabled', budget_tokens: (body.thinking as { budget_tokens: number }).budget_tokens }
       } else {
         forwardBody.thinking = body.thinking
@@ -798,88 +765,6 @@ export async function POST(request: Request): Promise<Response> {
       return jsonWithRequestId(requestId, { error: '客户端已取消请求' }, 499)
     }
 
-    if (aggregateManagedStream) {
-      const managedResult = await requestManagedAggregatedCompletion({
-        providerId,
-        requestedModel: body.model,
-        apiUrl,
-        apiKey,
-        forwardBody,
-        clientSignal: request.signal,
-        timeoutMs: UPSTREAM_TIMEOUT_MS,
-        onAttemptComplete: (exchange) => archiveCurrentExchange(exchange),
-      })
-      model = managedResult.model
-
-      if (managedResult.kind === 'success') {
-        await Promise.all([
-          writeCurrentTrace('response', {
-            status: 200,
-            selectedModel: managedResult.model,
-            fallbackUsed: managedResult.model !== body.model,
-            upstreamAttempts: managedResult.attempts,
-            upstreamHeaders: getUpstreamHeaderSnapshot(managedResult.headers),
-            responseBody: managedResult.responseBody,
-            transport: 'managed-sse-aggregation',
-            contentChars: managedResult.contentChars,
-          }),
-          writeCurrentAccessLog(200),
-        ])
-        return new Response(managedResult.responseBody, {
-          status: 200,
-          headers: {
-            'Content-Type': 'application/json',
-            'x-ai-request-id': requestId,
-          },
-        })
-      }
-
-      if (managedResult.kind === 'client-abort') {
-        await Promise.all([
-          writeCurrentTrace('response', {
-            status: 499,
-            selectedModel: managedResult.model,
-            upstreamAttempts: managedResult.attempts,
-            error: managedResult.error,
-          }),
-          writeCurrentAccessLog(499, managedResult.error),
-        ])
-        return jsonWithRequestId(requestId, { error: '客户端已取消请求' }, 499)
-      }
-
-      if (managedResult.kind === 'upstream-error') {
-        const upstream = parseUpstreamErrorDiagnostic(managedResult.errorText)
-        await Promise.all([
-          saveRawResponse(source, requestId, providerId, managedResult.model, managedResult.status, managedResult.errorText),
-          writeCurrentTrace('response', {
-            status: managedResult.status,
-            selectedModel: managedResult.model,
-            upstreamAttempts: managedResult.attempts,
-            upstreamHeaders: getUpstreamHeaderSnapshot(managedResult.headers),
-            upstreamError: upstream,
-            responseBody: managedResult.errorText,
-          }),
-          writeCurrentAccessLog(managedResult.status, upstream?.message || managedResult.errorText),
-        ])
-        return jsonWithRequestId(
-          requestId,
-          { error: `${providerId} API ${managedResult.status}`, upstream },
-          managedResult.status,
-        )
-      }
-
-      await Promise.all([
-        writeCurrentTrace('response', {
-          status: 502,
-          selectedModel: managedResult.model,
-          upstreamAttempts: managedResult.attempts,
-          error: managedResult.error,
-        }),
-        writeCurrentAccessLog(502, managedResult.error),
-      ])
-      return jsonWithRequestId(requestId, { error: '托管通道主模型与备用模型均不可用' }, 502)
-    }
-
     let upstreamController = new AbortController()
     let clearConnectionTimeout: () => void = () => {}
     let connectionError = ''
@@ -887,8 +772,8 @@ export async function POST(request: Request): Promise<Response> {
     let upstreamErrorText = ''
     let upstreamRequestBody = ''
     let selectedAttempt = 0
-    const upstreamAttempts: ManagedUpstreamAttempt[] = []
-    const modelCandidates = getProviderModelCandidates(providerId, body.model)
+    const upstreamAttempts: UpstreamAttempt[] = []
+    const modelCandidates = [body.model]
 
     for (let index = 0; index < modelCandidates.length; index++) {
       const candidate = modelCandidates[index]
@@ -939,11 +824,6 @@ export async function POST(request: Request): Promise<Response> {
           error: connectionError || 'Connection failed or timeout',
         })
         clearAttemptGuards()
-        if (
-          !request.signal.aborted
-          && index < modelCandidates.length - 1
-          && shouldTryManagedFallback()
-        ) continue
         break
       }
 
@@ -962,13 +842,6 @@ export async function POST(request: Request): Promise<Response> {
           durationMs: Date.now() - attemptStartedAt,
           error: parseUpstreamErrorDiagnostic(upstreamErrorText)?.message || upstreamErrorText,
         })
-        if (
-          index < modelCandidates.length - 1
-          && shouldTryManagedFallback(candidateResponse.status)
-        ) {
-          clearAttemptGuards()
-          continue
-        }
       } else {
         upstreamAttempts.push({
           model: candidate,

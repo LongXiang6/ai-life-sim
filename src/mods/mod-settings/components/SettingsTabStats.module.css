@@ -209,6 +209,35 @@
   opacity: 0.55;
 }
 
+.feedbackRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(8 * var(--final-flow-density-px));
+  margin-top: calc(9 * var(--final-flow-density-px));
+  padding-top: calc(9 * var(--final-flow-density-px));
+  border-top: calc(1 * var(--final-flow-density-px)) solid #e5e9f2;
+}
+
+.feedbackRow span {
+  color: #707b92;
+  font-size: calc(6 * var(--final-flow-density-px));
+  line-height: 1.4;
+}
+
+.feedbackRow button {
+  min-height: calc(24 * var(--final-flow-density-px));
+  padding: 0 calc(9 * var(--final-flow-density-px));
+  border: calc(1 * var(--final-flow-density-px)) solid #d8deea;
+  border-radius: calc(6 * var(--final-flow-density-px));
+  background: #fff;
+  color: #7382bb;
+  cursor: pointer;
+  font: inherit;
+  font-size: calc(6 * var(--final-flow-density-px));
+  font-weight: 650;
+}
+
 .error {
   color: #8d4f59;
   font-size: calc(6 * var(--final-flow-density-px));

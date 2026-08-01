@@ -526,9 +526,19 @@ assertOk(
   campaignQuality.includes('const MAX_FORMAT_REPAIR_ATTEMPTS = 2')
     && campaignQuality.match(/repairAttempts < MAX_FORMAT_REPAIR_ATTEMPTS/gu)?.length === 3
     && campaignQuality.includes('callAIWithPromptTemplate(promptTemplate, segments.full, {')
-    && campaignQuality.includes('callAIWithPromptTemplate(narrativeSettlementPrompt, joinedInput, {')
-    && campaignQuality.includes('callAIWithPromptTemplate(narrativeEventRecognitionPrompt, joinedInput, {'),
+    && campaignQuality.includes("callStructuredAnalysis('结算', settlementRejection, narrativeSettlementPrompt, joinedInput, {")
+    && campaignQuality.includes("callStructuredAnalysis('事件识别', eventRecognitionRejection, narrativeEventRecognitionPrompt, joinedInput, {"),
   'each response type must reuse its original asset and dynamic messages for at most two format repairs',
+)
+assertOk(
+  campaignQuality.includes("const STRUCTURED_ANALYSIS_REASONING_EFFORT = 'disabled' as const")
+    && campaignQuality.match(/reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT/gu)?.length === 6,
+  'background settlement and event recognition must reserve their output budget for bounded machine results',
+)
+assertOk(
+  campaignQuality.includes('if (!isAiResponseTruncatedError(error)) throw error')
+    && campaignQuality.includes('已停止本轮收束并保留已生成正文'),
+  'truncated background responses must terminate before format repair while preserving the published narrative projection',
 )
 assertIncludes(campaignQuality, '⟦上一版叙事响应⟧${response}', 'first-response repair must retain the complete rejected response')
 assertIncludes(campaignQuality, 'buildNarrativeSettlementRepairInstruction(quality, response)', 'settlement repair must retain and repair the complete rejected settlement')
@@ -547,7 +557,10 @@ assertIncludes(campaignQuality, 'if (!ctx._recognizedEventCandidates)', 'a missi
 const roundHooks = read('src/mods/mod-engine/hooks.ts')
 assertIncludes(roundHooks, 'const roundSnapshot = orchestrator.capturePreviewSnapshot()', 'real rounds must capture the complete runtime rollback point before advancing time')
 assertIncludes(roundHooks, 'orchestrator.restorePreviewSnapshot(roundSnapshot)', 'failed narrative rounds must roll back time, Store state, and subsystem state')
-assertIncludes(roundHooks, "'failed',\n          executionError.executionCode", 'failed background work must retain the published body with the exact terminal status code')
+assertOk(
+  /'failed',\s+executionError\.executionCode \?\? 'narrative-round:failed'/u.test(roundHooks),
+  'failed background work must retain the published body with the exact terminal status code',
+)
 const successfulFinalizationIndex = roundHooks.indexOf('queueRoundFinalization(async () => {')
 const successfulOutcomeIndex = roundHooks.indexOf('postNarrativeRoundOutcome(report)', successfulFinalizationIndex)
 const nextPreviewIndex = roundHooks.indexOf('fillPreGenQueue(narrativePrompt', successfulFinalizationIndex)

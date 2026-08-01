@@ -749,6 +749,33 @@ assertThrows(
   ), contextA365),
   'relationship adjust must contain at least one applicable field',
 )
+npcSystem.preflightChanges(npcChange(npcA, contextA, 'record-memory', {
+  summary: '没有历史事件时以行为来源保留主观记忆。',
+  emotion: 3,
+  relatedEntityIds: [playerId],
+  sourceMemoryIds: [],
+}, '保存无历史事件的行为来源记忆'), contextA365)
+npcSystem.applyChanges(npcChange(npcA, contextA, 'record-memory', {
+  summary: '没有历史事件时以行为来源保留主观记忆。',
+  emotion: 3,
+  relatedEntityIds: [playerId],
+  sourceMemoryIds: [],
+}, '保存无历史事件的行为来源记忆'), contextA365)
+const behaviorMemoryState = useNpcSystemStore.getState()
+const behaviorMemory = behaviorMemoryState.memories.at(-1)
+const behaviorMemorySource = behaviorMemoryState.behaviorRecords.find((record) => (
+  record.behaviorId === behaviorMemory?.sourceId
+))
+assertOk(
+  behaviorMemory?.sourceKind === 'behavior' && Boolean(behaviorMemorySource),
+  'NPC record-memory without a historical event must create a traceable behavior source',
+)
+const behaviorMemorySnapshot = npcSystem.capturePersistenceState()
+npcSystem.restorePersistenceState(behaviorMemorySnapshot)
+assertOk(
+  JSON.stringify(npcSystem.capturePersistenceState()) === JSON.stringify(behaviorMemorySnapshot),
+  'behavior-sourced NPC memory must survive snapshot restore',
+)
 assertOk(
   !NarrativeAISettlementDataSchema.safeParse({ 摘要: '旧字段', 状态变更: [] }).success,
   'the old 状态变更 success protocol must be rejected',

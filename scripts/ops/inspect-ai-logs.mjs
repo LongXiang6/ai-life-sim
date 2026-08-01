@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 
-import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
-
-import Database from 'better-sqlite3'
 
 import {
   buildCanonicalStoryRepetitionSet,
   summarizeStoryRepetitionRows,
 } from './lib/story-repetition-analytics.mjs'
+import {
+  logDatabasesExist,
+  readLogRows,
+  resolveLogDatabasePath,
+} from './lib/log-databases.mjs'
 
 const FEEDBACK_STATUS_LABELS = {
   new: '待处理',
@@ -28,13 +30,11 @@ function defaultDatabasePath() {
     '/var/log/ai-life-sim/logs.sqlite',
     path.join(process.cwd(), '.data', 'logs.sqlite'),
   ].filter(Boolean)
-  return candidates.find((candidate) => fs.existsSync(candidate)) ?? candidates.at(-1)
+  return candidates.find((candidate) => logDatabasesExist(candidate)) ?? candidates.at(-1)
 }
 
 function databasePathFromRoot(value) {
-  const resolved = path.resolve(value)
-  if (path.extname(resolved).toLowerCase() === '.sqlite') return resolved
-  return path.join(resolved, 'logs.sqlite')
+  return resolveLogDatabasePath(value)
 }
 
 function printHelp() {
@@ -190,49 +190,50 @@ function payloadRecord(entry) {
 }
 
 function takeRecent(rows, limit) {
-  return [...rows].sort((left, right) => right.createdAt - left.createdAt).slice(0, limit)
+  return [...rows].sort((left, right) => (
+    right.createdAt - left.createdAt || String(left.id).localeCompare(String(right.id))
+  )).slice(0, limit)
 }
 
 function main() {
   const options = parseArgs(process.argv.slice(2))
-  if (!fs.existsSync(options.database)) throw new Error(`日志数据库不存在：${options.database}`)
-  const database = new Database(options.database, { readonly: true, fileMustExist: true })
-  try {
-    const clauses = []
-    const values = []
-    if (!options.all) {
-      clauses.push('created_at >= ?')
-      values.push(Date.now() - options.sinceHours * 60 * 60 * 1000)
-    }
-    for (const [column, value] of [
-      ['source_ip', options.ip],
-      ['diagnostic_code', options.playerCode],
-      ['device_provenance_id', options.deviceId],
-      ['account_id', options.accountId],
-      ['username', options.username],
-      ['request_id', options.requestId],
-      ['feedback_id', options.feedbackId],
-      ['entry_type', options.entryType],
-    ]) {
-      if (value === undefined) continue
-      clauses.push(`${column} = ?`)
-      values.push(value)
-    }
-    const where = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : ''
-    let rows = database.prepare(`SELECT * FROM log_entries ${where} ORDER BY created_at DESC, rowid DESC`).all(...values).map(mapRow)
+  if (!logDatabasesExist(options.database)) throw new Error(`日志数据库不存在：${options.database}`)
+  const clauses = []
+  const values = []
+  if (!options.all) {
+    clauses.push('created_at >= ?')
+    values.push(Date.now() - options.sinceHours * 60 * 60 * 1000)
+  }
+  for (const [column, value] of [
+    ['source_ip', options.ip],
+    ['diagnostic_code', options.playerCode],
+    ['device_provenance_id', options.deviceId],
+    ['account_id', options.accountId],
+    ['username', options.username],
+    ['request_id', options.requestId],
+    ['feedback_id', options.feedbackId],
+    ['entry_type', options.entryType],
+  ]) {
+    if (value === undefined) continue
+    clauses.push(`${column} = ?`)
+    values.push(value)
+  }
+  let rows = readLogRows(options.database, {
+    where: clauses.join(' AND '),
+    values,
+  }).map(mapRow)
 
-    const relatedFeedbackIds = [...new Set(rows.map((entry) => entry.feedbackId).filter(Boolean))]
-    if (relatedFeedbackIds.length > 0) {
-      const placeholders = relatedFeedbackIds.map(() => '?').join(', ')
-      const relatedStatusRows = database.prepare(`
-        SELECT * FROM log_entries
-        WHERE entry_type = 'feedback-status' AND feedback_id IN (${placeholders})
-        ORDER BY created_at DESC, rowid DESC
-      `).all(...relatedFeedbackIds).map(mapRow)
-      const rowIds = new Set(rows.map((entry) => entry.id))
-      rows = [...rows, ...relatedStatusRows.filter((entry) => !rowIds.has(entry.id))]
-        .sort((left, right) => right.createdAt - left.createdAt)
-    }
+  const relatedFeedbackIds = [...new Set(rows.map((entry) => entry.feedbackId).filter(Boolean))]
+  if (relatedFeedbackIds.length > 0) {
+    const placeholders = relatedFeedbackIds.map(() => '?').join(', ')
+    const relatedStatusRows = readLogRows(options.database, {
+      where: `entry_type = 'feedback-status' AND feedback_id IN (${placeholders})`,
+      values: relatedFeedbackIds,
+    }).map(mapRow)
+    const rowIds = new Set(rows.map((entry) => entry.id))
+    rows = [...rows, ...relatedStatusRows.filter((entry) => !rowIds.has(entry.id))]
+      .sort((left, right) => right.createdAt - left.createdAt || left.id.localeCompare(right.id))
+  }
 
     const access = rows.filter((entry) => entry.entryType === 'proxy-access')
     const traces = rows.filter((entry) => entry.entryType === 'proxy-trace')
@@ -318,10 +319,7 @@ function main() {
       entries: takeRecent(rows, options.limit),
       accessPayloads: takeRecent(accessPayloads.map((payload, index) => ({ ...payload, createdAt: access[index]?.createdAt ?? 0 })), options.limit),
     }
-    console.log(JSON.stringify(result, null, 2))
-  } finally {
-    database.close()
-  }
+  console.log(JSON.stringify(result, null, 2))
 }
 
 try {

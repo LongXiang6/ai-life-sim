@@ -4,7 +4,7 @@
  * @description 按域运行检测步骤；静默模式下仅 FAIL 上控制台，完整日志写入 reports/
  */
 
-import { spawnSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -42,7 +42,7 @@ function extractHintLines(text) {
  * @param {string} opts.logDir
  * @param {string} opts.timestamp
  */
-export function runDomain(domainId, opts) {
+export async function runDomain(domainId, opts) {
   const domain = DOMAINS[domainId]
   if (!domain) throw new Error(`Unknown domain: ${domainId}`)
 
@@ -88,11 +88,7 @@ export function runDomain(domainId, opts) {
       ...(step.env ?? {}),
     }
 
-    const result = spawnSync(step.cmd, args, {
-      cwd: opts.projectRoot,
-      env,
-      encoding: 'utf8',
-    })
+    const result = await runStepAsync(step, args, { projectRoot: opts.projectRoot, env })
 
     const stdout = result.stdout ?? ''
     const stderr = result.stderr ?? ''
@@ -100,7 +96,7 @@ export function runDomain(domainId, opts) {
 
     fs.appendFileSync(
       logFile,
-      `\n--- ${step.cmd} ${args.join(' ')} (exit ${result.status ?? 1}) ---\n${combined}\n`,
+      `\n--- ${step.cmd} ${args.join(' ')} (exit ${result.status}) ---\n${combined}\n`,
       'utf8',
     )
 
@@ -110,7 +106,7 @@ export function runDomain(domainId, opts) {
     hintLines.push(...hints)
 
     if (result.status !== 0) {
-      exitCode = result.status ?? 1
+      exitCode = result.status
       if (opts.quiet) {
         for (const line of fails) {
           process.stderr.write(`${line}\n`)
@@ -137,6 +133,25 @@ export function runDomain(domainId, opts) {
   }
 }
 
+function runStepAsync(step, args, opts) {
+  return new Promise((resolve) => {
+    const child = spawn(step.cmd, args, {
+      cwd: opts.projectRoot,
+      env: opts.env,
+    })
+    let stdout = ''
+    let stderr = ''
+    child.stdout.on('data', (chunk) => { stdout += chunk.toString() })
+    child.stderr.on('data', (chunk) => { stderr += chunk.toString() })
+    child.on('error', (error) => {
+      resolve({ status: 1, signal: null, stdout, stderr, error: error.message })
+    })
+    child.on('close', (status, signal) => {
+      resolve({ status: status ?? 1, signal, stdout, stderr })
+    })
+  })
+}
+
 /**
  * @param {object} opts
  * @param {string} opts.projectRoot
@@ -144,32 +159,46 @@ export function runDomain(domainId, opts) {
  * @param {string[]} opts.domainIds
  * @param {boolean} [opts.quiet]
  * @param {string} [opts.modName]
+ * 域间按 CHECK_DOMAINS_PARALLELISM 并行（默认 2），域内步骤保持串行。
  */
-export function runCheck({ projectRoot, profile, domainIds, quiet = true, modName = '' }) {
+export async function runCheck({ projectRoot, profile, domainIds, quiet = true, modName = '' }) {
   const reportsDir = path.join(projectRoot, 'reports')
   fs.mkdirSync(reportsDir, { recursive: true })
   cleanupOldReports(projectRoot)
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
-  const results = []
+  const resultsById = new Map()
+  const parallelism = Math.max(1, Math.min(
+    Number.parseInt(process.env.CHECK_DOMAINS_PARALLELISM ?? '2', 10) || 2,
+    domainIds.length,
+  ))
+  let cursor = 0
 
-  for (const id of domainIds) {
-    const result = runDomain(id, {
-      projectRoot,
-      quiet,
-      modName,
-      logDir: reportsDir,
-      timestamp,
-    })
-    results.push(result)
+  async function worker() {
+    while (cursor < domainIds.length) {
+      const id = domainIds[cursor]
+      cursor += 1
+      const result = await runDomain(id, {
+        projectRoot,
+        quiet,
+        modName,
+        logDir: reportsDir,
+        timestamp,
+      })
+      resultsById.set(id, result)
 
-    if (quiet) {
-      const detail = result.status === 'PASS' ? `${domainIds.length > 1 ? '' : 'see reports/'}` : `${result.errorLines.length || 1} issue(s)`
-      const line = `[check:${id}] ${result.status}${detail ? ` — ${detail}` : ''}`
-      if (result.status === 'PASS') console.log(line)
-      else console.error(line)
+      if (quiet) {
+        const detail = result.status === 'PASS' ? `${domainIds.length > 1 ? '' : 'see reports/'}` : `${result.errorLines.length || 1} issue(s)`
+        const line = `[check:${id}] ${result.status}${detail ? ` — ${detail}` : ''}`
+        if (result.status === 'PASS') console.log(line)
+        else console.error(line)
+      }
     }
   }
+
+  await Promise.all(Array.from({ length: parallelism }, () => worker()))
+
+  const results = domainIds.map((id) => resultsById.get(id))
 
   const allErrorLines = results.flatMap((r) => r.errorLines ?? [])
   const allHintLines = results.flatMap((r) => r.hintLines ?? [])

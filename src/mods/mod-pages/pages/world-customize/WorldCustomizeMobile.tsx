@@ -11,8 +11,16 @@ import { useWorldStore } from '@/mods/mod-world'
 import { WorldCustomizeBottomBar } from './WorldCustomizeBottomBar'
 import { WorldCustomizeDimensionCard } from './WorldCustomizeDimensionCard'
 import { useWorldCustomize } from './useWorldCustomize'
+import type { EditableField } from './world-customize.types'
 
 import styles from './WorldCustomizeMobile.module.css'
+
+function getEffectiveFieldValue(field: EditableField | undefined): string {
+  if (!field) return '待确定'
+  if (field.mode === 'custom') return field.customValue.trim() || '待补充'
+  if (field.mode === 'adaptive') return field.playerValue.trim() || '待选择'
+  return '由 AI 生成'
+}
 
 export function WorldCustomizeMobile() {
   const logic = useWorldCustomize()
@@ -33,6 +41,12 @@ export function WorldCustomizeMobile() {
   const ruleSummary = (logic.worldDescription || worldConfig?.description || '').trim()
     || '确认这段人生的底层规则与世界描述。'
   const sourceLabel = worldConfig ? '已保存' : '自定义'
+  const rulePreview = logic.fields.map((field) => ({
+    key: field.key,
+    icon: field.icon,
+    label: field.label,
+    value: getEffectiveFieldValue(field),
+  }))
 
   return (
     <div className="final-flow-frame">
@@ -47,7 +61,7 @@ export function WorldCustomizeMobile() {
               <div className={styles.runningHead}><span>AI LIFE SIM · 命书</span><span>02 / 08</span></div>
               <div className={styles.titleRow}>
                 <div>
-                  <h1>配置世界</h1>
+                  <h1>世界创作工坊</h1>
                   <p>确认这段人生的底层规则。</p>
                 </div>
               </div>
@@ -75,6 +89,24 @@ export function WorldCustomizeMobile() {
                 <div><span>来源</span><strong>{sourceLabel}</strong></div>
                 <div><span>年代</span><strong>{eraName}</strong></div>
                 <div><span>难度</span><strong>{difficultyLabel}</strong></div>
+              </div>
+            </section>
+
+            <section className={`${styles.paperSection} ${styles.previewSection}`} aria-labelledby="world-rule-preview-title">
+              <div className={styles.sectionHeading}>
+                <strong id="world-rule-preview-title">世界规则预览</strong>
+                <span>四项规则实时预览</span>
+              </div>
+              <div className={styles.rulePreviewGrid}>
+                {rulePreview.map((item) => (
+                  <div key={item.key} className={styles.rulePreviewItem}>
+                    <span className={styles.rulePreviewIcon} aria-hidden="true">{item.icon}</span>
+                    <span className={styles.rulePreviewCopy}>
+                      <strong>{item.label}</strong>
+                      <small>{item.value}</small>
+                    </span>
+                  </div>
+                ))}
               </div>
             </section>
 

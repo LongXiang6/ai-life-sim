@@ -54,7 +54,7 @@ export function diagnoseApiError(status: number, errorText: string): ApiDiagnost
         level: 'error',
         summary: 'API Key 尚未配置',
         detail: '当前模型通道没有可用的访问凭据。',
-        suggestion: '打开“设置 → 模型调用”填写 Key、接口网址和模型名称\n或恢复服务器免费体验通道',
+        suggestion: '打开“设置 → 模型调用”填写自己的 Key、接口网址和模型名称\n也可先填入 DeepSeek 预设再补充 Key',
       }
     }
     if (matchKeyword(errorText, ['model'])) {
@@ -78,7 +78,7 @@ export function diagnoseApiError(status: number, errorText: string): ApiDiagnost
       level: 'error',
       summary: 'API Key 无效或已过期',
       detail: '接口未接受当前身份凭据。',
-      suggestion: '检查或更换 API Key\n确认 Key、接口网址和模型名称属于同一提供商\n也可以恢复服务器免费体验通道',
+      suggestion: '检查或更换 API Key\n确认 Key、接口网址和模型名称属于同一提供商\n使用 DeepSeek 时可重新填入官方预设',
     }
   }
 
@@ -96,7 +96,7 @@ export function diagnoseApiError(status: number, errorText: string): ApiDiagnost
       level: 'error',
       summary: '当前 Key 没有访问权限',
       detail: '身份已被识别，但无权使用当前接口或模型。',
-      suggestion: '确认 Key 已开通当前模型权限\n检查账号、地区或接口访问限制\n也可以更换模型或恢复免费体验通道',
+      suggestion: '确认 Key 已开通当前模型权限\n检查账号、地区或接口访问限制\n也可以更换自己有权限的模型',
     }
   }
 
@@ -189,7 +189,7 @@ export function diagnoseApiError(status: number, errorText: string): ApiDiagnost
       level: 'error',
       summary: '当前接口不支持这项功能',
       detail: '接口尚未实现本次请求所需的能力。',
-      suggestion: '更换兼容的模型或接口\n若使用免费体验通道，将请求 ID 提供给维护者',
+      suggestion: '更换兼容的模型或接口\n若配置无误仍失败，将请求 ID 提供给维护者',
     }
   }
 
