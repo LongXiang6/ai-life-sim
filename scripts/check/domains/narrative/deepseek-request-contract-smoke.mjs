@@ -40,8 +40,8 @@ for (const stream of [false, true]) {
   assert(disabled.thinking?.type === 'disabled', 'custom DeepSeek disabled reasoning must be explicit')
 }
 
-const official = body('deepseek', 'deepseek-v4-pro', 'max')
-assert(official.thinking?.type === 'enabled' && official.reasoning_effort === 'max', 'official DeepSeek must map maximum reasoning explicitly')
+const maximum = body('custom', 'deepseek-v4-pro', 'max')
+assert(maximum.thinking?.type === 'enabled' && maximum.reasoning_effort === 'max', 'player-owned DeepSeek must map maximum reasoning explicitly')
 
 const genericCustom = body('custom', 'gpt-compatible-model', 'high')
 assert(genericCustom.thinking === undefined && genericCustom.reasoning_effort === undefined, 'generic custom models must not inherit DeepSeek reasoning fields')
@@ -92,11 +92,13 @@ assert(
   'deterministic 400 responses must not enter the internal retry path',
 )
 assert(
-  proxySource.includes("providerId === 'custom' && normalizedModel.includes('deepseek')"),
+  proxySource.includes("normalizedModel.includes('deepseek')")
+    && proxySource.includes("forwardBody.thinking = { type: 'enabled', budget_tokens:"),
   'proxy must defensively normalize legacy custom DeepSeek thinking bodies',
 )
 assert(
-  settingsSource.includes("provider === 'custom' && testModel.toLowerCase().includes('deepseek')"),
+  settingsSource.includes("thinking: testModel.toLowerCase().includes('deepseek')")
+    && settingsSource.includes("? { type: 'disabled' }"),
   'connection tests must send the custom DeepSeek disabled-thinking contract',
 )
 

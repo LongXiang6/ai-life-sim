@@ -288,6 +288,22 @@ function initializeSchema(database: Database.Database): void {
   database.exec('CREATE INDEX IF NOT EXISTS log_entries_device_provenance_idx ON log_entries(device_provenance_id, created_at DESC)')
 }
 
+/** 为部署迁移和运行时归档准备与热库同契约的独立数据库。 */
+export function prepareServerLogArchiveDatabase(): string {
+  const archivePath = getServerLogArchiveDatabasePath()
+  fs.mkdirSync(path.dirname(archivePath), { recursive: true, mode: 0o700 })
+  const archive = new Database(archivePath)
+  try {
+    archive.pragma('journal_mode = WAL')
+    archive.pragma('busy_timeout = 5000')
+    archive.transaction(() => initializeSchema(archive))()
+    enforceDatabaseFilePermissions(archivePath)
+  } finally {
+    archive.close()
+  }
+  return archivePath
+}
+
 export function getServerLogDatabase(): Database.Database {
   const databasePath = getServerLogDatabasePath()
   if (
@@ -618,17 +634,7 @@ export async function cleanupServerLogsNow(now = new Date()): Promise<void> {
   `).get(cutoff) as { count: number }
 
   if (expired.count > 0) {
-    const archivePath = getServerLogArchiveDatabasePath()
-    fs.mkdirSync(path.dirname(archivePath), { recursive: true, mode: 0o700 })
-    const archive = new Database(archivePath)
-    try {
-      archive.pragma('journal_mode = WAL')
-      archive.pragma('busy_timeout = 5000')
-      archive.transaction(() => initializeSchema(archive))()
-      enforceDatabaseFilePermissions(archivePath)
-    } finally {
-      archive.close()
-    }
+    const archivePath = prepareServerLogArchiveDatabase()
 
     database.prepare('ATTACH DATABASE ? AS archive_logs').run(archivePath)
     try {

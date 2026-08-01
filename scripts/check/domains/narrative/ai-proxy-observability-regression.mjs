@@ -46,9 +46,9 @@ assert(
   'proxy schema must accept the supported DeepSeek reasoning effort values',
 )
 assert(
-  /providerId === 'deepseek'[\s\S]{0,500}proxyBody\.reasoning_effort = reasoningEffort/.test(client)
+  /const isDeepSeekModel = modelForThinking\.includes\('deepseek'\)[\s\S]{0,500}if \(isDeepSeekModel\)[\s\S]{0,500}proxyBody\.reasoning_effort = reasoningEffort/.test(client)
     && !/REASONING_BUDGET_MAP/.test(client),
-  'DeepSeek enabled reasoning must use reasoning_effort without legacy budget mapping',
+  'DeepSeek model reasoning must use reasoning_effort without legacy budget mapping',
 )
 assert(
   /seed:\s*z\.preprocess\([\s\S]{0,120}normalizeProxyStorySeedInput[\s\S]{0,120}z\.number\(\)\.finite\(\)\.optional\(\)/.test(proxy)
