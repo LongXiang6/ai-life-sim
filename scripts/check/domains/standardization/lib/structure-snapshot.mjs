@@ -27,6 +27,11 @@ function countLines(text) {
   return text.split(/\r?\n/).length - (/\r?\n$/.test(text) ? 1 : 0)
 }
 
+export function hashStandardizedText(text) {
+  const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+  return crypto.createHash('sha256').update(normalized).digest('hex')
+}
+
 function resolveOwner(relativePath) {
   for (const rule of structureConfig.ownerRules) {
     if (rule.path && relativePath === rule.path) {
@@ -84,7 +89,7 @@ export function buildStructureSnapshot() {
       generated,
       requiresHeader,
       hasHeader: !requiresHeader || hasStandardHeader(file, text),
-      sha256: crypto.createHash('sha256').update(text).digest('hex'),
+      sha256: hashStandardizedText(text),
     }
   })
 }

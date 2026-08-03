@@ -4,7 +4,7 @@
 
 $Global:CheckerOutputDir = $null
 $Global:CheckerJsonOnly = $false
-$reportComponentsRoot = Join-Path $PSScriptRoot 'reports'
+$reportComponentsRoot = Join-Path $PSScriptRoot 'report-renderers'
 . (Join-Path $reportComponentsRoot 'markdown-report.ps1')
 
 function Clear-OldCheckerReports {

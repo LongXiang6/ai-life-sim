@@ -2026,6 +2026,7 @@
         "scripts/check/fixtures",
         "scripts/check/lib",
         "scripts/check/lib/checker-utils",
+        "scripts/check/lib/checker-utils/report-renderers",
         "scripts/check/lib/runner",
         "scripts/check/rules",
         "scripts/check/rules/file-budget-exceptions"
@@ -2051,6 +2052,7 @@
         "scripts/check/lib/checker-utils.ps1",
         "scripts/check/lib/checker-utils/encoding.ps1",
         "scripts/check/lib/checker-utils/file-cache.ps1",
+        "scripts/check/lib/checker-utils/report-renderers/markdown-report.ps1",
         "scripts/check/lib/checker-utils/reports.ps1",
         "scripts/check/lib/checker-utils/results.ps1",
         "scripts/check/lib/checker-utils/rule-inspection.ps1",
@@ -2216,10 +2218,12 @@
         "scripts/check/domains/standardization/lib"
       ],
       "files": [
+        "scripts/check/domains/standardization/lib/baseline-checks.mjs",
         "scripts/check/domains/standardization/lib/context.mjs",
         "scripts/check/domains/standardization/lib/format-checks.mjs",
         "scripts/check/domains/standardization/lib/report.mjs",
         "scripts/check/domains/standardization/lib/skill-checks.mjs",
+        "scripts/check/domains/standardization/lib/source-package-checks.mjs",
         "scripts/check/domains/standardization/lib/structure-checks.mjs",
         "scripts/check/domains/standardization/lib/structure-snapshot.mjs",
         "scripts/check/domains/standardization/README.md",
