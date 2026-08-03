@@ -1,4 +1,8 @@
 /**
+ * Purpose: Define stable engine calendar, narrative, and runtime defaults.
+ * Owner: mod-engine
+ * Responsibility: Shared constants only; business state and AI decisions remain in their owning systems.
+ *
  * @module constants.ts
  * @description 引擎常量 —— 365天历法常量、默认配置
  * @mod mod-engine

@@ -1,4 +1,8 @@
 /**
+ * Purpose: Provide pure formatting and calendar helpers for the engine.
+ * Owner: mod-engine
+ * Responsibility: Stateless utility calculations only; runtime state mutation stays with owning systems.
+ *
  * @module utils.ts
  * @description 引擎工具函数
  * @mod mod-engine

@@ -1118,11 +1118,6 @@
       "sha256": "a71c9af29c43af0e3e8eaf2c3a9e5f62897131fb2d8b7079335ade10bae0a485"
     },
     {
-      "path": "src/core/version.ts",
-      "owner": "core:version.ts",
-      "sha256": "b54e2c955fc4c6cd535bad38e4ed306efffaa4445d33a6081711488556bcd7ae"
-    },
-    {
       "path": "src/foundation/compat/deprecated.ts",
       "owner": "foundation:compat",
       "sha256": "3602746c002c9d9f755792addf6034fafdf0935d378fc09f809e45bb60881843"
@@ -1773,11 +1768,6 @@
       "sha256": "06d914bebbced20bc4bea50a9dcd58f9b21c63ed71275e9f2316b1e59459b03b"
     },
     {
-      "path": "src/mods/mod-engine/constants.ts",
-      "owner": "mod-engine",
-      "sha256": "26a278debca1928adc5a1f0591a41d23e97148c202fd73b7c000c881ca6c67ac"
-    },
-    {
       "path": "src/mods/mod-engine/constants/narrative-config.ts",
       "owner": "mod-engine",
       "sha256": "87f93ad6ed1935829fb1149a18b134d8da951a0eccb4fe2ac0d4e98f8a26127d"
@@ -2211,11 +2201,6 @@
       "path": "src/mods/mod-engine/types.ts",
       "owner": "mod-engine",
       "sha256": "9bd4a94e258526b82bb5f4831e9934223c14733d49871c610749e8993e6d3c4b"
-    },
-    {
-      "path": "src/mods/mod-engine/utils.ts",
-      "owner": "mod-engine",
-      "sha256": "951be9b90fbce90bb42afe75e6f07c1387ad1f0b3d9b21303eac0f4d0abfc6ff"
     },
     {
       "path": "src/mods/mod-engine/utils/time-step-resolver.ts",
