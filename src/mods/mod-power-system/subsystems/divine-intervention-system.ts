@@ -61,8 +61,6 @@ export class DivineInterventionSystem extends BaseSubsystem {
 
   capturePersistenceState(): DivineInterventionPersistenceState { return { schemaVersion: 1, contexts: clone(this.states) } }
   restorePersistenceState(snapshot: unknown): void { if (snapshot === undefined) { this.states = {}; return }; const value = snapshot as DivineInterventionPersistenceState; if (value.schemaVersion !== 1 || !value.contexts) throw new Error('神明干预持久化快照无效'); this.states = clone(value.contexts) }
-  capturePreviewState(): DivineInterventionPersistenceState { return this.capturePersistenceState() }
-  restorePreviewState(snapshot: unknown): void { this.restorePersistenceState(snapshot) }
   reset(): void { this.states = {} }
 }
 

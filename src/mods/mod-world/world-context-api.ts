@@ -152,8 +152,6 @@ export async function transitionToWorldContext(
   const { useCharacterStore } = await import('@/mods/mod-character')
   const characterState = useCharacterStore.getState()
   const actorEntityId = characterState.characterId || characterState.ensureCharacterId()
-  const previousCharacterState = useCharacterStore.getState()
-  const previousOrchestratorSnapshot = orchestrator.captureSnapshot()
   const result = await getContextTransitionSystem().transition(
     {
       ...request,
@@ -163,13 +161,6 @@ export async function transitionToWorldContext(
     {
       actorEntityId,
       apply: () => ensureOrchestratorContextFromStores(),
-      rollback: () => {
-        useCharacterStore.setState(previousCharacterState, true)
-        orchestrator.restoreSnapshot(previousOrchestratorSnapshot)
-        if (!ensureOrchestratorContextFromStores()) {
-          throw new Error('无法恢复切换前的世界与角色运行上下文')
-        }
-      },
     },
   )
   return result

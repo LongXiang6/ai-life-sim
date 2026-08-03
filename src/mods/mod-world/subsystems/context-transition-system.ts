@@ -1,7 +1,7 @@
 /**
  * ContextTransitionSystem
  *
- * 职责：预检并原子迁移当前上下文、实体位置、模拟范围和当地时间。
+ * 职责：预检并提交当前上下文、实体位置、模拟范围和当地时间。
  * 非职责：不创作到达叙事、不推进规范时间、不拥有物品或同伴业务状态。
  * 输入：ContextTransitionRequest、规范 totalDays、运行上下文注入适配器。
  * 输出与写入：当前投影、上下文状态、位置和完整 transitionHistory。
@@ -38,8 +38,6 @@ type RuntimeContextAdapter = {
   actorEntityId: string
   /** 将已投影的新世界/角色状态注入运行系统。 */
   apply: () => boolean | Promise<boolean>
-  /** apply 已产生副作用后，按调用者拥有的快照恢复运行系统。 */
-  rollback: () => void | Promise<void>
 }
 
 function movedEntityIdsOf(request: ContextTransitionRequest): string[] {
@@ -340,26 +338,15 @@ export class ContextTransitionSystem extends BaseSubsystem {
       })
       return { ok: true, record: committedRecord }
     } catch (error) {
-      useWorldStore.setState(before, true)
-      let rollbackError: unknown
-      try {
-        await runtimeAdapter.rollback()
-      } catch (caughtRollbackError) {
-        rollbackError = caughtRollbackError
-      }
       const failureReason = error instanceof Error ? error.message : String(error)
-      const rollbackFailureReason = rollbackError
-        ? `；运行状态回滚失败：${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`
-        : ''
-      const rolledBackRecord = {
+      const failedRecord = {
         ...committedRecord,
         id: createRuntimeId('ctx_transition'),
-        status: 'rolled-back' as const,
-        reason: `${failureReason}${rollbackFailureReason}`,
+        status: 'failed' as const,
+        reason: failureReason,
       }
-      useWorldStore.getState().recordTransition(rolledBackRecord)
-      eventBus.emit('mod-world:context-transition-rolled-back', rolledBackRecord)
-      return { ok: false, record: rolledBackRecord }
+      useWorldStore.getState().recordTransition(failedRecord)
+      return { ok: false, record: failedRecord }
     }
   }
 

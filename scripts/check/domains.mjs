@@ -1,83 +1,13 @@
 /**
  * Purpose: Declare the checker domain registry, stable step IDs, order, triggers, and criticality.
  * Owner: quality:check-runner
- * Responsibility: Declarative check-step construction and profile registry data only.
+ * Responsibility: Domain and profile registry data only.
  */
 
-const DEFAULT_STEP_TIMEOUT_MS = 60_000
-const TYPESCRIPT_LOADER_ARGS = [
-  '--no-warnings=ExperimentalWarning',
-  '--loader',
-  './scripts/check/lib/typescript-loader.mjs',
-]
+import { nodeStep } from './lib/runner/step-factories.mjs'
+import { specializedScannerSteps } from './registry/specialized-scanner-steps.mjs'
 
-/**
- * @param {string} id
- * @param {number} order
- * @param {string} script
- * @param {{ args?: string[], critical?: boolean, dependsOn?: string[], env?: Record<string,string>, platforms?: string[], timeoutMs?: number, triggers?: string[], typescript?: boolean }} [options]
- */
-function nodeStep(id, order, script, options = {}) {
-  const {
-    args = [],
-    critical = false,
-    dependsOn = [],
-    env,
-    platforms,
-    timeoutMs = DEFAULT_STEP_TIMEOUT_MS,
-    triggers = [],
-    typescript = false,
-  } = options
-  return {
-    id,
-    order,
-    phase: 'execute',
-    dependsOn,
-    parallel: true,
-    optional: Boolean(platforms),
-    timeoutMs,
-    critical,
-    triggers: [...new Set([script, ...triggers])],
-    cmd: 'node',
-    args: [...(typescript ? TYPESCRIPT_LOADER_ARGS : []), script, ...args],
-    ...(env ? { env } : {}),
-    ...(platforms ? { platforms } : {}),
-  }
-}
-
-/**
- * @param {string} id
- * @param {number} order
- * @param {string} script
- * @param {{ args?: string[], critical?: boolean, env?: Record<string,string>, platforms?: string[], timeoutMs?: number, triggers?: string[] }} [options]
- */
-function powershellStep(id, order, script, options = {}) {
-  const {
-    args = [],
-    critical = false,
-    env,
-    platforms = ['win32'],
-    timeoutMs = DEFAULT_STEP_TIMEOUT_MS,
-    triggers = [],
-  } = options
-  return {
-    id,
-    order,
-    phase: 'execute',
-    dependsOn: [],
-    parallel: true,
-    optional: true,
-    timeoutMs,
-    critical,
-    triggers: [...new Set([script, ...triggers])],
-    cmd: 'powershell',
-    args: ['-NoProfile', '-File', script, ...args],
-    ...(env ? { env } : {}),
-    platforms,
-  }
-}
-
-/** @type {Record<string, { label: string, group: string, atceTier: string, ruleIds: string[], steps: object[], triggers: string[] }>} */
+/** @type {Record<string, { label: string, group: string, atceTier: string, parallelism?: number, ruleIds: string[], steps: object[], triggers: string[] }>} */
 export const DOMAINS = {
   standardization: {
     label: '标准化 / 结构契约',
@@ -100,14 +30,25 @@ export const DOMAINS = {
         triggers: [
           'scripts/check/index.mjs',
           'scripts/check/lib/runner.mjs',
+          'scripts/check/lib/runner/step-factories.mjs',
+          'scripts/check/registry/specialized-scanner-steps.mjs',
           'scripts/check/domains.mjs',
           'scripts/check/profiles.mjs',
           'scripts/check/lib/resolve-changed.mjs',
           'scripts/check/gate-check.mjs',
-          'scripts/check/check-format.ps1',
-          'scripts/check/domains/mod/run-mod-scanners.ps1',
+          'scripts/check/lib/powershell-scanner/',
+          'scripts/check/domains/mod/contracts/',
+          'scripts/check/domains/mod/indexes/',
+          'scripts/check/domains/mod/run-',
+          'scripts/check/domains/ui/contracts/',
+          'scripts/check/domains/ui/indexes/',
+          'scripts/check/domains/ui/run-',
+          'scripts/check/domains/structural/contracts/',
+          'scripts/check/domains/narrative/contracts/',
+          'scripts/check/domains/mod/runtime-import-cycle-scanner.mjs',
         ],
       }),
+      ...specializedScannerSteps.standardization,
     ],
   },
   wiring: {
@@ -136,6 +77,7 @@ export const DOMAINS = {
     ],
     steps: [
       nodeStep('execution-system-gate', 10, 'scripts/check/domains/structural/execution-system-gate.mjs', { critical: true }),
+      ...specializedScannerSteps.wiring,
       nodeStep('typescript-wiring', 20, 'scripts/check/domains/structural/scan-typescript-wiring.mjs', { args: ['--quiet'], critical: true }),
       nodeStep('mod-public-boundary', 30, 'scripts/check/domains/structural/scan-mod-public-boundary.mjs', { args: ['--quiet'], critical: true }),
       nodeStep('file-import-graph', 40, 'scripts/check/domains/structural/scan-file-import-graph.mjs', { args: ['--quiet'], critical: true }),
@@ -183,27 +125,24 @@ export const DOMAINS = {
     label: 'MOD 架构扫描',
     group: 'mod-arch',
     atceTier: 'quality',
+    parallelism: 10,
     ruleIds: ['A-05'],
     triggers: [
       'src/mods/',
       'scripts/check/domains/mod/',
-      'scripts/check/check-format.ps1',
+      'scripts/check/lib/powershell-scanner/',
     ],
     steps: [
-      powershellStep('mod-scanners', 10, 'scripts/check/domains/mod/run-mod-scanners.ps1', {
-        args: ['-ErrorOnly'],
-        critical: true,
-        env: { CHECK_QUIET: '1' },
-        timeoutMs: 120_000,
-      }),
-      nodeStep('multi-world-p3-p5', 20, 'scripts/check/domains/mod/multi-world-p3-p5-smoke.mjs', { typescript: true }),
-      nodeStep('world-init-scoring-depth', 30, 'scripts/check/domains/mod/world-init-scoring-depth-smoke.mjs', { typescript: true }),
+      ...specializedScannerSteps.mod,
+      nodeStep('multi-world-p3-p5', 90, 'scripts/check/domains/mod/multi-world-p3-p5-smoke.mjs', { typescript: true }),
+      nodeStep('world-init-scoring-depth', 100, 'scripts/check/domains/mod/world-init-scoring-depth-smoke.mjs', { typescript: true }),
     ],
   },
   ui: {
     label: 'UI / CSS',
     group: 'ui',
     atceTier: 'cosmetic',
+    parallelism: 6,
     ruleIds: [],
     triggers: [
       'src/app/',
@@ -213,14 +152,10 @@ export const DOMAINS = {
       'scripts/check/domains/ui/',
     ],
     steps: [
-      powershellStep('ui-scanners', 10, 'scripts/check/domains/ui/run-ui-scanners.ps1', {
-        args: ['-ErrorOnly'],
-        critical: true,
-        env: { CHECK_QUIET: '1' },
-      }),
-      nodeStep('mobile-ui-regression', 20, 'scripts/check/domains/ui/mobile-ui-regression.mjs', { critical: true }),
-      nodeStep('world-generated-cache', 30, 'scripts/check/domains/ui/world-generated-cache-smoke.mjs', { typescript: true }),
-      nodeStep('game-over-share-card', 40, 'scripts/check/domains/ui/game-over-share-card-smoke.mjs', { typescript: true }),
+      ...specializedScannerSteps.ui,
+      nodeStep('mobile-ui-regression', 40, 'scripts/check/domains/ui/mobile-ui-regression.mjs', { critical: true }),
+      nodeStep('world-generated-cache', 50, 'scripts/check/domains/ui/world-generated-cache-smoke.mjs', { typescript: true }),
+      nodeStep('game-over-share-card', 60, 'scripts/check/domains/ui/game-over-share-card-smoke.mjs', { typescript: true }),
     ],
   },
   narrative: {
@@ -270,6 +205,7 @@ export const DOMAINS = {
     ],
     steps: [
       nodeStep('validate-narrative-wiring', 10, 'scripts/check/domains/narrative/validate-narrative-wiring.mjs', { critical: true }),
+      ...specializedScannerSteps.narrative,
       nodeStep('kv-prompt-audit', 20, 'scripts/check/domains/narrative/kv-prompt-audit.mjs', {
         critical: true,
         typescript: true,

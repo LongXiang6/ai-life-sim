@@ -723,7 +723,7 @@ export class CausalDelaySystem implements ISubSystem {
     }
   }
 
-  capturePreviewState(): CausalDelaySnapshotV2 {
+  capturePersistenceState(): CausalDelaySnapshotV2 {
     return structuredClone({
       schemaVersion: CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION,
       config: this.config,
@@ -733,7 +733,7 @@ export class CausalDelaySystem implements ISubSystem {
     })
   }
 
-  restorePreviewState(snapshot: unknown): void {
+  restorePersistenceState(snapshot: unknown): void {
     this.restoreCollectedState(snapshot)
   }
 

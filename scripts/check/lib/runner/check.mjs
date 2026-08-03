@@ -16,7 +16,6 @@ import {
 } from '../atce-signals.mjs'
 import { cleanupOldReports } from '../cleanup-reports.mjs'
 import { writeCheckReport } from '../report.mjs'
-import { inspectUpstreamStatuses } from './contracts.mjs'
 import { runDomain } from './domain.mjs'
 import { createSemaphore } from './execution.mjs'
 
@@ -25,8 +24,10 @@ function resolveParallelism(domainIds) {
     ? os.availableParallelism()
     : os.cpus().length
   const fallback = Math.max(1, Math.min(4, available))
+  const configured = domainIds.length === 1 ? DOMAINS[domainIds[0]]?.parallelism : null
+  const defaultLimit = Number.isInteger(configured) && configured > 0 ? configured : fallback
   return Math.max(1, Math.min(
-    Number.parseInt(process.env.CHECK_PARALLELISM ?? String(fallback), 10) || fallback,
+    Number.parseInt(process.env.CHECK_PARALLELISM ?? String(defaultLimit), 10) || defaultLimit,
     Math.max(1, domainIds.flatMap((domainId) => DOMAINS[domainId]?.steps ?? []).length),
   ))
 }
@@ -58,7 +59,6 @@ export async function runCheck({
   const executionId = `${profile}-${timestamp}-${process.pid}`
   const parallelism = resolveParallelism(domainIds)
   const runWithPermit = createSemaphore(parallelism)
-  const upstreamFeedback = inspectUpstreamStatuses(process.env.CHECK_UPSTREAM_STATUSES)
 
   const results = await Promise.all(domainIds.map(async (domainId) => {
     const result = await runDomain(domainId, {
@@ -69,7 +69,6 @@ export async function runCheck({
       timestamp,
       executionId,
       runWithPermit,
-      upstreamFeedback,
       selectionMode,
       stepIds: stepIdsByDomain?.[domainId],
     })

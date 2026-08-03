@@ -5,7 +5,6 @@
  */
 
 import { isAiCredentialError } from '@/core/ai-service'
-import { bumpTokenBudget } from '@/foundation'
 import {
   AI_DESTINY_PATTERN_BATCH_COUNT,
   AI_DESTINY_PATTERN_BATCH_SIZE,
@@ -15,7 +14,6 @@ import {
 } from '../../constants'
 import {
   buildDestinyPatternUserPromptKv,
-  estimateDestinyPatternTokenBudget,
   type BuildDestinyPatternContextInput,
 } from '../../prompts/destiny-pattern-context'
 import { destinyPatternPrompt } from '../../prompts/destiny-pattern-prompt'
@@ -222,7 +220,6 @@ async generateWithAI(
       return { parsedCount, addedCount: added }
     }
 
-    const baseTokenBudget = estimateDestinyPatternTokenBudget(userPrompt.length)
     const callOpts = {
       pool: 'fate',
       sessionId: fateSessionId,
@@ -236,7 +233,6 @@ async generateWithAI(
             }
           }
         : undefined,
-      maxTokensOverride: useStream ? bumpTokenBudget(baseTokenBudget) : baseTokenBudget,
       stablePrefixChars: kvPrepared.stablePrefixChars,
       storySeed: seed,
       signal: abortController.signal,
@@ -272,7 +268,6 @@ async generateWithAI(
         userPrompt,
         {
           ...callOpts,
-          maxTokensOverride: bumpTokenBudget(callOpts.maxTokensOverride),
         },
       )
       if (!response?.trim()) {

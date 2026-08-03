@@ -103,19 +103,6 @@ export function restorePersistenceState(snapshot: unknown): void {
   state.replaceEntityReferences(validateEntityDirectorySnapshot(snapshot, state.contexts))
 }
 
-export function capturePreviewState(): EntityReferenceDirectoryPersistenceState {
-  return { schemaVersion: 1, entries: listEntityReferences() }
-}
-
-export function restorePreviewState(snapshot: unknown): void {
-  if (!isPlainRecord(snapshot) || snapshot.schemaVersion !== 1 || !Array.isArray(snapshot.entries)) {
-    throw new Error('实体引用预览快照必须是 schemaVersion: 1 的条目数组')
-  }
-  useWorldStore.getState().replaceEntityReferences(
-    snapshot.entries.map((entry) => cloneEntityReference(entry as EntityReference)),
-  )
-}
-
 export function repairEntityReferenceDirectory(): { fallbackEntityIds: string[] } {
   const state = useWorldStore.getState()
   const fallbackEntityIds: string[] = []

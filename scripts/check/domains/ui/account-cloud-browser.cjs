@@ -58,7 +58,6 @@ async function main() {
         customModel: 'deepseek-v4-flash',
         temperature: 0.8,
         topP: 0.9,
-        maxTokens: 8192,
         reasoningEffort: 'level-2',
         talentThinkingIntensity: 'level-2',
         aiTalentGeneration: true,

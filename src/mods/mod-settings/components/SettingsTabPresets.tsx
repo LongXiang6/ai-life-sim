@@ -143,7 +143,6 @@ export function SettingsTabPresets() {
         cache_pool: 'connectivity-test',
         model: testModel,
         messages: [{ role: 'user', content: `ping-${Date.now()}` }],
-        max_tokens: 8,
         temperature: 0,
         stream: false,
         deadline_context: {

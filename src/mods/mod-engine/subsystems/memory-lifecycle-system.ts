@@ -810,7 +810,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
   }
 
   /** 预生成会读取检索索引并累加统计；结束后必须恢复真实时间线。 */
-  capturePreviewState(): unknown {
+  capturePersistenceState(): unknown {
     return structuredClone({
       taggedEvents: this.taggedEvents,
       searchIndex: this.searchIndex,
@@ -826,7 +826,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
     })
   }
 
-  restorePreviewState(snapshot: unknown): void {
+  restorePersistenceState(snapshot: unknown): void {
     if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
     const value = snapshot as {
       taggedEvents?: TaggedEvent[]

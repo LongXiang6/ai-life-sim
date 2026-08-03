@@ -55,7 +55,6 @@ async function runCalibrationFallback(context: WorldInitPipelineContext): Promis
     context,
     worldCalibrationPrompt.systemPrompt,
     worldCalibrationPrompt.userPromptTemplate,
-    context.budgets.calibration,
     'world-init/pipeline:calibration-fallback',
     'cal',
     (response) => {
@@ -97,7 +96,6 @@ function buildDimensionCalibrationStep(): WorldInitStep {
         context,
         worldDimensionCalibrationPrompt.systemPrompt,
         worldDimensionCalibrationPrompt.userPromptTemplate,
-        context.budgets.dimensionCalibration,
         'world-init/pipeline:dimension-calibration',
         'cal',
         (response) => {
@@ -155,7 +153,6 @@ function buildTagsFallbackStep(): WorldInitStep {
         context,
         worldTagsPrompt.systemPrompt,
         worldTagsPrompt.userPromptTemplate,
-        context.budgets.tags,
         'world-init/pipeline:tags-fallback',
         'tag',
         undefined,

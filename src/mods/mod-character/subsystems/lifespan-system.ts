@@ -249,14 +249,6 @@ export class LifespanSystem extends BaseSubsystem {
       : validatePersistenceState(snapshot)
   }
 
-  capturePreviewState(): LifespanSystemPersistenceState {
-    return this.capturePersistenceState()
-  }
-
-  restorePreviewState(snapshot: unknown): void {
-    this.restorePersistenceState(snapshot)
-  }
-
   reset(): void {
     this.state = { schemaVersion: 1, profiles: [], adjustments: [] }
   }

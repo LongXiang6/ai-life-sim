@@ -37,10 +37,6 @@ export async function runDomain(domainId, opts) {
     ? domain.steps.filter((step) => requestedStepIds.has(step.id))
     : [...domain.steps]
   const validation = validateCheckSteps(selectedSteps)
-  if (!SUCCESS_STATUS_CODES.has(opts.upstreamFeedback.statusCode)) {
-    validation.valid = false
-    validation.errors.push(`upstream prerequisite rejected: ${opts.upstreamFeedback.resultCode}`)
-  }
   if (unknownStepIds.length > 0) {
     validation.valid = false
     validation.errors.push(`unknown selected steps: ${unknownStepIds.join(',')}`)
@@ -58,7 +54,6 @@ export async function runDomain(domainId, opts) {
     {
       selectedStepIds: selectedSteps.map((step) => step.id),
       errors: validation.errors,
-      upstream: opts.upstreamFeedback,
     },
   ))
 

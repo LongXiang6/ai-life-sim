@@ -33,7 +33,7 @@ export default defineMod({
     'WorldEntitySystem',
   ],
   /** 除 index.ts 外允许的跨 MOD 公共入口（重 API，与轻量 index 分离） */
-  secondaryPublicEntries: ['world-init-api.ts', 'world-context-api.ts'],
+  secondaryPublicEntries: ['world-init-api.ts', 'world-context-api.ts', 'world-runtime-api.ts'],
   stores: ['useWorldStore'],
   events: {
     emits: [
@@ -41,7 +41,6 @@ export default defineMod({
       'mod-world:entities-generated',
       'mod-world:context-left',
       'mod-world:context-arrived',
-      'mod-world:context-transition-rolled-back',
     ],
     listens: ['mod-engine:round-complete'],
   },

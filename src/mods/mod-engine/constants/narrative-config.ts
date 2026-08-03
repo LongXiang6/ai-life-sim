@@ -11,12 +11,7 @@ import {
   DEFAULT_WORD_COUNT_TARGET,
   resolveNarrativeWordCountTarget,
   type NarrativeWordCountTarget,
-  type ReasoningEffort,
 } from '@/foundation'
-import {
-  computeNarrativeTokenBudget,
-  getNarrativeTokenCalibration,
-} from '@/core/ai-service'
 
 // ============================================================
 // 叙事风格（4 种）—— Prompt 指令文本
@@ -103,40 +98,6 @@ export function buildWordCountInstruction(target: NarrativeWordCountTarget): str
     NARRATIVE_DENSITY_INSTRUCTIONS[normalizedTarget],
     `正文全部段落合计写成${preferredMin}-${preferredMax}字，中心约${normalizedTarget}字。`,
   ].join('\n')
-}
-
-export interface NarrativeMaxTokenOptions {
-  reasoningEffort?: ReasoningEffort
-  providerId?: string
-  model?: string
-}
-
-/**
- * 叙事 maxTokens 计算：正文、协议信封、波动和思考余量分别估算并向上取整。
- * 同 Provider/模型/模式积累至少 8 个真实样本后使用 P95 校准。
- */
-export function computeNarrativeMaxTokens(
-  wordCountTarget: NarrativeWordCountTarget,
-  options: NarrativeMaxTokenOptions = {},
-): number {
-  const {
-    target: normalizedTarget,
-    preferredMax,
-  } = resolveNarrativeWordCountRange(wordCountTarget)
-  const reasoningEffort = options.reasoningEffort ?? 'disabled'
-  const calibration = options.providerId && options.model
-    ? getNarrativeTokenCalibration({
-      providerId: options.providerId,
-      model: options.model,
-      reasoningEffort,
-    })
-    : undefined
-  return computeNarrativeTokenBudget({
-    targetChineseCharacters: normalizedTarget,
-    maximumChineseCharacters: preferredMax,
-    reasoningEffort,
-    calibration,
-  })
 }
 
 export { DEFAULT_WORD_COUNT_TARGET }

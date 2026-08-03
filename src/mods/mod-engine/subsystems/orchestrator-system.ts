@@ -7,8 +7,8 @@
  * @description 引擎编排子系统 —— 协调本地模拟、故事后并行 AI 分析与原子提交
  * @mod mod-engine
  *
- * 默认 Campaign 负责声明阶段顺序；本系统只提供上下文、状态快照、
- * 严格提交和失败恢复边界，不保留第二条硬编码回合管线。
+ * 默认 Campaign 负责声明阶段顺序；本系统只提供上下文、持久化状态导出、
+ * 严格提交和错误终止边界，不保留第二条硬编码回合管线。
  */
 
 import { BaseSubsystem, eventBus, EXECUTION_FLOWS } from '@/core'
@@ -38,8 +38,6 @@ import {
   RoundCommitBus,
   readEraStartYearFromConfig,
   readBirthEraYearFromConfig,
-  collectGameSavePayload,
-  computeNarrativeMaxTokens,
   DEFAULT_WORD_COUNT_TARGET,
   simulationBridge,
   TimeSystem,
@@ -79,7 +77,7 @@ import {
   type NarrativeBackgroundAnalysisRecord,
 } from '../orchestrator-shared'
 
-import { useSettingsStore } from '@/mods/mod-settings'
+import { useSettingsStore } from '@/mods/mod-settings/settings-runtime-api'
 import { logger } from '@/core/logger/client-logger'
 import type {
   NarrativeDiagnosticPhase,
@@ -197,8 +195,9 @@ function resolveRestoredAutoSaveRound(
   return restoredTotal
 }
 
-/** 预生成/快照：编排器可恢复状态 */
-export interface OrchestratorSnapshot {
+/** 编排器可持久化状态。 */
+/** 存档使用的编排器持久化状态；不提供运行时回退或预览恢复能力。 */
+export interface OrchestratorPersistenceState {
   /** 保存时当前世界上下文，用于与 world Store 交叉校验 */
   worldContextId?: string
   state: EngineState
@@ -237,28 +236,9 @@ export interface OrchestratorSnapshot {
   persistentSubsystemStates?: Record<string, unknown>
 }
 
-/** 预生成专用快照；补充不进入存档契约的步长对齐运行态。 */
-export interface OrchestratorPreviewSnapshot {
-  orchestrator: OrchestratorSnapshot
-  pendingTimeStepAlignmentFromUnit?: TimeStep['unit']
-  pendingTimeStepAlignmentFromValue?: number
-  /** 叙事前同步会直接写入 CharacterStore 的运行态字段。 */
-  characterStoreRuntime: Pick<
-    ReturnType<typeof useCharacterStore.getState>,
-    'age'
-  >
-  engineStoreRuntime: Pick<
-    ReturnType<typeof useEngineStore.getState>,
-    'status' | 'narrativeError'
-  >
-  subsystemPreviewStates: Record<string, unknown>
-}
-
 type RuntimeManagedSubsystem = ISubSystem & {
   hydrateFromStore?: () => void
   restoreCollectedState?: (snapshot: unknown) => void
-  capturePreviewState?: () => unknown
-  restorePreviewState?: (snapshot: unknown) => void
   capturePersistenceState?: () => unknown
   restorePersistenceState?: (snapshot: unknown) => void
   importLegacyCollectedStates?: (states: Record<string, SubSystemState>) => boolean
@@ -420,15 +400,6 @@ export class OrchestratorSystem extends BaseSubsystem {
   /** 四路后台 AI 的版本化结果收件箱；仅在确定性回合边界消费。 */
   private readonly narrativeBackgroundInbox = new NarrativeBackgroundResultInbox()
 
-  /** 预生成/预览执行深度：只允许临时推进到 AI 输出，不提交真实副作用 */
-  private previewExecutionDepth = 0
-
-  /** 当前预览任务的取消信号；失效预生成必须停止请求后才能释放单写者。 */
-  private previewAbortSignal?: AbortSignal
-
-  /** 预览任务（含快照恢复）的清理完成门；真实回合接管前等待它结束。 */
-  private previewCompletion: Promise<void> | null = null
-
   /** 真实回合压缩唯一 AI 闸门；失败会拒绝当前回合终态。 */
   private pendingCompression: Promise<void> | null = null
   /** 最近一次压缩闸门终态失败；清除前不得开始新回合。 */
@@ -439,7 +410,6 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   private readonly roundDiagnostics = new RoundDiagnosticController(() => ({
     lifeRunId: this.state.lifeRunId,
-    preview: this.isPreviewExecution(),
   }))
 
   private beginRoundDiagnostic(round: number): void {
@@ -510,20 +480,20 @@ export class OrchestratorSystem extends BaseSubsystem {
     ]
   }
 
-  private captureInternalSubsystemStates(): Record<string, unknown> {
-    const snapshots: Record<string, unknown> = {}
+  private exportInternalSubsystemStates(): Record<string, unknown> {
+    const states: Record<string, unknown> = {}
     for (const subsystem of this.getInternalStatefulSubsystems()) {
-      const capture = this.asRuntimeManaged(subsystem).capturePreviewState
-      if (capture) snapshots[subsystem.id] = capture.call(subsystem)
+      const capture = this.asRuntimeManaged(subsystem).capturePersistenceState
+      if (capture) states[subsystem.id] = capture.call(subsystem)
     }
-    return structuredClone(snapshots)
+    return structuredClone(states)
   }
 
-  private restoreInternalSubsystemStates(snapshots: Record<string, unknown> | undefined): void {
-    if (!snapshots) return
+  private importInternalSubsystemStates(states: Record<string, unknown> | undefined): void {
+    if (!states) return
     for (const subsystem of this.getInternalStatefulSubsystems()) {
-      if (!(subsystem.id in snapshots)) continue
-      this.asRuntimeManaged(subsystem).restorePreviewState?.(structuredClone(snapshots[subsystem.id]))
+      if (!(subsystem.id in states)) continue
+      this.asRuntimeManaged(subsystem).restorePersistenceState?.(structuredClone(states[subsystem.id]))
     }
   }
 
@@ -532,15 +502,15 @@ export class OrchestratorSystem extends BaseSubsystem {
    * 没有对应快照的旧存档先给 owning system 迁移旧 collected state；仍无数据时显式恢复空态，
    * 避免把另一个存档残留在浏览器 Store 中的状态串入当前存档。
    */
-  private restorePersistentSubsystemStates(
-    snapshots: Record<string, unknown> | undefined,
+  private importPersistentSubsystemStates(
+    states: Record<string, unknown> | undefined,
     legacyCollectedStates: Record<string, SubSystemState>,
   ): void {
     for (const subsystem of this.subsystems) {
       const managed = this.asRuntimeManaged(subsystem)
       if (!managed.restorePersistenceState) continue
-      if (snapshots && Object.hasOwn(snapshots, subsystem.id)) {
-        managed.restorePersistenceState(structuredClone(snapshots[subsystem.id]))
+      if (states && Object.hasOwn(states, subsystem.id)) {
+        managed.restorePersistenceState(structuredClone(states[subsystem.id]))
         continue
       }
 
@@ -553,14 +523,14 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
   }
 
-  private capturePersistentSubsystemStates(): Record<string, unknown> {
-    const snapshots: Record<string, unknown> = {}
+  private exportPersistentSubsystemStates(): Record<string, unknown> {
+    const states: Record<string, unknown> = {}
     for (const subsystem of this.subsystems) {
       const capture = this.asRuntimeManaged(subsystem).capturePersistenceState
       if (!capture) continue
-      snapshots[subsystem.id] = capture.call(subsystem)
+      states[subsystem.id] = capture.call(subsystem)
     }
-    return structuredClone(snapshots)
+    return structuredClone(states)
   }
 
   /** 从各 MOD Store 水合当前已注册的 MVP 子系统，不改变公开 ISubSystem 契约。 */
@@ -583,36 +553,6 @@ export class OrchestratorSystem extends BaseSubsystem {
         this.asRuntimeManaged(subsystem).restoreCollectedState?.(data)
       } catch (error) {
         console.warn(`[Orchestrator] 子系统 ${subsystem.id} 状态恢复失败:`, error)
-      }
-    }
-  }
-
-  private captureSubsystemPreviewStates(): Record<string, unknown> {
-    const snapshots: Record<string, unknown> = {}
-    const previewSubsystems = new Map<string, ISubSystem>([
-      ...this.subsystems.map((subsystem) => [subsystem.id, subsystem] as const),
-      ...this.getInternalStatefulSubsystems().map((subsystem) => [subsystem.id, subsystem] as const),
-    ])
-    for (const subsystem of previewSubsystems.values()) {
-      const capture = this.asRuntimeManaged(subsystem).capturePreviewState
-      if (!capture) continue
-      snapshots[subsystem.id] = capture.call(subsystem)
-    }
-    return structuredClone(snapshots)
-  }
-
-  private restoreSubsystemPreviewStates(snapshots: Record<string, unknown> | undefined): void {
-    if (!snapshots) return
-    const previewSubsystems = new Map<string, ISubSystem>([
-      ...this.subsystems.map((subsystem) => [subsystem.id, subsystem] as const),
-      ...this.getInternalStatefulSubsystems().map((subsystem) => [subsystem.id, subsystem] as const),
-    ])
-    for (const subsystem of previewSubsystems.values()) {
-      if (!(subsystem.id in snapshots)) continue
-      try {
-        this.asRuntimeManaged(subsystem).restorePreviewState?.(structuredClone(snapshots[subsystem.id]))
-      } catch (error) {
-        console.warn(`[Orchestrator] 子系统 ${subsystem.id} 预生成快照恢复失败:`, error)
       }
     }
   }
@@ -907,42 +847,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.lastExecutedFullContent = content?.trim() ? content : null
   }
 
-  isPreviewExecution(): boolean {
-    return this.previewExecutionDepth > 0
-  }
-
-  getPreviewAbortSignal(): AbortSignal | undefined {
-    return this.previewAbortSignal
-  }
-
-  private async waitForPreviewCompletion(): Promise<void> {
-    if (this.isPreviewExecution()) return
-    const completion = this.previewCompletion
-    if (completion) await completion
-  }
-
-  async runPreviewRound<T>(runner: () => Promise<T>, signal?: AbortSignal): Promise<T> {
-    if (this.previewExecutionDepth > 0) return runner()
-
-    let releaseCompletion: (() => void) | undefined
-    this.previewCompletion = new Promise<void>((resolve) => {
-      releaseCompletion = resolve
-    })
-    this.previewExecutionDepth++
-    this.previewAbortSignal = signal
-    try {
-      return await runner()
-    } finally {
-      this.previewExecutionDepth--
-      if (this.previewExecutionDepth === 0) {
-        this.previewAbortSignal = undefined
-        releaseCompletion?.()
-        this.previewCompletion = null
-      }
-    }
-  }
-
-  captureSnapshot(includePersistentSubsystemStates = true): OrchestratorSnapshot {
+  exportPersistenceState(includePersistentSubsystemStates = true): OrchestratorPersistenceState {
     return structuredClone({
       worldContextId: this.worldSetting?.contextId,
       state: this.state,
@@ -969,9 +874,9 @@ export class OrchestratorSystem extends BaseSubsystem {
       prefetchedLuckGuidance: this.prefetchedLuckGuidance,
       lastNarrativeLuckGuidance: this.lastNarrativeLuckGuidance,
       digestLedgerSnapshot: digestLedger.toSnapshot(),
-      engineSubsystemStates: this.captureInternalSubsystemStates(),
+      engineSubsystemStates: this.exportInternalSubsystemStates(),
       ...(includePersistentSubsystemStates
-        ? { persistentSubsystemStates: this.capturePersistentSubsystemStates() }
+        ? { persistentSubsystemStates: this.exportPersistentSubsystemStates() }
         : {}),
     })
   }
@@ -991,57 +896,39 @@ export class OrchestratorSystem extends BaseSubsystem {
     return this.compressionGateFailure !== null
   }
 
-  capturePreviewSnapshot(): OrchestratorPreviewSnapshot {
-    const engineStore = useEngineStore.getState()
-    const characterStore = useCharacterStore.getState()
-    return {
-      orchestrator: this.captureSnapshot(false),
-      pendingTimeStepAlignmentFromUnit: this.pendingTimeStepAlignmentFromUnit,
-      pendingTimeStepAlignmentFromValue: this.pendingTimeStepAlignmentFromValue,
-      characterStoreRuntime: {
-        age: characterStore.age,
-      },
-      engineStoreRuntime: {
-        status: engineStore.status,
-        narrativeError: engineStore.narrativeError,
-      },
-      subsystemPreviewStates: this.captureSubsystemPreviewStates(),
-    }
-  }
-
-  /** 恢复预览会改写、但 EngineStore 不保存的 orchestrator 运行态。 */
-  private restoreSnapshotRuntimeState(
-    snap: OrchestratorSnapshot,
+  /** 从存档恢复 EngineStore 未单独拥有的编排器运行态；不提供运行时回退。 */
+  private importPersistenceRuntimeState(
+    state: OrchestratorPersistenceState,
     restorePersistentSubsystemStates = true,
   ): void {
-    this.lastSubsystemStates = structuredClone(snap.lastSubsystemStates ?? {})
+    this.lastSubsystemStates = structuredClone(state.lastSubsystemStates ?? {})
     if (restorePersistentSubsystemStates) {
-      this.restorePersistentSubsystemStates(
-        snap.persistentSubsystemStates,
+      this.importPersistentSubsystemStates(
+        state.persistentSubsystemStates,
         this.lastSubsystemStates,
       )
       this.restoreSubsystemsFromCollectedStates(this.lastSubsystemStates)
     }
-    this.eventLifecycle = structuredClone(snap.eventLifecycle ?? {})
-    this.lastNotableEvents = [...(snap.lastNotableEvents ?? [])]
-    this.prevAbbreviationSnapshot = { ...(snap.prevAbbreviationSnapshot ?? {}) }
-    this.prevRoundYear = snap.prevRoundYear ?? this.state.round.year
-    this.prevBridgeSnapshot = structuredClone(snap.prevBridgeSnapshot ?? {})
+    this.eventLifecycle = structuredClone(state.eventLifecycle ?? {})
+    this.lastNotableEvents = [...(state.lastNotableEvents ?? [])]
+    this.prevAbbreviationSnapshot = { ...(state.prevAbbreviationSnapshot ?? {}) }
+    this.prevRoundYear = state.prevRoundYear ?? this.state.round.year
+    this.prevBridgeSnapshot = structuredClone(state.prevBridgeSnapshot ?? {})
     this.previousNarrativeRound = {
-      ...(snap.previousNarrativeRound ?? snap.state.round ?? this.state.round),
+      ...(state.previousNarrativeRound ?? state.state.round ?? this.state.round),
     }
-    this.lastNarratedTimeStep = { ...(snap.lastNarratedTimeStep ?? this.state.timeStep) }
-    this.lastTimeStepAlignment = snap.lastTimeStepAlignment
-      ? { ...snap.lastTimeStepAlignment }
+    this.lastNarratedTimeStep = { ...(state.lastNarratedTimeStep ?? this.state.timeStep) }
+    this.lastTimeStepAlignment = state.lastTimeStepAlignment
+      ? { ...state.lastTimeStepAlignment }
       : undefined
-    this.lastAiConfig = snap.lastAiConfig ?? null
-    this.lastSessionId = snap.lastSessionId
-    this.lastExecutedFullContent = snap.lastExecutedFullContent ?? null
+    this.lastAiConfig = state.lastAiConfig ?? null
+    this.lastSessionId = state.lastSessionId
+    this.lastExecutedFullContent = state.lastExecutedFullContent ?? null
     this.pendingNarrativeCausalEventIds = []
     this.compressionGateFailure = null
-    this.lastPlayerChoice = snap.lastPlayerChoice
-    this.consecutiveSameGoalRounds = snap.consecutiveSameGoalRounds ?? 0
-    this.lastCommittedPlayerChoice = snap.lastCommittedPlayerChoice
+    this.lastPlayerChoice = state.lastPlayerChoice
+    this.consecutiveSameGoalRounds = state.consecutiveSameGoalRounds ?? 0
+    this.lastCommittedPlayerChoice = state.lastCommittedPlayerChoice
     const rebuilt = rebuildBranchIntentsFromHistory(
       this.state.narrativeHistory.map((entry, index) => ({
         id: entry.id,
@@ -1051,14 +938,14 @@ export class OrchestratorSystem extends BaseSubsystem {
         round: entry.repetitionMetric?.round ?? index + 1,
       })),
     )
-    const snapshotHasBranchProjection = snap.branchIntents !== undefined
-      || snap.archivedBranchIntents !== undefined
-      || snap.focusedBranchIntentId !== undefined
-    const snapshotProjection = snapshotHasBranchProjection
+    const storedBranchProjection = state.branchIntents !== undefined
+      || state.archivedBranchIntents !== undefined
+      || state.focusedBranchIntentId !== undefined
+    const persistedProjection = storedBranchProjection
       ? normalizeBranchIntentProjection({
-          branchIntents: snap.branchIntents ?? [],
-          archivedBranchIntents: snap.archivedBranchIntents ?? [],
-          focusedBranchIntentId: snap.focusedBranchIntentId,
+          branchIntents: state.branchIntents ?? [],
+          archivedBranchIntents: state.archivedBranchIntents ?? [],
+          focusedBranchIntentId: state.focusedBranchIntentId,
         })
       : undefined
     const rebuiltProjection: BranchIntentProjection = {
@@ -1068,9 +955,9 @@ export class OrchestratorSystem extends BaseSubsystem {
         ? { focusedBranchIntentId: rebuilt.focusedIntentId }
         : {}),
     }
-    const restoredProjection = snapshotProjection
-      && isBranchIntentProjectionConsistent(snapshotProjection, rebuiltProjection)
-      ? snapshotProjection
+    const restoredProjection = persistedProjection
+      && isBranchIntentProjectionConsistent(persistedProjection, rebuiltProjection)
+      ? persistedProjection
       : rebuiltProjection
     this.branchIntents = restoredProjection.branchIntents
     this.archivedBranchIntents = restoredProjection.archivedBranchIntents
@@ -1078,19 +965,19 @@ export class OrchestratorSystem extends BaseSubsystem {
     if (!this.getFocusedBranchIntentRuntime()) {
       this.focusMostRecentlyUpdatedBranchIntent()
     }
-    this.prefetchedNarrativeContent = snap.prefetchedNarrativeContent ?? null
-    this.prefetchedLuckGuidance = snap.prefetchedLuckGuidance
-      ? structuredClone(snap.prefetchedLuckGuidance)
+    this.prefetchedNarrativeContent = state.prefetchedNarrativeContent ?? null
+    this.prefetchedLuckGuidance = state.prefetchedLuckGuidance
+      ? structuredClone(state.prefetchedLuckGuidance)
       : null
-    this.lastNarrativeLuckGuidance = snap.lastNarrativeLuckGuidance
-      ? structuredClone(snap.lastNarrativeLuckGuidance)
+    this.lastNarrativeLuckGuidance = state.lastNarrativeLuckGuidance
+      ? structuredClone(state.lastNarrativeLuckGuidance)
       : null
-    digestLedger.loadSnapshot(snap.digestLedgerSnapshot)
-    this.restoreInternalSubsystemStates(snap.engineSubsystemStates)
+    digestLedger.loadSnapshot(state.digestLedgerSnapshot)
+    this.importInternalSubsystemStates(state.engineSubsystemStates)
   }
 
-  restoreSnapshot(snap: OrchestratorSnapshot, restorePersistentSubsystemStates = true): void {
-    const clonedState = structuredClone(snap.state) as unknown
+  importPersistenceState(state: OrchestratorPersistenceState, restorePersistentSubsystemStates = true): void {
+    const clonedState = structuredClone(state.state) as unknown
     const rawState = clonedState && typeof clonedState === 'object' && !Array.isArray(clonedState)
       ? clonedState as Partial<EngineState> & {
           lifeRunId?: unknown
@@ -1122,13 +1009,13 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
     this.state = restored
     this.narrativeMemoryRecall = []
-    this.restoreSnapshotRuntimeState(
-      { ...snap, state: restored },
+    this.importPersistenceRuntimeState(
+      { ...state, state: restored },
       restorePersistentSubsystemStates,
     )
     // 旧存档可能保留了按旧规则计算的 season；以月份重新推导当前节点，
     // 但不改写历史叙事条目的时间标签。
-    timeSystem.importRound(snap.timeRound ?? this.state.round)
+    timeSystem.importRound(state.timeRound ?? this.state.round)
     this.state.round = timeSystem.getRound()
     summaryCompressor.restoreFromEngineState(this.state.compressedSummaries, this.state.compressionStats)
     coreMemory.hydrateFromStore()
@@ -1147,32 +1034,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     }))
     this.syncBranchIntentProjectionToEngineStore()
     this.reconcileAcceptedNarrativeRecords()
-  }
-
-  restorePreviewSnapshot(snap: OrchestratorPreviewSnapshot): void {
-    this.restoreSnapshot(snap.orchestrator, false)
-    this.pendingTimeStepAlignmentFromUnit = snap.pendingTimeStepAlignmentFromUnit
-    this.pendingTimeStepAlignmentFromValue = snap.pendingTimeStepAlignmentFromValue
-    this.restoreSubsystemPreviewStates(snap.subsystemPreviewStates)
-    useEngineStore.setState(snap.engineStoreRuntime)
-    useCharacterStore.setState(snap.characterStoreRuntime)
-    this.reconcileAcceptedNarrativeRecords()
-  }
-
-  /**
-   * 预览失效时先撤销其非 Store 副作用，再从当前 EngineStore 重建权威时间线。
-   * 不能直接 restoreSnapshot，否则会覆盖用户在 AI 等待期间完成的步长切换。
-   */
-  reconcilePreviewSnapshotWithEngineStore(snap: OrchestratorPreviewSnapshot): void {
-    const store = useEngineStore.getState()
-    const storeHasProgress = store.totalRounds > 0 || store.narrativeHistory.length > 0
-    if (!storeHasProgress) {
-      this.reset()
-      return
-    }
-    this.restoreSnapshotRuntimeState(snap.orchestrator, false)
-    this.restoreSubsystemPreviewStates(snap.subsystemPreviewStates)
-    this.hydrateFromEngineStore(snap.orchestrator.state.timeStep)
   }
 
   /** 检测死亡并触发死后尾声（供 stage 闭包使用） */
@@ -1332,7 +1193,7 @@ export class OrchestratorSystem extends BaseSubsystem {
         )
       }
       states[state.id] = sanitized.result as SubSystemState
-      if (!this.isPreviewExecution() && recordRelevance) {
+      if (recordRelevance) {
         subsystemRelevance.recordState(sub.id, sanitized.result as SubSystemState, this.state.totalRounds)
       }
     }
@@ -1443,10 +1304,8 @@ export class OrchestratorSystem extends BaseSubsystem {
       age,
       destinyPatterns: patternSummaries?.length ? patternSummaries : undefined,
     }
-    if (!this.isPreviewExecution()) {
-      this.characterState = synced
-      useCharacterStore.setState({ age })
-    }
+    this.characterState = synced
+    useCharacterStore.setState({ age })
     return synced
   }
 
@@ -1534,6 +1393,9 @@ export class OrchestratorSystem extends BaseSubsystem {
     const characterName = this.characterState?.name ?? ''
     const saveRound = this.state.totalRounds
     const saveGeneration = this.lifeGeneration
+    // save-restore 反向依赖世界与设置模块，自动存档只在实际执行时加载，避免
+    // 把存档边界接入编排器的静态依赖图。
+    const { collectGameSavePayload } = await import('../helpers/save-restore')
     const payload = collectGameSavePayload()
     const saveStartedAt = Date.now()
 
@@ -1683,7 +1545,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     void changes.changes;
   }
 
-  /** 取消尚未提交的旧人生异步操作；预览快照恢复不调用此入口。 */
+  /** 取消尚未提交的旧人生异步操作；真实回合失败不会恢复旧运行态。 */
   invalidatePendingLifeOperations(): void {
     this.lifeGeneration += 1
   }
@@ -2124,7 +1986,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     return this.campaignStageRuntime.run(stages, context, {
       lifeRunId: this.state.lifeRunId,
       totalRounds: this.state.totalRounds,
-      preview: this.isPreviewExecution(),
       pushDiagnosticPhase: (phase) => this.pushDiagnosticPhase(phase),
     })
   }
@@ -2145,21 +2006,10 @@ export class OrchestratorSystem extends BaseSubsystem {
     aiConfig: AIModelConfig,
     sessionId?: string,
   ): Promise<RoundResult> {
-    // 预生成与真实回合共享 orchestrator 单写者。失效预生成会先取消 AI，
-    // 但必须连同快照恢复一起完成，真实回合才可以接管，避免状态交错回滚。
-    await this.waitForPreviewCompletion()
-
     // 从单一来源常量取默认字数，与 Prompt 组装、pre-gen、hooks 共享同一常量
     const settings = useSettingsStore.getState()
     const wordCountTarget = settings.wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET
-    const effectiveAiConfig: AIModelConfig = {
-      ...aiConfig,
-      maxTokens: computeNarrativeMaxTokens(wordCountTarget, {
-        reasoningEffort: aiConfig.reasoningEffort ?? settings.reasoningEffort,
-        providerId: settings.provider,
-        model: aiConfig.model,
-      }),
-    }
+    const effectiveAiConfig: AIModelConfig = { ...aiConfig }
     // 先建立真实回合诊断，再加载阶段定义；这样阶段缺失或初始化异常也有可追溯记录。
     this.beginRoundDiagnostic(this.state.totalRounds + 1)
     const stages = await this.loadCampaignStages(effectiveAiConfig, promptTemplate, sessionId)

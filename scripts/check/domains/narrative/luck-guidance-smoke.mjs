@@ -1,3 +1,8 @@
+/**
+ * Purpose: Regress deterministic luck guidance and its non-blocking narrative projection.
+ * Owner: quality:narrative
+ * Responsibility: Luck guidance smoke assertions only.
+ */
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -60,11 +65,11 @@ const guidance = system.prepareNarrativeGuidance(context)
 assert.equal(system.prepareNarrativeGuidance(context).roll, guidance.roll)
 assert.equal(system.getNarrativeGuidance(context.contextId)?.direction, guidance.direction)
 
-const previewSnapshot = system.capturePreviewState()
+const persistenceState = system.capturePersistenceState()
 const nextContext = { ...context, roundSequence: 2, totalDays: 730 }
 const nextGuidance = system.prepareNarrativeGuidance(nextContext)
 assert.notEqual(nextGuidance.generatedAtRound, guidance.generatedAtRound)
-system.restorePreviewState(previewSnapshot)
+system.restorePersistenceState(persistenceState)
 assert.deepEqual(system.getNarrativeGuidance(context.contextId), guidance)
 assert.deepEqual(system.prepareNarrativeGuidance(nextContext, nextGuidance), nextGuidance)
 assert.throws(
@@ -86,7 +91,8 @@ const fieldRegistry = fs.readFileSync(path.join(projectRoot, 'src/mods/mod-engin
 const systemPromptSource = fs.readFileSync(path.join(projectRoot, 'src/mods/mod-engine/server/narrative-system-prompt.ts'), 'utf8')
 
 assert.match(preGenSource, /luckGuidance: LuckNarrativeGuidance/)
-assert.match(preGenSource, /getLastNarrativeLuckGuidance\(\)/)
+assert.match(preGenSource, /运行时预览已移除/)
+assert.doesNotMatch(preGenSource, /runPreviewRound|capturePreviewSnapshot|restorePreviewSnapshot/)
 assert.match(hooksSource, /setPrefetchedNarrative\(cached\.fullContent, cached\.luckGuidance\)/)
 assert.match(campaignSource, /orchestrator\.advanceAllSubsystems\(\)/)
 assert.ok(Object.values(runtimeConfig.stages).every((stage) => !stage.systemInstruction.includes('luck')))

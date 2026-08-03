@@ -1,4 +1,8 @@
 /**
+ * Purpose: Build the public WorldSetting projection consumed by the orchestrator.
+ * Owner: mod-engine
+ * Responsibility: World-setting and era-anchor projection only; world state remains owned by mod-world.
+ *
  * @module orchestrator-world-setting.ts
  * @description 构建 orchestrator.setContext 用的 WorldSetting（含纪年锚点）
  * @mod mod-engine
@@ -7,9 +11,11 @@
 import type { WorldSetting } from '@/foundation'
 import { formatEraYear } from '@/foundation/utils/format-time'
 
-import type { WorldConfig } from '@/mods/mod-world'
-import { useWorldStore } from '@/mods/mod-world'
-import { inferAnchorYearFromDescription } from '@/mods/mod-world/world-init-api'
+import {
+  inferAnchorYearFromDescription,
+  useWorldStore,
+  type WorldConfig,
+} from '@/mods/mod-world/world-runtime-api'
 
 export function buildOrchestratorWorldSetting(
   worldConfig: WorldConfig,

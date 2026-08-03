@@ -237,7 +237,7 @@ async function main() {
     localStorage.setItem('ai-life-sim:mod-character:cache:destiny-pool:2', JSON.stringify({ cached: true }))
     localStorage.setItem('mod-settings:store', JSON.stringify({ version: 8, state: {
       provider: 'managed', customKey: '', customUrl: '', customModel: 'LongCat-2.0', temperature: 0.8,
-      topP: 0.8, maxTokens: 4096, reasoningEffort: 'disabled', talentThinkingIntensity: 'disabled',
+      topP: 0.8, reasoningEffort: 'disabled', talentThinkingIntensity: 'disabled',
       aiTalentGeneration: false, preGenerateRounds: 0, storySeed: 'global-user-journey', narrativeStyle: 'default',
       wordCountTarget: 200, streamingMode: 'off', comfortableParagraphs: true, reduceMotion: true, theme: 'minimal-white',
     }}))

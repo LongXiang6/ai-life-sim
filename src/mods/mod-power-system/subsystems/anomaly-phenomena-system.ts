@@ -69,8 +69,6 @@ export class AnomalyPhenomenaSystem extends BaseSubsystem {
   }
   capturePersistenceState(): AnomalyPersistenceState { return { schemaVersion: 1, contexts: clone(this.states) } }
   restorePersistenceState(snapshot: unknown): void { if (snapshot === undefined) { this.states = {}; return }; const value = snapshot as AnomalyPersistenceState; if (value.schemaVersion !== 1 || !value.contexts) throw new Error('异常持久化快照无效'); this.states = clone(value.contexts) }
-  capturePreviewState(): AnomalyPersistenceState { return this.capturePersistenceState() }
-  restorePreviewState(snapshot: unknown): void { this.restorePersistenceState(snapshot) }
   reset(): void { this.states = {} }
 }
 

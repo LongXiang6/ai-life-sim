@@ -11,7 +11,6 @@ import type {
 } from '@/foundation'
 import type { WorldEntitySystem } from '../../world-init-bundle-deps'
 import type { WorldConfig } from '../../types'
-import type { WorldInitPipelineBudgets } from '../world-init-budgets'
 
 export const MAX_AI_RETRIES = 3
 export const RETRY_DELAY_MS = 2000
@@ -37,7 +36,6 @@ export interface WorldInitPipelineContext {
   customUrl: string
   customKey: string
   aiConfig: AIModelConfig
-  budgets: WorldInitPipelineBudgets
   initFingerprint: string
   promptVars: Record<string, string>
   errors: string[]

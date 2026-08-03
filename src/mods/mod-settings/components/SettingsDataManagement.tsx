@@ -33,7 +33,7 @@ export function SettingsDataManagement() {
 
   const handleExport = useCallback(() => {
     const {
-      provider, customKey, customUrl, customModel, temperature, topP, maxTokens,
+      provider, customKey, customUrl, customModel, temperature, topP,
       reasoningEffort, talentThinkingIntensity, aiTalentGeneration, preGenerateRounds,
       storySeed, narrativeStyle, narrativeStyleText, narrativeStyleVersion, wordCountTarget,
       streamingMode, comfortableParagraphs, reduceMotion,
@@ -42,7 +42,7 @@ export function SettingsDataManagement() {
       version: '1.0',
       exportedAt: Date.now(),
       settings: {
-        provider, customKey, customUrl, customModel, temperature, topP, maxTokens,
+        provider, customKey, customUrl, customModel, temperature, topP,
         reasoningEffort, talentThinkingIntensity, aiTalentGeneration, preGenerateRounds,
         storySeed, narrativeStyle, narrativeStyleText, narrativeStyleVersion, wordCountTarget,
         streamingMode, comfortableParagraphs, reduceMotion, fontFamily,
@@ -83,7 +83,6 @@ export function SettingsDataManagement() {
             store.setCustomModel(DEFAULT_SETTINGS_VALUES.customModel)
             store.setTemperature(DEFAULT_SETTINGS_VALUES.temperature)
             store.setTopP(DEFAULT_SETTINGS_VALUES.topP)
-            store.setMaxTokens(DEFAULT_SETTINGS_VALUES.maxTokens)
             store.setReasoningEffort(DEFAULT_SETTINGS_VALUES.reasoningEffort)
             store.setTalentThinkingIntensity(DEFAULT_SETTINGS_VALUES.talentThinkingIntensity)
             store.setAiTalentGeneration(DEFAULT_SETTINGS_VALUES.aiTalentGeneration)
@@ -108,7 +107,6 @@ export function SettingsDataManagement() {
           store.setCustomModel(importedModel.customModel)
           if (typeof imported.temperature === 'number') store.setTemperature(clamp(imported.temperature, 0, 2))
           if (typeof imported.topP === 'number') store.setTopP(clamp(imported.topP, 0, 1))
-          if (typeof imported.maxTokens === 'number') store.setMaxTokens(Math.max(256, imported.maxTokens))
           if (typeof imported.reasoningEffort === 'string') store.setReasoningEffort(imported.reasoningEffort)
           if (typeof imported.talentThinkingIntensity === 'string') store.setTalentThinkingIntensity(imported.talentThinkingIntensity)
           if (typeof imported.aiTalentGeneration === 'boolean') store.setAiTalentGeneration(imported.aiTalentGeneration)

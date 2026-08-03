@@ -95,7 +95,6 @@ const worldPrototype = read('docs/ui-prototypes/mobile/world-customize/final-wc-
 const characterPrototype = read('docs/ui-prototypes/mobile/character-create/final-cc-rf9-1.html')
 const decisions = read('docs/product-decisions.md')
 const acceptanceLedger = read('docs/acceptance-ledger.md')
-const runtimePolicy = JSON.parse(read('src/mods/mod-engine/helpers/mvp-stages-config.default.json'))
 
 reject(constants, /MAX_NARRATIVE_HISTORY|MAX_CHARACTER_CREATIONS/, 'engine constants must not define destructive narrative or creation caps')
 reject(orchestrator, /narrativeHistory\.shift\(|characterCreations\.shift\(/, 'orchestrator must retain complete narrative history and original creations')
@@ -129,7 +128,6 @@ assertOk(
   'failed compression must retain original leaves for retry',
 )
 reject(engineUtils, /computeSummaryCharLimit|inputTextLength\s*\/\s*(?:2|4|8|10|12)/, 'summary token headroom must not shrink by level or convert into a character cap')
-assertOk(engineUtils.includes('computeCoverageSafeSummaryTokens'), 'summary token budgets must provide coverage-safe technical headroom')
 reject(ledger, /MAX_LEDGER_ENTRIES|entry\.events\.shift\(|kept[\s\S]{0,120}\.slice\(/, 'digest ledger must not delete or top-N truncate narrative facts')
 reject(lifecycle, /MAX_INDEX_ENTRIES|MAX_EVENTS_BY_SEVERITY|MAX_RETRIEVAL_HITS|searchIndex\.splice\(|searchIndex\.shift\(|results\.slice\(|\.slice\(-[12],?\)/, 'memory lifecycle must retain its index and use leaf summaries instead of fixed-count cuts')
 assertOk(lifecycle.includes('selectLeafSummaries'), 'memory lifecycle must assemble long history through hierarchical leaf summaries')
@@ -181,32 +179,11 @@ assertOk(
 )
 assertOk(
   orchestrator.includes('private consumeSystemAnalysisRecord(')
-    && (orchestrator.includes('const commitSnapshot = this.capturePreviewSnapshot()')
-      || orchestrator.includes("const commitSnapshot = orchestrator['capturePreviewSnapshot']()"))
-    && (orchestrator.includes('this.restorePreviewSnapshot(commitSnapshot)')
-      || orchestrator.includes("orchestrator['restorePreviewSnapshot'](commitSnapshot)"))
     && orchestrator.includes('if (commitResult.rejected.length > 0)')
     && orchestrator.includes('private applyNarrativeEventRecognition('),
-  'orchestrator must roll back each failed background owner transaction without discarding accepted prose',
+  'orchestrator must keep background owner validation and accepted prose on separate public paths',
 )
-const rollbackOwners = {
-  'character-base': read('src/mods/mod-character/subsystems/character-base-system.ts'),
-  health,
-  lifespan: read('src/mods/mod-character/subsystems/lifespan-system.ts'),
-  luck: read('src/mods/mod-character/subsystems/luck-system.ts'),
-  morality: read('src/mods/mod-character/subsystems/morality-system.ts'),
-  'growth-system': growth,
-  reputation,
-  'npc-system': npcSystem,
-  'relationship-system': relationshipSystem,
-}
-for (const subsystemId of runtimePolicy.stages[runtimePolicy.currentStage].systemInstruction) {
-  const source = rollbackOwners[subsystemId]
-  assertOk(
-    source?.includes('capturePreviewState(') && source?.includes('restorePreviewState('),
-    `narrative-writable subsystem ${subsystemId} must support transaction rollback`,
-  )
-}
+reject(orchestrator, /capturePreviewSnapshot|restorePreviewSnapshot|capturePreviewState|restorePreviewState|runPreviewRound|isPreviewExecution/, 'runtime narrative execution must not restore a previous round or run a speculative snapshot')
 reject(timeBridge, /truncateBullet|MAX_BULLET|bullets\.slice\(|bullets\.length\s*>=/, 'time bridge must preserve all semantic bullets without character or count truncation')
 reject(historicalPromptProjection, /\.slice\(|\.shift\(|\.splice\(|MAX_(?:EVENT|EDGE)|LIMIT_(?:EVENT|EDGE)/, 'historical Prompt projection must use semantic status/scope bounds instead of fixed-count truncation')
 assertOk(
@@ -251,7 +228,7 @@ assertOk(
   branchIntent.includes('其他未完成命运意图；保持事实连续，不得静默删除')
     && orchestrator.includes('branchIntents: this.branchIntents')
     && orchestrator.includes('intentResolution: entry.intentResolution'),
-  'unresolved branch intents and accepted terminal results must remain traceable across Prompt, snapshot and narrative history',
+  'unresolved branch intents and accepted terminal results must remain traceable across persistence and narrative history',
 )
 reject(narrativeSignals, /maxLength|maxItems|z\.string\(\)(?:\.min\([^)]*\))?\.max\(|relationshipUpdates:[\s\S]{0,180}\.strict\(\)\)\.max\(|resolvedForeshadowingIds:[^\n]*\.max\(|notableEvents:[^\n]*\.max\(|creations:[^\n]*\.max\(|foreshadowing:[^\n]*\.max\(|keyEvents:[^\n]*\.max\(/, 'narrative Schema must not reject complete semantic text or arrays by fixed size')
 reject(subsystemRelevance, /stateHistory\[subsystemId\]\.shift\(|this\.changeRecords\s*=\s*this\.changeRecords\.filter/, 'subsystem relevance must retain complete state and change history behind its recent read window')

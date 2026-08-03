@@ -10,7 +10,7 @@ import type { DebugLogCategory } from '../../logger/debug-logger'
 import { resolveInternalCachePool } from '../cache-pool'
 import type { CachePoolType } from '../cache-pool'
 import { isValidAiContent } from '../stream-text-extractor'
-import { isTruncatedResponse, resolveMaxTokens } from './response-utils'
+import { isTruncatedResponse } from './response-utils'
 import type { AICallOptions, AiMessage } from './types'
 
 const POOL_TO_CATEGORY: Record<CachePoolType, DebugLogCategory> = {
@@ -37,7 +37,6 @@ export async function logSuccessfulAICall(
   extraMeta?: Record<string, unknown>,
 ): Promise<void> {
   if (!isValidAiContent(response)) return
-  const maxTokens = resolveMaxTokens(options)
   const cachePool = resolveInternalCachePool(pool, options.logContext?.callKind)
   await recordAICallLog({
     category: resolveLogCategory(pool, options.logCategory),
@@ -52,8 +51,7 @@ export async function logSuccessfulAICall(
     },
     usage,
     extraMeta: {
-      maxTokens,
-      truncated: isTruncatedResponse(usage, maxTokens, finishReason),
+      truncated: isTruncatedResponse(usage, finishReason),
       ...(finishReason ? { finishReason } : {}),
       ...(requestId ? { requestId } : {}),
       ...(options.logMetaResolver?.(response) ?? {}),
@@ -74,7 +72,6 @@ export async function logFailedAICall(
   requestId?: string,
   extraMeta?: Record<string, unknown>,
 ): Promise<void> {
-  const maxTokens = resolveMaxTokens(options)
   const resolverMeta = lastContent && options.logMetaResolver ? options.logMetaResolver(lastContent) : {}
   const cachePool = resolveInternalCachePool(pool, options.logContext?.callKind)
   await recordAICallLog({
@@ -93,8 +90,7 @@ export async function logFailedAICall(
     extraMeta: {
       failed: true,
       failureReason: reason,
-      maxTokens,
-      truncated: isTruncatedResponse(usage, maxTokens, finishReason),
+      truncated: isTruncatedResponse(usage, finishReason),
       ...(finishReason ? { finishReason } : {}),
       ...(requestId ? { requestId } : {}),
       validationPassed: false,

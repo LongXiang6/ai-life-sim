@@ -53,8 +53,6 @@ export class FaithSystem extends BaseSubsystem {
   getDevotionLabel(contextId?: string): string { const value = Object.values(this.states).find((item) => !contextId || item.contextId === contextId)?.devotionLevel ?? 0; return value >= 80 ? '虔诚至深' : value >= 50 ? '坚定' : value >= 20 ? '略有信奉' : '信念淡薄' }
   capturePersistenceState(): FaithPersistenceState { return { schemaVersion: 1, contexts: clone(this.states) } }
   restorePersistenceState(snapshot: unknown): void { if (snapshot === undefined) { this.states = {}; return }; const value = snapshot as FaithPersistenceState; if (value.schemaVersion !== 1 || !value.contexts) throw new Error('信念持久化快照无效'); this.states = clone(value.contexts) }
-  capturePreviewState(): FaithPersistenceState { return this.capturePersistenceState() }
-  restorePreviewState(snapshot: unknown): void { this.restorePersistenceState(snapshot) }
   reset(): void { this.states = {} }
 }
 

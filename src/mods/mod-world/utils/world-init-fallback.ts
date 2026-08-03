@@ -11,7 +11,7 @@
  * 因本文件的 mod-settings 依赖被拉起设置 UI / mod-engine barrel。
  */
 
-import { useSettingsStore } from '@/mods/mod-settings'
+import { useSettingsStore } from '@/mods/mod-settings/settings-runtime-api'
 
 /** 是否已配置世界初始化 API Key */
 export function isWorldInitAIAvailable(): boolean {

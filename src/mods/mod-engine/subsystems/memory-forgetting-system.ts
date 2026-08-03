@@ -218,7 +218,7 @@ export class MemoryForgettingSystem implements ISubSystem {
   }
 
   /** 预生成会种植/回收未来伏笔保护标记；结束后必须完整恢复。 */
-  capturePreviewState(): unknown {
+  capturePersistenceState(): unknown {
     return structuredClone({
       config: this.config,
       causalEvents: this.causalEvents,
@@ -226,7 +226,7 @@ export class MemoryForgettingSystem implements ISubSystem {
     })
   }
 
-  restorePreviewState(snapshot: unknown): void {
+  restorePersistenceState(snapshot: unknown): void {
     if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
     const value = snapshot as {
       config?: ForgettingConfig

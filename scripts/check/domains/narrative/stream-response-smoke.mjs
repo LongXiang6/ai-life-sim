@@ -41,7 +41,7 @@ await assert.rejects(
     'data: {"choices":[{"delta":{"content":"被截断正文"},"finish_reason":"length"}]}\n\n',
     'data: [DONE]\n\n',
   ])),
-  /达到 max_tokens/,
+  /输出不完整/,
 )
 
 await assert.rejects(

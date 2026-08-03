@@ -255,14 +255,6 @@ export class LuckSystem extends BaseSubsystem {
     this.states = structuredClone(value.contexts)
   }
 
-  capturePreviewState(): LuckPersistenceState {
-    return this.capturePersistenceState()
-  }
-
-  restorePreviewState(snapshot: unknown): void {
-    this.restorePersistenceState(snapshot)
-  }
-
   reset(): void {
     this.states = {}
   }

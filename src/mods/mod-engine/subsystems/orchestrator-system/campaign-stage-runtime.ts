@@ -25,7 +25,6 @@ import type { NarrativeDiagnosticPhase } from '@/core/logger/narrative-round-dia
 interface CampaignStageExecutionRuntime {
   lifeRunId: string
   totalRounds: number
-  preview: boolean
   pushDiagnosticPhase: (phase: NarrativeDiagnosticPhase) => void
 }
 
@@ -200,7 +199,7 @@ export class CampaignStageRuntime {
 
     const result = await runExecutionSequence({
       flow,
-      executionId: `${flow.flowId}:${runtime.lifeRunId}:${executionRoundSequence}:${runtime.preview ? 'preview' : 'real'}`,
+      executionId: `${flow.flowId}:${runtime.lifeRunId}:${executionRoundSequence}:real`,
       context,
       nodes,
     })

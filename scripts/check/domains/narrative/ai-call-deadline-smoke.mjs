@@ -1,5 +1,5 @@
 /**
- * Purpose: Verify narrative budgets and the shared browser/proxy total-deadline lifecycle.
+ * Purpose: Verify the shared browser/proxy total-deadline lifecycle without output-token caps.
  * Owner: quality:narrative
  * Responsibility: AI deadline fault injection only; deadline computation and transport remain owned by core and proxy modules.
  */
@@ -15,9 +15,6 @@ import {
 import {
   computeAiCallDeadlineMs,
 } from '../../../../src/core/ai-service/ai-call-deadline.ts'
-import {
-  computeNarrativeMaxTokens,
-} from '../../../../src/mods/mod-engine/constants/narrative-config.ts'
 
 let failed = 0
 
@@ -33,24 +30,21 @@ function abortError(message) {
   return error
 }
 
-const maxTokens2000 = computeNarrativeMaxTokens(2000)
 const narrativeDeadlineMs = computeAiCallDeadlineMs({
   callKind: 'narrative-main',
-  maxTokens: maxTokens2000,
   reasoningEffort: 'disabled',
 })
 assertOk(
-  maxTokens2000 === 2688,
-  'the 2000-character setting must budget against the legal 2400-character upper bound',
+  narrativeDeadlineMs === 60_000,
+  'the 2000-character setting must not inject an output-token cap into the shared deadline contract',
 )
 assertOk(
-  narrativeDeadlineMs === 155_000 && narrativeDeadlineMs > 90_000,
-  'the 2000-character main narrative must receive a workload deadline above the old fixed 90 seconds',
+  narrativeDeadlineMs >= 60_000,
+  'the main narrative must retain a non-zero workload deadline',
 )
 assertOk(
   computeAiCallDeadlineMs({
     callKind: 'narrative-main',
-    maxTokens: maxTokens2000,
     reasoningEffort: 'high',
   }) > narrativeDeadlineMs,
   'reasoning effort must increase the same workload deadline contract',
@@ -59,7 +53,6 @@ assertOk(
 const config = {
   model: 'deepseek-v4-flash',
   temperature: 0.7,
-  maxTokens: maxTokens2000,
   reasoningEffort: 'disabled',
 }
 const proxyBody = buildProxyBody(
@@ -77,10 +70,10 @@ const proxyBody = buildProxyBody(
   },
 )
 assertOk(
-  proxyBody.max_tokens === maxTokens2000
+  proxyBody.max_tokens === undefined
     && proxyBody.deadline_context?.callKind === 'narrative-main'
     && proxyBody.deadline_context?.reasoningEffort === 'disabled',
-  'the browser request must carry the exact shared deadline inputs consumed by the proxy',
+  'the browser request must carry shared deadline inputs without an output-token cap',
 )
 
 const originalFetch = globalThis.fetch
@@ -110,7 +103,7 @@ globalThis.fetch = async (_input, init) => ({
 try {
   await Promise.race([
     callAI('system', 'user', {
-      config: { ...config, maxTokens: 1 },
+      config,
       pool: 'narrative',
       providerId: 'custom',
       customBaseUrl: 'https://api.deepseek.com/v1',
@@ -168,7 +161,6 @@ try {
         cache_pool: 'narrative-main',
         model: 'deepseek-v4-flash',
         messages: [{ role: 'user', content: '生成完整长篇故事' }],
-        max_tokens: 1,
         stream: false,
         thinking: { type: 'disabled' },
         providerId: 'custom',

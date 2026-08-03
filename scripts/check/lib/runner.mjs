@@ -8,7 +8,6 @@
 export {
   classifyStepProcessResult,
   compareCheckSteps,
-  inspectUpstreamStatuses,
   validateCheckSteps,
 } from './runner/contracts.mjs'
 export { executeCheckGraph } from './runner/execution.mjs'

@@ -64,8 +64,6 @@ export class FortuneEncounterSystem extends BaseSubsystem {
 
   capturePersistenceState(): FortuneEncounterPersistenceState { return { schemaVersion: 1, contexts: clone(this.states) } }
   restorePersistenceState(snapshot: unknown): void { if (snapshot === undefined) { this.states = {}; return }; const value = snapshot as FortuneEncounterPersistenceState; if (value.schemaVersion !== 1 || !value.contexts) throw new Error('机缘持久化快照无效'); this.states = clone(value.contexts) }
-  capturePreviewState(): FortuneEncounterPersistenceState { return this.capturePersistenceState() }
-  restorePreviewState(snapshot: unknown): void { this.restorePersistenceState(snapshot) }
   reset(): void { this.states = {} }
 }
 

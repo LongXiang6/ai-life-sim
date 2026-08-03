@@ -831,14 +831,6 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
     this.markCurrentStoreValidated()
   }
 
-  capturePreviewState(): HistoricalEventLedgerPersistenceState {
-    return this.capturePersistenceState()
-  }
-
-  restorePreviewState(snapshot: unknown): void {
-    this.restorePersistenceState(snapshot)
-  }
-
   restoreCollectedState(snapshot: unknown): void {
     if (snapshot === undefined || snapshot === null) {
       this.reset()

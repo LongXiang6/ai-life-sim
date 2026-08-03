@@ -69,7 +69,6 @@ try {
         customModel: 'deepseek-chat',
         temperature: 0.8,
         topP: 0.9,
-        maxTokens: 4096,
         reasoningEffort: 'level-2',
         talentThinkingIntensity: 'level-2',
         aiTalentGeneration: true,

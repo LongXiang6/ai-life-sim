@@ -6,11 +6,10 @@
 
 import { callAI } from '@/core'
 import type { AIModelConfig } from '@/foundation'
-import { useSettingsStore } from '@/mods/mod-settings'
+import { useSettingsStore } from '@/mods/mod-settings/settings-runtime-api'
 import type { ZodSchema } from 'zod'
 
 import type { WorldConfig } from '../../types'
-import { bumpTokenBudgetForRetry } from '../world-init-budgets'
 import {
   isLikelyTruncatedJSON,
   type CoherenceGuardContext,
@@ -49,7 +48,6 @@ export function fillPromptTemplate(template: string, vars: Record<string, string
 export function createWorldInitAIService(
   aiConfig: AIModelConfig,
   systemPrompt: string,
-  overrideMaxTokens?: number,
   trigger?: string,
   logMetaResolver?: (response: string) => Record<string, unknown>,
   kvOpts?: { subPool: WorldInitKVSubPool; worldCode: number },
@@ -74,7 +72,6 @@ export function createWorldInitAIService(
       customBaseUrl: customUrl || undefined,
       customModel: model,
       apiKey: customKey || undefined,
-      ...(overrideMaxTokens ? { overrideMaxTokens } : {}),
       logContext: { trigger, pool: 'worldInit', model, sessionId },
       logMeta: {
         kvSubPool: subPool,
@@ -126,7 +123,6 @@ function callWorldInitAI(
   context: WorldInitPipelineContext,
   systemPrompt: string,
   userTemplate: string,
-  maxTokens: number,
   trigger: string,
   options: WorldInitAICallOptions,
 ): Promise<string> {
@@ -142,7 +138,6 @@ function callWorldInitAI(
     userSegments: prepared.userSegments,
     extraUserMessages: options.extraUserMessages,
     jsonMode,
-    overrideMaxTokens: maxTokens,
     providerId: context.provider,
     customBaseUrl: context.customUrl || undefined,
     customModel: context.model,
@@ -164,14 +159,12 @@ export async function callWorldInitAIResilient(
   context: WorldInitPipelineContext,
   systemPrompt: string,
   userTemplate: string,
-  initialBudget: number,
   trigger: string,
   subPool: WorldInitKVSubPool,
   validate?: (raw: string) => void,
   getDiagnostics?: (raw: string) => WorldInitValidationDiagnostics,
   outputSchema?: ZodSchema,
 ): Promise<string> {
-  let budget = initialBudget
   let lastRaw = ''
   let retrySuffix = ''
 
@@ -179,7 +172,6 @@ export async function callWorldInitAIResilient(
     const base = {
       resilientAttempt: attemptIndex,
       resilientMaxAttempts: RESILIENT_AI_MAX_ATTEMPTS,
-      tokenBudget: budget,
     }
     const truncated = isLikelyTruncatedJSON(response)
     const diagnostics = getDiagnostics?.(response)
@@ -199,7 +191,6 @@ export async function callWorldInitAIResilient(
       context,
       systemPrompt,
       userTemplate,
-      budget,
       trigger,
       {
         subPool,
@@ -207,7 +198,6 @@ export async function callWorldInitAIResilient(
         logMeta: {
           resilientAttempt: attempt + 1,
           resilientMaxAttempts: RESILIENT_AI_MAX_ATTEMPTS,
-          tokenBudget: budget,
         },
         logMetaResolver: buildLogMetaResolver(attempt + 1),
         outputSchema,
@@ -215,9 +205,8 @@ export async function callWorldInitAIResilient(
     )
 
     if (isLikelyTruncatedJSON(lastRaw)) {
-      console.warn(`[mod-world] AI 响应可能被截断（budget=${budget}），尝试提高预算重试`)
+      console.warn('[mod-world] AI 响应可能被截断，按原请求契约重试')
       retrySuffix = '【修正】上次 JSON 不完整或被截断，请输出完整闭合 JSON，勿省略 aiDetailedParameters 字段。'
-      budget = bumpTokenBudgetForRetry(budget)
       continue
     }
 
@@ -233,7 +222,6 @@ export async function callWorldInitAIResilient(
             'dimensions.powerFramework 必须是当前世界的具名阶位提议；metadata 用 camelCase 英文 tag；',
             'aiDetailedParameters 为扁平 43 字段，禁止嵌套 worldview/sociology。',
           ].join('\n')
-          budget = bumpTokenBudgetForRetry(budget)
           continue
         }
         throw error
@@ -242,5 +230,5 @@ export async function callWorldInitAIResilient(
     return lastRaw
   }
 
-  throw new Error(`AI 响应不完整或校验失败（最终 budget=${budget}，${lastRaw.length} 字符）`)
+  throw new Error(`AI 响应不完整或校验失败（${lastRaw.length} 字符）`)
 }

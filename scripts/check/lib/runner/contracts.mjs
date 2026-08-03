@@ -5,18 +5,6 @@
  */
 
 export const SUCCESS_STATUS_CODES = new Set(['succeeded', 'skipped'])
-const VALID_STATUS_CODES = new Set([
-  'ready',
-  'running',
-  'succeeded',
-  'skipped',
-  'blocked',
-  'failed',
-  'cancelled',
-  'timed-out',
-  'missing-status',
-  'invalid-status',
-])
 
 function compareAscii(left, right) {
   if (left === right) return 0
@@ -81,61 +69,6 @@ export function classifyStepProcessResult(result) {
     return { statusCode: 'succeeded', resultCode: 'checks-passed' }
   }
   return { statusCode: 'failed', resultCode: 'process-exit-nonzero' }
-}
-
-export function inspectUpstreamStatuses(rawValue) {
-  if (!rawValue) {
-    return {
-      statusCode: 'skipped',
-      resultCode: 'direct-check-invocation',
-      statuses: {},
-    }
-  }
-  let statuses
-  try {
-    statuses = JSON.parse(rawValue)
-  } catch {
-    return {
-      statusCode: 'invalid-status',
-      resultCode: 'upstream-status-json-invalid',
-      statuses: {},
-    }
-  }
-  if (!statuses || typeof statuses !== 'object' || Array.isArray(statuses)) {
-    return {
-      statusCode: 'invalid-status',
-      resultCode: 'upstream-status-object-invalid',
-      statuses: {},
-    }
-  }
-  for (const owner of ['lint', 'typescript']) {
-    if (!(owner in statuses)) {
-      return {
-        statusCode: 'missing-status',
-        resultCode: `upstream-status-missing-${owner}`,
-        statuses,
-      }
-    }
-    if (!VALID_STATUS_CODES.has(statuses[owner])) {
-      return {
-        statusCode: 'invalid-status',
-        resultCode: `upstream-status-invalid-${owner}`,
-        statuses,
-      }
-    }
-    if (statuses[owner] !== 'succeeded') {
-      return {
-        statusCode: 'failed',
-        resultCode: `upstream-status-not-succeeded-${owner}`,
-        statuses,
-      }
-    }
-  }
-  return {
-    statusCode: 'succeeded',
-    resultCode: 'upstream-prerequisites-succeeded',
-    statuses,
-  }
 }
 
 /**

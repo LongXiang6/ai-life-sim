@@ -198,14 +198,6 @@ export class NpcSystem extends BaseSubsystem {
     useNpcSystemStore.getState().replacePersistenceState(validateNpcPersistenceState(snapshot))
   }
 
-  capturePreviewState(): NpcSystemPersistenceState {
-    return this.capturePersistenceState()
-  }
-
-  restorePreviewState(snapshot: unknown): void {
-    this.restorePersistenceState(snapshot)
-  }
-
   reset(): void {
     useNpcSystemStore.getState().reset()
   }

@@ -12,14 +12,9 @@ import type {
   WorldContextKind,
 } from '@/foundation'
 import type { WorldConfig, WorldSnapshot } from '../types'
-import { buildWorldInitPipelineBudgets } from '../utils/world-init-budgets'
-
-const DEFAULT_WORLD_AI_BUDGETS = buildWorldInitPipelineBudgets(0)
-
 export const WORLD_AI_CONFIG: AIModelConfig = {
   model: 'deepseek-v4-flash',
   temperature: 0.3,
-  maxTokens: DEFAULT_WORLD_AI_BUDGETS.entities,
   responseFormat: { type: 'json_object' },
   reasoningEffort: 'disabled',
   stream: false,

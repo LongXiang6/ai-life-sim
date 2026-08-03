@@ -167,7 +167,6 @@ async function main() {
         customModel: 'LongCat-2.0',
         temperature: 0.8,
         topP: 0.8,
-        maxTokens: 4096,
         reasoningEffort: 'disabled',
         talentThinkingIntensity: 'disabled',
         aiTalentGeneration: false,

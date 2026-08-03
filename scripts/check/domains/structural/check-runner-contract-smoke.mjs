@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * @module check-runner-contract-smoke.mjs
- * @description 本地检查编排的反馈码、依赖、确定性汇合与变更筛选回归
+ * Purpose: Verify local-check status mapping, dependency graphs, deterministic aggregation, and changed selection.
+ * Owner: quality:structural
+ * Responsibility: Pure check-runner contract regression only.
  */
 
 import {
   classifyStepProcessResult,
   executeCheckGraph,
-  inspectUpstreamStatuses,
   validateCheckSteps,
 } from '../../lib/runner.mjs'
 import { resolveCheckSelectionFromFiles } from '../../lib/resolve-changed.mjs'
@@ -56,15 +56,6 @@ assertOk(
     && classifyStepProcessResult({ status: null, timedOut: true }).statusCode === 'timed-out',
   'process results must map to stable terminal status codes',
 )
-assertOk(
-  inspectUpstreamStatuses().statusCode === 'skipped'
-    && inspectUpstreamStatuses('{').statusCode === 'invalid-status'
-    && inspectUpstreamStatuses('{"lint":"succeeded"}').statusCode === 'missing-status'
-    && inspectUpstreamStatuses('{"lint":"ready","typescript":"succeeded"}').statusCode === 'failed'
-    && inspectUpstreamStatuses('{"lint":"succeeded","typescript":"succeeded"}').statusCode === 'succeeded',
-  'downstream checks must consume explicit lint and TypeScript terminal feedback',
-)
-
 const invalidGraph = validateCheckSteps([
   step('duplicate', 10, ['missing']),
   step('duplicate', 20),

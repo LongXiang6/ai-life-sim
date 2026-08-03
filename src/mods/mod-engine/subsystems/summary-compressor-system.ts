@@ -1,4 +1,8 @@
 /**
+ * Purpose: Compress completed narrative memory into weighted timeline summaries.
+ * Owner: mod-engine
+ * Responsibility: Compression scheduling and persistence handoff only; narrative authoring remains with the main AI.
+ *
  * @module summary-compressor-system.ts
  * @description 叙事压缩系统 —— L1/L2/L3 四倍时间轴记忆管线
  * @mod mod-engine
@@ -21,7 +25,6 @@ import type {
   AIModelConfig,
 } from '@/foundation'
 import { BaseSubsystem, callAI } from '@/core'
-import { useSettingsStore } from '@/mods/mod-settings'
 
 import {
   buildTimelineCompressionPrompt,
@@ -34,11 +37,6 @@ import {
   COMPRESS_L2_MERGE_INTERVAL,
   COMPRESS_L3_MERGE_INTERVAL,
 } from '../constants'
-import {
-  computeSummaryTokenBudget,
-  computeSummaryL2Tokens,
-  computeSummaryL3Tokens,
-} from '../utils'
 import {
   TimelineCompressionOutputSchema,
   type TimelineSourceFact,
@@ -314,12 +312,6 @@ export class SummaryCompressorSystem extends BaseSubsystem {
         recentStories,
         existingCompressedHistory: this.existingHistoryForPrompt(allSummaries, createdRound),
       })
-      const inputLength = user.length
-      const maxTokens = level === 1
-        ? computeSummaryTokenBudget(inputLength)
-        : level === 2
-          ? computeSummaryL2Tokens(inputLength)
-          : computeSummaryL3Tokens(inputLength)
       rawCompressionResponse = await callAI(system, user, {
         config,
         pool: 'summary',
@@ -327,7 +319,6 @@ export class SummaryCompressorSystem extends BaseSubsystem {
         storySeed: summarySessionId,
         apiKey: customKey,
         ...routeOpts,
-        overrideMaxTokens: maxTokens,
         overrideTemperature: 0,
         overrideTopP: 1,
         jsonMode: true,
@@ -432,6 +423,7 @@ export class SummaryCompressorSystem extends BaseSubsystem {
     _lifeRunId?: string,
     signal?: AbortSignal,
   ): Promise<CompressionCandidate> {
+    const { useSettingsStore } = await import('@/mods/mod-settings/settings-runtime-api')
     const { customKey, provider, customUrl, customModel } = useSettingsStore.getState()
     const model = customModel || config.model
     const routeOpts = { providerId: provider, customBaseUrl: customUrl || undefined, customModel: model }

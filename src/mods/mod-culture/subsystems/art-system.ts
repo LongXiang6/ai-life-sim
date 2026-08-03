@@ -60,8 +60,6 @@ export class ArtSystem extends BaseSubsystem {
     if (value.schemaVersion !== 1 || !value.contexts || typeof value.contexts !== 'object') throw new Error('艺术持久化快照无效')
     this.states = clone(value.contexts)
   }
-  capturePreviewState(): ArtPersistenceState { return this.capturePersistenceState() }
-  restorePreviewState(snapshot: unknown): void { this.restorePersistenceState(snapshot) }
   reset(): void { this.states = {} }
 }
 

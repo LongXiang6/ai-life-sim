@@ -67,8 +67,6 @@ export class CultivationSystem extends BaseSubsystem {
   recordBreakthroughSuccess(totalDays: number, contextId?: string): void { const state = Object.values(this.states).find((item) => !contextId || item.contextId === contextId); if (state) { state.bottleneckPenalty = 0; state.lastBreakthroughAtTotalDays = totalDays } }
   capturePersistenceState(): CultivationPersistenceState { return { schemaVersion: 1, contexts: clone(this.states) } }
   restorePersistenceState(snapshot: unknown): void { if (snapshot === undefined) { this.states = {}; return }; const value = snapshot as CultivationPersistenceState; if (value.schemaVersion !== 1 || !value.contexts) throw new Error('修炼持久化快照无效'); this.states = clone(value.contexts) }
-  capturePreviewState(): CultivationPersistenceState { return this.capturePersistenceState() }
-  restorePreviewState(snapshot: unknown): void { this.restorePersistenceState(snapshot) }
   reset(): void { this.states = {} }
 }
 

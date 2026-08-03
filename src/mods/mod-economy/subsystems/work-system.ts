@@ -46,8 +46,6 @@ export class WorkSystem extends BaseSubsystem {
   }
   capturePersistenceState(): WorkPersistenceState { return { schemaVersion: 1, contexts: clone(this.states) } }
   restorePersistenceState(snapshot: unknown): void { this.states = snapshot ? clone((snapshot as WorkPersistenceState).contexts ?? {}) : {} }
-  capturePreviewState(): WorkPersistenceState { return this.capturePersistenceState() }
-  restorePreviewState(snapshot: unknown): void { this.restorePersistenceState(snapshot) }
   reset(): void { this.states = {} }
 }
 export const workSystem = new WorkSystem()

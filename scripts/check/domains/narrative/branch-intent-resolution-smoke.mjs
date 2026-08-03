@@ -291,10 +291,11 @@ assertOk(
   'the orchestrator must send only the structured player branch projection to the first call',
 )
 assertOk(
-  preGenSource.includes('inspectNarrativeResponseQuality(fullContent, wordCountTarget)')
-    && !preGenSource.includes('inspectNarrativeEventRecognitionQuality')
-    && !preGenSource.includes('intentResolution'),
-  'pre-generation must cache only the first strict response and defer intent recognition to real consumption',
+  preGenSource.includes('运行时预览已移除')
+    && preGenSource.includes('跳过会改写运行态的预生成回合')
+    && !preGenSource.includes('generateNarrative')
+    && !preGenSource.includes('runRound'),
+  'pre-generation must not execute speculative rounds after runtime preview removal',
 )
 for (const retiredMarker of [
   'branchRepairPending',

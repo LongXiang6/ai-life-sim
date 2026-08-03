@@ -90,8 +90,6 @@ export class LegalSystem extends BaseSubsystem {
     if (value.schemaVersion !== 1 || !value.contexts || typeof value.contexts !== 'object') throw new Error('制度持久化快照无效')
     this.states = clone(value.contexts)
   }
-  capturePreviewState(): LegalPersistenceState { return this.capturePersistenceState() }
-  restorePreviewState(snapshot: unknown): void { this.restorePersistenceState(snapshot) }
   reset(): void { this.states = {} }
 }
 

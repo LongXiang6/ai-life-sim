@@ -1,6 +1,6 @@
 # Purpose: Coordinate the checker infrastructure self-test phases.
 # Owner: quality:infrastructure
-# Responsibility: Initialize shared test state and load syntax, availability, chain, smoke, and safety phases in order.
+# Responsibility: Initialize shared test state and load syntax, availability, scanner-contract, smoke, and safety phases in order.
 
 <#
 .SYNOPSIS
@@ -75,6 +75,6 @@ foreach ($f in $allPs1Files) {
 $checkerSelfTestRoot = Join-Path $PSScriptRoot 'checker-self-test'
 . (Join-Path $checkerSelfTestRoot 'syntax-tests.ps1')
 . (Join-Path $checkerSelfTestRoot 'availability-tests.ps1')
-. (Join-Path $checkerSelfTestRoot 'dot-source-chain-tests.ps1')
+. (Join-Path $checkerSelfTestRoot 'specialized-scanner-tests.ps1')
 . (Join-Path $checkerSelfTestRoot 'smoke-tests.ps1')
 . (Join-Path $checkerSelfTestRoot 'safety-summary.ps1')

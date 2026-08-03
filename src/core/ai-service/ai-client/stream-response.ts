@@ -14,7 +14,6 @@ export async function handleStreamResponse(
   response: Response,
   onChunk?: (text: string) => void,
   idleTimeoutMs = AI_STREAM_IDLE_TIMEOUT_MS,
-  maxTokens?: number,
 ): Promise<FetchAIResult> {
   const reader = response.body?.getReader()
   if (!reader) return { content: '' }
@@ -86,7 +85,6 @@ export async function handleStreamResponse(
       fullText,
       finishReason,
       response.headers.get('x-ai-request-id') ?? undefined,
-      maxTokens,
       usage,
     )
   }

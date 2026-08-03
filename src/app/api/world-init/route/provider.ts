@@ -13,7 +13,6 @@ export interface PipelineOptions {
 }
 
 export interface DirectProviderOptions extends PipelineOptions {
-  maxTokens?: number
   temperature?: number
   jsonMode?: boolean
 }
@@ -34,7 +33,6 @@ export async function callProviderDirect(
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
     ],
-    max_tokens: options.maxTokens || 4096,
     temperature: options.temperature ?? 0.3,
     stream: false,
   }

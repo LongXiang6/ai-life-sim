@@ -92,8 +92,7 @@ export async function fetchAIStreamResponse(
       throw new AIHttpError(response.status, errorText, requestId, true)
     }
 
-    const maxTokens = typeof proxyBody.max_tokens === 'number' ? proxyBody.max_tokens : undefined
-    const result = await handleStreamResponse(response, onChunk, AI_STREAM_IDLE_TIMEOUT_MS, maxTokens)
+    const result = await handleStreamResponse(response, onChunk, AI_STREAM_IDLE_TIMEOUT_MS)
     if (result.usage) recordCacheUsage(result.usage, cacheContext)
     return { ...result, requestId }
   } finally {

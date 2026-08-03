@@ -18,7 +18,6 @@ import {
   type SubSystemState,
 } from '@/foundation'
 import { getHistoricalEvent } from '@/mods/mod-history-dynamics/historical-event-api'
-import { estimateTokenBudget } from '@/mods/mod-engine'
 import { useSettingsStore } from '@/mods/mod-settings'
 import { getFormulaModifier } from '@/mods/mod-world'
 
@@ -507,7 +506,6 @@ export class HealthSystem extends BaseSubsystem {
       customModel: model,
       apiKey: settings.customKey || undefined,
       overrideTemperature: 0.8,
-      overrideMaxTokens: estimateTokenBudget(EPILOGUE_SYSTEM_PROMPT, userPrompt, 3000),
       logContext: {
         round: context.round.year,
         age: Math.floor(death.finalAgeDays / 365),
@@ -539,18 +537,6 @@ export class HealthSystem extends BaseSubsystem {
       ? { schemaVersion: 1, entities: [], conditions: [], contextRules: [] }
       : validatePersistenceState(snapshot)
     this.pendingDeaths = []
-  }
-
-  capturePreviewState(): unknown {
-    return clone({ state: this.state, pendingDeaths: this.pendingDeaths })
-  }
-
-  restorePreviewState(snapshot: unknown): void {
-    if (!isRecord(snapshot)) throw new Error('健康预览快照必须是对象')
-    assertKnownKeys(snapshot, ['state', 'pendingDeaths'], '健康预览快照')
-    if (!Array.isArray(snapshot.pendingDeaths)) throw new Error('健康预览快照 pendingDeaths 无效')
-    this.state = validatePersistenceState(snapshot.state, true)
-    this.pendingDeaths = snapshot.pendingDeaths.map(validatePendingDeath)
   }
 
   reset(): void {

@@ -266,14 +266,6 @@ export class RelationshipSystem extends BaseSubsystem {
     useRelationshipStore.getState().replacePersistenceState(validatePersistenceState(snapshot))
   }
 
-  capturePreviewState(): RelationshipSystemPersistenceState {
-    return this.capturePersistenceState()
-  }
-
-  restorePreviewState(snapshot: unknown): void {
-    this.restorePersistenceState(snapshot)
-  }
-
   reset(): void {
     useRelationshipStore.getState().reset()
   }

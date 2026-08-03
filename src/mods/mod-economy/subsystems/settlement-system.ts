@@ -100,8 +100,6 @@ export class SettlementSystem extends BaseSubsystem {
   }
   capturePersistenceState(): SettlementPersistenceState { return { schemaVersion: 1, contexts: clone(this.states) } }
   restorePersistenceState(snapshot: unknown): void { this.states = snapshot ? clone((snapshot as SettlementPersistenceState).contexts ?? {}) : {} }
-  capturePreviewState(): SettlementPersistenceState { return this.capturePersistenceState() }
-  restorePreviewState(snapshot: unknown): void { this.restorePersistenceState(snapshot) }
   reset(): void { this.states = {} }
 }
 export const settlementSystem = new SettlementSystem()

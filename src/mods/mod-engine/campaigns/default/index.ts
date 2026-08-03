@@ -1,4 +1,8 @@
 /**
+ * Purpose: Declare the default narrative campaign stage graph and AI calls.
+ * Owner: mod-engine
+ * Responsibility: Stage ordering and result handoff only; subsystem business state stays with its owner.
+ *
  * @module campaigns/default/index.ts
  * @description 默认叙事 Campaign：正文接纳后并行启动四类非阻塞后台分析
  * @mod mod-engine
@@ -15,17 +19,13 @@ import type {
 import {
   buildSegmentedPrompt,
   callAIWithPromptTemplate,
-  computeNarrativeBasicAttributeTokenBudget,
-  computeNarrativeDataAnalysisTokenBudget,
-  computeNarrativeEventRecognitionTokenBudget,
-  computeNarrativeMacroImpactTokenBudget,
   eventBus,
   isAiResponseTruncatedError,
   recordRoundCacheMetrics,
 } from '@/core'
 import { logger } from '@/core/logger/client-logger'
 import { notifyLegendaryEncounterInjected } from '@/core/player-content/player-content-client'
-import { useSettingsStore } from '@/mods/mod-settings'
+import { useSettingsStore } from '@/mods/mod-settings/settings-runtime-api'
 
 import { DEFAULT_WORD_COUNT_TARGET } from '../../constants/narrative-config'
 import { buildEventInjectionText } from '../../helpers/event-lifecycle-tracker'
@@ -159,11 +159,10 @@ async function callStructuredAnalysis(
   } catch (error) {
     if (!isAiResponseTruncatedError(error)) throw error
 
-    const rejected = rejection(`${label}响应达到输出上限；该后台分析未提交，已生成正文和其他后台结果不受影响。`)
+    const rejected = rejection(`${label}响应被 Provider 标记为不完整；该后台分析未提交，已生成正文和其他后台结果不受影响。`)
     Object.assign(rejected, {
       cause: error,
       finishReason: error.finishReason,
-      maxTokens: error.maxTokens,
       requestId: error.requestId,
       responseLength: error.responseLength,
     })
@@ -189,9 +188,7 @@ export function loadStages(
       owner: STAGE_OWNER,
       failureTarget: STAGE_FAILURE_TARGET,
       onEnter: () => {
-        if (!orchestrator.isPreviewExecution()) {
-          orchestrator.consumeNarrativeBackgroundResults()
-        }
+        orchestrator.consumeNarrativeBackgroundResults()
         const context = orchestrator.getRoundContextSnapshot()
         if (!context.contextId || !context.characterId) {
           throw new Error('回合上下文缺少 contextId 或 characterId')
@@ -217,9 +214,7 @@ export function loadStages(
       owner: STAGE_OWNER,
       failureTarget: STAGE_FAILURE_TARGET,
       onEnter: () => {
-        if (!orchestrator.isPreviewExecution()) {
-          eventBus.emit('mod-engine:round-start', orchestrator.getRound())
-        }
+        eventBus.emit('mod-engine:round-start', orchestrator.getRound())
         orchestrator.advanceTime()
       },
       maxRounds: 1,
@@ -276,13 +271,12 @@ export function loadStages(
       failureTarget: STAGE_FAILURE_TARGET,
       onEnter: async (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
-        if (!orchestrator.isPreviewExecution()) await orchestrator.refreshNarrativeMemoryRecall()
+        await orchestrator.refreshNarrativeMemoryRecall()
 
         const engineState = useEngineStore.getState()
         const encounter = engineState.legendaryEncounter
         const lastNarrative = engineState.narrativeHistory.at(-1)
-        const canInjectLegend = !orchestrator.isPreviewExecution()
-          && encounter?.status === 'selected'
+        const canInjectLegend = encounter?.status === 'selected'
           && engineState.totalRounds >= 2
           && !ctx._eventInjectionText
           && !orchestrator.getFocusedBranchIntent()
@@ -355,7 +349,7 @@ export function loadStages(
             pool: 'narrative',
             model,
             sessionId,
-            executionKind: orchestrator.isPreviewExecution() ? 'preview' : 'real',
+            executionKind: 'real',
             promptVersion: promptTemplate.version,
             targetWordCount: wordCountTarget,
             styleSource: activeStyle.source,
@@ -367,7 +361,6 @@ export function loadStages(
             pool: 'narrative' as const,
             strictSchema: true,
             sessionId,
-            signal: orchestrator.getPreviewAbortSignal(),
             userSegments: segments.userSegments,
             logContext: baseLogContext,
             ...routeOptions,
@@ -442,7 +435,6 @@ export function loadStages(
       owner: STAGE_OWNER,
       failureTarget: STAGE_FAILURE_TARGET,
       onEnter: (_ctx) => {
-        if (orchestrator.isPreviewExecution()) return
         const ctx = _ctx as StageRuntimeContext
         if (!ctx._narrativeParsed) {
           throw narrativeRejection('正文发布缺少已经严格解析的第一次响应')
@@ -479,7 +471,6 @@ export function loadStages(
         }
       },
       onExit: () => {
-        if (orchestrator.isPreviewExecution()) return
         const state = orchestrator.getState()
         const roundSequence = orchestrator.getRoundContextSnapshot().roundSequence ?? state.totalRounds
         const executionId = `narrative-round:${state.lifeRunId}:${roundSequence}:real`
@@ -501,7 +492,6 @@ export function loadStages(
       failureTarget: STAGE_FAILURE_TARGET,
       onUpdate: (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
-        if (orchestrator.isPreviewExecution()) return
         if (!ctx._roundResult) throw dataAnalysisRejection('数据分析缺少已接纳正文')
         const accepted = ctx._roundResult
         runNonBlockingBackgroundLaunch('data-analysis', accepted.narrativeId, () => {
@@ -516,11 +506,6 @@ export function loadStages(
           })
           const settings = useSettingsStore.getState()
           const model = settings.customModel || aiConfig.model
-          const analysisMaxTokens = computeNarrativeDataAnalysisTokenBudget({
-            narrativeCharacters: ctx._narrativeParsed.narrative.replace(/\s/gu, '').length,
-            activeSubsystemCount: analysisInput.activeSubsystemIds.length,
-            reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
-          })
           const joinedInput = analysisInput.userSegments.join('\n\n')
           const baseLogContext = {
             lifeRunId: orchestrator.getState().lifeRunId,
@@ -537,13 +522,11 @@ export function loadStages(
             config: {
               ...aiConfig,
               model,
-              maxTokens: analysisMaxTokens,
               reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
             },
             pool: 'narrative' as const,
             strictSchema: true,
             sessionId,
-            signal: orchestrator.getPreviewAbortSignal(),
             providerId: settings.provider,
             customBaseUrl: settings.customUrl || undefined,
             customModel: model,
@@ -599,7 +582,6 @@ export function loadStages(
       failureTarget: STAGE_FAILURE_TARGET,
       onUpdate: (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
-        if (orchestrator.isPreviewExecution()) return
         if (!ctx._roundResult) throw basicAttributeAnalysisRejection('基础属性分析缺少已接纳正文')
         const accepted = ctx._roundResult
         runNonBlockingBackgroundLaunch('basic-attribute', accepted.narrativeId, () => {
@@ -615,9 +597,6 @@ export function loadStages(
           })
           const settings = useSettingsStore.getState()
           const model = settings.customModel || aiConfig.model
-          const analysisMaxTokens = computeNarrativeBasicAttributeTokenBudget({
-            reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
-          })
           const joinedInput = analysisInput.userSegments.join('\n\n')
           const baseLogContext = {
             lifeRunId: orchestrator.getState().lifeRunId,
@@ -634,13 +613,11 @@ export function loadStages(
             config: {
               ...aiConfig,
               model,
-              maxTokens: analysisMaxTokens,
               reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
             },
             pool: 'narrative' as const,
             strictSchema: true,
             sessionId,
-            signal: orchestrator.getPreviewAbortSignal(),
             providerId: settings.provider,
             customBaseUrl: settings.customUrl || undefined,
             customModel: model,
@@ -695,7 +672,6 @@ export function loadStages(
       failureTarget: STAGE_FAILURE_TARGET,
       onUpdate: (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
-        if (orchestrator.isPreviewExecution()) return
         if (!ctx._roundResult) throw eventRecognitionRejection('事件识别缺少已接纳正文')
         const accepted = ctx._roundResult
         runNonBlockingBackgroundLaunch('event-recognition', accepted.narrativeId, () => {
@@ -724,11 +700,6 @@ export function loadStages(
         })
         const settings = useSettingsStore.getState()
         const model = settings.customModel || aiConfig.model
-        const recognitionMaxTokens = computeNarrativeEventRecognitionTokenBudget({
-          narrativeCharacters: ctx._narrativeParsed.narrative.replace(/\s/gu, '').length,
-          existingCandidateCount: recognitionInput.existingCandidates.length,
-          reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
-        })
         const joinedInput = recognitionInput.userSegments.join('\n\n')
         const baseLogContext = {
           lifeRunId: orchestrator.getState().lifeRunId,
@@ -745,13 +716,11 @@ export function loadStages(
           config: {
             ...aiConfig,
             model,
-            maxTokens: recognitionMaxTokens,
             reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
           },
           pool: 'narrative' as const,
           strictSchema: true,
           sessionId,
-          signal: orchestrator.getPreviewAbortSignal(),
           providerId: settings.provider,
           customBaseUrl: settings.customUrl || undefined,
           customModel: model,
@@ -814,7 +783,6 @@ export function loadStages(
       failureTarget: STAGE_FAILURE_TARGET,
       onUpdate: (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
-        if (orchestrator.isPreviewExecution()) return
         if (!ctx._roundResult) throw macroImpactRejection('宏观影响分析缺少已接纳正文')
         const accepted = ctx._roundResult
         runNonBlockingBackgroundLaunch('macro-impact', accepted.narrativeId, () => {
@@ -830,23 +798,16 @@ export function loadStages(
         })
         const settings = useSettingsStore.getState()
         const model = settings.customModel || aiConfig.model
-        const maxTokens = computeNarrativeMacroImpactTokenBudget({
-          narrativeCharacters: ctx._narrativeParsed.narrative.replace(/\s/gu, '').length,
-          activeSubsystemCount: analysisInput.activeSubsystemIds.length,
-          reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
-        })
         const joinedInput = analysisInput.userSegments.join('\n\n')
         const callOptions = {
           config: {
             ...aiConfig,
             model,
-            maxTokens,
             reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT,
           },
           pool: 'narrative' as const,
           strictSchema: true,
           sessionId,
-          signal: orchestrator.getPreviewAbortSignal(),
           providerId: settings.provider,
           customBaseUrl: settings.customUrl || undefined,
           customModel: model,
@@ -916,7 +877,6 @@ export function loadStages(
       owner: STAGE_OWNER,
       failureTarget: STAGE_FAILURE_TARGET,
       onEnter: (_ctx) => {
-        if (orchestrator.isPreviewExecution()) return
         const ctx = _ctx as StageRuntimeContext
         if (!ctx._roundResult) throw backgroundAnalysisRejection('回合收束缺少已接纳正文')
       },
@@ -930,9 +890,7 @@ export function loadStages(
       owner: STAGE_OWNER,
       failureTarget: STAGE_FAILURE_TARGET,
       onEnter: () => {
-        if (!orchestrator.isPreviewExecution()) {
-          void orchestrator.checkAndTriggerEpilogue(aiConfig, sessionId)
-        }
+        void orchestrator.checkAndTriggerEpilogue(aiConfig, sessionId)
       },
       maxRounds: 1,
     },
@@ -944,7 +902,6 @@ export function loadStages(
       owner: STAGE_OWNER,
       failureTarget: STAGE_FAILURE_TARGET,
       onEnter: async (_ctx) => {
-        if (orchestrator.isPreviewExecution()) return
         const ctx = _ctx as StageRuntimeContext
         if (!ctx._roundResult) {
           throw backgroundAnalysisRejection('终态收束缺少已提交的回合结果')

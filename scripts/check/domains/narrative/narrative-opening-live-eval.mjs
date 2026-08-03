@@ -86,9 +86,8 @@ async function callRound(apiKey, round, history) {
         model: MODEL,
         messages: buildMessages(round, history),
         temperature: 0.8,
-        max_tokens: 2400,
         stream: false,
-        thinking: { type: 'enabled', budget_tokens: 1200 },
+        thinking: { type: 'enabled' },
       }),
       signal: controller.signal,
     })

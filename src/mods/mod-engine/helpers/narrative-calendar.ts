@@ -19,10 +19,6 @@ import { timeSystem } from '../subsystems/time-system'
 
 const CANONICAL_DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const
 
-export {
-  computeNarrativeMaxTokens,
-} from '../constants/narrative-config'
-
 export function readEraStartYearFromConfig(config: Record<string, unknown> | undefined): number {
   if (!config) return 0
   if (typeof config._eraStartYear === 'number' && Number.isFinite(config._eraStartYear)) {

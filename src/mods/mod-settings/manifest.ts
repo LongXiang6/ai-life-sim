@@ -16,6 +16,7 @@ export default defineMod({
   consumes: ['ui', 'components'],
   subsystems: [],
   routes: [],
+  secondaryPublicEntries: ['settings-runtime-api.ts'],
   stores: ['useSettingsStore'],
   events: { emits: [], listens: [] },
   prompts: [],

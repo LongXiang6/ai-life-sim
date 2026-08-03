@@ -1,25 +1,23 @@
 /**
-
+ * Purpose: Keep the legacy pre-generation queue contract without executing speculative rounds.
+ * Owner: mod-engine
+ * Responsibility: Queue status, invalidation, and listener coordination only; runtime preview execution is removed.
+ *
  * @module pre-gen-queue.ts
-
- * @description 叙事预生成队列（快照执行 + 恢复，不污染主模拟状态）
-
+ * @description 叙事预生成队列状态与缓存契约；当前不执行 speculative 回合。
  * @mod mod-engine
-
  */
 
 
 
-import type { AIModelConfig, LuckNarrativeGuidance, PromptTemplate, TimeStep } from '@/foundation'
+import type { LuckNarrativeGuidance, PromptTemplate, TimeStep } from '@/foundation'
 import { encodeTimeStepKey } from '@/foundation'
-import { DEFAULT_AI_MODEL } from '@/core/ai-service'
 
-import { useSettingsStore } from '@/mods/mod-settings'
+import { useSettingsStore } from '@/mods/mod-settings/settings-runtime-api'
 
 import { orchestrator } from '../subsystems/orchestrator-system'
 import { useEngineStore } from '../store'
-import { computeNarrativeMaxTokens, DEFAULT_WORD_COUNT_TARGET } from '../constants/narrative-config'
-import { inspectNarrativeResponseQuality } from './narrative-response-quality'
+import { DEFAULT_WORD_COUNT_TARGET } from '../constants/narrative-config'
 import { PreGenActivityState } from './pre-gen-activity-state'
 
 export interface PreGenCachedRound {
@@ -147,7 +145,7 @@ export function clearPreGenQueue(): void {
   notifyPreGenListeners()
 }
 
-/** 取消缓存和在途预生成，并等待预览快照完成恢复后再交还状态写入权。 */
+/** 取消缓存和在途预生成，并等待后台活动结束。 */
 export async function cancelPreGenQueue(): Promise<void> {
   clearPreGenQueue()
   await preGenActivity.waitForIdle()
@@ -245,129 +243,17 @@ export function getPreGenQueueLength(): number {
 
 
 
-/** 空闲时后台填充下一轮预生成队列（历史正数设置统一视为开启） */
+/**
+ * 运行时预览与整轮快照已删除，因而不再启动会改变编排器状态的预生成回合；
+ * 保留队列公开契约以便设置与旧存档平滑收敛。
+ */
 
 export async function fillPreGenQueue(
-
   promptTemplate: PromptTemplate,
-
-  sessionId?: string,
-
+  _sessionId?: string,
 ): Promise<void> {
-
-  const maxRounds = resolveEffectivePreGenMaxRounds()
-  enforceEffectivePreGenQueueLimit(maxRounds)
-
-  if (maxRounds <= 0) return
-
-  if (useEngineStore.getState().status === 'complete') return
-
-  if (preGenActivity.isRunning()) return
-
-  if (preGenQueue.length >= maxRounds) return
-
-  if (useEngineStore.getState().forceBranchNext) return
-
-
-
-  const history = useEngineStore.getState().narrativeHistory
-  const hasUnresolvedBranch = history.some(
-    (entry) => entry.isBranchPoint && entry.resolvedChoice === undefined,
-  )
-
-  if (hasUnresolvedBranch) return
-
-
-
-  const gen = preGenActivity.begin()
-  try {
-    // 预生成可能由后台调度器直接启动，不一定经过页面推进入口；
-    // 先水合世界上下文与实体目录，避免刷新后的 Store 投影阻断预览收集。
-    const { ensureOrchestratorContextFromStores } = await import('./save-restore')
-    if (!ensureOrchestratorContextFromStores()) return
-
-    notifyPreGenListeners()
-
-    // 上一真实回合的异步摘要压缩可能仍在提交。预生成快照必须等它完成，
-    // 否则恢复旧快照会回滚刚生成的摘要与记忆索引。
-    await orchestrator.waitForBackgroundCompression()
-    if (!preGenActivity.isCurrent(gen)) return
-
-    const { customModel, temperature, reasoningEffort, provider } = useSettingsStore.getState()
-    // 从单一来源常量取默认字数，与 orchestrator、hooks 共享同一常量
-    const wordCountTarget = useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET
-    const model = customModel || DEFAULT_AI_MODEL
-    const aiConfig: AIModelConfig = {
-      model,
-      temperature: temperature ?? 0.8,
-      maxTokens: computeNarrativeMaxTokens(wordCountTarget, {
-        reasoningEffort,
-        providerId: provider,
-        model,
-      }),
-      stream: false,
-      reasoningEffort,
-    }
-
-    const snapshot = orchestrator.capturePreviewSnapshot()
-    const signature = buildPreGenSignature(promptTemplate)
-    try {
-      // 快照恢复必须包含在预览单写者门内。否则取消后真实回合可能已经开始，
-      // 旧预览再恢复快照会覆盖主回合的时间线与子系统状态。
-      await orchestrator.runPreviewRound(async () => {
-        try {
-          await orchestrator.executeRoundV2(promptTemplate, aiConfig, sessionId)
-
-          if (!preGenActivity.isCurrent(gen)) return
-
-          const fullContent = orchestrator.getLastExecutedFullContent()
-          if (!fullContent?.trim()) return
-          const luckGuidance = orchestrator.getLastNarrativeLuckGuidance()
-          if (!luckGuidance) {
-            console.info('[PreGen] 预生成缺少本地气运引导，已放弃缓存')
-            return
-          }
-
-          const wordCountTarget = useSettingsStore.getState().wordCountTarget
-            ?? DEFAULT_WORD_COUNT_TARGET
-          const responseQuality = inspectNarrativeResponseQuality(fullContent, wordCountTarget)
-          if (!responseQuality.valid || !responseQuality.parsed) {
-            console.info('[PreGen] 预生成响应未通过协议或段落结构门禁，已放弃缓存:', responseQuality.reason)
-            return
-          }
-
-          const isBranchPoint = responseQuality.parsed.branch === true
-
-          preGenQueue.push({
-            fullContent,
-            isBranchPoint,
-            signature,
-            luckGuidance,
-          })
-        } finally {
-          if (preGenActivity.isCurrent(gen)) {
-            orchestrator.restorePreviewSnapshot(snapshot)
-          } else {
-            orchestrator.reconcilePreviewSnapshotWithEngineStore(snapshot)
-          }
-        }
-      }, preGenActivity.getSignal(gen))
-    } catch (err) {
-      if (preGenActivity.isCurrent(gen) && !(err instanceof Error && err.name === 'AbortError')) {
-        console.warn('[PreGen] 预生成失败:', err)
-      }
-    }
-  } finally {
-    // begin() 后的任意读取、快照、恢复或 listener 异常都不能永久锁住主推进。
-    preGenActivity.finish(gen)
-    notifyPreGenListeners()
-  }
-
-
-
-  // 当前运行时只支持可靠预生成“下一轮”，单次尝试结束后不递归补池。
-  // 失败、空响应或 Schema 无效时等待下一次真实回合触发，避免后台无退避无限请求。
-
+  void promptTemplate
+  console.info('[PreGen] 运行时预览已移除，跳过会改写运行态的预生成回合')
 }
 
 

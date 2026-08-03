@@ -69,7 +69,6 @@ export async function generateEndingReview(input: EndingReviewInput): Promise<En
   const config: AIModelConfig = {
     model,
     temperature: 0.45,
-    maxTokens: 900,
     responseFormat: { type: 'json_object' },
     reasoningEffort: 'disabled',
     stream: false,
@@ -106,7 +105,6 @@ export async function generateEndingReview(input: EndingReviewInput): Promise<En
       customBaseUrl: settings.customUrl || undefined,
       customModel: model,
       reasoningEffort: 'disabled',
-      overrideMaxTokens: config.maxTokens,
       logContext: {
         lifeRunId: input.lifeRunId,
         round: input.round,

@@ -360,34 +360,25 @@ assertOk(
 )
 
 assertOk(
-  /runPreviewRound\([\s\S]{0,260}orchestrator\.executeRoundV2/.test(preGenCode),
-  'pre-gen must execute through orchestrator preview mode',
+  preGenCode.includes('运行时预览已移除')
+    && !preGenCode.includes('runPreviewRound')
+    && !orchestratorCode.includes('isPreviewExecution')
+    && !orchestratorCode.includes('previewExecutionDepth'),
+  'time-step changes must not reintroduce speculative preview execution',
 )
 assertOk(
-  /isPreviewExecution\(\)/.test(orchestratorCode) && /previewExecutionDepth/.test(orchestratorCode),
-  'orchestrator must expose preview execution isolation',
-)
-assertOk(
-  /if\s*\(!this\.isPreviewExecution\(\)\s*&&\s*recordRelevance\)\s*\{[\s\S]*subsystemRelevance\.recordState/.test(orchestratorCode),
-  'preview execution and same-round refreshes must not record duplicate subsystem relevance state',
-)
-assertOk(
-  /if\s*\(!this\.isPreviewExecution\(\)\)\s*\{[\s\S]*useCharacterStore\.setState/.test(orchestratorCode),
-  'preview execution must not write character age to the character store',
-)
-assertOk(
-  campaignCode.includes('orchestrator.isPreviewExecution()')
+  !campaignCode.includes('orchestrator.isPreviewExecution()')
     && campaignCode.includes('orchestrator.advanceAllSubsystems()')
     && campaignCode.includes('orchestrator.acceptNarrativeResponse')
     && campaignCode.includes('orchestrator.checkAndTriggerEpilogue(aiConfig, sessionId)'),
-  'campaign preview execution must skip real side-effect stages',
+  'campaign time advancement must use one real side-effect path',
 )
 assertOk(
   /const\s+saveRound\s*=\s*this\.state\.totalRounds/.test(orchestratorCode),
   'auto-save must capture the completed round before async persistence',
 )
 assertOk(
-  /buildEngineSaveSnapshot/.test(saveRestoreCode) && /\.\.\.store[\s\S]*\.\.\.o[\s\S]*narrativeHistory/.test(saveRestoreCode),
+  /buildEngineSavePayload/.test(saveRestoreCode) && /\.\.\.store[\s\S]*\.\.\.o[\s\S]*narrativeHistory/.test(saveRestoreCode),
   'save payload must derive engine snapshot from the latest orchestrator state',
 )
 assertOk(

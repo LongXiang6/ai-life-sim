@@ -14,12 +14,6 @@
       "reason": "天赋生成的单一预设与格式目录，条目共同维护同一 Prompt 数据契约。"
     },
     {
-      "path": "src/mods/mod-character/subsystems/character-base-system.ts",
-      "owner": "mod-character",
-      "reviewedLines": 301,
-      "reason": "角色 MOD 的单一状态子系统，计算、公共操作和快照共同维护该属性生命周期不变式。"
-    },
-    {
       "path": "src/mods/mod-character/subsystems/destiny-pattern-system.ts",
       "owner": "mod-character",
       "reviewedLines": 342,

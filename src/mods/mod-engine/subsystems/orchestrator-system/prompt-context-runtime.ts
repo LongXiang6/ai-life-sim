@@ -6,14 +6,13 @@
 
 import { getInstrumentHooks, isInstrumentEnabled } from '@/core/instrument/instrument-mode'
 import type { PowerFrameworkDefinition, PromptContext } from '@/foundation'
-import { getDestinyPatternSystem } from '@/mods/mod-character/destiny-pattern-access'
 import { useCharacterStore } from '@/mods/mod-character'
-import { useSettingsStore } from '@/mods/mod-settings'
+import { useSettingsStore } from '@/mods/mod-settings/settings-runtime-api'
 import {
   formatCalibrationSummary,
   formatPowerFrameworkForPrompt,
   type WorldCalibration,
-} from '@/mods/mod-world'
+} from '@/mods/mod-world/world-runtime-api'
 import { buildCalendarNarrativeContext } from '../../helpers/calendar-narrative-context'
 import {
   projectCharacterForNarrativeAI,
@@ -169,9 +168,14 @@ export function assemblePromptContextRuntime(
     : undefined
 
   const roundGuidance = orchestrator['buildRoundGuidanceInput'](luckNarrativeGuidance)
+  const destinyPatterns = (syncedCharacter.destinyPatterns ?? []).map((pattern) => ({
+    name: pattern.name,
+    description: pattern.description,
+    effect: pattern.effect ?? '',
+  }))
   const talents = [
     formatEquippedMythicPatternForPrompt(useCharacterStore.getState().equippedMythicPatterns),
-    formatDestinyPatternsForPrompt(getDestinyPatternSystem().getPatterns(), isOpeningRound),
+    formatDestinyPatternsForPrompt(destinyPatterns, isOpeningRound),
   ].filter(Boolean).join('\n') || undefined
   const lightWorldSetting = orchestrator['buildLightWorldSetting'](narrativeTime.eraLabel)
   const characterNarrativeView = projectCharacterForNarrativeAI(syncedCharacter, baseData)

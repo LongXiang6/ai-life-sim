@@ -4,7 +4,7 @@
  * Responsibility: Pipeline and scoring enrichment only; local context commit and launch locking stay outside.
  */
 
-import { useSettingsStore } from '@/mods/mod-settings'
+import { useSettingsStore } from '@/mods/mod-settings/settings-runtime-api'
 import { useWorldStore } from '../store'
 import { applyCoherenceToWorldConfig } from '../world-init-bundle-deps'
 import type { WorldConfig } from '../types'
@@ -14,7 +14,6 @@ import {
   injectWorldInitOrchestratorContext,
   runWorldInitPipeline,
 } from '../utils/world-init-pipeline'
-import { buildWorldInitPipelineBudgets } from '../utils/world-init-budgets'
 import { resolvePipelineAnchorYear } from '../utils/world-init-anchor-year'
 import { WORLD_AI_CONFIG, type WorldInitBundleResult } from './contracts'
 
@@ -39,14 +38,12 @@ export async function generateWorldInitBundle(
     }
   }
 
-  const pipelineBudgets = buildWorldInitPipelineBudgets(config.description.length)
   const anchorYear = resolvePipelineAnchorYear(config, startingYear)
   const context = createWorldInitPipelineContext(
     config,
     configBeforeCoherence,
     worldCode,
     WORLD_AI_CONFIG,
-    pipelineBudgets,
     anchorYear,
   )
   const result = await runWorldInitPipeline(context)

@@ -18,7 +18,6 @@ import type { AICallOptions, AiMessage } from './types'
 
 function proxyOptions(options: AICallOptions, reasoningEffort: ReasoningEffort) {
   return {
-    overrideMaxTokens: options.overrideMaxTokens,
     overrideTemperature: options.overrideTemperature,
     overrideTopP: options.overrideTopP,
     jsonMode: options.jsonMode,

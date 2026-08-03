@@ -65,7 +65,6 @@ export const CloudSettingsSchema = z.object({
   customModel: z.string().max(200),
   temperature: z.number().min(0).max(2),
   topP: z.number().min(0).max(1),
-  maxTokens: z.number().int().min(256).max(200000),
   reasoningEffort: ReasoningEffortSchema,
   talentThinkingIntensity: ReasoningEffortSchema,
   aiTalentGeneration: z.boolean(),

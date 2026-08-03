@@ -57,7 +57,6 @@ export const DEFAULT_SETTINGS_VALUES = {
   customModel: DEFAULT_AI_MODEL,
   temperature: 0.8,
   topP: 0.8,
-  maxTokens: 4096,
   reasoningEffort: 'disabled' as ReasoningEffort,
   talentThinkingIntensity: 'disabled' as ReasoningEffort,
   aiTalentGeneration: true,
@@ -110,8 +109,6 @@ interface SettingsState {
   temperature: number
   /** Top P 0-1 */
   topP: number
-  /** 最大 token */
-  maxTokens: number
   /** 推理强度 */
   reasoningEffort: ReasoningEffort
   /** 命格生成推理强度 */
@@ -150,7 +147,6 @@ interface SettingsState {
   setCustomModel: (model: string) => void
   setTemperature: (temp: number) => void
   setTopP: (topP: number) => void
-  setMaxTokens: (tokens: number) => void
   setReasoningEffort: (effort: ReasoningEffort) => void
   setTalentThinkingIntensity: (effort: ReasoningEffort) => void
   setAiTalentGeneration: (enabled: boolean) => void
@@ -179,7 +175,6 @@ export const useSettingsStore = create<SettingsState>()(
         setCustomModel: (customModel,) => set({ customModel, },),
         setTemperature: (temperature,) => set({ temperature, },),
         setTopP: (topP,) => set({ topP, },),
-        setMaxTokens: (maxTokens,) => set({ maxTokens, },),
         setReasoningEffort: (reasoningEffort,) => set({ reasoningEffort, },),
         setTalentThinkingIntensity: (talentThinkingIntensity,) => set({ talentThinkingIntensity, },),
         setAiTalentGeneration: (aiTalentGeneration,) => set({ aiTalentGeneration, },),
@@ -246,7 +241,7 @@ export const useSettingsStore = create<SettingsState>()(
         },
         // 不持久化 set 函数
         partialize: (state,) => {
-          const { setProvider: _sp, setCustomKey: _sck, setCustomUrl: _scu, setCustomModel: _scm, setTemperature: _st, setTopP: _stp, setMaxTokens: _smt, setReasoningEffort: _sre, setTalentThinkingIntensity: _stti, setAiTalentGeneration: _satg, setPreGenerateRounds: _spgr, setStorySeed: _sss, setNarrativeStyle: _sns, saveNarrativeStyleText: _snst, restoreDefaultNarrativeStyle: _rdns, setWordCountTarget: _swct, setStreamingMode: _ssm, setComfortableParagraphs: _scp, setReduceMotion: _srm, setTheme: _sth, ...rest } = state
+          const { setProvider: _sp, setCustomKey: _sck, setCustomUrl: _scu, setCustomModel: _scm, setTemperature: _st, setTopP: _stp, setReasoningEffort: _sre, setTalentThinkingIntensity: _stti, setAiTalentGeneration: _satg, setPreGenerateRounds: _spgr, setStorySeed: _sss, setNarrativeStyle: _sns, saveNarrativeStyleText: _snst, restoreDefaultNarrativeStyle: _rdns, setWordCountTarget: _swct, setStreamingMode: _ssm, setComfortableParagraphs: _scp, setReduceMotion: _srm, setTheme: _sth, ...rest } = state
           return rest
         },
         merge: (persistedState, currentState) => {

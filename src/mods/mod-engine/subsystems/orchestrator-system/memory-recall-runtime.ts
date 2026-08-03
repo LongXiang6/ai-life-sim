@@ -5,7 +5,7 @@
  */
 
 import type { OrchestratorSystem } from '../orchestrator-system'
-import { useWorldStore } from '@/mods/mod-world'
+import { useWorldStore } from '@/mods/mod-world/world-runtime-api'
 import { digestLedger, summaryCompressor } from '../../orchestrator-shared'
 import type { NarrativeScopeView } from '../../helpers/narrative-context-scope'
 

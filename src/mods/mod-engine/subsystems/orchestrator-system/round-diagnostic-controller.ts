@@ -17,7 +17,6 @@ import type {
 
 interface RoundDiagnosticContext {
   lifeRunId: string
-  preview: boolean
 }
 
 export class RoundDiagnosticController {
@@ -41,7 +40,6 @@ export class RoundDiagnosticController {
 
   begin(round: number): void {
     const context = this.getContext()
-    if (context.preview) return
     const startedAt = Date.now()
     this.report = {
       schemaVersion: 1,
@@ -59,7 +57,7 @@ export class RoundDiagnosticController {
   }
 
   finish(status: 'completed' | 'failed', error?: unknown): void {
-    if (this.getContext().preview || !this.report) return
+    if (!this.report) return
     this.report.status = status
     this.report.completedAt = Date.now()
     this.report.durationMs = Math.max(0, this.report.completedAt - this.report.startedAt)
@@ -86,7 +84,7 @@ export class RoundDiagnosticController {
     details?: Record<string, unknown>,
     error?: unknown,
   ): void {
-    if (this.getContext().preview || !this.report) return
+    if (!this.report) return
     recordDevelopmentSystemEvent({
       system,
       event,
@@ -99,7 +97,7 @@ export class RoundDiagnosticController {
   }
 
   pushPhase(phase: NarrativeDiagnosticPhase): void {
-    if (this.getContext().preview || !this.report) return
+    if (!this.report) return
     this.report.phases.push(phase)
     this.recordSystem(
       'orchestrator-stage',
@@ -115,13 +113,13 @@ export class RoundDiagnosticController {
   }
 
   noteNarrativeQuality(details: Record<string, unknown>): void {
-    if (this.getContext().preview || !this.report) return
+    if (!this.report) return
     this.report.quality = { ...(this.report.quality ?? {}), ...details }
     this.recordSystem('narrative-quality', 'quality-evaluated', 'ok', details)
   }
 
   setRoundAdoption(adoption: Partial<NarrativeRoundAdoption>): void {
-    if (this.getContext().preview || !this.report) return
+    if (!this.report) return
     this.report.adoption = {
       ...this.report.adoption,
       ...adoption,
@@ -136,7 +134,7 @@ export class RoundDiagnosticController {
   }
 
   setCompression(details: Record<string, unknown>): void {
-    if (this.getContext().preview || !this.report) return
+    if (!this.report) return
     this.report.compression = { ...(this.report.compression ?? {}), ...details }
     const status = details.status === 'failed'
       ? 'error'
@@ -149,7 +147,7 @@ export class RoundDiagnosticController {
   }
 
   setAutoSave(details: Record<string, unknown>): void {
-    if (this.getContext().preview || !this.report) return
+    if (!this.report) return
     this.report.autoSave = { ...(this.report.autoSave ?? {}), ...details }
     const status = details.status === 'failed'
       ? 'error'

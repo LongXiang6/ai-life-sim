@@ -90,7 +90,6 @@ function localSettings(): CloudSettings {
     customModel: state.customModel,
     temperature: state.temperature,
     topP: state.topP,
-    maxTokens: state.maxTokens,
     reasoningEffort: state.reasoningEffort,
     talentThinkingIntensity: state.talentThinkingIntensity,
     aiTalentGeneration: state.aiTalentGeneration,

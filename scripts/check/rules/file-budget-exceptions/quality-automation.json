@@ -2,12 +2,6 @@
   "schemaVersion": 1,
   "entries": [
     {
-      "path": "scripts/check/domains.mjs",
-      "owner": "quality:infrastructure",
-      "reviewedLines": 330,
-      "reason": "检查域的中央声明注册表，条目必须在一个确定性命名源中保持完整排序和唯一所有权。"
-    },
-    {
       "path": "scripts/check/domains/account/account-cloud-smoke.mjs",
       "owner": "quality:account",
       "reviewedLines": 390,
@@ -24,12 +18,6 @@
       "owner": "quality:account",
       "reviewedLines": 573,
       "reason": "单个账号领域端到端验收场景，夹具、步骤和断言按一个状态化测试生命周期执行。"
-    },
-    {
-      "path": "scripts/check/domains/mod/arch-scanner/mod-file-pass.ps1",
-      "owner": "quality:mod",
-      "reviewedLines": 618,
-      "reason": "单个 MOD 文件的完整结构扫描阶段，规则共享同一语法上下文与状态码汇合边界。"
     },
     {
       "path": "scripts/check/domains/mod/historical-event-p1-smoke.mjs",
@@ -89,12 +77,6 @@
       "path": "scripts/check/domains/narrative/playtest-quality-regression.mjs",
       "owner": "quality:narrative",
       "reviewedLines": 1185,
-      "reason": "单个叙事协议或质量回归场景，输入夹具、顺序执行和断言共同构成一份不可拆散的证据。"
-    },
-    {
-      "path": "scripts/check/domains/narrative/runtime-subsystem-state-regression.mjs",
-      "owner": "quality:narrative",
-      "reviewedLines": 780,
       "reason": "单个叙事协议或质量回归场景，输入夹具、顺序执行和断言共同构成一份不可拆散的证据。"
     },
     {

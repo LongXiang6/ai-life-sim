@@ -92,17 +92,6 @@ export class MoralitySystem implements ISubSystem {
     this._lastProcessedRound = -1
   }
 
-  capturePreviewState(): unknown {
-    return structuredClone({ state: this.state, lastProcessedRound: this._lastProcessedRound })
-  }
-
-  restorePreviewState(snapshot: unknown): void {
-    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
-    const value = snapshot as { state?: MoralityState; lastProcessedRound?: number }
-    this.restoreCollectedState(value.state)
-    if (typeof value.lastProcessedRound === 'number') this._lastProcessedRound = value.lastProcessedRound
-  }
-
   // -------- 公共方法 --------
 
   // -------- 内部方法 --------

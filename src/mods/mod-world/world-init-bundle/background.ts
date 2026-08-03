@@ -4,7 +4,7 @@
  * Responsibility: Launch locking and channel dispatch only; AI pipeline work stays in generation.ts.
  */
 
-import { useSettingsStore } from '@/mods/mod-settings'
+import { useSettingsStore } from '@/mods/mod-settings/settings-runtime-api'
 import { useWorldStore } from '../store'
 import type { WorldConfig } from '../types'
 import { resolvePipelineAnchorYear } from '../utils/world-init-anchor-year'

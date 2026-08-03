@@ -22,7 +22,6 @@ export interface AICallOptions {
   onChunk?: (text: string) => void
   onResetStream?: () => void
   signal?: AbortSignal
-  overrideMaxTokens?: number
   overrideTemperature?: number
   overrideTopP?: number
   jsonMode?: boolean

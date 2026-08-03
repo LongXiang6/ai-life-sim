@@ -125,11 +125,11 @@ export class CoreMemorySystem extends BaseSubsystem {
   }
 
   /** 预生成会消费未来关系更新并写入 Store；结束后必须同时恢复单例与 Store。 */
-  capturePreviewState(): unknown {
+  capturePersistenceState(): unknown {
     return structuredClone([...this.npcMap.entries()])
   }
 
-  restorePreviewState(snapshot: unknown): void {
+  restorePersistenceState(snapshot: unknown): void {
     if (!Array.isArray(snapshot)) return
     this.npcMap.clear()
     for (const entry of snapshot) {

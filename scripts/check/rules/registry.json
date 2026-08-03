@@ -17,7 +17,7 @@
       "atceTrigger": true,
       "scanners": [
         "check/domains/structural/scan-typescript-wiring",
-        "check/domains/mod/arch-scanner"
+        "check/domains/mod/runtime-import-cycle-scanner"
       ],
       "skillRef": "ai-life-sim-mod-development/references/mod-spec-architecture.md",
       "refactorHint": "消除模块加载环：barrel 拆分 + dynamic import + 构造期禁读 Store"
@@ -27,7 +27,7 @@
       "atceTrigger": true,
       "scanners": [
         "check/domains/structural/scan-typescript-wiring",
-        "check/domains/mod/arch-scanner"
+        "check/domains/mod/contracts/subsystem-runtime"
       ],
       "skillRef": "ai-life-sim-mod-development/references/mod-spec-subsystem.md",
       "refactorHint": "删除 subsystems/index 顶层 new；只导出类，用 getXxxSystem() 懒加载"
@@ -37,7 +37,7 @@
       "atceTrigger": true,
       "scanners": [
         "check/domains/structural/scan-typescript-wiring",
-        "check/domains/mod/arch-scanner"
+        "check/domains/mod/contracts/public-import-boundary"
       ],
       "skillRef": "ai-life-sim/references/architecture.md",
       "refactorHint": "非 mod-engine 禁静态 orchestrator；运行期 await import()"
@@ -64,7 +64,7 @@
       "tier": "structural",
       "atceTrigger": true,
       "scanners": [
-        "check/domains/mod/arch-scanner"
+        "check/domains/mod/run-source-contracts"
       ],
       "skillRef": "ai-life-sim/references/architecture.md",
       "refactorHint": "core/foundation 变更须 ATCE + 合约；系统性问题优先上移契约"

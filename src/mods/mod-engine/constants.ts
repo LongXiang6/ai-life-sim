@@ -82,7 +82,6 @@ export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   timeStep: { unit: 'year', value: 1, },
   maxRounds: 1000,
   temperature: 0.8,
-  maxTokens: 4096,
 }
 
 // ============================================================
@@ -142,17 +141,3 @@ export const COMPRESS_L2_MERGE_INTERVAL = SUMMARY_INTERVAL * COMPRESS_L2_MERGE_C
 
 /** L3 合并区间 = COMPRESS_L2_MERGE_INTERVAL × COMPRESS_L3_MERGE_COUNT */
 export const COMPRESS_L3_MERGE_INTERVAL = COMPRESS_L2_MERGE_INTERVAL * COMPRESS_L3_MERGE_COUNT
-
-// ---- Token / 字数计算常量 ----
-
-/** 摘要 token 预算下限（仅保底，无上限） */
-export const MIN_SUMMARY_TOKENS = 3600
-
-/** @deprecated 摘要预算不再封顶；保留常量兼容旧引用 */
-export const MAX_SUMMARY_TOKENS = Number.MAX_SAFE_INTEGER
-
-/** L2 合并 token 保底 */
-export const SUMMARY_L2_MIN_TOKENS = 1000
-
-/** L3 合并 token 保底 */
-export const SUMMARY_L3_MIN_TOKENS = 1200

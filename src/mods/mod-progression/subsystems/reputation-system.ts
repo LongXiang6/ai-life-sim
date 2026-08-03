@@ -199,14 +199,6 @@ export class ReputationSystem extends BaseSubsystem {
       : validatePersistenceState(snapshot)
   }
 
-  capturePreviewState(): ReputationSystemPersistenceState {
-    return this.capturePersistenceState()
-  }
-
-  restorePreviewState(snapshot: unknown): void {
-    this.restorePersistenceState(snapshot)
-  }
-
   reset(): void {
     this.state = { schemaVersion: 1, evaluations: [], changes: [] }
   }

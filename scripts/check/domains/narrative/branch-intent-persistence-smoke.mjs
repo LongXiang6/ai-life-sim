@@ -1,5 +1,7 @@
 /**
- * EngineStore 分支意图投影与旧 orchestrator snapshot 恢复回归。
+ * Purpose: Regress persisted branch-intent projection and history rebuilding.
+ * Owner: quality:narrative
+ * Responsibility: Branch-intent persistence and hydration only; runtime rollback is retired.
  */
 
 import {
@@ -8,9 +10,6 @@ import {
   useEngineStore,
 } from '../../../../src/mods/mod-engine/store.ts'
 import { OrchestratorSystem } from '../../../../src/mods/mod-engine/subsystems/orchestrator-system.ts'
-import {
-  calculateNarrativeRepetitionMetric,
-} from '../../../../src/mods/mod-engine/helpers/narrative-repetition-metrics.ts'
 
 let failed = 0
 
@@ -147,44 +146,6 @@ assertOk(
   ghostProjection.branchIntents?.[0]?.intentId === legacyIntentId
     && ghostProjection.focusedBranchIntentId === legacyIntentId,
   'a valid-shaped projection without narrative-history provenance must be rejected as a whole',
-)
-
-const snapshotRuntime = new OrchestratorSystem()
-const currentLifeRunId = snapshotRuntime.getState().lifeRunId
-const firstText = '旧港钟楼下，领航员把潮汐表铺在木桌上。'
-const secondText = '旧港钟楼下，领航员再次把潮汐表铺在木桌上。'
-const firstMetric = calculateNarrativeRepetitionMetric({
-  round: 1,
-  text: firstText,
-  recentHistory: [],
-})
-const secondMetric = calculateNarrativeRepetitionMetric({
-  round: 2,
-  text: secondText,
-  recentHistory: [{ round: 1, text: firstText }],
-})
-const legacySnapshot = snapshotRuntime.captureSnapshot()
-legacySnapshot.state = {
-  ...legacySnapshot.state,
-  totalRounds: 2,
-  narrativeHistory: [
-    { id: 'old-round-1', text: firstText, isComplete: true, timestamp: 21, repetitionMetric: firstMetric },
-    { id: 'old-round-2', text: secondText, isComplete: true, timestamp: 22, repetitionMetric: secondMetric },
-  ],
-  currentNarrative: secondText,
-}
-delete legacySnapshot.state.lifeRunId
-delete legacySnapshot.state.storyRepetitionStats
-
-snapshotRuntime.restoreSnapshot(legacySnapshot)
-assertOk(
-  snapshotRuntime.getState().lifeRunId === currentLifeRunId,
-  'a legacy snapshot without lifeRunId must retain the current valid run id',
-)
-assertOk(
-  snapshotRuntime.getState().storyRepetitionStats.rounds === 2
-    && snapshotRuntime.getState().storyRepetitionStats.measuredRounds === 1,
-  'a legacy snapshot without repetition summary must rebuild it from history metrics',
 )
 
 const validProjection = useEngineStore.getState().branchIntents

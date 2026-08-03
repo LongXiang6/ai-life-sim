@@ -179,14 +179,12 @@ export function consumeSystemAnalysisRecordRuntime(
     return
   }
 
-  const commitSnapshot = orchestrator['capturePreviewSnapshot']()
   const commitResult = orchestrator['roundCommitBus'].commit({
     source: record.identity.kind === 'macro-impact' ? 'macro-impact' : 'post-narrative',
     changes: record.result.changes,
     roundSequence: record.identity.roundSequence,
   }, structuredClone(accepted.roundContext))
   if (commitResult.rejected.length > 0) {
-    orchestrator['restorePreviewSnapshot'](commitSnapshot)
     orchestrator['recordSystemDiagnostic'](
       `narrative-${record.identity.kind}`,
       'background-commit-rejected',

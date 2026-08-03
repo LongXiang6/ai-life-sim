@@ -6,7 +6,6 @@
 
 import type { WorldConfig } from '@/mods/mod-world'
 import {
-  buildWorldInitPipelineBudgets,
   buildWorldInitPromptVars,
   fillPromptTemplate,
   filterCoherentWorldTags,
@@ -28,14 +27,12 @@ async function runCalibrationStep(
 }> {
   try {
     const { worldDimensionCalibrationPrompt } = await import('@/mods/mod-world')
-    const budgets = buildWorldInitPipelineBudgets((config.description as string)?.length || 100)
     const promptVars = buildWorldInitPromptVars(config as unknown as WorldConfig)
     const userPrompt = fillPromptTemplate(worldDimensionCalibrationPrompt.userPromptTemplate, promptVars)
     const raw = await callProviderDirect(
       worldDimensionCalibrationPrompt.systemPrompt,
       userPrompt,
       {
-        maxTokens: budgets.dimensionCalibration,
         temperature: 0.3,
         jsonMode: true,
         ...options,
@@ -59,11 +56,9 @@ async function runTagsStep(
 ): Promise<{ worldTags?: string[]; error?: string }> {
   try {
     const { worldTagsPrompt } = await import('@/mods/mod-world')
-    const budgets = buildWorldInitPipelineBudgets((config.description as string)?.length || 100)
     const promptVars = buildWorldInitPromptVars(config as unknown as WorldConfig)
     const userPrompt = fillPromptTemplate(worldTagsPrompt.userPromptTemplate, promptVars)
     const raw = await callProviderDirect(worldTagsPrompt.systemPrompt, userPrompt, {
-      maxTokens: budgets.tags,
       temperature: 0.6,
       jsonMode: true,
       ...options,

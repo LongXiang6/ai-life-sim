@@ -44,12 +44,6 @@
       "reason": "宏观影响 AI 的完整字段投影与校验组件，只负责同一分析协议的上下文组装。"
     },
     {
-      "path": "src/mods/mod-engine/helpers/pre-gen-queue.ts",
-      "owner": "mod-engine",
-      "reviewedLines": 373,
-      "reason": "预生成队列的单一并发状态机，排队、取消、去重和完成汇合共享同一内存状态。"
-    },
-    {
       "path": "src/mods/mod-engine/helpers/save-restore.ts",
       "owner": "mod-engine",
       "reviewedLines": 405,

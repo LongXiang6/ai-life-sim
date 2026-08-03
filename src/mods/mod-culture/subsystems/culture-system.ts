@@ -77,8 +77,6 @@ export class CultureSystem extends BaseSubsystem {
     if (value.schemaVersion !== 1 || !value.contexts || typeof value.contexts !== 'object') throw new Error('文化持久化快照无效')
     this.states = clone(value.contexts)
   }
-  capturePreviewState(): CulturePersistenceState { return this.capturePersistenceState() }
-  restorePreviewState(snapshot: unknown): void { this.restorePersistenceState(snapshot) }
   reset(): void { this.states = {} }
 }
 

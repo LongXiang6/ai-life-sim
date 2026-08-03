@@ -54,11 +54,10 @@ export class AIResponseTruncatedError extends Error {
     public readonly content: string,
     public readonly finishReason: string | undefined,
     public readonly requestId: string | undefined,
-    public readonly maxTokens: number | undefined,
     public readonly usage: AICallUsageSnapshot | undefined,
   ) {
     const requestSuffix = requestId ? `（请求编号 ${requestId}）` : ''
-    super(`AI 输出达到 max_tokens 长度上限，结果不完整${requestSuffix}`)
+    super(`AI 提供方报告输出不完整${requestSuffix}`)
     this.name = 'AIResponseTruncatedError'
     this.responseLength = content.length
   }

@@ -8,7 +8,6 @@ import type { ReasoningEffort } from '@/foundation'
 
 export interface AiCallDeadlineInput {
   callKind: string
-  maxTokens: number
   reasoningEffort: ReasoningEffort
 }
 
@@ -22,13 +21,13 @@ const REASONING_RESERVE_MS: Readonly<Record<ReasoningEffort, number>> = {
   max: 240_000,
 }
 
-function workloadProfile(callKind: string): { baseMs: number; perTokenMs: number } {
+function workloadProfile(callKind: string): number {
   const kind = callKind.trim().toLowerCase()
   if (kind === 'narrative-main' || kind === 'immersion-warmup' || kind === 'narrative-format-repair') {
-    return { baseMs: 60_000, perTokenMs: 35 }
+    return 60_000
   }
   if (kind.startsWith('summary-compress-')) {
-    return { baseMs: 50_000, perTokenMs: 30 }
+    return 50_000
   }
   if (
     kind === 'narrative-basic-attribute-analysis'
@@ -40,22 +39,15 @@ function workloadProfile(callKind: string): { baseMs: number; perTokenMs: number
     || kind === 'narrative-macro-impact'
     || kind === 'narrative-macro-impact-format-repair'
   ) {
-    return { baseMs: 45_000, perTokenMs: 28 }
+    return 45_000
   }
-  return { baseMs: 45_000, perTokenMs: 30 }
+  return 45_000
 }
 
-/** 按合法最大输出与推理模式计算一次 HTTP 请求从开始到完整终态的总时限。 */
+/** 按调用类型与推理模式计算一次 HTTP 请求从开始到完整终态的总时限。 */
 export function computeAiCallDeadlineMs(input: AiCallDeadlineInput): number {
   if (!input.callKind.trim()) throw new Error('AI 调用时限缺少 callKind')
-  if (!Number.isFinite(input.maxTokens) || input.maxTokens <= 0) {
-    throw new Error('AI 调用时限缺少有效 maxTokens')
-  }
-
-  const maxTokens = Math.ceil(input.maxTokens)
-  const profile = workloadProfile(input.callKind)
-  const rawDeadline = profile.baseMs
-    + maxTokens * profile.perTokenMs
+  const rawDeadline = workloadProfile(input.callKind)
     + REASONING_RESERVE_MS[input.reasoningEffort]
   const rounded = Math.ceil(rawDeadline / 1_000) * 1_000
   return Math.min(AI_CALL_DEADLINE_MAX_MS, Math.max(AI_CALL_DEADLINE_MIN_MS, rounded))

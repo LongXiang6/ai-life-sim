@@ -6,13 +6,6 @@
 
 import { CALENDAR, SEASON_NAMES } from './constants'
 import { getSeasonForMonth } from './helpers/calendar-season.js'
-import {
-  MIN_SUMMARY_TOKENS,
-  SUMMARY_L2_MIN_TOKENS,
-  SUMMARY_L3_MIN_TOKENS,
-} from './constants'
-
-import { estimateTokenBudget as foundationEstimateTokenBudget } from '@/foundation'
 
 import type { RoundInfo, TimeStep } from './types'
 
@@ -40,12 +33,6 @@ export function timeStepLabel(step: TimeStep): string {
   return { year: '年', season: '季', month: '月', day: '日' }[step.unit]
 }
 
-// ---- Summary Compressor Token 计算函数 ----
-
-// ===================================================================
-// 通用 Token 估算（标准量 + 20% 冗余）
-// ===================================================================
-
 /**
  * 估算文本的 token 消耗量
  *
@@ -67,57 +54,4 @@ export function estimateTokens(text: string): number {
     }
   }
   return Math.ceil(cjkChars / 1.5 + otherChars / 4)
-}
-
-/**
- * 根据 prompt 内容计算合理的 maxTokens（标准输出量 × 冗余系数，无输出上限）
- *
- * @deprecated 实现已迁至 foundation；保留 re-export 兼容 mod-engine 公共 API
- */
-export function estimateTokenBudget(
-  systemPrompt: string,
-  userPrompt: string,
-  estimatedOutputTokens: number,
-  minTokens = 512,
-): number {
-  return foundationEstimateTokenBudget(systemPrompt, userPrompt, estimatedOutputTokens, minTokens)
-}
-
-/**
- * @deprecated 不再对 maxTokens 做封顶；原样返回，保留 API 兼容
- */
-export function clampMaxTokens(maxTokens: number, _contextWindow?: number): number {
-  return maxTokens
-}
-
-/**
- * 计算 L1 摘要 token 预算
- * 公式: max(eventsNarrativeLength × 2.4, MIN_SUMMARY_TOKENS)，无上限
- */
-export function computeSummaryTokenBudget(eventsNarrativeLength: number): number {
-  return Math.max(MIN_SUMMARY_TOKENS, Math.round(eventsNarrativeLength * 2.4))
-}
-
-/**
- * 摘要输出只设置足以复述完整输入的技术余量；语义压缩由 Prompt 完成，
- * 不能用逐层缩小的 token 上限强迫模型截断事实。
- */
-function computeCoverageSafeSummaryTokens(inputTextLength: number, minimum: number): number {
-  return Math.max(Math.ceil(inputTextLength * 1.2), minimum)
-}
-
-/**
- * 计算 L2 合并 token 预算
- * 输出余量足以覆盖完整输入；压缩失败时保留 L1，不宣告覆盖。
- */
-export function computeSummaryL2Tokens(inputTextLength: number): number {
-  return computeCoverageSafeSummaryTokens(inputTextLength, SUMMARY_L2_MIN_TOKENS)
-}
-
-/**
- * 计算 L3 合并 token 预算
- * 输出余量足以覆盖完整输入；压缩失败时保留 L2，不宣告覆盖。
- */
-export function computeSummaryL3Tokens(inputTextLength: number): number {
-  return computeCoverageSafeSummaryTokens(inputTextLength, SUMMARY_L3_MIN_TOKENS)
 }

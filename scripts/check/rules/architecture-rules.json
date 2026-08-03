@@ -29,7 +29,11 @@
       "relationship-system-api"
     ],
     "mod-world": [
-      "world-init-api"
+      "world-init-api",
+      "world-runtime-api"
+    ],
+    "mod-settings": [
+      "settings-runtime-api"
     ]
   },
   "allowedServerOnlyPublicImports": {

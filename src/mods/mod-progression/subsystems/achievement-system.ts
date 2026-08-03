@@ -264,14 +264,6 @@ export class AchievementSystem extends BaseSubsystem {
       : validatePersistenceState(snapshot)
   }
 
-  capturePreviewState(): AchievementSystemPersistenceState {
-    return this.capturePersistenceState()
-  }
-
-  restorePreviewState(snapshot: unknown): void {
-    this.restorePersistenceState(snapshot)
-  }
-
   reset(): void {
     this.state = { schemaVersion: 1, definitions: clone(DEFAULT_DEFINITIONS), progress: [], unlocks: [] }
   }

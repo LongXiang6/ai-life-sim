@@ -108,18 +108,12 @@ foreach ($file in $allPs1Files) {
    }
 
   # --- 1e: Parse with PowerShell AST parser (syntax errors) ---
-  # Known false positives: PS 5.1 parser bug with $([char]0x...) in double-quoted strings
-  $knownParserIssueFiles = @('check/domains/mod/arch-scanner.ps1')
   $parseErrors = $null
   $tokens = $null
   $ast = [System.Management.Automation.Language.Parser]::ParseInput($rawContent, [ref]$tokens, [ref]$parseErrors)
   if ($parseErrors.Count -gt 0) {
-    if ($knownParserIssueFiles -contains $fileName) {
-      Write-TestResult "1e: $fileName - PowerShell parser" $true "Known parser issue ($($parseErrors.Count) parse warnings, not a script syntax error)"
-    } else {
-      $errMsgs = ($parseErrors | ForEach-Object { $_.Message }) -join '; '
-      Write-TestResult "1e: $fileName - PowerShell parser" $false "Parse errors: $errMsgs"
-    }
+    $errMsgs = ($parseErrors | ForEach-Object { $_.Message }) -join '; '
+    Write-TestResult "1e: $fileName - PowerShell parser" $false "Parse errors: $errMsgs"
   } else {
     Write-TestResult "1e: $fileName - PowerShell parser" $true "No parse errors"
   }

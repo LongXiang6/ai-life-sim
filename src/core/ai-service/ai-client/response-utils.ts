@@ -1,24 +1,18 @@
 /**
- * Purpose: Normalize AI response usage and determine output-budget truncation.
+ * Purpose: Normalize AI response usage and determine provider-reported truncation.
  * Owner: core:ai-service
  * Responsibility: Stateless response calculations shared by logging, retry, and transport components.
  */
 
 import type { AICallUsageSnapshot } from '../../logger/ai-call-log'
 import { normalizeAiUsage } from '../normalize-ai-usage'
-import type { AICallOptions, AIResponse } from './types'
-
-export function resolveMaxTokens(options: AICallOptions): number {
-  return options.overrideMaxTokens ?? options.config.maxTokens
-}
+import type { AIResponse } from './types'
 
 export function isTruncatedResponse(
-  usage: AICallUsageSnapshot | undefined,
-  maxTokens: number,
+  _usage: AICallUsageSnapshot | undefined,
   finishReason?: string,
 ): boolean {
-  if (finishReason === 'length') return true
-  return usage?.completionTokens !== undefined && usage.completionTokens >= maxTokens
+  return finishReason === 'length'
 }
 
 export function parseUsage(usage?: AIResponse['usage']): AICallUsageSnapshot | undefined {

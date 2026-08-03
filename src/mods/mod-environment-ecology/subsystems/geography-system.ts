@@ -294,14 +294,6 @@ export class GeographySystem extends BaseSubsystem {
       : validatePersistenceState(snapshot)
   }
 
-  capturePreviewState(): GeographyPersistenceState {
-    return this.capturePersistenceState()
-  }
-
-  restorePreviewState(snapshot: unknown): void {
-    this.restorePersistenceState(snapshot)
-  }
-
   reset(): void {
     this.state = { schemaVersion: 1, nodes: [], changes: [] }
   }

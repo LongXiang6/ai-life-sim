@@ -74,22 +74,18 @@ export function buildSystemChangeSummaryRuntime(
     const systemLabel = orchestrator['subsystems'].find((subsystem) => subsystem.id === id)?.label ?? id
     if (previousText && previousText !== currentText) {
       changes.push(`${systemLabel}：${previousText} → ${currentText}`)
-      if (!orchestrator['isPreviewExecution']()) {
-        subsystemRelevance.recordChange(
-          id,
-          orchestrator['state'].totalRounds,
-          `${previousText} → ${currentText}`,
-        )
-      }
+      subsystemRelevance.recordChange(
+        id,
+        orchestrator['state'].totalRounds,
+        `${previousText} → ${currentText}`,
+      )
     } else if (!previousText && currentText) {
       changes.push(`${systemLabel}：新增 — ${currentText}`)
-      if (!orchestrator['isPreviewExecution']()) {
-        subsystemRelevance.recordChange(
-          id,
-          orchestrator['state'].totalRounds,
-          `新增: ${currentText}`,
-        )
-      }
+      subsystemRelevance.recordChange(
+        id,
+        orchestrator['state'].totalRounds,
+        `新增: ${currentText}`,
+      )
     }
   }
   return changes.length > 0 ? `【系统变化摘要】\n${changes.join('\n')}` : ''

@@ -1,6 +1,10 @@
 'use client'
 
 /**
+ * Purpose: Connect the game-story UI to one real simulation round and its public projections.
+ * Owner: mod-engine
+ * Responsibility: UI command gating, round invocation, and outcome projection only; no runtime snapshot restore.
+ *
  * @module hooks.ts
  * @description 引擎自定义 Hook
  * @mod mod-engine
@@ -15,17 +19,17 @@ import { postNarrativeRoundOutcome } from '@/core/logger/narrative-round-diagnos
 import { useGlobalStore } from '@/core/global-store'
 import { runtimeRegistry } from '@/core/mod-loader/runtime-registry'
 import { DEFAULT_AI_MODEL } from '@/core/ai-service'
-import { useSettingsStore } from '@/mods/mod-settings'
+import { useSettingsStore } from '@/mods/mod-settings/settings-runtime-api'
 import { logger, reportUsageMetric } from '@/core/logger/client-logger'
 import {
   storyRepetitionUsageMetricKey,
   storyRepetitionUsageMetricRevision,
   type StoryRepetitionUsageMetric,
 } from '@/core/logger/usage-metrics'
-import { useWorldStore } from '@/mods/mod-world'
+import { useWorldStore } from '@/mods/mod-world/world-runtime-api'
 
 import { narrativePrompt } from './prompts/narrative-prompt'
-import { computeNarrativeMaxTokens, DEFAULT_WORD_COUNT_TARGET } from './constants/narrative-config'
+import { DEFAULT_WORD_COUNT_TARGET } from './constants/narrative-config'
 import { clearPreGenQueue, fillPreGenQueue, getPreGenQueueStatus, shiftPreGenQueue, subscribePreGenQueue, waitForPreGenQueueItem, checkAndClearPreGenOnTimeStepChange, type PreGenQueueStatus } from './helpers/pre-gen-queue'
 import { resolveMvpRuntimeReadiness } from './helpers/mvp-runtime-policy'
 import { ensureOrchestratorContextFromStores } from './helpers/save-restore'
@@ -306,11 +310,6 @@ export function useSimulationAdvance() {
       const aiConfig: AIModelConfig = {
         model,
         temperature: temperature ?? 0.8,
-        maxTokens: computeNarrativeMaxTokens(wordCountTarget, {
-          reasoningEffort,
-          providerId: provider,
-          model,
-        }),
         stream: false,
         reasoningEffort,
       }
@@ -326,12 +325,9 @@ export function useSimulationAdvance() {
         if (!cached) clearPreGenQueue()
       }
 
-      // orchestrator 是运行时单例。必须等在途预览结束后再同步上下文和步长，
-      // 否则步长切换会在预览 AI 等待期间改写同一份运行态。
+      // orchestrator 是运行时单例；同步上下文和步长后直接执行当前真实回合。
       ensureOrchestratorContextFromStores()
       orchestrator.setTimeStep(useEngineStore.getState().timeStep)
-      const roundSnapshot = orchestrator.capturePreviewSnapshot()
-
       try {
         // 推进前确保 orchestrator 可执行（避免 pause 后 status=paused 导致空回合）
         orchestrator.start()
@@ -376,13 +372,6 @@ export function useSimulationAdvance() {
           )
         const logRoundFailure = expectedQualityRejection ? logger.warn : logger.error
         logRoundFailure('simulation', '回合执行失败', err)
-        if (!compressionGateFailure) {
-          try {
-            orchestrator.restorePreviewSnapshot(roundSnapshot)
-          } catch (rollbackError) {
-            logger.error('simulation', '回合回滚失败', rollbackError)
-          }
-        }
         const failedReport = orchestrator.getLastRoundDiagnostic()
         if (failedReport) {
           queueRoundFinalization(async () => {

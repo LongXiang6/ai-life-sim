@@ -4,7 +4,7 @@
  * @mod mod-character
  */
 
-import { scaleTokenBudgetByInputLength, stringifyPrompt } from '@/foundation'
+import { stringifyPrompt } from '@/foundation'
 
 import type {
   MythicPattern,
@@ -48,7 +48,6 @@ export interface GenerateMythicPatternCandidatesOptions {
   /** 可逐次注入，也可预先通过 setMythicPatternAIService 配置。 */
   callAI?: MythicPatternAICaller
   signal?: AbortSignal
-  maxTokensOverride?: number
   providerId?: string
   apiKey?: string
   customBaseUrl?: string
@@ -78,10 +77,6 @@ export function buildMythicPatternUserPrompt(input: GenerateMythicPatternCandida
       concept: pattern.concept,
     })),
   })
-}
-
-export function estimateMythicPatternTokenBudget(userPromptLength: number): number {
-  return scaleTokenBudgetByInputLength(1200, userPromptLength, 12288)
 }
 
 function parseJsonResponse(response: string): unknown {
@@ -119,7 +114,6 @@ export async function generateMythicPatternCandidates(
       apiKey: options.apiKey,
       customBaseUrl: options.customBaseUrl,
       customModel: options.customModel,
-      maxTokensOverride: options.maxTokensOverride ?? estimateMythicPatternTokenBudget(userPrompt.length),
       outputSchema: mythicPatternPrompt.outputSchema,
       logContext: { callKind: 'mythic-pattern-generate' },
     },

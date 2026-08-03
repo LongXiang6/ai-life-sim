@@ -84,7 +84,6 @@ export function runCompressionPipelineRuntime(
     orchestrator['setCompressionDiagnostic']({ status: 'skipped', reason: 'disabled' })
     return Promise.resolve()
   }
-  if (orchestrator['isPreviewExecution']()) return Promise.resolve()
   if (!orchestrator['lastAiConfig'] || !orchestrator['worldSetting'] || !orchestrator['characterState']) {
     const error = new Error('压缩闸门缺少 AI、世界或角色上下文')
     orchestrator['setCompressionDiagnostic']({ status: 'failed', reason: 'missing-context' })

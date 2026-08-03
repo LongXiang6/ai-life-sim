@@ -183,7 +183,7 @@ export class SubsystemRelevanceSystem implements ISubSystem {
     this.currentRound = 0
   }
 
-  capturePreviewState(): unknown {
+  capturePersistenceState(): unknown {
     return structuredClone({
       stateHistory: this.stateHistory,
       changeRecords: this.changeRecords,
@@ -191,7 +191,7 @@ export class SubsystemRelevanceSystem implements ISubSystem {
     })
   }
 
-  restorePreviewState(snapshot: unknown): void {
+  restorePersistenceState(snapshot: unknown): void {
     if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
     const value = snapshot as {
       stateHistory?: Record<string, SystemStateSnapshot[]>

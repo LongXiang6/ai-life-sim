@@ -105,13 +105,11 @@ export function useGameOverActions({
             pool?: 'lowFrequency'
             jsonMode?: boolean
             signal?: AbortSignal
-            maxTokensOverride?: number
             outputSchema?: Parameters<typeof callAI>[2]['outputSchema']
           }
           const config: AIModelConfig = {
             model,
             temperature: 0.62,
-            maxTokens: options.maxTokensOverride ?? 1800,
             stream: false,
             reasoningEffort: 'disabled',
           }
@@ -127,7 +125,6 @@ export function useGameOverActions({
             customBaseUrl: customUrl || undefined,
             customModel: model,
             reasoningEffort: 'disabled',
-            overrideMaxTokens: options.maxTokensOverride ?? 1800,
             logContext: { callKind: 'mythic-pattern-generate', pool: 'lowFrequency', model },
           })
         },

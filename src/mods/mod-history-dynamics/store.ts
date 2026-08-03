@@ -1,10 +1,10 @@
 'use client'
 
 /**
- * @module store.ts
- * @description P1 历史事件账本 Store v2；六类数组均只追加，完整状态独立于 collectState 投影
- * @mod mod-history-dynamics
- */
+ * Purpose: Own the persisted historical-event ledger store and migration projection.
+ * Owner: mod-history-dynamics
+ * Responsibility: Ledger persistence state and Store hydration only; event business decisions stay in the ledger system.
+  */
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
@@ -313,7 +313,7 @@ export interface HistoryLedgerReadState {
   readonly migrationMetadata: readonly HistoricalEventLedgerPersistenceState['migrationMetadata'][number][]
 }
 
-/** 查询与 collectState 使用的零深克隆只读选择器；完整克隆只留给存档和回滚快照。 */
+/** 查询与 collectState 使用的零深克隆只读选择器；完整克隆只留给持久化存档。 */
 export function selectHistoryLedgerReadState(): HistoryLedgerReadState {
   const state = useHistoryDynamicsStore.getState()
   return {

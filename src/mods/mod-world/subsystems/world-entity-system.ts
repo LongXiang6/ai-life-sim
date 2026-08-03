@@ -26,14 +26,12 @@ import {
   assertEntityReference,
   buildContextTransitionDirectory,
   capturePersistenceState,
-  capturePreviewState,
   ensureEntityDirectoryValidated,
   getEntityReference,
   listEntityReferences,
   registerEntityReference,
   repairEntityReferenceDirectory,
   restorePersistenceState,
-  restorePreviewState,
 } from './world-entity-system/entity-reference-directory'
 import { generateStaticEntities } from './world-entity-system/static-entity-generation'
 
@@ -186,14 +184,6 @@ export class WorldEntitySystem extends BaseSubsystem {
 
   restorePersistenceState(snapshot: unknown): void {
     restorePersistenceState(snapshot)
-  }
-
-  capturePreviewState(): EntityReferenceDirectoryPersistenceState {
-    return capturePreviewState()
-  }
-
-  restorePreviewState(snapshot: unknown): void {
-    restorePreviewState(snapshot)
   }
 
   repairEntityReferenceDirectory(): { fallbackEntityIds: string[] } {

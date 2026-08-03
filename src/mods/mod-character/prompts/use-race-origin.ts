@@ -14,23 +14,14 @@ import { callAI } from '@/core'
 
 import { raceOriginPrompt } from './race-origin'
 
-import { estimateTokenBudget } from '@/mods/mod-engine'
-import { useSettingsStore } from '@/mods/mod-settings'
-import { useWorldStore } from '@/mods/mod-world'
 
 import type { AIModelConfig } from '@/foundation'
 import { stringifyPrompt } from '@/foundation'
 
-/** 默认 AI 配置：只提供充足技术余量，不把输出预算当成剧情字数上限。 */
+/** 默认 AI 配置：提供调用模型与格式，不设置输出上限。 */
 const DEFAULT_CONFIG: AIModelConfig = {
   model: 'deepseek-v4-flash',
   temperature: 0.7,
-  maxTokens: estimateTokenBudget(
-    raceOriginPrompt.systemPrompt,
-    raceOriginPrompt.userPromptTemplate,
-    4096,
-    8192,
-  ),
   responseFormat: { type: 'text' },
   reasoningEffort: 'disabled',
   stream: false,
@@ -75,6 +66,9 @@ export function useRaceOrigin(worldDescription: string): {
         characterBackground: background,
       })
 
+      // 延迟加载设置 MOD，避免角色 Prompt Hook 与引擎入口形成运行时循环依赖。
+      const { useSettingsStore } = await import('@/mods/mod-settings')
+      const { useWorldStore } = await import('@/mods/mod-world')
       const { customKey, customUrl, provider, customModel } = useSettingsStore.getState()
       const model = customModel || DEFAULT_CONFIG.model
       const lowfSessionId = String(useWorldStore.getState().worldCode)

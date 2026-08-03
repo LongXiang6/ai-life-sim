@@ -1,4 +1,8 @@
 /**
+ * Purpose: Project committed subsystem state into MOD-owned UI stores.
+ * Owner: mod-engine
+ * Responsibility: Store synchronization only; subsystem calculations and state ownership remain downstream.
+ *
  * @module subsystem-store-sync.ts
  * @description 将 orchestrator 子系统快照同步到各 MOD UI store
  * @mod mod-engine
@@ -17,7 +21,7 @@ import { useCharacterStore } from '@/mods/mod-character'
 import { useEconomyStore } from '@/mods/mod-economy'
 import { usePoliticsStore } from '@/mods/mod-politics'
 import { usePowerSystemStore } from '@/mods/mod-power-system'
-import { useWorldStore } from '@/mods/mod-world'
+import { useWorldStore } from '@/mods/mod-world/world-runtime-api'
 
 function dataOf<T extends object>(states: Record<string, SubSystemState>, id: string): T | undefined {
   const data = states[id]?.data

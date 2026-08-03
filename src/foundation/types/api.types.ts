@@ -22,8 +22,6 @@ export interface AIModelConfig {
   model: string,
   /** 温度 */
   temperature: number,
-  /** 最大 token */
-  maxTokens: number,
   /** 是否流式输出 */
   stream: boolean,
   /** JSON Mode 输出格式（response_format） */

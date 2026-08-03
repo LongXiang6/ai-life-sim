@@ -1,5 +1,7 @@
 /**
- * Phase 7：TS-5 time-bridge 接线冒烟（静态）
+ * Purpose: Verify the narrative time-bridge prompt wiring contract.
+ * Owner: quality:narrative
+ * Responsibility: Static time-step projection and prompt-context wiring only.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -20,6 +22,10 @@ const orchestrator = fs.readFileSync(
   path.join(root, 'src/mods/mod-engine/subsystems/orchestrator-system.ts'),
   'utf8',
 )
+const promptContextRuntime = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/subsystems/orchestrator-system/prompt-context-runtime.ts'),
+  'utf8',
+)
 
 if (!bridge.includes('buildTimeBridgeSummary')) {
   console.error('FAIL: buildTimeBridgeSummary missing')
@@ -32,7 +38,7 @@ if (
   console.error('FAIL: prompt-builder missing timeBridgeSummary key')
   failed++
 }
-if (!orchestrator.includes('buildTimeBridgeSummary')) {
+if (!promptContextRuntime.includes('buildTimeBridgeSummary')) {
   console.error('FAIL: orchestrator not wired to time bridge')
   failed++
 }

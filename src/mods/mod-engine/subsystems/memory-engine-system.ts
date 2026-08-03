@@ -219,14 +219,14 @@ export class MemoryEngineSystem implements ISubSystem {
     this.lastExtractedRound = 0
   }
 
-  capturePreviewState(): unknown {
+  capturePersistenceState(): unknown {
     return structuredClone({
       memory: this.memory,
       lastExtractedRound: this.lastExtractedRound,
     })
   }
 
-  restorePreviewState(snapshot: unknown): void {
+  restorePersistenceState(snapshot: unknown): void {
     if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
     const value = snapshot as { memory?: LongTermMemory; lastExtractedRound?: number }
     if (value.memory) this.memory = structuredClone(value.memory)

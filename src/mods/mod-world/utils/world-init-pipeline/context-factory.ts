@@ -5,7 +5,7 @@
  */
 
 import type { AIModelConfig } from '@/foundation'
-import { useSettingsStore } from '@/mods/mod-settings'
+import { useSettingsStore } from '@/mods/mod-settings/settings-runtime-api'
 
 import { useWorldStore } from '../../store'
 import type { WorldConfig } from '../../types'
@@ -16,7 +16,6 @@ import {
 } from '../../world-init-bundle-deps'
 import { buildWorldInitPromptVars } from '../world-init-prompt-vars'
 import { resolvePipelineAnchorYear } from '../world-init-anchor-year'
-import type { WorldInitPipelineBudgets } from '../world-init-budgets'
 import { buildWorldInitContentLogMetaResolver } from '../world-init-ai-validation'
 import { coherenceGuardFromConfig, createWorldInitAIService } from './ai-service'
 import type { WorldInitPipelineContext } from './contracts'
@@ -27,7 +26,6 @@ export function createWorldInitPipelineContext(
   configBeforeCoherence: WorldConfig,
   worldCode: number,
   aiConfig: AIModelConfig,
-  budgets: WorldInitPipelineBudgets,
   startingYear?: number,
 ): WorldInitPipelineContext {
   const { customKey, provider, customUrl, customModel } = useSettingsStore.getState()
@@ -51,7 +49,6 @@ export function createWorldInitPipelineContext(
   entitySystem.setAIService(createWorldInitAIService(
     aiConfig,
     worldEntityPrompt.systemPrompt,
-    budgets.entities,
     'world-init/pipeline:entities',
     buildWorldInitContentLogMetaResolver('entities', coherenceGuardFromConfig(config)),
     { subPool: 'geo', worldCode },
@@ -69,7 +66,6 @@ export function createWorldInitPipelineContext(
     customUrl: customUrl || '',
     customKey: customKey || '',
     aiConfig,
-    budgets,
     initFingerprint,
     promptVars,
     errors: [],

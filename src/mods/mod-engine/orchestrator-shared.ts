@@ -102,10 +102,8 @@ export {
 
 export { buildTimeScaleNarrativeHint } from './helpers/time-scale-narrative'
 
-export { collectGameSavePayload } from './helpers/save-restore'
-
 // constants
-export { computeNarrativeMaxTokens, DEFAULT_WORD_COUNT_TARGET } from './constants/narrative-config'
+export { DEFAULT_WORD_COUNT_TARGET } from './constants/narrative-config'
 export { RECENT_NARRATIVE_WINDOW } from './constants'
 
 // simulation

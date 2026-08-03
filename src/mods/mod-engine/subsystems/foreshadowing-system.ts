@@ -186,14 +186,14 @@ export class ForeshadowingSystem extends BaseSubsystem {
   }
 
   /** 预生成会临时推进伏笔计时；结束后必须完整恢复真实时间线。 */
-  capturePreviewState(): unknown {
+  capturePersistenceState(): unknown {
     return structuredClone({
       state: this.state,
       lastProcessedRound: this._lastProcessedRound,
     })
   }
 
-  restorePreviewState(snapshot: unknown): void {
+  restorePersistenceState(snapshot: unknown): void {
     if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
     const value = snapshot as {
       state?: ForeshadowingState

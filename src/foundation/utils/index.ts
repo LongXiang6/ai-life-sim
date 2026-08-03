@@ -26,15 +26,6 @@ export { extractDynamicAttrsFromNarrative } from './extract-dynamic-attrs'
 export type { AttrTagMap, ExtractedAttrs } from './extract-dynamic-attrs'
 export { useIsMobile } from './use-is-mobile'
 export { stringifyPrompt } from './stringify-prompt'
-export {
-  estimateTokenBudget,
-  scaleTokenBudgetByInputLength,
-  estimateTextTokens,
-  bumpTokenBudget,
-  TOKEN_BUDGET_DEFAULT_MIN,
-  TOKEN_BUDGET_HEADROOM,
-} from './estimate-token-budget'
-export type { EstimateTokenBudgetOptions } from './estimate-token-budget'
 export { formatEraYear } from './format-time'
 export type { EraEntry } from './format-time'
 export {

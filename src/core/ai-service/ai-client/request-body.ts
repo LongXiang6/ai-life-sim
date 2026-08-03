@@ -36,13 +36,12 @@ function buildRequestBody(
   config: AIModelConfig,
   messages: AiMessage[],
   stream: boolean,
-  options?: Pick<AICallOptions, 'overrideMaxTokens' | 'overrideTemperature' | 'overrideTopP' | 'jsonMode' | 'storySeed' | 'reasoningEffort'>,
+  options?: Pick<AICallOptions, 'overrideTemperature' | 'overrideTopP' | 'jsonMode' | 'storySeed' | 'reasoningEffort'>,
 ): Record<string, unknown> {
   const body: Record<string, unknown> = {
     model: config.model,
     messages,
     temperature: options?.overrideTemperature ?? config.temperature,
-    max_tokens: options?.overrideMaxTokens ?? config.maxTokens,
     stream,
   }
   if (options?.overrideTopP !== undefined) body.top_p = options.overrideTopP
@@ -60,7 +59,7 @@ export function buildProxyBody(
   stream: boolean,
   pool: CachePoolType,
   sessionId?: string,
-  options?: Pick<AICallOptions, 'overrideMaxTokens' | 'overrideTemperature' | 'overrideTopP' | 'jsonMode' | 'storySeed' | 'reasoningEffort' | 'providerId' | 'apiKey' | 'customBaseUrl' | 'customModel' | 'serverPromptAssetId' | 'logContext'>,
+  options?: Pick<AICallOptions, 'overrideTemperature' | 'overrideTopP' | 'jsonMode' | 'storySeed' | 'reasoningEffort' | 'providerId' | 'apiKey' | 'customBaseUrl' | 'customModel' | 'serverPromptAssetId' | 'logContext'>,
 ): Record<string, unknown> {
   const aiBody = buildRequestBody(config, messages, stream, options)
   const proxyMessages = options?.serverPromptAssetId
@@ -71,7 +70,6 @@ export function buildProxyBody(
     model: aiBody.model,
     messages: proxyMessages,
     temperature: aiBody.temperature,
-    max_tokens: aiBody.max_tokens,
     stream: aiBody.stream,
   }
   if (aiBody.top_p !== undefined) proxyBody.top_p = aiBody.top_p
@@ -181,10 +179,8 @@ export function resolveProxyBodyDeadlineMs(proxyBody: Record<string, unknown>): 
   if (!['disabled', 'auto', 'high', 'max'].includes(String(reasoningEffort))) {
     throw new Error('AI 请求包含无效推理时限模式')
   }
-  const maxTokens = proxyBody.max_tokens
   return computeAiCallDeadlineMs({
     callKind,
-    maxTokens: typeof maxTokens === 'number' ? maxTokens : Number.NaN,
     reasoningEffort: reasoningEffort as ReasoningEffort,
   })
 }

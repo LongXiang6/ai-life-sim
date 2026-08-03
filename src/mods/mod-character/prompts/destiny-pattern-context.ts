@@ -4,7 +4,7 @@
  * @mod mod-character
  */
 
-import { scaleTokenBudgetByInputLength, stringifyPrompt } from '@/foundation'
+import { stringifyPrompt } from '@/foundation'
 
 import type { KvPromptOrderResult } from '@/core/ai-service/kv-prompt-order'
 
@@ -20,9 +20,6 @@ import {
   PRESET_DESTINY_PATTERNS,
 } from '../constants'
 import { prepareFateUserPrompt } from '../utils/fate-kv'
-
-/** 单条命格输出 token 估算（含描述 + 字段） */
-const DESTINY_PATTERN_TOKENS_PER_ITEM = 280
 
 /** description / effect 长度门禁（下限放宽至 20 字以接纳更多合理短描述，上限移除） */
 export const DESTINY_PATTERN_DESC_MIN = 32
@@ -43,12 +40,6 @@ export interface BuildDestinyPatternContextInput {
   }
   existingNames: string[]
   includePresetNames?: boolean
-}
-
-/** 命格生成 maxTokens：按条数 + userPrompt 长度（含 existingNames 膨胀）估算 */
-export function estimateDestinyPatternTokenBudget(userPromptLength: number): number {
-  const baseOutput = AI_DESTINY_PATTERN_BATCH_SIZE * DESTINY_PATTERN_TOKENS_PER_ITEM
-  return scaleTokenBudgetByInputLength(baseOutput, userPromptLength, 12288)
 }
 
 /**

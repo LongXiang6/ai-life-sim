@@ -20,7 +20,6 @@ import { normalizeNarrativeParagraphs } from '../../../../src/mods/mod-engine/he
 import {
   DEFAULT_WORD_COUNT_TARGET,
   buildWordCountInstruction,
-  computeNarrativeMaxTokens,
   resolveNarrativeWordCountRange,
 } from '../../../../src/mods/mod-engine/constants/narrative-config.ts'
 import { buildLifecycleNarrativeHint } from '../../../../src/mods/mod-engine/helpers/lifecycle-narrative.ts'
@@ -661,22 +660,6 @@ assertSame(
 assertSame(resolveNarrativeWordCountTarget(777), 200, 'non-contract length values must not enter narrative runtime state')
 assertSame(resolveNarrativeWordCountRange(200).preferredMin, 160, 'the 200-character option must expose a focused lower guidance bound')
 assertSame(resolveNarrativeWordCountRange(200).preferredMax, 240, 'the 200-character option must expose a focused upper guidance bound')
-assertSame(computeNarrativeMaxTokens(50), 512, 'the 50-character option must reserve a complete story and optional branch envelope')
-assertSame(computeNarrativeMaxTokens(200), 640, 'the default option must use the first-call-only completion budget')
-assertSame(
-  computeNarrativeMaxTokens(200, { reasoningEffort: 'auto' }),
-  1664,
-  'automatic reasoning must include the startup reasoning allowance',
-)
-assertSame(
-  computeNarrativeMaxTokens(200, { reasoningEffort: 'max' }),
-  4736,
-  'maximum reasoning must include the larger startup reasoning allowance',
-)
-assertOk(
-  NARRATIVE_WORD_COUNT_TARGETS.every((target) => computeNarrativeMaxTokens(target, { reasoningEffort: 'high' }) % 64 === 0),
-  'every narrative completion budget must be rounded up to a 64-token boundary',
-)
 assertOk(
   new Set(NARRATIVE_WORD_COUNT_TARGETS.map((target) => buildWordCountInstruction(target))).size === 16
     && buildWordCountInstruction(200).includes('2至3个短段、4至6个短句')
@@ -1064,7 +1047,7 @@ assertOk(
   /if \(isDeepSeekModel\)[\s\S]{0,220}reasoningEffort === 'disabled'[\s\S]{0,120}thinking = \{ type: 'disabled' \}/.test(aiClientSrc)
     && /proxyBody\.reasoning_effort = reasoningEffort/.test(aiClientSrc)
     && /reasoning_effort:\s*z\.enum\(\['high', 'max'\]\)/.test(proxyRouteSrc)
-    && /type: z\.literal\('disabled'\)/.test(proxyRouteSrc),
+    && /thinking:\s*z\.object\(\{ type: z\.enum\(\['disabled', 'enabled'\]\) \}\)\.strict\(\)\.optional\(\)/.test(proxyRouteSrc),
   'DeepSeek reasoning must transmit an explicit enabled/disabled type and supported reasoning effort',
 )
 assertOk(
@@ -1086,13 +1069,19 @@ assertOk(
 
 assertOk(/preGenActivity\.invalidate\(\)/.test(preGenSrc), 'clearPreGenQueue must invalidate through activity state')
 assertOk(!/clearPreGenQueue\(\)[\s\S]{0,220}isPreGenActive\s*=\s*false/.test(preGenSrc), 'queue clear must not release an active preview early')
-const waitIndex = hooksSrc.indexOf('waitForPreGenQueueItem')
-const syncStepIndex = hooksSrc.indexOf('orchestrator.setTimeStep', waitIndex)
-assertOk(waitIndex >= 0 && syncStepIndex > waitIndex, 'main round must wait for preview before mutating orchestrator time step')
-assertOk(orchestratorSrc.includes('pendingTimeStepAlignmentFromUnit'), 'orchestrator snapshot/hydration must preserve pending alignment')
-assertOk(orchestratorSrc.includes('capturePreviewSnapshot'), 'pre-gen snapshots must include runtime-only pending alignment')
-assertOk(/hydrateFromEngineStore\(previousTimeStep\?/.test(orchestratorSrc), 'stale preview hydration must accept the previous time step')
-assertOk(orchestratorSrc.includes('reconcilePreviewSnapshotWithEngineStore'), 'stale preview must reconcile non-store state before hydrating authoritative store state')
+assertOk(
+  preGenSrc.includes('运行时预览已移除')
+    && !preGenSrc.includes('runPreviewRound')
+    && !preGenSrc.includes('capturePreviewSnapshot'),
+  'pre-generation must remain disabled after runtime snapshot removal',
+)
+assertOk(
+  !orchestratorSrc.includes('capturePreviewSnapshot')
+    && !orchestratorSrc.includes('restorePreviewSnapshot')
+    && !hooksSrc.includes('roundSnapshot')
+    && !hooksSrc.includes('rollbackError'),
+  'failed real rounds must never restore an earlier runtime snapshot',
+)
 
 assertOk(timeScaleSrc.includes('年度连续场景视角'), 'year step must use connected annual scenes')
 assertOk(

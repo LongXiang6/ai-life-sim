@@ -213,32 +213,6 @@ export class SpatialGraphSystem extends BaseSubsystem {
     throw new Error(`[${this.id}] 只接受拥有系统校验后的空间事件，不接受叙事 AI 直接写入`)
   }
 
-  capturePreviewState(): unknown {
-    const state = useWorldStore.getState()
-    return structuredClone({
-      contexts: state.contexts,
-      crossContextEdges: state.crossContextEdges,
-    })
-  }
-
-  restorePreviewState(snapshot: unknown): void {
-    if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) {
-      throw new Error('空间关系图预览快照无效')
-    }
-    const value = snapshot as {
-      contexts?: Record<string, WorldContextInstance>
-      crossContextEdges?: Record<string, SpatialEdge>
-    }
-    if (!value.contexts || !value.crossContextEdges) throw new Error('空间关系图预览快照不完整')
-    const state = useWorldStore.getState()
-    const current = state.currentContextId ? value.contexts[state.currentContextId] : undefined
-    useWorldStore.setState({
-      contexts: structuredClone(value.contexts),
-      crossContextEdges: structuredClone(value.crossContextEdges),
-      ...(current ? projectWorldContextInstance(current) : {}),
-    })
-  }
-
   reset(): void {}
 }
 

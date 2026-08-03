@@ -105,13 +105,13 @@ P6 追加 `economy`、`population`、`settlement`、`work`、`item`；P7 追加 
 ## 回合入口与并发
 
 - 玩家页面通过 `src/mods/mod-engine/hooks.ts` 调用 `executeRoundV2()`；旧的硬编码回合管线不再作为回退。玩家点击、分支确认和错误自动重试共用同一个前置单飞门，互斥锁只等待上一轮本地终态队列、预生成单写者和压缩闸门，不等待数据、基础属性、事件识别或宏观影响 AI；自动重试只有在上一尝试完整结束后才推进计数并安排下一次，过期或并发计时器不能排成新的真实回合。
-- 每次回合先建立 `narrative-round` 执行实例，严格经过 `prepare -> ready -> execute -> transition -> finalize`：准备确认快照和入场条件，就绪阶段排队并登记资源，执行阶段运行本地规则与 AI，过渡阶段等待并汇合结果、完成跨系统校验和原子提交，收束阶段只发布一次终态。阶段节点携带稳定状态码、顺序号和故障接收者，流程所有者只在所有必需节点成功或声明跳过后发布终态。
+- 每次回合先建立 `narrative-round` 执行实例，严格经过 `prepare -> ready -> execute -> transition -> finalize`：准备确认 `RoundContext` 与入场条件，不保存可恢复的运行态快照；就绪阶段排队并登记资源，执行阶段运行本地规则与 AI，过渡阶段等待并汇合结果、完成跨系统校验和原子提交，收束阶段只发布一次终态。阶段节点携带稳定状态码、顺序号和故障接收者，流程所有者只在所有必需节点成功或声明跳过后发布终态。
 - `narrative-round`、MOD 生命周期、`world-init` 和 `subsystem-advance` 都从中央流程登记目录取得部门、子系统和故障接收者；每个执行实例的原始 ready/running/终结事件随开发回合诊断保留，聚合器只读取这些事件，不成为业务状态第二所有者。
 - 同阶段、同依赖、同 `order` 的节点只有显式声明同一 `parallelGroup` 才并发；组内同时运行，终态记录仍按确定性阶段顺序汇合，任一成员失败时等待同组成员收口后停止释放后续节点。
-- 真实回合和预生成共享同一个 Orchestrator 单写者。真实回合开始前等待预生成完成快照恢复，防止两个 AI 调用交错提交或回滚。
-- 每次执行重新计算 Token 上限、加载 Campaign 阶段、创建回合上下文和提交令牌；没有阶段、状态不允许推进或已到终局时不执行正常回合。
+- 真实回合直接使用唯一 Orchestrator 单写者；运行时预生成与整轮快照恢复已经移除，不再等待或恢复上一轮状态。
+- 每次执行加载 Campaign 阶段、创建回合上下文和提交令牌；项目不向 Provider 传递输出 Token 上限，字数目标只作为 Prompt 引导；没有阶段、状态不允许推进或已到终局时不执行正常回合。
 - 第一次正文通过严格协议后先进入 `pendingNarrative` 阅读投影，并由 `acceptNarrativeResponse()` 立即写入正式 `narrativeHistory`、正文审计和回合完成投影。四路后台分析失败或所属事务拒绝时只丢弃该所有者结果，不撤销正文或其他已经提交的后台结果；只有压缩首次调用及两路并发重试全部失败时，已保存正文保留并以压缩阻塞错误阻止下一轮。
-- 数据分析、基础属性分析、事件识别和宏观影响只在阶段图中完成非阻塞登记，结果绑定 `lifeRunId + roundSequence + narrativeId + inputHash` 进入版本化收件箱。下一次真实回合的 `prepare-round` 按分析类型、回合和正文 ID 的确定顺序消费已经终结的记录；仍在运行的记录不阻塞本轮。下一轮预生成在压缩、自动存档和 outcome 的本地终态队列完成后启动，不等待四路后台分析；预览只执行本地推进和第一次叙事调用。
+- 数据分析、基础属性分析、事件识别和宏观影响只在阶段图中完成非阻塞登记，结果绑定 `lifeRunId + roundSequence + narrativeId + inputHash` 进入版本化收件箱。下一次真实回合的 `prepare-round` 按分析类型、回合和正文 ID 的确定顺序消费已经终结的记录；仍在运行的记录不阻塞本轮。运行时预生成已停用，压缩、自动存档和 outcome 完成后直接进入下一次真实推进。
 
 ## 默认回合管线
 
@@ -152,15 +152,15 @@ P6 追加 `economy`、`population`、`settlement`、`work`、`item`；P7 追加 
 
 5. 宏观影响输入固定为活动宏观系统的完整状态与字段/操作契约、玩家影响力证据、完整 `⟦回合上下文⟧JSON` 与最近三轮完整故事。返回只能是唯一纯 JSON 根对象，节点显式声明稳定节点编号、依赖、强度和一个受限系统变化；本地校验活动系统、上下文、证据、精确字段和无环依赖，只提交正文中已经成立且玩家确实有能力造成的直接影响或连锁反应。
 
-`narrative-parser` 与 `tagged-meta-envelope.ts` 只负责第一次玩家可见正文和可选分支，以完整内容为边界兼容纯正文、规范标签、成对 Markdown 围栏、说明前缀和标签空白；解析只采用唯一完整候选，不补括号、不舍弃残缺内容，也不从正文关键词或页面状态反推业务语义。四路后台响应直接进入 AI 客户端的 `JSON.parse + Zod` 单一校验链，只接受一个纯 JSON 根对象；代码块、标签、标题、解释、多个候选、截断终态或残缺 JSON 均失败。第一次 Schema 失败时最多追加一次最小修复说明，并复用原固定资产、原动态输入和完整失败响应；修复请求进入对应 `*-repair` 缓存池，第二次仍失败即终止。主叙事继续保留最多两次有界格式修复。正文发布前失败不显示新内容；正文接纳后任一后台的启动、AI、Schema 或本地提交失败只记录该所有者终态，其他结果和正文不回滚。事件识别失败时额外保留原因果编号、释放旧投递占用，并按严重度重新排期。
+`narrative-parser` 与 `tagged-meta-envelope.ts` 只负责第一次玩家可见正文和可选分支，以完整内容为边界兼容纯正文、规范标签、成对 Markdown 围栏、说明前缀和标签空白；解析只采用唯一完整候选，不补括号、不舍弃残缺内容，也不从正文关键词或页面状态反推业务语义。四路后台响应直接进入 AI 客户端的 `JSON.parse + Zod` 单一校验链，只接受一个纯 JSON 根对象；代码块、标签、标题、解释、多个候选、截断终态或残缺 JSON 均失败。第一次 Schema 失败时最多追加一次最小修复说明，并复用原固定资产、原动态输入和完整失败响应；修复请求进入对应 `*-repair` 缓存池，第二次仍失败即终止。主叙事继续保留最多两次有界格式修复。正文发布前失败不显示新内容；正文接纳后任一后台的启动、AI、Schema 或本地提交失败只记录该所有者终态，不恢复运行时快照，也不撤销正文或已经写入的局部结果。事件识别失败时额外保留因果编号、释放旧投递占用，并按严重度重新排期。
 
 五份固定资产分别是 `mod-engine:narrative:5.8.2`、`mod-engine:narrative-data-analysis:2.0.0`、`mod-engine:narrative-basic-attribute-analysis:2.1.0`、`mod-engine:narrative-event-recognition:3.1.0`、`mod-engine:narrative-macro-impact:1.0.0`。所有标准示例只示范中性空结果或字段格式，不预设人物、世界、事件、属性变化或宏观结果；动态区只传本轮事实，不重复常驻规则。主叙事身份、事实冲突顺序和轮回天赋边界保持不变；篇幅规则只控制密度，时间尺度规则独立决定现场、阶段与时代断点。数据分析、基础属性、事件识别和宏观影响各自拥有唯一中文 Schema 与字段职责；稳定事件 ID、候选状态、历史事实和业务状态仍由所属本地系统拥有。
 
 有力量体系的世界在创建时由 `mod-world` 固化 `PowerFrameworkDefinition`：框架有稳定 ID、显示名、`bounded/open` 进阶规则和本世界连续阶位；AI 只能提出名称、描述和进阶语义，机器 ID 由系统生成。每轮 `⟦全局信息⟧` 只投影当前世界已固化的框架，禁止跨世界比较或恢复固定阶位表。开放体系只能在运行态追加新阶位，不能回写世界配置真源；无力量世界使用 `enabled=false` 且不发送力量框架。
 
-AI 服务把第一次叙事及修复、数据分析及修复、基础属性分析及修复、事件识别及修复、宏观影响及修复、L1/L2/L3 压缩和连接测试分别归入已注册的独立 `InternalCachePool`。DeepSeek 目标由代理把可信账号或设备主体与缓存池组合为稳定不透明 `user_id`：同一主体同一池稳定复用，不同池必然隔离；未知或缺失池不能进入上游。DeepSeek 请求不再转发未声明的 `seed`，非 DeepSeek 目标仍可按自身契约接收。第一次调用按正文目标计算预算；四路后台按各自完整输入规模计算，互不继承上限。2000 字主叙事按合法上界计算 `2688` tokens，并在关闭推理时使用 `155000ms` 共享总时限；浏览器与代理均覆盖响应头后的完整正文读取，流式另保留 `45s` idle timeout。字数偏离不触发拒绝、重写或截断，真实 usage 继续用于后续校准；尚未实现的调用治理仅剩账号级并发调度。
+AI 服务把第一次叙事及修复、数据分析及修复、基础属性分析及修复、事件识别及修复、宏观影响及修复、L1/L2/L3 压缩和连接测试分别归入已注册的独立 `InternalCachePool`。DeepSeek 目标由代理把可信账号或设备主体与缓存池组合为稳定不透明 `user_id`：同一主体同一池稳定复用，不同池必然隔离；未知或缺失池不能进入上游。DeepSeek 请求不再转发未声明的 `seed`，非 DeepSeek 目标仍可按自身契约接收。项目不向任何 Provider 传递输出 Token 上限；2000 字设置只生成 Prompt 篇幅引导，Provider 仍可能因自身模型或上下文限制返回 `finish_reason=length`，该响应按不完整处理。浏览器与代理均覆盖响应头后的完整正文读取，流式另保留 `45s` idle timeout；字数偏离不触发项目侧截断或重写，真实 usage 继续用于观测。
 
-**实时源**：`src/core/ai-service/narrative-guidance-compiler.ts`、`prompt-builder.ts`、`ai-client.ts`、`ai-call-deadline.ts`、`cache-pool.ts`、`narrative-token-budget.ts`、`src/app/api/proxy/route.ts`、`src/mods/mod-engine/campaigns/default/index.ts`、`helpers/branch-intent-resolution.ts`、`narrative-background-result-inbox.ts`、`narrative-data-analysis-context.ts`、`narrative-basic-attribute-context.ts`、`narrative-event-recognition-context.ts`、`narrative-macro-impact-context.ts`、`recent-story-context.ts`、`tagged-meta-envelope.ts`、`narrative-ai-protocol.ts`、`narrative-response-quality.ts`、`src/mods/mod-engine/subsystems/narrative-parser-system.ts`、`src/mods/mod-engine/server/narrative-system-prompt.ts`、`narrative-data-analysis-system-prompt.ts`、`narrative-basic-attribute-system-prompt.ts`、`narrative-event-recognition-system-prompt.ts`、`narrative-macro-impact-system-prompt.ts`、`src/mods/mod-engine/prompts/narrative-prompt.ts`、`narrative-data-analysis-prompt.ts`、`narrative-basic-attribute-prompt.ts`、`narrative-event-recognition-prompt.ts`、`narrative-macro-impact-prompt.ts`。
+**实时源**：`src/core/ai-service/narrative-guidance-compiler.ts`、`prompt-builder.ts`、`ai-client.ts`、`ai-call-deadline.ts`、`cache-pool.ts`、`src/app/api/proxy/route.ts`、`src/mods/mod-engine/campaigns/default/index.ts`、`helpers/branch-intent-resolution.ts`、`narrative-background-result-inbox.ts`、`narrative-data-analysis-context.ts`、`narrative-basic-attribute-context.ts`、`narrative-event-recognition-context.ts`、`narrative-macro-impact-context.ts`、`recent-story-context.ts`、`tagged-meta-envelope.ts`、`narrative-ai-protocol.ts`、`narrative-response-quality.ts`、`src/mods/mod-engine/subsystems/narrative-parser-system.ts`、`src/mods/mod-engine/server/narrative-system-prompt.ts`、`narrative-data-analysis-system-prompt.ts`、`narrative-basic-attribute-system-prompt.ts`、`narrative-event-recognition-system-prompt.ts`、`narrative-macro-impact-system-prompt.ts`、`src/mods/mod-engine/prompts/narrative-prompt.ts`、`narrative-data-analysis-prompt.ts`、`narrative-basic-attribute-prompt.ts`、`narrative-event-recognition-prompt.ts`、`narrative-macro-impact-prompt.ts`。
 
 ## 结构化写入与原子提交
 
@@ -168,10 +168,10 @@ AI 服务把第一次叙事及修复、数据分析及修复、基础属性分�
 2. 系统指令必须命中当前 `systemInstruction` 白名单，并通过 `subsystem-field-registry.ts` 的 `validated-write` 权限、作用域、操作级字段 Schema；未知或不适用字段使整包失效，不能剥离后部分解释。
 3. `RoundCommitBus` 在所属子系统预检前把 `player:current` 解析为 `RoundContext.characterId`，并把整包传给需要跨指令依赖的 owning system；NPC 创建指令可在同包声明计划中的新实体引用，预检只读取该计划，不提前写 Store。
 4. NPC 身份创建在应用阶段显式排在同包依赖操作之前；创建成功后由 `npc-system` 通过 world 公共 API 登记实体引用，关系、目标、行为和记忆随后只消费已登记的稳定 ID。
-5. Orchestrator 对数据分析、基础属性和宏观影响的每个已终结记录分别调用所属子系统校验与提交；同一记录任一变更被拒绝时只恢复该记录提交前的子系统快照并整包拒绝该所有者结果，不回滚正文或其他记录。
+5. Orchestrator 对数据分析、基础属性和宏观影响的每个已终结记录分别调用所属子系统预检与提交；任一变更被拒绝时整包拒绝该所有者结果，不创建或恢复运行时快照，也不回滚正文或其他记录。
 6. 命运意图判定归事件识别所有；当前存在意图却缺少判定、编号不一致，或无当前意图却附带判定，都会拒绝该事件识别事务，但不会使已经接纳的正文或其他后台所有者失败。
 7. 关键事件、语义信号和延期因果先构造历史事务并由账本预检。历史事件提交完成后，事件识别候选通过同一 `historical-event-ledger.submitCandidates()` 登记为 `available`，metadata 绑定执行 ID、回合、上下文、规范总天数、正文审计 ID 和本轮已提交历史事件 ID；候选不是已发生事实。
-8. 候选提交数量、状态或事件识别后续依赖任一不完整时，历史事实、候选审计及该所有者依赖 META 一并回滚；原因果编号保留并按严重度重新排期。完整事务通过后，剧情结构、伏笔、因果、原创记录、关系和记忆引用同一批已提交事件 ID；摘要账本保存合格摘要投影。
+8. 候选提交数量、状态或事件识别后续依赖任一不完整时，停止该所有者后续写入并记录失败；不恢复运行时快照、不撤销正文或已经写入的局部结果，因果编号保留并按严重度重新排期。完整事务通过后，剧情结构、伏笔、因果、原创记录、关系和记忆引用同一批已提交事件 ID；摘要账本保存合格摘要投影。
 9. `acceptNarrativeResponse()` 在正文协议通过后立即写入 `narrativeHistory`，重新收集子系统状态并同步回合完成事件和界面快照；四路后台随后只更新各自业务状态和正文迁移审计。Hook 在压缩闸门成功并同步正式历史后清除对应 `pendingNarrative`；压缩全失败时保留正文并把投影转为 `failed`。
 10. 每条已采用正文都随 `narrativeHistory` 保存逐轮迁移审计，固定记录回合、正文 ID、协议校验、命运意图、历史事务、结构化写入、拒绝原因及可信状态；缺失、轮次不连续、正文 ID 不一致或任一可信门禁失败时，终局评分不能把该轮视为可信迁移。
 11. `health` 的本地死亡检测先产生不可持久化的 pending fact；Orchestrator 为它创建本轮专属 `character-death` 事件计划，历史账本提交成功后再把事件 ID 绑定为正式死亡。缺少该事件、上下文不一致或仍有 pending death 时，正式快照必须拒绝。
@@ -183,9 +183,9 @@ AI 服务把第一次叙事及修复、数据分析及修复、基础属性分�
 - 完整正文按轮写入 `narrativeHistory`，不按字符、轮数或容量静默删除。摘要、记忆、重复率和历史事件都是派生投影，不替代正文。
 - `npc-system` 的完整 Store 保存全部身份、目标、行为与主观记忆；主叙事只读取玩家同场实体、与同场实体直接相连的一跳端点、活动目标，以及同场、相关或最近同一规范时间批次的行为和记忆。`relationship-system` 只投影至少一个端点处于玩家当前场景且作用域适用于当前上下文的关系；后台、休眠和无关世界数据不逐项进入 Prompt，投影不删除完整真源。
 - 每轮成功正文在原子提交内计算近窗重复率并写入只读质量观测；不再以重复审计或后台 AI 改写正文。玩家请求强制分叉时，第一次调用会尽量返回选项，但完整正文不会因分支缺失而失败；若 AI 未返回分支，Orchestrator 仍提交一个无预设选项的分叉点，页面只显示玩家自定义引导输入，确认后建立同一 BranchIntent 并进入下一轮。
-- 压缩管线在正文接纳后作为唯一 AI 释放闸门运行；无到期任务时以零次调用成功，有任务时首次失败后同时发起两次重试，只提交最先通过完整校验的候选并中止另一候选，三次均失败才阻止下一轮。手动存档或加载先取消派生预生成并等待预览快照清理，再等待压缩提交。当前只有三层时间轴压缩：L1 覆盖 4 轮，L2 合并 4 个 L1 覆盖 16 轮，L3 合并 4 个 L2 覆盖 64 轮。L1 延迟一个完整块，完成第 8 轮后生成第 1-4 轮，完成第 12 轮后生成第 5-8 轮；主叙事对最近 4 轮只投影结构化关键事件，无关键事件时投影该轮摘要，避免把上一轮完整措辞作为续写样本。旧存档若含切换前的 5 轮节点，节点和原始明文档案继续保留，但新调度只按当前 4/16/64 轮对齐边界补建和晋升，不能让旧边界阻塞当前层级。
+- 压缩管线在正文接纳后作为唯一 AI 释放闸门运行；无到期任务时以零次调用成功，有任务时首次失败后同时发起两次重试，只提交最先通过完整校验的候选并中止另一候选，三次均失败才阻止下一轮。手动存档或加载只需等待压缩提交，不再等待或清理运行时预览快照。当前只有三层时间轴压缩：L1 覆盖 4 轮，L2 合并 4 个 L1 覆盖 16 轮，L3 合并 4 个 L2 覆盖 64 轮。L1 延迟一个完整块，完成第 8 轮后生成第 1-4 轮，完成第 12 轮后生成第 5-8 轮；主叙事对最近 4 轮只投影结构化关键事件，无关键事件时投影该轮摘要，避免把上一轮完整措辞作为续写样本。旧存档若含切换前的 5 轮节点，节点和原始明文档案继续保留，但新调度只按当前 4/16/64 轮对齐边界补建和晋升，不能让旧边界阻塞当前层级。
 - 压缩 AI 固定使用 `temperature=0`、`top_p=1` 并禁用推理，接收当前压缩组的完整 `sourceFacts`、已有压缩历史和最近三轮完整故事；输出按时间段组织、带 `sourceIds` 且包含 `1..10` 权重的结构化事件。来源覆盖、时间轴节点和压缩档案由 `summary-compressor` 校验和组装，本地只校验权重范围、来源归属、完整覆盖和持久化一致性，不再选择或覆盖 AI 权重。权重 1 仅保留在本存档 L1 明文数据库中并不进入后续主动投影；2-9 按各自衰减间隔逐轮下降，降为 0 后下一轮遗忘；10 为永久记忆，后续 L2/L3 只原样携带其最初压缩结果。
-- 每个存档的压缩系统拥有独立明文 SQLite 记忆库，完整保存 L1 原始 AI 返回、L1 归档、L1/L2/L3 时间轴节点、来源轮次与 ID、初始和当前权重、锚点、有效/遗忘/永久状态及原始压缩响应；这些是压缩、检索、衰减和审计的内部真源。主叙事组装时只消费由记忆生命周期公开的派生时间轴：可见叶子摘要、实体检索命中、最近 4 轮结构化事实、摘要账本和玩家原创事实合并后按实际时间排序，以“时间阶段 + 发生时间 + 事件”文本发送，内部计算字段不进入故事 Prompt；时间桥也只消费事实账本，不保留完整正文旁路。完整正文继续逐轮原样保存、展示、反馈和归档，不被摘要覆盖或删除。预生成只在上一真实回合完成压缩、自动存档和 outcome 后启动；它在临时快照中执行本地推进与第一次叙事调用，只缓存严格完整响应及同回合本地 `LuckNarrativeGuidance`，不发布正文、不调用四路后台分析。正式消费前再次检查签名和有效性并恢复同一引导，正文接纳后再登记后台并行组。
+- 每个存档的压缩系统拥有独立明文 SQLite 记忆库，完整保存 L1 原始 AI 返回、L1 归档、L1/L2/L3 时间轴节点、来源轮次与 ID、初始和当前权重、锚点、有效/遗忘/永久状态及原始压缩响应；这些是压缩、检索、衰减和审计的内部真源。主叙事组装时只消费由记忆生命周期公开的派生时间轴：可见叶子摘要、实体检索命中、最近 4 轮结构化事实、摘要账本和玩家原创事实合并后按实际时间排序，以“时间阶段 + 发生时间 + 事件”文本发送，内部计算字段不进入故事 Prompt；时间桥也只消费事实账本，不保留完整正文旁路。完整正文继续逐轮原样保存、展示、反馈和归档，不被摘要覆盖或删除。运行时预生成和临时快照已移除，正文接纳后直接登记后台并行组。
 - 每次核心叙事上游请求都由 `/api/proxy` 把实际发送的 UTF-8 请求体和实际收到的响应原文追加到该存档该轮的 `.data/narrative-rounds/<lifeRunId>/round-XXXXXX.txt`；第一次叙事、四路后台分析及各自格式修复和失败尝试按顺序形成独立 exchange。文件以字节长度标明原文边界，不重新序列化、不加密、不压缩、不脱敏。轮次头保存独立设备来源编号、账号和用户名；每轮首次真实主叙事 exchange 额外保存一次实际生效的完整文风、版本和全文校验指纹，同轮修复不重复保存文风。
 - 每个真实回合只提交一次 `round-outcome`。成功时 `hooks.ts` 先等待本轮后台压缩、同步最终状态并完成自动存档，再发送包含阶段耗时、质量、采用结果、结构化提交、压缩和存档状态的 outcome；失败时发送一次失败 outcome。浏览器中的开发系统事件随该 outcome 一次性带回，不为单个阶段另发请求。
 - 承载剧情的数据选择、压缩和传递还必须遵循 `D:\AI\ai-life-sim\.agents\skills\ai-life-sim\references\data-integrity.md`。
@@ -194,7 +194,7 @@ AI 服务把第一次叙事及修复、数据分析及修复、基础属性分�
 
 - 成功回合后，`hooks.ts` 在启动下一段预生成前触发自动存档。
 - `collectGameSavePayload()` 先同步活动子系统投影，再统一收集 Engine、Character、World 和 Orchestrator 快照；逐轮迁移审计随叙事历史进入存档，预生成缓存不进入存档载荷。本地气运点数与已采用的叙事引导由 `luck` owning snapshot 保存，预生成引导只在临时缓存中传递。P2-P5 的实体目录、NPC、关系、地理、资源、成长、成就、声望、寿命、生命周期和健康状态分别只由 owning system 的 `capturePersistenceState()` 保存，通用 Store 和页面投影不重复持有这些持久化真源。
-- 加载先检查 MOD、注册表、活动成员和核心载荷；输入有效后取消缓存及在途预生成，等待其 Abort、预览快照恢复和后台压缩提交全部完成，再开始写入 Store。P2-P5 owning snapshot 使用各自封闭的 `schemaVersion: 1` 契约，未知字段、版本、实体端点、上下文、空间节点、证据或来源引用整包拒绝；缺少对应快照时由新所有者初始化空状态或规范初始状态，不读取已淘汰系统或浏览器残留。世界上下文无效、Orchestrator 上下文不一致、死亡缺少专属历史事件或仍有 pending death 时拒绝加载或保存。浏览器刷新后若 world Store 仍有空间位置但实体目录尚未水合，恢复入口先由 world-entity 从组织实体、已知引用和空间端点重建临时目录并建立预览回滚锚点；正式目标快照恢复和正式保存仍执行完整目录校验，不能以临时标签掩盖载荷断链。
+- 加载先检查 MOD、注册表、活动成员和核心载荷；输入有效后取消派生队列并等待后台压缩提交，再开始写入 Store。P2-P5 owning snapshot 使用各自封闭的 `schemaVersion: 1` 契约，未知字段、版本、实体端点、上下文、空间节点、证据或来源引用整包拒绝；缺少对应快照时由新所有者初始化空状态或规范初始状态，不读取已淘汰系统或浏览器残留。世界上下文无效、Orchestrator 上下文不一致、死亡缺少专属历史事件或仍有 pending death 时拒绝加载或保存。正式目标快照恢复和正式保存仍执行完整目录校验，不能以临时标签掩盖载荷断链。
 - 恢复任一步失败时，Engine、Character、World 和 Orchestrator 回到加载前快照；只有完整成功后才切换到模拟阶段。
 - MOD 启动水合只恢复各自 Store 视图，不在玩家上下文尚未补登记时缓存实体目录临时错误；实体目录仍在 owning snapshot 恢复、保存采集和回合读取边界按完整契约校验。
 

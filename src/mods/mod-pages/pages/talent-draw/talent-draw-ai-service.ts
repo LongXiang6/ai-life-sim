@@ -32,7 +32,6 @@ export function buildDestinyPatternContext() {
 export function configureDestinyPatternAIService(): void {
   getDestinyPatternSystem().setAIService(async (systemPrompt: string, userPrompt: string, options?: unknown) => {
     const { callAI, callAIStream } = await import('@/core')
-    const { estimateDestinyPatternTokenBudget } = await import('@/mods/mod-character/destiny-pattern-access')
     const opts = options as {
       pool?: string
       sessionId?: string
@@ -42,7 +41,6 @@ export function configureDestinyPatternAIService(): void {
       stream?: boolean
       onChunk?: (text: string) => void
       signal?: AbortSignal
-      maxTokensOverride?: number
       storySeed?: number
       outputSchema?: Parameters<typeof callAI>[2]['outputSchema']
     }
@@ -55,12 +53,9 @@ export function configureDestinyPatternAIService(): void {
       talentThinkingIntensity,
     } = useSettingsStore.getState()
     const model = customModel || DEFAULT_AI_MODEL
-    const maxTokens = opts?.maxTokensOverride
-      ?? estimateDestinyPatternTokenBudget(systemPrompt.length + userPrompt.length)
     const config: AIModelConfig = {
       model,
       temperature: 0.8,
-      maxTokens,
       stream: useStream,
       reasoningEffort: talentThinkingIntensity,
     }
@@ -77,7 +72,6 @@ export function configureDestinyPatternAIService(): void {
       customBaseUrl: customUrl || undefined,
       customModel: model,
       reasoningEffort: talentThinkingIntensity,
-      overrideMaxTokens: maxTokens,
       storySeed: opts?.storySeed,
       outputSchema: opts?.outputSchema,
       strictSchema: !useStream && Boolean(opts?.outputSchema),

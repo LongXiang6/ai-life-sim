@@ -9,7 +9,6 @@ import {
 const config = {
   model: 'deepseek-v4-pro',
   temperature: 0,
-  maxTokens: 128,
   stream: false,
   reasoningEffort: 'disabled',
 }
@@ -19,7 +18,6 @@ function assertTruncation(error, expected) {
   assert.equal(error.name, 'AIResponseTruncatedError')
   assert.equal(error.finishReason, 'length')
   assert.equal(error.requestId, expected.requestId)
-  assert.equal(error.maxTokens, config.maxTokens)
   assert.equal(error.content, expected.content)
   assert.equal(error.responseLength, expected.content.length)
   return true
@@ -37,8 +35,8 @@ try {
         finish_reason: 'length',
       }],
       usage: {
-        completion_tokens: config.maxTokens,
-        total_tokens: config.maxTokens + 32,
+        completion_tokens: 128,
+        total_tokens: 160,
       },
     }), {
       status: 200,

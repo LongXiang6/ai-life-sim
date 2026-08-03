@@ -1,4 +1,8 @@
 /**
+ * Purpose: Expose the mod-world public API and stable type boundary.
+ * Owner: mod-world
+ * Responsibility: Public exports only; world business decisions stay in owned systems and utilities.
+ *
  * @module index.ts
  * @description MOD 公共 API 导出 —— 世界
  * @mod mod-world
@@ -189,8 +193,6 @@ export {
   assertValidPowerFramework,
   formatPowerFrameworkForPrompt,
 } from './utils/power-framework'
-export { buildWorldInitPipelineBudgets } from './utils/world-init-budgets'
-export type { WorldInitPipelineBudgets } from './utils/world-init-budgets'
 
 export {
   runWorldInitPipeline,
@@ -199,6 +201,7 @@ export {
   fillPromptTemplate,
 } from './utils/world-init-pipeline'
 export type { WorldInitStep, WorldInitPipelineContext } from './utils/world-init-pipeline'
+export { inferAnchorYearFromDescription } from './utils/world-init-anchor-year'
 
 export { parseWorldDimensionCalibrationResponse } from './utils/world-dimension-calibration-parse'
 export { parseWorldTagsResponse } from './utils/world-init-kv'

@@ -156,7 +156,6 @@ export function buildTraceRequest(
     promptAssetId: body.prompt_asset,
     messages: upstreamMessages,
     temperature: body.temperature,
-    max_tokens: body.max_tokens,
     stream: body.stream,
     response_format: body.response_format,
     top_p: body.top_p,

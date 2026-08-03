@@ -38,7 +38,7 @@ function seedPage(page) {
         entitiesGenerated: true, retryCount: 0, maxRetries: 3, errors: [] },
     } }))
     localStorage.setItem('mod-settings:store', JSON.stringify({ version: 8, state: {
-      provider: 'deepseek', customKey: '', customUrl: '', customModel: 'deepseek-v4-flash', temperature: 0.8, topP: 0.8, maxTokens: 4096,
+      provider: 'deepseek', customKey: '', customUrl: '', customModel: 'deepseek-v4-flash', temperature: 0.8, topP: 0.8,
       reasoningEffort: 'disabled', talentThinkingIntensity: 'disabled', aiTalentGeneration: false, preGenerateRounds: 0, storySeed: '20260723-live',
       narrativeStyle: 'default', wordCountTarget: 200, streamingMode: 'off', comfortableParagraphs: true, reduceMotion: true, theme: 'minimal-white',
     }}))

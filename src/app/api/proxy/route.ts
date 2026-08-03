@@ -326,7 +326,6 @@ export async function POST(request: Request): Promise<Response> {
     }
 
     if (body.temperature !== undefined) forwardBody.temperature = body.temperature
-    if (body.max_tokens !== undefined) forwardBody.max_tokens = body.max_tokens
     if (body.stream !== undefined) forwardBody.stream = body.stream
     if (body.response_format !== undefined) forwardBody.response_format = body.response_format
     const isDeepSeekTarget = body.model.toLowerCase().includes('deepseek')
@@ -348,15 +347,8 @@ export async function POST(request: Request): Promise<Response> {
     if (body.top_p !== undefined) forwardBody.top_p = body.top_p
     if (!isDeepSeekTarget && body.seed !== undefined) forwardBody.seed = body.seed
 
-    // thinking 参数透传；自定义 DeepSeek 模型需要确保 thinking 格式正确。
-    if (body.thinking !== undefined) {
-      const normalizedModel = body.model.toLowerCase()
-      if (normalizedModel.includes('deepseek') && body.thinking && 'budget_tokens' in body.thinking && !('type' in body.thinking)) {
-        forwardBody.thinking = { type: 'enabled', budget_tokens: (body.thinking as { budget_tokens: number }).budget_tokens }
-      } else {
-        forwardBody.thinking = body.thinking
-      }
-    }
+    // thinking 只传递开关，不传递任何推理 Token 预算。
+    if (body.thinking !== undefined) forwardBody.thinking = body.thinking
     if (body.reasoning_effort !== undefined) {
       forwardBody.reasoning_effort = body.reasoning_effort
     }
@@ -375,7 +367,6 @@ export async function POST(request: Request): Promise<Response> {
 
     upstreamDeadlineMs = computeAiCallDeadlineMs({
       callKind: body.deadline_context.callKind,
-      maxTokens: body.max_tokens,
       reasoningEffort: body.deadline_context.reasoningEffort,
     })
     let upstreamController = new AbortController()

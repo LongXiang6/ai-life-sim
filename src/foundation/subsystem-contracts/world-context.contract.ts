@@ -139,7 +139,7 @@ export interface ContextTransitionRecord {
   globalTotalDays: number
   sourceLocalDays: number
   targetLocalDays: number
-  status: 'committed' | 'rejected' | 'rolled-back'
+  status: 'committed' | 'rejected' | 'failed'
   reason?: string
 }
 

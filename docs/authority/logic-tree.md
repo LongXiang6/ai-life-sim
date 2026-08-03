@@ -33,7 +33,7 @@
 ## 核心叙事回合
 
 - **目标**：在一次玩家推进中完成时间与本地模拟、上下文组装、AI 叙事、合法状态提交、故事展示和后续持久化。
-- **当前机制**：唯一玩家推进链是 `game-story -> useSimulationAdvance -> executeRoundV2 -> narrative-round 执行图 -> epilogue-check -> compress-save`。Orchestrator 等待预生成释放单写者后运行 `prepare -> ready -> execute -> transition -> finalize` 阶段图；节点声明 `owner/failureTarget/order/dependsOn`、稳定状态码和可选 `parallelGroup`，缺码、非法码、超时或终止性失败只反馈给当前流程所有者。第一次 AI 调用只接收 `全局信息/记忆/本轮引导`，返回完整正文与可选分支；严格正文进入 `pendingNarrative` 阅读投影，并由 `acceptNarrativeResponse()` 立即写入 `narrativeHistory` 和正文审计。随后 `ai-data-analysis`、`ai-basic-attribute-analysis`、`ai-event-recognition`、`ai-macro-impact` 在同一显式并行组只登记非阻塞任务，四路均接收对应完整字段和最近三轮完整故事；结果绑定存档、回合、正文与输入哈希进入版本化收件箱，下一次真实回合的 `prepare-round` 按类型和来源顺序消费已经终结的记录。数据、基础属性和宏观影响分别通过 `RoundCommitBus` 在所属系统事务中预检并提交；事件识别独立提交历史事实、候选、因果处置和依赖 META。任一路失败只回滚本所有者事务，不撤销正文或其他后台结果。`compress-save` 是唯一 AI 释放闸门：无任务直接成功，首次失败后两路并发重试并只采用首个合法候选，三次均失败才阻止下一轮。自动存档和 outcome 完成本地终态后可启动下一轮预生成，不等待四路后台分析；预生成只执行本地推进和第一次叙事调用。
+- **当前机制**：唯一玩家推进链是 `game-story -> useSimulationAdvance -> executeRoundV2 -> narrative-round 执行图 -> epilogue-check -> compress-save`。Orchestrator 直接运行 `prepare -> ready -> execute -> transition -> finalize` 阶段图；节点声明 `owner/failureTarget/order/dependsOn`、稳定状态码和可选 `parallelGroup`，缺码、非法码、超时或终止性失败只反馈给当前流程所有者。第一次 AI 调用只接收 `全局信息/记忆/本轮引导`，返回完整正文与可选分支；严格正文进入 `pendingNarrative` 阅读投影，并由 `acceptNarrativeResponse()` 立即写入 `narrativeHistory` 和正文审计。随后 `ai-data-analysis`、`ai-basic-attribute-analysis`、`ai-event-recognition`、`ai-macro-impact` 在同一显式并行组只登记非阻塞任务，四路均接收对应完整字段和最近三轮完整故事；结果绑定存档、回合、正文与输入哈希进入版本化收件箱，下一次真实回合的 `prepare-round` 按类型和来源顺序消费已经终结的记录。数据、基础属性和宏观影响分别通过 `RoundCommitBus` 在所属系统事务中预检并提交；事件识别独立提交历史事实、候选、因果处置和依赖 META。任一路失败只记录本所有者终态，不创建或恢复运行时快照，不撤销正文或已经写入的局部结果。`compress-save` 是唯一 AI 释放闸门：无任务直接成功，首次失败后两路并发重试并只采用首个合法候选，三次均失败才阻止下一轮。自动存档和 outcome 完成本地终态后直接进入下一次真实推进，不启动运行时预生成。
 - **P6-P8 当前接入**：人口、聚落、工作、物品、经济、文化、艺术、教育、作品、政治、法律、生态、技术和世界观插件都通过同一 `RoundContext` 执行。经济拥有 GDP 流量、货币存量、市场和物品价格；自然资源拥有储量；力量框架由 `mod-world` 在创建时固化，P8 插件只消费本世界的 `rankId/rankIndex` 与证据事件，不建立固定阶位表或第二库存。
 - **当前机制补充**：`summary-compressor` 按 L1=4、L2=16、L3=64 的四倍时间轴规则延迟压缩；压缩 AI 在确定性采样设置下根据完整来源、已有压缩历史和最近三轮故事同时生成时间轴摘要与 `1..10` 权重，本地严格校验来源覆盖、范围和持久化一致性。无到期任务不调用 AI；到期任务首次失败后恰好启动两路并发候选，首个合法结果获胜并中止另一候选，全部失败保留正文但维持压缩阻塞。每个存档的原始 L1 与结构化时间轴写入独立明文 SQLite，内部档案完整保留来源、权重、衰减、遗忘与原始压缩结果；主叙事只消费压缩系统公开的“时间 + 事件”派生投影，不接收层级或计算字段。所有核心叙事调用都经过 `/api/proxy`；代理按 `lifeRunId + round` 被动把实际上游请求与响应逐字追加到同一轮 TXT，不另发日志请求。每条采用正文保存逐轮迁移审计；每个真实回合只发送一次 outcome，用于固化阶段、质量、采用、提交和失败证据。
 - **权责边界**：页面不解析或提交 AI 状态；AI 不直接修改 Store；Orchestrator 只通过活动子系统的契约写入所属状态。
@@ -49,7 +49,7 @@
 
 ## 结构化 AI 写入
 
-- **目标**：把 AI 输出限制为可解析、可校验、可归属和可回滚的状态变更，不从自由正文推断业务事实。
+- **目标**：把 AI 输出限制为可解析、可校验、可归属的状态变更，不从自由正文推断业务事实。
 - **当前机制**：主叙事固定 Prompt 提供唯一 `content` 中性格式示例；数据分析、基础属性分析、事件识别和宏观影响各自只返回一个纯 JSON 根对象，不使用结束字段。系统操作继续以七字段契约校验活动白名单、能力、目标、上下文、操作及精确字段集；基础属性额外接收完整角色画像和 `0=平平无奇、10=人类物种巅峰、>10=超凡` 的逐点语义，只允许四项基础属性的非零整数持久增量；事件识别校验语义核心、稳定因果编号处置、作用域、触发条件、规范延迟、人物、地点、能力、标签和候选重复指纹；宏观影响校验活动系统、玩家影响力证据、上下文、字段和无环依赖。解析不补括号、不舍弃残缺内容、不从部分对象重组；四路后台统一经过 `JSON.parse + Zod`，首次失败最多复用原 Prompt 资产和原输入修复一次，截断终态不进入格式修复。后台的启动、AI、Schema 或本地提交失败只拒绝该所有者结果，不撤销正文或其他已经提交的后台结果。
 - **权责边界**：字段合同由 `subsystem-field-registry.ts` 和生成的字段键共同定义，所属子系统负责预检和提交。Prompt、解析器、页面或历史文档不得建立第二份字段合同。
 - **实时源**：`src/mods/mod-engine/helpers/narrative-ai-protocol.ts`、`tagged-meta-envelope.ts`、`subsystem-field-registry.ts`、`narrative-change-bundle.ts`、`src/mods/mod-engine/subsystems/narrative-parser-system.ts`。
@@ -57,7 +57,7 @@
 ## 历史事实与延迟因果
 
 - **目标**：让关键事件、证据、转变、因果边和延期结果成为可查询、可持久化的事实，而不是只存在于叙事正文。
-- **当前机制**：事件识别中的注册事件被组装为历史事务批次，`historical-event-ledger` 先预检再提交；同一调用识别出的未来事项通过同一账本登记为 `available` 候选审计，不直接生成历史事件。主叙事收到的到期因果与事件识别共用 `causal-delay` 稳定编号，事件识别必须对投递集合逐项返回解决或继续；候选 metadata 绑定同一执行、回合、上下文、规范时间、正文审计和本轮已提交事件 ID。剧情结构、伏笔、延迟因果、关系和记忆只引用已提交事件 ID；事件识别启动、生成、校验或提交失败时，其历史、候选和依赖副作用整包回滚，原因果编号保留、旧投递占用清除并按严重度重新排期，正文和其他后台结果不回滚。
+- **当前机制**：事件识别中的注册事件被组装为历史事务批次，`historical-event-ledger` 先预检再提交；同一调用识别出的未来事项通过同一账本登记为 `available` 候选审计，不直接生成历史事件。主叙事收到的到期因果与事件识别共用 `causal-delay` 稳定编号，事件识别必须对投递集合逐项返回解决或继续；候选 metadata 绑定同一执行、回合、上下文、规范时间、正文审计和本轮已提交事件 ID。剧情结构、伏笔、延迟因果、关系和记忆只引用已提交事件 ID；事件识别启动、生成、校验或提交失败时记录该所有者失败，不恢复运行时快照，因果编号保留、旧投递占用清除并按严重度重新排期，正文和其他后台结果不回滚。
 - **权责边界**：历史账本拥有事实与证据；Orchestrator 拥有执行顺序；延迟因果和记忆系统拥有各自投影。账本不拥有正文或其他系统状态。
 - **实时源**：`src/mods/mod-history-dynamics/`、`src/foundation/subsystem-contracts/historical-event.contract.ts`、`src/mods/mod-engine/subsystems/orchestrator-system.ts`、`src/mods/mod-engine/helpers/event-lifecycle-tracker.ts`。
 
@@ -66,7 +66,7 @@
 - **目标**：让人物在多世界中拥有可恢复的连续身份、当地状态、目标、行动、独立主观记忆和明确作用域关系，同时不复制位置、历史或玩家记忆真源。
 - **当前机制**：角色恢复时由 `world-entity` 登记玩家引用并通过 `spatial-graph` 放置位置；NPC 创建前必须已有 `npc` 实体引用。`npc-system` 以稳定实体 ID 保存身份、当地状态、目标、行为和主观记忆，年龄只从规范总天数派生；`relationship-system` 保存人物或组织之间的有向边以及建立、调整、解除、作用域改变的追加式迁移。活动上下文执行完整规则，后台上下文仅在能力画像允许时生成确定性低频聚合，休眠和关闭上下文冻结，重新进入时只生成一次可追踪追赶记录。
 - **Prompt 投影**：NPC 视图从玩家同场实体开始，扩展到与同场实体直接相连的一跳关系端点，再选取活动目标及同场、相关或最近同一规范时间批次的行为和记忆；关系视图只包含至少一个端点在当前场景且作用域适用于当前上下文的边。所有选择都是完整 Store 的派生视图，不设置固定条数或删除源记录。
-- **权责边界**：实体引用归 `world-entity`，位置归 `spatial-graph`，NPC 私有状态归 `npc-system`，关系图归 `relationship-system`，已成立证据归 `historical-event-ledger`。编排器只协调预检、快照、提交和回滚；缺少 P2 存档快照时初始化空状态，不解释旧 NPC/关系载荷。
+- **权责边界**：实体引用归 `world-entity`，位置归 `spatial-graph`，NPC 私有状态归 `npc-system`，关系图归 `relationship-system`，已成立证据归 `historical-event-ledger`。编排器只协调预检、提交和终态；缺少 P2 存档快照时初始化空状态，不解释旧 NPC/关系载荷。
 - **实时源**：`src/foundation/subsystem-contracts/npc-social.contract.ts`、`src/mods/mod-world/subsystems/world-entity-system.ts`、`src/mods/mod-npc/`、`src/mods/mod-social/`、`src/mods/mod-engine/helpers/round-commit-bus.ts`。
 
 ## 空间、地理与资源
@@ -85,7 +85,7 @@
 
 ## 寿命、生命周期与死亡
 
-- **目标**：从规范时间得到可替换的年龄和阶段规则，并把健康、死亡证据和尾声作为同一条可回滚流程完成。
+- **目标**：从规范时间得到可替换的年龄和阶段规则，并把健康、死亡证据和尾声作为同一条完整提交流程完成。
 - **当前机制**：`lifespan` 按天保存生物钟模式、基础/最大寿命和有证据的调整；`lifecycle-system` 从 `totalDays`、创建年龄锚点和寿命规则派生年龄、当前阶段及非累计属性修正；`health` 按 `daysPassed` 结算生命、体力、精神、伤病和当地恢复规则。死亡检测先生成 pending fact，RoundCommit 为其创建专属 `character-death` 历史事件，账本成功提交后 `health` 才绑定事件 ID 成为正式死亡；随后现有 `epilogue-check` 条件阶段生成并保存尾声。
 - **权责边界**：时间归 `TimeSystem`，生命阶段与属性修正归 `lifecycle-system`，伤病、死亡和尾声归 `health`，历史证据归账本。pending death 不得持久化；固定 `life-stage`、`attribute-decay` 和常驻 `post-death-epilogue` 均无独立入口或状态。
 - **实时源**：`src/foundation/subsystem-contracts/life-cycle.contract.ts`、`src/mods/mod-character/subsystems/lifespan-system.ts`、`lifecycle-system.ts`、`health-system.ts`、`src/mods/mod-engine/subsystems/orchestrator-system.ts`。
@@ -100,7 +100,7 @@
 ## 存档与恢复
 
 - **目标**：保存完整可恢复的本局事实，并在坏快照或不一致上下文下保持原运行态不被部分覆盖。
-- **当前机制**：自动保存从 Engine、Character、World、Orchestrator 和活动所属系统统一收集快照；P2-P5 的实体目录、NPC、关系、地理、资源、成长、成就、声望、寿命、生命周期和健康状态只进入各 owning system 的封闭版本快照，不在通用 Store 或浏览器持久状态重复保存。手动本地或云端保存由引擎边界先取消预生成、等待预览清理与后台压缩提交，再收集同一载荷。恢复先验证载荷并检查运行成员，再取消在途预生成并等待单写者释放，随后写入核心 Store、恢复 Orchestrator 和所属系统；缺少新 owning snapshot 时初始化规范状态，不读取旧所有者载荷，未知字段、断开的跨系统引用、未绑定历史事件的死亡或 pending death 使加载/保存失败。任一步失败则恢复进入函数前的核心快照，不切换到模拟页。刷新后世界浏览器投影缺少实体目录时，入口先重建可证明的临时引用以建立回滚锚点；正式目标 owning snapshot 仍由 world-entity 严格验证，临时标签不能让坏载荷通过。
+- **当前机制**：自动保存从 Engine、Character、World、Orchestrator 和活动所属系统统一收集持久化状态；P2-P5 的实体目录、NPC、关系、地理、资源、成长、成就、声望、寿命、生命周期和健康状态只进入各 owning system 的封闭版本快照，不在通用 Store 或浏览器持久状态重复保存。手动本地或云端保存由引擎边界等待后台压缩提交后收集同一载荷。恢复先验证载荷并检查运行成员，再取消在途派生队列并等待单写者释放，随后写入核心 Store、恢复 Orchestrator 和所属系统；缺少新 owning snapshot 时初始化规范状态，不读取旧所有者载荷，未知字段、断开的跨系统引用、未绑定历史事件的死亡或 pending death 使加载/保存失败。持久化导入任一步失败时恢复进入函数前的存档状态，不切换到模拟页；这不属于核心回合运行时回退。正式目标 owning snapshot 仍由 world-entity 严格验证，不能以临时标签掩盖载荷断链。
 - **权责边界**：`save-restore.ts` 负责收集和恢复顺序，`src/core/storage/` 负责槽位与序列化，各 Store/子系统负责自身字段合法性。页面不拼装第二份存档载荷。
 - **实时源**：`src/mods/mod-engine/helpers/save-restore.ts`、`src/core/storage/`、所属 Store 的快照方法、`src/mods/mod-engine/hooks.ts`。
 

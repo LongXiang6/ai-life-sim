@@ -19,7 +19,7 @@ import {
   notifyAiError,
 } from './errors'
 import { resolveCacheUsageContext } from './request-body'
-import { isTruncatedResponse, resolveMaxTokens } from './response-utils'
+import { isTruncatedResponse } from './response-utils'
 import type { AICallOptions, AiMessage, FetchAIResult } from './types'
 
 const MAX_RETRY = 3
@@ -59,9 +59,8 @@ export async function executeAiFetchWithRetry(
         durationMs: Math.max(0, Math.round(performance.now() - attemptStartedAt)),
       })
 
-      const maxTokens = resolveMaxTokens(options)
-      if (isTruncatedResponse(usage, maxTokens, finishReason)) {
-        throw new AIResponseTruncatedError(content, finishReason, requestId, maxTokens, usage)
+      if (isTruncatedResponse(usage, finishReason)) {
+        throw new AIResponseTruncatedError(content, finishReason, requestId, usage)
       }
       if (!isValidAiContent(content)) {
         if (attempt < MAX_RETRY - 1) {
@@ -175,7 +174,6 @@ export async function executeAiFetchWithRetry(
               ? {
                   failureKind: 'response-truncated',
                   responseLength: error.responseLength,
-                  maxTokens: error.maxTokens ?? resolveMaxTokens(options),
                 }
               : {}),
           },

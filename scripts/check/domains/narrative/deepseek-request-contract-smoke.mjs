@@ -16,7 +16,6 @@ import {
 const config = {
   model: 'deepseek-v4-pro',
   temperature: 0.7,
-  maxTokens: 4096,
   stream: false,
   reasoningEffort: 'high',
 }
@@ -102,7 +101,6 @@ function routeRequest(cachePool, model = 'deepseek-v4-flash', seed = 42) {
       cache_pool: cachePool,
       model,
       messages: [{ role: 'user', content: 'ping' }],
-      max_tokens: 16,
       stream: false,
       seed,
       thinking: model.toLowerCase().includes('deepseek') ? { type: 'disabled' } : undefined,
@@ -144,6 +142,10 @@ try {
 assert(
   forwardedBodies[0]?.user_id === forwardedBodies[1]?.user_id,
   'the same trusted subject and cache pool must reuse one stable DeepSeek user_id',
+)
+assert(
+  forwardedBodies.every((request) => request.max_tokens === undefined),
+  'all DeepSeek and generic upstream requests must omit output-token caps',
 )
 assert(
   forwardedBodies[0]?.user_id !== forwardedBodies[2]?.user_id,
@@ -213,9 +215,8 @@ assert(
   'deterministic 400 responses must not enter the internal retry path',
 )
 assert(
-  proxySource.includes("normalizedModel.includes('deepseek')")
-    && proxySource.includes("forwardBody.thinking = { type: 'enabled', budget_tokens:"),
-  'proxy must defensively normalize legacy custom DeepSeek thinking bodies',
+  !proxySource.includes('budget_tokens'),
+  'proxy must expose only reasoning mode and never forward a token budget',
 )
 assert(
   settingsSource.includes("thinking: testModel.toLowerCase().includes('deepseek')")

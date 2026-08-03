@@ -66,7 +66,6 @@ export const EVENTS = {
   MOD_WORLD_ENTITIES_GENERATED: 'mod-world:entities-generated',
   MOD_WORLD_CONTEXT_LEFT: 'mod-world:context-left',
   MOD_WORLD_CONTEXT_ARRIVED: 'mod-world:context-arrived',
-  MOD_WORLD_CONTEXT_TRANSITION_ROLLED_BACK: 'mod-world:context-transition-rolled-back',
   // mod-world-map
   MOD_WORLD_MAP_NODE_SELECTED: 'mod-world-map:node-selected',
   MOD_WORLD_MAP_VIEW_CHANGED: 'mod-world-map:view-changed',

@@ -69,7 +69,7 @@ export { useGlobalStore } from './global-store'
 export type { GlobalState, GamePhase } from './global-store'
 
 // AI 服务
-export { AIResponseTruncatedError, callAI, callAIConversation, callAIStream, callAIStreamConversation, callAIDegraded, callAIStreamDegraded, handleStream, buildSegmentedPrompt, buildNarrativeUserJson, computeAiCallDeadlineMs, computeNarrativeBasicAttributeTokenBudget, computeNarrativeDataAnalysisTokenBudget, computeNarrativeEventRecognitionTokenBudget, computeNarrativeMacroImpactTokenBudget, recordRoundCacheMetrics, getRoundCacheMetrics, callAIWithPromptTemplate, isAiCredentialError, isAiResponseTruncatedError, parseAIJSON } from './ai-service'
+export { AIResponseTruncatedError, callAI, callAIConversation, callAIStream, callAIStreamConversation, callAIDegraded, callAIStreamDegraded, handleStream, buildSegmentedPrompt, buildNarrativeUserJson, computeAiCallDeadlineMs, recordRoundCacheMetrics, getRoundCacheMetrics, callAIWithPromptTemplate, isAiCredentialError, isAiResponseTruncatedError, parseAIJSON } from './ai-service'
 export type { AICallOptions, CachePoolType, InternalCachePool, CacheHitInfo, PromptSegments, RoundCacheMetrics, AICallLogContext, AICallUsageSnapshot, UnifiedCallOptions, PromptTemplateLike } from './ai-service'
 
 // 存储服务

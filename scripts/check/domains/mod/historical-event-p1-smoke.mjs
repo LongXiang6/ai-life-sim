@@ -452,71 +452,71 @@ assertOk(
   'candidate audit retrieval must remain bounded and pageable without deleting history',
 )
 
-// 预览期间可以临时生成同名跨世界事实、候选和因果边，但恢复后不得污染真实时间线。
-const previewBaseline = JSON.stringify(ledger.capturePreviewState())
-const previewEventA = ledger.commitBatch({
-  source: { kind: 'system', sourceId: 'preview-id-smoke' },
+// 事务测试使用持久化状态导出作为本地断言基线，不调用运行时预览或回退入口。
+const transactionBaseline = JSON.stringify(ledger.capturePersistenceState())
+const transactionEventA = ledger.commitBatch({
+  source: { kind: 'system', sourceId: 'transaction-id-smoke' },
   events: [{
-    eventType: 'same-name-preview',
-    title: '同名预览事件',
-    description: '世界甲的临时预览事件。',
+    eventType: 'same-name-transaction',
+    title: '同名事务事件',
+    description: '世界甲的临时事务事件。',
     scope: { kind: 'context', contextIds: [contextA] },
     status: 'occurred',
   }],
 }, validation)
 activateContext(contextB)
 const validationB = { ...validation, contextId: contextB }
-const previewEventB = ledger.commitBatch({
-  source: { kind: 'system', sourceId: 'preview-id-smoke' },
+const transactionEventB = ledger.commitBatch({
+  source: { kind: 'system', sourceId: 'transaction-id-smoke' },
   events: [{
-    eventType: 'same-name-preview',
-    title: '同名预览事件',
-    description: '世界乙的临时预览事件。',
+    eventType: 'same-name-transaction',
+    title: '同名事务事件',
+    description: '世界乙的临时事务事件。',
     scope: { kind: 'context', contextIds: [contextB] },
     status: 'resolved',
   }],
 }, validationB)
 activateContext(contextA)
-const previewEvents = {
-  ok: previewEventA.ok && previewEventB.ok,
-  eventIds: [...previewEventA.eventIds, ...previewEventB.eventIds],
+const transactionEvents = {
+  ok: transactionEventA.ok && transactionEventB.ok,
+  eventIds: [...transactionEventA.eventIds, ...transactionEventB.eventIds],
 }
-assertOk(previewEvents.ok, 'preview must be able to create valid temporary facts in each active context')
+assertOk(transactionEvents.ok, 'transaction must be able to create valid temporary facts in each active context')
 assertOk(
-  previewEvents.eventIds.length === 2 && new Set(previewEvents.eventIds).size === 2,
+  transactionEvents.eventIds.length === 2 && new Set(transactionEvents.eventIds).size === 2,
   'ledger-assigned IDs for same-name cross-world events must not collide',
 )
 ledger.submitCandidates({
-  source: { kind: 'system', sourceId: 'preview-candidate-smoke' },
+  source: { kind: 'system', sourceId: 'transaction-candidate-smoke' },
   candidates: [{
-    candidateId: 'candidate:preview-only',
-    eventType: 'preview-candidate',
-    title: '预览候选',
-    description: '只能存在于预览快照内。',
+    candidateId: 'candidate:transaction-only',
+    eventType: 'transaction-candidate',
+    title: '事务候选',
+    description: '仅用于事务状态断言。',
     scope: { kind: 'context', contextIds: [contextA] },
   }],
 }, validation)
-const previewEdge = ledger.commitCrossContextEdge({
-  edgeId: 'edge:preview-only',
-  fromEventId: previewEvents.eventIds[0],
-  toEventId: previewEvents.eventIds[1],
+const transactionEdge = ledger.commitCrossContextEdge({
+  edgeId: 'edge:transaction-only',
+  fromEventId: transactionEvents.eventIds[0],
+  toEventId: transactionEvents.eventIds[1],
   relation: 'propagates',
   scope: { kind: 'cross-context', contextIds: [contextA, contextB] },
 }, validation)
-assertOk(previewEdge.ok, 'preview must be able to create a valid temporary causal edge')
+assertOk(transactionEdge.ok, 'transaction must be able to create a valid temporary causal edge')
 assertOk(
   ledger.queryEvents().length === 2
-    && ledger.queryCandidates({ candidateIds: ['candidate:preview-only'] }).length === 1
-    && ledger.queryCausalEdges({ eventId: previewEvents.eventIds[0] }).length === 1,
-  'preview mutations must be observable before restoration',
+    && ledger.queryCandidates({ candidateIds: ['candidate:transaction-only'] }).length === 1
+    && ledger.queryCausalEdges({ eventId: transactionEvents.eventIds[0] }).length === 1,
+  'transaction mutations must be observable before restoration',
 )
-ledger.restorePreviewState(JSON.parse(previewBaseline))
-assertOk(JSON.stringify(ledger.capturePreviewState()) === previewBaseline, 'preview restore must recover the complete pre-preview ledger exactly')
+ledger.restorePersistenceState(JSON.parse(transactionBaseline))
+assertOk(JSON.stringify(ledger.capturePersistenceState()) === transactionBaseline, 'persistence restore must recover the complete transaction baseline exactly')
 assertOk(
-  previewEvents.eventIds.every((eventId) => ledger.getEvent(eventId) === undefined)
-    && ledger.queryCandidates({ candidateIds: ['candidate:preview-only'] }).length === 0
-    && ledger.queryCausalEdges({ eventId: previewEvents.eventIds[0] }).length === 0,
-  'preview restore must remove temporary facts, candidates, and causal edges',
+  transactionEvents.eventIds.every((eventId) => ledger.getEvent(eventId) === undefined)
+    && ledger.queryCandidates({ candidateIds: ['candidate:transaction-only'] }).length === 0
+    && ledger.queryCausalEdges({ eventId: transactionEvents.eventIds[0] }).length === 0,
+  'persistence restore must remove temporary facts, candidates, and causal edges',
 )
 
 // 候选只有通过拥有系统提升后才成为唯一事实，并留下 accepted 审计。
@@ -1386,7 +1386,7 @@ assertOk(
   'plot, tagged memory, foreshadowing, and core NPC memory must retain the accepted historical event IDs',
 )
 assertOk(
-  morality.capturePreviewState().state.value === 1
+  morality.collectState(orchestrator.getRoundContextSnapshot()).data.value === 1
     && orchestrator.getState().characterCreations.some((creation) => creation.name === '潮汐结绳'),
   'valid main-chain META must preserve ordinary state and accepted original creations',
 )
@@ -1400,7 +1400,7 @@ assertOk(
 )
 
 function moveOrchestratorClock(roundSequence, totalDays) {
-  const snapshot = orchestrator.captureSnapshot()
+  const snapshot = orchestrator.exportPersistenceState()
   const nextRound = {
     ...snapshot.state.round,
     year: Math.floor(totalDays / 365),
@@ -1409,7 +1409,7 @@ function moveOrchestratorClock(roundSequence, totalDays) {
   snapshot.state.totalRounds = roundSequence
   snapshot.state.round = nextRound
   snapshot.timeRound = nextRound
-  orchestrator.restoreSnapshot(snapshot)
+  orchestrator.importPersistenceState(snapshot)
 }
 
 // 到期检查只把事项送进 Prompt；没有完整语义数据时不得提前写 resolutionEventId。
@@ -1508,11 +1508,11 @@ assertOk(
   'causal resolution must transition the origin fact and link it to the committed resolution event',
 )
 
-// 事件识别所有者注入下游失败时，只回滚自身事务；正文和已成功的数据分析独立保留。
+// 事件识别所有者注入下游失败时，不恢复运行时快照；正文和已经写入的局部结果保持可见。
 moveOrchestratorClock(6, rescheduledDueTotalDays + 1)
-const rollbackMoralityValue = morality.capturePreviewState().state.value
+const rollbackMoralityValue = morality.collectState(orchestrator.getRoundContextSnapshot()).data.value
 const rollbackHistoryLength = orchestrator.getState().narrativeHistory.length
-const failureDigest = '本轮正文有效，但注入的下游故障使全部结构化副作用回滚。'
+const failureDigest = '本轮正文有效，但注入的下游故障使事件识别提前终止。'
 let eventOwnerBaseline
 const originalResolveForeshadowing = foreshadowing.resolveForeshadowing
 foreshadowing.resolveForeshadowing = () => {
@@ -1585,12 +1585,12 @@ try {
   }], {
     afterDataCommit: () => {
       eventOwnerBaseline = {
-        ledger: ledger.capturePreviewState(),
-        causal: causalDelay.capturePreviewState(),
-        plot: plotStructure.capturePreviewState(),
-        foreshadowing: foreshadowing.capturePreviewState(),
-        memory: memoryLifecycle.capturePreviewState(),
-        coreMemory: coreMemory.capturePreviewState(),
+        ledger: ledger.capturePersistenceState(),
+        causal: causalDelay.capturePersistenceState(),
+        plot: plotStructure.capturePersistenceState(),
+        foreshadowing: foreshadowing.capturePersistenceState(),
+        memory: memoryLifecycle.capturePersistenceState(),
+        coreMemory: coreMemory.capturePersistenceState(),
         characterCreations: structuredClone(orchestrator.getState().characterCreations),
       }
     },
@@ -1602,52 +1602,42 @@ try {
 }
 
 assertOk(
-  morality.capturePreviewState().state.value === rollbackMoralityValue + 1,
+  morality.collectState(orchestrator.getRoundContextSnapshot()).data.value === rollbackMoralityValue + 1,
   'successful data-analysis owner commit must survive an independent event-recognition failure',
 )
 assertOk(
   eventOwnerBaseline
-    && JSON.stringify(ledger.capturePreviewState()) === JSON.stringify(eventOwnerBaseline.ledger),
-  'event-recognition failure must roll back its historical-ledger transaction',
+    && JSON.stringify(ledger.capturePersistenceState()) !== JSON.stringify(eventOwnerBaseline.ledger),
+  'event-recognition failure must not restore the runtime historical-ledger state',
 )
 assertOk(
   eventOwnerBaseline
-    && JSON.stringify(causalDelay.capturePreviewState()) === JSON.stringify(eventOwnerBaseline.causal),
-  'event-recognition failure must roll back newly registered causal state',
+    && JSON.stringify(causalDelay.capturePersistenceState()) !== JSON.stringify(eventOwnerBaseline.causal),
+  'event-recognition failure must not restore newly registered causal state',
 )
 assertOk(
   eventOwnerBaseline
-    && JSON.stringify(plotStructure.capturePreviewState()) === JSON.stringify(eventOwnerBaseline.plot),
-  'event-recognition failure must roll back plot signals',
+    && JSON.stringify(plotStructure.capturePersistenceState()) !== JSON.stringify(eventOwnerBaseline.plot),
+  'event-recognition failure must keep already-recorded plot signals',
 )
 assertOk(
   eventOwnerBaseline
-    && JSON.stringify(foreshadowing.capturePreviewState()) === JSON.stringify(eventOwnerBaseline.foreshadowing),
-  'event-recognition failure must roll back foreshadowing changes',
+    && JSON.stringify(foreshadowing.capturePersistenceState()) !== JSON.stringify(eventOwnerBaseline.foreshadowing),
+  'event-recognition failure must keep already-recorded foreshadowing changes',
 )
 assertOk(
   eventOwnerBaseline
-    && JSON.stringify(memoryLifecycle.capturePreviewState()) === JSON.stringify(eventOwnerBaseline.memory),
-  'event-recognition failure must roll back semantic memory changes',
-)
-assertOk(
-  eventOwnerBaseline
-    && JSON.stringify(coreMemory.capturePreviewState()) === JSON.stringify(eventOwnerBaseline.coreMemory),
-  'event-recognition failure must roll back core-memory relationship changes',
-)
-assertOk(
-  eventOwnerBaseline
-    && JSON.stringify(orchestrator.getState().characterCreations) === JSON.stringify(eventOwnerBaseline.characterCreations),
-  'event-recognition failure must roll back character creations',
+    && JSON.stringify(orchestrator.getState().characterCreations) !== JSON.stringify(eventOwnerBaseline.characterCreations),
+  'event-recognition failure must keep already-recorded character creations',
 )
 assertOk(
   rollbackError === undefined
     && orchestrator.getState().narrativeHistory.length === rollbackHistoryLength + 1
     && orchestrator.getState().narrativeHistory.at(-1)?.text.includes('新的航线已经出现')
     && !digestLedger.getEntries().some((entry) => entry.round === 6 && entry.digest === failureDigest)
-    && !orchestrator.getState().characterCreations.some((creation) => creation.name === '外海潮图')
-    && !causalDelay.getCausalEvents().some((event) => event.description === '获救水手承诺未来归还修船物资。'),
-  'event-recognition commit failure must remain non-blocking, retain the body, and expose none of its dependent metadata',
+    && orchestrator.getState().characterCreations.some((creation) => creation.name === '外海潮图')
+    && causalDelay.getCausalEvents().some((event) => event.description === '获救水手承诺未来归还修船物资。'),
+  'event-recognition commit failure must remain non-blocking, retain the body, and avoid restoring an earlier round',
 )
 
 // 真实 applyGameSave：账本 v2 恢复失败时 engine/character/world/orchestrator/ledger 整包回滚。

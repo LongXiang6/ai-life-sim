@@ -28,23 +28,8 @@ export {
   BRIDGE_SUMMARY_MIN_TICKS,
   EXPERIMENTAL_TIME_STEPS_UI,
 } from './prompt-flags'
-export { getAiUsageStats, resetAiUsageStats, formatNanoYuan, DEEPSEEK_PRICE_VERSION, DEEPSEEK_PRICE_SOURCE, getNarrativeTokenCalibration } from './usage-stats'
+export { getAiUsageStats, resetAiUsageStats, formatNanoYuan, DEEPSEEK_PRICE_VERSION, DEEPSEEK_PRICE_SOURCE } from './usage-stats'
 export type { AiUsageAggregate, AiUsageContext, AiUsageStatsSnapshot, NarrativeTokenCalibrationSample } from './usage-stats'
-export {
-  computeNarrativeBasicAttributeTokenBudget,
-  computeNarrativeDataAnalysisTokenBudget,
-  computeNarrativeEventRecognitionTokenBudget,
-  computeNarrativeMacroImpactTokenBudget,
-  computeNarrativeTokenBudget,
-} from './narrative-token-budget'
-export type {
-  NarrativeBasicAttributeTokenBudgetInput,
-  NarrativeDataAnalysisTokenBudgetInput,
-  NarrativeEventRecognitionTokenBudgetInput,
-  NarrativeMacroImpactTokenBudgetInput,
-  NarrativeTokenBudgetCalibration,
-  NarrativeTokenBudgetInput,
-} from './narrative-token-budget'
 export { fetchDeepSeekBalance } from './deepseek-balance-client'
 export type { DeepSeekBalanceInfo, DeepSeekBalanceSnapshot } from './deepseek-balance-client'
 export { diagnoseApiError, diagnoseProxyError, formatApiErrorForUser } from './api-error'

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * @module gate-check.mjs
- * @description C0 变更记录 -> C1 lint / C2 tsc 并行 -> C3 领域检查的唯一门禁
+ * Purpose: Run the production release gate through one explicit concurrent execution graph.
+ * Owner: quality:infrastructure
+ * Responsibility: Gate-level scheduling, deadlines, deterministic status aggregation, and terminal output only.
  */
 
 import { spawn } from 'node:child_process'
@@ -89,33 +90,44 @@ function printStepResult(result) {
   }
 }
 
-function printErrorSummary() {
+function printErrorSummary(sinceMs) {
   const reportsDir = join(projectRoot, 'reports')
   if (!fs.existsSync(reportsDir)) return
   const runFiles = fs.readdirSync(reportsDir)
     .filter((file) => file.startsWith('check-run-') && file.endsWith('.json'))
     .map((file) => ({ file, modifiedAt: fs.statSync(join(reportsDir, file)).mtimeMs }))
-    .sort((left, right) => right.modifiedAt - left.modifiedAt)
+    .filter((file) => file.modifiedAt >= sinceMs)
+    .sort((left, right) => right.modifiedAt - left.modifiedAt || (left.file < right.file ? -1 : 1))
   if (runFiles.length > 0) console.log(`\n[gate-check] 报告: reports/${runFiles[0].file}`)
 
   const files = fs.readdirSync(reportsDir)
     .filter((file) => file.startsWith('checker-') && file.endsWith('.json'))
     .map((file) => ({ file, modifiedAt: fs.statSync(join(reportsDir, file)).mtimeMs }))
-    .sort((left, right) => right.modifiedAt - left.modifiedAt)
+    .filter((file) => file.modifiedAt >= sinceMs)
+    .sort((left, right) => left.modifiedAt - right.modifiedAt || (left.file < right.file ? -1 : 1))
   if (files.length === 0) return
-  try {
-    const json = JSON.parse(fs.readFileSync(join(reportsDir, files[0].file), 'utf8'))
-    const errors = (json.Results ?? []).filter((result) => result.Level === 'ERROR')
-    console.log(`\n[gate-check] ErrorOnly 摘要: ${errors.length} FAIL`)
-    for (const error of errors) {
+  const errors = new Map()
+  for (const file of files) {
+    try {
+      const json = JSON.parse(fs.readFileSync(join(reportsDir, file.file), 'utf8'))
+      for (const error of (json.Results ?? []).filter((result) => result.Level === 'ERROR')) {
+        const key = `${error.Rule}\0${error.File}\0${error.Line}\0${error.Message}`
+        errors.set(key, error)
+      }
+    } catch {
+      // PowerShell component reports are diagnostic projections, not gate status owners.
+    }
+  }
+  if (errors.size > 0) {
+    console.log(`\n[gate-check] ErrorOnly 摘要: ${errors.size} FAIL`)
+    for (const error of errors.values()) {
       console.log(`  ${error.Rule} ${error.File} - ${error.Message}`)
     }
-  } catch {
-    // PowerShell 摘要不是门禁真源；解析失败不改变已经取得的步骤状态。
   }
 }
 
 async function main() {
+  const startedAt = Date.now()
   cleanupOldReports(projectRoot)
   const executionId = `gate-check-${new Date().toISOString()}-${process.pid}`
   printPhase('prepare', 'running', 'gate-configuration-loading', executionId)
@@ -134,46 +146,39 @@ async function main() {
   }
 
   printPhase('prepare', 'succeeded', 'gate-inputs-valid', c0.nodeId)
-  printPhase('ready', 'succeeded', 'lint-and-typescript-queued', 'parallel=2')
-  const [c1, c2] = await Promise.all([
+  printPhase('ready', 'succeeded', 'release-checks-queued', 'parallel=3')
+  const c3Name = quick ? 'c3-check-quick' : 'c3-check-full'
+  const [c1, c2, c3] = await Promise.all([
     spawnAsync('c1-lint', 'npm', ['run', 'lint'], { timeoutMs: 120_000 }),
     spawnAsync('c2-typescript', 'npx', ['tsc', '--noEmit'], { timeoutMs: 120_000 }),
+    spawnAsync(c3Name, 'npm', ['run', quick ? 'check:quick' : 'check'], {
+      timeoutMs: 120_000,
+      env: {
+        ...process.env,
+        CHECK_QUIET: quiet ? '1' : '0',
+      },
+    }),
   ])
   printStepResult(c1)
   printStepResult(c2)
-  if (c1.statusCode !== 'succeeded' || c2.statusCode !== 'succeeded') {
-    printPhase('transition', 'failed', 'prerequisite-check-failed', `${c1.statusCode},${c2.statusCode}`)
-    printPhase('finalize', 'failed', 'gate-checks-failed')
-    process.exitCode = 1
-    return
-  }
-
-  const c3Name = quick ? 'c3-check-quick' : 'c3-check-full'
-  const c3 = await spawnAsync(c3Name, 'npm', ['run', quick ? 'check:quick' : 'check'], {
-    timeoutMs: 120_000,
-    env: {
-      ...process.env,
-      CHECK_QUIET: quiet ? '1' : '0',
-      CHECK_UPSTREAM_STATUSES: JSON.stringify({ lint: c1.statusCode, typescript: c2.statusCode }),
-    },
-  })
   printStepResult(c3)
+  const failed = [c1, c2, c3].filter((result) => result.statusCode !== 'succeeded')
   printPhase(
     'execute',
-    c3.statusCode,
-    c3.statusCode === 'succeeded' ? 'all-gate-nodes-completed' : 'domain-check-failed',
-    c3.nodeId,
+    failed.length === 0 ? 'succeeded' : 'failed',
+    failed.length === 0 ? 'all-gate-nodes-completed' : 'release-check-failed',
+    failed.length === 0 ? 'parallel=3' : failed.map((result) => result.nodeId).join(','),
   )
 
-  if (c3.statusCode !== 'succeeded') {
-    if (errorOnly) printErrorSummary()
+  if (failed.length > 0) {
+    if (errorOnly) printErrorSummary(startedAt)
     printPhase('transition', 'failed', 'failure-results-aggregated')
     printPhase('finalize', 'failed', 'gate-checks-failed')
     process.exitCode = 1
     return
   }
 
-  if (errorOnly) printErrorSummary()
+  if (errorOnly) printErrorSummary(startedAt)
   printPhase('transition', 'succeeded', 'all-results-aggregated')
   printPhase('finalize', 'succeeded', 'gate-checks-passed')
 }

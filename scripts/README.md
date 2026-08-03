@@ -16,8 +16,8 @@ scripts/
 └── check/                      # 检测 / 关闸（C3 闸）
     ├── index.mjs               # npm run check 入口
     ├── gate-check.mjs          # npm run gate-check
-    ├── check-format.ps1        # PS 扫描总调度
-    ├── domains.mjs             # 7 域注册
+    ├── domains.mjs             # 7 域聚合
+    ├── registry/               # 专项扫描节点声明
     ├── rules/
     │   ├── registry.json       # 规则元数据
     │   └── architecture-rules.json
@@ -29,8 +29,8 @@ scripts/
     └── domains/
         ├── structural/         # wiring + loader
         ├── standardization/    # Skill / 文档 / 配置 / 生成物标准化
-        ├── mod/                # arch / smart / anomaly PS
-        ├── ui/                 # ui / css PS
+        ├── mod/                # MOD 单责 contracts / indexes / runners
+        ├── ui/                 # UI 单责 contracts / indexes / runners
         ├── narrative/          # 叙事回归
         └── calibration/        # 世界校准
 ```
@@ -49,7 +49,7 @@ scripts/
 ## 开发辅助
 
 ```bash
-powershell -File scripts/check/check-format.ps1 -ModName mod-engine
+powershell -File scripts/check/domains/mod/run-source-contracts.ps1 -ModName mod-engine
 powershell -File scripts/check/dev/show-errors.ps1
 powershell -File scripts/check/dev/checker-self-test.ps1
 npm run generate:deps

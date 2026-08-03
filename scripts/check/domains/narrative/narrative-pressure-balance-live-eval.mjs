@@ -121,7 +121,6 @@ async function callModel(apiKey, messages, signal) {
       model: MODEL,
       messages,
       temperature: 0.65,
-      max_tokens: 3600,
       stream: false,
       thinking: { type: 'disabled' },
     }),

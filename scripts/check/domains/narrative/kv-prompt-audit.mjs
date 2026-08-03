@@ -60,6 +60,10 @@ const macroImpactContext = fs.readFileSync(
   'utf8',
 )
 const orchestrator = readModuleSource('src/mods/mod-engine/subsystems/orchestrator-system.ts', root)
+const promptContextRuntime = readModuleSource(
+  'src/mods/mod-engine/subsystems/orchestrator-system/prompt-context-runtime.ts',
+  root,
+)
 const memoryLifecycle = readModuleSource('src/mods/mod-engine/subsystems/memory-lifecycle-system.ts', root)
 const coreMemory = readModuleSource('src/mods/mod-engine/subsystems/core-memory-system.ts', root)
 const narrativeHints = fs.readFileSync(
@@ -745,10 +749,10 @@ assertOk(
   'ordinary destiny effects must stay compact and factual, with descriptions added only at opening',
 )
 assertOk(
-  orchestrator.includes('formatEquippedMythicPatternForPrompt(useCharacterStore.getState().equippedMythicPatterns)')
-    && orchestrator.includes('formatDestinyPatternsForPrompt(getDestinyPatternSystem().getPatterns(), isOpeningRound)')
-    && orchestrator.includes('const talents = [')
-    && orchestrator.includes("].filter(Boolean).join('\\n') || undefined"),
+  promptContextRuntime.includes('formatEquippedMythicPatternForPrompt(useCharacterStore.getState().equippedMythicPatterns)')
+    && promptContextRuntime.includes('formatDestinyPatternsForPrompt(destinyPatterns, isOpeningRound)')
+    && promptContextRuntime.includes('const talents = [')
+    && promptContextRuntime.includes("].filter(Boolean).join('\\n') || undefined"),
   'equipped mythic effects must precede ordinary destiny effects in the single compact talent field',
 )
 assertOk(

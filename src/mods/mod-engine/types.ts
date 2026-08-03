@@ -46,7 +46,6 @@ export interface EngineConfig {
   timeStep: TimeStep
   maxRounds: number
   temperature: number
-  maxTokens: number,
 }
 
 /** 已提交的逐轮叙事记录 */

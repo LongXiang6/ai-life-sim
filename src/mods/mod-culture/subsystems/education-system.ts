@@ -103,8 +103,6 @@ export class EducationSystem extends BaseSubsystem {
     if (value.schemaVersion !== 1 || !value.contexts || typeof value.contexts !== 'object') throw new Error('教育持久化快照无效')
     this.states = clone(value.contexts)
   }
-  capturePreviewState(): EducationPersistenceState { return this.capturePersistenceState() }
-  restorePreviewState(snapshot: unknown): void { this.restorePersistenceState(snapshot) }
   reset(): void { this.states = {} }
 }
 

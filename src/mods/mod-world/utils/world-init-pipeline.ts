@@ -4,7 +4,6 @@
  * Responsibility: Public exports only; execution, AI transport, and state adoption live in the sibling directory.
  */
 
-export type { WorldInitPipelineBudgets } from './world-init-budgets'
 export {
   MAX_AI_RETRIES,
   RETRY_DELAY_MS,

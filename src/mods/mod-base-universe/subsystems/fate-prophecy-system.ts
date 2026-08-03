@@ -93,8 +93,6 @@ export class FateProphecySystem extends BaseSubsystem {
     if (value.schemaVersion !== 1 || !value.contexts || typeof value.contexts !== 'object') throw new Error('预言持久化快照无效')
     this.states = clone(value.contexts)
   }
-  capturePreviewState(): FateProphecyPersistenceState { return this.capturePersistenceState() }
-  restorePreviewState(snapshot: unknown): void { this.restorePersistenceState(snapshot) }
   reset(): void { this.states = {} }
 }
 

@@ -1,6 +1,10 @@
 /**
+ * Purpose: Collect and atomically import persistent game state for save slots.
+ * Owner: mod-engine
+ * Responsibility: Persistence validation and store synchronization only; runtime round rollback is out of scope.
+ *
  * @module save-restore.ts
- * @description 存档加载 —— 将 OPFS 快照写回各 Store 并同步 Orchestrator
+ * @description 存档加载 —— 将 OPFS 持久化状态写回各 Store 并同步 Orchestrator
  * @mod mod-engine
  */
 
@@ -9,12 +13,13 @@ import { runtimeRegistry } from '@/core/mod-loader/runtime-registry'
 import { saveManager } from '@/core/storage/save-manager'
 import { sanitizeCharacterStateSnapshot, useCharacterStore } from '@/mods/mod-character'
 import {
-  repairWorldEntityReferenceDirectory,
+  buildDefaultCalibration,
+  formatCalibrationSummary,
   registerWorldEntityReference,
+  repairWorldEntityReferenceDirectory,
   sanitizeWorldStateSnapshot,
   useWorldStore,
-} from '@/mods/mod-world'
-import { buildDefaultCalibration, formatCalibrationSummary } from '@/mods/mod-world'
+} from '@/mods/mod-world/world-runtime-api'
 import { buildOrchestratorWorldSetting } from '@/mods/mod-engine/helpers/orchestrator-world-setting'
 
 import { orchestrator } from '../subsystems/orchestrator-system'
@@ -90,20 +95,20 @@ function assertCoreSavePayload(data: Record<string, unknown>): {
   return { engine, character, world }
 }
 
-function serializeStoreSnapshot<T extends object>(state: T): Record<string, unknown> {
+function serializeStoreState<T extends object>(state: T): Record<string, unknown> {
   return JSON.parse(JSON.stringify(state)) as Record<string, unknown>
 }
 
-function buildWorldSaveSnapshot(): Record<string, unknown> {
+function buildWorldSavePayload(): Record<string, unknown> {
   const {
     entityReferences: _ownedByWorldEntitySystem,
     ...world
-  } = serializeStoreSnapshot(useWorldStore.getState())
+  } = serializeStoreState(useWorldStore.getState())
   return world
 }
 
-function buildCharacterSaveSnapshot(): Record<string, unknown> {
-  const character = serializeStoreSnapshot(useCharacterStore.getState())
+function buildCharacterSavePayload(): Record<string, unknown> {
+  const character = serializeStoreState(useCharacterStore.getState())
   delete character.lifespanDraft
   delete character.health
   delete character.lifespan
@@ -111,7 +116,7 @@ function buildCharacterSaveSnapshot(): Record<string, unknown> {
   return character
 }
 
-function buildEngineSaveSnapshot(): Record<string, unknown> {
+function buildEngineSavePayload(): Record<string, unknown> {
   const store = useEngineStore.getState()
   const o = orchestrator.getState()
 
@@ -137,7 +142,7 @@ function buildEngineSaveSnapshot(): Record<string, unknown> {
     return entry
   })
 
-  return serializeStoreSnapshot({
+  return serializeStoreState({
     ...store,
     ...o,
     narrativeHistory: mergedHistory,
@@ -150,11 +155,8 @@ function buildEngineSaveSnapshot(): Record<string, unknown> {
 /**
  * 从存档数据恢复游戏状态（engine / character / world / core MOD stores / orchestrator）。
  *
- * 原子性保证：
- *   - 核心 store（engine / character / world）或存在的 orchestrator/owning persistence
- *     快照任一恢复失败即抛出，且**不切换 gamePhase**；失败会恢复进入本函数前的完整游戏状态。
- *   - 旧存档可以缺少 orchestrator/P1 快照，此时从已经恢复的核心 Store 重建；
- *     但只要快照存在，就必须完整通过上下文与 owning system 校验，不能静默跳过坏数据。
+ * 存档加载直接写入各自状态所有者；失败时只恢复进入加载函数前的持久化状态，
+ * 不调用任何运行时预览或回合回退入口。
  */
 export async function applyGameSave(data: Record<string, unknown>): Promise<void> {
   assertRuntimeReady('加载存档')
@@ -166,54 +168,51 @@ export async function applyGameSave(data: Record<string, unknown>): Promise<void
   assertPreGenIdle('加载存档')
   assertCompressionIdle('加载存档')
   const savedTerminal = core.engine.status === 'complete'
-  // 浏览器 Store 可能尚未水合 world-entity 的目录；预览快照只保存回滚所需
-  // 的运行态，正式目标存档仍在 restoreSnapshot() 中执行严格持久化校验。
   const previous = {
     engine: useEngineStore.getState(),
     character: useCharacterStore.getState(),
     world: useWorldStore.getState(),
-    orchestrator: orchestrator.capturePreviewSnapshot(),
+    orchestrator: orchestrator.exportPersistenceState(),
+    gamePhase: useGlobalStore.getState().gamePhase,
   }
   orchestrator.invalidatePendingLifeOperations()
-  let restoredOrchestratorSnapshot = false
   try {
-    // —— 核心 store：失败即回滚，gamePhase 保持不变 ——
-    const engine = core.engine as Partial<ReturnType<typeof useEngineStore.getState>>
-    const restoredLifeRunId = typeof engine.lifeRunId === 'string' && engine.lifeRunId.trim()
-      ? engine.lifeRunId
-      : createNarrativeLifeRunId()
-    const restoredRepetitionStats = summarizeNarrativeHistoryRepetition(
-      Array.isArray(engine.narrativeHistory) ? engine.narrativeHistory : [],
-    )
-    const history = Array.isArray(engine.narrativeHistory) ? engine.narrativeHistory : []
-    const rebuiltIntents = rebuildBranchIntentsFromHistory(history
-      .filter(isPlainRecord)
-      .map((entry, index): BranchIntentHistoryEntry => ({
-        id: typeof entry.id === 'string' ? entry.id : undefined,
-        resolvedChoice: typeof entry.resolvedChoice === 'string' ? entry.resolvedChoice : undefined,
-        resolvedChoiceRound: typeof entry.resolvedChoiceRound === 'number'
-          ? entry.resolvedChoiceRound
-          : undefined,
-        intentResolution: entry.intentResolution as BranchIntentHistoryEntry['intentResolution'],
-        round: entry.repetitionMetric?.round ?? index + 1,
-      })))
-    const rebuiltProjection: BranchIntentProjection = {
-      branchIntents: rebuiltIntents.intents,
-      archivedBranchIntents: rebuiltIntents.archivedIntents ?? [],
-      ...(rebuiltIntents.focusedIntentId
-        ? { focusedBranchIntentId: rebuiltIntents.focusedIntentId }
-        : {}),
-    }
-    const persistedProjection = normalizeBranchIntentProjection({
-      branchIntents: engine.branchIntents,
-      archivedBranchIntents: engine.archivedBranchIntents,
-      focusedBranchIntentId: engine.focusedBranchIntentId,
-    })
-    const branchIntentProjection = persistedProjection
-      && isBranchIntentProjectionConsistent(persistedProjection, rebuiltProjection)
-      ? persistedProjection
-      : rebuiltProjection
-    useEngineStore.setState((prev) => ({
+  const engine = core.engine as Partial<ReturnType<typeof useEngineStore.getState>>
+  const restoredLifeRunId = typeof engine.lifeRunId === 'string' && engine.lifeRunId.trim()
+    ? engine.lifeRunId
+    : createNarrativeLifeRunId()
+  const restoredRepetitionStats = summarizeNarrativeHistoryRepetition(
+    Array.isArray(engine.narrativeHistory) ? engine.narrativeHistory : [],
+  )
+  const history = Array.isArray(engine.narrativeHistory) ? engine.narrativeHistory : []
+  const rebuiltIntents = rebuildBranchIntentsFromHistory(history
+    .filter(isPlainRecord)
+    .map((entry, index): BranchIntentHistoryEntry => ({
+      id: typeof entry.id === 'string' ? entry.id : undefined,
+      resolvedChoice: typeof entry.resolvedChoice === 'string' ? entry.resolvedChoice : undefined,
+      resolvedChoiceRound: typeof entry.resolvedChoiceRound === 'number'
+        ? entry.resolvedChoiceRound
+        : undefined,
+      intentResolution: entry.intentResolution as BranchIntentHistoryEntry['intentResolution'],
+      round: entry.repetitionMetric?.round ?? index + 1,
+    })))
+  const rebuiltProjection: BranchIntentProjection = {
+    branchIntents: rebuiltIntents.intents,
+    archivedBranchIntents: rebuiltIntents.archivedIntents ?? [],
+    ...(rebuiltIntents.focusedIntentId
+      ? { focusedBranchIntentId: rebuiltIntents.focusedIntentId }
+      : {}),
+  }
+  const persistedProjection = normalizeBranchIntentProjection({
+    branchIntents: engine.branchIntents,
+    archivedBranchIntents: engine.archivedBranchIntents,
+    focusedBranchIntentId: engine.focusedBranchIntentId,
+  })
+  const branchIntentProjection = persistedProjection
+    && isBranchIntentProjectionConsistent(persistedProjection, rebuiltProjection)
+    ? persistedProjection
+    : rebuiltProjection
+  useEngineStore.setState((prev) => ({
       ...prev,
       ...engine,
       lifeRunId: restoredLifeRunId,
@@ -225,33 +224,28 @@ export async function applyGameSave(data: Record<string, unknown>): Promise<void
       resolvedBranches: engine.resolvedBranches ?? {},
       forceBranchNext: engine.forceBranchNext ?? false,
       status: savedTerminal ? 'complete' : 'idle',
-    }))
-    useCharacterStore.setState(migratedCharacter as unknown as ReturnType<typeof useCharacterStore.getState>)
-    useWorldStore.setState(migratedWorld as unknown as ReturnType<typeof useWorldStore.getState>)
-    const restoredWorld = useWorldStore.getState()
-    if (!restoredWorld.currentContextId || !restoredWorld.contexts[restoredWorld.currentContextId]) {
-      throw new Error('存档中的世界上下文注册表无效，已中止恢复。')
-    }
-    orchestrator.hydrateFromEngineStore()
+  }))
+  useCharacterStore.setState(migratedCharacter as unknown as ReturnType<typeof useCharacterStore.getState>)
+  useWorldStore.setState(migratedWorld as unknown as ReturnType<typeof useWorldStore.getState>)
+  const restoredWorld = useWorldStore.getState()
+  if (!restoredWorld.currentContextId || !restoredWorld.contexts[restoredWorld.currentContextId]) {
+    throw new Error('存档中的世界上下文注册表无效，已中止恢复。')
+  }
+  orchestrator.hydrateFromEngineStore()
 
-    if (data.orchestrator && typeof data.orchestrator === 'object') {
-      const savedContextId = (data.orchestrator as { worldContextId?: unknown }).worldContextId
-      if (
-        typeof savedContextId === 'string'
-        && savedContextId !== restoredWorld.currentContextId
-      ) {
-        throw new Error('存档中的世界上下文与编排器快照不一致，已中止恢复。')
-      }
-      orchestrator.restoreSnapshot(data.orchestrator as Parameters<typeof orchestrator.restoreSnapshot>[0])
-      restoredOrchestratorSnapshot = true
-      syncSubsystemStoresFromStates(orchestrator.getSubsystemStateSnapshot())
+  if (data.orchestrator && typeof data.orchestrator === 'object') {
+    const savedContextId = (data.orchestrator as { worldContextId?: unknown }).worldContextId
+    if (
+      typeof savedContextId === 'string'
+      && savedContextId !== restoredWorld.currentContextId
+    ) {
+      throw new Error('存档中的世界上下文与编排器持久化状态不一致，已中止恢复。')
     }
-
-    if (!restoredOrchestratorSnapshot) {
-      // restoreSnapshot() 在发现坏快照前可能已部分改写单例内部字段；
-      // 必须从刚恢复的 EngineStore 完整重建，而不只是重灌子系统私有状态。
-      orchestrator.hydrateFromEngineStore()
-    }
+    orchestrator.importPersistenceState(
+      data.orchestrator as Parameters<typeof orchestrator.importPersistenceState>[0],
+    )
+    syncSubsystemStoresFromStates(orchestrator.getSubsystemStateSnapshot())
+  }
 
     if (savedTerminal) {
       orchestrator.stop()
@@ -262,34 +256,36 @@ export async function applyGameSave(data: Record<string, unknown>): Promise<void
       throw new Error('存档中的世界上下文无法恢复，已中止进入模拟。')
     }
     clearPreGenQueue()
-    // 只有核心恢复成功（未抛出）才进入模拟态
-    useGlobalStore.getState().setGamePhase('simulation')
+  // 只有核心恢复成功（未抛出）才进入模拟态
+  useGlobalStore.getState().setGamePhase('simulation')
   } catch (error) {
     try {
+      useEngineStore.setState(previous.engine, true)
       useCharacterStore.setState(previous.character, true)
       useWorldStore.setState(previous.world, true)
-      orchestrator.restorePreviewSnapshot(previous.orchestrator)
-      useEngineStore.setState(previous.engine, true)
+      orchestrator.importPersistenceState(previous.orchestrator)
+      syncSubsystemStoresFromStates(orchestrator.getSubsystemStateSnapshot())
       ensureOrchestratorContextFromStores()
-    } catch (rollbackError) {
-      console.error('[applyGameSave] 核心状态回滚失败:', rollbackError)
+      useGlobalStore.getState().setGamePhase(previous.gamePhase)
+    } catch (restoreError) {
+      console.error('[applyGameSave] 持久化状态恢复失败:', restoreError)
     }
     throw error
   }
 }
 
-/** 收集当前可持久化快照（供手动/自动存档）。
+/** 收集当前可持久化状态（供手动/自动存档）。
  * 自动保存调用点位于 hooks.ts advanceRound 中 executeRoundV2 之后、
- * fillPreGenQueue 之前，因此快照中不包含未消费的预生成缓存。 */
+ * fillPreGenQueue 之前，因此载荷中不包含未消费的预生成缓存。 */
 export function collectGameSavePayload(): Record<string, unknown> {
   ensureOrchestratorContextFromStores()
   syncSubsystemStoresFromStates(orchestrator.getSubsystemStateSnapshot())
 
   return {
-    engine: buildEngineSaveSnapshot(),
-    character: buildCharacterSaveSnapshot(),
-    world: buildWorldSaveSnapshot(),
-    orchestrator: serializeStoreSnapshot(orchestrator.captureSnapshot()),
+    engine: buildEngineSavePayload(),
+    character: buildCharacterSavePayload(),
+    world: buildWorldSavePayload(),
+    orchestrator: serializeStoreState(orchestrator.exportPersistenceState()),
   }
 }
 

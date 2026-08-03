@@ -9,13 +9,11 @@
  *   4. 摘要必须带完整覆盖标记，任何层级失败时不得伪造覆盖节点或成功统计。
  *
  * 该脚本不调用外部 AI，只验证进入运行时后的结构与调度契约。
- */
+  */
 import fs from 'node:fs'
 import path from 'node:path'
 import { getProjectRoot } from '../../lib/project-root.mjs'
-import {
-  NarrativeRoundMetadataSchema,
-} from '../../../../src/mods/mod-engine/helpers/narrative-semantic-signals.ts'
+import { NarrativeRoundMetadataSchema } from '../../../../src/mods/mod-engine/helpers/narrative-semantic-signals.ts'
 import {
   digestLedger,
 } from '../../../../src/mods/mod-engine/helpers/digest-ledger.ts'
@@ -484,9 +482,11 @@ assertOk(
   'legacy summary boundaries must not block current four-round L1 or higher-level promotion',
 )
 assertOk(
-  engineUtilsSource.includes('computeCoverageSafeSummaryTokens')
-    && !/inputTextLength\s*\/\s*(?:2|4|8|10|12)/.test(engineUtilsSource),
-  'higher compression levels must keep coverage-safe output headroom instead of progressively shrinking the hard token ceiling',
+  !engineUtilsSource.includes('computeCoverageSafeSummaryTokens')
+    && !compressorSource.includes('overrideMaxTokens')
+    && !compressorSource.includes('maxTokens')
+    && !compressorSource.includes('max_tokens'),
+  'compression calls must rely on complete coverage validation rather than passing a provider output-token ceiling',
 )
 assertOk(
   orchestratorSource.includes('addCompressedSummaryToIndex('),

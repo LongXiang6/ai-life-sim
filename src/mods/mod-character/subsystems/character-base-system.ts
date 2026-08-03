@@ -1,4 +1,8 @@
 /**
+ * Purpose: Validate and apply persistent player base-attribute changes.
+ * Owner: mod-character
+ * Responsibility: Base attribute state, bounds, and semantic projections only; temporary modifiers stay downstream.
+ *
  * @module character-base-system.ts
  * @description 角色基础属性子系统
  * @mod mod-character
@@ -133,14 +137,6 @@ export class CharacterBaseSystem extends BaseSubsystem {
   restoreCollectedState(snapshot: unknown): void {
     if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return
     this.state = sanitizeCharacterBaseState(snapshot)
-  }
-
-  capturePreviewState(): CharacterBaseState {
-    return structuredClone(this.state)
-  }
-
-  restorePreviewState(snapshot: unknown): void {
-    this.restoreCollectedState(snapshot)
   }
 
   /** 获取当前基础属性（供其他子系统读取，如 HealthSystem 需要体魄） */

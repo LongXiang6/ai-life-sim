@@ -32,7 +32,6 @@ export function applyNarrativeEventRecognitionRuntime(
   accepted: AcceptedNarrativeRecord,
   result: NarrativeEventRecognitionResult,
 ): void {
-  const commitSnapshot = orchestrator['capturePreviewSnapshot']()
   try {
     const parsed: NarrativeEventCommitData = {
       ...structuredClone(accepted.narrative),
@@ -291,7 +290,6 @@ export function applyNarrativeEventRecognitionRuntime(
     orchestrator['collectSubsystemStates'](false, false)
     orchestrator['publishSimulationSnapshot']()
   } catch (error) {
-    orchestrator['restorePreviewSnapshot'](commitSnapshot)
     throw error
   }
 }
