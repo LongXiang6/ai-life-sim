@@ -196,7 +196,9 @@ export function extractRemoteApiExports(indexContent) {
     for (const part of cleaned.split(',')) {
       const raw = part.trim()
       if (!raw) continue
-      const name = raw.split(/\s+as\s+/)[0].trim()
+      // `export { a as b }` 的对外导出键是别名 b，契约必须与运行时注册一致
+      const segments = raw.split(/\s+as\s+/)
+      const name = segments[segments.length - 1].trim()
       if (name.startsWith('type ')) continue
       if (isLikelyRemoteFunction(name)) names.add(name)
     }
@@ -214,11 +216,22 @@ export function assertRemoteApiExtractionIsLineEndingAgnostic() {
   computeValue,
 } from './public-api'
 `
+  const aliasSource = `export {
+  registerEntityReference as registerWorldEntityReference,
+  computeValue,
+} from './public-api'
+`
   const expected = ['computeValue']
+  const aliasExpected = ['computeValue', 'registerWorldEntityReference']
 
-  for (const source of [lfSource, lfSource.replaceAll('\n', '\r\n')]) {
+  for (const [source, expectedNames] of [
+    [lfSource, expected],
+    [lfSource.replaceAll('\n', '\r\n'), expected],
+    [aliasSource, aliasExpected],
+    [aliasSource.replaceAll('\n', '\r\n'), aliasExpected],
+  ]) {
     const actual = extractRemoteApiExports(source)
-    if (actual.length !== expected.length || actual.some((name, index) => name !== expected[index])) {
+    if (actual.length !== expectedNames.length || actual.some((name, index) => name !== expectedNames[index])) {
       throw new Error(`[generate-mod-wiring] Remote API 导出解析不支持当前换行格式: ${JSON.stringify(actual)}`)
     }
   }
