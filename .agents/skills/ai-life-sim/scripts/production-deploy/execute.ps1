@@ -132,7 +132,7 @@ function Invoke-Execute {
 
   $nodeRuntime = Resolve-Node20Runtime
   Write-Host "LOCAL_NODE_RUNTIME=$($nodeRuntime.Node) source=$($nodeRuntime.Source)"
-  $validationTree = Join-Path ([System.IO.Path]::GetTempPath()) "ai-life-sim-validate-$deployRunId"
+  $validationTree = Join-Path (Split-Path -Parent $Repo) "ai-life-sim-validate-$deployRunId"
   if (Test-Path -LiteralPath $validationTree) {
     throw "validation worktree path already exists: $validationTree"
   }
