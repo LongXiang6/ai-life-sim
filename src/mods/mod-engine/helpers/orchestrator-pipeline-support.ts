@@ -49,7 +49,6 @@ export { resolveTimeStep } from '../utils/time-step-resolver'
 export { mapSubsystemStatesToDetectionStates } from './detection-state-mapper'
 export {
   buildLifecycleNarrativeHint,
-  generateLifecycleArchetypeHint,
   buildLifecycleLifespanReminder,
 } from './lifecycle-narrative'
 export { normalizeNarrativeParagraphs } from './normalize-narrative-paragraphs'

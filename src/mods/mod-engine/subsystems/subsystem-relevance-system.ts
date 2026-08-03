@@ -489,13 +489,12 @@ export class SubsystemRelevanceSystem implements ISubSystem {
   /**
    * 构建影响力信息文本（用于注入 Prompt）
    *
-   * @param influenceScore 相对影响力分数
    * @param scope 影响力等级
    * @returns 影响力信息文本
    */
-  buildInfluenceText(influenceScore: number, scope: InfluenceScope,): string {
+  buildInfluenceText(scope: InfluenceScope,): string {
     const threshold = INFLUENCE_THRESHOLDS[scope]
-    return `【角色影响力】范围：${threshold.label}（本世界相对进度：${influenceScore}/100）`
+    return `【角色影响范围】${threshold.label}`
   }
 }
 

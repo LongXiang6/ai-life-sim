@@ -1,13 +1,11 @@
 /**
- * 剧情质量硬截断红线审计。
- *
- * 只检查会破坏叙事语义或用户设定的已知路径。协议解析、ID 生成、并发分批、
- * UI 视觉预览和“原始数据仍完整保存”的近期窗口不属于破坏性硬截断。
+ * Purpose: Audit known hard-truncation paths that can damage narrative meaning or player settings.
+ * Owner: quality:narrative
+ * Responsibility: Static truncation red lines only; protocol parsing and bounded operational windows remain separate.
  */
-import fs from 'node:fs'
 import { register } from 'node:module'
-import path from 'node:path'
 import { getProjectRoot } from '../../lib/project-root.mjs'
+import { readModuleSource } from '../../lib/read-module-source.mjs'
 
 register('../../lib/typescript-loader.mjs', import.meta.url)
 const { mapRawNarrativeChanges } = await import('../../../../src/mods/mod-engine/helpers/narrative-change-bundle.ts')
@@ -18,7 +16,7 @@ const { formatPowerFrameworkForPrompt } = await import('../../../../src/mods/mod
 const root = getProjectRoot(import.meta.url)
 let failed = 0
 
-const read = (relativePath) => fs.readFileSync(path.join(root, relativePath), 'utf8')
+const read = (relativePath) => readModuleSource(relativePath, root)
 const assertOk = (condition, message) => {
   if (condition) return
   console.error(`FAIL: ${message}`)
@@ -40,9 +38,11 @@ const timelineMemory = read('src/mods/mod-engine/helpers/timeline-memory.ts')
 const forgettingPatterns = read('src/mods/mod-engine/patterns/forgetting-patterns.ts')
 const foreshadowing = read('src/mods/mod-engine/subsystems/foreshadowing-system.ts')
 const changeBundle = read('src/mods/mod-engine/helpers/narrative-change-bundle.ts')
+const aiClient = readModuleSource('src/core/ai-service/ai-client.ts', root)
 const aiJsonParser = read('src/core/ai-service/parse-ai-json.ts')
-const narrativeQuality = read('src/mods/mod-engine/helpers/narrative-response-quality.ts')
-const settlementContext = read('src/mods/mod-engine/helpers/narrative-settlement-context.ts')
+const dataAnalysisContext = read('src/mods/mod-engine/helpers/narrative-data-analysis-context.ts')
+const basicAttributeContext = read('src/mods/mod-engine/helpers/narrative-basic-attribute-context.ts')
+const eventRecognitionContext = read('src/mods/mod-engine/helpers/narrative-event-recognition-context.ts')
 const fieldRegistry = read('src/mods/mod-engine/helpers/subsystem-field-registry.ts')
 const roundCommitBus = read('src/mods/mod-engine/helpers/round-commit-bus.ts')
 const timeBridge = read('src/mods/mod-engine/helpers/time-bridge-summary.ts')
@@ -106,7 +106,8 @@ reject(compressor, /轮综合概略|轮时代概略|轮纪元概略|轮历史概
 assertOk(
   compressor.includes('TimelineCompressionOutputSchema')
     && compressor.includes('buildCompressedMemoryEvents')
-    && compressor.includes('保留低层来源等待重试'),
+    && compressor.includes("throw new Error('L1 压缩候选生成失败'")
+    && compressor.includes('newCompressedSummaries: structuredClone({ summaries })'),
   'summary compression must reject incomplete AI output and retain lower-level leaves on failure',
 )
 reject(summaryPrompt, /charLimit|不超过\s*\$?\{?\w*\}?\s*字|不超过指定字数|仅保留：|极简摘要|高度浓缩摘要/, 'summary Prompt must not induce character limits or fact-dropping level semantics')
@@ -122,8 +123,9 @@ assertOk(
 )
 reject(compressor, /fallbackParts|失败降级：保留完整叙事文本/, 'failed L1 compression must not create a fallback coverage node or success statistic')
 assertOk(
-  compressor.includes('保留完整来源等待下一轮重试')
-    && compressor.includes('保留低层来源等待重试'),
+  compressor.includes('createCompressionCandidate(')
+    && compressor.includes('let summaries = normalizeLegacySummaries(this.compressedSummaries).summaries')
+    && orchestrator.includes('commitCompressionCandidate(gateResult.result'),
   'failed compression must retain original leaves for retry',
 )
 reject(engineUtils, /computeSummaryCharLimit|inputTextLength\s*\/\s*(?:2|4|8|10|12)/, 'summary token headroom must not shrink by level or convert into a character cap')
@@ -161,24 +163,31 @@ assertOk(
   aiJsonParser.includes('scan.incomplete || scan.spans.length !== 1'),
   'AI JSON parsing must accept only one complete unambiguous value',
 )
-reject(narrativeQuality, /originalResponse\.slice\(|originalResponse\.substring\(/, 'settlement repair must retain the complete failed response')
+reject(aiClient, /originalResponse\.slice\(|originalResponse\.substring\(/, 'background-analysis repair must retain the complete failed response')
 assertOk(
-  narrativeQuality.includes("'【上一版结算响应】'")
-    && narrativeQuality.includes('originalResponse'),
-  'settlement repair must carry the complete original response rather than a shortened derivative',
+  aiClient.includes("'【上一版纯 JSON 响应全文开始】'")
+    && aiClient.includes("'【上一版纯 JSON 响应全文结束】'")
+    && aiClient.includes('buildJsonValidationRetryInstruction(content, firstValidation.reason)'),
+  'background-analysis repair must carry the complete original response rather than a shortened derivative',
 )
-reject(settlementContext, /stateLines\.slice\(|activeSubsystemIds\.slice\(/, 'settlement input must not truncate active writable system state lines')
+reject(dataAnalysisContext, /stateLines\.slice\(|activeSubsystemIds\.slice\(/, 'data-analysis input must not truncate active writable system state lines')
+reject(basicAttributeContext, /state\.data\.slice\(|recentStories\.slice\(/, 'basic-attribute input must not truncate complete state or recent stories')
+reject(eventRecognitionContext, /existingCandidates\.slice\(|recentStories\.slice\(/, 'event-recognition input must not truncate candidates or recent stories')
 assertOk(fieldRegistry.includes('z.object(shape).strict()'), 'subsystem field validation must reject unknown keys instead of stripping them')
 assertOk(
-  roundCommitBus.indexOf("commit.source === 'narrative' && rejected.length > 0")
+  roundCommitBus.indexOf('if (ATOMIC_AI_SOURCES.has(commit.source) && rejected.length > 0)')
     < roundCommitBus.indexOf('for (const change of prepared)'),
-  'narrative changes must pass complete preflight before the first subsystem write',
+  'each AI owner package must pass complete preflight before the first subsystem write',
 )
 assertOk(
-  orchestrator.includes('const commitSnapshot = this.capturePreviewSnapshot()')
-    && orchestrator.includes('this.restorePreviewSnapshot(commitSnapshot)')
-    && orchestrator.includes('commitResult.committed.length !== parsed.changes.length'),
-  'orchestrator must roll back unexpected partial writes and reject all dependent META',
+  orchestrator.includes('private consumeSystemAnalysisRecord(')
+    && (orchestrator.includes('const commitSnapshot = this.capturePreviewSnapshot()')
+      || orchestrator.includes("const commitSnapshot = orchestrator['capturePreviewSnapshot']()"))
+    && (orchestrator.includes('this.restorePreviewSnapshot(commitSnapshot)')
+      || orchestrator.includes("orchestrator['restorePreviewSnapshot'](commitSnapshot)"))
+    && orchestrator.includes('if (commitResult.rejected.length > 0)')
+    && orchestrator.includes('private applyNarrativeEventRecognition('),
+  'orchestrator must roll back each failed background owner transaction without discarding accepted prose',
 )
 const rollbackOwners = {
   'character-base': read('src/mods/mod-character/subsystems/character-base-system.ts'),
@@ -237,11 +246,11 @@ reject(memoryEngine, /majorEvents\.slice\(-3\)|relationships\.shift\(|majorEvent
 reject(forgetting, /causalEvents\.shift\(/, 'causal protection marks must not be evicted by capacity')
 reject(eventLifecycle, /activeDisasters\.slice\(/, 'event lifecycle must not ignore disasters after a fixed count')
 reject(narrativePrompt, /digest:[^\n]*(?:不超过|最多)\d+|keyEvents:[^\n]*最多\d+|entities[^\n]*最多\d+|relationshipUpdates:[^\n]*最多\d+|resolvedForeshadowingIds:[^\n]*最多\d+|notableEvents:[^\n]*最多\d+|creations:[^\n]*最多\d+|foreshadowing:[^\n]*最多\d+/, 'narrative Prompt must not induce fixed character or item limits on semantic META')
-assertOk(narrativePrompt.includes("version: '5.8.1'"), 'no-truncation narrative contract must use pure narrative Prompt version 5.8.1')
+assertOk(narrativePrompt.includes("version: '5.8.2'"), 'no-truncation narrative contract must use pure narrative Prompt version 5.8.2')
 assertOk(
   branchIntent.includes('其他未完成命运意图；保持事实连续，不得静默删除')
     && orchestrator.includes('branchIntents: this.branchIntents')
-    && orchestrator.includes('intentResolution: committedIntentResolution'),
+    && orchestrator.includes('intentResolution: entry.intentResolution'),
   'unresolved branch intents and accepted terminal results must remain traceable across Prompt, snapshot and narrative history',
 )
 reject(narrativeSignals, /maxLength|maxItems|z\.string\(\)(?:\.min\([^)]*\))?\.max\(|relationshipUpdates:[\s\S]{0,180}\.strict\(\)\)\.max\(|resolvedForeshadowingIds:[^\n]*\.max\(|notableEvents:[^\n]*\.max\(|creations:[^\n]*\.max\(|foreshadowing:[^\n]*\.max\(|keyEvents:[^\n]*\.max\(/, 'narrative Schema must not reject complete semantic text or arrays by fixed size')

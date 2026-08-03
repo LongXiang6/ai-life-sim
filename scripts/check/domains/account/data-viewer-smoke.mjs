@@ -1,3 +1,9 @@
+/**
+ * Purpose: Regress data-viewer queries and projections against one temporary SQLite database.
+ * Owner: quality:account
+ * Responsibility: One isolated data-viewer smoke transaction only.
+ */
+
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import os from 'node:os'

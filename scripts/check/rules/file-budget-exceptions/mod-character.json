@@ -1,0 +1,53 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "path": "src/mods/mod-character/constants.ts",
+      "owner": "mod-character",
+      "reviewedLines": 482,
+      "reason": "角色 MOD 的中央静态常量与标识表，数值和机器键必须保留为一个命名源。"
+    },
+    {
+      "path": "src/mods/mod-character/prompts/talent-presets.ts",
+      "owner": "mod-character",
+      "reviewedLines": 407,
+      "reason": "天赋生成的单一预设与格式目录，条目共同维护同一 Prompt 数据契约。"
+    },
+    {
+      "path": "src/mods/mod-character/subsystems/character-base-system.ts",
+      "owner": "mod-character",
+      "reviewedLines": 301,
+      "reason": "角色 MOD 的单一状态子系统，计算、公共操作和快照共同维护该属性生命周期不变式。"
+    },
+    {
+      "path": "src/mods/mod-character/subsystems/destiny-pattern-system.ts",
+      "owner": "mod-character",
+      "reviewedLines": 342,
+      "reason": "角色 MOD 的单一状态子系统，计算、公共操作和快照共同维护该属性生命周期不变式。"
+    },
+    {
+      "path": "src/mods/mod-character/subsystems/destiny-pattern-system/ai-pool-service.ts",
+      "owner": "mod-character",
+      "reviewedLines": 401,
+      "reason": "角色 MOD 的单一状态子系统，计算、公共操作和快照共同维护该属性生命周期不变式。"
+    },
+    {
+      "path": "src/mods/mod-character/subsystems/health-system.ts",
+      "owner": "mod-character",
+      "reviewedLines": 627,
+      "reason": "角色 MOD 的单一状态子系统，计算、公共操作和快照共同维护该属性生命周期不变式。"
+    },
+    {
+      "path": "src/mods/mod-character/subsystems/lifecycle-system.ts",
+      "owner": "mod-character",
+      "reviewedLines": 413,
+      "reason": "角色 MOD 的单一状态子系统，计算、公共操作和快照共同维护该属性生命周期不变式。"
+    },
+    {
+      "path": "src/mods/mod-character/subsystems/lifespan-system.ts",
+      "owner": "mod-character",
+      "reviewedLines": 309,
+      "reason": "角色 MOD 的单一状态子系统，计算、公共操作和快照共同维护该属性生命周期不变式。"
+    }
+  ]
+}

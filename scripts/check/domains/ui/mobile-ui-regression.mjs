@@ -1,6 +1,7 @@
 /**
- * @module mobile-ui-regression.mjs
- * @description 用户定版移动端页面的结构、文案与响应式契约回归。
+ * Purpose: Regress approved mobile page structure, wording, and responsive contracts.
+ * Owner: quality:ui
+ * Responsibility: One source-backed mobile acceptance suite only.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -12,6 +13,16 @@ let failed = 0
 function readRel(rel) {
   const target = path.join(root, rel)
   return fs.existsSync(target) ? fs.readFileSync(target, 'utf8') : ''
+}
+
+function readCodeDirectory(rel) {
+  const directory = path.join(root, rel)
+  if (!fs.existsSync(directory)) return ''
+  return fs.readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && /\.(?:js|jsx|ts|tsx)$/.test(entry.name))
+    .sort((left, right) => left.name.localeCompare(right.name, 'en'))
+    .map((entry) => fs.readFileSync(path.join(directory, entry.name), 'utf8'))
+    .join('\n')
 }
 
 function assertOk(condition, message) {
@@ -89,7 +100,7 @@ const disclaimerModalCssSrc = readRel('src/mods/mod-ui/components/organisms/Disc
 const helpModalSurfaceSrc = `${helpModalSrc}\n${helpNavigationSrc}`
 const finalFlowScaleRuntimeSrc = readRel('src/mods/mod-ui/components/organisms/FinalFlowScaleRuntime.tsx')
 const worldSelectMobileSrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectMobile.tsx')
-const worldSelectLogicSrc = readRel('src/mods/mod-pages/pages/world-select/useWorldSelectLogic.ts')
+const worldSelectLogicSrc = readCodeDirectory('src/mods/mod-pages/pages/world-select')
 const worldSelectStageSrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectStage.tsx')
 const worldSelectDirectorySrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectDirectory.tsx')
 const worldSelectMainGridSrc = readRel('src/mods/mod-pages/pages/world-select/WorldSelectMainGrid.tsx')
@@ -103,12 +114,12 @@ const bottomActionBarCssSrc = readRel('src/mods/mod-ui/components/organisms/Bott
 const characterCreateMobileSrc = readRel('src/mods/mod-pages/pages/character-create/CharacterCreateMobile.tsx')
 const characterCreatePageSrc = readRel('src/mods/mod-pages/pages/character-create/page.tsx')
 const characterIdentitySrc = readRel('src/mods/mod-pages/pages/character-create/CharacterIdentitySection.tsx')
-const characterCreateLogicSrc = readRel('src/mods/mod-pages/pages/character-create/useCharacterCreateLogic.ts')
+const characterCreateLogicSrc = readCodeDirectory('src/mods/mod-pages/pages/character-create')
 const characterLifespanSrc = readRel('src/mods/mod-pages/pages/character-create/CharacterLifespanSection.tsx')
 const characterBackgroundSrc = readRel('src/mods/mod-pages/pages/character-create/CharacterBackgroundSection.tsx')
 const characterBottomBarSrc = readRel('src/mods/mod-pages/pages/character-create/CharacterCreateBottomBar.tsx')
 const characterCreateCssSrc = readRel('src/mods/mod-pages/pages/character-create/CharacterCreateMobile.module.css')
-const talentDrawPageSrc = readRel('src/mods/mod-pages/pages/talent-draw/page.tsx')
+const talentDrawPageSrc = readCodeDirectory('src/mods/mod-pages/pages/talent-draw')
 const talentDrawCssSrc = readRel('src/mods/mod-pages/pages/talent-draw/TalentDraw.module.css')
 const attributeAllocPageSrc = readRel('src/mods/mod-pages/pages/attribute-alloc/page.tsx')
 const productDecisionsSrc = readRel('docs/product-decisions.md')
@@ -118,21 +129,21 @@ const worldCustomizeLogicSrc = readRel('src/mods/mod-pages/pages/world-customize
 const worldCustomizeDimensionSrc = readRel('src/mods/mod-pages/pages/world-customize/WorldCustomizeDimensionCard.tsx')
 const worldCustomizeBottomBarSrc = readRel('src/mods/mod-pages/pages/world-customize/WorldCustomizeBottomBar.tsx')
 const worldCustomizeCssSrc = readRel('src/mods/mod-pages/pages/world-customize/WorldCustomizeMobile.module.css')
-const gameStoryPageSrc = readRel('src/mods/mod-pages/pages/game-story/page.tsx')
+const gameStoryPageSrc = readCodeDirectory('src/mods/mod-pages/pages/game-story')
 const gameStoryCssSrc = readRel('src/mods/mod-pages/pages/game-story/GameStory.module.css')
-const narrativeTimelineSrc = readRel('src/mods/mod-ui/components/organisms/NarrativeTimeline.tsx')
+const narrativeTimelineSrc = `${readRel('src/mods/mod-ui/components/organisms/NarrativeTimeline.tsx')}\n${readRel('src/mods/mod-ui/components/organisms/NarrativeTimelineEntryView.tsx')}`
 const narrativeTimelineCssSrc = readRel('src/mods/mod-ui/components/organisms/NarrativeTimeline.module.css')
-const fatePreviewPageSrc = readRel('src/mods/mod-pages/pages/fate-preview/page.tsx')
+const fatePreviewPageSrc = readCodeDirectory('src/mods/mod-pages/pages/fate-preview')
 const fatePreviewCssSrc = readRel('src/mods/mod-pages/pages/fate-preview/FatePreview.module.css')
 const worldDimensionLabelsSrc = readRel('src/mods/mod-pages/helpers/world-dimension-labels.ts')
 const worldConfigMappingSrc = readRel('src/mods/mod-world/utils/world-config-mapping.ts')
 const saveManagerPageSrc = readRel('src/mods/mod-pages/pages/save-manager/page.tsx')
 const saveManagerCssSrc = readRel('src/mods/mod-pages/pages/save-manager/save-manager.module.css')
-const gameOverPageSrc = readRel('src/mods/mod-pages/pages/game-over/page.tsx')
+const gameOverPageSrc = readCodeDirectory('src/mods/mod-pages/pages/game-over')
 const gameOverRadarSrc = readRel('src/mods/mod-pages/pages/game-over/GameOverRadar.tsx')
 const gameOverShareCardSrc = readRel('src/mods/mod-pages/pages/game-over/game-over-share-card.ts')
 const gameOverCssSrc = readRel('src/mods/mod-pages/pages/game-over/GameOver.module.css')
-const accountPageSrc = readRel('src/mods/mod-pages/pages/account/page.tsx')
+const accountPageSrc = readCodeDirectory('src/mods/mod-pages/pages/account')
 const feedbackPageSrc = readRel('src/mods/mod-pages/pages/feedback/page.tsx')
 const prototypeLibraryCssSrc = readRel('docs/ui-prototypes/mobile/assets/library.css')
 const prototypeIndexSrc = readRel('docs/ui-prototypes/mobile/index.html')
@@ -364,7 +375,7 @@ assertOk(!worldSelectMobileSrc.includes('BottomActionBar'), 'WF2 world select mu
 assertOk(worldSelectMobileSrc.includes('<WorldSelectStage') && worldSelectMobileSrc.includes('<WorldSelectDirectory'), 'WF2 world select must compose the approved stage and independent directory')
 assertOk(worldSelectMobileSrc.includes('role="tablist"') && worldSelectMobileSrc.includes('role="tab"') && worldSelectMobileSrc.includes('aria-selected=') && worldSelectMobileSrc.includes('role="tabpanel"'), 'world source switching must preserve the approved tab and panel semantics')
 assertOk(
-  worldSelectLogicSrc.includes('resolveRestoredWorld(existingWorldConfig, existingWorldCode, savedWorlds)')
+  worldSelectLogicSrc.includes('resolveRestoredWorld(existingWorldConfig, existingWorldCode, custom.savedWorlds)')
     && worldSelectLogicSrc.includes('const selectedWorld = selectedWorldOverride ?? restoredWorld')
     && worldSelectLogicSrc.includes("useWorldSelectForm(existingWorldConfig?.difficulty ?? 'normal')"),
   'returning from world customization must restore the completed world selection and difficulty',
@@ -476,7 +487,8 @@ assertOk(
 )
 assertOk(
   characterCreateLogicSrc.includes('const manualStartingAge = storedManualStartingAge')
-    && characterCreateLogicSrc.includes('const parsedStartingAge = manualStartingAge ? Number.parseInt(manualStartingAge, 10) : 0')
+    && characterCreateLogicSrc.includes('const parsedStartingAge = input.manualStartingAge')
+    && characterCreateLogicSrc.includes('Number.parseInt(input.manualStartingAge, 10)')
     && characterCreateLogicSrc.includes('previewStartingAge: ageSetupPreview.startingAge')
     && characterCreateLogicSrc.includes('起始年龄必须小于预期寿命')
     && characterLifespanSrc.includes('logic.previewStartingAge === 0 ? \'出生\'')
@@ -521,13 +533,12 @@ assertOk(
   'talent draw must reveal real progress, wait for all twelve candidates, and hold the completed seals for one second before handoff',
 )
 assertOk(
-  /const\s+\[selectedUiSlots,\s*setSelectedUiSlots\]\s*=\s*useState<\(number\s*\|\s*null\)\[\]>/.test(talentDrawPageSrc)
-    && /function\s+createSelectedUiSlots[\s\S]{0,240}Array\.from\(\{\s*length:\s*DESTINY_PATTERN_SELECT_COUNT\s*\}/.test(talentDrawPageSrc)
-    && (
-      /selectedUiSlots\.map\(\s*\([^)]*,\s*\w+\)\s*=>\s*\{/.test(talentDrawPageSrc)
-      || /Array\.from\(\{\s*length:\s*DESTINY_PATTERN_SELECT_COUNT\s*\},\s*\(_,\s*(\w+)\)\s*=>\s*\{[\s\S]{0,240}selectedUiSlots\[\1\]/.test(talentDrawPageSrc)
-    )
-    && /setSelectedUiSlots\([\s\S]{0,180}\.map\([\s\S]{0,180}null/.test(talentDrawPageSrc),
+  talentDrawPageSrc.includes('useState<Array<number | null>>')
+    && talentDrawPageSrc.includes('function createSelectedUiSlots')
+    && talentDrawPageSrc.includes('Array.from({ length: DESTINY_PATTERN_SELECT_COUNT')
+    && talentDrawPageSrc.includes('selectedUiSlots.map(')
+    && talentDrawPageSrc.includes('setSelectedUiSlots((current) => current.map(')
+    && talentDrawPageSrc.includes('index === uiSlotIndex ? null : value'),
   'MI-RF1-1 must keep three position-stable UI slots and clear a removed selection in place',
 )
 
@@ -580,8 +591,8 @@ assertOk(
   'fate preview must wait for persisted creation state and reject out-of-order direct entry',
 )
 assertOk(
-  fatePreviewPageSrc.includes("worldInitAIStatus?.status === 'complete'")
-    && fatePreviewPageSrc.includes('WORLD_INIT_STEPS.every')
+  fatePreviewPageSrc.includes("status?.status === 'complete'")
+    && fatePreviewPageSrc.includes('completedSteps === WORLD_INIT_STEPS.length')
     && fatePreviewPageSrc.includes('!aiComplete'),
   'fate preview must not unlock start from initialized=true when the explicit four-step status failed or is incomplete',
 )
@@ -728,15 +739,15 @@ assertOk(
 
 assertOk(
   gameStoryPageSrc.includes('const includeCreationPatternBonus = totalRounds === 0')
-    && gameStoryPageSrc.includes('includeCreationPatternBonus ? (patternBonus[k] ?? 0) : 0'),
+    && gameStoryPageSrc.includes('includeCreationPatternBonus ? (patternBonus[key] ?? 0) : 0'),
   'game story must only add preview-time destiny bonuses before the runtime character state is synchronized',
 )
 assertOk(
   gameStoryPageSrc.includes('className={styles.barActions}')
     && gameStoryPageSrc.includes('className={styles.stepMenu}')
-    && /className=\{styles\.barActions\}[\s\S]{0,3200}className=\{`\$\{styles\.forceButton\}/.test(gameStoryPageSrc)
+    && gameStoryPageSrc.includes('className={`${styles.forceButton}')
     && gameStoryPageSrc.includes('aria-haspopup="listbox"')
-    && gameStoryPageSrc.includes('aria-selected={isActive}')
+    && gameStoryPageSrc.includes('aria-selected={option.value === activeTimeStepKey}')
     && gameStoryPageSrc.includes('document.addEventListener(\'pointerdown\', handlePointerDown)')
     && gameStoryPageSrc.includes("event.key !== 'Escape'")
     && !gameStoryPageSrc.includes('<strong>推进步长</strong>')
@@ -803,9 +814,9 @@ assertOk(
     && gameStoryPageSrc.includes('runAutoNarrativeRetryAttempt')
     && gameStoryPageSrc.includes('invalidateAutoNarrativeRetry(autoRetryGateRef.current)')
     && gameStoryPageSrc.includes('setAutoRetryAttempt(attemptIndex + 1)')
-    && gameStoryPageSrc.includes('advanceBlocked={!isRuntimeReady || hasUnresolvedBranch}')
-    && gameStoryPageSrc.includes('advanceText={narrativeAdvanceText}')
-    && gameStoryPageSrc.includes('advanceHint={narrativeAdvanceHint}')
+    && gameStoryPageSrc.includes('advanceBlocked: !isRuntimeReady || hasUnresolvedBranch')
+    && gameStoryPageSrc.includes('advanceText: narrativeAdvanceText')
+    && gameStoryPageSrc.includes('advanceHint: narrativeAdvanceHint')
     && !gameStoryPageSrc.includes('handleNarrativeRetry'),
   'game story narrative errors must retry automatically and reuse the bottom timeline control for manual retry',
 )

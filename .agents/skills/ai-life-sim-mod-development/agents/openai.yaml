@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI 人生模拟器 MOD 开发"
+  short_description: "处理用户要求的 MOD 边界、注册、生命周期、子系统与公共 API 变更"
+  default_prompt: "使用 $ai-life-sim-mod-development，只修改我的要求涉及的 MOD 范围。"

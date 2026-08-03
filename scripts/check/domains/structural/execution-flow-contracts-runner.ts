@@ -1,3 +1,9 @@
+/**
+ * Purpose: Regress execution-graph registries, outcomes, incidents, and diagnostics.
+ * Owner: quality:structural
+ * Responsibility: One execution-contract runner and its ordered fixture set only.
+ */
+
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'

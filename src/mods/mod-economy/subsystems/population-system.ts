@@ -111,7 +111,15 @@ export class PopulationSystem extends BaseSubsystem {
     const state = this.ensure(context)
     const value = changes.changes.totalPopulation ?? changes.changes.total
     if (value !== undefined) state.totalPopulation = boundedByCapacity(normalizeDecimalInteger(String(value)), state.carryingCapacity)
+    if (typeof changes.changes.totalPopulationDelta === 'string') {
+      const next = BigInt(state.totalPopulation) + BigInt(changes.changes.totalPopulationDelta)
+      state.totalPopulation = boundedByCapacity(
+        (next < BigInt(0) ? BigInt(0) : next).toString(),
+        state.carryingCapacity,
+      )
+    }
     if (typeof changes.changes.urbanizationRate === 'number') state.urbanizationRate = Math.max(0, Math.min(1, changes.changes.urbanizationRate))
+    if (typeof changes.changes.urbanizationRateDelta === 'number') state.urbanizationRate = Math.max(0, Math.min(1, state.urbanizationRate + changes.changes.urbanizationRateDelta))
     state.updatedAtTotalDays = context.totalDays
   }
 

@@ -466,14 +466,14 @@ export function buildNarrativeBranchIntentProjection(
   }
 }
 
-export function buildSettlementBranchIntentInstruction(
+export function buildEventRecognitionBranchIntentInstruction(
   focused: BranchIntentState,
   otherActive: readonly BranchIntentState[],
 ): string {
   const lines = [
-    '【当前命运意图结算条件】',
+    '【当前命运意图判定条件】',
     JSON.stringify(serializeIntent(focused)),
-    '只按最终叙事已经写成的实际执行结果结算，不续写、不改写，也不重新判断该方向本应如何发展。',
+    '只按最终叙事已经写成的实际执行结果判定，不续写、不改写，也不重新判断该方向本应如何发展。',
     `“命运意图判定”必须存在，意图编号必须严格等于 ${toNarrativeAIIntentId(focused.intentId)}；按数据契约完整返回全部必需字段。`,
     `可行性只能为${AI_INTENT_FEASIBILITIES.aiValues.join('、')}；执行方式只能为${AI_INTENT_EXECUTION_MODES.aiValues.join('、')}；状态只能为${AI_INTENT_STATUSES.aiValues.join('、')}；风险等级只能为${AI_INTENT_RISK_LEVELS.aiValues.join('、')}。`,
   ]

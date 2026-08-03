@@ -1,12 +1,12 @@
-/**
- * @module playtest-quality-regression.mjs
- * @description 2026-07-10 测试反馈回归：预生成、解析、命格、历法、分叉与 UI。
- */
+/** Purpose: Regress playtest feedback across pre-generation, parsing, destiny, calendar, branching, and UI.
+ * Owner: quality:narrative
+ * Responsibility: Cross-feature quality assertions only; each runtime system retains its business state. */
 
 import fs from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
 import { getProjectRoot } from '../../lib/project-root.mjs'
+import { readDirectorySource, readModuleSource } from '../../lib/read-module-source.mjs'
 
 import { PreGenActivityState } from '../../../../src/mods/mod-engine/helpers/pre-gen-activity-state.ts'
 import { parseNarrativeResponseEnvelope } from '../../../../src/mods/mod-engine/helpers/tagged-meta-envelope.ts'
@@ -38,8 +38,10 @@ import { AVAILABLE_TIME_STEPS, encodeTimeStepKey } from '../../../../src/foundat
 import { COMPILED_NARRATIVE_SYSTEM_PROMPT } from '../../../../src/mods/mod-engine/server/narrative-system-prompt.ts'
 import {
   NarrativeAIBranchSchema,
-  NarrativeAISettlementDataSchema,
-  translateNarrativeAISettlement,
+  NarrativeAIBasicAttributeAnalysisDataSchema,
+  NarrativeAIEventRecognitionDataSchema,
+  translateNarrativeAIBasicAttributeAnalysis,
+  translateNarrativeAIEventRecognition,
 } from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
 import { NarrativeRoundMetadataSchema } from '../../../../src/mods/mod-engine/helpers/narrative-semantic-signals.ts'
 import {
@@ -140,7 +142,7 @@ function loadPersistMigration(sourceText) {
     `module.exports = ${migrationExpression}`,
     { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
   ).outputText
-  const module = { exports: undefined }
+  const module = { exports: {} }
   new Function(
     'module',
     'exports',
@@ -202,7 +204,7 @@ function loadTalentPoolHelpers(sourceText) {
     `${declarations.join('\n')}\nmodule.exports = { uniquePatternsByIdentity, drawSlotsFromPool }`,
     { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
   ).outputText
-  const module = { exports: undefined }
+  const module = { exports: {} }
   new Function('module', 'exports', 'DESTINY_PATTERN_DISPLAY_COUNT', transpiled)(module, module.exports, 12)
   return module.exports
 }
@@ -264,17 +266,18 @@ for (const option of AVAILABLE_TIME_STEPS) {
 }
 
 const oneYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 1 })
-assertIncludes(oneYearHint, '年度全景视角', 'one-year hint must use an annual panorama')
-assertIncludes(oneYearHint, '不得把年度压缩成一个现场', 'one-year hint must reject a single-scene annual result')
-assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '日级可用一个可感知现场承载主线', 'fixed prompt must reserve single-scene focus for the daily scale')
-assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '年级及以上依本轮时间尺度用多个阶段节点或时代断点承载同一因果主线', 'fixed prompt must require multi-stage long-span narration')
+assertIncludes(oneYearHint, '年度连续场景视角', 'one-year hint must use connected annual scenes')
+assertIncludes(oneYearHint, '不得把全年压成一个即时现场', 'one-year hint must reject a single-scene annual result')
+assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '日级可用一个细节、动作或对话承载现场', 'fixed prompt must reserve compact scene focus for the daily scale')
+assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '一年至十年保持人物层面的阶段镜头', 'fixed prompt must retain character-scale stages through ten years')
+assertIncludes(COMPILED_NARRATIVE_SYSTEM_PROMPT, '不得把宏观报告与即时现场拼接在一起', 'fixed prompt must forbid mixed narrative distances')
 assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('若本轮按年或更长跨度推进，正文仍只选择一个代表性现场'), 'fixed prompt must not force annual or longer spans into one scene')
 assertOk(!COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('先选择能在该区间内自然收束的单一事件'), 'word-count guidance must not override long-span narrative scale')
 const tenYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 10 })
-assertIncludes(tenYearHint, '十年转型视角', 'ten-year hint must use decade transformation')
+assertIncludes(tenYearHint, '十年人生转型视角', 'ten-year hint must use character-scale decade transformation')
 const fiftyYearHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 50 })
 assertIncludes(fiftyYearHint, '半世纪历史视角', 'fifty-year hint must use historical perspective')
-assertIncludes(fiftyYearHint, '起点阶段、中段决定性转折和结束格局三个明确时期', 'fifty-year hint must require three explicit historical periods')
+assertIncludes(fiftyYearHint, '用至少三个时代节点写清个人命运与长期结构如何互相影响', 'fifty-year hint must require connected historical nodes')
 assertIncludes(fiftyYearHint, '大部分篇幅不得停留在结束节点当天或任何单一现场', 'fifty-year hint must not collapse into the ending-day scene')
 const millenniumHint = buildTimeScaleNarrativeHint({ unit: 'year', value: 1000 })
 assertIncludes(millenniumHint, '千年时代与遗产视角', 'millennium hint must use civilizational legacy perspective')
@@ -323,7 +326,7 @@ const multiYearCalendar = buildCanonicalCalendarNarrativeHint({
   day: 1,
 })
 assertIncludes(multiYearCalendar, '2026年至2035年，共10年', 'year span must name its complete range')
-assertIncludes(multiYearCalendar, '不能只描写目标年份', 'calendar hint must reject target-year-only output')
+assertOk(!multiYearCalendar.includes('代表性场景'), 'calendar hint must not duplicate the time-profile composition contract')
 
 const oneYearCalendar = buildCanonicalCalendarNarrativeHint({
   timeStep: { unit: 'year', value: 1 },
@@ -331,8 +334,8 @@ const oneYearCalendar = buildCanonicalCalendarNarrativeHint({
   month: 1,
   day: 1,
 })
-assertIncludes(oneYearCalendar, '年度推进必须表现年初格局', 'single-year calendar guidance must require annual coverage')
-assertIncludes(oneYearCalendar, '不得压成单一现场', 'single-year calendar guidance must reject a single-scene annual result')
+assertIncludes(oneYearCalendar, '本轮覆盖2026年', 'single-year calendar guidance must name the complete annual window')
+assertOk(!oneYearCalendar.includes('代表性场景'), 'single-year calendar guidance must leave composition to the annual time profile')
 assertOk(!oneYearCalendar.includes('多年推进必须'), 'single-year calendar guidance must not request a multi-year composition')
 
 const coarseToFineWindow = buildCanonicalCalendarNarrativeHint({
@@ -592,7 +595,7 @@ assertOk(!isEligibleNarrativeBranch({
 }), 'a daily life event must not become a destiny branch merely because it has options')
 
 const constantsSrc = readRel('src/mods/mod-character/constants.ts')
-const destinySystemSrc = readRel('src/mods/mod-character/subsystems/destiny-pattern-system.ts')
+const destinySystemSrc = readModuleSource('src/mods/mod-character/subsystems/destiny-pattern-system.ts', root)
 const destinyPromptSrc = readRel('src/mods/mod-character/prompts/destiny-pattern-prompt.ts')
 const destinyPoolCacheSrc = readRel('src/mods/mod-character/utils/destiny-pattern-pool-cache.ts')
 const characterStoreSrc = readRel('src/mods/mod-character/store.ts')
@@ -600,12 +603,12 @@ const characterMigrationSrc = readRel('src/mods/mod-character/utils/character-st
 const mythicPromptSrc = readRel('src/mods/mod-character/prompts/mythic-pattern-prompt.ts')
 const mythicAccessSrc = readRel('src/mods/mod-character/mythic-pattern-access.ts')
 const mythicLibrarySrc = readRel('src/mods/mod-character/mythic-library-store.ts')
-const talentDrawPageSrc = readRel('src/mods/mod-pages/pages/talent-draw/page.tsx')
+const talentDrawPageSrc = readDirectorySource('src/mods/mod-pages/pages/talent-draw', root, ['.ts', '.tsx'])
 const talentDrawCssSrc = readRel('src/mods/mod-pages/pages/talent-draw/TalentDraw.module.css')
 const preGenSrc = readRel('src/mods/mod-engine/helpers/pre-gen-queue.ts')
 const narrativeSignalsSrc = readRel('src/mods/mod-engine/helpers/narrative-semantic-signals.ts')
 const hooksSrc = readRel('src/mods/mod-engine/hooks.ts')
-const orchestratorSrc = readRel('src/mods/mod-engine/subsystems/orchestrator-system.ts')
+const orchestratorSrc = readModuleSource('src/mods/mod-engine/subsystems/orchestrator-system.ts', root)
 const timeScaleSrc = readRel('src/mods/mod-engine/helpers/time-scale-narrative.ts')
 const narrativeResponseQualitySrc = readRel('src/mods/mod-engine/helpers/narrative-response-quality.ts')
 const narrativeHintsSrc = readRel('src/mods/mod-engine/helpers/narrative-hints.ts')
@@ -615,14 +618,14 @@ const narrativePromptComponentsSrc = readRel('src/mods/mod-engine/server/narrati
 const roundCommitBusSrc = readRel('src/mods/mod-engine/helpers/round-commit-bus.ts')
 const powerContextSrc = readRel('src/mods/mod-world/utils/power-framework.ts')
 const timelineCssSrc = readRel('src/mods/mod-ui/components/organisms/NarrativeTimeline.module.css')
-const timelineTsxSrc = readRel('src/mods/mod-ui/components/organisms/NarrativeTimeline.tsx')
+const timelineTsxSrc = readDirectorySource('src/mods/mod-ui/components/organisms', root, ['.ts', '.tsx'])
 const cultureIndexSrc = readRel('src/mods/mod-culture/index.ts')
 const settingsStoreSrc = readRel('src/mods/mod-settings/store.ts')
-const aiClientSrc = readRel('src/core/ai-service/ai-client.ts')
-const proxyRouteSrc = readRel('src/app/api/proxy/route.ts')
+const aiClientSrc = readModuleSource('src/core/ai-service/ai-client.ts', root)
+const proxyRouteSrc = readModuleSource('src/app/api/proxy/route.ts', root)
 const welcomePageSrc = readRel('src/mods/mod-pages/pages/welcome/page.tsx')
 const worldConfirmSrc = readRel('src/mods/mod-pages/pages/world-select/useWorldConfirm.ts')
-const gameOverPageSrc = readRel('src/mods/mod-pages/pages/game-over/page.tsx')
+const gameOverPageSrc = readDirectorySource('src/mods/mod-pages/pages/game-over', root, ['.ts', '.tsx'])
 
 const talentPoolHelpers = loadTalentPoolHelpers(talentDrawPageSrc)
 const normalizedDuplicatePool = [
@@ -719,7 +722,7 @@ const chineseInstruction = {
 const chineseMetadata = {
   摘要: '你在压力下完成了一次心智训练。',
   重要程度: '普通',
-  关键事件: [{ 内容: '你完成了心智训练。', 重要度: 45, 涉及实体: ['你'] }],
+  注册事件: [{ 内容: '你完成了心智训练。', 重要度: 45, 涉及实体: ['你'] }],
   情节状态: '进行中',
   语义信号: {
     事件类型: '日常',
@@ -733,21 +736,29 @@ const chineseMetadata = {
     情节类型: '无',
   },
 }
+const chineseBasicAttributeData = { 系统操作: [chineseInstruction] }
+const chineseEventRecognitionData = {
+  回合事件: chineseMetadata,
+  待触发事件: [],
+}
 assertOk(
-  NarrativeAISettlementDataSchema.safeParse(chineseMetadata).success
-    && translateNarrativeAISettlement(
-      [chineseInstruction],
-      chineseMetadata,
+  NarrativeAIBasicAttributeAnalysisDataSchema.safeParse(chineseBasicAttributeData).success
+    && translateNarrativeAIBasicAttributeAnalysis(
+      chineseBasicAttributeData,
       { allowedEvidenceEventIds: [], allowedSubsystemIds: ['character-base'] },
-    ).changes[0]?.changes.mindDelta === 1,
-  'second-call Chinese system and field names must translate to the internal field contract',
+    )[0]?.changes.mindDelta === 1
+    && NarrativeAIEventRecognitionDataSchema.safeParse(chineseEventRecognitionData).success
+    && translateNarrativeAIEventRecognition(chineseEventRecognitionData, {
+      currentContextId: 'context:current',
+      currentTotalDays: 10,
+    }).metadata.digest === chineseMetadata.摘要,
+  'background Chinese system, attribute, and event fields must translate to the internal contracts',
 )
 assertOk(
-  !NarrativeAISettlementDataSchema.safeParse({
-    ...chineseMetadata,
-    changes: [{ id: 'character-base', description: 'legacy', mindDelta: 1 }],
+  !NarrativeAIBasicAttributeAnalysisDataSchema.safeParse({
+    系统操作: [{ ...chineseInstruction, 变更: { mindDelta: 1 } }],
   }).success,
-  'English legacy change fields must not be accepted alongside the Chinese protocol',
+  'English legacy change fields must not be accepted alongside the basic-attribute protocol',
 )
 assertOk(
   !NarrativeAIBranchSchema.safeParse({
@@ -896,7 +907,7 @@ assertOk(
   'destiny schema must reject an all-mixed double-edged batch',
 )
 assertOk(
-  /const polarity = this\.validatePolarity\(item\.polarity\)[\s\S]{0,100}if \(!rarity \|\| !polarity\) return/.test(destinySystemSrc)
+  /const polarity = (?:this\.)?validateDestinyPatternPolarity\(item\.polarity\)[\s\S]{0,160}if \(!rarity \|\| !polarity\) return/.test(destinySystemSrc)
     && !/polarity:\s*this\.validatePolarity\(item\.polarity\)\s*\?\?\s*'positive'/.test(destinySystemSrc),
   'streamed destiny ingestion must reject invalid or negative polarity instead of relabeling it as positive',
 )
@@ -986,7 +997,7 @@ assertOk(
   '401/403 must abort the active destiny fill and escape before any later batch can start',
 )
 assertOk(
-  /dedupePatterns\(options\?\.initialPatterns \?\? \[\]\)[\s\S]{0,100}filter\(\(pattern\) => this\.isAIGeneratedPattern\(pattern\)\)/.test(destinySystemSrc),
+  /dedupeDestinyPatterns\(options\?\.initialPatterns \?\? \[\]\)[\s\S]{0,180}filter\(\(pattern\) => isAIGeneratedDestinyPattern\(pattern\)\)/.test(destinySystemSrc),
   'generateWithAI must reject preset entries even when a caller passes them as initial cache',
 )
 assertOk(
@@ -1017,7 +1028,7 @@ assertOk(
   'an incompatible saved selection must not fall through into the selecting phase',
 )
 assertOk(
-  /type PagePhase = 'idle' \| 'generating' \| 'ready' \| 'selecting'/.test(talentDrawPageSrc),
+  /type TalentDrawPhase = 'idle' \| 'generating' \| 'ready' \| 'selecting'/.test(talentDrawPageSrc),
   'destiny draw must keep an explicit non-persisted handoff state after twelve candidates are ready',
 )
 assertOk(
@@ -1040,7 +1051,7 @@ assertOk(
   'persisted selecting slots must not restore a normalized duplicate set',
 )
 assertOk(
-  /\(_?count, patterns\) => \{[\s\S]{0,900}revealPatterns\(uniquePatterns\)/.test(talentDrawPageSrc),
+  /\(_?count, patterns\) => \{[\s\S]{0,900}revealPatterns\(uniquePatternsByIdentity\(patterns\)\)/.test(talentDrawPageSrc),
   'AI progress must re-check display-unique readiness after the raw early-ready callback',
 )
 assertOk(
@@ -1057,7 +1068,7 @@ assertOk(
   'DeepSeek reasoning must transmit an explicit enabled/disabled type and supported reasoning effort',
 )
 assertOk(
-  /const usedNames = new Set<string>\(\)[\s\S]{0,700}!usedNames\.has\(patternNameKey\(p\)\)/.test(talentDrawPageSrc),
+  /const usedNames = new Set<string>\(\)[\s\S]{0,700}!usedNames\.has\(patternNameKey\(pattern\)\)/.test(talentDrawPageSrc),
   'destiny redraw must not reintroduce duplicate display names into the visible slots',
 )
 assertOk(
@@ -1083,17 +1094,18 @@ assertOk(orchestratorSrc.includes('capturePreviewSnapshot'), 'pre-gen snapshots 
 assertOk(/hydrateFromEngineStore\(previousTimeStep\?/.test(orchestratorSrc), 'stale preview hydration must accept the previous time step')
 assertOk(orchestratorSrc.includes('reconcilePreviewSnapshotWithEngineStore'), 'stale preview must reconcile non-store state before hydrating authoritative store state')
 
-assertOk(timeScaleSrc.includes('年度全景视角'), 'year step must use an annual panorama')
+assertOk(timeScaleSrc.includes('年度连续场景视角'), 'year step must use connected annual scenes')
 assertOk(
   timeScaleSrc.includes('首句不要使用“这一年”“这一月”“这一天”等泛指时间套语')
     && timeScaleSrc.includes('确需时间锚时使用“当前时间”中的具体纪年、季节、月日'),
   'time guidance must vary openings and use the explicit calendar label when a time anchor is needed',
 )
 assertOk(
-  timeScaleSrc.includes('不得把年度压缩成一个现场')
+  timeScaleSrc.includes('不得把全年压成一个即时现场')
     && timeScaleSrc.includes('同一时间跨度内的因果主线')
-    && timeScaleSrc.includes('家庭、组织、社会与文明'),
-  'year-scale guidance must expand its lens while retaining one causal arc',
+    && narrativePromptComponentsSrc.includes('一年至十年保持人物层面的阶段镜头')
+    && narrativePromptComponentsSrc.includes('半世纪以上才逐步转为家族、组织、社会或文明的时代节点'),
+  'time guidance must retain one causal arc and delay macro scope until half-century steps',
 )
 assertOk(timeScaleSrc.includes('季度阶段视角'), 'season step must use quarterly stage perspective')
 assertOk(timeScaleSrc.includes('月度变化视角'), 'month step must use monthly change perspective')
@@ -1114,7 +1126,7 @@ const monthAfterSeasonStep = (mayIndex + 3) % 12
 assertSame(Math.floor(((monthAfterSeasonStep + 10) % 12) / 3), 1, 'month->season must land in the following solar season')
 assertOk(narrativeSignalsSrc.includes("metadata.importance !== 'HIGH'"), 'branch metadata must require HIGH importance')
 assertOk(narrativePromptComponentsSrc.includes('身份、核心关系、长期目标、关键资源、阵营、存亡等不可逆轨迹'), 'branch prompt must define fate-changing impact dimensions')
-assertOk(/version:\s*'5\.8\.1'/.test(narrativePromptSrc), 'pure narrative contract must use version 5.8.1')
+assertOk(/version:\s*'5\.8\.2'/.test(narrativePromptSrc), 'pure narrative contract must use version 5.8.2')
 assertOk(
   narrativeSignalsSrc.includes('metadata.semanticSignals?.irreversible !== true')
     && narrativeSignalsSrc.includes("metadata.semanticSignals.narrativeRegister !== 'fate'"),
@@ -1122,7 +1134,7 @@ assertOk(
 )
 assertOk(
   narrativePromptComponentsSrc.includes('正文全程用第二人称“你”')
-    && narrativePromptComponentsSrc.includes('用一个可感知现场承载主线')
+    && narrativePromptComponentsSrc.includes('镜头只写你能感知、回忆或合理推断的内容')
     && narrativePromptComponentsSrc.includes('不写全知旁白、第三人称传记或编年报告'),
   'narrative prompt must preserve second-person viewpoint, scene-level immersion, and anti-biography constraints',
 )
@@ -1132,8 +1144,8 @@ assertOk(
   'the dynamic time-scale component must reject repetitive generic time openings',
 )
 assertOk(
-  narrativePromptComponentsSrc.includes('专属、独有、唯一、血脉限定、异界来源或角色自创')
-    && narrativePromptComponentsSrc.includes('遗迹发现、古人传承、秘境所得、他人遗留或他人同源能力')
+  narrativePromptComponentsSrc.includes('专属、独有、唯一、继承限定、异界来源或角色自创')
+    && narrativePromptComponentsSrc.includes('当地常见能力、制式来源、外部发现、机构授予、既有传承、他人遗留或他人同源能力')
     && narrativePromptComponentsSrc.includes('角色自创内容的后续发展必须来自角色自身')
     && narrativeResponseQualitySrc.includes('不得无因果跳过数周或数月')
     && narrativeResponseQualitySrc.includes('isOpeningRound'),
@@ -1146,7 +1158,7 @@ assertOk(
 )
 assertOk(timeScaleSrc.includes('3—5月春季、6—8月夏季、9—11月秋季、12—2月冬季'), 'dynamic time guidance must define the canonical solar season mapping')
 assertOk(!/commit\.changes\.slice\(/.test(roundCommitBusSrc), 'round commit must never partially truncate structured changes')
-assertOk(roundCommitBusSrc.includes('narrative 预检失败，整包拒绝'), 'invalid narrative changes must be rejected as one complete package')
+assertOk(roundCommitBusSrc.includes('预检失败，整包拒绝 ${commit.changes.length} 条变更'), 'each background owner must reject invalid changes as one complete package')
 assertOk(timelineTsxSrc.includes('splitNarrativeParagraphs(entry.text)'), 'timeline must render every natural narrative paragraph')
 assertOk(!timelineTsxSrc.includes('streamingText'), 'timeline must render only fully committed narrative entries')
 assertOk(

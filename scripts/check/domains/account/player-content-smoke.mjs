@@ -1,3 +1,9 @@
+/**
+ * Purpose: Regress player-content persistence, assets, mail, and record behavior in one temporary store.
+ * Owner: quality:account
+ * Responsibility: One isolated player-content database smoke transaction only.
+ */
+
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import os from 'node:os'

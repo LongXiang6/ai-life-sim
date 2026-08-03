@@ -1,0 +1,2342 @@
+{
+  "schemaVersion": 1,
+  "notice": "auto-generated; DO NOT EDIT",
+  "source": "scripts/check/rules/project-structure.json",
+  "generatedBy": "scripts/codegen/generate-project-structure.mjs",
+  "owners": [
+    {
+      "id": "app:_components",
+      "responsibility": "应用路由、服务端入口和页面装配",
+      "directories": [
+        "src/app/_components"
+      ],
+      "files": [
+        "src/app/_components/init-mods-bootstrap.ts",
+        "src/app/_components/init-mods-routes.ts",
+        "src/app/_components/init-mods.tsx",
+        "src/app/_components/preference-effects.tsx",
+        "src/app/_components/storage-init.tsx"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "app:[...mod-page]",
+      "responsibility": "应用路由、服务端入口和页面装配",
+      "directories": [
+        "src/app/[...mod-page]"
+      ],
+      "files": [
+        "src/app/[...mod-page]/page.tsx"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "app:api",
+      "responsibility": "应用路由、服务端入口和页面装配",
+      "directories": [
+        "src/app/api/account",
+        "src/app/api/account/cloud-save",
+        "src/app/api/account/login",
+        "src/app/api/account/logout",
+        "src/app/api/account/mailbox",
+        "src/app/api/account/mailbox/assets/[assetId]",
+        "src/app/api/account/mailbox/portrait",
+        "src/app/api/account/qq-link",
+        "src/app/api/account/register",
+        "src/app/api/account/sync",
+        "src/app/api/ai-usage/deepseek-balance",
+        "src/app/api/debug-log",
+        "src/app/api/diagnostic-identity",
+        "src/app/api/feedback",
+        "src/app/api/integrations/qq-bot/account-status",
+        "src/app/api/integrations/qq-bot/bind",
+        "src/app/api/integrations/qq-bot/points",
+        "src/app/api/integrations/qq-bot/project-status",
+        "src/app/api/integrations/qq-bot/unbind",
+        "src/app/api/leaderboard",
+        "src/app/api/leaderboard/assets/[assetId]",
+        "src/app/api/legendary-encounter",
+        "src/app/api/log",
+        "src/app/api/narrative-memory",
+        "src/app/api/narrative/round-outcome",
+        "src/app/api/proxy",
+        "src/app/api/proxy/route",
+        "src/app/api/world-init",
+        "src/app/api/world-init/route"
+      ],
+      "files": [
+        "src/app/api/account/cloud-save/route.ts",
+        "src/app/api/account/login/route.ts",
+        "src/app/api/account/logout/route.ts",
+        "src/app/api/account/mailbox/assets/[assetId]/route.ts",
+        "src/app/api/account/mailbox/portrait/route.ts",
+        "src/app/api/account/mailbox/route.ts",
+        "src/app/api/account/qq-link/route.ts",
+        "src/app/api/account/register/route.ts",
+        "src/app/api/account/route.ts",
+        "src/app/api/account/sync/route.ts",
+        "src/app/api/ai-usage/deepseek-balance/route.ts",
+        "src/app/api/debug-log/route.ts",
+        "src/app/api/diagnostic-identity/route.ts",
+        "src/app/api/feedback/route.ts",
+        "src/app/api/integrations/qq-bot/account-status/route.ts",
+        "src/app/api/integrations/qq-bot/bind/route.ts",
+        "src/app/api/integrations/qq-bot/points/route.ts",
+        "src/app/api/integrations/qq-bot/project-status/route.ts",
+        "src/app/api/integrations/qq-bot/unbind/route.ts",
+        "src/app/api/leaderboard/assets/[assetId]/route.ts",
+        "src/app/api/leaderboard/route.ts",
+        "src/app/api/legendary-encounter/route.ts",
+        "src/app/api/log/route.ts",
+        "src/app/api/narrative-memory/route.ts",
+        "src/app/api/narrative/round-outcome/route.ts",
+        "src/app/api/proxy/route.ts",
+        "src/app/api/proxy/route/contracts.ts",
+        "src/app/api/proxy/route/proxy-logging.ts",
+        "src/app/api/proxy/route/request-fingerprint.ts",
+        "src/app/api/proxy/route/response-helpers.ts",
+        "src/app/api/world-init/route.ts",
+        "src/app/api/world-init/route/job-store.ts",
+        "src/app/api/world-init/route/pipeline.ts",
+        "src/app/api/world-init/route/provider.ts"
+      ],
+      "oversized": [
+        "src/app/api/proxy/route.ts"
+      ]
+    },
+    {
+      "id": "app:error.tsx",
+      "responsibility": "应用路由、服务端入口和页面装配",
+      "directories": [
+        "src/app"
+      ],
+      "files": [
+        "src/app/error.tsx"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "app:globals.css",
+      "responsibility": "应用路由、服务端入口和页面装配",
+      "directories": [
+        "src/app"
+      ],
+      "files": [
+        "src/app/globals.css"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "app:layout.tsx",
+      "responsibility": "应用路由、服务端入口和页面装配",
+      "directories": [
+        "src/app"
+      ],
+      "files": [
+        "src/app/layout.tsx"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "app:loading.tsx",
+      "responsibility": "应用路由、服务端入口和页面装配",
+      "directories": [
+        "src/app"
+      ],
+      "files": [
+        "src/app/loading.tsx"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "app:not-found.tsx",
+      "responsibility": "应用路由、服务端入口和页面装配",
+      "directories": [
+        "src/app"
+      ],
+      "files": [
+        "src/app/not-found.tsx"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "app:page.tsx",
+      "responsibility": "应用路由、服务端入口和页面装配",
+      "directories": [
+        "src/app"
+      ],
+      "files": [
+        "src/app/page.tsx"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "app:shared-styles",
+      "responsibility": "跨页面复用的应用样式资产",
+      "directories": [
+        "src/styles/shared"
+      ],
+      "files": [
+        "src/styles/shared/.gitkeep"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "code-generation",
+      "responsibility": "从唯一声明源生成确定性接线和索引",
+      "directories": [
+        "scripts/codegen",
+        "scripts/codegen/generate-mod-wiring"
+      ],
+      "files": [
+        "scripts/codegen/create-mod.mjs",
+        "scripts/codegen/generate-mod-wiring.mjs",
+        "scripts/codegen/generate-mod-wiring/context.mjs",
+        "scripts/codegen/generate-mod-wiring/contract-generators.mjs",
+        "scripts/codegen/generate-mod-wiring/engine-generators.mjs",
+        "scripts/codegen/generate-mod-wiring/importer-generators.mjs",
+        "scripts/codegen/generate-mod-wiring/main.mjs",
+        "scripts/codegen/generate-mod-wiring/migration-generators.mjs",
+        "scripts/codegen/generate-mod-wiring/output.mjs",
+        "scripts/codegen/generate-mod-wiring/source-analysis.mjs",
+        "scripts/codegen/generate-project-structure.mjs",
+        "scripts/codegen/subsystem-field-contract-parser.mjs"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "core:account",
+      "responsibility": "跨 MOD 平台能力与公共服务",
+      "directories": [
+        "src/core/account",
+        "src/core/account/account-service",
+        "src/core/account/qq-bot-integration",
+        "src/core/account/qq-points-service"
+      ],
+      "files": [
+        "src/core/account/account-client-store.ts",
+        "src/core/account/account-client.ts",
+        "src/core/account/account-contract.ts",
+        "src/core/account/account-crypto.ts",
+        "src/core/account/account-database.ts",
+        "src/core/account/account-http.ts",
+        "src/core/account/account-service.ts",
+        "src/core/account/account-service/account-operations.ts",
+        "src/core/account/account-service/error.ts",
+        "src/core/account/account-service/rate-limit.ts",
+        "src/core/account/account-service/repository.ts",
+        "src/core/account/account-service/session-service.ts",
+        "src/core/account/qq-bot-integration.ts",
+        "src/core/account/qq-bot-integration/account-binding.ts",
+        "src/core/account/qq-bot-integration/contracts.ts",
+        "src/core/account/qq-bot-integration/project-status.ts",
+        "src/core/account/qq-bot-integration/request-authentication.ts",
+        "src/core/account/qq-points-service.ts",
+        "src/core/account/qq-points-service/contracts.ts",
+        "src/core/account/qq-points-service/operations.ts",
+        "src/core/account/qq-points-service/repository.ts",
+        "src/core/account/username-policy.ts"
+      ],
+      "oversized": [
+        "src/core/account/account-contract.ts"
+      ]
+    },
+    {
+      "id": "core:ai-service",
+      "responsibility": "跨 MOD 平台能力与公共服务",
+      "directories": [
+        "src/core/ai-service",
+        "src/core/ai-service/ai-client",
+        "src/core/ai-service/usage-stats"
+      ],
+      "files": [
+        "src/core/ai-service/adaptation-prompt-factory.ts",
+        "src/core/ai-service/ai-call-deadline.ts",
+        "src/core/ai-service/ai-call-wrapper.ts",
+        "src/core/ai-service/ai-client.ts",
+        "src/core/ai-service/ai-client/cache-metrics.ts",
+        "src/core/ai-service/ai-client/call-logging.ts",
+        "src/core/ai-service/ai-client/calls.ts",
+        "src/core/ai-service/ai-client/deadline-fetch.ts",
+        "src/core/ai-service/ai-client/degraded-calls.ts",
+        "src/core/ai-service/ai-client/errors.ts",
+        "src/core/ai-service/ai-client/http-transport.ts",
+        "src/core/ai-service/ai-client/request-body.ts",
+        "src/core/ai-service/ai-client/response-utils.ts",
+        "src/core/ai-service/ai-client/retry-executor.ts",
+        "src/core/ai-service/ai-client/schema-validation.ts",
+        "src/core/ai-service/ai-client/stream-response.ts",
+        "src/core/ai-service/ai-client/types.ts",
+        "src/core/ai-service/api-error.ts",
+        "src/core/ai-service/cache-pool.ts",
+        "src/core/ai-service/cache-stats.ts",
+        "src/core/ai-service/deepseek-balance-client.ts",
+        "src/core/ai-service/index.ts",
+        "src/core/ai-service/kv-prompt-order.ts",
+        "src/core/ai-service/narrative-guidance-compiler.ts",
+        "src/core/ai-service/narrative-token-budget.ts",
+        "src/core/ai-service/normalize-ai-usage.ts",
+        "src/core/ai-service/parse-ai-json.ts",
+        "src/core/ai-service/prompt-builder.ts",
+        "src/core/ai-service/prompt-flags.ts",
+        "src/core/ai-service/provider-config.ts",
+        "src/core/ai-service/resolve-seed.ts",
+        "src/core/ai-service/server-provider-targets.ts",
+        "src/core/ai-service/story-seed.ts",
+        "src/core/ai-service/stream-handler.ts",
+        "src/core/ai-service/stream-text-extractor.ts",
+        "src/core/ai-service/stream-timeout.ts",
+        "src/core/ai-service/usage-stats.ts",
+        "src/core/ai-service/usage-stats/contracts.ts",
+        "src/core/ai-service/usage-stats/pricing.ts",
+        "src/core/ai-service/usage-stats/store.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "core:event-bus",
+      "responsibility": "跨 MOD 平台能力与公共服务",
+      "directories": [
+        "src/core/event-bus"
+      ],
+      "files": [
+        "src/core/event-bus/event-bus.ts",
+        "src/core/event-bus/event-types.ts",
+        "src/core/event-bus/index.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "core:execution",
+      "responsibility": "跨 MOD 平台能力与公共服务",
+      "directories": [
+        "src/core/execution"
+      ],
+      "files": [
+        "src/core/execution/execution-flow-registry.ts",
+        "src/core/execution/index.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "core:global-store",
+      "responsibility": "跨 MOD 平台能力与公共服务",
+      "directories": [
+        "src/core/global-store",
+        "src/core/global-store/slices"
+      ],
+      "files": [
+        "src/core/global-store/global-store.ts",
+        "src/core/global-store/index.ts",
+        "src/core/global-store/slices/index.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "core:index.ts",
+      "responsibility": "跨 MOD 平台能力与公共服务",
+      "directories": [
+        "src/core"
+      ],
+      "files": [
+        "src/core/index.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "core:instrument",
+      "responsibility": "跨 MOD 平台能力与公共服务",
+      "directories": [
+        "src/core/instrument"
+      ],
+      "files": [
+        "src/core/instrument/instrument-mode.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "core:logger",
+      "responsibility": "跨 MOD 平台能力与公共服务",
+      "directories": [
+        "src/core/logger",
+        "src/core/logger/client-logger",
+        "src/core/logger/server-log-store"
+      ],
+      "files": [
+        "src/core/logger/ai-call-log.ts",
+        "src/core/logger/client-logger.ts",
+        "src/core/logger/client-logger/contracts.ts",
+        "src/core/logger/client-logger/diagnostic-transport.ts",
+        "src/core/logger/client-logger/environment-reporter.ts",
+        "src/core/logger/client-logger/global-handlers.ts",
+        "src/core/logger/debug-logger.ts",
+        "src/core/logger/development-system-diagnostic.server.ts",
+        "src/core/logger/development-system-diagnostic.ts",
+        "src/core/logger/device-provenance-identity.ts",
+        "src/core/logger/device-provenance.ts",
+        "src/core/logger/diagnostic-player-code-client.ts",
+        "src/core/logger/diagnostic-player-code.ts",
+        "src/core/logger/diagnostic-player-identity.ts",
+        "src/core/logger/feedback-contract.ts",
+        "src/core/logger/index.ts",
+        "src/core/logger/narrative-round-archive.ts",
+        "src/core/logger/narrative-round-diagnostic.ts",
+        "src/core/logger/player-feedback-store.ts",
+        "src/core/logger/server-log-safety.ts",
+        "src/core/logger/server-log-store.ts",
+        "src/core/logger/server-log-store/archive-sql.ts",
+        "src/core/logger/server-log-store/contracts.ts",
+        "src/core/logger/server-log-store/database.ts",
+        "src/core/logger/server-log-store/entry-writer.ts",
+        "src/core/logger/server-log-store/identity-reservations.ts",
+        "src/core/logger/server-log-store/request-source.ts",
+        "src/core/logger/server-log-store/retention-cleanup.ts",
+        "src/core/logger/server-log-store/serialization.ts",
+        "src/core/logger/server-log-store/server-log-query.ts",
+        "src/core/logger/usage-metrics.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "core:mod-loader",
+      "responsibility": "跨 MOD 平台能力与公共服务",
+      "directories": [
+        "src/core/mod-loader"
+      ],
+      "files": [
+        "src/core/mod-loader/compat-importers.generated.ts",
+        "src/core/mod-loader/dependency-resolver.ts",
+        "src/core/mod-loader/index.ts",
+        "src/core/mod-loader/load-error-hints.ts",
+        "src/core/mod-loader/migration-importers.generated.ts",
+        "src/core/mod-loader/mod-control-importers.generated.ts",
+        "src/core/mod-loader/mod-importers.generated.ts",
+        "src/core/mod-loader/mod-lifecycle.ts",
+        "src/core/mod-loader/mod-loader.ts",
+        "src/core/mod-loader/mod-registry.ts",
+        "src/core/mod-loader/mod-secondary-api-importers.generated.ts",
+        "src/core/mod-loader/mod-subsystem-importers.generated.ts",
+        "src/core/mod-loader/mod-validator.ts",
+        "src/core/mod-loader/prototype-stage.ts",
+        "src/core/mod-loader/remote-api-filter.ts",
+        "src/core/mod-loader/remote-contracts.generated.ts",
+        "src/core/mod-loader/runtime-registry.ts",
+        "src/core/mod-loader/settings-stage.ts",
+        "src/core/mod-loader/validate-remote-contracts.ts"
+      ],
+      "oversized": [
+        "src/core/mod-loader/mod-lifecycle.ts"
+      ]
+    },
+    {
+      "id": "core:player-content",
+      "responsibility": "跨 MOD 平台能力与公共服务",
+      "directories": [
+        "src/core/player-content",
+        "src/core/player-content/player-content-service",
+        "src/core/player-content/player-mail-service"
+      ],
+      "files": [
+        "src/core/player-content/player-content-client.ts",
+        "src/core/player-content/player-content-contract.ts",
+        "src/core/player-content/player-content-database.ts",
+        "src/core/player-content/player-content-error.ts",
+        "src/core/player-content/player-content-features.ts",
+        "src/core/player-content/player-content-http.ts",
+        "src/core/player-content/player-content-service.ts",
+        "src/core/player-content/player-content-service/cloud-manual-save-service.ts",
+        "src/core/player-content/player-content-service/content-maintenance.ts",
+        "src/core/player-content/player-content-service/leaderboard-service.ts",
+        "src/core/player-content/player-content-service/legendary-encounter-service.ts",
+        "src/core/player-content/player-content-service/scoring-diagnostic.ts",
+        "src/core/player-content/player-mail-service.ts",
+        "src/core/player-content/player-mail-service/mailbox-cleanup.ts",
+        "src/core/player-content/player-mail-service/mailbox-commands.ts",
+        "src/core/player-content/player-mail-service/mailbox-identity.ts",
+        "src/core/player-content/player-mail-service/mailbox-read-service.ts",
+        "src/core/player-content/player-mail-service/mailbox-talent-storage.ts",
+        "src/core/player-content/player-mail-service/portrait-mail-service.ts",
+        "src/core/player-content/player-mail-service/types.ts",
+        "src/core/player-content/portrait-asset-store.ts",
+        "src/core/player-content/portrait-image-provider.ts",
+        "src/core/player-content/portrait-mail-service.ts"
+      ],
+      "oversized": [
+        "src/core/player-content/player-content-database.ts"
+      ]
+    },
+    {
+      "id": "core:remote-interface",
+      "responsibility": "跨 MOD 平台能力与公共服务",
+      "directories": [
+        "src/core/remote-interface"
+      ],
+      "files": [
+        "src/core/remote-interface/remote-interface.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "core:scoring",
+      "responsibility": "跨 MOD 平台能力与公共服务",
+      "directories": [
+        "src/core/scoring"
+      ],
+      "files": [
+        "src/core/scoring/index.ts",
+        "src/core/scoring/life-scoring.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "core:shared",
+      "responsibility": "跨 MOD 平台能力与公共服务",
+      "directories": [
+        "src/core/shared"
+      ],
+      "files": [
+        "src/core/shared/balance-config.ts",
+        "src/core/shared/character-origin.ts",
+        "src/core/shared/character-utils.ts",
+        "src/core/shared/common-utils.ts",
+        "src/core/shared/index.ts",
+        "src/core/shared/narrative-utils.ts",
+        "src/core/shared/world-utils.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "core:storage",
+      "responsibility": "跨 MOD 平台能力与公共服务",
+      "directories": [
+        "src/core/storage",
+        "src/core/storage/narrative-memory-store",
+        "src/core/storage/save-manager"
+      ],
+      "files": [
+        "src/core/storage/game-reset.ts",
+        "src/core/storage/index.ts",
+        "src/core/storage/local-storage.ts",
+        "src/core/storage/narrative-memory-policy.ts",
+        "src/core/storage/narrative-memory-store.ts",
+        "src/core/storage/narrative-memory-store/database.ts",
+        "src/core/storage/narrative-memory-store/memory-decay.ts",
+        "src/core/storage/narrative-memory-store/memory-search.ts",
+        "src/core/storage/narrative-memory-store/memory-sync.ts",
+        "src/core/storage/narrative-memory-store/types.ts",
+        "src/core/storage/opfs-storage.ts",
+        "src/core/storage/persist-layer.ts",
+        "src/core/storage/save-manager.ts",
+        "src/core/storage/save-manager/save-directory-transaction.ts",
+        "src/core/storage/save-manager/save-index.ts",
+        "src/core/storage/save-manager/save-operations.ts",
+        "src/core/storage/save-manager/types.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "core:storage-namespace.ts",
+      "responsibility": "跨 MOD 平台能力与公共服务",
+      "directories": [
+        "src/core"
+      ],
+      "files": [
+        "src/core/storage-namespace.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "core:store-migration",
+      "responsibility": "跨 MOD 平台能力与公共服务",
+      "directories": [
+        "src/core/store-migration"
+      ],
+      "files": [
+        "src/core/store-migration/migration-runner.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "core:subsystem-base.ts",
+      "responsibility": "跨 MOD 平台能力与公共服务",
+      "directories": [
+        "src/core"
+      ],
+      "files": [
+        "src/core/subsystem-base.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "core:theme",
+      "responsibility": "跨 MOD 平台能力与公共服务",
+      "directories": [
+        "src/core/theme"
+      ],
+      "files": [
+        "src/core/theme/font-config.ts",
+        "src/core/theme/font-store.ts",
+        "src/core/theme/index.ts",
+        "src/core/theme/theme-provider.tsx",
+        "src/core/theme/theme-store.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "core:version.ts",
+      "responsibility": "跨 MOD 平台能力与公共服务",
+      "directories": [
+        "src/core"
+      ],
+      "files": [
+        "src/core/version.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "development-infrastructure",
+      "responsibility": "本地开发服务、预热和诊断支持",
+      "directories": [
+        "scripts/dev"
+      ],
+      "files": [
+        "scripts/dev/dev-with-warmup.mjs",
+        "scripts/dev/warm-dev-server.mjs"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "foundation:compat",
+      "responsibility": "无业务所有权的基础类型、契约和工具",
+      "directories": [
+        "src/foundation/compat"
+      ],
+      "files": [
+        "src/foundation/compat/deprecated.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "foundation:constants",
+      "responsibility": "无业务所有权的基础类型、契约和工具",
+      "directories": [
+        "src/foundation/constants"
+      ],
+      "files": [
+        "src/foundation/constants/narrative-word-count.ts",
+        "src/foundation/constants/time-steps.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "foundation:defines",
+      "responsibility": "无业务所有权的基础类型、契约和工具",
+      "directories": [
+        "src/foundation/defines"
+      ],
+      "files": [
+        "src/foundation/defines/index.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "foundation:index.ts",
+      "responsibility": "无业务所有权的基础类型、契约和工具",
+      "directories": [
+        "src/foundation"
+      ],
+      "files": [
+        "src/foundation/index.ts"
+      ],
+      "oversized": [
+        "src/foundation/index.ts"
+      ]
+    },
+    {
+      "id": "foundation:persist",
+      "responsibility": "无业务所有权的基础类型、契约和工具",
+      "directories": [
+        "src/foundation/persist"
+      ],
+      "files": [
+        "src/foundation/persist/type-registry.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "foundation:subsystem-contracts",
+      "responsibility": "无业务所有权的基础类型、契约和工具",
+      "directories": [
+        "src/foundation/subsystem-contracts",
+        "src/foundation/subsystem-contracts/historical-event"
+      ],
+      "files": [
+        "src/foundation/subsystem-contracts/historical-event.contract.ts",
+        "src/foundation/subsystem-contracts/historical-event/commit-contract.ts",
+        "src/foundation/subsystem-contracts/historical-event/event-records.ts",
+        "src/foundation/subsystem-contracts/historical-event/ledger-state.ts",
+        "src/foundation/subsystem-contracts/historical-event/query-contract.ts",
+        "src/foundation/subsystem-contracts/index.ts",
+        "src/foundation/subsystem-contracts/life-cycle.contract.ts",
+        "src/foundation/subsystem-contracts/npc-social.contract.ts",
+        "src/foundation/subsystem-contracts/power-framework.contract.ts",
+        "src/foundation/subsystem-contracts/progression.contract.ts",
+        "src/foundation/subsystem-contracts/spatial-environment.contract.ts",
+        "src/foundation/subsystem-contracts/world-context.contract.ts",
+        "src/foundation/subsystem-contracts/world-scale.contract.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "foundation:tokens",
+      "responsibility": "无业务所有权的基础类型、契约和工具",
+      "directories": [
+        "src/foundation/tokens",
+        "src/foundation/tokens/themes"
+      ],
+      "files": [
+        "src/foundation/tokens/breakpoints.css",
+        "src/foundation/tokens/colors.css",
+        "src/foundation/tokens/effects.css",
+        "src/foundation/tokens/index.css",
+        "src/foundation/tokens/layout.css",
+        "src/foundation/tokens/spacing.css",
+        "src/foundation/tokens/themes/theme-minimal-white.css",
+        "src/foundation/tokens/typography.css"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "foundation:types",
+      "responsibility": "无业务所有权的基础类型、契约和工具",
+      "directories": [
+        "src/foundation/types",
+        "src/foundation/types/narrative"
+      ],
+      "files": [
+        "src/foundation/types/api.types.ts",
+        "src/foundation/types/attribute.types.ts",
+        "src/foundation/types/execution-sequence.types.ts",
+        "src/foundation/types/index.ts",
+        "src/foundation/types/luck.types.ts",
+        "src/foundation/types/mod.types.ts",
+        "src/foundation/types/narrative.types.ts",
+        "src/foundation/types/narrative/content-policy.ts",
+        "src/foundation/types/narrative/difficulty.ts",
+        "src/foundation/types/narrative/memory.ts",
+        "src/foundation/types/narrative/stage.ts",
+        "src/foundation/types/scoring.types.ts",
+        "src/foundation/types/subsystem.types.ts",
+        "src/foundation/types/worldview.types.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "foundation:utils",
+      "responsibility": "无业务所有权的基础类型、契约和工具",
+      "directories": [
+        "src/foundation/utils",
+        "src/foundation/utils/execution-sequence"
+      ],
+      "files": [
+        "src/foundation/utils/cn-number.ts",
+        "src/foundation/utils/cn.ts",
+        "src/foundation/utils/decimal-integer.ts",
+        "src/foundation/utils/estimate-token-budget.ts",
+        "src/foundation/utils/execution-sequence.ts",
+        "src/foundation/utils/execution-sequence/execution-order.ts",
+        "src/foundation/utils/execution-sequence/flow-validation.ts",
+        "src/foundation/utils/execution-sequence/lifecycle-validation.ts",
+        "src/foundation/utils/execution-sequence/node-invocation.ts",
+        "src/foundation/utils/execution-sequence/outcome-codes.ts",
+        "src/foundation/utils/execution-sequence/result-error.ts",
+        "src/foundation/utils/execution-sequence/sequence-runner.ts",
+        "src/foundation/utils/execution-sequence/shared.ts",
+        "src/foundation/utils/extract-dynamic-attrs.ts",
+        "src/foundation/utils/format-number.ts",
+        "src/foundation/utils/format-time.ts",
+        "src/foundation/utils/index.ts",
+        "src/foundation/utils/parse-json.ts",
+        "src/foundation/utils/round-advance.ts",
+        "src/foundation/utils/stringify-prompt.ts",
+        "src/foundation/utils/use-is-mobile.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "global-skill:explicit-execution",
+      "responsibility": "跨项目通用理念、流程和结构契约",
+      "directories": [
+        "../.agents/skills/explicit-execution",
+        "../.agents/skills/explicit-execution/agents"
+      ],
+      "files": [
+        "../.agents/skills/explicit-execution/agents/openai.yaml",
+        "../.agents/skills/explicit-execution/SKILL.md"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "global-skill:standardized-project-structure",
+      "responsibility": "跨项目通用理念、流程和结构契约",
+      "directories": [
+        "../.agents/skills/standardized-project-structure",
+        "../.agents/skills/standardized-project-structure/agents"
+      ],
+      "files": [
+        "../.agents/skills/standardized-project-structure/agents/openai.yaml",
+        "../.agents/skills/standardized-project-structure/SKILL.md"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "global-skill:workspace-governance",
+      "responsibility": "跨项目通用理念、流程和结构契约",
+      "directories": [
+        "../.agents/skills/workspace-governance",
+        "../.agents/skills/workspace-governance/agents"
+      ],
+      "files": [
+        "../.agents/skills/workspace-governance/agents/openai.yaml",
+        "../.agents/skills/workspace-governance/SKILL.md"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "mod-base-universe",
+      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
+      "directories": [
+        "src/mods/mod-base-universe",
+        "src/mods/mod-base-universe/_internal",
+        "src/mods/mod-base-universe/subsystems"
+      ],
+      "files": [
+        "src/mods/mod-base-universe/_internal/control.ts",
+        "src/mods/mod-base-universe/constants.ts",
+        "src/mods/mod-base-universe/hooks.ts",
+        "src/mods/mod-base-universe/index.ts",
+        "src/mods/mod-base-universe/manifest.ts",
+        "src/mods/mod-base-universe/store.ts",
+        "src/mods/mod-base-universe/subsystems/celestial-system.ts",
+        "src/mods/mod-base-universe/subsystems/divine-creation-system.ts",
+        "src/mods/mod-base-universe/subsystems/era-system.ts",
+        "src/mods/mod-base-universe/subsystems/fate-prophecy-system.ts",
+        "src/mods/mod-base-universe/types.ts",
+        "src/mods/mod-base-universe/utils.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "mod-character",
+      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
+      "directories": [
+        "src/mods/mod-character",
+        "src/mods/mod-character/_internal",
+        "src/mods/mod-character/campaigns/default",
+        "src/mods/mod-character/config",
+        "src/mods/mod-character/prompts",
+        "src/mods/mod-character/subsystems",
+        "src/mods/mod-character/subsystems/destiny-pattern-system",
+        "src/mods/mod-character/utils"
+      ],
+      "files": [
+        "src/mods/mod-character/_internal/control.ts",
+        "src/mods/mod-character/campaigns/default/index.ts",
+        "src/mods/mod-character/config/talent-ui-config.ts",
+        "src/mods/mod-character/constants.ts",
+        "src/mods/mod-character/destiny-pattern-access.ts",
+        "src/mods/mod-character/destiny-pattern-presets-idealist.ts",
+        "src/mods/mod-character/destiny-pattern-presets-materialist.ts",
+        "src/mods/mod-character/hooks.ts",
+        "src/mods/mod-character/index.ts",
+        "src/mods/mod-character/life-record-store.ts",
+        "src/mods/mod-character/manifest.ts",
+        "src/mods/mod-character/mythic-library-store.ts",
+        "src/mods/mod-character/mythic-pattern-access.ts",
+        "src/mods/mod-character/prompts/destiny-pattern-context.ts",
+        "src/mods/mod-character/prompts/destiny-pattern-prompt.ts",
+        "src/mods/mod-character/prompts/mythic-pattern-prompt.ts",
+        "src/mods/mod-character/prompts/race-origin.ts",
+        "src/mods/mod-character/prompts/talent-presets.ts",
+        "src/mods/mod-character/prompts/use-race-origin.ts",
+        "src/mods/mod-character/store.ts",
+        "src/mods/mod-character/subsystems/character-base-system.ts",
+        "src/mods/mod-character/subsystems/destiny-pattern-system.ts",
+        "src/mods/mod-character/subsystems/destiny-pattern-system/ai-pool-service.ts",
+        "src/mods/mod-character/subsystems/destiny-pattern-system/contracts.ts",
+        "src/mods/mod-character/subsystems/destiny-pattern-system/validation.ts",
+        "src/mods/mod-character/subsystems/health-system.ts",
+        "src/mods/mod-character/subsystems/life-cycle-validation.ts",
+        "src/mods/mod-character/subsystems/lifecycle-system.ts",
+        "src/mods/mod-character/subsystems/lifespan-system.ts",
+        "src/mods/mod-character/subsystems/luck-system.ts",
+        "src/mods/mod-character/subsystems/morality-system.ts",
+        "src/mods/mod-character/types.ts",
+        "src/mods/mod-character/utils.ts",
+        "src/mods/mod-character/utils/attr-tiers.ts",
+        "src/mods/mod-character/utils/character-state-migration.ts",
+        "src/mods/mod-character/utils/destiny-pattern-content-quality.ts",
+        "src/mods/mod-character/utils/destiny-pattern-modifiers.ts",
+        "src/mods/mod-character/utils/destiny-pattern-pool-cache.ts",
+        "src/mods/mod-character/utils/destiny-pattern-prompt-world-meta.ts",
+        "src/mods/mod-character/utils/fate-kv.ts",
+        "src/mods/mod-character/utils/name-pools.ts",
+        "src/mods/mod-character/utils/name.ts",
+        "src/mods/mod-character/utils/streaming-json-array-parser.ts"
+      ],
+      "oversized": [
+        "src/mods/mod-character/constants.ts",
+        "src/mods/mod-character/prompts/talent-presets.ts",
+        "src/mods/mod-character/subsystems/character-base-system.ts",
+        "src/mods/mod-character/subsystems/destiny-pattern-system.ts",
+        "src/mods/mod-character/subsystems/destiny-pattern-system/ai-pool-service.ts",
+        "src/mods/mod-character/subsystems/health-system.ts",
+        "src/mods/mod-character/subsystems/lifecycle-system.ts",
+        "src/mods/mod-character/subsystems/lifespan-system.ts"
+      ]
+    },
+    {
+      "id": "mod-culture",
+      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
+      "directories": [
+        "src/mods/mod-culture",
+        "src/mods/mod-culture/_internal",
+        "src/mods/mod-culture/subsystems",
+        "src/mods/mod-culture/utils"
+      ],
+      "files": [
+        "src/mods/mod-culture/_internal/control.ts",
+        "src/mods/mod-culture/calendar-context.ts",
+        "src/mods/mod-culture/constants.ts",
+        "src/mods/mod-culture/hooks.ts",
+        "src/mods/mod-culture/index.ts",
+        "src/mods/mod-culture/manifest.ts",
+        "src/mods/mod-culture/store.ts",
+        "src/mods/mod-culture/subsystems/art-system.ts",
+        "src/mods/mod-culture/subsystems/culture-system.ts",
+        "src/mods/mod-culture/subsystems/education-system.ts",
+        "src/mods/mod-culture/subsystems/works-system.ts",
+        "src/mods/mod-culture/types.ts",
+        "src/mods/mod-culture/utils.ts",
+        "src/mods/mod-culture/utils/festival-calendar.ts"
+      ],
+      "oversized": [
+        "src/mods/mod-culture/constants.ts"
+      ]
+    },
+    {
+      "id": "mod-difficulty",
+      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
+      "directories": [
+        "src/mods/mod-difficulty",
+        "src/mods/mod-difficulty/_internal"
+      ],
+      "files": [
+        "src/mods/mod-difficulty/_internal/control.ts",
+        "src/mods/mod-difficulty/constants.ts",
+        "src/mods/mod-difficulty/index.ts",
+        "src/mods/mod-difficulty/manifest.ts",
+        "src/mods/mod-difficulty/store.ts",
+        "src/mods/mod-difficulty/types.ts",
+        "src/mods/mod-difficulty/utils.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "mod-economy",
+      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
+      "directories": [
+        "src/mods/mod-economy",
+        "src/mods/mod-economy/_internal",
+        "src/mods/mod-economy/subsystems"
+      ],
+      "files": [
+        "src/mods/mod-economy/_internal/control.ts",
+        "src/mods/mod-economy/constants.ts",
+        "src/mods/mod-economy/hooks.ts",
+        "src/mods/mod-economy/index.ts",
+        "src/mods/mod-economy/manifest.ts",
+        "src/mods/mod-economy/store.ts",
+        "src/mods/mod-economy/subsystems/economy-runtime.ts",
+        "src/mods/mod-economy/subsystems/economy-system.ts",
+        "src/mods/mod-economy/subsystems/item-system.ts",
+        "src/mods/mod-economy/subsystems/population-system.ts",
+        "src/mods/mod-economy/subsystems/settlement-system.ts",
+        "src/mods/mod-economy/subsystems/work-system.ts",
+        "src/mods/mod-economy/types.ts",
+        "src/mods/mod-economy/utils.ts"
+      ],
+      "oversized": [
+        "src/mods/mod-economy/constants.ts",
+        "src/mods/mod-economy/types.ts"
+      ]
+    },
+    {
+      "id": "mod-engine",
+      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
+      "directories": [
+        "src/mods/mod-engine",
+        "src/mods/mod-engine/_internal",
+        "src/mods/mod-engine/bootstrap",
+        "src/mods/mod-engine/campaigns/default",
+        "src/mods/mod-engine/constants",
+        "src/mods/mod-engine/helpers",
+        "src/mods/mod-engine/patterns",
+        "src/mods/mod-engine/prompts",
+        "src/mods/mod-engine/server",
+        "src/mods/mod-engine/simulation",
+        "src/mods/mod-engine/subsystems",
+        "src/mods/mod-engine/subsystems/causal-delay-system",
+        "src/mods/mod-engine/subsystems/memory-lifecycle-system",
+        "src/mods/mod-engine/subsystems/orchestrator-system",
+        "src/mods/mod-engine/utils"
+      ],
+      "files": [
+        "src/mods/mod-engine/_internal/control.ts",
+        "src/mods/mod-engine/_internal/lifecycle.ts",
+        "src/mods/mod-engine/bootstrap/all-stores.generated.ts",
+        "src/mods/mod-engine/bootstrap/engine-subsystem-registry.ts",
+        "src/mods/mod-engine/bootstrap/engine-subsystems.generated.ts",
+        "src/mods/mod-engine/bootstrap/events.generated.ts",
+        "src/mods/mod-engine/bootstrap/mod-importers.generated.ts",
+        "src/mods/mod-engine/bootstrap/prompt-context-contract.generated.ts",
+        "src/mods/mod-engine/bootstrap/register-subsystems.ts",
+        "src/mods/mod-engine/bootstrap/subsystem-aliases.generated.ts",
+        "src/mods/mod-engine/campaigns/default/index.ts",
+        "src/mods/mod-engine/campaigns/default/stages.generated.ts",
+        "src/mods/mod-engine/constants.ts",
+        "src/mods/mod-engine/constants/narrative-config.ts",
+        "src/mods/mod-engine/constants/pre-gen-config.ts",
+        "src/mods/mod-engine/engine-api.ts",
+        "src/mods/mod-engine/helpers/branch-commands.ts",
+        "src/mods/mod-engine/helpers/branch-intent-resolution.ts",
+        "src/mods/mod-engine/helpers/calendar-narrative-context.ts",
+        "src/mods/mod-engine/helpers/calendar-season.js",
+        "src/mods/mod-engine/helpers/chinese-text-processor.ts",
+        "src/mods/mod-engine/helpers/compression-gate.ts",
+        "src/mods/mod-engine/helpers/detection-state-mapper.ts",
+        "src/mods/mod-engine/helpers/digest-ledger.ts",
+        "src/mods/mod-engine/helpers/event-lifecycle-tracker.ts",
+        "src/mods/mod-engine/helpers/historical-event-prompt-projection.ts",
+        "src/mods/mod-engine/helpers/lifecycle-narrative.ts",
+        "src/mods/mod-engine/helpers/mvp-runtime-policy.ts",
+        "src/mods/mod-engine/helpers/mvp-stage-loader.ts",
+        "src/mods/mod-engine/helpers/mvp-stages-config.default.json",
+        "src/mods/mod-engine/helpers/narrative-ai-input-view.ts",
+        "src/mods/mod-engine/helpers/narrative-ai-protocol.ts",
+        "src/mods/mod-engine/helpers/narrative-background-analysis-context.ts",
+        "src/mods/mod-engine/helpers/narrative-background-result-inbox.ts",
+        "src/mods/mod-engine/helpers/narrative-basic-attribute-context.ts",
+        "src/mods/mod-engine/helpers/narrative-calendar.ts",
+        "src/mods/mod-engine/helpers/narrative-change-bundle.ts",
+        "src/mods/mod-engine/helpers/narrative-context-scope.ts",
+        "src/mods/mod-engine/helpers/narrative-data-analysis-context.ts",
+        "src/mods/mod-engine/helpers/narrative-event-recognition-context.ts",
+        "src/mods/mod-engine/helpers/narrative-hints.ts",
+        "src/mods/mod-engine/helpers/narrative-macro-impact-context.ts",
+        "src/mods/mod-engine/helpers/narrative-macro-impact-systems.ts",
+        "src/mods/mod-engine/helpers/narrative-memory-client.ts",
+        "src/mods/mod-engine/helpers/narrative-prompt-component-types.ts",
+        "src/mods/mod-engine/helpers/narrative-repetition-metrics.ts",
+        "src/mods/mod-engine/helpers/narrative-response-quality.ts",
+        "src/mods/mod-engine/helpers/narrative-semantic-signals.ts",
+        "src/mods/mod-engine/helpers/normalize-narrative-paragraphs.ts",
+        "src/mods/mod-engine/helpers/orchestrator-pipeline-support.ts",
+        "src/mods/mod-engine/helpers/orchestrator-world-setting.ts",
+        "src/mods/mod-engine/helpers/pre-gen-activity-state.ts",
+        "src/mods/mod-engine/helpers/pre-gen-queue.ts",
+        "src/mods/mod-engine/helpers/recent-story-context.ts",
+        "src/mods/mod-engine/helpers/round-commit-bus.ts",
+        "src/mods/mod-engine/helpers/save-restore.ts",
+        "src/mods/mod-engine/helpers/simulation-time-api.ts",
+        "src/mods/mod-engine/helpers/subsystem-execution-flow.ts",
+        "src/mods/mod-engine/helpers/subsystem-field-keys.generated.ts",
+        "src/mods/mod-engine/helpers/subsystem-field-registry.ts",
+        "src/mods/mod-engine/helpers/subsystem-prompt-gate.ts",
+        "src/mods/mod-engine/helpers/subsystem-store-sync.ts",
+        "src/mods/mod-engine/helpers/summary-coverage.ts",
+        "src/mods/mod-engine/helpers/system-safety.ts",
+        "src/mods/mod-engine/helpers/tagged-meta-envelope.ts",
+        "src/mods/mod-engine/helpers/time-bridge-summary.ts",
+        "src/mods/mod-engine/helpers/time-scale-narrative.ts",
+        "src/mods/mod-engine/helpers/timeline-memory.ts",
+        "src/mods/mod-engine/hooks.ts",
+        "src/mods/mod-engine/index.ts",
+        "src/mods/mod-engine/manifest.ts",
+        "src/mods/mod-engine/orchestrator-shared.ts",
+        "src/mods/mod-engine/patterns/base-pattern.ts",
+        "src/mods/mod-engine/patterns/closure-patterns.ts",
+        "src/mods/mod-engine/patterns/forgetting-patterns.ts",
+        "src/mods/mod-engine/patterns/importance-patterns.ts",
+        "src/mods/mod-engine/patterns/index.ts",
+        "src/mods/mod-engine/patterns/pattern-factory.ts",
+        "src/mods/mod-engine/patterns/pattern-manager.ts",
+        "src/mods/mod-engine/patterns/pattern-registry.ts",
+        "src/mods/mod-engine/patterns/pattern-types.ts",
+        "src/mods/mod-engine/patterns/relationship-patterns.ts",
+        "src/mods/mod-engine/prompts/narrative-basic-attribute-prompt.ts",
+        "src/mods/mod-engine/prompts/narrative-data-analysis-prompt.ts",
+        "src/mods/mod-engine/prompts/narrative-event-recognition-prompt.ts",
+        "src/mods/mod-engine/prompts/narrative-macro-impact-prompt.ts",
+        "src/mods/mod-engine/prompts/narrative-prompt-components.ts",
+        "src/mods/mod-engine/prompts/narrative-prompt.ts",
+        "src/mods/mod-engine/prompts/summary-prompt.ts",
+        "src/mods/mod-engine/server-prompt-assets.ts",
+        "src/mods/mod-engine/server/narrative-basic-attribute-system-prompt.ts",
+        "src/mods/mod-engine/server/narrative-data-analysis-system-prompt.ts",
+        "src/mods/mod-engine/server/narrative-event-recognition-system-prompt.ts",
+        "src/mods/mod-engine/server/narrative-macro-impact-system-prompt.ts",
+        "src/mods/mod-engine/server/narrative-system-prompt.ts",
+        "src/mods/mod-engine/simulation/simulation-bridge.ts",
+        "src/mods/mod-engine/simulation/simulation-types.ts",
+        "src/mods/mod-engine/store.ts",
+        "src/mods/mod-engine/subsystems/causal-delay-system.ts",
+        "src/mods/mod-engine/subsystems/causal-delay-system/contracts.ts",
+        "src/mods/mod-engine/subsystems/core-memory-system.ts",
+        "src/mods/mod-engine/subsystems/foreshadowing-system.ts",
+        "src/mods/mod-engine/subsystems/memory-engine-system.ts",
+        "src/mods/mod-engine/subsystems/memory-forgetting-system.ts",
+        "src/mods/mod-engine/subsystems/memory-lifecycle-system.ts",
+        "src/mods/mod-engine/subsystems/memory-lifecycle-system/contracts.ts",
+        "src/mods/mod-engine/subsystems/narrative-parser-system.ts",
+        "src/mods/mod-engine/subsystems/orchestrator-system.ts",
+        "src/mods/mod-engine/subsystems/orchestrator-system/campaign-stage-runtime.ts",
+        "src/mods/mod-engine/subsystems/orchestrator-system/compression-runtime.ts",
+        "src/mods/mod-engine/subsystems/orchestrator-system/delegated-runtimes.ts",
+        "src/mods/mod-engine/subsystems/orchestrator-system/historical-ledger-runtime.ts",
+        "src/mods/mod-engine/subsystems/orchestrator-system/historical-transaction-runtime.ts",
+        "src/mods/mod-engine/subsystems/orchestrator-system/memory-recall-runtime.ts",
+        "src/mods/mod-engine/subsystems/orchestrator-system/narrative-acceptance-runtime.ts",
+        "src/mods/mod-engine/subsystems/orchestrator-system/narrative-background-runtime.ts",
+        "src/mods/mod-engine/subsystems/orchestrator-system/narrative-event-recognition-contracts.ts",
+        "src/mods/mod-engine/subsystems/orchestrator-system/narrative-event-recognition-runtime.ts",
+        "src/mods/mod-engine/subsystems/orchestrator-system/narrative-transition-audit-runtime.ts",
+        "src/mods/mod-engine/subsystems/orchestrator-system/prompt-context-runtime.ts",
+        "src/mods/mod-engine/subsystems/orchestrator-system/prompt-guidance-runtime.ts",
+        "src/mods/mod-engine/subsystems/orchestrator-system/prompt-state-projection-runtime.ts",
+        "src/mods/mod-engine/subsystems/orchestrator-system/prompt-talent-projection.ts",
+        "src/mods/mod-engine/subsystems/orchestrator-system/round-diagnostic-controller.ts",
+        "src/mods/mod-engine/subsystems/orchestrator-system/timeline-projection-runtime.ts",
+        "src/mods/mod-engine/subsystems/plot-structure-system.ts",
+        "src/mods/mod-engine/subsystems/subsystem-relevance-system.ts",
+        "src/mods/mod-engine/subsystems/summary-compressor-system.ts",
+        "src/mods/mod-engine/subsystems/time-system.ts",
+        "src/mods/mod-engine/types.ts",
+        "src/mods/mod-engine/utils.ts",
+        "src/mods/mod-engine/utils/time-step-resolver.ts"
+      ],
+      "oversized": [
+        "src/mods/mod-engine/campaigns/default/index.ts",
+        "src/mods/mod-engine/helpers/branch-intent-resolution.ts",
+        "src/mods/mod-engine/helpers/digest-ledger.ts",
+        "src/mods/mod-engine/helpers/event-lifecycle-tracker.ts",
+        "src/mods/mod-engine/helpers/narrative-ai-protocol.ts",
+        "src/mods/mod-engine/helpers/narrative-calendar.ts",
+        "src/mods/mod-engine/helpers/narrative-macro-impact-context.ts",
+        "src/mods/mod-engine/helpers/pre-gen-queue.ts",
+        "src/mods/mod-engine/helpers/save-restore.ts",
+        "src/mods/mod-engine/helpers/subsystem-field-registry.ts",
+        "src/mods/mod-engine/hooks.ts",
+        "src/mods/mod-engine/store.ts",
+        "src/mods/mod-engine/subsystems/causal-delay-system.ts",
+        "src/mods/mod-engine/subsystems/foreshadowing-system.ts",
+        "src/mods/mod-engine/subsystems/memory-engine-system.ts",
+        "src/mods/mod-engine/subsystems/memory-forgetting-system.ts",
+        "src/mods/mod-engine/subsystems/memory-lifecycle-system.ts",
+        "src/mods/mod-engine/subsystems/orchestrator-system.ts",
+        "src/mods/mod-engine/subsystems/plot-structure-system.ts",
+        "src/mods/mod-engine/subsystems/subsystem-relevance-system.ts",
+        "src/mods/mod-engine/subsystems/summary-compressor-system.ts",
+        "src/mods/mod-engine/subsystems/time-system.ts"
+      ]
+    },
+    {
+      "id": "mod-environment-ecology",
+      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
+      "directories": [
+        "src/mods/mod-environment-ecology",
+        "src/mods/mod-environment-ecology/_internal",
+        "src/mods/mod-environment-ecology/subsystems"
+      ],
+      "files": [
+        "src/mods/mod-environment-ecology/_internal/control.ts",
+        "src/mods/mod-environment-ecology/constants.ts",
+        "src/mods/mod-environment-ecology/environment-simulation-api.ts",
+        "src/mods/mod-environment-ecology/hooks.ts",
+        "src/mods/mod-environment-ecology/index.ts",
+        "src/mods/mod-environment-ecology/manifest.ts",
+        "src/mods/mod-environment-ecology/store.ts",
+        "src/mods/mod-environment-ecology/subsystems/climate-system.ts",
+        "src/mods/mod-environment-ecology/subsystems/ecology-system.ts",
+        "src/mods/mod-environment-ecology/subsystems/geography-system.ts",
+        "src/mods/mod-environment-ecology/subsystems/natural-resource-system.ts",
+        "src/mods/mod-environment-ecology/subsystems/pollution-system.ts",
+        "src/mods/mod-environment-ecology/types.ts",
+        "src/mods/mod-environment-ecology/utils.ts"
+      ],
+      "oversized": [
+        "src/mods/mod-environment-ecology/subsystems/geography-system.ts",
+        "src/mods/mod-environment-ecology/subsystems/natural-resource-system.ts"
+      ]
+    },
+    {
+      "id": "mod-history-dynamics",
+      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
+      "directories": [
+        "src/mods/mod-history-dynamics",
+        "src/mods/mod-history-dynamics/_internal",
+        "src/mods/mod-history-dynamics/components",
+        "src/mods/mod-history-dynamics/subsystems",
+        "src/mods/mod-history-dynamics/subsystems/historical-event-ledger-system"
+      ],
+      "files": [
+        "src/mods/mod-history-dynamics/_internal/control.ts",
+        "src/mods/mod-history-dynamics/components/causal-graph-component.ts",
+        "src/mods/mod-history-dynamics/components/event-candidate-provider.ts",
+        "src/mods/mod-history-dynamics/constants.ts",
+        "src/mods/mod-history-dynamics/historical-event-api.ts",
+        "src/mods/mod-history-dynamics/hooks.ts",
+        "src/mods/mod-history-dynamics/index.ts",
+        "src/mods/mod-history-dynamics/manifest.ts",
+        "src/mods/mod-history-dynamics/store.ts",
+        "src/mods/mod-history-dynamics/subsystems/historical-event-ledger-system.ts",
+        "src/mods/mod-history-dynamics/subsystems/historical-event-ledger-system/query-runtime.ts",
+        "src/mods/mod-history-dynamics/subsystems/index.ts",
+        "src/mods/mod-history-dynamics/types.ts",
+        "src/mods/mod-history-dynamics/utils.ts"
+      ],
+      "oversized": [
+        "src/mods/mod-history-dynamics/store.ts",
+        "src/mods/mod-history-dynamics/subsystems/historical-event-ledger-system.ts"
+      ]
+    },
+    {
+      "id": "mod-npc",
+      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
+      "directories": [
+        "src/mods/mod-npc",
+        "src/mods/mod-npc/_internal",
+        "src/mods/mod-npc/subsystems",
+        "src/mods/mod-npc/subsystems/npc-system"
+      ],
+      "files": [
+        "src/mods/mod-npc/_internal/control.ts",
+        "src/mods/mod-npc/index.ts",
+        "src/mods/mod-npc/manifest.ts",
+        "src/mods/mod-npc/npc-system-api.ts",
+        "src/mods/mod-npc/store.ts",
+        "src/mods/mod-npc/subsystems/npc-system.ts",
+        "src/mods/mod-npc/subsystems/npc-system/background-progress.ts",
+        "src/mods/mod-npc/subsystems/npc-system/command-validation.ts",
+        "src/mods/mod-npc/subsystems/npc-system/common.ts",
+        "src/mods/mod-npc/subsystems/npc-system/entity-validation.ts",
+        "src/mods/mod-npc/subsystems/npc-system/persistence-validation.ts",
+        "src/mods/mod-npc/subsystems/npc-system/projection.ts",
+        "src/mods/mod-npc/types.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "mod-pages",
+      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
+      "directories": [
+        "src/mods/mod-pages",
+        "src/mods/mod-pages/_internal",
+        "src/mods/mod-pages/helpers",
+        "src/mods/mod-pages/hooks",
+        "src/mods/mod-pages/pages/account",
+        "src/mods/mod-pages/pages/attribute-alloc",
+        "src/mods/mod-pages/pages/character-create",
+        "src/mods/mod-pages/pages/debug-log",
+        "src/mods/mod-pages/pages/fate-preview",
+        "src/mods/mod-pages/pages/feedback",
+        "src/mods/mod-pages/pages/game-over",
+        "src/mods/mod-pages/pages/game-story",
+        "src/mods/mod-pages/pages/help",
+        "src/mods/mod-pages/pages/leaderboard",
+        "src/mods/mod-pages/pages/mailbox",
+        "src/mods/mod-pages/pages/new-game",
+        "src/mods/mod-pages/pages/save-manager",
+        "src/mods/mod-pages/pages/settings",
+        "src/mods/mod-pages/pages/talent-draw",
+        "src/mods/mod-pages/pages/welcome",
+        "src/mods/mod-pages/pages/world-build",
+        "src/mods/mod-pages/pages/world-customize",
+        "src/mods/mod-pages/pages/world-select"
+      ],
+      "files": [
+        "src/mods/mod-pages/_internal/control.ts",
+        "src/mods/mod-pages/account-cloud-api.ts",
+        "src/mods/mod-pages/helpers/account-cloud-sync.ts",
+        "src/mods/mod-pages/helpers/character-creation-draft-store.ts",
+        "src/mods/mod-pages/helpers/creation-draft-storage.ts",
+        "src/mods/mod-pages/helpers/new-life-reset.ts",
+        "src/mods/mod-pages/helpers/world-dimension-labels.ts",
+        "src/mods/mod-pages/hooks/useCreationStoresHydrated.ts",
+        "src/mods/mod-pages/hooks/useWorldCoherenceConfirm.tsx",
+        "src/mods/mod-pages/hooks/WorldCoherenceConflictModal.tsx",
+        "src/mods/mod-pages/index.ts",
+        "src/mods/mod-pages/manifest.ts",
+        "src/mods/mod-pages/pages/account/Account.module.css",
+        "src/mods/mod-pages/pages/account/AccountAuthPanel.tsx",
+        "src/mods/mod-pages/pages/account/AccountCloudPanel.tsx",
+        "src/mods/mod-pages/pages/account/AccountDataPanel.tsx",
+        "src/mods/mod-pages/pages/account/page.tsx",
+        "src/mods/mod-pages/pages/account/useAccountPageCommands.ts",
+        "src/mods/mod-pages/pages/attribute-alloc/AttributeAlloc.module.css",
+        "src/mods/mod-pages/pages/attribute-alloc/page.tsx",
+        "src/mods/mod-pages/pages/character-create/character-create-helpers.ts",
+        "src/mods/mod-pages/pages/character-create/character-create-options.ts",
+        "src/mods/mod-pages/pages/character-create/character-create.types.ts",
+        "src/mods/mod-pages/pages/character-create/CharacterBackgroundSection.tsx",
+        "src/mods/mod-pages/pages/character-create/CharacterCreateBottomBar.tsx",
+        "src/mods/mod-pages/pages/character-create/CharacterCreateMobile.module.css",
+        "src/mods/mod-pages/pages/character-create/CharacterCreateMobile.tsx",
+        "src/mods/mod-pages/pages/character-create/CharacterIdentitySection.tsx",
+        "src/mods/mod-pages/pages/character-create/CharacterLifespanSection.tsx",
+        "src/mods/mod-pages/pages/character-create/page.tsx",
+        "src/mods/mod-pages/pages/character-create/useCharacterCreateCustomOptions.ts",
+        "src/mods/mod-pages/pages/character-create/useCharacterCreateForm.ts",
+        "src/mods/mod-pages/pages/character-create/useCharacterCreateLogic.ts",
+        "src/mods/mod-pages/pages/debug-log/page.tsx",
+        "src/mods/mod-pages/pages/debug-log/runtime-registry-panel.tsx",
+        "src/mods/mod-pages/pages/fate-preview/fate-preview-helpers.ts",
+        "src/mods/mod-pages/pages/fate-preview/FatePreview.module.css",
+        "src/mods/mod-pages/pages/fate-preview/FatePreviewWorldInit.tsx",
+        "src/mods/mod-pages/pages/fate-preview/page.tsx",
+        "src/mods/mod-pages/pages/fate-preview/useFatePreviewStart.ts",
+        "src/mods/mod-pages/pages/feedback/build-feedback-diagnostics.ts",
+        "src/mods/mod-pages/pages/feedback/Feedback.module.css",
+        "src/mods/mod-pages/pages/feedback/page.tsx",
+        "src/mods/mod-pages/pages/game-over/game-over-life-records.ts",
+        "src/mods/mod-pages/pages/game-over/game-over-review.ts",
+        "src/mods/mod-pages/pages/game-over/game-over-scoring.ts",
+        "src/mods/mod-pages/pages/game-over/game-over-share-card.ts",
+        "src/mods/mod-pages/pages/game-over/game-over-share-content.ts",
+        "src/mods/mod-pages/pages/game-over/game-over-share.types.ts",
+        "src/mods/mod-pages/pages/game-over/GameOver.module.css",
+        "src/mods/mod-pages/pages/game-over/GameOverFooter.tsx",
+        "src/mods/mod-pages/pages/game-over/GameOverMythicSection.tsx",
+        "src/mods/mod-pages/pages/game-over/GameOverOverviewSections.tsx",
+        "src/mods/mod-pages/pages/game-over/GameOverRadar.tsx",
+        "src/mods/mod-pages/pages/game-over/GameOverShareSection.tsx",
+        "src/mods/mod-pages/pages/game-over/page.tsx",
+        "src/mods/mod-pages/pages/game-over/useGameOverActions.ts",
+        "src/mods/mod-pages/pages/game-over/useGameOverArtifacts.ts",
+        "src/mods/mod-pages/pages/game-over/useGameOverEndingReview.ts",
+        "src/mods/mod-pages/pages/game-over/useGameOverLifecycle.ts",
+        "src/mods/mod-pages/pages/game-over/useGameOverScore.ts",
+        "src/mods/mod-pages/pages/game-story/game-story-progress.ts",
+        "src/mods/mod-pages/pages/game-story/game-story-world-tags.ts",
+        "src/mods/mod-pages/pages/game-story/GameStory.module.css",
+        "src/mods/mod-pages/pages/game-story/GameStoryBook.tsx",
+        "src/mods/mod-pages/pages/game-story/GameStoryFlowGuard.tsx",
+        "src/mods/mod-pages/pages/game-story/GameStoryInformationPanel.tsx",
+        "src/mods/mod-pages/pages/game-story/GameStoryReaderBar.tsx",
+        "src/mods/mod-pages/pages/game-story/narrative-retry-policy.ts",
+        "src/mods/mod-pages/pages/game-story/page.tsx",
+        "src/mods/mod-pages/pages/game-story/useGameStoryAutoRetry.ts",
+        "src/mods/mod-pages/pages/game-story/useGameStoryAutoScroll.ts",
+        "src/mods/mod-pages/pages/game-story/useGameStoryPresentation.ts",
+        "src/mods/mod-pages/pages/game-story/useGameStorySave.ts",
+        "src/mods/mod-pages/pages/game-story/useGameStoryTimeStepMenu.ts",
+        "src/mods/mod-pages/pages/game-story/useLegendaryEncounterSelection.ts",
+        "src/mods/mod-pages/pages/game-story/useSimulationBranch.ts",
+        "src/mods/mod-pages/pages/game-story/useSimulationPreGen.ts",
+        "src/mods/mod-pages/pages/help/page.tsx",
+        "src/mods/mod-pages/pages/leaderboard/Leaderboard.module.css",
+        "src/mods/mod-pages/pages/leaderboard/page.tsx",
+        "src/mods/mod-pages/pages/mailbox/Mailbox.module.css",
+        "src/mods/mod-pages/pages/mailbox/MailboxMessageList.tsx",
+        "src/mods/mod-pages/pages/mailbox/page.tsx",
+        "src/mods/mod-pages/pages/mailbox/useMailboxCommands.ts",
+        "src/mods/mod-pages/pages/new-game/page.tsx",
+        "src/mods/mod-pages/pages/save-manager/page.tsx",
+        "src/mods/mod-pages/pages/save-manager/save-manager.module.css",
+        "src/mods/mod-pages/pages/settings/page.tsx",
+        "src/mods/mod-pages/pages/talent-draw/page.tsx",
+        "src/mods/mod-pages/pages/talent-draw/talent-draw-ai-service.ts",
+        "src/mods/mod-pages/pages/talent-draw/talent-draw-patterns.ts",
+        "src/mods/mod-pages/pages/talent-draw/talent-draw-storage.ts",
+        "src/mods/mod-pages/pages/talent-draw/talent-draw.types.ts",
+        "src/mods/mod-pages/pages/talent-draw/TalentDraw.module.css",
+        "src/mods/mod-pages/pages/talent-draw/TalentDrawMythicLibrary.tsx",
+        "src/mods/mod-pages/pages/talent-draw/TalentDrawSelectionView.tsx",
+        "src/mods/mod-pages/pages/talent-draw/TalentDrawStage.tsx",
+        "src/mods/mod-pages/pages/talent-draw/TalentFlowArt.tsx",
+        "src/mods/mod-pages/pages/talent-draw/useTalentDrawGeneration.ts",
+        "src/mods/mod-pages/pages/talent-draw/useTalentDrawMythicLibrary.ts",
+        "src/mods/mod-pages/pages/talent-draw/useTalentDrawNotification.ts",
+        "src/mods/mod-pages/pages/talent-draw/useTalentDrawReveal.ts",
+        "src/mods/mod-pages/pages/talent-draw/useTalentDrawSelection.ts",
+        "src/mods/mod-pages/pages/welcome/page.tsx",
+        "src/mods/mod-pages/pages/welcome/WelcomeModals.tsx",
+        "src/mods/mod-pages/pages/welcome/WelcomeSaveSheet.tsx",
+        "src/mods/mod-pages/pages/welcome/WelcomeView.module.css",
+        "src/mods/mod-pages/pages/welcome/WelcomeView.tsx",
+        "src/mods/mod-pages/pages/world-build/page.tsx",
+        "src/mods/mod-pages/pages/world-customize/page.tsx",
+        "src/mods/mod-pages/pages/world-customize/useWorldCustomize.ts",
+        "src/mods/mod-pages/pages/world-customize/world-customize-config.ts",
+        "src/mods/mod-pages/pages/world-customize/world-customize.types.ts",
+        "src/mods/mod-pages/pages/world-customize/WorldCustomizeBottomBar.tsx",
+        "src/mods/mod-pages/pages/world-customize/WorldCustomizeDimensionCard.tsx",
+        "src/mods/mod-pages/pages/world-customize/WorldCustomizeMobile.module.css",
+        "src/mods/mod-pages/pages/world-customize/WorldCustomizeMobile.tsx",
+        "src/mods/mod-pages/pages/world-select/page.tsx",
+        "src/mods/mod-pages/pages/world-select/useWorldConfirm.ts",
+        "src/mods/mod-pages/pages/world-select/useWorldSelectCache.ts",
+        "src/mods/mod-pages/pages/world-select/useWorldSelectCustomWorlds.ts",
+        "src/mods/mod-pages/pages/world-select/useWorldSelectForm.ts",
+        "src/mods/mod-pages/pages/world-select/useWorldSelectLogic.ts",
+        "src/mods/mod-pages/pages/world-select/world-select-labels.ts",
+        "src/mods/mod-pages/pages/world-select/world-select-worlds.ts",
+        "src/mods/mod-pages/pages/world-select/world-select.types.ts",
+        "src/mods/mod-pages/pages/world-select/WorldSelectBottomBar.tsx",
+        "src/mods/mod-pages/pages/world-select/WorldSelectCacheResetDialog.tsx",
+        "src/mods/mod-pages/pages/world-select/WorldSelectCustomForm.tsx",
+        "src/mods/mod-pages/pages/world-select/WorldSelectDirectory.tsx",
+        "src/mods/mod-pages/pages/world-select/WorldSelectMainGrid.tsx",
+        "src/mods/mod-pages/pages/world-select/WorldSelectMobile.module.css",
+        "src/mods/mod-pages/pages/world-select/WorldSelectMobile.tsx",
+        "src/mods/mod-pages/pages/world-select/WorldSelectStage.tsx",
+        "src/mods/mod-pages/types.ts"
+      ],
+      "oversized": [
+        "src/mods/mod-pages/pages/account/Account.module.css",
+        "src/mods/mod-pages/pages/attribute-alloc/AttributeAlloc.module.css",
+        "src/mods/mod-pages/pages/character-create/CharacterCreateMobile.module.css",
+        "src/mods/mod-pages/pages/fate-preview/FatePreview.module.css",
+        "src/mods/mod-pages/pages/game-over/game-over-share-card.ts",
+        "src/mods/mod-pages/pages/game-over/GameOver.module.css",
+        "src/mods/mod-pages/pages/game-story/GameStory.module.css",
+        "src/mods/mod-pages/pages/mailbox/Mailbox.module.css",
+        "src/mods/mod-pages/pages/talent-draw/TalentDraw.module.css",
+        "src/mods/mod-pages/pages/welcome/WelcomeSaveSheet.tsx",
+        "src/mods/mod-pages/pages/welcome/WelcomeView.module.css",
+        "src/mods/mod-pages/pages/world-customize/WorldCustomizeMobile.module.css",
+        "src/mods/mod-pages/pages/world-select/WorldSelectMobile.module.css"
+      ]
+    },
+    {
+      "id": "mod-politics",
+      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
+      "directories": [
+        "src/mods/mod-politics",
+        "src/mods/mod-politics/_internal",
+        "src/mods/mod-politics/subsystems"
+      ],
+      "files": [
+        "src/mods/mod-politics/_internal/control.ts",
+        "src/mods/mod-politics/constants.ts",
+        "src/mods/mod-politics/hooks.ts",
+        "src/mods/mod-politics/index.ts",
+        "src/mods/mod-politics/manifest.ts",
+        "src/mods/mod-politics/store.ts",
+        "src/mods/mod-politics/subsystems/conflict-cycle-system.ts",
+        "src/mods/mod-politics/subsystems/faction-dynamics-system.ts",
+        "src/mods/mod-politics/subsystems/legal-system.ts",
+        "src/mods/mod-politics/subsystems/social-stratification-system.ts",
+        "src/mods/mod-politics/types.ts",
+        "src/mods/mod-politics/utils.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "mod-power-system",
+      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
+      "directories": [
+        "src/mods/mod-power-system",
+        "src/mods/mod-power-system/_internal",
+        "src/mods/mod-power-system/subsystems"
+      ],
+      "files": [
+        "src/mods/mod-power-system/_internal/control.ts",
+        "src/mods/mod-power-system/constants.ts",
+        "src/mods/mod-power-system/hooks.ts",
+        "src/mods/mod-power-system/index.ts",
+        "src/mods/mod-power-system/manifest.ts",
+        "src/mods/mod-power-system/store.ts",
+        "src/mods/mod-power-system/subsystems/anomaly-phenomena-system.ts",
+        "src/mods/mod-power-system/subsystems/combat-power-system.ts",
+        "src/mods/mod-power-system/subsystems/cultivation-system.ts",
+        "src/mods/mod-power-system/subsystems/divine-intervention-system.ts",
+        "src/mods/mod-power-system/subsystems/faith-system.ts",
+        "src/mods/mod-power-system/subsystems/fortune-encounter-system.ts",
+        "src/mods/mod-power-system/subsystems/monster-system.ts",
+        "src/mods/mod-power-system/subsystems/p8-runtime.ts",
+        "src/mods/mod-power-system/types.ts",
+        "src/mods/mod-power-system/utils.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "mod-progression",
+      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
+      "directories": [
+        "src/mods/mod-progression",
+        "src/mods/mod-progression/_internal",
+        "src/mods/mod-progression/subsystems"
+      ],
+      "files": [
+        "src/mods/mod-progression/_internal/control.ts",
+        "src/mods/mod-progression/index.ts",
+        "src/mods/mod-progression/manifest.ts",
+        "src/mods/mod-progression/progression-api.ts",
+        "src/mods/mod-progression/subsystems/achievement-system.ts",
+        "src/mods/mod-progression/subsystems/growth-system.ts",
+        "src/mods/mod-progression/subsystems/reputation-system.ts",
+        "src/mods/mod-progression/types.ts",
+        "src/mods/mod-progression/utils.ts"
+      ],
+      "oversized": [
+        "src/mods/mod-progression/subsystems/growth-system.ts"
+      ]
+    },
+    {
+      "id": "mod-settings",
+      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
+      "directories": [
+        "src/mods/mod-settings",
+        "src/mods/mod-settings/_internal",
+        "src/mods/mod-settings/components"
+      ],
+      "files": [
+        "src/mods/mod-settings/_internal/control.ts",
+        "src/mods/mod-settings/components/settings-portal.ts",
+        "src/mods/mod-settings/components/SettingsDataManagement.tsx",
+        "src/mods/mod-settings/components/SettingsHelpTooltip.module.css",
+        "src/mods/mod-settings/components/SettingsHelpTooltip.tsx",
+        "src/mods/mod-settings/components/SettingsModal.module.css",
+        "src/mods/mod-settings/components/SettingsModal.tsx",
+        "src/mods/mod-settings/components/SettingsParamCard.tsx",
+        "src/mods/mod-settings/components/SettingsTabModel.module.css",
+        "src/mods/mod-settings/components/SettingsTabModel.tsx",
+        "src/mods/mod-settings/components/SettingsTabNarrative.module.css",
+        "src/mods/mod-settings/components/SettingsTabNarrative.tsx",
+        "src/mods/mod-settings/components/SettingsTabPresets.module.css",
+        "src/mods/mod-settings/components/SettingsTabPresets.tsx",
+        "src/mods/mod-settings/components/SettingsTabStats.module.css",
+        "src/mods/mod-settings/components/SettingsTabStats.tsx",
+        "src/mods/mod-settings/components/SettingsTabTheme.module.css",
+        "src/mods/mod-settings/components/SettingsTabTheme.tsx",
+        "src/mods/mod-settings/index.ts",
+        "src/mods/mod-settings/manifest.ts",
+        "src/mods/mod-settings/store.ts",
+        "src/mods/mod-settings/types.ts"
+      ],
+      "oversized": [
+        "src/mods/mod-settings/components/SettingsModal.module.css",
+        "src/mods/mod-settings/components/SettingsTabModel.module.css",
+        "src/mods/mod-settings/components/SettingsTabPresets.tsx",
+        "src/mods/mod-settings/components/SettingsTabTheme.module.css"
+      ]
+    },
+    {
+      "id": "mod-social",
+      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
+      "directories": [
+        "src/mods/mod-social",
+        "src/mods/mod-social/_internal",
+        "src/mods/mod-social/subsystems",
+        "src/mods/mod-social/subsystems/relationship-system"
+      ],
+      "files": [
+        "src/mods/mod-social/_internal/control.ts",
+        "src/mods/mod-social/index.ts",
+        "src/mods/mod-social/manifest.ts",
+        "src/mods/mod-social/relationship-system-api.ts",
+        "src/mods/mod-social/store.ts",
+        "src/mods/mod-social/subsystems/relationship-system.ts",
+        "src/mods/mod-social/subsystems/relationship-system/validation.ts",
+        "src/mods/mod-social/types.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "mod-tech-level",
+      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
+      "directories": [
+        "src/mods/mod-tech-level",
+        "src/mods/mod-tech-level/_internal",
+        "src/mods/mod-tech-level/subsystems"
+      ],
+      "files": [
+        "src/mods/mod-tech-level/_internal/control.ts",
+        "src/mods/mod-tech-level/constants.ts",
+        "src/mods/mod-tech-level/hooks.ts",
+        "src/mods/mod-tech-level/index.ts",
+        "src/mods/mod-tech-level/manifest.ts",
+        "src/mods/mod-tech-level/store.ts",
+        "src/mods/mod-tech-level/subsystems/culture-tech-system.ts",
+        "src/mods/mod-tech-level/types.ts",
+        "src/mods/mod-tech-level/utils.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "mod-ui",
+      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
+      "directories": [
+        "src/mods/mod-ui",
+        "src/mods/mod-ui/_internal",
+        "src/mods/mod-ui/components/atoms",
+        "src/mods/mod-ui/components/molecules",
+        "src/mods/mod-ui/components/organisms"
+      ],
+      "files": [
+        "src/mods/mod-ui/_internal/control.ts",
+        "src/mods/mod-ui/components/atoms/Badge.tsx",
+        "src/mods/mod-ui/components/atoms/Badge.types.ts",
+        "src/mods/mod-ui/components/atoms/Button.tsx",
+        "src/mods/mod-ui/components/atoms/Button.types.ts",
+        "src/mods/mod-ui/components/atoms/Dropdown.module.css",
+        "src/mods/mod-ui/components/atoms/Dropdown.tsx",
+        "src/mods/mod-ui/components/atoms/index.ts",
+        "src/mods/mod-ui/components/atoms/Input.tsx",
+        "src/mods/mod-ui/components/atoms/Input.types.ts",
+        "src/mods/mod-ui/components/atoms/ProgressBar.tsx",
+        "src/mods/mod-ui/components/atoms/ProgressBar.types.ts",
+        "src/mods/mod-ui/components/atoms/Select.tsx",
+        "src/mods/mod-ui/components/atoms/Select.types.ts",
+        "src/mods/mod-ui/components/atoms/Spinner.tsx",
+        "src/mods/mod-ui/components/atoms/Spinner.types.ts",
+        "src/mods/mod-ui/components/molecules/ActionMenu.tsx",
+        "src/mods/mod-ui/components/molecules/ActionMenu.types.ts",
+        "src/mods/mod-ui/components/molecules/AttrChangeLabel.tsx",
+        "src/mods/mod-ui/components/molecules/AttrChangeLabel.types.ts",
+        "src/mods/mod-ui/components/molecules/AttributeTag.tsx",
+        "src/mods/mod-ui/components/molecules/AttributeTag.types.ts",
+        "src/mods/mod-ui/components/molecules/Card.tsx",
+        "src/mods/mod-ui/components/molecules/Card.types.ts",
+        "src/mods/mod-ui/components/molecules/FormField.tsx",
+        "src/mods/mod-ui/components/molecules/FormField.types.ts",
+        "src/mods/mod-ui/components/molecules/index.ts",
+        "src/mods/mod-ui/components/molecules/Modal.tsx",
+        "src/mods/mod-ui/components/molecules/Modal.types.ts",
+        "src/mods/mod-ui/components/molecules/RadarChart.tsx",
+        "src/mods/mod-ui/components/molecules/RadarChart.types.ts",
+        "src/mods/mod-ui/components/molecules/SaveDialog.module.css",
+        "src/mods/mod-ui/components/molecules/SaveDialog.tsx",
+        "src/mods/mod-ui/components/molecules/SaveDialog.types.ts",
+        "src/mods/mod-ui/components/molecules/Tabs.tsx",
+        "src/mods/mod-ui/components/molecules/Tabs.types.ts",
+        "src/mods/mod-ui/components/molecules/TalentBadge.tsx",
+        "src/mods/mod-ui/components/molecules/TalentBadge.types.ts",
+        "src/mods/mod-ui/components/molecules/TimeStepSelector.tsx",
+        "src/mods/mod-ui/components/molecules/TimeStepSelector.types.ts",
+        "src/mods/mod-ui/components/molecules/Toast.tsx",
+        "src/mods/mod-ui/components/molecules/Toast.types.ts",
+        "src/mods/mod-ui/components/molecules/Toggle.tsx",
+        "src/mods/mod-ui/components/molecules/Toggle.types.ts",
+        "src/mods/mod-ui/components/organisms/BottomActionBar.module.css",
+        "src/mods/mod-ui/components/organisms/BottomActionBar.tsx",
+        "src/mods/mod-ui/components/organisms/CharacterStatusBar.tsx",
+        "src/mods/mod-ui/components/organisms/DisclaimerModal.module.css",
+        "src/mods/mod-ui/components/organisms/DisclaimerModal.tsx",
+        "src/mods/mod-ui/components/organisms/GameBottomBar.tsx",
+        "src/mods/mod-ui/components/organisms/help-content.ts",
+        "src/mods/mod-ui/components/organisms/help-resource-loader.ts",
+        "src/mods/mod-ui/components/organisms/HelpChangelogContent.tsx",
+        "src/mods/mod-ui/components/organisms/HelpModal.module.css",
+        "src/mods/mod-ui/components/organisms/HelpModal.tsx",
+        "src/mods/mod-ui/components/organisms/HelpModalFocusTrap.ts",
+        "src/mods/mod-ui/components/organisms/HelpModalNavigation.tsx",
+        "src/mods/mod-ui/components/organisms/HelpModalScrollSpy.ts",
+        "src/mods/mod-ui/components/organisms/index.ts",
+        "src/mods/mod-ui/components/organisms/MoreActionsModal.tsx",
+        "src/mods/mod-ui/components/organisms/NarrativeTimeline.module.css",
+        "src/mods/mod-ui/components/organisms/NarrativeTimeline.tsx",
+        "src/mods/mod-ui/components/organisms/NarrativeTimelineEntryView.tsx",
+        "src/mods/mod-ui/components/organisms/NPCRelationshipPanel.tsx",
+        "src/mods/mod-ui/components/organisms/PageErrorBoundary.tsx",
+        "src/mods/mod-ui/components/organisms/PageScroll.tsx",
+        "src/mods/mod-ui/components/organisms/PageShell.tsx",
+        "src/mods/mod-ui/components/organisms/WorldInfoPanel.tsx",
+        "src/mods/mod-ui/index.ts",
+        "src/mods/mod-ui/manifest.ts",
+        "src/mods/mod-ui/store.ts",
+        "src/mods/mod-ui/tokens.ts",
+        "src/mods/mod-ui/types.ts"
+      ],
+      "oversized": [
+        "src/mods/mod-ui/components/organisms/HelpModal.module.css",
+        "src/mods/mod-ui/components/organisms/NarrativeTimeline.module.css"
+      ]
+    },
+    {
+      "id": "mod-world",
+      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
+      "directories": [
+        "src/mods/mod-world",
+        "src/mods/mod-world/_internal",
+        "src/mods/mod-world/constants",
+        "src/mods/mod-world/constants/presets",
+        "src/mods/mod-world/constants/world-tag-defaults",
+        "src/mods/mod-world/hooks",
+        "src/mods/mod-world/prompts",
+        "src/mods/mod-world/store",
+        "src/mods/mod-world/subsystems",
+        "src/mods/mod-world/subsystems/world-entity-system",
+        "src/mods/mod-world/subsystems/world-init-system",
+        "src/mods/mod-world/types",
+        "src/mods/mod-world/utils",
+        "src/mods/mod-world/utils/calibration-clamp",
+        "src/mods/mod-world/utils/world-context-runtime",
+        "src/mods/mod-world/utils/world-init-pipeline",
+        "src/mods/mod-world/world-init-bundle"
+      ],
+      "files": [
+        "src/mods/mod-world/_internal/control.ts",
+        "src/mods/mod-world/constants.ts",
+        "src/mods/mod-world/constants/presets.ts",
+        "src/mods/mod-world/constants/presets/catalog.ts",
+        "src/mods/mod-world/constants/presets/options.ts",
+        "src/mods/mod-world/constants/presets/selectors.ts",
+        "src/mods/mod-world/constants/world-tag-defaults.ts",
+        "src/mods/mod-world/constants/world-tag-defaults/operations.ts",
+        "src/mods/mod-world/hooks.ts",
+        "src/mods/mod-world/hooks/useWorldInitPoller.ts",
+        "src/mods/mod-world/index.ts",
+        "src/mods/mod-world/manifest.ts",
+        "src/mods/mod-world/prompts/dimension-inference-schema.ts",
+        "src/mods/mod-world/prompts/index.ts",
+        "src/mods/mod-world/prompts/world-calibration-prompt.ts",
+        "src/mods/mod-world/prompts/world-config-prompt.ts",
+        "src/mods/mod-world/prompts/world-dimension-calibration-prompt.ts",
+        "src/mods/mod-world/prompts/world-entity-prompt.ts",
+        "src/mods/mod-world/prompts/world-init-prompt-shared.ts",
+        "src/mods/mod-world/prompts/world-scoring-profile-prompt.ts",
+        "src/mods/mod-world/prompts/world-tags-prompt.ts",
+        "src/mods/mod-world/scoring-profile.ts",
+        "src/mods/mod-world/store.ts",
+        "src/mods/mod-world/store/contracts.ts",
+        "src/mods/mod-world/store/helpers.ts",
+        "src/mods/mod-world/subsystems/context-transition-system.ts",
+        "src/mods/mod-world/subsystems/contextual-capability-profile-system.ts",
+        "src/mods/mod-world/subsystems/simulation-scope-policy-system.ts",
+        "src/mods/mod-world/subsystems/spatial-graph-system.ts",
+        "src/mods/mod-world/subsystems/world-context-registry-system.ts",
+        "src/mods/mod-world/subsystems/world-entity-system.ts",
+        "src/mods/mod-world/subsystems/world-entity-system/ai-entity-generation.ts",
+        "src/mods/mod-world/subsystems/world-entity-system/default-entity-sets.ts",
+        "src/mods/mod-world/subsystems/world-entity-system/entity-reference-directory.ts",
+        "src/mods/mod-world/subsystems/world-entity-system/entity-reference-validation.ts",
+        "src/mods/mod-world/subsystems/world-entity-system/static-entity-generation.ts",
+        "src/mods/mod-world/subsystems/world-init-deps.ts",
+        "src/mods/mod-world/subsystems/world-init-system.ts",
+        "src/mods/mod-world/subsystems/world-init-system/region-generation.ts",
+        "src/mods/mod-world/types.ts",
+        "src/mods/mod-world/types/calibration.ts",
+        "src/mods/mod-world/types/entities.ts",
+        "src/mods/mod-world/types/world-config.ts",
+        "src/mods/mod-world/types/world-context.ts",
+        "src/mods/mod-world/types/world-tags.ts",
+        "src/mods/mod-world/utils/adaptation-prompt-calibration.ts",
+        "src/mods/mod-world/utils/calibration-access.ts",
+        "src/mods/mod-world/utils/calibration-clamp.ts",
+        "src/mods/mod-world/utils/calibration-clamp/calibration-summary.ts",
+        "src/mods/mod-world/utils/calibration-clamp/default-calibration.ts",
+        "src/mods/mod-world/utils/calibration-clamp/modifier-contract.ts",
+        "src/mods/mod-world/utils/entity-generation-gate.ts",
+        "src/mods/mod-world/utils/parse-ai-json.ts",
+        "src/mods/mod-world/utils/power-framework.ts",
+        "src/mods/mod-world/utils/preset-to-config.ts",
+        "src/mods/mod-world/utils/preset-world-code.ts",
+        "src/mods/mod-world/utils/world-calibration-parse.ts",
+        "src/mods/mod-world/utils/world-coherence-hints.ts",
+        "src/mods/mod-world/utils/world-coherence-inference.ts",
+        "src/mods/mod-world/utils/world-coherence-output-guard.ts",
+        "src/mods/mod-world/utils/world-config-ai.ts",
+        "src/mods/mod-world/utils/world-config-mapping.ts",
+        "src/mods/mod-world/utils/world-context-runtime.ts",
+        "src/mods/mod-world/utils/world-context-runtime/capability-profile.ts",
+        "src/mods/mod-world/utils/world-context-runtime/context-instance.ts",
+        "src/mods/mod-world/utils/world-context-runtime/hierarchy-validation.ts",
+        "src/mods/mod-world/utils/world-context-runtime/identifiers.ts",
+        "src/mods/mod-world/utils/world-context-runtime/spatial-graph.ts",
+        "src/mods/mod-world/utils/world-dimension-calibration-normalize.ts",
+        "src/mods/mod-world/utils/world-dimension-calibration-parse.ts",
+        "src/mods/mod-world/utils/world-generated-cache.ts",
+        "src/mods/mod-world/utils/world-init-ai-validation.ts",
+        "src/mods/mod-world/utils/world-init-anchor-year.ts",
+        "src/mods/mod-world/utils/world-init-budgets.ts",
+        "src/mods/mod-world/utils/world-init-calibration-cache.ts",
+        "src/mods/mod-world/utils/world-init-fallback.ts",
+        "src/mods/mod-world/utils/world-init-kv.ts",
+        "src/mods/mod-world/utils/world-init-pipeline.ts",
+        "src/mods/mod-world/utils/world-init-pipeline/ai-service.ts",
+        "src/mods/mod-world/utils/world-init-pipeline/context-factory.ts",
+        "src/mods/mod-world/utils/world-init-pipeline/context-state.ts",
+        "src/mods/mod-world/utils/world-init-pipeline/contracts.ts",
+        "src/mods/mod-world/utils/world-init-pipeline/runner.ts",
+        "src/mods/mod-world/utils/world-init-pipeline/steps.ts",
+        "src/mods/mod-world/utils/world-init-prompt-vars.ts",
+        "src/mods/mod-world/utils/world-pool-selectors.ts",
+        "src/mods/mod-world/utils/world-scale-calibration.ts",
+        "src/mods/mod-world/utils/world-state-migration.ts",
+        "src/mods/mod-world/world-context-api.ts",
+        "src/mods/mod-world/world-init-api.ts",
+        "src/mods/mod-world/world-init-bundle-deps.ts",
+        "src/mods/mod-world/world-init-bundle.ts",
+        "src/mods/mod-world/world-init-bundle/background.ts",
+        "src/mods/mod-world/world-init-bundle/commit.ts",
+        "src/mods/mod-world/world-init-bundle/contracts.ts",
+        "src/mods/mod-world/world-init-bundle/generation.ts",
+        "src/mods/mod-world/world-scoring-profile-generation.ts"
+      ],
+      "oversized": [
+        "src/mods/mod-world/constants/presets/catalog.ts",
+        "src/mods/mod-world/constants/world-tag-defaults.ts",
+        "src/mods/mod-world/subsystems/context-transition-system.ts"
+      ]
+    },
+    {
+      "id": "mod-world-map",
+      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
+      "directories": [
+        "src/mods/mod-world-map",
+        "src/mods/mod-world-map/_internal",
+        "src/mods/mod-world-map/components",
+        "src/mods/mod-world-map/pages/world-map",
+        "src/mods/mod-world-map/utils"
+      ],
+      "files": [
+        "src/mods/mod-world-map/_internal/control.ts",
+        "src/mods/mod-world-map/components/WorldMapCanvas.module.css",
+        "src/mods/mod-world-map/components/WorldMapCanvas.tsx",
+        "src/mods/mod-world-map/index.ts",
+        "src/mods/mod-world-map/manifest.ts",
+        "src/mods/mod-world-map/map-projection.ts",
+        "src/mods/mod-world-map/pages/world-map/page.tsx",
+        "src/mods/mod-world-map/store.ts",
+        "src/mods/mod-world-map/types.ts",
+        "src/mods/mod-world-map/utils/map-renderer.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "operations",
+      "responsibility": "本地运营、日志、数据查看和受控管理命令",
+      "directories": [
+        "scripts/ops",
+        "scripts/ops/data-viewer",
+        "scripts/ops/lib",
+        "scripts/ops/systemd"
+      ],
+      "files": [
+        "scripts/ops/analyze-ai-logs.mjs",
+        "scripts/ops/cleanup-inactive-accounts.mjs",
+        "scripts/ops/cleanup-old-releases.mjs",
+        "scripts/ops/data-viewer.mjs",
+        "scripts/ops/data-viewer/assets.mjs",
+        "scripts/ops/data-viewer/database-inspection.mjs",
+        "scripts/ops/data-viewer/execution-diagnostics.mjs",
+        "scripts/ops/data-viewer/log-analysis.mjs",
+        "scripts/ops/data-viewer/log-queries.mjs",
+        "scripts/ops/data-viewer/narrative-archives.mjs",
+        "scripts/ops/data-viewer/server.mjs",
+        "scripts/ops/data-viewer/shared.mjs",
+        "scripts/ops/deduplicate-release-storage.mjs",
+        "scripts/ops/feedback-status.mjs",
+        "scripts/ops/inspect-ai-logs.mjs",
+        "scripts/ops/lib/error-classification.mjs",
+        "scripts/ops/lib/log-databases.mjs",
+        "scripts/ops/lib/story-repetition-analytics.mjs",
+        "scripts/ops/migrate-game-record-lifespan-adjustments.ts",
+        "scripts/ops/migrate-log-archive-v1.ts",
+        "scripts/ops/migrate-player-mailbox-v5.ts",
+        "scripts/ops/operations-dashboard.mjs",
+        "scripts/ops/send-player-mail.mjs",
+        "scripts/ops/systemd/ai-life-sim-account-cleanup.service",
+        "scripts/ops/systemd/ai-life-sim-account-cleanup.timer",
+        "scripts/ops/systemd/ai-life-sim-operations-dashboard.service",
+        "scripts/ops/systemd/ai-life-sim-release-cleanup.service",
+        "scripts/ops/systemd/ai-life-sim-release-cleanup.timer",
+        "scripts/ops/validate-production-env.mjs"
+      ],
+      "oversized": [
+        "scripts/ops/analyze-ai-logs.mjs",
+        "scripts/ops/inspect-ai-logs.mjs"
+      ]
+    },
+    {
+      "id": "project-automation",
+      "responsibility": "项目级自动化入口",
+      "directories": [
+        "scripts"
+      ],
+      "files": [
+        "scripts/README.md"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "project-governance",
+      "responsibility": "项目 Agent 资料目录说明",
+      "directories": [
+        ".",
+        ".agents"
+      ],
+      "files": [
+        ".agents/README.md",
+        "AGENTS.md"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "project-skill:ai-life-sim",
+      "responsibility": "AI 人生模拟器高度特化规则与按需资料",
+      "directories": [
+        ".agents/skills/ai-life-sim",
+        ".agents/skills/ai-life-sim/agents",
+        ".agents/skills/ai-life-sim/references",
+        ".agents/skills/ai-life-sim/scripts",
+        ".agents/skills/ai-life-sim/scripts/production-deploy"
+      ],
+      "files": [
+        ".agents/skills/ai-life-sim/agents/openai.yaml",
+        ".agents/skills/ai-life-sim/references/data-integrity.md",
+        ".agents/skills/ai-life-sim/references/development-checks.md",
+        ".agents/skills/ai-life-sim/references/production-deployment.md",
+        ".agents/skills/ai-life-sim/references/production-environment.md",
+        ".agents/skills/ai-life-sim/references/production-operations.md",
+        ".agents/skills/ai-life-sim/references/production-recovery.md",
+        ".agents/skills/ai-life-sim/references/production-services.md",
+        ".agents/skills/ai-life-sim/references/project-development.md",
+        ".agents/skills/ai-life-sim/references/release-recording.md",
+        ".agents/skills/ai-life-sim/references/standardization.md",
+        ".agents/skills/ai-life-sim/scripts/production-deploy-remote.sh",
+        ".agents/skills/ai-life-sim/scripts/production-deploy.ps1",
+        ".agents/skills/ai-life-sim/scripts/production-deploy/common.ps1",
+        ".agents/skills/ai-life-sim/scripts/production-deploy/execute.ps1",
+        ".agents/skills/ai-life-sim/scripts/production-deploy/plan.ps1",
+        ".agents/skills/ai-life-sim/scripts/production-deploy/recover.ps1",
+        ".agents/skills/ai-life-sim/scripts/production-deploy/target-validation.ps1",
+        ".agents/skills/ai-life-sim/scripts/production-recover-remote.sh",
+        ".agents/skills/ai-life-sim/SKILL.md"
+      ],
+      "oversized": [
+        ".agents/skills/ai-life-sim/scripts/production-deploy-remote.sh",
+        ".agents/skills/ai-life-sim/scripts/production-deploy/execute.ps1",
+        ".agents/skills/ai-life-sim/scripts/production-recover-remote.sh"
+      ]
+    },
+    {
+      "id": "project-skill:ai-life-sim-mod-development",
+      "responsibility": "AI 人生模拟器高度特化规则与按需资料",
+      "directories": [
+        ".agents/skills/ai-life-sim-mod-development",
+        ".agents/skills/ai-life-sim-mod-development/agents"
+      ],
+      "files": [
+        ".agents/skills/ai-life-sim-mod-development/agents/openai.yaml",
+        ".agents/skills/ai-life-sim-mod-development/SKILL.md"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "project-skill:ai-life-sim-prompt-engineering",
+      "responsibility": "AI 人生模拟器高度特化规则与按需资料",
+      "directories": [
+        ".agents/skills/ai-life-sim-prompt-engineering",
+        ".agents/skills/ai-life-sim-prompt-engineering/agents"
+      ],
+      "files": [
+        ".agents/skills/ai-life-sim-prompt-engineering/agents/openai.yaml",
+        ".agents/skills/ai-life-sim-prompt-engineering/SKILL.md"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "project-skill:ai-life-sim-testing",
+      "responsibility": "AI 人生模拟器高度特化规则与按需资料",
+      "directories": [
+        ".agents/skills/ai-life-sim-testing",
+        ".agents/skills/ai-life-sim-testing/agents"
+      ],
+      "files": [
+        ".agents/skills/ai-life-sim-testing/agents/openai.yaml",
+        ".agents/skills/ai-life-sim-testing/SKILL.md"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "project-skill:ai-life-sim-ui",
+      "responsibility": "AI 人生模拟器高度特化规则与按需资料",
+      "directories": [
+        ".agents/skills/ai-life-sim-ui",
+        ".agents/skills/ai-life-sim-ui/agents"
+      ],
+      "files": [
+        ".agents/skills/ai-life-sim-ui/agents/openai.yaml",
+        ".agents/skills/ai-life-sim-ui/SKILL.md"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "quality:account",
+      "responsibility": "按领域执行项目机械验收",
+      "directories": [
+        "scripts/check/domains/account"
+      ],
+      "files": [
+        "scripts/check/domains/account/account-cleanup-ops-smoke.mjs",
+        "scripts/check/domains/account/account-cloud-smoke.mjs",
+        "scripts/check/domains/account/character-draft-persistence-smoke.mjs",
+        "scripts/check/domains/account/data-viewer-smoke.mjs",
+        "scripts/check/domains/account/game-record-lifespan-adjustment-migration-smoke.mjs",
+        "scripts/check/domains/account/operations-dashboard-smoke.mjs",
+        "scripts/check/domains/account/player-content-smoke.mjs",
+        "scripts/check/domains/account/player-mail-migration-smoke.mjs",
+        "scripts/check/domains/account/player-mail-ops-smoke.mjs"
+      ],
+      "oversized": [
+        "scripts/check/domains/account/account-cloud-smoke.mjs",
+        "scripts/check/domains/account/data-viewer-smoke.mjs",
+        "scripts/check/domains/account/player-content-smoke.mjs"
+      ]
+    },
+    {
+      "id": "quality:calibration",
+      "responsibility": "按领域执行项目机械验收",
+      "directories": [
+        "scripts/check/domains/calibration"
+      ],
+      "files": [
+        "scripts/check/domains/calibration/calibration-wiring-audit.ts",
+        "scripts/check/domains/calibration/d37-config-override.mjs",
+        "scripts/check/domains/calibration/legacy-simulation-formula-probe.mjs",
+        "scripts/check/domains/calibration/world-calibration-acceptance-runner.ts",
+        "scripts/check/domains/calibration/world-calibration-acceptance.mjs",
+        "scripts/check/domains/calibration/world-calibration-ai-path-runner.ts",
+        "scripts/check/domains/calibration/world-calibration-phase5-runner.ts",
+        "scripts/check/domains/calibration/world-calibration-test-helpers.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "quality:infrastructure",
+      "responsibility": "检查注册、规则、夹具、运行与报告基础设施",
+      "directories": [
+        "scripts/check",
+        "scripts/check/check-format",
+        "scripts/check/dev",
+        "scripts/check/dev/checker-self-test",
+        "scripts/check/fixtures",
+        "scripts/check/lib",
+        "scripts/check/lib/checker-utils",
+        "scripts/check/lib/runner",
+        "scripts/check/rules",
+        "scripts/check/rules/file-budget-exceptions"
+      ],
+      "files": [
+        "scripts/check/check-format.ps1",
+        "scripts/check/check-format/architecture-post-passes.ps1",
+        "scripts/check/check-format/smart-comparison.ps1",
+        "scripts/check/check-format/summary.ps1",
+        "scripts/check/dev/checker-self-test.ps1",
+        "scripts/check/dev/checker-self-test/availability-tests.ps1",
+        "scripts/check/dev/checker-self-test/dot-source-chain-tests.ps1",
+        "scripts/check/dev/checker-self-test/safety-summary.ps1",
+        "scripts/check/dev/checker-self-test/smoke-tests.ps1",
+        "scripts/check/dev/checker-self-test/syntax-tests.ps1",
+        "scripts/check/dev/generate-dependency-graph.mjs",
+        "scripts/check/dev/show-errors.ps1",
+        "scripts/check/domains.mjs",
+        "scripts/check/fixtures/execution-incidents.json",
+        "scripts/check/gate-check.mjs",
+        "scripts/check/index.mjs",
+        "scripts/check/lib/atce-signals.mjs",
+        "scripts/check/lib/checker-utils.ps1",
+        "scripts/check/lib/checker-utils/encoding.ps1",
+        "scripts/check/lib/checker-utils/file-cache.ps1",
+        "scripts/check/lib/checker-utils/reports.ps1",
+        "scripts/check/lib/checker-utils/results.ps1",
+        "scripts/check/lib/checker-utils/rule-inspection.ps1",
+        "scripts/check/lib/cleanup-reports.mjs",
+        "scripts/check/lib/project-root.mjs",
+        "scripts/check/lib/quiet.mjs",
+        "scripts/check/lib/read-module-source.mjs",
+        "scripts/check/lib/report.mjs",
+        "scripts/check/lib/resolve-changed.mjs",
+        "scripts/check/lib/runner.mjs",
+        "scripts/check/lib/runner/check.mjs",
+        "scripts/check/lib/runner/contracts.mjs",
+        "scripts/check/lib/runner/domain.mjs",
+        "scripts/check/lib/runner/execution.mjs",
+        "scripts/check/lib/typescript-loader.mjs",
+        "scripts/check/profiles.mjs",
+        "scripts/check/rules/architecture-rules.json",
+        "scripts/check/rules/execution-system-review.json",
+        "scripts/check/rules/file-budget-exceptions/application-platform.json",
+        "scripts/check/rules/file-budget-exceptions/mod-character.json",
+        "scripts/check/rules/file-budget-exceptions/mod-culture.json",
+        "scripts/check/rules/file-budget-exceptions/mod-economy.json",
+        "scripts/check/rules/file-budget-exceptions/mod-engine.json",
+        "scripts/check/rules/file-budget-exceptions/mod-environment-ecology.json",
+        "scripts/check/rules/file-budget-exceptions/mod-history-dynamics.json",
+        "scripts/check/rules/file-budget-exceptions/mod-pages.json",
+        "scripts/check/rules/file-budget-exceptions/mod-progression.json",
+        "scripts/check/rules/file-budget-exceptions/mod-settings.json",
+        "scripts/check/rules/file-budget-exceptions/mod-ui.json",
+        "scripts/check/rules/file-budget-exceptions/mod-world.json",
+        "scripts/check/rules/file-budget-exceptions/project-skills.json",
+        "scripts/check/rules/file-budget-exceptions/quality-automation.json",
+        "scripts/check/rules/project-structure.json",
+        "scripts/check/rules/registry.json",
+        "scripts/check/rules/standardization.json"
+      ],
+      "oversized": [
+        "scripts/check/domains.mjs"
+      ]
+    },
+    {
+      "id": "quality:mod",
+      "responsibility": "按领域执行项目机械验收",
+      "directories": [
+        "scripts/check/domains/mod",
+        "scripts/check/domains/mod/anomaly-scanner",
+        "scripts/check/domains/mod/arch-scanner",
+        "scripts/check/domains/mod/smart-scanner"
+      ],
+      "files": [
+        "scripts/check/domains/mod/anomaly-scanner.ps1",
+        "scripts/check/domains/mod/anomaly-scanner/ai-call-rules.ps1",
+        "scripts/check/domains/mod/anomaly-scanner/lifecycle-storage-rules.ps1",
+        "scripts/check/domains/mod/anomaly-scanner/prompt-subsystem-rules.ps1",
+        "scripts/check/domains/mod/anomaly-scanner/schema-store-rules.ps1",
+        "scripts/check/domains/mod/anomaly-scanner/source-layout-rules.ps1",
+        "scripts/check/domains/mod/arch-scanner.ps1",
+        "scripts/check/domains/mod/arch-scanner/dependency-post-passes.ps1",
+        "scripts/check/domains/mod/arch-scanner/mod-file-pass.ps1",
+        "scripts/check/domains/mod/arch-scanner/ownership-post-passes.ps1",
+        "scripts/check/domains/mod/arch-scanner/quality-post-passes.ps1",
+        "scripts/check/domains/mod/historical-event-p1-smoke.mjs",
+        "scripts/check/domains/mod/multi-world-p3-p5-smoke.mjs",
+        "scripts/check/domains/mod/npc-social-p2-smoke.mjs",
+        "scripts/check/domains/mod/run-mod-scanners.ps1",
+        "scripts/check/domains/mod/smart-scanner.ps1",
+        "scripts/check/domains/mod/smart-scanner/api-rules.ps1",
+        "scripts/check/domains/mod/smart-scanner/dependency-rules.ps1",
+        "scripts/check/domains/mod/smart-scanner/prefix-summary.ps1",
+        "scripts/check/domains/mod/smart-scanner/wiring-rules.ps1",
+        "scripts/check/domains/mod/world-context-p0-smoke.mjs",
+        "scripts/check/domains/mod/world-init-scoring-depth-smoke.mjs"
+      ],
+      "oversized": [
+        "scripts/check/domains/mod/arch-scanner/mod-file-pass.ps1",
+        "scripts/check/domains/mod/historical-event-p1-smoke.mjs",
+        "scripts/check/domains/mod/multi-world-p3-p5-smoke.mjs",
+        "scripts/check/domains/mod/npc-social-p2-smoke.mjs",
+        "scripts/check/domains/mod/world-context-p0-smoke.mjs"
+      ]
+    },
+    {
+      "id": "quality:narrative",
+      "responsibility": "按领域执行项目机械验收",
+      "directories": [
+        "scripts/check/domains/narrative"
+      ],
+      "files": [
+        "scripts/check/domains/narrative/adaptation-calibration-audit.mjs",
+        "scripts/check/domains/narrative/ai-call-deadline-smoke.mjs",
+        "scripts/check/domains/narrative/ai-error-translation-smoke.mjs",
+        "scripts/check/domains/narrative/ai-proxy-observability-regression.mjs",
+        "scripts/check/domains/narrative/ai-response-truncation-smoke.mjs",
+        "scripts/check/domains/narrative/autosave-lifecycle-smoke.mjs",
+        "scripts/check/domains/narrative/branch-intent-persistence-smoke.mjs",
+        "scripts/check/domains/narrative/branch-intent-resolution-smoke.mjs",
+        "scripts/check/domains/narrative/cache-stats-smoke.mjs",
+        "scripts/check/domains/narrative/character-first-narrative-slice.mjs",
+        "scripts/check/domains/narrative/compression-runtime-smoke.mjs",
+        "scripts/check/domains/narrative/deepseek-request-contract-smoke.mjs",
+        "scripts/check/domains/narrative/destiny-credential-terminal-smoke.mjs",
+        "scripts/check/domains/narrative/development-system-diagnostic-smoke.mjs",
+        "scripts/check/domains/narrative/diagnostic-player-code-smoke.mjs",
+        "scripts/check/domains/narrative/feedback-status-smoke.mjs",
+        "scripts/check/domains/narrative/historical-event-prompt-projection-smoke.mjs",
+        "scripts/check/domains/narrative/kv-prompt-audit.mjs",
+        "scripts/check/domains/narrative/log-analytics-smoke.mjs",
+        "scripts/check/domains/narrative/log-archive-v1-migration-smoke.mjs",
+        "scripts/check/domains/narrative/luck-guidance-smoke.mjs",
+        "scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs",
+        "scripts/check/domains/narrative/narrative-memory-store-smoke.mjs",
+        "scripts/check/domains/narrative/narrative-opening-live-eval.mjs",
+        "scripts/check/domains/narrative/narrative-pressure-balance-live-eval.mjs",
+        "scripts/check/domains/narrative/narrative-regression-seed.mjs",
+        "scripts/check/domains/narrative/narrative-repetition-metrics-smoke.mjs",
+        "scripts/check/domains/narrative/narrative-round-archive-smoke.mjs",
+        "scripts/check/domains/narrative/no-hard-truncation-audit.mjs",
+        "scripts/check/domains/narrative/player-api-settings-regression.mjs",
+        "scripts/check/domains/narrative/player-feedback-smoke.mjs",
+        "scripts/check/domains/narrative/playtest-quality-regression.mjs",
+        "scripts/check/domains/narrative/plot-structure-canonical-time-smoke.mjs",
+        "scripts/check/domains/narrative/pre-gen-cancellation-smoke.mjs",
+        "scripts/check/domains/narrative/protected-prompt-assets-regression.mjs",
+        "scripts/check/domains/narrative/protected-prompt-client-bundle-smoke.mjs",
+        "scripts/check/domains/narrative/release-cleanup-smoke.mjs",
+        "scripts/check/domains/narrative/runtime-subsystem-state-regression.mjs",
+        "scripts/check/domains/narrative/semantic-authority-audit.mjs",
+        "scripts/check/domains/narrative/server-log-store-smoke.mjs",
+        "scripts/check/domains/narrative/starting-age-authority-regression.mjs",
+        "scripts/check/domains/narrative/stream-response-smoke.mjs",
+        "scripts/check/domains/narrative/time-bridge-smoke.mjs",
+        "scripts/check/domains/narrative/time-step-resolver-smoke.mjs",
+        "scripts/check/domains/narrative/validate-narrative-wiring.mjs"
+      ],
+      "oversized": [
+        "scripts/check/domains/narrative/branch-intent-resolution-smoke.mjs",
+        "scripts/check/domains/narrative/compression-runtime-smoke.mjs",
+        "scripts/check/domains/narrative/kv-prompt-audit.mjs",
+        "scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs",
+        "scripts/check/domains/narrative/no-hard-truncation-audit.mjs",
+        "scripts/check/domains/narrative/playtest-quality-regression.mjs",
+        "scripts/check/domains/narrative/runtime-subsystem-state-regression.mjs",
+        "scripts/check/domains/narrative/semantic-authority-audit.mjs",
+        "scripts/check/domains/narrative/time-step-resolver-smoke.mjs"
+      ]
+    },
+    {
+      "id": "quality:README.md",
+      "responsibility": "按领域执行项目机械验收",
+      "directories": [
+        "scripts/check/domains"
+      ],
+      "files": [
+        "scripts/check/domains/README.md"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "quality:standardization",
+      "responsibility": "按领域执行项目机械验收",
+      "directories": [
+        "scripts/check/domains/standardization",
+        "scripts/check/domains/standardization/lib"
+      ],
+      "files": [
+        "scripts/check/domains/standardization/lib/context.mjs",
+        "scripts/check/domains/standardization/lib/format-checks.mjs",
+        "scripts/check/domains/standardization/lib/report.mjs",
+        "scripts/check/domains/standardization/lib/skill-checks.mjs",
+        "scripts/check/domains/standardization/lib/structure-checks.mjs",
+        "scripts/check/domains/standardization/lib/structure-snapshot.mjs",
+        "scripts/check/domains/standardization/README.md",
+        "scripts/check/domains/standardization/standardization-gate.mjs"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "quality:structural",
+      "responsibility": "按领域执行项目机械验收",
+      "directories": [
+        "scripts/check/domains/structural"
+      ],
+      "files": [
+        "scripts/check/domains/structural/check-runner-contract-smoke.mjs",
+        "scripts/check/domains/structural/execution-flow-contracts-runner.ts",
+        "scripts/check/domains/structural/execution-system-gate.mjs",
+        "scripts/check/domains/structural/README.md",
+        "scripts/check/domains/structural/scan-file-import-graph.mjs",
+        "scripts/check/domains/structural/scan-mod-public-boundary.mjs",
+        "scripts/check/domains/structural/scan-persist-format.mjs",
+        "scripts/check/domains/structural/scan-typescript-wiring.mjs",
+        "scripts/check/domains/structural/test-mod-loader-runner.ts",
+        "scripts/check/domains/structural/test-mod-loader.mjs"
+      ],
+      "oversized": [
+        "scripts/check/domains/structural/execution-flow-contracts-runner.ts",
+        "scripts/check/domains/structural/scan-typescript-wiring.mjs",
+        "scripts/check/domains/structural/test-mod-loader-runner.ts"
+      ]
+    },
+    {
+      "id": "quality:ui",
+      "responsibility": "按领域执行项目机械验收",
+      "directories": [
+        "scripts/check/domains/ui",
+        "scripts/check/domains/ui/css-scanner",
+        "scripts/check/domains/ui/ui-scanner"
+      ],
+      "files": [
+        "scripts/check/domains/ui/account-cloud-browser.cjs",
+        "scripts/check/domains/ui/branch-flow-browser.cjs",
+        "scripts/check/domains/ui/character-create-n2a-browser.cjs",
+        "scripts/check/domains/ui/character-first-narrative-browser.cjs",
+        "scripts/check/domains/ui/css-scanner.ps1",
+        "scripts/check/domains/ui/css-scanner/unknown-variable-rule.ps1",
+        "scripts/check/domains/ui/deepseek-full-flow-browser.cjs",
+        "scripts/check/domains/ui/game-changelog-regression.mjs",
+        "scripts/check/domains/ui/game-over-final-ui-browser.cjs",
+        "scripts/check/domains/ui/game-over-share-card-smoke.mjs",
+        "scripts/check/domains/ui/global-user-journey-browser.cjs",
+        "scripts/check/domains/ui/help-c3-browser.cjs",
+        "scripts/check/domains/ui/mobile-ui-regression.mjs",
+        "scripts/check/domains/ui/narrative-retry-policy-smoke.mjs",
+        "scripts/check/domains/ui/new-life-isolation-smoke.mjs",
+        "scripts/check/domains/ui/responsive-viewport-browser.cjs",
+        "scripts/check/domains/ui/run-ui-scanners.ps1",
+        "scripts/check/domains/ui/settings-r1-browser.cjs",
+        "scripts/check/domains/ui/ui-scanner.ps1",
+        "scripts/check/domains/ui/ui-scanner/tsx-rules.ps1",
+        "scripts/check/domains/ui/world-customize-m2-browser.cjs",
+        "scripts/check/domains/ui/world-generated-cache-smoke.mjs",
+        "scripts/check/domains/ui/world-select-wf2-browser.cjs"
+      ],
+      "oversized": [
+        "scripts/check/domains/ui/branch-flow-browser.cjs",
+        "scripts/check/domains/ui/character-first-narrative-browser.cjs",
+        "scripts/check/domains/ui/deepseek-full-flow-browser.cjs",
+        "scripts/check/domains/ui/mobile-ui-regression.mjs"
+      ]
+    },
+    {
+      "id": "registry.generated.ts",
+      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
+      "directories": [
+        "src/mods"
+      ],
+      "files": [
+        "src/mods/registry.generated.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "registry.ts",
+      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
+      "directories": [
+        "src/mods"
+      ],
+      "files": [
+        "src/mods/registry.ts"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "release-management",
+      "responsibility": "版本记录和发布资料生成",
+      "directories": [
+        "scripts/release"
+      ],
+      "files": [
+        "scripts/release/game-update-contract.mjs",
+        "scripts/release/record-game-update.mjs"
+      ],
+      "oversized": []
+    },
+    {
+      "id": "workspace-governance",
+      "responsibility": "工作区 Agent 资料目录说明",
+      "directories": [
+        "..",
+        "../.agents"
+      ],
+      "files": [
+        "../.agents/README.md",
+        "../AGENTS.md"
+      ],
+      "oversized": []
+    }
+  ]
+}

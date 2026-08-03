@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "path": "src/mods/mod-history-dynamics/store.ts",
+      "owner": "mod-history-dynamics",
+      "reviewedLines": 402,
+      "reason": "历史账本 Store v2 的单一状态与迁移所有者，六类数组和原子 append 必须共同校验。"
+    },
+    {
+      "path": "src/mods/mod-history-dynamics/subsystems/historical-event-ledger-system.ts",
+      "owner": "mod-history-dynamics",
+      "reviewedLines": 1925,
+      "reason": "历史事件账本唯一写入与持久化所有者；只读查询已下沉，剩余预检、提交和严格校验共享 append-only 不变式。"
+    }
+  ]
+}

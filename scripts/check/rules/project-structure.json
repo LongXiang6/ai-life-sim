@@ -1,0 +1,153 @@
+{
+  "schemaVersion": 1,
+  "compactEntryLineBudget": 120,
+  "preferredLineBudget": 300,
+  "budgetExtensions": [
+    ".cjs",
+    ".css",
+    ".js",
+    ".jsx",
+    ".md",
+    ".mjs",
+    ".ps1",
+    ".sh",
+    ".ts",
+    ".tsx"
+  ],
+  "compactEntryFiles": [
+    "AGENTS.md",
+    "SKILL.md"
+  ],
+  "headerExtensions": [
+    ".cjs",
+    ".css",
+    ".js",
+    ".jsx",
+    ".mjs",
+    ".ps1",
+    ".sh",
+    ".ts",
+    ".tsx"
+  ],
+  "ignoredDirectories": [
+    ".git",
+    ".next",
+    "coverage",
+    "dist",
+    "node_modules",
+    "reports"
+  ],
+  "ignoredPaths": [
+    "scripts/check/generated/project-structure-index.generated.json",
+    "scripts/check/rules/file-header-baseline.generated.json"
+  ],
+  "scanRoots": [
+    "../.agents/README.md",
+    "../.agents/skills",
+    "../AGENTS.md",
+    ".agents/README.md",
+    ".agents/skills",
+    "AGENTS.md",
+    "scripts",
+    "src"
+  ],
+  "ownerRules": [
+    {
+      "path": "../.agents/README.md",
+      "owner": "workspace-governance",
+      "responsibility": "工作区 Agent 资料目录说明"
+    },
+    {
+      "prefix": "../.agents/skills/",
+      "ownerPrefix": "global-skill:",
+      "responsibility": "跨项目通用理念、流程和结构契约",
+      "segment": 0
+    },
+    {
+      "path": "../AGENTS.md",
+      "owner": "workspace-governance",
+      "responsibility": "工作区目标、确认、范围和项目路由"
+    },
+    {
+      "path": ".agents/README.md",
+      "owner": "project-governance",
+      "responsibility": "项目 Agent 资料目录说明"
+    },
+    {
+      "prefix": ".agents/skills/",
+      "ownerPrefix": "project-skill:",
+      "responsibility": "AI 人生模拟器高度特化规则与按需资料",
+      "segment": 0
+    },
+    {
+      "path": "AGENTS.md",
+      "owner": "project-governance",
+      "responsibility": "AI 人生模拟器项目职责、部门路由和验收入口"
+    },
+    {
+      "prefix": "scripts/check/domains/",
+      "ownerPrefix": "quality:",
+      "responsibility": "按领域执行项目机械验收",
+      "segment": 0
+    },
+    {
+      "prefix": "scripts/check/",
+      "owner": "quality:infrastructure",
+      "responsibility": "检查注册、规则、夹具、运行与报告基础设施"
+    },
+    {
+      "prefix": "scripts/codegen/",
+      "owner": "code-generation",
+      "responsibility": "从唯一声明源生成确定性接线和索引"
+    },
+    {
+      "prefix": "scripts/dev/",
+      "owner": "development-infrastructure",
+      "responsibility": "本地开发服务、预热和诊断支持"
+    },
+    {
+      "prefix": "scripts/ops/",
+      "owner": "operations",
+      "responsibility": "本地运营、日志、数据查看和受控管理命令"
+    },
+    {
+      "prefix": "scripts/release/",
+      "owner": "release-management",
+      "responsibility": "版本记录和发布资料生成"
+    },
+    {
+      "prefix": "scripts/",
+      "owner": "project-automation",
+      "responsibility": "项目级自动化入口"
+    },
+    {
+      "prefix": "src/app/",
+      "ownerPrefix": "app:",
+      "responsibility": "应用路由、服务端入口和页面装配",
+      "segment": 0
+    },
+    {
+      "prefix": "src/core/",
+      "ownerPrefix": "core:",
+      "responsibility": "跨 MOD 平台能力与公共服务",
+      "segment": 0
+    },
+    {
+      "prefix": "src/foundation/",
+      "ownerPrefix": "foundation:",
+      "responsibility": "无业务所有权的基础类型、契约和工具",
+      "segment": 0
+    },
+    {
+      "prefix": "src/mods/",
+      "ownerPrefix": "",
+      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
+      "segment": 0
+    },
+    {
+      "prefix": "src/styles/",
+      "owner": "app:shared-styles",
+      "responsibility": "跨页面复用的应用样式资产"
+    }
+  ]
+}

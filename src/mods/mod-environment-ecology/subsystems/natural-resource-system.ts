@@ -257,9 +257,23 @@ export class NaturalResourceSystem extends BaseSubsystem {
     }
   }
 
-  applyChanges(changes: SubSystemChanges, _context: RoundContext): void {
-    void changes
-    throw new Error('[natural-resource] 只接受拥有系统校验后的资源事件，不接受叙事 AI 直接写入')
+  applyChanges(changes: SubSystemChanges, context: RoundContext): void {
+    if (changes.id !== this.id || changes.operation !== 'record-transaction') {
+      throw new Error('[natural-resource] 只接受已校验的 record-transaction 操作')
+    }
+    const depositId = changes.targetObjectId?.trim()
+    if (!depositId) throw new Error('[natural-resource] 资源变化缺少目标矿藏')
+    const delta = changes.changes.delta
+    if (typeof delta !== 'number' || !Number.isFinite(delta) || delta === 0) {
+      throw new Error('[natural-resource] 资源变化量必须是非零有限数字')
+    }
+    this.recordTransaction({
+      depositId,
+      delta,
+      reason: changes.description,
+      totalDays: context.totalDays,
+      evidenceEventIds: changes.evidenceEventIds ?? [],
+    })
   }
 
   registerDeposit(input: NaturalResourceDepositInput): NaturalResourceDeposit {

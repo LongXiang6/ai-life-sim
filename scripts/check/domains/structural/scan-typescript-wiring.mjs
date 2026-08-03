@@ -1,13 +1,14 @@
 /**
- * @module scan-typescript-wiring.mjs
- * @description TS 接线扫描：codegen 契约 + 源码交叉校验 + REFACTOR-HINT（A-01 重 barrel 等）
+ * Purpose: Validate generated TypeScript wiring and architecture contracts.
+ * Owner: quality:structural
+ * Responsibility: Report deterministic wiring failures and refactor hints without changing source state.
  */
 
 import fs from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { logOk, logFail, logRefactorHint, logDomainSummary } from '../../lib/quiet.mjs'
 import { getProjectRoot } from '../../lib/project-root.mjs'
+import { readModuleSource } from '../../lib/read-module-source.mjs'
 import { parseSubsystemFieldContracts } from '../../../codegen/subsystem-field-contract-parser.mjs'
 
 const ROOT = getProjectRoot(import.meta.url)
@@ -136,7 +137,7 @@ if (!genStages || genStages.join('|') !== indexStages.join('|')) {
   logOk('[OK] campaign stages 与 index.ts 一致')
 }
 
-const orchestrator = readRel('src/mods/mod-engine/subsystems/orchestrator-system.ts')
+const orchestrator = readModuleSource('src/mods/mod-engine/subsystems/orchestrator-system.ts', ROOT)
 let orchMissing = 0
 for (const method of ORCHESTRATOR_REQUIRED_CALLS) {
   if (!new RegExp(`\\b${method}\\s*\\(`).test(orchestrator)) {

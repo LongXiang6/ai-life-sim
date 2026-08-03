@@ -5,6 +5,7 @@
 
 import { buildSegmentedPrompt } from '../../../../src/core/ai-service/prompt-builder.ts'
 import { useCharacterStore } from '../../../../src/mods/mod-character/store.ts'
+import { getCharacterBaseSystem } from '../../../../src/mods/mod-character/subsystems/character-base-system.ts'
 import { useEngineStore } from '../../../../src/mods/mod-engine/store.ts'
 import { orchestrator } from '../../../../src/mods/mod-engine/subsystems/orchestrator-system.ts'
 import {
@@ -187,6 +188,10 @@ orchestrator.clearExternalSubsystems()
 orchestrator.reset()
 useEngineStore.getState().reset()
 useCharacterStore.getState().reset()
+const characterBase = getCharacterBaseSystem()
+characterBase.reset()
+characterBase.hydrateFromStore()
+orchestrator.registerSubsystem(characterBase)
 orchestrator.registerSubsystem(ledgerSubsystem)
 orchestrator.setContext({
   contextId: contextA,
@@ -195,7 +200,7 @@ orchestrator.setContext({
   capabilityProfile: {
     contextId: contextA,
     capabilities: ['life'],
-    enabledSubsystemIds: [HISTORICAL_EVENT_LEDGER_ID],
+    enabledSubsystemIds: ['character-base', HISTORICAL_EVENT_LEDGER_ID],
     derivedFrom: 'explicit',
   },
   name: 'Prompt 投影测试世界',
@@ -236,8 +241,8 @@ assertOk(
   'deterministic historical projection must enter the first narrative input byte-for-byte without an adaptation call',
 )
 assertOk(
-  narrativePrompt.version === '5.8.1',
-  'historical Prompt input semantics must use pure narrative Prompt 5.8.1',
+  narrativePrompt.version === '5.8.2',
+  'historical Prompt input semantics must use pure narrative Prompt 5.8.2',
 )
 assertOk(
   Boolean(historicalProjection)

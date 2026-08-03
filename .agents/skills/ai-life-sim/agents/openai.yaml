@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI 人生模拟器项目入口"
+  short_description: "提供项目必要事实、结果边界与按需路由，只服务当前用户要求"
+  default_prompt: "使用 $ai-life-sim，遵循我的当前要求，只读取直接相关的项目资料。"

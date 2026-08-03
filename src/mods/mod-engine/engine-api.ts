@@ -13,8 +13,6 @@ export { NarrativeParserSystem, narrativeParser } from './subsystems/narrative-p
 export { SummaryCompressorSystem, summaryCompressor } from './subsystems/summary-compressor-system'
 export type { ParsedNarrative } from './subsystems/narrative-parser-system'
 export type {
-  CompressionLevel,
-  CompressedEntry,
   CompressorConfig,
   CompressorStats,
   CompressionResult,

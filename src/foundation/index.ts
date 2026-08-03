@@ -1,7 +1,7 @@
 /**
- * @module index.ts
- * @description Foundation 层统一导出 —— 类型 + Token + 工具函数
- * @mod foundation
+ * Purpose: Expose the stable cross-layer Foundation public API.
+ * Owner: foundation:index.ts
+ * Responsibility: Public exports only; types, contracts, constants, and utilities remain in their owning directories.
  */
 
 export {
@@ -44,8 +44,6 @@ export { getRoundSequence } from './utils/round-advance'
 export type {
   AttrTagMap,
   ExtractedAttrs,
-  AttrKey,
-  AttrTier,
 } from './utils'
 
 // 类型（types/index.ts 内部已使用具名导出，此处透传）

@@ -118,6 +118,28 @@ export const NarrativeDeferredCausalitySchema = z.object({
   relatedFaction: z.string().min(1).optional(),
 }).strict()
 
+export const NarrativeDeliveredCausalDispositionSchema = z.object({
+  causalId: z.string().min(1),
+  status: z.enum(['resolved', 'continuing', 'not-touched']),
+  reason: z.string().min(1),
+  continuationDelayDays: z.number().int().min(1).optional(),
+}).strict().superRefine((disposition, context) => {
+  if (disposition.status === 'resolved' && disposition.continuationDelayDays !== undefined) {
+    context.addIssue({
+      code: 'custom',
+      path: ['continuationDelayDays'],
+      message: '已解决因果不得继续延期',
+    })
+  }
+  if (disposition.status !== 'resolved' && disposition.continuationDelayDays === undefined) {
+    context.addIssue({
+      code: 'custom',
+      path: ['continuationDelayDays'],
+      message: '继续或未触及的因果必须提供新的合法延迟天数',
+    })
+  }
+})
+
 const NarrativeNonBlankStringSchema = z.string().refine(
   (value) => value.trim().length > 0,
   '文本不能为空白',
@@ -141,6 +163,7 @@ export const NarrativeRoundMetadataSchema = z.object({
   branchOptions: z.array(NarrativeNonBlankStringSchema).min(2).max(4).optional(),
   intentResolution: NarrativeIntentResolutionSchema.optional(),
   deferredCausality: z.array(NarrativeDeferredCausalitySchema).optional(),
+  deliveredCausalDispositions: z.array(NarrativeDeliveredCausalDispositionSchema).optional(),
 }).strict().superRefine((metadata, context) => {
   const semanticCore = [metadata.importance, metadata.arcStatus, metadata.semanticSignals]
   const semanticCoreCount = semanticCore.filter((value) => value !== undefined).length
@@ -189,23 +212,13 @@ export const NarrativeRoundMetadataSchema = z.object({
   }
 })
 
-/** 标签信封 META 的完整运行时 Schema；预生成与主叙事质量门禁共用。 */
-export const NarrativeResponseSchema = NarrativeRoundMetadataSchema.extend({
-  changes: z.array(z.object({
-    id: z.string().min(1),
-    targetObjectId: z.string().min(1),
-    targetContextId: z.string().min(1),
-    operation: z.string().min(1),
-    evidenceEventIds: z.array(z.string().min(1)),
-    description: z.string().min(1),
-    changes: z.record(z.string(), z.unknown()),
-  }).strict()),
-}).strict()
-
 export type NarrativeSemanticSignals = z.infer<typeof NarrativeSemanticSignalsSchema>
 export type NarrativeRelationshipUpdate = NarrativeSemanticSignals['relationshipUpdates'][number]
 export type NarrativeIntentResolution = z.infer<typeof NarrativeIntentResolutionSchema>
 export type NarrativeDeferredCausality = z.infer<typeof NarrativeDeferredCausalitySchema>
+export type NarrativeDeliveredCausalDisposition = z.infer<
+  typeof NarrativeDeliveredCausalDispositionSchema
+>
 export type NarrativeRoundMetadata = z.infer<typeof NarrativeRoundMetadataSchema>
 
 /** 无有效 AI 语义时的可识别、中立降级；不得由正文扫描补全。 */

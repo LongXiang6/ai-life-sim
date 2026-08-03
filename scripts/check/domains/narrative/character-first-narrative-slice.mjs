@@ -1,8 +1,14 @@
 #!/usr/bin/env node
+/**
+ * Purpose: Verify the character-first opening and live narrative path through static contract fragments.
+ * Owner: quality:narrative
+ * Responsibility: Focused product-slice evidence only; runtime systems own the verified behavior.
+ */
 
 import fs from 'node:fs'
 import path from 'node:path'
 import { getProjectRoot } from '../../lib/project-root.mjs'
+import { readModuleSource } from '../../lib/read-module-source.mjs'
 
 const ROOT = getProjectRoot(import.meta.url)
 const jsonMode = process.argv.includes('--json')
@@ -34,6 +40,13 @@ function requireFragments(relativePath, fragments) {
   const missing = fragments.filter((fragment) => !content.includes(fragment))
   if (missing.length > 0) throw new Error(`${relativePath}: missing ${missing.join(' | ')}`)
   return `${relativePath}: ${fragments.length} contract fragments present`
+}
+
+function requireModuleFragments(relativePath, fragments) {
+  const content = readModuleSource(relativePath, ROOT)
+  const missing = fragments.filter((fragment) => !content.includes(fragment))
+  if (missing.length > 0) throw new Error(`${relativePath}: missing ${missing.join(' | ')}`)
+  return `${relativePath}: ${fragments.length} module contract fragments present`
 }
 
 function requireOrderedFragments(relativePath, fragments) {
@@ -137,17 +150,22 @@ check(
 check(
   'V7',
   'Product/Simulation/AIEnvelope',
-  'Does the live narrative path use the proxy and the strict two-call protocol?',
+  'Does the live narrative path use the proxy and the strict five-call protocol?',
   () => {
-    requireFragments('src/core/ai-service/ai-client.ts', ["fetchWithTimeout('/api/proxy'"])
+    requireModuleFragments('src/core/ai-service/ai-client.ts', ["fetchWithDeadline('/api/proxy'"])
     requireFragments('src/mods/mod-engine/helpers/narrative-response-quality.ts', [
       'narrativeParser.parse(content)',
-      'parseNarrativeSettlementEnvelope(input.content)',
-      'translateNarrativeAISettlement(',
-      'combineNarrativeAndSettlement(input.narrative, settlement)',
+      'parseNarrativeAIJson(input.content)',
+      'translateNarrativeAIDataAnalysis(',
+      'translateNarrativeAIBasicAttributeAnalysis(',
+      'translateNarrativeAIEventRecognition(',
+      'translateNarrativeMacroImpact({',
+      'validateNarrativeEventMetadataForNarrative(input.narrative, result.metadata)',
     ])
     return requireFragments('src/mods/mod-engine/helpers/narrative-ai-protocol.ts', [
-      'export const NarrativeAISettlementDataSchema',
+      'export const NarrativeAIDataAnalysisDataSchema',
+      'export const NarrativeAIBasicAttributeAnalysisDataSchema',
+      'export const NarrativeAIEventRecognitionDataSchema',
       'export const NarrativeAISystemInstructionSchema',
       '语义信号: NarrativeAISemanticSignalsSchema.optional()',
       '新延迟因果: z.array(NarrativeAIDeferredCausalitySchema).min(1).optional()',
@@ -183,7 +201,7 @@ check(
   () => {
     const stores = [
       ['src/mods/mod-world/store.ts', "name: 'mod-world:persist:world-state'", 'version: 6'],
-      ['src/mods/mod-settings/store.ts', "name: 'mod-settings:store'", 'version: 11'],
+      ['src/mods/mod-settings/store.ts', "name: 'mod-settings:store'", 'version: 12'],
       ['src/mods/mod-character/store.ts', "name: 'mod-character:persist:character-state'", 'version: 5'],
       ['src/mods/mod-engine/store.ts', "name: 'mod-engine:persist:engine-state'", 'ENGINE_STORE_SCHEMA_VERSION = 5'],
     ]

@@ -221,9 +221,23 @@ export class GeographySystem extends BaseSubsystem {
     }
   }
 
-  applyChanges(changes: SubSystemChanges, _context: RoundContext): void {
-    void changes
-    throw new Error('[geography] 只接受拥有系统校验后的历史事件输入，不接受叙事 AI 直接写入')
+  applyChanges(changes: SubSystemChanges, context: RoundContext): void {
+    if (changes.id !== this.id || changes.operation !== 'record-mutation') {
+      throw new Error('[geography] 只接受已校验的 record-mutation 操作')
+    }
+    const nodeId = changes.targetObjectId?.trim()
+    if (!nodeId) throw new Error('[geography] 地理变化缺少目标空间节点')
+    this.recordMutation({
+      contextId: context.contextId,
+      nodeId,
+      ...(changes.changes as Omit<
+        GeographyMutationInput,
+        'contextId' | 'nodeId' | 'description' | 'totalDays' | 'evidenceEventIds'
+      >),
+      description: changes.description,
+      totalDays: context.totalDays,
+      evidenceEventIds: changes.evidenceEventIds ?? [],
+    })
   }
 
   recordMutation(input: GeographyMutationInput): NodeGeographyRecord {

@@ -1,13 +1,16 @@
 /**
- * 命运分支意图：选择建档、持续推进、第二次结算判定与终态归档回归。
+ * Purpose: Regress branch-intent creation, continuation, recognition, and terminal archiving.
+ * Owner: quality:narrative
+ * Responsibility: One branch-intent lifecycle smoke scenario only.
  */
 
 import fs from 'node:fs'
 import path from 'node:path'
 import { getProjectRoot } from '../../lib/project-root.mjs'
+import { readModuleSource } from '../../lib/read-module-source.mjs'
 import {
   buildNarrativeBranchIntentProjection,
-  buildSettlementBranchIntentInstruction,
+  buildEventRecognitionBranchIntentInstruction,
   commitBranchIntentResolution,
   createBranchIntentState,
   findMostRecentlyUpdatedBranchIntentId,
@@ -19,12 +22,8 @@ import {
 } from '../../../../src/mods/mod-engine/helpers/branch-intent-resolution.ts'
 import {
   inspectNarrativeResponseQuality,
-  inspectNarrativeSettlementQuality,
+  inspectNarrativeEventRecognitionQuality,
 } from '../../../../src/mods/mod-engine/helpers/narrative-response-quality.ts'
-import {
-  MVP_SYSTEM_INSTRUCTION_SUBSYSTEM_IDS,
-} from '../../../../src/mods/mod-engine/helpers/mvp-runtime-policy.ts'
-
 const root = getProjectRoot(import.meta.url)
 let failed = 0
 
@@ -34,8 +33,11 @@ function assertOk(condition, message) {
   failed++
 }
 
-function dataLine(data) {
-  return `⟦数据⟧${JSON.stringify(data)}`
+function eventRecognitionLine(data) {
+  return JSON.stringify({
+    回合事件: data,
+    待触发事件: [],
+  })
 }
 
 function resolution(overrides = {}) {
@@ -106,15 +108,15 @@ assertOk(
     && narrativeProjection.当前意图?.玩家选择 === firstIntent.choice
     && narrativeProjection.其他未完成意图?.[0]?.玩家选择 === second.intents[1]?.choice
     && !JSON.stringify(narrativeProjection).includes('命运意图判定'),
-  'the first call must receive the complete raw player intent as structured data without settlement instructions',
+  'the first call must receive the complete raw player intent as structured data without recognition instructions',
 )
-const settlementInstruction = buildSettlementBranchIntentInstruction(firstIntent, [second.intents[1]])
+const recognitionInstruction = buildEventRecognitionBranchIntentInstruction(firstIntent, [second.intents[1]])
 assertOk(
-  settlementInstruction.includes('【当前命运意图结算条件】')
-    && settlementInstruction.includes(firstIntent.choice)
-    && settlementInstruction.includes('只按最终叙事已经写成的实际执行结果结算')
-    && settlementInstruction.includes('“命运意图判定”必须存在'),
-  'the second call must settle the final story without reauthoring the player direction',
+  recognitionInstruction.includes('【当前命运意图判定条件】')
+    && recognitionInstruction.includes(firstIntent.choice)
+    && recognitionInstruction.includes('只按最终叙事已经写成的实际执行结果判定')
+    && recognitionInstruction.includes('“命运意图判定”必须存在'),
+  'event recognition must evaluate the final story without reauthoring the player direction',
 )
 
 assertOk(!validateIntentResolution(resolution(), firstIntent.intentId), 'valid progressing intent metadata must pass')
@@ -158,7 +160,7 @@ assertOk(
     progressingCommit.intents[0],
     resolution({ progress: 20 }),
   )?.includes('不得低于'),
-  'later settlement must not regress already committed intent progress',
+  'later recognition must not regress already committed intent progress',
 )
 
 const terminalResolution = resolution({
@@ -185,7 +187,7 @@ assertOk(
     && terminalCommit.intents.length === 0
     && terminalCommit.archivedIntents?.[0]?.lifecycle === 'terminal'
     && terminalCommit.archivedIntents[0].resolution?.progress === 100,
-  'a valid terminal settlement must remove the active intent and retain a complete audit record',
+  'a valid terminal recognition result must remove the active intent and retain a complete audit record',
 )
 
 const rebuilt = rebuildBranchIntentsFromHistory([
@@ -207,8 +209,9 @@ assertOk(
 
 const firstResponse = '⟦正文⟧你和阿禾借着潮声驶入海雾，旧桥的灯在身后逐渐熄灭。'
 const parsedFirst = inspectNarrativeResponseQuality(firstResponse, 500).parsed
-const settlementData = {
+const eventRecognitionData = {
   摘要: '你与阿禾进入海雾，北岸航道目标取得阶段性进展。',
+  注册事件: [],
   重要程度: '高',
   情节状态: '进行中',
   语义信号: {
@@ -225,37 +228,40 @@ const settlementData = {
   命运意图判定: aiResolution(),
 }
 assertOk(
-  inspectNarrativeSettlementQuality({
-    content: dataLine(settlementData),
+  inspectNarrativeEventRecognitionQuality({
+    content: eventRecognitionLine(eventRecognitionData),
     narrative: parsedFirst,
-    allowedEvidenceEventIds: [],
-    allowedSubsystemIds: [...MVP_SYSTEM_INSTRUCTION_SUBSYSTEM_IDS],
+    currentContextId: 'life:current',
+    currentTotalDays: 120,
+    existingCandidates: [],
     expectedIntentId: firstIntent.intentId,
   }).valid,
-  'the second call must accept a complete matching intent resolution',
+  'event recognition must accept a complete matching intent resolution',
 )
 assertOk(
-  !inspectNarrativeSettlementQuality({
-    content: dataLine({ ...settlementData, 命运意图判定: undefined }),
+  !inspectNarrativeEventRecognitionQuality({
+    content: eventRecognitionLine({ ...eventRecognitionData, 命运意图判定: undefined }),
     narrative: parsedFirst,
-    allowedEvidenceEventIds: [],
-    allowedSubsystemIds: [...MVP_SYSTEM_INSTRUCTION_SUBSYSTEM_IDS],
+    currentContextId: 'life:current',
+    currentTotalDays: 120,
+    existingCandidates: [],
     expectedIntentId: firstIntent.intentId,
   }).valid,
-  'the second call must reject an omitted resolution while an intent is focused',
+  'event recognition must reject an omitted resolution while an intent is focused',
 )
 assertOk(
-  !inspectNarrativeSettlementQuality({
-    content: dataLine({
-      ...settlementData,
+  !inspectNarrativeEventRecognitionQuality({
+    content: eventRecognitionLine({
+      ...eventRecognitionData,
       命运意图判定: aiResolution({ 意图编号: '命运分支:other' }),
     }),
     narrative: parsedFirst,
-    allowedEvidenceEventIds: [],
-    allowedSubsystemIds: [...MVP_SYSTEM_INSTRUCTION_SUBSYSTEM_IDS],
+    currentContextId: 'life:current',
+    currentTotalDays: 120,
+    existingCandidates: [],
     expectedIntentId: firstIntent.intentId,
   }).valid,
-  'the second call must reject a resolution for any non-focused intent',
+  'event recognition must reject a resolution for any non-focused intent',
 )
 
 const campaignSource = fs.readFileSync(
@@ -270,28 +276,25 @@ const storeSource = fs.readFileSync(
   path.join(root, 'src/mods/mod-engine/store.ts'),
   'utf8',
 )
-const orchestratorSource = fs.readFileSync(
-  path.join(root, 'src/mods/mod-engine/subsystems/orchestrator-system.ts'),
-  'utf8',
-)
+const orchestratorSource = readModuleSource('src/mods/mod-engine/subsystems/orchestrator-system.ts', root)
 assertOk(
   campaignSource.includes('const focusedIntent = orchestrator.getFocusedBranchIntent()')
-    && campaignSource.includes('buildSettlementBranchIntentInstruction(')
+    && campaignSource.includes('buildEventRecognitionBranchIntentInstruction(')
     && campaignSource.includes('expectedIntentId: focusedIntent?.intentId')
-    && campaignSource.includes('buildNarrativeSettlementPromptInput({')
-    && campaignSource.includes("name: 'ai-data-analysis'"),
-  'the active intent must be evaluated in the background data-analysis call',
+    && campaignSource.includes('buildNarrativeEventRecognitionPromptInput({')
+    && campaignSource.includes("name: 'ai-event-recognition'"),
+  'the active intent must be evaluated in the event-recognition call',
 )
 assertOk(
   orchestratorSource.includes('buildNarrativeBranchIntentProjection(')
-    && !orchestratorSource.includes('buildSettlementBranchIntentInstruction('),
+    && !orchestratorSource.includes('buildEventRecognitionBranchIntentInstruction('),
   'the orchestrator must send only the structured player branch projection to the first call',
 )
 assertOk(
   preGenSource.includes('inspectNarrativeResponseQuality(fullContent, wordCountTarget)')
-    && !preGenSource.includes('inspectNarrativeSettlementQuality')
+    && !preGenSource.includes('inspectNarrativeEventRecognitionQuality')
     && !preGenSource.includes('intentResolution'),
-  'pre-generation must cache only the first strict response and defer intent settlement to real consumption',
+  'pre-generation must cache only the first strict response and defer intent recognition to real consumption',
 )
 for (const retiredMarker of [
   'branchRepairPending',

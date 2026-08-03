@@ -95,6 +95,8 @@ export class SettlementSystem extends BaseSubsystem {
     const state = this.ensure(context)
     if (typeof changes.changes.prosperity === 'number' && state.playerSettlement) state.playerSettlement.prosperity = clampPercent(changes.changes.prosperity)
     if (typeof changes.changes.safety === 'number' && state.playerSettlement) state.playerSettlement.safety = clampPercent(changes.changes.safety)
+    if (typeof changes.changes.prosperityDelta === 'number' && state.playerSettlement) state.playerSettlement.prosperity = clampPercent(state.playerSettlement.prosperity + changes.changes.prosperityDelta)
+    if (typeof changes.changes.safetyDelta === 'number' && state.playerSettlement) state.playerSettlement.safety = clampPercent(state.playerSettlement.safety + changes.changes.safetyDelta)
   }
   capturePersistenceState(): SettlementPersistenceState { return { schemaVersion: 1, contexts: clone(this.states) } }
   restorePersistenceState(snapshot: unknown): void { this.states = snapshot ? clone((snapshot as SettlementPersistenceState).contexts ?? {}) : {} }

@@ -1,36 +1,35 @@
-export interface GameOverShareDimension {
-  label: string
-  value: number
-  comment?: string
-}
+/**
+ * Purpose: Render and deliver the game-over share card in the browser.
+ * Owner: mod-pages/game-over
+ * Responsibility: Canvas rendering and browser share/download only; textual projection lives in game-over-share-content.
+ */
 
-export interface GameOverShareMythic {
-  name: string
-  concept: string
-  effect: string
-}
+import {
+  buildGameOverShareFacts,
+  buildGameOverShareFileName,
+  buildGameOverShareText,
+  getDimensionComment,
+  getStrongestShareDimension,
+} from './game-over-share-content'
+import type {
+  GameOverShareCardData,
+  GameOverShareFact,
+  GameOverShareOutcome,
+} from './game-over-share.types'
 
-export interface GameOverShareCardData {
-  lifeRunId: string
-  characterName: string
-  worldName: string
-  ageLabel: string
-  rounds: number
-  moralityLabel: string
-  overallScore: number
-  achievementCount: number
-  featuredAchievement?: { title: string; detail: string } | null
-  dimensions: readonly GameOverShareDimension[]
-  mythic?: GameOverShareMythic | null
-  shareUrl?: string
-}
-
-export interface GameOverShareFact {
-  label: string
-  value: string
-}
-
-export type GameOverShareOutcome = 'shared' | 'downloaded' | 'cancelled'
+export {
+  buildGameOverShareFacts,
+  buildGameOverShareFileName,
+  buildGameOverShareText,
+  getStrongestShareDimension,
+} from './game-over-share-content'
+export type {
+  GameOverShareCardData,
+  GameOverShareDimension,
+  GameOverShareFact,
+  GameOverShareMythic,
+  GameOverShareOutcome,
+} from './game-over-share.types'
 
 interface PreparedCardLayout {
   nameLines: string[]
@@ -58,65 +57,6 @@ const COLORS = {
   accent: '#6d7f94',
   accentSoft: '#eef2f5',
   warm: '#9a7966',
-}
-
-export function getStrongestShareDimension(
-  dimensions: readonly GameOverShareDimension[],
-): GameOverShareDimension | null {
-  if (dimensions.length === 0) return null
-  return dimensions.reduce((strongest, current) => (
-    current.value > strongest.value ? current : strongest
-  ))
-}
-
-function getDimensionComment(dimension: GameOverShareDimension): string {
-  return dimension.comment?.trim() || '未记录'
-}
-
-export function buildGameOverShareFacts(data: GameOverShareCardData): GameOverShareFact[] {
-  const strongest = getStrongestShareDimension(data.dimensions)
-  return [
-    { label: '此生行程', value: `${data.rounds} 轮世事` },
-    { label: '此生年岁', value: data.ageLabel },
-    { label: '此生品性', value: data.moralityLabel },
-    { label: '此生里程碑', value: `${data.achievementCount} 项已确认大事` },
-    ...(data.featuredAchievement
-      ? [{
-          label: '代表大事',
-          value: `${data.featuredAchievement.title} · ${data.featuredAchievement.detail}`,
-        }]
-      : []),
-    {
-      label: '最鲜明力量',
-      value: strongest
-        ? `${strongest.label} ${strongest.value} · ${getDimensionComment(strongest)}`
-        : '尚无四维记录',
-    },
-  ]
-}
-
-export function buildGameOverShareText(data: GameOverShareCardData): string {
-  const strongest = getStrongestShareDimension(data.dimensions)
-  const lines = [
-    `${data.characterName || '无名之辈'}在「${data.worldName}」走完了一生。`,
-    `${data.rounds} 轮世事 · ${data.ageLabel} · 人生评分 ${data.overallScore} · ${data.moralityLabel}`,
-    `${data.achievementCount} 项已确认大事`,
-    data.featuredAchievement
-      ? `代表大事：${data.featuredAchievement.title} · ${data.featuredAchievement.detail}`
-      : '',
-    strongest
-      ? `最鲜明的力量：${strongest.label} ${strongest.value}（${getDimensionComment(strongest)}）`
-      : '',
-    data.mythic ? `此生留下的轮回天赋：${data.mythic.name} · ${data.mythic.concept}` : '',
-    '#AI人生模拟器',
-    data.shareUrl?.trim() ?? '',
-  ]
-  return lines.filter(Boolean).join('\n')
-}
-
-export function buildGameOverShareFileName(data: Pick<GameOverShareCardData, 'lifeRunId'>): string {
-  const safeRunId = data.lifeRunId.replace(/[^a-zA-Z0-9_-]/g, '-') || 'life'
-  return `ai-life-sim-${safeRunId}.png`
 }
 
 function getCanvasContext(canvas: HTMLCanvasElement): CanvasRenderingContext2D {

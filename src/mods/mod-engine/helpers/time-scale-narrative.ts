@@ -58,44 +58,44 @@ export const TIME_SCALE_NARRATIVE_PROFILES: readonly TimeScaleNarrativeProfile[]
     key: 'month:1',
     id: 'monthly-change',
     macroLevel: 20,
-    prompt: '【月度变化视角】先交代数周内持续发生的变化，再选择一至两个代表性节点展现学习、工作、关系或目标如何推进；避免逐日流水账，也不要把单日琐事夸成整月命运转折。',
+    prompt: '【月度变化视角】用一至两个前后承接的代表性场景表现本月变化；场景保持相同的中近景叙事距离，过渡只交代必要时间和因果，不插入月度报告，也不要把单日琐事夸成整月命运转折。',
   },
   {
     key: 'season:1',
     id: 'seasonal-stage',
     macroLevel: 30,
-    prompt: '【季度阶段视角】覆盖完整三个月的阶段变化，表现环境、制度、关系或任务节律如何改变，再以少量关键节点串起原因与季度末后果；不得把整个季度写成一天的一幕。',
-    localCalendarPrompt: '【当地时节阶段视角】服从当地历法的实际时间窗口，表现环境、制度、关系或任务节律如何在本时节改变，再以少量关键节点串起原因与结束格局；不得套用现实三个月季度，也不得压成一天的一幕。',
+    prompt: '【季度阶段视角】用少量因果相连的代表性场景覆盖完整三个月；各场景保持一致的中景距离，环境、关系或任务节律只通过场景中的可见变化呈现，不写季度报告，也不得把整个季度压成一天的一幕。',
+    localCalendarPrompt: '【当地时节阶段视角】服从当地历法的实际时间窗口，用少量因果相连且镜头一致的代表性场景呈现本时节变化；不得套用现实三个月季度，不写时节报告，也不得压成一天的一幕。',
   },
   {
     key: 'year:1',
     id: 'annual-panorama',
     macroLevel: 40,
-    prompt: '【年度全景视角】完整覆盖一整年：写清年初格局、年内至少一次阶段变化或关键转折，以及年末在关系、身份、目标或环境上的新格局。允许用多个代表性节点和必要过渡串联同一主线，不得把年度压缩成一个现场，也不得按月份或季节逐项记账。0岁开场仍以出生与家世为起点，但要继续表现这一年如何塑造照料关系与生存处境。',
+    prompt: '【年度连续场景视角】用二至三个前后相承的代表性场景覆盖一整年：场景分别承担起点、阶段变化和结束结果，并保持相同的人物叙事距离；场景之间只用必要的时间与因果过渡，不写年度报告，不插入宏观总结，也不得把全年压成一个即时现场。0岁开场仍以出生与家世为起点，并继续用后续场景表现这一年形成的照料关系与生存处境。',
   },
   {
     key: 'year:3',
     id: 'three-year-life-stage',
     macroLevel: 50,
-    prompt: '【三年人生阶段视角】把连续三年视为一个短期人生阶段，依次呈现起点处境、能力或关系的积累、决定阶段走向的转折，以及第三年形成的身份与目标后果；不逐年报账，也不能只写最后一年。',
+    prompt: '【三年人生阶段视角】用三个左右前后承接的人物场景表现连续三年的起点、积累或变化与结束结果；镜头始终保持在角色及其直接关系上，过渡只说明必要的时间和因果，不逐年报账，也不能只写最后一年。',
   },
   {
     key: 'year:5',
     id: 'five-year-growth-arc',
     macroLevel: 60,
-    prompt: '【五年成长纵览视角】覆盖足以改变成长、职业、家庭或社会位置的完整五年，突出长期选择如何积累为身份变化，并用起点、发展、转折、定型四个层次构成一条因果弧线；个人事件必须体现阶段性演变。',
+    prompt: '【五年成长阶段视角】用三至四个镜头一致、前后承接的人物场景覆盖完整五年，表现长期行动如何积累为成长、职业、家庭或社会位置变化；不写五年概述后再突然切入单日现场。',
   },
   {
     key: 'year:10',
     id: 'decade-transformation',
     macroLevel: 70,
-    prompt: '【十年转型视角】以十年为一个时代切片，展示角色人生阶段、核心关系、资源地位与外部环境中至少两项如何发生结构性变化。正文至少出现早段积累、中段决定性转折和末段新格局三个明确时期，每个时期只保留推进同一主线的节点，不逐年罗列，也不得把篇幅集中在结束节点当天。',
+    prompt: '【十年人生转型视角】用三至四个前后承接的人物阶段场景展示角色人生阶段、核心关系、资源地位或外部环境如何变化；各节点保持相同叙事距离，不逐年罗列，不使用十年报告式概述，也不得把篇幅集中在结束节点当天。',
   },
   {
     key: 'year:50',
     id: 'half-century-history',
     macroLevel: 80,
-    prompt: '【半世纪历史视角】把个人命运放进半世纪的家族、组织、地域或制度变迁中，写清一代人的兴衰、传承与代价。正文至少跨越起点阶段、中段决定性转折和结束格局三个明确时期，每个时期可压成一至两句；至少同时表现角色人生阶段与家族、组织、地域或制度中的一层变迁，大部分篇幅不得停留在结束节点当天或任何单一现场。角色寿命不足时，只能由已有因果建立的延续主体承接，并保留最终历史位置。',
+    prompt: '【半世纪历史视角】从半世纪开始自然抬升到家族、组织、地域或制度层面，用至少三个时代节点写清个人命运与长期结构如何互相影响。每个节点保持一致的历史叙事距离，大部分篇幅不得停留在结束节点当天或任何单一现场；角色寿命不足时，只能由已有因果建立的延续主体承接，并保留最终历史位置。',
   },
   {
     key: 'year:100',
@@ -113,13 +113,13 @@ export const TIME_SCALE_NARRATIVE_PROFILES: readonly TimeScaleNarrativeProfile[]
     key: 'year:500',
     id: 'civilization-rise-and-fall',
     macroLevel: 110,
-    prompt: '【文明兴衰视角】以五百年观察文明、王朝、宗教、族群或力量体系的兴起、鼎盛、裂变与余波；角色及其遗产是穿越时代的因果线索，叙事重点转向文明尺度的创造、代价、覆灭与重生。',
+    prompt: '【文明兴衰视角】以五百年观察文明、政体、信仰体系、族群或力量体系的兴起、鼎盛、裂变与余波；角色及其遗产是穿越时代的因果线索，叙事重点转向文明尺度的创造、代价、覆灭与重生。',
   },
   {
     key: 'year:1000',
     id: 'millennial-era-legacy',
     macroLevel: 120,
-    prompt: '【千年时代与遗产视角】用千年尺度展现纪元更替、文明迁徙、世界秩序和集体记忆的深层变化。只选择少数具有时代代表性的断点，追踪角色、血脉、组织、理念或遗物如何被继承、误读、神话化或彻底消散，并落到千年后的世界格局。',
+    prompt: '【千年时代与遗产视角】用千年尺度展现纪元更替、文明迁徙、世界秩序和集体记忆的深层变化。只选择少数具有时代代表性的断点，追踪角色、后继者、组织、理念或遗产如何被继承、误读、神话化或彻底消散，并落到千年后的世界格局。',
   },
 ] as const
 
@@ -221,30 +221,16 @@ export function buildCanonicalCalendarNarrativeHint(
       : '月份数量由当地规则定义'
     const seasonName = input.seasonName?.trim() || '当前当地时节'
     const calendarRule = `当前使用${calendarName}（${daysPerYear}、${monthsPerYear}）；当前为${input.calendarYear}年${input.month}月、${seasonName}。天气、衣着、生产和社会节律必须服从当地历法与世界设定，不得套用现实阳历的固定月份与四季关系。`
-    const granularityRule = input.timeStep.unit === 'year'
-      ? '年级及更长跨度必须覆盖起点、阶段变化、关键转折与结束格局，不得强制压回单一现场。'
-      : input.timeStep.unit === 'season'
-        ? '当地时节变化须服从两端节点和实际经过天数，不得擅自换算成现实季度。'
-        : input.timeStep.unit === 'month'
-          ? '月份变化须服务于同一段因果推进，不得套用现实月份长度或节气。'
-          : '日内变化须符合两端当地日期之间实际经过的天数。'
     const fallbackWindow = actualWindow
       ?? `本轮结束节点为${formatCalendarNode(input)}，按${amount}${input.timeStep.unit === 'day' ? '日' : input.timeStep.unit === 'month' ? '月' : input.timeStep.unit === 'season' ? '时节' : '年'}粒度推进。`
-    return `${calendarRule}${fallbackWindow}${granularityRule}`
+    return `${calendarRule}${fallbackWindow}`
   }
 
   const endSeason = SEASON_NAMES[getSeasonForMonth(input.month - 1)] ?? '未知'
   const calendarRule = `项目历法固定为3—5月春季、6—8月夏季、9—11月秋季、12—2月冬季；天气、衣着、农事与正文季节必须服从阳历月份，不得自行套用其他季节划分。其中${input.month}月必须称${endSeason}季；气温可以异常寒冷或炎热，但不得把该月改称其他季节。`
 
   if (actualWindow) {
-    const granularityRule = input.timeStep.unit === 'season'
-      ? '季节变化须服从两端节点之间实际经过的月份，不得把多个季度写成一个静止季节。'
-      : input.timeStep.unit === 'year'
-        ? '年度或多年变化必须按本轮视角覆盖完整跨度，可用多个代表性节点串联，不能压成单一现场。'
-        : input.timeStep.unit === 'month'
-          ? '月份变化须服务于同一段因果推进，不得把已经完成的月份重新当作当前事件。'
-          : '日内变化须符合两端日期之间实际经过的天数。'
-    return `${calendarRule}${actualWindow}${granularityRule}`
+    return `${calendarRule}${actualWindow}`
   }
 
   switch (input.timeStep.unit) {
@@ -280,10 +266,7 @@ export function buildCanonicalCalendarNarrativeHint(
       const span = amount === 1
         ? `${input.calendarYear}年`
         : `${startYear}年至${input.calendarYear}年，共${amount}年`
-      const coverageRule = amount === 1
-        ? '年度推进必须表现年初格局、年内阶段变化或转折与年末后果，可用多个代表性节点串起同一主线；不得压成单一现场或按季节流水账。'
-        : '多年推进必须表现起点、阶段变化、决定性转折与结束格局，不能只描写目标年份。'
-      return `${calendarRule}本轮覆盖${span}；${coverageRule}`
+      return `${calendarRule}本轮覆盖${span}。`
     }
   }
 }
@@ -310,7 +293,6 @@ export function buildTimeScaleNarrativeHint(
   return [
     `【时间尺度】当前时间是本轮叙事的结束节点；正文只写上一叙事节点之后到当前节点之间发生的事。本次推进${amount}${unitLabel[timeStep.unit]}。`,
     profilePrompt,
-    '叙事镜头必须随时间跨度同步升高：日级可以持续贴近现场，月季级使用代表性节点，年级及以上允许跨越多个阶段并逐步扩展到家庭、组织、社会与文明；无论镜头多宏观，都要以角色或其延续主体作为因果锚。',
     '正文必须沿同一时间跨度内的因果主线推进，不拼接互不相干的事件或生活切片。首句不要使用“这一年”“这一月”“这一天”等泛指时间套语，也不要复用上一轮起句结构；根据本档视角直接进入行动、关系变化、制度变化、冲突或时代格局，确需时间锚时使用“当前时间”中的具体纪年、季节、月日。',
   ].join('')
 }

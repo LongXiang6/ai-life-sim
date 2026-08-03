@@ -1,5 +1,7 @@
 /**
- * P1 历史事件账本：迁移、候选、原子批次、跨世界因果、持久化与内部化回归。
+ * Purpose: Regress the P1 historical-event ledger across one stateful migration and commit scenario.
+ * Owner: quality:mod
+ * Responsibility: Historical-event smoke fixtures and sequential assertions only.
  */
 
 import fs from 'node:fs'
@@ -21,11 +23,14 @@ import {
   useHistoryDynamicsStore,
 } from '../../../../src/mods/mod-history-dynamics/store.ts'
 import {
-  combineNarrativeAndSettlement,
   narrativeParser,
+  validateNarrativeEventMetadataForNarrative,
 } from '../../../../src/mods/mod-engine/subsystems/narrative-parser-system.ts'
 import { orchestrator } from '../../../../src/mods/mod-engine/subsystems/orchestrator-system.ts'
-import { translateNarrativeAISettlement } from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
+import {
+  translateNarrativeAIDataAnalysis,
+  translateNarrativeAIEventRecognition,
+} from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
 import { causalDelay } from '../../../../src/mods/mod-engine/subsystems/causal-delay-system.ts'
 import { memoryLifecycle } from '../../../../src/mods/mod-engine/subsystems/memory-lifecycle-system.ts'
 import { plotStructure } from '../../../../src/mods/mod-engine/subsystems/plot-structure-system.ts'
@@ -35,6 +40,7 @@ import { digestLedger } from '../../../../src/mods/mod-engine/helpers/digest-led
 import { useEngineStore } from '../../../../src/mods/mod-engine/store.ts'
 import { getMoralitySystem } from '../../../../src/mods/mod-character/subsystems/morality-system.ts'
 import { useCharacterStore } from '../../../../src/mods/mod-character/store.ts'
+import { getCharacterBaseSystem } from '../../../../src/mods/mod-character/subsystems/character-base-system.ts'
 import {
   applyGameSave,
   collectGameSavePayload,
@@ -59,19 +65,87 @@ function sameStringSet(left, right) {
 }
 
 function parsedNarrative(body, digest, data = {}) {
-  const { 系统指令: systemInstructions = [], ...settlementData } = data
+  const systemInstructions = data.系统指令 ?? []
+  const registeredEvents = data.注册事件 ?? data.关键事件 ?? []
+  const {
+    系统指令: _systemInstructions,
+    关键事件: _legacyKeyEvents,
+    注册事件: _registeredEvents,
+    ...eventMetadata
+  } = data
   const allowedEvidenceEventIds = systemInstructions.flatMap((instruction) => instruction.依据事件 ?? [])
   const narrative = narrativeParser.parse(`⟦正文⟧${body}`)
-  const settlement = translateNarrativeAISettlement(
-    systemInstructions,
-    { 摘要: digest, ...settlementData },
+  const dataChanges = translateNarrativeAIDataAnalysis(
+    { 系统操作: systemInstructions },
     {
       allowedEvidenceEventIds,
       allowedSubsystemIds: [...MVP_EXTERNAL_RUNTIME_SUBSYSTEM_IDS]
         .filter(isMvpSystemInstructionSubsystem),
     },
   )
-  return combineNarrativeAndSettlement(narrative, settlement)
+  const roundContext = orchestrator.getRoundContextSnapshot()
+  const eventRecognition = translateNarrativeAIEventRecognition({
+    回合事件: {
+      摘要: digest,
+      ...eventMetadata,
+      注册事件: registeredEvents,
+    },
+    待触发事件: [],
+  }, {
+    currentContextId: roundContext.contextId,
+    currentTotalDays: roundContext.totalDays,
+  })
+  validateNarrativeEventMetadataForNarrative(narrative, eventRecognition.metadata)
+  return {
+    narrative,
+    dataChanges,
+    eventMetadata: eventRecognition.metadata,
+  }
+}
+
+async function submitNarrative(bundle, candidates = [], options = {}) {
+  const accepted = orchestrator.acceptNarrativeResponse(bundle.narrative)
+  const dataWork = Promise.resolve({ changes: bundle.dataChanges })
+  orchestrator.launchNarrativeBackgroundAnalysis({
+    kind: 'data-analysis',
+    narrativeId: accepted.narrativeId,
+    userSegments: [`⟦测试数据分析⟧${accepted.narrativeId}`],
+    work: () => dataWork,
+  })
+
+  let resolveEvent
+  let rejectEvent
+  const eventWork = new Promise((resolve, reject) => {
+    resolveEvent = resolve
+    rejectEvent = reject
+  })
+  orchestrator.launchNarrativeBackgroundAnalysis({
+    kind: 'event-recognition',
+    narrativeId: accepted.narrativeId,
+    userSegments: [`⟦测试事件识别⟧${accepted.narrativeId}`],
+    work: () => eventWork,
+  })
+
+  await dataWork
+  await Promise.resolve()
+  orchestrator.consumeNarrativeBackgroundResults()
+  options.afterDataCommit?.()
+
+  if (options.eventFailure) {
+    rejectEvent(options.eventFailure)
+  } else {
+    resolveEvent({
+      metadata: bundle.eventMetadata,
+      candidates,
+    })
+  }
+  await Promise.allSettled([eventWork])
+  await Promise.resolve()
+  orchestrator.consumeNarrativeBackgroundResults()
+  return {
+    ...accepted,
+    changes: bundle.dataChanges,
+  }
 }
 
 function fixtureContext(contextId, name, entityId, nodeId, capabilities, scope) {
@@ -1136,12 +1210,16 @@ assertOk(oversizedQueryRejected, 'query limit above the public bound must be rej
 
 // 真实主叙事提交链：中文 META 必须创建账本事实，并把同一批事件 ID 交给连续性消费者。
 const morality = getMoralitySystem()
+const characterBase = getCharacterBaseSystem()
 orchestrator.clearExternalSubsystems()
 orchestrator.reset()
 useEngineStore.getState().reset()
 useCharacterStore.getState().reset()
 ledger.reset()
 morality.reset()
+characterBase.reset()
+characterBase.hydrateFromStore()
+orchestrator.registerSubsystem(characterBase)
 orchestrator.registerSubsystem(morality)
 orchestrator.registerSubsystem(ledger)
 assertOk(
@@ -1179,7 +1257,7 @@ orchestrator.setContext({
   capabilityProfile: {
     contextId: contextA,
     capabilities: ['life'],
-    enabledSubsystemIds: ['morality', 'historical-event-ledger'],
+    enabledSubsystemIds: ['character-base', 'morality', 'historical-event-ledger'],
     derivedFrom: 'explicit',
   },
   name: '主链测试世界',
@@ -1223,7 +1301,7 @@ const mainData = {
     优先级: 8,
   }],
   重要程度: '高',
-  关键事件: [{
+  注册事件: [{
     内容: '你在无潮港救下林舟并立下护送承诺。',
     重要度: 92,
     涉及实体: ['林舟', '无潮港'],
@@ -1253,7 +1331,7 @@ const mainBody = [
   '追赶者的灯火逼近时，你与林舟并肩推船入水，他终于答应与你共同离港。',
   '港口钟声落下第三响，你承诺三十天后回来护送他穿过封锁。',
 ].join('\n\n')
-const mainResult = orchestrator.handleNarrativeResponse(
+const mainResult = await submitNarrative(
   parsedNarrative(mainBody, mainDigest, mainData),
   [{
     eventType: 'promise-fulfillment',
@@ -1336,6 +1414,7 @@ function moveOrchestratorClock(roundSequence, totalDays) {
 
 // 到期检查只把事项送进 Prompt；没有完整语义数据时不得提前写 resolutionEventId。
 moveOrchestratorClock(4, 830)
+await orchestrator.collectAllSubsystemStates(false)
 const duePrompt = orchestrator.assemblePromptContext()
 assertOk(
   duePrompt.causalChainHint?.includes('三十天后护送林舟离开无潮港。'),
@@ -1343,25 +1422,38 @@ assertOk(
 )
 const ledgerCountBeforeBodyOnly = ledger.queryEvents().length
 const bodyOnlyDigest = '你听见港口钟声，但这一轮没有提交完整的结构化兑现结果。'
-const bodyOnlyResult = orchestrator.handleNarrativeResponse(parsedNarrative(
+const bodyOnlyResult = await submitNarrative(parsedNarrative(
   [
     '钟声从雾里传来，你停在通往码头的石阶上。',
     '林舟的船影仍在远处，眼前的巡逻迫使你先藏进仓房。',
     '你记得承诺已经到期，却还没有完成护送。',
   ].join('\n\n'),
   bodyOnlyDigest,
-), [])
+), [], { eventFailure: new Error('injected event-recognition failure') })
 const causalAfterBodyOnly = causalDelay.getCausalEvents().find((event) => event.id === registeredCausal?.id)
 assertOk(
   bodyOnlyResult.narrative.includes('你记得承诺已经到期')
     && ledger.queryEvents().length === ledgerCountBeforeBodyOnly
+    && causalAfterBodyOnly?.id === registeredCausal?.id
     && causalAfterBodyOnly?.triggered === false
-    && causalAfterBodyOnly.resolutionEventId === undefined,
-  'body-and-digest-only success must preserve prose while leaving the due causal matter pending',
+    && causalAfterBodyOnly.resolutionEventId === undefined
+    && causalAfterBodyOnly.deliveryState === 'continuing'
+    && (causalAfterBodyOnly.dueTotalDays ?? 0) > 830
+    && causalAfterBodyOnly.presentedNarrativeId === undefined,
+  'event-recognition failure must preserve prose, retain the stable causal ID, and locally reschedule it without duplicate resolution',
+)
+
+const rescheduledDueTotalDays = causalAfterBodyOnly?.dueTotalDays ?? 0
+moveOrchestratorClock(5, rescheduledDueTotalDays)
+await orchestrator.collectAllSubsystemStates(false)
+const rescheduledPrompt = orchestrator.assemblePromptContext()
+assertOk(
+  rescheduledPrompt.causalChainHint?.includes('三十天后护送林舟离开无潮港。'),
+  'the same causal matter must become deliverable again only after its local reschedule point',
 )
 
 const resolutionDigest = '你按期护送林舟穿过封锁，三十天前的承诺正式兑现。'
-const resolutionResult = orchestrator.handleNarrativeResponse(parsedNarrative(
+const resolutionResult = await submitNarrative(parsedNarrative(
   [
     '你从仓房后门冲向码头，林舟已经解开最后一根缆绳。',
     '巡逻船合围之前，你掌舵穿过暗礁水道，让载着众人的船驶出封锁。',
@@ -1370,7 +1462,7 @@ const resolutionResult = orchestrator.handleNarrativeResponse(parsedNarrative(
   resolutionDigest,
   {
     重要程度: '高',
-    关键事件: [{
+    注册事件: [{
       内容: '你按期护送林舟离开无潮港。',
       重要度: 95,
       涉及实体: ['林舟', '无潮港'],
@@ -1387,6 +1479,11 @@ const resolutionResult = orchestrator.handleNarrativeResponse(parsedNarrative(
       语域理由: '长期承诺已经通过具体行动完成。',
       情节类型: '任务',
     },
+    到期因果判定: [{
+      因果编号: registeredCausal?.id ?? 'missing-causal-id',
+      状态: '已解决',
+      判定理由: '你已经完成护送，原承诺得到明确兑现。',
+    }],
   },
 ), [])
 const resolvedCausal = causalDelay.getCausalEvents().find((event) => event.id === registeredCausal?.id)
@@ -1397,7 +1494,7 @@ const resolvedOriginEvent = deferredLedgerEvent ? ledger.getEvent(deferredLedger
 assertOk(
   resolutionResult.narrative.includes('三十天前的承诺终于完成')
     && resolvedCausal?.triggered === true
-    && resolvedCausal.triggeredTotalDays === 830
+    && resolvedCausal.triggeredTotalDays === rescheduledDueTotalDays
     && Boolean(resolvedCausal.resolutionEventId)
     && resolutionLedgerEvent?.metadata.causalDelayId === resolvedCausal.id,
   'complete semantic submission must commit a historical resolution event before confirming the due causal trigger',
@@ -1411,27 +1508,19 @@ assertOk(
   'causal resolution must transition the origin fact and link it to the committed resolution event',
 )
 
-// 在账本、伏笔、因果、原创和记忆都已发生副作用后注入下游失败，整包必须回滚。
-moveOrchestratorClock(5, 831)
-const rollbackBaseline = {
-  morality: morality.capturePreviewState(),
-  ledger: ledger.capturePreviewState(),
-  causal: causalDelay.capturePreviewState(),
-  plot: plotStructure.capturePreviewState(),
-  foreshadowing: foreshadowing.capturePreviewState(),
-  memory: memoryLifecycle.capturePreviewState(),
-  coreMemory: coreMemory.capturePreviewState(),
-  characterCreations: structuredClone(orchestrator.getState().characterCreations),
-}
+// 事件识别所有者注入下游失败时，只回滚自身事务；正文和已成功的数据分析独立保留。
+moveOrchestratorClock(6, rescheduledDueTotalDays + 1)
+const rollbackMoralityValue = morality.capturePreviewState().state.value
 const rollbackHistoryLength = orchestrator.getState().narrativeHistory.length
 const failureDigest = '本轮正文有效，但注入的下游故障使全部结构化副作用回滚。'
+let eventOwnerBaseline
 const originalResolveForeshadowing = foreshadowing.resolveForeshadowing
 foreshadowing.resolveForeshadowing = () => {
   throw new Error('injected downstream continuity failure')
 }
 let rollbackError
 try {
-  orchestrator.handleNarrativeResponse(parsedNarrative(
+  await submitNarrative(parsedNarrative(
     [
       '你在外海发现一座没有航标的小岛，并记下了潮汐入口。',
       '林舟提议立刻登岛，你则先把受伤的水手安置到安全船舱。',
@@ -1459,7 +1548,7 @@ try {
         优先级: 7,
       }],
       重要程度: '高',
-      关键事件: [{
+      注册事件: [{
         内容: '你发现未知岛屿并绘制外海潮图。',
         重要度: 87,
         涉及实体: ['未知岛屿', '外海潮图'],
@@ -1493,7 +1582,19 @@ try {
     triggerConditionLabel: '获救水手再次抵达无潮港并备齐修船物资。',
     requiredCapabilities: ['life'],
     tags: ['债务', '修船物资'],
-  }])
+  }], {
+    afterDataCommit: () => {
+      eventOwnerBaseline = {
+        ledger: ledger.capturePreviewState(),
+        causal: causalDelay.capturePreviewState(),
+        plot: plotStructure.capturePreviewState(),
+        foreshadowing: foreshadowing.capturePreviewState(),
+        memory: memoryLifecycle.capturePreviewState(),
+        coreMemory: coreMemory.capturePreviewState(),
+        characterCreations: structuredClone(orchestrator.getState().characterCreations),
+      }
+    },
+  })
 } catch (error) {
   rollbackError = error
 } finally {
@@ -1501,24 +1602,52 @@ try {
 }
 
 assertOk(
-  JSON.stringify(morality.capturePreviewState()) === JSON.stringify(rollbackBaseline.morality)
-    && JSON.stringify(ledger.capturePreviewState()) === JSON.stringify(rollbackBaseline.ledger)
-    && JSON.stringify(causalDelay.capturePreviewState()) === JSON.stringify(rollbackBaseline.causal)
-    && JSON.stringify(plotStructure.capturePreviewState()) === JSON.stringify(rollbackBaseline.plot)
-    && JSON.stringify(foreshadowing.capturePreviewState()) === JSON.stringify(rollbackBaseline.foreshadowing)
-    && JSON.stringify(memoryLifecycle.capturePreviewState()) === JSON.stringify(rollbackBaseline.memory)
-    && JSON.stringify(coreMemory.capturePreviewState()) === JSON.stringify(rollbackBaseline.coreMemory)
-    && JSON.stringify(orchestrator.getState().characterCreations) === JSON.stringify(rollbackBaseline.characterCreations),
-  'injected downstream failure must roll back ordinary changes, ledger, causal, plot, foreshadowing, memory, core memory, and creations',
+  morality.capturePreviewState().state.value === rollbackMoralityValue + 1,
+  'successful data-analysis owner commit must survive an independent event-recognition failure',
 )
 assertOk(
-  rollbackError instanceof Error
-    && rollbackError.message === 'injected downstream continuity failure'
-    && orchestrator.getState().narrativeHistory.length === rollbackHistoryLength
-    && !digestLedger.getEntries().some((entry) => entry.round === 5 && entry.digest === failureDigest)
+  eventOwnerBaseline
+    && JSON.stringify(ledger.capturePreviewState()) === JSON.stringify(eventOwnerBaseline.ledger),
+  'event-recognition failure must roll back its historical-ledger transaction',
+)
+assertOk(
+  eventOwnerBaseline
+    && JSON.stringify(causalDelay.capturePreviewState()) === JSON.stringify(eventOwnerBaseline.causal),
+  'event-recognition failure must roll back newly registered causal state',
+)
+assertOk(
+  eventOwnerBaseline
+    && JSON.stringify(plotStructure.capturePreviewState()) === JSON.stringify(eventOwnerBaseline.plot),
+  'event-recognition failure must roll back plot signals',
+)
+assertOk(
+  eventOwnerBaseline
+    && JSON.stringify(foreshadowing.capturePreviewState()) === JSON.stringify(eventOwnerBaseline.foreshadowing),
+  'event-recognition failure must roll back foreshadowing changes',
+)
+assertOk(
+  eventOwnerBaseline
+    && JSON.stringify(memoryLifecycle.capturePreviewState()) === JSON.stringify(eventOwnerBaseline.memory),
+  'event-recognition failure must roll back semantic memory changes',
+)
+assertOk(
+  eventOwnerBaseline
+    && JSON.stringify(coreMemory.capturePreviewState()) === JSON.stringify(eventOwnerBaseline.coreMemory),
+  'event-recognition failure must roll back core-memory relationship changes',
+)
+assertOk(
+  eventOwnerBaseline
+    && JSON.stringify(orchestrator.getState().characterCreations) === JSON.stringify(eventOwnerBaseline.characterCreations),
+  'event-recognition failure must roll back character creations',
+)
+assertOk(
+  rollbackError === undefined
+    && orchestrator.getState().narrativeHistory.length === rollbackHistoryLength + 1
+    && orchestrator.getState().narrativeHistory.at(-1)?.text.includes('新的航线已经出现')
+    && !digestLedger.getEntries().some((entry) => entry.round === 6 && entry.digest === failureDigest)
     && !orchestrator.getState().characterCreations.some((creation) => creation.name === '外海潮图')
     && !causalDelay.getCausalEvents().some((event) => event.description === '获救水手承诺未来归还修船物资。'),
-  'downstream failure must reject the complete round without exposing body, digest, or dependent META',
+  'event-recognition commit failure must remain non-blocking, retain the body, and expose none of its dependent metadata',
 )
 
 // 真实 applyGameSave：账本 v2 恢复失败时 engine/character/world/orchestrator/ledger 整包回滚。
@@ -1538,7 +1667,9 @@ for (const id of MVP_EXTERNAL_RUNTIME_SUBSYSTEM_IDS) {
   })
 }
 activateContext(contextA)
+const savePlayerEntityId = 'player:history-save-rollback'
 useWorldStore.setState({
+  entityReferences: {},
   worldConfig: fixtureA.worldConfig,
   entities: fixtureA.entities,
   initialized: true,
@@ -1552,7 +1683,8 @@ useWorldStore.setState({
   worldInitAIStatus: fixtureA.worldInitAIStatus,
 })
 useCharacterStore.setState({
-  characterId: entityA,
+  // 存档回滚夹具中的玩家必须与世界历史实体分离，避免严格实体种类契约冲突。
+  characterId: savePlayerEntityId,
   name: '账本存档回滚角色',
   background: '用于损坏 P1 快照原子回滚验证。',
   worldCode: fixtureA.worldCode,

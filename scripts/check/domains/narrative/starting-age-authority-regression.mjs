@@ -1,4 +1,8 @@
 /**
+ * Purpose: Regress structured character creation, lifespan, and starting-age authority.
+ * Owner: quality:narrative
+ * Responsibility: Creation confirmation and fate-preview prerequisite assertions only.
+ *
  * 创建流程完整性回归：保护角色创建写入的结构化种族/寿命与 startingAge，
  * 并确保命运预览只允许已确认角色且恰好 3 条命格开始人生。
  */
@@ -6,6 +10,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
 import { getProjectRoot } from '../../lib/project-root.mjs'
+import { readDirectorySource, readModuleSource } from '../../lib/read-module-source.mjs'
 import {
   CHARACTER_DAYS_PER_YEAR,
   resolveCharacterAgeDays,
@@ -19,10 +24,10 @@ const characterConstantsPath = path.join(root, 'src/mods/mod-character/constants
 const orchestratorPath = path.join(root, 'src/mods/mod-engine/subsystems/orchestrator-system.ts')
 const lifecyclePath = path.join(root, 'src/mods/mod-character/subsystems/lifecycle-system.ts')
 const domainsPath = path.join(root, 'scripts/check/domains.mjs')
-const sourceText = fs.readFileSync(pagePath, 'utf8')
-const characterCreateSourceText = fs.readFileSync(characterCreatePath, 'utf8')
+const sourceText = readDirectorySource('src/mods/mod-pages/pages/fate-preview', root, ['.ts', '.tsx'])
+const characterCreateSourceText = readDirectorySource('src/mods/mod-pages/pages/character-create', root, ['.ts', '.tsx'])
 const characterConstantsSourceText = fs.readFileSync(characterConstantsPath, 'utf8')
-const orchestratorSourceText = fs.readFileSync(orchestratorPath, 'utf8')
+const orchestratorSourceText = readModuleSource('src/mods/mod-engine/subsystems/orchestrator-system.ts', root)
 const lifecycleSourceText = fs.readFileSync(lifecyclePath, 'utf8')
 const domainsSourceText = fs.readFileSync(domainsPath, 'utf8')
 const sourceFile = ts.createSourceFile(pagePath, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
@@ -59,7 +64,7 @@ function compileStandaloneFunction(source, functionName, environment) {
   assertOk(!!declaration, `${functionName} must remain a named, testable helper`)
   if (!declaration) return null
 
-  const output = ts.transpileModule(declaration.getText(source), {
+  const output = ts.transpileModule(declaration.getText(source).replace(/^export\s+/, ''), {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
       target: ts.ScriptTarget.ES2022,
@@ -172,8 +177,8 @@ assertOk(
   're-entering character creation must restore lifespan and starting age from the long-lived draft owner',
 )
 assertOk(
-  characterCreateSourceText.includes('confirmedManualMaxAge !== undefined')
-    && characterCreateSourceText.includes('computeMaxAge(race, confirmedManualMaxAge)'),
+  characterCreateSourceText.includes('parsedMaxAge !== undefined')
+    && characterCreateSourceText.includes('computeMaxAge(input.race, parsedMaxAge)'),
   'the currently edited lifespan input must take precedence over an older computed/restored value at confirmation',
 )
 assertOk(
@@ -215,8 +220,8 @@ assertOk(
 )
 assertOk(
   sourceText.includes('selectedPatterns.length === DESTINY_PATTERN_SELECT_COUNT')
-    && sourceText.includes("worldInitAIStatus?.status === 'complete'")
-    && sourceText.includes('WORLD_INIT_STEPS.every')
+    && sourceText.includes("status?.status === 'complete'")
+    && sourceText.includes('completedSteps === WORLD_INIT_STEPS.length')
     && sourceText.includes('confirmDisabled={Boolean(creationGateReason || runtimeGateReason) || !aiComplete}'),
   'fate preview must require exactly 3 patterns, a complete four-step world initialization, and a ready MOD runtime before start',
 )
@@ -230,7 +235,7 @@ assertOk(
 )
 assertOk(
   !orchestratorSourceText.includes('buildFallbackNarrativeFromState'),
-  'failed or empty AI output must not synthesize local narrative outside the atomic two-call pipeline',
+  'failed or empty AI output must not synthesize local narrative outside the atomic four-call pipeline',
 )
 assertOk(
   !orchestratorSourceText.includes('narrativeParser.buildFallbackNarrative(this.state.round.year'),

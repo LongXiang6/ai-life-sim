@@ -49,7 +49,6 @@ export {
   resolveTimeStep,
   mapSubsystemStatesToDetectionStates,
   buildLifecycleNarrativeHint,
-  generateLifecycleArchetypeHint,
   buildLifecycleLifespanReminder,
   normalizeNarrativeParagraphs,
   buildNarrativeHints,
@@ -63,6 +62,16 @@ export {
   type RoundCommitSource,
   type RoundCommitResult,
 } from './helpers/round-commit-bus'
+
+export { runCompressionGate } from './helpers/compression-gate'
+
+export {
+  NarrativeBackgroundResultInbox,
+  createNarrativeBackgroundInputHash,
+  type NarrativeBackgroundAnalysisIdentity,
+  type NarrativeBackgroundAnalysisKind,
+  type NarrativeBackgroundAnalysisRecord,
+} from './helpers/narrative-background-result-inbox'
 
 export {
   createNarrativeLifeRunId,
@@ -107,7 +116,10 @@ export { useEngineStore } from './store'
 
 // types
 export type { EngineState, RoundInfo, RoundResult, NarrativeChunk, CharacterCreation, TimeStep } from './types'
-export type { ParsedNarrative } from './subsystems/narrative-parser-system'
+export type {
+  NarrativeEventCommitData,
+  ParsedNarrative,
+} from './subsystems/narrative-parser-system'
 
 // 结算复算使用的逐轮迁移审计属于 foundation 公共契约；编排器只通过
 // 该重导出边界消费它，避免在 orchestrator-system 中建立私有类型副本。

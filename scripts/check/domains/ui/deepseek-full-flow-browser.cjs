@@ -1,3 +1,9 @@
+/**
+ * Purpose: Regress the configured DeepSeek-backed browser flow from setup through narrative progress.
+ * Owner: quality:ui
+ * Responsibility: One credential-aware Puppeteer session and its ordered assertions only.
+ */
+
 const puppeteer = require('puppeteer')
 const fs = require('node:fs')
 const path = require('node:path')
@@ -287,7 +293,9 @@ async function main() {
     route: await page.evaluate(() => location.pathname),
     proxyRequestCount: proxyRequests.length,
     mainNarrativeRequests: proxyRequests.filter((request) => request.promptAsset.includes('mod-engine:narrative:')).length,
-    settlementRequests: proxyRequests.filter((request) => request.promptAsset.includes('mod-engine:narrative-settlement:')).length,
+    dataAnalysisRequests: proxyRequests.filter((request) => request.promptAsset.includes('mod-engine:narrative-data-analysis:')).length,
+    basicAttributeRequests: proxyRequests.filter((request) => request.promptAsset.includes('mod-engine:narrative-basic-attribute-analysis:')).length,
+    eventRecognitionRequests: proxyRequests.filter((request) => request.promptAsset.includes('mod-engine:narrative-event-recognition:')).length,
     narrativeEntries: persisted.engine.narrativeHistory?.length || 0,
     incompleteNarrativeRounds: narrativeRounds.filter((entry) => entry.chars < 20).map((entry) => entry.round),
     missingRepetitionMetricRounds: narrativeRounds.filter((entry) => !entry.repetition).map((entry) => entry.round),
@@ -331,7 +339,9 @@ async function main() {
     || !result.branchResolved
     || result.committedIntentResolutions === 0
     || result.mainNarrativeRequests < targetRounds
-    || result.settlementRequests < targetRounds
+    || result.dataAnalysisRequests < targetRounds
+    || result.basicAttributeRequests < targetRounds
+    || result.eventRecognitionRequests < targetRounds
     || result.forceBranchNext
     || !result.reloadVerified
     || result.lastAutoSaveRound < targetRounds

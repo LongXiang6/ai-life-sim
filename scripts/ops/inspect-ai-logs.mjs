@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 
+/**
+ * Purpose: Inspect recent AI log records and payloads from the configured database.
+ * Owner: operations:ai-observability
+ * Responsibility: One read-only inspection CLI, including argument parsing and projection only.
+ */
+
 import path from 'node:path'
 import process from 'node:process'
 

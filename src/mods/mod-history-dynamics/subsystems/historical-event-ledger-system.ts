@@ -1,5 +1,7 @@
 /**
- * HistoricalEventLedgerSystem
+ * Purpose: Own append-only historical facts, evidence, transitions, candidates, and causal edges.
+ * Owner: mod-history-dynamics
+ * Responsibility: Coordinate ledger writes and persistence; bounded read projection is delegated downstream.
  *
  * 职责：拥有跨世界历史事件事实、状态迁移、证据、因果边和候选审计。
  * 非职责：不创作正文、不随机触发题材事件、不替代 causal-delay 的叙事承诺兑现。
@@ -45,7 +47,6 @@ import type {
   HistoricalEventTransitionQuery,
   HistoricalEventValidationContext,
   HistoricalEventView,
-  HistoricalQueryWindow,
   RoundContext,
   SubSystemChanges,
   SubSystemState,
@@ -70,6 +71,17 @@ import {
 } from '../utils'
 import { CausalGraphComponent } from '../components/causal-graph-component'
 import { EventCandidateProvider } from '../components/event-candidate-provider'
+import {
+  getHistoricalEventDetailsRuntime,
+  getHistoricalEventRuntime,
+  isRelevantHistoricalScope,
+  queryHistoricalCandidatesRuntime,
+  queryHistoricalCausalEdgesRuntime,
+  queryHistoricalEventsRuntime,
+  queryHistoricalEvidenceRuntime,
+  queryHistoricalMigrationRuntime,
+  queryHistoricalTransitionsRuntime,
+} from './historical-event-ledger-system/query-runtime'
 
 const EVENT_STATUS_SET = new Set<string>(HISTORICAL_EVENT_STATUSES)
 const CANDIDATE_STATUS_SET = new Set(['available', 'accepted', 'rejected', 'expired'])
@@ -100,9 +112,6 @@ const CAPABILITY_SET = new Set<ContextCapability>([
   'supernatural',
 ])
 
-const DEFAULT_QUERY_LIMIT = 100
-const MAX_QUERY_LIMIT = 500
-
 function emptyCommitResult(errors: string[]): HistoricalEventCommitResult {
   return {
     ok: false,
@@ -112,11 +121,6 @@ function emptyCommitResult(errors: string[]): HistoricalEventCommitResult {
     evidenceIds: [],
     causalEdgeIds: [],
   }
-}
-
-function isRelevantScope(scope: HistoricalEventScope, contextId: string): boolean {
-  if (scope.kind === 'global') return true
-  return scope.contextIds.includes(contextId)
 }
 
 interface TrustedHistoricalEventValidationContext extends HistoricalEventValidationContext {
@@ -141,43 +145,6 @@ function toValidationContext(
       ? raw.characterId ?? null
       : undefined,
   }
-}
-
-function resolveQueryWindow(
-  query: HistoricalQueryWindow,
-  path = 'query',
-): { offset: number; limit: number } {
-  const offset = query.offset ?? 0
-  const limit = query.limit ?? DEFAULT_QUERY_LIMIT
-  if (!Number.isInteger(offset) || offset < 0) {
-    throw new Error(`${path}.offset 必须是非负整数`)
-  }
-  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_QUERY_LIMIT) {
-    throw new Error(`${path}.limit 必须是 1-${MAX_QUERY_LIMIT} 的整数`)
-  }
-  return { offset, limit }
-}
-
-function collectBounded<T, R>(
-  source: Iterable<T>,
-  query: HistoricalQueryWindow,
-  predicate: (item: T) => boolean,
-  project: (item: T) => R,
-): R[] {
-  const { offset, limit } = resolveQueryWindow(query)
-  const result: R[] = []
-  let matched = 0
-  for (const item of source) {
-    if (!predicate(item)) continue
-    if (matched < offset) {
-      matched += 1
-      continue
-    }
-    result.push(project(item))
-    if (result.length >= limit) break
-    matched += 1
-  }
-  return result
 }
 
 interface HistoricalLedgerIndex {
@@ -240,7 +207,7 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
       const status = index.statusByEventId.get(event.eventId) ?? event.initialStatus
       if (
         (status === 'scheduled' || status === 'active')
-        && isRelevantScope(event.scope, context.contextId)
+        && isRelevantHistoricalScope(event.scope, context.contextId)
       ) {
         relevantEvents.push(this.toView(event, index))
       }
@@ -249,7 +216,7 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
     const relevantCausalEdges: HistoricalCausalEdge[] = []
     for (const edge of index.state.causalEdges) {
       if (
-        isRelevantScope(edge.scope, context.contextId)
+        isRelevantHistoricalScope(edge.scope, context.contextId)
         && (relevantEventIds.has(edge.fromEventId) || relevantEventIds.has(edge.toEventId))
       ) {
         relevantCausalEdges.push(cloneValue(edge))
@@ -469,176 +436,36 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
   }
 
   getEvent(eventId: string): HistoricalEventView | undefined {
-    const index = this.getLedgerIndex()
-    const event = index.eventById.get(eventId)
-    return event ? this.toView(event, index) : undefined
+    return getHistoricalEventRuntime(this, eventId)
   }
 
   queryEvents(query: HistoricalEventQuery = {}): HistoricalEventView[] {
-    const index = this.getLedgerIndex()
-    const eventIdSet = query.eventIds ? new Set(query.eventIds) : undefined
-    const scopeSet = query.scopeKinds ? new Set(query.scopeKinds) : undefined
-    const statusSet = query.statuses ? new Set(query.statuses) : undefined
-    const typeSet = query.eventTypes ? new Set(query.eventTypes) : undefined
-    const entityIdSet = query.entityIds ? new Set(query.entityIds) : undefined
-    const labelSet = query.labels ? new Set(query.labels) : undefined
-    const locationNodeIdSet = query.locationNodeIds ? new Set(query.locationNodeIds) : undefined
-    const tagSet = query.tags ? new Set(query.tags) : undefined
-    return collectBounded(
-      index.state.events,
-      query,
-      (event) => {
-        const status = index.statusByEventId.get(event.eventId) ?? event.initialStatus
-        if (eventIdSet && !eventIdSet.has(event.eventId)) return false
-        if (query.contextId && !isRelevantScope(event.scope, query.contextId)) return false
-        if (scopeSet && !scopeSet.has(event.scope.kind)) return false
-        if (statusSet && !statusSet.has(status)) return false
-        if (typeSet && !typeSet.has(event.eventType)) return false
-        if (
-          entityIdSet
-          && !event.participants.some((participant) => (
-            participant.entityId && entityIdSet.has(participant.entityId)
-          ))
-        ) return false
-        if (
-          labelSet
-          && !event.participants.some((participant) => participant.label && labelSet.has(participant.label))
-          && !event.locations.some((location) => location.label && labelSet.has(location.label))
-        ) return false
-        if (
-          locationNodeIdSet
-          && !event.locations.some((location) => (
-            location.nodeId && locationNodeIdSet.has(location.nodeId)
-          ))
-        ) return false
-        if (tagSet && !event.tags.some((tag) => tagSet.has(tag))) return false
-        if (query.scheduledOnly && !event.schedule) return false
-        return true
-      },
-      (record) => this.toView(record, index),
-    )
+    return queryHistoricalEventsRuntime(this, query)
   }
 
   queryEvidence(query: HistoricalEventEvidenceQuery = {}): HistoricalEventEvidence[] {
-    const index = this.getLedgerIndex()
-    const evidenceIds = query.evidenceIds ? new Set(query.evidenceIds) : undefined
-    const eventIds = query.eventIds ? new Set(query.eventIds) : undefined
-    const kinds = query.kinds ? new Set(query.kinds) : undefined
-    return collectBounded(
-      index.state.evidence,
-      query,
-      (item) => {
-        if (evidenceIds && !evidenceIds.has(item.evidenceId)) return false
-        if (eventIds && !eventIds.has(item.eventId)) return false
-        if (kinds && !kinds.has(item.kind)) return false
-        if (query.contextId && item.contextId !== query.contextId) return false
-        return true
-      },
-      cloneValue,
-    )
+    return queryHistoricalEvidenceRuntime(this, query)
   }
 
   queryTransitions(query: HistoricalEventTransitionQuery = {}): HistoricalEventTransition[] {
-    const index = this.getLedgerIndex()
-    const transitionIds = query.transitionIds ? new Set(query.transitionIds) : undefined
-    const eventIds = query.eventIds ? new Set(query.eventIds) : undefined
-    const fromStatuses = query.fromStatuses ? new Set(query.fromStatuses) : undefined
-    const toStatuses = query.toStatuses ? new Set(query.toStatuses) : undefined
-    return collectBounded(
-      index.state.transitions,
-      query,
-      (item) => {
-        if (transitionIds && !transitionIds.has(item.transitionId)) return false
-        if (eventIds && !eventIds.has(item.eventId)) return false
-        if (fromStatuses && !fromStatuses.has(item.fromStatus)) return false
-        if (toStatuses && !toStatuses.has(item.toStatus)) return false
-        return true
-      },
-      cloneValue,
-    )
+    return queryHistoricalTransitionsRuntime(this, query)
   }
 
   queryMigrationMetadata(
     query: HistoricalEventMigrationQuery = {},
   ): HistoricalEventMigrationMetadata[] {
-    const index = this.getLedgerIndex()
-    const migrationIds = query.migrationIds ? new Set(query.migrationIds) : undefined
-    const fromVersions = query.fromVersions ? new Set(query.fromVersions) : undefined
-    const sourceSystemIds = query.sourceSystemIds ? new Set(query.sourceSystemIds) : undefined
-    return collectBounded(
-      index.state.migrationMetadata,
-      query,
-      (item) => {
-        if (migrationIds && !migrationIds.has(item.migrationId)) return false
-        if (fromVersions && !fromVersions.has(item.fromVersion)) return false
-        if (
-          sourceSystemIds
-          && !item.sourceSystemIds.some((sourceSystemId) => sourceSystemIds.has(sourceSystemId))
-        ) return false
-        return true
-      },
-      cloneValue,
-    )
+    return queryHistoricalMigrationRuntime(this, query)
   }
 
   getEventDetails(
     eventId: string,
     query: HistoricalEventDetailsQuery = {},
   ): HistoricalEventDetails | undefined {
-    const index = this.getLedgerIndex()
-    const record = index.eventById.get(eventId)
-    if (!record) return undefined
-    const transitions = index.transitionsByEventId.get(eventId) ?? []
-    const evidence = index.evidenceByEventId.get(eventId) ?? []
-    const incoming = index.incomingEdgesByEventId.get(eventId) ?? []
-    const outgoing = index.outgoingEdgesByEventId.get(eventId) ?? []
-    return {
-      event: this.toView(record, index),
-      transitions: collectBounded(transitions, query.transitions ?? {}, () => true, cloneValue),
-      evidence: collectBounded(evidence, query.evidence ?? {}, () => true, cloneValue),
-      incomingCausalEdges: collectBounded(
-        incoming,
-        query.incomingCausalEdges ?? {},
-        () => true,
-        cloneValue,
-      ),
-      outgoingCausalEdges: collectBounded(
-        outgoing,
-        query.outgoingCausalEdges ?? {},
-        () => true,
-        cloneValue,
-      ),
-      relatedCounts: {
-        transitions: transitions.length,
-        evidence: evidence.length,
-        incomingCausalEdges: incoming.length,
-        outgoingCausalEdges: outgoing.length,
-      },
-    }
+    return getHistoricalEventDetailsRuntime(this, eventId, query)
   }
 
   queryCausalEdges(query: HistoricalCausalEdgeQuery = {}): HistoricalCausalEdge[] {
-    const index = this.getLedgerIndex()
-    const edgeIds = query.edgeIds ? new Set(query.edgeIds) : undefined
-    const fromEventIds = query.fromEventIds ? new Set(query.fromEventIds) : undefined
-    const toEventIds = query.toEventIds ? new Set(query.toEventIds) : undefined
-    const relations = query.relations ? new Set(query.relations) : undefined
-    return collectBounded(
-      index.state.causalEdges,
-      query,
-      (edge) => {
-        if (edgeIds && !edgeIds.has(edge.edgeId)) return false
-        if (query.eventId && edge.fromEventId !== query.eventId && edge.toEventId !== query.eventId) {
-          return false
-        }
-        if (fromEventIds && !fromEventIds.has(edge.fromEventId)) return false
-        if (toEventIds && !toEventIds.has(edge.toEventId)) return false
-        if (query.contextId && !isRelevantScope(edge.scope, query.contextId)) return false
-        if (relations && !relations.has(edge.relation)) return false
-        return true
-      },
-      cloneValue,
-    )
+    return queryHistoricalCausalEdgesRuntime(this, query)
   }
 
   submitCandidates(
@@ -702,24 +529,7 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
   }
 
   queryCandidates(query: HistoricalEventCandidateQuery = {}): HistoricalEventCandidateAudit[] {
-    const index = this.getLedgerIndex()
-    const audits = index.state.candidateAudits
-    const source = query.latestOnly === false
-      ? audits
-      : index.latestCandidateById.values()
-    const candidateIds = query.candidateIds ? new Set(query.candidateIds) : undefined
-    const statuses = query.statuses ? new Set(query.statuses) : undefined
-    return collectBounded(
-      source,
-      query,
-      (audit) => {
-        if (candidateIds && !candidateIds.has(audit.candidateId)) return false
-        if (query.contextId && !isRelevantScope(audit.candidate.scope, query.contextId)) return false
-        if (statuses && !statuses.has(audit.status)) return false
-        return true
-      },
-      cloneValue,
-    )
+    return queryHistoricalCandidatesRuntime(this, query)
   }
 
   promoteCandidate(

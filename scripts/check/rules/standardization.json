@@ -1,28 +1,5 @@
 {
-  "schemaVersion": 1,
-  "skillRoot": "../.agents/skills",
-  "skillRootRequired": false,
-  "skillNamePattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
-  "skillRequiredFiles": [
-    "SKILL.md",
-    "agents/openai.yaml"
-  ],
-  "skillAllowedEntries": [
-    "SKILL.md",
-    "agents",
-    "assets",
-    "references",
-    "scripts"
-  ],
-  "skillSections": [
-    "目标",
-    "适用范围",
-    "执行契约",
-    "权威与实时源",
-    "边界",
-    "验收"
-  ],
-  "referenceFilePattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.md$",
+  "schemaVersion": 2,
   "generatedFilePattern": "\\.generated\\.(?:ts|tsx|js|mjs|json)$",
   "generatedMarkers": [
     "auto-generated",
@@ -30,14 +7,62 @@
     "DO NOT EDIT",
     "自动生成"
   ],
-  "managedTextRoots": [
-    ".agents",
-    "docs/authority"
-  ],
   "managedJsonFiles": [
     "scripts/check/fixtures/execution-incidents.json",
+    "scripts/check/generated/project-structure-index.generated.json",
     "scripts/check/rules/execution-system-review.json",
+    "scripts/check/rules/file-header-baseline.generated.json",
+    "scripts/check/rules/project-structure.json",
     "scripts/check/rules/standardization.json"
+  ],
+  "managedTextRoots": [
+    "../.agents/README.md",
+    "../.agents/skills",
+    "../AGENTS.md",
+    ".agents/README.md",
+    ".agents/skills",
+    "AGENTS.md",
+    "docs/authority",
+    "scripts/check/domains/standardization",
+    "scripts/check/generated",
+    "scripts/check/rules/file-budget-exceptions",
+    "scripts/check/rules/project-structure.json",
+    "scripts/check/rules/standardization.json",
+    "scripts/codegen/generate-project-structure.mjs"
+  ],
+  "referenceFilePattern": "^[a-z0-9]+(?:-[a-z0-9]+)*\\.md$",
+  "skillAllowedEntries": [
+    "SKILL.md",
+    "agents",
+    "assets",
+    "references",
+    "scripts"
+  ],
+  "skillNamePattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+  "skillPreferredLineBudget": 120,
+  "skillRequiredFiles": [
+    "SKILL.md",
+    "agents/openai.yaml"
+  ],
+  "skillRoots": [
+    {
+      "path": "../.agents/skills",
+      "required": true,
+      "scope": "global"
+    },
+    {
+      "path": ".agents/skills",
+      "required": true,
+      "scope": "project"
+    }
+  ],
+  "projectSkillSections": [
+    "目标",
+    "适用范围",
+    "执行契约",
+    "权威与实时源",
+    "边界",
+    "验收"
   ],
   "sortedArrays": {
     "scripts/check/rules/execution-system-review.json": [

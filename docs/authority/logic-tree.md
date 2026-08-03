@@ -33,9 +33,9 @@
 ## 核心叙事回合
 
 - **目标**：在一次玩家推进中完成时间与本地模拟、上下文组装、AI 叙事、合法状态提交、故事展示和后续持久化。
-- **当前机制**：唯一玩家推进链是 `game-story -> useSimulationAdvance -> executeRoundV2 -> narrative-round 执行图 -> RoundCommit -> epilogue-check -> compress-save`。Orchestrator 等待预生成释放单写者后运行 `prepare -> ready -> execute -> transition -> finalize` 阶段图：`prepare` 建立快照，`ready` 建立队列，`execute` 由各 MOD/子系统运行，`transition` 等待并汇合结果后提交，`finalize` 发布唯一终态。节点声明 `owner/failureTarget/order/dependsOn`、稳定状态码和可选 `parallelGroup`，缺码、非法码、超时或终止性失败只反馈给当前流程所有者。第一次 AI 调用只接收 `全局信息/记忆/本轮引导`，返回完整正文与可选分支；严格正文随即进入非持久化 `pendingNarrative` 并显示，生成光标移除，下一轮和分支操作仍保持禁用。随后 `ai-data-analysis` 与 `ai-event-recognition` 在同一显式并行组运行：前者按故事中已发生事实返回系统源变化和机器数据，后者对照全部现有可用候选，只返回尚未发生且等待未来条件的事项。`RoundCommitBus` 在所属系统预检前统一解析 `player:current`，向 NPC/关系 owning system 传入同包计划引用，并显式先应用 `create-identity` 再应用依赖操作；`post-processing` 同时等待两项后台分析成功，在一个快照事务中提交系统变化、历史事实、候选审计和依赖 META；成功后正式正文同步到 `narrativeHistory/EngineStore` 并清除即时投影，失败则业务状态完整回滚，已显示正文只以非持久化失败投影保留并携带终止状态码。尾声、压缩、自动存档和 outcome 全部收口后才启动下一轮预生成；预生成只执行本地推进和第一次叙事调用，不发布正文、不运行两项后台 AI，也不写真实回合诊断。
+- **当前机制**：唯一玩家推进链是 `game-story -> useSimulationAdvance -> executeRoundV2 -> narrative-round 执行图 -> epilogue-check -> compress-save`。Orchestrator 等待预生成释放单写者后运行 `prepare -> ready -> execute -> transition -> finalize` 阶段图；节点声明 `owner/failureTarget/order/dependsOn`、稳定状态码和可选 `parallelGroup`，缺码、非法码、超时或终止性失败只反馈给当前流程所有者。第一次 AI 调用只接收 `全局信息/记忆/本轮引导`，返回完整正文与可选分支；严格正文进入 `pendingNarrative` 阅读投影，并由 `acceptNarrativeResponse()` 立即写入 `narrativeHistory` 和正文审计。随后 `ai-data-analysis`、`ai-basic-attribute-analysis`、`ai-event-recognition`、`ai-macro-impact` 在同一显式并行组只登记非阻塞任务，四路均接收对应完整字段和最近三轮完整故事；结果绑定存档、回合、正文与输入哈希进入版本化收件箱，下一次真实回合的 `prepare-round` 按类型和来源顺序消费已经终结的记录。数据、基础属性和宏观影响分别通过 `RoundCommitBus` 在所属系统事务中预检并提交；事件识别独立提交历史事实、候选、因果处置和依赖 META。任一路失败只回滚本所有者事务，不撤销正文或其他后台结果。`compress-save` 是唯一 AI 释放闸门：无任务直接成功，首次失败后两路并发重试并只采用首个合法候选，三次均失败才阻止下一轮。自动存档和 outcome 完成本地终态后可启动下一轮预生成，不等待四路后台分析；预生成只执行本地推进和第一次叙事调用。
 - **P6-P8 当前接入**：人口、聚落、工作、物品、经济、文化、艺术、教育、作品、政治、法律、生态、技术和世界观插件都通过同一 `RoundContext` 执行。经济拥有 GDP 流量、货币存量、市场和物品价格；自然资源拥有储量；力量框架由 `mod-world` 在创建时固化，P8 插件只消费本世界的 `rankId/rankIndex` 与证据事件，不建立固定阶位表或第二库存。
-- **当前机制补充**：响应提交后异步触发 `summary-compressor`。它按 L1=4、L2=16、L3=64 的四倍时间轴规则延迟压缩，并把每个存档的原始 L1 与结构化时间轴写入独立明文 SQLite；内部档案完整保留来源、权重、衰减、遗忘与原始压缩结果，主叙事只消费压缩系统公开的“时间 + 事件”派生投影，不接收层级或计算字段。所有核心叙事调用都经过 `/api/proxy`；代理按 `lifeRunId + round` 被动把实际上游请求与响应逐字追加到同一轮 TXT，不另发日志请求。每条采用正文保存逐轮迁移审计；成功回合在后台压缩和自动存档完成后只发送一次 outcome，失败回合也只发送一次，用于固化阶段、质量、采用、提交和失败证据。
+- **当前机制补充**：`summary-compressor` 按 L1=4、L2=16、L3=64 的四倍时间轴规则延迟压缩；压缩 AI 在确定性采样设置下根据完整来源、已有压缩历史和最近三轮故事同时生成时间轴摘要与 `1..10` 权重，本地严格校验来源覆盖、范围和持久化一致性。无到期任务不调用 AI；到期任务首次失败后恰好启动两路并发候选，首个合法结果获胜并中止另一候选，全部失败保留正文但维持压缩阻塞。每个存档的原始 L1 与结构化时间轴写入独立明文 SQLite，内部档案完整保留来源、权重、衰减、遗忘与原始压缩结果；主叙事只消费压缩系统公开的“时间 + 事件”派生投影，不接收层级或计算字段。所有核心叙事调用都经过 `/api/proxy`；代理按 `lifeRunId + round` 被动把实际上游请求与响应逐字追加到同一轮 TXT，不另发日志请求。每条采用正文保存逐轮迁移审计；每个真实回合只发送一次 outcome，用于固化阶段、质量、采用、提交和失败证据。
 - **权责边界**：页面不解析或提交 AI 状态；AI 不直接修改 Store；Orchestrator 只通过活动子系统的契约写入所属状态。
 - **实时源**：`src/mods/mod-pages/pages/game-story/`、`src/mods/mod-engine/hooks.ts`、`src/mods/mod-engine/subsystems/orchestrator-system.ts`、`src/mods/mod-engine/campaigns/default/index.ts`。完整阶段与事务见 [核心模拟](core-simulation.md)。
 
@@ -50,14 +50,14 @@
 ## 结构化 AI 写入
 
 - **目标**：把 AI 输出限制为可解析、可校验、可归属和可回滚的状态变更，不从自由正文推断业务事实。
-- **当前机制**：主叙事固定 Prompt 提供唯一 `content` 标准示例；数据分析规范响应为连续 `⟦系统N⟧` 与最后唯一 `⟦数据⟧`；事件识别规范响应为唯一 `⟦待触发事件⟧` 中文 JSON，三类响应均不使用结束字段。系统操作继续以七字段契约校验活动白名单、能力、目标、上下文、操作及精确字段集；事件候选校验作用域、触发条件、规范延迟、人物、地点、能力、标签和与既有候选的重复指纹。解析不补括号、不舍弃残缺内容、不从部分对象重组；三类格式错误各自最多复用原 Prompt 资产和原输入修复两次。数据分析、事件识别、任一系统提交、历史提交或候选登记失败时，同一业务事务回滚，正式正文不采用。
+- **当前机制**：主叙事固定 Prompt 提供唯一 `content` 中性格式示例；数据分析、基础属性分析、事件识别和宏观影响各自只返回一个纯 JSON 根对象，不使用结束字段。系统操作继续以七字段契约校验活动白名单、能力、目标、上下文、操作及精确字段集；基础属性额外接收完整角色画像和 `0=平平无奇、10=人类物种巅峰、>10=超凡` 的逐点语义，只允许四项基础属性的非零整数持久增量；事件识别校验语义核心、稳定因果编号处置、作用域、触发条件、规范延迟、人物、地点、能力、标签和候选重复指纹；宏观影响校验活动系统、玩家影响力证据、上下文、字段和无环依赖。解析不补括号、不舍弃残缺内容、不从部分对象重组；四路后台统一经过 `JSON.parse + Zod`，首次失败最多复用原 Prompt 资产和原输入修复一次，截断终态不进入格式修复。后台的启动、AI、Schema 或本地提交失败只拒绝该所有者结果，不撤销正文或其他已经提交的后台结果。
 - **权责边界**：字段合同由 `subsystem-field-registry.ts` 和生成的字段键共同定义，所属子系统负责预检和提交。Prompt、解析器、页面或历史文档不得建立第二份字段合同。
 - **实时源**：`src/mods/mod-engine/helpers/narrative-ai-protocol.ts`、`tagged-meta-envelope.ts`、`subsystem-field-registry.ts`、`narrative-change-bundle.ts`、`src/mods/mod-engine/subsystems/narrative-parser-system.ts`。
 
 ## 历史事实与延迟因果
 
 - **目标**：让关键事件、证据、转变、因果边和延期结果成为可查询、可持久化的事实，而不是只存在于叙事正文。
-- **当前机制**：数据分析中的已发生事实被组装为历史事务批次，`historical-event-ledger` 先预检再提交；事件识别中的未来事项通过同一账本登记为 `available` 候选审计，不直接生成历史事件。候选 metadata 绑定同一执行、回合、上下文、规范时间、正文审计和本轮已提交事件 ID。剧情结构、伏笔、延迟因果、关系和记忆只引用已提交事件 ID；候选登记或任一依赖步骤失败时，历史、候选和其他结构化副作用整包回滚。
+- **当前机制**：事件识别中的注册事件被组装为历史事务批次，`historical-event-ledger` 先预检再提交；同一调用识别出的未来事项通过同一账本登记为 `available` 候选审计，不直接生成历史事件。主叙事收到的到期因果与事件识别共用 `causal-delay` 稳定编号，事件识别必须对投递集合逐项返回解决或继续；候选 metadata 绑定同一执行、回合、上下文、规范时间、正文审计和本轮已提交事件 ID。剧情结构、伏笔、延迟因果、关系和记忆只引用已提交事件 ID；事件识别启动、生成、校验或提交失败时，其历史、候选和依赖副作用整包回滚，原因果编号保留、旧投递占用清除并按严重度重新排期，正文和其他后台结果不回滚。
 - **权责边界**：历史账本拥有事实与证据；Orchestrator 拥有执行顺序；延迟因果和记忆系统拥有各自投影。账本不拥有正文或其他系统状态。
 - **实时源**：`src/mods/mod-history-dynamics/`、`src/foundation/subsystem-contracts/historical-event.contract.ts`、`src/mods/mod-engine/subsystems/orchestrator-system.ts`、`src/mods/mod-engine/helpers/event-lifecycle-tracker.ts`。
 
@@ -132,4 +132,4 @@
 - **目标**：在用户明确要求发布时完成可验证、可切换和可回滚的生产更新。
 - **当前机制**：先完成请求范围内的验证，再按生产操作说明执行归档、上传、构建、健康检查、原子切换、服务重启、清理或回滚；实际命令和服务器路径只保存在独立操作说明中。
 - **权责边界**：本节描述逻辑，不授权发布。未收到用户明确发布要求时，不改变生产状态。
-- **实时源**：`D:\AI\.agents\skills\ai-life-sim\references\production-deployment.md`、`D:\AI\.agents\skills\ai-life-sim\references\production-recovery.md`、`scripts/ops/`、`scripts/release/`。
+- **实时源**：`D:\AI\ai-life-sim\.agents\skills\ai-life-sim\references\production-deployment.md`、`D:\AI\ai-life-sim\.agents\skills\ai-life-sim\references\production-recovery.md`、`scripts/ops/`、`scripts/release/`。

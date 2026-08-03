@@ -1,13 +1,25 @@
 /**
- * Phase 6：叙事 Prompt 接线审计（纯逻辑，不依赖 TS 编译）
+ * Purpose: Audit narrative Prompt wiring and key-value projection without TypeScript compilation.
+ * Owner: quality:narrative
+ * Responsibility: One static Prompt-contract audit and its optimization findings only.
  */
 import fs from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
 import { getProjectRoot } from '../../lib/project-root.mjs'
-import { buildSegmentedPrompt } from '../../../../src/core/ai-service/prompt-builder.ts'
-import { compileNarrativeGuidance } from '../../../../src/core/ai-service/narrative-guidance-compiler.ts'
+import { readModuleSource } from '../../lib/read-module-source.mjs'
+import {
+  buildNarrativeUserJson,
+  buildSegmentedPrompt,
+  NARRATIVE_GLOBAL_JSON_KEYS,
+  NARRATIVE_ROUND_JSON_KEYS,
+} from '../../../../src/core/ai-service/prompt-builder.ts'
+import {
+  compileNarrativeGuidance,
+  NARRATIVE_GUIDANCE_SOURCE_DEFINITIONS,
+} from '../../../../src/core/ai-service/narrative-guidance-compiler.ts'
 import { narrativePrompt as liveNarrativePrompt } from '../../../../src/mods/mod-engine/prompts/narrative-prompt.ts'
+import { auditNarrativePromptComponents } from '../../../../src/mods/mod-engine/prompts/narrative-prompt-components.ts'
 import {
   COMPILED_NARRATIVE_SYSTEM_PROMPT,
   NARRATIVE_SYSTEM_COMPONENTS,
@@ -31,34 +43,42 @@ const campaign = fs.readFileSync(
   path.join(root, 'src/mods/mod-engine/campaigns/default/index.ts'),
   'utf8',
 )
-const settlementContext = fs.readFileSync(
-  path.join(root, 'src/mods/mod-engine/helpers/narrative-settlement-context.ts'),
+const dataAnalysisContext = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/helpers/narrative-data-analysis-context.ts'),
   'utf8',
 )
-const orchestrator = fs.readFileSync(
-  path.join(root, 'src/mods/mod-engine/subsystems/orchestrator-system.ts'),
+const basicAttributeContext = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/helpers/narrative-basic-attribute-context.ts'),
   'utf8',
 )
-const memoryLifecycle = fs.readFileSync(
-  path.join(root, 'src/mods/mod-engine/subsystems/memory-lifecycle-system.ts'),
+const eventRecognitionContext = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/helpers/narrative-event-recognition-context.ts'),
   'utf8',
 )
-const coreMemory = fs.readFileSync(
-  path.join(root, 'src/mods/mod-engine/subsystems/core-memory-system.ts'),
+const macroImpactContext = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/helpers/narrative-macro-impact-context.ts'),
   'utf8',
 )
+const orchestrator = readModuleSource('src/mods/mod-engine/subsystems/orchestrator-system.ts', root)
+const memoryLifecycle = readModuleSource('src/mods/mod-engine/subsystems/memory-lifecycle-system.ts', root)
+const coreMemory = readModuleSource('src/mods/mod-engine/subsystems/core-memory-system.ts', root)
 const narrativeHints = fs.readFileSync(
   path.join(root, 'src/mods/mod-engine/helpers/narrative-hints.ts'),
+  'utf8',
+)
+const lifecycleNarrative = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/helpers/lifecycle-narrative.ts'),
+  'utf8',
+)
+const subsystemRelevance = fs.readFileSync(
+  path.join(root, 'src/mods/mod-engine/subsystems/subsystem-relevance-system.ts'),
   'utf8',
 )
 const narrativeIOSample = fs.readFileSync(
   path.join(root, 'docs/reference/ai-narrative-io-proposed-segmented.txt'),
   'utf8',
 ).replace(/\r\n/gu, '\n').trimEnd()
-const summaryCompressor = fs.readFileSync(
-  path.join(root, 'src/mods/mod-engine/subsystems/summary-compressor-system.ts'),
-  'utf8',
-)
+const summaryCompressor = readModuleSource('src/mods/mod-engine/subsystems/summary-compressor-system.ts', root)
 const lifespanSystem = fs.readFileSync(
   path.join(root, 'src/mods/mod-character/subsystems/lifespan-system.ts'),
   'utf8',
@@ -76,12 +96,39 @@ const promptGate = fs.readFileSync(
   'utf8',
 )
 let failed = 0
+const optimizationFindings = []
 
 function assertOk(condition, message) {
   if (!condition) {
     console.error(`FAIL: ${message}`)
     failed++
   }
+}
+
+function recordOptimization(code, source, message, evidence = '') {
+  optimizationFindings.push({ code, source, message, evidence })
+}
+
+function countOccurrences(text, fragment) {
+  if (!fragment) return 0
+  return text.split(fragment).length - 1
+}
+
+function detectPromptContradictions(text) {
+  const issues = []
+  if (
+    /年(?:级|度|跨度)[^。\n]{0,40}(?:只|仍只)[^。\n]{0,20}单一(?:事件|现场)/u.test(text)
+    && /年(?:级|度|跨度)[^。\n]{0,60}不得[^。\n]{0,20}单一(?:事件|现场)/u.test(text)
+  ) {
+    issues.push('year-scale-single-scene-conflict')
+  }
+  if (
+    /本轮[^。\n]{0,20}必须[^。\n]{0,20}(?:输出|提供)分支/u.test(text)
+    && /无真正[^。\n]{0,20}抉择[^。\n]{0,20}仅写正文/u.test(text)
+  ) {
+    issues.push('branch-required-vs-optional-conflict')
+  }
+  return issues
 }
 
 function findDescendant(node, predicate) {
@@ -158,10 +205,19 @@ if (!campaign.includes('userSegments: segments.userSegments')) {
   failed++
 }
 
-if (!orchestrator.includes('generateCompressedSummaries')) {
-  console.error('FAIL: orchestrator not wired to generateCompressedSummaries')
+if (
+  !orchestrator.includes('runCompressionGate({')
+  || !orchestrator.includes('createCompressionCandidate(')
+  || !orchestrator.includes('commitCompressionCandidate(')
+) {
+  console.error('FAIL: orchestrator not wired to candidate-based compression gate')
   failed++
 }
+assertOk(
+  !orchestrator.includes('generateCompressedSummaries')
+    && !summaryCompressor.includes('generateCompressedSummaries'),
+  'retired shared-mutation compression API must be removed',
+)
 
 const buildYearEventsStart = orchestrator.indexOf('private buildYearEvents')
 const buildYearEventsEnd = orchestrator.indexOf('/** Phase 6', buildYearEventsStart)
@@ -240,23 +296,53 @@ if (lifespanSystem.includes('lastNarrativeText')) {
   failed++
 }
 
-for (const [name, requiredKeys] of [
-  ['GLOBAL_JSON_KEYS', ['世界设定', '角色档案', '命格天赋']],
-  ['ROUND_JSON_KEYS', ['当前时间', '角色现状', '本轮触发事项', '系统引导', '玩家自定义分支', '字数要求']],
-]) {
-  const match = promptBuilder.match(new RegExp(`const ${name} = \\[([\\s\\S]*?)\\] as const`))
-  assertOk(Boolean(match), `${name} must remain an explicit ordered layer`)
-  for (const key of requiredKeys) {
-    assertOk(match?.[1]?.includes(`'${key}'`), `${name} missing ${key}`)
-  }
-}
-const globalKeysBlock = promptBuilder.match(/const GLOBAL_JSON_KEYS = \[([\s\S]*?)\] as const/)?.[1] ?? ''
-const roundKeysBlock = promptBuilder.match(/const ROUND_JSON_KEYS = \[([\s\S]*?)\] as const/)?.[1] ?? ''
 assertOk(
-  !globalKeysBlock.includes("'字数要求'")
-    && !globalKeysBlock.includes("'玩家自定义'")
-    && roundKeysBlock.lastIndexOf("'字数要求'") > roundKeysBlock.lastIndexOf("'玩家自定义分支'"),
+  JSON.stringify(NARRATIVE_GLOBAL_JSON_KEYS) === JSON.stringify([
+    '世界设定',
+    '世界规则',
+    '模组世界规则',
+    '世界标签',
+    '世界校准',
+    '力量体系',
+    '命格天赋',
+    '角色档案',
+    '叙事风格',
+    '叙事基调',
+  ])
+    && JSON.stringify(NARRATIVE_ROUND_JSON_KEYS) === JSON.stringify([
+      '当前时间',
+      '角色现状',
+      '当前状态',
+      '最近变化',
+      '当前情节阶段',
+      '本轮可回收伏笔',
+      '本轮触发事项',
+      '时间跨度摘要',
+      '已触发因果',
+      '系统引导',
+      '玩家自定义分支',
+      '字数要求',
+    ]),
+  'prompt field registry must remain complete and ordered by its owning layer',
+)
+assertOk(
+  !NARRATIVE_GLOBAL_JSON_KEYS.includes('字数要求')
+    && !NARRATIVE_GLOBAL_JSON_KEYS.includes('玩家自定义')
+    && NARRATIVE_ROUND_JSON_KEYS.at(-1) === '字数要求',
   'raw player settings must stay removed while word-count guidance remains the final dynamic field',
+)
+assertOk(
+  new Set([...NARRATIVE_GLOBAL_JSON_KEYS, ...NARRATIVE_ROUND_JSON_KEYS]).size
+    === NARRATIVE_GLOBAL_JSON_KEYS.length + NARRATIVE_ROUND_JSON_KEYS.length,
+  'every first-call JSON field must have one owning segment',
+)
+assertOk(
+  JSON.stringify(NARRATIVE_GUIDANCE_SOURCE_DEFINITIONS) === JSON.stringify([
+    { id: 'round-system-guidance', order: 10, contextKey: 'roundSystemGuidanceText' },
+    { id: 'time-guide', order: 20, contextKey: 'timeGuideText' },
+    { id: 'dynamic-guidance', order: 30, contextKey: 'narrativeGuidanceText' },
+  ]),
+  'dynamic guidance sources must declare stable IDs, owners, and explicit order in one registry',
 )
 assertOk(
   promptBuilder.indexOf('全局信息: pickJsonKeys')
@@ -331,6 +417,154 @@ assertOk(
     && !fs.readFileSync(path.join(root, 'src/core/ai-service/narrative-guidance-compiler.ts'), 'utf8').includes('.slice('),
   'local guidance compiler must sort, dedupe exact system text, preserve player input, and avoid length truncation',
 )
+
+const promptComponentAudit = auditNarrativePromptComponents(NARRATIVE_SYSTEM_COMPONENTS)
+for (const issue of promptComponentAudit) {
+  if (issue.severity === 'error') {
+    assertOk(false, `${issue.code}: ${issue.message}`)
+  } else {
+    recordOptimization(issue.code, issue.componentId, issue.message, issue.relatedComponentId ?? '')
+  }
+}
+if (countOccurrences(COMPILED_NARRATIVE_SYSTEM_PROMPT, '最终玩家可见结果完整写入 content') > 1) {
+  recordOptimization(
+    'prompt-repeated-output-duty',
+    'chinese-output-protocol',
+    'content 字段职责和起始标签在同一输出协议内重复声明。',
+    '最终玩家可见结果完整写入 content',
+  )
+}
+
+const auditFixture = (id, order, content) => ({
+  id,
+  title: id,
+  kind: '写作规则',
+  lifecycle: '全局常驻',
+  authority: '剧情引导',
+  order,
+  dependsOn: [],
+  assemblyPosition: '系统固定前缀',
+  loadWhen: '测试时加载',
+  exitWhen: '测试结束',
+  acceptanceEvidence: 'kv-prompt-audit',
+  content,
+})
+const syntheticPromptAudit = auditNarrativePromptComponents([
+  auditFixture('fixture-a', 10, '最终结果完整写入 content。'),
+  auditFixture('fixture-b', 20, '生成完成后，最终结果完整写入 content。'),
+])
+assertOk(
+  syntheticPromptAudit.some((issue) => issue.code === 'overlapping-component-guidance'),
+  'prompt audit must detect cross-component containment instead of exact-text duplicates only',
+)
+assertOk(
+  detectPromptContradictions('年度跨度仍只选择一个单一现场。年度跨度不得压成单一现场。')
+    .includes('year-scale-single-scene-conflict'),
+  'prompt audit must detect contradictory time-scale instructions',
+)
+assertOk(
+  detectPromptContradictions(COMPILED_NARRATIVE_SYSTEM_PROMPT).length === 0,
+  'compiled fixed prompt must not contain known instruction contradictions',
+)
+
+const concreteTopicSeeds = [
+  '药剂',
+  '遗迹',
+  '秘境',
+  '陌生观察者',
+  '神秘来客',
+  '王朝',
+  '宗教',
+  '血脉',
+  '遗物',
+]
+const fixedTopicSeeds = concreteTopicSeeds.filter((term) => COMPILED_NARRATIVE_SYSTEM_PROMPT.includes(term))
+const timeScaleTopicSeeds = concreteTopicSeeds.filter((term) => timeScaleNarrative.includes(term))
+if (fixedTopicSeeds.length > 0 || timeScaleTopicSeeds.length > 0) {
+  recordOptimization(
+    'prompt-concrete-topic-seeds',
+    'fixed-and-time-guidance',
+    '用于否定或举例的具体题材名词仍可能反向提供剧情素材，宜改为纯类别描述。',
+    [...new Set([...fixedTopicSeeds, ...timeScaleTopicSeeds])].join(','),
+  )
+}
+if (
+  promptGate.includes('角色当前年龄')
+  && lifecycleNarrative.includes('当前 ${ageYears} 岁')
+  && lifecycleNarrative.includes('当前 ${currentAgeYears} 岁')
+) {
+  recordOptimization(
+    'prompt-duplicate-age-facts',
+    'dynamic-guidance',
+    '角色年龄已由角色现状拥有，但一致性、生命周期和寿命提示仍重复发送。',
+    '角色现状 + round-coherence + lifecycle + lifespan-reminder',
+  )
+}
+if (
+  orchestrator.includes("id: 'recent-system-changes'")
+  && orchestrator.includes('systemChangeSummary: systemChangeSummary')
+) {
+  recordOptimization(
+    'prompt-duplicate-recent-changes',
+    'orchestrator-system',
+    '最近变化同时进入独立字段和系统引导，来源与语义容易重复或漂移。',
+    '最近变化 + recent-system-changes',
+  )
+}
+if (
+  orchestrator.includes("id: 'lifecycle'")
+  && orchestrator.includes("id: 'lifespan-reminder'")
+  && orchestrator.includes("id: 'influence-boundary'")
+  && orchestrator.includes("id: 'npc-network'")
+) {
+  recordOptimization(
+    'prompt-facts-mixed-into-system-guidance',
+    'orchestrator-system',
+    '生命周期、寿命、影响力和人物关系属于当前事实，却被组装进系统引导。',
+    'lifecycle,lifespan-reminder,influence-boundary,npc-network',
+  )
+}
+if (
+  promptGate.includes('系统指令仅可提交')
+  || orchestrator.includes('没有永久数值变化时省略系统指令')
+) {
+  recordOptimization(
+    'prompt-stale-main-narrative-write-contract',
+    'dynamic-guidance',
+    '主叙事已不负责系统写入，但动态引导仍提及系统指令提交或省略。',
+    'round-coherence + birth-opening',
+  )
+}
+if (
+  orchestrator.includes('guidance.roll.toFixed(2)')
+  && orchestrator.includes('badProbabilityPercent')
+  && subsystemRelevance.includes('influenceScore}/100')
+) {
+  recordOptimization(
+    'prompt-internal-metrics-exposed',
+    'dynamic-guidance',
+    '本地投掷、概率区间和影响力分数是内部计算证据，主叙事只需要已判定方向与范围。',
+    'luck roll/probabilities + influence score',
+  )
+}
+if (orchestrator.includes('resolvedLines.slice(-3)')) {
+  recordOptimization(
+    'prompt-fixed-count-projection',
+    'orchestrator-system',
+    '最近分支结果使用固定三项切片，无法完整还原全部仍相关的玩家选择。',
+    'resolvedLines.slice(-3)',
+  )
+}
+const annualRuleMentions = countOccurrences(timeScaleNarrative, '二至三个')
+  + countOccurrences(narrativeSystemPrompt, '二至三个')
+if (annualRuleMentions >= 4) {
+  recordOptimization(
+    'prompt-time-rule-repetition',
+    'fixed-and-time-guidance',
+    '年度镜头数量与叙事距离在固定规则、档位规则和历法规则中重复声明。',
+    `annual-rule-mentions=${annualRuleMentions}`,
+  )
+}
 assertOk(
   narrativeSystemPrompt.includes('记忆只提供已经成立的事实')
     && narrativeSystemPrompt.includes('本轮必须从当前时间与引导产生新的变化和结果')
@@ -393,10 +627,38 @@ const exactSampleContext = {
   },
   wordCountInstruction: '<本轮字数要求>',
 }
-const exactSampleDynamicInput = buildSegmentedPrompt(
+const exactSampleSegments = buildSegmentedPrompt(
   liveNarrativePrompt,
   exactSampleContext,
-).full
+)
+const exactSampleDynamicInput = exactSampleSegments.full
+assertOk(
+  exactSampleSegments.totalChars === exactSampleDynamicInput.length
+    && exactSampleSegments.globalSegmentChars === exactSampleSegments.userSegments[0].length
+    && exactSampleSegments.memorySegmentChars === exactSampleSegments.userSegments[1].length
+    && exactSampleSegments.roundSegmentChars === exactSampleSegments.userSegments[2].length,
+  'prompt segment metrics must describe the exact transmitted characters',
+)
+const emptyNoiseProjection = buildNarrativeUserJson({
+  worldNarrativeView: {},
+  characterProfileView: { 姓名: '<角色>' },
+  characterStatusView: {},
+  subsystemSummaries: [],
+  currentTime: '<当前时间>',
+  timelineMemory: '',
+  worldRules: '  ',
+  modWorldRules: [],
+  playerBranchIntent: {},
+  wordCountInstruction: '<字数要求>',
+})
+assertOk(
+  JSON.stringify(emptyNoiseProjection.全局信息) === JSON.stringify({ 角色档案: { 姓名: '<角色>' } })
+    && JSON.stringify(emptyNoiseProjection.本轮引导) === JSON.stringify({
+      当前时间: '<当前时间>',
+      字数要求: '<字数要求>',
+    }),
+  'empty strings, arrays, and plain objects must not consume prompt fields',
+)
 const sampleDynamicMarker = narrativeIOSample.indexOf('\n⟦全局信息⟧')
 const sampleFixedPrefix = sampleDynamicMarker >= 0
   ? narrativeIOSample.slice(0, sampleDynamicMarker)
@@ -415,6 +677,9 @@ assertOk(
     && !/临海北湾|阿禾|旧桥|海雾|写实|克制而温暖/u.test(sampleDynamicInput)
     && !sampleDynamicInput.includes('最终玩家可见结果完整写入 content'),
   'the exact I/O sample must byte-match the compiled messages and contain only format placeholders',
+)
+console.log(
+  `[PROMPT-METRIC] fixed=${COMPILED_NARRATIVE_SYSTEM_PROMPT.length} global=${exactSampleSegments.globalSegmentChars} memory=${exactSampleSegments.memorySegmentChars} round=${exactSampleSegments.roundSegmentChars} total=${exactSampleSegments.totalChars}`,
 )
 
 const wordCountStart = orchestrator.indexOf('wordCountInstruction:')
@@ -480,9 +745,10 @@ assertOk(
   'ordinary destiny effects must stay compact and factual, with descriptions added only at opening',
 )
 assertOk(
-  orchestrator.includes('useCharacterStore.getState().equippedMythicPatterns')
-    && orchestrator.includes('const destinyPatternText = formatDestinyPatternsForPrompt(')
-    && orchestrator.includes("talents: [mythicPatternText, destinyPatternText].filter(Boolean).join('\\n') || undefined"),
+  orchestrator.includes('formatEquippedMythicPatternForPrompt(useCharacterStore.getState().equippedMythicPatterns)')
+    && orchestrator.includes('formatDestinyPatternsForPrompt(getDestinyPatternSystem().getPatterns(), isOpeningRound)')
+    && orchestrator.includes('const talents = [')
+    && orchestrator.includes("].filter(Boolean).join('\\n') || undefined"),
   'equipped mythic effects must precede ordinary destiny effects in the single compact talent field',
 )
 assertOk(
@@ -500,10 +766,22 @@ assertOk(
 assertOk(
   !orchestrator.includes('subsystemGuideText:')
     && !orchestrator.includes('changeRequirementsText:')
-    && campaign.includes('buildNarrativeSettlementPromptInput({')
-    && settlementContext.includes('⟦可写系统:${contract.aiName}⟧')
-    && settlementContext.includes('stateLines.join(\'\\n\')'),
-  'write contracts and active system state must belong only to the second settlement call',
+    && campaign.includes('buildNarrativeDataAnalysisPromptInput({')
+    && campaign.includes('buildNarrativeBasicAttributePromptInput({')
+    && campaign.includes('buildNarrativeEventRecognitionPromptInput({')
+    && campaign.includes('buildNarrativeMacroImpactPromptInput({')
+    && dataAnalysisContext.includes('⟦可写系统:')
+    && dataAnalysisContext.includes('stateLines.join(\'\\n\')')
+    && dataAnalysisContext.includes('⟦最近故事⟧')
+    && basicAttributeContext.includes('⟦基础属性状态⟧')
+    && basicAttributeContext.includes('⟦最近故事⟧')
+    && eventRecognitionContext.includes('⟦已有待触发事件⟧')
+    && eventRecognitionContext.includes('⟦本轮已投递因果⟧')
+    && eventRecognitionContext.includes('⟦最近故事⟧')
+    && macroImpactContext.includes('⟦宏观系统与字段契约⟧')
+    && macroImpactContext.includes('⟦玩家影响力证据⟧')
+    && macroImpactContext.includes('⟦最近故事⟧'),
+  'all four background calls must receive their complete owned fields and recent story context',
 )
 for (const inactiveConnection of [
   'buildEconomyTierRules',
@@ -516,7 +794,7 @@ for (const inactiveConnection of [
   )
 }
 assertOk(
-  liveNarrativePrompt.version === '5.8.1'
+  liveNarrativePrompt.version === '5.8.2'
     && liveNarrativePrompt.systemPrompt === ''
     && !narrativeSystemPrompt.includes('examples: ['),
   'optimized prompt must be versioned and keep one governed standard example instead of duplicate examples',
@@ -524,15 +802,27 @@ assertOk(
 assertOk(
   narrativeSystemPrompt.includes('正文全程用第二人称“你”')
     && narrativeSystemPrompt.includes('不写全知旁白、第三人称传记或编年报告')
-    && narrativeSystemPrompt.includes('日级可用一个可感知现场承载主线')
-    && narrativeSystemPrompt.includes('年级及以上依本轮时间尺度用多个阶段节点或时代断点承载同一因果主线')
-    && narrativeSystemPrompt.includes('短档通过压缩每个节点而不是删除时间尺度要求的节点控制篇幅')
-    && narrativeSystemPrompt.includes('年级及以上仍须保留起点、阶段变化或转折与结束格局')
+    && narrativeSystemPrompt.includes('日级贴近连续现场')
+    && narrativeSystemPrompt.includes('一年至十年保持人物层面的阶段镜头')
+    && narrativeSystemPrompt.includes('不得把宏观报告与即时现场拼接在一起')
+    && narrativeSystemPrompt.includes('短档通过压缩每个节点而不是删除时间档位要求的节点控制篇幅')
+    && timeScaleNarrative.includes('【年度连续场景视角】用二至三个前后相承的代表性场景覆盖一整年')
+    && countOccurrences(narrativeSystemPrompt, '二至三个') === 0
     && !narrativeSystemPrompt.includes('若本轮按年或更长跨度推进，正文仍只选择一个代表性现场')
     && !narrativeSystemPrompt.includes('先选择能在该区间内自然收束的单一事件')
     && narrativeSystemPrompt.includes('娱乐性、代入感和继续游玩的意愿')
     && NARRATIVE_SYSTEM_COMPONENTS.some((component) => component.kind === '示例'),
   'main narrative components must lock second-person viewpoint and scale-aware scene structure',
+)
+assertOk(
+  narrativeSystemPrompt.includes('压力、阻力和受挫不是每轮必选项')
+    && narrativeSystemPrompt.includes('不得静默过滤、隐藏、替换或强制梦境化')
+    && !narrativeSystemPrompt.includes('极端不合理或直接违背高优先级事实时，只能写成梦境、幻想或尚未落地的念头')
+    && !narrativeHints.includes('每15轮')
+    && !narrativeHints.includes('每 15 轮')
+    && !lifecycleNarrative.includes('Math.random(')
+    && !campaign.includes('传说、书页、旧档案、梦境、遗物铭文或路人故事'),
+  'core narrative prompts must avoid forced adversity, periodic branching, random genre direction, and concrete medium bias',
 )
 assertOk(
   narrativeSystemPrompt.includes('连续推进同一因果主线')
@@ -563,8 +853,16 @@ for (const duplicatedStaticContract of [
   )
 }
 
+for (const finding of optimizationFindings.sort((left, right) => (
+  left.code.localeCompare(right.code) || left.source.localeCompare(right.source)
+))) {
+  console.log(
+    `[OPTIMIZE] code=${finding.code} source=${finding.source} message=${finding.message}${finding.evidence ? ` evidence=${finding.evidence}` : ''}`,
+  )
+}
+
 if (failed === 0) {
-  console.log('PASS: kv-prompt-audit (wiring + compression + field order)')
+  console.log(`PASS: kv-prompt-audit (assembly + ownership + neutrality + volume, optimize=${optimizationFindings.length})`)
   process.exit(0)
 }
 process.exit(1)

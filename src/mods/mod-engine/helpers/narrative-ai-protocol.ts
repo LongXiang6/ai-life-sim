@@ -1,6 +1,6 @@
 /**
  * @module narrative-ai-protocol.ts
- * @description 叙事与结算 AI 的中文协议、Schema 与内部契约严格转译
+ * @description 主叙事与后台分析 AI 的中文协议、Schema 与内部契约严格转译
  * @mod mod-engine
  *
  * AI 只接触本文件声明的中文字段和值；内部运行态继续使用稳定英文标识。
@@ -16,16 +16,13 @@ import type {
 import { parseAIJSON } from '@/core/ai-service/parse-ai-json'
 
 import {
-  NarrativeResponseSchema,
+  NarrativeRoundMetadataSchema,
   type NarrativeRoundMetadata,
 } from './narrative-semantic-signals'
 import { translateNarrativeAISystemInstructionToInternal } from './subsystem-field-registry'
 
 export const NARRATIVE_BODY_TAG = '⟦正文⟧'
 export const NARRATIVE_BRANCH_TAG = '⟦分支⟧'
-export const NARRATIVE_SYSTEM_TAG_PREFIX = '⟦系统'
-export const NARRATIVE_DATA_TAG = '⟦数据⟧'
-export const NARRATIVE_EVENT_CANDIDATES_TAG = '⟦待触发事件⟧'
 
 function createEnumTranslator<const TInternal extends string, const TAI extends string>(
   pairs: readonly (readonly [TInternal, TAI])[],
@@ -174,6 +171,12 @@ export const AI_DEFERRED_CAUSAL_SEVERITIES = createEnumTranslator([
   ['critical', '关键'],
 ] as const)
 
+export const AI_DELIVERED_CAUSAL_STATUSES = createEnumTranslator([
+  ['resolved', '已解决'],
+  ['continuing', '继续'],
+  ['not-touched', '未触及'],
+] as const)
+
 export const AI_EVENT_CANDIDATE_SCOPES = createEnumTranslator([
   ['context', '当前上下文'],
   ['global', '全局'],
@@ -308,6 +311,24 @@ const NarrativeAIDeferredCausalitySchema = z.object({
   相关势力: z.string().min(1).optional(),
 }).strict()
 
+const NarrativeAIDeliveredCausalDispositionSchema = z.object({
+  因果编号: z.string().min(1),
+  状态: AI_DELIVERED_CAUSAL_STATUSES.schema,
+  判定理由: z.string().min(1),
+  继续延迟天数: z.number().int().min(1).optional(),
+}).strict().superRefine((disposition, context) => {
+  if (disposition.状态 === '已解决' && disposition.继续延迟天数 !== undefined) {
+    context.addIssue({ code: 'custom', path: ['继续延迟天数'], message: '已解决因果不得继续延期' })
+  }
+  if (disposition.状态 !== '已解决' && disposition.继续延迟天数 === undefined) {
+    context.addIssue({
+      code: 'custom',
+      path: ['继续延迟天数'],
+      message: '继续或未触及的因果必须提供新的合法延迟天数',
+    })
+  }
+})
+
 /** 第一次调用唯一可返回的玩家可见分支。 */
 const NarrativeAINonBlankStringSchema = z.string().refine(
   (value) => value.trim().length > 0,
@@ -319,18 +340,18 @@ export const NarrativeAIBranchSchema = z.object({
   选项: z.array(NarrativeAINonBlankStringSchema).min(2).max(4),
 }).strict()
 
-/** 第二次调用的机器数据；系统操作通过独立的 ⟦系统N⟧ 分段返回。 */
-export const NarrativeAISettlementDataSchema = z.object({
+const NarrativeAIEventMetadataSchema = z.object({
   摘要: z.string().min(1),
+  注册事件: z.array(NarrativeAIKeyEventSchema),
   长期事件: z.array(z.string().min(1)).min(1).optional(),
   原创内容: z.array(NarrativeAICreationSchema).min(1).optional(),
   新伏笔: z.array(NarrativeAIForeshadowingSchema).min(1).optional(),
   重要程度: AI_IMPORTANCE_LEVELS.schema.optional(),
-  关键事件: z.array(NarrativeAIKeyEventSchema).min(1).optional(),
   情节状态: AI_ARC_STATUSES.schema.optional(),
   语义信号: NarrativeAISemanticSignalsSchema.optional(),
   命运意图判定: NarrativeAIIntentResolutionSchema.optional(),
   新延迟因果: z.array(NarrativeAIDeferredCausalitySchema).min(1).optional(),
+  到期因果判定: z.array(NarrativeAIDeliveredCausalDispositionSchema).optional(),
 }).strict().superRefine((data, context) => {
   const semanticCore = [data.重要程度, data.情节状态, data.语义信号]
   const semanticCoreCount = semanticCore.filter((value) => value !== undefined).length
@@ -371,14 +392,55 @@ const NarrativeAIEventCandidateSchema = z.object({
   }
 })
 
-/** 事件识别调用只返回尚未发生、等待条件满足的候选。 */
-export const NarrativeAIEventRecognitionDataSchema = z.object({
-  事件: z.array(NarrativeAIEventCandidateSchema),
+export const NarrativeAIDataAnalysisDataSchema = z.object({
+  系统操作: z.array(NarrativeAISystemInstructionSchema),
 }).strict()
 
-export type NarrativeAISettlementData = z.infer<typeof NarrativeAISettlementDataSchema>
+const BASIC_ATTRIBUTE_AI_FIELDS = new Set([
+  '体魄变化',
+  '心智变化',
+  '悟性变化',
+  '魅力变化',
+])
+
+export const NarrativeAIBasicAttributeAnalysisDataSchema = z.object({
+  系统操作: z.array(NarrativeAISystemInstructionSchema).max(1),
+}).strict().superRefine((data, context) => {
+  const instruction = data.系统操作[0]
+  if (!instruction) return
+  if (instruction.系统 !== '基础属性') {
+    context.addIssue({ code: 'custom', path: ['系统操作', 0, '系统'], message: '只能分析基础属性' })
+  }
+  if (instruction.目标对象 !== 'player:current') {
+    context.addIssue({ code: 'custom', path: ['系统操作', 0, '目标对象'], message: '基础属性只能指向 player:current' })
+  }
+  if (instruction.操作 !== '增量') {
+    context.addIssue({ code: 'custom', path: ['系统操作', 0, '操作'], message: '基础属性只允许增量操作' })
+  }
+  const entries = Object.entries(instruction.变更)
+  if (entries.length === 0) {
+    context.addIssue({ code: 'custom', path: ['系统操作', 0, '变更'], message: '无变化时应返回空系统操作数组' })
+  }
+  for (const [field, value] of entries) {
+    if (!BASIC_ATTRIBUTE_AI_FIELDS.has(field)) {
+      context.addIssue({ code: 'custom', path: ['系统操作', 0, '变更', field], message: `未知基础属性字段：${field}` })
+    }
+    if (typeof value !== 'number' || !Number.isInteger(value) || value === 0) {
+      context.addIssue({ code: 'custom', path: ['系统操作', 0, '变更', field], message: '基础属性变化必须是非零整数' })
+    }
+  }
+})
+
+/** 事件识别同时拥有已发生事件元数据与未来候选。 */
+export const NarrativeAIEventRecognitionDataSchema = z.object({
+  回合事件: NarrativeAIEventMetadataSchema,
+  待触发事件: z.array(NarrativeAIEventCandidateSchema),
+}).strict()
+
 export type NarrativeAIBranch = z.infer<typeof NarrativeAIBranchSchema>
 export type NarrativeAISystemInstruction = z.infer<typeof NarrativeAISystemInstructionSchema>
+export type NarrativeAIDataAnalysisData = z.infer<typeof NarrativeAIDataAnalysisDataSchema>
+export type NarrativeAIBasicAttributeAnalysisData = z.infer<typeof NarrativeAIBasicAttributeAnalysisDataSchema>
 export type NarrativeAIEventRecognitionData = z.infer<typeof NarrativeAIEventRecognitionDataSchema>
 
 /** 读取唯一完整 JSON；字段和值仍由所属严格 Schema 校验。 */
@@ -388,34 +450,26 @@ export function parseNarrativeAIJson(source: string): unknown {
   return parsed
 }
 
-export interface TranslateNarrativeAISettlementOptions {
+export interface TranslateNarrativeAISystemAnalysisOptions {
   allowedEvidenceEventIds: readonly string[]
   allowedSubsystemIds: readonly string[]
 }
 
-export type NarrativeAISettlement = NarrativeRoundMetadata & {
-  changes: SubSystemChanges[]
-}
-
-/** 第二次调用的中文分段整包转译为内部运行契约。 */
-export function translateNarrativeAISettlement(
+function translateNarrativeAISystemInstructions(
   rawInstructions: readonly unknown[],
-  rawData: unknown,
-  options: TranslateNarrativeAISettlementOptions,
-): NarrativeAISettlement {
+  options: TranslateNarrativeAISystemAnalysisOptions,
+): SubSystemChanges[] {
   const instructions = z.array(NarrativeAISystemInstructionSchema).parse(rawInstructions)
-  const data = NarrativeAISettlementDataSchema.parse(rawData)
   const allowedEvidenceIds = new Set(options.allowedEvidenceEventIds)
 
   for (const instruction of instructions) {
     const unknownEvidenceIds = instruction.依据事件.filter((eventId) => !allowedEvidenceIds.has(eventId))
     if (unknownEvidenceIds.length > 0) {
-      throw new Error(`依据事件未在本次结算输入中提供：${unknownEvidenceIds.join('、')}`)
+      throw new Error(`依据事件未在本次分析输入中提供：${unknownEvidenceIds.join('、')}`)
     }
   }
 
-  const translated: NarrativeAISettlement = {
-    changes: instructions.map((change) => translateNarrativeAISystemInstructionToInternal({
+  return instructions.map((change) => translateNarrativeAISystemInstructionToInternal({
       systemName: change.系统,
       operation: change.操作,
       targetObjectId: change.目标对象,
@@ -423,7 +477,28 @@ export function translateNarrativeAISettlement(
       evidenceEventIds: change.依据事件,
       description: change.说明,
       fields: change.变更,
-    }, options.allowedSubsystemIds)),
+    }, options.allowedSubsystemIds))
+}
+
+export function translateNarrativeAIDataAnalysis(
+  rawData: unknown,
+  options: TranslateNarrativeAISystemAnalysisOptions,
+): SubSystemChanges[] {
+  const data = NarrativeAIDataAnalysisDataSchema.parse(rawData)
+  return translateNarrativeAISystemInstructions(data.系统操作, options)
+}
+
+export function translateNarrativeAIBasicAttributeAnalysis(
+  rawData: unknown,
+  options: TranslateNarrativeAISystemAnalysisOptions,
+): SubSystemChanges[] {
+  const data = NarrativeAIBasicAttributeAnalysisDataSchema.parse(rawData)
+  return translateNarrativeAISystemInstructions(data.系统操作, options)
+}
+
+function translateNarrativeAIEventMetadata(rawData: unknown): NarrativeRoundMetadata {
+  const data = NarrativeAIEventMetadataSchema.parse(rawData)
+  const translated: NarrativeRoundMetadata = {
     digest: data.摘要,
     notableEvents: data.长期事件,
     creations: data.原创内容?.map((item) => ({
@@ -437,11 +512,11 @@ export function translateNarrativeAISettlement(
       priority: item.优先级,
     })),
     importance: data.重要程度 ? AI_IMPORTANCE_LEVELS.toInternal(data.重要程度) : undefined,
-    keyEvents: data.关键事件?.map((event) => ({
+    keyEvents: data.注册事件.length > 0 ? data.注册事件.map((event) => ({
       text: event.内容,
       importance: event.重要度,
       entities: event.涉及实体,
-    })),
+    })) : undefined,
     arcStatus: data.情节状态 ? AI_ARC_STATUSES.toInternal(data.情节状态) : undefined,
     semanticSignals: data.语义信号
       ? {
@@ -486,9 +561,15 @@ export function translateNarrativeAISettlement(
       relatedPerson: item.相关人物,
       relatedFaction: item.相关势力,
     })),
+    deliveredCausalDispositions: data.到期因果判定?.map((item) => ({
+      causalId: item.因果编号,
+      status: AI_DELIVERED_CAUSAL_STATUSES.toInternal(item.状态),
+      reason: item.判定理由,
+      continuationDelayDays: item.继续延迟天数,
+    })),
   }
 
-  return NarrativeResponseSchema.parse(translated)
+  return NarrativeRoundMetadataSchema.parse(translated)
 }
 
 export interface TranslateNarrativeAIEventRecognitionOptions {
@@ -496,11 +577,16 @@ export interface TranslateNarrativeAIEventRecognitionOptions {
   currentTotalDays: number
 }
 
-/** 将事件识别结果转成历史事件账本拥有的候选输入，不在此分配稳定候选 ID。 */
+export interface NarrativeAIEventRecognitionResult {
+  metadata: NarrativeRoundMetadata
+  candidates: HistoricalEventCandidateInput[]
+}
+
+/** 将事件识别结果转成已发生回合元数据和未来候选，不分配稳定 ID。 */
 export function translateNarrativeAIEventRecognition(
   rawData: unknown,
   options: TranslateNarrativeAIEventRecognitionOptions,
-): HistoricalEventCandidateInput[] {
+): NarrativeAIEventRecognitionResult {
   const data = NarrativeAIEventRecognitionDataSchema.parse(rawData)
   const currentContextId = options.currentContextId.trim()
   if (!currentContextId) throw new Error('事件识别缺少当前上下文')
@@ -508,7 +594,7 @@ export function translateNarrativeAIEventRecognition(
     throw new Error('事件识别的当前规范天数无效')
   }
 
-  return data.事件.map((candidate) => {
+  const candidates = data.待触发事件.map((candidate) => {
     const scopeKind = AI_EVENT_CANDIDATE_SCOPES.toInternal(candidate.作用域)
     const dueTotalDays = candidate.延迟天数 === undefined
       ? undefined
@@ -525,8 +611,8 @@ export function translateNarrativeAIEventRecognition(
       title: candidate.标题.trim(),
       description: candidate.说明.trim(),
       scope: scopeKind === 'context'
-        ? { kind: 'context', contextIds: [currentContextId] }
-        : { kind: 'global', contextIds: [] },
+        ? { kind: 'context' as const, contextIds: [currentContextId] }
+        : { kind: 'global' as const, contextIds: [] },
       participants: (candidate.相关人物 ?? []).map((label) => ({
         label: label.trim(),
         ...(scopeKind === 'context' ? { contextId: currentContextId } : {}),
@@ -543,6 +629,11 @@ export function translateNarrativeAIEventRecognition(
       tags: (candidate.标签 ?? []).map((tag) => tag.trim()),
     }
   })
+
+  return {
+    metadata: translateNarrativeAIEventMetadata(data.回合事件),
+    candidates,
+  }
 }
 
 function normalizeCandidateFingerprintText(value: string | undefined): string {
@@ -573,6 +664,6 @@ export function buildNarrativeAIProtocolRepairReminder(requestBranch = false): s
   return [
     '参照系统提示词末尾的唯一 content 返回结构示例，重写完整最终结果。',
     `content 直接以 ${NARRATIVE_BODY_TAG} 紧接完整正文开始${requestBranch ? `；高优先级事实允许真实分叉时，再空一行写 ${NARRATIVE_BRANCH_TAG}单行JSON` : `；确有命运抉择时，再空一行写 ${NARRATIVE_BRANCH_TAG}单行JSON`}。`,
-    '正文自然段之间空一行；正文和可选分支构成完整 content，摘要、系统操作和机器数据留给后续结算调用。',
+    '正文自然段之间空一行；正文和可选分支构成完整 content，系统变化、基础属性和事件元数据由后续独立 AI 处理。',
   ]
 }

@@ -5,17 +5,19 @@
  */
 
 import type { PromptTemplate } from '@/foundation'
+import { NarrativeAIEventRecognitionDataSchema } from '../helpers/narrative-ai-protocol'
 
 export const NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID =
-  'mod-engine:narrative-event-recognition:1.0.0'
+  'mod-engine:narrative-event-recognition:3.1.0'
 
 export const narrativeEventRecognitionPrompt: PromptTemplate = {
   name: 'narrative-event-recognition',
-  version: '1.0.0',
+  version: '3.1.0',
   mod: 'mod-engine',
   systemPrompt: '',
   serverPromptAssetId: NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID,
-  userPromptTemplate: '事件识别用户消息由组装器装配为回合上下文、已有待触发事件和最终叙事三段。',
+  userPromptTemplate: '事件识别用户消息由组装器提供回合上下文、事件状态、已投递因果、已有候选和最近故事。',
   variables: [],
-  outputFormat: 'text',
+  outputFormat: 'json',
+  outputSchema: NarrativeAIEventRecognitionDataSchema,
 }

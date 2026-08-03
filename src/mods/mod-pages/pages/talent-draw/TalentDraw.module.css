@@ -198,7 +198,10 @@
 .seal i,
 .seal b { grid-area: 1 / 1; font-size: calc(0.625 * var(--final-flow-density-rem)); font-style: normal; }
 .seal b { opacity: 0; }
-.sealLit { transform: translateY(calc(-1 * var(--final-flow-density-px))); }
+.sealLit {
+  animation: seal-reveal 0.24s ease-out both;
+  transform: translateY(calc(-1 * var(--final-flow-density-px)));
+}
 .sealLit i { opacity: 0; }
 .sealLit b { opacity: 1; }
 .sealLit[data-rarity="普通"] { border-color: #94a3b8; background: #f1f4f7; color: #64748b; box-shadow: 0 0 calc(0.4 * var(--final-flow-density-rem)) rgb(148 163 184 / 45%); }
@@ -656,6 +659,11 @@
 .libraryItem:focus-visible,
 .libraryHead button:focus-visible { outline: calc(2 * var(--final-flow-density-px)) solid rgb(115 130 187 / 50%); outline-offset: calc(2 * var(--final-flow-density-px)); }
 
+@keyframes seal-reveal {
+  from { opacity: 0.35; transform: translateY(calc(2 * var(--final-flow-density-px))) scale(0.9); }
+  to { opacity: 1; transform: translateY(calc(-1 * var(--final-flow-density-px))) scale(1); }
+}
+
 @keyframes draw-wave { 0% { opacity: 0.34; transform: translate(-50%, -50%) scale(0.8); } 68% { opacity: 0.11; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(6.8); } }
 @keyframes finish-wave { 0%, 15% { opacity: 0.03; transform: translate(-50%, -50%) scale(0.78); } 25% { opacity: 0.42; } 72% { opacity: 0.14; } 100% { opacity: 0; transform: translate(-50%, -50%) scale(7.4); } }
 @keyframes layer-glow { 0%, 62%, 100% { filter: brightness(1); } 22%, 38% { filter: brightness(1.12); } }
@@ -686,5 +694,6 @@
   .candidateCard,
   .selectedSlotFilled,
   .rebirthSlotFilled,
-  .libraryItem { animation: none; }
+  .libraryItem,
+  .sealLit { animation: none; }
 }

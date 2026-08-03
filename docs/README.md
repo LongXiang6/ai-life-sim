@@ -9,4 +9,4 @@
 - [逻辑体系](authority/logic-tree.md)：创建、叙事、存档、账号、诊断和发布流程。
 - [核心模拟](authority/core-simulation.md)：核心运行成员、自动接线、回合管线和写入机制。
 
-其余文档是历史记录、专项契约或原型资产，不作为默认任务流程。SSH 与发布操作说明位于 `D:\AI\.agents\skills\ai-life-sim\references\production-operations.md`。
+其余文档是历史记录、专项契约或原型资产，不作为默认任务流程。SSH 与发布操作说明位于 `D:\AI\ai-life-sim\.agents\skills\ai-life-sim\references\production-operations.md`。

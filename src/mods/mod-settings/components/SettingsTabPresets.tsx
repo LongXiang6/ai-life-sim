@@ -140,11 +140,16 @@ export function SettingsTabPresets() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        cache_pool: 'connectivity-test',
         model: testModel,
         messages: [{ role: 'user', content: `ping-${Date.now()}` }],
         max_tokens: 8,
         temperature: 0,
         stream: false,
+        deadline_context: {
+          callKind: 'connectivity-test',
+          reasoningEffort: 'disabled',
+        },
         providerId: DEFAULT_AI_PROVIDER_ID,
         baseUrl: customUrl.trim(),
         apiKey: customKey.trim(),

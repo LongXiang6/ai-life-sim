@@ -19,6 +19,17 @@ interface GuidanceSource {
   content?: string
 }
 
+export const NARRATIVE_GUIDANCE_SOURCE_DEFINITIONS = [
+  { id: 'round-system-guidance', order: 10, contextKey: 'roundSystemGuidanceText' },
+  { id: 'time-guide', order: 20, contextKey: 'timeGuideText' },
+  { id: 'dynamic-guidance', order: 30, contextKey: 'narrativeGuidanceText' },
+] as const
+
+function compareAscii(left: string, right: string): number {
+  if (left === right) return 0
+  return left < right ? -1 : 1
+}
+
 function normalizeSystemGuidance(value: string): string {
   return value.replace(/\r\n?/gu, '\n').trim()
 }
@@ -35,16 +46,16 @@ export function compileNarrativeGuidance(
     'roundSystemGuidanceText' | 'timeGuideText' | 'narrativeGuidanceText' | 'playerBranchIntent'
   >,
 ): CompiledNarrativeGuidance {
-  const sources: GuidanceSource[] = [
-    { id: 'round-system-guidance', order: 10, content: context.roundSystemGuidanceText },
-    { id: 'time-guide', order: 20, content: context.timeGuideText },
-    { id: 'dynamic-guidance', order: 30, content: context.narrativeGuidanceText },
-  ]
+  const sources: GuidanceSource[] = NARRATIVE_GUIDANCE_SOURCE_DEFINITIONS.map((source) => ({
+    id: source.id,
+    order: source.order,
+    content: context[source.contextKey],
+  }))
   const sourceIds = new Set<string>()
   const contents = new Set<string>()
   const systemGuidance: string[] = []
 
-  for (const source of sources.sort((left, right) => left.order - right.order || left.id.localeCompare(right.id))) {
+  for (const source of sources.sort((left, right) => left.order - right.order || compareAscii(left.id, right.id))) {
     if (sourceIds.has(source.id)) {
       throw new Error(`叙事引导来源重复：${source.id}`)
     }

@@ -1,0 +1,167 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "path": "scripts/check/domains.mjs",
+      "owner": "quality:infrastructure",
+      "reviewedLines": 330,
+      "reason": "检查域的中央声明注册表，条目必须在一个确定性命名源中保持完整排序和唯一所有权。"
+    },
+    {
+      "path": "scripts/check/domains/account/account-cloud-smoke.mjs",
+      "owner": "quality:account",
+      "reviewedLines": 390,
+      "reason": "单个账号领域端到端验收场景，夹具、步骤和断言按一个状态化测试生命周期执行。"
+    },
+    {
+      "path": "scripts/check/domains/account/data-viewer-smoke.mjs",
+      "owner": "quality:account",
+      "reviewedLines": 380,
+      "reason": "单个账号领域端到端验收场景，夹具、步骤和断言按一个状态化测试生命周期执行。"
+    },
+    {
+      "path": "scripts/check/domains/account/player-content-smoke.mjs",
+      "owner": "quality:account",
+      "reviewedLines": 573,
+      "reason": "单个账号领域端到端验收场景，夹具、步骤和断言按一个状态化测试生命周期执行。"
+    },
+    {
+      "path": "scripts/check/domains/mod/arch-scanner/mod-file-pass.ps1",
+      "owner": "quality:mod",
+      "reviewedLines": 618,
+      "reason": "单个 MOD 文件的完整结构扫描阶段，规则共享同一语法上下文与状态码汇合边界。"
+    },
+    {
+      "path": "scripts/check/domains/mod/historical-event-p1-smoke.mjs",
+      "owner": "quality:mod",
+      "reviewedLines": 1751,
+      "reason": "单个 MOD 跨系统验收场景，夹具、执行步骤和证据断言必须按同一场景顺序保持。"
+    },
+    {
+      "path": "scripts/check/domains/mod/multi-world-p3-p5-smoke.mjs",
+      "owner": "quality:mod",
+      "reviewedLines": 491,
+      "reason": "单个 MOD 跨系统验收场景，夹具、执行步骤和证据断言必须按同一场景顺序保持。"
+    },
+    {
+      "path": "scripts/check/domains/mod/npc-social-p2-smoke.mjs",
+      "owner": "quality:mod",
+      "reviewedLines": 834,
+      "reason": "单个 MOD 跨系统验收场景，夹具、执行步骤和证据断言必须按同一场景顺序保持。"
+    },
+    {
+      "path": "scripts/check/domains/mod/world-context-p0-smoke.mjs",
+      "owner": "quality:mod",
+      "reviewedLines": 999,
+      "reason": "单个 MOD 跨系统验收场景，夹具、执行步骤和证据断言必须按同一场景顺序保持。"
+    },
+    {
+      "path": "scripts/check/domains/narrative/branch-intent-resolution-smoke.mjs",
+      "owner": "quality:narrative",
+      "reviewedLines": 319,
+      "reason": "单个叙事协议或质量回归场景，输入夹具、顺序执行和断言共同构成一份不可拆散的证据。"
+    },
+    {
+      "path": "scripts/check/domains/narrative/compression-runtime-smoke.mjs",
+      "owner": "quality:narrative",
+      "reviewedLines": 507,
+      "reason": "单个叙事协议或质量回归场景，输入夹具、顺序执行和断言共同构成一份不可拆散的证据。"
+    },
+    {
+      "path": "scripts/check/domains/narrative/kv-prompt-audit.mjs",
+      "owner": "quality:narrative",
+      "reviewedLines": 878,
+      "reason": "单个叙事协议或质量回归场景，输入夹具、顺序执行和断言共同构成一份不可拆散的证据。"
+    },
+    {
+      "path": "scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs",
+      "owner": "quality:narrative",
+      "reviewedLines": 946,
+      "reason": "单个叙事协议或质量回归场景，输入夹具、顺序执行和断言共同构成一份不可拆散的证据。"
+    },
+    {
+      "path": "scripts/check/domains/narrative/no-hard-truncation-audit.mjs",
+      "owner": "quality:narrative",
+      "reviewedLines": 346,
+      "reason": "单个叙事协议或质量回归场景，输入夹具、顺序执行和断言共同构成一份不可拆散的证据。"
+    },
+    {
+      "path": "scripts/check/domains/narrative/playtest-quality-regression.mjs",
+      "owner": "quality:narrative",
+      "reviewedLines": 1185,
+      "reason": "单个叙事协议或质量回归场景，输入夹具、顺序执行和断言共同构成一份不可拆散的证据。"
+    },
+    {
+      "path": "scripts/check/domains/narrative/runtime-subsystem-state-regression.mjs",
+      "owner": "quality:narrative",
+      "reviewedLines": 780,
+      "reason": "单个叙事协议或质量回归场景，输入夹具、顺序执行和断言共同构成一份不可拆散的证据。"
+    },
+    {
+      "path": "scripts/check/domains/narrative/semantic-authority-audit.mjs",
+      "owner": "quality:narrative",
+      "reviewedLines": 314,
+      "reason": "单个叙事协议或质量回归场景，输入夹具、顺序执行和断言共同构成一份不可拆散的证据。"
+    },
+    {
+      "path": "scripts/check/domains/narrative/time-step-resolver-smoke.mjs",
+      "owner": "quality:narrative",
+      "reviewedLines": 401,
+      "reason": "单个叙事协议或质量回归场景，输入夹具、顺序执行和断言共同构成一份不可拆散的证据。"
+    },
+    {
+      "path": "scripts/check/domains/structural/execution-flow-contracts-runner.ts",
+      "owner": "quality:structural",
+      "reviewedLines": 415,
+      "reason": "单个结构或执行契约检查器，扫描上下文、诊断和确定性终态属于同一机械验收动作。"
+    },
+    {
+      "path": "scripts/check/domains/structural/scan-typescript-wiring.mjs",
+      "owner": "quality:structural",
+      "reviewedLines": 360,
+      "reason": "单个结构或执行契约检查器，扫描上下文、诊断和确定性终态属于同一机械验收动作。"
+    },
+    {
+      "path": "scripts/check/domains/structural/test-mod-loader-runner.ts",
+      "owner": "quality:structural",
+      "reviewedLines": 338,
+      "reason": "单个结构或执行契约检查器，扫描上下文、诊断和确定性终态属于同一机械验收动作。"
+    },
+    {
+      "path": "scripts/check/domains/ui/branch-flow-browser.cjs",
+      "owner": "quality:ui",
+      "reviewedLines": 621,
+      "reason": "单个浏览器或响应式 UI 回归场景，导航、交互、截图和断言共享同一浏览器会话。"
+    },
+    {
+      "path": "scripts/check/domains/ui/character-first-narrative-browser.cjs",
+      "owner": "quality:ui",
+      "reviewedLines": 324,
+      "reason": "单个浏览器或响应式 UI 回归场景，导航、交互、截图和断言共享同一浏览器会话。"
+    },
+    {
+      "path": "scripts/check/domains/ui/deepseek-full-flow-browser.cjs",
+      "owner": "quality:ui",
+      "reviewedLines": 360,
+      "reason": "单个浏览器或响应式 UI 回归场景，导航、交互、截图和断言共享同一浏览器会话。"
+    },
+    {
+      "path": "scripts/check/domains/ui/mobile-ui-regression.mjs",
+      "owner": "quality:ui",
+      "reviewedLines": 1108,
+      "reason": "单个浏览器或响应式 UI 回归场景，导航、交互、截图和断言共享同一浏览器会话。"
+    },
+    {
+      "path": "scripts/ops/analyze-ai-logs.mjs",
+      "owner": "operations",
+      "reviewedLines": 336,
+      "reason": "AI 日志分析 CLI 的单一查询与统计事务，参数解析、查询和输出共享同一命令生命周期。"
+    },
+    {
+      "path": "scripts/ops/inspect-ai-logs.mjs",
+      "owner": "operations",
+      "reviewedLines": 336,
+      "reason": "AI 日志检查 CLI 的单一只读事务，过滤、查询和确定性输出共享同一命令生命周期。"
+    }
+  ]
+}

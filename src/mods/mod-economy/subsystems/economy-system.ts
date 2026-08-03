@@ -131,7 +131,16 @@ export class EconomySystem extends BaseSubsystem {
     ]
   }
   collectState(context: RoundContext): SubSystemState { const state = this.ensure(context); return { id: this.id, summary: `【经济】${state.marketPhase}；年产出 ${formatChineseMagnitude(state.annualEconomicOutput)}；货币 ${formatChineseMagnitude(state.currency.totalCirculation)}；物价 ${Math.round(state.priceIndex)}`, data: structuredClone(state) } }
-  applyChanges(changes: SubSystemChanges, context: RoundContext): void { const state = this.ensure(context); if (typeof changes.changes.priceIndex === 'number') state.priceIndex = Math.max(1, Math.min(1_000_000, changes.changes.priceIndex)); if (typeof changes.changes.taxRate === 'number') state.taxRate = Math.max(0, Math.min(50, changes.changes.taxRate)); if (typeof changes.changes.wealth === 'string') state.currency.playerWealth = normalizeDecimalInteger(changes.changes.wealth); if (typeof changes.changes.productivityDelta === 'number') state.production.productivityIndex = Math.max(10, Math.min(1000, state.production.productivityIndex + changes.changes.productivityDelta)); if (typeof changes.changes.technologyAdoptionDelta === 'number') state.production.technologyAdoption = Math.max(0, Math.min(100, state.production.technologyAdoption + changes.changes.technologyAdoptionDelta)) }
+  applyChanges(changes: SubSystemChanges, context: RoundContext): void {
+    const state = this.ensure(context)
+    if (typeof changes.changes.priceIndex === 'number') state.priceIndex = Math.max(1, Math.min(1_000_000, changes.changes.priceIndex))
+    if (typeof changes.changes.priceIndexDelta === 'number') state.priceIndex = Math.max(1, Math.min(1_000_000, state.priceIndex + changes.changes.priceIndexDelta))
+    if (typeof changes.changes.taxRate === 'number') state.taxRate = Math.max(0, Math.min(50, changes.changes.taxRate))
+    if (typeof changes.changes.taxRateDelta === 'number') state.taxRate = Math.max(0, Math.min(50, state.taxRate + changes.changes.taxRateDelta))
+    if (typeof changes.changes.wealth === 'string') state.currency.playerWealth = normalizeDecimalInteger(changes.changes.wealth)
+    if (typeof changes.changes.productivityDelta === 'number') state.production.productivityIndex = Math.max(10, Math.min(1000, state.production.productivityIndex + changes.changes.productivityDelta))
+    if (typeof changes.changes.technologyAdoptionDelta === 'number') state.production.technologyAdoption = Math.max(0, Math.min(100, state.production.technologyAdoption + changes.changes.technologyAdoptionDelta))
+  }
   capturePersistenceState(): EconomyPersistenceState { return { schemaVersion: 1, contexts: clone(this.states) } }
   restorePersistenceState(snapshot: unknown): void { this.states = snapshot ? clone((snapshot as EconomyPersistenceState).contexts ?? {}) : {} }
   capturePreviewState(): EconomyPersistenceState { return this.capturePersistenceState() }

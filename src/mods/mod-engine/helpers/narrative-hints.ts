@@ -11,21 +11,13 @@
  * 由 orchestrator 注入 PromptContext.roundSystemGuidanceText，再由本地引导编译器投影到 AI 输入。
  */
 
-import type { TimeStep } from '@/foundation'
-
 // ═══════════════════ 类型定义 ═══════════════════
 
 export interface NarrativeHintInput {
   currentAge: number
   startingAge: number
-  round: number
   recentEvents: Array<{ narrative?: string; age: number }>
   forceBranch: boolean
-  branchJustResolved: boolean
-  consecutiveSameGoalRounds: number
-  /** 当前时间步进（替代旧 timeSkipYears，支持多粒度文本生成） */
-  timeStep: TimeStep
-  narrativeStyle?: string
 }
 
 export interface NarrativeHints {
@@ -47,16 +39,11 @@ function hintForceBranch(input: NarrativeHintInput): string[] {
   if (input.currentAge === 3 && input.startingAge === 0) {
     hints.push('3岁节点如生成分支，仍须是照料、归属、居所或关键机会等不可逆的家庭层面命运转折；普通玩耍和短暂偏好不得生成命运分支。')
   }
-  if (input.round > 0 && input.round % 15 === 0 && !input.branchJustResolved) {
-    hints.push(
-      `已推进${input.round}轮，若当前确有不可逆的人生转折，可以生成命运分支并提供二至四个各有特色的方向；不得为满足轮次机械制造分支`,
-    )
-  }
   return hints
 }
 
-// --- 2. 场景跳跃（根据 timeStep.unit 生成粒度匹配的跳转提示） ---
-function hintSceneJump(input: NarrativeHintInput): string[] {
+// --- 2. 人生阶段跨越；具体时间尺度只由 time-scale-narrative.ts 拥有。 ---
+function hintLifeStageTransition(input: NarrativeHintInput): string[] {
   const hints: string[] = []
   const prevEvent = input.recentEvents[input.recentEvents.length - 1]
   if (
@@ -64,46 +51,9 @@ function hintSceneJump(input: NarrativeHintInput): string[] {
     input.currentAge > prevEvent.age
   ) {
     hints.push(
-      `距上次事件已过${input.currentAge - prevEvent.age}年，优先体现新阶段最有因果价值的变化，例如机会、关系、能力、处境或合理压力，再选择一个新的剧情节点，避免延续上次事件的同一场景`,
+      `距上次事件已过${input.currentAge - prevEvent.age}年，按本轮时间尺度呈现这段跨度内已经成立的阶段变化与当前结果，不得继续停留在上次事件的同一现场`,
     )
   }
-
-  const { unit, value } = input.timeStep
-  const amount = value || 1 // 防御 value=0 的异常情况（旧版 timeSkipYears > 0 等价守卫）
-
-  // 根据时间粒度生成不同的跳转提示，防止 AI 输出与粒度不匹配的内容
-  switch (unit) {
-    case 'day':
-      hints.push(
-        amount === 1
-          ? '推进1天。近景/现场视角：写当天的一次具体行动、对话或突发状况，强调即时反馈；收尾优先给出直接结果或新的小问题'
-          : `推进${amount}天。连续日近景视角：体现起始状况、期间变化与结束节点，不要只写最后一天`,
-      )
-      break
-    case 'month':
-      hints.push(
-        amount === 1
-          ? '推进1个月。中近景视角：先点出本月最重要的变化、机会、目标推进或关系变化，再落到一件代表性小事件；这件事包含角色行动、发展和可见后果，只有因果需要时才写阻力，少写月度清单和纯心理余味'
-          : `推进${amount}个月。跨月阶段视角：体现数月内的积累、转折与当前月后果，不要只写最后一个月`,
-      )
-      break
-    case 'season':
-      hints.push(
-        amount === 1
-          ? '推进1个季度。中景视角：体现这一季的环境、制度或人际变化，再写一个改变关系、目标或处境的关键节点；结尾优先落到阶段性后果'
-          : `推进${amount}个季度。跨季度中景视角：按季节、制度或关系的阶段变化串起一个核心因果，结尾落到当前季度后果，不要把跨度写成同一季的一幕`,
-      )
-      break
-    case 'year':
-    default:
-      hints.push(
-        amount === 1
-          ? '时间推进1年。先确定年度主要变化或你要推进的目标，随后只写一个代表性现场中的行动、发展与可见后果；只有既有因果需要时才写阻力，年度背景最多一句，禁止再写第二个季节、地点或独立日常'
-          : `时间跳过${amount}年。完整覆盖起点、期间阶段变化与当前节点；围绕同一条主要因果写出长期改变，代表性节点必须前后承接，不要只写目标年份、逐年记流水账或拼接独立生活切片`,
-      )
-      break
-  }
-
   return hints
 }
 
@@ -116,7 +66,7 @@ export function buildNarrativeHints(input: NarrativeHintInput): NarrativeHints {
       ...hintForceBranch(input),
     ],
     optional: [
-      ...hintSceneJump(input),
+      ...hintLifeStageTransition(input),
     ],
   }
 }

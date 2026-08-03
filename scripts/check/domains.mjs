@@ -1,14 +1,83 @@
 /**
- * @module domains.mjs
- * @description 检测域注册表 —— 按功能领域树形分组
- *
- * Profile 定义 → profiles.mjs
- * 规则元数据 → rules/registry.json
+ * Purpose: Declare the checker domain registry, stable step IDs, order, triggers, and criticality.
+ * Owner: quality:check-runner
+ * Responsibility: Declarative check-step construction and profile registry data only.
  */
 
-/** @typedef {{ cmd: string, args?: string[], cwd?: string, env?: Record<string,string>, platforms?: string[] }} CheckStep */
+const DEFAULT_STEP_TIMEOUT_MS = 60_000
+const TYPESCRIPT_LOADER_ARGS = [
+  '--no-warnings=ExperimentalWarning',
+  '--loader',
+  './scripts/check/lib/typescript-loader.mjs',
+]
 
-/** @type {Record<string, { label: string, group: string, atceTier: string, ruleIds: string[], steps: CheckStep[], triggers: string[] }>} */
+/**
+ * @param {string} id
+ * @param {number} order
+ * @param {string} script
+ * @param {{ args?: string[], critical?: boolean, dependsOn?: string[], env?: Record<string,string>, platforms?: string[], timeoutMs?: number, triggers?: string[], typescript?: boolean }} [options]
+ */
+function nodeStep(id, order, script, options = {}) {
+  const {
+    args = [],
+    critical = false,
+    dependsOn = [],
+    env,
+    platforms,
+    timeoutMs = DEFAULT_STEP_TIMEOUT_MS,
+    triggers = [],
+    typescript = false,
+  } = options
+  return {
+    id,
+    order,
+    phase: 'execute',
+    dependsOn,
+    parallel: true,
+    optional: Boolean(platforms),
+    timeoutMs,
+    critical,
+    triggers: [...new Set([script, ...triggers])],
+    cmd: 'node',
+    args: [...(typescript ? TYPESCRIPT_LOADER_ARGS : []), script, ...args],
+    ...(env ? { env } : {}),
+    ...(platforms ? { platforms } : {}),
+  }
+}
+
+/**
+ * @param {string} id
+ * @param {number} order
+ * @param {string} script
+ * @param {{ args?: string[], critical?: boolean, env?: Record<string,string>, platforms?: string[], timeoutMs?: number, triggers?: string[] }} [options]
+ */
+function powershellStep(id, order, script, options = {}) {
+  const {
+    args = [],
+    critical = false,
+    env,
+    platforms = ['win32'],
+    timeoutMs = DEFAULT_STEP_TIMEOUT_MS,
+    triggers = [],
+  } = options
+  return {
+    id,
+    order,
+    phase: 'execute',
+    dependsOn: [],
+    parallel: true,
+    optional: true,
+    timeoutMs,
+    critical,
+    triggers: [...new Set([script, ...triggers])],
+    cmd: 'powershell',
+    args: ['-NoProfile', '-File', script, ...args],
+    ...(env ? { env } : {}),
+    platforms,
+  }
+}
+
+/** @type {Record<string, { label: string, group: string, atceTier: string, ruleIds: string[], steps: object[], triggers: string[] }>} */
 export const DOMAINS = {
   standardization: {
     label: '标准化 / 结构契约',
@@ -18,11 +87,27 @@ export const DOMAINS = {
     triggers: [
       'AGENTS.md',
       'docs/authority/',
+      'scripts/check/',
       'scripts/check/rules/standardization.json',
       'scripts/check/domains/standardization/',
     ],
     steps: [
-      { cmd: 'node', args: ['scripts/check/domains/standardization/standardization-gate.mjs'] },
+      nodeStep('standardization-gate', 10, 'scripts/check/domains/standardization/standardization-gate.mjs', {
+        critical: true,
+      }),
+      nodeStep('check-runner-contract', 20, 'scripts/check/domains/structural/check-runner-contract-smoke.mjs', {
+        critical: true,
+        triggers: [
+          'scripts/check/index.mjs',
+          'scripts/check/lib/runner.mjs',
+          'scripts/check/domains.mjs',
+          'scripts/check/profiles.mjs',
+          'scripts/check/lib/resolve-changed.mjs',
+          'scripts/check/gate-check.mjs',
+          'scripts/check/check-format.ps1',
+          'scripts/check/domains/mod/run-mod-scanners.ps1',
+        ],
+      }),
     ],
   },
   wiring: {
@@ -50,11 +135,11 @@ export const DOMAINS = {
       'localStorage.getItem',
     ],
     steps: [
-      { cmd: 'node', args: ['scripts/check/domains/structural/execution-system-gate.mjs'] },
-      { cmd: 'node', args: ['scripts/check/domains/structural/scan-typescript-wiring.mjs', '--quiet'] },
-      { cmd: 'node', args: ['scripts/check/domains/structural/scan-mod-public-boundary.mjs', '--quiet'] },
-      { cmd: 'node', args: ['scripts/check/domains/structural/scan-file-import-graph.mjs', '--quiet'] },
-      { cmd: 'node', args: ['scripts/check/domains/structural/scan-persist-format.mjs', '--quiet'] },
+      nodeStep('execution-system-gate', 10, 'scripts/check/domains/structural/execution-system-gate.mjs', { critical: true }),
+      nodeStep('typescript-wiring', 20, 'scripts/check/domains/structural/scan-typescript-wiring.mjs', { args: ['--quiet'], critical: true }),
+      nodeStep('mod-public-boundary', 30, 'scripts/check/domains/structural/scan-mod-public-boundary.mjs', { args: ['--quiet'], critical: true }),
+      nodeStep('file-import-graph', 40, 'scripts/check/domains/structural/scan-file-import-graph.mjs', { args: ['--quiet'], critical: true }),
+      nodeStep('persist-format', 50, 'scripts/check/domains/structural/scan-persist-format.mjs', { args: ['--quiet'], critical: true }),
     ],
   },
   loader: {
@@ -67,7 +152,9 @@ export const DOMAINS = {
       'src/core/mod-loader/',
       'src/mods/registry.generated',
     ],
-    steps: [{ cmd: 'node', args: ['scripts/check/domains/structural/test-mod-loader.mjs'] }],
+    steps: [
+      nodeStep('mod-loader', 10, 'scripts/check/domains/structural/test-mod-loader.mjs', { critical: true }),
+    ],
   },
   account: {
     label: 'Account / persistence',
@@ -81,15 +168,15 @@ export const DOMAINS = {
       'scripts/ops/migrate-',
     ],
     steps: [
-      { cmd: 'node', args: ['scripts/check/domains/account/account-cloud-smoke.mjs'] },
-      { cmd: 'node', args: ['scripts/check/domains/account/player-content-smoke.mjs'] },
-      { cmd: 'node', args: ['scripts/check/domains/account/player-mail-migration-smoke.mjs'] },
-      { cmd: 'node', args: ['scripts/check/domains/account/game-record-lifespan-adjustment-migration-smoke.mjs'] },
-      { cmd: 'node', args: ['scripts/check/domains/account/player-mail-ops-smoke.mjs'] },
-      { cmd: 'node', args: ['scripts/check/domains/account/operations-dashboard-smoke.mjs'] },
-      { cmd: 'node', args: ['scripts/check/domains/account/data-viewer-smoke.mjs'] },
-      { cmd: 'node', args: ['scripts/check/domains/account/character-draft-persistence-smoke.mjs'] },
-      { cmd: 'node', args: ['scripts/check/domains/account/account-cleanup-ops-smoke.mjs'] },
+      nodeStep('account-cloud', 10, 'scripts/check/domains/account/account-cloud-smoke.mjs', { critical: true, typescript: true }),
+      nodeStep('player-content', 20, 'scripts/check/domains/account/player-content-smoke.mjs', { typescript: true }),
+      nodeStep('player-mail-migration', 30, 'scripts/check/domains/account/player-mail-migration-smoke.mjs', { typescript: true }),
+      nodeStep('lifespan-adjustment-migration', 40, 'scripts/check/domains/account/game-record-lifespan-adjustment-migration-smoke.mjs', { typescript: true }),
+      nodeStep('player-mail-ops', 50, 'scripts/check/domains/account/player-mail-ops-smoke.mjs', { typescript: true }),
+      nodeStep('operations-dashboard', 60, 'scripts/check/domains/account/operations-dashboard-smoke.mjs', { typescript: true }),
+      nodeStep('data-viewer', 70, 'scripts/check/domains/account/data-viewer-smoke.mjs', { typescript: true }),
+      nodeStep('character-draft-persistence', 80, 'scripts/check/domains/account/character-draft-persistence-smoke.mjs', { typescript: true }),
+      nodeStep('account-cleanup-ops', 90, 'scripts/check/domains/account/account-cleanup-ops-smoke.mjs', { typescript: true }),
     ],
   },
   mod: {
@@ -103,30 +190,14 @@ export const DOMAINS = {
       'scripts/check/check-format.ps1',
     ],
     steps: [
-      {
-        cmd: 'powershell',
-        args: ['-File', 'scripts/check/domains/mod/run-mod-scanners.ps1', '-ErrorOnly'],
+      powershellStep('mod-scanners', 10, 'scripts/check/domains/mod/run-mod-scanners.ps1', {
+        args: ['-ErrorOnly'],
+        critical: true,
         env: { CHECK_QUIET: '1' },
-        platforms: ['win32'],
-      },
-      {
-        cmd: 'node',
-        args: [
-          '--no-warnings=ExperimentalWarning',
-          '--loader',
-          './scripts/check/lib/typescript-loader.mjs',
-          'scripts/check/domains/mod/multi-world-p3-p5-smoke.mjs',
-        ],
-      },
-      {
-        cmd: 'node',
-        args: [
-          '--no-warnings=ExperimentalWarning',
-          '--loader',
-          './scripts/check/lib/typescript-loader.mjs',
-          'scripts/check/domains/mod/world-init-scoring-depth-smoke.mjs',
-        ],
-      },
+        timeoutMs: 120_000,
+      }),
+      nodeStep('multi-world-p3-p5', 20, 'scripts/check/domains/mod/multi-world-p3-p5-smoke.mjs', { typescript: true }),
+      nodeStep('world-init-scoring-depth', 30, 'scripts/check/domains/mod/world-init-scoring-depth-smoke.mjs', { typescript: true }),
     ],
   },
   ui: {
@@ -142,31 +213,14 @@ export const DOMAINS = {
       'scripts/check/domains/ui/',
     ],
     steps: [
-      {
-        cmd: 'powershell',
-        args: ['-File', 'scripts/check/domains/ui/run-ui-scanners.ps1', '-ErrorOnly'],
+      powershellStep('ui-scanners', 10, 'scripts/check/domains/ui/run-ui-scanners.ps1', {
+        args: ['-ErrorOnly'],
+        critical: true,
         env: { CHECK_QUIET: '1' },
-        platforms: ['win32'],
-      },
-      { cmd: 'node', args: ['scripts/check/domains/ui/mobile-ui-regression.mjs'] },
-      {
-        cmd: 'node',
-        args: [
-          '--no-warnings=ExperimentalWarning',
-          '--loader',
-          './scripts/check/lib/typescript-loader.mjs',
-          'scripts/check/domains/ui/world-generated-cache-smoke.mjs',
-        ],
-      },
-      {
-        cmd: 'node',
-        args: [
-          '--no-warnings=ExperimentalWarning',
-          '--loader',
-          './scripts/check/lib/typescript-loader.mjs',
-          'scripts/check/domains/ui/game-over-share-card-smoke.mjs',
-        ],
-      },
+      }),
+      nodeStep('mobile-ui-regression', 20, 'scripts/check/domains/ui/mobile-ui-regression.mjs', { critical: true }),
+      nodeStep('world-generated-cache', 30, 'scripts/check/domains/ui/world-generated-cache-smoke.mjs', { typescript: true }),
+      nodeStep('game-over-share-card', 40, 'scripts/check/domains/ui/game-over-share-card-smoke.mjs', { typescript: true }),
     ],
   },
   narrative: {
@@ -215,32 +269,45 @@ export const DOMAINS = {
       'docs/ui-prototypes/mobile/character-create/final-cc-rf9-1.html',
     ],
     steps: [
-      { cmd: 'node', args: ['scripts/check/domains/narrative/validate-narrative-wiring.mjs'] },
-      { cmd: 'node', args: ['scripts/check/domains/narrative/ai-proxy-observability-regression.mjs'] },
-      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/deepseek-request-contract-smoke.mjs'] },
-      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/semantic-authority-audit.mjs'] },
-      { cmd: 'node', args: ['scripts/check/domains/narrative/time-step-resolver-smoke.mjs'] },
-      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/plot-structure-canonical-time-smoke.mjs'] },
-      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/pre-gen-cancellation-smoke.mjs'] },
-      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/luck-guidance-smoke.mjs'] },
-      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/playtest-quality-regression.mjs'] },
-      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/branch-intent-resolution-smoke.mjs'] },
-      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/branch-intent-persistence-smoke.mjs'] },
-      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs'] },
-      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/narrative-repetition-metrics-smoke.mjs'] },
-      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/server-log-store-smoke.mjs'] },
-      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/log-analytics-smoke.mjs'] },
-      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/log-archive-v1-migration-smoke.mjs'] },
-      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/starting-age-authority-regression.mjs'] },
-      { cmd: 'node', args: ['scripts/check/domains/narrative/runtime-subsystem-state-regression.mjs'] },
-      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/compression-runtime-smoke.mjs'] },
-      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/no-hard-truncation-audit.mjs'] },
-      { cmd: 'node', args: ['scripts/check/domains/narrative/player-api-settings-regression.mjs'] },
-      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/ai-response-truncation-smoke.mjs'] },
-      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/ai-error-translation-smoke.mjs'] },
-      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/cache-stats-smoke.mjs'] },
-      { cmd: 'node', args: ['--no-warnings=ExperimentalWarning', '--loader', './scripts/check/lib/typescript-loader.mjs', 'scripts/check/domains/narrative/development-system-diagnostic-smoke.mjs'] },
-      { cmd: 'node', args: ['scripts/check/domains/narrative/narrative-regression-seed.mjs'] },
+      nodeStep('validate-narrative-wiring', 10, 'scripts/check/domains/narrative/validate-narrative-wiring.mjs', { critical: true }),
+      nodeStep('kv-prompt-audit', 20, 'scripts/check/domains/narrative/kv-prompt-audit.mjs', {
+        critical: true,
+        typescript: true,
+        triggers: [
+          'src/core/ai-service/prompt-builder.ts',
+          'src/core/ai-service/narrative-guidance-compiler.ts',
+          'src/mods/mod-engine/prompts/narrative-prompt-components.ts',
+          'src/mods/mod-engine/server/narrative-system-prompt.ts',
+          'src/mods/mod-engine/helpers/time-scale-narrative.ts',
+          'src/mods/mod-engine/helpers/subsystem-prompt-gate.ts',
+          'src/mods/mod-engine/subsystems/orchestrator-system.ts',
+        ],
+      }),
+      nodeStep('ai-proxy-observability', 30, 'scripts/check/domains/narrative/ai-proxy-observability-regression.mjs'),
+      nodeStep('deepseek-request-contract', 40, 'scripts/check/domains/narrative/deepseek-request-contract-smoke.mjs', { critical: true, typescript: true }),
+      nodeStep('semantic-authority-audit', 50, 'scripts/check/domains/narrative/semantic-authority-audit.mjs', { critical: true, typescript: true }),
+      nodeStep('time-step-resolver', 60, 'scripts/check/domains/narrative/time-step-resolver-smoke.mjs'),
+      nodeStep('plot-structure-canonical-time', 70, 'scripts/check/domains/narrative/plot-structure-canonical-time-smoke.mjs', { typescript: true }),
+      nodeStep('pre-gen-cancellation', 80, 'scripts/check/domains/narrative/pre-gen-cancellation-smoke.mjs', { typescript: true }),
+      nodeStep('luck-guidance', 90, 'scripts/check/domains/narrative/luck-guidance-smoke.mjs', { typescript: true }),
+      nodeStep('playtest-quality', 100, 'scripts/check/domains/narrative/playtest-quality-regression.mjs', { critical: true, typescript: true }),
+      nodeStep('branch-intent-resolution', 110, 'scripts/check/domains/narrative/branch-intent-resolution-smoke.mjs', { typescript: true }),
+      nodeStep('branch-intent-persistence', 120, 'scripts/check/domains/narrative/branch-intent-persistence-smoke.mjs', { typescript: true }),
+      nodeStep('narrative-chinese-protocol', 130, 'scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs', { critical: true, typescript: true }),
+      nodeStep('narrative-repetition-metrics', 140, 'scripts/check/domains/narrative/narrative-repetition-metrics-smoke.mjs', { typescript: true }),
+      nodeStep('server-log-store', 150, 'scripts/check/domains/narrative/server-log-store-smoke.mjs', { typescript: true }),
+      nodeStep('log-analytics', 160, 'scripts/check/domains/narrative/log-analytics-smoke.mjs', { typescript: true }),
+      nodeStep('log-archive-v1-migration', 170, 'scripts/check/domains/narrative/log-archive-v1-migration-smoke.mjs', { typescript: true }),
+      nodeStep('starting-age-authority', 180, 'scripts/check/domains/narrative/starting-age-authority-regression.mjs', { typescript: true }),
+      nodeStep('runtime-subsystem-state', 190, 'scripts/check/domains/narrative/runtime-subsystem-state-regression.mjs'),
+      nodeStep('compression-runtime', 200, 'scripts/check/domains/narrative/compression-runtime-smoke.mjs', { typescript: true }),
+      nodeStep('no-hard-truncation', 210, 'scripts/check/domains/narrative/no-hard-truncation-audit.mjs', { critical: true, typescript: true }),
+      nodeStep('player-api-settings', 220, 'scripts/check/domains/narrative/player-api-settings-regression.mjs'),
+      nodeStep('ai-response-truncation', 230, 'scripts/check/domains/narrative/ai-response-truncation-smoke.mjs', { typescript: true }),
+      nodeStep('ai-error-translation', 240, 'scripts/check/domains/narrative/ai-error-translation-smoke.mjs', { typescript: true }),
+      nodeStep('cache-stats', 250, 'scripts/check/domains/narrative/cache-stats-smoke.mjs', { typescript: true }),
+      nodeStep('development-system-diagnostic', 260, 'scripts/check/domains/narrative/development-system-diagnostic-smoke.mjs', { typescript: true }),
+      nodeStep('narrative-regression-seed', 270, 'scripts/check/domains/narrative/narrative-regression-seed.mjs'),
     ],
   },
   calibration: {
@@ -254,8 +321,8 @@ export const DOMAINS = {
       'mod-world/utils/calibration',
     ],
     steps: [
-      { cmd: 'node', args: ['scripts/check/domains/calibration/world-calibration-acceptance.mjs'] },
-      { cmd: 'node', args: ['scripts/check/domains/calibration/d37-config-override.mjs'] },
+      nodeStep('world-calibration-acceptance', 10, 'scripts/check/domains/calibration/world-calibration-acceptance.mjs', { critical: true }),
+      nodeStep('d37-config-override', 20, 'scripts/check/domains/calibration/d37-config-override.mjs'),
     ],
   },
 }

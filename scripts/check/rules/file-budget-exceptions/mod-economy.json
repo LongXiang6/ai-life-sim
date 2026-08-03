@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "path": "src/mods/mod-economy/constants.ts",
+      "owner": "mod-economy",
+      "reviewedLines": 516,
+      "reason": "所属 MOD 的中央静态常量与校准表，机器键和数值必须保留为一个命名源。"
+    },
+    {
+      "path": "src/mods/mod-economy/types.ts",
+      "owner": "mod-economy",
+      "reviewedLines": 351,
+      "reason": "经济 MOD 的唯一公共类型契约，字段关系和状态形状应在一个声明源中审查。"
+    }
+  ]
+}

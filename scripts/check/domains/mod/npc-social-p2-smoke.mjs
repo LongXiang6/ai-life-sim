@@ -1,5 +1,7 @@
 /**
- * P2 NPC 社会基础：稳定身份、作用域、调度、原子提交、持久化与协议唯一化。
+ * Purpose: Regress P2 NPC and relationship identity, scope, scheduling, commit, and persistence behavior.
+ * Owner: quality:mod
+ * Responsibility: One shared-state NPC/social smoke scenario only.
  */
 
 import fs from 'node:fs'
@@ -18,11 +20,10 @@ import { useEngineStore } from '../../../../src/mods/mod-engine/store.ts'
 import { ensureOrchestratorContextFromStores } from '../../../../src/mods/mod-engine/helpers/save-restore.ts'
 import { RoundCommitBus } from '../../../../src/mods/mod-engine/helpers/round-commit-bus.ts'
 import {
-  NarrativeAISettlementDataSchema,
-  translateNarrativeAISettlement,
+  NarrativeAIDataAnalysisDataSchema,
+  translateNarrativeAIDataAnalysis,
 } from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
-import { buildNarrativeSettlementStandardExample } from '../../../../src/mods/mod-engine/server/narrative-settlement-system-prompt.ts'
-import { parseNarrativeSettlementEnvelope } from '../../../../src/mods/mod-engine/helpers/tagged-meta-envelope.ts'
+import { buildNarrativeDataAnalysisStandardExample } from '../../../../src/mods/mod-engine/server/narrative-data-analysis-system-prompt.ts'
 import { getHistoricalEventLedgerSystem } from '../../../../src/mods/mod-history-dynamics/historical-event-api.ts'
 import { useNpcSystemStore } from '../../../../src/mods/mod-npc/index.ts'
 import { getNpcSystem } from '../../../../src/mods/mod-npc/npc-system-api.ts'
@@ -657,15 +658,14 @@ assertOk(
 )
 entitySystem.restorePersistenceState(entitySnapshot)
 
-const standardEnvelope = parseNarrativeSettlementEnvelope(buildNarrativeSettlementStandardExample())
-const standardInstructionKeys = Object.keys(standardEnvelope.systemInstructions[0]).sort()
 assertOk(
-  JSON.stringify(standardInstructionKeys)
-    === JSON.stringify(['依据事件', '变更', '操作', '目标上下文', '目标对象', '系统', '说明'].sort()),
-  'the canonical AI example must show all seven fixed system-instruction fields',
+  NarrativeAIDataAnalysisDataSchema.parse(
+    JSON.parse(buildNarrativeDataAnalysisStandardExample()),
+  ).系统操作.length === 0,
+  'the canonical AI example must remain a neutral pure-JSON no-change result',
 )
 assertOk(
-  translateNarrativeAISettlement([{
+  translateNarrativeAIDataAnalysis({ 系统操作: [{
       系统: 'NPC系统',
       目标对象: npcAtomic,
       目标上下文: contextA,
@@ -673,10 +673,10 @@ assertOk(
       说明: '建立稳定 NPC 身份',
       变更: { 显示名: '原子人物' },
       依据事件: [],
-    }], { 摘要: '建立稳定 NPC 身份' }, {
+    }] }, {
       allowedEvidenceEventIds: [],
       allowedSubsystemIds: ['npc-system'],
-    }).changes[0]?.id === 'npc-system',
+    })[0]?.id === 'npc-system',
   'the unified Chinese protocol must translate P2 instructions to the single runtime ID',
 )
 const relationshipEndInstruction = {
@@ -688,20 +688,18 @@ const relationshipEndInstruction = {
   变更: {},
   依据事件: [evidenceEventId],
 }
-const parsedRelationshipEnd = parseNarrativeSettlementEnvelope([
-  `⟦系统1⟧${JSON.stringify(relationshipEndInstruction)}`,
-  `⟦数据⟧${JSON.stringify({ 摘要: '明确解除关系' })}`,
-].join('\n\n'))
-const translatedRelationshipEnd = translateNarrativeAISettlement(
-  parsedRelationshipEnd.systemInstructions,
-  parsedRelationshipEnd.data,
+const parsedRelationshipEnd = NarrativeAIDataAnalysisDataSchema.parse({
+  系统操作: [relationshipEndInstruction],
+})
+const translatedRelationshipEnd = translateNarrativeAIDataAnalysis(
+  parsedRelationshipEnd,
   {
     allowedEvidenceEventIds: [evidenceEventId],
     allowedSubsystemIds: ['relationship-system'],
   },
 )
 assertOk(
-  Object.keys(translatedRelationshipEnd.changes[0].changes).length === 0,
+  Object.keys(translatedRelationshipEnd[0]?.changes ?? {}).length === 0,
   'relationship end must use the unified seven-field instruction with an empty payload',
 )
 relationshipSystem.preflightChanges(
@@ -709,7 +707,7 @@ relationshipSystem.preflightChanges(
   contextA365,
 )
 assertThrows(
-  () => translateNarrativeAISettlement([{
+  () => translateNarrativeAIDataAnalysis({ 系统操作: [{
       系统: 'NPC系统',
       目标对象: npcAtomic,
       目标上下文: contextA,
@@ -717,7 +715,7 @@ assertThrows(
       说明: '夹带其他 NPC 操作字段',
       变更: { 目标描述: '不应由创建身份消费' },
       依据事件: [],
-    }], { 摘要: '非法 NPC 操作' }, {
+    }] }, {
       allowedEvidenceEventIds: [],
       allowedSubsystemIds: ['npc-system'],
     }),
@@ -777,7 +775,7 @@ assertOk(
   'behavior-sourced NPC memory must survive snapshot restore',
 )
 assertOk(
-  !NarrativeAISettlementDataSchema.safeParse({ 摘要: '旧字段', 状态变更: [] }).success,
+  !NarrativeAIDataAnalysisDataSchema.safeParse({ 摘要: '旧字段', 状态变更: [] }).success,
   'the old 状态变更 success protocol must be rejected',
 )
 

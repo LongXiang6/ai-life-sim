@@ -10,7 +10,6 @@ import { z } from 'zod'
 import {
   MEMORY_WEIGHT_MAX,
   calculateMemoryWeight,
-  clampMemoryWeight,
   isMemoryEventActive,
 } from '@/core/storage/narrative-memory-policy'
 
@@ -45,6 +44,7 @@ export const TimelineCompressionOutputSchema = z.object({
       text: z.string().min(1),
       occurrenceTime: z.string().min(1),
       sourceIds: z.array(z.string().min(1)).min(1),
+      weight: z.number().int().min(1).max(MEMORY_WEIGHT_MAX),
     }).strict()).min(1),
   }).strict()).min(1),
   completionMarker: z.literal(SUMMARY_COMPLETION_MARKER),
@@ -194,19 +194,8 @@ export function compressedSummaryId(
   return `L${level}:${startRound}-${endRound}`
 }
 
-function bestSource(sources: TimelineSourceFact[], sourceIds: string[]): TimelineSourceFact | undefined {
-  return [...sources]
-    .filter((source) => sourceIds.includes(source.id))
-    .sort((a, b) => (
-      Number(b.permanent) - Number(a.permanent)
-      || b.initialWeight - a.initialWeight
-      || b.weightAnchorRound - a.weightAnchorRound
-      || a.round - b.round
-    ))[0] ?? sources[0]
-}
-
 /**
- * 将 AI 的时间段组织结果转成由本地权重字段驱动的摘要节点。
+ * 将 AI 的时间段组织与权重结果持久化为摘要节点。
  * 权重 10 的来源不进入 AI 输出，调用方应通过 `permanentEvents` 原样携带。
  */
 export function buildCompressedMemoryEvents(
@@ -218,9 +207,19 @@ export function buildCompressedMemoryEvents(
 ): CompressedMemoryEvent[] {
   const sourceMap = new Map(sources.map((source) => [source.id, source]))
   return output.periods.flatMap((period, periodIndex) => period.events.map((event, eventIndex) => {
-    const sourceIds = [...new Set(event.sourceIds)].filter((id) => sourceMap.has(id))
-    const selected = sourceIds.map((id) => sourceMap.get(id)!).filter(Boolean)
-    const anchor = bestSource(sources as TimelineSourceFact[], sourceIds)
+    if (!Number.isInteger(event.weight) || event.weight < 1 || event.weight > MEMORY_WEIGHT_MAX) {
+      throw new Error(`压缩事件权重超出 1-${MEMORY_WEIGHT_MAX}：${event.weight}`)
+    }
+    const sourceIds = [...new Set(event.sourceIds)]
+    const selected = sourceIds.map((id) => {
+      const source = sourceMap.get(id)
+      if (!source) throw new Error(`压缩事件引用了未知来源：${id}`)
+      return source
+    })
+    const weightAnchorRound = Math.max(
+      startRound,
+      ...selected.map((source) => source.weightAnchorRound),
+    )
     return {
       id: `L${level}:${startRound}-${endRound}:p${periodIndex + 1}:e${eventIndex + 1}`,
       timeSpan: period.timeSpan.trim(),
@@ -228,9 +227,9 @@ export function buildCompressedMemoryEvents(
       occurrenceTime: event.occurrenceTime.trim(),
       sourceEventIds: sourceIds,
       sourceRounds: [...new Set(selected.map((source) => source.round))].sort((a, b) => a - b),
-      initialWeight: clampMemoryWeight(anchor?.initialWeight ?? 5),
-      weightAnchorRound: anchor?.weightAnchorRound ?? startRound,
-      permanent: Boolean(anchor?.permanent || (anchor?.initialWeight ?? 0) >= MEMORY_WEIGHT_MAX),
+      initialWeight: event.weight,
+      weightAnchorRound,
+      permanent: event.weight === MEMORY_WEIGHT_MAX,
     } satisfies CompressedMemoryEvent
   }))
 }

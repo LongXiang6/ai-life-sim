@@ -1,262 +1,86 @@
 /**
- * @file useWorldSelectLogic.ts
- * @description 世界选择页共享业务逻辑 hook —— 桌面端/移动端共用
- * @mod mod-pages
- *
- * 集中维护世界选择状态、业务函数、计算值与 LABELS 常量。
- * 桌面端为标准源（source of truth），移动端严格对齐。
+ * Purpose: Coordinate preset selection, difficulty, cache controls, and world confirmation.
+ * Owner: mod-pages/world-select
+ * Responsibility: Page hook orchestration; custom-world CRUD, labels, and projections live in sibling modules.
  */
 
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 import {
   PRESET_WORLDS,
-  allocateWorldCode,
   useWorldStore,
   type PresetWorld,
-  type WorldConfig,
 } from '@/mods/mod-world'
-import { clearWorldGeneratedCache, resolvePresetWorldCode } from '@/mods/mod-world/world-init-api'
 
-import {
-  useWorldSelectForm,
-  DIFFICULTY_ORDER,
-  DIFFICULTY_CONFIG,
-  DIFFICULTY_TITLES,
-  type EraEntry,
-  type SavedCustomWorld,
-} from './useWorldSelectForm'
+import { LABELS } from './world-select-labels'
+import { resolveRestoredWorld } from './world-select-worlds'
 import { useWorldConfirm } from './useWorldConfirm'
 import { useWorldSelectCache } from './useWorldSelectCache'
-import { saveStore } from '@/core'
+import { useWorldSelectCustomWorlds } from './useWorldSelectCustomWorlds'
+import {
+  DIFFICULTY_CONFIG,
+  DIFFICULTY_ORDER,
+  DIFFICULTY_TITLES,
+  useWorldSelectForm,
+} from './useWorldSelectForm'
 
-// ============================================================
-// LABELS —— 所有硬编码文案的唯一源
-// ============================================================
-
-export const LABELS = {
-  // ---- Header ----
-  headerTitle: 'AI人生模拟器',
-  headerSubtitle: '选择一个你的世界',
-
-  // ---- Tabs ----
-  tabMore: '更多世界',
-  tabSaved: '已保存世界',
-  tabCustom: '自定义世界',
-  tabMoreHideTitle: '隐藏额外的预设世界',
-  tabMoreShowTitle: '显示更多预设世界',
-  tabSavedHideTitle: '隐藏已保存的自定义世界',
-  tabSavedShowTitle: '展开已保存的自定义世界',
-  tabCustomHideTitle: '隐藏自定义世界表单',
-  tabCustomShowTitle: '展开自定义世界表单',
-
-  // ---- Cache ----
-  clearCacheTitle: '清空该世界 AI 生成缓存',
-
-  // ---- Empty state ----
-  emptySavedHint: '暂无已保存的自定义世界，在\u201C自定义世界\u201D中创建',
-
-  // ---- Custom form ----
-  formEditTitle: '编辑自定义世界',
-  formCreateTitle: '自定义世界',
-  formLabelName: '世界名称 *',
-  formPlaceholderName: '世界名称（如：末日废土）',
-  formLabelDesc: '详细介绍 *',
-  formPlaceholderDesc: '详细介绍这个世界的设定...',
-  formLabelEra: '年代纪元',
-  formPlaceholderEraName: '纪元名称（如：公元）',
-  formPlaceholderYear: '年份',
-  eraYearUnit: '年',
-  defaultEraName: '公元',
-  bcLabel: '公元前',
-  adLabel: '公元',
-  bcModeTitle: '公元前模式',
-  adModeTitle: '公元模式',
-
-  // ---- Auto era system ----
-  formLabelAutoEra: '自动年号系统',
-  autoEraEnabledText: '✔ 已启用',
-  autoEraDisabledText: '✘ 启用',
-  autoEraEnabledTitle: '已启用：年号会根据时间线自动切换',
-  autoEraDisabledTitle: '未启用：使用固定纪元名称',
-  formPlaceholderEraEntryName: '年号名（如：洪武）',
-  formPlaceholderEraEntryYear: '起始公元年',
-  btnAddEraEntry: '+ 添加',
-  eraHint: '示例：洪武起始368 → 建文起始1398，到期后AI可自行决定切换新年号',
-  eraTimelineYearPrefix: '起始公元',
-  eraTimelineYearSuffix: '年',
-
-  // ---- Card actions ----
-  editTitle: '编辑',
-  deleteTitle: '删除',
-  confirmDeleteTitle: '确认删除',
-  cancelDeleteTitle: '取消删除',
-
-  // ---- Form buttons ----
-  saveEditTitle: '保存编辑',
-  btnSaveEdit: '✔ 保存编辑',
-  cancelEditTitle: '取消编辑',
-  btnCancel: '取消',
-  addCustomTitle: '将当前输入的名称和描述创建为自定义世界',
-  btnAddCustom: '✔ 添加自定义世界',
-
-  // ---- Selected info ----
-  selectedLabel: '已选择: ',
-
-  // ---- Bottom bar ----
-  backTitle: '返回欢迎界面',
-  confirmText: '✔ 确认',
-  confirmDisabledTitle: '请先选择一个世界',
-  confirmTitlePrefix: '进入 ',
-
-  // ---- Difficulty ----
-  difficultyItems: DIFFICULTY_CONFIG,
-  difficultyTitles: DIFFICULTY_TITLES,
-} as const
-
-function loadSavedWorlds(): SavedCustomWorld[] {
-  try {
-    const parsed = saveStore.get<SavedCustomWorld[]>('mod-pages', 0, 'custom-worlds') ?? []
-    return parsed.map((world) => ({
-      ...world,
-      worldCode: world.worldCode ?? allocateWorldCode(),
-    }))
-  } catch {
-    return []
-  }
-}
-
-function savedCustomWorldToPreset(world: SavedCustomWorld): PresetWorld {
-  return {
-    id: world.id,
-    name: world.name,
-    description: world.description,
-    worldviewId: (world.worldview === 'auto' ? 'idealist' : world.worldview) as PresetWorld['worldviewId'],
-    category: 'modern',
-    summary: world.description.slice(0, 50),
-    era: `${world.eraName}${Math.abs(world.eraStartYear)}年`,
-    config: { eraStartYear: world.eraStartYear, worldCode: world.worldCode, worldview: world.worldview },
-    races: ['人类'],
-    genders: ['男', '女'],
-    icon: '🌍',
-  }
-}
-
-function resolveRestoredWorld(
-  config: WorldConfig | null,
-  worldCode: number,
-  savedWorlds: SavedCustomWorld[],
-): PresetWorld | null {
-  if (!config) return null
-
-  const savedMatch = savedWorlds.find((world) =>
-    (world.worldCode === worldCode && world.name === config.name)
-      || (world.name === config.name && world.description === config.description),
-  )
-  if (savedMatch) return savedCustomWorldToPreset(savedMatch)
-
-  return PRESET_WORLDS.find((world) =>
-    (resolvePresetWorldCode(world) === worldCode && world.name === config.name)
-      || (world.name === config.name && world.description === config.description),
-  ) ?? null
-}
-
-// ============================================================
-// Hook
-// ============================================================
+export { LABELS } from './world-select-labels'
 
 export function useWorldSelectLogic() {
   const router = useRouter()
   const existingWorldConfig = useWorldStore((state) => state.worldConfig)
   const existingWorldCode = useWorldStore((state) => state.worldCode)
   const { handleConfirm: confirmWorld, conflictModal } = useWorldConfirm()
-  const {
-    worldCodesWithCache,
-    rotatingWorldCode,
-    pendingCacheReset,
-    handleRequestClearWorldCache,
-    handleCancelClearWorldCache,
-    handleConfirmClearWorldCache,
-    handleClearWorldCache,
-  } = useWorldSelectCache()
+  const cache = useWorldSelectCache()
   const [isConfirming, setIsConfirming] = useState(false)
   const [confirmError, setConfirmError] = useState('')
-
-  // ---- 已保存世界 ----
-  const [savedWorlds, setSavedWorlds] = useState<SavedCustomWorld[]>(loadSavedWorlds)
-
-  // ---- 预设世界选择 ----
-  const restoredWorld = useMemo(
-    () => resolveRestoredWorld(existingWorldConfig, existingWorldCode, savedWorlds),
-    [existingWorldCode, existingWorldConfig, savedWorlds],
-  )
   const [selectedWorldOverride, setSelectedWorld] = useState<PresetWorld | null>(null)
-  const selectedWorld = selectedWorldOverride ?? restoredWorld
   const [showMore, setShowMore] = useState(false)
-  const [showCustom, setShowCustom] = useState(false)
-  const [showCustomForm, setShowCustomForm] = useState(false)
-  const [savedSearch, setSavedSearch] = useState('')
 
-  // ---- 难度 ----
-  const { difficulty, setDifficulty } = useWorldSelectForm(existingWorldConfig?.difficulty ?? 'normal')
-
-  // ---- 自定义世界表单 ----
-  const [customName, setCustomName] = useState('')
-  const [customDesc, setCustomDesc] = useState('')
-  const [customEraName, setCustomEraName] = useState('')
-  const [customEraYear, setCustomEraYear] = useState('')
-  const [isBC, setIsBC] = useState(false)
-  const [autoEraEnabled, setAutoEraEnabled] = useState(false)
-  const [eraTimelineEntries, setEraTimelineEntries] = useState<EraEntry[]>([])
-  const [newEraEntryName, setNewEraEntryName] = useState('')
-  const [newEraEntryYear, setNewEraEntryYear] = useState('')
-  const [worldview, setWorldview] = useState('auto')
-
-  const [editingWorldId, setEditingWorldId] = useState<string | null>(null)
-  const [pendingDeleteWorldId, setPendingDeleteWorldId] = useState<string | null>(null)
-  const [customFeedback, setCustomFeedback] = useState<{ type: 'success' | 'warning'; text: string } | null>(null)
-
-  // ---- 持久化已保存世界 ----
-  const persistSaved = useCallback((worlds: SavedCustomWorld[]) => {
-    setSavedWorlds(worlds)
-    saveStore.set('mod-pages', 0, 'custom-worlds', worlds)
+  const handleCustomWorldSelection = useCallback((world: PresetWorld) => {
+    setSelectedWorld(world)
+    setConfirmError('')
   }, [])
-
-  // ---- 预设世界分组 ----
-  const { presetMain, presetMore } = useMemo(
-    () => ({
-      presetMain: PRESET_WORLDS.slice(0, 6),
-      presetMore: PRESET_WORLDS.slice(6),
-    }),
-    [],
+  const handleDeletedSelectedWorld = useCallback((worldId: string) => {
+    setSelectedWorld((current) => current?.id === worldId ? null : current)
+  }, [])
+  const clearConfirmError = useCallback(() => setConfirmError(''), [])
+  const custom = useWorldSelectCustomWorlds({
+    onClearConfirmError: clearConfirmError,
+    onDeleteSelectedWorld: handleDeletedSelectedWorld,
+    onSelectWorld: handleCustomWorldSelection,
+  })
+  const clearCustomTransientState = custom.clearCustomTransientState
+  const restoredWorld = useMemo(
+    () => resolveRestoredWorld(existingWorldConfig, existingWorldCode, custom.savedWorlds),
+    [custom.savedWorlds, existingWorldCode, existingWorldConfig],
   )
-
-  const filteredSavedWorlds = useMemo(() => {
-    const keyword = savedSearch.trim().toLocaleLowerCase('zh-CN')
-    if (!keyword) return savedWorlds
-    return savedWorlds.filter((world) =>
-      [world.name, world.description, world.eraName].some((value) =>
-        value.toLocaleLowerCase('zh-CN').includes(keyword),
-      ),
-    )
-  }, [savedSearch, savedWorlds])
-
-  // ---- 难度下拉项 ----
+  const selectedWorld = selectedWorldOverride ?? restoredWorld
+  const { difficulty, setDifficulty } = useWorldSelectForm(existingWorldConfig?.difficulty ?? 'normal')
+  const { presetMain, presetMore } = useMemo(() => ({
+    presetMain: PRESET_WORLDS.slice(0, 6),
+    presetMore: PRESET_WORLDS.slice(6),
+  }), [])
   const difficultyItems = useMemo(
-    () =>
-      DIFFICULTY_ORDER.map((d) => ({
-        label: DIFFICULTY_CONFIG[d].label,
-        icon: difficulty === d ? ('✔' as const) : undefined,
-        title: DIFFICULTY_TITLES[d],
-        onClick: () => {
-          setDifficulty(d)
-          setConfirmError('')
-        },
-      })),
+    () => DIFFICULTY_ORDER.map((item) => ({
+      label: DIFFICULTY_CONFIG[item].label,
+      icon: difficulty === item ? ('✔' as const) : undefined,
+      title: DIFFICULTY_TITLES[item],
+      onClick: () => {
+        setDifficulty(item)
+        setConfirmError('')
+      },
+    })),
     [difficulty, setDifficulty],
+  )
+  const confirmTitle = useMemo(
+    () => selectedWorld
+      ? `${LABELS.confirmTitlePrefix}${selectedWorld.name}`
+      : LABELS.confirmDisabledTitle,
+    [selectedWorld],
   )
 
   const handleCycleDifficulty = useCallback(() => {
@@ -265,314 +89,92 @@ export function useWorldSelectLogic() {
     setDifficulty(nextDifficulty)
     setConfirmError('')
   }, [difficulty, setDifficulty])
-
-  // ---- 确认标题 ----
-  const confirmTitle = useMemo(
-    () =>
-      selectedWorld
-        ? `${LABELS.confirmTitlePrefix}${selectedWorld.name}`
-        : LABELS.confirmDisabledTitle,
-    [selectedWorld],
-  )
-  const selectedDifficultyLabel = LABELS.difficultyItems[difficulty].label
-
-  // ============================================================
-  // 预设世界选择
-  // ============================================================
-
-  const handleSelectPreset = useCallback((w: PresetWorld) => {
-    setSelectedWorld(w)
-    setEditingWorldId(null)
-    setPendingDeleteWorldId(null)
+  const handleSelectPreset = useCallback((world: PresetWorld) => {
+    setSelectedWorld(world)
+    clearCustomTransientState()
     setConfirmError('')
-  }, [])
-
-  // ============================================================
-  // 选择自定义世界
-  // ============================================================
-
-  const handleSelectCustomWorld = useCallback((cw: SavedCustomWorld) => {
-    setSelectedWorld({
-      id: cw.id,
-      name: cw.name,
-      description: cw.description,
-      worldviewId: (cw.worldview === 'auto' ? 'idealist' : cw.worldview) as PresetWorld['worldviewId'],
-      category: 'modern' as PresetWorld['category'],
-      summary: cw.description.slice(0, 50),
-      era: `${cw.eraName}${Math.abs(cw.eraStartYear)}年`,
-      config: { eraStartYear: cw.eraStartYear, worldCode: cw.worldCode, worldview: cw.worldview },
-      races: ['人类'],
-      genders: ['男', '女'],
-      icon: '🌍',
-    })
-    setEditingWorldId(null)
-    setPendingDeleteWorldId(null)
-    setConfirmError('')
-  }, [])
-
-  // ============================================================
-  // 自定义世界 CRUD
-  // ============================================================
-
-  const resetCustomForm = useCallback(() => {
-    setEditingWorldId(null)
-    setPendingDeleteWorldId(null)
-    setCustomName('')
-    setCustomDesc('')
-    setCustomEraName('')
-    setCustomEraYear('')
-    setIsBC(false)
-    setAutoEraEnabled(false)
-    setEraTimelineEntries([])
-    setNewEraEntryName('')
-    setNewEraEntryYear('')
-    setWorldview('auto')
-  }, [])
-
-  const handleAddCustom = useCallback(() => {
-    if (!customName.trim() || !customDesc.trim()) {
-      setCustomFeedback({ type: 'warning', text: '请先填写世界名称和详细介绍。' })
-      return
-    }
-    const worldCode = allocateWorldCode()
-    const signedYear = (parseInt(customEraYear) || 1) * (isBC ? -1 : 1)
-    const newWorld: SavedCustomWorld = {
-      id: `custom-${worldCode}`,
-      name: customName.trim(),
-      description: customDesc.trim(),
-      eraName: customEraName.trim() || LABELS.defaultEraName,
-      eraStartYear: signedYear,
-      currentEraYear: signedYear,
-      eraTimeline: autoEraEnabled ? [...eraTimelineEntries] : undefined,
-      worldview: worldview,
-      dynamicAttrTags: ['wealth', 'fame', 'power', 'ability', 'connections'],
-      worldCode,
-    }
-    const updated = [...savedWorlds, newWorld]
-    persistSaved(updated)
-    resetCustomForm()
-    setCustomFeedback({ type: 'success', text: `已保存自定义世界「${newWorld.name}」。` })
-    setConfirmError('')
-    setSelectedWorld({
-      id: newWorld.id,
-      name: newWorld.name,
-      description: newWorld.description,
-      worldviewId: (worldview === 'auto' ? 'idealist' : worldview) as PresetWorld['worldviewId'],
-      category: 'modern' as PresetWorld['category'],
-      summary: newWorld.description.slice(0, 50),
-      era: `${newWorld.eraName}${Math.abs(newWorld.eraStartYear)}年`,
-      config: { eraStartYear: newWorld.eraStartYear, worldCode: newWorld.worldCode, worldview: newWorld.worldview },
-      races: ['人类'],
-      genders: ['男', '女'],
-      icon: '🌍',
-    })
-  }, [
-    customName, customDesc, customEraName, customEraYear, isBC,
-    autoEraEnabled, eraTimelineEntries, worldview, savedWorlds,
-    persistSaved, resetCustomForm,
-  ])
-
-  const handleStartEdit = useCallback((cw: SavedCustomWorld) => {
-    setEditingWorldId(cw.id)
-    setPendingDeleteWorldId(null)
-    setCustomFeedback(null)
-    setCustomName(cw.name)
-    setCustomDesc(cw.description)
-    setCustomEraName(cw.eraName)
-    setCustomEraYear(String(Math.abs(cw.eraStartYear)))
-    setIsBC(cw.eraStartYear < 0)
-    setAutoEraEnabled(!!cw.eraTimeline)
-    setEraTimelineEntries(cw.eraTimeline || [])
-    setWorldview(cw.worldview)
-    setShowCustomForm(true)
-  }, [])
-
-  const handleSaveEdit = useCallback(() => {
-    if (!customName.trim() || !customDesc.trim() || !editingWorldId) {
-      setCustomFeedback({ type: 'warning', text: '请先填写世界名称和详细介绍。' })
-      return
-    }
-    const signedYear = (parseInt(customEraYear) || 1) * (isBC ? -1 : 1)
-    const updated = savedWorlds.map((cw) =>
-      cw.id === editingWorldId
-        ? {
-            ...cw,
-            name: customName.trim(),
-            description: customDesc.trim(),
-            eraName: customEraName.trim() || LABELS.defaultEraName,
-            eraStartYear: signedYear,
-            currentEraYear: signedYear,
-            eraTimeline: autoEraEnabled ? [...eraTimelineEntries] : undefined,
-            worldview,
-          }
-        : cw,
-    )
-    persistSaved(updated)
-    resetCustomForm()
-    const edited = updated.find((cw) => cw.id === editingWorldId)
-    if (edited) {
-      setCustomFeedback({ type: 'success', text: `已保存「${edited.name}」的修改。` })
-      setConfirmError('')
-      setSelectedWorld({
-        id: edited.id,
-        name: edited.name,
-        description: edited.description,
-        worldviewId: (edited.worldview === 'auto' ? 'idealist' : edited.worldview) as PresetWorld['worldviewId'],
-        category: 'modern' as PresetWorld['category'],
-        summary: edited.description.slice(0, 50),
-        era: `${edited.eraName}${Math.abs(edited.eraStartYear)}年`,
-        config: { eraStartYear: edited.eraStartYear, worldCode: edited.worldCode, worldview: edited.worldview },
-        races: ['人类'],
-        genders: ['男', '女'],
-        icon: '🌍',
-      })
-    }
-  }, [
-    customName, customDesc, customEraName, customEraYear, isBC,
-    autoEraEnabled, eraTimelineEntries, worldview, editingWorldId,
-    savedWorlds, persistSaved, resetCustomForm,
-  ])
-
-  const handleCancelEdit = useCallback(() => {
-    resetCustomForm()
-    setCustomFeedback(null)
-  }, [resetCustomForm])
-
-  const handleDeleteCustom = useCallback(
-    (cw: SavedCustomWorld) => {
-      setPendingDeleteWorldId(cw.id)
-      setCustomFeedback({ type: 'warning', text: `再次确认后将删除「${cw.name}」，并清理该世界生成缓存。` })
-    },
-    [],
-  )
-
-  const handleCancelDeleteCustom = useCallback(() => {
-    setPendingDeleteWorldId(null)
-    setCustomFeedback(null)
-  }, [])
-
-  const handleConfirmDeleteCustom = useCallback(
-    (cw: SavedCustomWorld) => {
-      clearWorldGeneratedCache(cw.worldCode)
-      const updated = savedWorlds.filter((w) => w.id !== cw.id)
-      persistSaved(updated)
-      if (selectedWorld?.id === cw.id) setSelectedWorld(null)
-      setPendingDeleteWorldId(null)
-      setConfirmError('')
-      setCustomFeedback({ type: 'success', text: `已删除自定义世界「${cw.name}」。` })
-    },
-    [savedWorlds, selectedWorld, persistSaved],
-  )
-
-  // ============================================================
-  // 确认进入
-  // ============================================================
-
+  }, [clearCustomTransientState])
   const handleConfirm = useCallback(async () => {
     if (!selectedWorld || isConfirming) return
     setConfirmError('')
     setIsConfirming(true)
     try {
-      const worldCode =
-        typeof selectedWorld.config.worldCode === 'number'
-          ? selectedWorld.config.worldCode
-          : undefined
-      const customWorldview =
-        typeof selectedWorld.config.worldview === 'string'
-          ? selectedWorld.config.worldview
-          : undefined
+      const worldCode = typeof selectedWorld.config.worldCode === 'number'
+        ? selectedWorld.config.worldCode
+        : undefined
+      const customWorldview = typeof selectedWorld.config.worldview === 'string'
+        ? selectedWorld.config.worldview
+        : undefined
       await confirmWorld(selectedWorld, difficulty, { worldCode, customWorldview })
     } catch (error) {
       setConfirmError(`世界初始化失败：${error instanceof Error ? error.message : '未知错误'}`)
     } finally {
       setIsConfirming(false)
     }
-  }, [selectedWorld, isConfirming, difficulty, confirmWorld])
-
-  // ============================================================
-  // 返回
-  // ============================================================
-
-  const handleBack = useCallback(() => {
-    router.push('/')
-  }, [router])
-
-  // ============================================================
-  // 返回值
-  // ============================================================
+  }, [confirmWorld, difficulty, isConfirming, selectedWorld])
+  const handleBack = useCallback(() => router.push('/'), [router])
 
   return {
-    // 状态
     selectedWorld,
     showMore,
-    showCustom,
-    showCustomForm,
+    showCustom: custom.showCustom,
+    showCustomForm: custom.showCustomForm,
     difficulty,
-    customName,
-    customDesc,
-    customEraName,
-    customEraYear,
-    isBC,
-    autoEraEnabled,
-    eraTimelineEntries,
-    newEraEntryName,
-    newEraEntryYear,
-    savedWorlds,
-    filteredSavedWorlds,
-    savedSearch,
-    editingWorldId,
-    pendingDeleteWorldId,
-    customFeedback,
+    customName: custom.customName,
+    customDesc: custom.customDesc,
+    customEraName: custom.customEraName,
+    customEraYear: custom.customEraYear,
+    isBC: custom.isBC,
+    autoEraEnabled: custom.autoEraEnabled,
+    eraTimelineEntries: custom.eraTimelineEntries,
+    newEraEntryName: custom.newEraEntryName,
+    newEraEntryYear: custom.newEraEntryYear,
+    savedWorlds: custom.savedWorlds,
+    filteredSavedWorlds: custom.filteredSavedWorlds,
+    savedSearch: custom.savedSearch,
+    editingWorldId: custom.editingWorldId,
+    pendingDeleteWorldId: custom.pendingDeleteWorldId,
+    customFeedback: custom.customFeedback,
     isConfirming,
     confirmError,
-
-    // setter
     setShowMore,
-    setShowCustom,
-    setShowCustomForm,
-    setCustomName,
-    setCustomDesc,
-    setCustomEraName,
-    setCustomEraYear,
-    setIsBC,
-    setAutoEraEnabled,
-    setEraTimelineEntries,
-    setNewEraEntryName,
-    setNewEraEntryYear,
-    setSavedSearch,
-
-    // 业务函数
+    setShowCustom: custom.setShowCustom,
+    setShowCustomForm: custom.setShowCustomForm,
+    setCustomName: custom.setCustomName,
+    setCustomDesc: custom.setCustomDesc,
+    setCustomEraName: custom.setCustomEraName,
+    setCustomEraYear: custom.setCustomEraYear,
+    setIsBC: custom.setIsBC,
+    setAutoEraEnabled: custom.setAutoEraEnabled,
+    setEraTimelineEntries: custom.setEraTimelineEntries,
+    setNewEraEntryName: custom.setNewEraEntryName,
+    setNewEraEntryYear: custom.setNewEraEntryYear,
+    setSavedSearch: custom.setSavedSearch,
     handleSelectPreset,
-    handleSelectCustomWorld,
-    handleAddCustom,
-    handleStartEdit,
-    handleSaveEdit,
-    handleCancelEdit,
-    handleDeleteCustom,
-    handleConfirmDeleteCustom,
-    handleCancelDeleteCustom,
+    handleSelectCustomWorld: custom.handleSelectCustomWorld,
+    handleAddCustom: custom.handleAddCustom,
+    handleStartEdit: custom.handleStartEdit,
+    handleSaveEdit: custom.handleSaveEdit,
+    handleCancelEdit: custom.handleCancelEdit,
+    handleDeleteCustom: custom.handleDeleteCustom,
+    handleConfirmDeleteCustom: custom.handleConfirmDeleteCustom,
+    handleCancelDeleteCustom: custom.handleCancelDeleteCustom,
     handleConfirm,
     handleBack,
     handleCycleDifficulty,
-
-    // 计算值
     presetMain,
     presetMore,
     difficultyItems,
-    selectedDifficultyLabel,
+    selectedDifficultyLabel: LABELS.difficultyItems[difficulty].label,
     confirmTitle,
-
-    // 从子 hook 透传
-    worldCodesWithCache,
-    rotatingWorldCode,
-    pendingCacheReset,
-    handleRequestClearWorldCache,
-    handleCancelClearWorldCache,
-    handleConfirmClearWorldCache,
-    handleClearWorldCache,
+    worldCodesWithCache: cache.worldCodesWithCache,
+    rotatingWorldCode: cache.rotatingWorldCode,
+    pendingCacheReset: cache.pendingCacheReset,
+    handleRequestClearWorldCache: cache.handleRequestClearWorldCache,
+    handleCancelClearWorldCache: cache.handleCancelClearWorldCache,
+    handleConfirmClearWorldCache: cache.handleConfirmClearWorldCache,
+    handleClearWorldCache: cache.handleClearWorldCache,
     conflictModal,
-
-    // 常量
     LABELS,
   }
 }

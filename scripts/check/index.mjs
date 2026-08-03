@@ -17,7 +17,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { DOMAINS, PROFILES, resolveProfile } from './domains.mjs'
 import { runCheck } from './lib/runner.mjs'
-import { resolveDomainsFromGit } from './lib/resolve-changed.mjs'
+import { resolveCheckSelectionFromGit } from './lib/resolve-changed.mjs'
 
 const projectRoot = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const argv = process.argv.slice(2)
@@ -34,18 +34,33 @@ const target = positional[0] ?? 'full'
 let domainIds
 /** @type {string} */
 let profile
+/** @type {Record<string, string[]>|undefined} */
+let stepIdsByDomain
+/** @type {'all'|'critical'} */
+let selectionMode = 'all'
 
 if (target === 'changed') {
-  domainIds = resolveDomainsFromGit(projectRoot)
+  const selection = resolveCheckSelectionFromGit(projectRoot)
+  domainIds = selection.domainIds
+  stepIdsByDomain = selection.stepIdsByDomain
+  selectionMode = 'critical'
   profile = `changed(${domainIds.join('+')})`
   if (quiet) {
-    console.log(`[check] changed files → domains: ${domainIds.join(', ')}`)
+    const selectedCount = Object.values(stepIdsByDomain).reduce((total, ids) => total + ids.length, 0)
+    console.log(`[check] changed files -> domains=${domainIds.join(',')} steps=${selectedCount}`)
   }
 } else {
   try {
     const resolved = resolveProfile(target, DOMAINS, modName)
     domainIds = resolved.ids
     profile = resolved.profile
+    if (resolved.stepMode === 'critical') {
+      selectionMode = 'critical'
+      stepIdsByDomain = Object.fromEntries(domainIds.map((domainId) => [
+        domainId,
+        DOMAINS[domainId].steps.filter((step) => step.critical).map((step) => step.id),
+      ]))
+    }
   } catch (e) {
     console.error(String(e.message))
     console.error('\nProfiles:', Object.keys(PROFILES).join(', '))
@@ -54,4 +69,13 @@ if (target === 'changed') {
   }
 }
 
-await runCheck({ projectRoot, profile, domainIds, quiet, modName })
+const result = await runCheck({
+  projectRoot,
+  profile,
+  domainIds,
+  stepIdsByDomain,
+  selectionMode,
+  quiet,
+  modName,
+})
+process.exitCode = result.exitCode

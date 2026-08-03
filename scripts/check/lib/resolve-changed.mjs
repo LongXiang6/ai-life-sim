@@ -64,6 +64,11 @@ function matchesTrigger(filePath, triggers) {
   return false
 }
 
+function orderDomainIds(ids) {
+  const requested = new Set(ids)
+  return Object.keys(DOMAINS).filter((id) => requested.has(id))
+}
+
 /**
  * @param {string[]} files
  * @returns {boolean}
@@ -93,7 +98,44 @@ export function resolveDomainsFromFiles(files) {
     set.add('loader')
   }
   if (set.size === 0) set.add('wiring')
-  return [...set]
+  set.add('standardization')
+  return orderDomainIds(set)
+}
+
+/**
+ * @param {string[]} files
+ * @param {string[]} domainIds
+ * @returns {Record<string, string[]>}
+ */
+export function resolveStepIdsFromFiles(files, domainIds = resolveDomainsFromFiles(files)) {
+  const selected = {}
+  for (const domainId of domainIds) {
+    const domain = DOMAINS[domainId]
+    if (!domain) continue
+    const stepIds = new Set()
+    for (const step of domain.steps) {
+      if (step.critical) stepIds.add(step.id)
+      if (step.triggers?.some((trigger) => files.some((file) => matchesTrigger(file, [trigger])))) {
+        stepIds.add(step.id)
+      }
+    }
+    selected[domainId] = domain.steps
+      .filter((step) => stepIds.has(step.id))
+      .sort((left, right) => left.order - right.order || (left.id < right.id ? -1 : 1))
+      .map((step) => step.id)
+  }
+  return selected
+}
+
+/**
+ * @param {string[]} files
+ */
+export function resolveCheckSelectionFromFiles(files) {
+  const domainIds = resolveDomainsFromFiles(files)
+  return {
+    domainIds,
+    stepIdsByDomain: resolveStepIdsFromFiles(files, domainIds),
+  }
 }
 
 /**
@@ -102,4 +144,11 @@ export function resolveDomainsFromFiles(files) {
  */
 export function resolveDomainsFromGit(projectRoot) {
   return resolveDomainsFromFiles(getChangedFiles(projectRoot))
+}
+
+/**
+ * @param {string} projectRoot
+ */
+export function resolveCheckSelectionFromGit(projectRoot) {
+  return resolveCheckSelectionFromFiles(getChangedFiles(projectRoot))
 }

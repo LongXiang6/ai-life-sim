@@ -16,13 +16,16 @@ export type PromptSegmentStrategy = 'S4'
 export interface PromptSegments {
   stablePrefixChars: number
   full: string
+  globalSegmentChars: number
   userSegments: [string, string, string]
   userMessageCount: 3
   strategy: PromptSegmentStrategy
   memorySegmentChars: number
+  roundSegmentChars: number
+  totalChars: number
 }
 
-const GLOBAL_JSON_KEYS = [
+export const NARRATIVE_GLOBAL_JSON_KEYS = [
   '世界设定',
   '世界规则',
   '模组世界规则',
@@ -35,7 +38,7 @@ const GLOBAL_JSON_KEYS = [
   '叙事基调',
 ] as const
 
-const ROUND_JSON_KEYS = [
+export const NARRATIVE_ROUND_JSON_KEYS = [
   '当前时间',
   '角色现状',
   '当前状态',
@@ -51,13 +54,19 @@ const ROUND_JSON_KEYS = [
 ] as const
 
 type NarrativeJsonKey =
-  | (typeof GLOBAL_JSON_KEYS)[number]
-  | (typeof ROUND_JSON_KEYS)[number]
+  | (typeof NARRATIVE_GLOBAL_JSON_KEYS)[number]
+  | (typeof NARRATIVE_ROUND_JSON_KEYS)[number]
 
 function isEmptyPromptValue(value: unknown): boolean {
   if (value === null || value === undefined) return true
   if (typeof value === 'string') return value.trim() === ''
   if (Array.isArray(value)) return value.length === 0
+  if (typeof value === 'object') {
+    const prototype = Object.getPrototypeOf(value)
+    if (prototype === Object.prototype || prototype === null) {
+      return Object.keys(value).length === 0
+    }
+  }
   return false
 }
 
@@ -108,9 +117,9 @@ export function buildNarrativeUserJson(context: PromptContext): Record<string, u
   }
 
   return {
-    全局信息: pickJsonKeys(raw, GLOBAL_JSON_KEYS),
+    全局信息: pickJsonKeys(raw, NARRATIVE_GLOBAL_JSON_KEYS),
     记忆: context.timelineMemory,
-    本轮引导: pickJsonKeys(raw, ROUND_JSON_KEYS),
+    本轮引导: pickJsonKeys(raw, NARRATIVE_ROUND_JSON_KEYS),
   }
 }
 
@@ -127,9 +136,12 @@ export function buildSegmentedPrompt(
   return {
     stablePrefixChars: globalSegment.length,
     full: [globalSegment, memorySegment, roundSegment].join('\n'),
+    globalSegmentChars: globalSegment.length,
     userSegments: [globalSegment, memorySegment, roundSegment],
     userMessageCount: 3,
     strategy: 'S4',
     memorySegmentChars: memorySegment.length,
+    roundSegmentChars: roundSegment.length,
+    totalChars: globalSegment.length + memorySegment.length + roundSegment.length + 2,
   }
 }

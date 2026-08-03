@@ -1,4 +1,8 @@
 /**
+ * Purpose: Own memory importance, aggregation, compression indexing, retrieval, and timeline projection.
+ * Owner: mod-engine
+ * Responsibility: Stateful memory lifecycle only; shared contracts and thresholds live downstream.
+ *
  * @module memory-lifecycle-system.ts
  * @description 记忆生命周期系统 —— 内部事件计算、压缩索引与故事时间轴投影
  * @mod mod-engine
@@ -24,163 +28,37 @@ import {
   projectSummaryToNarrativeTimeline,
   type NarrativeTimelineEntry,
 } from '../helpers/timeline-memory'
+import {
+  CAPACITY_THRESHOLD,
+  MIN_ROUNDS_FOR_COMPRESSION,
+  RETENTION_RATES,
+  SEVERITY_LABELS,
+  SEVERITY_WEIGHT,
+} from './memory-lifecycle-system/contracts'
+import type {
+  AggregatedEvent,
+  ClosureType,
+  CompressionDecision,
+  EventImportance,
+  EventSeverity,
+  ImportanceResult,
+  IndexEntry,
+  NarrativeTimelineProjection,
+  RawEvent,
+  TaggedEvent,
+} from './memory-lifecycle-system/contracts'
 
-// ============================================================
-// 类型定义
-// ============================================================
-
-/** 事件重要度 */
-export type EventImportance = 'HIGH' | 'NORMAL' | 'LOW'
-
-/** 事件闭环类型 */
-export type ClosureType =
-  | 'battle'
-  | 'journey'
-  | 'task'
-  | 'relationship'
-  | 'life_stage'
-  | 'none'
-
-/** 重要度评分结果 */
-export interface ImportanceResult {
-  importance: EventImportance
-  score: number
-  semanticTags: string[]
-  source: 'ai' | 'fallback'
-  isClosure: boolean
-  closureType: ClosureType,
-}
-
-/** 单个L0事件的完整标记 */
-export interface TaggedEvent {
-  /** 轮次 */
-  round: number
-  /** 事件发生上下文 */
-  contextId?: string
-  /** 当地、全局或旅行携带记忆。 */
-  memoryScope?: NarrativeMemoryScope
-  /** 事件发生的日历年，仅供时间跨度展示；唯一键仍为 roundSequence。 */
-  calendarYear?: number
-  /** 叙事文本 */
-  narrative: string
-  /** 重要度 */
-  importance: EventImportance
-  /** 是否闭环 */
-  isClosure: boolean
-  /** 闭环类型 */
-  closureType: ClosureType
-  /** AI 标注的检索实体 */
-  tags: string[],
-  /** 该记忆事实关联的历史事件账本条目。 */
-  historicalEventIds?: string[]
-}
-
-/** 检索索引条目 */
-export interface IndexEntry {
-  /** 所在层级 */
-  level: number
-  /** 起始轮 */
-  startRound: number
-  /** 结束轮 */
-  endRound: number
-  /** 摘要内容 */
-  content: string
-  /** 故事 AI 可见的时间+事件投影；不包含内部计算字段。 */
-  narrativeTimelineEntries: NarrativeTimelineEntry[]
-  /** 索引实体 */
-  tags: string[]
-  /** 最高重要度 */
-  maxImportance: EventImportance,
-  /** 该索引覆盖的上下文集合 */
-  contextIds?: string[]
-  /** 该索引覆盖的记忆作用域集合。 */
-  memoryScopes?: NarrativeMemoryScope[]
-  /** 该索引覆盖的历史事件账本条目。 */
-  historicalEventIds?: string[]
-}
-
-// ============================================================
-// 事件聚合类型（合并自 span-event-aggregator）
-// ============================================================
-
-/** 事件严重度等级 */
-export type EventSeverity = 'critical' | 'major' | 'normal' | 'color'
-
-/** 严重度权重（用于排序） */
-const SEVERITY_WEIGHT: Record<EventSeverity, number> = {
-  critical: 4,
-  major: 3,
-  normal: 2,
-  color: 1,
-}
-
-/** 严重度中文标签 */
-const SEVERITY_LABELS: Record<EventSeverity, string> = {
-  critical: '危急',
-  major: '重大',
-  normal: '普通',
-  color: '背景',
-}
-
-/** 聚合后的事件 */
-export interface AggregatedEvent {
-  id: string
-  severity: EventSeverity
-  title: string
-  description: string
-  source: string
-  round: number
-  causalLinks?: string[]
-}
-
-/** 原始事件（内部使用） */
-interface RawEvent {
-  id: string
-  severity: EventSeverity
-  title: string
-  description: string
-  source: string
-  round: number
-  cause?: string
-  effect?: string
-}
-
-/** 压缩触发决策 */
-export interface CompressionDecision {
-  /** 是否触发压缩 */
-  shouldCompress: boolean
-  /** 触发原因 */
-  reason: 'closure' | 'capacity' | 'none'
-  /** 闭环类型（如果因闭环触发） */
-  closureType?: ClosureType
-  /** 差异化token预算 */
-  tokenBudgets: {
-    HIGH: number
-    NORMAL: number
-    LOW: number,
-  }
-  /** 当前块中的事件标记 */
-  taggedEvents: TaggedEvent[],
-}
-
-/** 故事 AI 可见的统一时间轴记忆候选。 */
-export interface NarrativeTimelineProjection {
-  /** 叶子摘要、检索命中与近期结构化事实的统一时间轴投影。 */
-  timelineEntries: NarrativeTimelineEntry[]
-}
-
-/** 每个重要度级别的保留比例 */
-const RETENTION_RATES: Record<EventImportance, number> = {
-  HIGH: 0.80,
-  NORMAL: 0.30,
-  LOW: 0.10,
-}
-
-/** 压缩容量阈值（超过此轮数且未闭环时强制压缩） */
-const CAPACITY_THRESHOLD = 15
-
-/** 最少回合数才触发压缩 */
-const MIN_ROUNDS_FOR_COMPRESSION = 3
+export type {
+  AggregatedEvent,
+  ClosureType,
+  CompressionDecision,
+  EventImportance,
+  EventSeverity,
+  ImportanceResult,
+  IndexEntry,
+  NarrativeTimelineProjection,
+  TaggedEvent,
+} from './memory-lifecycle-system/contracts'
 
 // ============================================================
 // MemoryLifecycleSystem

@@ -1,6 +1,6 @@
 {
   "name": "ai-life-sim",
-  "version": "5.7.0",
+  "version": "5.7.3",
   "private": true,
   "scripts": {
     "dev": "node scripts/codegen/generate-mod-wiring.mjs && next dev --turbopack",
@@ -9,6 +9,7 @@
     "build": "node scripts/codegen/generate-mod-wiring.mjs && next build",
     "start": "next start",
     "lint": "eslint",
+    "generate:structure-index": "node scripts/codegen/generate-project-structure.mjs",
     "generate:wiring": "node scripts/codegen/generate-mod-wiring.mjs",
     "mod:create": "node scripts/codegen/create-mod.mjs",
     "release:record": "node scripts/release/record-game-update.mjs",
@@ -36,7 +37,7 @@
     "test:narrative-protocol": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs",
     "test:narrative-repetition-metrics": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-repetition-metrics-smoke.mjs",
     "test:narrative-opening:live": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/narrative-opening-live-eval.mjs",
-    "test:ai-proxy": "node scripts/check/domains/narrative/ai-proxy-observability-regression.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/deepseek-request-contract-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/ai-response-truncation-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/stream-response-smoke.mjs && node scripts/check/domains/narrative/protected-prompt-assets-regression.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/server-log-store-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/log-archive-v1-migration-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/diagnostic-player-code-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/ai-error-translation-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/cache-stats-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/log-analytics-smoke.mjs",
+    "test:ai-proxy": "node scripts/check/domains/narrative/ai-proxy-observability-regression.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/deepseek-request-contract-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/ai-call-deadline-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/ai-response-truncation-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/stream-response-smoke.mjs && node scripts/check/domains/narrative/protected-prompt-assets-regression.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/server-log-store-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/log-archive-v1-migration-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/diagnostic-player-code-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/ai-error-translation-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/cache-stats-smoke.mjs && node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/log-analytics-smoke.mjs",
     "test:protected-prompt-bundle": "node scripts/check/domains/narrative/protected-prompt-client-bundle-smoke.mjs",
     "test:player-feedback": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/player-feedback-smoke.mjs && node scripts/check/domains/narrative/feedback-status-smoke.mjs",
     "test:destiny-credential-terminal": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/destiny-credential-terminal-smoke.mjs",
@@ -56,6 +57,7 @@
     "test:prompt-wiring": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/kv-prompt-audit.mjs && node scripts/check/domains/narrative/time-bridge-smoke.mjs && node scripts/check/domains/narrative/adaptation-calibration-audit.mjs",
     "generate:deps": "node scripts/check/dev/generate-dependency-graph.mjs",
     "check": "node scripts/check/index.mjs full",
+    "check:critical": "node scripts/check/index.mjs critical",
     "check:quick": "node scripts/check/index.mjs quick",
     "check:changed": "node scripts/check/index.mjs changed",
     "check:structural": "node scripts/check/index.mjs structural",

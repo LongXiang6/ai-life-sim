@@ -1,12 +1,12 @@
 /**
- * MVP 运行时子系统状态回归。
- *
- * 保护以下权威链：创建流程/Store -> loader 单例 -> orchestrator 快照 ->
- * 同轮提交后同步/存档 -> 读档私有状态恢复，并确保预生成不污染真实状态。
+ * Purpose: Regress MVP runtime subsystem state from creation stores through orchestration, commit, save, and restore.
+ * Owner: quality:narrative
+ * Responsibility: Runtime state authority assertions only; stores and subsystems retain their owned state.
  */
 import fs from 'node:fs'
 import path from 'node:path'
 import { getProjectRoot } from '../../lib/project-root.mjs'
+import { readDirectorySource, readModuleSource } from '../../lib/read-module-source.mjs'
 
 const root = getProjectRoot(import.meta.url)
 let failed = 0
@@ -14,7 +14,7 @@ let failed = 0
 function read(rel) {
   // PowerShell/Windows checkouts may retain CRLF.  Normalize here so the
   // regression contract checks source semantics rather than line endings.
-  return fs.readFileSync(path.join(root, rel), 'utf8').replace(/\r\n/g, '\n')
+  return readModuleSource(rel, root)
 }
 
 function assertOk(condition, message) {
@@ -259,6 +259,9 @@ assertIncludes(worldBundle, 'entitySystem.reset()', 'starting a world must clear
 assertIncludes(worldPipeline, 'const entitySystem = getWorldEntitySystem()', 'world AI pipeline must use the runtime entity singleton')
 
 const orchestrator = read('src/mods/mod-engine/subsystems/orchestrator-system.ts')
+const narrativeAcceptanceRuntime = read('src/mods/mod-engine/subsystems/orchestrator-system/narrative-acceptance-runtime.ts')
+const narrativeEventRecognitionRuntime = read('src/mods/mod-engine/subsystems/orchestrator-system/narrative-event-recognition-runtime.ts')
+const roundDiagnosticController = read('src/mods/mod-engine/subsystems/orchestrator-system/round-diagnostic-controller.ts')
 const engineHooks = read('src/mods/mod-engine/hooks.ts')
 for (const expected of [
   'subsystemPreviewStates: Record<string, unknown>',
@@ -274,12 +277,13 @@ assertOk(
   'both normal preview restore and invalidated-preview reconcile must restore external private state',
 )
 assertOk(
-  /this\.lastNarratedTimeStep = \{ \.\.\.this\.state\.timeStep \}\s*this\.collectSubsystemStates\(false, false\)/s.test(orchestrator),
-  'narrative commit must refresh lastSubsystemStates in the same round without duplicating relevance',
+  narrativeAcceptanceRuntime.includes("orchestrator['lastNarratedTimeStep'] = { ...orchestrator['state'].timeStep }")
+    && narrativeAcceptanceRuntime.includes("orchestrator['collectSubsystemStates'](false, false)"),
+  'accepted narrative must refresh lastSubsystemStates in the same round without duplicating relevance',
 )
 assertOk(
-  !/this\.lastNarratedTimeStep = \{ \.\.\.this\.state\.timeStep \}[\s\S]{0,160}this\.syncBranchIntentProjectionToEngineStore\(\)/.test(orchestrator),
-  'narrative settlement must not validate the branch projection before EngineStore receives the committed history',
+  !/lastNarratedTimeStep[\s\S]{0,220}syncBranchIntentProjectionToEngineStore\(\)/.test(narrativeAcceptanceRuntime),
+  'background analysis must not validate the branch projection before EngineStore receives the committed history',
 )
 const historySyncIndex = engineHooks.indexOf('narrativeHistory: mergedHistory')
 const projectionSyncIndex = engineHooks.indexOf(
@@ -304,13 +308,13 @@ assertIncludes(
 )
 assertIncludes(orchestrator, 'coreMemory.hydrateFromStore()', 'read/refresh restore must hydrate core-memory private state')
 for (const [pattern, label] of [
-  [/memoryLifecycle\.setAISemanticAnalysis\(\s*roundSequence,/, 'memoryLifecycle.setAISemanticAnalysis'],
-  [/coreMemory\.recordRelationshipUpdates\(\s*parsed\.semanticSignals\.relationshipUpdates,\s*roundSequence,/, 'coreMemory.recordRelationshipUpdates'],
-  [/foreshadowing\.detectForeshadowing\(\s*roundSequence,/, 'foreshadowing.detectForeshadowing'],
-  [/round:\s*roundSequence,/, 'round: roundSequence'],
-  [/const roundSequence = this\.state\.totalRounds/, 'const roundSequence = this.state.totalRounds'],
+  [/memoryLifecycle\.setAISemanticAnalysis\(\s*accepted\.roundSequence,/, 'memoryLifecycle.setAISemanticAnalysis'],
+  [/coreMemory\.recordRelationshipUpdates\(\s*parsed\.semanticSignals\.relationshipUpdates,\s*accepted\.roundSequence,/, 'coreMemory.recordRelationshipUpdates'],
+  [/foreshadowing\.detectForeshadowing\(\s*accepted\.roundSequence,/, 'foreshadowing.detectForeshadowing'],
+  [/round:\s*accepted\.roundSequence,/, 'round: accepted.roundSequence'],
+  [/const roundSequence = roundContext\.roundSequence \?\? orchestrator\['state'\]\.totalRounds/, 'accepted narrative roundSequence fallback'],
 ]) {
-  assertOk(pattern.test(orchestrator), `round-indexed narrative state must use totalRounds: ${label}`)
+  assertOk(pattern.test(`${orchestrator}\n${narrativeAcceptanceRuntime}\n${narrativeEventRecognitionRuntime}`), `round-indexed narrative state must use totalRounds: ${label}`)
 }
 assertOk(
   !/memoryLifecycle\.setAISemanticAnalysis\(\s*this\.state\.round\.year/.test(orchestrator),
@@ -454,8 +458,8 @@ assertOk(
 )
 assertIncludes(saveManager, 'let saveOperationTail: Promise<void> = Promise.resolve()', 'save operations must share one serialization tail')
 assertIncludes(saveManager, 'function enqueueSaveOperation<T>', 'save manager must expose one internal serialization helper')
-assertIncludes(saveManager, 'interface SaveDirTransaction', 'save directory replacement must remain rollback-capable until index commit')
-assertIncludes(saveManager, 'transaction = await replaceSaveDir(', 'manual and automatic saves must use the shared directory transaction')
+assertIncludes(saveManager, 'interface SaveDirectoryTransaction', 'save directory replacement must remain rollback-capable until index commit')
+assertIncludes(saveManager, 'transaction = await replaceSaveDirectory(', 'manual and automatic saves must use the shared directory transaction')
 assertIncludes(saveManager, 'await transaction.commit()', 'save index success must explicitly commit the directory transaction')
 assertIncludes(saveManager, 'await transaction.rollback()', 'save index failure must restore the previous directory')
 assertOk(
@@ -477,8 +481,9 @@ assertIncludes(preGen, 'inspectNarrativeResponseQuality(fullContent, wordCountTa
 assertIncludes(preGen, 'const isBranchPoint = responseQuality.parsed.branch === true', 'pre-generated branch detection must use only the strictly parsed first response')
 assertIncludes(preGen, 'fullContent,\n            isBranchPoint,\n            signature,', 'pre-generation must cache the complete first response without synthesizing settlement data')
 assertOk(
-  !preGen.includes('parseNarrativeSettlementEnvelope')
-    && !preGen.includes('translateNarrativeAISettlement')
+  !preGen.includes('parseNarrativeDataAnalysisEnvelope')
+    && !preGen.includes('parseNarrativeBasicAttributeAnalysisEnvelope')
+    && !preGen.includes('parseNarrativeEventRecognitionEnvelope')
     && !preGen.includes('handleNarrativeResponse('),
   'preview generation must not run or commit data analysis or event recognition',
 )
@@ -498,51 +503,61 @@ assertOk(
   'due causal events must be previewed without consumption and committed only after narrative acceptance',
 )
 assertOk(
-  causalDelaySource.includes('capturePreviewState(): CausalDelaySnapshotV1')
+  causalDelaySource.includes('capturePreviewState(): CausalDelaySnapshotV2')
     && causalDelaySource.includes('restoreCollectedState(snapshot: unknown)')
     && causalDelaySource.includes('causalEvents: this.causalEvents'),
   'causal pending and terminal states must participate in preview and save restoration',
 )
 assertOk(
-  orchestrator.includes('this.pendingNarrativeCausalEventIds = triggeredCausality.triggeredEvents.map')
-    && orchestrator.indexOf('causalDelay.commitCausalTriggers(')
-      > orchestrator.indexOf('if (parsed.semanticSignals)'),
-  'orchestrator must confirm due causality only inside the validated semantic commit path',
+  orchestrator.includes("orchestrator['pendingNarrativeCausalEventIds'] = triggeredCausality.triggeredEvents.map")
+    && narrativeEventRecognitionRuntime.indexOf('causalDelay.commitCausalDispositions(')
+      > narrativeEventRecognitionRuntime.indexOf('const dispositions = parsed.deliveredCausalDispositions ?? []'),
+  'orchestrator must resolve or reschedule due causality only inside the validated event-recognition commit path',
 )
 const campaignQuality = read('src/mods/mod-engine/campaigns/default/index.ts')
+const aiClientQuality = readModuleSource('src/core/ai-service/ai-client.ts', root)
 assertIncludes(campaignQuality, "name: 'ai-narration'", 'Campaign must declare the first pure narrative stage')
 assertIncludes(campaignQuality, "name: 'publish-narrative'", 'Campaign must publish the accepted story before background analysis')
 assertIncludes(campaignQuality, "name: 'ai-data-analysis'", 'Campaign must declare the background data-analysis stage')
 assertIncludes(campaignQuality, "name: 'ai-event-recognition'", 'Campaign must declare the background event-recognition stage')
+assertIncludes(campaignQuality, "name: 'ai-macro-impact'", 'Campaign must declare the background macro-impact stage')
 assertOk(
-  campaignQuality.match(/parallelGroup: 'narrative-background-analysis'/gu)?.length === 2
-    && campaignQuality.includes("dependsOn: ['ai-data-analysis', 'ai-event-recognition']"),
-  'data analysis and event recognition must run in one explicit parallel group before post-processing',
+  campaignQuality.match(/parallelGroup: 'narrative-background-analysis'/gu)?.length === 4
+    && campaignQuality.includes("dependsOn: ["),
+  'four background analyses must launch in one explicit parallel group before post-processing',
 )
 assertIncludes(campaignQuality, 'inspectNarrativeResponseQuality(', 'main and preview generation must inspect the complete first response')
-assertIncludes(campaignQuality, 'inspectNarrativeSettlementQuality({', 'real rounds must inspect the complete second response before commit')
+assertIncludes(campaignQuality, 'inspectNarrativeDataAnalysisQuality({', 'real rounds must inspect the complete data-analysis response before commit')
+assertIncludes(campaignQuality, 'inspectNarrativeBasicAttributeAnalysisQuality({', 'real rounds must inspect the complete basic-attribute response before commit')
 assertIncludes(campaignQuality, 'inspectNarrativeEventRecognitionQuality({', 'real rounds must strictly inspect the future-event response before commit')
+assertIncludes(campaignQuality, 'inspectNarrativeMacroImpactQuality({', 'real rounds must strictly inspect the macro-impact DAG before commit')
 assertOk(
   campaignQuality.includes('const MAX_FORMAT_REPAIR_ATTEMPTS = 2')
-    && campaignQuality.match(/repairAttempts < MAX_FORMAT_REPAIR_ATTEMPTS/gu)?.length === 3
-    && campaignQuality.includes('callAIWithPromptTemplate(promptTemplate, segments.full, {')
-    && campaignQuality.includes("callStructuredAnalysis('结算', settlementRejection, narrativeSettlementPrompt, joinedInput, {")
-    && campaignQuality.includes("callStructuredAnalysis('事件识别', eventRecognitionRejection, narrativeEventRecognitionPrompt, joinedInput, {"),
-  'each response type must reuse its original asset and dynamic messages for at most two format repairs',
+    && campaignQuality.match(/repairAttempts < MAX_FORMAT_REPAIR_ATTEMPTS/gu)?.length === 1
+    && campaignQuality.includes('callAIWithPromptTemplate(promptTemplate, segments.full, callOptions)')
+    && /callStructuredAnalysis\(\s*'数据分析',\s*dataAnalysisRejection,\s*narrativeDataAnalysisPrompt,\s*joinedInput,\s*callOptions/u.test(campaignQuality)
+    && /callStructuredAnalysis\(\s*'基础属性分析',\s*basicAttributeAnalysisRejection,\s*narrativeBasicAttributePrompt,\s*joinedInput,\s*callOptions/u.test(campaignQuality)
+    && /callStructuredAnalysis\(\s*'事件识别',\s*eventRecognitionRejection,\s*narrativeEventRecognitionPrompt,\s*joinedInput,\s*callOptions/u.test(campaignQuality)
+    && /callStructuredAnalysis\(\s*'宏观影响分析',\s*macroImpactRejection,\s*narrativeMacroImpactPrompt,\s*joinedInput,\s*callOptions/u.test(campaignQuality)
+    && aiClientQuality.includes('export async function validateWithRetry')
+    && aiClientQuality.includes('const retryResult = await retryCall('),
+  'main narrative keeps bounded repair while each structured analysis uses one shared JSON-schema repair',
 )
 assertOk(
   campaignQuality.includes("const STRUCTURED_ANALYSIS_REASONING_EFFORT = 'disabled' as const")
-    && campaignQuality.match(/reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT/gu)?.length === 6,
-  'background settlement and event recognition must reserve their output budget for bounded machine results',
+    && campaignQuality.match(/reasoningEffort: STRUCTURED_ANALYSIS_REASONING_EFFORT/gu)?.length === 12,
+  'all four background analyses must reserve their output budget for bounded machine results',
 )
 assertOk(
   campaignQuality.includes('if (!isAiResponseTruncatedError(error)) throw error')
-    && campaignQuality.includes('已停止本轮收束并保留已生成正文'),
-  'truncated background responses must terminate before format repair while preserving the published narrative projection',
+    && campaignQuality.includes('该后台分析未提交，已生成正文和其他后台结果不受影响'),
+  'truncated background responses must terminate before format repair without blocking accepted prose or sibling owners',
 )
 assertIncludes(campaignQuality, '⟦上一版叙事响应⟧${response}', 'first-response repair must retain the complete rejected response')
-assertIncludes(campaignQuality, 'buildNarrativeSettlementRepairInstruction(quality, response)', 'settlement repair must retain and repair the complete rejected settlement')
-assertIncludes(campaignQuality, 'buildNarrativeEventRecognitionRepairInstruction(quality, response)', 'event-recognition repair must retain and repair the complete rejected response')
+assertOk(
+  !/buildNarrative(?:DataAnalysis|BasicAttributeAnalysis|EventRecognition)RepairInstruction/u.test(campaignQuality),
+  'background analysis must not retain a second manual repair owner beside AI-client JSON Schema validation',
+)
 const qualityOrchestrator = read('src/mods/mod-engine/subsystems/orchestrator-system.ts')
 assertOk(
   campaignQuality.includes('const requestBranch = useEngineStore.getState().forceBranchNext')
@@ -551,9 +566,16 @@ assertOk(
     && qualityOrchestrator.includes('branchOptions: []'),
   'forced branching must request AI options but commit a custom-input branch point when a complete response omits them',
 )
-assertIncludes(campaignQuality, 'if (orchestrator.isPreviewExecution()) return', 'preview execution must stop before player publication and both background AI stages')
-assertIncludes(campaignQuality, 'if (!ctx._settledNarrative)', 'a missing or twice-rejected settlement must not reach post-processing')
-assertIncludes(campaignQuality, 'if (!ctx._recognizedEventCandidates)', 'a missing or twice-rejected event candidate set must not reach post-processing')
+assertIncludes(campaignQuality, 'if (orchestrator.isPreviewExecution()) return', 'preview execution must stop before player publication and all background AI stages')
+assertIncludes(campaignQuality, 'runNonBlockingBackgroundLaunch(', 'background assembly and registration failures must remain local to their owner')
+assertIncludes(campaignQuality, 'orchestrator.recordNarrativeBackgroundLaunchFailure({ kind, narrativeId, error })', 'non-blocking background launch failures must report their owner and narrative identity')
+assertOk(
+  !campaignQuality.includes('if (!ctx._basicAttributeChanges)')
+    && !campaignQuality.includes('if (!ctx._dataChanges)')
+    && !campaignQuality.includes('if (!ctx._recognizedEventCandidates)')
+    && campaignQuality.includes('await orchestrator.ensureCompressionGate()'),
+  'background AI results must not gate post-processing; only compression may block the next round',
+)
 const roundHooks = read('src/mods/mod-engine/hooks.ts')
 assertIncludes(roundHooks, 'const roundSnapshot = orchestrator.capturePreviewSnapshot()', 'real rounds must capture the complete runtime rollback point before advancing time')
 assertIncludes(roundHooks, 'orchestrator.restorePreviewSnapshot(roundSnapshot)', 'failed narrative rounds must roll back time, Store state, and subsystem state')
@@ -571,8 +593,8 @@ assertOk(
   'the next preview must start only after the real round outcome snapshot is finalized',
 )
 assertOk(
-  (qualityOrchestrator.match(/this\.isPreviewExecution\(\) \|\| !this\.roundDiagnostic/g) ?? []).length >= 6
-    && qualityOrchestrator.includes('if (this.isPreviewExecution()) return\n    const report = this.roundDiagnostic?.report'),
+  roundDiagnosticController.includes('if (context.preview) return')
+    && (roundDiagnosticController.match(/this\.getContext\(\)\.preview/g) ?? []).length >= 7,
   'preview execution must not append phases, quality, adoption, persistence, or system events to the real-round diagnostic',
 )
 assertIncludes(qualityOrchestrator, 'this.lastExecutedFullContent = null', 'every execution must clear stale full-content state before running stages')
@@ -585,9 +607,13 @@ assertOk(
   'uncommitted first-response text must never stream into player-visible state',
 )
 assertIncludes(campaignQuality, "error.name = 'NarrativeGenerationRejectedError'", 'first-response rejection must be distinguishable from an unexpected runtime error')
-assertIncludes(campaignQuality, "error.name = 'NarrativeSettlementRejectedError'", 'settlement rejection must be distinguishable from an unexpected runtime error')
+assertIncludes(campaignQuality, "error.name = 'NarrativeDataAnalysisRejectedError'", 'data-analysis rejection must be distinguishable from an unexpected runtime error')
+assertIncludes(campaignQuality, "error.name = 'NarrativeBasicAttributeAnalysisRejectedError'", 'basic-attribute rejection must be distinguishable from an unexpected runtime error')
+assertIncludes(campaignQuality, "error.name = 'NarrativeEventRecognitionRejectedError'", 'event-recognition rejection must be distinguishable from an unexpected runtime error')
 assertIncludes(roundHooks, "err.name === 'NarrativeGenerationRejectedError'", 'handled narrative rejection must not be reported as an unexpected console error')
-assertIncludes(roundHooks, "|| err.name === 'NarrativeSettlementRejectedError'", 'handled settlement rejection must not be reported as an unexpected console error')
+assertIncludes(roundHooks, "err.name === 'NarrativeDataAnalysisRejectedError'", 'handled data-analysis rejection must not be reported as an unexpected console error')
+assertIncludes(roundHooks, "|| err.name === 'NarrativeBasicAttributeAnalysisRejectedError'", 'handled basic-attribute rejection must not be reported as an unexpected console error')
+assertIncludes(roundHooks, "|| err.name === 'NarrativeEventRecognitionRejectedError'", 'handled event-recognition rejection must not be reported as an unexpected console error')
 const waitCompressionIndex = preGen.indexOf('await orchestrator.waitForBackgroundCompression()')
 const previewSnapshotIndex = preGen.indexOf('const snapshot = orchestrator.capturePreviewSnapshot()')
 assertOk(
@@ -665,9 +691,9 @@ assertIncludes(
   'round advancement must verify the actual runtime bindings instead of trusting UI readiness alone',
 )
 
-const gameStory = read('src/mods/mod-pages/pages/game-story/page.tsx')
+const gameStory = readDirectorySource('src/mods/mod-pages/pages/game-story', root, ['.ts', '.tsx'])
 const engineStore = read('src/mods/mod-engine/store.ts')
-const narrativeTimeline = read('src/mods/mod-ui/components/organisms/NarrativeTimeline.tsx')
+const narrativeTimeline = readDirectorySource('src/mods/mod-ui/components/organisms', root, ['.ts', '.tsx'])
 assertIncludes(gameStory, 'runtimeReadiness,', 'the story page must consume engine-owned runtime readiness')
 assertOk(!gameStory.includes('allModsLoaded'), 'the story page must not gate simulation controls on loader UI state alone')
 assertIncludes(gameStory, '核心系统未完整加载', 'the story page must distinguish incomplete registration from normal initialization')
@@ -689,7 +715,8 @@ assertOk(
 )
 assertOk(
   gameStory.includes('pendingNarrative.roundSequence > totalRounds')
-    && gameStory.includes('showGenerationCursor={isAdvancing && !hasVisiblePendingNarrative}')
+    && (gameStory.includes('showGenerationCursor={isAdvancing && !hasVisiblePendingNarrative}')
+      || gameStory.includes('showGenerationCursor: isAdvancing && !hasVisiblePendingNarrative'))
     && gameStory.includes('正文已生成，但本轮未完成结算')
     && narrativeTimeline.includes('if (showGenerationCursor)')
     && narrativeTimeline.includes('const canTapAdvance = showAdvance && !advanceBlocked && !isGenerating'),
@@ -718,7 +745,7 @@ assertIncludes(
   'pre-generation must always request a complete non-streaming first response',
 )
 assertOk(
-  /memoryLifecycle\.scoreImportance\(\s*narrative,\s*roundSequence,\s*this\.state\.round\.year,\s*this\.worldSetting\?\.contextId/.test(orchestrator),
+  /memoryLifecycle\.scoreImportance\(\s*accepted\.narrative\.narrative,\s*accepted\.roundSequence,\s*accepted\.roundContext\.round\.year,\s*accepted\.roundContext\.contextId/.test(orchestrator),
   'orchestrator memory scoring must keep roundSequence distinct from calendar year and attach the current context',
 )
 

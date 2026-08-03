@@ -1,10 +1,10 @@
-'use client'
-
 /**
- * @file useWorldCustomize.ts
- * @description 世界自定义页面核心 Hook —— 宏观维度编辑 + 描述 + 锁定 + 一致性确认
- * @mod mod-pages
+ * Purpose: Coordinate the world-customization draft, confirmation, and navigation flow.
+ * Owner: mod-pages/world-customize
+ * Responsibility: Hook state orchestration only; configuration translation lives in world-customize-config.
  */
+
+'use client'
 
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
@@ -14,13 +14,7 @@ import { buildOrchestratorWorldSetting, orchestrator } from '@/mods/mod-engine/e
 import { useCharacterStore } from '@/mods/mod-character'
 import {
   useWorldStore,
-  buildCoherenceLocksFromUi,
-  mapPowerSystemZhToTag,
-  mapWorldviewEssenceZhToTag,
-  SPATIAL_FORM_ZH_MAP,
-  COHERENCE_LOCK_FIELD_MAP,
   formatCalibrationSummary,
-  createDefaultPowerFramework,
 } from '@/mods/mod-world'
 import { commitWorldInitialization } from '@/mods/mod-world/world-init-api'
 import type { WorldConfig } from '@/mods/mod-world'
@@ -28,130 +22,14 @@ import type { WorldConfig } from '@/mods/mod-world'
 import { useWorldCoherenceConfirm } from '../../hooks/useWorldCoherenceConfirm'
 import { WORLD_CUSTOMIZE_DRAFT_KEY } from '../../helpers/creation-draft-storage'
 import { buildFieldDefs, type EditableField, type FieldMode } from './world-customize.types'
-
-const DIMENSION_FIELD_KEYS = [
-  'universeScale',
-  'worldviewEssence',
-  'powerSystem',
-  'powerFramework',
-] as const
-
-const COHERENCE_LOCKABLE_KEYS = new Set(Object.keys(COHERENCE_LOCK_FIELD_MAP))
-
-function buildDimensionModes(fieldModes: Record<string, FieldMode>): Record<string, FieldMode> {
-  return Object.fromEntries(
-    DIMENSION_FIELD_KEYS.map((k) => [k, normalizeFieldMode(fieldModes[k])]),
-  )
-}
-
-function buildDimensionValues(
-  fieldModes: Record<string, FieldMode>,
-  fieldValues: Record<string, string>,
-  customValues: Record<string, string>,
-): Record<string, string> {
-  return Object.fromEntries(
-    DIMENSION_FIELD_KEYS.map((k) => {
-      const mode = normalizeFieldMode(fieldModes[k])
-      if (mode === 'custom') return [k, customValues[k] || '']
-      if (mode === 'adaptive') return [k, fieldValues[k] || '']
-      return [k, '']
-    }),
-  )
-}
-
-function buildActiveCoherenceLocks(coherenceLocks: Record<string, boolean>): Record<string, boolean> {
-  return Object.fromEntries(
-    DIMENSION_FIELD_KEYS.map((k) => [k, coherenceLocks[k] === true]),
-  )
-}
-
-function normalizeFieldMode(mode: unknown): FieldMode {
-  if (mode === 'custom') return 'custom'
-  if (mode === 'adaptive') return 'adaptive'
-  return 'ai'
-}
-
-interface SavedFieldsState {
-  worldCode?: number
-  worldName?: string
-  fieldModes: Record<string, FieldMode>
-  fieldValues: Record<string, string>
-  customValues: Record<string, string>
-  worldDescription?: string
-  coherenceLocks?: Record<string, boolean>
-}
-
-function resolveWorldConfig(
-  baseFields: EditableField[],
-  worldDescription: string,
-  coherenceLocks: Record<string, boolean>,
-  existingConfig?: WorldConfig | null,
-): WorldConfig {
-  const getEffectiveValue = (key: string): string => {
-    const field = baseFields.find((f) => f.key === key)
-    if (!field) return ''
-    if (field.mode === 'custom' && field.customValue) return field.customValue
-    if (field.mode === 'adaptive' && field.playerValue) return field.playerValue
-    return ''
-  }
-
-  const powerSystemVal = getEffectiveValue('powerSystem')
-  const worldviewVal = getEffectiveValue('worldviewEssence')
-  const powerSystemTag = powerSystemVal
-    ? mapPowerSystemZhToTag(powerSystemVal)
-    : existingConfig?.powerSystemTag ?? 'none'
-  const essenceTag = worldviewVal
-    ? mapWorldviewEssenceZhToTag(worldviewVal)
-    : existingConfig?.essenceTag ?? 'modern'
-
-  const powerFrameworkVal = getEffectiveValue('powerFramework')
-  const progression = powerFrameworkVal.includes('开放')
-    ? 'open' as const
-    : existingConfig?.powerFramework?.progression ?? 'bounded'
-
-  const spatialVal = getEffectiveValue('universeScale')
-  const spatialForm = spatialVal
-    ? SPATIAL_FORM_ZH_MAP[spatialVal] ?? 'plane'
-    : existingConfig?.spatialForm ?? 'plane'
-
-  const civilizationStage = existingConfig?.civilizationStage ?? 'medieval'
-
-  const templateDescriptionPattern = /^.+世界观 · .+空间形态$/
-  const trimmedDesc = worldDescription.trim()
-  const hasCustomDescription = trimmedDesc.length > 0
-  const hasExistingDescription = existingConfig?.description
-    && !templateDescriptionPattern.test(existingConfig.description)
-
-  const description = hasCustomDescription
-    ? trimmedDesc
-    : hasExistingDescription
-      ? existingConfig!.description
-      : `${powerSystemVal || powerSystemTag} 世界观 · ${spatialVal || spatialForm} 空间形态`
-
-  const hasExistingName = existingConfig?.name && existingConfig.name !== '自定义世界'
-
-  return {
-    name: hasExistingName ? existingConfig!.name : '自定义世界',
-    spatialForm,
-    essenceTag,
-    powerSystemTag,
-    powerFramework: createDefaultPowerFramework(powerSystemTag, {
-      progression,
-      source: 'world-custom',
-      label: baseFields.find((field) => field.key === 'powerFramework')?.mode === 'custom' && powerFrameworkVal
-        ? powerFrameworkVal
-        : undefined,
-    }),
-    civilizationStage,
-    difficulty: existingConfig?.difficulty ?? 'normal',
-    worldType: existingConfig?.worldType,
-    description,
-    _aiFlags: Object.fromEntries(
-      DIMENSION_FIELD_KEYS.map((k) => [k, baseFields.find((f) => f.key === k)?.mode === 'ai']),
-    ),
-    _coherenceLocks: buildCoherenceLocksFromUi(buildActiveCoherenceLocks(coherenceLocks)),
-  }
-}
+import {
+  buildDimensionModes,
+  buildDimensionValues,
+  isCoherenceLockable,
+  normalizeFieldMode,
+  resolveWorldConfig,
+  type SavedFieldsState,
+} from './world-customize-config'
 
 export interface UseWorldCustomizeReturn {
   fields: EditableField[]
@@ -387,7 +265,7 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
     setCustomValue,
     setWorldDescription,
     toggleCoherenceLock,
-    isCoherenceLockable: (key) => COHERENCE_LOCKABLE_KEYS.has(key),
+    isCoherenceLockable,
     save,
     skip,
     isSaving,

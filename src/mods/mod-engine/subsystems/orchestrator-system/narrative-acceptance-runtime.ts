@@ -1,0 +1,141 @@
+/**
+ * Purpose: Accept validated main narrative text and register its stable round identity.
+ * Owner: mod-engine
+ * Responsibility: Publish visible narrative state and causal delivery without running post-narrative analysis.
+ */
+
+import { eventBus } from '@/core'
+import type { AcceptedNarrativeResult, OrchestratorSystem } from '../orchestrator-system'
+import {
+  buildNarrativeTimeContext,
+  calculateNarrativeRepetitionMetric,
+  causalDelay,
+  summarizeNarrativeRepetitionMetrics,
+  type NarrativeTransitionAuditSnapshot,
+  type ParsedNarrative,
+} from '../../orchestrator-shared'
+
+export function acceptNarrativeResponseRuntime(
+  orchestrator: OrchestratorSystem,
+  parsed: ParsedNarrative): AcceptedNarrativeResult {
+  const narrative = parsed.narrative.trim()
+  if (!narrative) throw new Error('提交候选缺少正文')
+
+  const roundContext = structuredClone(orchestrator['buildRoundContext']())
+  const roundSequence = roundContext.roundSequence ?? orchestrator['state'].totalRounds
+  const narrativeId = `narrative-${orchestrator['state'].lifeRunId}-${roundSequence}`
+  if (orchestrator['acceptedNarrativeRecords'].has(narrativeId)) {
+    throw new Error(`正文已经接纳：${narrativeId}`)
+  }
+
+  const deliveredCausalEventIds = [...orchestrator['pendingNarrativeCausalEventIds']]
+  const ageAtRound = orchestrator['computeNarrativeAge'](roundContext)
+  const displayTimeLabel = buildNarrativeTimeContext(
+    roundContext,
+    orchestrator['worldSetting'],
+  ).timeLabel
+  const repetitionMetric = calculateNarrativeRepetitionMetric({
+    round: roundSequence,
+    text: narrative,
+    recentHistory: orchestrator['state'].narrativeHistory.map((entry, index) => ({
+      round: Math.max(1, roundSequence - orchestrator['state'].narrativeHistory.length + index),
+      text: entry.text,
+    })),
+    windowSize: 5,
+  })
+  const storyRepetitionStats = summarizeNarrativeRepetitionMetrics([
+    ...orchestrator['state'].narrativeHistory
+      .map((entry) => entry.repetitionMetric)
+      .filter((metric): metric is NonNullable<typeof metric> => Boolean(metric)),
+    repetitionMetric,
+  ])
+  const transitionAudit: NarrativeTransitionAuditSnapshot = {
+    schemaVersion: 1,
+    round: roundSequence,
+    narrativeId,
+    validatedWritePath: true,
+    interceptorPassed: true,
+    intentValidationPassed: true,
+    historicalCommitPassed: true,
+    structuredDataPresent: false,
+    structuredDataAccepted: true,
+    requestedChangeCount: 0,
+    committedChangeCount: 0,
+    rejectedChangeCount: 0,
+    trusted: true,
+    validationClean: true,
+    reasons: [],
+  }
+  const branchMeta = orchestrator['resolveBranchFromParsed'](parsed)
+
+  orchestrator['state'].currentNarrative = narrative
+  orchestrator['state'].narrativeHistory.push({
+    id: narrativeId,
+    text: narrative,
+    isComplete: true,
+    timestamp: Date.now(),
+    contextId: orchestrator['worldSetting']?.contextId,
+    memoryScope: orchestrator['worldSetting']?.contextId ? 'context' : 'global',
+    contextName: orchestrator['worldSetting']?.name,
+    totalDays: roundContext.totalDays,
+    displayAge: ageAtRound,
+    displayTimeLabel,
+    repetitionMetric,
+    transitionAudit,
+    ...(branchMeta.isBranchPoint
+      ? {
+          isBranchPoint: true,
+          branchTitle: branchMeta.branchTitle,
+          branchOptions: branchMeta.branchOptions,
+        }
+      : {}),
+  })
+  orchestrator['state'].storyRepetitionStats = storyRepetitionStats
+  orchestrator['lastNarratedTimeStep'] = { ...orchestrator['state'].timeStep }
+  orchestrator['acceptedNarrativeRecords'].set(narrativeId, {
+    schemaVersion: 1,
+    lifeRunId: orchestrator['state'].lifeRunId,
+    roundSequence,
+    narrativeId,
+    acceptedAt: Date.now(),
+    roundContext,
+    narrative: structuredClone(parsed),
+    deliveredCausalEventIds,
+    focusedIntentId: orchestrator['focusedBranchIntentId'],
+  })
+  if (deliveredCausalEventIds.length > 0) {
+    causalDelay.markCausalEventsPresented(deliveredCausalEventIds, narrativeId, roundSequence)
+  }
+  orchestrator['pendingNarrativeCausalEventIds'] = []
+  orchestrator['collectSubsystemStates'](false, false)
+
+  orchestrator['recordSystemDiagnostic']('round-commit', 'narrative-adopted', 'ok', {
+    narrativeId,
+    roundSequence,
+    deliveredCausalEventIds,
+  })
+  orchestrator['setRoundAdoption']({
+    responseReceived: true,
+    narrativeAdopted: true,
+    structuredDataPresent: false,
+    structuredDataAccepted: true,
+    requestedChangeCount: 0,
+    committedChangeCount: 0,
+    rejectedChangeCount: 0,
+    rejectedReasons: [],
+    narrativeId,
+    narrativeChars: narrative.length,
+  })
+
+  const result: AcceptedNarrativeResult = {
+    narrative,
+    narrativeId,
+    roundSequence,
+    deliveredCausalEventIds,
+    changes: [],
+    notableEvents: [],
+  }
+  eventBus.emit('mod-engine:round-complete', result)
+  orchestrator['publishSimulationSnapshot']()
+  return result
+}

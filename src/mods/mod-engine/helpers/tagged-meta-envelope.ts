@@ -1,6 +1,6 @@
 /**
  * @module tagged-meta-envelope.ts
- * @description 两次 AI 调用的完整内容分段解析
+ * @description 主叙事 AI 的完整标签信封解析
  * @mod mod-engine
  */
 
@@ -9,38 +9,14 @@ import { unwrapCompleteMarkdownFence } from '@/core/ai-service/parse-ai-json'
 import {
   NARRATIVE_BODY_TAG,
   NARRATIVE_BRANCH_TAG,
-  NARRATIVE_DATA_TAG,
-  NARRATIVE_EVENT_CANDIDATES_TAG,
   NarrativeAIBranchSchema,
-  NarrativeAIEventRecognitionDataSchema,
-  NarrativeAISettlementDataSchema,
-  NarrativeAISystemInstructionSchema,
   parseNarrativeAIJson,
   type NarrativeAIBranch,
-  type NarrativeAIEventRecognitionData,
-  type NarrativeAISettlementData,
-  type NarrativeAISystemInstruction,
 } from './narrative-ai-protocol'
 
 export interface NarrativeResponseEnvelope {
   narrative: string
   branch?: NarrativeAIBranch
-}
-
-export interface NarrativeSettlementEnvelope {
-  systemInstructions: NarrativeAISystemInstruction[]
-  data: NarrativeAISettlementData
-}
-
-export interface NarrativeEventRecognitionEnvelope {
-  data: NarrativeAIEventRecognitionData
-}
-
-interface SettlementTag {
-  index: number
-  end: number
-  kind: 'system' | 'data'
-  number?: number
 }
 
 function normalizeResponse(content: string): string {
@@ -114,93 +90,7 @@ export function parseNarrativeResponseEnvelope(content: string): NarrativeRespon
   }
 }
 
-function collectSettlementTags(content: string): SettlementTag[] {
-  const tags: SettlementTag[] = []
-  const pattern = /⟦(?:系统([1-9]\d*)|数据)⟧/gu
-  for (const match of content.matchAll(pattern)) {
-    const index = match.index ?? 0
-    tags.push({
-      index,
-      end: index + match[0].length,
-      kind: match[1] ? 'system' : 'data',
-      ...(match[1] ? { number: Number(match[1]) } : {}),
-    })
-  }
-  return tags
-}
-
-/**
- * 第二次调用按当前标签识别完整 JSON；换行、空行、围栏和说明文字可变，
- * 连续系统编号、唯一末尾数据段及全部 Schema 仍保持严格。
- */
-export function parseNarrativeSettlementEnvelope(content: string): NarrativeSettlementEnvelope {
-  const normalized = normalizeResponse(content)
-  if (!normalized) throw new Error('结算响应不能为空')
-
-  const knownTags = collectSettlementTags(normalized)
-  const reservedTags = collectReservedTags(normalized)
-  if (reservedTags.length !== knownTags.length) {
-    throw new Error('结算响应包含当前协议无法识别的分段')
-  }
-  if (knownTags.length === 0) throw new Error(`结算响应缺少 ${NARRATIVE_DATA_TAG} 数据段`)
-
-  const systemInstructions: NarrativeAISystemInstruction[] = []
-  let data: NarrativeAISettlementData | undefined
-
-  for (const [index, tag] of knownTags.entries()) {
-    const nextTag = knownTags[index + 1]
-    const source = normalized.slice(tag.end, nextTag?.index ?? normalized.length).trim()
-    if (!source) throw new Error(`${tag.kind === 'data' ? '数据' : `系统${tag.number}`}段缺少完整 JSON`)
-
-    if (tag.kind === 'system') {
-      if (data) throw new Error('系统操作不能出现在数据段之后')
-      const expectedNumber = systemInstructions.length + 1
-      if (tag.number !== expectedNumber) {
-        throw new Error(`系统段编号必须从 1 连续递增，当前位置应为系统${expectedNumber}`)
-      }
-      systemInstructions.push(
-        NarrativeAISystemInstructionSchema.parse(parseNarrativeAIJson(source)),
-      )
-      continue
-    }
-
-    if (data) throw new Error('结算响应只能包含一个数据段')
-    if (index !== knownTags.length - 1) throw new Error('数据段必须是结算响应的最后一段')
-    data = NarrativeAISettlementDataSchema.parse(parseNarrativeAIJson(source))
-  }
-
-  if (!data) throw new Error(`结算响应缺少 ${NARRATIVE_DATA_TAG} 数据段`)
-  return { systemInstructions, data }
-}
-
-/** 事件识别调用只接受唯一待触发事件段及其完整 JSON。 */
-export function parseNarrativeEventRecognitionEnvelope(
-  content: string,
-): NarrativeEventRecognitionEnvelope {
-  const normalized = normalizeResponse(content)
-  if (!normalized) throw new Error('事件识别响应不能为空')
-
-  const tags = [...normalized.matchAll(/⟦待触发事件⟧/gu)]
-  if (tags.length !== 1) {
-    throw new Error(`事件识别响应必须包含唯一 ${NARRATIVE_EVENT_CANDIDATES_TAG} 分段`)
-  }
-  const reservedTags = collectReservedTags(normalized)
-  if (reservedTags.length !== 1 || reservedTags[0] !== NARRATIVE_EVENT_CANDIDATES_TAG) {
-    throw new Error('事件识别响应包含当前协议无法识别的分段')
-  }
-
-  const tag = tags[0]
-  const source = normalized.slice((tag.index ?? 0) + NARRATIVE_EVENT_CANDIDATES_TAG.length).trim()
-  if (!source) throw new Error(`${NARRATIVE_EVENT_CANDIDATES_TAG} 后缺少完整 JSON`)
-  return {
-    data: NarrativeAIEventRecognitionDataSchema.parse(parseNarrativeAIJson(source)),
-  }
-}
-
 export const SEGMENTED_NARRATIVE_PROTOCOL = {
   body: NARRATIVE_BODY_TAG,
   branch: NARRATIVE_BRANCH_TAG,
-  systemPrefix: '⟦系统N⟧',
-  data: NARRATIVE_DATA_TAG,
-  eventCandidates: NARRATIVE_EVENT_CANDIDATES_TAG,
 } as const

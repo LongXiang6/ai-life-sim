@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "path": "src/mods/mod-environment-ecology/subsystems/geography-system.ts",
+      "owner": "mod-environment-ecology",
+      "reviewedLines": 315,
+      "reason": "环境生态 MOD 的单一状态子系统，投影、推进和持久化共同维护同一自然状态。"
+    },
+    {
+      "path": "src/mods/mod-environment-ecology/subsystems/natural-resource-system.ts",
+      "owner": "mod-environment-ecology",
+      "reviewedLines": 383,
+      "reason": "环境生态 MOD 的单一状态子系统，投影、推进和持久化共同维护同一自然状态。"
+    }
+  ]
+}

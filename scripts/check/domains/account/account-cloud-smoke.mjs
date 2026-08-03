@@ -1,3 +1,9 @@
+/**
+ * Purpose: Regress account identity and cloud persistence against one temporary SQLite database.
+ * Owner: quality:account
+ * Responsibility: One isolated account/cloud smoke transaction only.
+ */
+
 import assert from 'node:assert/strict'
 import fs from 'node:fs/promises'
 import os from 'node:os'

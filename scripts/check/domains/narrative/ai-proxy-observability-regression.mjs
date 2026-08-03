@@ -1,8 +1,14 @@
 #!/usr/bin/env node
+/**
+ * Purpose: Audit AI proxy identity, cache, retry, logging, and diagnostics contracts across their source owners.
+ * Owner: quality:narrative
+ * Responsibility: Static observability regression only; runtime behavior is covered by focused transport tests.
+ */
 
 import fs from 'node:fs'
 import path from 'node:path'
 import process from 'node:process'
+import { readModuleSource } from '../../lib/read-module-source.mjs'
 
 const root = process.cwd()
 
@@ -17,14 +23,15 @@ function assert(condition, message) {
   }
 }
 
-const proxy = read('src/app/api/proxy/route.ts')
-const client = read('src/core/ai-service/ai-client.ts')
+const proxy = readModuleSource('src/app/api/proxy/route.ts', root)
+const client = readModuleSource('src/core/ai-service/ai-client.ts', root)
+const cachePool = read('src/core/ai-service/cache-pool.ts')
 const storySeed = read('src/core/ai-service/story-seed.ts')
-const logStore = read('src/core/logger/server-log-store.ts')
+const logStore = readModuleSource('src/core/logger/server-log-store.ts', root)
 const logSafety = read('src/core/logger/server-log-safety.ts')
-const accountService = read('src/core/account/account-service.ts')
+const accountService = readModuleSource('src/core/account/account-service.ts', root)
 const clientLogRoute = read('src/app/api/log/route.ts')
-const clientLogger = read('src/core/logger/client-logger.ts')
+const clientLogger = readModuleSource('src/core/logger/client-logger.ts', root)
 const debugLogRoute = read('src/app/api/debug-log/route.ts')
 const debugLogger = read('src/core/logger/debug-logger.ts')
 const debugLogPage = read('src/mods/mod-pages/pages/debug-log/page.tsx')
@@ -54,6 +61,19 @@ assert(
   /seed:\s*z\.preprocess\([\s\S]{0,120}normalizeProxyStorySeedInput[\s\S]{0,120}z\.number\(\)\.finite\(\)\.optional\(\)/.test(proxy)
     && /value === null \? undefined : value/.test(storySeed),
   'proxy must normalize cached legacy seed=null requests to an omitted seed',
+)
+assert(
+  /cache_pool:\s*z\.enum\(INTERNAL_CACHE_POOLS\)/.test(proxy)
+    && /cache_pool:\s*resolveInternalCachePool\(pool, options\?\.logContext\?\.callKind\)/.test(client)
+    && cachePool.includes("'narrative-main'")
+    && cachePool.includes("'narrative-data-analysis-repair'"),
+  'every proxy request must carry one centrally registered internal cache pool',
+)
+assert(
+  /update\(`\$\{normalizedTrustedUserId\}\|\$\{body\.cache_pool\}`\)/.test(proxy)
+    && /forwardBody\.user_id = `als_\$\{body\.cache_pool\}_\$\{subjectPoolHash\}`/.test(proxy)
+    && /if \(!isDeepSeekTarget && body\.seed !== undefined\) forwardBody\.seed = body\.seed/.test(proxy),
+  'DeepSeek identity must be stable per trusted subject and cache pool while omitting forwarded seed',
 )
 assert(
   !/MAX_RETRY_COUNT|shouldReject|Retry limit exceeded/.test(proxy),
@@ -144,9 +164,9 @@ const infoLoggerMethod = clientLogger.match(/info\(module:[\s\S]*?\n  },\n\n  wa
 assert(
   debugLoggerMethod.includes('rememberLocalDiagnostic({')
     && infoLoggerMethod.includes('rememberLocalDiagnostic({')
-    && !debugLoggerMethod.includes('sendToServer({')
-    && !infoLoggerMethod.includes('sendToServer({')
-    && /reportUsageMetric[\s\S]{0,360}sendToServer\(\{/.test(clientLogger),
+    && !debugLoggerMethod.includes('sendClientDiagnostic({')
+    && !infoLoggerMethod.includes('sendClientDiagnostic({')
+    && /reportUsageMetric[\s\S]{0,360}sendClientDiagnostic\(\{/.test(clientLogger),
   'debug/info diagnostics must stay local while explicit quality metrics remain server-reported',
 )
 assert(

@@ -120,6 +120,7 @@ export {
   getAttrSemantic,
   getAllAttrSemantics,
   ATTR_TIER_DESCRIPTIONS,
+  VISIBLE_ATTR_VALUE_DESCRIPTIONS,
   HIDDEN_ATTRS,
   VISIBLE_ATTR_KEYS,
 } from './utils/attr-tiers'

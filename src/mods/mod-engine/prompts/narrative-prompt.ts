@@ -26,7 +26,7 @@ export const WORLD_RULES: Record<string, string> = {
 }
 
 /** 公开 ID 只用于请求服务端资产；不包含任何固定 Prompt 文本。 */
-export const NARRATIVE_SERVER_PROMPT_ASSET_ID = 'mod-engine:narrative:5.8.1'
+export const NARRATIVE_SERVER_PROMPT_ASSET_ID = 'mod-engine:narrative:5.8.2'
 
 /**
  * 世界观参考注入函数。
@@ -44,7 +44,7 @@ export function getWorldRules(essenceTag?: string): string {
 
 export const narrativePrompt: PromptTemplate = {
   name: 'narrative',
-  version: '5.8.1',
+  version: '5.8.2',
   mod: 'mod-engine',
   systemPrompt: '',
   serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID,

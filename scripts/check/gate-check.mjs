@@ -1,10 +1,7 @@
 #!/usr/bin/env node
 /**
- * PDCA C闸一键验证：C0 game changelog → C1 lint ╲ C2 tsc → C3 check
- * --quick：L1 快速路径（check:quick，跳过叙事回归与全量 PS 扫描）
- * --error-only：C3 后输出 FAIL 摘要（reports/checker-*.json）
- *
- * C1 和 C2 并行执行（lint / tsc 互不依赖），失败汇总后统一退出。
+ * @module gate-check.mjs
+ * @description C0 变更记录 -> C1 lint / C2 tsc 并行 -> C3 领域检查的唯一门禁
  */
 
 import { spawn } from 'node:child_process'
@@ -12,6 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import fs from 'node:fs'
 import { cleanupOldReports } from './lib/cleanup-reports.mjs'
+import { classifyStepProcessResult } from './lib/runner.mjs'
 
 const checkDir = dirname(fileURLToPath(import.meta.url))
 const projectRoot = join(checkDir, '..', '..')
@@ -21,42 +19,73 @@ const verbose = process.argv.includes('--verbose')
 const quiet = !verbose
 const errorOnly = process.argv.includes('--error-only') || quiet
 
-/** Resolve Windows npm shims to the current Node runtime without a shell. */
 function resolveInvocation(cmd, args) {
-  if (!isWin || (cmd !== 'npm' && cmd !== 'npx')) {
-    return { command: cmd, args }
-  }
+  if (!isWin || (cmd !== 'npm' && cmd !== 'npx')) return { command: cmd, args }
   const cliName = cmd === 'npm' ? 'npm-cli.js' : 'npx-cli.js'
   const cliPath = join(dirname(process.execPath), 'node_modules', 'npm', 'bin', cliName)
   return { command: process.execPath, args: [cliPath, ...args] }
 }
 
-/** @returns {Promise<{name:string, code:number|null, signal:string|null, stdout:string, stderr:string}>} */
-function spawnAsync(name, cmd, args, opts = {}) {
+function spawnAsync(nodeId, cmd, args, options = {}) {
   return new Promise((resolve) => {
     const invocation = resolveInvocation(cmd, args)
+    const startedAt = performance.now()
     const child = spawn(invocation.command, invocation.args, {
       cwd: projectRoot,
       stdio: 'pipe',
-      ...opts,
+      ...options,
     })
     let stdout = ''
     let stderr = ''
-    child.stdout.on('data', (d) => { stdout += d.toString() })
-    child.stderr.on('data', (d) => { stderr += d.toString() })
-    child.on('error', () => resolve({ name, code: 1, signal: null, stdout, stderr }))
-    child.on('close', (code, signal) => resolve({ name, code, signal, stdout, stderr }))
+    let finished = false
+    let timedOut = false
+
+    function finish(raw) {
+      if (finished) return
+      finished = true
+      clearTimeout(timeout)
+      const classification = classifyStepProcessResult({ ...raw, timedOut })
+      resolve({
+        nodeId,
+        ...classification,
+        code: Number.isInteger(raw.status) ? raw.status : null,
+        signal: raw.signal ?? null,
+        stdout,
+        stderr,
+        durationMs: Math.round(performance.now() - startedAt),
+      })
+    }
+
+    const timeout = setTimeout(() => {
+      timedOut = true
+      if (isWin && child.pid) {
+        const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' })
+        killer.on('error', () => child.kill())
+      } else {
+        child.kill('SIGTERM')
+      }
+    }, options.timeoutMs ?? 120_000)
+
+    child.stdout.on('data', (data) => { stdout += data.toString() })
+    child.stderr.on('data', (data) => { stderr += data.toString() })
+    child.on('error', (error) => finish({ status: null, signal: null, error: error.message }))
+    child.on('close', (status, signal) => finish({ status, signal }))
   })
 }
 
-function printStepResult({ name, code, signal, stdout, stderr }) {
-  const out = `${stdout}${stderr}`.trim()
-  if (code === 0) {
-    console.log(`[gate-check] ${name} passed`)
-    if (!quiet && out) console.log(out)
+function printPhase(phase, statusCode, resultCode, evidence = '') {
+  console.log(`[gate-check:${phase}] status=${statusCode} result=${resultCode}${evidence ? ` evidence=${evidence}` : ''}`)
+}
+
+function printStepResult(result) {
+  const output = `${result.stdout}${result.stderr}`.trim()
+  const line = `[gate-check:${result.nodeId}] status=${result.statusCode} result=${result.resultCode} durationMs=${result.durationMs}`
+  if (result.statusCode === 'succeeded') {
+    console.log(line)
+    if (!quiet && output) console.log(output)
   } else {
-    if (out) process.stderr.write(`${out}\n`)
-    console.error(`\n[gate-check] FAILED at ${name} (exit ${code ?? signal ?? 'unknown'})`)
+    if (output) process.stderr.write(`${output}\n`)
+    console.error(line)
   }
 }
 
@@ -64,86 +93,92 @@ function printErrorSummary() {
   const reportsDir = join(projectRoot, 'reports')
   if (!fs.existsSync(reportsDir)) return
   const runFiles = fs.readdirSync(reportsDir)
-    .filter((f) => f.startsWith('check-run-') && f.endsWith('.json'))
-    .map((f) => ({ f, m: fs.statSync(join(reportsDir, f)).mtimeMs }))
-    .sort((a, b) => b.m - a.m)
-  if (runFiles.length > 0) {
-    console.log(`\n[gate-check] 报告: reports/${runFiles[0].f}`)
-  }
+    .filter((file) => file.startsWith('check-run-') && file.endsWith('.json'))
+    .map((file) => ({ file, modifiedAt: fs.statSync(join(reportsDir, file)).mtimeMs }))
+    .sort((left, right) => right.modifiedAt - left.modifiedAt)
+  if (runFiles.length > 0) console.log(`\n[gate-check] 报告: reports/${runFiles[0].file}`)
+
   const files = fs.readdirSync(reportsDir)
-    .filter((f) => f.startsWith('checker-') && f.endsWith('.json'))
-    .map((f) => ({ f, m: fs.statSync(join(reportsDir, f)).mtimeMs }))
-    .sort((a, b) => b.m - a.m)
+    .filter((file) => file.startsWith('checker-') && file.endsWith('.json'))
+    .map((file) => ({ file, modifiedAt: fs.statSync(join(reportsDir, file)).mtimeMs }))
+    .sort((left, right) => right.modifiedAt - left.modifiedAt)
   if (files.length === 0) return
   try {
-    const json = JSON.parse(fs.readFileSync(join(reportsDir, files[0].f), 'utf8'))
-    const errors = (json.Results ?? []).filter((r) => r.Level === 'ERROR')
-    if (errors.length === 0) {
-      console.log('\n[gate-check] ErrorOnly 摘要: 0 FAIL')
-      return
-    }
-    console.log(`\n[gate-check] ErrorOnly 摘要 (${errors.length} FAIL):`)
-    for (const e of errors.slice(0, 30)) {
-      console.log(`  ${e.Rule} ${e.File} — ${e.Message}`)
-    }
-    if (errors.length > 30) {
-      console.log(`  ... 另有 ${errors.length - 30} 项，见 reports/${files[0].f}`)
+    const json = JSON.parse(fs.readFileSync(join(reportsDir, files[0].file), 'utf8'))
+    const errors = (json.Results ?? []).filter((result) => result.Level === 'ERROR')
+    console.log(`\n[gate-check] ErrorOnly 摘要: ${errors.length} FAIL`)
+    for (const error of errors) {
+      console.log(`  ${error.Rule} ${error.File} - ${error.Message}`)
     }
   } catch {
-    // 摘要可选
+    // PowerShell 摘要不是门禁真源；解析失败不改变已经取得的步骤状态。
   }
 }
 
 async function main() {
   cleanupOldReports(projectRoot)
-  console.log(`[gate-check] Starting PDCA C gates (${quick ? 'quick' : 'full'})${quiet ? ', quiet' : ''}...`)
+  const executionId = `gate-check-${new Date().toISOString()}-${process.pid}`
+  printPhase('prepare', 'running', 'gate-configuration-loading', executionId)
 
   const c0 = await spawnAsync(
-    'C0 game changelog',
+    'c0-game-changelog',
     'node',
     ['scripts/check/domains/ui/game-changelog-regression.mjs'],
+    { timeoutMs: 60_000 },
   )
   printStepResult(c0)
-  if (c0.code !== 0) {
-    console.error('[gate-check] Aborting after C0 failure')
-    process.exit(c0.code ?? 1)
+  if (c0.statusCode !== 'succeeded') {
+    printPhase('finalize', 'failed', 'prepare-check-failed', c0.nodeId)
+    process.exitCode = 1
+    return
   }
 
-  // ── C1 + C2: lint / tsc 并行（互不依赖） ──
+  printPhase('prepare', 'succeeded', 'gate-inputs-valid', c0.nodeId)
+  printPhase('ready', 'succeeded', 'lint-and-typescript-queued', 'parallel=2')
   const [c1, c2] = await Promise.all([
-    spawnAsync('C1 lint', 'npm', ['run', 'lint']),
-    spawnAsync('C2 tsc', 'npx', ['tsc', '--noEmit']),
+    spawnAsync('c1-lint', 'npm', ['run', 'lint'], { timeoutMs: 120_000 }),
+    spawnAsync('c2-typescript', 'npx', ['tsc', '--noEmit'], { timeoutMs: 120_000 }),
   ])
-
   printStepResult(c1)
   printStepResult(c2)
-
-  if (c1.code !== 0 || c2.code !== 0) {
-    console.error('[gate-check] Aborting after C1/C2 failure')
-    process.exit(1)
+  if (c1.statusCode !== 'succeeded' || c2.statusCode !== 'succeeded') {
+    printPhase('transition', 'failed', 'prerequisite-check-failed', `${c1.statusCode},${c2.statusCode}`)
+    printPhase('finalize', 'failed', 'gate-checks-failed')
+    process.exitCode = 1
+    return
   }
 
-  // ── C3: 结构/领域扫描（域间并行，依赖前两步通过） ──
-  const c3Name = quick ? 'C3 check:quick' : 'C3 check'
+  const c3Name = quick ? 'c3-check-quick' : 'c3-check-full'
   const c3 = await spawnAsync(c3Name, 'npm', ['run', quick ? 'check:quick' : 'check'], {
+    timeoutMs: 120_000,
     env: {
       ...process.env,
       CHECK_QUIET: quiet ? '1' : '0',
+      CHECK_UPSTREAM_STATUSES: JSON.stringify({ lint: c1.statusCode, typescript: c2.statusCode }),
     },
   })
-
   printStepResult(c3)
+  printPhase(
+    'execute',
+    c3.statusCode,
+    c3.statusCode === 'succeeded' ? 'all-gate-nodes-completed' : 'domain-check-failed',
+    c3.nodeId,
+  )
 
-  if (c3.code !== 0) {
+  if (c3.statusCode !== 'succeeded') {
     if (errorOnly) printErrorSummary()
-    process.exit(c3.code ?? 1)
+    printPhase('transition', 'failed', 'failure-results-aggregated')
+    printPhase('finalize', 'failed', 'gate-checks-failed')
+    process.exitCode = 1
+    return
   }
 
   if (errorOnly) printErrorSummary()
-  console.log('\n[gate-check] All C gates passed.')
+  printPhase('transition', 'succeeded', 'all-results-aggregated')
+  printPhase('finalize', 'succeeded', 'gate-checks-passed')
 }
 
-main().catch((e) => {
-  console.error(`[gate-check] Fatal: ${e.message ?? e}`)
-  process.exit(1)
+main().catch((error) => {
+  console.error(`[gate-check:finalize] status=failed result=unhandled-error evidence=${error.message ?? error}`)
+  process.exitCode = 1
 })

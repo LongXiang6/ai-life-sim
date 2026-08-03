@@ -1,8 +1,6 @@
-# css-scanner.ps1
-#             S16 (CSS TS alias) | S24 (       ) | S25 (         ) | S26 (             )
-#                            .css             .css/.ts/.tsx        .css/.ts/.tsx
-#          checker-utils.ps1                      dot-source
-#                             $SrcDir, $VerboseOutput
+# Purpose: Run CSS alias, variable consistency, deprecation, and token-definition checks.
+# Owner: UI static analysis
+# Responsibility: CSS-oriented source scanning only; shared reporting is provided by checker-utils.ps1.
 
 Write-Host ""
 Write-Host "                                   " -ForegroundColor Cyan
@@ -138,7 +136,7 @@ foreach ($v in $allCssVars) {
       if ($suffix -notin $knownSuffixes) {
         $loc1 = if ($cssVarDefs.ContainsKey($v)) { ($cssVarDefs[$v] | Select-Object -First 1) } elseif ($tsCssVars.ContainsKey($v)) { ($tsCssVars[$v] | Select-Object -First 1) } else { "unknown" }
         $loc2 = if ($cssVarDefs.ContainsKey($v2)) { ($cssVarDefs[$v2] | Select-Object -First 1) } elseif ($tsCssVars.ContainsKey($v2)) { ($tsCssVars[$v2] | Select-Object -First 1) } else { "unknown" }
-        Warn "S24-CSS-VAR-SIMILAR" $loc1 "" "Similar CSS variables found: '${v}' and '${v2}' — verify they are not typos of each other (see also: $loc2)"
+        Warn "S24-CSS-VAR-SIMILAR" $loc1 "" "Similar CSS variables found: '${v}' and '${v2}' - verify they are not typos of each other (see also: $loc2)"
       }
       $checkedPairs[$v] = $true
       $checkedPairs[$v2] = $true
@@ -202,7 +200,7 @@ foreach ($f in $allSrcFilesS25) {
   for ($li = 0; $li -lt $fLines.Count; $li++) {
     $line = $fLines[$li]
     if ($line.Trim() -match '^\s*(//|\*|/\*\*)') { continue }
-    if ($line -match 'deprecated|legacy|旧变量|废弃') { continue }
+    if ($line -match 'deprecated|legacy|\u65e7\u53d8\u91cf|\u5e9f\u5f03') { continue }
 
     foreach ($dv in $deprecatedVars.Keys) {
       $found = $false
@@ -224,113 +222,5 @@ $s25Errors = $E.Errors - $s25StartErrors
 $s25Warnings = $E.Warnings - $s25StartWarnings
 Write-Host "  S25-DEPRECATED-CSS-VAR: $s25Errors errors, $s25Warnings warnings" -ForegroundColor $(if ($s25Errors -gt 0) { "Red" } elseif ($s25Warnings -gt 0) { "Yellow" } else { "Green" })
 
-# === S26: Intelligent CSS variable name validation (whitelist-based) ===
-Write-Host ""
-Write-Host "  [S26] Intelligent CSS variable name validation (whitelist-based)..." -ForegroundColor Cyan
-
-$s26StartErrors = $E.Errors
-$s26StartWarnings = $E.Warnings
-
-# Build dynamic whitelist from Design Token definitions
-$tokenDir = Join-Path $SrcDir "foundation\tokens"
-$definedVars = @{}
-$validPrefixes = @{}
-
-if (Test-Path $tokenDir) {
-  $tokenFiles = @(Get-ChildItem -Path $tokenDir -Recurse -Include "*.css" -File -ErrorAction SilentlyContinue)
-  foreach ($tf in $tokenFiles) {
-    $tc = Get-FileContent $tf.FullName
-    if (-not $tc) { continue }
-    $tlines = $tc -split "`n"
-    foreach ($tl in $tlines) {
-      if ($tl -match '^\s*(--[\w-]+)\s*:') {
-        $varName = $Matches[1]
-        $definedVars[$varName] = $true
-        if ($varName -match '^(--[a-z]+-).+') {
-          $validPrefixes[$Matches[1]] = $true
-        }
-      }
-    }
-  }
-}
-
-# Safety net: standard Design Token prefixes
-$standardPrefixes = @(
-  '--color-', '--font-', '--spacing-', '--radius-',
-  '--shadow-', '--duration-', '--ease-', '--z-',
-  '--breakpoint-', '--text-on-', '--font-weight-',
-  '--font-size-', '--font-family-'
-)
-foreach ($sp in $standardPrefixes) {
-  $validPrefixes[$sp] = $true
-}
-
-$prefixCount = $validPrefixes.Count
-$varCount = $definedVars.Count
-
-# Check ALL source files for CSS var() usages against whitelist
-$allSrcFilesS26 = @(Get-ChildItem -Path $SrcDir -Recurse -Include "*.css","*.ts","*.tsx" -File -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch '[\\/](node_modules|\.next)[\\/]' })
-$suspiciousVars = @{}
-
-foreach ($f in $allSrcFilesS26) {
-  $fc = Get-FileContent $f.FullName
-  if (-not $fc) { continue }
-  $relFP = $f.FullName.Substring($SrcDir.Length + 1).Replace("\", "/")
-
-  $varMatches = [regex]::Matches($fc, 'var\(\s*(--[\w-]+)')
-  foreach ($vm in $varMatches) {
-    $varName = $vm.Groups[1].Value
-    if ($deprecatedVars.ContainsKey($varName)) { continue }
-    if ($definedVars.ContainsKey($varName)) { continue }
-
-    # A CSS fallback makes an otherwise optional local property runtime-safe.
-    $remainingLength = [Math]::Min(256, $fc.Length - $vm.Index)
-    $usageSnippet = $fc.Substring($vm.Index, $remainingLength)
-    if ($usageSnippet -match ('^var\(\s*' + [regex]::Escape($varName) + '\s*,')) { continue }
-
-    # CSS Modules may define page-local custom properties beside their usages.
-    # Accept only same-file definitions so an unrelated module cannot hide a typo.
-    $hasLocalDefinition = $false
-    if ($cssVarDefs.ContainsKey($varName)) {
-      foreach ($definition in $cssVarDefs[$varName]) {
-        if ($definition.StartsWith("${relFP}:")) {
-          $hasLocalDefinition = $true
-          break
-        }
-      }
-    }
-    if ($hasLocalDefinition) { continue }
-    if ($tsCssVars.ContainsKey($varName)) { continue }
-
-    $hasValidPrefix = $false
-    foreach ($prefix in $validPrefixes.Keys) {
-      if ($varName.StartsWith($prefix)) { $hasValidPrefix = $true; break }
-    }
-    if ($hasValidPrefix) { continue }
-
-    if (-not $suspiciousVars.ContainsKey($varName)) {
-      $suspiciousVars[$varName] = @{ Files = @{}; TotalCount = 0 }
-    }
-    $suspiciousVars[$varName].Files[$relFP] = $true
-    $suspiciousVars[$varName].TotalCount++
-  }
-}
-
-# Report with frequency-based grading
-foreach ($sv in $suspiciousVars.Keys) {
-  $info = $suspiciousVars[$sv]
-  $fileCount = $info.Files.Count
-  $sampleFiles = ($info.Files.Keys | Select-Object -First 3) -join ', '
-
-  if ($fileCount -ge 5) {
-    Warn "S26-UNKNOWN-CSS-VAR" $sampleFiles "" "CSS variable 'var(${sv})' used in $fileCount files but not found in Design Tokens. Consider adding to tokens or using a standard variable."
-  } elseif ($fileCount -ge 2) {
-    Warn "S26-UNKNOWN-CSS-VAR" $sampleFiles "" "CSS variable 'var(${sv})' used in $fileCount files but undefined. Possible typo or legacy variable."
-  } else {
-    Fail "S26-UNKNOWN-CSS-VAR" $sampleFiles "" "CSS variable 'var(${sv})' used in 1 file with no definition. Likely typo or deprecated variable — remove or define in Design Tokens."
-  }
-}
-
-$s26Errors = $E.Errors - $s26StartErrors
-$s26Warnings = $E.Warnings - $s26StartWarnings
-Write-Host "  S26-UNKNOWN-CSS-VAR: $s26Errors errors, $s26Warnings warnings (whitelist: $varCount vars, $prefixCount prefixes)" -ForegroundColor $(if ($s26Errors -gt 0) { "Red" } elseif ($s26Warnings -gt 0) { "Yellow" } else { "Green" })
+# S26 owns its own whitelist construction and reporting while sharing this scan's caches.
+. (Join-Path $PSScriptRoot 'css-scanner/unknown-variable-rule.ps1')

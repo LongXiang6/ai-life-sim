@@ -24,7 +24,6 @@ export { getRoundSequence } from './round-advance'
 export { parseChineseNumber } from './cn-number'
 export { extractDynamicAttrsFromNarrative } from './extract-dynamic-attrs'
 export type { AttrTagMap, ExtractedAttrs } from './extract-dynamic-attrs'
-export type { AttrKey, AttrTier } from './attr-tiers'
 export { useIsMobile } from './use-is-mobile'
 export { stringifyPrompt } from './stringify-prompt'
 export {

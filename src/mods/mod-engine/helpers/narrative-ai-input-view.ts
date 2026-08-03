@@ -62,10 +62,70 @@ export interface NarrativeAICharacterProfileView extends Record<string, unknown>
   姓名: string
   性别: string
   背景: string
+  基础属性: NarrativeAICharacterBaseAttributesView
 }
 
 export interface NarrativeAICharacterStatusView extends Record<string, unknown> {
   年龄: number
+}
+
+type NarrativeAttributeKey = 'physique' | 'mind' | 'talentAptitude' | 'charisma'
+
+export interface NarrativeAICharacterBaseState {
+  base: Record<NarrativeAttributeKey, number>
+  current: Record<NarrativeAttributeKey, number>
+  modifiers: Record<NarrativeAttributeKey, number>
+}
+
+export interface NarrativeAICharacterBaseAttributesView extends Record<string, unknown> {
+  字段说明: Record<string, string>
+  基础值: Record<string, number>
+  当前值: Record<string, number>
+  修正值: Record<string, number>
+  计算关系: string
+}
+
+const CHARACTER_ATTRIBUTE_DEFINITIONS: Readonly<Record<
+  NarrativeAttributeKey,
+  { label: string; description: string }
+>> = {
+  physique: { label: '体魄', description: '影响生命恢复、体力上限与抗病能力' },
+  mind: { label: '心智', description: '影响学习效率、技能上限与谋略' },
+  talentAptitude: { label: '悟性', description: '影响天赋理解、修炼与顿悟概率' },
+  charisma: { label: '魅力', description: '影响外貌气质、社交反应与关系品质' },
+}
+
+function projectCharacterBaseAttributes(
+  state: NarrativeAICharacterBaseState,
+): NarrativeAICharacterBaseAttributesView {
+  const fieldDescriptions: Record<string, string> = {}
+  const base: Record<string, number> = {}
+  const current: Record<string, number> = {}
+  const modifiers: Record<string, number> = {}
+
+  for (const [key, definition] of Object.entries(CHARACTER_ATTRIBUTE_DEFINITIONS) as Array<[
+    NarrativeAttributeKey,
+    { label: string; description: string },
+  ]>) {
+    const baseValue = state.base?.[key]
+    const currentValue = state.current?.[key]
+    const modifierValue = state.modifiers?.[key]
+    if (![baseValue, currentValue, modifierValue].every(Number.isFinite)) {
+      throw new Error(`角色基础属性缺少完整的${definition.label}数据`)
+    }
+    fieldDescriptions[definition.label] = definition.description
+    base[definition.label] = baseValue
+    current[definition.label] = currentValue
+    modifiers[definition.label] = modifierValue
+  }
+
+  return {
+    字段说明: fieldDescriptions,
+    基础值: base,
+    当前值: current,
+    修正值: modifiers,
+    计算关系: '当前值 = 基础值 + 种族、命格、生命周期、伤病与上下文规则修正，最终由基础属性系统按范围收束',
+  }
 }
 
 export function projectWorldSettingForNarrativeAI(
@@ -91,6 +151,7 @@ export function projectWorldSettingForNarrativeAI(
 
 export function projectCharacterForNarrativeAI(
   character: CharacterState,
+  baseState: NarrativeAICharacterBaseState,
 ): {
   profile: NarrativeAICharacterProfileView
   status: NarrativeAICharacterStatusView
@@ -101,6 +162,7 @@ export function projectCharacterForNarrativeAI(
       姓名: character.name,
       性别: (GENDER_LABELS[rawGender] ?? rawGender) || '未设定',
       背景: character.background,
+      基础属性: projectCharacterBaseAttributes(baseState),
     },
     status: {
       年龄: character.age,

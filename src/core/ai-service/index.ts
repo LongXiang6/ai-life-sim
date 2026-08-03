@@ -5,8 +5,15 @@
  */
 
 export { AIResponseTruncatedError, callAI, callAIConversation, callAIStream, callAIStreamConversation, callAIDegraded, callAIStreamDegraded, getCacheStats, resetCacheStats, recordRoundCacheMetrics, getRoundCacheMetrics, setOnAiError, isAiCredentialError, isAiResponseTruncatedError } from './ai-client'
-export type { AICallOptions, CachePoolType, InternalCachePool, CacheHitInfo, CacheStatsFilter, CacheStatsSnapshot, RoundCacheMetrics, AICallLogContext, AICallUsageSnapshot } from './ai-client'
-export { resolveInternalCachePool } from './ai-client'
+export type { AICallOptions, CacheHitInfo, CacheStatsFilter, CacheStatsSnapshot, RoundCacheMetrics, AICallLogContext, AICallUsageSnapshot } from './ai-client'
+export { INTERNAL_CACHE_POOLS, resolveInternalCachePool } from './cache-pool'
+export type { CachePoolType, InternalCachePool } from './cache-pool'
+export {
+  AI_CALL_DEADLINE_MAX_MS,
+  AI_CALL_DEADLINE_MIN_MS,
+  computeAiCallDeadlineMs,
+} from './ai-call-deadline'
+export type { AiCallDeadlineInput } from './ai-call-deadline'
 export { callAIWithPromptTemplate } from './ai-call-wrapper'
 export type { UnifiedCallOptions, PromptTemplateLike } from './ai-call-wrapper'
 export { applyKvPromptOrder } from './kv-prompt-order'
@@ -24,13 +31,17 @@ export {
 export { getAiUsageStats, resetAiUsageStats, formatNanoYuan, DEEPSEEK_PRICE_VERSION, DEEPSEEK_PRICE_SOURCE, getNarrativeTokenCalibration } from './usage-stats'
 export type { AiUsageAggregate, AiUsageContext, AiUsageStatsSnapshot, NarrativeTokenCalibrationSample } from './usage-stats'
 export {
+  computeNarrativeBasicAttributeTokenBudget,
+  computeNarrativeDataAnalysisTokenBudget,
   computeNarrativeEventRecognitionTokenBudget,
-  computeNarrativeSettlementTokenBudget,
+  computeNarrativeMacroImpactTokenBudget,
   computeNarrativeTokenBudget,
 } from './narrative-token-budget'
 export type {
+  NarrativeBasicAttributeTokenBudgetInput,
+  NarrativeDataAnalysisTokenBudgetInput,
   NarrativeEventRecognitionTokenBudgetInput,
-  NarrativeSettlementTokenBudgetInput,
+  NarrativeMacroImpactTokenBudgetInput,
   NarrativeTokenBudgetCalibration,
   NarrativeTokenBudgetInput,
 } from './narrative-token-budget'

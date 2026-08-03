@@ -285,6 +285,11 @@ export function useSimulationAdvance() {
       useEngineStore.getState().clearPendingNarrative()
       useEngineStore.setState({ narrativeError: null })
 
+      if (orchestrator.isCompressionGateBlocked()) {
+        await orchestrator.ensureCompressionGate()
+        syncOrchestratorToEngineStore()
+        await orchestrator.triggerAutoSave()
+      }
       // 预生成关闭时也要等待上一轮摘要压缩提交，避免两个真实回合并发改写同一压缩器。
       await orchestrator.waitForBackgroundCompression()
 
@@ -359,18 +364,24 @@ export function useSimulationAdvance() {
           void fillPreGenQueue(narrativePrompt, worldCode ? `sim-pregen-${worldCode}` : undefined)
         })
       } catch (err) {
+        const compressionGateFailure = err instanceof Error && err.name === 'CompressionGateError'
         const expectedQualityRejection = err instanceof Error
           && (
             err.name === 'NarrativeGenerationRejectedError'
-            || err.name === 'NarrativeSettlementRejectedError'
+            || err.name === 'NarrativeBackgroundAnalysisRejectedError'
+            || err.name === 'NarrativeBasicAttributeAnalysisRejectedError'
+            || err.name === 'NarrativeDataAnalysisRejectedError'
             || err.name === 'NarrativeEventRecognitionRejectedError'
+            || err.name === 'NarrativeMacroImpactRejectedError'
           )
         const logRoundFailure = expectedQualityRejection ? logger.warn : logger.error
         logRoundFailure('simulation', '回合执行失败', err)
-        try {
-          orchestrator.restorePreviewSnapshot(roundSnapshot)
-        } catch (rollbackError) {
-          logger.error('simulation', '回合回滚失败', rollbackError)
+        if (!compressionGateFailure) {
+          try {
+            orchestrator.restorePreviewSnapshot(roundSnapshot)
+          } catch (rollbackError) {
+            logger.error('simulation', '回合回滚失败', rollbackError)
+          }
         }
         const failedReport = orchestrator.getLastRoundDiagnostic()
         if (failedReport) {
@@ -378,7 +389,9 @@ export function useSimulationAdvance() {
             await postNarrativeRoundOutcome(failedReport)
           })
         }
-        const errorMessage = err instanceof Error ? err.message : '叙事生成失败'
+        const errorMessage = compressionGateFailure
+          ? `故事已保留，但压缩首次调用及两路并发重试均失败，下一轮已阻塞：${err.message}`
+          : err instanceof Error ? err.message : '叙事生成失败'
         const executionError = err as Error & {
           executionCode?: string
           executionId?: string

@@ -9,6 +9,7 @@ import type { ModManifest, RoundContext, SubSystemState } from '@/foundation'
 import {
   isMvpSystemInstructionSubsystem,
   isMvpPromptSubsystem,
+  MVP_MACRO_IMPACT_SUBSYSTEM_IDS,
 } from './mvp-runtime-policy'
 
 /** memorySummary【当前状态】三层 */
@@ -105,7 +106,7 @@ export function isSubsystemDataEnabled(data: unknown): boolean {
   return true
 }
 
-/** 子系统是否允许进入叙事状态投影或第二次结算状态输入 */
+/** 子系统是否允许进入叙事状态投影或后台分析状态输入 */
 export function isSubsystemOpenForPrompt(state: SubSystemState | undefined, subsystemId = state?.id): boolean {
   if (subsystemId && !isMvpPromptSubsystem(subsystemId)) return false
   if (!state?.summary?.trim()) return false
@@ -241,7 +242,6 @@ export function getSystemInstructionBlockReason(
 /** 叙事一致性头（自然语言，非 tag 正则切换） */
 export function buildNarrativeCoherenceHeader(
   config: Record<string, unknown>,
-  characterAge: number,
 ): string | undefined {
   const parts: string[] = ['【叙事一致性】']
   parts.push('世界基调以同条消息“世界设定”中的世界描述为准，禁止在此重复展开世界观全文。')
@@ -251,9 +251,25 @@ export function buildNarrativeCoherenceHeader(
   } else {
     parts.push(`力量体系：${powerFramework.label ?? '按世界设定运行'}；仅使用【当前状态】中已出现的能力与设定。`)
   }
-  parts.push(`角色当前年龄 ${characterAge} 岁；叙事细节须与此匹配。`)
-  parts.push('系统指令仅可提交“系统指令指南”中列出的中文系统与字段。')
   return parts.join('\n')
+}
+
+export function getMacroImpactBlockReason(
+  subsystemId: string,
+  changes: Record<string, unknown>,
+  context: RoundContext,
+): string | null {
+  if (!MVP_MACRO_IMPACT_SUBSYSTEM_IDS.has(subsystemId)) {
+    return `子系统 "${subsystemId}" 不在宏观影响白名单，拒绝提交`
+  }
+  const state = context.subsystemStates[subsystemId]
+  if (!state || !isSubsystemOpenForPrompt(state, subsystemId)) {
+    return `子系统 "${subsystemId}" 在本局未启用或未就绪，拒绝宏观影响`
+  }
+  if (typeof changes.enabled !== 'undefined') {
+    return `子系统 "${subsystemId}" 的 enabled 不可由宏观影响 AI 修改`
+  }
+  return null
 }
 
 /** 世界规则只保留 tag 兜底；校准摘要已有独立字段，避免稳定 Prompt 重复发送。 */

@@ -6,11 +6,15 @@
 
 import 'server-only'
 
-import { NARRATIVE_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-prompt'
+import { NARRATIVE_BASIC_ATTRIBUTE_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-basic-attribute-prompt'
+import { NARRATIVE_DATA_ANALYSIS_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-data-analysis-prompt'
 import { NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-event-recognition-prompt'
-import { NARRATIVE_SETTLEMENT_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-settlement-prompt'
+import { NARRATIVE_MACRO_IMPACT_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-macro-impact-prompt'
+import { NARRATIVE_SERVER_PROMPT_ASSET_ID } from './prompts/narrative-prompt'
+import { COMPILED_NARRATIVE_BASIC_ATTRIBUTE_SYSTEM_PROMPT } from './server/narrative-basic-attribute-system-prompt'
+import { COMPILED_NARRATIVE_DATA_ANALYSIS_SYSTEM_PROMPT } from './server/narrative-data-analysis-system-prompt'
 import { COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT } from './server/narrative-event-recognition-system-prompt'
-import { COMPILED_NARRATIVE_SETTLEMENT_SYSTEM_PROMPT } from './server/narrative-settlement-system-prompt'
+import { COMPILED_NARRATIVE_MACRO_IMPACT_SYSTEM_PROMPT } from './server/narrative-macro-impact-system-prompt'
 import { COMPILED_NARRATIVE_SYSTEM_PROMPT } from './server/narrative-system-prompt'
 
 export interface ServerPromptAsset {
@@ -19,17 +23,25 @@ export interface ServerPromptAsset {
 }
 
 const SERVER_PROMPT_ASSETS: Readonly<Record<string, ServerPromptAsset>> = {
-  [NARRATIVE_SERVER_PROMPT_ASSET_ID]: {
-    id: NARRATIVE_SERVER_PROMPT_ASSET_ID,
-    systemPrompt: COMPILED_NARRATIVE_SYSTEM_PROMPT,
+  [NARRATIVE_BASIC_ATTRIBUTE_SERVER_PROMPT_ASSET_ID]: {
+    id: NARRATIVE_BASIC_ATTRIBUTE_SERVER_PROMPT_ASSET_ID,
+    systemPrompt: COMPILED_NARRATIVE_BASIC_ATTRIBUTE_SYSTEM_PROMPT,
   },
-  [NARRATIVE_SETTLEMENT_SERVER_PROMPT_ASSET_ID]: {
-    id: NARRATIVE_SETTLEMENT_SERVER_PROMPT_ASSET_ID,
-    systemPrompt: COMPILED_NARRATIVE_SETTLEMENT_SYSTEM_PROMPT,
+  [NARRATIVE_DATA_ANALYSIS_SERVER_PROMPT_ASSET_ID]: {
+    id: NARRATIVE_DATA_ANALYSIS_SERVER_PROMPT_ASSET_ID,
+    systemPrompt: COMPILED_NARRATIVE_DATA_ANALYSIS_SYSTEM_PROMPT,
   },
   [NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID]: {
     id: NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID,
     systemPrompt: COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT,
+  },
+  [NARRATIVE_MACRO_IMPACT_SERVER_PROMPT_ASSET_ID]: {
+    id: NARRATIVE_MACRO_IMPACT_SERVER_PROMPT_ASSET_ID,
+    systemPrompt: COMPILED_NARRATIVE_MACRO_IMPACT_SYSTEM_PROMPT,
+  },
+  [NARRATIVE_SERVER_PROMPT_ASSET_ID]: {
+    id: NARRATIVE_SERVER_PROMPT_ASSET_ID,
+    systemPrompt: COMPILED_NARRATIVE_SYSTEM_PROMPT,
   },
 }
 

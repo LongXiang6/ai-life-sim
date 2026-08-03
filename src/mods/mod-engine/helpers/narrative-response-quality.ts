@@ -2,25 +2,30 @@ import type {
   HistoricalEventCandidateAudit,
   HistoricalEventCandidateInput,
   NarrativeWordCountTarget,
+  SubSystemChanges,
 } from '@/foundation'
 
 import { resolveNarrativeWordCountRange } from '../constants/narrative-config'
 import {
   buildNarrativeAIProtocolRepairReminder,
   buildNarrativeEventCandidateFingerprint,
+  parseNarrativeAIJson,
   toNarrativeAIIntentId,
+  translateNarrativeAIBasicAttributeAnalysis,
+  translateNarrativeAIDataAnalysis,
   translateNarrativeAIEventRecognition,
-  translateNarrativeAISettlement,
 } from './narrative-ai-protocol'
+import type { NarrativeRoundMetadata } from './narrative-semantic-signals'
 import {
   narrativeParser,
-  combineNarrativeAndSettlement,
   type ParsedNarrative,
+  validateNarrativeEventMetadataForNarrative,
 } from '../subsystems/narrative-parser-system'
 import {
-  parseNarrativeEventRecognitionEnvelope,
-  parseNarrativeSettlementEnvelope,
-} from './tagged-meta-envelope'
+  translateNarrativeMacroImpact,
+  type NarrativeMacroImpactNode,
+  type NarrativeMacroSubsystemId,
+} from './narrative-macro-impact-context'
 
 export interface NarrativeResponseQuality {
   valid: boolean
@@ -31,16 +36,24 @@ export interface NarrativeResponseQuality {
   lengthAdvisory?: string
 }
 
-export interface NarrativeSettlementQuality {
+export interface NarrativeSystemAnalysisQuality {
   valid: boolean
   reason: string
-  parsed?: ParsedNarrative
+  changes?: SubSystemChanges[]
 }
 
 export interface NarrativeEventRecognitionQuality {
   valid: boolean
   reason: string
+  metadata?: NarrativeRoundMetadata
   candidates?: HistoricalEventCandidateInput[]
+}
+
+export interface NarrativeMacroImpactQuality {
+  valid: boolean
+  reason: string
+  nodes?: NarrativeMacroImpactNode[]
+  changes?: SubSystemChanges[]
 }
 
 function errorMessage(error: unknown): string {
@@ -48,7 +61,7 @@ function errorMessage(error: unknown): string {
   return String(error)
 }
 
-/** 第一次调用只检查正文及可选玩家分支，不读取任何机器结算字段。 */
+/** 第一次调用只检查正文及可选玩家分支，不读取任何机器分析字段。 */
 export function inspectNarrativeResponseQuality(
   content: string,
   wordCountTarget: NarrativeWordCountTarget,
@@ -80,64 +93,123 @@ export function inspectNarrativeResponseQuality(
   }
 }
 
-/** 第二次调用必须完整通过分段、中文 Schema、事件引用与条件字段校验。 */
-export function inspectNarrativeSettlementQuality(input: {
+export function inspectNarrativeDataAnalysisQuality(input: {
   content: string
-  narrative: ParsedNarrative
   allowedEvidenceEventIds: readonly string[]
   allowedSubsystemIds: readonly string[]
-  expectedIntentId?: string | null
-}): NarrativeSettlementQuality {
+}): NarrativeSystemAnalysisQuality {
   try {
-    const envelope = parseNarrativeSettlementEnvelope(input.content)
-    const settlement = translateNarrativeAISettlement(
-      envelope.systemInstructions,
-      envelope.data,
-      {
-        allowedEvidenceEventIds: input.allowedEvidenceEventIds,
-        allowedSubsystemIds: input.allowedSubsystemIds,
-      },
-    )
-
-    if (input.expectedIntentId) {
-      if (!settlement.intentResolution) {
-        throw new Error(`当前命运意图必须提交判定：${toNarrativeAIIntentId(input.expectedIntentId)}`)
-      }
-      if (settlement.intentResolution.intentId !== input.expectedIntentId) {
-        throw new Error(`命运意图编号必须等于 ${toNarrativeAIIntentId(input.expectedIntentId)}`)
-      }
-    } else if (settlement.intentResolution) {
-      throw new Error('当前没有待判定命运意图，结算不得提交命运意图判定')
-    }
-
     return {
       valid: true,
       reason: '',
-      parsed: combineNarrativeAndSettlement(input.narrative, settlement),
+      changes: translateNarrativeAIDataAnalysis(parseNarrativeAIJson(input.content), {
+        allowedEvidenceEventIds: input.allowedEvidenceEventIds,
+        allowedSubsystemIds: input.allowedSubsystemIds,
+      }),
     }
   } catch (error) {
     return { valid: false, reason: errorMessage(error) }
   }
 }
 
-/** 事件识别调用必须完整通过标签、中文 Schema、时间锚点和重复候选校验。 */
+export function inspectNarrativeBasicAttributeAnalysisQuality(input: {
+  content: string
+  allowedEvidenceEventIds: readonly string[]
+  allowedSubsystemIds: readonly string[]
+}): NarrativeSystemAnalysisQuality {
+  try {
+    return {
+      valid: true,
+      reason: '',
+      changes: translateNarrativeAIBasicAttributeAnalysis(parseNarrativeAIJson(input.content), {
+        allowedEvidenceEventIds: input.allowedEvidenceEventIds,
+        allowedSubsystemIds: input.allowedSubsystemIds,
+      }),
+    }
+  } catch (error) {
+    return { valid: false, reason: errorMessage(error) }
+  }
+}
+
+export function inspectNarrativeMacroImpactQuality(input: {
+  content: string
+  activeSubsystemIds: readonly NarrativeMacroSubsystemId[]
+  allowedEvidenceEventIds: readonly string[]
+  currentContextId: string
+}): NarrativeMacroImpactQuality {
+  try {
+    const nodes = translateNarrativeMacroImpact({
+      rawData: parseNarrativeAIJson(input.content),
+      activeSubsystemIds: input.activeSubsystemIds,
+      allowedEvidenceEventIds: input.allowedEvidenceEventIds,
+      currentContextId: input.currentContextId,
+    })
+    return {
+      valid: true,
+      reason: '',
+      nodes,
+      changes: nodes.map((node) => node.change),
+    }
+  } catch (error) {
+    return { valid: false, reason: errorMessage(error) }
+  }
+}
+
+/** 事件识别必须同时通过已发生元数据、命运意图、时间锚点与未来候选校验。 */
 export function inspectNarrativeEventRecognitionQuality(input: {
   content: string
+  narrative: ParsedNarrative
   currentContextId: string
   currentTotalDays: number
   existingCandidates: readonly HistoricalEventCandidateAudit[]
+  expectedIntentId?: string | null
+  deliveredCausalEventIds?: readonly string[]
 }): NarrativeEventRecognitionQuality {
   try {
-    const envelope = parseNarrativeEventRecognitionEnvelope(input.content)
-    const candidates = translateNarrativeAIEventRecognition(envelope.data, {
+    const result = translateNarrativeAIEventRecognition(parseNarrativeAIJson(input.content), {
       currentContextId: input.currentContextId,
       currentTotalDays: input.currentTotalDays,
     })
+
+    if (input.expectedIntentId) {
+      if (!result.metadata.intentResolution) {
+        throw new Error(`当前命运意图必须提交判定：${toNarrativeAIIntentId(input.expectedIntentId)}`)
+      }
+      if (result.metadata.intentResolution.intentId !== input.expectedIntentId) {
+        throw new Error(`命运意图编号必须等于 ${toNarrativeAIIntentId(input.expectedIntentId)}`)
+      }
+    } else if (result.metadata.intentResolution) {
+      throw new Error('当前没有待判定命运意图，事件识别不得提交命运意图判定')
+    }
+
+    const expectedCausalIds = new Set(input.deliveredCausalEventIds ?? [])
+    const causalDispositions = result.metadata.deliveredCausalDispositions ?? []
+    const returnedCausalIds = new Set<string>()
+    for (const disposition of causalDispositions) {
+      if (!expectedCausalIds.has(disposition.causalId)) {
+        throw new Error(`到期因果判定引用了未投递编号：${disposition.causalId}`)
+      }
+      if (returnedCausalIds.has(disposition.causalId)) {
+        throw new Error(`到期因果判定重复提交编号：${disposition.causalId}`)
+      }
+      returnedCausalIds.add(disposition.causalId)
+    }
+    for (const causalId of expectedCausalIds) {
+      if (!returnedCausalIds.has(causalId)) {
+        throw new Error(`到期因果必须逐项判定：${causalId}`)
+      }
+    }
+    if (expectedCausalIds.size === 0 && causalDispositions.length > 0) {
+      throw new Error('本轮没有投递到期因果，事件识别不得提交到期因果判定')
+    }
+
+    validateNarrativeEventMetadataForNarrative(input.narrative, result.metadata)
+
     const existingFingerprints = new Set(input.existingCandidates.map((audit) => (
       buildNarrativeEventCandidateFingerprint(audit.candidate)
     )))
     const incomingFingerprints = new Set<string>()
-    for (const candidate of candidates) {
+    for (const candidate of result.candidates) {
       const fingerprint = buildNarrativeEventCandidateFingerprint(candidate)
       if (existingFingerprints.has(fingerprint)) {
         throw new Error(`待触发事件已经注册：${candidate.title}`)
@@ -147,7 +219,12 @@ export function inspectNarrativeEventRecognitionQuality(input: {
       }
       incomingFingerprints.add(fingerprint)
     }
-    return { valid: true, reason: '', candidates }
+    return {
+      valid: true,
+      reason: '',
+      metadata: result.metadata,
+      candidates: result.candidates,
+    }
   } catch (error) {
     return { valid: false, reason: errorMessage(error) }
   }
@@ -179,32 +256,5 @@ export function buildNarrativeRepairInstruction(
     `需要修正：${quality.reason}。`,
     `玩家偏好约 ${target} 字只作节奏参考；格式修复仍需完整保留剧情事实与因果。`,
     ...buildNarrativeAIProtocolRepairReminder(requestBranch),
-  ].join('\n')
-}
-
-export function buildNarrativeSettlementRepairInstruction(
-  quality: NarrativeSettlementQuality,
-  originalResponse: string,
-): string {
-  return [
-    '请依据同一份系统状态、上下文与叙事，参照系统提示词末尾的唯一结算示例重新输出完整结算。',
-    `需要修正：${quality.reason}。`,
-    '每个系统操作独占一行并从系统1连续编号，最后一行是唯一数据段；返回内容只包含完整结算分段。',
-    '语义信号硬规则：叙事语域为“命运”或“传承”时“不可逆”必须为 true；若正文没有已经成立的不可逆轨迹变化，改用“生活”语域。只修正冲突字段，不改写正文事实。',
-    '【上一版结算响应】',
-    originalResponse,
-  ].join('\n')
-}
-
-export function buildNarrativeEventRecognitionRepairInstruction(
-  quality: NarrativeEventRecognitionQuality,
-  originalResponse: string,
-): string {
-  return [
-    '请依据同一份回合上下文、已有候选和最终叙事，参照系统提示词末尾的唯一事件识别示例重新输出完整结果。',
-    `需要修正：${quality.reason}。`,
-    '只输出唯一待触发事件分段；没有新候选时返回空事件数组，不得重复已有候选或把已发生事实登记为待触发事项。',
-    '【上一版事件识别响应】',
-    originalResponse,
   ].join('\n')
 }

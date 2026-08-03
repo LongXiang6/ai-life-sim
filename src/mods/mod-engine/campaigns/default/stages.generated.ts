@@ -17,7 +17,9 @@ export const DEFAULT_CAMPAIGN_STAGE_NAMES = [
   "ai-narration",
   "publish-narrative",
   "ai-data-analysis",
+  "ai-basic-attribute-analysis",
   "ai-event-recognition",
+  "ai-macro-impact",
   "post-processing",
   "epilogue-check",
   "compress-save"

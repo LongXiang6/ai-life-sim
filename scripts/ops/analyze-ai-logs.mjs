@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 
+/**
+ * Purpose: Analyze AI log windows, latency, failures, repetition, and player-level aggregates.
+ * Owner: operations:ai-observability
+ * Responsibility: One read-only analysis CLI, including argument parsing and summary projection only.
+ */
+
 import path from 'node:path'
 
 import {

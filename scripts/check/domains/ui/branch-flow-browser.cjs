@@ -1,3 +1,9 @@
+/**
+ * Purpose: Regress the complete browser branch-selection and continuation flow.
+ * Owner: quality:ui
+ * Responsibility: One Puppeteer session, its fixtures, and ordered UI assertions only.
+ */
+
 const puppeteer = require('puppeteer')
 const fs = require('node:fs')
 
@@ -17,7 +23,7 @@ const thirdParagraphs = [
 ]
 const branchMeta = {
   重要程度: '高',
-  关键事件: [{ 内容: '家族印记引发不可逆的长期抉择', 重要度: 95, 涉及实体: ['家族印记', '守约者'] }],
+  注册事件: [{ 内容: '家族印记引发不可逆的长期抉择', 重要度: 95, 涉及实体: ['家族印记', '守约者'] }],
   情节状态: '开始',
   语义信号: {
     事件类型: '冲突',
@@ -36,7 +42,7 @@ function narrativeResponse(paragraphs, branch) {
   return `⟦正文⟧${paragraphs.join('\n\n')}${branch ? `\n\n⟦分支⟧${JSON.stringify(branch)}` : ''}`
 }
 
-function settlementResponse(summary, metadata, intentId) {
+function eventRecognitionResponse(summary, metadata, intentId) {
   const data = {
     摘要: summary,
     ...metadata,
@@ -56,8 +62,11 @@ function settlementResponse(summary, metadata, intentId) {
         }
       : {}),
   }
-  return `⟦数据⟧${JSON.stringify(data)}`
+  return JSON.stringify({ 回合事件: data, 待触发事件: [] })
 }
+
+const dataAnalysisResponse = JSON.stringify({ 系统操作: [] })
+const basicAttributeAnalysisResponse = JSON.stringify({ 系统操作: [] })
 
 function readIntentId(body) {
   const prompt = (body.messages ?? []).map((message) => String(message.content ?? '')).join('\n')
@@ -74,11 +83,11 @@ const narrativeResponses = [
     选项: ['留在此地巩固同盟', '前往远方追寻线索'],
   }),
 ]
-const settlementFixtures = [
+const eventRecognitionFixtures = [
   ['家族印记带来一项不可逆的长期抉择。', branchMeta],
   ['你选择守约者，新的同盟已经建立。', {
     重要程度: '普通',
-    关键事件: [{ 内容: '你将印记交给守约者并建立新的同盟', 重要度: 72, 涉及实体: ['守约者'] }],
+    注册事件: [{ 内容: '你将印记交给守约者并建立新的同盟', 重要度: 72, 涉及实体: ['守约者'] }],
     情节状态: '进行中',
     语义信号: {
       事件类型: '关系',
@@ -94,7 +103,7 @@ const settlementFixtures = [
   }],
   ['新同盟稳定后，你来到需要亲自选择的道路分岔口。', {
     重要程度: '高',
-    关键事件: [{ 内容: '两条长期道路同时出现并等待你的选择', 重要度: 90, 涉及实体: ['守约者'] }],
+    注册事件: [{ 内容: '两条长期道路同时出现并等待你的选择', 重要度: 90, 涉及实体: ['守约者'] }],
     情节状态: '开始',
     语义信号: {
       事件类型: '冲突',
@@ -233,7 +242,7 @@ async function main() {
   const nativeDialogs = []
   const requests = []
   let narrativeResponseIndex = 0
-  let settlementResponseIndex = 0
+  let eventRecognitionResponseIndex = 0
   const screenshotDir = process.env.UI_SCREENSHOT_DIR
   if (screenshotDir) fs.mkdirSync(screenshotDir, { recursive: true })
   const capture = async (name) => {
@@ -253,10 +262,14 @@ async function main() {
     requests.push(body)
     const promptAsset = String(body.prompt_asset || '')
     let content
-    if (promptAsset.includes('mod-engine:narrative-settlement:')) {
-      const index = Math.min(settlementResponseIndex++, settlementFixtures.length - 1)
-      const [summary, metadata] = settlementFixtures[index]
-      content = settlementResponse(summary, metadata, index === 1 ? readIntentId(body) : undefined)
+    if (promptAsset.includes('mod-engine:narrative-data-analysis:')) {
+      content = dataAnalysisResponse
+    } else if (promptAsset.includes('mod-engine:narrative-basic-attribute-analysis:')) {
+      content = basicAttributeAnalysisResponse
+    } else if (promptAsset.includes('mod-engine:narrative-event-recognition:')) {
+      const index = Math.min(eventRecognitionResponseIndex++, eventRecognitionFixtures.length - 1)
+      const [summary, metadata] = eventRecognitionFixtures[index]
+      content = eventRecognitionResponse(summary, metadata, index === 1 ? readIntentId(body) : undefined)
     } else {
       content = narrativeResponses[Math.min(narrativeResponseIndex++, narrativeResponses.length - 1)]
     }
@@ -430,8 +443,14 @@ async function main() {
         narrativeRequestCount: requests.filter(
           (request) => String(request.prompt_asset || '').includes('mod-engine:narrative:'),
         ).length,
-        settlementRequestCount: requests.filter(
-          (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-settlement:'),
+        dataAnalysisRequestCount: requests.filter(
+          (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-data-analysis:'),
+        ).length,
+        basicAttributeRequestCount: requests.filter(
+          (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-basic-attribute-analysis:'),
+        ).length,
+        eventRecognitionRequestCount: requests.filter(
+          (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-event-recognition:'),
         ).length,
       })
       throw error
@@ -439,8 +458,14 @@ async function main() {
     const narrativeBeforeConsume = requests.filter(
       (request) => String(request.prompt_asset || '').includes('mod-engine:narrative:'),
     )
-    const settlementBeforeConsume = requests.filter(
-      (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-settlement:'),
+    const dataAnalysisBeforeConsume = requests.filter(
+      (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-data-analysis:'),
+    )
+    const basicAttributeBeforeConsume = requests.filter(
+      (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-basic-attribute-analysis:'),
+    )
+    const eventRecognitionBeforeConsume = requests.filter(
+      (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-event-recognition:'),
     )
     const previewPrompt = (narrativeBeforeConsume.at(-1)?.messages ?? [])
       .map((message) => String(message.content ?? ''))
@@ -467,12 +492,20 @@ async function main() {
       readyBeforeConsume: true,
       guidanceRoll,
       narrativeRequestsBeforeConsume: narrativeBeforeConsume.length,
-      settlementRequestsBeforeConsume: settlementBeforeConsume.length,
+      dataAnalysisRequestsBeforeConsume: dataAnalysisBeforeConsume.length,
+      basicAttributeRequestsBeforeConsume: basicAttributeBeforeConsume.length,
+      eventRecognitionRequestsBeforeConsume: eventRecognitionBeforeConsume.length,
       narrativeRequestsAfterConsume: requests.filter(
         (request) => String(request.prompt_asset || '').includes('mod-engine:narrative:'),
       ).length,
-      settlementRequestsAfterConsume: requests.filter(
-        (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-settlement:'),
+      dataAnalysisRequestsAfterConsume: requests.filter(
+        (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-data-analysis:'),
+      ).length,
+      basicAttributeRequestsAfterConsume: requests.filter(
+        (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-basic-attribute-analysis:'),
+      ).length,
+      eventRecognitionRequestsAfterConsume: requests.filter(
+        (request) => String(request.prompt_asset || '').includes('mod-engine:narrative-event-recognition:'),
       ).length,
     }
   }
@@ -525,7 +558,9 @@ async function main() {
     selectedAfterClick,
     requestCount: requests.length,
     narrativeRequestCount: requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative:')).length,
-    settlementRequestCount: requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative-settlement:')).length,
+    dataAnalysisRequestCount: requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative-data-analysis:')).length,
+    basicAttributeRequestCount: requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative-basic-attribute-analysis:')).length,
+    eventRecognitionRequestCount: requests.filter((request) => String(request.prompt_asset || '').includes('mod-engine:narrative-event-recognition:')).length,
     requestChoices: requests.map((request) => request.messages?.map((message) => message.content).join('\n').includes('交给守约者')),
     firstNarrativeRequestedBranch: requests.find((request) => String(request.prompt_asset || '').includes('mod-engine:narrative:'))
       ?.messages?.map((message) => message.content).join('\n').includes('本轮围绕会长期改变身份、核心关系、居所、目标或关键机会的选择现场推进'),
@@ -554,18 +589,24 @@ async function main() {
     result.preGenEvidence?.readyBeforeConsume === true
     && result.preGenEvidence?.guidanceRoll !== null
     && result.preGenEvidence?.narrativeRequestsBeforeConsume === 3
-    && result.preGenEvidence?.settlementRequestsBeforeConsume === 2
+    && result.preGenEvidence?.dataAnalysisRequestsBeforeConsume === 2
+    && result.preGenEvidence?.basicAttributeRequestsBeforeConsume === 2
+    && result.preGenEvidence?.eventRecognitionRequestsBeforeConsume === 2
     && result.preGenEvidence?.narrativeRequestsAfterConsume === 3
-    && result.preGenEvidence?.settlementRequestsAfterConsume === 3
+    && result.preGenEvidence?.dataAnalysisRequestsAfterConsume === 3
+    && result.preGenEvidence?.basicAttributeRequestsAfterConsume === 3
+    && result.preGenEvidence?.eventRecognitionRequestsAfterConsume === 3
   )
   if (
     !choicePass
     || result.radioCount !== 0
     || result.firstNarrativeRequestedBranch !== true
     || result.resolvedChoice !== expectedChoice
-    || result.requestCount !== (usePreGenFixture ? 6 : 4)
+    || result.requestCount !== expectedRoundCount * 4
     || result.narrativeRequestCount !== expectedRoundCount
-    || result.settlementRequestCount !== expectedRoundCount
+    || result.dataAnalysisRequestCount !== expectedRoundCount
+    || result.basicAttributeRequestCount !== expectedRoundCount
+    || result.eventRecognitionRequestCount !== expectedRoundCount
     || result.narrativeEntries !== expectedRoundCount
     || result.consoleErrors.length > 0
     || !repetitionPass

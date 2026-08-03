@@ -23,7 +23,7 @@ const {
   recordAiUsage,
 } = await import('../../../../src/core/ai-service/usage-stats.ts')
 const { normalizeAiUsage } = await import('../../../../src/core/ai-service/normalize-ai-usage.ts')
-const { resolveInternalCachePool } = await import('../../../../src/core/ai-service/ai-client.ts')
+const { resolveInternalCachePool } = await import('../../../../src/core/ai-service/cache-pool.ts')
 
 function assertOk(condition, message) {
   if (!condition) throw new Error(`[cache-stats-smoke] ${message}`)
@@ -31,8 +31,10 @@ function assertOk(condition, message) {
 
 assertOk(resolveInternalCachePool('narrative', 'narrative-main') === 'narrative-main', 'main narrative must have its own internal cache pool')
 assertOk(resolveInternalCachePool('narrative', 'narrative-format-repair') === 'narrative-repair', 'first-call format repair must use the narrative repair pool')
-assertOk(resolveInternalCachePool('narrative', 'narrative-settlement') === 'narrative-settlement', 'normal settlement must have its own internal cache pool')
-assertOk(resolveInternalCachePool('narrative', 'narrative-settlement-format-repair') === 'narrative-settlement-repair', 'settlement format repair must not pollute normal settlement statistics')
+assertOk(resolveInternalCachePool('narrative', 'narrative-data-analysis') === 'narrative-data-analysis', 'data analysis must have its own internal cache pool')
+assertOk(resolveInternalCachePool('narrative', 'narrative-data-analysis-format-repair') === 'narrative-data-analysis-repair', 'data-analysis repair must not pollute normal data-analysis statistics')
+assertOk(resolveInternalCachePool('narrative', 'narrative-basic-attribute-analysis') === 'narrative-basic-attribute-analysis', 'basic-attribute analysis must have its own internal cache pool')
+assertOk(resolveInternalCachePool('narrative', 'narrative-basic-attribute-analysis-format-repair') === 'narrative-basic-attribute-analysis-repair', 'basic-attribute repair must not pollute normal attribute-analysis statistics')
 assertOk(resolveInternalCachePool('narrative', 'narrative-event-recognition') === 'narrative-event-recognition', 'event recognition must have its own internal cache pool')
 assertOk(resolveInternalCachePool('narrative', 'narrative-event-recognition-format-repair') === 'narrative-event-recognition-repair', 'event-recognition repair must not pollute normal recognition statistics')
 assertOk(resolveInternalCachePool('summary', 'summary-compress-L1') === 'summary-L1', 'L1 summaries must remain separate')

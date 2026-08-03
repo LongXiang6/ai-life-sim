@@ -1,208 +1,39 @@
+/**
+ * Purpose: Record and expose browser-side AI usage aggregates and narrative token calibration.
+ * Owner: core:ai-service
+ * Responsibility: Public usage-stat operations only; contracts, pricing, and persistence are delegated.
+ */
+
 import type { ReasoningEffort } from '@/foundation'
 import type { AICallUsageSnapshot } from '@/core/logger/ai-call-log'
 
-const AI_USAGE_STATS_KEY = 'ai-usage-stats'
-const AI_USAGE_STATS_VERSION = 2
+import type {
+  AiUsageAggregate,
+  AiUsageContext,
+  AiUsageStatsSnapshot,
+} from './usage-stats/contracts'
+import {
+  DEEPSEEK_PRICE_SOURCE,
+  DEEPSEEK_PRICE_VERSION,
+  resolveUsagePrice,
+  type ModelPrice,
+} from './usage-stats/pricing'
+import {
+  emptyAggregate,
+  emptyStore,
+  normalizeCount,
+  notifyUsageStatsUpdated,
+  readUsageStore,
+  writeUsageStore,
+} from './usage-stats/store'
 
-export const DEEPSEEK_PRICE_VERSION = 'deepseek-cny-2026-07-26'
-export const DEEPSEEK_PRICE_SOURCE = 'https://api-docs.deepseek.com/zh-cn/quick_start/pricing'
-
-interface ModelPrice {
-  hitNanoYuanPerToken: number
-  missNanoYuanPerToken: number
-  outputNanoYuanPerToken: number
-}
-
-const DEEPSEEK_PRICES: Record<string, ModelPrice> = {
-  'deepseek-v4-flash': {
-    hitNanoYuanPerToken: 20,
-    missNanoYuanPerToken: 1_000,
-    outputNanoYuanPerToken: 2_000,
-  },
-  'deepseek-v4-pro': {
-    hitNanoYuanPerToken: 25,
-    missNanoYuanPerToken: 3_000,
-    outputNanoYuanPerToken: 6_000,
-  },
-}
-
-export interface AiUsageContext {
-  providerId: string
-  model: string
-  pool: string
-  callKind: string
-  reasoningEffort: ReasoningEffort
-  lifeRunId?: string
-  round?: number
-  executionKind?: string
-  targetWordCount?: number
-  actualNarrativeChars?: number
-  finishReason?: string
-  durationMs?: number
-}
-
-export interface AiUsageAggregate {
-  knownCalls: number
-  unknownUsageCalls: number
-  unpricedCalls: number
-  hitTokens: number
-  missTokens: number
-  completionTokens: number
-  reasoningTokens: number
-  totalTokens: number
-  costNanoYuan: number
-  latencySamples: number
-  latencyMsTotal: number
-  latencyMaxMs: number
-}
-
-interface AiUsageRun {
-  total: AiUsageAggregate
-  byPool: Record<string, AiUsageAggregate>
-  latestRound: number | null
-  latestRoundUsage: AiUsageAggregate
-}
-
-export interface NarrativeTokenCalibrationSample {
-  providerId: string
-  model: string
-  callKind: string
-  reasoningEffort: ReasoningEffort
-  envelopeTokens: number
-  reasoningTokens: number
-  targetWordCount?: number
-  actualNarrativeChars?: number
-  finishReason?: string
-  recordedAt: number
-}
-
-interface AiUsageStore {
-  version: typeof AI_USAGE_STATS_VERSION
-  total: AiUsageAggregate
-  byPool: Record<string, AiUsageAggregate>
-  runs: Record<string, AiUsageRun>
-  latestLifeRunId: string | null
-  updatedAt: number | null
-  calibrationSamples: NarrativeTokenCalibrationSample[]
-}
-
-export interface AiUsageStatsSnapshot extends AiUsageStore {
-  priceVersion: typeof DEEPSEEK_PRICE_VERSION
-  priceSource: typeof DEEPSEEK_PRICE_SOURCE
-}
-
-function emptyAggregate(): AiUsageAggregate {
-  return {
-    knownCalls: 0,
-    unknownUsageCalls: 0,
-    unpricedCalls: 0,
-    hitTokens: 0,
-    missTokens: 0,
-    completionTokens: 0,
-    reasoningTokens: 0,
-    totalTokens: 0,
-    costNanoYuan: 0,
-    latencySamples: 0,
-    latencyMsTotal: 0,
-    latencyMaxMs: 0,
-  }
-}
-
-function emptyStore(): AiUsageStore {
-  return {
-    version: AI_USAGE_STATS_VERSION,
-    total: emptyAggregate(),
-    byPool: {},
-    runs: {},
-    latestLifeRunId: null,
-    updatedAt: null,
-    calibrationSamples: [],
-  }
-}
-
-function normalizeCount(value: unknown): number {
-  const parsed = Number(value)
-  return Number.isFinite(parsed) && parsed >= 0 ? Math.round(parsed) : 0
-}
-
-function normalizeAggregate(value: unknown): AiUsageAggregate {
-  const candidate = value && typeof value === 'object' ? value as Partial<AiUsageAggregate> : {}
-  return {
-    knownCalls: normalizeCount(candidate.knownCalls),
-    unknownUsageCalls: normalizeCount(candidate.unknownUsageCalls),
-    unpricedCalls: normalizeCount(candidate.unpricedCalls),
-    hitTokens: normalizeCount(candidate.hitTokens),
-    missTokens: normalizeCount(candidate.missTokens),
-    completionTokens: normalizeCount(candidate.completionTokens),
-    reasoningTokens: normalizeCount(candidate.reasoningTokens),
-    totalTokens: normalizeCount(candidate.totalTokens),
-    costNanoYuan: normalizeCount(candidate.costNanoYuan),
-    latencySamples: normalizeCount(candidate.latencySamples),
-    latencyMsTotal: normalizeCount(candidate.latencyMsTotal),
-    latencyMaxMs: normalizeCount(candidate.latencyMaxMs),
-  }
-}
-
-function normalizeReasoningEffort(value: unknown): ReasoningEffort {
-  if (value === 'auto' || value === 'high' || value === 'max' || value === 'disabled') return value
-  return 'disabled'
-}
-
-function normalizeCalibrationSamples(value: unknown): NarrativeTokenCalibrationSample[] {
-  if (!Array.isArray(value)) return []
-  return value
-    .filter((item): item is Partial<NarrativeTokenCalibrationSample> => Boolean(item && typeof item === 'object'))
-    .map((item) => ({
-      providerId: typeof item.providerId === 'string' ? item.providerId : '',
-      model: typeof item.model === 'string' ? item.model : '',
-      callKind: typeof item.callKind === 'string' ? item.callKind : '',
-      reasoningEffort: normalizeReasoningEffort(item.reasoningEffort),
-      envelopeTokens: normalizeCount(item.envelopeTokens),
-      reasoningTokens: normalizeCount(item.reasoningTokens),
-      ...(Number.isFinite(item.targetWordCount) ? { targetWordCount: Math.round(Number(item.targetWordCount)) } : {}),
-      ...(Number.isFinite(item.actualNarrativeChars) ? { actualNarrativeChars: Math.round(Number(item.actualNarrativeChars)) } : {}),
-      ...(typeof item.finishReason === 'string' ? { finishReason: item.finishReason } : {}),
-      recordedAt: Number.isFinite(item.recordedAt) ? Number(item.recordedAt) : 0,
-    }))
-    .filter((item) => item.providerId && item.model && item.callKind)
-    .slice(-200)
-}
-
-function readStore(): AiUsageStore {
-  if (typeof localStorage === 'undefined') return emptyStore()
-  try {
-    const parsed = JSON.parse(localStorage.getItem(AI_USAGE_STATS_KEY) ?? 'null') as Partial<AiUsageStore> | null
-    // 旧版按宽泛调用池累计，无法无损拆分到当前的精细分类，直接从新版统计重新累计。
-    if (!parsed || parsed.version !== AI_USAGE_STATS_VERSION) return emptyStore()
-    const byPool = Object.fromEntries(
-      Object.entries(parsed.byPool ?? {}).map(([key, value]) => [key, normalizeAggregate(value)]),
-    )
-    const runs = Object.fromEntries(
-      Object.entries(parsed.runs ?? {}).map(([key, value]) => {
-        const run = value as Partial<AiUsageRun>
-        return [key, {
-          total: normalizeAggregate(run.total),
-          byPool: Object.fromEntries(
-            Object.entries(run.byPool ?? {}).map(([pool, aggregate]) => [pool, normalizeAggregate(aggregate)]),
-          ),
-          latestRound: Number.isInteger(run.latestRound) ? Number(run.latestRound) : null,
-          latestRoundUsage: normalizeAggregate(run.latestRoundUsage),
-        } satisfies AiUsageRun]
-      }),
-    )
-    return {
-      version: AI_USAGE_STATS_VERSION,
-      total: normalizeAggregate(parsed.total),
-      byPool,
-      runs,
-      latestLifeRunId: typeof parsed.latestLifeRunId === 'string' ? parsed.latestLifeRunId : null,
-      updatedAt: Number.isFinite(parsed.updatedAt) ? Number(parsed.updatedAt) : null,
-      calibrationSamples: normalizeCalibrationSamples((parsed as Partial<AiUsageStore>).calibrationSamples),
-    }
-  } catch {
-    return emptyStore()
-  }
-}
+export type {
+  AiUsageAggregate,
+  AiUsageContext,
+  AiUsageStatsSnapshot,
+  NarrativeTokenCalibrationSample,
+} from './usage-stats/contracts'
+export { DEEPSEEK_PRICE_SOURCE, DEEPSEEK_PRICE_VERSION } from './usage-stats/pricing'
 
 function applyUsage(
   aggregate: AiUsageAggregate,
@@ -238,27 +69,15 @@ function applyUsage(
     + completionTokens * price.outputNanoYuanPerToken
 }
 
-function resolvePrice(context: AiUsageContext): ModelPrice | undefined {
-  const model = context.model.trim().toLowerCase()
-  if (context.providerId !== 'deepseek' && context.providerId !== 'custom') return undefined
-  return DEEPSEEK_PRICES[model]
-}
-
-function notifyUpdated(): void {
-  if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('ai-usage-stats-updated'))
-}
-
-/** 记录上游实际返回的 usage；金额使用整数纳元累计，思考 Token 不重复计费。 */
 export function recordAiUsage(
   usage: AICallUsageSnapshot | undefined,
   context: AiUsageContext,
 ): void {
   if (typeof localStorage === 'undefined') return
   try {
-    const store = readStore()
-    const price = resolvePrice(context)
+    const store = readUsageStore()
+    const price = resolveUsagePrice(context)
     applyUsage(store.total, usage, price, context.durationMs)
-
     const poolKey = context.pool
     const pool = store.byPool[poolKey] ?? emptyAggregate()
     applyUsage(pool, usage, price, context.durationMs)
@@ -286,7 +105,6 @@ export function recordAiUsage(
       store.latestLifeRunId = context.lifeRunId
     }
 
-    // 只为真实主叙事保留数值校准样本，不保存正文或 Prompt。
     if (
       usage
       && context.callKind === 'narrative-main'
@@ -308,37 +126,37 @@ export function recordAiUsage(
           reasoningEffort: context.reasoningEffort,
           envelopeTokens,
           reasoningTokens: normalizeCount(usage.reasoningTokens),
-          ...(Number.isFinite(context.targetWordCount) ? { targetWordCount: Math.round(context.targetWordCount as number) } : {}),
+          ...(Number.isFinite(context.targetWordCount)
+            ? { targetWordCount: Math.round(context.targetWordCount as number) }
+            : {}),
           actualNarrativeChars: Math.round(context.actualNarrativeChars),
           ...(context.finishReason ? { finishReason: context.finishReason } : {}),
           recordedAt: Date.now(),
         },
       ].slice(-200)
     }
-
     store.updatedAt = Date.now()
-    localStorage.setItem(AI_USAGE_STATS_KEY, JSON.stringify(store))
-    notifyUpdated()
+    writeUsageStore(store)
+    notifyUsageStatsUpdated()
   } catch {
-    // 用量统计失败不能阻塞叙事请求；上游原始 usage 仍保留在服务端归档。
+    // Usage telemetry must never block the narrative request.
   }
 }
 
 function percentile(values: number[], percentileValue: number): number | undefined {
   if (values.length === 0) return undefined
-  const sorted = [...values].sort((a, b) => a - b)
+  const sorted = [...values].sort((left, right) => left - right)
   const index = Math.min(sorted.length - 1, Math.ceil((sorted.length - 1) * percentileValue))
   return sorted[index]
 }
 
-/** 返回同 Provider、模型、调用类型和思考模式的 P95 校准；样本不足时使用启动值。 */
 export function getNarrativeTokenCalibration(input: {
   providerId: string
   model: string
   reasoningEffort: ReasoningEffort
   callKind?: string
 }): { envelopeTokens?: number; reasoningTokens?: number } {
-  const samples = readStore().calibrationSamples.filter((sample) => (
+  const samples = readUsageStore().calibrationSamples.filter((sample) => (
     sample.providerId === input.providerId
     && sample.model === input.model
     && sample.reasoningEffort === input.reasoningEffort
@@ -354,7 +172,7 @@ export function getNarrativeTokenCalibration(input: {
 
 export function getAiUsageStats(): AiUsageStatsSnapshot {
   return {
-    ...readStore(),
+    ...readUsageStore(),
     priceVersion: DEEPSEEK_PRICE_VERSION,
     priceSource: DEEPSEEK_PRICE_SOURCE,
   }
@@ -362,8 +180,8 @@ export function getAiUsageStats(): AiUsageStatsSnapshot {
 
 export function resetAiUsageStats(): void {
   if (typeof localStorage === 'undefined') return
-  localStorage.setItem(AI_USAGE_STATS_KEY, JSON.stringify(emptyStore()))
-  notifyUpdated()
+  writeUsageStore(emptyStore())
+  notifyUsageStatsUpdated()
 }
 
 export function formatNanoYuan(value: number): string {

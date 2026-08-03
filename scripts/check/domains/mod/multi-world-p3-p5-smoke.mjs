@@ -1,5 +1,7 @@
 /**
- * P3-P5 multi-world simulation acceptance: environment, progression, and life closure.
+ * Purpose: Regress P3-P5 multi-world environment, progression, and life-closure acceptance.
+ * Owner: quality:mod
+ * Responsibility: One sequential multi-stage simulation scenario only.
  */
 
 import fs from 'node:fs'
@@ -439,7 +441,7 @@ assertOk(
 
 const root = getProjectRoot(import.meta.url)
 const campaignSource = fs.readFileSync(path.join(root, 'src/mods/mod-engine/campaigns/default/index.ts'), 'utf8')
-const gameOverSource = fs.readFileSync(path.join(root, 'src/mods/mod-pages/pages/game-over/page.tsx'), 'utf8')
+const gameOverSource = ['page.tsx', 'useGameOverScore.ts', 'useGameOverEndingReview.ts'].map((file) => fs.readFileSync(path.join(root, 'src/mods/mod-pages/pages/game-over', file), 'utf8')).join('\n')
 assertOk(
   campaignSource.indexOf("name: 'epilogue-check'") < campaignSource.indexOf("name: 'compress-save'")
     && gameOverSource.includes('death?.epilogueText?.trim()')

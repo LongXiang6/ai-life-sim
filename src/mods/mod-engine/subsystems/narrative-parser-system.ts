@@ -8,39 +8,27 @@ import { BaseSubsystem } from '@/core/subsystem-base'
 import type { RoundContext, SubSystemChanges, SubSystemState } from '@/foundation'
 
 import {
-  NarrativeResponseSchema,
-  type NarrativeDeferredCausality,
-  type NarrativeIntentResolution,
-  type NarrativeSemanticSignals,
+  NarrativeRoundMetadataSchema,
+  type NarrativeRoundMetadata,
 } from '../helpers/narrative-semantic-signals'
-import type { NarrativeAISettlement } from '../helpers/narrative-ai-protocol'
 import { parseNarrativeResponseEnvelope } from '../helpers/tagged-meta-envelope'
 
 export interface ParsedNarrative {
   narrative: string
-  changes: SubSystemChanges[]
-  notableEvents: string[]
   branch?: boolean
   branchTitle?: string
   branchOptions?: string[]
-  creations?: Array<{ name: string; description: string; category: string }>
-  foreshadowing?: Array<{ type: string; description: string; priority?: number }>
-  importance?: 'HIGH' | 'NORMAL' | 'LOW'
-  digest?: string
-  keyEvents?: Array<{ text: string; importance: number; entities?: string[] }>
-  arcStatus?: 'start' | 'ongoing' | 'end'
-  semanticSignals?: NarrativeSemanticSignals
-  intentResolution?: NarrativeIntentResolution
-  deferredCausality?: NarrativeDeferredCausality[]
 }
 
-/** 将两次调用的结果合并为唯一提交候选，并统一校验条件字段。 */
-export function combineNarrativeAndSettlement(
+export type NarrativeEventCommitData = ParsedNarrative & NarrativeRoundMetadata
+
+/** 校验事件识别元数据与主叙事分支是否满足同一语义契约。 */
+export function validateNarrativeEventMetadataForNarrative(
   narrativePart: ParsedNarrative,
-  settlement: NarrativeAISettlement,
-): ParsedNarrative {
-  const combined = NarrativeResponseSchema.parse({
-    ...settlement,
+  eventMetadata: NarrativeRoundMetadata,
+): void {
+  NarrativeRoundMetadataSchema.parse({
+    ...eventMetadata,
     ...(narrativePart.branch
       ? {
           branch: true,
@@ -49,19 +37,13 @@ export function combineNarrativeAndSettlement(
         }
       : {}),
   })
-
-  return {
-    narrative: narrativePart.narrative,
-    ...combined,
-    notableEvents: combined.notableEvents ?? [],
-  }
 }
 
 export class NarrativeParserSystem extends BaseSubsystem {
   readonly id = 'narrative-parser' as const
   readonly mod = 'mod-engine' as const
   readonly label = '叙事解析器' as const
-  readonly description = '无损识别完整正文及可选玩家分支；系统结算由独立第二次调用提供' as const
+  readonly description = '无损识别完整正文及可选玩家分支；后台分析由独立职责调用提供' as const
 
   private lastResult: ParsedNarrative | null = null
 
@@ -69,8 +51,6 @@ export class NarrativeParserSystem extends BaseSubsystem {
     const envelope = parseNarrativeResponseEnvelope(content)
     const result: ParsedNarrative = {
       narrative: envelope.narrative,
-      changes: [],
-      notableEvents: [],
       ...(envelope.branch
         ? {
             branch: true,

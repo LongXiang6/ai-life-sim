@@ -1,78 +1,43 @@
 /**
- * @module destiny-pattern-system.ts
- * @description 命格子系统
- * @mod mod-character
+ * Purpose: Own selected destiny patterns, candidates, rarity counts, and the public subsystem lifecycle.
+ * Owner: mod-character
+ * Responsibility: Mutate character-owned destiny state while delegating transient AI pool generation and value validation.
  */
 
 import type { RoundContext, SubSystemState, SubSystemChanges } from '@/foundation'
-import type { DestinyPattern, DestinyPatternInput, DestinyPatternRarity, DestinyPatternPolarity, DestinyPatternState } from '../types'
+import type { DestinyPattern, DestinyPatternInput, DestinyPatternRarity, DestinyPatternState } from '../types'
 import { BaseSubsystem } from '@/core'
-import { isAiCredentialError } from '@/core/ai-service'
-import { clamp } from '@/core/shared'
 
 import {
   PRESET_DESTINY_PATTERNS,
   DESTINY_PATTERN_RARITY_WEIGHTS,
   DESTINY_PATTERN_RARITY_LIMITS,
-  DESTINY_PATTERN_EARLY_READY_COUNT,
   DESTINY_PATTERN_DISPLAY_COUNT,
   DESTINY_PATTERN_SELECT_COUNT,
   DESTINY_PATTERN_ID_PREFIX,
-  AI_DESTINY_PATTERN_BATCH_SIZE,
-  AI_DESTINY_PATTERN_BATCH_COUNT,
-  AI_DESTINY_PATTERN_FIRST_SCREEN_CONCURRENCY,
 } from '../constants'
-import { destinyPatternPrompt, translateDestinyPatternAIResponse } from '../prompts/destiny-pattern-prompt'
-import { bumpTokenBudget } from '@/foundation'
 
-import {
-  buildDestinyPatternUserPromptKv,
-  estimateDestinyPatternTokenBudget,
-  DESTINY_PATTERN_DESC_MIN,
-  DESTINY_PATTERN_EFFECT_MIN,
-  type BuildDestinyPatternContextInput,
-} from '../prompts/destiny-pattern-context'
-import { buildFateKvSessionId } from '../utils/fate-kv'
-import { useWorldStore } from '@/mods/mod-world'
-import { useSettingsStore } from '@/mods/mod-settings'
+import type { BuildDestinyPatternContextInput } from '../prompts/destiny-pattern-context'
 import { useCharacterStore } from '../store'
 import { validatePatternSystemModifiers } from '../utils/destiny-pattern-modifiers'
-import { rejectsFutureDestinyPatternContent, rejectsBirthStateDestinyPatternContent } from '../utils/destiny-pattern-content-quality'
-import { saveDestinyPatternPool } from '../utils/destiny-pattern-pool-cache'
-import { StreamingJsonArrayParser } from '../utils/streaming-json-array-parser'
 import { sanitizeDestinyPatternState } from '../utils/character-state-migration'
 
-const POOL_FILL_BATCH_RETRIES = 2
-const POOL_FILL_RETRY_DELAY_MS = 1000
-
-function destinyPatternNameKey(name: string): string {
-  return name.trim().toLocaleLowerCase()
-}
-
-type DestinyPatternAIItem = {
-  name: string
-  description: string
-  rarity: string
-  polarity: string
-  effect: string
-  attrBonus: Record<string, number>
-  systemModifiers?: Record<string, number>
-}
-
-export type DestinyPatternPoolFillStatus = {
-  inProgress: boolean
-  count: number
-  target: number
-  completedBatches: number
-  totalBatches: number
-}
-
-export interface DestinyPatternAIGenerateOptions {
-  /** 已有本地缓存池。AI 续填时以它为起点，避免每次重新从 0 生成。 */
-  initialPatterns?: DestinyPattern[]
-  /** 目标池大小，默认 10 批 × 10 条。 */
-  targetCount?: number
-}
+export type {
+  DestinyPatternAIGenerateOptions,
+  DestinyPatternPoolFillStatus,
+} from './destiny-pattern-system/contracts'
+import type {
+  DestinyPatternAIGenerateOptions,
+  DestinyPatternAiCaller,
+  DestinyPatternPoolFillStatus,
+} from './destiny-pattern-system/contracts'
+import { DestinyPatternAiPoolService } from './destiny-pattern-system/ai-pool-service'
+import {
+  getDestinyPatternRarityLabel,
+  validateDestinyPatternAttrBonus,
+  validateDestinyPatternPolarity,
+  validateDestinyPatternRarity,
+} from './destiny-pattern-system/validation'
 
 export class DestinyPatternSystem extends BaseSubsystem {
   readonly id = 'destiny-pattern' as const
@@ -81,16 +46,6 @@ export class DestinyPatternSystem extends BaseSubsystem {
   readonly description = '管理角色命格池，支持抽12选3、首屏五条早交接 + AI 流式生成 + 内置预设双模式' as const
 
   private idCounter = 0
-  private callAI: ((systemPrompt: string, userPrompt: string, options?: unknown) => Promise<string>) | null = null
-  private poolFillPromise: Promise<void> | null = null
-  private poolFillAbortController: AbortController | null = null
-  private poolFillStatus: DestinyPatternPoolFillStatus = {
-    inProgress: false,
-    count: 0,
-    target: AI_DESTINY_PATTERN_BATCH_SIZE * AI_DESTINY_PATTERN_BATCH_COUNT,
-    completedBatches: 0,
-    totalBatches: AI_DESTINY_PATTERN_BATCH_COUNT,
-  }
 
   private state: DestinyPatternState = {
     candidates: [],
@@ -98,11 +53,15 @@ export class DestinyPatternSystem extends BaseSubsystem {
     rarityCount: { common: 0, fine: 0, rare: 0, epic: 0, legendary: 0 },
   }
 
+  private readonly aiPool = new DestinyPatternAiPoolService((patterns) => {
+    this.state.candidates = patterns
+  })
+
   collectState(context: RoundContext): SubSystemState {
     const s = this.state
     const rarityLines = Object.entries(s.rarityCount)
       .filter(([, count]) => count > 0)
-      .map(([r, c]) => `${this.getRarityLabel(r as DestinyPatternRarity)}×${c}`)
+      .map(([r, c]) => `${getDestinyPatternRarityLabel(r as DestinyPatternRarity)}×${c}`)
     const bonusSummary = this.summarizeAttrBonuses()
 
     return {
@@ -205,8 +164,8 @@ export class DestinyPatternSystem extends BaseSubsystem {
     const result: DestinyPattern[] = []
 
     for (const input of aiGeneratedPatterns) {
-      const rarity = this.validateRarity(input.rarity)
-      const polarity = this.validatePolarity(input.polarity)
+      const rarity = validateDestinyPatternRarity(input.rarity)
+      const polarity = validateDestinyPatternPolarity(input.polarity)
       if (!rarity || !polarity) continue
 
       const pattern: DestinyPattern = {
@@ -217,7 +176,7 @@ export class DestinyPatternSystem extends BaseSubsystem {
         polarity,
         effect: input.effects,
         attrBonus: input.attrBonus
-          ? this.validateAttrBonus(input.attrBonus as Record<string, number>, rarity)
+          ? validateDestinyPatternAttrBonus(input.attrBonus as Record<string, number>, rarity)
           : {},
         systemModifiers: validatePatternSystemModifiers(input.systemModifiers, rarity),
       }
@@ -231,27 +190,21 @@ export class DestinyPatternSystem extends BaseSubsystem {
 
   /** 后台命格池填充进度（与页面生命周期解耦） */
   getPoolFillStatus(): DestinyPatternPoolFillStatus {
-    return { ...this.poolFillStatus }
+    return this.aiPool.getPoolFillStatus()
   }
 
   /** 中止正在运行的后台池填充（页面离开或重新抽取时调用） */
   abortPoolFill(): void {
-    this.poolFillAbortController?.abort()
-    this.poolFillAbortController = null
-    this.poolFillPromise = null
-    this.poolFillStatus = { ...this.poolFillStatus, inProgress: false }
+    this.aiPool.abortPoolFill()
   }
 
   /** 设置 AI 服务实例（由引擎初始化时注入） */
-  setAIService(callAIFn: (systemPrompt: string, userPrompt: string, options?: unknown) => Promise<string>): void {
-    this.callAI = callAIFn
+  setAIService(callAI: DestinyPatternAiCaller): void {
+    this.aiPool.setAIService(callAI)
   }
 
   /**
    * AI 生成命格池（首屏三路并发、每路 10 条，随后后台续填至约 100 条）
-   *
-   * 每批将已有命格名称拼入 existingNames 避免重复。
-   * 首屏累计 5 条有效去重命格后立即交接；三路都不足时继续请求，直到 AI 结果够用或调用方主动中止；不混入预设。
    */
   async generateWithAI(
     contextInput: BuildDestinyPatternContextInput,
@@ -260,320 +213,13 @@ export class DestinyPatternSystem extends BaseSubsystem {
     onBatchStart?: (batchIndex: number) => void,
     options?: DestinyPatternAIGenerateOptions,
   ): Promise<DestinyPattern[]> {
-    if (!this.callAI) {
-      throw new Error('[destiny-pattern] AI 服务未就绪，请重试')
-    }
-
-    // 中止旧的后台填充，防止并发状态污染
-    this.abortPoolFill()
-
-    const targetCount = Math.max(
-      DESTINY_PATTERN_EARLY_READY_COUNT,
-      options?.targetCount ?? AI_DESTINY_PATTERN_BATCH_SIZE * AI_DESTINY_PATTERN_BATCH_COUNT,
+    return this.aiPool.generateWithAI(
+      contextInput,
+      onProgress,
+      onEarlyReady,
+      onBatchStart,
+      options,
     )
-    const seededPatterns = this.dedupePatterns(options?.initialPatterns ?? [])
-      .filter((pattern) => this.isAIGeneratedPattern(pattern))
-      .slice(0, targetCount)
-    const allPatterns: DestinyPattern[] = [...seededPatterns]
-    const existingNames: string[] = seededPatterns.map((p) => p.name)
-    const existingNameKeys = new Set(existingNames.map(destinyPatternNameKey))
-    let earlyReadyFired = false
-    const startingAge = contextInput.character.startingAge ?? 0
-
-    const abortController = new AbortController()
-    this.poolFillAbortController = abortController
-    this.poolFillStatus = {
-      inProgress: true,
-      count: allPatterns.length,
-      target: targetCount,
-      completedBatches: 0,
-      totalBatches: AI_DESTINY_PATTERN_BATCH_COUNT,
-    }
-    this.state.candidates = [...allPatterns]
-
-    const syncPoolStatus = () => {
-      this.poolFillStatus.count = allPatterns.length
-    }
-
-    const persistPoolToLocal = () => {
-      saveDestinyPatternPool(useWorldStore.getState().worldCode, [...allPatterns])
-    }
-
-    let resolveEarlyReady: (() => void) | null = null
-    const earlyReadyPromise = new Promise<void>((resolve) => {
-      resolveEarlyReady = resolve
-    })
-    let terminalCredentialError: unknown = null
-    let resolveTerminalCredentialError: (() => void) | null = null
-    const terminalCredentialErrorPromise = new Promise<void>((resolve) => {
-      resolveTerminalCredentialError = resolve
-    })
-
-    const stopForCredentialError = (error: unknown): void => {
-      if (terminalCredentialError) return
-      terminalCredentialError = error
-      abortController.abort()
-      resolveTerminalCredentialError?.()
-      resolveTerminalCredentialError = null
-    }
-
-    const fireEarlyReady = (): void => {
-      if (earlyReadyFired || allPatterns.length < DESTINY_PATTERN_EARLY_READY_COUNT) return
-      earlyReadyFired = true
-      onEarlyReady?.([...allPatterns])
-      resolveEarlyReady?.()
-      resolveEarlyReady = null
-    }
-
-    const ingestItem = (item: DestinyPatternAIItem) => {
-      const normalizedName = item?.name?.trim()
-      const nameKey = normalizedName ? destinyPatternNameKey(normalizedName) : ''
-      if (!normalizedName || existingNameKeys.has(nameKey)) return
-      if (allPatterns.length >= targetCount) return
-      if (!this.passesContentQuality(item, startingAge)) return
-
-      const rarity = this.validateRarity(item.rarity)
-      const polarity = this.validatePolarity(item.polarity)
-      if (!rarity || !polarity) return
-      const pattern: DestinyPattern = {
-        id: `${DESTINY_PATTERN_ID_PREFIX.AI}-${Date.now()}-${allPatterns.length}`,
-        name: normalizedName,
-        description: item.description,
-        rarity,
-        polarity,
-        effect: item.effect,
-        attrBonus: this.validateAttrBonus(item.attrBonus, item.rarity),
-        systemModifiers: validatePatternSystemModifiers(
-          item.systemModifiers != null && typeof item.systemModifiers === 'object'
-            ? (item.systemModifiers as Record<string, unknown>)
-            : undefined,
-          rarity,
-        ),
-      }
-
-      allPatterns.push(pattern)
-      existingNames.push(normalizedName)
-      existingNameKeys.add(nameKey)
-      this.state.candidates = [...allPatterns]
-      syncPoolStatus()
-      onProgress?.(allPatterns.length, [...allPatterns])
-      persistPoolToLocal()
-
-      fireEarlyReady()
-    }
-
-    const runBatch = async (batch: number, seed?: number, forceStream?: boolean): Promise<void> => {
-      onBatchStart?.(batch)
-      const t0 = performance.now()
-      const kvPrepared = buildDestinyPatternUserPromptKv({
-        ...contextInput,
-        existingNames,
-        includePresetNames: batch === 0,
-      })
-      const userPrompt = kvPrepared.userPrompt
-      const fateSessionId = buildFateKvSessionId(useWorldStore.getState().worldCode)
-
-      const useStream = forceStream === true || useSettingsStore.getState().streamingMode === 'stream'
-      const streamParser = useStream ? new StreamingJsonArrayParser<DestinyPatternAIItem>() : null
-      const countBefore = allPatterns.length
-
-      const ingestResponse = (response: string): { parsedCount: number; addedCount: number } => {
-        let added = 0
-        let parsedCount = 0
-        const parsed = this.parseAIResponse(response)
-        parsedCount += parsed.length
-        for (const item of parsed) {
-          const before = allPatterns.length
-          ingestItem(item)
-          if (allPatterns.length > before) added++
-        }
-        if (useStream && streamParser) {
-          const finalized = streamParser.finalize(response)
-          parsedCount += finalized.length
-          for (const item of finalized) {
-            const before = allPatterns.length
-            ingestItem(item)
-            if (allPatterns.length > before) added++
-          }
-        }
-        return { parsedCount, addedCount: added }
-      }
-
-      const baseTokenBudget = estimateDestinyPatternTokenBudget(userPrompt.length)
-      const callOpts = {
-        pool: 'fate',
-        sessionId: fateSessionId,
-        userSegments: kvPrepared.userSegments,
-        jsonMode: !useStream,
-        stream: useStream,
-        onChunk: useStream
-          ? (chunk: string) => {
-              for (const item of streamParser!.feed(chunk)) {
-                ingestItem(item)
-              }
-            }
-          : undefined,
-        maxTokensOverride: useStream ? bumpTokenBudget(baseTokenBudget) : baseTokenBudget,
-        stablePrefixChars: kvPrepared.stablePrefixChars,
-        storySeed: seed,
-        signal: abortController.signal,
-        outputSchema: destinyPatternPrompt.outputSchema,
-        logContext: {
-          callKind: useStream ? 'talent-generate-stream' : 'talent-generate-batch',
-          batchIndex: batch + 1,
-          totalBatches: AI_DESTINY_PATTERN_BATCH_COUNT,
-        },
-      }
-
-      let response = await this.callAI!(
-        destinyPatternPrompt.systemPrompt,
-        userPrompt,
-        callOpts,
-      )
-      if (!response?.trim()) {
-        throw new Error(`批次 ${batch + 1}/${AI_DESTINY_PATTERN_BATCH_COUNT} API 返回空结果`)
-      }
-      const firstIngest = ingestResponse(response)
-
-      console.info(
-        `[destiny-pattern] 批次 ${batch + 1} 首响应 ${((performance.now() - t0) / 1000).toFixed(1)}s` +
-        ` | 解析 ${firstIngest.parsedCount} 条 采纳 ${firstIngest.addedCount} 条` +
-        ` | 当前池 ${allPatterns.length} 条`,
-      )
-
-      const responseComplete = response.trim().endsWith('}') || response.trim().endsWith(']')
-      const looksTruncated = !responseComplete && firstIngest.parsedCount < AI_DESTINY_PATTERN_BATCH_SIZE / 2
-      if (looksTruncated) {
-        response = await this.callAI!(
-          destinyPatternPrompt.systemPrompt,
-          userPrompt,
-          {
-            ...callOpts,
-            maxTokensOverride: bumpTokenBudget(callOpts.maxTokensOverride),
-          },
-        )
-        if (!response?.trim()) {
-          throw new Error(`批次 ${batch + 1}/${AI_DESTINY_PATTERN_BATCH_COUNT} 续写 API 返回空结果`)
-        }
-        ingestResponse(response)
-      }
-
-      if (allPatterns.length === countBefore) {
-        throw new Error(`批次 ${batch + 1}/${AI_DESTINY_PATTERN_BATCH_COUNT} 解析结果为空`)
-      }
-
-      this.state.candidates = [...allPatterns]
-      syncPoolStatus()
-      onProgress?.(allPatterns.length, [...allPatterns])
-      this.poolFillStatus.completedBatches = Math.max(this.poolFillStatus.completedBatches, batch + 1)
-    }
-
-    const runBatchWithRetry = async (batch: number, seed?: number, forceStream?: boolean): Promise<void> => {
-      for (let attempt = 0; attempt < POOL_FILL_BATCH_RETRIES; attempt++) {
-        if (abortController.signal.aborted) return
-        try {
-          await runBatch(batch, seed, forceStream)
-          console.info(`[destiny-pattern] 批次 ${batch + 1}/${AI_DESTINY_PATTERN_BATCH_COUNT} 完成，当前池 ${allPatterns.length} 条`)
-          return
-        } catch (err) {
-          if (isAiCredentialError(err)) {
-            stopForCredentialError(err)
-            throw terminalCredentialError
-          }
-          // 页面离开或流程取消时，AbortController 触发的是预期的清理路径，
-          // 不应把它记录成 API 失败警告或让用户误以为命格生成出错。
-          if (abortController.signal.aborted) return
-          const msg = err instanceof Error ? err.message : String(err)
-          console.warn(
-            `[destiny-pattern] 批次 ${batch + 1}/${AI_DESTINY_PATTERN_BATCH_COUNT} 第 ${attempt + 1} 次失败: ${msg}`,
-          )
-          if (attempt < POOL_FILL_BATCH_RETRIES - 1 && !abortController.signal.aborted) {
-            await new Promise((resolve) => setTimeout(resolve, POOL_FILL_RETRY_DELAY_MS * (attempt + 1)))
-          }
-        }
-      }
-    }
-
-    try {
-      // 首屏同时发起三路独立的 10 项流式请求。任一路或任意组合累计出 5 条
-      // 有效去重命格就立即触发页面交接；其余请求不阻塞交接，继续由后台收集。
-      let nextBackgroundBatch = 0
-      const parallelPromises: Promise<void>[] = []
-      fireEarlyReady()
-
-      if (!earlyReadyFired && !abortController.signal.aborted) {
-        const parallelSeeds = [42, 137, 256].slice(0, AI_DESTINY_PATTERN_FIRST_SCREEN_CONCURRENCY)
-        parallelPromises.push(
-          ...parallelSeeds.map((seed, index) => runBatchWithRetry(index, seed, true)),
-        )
-        nextBackgroundBatch = parallelSeeds.length
-
-        const allParallelSettled = Promise.allSettled(parallelPromises).then(() => undefined)
-        await Promise.race([earlyReadyPromise, allParallelSettled, terminalCredentialErrorPromise])
-        if (terminalCredentialError) throw terminalCredentialError
-        fireEarlyReady()
-      }
-
-      // 三路都结束但仍未达到 5 条时，继续单路请求；不设置人为批次数上限。
-      // 401/403 是配置终止错误，会中止并退出；其余单次失败仍按原规则继续等待。
-      while (!earlyReadyFired && !abortController.signal.aborted) {
-        await runBatchWithRetry(
-          nextBackgroundBatch,
-        )
-        nextBackgroundBatch += 1
-        fireEarlyReady()
-      }
-
-      const fillRemainingBatches = async (): Promise<void> => {
-        try {
-          // 首屏可选后再串行填充后续批次；先等仍在运行的首屏请求写入共享池。
-          if (parallelPromises.length > 0) {
-            await Promise.allSettled(parallelPromises)
-          }
-          for (let batch = nextBackgroundBatch; batch < AI_DESTINY_PATTERN_BATCH_COUNT; batch++) {
-            if (abortController.signal.aborted) break
-            if (allPatterns.length >= targetCount) break
-            await runBatchWithRetry(batch)
-          }
-
-          // AI 模式下不混入预设，有多少 AI 结果就保留多少
-          this.state.candidates = [...allPatterns]
-          console.info(`[destiny-pattern] 命格池填充完成: ${allPatterns.length}/${this.poolFillStatus.target} 条`)
-        } catch (error) {
-          if (!isAiCredentialError(error)) throw error
-          console.warn('[destiny-pattern] 凭据或权限错误，已停止后台命格池填充')
-        } finally {
-          if (this.poolFillAbortController === abortController) {
-            this.poolFillStatus.inProgress = false
-            this.poolFillStatus.count = allPatterns.length
-            this.poolFillAbortController = null
-            persistPoolToLocal()
-          }
-        }
-      }
-
-      const backgroundFillPromise = fillRemainingBatches()
-      this.poolFillPromise = backgroundFillPromise
-      void backgroundFillPromise.finally(() => {
-        if (this.poolFillPromise === backgroundFillPromise) {
-          this.poolFillPromise = null
-        }
-        if (this.poolFillAbortController === abortController) {
-          this.poolFillAbortController = null
-        }
-      })
-
-      return [...allPatterns]
-    } catch (error) {
-      abortController.abort()
-      this.poolFillStatus.inProgress = false
-      this.poolFillStatus.count = allPatterns.length
-      if (this.poolFillAbortController === abortController) {
-        this.poolFillAbortController = null
-      }
-      persistPoolToLocal()
-      throw error
-    }
   }
 
   /**
@@ -661,27 +307,6 @@ export class DestinyPatternSystem extends BaseSubsystem {
     })
   }
 
-  /** 按 id/name 去重本地缓存，保证续填时不会把旧池重复写入候选池。 */
-  private dedupePatterns(patterns: DestinyPattern[]): DestinyPattern[] {
-    const result: DestinyPattern[] = []
-    const seenIds = new Set<string>()
-    const seenNames = new Set<string>()
-    for (const pattern of patterns) {
-      if (!pattern?.id || !pattern.name) continue
-      const nameKey = destinyPatternNameKey(pattern.name)
-      if (seenIds.has(pattern.id) || seenNames.has(nameKey)) continue
-      seenIds.add(pattern.id)
-      seenNames.add(nameKey)
-      result.push({ ...pattern, name: pattern.name.trim() })
-    }
-    return result
-  }
-
-  /** AI 池只接受 AI 前缀；兼容 generateFromAI 的旧下划线 ID。 */
-  private isAIGeneratedPattern(pattern: DestinyPattern): boolean {
-    return pattern.id.startsWith(`${DESTINY_PATTERN_ID_PREFIX.AI}-`) || pattern.id.startsWith('ai_')
-  }
-
   private weightedRandomIndex(pool: typeof PRESET_DESTINY_PATTERNS): number {
     const weights = pool.map((t) => DESTINY_PATTERN_RARITY_WEIGHTS[t.rarity] ?? 10)
     const totalWeight = weights.reduce((a, b) => a + b, 0)
@@ -706,120 +331,6 @@ export class DestinyPatternSystem extends BaseSubsystem {
     }).join(' ')
   }
 
-  // -------- AI 响应解析与校验 --------
-
-  /** 内容质量门禁：长度 + common 单属性 + 禁止未来事件描述 */
-  private passesContentQuality(item: DestinyPatternAIItem, startingAge = 0): boolean {
-    const descLen = item.description?.length ?? 0
-    if (descLen < DESTINY_PATTERN_DESC_MIN) return false
-    if ((item.effect?.length ?? 0) < DESTINY_PATTERN_EFFECT_MIN) return false
-    if (rejectsFutureDestinyPatternContent(item, startingAge)) return false
-    if (rejectsBirthStateDestinyPatternContent(item)) return false
-    if (item.rarity === 'common' && item.attrBonus) {
-      const nonZero = Object.values(item.attrBonus).filter((v) => Number(v) !== 0).length
-      if (nonZero > 1) return false
-    }
-    return true
-  }
-
-  /** 解析 AI 返回的 JSON 文本为结构化对象 */
-  private parseAIResponse(response: string): Array<{
-    name: string
-    description: string
-    rarity: string
-    polarity: string
-    effect: string
-    attrBonus: Record<string, number>
-    systemModifiers?: Record<string, number>
-  }> {
-    try {
-      let jsonText = response.trim()
-      const jsonMatch = jsonText.match(/```json\s*([\s\S]*?)```/) || jsonText.match(/```\s*([\s\S]*?)```/)
-      if (jsonMatch) {
-        jsonText = jsonMatch[1].trim()
-      }
-
-      const parsed = JSON.parse(jsonText)
-      let list: unknown[] = []
-      if (Array.isArray(parsed)) {
-        list = parsed
-      } else if (parsed && typeof parsed === 'object' && parsed.name) {
-        list = [parsed]
-      } else if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { patterns?: unknown }).patterns)) {
-        list = (parsed as { patterns: unknown[] }).patterns
-      } else if (parsed && typeof parsed === 'object') {
-        for (const val of Object.values(parsed)) {
-          if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'object') {
-            list = val
-            break
-          }
-        }
-      }
-
-      // 执行中文键值对底层英文契约翻译映射转译
-      return translateDestinyPatternAIResponse(list) as Array<{
-        name: string
-        description: string
-        rarity: string
-        polarity: string
-        effect: string
-        attrBonus: Record<string, number>
-        systemModifiers?: Record<string, number>
-      }>
-    } catch {
-      return []
-    }
-  }
-
-  /** 校验稀有度值是否合法 */
-  private validateRarity(rarity: string): DestinyPatternRarity | null {
-    const valid: DestinyPatternRarity[] = ['common', 'fine', 'rare', 'epic', 'legendary']
-    return valid.includes(rarity as DestinyPatternRarity) ? (rarity as DestinyPatternRarity) : null
-  }
-
-  /** 校验极性值是否合法 */
-  private validatePolarity(polarity: string): DestinyPatternPolarity | null {
-    const valid: DestinyPatternPolarity[] = ['positive', 'mixed']
-    return valid.includes(polarity as DestinyPatternPolarity) ? (polarity as DestinyPatternPolarity) : null
-  }
-
-  /** 校验并修正属性加成（钳制到 [-4, 4]） */
-  private validateAttrBonus(
-    bonus: Record<string, number> | undefined,
-    rarity: string,
-  ): Partial<Record<string, number>> {
-    if (!bonus || typeof bonus !== 'object') return {}
-
-    const validKeys = ['physique', 'mind', 'talentAptitude', 'charisma']
-    const result: Record<string, number> = {}
-    const maxTotal = rarity === 'legendary' ? 7 : rarity === 'epic' ? 5 : rarity === 'rare' ? 4 : rarity === 'fine' ? 3 : 1
-
-    let total = 0
-    for (const key of validKeys) {
-      const val = Number(bonus[key])
-      if (isNaN(val) || val === 0) continue
-      const clamped = clamp(val, -4, 4)
-      result[key] = clamped
-      total += Math.abs(clamped)
-    }
-
-    // 总和超限则按比例缩放
-    if (total > maxTotal && total > 0) {
-      const scale = maxTotal / total
-      for (const key of Object.keys(result)) {
-        result[key] = Math.round((result[key] ?? 0) * scale)
-      }
-    }
-
-    return result
-  }
-
-  private getRarityLabel(rarity: DestinyPatternRarity): string {
-    const labels: Record<DestinyPatternRarity, string> = {
-      common: '普通', fine: '精良', rare: '稀有', epic: '史诗', legendary: '传说',
-    }
-    return labels[rarity] ?? rarity
-  }
 }
 
 let runtimeDestinyPatternSystem: DestinyPatternSystem | undefined

@@ -1,0 +1,191 @@
+/**
+ * Purpose: Derive and validate world-context capabilities and runtime subsystem membership.
+ * Owner: mod-world / contextual-capability-profile.
+ * Responsibility: Capability policy only; identifiers, graphs, and context persistence stay outside.
+ */
+
+import type { ContextCapability, ContextCapabilityProfile } from '@/foundation'
+import { WORLDVIEW_TAG_DEFAULTS } from '../../constants/world-tag-defaults'
+import type { WorldConfig } from '../../types'
+
+export const P0_FOUNDATION_SUBSYSTEM_IDS = [
+  'world-context-registry',
+  'contextual-capability-profile',
+  'spatial-graph',
+  'context-transition',
+  'simulation-scope-policy',
+  'world-init',
+] as const
+
+const CURRENT_WORLD_SUBSYSTEM_IDS = [
+  'world-entity',
+  'character-base',
+  'destiny-pattern',
+  'lifespan',
+  'luck',
+  'morality',
+  'historical-event-ledger',
+  'celestial',
+  'era',
+] as const
+
+export const REQUIRED_CONTEXT_SUBSYSTEM_IDS = [
+  ...P0_FOUNDATION_SUBSYSTEM_IDS,
+  ...CURRENT_WORLD_SUBSYSTEM_IDS,
+] as const
+
+export const CONTEXT_CAPABILITY_SUBSYSTEM_POLICY: Readonly<
+  Record<ContextCapability, { enabledSubsystemIds: readonly string[]; backgroundSubsystemIds: readonly string[] }>
+> = {
+  life: { enabledSubsystemIds: [], backgroundSubsystemIds: [] },
+  space: {
+    enabledSubsystemIds: ['geography', 'natural-resource', 'climate', 'ecology', 'pollution'],
+    backgroundSubsystemIds: ['geography', 'natural-resource', 'climate', 'ecology', 'pollution'],
+  },
+  npc: {
+    enabledSubsystemIds: ['npc-system', 'relationship-system'],
+    backgroundSubsystemIds: ['npc-system', 'relationship-system'],
+  },
+  economy: {
+    enabledSubsystemIds: ['economy', 'population', 'settlement', 'work', 'item'],
+    backgroundSubsystemIds: ['economy', 'population', 'settlement', 'work', 'item'],
+  },
+  politics: {
+    enabledSubsystemIds: ['social-stratification', 'faction-dynamics', 'legal', 'conflict-cycle'],
+    backgroundSubsystemIds: ['social-stratification', 'faction-dynamics', 'legal', 'conflict-cycle'],
+  },
+  technology: {
+    enabledSubsystemIds: ['culture', 'art', 'education', 'works', 'culture-tech'],
+    backgroundSubsystemIds: ['culture', 'art', 'education', 'works', 'culture-tech'],
+  },
+  supernatural: {
+    enabledSubsystemIds: ['fate-prophecy', 'divine-creation', 'combat-power', 'cultivation', 'monster', 'fortune-encounter', 'faith', 'divine-intervention', 'anomaly-phenomena'],
+    backgroundSubsystemIds: ['fate-prophecy', 'divine-creation', 'combat-power', 'cultivation', 'monster', 'fortune-encounter', 'faith', 'divine-intervention', 'anomaly-phenomena'],
+  },
+}
+
+const KNOWN_LIFE_ESSENCE_TAGS = new Set([
+  ...Object.keys(WORLDVIEW_TAG_DEFAULTS),
+  'cultivation',
+  'wuxia',
+  'dark-fantasy',
+  'mythological',
+  'lovecraftian',
+].map(normalizeStructuredTagKey))
+
+const ORGANIZED_CIVILIZATION_STAGES = new Set([
+  'ancient',
+  'medieval',
+  'renaissance',
+  'industrial',
+  'modern',
+  'information',
+  'space',
+])
+const TECHNOLOGICAL_CIVILIZATION_STAGES = new Set([
+  'industrial',
+  'modern',
+  'information',
+  'space',
+])
+const TECHNOLOGICAL_POWER_SYSTEM_TAGS = new Set(['technology'])
+const SUPERNATURAL_POWER_SYSTEM_TAGS = new Set([
+  'cultivation',
+  'magic',
+  'psi',
+  'martial',
+  'faith',
+  'mixed',
+])
+const VALID_CONTEXT_CAPABILITIES = new Set<ContextCapability>([
+  'life',
+  'space',
+  'npc',
+  'economy',
+  'politics',
+  'technology',
+  'supernatural',
+])
+
+function normalizeStructuredTagKey(value: string): string {
+  return value.trim().replaceAll('-', '').replaceAll('_', '').toLowerCase()
+}
+
+function splitStructuredTags(value: string): string[] {
+  return value.split('+').map((tag) => tag.trim()).filter(Boolean)
+}
+
+function containsKnownTag(value: string, knownTags: ReadonlySet<string>): boolean {
+  return splitStructuredTags(value).some((tag) => knownTags.has(normalizeStructuredTagKey(tag)))
+}
+
+function mergeUniqueIds(...groups: readonly (readonly string[])[]): string[] {
+  return [...new Set(groups.flatMap((group) => [...group]))]
+}
+
+export function normalizeConfirmedCapabilities(
+  capabilities: readonly ContextCapability[],
+): ContextCapability[] {
+  const normalized = new Set<ContextCapability>(['space'])
+  for (const capability of capabilities) {
+    if (!VALID_CONTEXT_CAPABILITIES.has(capability)) {
+      throw new Error(`未知上下文能力：${String(capability)}`)
+    }
+    normalized.add(capability)
+  }
+  return [...normalized]
+}
+
+export function alignCapabilityProfileRuntimeMembership(
+  profile: ContextCapabilityProfile,
+): ContextCapabilityProfile {
+  const capabilities = normalizeConfirmedCapabilities(profile.capabilities)
+  const policies = capabilities.map((capability) => CONTEXT_CAPABILITY_SUBSYSTEM_POLICY[capability])
+  return {
+    ...profile,
+    capabilities,
+    enabledSubsystemIds: mergeUniqueIds(
+      REQUIRED_CONTEXT_SUBSYSTEM_IDS,
+      ...policies.map((policy) => policy.enabledSubsystemIds),
+    ),
+    backgroundSubsystemIds: mergeUniqueIds(
+      ...policies.map((policy) => policy.backgroundSubsystemIds),
+    ),
+  }
+}
+
+export function deriveCapabilityProfile(
+  contextId: string,
+  config: WorldConfig,
+  derivedFrom: ContextCapabilityProfile['derivedFrom'] = 'world-config',
+  confirmedCapabilities?: readonly ContextCapability[],
+): ContextCapabilityProfile {
+  const capabilities = new Set<ContextCapability>(
+    confirmedCapabilities ? normalizeConfirmedCapabilities(confirmedCapabilities) : ['space'],
+  )
+  if (!confirmedCapabilities) {
+    const supportsLife = containsKnownTag(config.essenceTag, KNOWN_LIFE_ESSENCE_TAGS)
+    const organizedSociety = supportsLife && ORGANIZED_CIVILIZATION_STAGES.has(config.civilizationStage)
+    const technological = TECHNOLOGICAL_CIVILIZATION_STAGES.has(config.civilizationStage)
+      || containsKnownTag(config.powerSystemTag, TECHNOLOGICAL_POWER_SYSTEM_TAGS)
+    const supernatural = containsKnownTag(config.powerSystemTag, SUPERNATURAL_POWER_SYSTEM_TAGS)
+    if (supportsLife) {
+      capabilities.add('life')
+      capabilities.add('npc')
+    }
+    if (organizedSociety) {
+      capabilities.add('economy')
+      capabilities.add('politics')
+    }
+    if (technological) capabilities.add('technology')
+    if (supernatural) capabilities.add('supernatural')
+  }
+
+  return alignCapabilityProfileRuntimeMembership({
+    contextId,
+    capabilities: [...capabilities],
+    enabledSubsystemIds: [],
+    backgroundSubsystemIds: [],
+    derivedFrom: confirmedCapabilities ? 'confirmed-facts' : derivedFrom,
+  })
+}

@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "path": "src/mods/mod-pages/pages/account/Account.module.css",
+      "owner": "mod-pages",
+      "reviewedLines": 366,
+      "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
+    },
+    {
+      "path": "src/mods/mod-pages/pages/attribute-alloc/AttributeAlloc.module.css",
+      "owner": "mod-pages",
+      "reviewedLines": 345,
+      "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
+    },
+    {
+      "path": "src/mods/mod-pages/pages/character-create/CharacterCreateMobile.module.css",
+      "owner": "mod-pages",
+      "reviewedLines": 631,
+      "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
+    },
+    {
+      "path": "src/mods/mod-pages/pages/fate-preview/FatePreview.module.css",
+      "owner": "mod-pages",
+      "reviewedLines": 502,
+      "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
+    },
+    {
+      "path": "src/mods/mod-pages/pages/game-over/game-over-share-card.ts",
+      "owner": "mod-pages",
+      "reviewedLines": 437,
+      "reason": "单个页面工作流组件，局部状态、事件处理和渲染共同维护同一用户流程，重复视图已下沉。"
+    },
+    {
+      "path": "src/mods/mod-pages/pages/game-over/GameOver.module.css",
+      "owner": "mod-pages",
+      "reviewedLines": 930,
+      "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
+    },
+    {
+      "path": "src/mods/mod-pages/pages/game-story/GameStory.module.css",
+      "owner": "mod-pages",
+      "reviewedLines": 1029,
+      "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
+    },
+    {
+      "path": "src/mods/mod-pages/pages/mailbox/Mailbox.module.css",
+      "owner": "mod-pages",
+      "reviewedLines": 419,
+      "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
+    },
+    {
+      "path": "src/mods/mod-pages/pages/talent-draw/TalentDraw.module.css",
+      "owner": "mod-pages",
+      "reviewedLines": 699,
+      "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
+    },
+    {
+      "path": "src/mods/mod-pages/pages/welcome/WelcomeSaveSheet.tsx",
+      "owner": "mod-pages",
+      "reviewedLines": 351,
+      "reason": "单个页面工作流组件，局部状态、事件处理和渲染共同维护同一用户流程，重复视图已下沉。"
+    },
+    {
+      "path": "src/mods/mod-pages/pages/welcome/WelcomeView.module.css",
+      "owner": "mod-pages",
+      "reviewedLines": 560,
+      "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
+    },
+    {
+      "path": "src/mods/mod-pages/pages/world-customize/WorldCustomizeMobile.module.css",
+      "owner": "mod-pages",
+      "reviewedLines": 657,
+      "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
+    },
+    {
+      "path": "src/mods/mod-pages/pages/world-select/WorldSelectMobile.module.css",
+      "owner": "mod-pages",
+      "reviewedLines": 1250,
+      "reason": "单页原子 CSS Module，选择器、媒体查询和状态样式共同维护该页面的层叠与响应式顺序。"
+    }
+  ]
+}

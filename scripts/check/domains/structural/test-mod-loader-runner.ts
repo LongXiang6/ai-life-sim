@@ -1,6 +1,7 @@
 /**
- * @module test-mod-loader-runner.ts
- * @description MOD 加载器回归测试（由 test-mod-loader.mjs 调用）
+ * Purpose: Regress MOD loader dependency, Remote API, and execution-sequence contracts.
+ * Owner: quality:structural
+ * Responsibility: One MOD-loader runner invoked by test-mod-loader.mjs only.
  */
 
 import assert from 'node:assert/strict'

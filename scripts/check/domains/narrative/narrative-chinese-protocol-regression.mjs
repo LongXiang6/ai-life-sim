@@ -1,5 +1,7 @@
 /**
- * 叙事协议：第一次纯叙事 + 后台数据分析与事件识别的中文分段回归。
+ * Purpose: Regress the Chinese narrative protocol and its background-analysis envelopes.
+ * Owner: quality:narrative
+ * Responsibility: Protocol fixtures, parsing, and sequential assertions only.
  */
 
 import {
@@ -8,28 +10,39 @@ import {
 } from '../../../../src/core/ai-service/prompt-builder.ts'
 import { parseAIJSON } from '../../../../src/core/ai-service/parse-ai-json.ts'
 import {
-  NarrativeAISettlementDataSchema,
+  NarrativeAIBasicAttributeAnalysisDataSchema,
+  NarrativeAIDataAnalysisDataSchema,
+  NarrativeAIEventRecognitionDataSchema,
   fromNarrativeAIIntentId,
   parseNarrativeAIJson,
   toNarrativeAIIntentId,
-  translateNarrativeAISettlement,
+  translateNarrativeAIBasicAttributeAnalysis,
+  translateNarrativeAIDataAnalysis,
 } from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
 import {
-  buildNarrativeSettlementPromptInput,
-} from '../../../../src/mods/mod-engine/helpers/narrative-settlement-context.ts'
+  buildNarrativeBasicAttributePromptInput,
+} from '../../../../src/mods/mod-engine/helpers/narrative-basic-attribute-context.ts'
+import {
+  buildNarrativeDataAnalysisPromptInput,
+} from '../../../../src/mods/mod-engine/helpers/narrative-data-analysis-context.ts'
+import {
+  buildNarrativeEventRecognitionPromptInput,
+} from '../../../../src/mods/mod-engine/helpers/narrative-event-recognition-context.ts'
+import {
+  NarrativeAIMacroImpactDataSchema,
+  buildNarrativeMacroImpactPromptInput,
+} from '../../../../src/mods/mod-engine/helpers/narrative-macro-impact-context.ts'
 import {
   buildNarrativeRepairInstruction,
   buildNarrativeRoundOutputContract,
-  buildNarrativeEventRecognitionRepairInstruction,
-  buildNarrativeSettlementRepairInstruction,
+  inspectNarrativeBasicAttributeAnalysisQuality,
+  inspectNarrativeDataAnalysisQuality,
   inspectNarrativeEventRecognitionQuality,
+  inspectNarrativeMacroImpactQuality,
   inspectNarrativeResponseQuality,
-  inspectNarrativeSettlementQuality,
 } from '../../../../src/mods/mod-engine/helpers/narrative-response-quality.ts'
 import {
   parseNarrativeResponseEnvelope,
-  parseNarrativeEventRecognitionEnvelope,
-  parseNarrativeSettlementEnvelope,
 } from '../../../../src/mods/mod-engine/helpers/tagged-meta-envelope.ts'
 import {
   MVP_SYSTEM_INSTRUCTION_SUBSYSTEM_IDS,
@@ -42,13 +55,21 @@ import {
   narrativePrompt,
 } from '../../../../src/mods/mod-engine/prompts/narrative-prompt.ts'
 import {
+  NARRATIVE_BASIC_ATTRIBUTE_SERVER_PROMPT_ASSET_ID,
+  narrativeBasicAttributePrompt,
+} from '../../../../src/mods/mod-engine/prompts/narrative-basic-attribute-prompt.ts'
+import {
+  NARRATIVE_DATA_ANALYSIS_SERVER_PROMPT_ASSET_ID,
+  narrativeDataAnalysisPrompt,
+} from '../../../../src/mods/mod-engine/prompts/narrative-data-analysis-prompt.ts'
+import {
   NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID,
   narrativeEventRecognitionPrompt,
 } from '../../../../src/mods/mod-engine/prompts/narrative-event-recognition-prompt.ts'
 import {
-  NARRATIVE_SETTLEMENT_SERVER_PROMPT_ASSET_ID,
-  narrativeSettlementPrompt,
-} from '../../../../src/mods/mod-engine/prompts/narrative-settlement-prompt.ts'
+  NARRATIVE_MACRO_IMPACT_SERVER_PROMPT_ASSET_ID,
+  narrativeMacroImpactPrompt,
+} from '../../../../src/mods/mod-engine/prompts/narrative-macro-impact-prompt.ts'
 import {
   COMPILED_NARRATIVE_SYSTEM_PROMPT,
   buildNarrativeAIProtocolPromptExample,
@@ -60,15 +81,22 @@ import {
   projectSummaryToNarrativeTimeline,
 } from '../../../../src/mods/mod-engine/helpers/timeline-memory.ts'
 import {
+  COMPILED_NARRATIVE_BASIC_ATTRIBUTE_SYSTEM_PROMPT,
+  buildNarrativeBasicAttributeContractLine,
+  buildNarrativeBasicAttributeStandardExample,
+} from '../../../../src/mods/mod-engine/server/narrative-basic-attribute-system-prompt.ts'
+import {
+  COMPILED_NARRATIVE_DATA_ANALYSIS_SYSTEM_PROMPT,
+  buildNarrativeDataAnalysisStandardExample,
+  buildNarrativeDataAnalysisSystemContractLines,
+} from '../../../../src/mods/mod-engine/server/narrative-data-analysis-system-prompt.ts'
+import {
   COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT,
   buildNarrativeEventRecognitionStandardExample,
 } from '../../../../src/mods/mod-engine/server/narrative-event-recognition-system-prompt.ts'
 import {
-  COMPILED_NARRATIVE_SETTLEMENT_SYSTEM_PROMPT,
-  buildNarrativeSettlementDataContractLine,
-  buildNarrativeSettlementStandardExample,
-  buildNarrativeSettlementSystemContractLines,
-} from '../../../../src/mods/mod-engine/server/narrative-settlement-system-prompt.ts'
+  COMPILED_NARRATIVE_MACRO_IMPACT_SYSTEM_PROMPT,
+} from '../../../../src/mods/mod-engine/server/narrative-macro-impact-system-prompt.ts'
 
 let failed = 0
 
@@ -106,12 +134,16 @@ function buildSemanticCore(overrides = {}) {
   }
 }
 
-function systemLine(number, instruction) {
-  return `⟦系统${number}⟧${JSON.stringify(instruction)}`
+function dataAnalysisLine(data) {
+  return JSON.stringify(data)
 }
 
-function dataLine(data) {
-  return `⟦数据⟧${JSON.stringify(data)}`
+function basicAttributeLine(data) {
+  return JSON.stringify(data)
+}
+
+function eventRecognitionLine(data) {
+  return JSON.stringify(data)
 }
 
 const promptContext = {
@@ -293,11 +325,47 @@ for (const invalidNarrative of [
 }
 
 const writableIds = [...MVP_SYSTEM_INSTRUCTION_SUBSYSTEM_IDS]
+const dataWritableIds = writableIds.filter((id) => id !== 'character-base')
 const subsystemStates = Object.fromEntries(writableIds.map((id) => [id, {
   id,
   summary: `${id} 已就绪`,
   data: { 状态标记: id },
 }]))
+subsystemStates['character-base'] = {
+  id: 'character-base',
+  summary: '基础属性已就绪',
+  data: {
+    contextId: 'context:world-a',
+    base: { physique: 0, mind: 10, talentAptitude: 11, charisma: 4 },
+    current: { physique: 0, mind: 10, talentAptitude: 11, charisma: 5 },
+    modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 1 },
+    contextModifiers: {
+      'context:world-a': { climate: { physique: 1 } },
+    },
+    startingAge: 18,
+  },
+}
+subsystemStates['destiny-pattern'] = {
+  id: 'destiny-pattern',
+  summary: '命格已就绪',
+  data: {
+    patterns: [{ name: '潮声记忆', description: '能准确记住潮汐节律', rarity: 'rare' }],
+  },
+}
+subsystemStates.lifespan = {
+  id: 'lifespan',
+  summary: '生命形态已就绪',
+  data: {
+    profile: { raceId: 'human', displayName: '人类', clockMode: 'biological' },
+  },
+}
+subsystemStates['lifecycle-system'] = {
+  id: 'lifecycle-system',
+  summary: '生命周期已就绪',
+  data: {
+    entity: { stageId: 'adult', stageLabel: '成年', stageDescription: '身心处于稳定成年阶段' },
+  },
+}
 subsystemStates['historical-event-ledger'] = {
   id: 'historical-event-ledger',
   summary: '当前上下文存在已接受历史事件',
@@ -322,29 +390,182 @@ const roundContext = {
   daysPassed: 30,
   totalDays: 120,
 }
-const settlementInput = buildNarrativeSettlementPromptInput({
+const recentStories = [
+  {
+    回合: 10,
+    规范时间: { 总天数: 60, 时间标签: '2026年7月18日' },
+    故事全文: '你在旧桥第一次找到阿禾，她拒绝立刻离开。',
+    分支: { 标题: '旧桥抉择', 选项: ['等待她', '独自离开'] },
+    已确认选择: { 内容: '等待她', 确认回合: 11 },
+  },
+  {
+    回合: 11,
+    规范时间: { 总天数: 90, 时间标签: '2026年8月18日' },
+    故事全文: '巡船封锁北岸，你们转移到废弃仓库。',
+  },
+  {
+    回合: 12,
+    规范时间: { 总天数: 120, 时间标签: '2026年9月18日' },
+    故事全文: parsedNarrative.narrative,
+    分支: { 标题: parsedNarrative.branch.标题, 选项: parsedNarrative.branch.选项 },
+  },
+]
+const character = {
+  name: '林舟',
+  gender: '男',
+  background: '出身临海修船匠家庭，长期学习航海与木工。',
+  destinyPatterns: [],
+}
+
+const dataAnalysisInput = buildNarrativeDataAnalysisPromptInput({
   subsystemStates,
   roundContext,
-  narrativeResponse: narrativeWithBranch,
+  recentStories,
 })
-const settlementStateLines = settlementInput.userSegments[0].split('\n')
+const dataStateLines = dataAnalysisInput.userSegments[0].split('\n')
+const dataRecentStories = JSON.parse(dataAnalysisInput.userSegments[2].slice('⟦最近故事⟧'.length))
 assertOk(
-  settlementInput.userSegments.length === 3
-    && settlementStateLines.length === writableIds.length
-    && settlementStateLines.every((line, index) => (
-      line.startsWith(`⟦可写系统:${getNarrativeAISubsystemContract(writableIds[index]).aiName}⟧{`)
+  dataAnalysisInput.userSegments.length === 3
+    && dataStateLines.length === dataWritableIds.length
+    && dataStateLines.every((line, index) => (
+      line.startsWith(`⟦可写系统:${getNarrativeAISubsystemContract(dataWritableIds[index]).aiName}⟧{`)
       && !line.includes('字段规则')
       && !line.includes('操作与变更字段')
     )),
-  'second call must send each active writable system state on its own line without repeating fixed contracts',
+  'data analysis must send every active non-basic writable system state without repeating fixed contracts',
 )
 assertOk(
-  settlementInput.userSegments[1].startsWith('⟦回合上下文⟧{')
-    && settlementInput.userSegments[2] === `⟦最终叙事响应⟧${narrativeWithBranch}`
-    && settlementInput.allowedEvidenceEventIds.length === 1
-    && settlementInput.allowedEvidenceEventIds[0] === 'event:accepted-123',
-  'second call must send one round-context line, the complete first response, and deduplicated stable evidence IDs',
+  dataAnalysisInput.userSegments[1].startsWith('⟦回合上下文⟧{')
+    && dataAnalysisInput.userSegments[2].startsWith('⟦最近故事⟧[')
+    && dataRecentStories.length === 3
+    && dataRecentStories[0].故事全文 === recentStories[0].故事全文
+    && dataRecentStories[2].故事全文 === recentStories[2].故事全文
+    && dataAnalysisInput.allowedEvidenceEventIds.length === 1
+    && dataAnalysisInput.allowedEvidenceEventIds[0] === 'event:accepted-123',
+  'data analysis must receive the complete recent three stories and deduplicated stable evidence IDs',
 )
+
+const basicAttributeInput = buildNarrativeBasicAttributePromptInput({
+  subsystemStates,
+  character,
+  roundContext,
+  recentStories,
+})
+const characterProfile = JSON.parse(
+  basicAttributeInput.userSegments[0].slice('⟦角色画像⟧'.length),
+)
+assertOk(
+  basicAttributeInput.userSegments.length === 4
+    && basicAttributeInput.userSegments[0].startsWith('⟦角色画像⟧{')
+    && basicAttributeInput.userSegments[1].startsWith('⟦基础属性状态⟧{')
+    && basicAttributeInput.userSegments[1].includes('"base":{"physique":0,"mind":10,"talentAptitude":11')
+    && basicAttributeInput.userSegments[1].includes('"current":{"physique":0,"mind":10,"talentAptitude":11')
+    && basicAttributeInput.userSegments[1].includes('"modifiers":{"physique":0')
+    && basicAttributeInput.userSegments[3].includes(recentStories[0].故事全文)
+    && characterProfile.身份.姓名 === '林舟'
+    && characterProfile.稳定特征.命格[0]?.name === '潮声记忆'
+    && characterProfile.稳定特征.物种与生命形态.displayName === '人类'
+    && characterProfile.稳定特征.生命周期阶段.stageLabel === '成年'
+    && characterProfile.属性构成.当前语义.体魄.说明 === '平平无奇'
+    && characterProfile.属性构成.当前语义.心智.说明.includes('人类物种巅峰')
+    && characterProfile.属性构成.当前语义.悟性.说明.includes('超凡'),
+  'basic-attribute analysis must receive the complete character portrait, 0/10/>10 semantics, full state and recent stories',
+)
+
+const eventRecognitionInput = buildNarrativeEventRecognitionPromptInput({
+  subsystemStates,
+  roundContext,
+  existingCandidates: [],
+  recentStories,
+})
+const eventRecentStories = JSON.parse(eventRecognitionInput.userSegments[4].slice('⟦最近故事⟧'.length))
+assertOk(
+  eventRecognitionInput.userSegments.length === 5
+    && eventRecognitionInput.userSegments[0].startsWith('⟦回合上下文⟧{')
+    && eventRecognitionInput.userSegments[1].startsWith('⟦事件相关状态⟧{')
+    && eventRecognitionInput.userSegments[2] === '⟦本轮已投递因果⟧[]'
+    && eventRecognitionInput.userSegments[3] === '⟦已有待触发事件⟧[]'
+    && eventRecentStories.length === 3
+    && eventRecentStories[2].故事全文 === recentStories[2].故事全文,
+  'event recognition must receive complete event state, existing candidates and recent stories',
+)
+
+subsystemStates.economy = {
+  id: 'economy',
+  summary: '宏观经济已就绪',
+  data: {
+    contextId: 'context:world-a',
+    targetObjectId: 'economy:world-a',
+    priceIndex: 100,
+    productivity: 1,
+  },
+}
+const macroImpactInput = buildNarrativeMacroImpactPromptInput({
+  subsystemStates,
+  roundContext,
+  recentStories,
+})
+const macroRecentStories = JSON.parse(
+  macroImpactInput.userSegments[3].slice('⟦最近故事⟧'.length),
+)
+assertOk(
+  macroImpactInput.userSegments.length === 4
+    && macroImpactInput.userSegments[0].startsWith('⟦宏观系统与字段契约⟧[')
+    && macroImpactInput.userSegments[1].startsWith('⟦玩家影响力证据⟧{')
+    && macroImpactInput.userSegments[2].startsWith('⟦回合上下文⟧{')
+    && macroRecentStories.length === 3
+    && macroRecentStories[0].故事全文 === recentStories[0].故事全文
+    && macroImpactInput.activeSubsystemIds.includes('economy'),
+  'macro-impact analysis must receive complete active system contracts, influence evidence, round context and recent stories',
+)
+const macroImpactResponse = JSON.stringify({
+  影响链: [{
+    节点编号: 'impact-economy',
+    依赖节点: [],
+    系统: '宏观经济',
+    目标对象: 'economy:world-a',
+    目标上下文: 'context:world-a',
+    操作: '调整经济',
+    变更: { 生产力变化: 1 },
+    强度: 20,
+    说明: '玩家公开的新工艺已经被当地生产组织采用。',
+    依据事件: ['event:accepted-123'],
+  }],
+})
+const macroImpactQuality = inspectNarrativeMacroImpactQuality({
+  content: macroImpactResponse,
+  activeSubsystemIds: macroImpactInput.activeSubsystemIds,
+  allowedEvidenceEventIds: macroImpactInput.allowedEvidenceEventIds,
+  currentContextId: roundContext.contextId,
+})
+assertOk(
+  NarrativeAIMacroImpactDataSchema.safeParse(JSON.parse(macroImpactResponse)).success
+    && macroImpactQuality.valid
+    && macroImpactQuality.changes?.[0]?.id === 'economy'
+    && macroImpactQuality.changes[0]?.changes.productivityDelta === 1,
+  'macro-impact DAG must translate only active fields with matching context and stable evidence',
+)
+const cyclicMacroImpact = inspectNarrativeMacroImpactQuality({
+  content: JSON.stringify({
+    影响链: [
+      {
+        ...JSON.parse(macroImpactResponse).影响链[0],
+        节点编号: 'impact-a',
+        依赖节点: ['impact-b'],
+      },
+      {
+        ...JSON.parse(macroImpactResponse).影响链[0],
+        节点编号: 'impact-b',
+        依赖节点: ['impact-a'],
+        变更: { 物价指数变化: 1 },
+      },
+    ],
+  }),
+  activeSubsystemIds: macroImpactInput.activeSubsystemIds,
+  allowedEvidenceEventIds: macroImpactInput.allowedEvidenceEventIds,
+  currentContextId: roundContext.contextId,
+})
+assertOk(!cyclicMacroImpact.valid, 'macro-impact DAG must reject cyclic chain dependencies')
 
 const relationshipInstruction = {
   系统: '通用关系系统',
@@ -355,116 +576,87 @@ const relationshipInstruction = {
   变更: { 好感变化: 1, 信任变化: 2 },
   依据事件: ['event:accepted-123'],
 }
-const branchSettlementData = {
-  摘要: '救援改变了逃离路线并提升了双方信任',
-  ...buildSemanticCore(),
-}
-const settlementResponse = [
-  systemLine(1, relationshipInstruction),
-  dataLine(branchSettlementData),
-].join('\n\n')
-const parsedSettlementEnvelope = parseNarrativeSettlementEnvelope(settlementResponse)
+const dataAnalysisResponse = dataAnalysisLine({ 系统操作: [relationshipInstruction] })
+const parsedDataAnalysis = NarrativeAIDataAnalysisDataSchema.parse(parseNarrativeAIJson(dataAnalysisResponse))
 assertOk(
-  parsedSettlementEnvelope.systemInstructions.length === 1
-    && parsedSettlementEnvelope.data.摘要 === branchSettlementData.摘要,
-  'second response must parse one operation per system segment and one final data segment',
+  parsedDataAnalysis.系统操作.length === 1,
+  'data analysis must parse one strict pure-JSON root',
 )
-const flexibleSettlementEnvelope = parseNarrativeSettlementEnvelope([
-  '以下是完整结算：',
-  systemLine(1, relationshipInstruction),
-  '⟦数据⟧',
-  '```json',
-  JSON.stringify(branchSettlementData, null, 2),
-  '```',
-].join('\n'))
-assertOk(
-  flexibleSettlementEnvelope.systemInstructions.length === 1
-    && flexibleSettlementEnvelope.data.摘要 === branchSettlementData.摘要,
-  'second response must tolerate prefaces, single newlines, fences, and multiline complete JSON',
-)
-const translatedSettlement = translateNarrativeAISettlement(
-  parsedSettlementEnvelope.systemInstructions,
-  parsedSettlementEnvelope.data,
+const translatedDataChanges = translateNarrativeAIDataAnalysis(
+  parsedDataAnalysis,
   {
     allowedEvidenceEventIds: ['event:accepted-123'],
-    allowedSubsystemIds: writableIds,
+    allowedSubsystemIds: dataWritableIds,
   },
 )
 assertOk(
-  translatedSettlement.changes[0]?.id === 'relationship-system'
-    && translatedSettlement.changes[0]?.operation === 'adjust'
-    && translatedSettlement.changes[0]?.changes.affinityDelta === 1
-    && translatedSettlement.changes[0]?.changes.trustDelta === 2,
+  translatedDataChanges[0]?.id === 'relationship-system'
+    && translatedDataChanges[0]?.operation === 'adjust'
+    && translatedDataChanges[0]?.changes.affinityDelta === 1
+    && translatedDataChanges[0]?.changes.trustDelta === 2,
   'Chinese system, operation and field names must translate to the owning internal contract',
 )
-const validSettlementQuality = inspectNarrativeSettlementQuality({
-  content: settlementResponse,
-  narrative: inspectNarrativeResponseQuality(narrativeWithBranch, 500).parsed,
+const validDataAnalysisQuality = inspectNarrativeDataAnalysisQuality({
+  content: dataAnalysisResponse,
   allowedEvidenceEventIds: ['event:accepted-123'],
-  allowedSubsystemIds: writableIds,
+  allowedSubsystemIds: dataWritableIds,
 })
 assertOk(
-  validSettlementQuality.valid
-    && validSettlementQuality.parsed?.narrative === parsedNarrative.narrative
-    && validSettlementQuality.parsed?.branch === true
-    && validSettlementQuality.parsed?.changes.length === 1,
-  'strictly valid calls must combine into one commit candidate without changing the first narrative body',
+  validDataAnalysisQuality.valid && validDataAnalysisQuality.changes?.length === 1,
+  'strict data analysis must produce only validated non-basic system changes',
 )
 
-const standardSettlement = parseNarrativeSettlementEnvelope(buildNarrativeSettlementStandardExample())
+const standardDataAnalysis = NarrativeAIDataAnalysisDataSchema.parse(
+  parseNarrativeAIJson(buildNarrativeDataAnalysisStandardExample()),
+)
 assertOk(
-  translateNarrativeAISettlement(
-    standardSettlement.systemInstructions,
-    standardSettlement.data,
+  translateNarrativeAIDataAnalysis(
+    standardDataAnalysis,
     {
       allowedEvidenceEventIds: ['event:accepted-123'],
-      allowedSubsystemIds: writableIds,
+      allowedSubsystemIds: dataWritableIds,
     },
-  ).changes.length === 2,
-  'the single server-side settlement example must remain parseable and translatable',
+  ).length === 0,
+  'the server-side data-analysis example must remain neutral, parseable, and translatable',
 )
 assertOk(
-  buildNarrativeSettlementSystemContractLines().length === writableIds.length
-    && buildNarrativeSettlementSystemContractLines().every((line) => !line.includes('\n'))
-    && buildNarrativeSettlementDataContractLine().startsWith('⟦数据契约⟧{')
-    && !buildNarrativeSettlementDataContractLine().includes('\n'),
-  'fixed settlement contracts must keep one system or data contract per line',
+  buildNarrativeDataAnalysisSystemContractLines().length === dataWritableIds.length
+    && buildNarrativeDataAnalysisSystemContractLines().every((line) => !line.includes('\n')),
+  'fixed data-analysis contracts must keep one writable system contract per line',
 )
 
-const noChangeResponse = dataLine({ 摘要: '本轮没有形成可写源变化' })
+const noDataChangeResponse = dataAnalysisLine({ 系统操作: [] })
 assertOk(
-  inspectNarrativeSettlementQuality({
-    content: noChangeResponse,
-    narrative: inspectNarrativeResponseQuality(narrativeWithoutBranch, 500).parsed,
+  inspectNarrativeDataAnalysisQuality({
+    content: noDataChangeResponse,
     allowedEvidenceEventIds: [],
-    allowedSubsystemIds: writableIds,
+    allowedSubsystemIds: dataWritableIds,
   }).valid,
-  'a round with no source changes must omit every system segment and keep the required data segment',
+  'data analysis must accept an explicit empty operation set',
 )
 
-const invalidSettlementCases = [
-  [systemLine(2, relationshipInstruction), 'system numbering must start at one'],
-  [`${settlementResponse}\n\n⟦结束⟧`, 'ending tags must be rejected'],
-  [`${dataLine(branchSettlementData)}\n\n${systemLine(1, relationshipInstruction)}`, 'data must be the final segment'],
-  [`${dataLine(branchSettlementData)}\n\n${dataLine(branchSettlementData)}`, 'data must be unique'],
-  [`⟦系统1⟧{"系统":"通用关系系统"\n\n${dataLine(branchSettlementData)}`, 'truncated system JSON must be rejected'],
+const invalidDataAnalysisCases = [
+  [`${dataAnalysisResponse}\n\n${dataAnalysisResponse}`, 'multiple JSON roots must be rejected'],
+  ['{"系统操作":[', 'truncated data-analysis JSON must be rejected'],
+  [JSON.stringify({ 系统操作: [], 回合事件: {} }), 'foreign root fields must be rejected'],
 ]
-for (const [content, message] of invalidSettlementCases) {
-  assertThrows(() => parseNarrativeSettlementEnvelope(content), message)
+for (const [content, message] of invalidDataAnalysisCases) {
+  assertThrows(
+    () => NarrativeAIDataAnalysisDataSchema.parse(parseNarrativeAIJson(content)),
+    message,
+  )
 }
 
-const unknownEvidenceResponse = [
-  systemLine(1, { ...relationshipInstruction, 依据事件: ['event:not-provided'] }),
-  dataLine(branchSettlementData),
-].join('\n\n')
+const unknownEvidenceResponse = dataAnalysisLine({
+  系统操作: [{ ...relationshipInstruction, 依据事件: ['event:not-provided'] }],
+})
 assertOk(
-  !inspectNarrativeSettlementQuality({
+  !inspectNarrativeDataAnalysisQuality({
     content: unknownEvidenceResponse,
-    narrative: inspectNarrativeResponseQuality(narrativeWithBranch, 500).parsed,
     allowedEvidenceEventIds: ['event:accepted-123'],
-    allowedSubsystemIds: writableIds,
+    allowedSubsystemIds: dataWritableIds,
   }).valid,
-  'settlement must reject evidence IDs that were not supplied in the same call',
+  'data analysis must reject evidence IDs that were not supplied in the same call',
 )
 
 for (const instruction of [
@@ -472,68 +664,199 @@ for (const instruction of [
   { ...relationshipInstruction, 操作: '未知操作' },
   { ...relationshipInstruction, 变更: { 未知字段: 1 } },
 ]) {
-  const result = inspectNarrativeSettlementQuality({
-    content: [systemLine(1, instruction), dataLine(branchSettlementData)].join('\n\n'),
-    narrative: inspectNarrativeResponseQuality(narrativeWithBranch, 500).parsed,
+  const result = inspectNarrativeDataAnalysisQuality({
+    content: dataAnalysisLine({ 系统操作: [instruction] }),
     allowedEvidenceEventIds: ['event:accepted-123'],
-    allowedSubsystemIds: writableIds,
+    allowedSubsystemIds: dataWritableIds,
   })
-  assertOk(!result.valid, 'unknown systems, operations and fields must reject the complete settlement')
+  assertOk(!result.valid, 'unknown systems, operations and fields must reject the complete data analysis')
 }
 
+const basicAttributeInstruction = {
+  系统: '基础属性',
+  目标对象: 'player:current',
+  目标上下文: 'context:world-a',
+  操作: '增量',
+  说明: '长期训练已经形成稳定体能提升',
+  变更: { 体魄变化: 1 },
+  依据事件: [],
+}
+const basicAttributeResponse = basicAttributeLine({ 系统操作: [basicAttributeInstruction] })
+const parsedBasicAttribute = NarrativeAIBasicAttributeAnalysisDataSchema.parse(
+  parseNarrativeAIJson(basicAttributeResponse),
+)
+const translatedBasicAttributeChanges = translateNarrativeAIBasicAttributeAnalysis(
+  parsedBasicAttribute,
+  { allowedEvidenceEventIds: [], allowedSubsystemIds: ['character-base'] },
+)
 assertOk(
-  !inspectNarrativeSettlementQuality({
-    content: dataLine({ 摘要: '分支缺少机器语义核心' }),
-    narrative: inspectNarrativeResponseQuality(narrativeWithBranch, 500).parsed,
+  translatedBasicAttributeChanges[0]?.id === 'character-base'
+    && translatedBasicAttributeChanges[0]?.changes.physiqueDelta === 1
+    && inspectNarrativeBasicAttributeAnalysisQuality({
+      content: basicAttributeResponse,
+      allowedEvidenceEventIds: [],
+      allowedSubsystemIds: ['character-base'],
+    }).valid,
+  'basic-attribute analysis must translate only persistent four-attribute increments',
+)
+assertOk(
+  NarrativeAIBasicAttributeAnalysisDataSchema.parse(
+    parseNarrativeAIJson(buildNarrativeBasicAttributeStandardExample()),
+  ).系统操作.length === 0
+    && buildNarrativeBasicAttributeContractLine().startsWith('⟦基础属性契约⟧{'),
+  'the fixed basic-attribute contract and neutral empty example must remain parseable',
+)
+for (const invalidBasicAttributeData of [
+  { 系统操作: [{ ...basicAttributeInstruction, 系统: '健康系统' }] },
+  { 系统操作: [{ ...basicAttributeInstruction, 变更: { 体魄变化: 0 } }] },
+  { 系统操作: [{ ...basicAttributeInstruction, 变更: { 疲劳变化: -1 } }] },
+  { 系统操作: [basicAttributeInstruction, basicAttributeInstruction] },
+]) {
+  assertOk(
+    !NarrativeAIBasicAttributeAnalysisDataSchema.safeParse(invalidBasicAttributeData).success,
+    'basic-attribute schema must reject foreign, zero, temporary or duplicate operations',
+  )
+}
+assertOk(
+  inspectNarrativeBasicAttributeAnalysisQuality({
+    content: basicAttributeLine({ 系统操作: [] }),
     allowedEvidenceEventIds: [],
-    allowedSubsystemIds: writableIds,
+    allowedSubsystemIds: ['character-base'],
   }).valid,
-  'a first response with a branch must require high, irreversible fate-or-legacy semantic metadata',
+  'basic-attribute analysis must accept an explicit no-change result',
+)
+
+const eventRecognitionExample = eventRecognitionLine({
+  回合事件: {
+    摘要: '你救出阿禾并与她转入北岸航道',
+    注册事件: [{ 内容: '你从仓门内救出阿禾', 重要度: 80, 涉及实体: ['阿禾'] }],
+    ...buildSemanticCore(),
+  },
+  待触发事件: [{
+    类型: '会合',
+    标题: '北岸后续会合',
+    说明: '阿禾已经约定在北岸安全后再次会合',
+    作用域: '当前上下文',
+    触发条件: '双方抵达北岸并确认安全',
+    延迟天数: 30,
+    相关人物: ['阿禾'],
+  }],
+})
+const eventRecognitionData = NarrativeAIEventRecognitionDataSchema.parse(
+  parseNarrativeAIJson(eventRecognitionExample),
+)
+const eventRecognitionQuality = inspectNarrativeEventRecognitionQuality({
+  content: eventRecognitionExample,
+  narrative: inspectNarrativeResponseQuality(narrativeWithBranch, 500).parsed,
+  currentContextId: 'ctx-protocol',
+  currentTotalDays: 1000,
+  existingCandidates: [],
+})
+assertOk(
+  eventRecognitionData.回合事件.注册事件.length === 1
+    && eventRecognitionQuality.valid
+    && eventRecognitionQuality.metadata?.keyEvents?.length === 1
+    && eventRecognitionQuality.candidates?.length === 1
+    && eventRecognitionQuality.candidates[0].scope.kind === 'context'
+    && eventRecognitionQuality.candidates[0].scope.contextIds[0] === 'ctx-protocol'
+    && eventRecognitionQuality.candidates[0].schedule?.dueTotalDays === 1030,
+  'event recognition must own occurred events, metadata and future candidates in one strict result',
+)
+const neutralEventRecognitionExample = NarrativeAIEventRecognitionDataSchema.parse(
+  parseNarrativeAIJson(buildNarrativeEventRecognitionStandardExample()),
+)
+assertOk(
+  neutralEventRecognitionExample.回合事件.注册事件.length === 0
+    && neutralEventRecognitionExample.待触发事件.length === 0,
+  'the fixed event-recognition example must remain neutral and avoid preselecting an event outcome',
+)
+const emptyEventRecognitionResponse = eventRecognitionLine({
+  回合事件: {
+    摘要: '本轮平稳结束，没有形成新的可注册事件',
+    注册事件: [],
+  },
+  待触发事件: [],
+})
+assertOk(
+  inspectNarrativeEventRecognitionQuality({
+    content: emptyEventRecognitionResponse,
+    narrative: inspectNarrativeResponseQuality(narrativeWithoutBranch, 500).parsed,
+    currentContextId: 'ctx-protocol',
+    currentTotalDays: 1000,
+    existingCandidates: [],
+  }).valid,
+  'event recognition must accept explicit empty occurred-event and candidate sets',
+)
+assertOk(
+  !NarrativeAIEventRecognitionDataSchema.safeParse({
+    回合事件: {
+      摘要: '旧协议仍重复输出事件布尔值',
+      本轮存在新事件: false,
+      注册事件: [],
+    },
+    待触发事件: [],
+  }).success
+    && eventRecognitionQuality.metadata?.keyEvents?.length === 1
+    && inspectNarrativeEventRecognitionQuality({
+      content: emptyEventRecognitionResponse,
+      narrative: inspectNarrativeResponseQuality(narrativeWithoutBranch, 500).parsed,
+      currentContextId: 'ctx-protocol',
+      currentTotalDays: 1000,
+      existingCandidates: [],
+    }).metadata?.keyEvents === undefined,
+  'event presence must be derived locally from registered events instead of an AI boolean',
 )
 
 const intentData = {
-  摘要: '夺回家园的长期目标取得条件性进展',
-  ...buildSemanticCore(),
-  命运意图判定: {
-    意图编号: '命运分支:夺回家园',
-    可行性: '有条件',
-    执行方式: '逐步执行',
-    状态: '推进中',
-    风险等级: '高',
-    进度: 35,
-    预计耗时: '仍需数月',
-    判定理由: '已经获得盟友，但尚未突破封锁。',
-    下一步: '先让船队安全离港',
+  回合事件: {
+    摘要: '夺回家园的长期目标取得条件性进展',
+    注册事件: [],
+    ...buildSemanticCore(),
+    命运意图判定: {
+      意图编号: '命运分支:夺回家园',
+      可行性: '有条件',
+      执行方式: '逐步执行',
+      状态: '推进中',
+      风险等级: '高',
+      进度: 35,
+      预计耗时: '仍需数月',
+      判定理由: '已经获得盟友，但尚未突破封锁。',
+      下一步: '先让船队安全离港',
+    },
   },
+  待触发事件: [],
 }
 assertOk(
-  inspectNarrativeSettlementQuality({
-    content: dataLine(intentData),
+  inspectNarrativeEventRecognitionQuality({
+    content: eventRecognitionLine(intentData),
     narrative: inspectNarrativeResponseQuality(narrativeWithoutBranch, 500).parsed,
-    allowedEvidenceEventIds: [],
-    allowedSubsystemIds: writableIds,
+    currentContextId: 'ctx-protocol',
+    currentTotalDays: 1000,
+    existingCandidates: [],
     expectedIntentId: 'branch:夺回家园',
   }).valid,
-  'an active intent must accept only the matching structured intent resolution',
+  'event recognition must accept only the matching structured intent resolution',
 )
 assertOk(
-  !inspectNarrativeSettlementQuality({
-    content: dataLine(intentData),
+  !inspectNarrativeEventRecognitionQuality({
+    content: eventRecognitionLine(intentData),
     narrative: inspectNarrativeResponseQuality(narrativeWithoutBranch, 500).parsed,
-    allowedEvidenceEventIds: [],
-    allowedSubsystemIds: writableIds,
+    currentContextId: 'ctx-protocol',
+    currentTotalDays: 1000,
+    existingCandidates: [],
   }).valid,
   'intent metadata must be rejected when the round has no active intent',
 )
 assertOk(
-  !inspectNarrativeSettlementQuality({
-    content: noChangeResponse,
+  !inspectNarrativeEventRecognitionQuality({
+    content: emptyEventRecognitionResponse,
     narrative: inspectNarrativeResponseQuality(narrativeWithoutBranch, 500).parsed,
-    allowedEvidenceEventIds: [],
-    allowedSubsystemIds: writableIds,
+    currentContextId: 'ctx-protocol',
+    currentTotalDays: 1000,
+    existingCandidates: [],
     expectedIntentId: 'branch:夺回家园',
   }).valid,
-  'an active intent must not silently omit its settlement resolution',
+  'an active intent must not silently omit its event-recognition resolution',
 )
 
 assertOk(
@@ -553,11 +876,11 @@ assertOk(
   'JSON compatibility must reject truncated values and ambiguous multiple complete values',
 )
 assertOk(
-  !NarrativeAISettlementDataSchema.safeParse({
-    摘要: '不允许把系统指令塞回数据段',
-    系统指令: [],
+  !NarrativeAIDataAnalysisDataSchema.safeParse({
+    系统操作: [],
+    回合事件: {},
   }).success,
-  'the data segment must not reintroduce the old combined system-instruction array',
+  'the data-analysis root must not absorb event-recognition fields',
 )
 
 const narrativeFailure = inspectNarrativeResponseQuality('⟦正文⟧', 500)
@@ -571,94 +894,52 @@ assertOk(
     && !narrativeRepair.includes('⟦结束⟧'),
   'first-call repair must use the fixed positive example guidance without an ending marker',
 )
-const settlementFailure = inspectNarrativeSettlementQuality({
-  content: '旧结算格式',
-  narrative: inspectNarrativeResponseQuality(narrativeWithoutBranch, 500).parsed,
-  allowedEvidenceEventIds: [],
-  allowedSubsystemIds: writableIds,
-})
-const originalSettlementFailure = '旧结算格式\n以及完整原文'
-const settlementRepair = buildNarrativeSettlementRepairInstruction(
-  settlementFailure,
-  originalSettlementFailure,
-)
-assertOk(
-  settlementRepair.includes(settlementFailure.reason)
-    && settlementRepair.includes(originalSettlementFailure)
-    && settlementRepair.includes('系统提示词末尾的唯一结算示例')
-    && settlementRepair.includes('系统1')
-    && settlementRepair.includes('唯一数据段')
-    && !settlementRepair.includes('禁止解释'),
-  'second-call repair must retain the complete failed response and use positive example guidance',
-)
 assertOk(
   buildNarrativeRoundOutputContract(true)?.includes('正文停在玩家作出选择之前')
     && buildNarrativeRoundOutputContract(false, true)?.includes('这是人生首轮')
     && buildNarrativeRoundOutputContract(false) === undefined,
   'normal rounds must add only triggered branch or opening conditions and otherwise repeat no fixed protocol',
 )
-
-const eventRecognitionExample = buildNarrativeEventRecognitionStandardExample()
-const eventRecognitionEnvelope = parseNarrativeEventRecognitionEnvelope(eventRecognitionExample)
-const eventRecognitionQuality = inspectNarrativeEventRecognitionQuality({
-  content: eventRecognitionExample,
-  currentContextId: 'ctx-protocol',
-  currentTotalDays: 1000,
-  existingCandidates: [],
-})
 assertOk(
-  Array.isArray(eventRecognitionEnvelope.data.事件)
-    && eventRecognitionQuality.valid
-    && eventRecognitionQuality.candidates?.length === 1
-    && eventRecognitionQuality.candidates[0].scope.kind === 'context'
-    && eventRecognitionQuality.candidates[0].scope.contextIds[0] === 'ctx-protocol'
-    && eventRecognitionQuality.candidates[0].schedule?.dueTotalDays === 1030,
-  'event recognition must parse the unique future-event segment and anchor delays to canonical total days',
-)
-const emptyEventRecognition = inspectNarrativeEventRecognitionQuality({
-  content: '⟦待触发事件⟧{"事件":[]}',
-  currentContextId: 'ctx-protocol',
-  currentTotalDays: 1000,
-  existingCandidates: [],
-})
-assertOk(
-  emptyEventRecognition.valid && emptyEventRecognition.candidates?.length === 0,
-  'event recognition must accept one explicit empty candidate set when the story establishes no future trigger',
-)
-const eventRecognitionFailure = inspectNarrativeEventRecognitionQuality({
-  content: '旧事件识别格式',
-  currentContextId: 'ctx-protocol',
-  currentTotalDays: 1000,
-  existingCandidates: [],
-})
-const originalEventRecognitionFailure = '旧事件识别格式\n以及完整原文'
-const eventRecognitionRepair = buildNarrativeEventRecognitionRepairInstruction(
-  eventRecognitionFailure,
-  originalEventRecognitionFailure,
-)
-assertOk(
-  eventRecognitionRepair.includes(eventRecognitionFailure.reason)
-    && eventRecognitionRepair.includes(originalEventRecognitionFailure)
-    && eventRecognitionRepair.includes('系统提示词末尾的唯一事件识别示例')
-    && eventRecognitionRepair.includes('空事件数组'),
-  'event-recognition repair must retain the rejected response and reuse the fixed positive example',
+  narrativeDataAnalysisPrompt.outputFormat === 'json'
+    && narrativeDataAnalysisPrompt.outputSchema === NarrativeAIDataAnalysisDataSchema
+    && narrativeBasicAttributePrompt.outputFormat === 'json'
+    && narrativeBasicAttributePrompt.outputSchema === NarrativeAIBasicAttributeAnalysisDataSchema
+    && narrativeEventRecognitionPrompt.outputFormat === 'json'
+    && narrativeEventRecognitionPrompt.outputSchema === NarrativeAIEventRecognitionDataSchema
+    && narrativeMacroImpactPrompt.outputFormat === 'json'
+    && narrativeMacroImpactPrompt.outputSchema === NarrativeAIMacroImpactDataSchema,
+  'all four background calls must use the shared JSON-mode and Zod-schema validation owner',
 )
 
 assertOk(
-  narrativePrompt.version === '5.8.1'
+  narrativePrompt.version === '5.8.2'
     && narrativePrompt.serverPromptAssetId === NARRATIVE_SERVER_PROMPT_ASSET_ID
-    && narrativeSettlementPrompt.version === '1.1.0'
-    && narrativeSettlementPrompt.serverPromptAssetId === NARRATIVE_SETTLEMENT_SERVER_PROMPT_ASSET_ID
-    && narrativeEventRecognitionPrompt.version === '1.0.0'
+    && narrativeBasicAttributePrompt.version === '2.1.0'
+    && narrativeBasicAttributePrompt.serverPromptAssetId === NARRATIVE_BASIC_ATTRIBUTE_SERVER_PROMPT_ASSET_ID
+    && narrativeDataAnalysisPrompt.version === '2.0.0'
+    && narrativeDataAnalysisPrompt.serverPromptAssetId === NARRATIVE_DATA_ANALYSIS_SERVER_PROMPT_ASSET_ID
+    && narrativeEventRecognitionPrompt.version === '3.1.0'
     && narrativeEventRecognitionPrompt.serverPromptAssetId === NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID
+    && narrativeMacroImpactPrompt.version === '1.0.0'
+    && narrativeMacroImpactPrompt.serverPromptAssetId === NARRATIVE_MACRO_IMPACT_SERVER_PROMPT_ASSET_ID
     && !COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('⟦结束⟧')
-    && !COMPILED_NARRATIVE_SETTLEMENT_SYSTEM_PROMPT.includes('⟦结束⟧')
+    && !COMPILED_NARRATIVE_BASIC_ATTRIBUTE_SYSTEM_PROMPT.includes('⟦结束⟧')
+    && !COMPILED_NARRATIVE_DATA_ANALYSIS_SYSTEM_PROMPT.includes('⟦结束⟧')
     && !COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT.includes('⟦结束⟧')
-    && COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT.includes('尚未发生且需要未来条件才能触发')
+    && !COMPILED_NARRATIVE_MACRO_IMPACT_SYSTEM_PROMPT.includes('⟦结束⟧')
+    && COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT.includes('尚未发生且需要未来条件')
+    && COMPILED_NARRATIVE_MACRO_IMPACT_SYSTEM_PROMPT.includes('直接影响或连锁反应')
+    && !/⟦数据分析⟧|⟦基础属性分析⟧|⟦事件识别⟧|⟦宏观影响⟧/u.test([
+      COMPILED_NARRATIVE_DATA_ANALYSIS_SYSTEM_PROMPT,
+      COMPILED_NARRATIVE_BASIC_ATTRIBUTE_SYSTEM_PROMPT,
+      COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT,
+      COMPILED_NARRATIVE_MACRO_IMPACT_SYSTEM_PROMPT,
+    ].join('\n'))
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('角色自创内容的后续发展必须来自角色自身')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('记忆只提供已经成立的事实')
     && COMPILED_NARRATIVE_SYSTEM_PROMPT.includes('本轮必须从当前时间与引导产生新的变化和结果'),
-  'the live prompts must expose the three versioned assets and no ending tag',
+  'the live prompts must expose the five versioned assets and no ending tag',
 )
 
 if (failed > 0) process.exit(1)

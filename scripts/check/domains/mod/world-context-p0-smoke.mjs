@@ -1,5 +1,7 @@
 /**
- * P0 多世界基础：迁移、身份、范围、空间、原子切换与故事作用域回归。
+ * Purpose: Regress P0 multi-world identity, scope, spatial, migration, and switch behavior.
+ * Owner: quality:mod
+ * Responsibility: One stateful world-context smoke scenario only.
  */
 
 import { sanitizeWorldStateSnapshot } from '../../../../src/mods/mod-world/utils/world-state-migration.ts'

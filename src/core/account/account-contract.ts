@@ -1,3 +1,9 @@
+/**
+ * Purpose: Define the validated account, session, cloud-save, and settings contracts.
+ * Owner: core:account
+ * Responsibility: Single account data contract and its inferred TypeScript types only.
+ */
+
 import { z } from 'zod'
 
 import {

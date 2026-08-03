@@ -15,6 +15,65 @@ export const HIDDEN_ATTRS: AttrKey[] = ['luck', 'morality', 'health']
 /** 可见属性 */
 export const VISIBLE_ATTR_KEYS: AttrKey[] = ['physique', 'mind', 'talentAptitude', 'charisma']
 
+/** 可见基础属性的逐点凡人语义；0 为普通基准，10 为人类物种巅峰。 */
+export const VISIBLE_ATTR_VALUE_DESCRIPTIONS: Readonly<Record<
+  'physique' | 'mind' | 'talentAptitude' | 'charisma',
+  readonly string[]
+>> = {
+  physique: [
+    '平平无奇',
+    '体能略胜普通人，能稳定完成日常体力活动',
+    '身体健康结实，力量与耐力有一定优势',
+    '体魄明显出众，能承担持续高强度活动',
+    '力量、耐力与恢复能力都达到优秀水平',
+    '经过长期训练才能达到的强健体魄',
+    '在专业体能领域中属于少数顶尖者',
+    '多项体能指标接近人类精英纪录',
+    '身体素质极其罕见，足以竞争多项人类纪录',
+    '几乎触及人类生理结构允许的综合极限',
+    '人类物种巅峰：不借助超凡力量时，力量、耐力、速度与恢复达到人类可实现的综合极限',
+  ],
+  mind: [
+    '平平无奇',
+    '思路较清楚，学习与判断略胜普通人',
+    '理解、记忆和推理能力都有稳定优势',
+    '能够迅速掌握复杂知识并作出可靠判断',
+    '分析与规划能力达到专业优秀水平',
+    '具备少数杰出学者或战略人才的思维能力',
+    '能长期处理高度复杂的信息与多重目标',
+    '洞察、推理与创造性思考均接近时代顶尖',
+    '在多个心智能力维度上都极其罕见',
+    '几乎触及人类大脑可训练与可发挥的综合极限',
+    '人类物种巅峰：不借助超凡力量时，理解、记忆、推理、创造与决策达到人类可实现的综合极限',
+  ],
+  talentAptitude: [
+    '平平无奇',
+    '学习新事物时较容易抓住要点',
+    '能较快理解规则并稳定迁移已有经验',
+    '面对复杂技能时具有明显的领悟优势',
+    '常能举一反三，在专业训练中进步迅速',
+    '属于少数高天赋学习者，能自行修正方法',
+    '对陌生体系也能快速发现核心规律',
+    '在多个领域都表现出罕见的领悟与迁移能力',
+    '能从极少信息中建立接近正确的完整理解',
+    '几乎触及人类学习、领悟与创新能力的综合极限',
+    '人类物种巅峰：不借助超凡力量时，学习、领悟、迁移与创新达到人类可实现的综合极限',
+  ],
+  charisma: [
+    '平平无奇',
+    '仪表与表达略有亲和力，容易留下尚可印象',
+    '外貌、气质或谈吐中有稳定的吸引力',
+    '在人群中较为醒目，社交表达自然有说服力',
+    '形象与感染力达到专业优秀水平',
+    '具备少数公众人物才有的综合吸引力',
+    '能在多数社交场景中形成强烈而自然的存在感',
+    '外貌、气质、表达与领导感染力均接近顶尖',
+    '综合魅力极其罕见，常能成为群体注意中心',
+    '几乎触及人类审美表现与社会感染力的综合极限',
+    '人类物种巅峰：不借助超凡力量时，外貌表现、气质、表达与社会感染力达到人类可实现的综合极限',
+  ],
+}
+
 /** 7项角色属性 × 11档语义描述（索引0最差，5平平无奇，10最好） */
 export const ATTR_TIER_DESCRIPTIONS: Record<AttrKey, string[]> = {
   physique: [
@@ -190,6 +249,13 @@ export function getAttrSemantic(key: string, effectiveValue: number): string {
   }
   if (isTranscendent && effectiveValue < -TRANSCENDENT_TIER_THRESHOLDS.mortalCap) {
     return transcendentNegative(key, effectiveValue)
+  }
+
+  const visibleScale = VISIBLE_ATTR_VALUE_DESCRIPTIONS[
+    key as keyof typeof VISIBLE_ATTR_VALUE_DESCRIPTIONS
+  ]
+  if (visibleScale && effectiveValue >= 0) {
+    return visibleScale[clamp(Math.round(effectiveValue), 0, 10)]
   }
 
   const idx = getAttrTierIndex(effectiveValue)

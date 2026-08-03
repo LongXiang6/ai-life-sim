@@ -1,12 +1,7 @@
 /**
- * @module mod-lifecycle.ts
- * @description MOD 生命周期调用 V2 —— 窄 control 入口 + 独立 Remote / 子系统 import
- * @mod core
- *
- * Factorio 对齐：
- *   - control.lua → MOD_CONTROL_IMPORTERS（_internal/control.ts）
- *   - data.lua 子系统 → MOD_SUBSYSTEM_IMPORTERS（registerAllSubsystems）
- *   - index.ts Remote → MOD_API_IMPORTERS（onInit 完成后批量注册）
+ * Purpose: Execute the registered MOD lifecycle graph through its control, subsystem, and remote stages.
+ * Owner: core:mod-loader
+ * Responsibility: Single ordered lifecycle transaction, dependency checks, signals, and hook completion.
  */
 
 import {

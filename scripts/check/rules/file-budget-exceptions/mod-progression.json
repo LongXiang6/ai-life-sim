@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "path": "src/mods/mod-progression/subsystems/growth-system.ts",
+      "owner": "mod-progression",
+      "reviewedLines": 371,
+      "reason": "成长进度的单一状态子系统，经验、等级、属性投影和快照共享同一成长不变式。"
+    }
+  ]
+}

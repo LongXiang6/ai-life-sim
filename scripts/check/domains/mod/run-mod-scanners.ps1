@@ -7,8 +7,10 @@ param(
 )
 
 $checkDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+$criticalMode = $env:CHECK_STEP_MODE -eq 'critical'
+$scannerSet = if ($criticalMode) { 'arch' } else { 'arch,smart,anomaly' }
 & (Join-Path $checkDir 'check-format.ps1') -Path $Path -ModName $ModName `
   -VerboseOutput:$VerboseOutput.IsPresent -ErrorOnly:$ErrorOnly.IsPresent `
-  -Scanners 'arch,smart,anomaly'
+  -Scanners $scannerSet
 
 exit $LASTEXITCODE

@@ -1,10 +1,10 @@
-'use client'
-
 /**
- * @file useCharacterCreateLogic.ts
- * @description 角色创建共享业务逻辑 hook —— 供单一响应式创建界面复用
- * @mod mod-pages
+ * Purpose: Coordinate character-creation form state and navigation commands.
+ * Owner: mod-pages/character-create
+ * Responsibility: Hook state orchestration only; pure rules, display metadata, and types live in sibling modules.
  */
+
+'use client'
 
 import { useCallback, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
@@ -13,262 +13,31 @@ import {
   useCharacterStore, RACE_LIFESPAN, randomName,
   filterDigitsOnly,
 } from '@/mods/mod-character'
-import type { BaseAttributes, RaceLifespanConfig } from '@/mods/mod-character'
 import { useWorldStore } from '@/mods/mod-world'
 
 import { useCharacterCreateForm, ATTRIBUTES } from './useCharacterCreateForm'
+import {
+  ADDITIONAL_GENDERS,
+  LABELS,
+  genderOptionToValue,
+  getBgPresetIcon,
+  getGenderIcon,
+  getRaceDisplayName,
+  getRaceIcon,
+  isGenderOptionActive,
+} from './character-create-options'
+import {
+  buildAgeSetupPreview,
+  buildConfirmedRaceLifespan,
+  computeMaxAge,
+  isPrimitiveWorld,
+  toBaseAttributes,
+} from './character-create-helpers'
+import type { UseCharacterCreateLogicReturn } from './character-create.types'
+import { useCharacterCreateCustomOptions } from './useCharacterCreateCustomOptions'
 
-// ============================================================
-// 常量
-// ============================================================
-
-/** 默认性别图标 */
-const DEFAULT_GENDER_ICONS: Record<string, string> = {
-  '男': '♂️', '女': '♀️',
-}
-
-/** 扩展性别选项 */
-const ADDITIONAL_GENDERS: Record<string, string> = {
-  '哈基米': '🐱', '赛博生命体': '🤖', '无性别': '⚪', '神': '☀️',
-  '男娘': '💅', '双性': '⚧', '非二元': '🏳️‍⚧️', '跨性别': '🏳️‍⚧️',
-  '流性别': '⬌', '薛定谔的性别': '🌀', '不方便透露': '🚫', '奶龙': '🐉',
-  '武装直升机': '🚁', '外星生物': '👽', '机器人': '🤖', '独角兽': '🦄',
-  '沃尔玛购物袋': '🛒', '性感母蟑螂': '🪳', '香菜': '🥬', '神奇海螺': '🐚',
-}
-
-/** 种族图标 */
-const DEFAULT_RACE_ICONS: Record<string, string> = {
-  '人类': '🧑', '妖族': '🦊', '魔族': '👿', '精灵': '🧝', '龙裔': '🐲',
-  'AI意识体': '💻', '灵兽': '🐉', '灵体': '👻', '半妖': '👤',
-}
-
-/** 背景预设图标 */
-const BG_PRESET_ICONS: Record<string, string> = {
-  '贵族': '👑', '平民': '👤', '科学家': '🔬', '武士': '⚔️',
-  '忍者': '🥷', '浪人': '🍂', '商人': '💰', '孤儿': '💔',
-  '学者': '📚', '街头': '🏚️', '农家': '🌾', '流浪者': '🚶',
-}
-
-// ============================================================
-// 帮助函数
-// ============================================================
-
-/** 角色创建阶段只使用显式覆盖或结构化种族寿命。 */
-function computeMaxAge(race: string, manualOverride?: number): number {
-  if (manualOverride && manualOverride > 0) {
-    return Math.min(Math.round(manualOverride), Math.floor(Number.MAX_SAFE_INTEGER / 365))
-  }
-
-  return Math.max(1, Math.round(
-    RACE_LIFESPAN[race]?.baseLifespanYears ?? RACE_LIFESPAN.human!.baseLifespanYears,
-  ))
-}
-
-/** 将目录种族或玩家自定义种族统一写成 Character Store 已有的结构化寿命形状。 */
-function buildConfirmedRaceLifespan(race: string, maxAge: number): RaceLifespanConfig {
-  const catalogRace = RACE_LIFESPAN[race]
-  if (catalogRace) return { ...catalogRace }
-
-  const humanDefaults = RACE_LIFESPAN.human!
-  return {
-    ...humanDefaults,
-    name: race.trim() || '自定义种族',
-    baseLifespanYears: maxAge,
-  }
-}
-
-/** 只把当前四项公开基础属性写入角色状态，忽略旧编辑态中的遗留字段。 */
-function toBaseAttributes(attributes: Record<string, number>): BaseAttributes {
-  return {
-    physique: attributes.physique ?? 0,
-    mind: attributes.mind ?? 0,
-    talentAptitude: attributes.talentAptitude ?? 0,
-    charisma: attributes.charisma ?? 0,
-  }
-}
-
-function isGenderOptionActive(option: string, current: string): boolean {
-  if (option === '男') return current === 'male'
-  if (option === '女') return current === 'female'
-  return current === option
-}
-
-function genderOptionToValue(option: string): 'male' | 'female' {
-  if (option === '男') return 'male'
-  if (option === '女') return 'female'
-  return option as 'male' | 'female'
-}
-
-// ============================================================
-// LABELS — 所有硬编码文案，从 Desktop 逐字提取
-// ============================================================
-
-export const LABELS = {
-  // Header
-  headerIcon: '👤' as const,
-  headerTitle: '角色设定' as const,
-  headerSubtitle: '设定你的性别和物种' as const,
-
-  // 姓名
-  nameLabel: '姓名' as const,
-  nameHint: '(可选，留空则从本地姓名库随机生成)' as const,
-  namePlaceholder: '输入角色姓名...' as const,
-  diceBtnTitle: '随机名称' as const,
-
-  // 性别
-  genderLabel: '性别' as const,
-  genderHint: '（默认：男）' as const,
-  moreBtnText: '更多' as const,
-  moreGenderBtnTitle: '添加更多性别选项' as const,
-  maleText: '男' as const,
-  femaleText: '女' as const,
-
-  // 自定义性别面板
-  customGenderPlaceholder: '输入性别名称...' as const,
-  customAddBtn: '添加' as const,
-
-  // 种族
-  raceLabel: '种族' as const,
-  moreRaceBtnTitle: '添加更多种族选项' as const,
-  humanRaceText: '人类' as const,
-  customRaceText: '自定义' as const,
-  raceSearchPlaceholder: '搜索种族...' as const,
-
-  // 自定义种族面板
-  customRacePlaceholder: '输入种族名称...' as const,
-
-  // 寿命检测
-  lifespanLabel: '寿命设定' as const,
-  detectBtnText: '🔄 检测寿命' as const,
-  detectBtnTitle: '根据种族/背景重新计算寿命与起始年龄' as const,
-  lifespanPlaceholder: '寿命上限(岁)' as const,
-  startingAgePlaceholder: '起始年龄(岁)' as const,
-  autoHint: '留空则自动' as const,
-  lifespanPrefix: '🕐 寿命约' as const,
-  lifespanUnit: '岁' as const,
-  startingAgePrefix: '· 起始' as const,
-  startingAgeUnit: '岁' as const,
-  birthText: '· 出生' as const,
-
-  // 背景信息
-  bgLabel: '背景信息' as const,
-  bgHint: '(可选)' as const,
-  bgPlaceholder: '告诉命运编织者更多关于你的角色的事...' as const,
-  presetNamePlaceholder: '预设名称...' as const,
-  saveBtn: '保存' as const,
-  cancelBtn: '取消' as const,
-  savePresetBtn: '+ 保存预设' as const,
-
-  // 底部操作栏
-  backTitle: '返回世界选择' as const,
-  backTitleMobile: '返回' as const,
-  confirmText: '确认' as const,
-
-  // 其他
-  raceInfoPrefix: '基础寿命' as const,
-  raceInfoYearUnit: '年' as const,
-  charCountSeparator: '/' as const,
-
-  // 种族信息（非人类时显示）
-  raceDisplaySeparator: ' · ' as const,
-
-}
-
-// ============================================================
-// 导出类型
-// ============================================================
-
-export interface UseCharacterCreateLogicReturn {
-  // 表单数据
-  name: string
-  nameError: string
-  gender: 'male' | 'female'
-  race: string
-  background: string
-  attributes: Record<string, number>
-  usedPoints: number
-  remainingPoints: number
-  maxPoints: number
-  attrMin: number
-  attrMax: number
-
-  // 表单操作
-  setFormName: (v: string) => void
-  setNameError: (v: string) => void
-  setFormGender: (v: 'male' | 'female') => void
-  setRace: (v: string) => void
-  setBackground: (v: string) => void
-  handleAttrChange: (key: string, value: number) => void
-
-  // 姓名
-  handleDice: () => void
-
-  // 性别
-  allGenders: string[]
-  customGenders: string[]
-  showCustomGender: boolean
-  setShowCustomGender: (v: boolean) => void
-  customGenderInput: string
-  setCustomGenderInput: (v: string) => void
-  handleAddCustomGender: () => void
-  removeCustomGender: (g: string) => void
-  getGenderIcon: (g: string) => string
-  isGenderOptionActive: (option: string, current: string) => boolean
-  genderOptionToValue: (option: string) => 'male' | 'female'
-  ADDITIONAL_GENDERS: Record<string, string>
-
-  // 种族
-  allRaces: string[]
-  customRaces: string[]
-  showCustomRace: boolean
-  setShowCustomRace: (v: boolean) => void
-  showRaceCatalog: boolean
-  setShowRaceCatalog: (v: boolean) => void
-  raceSearch: string
-  setRaceSearch: (v: string) => void
-  customRaceInput: string
-  setCustomRaceInput: (v: string) => void
-  handleAddCustomRace: () => void
-  removeCustomRace: (r: string) => void
-  getRaceIcon: (r: string) => string
-  getRaceDisplayName: (r: string) => string
-  raceInfo: typeof RACE_LIFESPAN[string] | undefined
-  raceCatalogOptions: Array<{ id: string; name: string }>
-
-  // 背景预设
-  bgPresets: Record<string, string>
-  showBgPresetInput: boolean
-  setShowBgPresetInput: (v: boolean) => void
-  bgPresetNameInput: string
-  setBgPresetNameInput: (v: string) => void
-  handleAddBgPreset: () => void
-  selectBgPreset: (name: string) => void
-  removeBgPreset: (name: string) => void
-  getBgPresetIcon: (n: string) => string
-
-  // 寿命检测
-  manualLifespan: string
-  setManualLifespan: (v: string) => void
-  manualStartingAge: string
-  setManualStartingAge: (v: string) => void
-  computedLifespan: number | null
-  computedStartingAge: number | null
-  previewLifespan: number
-  previewStartingAge: number
-  ageSetupError: string | null
-  canProceed: boolean
-  nextBlockReason: string | null
-  handleDetectLifespan: () => void
-
-  // 导航
-  handleBack: () => void
-  handleNext: () => void
-
-  // 常量
-  LABELS: typeof LABELS
-  ATTRIBUTES: typeof ATTRIBUTES
-  RACE_LIFESPAN: typeof RACE_LIFESPAN
-}
+export { LABELS } from './character-create-options'
+export type { UseCharacterCreateLogicReturn } from './character-create.types'
 
 // ============================================================
 // Hook
@@ -286,11 +55,10 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
   // 检测是否为原始社会
   const eraStartYear = useWorldStore((s) => s.eraStartYear)
   const worldTags = useWorldStore((s) => s.worldTags)
-  const isPrimitiveWorld = useMemo(() => {
-    if (eraStartYear < -10000) return true
-    const primitiveKeywords = ['原始', '上古', '远古', '石器', '洪荒', '史前', 'primitive', 'prehistoric']
-    return worldTags.some((t) => primitiveKeywords.some((kw) => t.includes(kw)))
-  }, [eraStartYear, worldTags])
+  const primitiveWorld = useMemo(
+    () => isPrimitiveWorld(eraStartYear, worldTags),
+    [eraStartYear, worldTags],
+  )
 
   const {
     name, nameError, gender, race, background, attributes,
@@ -309,27 +77,49 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
     handleAttrChange,
   } = useCharacterCreateForm()
 
-  // ---- 自定义性别 ----
-  const [showCustomGender, setShowCustomGender] = useState(false)
-  const [customGenderInput, setCustomGenderInput] = useState('')
-  const customGenders = useMemo(() => {
-    const selected = gender !== 'male' && gender !== 'female' ? [gender] : []
-    return [...new Set([...selected, ...storedCustomGenders])]
-  }, [gender, storedCustomGenders])
-
-  // ---- 自定义种族 ----
-  const [showCustomRace, setShowCustomRace] = useState(false)
-  const [showRaceCatalog, setShowRaceCatalog] = useState(false)
-  const [raceSearch, setRaceSearch] = useState('')
-  const [customRaceInput, setCustomRaceInput] = useState('')
-  const customRaces = useMemo(() => {
-    const selected = race && !RACE_LIFESPAN[race] ? [race] : []
-    return [...new Set([...selected, ...storedCustomRaces])]
-  }, [race, storedCustomRaces])
-
-  // ---- 背景 ----
-  const [showBgPresetInput, setShowBgPresetInput] = useState(false)
-  const [bgPresetNameInput, setBgPresetNameInput] = useState('')
+  const {
+    allGenders,
+    allRaces,
+    bgPresetNameInput,
+    customGenderInput,
+    customGenders,
+    customRaceInput,
+    customRaces,
+    handleAddBgPreset,
+    handleAddCustomGender,
+    handleAddCustomRace,
+    raceCatalogOptions,
+    raceSearch,
+    removeBgPreset,
+    removeCustomGender,
+    removeCustomRace,
+    selectBgPreset,
+    setBgPresetNameInput,
+    setCustomGenderInput,
+    setCustomRaceInput,
+    setRaceSearch,
+    setShowBgPresetInput,
+    setShowCustomGender,
+    setShowCustomRace,
+    setShowRaceCatalog,
+    showBgPresetInput,
+    showCustomGender,
+    showCustomRace,
+    showRaceCatalog,
+  } = useCharacterCreateCustomOptions({
+    background,
+    backgroundPresets: bgPresets,
+    gender,
+    race,
+    setBackground,
+    setBackgroundPresets,
+    setCustomGenders: setStoredCustomGenders,
+    setCustomRaces: setStoredCustomRaces,
+    setGender: setFormGender,
+    setRace,
+    storedCustomGenders,
+    storedCustomRaces,
+  })
 
   // ---- 寿命 ----
   const [computedLifespan, setComputedLifespan] = useState<number | null>(() => (
@@ -350,36 +140,12 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
   const manualStartingAge = storedManualStartingAge
 
   // 输入框保留“出生”的空值语义；预览值单独推导，避免把 0 写回受控输入造成 090、09018 等前缀累积。
-  const ageSetupPreview = useMemo(() => {
-    const confirmedManualMaxAge = manualLifespan
-      ? Number.parseInt(manualLifespan, 10)
-      : undefined
-    const maxAge = confirmedManualMaxAge !== undefined && Number.isFinite(confirmedManualMaxAge)
-      ? computeMaxAge(race, confirmedManualMaxAge)
-      : computedLifespan ?? computeMaxAge(race)
-    const parsedStartingAge = manualStartingAge ? Number.parseInt(manualStartingAge, 10) : 0
-    const startingAge = Number.isFinite(parsedStartingAge) ? parsedStartingAge : 0
-    const error = startingAge >= maxAge
-      ? `起始年龄必须小于预期寿命（${maxAge} 岁）`
-      : null
-    return { maxAge, startingAge, error }
-  }, [computedLifespan, manualLifespan, manualStartingAge, race])
-
-  // ---- 合并选项列表 ----
-  const allGenders = useMemo(() => ['男', '女', ...customGenders], [customGenders])
-  const allRaces = useMemo(() => ['human', ...customRaces], [customRaces])
-  const raceCatalogOptions = useMemo(() => {
-    const q = raceSearch.trim().toLowerCase()
-    return Object.entries(RACE_LIFESPAN)
-      .map(([id, info]) => ({ id, name: info.name }))
-      .filter((item) => !q || item.id.toLowerCase().includes(q) || item.name.includes(raceSearch.trim()))
-  }, [raceSearch])
-
-  // ---- 图标获取器 ----
-  const getGenderIcon = (g: string) => DEFAULT_GENDER_ICONS[g] || ADDITIONAL_GENDERS[g] || '👤'
-  const getRaceDisplayName = (r: string) => RACE_LIFESPAN[r]?.name || r
-  const getRaceIcon = (r: string) => DEFAULT_RACE_ICONS[getRaceDisplayName(r)] || '👤'
-  const getBgPresetIcon = (n: string) => BG_PRESET_ICONS[n] || '📋'
+  const ageSetupPreview = useMemo(() => buildAgeSetupPreview({
+    computedLifespan,
+    manualLifespan,
+    manualStartingAge,
+    race,
+  }), [computedLifespan, manualLifespan, manualStartingAge, race])
 
   // ---- 随机名称 ----
   const handleDice = useCallback(() => {
@@ -388,78 +154,15 @@ export function useCharacterCreateLogic(): UseCharacterCreateLogicReturn {
       return
     }
     const genderForName = gender === 'male' ? '男' : gender === 'female' ? '女' : undefined
-    const newName = randomName(genderForName, isPrimitiveWorld)
+    const newName = randomName(genderForName, primitiveWorld)
     setFormName(newName)
-  }, [gender, isPrimitiveWorld, setFormName, setNameError])
+  }, [gender, primitiveWorld, setFormName, setNameError])
 
   // ---- 寿命检测 ----
   const handleDetectLifespan = useCallback(() => {
     setComputedLifespan(ageSetupPreview.maxAge)
     setComputedStartingAge(ageSetupPreview.startingAge)
   }, [ageSetupPreview])
-
-  // ---- 自定义性别操作 ----
-  const handleAddCustomGender = useCallback(() => {
-    const v = customGenderInput.trim()
-    if (v && !allGenders.includes(v)) {
-      setStoredCustomGenders([...customGenders, v])
-      setCustomGenderInput('')
-    }
-  }, [customGenderInput, allGenders, customGenders, setStoredCustomGenders])
-
-  const removeCustomGender = (g: string) => {
-    setStoredCustomGenders(customGenders.filter((x) => x !== g))
-    if (gender === g) setFormGender('male')
-  }
-
-  // ---- 自定义种族操作 ----
-  const handleAddCustomRace = useCallback(() => {
-    const v = customRaceInput.trim()
-    if (v && !allRaces.includes(v)) {
-      setStoredCustomRaces([...customRaces, v])
-      setRace(v)
-      setRaceSearch('')
-      setCustomRaceInput('')
-      setShowCustomRace(false)
-      setShowRaceCatalog(false)
-    }
-  }, [customRaceInput, allRaces, customRaces, setStoredCustomRaces, setRace])
-
-  const removeCustomRace = (r: string) => {
-    setStoredCustomRaces(customRaces.filter((x) => x !== r))
-    if (race === r) setRace('human')
-  }
-
-  // ---- 背景预设操作 ----
-  const handleAddBgPreset = useCallback(() => {
-    const content = background.trim()
-    if (!content) return
-
-    const inputName = bgPresetNameInput.trim()
-    const fallbackName = `背景预设${Object.keys(bgPresets).length + 1}`
-    let n = inputName || fallbackName
-    let suffix = 2
-    while (bgPresets[n]) {
-      n = `${inputName || fallbackName}-${suffix}`
-      suffix++
-    }
-
-    if (n) {
-      setBackgroundPresets({ ...bgPresets, [n]: content })
-      setBgPresetNameInput('')
-      setShowBgPresetInput(false)
-    }
-  }, [bgPresetNameInput, background, bgPresets, setBackgroundPresets])
-
-  const selectBgPreset = (name: string) => {
-    if (bgPresets[name]) setBackground(bgPresets[name])
-  }
-
-  const removeBgPreset = (name: string) => {
-    const next = { ...bgPresets }
-    delete next[name]
-    setBackgroundPresets(next)
-  }
 
   // ============================================================
   // 种族信息

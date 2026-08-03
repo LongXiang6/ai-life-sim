@@ -1,17 +1,18 @@
 /**
- * Stage A：时间步长与 RoundContext 日粒度契约冒烟。
+ * Purpose: Regress time-step resolution and day-granularity RoundContext contracts.
+ * Owner: quality:narrative
+ * Responsibility: One deterministic calendar and narrative-age smoke suite only.
  */
 import fs from 'node:fs'
 import path from 'node:path'
 import { getProjectRoot } from '../../lib/project-root.mjs'
-
+import { readModuleSource } from '../../lib/read-module-source.mjs'
 const root = getProjectRoot(import.meta.url)
 let failed = 0
 
 function readRel(rel) {
   return fs.readFileSync(path.join(root, rel), 'utf8')
 }
-
 function stripComments(src) {
   return src
     .replace(/\/\*[\s\S]*?\*\//g, '')
@@ -24,7 +25,6 @@ function assertOk(condition, message) {
     failed++
   }
 }
-
 function assertSame(actual, expected, message) {
   if (actual !== expected) {
     console.error(`FAIL: ${message} (expected=${expected}, actual=${actual})`)
@@ -50,7 +50,7 @@ function extractBlock(src, marker) {
 const resolverSrc = readRel('src/mods/mod-engine/utils/time-step-resolver.ts')
 const timeSystemSrc = readRel('src/mods/mod-engine/subsystems/time-system.ts')
 const calendarSeasonSrc = readRel('src/mods/mod-engine/helpers/calendar-season.js')
-const orchestratorSrc = readRel('src/mods/mod-engine/subsystems/orchestrator-system.ts')
+const orchestratorSrc = readModuleSource('src/mods/mod-engine/subsystems/orchestrator-system.ts', root)
 const constantsSrc = readRel('src/mods/mod-engine/constants.ts')
 const mapperSrc = readRel('src/mods/mod-engine/helpers/detection-state-mapper.ts')
 const campaignSrc = readRel('src/mods/mod-engine/campaigns/default/index.ts')
@@ -251,7 +251,10 @@ assertOk(
 )
 assertOk(
   /previousNarrativeRound/.test(orchestratorCode)
-    && /previousNode:\s*\{[\s\S]{0,420}this\.previousNarrativeRound[\s\S]{0,220}\},\s*daysPassed:\s*previousLocalCalendar[\s\S]{0,260}timeSystem\.getDaysPassed\(\)/.test(orchestratorCode),
+    && orchestratorCode.includes('previousNode: {')
+    && orchestratorCode.includes("orchestrator['previousNarrativeRound']")
+    && orchestratorCode.includes('daysPassed: previousLocalCalendar')
+    && orchestratorCode.includes('timeSystem.getDaysPassed()'),
   'narrative Prompt must receive the real previous node and elapsed-day window instead of inferring it from the new granularity',
 )
 assertOk(
@@ -375,7 +378,7 @@ assertOk(
 assertOk(
   campaignCode.includes('orchestrator.isPreviewExecution()')
     && campaignCode.includes('orchestrator.advanceAllSubsystems()')
-    && campaignCode.includes('orchestrator.handleNarrativeResponse')
+    && campaignCode.includes('orchestrator.acceptNarrativeResponse')
     && campaignCode.includes('orchestrator.checkAndTriggerEpilogue(aiConfig, sessionId)'),
   'campaign preview execution must skip real side-effect stages',
 )
@@ -391,7 +394,6 @@ assertOk(
   /syncOrchestratorToEngineStore\(\)[\s\S]*orchestrator\.triggerAutoSave\(\)/.test(hooksCode),
   'advanceRound must sync orchestrator state before triggering auto-save',
 )
-
 if (failed === 0) {
   console.log('PASS: time-step-resolver-smoke')
   process.exit(0)

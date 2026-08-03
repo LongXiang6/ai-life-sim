@@ -51,6 +51,10 @@ import {
   coarseImportanceWeight,
 } from '../helpers/timeline-memory'
 import {
+  buildRecentStoriesFromYearEvents,
+  type RecentStoryProjection,
+} from '../helpers/recent-story-context'
+import {
   advanceNarrativeMemory,
   searchNarrativeMemory,
   syncNarrativeMemory,
@@ -65,13 +69,9 @@ export interface CompressionResult {
   didCompress: boolean
 }
 
-export type CompressionLevel = 'L0' | 'L1' | 'L2' | 'L3'
-
-export interface CompressedEntry {
-  level: CompressionLevel
-  content: string
-  originalCount: number
-  compressedAt: number
+export interface CompressionCandidate extends CompressionResult {
+  completedRounds: number
+  stats: CompressorStats
 }
 
 export interface CompressorConfig {
@@ -161,32 +161,6 @@ export class SummaryCompressorSystem extends BaseSubsystem {
       totalL3: stats?.l3Count ?? countLevel(3),
       lastCompressionAt: stats?.lastAt ?? 0,
     }
-  }
-
-  getAllCompressed(): CompressedEntry[] {
-    return this.compressedSummaries.summaries.map((summary) => ({
-      level: `L${summary.level}` as CompressionLevel,
-      content: summary.content,
-      originalCount: summary.endRound - summary.startRound + 1,
-      compressedAt: this.stats.lastCompressionAt,
-    }))
-  }
-
-  checkNeed(_narratives: string[]): CompressionLevel | null {
-    return null
-  }
-
-  compressLocal(level: CompressionLevel, entries: string[]): CompressedEntry {
-    return {
-      level,
-      content: entries.join(' | '),
-      originalCount: entries.length,
-      compressedAt: Date.now(),
-    }
-  }
-
-  applyCompression(_level: CompressionLevel, _entry: CompressedEntry): void {
-    // 旧 API 只保留类型兼容，真实状态由 generateCompressedSummaries 管理。
   }
 
   private buildL1SourceFacts(events: YearEvent[]): TimelineSourceFact[] {
@@ -324,6 +298,8 @@ export class SummaryCompressorSystem extends BaseSubsystem {
     customKey: string | undefined,
     allSummaries: CompressedSummaryItem[],
     createdRound: number,
+    recentStories: readonly RecentStoryProjection[],
+    signal?: AbortSignal,
   ): Promise<CompressedSummaryItem> {
     const sourceFacts = group.sourceFacts
     let rawCompressionResponse = ''
@@ -335,6 +311,7 @@ export class SummaryCompressorSystem extends BaseSubsystem {
         character,
         world,
         sourceFacts,
+        recentStories,
         existingCompressedHistory: this.existingHistoryForPrompt(allSummaries, createdRound),
       })
       const inputLength = user.length
@@ -351,11 +328,13 @@ export class SummaryCompressorSystem extends BaseSubsystem {
         apiKey: customKey,
         ...routeOpts,
         overrideMaxTokens: maxTokens,
-        overrideTemperature: level === 1 ? 0.6 : level === 2 ? 0.4 : 0.3,
-        overrideTopP: level === 1 ? 0.8 : level === 2 ? 0.7 : 0.6,
+        overrideTemperature: 0,
+        overrideTopP: 1,
         jsonMode: true,
         outputSchema: TimelineCompressionOutputSchema,
         strictSchema: true,
+        reasoningEffort: 'disabled',
+        signal,
         logContext: {
           callKind: `summary-compress-L${level}`,
           round: group.endRound,
@@ -414,7 +393,34 @@ export class SummaryCompressorSystem extends BaseSubsystem {
     }
   }
 
-  async generateCompressedSummaries(
+  needsCompression(events: YearEvent[], turnCount: number): boolean {
+    const completedRounds = turnCount + 1
+    if (completedRounds <= 0) return false
+
+    const summaries = normalizeLegacySummaries(this.compressedSummaries).summaries
+    const latestEligibleBlock = Math.floor(completedRounds / SUMMARY_INTERVAL)
+      - 1
+      - COMPRESS_L1_DELAY_BLOCKS
+    for (let block = 0; block <= latestEligibleBlock; block++) {
+      const startRound = block * SUMMARY_INTERVAL + 1
+      const endRound = (block + 1) * SUMMARY_INTERVAL
+      if (summaries.some((summary) => (
+        summary.level === 1
+        && summary.startRound === startRound
+        && summary.endRound === endRound
+      ))) continue
+      const blockEventCount = events.filter((event) => (
+        event.id >= startRound && event.id <= endRound
+      )).length
+      if (blockEventCount >= SUMMARY_INTERVAL) return true
+      break
+    }
+
+    return this.buildHigherLevelSourceGroup(2, summaries) !== undefined
+      || this.buildHigherLevelSourceGroup(3, summaries) !== undefined
+  }
+
+  async createCompressionCandidate(
     config: AIModelConfig,
     events: YearEvent[],
     world: WorldSetting,
@@ -423,8 +429,9 @@ export class SummaryCompressorSystem extends BaseSubsystem {
     _resolvedBranches?: Record<number, string>,
     storySeed?: string,
     _memoryLifecycle?: MemoryLifecycleSystem,
-    lifeRunId?: string,
-  ): Promise<CompressionResult> {
+    _lifeRunId?: string,
+    signal?: AbortSignal,
+  ): Promise<CompressionCandidate> {
     const { customKey, provider, customUrl, customModel } = useSettingsStore.getState()
     const model = customModel || config.model
     const routeOpts = { providerId: provider, customBaseUrl: customUrl || undefined, customModel: model }
@@ -432,10 +439,19 @@ export class SummaryCompressorSystem extends BaseSubsystem {
     const summarySessionId = storySeed ?? world.name.replace(/\s+/g, '-').slice(0, 32)
     const completedRounds = turnCount + 1
     if (completedRounds <= 0) {
-      return { newCompressedSummaries: this.compressedSummaries, newLatestSummary: '', shouldShowSummary: false, didCompress: false }
+      return {
+        newCompressedSummaries: structuredClone(this.compressedSummaries),
+        newLatestSummary: '',
+        shouldShowSummary: false,
+        didCompress: false,
+        completedRounds,
+        stats: this.getStats(),
+      }
     }
 
     let summaries = normalizeLegacySummaries(this.compressedSummaries).summaries
+    const nextStats = this.getStats()
+    const recentStories = buildRecentStoriesFromYearEvents(events)
     let didCompress = false
     let newLatestSummary = ''
     let shouldShowSummary = false
@@ -446,7 +462,7 @@ export class SummaryCompressorSystem extends BaseSubsystem {
         newLatestSummary = summary.content
         shouldShowSummary = true
       }
-      this.stats[`totalL${summary.level}` as 'totalL1' | 'totalL2' | 'totalL3']++
+      nextStats[`totalL${summary.level}` as 'totalL1' | 'totalL2' | 'totalL3']++
     }
 
     // 延迟一个 L1 块，完成 8 轮时目标块为 1~4，完成 12 轮时目标块为 5~8。
@@ -463,18 +479,30 @@ export class SummaryCompressorSystem extends BaseSubsystem {
       ))) continue
       const blockEvents = events.filter((event) => event.id >= startRound && event.id <= endRound)
       if (blockEvents.length < SUMMARY_INTERVAL) break
+      const group: SummarySourceGroup = {
+        startRound,
+        endRound,
+        childSummaries: [],
+        sourceFacts: this.buildL1SourceFacts(blockEvents),
+        permanentEvents: [],
+      }
       try {
-        const group: SummarySourceGroup = {
-          startRound,
-          endRound,
-          childSummaries: [],
-          sourceFacts: this.buildL1SourceFacts(blockEvents),
-          permanentEvents: [],
-        }
-        append(await this.compressGroup(1, group, aiConfig, world, character, summarySessionId, routeOpts, customKey || undefined, summaries, completedRounds))
+        append(await this.compressGroup(
+          1,
+          group,
+          aiConfig,
+          world,
+          character,
+          summarySessionId,
+          routeOpts,
+          customKey || undefined,
+          summaries,
+          completedRounds,
+          recentStories,
+          signal,
+        ))
       } catch (error) {
-        console.warn('[SummaryCompressor] L1 压缩失败，保留完整来源等待下一轮重试:', error)
-        break
+        throw new Error('L1 压缩候选生成失败', { cause: error })
       }
     }
 
@@ -482,32 +510,57 @@ export class SummaryCompressorSystem extends BaseSubsystem {
       const group = this.buildHigherLevelSourceGroup(level, summaries)
       if (!group) continue
       try {
-        append(await this.compressGroup(level, group, aiConfig, world, character, summarySessionId, routeOpts, customKey || undefined, summaries, completedRounds))
+        append(await this.compressGroup(
+          level,
+          group,
+          aiConfig,
+          world,
+          character,
+          summarySessionId,
+          routeOpts,
+          customKey || undefined,
+          summaries,
+          completedRounds,
+          recentStories,
+          signal,
+        ))
       } catch (error) {
-        console.warn(`[SummaryCompressor] L${level} 压缩失败，保留低层来源等待重试:`, error)
+        throw new Error(`L${level} 压缩候选生成失败`, { cause: error })
       }
     }
 
-    this.compressedSummaries = { summaries }
-    if (didCompress) this.stats.lastCompressionAt = Date.now()
-
-    if (lifeRunId) {
-      try {
-        if (didCompress) {
-          await syncNarrativeMemory({ lifeRunId, currentRound: completedRounds, summaries })
-        } else {
-          await advanceNarrativeMemory(lifeRunId, completedRounds)
-        }
-      } catch (error) {
-        console.error('[SummaryCompressor] 存档记忆数据库同步失败，内存状态保留并将在下一轮重试:', error)
-      }
-    }
+    if (didCompress) nextStats.lastCompressionAt = Date.now()
 
     return {
-      newCompressedSummaries: structuredClone(this.compressedSummaries),
+      newCompressedSummaries: structuredClone({ summaries }),
       newLatestSummary,
       shouldShowSummary,
       didCompress,
+      completedRounds,
+      stats: nextStats,
+    }
+  }
+
+  async commitCompressionCandidate(
+    candidate: CompressionCandidate,
+    lifeRunId?: string,
+  ): Promise<void> {
+    this.compressedSummaries = normalizeLegacySummaries(candidate.newCompressedSummaries)
+    this.stats = { ...candidate.stats }
+
+    if (!lifeRunId) return
+    try {
+      if (candidate.didCompress) {
+        await syncNarrativeMemory({
+          lifeRunId,
+          currentRound: candidate.completedRounds,
+          summaries: this.compressedSummaries.summaries,
+        })
+      } else {
+        await advanceNarrativeMemory(lifeRunId, candidate.completedRounds)
+      }
+    } catch (error) {
+      console.error('[SummaryCompressor] 存档记忆数据库同步失败，内存状态保留并将在下一轮重试:', error)
     }
   }
 

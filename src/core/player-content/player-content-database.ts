@@ -1,3 +1,9 @@
+/**
+ * Purpose: Open and migrate the player-content SQLite database.
+ * Owner: core:player-content
+ * Responsibility: Single atomic schema-version contract, ordered DDL, and database initialization.
+ */
+
 import 'server-only'
 
 import fs from 'node:fs'

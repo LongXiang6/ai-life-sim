@@ -1,14 +1,16 @@
-'use client'
-
 /**
- * @module NarrativeTimeline
- * @description 叙事时间线 —— 虚拟窗口、分隔线、整轮生成状态与故事尾部推进区
- * @mod mod-ui
+ * Purpose: Coordinate the narrative window, scroll restoration, and story-tail advance control.
+ * Owner: mod-ui/narrative-timeline
+ * Responsibility: Timeline-level orchestration only; entry and branch rendering live in NarrativeTimelineEntryView.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+'use client'
+
+import { useEffect, useMemo, useRef, useState } from 'react'
+
 import { clamp } from '@/core/shared'
 
+import { NarrativeTimelineEntryView } from './NarrativeTimelineEntryView'
 import styles from './NarrativeTimeline.module.css'
 
 const WINDOW_SIZE = 30
@@ -44,7 +46,6 @@ export interface NarrativeTimelineProps {
   onAdvance?: () => void
   onGoToGameOver?: () => void
   className?: string
-  // 分支选择相关
   unresolvedBranchIndex?: number | null
   branchTitle?: string
   branchOptions?: string[]
@@ -54,11 +55,6 @@ export interface NarrativeTimelineProps {
   onBranchConfirm?: () => void
   onBranchCancel?: () => void
   onCustomInputChange?: (text: string) => void
-}
-
-/** 正文契约以空行分段；保留段内单换行，避免归一化合并后再次被拆成额外段落。 */
-function splitNarrativeParagraphs(text: string): string[] {
-  return text.split(/\n\s*\n/).map((paragraph) => paragraph.trim()).filter(Boolean)
 }
 
 export function NarrativeTimeline({
@@ -92,54 +88,10 @@ export function NarrativeTimeline({
   const scrollRef = scrollContainerRef ?? internalScrollRef
   const sentinelRef = useRef<HTMLDivElement>(null)
   const scrollRestoreRef = useRef(0)
-  const branchTextareaRef = useRef<HTMLTextAreaElement>(null)
-  const [showCustomBranchInput, setShowCustomBranchInput] = useState(false)
-
-  useEffect(() => {
-    /* eslint-disable react-hooks/set-state-in-effect -- reset the local editor when the branch changes */
-    setShowCustomBranchInput(false)
-    /* eslint-enable react-hooks/set-state-in-effect */
-  }, [unresolvedBranchIndex])
-
-  const handleBranchOptionSelect = useCallback((optionId: string) => {
-    // 移动端点击预设选项时，先收起软键盘防止 textarea 焦点干扰点击
-    branchTextareaRef.current?.blur()
-    onBranchSelect?.(optionId)
-    onCustomInputChange?.('')
-    setShowCustomBranchInput(false)
-  }, [onBranchSelect, onCustomInputChange])
-
-  const handleCustomInputChange = useCallback((text: string) => {
-    onCustomInputChange?.(text)
-    if (text.trim() && selectedBranchOptionId !== null && selectedBranchOptionId !== undefined) {
-      onBranchSelect?.(null)
-    }
-  }, [onBranchSelect, onCustomInputChange, selectedBranchOptionId])
-
-  const handleBranchConfirmClick = useCallback(() => {
-    // 移动端收起软键盘，防止第一次点击被键盘吞掉
-    branchTextareaRef.current?.blur()
-    onBranchConfirm?.()
-  }, [onBranchConfirm])
-
-  const handleBranchCancelClick = useCallback(() => {
-    setShowCustomBranchInput(false)
-    onBranchCancel?.()
-  }, [onBranchCancel])
-
-  const selectedBranchLabel = selectedBranchOptionId !== null && selectedBranchOptionId !== undefined
-    ? branchOptions[Number(selectedBranchOptionId)]
-    : undefined
-  const branchConfirmLabel = selectedBranchLabel
-    ? `确认「${selectedBranchLabel}」`
-    : (branchCustomText ?? '').trim()
-      ? '确认写下做法'
-      : '请先选择'
   const prevTotalRef = useRef(entries.length)
-
   const [renderStart, setRenderStart] = useState(() => clamp(entries.length - WINDOW_SIZE, 0, Infinity))
 
-  /* eslint-disable react-hooks/set-state-in-effect -- 事件总数变化时重置渲染窗口起点 */
+  /* eslint-disable react-hooks/set-state-in-effect -- event-count changes reset the render window */
   useEffect(() => {
     const total = entries.length
     if (total === 0) {
@@ -149,7 +101,7 @@ export function NarrativeTimeline({
     if (total > prevTotalRef.current) {
       setRenderStart(clamp(total - WINDOW_SIZE, 0, Infinity))
     } else {
-      setRenderStart((prev) => Math.min(prev, clamp(total - WINDOW_SIZE, 0, Infinity)))
+      setRenderStart((previous) => Math.min(previous, clamp(total - WINDOW_SIZE, 0, Infinity)))
     }
     prevTotalRef.current = total
   }, [entries.length])
@@ -159,7 +111,7 @@ export function NarrativeTimeline({
     if (renderStart <= 0) return
     const container = scrollRef.current
     if (container) scrollRestoreRef.current = container.scrollHeight
-    setRenderStart((prev) => clamp(prev - LOAD_MORE, 0, Infinity))
+    setRenderStart((previous) => clamp(previous - LOAD_MORE, 0, Infinity))
   }
   const loadMoreRef = useRef(loadMore)
 
@@ -171,7 +123,6 @@ export function NarrativeTimeline({
     const sentinel = sentinelRef.current
     const container = scrollRef.current
     if (!sentinel || !container || renderStart <= 0) return
-
     const observer = new IntersectionObserver(
       (observed) => {
         if (observed[0]?.isIntersecting) loadMoreRef.current()
@@ -185,22 +136,19 @@ export function NarrativeTimeline({
   useEffect(() => {
     const container = scrollRef.current
     if (container && scrollRestoreRef.current > 0) {
-      const diff = container.scrollHeight - scrollRestoreRef.current
-      if (diff > 0) container.scrollTop += diff
+      const difference = container.scrollHeight - scrollRestoreRef.current
+      if (difference > 0) container.scrollTop += difference
       scrollRestoreRef.current = 0
     }
   }, [renderStart, scrollRef])
 
   const eventElements = useMemo(() => {
     const nodes: React.ReactNode[] = []
-
-    for (let i = renderStart; i < entries.length; i++) {
-      const entry = entries[i]
-      const isEnding = entry.isDeath || entry.isLifeEnd
-
-      if (i > renderStart || renderStart > 0) {
+    for (let index = renderStart; index < entries.length; index++) {
+      const entry = entries[index]!
+      if (index > renderStart || renderStart > 0) {
         nodes.push(
-          <div data-separator-for={i} key={`divider-${i}`}>
+          <div data-separator-for={index} key={`divider-${index}`}>
             <div className={styles.separator}>
               <div className={styles.separatorLine} />
               <span className={styles.separatorMark} aria-hidden="true" />
@@ -209,117 +157,24 @@ export function NarrativeTimeline({
           </div>,
         )
       }
-
       nodes.push(
-        <div
-          key={`entry-${i}`}
-          className={[
-            styles.entry,
-            isEnding ? styles.entryEnding : '',
-          ].filter(Boolean).join(' ')}
-        >
-          {(entry.eraLabel || entry.ageLabel) && (
-            <div className={styles.entryMeta}>
-              <span>{entry.eraLabel ?? ''}</span>
-              {entry.ageLabel && <span className={styles.entryAge}>{entry.ageLabel}</span>}
-            </div>
-          )}
-          <div className={styles.entryBody}>
-            {splitNarrativeParagraphs(entry.text).map((paragraph, pIdx) => (
-              <p key={pIdx} className={styles.entryParagraph}>{paragraph.trim()}</p>
-            ))}
-          </div>
-          {entry.attrChanges && entry.attrChanges.length > 0 && (
-            <div className={styles.attrChanges}>
-              {entry.attrChanges.map((change, changeIdx) => (
-                <span
-                  key={`${change.label}-${changeIdx}`}
-                  className={[
-                    styles.attrChangeChip,
-                    change.change > 0 ? styles.attrChangePositive : styles.attrChangeNegative,
-                  ].join(' ')}
-                >
-                  {change.icon} {change.label} {change.change > 0 ? '+' : ''}{Math.round(change.change * 10) / 10}
-                </span>
-              ))}
-            </div>
-          )}
-          {entry.isBranchPoint && !entry.resolvedChoice && i === unresolvedBranchIndex && (
-            <div className={styles.branchPending}>
-              <p className={styles.branchKicker}>命运分叉</p>
-              <h3 className={styles.branchPendingTitle}>{branchTitle}</h3>
-              {branchOptions.length > 0 && (
-                <div className={styles.branchOptionsList}>
-                  {branchOptions.map((option, optIdx) => (
-                    <label
-                      key={optIdx}
-                      className={styles.branchOption}
-                      onClick={() => handleBranchOptionSelect(String(optIdx))}
-                    >
-                      <input
-                        type="radio"
-                        name={`branch-${i}`}
-                        className={styles.branchOptionRadio}
-                        checked={selectedBranchOptionId === String(optIdx)}
-                        onChange={() => handleBranchOptionSelect(String(optIdx))}
-                      />
-                      <span className={styles.branchNumber}>{String(optIdx + 1).padStart(2, '0')}</span>
-                      <span>{option}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-              {(showCustomBranchInput || Boolean((branchCustomText ?? '').trim())) ? (
-                <textarea
-                  ref={branchTextareaRef}
-                  className={styles.branchCustomInput}
-                  placeholder="写下你的做法……"
-                  value={branchCustomText ?? ''}
-                  onChange={(e) => handleCustomInputChange(e.target.value)}
-                  rows={3}
-                />
-              ) : (
-                <button
-                  type="button"
-                  className={styles.branchCustomToggle}
-                  onClick={() => setShowCustomBranchInput(true)}
-                >
-                  写下自己的做法
-                </button>
-              )}
-              <div className={styles.branchActions}>
-                <button
-                  type="button"
-                  className={styles.branchCancelBtn}
-                  onClick={handleBranchCancelClick}
-                >
-                  清空
-                </button>
-                <button
-                  type="button"
-                  className={styles.branchConfirmBtn}
-                  disabled={isGenerating || ((selectedBranchOptionId === null || selectedBranchOptionId === undefined) && !(branchCustomText ?? '').trim())}
-                  onClick={handleBranchConfirmClick}
-                >
-                  {branchConfirmLabel}
-                </button>
-              </div>
-            </div>
-          )}
-          {entry.isBranchPoint && entry.resolvedChoice && (
-            <div className={styles.branchResolved}>
-              <p className={styles.branchResolvedTitle}>
-                命运分叉 · {entry.branchTitle ?? '你的抉择'}
-              </p>
-              <p className={styles.branchResolvedChoice}>
-                你的选择：<span>{entry.resolvedChoice}</span>
-              </p>
-            </div>
-          )}
-        </div>,
+        <NarrativeTimelineEntryView
+          key={`entry-${index}`}
+          entry={entry}
+          entryIndex={index}
+          showBranchEditor={entry.isBranchPoint === true && !entry.resolvedChoice && index === unresolvedBranchIndex}
+          branchTitle={branchTitle}
+          branchOptions={branchOptions}
+          selectedBranchOptionId={selectedBranchOptionId}
+          branchCustomText={branchCustomText}
+          isGenerating={isGenerating}
+          onBranchSelect={onBranchSelect}
+          onBranchConfirm={onBranchConfirm}
+          onBranchCancel={onBranchCancel}
+          onCustomInputChange={onCustomInputChange}
+        />,
       )
     }
-
     if (showGenerationCursor) {
       nodes.push(
         <div key="stream-divider">
@@ -329,64 +184,23 @@ export function NarrativeTimeline({
             <div className={styles.separatorLine} />
           </div>
         </div>,
-      )
-      nodes.push(
         <div key="stream-entry" className={styles.streamEntry}>
-          <div className={styles.entryBody}>
-            <p className={styles.entryParagraph}>
-              <span className={styles.cursor} />
-            </p>
-          </div>
+          <div className={styles.entryBody}><p className={styles.entryParagraph}><span className={styles.cursor} /></p></div>
         </div>,
       )
     }
-
     return nodes
-  }, [renderStart, entries, isGenerating, showGenerationCursor, unresolvedBranchIndex, branchTitle, branchOptions, selectedBranchOptionId, branchCustomText, showCustomBranchInput, branchConfirmLabel, handleBranchConfirmClick, handleBranchOptionSelect, handleBranchCancelClick, handleCustomInputChange])
+  }, [
+    branchCustomText, branchOptions, branchTitle, entries, isGenerating, onBranchCancel,
+    onBranchConfirm, onBranchSelect, onCustomInputChange, renderStart, selectedBranchOptionId,
+    showGenerationCursor, unresolvedBranchIndex,
+  ])
 
   const canTapAdvance = showAdvance && !advanceBlocked && !isGenerating
-  const advanceTitle = isGenerating
-    ? generatingText
-    : advanceBlocked
-      ? advanceBlockedText
-      : advanceText
+  const advanceTitle = isGenerating ? generatingText : advanceBlocked ? advanceBlockedText : advanceText
   const computedAdvanceHint = isGenerating
     ? generatingHint
-    : advanceBlocked
-      ? '当前故事仍在等待处理'
-      : advanceHint
-
-  const advanceControl = showAdvance ? (
-    <div className={styles.advanceDock}>
-      <div className={styles.advanceArea}>
-        {hasEndingEvent ? (
-          <button type="button" className={styles.settleBtn} onClick={onGoToGameOver}>
-            <strong>前往人生结算</strong>
-            <small>这一生的轨迹已经写完</small>
-          </button>
-        ) : (
-          <button
-            type="button"
-            className={[
-              styles.advanceTap,
-              isGenerating
-                ? styles.advanceGenerating
-                : advanceBlocked
-                  ? styles.advanceBlocked
-                  : styles.advanceIdle,
-            ].join(' ')}
-            disabled={!canTapAdvance}
-            onClick={onAdvance}
-          >
-            <span className={styles.advanceText}>
-              <strong>{advanceTitle}</strong>
-              <small>{computedAdvanceHint}</small>
-            </span>
-          </button>
-        )}
-      </div>
-    </div>
-  ) : null
+    : advanceBlocked ? '当前故事仍在等待处理' : advanceHint
 
   return (
     <div className={[styles.timelineShell, className].filter(Boolean).join(' ')}>
@@ -396,23 +210,39 @@ export function NarrativeTimeline({
             <span className={styles.timelineHeaderLabel}>故事进程</span>
             <span className={styles.timelineHeaderRound}>第 {turnCount} 轮</span>
           </div>
-
-          {entries.length === 0 && !showGenerationCursor && (
+          {entries.length === 0 && !showGenerationCursor ? (
             <div className={styles.emptyState}>
               <div className={styles.emptyIcon}>卷首</div>
               <p>这一生尚未落笔</p>
               <p className={styles.emptyHint}>轻触下方，让第一段岁月开始</p>
             </div>
-          )}
-
-          {renderStart > 0 && (
+          ) : null}
+          {renderStart > 0 ? (
             <div ref={sentinelRef} className={styles.loadMore} onClick={loadMore} role="button" tabIndex={0}>
               向上回望更早的 {renderStart} 段人生
             </div>
-          )}
-
+          ) : null}
           {eventElements}
-          {advanceControl}
+          {showAdvance ? (
+            <div className={styles.advanceDock}>
+              <div className={styles.advanceArea}>
+                {hasEndingEvent ? (
+                  <button type="button" className={styles.settleBtn} onClick={onGoToGameOver}>
+                    <strong>前往人生结算</strong><small>这一生的轨迹已经写完</small>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className={[styles.advanceTap, isGenerating ? styles.advanceGenerating : advanceBlocked ? styles.advanceBlocked : styles.advanceIdle].join(' ')}
+                    disabled={!canTapAdvance}
+                    onClick={onAdvance}
+                  >
+                    <span className={styles.advanceText}><strong>{advanceTitle}</strong><small>{computedAdvanceHint}</small></span>
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

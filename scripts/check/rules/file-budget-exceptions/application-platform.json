@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "entries": [
+    {
+      "path": "src/app/api/proxy/route.ts",
+      "owner": "app:api",
+      "reviewedLines": 688,
+      "reason": "单次 AI HTTP/流式传输事务门面；Schema、指纹、日志和响应辅助已下沉，入口保留严格有序的取消与终态处理。"
+    },
+    {
+      "path": "src/core/account/account-contract.ts",
+      "owner": "core:account",
+      "reviewedLines": 334,
+      "reason": "账号公共数据契约的唯一声明源，拆分会分散字段语义和验证边界。"
+    },
+    {
+      "path": "src/core/mod-loader/mod-lifecycle.ts",
+      "owner": "core:mod-loader",
+      "reviewedLines": 335,
+      "reason": "MOD 生命周期执行图的唯一状态机，阶段、状态码和终态收束必须在同一所有者内。"
+    },
+    {
+      "path": "src/core/player-content/player-content-database.ts",
+      "owner": "core:player-content",
+      "reviewedLines": 347,
+      "reason": "玩家内容 SQLite Schema 与迁移的原子声明，表和索引必须作为一个事务审查。"
+    },
+    {
+      "path": "src/foundation/index.ts",
+      "owner": "foundation:index.ts",
+      "reviewedLines": 365,
+      "reason": "Foundation 唯一公共导出门面，只聚合稳定导出，不持有业务逻辑或第二状态。"
+    }
+  ]
+}

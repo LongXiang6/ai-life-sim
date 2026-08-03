@@ -1,8 +1,14 @@
 #!/usr/bin/env node
+/**
+ * Purpose: Verify protected server Prompt assets remain server-owned and excluded from client bundles.
+ * Owner: quality:narrative
+ * Responsibility: Prompt asset boundary regression only; Prompt content and runtime calls retain their owners.
+ */
 
 import fs from 'node:fs'
 import path from 'node:path'
 import { getProjectRoot } from '../../lib/project-root.mjs'
+import { readModuleSource } from '../../lib/read-module-source.mjs'
 
 const root = getProjectRoot(import.meta.url)
 let failed = 0
@@ -18,49 +24,75 @@ function assertOk(condition, message) {
 }
 
 const narrativeContract = read('src/mods/mod-engine/prompts/narrative-prompt.ts')
+const basicAttributeContract = read('src/mods/mod-engine/prompts/narrative-basic-attribute-prompt.ts')
+const dataAnalysisContract = read('src/mods/mod-engine/prompts/narrative-data-analysis-prompt.ts')
 const eventRecognitionContract = read('src/mods/mod-engine/prompts/narrative-event-recognition-prompt.ts')
-const settlementContract = read('src/mods/mod-engine/prompts/narrative-settlement-prompt.ts')
+const macroImpactContract = read('src/mods/mod-engine/prompts/narrative-macro-impact-prompt.ts')
 const clientComponents = read('src/mods/mod-engine/prompts/narrative-prompt-components.ts')
 const clientProtocol = read('src/mods/mod-engine/helpers/narrative-ai-protocol.ts')
 const narrativeServerPrompt = read('src/mods/mod-engine/server/narrative-system-prompt.ts')
+const basicAttributeServerPrompt = read('src/mods/mod-engine/server/narrative-basic-attribute-system-prompt.ts')
+const dataAnalysisServerPrompt = read('src/mods/mod-engine/server/narrative-data-analysis-system-prompt.ts')
 const eventRecognitionServerPrompt = read('src/mods/mod-engine/server/narrative-event-recognition-system-prompt.ts')
-const settlementServerPrompt = read('src/mods/mod-engine/server/narrative-settlement-system-prompt.ts')
+const macroImpactServerPrompt = read('src/mods/mod-engine/server/narrative-macro-impact-system-prompt.ts')
 const serverEntry = read('src/mods/mod-engine/server-prompt-assets.ts')
 const manifest = read('src/mods/mod-engine/manifest.ts')
 const generatedSecondary = read('src/core/mod-loader/mod-secondary-api-importers.generated.ts')
-const aiClient = read('src/core/ai-service/ai-client.ts')
+const aiClient = readModuleSource('src/core/ai-service/ai-client.ts', root)
 const callWrapper = read('src/core/ai-service/ai-call-wrapper.ts')
 const proxyRoute = read('src/app/api/proxy/route.ts')
 const settingsModal = read('src/mods/mod-settings/components/SettingsModal.tsx')
 const settingsIndex = read('src/mods/mod-settings/index.ts')
 
 assertOk(
-  eventRecognitionContract.includes("version: '1.0.0'")
+  eventRecognitionContract.includes("version: '3.1.0'")
     && eventRecognitionContract.includes("systemPrompt: ''")
-    && eventRecognitionContract.includes("'mod-engine:narrative-event-recognition:1.0.0'")
+    && eventRecognitionContract.includes("'mod-engine:narrative-event-recognition:3.1.0'")
+    && eventRecognitionContract.includes("outputFormat: 'json'")
+    && eventRecognitionContract.includes('outputSchema: NarrativeAIEventRecognitionDataSchema')
     && eventRecognitionContract.includes('serverPromptAssetId: NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID'),
-  'browser event-recognition PromptTemplate must carry only the 1.0.0 server asset ID',
+  'browser event-recognition PromptTemplate must carry only the 3.1.0 JSON server asset contract',
 )
 assertOk(
-  narrativeContract.includes("version: '5.8.1'")
+  narrativeContract.includes("version: '5.8.2'")
     && narrativeContract.includes("systemPrompt: ''")
-    && narrativeContract.includes("'mod-engine:narrative:5.8.1'")
+    && narrativeContract.includes("'mod-engine:narrative:5.8.2'")
     && narrativeContract.includes('serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID'),
-  'browser narrative PromptTemplate must carry only the 5.8.1 server asset ID',
+  'browser narrative PromptTemplate must carry only the 5.8.2 server asset ID',
 )
 assertOk(
-  eventRecognitionServerPrompt.includes('你是人生模拟器的待触发事件识别器')
+  eventRecognitionServerPrompt.includes('你是人生模拟器的事件识别器')
     && eventRecognitionServerPrompt.includes('buildNarrativeEventRecognitionContractLine')
     && eventRecognitionServerPrompt.includes('buildNarrativeEventRecognitionStandardExample')
     && eventRecognitionServerPrompt.includes('COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT'),
-  'server Prompt owner must retain the fixed future-event recognition contract and example',
+  'server Prompt owner must retain the occurred-event and future-candidate recognition contract',
 )
 assertOk(
-  settlementContract.includes("version: '1.1.0'")
-    && settlementContract.includes("systemPrompt: ''")
-    && settlementContract.includes("'mod-engine:narrative-settlement:1.1.0'")
-    && settlementContract.includes('serverPromptAssetId: NARRATIVE_SETTLEMENT_SERVER_PROMPT_ASSET_ID'),
-  'browser settlement PromptTemplate must carry only the 1.1.0 server asset ID',
+  basicAttributeContract.includes("version: '2.1.0'")
+    && basicAttributeContract.includes("systemPrompt: ''")
+    && basicAttributeContract.includes("'mod-engine:narrative-basic-attribute-analysis:2.1.0'")
+    && basicAttributeContract.includes("outputFormat: 'json'")
+    && basicAttributeContract.includes('outputSchema: NarrativeAIBasicAttributeAnalysisDataSchema')
+    && basicAttributeContract.includes('serverPromptAssetId: NARRATIVE_BASIC_ATTRIBUTE_SERVER_PROMPT_ASSET_ID'),
+  'browser basic-attribute PromptTemplate must carry only the 2.1.0 JSON server asset contract',
+)
+assertOk(
+  dataAnalysisContract.includes("version: '2.0.0'")
+    && dataAnalysisContract.includes("systemPrompt: ''")
+    && dataAnalysisContract.includes("'mod-engine:narrative-data-analysis:2.0.0'")
+    && dataAnalysisContract.includes("outputFormat: 'json'")
+    && dataAnalysisContract.includes('outputSchema: NarrativeAIDataAnalysisDataSchema')
+    && dataAnalysisContract.includes('serverPromptAssetId: NARRATIVE_DATA_ANALYSIS_SERVER_PROMPT_ASSET_ID'),
+  'browser data-analysis PromptTemplate must carry only the 2.0.0 JSON server asset contract',
+)
+assertOk(
+  macroImpactContract.includes("version: '1.0.0'")
+    && macroImpactContract.includes("systemPrompt: ''")
+    && macroImpactContract.includes("'mod-engine:narrative-macro-impact:1.0.0'")
+    && macroImpactContract.includes("outputFormat: 'json'")
+    && macroImpactContract.includes('outputSchema: NarrativeAIMacroImpactDataSchema')
+    && macroImpactContract.includes('serverPromptAssetId: NARRATIVE_MACRO_IMPACT_SERVER_PROMPT_ASSET_ID'),
+  'browser macro-impact PromptTemplate must carry only the 1.0.0 JSON server asset contract',
 )
 assertOk(
   narrativeServerPrompt.includes('受世界事实与模拟规则约束的世界叙事演算者')
@@ -75,19 +107,33 @@ assertOk(
   'server Prompt owner must retain the fixed narrative asset and standard example',
 )
 assertOk(
-  settlementServerPrompt.includes('你是人生模拟器的回合结算引擎')
-    && settlementServerPrompt.includes('buildNarrativeSettlementSystemContractLines')
-    && settlementServerPrompt.includes('buildNarrativeSettlementDataContractLine')
-    && settlementServerPrompt.includes('buildNarrativeSettlementStandardExample')
-    && settlementServerPrompt.includes('COMPILED_NARRATIVE_SETTLEMENT_SYSTEM_PROMPT'),
-  'server Prompt owner must derive and retain the fixed settlement contract and example',
+  basicAttributeServerPrompt.includes('你是人生模拟器的基础属性分析器')
+    && basicAttributeServerPrompt.includes('buildNarrativeBasicAttributeContractLine')
+    && basicAttributeServerPrompt.includes('buildNarrativeBasicAttributeStandardExample')
+    && basicAttributeServerPrompt.includes('COMPILED_NARRATIVE_BASIC_ATTRIBUTE_SYSTEM_PROMPT'),
+  'server Prompt owner must derive and retain the fixed basic-attribute contract and example',
+)
+assertOk(
+  dataAnalysisServerPrompt.includes('你是人生模拟器的系统数据分析器')
+    && dataAnalysisServerPrompt.includes('buildNarrativeDataAnalysisSystemContractLines')
+    && dataAnalysisServerPrompt.includes('buildNarrativeDataAnalysisStandardExample')
+    && dataAnalysisServerPrompt.includes('COMPILED_NARRATIVE_DATA_ANALYSIS_SYSTEM_PROMPT'),
+  'server Prompt owner must derive and retain the fixed data-analysis contract and example',
+)
+assertOk(
+  macroImpactServerPrompt.includes('你是人生模拟器的宏观影响分析器')
+    && macroImpactServerPrompt.includes('buildNarrativeMacroImpactContractProjection')
+    && macroImpactServerPrompt.includes('COMPILED_NARRATIVE_MACRO_IMPACT_SYSTEM_PROMPT'),
+  'server Prompt owner must derive and retain the fixed macro-impact DAG contract and example',
 )
 
 for (const secretMarker of [
   '受世界事实与模拟规则约束的世界叙事演算者',
   '获得新能力、资源或地位不会自动触发官方或机构审查',
-  '你是人生模拟器的回合结算引擎',
-  '你是人生模拟器的待触发事件识别器',
+  '你是人生模拟器的基础属性分析器',
+  '你是人生模拟器的系统数据分析器',
+  '你是人生模拟器的事件识别器',
+  '你是人生模拟器的宏观影响分析器',
   '标准返回示例：',
 ]) {
   assertOk(
@@ -98,21 +144,25 @@ for (const secretMarker of [
 assertOk(
   !clientProtocol.includes('buildNarrativeAIProtocolBaseRules')
     && !clientProtocol.includes('buildNarrativeAIProtocolStandardExample')
-    && !clientProtocol.includes('buildNarrativeSettlementStandardExample'),
-  'browser protocol owner must keep only Schema, strict translation and compact repair reminders',
+    && !clientProtocol.includes('buildNarrativeBasicAttributeStandardExample')
+    && !clientProtocol.includes('buildNarrativeDataAnalysisStandardExample')
+    && !clientProtocol.includes('buildNarrativeEventRecognitionStandardExample'),
+  'browser protocol owner must keep only Schema, strict translation and main-narrative repair reminders',
 )
 assertOk(
   serverEntry.includes("import 'server-only'")
     && serverEntry.includes('resolveModEngineServerPromptAsset')
     && serverEntry.includes('NARRATIVE_SERVER_PROMPT_ASSET_ID')
-    && serverEntry.includes('NARRATIVE_SETTLEMENT_SERVER_PROMPT_ASSET_ID')
+    && serverEntry.includes('NARRATIVE_BASIC_ATTRIBUTE_SERVER_PROMPT_ASSET_ID')
+    && serverEntry.includes('NARRATIVE_DATA_ANALYSIS_SERVER_PROMPT_ASSET_ID')
     && serverEntry.includes('NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID')
+    && serverEntry.includes('NARRATIVE_MACRO_IMPACT_SERVER_PROMPT_ASSET_ID')
     && !serverEntry.includes('LEGACY_SERVER_PROMPT_ASSET_ALIASES')
     && !serverEntry.includes('canonicalAssetId'),
-  'server Prompt entry must expose exactly the three current protected assets without migration aliases',
+  'server Prompt entry must expose exactly the five current protected assets without migration aliases',
 )
 assertOk(
-  (serverEntry.match(/systemPrompt:/gu) ?? []).length === 4
+  (serverEntry.match(/systemPrompt:/gu) ?? []).length === 6
     && !serverEntry.includes('startsWith(')
     && !serverEntry.includes('includes(assetId'),
   'server Prompt whitelist must stay exact rather than accepting prefix or substring matches',

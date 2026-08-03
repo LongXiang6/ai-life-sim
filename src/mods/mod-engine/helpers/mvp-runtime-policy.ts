@@ -11,6 +11,7 @@
  */
 
 import { mvpStageLoader } from './mvp-stage-loader'
+import { NARRATIVE_MACRO_CONTEXT_SUBSYSTEM_IDS } from './narrative-macro-impact-systems'
 
 export const MVP_EXTERNAL_RUNTIME_SUBSYSTEM_IDS = mvpStageLoader.getExternalRuntimeSubsystems()
 
@@ -23,6 +24,10 @@ export const MVP_ENGINE_RUNTIME_SUBSYSTEM_ORDER = mvpStageLoader.getEngineRuntim
 export const MVP_PROMPT_SUBSYSTEM_IDS = mvpStageLoader.getPromptSubsystems()
 
 export const MVP_SYSTEM_INSTRUCTION_SUBSYSTEM_IDS = mvpStageLoader.getSystemInstructionSubsystems()
+
+export const MVP_MACRO_IMPACT_SUBSYSTEM_IDS: ReadonlySet<string> = new Set(
+  NARRATIVE_MACRO_CONTEXT_SUBSYSTEM_IDS,
+)
 
 export function isMvpRuntimeSubsystem(subsystemId: string): boolean {
   return MVP_EXTERNAL_RUNTIME_SUBSYSTEM_IDS.has(subsystemId)
@@ -68,6 +73,7 @@ export function isMvpSystemInstructionSubsystem(subsystemId: string): boolean {
 
 export function shouldApplyMvpCommit(source: string, subsystemId: string): boolean {
   if (source === 'manual') return true
+  if (source === 'macro-impact') return MVP_MACRO_IMPACT_SUBSYSTEM_IDS.has(subsystemId)
   return isMvpSystemInstructionSubsystem(subsystemId)
 }
 

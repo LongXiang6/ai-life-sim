@@ -12,13 +12,17 @@ import type { ISubSystem, SubSystemChanges, RoundContext } from '@/foundation'
 
 import { deepSanitize } from './system-safety'
 import { validateChange } from './subsystem-field-registry'
-import { getSystemInstructionBlockReason } from './subsystem-prompt-gate'
+import {
+  getMacroImpactBlockReason,
+  getSystemInstructionBlockReason,
+} from './subsystem-prompt-gate'
 import { shouldApplyMvpCommit } from './mvp-runtime-policy'
+import { validateTranslatedNarrativeMacroChange } from './narrative-macro-impact-context'
 
 export type RoundCommitSource =
   | 'narrative'
   | 'post-narrative'
-  | 'world-direction'
+  | 'macro-impact'
   | 'manual'
 
 export interface RoundCommit {
@@ -40,6 +44,13 @@ export interface RoundCommitResult {
 const SCHEMA_VALIDATED_SOURCES: ReadonlySet<RoundCommitSource> = new Set([
   'narrative',
   'post-narrative',
+  'macro-impact',
+])
+
+const ATOMIC_AI_SOURCES: ReadonlySet<RoundCommitSource> = new Set([
+  'narrative',
+  'post-narrative',
+  'macro-impact',
 ])
 
 const ENTITY_ID_FIELDS: ReadonlySet<string> = new Set([
@@ -121,9 +132,9 @@ export class RoundCommitBus {
 
       let change = raw
       if (SCHEMA_VALIDATED_SOURCES.has(commit.source)) {
-        const validated = validateChange(raw, {
-          allowUnknownSubsystem: commit.source === 'post-narrative',
-        })
+        const validated = commit.source === 'macro-impact'
+          ? validateTranslatedNarrativeMacroChange(raw)
+          : validateChange(raw)
         if (!validated) {
           rejected.push({ change: raw, reason: 'schema 校验失败' })
           continue
@@ -133,7 +144,7 @@ export class RoundCommitBus {
 
       change = normalizeEntityAliases(change, context)
 
-      if (commit.source === 'narrative') {
+      if (ATOMIC_AI_SOURCES.has(commit.source)) {
         if (!change.targetObjectId || !change.targetContextId || !change.operation) {
           rejected.push({ change, reason: '系统指令缺少稳定目标对象、目标上下文或标准操作' })
           continue
@@ -142,11 +153,9 @@ export class RoundCommitBus {
           rejected.push({ change, reason: '系统指令目标上下文不是当前回合上下文' })
           continue
         }
-        const blockReason = getSystemInstructionBlockReason(
-          change.id,
-          change.changes ?? {},
-          context,
-        )
+        const blockReason = commit.source === 'macro-impact'
+          ? getMacroImpactBlockReason(change.id, change.changes ?? {}, context)
+          : getSystemInstructionBlockReason(change.id, change.changes ?? {}, context)
         if (blockReason) {
           rejected.push({ change, reason: blockReason })
           continue
@@ -166,9 +175,9 @@ export class RoundCommitBus {
       prepared.push(safeChange)
     }
 
-    // 主叙事必须先完成整包预检；任一项失败时，在任何子系统写入前拒绝全部变更。
-    if (commit.source === 'narrative' && rejected.length > 0) {
-      console.warn(`[RoundCommit] narrative 预检失败，整包拒绝 ${commit.changes.length} 条变更`)
+    // 每个后台 AI 所有者先完成自身整包预检；任一项失败时不写入该所有者的任何变更。
+    if (ATOMIC_AI_SOURCES.has(commit.source) && rejected.length > 0) {
+      console.warn(`[RoundCommit] ${commit.source} 预检失败，整包拒绝 ${commit.changes.length} 条变更`)
       return { committed: [], rejected }
     }
 
@@ -191,7 +200,7 @@ export class RoundCommitBus {
         })
       }
     }
-    if (commit.source === 'narrative' && rejected.length > 0) {
+    if (ATOMIC_AI_SOURCES.has(commit.source) && rejected.length > 0) {
       console.warn(`[RoundCommit] 系统指令 owning system 预检失败，整包拒绝 ${commit.changes.length} 条变更`)
       return { committed: [], rejected }
     }
@@ -209,7 +218,7 @@ export class RoundCommitBus {
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e)
         rejected.push({ change, reason: msg })
-        if (commit.source === 'narrative') break
+        if (ATOMIC_AI_SOURCES.has(commit.source)) break
       }
     }
 

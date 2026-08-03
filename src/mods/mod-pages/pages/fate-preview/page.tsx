@@ -1,7 +1,7 @@
 /**
- * @module fate-preview-page
- * @description 命运预览页面 —— 统一白纸创建流
- * @mod mod-pages
+ * Purpose: Coordinate final creation review and commit the confirmed opening state.
+ * Owner: mod-pages/fate-preview
+ * Responsibility: Fate-preview page orchestration; normalization and initialization UI live in sibling modules.
  */
 
 'use client'
@@ -10,13 +10,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useRouter } from 'next/navigation'
 
-import { useGlobalStore, configStore } from '@/core'
-
-import { ensureOrchestratorContextFromStores, orchestrator } from '@/mods/mod-engine/engine-api'
-import { useCharacterStore, randomName } from '@/mods/mod-character'
+import { useCharacterStore } from '@/mods/mod-character'
 import { useSettingsStore } from '@/mods/mod-settings'
 import { useWorldStore } from '@/mods/mod-world'
-import type { WorldInitAIStatus } from '@/mods/mod-world'
 import { BottomActionBar } from '@/mods/mod-ui'
 
 import {
@@ -26,130 +22,22 @@ import {
   TALENT_RARITY_CONFIG,
   TALENT_POLARITY_CONFIG,
   ATTRIBUTE_NAMES,
-  RACE_LIFESPAN,
 } from '@/mods/mod-character'
-import type { BaseAttributes, LifespanDraftState, RaceLifespanConfig } from '@/mods/mod-character'
 
 import styles from './FatePreview.module.css'
+import { FatePreviewWorldInit } from './FatePreviewWorldInit'
+import {
+  ATTRIBUTE_ICONS,
+  GENDER_LABELS,
+  getWorldInitState,
+  hasConfirmedCharacter,
+  loadFatePreviewSeed,
+  persistFatePreviewSeed,
+  resolvePreviewRaceInfo,
+} from './fate-preview-helpers'
+import { useFatePreviewStart } from './useFatePreviewStart'
 import { resolveWorldDimensionLabels } from '../../helpers/world-dimension-labels'
 import { useCreationStoresHydrated } from '../../hooks/useCreationStoresHydrated'
-
-const GENDER_LABELS: Record<string, string> = {
-  male: '男',
-  female: '女',
-}
-
-const ATTRIBUTE_ICONS: Record<keyof BaseAttributes, string> = {
-  physique: '💪',
-  mind: '🧠',
-  talentAptitude: '✨',
-  charisma: '💫',
-}
-
-function resolveRandomNameGender(gender: string): string | undefined {
-  if (gender === 'male') return '男'
-  if (gender === 'female') return '女'
-  return undefined
-}
-
-function resolveDisplayName(rawName: string, gender: string): string {
-  const trimmed = rawName.trim()
-  if (trimmed && trimmed !== 'AI命名') return trimmed
-  return randomName(resolveRandomNameGender(gender))
-}
-
-function resolvePreviewRaceInfo(race: string, lifespan: LifespanDraftState): RaceLifespanConfig {
-  const catalogRace = RACE_LIFESPAN[race]
-  if (catalogRace) return catalogRace
-  if (lifespan.race?.name === race) return lifespan.race
-
-  const fallbackRace = lifespan.race ?? RACE_LIFESPAN.human!
-  return {
-    ...fallbackRace,
-    name: race.trim() || fallbackRace.name || '未知',
-    baseLifespanYears: lifespan.maximumLifespanYears > 0
-      ? lifespan.maximumLifespanYears
-      : fallbackRace.baseLifespanYears,
-  }
-}
-
-function hasConfirmedCharacter(
-  name: string,
-  race: string,
-  startingAge: number,
-  lifespan: LifespanDraftState,
-): boolean {
-  const expectedRaceName = RACE_LIFESPAN[race]?.name ?? race.trim()
-  return Boolean(
-    name.trim()
-    && expectedRaceName
-    && lifespan.race?.name === expectedRaceName
-    && Number.isFinite(lifespan.maximumLifespanYears)
-    && lifespan.maximumLifespanYears > 0
-    && Number.isFinite(lifespan.race.baseLifespanYears)
-    && lifespan.race.baseLifespanYears > 0
-    && Number.isFinite(startingAge)
-    && startingAge >= 0
-    && startingAge < lifespan.maximumLifespanYears
-  )
-}
-
-/** 持久化存储键（按世界编码隔离） */
-function fpStorageKey(): string {
-  const worldCode = useWorldStore.getState().worldCode
-  return `fate-preview:${worldCode || 0}`
-}
-
-interface SavedFpState {
-  storySeed: string
-}
-
-function loadFpState(): SavedFpState | null {
-  return configStore.get<SavedFpState>('mod-pages', fpStorageKey())
-}
-
-function persistFpState(state: SavedFpState): void {
-  configStore.set('mod-pages', fpStorageKey(), state)
-}
-
-/**
- * 世界初始化步骤定义
- * 每个步骤映射到 WorldInitAIStatus 中的一个完成标志位
- */
-const WORLD_INIT_STEPS = [
-  {
-    id: 'calibration',
-    label: '维度推断与校准',
-    shortLabel: '校准',
-    icon: '01',
-    description: 'AI 推断世界观维度与规则体系',
-    doneFlag: (s: WorldInitAIStatus) => s.calibrationGenerated,
-  },
-  {
-    id: 'tags',
-    label: '标签生成',
-    shortLabel: '标签',
-    icon: '02',
-    description: '生成力量体系/文明阶段等标签',
-    doneFlag: (s: WorldInitAIStatus) => s.tagsGenerated,
-  },
-  {
-    id: 'config',
-    label: '规则配置',
-    shortLabel: '参数',
-    icon: '03',
-    description: '整理世界规则与运行参数',
-    doneFlag: (s: WorldInitAIStatus) => s.configGenerated,
-  },
-  {
-    id: 'entities',
-    label: '实体生成',
-    shortLabel: '实体',
-    icon: '04',
-    description: '生成地理/文化/组织实体',
-    doneFlag: (s: WorldInitAIStatus) => s.entitiesGenerated,
-  },
-] as const
 
 function FatePreviewContent() {
   const router = useRouter()
@@ -167,20 +55,16 @@ function FatePreviewContent() {
   const worldCode = useWorldStore((s) => s.worldCode)
   const worldInitialized = useWorldStore((s) => s.initialized)
   const worldInitAIStatus = useWorldStore((s) => s.worldInitAIStatus)
-  const setGamePhase = useGlobalStore((s) => s.setGamePhase)
-  const allModsLoaded = useGlobalStore((s) => s.allModsLoaded)
-
   const genderLabel = GENDER_LABELS[gender] ?? gender
   const startingAge = characterBase.startingAge
-  const savedFp = loadFpState()
+  const savedSeed = loadFatePreviewSeed()
   const settingsStorySeed = useSettingsStore((s) => s.storySeed)
   const setSettingsStorySeed = useSettingsStore((s) => s.setStorySeed)
-  const [storySeed, _setStorySeed] = useState(savedFp?.storySeed ?? settingsStorySeed ?? '')
-  const [startError, setStartError] = useState<string | null>(null)
+  const [storySeed, _setStorySeed] = useState(savedSeed ?? settingsStorySeed ?? '')
 
   const setStorySeed = useCallback((v: string) => {
     _setStorySeed(v)
-    persistFpState({ storySeed: v })
+    persistFatePreviewSeed(v)
     setSettingsStorySeed(v)
   }, [setSettingsStorySeed])
 
@@ -192,22 +76,30 @@ function FatePreviewContent() {
     : !destinyPatternsConfirmed
       ? `当前已确认 ${selectedPatterns.length} 条命格；开始人生前必须恰好确认 ${DESTINY_PATTERN_SELECT_COUNT} 条。`
       : null
+  const localWorldReady = worldInitialized && !!worldConfig && worldCode > 0
+  const {
+    complete: aiComplete,
+    failed: aiFailed,
+    progress: aiProgress,
+    running: aiIsRunning,
+    stepLabel: aiStepLabel,
+  } = getWorldInitState(worldInitAIStatus, localWorldReady)
+  const { allModsLoaded, handleStartLife, startError } = useFatePreviewStart({
+    aiComplete,
+    characterBase,
+    characterConfirmed,
+    destinyPatternsConfirmed,
+    gender,
+    lifespan,
+    name,
+    race,
+    selectedPatterns,
+    startingAge,
+    storySeed,
+    worldConfig,
+  })
   const runtimeGateReason = allModsLoaded ? null : '核心模拟系统正在加载，请稍候。'
   const startNotice = startError ?? creationGateReason ?? runtimeGateReason
-  const localWorldReady = worldInitialized && !!worldConfig && worldCode > 0
-  const initStepsComplete = Boolean(
-    worldInitAIStatus
-    && WORLD_INIT_STEPS.every((step) => step.doneFlag(worldInitAIStatus)),
-  )
-  const aiComplete = localWorldReady
-    && worldInitAIStatus?.status === 'complete'
-    && initStepsComplete
-  const aiIsRunning = worldInitAIStatus?.status === 'running'
-  const aiFailed = worldInitAIStatus?.status === 'failed'
-  const aiProgress = worldInitAIStatus
-    ? WORLD_INIT_STEPS.filter((step) => step.doneFlag(worldInitAIStatus)).length
-    : 0
-  const aiStepLabel = worldInitAIStatus?.currentStep
 
   /** 属性加成汇总 */
   const attrBonuses = useMemo(() => {
@@ -229,107 +121,9 @@ function FatePreviewContent() {
 
   const raceInfo = useMemo(() => resolvePreviewRaceInfo(race, lifespan), [race, lifespan])
 
-  /** 开始人生 */
-  const handleStartLife = useCallback(() => {
-    if (!characterConfirmed || !destinyPatternsConfirmed || !aiComplete) return
-    if (!allModsLoaded) {
-      setStartError('核心模拟系统尚未加载完成，请稍候再试。')
-      return
-    }
-    if (!worldConfig) return
-    setStartError(null)
-
-    const displayName = resolveDisplayName(name, gender)
-    if (displayName !== name.trim()) {
-      useCharacterStore.getState().setName(displayName)
-    }
-
-    const confirmedBase = { ...characterBase.base }
-    useCharacterStore.getState().setCharacterBase({
-      base: confirmedBase,
-      current: { ...confirmedBase },
-      modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
-      contextModifiers: {},
-    })
-
-    const characterId = useCharacterStore.getState().ensureCharacterId()
-    // 起始年龄先写入 owning Store，再由引擎公共入口建立实体目录、空间位置和完整运行上下文。
-    useCharacterStore.setState({ age: startingAge })
-    if (!ensureOrchestratorContextFromStores()) {
-      setStartError('无法建立当前世界与角色的模拟上下文，请返回世界配置重新确认。')
-      return
-    }
-    const targetContextId = useWorldStore.getState().currentContextId
-    if (!targetContextId) {
-      setStartError('当前世界缺少有效的模拟上下文，请返回世界配置重新确认。')
-      return
-    }
-
-    // 首轮叙事会从 character-base 子系统派生年龄；经编排器提交总线同步同一个创建结果，避免首轮回写旧年龄。
-    const commitResult = orchestrator.applyRoundChanges([
-      {
-        id: 'character-base',
-        description: '角色创建完成，以玩家确认的基础属性和起始年龄进入叙事',
-        changes: { startingAge, base: confirmedBase },
-      },
-      {
-        id: 'destiny-pattern',
-        description: '角色创建完成，写入玩家确认的命格',
-        changes: { patterns: selectedPatterns },
-      },
-      {
-        id: 'lifespan',
-        targetObjectId: characterId,
-        targetContextId,
-        operation: 'set-rule',
-        evidenceEventIds: [],
-        description: '角色创建完成，写入玩家确认的种族与寿命',
-        changes: {
-          raceId: race,
-          raceDisplayName: lifespan.race.name,
-          clockMode: lifespan.race.clockMode,
-          baseLifespanDays: Math.round(lifespan.race.baseLifespanYears * 365),
-          maximumLifespanDays: Math.round(lifespan.maximumLifespanYears * 365),
-          attrBaselines: lifespan.race.attrBaselines ?? {},
-        },
-      },
-    ], 'manual')
-    if (commitResult.rejected.length > 0 || commitResult.committed.length !== 3) {
-      const rejectedReasons = commitResult.rejected
-        .map((item) => `${item.change.id || '未知系统'}：${item.reason}`)
-        .join('；')
-      setStartError(
-        `角色创建状态未能完整提交：${rejectedReasons || `仅完成 ${commitResult.committed.length} / 3 项写入`}`,
-      )
-      return
-    }
-    setSettingsStorySeed(storySeed)
-
-    setGamePhase('simulation')
-    router.push('/game-story')
-  }, [aiComplete, allModsLoaded, characterBase.base, characterConfirmed, destinyPatternsConfirmed, name, gender, race, startingAge, lifespan, worldConfig, setGamePhase, router, selectedPatterns, setSettingsStorySeed, storySeed])
-
   const attrKeys = ['physique', 'mind', 'talentAptitude', 'charisma'] as const
 
   const worldDimensionLabels = worldConfig ? resolveWorldDimensionLabels(worldConfig) : null
-
-  // ── 步骤计时器（时间戳由 Pipeline 直接写入 store，UI 只读 + 每秒刷新展示）──
-  const [now, setNow] = useState(() => Date.now())
-
-  // 每秒 tick 以刷新计时显示
-  useEffect(() => {
-    if (!worldInitAIStatus) return
-    const id = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(id)
-  }, [worldInitAIStatus])
-
-  /** 计算单步显示的秒数（实时更新的步骤返回当前耗时；已完成返回结束时耗时；未开始返回 null） */
-  const getStepSeconds = (stepLabel: string): number | null => {
-    const timer = worldInitAIStatus?.stepTimers?.[stepLabel]
-    if (!timer) return null
-    const end = timer.end ?? now
-    return Math.max(0, Math.floor((end - timer.start) / 1000))
-  }
 
   return (
     <div className="final-flow-frame">
@@ -443,40 +237,15 @@ function FatePreviewContent() {
             <p className={styles.seedHint}>相同种子与相同操作会得到相近的剧情走向。</p>
           </section>
 
-          <section className={`${styles.section} ${styles.initSection}`} aria-labelledby="world-init-title">
-            <div className={styles.sectionHeading}>
-              <strong id="world-init-title">世界初始化</strong>
-              <span aria-live="polite">{aiProgress} / 4 完成</span>
-            </div>
-            {startNotice && <p className={styles.gateNotice} role="alert">{startNotice}</p>}
-            <div className={styles.initStepList}>
-              {WORLD_INIT_STEPS.map((step) => {
-                const done = worldInitAIStatus ? step.doneFlag(worldInitAIStatus) : false
-                const isCurrent = !done && aiIsRunning && aiStepLabel === step.label
-                const failed = aiFailed && !done && aiStepLabel === step.label
-                const seconds = getStepSeconds(step.label)
-                return (
-                  <div
-                    key={step.id}
-                    className={`${styles.initStepRow} ${done ? styles.initStepDone : ''} ${isCurrent ? styles.initStepCurrent : ''} ${failed ? styles.initStepFailed : ''}`}
-                    title={step.description}
-                  >
-                    <i className={styles.initStepIcon}>{failed ? '×' : done ? '✓' : isCurrent ? <span className={styles.loading149} /> : step.icon}</i>
-                    <strong className={styles.initStepLabel}>{step.shortLabel}</strong>
-                    <span className={styles.initStepTimer}>{done ? `${seconds ?? 0}s` : seconds !== null ? `${seconds}s` : isCurrent ? '调用中' : '等待'}</span>
-                  </div>
-                )
-              })}
-            </div>
-            <p className={styles.initCaption}>
-              {aiComplete ? '世界初始化完成，可以开启这段人生。' : aiFailed ? '初始化出现错误，请检查下方信息。' : aiIsRunning ? '四项任务正在执行，完成后统一解锁开局。' : '等待世界初始化任务开始。'}
-            </p>
-            {aiFailed && worldInitAIStatus?.errors?.length ? (
-              <div className={styles.initPanelErrors}>
-                {worldInitAIStatus.errors.map((error, index) => <p key={`${index}-${error}`} className={styles.initPanelErrorItem}>{error}</p>)}
-              </div>
-            ) : null}
-          </section>
+          <FatePreviewWorldInit
+            complete={aiComplete}
+            failed={aiFailed}
+            progress={aiProgress}
+            running={aiIsRunning}
+            startNotice={startNotice}
+            status={worldInitAIStatus}
+            stepLabel={aiStepLabel}
+          />
             </div>
           </main>
 

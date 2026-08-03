@@ -1,4 +1,8 @@
 /**
+ * Purpose: Own delayed causal commitments from registration through narrative delivery and resolution.
+ * Owner: mod-engine
+ * Responsibility: Stateful causal lifecycle and persistence only; data contracts and labels live downstream.
+ *
  * @module causal-delay-system.ts
  * @description 延迟因果系统 —— 保存叙事承诺并按规范时间确定性进入待兑现状态
  * @mod mod-engine
@@ -23,170 +27,42 @@ import type {
 } from '@/foundation'
 
 import { memoryForgetting } from './memory-forgetting-system'
+import {
+  buildCausalEventFingerprint,
+  CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION,
+  CAUSAL_SEVERITY_DESCRIPTIONS,
+  CAUSAL_TYPE_DESCRIPTIONS,
+  DEFAULT_CAUSAL_CONFIG,
+  LEGACY_COMPAT_TRIGGER_DELAY_ROUNDS,
+} from './causal-delay-system/contracts'
+import type {
+  CausalConfig,
+  CausalDelaySnapshotV2,
+  CausalDispositionInput,
+  CausalEvent,
+  CausalEventRegistration,
+  CausalEventScope,
+  CausalEventType,
+  CausalSeverity,
+  CausalTriggerCheckOptions,
+  CausalTriggerCommitOptions,
+  CausalTriggerResult,
+} from './causal-delay-system/contracts'
 
-// ============================================================
-// 类型定义
-// ============================================================
-
-/** 因果事件类型 */
-export type CausalEventType = 'kindness' | 'grudge' | 'promise' | 'debt'
-
-/** 因果事件严重程度 */
-export type CausalSeverity = 'minor' | 'normal' | 'major' | 'critical'
-
-/** 因果事项的叙事可见作用域 */
-export type CausalEventScope = 'global' | 'context' | 'travel'
-
-/**
- * canonical-days 使用 TimeSystem 的全局累计天数；legacy-round 只用于旧存档和
- * 尚未传入规范天数的兼容调用。两者不得互相粗略换算。
- */
-export type CausalSchedule = 'canonical-days' | 'legacy-round'
-
-/** 新事项的登记上下文；拥有系统可把历史事件账本编号作为来源证据传入。 */
-export interface CausalEventRegistration {
-  scope: CausalEventScope
-  contextId?: string
-  createdTotalDays?: number
-  originEventId?: string
-}
-
-/** 到期检查上下文。显式 scope 用于区分全局、当地和旅行叙事。 */
-export interface CausalTriggerCheckOptions {
-  currentTotalDays?: number
-  scope?: CausalEventScope
-  contextId?: string
-}
-
-/** 完整叙事提交成功后附加的兑现证据。 */
-export interface CausalTriggerCommitOptions {
-  currentTotalDays?: number
-  resolutionEventId?: string
-}
-
-/** 因果事件记录 */
-export interface CausalEvent {
-  /** 事件唯一ID */
-  id: string
-  /** 旧无版本快照出现重复 ID 时保留的原始编号，仅用于迁移审计。 */
-  legacyId?: string
-  /** 作用域：全局、当地上下文或旅行中 */
-  scope: CausalEventScope
-  /** 当地作用域绑定的上下文 */
-  contextId?: string
-  /** 事件类型 */
-  type: CausalEventType
-  /** 严重程度 */
-  severity: CausalSeverity
-  /** 发生轮次 */
-  round: number
-  /** 发生年龄 */
-  age: number
-  /** 事件描述 */
-  description: string
-  /** 相关人物 */
-  relatedPerson?: string
-  /** 相关势力 */
-  relatedFaction?: string
-  /** 调度权威；旧存档缺少规范天数字段时明确保留 legacy-round */
-  schedule: CausalSchedule
-  /** 规范全局创建天数（仅 canonical-days） */
-  createdTotalDays?: number
-  /** 规范全局到期天数（仅 canonical-days） */
-  dueTotalDays?: number
-  /** 旧回合调度的原始延迟（仅 legacy-round，不换算为天数） */
-  triggerDelay?: number
-  /** 形成该延期承诺的历史事件编号 */
-  originEventId?: string
-  /** 是否已触发 */
-  triggered: boolean
-  /** 触发轮次 */
-  triggeredRound?: number
-  /** 兑现时的规范全局天数 */
-  triggeredTotalDays?: number
-  /** 兑现该延期承诺的历史事件编号 */
-  resolutionEventId?: string
-  /** 触发结果描述 */
-  triggerResult?: string
-}
-
-/** 因果触发结果 */
-export interface CausalTriggerResult {
-  /** 是否有触发 */
-  hasTriggered: boolean
-  /** 触发的因果事件列表 */
-  triggeredEvents: CausalEvent[]
-  /** 触发叙事文本 */
-  narrativeText: string,
-}
-
-/** 因果系统配置 */
-export interface CausalConfig {
-  /** 本地确定性调度策略；拥有系统可配置，不进入 AI 协议。 */
-  delayDaysBySeverity: Record<CausalSeverity, number>
-  /** 每轮最多送入叙事的到期事项数；只分批，不删除或消费其余事项。 */
-  maxTriggerPerRound: number,
-}
-
-// ============================================================
-// 常量
-// ============================================================
-
-/** 默认因果配置 */
-const DEFAULT_CAUSAL_CONFIG: CausalConfig = {
-  delayDaysBySeverity: {
-    minor: 30,
-    normal: 90,
-    major: 180,
-    critical: 365,
-  },
-  maxTriggerPerRound: 2,
-}
-
-/**
- * 仅供未传 createdTotalDays 的旧调用继续工作。它不是天数换算，也不会用于迁移
- * 旧存档；旧存档始终保留自身原始 triggerDelay。
- */
-const LEGACY_COMPAT_TRIGGER_DELAY_ROUNDS: Record<CausalSeverity, number> = {
-  minor: 5,
-  normal: 10,
-  major: 15,
-  critical: 25,
-}
-
-/**
- * P1 起因果延期快照显式版本化。带版本的快照必须满足当前唯一 ID 契约；
- * 只有无版本旧快照允许执行确定性重复 ID 迁移。
- */
-const CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION = 1 as const
-
-interface CausalDelaySnapshotV1 {
-  schemaVersion: typeof CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION
-  config: CausalConfig
-  causalEvents: CausalEvent[]
-  stats: {
-    totalRecorded: number
-    totalTriggered: number
-    pendingEvents: number
-    lastTriggerAt: number
-  }
-  idSequence: number
-}
-
-/** 因果事件类型描述 */
-const CAUSAL_TYPE_DESCRIPTIONS: Record<CausalEventType, string> = {
-  kindness: '恩情',
-  grudge: '仇恨',
-  promise: '承诺',
-  debt: '债务',
-}
-
-const CAUSAL_SEVERITY_DESCRIPTIONS: Record<CausalSeverity, string> = {
-  minor: '轻微',
-  normal: '普通',
-  major: '重大',
-  critical: '关键',
-}
+export { buildCausalEventFingerprint } from './causal-delay-system/contracts'
+export type {
+  CausalConfig,
+  CausalDispositionInput,
+  CausalEvent,
+  CausalEventRegistration,
+  CausalEventScope,
+  CausalEventType,
+  CausalSchedule,
+  CausalSeverity,
+  CausalTriggerCheckOptions,
+  CausalTriggerCommitOptions,
+  CausalTriggerResult,
+} from './causal-delay-system/contracts'
 
 // ============================================================
 // CausalDelaySystem
@@ -266,6 +142,29 @@ export class CausalDelaySystem implements ISubSystem {
     return { ...this.stats }
   }
 
+  assertCausalEventRegistrationAvailable(input: {
+    type: CausalEventType
+    description: string
+    relatedPerson?: string
+    relatedFaction?: string
+    registration: CausalEventRegistration
+  }): string {
+    const fingerprint = buildCausalEventFingerprint({
+      type: input.type,
+      scope: input.registration.scope,
+      contextId: input.registration.contextId,
+      description: input.description,
+      relatedPerson: input.relatedPerson,
+      relatedFaction: input.relatedFaction,
+      originEventId: input.registration.originEventId,
+      originNarrativeId: input.registration.originNarrativeId,
+    })
+    if (this.causalEvents.some((event) => event.fingerprint === fingerprint)) {
+      throw new Error(`[${this.id}] Duplicate causal event registration`)
+    }
+    return fingerprint
+  }
+
   // ============================================================
   // 核心方法：记录因果事件
   // ============================================================
@@ -300,6 +199,14 @@ export class CausalDelaySystem implements ISubSystem {
       && (!Number.isSafeInteger(registration.createdTotalDays) || registration.createdTotalDays < 0)) {
       throw new Error(`[${this.id}] Invalid createdTotalDays`)
     }
+
+    const fingerprint = this.assertCausalEventRegistrationAvailable({
+      type,
+      description,
+      relatedPerson,
+      relatedFaction,
+      registration,
+    })
 
     const createdTotalDays = registration.createdTotalDays
     const delayDays = this.config.delayDaysBySeverity[severity]
@@ -340,6 +247,9 @@ export class CausalDelaySystem implements ISubSystem {
         ? LEGACY_COMPAT_TRIGGER_DELAY_ROUNDS[severity]
         : undefined,
       originEventId: registration.originEventId?.trim() || undefined,
+      originNarrativeId: registration.originNarrativeId?.trim() || undefined,
+      fingerprint,
+      deliveryState: 'pending',
       triggered: false,
     }
 
@@ -408,6 +318,9 @@ export class CausalDelaySystem implements ISubSystem {
     // 找出待触发的事件
     const pendingEvents = this.causalEvents.filter((event) => {
       if (event.triggered) return false
+      if (event.deliveryState === 'presented' || event.deliveryState === 'pending-recognition') {
+        return false
+      }
       if (event.scope === 'global') return true
       if (event.scope === 'travel') return options.scope !== 'global'
       return Boolean(options.contextId && event.contextId === options.contextId)
@@ -460,9 +373,167 @@ export class CausalDelaySystem implements ISubSystem {
 
     return {
       hasTriggered: true,
-      triggeredEvents: structuredClone(toTrigger),
+      triggeredEvents: structuredClone(toTrigger.map((event) => ({
+        ...event,
+        deliveryState: 'presented' as const,
+      }))),
       narrativeText,
     }
+  }
+
+  markCausalEventsPresented(
+    eventIds: readonly string[],
+    narrativeId: string,
+    currentRound: number,
+  ): CausalEvent[] {
+    if (!narrativeId.trim()) throw new Error(`[${this.id}] Presented causal events require narrativeId`)
+    const idSet = new Set(eventIds)
+    const presented: CausalEvent[] = []
+    for (const event of this.causalEvents) {
+      if (!idSet.has(event.id)) continue
+      if (event.triggered || event.deliveryState === 'resolved') {
+        throw new Error(`[${this.id}] Resolved causal event cannot be presented: ${event.id}`)
+      }
+      if (event.presentedNarrativeId && event.presentedNarrativeId !== narrativeId) {
+        throw new Error(`[${this.id}] Causal event already belongs to another narrative: ${event.id}`)
+      }
+      event.deliveryState = 'presented'
+      event.presentedNarrativeId = narrativeId
+      event.presentedRound = currentRound
+      presented.push(structuredClone(event))
+    }
+    if (presented.length !== idSet.size) {
+      throw new Error(`[${this.id}] Presented causal event set is incomplete`)
+    }
+    return presented
+  }
+
+  markCausalEventsPendingRecognition(
+    eventIds: readonly string[],
+    narrativeId: string,
+  ): CausalEvent[] {
+    const idSet = new Set(eventIds)
+    const pending: CausalEvent[] = []
+    for (const event of this.causalEvents) {
+      if (!idSet.has(event.id)) continue
+      if (event.presentedNarrativeId !== narrativeId || event.deliveryState !== 'presented') {
+        throw new Error(`[${this.id}] Causal event is not presented to this narrative: ${event.id}`)
+      }
+      event.deliveryState = 'pending-recognition'
+      pending.push(structuredClone(event))
+    }
+    if (pending.length !== idSet.size) {
+      throw new Error(`[${this.id}] Pending-recognition causal event set is incomplete`)
+    }
+    return pending
+  }
+
+  /** 事件识别失败不阻塞回合；保留原因果编号，并按所属严重度重新排期。 */
+  deferCausalEventsAfterRecognitionFailure(
+    eventIds: readonly string[],
+    narrativeId: string,
+    currentTotalDays: number,
+  ): CausalEvent[] {
+    if (!Number.isSafeInteger(currentTotalDays) || currentTotalDays < 0) {
+      throw new Error(`[${this.id}] Invalid recognition failure currentTotalDays`)
+    }
+    const idSet = new Set(eventIds)
+    const matching = this.causalEvents.filter((event) => idSet.has(event.id))
+    if (matching.length !== idSet.size) {
+      throw new Error(`[${this.id}] Recognition failure causal event set is incomplete`)
+    }
+    for (const event of matching) {
+      if (
+        event.presentedNarrativeId !== narrativeId
+        || (event.deliveryState !== 'presented' && event.deliveryState !== 'pending-recognition')
+      ) {
+        throw new Error(`[${this.id}] Recognition failure does not match pending narrative: ${event.id}`)
+      }
+    }
+
+    return matching.map((event) => {
+      const delayDays = Math.max(1, this.config.delayDaysBySeverity[event.severity])
+      event.schedule = 'canonical-days'
+      event.createdTotalDays = currentTotalDays
+      event.dueTotalDays = currentTotalDays + delayDays
+      event.triggerDelay = undefined
+      event.deliveryState = 'continuing'
+      event.presentedNarrativeId = undefined
+      event.presentedRound = undefined
+      event.triggerResult = '事件识别未完成，因果事项按本地规则重新排期'
+      event.resolutionEventId = undefined
+      return structuredClone(event)
+    })
+  }
+
+  commitCausalDispositions(
+    dispositions: readonly CausalDispositionInput[],
+    narrativeId: string,
+    currentRound: number,
+    currentTotalDays: number,
+  ): CausalEvent[] {
+    if (!Number.isSafeInteger(currentTotalDays) || currentTotalDays < 0) {
+      throw new Error(`[${this.id}] Invalid disposition currentTotalDays`)
+    }
+    const ids = new Set<string>()
+    for (const disposition of dispositions) {
+      if (ids.has(disposition.causalId)) {
+        throw new Error(`[${this.id}] Duplicate causal disposition: ${disposition.causalId}`)
+      }
+      ids.add(disposition.causalId)
+      const event = this.causalEvents.find((candidate) => candidate.id === disposition.causalId)
+      if (!event) throw new Error(`[${this.id}] Unknown causal disposition: ${disposition.causalId}`)
+      if (
+        event.presentedNarrativeId !== narrativeId
+        || event.deliveryState !== 'pending-recognition'
+      ) {
+        throw new Error(`[${this.id}] Causal disposition does not match pending narrative: ${event.id}`)
+      }
+      if (!disposition.reason.trim()) {
+        throw new Error(`[${this.id}] Causal disposition requires reason: ${event.id}`)
+      }
+      if (disposition.status !== 'resolved') {
+        const delayDays = disposition.continuationDelayDays
+        if (!Number.isSafeInteger(delayDays) || (delayDays as number) <= 0) {
+          throw new Error(`[${this.id}] Continuing causal event requires positive delay days: ${event.id}`)
+        }
+        const dueTotalDays = currentTotalDays + (delayDays as number)
+        if (!Number.isSafeInteger(dueTotalDays) || dueTotalDays <= currentTotalDays) {
+          throw new Error(`[${this.id}] Continuing causal event has invalid future point: ${event.id}`)
+        }
+      }
+    }
+
+    const committed: CausalEvent[] = []
+    for (const disposition of dispositions) {
+      const event = this.causalEvents.find((candidate) => candidate.id === disposition.causalId)!
+      if (disposition.status === 'resolved') {
+        event.triggered = true
+        event.triggeredRound = currentRound
+        event.triggeredTotalDays = currentTotalDays
+        event.resolutionEventId = disposition.resolutionEventId?.trim() || undefined
+        event.triggerResult = disposition.reason.trim()
+        event.deliveryState = 'resolved'
+        this.stats.totalTriggered++
+        this.stats.pendingEvents = Math.max(0, this.stats.pendingEvents - 1)
+        memoryForgetting.resolveCausalMark(event.round, event.type, event.contextId)
+      } else {
+        event.schedule = 'canonical-days'
+        event.createdTotalDays = currentTotalDays
+        event.dueTotalDays = currentTotalDays + disposition.continuationDelayDays!
+        event.triggerDelay = undefined
+        event.deliveryState = disposition.status === 'continuing' ? 'continuing' : 'pending'
+        event.presentedNarrativeId = undefined
+        event.presentedRound = undefined
+        event.triggerResult = disposition.reason.trim()
+        event.resolutionEventId = undefined
+      }
+      committed.push(structuredClone(event))
+    }
+    if (committed.some((event) => event.deliveryState === 'resolved')) {
+      this.stats.lastTriggerAt = Date.now()
+    }
+    return committed
   }
 
   /** 主叙事有效提交后，确认本轮已经兑现的因果事项。 */
@@ -487,6 +558,7 @@ export class CausalDelaySystem implements ISubSystem {
       event.triggeredTotalDays = options.currentTotalDays
       event.resolutionEventId = options.resolutionEventId?.trim() || undefined
       event.triggerResult = triggerResult?.trim() || undefined
+      event.deliveryState = 'resolved'
       this.stats.totalTriggered++
       this.stats.pendingEvents = Math.max(0, this.stats.pendingEvents - 1)
       memoryForgetting.resolveCausalMark(event.round, event.type, event.contextId)
@@ -616,6 +688,7 @@ export class CausalDelaySystem implements ISubSystem {
         contextId,
         createdTotalDays,
         originEventId,
+        originNarrativeId,
       } =
         data.recordCausalEvent as {
           type: CausalEventType
@@ -629,6 +702,7 @@ export class CausalDelaySystem implements ISubSystem {
           contextId?: string
           createdTotalDays?: number
           originEventId?: string
+          originNarrativeId?: string
         }
       this.recordCausalEvent(
         type,
@@ -643,12 +717,13 @@ export class CausalDelaySystem implements ISubSystem {
           contextId,
           createdTotalDays: createdTotalDays ?? context.totalDays,
           originEventId,
+          originNarrativeId,
         },
       )
     }
   }
 
-  capturePreviewState(): CausalDelaySnapshotV1 {
+  capturePreviewState(): CausalDelaySnapshotV2 {
     return structuredClone({
       schemaVersion: CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION,
       config: this.config,
@@ -671,7 +746,7 @@ export class CausalDelaySystem implements ISubSystem {
     const stats = record.stats
     const idSequence = record.idSequence
 
-    if (schemaVersion !== undefined && schemaVersion !== CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION) {
+    if (schemaVersion !== undefined && schemaVersion !== 1 && schemaVersion !== CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION) {
       throw new Error(`[${this.id}] Unsupported causal snapshot schemaVersion: ${String(schemaVersion)}`)
     }
 
@@ -712,7 +787,7 @@ export class CausalDelaySystem implements ISubSystem {
         originalIds.add(event.id)
       }
 
-      if (schemaVersion === CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION) {
+      if (schemaVersion === 1 || schemaVersion === CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION) {
         const seenIds = new Set<string>()
         for (const event of restoredEvents) {
           if (seenIds.has(event.id)) {
@@ -748,9 +823,44 @@ export class CausalDelaySystem implements ISubSystem {
       nextEvents = restoredEvents.map((event) => {
         const hasCanonicalSchedule = Number.isSafeInteger(event.createdTotalDays)
           && Number.isSafeInteger(event.dueTotalDays)
+        const scope = event.scope ?? 'global'
+        const fingerprint = event.fingerprint || buildCausalEventFingerprint({
+          type: event.type,
+          scope,
+          contextId: event.contextId,
+          description: event.description,
+          relatedPerson: event.relatedPerson,
+          relatedFaction: event.relatedFaction,
+          originEventId: event.originEventId,
+          originNarrativeId: event.originNarrativeId,
+        })
+        const deliveryState = event.triggered
+          ? 'resolved'
+          : ['pending', 'presented', 'pending-recognition', 'continuing'].includes(event.deliveryState)
+            ? event.deliveryState
+            : 'pending'
+        const retainsPresentation = deliveryState === 'presented' || deliveryState === 'pending-recognition'
+        if (
+          schemaVersion === CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION
+          && (
+            !event.fingerprint?.trim()
+            || !['pending', 'presented', 'pending-recognition', 'continuing', 'resolved'].includes(event.deliveryState)
+            || (retainsPresentation && (!event.presentedNarrativeId?.trim() || !Number.isSafeInteger(event.presentedRound)))
+          )
+        ) {
+          throw new Error(`[${this.id}] Invalid causal delivery state in versioned snapshot: ${event.id}`)
+        }
         return {
           ...event,
-          scope: event.scope ?? 'global',
+          scope,
+          fingerprint,
+          deliveryState,
+          presentedNarrativeId: retainsPresentation
+            ? event.presentedNarrativeId?.trim() || undefined
+            : undefined,
+          presentedRound: retainsPresentation && Number.isSafeInteger(event.presentedRound)
+            ? event.presentedRound
+            : undefined,
           // 旧存档没有规范天数字段时，保留原始 round + triggerDelay，不猜测天数。
           schedule: event.schedule === 'canonical-days' && hasCanonicalSchedule
             ? 'canonical-days'

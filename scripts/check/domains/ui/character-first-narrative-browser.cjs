@@ -1,3 +1,9 @@
+/**
+ * Purpose: Regress the character-first narrative path in one browser session.
+ * Owner: quality:ui
+ * Responsibility: One Puppeteer scenario, its fixtures, and ordered UI assertions only.
+ */
+
 const fs = require('node:fs')
 
 const baseUrl = process.env.UI_BASE_URL || 'http://localhost:3000'
@@ -10,9 +16,9 @@ const narrativeParagraphs = [
   '你收起启事，决定今天先熟悉街区，再在傍晚回来答复。第一步并不宏大，但这座城市已经给了你一个可以继续追寻的方向。',
 ]
 
-const narrativeMeta = {
+const eventMetadata = {
   重要程度: '普通',
-  关键事件: [{ 内容: '你在旧书店发现招工启事并决定傍晚答复', 重要度: 60, 涉及实体: ['旧书店', '店主'] }],
+  注册事件: [{ 内容: '你在旧书店发现招工启事并决定傍晚答复', 重要度: 60, 涉及实体: ['旧书店', '店主'] }],
   情节状态: '开始',
   语义信号: {
     事件类型: '发现',
@@ -29,7 +35,9 @@ const narrativeMeta = {
 
 const fixtureSummary = '你抵达陌生城市，在旧书店发现一份能连接生活与人际的工作机会。'
 const narrativeResponse = `⟦正文⟧${narrativeParagraphs.join('\n\n')}`
-const settlementResponse = `⟦数据⟧${JSON.stringify({ 摘要: fixtureSummary, ...narrativeMeta })}`
+const dataAnalysisResponse = JSON.stringify({ 系统操作: [] })
+const basicAttributeAnalysisResponse = JSON.stringify({ 系统操作: [] })
+const eventRecognitionResponse = JSON.stringify({ 回合事件: { 摘要: fixtureSummary, ...eventMetadata }, 待触发事件: [] })
 
 function unavailable(message) {
   console.error(`[character-first-narrative-browser] UNAVAILABLE: ${message}`)
@@ -83,9 +91,13 @@ async function main() {
     const body = request.postDataJSON()
     const promptAsset = String(body.prompt_asset || '')
     promptAssets.push(promptAsset)
-    const fixtureResponse = promptAsset.includes('mod-engine:narrative-settlement:')
-      ? settlementResponse
-      : narrativeResponse
+    const fixtureResponse = promptAsset.includes('mod-engine:narrative-data-analysis:')
+      ? dataAnalysisResponse
+      : promptAsset.includes('mod-engine:narrative-basic-attribute-analysis:')
+        ? basicAttributeAnalysisResponse
+        : promptAsset.includes('mod-engine:narrative-event-recognition:')
+          ? eventRecognitionResponse
+          : narrativeResponse
     if (body.providerId === 'managed' && body.model === 'LongCat-2.0' && body.apiKey === undefined) {
       managedRequestWithoutClientKey = true
     }
@@ -283,9 +295,11 @@ async function main() {
     failures.push(`15-point base attributes were not persisted: ${JSON.stringify(base)}`)
   }
   if ((persistedState.engine.narrativeHistory?.length ?? 0) < 1) failures.push('first narrative was not committed to engine history')
-  if (proxyPostCount !== 2) failures.push(`expected one narrative and one settlement proxy POST, observed ${proxyPostCount}`)
+  if (proxyPostCount !== 4) failures.push(`expected one narrative and three background-analysis proxy POSTs, observed ${proxyPostCount}`)
   if (promptAssets.filter((asset) => asset.includes('mod-engine:narrative:')).length !== 1) failures.push('first narrative prompt asset was not requested exactly once')
-  if (promptAssets.filter((asset) => asset.includes('mod-engine:narrative-settlement:')).length !== 1) failures.push('settlement prompt asset was not requested exactly once')
+  if (promptAssets.filter((asset) => asset.includes('mod-engine:narrative-data-analysis:')).length !== 1) failures.push('data-analysis prompt asset was not requested exactly once')
+  if (promptAssets.filter((asset) => asset.includes('mod-engine:narrative-basic-attribute-analysis:')).length !== 1) failures.push('basic-attribute prompt asset was not requested exactly once')
+  if (promptAssets.filter((asset) => asset.includes('mod-engine:narrative-event-recognition:')).length !== 1) failures.push('event-recognition prompt asset was not requested exactly once')
   if (consoleErrors.length > 0) failures.push(`console errors: ${consoleErrors.join(' | ')}`)
 
   console.log(JSON.stringify({
