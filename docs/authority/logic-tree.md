@@ -20,7 +20,7 @@
 辅助链路
 ├─ 账号与云端
 ├─ 诊断与反馈
-└─ 发布与回滚
+└─ 发布
 ```
 
 ## 新人生创建
@@ -127,9 +127,9 @@
 - **权责边界**：日志链路不记录点击、表单、导航、页面访问、时间步长选择、分支选择或故事推进等用户操作；诊断数据不成为故事、账号或模拟状态的事实来源。
 - **实时源**：`src/core/logger/`、`src/app/api/log/`、`src/app/api/feedback/`、`src/app/api/diagnostic-identity/`、`src/mods/mod-pages/pages/feedback/`、`scripts/ops/data-viewer.mjs`、其他 `scripts/ops/` 查询工具。
 
-## 发布与回滚
+## 发布
 
-- **目标**：在用户明确要求发布时完成可验证、可切换和可回滚的生产更新。
-- **当前机制**：先完成请求范围内的验证，再按生产操作说明执行归档、上传、构建、健康检查、原子切换、服务重启、清理或回滚；实际命令和服务器路径只保存在独立操作说明中。
+- **目标**：在用户明确要求发布时把当前已提交项目直接更新到唯一生产目录并重启服务。
+- **当前机制**：唯一部署入口归档当前 `HEAD` 并上传；远端要求 `/root/ai-life-sim` 本身是唯一真实部署目录，在其中保留 `node_modules` 与 `.env.production.local`，清理其余项目文件，解压新代码，执行生产构建并重启 PM2。流程不接受软链接，不创建候选版本、发布目录、代码备份、部署状态或回滚路径。
 - **权责边界**：本节描述逻辑，不授权发布。未收到用户明确发布要求时，不改变生产状态。
-- **实时源**：`D:\AI\ai-life-sim\.agents\skills\ai-life-sim\references\production-deployment.md`、`D:\AI\ai-life-sim\.agents\skills\ai-life-sim\references\production-recovery.md`、`scripts/ops/`、`scripts/release/`。
+- **实时源**：`D:\AI\ai-life-sim\.agents\skills\ai-life-sim\references\production-deployment.md`、`D:\AI\ai-life-sim\.agents\skills\ai-life-sim\scripts\production-deploy.ps1`、`D:\AI\ai-life-sim\.agents\skills\ai-life-sim\scripts\production-deploy-remote.sh`。

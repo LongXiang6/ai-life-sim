@@ -106,8 +106,8 @@
     {
       "path": "scripts/check/domains/structural/test-mod-loader-runner.ts",
       "owner": "quality:structural",
-      "reviewedLines": 338,
-      "reason": "单个结构或执行契约检查器，扫描上下文、诊断和确定性终态属于同一机械验收动作。"
+      "reviewedLines": 410,
+      "reason": "单个 MOD loader 契约检查器，依赖解析、Remote 真实导出、执行图状态和确定性终态属于同一机械验收动作。"
     },
     {
       "path": "scripts/check/domains/ui/branch-flow-browser.cjs",

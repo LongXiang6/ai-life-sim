@@ -5,19 +5,25 @@
  */
 
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import path from 'node:path'
 
 import type { ModManifest } from '@/foundation'
 
 import { parseDependency, resolveDependenciesV2 } from '@/core/mod-loader/dependency-resolver'
 import { loadMods } from '@/core/mod-loader/mod-loader'
 import { selectRemoteApiExports } from '@/core/mod-loader/mod-lifecycle'
+import { MOD_API_IMPORTERS } from '@/core/mod-loader/mod-importers.generated'
+import { MOD_SECONDARY_API_IMPORTERS } from '@/core/mod-loader/mod-secondary-api-importers.generated'
+import { REMOTE_API_CONTRACTS } from '@/core/mod-loader/remote-contracts.generated'
 import { validateRemoteContracts } from '@/core/mod-loader/validate-remote-contracts'
 import { remote } from '@/core/remote-interface/remote-interface'
-import {
-  createExecutionOutcomeCodes,
-  runExecutionSequence,
-} from '@/foundation'
+import { createExecutionOutcomeCodes, runExecutionSequence } from '@/foundation'
 import type { ExecutionFlowRegistration, ExecutionSequenceNode } from '@/foundation'
+import {
+  extractRemoteApiExports,
+  parseManifestStringArray,
+} from '../../../codegen/generate-mod-wiring/source-analysis.mjs'
 
 const EXECUTION_CONTRACT_FLOW: ExecutionFlowRegistration = {
   flowId: 'execution-contract',
@@ -117,6 +123,71 @@ function testExplicitRemoteApiAllowlist() {
   remote.autoRegister(manifest.name, {})
   assert.equal(remote.has(manifest.name), false)
   assert.deepEqual(validateRemoteContracts([manifest]), [])
+}
+
+async function verifyAliasedRemoteEntry(
+  modName: string,
+  entryPath: string,
+  importer: () => Promise<Record<string, unknown>>,
+  registrationName: string,
+): Promise<void> {
+  const sourcePath = path.join(process.cwd(), 'src', 'mods', modName, entryPath)
+  const source = fs.readFileSync(sourcePath, 'utf8')
+  if (!/export\s*\{[\s\S]*?\bas\b/.test(source)) return
+
+  const inferred = extractRemoteApiExports(source)
+  if (inferred.length === 0) return
+
+  const api = await importer()
+  remote.autoRegister(registrationName, api)
+  const actual = new Set(remote.listFunctions(registrationName))
+  remote.autoRegister(registrationName, {})
+
+  assert.deepEqual(
+    inferred.filter((name) => !actual.has(name)),
+    [],
+    `${modName}/${entryPath} 的 codegen Remote 名称必须是运行时真实公开导出`,
+  )
+
+  const contract = new Set(REMOTE_API_CONTRACTS[modName] ?? [])
+  assert.deepEqual(
+    inferred.filter((name) => !contract.has(name)),
+    [],
+    `${modName}/${entryPath} 的 Remote 名称必须进入生成契约`,
+  )
+}
+
+async function testAliasedRemoteApiEntries() {
+  for (const [modName, primaryImporter] of Object.entries(MOD_API_IMPORTERS)) {
+    const modDir = path.join(process.cwd(), 'src', 'mods', modName)
+    const manifestContent = fs.readFileSync(path.join(modDir, 'manifest.ts'), 'utf8')
+    if (parseManifestStringArray(manifestContent, 'remoteApi').declared) continue
+
+    await verifyAliasedRemoteEntry(
+      modName,
+      'index.ts',
+      primaryImporter,
+      `__remote-contract-${modName}-primary`,
+    )
+
+    const secondaryEntries = parseManifestStringArray(manifestContent, 'secondaryPublicEntries').values
+    const secondaryImporters = MOD_SECONDARY_API_IMPORTERS[modName]
+    if (!secondaryImporters) continue
+
+    assert.equal(
+      secondaryImporters.length,
+      secondaryEntries.length,
+      `${modName} 的 secondaryPublicEntries 与生成 importer 数量必须一致`,
+    )
+    for (let index = 0; index < secondaryEntries.length; index += 1) {
+      await verifyAliasedRemoteEntry(
+        modName,
+        secondaryEntries[index],
+        secondaryImporters[index],
+        `__remote-contract-${modName}-secondary-${index}`,
+      )
+    }
+  }
 }
 
 function executionNode(
@@ -328,6 +399,7 @@ async function main() {
   testParseDependency()
   testMutualSoftDependencies()
   testExplicitRemoteApiAllowlist()
+  await testAliasedRemoteApiEntries()
   await testExecutionSequenceContract()
   console.log('[OK] mod-loader regression tests passed')
 }

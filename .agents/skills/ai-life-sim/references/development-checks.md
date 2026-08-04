@@ -32,10 +32,10 @@ npx tsc --noEmit
 - UI 变更：运行对应页面或流程检查及 `npm run check:ui`。
 - 独立且低风险的应用变更：最后运行 `npm run gate-check:quick`。
 - 大范围、跨领域、架构或持久化的本地交付变更：最后运行 `npm run gate-check`。
-- 正式生产发布不从本节自行挑选检查。严格按 [生产部署](production-deployment.md) 调用 Skill 自带的 `scripts/production-deploy.ps1 plan|execute|recover`；其固定门禁已覆盖 changelog、lint、TypeScript 和完整 `npm run check`。
+- 正式生产发布不从本节追加检查。按 [生产部署](production-deployment.md) 调用 Skill 自带的 `scripts/production-deploy.ps1`；该入口只覆盖、构建并重启，不运行本节门禁。
 - 无关的既有失败按基线失败报告，不把部分通过描述为全部通过。
 
-不因为存在任务就新增无关测试或运行大范围 Agent 评测。检查范围必须足以证明用户要求的结果；风险匹配用于普通开发任务开始时从既有检查中选择范围，不因执行中发现的风险、差异或疑点动态扩大。正式发布的固定门禁与切换后健康检查只以生产操作说明为准。
+不因为存在任务就新增无关测试或运行大范围 Agent 评测。检查范围必须足以证明用户要求的结果；风险匹配用于普通开发任务开始时从既有检查中选择范围，不因执行中发现的风险、差异或疑点动态扩大。
 
 ## Git 边界
 

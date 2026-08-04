@@ -24,10 +24,7 @@ scp <file> tencent-vm:<path>
 
 | 路径 | 用途 |
 |---|---|
-| `/root/ai-life-sim` | 活动软链接；使用 `sudo readlink -f /root/ai-life-sim` 验证 |
-| `/root/ai-life-sim-releases/<commit>` | 不可变发布目录 |
-| `/root/ai-life-sim-backups` | 小型运维回滚快照 |
-| `/root/ai-life-sim-deploy-state` | root-only 部署状态；用于连接中断后的锁内结果核对 |
+| `/root/ai-life-sim` | 唯一活动项目路径；必须是真实目录而不是软链接，部署在此原地覆盖且不创建版本目录 |
 | `/var/log/ai-life-sim` | 生产诊断日志 |
 | `/var/lib/ai-life-sim/accounts.sqlite` | 账号与云端设置数据库 |
 | `/var/lib/ai-life-sim/player-content.sqlite` | 玩家内容、手动云存档及相关投影 |
@@ -37,7 +34,7 @@ scp <file> tencent-vm:<path>
 | `/etc/nginx/sites-enabled/ai-mnrs.icu` | 当前 Nginx 站点 |
 | `/etc/letsencrypt/live/ai-mnrs.icu` | Certbot 管理的证书链接 |
 
-服务器发布目录不是 Git 仓库，不得用 `git pull` 替代发布流程。
+服务器活动目录不是 Git 仓库，不得用 `git pull` 替代上传覆盖流程。
 
 ## 诊断
 

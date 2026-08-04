@@ -47,7 +47,6 @@
     "test:history-causality-p1": "npm run test:historical-event-p1",
     "test:npc-social-p2": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/mod/npc-social-p2-smoke.mjs",
     "test:multi-world-p3-p5": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/mod/multi-world-p3-p5-smoke.mjs",
-    "test:release-cleanup": "node scripts/check/domains/narrative/release-cleanup-smoke.mjs",
     "test:player-api-settings": "node scripts/check/domains/narrative/player-api-settings-regression.mjs",
     "test:loader": "node scripts/check/domains/structural/test-mod-loader.mjs",
     "check:execution": "node scripts/check/domains/structural/execution-system-gate.mjs",

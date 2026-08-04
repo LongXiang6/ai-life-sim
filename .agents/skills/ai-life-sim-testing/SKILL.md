@@ -33,7 +33,7 @@ description: 用于用户报告的 AI 人生模拟器问题、根因诊断、复
 
 - 涉及系统运行图或 MOD 生命周期时，回归必须确认统一五阶段 `prepare -> ready -> execute -> transition -> finalize`、唯一 owner、显式依赖、状态码和故障反馈链，不能只验证局部返回值。
 - 处理实体引用目录缺失、同回合依赖未登记或结算语义冲突时，恢复、生成、提交三个入口共用同一前置检查；同包创建操作必须先于关系、目标、行为和记忆引用。
-- 生产验证只执行 [生产部署](../ai-life-sim/references/production-deployment.md) 的固定门禁和健康检查；失败后才读取生产恢复，不追加未授权的专项操作。
+- 生产部署验证只读取 [生产部署](../ai-life-sim/references/production-deployment.md) 返回的构建与 PM2 重启终态，不追加未授权的专项操作。
 - 标识、文件、格式、写法和排序按 [项目标准化契约](../ai-life-sim/references/standardization.md) 执行。
 
 ## 权威与实时源

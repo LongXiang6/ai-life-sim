@@ -1,23 +1,4 @@
 {
   "schemaVersion": 1,
-  "entries": [
-    {
-      "path": ".agents/skills/ai-life-sim/scripts/production-deploy-remote.sh",
-      "owner": "project-skill:ai-life-sim",
-      "reviewedLines": 733,
-      "reason": "远端部署的一次原子事务脚本，命令顺序、状态码和故障收束必须在同一 shell 进程中保持。"
-    },
-    {
-      "path": ".agents/skills/ai-life-sim/scripts/production-deploy/execute.ps1",
-      "owner": "project-skill:ai-life-sim",
-      "reviewedLines": 336,
-      "reason": "生产部署 execute 阶段的单一编排器，负责按既定顺序调用已拆分组件并汇合唯一终态。"
-    },
-    {
-      "path": ".agents/skills/ai-life-sim/scripts/production-recover-remote.sh",
-      "owner": "project-skill:ai-life-sim",
-      "reviewedLines": 482,
-      "reason": "远端恢复的一次原子事务脚本，检查、恢复和终态反馈共享同一 shell 状态与失败边界。"
-    }
-  ]
+  "entries": []
 }

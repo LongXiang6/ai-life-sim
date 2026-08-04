@@ -5,10 +5,9 @@
 | 操作 | 读取 |
 |---|---|
 | SSH、生产路径、日志诊断、账号存储 | [生产环境](production-environment.md) |
-| 正式部署、发布计划与执行 | [生产部署](production-deployment.md) |
-| 部署失败、未决状态、代码回滚 | [生产恢复](production-recovery.md) |
+| 正式部署或更新生产代码 | [生产部署](production-deployment.md) |
 | PM2、systemd、Nginx、端口、防火墙、TLS | [生产服务](production-services.md) |
 
-- 普通应用发布只读取生产部署；出现部署失败或未决状态后再追加生产恢复，不读取诊断、服务或 TLS 分支。
+- 普通应用发布只读取生产部署，不读取诊断、服务或 TLS 分支。
 - 生产诊断不自动授权部署、源码修复或服务配置变更；服务和 TLS 变更也不自动授权应用发布。
 - 所有分支共用 `D:\AI\AGENTS.md` 的范围、溯源、秘密和持久状态规则。

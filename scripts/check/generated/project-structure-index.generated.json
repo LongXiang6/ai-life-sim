@@ -1824,7 +1824,6 @@
       "files": [
         "scripts/ops/analyze-ai-logs.mjs",
         "scripts/ops/cleanup-inactive-accounts.mjs",
-        "scripts/ops/cleanup-old-releases.mjs",
         "scripts/ops/data-viewer.mjs",
         "scripts/ops/data-viewer/assets.mjs",
         "scripts/ops/data-viewer/database-inspection.mjs",
@@ -1834,7 +1833,6 @@
         "scripts/ops/data-viewer/narrative-archives.mjs",
         "scripts/ops/data-viewer/server.mjs",
         "scripts/ops/data-viewer/shared.mjs",
-        "scripts/ops/deduplicate-release-storage.mjs",
         "scripts/ops/feedback-status.mjs",
         "scripts/ops/inspect-ai-logs.mjs",
         "scripts/ops/lib/error-classification.mjs",
@@ -1848,8 +1846,6 @@
         "scripts/ops/systemd/ai-life-sim-account-cleanup.service",
         "scripts/ops/systemd/ai-life-sim-account-cleanup.timer",
         "scripts/ops/systemd/ai-life-sim-operations-dashboard.service",
-        "scripts/ops/systemd/ai-life-sim-release-cleanup.service",
-        "scripts/ops/systemd/ai-life-sim-release-cleanup.timer",
         "scripts/ops/validate-production-env.mjs"
       ],
       "oversized": [
@@ -1888,8 +1884,7 @@
         ".agents/skills/ai-life-sim",
         ".agents/skills/ai-life-sim/agents",
         ".agents/skills/ai-life-sim/references",
-        ".agents/skills/ai-life-sim/scripts",
-        ".agents/skills/ai-life-sim/scripts/production-deploy"
+        ".agents/skills/ai-life-sim/scripts"
       ],
       "files": [
         ".agents/skills/ai-life-sim/agents/openai.yaml",
@@ -1898,26 +1893,15 @@
         ".agents/skills/ai-life-sim/references/production-deployment.md",
         ".agents/skills/ai-life-sim/references/production-environment.md",
         ".agents/skills/ai-life-sim/references/production-operations.md",
-        ".agents/skills/ai-life-sim/references/production-recovery.md",
         ".agents/skills/ai-life-sim/references/production-services.md",
         ".agents/skills/ai-life-sim/references/project-development.md",
         ".agents/skills/ai-life-sim/references/release-recording.md",
         ".agents/skills/ai-life-sim/references/standardization.md",
         ".agents/skills/ai-life-sim/scripts/production-deploy-remote.sh",
         ".agents/skills/ai-life-sim/scripts/production-deploy.ps1",
-        ".agents/skills/ai-life-sim/scripts/production-deploy/common.ps1",
-        ".agents/skills/ai-life-sim/scripts/production-deploy/execute.ps1",
-        ".agents/skills/ai-life-sim/scripts/production-deploy/plan.ps1",
-        ".agents/skills/ai-life-sim/scripts/production-deploy/recover.ps1",
-        ".agents/skills/ai-life-sim/scripts/production-deploy/target-validation.ps1",
-        ".agents/skills/ai-life-sim/scripts/production-recover-remote.sh",
         ".agents/skills/ai-life-sim/SKILL.md"
       ],
-      "oversized": [
-        ".agents/skills/ai-life-sim/scripts/production-deploy-remote.sh",
-        ".agents/skills/ai-life-sim/scripts/production-deploy/execute.ps1",
-        ".agents/skills/ai-life-sim/scripts/production-recover-remote.sh"
-      ]
+      "oversized": []
     },
     {
       "id": "project-skill:ai-life-sim-mod-development",
@@ -2238,7 +2222,6 @@
         "scripts/check/domains/narrative/pre-gen-cancellation-smoke.mjs",
         "scripts/check/domains/narrative/protected-prompt-assets-regression.mjs",
         "scripts/check/domains/narrative/protected-prompt-client-bundle-smoke.mjs",
-        "scripts/check/domains/narrative/release-cleanup-smoke.mjs",
         "scripts/check/domains/narrative/run-critical-method-wiring-contract.ps1",
         "scripts/check/domains/narrative/runtime-subsystem-state-regression.mjs",
         "scripts/check/domains/narrative/semantic-authority-audit.mjs",

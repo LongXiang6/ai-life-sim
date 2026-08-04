@@ -8,9 +8,8 @@
 - Nginx 只对公网开放 `80/443`，HTTPS 反向代理到 `http://localhost:3000`。
 - 保持 `proxy_connect_timeout 10s`，`proxy_send_timeout`、`proxy_read_timeout`、`send_timeout` 为 `360s`。
 - UFW 只允许 `22/80/443`，不得公开 `3000` 或运营面板 `4317`。
-- `pm2-root` 保持 enabled 和 active；进程名为 `ai-life-sim`，工作目录为 `/root/ai-life-sim`。
+- `pm2-root` 保持 enabled 和 active；进程名为 `ai-life-sim`，工作目录为真实目录 `/root/ai-life-sim`，不通过软链接运行。
 - 运营面板只监听 `127.0.0.1:4317`，通过 `ssh -N -L 4317:127.0.0.1:4317 tencent-vm` 查看。面板以 SQLite 只读连接查询账号、玩家内容与日志冷热库；systemd 保持数据库文件只读，只为 `/var/lib/ai-life-sim` 和 `/var/log/ai-life-sim` 目录放开 WAL/SHM 辅助文件的创建权限。
-- 清理流程不删除活动发布。非活动发布只有在活动软链接稳定 72 小时、回环 `3000` 健康、候选是发布根目录直接子目录且超过 72 小时时才可删除。
 
 ## TLS
 

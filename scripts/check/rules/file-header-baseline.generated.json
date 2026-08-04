@@ -203,11 +203,6 @@
       "sha256": "4ef2b15bd92ed815c91b75c201728517fa9982afd0392529c3b012ad5c9729e4"
     },
     {
-      "path": "scripts/check/domains/narrative/release-cleanup-smoke.mjs",
-      "owner": "quality:narrative",
-      "sha256": "a6f539895cb1efd7e8301b0c3937a6d68c53533d6cb2b34c0eaeecdb38339232"
-    },
-    {
       "path": "scripts/check/domains/narrative/server-log-store-smoke.mjs",
       "owner": "quality:narrative",
       "sha256": "0f5914927d42c6aaf462812856df9888ca87338978688d37bc3118e0fa05da03"
@@ -381,16 +376,6 @@
       "path": "scripts/ops/cleanup-inactive-accounts.mjs",
       "owner": "operations",
       "sha256": "cdd21bc1abcc0b7bb4e921a98a274df9d4cc2852ee3f40d56fe2ae02e6fad067"
-    },
-    {
-      "path": "scripts/ops/cleanup-old-releases.mjs",
-      "owner": "operations",
-      "sha256": "edd5696a7a475cd3daa2ee2d31c2e2d51c9cb2d7e3eb3e4b54e0123d6ae893d0"
-    },
-    {
-      "path": "scripts/ops/deduplicate-release-storage.mjs",
-      "owner": "operations",
-      "sha256": "215d24be55bff6f71c1de9649b41d1cf13d2ffc7ff62dd0c1d9ee5d1532731f6"
     },
     {
       "path": "scripts/ops/feedback-status.mjs",

@@ -36,8 +36,7 @@ description: 所有 AI 人生模拟器任务首先使用；提供项目入口、
 | 修改或交付应用文件 | [开发检查](references/development-checks.md) |
 | 应用行为、缺陷、版本号或玩家更新日志 | [版本记录](references/release-recording.md) |
 | SSH、生产路径、日志诊断或账号存储 | [生产环境](references/production-environment.md) |
-| 正式部署、发布计划与执行 | [生产部署](references/production-deployment.md) |
-| 部署失败、未决状态或代码回滚 | [生产恢复](references/production-recovery.md) |
+| 正式部署或更新生产代码 | [生产部署](references/production-deployment.md) |
 | PM2、systemd、Nginx、端口、防火墙或 TLS | [生产服务](references/production-services.md) |
 | 不确定生产操作分支 | [生产操作索引](references/production-operations.md) |
 
