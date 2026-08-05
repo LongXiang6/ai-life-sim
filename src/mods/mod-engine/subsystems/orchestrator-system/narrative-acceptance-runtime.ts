@@ -14,10 +14,13 @@ import {
   type NarrativeTransitionAuditSnapshot,
   type ParsedNarrative,
 } from '../../orchestrator-shared'
+import { consumeAcceptedPlayerRoundAction } from '../../helpers/player-round-action'
 
 export function acceptNarrativeResponseRuntime(
   orchestrator: OrchestratorSystem,
-  parsed: ParsedNarrative): AcceptedNarrativeResult {
+  parsed: ParsedNarrative,
+  playerChoice?: string,
+): AcceptedNarrativeResult {
   const narrative = parsed.narrative.trim()
   if (!narrative) throw new Error('提交候选缺少正文')
 
@@ -43,6 +46,14 @@ export function acceptNarrativeResponseRuntime(
     })),
     windowSize: 5,
   })
+  if (repetitionMetric.qualityLevel === 'high') {
+    const matchedRound = repetitionMetric.matchedRound
+      ? `第 ${repetitionMetric.matchedRound} 轮`
+      : '近期故事'
+    const rejection = new Error(`正文与${matchedRound}高度重复，最终接纳门禁拒绝发布`)
+    rejection.name = 'NarrativeGenerationRejectedError'
+    throw rejection
+  }
   const storyRepetitionStats = summarizeNarrativeRepetitionMetrics([
     ...orchestrator['state'].narrativeHistory
       .map((entry) => entry.repetitionMetric)
@@ -101,12 +112,18 @@ export function acceptNarrativeResponseRuntime(
     roundContext,
     narrative: structuredClone(parsed),
     deliveredCausalEventIds,
-    focusedIntentId: orchestrator['focusedBranchIntentId'],
+    ...(playerChoice ? { playerChoice } : {}),
   })
   if (deliveredCausalEventIds.length > 0) {
     causalDelay.markCausalEventsPresented(deliveredCausalEventIds, narrativeId, roundSequence)
   }
   orchestrator['pendingNarrativeCausalEventIds'] = []
+  const playerAction = consumeAcceptedPlayerRoundAction(
+    orchestrator['lastPlayerChoice'],
+    playerChoice,
+  )
+  orchestrator['lastPlayerChoice'] = playerAction.nextChoice
+  orchestrator.clearPendingNarrativeRoundPreparation(roundSequence)
   orchestrator['collectSubsystemStates'](false, false)
 
   orchestrator['recordSystemDiagnostic']('round-commit', 'narrative-adopted', 'ok', {

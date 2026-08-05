@@ -324,7 +324,7 @@ assertOk(
       '时间跨度摘要',
       '已触发因果',
       '系统引导',
-      '玩家自定义分支',
+      '本轮玩家行动',
       '字数要求',
     ]),
   'prompt field registry must remain complete and ordered by its owning layer',
@@ -413,11 +413,11 @@ const compiledGuidance = compileNarrativeGuidance({
   roundSystemGuidanceText: '系统提示甲',
   timeGuideText: '系统提示甲',
   narrativeGuidanceText: '系统提示乙',
-  playerBranchIntent: { 当前意图: { 玩家选择: '保留  原始空格' } },
+  playerBranchIntent: { 本轮明确行动: '保留  原始空格' },
 })
 assertOk(
   JSON.stringify(compiledGuidance.systemGuidance) === JSON.stringify(['系统提示甲', '系统提示乙'])
-    && compiledGuidance.playerBranchIntent?.当前意图?.玩家选择 === '保留  原始空格'
+    && compiledGuidance.playerBranchIntent?.本轮明确行动 === '保留  原始空格'
     && !fs.readFileSync(path.join(root, 'src/core/ai-service/narrative-guidance-compiler.ts'), 'utf8').includes('.slice('),
   'local guidance compiler must sort, dedupe exact system text, preserve player input, and avoid length truncation',
 )
@@ -581,7 +581,7 @@ for (const [source, duplicatedRule] of [
   [coreMemory, '不得改写为遗迹发现'],
   [orchestrator, '跨世界概念能力·每轮遵守'],
   [orchestrator, '受世界合理性约束·每轮遵守'],
-  [orchestrator, '本轮必须处理“玩家自定义分支”中的当前意图'],
+  [orchestrator, '本轮玩家行动只对当前回合生效'],
   [narrativeHints, '固定事实优先级与三级合理性规则'],
 ]) {
   assertOk(!source.includes(duplicatedRule), `dynamic narrative input must not repeat fixed rule: ${duplicatedRule}`)
@@ -621,13 +621,7 @@ const exactSampleContext = {
   roundSystemGuidanceText: '<系统引导>',
   narrativeGuidanceText: '<叙事引导>',
   playerBranchIntent: {
-    当前意图: {
-      意图编号: '<意图编号>',
-      分支编号: '<分支编号>',
-      玩家选择: '<玩家原始选择>',
-      建立轮次: '<建立轮次>',
-      更新轮次: '<更新轮次>',
-    },
+    本轮明确行动: '<玩家原始选择>',
   },
   wordCountInstruction: '<本轮字数要求>',
 }
@@ -798,7 +792,7 @@ for (const inactiveConnection of [
   )
 }
 assertOk(
-  liveNarrativePrompt.version === '5.8.2'
+  liveNarrativePrompt.version === '5.8.3'
     && liveNarrativePrompt.systemPrompt === ''
     && !narrativeSystemPrompt.includes('examples: ['),
   'optimized prompt must be versioned and keep one governed standard example instead of duplicate examples',

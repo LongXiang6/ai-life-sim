@@ -143,7 +143,7 @@ for (const register of ['生活', '命运', '传承']) {
   )
 }
 assertIncludes(activeFiles.aiProtocol, 'AI_NARRATIVE_REGISTERS = createEnumTranslator', 'prompt register values must come from the Chinese translation authority')
-assertIncludes(activeFiles.prompt, "version: '5.8.2'", 'pure narrative contract must use Prompt version 5.8.2')
+assertIncludes(activeFiles.prompt, "version: '5.8.3'", 'pure narrative contract must use Prompt version 5.8.3')
 assertIncludes(
   activeFiles.dataAnalysisPromptComponents,
   '没有变化的系统省略整段',
@@ -179,8 +179,8 @@ assertIncludes(
 )
 assertIncludes(
   activeFiles.orchestrator,
-  'acceptNarrativeResponse(parsed: ParsedNarrative)',
-  'orchestrator must accept the validated main narrative independently of background analysis',
+  'acceptNarrativeResponse(\n    parsed: ParsedNarrative,\n    playerChoice?: string,',
+  'orchestrator must accept the validated main narrative with the exact delivered one-shot action',
 )
 assertIncludes(
   activeFiles.orchestrator,

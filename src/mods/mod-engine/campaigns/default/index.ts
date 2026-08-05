@@ -29,7 +29,6 @@ import { useSettingsStore } from '@/mods/mod-settings/settings-runtime-api'
 
 import { DEFAULT_WORD_COUNT_TARGET } from '../../constants/narrative-config'
 import { buildEventInjectionText } from '../../helpers/event-lifecycle-tracker'
-import { buildEventRecognitionBranchIntentInstruction } from '../../helpers/branch-intent-resolution'
 import { buildNarrativeBasicAttributePromptInput } from '../../helpers/narrative-basic-attribute-context'
 import { buildNarrativeDataAnalysisPromptInput } from '../../helpers/narrative-data-analysis-context'
 import { buildNarrativeEventRecognitionPromptInput } from '../../helpers/narrative-event-recognition-context'
@@ -56,7 +55,7 @@ import { useEngineStore } from '../../store'
 import type { ParsedNarrative } from '../../subsystems/narrative-parser-system'
 import { orchestrator } from '../../subsystems/orchestrator-system'
 
-const MAX_FORMAT_REPAIR_ATTEMPTS = 2
+const MAX_NARRATIVE_REPAIR_ATTEMPTS = 2
 const STRUCTURED_ANALYSIS_REASONING_EFFORT = 'disabled' as const
 const STAGE_OWNER = 'mod-engine'
 const STAGE_FAILURE_TARGET = 'mod-engine'
@@ -64,6 +63,7 @@ const STAGE_FAILURE_TARGET = 'mod-engine'
 /** 阶段运行时上下文：保存正文接纳与后台任务启动所需的本轮不可变值。 */
 export interface StageRuntimeContext extends RoundContext {
   _promptContext?: ReturnType<typeof orchestrator.assemblePromptContext>
+  _playerChoice?: string
   _eventInjectionText?: string
   _legendaryEncounterInjected?: boolean
   _narrativeResponse?: string
@@ -74,6 +74,7 @@ export interface StageRuntimeContext extends RoundContext {
   _eventMetadata?: NarrativeRoundMetadata
   _recognizedEventCandidates?: HistoricalEventCandidateInput[]
   _roundResult?: ReturnType<typeof orchestrator.acceptNarrativeResponse>
+  _isPreparedRoundRetry?: boolean
 }
 
 function buildLegendaryEncounterGuidance(
@@ -187,7 +188,17 @@ export function loadStages(
       order: 0,
       owner: STAGE_OWNER,
       failureTarget: STAGE_FAILURE_TARGET,
-      onEnter: () => {
+      onEnter: (_ctx) => {
+        const ctx = _ctx as StageRuntimeContext
+        const pending = orchestrator.getPendingNarrativeRoundPreparation()
+        if (pending) {
+          ctx._isPreparedRoundRetry = true
+          ctx._promptContext = pending.promptContext
+          ctx._playerChoice = pending.playerChoice
+          ctx._eventInjectionText = pending.eventInjectionText
+          ctx._legendaryEncounterInjected = pending.legendaryEncounterInjected
+          return
+        }
         orchestrator.consumeNarrativeBackgroundResults()
         const context = orchestrator.getRoundContextSnapshot()
         if (!context.contextId || !context.characterId) {
@@ -213,7 +224,9 @@ export function loadStages(
       order: 100,
       owner: STAGE_OWNER,
       failureTarget: STAGE_FAILURE_TARGET,
-      onEnter: () => {
+      onEnter: (_ctx) => {
+        const ctx = _ctx as StageRuntimeContext
+        if (ctx._isPreparedRoundRetry) return
         eventBus.emit('mod-engine:round-start', orchestrator.getRound())
         orchestrator.advanceTime()
       },
@@ -226,7 +239,9 @@ export function loadStages(
       order: 200,
       owner: STAGE_OWNER,
       failureTarget: STAGE_FAILURE_TARGET,
-      onEnter: async () => {
+      onEnter: async (_ctx) => {
+        const ctx = _ctx as StageRuntimeContext
+        if (ctx._isPreparedRoundRetry) return
         await orchestrator.advanceAllSubsystems()
       },
       maxRounds: 1,
@@ -238,7 +253,9 @@ export function loadStages(
       order: 300,
       owner: STAGE_OWNER,
       failureTarget: STAGE_FAILURE_TARGET,
-      onEnter: async () => {
+      onEnter: async (_ctx) => {
+        const ctx = _ctx as StageRuntimeContext
+        if (ctx._isPreparedRoundRetry) return
         await orchestrator.collectAllSubsystemStates()
       },
       maxRounds: 1,
@@ -252,6 +269,7 @@ export function loadStages(
       failureTarget: STAGE_FAILURE_TARGET,
       onEnter: (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
+        if (ctx._isPreparedRoundRetry) return
         const lifecycle = buildEventInjectionText(
           orchestrator.getDetectionStates(),
           orchestrator.getEventLifecycle(),
@@ -271,6 +289,7 @@ export function loadStages(
       failureTarget: STAGE_FAILURE_TARGET,
       onEnter: async (_ctx) => {
         const ctx = _ctx as StageRuntimeContext
+        if (ctx._isPreparedRoundRetry) return
         await orchestrator.refreshNarrativeMemoryRecall()
 
         const engineState = useEngineStore.getState()
@@ -279,9 +298,9 @@ export function loadStages(
         const canInjectLegend = encounter?.status === 'selected'
           && engineState.totalRounds >= 2
           && !ctx._eventInjectionText
-          && !orchestrator.getFocusedBranchIntent()
           && !engineState.forceBranchNext
           && !lastNarrative?.resolvedChoice
+        ctx._playerChoice = orchestrator.getPendingPlayerChoice()
         const promptContext = orchestrator.assemblePromptContext(ctx._eventInjectionText)
         ctx._promptContext = canInjectLegend && encounter
           ? {
@@ -293,6 +312,13 @@ export function loadStages(
             }
           : promptContext
         ctx._legendaryEncounterInjected = canInjectLegend
+        orchestrator.setPendingNarrativeRoundPreparation({
+          roundSequence: orchestrator.getState().totalRounds,
+          promptContext: ctx._promptContext,
+          playerChoice: ctx._playerChoice,
+          eventInjectionText: ctx._eventInjectionText,
+          legendaryEncounterInjected: ctx._legendaryEncounterInjected,
+        })
       },
       maxRounds: 1,
     },
@@ -311,7 +337,17 @@ export function loadStages(
         const wordCountTarget = settings.wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET
         const requestBranch = useEngineStore.getState().forceBranchNext
         const activeStyle = orchestrator.getNarrativeStyleSnapshot()
-        const cachedNarrative = orchestrator.consumePrefetchedNarrative()
+        const state = orchestrator.getState()
+        const repetitionContext = {
+          round: state.totalRounds,
+          recentHistory: state.narrativeHistory.map((entry, index) => ({
+            round: Math.max(1, state.totalRounds - state.narrativeHistory.length + index),
+            text: entry.text,
+          })),
+        }
+        const cachedNarrative = ctx._isPreparedRoundRetry
+          ? null
+          : orchestrator.consumePrefetchedNarrative()
         const prefetched = ctx._legendaryEncounterInjected ? null : cachedNarrative
         let response: string | undefined
         let quality: NarrativeResponseQuality | undefined
@@ -321,6 +357,7 @@ export function loadStages(
           const prefetchedQuality = inspectNarrativeResponseQuality(
             prefetched,
             wordCountTarget,
+            repetitionContext,
           )
           if (prefetchedQuality.valid) {
             response = prefetched
@@ -368,10 +405,13 @@ export function loadStages(
           }
 
           response = await callAIWithPromptTemplate(promptTemplate, segments.full, callOptions)
-          quality = inspectNarrativeResponseQuality(response, wordCountTarget)
-          while (!quality.valid && repairAttempts < MAX_FORMAT_REPAIR_ATTEMPTS) {
+          quality = inspectNarrativeResponseQuality(response, wordCountTarget, repetitionContext)
+          while (!quality.valid && repairAttempts < MAX_NARRATIVE_REPAIR_ATTEMPTS) {
             repairAttempts += 1
-            repairKinds.push('narrative-format-repair')
+            const repairKind = quality.repetitionMetric?.qualityLevel === 'high'
+              ? 'narrative-repetition-repair'
+              : 'narrative-format-repair'
+            repairKinds.push(repairKind)
             response = await callAIWithPromptTemplate(promptTemplate, segments.full, {
               ...callOptions,
               overrideTemperature: 0,
@@ -380,11 +420,11 @@ export function loadStages(
               ],
               logContext: {
                 ...baseLogContext,
-                callKind: 'narrative-format-repair',
+                callKind: repairKind,
               },
               logMeta: { repairAttempt: repairAttempts },
             })
-            quality = inspectNarrativeResponseQuality(response, wordCountTarget)
+            quality = inspectNarrativeResponseQuality(response, wordCountTarget, repetitionContext)
           }
 
           recordRoundCacheMetrics({
@@ -442,6 +482,7 @@ export function loadStages(
         const state = orchestrator.getState()
         const roundContext = orchestrator.getRoundContextSnapshot()
         const roundSequence = roundContext.roundSequence ?? state.totalRounds
+        const executionId = `narrative-round:${state.lifeRunId}:${roundSequence}:real`
         ctx._recentStories = buildRecentStoriesForRound({
           history: state.narrativeHistory,
           currentRound: roundSequence,
@@ -454,15 +495,23 @@ export function loadStages(
           },
         })
         useEngineStore.getState().setPendingNarrative({
-          executionId: `narrative-round:${state.lifeRunId}:${roundSequence}:real`,
+          executionId,
           roundSequence,
           text: ctx._narrativeParsed.narrative,
           timestamp: Date.now(),
           status: 'pending',
           statusCode: 'narrative-round:publish-narrative:running',
         })
-        const result = orchestrator.acceptNarrativeResponse(ctx._narrativeParsed)
-        ctx._roundResult = result
+        try {
+          ctx._roundResult = orchestrator.acceptNarrativeResponse(
+            ctx._narrativeParsed,
+            ctx._playerChoice,
+          )
+        } catch (error) {
+          useEngineStore.getState().clearPendingNarrative(executionId)
+          throw error
+        }
+        const result = ctx._roundResult
         if (ctx._legendaryEncounterInjected && result.narrative) {
           const engineState = useEngineStore.getState()
           engineState.markLegendaryEncounterInjected(engineState.totalRounds)
@@ -680,22 +729,12 @@ export function loadStages(
           }
 
         const roundContext = orchestrator.getRoundContextSnapshot()
-        const focusedIntent = orchestrator.getFocusedBranchIntent()
-        const intentCondition = focusedIntent
-          ? buildEventRecognitionBranchIntentInstruction(
-              focusedIntent,
-              orchestrator.getActiveBranchIntents().filter(
-                (intent) => intent.intentId !== focusedIntent.intentId,
-              ),
-            )
-          : undefined
         const existingCandidates = orchestrator.getAvailableHistoricalEventCandidates()
         const recognitionInput = buildNarrativeEventRecognitionPromptInput({
           subsystemStates: orchestrator.getSubsystemStateSnapshot(),
           roundContext,
           existingCandidates,
           recentStories: ctx._recentStories,
-          intentCondition,
           deliveredCausalEventIds: accepted.deliveredCausalEventIds,
         })
         const settings = useSettingsStore.getState()
@@ -749,7 +788,6 @@ export function loadStages(
               currentContextId: roundContext.contextId,
               currentTotalDays: roundContext.totalDays,
               existingCandidates: recognitionInput.existingCandidates,
-              expectedIntentId: focusedIntent?.intentId,
               deliveredCausalEventIds: accepted.deliveredCausalEventIds,
             })
             if (!quality.valid || !quality.metadata || !quality.candidates) {

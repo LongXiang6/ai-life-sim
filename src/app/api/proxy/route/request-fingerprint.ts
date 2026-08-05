@@ -10,12 +10,13 @@ const recentFingerprints = new Map<string, { firstSeen: number; retryCount: numb
 const FINGERPRINT_TTL_MS = 30_000
 
 if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
+  const cleanupTimer = setInterval(() => {
     const now = Date.now()
     for (const [fingerprint, data] of recentFingerprints) {
       if (now - data.firstSeen > FINGERPRINT_TTL_MS) recentFingerprints.delete(fingerprint)
     }
   }, 60_000)
+  cleanupTimer.unref?.()
 }
 
 export function computeFingerprint(

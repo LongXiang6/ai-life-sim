@@ -5,9 +5,10 @@
  */
 
 import fs from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
 import { readModuleSource } from '../../lib/read-module-source.mjs'
 
-import { POST } from '../../../../src/app/api/proxy/route.ts'
 import {
   buildProxyBody,
   callAI,
@@ -16,6 +17,15 @@ import {
   computeAiCallDeadlineMs,
 } from '../../../../src/core/ai-service/ai-call-deadline.ts'
 
+const proxyLogRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'ai-life-deadline-proxy-'))
+process.env.AI_LOG_DB_PATH = path.join(proxyLogRoot, 'logs.sqlite')
+const [proxyRoute, logStore] = await Promise.all([
+  import('../../../../src/app/api/proxy/route.ts'),
+  import('../../../../src/core/logger/server-log-store.ts'),
+])
+const { POST } = proxyRoute
+
+try {
 let failed = 0
 
 function assertOk(condition, message) {
@@ -208,6 +218,10 @@ assertOk(
   'browser and proxy must share workload deadlines while streams retain an independent idle timeout',
 )
 
-if (failed > 0) process.exit(1)
+if (failed > 0) throw new Error(`ai-call-deadline-smoke failed with ${failed} assertion(s)`)
 console.log('PASS: ai-call-deadline-smoke')
-process.exit(0)
+} finally {
+  logStore.closeServerLogDatabaseForTests()
+  await fs.rm(proxyLogRoot, { recursive: true, force: true })
+  delete process.env.AI_LOG_DB_PATH
+}

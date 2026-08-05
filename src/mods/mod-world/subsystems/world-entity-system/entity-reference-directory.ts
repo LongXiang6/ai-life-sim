@@ -13,7 +13,6 @@ import type {
 import { useWorldStore } from '../../store'
 import {
   cloneEntityReference,
-  isPlainRecord,
   validateEntityDirectorySnapshot,
   validateEntityReference,
 } from './entity-reference-validation'

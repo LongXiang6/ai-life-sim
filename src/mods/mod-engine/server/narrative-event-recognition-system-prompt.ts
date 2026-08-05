@@ -1,4 +1,8 @@
 /**
+ * Purpose: Compile the protected fixed Prompt for occurred-event and future-candidate recognition.
+ * Owner: mod-engine
+ * Responsibility: Define event-recognition output rules without owning player actions or event state.
+ *
  * @module narrative-event-recognition-system-prompt.ts
  * @description 已发生事件元数据与未来候选识别的服务端固定 Prompt 资产
  * @mod mod-engine
@@ -18,10 +22,6 @@ import {
   AI_FORESHADOWING_TYPES,
   AI_IMPACT_SCOPES,
   AI_IMPORTANCE_LEVELS,
-  AI_INTENT_EXECUTION_MODES,
-  AI_INTENT_FEASIBILITIES,
-  AI_INTENT_RISK_LEVELS,
-  AI_INTENT_STATUSES,
   AI_NARRATIVE_REGISTERS,
 } from '../helpers/narrative-ai-protocol'
 
@@ -50,20 +50,6 @@ export function buildNarrativeOccurredEventContract(): Record<string, unknown> {
       情节类型: enumText(AI_ARC_TYPES.aiValues),
       关系变化: '可选；{姓名,类型,说明}[]',
       已回收伏笔编号: '可选；输入事件相关状态中已有伏笔编号[]',
-    },
-    命运意图判定: {
-      意图编号: '仅回合上下文提供命运意图时必需，且必须完全相同',
-      可行性: enumText(AI_INTENT_FEASIBILITIES.aiValues),
-      执行方式: enumText(AI_INTENT_EXECUTION_MODES.aiValues),
-      状态: enumText(AI_INTENT_STATUSES.aiValues),
-      风险等级: enumText(AI_INTENT_RISK_LEVELS.aiValues),
-      进度: '数值[0,100]',
-      阻碍: '可选；非空字符串数组',
-      前置条件: '可选；非空字符串数组',
-      代价: '可选；非空字符串数组',
-      预计耗时: '非空字符串',
-      判定理由: '非空字符串',
-      下一步: '可选；非空字符串',
     },
     新延迟因果: `可选；{类型(${enumText(AI_DEFERRED_CAUSAL_TYPES.aiValues)}),严重程度(${enumText(AI_DEFERRED_CAUSAL_SEVERITIES.aiValues)}),已成立事实,相关人物?,相关势力?}[]`,
     到期因果判定: `输入“本轮已投递因果”非空时必需且逐项一一对应；{因果编号,状态(${enumText(AI_DELIVERED_CAUSAL_STATUSES.aiValues)}),判定理由,继续延迟天数?}[]；继续或未触及必须提供正整数延迟天数，已解决必须省略`,
@@ -105,9 +91,9 @@ export function buildNarrativeEventRecognitionStandardExample(): string {
 export const COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT = [
   '你是人生模拟器的事件识别器。只读取同一回合的完整事件相关状态和最近故事，同时判断本轮已经发生的可注册事件与尚未发生的未来候选；不续写、不改写故事。',
   '回合事件必须包含摘要和注册事件。注册事件只能写本轮故事已发生的具体事实；是否存在新事件由系统根据注册事件数组是否非空派生，AI 不重复输出布尔值。稳定事件 ID 由历史账本分配。',
-  '长期事件、原创内容、新伏笔、重要程度、情节状态、语义信号、命运意图判定和新延迟因果都归回合事件元数据。重要程度、情节状态和语义信号必须同时提交或同时省略。',
+  '长期事件、原创内容、新伏笔、重要程度、情节状态、语义信号和新延迟因果都归回合事件元数据。重要程度、情节状态和语义信号必须同时提交或同时省略。',
   '“本轮已投递因果”中的稳定编号来自主叙事实际收到的因果事项。必须逐项判断故事是已解决、继续还是未触及；不得换编号，不得把同一事项重新登记为新延迟因果。继续或未触及时给出新的未来延迟天数，避免下一轮立即重复。',
-  '第一次故事含命运分支时，语义核心必须如实满足高重要度、不可逆和命运或传承语域。当前存在命运意图时必须提交相同编号的判定；没有时禁止提交。',
+  '第一次故事含命运分支时，语义核心必须如实满足高重要度、不可逆和命运或传承语域。分支选择只属于下一轮一次性玩家行动，事件识别不得建立长期意图、进度或焦点状态。',
   '待触发事件只写故事已经明确建立、但尚未发生且需要未来条件的事项。已发生事实、系统数值变化、普通情绪和无具体条件的猜测不得登记为候选。逐项对照已有候选，不得重复。',
   '输出只能是一个合法 JSON 对象，根对象只含“回合事件”与“待触发事件”。禁止代码块、标签、标题、解释和结束标记。',
   buildNarrativeEventRecognitionContractLine(),

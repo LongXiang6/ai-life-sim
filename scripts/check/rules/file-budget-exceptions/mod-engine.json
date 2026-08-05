@@ -8,12 +8,6 @@
       "reason": "默认 Campaign 的完整阶段执行图，所有阶段共享一套显式 order、依赖和上下文契约。"
     },
     {
-      "path": "src/mods/mod-engine/helpers/branch-intent-resolution.ts",
-      "owner": "mod-engine",
-      "reviewedLines": 482,
-      "reason": "命运分支意图的纯状态机，创建、聚焦、判定、归档和一致性校验共同维护一个不变式。"
-    },
-    {
       "path": "src/mods/mod-engine/helpers/digest-ledger.ts",
       "owner": "mod-engine",
       "reviewedLines": 398,
@@ -60,12 +54,6 @@
       "owner": "mod-engine",
       "reviewedLines": 472,
       "reason": "mod-engine 公共 Hook 门面，统一把外部调用路由到同一 orchestrator 实例，不持有第二业务状态。"
-    },
-    {
-      "path": "src/mods/mod-engine/store.ts",
-      "owner": "mod-engine",
-      "reviewedLines": 325,
-      "reason": "引擎运行 Store 的单一 Zustand 状态契约，字段和动作共同维护一个状态所有者。"
     },
     {
       "path": "src/mods/mod-engine/subsystems/causal-delay-system.ts",

@@ -1,4 +1,8 @@
 /**
+ * Purpose: Define shared mod-engine runtime and persistence types.
+ * Owner: mod-engine
+ * Responsibility: Describe engine contracts only; behavior and state transitions remain with their owning systems.
+ *
  * @module types.ts
  * @description MOD 类型定义 —— 引擎核心类型（含压缩）
  * @mod mod-engine
@@ -12,7 +16,6 @@ import type {
   CompressedSummaries,
   NarrativeTransitionAuditSnapshot,
 } from '@/foundation'
-import type { NarrativeIntentResolution } from './helpers/narrative-semantic-signals'
 import type { NarrativeRepetitionMetric, NarrativeRepetitionSummary } from './helpers/narrative-repetition-metrics'
 import type { LegendaryEncounterProjection } from '@/core/player-content/player-content-contract'
 
@@ -73,8 +76,6 @@ export interface NarrativeChunk {
   resolvedChoice?: string,
   /** 玩家实际确认该选择时的回合；旧存档缺失时回退到原分支条目轮次。 */
   resolvedChoiceRound?: number,
-  /** 本轮对当前命运意图的结构化执行结果。 */
-  intentResolution?: NarrativeIntentResolution,
   /** 该条叙事写入时的角色年龄（快照） */
   displayAge?: number,
   /** 该条叙事写入时的纪元/时间标签（快照） */
@@ -141,7 +142,5 @@ export interface RoundResult {
   notableEvents: string[]
   /** AI 回复中的结构化世界方向指令（如 {market:{direction:"繁荣",magnitude:0.3}}），为空时由关键词检测兜底 */
   direction?: Record<string, { direction?: string; magnitude?: number }>
-  /** 本轮经完整 META 与状态提交共同验证的命运意图结果。 */
-  intentResolution?: NarrativeIntentResolution
 }
 

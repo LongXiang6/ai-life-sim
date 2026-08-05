@@ -1,4 +1,8 @@
 /**
+ * Purpose: Build shared round references and recent-story inputs for background narrative analysis.
+ * Owner: mod-engine
+ * Responsibility: Validate and project accepted narrative context without writing background results.
+ *
  * @module narrative-background-analysis-context.ts
  * @description 后台 AI 共用的回合引用与最近故事校验
  * @mod mod-engine
@@ -35,7 +39,6 @@ export function readNarrativeAnalysisEvidenceEventIds(
 export function buildNarrativeAnalysisRoundContext(input: {
   roundContext: RoundContext
   allowedEvidenceEventIds: readonly string[]
-  intentCondition?: string
 }): Record<string, unknown> {
   return {
     当前上下文: input.roundContext.contextId,
@@ -46,7 +49,6 @@ export function buildNarrativeAnalysisRoundContext(input: {
     规范总天数: input.roundContext.totalDays,
     本轮推进天数: input.roundContext.daysPassed,
     可引用事件: [...input.allowedEvidenceEventIds],
-    ...(input.intentCondition ? { 命运意图条件: input.intentCondition } : {}),
   }
 }
 

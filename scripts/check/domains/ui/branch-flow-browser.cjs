@@ -42,38 +42,18 @@ function narrativeResponse(paragraphs, branch) {
   return `⟦正文⟧${paragraphs.join('\n\n')}${branch ? `\n\n⟦分支⟧${JSON.stringify(branch)}` : ''}`
 }
 
-function eventRecognitionResponse(summary, metadata, intentId) {
-  const data = {
+function eventRecognitionResponse(summary, metadata) {
+  return JSON.stringify({
+    回合事件: {
     摘要: summary,
     ...metadata,
-    ...(intentId
-      ? {
-          命运意图判定: {
-            意图编号: intentId,
-            可行性: '可执行',
-            执行方式: '立即执行',
-            状态: '成功',
-            风险等级: '低',
-            进度: 100,
-            预计耗时: '本轮',
-            判定理由: '你已把印记交给守约者并建立新的同盟。',
-            下一步: '在后续行动中巩固同盟。',
-          },
-        }
-      : {}),
-  }
-  return JSON.stringify({ 回合事件: data, 待触发事件: [] })
+    },
+    待触发事件: [],
+  })
 }
 
 const dataAnalysisResponse = JSON.stringify({ 系统操作: [] })
 const basicAttributeAnalysisResponse = JSON.stringify({ 系统操作: [] })
-
-function readIntentId(body) {
-  const prompt = (body.messages ?? []).map((message) => String(message.content ?? '')).join('\n')
-  const intentId = prompt.match(/意图编号必须严格等于 (命运分支:[^；"\\\s]+)/u)?.[1]
-  if (!intentId) throw new Error('第二轮结算输入缺少当前命运分支编号')
-  return intentId
-}
 
 const narrativeResponses = [
   narrativeResponse(firstParagraphs),
@@ -269,7 +249,7 @@ async function main() {
     } else if (promptAsset.includes('mod-engine:narrative-event-recognition:')) {
       const index = Math.min(eventRecognitionResponseIndex++, eventRecognitionFixtures.length - 1)
       const [summary, metadata] = eventRecognitionFixtures[index]
-      content = eventRecognitionResponse(summary, metadata, index === 1 ? readIntentId(body) : undefined)
+      content = eventRecognitionResponse(summary, metadata)
     } else {
       content = narrativeResponses[Math.min(narrativeResponseIndex++, narrativeResponses.length - 1)]
     }

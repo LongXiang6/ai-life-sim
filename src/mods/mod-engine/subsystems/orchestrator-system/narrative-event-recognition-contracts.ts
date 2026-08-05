@@ -20,7 +20,7 @@ export interface AcceptedNarrativeRecord {
   roundContext: RoundContext
   narrative: ParsedNarrative
   deliveredCausalEventIds: string[]
-  focusedIntentId?: string
+  playerChoice?: string
 }
 
 export interface NarrativeEventRecognitionResult {

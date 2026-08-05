@@ -1,3 +1,9 @@
+/**
+ * Purpose: Own character vitality, conditions, death facts, and epilogue generation.
+ * Owner: mod-character
+ * Responsibility: Health business state and validation only; canonical time and historical evidence remain externally owned.
+ */
+
 import { BaseSubsystem, callAI } from '@/core'
 import {
   HEALTH_SYSTEM_OPERATION_FIELDS,
@@ -208,23 +214,6 @@ function validatePersistenceState(value: unknown, allowPending = false): HealthS
     if (entity.death && entity.death.entityId !== entity.entityId) throw new Error('死亡结果人物不一致')
   }
   return { schemaVersion: 1, entities, conditions, contextRules }
-}
-
-function validatePendingDeath(value: unknown, index: number): PendingDeathFact {
-  if (!isRecord(value)) throw new Error(`pendingDeaths[${index}]必须是对象`)
-  assertKnownKeys(value, [
-    'entityId', 'contextId', 'causeKind', 'causeLabel', 'occurredAtTotalDays', 'finalAgeDays',
-  ], `pendingDeaths[${index}]`)
-  const causeKind = requireString(value.causeKind, `pendingDeaths[${index}].causeKind`) as DeathCauseKind
-  if (!DEATH_CAUSES.has(causeKind)) throw new Error(`pendingDeaths[${index}].causeKind 无效`)
-  return {
-    entityId: requireString(value.entityId, `pendingDeaths[${index}].entityId`),
-    contextId: requireString(value.contextId, `pendingDeaths[${index}].contextId`),
-    causeKind,
-    causeLabel: requireString(value.causeLabel, `pendingDeaths[${index}].causeLabel`),
-    occurredAtTotalDays: requireInteger(value.occurredAtTotalDays, `pendingDeaths[${index}].occurredAtTotalDays`, 0, Number.MAX_SAFE_INTEGER),
-    finalAgeDays: requireInteger(value.finalAgeDays, `pendingDeaths[${index}].finalAgeDays`, 0, Number.MAX_SAFE_INTEGER),
-  }
 }
 
 function validatePayload(

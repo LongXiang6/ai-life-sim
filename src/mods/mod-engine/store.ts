@@ -1,4 +1,8 @@
 /**
+ * Purpose: Expose the engine Zustand Store for committed simulation state and visible narrative projections.
+ * Owner: mod-engine
+ * Responsibility: Own public engine state and actions without duplicating Orchestrator-only round preparation.
+ *
  * @module store.ts
  * @description 引擎 Zustand Store —— 暴露已提交状态、即时正文投影与回合错误
  * @mod mod-engine
@@ -17,14 +21,6 @@ import {
   summarizeNarrativeHistoryRepetition,
   summarizeNarrativeRepetitionMetrics,
 } from './helpers/narrative-repetition-metrics'
-import {
-  isBranchIntentProjectionConsistent,
-  normalizeBranchIntentProjection,
-  rebuildBranchIntentsFromHistory,
-  type BranchIntentHistoryEntry,
-  type BranchIntentProjection,
-  type BranchIntentState,
-} from './helpers/branch-intent-resolution'
 import type { CompressedSummaries, } from '@/foundation'
 import type { NPCInteractionRecord, } from './subsystems/core-memory-system'
 import type { LegendaryEncounterProjection } from '@/core/player-content/player-content-contract'
@@ -82,12 +78,6 @@ interface EngineStore extends EngineState {
   resolvedBranches: Record<string, string>
   resolveBranch: (id: string, choice: string) => void
 
-  /** orchestrator 私有分支状态的持久化兼容投影，不是第二运行真源。 */
-  branchIntents: BranchIntentState[]
-  archivedBranchIntents: BranchIntentState[]
-  focusedBranchIntentId?: string
-  setBranchIntentProjection: (projection: BranchIntentProjection) => boolean
-
   setLegendaryEncounterSelection: (
     lifeRunId: string,
     encounter: LegendaryEncounterProjection | null,
@@ -126,9 +116,6 @@ const initialState = {
   coreMemoryNpcMap: {} as Record<string, NPCInteractionRecord[]>,
   forceBranchNext: false,
   resolvedBranches: {} as Record<string, string>,
-  branchIntents: [] as BranchIntentState[],
-  archivedBranchIntents: [] as BranchIntentState[],
-  focusedBranchIntentId: undefined as string | undefined,
   characterCreations: [] as CharacterCreation[],
   storyRepetitionStats: summarizeNarrativeRepetitionMetrics([]),
   legendaryEncounter: undefined,
@@ -136,32 +123,6 @@ const initialState = {
 }
 
 export const ENGINE_STORE_SCHEMA_VERSION = 5
-
-function rebuildPersistedBranchIntentProjection(history: unknown): BranchIntentProjection {
-  const entries = Array.isArray(history)
-    ? history.filter((entry): entry is Record<string, unknown> => (
-        typeof entry === 'object' && entry !== null && !Array.isArray(entry)
-      ))
-    : []
-  const branchHistory: BranchIntentHistoryEntry[] = entries.map((entry, index) => ({
-    id: entry.id as string | undefined,
-    resolvedChoice: entry.resolvedChoice as string | undefined,
-    resolvedChoiceRound: entry.resolvedChoiceRound as number | undefined,
-    intentResolution: entry.intentResolution as BranchIntentHistoryEntry['intentResolution'],
-    round: entry.repetitionMetric
-      && typeof entry.repetitionMetric === 'object'
-      && !Array.isArray(entry.repetitionMetric)
-      && Number.isInteger((entry.repetitionMetric as { round?: unknown }).round)
-      ? (entry.repetitionMetric as { round: number }).round
-      : index + 1,
-  }))
-  const rebuilt = rebuildBranchIntentsFromHistory(branchHistory)
-  return {
-    branchIntents: rebuilt.intents,
-    archivedBranchIntents: rebuilt.archivedIntents ?? [],
-    ...(rebuilt.focusedIntentId ? { focusedBranchIntentId: rebuilt.focusedIntentId } : {}),
-  }
-}
 
 /** 供 Zustand rehydrate 与持久化回归共享的纯迁移函数。 */
 export function migrateEnginePersistedState(
@@ -185,27 +146,12 @@ export function migrateEnginePersistedState(
     old.storyRepetitionStats = summarizeNarrativeHistoryRepetition(history)
   }
 
-  const rebuiltProjection = rebuildPersistedBranchIntentProjection(old.narrativeHistory)
-  const persistedProjection = version >= ENGINE_STORE_SCHEMA_VERSION
-    ? normalizeBranchIntentProjection({
-        branchIntents: old.branchIntents,
-        archivedBranchIntents: old.archivedBranchIntents,
-        focusedBranchIntentId: old.focusedBranchIntentId,
-      })
-    : undefined
-  const projection = persistedProjection
-    && isBranchIntentProjectionConsistent(persistedProjection, rebuiltProjection)
-    ? persistedProjection
-    : rebuiltProjection
-  old.branchIntents = projection.branchIntents
-  old.archivedBranchIntents = projection.archivedBranchIntents
-  old.focusedBranchIntentId = projection.focusedBranchIntentId
   return old
 }
 
 export const useEngineStore = create<EngineStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       ...initialState,
 
       setStatus: (status,) => set({ status, },),
@@ -272,19 +218,6 @@ export const useEngineStore = create<EngineStore>()(
           return { resolvedBranches, narrativeHistory, forceBranchNext: false }
         }),
 
-      setBranchIntentProjection: (projection,) => {
-        const normalized = normalizeBranchIntentProjection(projection)
-        if (!normalized) return false
-        const reconstructed = rebuildPersistedBranchIntentProjection(get().narrativeHistory)
-        if (!isBranchIntentProjectionConsistent(normalized, reconstructed)) return false
-        set({
-          branchIntents: normalized.branchIntents,
-          archivedBranchIntents: normalized.archivedBranchIntents,
-          focusedBranchIntentId: normalized.focusedBranchIntentId,
-        })
-        return true
-      },
-
       setLegendaryEncounterSelection: (lifeRunId, encounter) => set((state) => {
         if (state.lifeRunId !== lifeRunId) return state
         return {
@@ -317,7 +250,7 @@ export const useEngineStore = create<EngineStore>()(
         migrateEnginePersistedState(persistedState, version) as unknown as EngineStore
       ),
       partialize: (state,) => {
-        const { setStatus: _a, appendNarrative: _b, setCurrentNarrative: _c, advanceRound: _d, setCompressionStats: _e, setCompressedSummaries: _f, setNarrativeError: _i, pendingNarrative: _pn, setPendingNarrative: _spn, updatePendingNarrative: _upn, clearPendingNarrative: _cpn, setLastAutoSaveRound: _j, setCoreMemoryNpcMap: _n, setForceBranchNext: _fb, resolveBranch: _rb, setBranchIntentProjection: _bip, setLegendaryEncounterSelection: _les, markLegendaryEncounterInjected: _lei, reset: _o, ...rest } = state
+        const { setStatus: _a, appendNarrative: _b, setCurrentNarrative: _c, advanceRound: _d, setCompressionStats: _e, setCompressedSummaries: _f, setNarrativeError: _i, pendingNarrative: _pn, setPendingNarrative: _spn, updatePendingNarrative: _upn, clearPendingNarrative: _cpn, setLastAutoSaveRound: _j, setCoreMemoryNpcMap: _n, setForceBranchNext: _fb, resolveBranch: _rb, setLegendaryEncounterSelection: _les, markLegendaryEncounterInjected: _lei, reset: _o, ...rest } = state
         return rest
       },
     },

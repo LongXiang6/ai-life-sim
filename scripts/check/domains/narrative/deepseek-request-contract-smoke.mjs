@@ -5,14 +5,24 @@
  */
 
 import fs from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
 import { z } from 'zod'
 import { readModuleSource } from '../../lib/read-module-source.mjs'
-import { POST } from '../../../../src/app/api/proxy/route.ts'
 import {
   buildProxyBody,
   callAI,
 } from '../../../../src/core/ai-service/ai-client.ts'
 
+const proxyLogRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'ai-life-proxy-contract-'))
+process.env.AI_LOG_DB_PATH = path.join(proxyLogRoot, 'logs.sqlite')
+const [proxyRoute, logStore] = await Promise.all([
+  import('../../../../src/app/api/proxy/route.ts'),
+  import('../../../../src/core/logger/server-log-store.ts'),
+])
+const { POST } = proxyRoute
+
+try {
 const config = {
   model: 'deepseek-v4-pro',
   temperature: 0.7,
@@ -114,6 +124,34 @@ function routeRequest(cachePool, model = 'deepseek-v4-flash', seed = 42) {
     }),
   })
 }
+
+const missingBaseUrlResponse = await POST(new Request('http://localhost/api/proxy', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    cache_pool: 'narrative-main',
+    model: 'deepseek-v4-flash',
+    messages: [{ role: 'user', content: 'ping' }],
+    stream: false,
+    providerId: 'custom',
+    apiKey: 'test-only-placeholder',
+  }),
+}))
+assert(missingBaseUrlResponse.status === 400, 'missing player base URL must be a client configuration error')
+
+const missingApiKeyResponse = await POST(new Request('http://localhost/api/proxy', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    cache_pool: 'narrative-main',
+    model: 'deepseek-v4-flash',
+    messages: [{ role: 'user', content: 'ping' }],
+    stream: false,
+    providerId: 'custom',
+    baseUrl: 'https://example.invalid/v1',
+  }),
+}))
+assert(missingApiKeyResponse.status === 400, 'missing player API key must be a client configuration error')
 
 const forwardedBodies = []
 globalThis.fetch = async (_input, init) => {
@@ -226,4 +264,8 @@ assert(
 )
 
 console.log('[deepseek-request-contract-smoke] PASS')
-process.exit(0)
+} finally {
+  logStore.closeServerLogDatabaseForTests()
+  await fs.rm(proxyLogRoot, { recursive: true, force: true })
+  delete process.env.AI_LOG_DB_PATH
+}

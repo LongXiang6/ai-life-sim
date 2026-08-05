@@ -133,16 +133,6 @@
       "sha256": "016a6334085b4a5cfa8f6eafb6c0d3af9689546913ded3a80ff0ed7c575bfb69"
     },
     {
-      "path": "scripts/check/domains/narrative/historical-event-prompt-projection-smoke.mjs",
-      "owner": "quality:narrative",
-      "sha256": "0042ee2eacb52f7531ef928481e1ae8a898cbcd587330b763e8b031593e7d3fd"
-    },
-    {
-      "path": "scripts/check/domains/narrative/log-analytics-smoke.mjs",
-      "owner": "quality:narrative",
-      "sha256": "33b4f07389b5dfbbd5a893d129d43eaafbc78a2ce86306c9dec07c44972b72c4"
-    },
-    {
       "path": "scripts/check/domains/narrative/log-archive-v1-migration-smoke.mjs",
       "owner": "quality:narrative",
       "sha256": "3f12ae7c89a583eb0f05191182725cba41f88825563078a93b1eb483b19b81d8"
@@ -383,19 +373,9 @@
       "sha256": "56205e9ecc1c35dcbc22c93361d24012bf5af5238994871dd18fc120d3f96add"
     },
     {
-      "path": "scripts/ops/lib/error-classification.mjs",
-      "owner": "operations",
-      "sha256": "30ad3f661f1493ad04cf4c7ec84bfc4531fd4189ed34282436b3457aa967c1ca"
-    },
-    {
       "path": "scripts/ops/lib/log-databases.mjs",
       "owner": "operations",
       "sha256": "c2672e89cce1d9a6ff7d7ebea3d65d77b4cdcdfce8b2fd17887d9ba4d8dba196"
-    },
-    {
-      "path": "scripts/ops/lib/story-repetition-analytics.mjs",
-      "owner": "operations",
-      "sha256": "17e685c95552f5f69106c8818d0ff3c4b127b6f4e718f47e49653b7ab4dac50c"
     },
     {
       "path": "scripts/ops/migrate-game-record-lifespan-adjustments.ts",
@@ -698,11 +678,6 @@
       "sha256": "03991dea46ce5301ad7919637c9e17431978648ae50260b8e2322204367a4437"
     },
     {
-      "path": "src/core/ai-service/narrative-guidance-compiler.ts",
-      "owner": "core:ai-service",
-      "sha256": "1a9eb22404ac417122384e5494a2f62ce3a554fd7e83f3766cd747d8641d0d59"
-    },
-    {
       "path": "src/core/ai-service/normalize-ai-usage.ts",
       "owner": "core:ai-service",
       "sha256": "9a76a27ecf8f72fb02dfcc597da2f6cc514be812943d45f8ba6b792fea60f9de"
@@ -711,11 +686,6 @@
       "path": "src/core/ai-service/parse-ai-json.ts",
       "owner": "core:ai-service",
       "sha256": "f3d2bf62dd3504a0074ba9fe64189a7a45faeaf321dea667945952b63306f3a8"
-    },
-    {
-      "path": "src/core/ai-service/prompt-builder.ts",
-      "owner": "core:ai-service",
-      "sha256": "3b9fb8c80dbbb98fed8bf4bc2ce7e696b594d8e990ec3a1b6aad13211df14236"
     },
     {
       "path": "src/core/ai-service/prompt-flags.ts",
@@ -1433,11 +1403,6 @@
       "sha256": "ff14572aea845b64fee5fd8a213a5a69edd3bbb3b7d85c59e3654c6e73f3cb19"
     },
     {
-      "path": "src/mods/mod-character/prompts/destiny-pattern-context.ts",
-      "owner": "mod-character",
-      "sha256": "1427eec425ee75a1065db5512184404d50b526b8c2da9ff0f9ffe23ad3296162"
-    },
-    {
       "path": "src/mods/mod-character/prompts/destiny-pattern-prompt.ts",
       "owner": "mod-character",
       "sha256": "1f4507f0dfe2c792ad2e1112aa4ab333e854aa267e8f1828c9a12c718cc6312e"
@@ -1466,11 +1431,6 @@
       "path": "src/mods/mod-character/store.ts",
       "owner": "mod-character",
       "sha256": "aafe56693ab69d148a2dba6f4de1085ed31a9047fb371d05bdf86ef3eccdb339"
-    },
-    {
-      "path": "src/mods/mod-character/subsystems/health-system.ts",
-      "owner": "mod-character",
-      "sha256": "02760991838d9b75b032a6dbe9cbeb3b0ec4f213a077beb6ad3978e6bb1df548"
     },
     {
       "path": "src/mods/mod-character/subsystems/life-cycle-validation.ts",
@@ -1768,16 +1728,6 @@
       "sha256": "d4970cec890fc651468fd5d6fccc5447afe388de978b57707887f5b78fb690d1"
     },
     {
-      "path": "src/mods/mod-engine/helpers/branch-commands.ts",
-      "owner": "mod-engine",
-      "sha256": "116195911ba060872655350d8372ac1c89b6415601a28fa04e144bd8135b71ee"
-    },
-    {
-      "path": "src/mods/mod-engine/helpers/branch-intent-resolution.ts",
-      "owner": "mod-engine",
-      "sha256": "4cd8e5c0f33a81605931701fb6c89930fcb0fafeafd3143ffcb73228f8ffb15f"
-    },
-    {
       "path": "src/mods/mod-engine/helpers/calendar-narrative-context.ts",
       "owner": "mod-engine",
       "sha256": "9c56584a533e5bf8c1737bd8972ffadd934440b520fae48ede68ed348cc6fc5f"
@@ -1838,16 +1788,6 @@
       "sha256": "4a8772f3564e564297c5b1a4d51f5073135886986e11ecdbc6ccd1ea836bee21"
     },
     {
-      "path": "src/mods/mod-engine/helpers/narrative-ai-protocol.ts",
-      "owner": "mod-engine",
-      "sha256": "ac4b6d64504300fe5382953f75bccf42ba2d5a0325e0282fe5c430b2f42e4a30"
-    },
-    {
-      "path": "src/mods/mod-engine/helpers/narrative-background-analysis-context.ts",
-      "owner": "mod-engine",
-      "sha256": "f2418bc148b697c39d69c993893ef83a7f155cba88e56a972e6fba9016aa4548"
-    },
-    {
       "path": "src/mods/mod-engine/helpers/narrative-background-result-inbox.ts",
       "owner": "mod-engine",
       "sha256": "e5eec2561ccd20a13ca432838e50cab14aa6a83fd5f33cd03a0dfb60e2e5e9f2"
@@ -1878,11 +1818,6 @@
       "sha256": "885ea4863fd46b68e0844a258402ba4cb58a42fff7967df06970f7f30befdda9"
     },
     {
-      "path": "src/mods/mod-engine/helpers/narrative-event-recognition-context.ts",
-      "owner": "mod-engine",
-      "sha256": "8ae008cc793d4d01620ce8ade54540e2eef4a8d6dd1f8a9291876ba9f93227dd"
-    },
-    {
       "path": "src/mods/mod-engine/helpers/narrative-hints.ts",
       "owner": "mod-engine",
       "sha256": "0ea59c675426b8ef1d873b4e19c4285a7620539ffb07a835f9fa467734a613ba"
@@ -1911,16 +1846,6 @@
       "path": "src/mods/mod-engine/helpers/narrative-repetition-metrics.ts",
       "owner": "mod-engine",
       "sha256": "110fee853d94429d2e9139181447f8a2c41ff13ab55ce3699a78bf2091427df1"
-    },
-    {
-      "path": "src/mods/mod-engine/helpers/narrative-response-quality.ts",
-      "owner": "mod-engine",
-      "sha256": "b2fa2e05333f85729d9ef8c4e930668bf79252c7bd4246a3ef493cf8862b07b4"
-    },
-    {
-      "path": "src/mods/mod-engine/helpers/narrative-semantic-signals.ts",
-      "owner": "mod-engine",
-      "sha256": "d4b397488c5b6c9b7f5da6a6e9796a8088d8cff60392288bd6901b4b73b38da0"
     },
     {
       "path": "src/mods/mod-engine/helpers/normalize-narrative-paragraphs.ts",
@@ -2073,11 +1998,6 @@
       "sha256": "c063fdb66f17b5eb586316b88594bc57648d4b011d4c997f698a2cf7d33a3586"
     },
     {
-      "path": "src/mods/mod-engine/prompts/narrative-event-recognition-prompt.ts",
-      "owner": "mod-engine",
-      "sha256": "6fdc7677ea1e9d0b6bc826d6b5ad0492e39b5cc01476060b555ce938f512074e"
-    },
-    {
       "path": "src/mods/mod-engine/prompts/narrative-macro-impact-prompt.ts",
       "owner": "mod-engine",
       "sha256": "c63d68bdb0d1e79aabdab8ee1f8efe354b287c946b0821bff055e22179283e54"
@@ -2086,11 +2006,6 @@
       "path": "src/mods/mod-engine/prompts/narrative-prompt-components.ts",
       "owner": "mod-engine",
       "sha256": "03b7e556d81032fe5afd0d6e927b58ef1c3606210b53c6e97937b5c2558a72c2"
-    },
-    {
-      "path": "src/mods/mod-engine/prompts/narrative-prompt.ts",
-      "owner": "mod-engine",
-      "sha256": "733d6cc462055118bc1c0ec6adc9bdb7c0518a766d4ad620ebbdc4f9732c401d"
     },
     {
       "path": "src/mods/mod-engine/prompts/summary-prompt.ts",
@@ -2108,24 +2023,9 @@
       "sha256": "eb89fc7b14320890a621bea0e026ef87cab83a94f7818c784b8d6178497f56b8"
     },
     {
-      "path": "src/mods/mod-engine/server/narrative-data-analysis-system-prompt.ts",
-      "owner": "mod-engine",
-      "sha256": "a35232608ab85c2e030e01f5f3f798121d1f11a047007e6534a5200352bf9959"
-    },
-    {
-      "path": "src/mods/mod-engine/server/narrative-event-recognition-system-prompt.ts",
-      "owner": "mod-engine",
-      "sha256": "d1fd461f81c1b423770b180d9271f8a1808b2ce89f9b5950e30ed366695eb7db"
-    },
-    {
       "path": "src/mods/mod-engine/server/narrative-macro-impact-system-prompt.ts",
       "owner": "mod-engine",
       "sha256": "1fe536bf6eb3d616f661f9de1d9f9c99319390a88d72d0919149390c734232ec"
-    },
-    {
-      "path": "src/mods/mod-engine/server/narrative-system-prompt.ts",
-      "owner": "mod-engine",
-      "sha256": "6274f713bcce98534efdabcf92566804f586c10d643284182407bed4e8dbe307"
     },
     {
       "path": "src/mods/mod-engine/simulation/simulation-bridge.ts",
@@ -2136,11 +2036,6 @@
       "path": "src/mods/mod-engine/simulation/simulation-types.ts",
       "owner": "mod-engine",
       "sha256": "14c27eaf8edeb607e276207ae7706e5a119555fd2ece1534da7d74aae384ad4a"
-    },
-    {
-      "path": "src/mods/mod-engine/store.ts",
-      "owner": "mod-engine",
-      "sha256": "566b85c3aaa83a512ca8c027a99044355a0369d6b38e77b7568fe63211997368"
     },
     {
       "path": "src/mods/mod-engine/subsystems/core-memory-system.ts",
@@ -2181,11 +2076,6 @@
       "path": "src/mods/mod-engine/subsystems/time-system.ts",
       "owner": "mod-engine",
       "sha256": "8d9ed530b12eec185526794565df320c8f282fadfaf93fa882e3dedf14b9ad01"
-    },
-    {
-      "path": "src/mods/mod-engine/types.ts",
-      "owner": "mod-engine",
-      "sha256": "9bd4a94e258526b82bb5f4831e9934223c14733d49871c610749e8993e6d3c4b"
     },
     {
       "path": "src/mods/mod-engine/utils/time-step-resolver.ts",
@@ -3566,11 +3456,6 @@
       "path": "src/mods/mod-world/subsystems/simulation-scope-policy-system.ts",
       "owner": "mod-world",
       "sha256": "fc6ea4d0e6d4e5e0c615ccb1eac1449062bfa75e1d8172b85101944121a338ef"
-    },
-    {
-      "path": "src/mods/mod-world/subsystems/spatial-graph-system.ts",
-      "owner": "mod-world",
-      "sha256": "03d43ef2a331c6955d6564c7060678f0c33550e93f61f8d6aef334c15f05bab9"
     },
     {
       "path": "src/mods/mod-world/subsystems/world-context-registry-system.ts",

@@ -11,6 +11,12 @@
  * 运行存活：mod-world manifest 与 MVP runtime policy。
  */
 
+/**
+ * Purpose: Own world spatial nodes, edges, and entity locations.
+ * Owner: mod-world
+ * Responsibility: Spatial graph state only; world-context instances and entity identities remain with their owning systems.
+ */
+
 import { BaseSubsystem } from '@/core/subsystem-base'
 import type {
   EntitySpatialLocation,
@@ -23,7 +29,6 @@ import type {
 
 import { useWorldStore } from '../store'
 import type { WorldContextInstance } from '../types'
-import { projectWorldContextInstance } from '../utils/world-context-runtime'
 
 function structurallyEqual(left: unknown, right: unknown): boolean {
   if (Object.is(left, right)) return true

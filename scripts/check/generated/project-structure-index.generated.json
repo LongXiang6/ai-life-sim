@@ -1006,7 +1006,6 @@
         "src/mods/mod-engine/constants/pre-gen-config.ts",
         "src/mods/mod-engine/engine-api.ts",
         "src/mods/mod-engine/helpers/branch-commands.ts",
-        "src/mods/mod-engine/helpers/branch-intent-resolution.ts",
         "src/mods/mod-engine/helpers/calendar-narrative-context.ts",
         "src/mods/mod-engine/helpers/calendar-season.js",
         "src/mods/mod-engine/helpers/chinese-text-processor.ts",
@@ -1040,6 +1039,7 @@
         "src/mods/mod-engine/helpers/normalize-narrative-paragraphs.ts",
         "src/mods/mod-engine/helpers/orchestrator-pipeline-support.ts",
         "src/mods/mod-engine/helpers/orchestrator-world-setting.ts",
+        "src/mods/mod-engine/helpers/player-round-action.ts",
         "src/mods/mod-engine/helpers/pre-gen-activity-state.ts",
         "src/mods/mod-engine/helpers/pre-gen-queue.ts",
         "src/mods/mod-engine/helpers/recent-story-context.ts",
@@ -1124,7 +1124,6 @@
       ],
       "oversized": [
         "src/mods/mod-engine/campaigns/default/index.ts",
-        "src/mods/mod-engine/helpers/branch-intent-resolution.ts",
         "src/mods/mod-engine/helpers/digest-ledger.ts",
         "src/mods/mod-engine/helpers/event-lifecycle-tracker.ts",
         "src/mods/mod-engine/helpers/narrative-ai-protocol.ts",
@@ -1133,7 +1132,6 @@
         "src/mods/mod-engine/helpers/save-restore.ts",
         "src/mods/mod-engine/helpers/subsystem-field-registry.ts",
         "src/mods/mod-engine/hooks.ts",
-        "src/mods/mod-engine/store.ts",
         "src/mods/mod-engine/subsystems/causal-delay-system.ts",
         "src/mods/mod-engine/subsystems/foreshadowing-system.ts",
         "src/mods/mod-engine/subsystems/memory-engine-system.ts",
@@ -2191,8 +2189,6 @@
         "scripts/check/domains/narrative/ai-proxy-observability-regression.mjs",
         "scripts/check/domains/narrative/ai-response-truncation-smoke.mjs",
         "scripts/check/domains/narrative/autosave-lifecycle-smoke.mjs",
-        "scripts/check/domains/narrative/branch-intent-persistence-smoke.mjs",
-        "scripts/check/domains/narrative/branch-intent-resolution-smoke.mjs",
         "scripts/check/domains/narrative/cache-stats-smoke.mjs",
         "scripts/check/domains/narrative/character-first-narrative-slice.mjs",
         "scripts/check/domains/narrative/compression-runtime-smoke.mjs",
@@ -2233,7 +2229,6 @@
         "scripts/check/domains/narrative/validate-narrative-wiring.mjs"
       ],
       "oversized": [
-        "scripts/check/domains/narrative/branch-intent-resolution-smoke.mjs",
         "scripts/check/domains/narrative/compression-runtime-smoke.mjs",
         "scripts/check/domains/narrative/kv-prompt-audit.mjs",
         "scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs",

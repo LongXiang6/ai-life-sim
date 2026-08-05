@@ -1,4 +1,8 @@
 /**
+ * Purpose: Assemble the three dynamic user messages for the main narrative call.
+ * Owner: core:ai-service
+ * Responsibility: Serialize global facts, memory, and round guidance without owning fixed Prompt rules.
+ *
  * @module prompt-builder.ts
  * @description 主叙事三段动态消息组装器
  * @mod core
@@ -49,7 +53,7 @@ export const NARRATIVE_ROUND_JSON_KEYS = [
   '时间跨度摘要',
   '已触发因果',
   '系统引导',
-  '玩家自定义分支',
+  '本轮玩家行动',
   '字数要求',
 ] as const
 
@@ -112,7 +116,7 @@ export function buildNarrativeUserJson(context: PromptContext): Record<string, u
     时间跨度摘要: context.timeBridgeSummary,
     已触发因果: context.causalChainHint,
     系统引导: guidance.systemGuidance,
-    玩家自定义分支: guidance.playerBranchIntent,
+    本轮玩家行动: guidance.playerBranchIntent,
     字数要求: context.wordCountInstruction,
   }
 

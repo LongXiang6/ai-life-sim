@@ -44,12 +44,6 @@
       "reason": "单个 MOD 跨系统验收场景，夹具、执行步骤和证据断言必须按同一场景顺序保持。"
     },
     {
-      "path": "scripts/check/domains/narrative/branch-intent-resolution-smoke.mjs",
-      "owner": "quality:narrative",
-      "reviewedLines": 319,
-      "reason": "单个叙事协议或质量回归场景，输入夹具、顺序执行和断言共同构成一份不可拆散的证据。"
-    },
-    {
       "path": "scripts/check/domains/narrative/compression-runtime-smoke.mjs",
       "owner": "quality:narrative",
       "reviewedLines": 507,

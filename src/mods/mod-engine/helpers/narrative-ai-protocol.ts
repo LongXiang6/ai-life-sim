@@ -1,4 +1,8 @@
 /**
+ * Purpose: Define the Chinese AI protocols, Schemas, and strict runtime translations used by narrative calls.
+ * Owner: mod-engine
+ * Responsibility: Validate and translate declared AI fields atomically without owning simulation state.
+ *
  * @module narrative-ai-protocol.ts
  * @description 主叙事与后台分析 AI 的中文协议、Schema 与内部契约严格转译
  * @mod mod-engine
@@ -75,34 +79,6 @@ export const AI_ACTION_SCALES = createEnumTranslator([
   ['small', '小'],
   ['medium', '中'],
   ['large', '大'],
-] as const)
-
-export const AI_INTENT_FEASIBILITIES = createEnumTranslator([
-  ['executable', '可执行'],
-  ['conditional', '有条件'],
-  ['blocked', '受阻'],
-  ['impossible', '不可能'],
-] as const)
-
-export const AI_INTENT_EXECUTION_MODES = createEnumTranslator([
-  ['immediate', '立即执行'],
-  ['progressive', '逐步执行'],
-  ['deferred', '延后执行'],
-] as const)
-
-export const AI_INTENT_STATUSES = createEnumTranslator([
-  ['progressing', '推进中'],
-  ['blocked', '受阻'],
-  ['succeeded', '成功'],
-  ['partially_succeeded', '部分成功'],
-  ['failed', '失败'],
-] as const)
-
-export const AI_INTENT_RISK_LEVELS = createEnumTranslator([
-  ['low', '低'],
-  ['medium', '中'],
-  ['high', '高'],
-  ['extreme', '极高'],
 ] as const)
 
 export const AI_ARC_TYPES = createEnumTranslator([
@@ -192,44 +168,12 @@ export const AI_CONTEXT_CAPABILITIES = createEnumTranslator([
   ['supernatural', '超自然'],
 ] as const)
 
-export function toNarrativeAIIntentId(internalId: string): string {
-  return internalId.startsWith('branch:')
-    ? `命运分支:${internalId.slice('branch:'.length)}`
-    : internalId
-}
-
-export function fromNarrativeAIIntentId(aiId: string): string {
-  return aiId.startsWith('命运分支:')
-    ? `branch:${aiId.slice('命运分支:'.length)}`
-    : aiId
-}
-
 export function toNarrativeAIForeshadowingId(internalId: string): string {
   return internalId.startsWith('fs_') ? `伏笔_${internalId.slice(3)}` : internalId
 }
 
 export function fromNarrativeAIForeshadowingId(aiId: string): string {
   return aiId.startsWith('伏笔_') ? `fs_${aiId.slice(3)}` : aiId
-}
-
-export function translateInternalIntentResolutionToAI(
-  resolution: NarrativeRoundMetadata['intentResolution'],
-): Record<string, unknown> | null {
-  if (!resolution) return null
-  return {
-    意图编号: toNarrativeAIIntentId(resolution.intentId),
-    可行性: AI_INTENT_FEASIBILITIES.internalToAI[resolution.feasibility],
-    执行方式: AI_INTENT_EXECUTION_MODES.internalToAI[resolution.executionMode],
-    状态: AI_INTENT_STATUSES.internalToAI[resolution.status],
-    风险等级: AI_INTENT_RISK_LEVELS.internalToAI[resolution.riskLevel],
-    进度: resolution.progress,
-    ...(resolution.blockers.length > 0 ? { 阻碍: resolution.blockers } : {}),
-    ...(resolution.prerequisites.length > 0 ? { 前置条件: resolution.prerequisites } : {}),
-    ...(resolution.costs.length > 0 ? { 代价: resolution.costs } : {}),
-    预计耗时: resolution.timeHorizon,
-    判定理由: resolution.reason,
-    ...(resolution.nextStep ? { 下一步: resolution.nextStep } : {}),
-  }
 }
 
 const NarrativeAIRelationshipUpdateSchema = z.object({
@@ -276,21 +220,6 @@ const NarrativeAIForeshadowingSchema = z.object({
   类型: AI_FORESHADOWING_TYPES.schema,
   说明: z.string().min(1),
   优先级: z.number().min(1).max(10),
-}).strict()
-
-const NarrativeAIIntentResolutionSchema = z.object({
-  意图编号: z.string().min(1),
-  可行性: AI_INTENT_FEASIBILITIES.schema,
-  执行方式: AI_INTENT_EXECUTION_MODES.schema,
-  状态: AI_INTENT_STATUSES.schema,
-  风险等级: AI_INTENT_RISK_LEVELS.schema,
-  进度: z.number().min(0).max(100),
-  阻碍: z.array(z.string().min(1)).min(1).optional(),
-  前置条件: z.array(z.string().min(1)).min(1).optional(),
-  代价: z.array(z.string().min(1)).min(1).optional(),
-  预计耗时: z.string().min(1),
-  判定理由: z.string().min(1),
-  下一步: z.string().min(1).optional(),
 }).strict()
 
 export const NarrativeAISystemInstructionSchema = z.object({
@@ -349,7 +278,6 @@ const NarrativeAIEventMetadataSchema = z.object({
   重要程度: AI_IMPORTANCE_LEVELS.schema.optional(),
   情节状态: AI_ARC_STATUSES.schema.optional(),
   语义信号: NarrativeAISemanticSignalsSchema.optional(),
-  命运意图判定: NarrativeAIIntentResolutionSchema.optional(),
   新延迟因果: z.array(NarrativeAIDeferredCausalitySchema).min(1).optional(),
   到期因果判定: z.array(NarrativeAIDeliveredCausalDispositionSchema).optional(),
 }).strict().superRefine((data, context) => {
@@ -357,10 +285,6 @@ const NarrativeAIEventMetadataSchema = z.object({
   const semanticCoreCount = semanticCore.filter((value) => value !== undefined).length
   if (semanticCoreCount > 0 && semanticCoreCount < semanticCore.length) {
     context.addIssue({ code: 'custom', message: '重要程度、情节状态与语义信号必须同时提交或同时省略' })
-  }
-
-  if (data.命运意图判定 && semanticCoreCount !== semanticCore.length) {
-    context.addIssue({ code: 'custom', message: '命运分支或命运意图判定必须同时提交完整语义核心' })
   }
 })
 
@@ -536,22 +460,6 @@ function translateNarrativeAIEventMetadata(rawData: unknown): NarrativeRoundMeta
           })),
           resolvedForeshadowingIds: (data.语义信号.已回收伏笔编号 ?? [])
             .map(fromNarrativeAIForeshadowingId),
-        }
-      : undefined,
-    intentResolution: data.命运意图判定
-      ? {
-          intentId: fromNarrativeAIIntentId(data.命运意图判定.意图编号),
-          feasibility: AI_INTENT_FEASIBILITIES.toInternal(data.命运意图判定.可行性),
-          executionMode: AI_INTENT_EXECUTION_MODES.toInternal(data.命运意图判定.执行方式),
-          status: AI_INTENT_STATUSES.toInternal(data.命运意图判定.状态),
-          riskLevel: AI_INTENT_RISK_LEVELS.toInternal(data.命运意图判定.风险等级),
-          progress: data.命运意图判定.进度,
-          blockers: data.命运意图判定.阻碍 ?? [],
-          prerequisites: data.命运意图判定.前置条件 ?? [],
-          costs: data.命运意图判定.代价 ?? [],
-          timeHorizon: data.命运意图判定.预计耗时,
-          reason: data.命运意图判定.判定理由,
-          nextStep: data.命运意图判定.下一步,
         }
       : undefined,
     deferredCausality: data.新延迟因果?.map((item) => ({

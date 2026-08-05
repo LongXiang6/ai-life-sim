@@ -9,7 +9,7 @@ import {
   buildNarrativeHints,
   type NarrativePromptComponent,
 } from '../../orchestrator-shared'
-import { buildNarrativeBranchIntentProjection } from '../../helpers/branch-intent-resolution'
+import { buildPlayerRoundActionProjection } from '../../helpers/player-round-action'
 import { compileNarrativeDynamicComponents } from '../../prompts/narrative-prompt-components'
 import type { OrchestratorSystem } from '../orchestrator-system'
 
@@ -85,20 +85,8 @@ export function buildRoundGuidanceInputRuntime(
     )
   }
 
-  const focusedIntent = orchestrator['getFocusedBranchIntentRuntime']()
   const freshPlayerChoice = orchestrator['lastPlayerChoice']?.trim()
-  let playerBranchIntent: Record<string, unknown> | undefined
-  if (focusedIntent) {
-    const otherActiveIntents = orchestrator['branchIntents'].filter(
-      (intent) => intent.intentId !== focusedIntent.intentId,
-    )
-    playerBranchIntent = buildNarrativeBranchIntentProjection(focusedIntent, otherActiveIntents)
-  }
-  if (freshPlayerChoice) {
-    if (!focusedIntent) playerBranchIntent = { 玩家选择: freshPlayerChoice }
-    orchestrator['lastCommittedPlayerChoice'] = freshPlayerChoice
-    orchestrator['lastPlayerChoice'] = undefined
-  }
+  const playerBranchIntent = buildPlayerRoundActionProjection(freshPlayerChoice)
 
   const roundSystemGuidanceText = compileNarrativeDynamicComponents(components)
   return {

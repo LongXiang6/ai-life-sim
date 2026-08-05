@@ -270,7 +270,6 @@ async function main() {
     text: entry.text,
     branchPoint: entry.isBranchPoint === true,
     branchResolved: entry.resolvedChoice !== undefined,
-    intentResolution: entry.intentResolution,
     repetition: entry.repetitionMetric,
   }))
   const normalizedOpenings = narrativeRounds.map((entry) => entry.firstLine.replace(/[，。！？].*$/u, '').slice(0, 18))
@@ -306,9 +305,6 @@ async function main() {
     equippedMythicPatterns: persisted.character.equippedMythicPatterns?.length || 0,
     forcedBranchAttempts,
     branchObserved, branchResolved, branchObservedCount, branchResolvedCount,
-    committedIntentResolutions: narrativeRounds.filter((entry) => entry.intentResolution).length,
-    activeBranchIntents: persisted.engine.branchIntents?.length || 0,
-    archivedBranchIntents: persisted.engine.archivedBranchIntents?.length || 0,
     forceBranchNext: persisted.engine.forceBranchNext === true,
     reloadVerified,
     reloadRound,
@@ -337,7 +333,6 @@ async function main() {
     || result.equippedMythicPatterns !== 2
     || !result.branchObserved
     || !result.branchResolved
-    || result.committedIntentResolutions === 0
     || result.mainNarrativeRequests < targetRounds
     || result.dataAnalysisRequests < targetRounds
     || result.basicAttributeRequests < targetRounds

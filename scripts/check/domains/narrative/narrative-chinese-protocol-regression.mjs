@@ -13,9 +13,7 @@ import {
   NarrativeAIBasicAttributeAnalysisDataSchema,
   NarrativeAIDataAnalysisDataSchema,
   NarrativeAIEventRecognitionDataSchema,
-  fromNarrativeAIIntentId,
   parseNarrativeAIJson,
-  toNarrativeAIIntentId,
   translateNarrativeAIBasicAttributeAnalysis,
   translateNarrativeAIDataAnalysis,
 } from '../../../../src/mods/mod-engine/helpers/narrative-ai-protocol.ts'
@@ -32,6 +30,10 @@ import {
   NarrativeAIMacroImpactDataSchema,
   buildNarrativeMacroImpactPromptInput,
 } from '../../../../src/mods/mod-engine/helpers/narrative-macro-impact-context.ts'
+import {
+  buildPlayerRoundActionProjection,
+  consumeAcceptedPlayerRoundAction,
+} from '../../../../src/mods/mod-engine/helpers/player-round-action.ts'
 import {
   buildNarrativeRepairInstruction,
   buildNarrativeRoundOutputContract,
@@ -170,10 +172,7 @@ const promptContext = {
   causalChainHint: '巡船搜索路线因救援改变。',
   roundSystemGuidanceText: '先保持已成立的救援事实，再推进现场回应。',
   playerBranchIntent: {
-    当前意图: {
-      意图编号: '命运分支:north-route',
-      玩家选择: '带阿禾离开旧桥，由她决定是否继续相信你。',
-    },
+    本轮明确行动: '带阿禾离开旧桥，由她决定是否继续相信你。',
   },
   narrativeGuidanceText: '写救援后的现场、关系回应和直接后果。',
   subsystemGuideText: '不得进入第一次调用',
@@ -181,6 +180,7 @@ const promptContext = {
 }
 
 const firstInput = buildNarrativeUserJson(promptContext)
+const deliveredAction = promptContext.playerBranchIntent.本轮明确行动
 const firstSegments = buildSegmentedPrompt(narrativePrompt, promptContext)
 const changedRoundSegments = buildSegmentedPrompt(narrativePrompt, {
   ...promptContext,
@@ -215,10 +215,21 @@ assertOk(
   !JSON.stringify(firstInput).includes('subsystemGuideText')
     && !JSON.stringify(firstInput).includes('changeRequirementsText')
     && firstInput.本轮引导?.系统引导?.[0] === promptContext.roundSystemGuidanceText
-    && firstInput.本轮引导?.玩家自定义分支?.当前意图?.玩家选择
-      === promptContext.playerBranchIntent.当前意图.玩家选择
+    && firstInput.本轮引导?.本轮玩家行动?.本轮明确行动
+      === promptContext.playerBranchIntent.本轮明确行动
     && !JSON.stringify(firstInput).includes('不得进入第一次调用'),
-  'first call must separate compiled system guidance and the unchanged structured player intent from write contracts',
+  'first call must separate compiled system guidance and the unchanged one-shot player action from write contracts',
+)
+assertOk(
+  buildPlayerRoundActionProjection(deliveredAction)?.本轮明确行动 === deliveredAction
+    && consumeAcceptedPlayerRoundAction(deliveredAction, deliveredAction).consumed
+    && consumeAcceptedPlayerRoundAction(deliveredAction, deliveredAction).nextChoice === undefined,
+  'the exact one-shot player action must project unchanged and be consumed only after acceptance',
+)
+assertOk(
+  consumeAcceptedPlayerRoundAction('改去南岸', deliveredAction).nextChoice === '改去南岸'
+    && !consumeAcceptedPlayerRoundAction('改去南岸', deliveredAction).consumed,
+  'a newer player action must survive acceptance of an older in-flight round',
 )
 
 const narrativeWithoutBranch = '⟦正文⟧你撞开仓门救出阿禾，巡船的灯越过礁石。\n\n她接过缆绳，与你一同转入雾中的北岸航道。'
@@ -807,63 +818,6 @@ assertOk(
   'event presence must be derived locally from registered events instead of an AI boolean',
 )
 
-const intentData = {
-  回合事件: {
-    摘要: '夺回家园的长期目标取得条件性进展',
-    注册事件: [],
-    ...buildSemanticCore(),
-    命运意图判定: {
-      意图编号: '命运分支:夺回家园',
-      可行性: '有条件',
-      执行方式: '逐步执行',
-      状态: '推进中',
-      风险等级: '高',
-      进度: 35,
-      预计耗时: '仍需数月',
-      判定理由: '已经获得盟友，但尚未突破封锁。',
-      下一步: '先让船队安全离港',
-    },
-  },
-  待触发事件: [],
-}
-assertOk(
-  inspectNarrativeEventRecognitionQuality({
-    content: eventRecognitionLine(intentData),
-    narrative: inspectNarrativeResponseQuality(narrativeWithoutBranch, 500).parsed,
-    currentContextId: 'ctx-protocol',
-    currentTotalDays: 1000,
-    existingCandidates: [],
-    expectedIntentId: 'branch:夺回家园',
-  }).valid,
-  'event recognition must accept only the matching structured intent resolution',
-)
-assertOk(
-  !inspectNarrativeEventRecognitionQuality({
-    content: eventRecognitionLine(intentData),
-    narrative: inspectNarrativeResponseQuality(narrativeWithoutBranch, 500).parsed,
-    currentContextId: 'ctx-protocol',
-    currentTotalDays: 1000,
-    existingCandidates: [],
-  }).valid,
-  'intent metadata must be rejected when the round has no active intent',
-)
-assertOk(
-  !inspectNarrativeEventRecognitionQuality({
-    content: emptyEventRecognitionResponse,
-    narrative: inspectNarrativeResponseQuality(narrativeWithoutBranch, 500).parsed,
-    currentContextId: 'ctx-protocol',
-    currentTotalDays: 1000,
-    existingCandidates: [],
-    expectedIntentId: 'branch:夺回家园',
-  }).valid,
-  'an active intent must not silently omit its event-recognition resolution',
-)
-
-assertOk(
-  toNarrativeAIIntentId('branch:长期目标') === '命运分支:长期目标'
-    && fromNarrativeAIIntentId('命运分支:长期目标') === 'branch:长期目标',
-  'intent ID translation must remain reversible',
-)
 assertOk(
   parseNarrativeAIJson('{“摘要”：“完整弯引号响应”，}').摘要 === '完整弯引号响应'
     && parseAIJSON('说明文字\n```json\n{"值":[1,2,3]}\n```\n结束')?.值?.length === 3,
@@ -885,6 +839,11 @@ assertOk(
 
 const narrativeFailure = inspectNarrativeResponseQuality('⟦正文⟧', 500)
 const narrativeRepair = buildNarrativeRepairInstruction(narrativeFailure, 500, true)
+const repeatedNarrative = inspectNarrativeResponseQuality(narrativeWithoutBranch, 500, {
+  round: 2,
+  recentHistory: [{ round: 1, text: inspectNarrativeResponseQuality(narrativeWithoutBranch, 500).parsed.narrative }],
+})
+const repetitionRepair = buildNarrativeRepairInstruction(repeatedNarrative, 500)
 assertOk(
   narrativeRepair.includes(narrativeFailure.reason)
     && narrativeRepair.includes('系统提示词末尾的唯一 content 返回结构示例')
@@ -893,6 +852,13 @@ assertOk(
     && !narrativeRepair.includes('禁止摘要')
     && !narrativeRepair.includes('⟦结束⟧'),
   'first-call repair must use the fixed positive example guidance without an ending marker',
+)
+assertOk(
+  !repeatedNarrative.valid
+    && repeatedNarrative.repetitionMetric?.qualityLevel === 'high'
+    && repetitionRepair.includes('不得复述同一天、同一行动和同一结果')
+    && repetitionRepair.includes('不得只替换同义词'),
+  'high-repetition narrative must be repaired before publication with explicit forward-progress guidance',
 )
 assertOk(
   buildNarrativeRoundOutputContract(true)?.includes('正文停在玩家作出选择之前')
@@ -913,13 +879,13 @@ assertOk(
 )
 
 assertOk(
-  narrativePrompt.version === '5.8.2'
+  narrativePrompt.version === '5.8.3'
     && narrativePrompt.serverPromptAssetId === NARRATIVE_SERVER_PROMPT_ASSET_ID
     && narrativeBasicAttributePrompt.version === '2.1.0'
     && narrativeBasicAttributePrompt.serverPromptAssetId === NARRATIVE_BASIC_ATTRIBUTE_SERVER_PROMPT_ASSET_ID
     && narrativeDataAnalysisPrompt.version === '2.0.0'
     && narrativeDataAnalysisPrompt.serverPromptAssetId === NARRATIVE_DATA_ANALYSIS_SERVER_PROMPT_ASSET_ID
-    && narrativeEventRecognitionPrompt.version === '3.1.0'
+    && narrativeEventRecognitionPrompt.version === '3.2.0'
     && narrativeEventRecognitionPrompt.serverPromptAssetId === NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID
     && narrativeMacroImpactPrompt.version === '1.0.0'
     && narrativeMacroImpactPrompt.serverPromptAssetId === NARRATIVE_MACRO_IMPACT_SERVER_PROMPT_ASSET_ID

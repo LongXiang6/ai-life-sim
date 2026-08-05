@@ -1,3 +1,9 @@
+/**
+ * Purpose: Define validated semantic-signal types used by accepted narrative metadata.
+ * Owner: mod-engine
+ * Responsibility: Own semantic enums and Schema validation without inferring signals from story text.
+ */
+
 import { z } from 'zod'
 
 export const NARRATIVE_EVENT_TYPES = [
@@ -23,10 +29,6 @@ export const NARRATIVE_IMPACT_SCOPES = [
 
 export const NARRATIVE_REGISTERS = ['life', 'fate', 'legacy'] as const
 export const NARRATIVE_ACTION_SCALES = ['small', 'medium', 'large'] as const
-export const NARRATIVE_INTENT_FEASIBILITIES = ['executable', 'conditional', 'blocked', 'impossible'] as const
-export const NARRATIVE_INTENT_EXECUTION_MODES = ['immediate', 'progressive', 'deferred'] as const
-export const NARRATIVE_INTENT_STATUSES = ['progressing', 'blocked', 'succeeded', 'partially_succeeded', 'failed'] as const
-export const NARRATIVE_INTENT_RISK_LEVELS = ['low', 'medium', 'high', 'extreme'] as const
 export const NARRATIVE_ARC_TYPES = [
   'battle',
   'journey',
@@ -95,21 +97,6 @@ export const NarrativeCreationSchema = z.object({
   category: z.enum(['power_system', 'technique', 'ability', 'rule', 'object', 'other']),
 }).strict()
 
-export const NarrativeIntentResolutionSchema = z.object({
-  intentId: z.string().min(1),
-  feasibility: z.enum(NARRATIVE_INTENT_FEASIBILITIES),
-  executionMode: z.enum(NARRATIVE_INTENT_EXECUTION_MODES),
-  status: z.enum(NARRATIVE_INTENT_STATUSES),
-  riskLevel: z.enum(NARRATIVE_INTENT_RISK_LEVELS),
-  progress: z.coerce.number().min(0).max(100),
-  blockers: z.array(z.string().min(1)),
-  prerequisites: z.array(z.string().min(1)),
-  costs: z.array(z.string().min(1)),
-  timeHorizon: z.string().min(1),
-  reason: z.string().min(1),
-  nextStep: z.string().min(1).optional(),
-}).strict()
-
 export const NarrativeDeferredCausalitySchema = z.object({
   type: z.enum(NARRATIVE_DEFERRED_CAUSAL_TYPES),
   severity: z.enum(NARRATIVE_DEFERRED_CAUSAL_SEVERITIES),
@@ -147,7 +134,7 @@ const NarrativeNonBlankStringSchema = z.string().refine(
 
 /**
  * 主叙事摘要是可选的轻量索引；其余结构化数据按需出现。
- * 语义核心、命运分支和命运意图仍分别作为不可拆散的条件契约。
+ * 语义核心与命运分支分别作为不可拆散的条件契约。
  */
 export const NarrativeRoundMetadataSchema = z.object({
   notableEvents: z.array(z.string().min(1)).optional(),
@@ -161,7 +148,6 @@ export const NarrativeRoundMetadataSchema = z.object({
   branch: z.boolean().optional(),
   branchTitle: NarrativeNonBlankStringSchema.optional(),
   branchOptions: z.array(NarrativeNonBlankStringSchema).min(2).max(4).optional(),
-  intentResolution: NarrativeIntentResolutionSchema.optional(),
   deferredCausality: z.array(NarrativeDeferredCausalitySchema).optional(),
   deliveredCausalDispositions: z.array(NarrativeDeliveredCausalDispositionSchema).optional(),
 }).strict().superRefine((metadata, context) => {
@@ -189,10 +175,10 @@ export const NarrativeRoundMetadataSchema = z.object({
       message: '没有命运分支时应省略字段，不输出 false',
     })
   }
-  if ((metadata.branch || metadata.intentResolution) && semanticCoreCount !== semanticCore.length) {
+  if (metadata.branch && semanticCoreCount !== semanticCore.length) {
     context.addIssue({
       code: 'custom',
-      message: '命运分支或命运意图判定必须同时提交完整语义核心',
+      message: '命运分支必须同时提交完整语义核心',
     })
   }
   if (metadata.branch) {
@@ -214,7 +200,6 @@ export const NarrativeRoundMetadataSchema = z.object({
 
 export type NarrativeSemanticSignals = z.infer<typeof NarrativeSemanticSignalsSchema>
 export type NarrativeRelationshipUpdate = NarrativeSemanticSignals['relationshipUpdates'][number]
-export type NarrativeIntentResolution = z.infer<typeof NarrativeIntentResolutionSchema>
 export type NarrativeDeferredCausality = z.infer<typeof NarrativeDeferredCausalitySchema>
 export type NarrativeDeliveredCausalDisposition = z.infer<
   typeof NarrativeDeliveredCausalDispositionSchema

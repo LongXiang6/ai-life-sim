@@ -1,10 +1,13 @@
-const HIGH_WORD_REPEAT_RATE = 0.8
-const HIGH_NGRAM_SIMILARITY = 0.85
-const WATCH_WORD_REPEAT_RATE = 0.6
-const WATCH_NGRAM_SIMILARITY = 0.7
+/**
+ * Purpose: Normalize and summarize server-validated story-repetition observations.
+ * Owner: operations:ai-observability
+ * Responsibility: Read-only analytics only; runtime quality classification remains server-owned.
+ */
+
 const RECENT_ROUNDS = 5
 const TREND_ROUNDS = 6
 const TREND_DELTA = 0.08
+const STORY_REPETITION_QUALITY_LEVELS = new Set(['normal', 'watch', 'high'])
 
 export function operationalTimestamp(record) {
   const raw = record?.receivedAt ?? record?.timestamp
@@ -19,11 +22,8 @@ export function diagnosticCodeOf(record) {
 }
 
 export function deriveStoryRepetitionQuality(metric) {
-  const wordRepeatRate = Number(metric?.wordRepeatRate)
-  const ngramSimilarity = Number(metric?.maxRecentNgramSimilarity)
-  if (wordRepeatRate >= HIGH_WORD_REPEAT_RATE || ngramSimilarity >= HIGH_NGRAM_SIMILARITY) return 'high'
-  if (wordRepeatRate >= WATCH_WORD_REPEAT_RATE || ngramSimilarity >= WATCH_NGRAM_SIMILARITY) return 'watch'
-  return 'normal'
+  const qualityLevel = metric?.qualityLevel
+  return STORY_REPETITION_QUALITY_LEVELS.has(qualityLevel) ? qualityLevel : undefined
 }
 
 function metricOf(record) {
@@ -59,6 +59,7 @@ function normalizeStoryRow(entry) {
   const wordRepeatRate = numericRate(metric.wordRepeatRate)
   const maxRecentWordOverlap = numericRate(metric.maxRecentWordOverlap)
   const maxRecentNgramSimilarity = numericRate(metric.maxRecentNgramSimilarity)
+  const qualityLevel = deriveStoryRepetitionQuality(metric)
   if (
     !Number.isSafeInteger(windowSize)
     || windowSize < 0
@@ -66,6 +67,7 @@ function normalizeStoryRow(entry) {
     || wordRepeatRate === undefined
     || maxRecentWordOverlap === undefined
     || maxRecentNgramSimilarity === undefined
+    || qualityLevel === undefined
   ) return undefined
   return {
     gameKey: identity.gameKey,
@@ -74,7 +76,7 @@ function normalizeStoryRow(entry) {
     wordRepeatRate,
     maxRecentWordOverlap,
     maxRecentNgramSimilarity,
-    qualityLevel: deriveStoryRepetitionQuality(metric),
+    qualityLevel,
     timestamp: entry.timestamp,
     sequence: entry.sequence,
   }

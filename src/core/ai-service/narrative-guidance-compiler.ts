@@ -1,4 +1,8 @@
 /**
+ * Purpose: Compile stable per-round narrative guidance without changing player input.
+ * Owner: core:ai-service
+ * Responsibility: Deduplicate system guidance and copy the one-shot player action projection only.
+ *
  * @module narrative-guidance-compiler.ts
  * @description 将本轮系统引导与玩家分支投影为稳定、可审计的叙事输入
  * @mod core
@@ -9,7 +13,7 @@ import type { PromptContext } from '@/foundation'
 export interface CompiledNarrativeGuidance {
   /** 已按权威顺序排列并精确去重的本地系统指令。 */
   systemGuidance?: string[]
-  /** 玩家原始分支意图；编译器只复制，不改写其任何内容。 */
+  /** 玩家原始分支行动；编译器只复制，不改写其任何内容。 */
   playerBranchIntent?: Record<string, unknown>
 }
 

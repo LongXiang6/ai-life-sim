@@ -45,20 +45,20 @@ const settingsModal = read('src/mods/mod-settings/components/SettingsModal.tsx')
 const settingsIndex = read('src/mods/mod-settings/index.ts')
 
 assertOk(
-  eventRecognitionContract.includes("version: '3.1.0'")
+  eventRecognitionContract.includes("version: '3.2.0'")
     && eventRecognitionContract.includes("systemPrompt: ''")
-    && eventRecognitionContract.includes("'mod-engine:narrative-event-recognition:3.1.0'")
+    && eventRecognitionContract.includes("'mod-engine:narrative-event-recognition:3.2.0'")
     && eventRecognitionContract.includes("outputFormat: 'json'")
     && eventRecognitionContract.includes('outputSchema: NarrativeAIEventRecognitionDataSchema')
     && eventRecognitionContract.includes('serverPromptAssetId: NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID'),
-  'browser event-recognition PromptTemplate must carry only the 3.1.0 JSON server asset contract',
+  'browser event-recognition PromptTemplate must carry only the 3.2.0 JSON server asset contract',
 )
 assertOk(
-  narrativeContract.includes("version: '5.8.2'")
+  narrativeContract.includes("version: '5.8.3'")
     && narrativeContract.includes("systemPrompt: ''")
-    && narrativeContract.includes("'mod-engine:narrative:5.8.2'")
+    && narrativeContract.includes("'mod-engine:narrative:5.8.3'")
     && narrativeContract.includes('serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID'),
-  'browser narrative PromptTemplate must carry only the 5.8.2 server asset ID',
+  'browser narrative PromptTemplate must carry only the 5.8.3 server asset ID',
 )
 assertOk(
   eventRecognitionServerPrompt.includes('你是人生模拟器的事件识别器')

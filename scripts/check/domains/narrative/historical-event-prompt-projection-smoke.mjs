@@ -1,6 +1,7 @@
 /**
- * P1 历史事件账本 -> 主叙事 Prompt 确定性消费链回归。
- * 边界使用账本公开 collectState 契约桩，避免测试建立第二个事实 Store。
+ * Purpose: Regress deterministic historical-event ledger projection into the main narrative Prompt.
+ * Owner: quality:narrative
+ * Responsibility: Exercise the public ledger state contract without creating a second fact store.
  */
 
 import { buildSegmentedPrompt } from '../../../../src/core/ai-service/prompt-builder.ts'
@@ -241,8 +242,8 @@ assertOk(
   'deterministic historical projection must enter the first narrative input byte-for-byte without an adaptation call',
 )
 assertOk(
-  narrativePrompt.version === '5.8.2',
-  'historical Prompt input semantics must use pure narrative Prompt 5.8.2',
+  narrativePrompt.version === '5.8.3',
+  'historical Prompt input semantics must use pure narrative Prompt 5.8.3',
 )
 assertOk(
   Boolean(historicalProjection)

@@ -17,7 +17,6 @@ import { useSettingsStore } from '@/mods/mod-settings/settings-runtime-api'
 
 import { orchestrator } from '../subsystems/orchestrator-system'
 import { useEngineStore } from '../store'
-import { DEFAULT_WORD_COUNT_TARGET } from '../constants/narrative-config'
 import { PreGenActivityState } from './pre-gen-activity-state'
 
 export interface PreGenCachedRound {

@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 
+/**
+ * Purpose: Regress plaintext AI-log analytics, repetition metrics, and error classification.
+ * Owner: quality:narrative
+ * Responsibility: Test observability contracts only; production logging and analytics remain with their owning modules.
+ */
+
 import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import fs from 'node:fs/promises'
@@ -12,8 +18,10 @@ import {
 } from '../../../../src/core/logger/usage-metrics.ts'
 import {
   buildCanonicalStoryRepetitionSet,
+  deriveStoryRepetitionQuality,
   summarizeStoryRepetitionRows,
 } from '../../../ops/lib/story-repetition-analytics.mjs'
+import { classifyUpstreamError } from '../../../ops/lib/error-classification.mjs'
 
 const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ai-life-log-analytics-'))
 process.env.AI_LOG_DB_PATH = path.join(root, 'logs.sqlite')
@@ -149,6 +157,7 @@ try {
   assert.equal(report.overall.metricKinds.story_repetition, 1)
   assert.equal(report.overall.metricKinds.page_view, undefined, 'removed user-operation metrics must not appear in analytics')
   assert.equal(report.overall.storyRepetition.observedRounds, 1)
+  assert.equal(report.overall.storyRepetition.highRepeatRounds, 1, 'analytics must retain the server-validated quality level')
 
   const inspectResult = spawnSync(process.execPath, [
     'scripts/ops/inspect-ai-logs.mjs',
@@ -172,6 +181,17 @@ try {
   const summary = summarizeStoryRepetitionRows(canonical.rows)
   assert.equal(summary.observedRounds, 1)
   assert.equal(summary.averageWordRepeatRate, 0.25)
+  assert.equal(summary.highRepeatRounds, 0, 'analytics must not reclassify a validated normal row with a second threshold set')
+  assert.equal(
+    deriveStoryRepetitionQuality({ ...metric, qualityLevel: 'watch' }),
+    'watch',
+    'the stored server-validated quality level must remain the analytics authority',
+  )
+
+  assert.equal(classifyUpstreamError('抱歉，您所输入的内容含有违规信息，请重新编辑后再发送'), 'content_policy_rejection')
+  assert.equal(classifyUpstreamError('调用失败：Token 额度不足'), 'insufficient_quota')
+  assert.equal(classifyUpstreamError('Upstream workload deadline exceeded'), 'timeout')
+  assert.equal(classifyUpstreamError('AbortError: This operation was aborted'), 'client_aborted')
 
   console.log('[log-analytics-smoke] PASS')
 } finally {

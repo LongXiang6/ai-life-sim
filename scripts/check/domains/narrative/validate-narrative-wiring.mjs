@@ -61,6 +61,10 @@ const eventRecognitionServerAsset = read('src/mods/mod-engine/server/narrative-e
 const macroImpactServerAsset = read('src/mods/mod-engine/server/narrative-macro-impact-system-prompt.ts')
 const serverPromptAssets = read('src/mods/mod-engine/server-prompt-assets.ts')
 const campaign = read('src/mods/mod-engine/campaigns/default/index.ts')
+const campaignRuntime = read('src/mods/mod-engine/subsystems/orchestrator-system/campaign-stage-runtime.ts')
+const promptGuidanceRuntime = read('src/mods/mod-engine/subsystems/orchestrator-system/prompt-guidance-runtime.ts')
+const narrativeAcceptanceRuntime = read('src/mods/mod-engine/subsystems/orchestrator-system/narrative-acceptance-runtime.ts')
+const narrativeQuality = read('src/mods/mod-engine/helpers/narrative-response-quality.ts')
 const aiClient = readModuleSource('src/core/ai-service/ai-client.ts', ROOT)
 const manifest = read('src/mods/mod-engine/manifest.ts')
 const envelope = read('src/mods/mod-engine/helpers/tagged-meta-envelope.ts')
@@ -69,12 +73,12 @@ for (const field of ['timelineMemory', '本轮可回收伏笔']) {
   assertOk(promptBuilder.includes(field), `prompt-builder 缺少叙事记忆字段 ${field}`)
 }
 assertOk(
-  eventRecognitionPrompt.includes("version: '3.1.0'")
-    && eventRecognitionPrompt.includes("'mod-engine:narrative-event-recognition:3.1.0'")
+  eventRecognitionPrompt.includes("version: '3.2.0'")
+    && eventRecognitionPrompt.includes("'mod-engine:narrative-event-recognition:3.2.0'")
     && eventRecognitionPrompt.includes("outputFormat: 'json'")
     && eventRecognitionPrompt.includes('outputSchema: NarrativeAIEventRecognitionDataSchema')
     && eventRecognitionPrompt.includes('serverPromptAssetId: NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID'),
-  '事件识别调用必须接入唯一 3.1.0 纯 JSON 受保护资产',
+  '事件识别调用必须接入唯一 3.2.0 纯 JSON 受保护资产',
 )
 assertOk(
   promptBuilder.includes('userSegments: [string, string, string]')
@@ -85,10 +89,10 @@ assertOk(
   '第一次调用必须只装配全局信息、记忆和本轮引导三条动态消息',
 )
 assertOk(
-  narrativePrompt.includes("version: '5.8.2'")
-    && narrativePrompt.includes("'mod-engine:narrative:5.8.2'")
+  narrativePrompt.includes("version: '5.8.3'")
+    && narrativePrompt.includes("'mod-engine:narrative:5.8.3'")
     && narrativePrompt.includes('serverPromptAssetId: NARRATIVE_SERVER_PROMPT_ASSET_ID'),
-  '第一次调用必须接入唯一 5.8.2 受保护叙事资产',
+  '第一次调用必须接入唯一 5.8.3 受保护叙事资产',
 )
 assertOk(
   basicAttributePrompt.includes("version: '2.1.0'")
@@ -187,13 +191,44 @@ assertOk(
 )
 assertOk(
   campaign.includes('buildNarrativeRepairInstruction')
-    && campaign.match(/repairAttempts < MAX_FORMAT_REPAIR_ATTEMPTS/gu)?.length === 1
+    && campaign.match(/repairAttempts < MAX_NARRATIVE_REPAIR_ATTEMPTS/gu)?.length === 1
     && !/buildNarrative(?:DataAnalysis|BasicAttributeAnalysis|EventRecognition)RepairInstruction/u.test(campaign)
     && aiClient.includes('export async function validateWithRetry')
     && aiClient.includes('前次输出不是合格的纯 JSON 对象')
     && aiClient.includes('return retryResult || content'),
-  '主叙事保留有界格式修复，四类后台统一由 AI 客户端 JSON Schema 最多修复一次',
+  '主叙事的格式错误与高重复共用两次有界修复预算，四类后台统一由 AI 客户端 JSON Schema 最多修复一次',
 )
+assertOk(
+  promptGuidanceRuntime.includes('buildPlayerRoundActionProjection(freshPlayerChoice)')
+    && !promptGuidanceRuntime.includes("orchestrator['lastPlayerChoice'] = undefined")
+    && narrativeAcceptanceRuntime.includes('consumeAcceptedPlayerRoundAction')
+    && narrativeAcceptanceRuntime.includes('clearPendingNarrativeRoundPreparation(roundSequence)'),
+  '分支选择必须只读投影，并由成功接纳按实际投递原值一次性消费',
+)
+assertOk(
+  campaign.includes('if (ctx._isPreparedRoundRetry) return')
+    && campaign.includes('setPendingNarrativeRoundPreparation({')
+    && campaignRuntime.includes('const executionRoundSequence = runtime.executionRoundSequence')
+    && narrativeQuality.includes("repetitionMetric?.qualityLevel === 'high'")
+    && narrativeQuality.includes('不得只替换同义词')
+    && narrativeAcceptanceRuntime.includes("repetitionMetric.qualityLevel === 'high'")
+    && narrativeAcceptanceRuntime.includes("rejection.name = 'NarrativeGenerationRejectedError'")
+    && campaign.includes('clearPendingNarrative(executionId)'),
+  '主叙事失败重试必须复用同轮执行身份，高重复必须消费既有修复预算并由最终接纳点再次拒绝旁路',
+)
+for (const retiredMarker of [
+  'focusedBranchIntentId',
+  'branchIntents',
+  'archivedBranchIntents',
+  'commitFocusedBranchIntentResolution',
+  'intentResolution',
+  '命运意图判定',
+]) {
+  assertOk(
+    ![orchestrator, promptGuidanceRuntime, narrativeAcceptanceRuntime, eventRecognitionServerAsset].join('\n').includes(retiredMarker),
+    `活动叙事链仍残留已废弃长期意图标记：${retiredMarker}`,
+  )
+}
 assertOk(
   envelope.includes('parseNarrativeResponseEnvelope')
     && !/parseNarrative(?:DataAnalysis|BasicAttributeAnalysis|EventRecognition)Envelope/u.test(envelope)

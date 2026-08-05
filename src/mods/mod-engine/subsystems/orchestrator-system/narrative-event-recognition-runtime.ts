@@ -1,7 +1,7 @@
 /**
  * Purpose: Validate and atomically commit one event-recognition result after narrative acceptance.
  * Owner: mod-engine
- * Responsibility: Commit historical facts, causal dispositions, memories, foreshadowing, and intent resolution.
+ * Responsibility: Commit historical facts, causal dispositions, memories, and foreshadowing.
  */
 
 import type { OrchestratorSystem } from '../orchestrator-system'
@@ -19,9 +19,6 @@ import {
   type CharacterCreation,
   type NarrativeEventCommitData,
 } from '../../orchestrator-shared'
-import {
-  validateIntentResolutionForState,
-} from '../../helpers/branch-intent-resolution'
 import type {
   AcceptedNarrativeRecord,
   NarrativeEventRecognitionResult,
@@ -40,23 +37,6 @@ export function applyNarrativeEventRecognitionRuntime(
     }
     const digest = parsed.digest?.trim()
     if (!digest) throw new Error('事件识别结果缺少结算摘要')
-
-    const expectedIntent = accepted.focusedIntentId
-      ? orchestrator['branchIntents'].find((intent) => intent.intentId === accepted.focusedIntentId)
-      : undefined
-    if (accepted.focusedIntentId && !expectedIntent) {
-      throw new Error(`事件识别对应的命运意图已经不可用：${accepted.focusedIntentId}`)
-    }
-    if (!accepted.focusedIntentId && parsed.intentResolution) {
-      throw new Error('正文接纳时没有待判定命运意图，事件识别不得提交判定')
-    }
-    if (expectedIntent) {
-      const intentResolutionError = validateIntentResolutionForState(
-        expectedIntent,
-        parsed.intentResolution,
-      )
-      if (intentResolutionError) throw new Error(intentResolutionError)
-    }
 
     const dispositions = parsed.deliveredCausalDispositions ?? []
     const expectedCausalIds = new Set(accepted.deliveredCausalEventIds)
@@ -267,18 +247,9 @@ export function applyNarrativeEventRecognitionRuntime(
       accepted.roundContext.contextId,
     )
 
-    const committedIntentResolution = expectedIntent && parsed.intentResolution
-      ? orchestrator['commitFocusedBranchIntentResolution'](parsed.intentResolution, expectedIntent.intentId)
-      : undefined
-    if (expectedIntent && !committedIntentResolution) {
-      throw new Error('命运意图判定未能提交')
-    }
     const narrativeChunk = orchestrator['state'].narrativeHistory.find(
       (entry) => entry.id === accepted.narrativeId,
     )
-    if (narrativeChunk && committedIntentResolution) {
-      narrativeChunk.intentResolution = committedIntentResolution
-    }
     orchestrator['lastNotableEvents'] = parsed.notableEvents ?? []
     orchestrator['updateNarrativeTransitionAudit'](accepted.narrativeId, {
       requestedChangeCount: 0,

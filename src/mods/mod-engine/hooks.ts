@@ -29,7 +29,6 @@ import {
 import { useWorldStore } from '@/mods/mod-world/world-runtime-api'
 
 import { narrativePrompt } from './prompts/narrative-prompt'
-import { DEFAULT_WORD_COUNT_TARGET } from './constants/narrative-config'
 import { clearPreGenQueue, fillPreGenQueue, getPreGenQueueStatus, shiftPreGenQueue, subscribePreGenQueue, waitForPreGenQueueItem, checkAndClearPreGenOnTimeStepChange, type PreGenQueueStatus } from './helpers/pre-gen-queue'
 import { resolveMvpRuntimeReadiness } from './helpers/mvp-runtime-policy'
 import { ensureOrchestratorContextFromStores } from './helpers/save-restore'
@@ -121,7 +120,6 @@ function getSimulationRuntimeReadiness(): {
 /** 将 orchestrator 内部状态同步到 Zustand（UI 读取 store） */
 export function syncOrchestratorToEngineStore(): void {
   const o = orchestrator.getState()
-  const focusedBranchIntent = orchestrator.getFocusedBranchIntent()
   syncSubsystemStoresFromStates(orchestrator.getSubsystemStateSnapshot())
 
   // 合并 resolvedChoice：orchestrator 内部的 narrativeHistory 不携带 resolvedChoice，
@@ -163,13 +161,6 @@ export function syncOrchestratorToEngineStore(): void {
     characterCreations: [...(o.characterCreations ?? [])],
     storyRepetitionStats: structuredClone(o.storyRepetitionStats),
   }))
-  useEngineStore.getState().setBranchIntentProjection({
-    branchIntents: orchestrator.getActiveBranchIntents(),
-    archivedBranchIntents: orchestrator.getArchivedBranchIntents(),
-    ...(focusedBranchIntent
-      ? { focusedBranchIntentId: focusedBranchIntent.intentId }
-      : {}),
-  })
 }
 
 function restoreRuntimeOrSyncStore(): void {
@@ -301,10 +292,7 @@ export function useSimulationAdvance() {
         customModel,
         temperature,
         reasoningEffort,
-        provider,
       } = useSettingsStore.getState()
-      // 从单一来源常量取默认字数，与 orchestrator、pre-gen 共享同一常量
-      const wordCountTarget = useSettingsStore.getState().wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET
 
       const model = customModel || DEFAULT_AI_MODEL
       const aiConfig: AIModelConfig = {
@@ -327,7 +315,9 @@ export function useSimulationAdvance() {
 
       // orchestrator 是运行时单例；同步上下文和步长后直接执行当前真实回合。
       ensureOrchestratorContextFromStores()
-      orchestrator.setTimeStep(useEngineStore.getState().timeStep)
+      if (!orchestrator.getPendingNarrativeRoundPreparation()) {
+        orchestrator.setTimeStep(useEngineStore.getState().timeStep)
+      }
       try {
         // 推进前确保 orchestrator 可执行（避免 pause 后 status=paused 导致空回合）
         orchestrator.start()
@@ -396,7 +386,9 @@ export function useSimulationAdvance() {
         }
         useEngineStore.getState().setNarrativeError(errorMessage)
       } finally {
-        syncOrchestratorToEngineStore()
+        if (!orchestrator.getPendingNarrativeRoundPreparation()) {
+          syncOrchestratorToEngineStore()
+        }
         const runtimeStatus = orchestrator.getState().status
         useEngineStore.getState().setStatus(runtimeStatus === 'complete' ? 'complete' : 'idle')
       }

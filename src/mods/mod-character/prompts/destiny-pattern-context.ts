@@ -1,4 +1,8 @@
 /**
+ * Purpose: Build the dynamic world and character context for destiny-pattern generation.
+ * Owner: mod-character
+ * Responsibility: Prompt context projection only; pattern generation and validation remain with their owning modules.
+ *
  * @module destiny-pattern-context.ts
  * @description 命格 AI 生成 Prompt 上下文组装 —— 精简版仅传世界名、描述、角色
  * @mod mod-character
@@ -15,10 +19,7 @@ import {
   resolveWorldviewStyleHint,
 } from '@/mods/mod-world'
 
-import {
-  AI_DESTINY_PATTERN_BATCH_SIZE,
-  PRESET_DESTINY_PATTERNS,
-} from '../constants'
+import { PRESET_DESTINY_PATTERNS } from '../constants'
 import { prepareFateUserPrompt } from '../utils/fate-kv'
 
 /** description / effect 长度门禁（下限放宽至 20 字以接纳更多合理短描述，上限移除） */

@@ -1,4 +1,8 @@
 /**
+ * Purpose: Assemble dynamic inputs for post-narrative event recognition.
+ * Owner: mod-engine
+ * Responsibility: Project accepted story facts, causal deliveries, and existing candidates only.
+ *
  * @module narrative-event-recognition-context.ts
  * @description 故事返回后的事件识别 AI 动态输入组装器
  * @mod mod-engine
@@ -40,7 +44,6 @@ export function buildNarrativeEventRecognitionPromptInput(input: {
   roundContext: RoundContext
   existingCandidates: readonly HistoricalEventCandidateAudit[]
   recentStories: readonly RecentStoryProjection[]
-  intentCondition?: string
   deliveredCausalEventIds?: readonly string[]
 }): NarrativeEventRecognitionPromptInput {
   assertRecentStoriesAvailable(input.recentStories)
@@ -90,7 +93,6 @@ export function buildNarrativeEventRecognitionPromptInput(input: {
       `⟦回合上下文⟧${JSON.stringify(buildNarrativeAnalysisRoundContext({
         roundContext: input.roundContext,
         allowedEvidenceEventIds,
-        intentCondition: input.intentCondition,
       }))}`,
       `⟦事件相关状态⟧${JSON.stringify(eventStates)}`,
       `⟦本轮已投递因果⟧${JSON.stringify(deliveredCausalEvents)}`,

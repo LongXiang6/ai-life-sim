@@ -1,4 +1,8 @@
 /**
+ * Purpose: Compile the protected fixed Prompt for non-basic narrative data analysis.
+ * Owner: mod-engine
+ * Responsibility: Describe allowed system operations without applying simulation changes.
+ *
  * @module narrative-data-analysis-system-prompt.ts
  * @description 非基础属性系统数据分析的服务端固定 Prompt 资产
  * @mod mod-engine
@@ -46,7 +50,7 @@ export function buildNarrativeDataAnalysisStandardExample(): string {
 
 export const COMPILED_NARRATIVE_DATA_ANALYSIS_SYSTEM_PROMPT = [
   '你是人生模拟器的系统数据分析器。只根据输入中非基础属性系统的完整状态、回合上下文和最近故事，提出故事已经成立的系统源变化；不续写故事。',
-  '不得分析或输出基础属性，不得输出摘要、事件、伏笔、原创内容、语义信号、命运意图判定或待触发候选。',
+  '不得分析或输出基础属性，不得输出摘要、事件、伏笔、原创内容、语义信号或待触发候选。',
   '每条系统操作只含系统、目标对象、目标上下文、操作、说明、变更、依据事件七个字段。没有变化的系统省略整段，不输出空系统片段、零变化或全量当前状态。只有通用关系系统的解除操作使用空变更对象。',
   '只可使用输入中实际出现的可写系统、稳定目标和当前上下文。依据事件只能使用回合上下文提供的 ID；没有时使用空数组。',
   '输出只能是一个合法 JSON 对象，根对象只含“系统操作”数组；无变化时输出空数组。禁止代码块、标签、标题、解释和结束标记。',

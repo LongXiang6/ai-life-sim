@@ -305,18 +305,18 @@ export async function POST(request: Request): Promise<Response> {
 
     if (!baseUrl) {
       await Promise.all([
-        writeCurrentTrace('response', { status: 500, error: 'Missing baseUrl' }),
-        writeCurrentAccessLog(500, 'Missing baseUrl'),
+        writeCurrentTrace('response', { status: 400, error: 'Missing baseUrl' }),
+        writeCurrentAccessLog(400, 'Missing baseUrl'),
       ])
-      return jsonWithRequestId(requestId, { error: 'API Base URL 未配置' }, 500)
+      return jsonWithRequestId(requestId, { error: 'API Base URL 未配置' }, 400)
     }
 
     if (!apiKey) {
       await Promise.all([
-        writeCurrentTrace('response', { status: 500, error: 'Missing API Key' }),
-        writeCurrentAccessLog(500, 'Missing API Key'),
+        writeCurrentTrace('response', { status: 400, error: 'Missing API Key' }),
+        writeCurrentAccessLog(400, 'Missing API Key'),
       ])
-      return jsonWithRequestId(requestId, { error: 'API Key 未配置' }, 500)
+      return jsonWithRequestId(requestId, { error: 'API Key 未配置' }, 400)
     }
 
     // 4. 构建转发请求体

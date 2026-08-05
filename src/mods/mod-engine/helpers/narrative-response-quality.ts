@@ -1,3 +1,9 @@
+/**
+ * Purpose: Validate main narrative and background-analysis responses before their owning systems consume them.
+ * Owner: mod-engine
+ * Responsibility: Parse protocols, classify high repetition, and build bounded repair instructions only.
+ */
+
 import type {
   HistoricalEventCandidateAudit,
   HistoricalEventCandidateInput,
@@ -10,7 +16,6 @@ import {
   buildNarrativeAIProtocolRepairReminder,
   buildNarrativeEventCandidateFingerprint,
   parseNarrativeAIJson,
-  toNarrativeAIIntentId,
   translateNarrativeAIBasicAttributeAnalysis,
   translateNarrativeAIDataAnalysis,
   translateNarrativeAIEventRecognition,
@@ -21,6 +26,10 @@ import {
   type ParsedNarrative,
   validateNarrativeEventMetadataForNarrative,
 } from '../subsystems/narrative-parser-system'
+import {
+  calculateNarrativeRepetitionMetric,
+  type NarrativeRepetitionMetric,
+} from './narrative-repetition-metrics'
 import {
   translateNarrativeMacroImpact,
   type NarrativeMacroImpactNode,
@@ -34,6 +43,7 @@ export interface NarrativeResponseQuality {
   narrativeChars: number
   paragraphCount: number
   lengthAdvisory?: string
+  repetitionMetric?: NarrativeRepetitionMetric
 }
 
 export interface NarrativeSystemAnalysisQuality {
@@ -65,6 +75,10 @@ function errorMessage(error: unknown): string {
 export function inspectNarrativeResponseQuality(
   content: string,
   wordCountTarget: NarrativeWordCountTarget,
+  repetitionContext?: {
+    round: number
+    recentHistory: readonly { round: number; text: string }[]
+  },
 ): NarrativeResponseQuality {
   try {
     const parsed = narrativeParser.parse(content)
@@ -74,6 +88,28 @@ export function inspectNarrativeResponseQuality(
     const lengthAdvisory = narrativeChars < preferredMin || narrativeChars > preferredMax
       ? `正文约 ${narrativeChars} 字，玩家偏好约 ${target} 字（参考区间 ${preferredMin}-${preferredMax} 字）；完整剧情优先，不因字数偏离重写。`
       : undefined
+    const repetitionMetric = repetitionContext
+      ? calculateNarrativeRepetitionMetric({
+          round: repetitionContext.round,
+          text: parsed.narrative,
+          recentHistory: repetitionContext.recentHistory,
+          windowSize: 5,
+        })
+      : undefined
+    if (repetitionMetric?.qualityLevel === 'high') {
+      const matchedRound = repetitionMetric.matchedRound
+        ? `第 ${repetitionMetric.matchedRound} 轮`
+        : '近期故事'
+      return {
+        valid: false,
+        reason: `正文与${matchedRound}高度重复，仅替换字眼没有形成新的剧情推进`,
+        parsed,
+        narrativeChars,
+        paragraphCount,
+        repetitionMetric,
+        ...(lengthAdvisory ? { lengthAdvisory } : {}),
+      }
+    }
 
     return {
       valid: true,
@@ -81,6 +117,7 @@ export function inspectNarrativeResponseQuality(
       parsed,
       narrativeChars,
       paragraphCount,
+      ...(repetitionMetric ? { repetitionMetric } : {}),
       ...(lengthAdvisory ? { lengthAdvisory } : {}),
     }
   } catch (error) {
@@ -155,14 +192,13 @@ export function inspectNarrativeMacroImpactQuality(input: {
   }
 }
 
-/** 事件识别必须同时通过已发生元数据、命运意图、时间锚点与未来候选校验。 */
+/** 事件识别必须同时通过已发生元数据、到期因果、时间锚点与未来候选校验。 */
 export function inspectNarrativeEventRecognitionQuality(input: {
   content: string
   narrative: ParsedNarrative
   currentContextId: string
   currentTotalDays: number
   existingCandidates: readonly HistoricalEventCandidateAudit[]
-  expectedIntentId?: string | null
   deliveredCausalEventIds?: readonly string[]
 }): NarrativeEventRecognitionQuality {
   try {
@@ -170,18 +206,6 @@ export function inspectNarrativeEventRecognitionQuality(input: {
       currentContextId: input.currentContextId,
       currentTotalDays: input.currentTotalDays,
     })
-
-    if (input.expectedIntentId) {
-      if (!result.metadata.intentResolution) {
-        throw new Error(`当前命运意图必须提交判定：${toNarrativeAIIntentId(input.expectedIntentId)}`)
-      }
-      if (result.metadata.intentResolution.intentId !== input.expectedIntentId) {
-        throw new Error(`命运意图编号必须等于 ${toNarrativeAIIntentId(input.expectedIntentId)}`)
-      }
-    } else if (result.metadata.intentResolution) {
-      throw new Error('当前没有待判定命运意图，事件识别不得提交命运意图判定')
-    }
-
     const expectedCausalIds = new Set(input.deliveredCausalEventIds ?? [])
     const causalDispositions = result.metadata.deliveredCausalDispositions ?? []
     const returnedCausalIds = new Set<string>()
@@ -251,9 +275,16 @@ export function buildNarrativeRepairInstruction(
   requestBranch = false,
 ): string {
   const { target } = resolveNarrativeWordCountRange(wordCountTarget)
+  const repetitionRepair = quality.repetitionMetric?.qualityLevel === 'high'
+    ? [
+        '上一版正文与近期已经发布的故事高度重复。保留连续性和已经成立的事实，但不得复述同一天、同一行动和同一结果，也不得只替换同义词。',
+        '必须从本轮时间节点和玩家明确行动继续，写出新的行动、变化与可见后果，再返回完整最终结果。',
+      ]
+    : []
   return [
     '请保留上一版已经成立的剧情事实，并参照系统提示词末尾的唯一 content 返回结构示例重写完整最终结果。',
     `需要修正：${quality.reason}。`,
+    ...repetitionRepair,
     `玩家偏好约 ${target} 字只作节奏参考；格式修复仍需完整保留剧情事实与因果。`,
     ...buildNarrativeAIProtocolRepairReminder(requestBranch),
   ].join('\n')

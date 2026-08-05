@@ -35,13 +35,6 @@ import {
   createNarrativeLifeRunId,
   summarizeNarrativeHistoryRepetition,
 } from './narrative-repetition-metrics'
-import {
-  isBranchIntentProjectionConsistent,
-  normalizeBranchIntentProjection,
-  rebuildBranchIntentsFromHistory,
-  type BranchIntentHistoryEntry,
-  type BranchIntentProjection,
-} from './branch-intent-resolution'
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -184,42 +177,11 @@ export async function applyGameSave(data: Record<string, unknown>): Promise<void
   const restoredRepetitionStats = summarizeNarrativeHistoryRepetition(
     Array.isArray(engine.narrativeHistory) ? engine.narrativeHistory : [],
   )
-  const history = Array.isArray(engine.narrativeHistory) ? engine.narrativeHistory : []
-  const rebuiltIntents = rebuildBranchIntentsFromHistory(history
-    .filter(isPlainRecord)
-    .map((entry, index): BranchIntentHistoryEntry => ({
-      id: typeof entry.id === 'string' ? entry.id : undefined,
-      resolvedChoice: typeof entry.resolvedChoice === 'string' ? entry.resolvedChoice : undefined,
-      resolvedChoiceRound: typeof entry.resolvedChoiceRound === 'number'
-        ? entry.resolvedChoiceRound
-        : undefined,
-      intentResolution: entry.intentResolution as BranchIntentHistoryEntry['intentResolution'],
-      round: entry.repetitionMetric?.round ?? index + 1,
-    })))
-  const rebuiltProjection: BranchIntentProjection = {
-    branchIntents: rebuiltIntents.intents,
-    archivedBranchIntents: rebuiltIntents.archivedIntents ?? [],
-    ...(rebuiltIntents.focusedIntentId
-      ? { focusedBranchIntentId: rebuiltIntents.focusedIntentId }
-      : {}),
-  }
-  const persistedProjection = normalizeBranchIntentProjection({
-    branchIntents: engine.branchIntents,
-    archivedBranchIntents: engine.archivedBranchIntents,
-    focusedBranchIntentId: engine.focusedBranchIntentId,
-  })
-  const branchIntentProjection = persistedProjection
-    && isBranchIntentProjectionConsistent(persistedProjection, rebuiltProjection)
-    ? persistedProjection
-    : rebuiltProjection
   useEngineStore.setState((prev) => ({
       ...prev,
       ...engine,
       lifeRunId: restoredLifeRunId,
       storyRepetitionStats: restoredRepetitionStats,
-      branchIntents: branchIntentProjection.branchIntents,
-      archivedBranchIntents: branchIntentProjection.archivedBranchIntents,
-      focusedBranchIntentId: branchIntentProjection.focusedBranchIntentId,
       narrativeError: null,
       resolvedBranches: engine.resolvedBranches ?? {},
       forceBranchNext: engine.forceBranchNext ?? false,

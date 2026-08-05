@@ -97,7 +97,7 @@ assert.match(hooksSource, /setPrefetchedNarrative\(cached\.fullContent, cached\.
 assert.match(campaignSource, /orchestrator\.advanceAllSubsystems\(\)/)
 assert.ok(Object.values(runtimeConfig.stages).every((stage) => !stage.systemInstruction.includes('luck')))
 assert.doesNotMatch(fieldRegistry, /['"]luck['"]:\s*\{[\s\S]*validated-write/)
-assert.match(systemPromptSource, /玩家自定义分支内容 > 低优先级运气方向与其他参考建议/)
-assert.match(campaignSource, /const cachedNarrative = orchestrator\.consumePrefetchedNarrative\(\)/)
+assert.match(systemPromptSource, /本轮玩家行动 > 低优先级运气方向与其他参考建议/)
+assert.match(campaignSource, /orchestrator\.consumePrefetchedNarrative\(\)/)
 
 console.log('PASS: luck-guidance-smoke')

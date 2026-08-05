@@ -38,7 +38,6 @@ import {
   RoundCommitBus,
   readEraStartYearFromConfig,
   readBirthEraYearFromConfig,
-  DEFAULT_WORD_COUNT_TARGET,
   simulationBridge,
   TimeSystem,
   timeSystem,
@@ -89,21 +88,7 @@ import {
   type DevelopmentSystemStatus,
 } from '@/core/logger/development-system-diagnostic'
 import { useCharacterStore } from '@/mods/mod-character'
-import {
-  type NarrativeIntentResolution,
-  type NarrativeRoundMetadata,
-} from '../helpers/narrative-semantic-signals'
-import {
-  commitBranchIntentResolution,
-  findFocusedBranchIntent,
-  findMostRecentlyUpdatedBranchIntentId,
-  isBranchIntentProjectionConsistent,
-  normalizeBranchIntentProjection,
-  rebuildBranchIntentsFromHistory,
-  upsertBranchIntent,
-  type BranchIntentProjection,
-  type BranchIntentState,
-} from '../helpers/branch-intent-resolution'
+import type { NarrativeRoundMetadata } from '../helpers/narrative-semantic-signals'
 import { getSeasonForMonth } from '../helpers/calendar-season.js'
 import type { NarrativeTimelineEntry } from '../helpers/timeline-memory'
 import {
@@ -220,12 +205,6 @@ export interface OrchestratorPersistenceState {
   lastSessionId?: string
   lastExecutedFullContent?: string | null
   lastPlayerChoice?: string
-  consecutiveSameGoalRounds?: number
-  lastCommittedPlayerChoice?: string
-  branchIntents?: BranchIntentState[]
-  focusedBranchIntentId?: string
-  /** 终态/被新目标替代的意图历史；只用于连续性审计，不进入活动主线 Prompt。 */
-  archivedBranchIntents?: BranchIntentState[]
   prefetchedNarrativeContent?: string | null
   prefetchedLuckGuidance?: LuckNarrativeGuidance | null
   lastNarrativeLuckGuidance?: LuckNarrativeGuidance | null
@@ -268,7 +247,7 @@ interface AcceptedNarrativeRecord {
   roundContext: RoundContext
   narrative: ParsedNarrative
   deliveredCausalEventIds: string[]
-  focusedIntentId?: string
+  playerChoice?: string
 }
 
 interface NarrativeSystemAnalysisResult {
@@ -368,18 +347,15 @@ export class OrchestratorSystem extends BaseSubsystem {
   /** 玩家分支选择（注入下一轮 Prompt，一次性消费） */
   private lastPlayerChoice?: string
 
-  /** 连续选择同一目标轮数（用于叙事节奏控制） */
-  private consecutiveSameGoalRounds = 0
-
-  /** 上轮是否为分叉点且已被解决 */
-  /** 缓存的上轮玩家选择（用于进度对比） */
-  private lastCommittedPlayerChoice?: string
-
-  /** 所有尚未进入终态的命运选择；不得因新分支或容量压力静默丢失。 */
-  private branchIntents: BranchIntentState[] = []
-  private archivedBranchIntents: BranchIntentState[] = []
-  /** 本轮主叙事必须评估并推进的命运意图。 */
-  private focusedBranchIntentId?: string
+  /** 叙事失败后复用已经推进完成的同一回合输入；仅运行态，不进入存档。 */
+  private pendingNarrativeRoundPreparation?: {
+    lifeRunId: string
+    roundSequence: number
+    promptContext: PromptContext
+    playerChoice?: string
+    eventInjectionText?: string
+    legendaryEncounterInjected?: boolean
+  }
 
   /** 预生成缓存：跳过 AI 叙事阶段 */
   private prefetchedNarrativeContent: string | null = null
@@ -724,56 +700,47 @@ export class OrchestratorSystem extends BaseSubsystem {
   }
 
   setLastPlayerChoice(choice: string): void {
-    const trimmed = choice.trim() || undefined
-    if (trimmed && trimmed === this.lastCommittedPlayerChoice) {
-      this.consecutiveSameGoalRounds++
-    } else if (trimmed) {
-      this.consecutiveSameGoalRounds = 1
-    } else {
-      this.consecutiveSameGoalRounds = 0
-    }
-    this.lastPlayerChoice = trimmed
+    this.lastPlayerChoice = choice.trim() || undefined
   }
 
-  private getFocusedBranchIntentRuntime(): BranchIntentState | undefined {
-    return findFocusedBranchIntent(this.branchIntents, this.focusedBranchIntentId)
+  getPendingPlayerChoice(): string | undefined {
+    return this.lastPlayerChoice
   }
 
-  getFocusedBranchIntent(): BranchIntentState | undefined {
-    const intent = this.getFocusedBranchIntentRuntime()
-    return intent ? structuredClone(intent) : undefined
+  getPendingNarrativeRoundPreparation(): {
+    lifeRunId: string
+    roundSequence: number
+    promptContext: PromptContext
+    playerChoice?: string
+    eventInjectionText?: string
+    legendaryEncounterInjected?: boolean
+  } | undefined {
+    const pending = this.pendingNarrativeRoundPreparation
+    if (!pending || pending.lifeRunId !== this.state.lifeRunId) return undefined
+    return structuredClone(pending)
   }
 
-  getActiveBranchIntents(): BranchIntentState[] {
-    return structuredClone(this.branchIntents)
+  setPendingNarrativeRoundPreparation(input: {
+    roundSequence: number
+    promptContext: PromptContext
+    playerChoice?: string
+    eventInjectionText?: string
+    legendaryEncounterInjected?: boolean
+  }): void {
+    this.pendingNarrativeRoundPreparation = structuredClone({
+      lifeRunId: this.state.lifeRunId,
+      ...input,
+    })
   }
 
-  getArchivedBranchIntents(): BranchIntentState[] {
-    return structuredClone(this.archivedBranchIntents)
+  clearPendingNarrativeRoundPreparation(roundSequence?: number): void {
+    if (roundSequence !== undefined
+      && this.pendingNarrativeRoundPreparation?.roundSequence !== roundSequence) return
+    this.pendingNarrativeRoundPreparation = undefined
   }
 
   getLifeGeneration(): number {
     return this.lifeGeneration
-  }
-
-  private focusMostRecentlyUpdatedBranchIntent(): void {
-    this.focusedBranchIntentId = findMostRecentlyUpdatedBranchIntentId(this.branchIntents)
-  }
-
-  private getBranchIntentProjection(): BranchIntentProjection {
-    return {
-      branchIntents: this.branchIntents,
-      archivedBranchIntents: this.archivedBranchIntents,
-      ...(this.focusedBranchIntentId
-        ? { focusedBranchIntentId: this.focusedBranchIntentId }
-        : {}),
-    }
-  }
-
-  private syncBranchIntentProjectionToEngineStore(): void {
-    if (!useEngineStore.getState().setBranchIntentProjection(this.getBranchIntentProjection())) {
-      console.warn('[BranchIntent] 运行态投影未通过持久化校验，已保留上一份 Store 投影')
-    }
   }
 
   resolveBranchChoice(branchId: string, choice: string): void {
@@ -785,16 +752,7 @@ export class OrchestratorSystem extends BaseSubsystem {
         ? { ...entry, resolvedChoice: trimmed, resolvedChoiceRound: this.state.totalRounds }
         : entry,
     )
-    const next = upsertBranchIntent(this.branchIntents, branchId, trimmed, this.state.totalRounds)
-    this.branchIntents = next.intents
-    this.focusedBranchIntentId = next.focusedIntentId
-    if (next.archivedIntents?.length) {
-      this.archivedBranchIntents = [
-        ...this.archivedBranchIntents,
-        ...next.archivedIntents,
-      ]
-    }
-    this.syncBranchIntentProjectionToEngineStore()
+    this.lastPlayerChoice = trimmed
   }
 
   setPrefetchedNarrative(
@@ -865,11 +823,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       lastSessionId: this.lastSessionId,
       lastExecutedFullContent: this.lastExecutedFullContent,
       lastPlayerChoice: this.lastPlayerChoice,
-      consecutiveSameGoalRounds: this.consecutiveSameGoalRounds,
-      lastCommittedPlayerChoice: this.lastCommittedPlayerChoice,
-      branchIntents: this.branchIntents,
-      focusedBranchIntentId: this.focusedBranchIntentId,
-      archivedBranchIntents: this.archivedBranchIntents,
       prefetchedNarrativeContent: this.prefetchedNarrativeContent,
       prefetchedLuckGuidance: this.prefetchedLuckGuidance,
       lastNarrativeLuckGuidance: this.lastNarrativeLuckGuidance,
@@ -927,44 +880,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.pendingNarrativeCausalEventIds = []
     this.compressionGateFailure = null
     this.lastPlayerChoice = state.lastPlayerChoice
-    this.consecutiveSameGoalRounds = state.consecutiveSameGoalRounds ?? 0
-    this.lastCommittedPlayerChoice = state.lastCommittedPlayerChoice
-    const rebuilt = rebuildBranchIntentsFromHistory(
-      this.state.narrativeHistory.map((entry, index) => ({
-        id: entry.id,
-        resolvedChoice: entry.resolvedChoice,
-        resolvedChoiceRound: entry.resolvedChoiceRound,
-        intentResolution: entry.intentResolution,
-        round: entry.repetitionMetric?.round ?? index + 1,
-      })),
-    )
-    const storedBranchProjection = state.branchIntents !== undefined
-      || state.archivedBranchIntents !== undefined
-      || state.focusedBranchIntentId !== undefined
-    const persistedProjection = storedBranchProjection
-      ? normalizeBranchIntentProjection({
-          branchIntents: state.branchIntents ?? [],
-          archivedBranchIntents: state.archivedBranchIntents ?? [],
-          focusedBranchIntentId: state.focusedBranchIntentId,
-        })
-      : undefined
-    const rebuiltProjection: BranchIntentProjection = {
-      branchIntents: rebuilt.intents,
-      archivedBranchIntents: rebuilt.archivedIntents ?? [],
-      ...(rebuilt.focusedIntentId
-        ? { focusedBranchIntentId: rebuilt.focusedIntentId }
-        : {}),
-    }
-    const restoredProjection = persistedProjection
-      && isBranchIntentProjectionConsistent(persistedProjection, rebuiltProjection)
-      ? persistedProjection
-      : rebuiltProjection
-    this.branchIntents = restoredProjection.branchIntents
-    this.archivedBranchIntents = restoredProjection.archivedBranchIntents
-    this.focusedBranchIntentId = restoredProjection.focusedBranchIntentId
-    if (!this.getFocusedBranchIntentRuntime()) {
-      this.focusMostRecentlyUpdatedBranchIntent()
-    }
+    this.pendingNarrativeRoundPreparation = undefined
     this.prefetchedNarrativeContent = state.prefetchedNarrativeContent ?? null
     this.prefetchedLuckGuidance = state.prefetchedLuckGuidance
       ? structuredClone(state.prefetchedLuckGuidance)
@@ -1032,7 +948,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       resolvedBranches: prev.resolvedBranches,
       forceBranchNext: prev.forceBranchNext,
     }))
-    this.syncBranchIntentProjectionToEngineStore()
     this.reconcileAcceptedNarrativeRecords()
   }
 
@@ -1548,6 +1463,7 @@ export class OrchestratorSystem extends BaseSubsystem {
   /** 取消尚未提交的旧人生异步操作；真实回合失败不会恢复旧运行态。 */
   invalidatePendingLifeOperations(): void {
     this.lifeGeneration += 1
+    this.pendingNarrativeRoundPreparation = undefined
   }
 
   reset(): void {
@@ -1600,12 +1516,8 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.acceptedNarrativeRecords.clear()
     this.narrativeBackgroundInbox.reset()
     this.lastPlayerChoice = undefined
-    this.lastCommittedPlayerChoice = undefined
-    this.branchIntents = []
-    this.archivedBranchIntents = []
-    this.focusedBranchIntentId = undefined
+    this.pendingNarrativeRoundPreparation = undefined
     this.pendingNarrativeCausalEventIds = []
-    this.consecutiveSameGoalRounds = 0
     this.prefetchedNarrativeContent = null
     this.prefetchedLuckGuidance = null
     this.lastNarrativeLuckGuidance = null
@@ -1623,13 +1535,13 @@ export class OrchestratorSystem extends BaseSubsystem {
     digestLedger.reset()
     this.narrativeMemoryRecall = []
     globalDeadLoopDetector.resetAll()
-    this.syncBranchIntentProjectionToEngineStore()
   }
 
   /** 读档后从 EngineStore 恢复 orchestrator 内部状态 */
   hydrateFromEngineStore(previousTimeStep?: TimeStep): void {
     this.acceptedNarrativeRecords.clear()
     this.narrativeBackgroundInbox.reset()
+    this.pendingNarrativeRoundPreparation = undefined
     const store = useEngineStore.getState()
     const lastAutoSaveRound = resolveRestoredAutoSaveRound(
       store.lastAutoSaveRound,
@@ -1662,38 +1574,9 @@ export class OrchestratorSystem extends BaseSubsystem {
       characterCreations: [...(store.characterCreations ?? [])] as CharacterCreation[],
       storyRepetitionStats,
     }
-    const rebuiltIntents = rebuildBranchIntentsFromHistory(
-      narrativeHistory.map((entry, index) => ({
-        id: entry.id,
-        resolvedChoice: entry.resolvedChoice,
-        resolvedChoiceRound: entry.resolvedChoiceRound,
-        intentResolution: entry.intentResolution,
-        round: entry.repetitionMetric?.round ?? index + 1,
-      })),
-    )
-    const persistedProjection = normalizeBranchIntentProjection({
-      branchIntents: store.branchIntents,
-      archivedBranchIntents: store.archivedBranchIntents,
-      focusedBranchIntentId: store.focusedBranchIntentId,
-    })
-    const rebuiltProjection: BranchIntentProjection = {
-      branchIntents: rebuiltIntents.intents,
-      archivedBranchIntents: rebuiltIntents.archivedIntents ?? [],
-      ...(rebuiltIntents.focusedIntentId
-        ? { focusedBranchIntentId: rebuiltIntents.focusedIntentId }
-        : {}),
-    }
-    const restoredProjection = persistedProjection
-      && isBranchIntentProjectionConsistent(persistedProjection, rebuiltProjection)
-      ? persistedProjection
-      : rebuiltProjection
-    this.branchIntents = restoredProjection.branchIntents
-    this.archivedBranchIntents = restoredProjection.archivedBranchIntents
-    this.focusedBranchIntentId = restoredProjection.focusedBranchIntentId
     if (store.lifeRunId !== lifeRunId || store.storyRepetitionStats !== storyRepetitionStats) {
       useEngineStore.setState({ lifeRunId, narrativeHistory, storyRepetitionStats })
     }
-    this.syncBranchIntentProjectionToEngineStore()
     if (lastAutoSaveRound !== store.lastAutoSaveRound) {
       useEngineStore.getState().setLastAutoSaveRound(lastAutoSaveRound)
     }
@@ -1821,38 +1704,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     }
   }
 
-  private commitFocusedBranchIntentResolution(
-    resolution: NarrativeIntentResolution,
-    focusedIntentId = this.focusedBranchIntentId,
-  ): NarrativeIntentResolution | undefined {
-    const result = commitBranchIntentResolution(
-      this.branchIntents,
-      focusedIntentId,
-      resolution,
-      this.state.totalRounds,
-    )
-    if (result.error || !result.committed) {
-      console.warn('[BranchIntent] 已拒绝不一致的 intentResolution:', result.error)
-      return undefined
-    }
-
-    this.branchIntents = result.intents
-    this.focusedBranchIntentId = result.focusedIntentId
-    if (result.archivedIntents?.length) {
-      this.archivedBranchIntents = [
-        ...this.archivedBranchIntents,
-        ...result.archivedIntents,
-      ]
-    }
-    if (result.terminal) {
-      this.consecutiveSameGoalRounds = 0
-    } else {
-      this.consecutiveSameGoalRounds = Math.max(1, this.consecutiveSameGoalRounds + 1)
-    }
-
-    return result.committed
-  }
-
   private getHistoricalEventLedgerRuntime(): HistoricalEventLedgerRuntime | undefined {
     return getHistoricalEventLedgerRuntimeRuntime(this)
   }
@@ -1896,8 +1747,11 @@ export class OrchestratorSystem extends BaseSubsystem {
     )
   }
 
-  acceptNarrativeResponse(parsed: ParsedNarrative): AcceptedNarrativeResult {
-    return acceptNarrativeResponseRuntime(this, parsed)
+  acceptNarrativeResponse(
+    parsed: ParsedNarrative,
+    playerChoice?: string,
+  ): AcceptedNarrativeResult {
+    return acceptNarrativeResponseRuntime(this, parsed, playerChoice)
   }
 
   launchNarrativeBackgroundAnalysis<TResult>(input: {
@@ -1982,10 +1836,12 @@ export class OrchestratorSystem extends BaseSubsystem {
   private runStageMachine(
     stages: NarrativeStage[],
     context: RoundContext,
+    executionRoundSequence: number,
   ): Promise<void> {
     return this.campaignStageRuntime.run(stages, context, {
       lifeRunId: this.state.lifeRunId,
       totalRounds: this.state.totalRounds,
+      executionRoundSequence,
       pushDiagnosticPhase: (phase) => this.pushDiagnosticPhase(phase),
     })
   }
@@ -2006,12 +1862,11 @@ export class OrchestratorSystem extends BaseSubsystem {
     aiConfig: AIModelConfig,
     sessionId?: string,
   ): Promise<RoundResult> {
-    // 从单一来源常量取默认字数，与 Prompt 组装、pre-gen、hooks 共享同一常量
-    const settings = useSettingsStore.getState()
-    const wordCountTarget = settings.wordCountTarget ?? DEFAULT_WORD_COUNT_TARGET
     const effectiveAiConfig: AIModelConfig = { ...aiConfig }
+    const pendingPreparation = this.getPendingNarrativeRoundPreparation()
+    const executionRoundSequence = pendingPreparation?.roundSequence ?? this.state.totalRounds + 1
     // 先建立真实回合诊断，再加载阶段定义；这样阶段缺失或初始化异常也有可追溯记录。
-    this.beginRoundDiagnostic(this.state.totalRounds + 1)
+    this.beginRoundDiagnostic(executionRoundSequence)
     const stages = await this.loadCampaignStages(effectiveAiConfig, promptTemplate, sessionId)
 
     // 没有 campaign 阶段定义 → 报错（不应静默回退）
@@ -2027,7 +1882,7 @@ export class OrchestratorSystem extends BaseSubsystem {
       this.finishRoundDiagnostic('failed', error)
       throw error
     }
-    if (this.shouldStop()) {
+    if (!pendingPreparation && this.shouldStop()) {
       this.state.status = 'complete'
       return { narrative: '', changes: [], notableEvents: [] }
     }
@@ -2037,7 +1892,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.lastSessionId = sessionId
     // 每次执行都从空结果开始，避免预览/HMR 后沿用上一轮完整响应。
     this.lastExecutedFullContent = null
-    this.lastNarrativeLuckGuidance = null
+    if (!pendingPreparation) this.lastNarrativeLuckGuidance = null
     const context = this.buildRoundContext()
 
     // Instrument: onRoundStart
@@ -2048,7 +1903,7 @@ export class OrchestratorSystem extends BaseSubsystem {
 
     try {
       // 使用阶段机驱动回合管线
-      await this.runStageMachine(stages, context)
+      await this.runStageMachine(stages, context, executionRoundSequence)
 
       if (!this.lastExecutedFullContent) {
         const rejection = new Error('叙事生成结果未通过完整性与结构门禁，本轮未推进，请重新尝试。')

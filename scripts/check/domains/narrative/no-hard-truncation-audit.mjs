@@ -54,7 +54,6 @@ const health = read('src/mods/mod-character/subsystems/health-system.ts')
 const memoryEngine = read('src/mods/mod-engine/subsystems/memory-engine-system.ts')
 const forgetting = read('src/mods/mod-engine/subsystems/memory-forgetting-system.ts')
 const eventLifecycle = read('src/mods/mod-engine/helpers/event-lifecycle-tracker.ts')
-const branchIntent = read('src/mods/mod-engine/helpers/branch-intent-resolution.ts')
 const narrativePrompt = read('src/mods/mod-engine/prompts/narrative-prompt.ts')
 const narrativeSignals = read('src/mods/mod-engine/helpers/narrative-semantic-signals.ts')
 const subsystemRelevance = read('src/mods/mod-engine/subsystems/subsystem-relevance-system.ts')
@@ -223,12 +222,12 @@ reject(memoryEngine, /majorEvents\.slice\(-3\)|relationships\.shift\(|majorEvent
 reject(forgetting, /causalEvents\.shift\(/, 'causal protection marks must not be evicted by capacity')
 reject(eventLifecycle, /activeDisasters\.slice\(/, 'event lifecycle must not ignore disasters after a fixed count')
 reject(narrativePrompt, /digest:[^\n]*(?:不超过|最多)\d+|keyEvents:[^\n]*最多\d+|entities[^\n]*最多\d+|relationshipUpdates:[^\n]*最多\d+|resolvedForeshadowingIds:[^\n]*最多\d+|notableEvents:[^\n]*最多\d+|creations:[^\n]*最多\d+|foreshadowing:[^\n]*最多\d+/, 'narrative Prompt must not induce fixed character or item limits on semantic META')
-assertOk(narrativePrompt.includes("version: '5.8.2'"), 'no-truncation narrative contract must use pure narrative Prompt version 5.8.2')
+assertOk(narrativePrompt.includes("version: '5.8.3'"), 'no-truncation narrative contract must use pure narrative Prompt version 5.8.3')
 assertOk(
-  branchIntent.includes('其他未完成命运意图；保持事实连续，不得静默删除')
-    && orchestrator.includes('branchIntents: this.branchIntents')
-    && orchestrator.includes('intentResolution: entry.intentResolution'),
-  'unresolved branch intents and accepted terminal results must remain traceable across persistence and narrative history',
+  orchestrator.includes('resolvedChoice: trimmed')
+    && orchestrator.includes('lastPlayerChoice: this.lastPlayerChoice')
+    && !orchestrator.includes('focusedBranchIntentId'),
+  'resolved branch history must remain complete while the next-round action stays one-shot',
 )
 reject(narrativeSignals, /maxLength|maxItems|z\.string\(\)(?:\.min\([^)]*\))?\.max\(|relationshipUpdates:[\s\S]{0,180}\.strict\(\)\)\.max\(|resolvedForeshadowingIds:[^\n]*\.max\(|notableEvents:[^\n]*\.max\(|creations:[^\n]*\.max\(|foreshadowing:[^\n]*\.max\(|keyEvents:[^\n]*\.max\(/, 'narrative Schema must not reject complete semantic text or arrays by fixed size')
 reject(subsystemRelevance, /stateHistory\[subsystemId\]\.shift\(|this\.changeRecords\s*=\s*this\.changeRecords\.filter/, 'subsystem relevance must retain complete state and change history behind its recent read window')
