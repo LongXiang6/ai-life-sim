@@ -38,7 +38,7 @@ TimeSystem
 └─ 业务层 mods
    ├─ 页面与共享界面
    ├─ 核心模拟与当前活动业务系统
-   └─ 已声明但尚未进入当前 MVP 的扩展模拟系统
+   └─ 未进入活动清单的普通源码与页面能力
       ↓
 核心层 core
 ├─ MOD 加载与运行时注册
@@ -113,39 +113,76 @@ TimeSystem
 | QQ 集成 | 提供账号绑定、积分与 QQ 投影 | 通过回环 API、签名请求和账号服务执行集成 | `src/core/account/qq-bot-integration.ts`、`qq-points-service.ts`、集成 API；详细契约为 `docs/qq-bot-integration-contract.md` |
 | Foundation | 提供跨层公共类型和稳定子系统契约 | 上层依赖公共定义完成编译期和运行时边界校验 | `src/foundation/`；不包含产品流程或页面状态 |
 
+## 四个核心所有者
+
+当前核心模拟以四个叙事事实所有者为中心。被合并的旧概念仍可出现在剧情中，但不再拥有独立推进器、Store、Prompt 段或存档快照。
+
+| 中文名称 | 机器标识与所有者 | 当前用途 | 不再承担 |
+|---|---|---|---|
+| 世界区域系统 | `spatial-graph` / `mod-world` | 保存世界形态、区域节点、区域关联、当前区域和紧凑区域概况；区域概况包含叙事所需的气候、生态、资源、污染、人口、聚落、经济、文化、教育、社会结构、势力、法律和冲突背景 | 不追踪人物精确位置，不创建世界实体目录，不分别推进环境、经济、政治或文化状态 |
+| 角色状态系统 | `character-base` / `mod-character` | 保存基础属性、起始年龄、当前年龄、AI 生成的生命阶段、健康、气运、道德、叙事寿命上限、死亡事实和尾声 | 不保留独立寿命、生命周期、健康、气运或道德系统；达到寿命上限只增加终局风险，不自动判定老死 |
+| 统一记忆系统 | `memory-lifecycle` / `mod-engine`，由 `summary-compressor` 生成压缩节点 | 统一保存人物关系连续性、玩家原创事实、时间段、事件、权重、区域和可检索时间轴；主叙事只消费公开的“时间 + 事件”投影 | 不保留独立关系图、NPC 私有记忆、记忆抽取、记忆遗忘或核心记忆第二真源 |
+| 时间日历系统 | `time` / `mod-engine` | 统一推进规范时间、年龄、季节、游戏历法和节日范围；中国节日默认，可选加入国际节日，并向主叙事提供当前日期、季节、节日和生命阶段提示 | 不保留独立天象或纪元推进系统，不使用回合数替代剧情时间，不设置整局最大回合数 |
+
+## 当前活动成员
+
+`src/mods/mod-engine/helpers/mvp-stages-config.default.json` 当前唯一登记 13 个外部业务成员和 9 个引擎成员，共 22 个。中文名称用于产品与权威说明，机器标识只用于注册、路由、状态和测试。
+
+### 外部业务成员
+
+| 中文名称 | 机器标识 | 用途与所有者 |
+|---|---|---|
+| 世界上下文注册系统 | `world-context-registry` | `mod-world` 登记世界上下文和当前上下文身份 |
+| 上下文能力配置系统 | `contextual-capability-profile` | `mod-world` 判断当前世界允许哪些能力和题材插件生效 |
+| 世界区域系统 | `spatial-graph` | `mod-world` 保存世界形态、区域关系、当前区域和区域概况 |
+| 上下文切换系统 | `context-transition` | `mod-world` 在不同世界上下文之间切换并同步规范时间锚点 |
+| 模拟范围策略系统 | `simulation-scope-policy` | `mod-world` 决定当前、后台和冻结上下文的运行范围 |
+| 世界初始化系统 | `world-init` | `mod-world` 复用现有初始化 AI 生成世界校准、区域概况和角色生命阶段模板 |
+| 历史事件账本系统 | `historical-event-ledger` | `mod-history-dynamics` 保存已确认事件、证据、候选和因果关系 |
+| 通用成长系统 | `growth-system` | `mod-progression` 保存技能、稳定能力和来源化成长记录；不再维护成就或声望状态 |
+| 角色状态系统 | `character-base` | `mod-character` 统一拥有属性、年龄阶段、健康、气运、道德、寿命风险、死亡和尾声 |
+| 命格系统 | `destiny-pattern` | `mod-character` 保存创建期命格和其属性、叙事效果 |
+| 知识与技术系统 | `culture-tech` | `mod-tech-level` 保存仍被保留的知识成熟、研究能力和技术应用状态 |
+| 通用力量框架系统 | `combat-power` | `mod-power-system` 保存世界内力量阶位和力量进度 |
+| 修炼适配系统 | `cultivation` | `mod-power-system` 处理训练、瓶颈和突破规则 |
+
+### 引擎成员
+
+| 中文名称 | 机器标识 | 用途 |
+|---|---|---|
+| 时间日历系统 | `time` | 推进规范时间、季节、日期和节日上下文 |
+| 回合编排系统 | `orchestrator` | 编排本轮目标、活动成员、AI 调用、提交和终态 |
+| 叙事解析系统 | `narrative-parser` | 解析玩家可见正文和可选分支协议 |
+| 摘要压缩系统 | `summary-compressor` | 按 4/16/64 轮生成分层时间轴摘要 |
+| 子系统相关性系统 | `subsystem-relevance` | 选择本轮需要进入主叙事的紧凑状态摘要 |
+| 统一记忆系统 | `memory-lifecycle` | 保存、检索、衰减和投影统一剧情时间轴 |
+| 延迟因果系统 | `causal-delay` | 登记并解决跨时间的延期后果 |
+| 剧情结构系统 | `plot-structure` | 依据规范时间和结构信号提供剧情阶段与节奏引导 |
+| 伏笔系统 | `foreshadowing` | 登记、激活和回收伏笔 |
+
 ## 业务 MOD
 
-当前 `mvp-stages-config.default.json` 的 P8 活动清单包含 50 个外部业务成员和 12 个引擎成员；P6-P8 成员均已完成声明、生成接线和现行回合接入，实际推进由上下文能力画像与模拟范围控制。
-
-| MOD | 要达到的目标 | 当前运行机制 | 权责边界与实时源 |
-|---|---|---|---|
-| `mod-pages` | 组合路由页面和页面内交互 | 页面经动态路由加载并调用其他 MOD 公共 API | `src/mods/mod-pages/`；只拥有页面临时状态，界面细节见 [界面体系](interface-tree.md) |
-| `mod-ui` | 提供跨页面共用的组件、动作栏、弹层和界面原语 | 由页面按需组合共享组件与 UI Store | `src/mods/mod-ui/`、`src/app/globals.css`；不拥有业务状态 |
-| `mod-engine` | 编排活动子系统、时间、Prompt、AI 回合、提交和引擎状态 | 运行声明式阶段机；正文协议通过后立即接纳故事，数据、基础属性、事件识别和宏观影响只登记版本化后台任务并由各所有者跨轮独立提交，压缩是唯一 AI 下一轮闸门 | `src/mods/mod-engine/`；详细机制见 [核心模拟](core-simulation.md) |
-| `summary-compressor`（`mod-engine` 内部） | 生成三层时间轴摘要并维护记忆生命周期 | L1=4 轮，L2=16 轮，L3=64 轮；AI 生成带来源覆盖和 `1..10` 权重的时间段事件，本地校验、持久化、衰减、遗忘和高层原样携带。无任务直接成功；首次失败后两路并发重试，只提交首个合法候选，全部失败才维持下一轮阻塞 | `src/mods/mod-engine/subsystems/summary-compressor-system.ts`、`src/mods/mod-engine/helpers/compression-gate.ts`、`src/mods/mod-engine/helpers/timeline-memory.ts`；不拥有核心叙事正文 |
-| `mod-world` | 管理世界/上下文注册、当前投影、空间、切换、初始化、世界实体与全局实体引用目录 | 当前 MVP 激活世界上下文相关子系统；`world-entity` 为玩家、NPC 和组织登记稳定实体引用，刷新恢复窗口可从组织实体、已知引用和空间端点重建临时目录，正式 owning snapshot 仍严格校验；`spatial-graph` 仍唯一拥有位置 | `src/mods/mod-world/`、`src/foundation/subsystem-contracts/world-context.contract.ts`、`npc-social.contract.ts`；不拥有 NPC 档案、社会关系、页面呈现或叙事阶段顺序 |
-| `mod-character` | 管理基础属性、命格、寿命、生命周期、健康、气运、道德及死亡后的条件收束 | 当前 MVP 激活 `character-base`、`destiny-pattern`、`lifespan`、`lifecycle-system`、`health`、`luck`、`morality`。`luck` 开局本地随机 `-3..3`，每轮生成前按每点 `5%` 偏向投掷坏/无干扰/好方向并保存低优先级叙事引导，不接受 AI 写入；寿命按天保存生物钟规则；生命周期从规范 `totalDays` 派生年龄、阶段和属性修正；健康独占生命、体力、精神、伤病、死亡事实和尾声，页面 Store 只承接当前投影 | `src/mods/mod-character/`、`src/foundation/types/luck.types.ts`、`src/foundation/subsystem-contracts/life-cycle.contract.ts`；不拥有标准时间、历史事实或叙事编排，死亡必须绑定账本中的专属事件后才能持久化 |
-| `mod-history-dynamics` | 保存可审计的历史事实、证据、迁移、转变、因果边和未来事件候选 | 当前 MVP 激活追加式 `historical-event-ledger`：事件识别把本轮已发生的注册事件作为批次输入，把尚未发生但具备未来触发条件的事项登记为 `available` 候选；稳定历史事件 ID、候选 ID 和状态均由账本本地分配与维护。到期因果沿用 `causal-delay` 编号，事件识别失败时保留编号并按本地严重度重新排期 | `src/mods/mod-history-dynamics/`、`src/foundation/subsystem-contracts/historical-event.contract.ts`、`src/mods/mod-engine/subsystems/causal-delay-system.ts`；不拥有叙事正文或其他系统状态，页面与 Orchestrator 不建立第二候选 Store |
-| `mod-social` | 保存跨人物与组织的通用有向关系、作用域和追加式关系迁移 | 当前 MVP 激活唯一 `relationship-system`；关系端点必须来自实体目录，作用域为全局、单上下文或显式跨上下文 | `src/mods/mod-social/`、`src/foundation/subsystem-contracts/npc-social.contract.ts`；不拥有实体身份、位置、NPC 私有记忆或文化专项关系语义 |
-| `mod-npc` | 保存 NPC 连续身份、当地状态、目标、行为记录和独立主观记忆 | 当前 MVP 激活唯一 `npc-system`；年龄从规范时间派生，当前相关投影只包含玩家同场实体、一跳关系端点及其相关记录，后台按能力画像低频聚合；创建身份时可在同一回合声明计划实体引用，由 owning system 在应用阶段登记。NPC 记忆优先引用本轮已成立的历史事件；本轮没有可引用事件时，由 owning system 自动建立可追踪的行为来源记录，不让整轮正文因单条主观记忆而回滚 | `src/mods/mod-npc/`、`src/foundation/subsystem-contracts/npc-social.contract.ts`；不拥有玩家角色、空间位置、关系图、历史事实或叙事编排 |
-| `mod-environment-ecology` | 保存按世界上下文和空间节点分区的地理、气候、生态、污染与自然资源事实 | 当前运行清单激活 `geography`、`natural-resource`、`climate`、`ecology`、`pollution`；每个系统按上下文封闭快照推进并由各自能力画像决定是否有有效状态 | `src/mods/mod-environment-ecology/`、`src/foundation/subsystem-contracts/spatial-environment.contract.ts`；不拥有空间关系、世界身份、经济库存或地图 UI |
-| `mod-progression` | 统一管理通用成长、历史事实成就和作用域化社会评价 | 当前 MVP 激活 `growth-system`、`achievement`、`reputation`。成长统一保存技能和稳定能力；成就只查询已提交历史事件；声望区分评价人物、上下文和全局评价域。`growth-system` 与 `reputation` 进入现行七字段系统指令，成就由本地事实验证 | `src/mods/mod-progression/`、`src/foundation/subsystem-contracts/progression.contract.ts`；不写角色基础属性、不把正文当历史事实，也不让某个上下文的成长或评价泄漏到其他上下文 |
-| `mod-settings` | 保存阅读界面、叙事偏好、模型调用和玩家自己的统计投影 | Store 保存四 Tab 对应偏好；自定义文风使用编辑稿与已生效版本分离，正文目标保存为 50 至 2000 的 16 个固定档位，思考模式保存四档枚举。模型配置固定为 `custom`，保存玩家自己的 Key、网址和模型；v12 迁移、导入与持久化合并都会把旧托管配置收口为 DeepSeek 网址、`deepseek-v4-flash` 与空 Key，同时保留完整的玩家自有三元组。DeepSeek 预设填充只替换网址和模型，不覆盖 Key。数据统计只读取 AI 服务在本浏览器形成的缓存、Token、费用和余额投影，并提供玩家可读体验概览与反馈入口，不注册引擎子系统 | `src/mods/mod-settings/`；不拥有请求传输、Token 预算、服务端日志、其他玩家数据或管理者查看能力 |
-| `mod-difficulty` | 保存难度及灾害、敌人、压制、遭遇和成本参数 | Store 向实际计算所有者提供参数，不注册引擎子系统 | `src/mods/mod-difficulty/`；不复制消费者的计算 |
-| `mod-world-map` | 把当前上下文投影为地图、星图、位面图或场景导航，并处理缩放、平移和页面选择 | 页面按需调用 `projectWorldMap()`，从空间图、地理、资源和实体位置生成脱离源引用的读取模型；Canvas/Store 只保存显示交互，不注册引擎子系统 | `src/mods/mod-world-map/`、`src/mods/mod-world-map/map-projection.ts`；空间事实归 `mod-world`，地理与资源归 `mod-environment-ecology`，修改投影不能反写任何 owning system |
-
-## 扩展模拟 MOD
-
-下列 MOD 已有声明、生命周期、Store 或子系统实现，但其模拟成员当前未列入 MVP 运行清单。它们可以被现有页面或公共调用读取；只有更新运行清单后，所属子系统才进入每轮核心模拟。
-
-| MOD | 系统目标 | 所有权边界与实时源 |
+| MOD | 当前职责 | 权责边界与实时源 |
 |---|---|---|
-| `mod-base-universe` | 天体、时代、命运预言和创世扩展 | 当前运行清单激活 `celestial`、`era`、`fate-prophecy`、`divine-creation`；旧 `world-map` 已删除，不拥有当前上下文、地理、资源、地图呈现或叙事编排 |
-| `mod-power-system` | 世界力量框架上的战力、修炼、怪物、遭遇、信仰、干预和异常插件 | 当前运行清单激活 `combat-power`、`cultivation`、`monster`、`fortune-encounter`、`faith`、`divine-intervention`、`anomaly-phenomena`。力量框架由 `mod-world` 在创建时固化，P8 不使用固定阶位表；特殊材料与至尊物品已并入 `natural-resource`/`item`，不独立拥有库存。`src/mods/mod-power-system/`；不接管角色基础属性、通用成长、经济或世界配置真源 |
-| `mod-economy` | 经济、货币、职业、物品、库存、聚落和人口 | 当前运行清单激活 `economy`、`population`、`settlement`、`work`、`item`；经济拥有生产结构、货币存量、市场周期与物品价格，资源储量仍归环境系统 | `src/mods/mod-economy/`；不接管政治、资源储量或世界身份 |
-| `mod-politics` | 社会结构、派系实体、法律与冲突 | 当前运行清单激活 `social-stratification`、`faction-dynamics`、`legal`、`conflict-cycle`；国家只是政治实体类型，不保留独立国家外交系统 | `src/mods/mod-politics/`；不接管经济、关系图或世界状态 |
-| `mod-culture` | 文化、艺术、教育和作品 | 当前运行清单激活 `culture`、`art`、`education`、`works`；家庭、师徒、社会价值和语言命名作为通用关系、生命周期、文化或页面服务语义，不建立同名模拟所有者 | `src/mods/mod-culture/`；不拥有通用成长、评价、关系图，也不接管角色与世界的所属状态 |
-| `mod-tech-level` | 文化技术领域、知识扩散和技术采纳 | 当前运行清单激活 `culture-tech`；产业生产率和技术采纳由 `economy.production` 拥有，资源分布仍归 `natural-resource` | `src/mods/mod-tech-level/`；不接管基础世界、资源储量或经济状态 |
+| `mod-pages` | 组合路由页面和页面交互 | `src/mods/mod-pages/`；只拥有页面临时状态 |
+| `mod-ui` | 提供共享组件和界面原语 | `src/mods/mod-ui/`、`src/app/globals.css`；不拥有业务状态 |
+| `mod-engine` | 编排时间、回合、Prompt、AI、统一记忆和提交 | `src/mods/mod-engine/`；详细机制见 [核心模拟](core-simulation.md) |
+| `mod-world` | 拥有世界上下文、世界区域、切换、范围和初始化 | `src/mods/mod-world/`、`src/foundation/subsystem-contracts/world-context.contract.ts` |
+| `mod-character` | 拥有角色状态与命格 | `src/mods/mod-character/`、`src/foundation/subsystem-contracts/character-state.contract.ts` |
+| `mod-history-dynamics` | 拥有历史事件账本 | `src/mods/mod-history-dynamics/`、`src/foundation/subsystem-contracts/historical-event.contract.ts` |
+| `mod-progression` | 只保留通用成长 | `src/mods/mod-progression/`、`src/foundation/subsystem-contracts/progression.contract.ts` |
+| `mod-tech-level` | 保留知识与技术状态 | `src/mods/mod-tech-level/`；不接管区域经济、教育或文化背景 |
+| `mod-power-system` | 只保留力量框架与修炼适配 | `src/mods/mod-power-system/`；机缘、异常、怪物、信仰和神明干预不再是独立系统 |
+| `mod-world-map` | 把世界区域关系投影为地图或导航视图 | `src/mods/mod-world-map/`；只读区域图，不反写世界状态 |
+| `mod-settings` | 保存阅读、模型和玩家偏好 | `src/mods/mod-settings/`；不拥有 AI 传输或故事状态 |
+| `mod-difficulty` | 提供难度参数 | `src/mods/mod-difficulty/`；不复制消费者计算 |
+
+## 非独立叙事概念
+
+- NPC、关系、职业、物品、作品、机缘、异常现象、怪物、信仰、神明、声望和成就仍可由故事 AI 自由叙述；删除的是专用状态追踪，不是题材许可。
+- 人物认识、关系变化和共同事件写入统一记忆时间轴；不再建立关系边、NPC 行为队列或实体目录。
+- 地理、资源、气候、生态、污染、人口、聚落、经济、文化、艺术、教育、阶层、势力、法律和冲突只作为世界区域概况或历史事实；没有逐回合独立数值推进。
+- 校准 Schema 中保留的同名 modifier 只表达世界区域背景、角色状态修正或叙事倾向，不能恢复被删除系统的状态所有权。
 
 ## 唯一实时源
 
@@ -154,7 +191,10 @@ TimeSystem
 | MOD 能力、依赖和声明成员 | 所属 `manifest.ts` |
 | MOD 生命周期 | 所属 `_internal/control.ts` |
 | 当前模拟成员和叙事可写成员 | `src/mods/mod-engine/helpers/mvp-stages-config.default.json` |
-| 规范模拟时间与时间快照 | `src/mods/mod-engine/subsystems/time-system.ts`、`src/foundation/types/subsystem.types.ts`；`TimeSystem` 是唯一时间写入者 |
+| 规范模拟时间、日历与节日 | `src/mods/mod-engine/subsystems/time-system.ts`、`src/mods/mod-engine/subsystems/time-system/festival-calendar.ts`、`src/mods/mod-engine/helpers/calendar-narrative-context.ts` |
+| 世界形态、区域关系与区域概况 | `src/mods/mod-world/subsystems/spatial-graph-system.ts`、`src/mods/mod-world/types/regions.ts`、`src/mods/mod-world/utils/world-region-profile.ts` |
+| 角色状态与生命阶段 | `src/mods/mod-character/subsystems/character-base-system.ts`、`character-status-runtime.ts`、`character-status-update.ts`、`src/foundation/subsystem-contracts/character-state.contract.ts` |
+| 统一记忆与人物连续性 | `src/mods/mod-engine/subsystems/memory-lifecycle-system.ts`、`memory-lifecycle-system/timeline-facts.ts`、`summary-compressor-system.ts` |
 | 自动接线结果 | `scripts/codegen/generate-mod-wiring.mjs` 及其生成目标 |
 | 页面呈现和页面内交互 | `src/mods/mod-pages/pages/` |
 | 业务状态与校验 | 所属 Store、子系统和公共 API |

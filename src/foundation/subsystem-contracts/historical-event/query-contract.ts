@@ -1,5 +1,5 @@
 /**
- * Purpose: Define bounded historical ledger query inputs and detailed read results.
+ * Purpose: Define historical ledger filters and optional derived read windows.
  * Owner: foundation:subsystem-contracts
  * Responsibility: Read-side query contracts only; filtering and storage remain with the ledger owner.
  */
@@ -22,6 +22,7 @@ import type {
 import type { HistoricalEventView } from './ledger-state'
 
 export interface HistoricalQueryWindow {
+  /** Omit both fields to receive the complete matching source collection. */
   offset?: number
   limit?: number
 }

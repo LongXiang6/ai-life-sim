@@ -12,13 +12,10 @@ export {
   TimeSystem,
   timeSystem,
   summaryCompressor,
-  memoryEngine,
   plotStructure,
   foreshadowing,
   memoryLifecycle,
-  memoryForgetting,
   causalDelay,
-  coreMemory,
   subsystemRelevance,
 } from './bootstrap/engine-subsystem-registry'
 
@@ -48,8 +45,6 @@ export {
   isMvpRuntimeSubsystem,
   resolveTimeStep,
   mapSubsystemStatesToDetectionStates,
-  buildLifecycleNarrativeHint,
-  buildLifecycleLifespanReminder,
   normalizeNarrativeParagraphs,
   buildNarrativeHints,
   type BridgeSnapshot,
@@ -93,7 +88,6 @@ export {
 
 export {
   buildNarrativeTimeContext,
-  resolveNarrativeCalendarNode,
   readEraStartYearFromConfig,
   readBirthEraYearFromConfig,
   formatNarrativeTimeLabel,

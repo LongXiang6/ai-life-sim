@@ -11,9 +11,9 @@ export default defineMod({
   order: 900,
   version: '1.0.0',
   description: '页面组件 + 路由注册',
-  dependencies: ['mod-engine', 'mod-ui', 'mod-world', 'mod-character', 'mod-power-system', 'mod-environment-ecology', 'mod-settings', 'mod-economy', 'mod-politics', 'mod-culture'],
+  dependencies: ['mod-engine', 'mod-ui', 'mod-world', 'mod-character', 'mod-power-system', 'mod-settings'],
   provides: ['pages'],
-  consumes: ['engine', 'ui', 'world', 'character', 'economy', 'politics', 'culture', 'power-system', 'environment-ecology', 'settings'],
+  consumes: ['engine', 'ui', 'world', 'character', 'power-system', 'settings'],
   secondaryPublicEntries: ['account-cloud-api.ts'],
   remoteApi: [],
   routes: [

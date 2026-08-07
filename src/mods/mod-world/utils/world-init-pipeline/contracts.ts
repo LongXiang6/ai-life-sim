@@ -9,7 +9,6 @@ import type {
   ExecutionNodeSignal,
   ExecutionPhase,
 } from '@/foundation'
-import type { WorldEntitySystem } from '../../world-init-bundle-deps'
 import type { WorldConfig } from '../../types'
 
 export const MAX_AI_RETRIES = 3
@@ -21,7 +20,7 @@ export interface WorldInitPipelineResult {
   calibrationGenerated: boolean
   tagsGenerated: boolean
   configGenerated: boolean
-  entitiesGenerated: boolean
+  regionProfilesGenerated: boolean
   errors: string[]
   rawTags?: string[]
 }
@@ -42,10 +41,9 @@ export interface WorldInitPipelineContext {
   calibrationGenerated: boolean
   tagsGenerated: boolean
   configGenerated: boolean
-  entitiesGenerated: boolean
+  regionProfilesGenerated: boolean
   rawTags?: string[]
   currentStep: string
-  entitySystem: WorldEntitySystem
 }
 
 export interface WorldInitStep {

@@ -7,7 +7,6 @@
 import type { NarrativeChunk } from '../../orchestrator-shared'
 import {
   RECENT_NARRATIVE_WINDOW,
-  coreMemory,
   digestLedger,
   memoryLifecycle,
   summaryCompressor,
@@ -57,9 +56,9 @@ export function buildPromptTimelineMemoryRuntime(
     event.text,
     event.contextId,
   ))
-  const creationEntries = coreMemory.buildCreationTimelineEntries(
+  const creationEntries = memoryLifecycle.buildCreationTimelineEntries(
     orchestrator['state'].characterCreations,
-    (round) => orchestrator['resolveNarrativeRoundTime'](round),
+    (round: number) => orchestrator['resolveNarrativeRoundTime'](round),
   )
   const timelineMemory = formatNarrativeTimelineForPrompt([
     ...timelineProjection.timelineEntries,

@@ -1,6 +1,6 @@
 'use client'
 
-/** View-only map state. No geography, resource, entity, or exploration facts are stored here. */
+/** View-only map state. No region or exploration facts are stored here. */
 
 import { create } from 'zustand'
 import type { MapInteraction, MapRenderConfig } from './types'
@@ -25,9 +25,9 @@ const DEFAULT_CONFIG: MapRenderConfig = {
   zoom: 1,
   offsetX: 0,
   offsetY: 0,
-  showTerrain: true,
+  showClimate: true,
   showResources: true,
-  showEntities: true,
+  showPollution: true,
 }
 
 const DEFAULT_INTERACTION: MapInteraction = {

@@ -6,12 +6,9 @@
 
 import type {
   ContextTransitionRecord,
-  EntityReference,
-  GlobalEntityId,
   SpatialEdge,
 } from '@/foundation'
 import type {
-  AnyWorldEntity,
   FormulaModifierKey,
   WorldCalibration,
   WorldConfig,
@@ -24,9 +21,7 @@ export interface WorldStore {
   currentContextId: string | null
   crossContextEdges: Record<string, SpatialEdge>
   transitionHistory: ContextTransitionRecord[]
-  entityReferences: Record<GlobalEntityId, EntityReference>
   worldConfig: WorldConfig | null
-  entities: AnyWorldEntity[]
   initialized: boolean
   worldCode: number
   currentYear: number
@@ -37,7 +32,6 @@ export interface WorldStore {
   destinyPatternModifiers: Partial<Record<FormulaModifierKey, number>>
   worldInitAIStatus: WorldInitAIStatus | null
   setWorldConfig: (config: WorldConfig) => void
-  setEntities: (entities: AnyWorldEntity[]) => void
   setInitialized: (value: boolean) => void
   setWorldCode: (code: number) => void
   setCurrentYear: (year: number) => void
@@ -51,8 +45,7 @@ export interface WorldStore {
   replaceContext: (instance: WorldContextInstance) => void
   setCrossContextEdge: (edge: SpatialEdge) => void
   recordTransition: (record: ContextTransitionRecord) => void
-  registerEntityReference: (reference: EntityReference) => void
-  replaceEntityReferences: (references: EntityReference[]) => void
+  setCurrentRegion: (contextId: string, regionId: string) => void
   generateAndSetWorldCode: () => number
   recycleWorldCode: () => void
   reset: () => void
@@ -63,9 +56,7 @@ export const initialWorldState = {
   currentContextId: null as string | null,
   crossContextEdges: {} as Record<string, SpatialEdge>,
   transitionHistory: [] as ContextTransitionRecord[],
-  entityReferences: {} as Record<GlobalEntityId, EntityReference>,
   worldConfig: null as WorldConfig | null,
-  entities: [] as AnyWorldEntity[],
   initialized: false,
   worldCode: 0,
   currentYear: 0,

@@ -1,12 +1,8 @@
 import { useGlobalStore } from '@/core/global-store'
 import { flushOpfsQueueNow } from '@/core/storage'
 import { useCharacterStore } from '@/mods/mod-character'
-import { useCultureStore } from '@/mods/mod-culture'
-import { useEconomyStore } from '@/mods/mod-economy'
 import { getPreGenQueueStatus, useEngineStore } from '@/mods/mod-engine'
 import { clearPreGenQueue, orchestrator } from '@/mods/mod-engine/engine-api'
-import { useEnvironmentEcologyStore } from '@/mods/mod-environment-ecology'
-import { usePoliticsStore } from '@/mods/mod-politics'
 import { usePowerSystemStore } from '@/mods/mod-power-system'
 import { useWorldStore } from '@/mods/mod-world'
 
@@ -90,11 +86,7 @@ export async function resetForNewLife(): Promise<void> {
   useCharacterStore.getState().reset()
   useWorldStore.getState().reset()
   useEngineStore.getState().reset()
-  useEconomyStore.getState().reset()
-  usePoliticsStore.getState().reset()
   usePowerSystemStore.getState().reset()
-  useCultureStore.getState().reset()
-  useEnvironmentEcologyStore.getState().reset()
   useGlobalStore.setState({
     gamePhase: 'world_build',
     worldviewId: null,

@@ -33,6 +33,7 @@ export interface SavedFieldsState {
   customValues: Record<string, string>
   worldDescription?: string
   coherenceLocks?: Record<string, boolean>
+  festivalScope?: WorldConfig['festivalScope']
 }
 
 export function normalizeFieldMode(mode: unknown): FieldMode {
@@ -77,6 +78,7 @@ export function resolveWorldConfig(
   worldDescription: string,
   coherenceLocks: Record<string, boolean>,
   existingConfig?: WorldConfig | null,
+  festivalScope: WorldConfig['festivalScope'] = existingConfig?.festivalScope ?? 'china',
 ): WorldConfig {
   const getEffectiveValue = (key: string): string => {
     const field = baseFields.find((candidate) => candidate.key === key)
@@ -124,6 +126,7 @@ export function resolveWorldConfig(
     }),
     civilizationStage: existingConfig?.civilizationStage ?? 'medieval',
     difficulty: existingConfig?.difficulty ?? 'normal',
+    festivalScope,
     worldType: existingConfig?.worldType,
     description,
     _aiFlags: Object.fromEntries(

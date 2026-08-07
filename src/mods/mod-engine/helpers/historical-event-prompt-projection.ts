@@ -10,7 +10,9 @@
 import type {
   HistoricalCausalEdge,
   HistoricalCausalRelation,
+  HistoricalEventCandidateAudit,
   HistoricalEventLedgerContract,
+  HistoricalEventSchedule,
   HistoricalEventScope,
   HistoricalEventStatus,
   HistoricalEventView,
@@ -61,26 +63,26 @@ function formatScope(scope: HistoricalEventScope): string {
   return `${SCOPE_LABELS[scope.kind]}${ids}`
 }
 
-function formatSchedule(event: HistoricalEventView): string | undefined {
-  if (!event.schedule) return undefined
+function formatSchedule(schedule: HistoricalEventSchedule | undefined): string | undefined {
+  if (!schedule) return undefined
   const parts = [
-    event.schedule.dueTotalDays !== undefined
-      ? `全局第${event.schedule.dueTotalDays}天`
+    schedule.dueTotalDays !== undefined
+      ? `全局第${schedule.dueTotalDays}天`
       : undefined,
-    event.schedule.dueRoundSequence !== undefined
-      ? `第${event.schedule.dueRoundSequence}轮`
+    schedule.dueRoundSequence !== undefined
+      ? `第${schedule.dueRoundSequence}轮`
       : undefined,
-    event.schedule.legacyYear !== undefined
-      ? `旧纪年${event.schedule.legacyYear}`
+    schedule.legacyYear !== undefined
+      ? `旧纪年${schedule.legacyYear}`
       : undefined,
-    event.schedule.conditionLabel,
+    schedule.conditionLabel,
   ].filter((part): part is string => Boolean(part))
   return parts.length > 0 ? parts.join('、') : undefined
 }
 
 function formatEvent(event: HistoricalEventView): string {
   const status = event.status === 'active' ? 'active' : 'scheduled'
-  const schedule = formatSchedule(event)
+  const schedule = formatSchedule(event.schedule)
   return [
     `历史事件[${event.eventId}]`,
     `状态：${STATUS_LABELS[status]}`,
@@ -88,6 +90,19 @@ function formatEvent(event: HistoricalEventView): string {
     `标题：${event.title}`,
     `已确认事实：${event.description}`,
     schedule ? `处理条件：${schedule}` : undefined,
+  ].filter(Boolean).join('；')
+}
+
+function formatCandidate(audit: HistoricalEventCandidateAudit): string {
+  const candidate = audit.candidate
+  const schedule = formatSchedule(candidate.schedule)
+  return [
+    `到期事件候选[${candidate.candidateId}]`,
+    `作用域：${formatScope(candidate.scope)}`,
+    `标题：${candidate.title}`,
+    `已经建立的未来事项：${candidate.description}`,
+    candidate.triggerConditionLabel ? `触发条件：${candidate.triggerConditionLabel}` : undefined,
+    schedule ? `到期条件：${schedule}` : undefined,
   ].filter(Boolean).join('；')
 }
 
@@ -107,6 +122,7 @@ function readLedgerContract(state: SubSystemState | undefined): HistoricalEventL
     typeof candidate.contextId !== 'string'
     || !Array.isArray(candidate.relevantEvents)
     || !Array.isArray(candidate.relevantCausalEdges)
+    || !Array.isArray(candidate.dueCandidates)
   ) {
     return undefined
   }
@@ -120,6 +136,7 @@ function readLedgerContract(state: SubSystemState | undefined): HistoricalEventL
 export function buildHistoricalEventPromptProjection(
   state: SubSystemState | undefined,
   currentContextId: string,
+  excludedCandidateIds: readonly string[] = [],
 ): string | undefined {
   const contract = readLedgerContract(state)
   if (!contract || contract.contextId !== currentContextId) return undefined
@@ -128,7 +145,13 @@ export function buildHistoricalEventPromptProjection(
     CONTINUATION_STATUSES.has(event.status)
     && isCurrentPromptScope(event.scope, currentContextId)
   ))
-  if (events.length === 0) return undefined
+  const excluded = new Set(excludedCandidateIds)
+  const dueCandidates = contract.dueCandidates.filter((audit) => (
+    audit.status === 'available'
+    && !excluded.has(audit.candidateId)
+    && isCurrentPromptScope(audit.candidate.scope, currentContextId)
+  ))
+  if (events.length === 0 && dueCandidates.length === 0) return undefined
 
   const relevantEventIds = new Set(events.map((event) => event.eventId))
   const edges = contract.relevantCausalEdges.filter((edge) => (
@@ -137,8 +160,14 @@ export function buildHistoricalEventPromptProjection(
   ))
 
   return [
-    '【历史事件账本：当前待续事实】',
+    '【历史事件账本：当前待续事实与到期候选】',
     ...events.map(formatEvent),
     ...edges.map(formatEdge),
+    ...(dueCandidates.length > 0
+      ? [
+          '以下到期候选已完整投递；正文必须逐项表现其发生、继续等待、被拒绝或已经过期的真实结果，不得遗漏候选编号。',
+          ...dueCandidates.map(formatCandidate),
+        ]
+      : []),
   ].join('\n')
 }

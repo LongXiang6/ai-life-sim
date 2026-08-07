@@ -47,7 +47,6 @@ export type SimulationStatus = 'idle' | 'running' | 'paused' | 'complete'
 export interface EngineConfig {
   model: string
   timeStep: TimeStep
-  maxRounds: number
   temperature: number
 }
 

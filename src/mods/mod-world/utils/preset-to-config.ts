@@ -119,6 +119,7 @@ export function buildWorldConfigFromPreset(
     civilizationStage: inferCivilizationFromPreset(preset),
     difficulty,
     description: preset.description,
+    festivalScope: 'china',
     worldType: preset.category === 'mixed' ? 'mixed' : preset.worldviewId,
   }
 }
@@ -178,6 +179,7 @@ export function buildWorldConfigFromCustom(
     civilizationStage: essenceTag === 'modern' || essenceTag === 'scifi' ? 'modern' : 'medieval',
     difficulty,
     description: input.description,
+    festivalScope: 'china',
     // 纪元配置从用户输入传递，缺省时由引擎自动判定
     ...(input.eraName ? { eraName: input.eraName } : {}),
     ...(input.eraStartYear != null ? { eraStartYear: input.eraStartYear } : {}),

@@ -145,7 +145,7 @@ export function projectWorldSettingForNarrativeAI(
     ),
     世界名称: worldSetting.name,
     世界描述: worldSetting.description,
-    当前历法: narrativeTime?.calendarName ?? '当地历法',
+    当前历法: narrativeTime?.calendarName ?? '统一游戏历法',
   }
 }
 

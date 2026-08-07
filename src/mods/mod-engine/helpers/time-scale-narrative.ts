@@ -12,11 +12,7 @@ const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const
 export interface CanonicalCalendarNarrativeInput {
   timeStep: TimeStep
   calendarYear: number
-  calendarName?: string
-  daysPerYear?: number
-  monthsPerYear?: number
   seasonName?: string
-  usesCanonicalSolarSeasons?: boolean
   month: number
   day: number
   /** 上一条已完成叙事的时间节点（显示纪年，月份/日期从1开始）。 */
@@ -43,7 +39,6 @@ export interface TimeScaleNarrativeProfile {
   id: string
   macroLevel: number
   prompt: string
-  localCalendarPrompt?: string
 }
 
 /** 可用时间步长与叙事镜头一一对应，顺序必须由微观严格递增到宏观。 */
@@ -65,7 +60,6 @@ export const TIME_SCALE_NARRATIVE_PROFILES: readonly TimeScaleNarrativeProfile[]
     id: 'seasonal-stage',
     macroLevel: 30,
     prompt: '【季度阶段视角】用少量因果相连的代表性场景覆盖完整三个月；各场景保持一致的中景距离，环境、关系或任务节律只通过场景中的可见变化呈现，不写季度报告，也不得把整个季度压成一天的一幕。',
-    localCalendarPrompt: '【当地时节阶段视角】服从当地历法的实际时间窗口，用少量因果相连且镜头一致的代表性场景呈现本时节变化；不得套用现实三个月季度，不写时节报告，也不得压成一天的一幕。',
   },
   {
     key: 'year:1',
@@ -184,11 +178,7 @@ function buildActualNarrativeWindow(
 
   const previous = formatCalendarNode(input.previousNode)
   const current = formatCalendarNode(input)
-  const usesLocalCalendar = input.usesCanonicalSolarSeasons === false
-  const days = usesLocalCalendar
-    ? Math.round(daysPassed * 100) / 100
-    : Math.floor(daysPassed)
-  const dayUnit = usesLocalCalendar ? '当地日' : '天'
+  const days = Math.floor(daysPassed)
   const unitLabel: Record<TimeStep['unit'], string> = {
     day: '日',
     month: '月',
@@ -201,7 +191,7 @@ function buildActualNarrativeWindow(
     ? `这是从${normalizeAmount(input.timeStepAlignment.fromValue)}${unitLabel[input.timeStepAlignment.fromUnit]}切换到当前${amount}${unit}后的边界对齐桥接；前一粗粒度窗口已经完成，不能把被跳过的跨度重新写成当前${unit}的流水账。正文直接从当前合法节点建立一个代表性现场、后果或新线索，必要时只用一句过渡。`
     : ''
 
-  return `本轮实际时间窗口：上一叙事节点为${previous}，当前结束节点为${current}；已推进${days}${dayUnit}（${amount}${unit}）。正文只叙述上一节点之后至当前节点之间发生的事，不得重复上一节点之前已经完成的周期，也不得把当前结束节点之后的时间提前写入。${alignment}`
+  return `本轮实际时间窗口：上一叙事节点为${previous}，当前结束节点为${current}；已推进${days}天（${amount}${unit}）。正文只叙述上一节点之后至当前节点之间发生的事，不得重复上一节点之前已经完成的周期，也不得把当前结束节点之后的时间提前写入。${alignment}`
 }
 
 /** 构建可独立回归的历法跨度说明；季节只由月份推导。 */
@@ -210,22 +200,6 @@ export function buildCanonicalCalendarNarrativeHint(
 ): string {
   const amount = normalizeAmount(input.timeStep.value)
   const actualWindow = buildActualNarrativeWindow(input)
-  const usesCanonicalSolarSeasons = input.usesCanonicalSolarSeasons !== false
-  if (!usesCanonicalSolarSeasons) {
-    const calendarName = input.calendarName?.trim() || '当地历法'
-    const daysPerYear = input.daysPerYear && input.daysPerYear > 0
-      ? `每年${Math.floor(input.daysPerYear)}日`
-      : '年长由当地规则定义'
-    const monthsPerYear = input.monthsPerYear && input.monthsPerYear > 0
-      ? `每年${Math.floor(input.monthsPerYear)}月`
-      : '月份数量由当地规则定义'
-    const seasonName = input.seasonName?.trim() || '当前当地时节'
-    const calendarRule = `当前使用${calendarName}（${daysPerYear}、${monthsPerYear}）；当前为${input.calendarYear}年${input.month}月、${seasonName}。天气、衣着、生产和社会节律必须服从当地历法与世界设定，不得套用现实阳历的固定月份与四季关系。`
-    const fallbackWindow = actualWindow
-      ?? `本轮结束节点为${formatCalendarNode(input)}，按${amount}${input.timeStep.unit === 'day' ? '日' : input.timeStep.unit === 'month' ? '月' : input.timeStep.unit === 'season' ? '时节' : '年'}粒度推进。`
-    return `${calendarRule}${fallbackWindow}`
-  }
-
   const endSeason = SEASON_NAMES[getSeasonForMonth(input.month - 1)] ?? '未知'
   const calendarRule = `项目历法固定为3—5月春季、6—8月夏季、9—11月秋季、12—2月冬季；天气、衣着、农事与正文季节必须服从阳历月份，不得自行套用其他季节划分。其中${input.month}月必须称${endSeason}季；气温可以异常寒冷或炎热，但不得把该月改称其他季节。`
 
@@ -274,25 +248,19 @@ export function buildCanonicalCalendarNarrativeHint(
 /** 根据当前时间步进生成叙事视角指示（注入 Prompt） */
 export function buildTimeScaleNarrativeHint(
   timeStep: TimeStep,
-  calendar?: { usesCanonicalSolarSeasons?: boolean; calendarName?: string },
 ): string {
   const amount = normalizeAmount(timeStep.value)
   const profile = getTimeScaleNarrativeProfile(timeStep)
   const unitLabel: Record<TimeStep['unit'], string> = {
     day: '日',
     month: '月',
-    season: calendar?.usesCanonicalSolarSeasons === false ? '当地时节' : '季',
+    season: '季',
     year: '年',
   }
-  const profilePrompt = timeStep.unit === 'season'
-    && calendar?.usesCanonicalSolarSeasons === false
-    && profile.localCalendarPrompt
-    ? `${profile.localCalendarPrompt}当前采用${calendar.calendarName?.trim() || '当地历法'}。`
-    : profile.prompt
 
   return [
     `【时间尺度】当前时间是本轮叙事的结束节点；正文只写上一叙事节点之后到当前节点之间发生的事。本次推进${amount}${unitLabel[timeStep.unit]}。`,
-    profilePrompt,
+    profile.prompt,
     '正文必须沿同一时间跨度内的因果主线推进，不拼接互不相干的事件或生活切片。首句不要使用“这一年”“这一月”“这一天”等泛指时间套语，也不要复用上一轮起句结构；根据本档视角直接进入行动、关系变化、制度变化、冲突或时代格局，确需时间锚时使用“当前时间”中的具体纪年、季节、月日。',
   ].join('')
 }

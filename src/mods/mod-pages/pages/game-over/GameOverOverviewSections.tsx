@@ -130,18 +130,18 @@ export function GameOverOverviewSections({
           <div className={styles.achievementList}>
             {achievements.map((achievement) => (
               <article key={achievement.id} className={styles.achievement}>
-                <span aria-hidden="true">{achievement.kind === 'lifespan-adjustment' ? '寿' : '择'}</span>
+                <span aria-hidden="true">择</span>
                 <div>
                   <div className={styles.achievementMeta}>
                     <small>{achievement.timeLabel}</small>
-                    <small>{achievement.kind === 'lifespan-adjustment' ? '寿命调整' : '命运抉择'}</small>
+                    <small>命运抉择</small>
                   </div>
                   <h3>{achievement.title}</h3><p>{achievement.detail}</p>
                 </div>
               </article>
             ))}
           </div>
-        ) : <p className={styles.emptyState}>此生没有已确认的分支选择或生命突破记录。</p>}
+        ) : <p className={styles.emptyState}>此生没有已确认的分支选择记录。</p>}
       </section>
     </>
   )

@@ -1,7 +1,7 @@
 /**
  * Purpose: Build a fully initialized world-init pipeline context from player settings and world config.
  * Owner: mod-world / world-init pipeline.
- * Responsibility: Context construction and entity-service injection only; no step execution.
+ * Responsibility: Context construction and initial region projection only; no step execution.
  */
 
 import type { AIModelConfig } from '@/foundation'
@@ -9,17 +9,11 @@ import { useSettingsStore } from '@/mods/mod-settings/settings-runtime-api'
 
 import { useWorldStore } from '../../store'
 import type { WorldConfig } from '../../types'
-import {
-  buildWorldInitFingerprint,
-  getWorldEntitySystem,
-  worldEntityPrompt,
-} from '../../world-init-bundle-deps'
+import { buildWorldInitFingerprint } from '../../world-init-bundle-deps'
 import { buildWorldInitPromptVars } from '../world-init-prompt-vars'
 import { resolvePipelineAnchorYear } from '../world-init-anchor-year'
-import { buildWorldInitContentLogMetaResolver } from '../world-init-ai-validation'
-import { coherenceGuardFromConfig, createWorldInitAIService } from './ai-service'
 import type { WorldInitPipelineContext } from './contracts'
-import { syncEntitySystemRegions } from './context-state'
+import { syncPipelineRegions } from './context-state'
 
 export function createWorldInitPipelineContext(
   config: WorldConfig,
@@ -30,33 +24,12 @@ export function createWorldInitPipelineContext(
 ): WorldInitPipelineContext {
   const { customKey, provider, customUrl, customModel } = useSettingsStore.getState()
   const model = customModel || aiConfig.model
-  const description = config.description
-  const initFingerprint = buildWorldInitFingerprint(config, description)
+  const initFingerprint = buildWorldInitFingerprint(config, config.description)
   const anchorYear = resolvePipelineAnchorYear(config, startingYear)
   useWorldStore.getState().setEraStartYear(anchorYear)
   if (config.eraName) useWorldStore.getState().setEraName(config.eraName)
-  const promptVars = buildWorldInitPromptVars(config, { beforeConfig: configBeforeCoherence })
 
-  const entitySystem = getWorldEntitySystem()
-  entitySystem.setWorldContext(
-    config.name,
-    description,
-    config.civilizationStage,
-    promptVars.coherenceHint,
-    promptVars.coherenceNote,
-    config.worldType ?? 'idealist',
-  )
-  entitySystem.setAIService(createWorldInitAIService(
-    aiConfig,
-    worldEntityPrompt.systemPrompt,
-    'world-init/pipeline:entities',
-    buildWorldInitContentLogMetaResolver('entities', coherenceGuardFromConfig(config)),
-    { subPool: 'geo', worldCode },
-    worldEntityPrompt.outputSchema,
-  ))
-  syncEntitySystemRegions(entitySystem, config)
-
-  return {
+  const context: WorldInitPipelineContext = {
     config,
     configBeforeCoherence,
     worldCode,
@@ -67,13 +40,14 @@ export function createWorldInitPipelineContext(
     customKey: customKey || '',
     aiConfig,
     initFingerprint,
-    promptVars,
+    promptVars: buildWorldInitPromptVars(config, { beforeConfig: configBeforeCoherence }),
     errors: [],
     calibrationGenerated: false,
     tagsGenerated: false,
     configGenerated: false,
-    entitiesGenerated: false,
+    regionProfilesGenerated: false,
     currentStep: '准备中',
-    entitySystem,
   }
+  syncPipelineRegions(context)
+  return context
 }

@@ -25,7 +25,6 @@ function assertOk(condition, message) {
 const orchestrator = readModuleSource('src/mods/mod-engine/subsystems/orchestrator-system.ts', ROOT)
 for (const method of [
   'buildCreationTimelineEntries',
-  'buildNPCNetworkText',
   'buildForeshadowingText',
   'detectForeshadowing',
   'resolveForeshadowing',
@@ -39,8 +38,8 @@ for (const method of [
 
 for (const [file, method] of [
   ['foreshadowing-system.ts', 'getPlantedContext'],
-  ['core-memory-system.ts', 'buildCreationTimelineEntries'],
-  ['core-memory-system.ts', 'buildNPCNetworkText'],
+  ['memory-lifecycle-system.ts', 'buildCreationTimelineEntries'],
+  ['memory-lifecycle-system.ts', 'recordRelationshipUpdates'],
 ]) {
   assertOk(
     new RegExp(`\\b${method}\\s*\\(`).test(read(`src/mods/mod-engine/subsystems/${file}`)),
@@ -73,12 +72,12 @@ for (const field of ['timelineMemory', '本轮可回收伏笔']) {
   assertOk(promptBuilder.includes(field), `prompt-builder 缺少叙事记忆字段 ${field}`)
 }
 assertOk(
-  eventRecognitionPrompt.includes("version: '3.2.0'")
-    && eventRecognitionPrompt.includes("'mod-engine:narrative-event-recognition:3.2.0'")
+  eventRecognitionPrompt.includes("version: '3.2.1'")
+    && eventRecognitionPrompt.includes("'mod-engine:narrative-event-recognition:3.2.1'")
     && eventRecognitionPrompt.includes("outputFormat: 'json'")
     && eventRecognitionPrompt.includes('outputSchema: NarrativeAIEventRecognitionDataSchema')
     && eventRecognitionPrompt.includes('serverPromptAssetId: NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID'),
-  '事件识别调用必须接入唯一 3.2.0 纯 JSON 受保护资产',
+  '事件识别调用必须接入唯一 3.2.1 纯 JSON 受保护资产',
 )
 assertOk(
   promptBuilder.includes('userSegments: [string, string, string]')

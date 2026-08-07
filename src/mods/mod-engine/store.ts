@@ -22,7 +22,6 @@ import {
   summarizeNarrativeRepetitionMetrics,
 } from './helpers/narrative-repetition-metrics'
 import type { CompressedSummaries, } from '@/foundation'
-import type { NPCInteractionRecord, } from './subsystems/core-memory-system'
 import type { LegendaryEncounterProjection } from '@/core/player-content/player-content-contract'
 
 export type PendingNarrativeStatus = 'pending' | 'committing' | 'failed'
@@ -67,10 +66,6 @@ interface EngineStore extends EngineState {
   /** 设置上次自动保存的回合数 */
   setLastAutoSaveRound: (round: number) => void
 
-  /** 核心记忆 NPC 关系网持久化 */
-  coreMemoryNpcMap: Record<string, NPCInteractionRecord[]>
-  setCoreMemoryNpcMap: (map: Record<string, NPCInteractionRecord[]>) => void
-
   /** 下轮强制分叉（更多 → 分支） */
   forceBranchNext: boolean
   setForceBranchNext: (value: boolean) => void
@@ -113,7 +108,6 @@ const initialState = {
   lastAutoSaveRound: 0,
   narrativeError: null as string | null,
   pendingNarrative: null as PendingNarrative | null,
-  coreMemoryNpcMap: {} as Record<string, NPCInteractionRecord[]>,
   forceBranchNext: false,
   resolvedBranches: {} as Record<string, string>,
   characterCreations: [] as CharacterCreation[],
@@ -122,7 +116,7 @@ const initialState = {
   legendaryEncounterCheckedForLifeRunId: undefined,
 }
 
-export const ENGINE_STORE_SCHEMA_VERSION = 5
+export const ENGINE_STORE_SCHEMA_VERSION = 6
 
 /** 供 Zustand rehydrate 与持久化回归共享的纯迁移函数。 */
 export function migrateEnginePersistedState(
@@ -146,6 +140,7 @@ export function migrateEnginePersistedState(
     old.storyRepetitionStats = summarizeNarrativeHistoryRepetition(history)
   }
 
+  delete old.coreMemoryNpcMap
   return old
 }
 
@@ -203,8 +198,6 @@ export const useEngineStore = create<EngineStore>()(
 
       setLastAutoSaveRound: (round,) => set({ lastAutoSaveRound: round, },),
 
-      setCoreMemoryNpcMap: (map,) => set({ coreMemoryNpcMap: map, },),
-
       setForceBranchNext: (forceBranchNext,) => set({ forceBranchNext, },),
 
       resolveBranch: (id, choice,) =>
@@ -250,7 +243,7 @@ export const useEngineStore = create<EngineStore>()(
         migrateEnginePersistedState(persistedState, version) as unknown as EngineStore
       ),
       partialize: (state,) => {
-        const { setStatus: _a, appendNarrative: _b, setCurrentNarrative: _c, advanceRound: _d, setCompressionStats: _e, setCompressedSummaries: _f, setNarrativeError: _i, pendingNarrative: _pn, setPendingNarrative: _spn, updatePendingNarrative: _upn, clearPendingNarrative: _cpn, setLastAutoSaveRound: _j, setCoreMemoryNpcMap: _n, setForceBranchNext: _fb, resolveBranch: _rb, setLegendaryEncounterSelection: _les, markLegendaryEncounterInjected: _lei, reset: _o, ...rest } = state
+        const { setStatus: _a, appendNarrative: _b, setCurrentNarrative: _c, advanceRound: _d, setCompressionStats: _e, setCompressedSummaries: _f, setNarrativeError: _i, pendingNarrative: _pn, setPendingNarrative: _spn, updatePendingNarrative: _upn, clearPendingNarrative: _cpn, setLastAutoSaveRound: _j, setForceBranchNext: _fb, resolveBranch: _rb, setLegendaryEncounterSelection: _les, markLegendaryEncounterInjected: _lei, reset: _o, ...rest } = state
         return rest
       },
     },

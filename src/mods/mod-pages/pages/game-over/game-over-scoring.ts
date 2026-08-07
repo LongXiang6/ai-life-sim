@@ -1,4 +1,4 @@
-export type GameOverAchievementKind = 'choice' | 'lifespan-adjustment'
+export type GameOverAchievementKind = 'choice'
 
 export interface GameOverAchievement {
   id: string
@@ -17,13 +17,6 @@ export interface GameOverNarrativeFact {
   displayAge?: number
 }
 
-export interface GameOverLifespanAdjustmentFact {
-  adjustmentId: string
-  occurredAtTotalDays: number
-  deltaDays: number
-  description: string
-}
-
 export type ReincarnationStrengthTierId = 'echo' | 'deep' | 'legacy' | 'immortal'
 
 export interface ReincarnationStrengthTier {
@@ -34,9 +27,8 @@ export interface ReincarnationStrengthTier {
 
 export function buildGameOverAchievements(
   narratives: readonly GameOverNarrativeFact[],
-  lifespanAdjustments: readonly GameOverLifespanAdjustmentFact[],
 ): GameOverAchievement[] {
-  const choices = narratives.flatMap((entry, index) => {
+  return narratives.flatMap((entry, index) => {
     const choice = entry.resolvedChoice?.trim()
     if (!choice) return []
     const title = entry.branchTitle?.trim() || '一次命运抉择'
@@ -51,17 +43,6 @@ export function buildGameOverAchievements(
       weight: 30,
     }]
   })
-  const lifespan = lifespanAdjustments
-    .filter((entry) => entry.deltaDays > 0)
-    .map((entry) => ({
-      id: entry.adjustmentId,
-      kind: 'lifespan-adjustment' as const,
-      title: entry.description.trim() || '寿命上限延展',
-      detail: `延展 ${entry.deltaDays} 天生命上限`,
-      timeLabel: `第 ${Math.floor(entry.occurredAtTotalDays / 365)} 年`,
-      weight: 50 + Math.max(0, Math.round(entry.deltaDays / 365)),
-    }))
-  return [...choices, ...lifespan]
 }
 
 export function selectFeaturedAchievement(

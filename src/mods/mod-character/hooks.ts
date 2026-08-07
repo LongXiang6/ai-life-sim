@@ -17,10 +17,9 @@ export function useCharacter() {
   }))
 }
 
-export function useHealth() {
+export function useCharacterStatus() {
   return useCharacterStore((s) => ({
-    health: s.health,
-    setHealth: s.setHealth,
+    status: s.characterBase.status,
   }))
 }
 

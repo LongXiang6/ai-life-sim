@@ -11,8 +11,8 @@
  * 为什么 implements ISubSystemV2 而不是更早的 ISubSystem：
  * - V2 新增的 collectStateUpdate/collectStateFinalFix 两个可选方法（三回合加载，
  *   吸收 Factorio data.lua → data-updates.lua → data-final-fixes.lua 设计）已被
- *   6 个真实子系统采用，包括从未清空过的 `mod-character/subsystems/lifespan-system.ts`，
- *   本基类必须支持它们，因此实现 ISubSystemV2（继承自 ISubSystem）而非仅 V1。
+ *   多个真实子系统采用，包括角色基础状态的统一后处理，本基类必须支持它们，
+ *   因此实现 ISubSystemV2（继承自 ISubSystem）而非仅 V1。
  * - V3（ISubSystemV3 的 ReadonlyRoundContext/WritableRoundContext 泛型阶段隔离）目前
  *   项目内零采用（仅类型声明，无任何子系统或引擎代码引用），暂不引入，避免无人使用的
  *   额外复杂度——待实际有子系统需要编译期阶段隔离时再评估升级。

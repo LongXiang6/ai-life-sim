@@ -1,5 +1,5 @@
 /**
- * Purpose: Execute bounded read queries against the validated historical-event ledger index.
+ * Purpose: Execute complete read queries with optional caller-requested derived windows.
  * Owner: mod-history-dynamics
  * Responsibility: Read projection only; validation, candidate writes, and persistence remain with the ledger owner.
  */
@@ -25,9 +25,6 @@ import type {
 import { cloneValue } from '../../utils'
 import type { HistoricalEventLedgerSystem } from '../historical-event-ledger-system'
 
-const DEFAULT_QUERY_LIMIT = 100
-const MAX_QUERY_LIMIT = 500
-
 export function isRelevantHistoricalScope(
   scope: HistoricalEventScope,
   contextId: string,
@@ -39,12 +36,12 @@ export function isRelevantHistoricalScope(
 function resolveQueryWindow(
   query: HistoricalQueryWindow,
   path = 'query',
-): { offset: number; limit: number } {
+): { offset: number; limit?: number } {
   const offset = query.offset ?? 0
-  const limit = query.limit ?? DEFAULT_QUERY_LIMIT
-  if (!Number.isInteger(offset) || offset < 0) throw new Error(`${path}.offset 必须是非负整数`)
-  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_QUERY_LIMIT) {
-    throw new Error(`${path}.limit 必须是 1-${MAX_QUERY_LIMIT} 的整数`)
+  const limit = query.limit
+  if (!Number.isSafeInteger(offset) || offset < 0) throw new Error(`${path}.offset 必须是非负整数`)
+  if (limit !== undefined && (!Number.isSafeInteger(limit) || limit < 1)) {
+    throw new Error(`${path}.limit 必须是正整数`)
   }
   return { offset, limit }
 }
@@ -65,7 +62,7 @@ function collectBounded<T, R>(
       continue
     }
     result.push(project(item))
-    if (result.length >= limit) break
+    if (limit !== undefined && result.length >= limit) break
     matched += 1
   }
   return result

@@ -19,7 +19,7 @@ export default defineMod({
     eventBus: true,
     persistStore: true,
   },
-  subsystems: ['OrchestratorSystem', 'TimeSystem', 'NarrativeParserSystem', 'SummaryCompressorSystem', 'MemoryEngineSystem', 'SubsystemRelevanceSystem', 'MemoryLifecycleSystem', 'MemoryForgettingSystem', 'CausalDelaySystem', 'PlotStructureSystem', 'ForeshadowingSystem', 'CoreMemorySystem'],
+  subsystems: ['OrchestratorSystem', 'TimeSystem', 'NarrativeParserSystem', 'SummaryCompressorSystem', 'SubsystemRelevanceSystem', 'MemoryLifecycleSystem', 'CausalDelaySystem', 'PlotStructureSystem', 'ForeshadowingSystem'],
   secondaryPublicEntries: ['engine-api.ts'],
   serverOnlyPublicEntries: ['server-prompt-assets.ts'],
   stores: ['useEngineStore'],

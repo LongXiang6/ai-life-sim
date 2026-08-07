@@ -14,20 +14,11 @@ export const MOD_SECONDARY_API_IMPORTERS: Record<string, readonly (() => Promise
   'mod-engine': [
     () => import('@/mods/mod-engine/engine-api') as Promise<Record<string, unknown>>,
   ],
-  'mod-environment-ecology': [
-    () => import('@/mods/mod-environment-ecology/environment-simulation-api') as Promise<Record<string, unknown>>,
-  ],
   'mod-history-dynamics': [
     () => import('@/mods/mod-history-dynamics/historical-event-api') as Promise<Record<string, unknown>>,
   ],
-  'mod-npc': [
-    () => import('@/mods/mod-npc/npc-system-api') as Promise<Record<string, unknown>>,
-  ],
   'mod-settings': [
     () => import('@/mods/mod-settings/settings-runtime-api') as Promise<Record<string, unknown>>,
-  ],
-  'mod-social': [
-    () => import('@/mods/mod-social/relationship-system-api') as Promise<Record<string, unknown>>,
   ],
   'mod-world': [
     () => import('@/mods/mod-world/world-init-api') as Promise<Record<string, unknown>>,

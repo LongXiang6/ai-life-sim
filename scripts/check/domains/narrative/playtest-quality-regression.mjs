@@ -22,7 +22,10 @@ import {
   buildWordCountInstruction,
   resolveNarrativeWordCountRange,
 } from '../../../../src/mods/mod-engine/constants/narrative-config.ts'
-import { buildLifecycleNarrativeHint } from '../../../../src/mods/mod-engine/helpers/lifecycle-narrative.ts'
+import {
+  createCharacterNarrativeStatus,
+} from '../../../../src/mods/mod-character/subsystems/character-status-runtime.ts'
+import { RACE_LIFESPAN } from '../../../../src/mods/mod-character/constants.ts'
 import { buildNarrativeCoherenceHeader } from '../../../../src/mods/mod-engine/helpers/subsystem-prompt-gate.ts'
 import {
   NARRATIVE_WORD_COUNT_TARGETS,
@@ -49,7 +52,7 @@ import {
 import { sanitizeCharacterStateSnapshot } from '../../../../src/mods/mod-character/utils/character-state-migration.ts'
 import { mythicPatternOutputSchema } from '../../../../src/mods/mod-character/prompts/mythic-pattern-prompt.ts'
 import { destinyPatternOutputSchema } from '../../../../src/mods/mod-character/prompts/destiny-pattern-prompt.ts'
-import { findFestivalsOnDate } from '../../../../src/mods/mod-culture/utils/festival-calendar.ts'
+import { buildFestivalNarrativeHint } from '../../../../src/mods/mod-engine/subsystems/time-system/festival-calendar.ts'
 import {
   formatWorldTagsText,
   WORLDVIEW_TAG_DEFAULTS,
@@ -486,7 +489,6 @@ for (const legacyPowerSystemTag of ['none', 'technology']) {
       formulas: { techProgressModifier: 1.4 },
     },
     worldTags: ['无超自然', '异常收容', '休谟指数'],
-    entities: [{ id: 'site-19', name: 'Site-19' }],
     eraStartYear: 2000,
   })
   assertSame(migratedScpWorld.worldConfig.essenceTag, 'mixed', `old SCP ${legacyPowerSystemTag} saves must migrate to mixed essence`)
@@ -499,11 +501,6 @@ for (const legacyPowerSystemTag of ['none', 'technology']) {
   assertSame(migratedScpWorld.calibration.metadata.essenceTag, 'mixed', 'old SCP calibration metadata must match migrated essence')
   assertSame(migratedScpWorld.calibration.metadata.powerSystemTag, 'mixed', 'old SCP calibration metadata must match migrated power system')
   assertSame(migratedScpWorld.calibration.formulas.techProgressModifier, 1.4, 'old SCP numeric calibration must be preserved')
-  assertOk(
-    migratedScpWorld.entities[0].id.endsWith(':entity:site-19'),
-    'old SCP entities must receive the P0 global context namespace',
-  )
-  assertSame(migratedScpWorld.entities[0].localId, 'site-19', 'old SCP local entity IDs must remain available as migration metadata')
   assertSame(migratedScpWorld.worldTags.length, 2, 'only contradictory old SCP atmosphere tags must be invalidated')
   assertSame(migratedScpWorld.worldTags[0], '异常收容', 'valid old SCP atmosphere tags must be preserved')
   assertSame(migratedScpWorld.worldTags[1], '休谟指数', 'valid old SCP setting facts must remain available to the Prompt')
@@ -559,14 +556,27 @@ const sameNameCustomWorld = sanitizeWorldStateSnapshot({
 assertSame(sameNameCustomWorld.worldConfig.essenceTag, 'modern', 'same-name custom worlds must not be mistaken for the SCP preset')
 assertSame(sameNameCustomWorld.worldConfig.powerSystemTag, 'none', 'same-name custom world power systems must remain unchanged')
 
-const festivals = [
-  { name: '星潮纪念日', date: '3-15', description: '纪念星潮归来', importance: 4 },
-  { name: '仙盟大会', date: '3-15', description: '五年一度', importance: 5, frequencyYears: 5 },
-  { name: '丰收礼', date: '9-15', description: '庆祝收获', importance: 3 },
-]
-assertSame(findFestivalsOnDate(festivals, 3, 15).length, 1, 'festival adapter must match exact month/day')
-assertSame(findFestivalsOnDate(festivals, 3, 16).length, 0, 'festival adapter must not match by month only')
-assertSame(findFestivalsOnDate(festivals, 3, 15)[0]?.name, '星潮纪念日', 'festival adapter must suppress multi-year festivals without a year anchor')
+const newYearFestivalHint = buildFestivalNarrativeHint({
+  scope: 'china',
+  timeStep: { unit: 'day', value: 1 },
+  month: 1,
+  day: 1,
+})
+assertOk(newYearFestivalHint?.includes('春节'), 'game calendar must expose Spring Festival on first day of the year')
+assertSame(
+  buildFestivalNarrativeHint({ scope: 'china', timeStep: { unit: 'day', value: 1 }, month: 1, day: 2 }),
+  undefined,
+  'game calendar must match festivals by exact month and day',
+)
+assertOk(
+  buildFestivalNarrativeHint({
+    scope: 'china-and-international',
+    timeStep: { unit: 'day', value: 1 },
+    month: 2,
+    day: 14,
+  })?.includes('情人节'),
+  'international festival scope must add optional international dates',
+)
 
 assertOk(isEligibleNarrativeBranch({
   branch: true,
@@ -618,7 +628,7 @@ const roundCommitBusSrc = readRel('src/mods/mod-engine/helpers/round-commit-bus.
 const powerContextSrc = readRel('src/mods/mod-world/utils/power-framework.ts')
 const timelineCssSrc = readRel('src/mods/mod-ui/components/organisms/NarrativeTimeline.module.css')
 const timelineTsxSrc = readDirectorySource('src/mods/mod-ui/components/organisms', root, ['.ts', '.tsx'])
-const cultureIndexSrc = readRel('src/mods/mod-culture/index.ts')
+const calendarContextSrc = readRel('src/mods/mod-engine/helpers/calendar-narrative-context.ts')
 const settingsStoreSrc = readRel('src/mods/mod-settings/store.ts')
 const aiClientSrc = readModuleSource('src/core/ai-service/ai-client.ts', root)
 const proxyRouteSrc = readModuleSource('src/app/api/proxy/route.ts', root)
@@ -672,16 +682,25 @@ assertOk(
     && !buildWordCountInstruction(200).includes('一组关键行动或对话'),
   'word-count guidance must own density without forcing every time scale into one scene',
 )
+const lifecycleStatus = createCharacterNarrativeStatus({
+  startingAgeYears: 2,
+  totalDays: 0,
+  lifespanDraft: {
+    raceId: 'human',
+    race: RACE_LIFESPAN.human,
+    maximumLifespanYears: 100,
+  },
+  lifeStageTemplate: [{
+    stageId: 'audit-early-life',
+    displayName: '早期生命',
+    description: '身体与心智仍在形成。',
+    minAgeDays: 0,
+    guidance: '场景、行为能力、认知和对话复杂度必须符合当前阶段事实',
+  }],
+})
 assertOk(
-  buildLifecycleNarrativeHint(
-    { ageDays: 730 },
-    {
-      displayName: '早期生命',
-      description: '身体与心智仍在形成。',
-      coefficients: { vitality: 0.6, learning: 1.4, social: 0.7 },
-    },
-  ).includes('场景、行为能力、认知和对话复杂度必须符合当前阶段事实'),
-  'lifecycle guidance must bind cognition and behavior to the owning stage definition',
+  lifecycleStatus.guidance.includes('场景、行为能力、认知和对话复杂度必须符合当前阶段事实'),
+  'character status guidance must bind cognition and behavior to the owning stage definition',
 )
 assertOk(
   buildNarrativeCoherenceHeader({ powerSystemTag: 'none' }, 2)?.includes('【世界设定】【命格天赋】或【当前状态】'),
@@ -694,10 +713,10 @@ assertOk(
   'narrative length must not be implemented as a retry or rejection gate',
 )
 const chineseInstruction = {
-  系统: '基础属性',
+  系统: '角色状态',
   目标对象: 'player:current',
   目标上下文: 'context:current',
-  操作: '增量',
+  操作: '调整属性',
   说明: '你完成了心智训练。',
   变更: { 心智变化: 1 },
   依据事件: [],
@@ -911,9 +930,10 @@ assertOk(
 assertOk(/效果写成叙事引擎可持续遵守的规则/.test(destinyPromptSrc), 'destiny effect must remain a narrative rule instead of only numeric modifiers')
 assertOk(/validatePatternSystemModifiers\(input\.systemModifiers, rarity\)/.test(destinySystemSrc), 'external AI destiny injection must validate system modifiers')
 assertOk(
-  /version:\s*5/.test(characterStoreSrc)
-    && ['health: _health', 'lifespan: _lifespan', 'lifecycle: _lifecycle'].every((field) => characterStoreSrc.includes(field)),
-  'character persistence must retain identity and mythic migration while excluding owning-system runtime projections',
+  /version:\s*6/.test(characterStoreSrc)
+    && ['characterBase', 'destinyPatterns', 'lifespanDraft'].every((field) => characterStoreSrc.includes(field))
+    && !['health: _health', 'lifespan: _lifespan', 'lifecycle: _lifecycle'].some((field) => characterStoreSrc.includes(field)),
+  'character persistence must retain identity and unified status while excluding retired runtime projections',
 )
 assertOk(
   ['mythicCandidates', 'equippedMythicPatterns', 'setEquippedMythicPatterns', 'sealedMythicPatternId'].every((field) => characterStoreSrc.includes(field)),
@@ -1161,7 +1181,11 @@ assertOk(
     && orchestratorSrc.includes('config.powerFramework'),
   'non-supernatural worlds must omit an irrelevant power framework from the narrative context',
 )
-assertOk(cultureIndexSrc.includes('buildCultureCalendarNarrativeContext'), 'mod-culture must expose the calendar adapter')
+assertOk(
+  calendarContextSrc.includes('buildFestivalNarrativeHint')
+    && calendarContextSrc.includes('festivalScope'),
+  'time-system must expose the unified calendar and festival adapter',
+)
 
 assertOk(!timelineCssSrc.includes('.entryLatest'), 'latest narrative must not have a special background rule')
 assertOk(!timelineTsxSrc.includes('styles.entryLatest'), 'latest narrative must not receive a special style class')

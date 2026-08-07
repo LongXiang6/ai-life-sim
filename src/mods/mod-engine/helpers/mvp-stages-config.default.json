@@ -1,35 +1,37 @@
 {
   "currentStage": "p8",
   "stages": {
-    "p6": {
-      "description": "P6 现实数量级、人口、聚落、工作、物品、经济与产业基础。",
-      "runtime": {
-        "external": [
-          "world-context-registry", "contextual-capability-profile", "spatial-graph", "context-transition", "simulation-scope-policy", "world-init", "historical-event-ledger", "world-entity", "relationship-system", "npc-system", "geography", "natural-resource", "growth-system", "achievement", "reputation", "character-base", "destiny-pattern", "lifespan", "lifecycle-system", "health", "luck", "morality", "celestial", "era", "economy", "population", "settlement", "work", "item"
-        ],
-        "engine": ["time", "orchestrator", "narrative-parser", "summary-compressor", "memory-engine", "subsystem-relevance", "memory-lifecycle", "memory-forgetting", "causal-delay", "plot-structure", "foreshadowing", "core-memory"]
-      },
-      "systemInstruction": ["character-base", "lifespan", "health", "morality", "growth-system", "reputation", "npc-system", "relationship-system"]
-    },
-    "p7": {
-      "description": "P7 文化、艺术、教育、政治、法律、社会结构、环境生态、污染与组合技术领域。",
-      "runtime": {
-        "external": [
-          "world-context-registry", "contextual-capability-profile", "spatial-graph", "context-transition", "simulation-scope-policy", "world-init", "historical-event-ledger", "world-entity", "relationship-system", "npc-system", "geography", "natural-resource", "climate", "ecology", "pollution", "growth-system", "achievement", "reputation", "character-base", "destiny-pattern", "lifespan", "lifecycle-system", "health", "luck", "morality", "celestial", "era", "culture", "art", "education", "works", "social-stratification", "faction-dynamics", "legal", "conflict-cycle", "culture-tech", "economy", "population", "settlement", "work", "item"
-        ],
-        "engine": ["time", "orchestrator", "narrative-parser", "summary-compressor", "memory-engine", "subsystem-relevance", "memory-lifecycle", "memory-forgetting", "causal-delay", "plot-structure", "foreshadowing", "core-memory"]
-      },
-      "systemInstruction": ["character-base", "lifespan", "health", "morality", "growth-system", "reputation", "npc-system", "relationship-system"]
-    },
     "p8": {
-      "description": "P8 世界观插件：通用力量框架、修炼、怪物、机缘、信念、神明干预、预言和异常。",
+      "description": "通用叙事模拟：区域、角色状态、统一记忆、时间日历与必要世界观能力。",
       "runtime": {
         "external": [
-          "world-context-registry", "contextual-capability-profile", "spatial-graph", "context-transition", "simulation-scope-policy", "world-init", "historical-event-ledger", "world-entity", "relationship-system", "npc-system", "geography", "natural-resource", "climate", "ecology", "pollution", "growth-system", "achievement", "reputation", "character-base", "destiny-pattern", "lifespan", "lifecycle-system", "health", "luck", "morality", "celestial", "era", "fate-prophecy", "divine-creation", "economy", "population", "settlement", "work", "item", "culture", "art", "education", "works", "social-stratification", "faction-dynamics", "legal", "conflict-cycle", "culture-tech", "combat-power", "cultivation", "monster", "fortune-encounter", "faith", "divine-intervention", "anomaly-phenomena"
+          "world-context-registry",
+          "contextual-capability-profile",
+          "spatial-graph",
+          "context-transition",
+          "simulation-scope-policy",
+          "world-init",
+          "historical-event-ledger",
+          "growth-system",
+          "character-base",
+          "destiny-pattern",
+          "culture-tech",
+          "combat-power",
+          "cultivation"
         ],
-        "engine": ["time", "orchestrator", "narrative-parser", "summary-compressor", "memory-engine", "subsystem-relevance", "memory-lifecycle", "memory-forgetting", "causal-delay", "plot-structure", "foreshadowing", "core-memory"]
+        "engine": [
+          "time",
+          "orchestrator",
+          "narrative-parser",
+          "summary-compressor",
+          "subsystem-relevance",
+          "memory-lifecycle",
+          "causal-delay",
+          "plot-structure",
+          "foreshadowing"
+        ]
       },
-      "systemInstruction": ["character-base", "lifespan", "health", "morality", "growth-system", "reputation", "npc-system", "relationship-system"]
+      "systemInstruction": ["character-base", "growth-system"]
     }
   }
 }

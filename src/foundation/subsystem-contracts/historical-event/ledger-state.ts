@@ -47,12 +47,14 @@ export interface HistoricalEventLedgerContract {
   contextId: WorldContextId
   relevantEvents: HistoricalEventView[]
   relevantCausalEdges: HistoricalCausalEdge[]
+  dueCandidates: HistoricalEventCandidateAudit[]
   counts: {
     events: number
     transitions: number
     evidence: number
     causalEdges: number
     candidates: number
+    dueCandidates: number
     scheduledRelevant: number
     byStatus: Record<HistoricalEventStatus, number>
   }

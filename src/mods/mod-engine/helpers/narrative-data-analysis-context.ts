@@ -19,6 +19,7 @@ import { isSubsystemOpenForPrompt } from './subsystem-prompt-gate'
 export interface NarrativeDataAnalysisPromptInput {
   userSegments: [string, string, string]
   activeSubsystemIds: string[]
+  allowedOperationsBySubsystem: Readonly<Record<string, readonly string[]>>
   allowedEvidenceEventIds: string[]
 }
 
@@ -29,16 +30,16 @@ export function buildNarrativeDataAnalysisPromptInput(input: {
 }): NarrativeDataAnalysisPromptInput {
   assertRecentStoriesAvailable(input.recentStories)
   const activeSubsystemIds = [...MVP_SYSTEM_INSTRUCTION_SUBSYSTEM_IDS].filter((id) => {
-    if (id === 'character-base') return false
     const state = input.subsystemStates[id]
     return state?.data !== undefined && isSubsystemOpenForPrompt(state, id)
   })
   if (activeSubsystemIds.length === 0) {
-    throw new Error('本轮没有可供数据分析读取的活动非基础属性系统')
+    throw new Error('本轮没有可供数据分析读取的活动角色状态或成长系统')
   }
+  const allowedOperationsBySubsystem = { 'character-base': ['update-status'] } as const
 
   const stateLines = activeSubsystemIds.map((id) => {
-    const contract = getNarrativeAISubsystemContract(id)
+    const contract = getNarrativeAISubsystemContract(id, allowedOperationsBySubsystem[id as 'character-base'])
     return `⟦可写系统:${contract.aiName}⟧${JSON.stringify({
       目标上下文: input.roundContext.contextId,
       当前完整状态: input.subsystemStates[id].data,
@@ -59,6 +60,7 @@ export function buildNarrativeDataAnalysisPromptInput(input: {
       `⟦最近故事⟧${JSON.stringify(input.recentStories)}`,
     ],
     activeSubsystemIds,
+    allowedOperationsBySubsystem,
     allowedEvidenceEventIds,
   }
 }

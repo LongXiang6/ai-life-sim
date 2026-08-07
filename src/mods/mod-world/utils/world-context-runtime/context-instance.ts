@@ -25,7 +25,6 @@ import { deriveCapabilityProfile } from './capability-profile'
 import { inferContextKind } from './identifiers'
 import {
   buildSpatialGraph,
-  namespaceEntities,
   namespaceRegions,
 } from './spatial-graph'
 
@@ -66,9 +65,14 @@ export function buildWorldContextInstance(input: {
   derivedFrom?: ContextCapabilityProfile['derivedFrom']
 }): WorldContextInstance {
   const contextKind = input.contextKind ?? inferContextKind(input.config)
-  const { regions, idMap } = namespaceRegions(input.contextId, input.snapshot.regions)
-  const entities = namespaceEntities(input.contextId, input.snapshot.entities, idMap)
-  const spatialGraph = buildSpatialGraph(input.contextId, contextKind, input.config.name, regions)
+  const { regions } = namespaceRegions(input.contextId, input.snapshot.regions)
+  const spatialGraph = buildSpatialGraph(
+    input.contextId,
+    contextKind,
+    input.config.name,
+    input.config.spatialForm,
+    regions,
+  )
   const globalTotalDays = Math.max(0, input.globalTotalDays ?? 0)
   const localCalendar = validateLocalCalendar(input.localCalendar ?? {
     calendarId: 'canonical-365',
@@ -114,7 +118,6 @@ export function buildWorldContextInstance(input: {
     worldConfig: structuredClone(input.config),
     worldCode: input.worldCode,
     initialized: true,
-    entities,
     regions,
     tags: structuredClone(input.snapshot.tags),
     worldTags: [...(input.worldTags ?? [])],
@@ -149,7 +152,6 @@ export function cloneWorldTags(tags: WorldTagsV2): WorldTagsV2 {
 export function projectWorldContextInstance(instance: WorldContextInstance) {
   return {
     worldConfig: structuredClone(instance.worldConfig),
-    entities: structuredClone(instance.entities),
     initialized: instance.initialized,
     worldCode: instance.worldCode,
     currentYear: instance.currentYear,

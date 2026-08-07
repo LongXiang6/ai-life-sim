@@ -1,4 +1,8 @@
-/** Pure read projection from spatial ownership into a deterministic map view. */
+/**
+ * Purpose: Project world-owned region relationships and profiles into a deterministic map view.
+ * Owner: mod-world-map
+ * Responsibility: Read projection only; region generation and current-region writes stay in mod-world.
+ */
 
 import type {
   MapProjection,
@@ -9,10 +13,6 @@ import type {
   SpatialNode,
   WorldContextKind,
 } from '@/foundation'
-import {
-  getGeographySystem,
-  getNaturalResourceSystem,
-} from '@/mods/mod-environment-ecology/environment-simulation-api'
 import { useWorldStore } from '@/mods/mod-world'
 
 function requireTotalDays(value: number): number {
@@ -40,7 +40,10 @@ function nodePosition(index: number, count: number, isRoot: boolean): { x: numbe
   }
 }
 
-function nodeContextId(nodeId: string, contexts: ReturnType<typeof useWorldStore.getState>['contexts']): string | undefined {
+function nodeContextId(
+  nodeId: string,
+  contexts: ReturnType<typeof useWorldStore.getState>['contexts'],
+): string | undefined {
   for (const [contextId, instance] of Object.entries(contexts)) {
     if (instance.spatialGraph.nodes[nodeId]) return contextId
   }
@@ -62,16 +65,6 @@ export function projectWorldMap(request: MapProjectionRequest): MapProjection {
   const context = world.contexts[request.contextId]
   if (!context) throw new Error(`地图投影引用未知上下文：${request.contextId}`)
 
-  const playerEntityId = Object.values(world.entityReferences)
-    .filter((reference) => reference.kind === 'player')
-    .sort((left, right) => left.entityId.localeCompare(right.entityId))[0]?.entityId
-  const observerEntityId = request.observerEntityId ?? playerEntityId
-  const observerLocation = observerEntityId
-    ? Object.values(world.contexts)
-        .map((instance) => instance.spatialGraph.entityLocations[observerEntityId])
-        .find(Boolean)
-    : undefined
-
   const localNodes = Object.values(context.spatialGraph.nodes)
   const localNodeIds = new Set(localNodes.map((node) => node.id))
   const crossEdges = crossContextEdgesFor(localNodeIds, world.crossContextEdges)
@@ -90,29 +83,23 @@ export function projectWorldMap(request: MapProjectionRequest): MapProjection {
     })
 
   const knownNodeIds = request.knownNodeIds ? new Set(request.knownNodeIds) : null
-  const geography = getGeographySystem()
-  const resources = getNaturalResourceSystem()
   const nodes: MapProjectionNode[] = orderedNodes.map((node, index) => {
     const instance = world.contexts[node.contextId]
-    const locationEntries = instance
-      ? Object.values(instance.spatialGraph.entityLocations).filter((location) => location.nodeId === node.id)
-      : []
-    const isCurrentLocation = observerLocation?.contextId === node.contextId && observerLocation.nodeId === node.id
+    const isCurrentRegion = instance?.spatialGraph.currentRegionId === node.id
     const position = nodePosition(index, orderedNodes.length, node.id === context.record.rootSpatialNodeId)
+    const profile = instance?.spatialGraph.regionProfiles[node.id]
     return {
       nodeId: node.id,
       contextId: node.contextId,
       ...(node.parentNodeId ? { parentNodeId: node.parentNodeId } : {}),
       kind: node.kind,
-      name: node.name,
+      name: profile?.name ?? node.name,
       ...position,
-      visibility: isCurrentLocation
+      visibility: isCurrentRegion
         ? 'current'
         : (!knownNodeIds || knownNodeIds.has(node.id) ? 'known' : 'unknown'),
-      geography: geography.getNode(node.contextId, node.id),
-      resources: resources.listDeposits(node.contextId, node.id),
-      entityIds: locationEntries.map((location) => location.entityId).sort(),
-      isCurrentLocation,
+      ...(profile ? { profile: structuredClone(profile) } : {}),
+      isCurrentRegion,
     }
   })
 
@@ -135,7 +122,6 @@ export function projectWorldMap(request: MapProjectionRequest): MapProjection {
     contextName: context.record.name,
     kind: projectionKind(context.record.kind, context.worldConfig.spatialForm),
     generatedAtTotalDays: totalDays,
-    ...(observerEntityId ? { observerEntityId } : {}),
     nodes,
     edges,
   }

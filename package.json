@@ -1,6 +1,6 @@
 {
   "name": "ai-life-sim",
-  "version": "5.7.5",
+  "version": "5.7.6",
   "private": true,
   "scripts": {
     "dev": "node scripts/codegen/generate-mod-wiring.mjs && next dev --turbopack",
@@ -45,7 +45,6 @@
     "test:historical-event-prompt": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/narrative/historical-event-prompt-projection-smoke.mjs",
     "test:historical-event-p1": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/mod/historical-event-p1-smoke.mjs && npm run test:historical-event-prompt",
     "test:history-causality-p1": "npm run test:historical-event-p1",
-    "test:npc-social-p2": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/mod/npc-social-p2-smoke.mjs",
     "test:multi-world-p3-p5": "node --no-warnings=ExperimentalWarning --loader ./scripts/check/lib/typescript-loader.mjs scripts/check/domains/mod/multi-world-p3-p5-smoke.mjs",
     "test:player-api-settings": "node scripts/check/domains/narrative/player-api-settings-regression.mjs",
     "test:loader": "node scripts/check/domains/structural/test-mod-loader.mjs",

@@ -19,8 +19,8 @@ import {
 } from '@/foundation'
 import { getMvpRuntimeSubsystemOrder } from '../helpers/mvp-runtime-policy'
 import type {
-  EntityLifecycleState,
-  PendingDeathFact,
+  CharacterNarrativeStatus,
+  PendingCharacterDeath,
   NarrativeStage,
   YearEvent,
 } from '@/foundation'
@@ -42,14 +42,11 @@ import {
   TimeSystem,
   timeSystem,
   summaryCompressor,
-  memoryEngine,
   plotStructure,
   foreshadowing,
   memoryLifecycle,
-  memoryForgetting,
   causalDelay,
   digestLedger,
-  coreMemory,
   subsystemRelevance,
   useEngineStore,
   type BridgeSnapshot,
@@ -127,6 +124,7 @@ import {
   acceptNarrativeResponseRuntime,
   buildHistoricalCausalScopeRuntime,
   getAvailableHistoricalEventCandidatesRuntime,
+  getDueHistoricalEventCandidatesRuntime,
   getCurrentHistoricalScopeRuntime,
   getHistoricalEventLedgerRuntimeRuntime,
   notifyHistoricalEventsCommittedRuntime,
@@ -236,6 +234,7 @@ export interface AcceptedNarrativeResult extends RoundResult {
   narrativeId: string
   roundSequence: number
   deliveredCausalEventIds: string[]
+  deliveredHistoricalEventCandidateIds: string[]
 }
 
 interface AcceptedNarrativeRecord {
@@ -247,6 +246,7 @@ interface AcceptedNarrativeRecord {
   roundContext: RoundContext
   narrative: ParsedNarrative
   deliveredCausalEventIds: string[]
+  deliveredHistoricalEventCandidateIds: string[]
   playerChoice?: string
 }
 
@@ -370,6 +370,12 @@ export class OrchestratorSystem extends BaseSubsystem {
   /** 本轮已到期但尚未在有效叙事提交中确认兑现的因果事项。 */
   private pendingNarrativeCausalEventIds: string[] = []
 
+  /** 当前 Prompt 实际投递、尚未随正文接纳的到期历史候选。 */
+  private pendingNarrativeEventCandidateIds: string[] = []
+
+  /** 已随正文接纳、等待事件识别终态的历史候选。 */
+  private readonly inFlightNarrativeEventCandidateIds = new Set<string>()
+
   /** 已接纳正文的不可变来源快照；后台结果只能按此身份提交。 */
   private readonly acceptedNarrativeRecords = new Map<string, AcceptedNarrativeRecord>()
 
@@ -445,14 +451,11 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   private getInternalStatefulSubsystems(): ISubSystem[] {
     return [
-      memoryEngine,
       subsystemRelevance,
       memoryLifecycle,
-      memoryForgetting,
       causalDelay,
       plotStructure,
       foreshadowing,
-      coreMemory,
     ]
   }
 
@@ -634,16 +637,14 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   /** 叙事用年龄：按绝对天数计算，细粒度回合不会错误增加整岁。 */
   private computeNarrativeAge(context: RoundContext): number {
-    const lifecycle = context.subsystemStates?.['lifecycle-system']?.data as {
-      entity?: EntityLifecycleState
+    const characterBase = context.subsystemStates?.['character-base']?.data as {
+      status?: CharacterNarrativeStatus
+      startingAge?: number
     } | undefined
-    if (lifecycle?.entity) return Math.floor(lifecycle.entity.ageDays / 365)
-    const baseState = context.subsystemStates?.['character-base']?.data
-    const startingAge = (baseState && typeof baseState === 'object' && 'startingAge' in baseState)
-      ? (baseState as Record<string, unknown>).startingAge as number
-      : 0
+    if (characterBase?.status) return Math.floor(characterBase.status.ageDays / 365)
+    const startingAge = characterBase?.startingAge ?? 0
     const completedYears = Math.floor(Math.max(0, context.totalDays - 365) / 365)
-    return (startingAge ?? 0) + completedYears
+    return startingAge + completedYears
   }
 
   /** 设置时间步进（UI → 引擎 + TimeSystem） */
@@ -878,6 +879,8 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.lastSessionId = state.lastSessionId
     this.lastExecutedFullContent = state.lastExecutedFullContent ?? null
     this.pendingNarrativeCausalEventIds = []
+    this.pendingNarrativeEventCandidateIds = []
+    this.inFlightNarrativeEventCandidateIds.clear()
     this.compressionGateFailure = null
     this.lastPlayerChoice = state.lastPlayerChoice
     this.pendingNarrativeRoundPreparation = undefined
@@ -934,7 +937,6 @@ export class OrchestratorSystem extends BaseSubsystem {
     timeSystem.importRound(state.timeRound ?? this.state.round)
     this.state.round = timeSystem.getRound()
     summaryCompressor.restoreFromEngineState(this.state.compressedSummaries, this.state.compressionStats)
-    coreMemory.hydrateFromStore()
     useEngineStore.setState((prev) => ({
       ...prev,
       ...this.state,
@@ -980,11 +982,6 @@ export class OrchestratorSystem extends BaseSubsystem {
   /** 从设置 store 读取本轮实际生效的叙事风格。 */
   private getNarrativeStyle(): string {
     return this.getNarrativeStyleSnapshot().text
-  }
-
-  private shouldStop(): boolean {
-    return this.state.totalRounds >= DEFAULT_ENGINE_CONFIG.maxRounds
-      || this.state.status === 'complete'
   }
 
   // === 上下文注入 ===
@@ -1198,7 +1195,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     return !enabled || enabled.length === 0 || enabled.includes(subsystemId)
   }
 
-  /** 叙事前同步角色年龄（与 lifespan 子系统公式一致） */
+  /** 叙事前从 character-base 统一角色状态同步年龄。 */
   private syncCharacterStateForPrompt(context: RoundContext): CharacterState {
     if (!this.characterState) {
       throw new Error('[Orchestrator] characterState 未设置')
@@ -1244,7 +1241,8 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   private async _checkAndTriggerEpilogue(aiConfig: AIModelConfig, sessionId?: string): Promise<void> {
     try {
-      const healthSub = this.subsystems.find((s) => s.id === 'health') as (ISubSystem & {
+      const characterSub = this.subsystems.find((s) => s.id === 'character-base') as (ISubSystem & {
+        getStatus: () => CharacterNarrativeStatus | undefined
         hasEpilogue: (entityId: string) => boolean
         generateEpilogue: (
           ctx: RoundContext,
@@ -1253,13 +1251,12 @@ export class OrchestratorSystem extends BaseSubsystem {
           sid?: string,
         ) => Promise<string>
       }) | undefined
-      if (!healthSub) return
+      if (!characterSub) return
 
       const context = this.buildRoundContext()
-      const healthState = healthSub.collectState(context)
-      const hData = healthState.data as { alive?: boolean; death?: unknown }
-      if (hData?.alive !== false || !hData.death) return
-      if (healthSub.hasEpilogue(context.characterId)) return
+      const status = characterSub.getStatus()
+      if (status?.health.alive !== false || !status.health.death) return
+      if (characterSub.hasEpilogue(context.characterId)) return
 
       const freshContext = this.buildRoundContext()
       const firstRound = Math.max(
@@ -1273,7 +1270,7 @@ export class OrchestratorSystem extends BaseSubsystem {
         )
       ))
 
-      await healthSub.generateEpilogue(freshContext, aiConfig, narrativeHistory, sessionId)
+      await characterSub.generateEpilogue(freshContext, aiConfig, narrativeHistory, sessionId)
         .then((epilogueText) => {
           this.collectSubsystemStates(false, false)
           eventBus.emit('mod-character:died', { epilogueGenerated: true, length: epilogueText.length })
@@ -1435,11 +1432,9 @@ export class OrchestratorSystem extends BaseSubsystem {
 
   collectState(_context: RoundContext): SubSystemState {
     const lifecycleCount = Object.keys(this.eventLifecycle).length
-    const lifespanData = this.lastSubsystemStates?.['lifespan']?.data as { adjustments?: unknown[] } | undefined
-    const lifespanAdjustmentCount = lifespanData?.adjustments?.length ?? 0
     return {
       id: this.id,
-      summary: `【${this.label}】${this.state.status} | 第 ${this.state.totalRounds} 回合 | 第${this.state.round.year}年 | 事件追踪×${lifecycleCount} | 压缩 L1×${this.state.compressionStats.l1Count} | 寿命调整×${lifespanAdjustmentCount}`,
+      summary: `【${this.label}】${this.state.status} | 第 ${this.state.totalRounds} 回合 | 第${this.state.round.year}年 | 事件追踪×${lifecycleCount} | 压缩 L1×${this.state.compressionStats.l1Count}`,
       data: structuredClone(this.state) as unknown as Record<string, unknown>,
     }
   }
@@ -1513,25 +1508,25 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.lastSessionId = undefined
     this.lastExecutedFullContent = null
     this.pendingNarrativeCausalEventIds = []
+    this.pendingNarrativeEventCandidateIds = []
+    this.inFlightNarrativeEventCandidateIds.clear()
     this.acceptedNarrativeRecords.clear()
     this.narrativeBackgroundInbox.reset()
     this.lastPlayerChoice = undefined
     this.pendingNarrativeRoundPreparation = undefined
     this.pendingNarrativeCausalEventIds = []
+    this.pendingNarrativeEventCandidateIds = []
     this.prefetchedNarrativeContent = null
     this.prefetchedLuckGuidance = null
     this.lastNarrativeLuckGuidance = null
     this.worldSetting = null
     this.characterState = null
     summaryCompressor.reset()
-    memoryEngine.reset()
     memoryLifecycle.reset()
-    memoryForgetting.reset()
     causalDelay.reset()
     subsystemRelevance.reset()
     plotStructure.reset()
     foreshadowing.reset()
-    coreMemory.reset()
     digestLedger.reset()
     this.narrativeMemoryRecall = []
     globalDeadLoopDetector.resetAll()
@@ -1542,6 +1537,8 @@ export class OrchestratorSystem extends BaseSubsystem {
     this.acceptedNarrativeRecords.clear()
     this.narrativeBackgroundInbox.reset()
     this.pendingNarrativeRoundPreparation = undefined
+    this.pendingNarrativeEventCandidateIds = []
+    this.inFlightNarrativeEventCandidateIds.clear()
     const store = useEngineStore.getState()
     const lastAutoSaveRound = resolveRestoredAutoSaveRound(
       store.lastAutoSaveRound,
@@ -1601,7 +1598,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       : undefined
     this.hydrateSubsystemsFromStores()
     summaryCompressor.restoreFromEngineState(store.compressedSummaries, store.compressionStats)
-    coreMemory.hydrateFromStore()
     if (this.state.status !== 'complete') this.start()
   }
 
@@ -1712,6 +1708,13 @@ export class OrchestratorSystem extends BaseSubsystem {
     return getAvailableHistoricalEventCandidatesRuntime(this)
   }
 
+  getDueHistoricalEventCandidates(): HistoricalEventCandidateAudit[] {
+    return getDueHistoricalEventCandidatesRuntime(
+      this,
+      [...this.inFlightNarrativeEventCandidateIds],
+    )
+  }
+
   private notifyHistoricalEventsCommitted(
     eventIds: string[],
     context: RoundContext,
@@ -1734,7 +1737,7 @@ export class OrchestratorSystem extends BaseSubsystem {
     ledger: HistoricalEventLedgerRuntime,
     parsed: NarrativeEventCommitData,
     structuredKeyEvents: NonNullable<NarrativeEventCommitData['keyEvents']>,
-    pendingDeath?: PendingDeathFact,
+    pendingDeath?: PendingCharacterDeath,
     options: HistoricalNarrativeTransactionOptions = {},
   ): HistoricalNarrativeTransactionPlan | undefined {
     return buildHistoricalNarrativeTransactionPlanRuntime(
@@ -1882,11 +1885,6 @@ export class OrchestratorSystem extends BaseSubsystem {
       this.finishRoundDiagnostic('failed', error)
       throw error
     }
-    if (!pendingPreparation && this.shouldStop()) {
-      this.state.status = 'complete'
-      return { narrative: '', changes: [], notableEvents: [] }
-    }
-
     this.state.status = 'running'
     this.lastAiConfig = effectiveAiConfig
     this.lastSessionId = sessionId
@@ -1913,12 +1911,6 @@ export class OrchestratorSystem extends BaseSubsystem {
           lastNarrativeChars: this.state.currentNarrative?.length ?? 0,
         })
         throw rejection
-      }
-
-      // maxRounds 是回合完成后的终局边界；达到时立即进入 complete，
-      // 不要求玩家再点击一次空推进。
-      if (this.shouldStop()) {
-        this.state.status = 'complete'
       }
 
       // Instrument: onRoundEnd

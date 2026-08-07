@@ -14,7 +14,7 @@ export interface WorldInitAIStatus {
   calibrationGenerated: boolean
   tagsGenerated: boolean
   configGenerated: boolean
-  entitiesGenerated: boolean
+  regionProfilesGenerated: boolean
   retryCount: number
   maxRetries: number
   errors: string[]

@@ -14,13 +14,6 @@ export type {
   WorldInitAIStatus,
   WorldContextInstance,
   WorldContextCollection,
-  WorldEntity,
-  Nation,
-  Faction,
-  NobleHouse,
-  Settlement,
-  TradeRoute,
-  AnyWorldEntity,
   WorldSnapshot,
   RegionData,
   // 世界标签 V2（6×39 层次标签体系）
@@ -96,27 +89,25 @@ export { sanitizeWorldStateSnapshot } from './utils/world-state-migration'
 export {
   listWorldContexts,
   getCurrentWorldContext,
-  registerWorldEntityReference,
-  getWorldEntityReference,
-  listWorldEntityReferences,
-  repairWorldEntityReferenceDirectory,
-  assertWorldEntityReference,
   contextHasCapability,
   canRunBackgroundWorldSubsystem,
   assertWorldSpatialNode,
-  assertWorldEntityLocation,
-  listCoLocatedWorldEntityIds,
-  moveWorldEntityLocation,
+  getCurrentRegion,
+  setCurrentRegion,
 } from './world-context-api'
 
 // Hooks
-export { useWorld, useWorldEntities, useWorldTime } from './hooks'
+export { useWorld, useWorldRegions, useWorldTime } from './hooks'
 export { useWorldInitPoller } from './hooks/useWorldInitPoller'
 
 // AI Prompts
 export { worldConfigPrompt } from './prompts/world-config-prompt'
 export { worldTagsPrompt } from './prompts/world-tags-prompt'
-export { worldEntityPrompt } from './prompts/world-entity-prompt'
+export {
+  worldRegionProfilePrompt,
+  worldRegionProfileOutputSchema,
+  type WorldRegionProfileOutput,
+} from './prompts/world-region-profile-prompt'
 export { worldCalibrationPrompt, worldCalibrationOutputSchema } from './prompts/world-calibration-prompt'
 export { worldDimensionCalibrationPrompt, worldDimensionCalibrationOutputSchema } from './prompts/world-dimension-calibration-prompt'
 export type { WorldDimensionCalibrationOutput } from './prompts/world-dimension-calibration-prompt'

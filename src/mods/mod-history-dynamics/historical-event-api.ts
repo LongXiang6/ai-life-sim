@@ -9,6 +9,7 @@ import type {
   HistoricalCausalEdgeInput,
   HistoricalCausalEdgeQuery,
   HistoricalEventCandidateQuery,
+  HistoricalEventCandidateDispositionBatch,
   HistoricalEventCandidateSubmission,
   HistoricalEventCommitBatch,
   HistoricalEventCreateInput,
@@ -80,6 +81,19 @@ export function submitHistoricalEventCandidates(
 
 export function queryHistoricalEventCandidates(query: HistoricalEventCandidateQuery = {}) {
   return getHistoricalEventLedgerSystem().queryCandidates(query)
+}
+
+export function getDueHistoricalEventCandidates(
+  context: RoundContext | HistoricalEventValidationContext,
+) {
+  return getHistoricalEventLedgerSystem().getDueCandidates(context)
+}
+
+export function commitHistoricalEventCandidateDispositions(
+  batch: HistoricalEventCandidateDispositionBatch,
+  context: RoundContext | HistoricalEventValidationContext,
+) {
+  return getHistoricalEventLedgerSystem().commitCandidateDispositions(batch, context)
 }
 
 export function promoteHistoricalEventCandidate(

@@ -80,8 +80,7 @@ export interface StageRuntimeContext extends RoundContext {
 function buildLegendaryEncounterGuidance(
   encounter: NonNullable<ReturnType<typeof useEngineStore.getState>['legendaryEncounter']>,
 ): string {
-  const representative = encounter.achievements.find((item) => item.kind === 'lifespan-adjustment')
-    ?? encounter.achievements[0]
+  const representative = encounter.achievements[0]
   return [
     '【低优先级异界传闻素材】',
     `另一段人生曾发生于“${encounter.worldName}”，主角名为“${encounter.characterName}”。`,
@@ -602,6 +601,7 @@ export function loadStages(
                 content: response,
                 allowedEvidenceEventIds: analysisInput.allowedEvidenceEventIds,
                 allowedSubsystemIds: analysisInput.activeSubsystemIds,
+                allowedOperationsBySubsystem: analysisInput.allowedOperationsBySubsystem,
               })
               if (!quality.valid || !quality.changes) {
                 throw dataAnalysisRejection(
@@ -693,6 +693,7 @@ export function loadStages(
                 content: response,
                 allowedEvidenceEventIds: analysisInput.allowedEvidenceEventIds,
                 allowedSubsystemIds: analysisInput.activeSubsystemIds,
+                allowedOperationsBySubsystem: analysisInput.allowedOperationsBySubsystem,
               })
               if (!quality.valid || !quality.changes) {
                 throw basicAttributeAnalysisRejection(
@@ -730,10 +731,12 @@ export function loadStages(
 
         const roundContext = orchestrator.getRoundContextSnapshot()
         const existingCandidates = orchestrator.getAvailableHistoricalEventCandidates()
+        const dueCandidates = existingCandidates.filter((audit) => accepted.deliveredHistoricalEventCandidateIds.includes(audit.candidateId))
         const recognitionInput = buildNarrativeEventRecognitionPromptInput({
           subsystemStates: orchestrator.getSubsystemStateSnapshot(),
           roundContext,
           existingCandidates,
+          dueCandidates,
           recentStories: ctx._recentStories,
           deliveredCausalEventIds: accepted.deliveredCausalEventIds,
         })
@@ -788,6 +791,7 @@ export function loadStages(
               currentContextId: roundContext.contextId,
               currentTotalDays: roundContext.totalDays,
               existingCandidates: recognitionInput.existingCandidates,
+              dueCandidates: recognitionInput.dueCandidates,
               deliveredCausalEventIds: accepted.deliveredCausalEventIds,
             })
             if (!quality.valid || !quality.metadata || !quality.candidates) {
@@ -799,6 +803,7 @@ export function loadStages(
               round: accepted.roundSequence,
               validationOwner: 'ai-client-json-schema',
               existingCandidateCount: recognitionInput.existingCandidates.length,
+              dueCandidateCount: recognitionInput.dueCandidates.length,
               recognizedCandidateCount: quality.candidates.length,
             })
             return {

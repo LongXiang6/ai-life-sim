@@ -85,7 +85,7 @@ try {
       },
       rawScore: 98,
       validCompletedLife: true,
-      evidence: { attributes: 98, journey: 100, choices: 100, 'lifespan-adjustments': 0, achievements: 100, completion: 100 },
+      evidence: { attributes: 98, journey: 100, choices: 100, achievements: 100, completion: 100 },
       integrity: { passed: true, perfectGatePassed: false, checks: { terminalCommitted: true }, reasons: [] },
     },
     endingReview: { perspective: 'macro', review: '你完成了这一段可验证的人生。', evidenceIds: ['event-a'], source: 'local' },

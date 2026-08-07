@@ -24,12 +24,6 @@
       "owner": "core:player-content",
       "reviewedLines": 347,
       "reason": "玩家内容 SQLite Schema 与迁移的原子声明，表和索引必须作为一个事务审查。"
-    },
-    {
-      "path": "src/foundation/index.ts",
-      "owner": "foundation:index.ts",
-      "reviewedLines": 365,
-      "reason": "Foundation 唯一公共导出门面，只聚合稳定导出，不持有业务逻辑或第二状态。"
     }
   ]
 }

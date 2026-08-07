@@ -1,7 +1,7 @@
 /**
  * Purpose: Expose lightweight world runtime projections to other MODs.
  * Owner: mod-world
- * Responsibility: Runtime Store, calibration, entity-directory, and prompt-format helpers only; world UI and initialization pages stay outside.
+ * Responsibility: Runtime Store, calibration, region graph, and prompt-format helpers only; world UI and initialization pages stay outside.
  */
 
 export type { WorldCalibration, WorldConfig } from './types'
@@ -11,7 +11,4 @@ export { buildDefaultCalibration } from './utils/calibration-clamp/default-calib
 export { formatCalibrationSummary } from './utils/calibration-clamp/calibration-summary'
 export { formatPowerFrameworkForPrompt } from './utils/power-framework'
 export { inferAnchorYearFromDescription } from './utils/world-init-anchor-year'
-export {
-  registerEntityReference as registerWorldEntityReference,
-  repairEntityReferenceDirectory as repairWorldEntityReferenceDirectory,
-} from './subsystems/world-entity-system/entity-reference-directory'
+export { getCurrentRegion, setCurrentRegion } from './world-context-api'

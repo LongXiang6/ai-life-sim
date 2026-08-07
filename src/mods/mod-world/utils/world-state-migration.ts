@@ -4,7 +4,7 @@
  * @mod mod-world
  */
 
-import type { AnyWorldEntity, WorldConfig, WorldContextInstance, WorldTagsV2 } from '../types'
+import type { WorldConfig, WorldContextInstance, WorldTagsV2 } from '../types'
 import { WORLDVIEW_TAG_DEFAULTS } from '../constants/world-tag-defaults'
 import {
   assertValidWorldContextHierarchy,
@@ -85,6 +85,8 @@ function migrateLegacyScpWorldTags(value: unknown): string[] {
 export function sanitizeWorldStateSnapshot(value: unknown): Record<string, unknown> {
   const source = isRecord(value) ? structuredClone(value) : {}
   let record = source
+  delete record.entities
+  delete record.entityReferences
   if (isLegacyScpPresetConfig(record.worldConfig)) {
     const dimensionValues = isRecord(record.worldConfig._dimensionValues)
       ? { ...record.worldConfig._dimensionValues }
@@ -121,6 +123,8 @@ export function sanitizeWorldStateSnapshot(value: unknown): Record<string, unkno
     const contexts = structuredClone(existingContexts) as Record<string, WorldContextInstance>
     for (const [contextId, instance] of Object.entries(contexts)) {
       if (!instance?.record || !instance.scope) continue
+      delete (instance as unknown as Record<string, unknown>).entities
+      delete (instance.spatialGraph as unknown as Record<string, unknown>).entityLocations
       instance.capabilityProfile = alignCapabilityProfileRuntimeMembership(instance.capabilityProfile)
       if (contextId === currentContextId) {
         instance.scope.scope = 'active'
@@ -156,7 +160,6 @@ export function sanitizeWorldStateSnapshot(value: unknown): Record<string, unkno
         : [],
       ...(current ? {
         worldConfig: structuredClone(current.worldConfig),
-        entities: structuredClone(current.entities),
         initialized: current.initialized,
         worldCode: current.worldCode,
         currentYear: current.currentYear,
@@ -194,7 +197,6 @@ export function sanitizeWorldStateSnapshot(value: unknown): Record<string, unkno
       contextId,
       rootSpatialNodeId: `${contextId}:space:root`,
       worldConfig,
-      entities: Array.isArray(record.entities) ? record.entities as AnyWorldEntity[] : [],
       regions: [],
       tags,
     },
@@ -222,7 +224,6 @@ export function sanitizeWorldStateSnapshot(value: unknown): Record<string, unkno
     crossContextEdges: {},
     transitionHistory: [],
     worldConfig: structuredClone(instance.worldConfig),
-    entities: structuredClone(instance.entities),
     initialized: instance.initialized,
     worldCode: instance.worldCode,
     currentYear: instance.currentYear,

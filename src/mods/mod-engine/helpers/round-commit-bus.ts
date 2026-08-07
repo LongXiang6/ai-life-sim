@@ -91,10 +91,6 @@ function normalizeEntityAliases(
   }
 }
 
-function isNpcIdentityCreation(change: SubSystemChanges): boolean {
-  return change.id === 'npc-system' && change.operation === 'create-identity'
-}
-
 export class RoundCommitBus {
   constructor(
     private readonly resolveSubsystem: (id: string) => ISubSystem | undefined,
@@ -205,13 +201,7 @@ export class RoundCommitBus {
       return { committed: [], rejected }
     }
 
-    // 创建身份必须先于同包中依赖该身份的操作；排序是显式契约，
-    // 不依赖模型返回数组的自然顺序。
-    const applyOrder = [...prepared].sort((left, right) => (
-      Number(isNpcIdentityCreation(right)) - Number(isNpcIdentityCreation(left))
-    ))
-
-    for (const change of applyOrder) {
+    for (const change of prepared) {
       try {
         this.applyChange(change, context)
         committed.push(change)

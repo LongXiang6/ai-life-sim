@@ -47,10 +47,6 @@ export {
 } from './mvp-runtime-policy'
 export { resolveTimeStep } from '../utils/time-step-resolver'
 export { mapSubsystemStatesToDetectionStates } from './detection-state-mapper'
-export {
-  buildLifecycleNarrativeHint,
-  buildLifecycleLifespanReminder,
-} from './lifecycle-narrative'
 export { normalizeNarrativeParagraphs } from './normalize-narrative-paragraphs'
 export {
   buildNarrativeHints,

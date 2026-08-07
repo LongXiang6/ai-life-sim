@@ -156,6 +156,18 @@ export type HistoricalEventCandidateAuditStatus =
   | 'rejected'
   | 'expired'
 
+export type HistoricalEventCandidateDispositionStatus =
+  | 'accepted'
+  | 'continuing'
+  | 'rejected'
+  | 'expired'
+
+export interface HistoricalEventCandidateDisposition {
+  candidateId: HistoricalEventCandidateId
+  status: HistoricalEventCandidateDispositionStatus
+  reason: string
+}
+
 export interface HistoricalEventCandidateAudit {
   auditId: string
   candidateId: HistoricalEventCandidateId

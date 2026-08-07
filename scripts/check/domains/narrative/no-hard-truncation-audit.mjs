@@ -1,8 +1,9 @@
 /**
- * Purpose: Audit known hard-truncation paths that can damage narrative meaning or player settings.
+ * Purpose: Audit active paths that could destructively shorten story, memory, history, or player text.
  * Owner: quality:narrative
- * Responsibility: Static truncation red lines only; protocol parsing and bounded operational windows remain separate.
+ * Responsibility: Static red lines and focused whole-package behavior only.
  */
+
 import { register } from 'node:module'
 import { getProjectRoot } from '../../lib/project-root.mjs'
 import { readModuleSource } from '../../lib/read-module-source.mjs'
@@ -20,7 +21,7 @@ const read = (relativePath) => readModuleSource(relativePath, root)
 const assertOk = (condition, message) => {
   if (condition) return
   console.error(`FAIL: ${message}`)
-  failed++
+  failed += 1
 }
 const reject = (source, pattern, message) => assertOk(!pattern.test(source), message)
 
@@ -31,168 +32,189 @@ const compressor = read('src/mods/mod-engine/subsystems/summary-compressor-syste
 const summaryPrompt = read('src/mods/mod-engine/prompts/summary-prompt.ts')
 const summaryCoverage = read('src/mods/mod-engine/helpers/summary-coverage.ts')
 const engineUtils = read('src/mods/mod-engine/utils.ts')
-const ledger = read('src/mods/mod-engine/helpers/digest-ledger.ts')
-const lifecycle = read('src/mods/mod-engine/subsystems/memory-lifecycle-system.ts')
-const coreMemory = read('src/mods/mod-engine/subsystems/core-memory-system.ts')
+const digestLedger = read('src/mods/mod-engine/helpers/digest-ledger.ts')
+const memoryLifecycle = read('src/mods/mod-engine/subsystems/memory-lifecycle-system.ts')
+const timelineFacts = read('src/mods/mod-engine/subsystems/memory-lifecycle-system/timeline-facts.ts')
 const timelineMemory = read('src/mods/mod-engine/helpers/timeline-memory.ts')
-const forgettingPatterns = read('src/mods/mod-engine/patterns/forgetting-patterns.ts')
 const foreshadowing = read('src/mods/mod-engine/subsystems/foreshadowing-system.ts')
 const changeBundle = read('src/mods/mod-engine/helpers/narrative-change-bundle.ts')
-const aiClient = readModuleSource('src/core/ai-service/ai-client.ts', root)
+const aiClient = read('src/core/ai-service/ai-client.ts')
 const aiJsonParser = read('src/core/ai-service/parse-ai-json.ts')
 const dataAnalysisContext = read('src/mods/mod-engine/helpers/narrative-data-analysis-context.ts')
 const basicAttributeContext = read('src/mods/mod-engine/helpers/narrative-basic-attribute-context.ts')
 const eventRecognitionContext = read('src/mods/mod-engine/helpers/narrative-event-recognition-context.ts')
+const macroImpactContext = read('src/mods/mod-engine/helpers/narrative-macro-impact-context.ts')
 const fieldRegistry = read('src/mods/mod-engine/helpers/subsystem-field-registry.ts')
 const roundCommitBus = read('src/mods/mod-engine/helpers/round-commit-bus.ts')
 const timeBridge = read('src/mods/mod-engine/helpers/time-bridge-summary.ts')
-const historicalPromptProjection = read('src/mods/mod-engine/helpers/historical-event-prompt-projection.ts')
-const calibration = read('src/mods/mod-world/utils/calibration-clamp.ts')
-const powerContext = read('src/mods/mod-world/utils/world-init-prompt-vars.ts')
-const campaign = read('src/mods/mod-engine/campaigns/default/index.ts')
-const health = read('src/mods/mod-character/subsystems/health-system.ts')
-const memoryEngine = read('src/mods/mod-engine/subsystems/memory-engine-system.ts')
-const forgetting = read('src/mods/mod-engine/subsystems/memory-forgetting-system.ts')
+const historicalProjection = read('src/mods/mod-engine/helpers/historical-event-prompt-projection.ts')
+const historicalStore = read('src/mods/mod-history-dynamics/store.ts')
+const historicalQuery = read('src/mods/mod-history-dynamics/subsystems/historical-event-ledger-system/query-runtime.ts')
+const historicalLedger = read('src/mods/mod-history-dynamics/subsystems/historical-event-ledger-system.ts')
+const historicalCandidateDue = read('src/mods/mod-history-dynamics/subsystems/historical-event-ledger-system/candidate-due-runtime.ts')
+const historicalCandidateDisposition = read('src/mods/mod-history-dynamics/subsystems/historical-event-ledger-system/candidate-disposition-runtime.ts')
+const historicalLedgerRuntime = read('src/mods/mod-engine/subsystems/orchestrator-system/historical-ledger-runtime.ts')
+const eventRecognitionProtocol = read('src/mods/mod-engine/helpers/narrative-ai-protocol.ts')
+const eventRecognitionQuality = read('src/mods/mod-engine/helpers/narrative-response-quality.ts')
+const eventRecognitionCandidateQuality = read('src/mods/mod-engine/helpers/narrative-event-candidate-quality.ts')
+const characterBase = read('src/mods/mod-character/subsystems/character-base-system.ts')
+const characterStatus = read('src/mods/mod-character/subsystems/character-status-update.ts')
+const characterEpilogue = read('src/mods/mod-character/subsystems/character-epilogue-runtime.ts')
 const eventLifecycle = read('src/mods/mod-engine/helpers/event-lifecycle-tracker.ts')
 const narrativePrompt = read('src/mods/mod-engine/prompts/narrative-prompt.ts')
 const narrativeSignals = read('src/mods/mod-engine/helpers/narrative-semantic-signals.ts')
 const subsystemRelevance = read('src/mods/mod-engine/subsystems/subsystem-relevance-system.ts')
-const geography = read('src/mods/mod-environment-ecology/subsystems/geography-system.ts')
-const growth = read('src/mods/mod-progression/subsystems/growth-system.ts')
-const reputation = read('src/mods/mod-progression/subsystems/reputation-system.ts')
-const factionDynamics = read('src/mods/mod-politics/subsystems/faction-dynamics-system.ts')
-const npcStore = read('src/mods/mod-npc/store.ts')
-const npcSystem = read('src/mods/mod-npc/subsystems/npc-system.ts')
-const relationshipSystem = read('src/mods/mod-social/subsystems/relationship-system.ts')
-const npcContract = read('src/foundation/subsystem-contracts/npc-social.contract.ts')
-const celestial = read('src/mods/mod-base-universe/subsystems/celestial-system.ts')
-const celestialConstants = read('src/mods/mod-base-universe/constants.ts')
-const era = read('src/mods/mod-base-universe/subsystems/era-system.ts')
-const mapProjection = read('src/mods/mod-world-map/map-projection.ts')
-const culture = read('src/mods/mod-culture/subsystems/culture-system.ts')
-const art = read('src/mods/mod-culture/subsystems/art-system.ts')
-const causalConstants = read('src/mods/mod-history-dynamics/constants.ts')
-const causalSimulation = read('src/mods/mod-history-dynamics/components/causal-graph-component.ts')
-const eventPool = read('src/mods/mod-history-dynamics/components/event-candidate-provider.ts')
-const historicalLedgerStore = read('src/mods/mod-history-dynamics/store.ts')
-const characterConstants = read('src/mods/mod-character/constants.ts')
-const mythicPattern = read('src/mods/mod-character/prompts/mythic-pattern-prompt.ts')
-const destinyPattern = read('src/mods/mod-character/prompts/destiny-pattern-prompt.ts')
-const raceOrigin = read('src/mods/mod-character/prompts/race-origin.ts')
-const raceOriginCaller = read('src/mods/mod-character/prompts/use-race-origin.ts')
-const worldCalibration = read('src/mods/mod-world/prompts/world-calibration-prompt.ts')
-const worldTagsPrompt = read('src/mods/mod-world/prompts/world-tags-prompt.ts')
-const worldDimensionCalibration = read('src/mods/mod-world/prompts/world-dimension-calibration-prompt.ts')
-const worldEntityPrompt = read('src/mods/mod-world/prompts/world-entity-prompt.ts')
-const worldEntityPromptShared = read('src/mods/mod-world/prompts/world-init-prompt-shared.ts')
+const spatialGraph = read('src/mods/mod-world/subsystems/spatial-graph-system.ts')
 const worldCustomize = read('src/mods/mod-pages/pages/world-customize/WorldCustomizeMobile.tsx')
 const worldDimension = read('src/mods/mod-pages/pages/world-customize/WorldCustomizeDimensionCard.tsx')
 const worldTypes = read('src/mods/mod-pages/pages/world-customize/world-customize.types.ts')
 const worldSelect = read('src/mods/mod-pages/pages/world-select/WorldSelectCustomForm.tsx')
 const characterBackground = read('src/mods/mod-pages/pages/character-create/CharacterBackgroundSection.tsx')
-const worldPrototype = read('docs/ui-prototypes/mobile/world-customize/final-wc-rf2-1.html')
-const characterPrototype = read('docs/ui-prototypes/mobile/character-create/final-cc-rf9-1.html')
 const decisions = read('docs/product-decisions.md')
 const acceptanceLedger = read('docs/acceptance-ledger.md')
 
-reject(constants, /MAX_NARRATIVE_HISTORY|MAX_CHARACTER_CREATIONS/, 'engine constants must not define destructive narrative or creation caps')
+reject(constants, /MAX_NARRATIVE_HISTORY|MAX_CHARACTER_CREATIONS/, 'engine constants must not define destructive story or creation caps')
 reject(orchestrator, /narrativeHistory\.shift\(|characterCreations\.shift\(/, 'orchestrator must retain complete narrative history and original creations')
-reject(orchestrator, /worldSetting\.description\.slice\(/, 'worldview adaptation must receive the complete world description')
-reject(store, /narrativeHistory[\s\S]{0,160}slice\(-?\d+\)/, 'engine persistence must not keep only a fixed tail of narrative history')
-reject(compressor, /MAX_SUMMARIES|summaries\s*=\s*summaries\.slice\(/, 'summary storage must not discard old semantic summaries by capacity')
-reject(compressor, /轮综合概略|轮时代概略|轮纪元概略|轮历史概略|叙事概略（生成失败）/, 'compression failure must not create fact-free placeholder coverage nodes')
+reject(orchestrator, /worldSetting\.description\.slice\(/, 'world adaptation must receive the complete world description')
+reject(store, /narrativeHistory[\s\S]{0,160}slice\(-?\d+\)/, 'engine persistence must not keep only a fixed story tail')
+reject(compressor, /MAX_SUMMARIES|summaries\s*=\s*summaries\.slice\(/, 'summary storage must not evict semantic summaries by capacity')
+reject(compressor, /fallbackParts|失败降级：保留完整叙事文本/, 'compression failure must not create a fake coverage node')
 assertOk(
   compressor.includes('TimelineCompressionOutputSchema')
     && compressor.includes('buildCompressedMemoryEvents')
-    && compressor.includes("throw new Error('L1 压缩候选生成失败'")
     && compressor.includes('newCompressedSummaries: structuredClone({ summaries })'),
-  'summary compression must reject incomplete AI output and retain lower-level leaves on failure',
+  'summary compression must retain lower-level leaves until a complete result is accepted',
 )
-reject(summaryPrompt, /charLimit|不超过\s*\$?\{?\w*\}?\s*字|不超过指定字数|仅保留：|极简摘要|高度浓缩摘要/, 'summary Prompt must not induce character limits or fact-dropping level semantics')
+reject(summaryPrompt, /charLimit|不超过指定字数|仅保留：|极简摘要|高度浓缩摘要/, 'summary Prompt must not induce destructive character limits')
 assertOk(
   summaryPrompt.includes('SUMMARY_COMPLETION_MARKER')
-    && summaryPrompt.includes('无法完整覆盖时省略该标记'),
-  'summary Prompt must require an explicit complete-coverage marker',
-)
-assertOk(
-  summaryCoverage.includes('摘要缺少完整覆盖标记')
+    && summaryCoverage.includes('摘要缺少完整覆盖标记')
     && summaryCoverage.includes('摘要正文为空'),
-  'summary coverage validation must reject missing markers and empty content',
+  'summary coverage must require a complete marker and non-empty body',
 )
-reject(compressor, /fallbackParts|失败降级：保留完整叙事文本/, 'failed L1 compression must not create a fallback coverage node or success statistic')
+reject(engineUtils, /computeSummaryCharLimit|inputTextLength\s*\/\s*(?:2|4|8|10|12)/, 'summary headroom must not become a character cap')
+reject(digestLedger, /MAX_LEDGER_ENTRIES|entry\.events\.shift\(|kept[\s\S]{0,120}\.slice\(/, 'digest ledger must not delete or top-N narrative facts')
+reject(memoryLifecycle, /MAX_INDEX_ENTRIES|MAX_RELATIONSHIP_MEMORIES|relationshipMemories\.(?:shift|splice)\(|searchIndex\.(?:shift|splice)\(/, 'unified memory must not evict facts or people by fixed capacity')
 assertOk(
-  compressor.includes('createCompressionCandidate(')
-    && compressor.includes('let summaries = normalizeLegacySummaries(this.compressedSummaries).summaries')
-    && orchestrator.includes('commitCompressionCandidate(gateResult.result'),
-  'failed compression must retain original leaves for retry',
-)
-reject(engineUtils, /computeSummaryCharLimit|inputTextLength\s*\/\s*(?:2|4|8|10|12)/, 'summary token headroom must not shrink by level or convert into a character cap')
-reject(ledger, /MAX_LEDGER_ENTRIES|entry\.events\.shift\(|kept[\s\S]{0,120}\.slice\(/, 'digest ledger must not delete or top-N truncate narrative facts')
-reject(lifecycle, /MAX_INDEX_ENTRIES|MAX_EVENTS_BY_SEVERITY|MAX_RETRIEVAL_HITS|searchIndex\.splice\(|searchIndex\.shift\(|results\.slice\(|\.slice\(-[12],?\)/, 'memory lifecycle must retain its index and use leaf summaries instead of fixed-count cuts')
-assertOk(lifecycle.includes('selectLeafSummaries'), 'memory lifecycle must assemble long history through hierarchical leaf summaries')
-reject(coreMemory, /MAX_INTERACTIONS_PER_NPC|MAX_NPC_COUNT|npcMap\.delete\(/, 'core memory must not evict people or interactions by fixed capacity')
-assertOk(
-  coreMemory.includes('buildCreationTimelineEntries')
-    && coreMemory.includes('玩家角色亲自开创[玩家原创·')
-    && !coreMemory.includes('永久记忆·权重'),
-  'player creation ownership must project as a dated story fact without exposing internal weight labels',
+  memoryLifecycle.includes('selectLeafSummaries')
+    && memoryLifecycle.includes('buildCreationTimelineEntries')
+    && timelineFacts.includes('玩家角色亲自开创[玩家原创·'),
+  'long memory and player creations must remain traceable through dated leaf facts',
 )
 assertOk(
   timelineMemory.includes('formatSummaryForPrompt')
     && timelineMemory.includes('formatNarrativeTimelineForPrompt')
-    && timelineMemory.includes('isMemoryEventActive(event, currentRound)')
-    && timelineMemory.includes('sourceEventIds')
-    && timelineMemory.includes('initialWeight'),
-  'compression storage and story projection must remain separate while preserving complete internal memory data',
+    && timelineMemory.includes('sourceEventIds'),
+  'memory storage and Prompt projection must remain separate while preserving source IDs',
 )
+reject(foreshadowing, /MAX_ACTIVE_FORESHADOWING|MAX_PROMPT_FORESHADOWING|\.slice\(0,\s*MAX_PROMPT/, 'unresolved foreshadowing must not be evicted or top-N truncated')
+reject(changeBundle, /changes\.slice\(/, 'narrative changes must not be partially mapped')
+assertOk(changeBundle.includes('(changes ?? []).map'), 'change mapping must preserve every item before whole-package validation')
+reject(aiJsonParser, /repairTruncatedJSON|extractCompleteObjects|objects\.join\(','\)/, 'AI JSON parsing must not rebuild a partial response')
+assertOk(aiJsonParser.includes('scan.incomplete || scan.spans.length !== 1'), 'AI JSON parsing must accept one complete unambiguous value')
+reject(aiClient, /originalResponse\.(?:slice|substring)\(/, 'analysis repair must retain the complete failed response')
 assertOk(
-  !orchestrator.includes('lastNarrativeText')
-    && !orchestrator.includes('e.narrative.trim()')
-    && ledger.includes('selectRecentFactsForNarrativeTimeline'),
-  'main narrative context must consume fact projections without a raw previous-story compatibility path',
+  aiClient.includes('【上一版纯 JSON 响应全文开始】')
+    && aiClient.includes('【上一版纯 JSON 响应全文结束】'),
+  'analysis repair must carry the complete previous response',
 )
-reject(forgettingPatterns, /keywords\.slice\(/, 'explainable forgetting must preserve every matched audit reason')
-reject(foreshadowing, /MAX_ACTIVE_FORESHADOWING|MAX_PROMPT_FORESHADOWING|TIMEOUT_ROUNDS|\.slice\(0,\s*MAX_PROMPT/, 'foreshadowing must not evict or top-N truncate unresolved threads')
-reject(changeBundle, /changes\.slice\(/, 'narrative changes must never be partially mapped through slicing')
-assertOk(changeBundle.includes('(changes ?? []).map'), 'change mapping must preserve every submitted change before whole-package validation')
-reject(aiJsonParser, /repairTruncatedJSON|extractCompleteObjects|\.repeat\(needsBraces\)|objects\.join\(','\)/, 'AI JSON parsing must not repair truncation or rebuild partial arrays')
+reject(dataAnalysisContext, /stateLines\.slice\(|activeSubsystemIds\.slice\(/, 'data-analysis input must not truncate writable state')
+reject(basicAttributeContext, /state\.data\.slice\(|recentStories\.slice\(/, 'basic-attribute input must not truncate state or stories')
+reject(eventRecognitionContext, /existingCandidates\.slice\(|recentStories\.slice\(/, 'event recognition must not truncate candidates or stories')
+reject(macroImpactContext, /recentStories\.slice\(|macroSystems\.slice\(/, 'macro impact must not truncate regional state or stories')
 assertOk(
-  aiJsonParser.includes('scan.incomplete || scan.spans.length !== 1'),
-  'AI JSON parsing must accept only one complete unambiguous value',
+  /z\.object\(Object\.fromEntries\([\s\S]*?\) as z\.ZodRawShape\)\.strict\(\)/.test(fieldRegistry),
+  'field validation must reject unknown keys instead of stripping them',
 )
-reject(aiClient, /originalResponse\.slice\(|originalResponse\.substring\(/, 'background-analysis repair must retain the complete failed response')
-assertOk(
-  aiClient.includes("'【上一版纯 JSON 响应全文开始】'")
-    && aiClient.includes("'【上一版纯 JSON 响应全文结束】'")
-    && aiClient.includes('buildJsonValidationRetryInstruction(content, firstValidation.reason)'),
-  'background-analysis repair must carry the complete original response rather than a shortened derivative',
-)
-reject(dataAnalysisContext, /stateLines\.slice\(|activeSubsystemIds\.slice\(/, 'data-analysis input must not truncate active writable system state lines')
-reject(basicAttributeContext, /state\.data\.slice\(|recentStories\.slice\(/, 'basic-attribute input must not truncate complete state or recent stories')
-reject(eventRecognitionContext, /existingCandidates\.slice\(|recentStories\.slice\(/, 'event-recognition input must not truncate candidates or recent stories')
-assertOk(fieldRegistry.includes('z.object(shape).strict()'), 'subsystem field validation must reject unknown keys instead of stripping them')
 assertOk(
   roundCommitBus.indexOf('if (ATOMIC_AI_SOURCES.has(commit.source) && rejected.length > 0)')
     < roundCommitBus.indexOf('for (const change of prepared)'),
-  'each AI owner package must pass complete preflight before the first subsystem write',
+  'each AI package must pass complete preflight before the first write',
+)
+reject(orchestrator, /capturePreviewSnapshot|restorePreviewSnapshot|runPreviewRound|isPreviewExecution/, 'narrative execution must not restore a speculative earlier round')
+reject(timeBridge, /truncateBullet|MAX_BULLET|bullets\.slice\(|bullets\.length\s*>=/, 'time bridge must preserve every semantic bullet')
+reject(historicalProjection, /\.shift\(|\.splice\(|MAX_(?:EVENT|EDGE)|LIMIT_(?:EVENT|EDGE)/, 'historical Prompt projection must not mutate or capacity-evict facts')
+reject(historicalQuery, /DEFAULT_QUERY_LIMIT|MAX_QUERY_LIMIT|pageSize\s*=|limit\s*=\s*100/, 'historical queries must not hide a default or maximum read cap')
+reject(historicalLedgerRuntime, /pageSize\s*=|limit:\s*500|offset\s*\+=/, 'historical runtime must not reconstruct full candidate input through a fixed page size')
+const historicalCandidateLifecycle = [historicalLedger, historicalCandidateDue, historicalCandidateDisposition].join('\n')
+reject(historicalCandidateLifecycle, /readyEvents\.slice\(|dueCandidates\.slice\(|MAX_(?:EVENT|CANDIDATE)/, 'historical ledger must not truncate due events or candidates')
+assertOk(
+  historicalProjection.includes("CONTINUATION_STATUSES = new Set<HistoricalEventStatus>(['scheduled', 'active'])")
+    && historicalProjection.includes("scope.kind === 'global' || scope.contextIds.includes(currentContextId)")
+    && historicalProjection.includes('dueCandidates')
+    && historicalProjection.includes('逐项表现'),
+  'historical Prompt projection must use semantic status/scope bounds and preserve every due candidate',
 )
 assertOk(
-  orchestrator.includes('private consumeSystemAnalysisRecord(')
-    && orchestrator.includes('if (commitResult.rejected.length > 0)')
-    && orchestrator.includes('private applyNarrativeEventRecognition('),
-  'orchestrator must keep background owner validation and accepted prose on separate public paths',
+  historicalCandidateLifecycle.includes('getDueCandidates')
+    && historicalCandidateLifecycle.includes('commitCandidateDispositions')
+    && historicalCandidateLifecycle.includes('isHistoricalScheduleDue'),
+  'historical ledger must own due-time evaluation and complete candidate disposition writes',
 )
-reject(orchestrator, /capturePreviewSnapshot|restorePreviewSnapshot|capturePreviewState|restorePreviewState|runPreviewRound|isPreviewExecution/, 'runtime narrative execution must not restore a previous round or run a speculative snapshot')
-reject(timeBridge, /truncateBullet|MAX_BULLET|bullets\.slice\(|bullets\.length\s*>=/, 'time bridge must preserve all semantic bullets without character or count truncation')
-reject(historicalPromptProjection, /\.slice\(|\.shift\(|\.splice\(|MAX_(?:EVENT|EDGE)|LIMIT_(?:EVENT|EDGE)/, 'historical Prompt projection must use semantic status/scope bounds instead of fixed-count truncation')
 assertOk(
-  historicalPromptProjection.includes("CONTINUATION_STATUSES = new Set<HistoricalEventStatus>(['scheduled', 'active'])")
-    && historicalPromptProjection.includes("scope.kind === 'global' || scope.contextIds.includes(currentContextId)"),
-  'historical Prompt projection must be bounded by unresolved status and current scope without dropping source facts',
+  eventRecognitionProtocol.includes('到期候选判定')
+    && eventRecognitionProtocol.includes('AI_HISTORICAL_EVENT_CANDIDATE_STATUSES')
+    && [eventRecognitionQuality, eventRecognitionCandidateQuality].join('\n').includes('到期候选必须逐项判定'),
+  'event recognition must validate one disposition for every delivered due candidate',
 )
-reject(calibration, /SUMMARY_MAX_LEN|joined\.slice\(/, 'calibration summary must not be cut by character count')
-reject(powerContext, /split\(['"]。['"]\)\[0\]/, 'power context must not derive compact tiers by cutting source descriptions at runtime')
-const powerNarrativeProjection = formatPowerFrameworkForPrompt({
+reject(historicalStore, /(?:events|transitions|evidence|causalEdges|candidateAudits|migrationMetadata)\.(?:shift|splice)\(/, 'historical truth must not use FIFO deletion')
+assertOk(
+  historicalStore.includes('events: [...state.events, ...cloneValue(append.events)]')
+    && historicalStore.includes('candidateAudits: [...state.candidateAudits, ...cloneValue(append.candidateAudits)]')
+    && historicalStore.includes('migrationMetadata: [...state.migrationMetadata, ...cloneValue(append.migrationMetadata)]'),
+  'historical facts, candidate decisions, and migration evidence must append to the owner',
+)
+reject(characterBase, /conditions\.(?:shift|splice)\(|guidance\.slice\(/, 'unified character status must not discard health conditions or guidance by capacity')
+reject(characterStatus, /evidenceEventIds\.slice\(|conditions\.slice\(/, 'character status updates must preserve complete evidence and conditions')
+reject(characterEpilogue, /narrativeHistory\.slice\(|deathNarratives\.slice\(/, 'epilogue generation must not use a fixed-count life-history cut')
+reject(eventLifecycle, /activeEvents\.slice\(|activeTrends\.slice\(|zones\.slice\(/, 'event lifecycle must process every active owner-provided signal')
+reject(spatialGraph, /resources\.slice\(|regionProfiles[^\n]*\.slice\(/, 'world-region state must not truncate profile fields')
+reject(narrativePrompt, /digest:[^\n]*(?:不超过|最多)\d+|keyEvents:[^\n]*最多\d+|entities[^\n]*最多\d+|creations:[^\n]*最多\d+|foreshadowing:[^\n]*最多\d+/, 'main narrative protocol must not impose fixed semantic META limits')
+reject(narrativeSignals, /maxLength|maxItems|z\.string\(\)(?:\.min\([^)]*\))?\.max\(|keyEvents:[^\n]*\.max\(/, 'narrative metadata must not reject complete semantic text by fixed size')
+reject(subsystemRelevance, /stateHistory\[subsystemId\]\.shift\(|this\.changeRecords\s*=\s*this\.changeRecords\.filter/, 'relevance windows must not delete complete underlying state history')
+reject(worldCustomize, /WORLD_CUSTOM_TEXT_MAX_LENGTH|maxLength=|value\.slice\(/, 'world description input must not hard-limit player settings')
+reject(worldDimension, /WORLD_CUSTOM_TEXT_MAX_LENGTH|maxLength=|value\.slice\(/, 'custom world dimensions must not truncate player text')
+reject(worldTypes, /WORLD_CUSTOM_TEXT_MAX_LENGTH/, 'world customization types must not define a destructive text cap')
+reject(worldSelect, /maxLength=\{?5000\}?|value\.slice\(0,\s*5000\)/, 'custom world descriptions must not be cut at input time')
+reject(characterBackground, /maxLength=\{?5000\}?|value\.slice\(0,\s*5000\)/, 'character background must not be cut at input time')
+assertOk(decisions.includes('PD-015') && decisions.includes('破坏性硬截断'), 'product authority must retain the no-hard-truncation red line')
+assertOk(acceptanceLedger.includes('已由 PD-015 取代'), 'historical acceptance must mark tail-cutting guidance as superseded')
+
+const mixedChanges = [
+  {
+    id: 'character-base',
+    operation: 'update-status',
+    description: '做出善意选择',
+    changes: { moralityDelta: 1 },
+  },
+  { id: 'unknown-system', description: '非法变更', changes: { value: 1 } },
+]
+assertOk(mapRawNarrativeChanges(mixedChanges).length === 2, 'mapping must preserve valid and invalid items before whole-package validation')
+assertOk(requireCompletedSummaryContent('完整事实摘要\n[SUMMARY_COMPLETE]') === '完整事实摘要', 'complete summary content must remain unchanged')
+for (const incomplete of ['缺少完成标记', '[SUMMARY_COMPLETE]']) {
+  let rejectedIncomplete = false
+  try {
+    requireCompletedSummaryContent(incomplete)
+  } catch {
+    rejectedIncomplete = true
+  }
+  assertOk(rejectedIncomplete, 'incomplete summaries must fail instead of becoming coverage')
+}
+const originalWarn = console.warn
+console.warn = () => {}
+try {
+  assertOk(validateRoundChanges(mixedChanges).length === 0, 'one invalid item must reject the complete change package')
+  assertOk(validateRoundChanges([{
+    id: 'character-base',
+    operation: 'update-status',
+    description: '含契约外字段',
+    changes: { moralityDelta: 1, hidden: 2 },
+  }]).length === 0, 'unknown fields must reject the complete change package')
+} finally {
+  console.warn = originalWarn
+}
+
+const powerProjection = formatPowerFrameworkForPrompt({
   id: 'audit:power',
   label: '审计力量体系',
   enabled: true,
@@ -203,120 +225,11 @@ const powerNarrativeProjection = formatPowerFrameworkForPrompt({
     { id: 'audit:power:rank:2', index: 2, label: '中阶', description: '能够稳定影响局部环境' },
   ],
 })
-const powerTierLines = powerNarrativeProjection?.split('\n').filter((line) => /^\d+\./u.test(line)) ?? []
 assertOk(
-  powerNarrativeProjection?.startsWith('审计力量体系（有限体系；最高阶位就是当前世界可达边界）')
-    && powerTierLines.length === 2
-    && powerTierLines.every((line, index) => line.startsWith(`${index + 1}. `)),
-  'narrative power context must transmit the current world framework without a fixed cross-world tier table',
+  powerProjection?.includes('可重复运用基础力量')
+    && powerProjection.includes('能够稳定影响局部环境'),
+  'power framework projection must preserve every declared rank description',
 )
-assertOk(
-  orchestrator.includes('config.powerFramework')
-    && !orchestrator.includes(['power', 'CeilingPresets'].join('')),
-  'every valid world must inject its materialized power framework and never read a fixed ceiling',
-)
-assertOk(!campaign.includes('cross-domain'), 'default campaign must not retain the removed cross-domain stage')
-reject(health, /narrativeHistory\.slice\(|deathNarratives\.slice\(/, 'death and epilogue narrative must not use fixed-count life-history cuts')
-reject(health, /总字数\s*\d+\s*[-—]\s*\d+\s*字/, 'death and epilogue Prompts must not impose fixed character ranges')
-reject(memoryEngine, /majorEvents\.slice\(-3\)|relationships\.shift\(|majorEvents\.shift\(/, 'memory archive must retain complete relationships and major events')
-reject(forgetting, /causalEvents\.shift\(/, 'causal protection marks must not be evicted by capacity')
-reject(eventLifecycle, /activeDisasters\.slice\(/, 'event lifecycle must not ignore disasters after a fixed count')
-reject(narrativePrompt, /digest:[^\n]*(?:不超过|最多)\d+|keyEvents:[^\n]*最多\d+|entities[^\n]*最多\d+|relationshipUpdates:[^\n]*最多\d+|resolvedForeshadowingIds:[^\n]*最多\d+|notableEvents:[^\n]*最多\d+|creations:[^\n]*最多\d+|foreshadowing:[^\n]*最多\d+/, 'narrative Prompt must not induce fixed character or item limits on semantic META')
-assertOk(narrativePrompt.includes("version: '5.8.3'"), 'no-truncation narrative contract must use pure narrative Prompt version 5.8.3')
-assertOk(
-  orchestrator.includes('resolvedChoice: trimmed')
-    && orchestrator.includes('lastPlayerChoice: this.lastPlayerChoice')
-    && !orchestrator.includes('focusedBranchIntentId'),
-  'resolved branch history must remain complete while the next-round action stays one-shot',
-)
-reject(narrativeSignals, /maxLength|maxItems|z\.string\(\)(?:\.min\([^)]*\))?\.max\(|relationshipUpdates:[\s\S]{0,180}\.strict\(\)\)\.max\(|resolvedForeshadowingIds:[^\n]*\.max\(|notableEvents:[^\n]*\.max\(|creations:[^\n]*\.max\(|foreshadowing:[^\n]*\.max\(|keyEvents:[^\n]*\.max\(/, 'narrative Schema must not reject complete semantic text or arrays by fixed size')
-reject(subsystemRelevance, /stateHistory\[subsystemId\]\.shift\(|this\.changeRecords\s*=\s*this\.changeRecords\.filter/, 'subsystem relevance must retain complete state and change history behind its recent read window')
-reject(geography, /tectonicEvents\.slice\(|recentlyChanged[\s\S]{0,100}\.slice\(/, 'geography must retain all tectonic and changed-region facts')
-reject(factionDynamics, /events\.shift\(|events\s*=\s*.*\.slice\(/, 'political entity history must retain complete relation evidence')
-reject(npcStore, /\bmaxNPCs:\s*number|initialState[\s\S]{0,120}maxNPCs|Object\.keys\(npcs\)\.length[^\n]*maxNPCs|recentBehaviors[^\n]*\.slice\(|recentGlobalEvents[^\n]*\.slice\(|personality\.traits\.slice\(|recentEvents:\s*recentGlobalEvents\.slice\(/, 'NPC store must not reject people or cap behavior, event, or trait semantics')
-reject(npcSystem, /memories:[^\n]*\.slice\(|memoryCompressions:[^\n]*\.slice\(|sourceMemoryIds[^\n]*\.slice\(|MEMORY_RETENTION\.trivial\s*\*\s*2[\s\S]{0,120}continue/, 'NPC memory must use complete storage and traceable semantic compression without fixed cuts or silent age deletion')
-assertOk(npcSystem.includes('memoryCompressions') && npcSystem.includes('sourceMemoryIds'), 'NPC memory state must preserve traceable source IDs and complete compression evidence')
-reject(npcContract, /MEMORY_SUMMARY_LIMITS|最多保留\s*20/, 'NPC contracts must not advertise destructive memory limits')
-reject(celestial, /CELESTIAL_HISTORY_MAX|history\s*=\s*history\.slice\(/, 'celestial history must not be capacity-truncated')
-reject(celestialConstants, /CELESTIAL_HISTORY_MAX/, 'base-universe constants must not define a celestial history cap')
-reject(era, /history\.length\s*>\s*20|history\s*=\s*this\._state\.history\.slice\(/, 'era history must retain every era transition')
-reject(mapProjection, /\.slice\(|\.splice\(/, 'map projection must not discard spatial nodes, edges, or resource overlays')
-reject(culture, /\.slice\(0,\s*3\)/, 'culture Prompt context must not reduce values to a fixed top three')
-reject(art, /getTopWorks|\.slice\(0,\s*limit\)|getTopWorks\(3\)|currentStyles\.length\s*<\s*\d+|currentStyles\.splice\(/, 'art state and Prompt context must preserve all styles and notable works')
-reject(causalConstants, /MAX_CAUSAL_QUEUE_SIZE/, 'causal history must not define a fixed pending-queue capacity')
-reject(causalSimulation, /pending\.length[\s\S]{0,100}(?:return null|shift\(|splice\()/, 'causal capture must not silently discard anchors because the queue is full')
-reject(eventPool, /candidateAudits\.(?:shift|splice)\(|candidateAudits\s*=\s*candidateAudits\.(?:filter|slice)\(/, 'candidate audit history must not be deleted by the internal provider')
-assertOk(
-  eventPool.includes('不能把候选直接当成已经发生的历史事实')
-    && eventPool.includes("status: 'available'"),
-  'event candidates must remain non-factual append-only audit inputs until the ledger accepts them',
-)
-reject(historicalLedgerStore, /(?:events|transitions|evidence|causalEdges|candidateAudits|migrationMetadata)\.(?:shift|splice)\(|(?:events|transitions|evidence|causalEdges|candidateAudits|migrationMetadata)\s*=\s*[^\n]*\.(?:filter|slice)\(/, 'historical ledger truth must not use FIFO, fixed-window, or filtering deletion')
-assertOk(
-  historicalLedgerStore.includes('events: [...state.events, ...cloneValue(append.events)]')
-    && historicalLedgerStore.includes('candidateAudits: [...state.candidateAudits, ...cloneValue(append.candidateAudits)]')
-    && historicalLedgerStore.includes('migrationMetadata: [...state.migrationMetadata, ...cloneValue(append.migrationMetadata)]'),
-  'historical facts, candidate decisions, and migration evidence must be appended to the owning Store',
-)
-reject(characterConstants, /DESTINY_PATTERN_(?:MAX_WORLD_SIZE|TOTAL_MAX)_MB/, 'destiny-pattern story data must not retain obsolete storage-cap constants')
-reject(mythicPattern, /z\.string\(\)[^\n]*\.max\(|\d+\s*[-—]\s*\d+\s*(?:字|汉字)/, 'mythic narrative rules must not be rejected or shortened by character limits')
-reject(destinyPattern, /\d+\s*[-—]\s*\d+\s*(?:字|汉字)|命格描述（\d+/, 'destiny-pattern semantics must not be shortened by character-count guidance')
-reject(raceOrigin, /\d+\s*[-—]\s*\d+\s*字/, 'race-origin narrative must not be shortened by a character-count target')
-reject(raceOriginCaller, /输出\s*\d+\s*[-—]\s*\d+\s*字|estimatedOutputTokens:\s*80/, 'race-origin token headroom must not be derived from a tight story-length cap')
-reject(worldCalibration, /worldviewStyleHint:[^\n]*\.max\(|narrativeTone:[^\n]*\.max\(|worldTags:[^\n]*\.max\(/, 'world calibration must not cap narrative style text or world tags')
-reject(worldTagsPrompt, /tags:[^\n]*\.max\(|生成5-8个|简洁2-8字/, 'world tag generation must not omit valid tags by fixed counts or character limits')
-reject(worldDimensionCalibration, /worldTags：5-8/, 'dimension calibration must request complete world-tag coverage')
-assertOk(worldEntityPrompt.includes("version: '1.4.0'"), 'world-entity Prompt must version the complete-description contract')
-reject(worldEntityPromptShared, /description:\s*'描述\(\d+[-—]\d+字\)'/, 'world entity descriptions must not be shortened by character-count guidance')
-reject(worldCustomize, /WORLD_CUSTOM_TEXT_MAX_LENGTH|maxLength=|value\.slice\(/, 'world description input must not hard-limit user story settings')
-reject(worldDimension, /WORLD_CUSTOM_TEXT_MAX_LENGTH|maxLength=|value\.slice\(/, 'custom world dimensions must not hard-limit user story settings')
-reject(worldTypes, /WORLD_CUSTOM_TEXT_MAX_LENGTH/, 'world-customize types must not declare a destructive text cap')
-reject(worldSelect, /maxLength=\{?5000\}?|value\.slice\(0,\s*5000\)/, 'custom world descriptions must not be truncated at input time')
-reject(characterBackground, /maxLength=\{?5000\}?/, 'character background must not be truncated at input time')
-reject(worldPrototype, /maxlength=["']5000["']|\/\s*5000/, 'selected world-customize prototype must reflect unlimited semantic input')
-reject(characterPrototype, /maxlength=["']120["']|\/\s*120/, 'selected character-create prototype must reflect unlimited semantic input')
-assertOk(decisions.includes('PD-015') && decisions.includes('破坏性硬截断'), 'product authority must define the no-hard-truncation red line')
-assertOk(
-  acceptanceLedger.includes('已由 PD-015 取代')
-    && !acceptanceLedger.includes('让拦截器裁掉未来输出中的未完成尾句'),
-  'historical acceptance records must mark tail-cutting guidance as superseded by PD-015',
-)
-
-// 确定性运行回归：字段真源发现任一非法项或契约外字段后必须整包返回空。
-const mixedChanges = [
-  { id: 'morality', description: '做出善意选择', changes: { delta: 1 } },
-  { id: 'unknown-system', description: '非法变更', changes: { value: 1 } },
-]
-assertOk(
-  mapRawNarrativeChanges(mixedChanges).length === 2,
-  'parser mapping must preserve both valid and invalid items before whole-bundle validation',
-)
-assertOk(
-  requireCompletedSummaryContent(`完整事实摘要\n[SUMMARY_COMPLETE]`) === '完整事实摘要',
-  'a marked non-empty summary must be accepted without altering its semantic content',
-)
-for (const incompleteSummary of ['缺少完成标记', '[SUMMARY_COMPLETE]']) {
-  let rejectedIncompleteSummary = false
-  try {
-    requireCompletedSummaryContent(incompleteSummary)
-  } catch {
-    rejectedIncompleteSummary = true
-  }
-  assertOk(rejectedIncompleteSummary, 'missing-marker or empty summaries must fail instead of becoming coverage')
-}
-const originalWarn = console.warn
-console.warn = () => {}
-try {
-  assertOk(validateRoundChanges(mixedChanges).length === 0, 'one invalid change must reject every change in the META bundle')
-  assertOk(
-    validateRoundChanges([
-      { id: 'morality', description: '含契约外字段', changes: { delta: 1, hidden: 2 } },
-    ]).length === 0,
-    'unknown fields inside one change must reject the complete META bundle',
-  )
-} finally {
-  console.warn = originalWarn
-}
 
 if (failed > 0) process.exit(1)
 console.log('PASS: no-hard-truncation-audit')

@@ -12,12 +12,6 @@
       "owner": "mod-world",
       "reviewedLines": 882,
       "reason": "世界 MOD 的中央静态预设或标签目录，机器标识和默认值必须保留为一个命名源。"
-    },
-    {
-      "path": "src/mods/mod-world/subsystems/context-transition-system.ts",
-      "owner": "mod-world",
-      "reviewedLines": 402,
-      "reason": "世界上下文切换的单一状态机，校验、迁移和终态发布共享同一原子切换边界。"
     }
   ]
 }

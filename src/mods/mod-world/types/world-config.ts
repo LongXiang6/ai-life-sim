@@ -4,7 +4,11 @@
  * Responsibility: World configuration fields only; calibration, entities, and context state stay separate.
  */
 
-import type { PowerFrameworkDefinition, WorldScoringProfile } from '@/foundation'
+import type {
+  CharacterLifeStageDefinition,
+  PowerFrameworkDefinition,
+  WorldScoringProfile,
+} from '@/foundation'
 import type { WorldAIDetailedParameters } from '../prompts/world-config-prompt'
 
 export interface WorldConfig {
@@ -18,6 +22,8 @@ export interface WorldConfig {
   civilizationStage: string
   difficulty: 'normal' | 'hard' | 'nightmare' | 'hell'
   description: string
+  festivalScope: 'china' | 'china-and-international'
+  lifeStageTemplate?: CharacterLifeStageDefinition[]
   worldType?: string
   _aiFlags?: Record<string, boolean>
   _coherenceLocks?: Partial<Record<'essenceTag' | 'civilizationStage' | 'powerSystemTag' | 'spatialForm', boolean>>

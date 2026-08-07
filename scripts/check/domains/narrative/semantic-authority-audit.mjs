@@ -44,7 +44,6 @@ const activeFiles = {
   orchestrator: readModuleSource('src/mods/mod-engine/subsystems/orchestrator-system.ts', root),
   campaign: read('src/mods/mod-engine/campaigns/default/index.ts'),
   hints: read('src/mods/mod-engine/helpers/narrative-hints.ts'),
-  lifecycleNarrative: read('src/mods/mod-engine/helpers/lifecycle-narrative.ts'),
   parser: read('src/mods/mod-engine/subsystems/narrative-parser-system.ts'),
   prompt: read('src/mods/mod-engine/prompts/narrative-prompt.ts'),
   promptComponents: read('src/mods/mod-engine/server/narrative-system-prompt.ts'),
@@ -57,7 +56,6 @@ const activeFiles = {
   memory: readModuleSource('src/mods/mod-engine/subsystems/memory-lifecycle-system.ts', root),
   summary: readModuleSource('src/mods/mod-engine/subsystems/summary-compressor-system.ts', root),
   digest: read('src/mods/mod-engine/helpers/digest-ledger.ts'),
-  lifespan: read('src/mods/mod-character/subsystems/lifespan-system.ts'),
   characterBase: readModuleSource('src/mods/mod-character/subsystems/character-base-system.ts', root),
   characterCreate: readDirectorySource('src/mods/mod-pages/pages/character-create', root),
   fatePreview: readDirectorySource('src/mods/mod-pages/pages/fate-preview', root),
@@ -86,13 +84,6 @@ const forbiddenByFile = {
     'sideQuestPatterns',
     'hasDisease',
   ],
-  lifecycleNarrative: [
-    'BATTLE_KEYWORDS',
-    'isLastEventConflict',
-    'countConsecutiveConflictRounds',
-    'PEACEFUL_GOAL_KEYWORDS',
-    'isPlayerGoalPeaceful',
-  ],
   plot: ['TENSION_KEYWORDS'],
   memory: [
     'HIGH_KEYWORDS',
@@ -104,12 +95,6 @@ const forbiddenByFile = {
   ],
   summary: ['rateImportance('],
   digest: ['extractEntities(ev.text)'],
-  lifespan: [
-    'lastNarrativeText',
-    'LIFESPAN_NARRATIVE_REDUCTION_ENABLED',
-    'LIFESPAN_REDUCTION_KEYWORDS',
-    'LIFESPAN_BG_BONUS_KEYWORDS',
-  ],
   characterBase: ['detectStartingAge('],
   characterCreate: [
     'detectStartingAge(',
@@ -191,21 +176,16 @@ assertIncludes(
 for (const call of [
   'plotStructure.recordNarrativeSignals(',
   'memoryLifecycle.setAISemanticAnalysis(',
-  'coreMemory.recordRelationshipUpdates(',
+  'memoryLifecycle.recordRelationshipUpdates(',
   'foreshadowing.resolveForeshadowing(',
 ]) {
   assertIncludes(activeFiles.orchestrator, call, `orchestrator missing structured consumer ${call}`)
 }
 
 assertIncludes(
-  activeFiles.lifespan,
-  'LIFESPAN_SYSTEM_OPERATION_FIELDS',
-  'lifespan must enforce its current operation-level field contract',
-)
-assertIncludes(
   activeFiles.fatePreview,
-  'maximumLifespanDays: Math.round(lifespan.maximumLifespanYears * 365)',
-  'fate preview must commit the explicit character-creation lifespan',
+  'startingAge,\n      status: undefined,',
+  'fate preview must hydrate character-base from the confirmed creation draft',
 )
 assertIncludes(
   activeFiles.digest,
@@ -248,10 +228,10 @@ if (NarrativeRoundMetadataSchema.safeParse(wrappedRelationships).success) {
 }
 
 const validSystemInstruction = {
-  系统: '基础属性',
+  系统: '角色状态',
   目标对象: 'player:current',
   目标上下文: 'context:world-a',
-  操作: '增量',
+  操作: '调整属性',
   说明: '长期训练已经形成稳定体魄变化。',
   变更: { 体魄变化: 1 },
   依据事件: [],

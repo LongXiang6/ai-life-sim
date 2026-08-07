@@ -213,8 +213,8 @@ function testWorldInitialization(): void {
 function testSubsystemAdvance(): void {
   const flow = EXECUTION_FLOWS.subsystemAdvance
   const subsystems = [
-    { id: 'world-entity', mod: 'mod-world' } as ISubSystem,
-    { id: 'npc-system', mod: 'mod-npc' } as ISubSystem,
+    { id: 'spatial-graph', mod: 'mod-world' } as ISubSystem,
+    { id: 'character-base', mod: 'mod-character' } as ISubSystem,
   ]
   const nodes = createSubsystemAdvanceExecutionNodes(flow, subsystems, () => undefined)
   validateGraph('subsystem-advance', flow, nodes)

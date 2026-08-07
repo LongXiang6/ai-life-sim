@@ -14,12 +14,11 @@ import {
   loadCachedWorldInitBundle,
   saveCachedWorldCalibration,
   WorldInitSystem,
-  type WorldEntitySystem,
 } from '../../world-init-bundle-deps'
 import type { DimensionInferenceOutput } from '../../prompts/dimension-inference-schema'
 import {
   buildWorldInitPromptVars,
-  formatEntityRangesForPrompt,
+  formatRegionsForPrompt,
   formatWorldTagsForPrompt,
 } from '../world-init-prompt-vars'
 import { resolvePipelineAnchorYear } from '../world-init-anchor-year'
@@ -34,6 +33,12 @@ import { parseWorldCalibrationBundleResponse, type ParsedWorldCalibrationBundle 
 import type { ParsedWorldDimensionCalibrationBundle } from '../world-dimension-calibration-parse'
 import { filterCoherentWorldTags } from '../world-coherence-output-guard'
 import type { WorldInitPipelineContext } from './contracts'
+import { buildSpatialGraph, namespaceRegions } from '../world-context-runtime'
+import {
+  applyRegionProfileOutput,
+  materializeLifeStageTemplate,
+  parseWorldRegionProfileOutput,
+} from '../world-region-profile'
 
 export function commitWorldTags(config: WorldConfig, tags: string[]): string[] {
   const filtered = filterCoherentWorldTags(tags, {
@@ -48,7 +53,9 @@ export function syncContextPromptVars(context: WorldInitPipelineContext): void {
   const calibration = useWorldStore.getState().calibration ?? buildDefaultCalibration(context.config)
   context.promptVars.worldTags = formatWorldTagsForPrompt(context.rawTags)
   context.promptVars.calibrationSummary = formatCalibrationSummary(calibration)
-  context.promptVars.entityRanges = formatEntityRangesForPrompt(calibration)
+  const state = useWorldStore.getState()
+  const instance = state.currentContextId ? state.contexts[state.currentContextId] : undefined
+  context.promptVars.mapRegions = formatRegionsForPrompt(instance?.regions ?? [])
 }
 
 export function shouldRunDimensionInference(modes: Record<string, string>): boolean {
@@ -105,13 +112,61 @@ function applyDimensionInferenceToConfig(
   }
 }
 
-export function syncEntitySystemRegions(entitySystem: WorldEntitySystem, config: WorldConfig): void {
-  const snapshot = new WorldInitSystem().initialize(config)
-  entitySystem.setRegions(snapshot.regions)
+export function syncPipelineRegions(context: WorldInitPipelineContext): void {
+  const store = useWorldStore.getState()
+  const contextId = store.currentContextId
+  const instance = contextId ? store.contexts[contextId] : undefined
+  const snapshot = new WorldInitSystem().initialize(context.config)
+  if (!instance) {
+    context.promptVars.mapRegions = formatRegionsForPrompt(snapshot.regions)
+    return
+  }
+  const resolvedContextId = instance.record.id
+  const { regions } = namespaceRegions(resolvedContextId, snapshot.regions)
+  const spatialGraph = buildSpatialGraph(
+    resolvedContextId,
+    instance.record.kind,
+    context.config.name,
+    context.config.spatialForm,
+    regions,
+  )
+  if (spatialGraph.nodes[instance.spatialGraph.currentRegionId]) {
+    spatialGraph.currentRegionId = instance.spatialGraph.currentRegionId
+  }
+  store.replaceContext({ ...instance, regions, spatialGraph, worldConfig: structuredClone(context.config) })
+  context.promptVars.mapRegions = formatRegionsForPrompt(regions)
 }
 
-export function syncPipelineRegions(context: WorldInitPipelineContext): void {
-  syncEntitySystemRegions(context.entitySystem, context.config)
+export function commitRegionProfileOutput(context: WorldInitPipelineContext, raw: string): void {
+  const store = useWorldStore.getState()
+  const contextId = store.currentContextId
+  const instance = contextId ? store.contexts[contextId] : undefined
+  if (!instance) throw new Error('区域概况提交时当前世界上下文不存在')
+  const resolvedContextId = instance.record.id
+  const output = parseWorldRegionProfileOutput(raw)
+  const regions = applyRegionProfileOutput(
+    instance.regions,
+    output,
+    instance.record.localClock.lastGlobalTotalDays,
+  )
+  const spatialGraph = buildSpatialGraph(
+    resolvedContextId,
+    instance.record.kind,
+    context.config.name,
+    context.config.spatialForm,
+    regions,
+  )
+  if (spatialGraph.nodes[instance.spatialGraph.currentRegionId]) {
+    spatialGraph.currentRegionId = instance.spatialGraph.currentRegionId
+  }
+  const config = {
+    ...context.config,
+    lifeStageTemplate: materializeLifeStageTemplate(output),
+  }
+  context.config = config
+  store.setWorldConfig(config)
+  store.replaceContext({ ...instance, worldConfig: structuredClone(config), regions, spatialGraph })
+  context.promptVars.mapRegions = formatRegionsForPrompt(regions)
 }
 
 export function applyCalibrationParsed(

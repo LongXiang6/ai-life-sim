@@ -5,6 +5,7 @@
  */
 
 import type { NarrativeMemoryScope } from '../../helpers/narrative-context-scope'
+import type { NarrativeRelationshipUpdate } from '../../helpers/narrative-semantic-signals'
 import type { NarrativeTimelineEntry } from '../../helpers/timeline-memory'
 
 export type EventImportance = 'HIGH' | 'NORMAL' | 'LOW'
@@ -21,7 +22,7 @@ export interface ImportanceResult {
   importance: EventImportance
   score: number
   semanticTags: string[]
-  source: 'ai' | 'fallback'
+  source: 'ai' | 'fallback' | 'protection'
   isClosure: boolean
   closureType: ClosureType
 }
@@ -103,6 +104,32 @@ export interface CompressionDecision {
 
 export interface NarrativeTimelineProjection {
   timelineEntries: NarrativeTimelineEntry[]
+}
+
+export interface RelationshipMemoryRecord {
+  personName: string
+  contextId?: string
+  memoryScope?: NarrativeMemoryScope
+  round: number
+  type: NarrativeRelationshipUpdate['type']
+  summary: string
+  importance: EventImportance
+  historicalEventIds?: string[]
+}
+
+export interface CausalMemoryProtection {
+  round: number
+  contextId?: string
+  type: 'kindness' | 'grudge' | 'promise' | 'debt' | 'foreshadow'
+  description: string
+  severity: 'minor' | 'normal' | 'major' | 'critical'
+  resolved: boolean
+}
+
+export interface MemoryRoundTime {
+  displayTimeLabel?: string
+  displayAge?: number
+  totalDays?: number
 }
 
 export const RETENTION_RATES: Record<EventImportance, number> = {

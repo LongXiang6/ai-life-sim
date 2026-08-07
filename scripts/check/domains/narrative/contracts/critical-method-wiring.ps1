@@ -16,7 +16,7 @@ $pipelineContent = @(
   if (Test-Path $campaignEntry) { Get-FileContent $campaignEntry }
 ) -join "`n"
 $narrativeCriticalMethods = @(
-  'buildCreationTimelineEntries', 'buildNPCNetworkText', 'buildForeshadowingText', 'detectForeshadowing', 'resolveForeshadowing',
+  'buildCreationTimelineEntries', 'buildForeshadowingText', 'detectForeshadowing', 'resolveForeshadowing',
   'scoreImportance', 'setAISemanticAnalysis', 'recordNarrativeSignals', 'recordRelationshipUpdates',
   'getRelevantStates', 'buildNarrativeTimelineProjection',
   'buildPromptTimelineMemory', 'buildPhaseGuidance'

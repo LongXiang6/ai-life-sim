@@ -57,7 +57,7 @@ function retrieveFromIndex(index, queryText, limit = 5) {
 }
 
 /**
- * 简化版遗忘分析（与 memory-forgetting-system 娱乐护栏对齐）
+ * 简化版记忆保留分析（与 memory-lifecycle 保护语义对齐）
  * @param {string} content
  * @param {string[]} protectedNpcNames
  */

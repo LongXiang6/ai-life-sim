@@ -6,11 +6,9 @@
 
 import { BRIDGE_SUMMARY_MIN_TICKS } from '@/core/ai-service/prompt-flags'
 
-/** 关键子系统数值快照（population / cultivation / wealth） */
+/** 关键叙事快照；仅保留当前仍有独立推进意义的修炼状态。 */
 export interface BridgeSnapshot {
-  population?: number
   cultivationRealm?: string
-  wealth?: number
 }
 
 export interface TimeBridgeInput {
@@ -22,29 +20,14 @@ export interface TimeBridgeInput {
   memoryL0Titles: string[]
 }
 
-const POPULATION_CHANGE_THRESHOLD = 0.05
-const WEALTH_CHANGE_THRESHOLD = 0.1
-
-function formatPercent(rate: number): string {
-  const pct = Math.round(rate * 100)
-  return pct >= 0 ? `+${pct}%` : `${pct}%`
-}
-
 /** 从子系统状态提取 bridge 对比快照 */
 export function extractBridgeSnapshot(
   states: Record<string, { data?: unknown }>,
 ): BridgeSnapshot {
-  const popData = states['population']?.data as { totalPopulation?: number } | undefined
   const cultData = states['cultivation']?.data as { realmLabel?: string } | undefined
-  const econData = states['economy']?.data as {
-    currency?: { playerWealth?: number }
-    wealth?: number
-  } | undefined
 
   return {
-    population: popData?.totalPopulation,
     cultivationRealm: cultData?.realmLabel,
-    wealth: econData?.currency?.playerWealth ?? econData?.wealth,
   }
 }
 
@@ -62,33 +45,11 @@ export function buildTimeBridgeSummary(input: TimeBridgeInput): string | undefin
   const { prevSnapshot, currentSnapshot } = input
 
   if (
-    prevSnapshot.population != null
-    && currentSnapshot.population != null
-    && prevSnapshot.population > 0
-  ) {
-    const rate = (currentSnapshot.population - prevSnapshot.population) / prevSnapshot.population
-    if (Math.abs(rate) >= POPULATION_CHANGE_THRESHOLD) {
-      bullets.push(`人口：${prevSnapshot.population}→${currentSnapshot.population}（${formatPercent(rate)}）`)
-    }
-  }
-
-  if (
     prevSnapshot.cultivationRealm
     && currentSnapshot.cultivationRealm
     && prevSnapshot.cultivationRealm !== currentSnapshot.cultivationRealm
   ) {
     bullets.push(`修炼：${prevSnapshot.cultivationRealm}→${currentSnapshot.cultivationRealm}`)
-  }
-
-  if (
-    prevSnapshot.wealth != null
-    && currentSnapshot.wealth != null
-    && prevSnapshot.wealth > 0
-  ) {
-    const rate = (currentSnapshot.wealth - prevSnapshot.wealth) / prevSnapshot.wealth
-    if (Math.abs(rate) >= WEALTH_CHANGE_THRESHOLD) {
-      bullets.push(`财富：${Math.round(prevSnapshot.wealth)}→${Math.round(currentSnapshot.wealth)}（${formatPercent(rate)}）`)
-    }
   }
 
   for (const title of input.memoryL0Titles) {

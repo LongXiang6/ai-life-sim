@@ -12,43 +12,11 @@ import {
   getWorldviewStyleHint,
 } from '@/mods/mod-world/utils/calibration-clamp'
 
-import { EDUCATION_INNOVATION_MOD } from '@/mods/mod-culture/constants'
 import { DEFAULT_KNOWLEDGE_DOMAINS } from '@/mods/mod-tech-level/constants'
 import { CHARACTER_DAYS_PER_YEAR, resolveCharacterAgeDays } from '@/foundation'
 import { formatAdaptationCalibrationBlock } from '@/mods/mod-world/utils/adaptation-prompt-calibration'
 
 import { baseConfig, formula } from './world-calibration-test-helpers'
-
-/** 与 faith-system.getFaithBreakthroughBonus 一致 */
-function computeFaithBreakthroughBonus(devotionLevel: number, devotionGainModifier: number): number {
-  return 1 + (devotionLevel / 100) * 0.3 * devotionGainModifier
-}
-
-/** 与 cultivation-system.collectStateUpdate 一致 */
-function applyFaithBreakthroughBonus(chance: number, faithBonus: number): number {
-  if (faithBonus === 1 || chance <= 0) return chance
-  return Math.min(Math.max(chance * faithBonus, 0), 1)
-}
-
-function testFaithBonusFormula() {
-  const expected = computeFaithBreakthroughBonus(100, 1.4)
-  assert.ok(Math.abs(expected - 1.42) < 0.001, `faithBonus 应 ≈1.42，实际 ${expected}`)
-}
-
-function testFaithBonusNoFaith() {
-  assert.equal(computeFaithBreakthroughBonus(0, 1.4), 1)
-}
-
-function testCultivationRound2FaithMultiply() {
-  const baseChance = 0.6 * 1.0 // bottleneckMod=1, 金丹→元婴基线
-  const after = applyFaithBreakthroughBonus(baseChance, 1.42)
-  assert.ok(Math.abs(after - baseChance * 1.42) < 0.001, `应 ×1.42，实际 ${after}`)
-}
-
-function testCultivationRound2NoFaith() {
-  const baseChance = 0.4
-  assert.equal(applyFaithBreakthroughBonus(baseChance, 1), baseChance)
-}
 
 function testFormatCalibrationSummaryRich() {
   const cal = buildDefaultCalibration(
@@ -59,11 +27,6 @@ function testFormatCalibrationSummaryRich() {
   assert.ok(summary.includes('修炼'), `摘要应含修炼相关项: ${summary}`)
   assert.ok(summary.includes('事件策略'), `摘要应含事件策略: ${summary}`)
   assert.ok(summary.length <= 151, `摘要应 ≤150 字（含省略号）: ${summary.length}`)
-}
-
-function testEducationInnovationModLevels() {
-  assert.ok(EDUCATION_INNOVATION_MOD.advanced === 2.0)
-  assert.ok(EDUCATION_INNOVATION_MOD.advanced > EDUCATION_INNOVATION_MOD.basic)
 }
 
 function testCultureTechUsesComposableDomains() {
@@ -113,12 +76,7 @@ function testGetWorldviewStyleHintPrefersCalibration() {
 }
 
 function main() {
-  testFaithBonusFormula()
-  testFaithBonusNoFaith()
-  testCultivationRound2FaithMultiply()
-  testCultivationRound2NoFaith()
   testFormatCalibrationSummaryRich()
-  testEducationInnovationModLevels()
   testCultureTechUsesComposableDomains()
   testCanonicalCharacterAgeUsesTotalDays()
   testP5HealthCalibrationFields()

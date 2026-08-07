@@ -57,6 +57,22 @@ export class EventCandidateProvider {
     }
   }
 
+  prepareContinuation(
+    candidate: HistoricalEventCandidate,
+    reason: string,
+    context: HistoricalEventValidationContext,
+  ): HistoricalEventCandidateAudit {
+    return {
+      auditId: createLedgerId('candidate-audit'),
+      candidateId: candidate.candidateId,
+      status: 'available',
+      candidate: cloneValue(candidate),
+      reason,
+      roundSequence: context.roundSequence,
+      totalDays: context.totalDays,
+    }
+  }
+
   latestCandidates(
     audits: readonly HistoricalEventCandidateAudit[],
   ): Map<string, HistoricalEventCandidateAudit> {

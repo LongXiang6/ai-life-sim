@@ -153,6 +153,13 @@ export const AI_DELIVERED_CAUSAL_STATUSES = createEnumTranslator([
   ['not-touched', '未触及'],
 ] as const)
 
+export const AI_HISTORICAL_EVENT_CANDIDATE_STATUSES = createEnumTranslator([
+  ['accepted', '已接纳'],
+  ['continuing', '继续等待'],
+  ['rejected', '已拒绝'],
+  ['expired', '已过期'],
+] as const)
+
 export const AI_EVENT_CANDIDATE_SCOPES = createEnumTranslator([
   ['context', '当前上下文'],
   ['global', '全局'],
@@ -192,8 +199,8 @@ const NarrativeAISemanticSignalsSchema = z.object({
   叙事语域: AI_NARRATIVE_REGISTERS.schema,
   语域理由: z.string().min(1),
   情节类型: AI_ARC_TYPES.schema,
-  关系变化: z.array(NarrativeAIRelationshipUpdateSchema).min(1).optional(),
-  已回收伏笔编号: z.array(z.string().min(1)).min(1).optional(),
+  关系变化: z.array(NarrativeAIRelationshipUpdateSchema).optional(),
+  已回收伏笔编号: z.array(z.string().min(1)).optional(),
 }).strict().superRefine((signals, context) => {
   if (signals.叙事语域 !== '生活' && signals.不可逆 !== true) {
     context.addIssue({
@@ -207,7 +214,7 @@ const NarrativeAISemanticSignalsSchema = z.object({
 const NarrativeAIKeyEventSchema = z.object({
   内容: z.string().min(1),
   重要度: z.number().min(0).max(100),
-  涉及实体: z.array(z.string().min(1)).min(1).optional(),
+  涉及实体: z.array(z.string().min(1)).optional(),
 }).strict()
 
 const NarrativeAICreationSchema = z.object({
@@ -258,6 +265,12 @@ const NarrativeAIDeliveredCausalDispositionSchema = z.object({
   }
 })
 
+const NarrativeAIHistoricalEventCandidateDispositionSchema = z.object({
+  候选编号: z.string().min(1),
+  状态: AI_HISTORICAL_EVENT_CANDIDATE_STATUSES.schema,
+  判定理由: z.string().min(1),
+}).strict()
+
 /** 第一次调用唯一可返回的玩家可见分支。 */
 const NarrativeAINonBlankStringSchema = z.string().refine(
   (value) => value.trim().length > 0,
@@ -272,14 +285,15 @@ export const NarrativeAIBranchSchema = z.object({
 const NarrativeAIEventMetadataSchema = z.object({
   摘要: z.string().min(1),
   注册事件: z.array(NarrativeAIKeyEventSchema),
-  长期事件: z.array(z.string().min(1)).min(1).optional(),
-  原创内容: z.array(NarrativeAICreationSchema).min(1).optional(),
-  新伏笔: z.array(NarrativeAIForeshadowingSchema).min(1).optional(),
+  长期事件: z.array(z.string().min(1)).optional(),
+  原创内容: z.array(NarrativeAICreationSchema).optional(),
+  新伏笔: z.array(NarrativeAIForeshadowingSchema).optional(),
   重要程度: AI_IMPORTANCE_LEVELS.schema.optional(),
   情节状态: AI_ARC_STATUSES.schema.optional(),
   语义信号: NarrativeAISemanticSignalsSchema.optional(),
-  新延迟因果: z.array(NarrativeAIDeferredCausalitySchema).min(1).optional(),
+  新延迟因果: z.array(NarrativeAIDeferredCausalitySchema).optional(),
   到期因果判定: z.array(NarrativeAIDeliveredCausalDispositionSchema).optional(),
+  到期候选判定: z.array(NarrativeAIHistoricalEventCandidateDispositionSchema).optional(),
 }).strict().superRefine((data, context) => {
   const semanticCore = [data.重要程度, data.情节状态, data.语义信号]
   const semanticCoreCount = semanticCore.filter((value) => value !== undefined).length
@@ -295,10 +309,10 @@ const NarrativeAIEventCandidateSchema = z.object({
   作用域: AI_EVENT_CANDIDATE_SCOPES.schema,
   触发条件: z.string().min(1),
   延迟天数: z.number().int().min(1).optional(),
-  相关人物: z.array(z.string().min(1)).min(1).optional(),
-  相关地点: z.array(z.string().min(1)).min(1).optional(),
-  所需能力: z.array(AI_CONTEXT_CAPABILITIES.schema).min(1).optional(),
-  标签: z.array(z.string().min(1)).min(1).optional(),
+  相关人物: z.array(z.string().min(1)).optional(),
+  相关地点: z.array(z.string().min(1)).optional(),
+  所需能力: z.array(AI_CONTEXT_CAPABILITIES.schema).optional(),
+  标签: z.array(z.string().min(1)).optional(),
 }).strict().superRefine((candidate, context) => {
   const duplicateFields: Array<[string, readonly string[] | undefined]> = [
     ['相关人物', candidate.相关人物],
@@ -332,14 +346,14 @@ export const NarrativeAIBasicAttributeAnalysisDataSchema = z.object({
 }).strict().superRefine((data, context) => {
   const instruction = data.系统操作[0]
   if (!instruction) return
-  if (instruction.系统 !== '基础属性') {
+  if (instruction.系统 !== '角色状态') {
     context.addIssue({ code: 'custom', path: ['系统操作', 0, '系统'], message: '只能分析基础属性' })
   }
   if (instruction.目标对象 !== 'player:current') {
     context.addIssue({ code: 'custom', path: ['系统操作', 0, '目标对象'], message: '基础属性只能指向 player:current' })
   }
-  if (instruction.操作 !== '增量') {
-    context.addIssue({ code: 'custom', path: ['系统操作', 0, '操作'], message: '基础属性只允许增量操作' })
+  if (instruction.操作 !== '调整属性') {
+    context.addIssue({ code: 'custom', path: ['系统操作', 0, '操作'], message: '基础属性只允许调整属性操作' })
   }
   const entries = Object.entries(instruction.变更)
   if (entries.length === 0) {
@@ -377,6 +391,7 @@ export function parseNarrativeAIJson(source: string): unknown {
 export interface TranslateNarrativeAISystemAnalysisOptions {
   allowedEvidenceEventIds: readonly string[]
   allowedSubsystemIds: readonly string[]
+  allowedOperationsBySubsystem?: Readonly<Record<string, readonly string[]>>
 }
 
 function translateNarrativeAISystemInstructions(
@@ -401,7 +416,7 @@ function translateNarrativeAISystemInstructions(
       evidenceEventIds: change.依据事件,
       description: change.说明,
       fields: change.变更,
-    }, options.allowedSubsystemIds))
+    }, options.allowedSubsystemIds, options.allowedOperationsBySubsystem))
 }
 
 export function translateNarrativeAIDataAnalysis(
@@ -439,7 +454,7 @@ function translateNarrativeAIEventMetadata(rawData: unknown): NarrativeRoundMeta
     keyEvents: data.注册事件.length > 0 ? data.注册事件.map((event) => ({
       text: event.内容,
       importance: event.重要度,
-      entities: event.涉及实体,
+      entities: event.涉及实体 && event.涉及实体.length > 0 ? event.涉及实体 : undefined,
     })) : undefined,
     arcStatus: data.情节状态 ? AI_ARC_STATUSES.toInternal(data.情节状态) : undefined,
     semanticSignals: data.语义信号
@@ -474,6 +489,11 @@ function translateNarrativeAIEventMetadata(rawData: unknown): NarrativeRoundMeta
       status: AI_DELIVERED_CAUSAL_STATUSES.toInternal(item.状态),
       reason: item.判定理由,
       continuationDelayDays: item.继续延迟天数,
+    })),
+    historicalEventCandidateDispositions: data.到期候选判定?.map((item) => ({
+      candidateId: item.候选编号,
+      status: AI_HISTORICAL_EVENT_CANDIDATE_STATUSES.toInternal(item.状态),
+      reason: item.判定理由,
     })),
   }
 

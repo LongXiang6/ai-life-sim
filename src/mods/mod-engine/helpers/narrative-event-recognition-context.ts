@@ -26,12 +26,13 @@ const EVENT_CONTEXT_SUBSYSTEM_IDS = [
   'plot-structure',
   'foreshadowing',
   'causal-delay',
-  'core-memory',
+  'memory-lifecycle',
 ] as const
 
 export interface NarrativeEventRecognitionPromptInput {
-  userSegments: [string, string, string, string, string]
+  userSegments: [string, string, string, string, string, string]
   existingCandidates: HistoricalEventCandidateAudit[]
+  dueCandidates: HistoricalEventCandidateAudit[]
   allowedEvidenceEventIds: string[]
 }
 
@@ -43,6 +44,7 @@ export function buildNarrativeEventRecognitionPromptInput(input: {
   subsystemStates: Record<string, SubSystemState>
   roundContext: RoundContext
   existingCandidates: readonly HistoricalEventCandidateAudit[]
+  dueCandidates: readonly HistoricalEventCandidateAudit[]
   recentStories: readonly RecentStoryProjection[]
   deliveredCausalEventIds?: readonly string[]
 }): NarrativeEventRecognitionPromptInput {
@@ -62,6 +64,20 @@ export function buildNarrativeEventRecognitionPromptInput(input: {
     相关地点: candidate.locations,
     标签: candidate.tags,
   }))
+  const dueProjection = [...input.dueCandidates]
+    .sort((left, right) => left.candidateId.localeCompare(right.candidateId))
+    .map(({ candidate }) => ({
+      候选编号: candidate.candidateId,
+      类型: candidate.eventType,
+      标题: candidate.title,
+      说明: candidate.description,
+      作用域: candidate.scope,
+      触发条件: candidate.triggerConditionLabel,
+      计划: candidate.schedule,
+      相关人物: candidate.participants,
+      相关地点: candidate.locations,
+      标签: candidate.tags,
+    }))
   const allowedEvidenceEventIds = readNarrativeAnalysisEvidenceEventIds(
     input.subsystemStates,
     input.roundContext.contextId,
@@ -97,9 +113,11 @@ export function buildNarrativeEventRecognitionPromptInput(input: {
       `⟦事件相关状态⟧${JSON.stringify(eventStates)}`,
       `⟦本轮已投递因果⟧${JSON.stringify(deliveredCausalEvents)}`,
       `⟦已有待触发事件⟧${JSON.stringify(existingProjection)}`,
+      `⟦本轮到期候选⟧${JSON.stringify(dueProjection)}`,
       `⟦最近故事⟧${JSON.stringify(input.recentStories)}`,
     ],
     existingCandidates,
+    dueCandidates: [...input.dueCandidates].map((audit) => structuredClone(audit)),
     allowedEvidenceEventIds,
   }
 }

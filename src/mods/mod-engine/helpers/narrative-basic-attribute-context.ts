@@ -4,7 +4,12 @@
  * @mod mod-engine
  */
 
-import type { CharacterState, RoundContext, SubSystemState } from '@/foundation'
+import type {
+  CharacterNarrativeStatus,
+  CharacterState,
+  RoundContext,
+  SubSystemState,
+} from '@/foundation'
 import { getAttrSemantic } from '@/mods/mod-character'
 
 import {
@@ -19,6 +24,7 @@ import { isSubsystemOpenForPrompt } from './subsystem-prompt-gate'
 export interface NarrativeBasicAttributePromptInput {
   userSegments: [string, string, string, string]
   activeSubsystemIds: ['character-base']
+  allowedOperationsBySubsystem: { 'character-base': readonly ['adjust-attributes'] }
   allowedEvidenceEventIds: string[]
 }
 
@@ -33,13 +39,14 @@ export function buildNarrativeBasicAttributePromptInput(input: {
   if (state?.data === undefined || !isSubsystemOpenForPrompt(state, 'character-base')) {
     throw new Error('本轮缺少可供基础属性 AI 读取的完整状态')
   }
-  const contract = getNarrativeAISubsystemContract('character-base')
+  const contract = getNarrativeAISubsystemContract('character-base', ['adjust-attributes'])
   const baseState = state.data as {
     base?: Record<string, number>
     current?: Record<string, number>
     modifiers?: Record<string, number>
     contextModifiers?: Record<string, Record<string, Record<string, number>>>
     startingAge?: number
+    status?: CharacterNarrativeStatus
   }
   const attributeKeys = ['physique', 'mind', 'talentAptitude', 'charisma'] as const
   const attributeLabels = {
@@ -66,22 +73,6 @@ export function buildNarrativeBasicAttributePromptInput(input: {
       attrBonus?: Record<string, number>
     }>
   } | undefined
-  const lifespanState = input.subsystemStates.lifespan?.data as {
-    profile?: {
-      raceId?: string
-      displayName?: string
-      clockMode?: string
-      attrBaselines?: Record<string, number>
-    }
-  } | undefined
-  const lifecycleState = input.subsystemStates['lifecycle-system']?.data as {
-    entity?: {
-      stageId?: string
-      stageLabel?: string
-      stageDescription?: string
-      attributeModifiers?: Record<string, number>
-    }
-  } | undefined
   const allowedEvidenceEventIds = readNarrativeAnalysisEvidenceEventIds(
     input.subsystemStates,
     input.roundContext.contextId,
@@ -97,8 +88,7 @@ export function buildNarrativeBasicAttributePromptInput(input: {
         },
         稳定特征: {
           命格: destinyState?.patterns ?? input.character.destinyPatterns ?? [],
-          物种与生命形态: lifespanState?.profile ?? null,
-          生命周期阶段: lifecycleState?.entity ?? null,
+          角色状态: baseState.status ?? null,
         },
         属性构成: {
           基础值: baseState.base,
@@ -121,6 +111,7 @@ export function buildNarrativeBasicAttributePromptInput(input: {
       `⟦最近故事⟧${JSON.stringify(input.recentStories)}`,
     ],
     activeSubsystemIds: ['character-base'],
+    allowedOperationsBySubsystem: { 'character-base': ['adjust-attributes'] },
     allowedEvidenceEventIds,
   }
 }

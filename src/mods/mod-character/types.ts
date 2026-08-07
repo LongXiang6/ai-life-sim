@@ -5,19 +5,23 @@
  */
 
 import type {
-  BiologicalClockMode,
-  DeathOutcome,
-  HealthCondition,
-  LifespanAdjustment,
-  LifecycleStageDefinition,
+  CharacterBiologicalClockMode,
+  CharacterNarrativeStatus,
 } from '@/foundation'
 
 export type {
-  LuckNarrativeDirection,
-  LuckNarrativeGuidance,
-  LuckModifiers,
-  LuckState,
-  LuckPersistenceState,
+  CharacterBiologicalClockMode,
+  CharacterConditionState,
+  CharacterDeathCauseKind,
+  CharacterDeathOutcome,
+  CharacterFortuneLevel,
+  CharacterFortuneState,
+  CharacterHealthState,
+  CharacterLifeStageDefinition,
+  CharacterMoralityLevel,
+  CharacterMoralityState,
+  CharacterNarrativeStatus,
+  PendingCharacterDeath,
 } from '@/foundation'
 
 // ============================================================
@@ -55,7 +59,9 @@ export interface CharacterBaseState {
   /** 当地世界、种族或状态规则按 contextId/sourceId 分区，不污染其他世界 */
   contextModifiers: Record<string, Record<string, Partial<AttributeModifiers>>>
   /** 起始年龄（由角色创建或结构化变更显式提供） */
-  startingAge: number,
+  startingAge: number
+  /** 角色状态唯一运行投影；由 character-base 初始化并持久化。 */
+  status?: CharacterNarrativeStatus
 }
 
 // ============================================================
@@ -144,11 +150,11 @@ export interface DestinyPatternState {
 // 创建草稿与运行时 UI 投影
 // ============================================================
 
-/** 角色创建使用的结构化种族目录；运行时真源由 LifespanSystem 持有。 */
+/** 角色创建使用的结构化种族与寿命输入；运行时由 character-base 接管。 */
 export interface RaceLifespanConfig {
   name: string
   baseLifespanYears: number
-  clockMode: BiologicalClockMode
+  clockMode: CharacterBiologicalClockMode
   attrBaselines?: Partial<AttributeModifiers>
 }
 
@@ -156,60 +162,6 @@ export interface LifespanDraftState {
   raceId: string
   race: RaceLifespanConfig
   maximumLifespanYears: number
-}
-
-/** 非持久 UI 投影；不得作为健康运行态恢复来源。 */
-export interface HealthProjection {
-  entityId?: string
-  vitality: number
-  maxVitality: number
-  stamina: number
-  spirit: number
-  alive: boolean
-  conditions: HealthCondition[]
-  death?: DeathOutcome
-}
-
-/** 非持久 UI 投影；完整寿命状态保存在 owning-system 快照。 */
-export interface LifespanProjection {
-  entityId?: string
-  raceId: string
-  displayName: string
-  clockMode: BiologicalClockMode
-  baseLifespanDays: number
-  maximumLifespanDays: number
-  adjustments: LifespanAdjustment[]
-}
-
-/** 非持久 UI 投影；阶段和属性修正均由 LifecycleSystem 当前值派生。 */
-export interface LifecycleProjection {
-  entityId?: string
-  ageDays: number
-  currentStage?: LifecycleStageDefinition
-}
-
-// ============================================================
-// 善恶值（对齐废弃项目 extractMoralityChanges）
-// ============================================================
-
-/** 7 档善恶映射（对齐废弃项目小范围阈值） */
-export type MoralityLevel =
-  | 'supremeGood'
-  | 'greatGood'
-  | 'good'
-  | 'balanced'
-  | 'evilLeaning'
-  | 'greatEvil'
-  | 'supremeEvil'
-
-/** 善恶子系统状态 */
-export interface MoralityState {
-  /** 善恶值（负 = 恶，正 = 善） */
-  value: number
-  /** 当前善恶档位 */
-  level: MoralityLevel
-  /** 本轮变化 */
-  roundDelta: number,
 }
 
 // ============================================================
@@ -224,12 +176,5 @@ export interface CharacterSummary {
   startingAge: number
   base: CharacterBaseState
   destinyPatterns: DestinyPatternState
-  health: HealthProjection
-  lifespan: LifespanProjection
-  lifecycle: LifecycleProjection
-  morality: MoralityState,
+  status?: CharacterNarrativeStatus
 }
-
-// ============================================================
-// 气运（隐藏基础属性，用户不可见；随机方向由本地 owning system 产生）
-// ============================================================

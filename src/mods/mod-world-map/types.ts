@@ -1,23 +1,18 @@
-/** Read-side map rendering types. Business facts remain with their owning systems. */
+/**
+ * Purpose: Define view-only map rendering controls and interaction state.
+ * Owner: mod-world-map
+ * Responsibility: Canvas presentation only; world and region facts stay in mod-world.
+ */
 
 import type { MapProjectionNode } from '@/foundation'
 
-export type TerrainColorMap = Record<string, string>
+export type RegionColorMap = Record<string, string>
 
-export const DEFAULT_TERRAIN_COLORS: TerrainColorMap = {
-  plain: '#70a56f',
-  forest: '#3f7651',
-  mountain: '#8b8f8d',
-  desert: '#c7a85f',
-  water: '#4d83a8',
-  wetland: '#657a5b',
-  ice: '#b7d0d5',
-  volcanic: '#935951',
-  underground: '#55585a',
-  artificial: '#8b7ca0',
-  celestial: '#8398bd',
-  void: '#34343c',
-  abstract: '#81749a',
+export const DEFAULT_REGION_COLORS: RegionColorMap = {
+  temperate: '#5f8f68',
+  cold: '#7b9aa4',
+  arid: '#b2945d',
+  polluted: '#7f6f72',
   unknown: '#666a6d',
 }
 
@@ -27,9 +22,9 @@ export interface MapRenderConfig {
   zoom: number
   offsetX: number
   offsetY: number
-  showTerrain: boolean
+  showClimate: boolean
   showResources: boolean
-  showEntities: boolean
+  showPollution: boolean
 }
 
 export interface NodeRenderData {
@@ -37,7 +32,7 @@ export interface NodeRenderData {
   renderX: number
   renderY: number
   radius: number
-  terrainColor: string
+  regionColor: string
 }
 
 export interface MapInteraction {

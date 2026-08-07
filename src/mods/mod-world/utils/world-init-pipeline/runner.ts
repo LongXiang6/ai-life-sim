@@ -33,11 +33,11 @@ function updatePipelineStatus(
     calibrationGenerated: context.calibrationGenerated,
     tagsGenerated: context.tagsGenerated,
     configGenerated: context.configGenerated,
-    entitiesGenerated: context.entitiesGenerated,
+    regionProfilesGenerated: context.regionProfilesGenerated,
     retryCount: context.calibrationGenerated
       && context.tagsGenerated
       && context.configGenerated
-      && context.entitiesGenerated ? 0 : 1,
+      && context.regionProfilesGenerated ? 0 : 1,
     errors: context.errors,
   })
 }
@@ -52,7 +52,7 @@ export async function runWorldInitPipeline(
     calibrationGenerated: false,
     tagsGenerated: false,
     configGenerated: false,
-    entitiesGenerated: false,
+    regionProfilesGenerated: false,
     retryCount: 0,
     maxRetries: MAX_AI_RETRIES,
     errors: [],
@@ -129,7 +129,7 @@ export async function runWorldInitPipeline(
     && context.calibrationGenerated
     && context.tagsGenerated
     && context.configGenerated
-    && context.entitiesGenerated
+    && context.regionProfilesGenerated
   if (!allOk && sequenceResult.failure) {
     const message = `${sequenceResult.failure.code}: ${sequenceResult.failure.message}`
     if (!context.errors.includes(message)) context.errors.push(message)
@@ -141,7 +141,7 @@ export async function runWorldInitPipeline(
     calibrationGenerated: context.calibrationGenerated,
     tagsGenerated: context.tagsGenerated,
     configGenerated: context.configGenerated,
-    entitiesGenerated: context.entitiesGenerated,
+    regionProfilesGenerated: context.regionProfilesGenerated,
     retryCount: MAX_AI_RETRIES,
     maxRetries: MAX_AI_RETRIES,
     errors: context.errors,
@@ -151,7 +151,7 @@ export async function runWorldInitPipeline(
     calibrationGenerated: context.calibrationGenerated,
     tagsGenerated: context.tagsGenerated,
     configGenerated: context.configGenerated,
-    entitiesGenerated: context.entitiesGenerated,
+    regionProfilesGenerated: context.regionProfilesGenerated,
     errors: context.errors,
     rawTags: context.rawTags,
   }

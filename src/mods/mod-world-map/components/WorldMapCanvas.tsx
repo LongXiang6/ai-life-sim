@@ -138,26 +138,27 @@ export function WorldMapCanvas({ projection, onNodeSelect, className }: WorldMap
 
       <div className={styles.legend}>
         <label className={styles.legendItem}>
-          <input type="checkbox" checked={config.showTerrain} onChange={(event) => setConfig({ showTerrain: event.target.checked })} />
-          <span className={styles.legendLabel}>地形</span>
+          <input type="checkbox" checked={config.showClimate} onChange={(event) => setConfig({ showClimate: event.target.checked })} />
+          <span className={styles.legendLabel}>气候</span>
         </label>
         <label className={styles.legendItem}>
           <input type="checkbox" checked={config.showResources} onChange={(event) => setConfig({ showResources: event.target.checked })} />
           <span className={styles.legendLabel}>资源</span>
         </label>
         <label className={styles.legendItem}>
-          <input type="checkbox" checked={config.showEntities} onChange={(event) => setConfig({ showEntities: event.target.checked })} />
-          <span className={styles.legendLabel}>实体</span>
+          <input type="checkbox" checked={config.showPollution} onChange={(event) => setConfig({ showPollution: event.target.checked })} />
+          <span className={styles.legendLabel}>污染</span>
         </label>
       </div>
 
       {panelInfo && (
         <div className={styles.infoPanel}>
           <h3 className={styles.infoTitle}>{panelInfo.name}</h3>
-          <div className={styles.infoRow}><span className={styles.infoLabel}>地形</span><span>{panelInfo.geography?.terrainClass ?? '未知'}</span></div>
-          <div className={styles.infoRow}><span className={styles.infoLabel}>资源</span><span>{panelInfo.resources.length}</span></div>
-          <div className={styles.infoRow}><span className={styles.infoLabel}>实体</span><span>{panelInfo.entityIds.length}</span></div>
-          {panelInfo.isCurrentLocation && <div className={styles.currentLocation}>当前位置</div>}
+          <div className={styles.infoRow}><span className={styles.infoLabel}>气候</span><span>{panelInfo.profile?.climate ?? '未知'}</span></div>
+          <div className={styles.infoRow}><span className={styles.infoLabel}>生态</span><span>{panelInfo.profile?.ecology ?? '未知'}</span></div>
+          <div className={styles.infoRow}><span className={styles.infoLabel}>资源</span><span>{panelInfo.profile?.resources.join('、') || '无明显资源'}</span></div>
+          <div className={styles.infoRow}><span className={styles.infoLabel}>污染</span><span>{panelInfo.profile?.pollution ?? '未知'}</span></div>
+          {panelInfo.isCurrentRegion && <div className={styles.currentLocation}>当前区域</div>}
         </div>
       )}
 

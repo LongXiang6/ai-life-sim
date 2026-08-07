@@ -27,14 +27,11 @@ export function isLikelyRemoteApiExport(name: string): boolean {
     'narrativeParser',
     'summaryCompressor',
     'timeSystem',
-    'memoryEngine',
     'subsystemRelevance',
     'memoryLifecycle',
-    'memoryForgetting',
     'causalDelay',
     'plotStructure',
     'foreshadowing',
-    'coreMemory',
     'simulationBridge',
   ].includes(name)) {
     return false

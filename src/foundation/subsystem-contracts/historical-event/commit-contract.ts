@@ -11,6 +11,7 @@ import type {
   HistoricalCausalRelation,
   HistoricalEntityReference,
   HistoricalEventCandidateAudit,
+  HistoricalEventCandidateDisposition,
   HistoricalEventCandidateId,
   HistoricalEventEvidence,
   HistoricalEventEvidenceId,
@@ -81,6 +82,7 @@ export interface HistoricalEventValidationContext {
   contextId: WorldContextId
   roundSequence: number
   totalDays: number
+  legacyYear?: number
 }
 
 export interface HistoricalEventPreparedAppend {
@@ -127,6 +129,19 @@ export interface HistoricalEventCandidateInput {
 export interface HistoricalEventCandidateSubmission {
   source: HistoricalEventSource
   candidates: HistoricalEventCandidateInput[]
+}
+
+export interface HistoricalEventCandidateDispositionBatch {
+  source: HistoricalEventSource
+  deliveredCandidateIds: HistoricalEventCandidateId[]
+  dispositions: HistoricalEventCandidateDisposition[]
+}
+
+export interface HistoricalEventCandidateDispositionResult {
+  ok: boolean
+  errors: string[]
+  eventIds: HistoricalEventId[]
+  candidateAudits: HistoricalEventCandidateAudit[]
 }
 
 export interface HistoricalCausalCommitmentInput {

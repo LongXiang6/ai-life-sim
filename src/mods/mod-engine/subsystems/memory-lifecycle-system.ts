@@ -20,14 +20,21 @@ import type {
 } from '@/foundation'
 import { BaseSubsystem } from '@/core'
 import type { NarrativeSemanticSignals } from '../helpers/narrative-semantic-signals'
+import type { NarrativeRelationshipUpdate } from '../helpers/narrative-semantic-signals'
 import {
   isNarrativeRecordVisible,
   type NarrativeMemoryScope,
+  type NarrativeScopeView,
 } from '../helpers/narrative-context-scope'
 import {
   projectSummaryToNarrativeTimeline,
   type NarrativeTimelineEntry,
 } from '../helpers/timeline-memory'
+import {
+  buildCreationTimelineEntries,
+  buildRelationshipTimelineEntries,
+} from './memory-lifecycle-system/timeline-facts'
+import type { CharacterCreation } from '../types'
 import {
   CAPACITY_THRESHOLD,
   MIN_ROUNDS_FOR_COMPRESSION,
@@ -39,24 +46,29 @@ import type {
   AggregatedEvent,
   ClosureType,
   CompressionDecision,
+  CausalMemoryProtection,
   EventImportance,
   EventSeverity,
   ImportanceResult,
   IndexEntry,
   NarrativeTimelineProjection,
   RawEvent,
+  RelationshipMemoryRecord,
   TaggedEvent,
+  MemoryRoundTime,
 } from './memory-lifecycle-system/contracts'
 
 export type {
   AggregatedEvent,
   ClosureType,
   CompressionDecision,
+  CausalMemoryProtection,
   EventImportance,
   EventSeverity,
   ImportanceResult,
   IndexEntry,
   NarrativeTimelineProjection,
+  RelationshipMemoryRecord,
   TaggedEvent,
 } from './memory-lifecycle-system/contracts'
 
@@ -110,6 +122,12 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
   /** 已提交历史事件账本编号（轮次 → 事件编号）。 */
   private aiHistoricalEventIdsMap = new Map<number, string[]>()
 
+  /** 人物关系只作为统一记忆记录存在，不建立独立关系状态系统。 */
+  private relationshipMemories: RelationshipMemoryRecord[] = []
+
+  /** 未兑现因果与未回收伏笔对原始记忆清理提供保护。 */
+  private causalProtections: CausalMemoryProtection[] = []
+
   // ---- 公共方法 ----
 
   getStats() {
@@ -122,6 +140,108 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
 
   getSearchIndex(): IndexEntry[] {
     return [...this.searchIndex,]
+  }
+
+  getRelationshipMemories(): RelationshipMemoryRecord[] {
+    return structuredClone(this.relationshipMemories)
+  }
+
+  getCausalProtections(): CausalMemoryProtection[] {
+    return structuredClone(this.causalProtections)
+  }
+
+  recordRelationshipUpdates(
+    updates: readonly NarrativeRelationshipUpdate[],
+    round: number,
+    contextId?: string,
+    historicalEventIds?: readonly string[],
+  ): void {
+    const normalizedHistoricalEventIds = this.normalizeHistoricalEventIds(historicalEventIds)
+    const importance = this.aiImportanceMap.get(round) ?? 'NORMAL'
+    const roundEntities = new Set(this.aiEntityMap.get(round) ?? [])
+    for (const update of updates) {
+      const personName = update.name.trim()
+      const summary = update.summary.trim()
+      if (!personName || !summary) continue
+      roundEntities.add(personName)
+      const duplicate = this.relationshipMemories.find((record) => (
+        record.personName === personName
+        && record.round === round
+        && record.contextId === contextId
+        && record.type === update.type
+        && record.summary === summary
+      ))
+      if (duplicate) {
+        const mergedIds = this.normalizeHistoricalEventIds([
+          ...(duplicate.historicalEventIds ?? []),
+          ...normalizedHistoricalEventIds,
+        ])
+        duplicate.importance = importance
+        duplicate.historicalEventIds = mergedIds.length > 0 ? mergedIds : undefined
+        continue
+      }
+      this.relationshipMemories.push({
+        personName,
+        contextId,
+        memoryScope: contextId ? 'context' : 'global',
+        round,
+        type: update.type,
+        summary,
+        importance,
+        historicalEventIds: normalizedHistoricalEventIds.length > 0
+          ? [...normalizedHistoricalEventIds]
+          : undefined,
+      })
+    }
+    this.aiEntityMap.set(round, [...roundEntities])
+  }
+
+  buildCreationTimelineEntries(
+    characterCreations: readonly CharacterCreation[] = [],
+    resolveRoundTime?: (round: number) => MemoryRoundTime | undefined,
+  ): NarrativeTimelineEntry[] {
+    return buildCreationTimelineEntries(characterCreations, resolveRoundTime)
+  }
+
+  addCausalMark(event: CausalMemoryProtection): void {
+    const existing = this.causalProtections.find((candidate) => (
+      candidate.round === event.round
+      && candidate.type === event.type
+      && candidate.contextId === event.contextId
+    ))
+    if (existing) {
+      Object.assign(existing, structuredClone(event), { resolved: false })
+      return
+    }
+    this.causalProtections.push(structuredClone(event))
+  }
+
+  resolveCausalMark(
+    round: number,
+    type: CausalMemoryProtection['type'],
+    contextId?: string,
+  ): void {
+    const event = this.causalProtections.find((candidate) => (
+      candidate.round === round
+      && candidate.type === type
+      && candidate.contextId === contextId
+    ))
+    if (event) event.resolved = true
+  }
+
+  markForeshadowEvent(round: number, description: string, contextId?: string): void {
+    this.addCausalMark({
+      round,
+      contextId,
+      type: 'foreshadow',
+      description,
+      severity: 'major',
+      resolved: false,
+    })
+  }
+
+  resolveForeshadowMark(round: number, contextId?: string): void {
+    this.resolveCausalMark(round, 'foreshadow', contextId)
   }
 
   /** 记录经 Schema 校验的 AI 语义，供重要性、闭环与检索系统消费。 */
@@ -157,8 +277,11 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
     contextId?: string,
     memoryScope: NarrativeMemoryScope = contextId ? 'context' : 'global',
   ): ImportanceResult {
-    const importance = this.aiImportanceMap.get(round) ?? 'LOW'
-    const source: ImportanceResult['source'] = this.aiImportanceMap.has(round) ? 'ai' : 'fallback'
+    const protectedByCausality = this.isRoundProtected(round)
+    const importance = protectedByCausality ? 'HIGH' : this.aiImportanceMap.get(round) ?? 'LOW'
+    const source: ImportanceResult['source'] = protectedByCausality
+      ? 'protection'
+      : this.aiImportanceMap.has(round) ? 'ai' : 'fallback'
     const semanticTags = this.aiEntityMap.get(round) ?? []
     const historicalEventIds = this.aiHistoricalEventIdsMap.get(round) ?? []
     const closureInfo = this.resolveClosure(round)
@@ -336,25 +459,31 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
   /** 只清理已被摘要覆盖的事件，保留尚未进入任何摘要的新回合。 */
   clearTaggedEventsThrough(endRound: number): number {
     const previousLength = this.taggedEvents.length
-    this.taggedEvents = this.taggedEvents.filter((event) => event.round > endRound)
+    this.taggedEvents = this.taggedEvents.filter((event) => (
+      event.round > endRound || this.isRoundProtected(event.round)
+    ))
     const removed = previousLength - this.taggedEvents.length
     if (removed > 0) this.stats.totalCompressions++
 
+    const shouldClearRound = (round: number) => round <= endRound && !this.isRoundProtected(round)
     for (const key of this.aiImportanceMap.keys()) {
-      if (key <= endRound) this.aiImportanceMap.delete(key)
+      if (shouldClearRound(key)) this.aiImportanceMap.delete(key)
     }
     for (const key of this.aiArcStatusMap.keys()) {
-      if (key <= endRound) this.aiArcStatusMap.delete(key)
+      if (shouldClearRound(key)) this.aiArcStatusMap.delete(key)
     }
     for (const key of this.aiArcTypeMap.keys()) {
-      if (key <= endRound) this.aiArcTypeMap.delete(key)
+      if (shouldClearRound(key)) this.aiArcTypeMap.delete(key)
     }
     for (const key of this.aiEntityMap.keys()) {
-      if (key <= endRound) this.aiEntityMap.delete(key)
+      if (shouldClearRound(key)) this.aiEntityMap.delete(key)
     }
     for (const key of this.aiHistoricalEventIdsMap.keys()) {
-      if (key <= endRound) this.aiHistoricalEventIdsMap.delete(key)
+      if (shouldClearRound(key)) this.aiHistoricalEventIdsMap.delete(key)
     }
+    this.causalProtections = this.causalProtections.filter((event) => (
+      !event.resolved || event.round > endRound
+    ))
 
     return removed
   }
@@ -687,6 +816,18 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
       ? recentFacts[recentFacts.length - 1].text
       : ''
     const retrievalHits = this.retrieveFromIndex(queryText, currentContextId, closedContextIds)
+    const latestEntityRound = this.aiEntityMap.size > 0
+      ? Math.max(...this.aiEntityMap.keys())
+      : undefined
+    const currentEntities = new Set(
+      latestEntityRound === undefined ? [] : this.aiEntityMap.get(latestEntityRound),
+    )
+    const relationshipTimeline = buildRelationshipTimelineEntries(
+      this.relationshipMemories,
+      { currentContextId, closedContextIds },
+      currentEntities,
+      currentRound,
+    )
 
     // 只注入没有被更高层摘要覆盖的叶子摘要。所有摘要仍完整保存在存储和
     // 检索索引中，这里是语义压缩后的无损覆盖选择，不是固定条数截断。
@@ -697,6 +838,7 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
       timelineEntries: [
         ...leafTimeline,
         ...retrievalHits,
+        ...relationshipTimeline,
         ...recentFacts,
       ],
     }
@@ -787,6 +929,8 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
       data: structuredClone({
         taggedEvents: this.taggedEvents.length,
         searchIndexSize: this.searchIndex.length,
+        relationshipMemoryCount: this.relationshipMemories.length,
+        activeCausalProtectionCount: this.causalProtections.filter((event) => !event.resolved).length,
         activeClosure: this.activeClosure,
         stats: this.stats,
       },) as unknown as Record<string, unknown>,
@@ -823,6 +967,8 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
       aiArcTypeMap: [...this.aiArcTypeMap.entries()],
       aiEntityMap: [...this.aiEntityMap.entries()],
       aiHistoricalEventIdsMap: [...this.aiHistoricalEventIdsMap.entries()],
+      relationshipMemories: this.relationshipMemories,
+      causalProtections: this.causalProtections,
     })
   }
 
@@ -840,6 +986,8 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
       aiArcTypeMap?: Map<number, ClosureType> | Array<[number, ClosureType]>
       aiEntityMap?: Map<number, string[]> | Array<[number, string[]]>
       aiHistoricalEventIdsMap?: Map<number, string[]> | Array<[number, string[]]>
+      relationshipMemories?: RelationshipMemoryRecord[]
+      causalProtections?: CausalMemoryProtection[]
     }
     if (value.taggedEvents) this.taggedEvents = structuredClone(value.taggedEvents)
     if (value.searchIndex) this.searchIndex = structuredClone(value.searchIndex)
@@ -854,6 +1002,8 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
     this.aiHistoricalEventIdsMap = value.aiHistoricalEventIdsMap
       ? new Map(value.aiHistoricalEventIdsMap)
       : new Map()
+    this.relationshipMemories = structuredClone(value.relationshipMemories ?? [])
+    this.causalProtections = structuredClone(value.causalProtections ?? [])
   }
 
   reset(): void {
@@ -862,7 +1012,13 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
     this.activeClosure = 'none'
     this.rawEvents = []
     this.aggregatedEvents = []
+    this.aiImportanceMap.clear()
+    this.aiArcStatusMap.clear()
+    this.aiArcTypeMap.clear()
+    this.aiEntityMap.clear()
     this.aiHistoricalEventIdsMap.clear()
+    this.relationshipMemories = []
+    this.causalProtections = []
     this.stats = {
       totalScored: 0,
       totalHigh: 0,
@@ -874,6 +1030,14 @@ export class MemoryLifecycleSystem extends BaseSubsystem {
       totalRetrievals: 0,
       lastCheckAt: 0,
     }
+  }
+
+  private isRoundProtected(round: number): boolean {
+    return this.causalProtections.some((event) => event.round === round && !event.resolved)
+  }
+
+  private normalizeHistoricalEventIds(ids?: readonly string[]): string[] {
+    return [...new Set((ids ?? []).map((id) => id.trim()).filter(Boolean))]
   }
 }
 

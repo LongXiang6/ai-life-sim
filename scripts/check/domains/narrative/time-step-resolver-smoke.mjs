@@ -51,6 +51,7 @@ const resolverSrc = readRel('src/mods/mod-engine/utils/time-step-resolver.ts')
 const timeSystemSrc = readRel('src/mods/mod-engine/subsystems/time-system.ts')
 const calendarSeasonSrc = readRel('src/mods/mod-engine/helpers/calendar-season.js')
 const orchestratorSrc = readModuleSource('src/mods/mod-engine/subsystems/orchestrator-system.ts', root)
+const promptContextRuntimeSrc = readRel('src/mods/mod-engine/subsystems/orchestrator-system/prompt-context-runtime.ts')
 const constantsSrc = readRel('src/mods/mod-engine/constants.ts')
 const mapperSrc = readRel('src/mods/mod-engine/helpers/detection-state-mapper.ts')
 const campaignSrc = readRel('src/mods/mod-engine/campaigns/default/index.ts')
@@ -60,6 +61,7 @@ const saveRestoreSrc = readRel('src/mods/mod-engine/helpers/save-restore.ts')
 
 const resolverCode = stripComments(resolverSrc)
 const orchestratorCode = stripComments(orchestratorSrc)
+const promptContextRuntimeCode = stripComments(promptContextRuntimeSrc)
 const constantsCode = stripComments(constantsSrc)
 const campaignCode = stripComments(campaignSrc)
 const preGenCode = stripComments(preGenSrc)
@@ -250,10 +252,10 @@ assertOk(
   'orchestrator must align the next round instead of re-entering the already narrated period',
 )
 assertOk(
-  /previousNarrativeRound/.test(orchestratorCode)
-    && orchestratorCode.includes('previousNode: {')
-    && orchestratorCode.includes("orchestrator['previousNarrativeRound']")
-    && orchestratorCode.includes('daysPassed: previousLocalCalendar')
+  /previousNarrativeRound/.test(promptContextRuntimeCode)
+    && promptContextRuntimeCode.includes('previousNode: {')
+    && promptContextRuntimeCode.includes("orchestrator['previousNarrativeRound']")
+    && promptContextRuntimeCode.includes('daysPassed: timeSystem.getDaysPassed()')
     && orchestratorCode.includes('timeSystem.getDaysPassed()'),
   'narrative Prompt must receive the real previous node and elapsed-day window instead of inferring it from the new granularity',
 )
@@ -352,7 +354,12 @@ assertOk(
   orchestratorSrc.includes('mapSubsystemStatesToDetectionStates'),
   'orchestrator must stay wired to detection-state-mapper',
 )
-assertOk(mapperSrc.includes('marketState'), 'detection-state-mapper missing marketState')
+assertOk(
+  mapperSrc.includes('characterStatus')
+    && mapperSrc.includes('cultureTechState')
+    && mapperSrc.includes('combatPowerState'),
+  'detection-state-mapper must expose the active unified state projections',
+)
 assertOk(campaignSrc.includes('orchestrator.advanceTime()'), 'campaign must advance time through orchestrator')
 assertOk(
   !campaignSrc.includes('if (ctx._eventInjectionText)'),

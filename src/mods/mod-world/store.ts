@@ -8,9 +8,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { EntityReference, GlobalEntityId } from '@/foundation'
 import {
-  normalizeWorldEntitiesForContext,
   projectWorldContextInstance,
 } from './utils/world-context-runtime'
 import { sanitizeWorldStateSnapshot } from './utils/world-state-migration'
@@ -18,9 +16,6 @@ import { initialWorldState, type WorldStore } from './store/contracts'
 import {
   deriveUpdatedCapabilityProfile,
   lifecycleForScope,
-  mergeContextOrganizations,
-  mergeEntityReference,
-  normalizeEntityReference,
   updateCurrentContext,
 } from './store/helpers'
 
@@ -52,42 +47,6 @@ export const useWorldStore = create<WorldStore>()(
               legacyWorldCode: worldCode || instance.record.legacyWorldCode,
             },
           })),
-        }
-      }),
-      setEntities: (entities,) => set((s) => {
-        const instance = s.currentContextId ? s.contexts[s.currentContextId] : undefined
-        const normalized = instance
-          ? normalizeWorldEntitiesForContext(instance.record.id, entities, instance.regions)
-          : entities
-        const entityReferences = instance
-          ? mergeContextOrganizations(s.entityReferences, {
-              ...instance,
-              entities: normalized,
-            })
-          : s.entityReferences
-        return {
-          entities: normalized,
-          entityReferences,
-          ...updateCurrentContext(s, (current) => {
-            const entityLocations = { ...current.spatialGraph.entityLocations }
-            for (const previousEntity of current.entities) delete entityLocations[previousEntity.id]
-            for (const entity of normalized) {
-              const nodeId = entity.regionId && current.spatialGraph.nodes[entity.regionId]
-                ? entity.regionId
-                : current.record.rootSpatialNodeId
-              entityLocations[entity.id] = {
-                entityId: entity.id,
-                contextId: current.record.id,
-                nodeId,
-                updatedAtGlobalDay: current.record.localClock.lastGlobalTotalDays,
-              }
-            }
-            return {
-              ...current,
-              entities: structuredClone(normalized),
-              spatialGraph: { ...current.spatialGraph, entityLocations },
-            }
-          }),
         }
       }),
       setInitialized: (value,) => set((s) => ({
@@ -162,8 +121,7 @@ export const useWorldStore = create<WorldStore>()(
           lifecycle: lifecycleForScope(makeActive ? 'active' : instance.scope.scope),
         }
         const contexts = { ...s.contexts, [instance.record.id]: instance }
-        const entityReferences = mergeContextOrganizations(s.entityReferences, instance)
-        if (!makeActive) return { contexts, entityReferences }
+        if (!makeActive) return { contexts }
 
         contexts[instance.record.id] = {
           ...instance,
@@ -172,7 +130,6 @@ export const useWorldStore = create<WorldStore>()(
         }
         return {
           contexts,
-          entityReferences,
           currentContextId: instance.record.id,
           ...projectWorldContextInstance(contexts[instance.record.id]),
         }
@@ -190,10 +147,9 @@ export const useWorldStore = create<WorldStore>()(
         }
         next.record.lifecycle = lifecycleForScope(next.scope.scope)
         const contexts = { ...s.contexts, [next.record.id]: next }
-        const entityReferences = mergeContextOrganizations(s.entityReferences, next)
         return instance.record.id === s.currentContextId
-          ? { contexts, entityReferences, ...projectWorldContextInstance(next) }
-          : { contexts, entityReferences }
+          ? { contexts, ...projectWorldContextInstance(next) }
+          : { contexts }
       }),
       setCrossContextEdge: (edge) => set((s) => ({
         crossContextEdges: { ...s.crossContextEdges, [edge.id]: structuredClone(edge) },
@@ -201,18 +157,19 @@ export const useWorldStore = create<WorldStore>()(
       recordTransition: (record) => set((s) => ({
         transitionHistory: [...s.transitionHistory, structuredClone(record)],
       })),
-      registerEntityReference: (reference) => set((s) => ({
-        entityReferences: mergeEntityReference(s.entityReferences, reference),
-      })),
-      replaceEntityReferences: (references) => set(() => {
-        const entityReferences: Record<GlobalEntityId, EntityReference> = {}
-        for (const reference of references) {
-          if (entityReferences[reference.entityId]) {
-            throw new Error(`实体引用目录存在重复 ID：${reference.entityId}`)
-          }
-          entityReferences[reference.entityId] = normalizeEntityReference(reference)
+      setCurrentRegion: (contextId, regionId) => set((s) => {
+        const instance = s.contexts[contextId]
+        if (!instance) throw new Error(`未知上下文：${contextId}`)
+        const region = instance.spatialGraph.nodes[regionId]
+        if (!region || region.kind !== 'region') throw new Error(`未知区域：${regionId}`)
+        const next = {
+          ...instance,
+          spatialGraph: { ...instance.spatialGraph, currentRegionId: regionId },
         }
-        return { entityReferences }
+        const contexts = { ...s.contexts, [contextId]: next }
+        return contextId === s.currentContextId
+          ? { contexts, ...projectWorldContextInstance(next) }
+          : { contexts }
       }),
       generateAndSetWorldCode: () => {
         const code = generateWorldCode()
@@ -253,12 +210,10 @@ export const useWorldStore = create<WorldStore>()(
       },
       partialize: (state,) => {
         const {
-          setWorldConfig: _a, setEntities: _b, setInitialized: _c, setWorldCode: _d,
+          setWorldConfig: _a, setInitialized: _c, setWorldCode: _d,
           setCurrentYear: _e, setWorldTags: _f, setEraStartYear: _g, setEraName: _g2, setCalibration: _h2,
-          entityReferences: _entityReferences,
           setWorldInitAIStatus: _h, registerContext: _l, replaceContext: _m,
           setCrossContextEdge: _p, recordTransition: _q,
-          registerEntityReference: _r, replaceEntityReferences: _s,
           generateAndSetWorldCode: _i, recycleWorldCode: _j, reset: _k,
           ...rest
         } = state

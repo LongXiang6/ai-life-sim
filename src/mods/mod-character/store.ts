@@ -8,19 +8,11 @@ import type {
   CharacterBaseState,
   CharacterSummary,
   DestinyPatternState,
-  HealthProjection,
   LifespanDraftState,
-  LifespanProjection,
-  LifecycleProjection,
-  MoralityState,
   MythicPattern,
   MythicPatternCandidate,
 } from './types'
 import {
-  DEFAULT_MAX_VITALITY,
-  DEFAULT_SPIRIT,
-  DEFAULT_STAMINA,
-  DEFAULT_VITALITY,
   MYTHIC_PATTERN_SELECT_COUNT,
   RACE_LIFESPAN,
 } from './constants'
@@ -68,27 +60,6 @@ const initialLifespanDraft = (): LifespanDraftState => ({
   maximumLifespanYears: HUMAN_RACE.baseLifespanYears,
 })
 
-const initialHealth = (): HealthProjection => ({
-  vitality: DEFAULT_VITALITY,
-  maxVitality: DEFAULT_MAX_VITALITY,
-  stamina: DEFAULT_STAMINA,
-  spirit: DEFAULT_SPIRIT,
-  alive: true,
-  conditions: [],
-})
-
-const initialLifespan = (): LifespanProjection => ({
-  raceId: 'human',
-  displayName: HUMAN_RACE.name,
-  clockMode: HUMAN_RACE.clockMode,
-  baseLifespanDays: HUMAN_RACE.baseLifespanYears * 365,
-  maximumLifespanDays: HUMAN_RACE.baseLifespanYears * 365,
-  adjustments: [],
-})
-
-const initialLifecycle = (): LifecycleProjection => ({ ageDays: 0 })
-const initialMorality = (): MoralityState => ({ value: 0, level: 'balanced', roundDelta: 0 })
-
 interface CharacterStore {
   characterId: string
   name: string
@@ -101,10 +72,6 @@ interface CharacterStore {
   characterBase: CharacterBaseState
   destinyPatterns: DestinyPatternState
   lifespanDraft: LifespanDraftState
-  health: HealthProjection
-  lifespan: LifespanProjection
-  lifecycle: LifecycleProjection
-  morality: MoralityState
 
   talents: TalentPreset[]
   mythicCandidates: MythicPatternCandidate[]
@@ -126,10 +93,6 @@ interface CharacterStore {
   setCharacterBase: (state: Partial<CharacterBaseState>) => void
   setDestinyPatterns: (state: Partial<DestinyPatternState>) => void
   setLifespanDraft: (state: LifespanDraftState) => void
-  setHealth: (state: Partial<HealthProjection>) => void
-  setLifespan: (state: Partial<LifespanProjection>) => void
-  setLifecycle: (state: Partial<LifecycleProjection>) => void
-  setMorality: (state: Partial<MoralityState>) => void
   setTalents: (talents: TalentPreset[]) => void
   setMythicCandidates: (patterns: MythicPatternCandidate[]) => void
   setEquippedMythicPatterns: (patterns: MythicPattern[]) => void
@@ -151,10 +114,6 @@ export const useCharacterStore = create<CharacterStore>()(
       characterBase: initialCharacterBase(),
       destinyPatterns: initialDestinyPatterns(),
       lifespanDraft: initialLifespanDraft(),
-      health: initialHealth(),
-      lifespan: initialLifespan(),
-      lifecycle: initialLifecycle(),
-      morality: initialMorality(),
       talents: [],
       mythicCandidates: [],
       equippedMythicPatterns: [],
@@ -172,10 +131,7 @@ export const useCharacterStore = create<CharacterStore>()(
           startingAge: state.characterBase.startingAge,
           base: state.characterBase,
           destinyPatterns: state.destinyPatterns,
-          health: state.health,
-          lifespan: state.lifespan,
-          lifecycle: state.lifecycle,
-          morality: state.morality,
+          status: state.characterBase.status,
         }
       },
 
@@ -199,10 +155,6 @@ export const useCharacterStore = create<CharacterStore>()(
       setCharacterBase: (partial) => set((state) => ({ characterBase: { ...state.characterBase, ...partial } })),
       setDestinyPatterns: (partial) => set((state) => ({ destinyPatterns: { ...state.destinyPatterns, ...partial } })),
       setLifespanDraft: (lifespanDraft) => set({ lifespanDraft: structuredClone(lifespanDraft) }),
-      setHealth: (partial) => set((state) => ({ health: { ...state.health, ...partial } })),
-      setLifespan: (partial) => set((state) => ({ lifespan: { ...state.lifespan, ...partial } })),
-      setLifecycle: (partial) => set((state) => ({ lifecycle: { ...state.lifecycle, ...partial } })),
-      setMorality: (partial) => set((state) => ({ morality: { ...state.morality, ...partial } })),
       setTalents: (talents) => set({ talents }),
       setMythicCandidates: (mythicCandidates) => set({ mythicCandidates, sealedMythicPatternId: null }),
       setEquippedMythicPatterns: (equippedMythicPatterns) => set({
@@ -226,10 +178,6 @@ export const useCharacterStore = create<CharacterStore>()(
         characterBase: initialCharacterBase(),
         destinyPatterns: initialDestinyPatterns(),
         lifespanDraft: initialLifespanDraft(),
-        health: initialHealth(),
-        lifespan: initialLifespan(),
-        lifecycle: initialLifecycle(),
-        morality: initialMorality(),
         talents: [],
         mythicCandidates: [],
         equippedMythicPatterns: [],
@@ -238,7 +186,7 @@ export const useCharacterStore = create<CharacterStore>()(
     }),
     {
       name: 'mod-character:persist:character-state',
-      version: 5,
+      version: 6,
       migrate: (persistedState: unknown) => {
         if (typeof persistedState !== 'object' || persistedState === null || Array.isArray(persistedState)) {
           console.warn('[CharacterStore] migrate: 数据格式异常，使用默认状态')
@@ -259,19 +207,12 @@ export const useCharacterStore = create<CharacterStore>()(
           setCharacterBase: _setCharacterBase,
           setDestinyPatterns: _setDestinyPatterns,
           setLifespanDraft: _setLifespanDraft,
-          setHealth: _setHealth,
-          setLifespan: _setLifespan,
-          setLifecycle: _setLifecycle,
-          setMorality: _setMorality,
           setTalents: _setTalents,
           setMythicCandidates: _setMythicCandidates,
           setEquippedMythicPatterns: _setEquippedMythicPatterns,
           setSealedMythicPatternId: _setSealedMythicPatternId,
           setWorldCode: _setWorldCode,
           reset: _reset,
-          health: _health,
-          lifespan: _lifespan,
-          lifecycle: _lifecycle,
           ...persisted
         } = state
         return persisted

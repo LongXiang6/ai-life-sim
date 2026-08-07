@@ -1,7 +1,7 @@
 /**
- * @module world-context.contract.ts
- * @description P0 多世界基础的 provider-owned 跨域纯类型契约
- * @mod foundation
+ * Purpose: Define provider-owned world context, region graph, and transition contracts.
+ * Owner: foundation / mod-world public boundary.
+ * Responsibility: Cross-domain types only; region generation and persistence stay in mod-world.
  */
 
 export type WorldContextId = string
@@ -31,9 +31,6 @@ export type SimulationScope = 'active' | 'background' | 'dormant' | 'closed'
 export type ContextCapability =
   | 'life'
   | 'space'
-  | 'npc'
-  | 'economy'
-  | 'politics'
   | 'technology'
   | 'supernatural'
 
@@ -96,19 +93,33 @@ export interface SpatialEdge {
   requirements?: string[]
 }
 
-export interface EntitySpatialLocation {
-  entityId: GlobalEntityId
-  contextId: WorldContextId
-  nodeId: SpatialNodeId
+export interface RegionNarrativeProfile {
+  regionId: SpatialNodeId
+  name: string
+  summary: string
+  climate: string
+  ecology: string
+  resources: string[]
+  pollution: string
+  economy: string
+  population: string
+  settlement: string
+  culture: string
+  education: string
+  socialStructure: string
+  factions: string
+  law: string
   updatedAtGlobalDay: number
 }
 
 export interface SpatialGraphContract {
   contextId: WorldContextId
+  worldForm: string
   rootNodeId: SpatialNodeId
+  currentRegionId: SpatialNodeId
   nodes: Record<SpatialNodeId, SpatialNode>
   edges: Record<SpatialEdgeId, SpatialEdge>
-  entityLocations: Record<GlobalEntityId, EntitySpatialLocation>
+  regionProfiles: Record<SpatialNodeId, RegionNarrativeProfile>
 }
 
 export interface SimulationScopeRecord {
@@ -120,10 +131,8 @@ export interface SimulationScopeRecord {
 
 export interface ContextTransitionRequest {
   targetContextId: WorldContextId
+  targetRegionId?: SpatialNodeId
   exitEdgeId?: SpatialEdgeId
-  actorEntityId: GlobalEntityId
-  carriedEntityIds?: GlobalEntityId[]
-  companionEntityIds?: GlobalEntityId[]
   /** 已由拥有系统确认满足的出口资格 ID */
   satisfiedRequirementIds?: string[]
   leaveScope?: Exclude<SimulationScope, 'active' | 'closed'>
@@ -133,9 +142,9 @@ export interface ContextTransitionRecord {
   id: string
   sourceContextId: WorldContextId
   targetContextId: WorldContextId
+  sourceRegionId: SpatialNodeId
+  targetRegionId: SpatialNodeId
   exitEdgeId: SpatialEdgeId
-  actorEntityId: GlobalEntityId
-  movedEntityIds: GlobalEntityId[]
   globalTotalDays: number
   sourceLocalDays: number
   targetLocalDays: number

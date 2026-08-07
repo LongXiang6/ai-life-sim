@@ -13,18 +13,7 @@ export type {
   WorldCalibrationFormulas,
   WorldInitAIStatus,
 } from './types/calibration'
-export type {
-  AnyWorldEntity,
-  Faction,
-  GenerationStrategy,
-  MapTemplateConfig,
-  Nation,
-  NobleHouse,
-  RegionData,
-  Settlement,
-  TradeRoute,
-  WorldEntity,
-} from './types/entities'
+export type { GenerationStrategy, MapTemplateConfig, RegionData } from './types/regions'
 export type { WorldConfig } from './types/world-config'
 export type {
   WorldContextCollection,

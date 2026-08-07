@@ -22,11 +22,11 @@ export function useWorld() {
   }))
 }
 
-/** 具名实体 */
-export function useWorldEntities() {
+/** 当前世界区域概况 */
+export function useWorldRegions() {
   return useWorldStore((s) => ({
-    entities: s.entities,
-    setEntities: s.setEntities,
+    contextId: s.currentContextId,
+    context: s.currentContextId ? s.contexts[s.currentContextId] : null,
   }))
 }
 

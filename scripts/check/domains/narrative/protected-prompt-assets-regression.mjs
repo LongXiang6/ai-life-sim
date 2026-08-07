@@ -45,13 +45,13 @@ const settingsModal = read('src/mods/mod-settings/components/SettingsModal.tsx')
 const settingsIndex = read('src/mods/mod-settings/index.ts')
 
 assertOk(
-  eventRecognitionContract.includes("version: '3.2.0'")
+  eventRecognitionContract.includes("version: '3.2.1'")
     && eventRecognitionContract.includes("systemPrompt: ''")
-    && eventRecognitionContract.includes("'mod-engine:narrative-event-recognition:3.2.0'")
+    && eventRecognitionContract.includes("'mod-engine:narrative-event-recognition:3.2.1'")
     && eventRecognitionContract.includes("outputFormat: 'json'")
     && eventRecognitionContract.includes('outputSchema: NarrativeAIEventRecognitionDataSchema')
     && eventRecognitionContract.includes('serverPromptAssetId: NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID'),
-  'browser event-recognition PromptTemplate must carry only the 3.2.0 JSON server asset contract',
+  'browser event-recognition PromptTemplate must carry only the 3.2.1 JSON server asset contract',
 )
 assertOk(
   narrativeContract.includes("version: '5.8.3'")

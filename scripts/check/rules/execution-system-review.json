@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-08-01",
+  "reviewedAt": "2026-08-07",
   "reviewIntervalDays": 90,
   "requiredFlowIds": [
     "mod-configuration-change",
@@ -14,9 +14,7 @@
     "blocked",
     "cancelled",
     "context-missing",
-    "dependency-unregistered",
     "duplicate-status",
-    "entity-directory-missing",
     "invalid-status",
     "missing-status",
     "schema-conflict",

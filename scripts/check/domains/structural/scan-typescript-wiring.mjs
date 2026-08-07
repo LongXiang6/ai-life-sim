@@ -29,7 +29,6 @@ const REQUIRED_GENERATED = [
 
 const ORCHESTRATOR_REQUIRED_CALLS = [
   'buildCreationTimelineEntries',
-  'buildNPCNetworkText',
   'buildForeshadowingText',
   'detectForeshadowing',
   'buildNarrativeTimelineProjection',

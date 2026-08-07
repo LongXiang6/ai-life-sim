@@ -8,9 +8,6 @@ import type {
   ContextTransitionRequest,
   ContextTransitionResult,
   ContextCapability,
-  EntitySpatialLocation,
-  EntityReference,
-  EntityReferenceKind,
   SpatialEdge,
   SpatialNodeId,
 } from '@/foundation'
@@ -24,7 +21,6 @@ import {
 import { getContextTransitionSystem } from './subsystems/context-transition-system'
 import { getSimulationScopePolicySystem } from './subsystems/simulation-scope-policy-system'
 import { getSpatialGraphSystem } from './subsystems/spatial-graph-system'
-import { getWorldEntitySystem } from './subsystems/world-entity-system'
 import { createCrossContextExit } from './utils/world-context-runtime'
 
 export async function createAdditionalWorldContext(
@@ -41,10 +37,8 @@ export async function createAdditionalWorldContext(
   })
 }
 
-/** 玩家/页面只提交目的地与同行实体；actor 必须由当前角色 Store 注入。 */
-export type WorldContextTransitionIntent = Omit<ContextTransitionRequest, 'actorEntityId'> & {
-  actorEntityId?: never
-}
+/** 玩家/页面只提交目的上下文或区域，不提交实体位置。 */
+export type WorldContextTransitionIntent = ContextTransitionRequest
 
 export function listWorldContexts(): WorldContextInstance[] {
   return Object.values(useWorldStore.getState().contexts).map((instance) => structuredClone(instance))
@@ -54,30 +48,6 @@ export function getCurrentWorldContext(): WorldContextInstance | null {
   const state = useWorldStore.getState()
   const instance = state.currentContextId ? state.contexts[state.currentContextId] : undefined
   return instance ? structuredClone(instance) : null
-}
-
-export function registerWorldEntityReference(reference: EntityReference): EntityReference {
-  return getWorldEntitySystem().registerEntityReference(reference)
-}
-
-export function getWorldEntityReference(entityId: string): EntityReference | undefined {
-  return getWorldEntitySystem().getEntityReference(entityId)
-}
-
-export function listWorldEntityReferences(): EntityReference[] {
-  return getWorldEntitySystem().listEntityReferences()
-}
-
-/** 刷新恢复窗口中，从世界上下文与空间图重建缺失的实体目录投影。 */
-export function repairWorldEntityReferenceDirectory(): { fallbackEntityIds: string[] } {
-  return getWorldEntitySystem().repairEntityReferenceDirectory()
-}
-
-export function assertWorldEntityReference(
-  entityId: string,
-  allowedKinds?: readonly EntityReferenceKind[],
-): EntityReference {
-  return getWorldEntitySystem().assertEntityReference(entityId, allowedKinds)
 }
 
 export function contextHasCapability(contextId: string, capability: ContextCapability): boolean {
@@ -95,27 +65,17 @@ export function assertWorldSpatialNode(contextId: string, nodeId: SpatialNodeId)
   if (!node || node.contextId !== contextId) throw new Error(`空间节点不存在：${nodeId}`)
 }
 
-export function assertWorldEntityLocation(location: EntitySpatialLocation): void {
-  assertWorldEntityReference(location.entityId)
-  getSpatialGraphSystem().assertEntityLocation(location)
-}
-
-export function listCoLocatedWorldEntityIds(
-  contextId: string,
-  anchorEntityId: string,
-): string[] {
+export function getCurrentRegion(contextId = useWorldStore.getState().currentContextId ?? '') {
   const instance = useWorldStore.getState().contexts[contextId]
-  if (!instance) throw new Error(`查询同场实体时上下文不存在：${contextId}`)
-  const anchor = instance.spatialGraph.entityLocations[anchorEntityId]
-  if (!anchor) return [anchorEntityId]
-  return Object.values(instance.spatialGraph.entityLocations)
-    .filter((location) => location.nodeId === anchor.nodeId)
-    .map((location) => location.entityId)
+  if (!instance) return null
+  const regionId = instance.spatialGraph.currentRegionId
+  return instance.spatialGraph.regionProfiles[regionId]
+    ? structuredClone(instance.spatialGraph.regionProfiles[regionId])
+    : null
 }
 
-export function moveWorldEntityLocation(location: EntitySpatialLocation): void {
-  assertWorldEntityLocation(location)
-  getSpatialGraphSystem().setEntityLocation(location)
+export function setCurrentRegion(contextId: string, regionId: SpatialNodeId): void {
+  getSpatialGraphSystem().setCurrentRegion(contextId, regionId)
 }
 
 export function connectWorldContexts(
@@ -149,17 +109,10 @@ export async function transitionToWorldContext(
   request: WorldContextTransitionIntent,
 ): Promise<ContextTransitionResult> {
   const { ensureOrchestratorContextFromStores, orchestrator } = await import('@/mods/mod-engine/engine-api')
-  const { useCharacterStore } = await import('@/mods/mod-character')
-  const characterState = useCharacterStore.getState()
-  const actorEntityId = characterState.characterId || characterState.ensureCharacterId()
   const result = await getContextTransitionSystem().transition(
-    {
-      ...request,
-      actorEntityId,
-    },
+    request,
     orchestrator.getState().round.totalDays,
     {
-      actorEntityId,
       apply: () => ensureOrchestratorContextFromStores(),
     },
   )

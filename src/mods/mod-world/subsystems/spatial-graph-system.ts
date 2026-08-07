@@ -1,9 +1,9 @@
 /**
  * SpatialGraphSystem
  *
- * 职责：拥有统一空间节点、边、跨上下文出口和实体位置。
- * 非职责：不拥有地图 UI、地理资源、移动叙事或切换提交。
- * 输入：经过拥有者校验的空间节点、边和实体位置事件。
+ * 职责：拥有世界形态、区域节点、边、跨上下文出口和当前区域。
+ * 非职责：不拥有地图 UI、详细地点、移动叙事或切换提交。
+ * 输入：经过拥有者校验的空间节点、边和区域切换事件。
  * 输出与写入：上下文 spatialGraph 与 crossContextEdges。
  * AI 参与：事件输入。
  * 状态权威：mod-world Store。
@@ -12,14 +12,13 @@
  */
 
 /**
- * Purpose: Own world spatial nodes, edges, and entity locations.
+ * Purpose: Own world shape, region nodes, edges, and current region.
  * Owner: mod-world
- * Responsibility: Spatial graph state only; world-context instances and entity identities remain with their owning systems.
+ * Responsibility: Spatial graph state only; context lifecycle and narrative facts remain outside.
  */
 
 import { BaseSubsystem } from '@/core/subsystem-base'
 import type {
-  EntitySpatialLocation,
   RoundContext,
   SpatialEdge,
   SpatialNode,
@@ -29,6 +28,26 @@ import type {
 
 import { useWorldStore } from '../store'
 import type { WorldContextInstance } from '../types'
+
+const REGION_PROFILE_TEXT_FIELDS = new Set([
+  'summary',
+  'climate',
+  'ecology',
+  'pollution',
+  'economy',
+  'population',
+  'settlement',
+  'culture',
+  'education',
+  'socialStructure',
+  'factions',
+  'law',
+])
+
+const REGION_PROFILE_FIELDS = new Set([
+  ...REGION_PROFILE_TEXT_FIELDS,
+  'resources',
+])
 
 function structurallyEqual(left: unknown, right: unknown): boolean {
   if (Object.is(left, right)) return true
@@ -69,50 +88,11 @@ function assertValidNodeParent(
   }
 }
 
-/**
- * 空间位置的单一写入规则：同一全局实体在整个存档中只能保留一个当前位置。
- * 先完整校验全部目标位置，再克隆并提交，避免批量迁移出现半写入。
- */
-export function placeEntityLocationsUniquely(
-  contexts: Record<string, WorldContextInstance>,
-  locations: EntitySpatialLocation[],
-): Record<string, WorldContextInstance> {
-  const locationByEntityId = new Map<string, EntitySpatialLocation>()
-  for (const input of locations) {
-    const location = structuredClone(input)
-    if (!location.entityId.trim()) throw new Error('实体位置缺少全局实体 ID')
-    const instance = contexts[location.contextId]
-    const node = instance?.spatialGraph.nodes[location.nodeId]
-    if (!instance || !node || node.contextId !== location.contextId) {
-      throw new Error(`实体位置引用未知节点：${location.nodeId}`)
-    }
-    const existing = locationByEntityId.get(location.entityId)
-    if (existing && (
-      existing.contextId !== location.contextId
-      || existing.nodeId !== location.nodeId
-    )) {
-      throw new Error(`同一批次为实体指定了多个位置：${location.entityId}`)
-    }
-    locationByEntityId.set(location.entityId, location)
-  }
-
-  const nextContexts = structuredClone(contexts)
-  for (const instance of Object.values(nextContexts)) {
-    for (const entityId of locationByEntityId.keys()) {
-      delete instance.spatialGraph.entityLocations[entityId]
-    }
-  }
-  for (const location of locationByEntityId.values()) {
-    nextContexts[location.contextId].spatialGraph.entityLocations[location.entityId] = location
-  }
-  return nextContexts
-}
-
 export class SpatialGraphSystem extends BaseSubsystem {
   readonly id = 'spatial-graph' as const
   readonly mod = 'mod-world' as const
-  readonly label = '空间关系图' as const
-  readonly description = '管理统一位置层级、邻接、出口、可达性和实体当前位置' as const
+  readonly label = '世界区域' as const
+  readonly description = '管理世界形态、区域层级、关联边、出口、可达性和当前区域' as const
 
   addNode(contextId: string, node: SpatialNode): void {
     const state = useWorldStore.getState()
@@ -174,37 +154,42 @@ export class SpatialGraphSystem extends BaseSubsystem {
     state.setCrossContextEdge(edge)
   }
 
-  setEntityLocation(location: EntitySpatialLocation): void {
+  setCurrentRegion(contextId: string, regionId: string): void {
     const state = useWorldStore.getState()
-    this.assertEntityLocation(location)
-    useWorldStore.setState({
-      contexts: placeEntityLocationsUniquely(state.contexts, [location]),
-    })
-  }
-
-  assertEntityLocation(location: EntitySpatialLocation): void {
-    const instance = useWorldStore.getState().contexts[location.contextId]
-    const node = instance?.spatialGraph.nodes[location.nodeId]
-    if (!instance || !node || node.contextId !== location.contextId) {
-      throw new Error(`实体位置引用未知节点：${location.nodeId}`)
+    const instance = state.contexts[contextId]
+    const node = instance?.spatialGraph.nodes[regionId]
+    if (!instance || !node || node.contextId !== contextId || node.kind !== 'region') {
+      throw new Error(`区域引用未知节点：${regionId}`)
     }
+    state.replaceContext({
+      ...instance,
+      spatialGraph: { ...instance.spatialGraph, currentRegionId: regionId },
+    })
   }
 
   collectState(context: RoundContext): SubSystemState {
     const state = useWorldStore.getState()
     const instance = state.contexts[context.contextId]
     const graph = instance?.spatialGraph
+    const currentRegionNode = graph?.nodes[graph.currentRegionId]
+    const currentRegionProfile = graph?.regionProfiles[graph.currentRegionId]
     const graphSummary = graph
-      ? `节点 ${Object.keys(graph.nodes).length}，边 ${Object.keys(graph.edges).length}，跨界出口 ${Object.keys(state.crossContextEdges).length}`
+      ? `世界形态 ${graph.worldForm}；当前区域 ${currentRegionNode?.name ?? '未选择'}；区域 ${Object.keys(graph.regionProfiles).length} 个，关联边 ${Object.keys(graph.edges).length} 条，跨界出口 ${Object.keys(state.crossContextEdges).length} 个`
       : '未建立'
     return {
       id: this.id,
       summary: `【${this.label}：${graphSummary}】`,
-      data: graph ? structuredClone(graph) : {},
+      data: graph
+        ? {
+            ...structuredClone(graph),
+            currentRegionName: currentRegionNode?.name ?? null,
+            currentRegionProfile: currentRegionProfile ? structuredClone(currentRegionProfile) : null,
+          }
+        : {},
     }
   }
 
-  applyChanges(changes: SubSystemChanges, _context: RoundContext): void {
+  applyChanges(changes: SubSystemChanges, context: RoundContext): void {
     if (!changes || typeof changes !== 'object') throw new Error(`[${this.id}] Changes must be an object`)
     if (changes.id !== this.id) throw new Error(`[${this.id}] Changes ID mismatch`)
     if (!changes.changes || typeof changes.changes !== 'object' || Array.isArray(changes.changes)) {
@@ -213,9 +198,63 @@ export class SpatialGraphSystem extends BaseSubsystem {
     if (!changes.description || changes.description.trim().length === 0) {
       throw new Error(`[${this.id}] Changes description is required`)
     }
+    if (changes.operation !== 'update-region-profile') {
+      throw new Error(`[${this.id}] 不支持操作：${changes.operation ?? '未声明'}`)
+    }
+    if (changes.targetContextId !== context.contextId) {
+      throw new Error(`[${this.id}] 区域概况目标上下文不是当前回合上下文`)
+    }
+    if (!changes.targetObjectId) {
+      throw new Error(`[${this.id}] 区域概况缺少目标区域`)
+    }
+    const state = useWorldStore.getState()
+    const instance = state.contexts[context.contextId]
+    if (!instance) throw new Error(`[${this.id}] 未知上下文：${context.contextId}`)
+    const graph = instance.spatialGraph
+    const targetNode = graph.nodes[changes.targetObjectId]
+    if (!targetNode || targetNode.contextId !== context.contextId || targetNode.kind !== 'region') {
+      throw new Error(`[${this.id}] 区域概况目标不是当前上下文中的区域：${changes.targetObjectId}`)
+    }
+    if (graph.currentRegionId !== changes.targetObjectId) {
+      throw new Error(`[${this.id}] 只允许更新当前区域概况：${changes.targetObjectId}`)
+    }
+    const currentProfile = graph.regionProfiles[changes.targetObjectId]
+    if (!currentProfile) throw new Error(`[${this.id}] 当前区域缺少概况：${changes.targetObjectId}`)
+
     const requestedChanges = changes.changes
-    void requestedChanges
-    throw new Error(`[${this.id}] 只接受拥有系统校验后的空间事件，不接受叙事 AI 直接写入`)
+    const requestedFields = Object.keys(requestedChanges)
+    if (requestedFields.length === 0) throw new Error(`[${this.id}] 区域概况变更不能为空`)
+    for (const field of requestedFields) {
+      if (!REGION_PROFILE_FIELDS.has(field)) throw new Error(`[${this.id}] 不允许更新区域字段：${field}`)
+      const value = requestedChanges[field]
+      if (REGION_PROFILE_TEXT_FIELDS.has(field)) {
+        if (typeof value !== 'string' || value.trim().length === 0) {
+          throw new Error(`[${this.id}] 区域字段 ${field} 必须为非空文本`)
+        }
+        continue
+      }
+      if (!Array.isArray(value) || value.some((item) => typeof item !== 'string' || item.trim().length === 0)) {
+        throw new Error(`[${this.id}] 区域字段 resources 必须为字符串数组`)
+      }
+    }
+
+    const nextProfile = {
+      ...currentProfile,
+      ...Object.fromEntries(Object.entries(requestedChanges).map(([field, value]) => (
+        [field, Array.isArray(value) ? value.map((item) => item.trim()) : (value as string).trim()]
+      ))),
+      updatedAtGlobalDay: context.totalDays,
+    }
+    state.replaceContext({
+      ...instance,
+      spatialGraph: {
+        ...graph,
+        regionProfiles: {
+          ...graph.regionProfiles,
+          [changes.targetObjectId]: nextProfile,
+        },
+      },
+    })
   }
 
   reset(): void {}

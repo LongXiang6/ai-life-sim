@@ -9,7 +9,6 @@ import type {
   DestinyPattern,
   DestinyPatternPolarity,
   DestinyPatternRarity,
-  MoralityLevel,
   RaceLifespanConfig,
 } from './types'
 
@@ -74,7 +73,6 @@ export const ATTRIBUTE_NAMES: Record<string, string> = {
   talentAptitude: '悟性',
   charisma: '魅力',
 }
-
 /** 4 项基础属性 key 数组 */
 export const ATTR_KEYS = ['physique', 'mind', 'talentAptitude', 'charisma',] as const
 
@@ -403,80 +401,3 @@ export const RACE_LIFESPAN: Record<string, RaceLifespanConfig> = {
   alchemyGolem: { name: '炼金造物', baseLifespanYears: 500, clockMode: 'aging', attrBaselines: { physique: 4, mind: -2, charisma: -3, }, },
   magicBeast:   { name: '魔法生物', baseLifespanYears: 1000, clockMode: 'aging', attrBaselines: { physique: 3, talentAptitude: 3, }, },
 }
-
-// ============================================================
-// 善恶值（对齐废弃项目 extractMoralityChanges）
-// ============================================================
-
-/** 7 档善恶映射（对齐废弃项目小范围阈值 + 叙事描述） */
-export const MORALITY_LEVELS: { level: MoralityLevel; label: string; description: string; range: [number, number] }[] = [
-  { level: 'supremeGood', label: '至善',     description: '圣人出世，万众敬仰',   range: [8, Infinity,], },
-  { level: 'greatGood',   label: '大善',     description: '乐善好施，名望远播',   range: [5, 8,], },
-  { level: 'good',        label: '善良',     description: '品行端正',             range: [2, 5,], },
-  { level: 'balanced',    label: '善恶平衡',  description: '凡人之心，善恶未分',   range: [-1, 2,], },
-  { level: 'evilLeaning', label: '偏向恶行',  description: '渐入歧途，人心渐失',   range: [-4, -1,], },
-  { level: 'greatEvil',   label: '大恶',     description: '恶名昭著',             range: [-7, -4,], },
-  { level: 'supremeEvil', label: '极恶',     description: '十恶不赦，人人喊打',   range: [-Infinity, -7,], },
-]
-
-/** 善行关键词（对齐废弃项目 14+14 条，含分级匹配） */
-export const MORALITY_GOOD_KEYWORDS_MINOR = ['行善', '施舍', '救人', '助人', '救济', '宽恕', '仁慈', '仗义',]
-export const MORALITY_GOOD_KEYWORDS_MODERATE = ['伸张正义', '为民除害', '赈灾', '济困', '扶危', '仗义疏财',]
-export const MORALITY_GOOD_KEYWORDS_MAJOR = ['舍己救人', '大义灭亲', '毁家纾难', '慷慨就义', '舍身取义', '救万民', '挽救苍生', '舍己', '奉献',]
-
-/** 恶行关键词（对齐废弃项目 14+14 条，含分级匹配） */
-export const MORALITY_EVIL_KEYWORDS_MINOR = ['作恶', '害人', '杀人', '欺骗', '出卖', '坑害', '见死不救',]
-export const MORALITY_EVIL_KEYWORDS_MODERATE = ['陷害', '栽赃', '灭口', '背叛', '勒索', '残忍',]
-export const MORALITY_EVIL_KEYWORDS_MAJOR = ['屠戮', '灭门', '滥杀无辜', '残害忠良', '丧尽天良', '十恶不赦',]
-
-/** 善恶分档得分 */
-export const MORALITY_SCORE_MINOR = 1
-export const MORALITY_SCORE_MODERATE = 2
-export const MORALITY_SCORE_MAJOR_GOOD = 3
-export const MORALITY_SCORE_MAJOR_EVIL = -4
-
-/** 叙事中须排除的句子关键词（对齐废弃项目 isPlayerAction） */
-export const MORALITY_EXCLUDE_KEYWORDS = ['敌军', '敌人', '听说', '传言', '据说', '传闻', '他国', '他们', '邻国',]
-
-/** 每轮善恶变化钳制 */
-export const MORALITY_DELTA_CLAMP: [number, number] = [-10, 10,]
-
-// ============================================================
-// 存储键
-// ============================================================
-
-export const STORAGE_KEYS = {
-  CHARACTER: 'mod-character:character',
-  DESTINY_PATTERNS: 'mod-character:destiny-patterns',
-  MORALITY: 'mod-character:morality',
-  LUCK: 'mod-character:luck',
-} as const
-
-// ============================================================
-// 气运（对齐废弃项目 luck-config.ts）
-// ============================================================
-
-/** 每点气运提升疾病回避概率 */
-export const LUCK_DISEASE_AVOIDANCE_PER_POINT = 0.03
-
-/** 每点气运提升死亡回避概率 */
-export const LUCK_DEATH_AVOID_CHANCE_PER_POINT = 0.02
-
-/** 每点气运向有利叙事方向偏移权重 */
-export const LUCK_EVENT_WEIGHT_PER_POINT = 0.05
-
-/** 气运值范围（隐藏基础属性，与显性属性统一为 -10~+10；0 为常人无特殊气运） */
-export const MIN_LUCK = -10
-export const MAX_LUCK = 10
-
-/** 新人生只在本地随机生成的初始气运范围。 */
-export const INITIAL_LUCK_MIN = -3
-export const INITIAL_LUCK_MAX = 3
-
-/** 零气运时三个叙事方向的基准概率。 */
-export const BASE_BAD_LUCK_DIRECTION_PERCENT = 25
-export const BASE_NEUTRAL_LUCK_DIRECTION_PERCENT = 50
-export const BASE_GOOD_LUCK_DIRECTION_PERCENT = 25
-
-/** 每点气运向对应好/坏方向转移的概率百分点。 */
-export const LUCK_DIRECTION_PERCENT_PER_POINT = 5

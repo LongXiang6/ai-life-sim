@@ -147,7 +147,7 @@ export const GameRecordDimensionSchema = z.object({
 
 export const GameRecordAchievementSchema = z.object({
   id: z.string().min(1).max(200),
-  kind: z.enum(['choice', 'lifespan-adjustment']),
+  kind: z.literal('choice'),
   title: z.string().min(1),
   detail: z.string().min(1),
   timeLabel: z.string().min(1),
@@ -165,7 +165,6 @@ export const GameRecordScoringProfileSchema = z.object({
       'attributes',
       'journey',
       'choices',
-      'lifespan-adjustments',
       'achievements',
       'completion',
     ])).min(1),
@@ -206,7 +205,6 @@ export const GameRecordScoringAuditSchema = z.object({
   committedRounds: z.number().int().nonnegative(),
   narrativeIds: z.array(z.string().min(1).max(200)),
   resolvedChoiceCount: z.number().int().nonnegative(),
-  lifespanAdjustmentCount: z.number().int().nonnegative(),
   achievementIds: z.array(z.string().min(1).max(200)),
   completed: z.boolean(),
   terminalCommitted: z.boolean(),
@@ -224,7 +222,6 @@ export const GameRecordScoringSchema = z.object({
     attributes: z.number().int().min(0).max(100),
     journey: z.number().int().min(0).max(100),
     choices: z.number().int().min(0).max(100),
-    'lifespan-adjustments': z.number().int().min(0).max(100),
     achievements: z.number().int().min(0).max(100),
     completion: z.number().int().min(0).max(100),
   }).strict(),

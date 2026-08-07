@@ -147,22 +147,10 @@ const accountPageSrc = readCodeDirectory('src/mods/mod-pages/pages/account')
 const feedbackPageSrc = readRel('src/mods/mod-pages/pages/feedback/page.tsx')
 const prototypeLibraryCssSrc = readRel('docs/ui-prototypes/mobile/assets/library.css')
 const prototypeIndexSrc = readRel('docs/ui-prototypes/mobile/index.html')
-const prototypeFlowSrc = readRel('docs/ui-prototypes/mobile/assets/prototype.js')
-const prototypeFlowPageSrc = readRel('docs/ui-prototypes/mobile/flow.html')
-const prototypeWelcomeSrc = readRel('docs/ui-prototypes/mobile/welcome/round-19-rf4-b-refinement.html')
-const prototypeWorldSelectSrc = readRel('docs/ui-prototypes/mobile/world-select/round-20-ws-rf23-b1-adaptation.html')
-const prototypeWorldCustomizeSrc = readRel('docs/ui-prototypes/mobile/world-customize/round-07-ws-b1-adaptation.html')
-const prototypeCharacterSrc = readRel('docs/ui-prototypes/mobile/character-create/round-15-ws-b1-adaptation.html')
-const prototypeTalentDrawSrc = readRel('docs/ui-prototypes/mobile/talent-draw/round-refactor-18-rf17-2-b1-adaptation.html')
-const prototypeFateSelectSrc = readRel('docs/ui-prototypes/mobile/mythic-inheritance/round-14-legacy-layout-b1-rebirth.html')
-const prototypeAttributeSrc = readRel('docs/ui-prototypes/mobile/attribute-alloc/final.html')
-const prototypeFatePreviewSrc = readRel('docs/ui-prototypes/mobile/fate-preview/round-refactor-01-style-1.html')
-const prototypeGameStorySrc = readRel('docs/ui-prototypes/mobile/game-story/round-refactor-20-style-1.html')
-const prototypeGameOverSrc = readRel('docs/ui-prototypes/mobile/game-over/final.html')
-const prototypeAccountSrc = readRel('docs/ui-prototypes/mobile/account/final.html')
-const prototypeSettingsSrc = readRel('docs/ui-prototypes/mobile/settings/final.html')
-const prototypeHelpSrc = readRel('docs/ui-prototypes/mobile/help/final.html')
-const prototypeFeedbackSrc = readRel('docs/ui-prototypes/mobile/feedback/final.html')
+const prototypeIterationTemplateSrc = readRel('docs/ui-prototypes/mobile/template/iteration.html')
+const prototypeRootEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile')).sort()
+const prototypeAssetEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/assets')).sort()
+const prototypeTemplateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/template')).sort()
 const pageManifestSrc = readRel('src/mods/mod-pages/manifest.ts')
 
 assertOk(
@@ -864,38 +852,35 @@ assertOk(
 )
 
 assertOk(
-  prototypeFlowSrc.includes("const flowStateKey = 'ai-life-sim-prototype-flow-state'")
-    && prototypeFlowSrc.includes('state: { read: readState, write: writeState, reset: resetState }')
-    && prototypeWelcomeSrc.includes('data-flow-to="world-select" data-flow-reset'),
-  'the linked mobile prototype must own one resettable session state for a new life',
+  JSON.stringify(prototypeRootEntries) === JSON.stringify(['assets', 'index.html', 'template'])
+    && JSON.stringify(prototypeAssetEntries) === JSON.stringify(['library.css'])
+    && JSON.stringify(prototypeTemplateEntries) === JSON.stringify(['iteration.html']),
+  'the UI solution library must contain only the generic index, structural stylesheet, and reusable iteration template',
 )
 assertOk(
-  prototypeFlowPageSrc.includes('width: 430px')
-    && prototypeFlowPageSrc.includes('aspect-ratio: 430 / 932')
-    && prototypeFlowPageSrc.includes('.preview-stage { justify-content: start; padding: 0; }')
-    && prototypeFlowPageSrc.includes('.preview-frame-wrap { width: 100vw; }')
-    && prototypeFlowPageSrc.includes('<title>AI Life Sim · 移动端定版串联</title>')
-    && prototypeFlowPageSrc.includes('welcome/round-19-rf4-b-refinement.html?preview=20260724-semantic-icons-final-1')
-    && prototypeFlowPageSrc.includes("const previewRevision = '20260724-semantic-icons-final-1'")
-    && prototypeIndexSrc.includes('<h2>当前定版主界面</h2>')
-    && prototypeIndexSrc.includes('<span>12 选 3</span>'),
-  'the solution-library final preview must retain the Pro Max 430x932 canvas, scale down proportionally and expose the current cache revision',
+  prototypeIndexSrc.includes('data-library-purpose="generic-ui-iteration"')
+    && prototypeIndexSrc.includes('href="template/iteration.html"')
+    && prototypeIndexSrc.includes('当前不保留任何既定主题、定版稿或页面构图')
+    && prototypeIndexSrc.includes('Runtime authority: none'),
+  'the generic library index must start empty and explicitly reject runtime visual authority',
 )
 assertOk(
-  prototypeLibraryCssSrc.includes('.semantic-emoji {')
-    && prototypeWorldSelectSrc.includes('<span class="semantic-emoji" aria-hidden="true">🌍</span>现代地球')
-    && prototypeWorldCustomizeSrc.includes('<span class="semantic-emoji" aria-hidden="true">🗺️</span>空间形态')
-    && prototypeWorldCustomizeSrc.includes('<span class="semantic-emoji" aria-hidden="true">⚡</span>力量体系')
-    && prototypeCharacterSrc.includes('<span class="semantic-emoji" aria-hidden="true">👤</span>核心身份')
-    && prototypeCharacterSrc.includes('<span class="semantic-emoji" aria-hidden="true">⏳</span>寿命与起始')
-    && prototypeCharacterSrc.includes('<span class="semantic-emoji" aria-hidden="true">📜</span>人生背景')
-    && prototypeAttributeSrc.includes("const attributeIcons = ['💪', '🧠', '✨', '💫']")
-    && prototypeFatePreviewSrc.includes('<span class="semantic-emoji" aria-hidden="true">💪</span>体魄')
-    && prototypeFatePreviewSrc.includes('<span class="semantic-emoji" aria-hidden="true">🗺️</span>世界空间')
-    && prototypeGameOverSrc.includes('data-axis="出身" data-emoji="🏠"')
-    && prototypeAccountSrc.includes('<span class="semantic-emoji" aria-hidden="true">☁️</span>云存档')
-    && prototypeFeedbackSrc.includes('<span class="semantic-emoji" aria-hidden="true">🔎</span>附带诊断'),
-  'selected final prototypes must use small aria-hidden semantic emoji markers on scannable labels and metrics',
+  prototypeIterationTemplateSrc.includes('data-template-purpose="ui-iteration"')
+    && prototypeIterationTemplateSrc.includes('id="brief-title"')
+    && prototypeIterationTemplateSrc.includes('id="candidate-title"')
+    && prototypeIterationTemplateSrc.includes('id="comparison-title"')
+    && prototypeIterationTemplateSrc.includes('id="decision-title"')
+    && ['data-candidate="01"', 'data-candidate="02"', 'data-candidate="03"']
+      .every(marker => prototypeIterationTemplateSrc.includes(marker))
+    && !/(?:localStorage|sessionStorage|PrototypeFlow|fetch\s*\()/.test(prototypeIterationTemplateSrc),
+  'the reusable iteration template must compare candidates without owning runtime state or persistence',
+)
+assertOk(
+  prototypeLibraryCssSrc.includes('Provide neutral layout and responsive structure only')
+    && prototypeLibraryCssSrc.includes('letter-spacing: 0;')
+    && prototypeLibraryCssSrc.includes('@media (max-width: 640px)')
+    && !/(?:linear-gradient|radial-gradient|semantic-emoji|#7382bb)/.test(prototypeLibraryCssSrc),
+  'the library stylesheet must remain structural, responsive, and independent from the retired product theme',
 )
 assertOk(
   globalCssSrc.includes('.semantic-emoji {')
@@ -926,31 +911,6 @@ assertOk(
   'runtime welcome, talent selection, settings and help surfaces must remain free of forced semantic markers',
 )
 assertOk(
-  prototypeGameStorySrc.includes('<em aria-hidden="true">💪</em><i>体魄</i>')
-    && prototypeGameStorySrc.includes('<em aria-hidden="true">🧠</em><i>心智</i>')
-    && prototypeGameStorySrc.includes('<em aria-hidden="true">✨</em><i>悟性</i>')
-    && prototypeGameStorySrc.includes('<em aria-hidden="true">💫</em><i>魅力</i>'),
-  'the core simulation reference must retain its four semantic attribute markers',
-)
-assertOk(
-  [prototypeWelcomeSrc, prototypeTalentDrawSrc, prototypeFateSelectSrc, prototypeSettingsSrc, prototypeHelpSrc]
-    .every(source => !source.includes('class="semantic-emoji"')),
-  'welcome, talent selection, settings and help must remain free of forced semantic emoji markers',
-)
-assertOk(
-  prototypeGameOverSrc.includes('class="bar-tool home-action"')
-    && prototypeGameOverSrc.includes('aria-label="返回首页"')
-    && prototypeGameOverSrc.includes('class="bar-tool data-action"')
-    && prototypeGameOverSrc.includes('aria-label="查看模拟数据"')
-    && prototypeGameOverSrc.includes('<span class="new-copy"><strong>开始新人生</strong><small>完成回望 · 重新选择世界</small></span>')
-    && prototypeGameOverSrc.includes('.bar { display: flex; width: 100%; min-height: 48px;')
-    && prototypeGameOverSrc.includes('.bar-tool { display: grid; width: 38px; height: 38px; flex: 0 0 38px;')
-    && prototypeGameOverSrc.includes('.new-arrow { display: grid; width: 25px; height: 25px; flex: 0 0 25px;')
-    && prototypeGameOverSrc.includes('backdrop-filter: blur(16px);')
-    && !prototypeGameOverSrc.includes('grid-template-columns: 58px 76px minmax(0, 1fr)'),
-  'game over must use the shared floating footer hierarchy while preserving home, data and new-life actions',
-)
-assertOk(
   hasCssDeclaration(gameOverCssSrc, 'footer', 'min-height', scaledPx(52))
     && gameOverCssSrc.includes('.barTool')
     && gameOverCssSrc.includes(`width: ${scaledPx(38)}`)
@@ -965,142 +925,6 @@ assertOk(
     && gameOverPageSrc.includes('完成回望'),
   'runtime game-over footer must match the compact creation-flow hierarchy while preserving real actions only',
 )
-assertOk(
-  prototypeWorldSelectSrc.includes('PrototypeFlow.state.write({')
-    && prototypeWorldSelectSrc.includes('difficulty: levels[state.difficultyIndex]')
-    && prototypeWorldCustomizeSrc.includes('worldConfig: worldConfig')
-    && prototypeWorldCustomizeSrc.includes('const flow = PrototypeFlow.state.read()'),
-  'world selection and customization prototypes must pass the selected world and four rule dimensions forward',
-)
-assertOk(
-  prototypeCharacterSrc.includes('confirm.disabled = !valid')
-    && prototypeCharacterSrc.includes("confirm.setAttribute('aria-disabled', String(!valid))")
-    && prototypeCharacterSrc.includes('起始年龄需小于预期寿命')
-    && prototypeCharacterSrc.includes('character: {'),
-  'character confirmation must be visibly disabled until name, lifespan and starting age are valid, then persist the character',
-)
-assertOk(
-  prototypeTalentDrawSrc.includes("index+' / '+items.length")
-    && !prototypeTalentDrawSrc.includes("index+' / 12'")
-    && prototypeTalentDrawSrc.includes('<span class="count">0 / 12</span>')
-    && prototypeFateSelectSrc.includes('talents: selectedTalentItems()')
-    && prototypeFateSelectSrc.includes('rebirths: selectedRebirths')
-    && prototypeFateSelectSrc.includes('selectedRebirthItems()')
-    && prototypeFateSelectSrc.includes('0 / 2')
-    && prototypeFateSelectSrc.includes('进入属性分配'),
-  'the prototype draw count must end at twelve and two rebirth slots must flow into attribute allocation',
-)
-assertOk(
-  prototypeTalentDrawSrc.includes('class="phone creation-phone"')
-    && prototypeTalentDrawSrc.includes('data-creation-header data-title="命格抽取"')
-    && prototypeTalentDrawSrc.includes('body[data-screen="talent-draw"] .cf-header { position: relative; z-index: 5; }'),
-  'talent draw must expose the unified creation title structure above the draw effects',
-)
-assertOk(
-  prototypeFateSelectSrc.includes('.mi-b1 .rebirth-slot,')
-    && prototypeFateSelectSrc.includes('.mi-b1 .ordinary-slot {')
-    && prototypeFateSelectSrc.includes('height: 32px;')
-    && prototypeFateSelectSrc.includes('border-radius: 999px;')
-    && prototypeFateSelectSrc.includes('seal-breathe')
-    && prototypeFateSelectSrc.includes('rebirth-seal-halo')
-    && prototypeFateSelectSrc.includes('--halo-delay')
-    && prototypeFateSelectSrc.includes("slot.innerHTML = '<strong>＋</strong>'")
-    && prototypeFateSelectSrc.includes('slot.innerHTML = `<strong>${item.name}</strong>`')
-    && !prototypeFateSelectSrc.includes('slot-description')
-    && !prototypeFateSelectSrc.includes('renderSlotBonuses')
-    && !prototypeFateSelectSrc.includes('height: 88px; min-height: 88px; max-height: 88px;')
-    && !prototypeFateSelectSrc.includes('height: 96px; min-height: 96px; max-height: 96px;')
-    && prototypeFateSelectSrc.includes('margin: 5px -12px 0')
-    && prototypeFateSelectSrc.includes('padding: 14px 16px 96px')
-    && prototypeFateSelectSrc.includes('flex: 1 1 0')
-    && prototypeFateSelectSrc.includes('min-height: 76px')
-    && prototypeFateSelectSrc.includes('-webkit-line-clamp: 2')
-    && prototypeFateSelectSrc.includes('grid-column: 1 / -1')
-    && prototypeFateSelectSrc.includes('<span class="candidate-effects">${renderCandidateEffects(item)}</span></button>')
-    && prototypeFateSelectSrc.includes("return `${attrLabels[key] || key} ${sign}${Math.abs(value)}`")
-    && prototypeFateSelectSrc.includes("return `${modifierLabels[key] || key} ${sign}${Math.abs(delta)}%`")
-    && prototypeFateSelectSrc.includes('.candidate-effect { padding: 1px 3px; font-size: 7px; line-height: 1.1; }'),
-  'selected fate upper slots must use compact seal chips for names only while candidate cards keep glow gutters and numeric bonus labels',
-)
-assertOk(
-  prototypeFateSelectSrc.includes("if (slot.dataset.name) {")
-    && prototypeFateSelectSrc.includes('renderRebirthSlot(slot, null)')
-    && !/renderRebirthSlot\(slot, null\)[\s\S]{0,120}CreationFlow\.notify\(`已移除\$\{name\}`\)/.test(prototypeFateSelectSrc)
-    && !/renderSlot\(slot, null\);\s*update\(\);\s*CreationFlow\.notify\(`已移除\$\{name\}`\)/.test(prototypeFateSelectSrc),
-  'selected rebirth and ordinary slots must support click-to-remove without a bottom toast',
-)
-assertOk(
-  prototypeAttributeSrc.includes('<title>属性分配 · AA-RF1-1 布局</title>')
-    && prototypeAttributeSrc.indexOf('class="cf-budget"') < prototypeAttributeSrc.indexOf('class="cf-attribute-list"')
-    && prototypeAttributeSrc.indexOf('class="cf-attribute-list"') < prototypeAttributeSrc.indexOf('class="cf-tools"')
-    && prototypeAttributeSrc.includes('const total = 15')
-    && prototypeAttributeSrc.includes('data-budget-meter role="progressbar"')
-    && prototypeAttributeSrc.includes('talentBonuses(Array.isArray(flow.talents)')
-    && prototypeAttributeSrc.includes('base: Object.fromEntries(attributeKeys.map')
-    && prototypeFatePreviewSrc.includes('data-review-identity')
-    && prototypeFatePreviewSrc.includes('data-review-talents')
-    && prototypeFatePreviewSrc.includes('PrototypeFlow.state.read()'),
-  'attribute bonuses, base values and selected talents must reach the fate preview without fixed character data',
-)
-assertOk(
-  prototypeFatePreviewSrc.includes('body[data-screen="fate-preview"] .cf-footer')
-    && prototypeFatePreviewSrc.includes('background: rgba(255, 255, 255, .76);')
-    && prototypeFatePreviewSrc.includes('box-shadow: 0 12px 30px rgba(62, 70, 100, .13)')
-    && prototypeFatePreviewSrc.includes('backdrop-filter: blur(16px);')
-    && prototypeFatePreviewSrc.includes('data-flow-back="attribute-alloc"')
-    && prototypeFatePreviewSrc.includes('data-flow-to="game-story" data-start'),
-  'fate preview must use the same floating creation action bar as steps 03 and 04',
-)
-assertOk(
-  prototypeGameStorySrc.includes('data-flow-character-name')
-    && prototypeGameStorySrc.includes('applyFlowState(root)')
-    && prototypeGameStorySrc.includes('item.textContent = talent.name')
-    && prototypeGameStorySrc.includes('Array.isArray(flow.rebirths)')
-    && prototypeGameStorySrc.includes('mode-jade-flow mode-branch-bare')
-    && !prototypeGameStorySrc.includes('mode-ink-celadon mode-jade-flow')
-    && prototypeGameStorySrc.includes('--accent: #7382bb;')
-    && prototypeGameStorySrc.includes('body[data-screen="game-story"] .story-prose { color: var(--ink); }')
-    && prototypeGameStorySrc.includes('body[data-screen="game-story"] .state-change { color: var(--accent-deep); }')
-    && prototypeGameStorySrc.includes('class="reader-bar bar-status"')
-    && prototypeGameStorySrc.includes('class="bar-attrs"')
-    && prototypeGameStorySrc.includes('class="bar-talents"')
-    && prototypeGameStorySrc.includes('data-flow-bar-talents')
-    && prototypeGameStorySrc.includes('data-flow-bar-rebirths')
-    && prototypeGameStorySrc.includes('.bar-talents { display: flex; flex-wrap: wrap;')
-    && prototypeGameStorySrc.includes('.bar-vitals { display: grid; grid-template-columns: minmax(0,1fr) auto;')
-    && prototypeGameStorySrc.includes('bar-rebirth-flow')
-    && prototypeGameStorySrc.includes('class="step-menu"')
-    && prototypeGameStorySrc.includes('class="step-button"')
-    && prototypeGameStorySrc.includes('class="step-menu-panel"')
-    && prototypeGameStorySrc.includes('bar-actions')
-    && /stepMenuMarkup\(\) \+ forceMarkup\(\)/.test(prototypeGameStorySrc)
-    && !prototypeGameStorySrc.includes('<section class="info-block info-progress">')
-    && !prototypeGameStorySrc.includes('class="step-grid"')
-    && !prototypeGameStorySrc.includes('<strong>推进步长</strong>')
-    && prototypeGameStorySrc.includes('data-flow-attribute="physique"')
-    && prototypeGameStorySrc.includes('data-flow-attribute="mind"')
-    && prototypeGameStorySrc.includes('data-flow-attribute="talentAptitude"')
-    && prototypeGameStorySrc.includes('data-flow-attribute="charisma"')
-    && !prototypeGameStorySrc.includes('story-back')
-    && !prototypeGameStorySrc.includes('data-flow-back="fate-preview"')
-    && !/infoPanelMarkup[\s\S]*data-flow-attribute="physique"/.test(prototypeGameStorySrc)
-    && prototypeGameOverSrc.includes('data-life-name')
-    && prototypeGameOverSrc.includes('data-radar-area')
-    && prototypeGameOverSrc.includes('GAME OVER · A1-2D4A1A')
-    && prototypeGameOverSrc.includes('class="graph-stage"')
-    && prototypeGameOverSrc.includes('class="acts"')
-    && prototypeGameOverSrc.includes('class="verdict"')
-    && prototypeGameOverSrc.includes('class="mythic"')
-    && prototypeGameOverSrc.includes('class="tabs"')
-    && prototypeGameOverSrc.includes('class="vault"')
-    && prototypeGameOverSrc.includes('<span>当前选择</span>')
-    && prototypeGameOverSrc.includes('<span>存入神话总库</span>')
-    && prototypeGameOverSrc.includes('.bottom { position: absolute; z-index: 8; right: 14px; bottom: 12px; left: 14px;')
-    && !prototypeGameOverSrc.includes('mobile-action-bar-unified.css')
-    && !prototypeGameOverSrc.includes('cc-rf9-adapt-base.css'),
-  'core simulation must use a two-row status bar with attributes, talent chips and a step dropdown beside force-branch, drop the top-bar back button, keep gray-blue paper, and settlement must consume the same session identity',
-)
-
 if (failed === 0) {
   console.log('PASS: mobile-ui-regression')
   process.exit(0)

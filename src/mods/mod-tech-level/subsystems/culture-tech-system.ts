@@ -69,10 +69,9 @@ export class CultureTechSystem extends BaseSubsystem {
   advance(context: RoundContext): void {
     const state = this.ensure(context)
     if (context.daysPassed <= 0) return
-    const education = context.subsystemStates.education?.data as Partial<{ educationAccess: number; researchCapacity: number }> | undefined
-    const access = typeof education?.educationAccess === 'number' ? education.educationAccess : 10
-    const educationResearch = typeof education?.researchCapacity === 'number' ? education.researchCapacity : 5
-    state.researchCapacity = clamp(state.researchCapacity + (educationResearch - state.researchCapacity) * context.daysPassed / 365 * 0.01)
+    // Education is now a regional narrative profile, not an independent runtime owner.
+    // Keep the knowledge system's own research baseline and let regional context shape prose.
+    const access = 10
     const years = context.daysPassed / 365
     for (const domain of state.domains) {
       const annualGain = (100 - domain.maturity) * (state.researchCapacity / 100) * 0.006

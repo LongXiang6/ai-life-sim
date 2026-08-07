@@ -38,11 +38,16 @@ export function useGameOverScore() {
   const mind = useCharacterStore((state) => state.characterBase.current.mind)
   const talentAptitude = useCharacterStore((state) => state.characterBase.current.talentAptitude)
   const charisma = useCharacterStore((state) => state.characterBase.current.charisma)
-  const morality = useCharacterStore((state) => state.morality)
-  const lifespanAdjustments = useCharacterStore((state) => state.lifespan.adjustments)
+  const characterStatus = useCharacterStore((state) => state.characterBase.status)
+  const morality = characterStatus?.morality ?? {
+    value: 0,
+    level: 'balanced' as const,
+    roundDelta: 0,
+    guidance: '',
+  }
   const regularPatterns = useCharacterStore((state) => state.destinyPatterns.patterns)
-  const isDead = useCharacterStore((state) => !state.health.alive)
-  const death = useCharacterStore((state) => state.health.death)
+  const isDead = characterStatus?.health.alive === false
+  const death = characterStatus?.health.death
   const worldConfig = useWorldStore((state) => state.worldConfig)
   const worldCode = useWorldStore((state) => state.worldCode)
   const currentContextId = useWorldStore((state) => state.currentContextId)
@@ -62,8 +67,8 @@ export function useGameOverScore() {
     [narrativeHistory],
   )
   const achievements = useMemo(
-    () => buildGameOverAchievements(narrativeHistory, lifespanAdjustments),
-    [lifespanAdjustments, narrativeHistory],
+    () => buildGameOverAchievements(narrativeHistory),
+    [narrativeHistory],
   )
   const worldName = worldConfig?.name ?? '未知世界'
   const scoringProfile = useMemo(() => (
@@ -92,7 +97,6 @@ export function useGameOverScore() {
       committedRounds: totalRounds,
       narrativeIds: scoringNarrativeIds,
       resolvedChoiceCount: achievements.filter((item) => item.kind === 'choice').length,
-      lifespanAdjustmentCount: lifespanAdjustments.filter((adjustment) => adjustment.deltaDays > 0).length,
       achievementIds: achievements.map((item) => item.id),
       completed: canViewGameOver,
       terminalCommitted: canViewGameOver
@@ -107,7 +111,6 @@ export function useGameOverScore() {
     achievements,
     canViewGameOver,
     lifeRunId,
-    lifespanAdjustments,
     narrativeError,
     narrativeHistory.length,
     scoringNarrativeIds,
@@ -122,7 +125,6 @@ export function useGameOverScore() {
     committedRounds: scoringAudit.committedRounds,
     narrativeIds: scoringAudit.narrativeIds,
     resolvedChoiceCount: scoringAudit.resolvedChoiceCount,
-    lifespanAdjustmentCount: scoringAudit.lifespanAdjustmentCount,
     achievementIds: scoringAudit.achievementIds,
     completed: scoringAudit.completed,
     terminalCommitted: scoringAudit.terminalCommitted,

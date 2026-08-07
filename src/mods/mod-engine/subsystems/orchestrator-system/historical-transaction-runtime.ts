@@ -11,7 +11,7 @@ import type {
   HistoricalEventCreateInput,
   HistoricalEventEvidenceInput,
   HistoricalEventTransitionInput,
-  PendingDeathFact,
+  PendingCharacterDeath,
   RoundContext,
 } from '@/foundation'
 import {
@@ -46,7 +46,7 @@ export function buildHistoricalNarrativeTransactionPlanRuntime(
   ledger: HistoricalEventLedgerRuntime,
   parsed: NarrativeEventCommitData,
   keyEvents: Array<{ text: string; importance: number; entities?: string[] }>,
-  pendingDeath?: PendingDeathFact,
+  pendingDeath?: PendingCharacterDeath,
   options: HistoricalNarrativeTransactionOptions = {},
 ): HistoricalNarrativeTransactionPlan | undefined {
   const context = options.context ?? orchestrator['buildRoundContext']()
@@ -147,7 +147,7 @@ export function buildHistoricalNarrativeTransactionPlanRuntime(
         finalAgeDays: pendingDeath.finalAgeDays,
         occurredAtTotalDays: pendingDeath.occurredAtTotalDays,
       },
-    }, '健康系统在本轮原子提交中确认人物死亡', pendingDeath, 'system-commit')
+    }, '角色状态在本轮原子提交中确认人物死亡', pendingDeath, 'system-commit')
     narrativeFactEventIds.push(appended.eventId)
   }
 

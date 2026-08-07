@@ -32,7 +32,7 @@ export interface WorldInitBundleResult {
   calibrationGenerated: boolean
   tagsGenerated: boolean
   configGenerated: boolean
-  entitiesGenerated: boolean
+  regionProfilesGenerated: boolean
   scoringProfileGenerated: boolean
   errors: string[]
   rawTags?: string[]

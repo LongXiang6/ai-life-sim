@@ -7,6 +7,8 @@
 import type { OrchestratorSystem } from '../orchestrator-system'
 import type {
   HistoricalEventCandidateAudit,
+  HistoricalEventCandidateDispositionBatch,
+  HistoricalEventCandidateDispositionResult,
   HistoricalEventCandidateQuery,
   HistoricalEventCandidateSubmission,
   HistoricalEventCommitBatch,
@@ -35,6 +37,13 @@ export type HistoricalEventLedgerRuntime = ISubSystem & {
   queryCandidates: (
     query?: HistoricalEventCandidateQuery,
   ) => HistoricalEventCandidateAudit[]
+  getDueCandidates: (
+    context: RoundContext | HistoricalEventValidationContext,
+  ) => HistoricalEventCandidateAudit[]
+  commitCandidateDispositions: (
+    batch: HistoricalEventCandidateDispositionBatch,
+    context: RoundContext | HistoricalEventValidationContext,
+  ) => HistoricalEventCandidateDispositionResult
   getEvent: (eventId: string) => HistoricalEventView | undefined
 }
 
@@ -49,6 +58,8 @@ export function getHistoricalEventLedgerRuntimeRuntime(
     || typeof candidate.commitBatch !== 'function'
     || typeof candidate.submitCandidates !== 'function'
     || typeof candidate.queryCandidates !== 'function'
+    || typeof candidate.getDueCandidates !== 'function'
+    || typeof candidate.commitCandidateDispositions !== 'function'
     || typeof candidate.getEvent !== 'function'
   ) {
     return undefined
@@ -56,8 +67,7 @@ export function getHistoricalEventLedgerRuntimeRuntime(
   return subsystem as HistoricalEventLedgerRuntime
 }
 
-/** 读取当前上下文相关的全部可用候选；公开查询上限只限制单页，不截断完整集合。 */
-
+/** 读取当前上下文相关的全部可用候选；未声明 limit 时查询契约默认全量返回。 */
 export function getAvailableHistoricalEventCandidatesRuntime(
   orchestrator: OrchestratorSystem,
 ): HistoricalEventCandidateAudit[] {
@@ -65,23 +75,22 @@ export function getAvailableHistoricalEventCandidatesRuntime(
   if (!ledger) throw new Error('historical-event-ledger 未注册或公开契约不完整')
 
   const context = orchestrator['buildRoundContext']()
-  const candidates: HistoricalEventCandidateAudit[] = []
-  const pageSize = 500
-  let offset = 0
-  while (true) {
-    const page = ledger.queryCandidates({
-      contextId: context.contextId,
-      statuses: ['available'],
-      latestOnly: true,
-      offset,
-      limit: pageSize,
-    })
-    candidates.push(...page)
-    if (page.length < pageSize) break
-    offset += page.length
-  }
+  return ledger.queryCandidates({
+    contextId: context.contextId,
+    statuses: ['available'],
+    latestOnly: true,
+  }).sort((left, right) => left.candidateId.localeCompare(right.candidateId))
+}
 
-  return candidates.sort((left, right) => left.candidateId.localeCompare(right.candidateId))
+export function getDueHistoricalEventCandidatesRuntime(
+  orchestrator: OrchestratorSystem,
+  excludedCandidateIds: readonly string[] = [],
+): HistoricalEventCandidateAudit[] {
+  const ledger = orchestrator['getHistoricalEventLedgerRuntime']()
+  if (!ledger) throw new Error('historical-event-ledger 未注册或公开契约不完整')
+  const excluded = new Set(excludedCandidateIds)
+  return ledger.getDueCandidates(orchestrator['buildRoundContext']())
+    .filter((audit) => !excluded.has(audit.candidateId))
 }
 
 export function notifyHistoricalEventsCommittedRuntime(

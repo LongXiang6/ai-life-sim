@@ -19,6 +19,7 @@ export function baseConfig(overrides: Partial<WorldConfig> = {}): WorldConfig {
     civilizationStage: 'medieval',
     difficulty: 'normal',
     description: '验收测试用世界',
+    festivalScope: 'china',
     ...overrides,
   }
 }

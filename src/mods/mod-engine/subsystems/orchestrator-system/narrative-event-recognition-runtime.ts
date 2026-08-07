@@ -7,11 +7,10 @@
 import type { OrchestratorSystem } from '../orchestrator-system'
 import type {
   ISubSystem,
-  PendingDeathFact,
+  PendingCharacterDeath,
 } from '@/foundation'
 import {
   causalDelay,
-  coreMemory,
   digestLedger,
   foreshadowing,
   memoryLifecycle,
@@ -29,8 +28,7 @@ export function applyNarrativeEventRecognitionRuntime(
   accepted: AcceptedNarrativeRecord,
   result: NarrativeEventRecognitionResult,
 ): void {
-  try {
-    const parsed: NarrativeEventCommitData = {
+  const parsed: NarrativeEventCommitData = {
       ...structuredClone(accepted.narrative),
       ...structuredClone(result.metadata),
       notableEvents: result.metadata.notableEvents ?? [],
@@ -50,19 +48,29 @@ export function applyNarrativeEventRecognitionRuntime(
     const resolvedCausalIds = dispositions
       .filter((item) => item.status === 'resolved')
       .map((item) => item.causalId)
+    const candidateDispositions = parsed.historicalEventCandidateDispositions ?? []
+    const expectedCandidateIds = new Set(accepted.deliveredHistoricalEventCandidateIds)
+    const dispositionCandidateIds = new Set(candidateDispositions.map((item) => item.candidateId))
+    if (
+      dispositionCandidateIds.size !== expectedCandidateIds.size
+      || [...expectedCandidateIds].some((candidateId) => !dispositionCandidateIds.has(candidateId))
+    ) {
+      throw new Error('事件识别的到期候选判定与主叙事实际投递集合不一致')
+    }
 
     const structuredKeyEvents = parsed.keyEvents ?? []
     const ledger = orchestrator['getHistoricalEventLedgerRuntime']()
-    const healthRuntime = orchestrator['subsystems'].find((item) => item.id === 'health') as (ISubSystem & {
-      getPendingDeath: (entityId: string) => PendingDeathFact | undefined
+    const characterRuntime = orchestrator['subsystems'].find((item) => item.id === 'character-base') as (ISubSystem & {
+      getPendingDeath: (entityId: string) => PendingCharacterDeath | undefined
     }) | undefined
-    const pendingDeath = healthRuntime?.getPendingDeath(accepted.roundContext.characterId)
+    const pendingDeath = characterRuntime?.getPendingDeath(accepted.roundContext.characterId)
     const historicalInputRequired = structuredKeyEvents.length > 0
       || parsed.semanticSignals !== undefined
       || (parsed.deferredCausality?.length ?? 0) > 0
       || pendingDeath !== undefined
       || result.candidates.length > 0
       || resolvedCausalIds.length > 0
+      || accepted.deliveredHistoricalEventCandidateIds.length > 0
     if (historicalInputRequired && !ledger) {
       throw new Error('historical-event-ledger 未注册或公开契约不完整')
     }
@@ -117,6 +125,35 @@ export function applyNarrativeEventRecognitionRuntime(
       }
       acceptedHistoricalEventIds = [...historicalCommit.eventIds]
       orchestrator['notifyHistoricalEventsCommitted'](acceptedHistoricalEventIds, accepted.roundContext)
+    }
+
+    if (accepted.deliveredHistoricalEventCandidateIds.length > 0 && ledger) {
+      const candidateCommit = ledger.commitCandidateDispositions({
+        source: {
+          kind: 'narrative',
+          sourceId: `narrative-event-candidate-disposition:${accepted.narrativeId}`,
+          description: '主叙事已经收到的到期历史候选由事件识别逐项确认',
+        },
+        deliveredCandidateIds: accepted.deliveredHistoricalEventCandidateIds,
+        dispositions: candidateDispositions,
+      }, accepted.roundContext)
+      const expectedAcceptedCount = candidateDispositions.filter(
+        (item) => item.status === 'accepted',
+      ).length
+      if (
+        !candidateCommit.ok
+        || candidateCommit.candidateAudits.length !== candidateDispositions.length
+        || candidateCommit.eventIds.length !== expectedAcceptedCount
+      ) {
+        throw new Error(candidateCommit.errors.join('；') || '到期历史候选未能完整处置')
+      }
+      acceptedHistoricalEventIds.push(...candidateCommit.eventIds)
+      if (candidateCommit.eventIds.length > 0) {
+        orchestrator['notifyHistoricalEventsCommitted'](
+          candidateCommit.eventIds,
+          accepted.roundContext,
+        )
+      }
     }
 
     if (result.candidates.length > 0 && ledger) {
@@ -207,7 +244,7 @@ export function applyNarrativeEventRecognitionRuntime(
         entities,
         acceptedHistoricalEventIds,
       )
-      coreMemory.recordRelationshipUpdates(
+      memoryLifecycle.recordRelationshipUpdates(
         parsed.semanticSignals.relationshipUpdates,
         accepted.roundSequence,
         accepted.roundContext.contextId,
@@ -259,8 +296,5 @@ export function applyNarrativeEventRecognitionRuntime(
       narrativeChunk.transitionAudit.historicalCommitPassed = true
     }
     orchestrator['collectSubsystemStates'](false, false)
-    orchestrator['publishSimulationSnapshot']()
-  } catch (error) {
-    throw error
-  }
+  orchestrator['publishSimulationSnapshot']()
 }

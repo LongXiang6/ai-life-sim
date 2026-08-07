@@ -71,7 +71,6 @@ export class WorldInitSystem extends BaseSubsystem {
       contextId,
       rootSpatialNodeId: createGlobalEntityId(contextId, 'space', 'root'),
       worldConfig: config,
-      entities: [],
       regions,
       tags: this.resolveTags(config),
     }
@@ -103,7 +102,6 @@ export class WorldInitSystem extends BaseSubsystem {
           contextId: instance.record.id,
           rootSpatialNodeId: instance.record.rootSpatialNodeId,
           worldConfig: instance.worldConfig,
-          entities: instance.entities,
           regions: instance.regions,
           tags: instance.tags,
         }
@@ -146,7 +144,6 @@ export class WorldInitSystem extends BaseSubsystem {
         contextId: instance.record.id,
         rootSpatialNodeId: instance.record.rootSpatialNodeId,
         worldConfig: structuredClone(instance.worldConfig),
-        entities: structuredClone(instance.entities),
         regions: structuredClone(instance.regions),
         tags: structuredClone(instance.tags),
       },

@@ -84,7 +84,6 @@ export const REIGN_DURATION = 40
 export const DEFAULT_ENGINE_CONFIG: EngineConfig = {
   model: 'deepseek-chat',
   timeStep: { unit: 'year', value: 1, },
-  maxRounds: 1000,
   temperature: 0.8,
 }
 

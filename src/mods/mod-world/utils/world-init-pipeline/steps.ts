@@ -6,14 +6,13 @@
 
 import { useWorldStore } from '../../store'
 import {
-  buildDefaultCalibration,
   saveCachedWorldCalibration,
-  shouldSkipEntityAIGeneration,
   worldCalibrationPrompt,
   worldDimensionCalibrationPrompt,
+  worldRegionProfileOutputSchema,
+  worldRegionProfilePrompt,
   worldTagsPrompt,
 } from '../../world-init-bundle-deps'
-import { formatRegionsForPrompt } from '../world-init-prompt-vars'
 import { calibrationEchoesDescription } from '../world-coherence-output-guard'
 import {
   fromCalibrationBundleDiagnostics,
@@ -41,6 +40,7 @@ import {
   applyCalibrationBundle,
   applyCalibrationParsed,
   applyDimensionInferenceToContext,
+  commitRegionProfileOutput,
   commitWorldTags,
   finalizeAnchorYear,
   loadCalibrationFromCache,
@@ -48,6 +48,7 @@ import {
   syncContextPromptVars,
   syncPipelineRegions,
 } from './context-state'
+import { parseWorldRegionProfileOutput } from '../world-region-profile'
 
 async function runCalibrationFallback(context: WorldInitPipelineContext): Promise<void> {
   syncContextPromptVars(context)
@@ -172,40 +173,30 @@ function buildTagsFallbackStep(): WorldInitStep {
   }
 }
 
-function buildEntitiesStep(): WorldInitStep {
+function buildRegionProfilesStep(): WorldInitStep {
   return {
-    id: 'entities',
-    label: '实体生成',
+    id: 'region-profiles',
+    label: '区域概况与生命阶段',
     phase: 'transition',
     dependsOn: ['tags-fallback'],
     order: 300,
     owner: WORLD_INIT_OWNER,
     failureTarget: WORLD_INIT_FAILURE_TARGET,
     run: async (context) => {
-      const store = useWorldStore.getState()
-      const activeCalibration = store.calibration ?? buildDefaultCalibration(context.config)
       syncPipelineRegions(context)
       syncContextPromptVars(context)
-      context.entitySystem.setWorldContext(
-        context.config.name,
-        context.config.description,
-        context.config.civilizationStage,
-        context.promptVars.coherenceHint,
-        context.promptVars.coherenceNote,
-        context.config.worldType ?? 'idealist',
-        context.promptVars.worldTags,
-        context.promptVars.calibrationSummary,
-        context.promptVars.entityRanges,
-        formatRegionsForPrompt(context.entitySystem.getRegions()),
+      const raw = await callWorldInitAIResilient(
+        context,
+        worldRegionProfilePrompt.systemPrompt,
+        worldRegionProfilePrompt.userPromptTemplate,
+        'world-init/pipeline:region-profiles',
+        'geo',
+        (response) => { parseWorldRegionProfileOutput(response) },
+        undefined,
+        worldRegionProfileOutputSchema,
       )
-      if (shouldSkipEntityAIGeneration(activeCalibration)) {
-        store.setEntities([])
-        context.entitiesGenerated = true
-        console.info('[mod-world] 实体层全禁用（calibration entities 0-0），跳过 AI 实体生成')
-        return { status: 'succeeded' }
-      }
-      store.setEntities(await context.entitySystem.generateEntities(context.config))
-      context.entitiesGenerated = true
+      commitRegionProfileOutput(context, raw)
+      context.regionProfilesGenerated = true
       return { status: 'succeeded' }
     },
   }
@@ -243,19 +234,19 @@ export function createDefaultWorldInitSteps(): WorldInitStep[] {
     },
     buildDimensionCalibrationStep(),
     buildTagsFallbackStep(),
-    buildEntitiesStep(),
+    buildRegionProfilesStep(),
     {
       id: 'finalize-world-init',
       label: '完成世界初始化',
       phase: 'finalize',
-      dependsOn: ['entities'],
+      dependsOn: ['region-profiles'],
       order: 400,
       owner: WORLD_INIT_OWNER,
       failureTarget: WORLD_INIT_FAILURE_TARGET,
       run: async (context) => context.calibrationGenerated
         && context.tagsGenerated
         && context.configGenerated
-        && context.entitiesGenerated
+        && context.regionProfilesGenerated
         ? { status: 'succeeded' }
         : { status: 'failed', message: '世界初始化结束前置条件未满足' },
     },

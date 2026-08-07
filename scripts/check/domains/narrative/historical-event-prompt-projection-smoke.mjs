@@ -139,6 +139,30 @@ const foreignEdge = edge({
   relation: 'causes',
 })
 
+const dueCandidate = {
+  auditId: 'candidate-audit:prompt-due',
+  candidateId: 'candidate:prompt-due',
+  status: 'available',
+  reason: '候选已经登记',
+  roundSequence: 4,
+  totalDays: 400,
+  candidate: {
+    candidateId: 'candidate:prompt-due',
+    eventType: 'meeting',
+    title: '潮门会合',
+    description: '守门人已经约定在潮门第七响时会合。',
+    scope: { kind: 'context', contextIds: [contextA] },
+    participants: [{ label: '守门人', contextId: contextA }],
+    locations: [{ label: '潮门', contextId: contextA }],
+    schedule: { dueTotalDays: 430 },
+    triggerConditionLabel: '潮门响至第七声',
+    requiredCapabilities: [],
+    tags: ['meeting'],
+    source: { kind: 'system', sourceId: 'historical-event-prompt-smoke' },
+    metadata: {},
+  },
+}
+
 const ledgerContract = {
   contextId: contextA,
   relevantEvents: [
@@ -150,12 +174,14 @@ const ledgerContract = {
     resolvedCurrentEvent,
   ],
   relevantCausalEdges: [currentEdge, crossEdge, foreignEdge],
+  dueCandidates: [dueCandidate],
   counts: {
     events: 6,
     transitions: 0,
     evidence: 3,
     causalEdges: 3,
-    candidates: 0,
+    candidates: 1,
+    dueCandidates: 1,
     scheduledRelevant: 2,
     byStatus: {
       scheduled: 2,
@@ -180,6 +206,27 @@ const ledgerSubsystem = {
       summary: rawOwnerSummary,
       data: structuredClone(ledgerContract),
     }
+  },
+  preflightBatch() {
+    return { ok: true, errors: [], prepared: { batchId: 'fixture', events: [], transitions: [], evidence: [], causalEdges: [], candidateAudits: [], migrationMetadata: [] } }
+  },
+  commitBatch() {
+    return { ok: true, errors: [], eventIds: [], transitionIds: [], evidenceIds: [], causalEdgeIds: [] }
+  },
+  submitCandidates() {
+    return []
+  },
+  queryCandidates() {
+    return [structuredClone(dueCandidate)]
+  },
+  getDueCandidates() {
+    return [structuredClone(dueCandidate)]
+  },
+  commitCandidateDispositions() {
+    return { ok: true, errors: [], eventIds: [], candidateAudits: [] }
+  },
+  getEvent(eventId) {
+    return ledgerContract.relevantEvents.find((candidate) => candidate.eventId === eventId)
   },
   applyChanges() {},
   reset() {},
@@ -227,7 +274,7 @@ orchestrator.setContext({
 orchestrator.collectSubsystemStates(false, false)
 const promptContext = orchestrator.assemblePromptContext()
 const historicalProjection = promptContext.subsystemSummaries.find((summary) => (
-  summary.includes('【历史事件账本：当前待续事实】')
+  summary.includes('【历史事件账本：当前待续事实与到期候选】')
 ))
 const compiledSegments = buildSegmentedPrompt(narrativePrompt, promptContext)
 const compiledPrompt = compiledSegments.full
@@ -254,7 +301,9 @@ assertOk(
     && historicalProjection.includes(`历史事件[${globalEvent.eventId}]`)
     && historicalProjection.includes('作用域：全局')
     && historicalProjection.includes(`历史事件[${crossContextEvent.eventId}]`)
-    && historicalProjection.includes(`作用域：跨上下文[${contextA}、${contextB}]`),
+    && historicalProjection.includes(`作用域：跨上下文[${contextA}、${contextB}]`)
+    && historicalProjection.includes(`到期事件候选[${dueCandidate.candidateId}]`)
+    && historicalProjection.includes(dueCandidate.candidate.description),
   'current-context, global, and explicitly current-crossing scheduled/active facts must retain IDs, text, status, scope, and schedule',
 )
 assertOk(

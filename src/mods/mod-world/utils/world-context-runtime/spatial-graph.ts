@@ -1,16 +1,17 @@
 /**
- * Purpose: Namespace world entities and build the spatial graph owned by a world context.
+ * Purpose: Namespace regions and build the regional graph owned by one world context.
  * Owner: mod-world / spatial-graph.
- * Responsibility: Spatial projection only; capability and context lifecycle state stay outside.
+ * Responsibility: Region identity and graph projection only; context lifecycle stays outside.
  */
 
 import type {
+  RegionNarrativeProfile,
   SpatialEdge,
   SpatialGraphContract,
   SpatialNode,
   WorldContextKind,
 } from '@/foundation'
-import type { AnyWorldEntity, RegionData, WorldContextInstance } from '../../types'
+import type { RegionData, WorldContextInstance } from '../../types'
 import {
   createGlobalEntityId,
   createRuntimeId,
@@ -36,52 +37,32 @@ export function namespaceRegions(contextId: string, regions: RegionData[]): {
   }
 }
 
-export function namespaceEntities(
-  contextId: string,
-  entities: AnyWorldEntity[],
-  regionIdMap: Map<string, string>,
-): AnyWorldEntity[] {
-  const entityIdMap = new Map<string, string>()
-  for (const entity of entities) {
-    entityIdMap.set(entity.id, createGlobalEntityId(contextId, 'entity', entity.id))
+function toProfile(region: RegionData): RegionNarrativeProfile {
+  return {
+    regionId: region.id,
+    name: region.name,
+    summary: region.summary,
+    climate: region.climate,
+    ecology: region.ecology,
+    resources: [...region.resources],
+    pollution: region.pollution,
+    economy: region.economy,
+    population: region.population,
+    settlement: region.settlement,
+    culture: region.culture,
+    education: region.education,
+    socialStructure: region.socialStructure,
+    factions: region.factions,
+    law: region.law,
+    updatedAtGlobalDay: region.updatedAtGlobalDay,
   }
-  return entities.map((entity) => {
-    const next = {
-      ...structuredClone(entity),
-      id: entityIdMap.get(entity.id)!,
-      localId: entity.localId ?? entity.id,
-      contextId,
-      regionId: entity.regionId ? (regionIdMap.get(entity.regionId) ?? entity.regionId) : entity.regionId,
-    } as AnyWorldEntity
-    if (next.type === 'faction') {
-      next.influenceRegionIds = next.influenceRegionIds.map((id) => regionIdMap.get(id) ?? id)
-    } else if (next.type === 'nobleHouse') {
-      next.homeRegion = regionIdMap.get(next.homeRegion) ?? next.homeRegion
-    } else if (next.type === 'tradeRoute') {
-      next.fromSettlementId = entityIdMap.get(next.fromSettlementId) ?? next.fromSettlementId
-      next.toSettlementId = entityIdMap.get(next.toSettlementId) ?? next.toSettlementId
-    }
-    return next
-  })
-}
-
-export function normalizeWorldEntitiesForContext(
-  contextId: string,
-  entities: AnyWorldEntity[],
-  regions: RegionData[],
-): AnyWorldEntity[] {
-  const regionIdMap = new Map<string, string>()
-  for (const region of regions) {
-    regionIdMap.set(region.id, region.id)
-    if (region.localId) regionIdMap.set(region.localId, region.id)
-  }
-  return namespaceEntities(contextId, entities, regionIdMap)
 }
 
 export function buildSpatialGraph(
   contextId: string,
   contextKind: WorldContextKind,
   contextName: string,
+  worldForm: string,
   regions: RegionData[],
 ): SpatialGraphContract {
   const rootNodeId = createGlobalEntityId(contextId, 'space', 'root')
@@ -92,10 +73,11 @@ export function buildSpatialGraph(
       kind: contextKind,
       name: contextName,
       localId: 'root',
-      attributes: {},
+      attributes: { worldForm },
     },
   }
   const edges: SpatialGraphContract['edges'] = {}
+  const regionProfiles: SpatialGraphContract['regionProfiles'] = {}
   for (const region of regions) {
     nodes[region.id] = {
       id: region.id,
@@ -109,6 +91,7 @@ export function buildSpatialGraph(
         terrainTag: region.terrainTag,
       },
     }
+    regionProfiles[region.id] = toProfile(region)
     const edgeId = `${contextId}:edge:contains:${safeContextSegment(region.localId ?? region.id)}`
     edges[edgeId] = {
       id: edgeId,
@@ -119,7 +102,8 @@ export function buildSpatialGraph(
       enabled: true,
     }
   }
-  return { contextId, rootNodeId, nodes, edges, entityLocations: {} }
+  const currentRegionId = regions[0]?.id ?? rootNodeId
+  return { contextId, worldForm, rootNodeId, currentRegionId, nodes, edges, regionProfiles }
 }
 
 export function createCrossContextExit(

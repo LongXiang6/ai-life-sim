@@ -11,7 +11,12 @@ import { MODS_DIR } from './context.mjs'
 
 export function listModDirs() {
   return fs.readdirSync(MODS_DIR)
-    .filter((name) => name.startsWith('mod-') && fs.statSync(path.join(MODS_DIR, name)).isDirectory())
+    .filter((name) => {
+      const modPath = path.join(MODS_DIR, name)
+      return name.startsWith('mod-')
+        && fs.statSync(modPath).isDirectory()
+        && fs.existsSync(path.join(modPath, 'manifest.ts'))
+    })
     .sort()
 }
 
@@ -159,9 +164,9 @@ function isLikelyRemoteFunction(name) {
   // PromptTemplate 对象（narrativePrompt 等）；buildXxxPrompt 函数保留
   if (name.endsWith('Prompt') && !name.startsWith('build')) return false
   if (name.endsWith('Schema')) return false
-  if (['orchestrator', 'narrativeParser', 'summaryCompressor', 'timeSystem', 'memoryEngine',
-    'subsystemRelevance', 'memoryLifecycle', 'memoryForgetting', 'causalDelay',
-    'plotStructure', 'foreshadowing', 'coreMemory', 'simulationBridge'].includes(name)) {
+  if (['orchestrator', 'narrativeParser', 'summaryCompressor', 'timeSystem',
+    'subsystemRelevance', 'memoryLifecycle', 'causalDelay',
+    'plotStructure', 'foreshadowing', 'simulationBridge'].includes(name)) {
     return false
   }
   return true

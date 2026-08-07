@@ -65,13 +65,8 @@ const promptContextRuntime = readModuleSource(
   root,
 )
 const memoryLifecycle = readModuleSource('src/mods/mod-engine/subsystems/memory-lifecycle-system.ts', root)
-const coreMemory = readModuleSource('src/mods/mod-engine/subsystems/core-memory-system.ts', root)
 const narrativeHints = fs.readFileSync(
   path.join(root, 'src/mods/mod-engine/helpers/narrative-hints.ts'),
-  'utf8',
-)
-const lifecycleNarrative = fs.readFileSync(
-  path.join(root, 'src/mods/mod-engine/helpers/lifecycle-narrative.ts'),
   'utf8',
 )
 const subsystemRelevance = fs.readFileSync(
@@ -83,8 +78,8 @@ const narrativeIOSample = fs.readFileSync(
   'utf8',
 ).replace(/\r\n/gu, '\n').trimEnd()
 const summaryCompressor = readModuleSource('src/mods/mod-engine/subsystems/summary-compressor-system.ts', root)
-const lifespanSystem = fs.readFileSync(
-  path.join(root, 'src/mods/mod-character/subsystems/lifespan-system.ts'),
+const characterStatusRuntime = fs.readFileSync(
+  path.join(root, 'src/mods/mod-character/subsystems/character-status-runtime.ts'),
   'utf8',
 )
 const summaryPrompt = fs.readFileSync(
@@ -295,8 +290,8 @@ if (!orchestrator.includes('buildTimeBridgeSummary')) {
   failed++
 }
 
-if (lifespanSystem.includes('lastNarrativeText')) {
-  console.error('FAIL: lifespan must not infer lifespan changes from narrative text')
+if (characterStatusRuntime.includes('lastNarrativeText')) {
+  console.error('FAIL: character status must not infer state changes from narrative text')
   failed++
 }
 
@@ -398,8 +393,8 @@ assertOk(
 assertOk(
     !promptBuilder.includes('creationProtectionText')
     && !promptBuilder.includes("'原创保护'")
-    && orchestrator.includes('coreMemory.buildCreationTimelineEntries('),
-  'player creations must use the core-memory projection without a dedicated prompt field',
+    && orchestrator.includes('memoryLifecycle.buildCreationTimelineEntries('),
+  'player creations must use the unified memory projection without a dedicated prompt field',
 )
 assertOk(
   orchestrator.includes('memoryLifecycle.buildNarrativeTimelineProjection(')
@@ -493,18 +488,6 @@ if (fixedTopicSeeds.length > 0 || timeScaleTopicSeeds.length > 0) {
   )
 }
 if (
-  promptGate.includes('角色当前年龄')
-  && lifecycleNarrative.includes('当前 ${ageYears} 岁')
-  && lifecycleNarrative.includes('当前 ${currentAgeYears} 岁')
-) {
-  recordOptimization(
-    'prompt-duplicate-age-facts',
-    'dynamic-guidance',
-    '角色年龄已由角色现状拥有，但一致性、生命周期和寿命提示仍重复发送。',
-    '角色现状 + round-coherence + lifecycle + lifespan-reminder',
-  )
-}
-if (
   orchestrator.includes("id: 'recent-system-changes'")
   && orchestrator.includes('systemChangeSummary: systemChangeSummary')
 ) {
@@ -513,19 +496,6 @@ if (
     'orchestrator-system',
     '最近变化同时进入独立字段和系统引导，来源与语义容易重复或漂移。',
     '最近变化 + recent-system-changes',
-  )
-}
-if (
-  orchestrator.includes("id: 'lifecycle'")
-  && orchestrator.includes("id: 'lifespan-reminder'")
-  && orchestrator.includes("id: 'influence-boundary'")
-  && orchestrator.includes("id: 'npc-network'")
-) {
-  recordOptimization(
-    'prompt-facts-mixed-into-system-guidance',
-    'orchestrator-system',
-    '生命周期、寿命、影响力和人物关系属于当前事实，却被组装进系统引导。',
-    'lifecycle,lifespan-reminder,influence-boundary,npc-network',
   )
 }
 if (
@@ -577,8 +547,8 @@ assertOk(
   'server fixed authority alone must define how narrative memory is used',
 )
 for (const [source, duplicatedRule] of [
-  [coreMemory, '以下内容由玩家角色亲自开创'],
-  [coreMemory, '不得改写为遗迹发现'],
+  [memoryLifecycle, '以下内容由玩家角色亲自开创'],
+  [memoryLifecycle, '不得改写为遗迹发现'],
   [orchestrator, '跨世界概念能力·每轮遵守'],
   [orchestrator, '受世界合理性约束·每轮遵守'],
   [orchestrator, '本轮玩家行动只对当前回合生效'],
@@ -699,7 +669,7 @@ const activeRules = collectActiveModWorldRules?.([
   { name: 'mod-engine', worldRules: '引擎规则' },
   { name: 'mod-character', worldRules: '角色规则' },
   { name: 'mod-world', worldRules: '共享规则' },
-  { name: 'mod-npc', worldRules: '未启用 NPC 规则' },
+  { name: 'mod-unused', worldRules: '未启用扩展规则' },
   { name: 'mod-duplicate', worldRules: '共享规则' },
 ], [
   { mod: 'mod-character' },
@@ -818,7 +788,7 @@ assertOk(
     && !narrativeSystemPrompt.includes('极端不合理或直接违背高优先级事实时，只能写成梦境、幻想或尚未落地的念头')
     && !narrativeHints.includes('每15轮')
     && !narrativeHints.includes('每 15 轮')
-    && !lifecycleNarrative.includes('Math.random(')
+    && !characterStatusRuntime.includes('Math.random(')
     && !campaign.includes('传说、书页、旧档案、梦境、遗物铭文或路人故事'),
   'core narrative prompts must avoid forced adversity, periodic branching, random genre direction, and concrete medium bias',
 )

@@ -25,9 +25,7 @@ interface UseFatePreviewStartOptions {
   characterConfirmed: boolean
   destinyPatternsConfirmed: boolean
   gender: string
-  lifespan: CharacterState['lifespanDraft']
   name: string
-  race: string
   selectedPatterns: DestinyPattern[]
   startingAge: number
   storySeed: string
@@ -40,9 +38,7 @@ export function useFatePreviewStart({
   characterConfirmed,
   destinyPatternsConfirmed,
   gender,
-  lifespan,
   name,
-  race,
   selectedPatterns,
   startingAge,
   storySeed,
@@ -71,54 +67,34 @@ export function useFatePreviewStart({
       current: { ...confirmedBase },
       modifiers: { physique: 0, mind: 0, talentAptitude: 0, charisma: 0 },
       contextModifiers: {},
+      startingAge,
+      status: undefined,
     })
 
-    const characterId = useCharacterStore.getState().ensureCharacterId()
+    useCharacterStore.getState().ensureCharacterId()
     useCharacterStore.setState({ age: startingAge })
     if (!ensureOrchestratorContextFromStores()) {
       setStartError('无法建立当前世界与角色的模拟上下文，请返回世界配置重新确认。')
       return
     }
-    const targetContextId = useWorldStore.getState().currentContextId
-    if (!targetContextId) {
+    if (!useWorldStore.getState().currentContextId) {
       setStartError('当前世界缺少有效的模拟上下文，请返回世界配置重新确认。')
       return
     }
 
     const commitResult = orchestrator.applyRoundChanges([
       {
-        id: 'character-base',
-        description: '角色创建完成，以玩家确认的基础属性和起始年龄进入叙事',
-        changes: { startingAge, base: confirmedBase },
-      },
-      {
         id: 'destiny-pattern',
         description: '角色创建完成，写入玩家确认的命格',
         changes: { patterns: selectedPatterns },
       },
-      {
-        id: 'lifespan',
-        targetObjectId: characterId,
-        targetContextId,
-        operation: 'set-rule',
-        evidenceEventIds: [],
-        description: '角色创建完成，写入玩家确认的种族与寿命',
-        changes: {
-          raceId: race,
-          raceDisplayName: lifespan.race.name,
-          clockMode: lifespan.race.clockMode,
-          baseLifespanDays: Math.round(lifespan.race.baseLifespanYears * 365),
-          maximumLifespanDays: Math.round(lifespan.maximumLifespanYears * 365),
-          attrBaselines: lifespan.race.attrBaselines ?? {},
-        },
-      },
     ], 'manual')
-    if (commitResult.rejected.length > 0 || commitResult.committed.length !== 3) {
+    if (commitResult.rejected.length > 0 || commitResult.committed.length !== 1) {
       const rejectedReasons = commitResult.rejected
         .map((item) => `${item.change.id || '未知系统'}：${item.reason}`)
         .join('；')
       setStartError(
-        `角色创建状态未能完整提交：${rejectedReasons || `仅完成 ${commitResult.committed.length} / 3 项写入`}`,
+        `角色创建状态未能完整提交：${rejectedReasons || `仅完成 ${commitResult.committed.length} / 1 项写入`}`,
       )
       return
     }
@@ -132,9 +108,7 @@ export function useFatePreviewStart({
     characterConfirmed,
     destinyPatternsConfirmed,
     gender,
-    lifespan,
     name,
-    race,
     router,
     selectedPatterns,
     setGamePhase,

@@ -23,7 +23,7 @@ export {
 export {
   buildSpatialGraph,
   createCrossContextExit,
-  normalizeWorldEntitiesForContext,
+  namespaceRegions,
 } from './world-context-runtime/spatial-graph'
 export {
   buildWorldContextInstance,

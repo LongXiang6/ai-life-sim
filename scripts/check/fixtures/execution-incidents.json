@@ -2,31 +2,6 @@
   "schemaVersion": 1,
   "incidents": [
     {
-      "id": "NP9D55-entity-directory-context",
-      "status": "failed",
-      "message": "已定位实体 character_a9f4d56a-fdb4-4e30-adfe-9c1ffababd9d 未在实体引用目录中登记当前上下文",
-      "expectedCategory": "entity-directory-missing",
-      "rootCauseChain": {
-        "directFailure": "恢复读取实体目录时发现目标上下文未登记该实体，目录恢复直接失败",
-        "precondition": "恢复必须先在同一事务中登记来源与目标上下文的玩家和 NPC 实体引用，才能重建关系、目标和记忆引用",
-        "preconditionCause": "上下文切换与恢复分别提交空间位置和实体目录，且旧存档 NPC 误分类修复没有在同一事务登记玩家实体",
-        "formationMechanism": "实体目录修复被拆成多个入口，缺少单一事务边界和恢复前后一致性校验",
-        "preventionGate": "上下文切换、恢复、生成、提交共用同一前置检查和原子提交，缺失目录登记时在提交前失败"
-      },
-      "rootCauseEvidence": [
-        {
-          "type": "diagnostic-log",
-          "source": "development-system-diagnostic JSONL entity-directory event",
-          "observation": "恢复事件 category=entity-directory-missing 与目标上下文缺失同时出现"
-        },
-        {
-          "type": "fault-injection",
-          "source": "world-context-p0-smoke.mjs",
-          "observation": "注入缺失目录后恢复失败且不写半成品状态"
-        }
-      ]
-    },
-    {
       "id": "context-missing",
       "status": "failed",
       "message": "世界当前上下文缺失，不能恢复非空历史事件账本",
@@ -48,31 +23,6 @@
           "type": "reproduction-trace",
           "source": "world-context-p0-smoke.mjs restore trace",
           "observation": "同一旧存档按恢复入口可稳定复现账本恢复失败"
-        }
-      ]
-    },
-    {
-      "id": "dependency-unregistered",
-      "status": "failed",
-      "message": "同包关系指令依赖的 NPC 实体尚未登记",
-      "expectedCategory": "dependency-unregistered",
-      "rootCauseChain": {
-        "directFailure": "同包关系指令依赖的 NPC 实体尚未登记，关系结算无法解析端点",
-        "precondition": "同包创建操作必须先登记计划实体引用，关系、目标、行为和记忆引用才能引用该实体",
-        "preconditionCause": "结算入口没有复用同包创建前置检查，关系操作先于实体登记执行",
-        "formationMechanism": "多个结算入口各自校验，未把实体目录登记作为共享前置条件",
-        "preventionGate": "统一同包创建顺序，实体登记先于依赖引用，并在契约断言中固定"
-      },
-      "rootCauseEvidence": [
-        {
-          "type": "diagnostic-log",
-          "source": "development-system-diagnostic JSONL dependency-unregistered event",
-          "observation": "关系操作在实体登记事件之前进入结算"
-        },
-        {
-          "type": "fault-injection",
-          "source": "npc-social-p2-smoke.mjs",
-          "observation": "注入未登记端点后关系结算在提交前失败，不产生半成品关系"
         }
       ]
     },

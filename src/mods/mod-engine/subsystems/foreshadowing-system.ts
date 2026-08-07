@@ -19,7 +19,7 @@ import type { SubSystemState, SubSystemChanges, RoundContext } from '@/foundatio
 import { getRoundSequence } from '@/foundation'
 import { BaseSubsystem } from '@/core'
 
-import { memoryForgetting } from './memory-forgetting-system'
+import { memoryLifecycle } from './memory-lifecycle-system'
 import { summaryCompressor } from './summary-compressor-system'
 import { toNarrativeAIForeshadowingId } from '../helpers/narrative-ai-protocol'
 import { clampNumber } from '../helpers/system-safety'
@@ -299,7 +299,7 @@ export class ForeshadowingSystem extends BaseSubsystem {
       this.state.active = this.state.active.filter((item) => item.id !== record.id)
       this.state.resolved.push(record)
       this.state.stats.totalResolved++
-      memoryForgetting.resolveForeshadowMark(record.plantedRound, record.contextId)
+      memoryLifecycle.resolveForeshadowMark(record.plantedRound, record.contextId)
       resolved.push(record)
     }
 
@@ -421,7 +421,7 @@ export class ForeshadowingSystem extends BaseSubsystem {
     this.state.stats.totalPlanted++
 
     // 标记为不可遗忘事件
-    memoryForgetting.markForeshadowEvent(record.plantedRound, record.description, record.contextId)
+    memoryLifecycle.markForeshadowEvent(record.plantedRound, record.description, record.contextId)
   }
 
   /** 计算伏笔的"接近触发"分数 (0-10) */

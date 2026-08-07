@@ -32,7 +32,7 @@ export async function generateWorldInitBundle(
       calibrationGenerated: false,
       tagsGenerated: false,
       configGenerated: false,
-      entitiesGenerated: false,
+      regionProfilesGenerated: false,
       scoringProfileGenerated: false,
       errors: [],
     }
@@ -75,7 +75,7 @@ export async function generateWorldInitBundle(
     result.calibrationGenerated,
     result.tagsGenerated,
     result.configGenerated,
-    result.entitiesGenerated,
+    result.regionProfilesGenerated,
     scoringProfileGenerated,
   ].filter(Boolean).length
   console.info(

@@ -8,7 +8,12 @@ import { useMemo } from 'react'
 
 import {
   ATTR_KEYS,
+  DEFAULT_MAX_VITALITY,
+  DEFAULT_SPIRIT,
+  DEFAULT_STAMINA,
+  DEFAULT_VITALITY,
   RACE_LIFESPAN,
+  type CharacterHealthState,
   useCharacterStore,
 } from '@/mods/mod-character'
 import { resolveDestinyPatternWorldTags } from '@/mods/mod-character/destiny-pattern-access'
@@ -24,6 +29,15 @@ import { resolveWorldDimensionLabels } from '../../helpers/world-dimension-label
 import { parseWorldTagsToSections } from './game-story-world-tags'
 
 const GENDER_LABELS: Record<string, string> = { male: '男', female: '女' }
+const INITIAL_HEALTH: CharacterHealthState = {
+  vitality: DEFAULT_VITALITY,
+  maxVitality: DEFAULT_MAX_VITALITY,
+  stamina: DEFAULT_STAMINA,
+  spirit: DEFAULT_SPIRIT,
+  alive: true,
+  conditions: [],
+  updatedAtTotalDays: 0,
+}
 
 type EngineRound = ReturnType<typeof useEngineStore.getState>['round']
 type PendingNarrative = ReturnType<typeof useEngineStore.getState>['pendingNarrative']
@@ -45,7 +59,7 @@ export function useGameStoryPresentation({
 }: UseGameStoryPresentationOptions) {
   const { narrativeHistory } = useNarrative()
   const timeStep = useEngineStore((state) => state.timeStep)
-  const health = useCharacterStore((state) => state.health)
+  const health = useCharacterStore((state) => state.characterBase.status?.health) ?? INITIAL_HEALTH
   const characterName = useCharacterStore((state) => state.name)
   const characterAge = useCharacterStore((state) => state.age)
   const gender = useCharacterStore((state) => state.gender)
@@ -140,10 +154,8 @@ export function useGameStoryPresentation({
       { icon: '💪', label: '体力', value: String(health.stamina) },
       { icon: '🧠', label: '精神', value: String(health.spirit) },
     ]
-    const diseaseCount = health.conditions.filter((condition) => condition.kind === 'disease').length
-    const injuryCount = health.conditions.filter((condition) => condition.kind === 'injury').length
-    if (diseaseCount > 0) items.push({ icon: '🤒', label: '疾病', value: String(diseaseCount) })
-    if (injuryCount > 0) items.push({ icon: '🩹', label: '伤势', value: String(injuryCount) })
+    const activeConditionCount = health.conditions.filter((condition) => condition.status !== 'resolved').length
+    if (activeConditionCount > 0) items.push({ icon: '🩹', label: '状况', value: String(activeConditionCount) })
     return items
   }, [health])
 

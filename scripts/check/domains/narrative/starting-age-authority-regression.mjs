@@ -15,20 +15,20 @@ import {
   CHARACTER_DAYS_PER_YEAR,
   resolveCharacterAgeDays,
   resolveInitialAgeAnchorTotalDays,
-} from '../../../../src/foundation/subsystem-contracts/life-cycle.contract.ts'
+} from '../../../../src/foundation/subsystem-contracts/character-state.contract.ts'
 
 const root = getProjectRoot(import.meta.url)
 const pagePath = path.join(root, 'src/mods/mod-pages/pages/fate-preview/page.tsx')
 const characterCreatePath = path.join(root, 'src/mods/mod-pages/pages/character-create/useCharacterCreateLogic.ts')
 const characterConstantsPath = path.join(root, 'src/mods/mod-character/constants.ts')
 const orchestratorPath = path.join(root, 'src/mods/mod-engine/subsystems/orchestrator-system.ts')
-const lifecyclePath = path.join(root, 'src/mods/mod-character/subsystems/lifecycle-system.ts')
+const characterStatusRuntimePath = path.join(root, 'src/mods/mod-character/subsystems/character-status-runtime.ts')
 const domainsPath = path.join(root, 'scripts/check/domains.mjs')
 const sourceText = readDirectorySource('src/mods/mod-pages/pages/fate-preview', root, ['.ts', '.tsx'])
 const characterCreateSourceText = readDirectorySource('src/mods/mod-pages/pages/character-create', root, ['.ts', '.tsx'])
 const characterConstantsSourceText = fs.readFileSync(characterConstantsPath, 'utf8')
 const orchestratorSourceText = readModuleSource('src/mods/mod-engine/subsystems/orchestrator-system.ts', root)
-const lifecycleSourceText = fs.readFileSync(lifecyclePath, 'utf8')
+const characterStatusRuntimeSourceText = fs.readFileSync(characterStatusRuntimePath, 'utf8')
 const domainsSourceText = fs.readFileSync(domainsPath, 'utf8')
 const sourceFile = ts.createSourceFile(pagePath, sourceText, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX)
 const characterCreateSourceFile = ts.createSourceFile(
@@ -134,7 +134,7 @@ const manualChangesArgument = applyRoundChangesCall?.arguments[0]
 const manualChangesText = manualChangesArgument?.getText(sourceFile) ?? ''
 const ageSyncIndex = handleBody.indexOf('useCharacterStore.setState({ age: startingAge })')
 const contextSyncIndex = handleBody.indexOf('ensureOrchestratorContextFromStores()')
-const creationCommitIndex = handleBody.indexOf('orchestrator.applyRoundChanges(')
+const characterStateIndex = handleBody.indexOf('setCharacterBase({')
 
 assertOk(!!startingAgeDeclaration, 'fate preview must read canonical characterBase.startingAge')
 const customRace = buildConfirmedRaceLifespan?.('星鲸族', 880)
@@ -187,8 +187,8 @@ assertOk(
   'both forward confirmation and backward preservation must write the current lifespan draft',
 )
 assertOk(
-  ageSyncIndex >= 0 && contextSyncIndex > ageSyncIndex && creationCommitIndex > contextSyncIndex,
-  'handleStartLife must write startingAge before the engine restores context and before owner commits',
+  characterStateIndex >= 0 && ageSyncIndex > characterStateIndex && contextSyncIndex > ageSyncIndex,
+  'handleStartLife must finalize the character draft before the engine restores its context',
 )
 assertOk(
   !!storeAgeProperty
@@ -197,15 +197,9 @@ assertOk(
   'handleStartLife must sync the character store age from startingAge',
 )
 assertOk(
-  /id:\s*'character-base'/.test(manualChangesText)
-    && /changes:\s*\{[^}]*\bstartingAge\b[^}]*\}/s.test(manualChangesText),
-  'handleStartLife must sync startingAge to the character-base subsystem through orchestrator',
-)
-assertOk(
-  /id:\s*'lifespan'/.test(manualChangesText)
-    && /operation:\s*'set-rule'/.test(manualChangesText)
-    && /maximumLifespanDays/.test(manualChangesText),
-  'handleStartLife must commit the current lifespan rule through orchestrator',
+  /id:\s*'destiny-pattern'/.test(manualChangesText)
+    && !/id:\s*'(character-base|lifespan)'/.test(manualChangesText),
+  'handleStartLife must commit only selected destiny patterns after character-base consumes the confirmed draft',
 )
 assertOk(!/\bage\s*:\s*0\b/.test(handleBody), 'handleStartLife must not hard-reset any age field to 0')
 assertOk(
@@ -215,7 +209,7 @@ assertOk(
 assertOk(
   handleBody.includes('if (!allModsLoaded)')
     && handleBody.includes('commitResult.rejected.length > 0')
-    && handleBody.includes('commitResult.committed.length !== 3'),
+    && handleBody.includes('commitResult.committed.length !== 1'),
   'handleStartLife must wait for the complete MOD runtime and reject incomplete creation commits before navigation',
 )
 assertOk(
@@ -248,10 +242,10 @@ assertOk(
   'character age must derive from starting age plus elapsed canonical days without aging before the first narrative',
 )
 assertOk(
-  lifecycleSourceText.includes("lifespan.clockMode === 'external'")
-    && lifecycleSourceText.includes("lifespan.clockMode === 'cyclic'")
-    && lifecycleSourceText.includes("stage('lifespan-limit'"),
-  'lifecycle-system must own external, cyclic, and aging lifespan boundaries',
+  characterStatusRuntimeSourceText.includes("status.clockMode !== 'aging'")
+    && characterStatusRuntimeSourceText.includes('status.maximumLifespanDays * 0.8')
+    && characterStatusRuntimeSourceText.includes('不因到龄自动死亡'),
+  'character-base status must turn the lifespan draft into staged guidance and a non-deterministic ending risk',
 )
 assertOk(
   domainsSourceText.includes("'scripts/check/domains/narrative/starting-age-authority-regression.mjs'"),
@@ -270,9 +264,9 @@ assertOk(
   'orchestrator changes must trigger the narrative starting-age gate',
 )
 assertOk(
-  domainsSourceText.includes("'src/mods/mod-engine/helpers/lifecycle-narrative.ts'")
-    && domainsSourceText.includes("'src/foundation/subsystem-contracts/life-cycle.contract.ts'"),
-  'lifecycle narrative and age-contract changes must trigger the narrative starting-age gate',
+  domainsSourceText.includes("'src/mods/mod-character/subsystems/character-status-runtime.ts'")
+    && domainsSourceText.includes("'src/foundation/subsystem-contracts/character-state.contract.ts'"),
+  'character status and age-contract changes must trigger the narrative starting-age gate',
 )
 
 if (failed === 0) {

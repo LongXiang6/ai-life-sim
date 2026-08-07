@@ -16,7 +16,6 @@ export interface LifeScoringInput {
   committedRounds: number
   narrativeIds: readonly string[]
   resolvedChoiceCount: number
-  lifespanAdjustmentCount: number
   achievementIds: readonly string[]
   completed: boolean
   terminalCommitted: boolean
@@ -52,10 +51,10 @@ export interface LifeScoringResult {
 }
 
 const CURVE_WEIGHTS: Record<ScoringCurveId, Partial<Record<ScoringEvidenceKind, number>>> = {
-  growth: { attributes: 0.75, 'lifespan-adjustments': 0.25 },
+  growth: { attributes: 1 },
   agency: { choices: 0.65, achievements: 0.35 },
   journey: { journey: 0.8, completion: 0.2 },
-  impact: { achievements: 0.5, choices: 0.25, 'lifespan-adjustments': 0.25 },
+  impact: { achievements: 0.6, choices: 0.4 },
 }
 
 function clampScore(value: number): number {
@@ -96,13 +95,11 @@ function attributeEvidence(values: readonly number[]): number {
 function buildEvidence(input: LifeScoringInput): Record<ScoringEvidenceKind, number> {
   const rounds = Math.max(0, Math.trunc(input.rounds))
   const choices = Math.max(0, Math.trunc(input.resolvedChoiceCount))
-  const lifespanAdjustments = Math.max(0, Math.trunc(input.lifespanAdjustmentCount))
   const achievements = new Set(input.achievementIds.map((id) => id.trim()).filter(Boolean)).size
   return {
     attributes: attributeEvidence(input.attributeValues),
     journey: roundScore((input.completed ? 55 : 0) + rounds * 2.25),
     choices: roundScore(choices * 20),
-    'lifespan-adjustments': roundScore(lifespanAdjustments * 34),
     achievements: roundScore(achievements * 20),
     completion: input.completed ? 100 : 0,
   }
@@ -150,7 +147,7 @@ function buildIntegrityChecks(input: LifeScoringInput): Record<string, boolean> 
     terminalCommitted: input.completed && input.terminalCommitted,
     scoringProfileComplete: validProfile(input.profile),
     evidenceFinite: input.attributeValues.every(Number.isFinite)
-      && [input.rounds, input.committedRounds, input.resolvedChoiceCount, input.lifespanAdjustmentCount].every(Number.isFinite),
+      && [input.rounds, input.committedRounds, input.resolvedChoiceCount].every(Number.isFinite),
     roundContinuity: Number.isInteger(input.rounds)
       && input.rounds > 0
       && input.committedRounds >= input.rounds
@@ -197,7 +194,6 @@ export function calculateLifeScore(input: LifeScoringInput): LifeScoringResult {
     journeyCovered: evidence.journey === 100,
     keyChoicesCovered: !profileEvidence.has('choices') || evidence.choices === 100,
     achievementsCovered: !profileEvidence.has('achievements') || evidence.achievements === 100,
-    lifespanAdjustmentsCovered: !profileEvidence.has('lifespan-adjustments') || evidence['lifespan-adjustments'] === 100,
     transitionAuditsClean: input.transitionAudits === undefined
       || (input.transitionAudits.length === input.rounds
         && input.transitionAudits.every((audit) => audit.validationClean)),
@@ -233,7 +229,7 @@ export function verifyStoredLifeScore(record: {
   rounds: number
   attributes?: { physique: number; mind: number; talentAptitude: number; charisma: number }
   dimensions: readonly { id?: string; value: number }[]
-  achievements?: readonly { id: string; kind: 'choice' | 'lifespan-adjustment' }[]
+  achievements?: readonly { id: string; kind: 'choice' }[]
   scoring?: {
     version: number
     profile: WorldScoringProfile
@@ -261,7 +257,6 @@ export function verifyStoredLifeScore(record: {
     committedRounds: audit.committedRounds,
     narrativeIds: audit.narrativeIds,
     resolvedChoiceCount: audit.resolvedChoiceCount,
-    lifespanAdjustmentCount: audit.lifespanAdjustmentCount,
     achievementIds: audit.achievementIds,
     completed: audit.completed,
     terminalCommitted: audit.terminalCommitted,

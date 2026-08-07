@@ -30,6 +30,7 @@ interface AcceptedNarrativeRecord {
   roundContext: RoundContext
   narrative: ParsedNarrative
   deliveredCausalEventIds: string[]
+  deliveredHistoricalEventCandidateIds: string[]
   playerChoice?: string
 }
 
@@ -105,6 +106,7 @@ export function recordNarrativeBackgroundLaunchFailureRuntime(
   const accepted = orchestrator['acceptedNarrativeRecords'].get(input.narrativeId)
   if (input.kind === 'event-recognition' && accepted) {
     orchestrator['deferAcceptedNarrativeCausalityAfterRecognitionFailure'](accepted)
+    releaseHistoricalCandidateDelivery(orchestrator, accepted)
   }
   const errorMessage = input.error instanceof Error ? input.error.message : String(input.error)
   orchestrator['recordSystemDiagnostic'](
@@ -157,6 +159,7 @@ export function reconcileAcceptedNarrativeRecordsRuntime(
     if (record.lifeRunId === orchestrator['state'].lifeRunId && validNarrativeIds.has(narrativeId)) {
       continue
     }
+    releaseHistoricalCandidateDelivery(orchestrator, record)
     orchestrator['acceptedNarrativeRecords'].delete(narrativeId)
     orchestrator['narrativeBackgroundInbox'].discardNarrative(record.lifeRunId, narrativeId)
   }
@@ -212,6 +215,7 @@ export function consumeEventRecognitionRecordRuntime(
   if (!accepted || accepted.lifeRunId !== record.identity.lifeRunId) return
   if (record.status === 'failed' || !record.result) {
     orchestrator['deferAcceptedNarrativeCausalityAfterRecognitionFailure'](accepted)
+    releaseHistoricalCandidateDelivery(orchestrator, accepted)
     orchestrator['recordSystemDiagnostic']('narrative-event-recognition', 'background-consumed', 'warning', {
       ...record.identity,
       error: record.error,
@@ -220,8 +224,10 @@ export function consumeEventRecognitionRecordRuntime(
   }
   try {
     orchestrator['applyNarrativeEventRecognition'](accepted, record.result)
+    releaseHistoricalCandidateDelivery(orchestrator, accepted)
   } catch (error) {
     orchestrator['deferAcceptedNarrativeCausalityAfterRecognitionFailure'](accepted)
+    releaseHistoricalCandidateDelivery(orchestrator, accepted)
     orchestrator['recordSystemDiagnostic'](
       'narrative-event-recognition',
       'background-commit-rejected',
@@ -231,6 +237,15 @@ export function consumeEventRecognitionRecordRuntime(
         error: error instanceof Error ? error.message : String(error),
       },
     )
+  }
+}
+
+function releaseHistoricalCandidateDelivery(
+  orchestrator: OrchestratorSystem,
+  accepted: AcceptedNarrativeRecord,
+): void {
+  for (const candidateId of accepted.deliveredHistoricalEventCandidateIds) {
+    orchestrator['inFlightNarrativeEventCandidateIds'].delete(candidateId)
   }
 }
 

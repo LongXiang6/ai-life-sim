@@ -51,7 +51,6 @@ export interface InstrumentHooks {
 export interface PromptAssemblyReport {
   round: number
   memorySummaryChars: number
-  coreMemoryChars: number
   foreshadowingChars: number
   directionChars: number
   plotStructureChars: number

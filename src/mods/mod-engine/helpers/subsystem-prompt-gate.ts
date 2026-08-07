@@ -21,45 +21,19 @@ const LAYER_HEADERS: Record<PromptStateLayer, string> = {
   world: '【世界背景】',
 }
 
-/** 主角即时：属性、生存、职业、关系、背包等 */
+/** 主角即时：角色状态、成长与当前力量事实。 */
 const PERSONAL_LAYER_IDS = new Set([
   'character-base',
-  'health',
-  'lifespan',
-  'lifecycle-system',
-  'morality',
-  'luck',
-  'faith',
-  'education',
-  'work',
-  'settlement',
-  'item',
   'growth-system',
   'destiny-pattern',
-  'works',
-  'achievement',
   'combat-power',
   'cultivation',
-  'fortune-encounter',
-  'reputation',
-  'culture',
-  'art',
-  'npc-system',
-  'relationship-system',
 ])
 
-/** 本地环境：所在区域、气候、法律、生态、资源等 */
+/** 本地环境：当前区域及其完整的概念性区域概况。 */
 const LOCAL_LAYER_IDS = new Set([
-  'climate',
-  'pollution',
-  'natural-resource',
-  'ecology',
-  'geography',
-  'legal',
-  'social-stratification',
-  'monster',
-  'economy',
-  'population',
+  'spatial-graph',
+  'context-transition',
 ])
 
 /** 其余 isRelevant 且开放的子系统默认归入世界背景 */
@@ -80,10 +54,6 @@ const PROMPT_NOISE_MARKERS = [
 /** 叙事回合禁止 AI 直接写入 enabled 开关的子系统 */
 const NO_AI_ENABLED_TOGGLE = new Set([
   'cultivation',
-  'monster',
-  'anomaly-phenomena',
-  'divine-intervention',
-  'divine-creation',
 ])
 
 export function resolvePromptStateLayer(subsystemId: string): PromptStateLayer {

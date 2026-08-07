@@ -10,21 +10,15 @@ import type {
   CharacterBaseState,
   DestinyPattern,
   DestinyPatternState,
-  HealthProjection,
   LifespanDraftState,
-  LifespanProjection,
-  LifecycleProjection,
   MythicPattern,
   MythicPatternCandidate,
 } from '../types'
 import {
-  DEFAULT_MAX_VITALITY,
-  DEFAULT_SPIRIT,
-  DEFAULT_STAMINA,
-  DEFAULT_VITALITY,
   MYTHIC_PATTERN_SELECT_COUNT,
   RACE_LIFESPAN,
 } from '../constants'
+import { sanitizeCharacterNarrativeStatus } from '../subsystems/character-status-validation'
 
 const BASE_ATTRIBUTE_KEYS = ['physique', 'mind', 'talentAptitude', 'charisma'] as const
 
@@ -70,12 +64,14 @@ export function sanitizeCharacterBaseState(value: unknown): CharacterBaseState {
         }),
       )
     : {}
+  const status = sanitizeCharacterNarrativeStatus(record.status)
   return {
     base: sanitizeBaseAttributes(record.base),
     current: sanitizeBaseAttributes(record.current),
     modifiers: sanitizeAttributeModifiers(record.modifiers),
     contextModifiers,
     startingAge: finiteNumber(record.startingAge),
+    ...(status ? { status } : {}),
   }
 }
 
@@ -159,33 +155,6 @@ export function sanitizeMythicPatternCandidate(value: unknown): MythicPatternCan
   }
 }
 
-function initialHealthProjection(): HealthProjection {
-  return {
-    vitality: DEFAULT_VITALITY,
-    maxVitality: DEFAULT_MAX_VITALITY,
-    stamina: DEFAULT_STAMINA,
-    spirit: DEFAULT_SPIRIT,
-    alive: true,
-    conditions: [],
-  }
-}
-
-function initialLifespanProjection(): LifespanProjection {
-  const human = RACE_LIFESPAN.human!
-  return {
-    raceId: 'human',
-    displayName: human.name,
-    clockMode: human.clockMode,
-    baseLifespanDays: human.baseLifespanYears * 365,
-    maximumLifespanDays: human.baseLifespanYears * 365,
-    adjustments: [],
-  }
-}
-
-function initialLifecycleProjection(): LifecycleProjection {
-  return { ageDays: 0 }
-}
-
 function sanitizeLifespanDraft(value: unknown, fallbackRaceId: unknown): LifespanDraftState {
   const record = isRecord(value) ? value : {}
   const raceRecord = isRecord(record.race) ? record.race : {}
@@ -253,44 +222,35 @@ export function sanitizeCharacterStateSnapshot(value: unknown): Record<string, u
         .map(sanitizeMythicPatternCandidate)
         .filter((item): item is MythicPatternCandidate => item !== null)
     : []
-  const legacyEquipped = sanitizeMythicPattern(record.equippedMythicPattern)
   const equippedMythicPatterns = (Array.isArray(record.equippedMythicPatterns)
     ? record.equippedMythicPatterns.map(sanitizeMythicPattern).filter((item): item is MythicPattern => item !== null)
-    : legacyEquipped
-      ? [legacyEquipped]
-      : [])
+    : [])
     .filter((pattern, index, patterns) => patterns.findIndex((candidate) => candidate.id === pattern.id) === index)
     .slice(0, MYTHIC_PATTERN_SELECT_COUNT)
 
-  // The singular field was the old persistence shape. Remove it after migration
-  // so the array remains the only durable source of equipped reincarnation rules.
-  const {
-    equippedMythicPattern: _legacyEquipped,
-    health: _runtimeHealth,
-    lifespan: _runtimeLifespan,
-    lifecycle: _runtimeLifecycle,
-    lifeStage: _legacyLifeStage,
-    decay: _legacyDecay,
-    lifespanDraft: _lifespanDraft,
-    ...recordWithoutRuntimeLifeState
-  } = record
+  const worldCode = Math.max(0, Math.round(finiteNumber(record.worldCode)))
 
   return {
-    ...recordWithoutRuntimeLifeState,
     characterId: typeof record.characterId === 'string' && record.characterId.trim()
       ? record.characterId.trim()
       : createGlobalCharacterId(),
+    name: typeof record.name === 'string' ? record.name : '',
+    gender: record.gender === 'female' ? 'female' : 'male',
+    race: typeof record.race === 'string' && record.race.trim() ? record.race.trim() : 'human',
+    background: typeof record.background === 'string' ? record.background : 'commoner',
+    raceOrigin: typeof record.raceOrigin === 'string' ? record.raceOrigin : '',
+    age: Math.max(0, finiteNumber(record.age)),
     characterBase: sanitizeCharacterBaseState(record.characterBase),
     destinyPatterns: sanitizeDestinyPatternState(record.destinyPatterns),
     lifespanDraft: sanitizeLifespanDraft(record.lifespanDraft, record.race),
-    health: initialHealthProjection(),
-    lifespan: initialLifespanProjection(),
-    lifecycle: initialLifecycleProjection(),
     talents,
     mythicCandidates,
     equippedMythicPatterns,
     sealedMythicPatternId: typeof record.sealedMythicPatternId === 'string'
       ? record.sealedMythicPatternId
       : null,
+    worldCode,
+    destinyPoolCacheKey: `mod-character:destiny-pool:${worldCode}`,
+    talentPoolCacheKey: `mod-character:talent-pool:${worldCode}`,
   }
 }

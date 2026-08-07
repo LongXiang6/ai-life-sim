@@ -18,15 +18,10 @@ export const P0_FOUNDATION_SUBSYSTEM_IDS = [
 ] as const
 
 const CURRENT_WORLD_SUBSYSTEM_IDS = [
-  'world-entity',
   'character-base',
   'destiny-pattern',
-  'lifespan',
-  'luck',
-  'morality',
+  'growth-system',
   'historical-event-ledger',
-  'celestial',
-  'era',
 ] as const
 
 export const REQUIRED_CONTEXT_SUBSYSTEM_IDS = [
@@ -38,29 +33,14 @@ export const CONTEXT_CAPABILITY_SUBSYSTEM_POLICY: Readonly<
   Record<ContextCapability, { enabledSubsystemIds: readonly string[]; backgroundSubsystemIds: readonly string[] }>
 > = {
   life: { enabledSubsystemIds: [], backgroundSubsystemIds: [] },
-  space: {
-    enabledSubsystemIds: ['geography', 'natural-resource', 'climate', 'ecology', 'pollution'],
-    backgroundSubsystemIds: ['geography', 'natural-resource', 'climate', 'ecology', 'pollution'],
-  },
-  npc: {
-    enabledSubsystemIds: ['npc-system', 'relationship-system'],
-    backgroundSubsystemIds: ['npc-system', 'relationship-system'],
-  },
-  economy: {
-    enabledSubsystemIds: ['economy', 'population', 'settlement', 'work', 'item'],
-    backgroundSubsystemIds: ['economy', 'population', 'settlement', 'work', 'item'],
-  },
-  politics: {
-    enabledSubsystemIds: ['social-stratification', 'faction-dynamics', 'legal', 'conflict-cycle'],
-    backgroundSubsystemIds: ['social-stratification', 'faction-dynamics', 'legal', 'conflict-cycle'],
-  },
+  space: { enabledSubsystemIds: [], backgroundSubsystemIds: [] },
   technology: {
-    enabledSubsystemIds: ['culture', 'art', 'education', 'works', 'culture-tech'],
-    backgroundSubsystemIds: ['culture', 'art', 'education', 'works', 'culture-tech'],
+    enabledSubsystemIds: ['culture-tech'],
+    backgroundSubsystemIds: ['culture-tech'],
   },
   supernatural: {
-    enabledSubsystemIds: ['fate-prophecy', 'divine-creation', 'combat-power', 'cultivation', 'monster', 'fortune-encounter', 'faith', 'divine-intervention', 'anomaly-phenomena'],
-    backgroundSubsystemIds: ['fate-prophecy', 'divine-creation', 'combat-power', 'cultivation', 'monster', 'fortune-encounter', 'faith', 'divine-intervention', 'anomaly-phenomena'],
+    enabledSubsystemIds: ['combat-power', 'cultivation'],
+    backgroundSubsystemIds: ['combat-power', 'cultivation'],
   },
 }
 
@@ -100,9 +80,6 @@ const SUPERNATURAL_POWER_SYSTEM_TAGS = new Set([
 const VALID_CONTEXT_CAPABILITIES = new Set<ContextCapability>([
   'life',
   'space',
-  'npc',
-  'economy',
-  'politics',
   'technology',
   'supernatural',
 ])
@@ -165,17 +142,11 @@ export function deriveCapabilityProfile(
   )
   if (!confirmedCapabilities) {
     const supportsLife = containsKnownTag(config.essenceTag, KNOWN_LIFE_ESSENCE_TAGS)
-    const organizedSociety = supportsLife && ORGANIZED_CIVILIZATION_STAGES.has(config.civilizationStage)
     const technological = TECHNOLOGICAL_CIVILIZATION_STAGES.has(config.civilizationStage)
       || containsKnownTag(config.powerSystemTag, TECHNOLOGICAL_POWER_SYSTEM_TAGS)
     const supernatural = containsKnownTag(config.powerSystemTag, SUPERNATURAL_POWER_SYSTEM_TAGS)
     if (supportsLife) {
       capabilities.add('life')
-      capabilities.add('npc')
-    }
-    if (organizedSociety) {
-      capabilities.add('economy')
-      capabilities.add('politics')
     }
     if (technological) capabilities.add('technology')
     if (supernatural) capabilities.add('supernatural')

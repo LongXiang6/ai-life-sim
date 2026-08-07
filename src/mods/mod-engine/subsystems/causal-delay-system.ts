@@ -26,7 +26,7 @@ import type {
   RoundContext,
 } from '@/foundation'
 
-import { memoryForgetting } from './memory-forgetting-system'
+import { memoryLifecycle } from './memory-lifecycle-system'
 import {
   buildCausalEventFingerprint,
   CAUSAL_DELAY_SNAPSHOT_SCHEMA_VERSION,
@@ -111,14 +111,8 @@ export class CausalDelaySystem implements ISubSystem {
       }
     }
 
-    const maxTriggerPerRound = newConfig.maxTriggerPerRound ?? this.config.maxTriggerPerRound
-    if (!Number.isSafeInteger(maxTriggerPerRound) || maxTriggerPerRound <= 0) {
-      throw new Error(`[${this.id}] Invalid maxTriggerPerRound`)
-    }
-
     this.config = {
       delayDaysBySeverity,
-      maxTriggerPerRound,
     }
   }
 
@@ -258,8 +252,8 @@ export class CausalDelaySystem implements ISubSystem {
     this.stats.totalRecorded++
     this.stats.pendingEvents++
 
-    // 同步到记忆遗忘系统（标记为因果事件，永不遗忘）
-    memoryForgetting.addCausalMark({
+    // 统一记忆生命周期保护未兑现的因果事件。
+    memoryLifecycle.addCausalMark({
       round,
       type,
       description,
@@ -356,10 +350,7 @@ export class CausalDelaySystem implements ISubSystem {
       return aDue - bDue || a.id.localeCompare(b.id)
     })
 
-    // 这里只做非破坏性批处理：未进入本批的到期事项仍完整保留为 pending。
-    const toTrigger = readyEvents.slice(0, this.config.maxTriggerPerRound)
-
-    if (toTrigger.length === 0) {
+    if (readyEvents.length === 0) {
       return {
         hasTriggered: false,
         triggeredEvents: [],
@@ -369,11 +360,11 @@ export class CausalDelaySystem implements ISubSystem {
 
     // 此处仅返回本轮到期事项，不提前消费。只有主叙事完整协议与状态提交
     // 均通过后，orchestrator 才调用 commitCausalTriggers() 确认兑现。
-    const narrativeText = this.buildTriggerNarrative(toTrigger)
+    const narrativeText = this.buildTriggerNarrative(readyEvents)
 
     return {
       hasTriggered: true,
-      triggeredEvents: structuredClone(toTrigger.map((event) => ({
+      triggeredEvents: structuredClone(readyEvents.map((event) => ({
         ...event,
         deliveryState: 'presented' as const,
       }))),
@@ -516,7 +507,7 @@ export class CausalDelaySystem implements ISubSystem {
         event.deliveryState = 'resolved'
         this.stats.totalTriggered++
         this.stats.pendingEvents = Math.max(0, this.stats.pendingEvents - 1)
-        memoryForgetting.resolveCausalMark(event.round, event.type, event.contextId)
+        memoryLifecycle.resolveCausalMark(event.round, event.type, event.contextId)
       } else {
         event.schedule = 'canonical-days'
         event.createdTotalDays = currentTotalDays
@@ -561,7 +552,7 @@ export class CausalDelaySystem implements ISubSystem {
       event.deliveryState = 'resolved'
       this.stats.totalTriggered++
       this.stats.pendingEvents = Math.max(0, this.stats.pendingEvents - 1)
-      memoryForgetting.resolveCausalMark(event.round, event.type, event.contextId)
+      memoryLifecycle.resolveCausalMark(event.round, event.type, event.contextId)
       committed.push(structuredClone(event))
     }
 
@@ -765,10 +756,6 @@ export class CausalDelaySystem implements ISubSystem {
       }
       nextConfig = {
         delayDaysBySeverity,
-        maxTriggerPerRound: Number.isSafeInteger(next.maxTriggerPerRound)
-          && (next.maxTriggerPerRound as number) > 0
-          ? next.maxTriggerPerRound as number
-          : DEFAULT_CAUSAL_CONFIG.maxTriggerPerRound,
       }
     }
 

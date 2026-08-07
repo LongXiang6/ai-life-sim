@@ -10,7 +10,6 @@ export default function WorldMapPage() {
   const currentContextId = useWorldStore((state) => state.currentContextId)
   useWorldStore((state) => state.contexts)
   useWorldStore((state) => state.crossContextEdges)
-  useWorldStore((state) => state.entityReferences)
   const totalDays = useEngineStore((state) => state.round.totalDays)
 
   const projection = currentContextId

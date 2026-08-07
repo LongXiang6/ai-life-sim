@@ -32,6 +32,14 @@ export function acceptNarrativeResponseRuntime(
   }
 
   const deliveredCausalEventIds = [...orchestrator['pendingNarrativeCausalEventIds']]
+  const deliveredHistoricalEventCandidateIds = [
+    ...orchestrator['pendingNarrativeEventCandidateIds'],
+  ]
+  for (const candidateId of deliveredHistoricalEventCandidateIds) {
+    if (orchestrator['inFlightNarrativeEventCandidateIds'].has(candidateId)) {
+      throw new Error(`到期历史候选已经属于其他已接纳正文：${candidateId}`)
+    }
+  }
   const ageAtRound = orchestrator['computeNarrativeAge'](roundContext)
   const displayTimeLabel = buildNarrativeTimeContext(
     roundContext,
@@ -112,12 +120,17 @@ export function acceptNarrativeResponseRuntime(
     roundContext,
     narrative: structuredClone(parsed),
     deliveredCausalEventIds,
+    deliveredHistoricalEventCandidateIds,
     ...(playerChoice ? { playerChoice } : {}),
   })
   if (deliveredCausalEventIds.length > 0) {
     causalDelay.markCausalEventsPresented(deliveredCausalEventIds, narrativeId, roundSequence)
   }
   orchestrator['pendingNarrativeCausalEventIds'] = []
+  for (const candidateId of deliveredHistoricalEventCandidateIds) {
+    orchestrator['inFlightNarrativeEventCandidateIds'].add(candidateId)
+  }
+  orchestrator['pendingNarrativeEventCandidateIds'] = []
   const playerAction = consumeAcceptedPlayerRoundAction(
     orchestrator['lastPlayerChoice'],
     playerChoice,
@@ -130,6 +143,7 @@ export function acceptNarrativeResponseRuntime(
     narrativeId,
     roundSequence,
     deliveredCausalEventIds,
+    deliveredHistoricalEventCandidateIds,
   })
   orchestrator['setRoundAdoption']({
     responseReceived: true,
@@ -149,6 +163,7 @@ export function acceptNarrativeResponseRuntime(
     narrativeId,
     roundSequence,
     deliveredCausalEventIds,
+    deliveredHistoricalEventCandidateIds,
     changes: [],
     notableEvents: [],
   }

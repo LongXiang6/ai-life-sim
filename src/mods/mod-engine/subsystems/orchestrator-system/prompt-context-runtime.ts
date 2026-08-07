@@ -5,7 +5,11 @@
  */
 
 import { getInstrumentHooks, isInstrumentEnabled } from '@/core/instrument/instrument-mode'
-import type { PowerFrameworkDefinition, PromptContext } from '@/foundation'
+import type {
+  CharacterNarrativeStatus,
+  PowerFrameworkDefinition,
+  PromptContext,
+} from '@/foundation'
 import { useCharacterStore } from '@/mods/mod-character'
 import { useSettingsStore } from '@/mods/mod-settings/settings-runtime-api'
 import {
@@ -34,7 +38,6 @@ import {
   buildWordCountInstruction,
   causalDelay,
   collectActiveModWorldRules,
-  coreMemory,
   DEFAULT_WORD_COUNT_TARGET,
   foreshadowing,
   getWorldRules,
@@ -43,7 +46,6 @@ import {
   readBirthEraYearFromConfig,
   readEraStartYearFromConfig,
   resolveCalendarEraYear,
-  resolveNarrativeCalendarNode,
   resolveNarrativeToneHint,
   subsystemRelevance,
   timeSystem,
@@ -69,7 +71,13 @@ export function assemblePromptContextRuntime(
   const luckNarrativeGuidance = orchestrator['prepareLuckNarrativeGuidance'](context)
   const syncedCharacter = orchestrator['syncCharacterStateForPrompt'](context)
   const narrativeTime = buildNarrativeTimeContext(context, worldSetting)
-  const promptScopeView = orchestrator['getNarrativeScopeView']()
+  const dueHistoricalCandidates = orchestrator.getDueHistoricalEventCandidates()
+  orchestrator['pendingNarrativeEventCandidateIds'] = dueHistoricalCandidates.map(
+    (audit) => audit.candidateId,
+  )
+  const inFlightHistoricalCandidateIds = [
+    ...orchestrator['inFlightNarrativeEventCandidateIds'],
+  ]
   const relevantStates = subsystemRelevance.getRelevantStates(
     orchestrator['lastSubsystemStates'],
     context,
@@ -77,22 +85,23 @@ export function assemblePromptContextRuntime(
   const summaries = Object.values(relevantStates)
     .filter((state) => (
       state.id !== orchestrator.id
-      && state.id !== 'population'
       && state.id !== 'culture-tech'
       && isSubsystemOpenForPrompt(state, state.id)
     ))
     .map((state) => ({
       id: state.id,
       summary: state.id === HISTORICAL_EVENT_LEDGER_ID
-        ? buildHistoricalEventPromptProjection(state, context.contextId) ?? ''
+        ? buildHistoricalEventPromptProjection(
+            state,
+            context.contextId,
+            inFlightHistoricalCandidateIds,
+          ) ?? ''
         : state.summary,
     }))
     .filter((state) => state.summary)
     .map((state) => state.summary)
   const influenceSummary = orchestrator['buildInfluenceText']()
-  const npcNetworkSummary = coreMemory.buildNPCNetworkText(promptScopeView)
   if (influenceSummary) summaries.push(influenceSummary)
-  if (npcNetworkSummary) summaries.push(npcNetworkSummary)
 
   const currentAbbreviation = orchestrator['buildAbbreviationSnapshot']()
   const systemChangeSummary = orchestrator['buildSystemChangeSummary'](currentAbbreviation)
@@ -100,7 +109,7 @@ export function assemblePromptContextRuntime(
 
   const config = worldSetting.config ?? {}
   const baseData = orchestrator['lastSubsystemStates']?.['character-base']?.data as (
-    NarrativeAICharacterBaseState & { startingAge?: number }
+    NarrativeAICharacterBaseState & { startingAge?: number; status?: CharacterNarrativeStatus }
   ) | undefined
   if (!baseData) throw new Error('主叙事缺少完整的基础属性状态')
   const startingAge = baseData.startingAge ?? 0
@@ -154,11 +163,6 @@ export function assemblePromptContextRuntime(
   const calibrationSummary = calibration
     ? formatCalibrationSummary({
         ...calibration,
-        ...(calibration.world ? {
-          world: Object.fromEntries(
-            Object.entries(calibration.world).filter(([key]) => key !== 'populationBase'),
-          ) as WorldCalibration['world'],
-        } : {}),
         ...(calibration.formulas ? {
           formulas: Object.fromEntries(
             Object.entries(calibration.formulas).filter(([key]) => key !== 'techProgressModifier'),
@@ -179,33 +183,31 @@ export function assemblePromptContextRuntime(
   ].filter(Boolean).join('\n') || undefined
   const lightWorldSetting = orchestrator['buildLightWorldSetting'](narrativeTime.eraLabel)
   const characterNarrativeView = projectCharacterForNarrativeAI(syncedCharacter, baseData)
-  const previousLocalCalendar = resolveNarrativeCalendarNode(
-    orchestrator['previousNarrativeRound'].totalDays,
-    worldSetting,
-  )
-  const previousCalendarYear = previousLocalCalendar?.calendarYear ?? resolveCalendarEraYear(
+  const previousCalendarYear = resolveCalendarEraYear(
     orchestrator['previousNarrativeRound'].year,
     readEraStartYearFromConfig(config),
     readBirthEraYearFromConfig(config),
   )
+  const currentLifeStage = baseData.status?.lifeStages.find(
+    (stage) => stage.stageId === baseData.status?.currentStageId,
+  )
   const calendarNarrativeContext = buildCalendarNarrativeContext({
     timeStep: orchestrator['state'].timeStep,
     calendarYear: narrativeTime.calendarYear,
-    calendarName: narrativeTime.calendarName,
-    daysPerYear: narrativeTime.daysPerYear,
-    monthsPerYear: narrativeTime.monthsPerYear,
     seasonName: narrativeTime.seasonName,
-    usesCanonicalSolarSeasons: narrativeTime.usesCanonicalSolarSeasons,
     month: narrativeTime.month,
     day: narrativeTime.day,
+    festivalScope: config.festivalScope === 'china-and-international'
+      ? 'china-and-international'
+      : 'china',
+    characterStageName: currentLifeStage?.displayName,
+    characterBackground: syncedCharacter.background,
     previousNode: {
       calendarYear: previousCalendarYear,
-      month: previousLocalCalendar?.month ?? orchestrator['previousNarrativeRound'].month + 1,
-      day: previousLocalCalendar?.day ?? orchestrator['previousNarrativeRound'].day + 1,
+      month: orchestrator['previousNarrativeRound'].month + 1,
+      day: orchestrator['previousNarrativeRound'].day + 1,
     },
-    daysPassed: previousLocalCalendar
-      ? Math.max(0, narrativeTime.localTotalDays - previousLocalCalendar.localTotalDays)
-      : timeSystem.getDaysPassed(),
+    daysPassed: timeSystem.getDaysPassed(),
     timeStepAlignment: orchestrator['lastTimeStepAlignment'],
   })
   const triggeredCausality = causalDelay.checkCausalTrigger(orchestrator['state'].totalRounds, {
@@ -260,10 +262,7 @@ export function assemblePromptContextRuntime(
       : instruction
   }
   assembled.timeGuideText = [
-    buildTimeScaleNarrativeHint(orchestrator['state'].timeStep, {
-      usesCanonicalSolarSeasons: narrativeTime.usesCanonicalSolarSeasons,
-      calendarName: narrativeTime.calendarName,
-    }),
+    buildTimeScaleNarrativeHint(orchestrator['state'].timeStep),
     calendarNarrativeContext,
   ].filter(Boolean).join('\n')
 
@@ -275,7 +274,6 @@ export function assemblePromptContextRuntime(
     getInstrumentHooks().onPromptAssembled?.({
       round: orchestrator['state'].totalRounds,
       memorySummaryChars: memory.length,
-      coreMemoryChars: 0,
       foreshadowingChars: foreshadowingText.length,
       directionChars: 0,
       plotStructureChars: plotStructureText.length,

@@ -22,7 +22,7 @@ function buildCanonicalAttributeScale(): Record<string, Record<string, string>> 
 }
 
 export function buildNarrativeBasicAttributeContractLine(): string {
-  const contract = getNarrativeAISubsystemContract('character-base')
+  const contract = getNarrativeAISubsystemContract('character-base', ['adjust-attributes'])
   return `⟦基础属性契约⟧${JSON.stringify({
     系统: contract.aiName,
     目标对象: 'player:current',

@@ -15,8 +15,6 @@ import { sanitizeCharacterStateSnapshot, useCharacterStore } from '@/mods/mod-ch
 import {
   buildDefaultCalibration,
   formatCalibrationSummary,
-  registerWorldEntityReference,
-  repairWorldEntityReferenceDirectory,
   sanitizeWorldStateSnapshot,
   useWorldStore,
 } from '@/mods/mod-world/world-runtime-api'
@@ -93,20 +91,11 @@ function serializeStoreState<T extends object>(state: T): Record<string, unknown
 }
 
 function buildWorldSavePayload(): Record<string, unknown> {
-  const {
-    entityReferences: _ownedByWorldEntitySystem,
-    ...world
-  } = serializeStoreState(useWorldStore.getState())
-  return world
+  return serializeStoreState(useWorldStore.getState())
 }
 
 function buildCharacterSavePayload(): Record<string, unknown> {
-  const character = serializeStoreState(useCharacterStore.getState())
-  delete character.lifespanDraft
-  delete character.health
-  delete character.lifespan
-  delete character.lifecycle
-  return character
+  return serializeStoreState(useCharacterStore.getState())
 }
 
 function buildEngineSavePayload(): Record<string, unknown> {
@@ -293,37 +282,6 @@ export function ensureOrchestratorContextFromStores(): boolean {
 
   const calibration = worldState.calibration ?? buildDefaultCalibration(worldConfig)
   const characterId = character.characterId || character.ensureCharacterId()
-  const currentInstance = worldState.contexts[worldState.currentContextId]
-  // 刷新后仅剩空间端点时先恢复实体目录；尤其要在玩家登记前修复旧版
-  // 把 character_* 误标为 NPC 的条目，否则严格种类契约会阻断当前角色注入。
-  const directoryRepair = repairWorldEntityReferenceDirectory()
-  registerWorldEntityReference({
-    entityId: characterId,
-    kind: 'player',
-    displayName: character.name || '未命名',
-    contextIds: [currentInstance.record.id],
-    registeredAtTotalDays: useEngineStore.getState().round.totalDays,
-  })
-  if (!currentInstance.spatialGraph.entityLocations[characterId]) {
-    worldState.replaceContext({
-      ...currentInstance,
-      spatialGraph: {
-        ...currentInstance.spatialGraph,
-        entityLocations: {
-          ...currentInstance.spatialGraph.entityLocations,
-          [characterId]: {
-            entityId: characterId,
-            contextId: currentInstance.record.id,
-            nodeId: currentInstance.record.rootSpatialNodeId,
-            updatedAtGlobalDay: useEngineStore.getState().round.totalDays,
-          },
-        },
-      },
-    })
-  }
-  if (directoryRepair.fallbackEntityIds.length > 0) {
-    console.warn('[save-restore] 从空间图恢复了缺失的实体引用目录项:', directoryRepair.fallbackEntityIds)
-  }
   const worldTagsText = worldState.worldTags.length > 0
     ? worldState.worldTags.join('、')
     : undefined

@@ -12,7 +12,7 @@ import type {
   WorldContextRecord,
 } from '@/foundation'
 import type { WorldCalibration, FormulaModifierKey, WorldInitAIStatus } from './calibration'
-import type { AnyWorldEntity, RegionData } from './entities'
+import type { RegionData } from './regions'
 import type { WorldConfig } from './world-config'
 import type { WorldTagsV2 } from './world-tags'
 
@@ -20,7 +20,6 @@ export interface WorldSnapshot {
   contextId: string
   rootSpatialNodeId: string
   worldConfig: WorldConfig
-  entities: AnyWorldEntity[]
   regions: RegionData[]
   tags: WorldTagsV2
 }
@@ -33,7 +32,6 @@ export interface WorldContextInstance {
   worldConfig: WorldConfig
   worldCode: number
   initialized: boolean
-  entities: AnyWorldEntity[]
   regions: RegionData[]
   tags: WorldTagsV2
   worldTags: string[]

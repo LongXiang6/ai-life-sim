@@ -1,7 +1,7 @@
 /**
  * Purpose: Own append-only historical facts, evidence, transitions, candidates, and causal edges.
  * Owner: mod-history-dynamics
- * Responsibility: Coordinate ledger writes and persistence; bounded read projection is delegated downstream.
+ * Responsibility: Coordinate ledger writes and persistence; read projection is delegated downstream.
  *
  * 职责：拥有跨世界历史事件事实、状态迁移、证据、因果边和候选审计。
  * 非职责：不创作正文、不随机触发题材事件、不替代 causal-delay 的叙事承诺兑现。
@@ -22,6 +22,8 @@ import type {
   HistoricalCausalEdgeQuery,
   HistoricalEventCandidate,
   HistoricalEventCandidateAudit,
+  HistoricalEventCandidateDispositionBatch,
+  HistoricalEventCandidateDispositionResult,
   HistoricalEventCandidateQuery,
   HistoricalEventCandidateSubmission,
   HistoricalEventCommitBatch,
@@ -52,6 +54,7 @@ import type {
   SubSystemState,
 } from '@/foundation'
 import { getRoundSequence } from '@/foundation'
+import { useCharacterStore } from '@/mods/mod-character'
 import { useWorldStore } from '@/mods/mod-world'
 
 import { HISTORICAL_EVENT_STATUSES, HISTORICAL_EVENT_TRANSITIONS } from '../constants'
@@ -71,6 +74,13 @@ import {
 } from '../utils'
 import { CausalGraphComponent } from '../components/causal-graph-component'
 import { EventCandidateProvider } from '../components/event-candidate-provider'
+import { commitCandidateDispositionsRuntime } from './historical-event-ledger-system/candidate-disposition-runtime'
+import {
+  getDueCandidatesRuntime,
+  isHistoricalScheduleDue,
+  toHistoricalValidationContext,
+  type TrustedHistoricalEventValidationContext,
+} from './historical-event-ledger-system/candidate-due-runtime'
 import {
   getHistoricalEventDetailsRuntime,
   getHistoricalEventRuntime,
@@ -105,9 +115,6 @@ const CAUSAL_RELATION_SET = new Set([
 const CAPABILITY_SET = new Set<ContextCapability>([
   'life',
   'space',
-  'npc',
-  'economy',
-  'politics',
   'technology',
   'supernatural',
 ])
@@ -123,28 +130,10 @@ function emptyCommitResult(errors: string[]): HistoricalEventCommitResult {
   }
 }
 
-interface TrustedHistoricalEventValidationContext extends HistoricalEventValidationContext {
-  origin: 'round-context' | 'explicit-context'
-  trustedCharacterId?: string
-  reportedCharacterId?: unknown
-}
-
 function toValidationContext(
   context: RoundContext | HistoricalEventValidationContext,
 ): TrustedHistoricalEventValidationContext {
-  const isRoundContext = 'subsystemStates' in context
-  const raw = context as unknown as Record<string, unknown>
-  const roundSequence = isRoundContext ? getRoundSequence(context) : context.roundSequence
-  return {
-    contextId: context.contextId,
-    roundSequence,
-    totalDays: context.totalDays,
-    origin: isRoundContext ? 'round-context' : 'explicit-context',
-    trustedCharacterId: isRoundContext ? (context as RoundContext).characterId : undefined,
-    reportedCharacterId: !isRoundContext && Object.hasOwn(raw, 'characterId')
-      ? raw.characterId ?? null
-      : undefined,
-  }
+  return toHistoricalValidationContext(context)
 }
 
 interface HistoricalLedgerIndex {
@@ -209,9 +198,15 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
         (status === 'scheduled' || status === 'active')
         && isRelevantHistoricalScope(event.scope, context.contextId)
       ) {
+        if (status === 'scheduled' && !isHistoricalScheduleDue(event.schedule, {
+          totalDays: context.totalDays,
+          roundSequence: getRoundSequence(context),
+          legacyYear: context.round.year,
+        })) continue
         relevantEvents.push(this.toView(event, index))
       }
     }
+    const dueCandidates = this.getDueCandidates(context)
     const relevantEventIds = new Set(relevantEvents.map((event) => event.eventId))
     const relevantCausalEdges: HistoricalCausalEdge[] = []
     for (const edge of index.state.causalEdges) {
@@ -227,19 +222,21 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
       contextId: context.contextId,
       relevantEvents,
       relevantCausalEdges: cloneValue(relevantCausalEdges),
+      dueCandidates,
       counts: {
         events: index.state.events.length,
         transitions: index.state.transitions.length,
         evidence: index.state.evidence.length,
         causalEdges: index.state.causalEdges.length,
         candidates: index.latestCandidateById.size,
+        dueCandidates: dueCandidates.length,
         scheduledRelevant: relevantEvents.filter((event) => Boolean(event.schedule)).length,
         byStatus: { ...index.countsByStatus },
       },
     }
     return {
       id: this.id,
-      summary: `【${this.label}：当前相关待续 ${relevantPendingCount} | 相关因果边 ${relevantCausalEdges.length}】`,
+      summary: `【${this.label}：当前相关待续 ${relevantPendingCount} | 到期候选 ${dueCandidates.length} | 相关因果边 ${relevantCausalEdges.length}】`,
       data: structuredClone(data),
     }
   }
@@ -530,6 +527,19 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
 
   queryCandidates(query: HistoricalEventCandidateQuery = {}): HistoricalEventCandidateAudit[] {
     return queryHistoricalCandidatesRuntime(this, query)
+  }
+
+  getDueCandidates(
+    rawContext: RoundContext | HistoricalEventValidationContext,
+  ): HistoricalEventCandidateAudit[] {
+    return getDueCandidatesRuntime(this, rawContext)
+  }
+
+  commitCandidateDispositions(
+    batch: HistoricalEventCandidateDispositionBatch,
+    rawContext: RoundContext | HistoricalEventValidationContext,
+  ): HistoricalEventCandidateDispositionResult {
+    return commitCandidateDispositionsRuntime(this, batch, rawContext)
   }
 
   promoteCandidate(
@@ -1138,8 +1148,6 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
         }
       } else if (previousStatus !== 'available') {
         errors.push(`${path} 候选已处于终结状态，不能继续追加 ${String(audit.status)}`)
-      } else if (audit.status === 'available') {
-        errors.push(`${path} 同一候选不能重复追加 available`)
       }
       if (nonEmptyText(audit.candidateId)) {
         candidateStatus.set(audit.candidateId, String(audit.status))
@@ -1355,10 +1363,8 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
       const characterId = nonEmptyText(context.trustedCharacterId)
       if (!characterId) {
         errors.push('RoundContext.characterId 不能为空')
-      } else if (!this.stableEntityIds().has(characterId)) {
-        errors.push(`RoundContext.characterId 不存在于实体真源: ${characterId}`)
-      } else if (!this.entityContextIds(characterId).has(context.contextId)) {
-        errors.push(`RoundContext.characterId 不属于当前上下文: ${characterId}`)
+      } else if (useCharacterStore.getState().characterId !== characterId) {
+        errors.push(`RoundContext.characterId 与当前角色稳定 ID 不一致: ${characterId}`)
       }
     }
     if (!Number.isInteger(context.roundSequence) || context.roundSequence < 0) {
@@ -1366,6 +1372,12 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
     }
     if (!Number.isFinite(context.totalDays) || context.totalDays < 0) {
       errors.push('validationContext.totalDays 必须是非负规范时间')
+    }
+    if (
+      context.legacyYear !== undefined
+      && (!Number.isFinite(context.legacyYear) || context.legacyYear < 0)
+    ) {
+      errors.push('validationContext.legacyYear 必须是非负纪年')
     }
   }
 
@@ -1472,7 +1484,6 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
     if (!Array.isArray(participants)) {
       errors.push(`${path}.participants 必须是数组`)
     } else {
-      const stableEntityIds = this.stableEntityIds()
       for (const [index, participant] of participants.entries()) {
         if (!isPlainRecord(participant)) {
           errors.push(`${path}.participants[${index}] 必须是对象`)
@@ -1487,10 +1498,6 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
           errors.push(`${path}.participants[${index}].label 必须是非空字符串`)
         }
         if (!entityId && !label) errors.push(`${path}.participants[${index}] 必须提供 entityId 或 label`)
-        if (entityId && !stableEntityIds.has(entityId)) {
-          errors.push(`${path}.participants[${index}] 的稳定实体 ID 不存在: ${entityId}`)
-        }
-        const entityContextIds = entityId ? this.entityContextIds(entityId) : new Set<string>()
         if (entityId && options.mode === 'new-write' && !participant.contextId) {
           for (const entityContextId of this.entityContextIds(entityId)) {
             referencedContextIds.add(entityContextId)
@@ -1503,14 +1510,6 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
           } else {
             this.validateContextId(participantContextId, errors, `${path}.participants[${index}].contextId`)
             referencedContextIds.add(participantContextId)
-          }
-          if (
-            participantContextId
-            && entityId
-            && options.mode === 'new-write'
-            && !entityContextIds.has(participantContextId)
-          ) {
-            errors.push(`${path}.participants[${index}].contextId 与实体实际上下文不一致`)
           }
         }
         if (participant.role !== undefined && !nonEmptyText(participant.role)) {
@@ -1785,23 +1784,18 @@ export class HistoricalEventLedgerSystem extends BaseSubsystem {
     })
   }
 
-  private stableEntityIds(): Set<string> {
-    const ids = new Set<string>()
-    for (const instance of Object.values(useWorldStore.getState().contexts)) {
-      for (const entity of instance.entities) ids.add(entity.id)
-      for (const entityId of Object.keys(instance.spatialGraph.entityLocations)) ids.add(entityId)
-    }
-    return ids
-  }
-
   private entityContextIds(entityId: string): Set<string> {
     const contextIds = new Set<string>()
-    for (const instance of Object.values(useWorldStore.getState().contexts)) {
-      if (
-        instance.entities.some((entity) => entity.id === entityId)
-        || instance.spatialGraph.entityLocations[entityId]
-      ) {
-        contextIds.add(instance.record.id)
+    const world = useWorldStore.getState()
+    if (useCharacterStore.getState().characterId === entityId && world.currentContextId) {
+      contextIds.add(world.currentContextId)
+    }
+    for (const event of selectHistoryLedgerReadState().events) {
+      const participant = event.participants.find((item) => item.entityId === entityId)
+      if (!participant) continue
+      if (participant.contextId) contextIds.add(participant.contextId)
+      if (event.scope.kind !== 'global') {
+        for (const contextId of event.scope.contextIds) contextIds.add(contextId)
       }
     }
     return contextIds

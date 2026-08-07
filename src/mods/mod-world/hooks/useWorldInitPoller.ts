@@ -170,7 +170,7 @@ export function useWorldInitPoller(worldCode: number): void {
             calibrationGenerated: calDone || currentStatus?.calibrationGenerated || false,
             tagsGenerated: tagsDone || currentStatus?.tagsGenerated || false,
             configGenerated: currentStatus?.configGenerated || false,
-            entitiesGenerated: currentStatus?.entitiesGenerated || false,
+            regionProfilesGenerated: currentStatus?.regionProfilesGenerated || false,
             retryCount: currentStatus?.retryCount ?? 0,
             maxRetries: currentStatus?.maxRetries ?? 3,
             errors: serverFailed

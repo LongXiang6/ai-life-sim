@@ -20,6 +20,7 @@ export interface AcceptedNarrativeRecord {
   roundContext: RoundContext
   narrative: ParsedNarrative
   deliveredCausalEventIds: string[]
+  deliveredHistoricalEventCandidateIds: string[]
   playerChoice?: string
 }
 

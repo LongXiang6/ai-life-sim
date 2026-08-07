@@ -1,0 +1,109 @@
+<!-- Purpose: Provide a copyable, style-neutral UI iteration worksheet. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>UI 迭代模板</title>
+  <link rel="stylesheet" href="../assets/library.css">
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">PAGE-ID / ROUND-01</p>
+      <h1>页面名称 · 第一轮</h1>
+    </div>
+    <span class="status status-draft">待比较</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>填写本轮唯一需要改善的用户结果。</dd></div>
+        <div><dt>保持不变</dt><dd>填写业务字段、交互语义、导航和状态契约。</dd></div>
+        <div><dt>比较维度</dt><dd>填写结构、层级、密度、操作顺序或响应式目标。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>结构名称</strong></header>
+          <div class="candidate-canvas" aria-label="候选 01 画布占位">
+            <div class="canvas-header"></div>
+            <div class="canvas-body"><span></span><span></span><span></span></div>
+            <div class="canvas-action"></div>
+          </div>
+          <p>说明该候选的核心结构差异和玩家可见后果。</p>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>结构名称</strong></header>
+          <div class="candidate-canvas canvas-split" aria-label="候选 02 画布占位">
+            <div class="canvas-header"></div>
+            <div class="canvas-body"><span></span><span></span><span></span></div>
+            <div class="canvas-action"></div>
+          </div>
+          <p>说明该候选的核心结构差异和玩家可见后果。</p>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>结构名称</strong></header>
+          <div class="candidate-canvas canvas-ledger" aria-label="候选 03 画布占位">
+            <div class="canvas-header"></div>
+            <div class="canvas-body"><span></span><span></span><span></span></div>
+            <div class="canvas-action"></div>
+          </div>
+          <p>说明该候选的核心结构差异和玩家可见后果。</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01</span><span role="columnheader">02</span><span role="columnheader">03</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">信息层级</strong><span role="cell">待评</span><span role="cell">待评</span><span role="cell">待评</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">操作效率</strong><span role="cell">待评</span><span role="cell">待评</span><span role="cell">待评</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">小屏适配</strong><span role="cell">待评</span><span role="cell">待评</span><span role="cell">待评</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">剧情承载</strong><span role="cell">待评</span><span role="cell">待评</span><span role="cell">待评</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-empty">未选择</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>填写候选编号与选择原因。</dd></div>
+        <div><dt>淘汰</dt><dd>填写其他候选未进入下一轮的直接原因。</dd></div>
+        <div><dt>下一轮继承</dt><dd>只填写继续保留的结构事实，不继承未确认风格。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

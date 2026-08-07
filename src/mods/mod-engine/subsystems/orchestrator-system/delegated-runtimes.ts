@@ -26,6 +26,7 @@ export { acceptNarrativeResponseRuntime } from './narrative-acceptance-runtime'
 export {
   buildHistoricalCausalScopeRuntime,
   getAvailableHistoricalEventCandidatesRuntime,
+  getDueHistoricalEventCandidatesRuntime,
   getCurrentHistoricalScopeRuntime,
   getHistoricalEventLedgerRuntimeRuntime,
   notifyHistoricalEventsCommittedRuntime,

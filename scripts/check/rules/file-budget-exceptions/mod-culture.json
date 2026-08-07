@@ -1,11 +1,4 @@
 {
   "schemaVersion": 1,
-  "entries": [
-    {
-      "path": "src/mods/mod-culture/constants.ts",
-      "owner": "mod-culture",
-      "reviewedLines": 347,
-      "reason": "所属 MOD 的中央静态常量与校准表，机器键和数值必须保留为一个命名源。"
-    }
-  ]
+  "entries": []
 }

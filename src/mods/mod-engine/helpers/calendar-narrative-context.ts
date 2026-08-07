@@ -1,23 +1,25 @@
 /**
- * @module calendar-narrative-context.ts
- * @description 当前时间粒度的节假日、学期与工作日合理性提示
- * @mod mod-engine
+ * Purpose: Assemble fixed-calendar festival and social-rhythm guidance for the main narrative.
+ * Owner: mod-engine / time-system
+ * Responsibility: Prompt projection only; time state and story selection remain with their owners.
  */
 
-import { remote } from '@/core'
 import type { TimeStep } from '@/foundation'
+import {
+  buildFestivalNarrativeHint,
+  type FestivalScope,
+} from '../subsystems/time-system/festival-calendar'
 import { buildCanonicalCalendarNarrativeHint } from './time-scale-narrative'
 
 export interface CalendarNarrativeContextInput {
   timeStep: TimeStep
   calendarYear: number
-  calendarName?: string
-  daysPerYear?: number
-  monthsPerYear?: number
   seasonName?: string
-  usesCanonicalSolarSeasons?: boolean
   month: number
   day: number
+  festivalScope: FestivalScope
+  characterStageName?: string
+  characterBackground?: string
   previousNode?: {
     calendarYear: number
     month: number
@@ -30,10 +32,6 @@ export interface CalendarNarrativeContextInput {
   }
 }
 
-/**
- * 通用历法护栏由引擎提供；mod-culture 若有世界配置写入的节日，再通过 Remote Interface
- * 追加精确月/日信息。这样无需启用完整文化模拟，也不让 mod-engine 静态依赖下游 MOD。
- */
 export function buildCalendarNarrativeContext(input: CalendarNarrativeContextInput): string {
   const canonicalSpanRule = buildCanonicalCalendarNarrativeHint(input)
   const hasActualWindow = input.previousNode !== undefined
@@ -62,18 +60,16 @@ export function buildCalendarNarrativeContext(input: CalendarNarrativeContextInp
       break
   }
 
-  let configuredFestival: string | undefined
-  try {
-    configuredFestival = remote.tryCall<string>(
-      'mod-culture',
-      'buildCultureCalendarNarrativeContext',
-      input,
-    )
-  } catch (error) {
-    console.warn('[CalendarContext] 读取 mod-culture 节日上下文失败:', error)
-  }
-
-  const worldviewRule = '真实或类现实世界应按角色所在国家或地区推断节假日、校历与工作制度；非现实世界遵循“世界设定”中的历法、宗教、制度和社会节律，不套用现实国家模板。'
+  const configuredFestival = buildFestivalNarrativeHint({
+    scope: input.festivalScope,
+    timeStep: input.timeStep,
+    month: input.month,
+    day: input.day,
+    seasonName: input.seasonName,
+    characterStageName: input.characterStageName,
+    characterBackground: input.characterBackground,
+  })
+  const worldviewRule = '统一游戏历法只负责确定日期与季节；节日是否形成放假、上学、工作、营业或地方习俗，须结合当前区域、世界语境、角色生命阶段与身份判断。'
 
   return ['【历法与社会作息】', canonicalSpanRule, worldviewRule, granularityRule, configuredFestival]
     .filter(Boolean)

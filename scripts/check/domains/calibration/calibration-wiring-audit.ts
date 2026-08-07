@@ -22,49 +22,14 @@ interface WiringEntry {
   note?: string
 }
 
-/** 当前运行系统消费的校准字段；消费者使用现行 owning system ID。 */
+/** 当前运行系统直接消费的校准字段；其余字段登记为区域或角色状态派生背景。 */
 const FORMULA_WIRED: Partial<Record<string, string>> = {
-  populationModifier: 'population-system (economy-runtime)',
-  developmentModifier: 'world-init-system',
-  birthRateModifier: 'population-system',
-  fertilityModifier: 'relationship-system（仅关系语义，不建立家庭人口旁路）',
-  deathRateModifier: 'population-system',
-  inflationModifier: 'economy',
-  tradeMultiplierModifier: 'economy',
-  vitalityRecoveryModifier: 'health-system',
-  staminaRecoveryModifier: 'health-system',
-  spiritRecoveryModifier: 'health-system',
-  conditionProgressionModifier: 'health-system',
-  lifespanModifier: 'lifespan-system',
-  cultivationSpeedModifier: 'combat-power',
-  bottleneckModifier: 'cultivation-system',
-  monsterThreatModifier: 'monster-system',
-  monsterSpawnModifier: 'monster-system',
-  luckPointModifier: 'luck-system + fortune-encounter-system',
-  socialMobilityModifier: 'social-stratification-system',
-  factionEmergenceModifier: 'faction-dynamics-system',
-  warFrequencyModifier: 'conflict-cycle',
-  warDamageModifier: 'conflict-cycle',
-  legalEnforcementModifier: 'legal-system',
-  ecologyRecoveryModifier: 'ecology-system',
-  pollutionDecayModifier: 'pollution-system',
-  resourceConsumptionModifier: 'natural-resource-system',
-  disasterFrequencyModifier: 'climate-system',
-  techProgressModifier: 'culture-tech-system',
-  techBreakthroughModifier: 'culture-tech-system',
-  industryProductivityModifier: 'work/economy',
-  economyModifier: 'orchestrator (_economyModifier)',
-  migrationRateModifier: 'population-system',
-  literacyGrowthModifier: 'education-system',
-  incomeModifier: 'work-system',
-  conflictEscalationModifier: 'conflict-cycle-system',
-  devotionGainModifier: 'faith-system',
-  causalCaptureRate: 'P1 历史事件账本不使用概率捕获',
+  developmentModifier: 'world-init / spatial-graph 区域生成',
+  economyModifier: 'world-init / world-region 区域背景',
 }
 
 const SPECIAL_PATTERNS: Record<string, string[]> = {
-  economyModifier: ['_economyModifier', 'economyModifier'],
-  populationModifier: ["getFormulaModifier('populationModifier'", 'formulas?.populationModifier'],
+  economyModifier: ['_economyModifier', 'calibration?.formulas?.economyModifier'],
   developmentModifier: ['formulas?.developmentModifier'],
 }
 
@@ -74,33 +39,50 @@ const SPECIAL_PATTERNS: Record<string, string[]> = {
  * getFormulaModifier 运行时消费者，也不能回写已删除的旧系统。
  */
 const FORMULA_DERIVED: Record<string, string> = {
-  impactRangeModifier: '影响范围由上下文能力画像与空间图派生',
-  fertilityModifier: '关系系统只拥有关系语义；宏观出生由 population-system 派生',
-  tradeMultiplierModifier: '商路与价格由 economy 状态派生，不建立独立乘数旁路',
-  monsterSpawnModifier: '怪物候选由 ecology 物种与世界能力派生，不随机生成第二物种池',
-  causalCaptureRate: '历史账本只消费完整校验的结构化事实，不从正文概率捕获',
-  cultivationSpeedModifier: 'combat-power 的训练进度由 cultivation 状态与世界力量框架派生',
-  bottleneckModifier: 'cultivation 的瓶颈由当前阶位、训练与证据事件派生',
-  monsterThreatModifier: 'monster 的区域威胁由 ecology 物种、承载量与污染状态派生',
-  factionEmergenceModifier: 'faction-dynamics 的势力变化由组织实体与历史事实派生',
-  warFrequencyModifier: 'conflict-cycle 的冲突频率由冲突状态机与上下文事件派生',
-  warDamageModifier: 'conflict-cycle 的损害由冲突阶段、张力与参与方状态派生',
-  legalEnforcementModifier: 'legal 的执法结果由制度条目、组织和历史事实派生',
-  ecologyRecoveryModifier: 'ecology 的恢复由物种、栖息节点与时间推进派生',
-  pollutionDecayModifier: 'pollution 的衰减由环境状态与时间推进派生',
-  disasterFrequencyModifier: 'climate 的灾害候选由气候状态、时间与世界能力派生',
-  techProgressModifier: 'culture-tech 的知识进度由 education、作品和已确认事实派生',
-  techBreakthroughModifier: 'culture-tech 的突破由研究能力、知识传播和证据事件派生',
+  populationModifier: '世界区域概况的人口规模背景；不创建独立人口推进状态',
+  developmentModifier: '区域发展度由世界初始化与区域概况派生',
+  impactRangeModifier: '影响范围由上下文能力画像与世界区域关联派生',
+  birthRateModifier: '世界区域概况的人口变化背景；不建立人口系统',
+  fertilityModifier: '角色状态与统一记忆中的家庭生育叙事倾向；不建立关系系统',
+  deathRateModifier: '世界区域概况的生存压力背景；角色死亡事实归角色状态',
+  inflationModifier: '世界区域概况的价格与交换背景；不建立独立经济状态',
+  tradeMultiplierModifier: '世界区域概况的商路与交换倾向；不建立独立经济状态',
+  vitalityRecoveryModifier: '角色状态中的生命恢复修正',
+  staminaRecoveryModifier: '角色状态中的体力恢复修正',
+  spiritRecoveryModifier: '角色状态中的精神恢复修正',
+  conditionProgressionModifier: '角色状态中的健康问题进展修正',
+  lifespanModifier: '角色状态中的叙事寿命上限修正；不直接触发老死',
+  cultivationSpeedModifier: '修炼与力量框架的训练进度修正',
+  bottleneckModifier: '修炼系统按当前阶位、训练和证据派生瓶颈',
+  monsterThreatModifier: '世界区域的危险题材倾向；不创建怪物实体状态',
+  monsterSpawnModifier: '世界区域的异常生物题材倾向；不创建第二物种池',
+  luckPointModifier: '角色状态的气运倾向与机缘叙事修正',
+  socialMobilityModifier: '世界区域概况的社会流动背景；不建立阶层系统',
+  factionEmergenceModifier: '世界区域概况的势力出现倾向；不建立势力状态',
+  warFrequencyModifier: '世界区域概况的冲突背景；不建立冲突周期系统',
+  warDamageModifier: '世界区域概况的冲突后果倾向；不建立冲突周期系统',
+  legalEnforcementModifier: '世界区域概况的制度约束背景；不建立法律系统',
+  ecologyRecoveryModifier: '世界区域概况的生态恢复背景；不建立独立生态系统',
+  pollutionDecayModifier: '世界区域概况的环境压力背景；不建立独立污染系统',
+  resourceConsumptionModifier: '世界区域概况的资源消耗背景；不建立独立资源系统',
+  disasterFrequencyModifier: '世界区域概况的灾害倾向；由时间与叙事条件解释',
+  techProgressModifier: '知识与技术系统的研究进度修正',
+  techBreakthroughModifier: '知识与技术系统的突破倾向修正',
+  industryProductivityModifier: '世界区域概况的生产背景；不建立职业或经济系统',
+  economyModifier: '世界区域概况的宏观交换背景',
+  migrationRateModifier: '世界区域之间的迁移叙事背景；不建立人口系统',
+  literacyGrowthModifier: '世界区域概况的教育背景；不建立教育系统',
+  incomeModifier: '角色与剧情中的收益倾向；不建立职业状态',
+  conflictEscalationModifier: '世界区域叙事中的冲突节奏倾向；不建立冲突周期系统',
+  devotionGainModifier: '信仰题材的叙事倾向；不建立信仰状态',
+  causalCaptureRate: '历史事件账本只消费完整校验的结构化事实，不从正文概率捕获',
   eventDistributionStrategy: '事件分布策略由世界校准与当前上下文能力派生',
-  literacyGrowthModifier: 'education 的识字增长由教育普及、知识传播和时间派生',
-  conflictEscalationModifier: 'conflict-cycle 的阶段推进由张力、时间和历史证据派生',
-  devotionGainModifier: 'faith 的虔诚变化由信仰关系、神祇规则和历史事实派生',
 }
 
 /** 已知辅助接线记录（非漏接线） */
 const BACKLOG: Record<string, string> = {
   'styleGuide.narrativeTone': 'orchestrator narrativeToneHint',
-  'entities.*': 'world-entity-system L1',
+  'regions.*': 'world-init 生成、spatial-graph 持有区域概况',
   'historical-event-ledger event-input': 'P1 复用主叙事结构化数据，不新增独立 AI token 配额',
 }
 
@@ -167,21 +149,6 @@ function main() {
   }
 
   assert.equal(unexpectedUnwired.length, 0, `未知未接线 L2 字段: ${unexpectedUnwired.map((e) => e.field).join(', ')}`)
-
-  // 当前运行必须保持的关键跨读。
-  assert.ok(source.includes('breakthroughBonus'), 'faith breakthroughBonus 应已导出')
-
-  // IT-5：收入/运气 dedup — luck-system 拥有 luckPointModifier，fortune 只消费其快照
-  const luckFile = collectSourceFiles(SRC).find((f) => f.includes('luck-system.ts'))
-  if (luckFile) {
-    const luckSrc = fs.readFileSync(luckFile, 'utf8')
-    assert.ok(luckSrc.includes("getFormulaModifier('luckPointModifier'"), 'luck-system 应拥有 luckPointModifier')
-  }
-  const fortuneFile = collectSourceFiles(SRC).find((f) => f.includes('fortune-encounter-system.ts'))
-  if (fortuneFile) {
-    const fortuneSrc = fs.readFileSync(fortuneFile, 'utf8')
-    assert.ok(!fortuneSrc.includes("getFormulaModifier('incomeModifier')"), 'fortune 不应读 incomeModifier')
-  }
 
   assert.ok(source.includes('narrativeToneHint'), 'narrative tone hint 应已接入')
   assert.ok(source.includes('getWorldviewStyleHint'), 'styleGuide 读取 helper 应存在')

@@ -12,5 +12,3 @@ export type { PageScrollProps } from './PageScroll'
 
 export { PageErrorBoundary } from './PageErrorBoundary'
 export type { PageErrorBoundaryProps } from './PageErrorBoundary'
-
-export { NPCRelationshipPanel } from './NPCRelationshipPanel'

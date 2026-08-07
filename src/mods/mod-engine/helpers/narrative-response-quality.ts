@@ -20,6 +20,7 @@ import {
   translateNarrativeAIDataAnalysis,
   translateNarrativeAIEventRecognition,
 } from './narrative-ai-protocol'
+import { assertDeliveredHistoricalCandidateDispositions } from './narrative-event-candidate-quality'
 import type { NarrativeRoundMetadata } from './narrative-semantic-signals'
 import {
   narrativeParser,
@@ -134,6 +135,7 @@ export function inspectNarrativeDataAnalysisQuality(input: {
   content: string
   allowedEvidenceEventIds: readonly string[]
   allowedSubsystemIds: readonly string[]
+  allowedOperationsBySubsystem: Readonly<Record<string, readonly string[]>>
 }): NarrativeSystemAnalysisQuality {
   try {
     return {
@@ -142,6 +144,7 @@ export function inspectNarrativeDataAnalysisQuality(input: {
       changes: translateNarrativeAIDataAnalysis(parseNarrativeAIJson(input.content), {
         allowedEvidenceEventIds: input.allowedEvidenceEventIds,
         allowedSubsystemIds: input.allowedSubsystemIds,
+        allowedOperationsBySubsystem: input.allowedOperationsBySubsystem,
       }),
     }
   } catch (error) {
@@ -153,6 +156,7 @@ export function inspectNarrativeBasicAttributeAnalysisQuality(input: {
   content: string
   allowedEvidenceEventIds: readonly string[]
   allowedSubsystemIds: readonly string[]
+  allowedOperationsBySubsystem: Readonly<Record<string, readonly string[]>>
 }): NarrativeSystemAnalysisQuality {
   try {
     return {
@@ -161,6 +165,7 @@ export function inspectNarrativeBasicAttributeAnalysisQuality(input: {
       changes: translateNarrativeAIBasicAttributeAnalysis(parseNarrativeAIJson(input.content), {
         allowedEvidenceEventIds: input.allowedEvidenceEventIds,
         allowedSubsystemIds: input.allowedSubsystemIds,
+        allowedOperationsBySubsystem: input.allowedOperationsBySubsystem,
       }),
     }
   } catch (error) {
@@ -199,6 +204,7 @@ export function inspectNarrativeEventRecognitionQuality(input: {
   currentContextId: string
   currentTotalDays: number
   existingCandidates: readonly HistoricalEventCandidateAudit[]
+  dueCandidates: readonly HistoricalEventCandidateAudit[]
   deliveredCausalEventIds?: readonly string[]
 }): NarrativeEventRecognitionQuality {
   try {
@@ -226,6 +232,9 @@ export function inspectNarrativeEventRecognitionQuality(input: {
     if (expectedCausalIds.size === 0 && causalDispositions.length > 0) {
       throw new Error('本轮没有投递到期因果，事件识别不得提交到期因果判定')
     }
+
+    const candidateDispositions = result.metadata.historicalEventCandidateDispositions ?? []
+    assertDeliveredHistoricalCandidateDispositions({ dueCandidates: input.dueCandidates, dispositions: candidateDispositions })
 
     validateNarrativeEventMetadataForNarrative(input.narrative, result.metadata)
 

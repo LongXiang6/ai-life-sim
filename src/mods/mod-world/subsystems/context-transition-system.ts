@@ -1,14 +1,7 @@
 /**
- * ContextTransitionSystem
- *
- * 职责：预检并提交当前上下文、实体位置、模拟范围和当地时间。
- * 非职责：不创作到达叙事、不推进规范时间、不拥有物品或同伴业务状态。
- * 输入：ContextTransitionRequest、规范 totalDays、运行上下文注入适配器。
- * 输出与写入：当前投影、上下文状态、位置和完整 transitionHistory。
- * AI 参与：提议；本地预检通过后才提交。
- * 状态权威：mod-world Store。
- * 持久化权威：world Store + save/restore 聚合。
- * 运行存活：mod-world manifest 与 MVP runtime policy。
+ * Purpose: Validate and commit context or region transitions without entity-location state.
+ * Owner: mod-world / context-transition.
+ * Responsibility: Transition preflight, local-clock synchronization, scope changes, and history records.
  */
 
 import { BaseSubsystem } from '@/core/subsystem-base'
@@ -25,8 +18,6 @@ import type {
 
 import { useWorldStore } from '../store'
 import type { WorldContextInstance } from '../types'
-import { placeEntityLocationsUniquely } from './spatial-graph-system'
-import { getWorldEntitySystem } from './world-entity-system'
 import {
   createRuntimeId,
   projectWorldContextInstance,
@@ -34,18 +25,7 @@ import {
 } from '../utils/world-context-runtime'
 
 type RuntimeContextAdapter = {
-  /** 当前角色系统提供的真实全局实体 ID；调用者输入不能覆盖。 */
-  actorEntityId: string
-  /** 将已投影的新世界/角色状态注入运行系统。 */
   apply: () => boolean | Promise<boolean>
-}
-
-function movedEntityIdsOf(request: ContextTransitionRequest): string[] {
-  return [...new Set([
-    request.actorEntityId,
-    ...(request.carriedEntityIds ?? []),
-    ...(request.companionEntityIds ?? []),
-  ].filter((entityId): entityId is string => typeof entityId === 'string' && entityId.trim().length > 0))]
 }
 
 function findTransitionEdge(
@@ -54,7 +34,9 @@ function findTransitionEdge(
   edges: Record<string, SpatialEdge>,
   requestedId?: string,
 ): SpatialEdge | null {
-  const candidates = requestedId ? [edges[requestedId]].filter(Boolean) : Object.values(edges)
+  const candidates = requestedId
+    ? [edges[requestedId]].filter((edge): edge is SpatialEdge => Boolean(edge))
+    : Object.values(edges)
   return candidates.find((edge) => {
     if (!edge.enabled) return false
     const forward = edge.fromNodeId === source.record.rootSpatialNodeId
@@ -66,23 +48,31 @@ function findTransitionEdge(
   }) ?? null
 }
 
-function transitionRecord(input: {
+function regionIdOf(instance: WorldContextInstance, requested?: string): string {
+  const regionId = requested ?? instance.spatialGraph.currentRegionId
+  const node = instance.spatialGraph.nodes[regionId]
+  if (!node || node.contextId !== instance.record.id || node.kind !== 'region') {
+    throw new Error(`区域不存在：${regionId}`)
+  }
+  return regionId
+}
+
+function buildRecord(input: {
   source: WorldContextInstance
   target: WorldContextInstance
-  edge?: SpatialEdge | null
   request: ContextTransitionRequest
+  edge?: SpatialEdge | null
   globalTotalDays: number
   status: ContextTransitionRecord['status']
   reason?: string
 }): ContextTransitionRecord {
-  const movedEntityIds = movedEntityIdsOf(input.request)
   return {
     id: createRuntimeId('ctx_transition'),
     sourceContextId: input.source.record.id,
     targetContextId: input.target.record.id,
-    exitEdgeId: input.edge?.id ?? input.request.exitEdgeId ?? 'missing',
-    actorEntityId: input.request.actorEntityId,
-    movedEntityIds,
+    sourceRegionId: input.source.spatialGraph.currentRegionId,
+    targetRegionId: input.target.spatialGraph.currentRegionId,
+    exitEdgeId: input.edge?.id ?? input.request.exitEdgeId ?? 'region-transition',
     globalTotalDays: input.globalTotalDays,
     sourceLocalDays: input.source.record.localClock.totalLocalDays,
     targetLocalDays: input.target.record.localClock.totalLocalDays,
@@ -108,7 +98,7 @@ export class ContextTransitionSystem extends BaseSubsystem {
     if (!source || !target) {
       const fallback = source ?? target
       if (!fallback) throw new Error('切换失败：当前与目标上下文均不存在')
-      const record = transitionRecord({
+      const record = buildRecord({
         source: source ?? fallback,
         target: target ?? fallback,
         request,
@@ -119,139 +109,63 @@ export class ContextTransitionSystem extends BaseSubsystem {
       before.recordTransition(record)
       return { ok: false, record }
     }
-    const activeContextIds = Object.values(before.contexts)
-      .filter((instance) => instance.scope.scope === 'active')
-      .map((instance) => instance.record.id)
-    if (activeContextIds.length !== 1 || activeContextIds[0] !== source.record.id || source.record.lifecycle !== 'open') {
-      const record = transitionRecord({
-        source,
-        target,
-        request,
-        globalTotalDays,
-        status: 'rejected',
-        reason: '当前上下文注册表不满足唯一 active 不变量',
-      })
-      before.recordTransition(record)
-      return { ok: false, record }
-    }
-    if (source.record.id === target.record.id) {
-      const record = transitionRecord({
-        source, target, request, globalTotalDays, status: 'rejected', reason: '目标已经是当前上下文',
-      })
-      before.recordTransition(record)
-      return { ok: false, record }
-    }
-    const latestKnownGlobalDay = Math.max(
-      source.record.localClock.lastGlobalTotalDays,
-      target.record.localClock.lastGlobalTotalDays,
-    )
-    if (
-      !Number.isFinite(latestKnownGlobalDay)
-      || !Number.isFinite(globalTotalDays)
-      || globalTotalDays < latestKnownGlobalDay
-    ) {
-      const record = transitionRecord({
-        source, target, request, globalTotalDays, status: 'rejected', reason: '切换时间无效或早于上下文已知的规范全局时间',
-      })
-      before.recordTransition(record)
-      return { ok: false, record }
-    }
-    if (
-      !source.spatialGraph.nodes[source.record.rootSpatialNodeId]
-      || !target.spatialGraph.nodes[target.record.rootSpatialNodeId]
-    ) {
-      const record = transitionRecord({
-        source, target, request, globalTotalDays, status: 'rejected', reason: '来源或目标上下文缺少有效根空间节点',
-      })
-      before.recordTransition(record)
-      return { ok: false, record }
-    }
-    const trustedActorEntityId = typeof runtimeAdapter?.actorEntityId === 'string'
-      ? runtimeAdapter.actorEntityId.trim()
-      : ''
-    const requestedActorEntityId = typeof request.actorEntityId === 'string'
-      ? request.actorEntityId.trim()
-      : ''
-    if (!trustedActorEntityId || !requestedActorEntityId) {
-      const record = transitionRecord({
-        source, target, request, globalTotalDays, status: 'rejected', reason: '缺少迁移角色全局实体 ID',
-      })
-      before.recordTransition(record)
-      return { ok: false, record }
-    }
-    if (request.actorEntityId !== trustedActorEntityId) {
-      const record = transitionRecord({
-        source, target, request, globalTotalDays, status: 'rejected', reason: '迁移角色与当前真实角色不一致',
-      })
-      before.recordTransition(record)
-      return { ok: false, record }
-    }
-    const requestedEntityIds = [
-      request.actorEntityId,
-      ...(request.carriedEntityIds ?? []),
-      ...(request.companionEntityIds ?? []),
-    ]
-    if (requestedEntityIds.some((entityId) => typeof entityId !== 'string' || entityId.trim().length === 0)) {
-      const record = transitionRecord({
-        source, target, request, globalTotalDays, status: 'rejected', reason: '迁移实体 ID 无效',
-      })
-      before.recordTransition(record)
-      return { ok: false, record }
-    }
-    if (request.leaveScope !== undefined && request.leaveScope !== 'background' && request.leaveScope !== 'dormant') {
-      const record = transitionRecord({
-        source, target, request, globalTotalDays, status: 'rejected', reason: '来源上下文离开范围无效',
-      })
-      before.recordTransition(record)
-      return { ok: false, record }
-    }
-    const movedEntityIds = movedEntityIdsOf(request)
-    const misplacedEntityIds = movedEntityIds.filter((entityId) => {
-      const location = source.spatialGraph.entityLocations[entityId]
-      return !location
-        || location.contextId !== source.record.id
-        || !source.spatialGraph.nodes[location.nodeId]
-    })
-    if (misplacedEntityIds.length > 0) {
-      const record = transitionRecord({
-        source,
-        target,
-        request,
-        globalTotalDays,
-        status: 'rejected',
-        reason: `迁移实体不在来源上下文：${misplacedEntityIds.join('、')}`,
-      })
-      before.recordTransition(record)
-      return { ok: false, record }
-    }
-    if (target.scope.scope === 'closed' || target.record.lifecycle === 'closed') {
-      const record = transitionRecord({
-        source, target, request, globalTotalDays, status: 'rejected', reason: '目标上下文已关闭',
-      })
+    if (!Number.isFinite(globalTotalDays) || globalTotalDays < 0) {
+      const record = buildRecord({ source, target, request, globalTotalDays, status: 'rejected', reason: '切换时间无效' })
       before.recordTransition(record)
       return { ok: false, record }
     }
 
+    const targetRegionId = regionIdOf(target, request.targetRegionId)
+    if (source.record.id === target.record.id) {
+      const next = {
+        ...syncLocalClock(source, globalTotalDays),
+        spatialGraph: { ...source.spatialGraph, currentRegionId: targetRegionId },
+      }
+      const record = buildRecord({
+        source,
+        target: next,
+        request,
+        globalTotalDays,
+        status: 'committed',
+      })
+      useWorldStore.setState({
+        contexts: { ...before.contexts, [source.record.id]: next },
+        transitionHistory: [...before.transitionHistory, record],
+        ...projectWorldContextInstance(next),
+      })
+      return { ok: true, record }
+    }
+
+    const activeContextIds = Object.values(before.contexts)
+      .filter((instance) => instance.scope.scope === 'active')
+      .map((instance) => instance.record.id)
+    if (activeContextIds.length !== 1 || activeContextIds[0] !== source.record.id || source.record.lifecycle !== 'open') {
+      const record = buildRecord({ source, target, request, globalTotalDays, status: 'rejected', reason: '当前上下文注册表不满足唯一 active 不变量' })
+      before.recordTransition(record)
+      return { ok: false, record }
+    }
+    if (target.scope.scope === 'closed' || target.record.lifecycle === 'closed') {
+      const record = buildRecord({ source, target, request, globalTotalDays, status: 'rejected', reason: '目标上下文已关闭' })
+      before.recordTransition(record)
+      return { ok: false, record }
+    }
+
+    const latestKnownGlobalDay = Math.max(source.record.localClock.lastGlobalTotalDays, target.record.localClock.lastGlobalTotalDays)
+    if (globalTotalDays < latestKnownGlobalDay) {
+      const record = buildRecord({ source, target, request, globalTotalDays, status: 'rejected', reason: '切换时间早于上下文已知时间' })
+      before.recordTransition(record)
+      return { ok: false, record }
+    }
     const edge = findTransitionEdge(source, target, before.crossContextEdges, request.exitEdgeId)
     if (!edge) {
-      const record = transitionRecord({
-        source, target, request, globalTotalDays, status: 'rejected', reason: '不存在可用的跨上下文出口',
-      })
+      const record = buildRecord({ source, target, request, globalTotalDays, status: 'rejected', reason: '不存在可用的跨上下文出口' })
       before.recordTransition(record)
       return { ok: false, record }
     }
     const satisfied = new Set(request.satisfiedRequirementIds ?? [])
-    const missingRequirements = (edge.requirements ?? []).filter((requirement) => !satisfied.has(requirement))
-    if (missingRequirements.length > 0) {
-      const record = transitionRecord({
-        source,
-        target,
-        edge,
-        request,
-        globalTotalDays,
-        status: 'rejected',
-        reason: `未满足出口资格：${missingRequirements.join('、')}`,
-      })
+    const missing = (edge.requirements ?? []).filter((item) => !satisfied.has(item))
+    if (missing.length > 0) {
+      const record = buildRecord({ source, target, edge, request, globalTotalDays, status: 'rejected', reason: `未满足出口资格：${missing.join('、')}` })
       before.recordTransition(record)
       return { ok: false, record }
     }
@@ -264,7 +178,6 @@ export class ContextTransitionSystem extends BaseSubsystem {
       changedAtGlobalDay: globalTotalDays,
     }
     nextSource.record.lifecycle = nextSource.scope.scope === 'background' ? 'open' : 'dormant'
-
     const nextTarget = syncLocalClock(target, globalTotalDays)
     nextTarget.scope = {
       contextId: target.record.id,
@@ -273,77 +186,34 @@ export class ContextTransitionSystem extends BaseSubsystem {
       changedAtGlobalDay: globalTotalDays,
     }
     nextTarget.record.lifecycle = 'open'
-    const nextContexts = placeEntityLocationsUniquely({
-      ...before.contexts,
-      [source.record.id]: nextSource,
-      [target.record.id]: nextTarget,
-    }, movedEntityIds.map((entityId) => ({
-        entityId,
-        contextId: target.record.id,
-        nodeId: target.record.rootSpatialNodeId,
-        updatedAtGlobalDay: globalTotalDays,
-    })))
-    const committedSource = nextContexts[source.record.id]
-    const committedTarget = nextContexts[target.record.id]
-    let nextEntityReferences: ReturnType<typeof useWorldStore.getState>['entityReferences']
-    try {
-      nextEntityReferences = getWorldEntitySystem().buildContextTransitionDirectory({
-        movedEntityIds,
-        sourceContextId: source.record.id,
-        targetContextId: target.record.id,
-        actorEntityId: trustedActorEntityId,
-        globalTotalDays,
-      })
-    } catch (error) {
-      const record = transitionRecord({
-        source,
-        target,
-        edge,
-        request,
-        globalTotalDays,
-        status: 'rejected',
-        reason: error instanceof Error ? error.message : String(error),
-      })
-      before.recordTransition(record)
-      return { ok: false, record }
-    }
+    nextTarget.spatialGraph.currentRegionId = targetRegionId
 
-    const committedRecord = transitionRecord({
-      source: committedSource,
-      target: committedTarget,
+    const committedRecord = buildRecord({
+      source: nextSource,
+      target: nextTarget,
       edge,
       request,
       globalTotalDays,
       status: 'committed',
     })
     useWorldStore.setState({
-      contexts: nextContexts,
-      entityReferences: nextEntityReferences,
+      contexts: { ...before.contexts, [source.record.id]: nextSource, [target.record.id]: nextTarget },
       currentContextId: target.record.id,
       transitionHistory: [...before.transitionHistory, committedRecord],
-      ...projectWorldContextInstance(committedTarget),
+      ...projectWorldContextInstance(nextTarget),
     })
 
     try {
-      if (!(await runtimeAdapter.apply())) {
-        throw new Error('运行上下文注入返回失败')
-      }
-      eventBus.emit('mod-world:context-left', {
-        contextId: source.record.id,
-        transitionId: committedRecord.id,
-      })
-      eventBus.emit('mod-world:context-arrived', {
-        contextId: target.record.id,
-        transitionId: committedRecord.id,
-      })
+      if (!(await runtimeAdapter.apply())) throw new Error('运行上下文注入返回失败')
+      eventBus.emit('mod-world:context-left', { contextId: source.record.id, transitionId: committedRecord.id })
+      eventBus.emit('mod-world:context-arrived', { contextId: target.record.id, transitionId: committedRecord.id })
       return { ok: true, record: committedRecord }
     } catch (error) {
-      const failureReason = error instanceof Error ? error.message : String(error)
-      const failedRecord = {
+      const failedRecord: ContextTransitionRecord = {
         ...committedRecord,
         id: createRuntimeId('ctx_transition'),
-        status: 'failed' as const,
-        reason: failureReason,
+        status: 'failed',
+        reason: error instanceof Error ? error.message : String(error),
       }
       useWorldStore.getState().recordTransition(failedRecord)
       return { ok: false, record: failedRecord }
@@ -356,11 +226,7 @@ export class ContextTransitionSystem extends BaseSubsystem {
     return {
       id: this.id,
       summary: `【${this.label}：当前 ${state.currentContextId ?? '无'}，累计记录 ${state.transitionHistory.length}】`,
-      data: structuredClone({
-        currentContextId: state.currentContextId,
-        transitionCount: state.transitionHistory.length,
-        latestTransition,
-      }),
+      data: structuredClone({ currentContextId: state.currentContextId, transitionCount: state.transitionHistory.length, latestTransition }),
     }
   }
 
@@ -373,8 +239,6 @@ export class ContextTransitionSystem extends BaseSubsystem {
     if (!changes.description || changes.description.trim().length === 0) {
       throw new Error(`[${this.id}] Changes description is required`)
     }
-    const requestedChanges = changes.changes
-    void requestedChanges
     throw new Error(`[${this.id}] AI 只能提出切换意图，不能绕过预检直接写入`)
   }
 

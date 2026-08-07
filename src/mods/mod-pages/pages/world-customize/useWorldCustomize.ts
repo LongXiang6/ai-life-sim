@@ -35,11 +35,13 @@ export interface UseWorldCustomizeReturn {
   fields: EditableField[]
   groupedFields: Record<string, EditableField[]>
   worldDescription: string
+  festivalScope: WorldConfig['festivalScope']
   coherenceLocks: Record<string, boolean>
   setFieldMode: (key: string, mode: FieldMode) => void
   setFieldValue: (key: string, value: string) => void
   setCustomValue: (key: string, value: string) => void
   setWorldDescription: (value: string) => void
+  setFestivalScope: (value: WorldConfig['festivalScope']) => void
   toggleCoherenceLock: (fieldKey: string) => void
   isCoherenceLockable: (fieldKey: string) => boolean
   save: () => void
@@ -82,6 +84,9 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
   const [worldDescription, setWorldDescriptionState] = useState(
     saved.worldDescription ?? existingConfig?.description ?? '',
   )
+  const [festivalScope, setFestivalScopeState] = useState<WorldConfig['festivalScope']>(
+    saved.festivalScope ?? existingConfig?.festivalScope ?? 'china',
+  )
   const [coherenceLocks, setCoherenceLocks] = useState<Record<string, boolean>>(
     saved.coherenceLocks ?? {},
   )
@@ -94,6 +99,7 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
     customs: Record<string, string>,
     desc: string,
     locks: Record<string, boolean>,
+    nextFestivalScope: WorldConfig['festivalScope'],
   ) => {
     try {
       configStore.set('mod-pages', WORLD_CUSTOMIZE_DRAFT_KEY, {
@@ -104,6 +110,7 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
         customValues: customs,
         worldDescription: desc,
         coherenceLocks: locks,
+        festivalScope: nextFestivalScope,
       })
     } catch { /* ignore */ }
   }, [])
@@ -140,39 +147,44 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
   const setFieldMode = useCallback((key: string, mode: FieldMode) => {
     setFieldModes((prev) => {
       const next = { ...prev, [key]: mode }
-      persist(next, fieldValues, customValues, worldDescription, coherenceLocks)
+      persist(next, fieldValues, customValues, worldDescription, coherenceLocks, festivalScope)
       return next
     })
-  }, [fieldValues, customValues, worldDescription, coherenceLocks, persist])
+  }, [fieldValues, customValues, worldDescription, coherenceLocks, festivalScope, persist])
 
   const setFieldValue = useCallback((key: string, value: string) => {
     setFieldValues((prev) => {
       const next = { ...prev, [key]: value }
-      persist(fieldModes, next, customValues, worldDescription, coherenceLocks)
+      persist(fieldModes, next, customValues, worldDescription, coherenceLocks, festivalScope)
       return next
     })
-  }, [fieldModes, customValues, worldDescription, coherenceLocks, persist])
+  }, [fieldModes, customValues, worldDescription, coherenceLocks, festivalScope, persist])
 
   const setCustomValue = useCallback((key: string, value: string) => {
     setCustomValues((prev) => {
       const next = { ...prev, [key]: value }
-      persist(fieldModes, fieldValues, next, worldDescription, coherenceLocks)
+      persist(fieldModes, fieldValues, next, worldDescription, coherenceLocks, festivalScope)
       return next
     })
-  }, [fieldModes, fieldValues, worldDescription, coherenceLocks, persist])
+  }, [fieldModes, fieldValues, worldDescription, coherenceLocks, festivalScope, persist])
 
   const setWorldDescription = useCallback((value: string) => {
     setWorldDescriptionState(value)
-    persist(fieldModes, fieldValues, customValues, value, coherenceLocks)
-  }, [fieldModes, fieldValues, customValues, coherenceLocks, persist])
+    persist(fieldModes, fieldValues, customValues, value, coherenceLocks, festivalScope)
+  }, [fieldModes, fieldValues, customValues, coherenceLocks, festivalScope, persist])
+
+  const setFestivalScope = useCallback((value: WorldConfig['festivalScope']) => {
+    setFestivalScopeState(value)
+    persist(fieldModes, fieldValues, customValues, worldDescription, coherenceLocks, value)
+  }, [fieldModes, fieldValues, customValues, worldDescription, coherenceLocks, persist])
 
   const toggleCoherenceLock = useCallback((fieldKey: string) => {
     setCoherenceLocks((prev) => {
       const next = { ...prev, [fieldKey]: !prev[fieldKey] }
-      persist(fieldModes, fieldValues, customValues, worldDescription, next)
+      persist(fieldModes, fieldValues, customValues, worldDescription, next, festivalScope)
       return next
     })
-  }, [fieldModes, fieldValues, customValues, worldDescription, persist])
+  }, [fieldModes, fieldValues, customValues, worldDescription, festivalScope, persist])
 
   const commitWorld = useCallback(async (config: WorldConfig) => {
     setGamePhase('world_build')
@@ -230,7 +242,13 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
     setIsSaving(true)
     try {
       const existing = useWorldStore.getState().worldConfig
-      const draft = resolveWorldConfig(baseFields, worldDescription, coherenceLocks, existing)
+      const draft = resolveWorldConfig(
+        baseFields,
+        worldDescription,
+        coherenceLocks,
+        existing,
+        festivalScope,
+      )
       requestCoherenceResolve(
         draft,
         (config) => {
@@ -247,7 +265,8 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
       setIsSaving(false)
     }
   }, [
-    isSaving, saveBlockReason, baseFields, worldDescription, coherenceLocks, requestCoherenceResolve, commitWorld,
+    isSaving, saveBlockReason, baseFields, worldDescription, coherenceLocks, festivalScope,
+    requestCoherenceResolve, commitWorld,
   ])
 
   const skip = useCallback(() => {
@@ -259,11 +278,13 @@ export function useWorldCustomize(): UseWorldCustomizeReturn {
     fields: baseFields,
     groupedFields,
     worldDescription,
+    festivalScope,
     coherenceLocks,
     setFieldMode,
     setFieldValue,
     setCustomValue,
     setWorldDescription,
+    setFestivalScope,
     toggleCoherenceLock,
     isCoherenceLockable,
     save,

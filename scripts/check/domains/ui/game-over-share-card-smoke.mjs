@@ -78,10 +78,10 @@ const scoringProfile = {
   profileVersion: 1,
   worldId: 'share-smoke-world',
   dimensions: [
-    { id: 'growth', label: '成长', description: '角色成长', weight: 25, evidenceKinds: ['attributes', 'lifespan-adjustments'], curveId: 'growth' },
+    { id: 'growth', label: '成长', description: '角色成长', weight: 25, evidenceKinds: ['attributes'], curveId: 'growth' },
     { id: 'agency', label: '抉择', description: '关键抉择', weight: 25, evidenceKinds: ['choices', 'achievements'], curveId: 'agency' },
     { id: 'journey', label: '历程', description: '完整历程', weight: 25, evidenceKinds: ['journey', 'completion'], curveId: 'journey' },
-    { id: 'impact', label: '影响', description: '留下影响', weight: 25, evidenceKinds: ['achievements', 'choices', 'lifespan-adjustments'], curveId: 'impact' },
+    { id: 'impact', label: '影响', description: '留下影响', weight: 25, evidenceKinds: ['achievements', 'choices'], curveId: 'impact' },
   ],
 }
 const meaningfulScore = calculateLifeScore({
@@ -92,7 +92,6 @@ const meaningfulScore = calculateLifeScore({
   committedRounds: 12,
   narrativeIds: Array.from({ length: 12 }, (_, index) => `round-${index + 1}`),
   resolvedChoiceCount: 4,
-  lifespanAdjustmentCount: 2,
   achievementIds: ['a', 'b', 'c', 'd', 'e'],
   completed: true,
   terminalCommitted: true,
@@ -108,7 +107,6 @@ const invalidScore = calculateLifeScore({
   committedRounds: 1,
   narrativeIds: ['only-one'],
   resolvedChoiceCount: 5,
-  lifespanAdjustmentCount: 3,
   achievementIds: ['a', 'b', 'c', 'd', 'e'],
   completed: true,
   terminalCommitted: true,
@@ -123,7 +121,6 @@ const perfectScore = calculateLifeScore({
   committedRounds: 20,
   narrativeIds: Array.from({ length: 20 }, (_, index) => `perfect-round-${index + 1}`),
   resolvedChoiceCount: 5,
-  lifespanAdjustmentCount: 3,
   achievementIds: ['a', 'b', 'c', 'd', 'e'],
   completed: true,
   terminalCommitted: true,
@@ -143,14 +140,9 @@ const achievements = buildGameOverAchievements([
     displayTimeLabel: '群星历 77 年',
   },
   { id: 'round-8', branchTitle: '只有标题，不算已完成选择' },
-], [{
-  adjustmentId: 'lifespan-adjustment:star-body',
-  occurredAtTotalDays: 42 * 365,
-  deltaDays: 20 * 365,
-  description: '跨越生命边界',
-}])
-assertOk(achievements.length === 2, 'achievements must come only from resolved choices and structured lifespan adjustments')
-assertOk(selectFeaturedAchievement(achievements)?.kind === 'lifespan-adjustment', 'the strongest structured event must be featured deterministically')
+ ])
+assertOk(achievements.length === 1, 'achievements must come only from resolved choices')
+assertOk(selectFeaturedAchievement(achievements)?.kind === 'choice', 'the resolved choice must be featured deterministically')
 
 const helperSource = await readFile(
   new URL('../../../../src/mods/mod-pages/pages/game-over/game-over-share-card.ts', import.meta.url),

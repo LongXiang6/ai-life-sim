@@ -44,10 +44,7 @@ export function buildLocalEndingReview(input: EndingReviewInput): EndingReview {
   const featured = input.achievements.reduce<GameOverAchievement | null>((best, current) => (
     !best || current.weight > best.weight ? current : best
   ), null)
-  const perspective = input.achievements.filter((item) => item.kind === 'choice').length
-    >= input.achievements.filter((item) => item.kind === 'lifespan-adjustment').length
-    ? 'micro' as const
-    : 'macro' as const
+  const perspective = 'micro' as const
   const achievementText = featured
     ? `你在${featured.timeLabel}${featured.detail}，这次行动成为此生最清晰的转折。`
     : `你走完了 ${input.round} 轮人生，并让每一步都成为可以复核的经历。`

@@ -12,11 +12,11 @@ import type { PromptTemplate } from '@/foundation'
 import { NarrativeAIEventRecognitionDataSchema } from '../helpers/narrative-ai-protocol'
 
 export const NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID =
-  'mod-engine:narrative-event-recognition:3.2.0'
+  'mod-engine:narrative-event-recognition:3.2.1'
 
 export const narrativeEventRecognitionPrompt: PromptTemplate = {
   name: 'narrative-event-recognition',
-  version: '3.2.0',
+  version: '3.2.1',
   mod: 'mod-engine',
   systemPrompt: '',
   serverPromptAssetId: NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID,

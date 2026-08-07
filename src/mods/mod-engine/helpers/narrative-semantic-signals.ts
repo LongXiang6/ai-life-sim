@@ -127,6 +127,12 @@ export const NarrativeDeliveredCausalDispositionSchema = z.object({
   }
 })
 
+export const NarrativeHistoricalEventCandidateDispositionSchema = z.object({
+  candidateId: z.string().min(1),
+  status: z.enum(['accepted', 'continuing', 'rejected', 'expired']),
+  reason: z.string().min(1),
+}).strict()
+
 const NarrativeNonBlankStringSchema = z.string().refine(
   (value) => value.trim().length > 0,
   '文本不能为空白',
@@ -150,6 +156,9 @@ export const NarrativeRoundMetadataSchema = z.object({
   branchOptions: z.array(NarrativeNonBlankStringSchema).min(2).max(4).optional(),
   deferredCausality: z.array(NarrativeDeferredCausalitySchema).optional(),
   deliveredCausalDispositions: z.array(NarrativeDeliveredCausalDispositionSchema).optional(),
+  historicalEventCandidateDispositions: z.array(
+    NarrativeHistoricalEventCandidateDispositionSchema,
+  ).optional(),
 }).strict().superRefine((metadata, context) => {
   const semanticCore = [metadata.importance, metadata.arcStatus, metadata.semanticSignals]
   const semanticCoreCount = semanticCore.filter((value) => value !== undefined).length
@@ -203,6 +212,9 @@ export type NarrativeRelationshipUpdate = NarrativeSemanticSignals['relationship
 export type NarrativeDeferredCausality = z.infer<typeof NarrativeDeferredCausalitySchema>
 export type NarrativeDeliveredCausalDisposition = z.infer<
   typeof NarrativeDeliveredCausalDispositionSchema
+>
+export type NarrativeHistoricalEventCandidateDisposition = z.infer<
+  typeof NarrativeHistoricalEventCandidateDispositionSchema
 >
 export type NarrativeRoundMetadata = z.infer<typeof NarrativeRoundMetadataSchema>
 

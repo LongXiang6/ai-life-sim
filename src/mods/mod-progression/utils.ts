@@ -1,16 +1,9 @@
 import type {
-  HistoricalEventView,
   ProgressionScope,
-  ReputationScope,
 } from '@/foundation'
-import {
-  getHistoricalEvent,
-  queryHistoricalEvents,
-} from '@/mods/mod-history-dynamics/historical-event-api'
-import {
-  assertWorldEntityReference,
-  listWorldContexts,
-} from '@/mods/mod-world'
+import { getHistoricalEvent } from '@/mods/mod-history-dynamics/historical-event-api'
+import { useCharacterStore } from '@/mods/mod-character'
+import { listWorldContexts } from '@/mods/mod-world'
 
 export function clone<T>(value: T): T {
   return structuredClone(value)
@@ -67,10 +60,8 @@ export function validateEvidence(value: unknown, contextId: string, label: strin
 }
 
 export function assertEntityVisible(entityId: string, contextId: string): void {
-  const reference = assertWorldEntityReference(entityId)
-  if (!reference.contextIds.includes(contextId)) {
-    throw new Error(`实体 ${entityId} 不在上下文 ${contextId} 可见范围`)
-  }
+  if (useCharacterStore.getState().characterId !== entityId) throw new Error(`成长目标不是当前玩家角色：${entityId}`)
+  assertContextIds([contextId])
 }
 
 export function normalizeProgressionScope(
@@ -101,73 +92,9 @@ export function validateStoredProgressionScope(value: unknown, label: string): P
   return { kind: value.kind, contextIds }
 }
 
-export function normalizeReputationScope(
-  kindValue: unknown,
-  evaluatorValue: unknown,
-  contextValue: unknown,
-  operationContextId: string,
-): ReputationScope {
-  if (kindValue !== 'entity' && kindValue !== 'context' && kindValue !== 'global') {
-    throw new Error('声望作用域类型无效')
-  }
-  if (kindValue === 'entity') {
-    const evaluatorEntityId = requireString(evaluatorValue, '声望评价实体')
-    assertEntityVisible(evaluatorEntityId, operationContextId)
-    if (contextValue !== undefined) throw new Error('人物评价作用域不能同时绑定上下文')
-    return { kind: 'entity', evaluatorEntityId }
-  }
-  if (kindValue === 'context') {
-    const contextId = contextValue === undefined
-      ? operationContextId
-      : requireString(contextValue, '声望作用域上下文')
-    if (contextId !== operationContextId) throw new Error('声望上下文必须是当前目标上下文')
-    if (evaluatorValue !== undefined) throw new Error('上下文声望不能同时绑定评价实体')
-    assertContextIds([contextId])
-    return { kind: 'context', contextId }
-  }
-  if (evaluatorValue !== undefined || contextValue !== undefined) throw new Error('全局声望不能绑定评价实体或上下文')
-  return { kind: 'global' }
-}
-
-export function validateStoredReputationScope(value: unknown, label: string): ReputationScope {
-  if (!isRecord(value)) throw new Error(`${label}必须是对象`)
-  assertKnownKeys(value, ['kind', 'evaluatorEntityId', 'contextId'], label)
-  if (value.kind === 'entity') {
-    const evaluatorEntityId = requireString(value.evaluatorEntityId, `${label}.evaluatorEntityId`)
-    assertWorldEntityReference(evaluatorEntityId)
-    if (value.contextId !== undefined) throw new Error(`${label}人物评价域不能绑定上下文`)
-    return { kind: 'entity', evaluatorEntityId }
-  }
-  if (value.kind === 'context') {
-    const contextId = requireString(value.contextId, `${label}.contextId`)
-    if (value.evaluatorEntityId !== undefined) throw new Error(`${label}上下文评价域不能绑定评价实体`)
-    assertContextIds([contextId])
-    return { kind: 'context', contextId }
-  }
-  if (value.kind !== 'global') throw new Error(`${label}.kind 无效`)
-  if (value.evaluatorEntityId !== undefined || value.contextId !== undefined) {
-    throw new Error(`${label}全局评价域不能绑定实体或上下文`)
-  }
-  return { kind: 'global' }
-}
-
 function assertContextIds(contextIds: readonly string[]): void {
   const known = new Set(listWorldContexts().map((instance) => instance.record.id))
   for (const contextId of contextIds) {
     if (!known.has(contextId)) throw new Error(`引用未知上下文：${contextId}`)
-  }
-}
-
-export function queryAllHistoricalEvents(query: {
-  contextId?: string
-  statuses?: Array<'occurred' | 'resolved'>
-  entityIds?: string[]
-}): HistoricalEventView[] {
-  const all: HistoricalEventView[] = []
-  const limit = 500
-  for (let offset = 0; ; offset += limit) {
-    const page = queryHistoricalEvents({ ...query, offset, limit })
-    all.push(...page)
-    if (page.length < limit) return all
   }
 }

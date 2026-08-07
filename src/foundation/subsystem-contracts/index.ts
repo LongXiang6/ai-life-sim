@@ -32,7 +32,7 @@ export type {
   SpatialNode,
   SpatialEdgeKind,
   SpatialEdge,
-  EntitySpatialLocation,
+  RegionNarrativeProfile,
   SpatialGraphContract,
   SimulationScopeRecord,
   ContextTransitionRequest,
@@ -42,6 +42,28 @@ export type {
   ContextCapabilityProfileContract,
   SimulationScopePolicyContract,
 } from './world-context.contract'
+
+export type {
+  CharacterBiologicalClockMode,
+  CharacterDeathCauseKind,
+  CharacterLifeStageDefinition,
+  CharacterConditionState,
+  CharacterDeathOutcome,
+  PendingCharacterDeath,
+  CharacterHealthState,
+  CharacterFortuneLevel,
+  CharacterFortuneState,
+  CharacterMoralityLevel,
+  CharacterMoralityState,
+  CharacterNarrativeStatus,
+} from './character-state.contract'
+
+export {
+  CHARACTER_BASE_OPERATION_FIELDS,
+  CHARACTER_DAYS_PER_YEAR,
+  resolveCharacterAgeDays,
+  resolveInitialAgeAnchorTotalDays,
+} from './character-state.contract'
 
 export type {
   HistoricalEventId,
@@ -65,6 +87,8 @@ export type {
   HistoricalEventCandidate,
   HistoricalEventCandidateAuditStatus,
   HistoricalEventCandidateAudit,
+  HistoricalEventCandidateDispositionStatus,
+  HistoricalEventCandidateDisposition,
   HistoricalEventMigrationMetadata,
   HistoricalEventLedgerPersistenceState,
   HistoricalEventView,
@@ -88,53 +112,13 @@ export type {
   HistoricalEventDetails,
   HistoricalEventCandidateInput,
   HistoricalEventCandidateSubmission,
+  HistoricalEventCandidateDispositionBatch,
+  HistoricalEventCandidateDispositionResult,
   HistoricalEventCandidateQuery,
   HistoricalCausalCommitmentInput,
 } from './historical-event.contract'
 
 export type {
-  EntityReferenceKind,
-  EntityReference,
-  EntityReferenceDirectoryPersistenceState,
-  NpcAvailability,
-  NpcIdentity,
-  NpcContextState,
-  NpcGoalStatus,
-  NpcGoal,
-  NpcBehaviorRecord,
-  NpcMemorySourceKind,
-  NpcMemory,
-  NpcMemoryCompression,
-  NpcSystemPersistenceState,
-  NpcSystemInstructionOperation,
-  RelationshipScopeKind,
-  RelationshipScope,
-  RelationshipStatus,
-  RelationshipRecord,
-  RelationshipTransitionOperation,
-  RelationshipTransition,
-  RelationshipSystemPersistenceState,
-  NpcSystemInstruction,
-  RelationshipSystemInstruction,
-} from './npc-social.contract'
-
-export {
-  NPC_SYSTEM_OPERATION_FIELDS,
-  RELATIONSHIP_SYSTEM_OPERATION_FIELDS,
-} from './npc-social.contract'
-
-export type {
-  TerrainClass,
-  NodeGeographyRecord,
-  GeographyChangeRecord,
-  GeographyPersistenceState,
-  GeographyMutationInput,
-  ResourceDepositStatus,
-  NaturalResourceDeposit,
-  NaturalResourceTransaction,
-  NaturalResourcePersistenceState,
-  NaturalResourceDepositInput,
-  NaturalResourceTransactionInput,
   MapProjectionKind,
   MapProjectionVisibility,
   MapProjectionNode,
@@ -153,58 +137,11 @@ export type {
   GrowthRecord,
   GrowthSystemPersistenceState,
   GrowthSystemInstructionOperation,
-  AchievementScopeKind,
-  AchievementEventCriteria,
-  AchievementDefinition,
-  AchievementProgress,
-  AchievementUnlock,
-  AchievementSystemPersistenceState,
-  ReputationScopeKind,
-  ReputationScope,
-  ReputationEvaluation,
-  ReputationChangeRecord,
-  ReputationSystemPersistenceState,
-  ReputationSystemInstructionOperation,
 } from './progression.contract'
 
 export {
   GROWTH_SYSTEM_OPERATION_FIELDS,
-  REPUTATION_SYSTEM_OPERATION_FIELDS,
 } from './progression.contract'
-
-export type {
-  CharacterAttributeKey,
-  CharacterAttributeModifiers,
-  BiologicalClockMode,
-  LifespanRuleProfile,
-  LifespanAdjustment,
-  LifespanSystemPersistenceState,
-  LifespanSystemInstructionOperation,
-  LifecycleNarrativeArchetype,
-  LifecycleStageDefinition,
-  LifecycleRuleProfile,
-  EntityLifecycleState,
-  LifecycleTransitionRecord,
-  LifecycleSystemPersistenceState,
-  HealthConditionKind,
-  HealthConditionStatus,
-  HealthCondition,
-  ContextHealthRule,
-  DeathCauseKind,
-  PendingDeathFact,
-  DeathOutcome,
-  EntityHealthState,
-  HealthSystemPersistenceState,
-  HealthSystemInstructionOperation,
-} from './life-cycle.contract'
-
-export {
-  CHARACTER_DAYS_PER_YEAR,
-  resolveCharacterAgeDays,
-  resolveInitialAgeAnchorTotalDays,
-  LIFESPAN_SYSTEM_OPERATION_FIELDS,
-  HEALTH_SYSTEM_OPERATION_FIELDS,
-} from './life-cycle.contract'
 
 export type {
   MonetaryMode,

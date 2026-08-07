@@ -24,9 +24,6 @@ import {
   buildNarrativeDataAnalysisPromptInput,
 } from '../../../../src/mods/mod-engine/helpers/narrative-data-analysis-context.ts'
 import {
-  buildNarrativeEventRecognitionPromptInput,
-} from '../../../../src/mods/mod-engine/helpers/narrative-event-recognition-context.ts'
-import {
   NarrativeAIMacroImpactDataSchema,
   buildNarrativeMacroImpactPromptInput,
 } from '../../../../src/mods/mod-engine/helpers/narrative-macro-impact-context.ts'
@@ -144,17 +141,13 @@ function basicAttributeLine(data) {
   return JSON.stringify(data)
 }
 
-function eventRecognitionLine(data) {
-  return JSON.stringify(data)
-}
-
 const promptContext = {
   worldNarrativeView: { 世界: '临海北湾', 规则: '现实物理与社会因果' },
   characterProfileView: { 姓名: '林舟', 年龄: 27 },
   characterStatusView: { 位置: '旧桥南端', 体力: '正常' },
   subsystemSummaries: ['阿禾在旧桥北端', '双方信任为35'],
   worldRules: '现实物理与社会因果；无超自然能力。',
-  modWorldRules: 'NPC 与关系只通过登记实体和公开契约运行。',
+  modWorldRules: '人物关系由故事事实与压缩记忆连续保存，不建立独立关系状态。',
   narrativeStyle: '写实',
   narrativeToneHint: '克制温暖',
   wordCountInstruction: '约500字',
@@ -336,7 +329,7 @@ for (const invalidNarrative of [
 }
 
 const writableIds = [...MVP_SYSTEM_INSTRUCTION_SUBSYSTEM_IDS]
-const dataWritableIds = writableIds.filter((id) => id !== 'character-base')
+const dataWritableIds = writableIds
 const subsystemStates = Object.fromEntries(writableIds.map((id) => [id, {
   id,
   summary: `${id} 已就绪`,
@@ -354,6 +347,36 @@ subsystemStates['character-base'] = {
       'context:world-a': { climate: { physique: 1 } },
     },
     startingAge: 18,
+    status: {
+      raceId: 'human',
+      raceName: '人类',
+      clockMode: 'aging',
+      ageAnchorTotalDays: 0,
+      ageDays: 18 * 365,
+      maximumLifespanDays: 100 * 365,
+      lifeStages: [{
+        stageId: 'adult',
+        displayName: '成年',
+        description: '身心处于稳定成年阶段',
+        minAgeDays: 18 * 365,
+        guidance: '按成年角色的能力、责任与长期选择推进剧情',
+      }],
+      currentStageId: 'adult',
+      endRisk: 0,
+      health: {
+        vitality: 100,
+        maxVitality: 100,
+        stamina: 100,
+        spirit: 100,
+        alive: true,
+        conditions: [],
+        updatedAtTotalDays: 120,
+      },
+      fortune: { value: 0, level: 'ordinary', guidance: '角色当前气运普通' },
+      morality: { value: 0, level: 'balanced', roundDelta: 0, guidance: '角色道德倾向中性' },
+      guidance: ['按成年角色的能力、责任与长期选择推进剧情'],
+      lastAnalyzedAtTotalDays: 120,
+    },
   },
 }
 subsystemStates['destiny-pattern'] = {
@@ -361,20 +384,6 @@ subsystemStates['destiny-pattern'] = {
   summary: '命格已就绪',
   data: {
     patterns: [{ name: '潮声记忆', description: '能准确记住潮汐节律', rarity: 'rare' }],
-  },
-}
-subsystemStates.lifespan = {
-  id: 'lifespan',
-  summary: '生命形态已就绪',
-  data: {
-    profile: { raceId: 'human', displayName: '人类', clockMode: 'biological' },
-  },
-}
-subsystemStates['lifecycle-system'] = {
-  id: 'lifecycle-system',
-  summary: '生命周期已就绪',
-  data: {
-    entity: { stageId: 'adult', stageLabel: '成年', stageDescription: '身心处于稳定成年阶段' },
   },
 }
 subsystemStates['historical-event-ledger'] = {
@@ -386,6 +395,8 @@ subsystemStates['historical-event-ledger'] = {
       { eventId: 'event:accepted-123' },
       { eventId: 'event:accepted-123' },
     ],
+    relevantCausalEdges: [],
+    dueCandidates: [],
   },
 }
 const roundContext = {
@@ -475,40 +486,42 @@ assertOk(
     && basicAttributeInput.userSegments[3].includes(recentStories[0].故事全文)
     && characterProfile.身份.姓名 === '林舟'
     && characterProfile.稳定特征.命格[0]?.name === '潮声记忆'
-    && characterProfile.稳定特征.物种与生命形态.displayName === '人类'
-    && characterProfile.稳定特征.生命周期阶段.stageLabel === '成年'
+    && characterProfile.稳定特征.角色状态.raceName === '人类'
+    && characterProfile.稳定特征.角色状态.currentStageId === 'adult'
+    && characterProfile.稳定特征.角色状态.lifeStages[0]?.displayName === '成年'
     && characterProfile.属性构成.当前语义.体魄.说明 === '平平无奇'
     && characterProfile.属性构成.当前语义.心智.说明.includes('人类物种巅峰')
     && characterProfile.属性构成.当前语义.悟性.说明.includes('超凡'),
   'basic-attribute analysis must receive the complete character portrait, 0/10/>10 semantics, full state and recent stories',
 )
 
-const eventRecognitionInput = buildNarrativeEventRecognitionPromptInput({
-  subsystemStates,
-  roundContext,
-  existingCandidates: [],
-  recentStories,
-})
-const eventRecentStories = JSON.parse(eventRecognitionInput.userSegments[4].slice('⟦最近故事⟧'.length))
-assertOk(
-  eventRecognitionInput.userSegments.length === 5
-    && eventRecognitionInput.userSegments[0].startsWith('⟦回合上下文⟧{')
-    && eventRecognitionInput.userSegments[1].startsWith('⟦事件相关状态⟧{')
-    && eventRecognitionInput.userSegments[2] === '⟦本轮已投递因果⟧[]'
-    && eventRecognitionInput.userSegments[3] === '⟦已有待触发事件⟧[]'
-    && eventRecentStories.length === 3
-    && eventRecentStories[2].故事全文 === recentStories[2].故事全文,
-  'event recognition must receive complete event state, existing candidates and recent stories',
-)
-
-subsystemStates.economy = {
-  id: 'economy',
-  summary: '宏观经济已就绪',
+subsystemStates['spatial-graph'] = {
+  id: 'spatial-graph',
+  summary: '当前区域概况已就绪',
   data: {
     contextId: 'context:world-a',
-    targetObjectId: 'economy:world-a',
-    priceIndex: 100,
-    productivity: 1,
+    spatialGraph: {
+      currentRegionNodeId: 'region:world-a:harbor',
+      regionProfiles: {
+        'region:world-a:harbor': {
+          regionId: 'region:world-a:harbor',
+          name: '临海北湾',
+          summary: '港湾城市与周边渔村形成连续生活圈',
+          climate: '温带海洋气候',
+          ecology: '近岸生态稳定',
+          resources: ['渔业', '木材'],
+          pollution: '轻度港口污染',
+          economy: '修船、渔业与地方贸易',
+          population: '人口适中',
+          settlement: '港城与沿岸村镇',
+          culture: '航海传统浓厚',
+          education: '师徒与基础学校并存',
+          socialStructure: '行会与地方自治并行',
+          factions: '港务机构与行会相互制衡',
+          law: '港务法规与地方习惯法并行',
+        },
+      },
+    },
   },
 }
 const macroImpactInput = buildNarrativeMacroImpactPromptInput({
@@ -526,18 +539,18 @@ assertOk(
     && macroImpactInput.userSegments[2].startsWith('⟦回合上下文⟧{')
     && macroRecentStories.length === 3
     && macroRecentStories[0].故事全文 === recentStories[0].故事全文
-    && macroImpactInput.activeSubsystemIds.includes('economy'),
+    && macroImpactInput.activeSubsystemIds.includes('spatial-graph'),
   'macro-impact analysis must receive complete active system contracts, influence evidence, round context and recent stories',
 )
 const macroImpactResponse = JSON.stringify({
   影响链: [{
-    节点编号: 'impact-economy',
+    节点编号: 'impact-region',
     依赖节点: [],
-    系统: '宏观经济',
-    目标对象: 'economy:world-a',
+    系统: '世界区域',
+    目标对象: 'region:world-a:harbor',
     目标上下文: 'context:world-a',
-    操作: '调整经济',
-    变更: { 生产力变化: 1 },
+    操作: '更新当前区域概况',
+    变更: { 经济: '新工艺已被当地修船行会采用，生产与贸易更活跃' },
     强度: 20,
     说明: '玩家公开的新工艺已经被当地生产组织采用。',
     依据事件: ['event:accepted-123'],
@@ -552,8 +565,8 @@ const macroImpactQuality = inspectNarrativeMacroImpactQuality({
 assertOk(
   NarrativeAIMacroImpactDataSchema.safeParse(JSON.parse(macroImpactResponse)).success
     && macroImpactQuality.valid
-    && macroImpactQuality.changes?.[0]?.id === 'economy'
-    && macroImpactQuality.changes[0]?.changes.productivityDelta === 1,
+    && macroImpactQuality.changes?.[0]?.id === 'spatial-graph'
+    && macroImpactQuality.changes[0]?.changes.economy === '新工艺已被当地修船行会采用，生产与贸易更活跃',
   'macro-impact DAG must translate only active fields with matching context and stable evidence',
 )
 const cyclicMacroImpact = inspectNarrativeMacroImpactQuality({
@@ -568,7 +581,7 @@ const cyclicMacroImpact = inspectNarrativeMacroImpactQuality({
         ...JSON.parse(macroImpactResponse).影响链[0],
         节点编号: 'impact-b',
         依赖节点: ['impact-a'],
-        变更: { 物价指数变化: 1 },
+        变更: { 人口: '新工艺吸引了少量外来工匠' },
       },
     ],
   }),
@@ -578,16 +591,16 @@ const cyclicMacroImpact = inspectNarrativeMacroImpactQuality({
 })
 assertOk(!cyclicMacroImpact.valid, 'macro-impact DAG must reject cyclic chain dependencies')
 
-const relationshipInstruction = {
-  系统: '通用关系系统',
-  目标对象: 'relationship:abc',
+const characterStatusInstruction = {
+  系统: '角色状态',
+  目标对象: 'player:current',
   目标上下文: 'context:world-a',
-  操作: '调整',
-  说明: '救援后信任上升',
-  变更: { 好感变化: 1, 信任变化: 2 },
+  操作: '更新状态',
+  说明: '救援中的选择改变了角色当前的气运与道德倾向',
+  变更: { 气运变化: 1, 道德变化: 2 },
   依据事件: ['event:accepted-123'],
 }
-const dataAnalysisResponse = dataAnalysisLine({ 系统操作: [relationshipInstruction] })
+const dataAnalysisResponse = dataAnalysisLine({ 系统操作: [characterStatusInstruction] })
 const parsedDataAnalysis = NarrativeAIDataAnalysisDataSchema.parse(parseNarrativeAIJson(dataAnalysisResponse))
 assertOk(
   parsedDataAnalysis.系统操作.length === 1,
@@ -598,19 +611,21 @@ const translatedDataChanges = translateNarrativeAIDataAnalysis(
   {
     allowedEvidenceEventIds: ['event:accepted-123'],
     allowedSubsystemIds: dataWritableIds,
+    allowedOperationsBySubsystem: dataAnalysisInput.allowedOperationsBySubsystem,
   },
 )
 assertOk(
-  translatedDataChanges[0]?.id === 'relationship-system'
-    && translatedDataChanges[0]?.operation === 'adjust'
-    && translatedDataChanges[0]?.changes.affinityDelta === 1
-    && translatedDataChanges[0]?.changes.trustDelta === 2,
+  translatedDataChanges[0]?.id === 'character-base'
+    && translatedDataChanges[0]?.operation === 'update-status'
+    && translatedDataChanges[0]?.changes.fortuneDelta === 1
+    && translatedDataChanges[0]?.changes.moralityDelta === 2,
   'Chinese system, operation and field names must translate to the owning internal contract',
 )
 const validDataAnalysisQuality = inspectNarrativeDataAnalysisQuality({
   content: dataAnalysisResponse,
   allowedEvidenceEventIds: ['event:accepted-123'],
   allowedSubsystemIds: dataWritableIds,
+  allowedOperationsBySubsystem: dataAnalysisInput.allowedOperationsBySubsystem,
 })
 assertOk(
   validDataAnalysisQuality.valid && validDataAnalysisQuality.changes?.length === 1,
@@ -626,6 +641,7 @@ assertOk(
     {
       allowedEvidenceEventIds: ['event:accepted-123'],
       allowedSubsystemIds: dataWritableIds,
+      allowedOperationsBySubsystem: dataAnalysisInput.allowedOperationsBySubsystem,
     },
   ).length === 0,
   'the server-side data-analysis example must remain neutral, parseable, and translatable',
@@ -642,6 +658,7 @@ assertOk(
     content: noDataChangeResponse,
     allowedEvidenceEventIds: [],
     allowedSubsystemIds: dataWritableIds,
+    allowedOperationsBySubsystem: dataAnalysisInput.allowedOperationsBySubsystem,
   }).valid,
   'data analysis must accept an explicit empty operation set',
 )
@@ -659,35 +676,37 @@ for (const [content, message] of invalidDataAnalysisCases) {
 }
 
 const unknownEvidenceResponse = dataAnalysisLine({
-  系统操作: [{ ...relationshipInstruction, 依据事件: ['event:not-provided'] }],
+  系统操作: [{ ...characterStatusInstruction, 依据事件: ['event:not-provided'] }],
 })
 assertOk(
   !inspectNarrativeDataAnalysisQuality({
     content: unknownEvidenceResponse,
     allowedEvidenceEventIds: ['event:accepted-123'],
     allowedSubsystemIds: dataWritableIds,
+    allowedOperationsBySubsystem: dataAnalysisInput.allowedOperationsBySubsystem,
   }).valid,
   'data analysis must reject evidence IDs that were not supplied in the same call',
 )
 
 for (const instruction of [
-  { ...relationshipInstruction, 系统: '未知系统' },
-  { ...relationshipInstruction, 操作: '未知操作' },
-  { ...relationshipInstruction, 变更: { 未知字段: 1 } },
+  { ...characterStatusInstruction, 系统: '未知系统' },
+  { ...characterStatusInstruction, 操作: '未知操作' },
+  { ...characterStatusInstruction, 变更: { 未知字段: 1 } },
 ]) {
   const result = inspectNarrativeDataAnalysisQuality({
     content: dataAnalysisLine({ 系统操作: [instruction] }),
     allowedEvidenceEventIds: ['event:accepted-123'],
     allowedSubsystemIds: dataWritableIds,
+    allowedOperationsBySubsystem: dataAnalysisInput.allowedOperationsBySubsystem,
   })
   assertOk(!result.valid, 'unknown systems, operations and fields must reject the complete data analysis')
 }
 
 const basicAttributeInstruction = {
-  系统: '基础属性',
+  系统: '角色状态',
   目标对象: 'player:current',
   目标上下文: 'context:world-a',
-  操作: '增量',
+  操作: '调整属性',
   说明: '长期训练已经形成稳定体能提升',
   变更: { 体魄变化: 1 },
   依据事件: [],
@@ -698,7 +717,11 @@ const parsedBasicAttribute = NarrativeAIBasicAttributeAnalysisDataSchema.parse(
 )
 const translatedBasicAttributeChanges = translateNarrativeAIBasicAttributeAnalysis(
   parsedBasicAttribute,
-  { allowedEvidenceEventIds: [], allowedSubsystemIds: ['character-base'] },
+  {
+    allowedEvidenceEventIds: [],
+    allowedSubsystemIds: ['character-base'],
+    allowedOperationsBySubsystem: { 'character-base': ['adjust-attributes'] },
+  },
 )
 assertOk(
   translatedBasicAttributeChanges[0]?.id === 'character-base'
@@ -707,6 +730,7 @@ assertOk(
       content: basicAttributeResponse,
       allowedEvidenceEventIds: [],
       allowedSubsystemIds: ['character-base'],
+      allowedOperationsBySubsystem: { 'character-base': ['adjust-attributes'] },
     }).valid,
   'basic-attribute analysis must translate only persistent four-attribute increments',
 )
@@ -733,11 +757,12 @@ assertOk(
     content: basicAttributeLine({ 系统操作: [] }),
     allowedEvidenceEventIds: [],
     allowedSubsystemIds: ['character-base'],
+    allowedOperationsBySubsystem: { 'character-base': ['adjust-attributes'] },
   }).valid,
   'basic-attribute analysis must accept an explicit no-change result',
 )
 
-const eventRecognitionExample = eventRecognitionLine({
+const eventRecognitionExample = JSON.stringify({
   回合事件: {
     摘要: '你救出阿禾并与她转入北岸航道',
     注册事件: [{ 内容: '你从仓门内救出阿禾', 重要度: 80, 涉及实体: ['阿禾'] }],
@@ -762,6 +787,7 @@ const eventRecognitionQuality = inspectNarrativeEventRecognitionQuality({
   currentContextId: 'ctx-protocol',
   currentTotalDays: 1000,
   existingCandidates: [],
+  dueCandidates: [],
 })
 assertOk(
   eventRecognitionData.回合事件.注册事件.length === 1
@@ -781,7 +807,7 @@ assertOk(
     && neutralEventRecognitionExample.待触发事件.length === 0,
   'the fixed event-recognition example must remain neutral and avoid preselecting an event outcome',
 )
-const emptyEventRecognitionResponse = eventRecognitionLine({
+const emptyEventRecognitionResponse = JSON.stringify({
   回合事件: {
     摘要: '本轮平稳结束，没有形成新的可注册事件',
     注册事件: [],
@@ -795,6 +821,7 @@ assertOk(
     currentContextId: 'ctx-protocol',
     currentTotalDays: 1000,
     existingCandidates: [],
+    dueCandidates: [],
   }).valid,
   'event recognition must accept explicit empty occurred-event and candidate sets',
 )
@@ -814,6 +841,7 @@ assertOk(
       currentContextId: 'ctx-protocol',
       currentTotalDays: 1000,
       existingCandidates: [],
+      dueCandidates: [],
     }).metadata?.keyEvents === undefined,
   'event presence must be derived locally from registered events instead of an AI boolean',
 )
@@ -885,7 +913,7 @@ assertOk(
     && narrativeBasicAttributePrompt.serverPromptAssetId === NARRATIVE_BASIC_ATTRIBUTE_SERVER_PROMPT_ASSET_ID
     && narrativeDataAnalysisPrompt.version === '2.0.0'
     && narrativeDataAnalysisPrompt.serverPromptAssetId === NARRATIVE_DATA_ANALYSIS_SERVER_PROMPT_ASSET_ID
-    && narrativeEventRecognitionPrompt.version === '3.2.0'
+    && narrativeEventRecognitionPrompt.version === '3.2.1'
     && narrativeEventRecognitionPrompt.serverPromptAssetId === NARRATIVE_EVENT_RECOGNITION_SERVER_PROMPT_ASSET_ID
     && narrativeMacroImpactPrompt.version === '1.0.0'
     && narrativeMacroImpactPrompt.serverPromptAssetId === NARRATIVE_MACRO_IMPACT_SERVER_PROMPT_ASSET_ID
@@ -895,6 +923,9 @@ assertOk(
     && !COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT.includes('⟦结束⟧')
     && !COMPILED_NARRATIVE_MACRO_IMPACT_SYSTEM_PROMPT.includes('⟦结束⟧')
     && COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT.includes('尚未发生且需要未来条件')
+    && COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT.includes('继续等待由账本保留原候选')
+    && COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT.includes('时间或机会窗口已经过去')
+    && COMPILED_NARRATIVE_EVENT_RECOGNITION_SYSTEM_PROMPT.includes('关系变化')
     && COMPILED_NARRATIVE_MACRO_IMPACT_SYSTEM_PROMPT.includes('直接影响或连锁反应')
     && !/⟦数据分析⟧|⟦基础属性分析⟧|⟦事件识别⟧|⟦宏观影响⟧/u.test([
       COMPILED_NARRATIVE_DATA_ANALYSIS_SYSTEM_PROMPT,

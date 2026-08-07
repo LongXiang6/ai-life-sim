@@ -9,10 +9,7 @@ import { generateWorldCode, useWorldStore } from '../store'
 import {
   applyCoherenceToWorldConfig,
   buildDefaultCalibration,
-  buildWorldCoherenceHint,
   formatWorldTagsText,
-  getWorldEntitySystem,
-  shouldSkipEntityAIGeneration,
   WorldInitSystem,
 } from '../world-init-bundle-deps'
 import type { WorldConfig, WorldInitAIStatus, WorldSnapshot } from '../types'
@@ -21,11 +18,9 @@ import {
   buildFallbackWorldScoringProfile,
   isCompleteWorldScoringProfile,
 } from '../scoring-profile'
-import { isWorldInitAIAvailable } from '../utils/world-init-fallback'
 import { resolvePipelineAnchorYear } from '../utils/world-init-anchor-year'
 import {
   buildWorldContextInstance,
-  contextKindUsesRegionMap,
   createCrossContextExit,
   createWorldContextId,
   inferContextKind,
@@ -116,7 +111,7 @@ export async function commitWorldInitialization(
     calibrationGenerated: true,
     tagsGenerated: true,
     configGenerated: true,
-    entitiesGenerated: true,
+    regionProfilesGenerated: true,
     retryCount: 0,
     maxRetries: 0,
     errors: [],
@@ -146,31 +141,9 @@ export async function commitWorldInitialization(
     if (source && target) getSpatialGraphSystem().addCrossContextExit(createCrossContextExit(source, target))
   }
 
-  const entitySystem = getWorldEntitySystem()
-  let entities = instance.entities
-  if (makeActive) {
-    entitySystem.reset()
-    entitySystem.setRegions(instance.regions)
-    entitySystem.setWorldContext(
-      resolvedConfig.name,
-      resolvedConfig.description,
-      resolvedConfig.civilizationStage,
-      buildWorldCoherenceHint(resolvedConfig.civilizationStage, resolvedConfig.description),
-      '',
-      resolvedConfig.worldType ?? 'idealist',
-    )
-    entities = !contextKindUsesRegionMap(contextKind)
-      || shouldSkipEntityAIGeneration(defaultCalibration)
-      || isWorldInitAIAvailable()
-      ? []
-      : await entitySystem.generateEntities(resolvedConfig)
-    store.setEntities(entities)
-    entities = useWorldStore.getState().entities
-  }
-
   const formattedTags = formatWorldTagsText(snapshot.tags)
   console.info(
-    `[mod-world] 世界 "${config.name}" 本地初始化完成（编码 ${worldCode}，区域 ${snapshot.regions.length}，实体 ${entities.length}）`,
+    `[mod-world] 世界 "${config.name}" 本地初始化完成（编码 ${worldCode}，区域 ${snapshot.regions.length}）`,
   )
   const stored = useWorldStore.getState().contexts[contextId]
   const storedSnapshot: WorldSnapshot = stored
@@ -178,11 +151,10 @@ export async function commitWorldInitialization(
         contextId,
         rootSpatialNodeId: stored.record.rootSpatialNodeId,
         worldConfig: structuredClone(stored.worldConfig),
-        entities: structuredClone(stored.entities),
         regions: structuredClone(stored.regions),
         tags: structuredClone(stored.tags),
       }
-    : { ...snapshot, entities }
+    : snapshot
   return { contextId, config: resolvedConfig, snapshot: storedSnapshot, worldCode, formattedTags }
 }
 

@@ -35,5 +35,3 @@ export {
 } from './helpers/simulation-time-api'
 export { resolveNarrativeBranchChoice, setForceBranchNextRound } from './helpers/branch-commands'
 export { buildOrchestratorWorldSetting } from './helpers/orchestrator-world-setting'
-
-export type { NPCInteractionRecord } from './subsystems/core-memory-system'

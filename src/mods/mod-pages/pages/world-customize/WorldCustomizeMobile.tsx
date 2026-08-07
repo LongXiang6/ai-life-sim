@@ -126,6 +126,33 @@ export function WorldCustomizeMobile() {
               />
             </section>
 
+            <section className={styles.paperSection} aria-labelledby="festival-scope-title">
+              <div className={styles.sectionHeading}>
+                <strong id="festival-scope-title">节日范围</strong>
+                <span>统一游戏历法</span>
+              </div>
+              <div className={styles.festivalControl} role="group" aria-label="节日范围">
+                <button
+                  type="button"
+                  className={logic.festivalScope === 'china' ? styles.festivalActive : undefined}
+                  aria-pressed={logic.festivalScope === 'china'}
+                  disabled={logic.isSaving}
+                  onClick={() => logic.setFestivalScope('china')}
+                >
+                  仅中国节日
+                </button>
+                <button
+                  type="button"
+                  className={logic.festivalScope === 'china-and-international' ? styles.festivalActive : undefined}
+                  aria-pressed={logic.festivalScope === 'china-and-international'}
+                  disabled={logic.isSaving}
+                  onClick={() => logic.setFestivalScope('china-and-international')}
+                >
+                  中国及国际节日
+                </button>
+              </div>
+            </section>
+
             <section className={`${styles.paperSection} ${styles.rulesSection}`}>
               <div className={styles.sectionHeading}>
                 <strong>世界规则</strong><span>从基础形态到力量边界</span>

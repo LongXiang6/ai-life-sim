@@ -26,6 +26,8 @@ export type {
   HistoricalEventCandidate,
   HistoricalEventCandidateAuditStatus,
   HistoricalEventCandidateAudit,
+  HistoricalEventCandidateDispositionStatus,
+  HistoricalEventCandidateDisposition,
   HistoricalEventMigrationMetadata,
   HistoricalEventLedgerPersistenceState,
   HistoricalEventView,
@@ -49,6 +51,8 @@ export type {
   HistoricalEventDetails,
   HistoricalEventCandidateInput,
   HistoricalEventCandidateSubmission,
+  HistoricalEventCandidateDispositionBatch,
+  HistoricalEventCandidateDispositionResult,
   HistoricalEventCandidateQuery,
   HistoricalCausalCommitmentInput,
 } from '@/foundation'

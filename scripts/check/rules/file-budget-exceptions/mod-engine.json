@@ -14,22 +14,10 @@
       "reason": "剧情摘要账本的单一状态所有者，记录、查询、快照和恢复共享同一顺序与去重不变式。"
     },
     {
-      "path": "src/mods/mod-engine/helpers/event-lifecycle-tracker.ts",
-      "owner": "mod-engine",
-      "reviewedLines": 418,
-      "reason": "事件生命周期状态机的唯一契约与迁移实现，状态转换和序列化不可分离。"
-    },
-    {
       "path": "src/mods/mod-engine/helpers/narrative-ai-protocol.ts",
       "owner": "mod-engine",
       "reviewedLines": 669,
       "reason": "主叙事 AI 协议的唯一 Schema、中文键映射和解析校验入口，拆分会形成协议第二真源。"
-    },
-    {
-      "path": "src/mods/mod-engine/helpers/narrative-calendar.ts",
-      "owner": "mod-engine",
-      "reviewedLines": 328,
-      "reason": "叙事日历换算的单一纯函数组件，所有函数共享同一历法不变式。"
     },
     {
       "path": "src/mods/mod-engine/helpers/narrative-macro-impact-context.ts",
@@ -68,21 +56,9 @@
       "reason": "伏笔生命周期的单一状态系统，登记、兑现、索引和快照共享同一 ID 与状态迁移契约。"
     },
     {
-      "path": "src/mods/mod-engine/subsystems/memory-engine-system.ts",
-      "owner": "mod-engine",
-      "reviewedLines": 707,
-      "reason": "长期记忆存取的单一状态系统，写入、检索、去重和持久化共享同一记忆索引。"
-    },
-    {
-      "path": "src/mods/mod-engine/subsystems/memory-forgetting-system.ts",
-      "owner": "mod-engine",
-      "reviewedLines": 500,
-      "reason": "记忆遗忘权重与保护规则的单一状态系统，衰减、保护和快照共享同一权重不变式。"
-    },
-    {
       "path": "src/mods/mod-engine/subsystems/memory-lifecycle-system.ts",
       "owner": "mod-engine",
-      "reviewedLines": 881,
+      "reviewedLines": 1045,
       "reason": "记忆生命周期的单一状态所有者；契约已下沉，剩余评分、聚合、索引和检索共享同一层级索引。"
     },
     {
@@ -96,12 +72,6 @@
       "owner": "mod-engine",
       "reviewedLines": 431,
       "reason": "情节阶段与语义信号的单一状态机，阶段判定、推进和快照共享同一结构状态。"
-    },
-    {
-      "path": "src/mods/mod-engine/subsystems/subsystem-relevance-system.ts",
-      "owner": "mod-engine",
-      "reviewedLines": 502,
-      "reason": "子系统相关性滑动窗口与影响范围的单一计算状态，评分、记录和投影共享同一历史窗口。"
     },
     {
       "path": "src/mods/mod-engine/subsystems/summary-compressor-system.ts",

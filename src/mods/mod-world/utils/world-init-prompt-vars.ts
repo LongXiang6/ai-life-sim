@@ -114,17 +114,17 @@ export function formatEntityRangesForPrompt(cal: WorldCalibration | null | undef
   return parts.length > 0 ? parts.join('；') : '各层按世界观默认'
 }
 
-/** 地图区域摘要 → Prompt（供实体 AI 选择 regionId） */
+/** 地图区域摘要 → Prompt（供区域概况 AI 逐项补充） */
 export function formatRegionsForPrompt(regions: RegionData[]): string {
   if (!regions.length) {
-    return '（无区域数据；settlements/nations 等实体的 regionId 可留空）'
+    return '（无区域数据）'
   }
   return regions.map((r) => [
     `- regionId="${r.id}"`,
     `名称=${r.name}`,
     `地形=${r.terrainTag}`,
-    `开发度=${r.developmentLevel}`,
     `模板=${r.templateType}`,
+    `现有概况=${r.summary}`,
   ].join(' ')).join('\n')
 }
 

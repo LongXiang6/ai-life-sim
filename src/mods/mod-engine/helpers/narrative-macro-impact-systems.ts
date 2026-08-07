@@ -5,19 +5,7 @@
  */
 
 export const NARRATIVE_MACRO_CONTEXT_SUBSYSTEM_IDS = [
-  'geography',
-  'natural-resource',
-  'climate',
-  'ecology',
-  'pollution',
-  'economy',
-  'population',
-  'settlement',
-  'social-stratification',
-  'faction-dynamics',
-  'legal',
-  'conflict-cycle',
-  'culture',
+  'spatial-graph',
   'culture-tech',
 ] as const
 

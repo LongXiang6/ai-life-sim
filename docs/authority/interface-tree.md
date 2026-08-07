@@ -10,7 +10,7 @@
 - 页面拥有渲染、导航和页面内临时交互状态；业务状态、计算、持久化和跨系统提交由所属 MOD 或 Core 服务负责。
 - 页面通过公共入口调用所属系统，不从其他 MOD 私有目录建立第二套状态或写入路径。
 - `final-flow` 页面直接占用浏览器真实可视区域，不使用固定宽高设计画布、整页 `transform/zoom`、运行时尺寸回算或设备外壳。手机端宽度跟随视口，纵向密度跟随动态可视高度；页面内容自行滚动，共享底栏固定在浏览器安全区内。桌面端只限制内容阅读宽度，不缩放整页。非核心模拟页面通过统一密度单位把文字、控件和间距按原生布局放大 `1.2` 倍；核心故事根节点把该密度恢复为 `1` 倍，连同挂载在根节点内的弹窗和底栏保持原尺寸。实时源为 `src/app/globals.css` 中的 `.final-flow-frame`、`.flow-responsive-viewport` 与 `.flow-responsive-layout`。
-- `docs/ui-prototypes/mobile/flow.html` 及其页面只在用户明确要求原型或视觉对照时作为界面资产，不定义运行时机制或全局执行流程。
+- `docs/ui-prototypes/mobile/index.html` 是下一轮通用 UI 迭代方案库入口，只登记迭代目标、候选结构和用户确认结果；库内模板不预设产品主题，不拥有运行时视觉权威、业务状态或全局执行流程。
 
 ## 界面树
 
@@ -46,7 +46,7 @@
 | 属性分配 | 调整并确认玩家可见的基础属性，命格修正保持独立 | 页面操作创建期基础值，确认后通过 `character-base` 所属公开状态提交 | `src/mods/mod-pages/pages/attribute-alloc/`；后续叙事写入仍受核心模拟字段契约限制 |
 | 命运预览 | 在正式模拟前完成最后核对并进入第一轮 | 页面汇总已确认的世界、角色和命格信息，确认后启动模拟 | `src/mods/mod-pages/pages/fate-preview/`；不复制所属系统状态 |
 | 核心故事 | 展示故事、分支选择、当前生命状态、错误和继续推进 | 页面只经 `useSimulationAdvance` 调用 `executeRoundV2`。第一次正文通过严格协议后，页面把 `pendingNarrative` 追加到阅读投影，Orchestrator 同时把正文接纳进正式 `narrativeHistory`；数据、基础属性、事件识别和宏观影响 AI 在后台独立运行，不继续占用玩家推进状态。下一轮与分支操作只等待本轮单写者、本地终态队列和压缩闸门；压缩无任务或任一合法候选成功后清除即时投影，三次压缩均失败时正文仍保留并显示阻塞错误。自动重试严格串行，上一尝试完整结束后才安排下一次；玩家手动重试会使尚未触发的旧计时器失效，所有入口仍由引擎单飞门保证一次只提交一轮。页面从 `isAdvancing`、`pendingNarrative` 与 `narrativeError` 派生进度；命运分叉图标固定在顶部信息栏的时间步长按钮旁，激活时显示状态点，“当前信息”的更多操作区不得建立重复入口。分支预设与自定义输入互斥，自定义输入默认折叠，确认按钮显示当前选择或自定义做法。玩家请求命运分叉后，即使 AI 没有返回预设选项，正式正文接纳后也会出现自定义叙事引导输入框。“当前信息”面板只显示 owning systems 已提交投影；死亡提交完成后进入现有结算路由 | `src/mods/mod-pages/pages/game-story/`、`src/mods/mod-ui/components/organisms/NarrativeTimeline.tsx`、`src/mods/mod-engine/store.ts`；页面不持久化即时正文、不解析 AI 状态、不提前开放分支，也不推导死亡，详细机制见 [核心模拟](core-simulation.md) |
-| 人生结算 | 展示本局结果、人生记录、死亡尾声、评分、轮回结果和新人生入口 | 页面读取已完成的引擎与角色结果，使用逐轮迁移审计组装完整评分输入；`health.death` 已绑定专属历史事件且尾声状态为 ready 时，优先展示其已提交 `epilogueText`，否则消费核心评分结果与第二人称评语。页面继续执行分享、战绩同步、画像资格请求、轮回选择或重新开始，不把迁移状态或死亡文本硬编码为可信 | `src/mods/mod-pages/pages/game-over/`、`src/core/scoring/`、`src/mods/mod-character/subsystems/health-system.ts`、`src/mods/mod-character/mythic-library-store.ts`；结算页不生成第二套死亡事实或评分公式，服务端仍会独立复算资格 |
+| 人生结算 | 展示本局结果、人生记录、死亡尾声、评分、轮回结果和新人生入口 | 页面读取已完成的引擎与角色结果，使用逐轮迁移审计组装完整评分输入；角色状态中的死亡事实已绑定专属历史事件且尾声状态为 ready 时，优先展示其已提交 `epilogueText`，否则消费核心评分结果与第二人称评语。页面继续执行分享、战绩同步、画像资格请求、轮回选择或重新开始，不把迁移状态或死亡文本硬编码为可信 | `src/mods/mod-pages/pages/game-over/`、`src/core/scoring/`、`src/mods/mod-character/subsystems/character-base-system.ts`、`src/mods/mod-character/subsystems/character-epilogue-runtime.ts`、`src/mods/mod-character/mythic-library-store.ts`；结算页不生成第二套死亡事实或评分公式，服务端仍会独立复算资格 |
 
 `src/mods/mod-pages/pages/world-build/` 仅将旧路由重定向到世界配置，不是第二套世界创建界面。
 

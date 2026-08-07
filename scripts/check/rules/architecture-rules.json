@@ -13,20 +13,11 @@
       "engine-api",
       "server-prompt-assets"
     ],
-    "mod-environment-ecology": [
-      "environment-simulation-api"
-    ],
     "mod-history-dynamics": [
       "historical-event-api"
     ],
-    "mod-npc": [
-      "npc-system-api"
-    ],
     "mod-progression": [
       "progression-api"
-    ],
-    "mod-social": [
-      "relationship-system-api"
     ],
     "mod-world": [
       "world-init-api",

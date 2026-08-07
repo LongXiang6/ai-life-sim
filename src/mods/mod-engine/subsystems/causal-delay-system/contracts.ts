@@ -65,7 +65,6 @@ export interface CausalTriggerResult {
 
 export interface CausalConfig {
   delayDaysBySeverity: Record<CausalSeverity, number>
-  maxTriggerPerRound: number
 }
 
 export interface CausalDispositionInput {
@@ -83,7 +82,6 @@ export const DEFAULT_CAUSAL_CONFIG: CausalConfig = {
     major: 180,
     critical: 365,
   },
-  maxTriggerPerRound: 2,
 }
 
 export const LEGACY_COMPAT_TRIGGER_DELAY_ROUNDS: Record<CausalSeverity, number> = {

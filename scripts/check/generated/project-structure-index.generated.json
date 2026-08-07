@@ -647,9 +647,7 @@
       "files": [
         "src/foundation/index.ts"
       ],
-      "oversized": [
-        "src/foundation/index.ts"
-      ]
+      "oversized": []
     },
     {
       "id": "foundation:persist",
@@ -670,14 +668,13 @@
         "src/foundation/subsystem-contracts/historical-event"
       ],
       "files": [
+        "src/foundation/subsystem-contracts/character-state.contract.ts",
         "src/foundation/subsystem-contracts/historical-event.contract.ts",
         "src/foundation/subsystem-contracts/historical-event/commit-contract.ts",
         "src/foundation/subsystem-contracts/historical-event/event-records.ts",
         "src/foundation/subsystem-contracts/historical-event/ledger-state.ts",
         "src/foundation/subsystem-contracts/historical-event/query-contract.ts",
         "src/foundation/subsystem-contracts/index.ts",
-        "src/foundation/subsystem-contracts/life-cycle.contract.ts",
-        "src/foundation/subsystem-contracts/npc-social.contract.ts",
         "src/foundation/subsystem-contracts/power-framework.contract.ts",
         "src/foundation/subsystem-contracts/progression.contract.ts",
         "src/foundation/subsystem-contracts/spatial-environment.contract.ts",
@@ -801,30 +798,6 @@
       "oversized": []
     },
     {
-      "id": "mod-base-universe",
-      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
-      "directories": [
-        "src/mods/mod-base-universe",
-        "src/mods/mod-base-universe/_internal",
-        "src/mods/mod-base-universe/subsystems"
-      ],
-      "files": [
-        "src/mods/mod-base-universe/_internal/control.ts",
-        "src/mods/mod-base-universe/constants.ts",
-        "src/mods/mod-base-universe/hooks.ts",
-        "src/mods/mod-base-universe/index.ts",
-        "src/mods/mod-base-universe/manifest.ts",
-        "src/mods/mod-base-universe/store.ts",
-        "src/mods/mod-base-universe/subsystems/celestial-system.ts",
-        "src/mods/mod-base-universe/subsystems/divine-creation-system.ts",
-        "src/mods/mod-base-universe/subsystems/era-system.ts",
-        "src/mods/mod-base-universe/subsystems/fate-prophecy-system.ts",
-        "src/mods/mod-base-universe/types.ts",
-        "src/mods/mod-base-universe/utils.ts"
-      ],
-      "oversized": []
-    },
-    {
       "id": "mod-character",
       "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
       "directories": [
@@ -859,16 +832,14 @@
         "src/mods/mod-character/prompts/use-race-origin.ts",
         "src/mods/mod-character/store.ts",
         "src/mods/mod-character/subsystems/character-base-system.ts",
+        "src/mods/mod-character/subsystems/character-epilogue-runtime.ts",
+        "src/mods/mod-character/subsystems/character-status-runtime.ts",
+        "src/mods/mod-character/subsystems/character-status-update.ts",
+        "src/mods/mod-character/subsystems/character-status-validation.ts",
         "src/mods/mod-character/subsystems/destiny-pattern-system.ts",
         "src/mods/mod-character/subsystems/destiny-pattern-system/ai-pool-service.ts",
         "src/mods/mod-character/subsystems/destiny-pattern-system/contracts.ts",
         "src/mods/mod-character/subsystems/destiny-pattern-system/validation.ts",
-        "src/mods/mod-character/subsystems/health-system.ts",
-        "src/mods/mod-character/subsystems/life-cycle-validation.ts",
-        "src/mods/mod-character/subsystems/lifecycle-system.ts",
-        "src/mods/mod-character/subsystems/lifespan-system.ts",
-        "src/mods/mod-character/subsystems/luck-system.ts",
-        "src/mods/mod-character/subsystems/morality-system.ts",
         "src/mods/mod-character/types.ts",
         "src/mods/mod-character/utils.ts",
         "src/mods/mod-character/utils/attr-tiers.ts",
@@ -885,40 +856,9 @@
       "oversized": [
         "src/mods/mod-character/constants.ts",
         "src/mods/mod-character/prompts/talent-presets.ts",
+        "src/mods/mod-character/subsystems/character-base-system.ts",
         "src/mods/mod-character/subsystems/destiny-pattern-system.ts",
-        "src/mods/mod-character/subsystems/destiny-pattern-system/ai-pool-service.ts",
-        "src/mods/mod-character/subsystems/health-system.ts",
-        "src/mods/mod-character/subsystems/lifecycle-system.ts",
-        "src/mods/mod-character/subsystems/lifespan-system.ts"
-      ]
-    },
-    {
-      "id": "mod-culture",
-      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
-      "directories": [
-        "src/mods/mod-culture",
-        "src/mods/mod-culture/_internal",
-        "src/mods/mod-culture/subsystems",
-        "src/mods/mod-culture/utils"
-      ],
-      "files": [
-        "src/mods/mod-culture/_internal/control.ts",
-        "src/mods/mod-culture/calendar-context.ts",
-        "src/mods/mod-culture/constants.ts",
-        "src/mods/mod-culture/hooks.ts",
-        "src/mods/mod-culture/index.ts",
-        "src/mods/mod-culture/manifest.ts",
-        "src/mods/mod-culture/store.ts",
-        "src/mods/mod-culture/subsystems/art-system.ts",
-        "src/mods/mod-culture/subsystems/culture-system.ts",
-        "src/mods/mod-culture/subsystems/education-system.ts",
-        "src/mods/mod-culture/subsystems/works-system.ts",
-        "src/mods/mod-culture/types.ts",
-        "src/mods/mod-culture/utils.ts",
-        "src/mods/mod-culture/utils/festival-calendar.ts"
-      ],
-      "oversized": [
-        "src/mods/mod-culture/constants.ts"
+        "src/mods/mod-character/subsystems/destiny-pattern-system/ai-pool-service.ts"
       ]
     },
     {
@@ -940,35 +880,6 @@
       "oversized": []
     },
     {
-      "id": "mod-economy",
-      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
-      "directories": [
-        "src/mods/mod-economy",
-        "src/mods/mod-economy/_internal",
-        "src/mods/mod-economy/subsystems"
-      ],
-      "files": [
-        "src/mods/mod-economy/_internal/control.ts",
-        "src/mods/mod-economy/constants.ts",
-        "src/mods/mod-economy/hooks.ts",
-        "src/mods/mod-economy/index.ts",
-        "src/mods/mod-economy/manifest.ts",
-        "src/mods/mod-economy/store.ts",
-        "src/mods/mod-economy/subsystems/economy-runtime.ts",
-        "src/mods/mod-economy/subsystems/economy-system.ts",
-        "src/mods/mod-economy/subsystems/item-system.ts",
-        "src/mods/mod-economy/subsystems/population-system.ts",
-        "src/mods/mod-economy/subsystems/settlement-system.ts",
-        "src/mods/mod-economy/subsystems/work-system.ts",
-        "src/mods/mod-economy/types.ts",
-        "src/mods/mod-economy/utils.ts"
-      ],
-      "oversized": [
-        "src/mods/mod-economy/constants.ts",
-        "src/mods/mod-economy/types.ts"
-      ]
-    },
-    {
       "id": "mod-engine",
       "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
       "directories": [
@@ -986,6 +897,7 @@
         "src/mods/mod-engine/subsystems/causal-delay-system",
         "src/mods/mod-engine/subsystems/memory-lifecycle-system",
         "src/mods/mod-engine/subsystems/orchestrator-system",
+        "src/mods/mod-engine/subsystems/time-system",
         "src/mods/mod-engine/utils"
       ],
       "files": [
@@ -1014,7 +926,6 @@
         "src/mods/mod-engine/helpers/digest-ledger.ts",
         "src/mods/mod-engine/helpers/event-lifecycle-tracker.ts",
         "src/mods/mod-engine/helpers/historical-event-prompt-projection.ts",
-        "src/mods/mod-engine/helpers/lifecycle-narrative.ts",
         "src/mods/mod-engine/helpers/mvp-runtime-policy.ts",
         "src/mods/mod-engine/helpers/mvp-stage-loader.ts",
         "src/mods/mod-engine/helpers/mvp-stages-config.default.json",
@@ -1027,6 +938,7 @@
         "src/mods/mod-engine/helpers/narrative-change-bundle.ts",
         "src/mods/mod-engine/helpers/narrative-context-scope.ts",
         "src/mods/mod-engine/helpers/narrative-data-analysis-context.ts",
+        "src/mods/mod-engine/helpers/narrative-event-candidate-quality.ts",
         "src/mods/mod-engine/helpers/narrative-event-recognition-context.ts",
         "src/mods/mod-engine/helpers/narrative-hints.ts",
         "src/mods/mod-engine/helpers/narrative-macro-impact-context.ts",
@@ -1089,12 +1001,10 @@
         "src/mods/mod-engine/store.ts",
         "src/mods/mod-engine/subsystems/causal-delay-system.ts",
         "src/mods/mod-engine/subsystems/causal-delay-system/contracts.ts",
-        "src/mods/mod-engine/subsystems/core-memory-system.ts",
         "src/mods/mod-engine/subsystems/foreshadowing-system.ts",
-        "src/mods/mod-engine/subsystems/memory-engine-system.ts",
-        "src/mods/mod-engine/subsystems/memory-forgetting-system.ts",
         "src/mods/mod-engine/subsystems/memory-lifecycle-system.ts",
         "src/mods/mod-engine/subsystems/memory-lifecycle-system/contracts.ts",
+        "src/mods/mod-engine/subsystems/memory-lifecycle-system/timeline-facts.ts",
         "src/mods/mod-engine/subsystems/narrative-parser-system.ts",
         "src/mods/mod-engine/subsystems/orchestrator-system.ts",
         "src/mods/mod-engine/subsystems/orchestrator-system/campaign-stage-runtime.ts",
@@ -1118,6 +1028,7 @@
         "src/mods/mod-engine/subsystems/subsystem-relevance-system.ts",
         "src/mods/mod-engine/subsystems/summary-compressor-system.ts",
         "src/mods/mod-engine/subsystems/time-system.ts",
+        "src/mods/mod-engine/subsystems/time-system/festival-calendar.ts",
         "src/mods/mod-engine/types.ts",
         "src/mods/mod-engine/utils.ts",
         "src/mods/mod-engine/utils/time-step-resolver.ts"
@@ -1125,52 +1036,18 @@
       "oversized": [
         "src/mods/mod-engine/campaigns/default/index.ts",
         "src/mods/mod-engine/helpers/digest-ledger.ts",
-        "src/mods/mod-engine/helpers/event-lifecycle-tracker.ts",
         "src/mods/mod-engine/helpers/narrative-ai-protocol.ts",
-        "src/mods/mod-engine/helpers/narrative-calendar.ts",
         "src/mods/mod-engine/helpers/narrative-macro-impact-context.ts",
         "src/mods/mod-engine/helpers/save-restore.ts",
         "src/mods/mod-engine/helpers/subsystem-field-registry.ts",
         "src/mods/mod-engine/hooks.ts",
         "src/mods/mod-engine/subsystems/causal-delay-system.ts",
         "src/mods/mod-engine/subsystems/foreshadowing-system.ts",
-        "src/mods/mod-engine/subsystems/memory-engine-system.ts",
-        "src/mods/mod-engine/subsystems/memory-forgetting-system.ts",
         "src/mods/mod-engine/subsystems/memory-lifecycle-system.ts",
         "src/mods/mod-engine/subsystems/orchestrator-system.ts",
         "src/mods/mod-engine/subsystems/plot-structure-system.ts",
-        "src/mods/mod-engine/subsystems/subsystem-relevance-system.ts",
         "src/mods/mod-engine/subsystems/summary-compressor-system.ts",
         "src/mods/mod-engine/subsystems/time-system.ts"
-      ]
-    },
-    {
-      "id": "mod-environment-ecology",
-      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
-      "directories": [
-        "src/mods/mod-environment-ecology",
-        "src/mods/mod-environment-ecology/_internal",
-        "src/mods/mod-environment-ecology/subsystems"
-      ],
-      "files": [
-        "src/mods/mod-environment-ecology/_internal/control.ts",
-        "src/mods/mod-environment-ecology/constants.ts",
-        "src/mods/mod-environment-ecology/environment-simulation-api.ts",
-        "src/mods/mod-environment-ecology/hooks.ts",
-        "src/mods/mod-environment-ecology/index.ts",
-        "src/mods/mod-environment-ecology/manifest.ts",
-        "src/mods/mod-environment-ecology/store.ts",
-        "src/mods/mod-environment-ecology/subsystems/climate-system.ts",
-        "src/mods/mod-environment-ecology/subsystems/ecology-system.ts",
-        "src/mods/mod-environment-ecology/subsystems/geography-system.ts",
-        "src/mods/mod-environment-ecology/subsystems/natural-resource-system.ts",
-        "src/mods/mod-environment-ecology/subsystems/pollution-system.ts",
-        "src/mods/mod-environment-ecology/types.ts",
-        "src/mods/mod-environment-ecology/utils.ts"
-      ],
-      "oversized": [
-        "src/mods/mod-environment-ecology/subsystems/geography-system.ts",
-        "src/mods/mod-environment-ecology/subsystems/natural-resource-system.ts"
       ]
     },
     {
@@ -1194,6 +1071,8 @@
         "src/mods/mod-history-dynamics/manifest.ts",
         "src/mods/mod-history-dynamics/store.ts",
         "src/mods/mod-history-dynamics/subsystems/historical-event-ledger-system.ts",
+        "src/mods/mod-history-dynamics/subsystems/historical-event-ledger-system/candidate-disposition-runtime.ts",
+        "src/mods/mod-history-dynamics/subsystems/historical-event-ledger-system/candidate-due-runtime.ts",
         "src/mods/mod-history-dynamics/subsystems/historical-event-ledger-system/query-runtime.ts",
         "src/mods/mod-history-dynamics/subsystems/index.ts",
         "src/mods/mod-history-dynamics/types.ts",
@@ -1203,32 +1082,6 @@
         "src/mods/mod-history-dynamics/store.ts",
         "src/mods/mod-history-dynamics/subsystems/historical-event-ledger-system.ts"
       ]
-    },
-    {
-      "id": "mod-npc",
-      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
-      "directories": [
-        "src/mods/mod-npc",
-        "src/mods/mod-npc/_internal",
-        "src/mods/mod-npc/subsystems",
-        "src/mods/mod-npc/subsystems/npc-system"
-      ],
-      "files": [
-        "src/mods/mod-npc/_internal/control.ts",
-        "src/mods/mod-npc/index.ts",
-        "src/mods/mod-npc/manifest.ts",
-        "src/mods/mod-npc/npc-system-api.ts",
-        "src/mods/mod-npc/store.ts",
-        "src/mods/mod-npc/subsystems/npc-system.ts",
-        "src/mods/mod-npc/subsystems/npc-system/background-progress.ts",
-        "src/mods/mod-npc/subsystems/npc-system/command-validation.ts",
-        "src/mods/mod-npc/subsystems/npc-system/common.ts",
-        "src/mods/mod-npc/subsystems/npc-system/entity-validation.ts",
-        "src/mods/mod-npc/subsystems/npc-system/persistence-validation.ts",
-        "src/mods/mod-npc/subsystems/npc-system/projection.ts",
-        "src/mods/mod-npc/types.ts"
-      ],
-      "oversized": []
     },
     {
       "id": "mod-pages",
@@ -1413,30 +1266,6 @@
       ]
     },
     {
-      "id": "mod-politics",
-      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
-      "directories": [
-        "src/mods/mod-politics",
-        "src/mods/mod-politics/_internal",
-        "src/mods/mod-politics/subsystems"
-      ],
-      "files": [
-        "src/mods/mod-politics/_internal/control.ts",
-        "src/mods/mod-politics/constants.ts",
-        "src/mods/mod-politics/hooks.ts",
-        "src/mods/mod-politics/index.ts",
-        "src/mods/mod-politics/manifest.ts",
-        "src/mods/mod-politics/store.ts",
-        "src/mods/mod-politics/subsystems/conflict-cycle-system.ts",
-        "src/mods/mod-politics/subsystems/faction-dynamics-system.ts",
-        "src/mods/mod-politics/subsystems/legal-system.ts",
-        "src/mods/mod-politics/subsystems/social-stratification-system.ts",
-        "src/mods/mod-politics/types.ts",
-        "src/mods/mod-politics/utils.ts"
-      ],
-      "oversized": []
-    },
-    {
       "id": "mod-power-system",
       "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
       "directories": [
@@ -1451,13 +1280,8 @@
         "src/mods/mod-power-system/index.ts",
         "src/mods/mod-power-system/manifest.ts",
         "src/mods/mod-power-system/store.ts",
-        "src/mods/mod-power-system/subsystems/anomaly-phenomena-system.ts",
         "src/mods/mod-power-system/subsystems/combat-power-system.ts",
         "src/mods/mod-power-system/subsystems/cultivation-system.ts",
-        "src/mods/mod-power-system/subsystems/divine-intervention-system.ts",
-        "src/mods/mod-power-system/subsystems/faith-system.ts",
-        "src/mods/mod-power-system/subsystems/fortune-encounter-system.ts",
-        "src/mods/mod-power-system/subsystems/monster-system.ts",
         "src/mods/mod-power-system/subsystems/p8-runtime.ts",
         "src/mods/mod-power-system/types.ts",
         "src/mods/mod-power-system/utils.ts"
@@ -1477,9 +1301,7 @@
         "src/mods/mod-progression/index.ts",
         "src/mods/mod-progression/manifest.ts",
         "src/mods/mod-progression/progression-api.ts",
-        "src/mods/mod-progression/subsystems/achievement-system.ts",
         "src/mods/mod-progression/subsystems/growth-system.ts",
-        "src/mods/mod-progression/subsystems/reputation-system.ts",
         "src/mods/mod-progression/types.ts",
         "src/mods/mod-progression/utils.ts"
       ],
@@ -1526,27 +1348,6 @@
         "src/mods/mod-settings/components/SettingsTabPresets.tsx",
         "src/mods/mod-settings/components/SettingsTabTheme.module.css"
       ]
-    },
-    {
-      "id": "mod-social",
-      "responsibility": "MOD 部门拥有的业务状态、计算和公开结果",
-      "directories": [
-        "src/mods/mod-social",
-        "src/mods/mod-social/_internal",
-        "src/mods/mod-social/subsystems",
-        "src/mods/mod-social/subsystems/relationship-system"
-      ],
-      "files": [
-        "src/mods/mod-social/_internal/control.ts",
-        "src/mods/mod-social/index.ts",
-        "src/mods/mod-social/manifest.ts",
-        "src/mods/mod-social/relationship-system-api.ts",
-        "src/mods/mod-social/store.ts",
-        "src/mods/mod-social/subsystems/relationship-system.ts",
-        "src/mods/mod-social/subsystems/relationship-system/validation.ts",
-        "src/mods/mod-social/types.ts"
-      ],
-      "oversized": []
     },
     {
       "id": "mod-tech-level",
@@ -1643,7 +1444,6 @@
         "src/mods/mod-ui/components/organisms/NarrativeTimeline.module.css",
         "src/mods/mod-ui/components/organisms/NarrativeTimeline.tsx",
         "src/mods/mod-ui/components/organisms/NarrativeTimelineEntryView.tsx",
-        "src/mods/mod-ui/components/organisms/NPCRelationshipPanel.tsx",
         "src/mods/mod-ui/components/organisms/PageErrorBoundary.tsx",
         "src/mods/mod-ui/components/organisms/PageScroll.tsx",
         "src/mods/mod-ui/components/organisms/PageShell.tsx",
@@ -1672,7 +1472,6 @@
         "src/mods/mod-world/prompts",
         "src/mods/mod-world/store",
         "src/mods/mod-world/subsystems",
-        "src/mods/mod-world/subsystems/world-entity-system",
         "src/mods/mod-world/subsystems/world-init-system",
         "src/mods/mod-world/types",
         "src/mods/mod-world/utils",
@@ -1699,8 +1498,7 @@
         "src/mods/mod-world/prompts/world-calibration-prompt.ts",
         "src/mods/mod-world/prompts/world-config-prompt.ts",
         "src/mods/mod-world/prompts/world-dimension-calibration-prompt.ts",
-        "src/mods/mod-world/prompts/world-entity-prompt.ts",
-        "src/mods/mod-world/prompts/world-init-prompt-shared.ts",
+        "src/mods/mod-world/prompts/world-region-profile-prompt.ts",
         "src/mods/mod-world/prompts/world-scoring-profile-prompt.ts",
         "src/mods/mod-world/prompts/world-tags-prompt.ts",
         "src/mods/mod-world/scoring-profile.ts",
@@ -1712,18 +1510,12 @@
         "src/mods/mod-world/subsystems/simulation-scope-policy-system.ts",
         "src/mods/mod-world/subsystems/spatial-graph-system.ts",
         "src/mods/mod-world/subsystems/world-context-registry-system.ts",
-        "src/mods/mod-world/subsystems/world-entity-system.ts",
-        "src/mods/mod-world/subsystems/world-entity-system/ai-entity-generation.ts",
-        "src/mods/mod-world/subsystems/world-entity-system/default-entity-sets.ts",
-        "src/mods/mod-world/subsystems/world-entity-system/entity-reference-directory.ts",
-        "src/mods/mod-world/subsystems/world-entity-system/entity-reference-validation.ts",
-        "src/mods/mod-world/subsystems/world-entity-system/static-entity-generation.ts",
         "src/mods/mod-world/subsystems/world-init-deps.ts",
         "src/mods/mod-world/subsystems/world-init-system.ts",
         "src/mods/mod-world/subsystems/world-init-system/region-generation.ts",
         "src/mods/mod-world/types.ts",
         "src/mods/mod-world/types/calibration.ts",
-        "src/mods/mod-world/types/entities.ts",
+        "src/mods/mod-world/types/regions.ts",
         "src/mods/mod-world/types/world-config.ts",
         "src/mods/mod-world/types/world-context.ts",
         "src/mods/mod-world/types/world-tags.ts",
@@ -1733,7 +1525,6 @@
         "src/mods/mod-world/utils/calibration-clamp/calibration-summary.ts",
         "src/mods/mod-world/utils/calibration-clamp/default-calibration.ts",
         "src/mods/mod-world/utils/calibration-clamp/modifier-contract.ts",
-        "src/mods/mod-world/utils/entity-generation-gate.ts",
         "src/mods/mod-world/utils/parse-ai-json.ts",
         "src/mods/mod-world/utils/power-framework.ts",
         "src/mods/mod-world/utils/preset-to-config.ts",
@@ -1767,6 +1558,7 @@
         "src/mods/mod-world/utils/world-init-pipeline/steps.ts",
         "src/mods/mod-world/utils/world-init-prompt-vars.ts",
         "src/mods/mod-world/utils/world-pool-selectors.ts",
+        "src/mods/mod-world/utils/world-region-profile.ts",
         "src/mods/mod-world/utils/world-scale-calibration.ts",
         "src/mods/mod-world/utils/world-state-migration.ts",
         "src/mods/mod-world/world-context-api.ts",
@@ -1782,8 +1574,7 @@
       ],
       "oversized": [
         "src/mods/mod-world/constants/presets/catalog.ts",
-        "src/mods/mod-world/constants/world-tag-defaults.ts",
-        "src/mods/mod-world/subsystems/context-transition-system.ts"
+        "src/mods/mod-world/constants/world-tag-defaults.ts"
       ]
     },
     {
@@ -1836,7 +1627,6 @@
         "scripts/ops/lib/error-classification.mjs",
         "scripts/ops/lib/log-databases.mjs",
         "scripts/ops/lib/story-repetition-analytics.mjs",
-        "scripts/ops/migrate-game-record-lifespan-adjustments.ts",
         "scripts/ops/migrate-log-archive-v1.ts",
         "scripts/ops/migrate-player-mailbox-v5.ts",
         "scripts/ops/operations-dashboard.mjs",
@@ -1964,7 +1754,6 @@
         "scripts/check/domains/account/account-cloud-smoke.mjs",
         "scripts/check/domains/account/character-draft-persistence-smoke.mjs",
         "scripts/check/domains/account/data-viewer-smoke.mjs",
-        "scripts/check/domains/account/game-record-lifespan-adjustment-migration-smoke.mjs",
         "scripts/check/domains/account/operations-dashboard-smoke.mjs",
         "scripts/check/domains/account/player-content-smoke.mjs",
         "scripts/check/domains/account/player-mail-migration-smoke.mjs",
@@ -2156,7 +1945,6 @@
         "scripts/check/domains/mod/indexes/runtime-subsystem-policy.ps1",
         "scripts/check/domains/mod/indexes/source-usage-index.ps1",
         "scripts/check/domains/mod/multi-world-p3-p5-smoke.mjs",
-        "scripts/check/domains/mod/npc-social-p2-smoke.mjs",
         "scripts/check/domains/mod/run-anomaly-runtime-contracts.ps1",
         "scripts/check/domains/mod/run-anomaly-source-contracts.ps1",
         "scripts/check/domains/mod/run-dependency-wiring-contracts.ps1",
@@ -2169,10 +1957,7 @@
         "scripts/check/domains/mod/world-init-scoring-depth-smoke.mjs"
       ],
       "oversized": [
-        "scripts/check/domains/mod/historical-event-p1-smoke.mjs",
-        "scripts/check/domains/mod/multi-world-p3-p5-smoke.mjs",
-        "scripts/check/domains/mod/npc-social-p2-smoke.mjs",
-        "scripts/check/domains/mod/world-context-p0-smoke.mjs"
+        "scripts/check/domains/mod/historical-event-p1-smoke.mjs"
       ]
     },
     {
@@ -2202,7 +1987,6 @@
         "scripts/check/domains/narrative/kv-prompt-audit.mjs",
         "scripts/check/domains/narrative/log-analytics-smoke.mjs",
         "scripts/check/domains/narrative/log-archive-v1-migration-smoke.mjs",
-        "scripts/check/domains/narrative/luck-guidance-smoke.mjs",
         "scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs",
         "scripts/check/domains/narrative/narrative-memory-store-smoke.mjs",
         "scripts/check/domains/narrative/narrative-opening-live-eval.mjs",
@@ -2230,11 +2014,10 @@
       ],
       "oversized": [
         "scripts/check/domains/narrative/compression-runtime-smoke.mjs",
+        "scripts/check/domains/narrative/historical-event-prompt-projection-smoke.mjs",
         "scripts/check/domains/narrative/kv-prompt-audit.mjs",
         "scripts/check/domains/narrative/narrative-chinese-protocol-regression.mjs",
-        "scripts/check/domains/narrative/no-hard-truncation-audit.mjs",
         "scripts/check/domains/narrative/playtest-quality-regression.mjs",
-        "scripts/check/domains/narrative/semantic-authority-audit.mjs",
         "scripts/check/domains/narrative/time-step-resolver-smoke.mjs"
       ]
     },

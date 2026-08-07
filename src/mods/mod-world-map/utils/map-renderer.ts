@@ -2,9 +2,20 @@
 
 import type { MapProjection } from '@/foundation'
 import type { MapRenderConfig, NodeRenderData } from '../types'
-import { DEFAULT_TERRAIN_COLORS } from '../types'
+import { DEFAULT_REGION_COLORS } from '../types'
 
 const SQRT3 = Math.sqrt(3)
+
+function resolveRegionColor(node: MapProjection['nodes'][number]): string {
+  const profile = node.profile
+  if (!profile) return DEFAULT_REGION_COLORS.unknown!
+  const pollution = profile.pollution.toLowerCase()
+  const climate = profile.climate.toLowerCase()
+  if (!/(?:无|低|轻微|none|clean)/i.test(pollution)) return DEFAULT_REGION_COLORS.polluted!
+  if (/(?:寒|冰|雪|cold|polar|tundra)/i.test(climate)) return DEFAULT_REGION_COLORS.cold!
+  if (/(?:旱|沙|荒漠|arid|desert)/i.test(climate)) return DEFAULT_REGION_COLORS.arid!
+  return DEFAULT_REGION_COLORS.temperate!
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value))
@@ -37,7 +48,7 @@ export function computeRenderData(
     renderX: centerX + (node.x - projectionCenterX) * scale,
     renderY: centerY + (node.y - projectionCenterY) * scale,
     radius,
-    terrainColor: DEFAULT_TERRAIN_COLORS[node.geography?.terrainClass ?? 'unknown'] ?? DEFAULT_TERRAIN_COLORS.unknown!,
+    regionColor: resolveRegionColor(node),
   }))
 }
 
@@ -113,26 +124,26 @@ function drawNode(
   ctx.closePath()
   ctx.fillStyle = node.visibility === 'unknown'
     ? '#303331'
-    : (config.showTerrain ? data.terrainColor : '#444946')
+    : (config.showClimate ? data.regionColor : '#444946')
   ctx.globalAlpha = node.visibility === 'unknown' ? 0.55 : 0.92
   ctx.fill()
   ctx.globalAlpha = 1
 
   const selected = selectedId === node.nodeId
   const hovered = hoveredId === node.nodeId
-  ctx.strokeStyle = node.isCurrentLocation
+  ctx.strokeStyle = node.isCurrentRegion
     ? '#f2bd55'
     : selected
       ? '#f0e5ca'
       : hovered
         ? '#ffffff'
         : 'rgba(255,255,255,0.28)'
-  ctx.lineWidth = node.isCurrentLocation || selected ? 3 : hovered ? 2 : 1
+  ctx.lineWidth = node.isCurrentRegion || selected ? 3 : hovered ? 2 : 1
   ctx.stroke()
 
   drawLabel(ctx, node.name, x, y, radius)
-  if (config.showResources && node.resources.length > 0) drawResourceIndicator(ctx, data)
-  if (config.showEntities && node.entityIds.length > 0) drawEntityIndicator(ctx, data)
+  if (config.showResources && (node.profile?.resources.length ?? 0) > 0) drawResourceIndicator(ctx, data)
+  if (config.showPollution && node.profile?.pollution) drawPollutionIndicator(ctx, data)
 }
 
 function drawLabel(ctx: CanvasRenderingContext2D, label: string, x: number, y: number, radius: number): void {
@@ -150,25 +161,17 @@ function drawLabel(ctx: CanvasRenderingContext2D, label: string, x: number, y: n
 }
 
 function drawResourceIndicator(ctx: CanvasRenderingContext2D, data: NodeRenderData): void {
-  const availableRatio = data.node.resources.reduce((sum, item) => (
-    sum + (item.capacity > 0 ? item.quantity / item.capacity : 0)
-  ), 0) / data.node.resources.length
   ctx.beginPath()
   ctx.arc(data.renderX - data.radius * 0.48, data.renderY + data.radius * 0.48, 4, 0, Math.PI * 2)
-  ctx.fillStyle = availableRatio <= 0.2 ? '#d46b5f' : availableRatio <= 0.5 ? '#d5a646' : '#61a878'
+  ctx.fillStyle = '#61a878'
   ctx.fill()
 }
 
-function drawEntityIndicator(ctx: CanvasRenderingContext2D, data: NodeRenderData): void {
+function drawPollutionIndicator(ctx: CanvasRenderingContext2D, data: NodeRenderData): void {
   ctx.beginPath()
-  ctx.arc(data.renderX + data.radius * 0.48, data.renderY - data.radius * 0.48, 9, 0, Math.PI * 2)
-  ctx.fillStyle = '#477b8c'
+  ctx.arc(data.renderX + data.radius * 0.48, data.renderY - data.radius * 0.48, 4, 0, Math.PI * 2)
+  ctx.fillStyle = DEFAULT_REGION_COLORS.polluted!
   ctx.fill()
-  ctx.fillStyle = '#ffffff'
-  ctx.font = '600 9px sans-serif'
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillText(String(data.node.entityIds.length), data.renderX + data.radius * 0.48, data.renderY - data.radius * 0.48)
 }
 
 function hexagonPoints(cx: number, cy: number, radius: number): Array<{ x: number; y: number }> {

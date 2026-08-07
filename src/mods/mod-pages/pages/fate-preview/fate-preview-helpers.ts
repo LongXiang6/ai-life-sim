@@ -23,7 +23,7 @@ export const WORLD_INIT_STEPS = [
   { id: 'calibration', label: '维度推断与校准', shortLabel: '校准', icon: '01', description: 'AI 推断世界观维度与规则体系', doneFlag: (status: WorldInitAIStatus) => status.calibrationGenerated },
   { id: 'tags', label: '标签生成', shortLabel: '标签', icon: '02', description: '生成力量体系/文明阶段等标签', doneFlag: (status: WorldInitAIStatus) => status.tagsGenerated },
   { id: 'config', label: '规则配置', shortLabel: '参数', icon: '03', description: '整理世界规则与运行参数', doneFlag: (status: WorldInitAIStatus) => status.configGenerated },
-  { id: 'entities', label: '实体生成', shortLabel: '实体', icon: '04', description: '生成地理/文化/组织实体', doneFlag: (status: WorldInitAIStatus) => status.entitiesGenerated },
+  { id: 'region-profiles', label: '区域与生命阶段', shortLabel: '区域', icon: '04', description: '生成区域概况与生命阶段结构', doneFlag: (status: WorldInitAIStatus) => status.regionProfilesGenerated },
 ] as const
 
 export function resolveDisplayName(rawName: string, gender: string): string {

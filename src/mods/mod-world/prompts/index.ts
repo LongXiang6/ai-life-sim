@@ -6,7 +6,11 @@
 
 export { worldConfigPrompt } from './world-config-prompt'
 export { worldTagsPrompt } from './world-tags-prompt'
-export { worldEntityPrompt } from './world-entity-prompt'
+export {
+  worldRegionProfilePrompt,
+  worldRegionProfileOutputSchema,
+  type WorldRegionProfileOutput,
+} from './world-region-profile-prompt'
 export { worldCalibrationPrompt, worldCalibrationOutputSchema } from './world-calibration-prompt'
 export {
   dimensionInferenceOutputSchema,

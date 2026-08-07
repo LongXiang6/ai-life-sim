@@ -7,7 +7,8 @@
 export {
   worldTagsPrompt,
   worldConfigPrompt,
-  worldEntityPrompt,
+  worldRegionProfilePrompt,
+  worldRegionProfileOutputSchema,
   worldCalibrationPrompt,
   worldCalibrationOutputSchema,
   worldDimensionCalibrationPrompt,
@@ -32,11 +33,9 @@ export {
   loadCachedWorldInitBundle,
   saveCachedWorldCalibration,
 } from './utils/world-init-calibration-cache'
-export { shouldSkipEntityAIGeneration } from './utils/entity-generation-gate'
 export {
   inferWorldCoherenceFromDescription,
   applyCoherenceToWorldConfig,
 } from './utils/world-coherence-inference'
 export { formatWorldTagsText } from './constants/world-tag-defaults'
 export { WorldInitSystem } from './subsystems/world-init-system'
-export { WorldEntitySystem, getWorldEntitySystem } from './subsystems/world-entity-system'
