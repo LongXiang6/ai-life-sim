@@ -1,0 +1,132 @@
+<!-- Purpose: Record the third UI iteration round for the leaderboard sub-interface. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>排行榜 · 第三轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+
+    .status-selected {
+      color: #0a544f;
+      background: #e2f0ee;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">LEADERBOARD / ROUND-03</p>
+      <h1>排行榜 · 第三轮</h1>
+    </div>
+    <span class="status status-draft">待比较</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>继续排行榜剩余细节：强化榜首条目的辨识度（百世留名的榜一含义），并优化榜单条目内部的内容层级（评分、年龄、评语的主次）。</dd></div>
+        <div><dt>保持不变</dt><dd>聚焦式榜单结构（标题居中、评语衬线）、双文字等宽底栏与既有基线全部保持一致；本轮只调整榜首辨识与条目内容层级。</dd></div>
+        <div><dt>比较维度</dt><dd>榜首辨识（榜一是否一眼可辨）、条目可读（评分与评语主次是否清晰）、精简协调性（强化后是否仍精简统一）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>榜首强化卡片</strong></header>
+          <p>榜首条目加大间距、加粗金色边框与排名，与其余条目层级分明。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-01-top-card.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>条目内容层级</strong></header>
+          <p>评分着色突出，评语以分隔线上移分层，条目内部主次更清晰。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-02-entry-layer.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>榜首徽记占位</strong></header>
+          <p>榜首条目增加"冠"徽记与"百世留名 · 榜首"说明行，强化榜一含义。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-03-top-emblem.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 榜首强化</span><span role="columnheader">02 内容层级</span><span role="columnheader">03 榜首徽记</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">榜首辨识</strong><span role="cell">尺寸与边框双重强化，一眼可辨</span><span role="cell">榜首仅底色区分，辨识一般</span><span role="cell">徽记 + 说明行，含义最明确</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">条目可读</strong><span role="cell">条目层级不变，可读良好</span><span role="cell">评分突出、评语分隔，最清晰</span><span role="cell">榜首信息最多，其余条目不变</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">强化克制，保持精简</span><span role="cell">只调层级，最精简</span><span role="cell">榜首增加内容，略多但有意</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 03</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 03（榜首徽记占位）。用户确认：榜首"冠"徽记与"百世留名 · 榜首"说明行强化了榜一含义，被接受作为下一轮继承基线。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 01（榜首强化卡片）：尺寸与边框强化到位，但未承载"百世留名"的含义。候选 02（条目内容层级）：内容分层清晰，但榜首辨识弱于候选 03。</dd></div>
+        <div><dt>下一轮继承</dt><dd>继承候选 03 的榜首徽记，以及既有基线（聚焦式榜单、双文字等宽底栏、单列极简结构、原版按钮规格、暖纸墨色系、节奏留白）。用户指出：继续优化底部按钮样式，下一轮聚焦底栏按钮本身的视觉细节。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

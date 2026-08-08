@@ -1,0 +1,132 @@
+<!-- Purpose: Record the fourth UI iteration round for the leaderboard sub-interface. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>排行榜 · 第四轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+
+    .status-selected {
+      color: #0a544f;
+      background: #e2f0ee;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">LEADERBOARD / ROUND-04</p>
+      <h1>排行榜 · 第四轮</h1>
+    </div>
+    <span class="status status-draft">待比较</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>优化底栏按钮本身的视觉细节：返回/确认两按钮的配色、圆角、间距与文字密度，让底部操作与榜单整体更协调。</dd></div>
+        <div><dt>保持不变</dt><dd>榜首徽记、聚焦式榜单、双文字等宽底栏的空间结构（两按钮并排）与行为契约不变；只调整按钮视觉细节。</dd></div>
+        <div><dt>比较维度</dt><dd>主次辨识（返回与确认是否主次明确）、精简度（文字与密度是否克制）、语义清晰度（图标/着色是否强化语义）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>主次着色按钮</strong></header>
+          <p>确认按钮暖米实底、返回按钮浅白次底，一主一次层级明确。</p>
+          <a class="candidate-open" href="candidates/candidate-round-04-01-tinted.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>紧凑单行文字</strong></header>
+          <p>两按钮文字收紧为单行小字，高度与密度更精简。</p>
+          <a class="candidate-open" href="candidates/candidate-round-04-02-compact.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>图标辅助按钮</strong></header>
+          <p>返回带左箭头、确认带右箭头图标，语义可视化且保留两行文字。</p>
+          <a class="candidate-open" href="candidates/candidate-round-04-03-icon.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 主次着色</span><span role="columnheader">02 紧凑单行</span><span role="columnheader">03 图标辅助</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">主次辨识</strong><span role="cell">暖米实底区分确认，最明确</span><span role="cell">仅文字与浅底，辨识一般</span><span role="cell">图标 + 浅底，语义清晰</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简度</strong><span role="cell">两行文字 + 浅着色，克制</span><span role="cell">单行小字，密度最高</span><span role="cell">两行文字 + 图标，信息略多</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">语义清晰度</strong><span role="cell">靠配色区分主次</span><span role="cell">靠文字区分</span><span role="cell">图标直接表达方向</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 01</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 01（主次着色按钮）的按钮规格与文字排版被接受，但用户指出主次着色不成立：底部两个按钮是同级入口，背景色必须一致，下一轮统一两按钮背景色。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 02（紧凑单行文字）：密度最高，但按钮层级弱化。候选 03（图标辅助按钮）：图标增加信息，非本页所需。另外候选 01 的"确认实底主色"配色方案被否定，改为同级同底色。</dd></div>
+        <div><dt>下一轮继承</dt><dd>继承候选 01 的按钮规格与文字排版，但两按钮背景色改为一致（同级同底色）；下一轮聚焦底栏按钮同级背景统一。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!-- Purpose: Record the third UI iteration round for the account sub-interface. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>账号与云端 · 第三轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+
+    .status-selected {
+      color: #0a544f;
+      background: #e2f0ee;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">ACCOUNT / ROUND-03</p>
+      <h1>账号与云端 · 第三轮</h1>
+    </div>
+    <span class="status status-draft">待比较</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>在第二轮入选的精简单列表单结构基础上，补齐账号页其余两个 tab 的呈现：已登录状态（用户名/QQ/同步/退出）与个人数据面板（API Key、角色设定、天赋、战绩、删除账号），让三个 tab 的信息呈现方式在同一定版语言内保持一致。</dd></div>
+        <div><dt>保持不变</dt><dd>继承精简单列表单结构（字段 12px 间距、登录并同步/注册账号定版按钮规格）与既有定版基线（暖纸墨、tabs 金色下划线、卡片化 20px 圆角、底部双文字等宽纯白同底按钮）；页面业务契约（登录/云存档/个人数据、完成返回欢迎界面）不改变。</dd></div>
+        <div><dt>比较维度</dt><dd>信息呈现（已登录/个人数据的信息行）、操作路径（同步/退出/删除的入口）、精简协调性（与登录面板的同级一致性）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>精简单列基线微调</strong></header>
+          <p>继承上轮入选候选 01 的登录表单，微调细节，作为本轮对照基线。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-01-baseline.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>已登录状态</strong></header>
+          <p>展示登录后的账号状态：用户名/QQ/同步标签 + 立即同步 + 退出登录，信息行同级呈现。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-02-signed-in.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>个人数据面板</strong></header>
+          <p>展示个人数据 tab：API Key 开关、角色设定、轮回天赋列表、每局战绩列表、删除账号危险区。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-03-personal-data.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 基线微调</span><span role="columnheader">02 已登录状态</span><span role="columnheader">03 个人数据面板</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">信息呈现</strong><span role="cell">登录表单（对照）</span><span role="cell">账号信息行 + 同步状态</span><span role="cell">数据分组卡片 + 列表行</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">操作路径</strong><span role="cell">登录/注册入口</span><span role="cell">立即同步/退出登录</span><span role="cell">开关/删除/危险区</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">与定版最一致</span><span role="cell">信息行同级统一</span><span role="cell">分组卡片与登录面板同级</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-empty">未选择</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>待用户查看原型后填写候选编号与选择原因。</dd></div>
+        <div><dt>淘汰</dt><dd>待用户查看原型后填写未进入下一轮的直接原因。</dd></div>
+        <div><dt>下一轮继承</dt><dd>只填写继续保留的账号结构事实，不继承未确认风格。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

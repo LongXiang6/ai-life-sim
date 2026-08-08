@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>邮箱 · 候选 01 · 当前运行基线</title>
+  <style>
+    /* Purpose: Static prototype of the current running mailbox baseline. Owner: Interface system. Responsibility: Candidate only; restores mailbox/page.tsx visuals as of runtime for comparison. */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: #20283a;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .frame {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-width: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      overflow: hidden;
+      place-items: stretch;
+      background: #f5f7fa;
+      color-scheme: light;
+    }
+
+    .viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      max-width: 100%;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    @media (min-width: 48rem) {
+      .viewport {
+        width: min(100%, 30rem);
+      }
+    }
+
+    .page {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      flex-direction: column;
+      overflow: hidden;
+      background: #f5f7fa;
+      color: #20283a;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+    }
+
+    .screen {
+      display: flex;
+      min-height: 0;
+      flex: 1;
+      flex-direction: column;
+      padding: 22px 30px 16px;
+      overflow: hidden;
+    }
+
+    .meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #718099;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 22px 4px 14px;
+      border-bottom: 1px solid #dce3ed;
+    }
+
+    .header h1 {
+      margin: 0;
+      color: #171e35;
+      font-family: "Songti SC", "STSong", "SimSun", serif;
+      font-size: 28px;
+      font-weight: 600;
+      line-height: 1.1;
+    }
+
+    .header p {
+      margin: 6px 0 0;
+      color: #718099;
+      font-size: 11px;
+    }
+
+    .composeButton {
+      flex: 0 0 auto;
+      min-height: 44px;
+      padding: 0 18px;
+      border: 0;
+      border-radius: 8px;
+      background: #344357;
+      color: #fff;
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .folderTabs {
+      display: flex;
+      flex: 0 0 auto;
+      gap: 18px;
+      padding: 0 4px;
+      border-bottom: 1px solid #dce3ed;
+    }
+
+    .folderTabs button {
+      min-height: 48px;
+      border: 0;
+      border-bottom: 3px solid transparent;
+      background: transparent;
+      color: #6c788b;
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+    }
+
+    .folderTabs button[data-active="true"] {
+      border-bottom-color: #344357;
+      color: #20283a;
+      font-weight: 700;
+    }
+
+    .content {
+      min-height: 0;
+      flex: 1;
+      padding: 12px 2px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
+
+    .mailList {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .mail {
+      border-bottom: 1px solid #dce3ed;
+      background: #fff;
+    }
+
+    .mail[data-unread="true"] {
+      background: #edf3f8;
+    }
+
+    .mailSummary {
+      position: relative;
+      display: grid;
+      width: 100%;
+      min-height: 72px;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 4px 14px;
+      padding: 12px 14px;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      font: inherit;
+      text-align: left;
+    }
+
+    .mailIdentity {
+      grid-column: 1;
+      overflow: hidden;
+      color: #536176;
+      font-size: 12px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mailSummary strong {
+      grid-column: 1;
+      overflow: hidden;
+      font-size: 13px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mailPreview {
+      grid-column: 1;
+      overflow: hidden;
+      color: #718099;
+      font-size: 11px;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mailTime {
+      grid-column: 2;
+      grid-row: 1;
+      color: #8490a2;
+      font-size: 10px;
+    }
+
+    .unreadDot {
+      position: absolute;
+      right: 14px;
+      bottom: 12px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #49749a;
+    }
+
+    .mailBody {
+      padding: 0 14px 12px;
+      border-top: 1px solid #e6ebf1;
+    }
+
+    .mailBody > p {
+      margin: 12px 0;
+      color: #3f4c60;
+      font-size: 12px;
+      line-height: 1.75;
+      white-space: pre-wrap;
+    }
+
+    .portrait {
+      width: min(100%, 260px);
+      height: auto;
+      border: 1px solid #d8deea;
+      border-radius: 8px;
+      object-fit: cover;
+    }
+
+    .talentAttachment {
+      margin-top: 10px;
+      padding: 10px 14px;
+      border: 1px solid #bdc9d6;
+      border-radius: 8px;
+      background: #f7f9fb;
+    }
+
+    .talentAttachment small,
+    .talentAttachment strong {
+      display: block;
+    }
+
+    .talentAttachment small {
+      color: #718099;
+      font-size: 10px;
+    }
+
+    .talentAttachment strong {
+      margin-top: 3px;
+      font-family: "Songti SC", "STSong", serif;
+      font-size: 14px;
+    }
+
+    .talentAttachment p {
+      margin: 6px 0 0;
+      color: #536176;
+      font-size: 11px;
+      line-height: 1.55;
+    }
+
+    .talentAttachment button {
+      margin-top: 8px;
+      padding: 0 16px;
+      min-height: 36px;
+      border: 0;
+      border-radius: 8px;
+      background: #344357;
+      color: #fff;
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+    }
+
+    .mailActions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 12px;
+      color: #8490a2;
+    }
+
+    .mailActions small {
+      font-size: 10px;
+    }
+
+    .mailActions button {
+      min-height: 34px;
+      padding: 0 16px;
+      border: 0;
+      border-radius: 8px;
+      background: #8a4b54;
+      color: #fff;
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+    }
+
+    .bottomBar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 20px 16px;
+      border-top: 1px solid #dce3ed;
+      background: #f5f7fa;
+    }
+
+    .backButton {
+      display: grid;
+      width: 46px;
+      height: 46px;
+      place-items: center;
+      padding: 0;
+      border: 1px solid #d8deea;
+      border-radius: 50%;
+      background: #fff;
+      color: #4a5a76;
+      cursor: pointer;
+    }
+
+    .backButton svg {
+      width: 20px;
+      height: 20px;
+      fill: none;
+      stroke: currentcolor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 1.8;
+    }
+
+    .confirmButton {
+      display: flex;
+      min-height: 46px;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 14px;
+      border: 1px solid rgba(109, 127, 148, 0.5);
+      border-radius: 14px;
+      background: linear-gradient(155deg, #fff, #eef1f8);
+      color: #293449;
+      cursor: pointer;
+      font: inherit;
+      text-align: left;
+    }
+
+    .confirmButton strong,
+    .confirmButton small {
+      display: block;
+    }
+
+    .confirmButton strong {
+      font-size: 14px;
+    }
+
+    .confirmButton small {
+      margin-top: 2px;
+      color: #718099;
+      font-size: 11px;
+    }
+
+    .confirmButton svg {
+      width: 18px;
+      height: 18px;
+      fill: none;
+      stroke: currentcolor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 1.8;
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="viewport">
+      <main class="page">
+        <div class="screen">
+          <div class="meta" aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>附 · 邮箱</span></div>
+          <header class="header">
+            <div><h1>邮箱</h1><p>我的诊断编号 AI-2026-0042</p></div>
+            <button type="button" class="composeButton">写邮件</button>
+          </header>
+          <nav class="folderTabs" aria-label="邮箱分类">
+            <button type="button" data-active="true">收件箱 (2)</button>
+            <button type="button" data-active="false">已发送</button>
+          </nav>
+          <section class="content" aria-label="收件箱">
+            <ul class="mailList">
+              <li class="mail" data-unread="true">
+                <button type="button" class="mailSummary" aria-expanded="false">
+                  <span class="mailIdentity">引路人</span>
+                  <strong>轮回天赋 · 记忆馈赠</strong>
+                  <span class="mailPreview">你下一世将携带一段前世记忆……</span>
+                  <span class="mailTime">08/06 21:30</span>
+                  <span class="unreadDot" aria-label="未读" />
+                </button>
+              </li>
+              <li class="mail" data-unread="false">
+                <button type="button" class="mailSummary" aria-expanded="true">
+                  <span class="mailIdentity">命书司</span>
+                  <strong>本命年度总结</strong>
+                  <span class="mailPreview">这是你今年的人生轨迹回顾……</span>
+                  <span class="mailTime">08/01 09:12</span>
+                </button>
+                <div class="mailBody">
+                  <p>这是你今年的人生轨迹回顾。你以诚待人，情谊与学识并进，终局评分 98。</p>
+                  <div class="talentAttachment">
+                    <div><small>轮回天赋</small><strong>记忆馈赠</strong></div>
+                    <p>下世开局时携带一段可选的记忆片段。</p>
+                    <button type="button">接受天赋</button>
+                  </div>
+                  <div class="mailActions">
+                    <small>7 天后到期</small>
+                    <button type="button">删除</button>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </section>
+        </div>
+        <div class="bottomBar">
+          <button type="button" class="backButton" aria-label="返回上一页" title="返回上一页">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6" /></svg>
+          </button>
+          <button type="button" class="confirmButton" title="返回欢迎界面">
+            <span>
+              <strong>返回欢迎界面</strong>
+              <small>回到欢迎界面</small>
+            </span>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6" /></svg>
+          </button>
+        </div>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

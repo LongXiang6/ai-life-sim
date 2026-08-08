@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>存档栏位 · 候选 03 · 聚焦式弹层</title>
+  <style>
+    /* Purpose: Static prototype of the focused save-sheet welcome-style candidate. Owner: Interface system. Responsibility: Candidate only; inherits the finalized welcome baseline (warm-paper color, original button specs). */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .frame {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-width: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      overflow: hidden;
+      place-items: stretch;
+      background: #fdf9f1;
+      color-scheme: light;
+    }
+
+    .viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      max-width: 100%;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    @media (min-width: 48rem) {
+      .viewport {
+        width: min(100%, 30rem);
+      }
+    }
+
+    .container {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      flex-direction: column;
+      background: #fdf9f1;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+    }
+
+    .runningHead {
+      display: flex;
+      justify-content: space-between;
+      padding: 24px 24px 0;
+      color: #8a7f6e;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .intro {
+      padding: 56px 28px 28px;
+    }
+
+    .brand {
+      margin: 0;
+      color: #a0907a;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+    }
+
+    .title {
+      margin: 22px 0 0;
+      color: #241f18;
+      font-size: 34px;
+      font-weight: 700;
+      line-height: 1.42;
+      letter-spacing: -0.01em;
+    }
+
+    .actions {
+      width: 100%;
+      max-width: 400px;
+      margin: auto auto 24px;
+      padding: 0 28px;
+    }
+
+    .primaryAction {
+      display: grid;
+      width: 100%;
+      min-height: 76px;
+      place-items: center;
+      padding: 0 18px;
+      border: 1px solid #cfd7ee;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 6px 16px rgba(62, 70, 100, 0.1);
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      font-size: 18px;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+      text-align: center;
+    }
+
+    .routeList {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .routeAction {
+      display: grid;
+      width: 100%;
+      min-height: 73px;
+      place-items: center;
+      gap: 0;
+      padding: 12px 18px 5px;
+      border: 1px solid #d8deea;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: 0 5px 14px rgba(62, 70, 100, 0.08);
+      color: #374151;
+      cursor: pointer;
+      font: inherit;
+      text-align: center;
+    }
+
+    .routeAction strong {
+      display: block;
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.1;
+    }
+
+    .routeAction small {
+      display: block;
+      overflow: hidden;
+      color: #8a7f6e;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.1;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Save sheet (opened state) with centered head and per-item delete */
+    .saveSheet {
+      position: absolute;
+      z-index: 30;
+      right: 18px;
+      bottom: 18px;
+      left: 18px;
+      max-height: 74vh;
+      padding: 22px 20px 20px;
+      overflow-y: auto;
+      border: 1px solid #eadfce;
+      border-radius: 24px;
+      background: #fffdf8;
+      box-shadow: 0 14px 32px rgba(120, 100, 70, 0.16);
+      color: #2e2922;
+    }
+
+    .saveSheetHead {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 18px;
+      text-align: center;
+    }
+
+    .saveSheetHead strong,
+    .saveSheetHead small {
+      display: block;
+    }
+
+    .saveSheetHead strong {
+      color: #241f18;
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .saveSheetHead small {
+      margin-top: 5px;
+      color: #8a7f6e;
+      font-size: 12px;
+    }
+
+    .saveSheetClose {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      display: grid;
+      width: 36px;
+      height: 36px;
+      place-items: center;
+      padding: 0;
+      border: 1px solid #eadfce;
+      border-radius: 50%;
+      background: #fdf9f1;
+      color: #7a6f5e;
+      cursor: pointer;
+    }
+
+    .saveSheetClose svg {
+      width: 14px;
+      height: 14px;
+      fill: none;
+      stroke: currentcolor;
+      stroke-linecap: round;
+      stroke-width: 1.8;
+    }
+
+    .saveList {
+      display: grid;
+      max-height: 40vh;
+      gap: 10px;
+      overflow-y: auto;
+    }
+
+    .saveItem {
+      display: grid;
+      width: 100%;
+      min-height: 64px;
+      grid-template-columns: minmax(0, 1fr) 24px 32px;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 20px;
+      background: #fffdf8;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      text-align: left;
+    }
+
+    .saveItem strong,
+    .saveItem small {
+      display: block;
+    }
+
+    .saveItem strong {
+      overflow: hidden;
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.25;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .saveItem small {
+      margin-top: 3px;
+      overflow: hidden;
+      color: #8a7f6e;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.25;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .saveCheck {
+      position: relative;
+      width: 20px;
+      height: 20px;
+      border: 1px solid #cfd7ee;
+      border-radius: 50%;
+      background: #fff;
+    }
+
+    .saveItem[aria-pressed="true"] {
+      border-color: #c9c3b4;
+      background: #faf6ed;
+    }
+
+    .saveItem[aria-pressed="true"] .saveCheck {
+      border-color: #8a7f6e;
+      background: #8a7f6e;
+    }
+
+    .saveItem[aria-pressed="true"] .saveCheck::after {
+      position: absolute;
+      top: 4px;
+      left: 3px;
+      width: 9px;
+      height: 5px;
+      border-bottom: 2px solid #fffdf8;
+      border-left: 2px solid #fffdf8;
+      content: "";
+      transform: rotate(-45deg);
+    }
+
+    .saveItemDelete {
+      display: grid;
+      width: 30px;
+      height: 30px;
+      place-items: center;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: #c2b6a4;
+      cursor: pointer;
+      font: inherit;
+      font-size: 17px;
+      line-height: 1;
+    }
+
+    .saveItemDelete:hover,
+    .saveItemDelete:focus-visible {
+      color: #a0716a;
+      background: #f6efe6;
+    }
+
+    .continueSave {
+      display: grid;
+      width: 100%;
+      min-height: 64px;
+      place-items: center;
+      gap: 0;
+      margin-top: 16px;
+      padding: 10px 18px;
+      border: 1px solid #cfd7ee;
+      border-radius: 24px;
+      background: #fff;
+      box-shadow: 0 5px 14px rgba(62, 70, 100, 0.1);
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      text-align: center;
+    }
+
+    .continueSave strong,
+    .continueSave small {
+      display: block;
+    }
+
+    .continueSave strong {
+      font-size: 16px;
+      font-weight: 650;
+      line-height: 1.1;
+    }
+
+    .continueSave small {
+      margin-top: 2px;
+      color: #8a7f6e;
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.1;
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="viewport">
+      <main class="container">
+        <div class="runningHead" aria-hidden="true">
+          <span>AI LIFE SIM · 命书</span>
+          <span>00 / 欢迎</span>
+        </div>
+
+        <section class="intro" aria-labelledby="welcome-title">
+          <p class="brand">人生序章</p>
+          <h1 id="welcome-title" class="title">
+            一生很长，
+            <br />
+            也只由几次选择组成。
+          </h1>
+        </section>
+
+        <section class="actions" aria-label="开始与辅助操作">
+          <button type="button" class="primaryAction" title="进入世界选择界面，创建一个全新的人生">
+            开始新人生
+          </button>
+          <div class="routeList">
+            <button type="button" class="routeAction" aria-expanded="true" title="展开存档栏位，选择一段人生继续">
+              <strong>继续人生</strong>
+              <small>2 个存档 · 最近：朝雨</small>
+            </button>
+          </div>
+        </section>
+      </main>
+
+      <section class="saveSheet" role="dialog" aria-modal="true" aria-labelledby="save-title">
+        <div class="saveSheetHead">
+          <div>
+            <strong id="save-title">选择存档</strong>
+            <small>继续一段尚未写完的人生</small>
+          </div>
+          <button type="button" class="saveSheetClose" aria-label="关闭存档">
+            <svg viewBox="0 0 14 14" aria-hidden="true"><path d="m3 3 8 8M11 3l-8 8" /></svg>
+          </button>
+        </div>
+
+        <div class="saveList" aria-label="存档栏位">
+          <button type="button" class="saveItem" aria-pressed="true">
+            <span>
+              <strong>朝雨</strong>
+              <small>幻海洲 · 第 12 轮 · 自动存档</small>
+            </span>
+            <span class="saveCheck" aria-hidden="true"></span>
+            <span class="saveItemDelete" role="button" tabindex="0" aria-label="删除朝雨">×</span>
+          </button>
+          <button type="button" class="saveItem" aria-pressed="false">
+            <span>
+              <strong>沈星河</strong>
+              <small>苍澜界 · 第 3 轮 · 槽位 1</small>
+            </span>
+            <span class="saveCheck" aria-hidden="true"></span>
+            <span class="saveItemDelete" role="button" tabindex="0" aria-label="删除沈星河">×</span>
+          </button>
+        </div>
+
+        <button type="button" class="continueSave">
+          <strong>继续此人生</strong>
+          <small>朝雨</small>
+        </button>
+      </section>
+    </div>
+  </div>
+</body>
+</html>

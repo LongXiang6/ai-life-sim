@@ -1,0 +1,132 @@
+<!-- Purpose: Record the third UI iteration round for the settings sub-interface. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>设置 · 第三轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+
+    .status-selected {
+      color: #0a544f;
+      background: #e2f0ee;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">SETTINGS / ROUND-03</p>
+      <h1>设置 · 第三轮</h1>
+    </div>
+    <span class="status status-draft">待比较</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>在第二轮入选的候选 02（即时反馈 + 内容区滚动条默认隐藏）基础上，聚焦分类导航与内容节奏：让四个分类在切换时辨识清晰，设置分组的呼吸感与定版节奏一致。</dd></div>
+        <div><dt>保持不变</dt><dd>继承候选 02 的结构事实：暖纸墨全页、分类 tabs 金色下划线、设置分组卡片化、即时反馈强调、内容区滚动条默认隐藏、底部双文字等宽纯白同底按钮；页面业务契约不改变。</dd></div>
+        <div><dt>比较维度</dt><dd>分类辨识（四个分类的主次与可扫读性）、内容节奏（分组间距与卡片留白）、精简协调性（节奏手段是否仍属同一定版语言）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>即时反馈基线微调</strong></header>
+          <p>直接继承上轮入选候选 02（含滚动条隐藏），仅微调间距，作为本轮对照基线。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-01-baseline.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>分类导航精简</strong></header>
+          <p>分类 tabs 更紧凑、间距收紧，当前分类更突出，分类切换辨识更强。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-02-compact-tabs.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>节奏舒展</strong></header>
+          <p>分组间距与卡片内边距加大，设置列表更透气，阅读节奏更舒展。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-03-airier.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 基线微调</span><span role="columnheader">02 分类精简</span><span role="columnheader">03 节奏舒展</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">分类辨识</strong><span role="cell">四分类等距下划线</span><span role="cell">间距收紧，当前分类更突出</span><span role="cell">同基线，分类不额外强调</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">内容节奏</strong><span role="cell">分组 14px 间距</span><span role="cell">同基线，节奏不变</span><span role="cell">分组更透气，阅读最舒展</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">与定版最一致</span><span role="cell">收紧仍在暖纸墨语言内</span><span role="cell">留白克制，同级统一</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 02</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 02（分类导航精简）。用户确认：分类 tabs 间距收紧、当前分类更突出的紧凑导航被接受，作为下一轮继承基线。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 01（即时反馈基线微调）：分类不额外强调，本轮用户偏好分类辨识更强的 02。候选 03（节奏舒展）：留白方向正确，但本轮未入选。</dd></div>
+        <div><dt>下一轮继承</dt><dd>继承候选 02 的分类精简结构（tabs 间距 12px、当前分类下划线金色加粗、未激活更淡），以及既有定版基线（即时反馈、滚动条默认隐藏、暖纸墨、底部双文字等宽纯白同底按钮）。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

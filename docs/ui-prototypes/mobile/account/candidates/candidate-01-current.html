@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>账号与云端 · 第一轮候选 01 · 当前运行基线</title>
+  <style>
+    /* Purpose: Static prototype of the current account runtime baseline. Owner: Interface system. Responsibility: Candidate only; replicates the runtime blue-white visual contract for comparison. */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: #28324b;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .frame {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-width: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      overflow: hidden;
+      place-items: stretch;
+      background: #eef1f8;
+      color-scheme: light;
+    }
+
+    .viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      max-width: 100%;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    @media (min-width: 48rem) {
+      .viewport {
+        width: min(100%, 30rem);
+      }
+    }
+
+    .page {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      border: 1px solid #d8deea;
+      border-radius: 34px;
+      background: linear-gradient(180deg, #fafbff 0%, #f2f4f9 100%);
+      color: #28324b;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+    }
+
+    .page button,
+    .page input {
+      color: inherit;
+      font: inherit;
+    }
+
+    .screen {
+      position: absolute;
+      inset: 0;
+      padding: 15px 16px 78px;
+      overflow-x: hidden;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    .screen::-webkit-scrollbar {
+      display: none;
+    }
+
+    .header {
+      position: relative;
+    }
+
+    .meta {
+      display: flex;
+      min-height: 12px;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      color: #929bb0;
+      font-size: 9px;
+      font-weight: 650;
+      line-height: 1.3;
+    }
+
+    .header h1 {
+      margin: 5px 0 0;
+      color: #28324b;
+      font-family: "Songti SC", "STSong", "SimSun", serif;
+      font-size: 22px;
+      font-weight: 600;
+      line-height: 1.15;
+    }
+
+    .tabs {
+      display: grid;
+      height: 38px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 3px;
+      margin-top: 11px;
+      padding: 3px;
+      border-radius: 9px;
+      background: #eef1f8;
+    }
+
+    .tabs button {
+      min-width: 0;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: #707b92;
+      cursor: pointer;
+      font-size: 8.5px;
+      font-weight: 600;
+    }
+
+    .tabs button[aria-selected="true"] {
+      background: rgba(255, 255, 255, 0.94);
+      color: #7382bb;
+      box-shadow: 0 2px 8px rgba(62, 70, 100, 0.06);
+    }
+
+    .panel {
+      margin-top: 9px;
+      padding: 10px;
+      border: 1px solid #d8deea;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.94);
+    }
+
+    .form,
+    .rows {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field {
+      display: block;
+      min-width: 0;
+    }
+
+    .field > span {
+      display: block;
+      margin: 0 0 5px;
+      color: #929bb0;
+      font-size: 8.5px;
+    }
+
+    .field input {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      height: 32px;
+      padding: 0 9px;
+      border: 1px solid #d8deea;
+      border-radius: 8px;
+      outline: 0;
+      background: #fbfcff;
+      font-size: 9px;
+    }
+
+    .field input:focus {
+      border-color: #b9c4e2;
+    }
+
+    .primary,
+    .secondary {
+      min-height: 32px;
+      padding: 0 9px;
+      border: 1px solid #d8deea;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 9px;
+      font-weight: 700;
+    }
+
+    .primary {
+      border-color: #cfd7ee;
+      background: #edf0fb;
+      color: #6576b2;
+    }
+
+    .secondary {
+      background: #fff;
+      color: #707b92;
+      font-weight: 600;
+    }
+
+    .footer {
+      position: absolute;
+      z-index: 8;
+      right: 14px;
+      bottom: 12px;
+      left: 14px;
+      display: flex;
+      min-height: 52px;
+      align-items: center;
+      gap: 8px;
+      padding: 2px 7px;
+      border: 1px solid rgba(207, 215, 238, 0.84);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.8);
+      box-shadow: 0 12px 30px rgba(62, 70, 100, 0.13), 0 2px 7px rgba(62, 70, 100, 0.06);
+      backdrop-filter: blur(16px);
+    }
+
+    .back {
+      display: grid;
+      width: 36px;
+      height: 36px;
+      flex: 0 0 36px;
+      place-items: center;
+      padding: 0;
+      border: 1px solid #d8deea;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.8);
+      color: #707b92;
+      cursor: pointer;
+    }
+
+    .done {
+      display: flex;
+      min-width: 0;
+      min-height: 48px;
+      flex: 1;
+      align-items: center;
+      gap: 8px;
+      padding: 3px 1px;
+      border: 0;
+      background: transparent;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .doneNumber {
+      width: 20px;
+      color: #929bb0;
+      font-size: 7px;
+    }
+
+    .doneCopy {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .doneCopy strong,
+    .doneCopy small {
+      display: block;
+    }
+
+    .doneCopy strong {
+      font-size: 12.2px;
+      font-weight: 680;
+    }
+
+    .doneCopy small {
+      margin-top: 2px;
+      color: #929bb0;
+      font-size: 7px;
+    }
+
+    .doneArrow {
+      display: grid;
+      width: 25px;
+      height: 25px;
+      flex: 0 0 25px;
+      place-items: center;
+      border-radius: 50%;
+      background: #7382bb;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="viewport">
+      <main class="page">
+        <div class="screen">
+          <header class="header">
+            <div class="meta"><span>AI LIFE SIM · 命书</span><span>附 · 账号</span></div>
+            <h1>账号与云端</h1>
+          </header>
+          <nav class="tabs" role="tablist" aria-label="账号页面">
+            <button type="button" role="tab" aria-selected="true"><span aria-hidden="true">🔐</span>登录</button>
+            <button type="button" role="tab" aria-selected="false"><span aria-hidden="true">☁️</span>云存档</button>
+            <button type="button" role="tab" aria-selected="false"><span aria-hidden="true">👤</span>个人数据</button>
+          </nav>
+          <section class="panel" aria-label="登录账号">
+            <div class="form">
+              <label class="field">
+                <span>账号</span>
+                <input value="" placeholder="输入账号" autocomplete="off" />
+              </label>
+              <label class="field">
+                <span>密码</span>
+                <input type="password" value="" placeholder="输入密码" autocomplete="off" />
+              </label>
+              <button type="button" class="primary">登录并同步</button>
+              <button type="button" class="secondary">注册账号</button>
+            </div>
+          </section>
+        </div>
+        <footer class="footer" data-flow-bottom-bar>
+          <button type="button" class="back" aria-label="返回欢迎界面">←</button>
+          <button type="button" class="done">
+            <span class="doneNumber">00</span>
+            <span class="doneCopy"><strong>完成</strong><small>返回欢迎界面</small></span>
+            <span class="doneArrow" aria-hidden="true">→</span>
+          </button>
+        </footer>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

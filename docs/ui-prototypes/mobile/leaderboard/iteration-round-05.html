@@ -1,0 +1,132 @@
+<!-- Purpose: Record the fifth UI iteration round for the leaderboard sub-interface. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>排行榜 · 第五轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+
+    .status-selected {
+      color: #0a544f;
+      background: #e2f0ee;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">LEADERBOARD / ROUND-05</p>
+      <h1>排行榜 · 第五轮</h1>
+    </div>
+    <span class="status status-draft">待比较</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>底栏两按钮为同级入口，背景色必须一致：统一两按钮背景，保持同级样式统一，同时保留候选 01 的按钮规格与文字排版。</dd></div>
+        <div><dt>保持不变</dt><dd>榜首徽记、聚焦式榜单、双文字等宽底栏的空间结构与行为契约不变；只统一两按钮背景色。</dd></div>
+        <div><dt>比较维度</dt><dd>同级一致性（两按钮是否完全同级）、页面协调（底色与暖纸墨页面是否协调）、文字辨识（同级下文字是否清晰）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>纯白同底色</strong></header>
+          <p>两按钮均为纯白背景 + 浅边框，完全同级，无任何主次差异。</p>
+          <a class="candidate-open" href="candidates/candidate-round-05-01-pure-white.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>暖米同底色</strong></header>
+          <p>两按钮均为暖米实底 + 深色文字，同级实底，与暖纸墨页面一体。</p>
+          <a class="candidate-open" href="candidates/candidate-round-05-02-warm-beige.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>同底浅字重区分</strong></header>
+          <p>背景完全一致，确认按钮文字略加粗，同级但保留微弱方向提示。</p>
+          <a class="candidate-open" href="candidates/candidate-round-05-03-weight.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 纯白同底</span><span role="columnheader">02 暖米同底</span><span role="columnheader">03 同底字重</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">同级一致性</strong><span role="cell">完全同级，最统一</span><span role="cell">完全同级，与页面一体</span><span role="cell">同级同底，仅字重微差</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">页面协调</strong><span role="cell">白底在暖纸页上对比明确</span><span role="cell">暖米底与页面最协调</span><span role="cell">白底对比明确</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">文字辨识</strong><span role="cell">文字清晰，无主次</span><span role="cell">深色文字清晰</span><span role="cell">确认按钮字重略强</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">定版 01</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 01（纯白同底色），用户声明定版。排行榜界面至此定版：两按钮纯白背景 + 浅边框，完全同级同底色。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 02（暖米同底色）：与页面一体但弱于纯白的按钮辨识。候选 03（同底浅字重区分）：字重差异违背完全同级。</dd></div>
+        <div><dt>定版基线</dt><dd>聚焦式榜单（标题居中、榜首突出、评语衬线）+ 榜首徽记占位 + 双文字等宽底栏 + 纯白同底按钮 + 单列极简结构 + 原版按钮规格 + 暖纸墨色系 + 节奏留白。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

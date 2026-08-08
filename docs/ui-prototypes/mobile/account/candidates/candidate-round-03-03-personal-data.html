@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>账号与云端 · 第三轮候选 03 · 个人数据面板</title>
+  <style>
+    /* Purpose: Static prototype of the personal-data account candidate. Owner: Interface system. Responsibility: Candidate only; inherits the finalized baseline (warm-paper color, original button specs, unified rhythm, equal-width bottom bar). */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .frame {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-width: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      overflow: hidden;
+      place-items: stretch;
+      background: #fdf9f1;
+      color-scheme: light;
+    }
+
+    .viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      max-width: 100%;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    @media (min-width: 48rem) {
+      .viewport {
+        width: min(100%, 30rem);
+      }
+    }
+
+    .page {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      flex-direction: column;
+      overflow: hidden;
+      background: #fdf9f1;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+    }
+
+    .screen {
+      display: flex;
+      min-height: 0;
+      flex: 1;
+      flex-direction: column;
+      padding: 22px 28px 16px;
+      overflow: hidden;
+    }
+
+    .meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #8a7f6e;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 20px 4px 12px;
+    }
+
+    .header h1 {
+      margin: 0;
+      color: #241f18;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+    }
+
+    .header p {
+      margin: 6px 0 0;
+      color: #8a7f6e;
+      font-size: 11px;
+    }
+
+    .tabs {
+      display: flex;
+      flex: 0 0 auto;
+      gap: 16px;
+      padding: 0 4px;
+      border-bottom: 1px solid #eadfce;
+    }
+
+    .tabs button {
+      min-height: 46px;
+      border: 0;
+      border-bottom: 3px solid transparent;
+      background: transparent;
+      color: #8a7f6e;
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+    }
+
+    .tabs button[data-active="true"] {
+      border-bottom-color: #977026;
+      color: #241f18;
+      font-weight: 700;
+    }
+
+    .content {
+      min-height: 0;
+      flex: 1;
+      padding: 16px 0 0;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    .content::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* 个人数据：分组卡片，与登录面板同级卡片化 */
+    .section {
+      margin: 0 0 14px;
+    }
+
+    .sectionLabel {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 0 4px 6px;
+    }
+
+    .sectionLabel h3 {
+      margin: 0;
+      color: #241f18;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .sectionLabel span {
+      color: #a0907a;
+      font-size: 10px;
+    }
+
+    .sectionCard {
+      padding: 4px 16px 10px;
+      border: 1px solid #e5e1d6;
+      border-radius: 20px;
+      background: #fffdf8;
+    }
+
+    .settingRow,
+    .dataRow {
+      display: grid;
+      min-height: 62px;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 0;
+      border-bottom: 1px solid #f0ead9;
+    }
+
+    .dataRow:last-child {
+      border-bottom: 0;
+    }
+
+    .dataCopy strong,
+    .dataCopy small {
+      display: block;
+    }
+
+    .dataCopy strong {
+      color: #2e2922;
+      font-size: 14px;
+      font-weight: 650;
+      line-height: 1.25;
+    }
+
+    .dataCopy small {
+      margin-top: 3px;
+      color: #8a7f6e;
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .toggle {
+      position: relative;
+      width: 40px;
+      min-width: 40px;
+      height: 24px;
+      padding: 0;
+      border: 1px solid #e5e1d6;
+      border-radius: 999px;
+      background: #f2ede1;
+      cursor: pointer;
+    }
+
+    .toggle::after {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #a0907a;
+      content: "";
+    }
+
+    .toggle[aria-checked="true"] {
+      border-color: #d8c9a8;
+      background: #faf4e8;
+    }
+
+    .toggle[aria-checked="true"]::after {
+      left: 19px;
+      background: #977026;
+    }
+
+    .rowAction {
+      min-height: 34px;
+      padding: 0 16px;
+      border: 1px solid #e5e1d6;
+      border-radius: 24px;
+      background: #fff;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    /* 危险区：删除账号 */
+    .dangerCard {
+      padding: 14px 16px;
+      border: 1px solid #d8c9c0;
+      border-radius: 20px;
+      background: #fdfaf6;
+    }
+
+    .dangerCard strong,
+    .dangerCard small {
+      display: block;
+    }
+
+    .dangerCard strong {
+      color: #7a4a3f;
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    .dangerCard small {
+      margin-top: 3px;
+      color: #a0907a;
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .dangerAction {
+      min-height: 36px;
+      margin-top: 10px;
+      padding: 0 18px;
+      border: 1px solid #d8c9c0;
+      border-radius: 24px;
+      background: #fdfaf6;
+      color: #7a4a3f;
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .bottomBar {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px 16px;
+      border-top: 1px solid #eadfce;
+      background: #fdf9f1;
+    }
+
+    .backButton,
+    .confirmButton {
+      display: grid;
+      min-height: 46px;
+      place-items: center;
+      gap: 0;
+      padding: 8px 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 24px;
+      background: #fff;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      text-align: center;
+    }
+
+    .backButton strong,
+    .backButton small,
+    .confirmButton strong,
+    .confirmButton small {
+      display: block;
+    }
+
+    .backButton strong,
+    .confirmButton strong {
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    .backButton small,
+    .confirmButton small {
+      margin-top: 2px;
+      color: #8a7f6e;
+      font-size: 11px;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="viewport">
+      <main class="page">
+        <div class="screen">
+          <div class="meta" aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>附 · 账号</span></div>
+          <header class="header">
+            <div><h1>账号与云端</h1><p>登录同步后，存档与配置可跨设备继续。</p></div>
+          </header>
+          <nav class="tabs" aria-label="账号页面">
+            <button type="button" data-active="false">登录</button>
+            <button type="button" data-active="false">云存档</button>
+            <button type="button" data-active="true">个人数据</button>
+          </nav>
+          <section class="content" aria-label="个人数据">
+            <section class="section">
+              <div class="sectionLabel"><h3>数据设置</h3><span>本地配置</span></div>
+              <div class="sectionCard">
+                <div class="settingRow">
+                  <div class="dataCopy"><strong>保存 API Key</strong><small>在本机加密保存模型密钥，不随云存档上传</small></div>
+                  <button type="button" class="toggle" role="switch" aria-checked="true" aria-label="保存 API Key" />
+                </div>
+              </div>
+            </section>
+
+            <section class="section">
+              <div class="sectionLabel"><h3>角色设定</h3><span>当前：星语</span></div>
+              <div class="sectionCard">
+                <div class="dataRow">
+                  <div class="dataCopy"><strong>角色设定</strong><small>角色模板与命名偏好</small></div>
+                  <button type="button" class="rowAction">管理</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="section">
+              <div class="sectionLabel"><h3>轮回天赋</h3><span>1 / 10</span></div>
+              <div class="sectionCard">
+                <div class="dataRow">
+                  <div class="dataCopy"><strong>记忆馈赠</strong><small>下一轮回随机保留一项天赋</small></div>
+                  <button type="button" class="rowAction">删除</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="section">
+              <div class="sectionLabel"><h3>每局战绩</h3><span>1 / 10</span></div>
+              <div class="sectionCard">
+                <div class="dataRow">
+                  <div class="dataCopy"><strong>第 07 局</strong><small>结局：命数圆满 · 2026-08-02</small></div>
+                  <button type="button" class="rowAction">删除</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="section">
+              <div class="sectionLabel"><h3>危险操作</h3><span>不可恢复</span></div>
+              <div class="dangerCard">
+                <strong>删除账号</strong>
+                <small>删除本机账号数据，云存档不受影响；不可恢复。</small>
+                <button type="button" class="dangerAction">删除账号</button>
+              </div>
+            </section>
+          </section>
+        </div>
+        <div class="bottomBar">
+          <button type="button" class="backButton" title="返回上一页">
+            <strong>返回上一页</strong>
+            <small>退出账号页</small>
+          </button>
+          <button type="button" class="confirmButton" title="完成">
+            <strong>完成</strong>
+            <small>返回欢迎界面</small>
+          </button>
+        </div>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!-- Purpose: Record the second UI iteration round for the mailbox sub-interface. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>邮箱 · 第二轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+
+    .status-selected {
+      color: #0a544f;
+      background: #e2f0ee;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">MAILBOX / ROUND-02</p>
+      <h1>邮箱 · 第二轮</h1>
+    </div>
+    <span class="status status-draft">待比较</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>在第一轮入选的候选 02（精简单列统一）基础上，聚焦收件消息的阅读节奏与天赋资产表达：让"哪些邮件未读、天赋在何处、如何快速决定接受或删除"一目了然。</dd></div>
+        <div><dt>保持不变</dt><dd>继承候选 02 的结构事实：暖纸墨全页、消息卡片化、分类 tabs、写邮件/接受/删除按钮按定版按钮规格、底部双文字等宽纯白同底按钮；页面业务契约（meta、标题、tabs、消息列表、天赋附件、到期、删除、底栏）不改变。</dd></div>
+        <div><dt>比较维度</dt><dd>阅读扫描效率（未读与已读的分辨、列表快速浏览）、天赋资产表达（轮回天赋作为收件核心是否被突出）、精简协调性（强调手段是否仍属同一定版语言）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>精简单列基线微调</strong></header>
+          <p>直接继承上轮入选候选 02，仅微调卡片间距与未读底色，作为本轮对照基线。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-01-baseline.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>天赋焦点</strong></header>
+          <p>轮回天赋作为收件核心资产：天赋卡片金色描边 + 柔和投影，接受天赋按钮强化，天赋名称更大更醒目。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-02-talent.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>未读强调</strong></header>
+          <p>未读消息浅金底 + 金色圆点更醒目，已读消息更素；列表扫描更快，未读优先感更强。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-03-unread.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 基线微调</span><span role="columnheader">02 天赋焦点</span><span role="columnheader">03 未读强调</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">阅读扫描效率</strong><span role="cell">未读浅金底，可分辨</span><span role="cell">同基线，强调落在正文天赋</span><span role="cell">未读金底金点，扫描最快</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">天赋资产表达</strong><span role="cell">天赋卡片常规浅金底</span><span role="cell">天赋成为展开后视觉主角</span><span role="cell">天赋卡片不变，列表层强调</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">与定版最一致</span><span role="cell">金色强调仍在暖纸墨语言内</span><span role="cell">强调手段克制，同级统一</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已定版 01</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 01（精简单列基线微调）。用户确认：第一轮精简单列统一微调后的版本作为邮箱定版基线，收件阅读节奏与天赋表达不再额外强调，保持与定版语言最一致的克制呈现。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 02（天赋焦点）：天赋卡片强调充分，但金色描边与徽记带来了超出定版节奏的装饰。候选 03（未读强调）：未读扫描更快，但未读金底加重了列表层级，与已定版的同级统一略有出入。</dd></div>
+        <div><dt>下一轮继承</dt><dd>邮箱定版基线：精简单列统一（暖纸墨全页、消息卡片化 20px 圆角、未读浅金底、分类 tabs 下划线金色、写邮件/接受/删除按钮按定版按钮规格、底部双文字等宽纯白同底按钮）。邮箱界面定版，进入下一子界面迭代。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!-- Purpose: Record the first UI iteration round for the save-sheet sub-interface. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>存档栏位 · 第一轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+
+    .status-selected {
+      color: #0a544f;
+      background: #e2f0ee;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">SAVE-SHEET / ROUND-01</p>
+      <h1>存档栏位 · 第一轮</h1>
+    </div>
+    <span class="status status-draft">待比较</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>在欢迎页定版基线（候选 02 单列极简结构、原版按钮规格、暖纸墨色系、节奏留白、统一居中、微距分层、两行整体下移贴合）上，为存档栏位弹层建立第一轮候选。存档栏位业务事实：选择存档 → 删除已选 → 继续此人生，含删除确认。</dd></div>
+        <div><dt>保持不变</dt><dd>弹层业务契约：标题"选择存档"、副行、存档列表（名称 + 世界/轮次/槽位/日期）、已选择状态、删除入口、继续此人生；欢迎页主体完全继承定版。</dd></div>
+        <div><dt>比较维度</dt><dd>信息层级（标题、列表、操作的主次）、操作效率（选择到继续的步数）、精简协调性（与定版欢迎页是否同一语言）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>当前运行基线</strong></header>
+          <p>还原运行时弹层：深色底、宋体标题、渐变列表卡片、圆点勾选、右侧箭头继续按钮。</p>
+          <a class="candidate-open" href="candidates/candidate-01-current.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>精简单列统一</strong></header>
+          <p>暖纸墨弹层，列表项纯白浅边框 20px 圆角，继续按钮按定版原版规格，删除收敛为文本操作。</p>
+          <a class="candidate-open" href="candidates/candidate-02-minimal.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>聚焦式弹层</strong></header>
+          <p>标题居中、继续此人生置底为主要操作、删除收进每个列表项，信息聚焦选择本身。</p>
+          <a class="candidate-open" href="candidates/candidate-03-focused.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 当前基线</span><span role="columnheader">02 精简单列</span><span role="columnheader">03 聚焦式</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">信息层级</strong><span role="cell">宋体标题突出，列表渐变卡片次级</span><span role="cell">标题居中克制，列表同级统一</span><span role="cell">标题居中，继续操作最突出</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">操作效率</strong><span role="cell">选择 + 状态 + 删除 + 继续四层</span><span role="cell">选择 + 继续两层，删除独立弱化</span><span role="cell">选择即聚焦，继续唯一主操作</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">蓝白渐变，与定版暖纸墨不同语言</span><span role="cell">与定版欢迎页同语言，最协调</span><span role="cell">同语言，且更聚焦选择行为</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">定版 03</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 03（聚焦式弹层）定为存档栏位最终版。用户确认：标题居中、继续此人生置底为主要操作、删除收进每个列表项的聚焦式弹层符合预期，存档栏位子界面本轮定版。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 01（当前运行基线）：蓝白渐变弹层与定版暖纸墨语言不一致。候选 02（精简单列）：结构正确但删除仍为独立文本操作，操作路径偏长。</dd></div>
+        <div><dt>定版基线</dt><dd>存档栏位完整定版：暖纸墨弹层（白底浅边框 20px 圆角）+ 标题居中 + 列表项带选中圆点与行内删除 + 继续此人生置底主操作。弹层业务契约保持不变：选择存档 → 行内删除 → 继续此人生。后续欢迎页其余子界面（排行榜、邮箱）继承欢迎页与存档栏位定版基线继续迭代。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

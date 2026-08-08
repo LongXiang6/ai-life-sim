@@ -1,0 +1,132 @@
+<!-- Purpose: Record the second UI iteration round for the welcome page. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>欢迎界面 · 第二轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+
+    .status-selected {
+      color: #0a544f;
+      background: #e2f0ee;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">WELCOME / ROUND-02</p>
+      <h1>欢迎界面 · 第二轮</h1>
+    </div>
+    <span class="status status-draft">待比较</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>在第一轮入选的候选 02（单列极简统一）结构基础上，补充适合阅读的颜色体系，避免纯白底色过于单调；背景色、文字色、辅助色围绕阅读舒适度建立柔和层次。</dd></div>
+        <div><dt>保持不变</dt><dd>继承候选 02 的结构事实：单列、主操作置顶、继续人生与辅助入口同级统一样式、无编号无箭头；按钮 UI 样式与圆角设计尺寸按原版（当前运行样式）规格，文案与导航契约均不改变。</dd></div>
+        <div><dt>比较维度</dt><dd>阅读舒适度（背景与文字的对比）、层级辨识（标题/副句/入口的色相区分）、与精简结构的协调性（颜色不引入新的装饰与层次）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>阅读颜色 · 暖纸墨</strong></header>
+          <p>暖纸底色 + 暖墨文字，辅助色为纸褐；阅读氛围温暖柔和，最接近纸面阅读感。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-01-warm.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>阅读颜色 · 冷雾青</strong></header>
+          <p>冷雾青底色 + 冷墨文字，辅助色为青灰；色彩对比最低、最安静克制。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-02-mist.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>阅读颜色 · 月白靛</strong></header>
+          <p>月白靛底色 + 靛蓝文字，辅助色为蓝紫；冷暖平衡，层次最清晰。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-03-moon.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 暖纸墨</span><span role="columnheader">02 冷雾青</span><span role="columnheader">03 月白靛</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">阅读舒适度</strong><span role="cell">纸褐背景对比适中，久读柔和</span><span role="cell">对比最低，最安静但略平</span><span role="cell">背景文字层次分明，辨识最高</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">层级辨识</strong><span role="cell">暖墨标题与纸褐辅助色区分清晰</span><span role="cell">青灰辅助色与冷墨标题对比偏弱</span><span role="cell">靛蓝辅助色区分最明显</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">暖色不增加装饰，维持单列结构</span><span role="cell">颜色最淡，最贴近原候选 02 的极简</span><span role="cell">蓝紫色相带来最小幅的氛围差异</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 01</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 01（阅读颜色 · 暖纸墨）。用户确认：暖纸底色 + 暖墨文字的阅读色系在保证阅读舒适的同时保留纸面氛围，继续作为下一轮继承基线。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 02（冷雾青）：色彩对比最弱，辅助色与标题区分不足，阅读层次偏平。候选 03（月白靛）：蓝紫色相带来最小幅的氛围差异，辨识度虽高但与暖纸阅读方向不符。</dd></div>
+        <div><dt>下一轮继承</dt><dd>继承候选 02 的单列极简结构、原版按钮规格（白底浅边框约 24px 圆角、无编号无箭头）与暖纸墨阅读色系（暖纸底、暖墨文字、纸褐辅助色）。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

@@ -151,6 +151,33 @@ const prototypeIterationTemplateSrc = readRel('docs/ui-prototypes/mobile/templat
 const prototypeRootEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile')).sort()
 const prototypeAssetEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/assets')).sort()
 const prototypeTemplateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/template')).sort()
+const prototypeWelcomeIterationSrc = readRel('docs/ui-prototypes/mobile/welcome/iteration-round-01.html')
+const prototypeWelcomeIterationRound02Src = readRel('docs/ui-prototypes/mobile/welcome/iteration-round-02.html')
+const prototypeWelcomeIterationRound03Src = readRel('docs/ui-prototypes/mobile/welcome/iteration-round-03.html')
+const prototypeWelcomeIterationRound04Src = readRel('docs/ui-prototypes/mobile/welcome/iteration-round-04.html')
+const prototypeWelcomeIterationRound05Src = readRel('docs/ui-prototypes/mobile/welcome/iteration-round-05.html')
+const prototypeWelcomeIterationRound06Src = readRel('docs/ui-prototypes/mobile/welcome/iteration-round-06.html')
+const prototypeWelcomeCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/welcome/candidates')).sort()
+const prototypeSaveSheetIterationSrc = readRel('docs/ui-prototypes/mobile/save-sheet/iteration-round-01.html')
+const prototypeSaveSheetCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/save-sheet/candidates')).sort()
+const prototypeLeaderboardIterationSrc = readRel('docs/ui-prototypes/mobile/leaderboard/iteration-round-01.html')
+const prototypeLeaderboardIterationRound02Src = readRel('docs/ui-prototypes/mobile/leaderboard/iteration-round-02.html')
+const prototypeLeaderboardIterationRound03Src = readRel('docs/ui-prototypes/mobile/leaderboard/iteration-round-03.html')
+const prototypeLeaderboardIterationRound04Src = readRel('docs/ui-prototypes/mobile/leaderboard/iteration-round-04.html')
+const prototypeLeaderboardIterationRound05Src = readRel('docs/ui-prototypes/mobile/leaderboard/iteration-round-05.html')
+const prototypeLeaderboardCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/leaderboard/candidates')).sort()
+const prototypeMailboxIterationSrc = readRel('docs/ui-prototypes/mobile/mailbox/iteration-round-01.html')
+const prototypeMailboxIterationRound02Src = readRel('docs/ui-prototypes/mobile/mailbox/iteration-round-02.html')
+const prototypeMailboxCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/mailbox/candidates')).sort()
+const prototypeSettingsIterationSrc = readRel('docs/ui-prototypes/mobile/settings/iteration-round-01.html')
+const prototypeSettingsIterationRound02Src = readRel('docs/ui-prototypes/mobile/settings/iteration-round-02.html')
+const prototypeSettingsIterationRound03Src = readRel('docs/ui-prototypes/mobile/settings/iteration-round-03.html')
+const prototypeSettingsIterationRound04Src = readRel('docs/ui-prototypes/mobile/settings/iteration-round-04.html')
+const prototypeSettingsCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/settings/candidates')).sort()
+const prototypeAccountIterationSrc = readRel('docs/ui-prototypes/mobile/account/iteration-round-01.html')
+const prototypeAccountIterationRound02Src = readRel('docs/ui-prototypes/mobile/account/iteration-round-02.html')
+const prototypeAccountIterationRound03Src = readRel('docs/ui-prototypes/mobile/account/iteration-round-03.html')
+const prototypeAccountCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/account/candidates')).sort()
 const pageManifestSrc = readRel('src/mods/mod-pages/manifest.ts')
 
 assertOk(
@@ -852,17 +879,65 @@ assertOk(
 )
 
 assertOk(
-  JSON.stringify(prototypeRootEntries) === JSON.stringify(['assets', 'index.html', 'template'])
+  JSON.stringify(prototypeRootEntries) === JSON.stringify(['account', 'assets', 'index.html', 'leaderboard', 'mailbox', 'save-sheet', 'settings', 'template', 'welcome'])
     && JSON.stringify(prototypeAssetEntries) === JSON.stringify(['library.css'])
-    && JSON.stringify(prototypeTemplateEntries) === JSON.stringify(['iteration.html']),
-  'the UI solution library must contain only the generic index, structural stylesheet, and reusable iteration template',
+    && JSON.stringify(prototypeTemplateEntries) === JSON.stringify(['iteration.html'])
+    && prototypeWelcomeIterationSrc.includes('data-template-purpose="ui-iteration"')
+    && prototypeWelcomeIterationRound02Src.includes('data-template-purpose="ui-iteration"')
+    && prototypeWelcomeIterationRound03Src.includes('data-template-purpose="ui-iteration"')
+    && prototypeWelcomeIterationRound04Src.includes('data-template-purpose="ui-iteration"')
+    && prototypeWelcomeIterationRound05Src.includes('data-template-purpose="ui-iteration"')
+    && prototypeWelcomeIterationRound06Src.includes('data-template-purpose="ui-iteration"')
+    && ['candidate-01-current.html', 'candidate-02-minimal.html', 'candidate-03-minimal.html',
+        'candidate-round-02-01-warm.html', 'candidate-round-02-02-mist.html', 'candidate-round-02-03-moon.html',
+        'candidate-round-03-01-hierarchy.html', 'candidate-round-03-02-rhythm.html', 'candidate-round-03-03-interaction.html',
+        'candidate-round-04-01-vertcentered.html', 'candidate-round-04-02-leftaligned.html', 'candidate-round-04-03-centered.html',
+        'candidate-round-05-01-tight.html', 'candidate-round-05-02-medium.html', 'candidate-round-05-03-minimal-gap.html',
+        'candidate-round-06-01-lower-main.html', 'candidate-round-06-02-lower-block.html', 'candidate-round-06-03-lineheight.html']
+      .every(marker => prototypeWelcomeCandidateEntries.includes(marker))
+    && prototypeSaveSheetIterationSrc.includes('data-template-purpose="ui-iteration"')
+    && ['candidate-01-current.html', 'candidate-02-minimal.html', 'candidate-03-focused.html']
+      .every(marker => prototypeSaveSheetCandidateEntries.includes(marker))
+    && prototypeLeaderboardIterationSrc.includes('data-template-purpose="ui-iteration"')
+    && prototypeLeaderboardIterationRound02Src.includes('data-template-purpose="ui-iteration"')
+    && prototypeLeaderboardIterationRound03Src.includes('data-template-purpose="ui-iteration"')
+    && prototypeLeaderboardIterationRound04Src.includes('data-template-purpose="ui-iteration"')
+    && prototypeLeaderboardIterationRound05Src.includes('data-template-purpose="ui-iteration"')
+    && ['candidate-01-current.html', 'candidate-02-minimal.html', 'candidate-03-focused.html',
+        'candidate-round-02-01-expanded.html', 'candidate-round-02-02-merged.html', 'candidate-round-02-03-equal.html',
+        'candidate-round-03-01-top-card.html', 'candidate-round-03-02-entry-layer.html', 'candidate-round-03-03-top-emblem.html',
+        'candidate-round-04-01-tinted.html', 'candidate-round-04-02-compact.html', 'candidate-round-04-03-icon.html',
+        'candidate-round-05-01-pure-white.html', 'candidate-round-05-02-warm-beige.html', 'candidate-round-05-03-weight.html']
+      .every(marker => prototypeLeaderboardCandidateEntries.includes(marker))
+    && prototypeMailboxIterationSrc.includes('data-template-purpose="ui-iteration"')
+    && prototypeMailboxIterationRound02Src.includes('data-template-purpose="ui-iteration"')
+    && ['candidate-01-current.html', 'candidate-02-minimal.html', 'candidate-03-focused.html',
+        'candidate-round-02-01-baseline.html', 'candidate-round-02-02-talent.html', 'candidate-round-02-03-unread.html']
+      .every(marker => prototypeMailboxCandidateEntries.includes(marker))
+    && prototypeSettingsIterationSrc.includes('data-template-purpose="ui-iteration"')
+    && prototypeSettingsIterationRound02Src.includes('data-template-purpose="ui-iteration"')
+    && prototypeSettingsIterationRound03Src.includes('data-template-purpose="ui-iteration"')
+    && prototypeSettingsIterationRound04Src.includes('data-template-purpose="ui-iteration"')
+    && ['candidate-01-current.html', 'candidate-02-minimal.html', 'candidate-03-focused.html',
+        'candidate-round-02-01-baseline.html', 'candidate-round-02-02-feedback.html', 'candidate-round-02-03-restrained.html',
+        'candidate-round-03-01-baseline.html', 'candidate-round-03-02-compact-tabs.html', 'candidate-round-03-03-airier.html',
+        'candidate-round-04-01-baseline.html', 'candidate-round-04-02-data-actions.html', 'candidate-round-04-03-tail.html']
+      .every(marker => prototypeSettingsCandidateEntries.includes(marker))
+    && prototypeAccountIterationSrc.includes('data-template-purpose="ui-iteration"')
+    && prototypeAccountIterationRound02Src.includes('data-template-purpose="ui-iteration"')
+    && prototypeAccountIterationRound03Src.includes('data-template-purpose="ui-iteration"')
+    && ['candidate-01-current.html', 'candidate-02-minimal.html', 'candidate-03-focused.html',
+        'candidate-round-02-01-baseline.html', 'candidate-round-02-02-form-rhythm.html', 'candidate-round-02-03-data-rows.html',
+        'candidate-round-03-01-baseline.html', 'candidate-round-03-02-signed-in.html', 'candidate-round-03-03-personal-data.html']
+      .every(marker => prototypeAccountCandidateEntries.includes(marker)),
+  'the UI solution library must contain the generic index, structural stylesheet, reusable template, and the registered welcome iteration directories',
 )
 assertOk(
   prototypeIndexSrc.includes('data-library-purpose="generic-ui-iteration"')
     && prototypeIndexSrc.includes('href="template/iteration.html"')
     && prototypeIndexSrc.includes('当前不保留任何既定主题、定版稿或页面构图')
     && prototypeIndexSrc.includes('Runtime authority: none'),
-  'the generic library index must start empty and explicitly reject runtime visual authority',
+  'the generic library index must stay neutral and explicitly reject runtime visual authority',
 )
 assertOk(
   prototypeIterationTemplateSrc.includes('data-template-purpose="ui-iteration"')

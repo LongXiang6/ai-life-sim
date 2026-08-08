@@ -1,0 +1,132 @@
+<!-- Purpose: Record the second UI iteration round for the account sub-interface. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>账号与云端 · 第二轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+
+    .status-selected {
+      color: #0a544f;
+      background: #e2f0ee;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">ACCOUNT / ROUND-02</p>
+      <h1>账号与云端 · 第二轮</h1>
+    </div>
+    <span class="status status-draft">待比较</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>在第一轮入选的候选 02（精简单列统一）基础上，聚焦登录表单的输入节奏与数据行呈现：让账号输入、登录/注册切换、云存档与个人数据的信息行在同一定版语言内清晰可扫读。</dd></div>
+        <div><dt>保持不变</dt><dd>继承候选 02 的结构事实：暖纸墨全页、tabs 金色下划线、表单卡片化 20px 圆角、定版按钮规格、底部双文字等宽纯白同底按钮；页面业务契约（登录/云存档/个人数据、完成返回欢迎界面）不改变。</dd></div>
+        <div><dt>比较维度</dt><dd>输入节奏（表单字段与主次）、信息层级（数据行的可扫读性）、精简协调性（呈现手段是否仍属同一定版语言）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>精简单列基线微调</strong></header>
+          <p>直接继承上轮入选候选 02，仅微调表单细节，作为本轮对照基线。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-01-baseline.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>表单节奏</strong></header>
+          <p>登录表单字段间距收紧、登录/注册切换紧凑，主操作更突出，输入节奏更顺。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-02-form-rhythm.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>数据行统一</strong></header>
+          <p>云存档与个人数据以信息行呈现，标题+副句+右侧状态，与登录面板同级卡片化统一。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-03-data-rows.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 基线微调</span><span role="columnheader">02 表单节奏</span><span role="columnheader">03 数据行统一</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">输入节奏</strong><span role="cell">字段 12px 间距</span><span role="cell">字段收紧，主操作突出</span><span role="cell">同基线，节奏不变</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">信息层级</strong><span role="cell">表单卡片单层</span><span role="cell">同基线，层级不变</span><span role="cell">数据行标题+副句+状态统一</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">与定版最一致</span><span role="cell">收紧仍在暖纸墨语言内</span><span role="cell">行样式同级统一</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 01</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 01（精简单列基线微调）。用户确认：保持上轮 02 的精简单列表单结构，字段 12px 间距、登录/注册双按钮的原样被保留，作为下一轮继承基线。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 02（表单节奏）：字段收紧 + 浅金主操作 + 文字链接式注册切换未被采纳。候选 03（数据行统一）：云存档数据行呈现方向正确，但本轮未入选。</dd></div>
+        <div><dt>下一轮继承</dt><dd>继承候选 01 的精简单列表单结构（字段 12px 间距、登录并同步/注册账号定版按钮规格），以及既有定版基线（暖纸墨、tabs 金色下划线、卡片化 20px 圆角、底部双文字等宽纯白同底按钮）。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

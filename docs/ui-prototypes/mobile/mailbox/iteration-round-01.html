@@ -1,0 +1,132 @@
+<!-- Purpose: Record the first UI iteration round for the mailbox sub-interface. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>邮箱 · 第一轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+
+    .status-selected {
+      color: #0a544f;
+      background: #e2f0ee;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">MAILBOX / ROUND-01</p>
+      <h1>邮箱 · 第一轮</h1>
+    </div>
+    <span class="status status-draft">待比较</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>在已定版基线（欢迎页候选 02 单列极简结构、原版按钮规格、暖纸墨色系、节奏留白、统一居中；存档栏位聚焦式弹层；排行榜聚焦式榜单 + 双文字等宽底栏 + 纯白同底按钮）上，为邮箱子界面建立第一轮候选。邮箱业务事实：查看来信 → 展开消息 → 接受天赋/删除 → 返回欢迎界面。</dd></div>
+        <div><dt>保持不变</dt><dd>页面业务契约：meta 顶栏、标题"邮箱"与副标题、写邮件入口、分类 tabs（收件箱/已发送）、消息列表（身份、标题、预览、时间、未读点、正文、天赋附件、到期、删除）、底部操作栏（返回 + 返回欢迎界面）；不改变运行时行为与数据契约。</dd></div>
+        <div><dt>比较维度</dt><dd>信息层级（写信入口、分类、消息列表的主次）、操作效率（展开消息到接受/删除的路径）、精简协调性（与定版欢迎页、存档栏位、排行榜是否同一语言）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>当前运行基线</strong></header>
+          <p>还原运行时页面：蓝白渐变底、宋体标题、写邮件按钮、分类 tabs、消息列表、底部操作栏。</p>
+          <a class="candidate-open" href="candidates/candidate-01-current.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>精简单列统一</strong></header>
+          <p>暖纸墨全页，消息卡片化 20px 圆角，写邮件/接受/删除按钮按定版按钮规格。</p>
+          <a class="candidate-open" href="candidates/candidate-02-minimal.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>聚焦式收件</strong></header>
+          <p>标题与写邮件入口居中收敛，分类 tabs 居中，收件列表聚焦阅读。</p>
+          <a class="candidate-open" href="candidates/candidate-03-focused.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 当前基线</span><span role="columnheader">02 精简单列</span><span role="columnheader">03 聚焦式</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">信息层级</strong><span role="cell">写邮件并列标题右，分类上沿</span><span role="cell">标题明确，消息卡片同级统一</span><span role="cell">写邮件入口收敛，列表聚焦</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">操作效率</strong><span role="cell">展开消息后经行内按钮操作</span><span role="cell">同左，操作路径不变</span><span role="cell">入口集中，阅读更聚焦</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">蓝白语言，与定版不一致</span><span role="cell">与定版同语言，最协调</span><span role="cell">同语言，且写信入口更克制</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 02</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 02（精简单列统一）。用户确认：暖纸墨全页 + 消息卡片化 + 定版按钮规格的精简单列统一被接受，作为下一轮继承基线。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 01（当前运行基线）：蓝白语言与定版基线不一致。候选 03（聚焦式收件）：入口收敛方向正确，但本轮用户偏好 02 的消息卡片同级统一。</dd></div>
+        <div><dt>下一轮继承</dt><dd>继承候选 02 的精简单列统一（暖纸墨全页、消息卡片化 20px 圆角、写邮件/接受/删除按钮按定版按钮规格、底部双文字等宽纯白同底按钮），以及既有定版基线。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

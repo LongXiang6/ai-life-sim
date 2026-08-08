@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>欢迎页 · 候选 01 · 阅读颜色（暖纸墨）</title>
+  <style>
+    /* Purpose: Static prototype of the warm-paper reading-color welcome style. Owner: Interface system. Responsibility: Candidate only; structure inherits candidate 02, buttons follow the original runtime specs. */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .frame {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-width: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      overflow: hidden;
+      place-items: stretch;
+      background: #fdf9f1;
+      color-scheme: light;
+    }
+
+    .viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      max-width: 100%;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    @media (min-width: 48rem) {
+      .viewport {
+        width: min(100%, 30rem);
+      }
+    }
+
+    .container {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      flex-direction: column;
+      background: #fdf9f1;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+    }
+
+    .runningHead {
+      display: flex;
+      justify-content: space-between;
+      padding: 22px 24px 0;
+      color: #8a7f6e;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .quickActions {
+      position: absolute;
+      z-index: 4;
+      top: 48px;
+      right: 24px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .quickActions button {
+      display: grid;
+      width: 39px;
+      height: 39px;
+      place-items: center;
+      padding: 0;
+      border: 1px solid rgba(174, 184, 202, 0.72);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: 0 4px 10px rgba(120, 100, 70, 0.08);
+      color: #7a6f5e;
+      cursor: pointer;
+    }
+
+    .quickActions svg {
+      width: 19px;
+      height: 19px;
+      fill: none;
+      stroke: currentcolor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 1.6;
+    }
+
+    .intro {
+      padding: 64px 28px 40px;
+    }
+
+    .brand {
+      margin: 0;
+      color: #a0907a;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+    }
+
+    .title {
+      margin: 20px 0 0;
+      color: #241f18;
+      font-size: 34px;
+      font-weight: 700;
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+    }
+
+    .subtitle {
+      margin: 14px 0 0;
+      color: #8a7f6e;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .actions {
+      width: 100%;
+      max-width: 400px;
+      margin: auto auto 40px;
+      padding: 0 28px;
+    }
+
+    .primaryAction {
+      display: grid;
+      width: 100%;
+      min-height: 76px;
+      place-items: center;
+      border: 1px solid #cfd7ee;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 6px 16px rgba(62, 70, 100, 0.1);
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      font-size: 18px;
+      font-weight: 650;
+    }
+
+    .routeList {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .routeAction {
+      display: block;
+      width: 100%;
+      min-height: 73px;
+      padding: 0 18px;
+      border: 1px solid #d8deea;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: 0 5px 14px rgba(62, 70, 100, 0.08);
+      color: #374151;
+      cursor: pointer;
+      font: inherit;
+      font-size: 16px;
+      font-weight: 600;
+      text-align: left;
+    }
+
+    .routeAction small {
+      display: block;
+      margin-top: 3px;
+      overflow: hidden;
+      color: #8a7f6e;
+      font-size: 12px;
+      font-weight: 500;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .sectionDivider {
+      height: 1px;
+      margin: 22px 0 12px;
+      background: #eadfce;
+    }
+
+    .utilityGrid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .utilityAction {
+      min-height: 62px;
+      padding: 0 12px;
+      border: 1px solid #d8deea;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.9);
+      color: #5c5447;
+      cursor: pointer;
+      font: inherit;
+      font-size: 15px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="viewport">
+      <main class="container">
+        <div class="runningHead" aria-hidden="true">
+          <span>AI LIFE SIM · 命书</span>
+          <span>00 / 欢迎</span>
+        </div>
+
+        <nav class="quickActions" aria-label="排行榜与邮箱">
+          <button type="button" aria-label="打开排行榜" title="排行榜">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 4h8v3a4 4 0 0 1-8 0V4Z" />
+              <path d="M8 6H5v1a4 4 0 0 0 4 4M16 6h3v1a4 4 0 0 1-4 4M12 11v5M8 20h8M9 16h6v4" />
+            </svg>
+          </button>
+          <button type="button" aria-label="打开邮箱" title="邮箱">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 6h16v12H4zM4 7l8 6 8-6" />
+            </svg>
+          </button>
+        </nav>
+
+        <section class="intro" aria-labelledby="welcome-title">
+          <p class="brand">人生序章</p>
+          <h1 id="welcome-title" class="title">
+            一生很长，
+            <br />
+            也只由几次选择组成。
+          </h1>
+          <p class="subtitle">选择世界与角色。</p>
+        </section>
+
+        <section class="actions" aria-label="开始与辅助操作">
+          <button type="button" class="primaryAction" title="进入世界选择界面，创建一个全新的人生">
+            开始新人生
+          </button>
+
+          <div class="routeList">
+            <button type="button" class="routeAction" title="展开存档栏位，选择一段人生继续">
+              <strong>继续人生</strong>
+              <small>2 个存档 · 最近：朝雨</small>
+            </button>
+          </div>
+
+          <div class="sectionDivider" role="presentation"></div>
+          <div class="utilityGrid">
+            <button type="button" class="utilityAction">账号与云端</button>
+            <button type="button" class="utilityAction">设置</button>
+            <button type="button" class="utilityAction">游戏说明</button>
+            <button type="button" class="utilityAction">反馈与建议</button>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

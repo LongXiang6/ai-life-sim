@@ -1,0 +1,132 @@
+<!-- Purpose: Record the second UI iteration round for the settings sub-interface. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>设置 · 第二轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+
+    .status-selected {
+      color: #0a544f;
+      background: #e2f0ee;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">SETTINGS / ROUND-02</p>
+      <h1>设置 · 第二轮</h1>
+    </div>
+    <span class="status status-draft">待比较</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>在第一轮入选的候选 02（精简单列统一）基础上，聚焦设置调整的即时反馈与操作层级：让"当前是否已调整、调整了什么、低频危险操作藏在哪里"一目了然且不喧宾夺主。</dd></div>
+        <div><dt>保持不变</dt><dd>继承候选 02 的结构事实：暖纸墨全页、分类 tabs 金色下划线、设置分组卡片化、toggle/字体网格/二选一按定版语言、底部双文字等宽纯白同底按钮；页面业务契约（分类、设置分组、恢复默认、完成设置）不改变。</dd></div>
+        <div><dt>比较维度</dt><dd>调整反馈（状态行与当前项是否即时可感）、操作层级（高频调整与低频危险操作的主次）、精简协调性（反馈手段是否仍属同一定版语言）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>精简单列基线微调</strong></header>
+          <p>直接继承上轮入选候选 02，仅微调分组卡片间距与状态行，作为本轮对照基线。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-01-baseline.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>即时反馈</strong></header>
+          <p>状态行"已有调整 · 即时生效"金色强调，当前调整项高亮描边，反馈即时可感。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-02-feedback.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>操作收敛</strong></header>
+          <p>数据管理与重置等低频危险操作降为次要层级，恢复默认更克制，聚焦日常调整。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-03-restrained.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 基线微调</span><span role="columnheader">02 即时反馈</span><span role="columnheader">03 操作收敛</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">调整反馈</strong><span role="cell">状态行常规灰字</span><span role="cell">状态与当前项强调，反馈最直接</span><span role="cell">同基线，反馈不额外强调</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">操作层级</strong><span role="cell">数据管理并列设置分组</span><span role="cell">同基线，操作层级不变</span><span role="cell">低频危险操作降级，日常调整聚焦</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">与定版最一致</span><span role="cell">金色强调仍在暖纸墨语言内</span><span role="cell">层级收敛克制，同级统一</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 02</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 02（即时反馈），并附加调整：内容区滚动条默认隐藏、不显示。用户确认：状态行"已有调整 · 即时生效"金色强调 + 当前调整项高亮被接受，作为下一轮继承基线。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 01（精简单列基线微调）：反馈不额外强调，本轮用户偏好即时反馈。候选 03（操作收敛）：恢复默认与数据管理降级方向正确，但本轮未入选。</dd></div>
+        <div><dt>下一轮继承</dt><dd>继承候选 02 的即时反馈结构（状态行金色强调、当前调整项金色描边、恢复默认激活化）与附加调整（内容区滚动条默认隐藏），以及既有定版基线。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

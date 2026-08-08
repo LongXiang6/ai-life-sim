@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>欢迎页 · 候选 03 · 精简风格（聚焦式）</title>
+  <style>
+    /* Purpose: Static prototype of the minimal focused welcome style full-screen. Owner: Interface system. Responsibility: Candidate only; no runtime behavior or state. */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: #111827;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .frame {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-width: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      overflow: hidden;
+      place-items: stretch;
+      background: #ffffff;
+      color-scheme: light;
+    }
+
+    .viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      max-width: 100%;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    @media (min-width: 48rem) {
+      .viewport {
+        width: min(100%, 30rem);
+      }
+    }
+
+    .container {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      flex-direction: column;
+      background: #ffffff;
+      color: #111827;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+    }
+
+    .runningHead {
+      display: flex;
+      justify-content: space-between;
+      padding: 22px 24px 0;
+      color: #6b7280;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .quickActions {
+      position: absolute;
+      z-index: 4;
+      top: 48px;
+      right: 24px;
+      display: flex;
+      gap: 10px;
+    }
+
+    .quickActions button {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      padding: 0;
+      border: 1px solid #e5e7eb;
+      border-radius: 50%;
+      background: #ffffff;
+      color: #374151;
+      cursor: pointer;
+    }
+
+    .quickActions svg {
+      width: 19px;
+      height: 19px;
+      fill: none;
+      stroke: currentcolor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 1.6;
+    }
+
+    .focus {
+      display: grid;
+      flex: 1;
+      min-height: 0;
+      place-content: center;
+      gap: 26px;
+      padding: 0 28px;
+      text-align: center;
+    }
+
+    .brand {
+      margin: 0;
+      color: #9ca3af;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+    }
+
+    .title {
+      margin: 0;
+      color: #111827;
+      font-size: 36px;
+      font-weight: 700;
+      line-height: 1.32;
+      letter-spacing: -0.01em;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: #6b7280;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .primaryAction {
+      display: grid;
+      width: 100%;
+      min-height: 58px;
+      place-items: center;
+      margin-top: 8px;
+      border: 0;
+      border-radius: 14px;
+      background: #111827;
+      color: #ffffff;
+      cursor: pointer;
+      font: inherit;
+      font-size: 16px;
+      font-weight: 650;
+    }
+
+    .continueAction {
+      display: grid;
+      width: 100%;
+      min-height: 50px;
+      place-items: center;
+      margin-top: 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      background: #ffffff;
+      color: #374151;
+      cursor: pointer;
+      font: inherit;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .utilityLinks {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px 22px;
+      width: 100%;
+      max-width: 400px;
+      margin: 0 auto;
+      padding: 0 28px 34px;
+    }
+
+    .utilityLink {
+      border: 0;
+      background: none;
+      color: #6b7280;
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="viewport">
+      <main class="container">
+        <div class="runningHead" aria-hidden="true">
+          <span>AI LIFE SIM · 命书</span>
+          <span>00 / 欢迎</span>
+        </div>
+
+        <nav class="quickActions" aria-label="排行榜与邮箱">
+          <button type="button" aria-label="打开排行榜" title="排行榜">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M8 4h8v3a4 4 0 0 1-8 0V4Z" />
+              <path d="M8 6H5v1a4 4 0 0 0 4 4M16 6h3v1a4 4 0 0 1-4 4M12 11v5M8 20h8M9 16h6v4" />
+            </svg>
+          </button>
+          <button type="button" aria-label="打开邮箱" title="邮箱">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 6h16v12H4zM4 7l8 6 8-6" />
+            </svg>
+          </button>
+        </nav>
+
+        <section class="focus" aria-labelledby="welcome-title">
+          <div>
+            <p class="brand">人生序章</p>
+            <h1 id="welcome-title" class="title">
+              一生很长，
+              <br />
+              也只由几次选择组成。
+            </h1>
+            <p class="subtitle">选择世界与角色。</p>
+          </div>
+
+          <div>
+            <button type="button" class="primaryAction" title="进入世界选择界面，创建一个全新的人生">
+              开始新人生
+            </button>
+            <button type="button" class="continueAction" title="展开存档栏位，选择一段人生继续">
+              继续人生
+            </button>
+          </div>
+        </section>
+
+        <nav class="utilityLinks" aria-label="辅助入口">
+          <button type="button" class="utilityLink">账号与云端</button>
+          <button type="button" class="utilityLink">设置</button>
+          <button type="button" class="utilityLink">游戏说明</button>
+          <button type="button" class="utilityLink">反馈与建议</button>
+        </nav>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

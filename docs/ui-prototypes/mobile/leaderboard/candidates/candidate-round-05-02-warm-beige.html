@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>排行榜 · 候选 02 · 暖米同底色</title>
+  <style>
+    /* Purpose: Static prototype of the equal-width bottom bar with unified warm-beige backgrounds. Owner: Interface system. Responsibility: Candidate only; inherits the emblem top-entry + equal-width bottom bar baseline (warm-paper color). */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .frame {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-width: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      overflow: hidden;
+      place-items: stretch;
+      background: #fdf9f1;
+      color-scheme: light;
+    }
+
+    .viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      max-width: 100%;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    @media (min-width: 48rem) {
+      .viewport {
+        width: min(100%, 30rem);
+      }
+    }
+
+    .page {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      flex-direction: column;
+      overflow: hidden;
+      background: #fdf9f1;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+    }
+
+    .screen {
+      display: flex;
+      min-height: 0;
+      flex: 1;
+      flex-direction: column;
+      padding: 22px 28px 16px;
+      overflow: hidden;
+    }
+
+    .meta {
+      display: flex;
+      justify-content: space-between;
+      color: #8a7f6e;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .header {
+      padding: 28px 4px 18px;
+      text-align: center;
+    }
+
+    .header h1 {
+      margin: 0;
+      color: #241f18;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.3;
+      letter-spacing: -0.01em;
+    }
+
+    .header p {
+      margin: 6px 0 0;
+      color: #8a7f6e;
+      font-size: 11px;
+    }
+
+    .content {
+      min-height: 0;
+      flex: 1;
+      padding: 12px 0;
+      overflow-y: auto;
+      scrollbar-width: thin;
+    }
+
+    .entryList {
+      display: grid;
+      gap: 10px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .entry {
+      min-height: 60px;
+      padding: 12px 16px;
+      border: 1px solid #e5e1d6;
+      border-radius: 20px;
+      background: #fffdf8;
+    }
+
+    .entry:first-child {
+      border-color: #d8c9a8;
+      background: #faf4e8;
+    }
+
+    .entryTop {
+      display: grid;
+      grid-template-columns: 44px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .rank {
+      color: #a0907a;
+      font-size: 20px;
+      font-weight: 700;
+      text-align: center;
+    }
+
+    .entry:first-child .rank {
+      color: #977026;
+      font-size: 24px;
+    }
+
+    .entryCopy {
+      min-width: 0;
+    }
+
+    .entryCopy strong,
+    .entryCopy small {
+      display: block;
+    }
+
+    .entryCopy strong {
+      overflow: hidden;
+      font-size: 16px;
+      font-weight: 600;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .entryCopy small {
+      margin-top: 3px;
+      color: #8a7f6e;
+      font-size: 11px;
+    }
+
+    .score {
+      min-width: 0;
+      text-align: right;
+    }
+
+    .score strong,
+    .score small {
+      display: block;
+    }
+
+    .score strong {
+      color: #2e2922;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .score small {
+      margin-top: 3px;
+      color: #8a7f6e;
+      font-size: 11px;
+    }
+
+    .entryMeta {
+      margin: 7px 0 0;
+      color: #8a7f6e;
+      font-size: 11px;
+    }
+
+    .emblemRow {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #e7dcc4;
+    }
+
+    .emblemPlaceholder {
+      display: grid;
+      width: 44px;
+      height: 44px;
+      place-items: center;
+      border: 1px solid #d8c9a8;
+      border-radius: 50%;
+      background: #fffdf8;
+      color: #a0907a;
+      font-size: 16px;
+    }
+
+    .emblemCopy {
+      min-width: 0;
+    }
+
+    .emblemCopy strong,
+    .emblemCopy small {
+      display: block;
+    }
+
+    .emblemCopy strong {
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .emblemCopy small {
+      margin-top: 2px;
+      color: #8a7f6e;
+      font-size: 11px;
+    }
+
+    .endingReview {
+      margin: 9px 0 0;
+      color: #5c5447;
+      font-family: "Songti SC", "STSong", "SimSun", serif;
+      font-size: 12px;
+      line-height: 1.7;
+    }
+
+    /* Bottom bar candidate 02: unified warm-beige equal-width buttons */
+    .bottomBar {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px 16px;
+      border-top: 1px solid #eadfce;
+      background: #fdf9f1;
+    }
+
+    .backButton,
+    .confirmButton {
+      display: grid;
+      min-height: 46px;
+      place-items: center;
+      gap: 0;
+      padding: 8px 12px;
+      border: 1px solid #e2d9c6;
+      border-radius: 24px;
+      background: #f0e9db;
+      color: #241f18;
+      cursor: pointer;
+      font: inherit;
+      text-align: center;
+    }
+
+    .backButton strong,
+    .backButton small,
+    .confirmButton strong,
+    .confirmButton small {
+      display: block;
+    }
+
+    .backButton strong,
+    .confirmButton strong {
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    .backButton small,
+    .confirmButton small {
+      margin-top: 2px;
+      color: #7a6f5e;
+      font-size: 11px;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="viewport">
+      <main class="page">
+        <div class="screen">
+          <div class="meta" aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>附 · 排行</span></div>
+          <header class="header">
+            <h1>人生排行榜</h1>
+            <p>百世留名</p>
+          </header>
+          <section class="content" aria-label="人生排行榜">
+            <ol class="entryList">
+              <li class="entry">
+                <div class="entryTop">
+                  <span class="rank">01</span>
+                  <span class="entryCopy">
+                    <strong>朝雨</strong>
+                    <small>玩家A · 幻海洲</small>
+                  </span>
+                  <span class="score"><strong>98</strong><small>评分</small></span>
+                </div>
+                <p class="entryMeta">72 岁 · 12 轮 · 2026/8/1</p>
+                <div class="emblemRow">
+                  <span class="emblemPlaceholder" aria-hidden="true">冠</span>
+                  <span class="emblemCopy">
+                    <strong>百世留名 · 榜首</strong>
+                    <small>本纪最优 · 榜一人生</small>
+                  </span>
+                </div>
+                <p class="endingReview">「一生以诚待人，未负所托，含笑而终。」</p>
+              </li>
+              <li class="entry">
+                <div class="entryTop">
+                  <span class="rank">02</span>
+                  <span class="entryCopy">
+                    <strong>沈星河</strong>
+                    <small>玩家B · 苍澜界</small>
+                  </span>
+                  <span class="score"><strong>91</strong><small>评分</small></span>
+                </div>
+                <p class="entryMeta">65 岁 · 8 轮 · 2026/7/28</p>
+                <p class="endingReview">「宦海沉浮半生，终在暮年寻得归处。」</p>
+              </li>
+            </ol>
+          </section>
+        </div>
+        <div class="bottomBar">
+          <button type="button" class="backButton" title="返回上一页">
+            <strong>返回上一页</strong>
+            <small>退回上一界面</small>
+          </button>
+          <button type="button" class="confirmButton" title="返回欢迎界面">
+            <strong>返回欢迎界面</strong>
+            <small>回到欢迎界面</small>
+          </button>
+        </div>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!-- Purpose: Record the third UI iteration round for the welcome page. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>欢迎界面 · 第三轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+
+    .status-selected {
+      color: #0a544f;
+      background: #e2f0ee;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">WELCOME / ROUND-03</p>
+      <h1>欢迎界面 · 第三轮</h1>
+    </div>
+    <span class="status status-draft">待比较</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>在已确认基线上继续优化欢迎界面：继承候选 02 的单列极简结构、原版按钮规格（白底浅边框约 24px 圆角、无编号无箭头）与暖纸墨阅读色系，围绕欢迎页自身的细节表现做差异化尝试。</dd></div>
+        <div><dt>保持不变</dt><dd>结构、按钮规格、色系、文案与导航契约均与第二轮入选基线一致；本轮候选只调整排版层级、垂直节奏与交互反馈，不改变任何业务事实。</dd></div>
+        <div><dt>比较维度</dt><dd>视觉锚点（标题层级是否聚焦）、阅读节奏（间距与留白的呼吸感）、交互反馈（按压与焦点态是否自然）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>层级强化</strong></header>
+          <p>标题放大加重，字距拉开，运行栏与副句弱化，强化首屏视觉锚点。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-01-hierarchy.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>节奏留白</strong></header>
+          <p>重排垂直间距与标题行距，操作区更贴底，留白更有呼吸感。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-02-rhythm.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>交互细节</strong></header>
+          <p>所有按钮与快捷圆钮增加按压态、焦点环与轻过渡，维持极简表达。</p>
+          <a class="candidate-open" href="candidates/candidate-round-03-03-interaction.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 层级强化</span><span role="columnheader">02 节奏留白</span><span role="columnheader">03 交互细节</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">视觉锚点</strong><span role="cell">标题权重最大，首屏信息最聚焦</span><span role="cell">标题行距放宽，锚点柔和</span><span role="cell">保持基线锚点，无额外调整</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">阅读节奏</strong><span role="cell">顶部与间距保持基线，节奏紧凑</span><span role="cell">间距整体放宽，呼吸感最强</span><span role="cell">保持基线节奏，仅交互变化</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">交互反馈</strong><span role="cell">保持基线，无新增反馈</span><span role="cell">保持基线，无新增反馈</span><span role="cell">按压/焦点/过渡最完整</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 02</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 02（节奏留白）。用户确认：垂直间距与标题行距放宽、操作区贴底的整体节奏被接受，作为下一轮继承基线。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 01（层级强化）：标题权重过度放大，与精简氛围不符。候选 03（交互细节）：按压与焦点反馈在此阶段不需要单独成轮。</dd></div>
+        <div><dt>下一轮继承</dt><dd>继承候选 02 的节奏与留白安排，以及既有基线（单列极简结构、原版按钮规格、暖纸墨色系）。用户指出：开始新人生与继续人生按钮内的文字排版不佳，下一轮聚焦按钮内文字排版。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!-- Purpose: Record the fourth UI iteration round for the welcome page. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>欢迎界面 · 第四轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+
+    .status-selected {
+      color: #0a544f;
+      background: #e2f0ee;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">WELCOME / ROUND-04</p>
+      <h1>欢迎界面 · 第四轮</h1>
+    </div>
+    <span class="status status-draft">待比较</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>修复"开始新人生"与"继续人生"两个主按钮内的文字排版。用户明确指出这两个按钮的文字排版不佳，本轮只围绕按钮内文字的对齐、行距与层级做差异化尝试。</dd></div>
+        <div><dt>保持不变</dt><dd>结构、按钮规格、色系、节奏留白、文案与导航契约均与第三轮入选基线一致；本轮不改变任何业务事实，只调整按钮内文字排版。</dd></div>
+        <div><dt>比较维度</dt><dd>对齐一致性（主按钮与继续按钮的文字基线）、层级辨识（主文案与副文案的区分）、精简协调性（文字排版不引入新的装饰）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>垂直居中排版</strong></header>
+          <p>主按钮文字垂直居中；继续人生按钮改为 grid 垂直居中 + 左对齐，主文案与副文案紧凑两行。</p>
+          <a class="candidate-open" href="candidates/candidate-round-04-01-vertcentered.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>统一左对齐排版</strong></header>
+          <p>主按钮与继续人生按钮统一左对齐基线，主按钮也用 strong 包裹，与继续按钮同一排版语言。</p>
+          <a class="candidate-open" href="candidates/candidate-round-04-02-leftaligned.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>统一居中排版</strong></header>
+          <p>主按钮与继续人生按钮统一居中对齐，主文案与副文案均居中，对称而克制。</p>
+          <a class="candidate-open" href="candidates/candidate-round-04-03-centered.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 垂直居中</span><span role="columnheader">02 统一左对齐</span><span role="columnheader">03 统一居中</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">对齐一致性</strong><span role="cell">主按钮居中、继续按钮左对齐，视觉基线不一</span><span role="cell">两按钮同一左对齐基线，最一致</span><span role="cell">两按钮统一居中，对称一致</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">层级辨识</strong><span role="cell">主文案 18px 与副文案 12px 区分明确</span><span role="cell">主按钮与继续按钮同为 strong+small 结构，层级统一</span><span role="cell">副文案居中略弱化，主文案居中突出</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">维持原按钮规格，排版最接近当前运行</span><span role="cell">最贴近原版 routeAction 左对齐语言</span><span role="cell">对称排版最克制，副文案居中阅读</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 03</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 03（统一居中排版）。用户确认：主按钮与继续人生按钮统一居中、副文案对称的排版被接受，作为下一轮继承基线。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 01（垂直居中）：主按钮居中而继续按钮左对齐，视觉基线不一致。候选 02（统一左对齐）：左对齐排版与居中的品牌标题不协调。</dd></div>
+        <div><dt>下一轮继承</dt><dd>继承候选 03 的统一居中排版，以及既有基线（单列极简结构、原版按钮规格、暖纸墨色系、节奏留白）。用户指出：继续人生按钮内主文案与副文案两行距离太远，下一轮聚焦收紧按钮内两行文字的行距。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,569 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>设置 · 第四轮候选 02 · 数据管理整合</title>
+  <style>
+    /* Purpose: Static prototype of the integrated-data-actions settings candidate. Owner: Interface system. Responsibility: Candidate only; inherits the finalized baseline (warm-paper color, original button specs, unified rhythm, hidden scrollbar). */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .frame {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-width: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      overflow: hidden;
+      place-items: stretch;
+      background: #fdf9f1;
+      color-scheme: light;
+    }
+
+    .viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      max-width: 100%;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    @media (min-width: 48rem) {
+      .viewport {
+        width: min(100%, 30rem);
+      }
+    }
+
+    .page {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      flex-direction: column;
+      overflow: hidden;
+      background: #fdf9f1;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+    }
+
+    .screen {
+      display: flex;
+      min-height: 0;
+      flex: 1;
+      flex-direction: column;
+      padding: 22px 28px 16px;
+      overflow: hidden;
+    }
+
+    .meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #8a7f6e;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 22px 4px 14px;
+      border-bottom: 1px solid #eadfce;
+    }
+
+    .header h1 {
+      margin: 0;
+      color: #241f18;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+    }
+
+    .header p {
+      margin: 6px 0 0;
+      color: #8a7f6e;
+      font-size: 11px;
+    }
+
+    .folderTabs {
+      display: flex;
+      flex: 0 0 auto;
+      gap: 12px;
+      padding: 0 4px;
+      border-bottom: 1px solid #eadfce;
+    }
+
+    .folderTabs button {
+      min-height: 44px;
+      border: 0;
+      border-bottom: 3px solid transparent;
+      background: transparent;
+      color: #a0907a;
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .folderTabs button[data-active="true"] {
+      border-bottom-color: #977026;
+      color: #241f18;
+      font-weight: 700;
+    }
+
+    .settingsTools {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 12px 4px 10px;
+      border-bottom: 1px solid #eadfce;
+    }
+
+    .settingsTools small[data-adjusted="true"] {
+      color: #6b4d1d;
+      font-weight: 650;
+    }
+
+    .restoreAction {
+      min-height: 36px;
+      padding: 0 16px;
+      border: 1px solid #d8c9a8;
+      border-radius: 24px;
+      background: #faf4e8;
+      color: #6b4d1d;
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .content {
+      min-height: 0;
+      flex: 1;
+      padding: 14px 0;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    .content::-webkit-scrollbar {
+      display: none;
+    }
+
+    .preferenceIntro {
+      margin: 0 4px 12px;
+      color: #8a7f6e;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .section {
+      margin: 0 0 14px;
+    }
+
+    .sectionLabel {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 0 4px 6px;
+    }
+
+    .sectionLabel h3 {
+      margin: 0;
+      color: #241f18;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .sectionLabel span {
+      color: #a0907a;
+      font-size: 10px;
+    }
+
+    .sectionCard {
+      padding: 4px 16px 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 20px;
+      background: #fffdf8;
+    }
+
+    .sectionCard[data-adjusted="true"] {
+      border-color: #c9a24b;
+      box-shadow: 0 4px 12px rgba(151, 112, 38, 0.1);
+    }
+
+    .settingRow {
+      display: grid;
+      min-height: 62px;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+    }
+
+    .settingCopy strong,
+    .settingCopy small {
+      display: block;
+    }
+
+    .settingCopy strong {
+      color: #2e2922;
+      font-size: 14px;
+      font-weight: 650;
+      line-height: 1.25;
+    }
+
+    .settingCopy small {
+      margin-top: 3px;
+      color: #8a7f6e;
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .toggle {
+      position: relative;
+      width: 40px;
+      min-width: 40px;
+      height: 24px;
+      padding: 0;
+      border: 1px solid #e5e1d6;
+      border-radius: 999px;
+      background: #f2ede1;
+      cursor: pointer;
+    }
+
+    .toggle::after {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #a0907a;
+      content: "";
+    }
+
+    .toggle[aria-checked="true"] {
+      border-color: #d8c9a8;
+      background: #faf4e8;
+    }
+
+    .toggle[aria-checked="true"]::after {
+      left: 19px;
+      background: #977026;
+    }
+
+    .groupHeading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 6px 0 8px;
+      font-size: 11px;
+      color: #8a7f6e;
+    }
+
+    .fontGrid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .fontButton {
+      min-height: 34px;
+      border: 1px solid #e5e1d6;
+      border-radius: 12px;
+      background: #fffdf8;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+    }
+
+    .fontButton[aria-pressed="true"] {
+      border-color: #977026;
+      background: #faf4e8;
+      color: #6b4d1d;
+      font-weight: 700;
+    }
+
+    .streamGrid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      padding-bottom: 4px;
+    }
+
+    .choiceButton {
+      padding: 10px 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 16px;
+      background: #fffdf8;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      text-align: left;
+    }
+
+    .choiceButton[aria-pressed="true"] {
+      border-color: #977026;
+      background: #faf4e8;
+    }
+
+    .choiceTitle,
+    .choiceDescription {
+      display: block;
+    }
+
+    .choiceTitle {
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .choiceDescription {
+      margin-top: 2px;
+      color: #8a7f6e;
+      font-size: 10px;
+      line-height: 1.35;
+    }
+
+    .supportingText {
+      margin: 8px 0;
+      color: #5c5447;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .importModeRow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 6px 0;
+      font-size: 11px;
+      color: #5c5447;
+    }
+
+    .segmentedControl {
+      display: flex;
+      gap: 3px;
+      padding: 3px;
+      border-radius: 14px;
+      background: #f2ede1;
+    }
+
+    .segmentedControl button {
+      min-height: 28px;
+      padding: 0 14px;
+      border: 0;
+      border-radius: 12px;
+      background: transparent;
+      color: #8a7f6e;
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+    }
+
+    .segmentedControl button[aria-pressed="true"] {
+      background: #fff;
+      color: #2e2922;
+      font-weight: 650;
+    }
+
+    /* 数据管理整合：三按钮等宽对齐 */
+    .dataActions {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin: 10px 0 4px;
+    }
+
+    .secondaryButton,
+    .dangerButton {
+      min-height: 40px;
+      padding: 0 6px;
+      border: 1px solid #e5e1d6;
+      border-radius: 20px;
+      background: #fffdf8;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .dangerButton {
+      border-color: #d8c9c0;
+      color: #7a4a3f;
+    }
+
+    .bottomBar {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px 16px;
+      border-top: 1px solid #eadfce;
+      background: #fdf9f1;
+    }
+
+    .backButton,
+    .confirmButton {
+      display: grid;
+      min-height: 46px;
+      place-items: center;
+      gap: 0;
+      padding: 8px 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 24px;
+      background: #fff;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      text-align: center;
+    }
+
+    .backButton strong,
+    .backButton small,
+    .confirmButton strong,
+    .confirmButton small {
+      display: block;
+    }
+
+    .backButton strong,
+    .confirmButton strong {
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    .backButton small,
+    .confirmButton small {
+      margin-top: 2px;
+      color: #8a7f6e;
+      font-size: 11px;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="viewport">
+      <main class="page">
+        <div class="screen">
+          <div class="meta" aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>附 · 01</span></div>
+          <header class="header">
+            <div><h1>设置</h1><p>偏好即时生效，不改变已经发生的模拟事实。</p></div>
+          </header>
+          <nav class="folderTabs" aria-label="设置分类">
+            <button type="button" data-active="true">阅读与界面</button>
+            <button type="button" data-active="false">叙事偏好</button>
+            <button type="button" data-active="false">模型与调用</button>
+            <button type="button" data-active="false">数据统计</button>
+          </nav>
+          <div class="settingsTools">
+            <small data-adjusted="true">已有调整 · 即时生效</small>
+            <button type="button" class="restoreAction">恢复默认</button>
+          </div>
+          <section class="content" aria-label="阅读与界面设置">
+            <p class="preferenceIntro">阅读与动效偏好只调整呈现方式。</p>
+
+            <section class="section">
+              <div class="sectionLabel"><h3>阅读排版</h3><span>阅读体验</span></div>
+              <div class="sectionCard" data-adjusted="true">
+                <div class="settingRow">
+                  <div class="settingCopy"><strong>段落舒展</strong><small>为长叙事增加少量行间距</small></div>
+                  <button type="button" class="toggle" role="switch" aria-checked="true" aria-label="段落舒展" />
+                </div>
+              </div>
+            </section>
+
+            <section class="section">
+              <div class="sectionLabel"><h3>动态表现</h3><span>即时生效</span></div>
+              <div class="sectionCard">
+                <div class="settingRow">
+                  <div class="settingCopy"><strong>减少动态效果</strong><small>保留必要变化，降低装饰动画</small></div>
+                  <button type="button" class="toggle" role="switch" aria-checked="false" aria-label="减少动态效果" />
+                </div>
+              </div>
+            </section>
+
+            <section class="section">
+              <div class="sectionLabel"><h3>字体选择</h3><span>当前：默认</span></div>
+              <div class="sectionCard">
+                <div class="groupHeading"><span>字体选择</span><span>当前：默认</span></div>
+                <div class="fontGrid" role="group" aria-label="字体选择">
+                  <button type="button" class="fontButton" aria-pressed="true">默认</button>
+                  <button type="button" class="fontButton" aria-pressed="false">苹方</button>
+                  <button type="button" class="fontButton" aria-pressed="false">雅黑</button>
+                  <button type="button" class="fontButton" aria-pressed="false">思源黑</button>
+                  <button type="button" class="fontButton" aria-pressed="false">宋体</button>
+                  <button type="button" class="fontButton" aria-pressed="false">黑体</button>
+                  <button type="button" class="fontButton" aria-pressed="false">楷体</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="section">
+              <div class="sectionLabel"><h3>叙事显示</h3><span>完整显示</span></div>
+              <div class="sectionCard">
+                <div class="groupHeading"><span>显示方式</span><span>稳定性优先</span></div>
+                <div class="streamGrid" role="group" aria-label="叙事显示方式">
+                  <button type="button" class="choiceButton" aria-pressed="true"><span class="choiceTitle">完整显示</span><span class="choiceDescription">接收完成后一次显示，稳定性优先</span></button>
+                  <button type="button" class="choiceButton" aria-pressed="false"><span class="choiceTitle">流式显示</span><span class="choiceDescription">边接收边显示，响应速度优先</span></button>
+                </div>
+              </div>
+            </section>
+
+            <section class="section">
+              <div class="sectionLabel"><h3>数据管理</h3><span>配置与进度</span></div>
+              <div class="sectionCard">
+                <p class="supportingText">导出文件包含当前设置；导入时可选择合并现有设置或先恢复默认后覆盖。</p>
+                <div class="importModeRow">
+                  <span>导入方式</span>
+                  <div class="segmentedControl" role="group" aria-label="导入方式">
+                    <button type="button" aria-pressed="true">合并</button>
+                    <button type="button" aria-pressed="false">覆盖</button>
+                  </div>
+                </div>
+                <div class="dataActions">
+                  <button type="button" class="secondaryButton">导出数据</button>
+                  <button type="button" class="secondaryButton">导入数据</button>
+                  <button type="button" class="dangerButton">重置游戏数据</button>
+                </div>
+              </div>
+            </section>
+          </section>
+        </div>
+        <div class="bottomBar">
+          <button type="button" class="backButton" title="关闭设置">
+            <strong>关闭</strong>
+            <small>退出设置</small>
+          </button>
+          <button type="button" class="confirmButton" title="完成设置">
+            <strong>完成设置</strong>
+            <small>所有调整已即时生效</small>
+          </button>
+        </div>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>账号与云端 · 第二轮候选 03 · 数据行统一</title>
+  <style>
+    /* Purpose: Static prototype of the unified-data-rows account candidate. Owner: Interface system. Responsibility: Candidate only; inherits the finalized baseline (warm-paper color, original button specs, unified rhythm, equal-width bottom bar). */
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .frame {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-width: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      overflow: hidden;
+      place-items: stretch;
+      background: #fdf9f1;
+      color-scheme: light;
+    }
+
+    .viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      max-width: 100%;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    @media (min-width: 48rem) {
+      .viewport {
+        width: min(100%, 30rem);
+      }
+    }
+
+    .page {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      flex-direction: column;
+      overflow: hidden;
+      background: #fdf9f1;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+    }
+
+    .screen {
+      display: flex;
+      min-height: 0;
+      flex: 1;
+      flex-direction: column;
+      padding: 22px 28px 16px;
+      overflow: hidden;
+    }
+
+    .meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #8a7f6e;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 20px 4px 12px;
+    }
+
+    .header h1 {
+      margin: 0;
+      color: #241f18;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+    }
+
+    .header p {
+      margin: 6px 0 0;
+      color: #8a7f6e;
+      font-size: 11px;
+    }
+
+    .tabs {
+      display: flex;
+      flex: 0 0 auto;
+      gap: 16px;
+      padding: 0 4px;
+      border-bottom: 1px solid #eadfce;
+    }
+
+    .tabs button {
+      min-height: 46px;
+      border: 0;
+      border-bottom: 3px solid transparent;
+      background: transparent;
+      color: #8a7f6e;
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+    }
+
+    .tabs button[data-active="true"] {
+      border-bottom-color: #977026;
+      color: #241f18;
+      font-weight: 700;
+    }
+
+    .content {
+      min-height: 0;
+      flex: 1;
+      padding: 16px 0 0;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    .content::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* 数据行统一：云存档面板与登录面板同级卡片化 */
+    .panel {
+      padding: 6px 18px 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 20px;
+      background: #fffdf8;
+    }
+
+    .dataRow {
+      display: grid;
+      min-height: 66px;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0ead9;
+    }
+
+    .dataRow:last-child {
+      border-bottom: 0;
+    }
+
+    .dataCopy strong,
+    .dataCopy small {
+      display: block;
+    }
+
+    .dataCopy strong {
+      color: #2e2922;
+      font-size: 14px;
+      font-weight: 650;
+      line-height: 1.25;
+    }
+
+    .dataCopy small {
+      margin-top: 3px;
+      color: #8a7f6e;
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .dataStatus {
+      color: #6b4d1d;
+      font-size: 11px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    .dataAction {
+      min-height: 34px;
+      padding: 0 16px;
+      border: 1px solid #d8c9a8;
+      border-radius: 24px;
+      background: #faf4e8;
+      color: #6b4d1d;
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    .dangerAction {
+      min-height: 34px;
+      padding: 0 16px;
+      border: 1px solid #d8c9c0;
+      border-radius: 24px;
+      background: #fdfaf6;
+      color: #7a4a3f;
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    .panelNote {
+      margin: 10px 2px 0;
+      color: #8a7f6e;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .bottomBar {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px 16px;
+      border-top: 1px solid #eadfce;
+      background: #fdf9f1;
+    }
+
+    .backButton,
+    .confirmButton {
+      display: grid;
+      min-height: 46px;
+      place-items: center;
+      gap: 0;
+      padding: 8px 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 24px;
+      background: #fff;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      text-align: center;
+    }
+
+    .backButton strong,
+    .backButton small,
+    .confirmButton strong,
+    .confirmButton small {
+      display: block;
+    }
+
+    .backButton strong,
+    .confirmButton strong {
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    .backButton small,
+    .confirmButton small {
+      margin-top: 2px;
+      color: #8a7f6e;
+      font-size: 11px;
+      font-weight: 500;
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="viewport">
+      <main class="page">
+        <div class="screen">
+          <div class="meta" aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>附 · 账号</span></div>
+          <header class="header">
+            <div><h1>账号与云端</h1><p>登录同步后，存档与配置可跨设备继续。</p></div>
+          </header>
+          <nav class="tabs" aria-label="账号页面">
+            <button type="button" data-active="false">登录</button>
+            <button type="button" data-active="true">云存档</button>
+            <button type="button" data-active="false">个人数据</button>
+          </nav>
+          <section class="content" aria-label="云存档">
+            <section class="panel">
+              <div class="dataRow">
+                <div class="dataCopy">
+                  <strong>云端人生</strong>
+                  <small>已开启自动同步，最近同步今天</small>
+                </div>
+                <span class="dataStatus">已同步</span>
+              </div>
+              <div class="dataRow">
+                <div class="dataCopy">
+                  <strong>同步账号数据</strong>
+                  <small>将本地存档与设置合并上传到云端</small>
+                </div>
+                <button type="button" class="dataAction">立即同步</button>
+              </div>
+              <div class="dataRow">
+                <div class="dataCopy">
+                  <strong>删除云存档</strong>
+                  <small>删除云端全部人生与配置，不可恢复</small>
+                </div>
+                <button type="button" class="dangerAction">删除</button>
+              </div>
+            </section>
+            <p class="panelNote">云存档按账号保存，覆盖桌面端与本设备的数据。</p>
+          </section>
+        </div>
+        <div class="bottomBar">
+          <button type="button" class="backButton" title="返回上一页">
+            <strong>返回上一页</strong>
+            <small>退出账号页</small>
+          </button>
+          <button type="button" class="confirmButton" title="完成">
+            <strong>完成</strong>
+            <small>返回欢迎界面</small>
+          </button>
+        </div>
+      </main>
+    </div>
+  </div>
+</body>
+</html>

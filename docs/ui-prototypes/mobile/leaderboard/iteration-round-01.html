@@ -1,0 +1,132 @@
+<!-- Purpose: Record the first UI iteration round for the leaderboard sub-interface. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>排行榜 · 第一轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+
+    .status-selected {
+      color: #0a544f;
+      background: #e2f0ee;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">LEADERBOARD / ROUND-01</p>
+      <h1>排行榜 · 第一轮</h1>
+    </div>
+    <span class="status status-draft">待比较</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>在已定版基线（欢迎页候选 02 单列极简结构、原版按钮规格、暖纸墨色系、节奏留白、统一居中；存档栏位聚焦式弹层）上，为排行榜子界面建立第一轮候选。排行榜业务事实：读取榜单 → 展示排名、角色、评分、维度、评语与画像 → 返回欢迎界面。</dd></div>
+        <div><dt>保持不变</dt><dd>页面业务契约：meta 顶栏、标题"人生排行榜"与"百世留名"、榜单条目（排名、角色、用户名与世界、评分、年龄/轮数/日期、维度网格、终局评语、画像）、底部操作栏（返回 + 返回欢迎界面）；不改变运行时行为与数据契约。</dd></div>
+        <div><dt>比较维度</dt><dd>信息层级（排名、评分、维度、评语的主次）、操作效率（阅读榜单到返回的路径）、精简协调性（与定版欢迎页、存档栏位是否同一语言）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>当前运行基线</strong></header>
+          <p>还原运行时页面：蓝白渐变底、宋体标题、圆角条目卡片、维度网格、衬线评语、底部操作栏。</p>
+          <a class="candidate-open" href="candidates/candidate-01-current.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>精简单列统一</strong></header>
+          <p>暖纸墨全页，条目纯白浅边框 20px 圆角，评分右对齐，底部操作栏按定版按钮规格。</p>
+          <a class="candidate-open" href="candidates/candidate-02-minimal.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>聚焦式榜单</strong></header>
+          <p>标题居中，榜首条目突出，信息收敛（维度并入评语节奏），衬线评语承载终局故事。</p>
+          <a class="candidate-open" href="candidates/candidate-03-focused.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 当前基线</span><span role="columnheader">02 精简单列</span><span role="columnheader">03 聚焦式</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">信息层级</strong><span role="cell">宋体标题 + 维度网格并列</span><span role="cell">标题明确，条目同级统一</span><span role="cell">榜首突出，评语承载故事</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">操作效率</strong><span role="cell">浏览条目后经底部栏返回</span><span role="cell">同左，操作路径不变</span><span role="cell">信息收敛，阅读更聚焦</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">精简协调性</strong><span role="cell">蓝白语言，与定版不一致</span><span role="cell">与定版同语言，最协调</span><span role="cell">同语言，且榜单故事性更强</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 03</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 03（聚焦式榜单）。用户确认：标题居中、榜首突出、评语衬线承载故事的聚焦式榜单被接受，作为下一轮继承基线。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 01（当前运行基线）：蓝白语言与定版不一致。候选 02（精简单列）：结构正确但榜单信息与底栏配合一般。</dd></div>
+        <div><dt>下一轮继承</dt><dd>继承候选 03 的聚焦式榜单，以及既有基线（单列极简结构、原版按钮规格、暖纸墨色系、节奏留白）。用户指出：底部按钮配合不行，下一轮聚焦底部操作栏的按钮配合（返回按钮与返回欢迎界面按钮的视觉与空间关系）。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

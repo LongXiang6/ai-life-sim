@@ -1,0 +1,133 @@
+<!-- Purpose: Record the first UI iteration round for the welcome page. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>欢迎界面 · 第一轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+
+    .status-selected {
+      color: #0a544f;
+      background: #e2f0ee;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">WELCOME / ROUND-01</p>
+      <h1>欢迎界面 · 第一轮</h1>
+    </div>
+    <span class="status status-draft">待比较</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>以纯白底色、少而高效的排版建立精简风格：去除装饰性渐变、编号分隔和多余层次，让主要操作与辅助入口同级样式统一、直达可点。</dd></div>
+        <div><dt>保持不变</dt><dd>页面文案（人生序章、主标题、副句、入口名称）、右上角排行榜与邮箱入口、开始新人生与继续人生语义、存档/账号/设置/说明/反馈导航契约和状态所有权均不改变。</dd></div>
+        <div><dt>比较维度</dt><dd>信息层级（标题与操作的视觉权重）、操作效率（主操作一步直达、辅助入口触达成本）、小屏适配（390 视口内的密度与滚动）、剧情承载（开场文案的叙事氛围保留程度）。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>当前运行样式（基线）</strong></header>
+          <p>保持现有浅蓝渐变底、宋体大标题、编号卡片入口与分组标题线；信息最完整但装饰元素最多。</p>
+          <a class="candidate-open" href="candidates/candidate-01-current.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>精简 · 单列极简统一</strong></header>
+          <p>纯白底，主按钮单列置顶，继续人生与辅助入口按同级统一样式排布；去掉编号、箭头、渐变与宋体，保留分区间距。</p>
+          <a class="candidate-open" href="candidates/candidate-02-minimal.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>精简 · 聚焦式</strong></header>
+          <p>纯白底，大标题与主操作居中聚焦，辅助入口收敛为底部轻量链接；信息量最少，开场氛围最弱。</p>
+          <a class="candidate-open" href="candidates/candidate-03-minimal.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01</span><span role="columnheader">02</span><span role="columnheader">03</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">信息层级</strong><span role="cell">标题 + 分组 + 编号，层级最多</span><span role="cell">标题 + 单列操作，两级清晰</span><span role="cell">标题 + 主操作，一级聚焦</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">操作效率</strong><span role="cell">主操作需越过标题与分组直达</span><span role="cell">主操作置顶一步直达，辅助同层可点</span><span role="cell">主操作居中直达，辅助收敛成本略高</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">小屏适配</strong><span role="cell">入口密集、装饰多，密度较高</span><span role="cell">统一尺寸少样式，密度最低</span><span role="cell">元素最少，留白最多</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">剧情承载</strong><span role="cell">宋体标题 + 副句，氛围最完整</span><span role="cell">无衬线标题，氛围次之</span><span role="cell">副句保留但居中弱化，氛围最弱</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">已选择 02</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 02（精简 · 单列极简统一）。用户确认：以纯白底、主按钮置顶、同级统一样式入选为下一轮继承基线；下一轮将补充适合阅读的阅读颜色，避免页面过于单调。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 01（当前运行样式基线）：装饰元素与信息层级最多，与精简目标不符。候选 03（聚焦式）：辅助入口收敛过深、开场氛围最弱，结构未被选中。</dd></div>
+        <div><dt>下一轮继承</dt><dd>继承候选 02 的结构事实：纯白底、主操作置顶单列、继续人生与辅助入口同级统一样式、无编号无箭头；下一轮在保持结构不变的前提下补充阅读颜色体系。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>
