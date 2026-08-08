@@ -8,6 +8,11 @@
     /* Purpose: Static prototype of the integrated-data-actions settings candidate. Owner: Interface system. Responsibility: Candidate only; inherits the finalized baseline (warm-paper color, original button specs, unified rhythm, hidden scrollbar). */
     * { box-sizing: border-box; }
 
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
     body {
       margin: 0;
       color: #2e2922;
@@ -167,7 +172,18 @@
       display: none;
     }
 
+    .tabPanel[hidden] {
+      display: none;
+    }
+
     .preferenceIntro {
+      margin: 0 4px 12px;
+      color: #8a7f6e;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .panelIntro {
       margin: 0 4px 12px;
       color: #8a7f6e;
       font-size: 11px;
@@ -269,6 +285,17 @@
     .toggle[aria-checked="true"]::after {
       left: 19px;
       background: #977026;
+    }
+
+    .toggleLabel {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toggleStatus {
+      color: #8a7f6e;
+      font-size: 10px;
     }
 
     .groupHeading {
@@ -397,7 +424,8 @@
     }
 
     .secondaryButton,
-    .dangerButton {
+    .dangerButton,
+    .primaryButton {
       min-height: 40px;
       padding: 0 6px;
       border: 1px solid #e5e1d6;
@@ -413,6 +441,547 @@
     .dangerButton {
       border-color: #d8c9c0;
       color: #7a4a3f;
+    }
+
+    .primaryButton {
+      border-color: #977026;
+      background: #977026;
+      color: #fff;
+      font-weight: 650;
+    }
+
+    /* 叙事偏好：基础文风 */
+    .styleInput {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 16px;
+      background: #fffdf8;
+      color: #2e2922;
+      font: inherit;
+      font-size: 12px;
+      line-height: 1.6;
+      resize: none;
+    }
+
+    .styleInput::placeholder {
+      color: #c3b8a2;
+    }
+
+    .styleMeta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 2px 0;
+      color: #a0907a;
+      font-size: 10px;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 10px 0 4px;
+    }
+
+    .actions .secondaryButton,
+    .actions .primaryButton {
+      min-height: 36px;
+      padding: 0 16px;
+    }
+
+    .wordCountControl {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 0 6px;
+      font-size: 11px;
+      color: #5c5447;
+    }
+
+    .selectInput {
+      min-height: 38px;
+      padding: 0 10px;
+      border: 1px solid #e5e1d6;
+      border-radius: 12px;
+      background: #fffdf8;
+      color: #2e2922;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    /* 模型与调用：自己的 API */
+    .presetRow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding-top: 6px;
+    }
+
+    .presetRow .supportingText {
+      flex: 1;
+      margin: 0;
+    }
+
+    .presetRow .secondaryButton {
+      min-height: 36px;
+      padding: 0 12px;
+    }
+
+    .fieldGrid {
+      display: grid;
+      gap: 8px;
+      padding: 8px 0 2px;
+    }
+
+    .field {
+      display: grid;
+      gap: 4px;
+    }
+
+    .field > span {
+      color: #8a7f6e;
+      font-size: 10px;
+    }
+
+    .presetInput {
+      width: 100%;
+      min-height: 38px;
+      padding: 0 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 12px;
+      background: #fffdf8;
+      color: #2e2922;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .presetInput::placeholder {
+      color: #c3b8a2;
+    }
+
+    .providerGuide {
+      margin: 4px 0 8px;
+      color: #8a7f6e;
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .providerGuide a {
+      color: #6b4d1d;
+      text-decoration: underline;
+    }
+
+    .connectionRow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 10px 12px;
+      margin: 4px 0 6px;
+      border-radius: 14px;
+      background: #faf4e8;
+    }
+
+    .configSummary span {
+      display: block;
+      color: #8a7f6e;
+      font-size: 10px;
+    }
+
+    .configSummary strong {
+      display: block;
+      margin-top: 2px;
+      color: #2e2922;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .connectionStatus {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #8a7f6e;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .statusDot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #c3b8a2;
+    }
+
+    .actionRow {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      padding: 8px 0 4px;
+    }
+
+    .actionRow--two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    /* 模型与调用：推理模式 */
+    .descParagraph {
+      margin: 6px 0;
+      color: #8a7f6e;
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .flexRow {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      padding: 4px 0 2px;
+    }
+
+    .dropdownWrapper {
+      position: relative;
+      min-width: 0;
+    }
+
+    .dropdownLabel {
+      display: block;
+      margin-bottom: 4px;
+      color: #8a7f6e;
+      font-size: 10px;
+    }
+
+    .dropdownBtn {
+      display: flex;
+      width: 100%;
+      min-height: 38px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      padding: 0 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 14px;
+      background: #fffdf8;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .dropdownLabelText {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .dropdownArrow {
+      color: #a0907a;
+      font-size: 9px;
+    }
+
+    .dropdownMenu {
+      position: absolute;
+      z-index: 20;
+      top: calc(100% + 6px);
+      right: 0;
+      left: 0;
+      padding: 6px;
+      border: 1px solid #e5e1d6;
+      border-radius: 16px;
+      background: #fffdf8;
+      box-shadow: 0 8px 24px rgba(46, 41, 34, 0.12);
+    }
+
+    .dropdownMenu[hidden] {
+      display: none;
+    }
+
+    .dropdownMenu button {
+      display: block;
+      width: 100%;
+      padding: 8px 10px;
+      border: 0;
+      border-radius: 12px;
+      background: transparent;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+      text-align: left;
+    }
+
+    .dropdownMenu button:hover {
+      background: #faf4e8;
+    }
+
+    .dropdownMenu button.selected {
+      color: #6b4d1d;
+      font-weight: 700;
+    }
+
+    .dropdownMenu button small {
+      display: block;
+      margin-top: 2px;
+      color: #8a7f6e;
+      font-size: 10px;
+      font-weight: 500;
+    }
+
+    /* 模型与调用：高级参数 */
+    .paramHeader {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding-top: 8px;
+    }
+
+    .paramTitle {
+      color: #2e2922;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .paramTitle small {
+      margin-left: 6px;
+      color: #8a7f6e;
+      font-size: 10px;
+      font-weight: 500;
+    }
+
+    .paramSlider {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0 2px;
+      color: #a0907a;
+      font-size: 10px;
+    }
+
+    .paramSlider input[type="range"] {
+      width: 100%;
+      accent-color: #977026;
+    }
+
+    .paramFooter {
+      margin: 2px 0 0;
+      color: #8a7f6e;
+      font-size: 10px;
+    }
+
+    .paramRecommend {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 8px 0 0;
+      padding-top: 8px;
+      border-top: 1px dashed #eadfce;
+      color: #8a7f6e;
+      font-size: 10px;
+    }
+
+    .paramRecommend strong {
+      color: #6b4d1d;
+      font-weight: 650;
+    }
+
+    .optionGrid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      padding: 6px 0 4px;
+    }
+
+    .optionBtn {
+      min-height: 38px;
+      border: 1px solid #e5e1d6;
+      border-radius: 14px;
+      background: #fffdf8;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .optionBtn[aria-pressed="true"] {
+      border-color: #977026;
+      background: #faf4e8;
+      color: #6b4d1d;
+      font-weight: 700;
+    }
+
+    /* 数据统计 */
+    .metricGrid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 14px;
+      padding: 10px 0 4px;
+    }
+
+    .metricGrid > div > span,
+    .metricGrid strong,
+    .metricGrid small {
+      display: block;
+    }
+
+    .metricGrid > div > span {
+      color: #8a7f6e;
+      font-size: 10px;
+    }
+
+    .metricGrid strong {
+      margin-top: 2px;
+      color: #241f18;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .metricGrid small {
+      margin-top: 2px;
+      color: #a0907a;
+      font-size: 10px;
+      line-height: 1.35;
+    }
+
+    .feedbackRow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 6px;
+      padding: 8px 0 4px;
+      border-top: 1px dashed #eadfce;
+      color: #8a7f6e;
+      font-size: 11px;
+    }
+
+    .feedbackRow button {
+      border: 0;
+      background: transparent;
+      color: #6b4d1d;
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .cacheRow {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 0 10px;
+      color: #5c5447;
+      font-size: 11px;
+    }
+
+    .cacheRow strong {
+      display: block;
+      margin-top: 2px;
+      color: #2e2922;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .sectionCard progress {
+      display: block;
+      width: 100%;
+      height: 8px;
+      margin-bottom: 8px;
+      border: 0;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .sectionCard progress::-webkit-progress-bar {
+      border-radius: 999px;
+      background: #f2ede1;
+    }
+
+    .sectionCard progress::-webkit-progress-value {
+      border-radius: 999px;
+      background: #977026;
+    }
+
+    .sectionCard progress::-moz-progress-bar {
+      border-radius: 999px;
+      background: #977026;
+    }
+
+    .poolList {
+      margin: 0;
+      padding: 4px 0 0;
+      list-style: none;
+    }
+
+    .poolList li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0e9db;
+    }
+
+    .poolList li:last-child {
+      border-bottom: 0;
+    }
+
+    .poolList li > span {
+      min-width: 0;
+    }
+
+    .poolList strong {
+      display: block;
+      color: #2e2922;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .poolList small {
+      display: block;
+      margin-top: 2px;
+      color: #8a7f6e;
+      font-size: 10px;
+      line-height: 1.35;
+    }
+
+    .poolList b {
+      color: #6b4d1d;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .empty {
+      margin: 8px 0;
+      color: #a0907a;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .notice {
+      margin: 8px 0 0;
+      color: #8a7f6e;
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .textLink {
+      display: grid;
+      min-height: 40px;
+      place-items: center;
+      border: 1px solid #d8c9a8;
+      border-radius: 20px;
+      background: #faf4e8;
+      color: #6b4d1d;
+      font-size: 11px;
+      font-weight: 650;
+      text-align: center;
     }
 
     .bottomBar {
@@ -468,102 +1037,404 @@
     <div class="viewport">
       <main class="page">
         <div class="screen">
-          <div class="meta" aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>附 · 01</span></div>
+          <div class="meta" aria-hidden="true"><span>AI LIFE SIM · 命书</span><span id="metaIndex">附 · 01</span></div>
           <header class="header">
-            <div><h1>设置</h1><p>偏好即时生效，不改变已经发生的模拟事实。</p></div>
+            <div><h1>⚙️ 设置</h1><p>偏好即时生效，不改变已经发生的模拟事实。</p></div>
           </header>
-          <nav class="folderTabs" aria-label="设置分类">
-            <button type="button" data-active="true">阅读与界面</button>
-            <button type="button" data-active="false">叙事偏好</button>
-            <button type="button" data-active="false">模型与调用</button>
-            <button type="button" data-active="false">数据统计</button>
+          <nav class="folderTabs" role="tablist" aria-label="设置分类">
+            <button type="button" role="tab" id="tab-appearance" data-tab="appearance" data-active="true" aria-selected="true" aria-controls="panel-appearance">📖 阅读与界面</button>
+            <button type="button" role="tab" id="tab-narrative" data-tab="narrative" data-active="false" aria-selected="false" aria-controls="panel-narrative">📝 叙事偏好</button>
+            <button type="button" role="tab" id="tab-model" data-tab="model" data-active="false" aria-selected="false" aria-controls="panel-model">🔌 模型与调用</button>
+            <button type="button" role="tab" id="tab-statistics" data-tab="statistics" data-active="false" aria-selected="false" aria-controls="panel-statistics">📊 数据统计</button>
           </nav>
           <div class="settingsTools">
             <small data-adjusted="true">已有调整 · 即时生效</small>
             <button type="button" class="restoreAction">恢复默认</button>
           </div>
-          <section class="content" aria-label="阅读与界面设置">
-            <p class="preferenceIntro">阅读与动效偏好只调整呈现方式。</p>
+          <section class="content" aria-label="设置内容">
 
-            <section class="section">
-              <div class="sectionLabel"><h3>阅读排版</h3><span>阅读体验</span></div>
-              <div class="sectionCard" data-adjusted="true">
-                <div class="settingRow">
-                  <div class="settingCopy"><strong>段落舒展</strong><small>为长叙事增加少量行间距</small></div>
-                  <button type="button" class="toggle" role="switch" aria-checked="true" aria-label="段落舒展" />
-                </div>
-              </div>
-            </section>
+            <!-- ===== 阅读与界面 ===== -->
+            <section class="tabPanel" id="panel-appearance" role="tabpanel" aria-labelledby="tab-appearance" aria-label="阅读与界面设置">
+              <p class="preferenceIntro">阅读与动效偏好只调整呈现方式。</p>
 
-            <section class="section">
-              <div class="sectionLabel"><h3>动态表现</h3><span>即时生效</span></div>
-              <div class="sectionCard">
-                <div class="settingRow">
-                  <div class="settingCopy"><strong>减少动态效果</strong><small>保留必要变化，降低装饰动画</small></div>
-                  <button type="button" class="toggle" role="switch" aria-checked="false" aria-label="减少动态效果" />
-                </div>
-              </div>
-            </section>
-
-            <section class="section">
-              <div class="sectionLabel"><h3>字体选择</h3><span>当前：默认</span></div>
-              <div class="sectionCard">
-                <div class="groupHeading"><span>字体选择</span><span>当前：默认</span></div>
-                <div class="fontGrid" role="group" aria-label="字体选择">
-                  <button type="button" class="fontButton" aria-pressed="true">默认</button>
-                  <button type="button" class="fontButton" aria-pressed="false">苹方</button>
-                  <button type="button" class="fontButton" aria-pressed="false">雅黑</button>
-                  <button type="button" class="fontButton" aria-pressed="false">思源黑</button>
-                  <button type="button" class="fontButton" aria-pressed="false">宋体</button>
-                  <button type="button" class="fontButton" aria-pressed="false">黑体</button>
-                  <button type="button" class="fontButton" aria-pressed="false">楷体</button>
-                </div>
-              </div>
-            </section>
-
-            <section class="section">
-              <div class="sectionLabel"><h3>叙事显示</h3><span>完整显示</span></div>
-              <div class="sectionCard">
-                <div class="groupHeading"><span>显示方式</span><span>稳定性优先</span></div>
-                <div class="streamGrid" role="group" aria-label="叙事显示方式">
-                  <button type="button" class="choiceButton" aria-pressed="true"><span class="choiceTitle">完整显示</span><span class="choiceDescription">接收完成后一次显示，稳定性优先</span></button>
-                  <button type="button" class="choiceButton" aria-pressed="false"><span class="choiceTitle">流式显示</span><span class="choiceDescription">边接收边显示，响应速度优先</span></button>
-                </div>
-              </div>
-            </section>
-
-            <section class="section">
-              <div class="sectionLabel"><h3>数据管理</h3><span>配置与进度</span></div>
-              <div class="sectionCard">
-                <p class="supportingText">导出文件包含当前设置；导入时可选择合并现有设置或先恢复默认后覆盖。</p>
-                <div class="importModeRow">
-                  <span>导入方式</span>
-                  <div class="segmentedControl" role="group" aria-label="导入方式">
-                    <button type="button" aria-pressed="true">合并</button>
-                    <button type="button" aria-pressed="false">覆盖</button>
+              <section class="section">
+                <div class="sectionLabel"><h3>📖 阅读排版</h3><span>阅读体验</span></div>
+                <div class="sectionCard" data-adjusted="true">
+                  <div class="settingRow">
+                    <div class="settingCopy"><strong>段落舒展</strong><small>为长叙事增加少量行间距</small></div>
+                    <button type="button" class="toggle" role="switch" aria-checked="true" aria-label="段落舒展" />
                   </div>
                 </div>
-                <div class="dataActions">
-                  <button type="button" class="secondaryButton">导出数据</button>
-                  <button type="button" class="secondaryButton">导入数据</button>
-                  <button type="button" class="dangerButton">重置游戏数据</button>
+              </section>
+
+              <section class="section">
+                <div class="sectionLabel"><h3>✨ 动态表现</h3><span>即时生效</span></div>
+                <div class="sectionCard">
+                  <div class="settingRow">
+                    <div class="settingCopy"><strong>减少动态效果</strong><small>保留必要变化，降低装饰动画</small></div>
+                    <button type="button" class="toggle" role="switch" aria-checked="false" aria-label="减少动态效果" />
+                  </div>
                 </div>
-              </div>
+              </section>
+
+              <section class="section">
+                <div class="sectionLabel"><h3>🔤 字体选择</h3><span>当前：默认</span></div>
+                <div class="sectionCard">
+                  <div class="groupHeading"><span>字体选择</span><span>当前：默认</span></div>
+                  <div class="fontGrid" role="group" aria-label="字体选择">
+                    <button type="button" class="fontButton" aria-pressed="true">默认</button>
+                    <button type="button" class="fontButton" aria-pressed="false">苹方</button>
+                    <button type="button" class="fontButton" aria-pressed="false">雅黑</button>
+                    <button type="button" class="fontButton" aria-pressed="false">思源黑</button>
+                    <button type="button" class="fontButton" aria-pressed="false">宋体</button>
+                    <button type="button" class="fontButton" aria-pressed="false">黑体</button>
+                    <button type="button" class="fontButton" aria-pressed="false">楷体</button>
+                  </div>
+                </div>
+              </section>
+
+              <section class="section">
+                <div class="sectionLabel"><h3>💬 叙事显示</h3><span>完整显示</span></div>
+                <div class="sectionCard">
+                  <div class="groupHeading"><span>显示方式</span><span>稳定性优先</span></div>
+                  <div class="streamGrid" role="group" aria-label="叙事显示方式">
+                    <button type="button" class="choiceButton" aria-pressed="true"><span class="choiceTitle">完整显示</span><span class="choiceDescription">接收完成后一次显示，稳定性优先</span></button>
+                    <button type="button" class="choiceButton" aria-pressed="false"><span class="choiceTitle">流式显示</span><span class="choiceDescription">边接收边显示，响应速度优先</span></button>
+                  </div>
+                </div>
+              </section>
+
+              <section class="section">
+                <div class="sectionLabel"><h3>🗂️ 数据管理</h3><span>配置与进度</span></div>
+                <div class="sectionCard">
+                  <p class="supportingText">导出文件包含当前设置；导入时可选择合并现有设置或先恢复默认后覆盖。</p>
+                  <div class="importModeRow">
+                    <span>导入方式</span>
+                    <div class="segmentedControl" role="group" aria-label="导入方式">
+                      <button type="button" aria-pressed="true">合并</button>
+                      <button type="button" aria-pressed="false">覆盖</button>
+                    </div>
+                  </div>
+                  <div class="dataActions">
+                    <button type="button" class="secondaryButton">导出数据</button>
+                    <button type="button" class="secondaryButton">导入数据</button>
+                    <button type="button" class="dangerButton">重置游戏数据</button>
+                  </div>
+                </div>
+              </section>
             </section>
+
+            <!-- ===== 叙事偏好 ===== -->
+            <section class="tabPanel" id="panel-narrative" role="tabpanel" aria-labelledby="tab-narrative" aria-label="叙事偏好设置" hidden>
+              <section class="section">
+                <div class="sectionLabel"><h3>🖋️ 基础文风</h3><span>项目默认</span></div>
+                <div class="sectionCard">
+                  <textarea class="styleInput" rows="7" placeholder="例如：采用克制、具体的第二人称叙事；多写行动和对话，少用总结性评价；保持人物反应与既有事实连续。" aria-label="自定义基础文风"></textarea>
+                  <div class="styleMeta"><span>0 字符</span><span>当前已生效</span></div>
+                  <div class="actions">
+                    <button type="button" class="secondaryButton">恢复默认</button>
+                    <button type="button" class="primaryButton">保存当前风格</button>
+                  </div>
+                </div>
+              </section>
+
+              <section class="section">
+                <div class="sectionLabel"><h3>📏 每轮叙事目标字数</h3><span>200 字</span></div>
+                <div class="sectionCard">
+                  <div class="wordCountControl">
+                    <span>目标字数</span>
+                    <select class="selectInput" aria-label="每轮叙事目标字数">
+                      <option>50 字</option>
+                      <option>100 字</option>
+                      <option>150 字</option>
+                      <option selected>200 字</option>
+                      <option>250 字</option>
+                      <option>300 字</option>
+                      <option>400 字</option>
+                      <option>500 字</option>
+                      <option>600 字</option>
+                      <option>700 字</option>
+                      <option>800 字</option>
+                      <option>1,000 字</option>
+                      <option>1,200 字</option>
+                      <option>1,500 字</option>
+                      <option>1,800 字</option>
+                      <option>2,000 字</option>
+                    </select>
+                  </div>
+                </div>
+              </section>
+            </section>
+
+            <!-- ===== 模型与调用 ===== -->
+            <section class="tabPanel" id="panel-model" role="tabpanel" aria-labelledby="tab-model" aria-label="模型与调用设置" hidden>
+              <p class="panelIntro">填写玩家自己的凭据并调整 AI 行为，所有修改都会自动保存。</p>
+
+              <section class="section">
+                <div class="sectionLabel"><h3>🔑 自己的 API</h3><span>修改后自动保存</span></div>
+                <div class="sectionCard">
+                  <div class="presetRow">
+                    <p class="supportingText">填写自己的 Key、API 网址和模型名称。受保护主叙事当前支持 DeepSeek 官方接口。</p>
+                    <button type="button" class="secondaryButton">填入 DeepSeek 预设</button>
+                  </div>
+                  <div class="fieldGrid">
+                    <label class="field"><span>API Key</span><input type="password" class="presetInput" placeholder="例如 sk-xxx" autocomplete="off" /></label>
+                    <label class="field"><span>API 网址</span><input type="url" class="presetInput" placeholder="https://example.com/v1" /></label>
+                    <label class="field"><span>模型名称</span><input class="presetInput" placeholder="例如 deepseek-v4-flash" /></label>
+                  </div>
+                  <p class="providerGuide">DeepSeek API Key 可在 <a href="https://platform.deepseek.com" target="_blank" rel="noopener noreferrer">DeepSeek 开放平台</a> 创建。预设按钮不会覆盖已经输入的 Key。</p>
+                  <div class="connectionRow" aria-live="polite">
+                    <div class="configSummary"><span>配置状态</span><strong>请完整填写 Key、网址和模型</strong></div>
+                    <div class="connectionStatus"><span class="statusDot" aria-hidden="true"></span><span>尚未测试</span></div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="section">
+                <div class="sectionLabel"><h3>🛠️ 配置操作</h3><span>使用玩家自己的凭据</span></div>
+                <div class="actionRow">
+                  <button type="button" class="primaryButton">测试连接</button>
+                  <button type="button" class="secondaryButton">恢复 DeepSeek 预设</button>
+                  <button type="button" class="secondaryButton">清空 Key</button>
+                </div>
+              </section>
+
+              <p class="panelIntro">所有修改都会自动保存，并用于后续 AI 请求。</p>
+
+              <section class="section">
+                <div class="sectionLabel"><h3>🧬 AI 内容</h3><span>生成方式</span></div>
+                <div class="sectionCard">
+                  <div class="settingRow">
+                    <div class="settingCopy"><strong>AI 命格生成</strong><small>调用 AI 实时生成随机命格。</small></div>
+                    <div class="toggleLabel">
+                      <span class="toggleStatus">已开启</span>
+                      <button type="button" class="toggle" role="switch" aria-checked="true" aria-label="AI 命格生成" />
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="section">
+                <div class="sectionLabel"><h3>🧠 推理模式</h3><span>按用途设置</span></div>
+                <div class="sectionCard">
+                  <p class="descParagraph">分别控制常规叙事与 AI 命格生成的内部推理深度。</p>
+                  <div class="flexRow">
+                    <div class="dropdownWrapper">
+                      <span class="dropdownLabel">全局推理</span>
+                      <button type="button" class="dropdownBtn" data-dropdown="global" aria-haspopup="listbox" aria-expanded="false"><span class="dropdownLabelText">关闭</span><span class="dropdownArrow">▼</span></button>
+                      <div class="dropdownMenu" data-dropdown-menu="global" role="listbox" aria-label="全局推理强度" hidden>
+                        <button type="button" data-label="关闭" class="selected">关闭<small>不启用推理模式</small></button>
+                        <button type="button" data-label="自动（推荐）">自动（推荐）<small>由模型选择合适的推理深度</small></button>
+                        <button type="button" data-label="深入">深入<small>要求高强度推理，响应通常更慢</small></button>
+                        <button type="button" data-label="最大">最大<small>要求最大强度推理，消耗通常最高</small></button>
+                      </div>
+                    </div>
+                    <div class="dropdownWrapper">
+                      <span class="dropdownLabel">命格生成</span>
+                      <button type="button" class="dropdownBtn" data-dropdown="talent" aria-haspopup="listbox" aria-expanded="false"><span class="dropdownLabelText">关闭（推荐）</span><span class="dropdownArrow">▼</span></button>
+                      <div class="dropdownMenu" data-dropdown-menu="talent" role="listbox" aria-label="命格生成推理强度" hidden>
+                        <button type="button" data-label="关闭（推荐）" class="selected">关闭（推荐）<small>不启用推理模式，无额外 token 消耗</small></button>
+                        <button type="button" data-label="自动">自动<small>由模型选择合适的推理深度</small></button>
+                        <button type="button" data-label="深入">深入<small>要求高强度推理，响应通常更慢</small></button>
+                        <button type="button" data-label="最大">最大<small>要求最大强度推理，消耗通常最高</small></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="section">
+                <div class="sectionLabel"><h3>🎛️ 高级参数</h3><span>即时生效</span></div>
+                <div class="sectionCard">
+                  <div class="paramHeader">
+                    <span class="paramTitle">温度（Temperature）<small>始终生效</small></span>
+                  </div>
+                  <p class="descParagraph">控制 AI 生成文本的随机性。值越低回答越保守，值越高越有创造力（范围 0-2，推荐 0.7-1.2）。</p>
+                  <div class="paramSlider"><span>0</span><input type="range" id="temperatureSlider" min="0" max="2" step="0.05" value="0.8" aria-label="温度" /><span>2</span></div>
+                  <p class="paramFooter" id="temperatureFooter">当前值：0.80 · 太高可能导致回复不稳定</p>
+                  <div class="paramRecommend"><strong>自动保存</strong><span>调整后会用于后续 AI 请求</span></div>
+                </div>
+              </section>
+
+              <section class="section">
+                <div class="sectionLabel"><h3>⏭️ 下一轮预生成</h3><span>减少下一次等待</span></div>
+                <div class="sectionCard">
+                  <p class="descParagraph">最多提前准备下一轮叙事；选择分支后未使用内容会被丢弃。</p>
+                  <div class="optionGrid">
+                    <button type="button" class="optionBtn" aria-pressed="false">关闭</button>
+                    <button type="button" class="optionBtn" aria-pressed="true">预生成下一轮</button>
+                  </div>
+                </div>
+              </section>
+            </section>
+
+            <!-- ===== 数据统计 ===== -->
+            <section class="tabPanel" id="panel-statistics" role="tabpanel" aria-labelledby="tab-statistics" aria-label="数据统计设置" hidden>
+              <section class="section">
+                <div class="sectionLabel"><h3>📈 体验概览</h3><span>当前存档</span></div>
+                <div class="sectionCard">
+                  <div class="metricGrid">
+                    <div><span>已推进轮次</span><strong>12</strong><small>第 12 轮</small></div>
+                    <div><span>平均生成等待</span><strong>3,420 ms</strong><small>完整响应平均耗时</small></div>
+                    <div><span>叙事压缩</span><strong>第 8 轮</strong><small>自动整理长故事</small></div>
+                    <div><span>缓存命中</span><strong>42%</strong><small>减少重复输入费用</small></div>
+                  </div>
+                  <div class="feedbackRow"><span>遇到问题或想提出建议？</span><button type="button">填写反馈</button></div>
+                </div>
+              </section>
+
+              <section class="section">
+                <div class="sectionLabel"><h3>💳 本轮与存档</h3><span>deepseek-v4-flash</span></div>
+                <div class="sectionCard">
+                  <div class="metricGrid">
+                    <div><span>本轮费用</span><strong>¥0.0123</strong><small>第 12 轮</small></div>
+                    <div><span>存档累计</span><strong>¥0.4567</strong><small>87 次有用量返回</small></div>
+                    <div><span>输入 Token</span><strong>452,100</strong><small>命中 + 未命中</small></div>
+                    <div><span>输出 Token</span><strong>98,340</strong><small>含思考 21,050</small></div>
+                    <div><span>平均延迟</span><strong>3,420 ms</strong><small>87 次完整响应</small></div>
+                    <div><span>最大延迟</span><strong>9,812 ms</strong><small>当前存档内</small></div>
+                  </div>
+                  <p class="notice">有 2 次上游未返回 usage，对应费用保持未知。</p>
+                </div>
+              </section>
+
+              <section class="section">
+                <div class="sectionLabel"><h3>⚡ 缓存</h3><span>命中率 42%</span></div>
+                <div class="sectionCard">
+                  <div class="cacheRow">
+                    <span>命中 Token<strong>186,000</strong></span>
+                    <span>未命中 Token<strong>266,100</strong></span>
+                  </div>
+                  <progress max="100" value="42" aria-label="缓存命中率 42%"></progress>
+                </div>
+              </section>
+
+              <section class="section">
+                <div class="sectionLabel"><h3>📦 调用池</h3><span>2 个</span></div>
+                <div class="sectionCard">
+                  <ul class="poolList">
+                    <li><span><strong>narrative</strong><small>55% 命中 · 120,000 / 100,000 输入 · 2,100 ms 平均</small></span><b>¥0.0234</b></li>
+                    <li><span><strong>fate-talent</strong><small>12% 命中 · 66,100 / 166,100 输入 · 4,500 ms 平均</small></span><b>¥0.4011</b></li>
+                  </ul>
+                </div>
+              </section>
+
+              <section class="section">
+                <div class="sectionLabel"><h3>📚 叙事压缩</h3><span>最近第 8 轮</span></div>
+                <div class="sectionCard">
+                  <div class="metricGrid">
+                    <div><span>L1</span><strong>2</strong><small>每 4 轮完整叙事</small></div>
+                    <div><span>L2</span><strong>0</strong><small>每 4 个 L1</small></div>
+                    <div><span>L3</span><strong>0</strong><small>每 4 个 L2</small></div>
+                    <div><span>层级跨度</span><strong>4 · 16 · 64</strong><small>L1 / L2 / L3 对应轮次</small></div>
+                  </div>
+                </div>
+              </section>
+
+              <section class="section">
+                <div class="sectionLabel"><h3>💰 DeepSeek 余额</h3><span>实时账户</span></div>
+                <div class="sectionCard">
+                  <p class="empty">使用自己的 DeepSeek 官方 API Key 后显示余额。</p>
+                </div>
+              </section>
+
+              <section class="section">
+                <div class="sectionLabel"><h3>📐 统计口径</h3><span>deepseek-cny-2026-07-26</span></div>
+                <div class="sectionCard">
+                  <p class="notice">金额按命中输入、未命中输入和输出 Token 计算；思考 Token 已包含在输出中，不重复计费。</p>
+                  <div class="actionRow actionRow--two">
+                    <a class="textLink" href="https://api-docs.deepseek.com/zh-cn/quick_start/pricing" target="_blank" rel="noreferrer">官方价格</a>
+                    <button type="button" class="secondaryButton">重置统计</button>
+                  </div>
+                </div>
+              </section>
+            </section>
+
           </section>
         </div>
         <div class="bottomBar">
-          <button type="button" class="backButton" title="关闭设置">
+          <a href="../../welcome/candidates/candidate-round-06-02-lower-block.html" class="backButton" title="关闭设置" target="_blank" rel="noopener">
             <strong>关闭</strong>
             <small>退出设置</small>
-          </button>
-          <button type="button" class="confirmButton" title="完成设置">
+          </a>
+          <a href="../../welcome/candidates/candidate-round-06-02-lower-block.html" class="confirmButton" title="完成设置" target="_blank" rel="noopener">
             <strong>完成设置</strong>
             <small>所有调整已即时生效</small>
-          </button>
+          </a>
         </div>
       </main>
     </div>
   </div>
+
+  <script>
+    // Prototype-only interaction; does not own product state.
+    (function () {
+      var tabs = document.querySelectorAll('.folderTabs button');
+      var panels = {
+        appearance: document.getElementById('panel-appearance'),
+        narrative: document.getElementById('panel-narrative'),
+        model: document.getElementById('panel-model'),
+        statistics: document.getElementById('panel-statistics')
+      };
+      var indexes = { appearance: '01', narrative: '02', model: '03', statistics: '04' };
+      var metaIndex = document.getElementById('metaIndex');
+
+      tabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          tabs.forEach(function (t) {
+            t.dataset.active = 'false';
+            t.setAttribute('aria-selected', 'false');
+          });
+          tab.dataset.active = 'true';
+          tab.setAttribute('aria-selected', 'true');
+          Object.keys(panels).forEach(function (key) {
+            panels[key].hidden = key !== tab.dataset.tab;
+          });
+          if (metaIndex && indexes[tab.dataset.tab]) {
+            metaIndex.textContent = '附 · ' + indexes[tab.dataset.tab];
+          }
+        });
+      });
+
+      // 推理模式下拉
+      var menus = document.querySelectorAll('.dropdownMenu');
+      var btns = document.querySelectorAll('.dropdownBtn');
+      btns.forEach(function (btn) {
+        btn.addEventListener('click', function (event) {
+          event.stopPropagation();
+          var menu = document.querySelector('.dropdownMenu[data-dropdown-menu="' + btn.dataset.dropdown + '"]');
+          var wasHidden = menu.hidden;
+          menus.forEach(function (m) { m.hidden = true; });
+          btns.forEach(function (b) { b.setAttribute('aria-expanded', 'false'); });
+          menu.hidden = !wasHidden;
+          btn.setAttribute('aria-expanded', String(!wasHidden));
+        });
+      });
+      document.querySelectorAll('.dropdownMenu button').forEach(function (item) {
+        item.addEventListener('click', function () {
+          var menu = item.closest('.dropdownMenu');
+          var btn = document.querySelector('.dropdownBtn[data-dropdown="' + menu.dataset.dropdownMenu + '"]');
+          btn.querySelector('.dropdownLabelText').textContent = item.dataset.label;
+          menu.querySelectorAll('button').forEach(function (b) { b.classList.remove('selected'); });
+          item.classList.add('selected');
+          menu.hidden = true;
+          btn.setAttribute('aria-expanded', 'false');
+        });
+      });
+      document.addEventListener('click', function () {
+        menus.forEach(function (m) { m.hidden = true; });
+        btns.forEach(function (b) { b.setAttribute('aria-expanded', 'false'); });
+      });
+
+      // 温度滑块
+      var slider = document.getElementById('temperatureSlider');
+      var footer = document.getElementById('temperatureFooter');
+      if (slider && footer) {
+        slider.addEventListener('input', function () {
+          footer.textContent = '当前值：' + Number(slider.value).toFixed(2) + ' · 太高可能导致回复不稳定';
+        });
+      }
+    })();
+  </script>
 </body>
 </html>

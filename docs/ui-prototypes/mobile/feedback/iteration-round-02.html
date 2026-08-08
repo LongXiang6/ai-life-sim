@@ -1,0 +1,133 @@
+<!-- Purpose: Record the second UI iteration round for the feedback-and-suggestions page, based on round-01 candidate 01 (category cards, single-pass form). Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>反馈与建议 · 第二轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+
+    .status-selected {
+      color: #0a544f;
+      background: #e2f0ee;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="iteration-round-01.html" aria-label="返回第一轮">←</a>
+    <div>
+      <p class="eyebrow">FEEDBACK / ROUND-02</p>
+      <h1>反馈与建议 · 第二轮</h1>
+    </div>
+    <span class="status status-selected">定版 01 · 选择候选 01</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>基于第一轮候选 01（分类卡片 · 一次填完）继续迭代：保持单页填完的最短路径，围绕「如何让反馈信息更完整、更易提交」比较三种内容引导方式。</dd></div>
+        <div><dt>保持不变</dt><dd>四分类卡片 2x2、内容必填、六位诊断编号复制、提交返回稳定编号、错误/成功态、返回上一页与返回欢迎界面；PD-023-8 免责声明；完整定版基线（暖纸墨全页、卡片化 20px 圆角、定版按钮规格）。</dd></div>
+        <div><dt>比较维度</dt><dd>内容引导方式（placeholder 联动 / 分类子字段 / 提交前核对）、字段数量、提交路径长度、首屏占用。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>分类联动引导</strong></header>
+          <p>保持单页结构不变，选择分类后内容输入区的提示与占位文案随类型变化（问题→发生了什么/期待结果，建议→能力与价值等），引导写出完整信息，不增加任何字段。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-01-guided-input.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>分类子字段</strong></header>
+          <p>选择分类后展开对应的小型子字段（问题→发生时机与影响范围；建议→优先级；体验→相关场景），结构化采集关键信息，其余分类保持轻量。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-02-structured-fields.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>提交摘要核对</strong></header>
+          <p>单页填写保持最短路径，点提交后先弹层核对（类型/内容预览/诊断编号/免责声明），确认后才真正提交；减少误触与信息遗漏，失败时明确提示整包未保存。</p>
+          <a class="candidate-open" href="candidates/candidate-round-02-03-submit-review.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 联动引导</span><span role="columnheader">02 子字段</span><span role="columnheader">03 提交核对</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">引导方式</strong><span role="cell">占位/提示随分类变化</span><span role="cell">分类专属小字段</span><span role="cell">提交前弹层核对</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">字段数量</strong><span role="cell">不新增</span><span role="cell">问题/建议/体验新增 1-2 个</span><span role="cell">不新增</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">提交路径</strong><span role="cell">直接提交</span><span role="cell">直接提交</span><span role="cell">多一次确认</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">首屏占用</strong><span role="cell">不变</span><span role="cell">随分类展开</span><span role="cell">不变</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-selected">定版 01 · 选择候选 01</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>入选</dt><dd>候选 01（分类联动引导）。保持第一轮候选 01 的分类卡片 2x2 与单页填完最短路径，选择分类后内容区占位与提示随类型联动，在不增加字段的前提下引导写出完整信息，迭代增量最小且对既有路径零打扰。</dd></div>
+        <div><dt>淘汰</dt><dd>候选 02（分类子字段）：为问题/建议/体验新增结构化小字段，信息更全但增加填写负担，超出反馈页轻量门槛；候选 03（提交摘要核对）：提交多一次确认，延长路径，与「一次填完」目标冲突。</dd></div>
+        <div><dt>下一轮继承</dt><dd>反馈页本轮定版。保留四分类卡片 2x2、分类联动引导、内容必填、六位诊断编号复制、提交返回稳定编号、返回上一页与返回欢迎界面、PD-023-8 免责声明；继承暖纸墨定版基线。定版原型：candidates/candidate-round-02-01-guided-input.html。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,138 @@
+<!-- Purpose: Record the first UI iteration round for the feedback-and-suggestions page. Owner: Interface system. Responsibility: Compare confirmed UI candidates without owning runtime behavior, state, or product styling. -->
+<!doctype html>
+<html lang="zh-CN" data-template-purpose="ui-iteration">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>反馈与建议 · 第一轮</title>
+  <link rel="stylesheet" href="../assets/library.css">
+  <style>
+    /* Worksheet-only link entries and decision status; does not define product styling. */
+    .candidate-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 40px;
+      padding: 8px 14px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      color: #fff;
+      background: var(--accent);
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .candidate-open:hover,
+    .candidate-open:focus-visible {
+      background: var(--accent-strong);
+      outline: 3px solid rgba(15, 111, 104, 0.18);
+      outline-offset: 2px;
+    }
+
+    .status-selected {
+      color: #0a544f;
+      background: #e2f0ee;
+    }
+
+    .status-continue {
+      color: #7a5a14;
+      background: #f6ecd6;
+    }
+  </style>
+</head>
+<body class="template-page">
+  <header class="template-header">
+    <a class="back-command" href="../index.html" aria-label="返回方案库">←</a>
+    <div>
+      <p class="eyebrow">FEEDBACK / ROUND-01</p>
+      <h1>反馈与建议 · 第一轮</h1>
+    </div>
+    <span class="status status-continue">历史 · 选择候选 01 进入第二轮</span>
+  </header>
+
+  <main class="template-main">
+    <section class="brief-band" aria-labelledby="brief-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">01</p>
+          <h2 id="brief-title">本轮边界</h2>
+        </div>
+      </div>
+      <dl class="brief-grid">
+        <div><dt>目标</dt><dd>将独立反馈页纳入定版语言：四分类（问题反馈/功能建议/体验意见/其他）、内容输入、六位诊断编号展示与复制、提交后返回稳定反馈编号，与欢迎页及模拟页入口串联；按 PD-023-8 补充免责声明（本地存档、限期诊断记录与主动上传的区别）。</dd></div>
+        <div><dt>保持不变</dt><dd>页面业务契约（四分类语义、内容必填、诊断编号、提交返回 FB-日期-编号、错误/成功态、提交期间状态与禁止重复提交、返回上一页与返回欢迎界面）不改变；继承完整定版基线（暖纸墨全页、卡片化 20px 圆角、定版按钮规格、底部返回导航）。</dd></div>
+        <div><dt>比较维度</dt><dd>类型选择形式（分类卡片 2x2 / 分步选择 / 单行 chip）、填写路径（一次填完 / 三步向导）、信息密度与首屏占用、免责声明的呈现位置。</dd></div>
+      </dl>
+    </section>
+
+    <section class="candidate-band" aria-labelledby="candidate-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">02</p>
+          <h2 id="candidate-title">候选方案</h2>
+        </div>
+      </div>
+      <div class="candidate-grid">
+        <article class="candidate" data-candidate="01">
+          <header><span>候选 01</span><strong>分类卡片 · 一次填完</strong></header>
+          <p>四分类卡片（2x2 网格）直接展示，类型/内容/诊断编号单页填完；免责声明在提交前以小字呈现。最短路径，分类可见度最高。</p>
+          <a class="candidate-open" href="candidates/candidate-round-01-01-category-cards.html" target="_blank" rel="noopener">
+            全屏打开候选 01 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="02">
+          <header><span>候选 02</span><strong>分步向导 · 三步完成</strong></header>
+          <p>先选类型、再写内容、最后核对提交；核对页含免责声明与「已了解」确认项。每次只专注一件事，首次反馈压力更低。</p>
+          <a class="candidate-open" href="candidates/candidate-round-01-02-guided-steps.html" target="_blank" rel="noopener">
+            全屏打开候选 02 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+
+        <article class="candidate" data-candidate="03">
+          <header><span>候选 03</span><strong>紧凑单列 · 最短滚动</strong></header>
+          <p>分类 chip 单行 + 大内容输入区 + 可折叠诊断编号；提交按钮常驻底部栏，免责声明一行小字。密度最高、首屏内容输入区最大。</p>
+          <a class="candidate-open" href="candidates/candidate-round-01-03-compact-single.html" target="_blank" rel="noopener">
+            全屏打开候选 03 <span aria-hidden="true">→</span>
+          </a>
+        </article>
+      </div>
+    </section>
+
+    <section class="comparison-band" aria-labelledby="comparison-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">03</p>
+          <h2 id="comparison-title">比较记录</h2>
+        </div>
+      </div>
+      <div class="comparison-table" role="table" aria-label="候选比较记录">
+        <div class="comparison-row comparison-head" role="row">
+          <span role="columnheader">维度</span><span role="columnheader">01 分类卡片</span><span role="columnheader">02 分步向导</span><span role="columnheader">03 紧凑单列</span>
+        </div>
+        <div class="comparison-row" role="row"><strong role="cell">类型选择</strong><span role="cell">2x2 卡片点选</span><span role="cell">分步大卡点选</span><span role="cell">单行 chip 点选</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">填写路径</strong><span role="cell">一次填完</span><span role="cell">三步向导</span><span role="cell">一次填完</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">首屏密度</strong><span role="cell">分类可见优先</span><span role="cell">单步聚焦</span><span role="cell">内容区最大</span></div>
+        <div class="comparison-row" role="row"><strong role="cell">免责呈现</strong><span role="cell">提交前小字</span><span role="cell">核对页 + 确认项</span><span role="cell">底部一行小字</span></div>
+      </div>
+    </section>
+
+    <section class="decision-band" aria-labelledby="decision-title">
+      <div class="section-heading compact-heading">
+        <div>
+          <p class="section-index">04</p>
+          <h2 id="decision-title">本轮决策</h2>
+        </div>
+        <span class="status status-continue">历史 · 选择候选 01 进入第二轮</span>
+      </div>
+      <dl class="decision-grid">
+        <div><dt>迭代基线</dt><dd>候选 01（分类卡片 · 一次填完）。四分类卡片 2x2 直接呈现、类型可见度最高、类型/内容/诊断编号单页填完、填写路径最短；免责声明按 PD-023-8 口径在提交前以小字呈现。以此内容进入第二轮迭代，本轮未定版。</dd></div>
+        <div><dt>暂缓</dt><dd>候选 02（分步向导）：三步路径延长填写时间；候选 03（紧凑单列）：分类 chip 单行说明被压缩、类型可读性弱于卡片。不进入下一轮。</dd></div>
+        <div><dt>下一轮继承</dt><dd>保留四分类卡片 2x2、单页填完结构、六位诊断编号复制、提交返回稳定编号、返回上一页与返回欢迎界面、PD-023-8 免责声明；继承暖纸墨定版基线（卡片化 20px 圆角、定版按钮规格）。</dd></div>
+      </dl>
+    </section>
+  </main>
+</body>
+</html>

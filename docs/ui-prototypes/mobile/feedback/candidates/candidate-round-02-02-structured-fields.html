@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>反馈与建议 · 第二轮候选 02 · 分类子字段</title>
+  <style>
+    /* Purpose: Static prototype of the feedback page, round-02 candidate 02: category-specific structured sub-fields. Owner: Interface system. Responsibility: Candidate only; inherits round-01 candidate 01 baseline and preserves the runtime contract. */
+    * { box-sizing: border-box; }
+
+    a { color: inherit; text-decoration: none; }
+
+    body {
+      margin: 0;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .frame {
+      position: relative;
+      isolation: isolate;
+      display: grid;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-width: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      overflow: hidden;
+      place-items: stretch;
+      background: #fdf9f1;
+      color-scheme: light;
+    }
+
+    .viewport {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      min-width: 0;
+      min-height: 0;
+      max-width: 100%;
+      margin: 0 auto;
+      overflow: hidden;
+    }
+
+    @media (min-width: 48rem) {
+      .viewport { width: min(100%, 30rem); }
+    }
+
+    .page {
+      display: flex;
+      width: 100%;
+      height: 100%;
+      min-height: 0;
+      flex-direction: column;
+      overflow: hidden;
+      background: #fdf9f1;
+      color: #2e2922;
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei UI", system-ui, sans-serif;
+    }
+
+    .screen {
+      display: flex;
+      min-height: 0;
+      flex: 1;
+      flex-direction: column;
+      padding: 22px 28px 16px;
+      overflow: hidden;
+    }
+
+    .meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #8a7f6e;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .header {
+      padding: 22px 4px 14px;
+      border-bottom: 1px solid #eadfce;
+    }
+
+    .header h1 {
+      margin: 0;
+      color: #241f18;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+    }
+
+    .header p {
+      margin: 6px 0 0;
+      color: #8a7f6e;
+      font-size: 11px;
+    }
+
+    .content {
+      min-height: 0;
+      flex: 1;
+      padding: 14px 0;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    .content::-webkit-scrollbar { display: none; }
+
+    .panelIntro {
+      margin: 0 4px 12px;
+      color: #8a7f6e;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .section { margin: 0 0 14px; }
+
+    .sectionLabel {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 0 4px 6px;
+    }
+
+    .sectionLabel h3 { margin: 0; color: #241f18; font-size: 13px; font-weight: 700; }
+
+    .sectionLabel span { color: #a0907a; font-size: 10px; }
+
+    .sectionCard {
+      padding: 4px 16px 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 20px;
+      background: #fffdf8;
+    }
+
+    .categoryGrid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      padding: 8px 0 4px;
+    }
+
+    .categoryButton {
+      display: grid;
+      gap: 3px;
+      min-height: 62px;
+      padding: 10px 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 16px;
+      background: #fffdf8;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      text-align: left;
+    }
+
+    .categoryButton[aria-pressed="true"] {
+      border-color: #977026;
+      background: #faf4e8;
+    }
+
+    .categoryTitle,
+    .categoryDescription { display: block; }
+
+    .categoryTitle { font-size: 12px; font-weight: 650; }
+
+    .categoryDescription {
+      color: #8a7f6e;
+      font-size: 10px;
+      line-height: 1.35;
+    }
+
+    /* 分类子字段 */
+    .subField[hidden] { display: none; }
+
+    .subField {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed #eadfce;
+    }
+
+    .subFieldLabel {
+      display: block;
+      margin-bottom: 6px;
+      color: #8a7f6e;
+      font-size: 10px;
+    }
+
+    .chipRow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chipButton {
+      min-height: 30px;
+      padding: 0 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 15px;
+      background: #fffdf8;
+      color: #8a7f6e;
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+    }
+
+    .chipButton[aria-pressed="true"] {
+      border-color: #977026;
+      background: #faf4e8;
+      color: #6b4d1d;
+      font-weight: 650;
+    }
+
+    .styleSelect {
+      width: 100%;
+      min-height: 38px;
+      padding: 0 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 14px;
+      background: #fffdf8;
+      color: #2e2922;
+      font: inherit;
+      font-size: 12px;
+    }
+
+    .styleInput {
+      width: 100%;
+      margin-top: 8px;
+      padding: 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 16px;
+      background: #fffdf8;
+      color: #2e2922;
+      font: inherit;
+      font-size: 12px;
+      line-height: 1.6;
+      resize: none;
+    }
+
+    .styleInput::placeholder { color: #c3b8a2; }
+
+    .styleMeta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 8px 2px 0;
+      color: #a0907a;
+      font-size: 10px;
+    }
+
+    .dataRow {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0 4px;
+    }
+
+    .dataRow strong,
+    .dataRow small { display: block; }
+
+    .dataRow strong { color: #2e2922; font-size: 12px; font-weight: 650; }
+
+    .dataRow small {
+      margin-top: 3px;
+      color: #8a7f6e;
+      font-size: 10px;
+      line-height: 1.4;
+    }
+
+    .valueAction {
+      min-height: 30px;
+      padding: 0 12px;
+      border: 1px solid #d8c9a8;
+      border-radius: 15px;
+      background: #faf4e8;
+      color: #6b4d1d;
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .disclaimer {
+      margin: 0;
+      padding: 8px 10px;
+      border-radius: 14px;
+      background: #faf4e8;
+      color: #8a7f6e;
+      font-size: 10px;
+      line-height: 1.55;
+    }
+
+    .submitButton {
+      width: 100%;
+      min-height: 46px;
+      margin: 10px 0 4px;
+      border: 1px solid #977026;
+      border-radius: 24px;
+      background: #977026;
+      color: #fff;
+      cursor: pointer;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 650;
+    }
+
+    .submitButton:disabled {
+      border-color: #d8d2c4;
+      background: #ede7d9;
+      color: #b5ab96;
+      cursor: not-allowed;
+    }
+
+    .error,
+    .success {
+      margin: 0 0 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .error { background: #f8eef1; color: #936875; }
+    .success { background: #eef3e2; color: #5a6b3a; }
+
+    .success strong { font-weight: 700; }
+
+    .success button {
+      margin-left: 8px;
+      border: 0;
+      background: transparent;
+      color: #5a6b3a;
+      cursor: pointer;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 650;
+      text-decoration: underline;
+    }
+
+    .bottomBar {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: center;
+      gap: 10px;
+      padding: 10px 20px 16px;
+      border-top: 1px solid #eadfce;
+      background: #fdf9f1;
+    }
+
+    .backButton {
+      display: grid;
+      width: 46px;
+      height: 46px;
+      place-items: center;
+      border: 1px solid #e5e1d6;
+      border-radius: 50%;
+      background: #fff;
+      color: #5c5447;
+      font-size: 16px;
+    }
+
+    .returnButton {
+      display: grid;
+      min-height: 46px;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border: 1px solid #e5e1d6;
+      border-radius: 24px;
+      background: #fff;
+      color: #2e2922;
+      cursor: pointer;
+      font: inherit;
+      text-align: left;
+    }
+
+    .returnNumber { color: #a0907a; font-size: 11px; font-weight: 650; }
+
+    .returnCopy strong,
+    .returnCopy small { display: block; }
+    .returnCopy strong { font-size: 14px; font-weight: 650; }
+    .returnCopy small { margin-top: 2px; color: #8a7f6e; font-size: 11px; font-weight: 500; }
+
+    .returnArrow {
+      display: grid;
+      width: 25px;
+      height: 25px;
+      place-items: center;
+      border-radius: 50%;
+      background: #977026;
+      color: #fff;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="viewport">
+      <main class="page">
+        <div class="screen">
+          <div class="meta" aria-hidden="true"><span>AI LIFE SIM · 命书</span><span>附 · 反馈</span></div>
+          <header class="header">
+            <h1>💬 反馈与建议</h1>
+            <p>问题、建议与体验意见，都会完整送达。</p>
+          </header>
+
+          <section class="content" aria-label="反馈表单">
+            <p class="panelIntro">反馈会附上最近 20 轮叙事与运行诊断，方便准确定位问题。</p>
+
+            <section class="section">
+              <div class="sectionLabel"><h3>📋 反馈类型</h3><span>四选一</span></div>
+              <div class="sectionCard">
+                <div class="categoryGrid" role="group" aria-label="反馈类型">
+                  <button type="button" class="categoryButton" data-category="problem" aria-pressed="false"><span class="categoryTitle">⚠️ 问题反馈</span><span class="categoryDescription">错误、异常或无法继续</span></button>
+                  <button type="button" class="categoryButton" data-category="feature" aria-pressed="true"><span class="categoryTitle">✨ 功能建议</span><span class="categoryDescription">希望增加或调整的内容</span></button>
+                  <button type="button" class="categoryButton" data-category="experience" aria-pressed="false"><span class="categoryTitle">🌱 体验意见</span><span class="categoryDescription">叙事、界面或操作感受</span></button>
+                  <button type="button" class="categoryButton" data-category="other" aria-pressed="false"><span class="categoryTitle">📌 其他</span><span class="categoryDescription">不属于以上分类</span></button>
+                </div>
+              </div>
+            </section>
+
+            <section class="section">
+              <div class="sectionLabel"><h3>✍️ 反馈内容</h3><span>必填</span></div>
+              <div class="sectionCard">
+                <!-- 子字段：随分类切换（原型迭代方向：结构化采集关键信息） -->
+                <div class="subField" id="sub-problem" hidden>
+                  <label class="subFieldLabel" for="problemTiming">发生时机</label>
+                  <select class="styleSelect" id="problemTiming">
+                    <option>进行中</option>
+                    <option>开始新人生</option>
+                    <option>加载存档</option>
+                    <option>打开设置</option>
+                    <option>其他</option>
+                  </select>
+                  <span class="subFieldLabel" style="margin-top:10px">影响范围</span>
+                  <div class="chipRow" role="group" aria-label="影响范围">
+                    <button type="button" class="chipButton" aria-pressed="true">完全无法进行</button>
+                    <button type="button" class="chipButton" aria-pressed="false">部分功能异常</button>
+                    <button type="button" class="chipButton" aria-pressed="false">仅视觉问题</button>
+                  </div>
+                </div>
+
+                <div class="subField" id="sub-feature">
+                  <span class="subFieldLabel">期望优先级</span>
+                  <div class="chipRow" role="group" aria-label="期望优先级">
+                    <button type="button" class="chipButton" aria-pressed="false">高</button>
+                    <button type="button" class="chipButton" aria-pressed="true">中</button>
+                    <button type="button" class="chipButton" aria-pressed="false">低</button>
+                  </div>
+                </div>
+
+                <div class="subField" id="sub-experience" hidden>
+                  <span class="subFieldLabel">相关场景</span>
+                  <div class="chipRow" role="group" aria-label="相关场景">
+                    <button type="button" class="chipButton" aria-pressed="false">叙事</button>
+                    <button type="button" class="chipButton" aria-pressed="true">界面</button>
+                    <button type="button" class="chipButton" aria-pressed="false">性能</button>
+                    <button type="button" class="chipButton" aria-pressed="false">其他</button>
+                  </div>
+                </div>
+
+                <textarea class="styleInput" rows="7" id="feedbackMessage" placeholder="描述问题或建议"></textarea>
+                <div class="styleMeta"><span id="charCount">0 字</span><span>可附截图说明</span></div>
+              </div>
+            </section>
+
+            <section class="section">
+              <div class="sectionLabel"><h3>🔐 六位诊断编号</h3><span>便于定位记录</span></div>
+              <div class="sectionCard">
+                <div class="dataRow">
+                  <span><strong>U4Q32L</strong><small>反馈后可凭此编号查询近期记录</small></span>
+                  <button type="button" class="valueAction" data-copy="U4Q32L">复制编号</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="section">
+              <p class="disclaimer">提交即代表你已了解：本地存档不会上传；诊断记录在服务器限期保存 30 天，仅用于定位问题；除你主动提交的反馈外，服务器不会保存你的故事内容。</p>
+            </section>
+
+            <p class="error" id="errorBox" role="alert" hidden>提交失败，请稍后重试。</p>
+            <section class="success" id="successBox" role="status" hidden>
+              <span>反馈已完整保存</span><strong id="feedbackId">FB-20260808-A1B2</strong><button type="button" data-copy="FB-20260808-A1B2">复制编号</button>
+            </section>
+
+            <button type="button" class="submitButton" id="submitButton" disabled>提交反馈</button>
+          </section>
+        </div>
+
+        <div class="bottomBar">
+          <button type="button" class="backButton" aria-label="返回上一页">←</button>
+          <a href="../../welcome/candidates/candidate-round-06-02-lower-block.html" class="returnButton" target="_blank" rel="noopener">
+            <span class="returnNumber">00</span>
+            <span class="returnCopy"><strong>返回</strong><small>回到欢迎界面</small></span>
+            <span class="returnArrow" aria-hidden="true">→</span>
+          </a>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    // Prototype-only interaction; does not own product state.
+    (function () {
+      var message = document.getElementById('feedbackMessage');
+      var count = document.getElementById('charCount');
+      var submit = document.getElementById('submitButton');
+      var success = document.getElementById('successBox');
+      var panels = {
+        problem: document.getElementById('sub-problem'),
+        feature: document.getElementById('sub-feature'),
+        experience: document.getElementById('sub-experience'),
+        other: null
+      };
+
+      function update() {
+        count.textContent = message.value.length + ' 字';
+        submit.disabled = message.value.trim().length === 0;
+      }
+
+      message.addEventListener('input', update);
+
+      document.querySelectorAll('.categoryButton').forEach(function (button) {
+        button.addEventListener('click', function () {
+          document.querySelectorAll('.categoryButton').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+          button.setAttribute('aria-pressed', 'true');
+          Object.keys(panels).forEach(function (key) {
+            if (panels[key]) panels[key].hidden = key !== button.dataset.category;
+          });
+        });
+      });
+
+      document.querySelectorAll('.chipButton').forEach(function (button) {
+        button.addEventListener('click', function () {
+          var group = button.closest('[role="group"]');
+          group.querySelectorAll('.chipButton').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+          button.setAttribute('aria-pressed', 'true');
+        });
+      });
+
+      document.querySelectorAll('[data-copy]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          var original = button.textContent;
+          button.textContent = '已复制';
+          setTimeout(function () { button.textContent = original; }, 1200);
+        });
+      });
+
+      submit.addEventListener('click', function () {
+        if (submit.disabled) return;
+        success.hidden = false;
+        message.value = '';
+        update();
+      });
+    })();
+  </script>
+</body>
+</html>

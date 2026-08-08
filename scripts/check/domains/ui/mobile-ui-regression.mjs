@@ -147,6 +147,7 @@ const accountPageSrc = readCodeDirectory('src/mods/mod-pages/pages/account')
 const feedbackPageSrc = readRel('src/mods/mod-pages/pages/feedback/page.tsx')
 const prototypeLibraryCssSrc = readRel('docs/ui-prototypes/mobile/assets/library.css')
 const prototypeIndexSrc = readRel('docs/ui-prototypes/mobile/index.html')
+const prototypeMainFlowIndexSrc = readRel('docs/ui-prototypes/mobile/main-flow/index.html')
 const prototypeIterationTemplateSrc = readRel('docs/ui-prototypes/mobile/template/iteration.html')
 const prototypeRootEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile')).sort()
 const prototypeAssetEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/assets')).sort()
@@ -178,6 +179,11 @@ const prototypeAccountIterationSrc = readRel('docs/ui-prototypes/mobile/account/
 const prototypeAccountIterationRound02Src = readRel('docs/ui-prototypes/mobile/account/iteration-round-02.html')
 const prototypeAccountIterationRound03Src = readRel('docs/ui-prototypes/mobile/account/iteration-round-03.html')
 const prototypeAccountCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/account/candidates')).sort()
+const prototypeHelpIterationSrc = readRel('docs/ui-prototypes/mobile/help/iteration-round-01.html')
+const prototypeHelpCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/help/candidates')).sort()
+const prototypeFeedbackIterationSrc = readRel('docs/ui-prototypes/mobile/feedback/iteration-round-01.html')
+const prototypeFeedbackIteration02Src = readRel('docs/ui-prototypes/mobile/feedback/iteration-round-02.html')
+const prototypeFeedbackCandidateEntries = fs.readdirSync(path.join(root, 'docs/ui-prototypes/mobile/feedback/candidates')).sort()
 const pageManifestSrc = readRel('src/mods/mod-pages/manifest.ts')
 
 assertOk(
@@ -879,7 +885,7 @@ assertOk(
 )
 
 assertOk(
-  JSON.stringify(prototypeRootEntries) === JSON.stringify(['account', 'assets', 'index.html', 'leaderboard', 'mailbox', 'save-sheet', 'settings', 'template', 'welcome'])
+  JSON.stringify(prototypeRootEntries) === JSON.stringify(['account', 'assets', 'feedback', 'help', 'index.html', 'leaderboard', 'mailbox', 'main-flow', 'save-sheet', 'settings', 'template', 'welcome'])
     && JSON.stringify(prototypeAssetEntries) === JSON.stringify(['library.css'])
     && JSON.stringify(prototypeTemplateEntries) === JSON.stringify(['iteration.html'])
     && prototypeWelcomeIterationSrc.includes('data-template-purpose="ui-iteration"')
@@ -929,15 +935,36 @@ assertOk(
     && ['candidate-01-current.html', 'candidate-02-minimal.html', 'candidate-03-focused.html',
         'candidate-round-02-01-baseline.html', 'candidate-round-02-02-form-rhythm.html', 'candidate-round-02-03-data-rows.html',
         'candidate-round-03-01-baseline.html', 'candidate-round-03-02-signed-in.html', 'candidate-round-03-03-personal-data.html']
-      .every(marker => prototypeAccountCandidateEntries.includes(marker)),
+      .every(marker => prototypeAccountCandidateEntries.includes(marker))
+    && prototypeHelpIterationSrc.includes('data-template-purpose="ui-iteration"')
+    && ['candidate-round-01-01-chapter-nav.html', 'candidate-round-01-02-chapter-list.html', 'candidate-round-01-03-quick-guide.html']
+      .every(marker => prototypeHelpCandidateEntries.includes(marker))
+    && prototypeFeedbackIterationSrc.includes('data-template-purpose="ui-iteration"')
+    && prototypeFeedbackIteration02Src.includes('data-template-purpose="ui-iteration"')
+    && ['candidate-round-01-01-category-cards.html', 'candidate-round-01-02-guided-steps.html', 'candidate-round-01-03-compact-single.html',
+        'candidate-round-02-01-guided-input.html', 'candidate-round-02-02-structured-fields.html', 'candidate-round-02-03-submit-review.html']
+      .every(marker => prototypeFeedbackCandidateEntries.includes(marker)),
   'the UI solution library must contain the generic index, structural stylesheet, reusable template, and the registered welcome iteration directories',
 )
 assertOk(
   prototypeIndexSrc.includes('data-library-purpose="generic-ui-iteration"')
     && prototypeIndexSrc.includes('href="template/iteration.html"')
     && prototypeIndexSrc.includes('当前不保留任何既定主题、定版稿或页面构图')
-    && prototypeIndexSrc.includes('Runtime authority: none'),
-  'the generic library index must stay neutral and explicitly reject runtime visual authority',
+    && prototypeIndexSrc.includes('Runtime authority: none')
+    && prototypeIndexSrc.includes('href="main-flow/index.html"')
+    && !prototypeIndexSrc.includes('class="iteration-branch'),
+  'the generic library index must stay neutral, register logical-interface entries only, and leave page iterations to the middle layer',
+)
+assertOk(
+  prototypeMainFlowIndexSrc.includes('data-flow-purpose="mobile-main-flow"')
+    && prototypeMainFlowIndexSrc.includes('href="../index.html"')
+    && ['../welcome/iteration-round-06.html', '../save-sheet/iteration-round-01.html', '../leaderboard/iteration-round-05.html',
+        '../mailbox/iteration-round-02.html', '../settings/iteration-round-04.html', '../account/iteration-round-03.html',
+        '../feedback/iteration-round-02.html', '../help/iteration-round-01.html']
+      .every(marker => prototypeMainFlowIndexSrc.includes(marker))
+    && prototypeMainFlowIndexSrc.includes('iteration-branch-current')
+    && prototypeMainFlowIndexSrc.includes('Runtime authority: none'),
+  'the mobile main-flow middle layer must register every page iteration entry with its current branch and stay runtime-neutral',
 )
 assertOk(
   prototypeIterationTemplateSrc.includes('data-template-purpose="ui-iteration"')

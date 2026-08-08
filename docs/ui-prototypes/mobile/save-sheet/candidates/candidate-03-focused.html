@@ -8,6 +8,11 @@
     /* Purpose: Static prototype of the focused save-sheet welcome-style candidate. Owner: Interface system. Responsibility: Candidate only; inherits the finalized welcome baseline (warm-paper color, original button specs). */
     * { box-sizing: border-box; }
 
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
     body {
       margin: 0;
       color: #2e2922;
@@ -386,11 +391,11 @@
 
         <section class="actions" aria-label="开始与辅助操作">
           <button type="button" class="primaryAction" title="进入世界选择界面，创建一个全新的人生">
-            开始新人生
+            🌱 开始新人生
           </button>
           <div class="routeList">
             <button type="button" class="routeAction" aria-expanded="true" title="展开存档栏位，选择一段人生继续">
-              <strong>继续人生</strong>
+              <strong>📖 继续人生</strong>
               <small>2 个存档 · 最近：朝雨</small>
             </button>
           </div>
@@ -400,12 +405,12 @@
       <section class="saveSheet" role="dialog" aria-modal="true" aria-labelledby="save-title">
         <div class="saveSheetHead">
           <div>
-            <strong id="save-title">选择存档</strong>
+            <strong id="save-title">🗂️ 选择存档</strong>
             <small>继续一段尚未写完的人生</small>
           </div>
-          <button type="button" class="saveSheetClose" aria-label="关闭存档">
+          <a href="../../welcome/candidates/candidate-round-06-02-lower-block.html" class="saveSheetClose" aria-label="关闭存档" title="关闭存档" target="_blank" rel="noopener">
             <svg viewBox="0 0 14 14" aria-hidden="true"><path d="m3 3 8 8M11 3l-8 8" /></svg>
-          </button>
+          </a>
         </div>
 
         <div class="saveList" aria-label="存档栏位">
@@ -428,7 +433,7 @@
         </div>
 
         <button type="button" class="continueSave">
-          <strong>继续此人生</strong>
+          <strong>▶ 继续此人生</strong>
           <small>朝雨</small>
         </button>
       </section>
